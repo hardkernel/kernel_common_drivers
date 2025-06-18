@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * cm2_adj for pq module
- *
- * Copyright (c) 2017 powerqin <yong.qin@amlogic.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the smems of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT

@@ -1,8 +1,6 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT)
- *
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
- * Author: Xingyu Chen <xingyu.chen@amlogic.com>
- *
  */
 
 #ifndef _DT_BINDINGS_AMLOGIC_MESON_A1_RESET_H

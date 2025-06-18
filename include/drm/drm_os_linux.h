@@ -1,7 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/**
- * \file drm_os_linux.h
- * OS abstraction macros.
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/interrupt.h>	/* For task queue support */

@@ -1,10 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- *
- * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
- *
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+
 #include "../../lcd_reg.h"
 
 #ifndef CONFIG_AMLOGIC_MEDIA_RDMA

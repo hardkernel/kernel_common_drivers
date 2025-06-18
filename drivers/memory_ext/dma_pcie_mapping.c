@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- *opyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/err.h>

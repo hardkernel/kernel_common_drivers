@@ -1,12 +1,8 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
 
-//#####################################################
-//#WriteBy: ESMT
-//#Product: AD82088D_GUI_v1.0
-//#Date:2021/10/26
-//#####################################################
-
-//Register_Table {Register Address, Register Data}
 #ifdef AD82088D_CHANGE_EQ_MODE_EN
 static unsigned char eq_mode_2_reg_tab[AD82088D_REGISTER_COUNT][2] = {
 		{0x00, 0x04},//##AGC_ALPHA

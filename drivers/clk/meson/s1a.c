@@ -1,8 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Amlogic Meson-S1A Clock Controller Driver
- *
- * Copyright (c) 2018 Amlogic, inc.
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>

@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+
 #include<linux/delay.h>
 #include "mixer_hw.h"
 #include "earc.h"

@@ -1,9 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * PDM match table
- *
- * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __PDM_MATCH_TABLE_H__

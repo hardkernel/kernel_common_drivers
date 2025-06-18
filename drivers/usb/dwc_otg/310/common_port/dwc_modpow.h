@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * dwc_modpow.h
- * See dwc_modpow.c for license and changes
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+
 #ifndef _DWC_MODPOW_H
 #define _DWC_MODPOW_H
 

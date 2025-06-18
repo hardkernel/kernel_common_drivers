@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+#
+# Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+#
 
 function get_paths_and_enter_common_path()
 {

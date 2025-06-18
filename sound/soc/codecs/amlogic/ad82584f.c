@@ -1,9 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * ALSA SoC ad82584f codec driver
- *
- * Copyright (C) 2019 Amlogic,inc
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/module.h>

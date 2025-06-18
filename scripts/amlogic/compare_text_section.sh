@@ -1,5 +1,8 @@
 #!/bin/bash
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+#
+# Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+#
 
 # ./common/common_drivers/scripts/amlogic/compare_text_section --vmlinux_gki <path>/vmlinux --vmlinux_amlogic <path>/vmlinux
 function show_help {

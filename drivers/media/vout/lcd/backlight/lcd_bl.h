@@ -1,9 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- *
- * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+
 #ifndef __AML_BL_DRV_H__
 #define __AML_BL_DRV_H__
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>

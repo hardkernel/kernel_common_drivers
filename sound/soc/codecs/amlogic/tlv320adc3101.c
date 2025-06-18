@@ -1,11 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * ALSA SoC tlv320adc3101 codec driver
- *
- * Copyright (C) 2019 Amlogic,inc
- *
- * Based on sound/soc/codecs/tlv320aic320x and
- * TI driver for kernel 2.6.27.
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
