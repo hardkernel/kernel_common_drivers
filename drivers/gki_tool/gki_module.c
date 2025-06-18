@@ -139,6 +139,9 @@ int cmdline_parse_args(char *args)
 	args = skip_spaces(args);
 	i = 0;
 	cpv = kmalloc_array(cpv_count, sizeof(struct cmd_param_val), GFP_KERNEL);
+	if (!cpv)
+		return -ENOMEM;
+
 	while (*args) {
 		args = next_arg(args, &param, &val);
 		if (!val && strcmp(param, "--") == 0)

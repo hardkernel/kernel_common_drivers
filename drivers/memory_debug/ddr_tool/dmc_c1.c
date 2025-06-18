@@ -141,8 +141,7 @@ static void c1_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 
 static int c1_dmc_mon_set(struct dmc_monitor *mon)
 {
-	unsigned long value, add;
-	unsigned int wb;
+	unsigned int value, add, wb;
 
 	wb = mon->addr_start & 0x01;
 	add = mon->addr_start & PAGE_MASK;

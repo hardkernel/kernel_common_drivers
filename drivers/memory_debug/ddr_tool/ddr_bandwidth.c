@@ -800,6 +800,11 @@ static ssize_t mode_store(const struct class *class,
 	if (val > MODE_AUTODETECT || val < MODE_DISABLE)
 		val = MODE_AUTODETECT;
 
+	if (!aml_db->ops) {
+		pr_err("aml_db->ops is null\n");
+		return 0;
+	}
+
 	if (aml_db->mode == MODE_DISABLE && val != MODE_DISABLE) {
 		int r = request_irq(aml_db->irq_num, dmc_irq_handler,
 				IRQF_SHARED | IRQF_ONESHOT, "ddr_bandwidth", (void *)aml_db);
@@ -818,8 +823,7 @@ static ssize_t mode_store(const struct class *class,
 		aml_db->busy = 0;
 		clear_bandwidth_statistics();
 	}
-	if (val == MODE_AUTODETECT && aml_db->ops &&
-	    aml_db->ops->config_port && !dmc_dev_is_byte(aml_db)) {
+	if (val == MODE_AUTODETECT && aml_db->ops->config_port && !dmc_dev_is_byte(aml_db)) {
 		if (aml_db->mali_port[0] >= 0) {
 			aml_db->ops->config_port(aml_db, 0, aml_db->mali_port[0]);
 			aml_db->port[0] = (1ULL << aml_db->mali_port[0]);
