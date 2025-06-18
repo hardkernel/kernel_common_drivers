@@ -19,7 +19,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_SI2176,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ISDBC, SYS_ATSC, SYS_DTMB,
-				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -36,7 +36,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_SI2196,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ATSC, SYS_DTMB, SYS_DVBT2,
-				SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -51,7 +51,7 @@ static const struct tuner_module tuner_modules[] = {
 	{
 		.name = "fq1216",
 		.id = AM_TUNER_FQ1216,
-		.delsys = { SYS_ANALOG },
+		.delsys = { SYS_ANALOG_DVB_V512 },
 		.type = { FE_ANALOG, AML_FE_UNDEFINED },
 		.attach = aml_tuner_attach,
 		.detach = aml_tuner_detach,
@@ -61,7 +61,7 @@ static const struct tuner_module tuner_modules[] = {
 	{
 		.name = "htm",
 		.id = AM_TUNER_HTM,
-		.delsys = { SYS_ANALOG },
+		.delsys = { SYS_ANALOG_DVB_V512 },
 		.type = { FE_ANALOG, AML_FE_UNDEFINED },
 		.attach_symbol = NULL,
 		.attach_symbol = NULL,
@@ -73,7 +73,7 @@ static const struct tuner_module tuner_modules[] = {
 	{
 		.name = "ctc703",
 		.id = AM_TUNER_CTC703,
-		.delsys = { SYS_ANALOG },
+		.delsys = { SYS_ANALOG_DVB_V512 },
 		.type = { FE_ANALOG, AML_FE_UNDEFINED },
 		.attach_symbol = NULL,
 		.attach = aml_tuner_attach,
@@ -86,7 +86,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_SI2177,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ISDBC, SYS_ATSC, SYS_DTMB,
-				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -104,7 +104,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_R840,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ISDBC, SYS_ATSC, SYS_DTMB,
-				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -122,7 +122,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_SI2157,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ISDBC, SYS_ATSC, SYS_DTMB,
-				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -140,7 +140,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_SI2151,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ATSC, SYS_DTMB, SYS_DVBT2,
-				SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -157,7 +157,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_MXL661,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ATSC, SYS_DTMB, SYS_DVBT2,
-				SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -191,7 +191,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_SI2159,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ISDBC, SYS_ATSC, SYS_DTMB,
-				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -208,7 +208,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_R842,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ISDBC, SYS_ATSC, SYS_DTMB,
-				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -225,7 +225,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_ATBM2040,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ISDBC, SYS_ATSC, SYS_DTMB,
-				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -242,7 +242,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_ATBM253,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ISDBC, SYS_ATSC, SYS_DTMB,
-				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -323,7 +323,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_R848,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ISDBC, SYS_ATSC, SYS_DTMB,
-				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -340,7 +340,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_MXL603,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ATSC, SYS_ATSCMH, SYS_DTMB,
-				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,
@@ -436,7 +436,7 @@ static const struct tuner_module tuner_modules[] = {
 		.id = AM_TUNER_RDA5160,
 		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
 				SYS_ISDBT, SYS_ATSC, SYS_DTMB, SYS_DVBT2,
-				SYS_DVBC_ANNEX_C, SYS_ANALOG
+				SYS_DVBC_ANNEX_C, SYS_ANALOG_DVB_V512
 		},
 		.type = { FE_OFDM, FE_ATSC, FE_QAM,
 				FE_DTMB, FE_ISDBT, FE_ANALOG,

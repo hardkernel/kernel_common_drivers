@@ -20,6 +20,11 @@
 #define FE_DTMB			(FE_ANALOG + 1)
 #define FE_ISDBT		(FE_DTMB + 1)
 
+//FEC_1_4, FEC_1_3 are already supported by V5.12
+//so below 2 Macros are only for V5.11 and older versions
+#define FEC_1_4_DVB_V511			(FEC_2_5 + 1)
+#define FEC_1_3_DVB_V511			(FEC_1_4_DVB_V511 + 1)
+
 struct fe_blind_scan_parameters {
 	/* minimum tuner frequency in kHz */
 	__u32 min_frequency;
@@ -62,11 +67,13 @@ struct fe_blind_scan_parameters {
 #define DTV_SINGLE_CABLE_BANK           113
 #define DTV_SINGLE_CABLE_UNCOMMITTED    114
 #define DTV_SINGLE_CABLE_COMMITTED      115
+#define DTV_BLIND_SCAN_STEP_NEXT        116
 /* Blind scan end*/
-#define DTV_DELIVERY_SUB_SYSTEM			116
+#define DTV_DELIVERY_SUB_SYSTEM			117
 #define AML_DTV_MAX_COMMAND		DTV_DELIVERY_SUB_SYSTEM
 
-#define SYS_ANALOG		(SYS_DVBC2 + 1)
+#define SYS_ANALOG		        (SYS_DVBC_ANNEX_C + 1) //only for V5.11 and old versions
+#define SYS_ANALOG_DVB_V512		0xfe
 
 enum fe_ofdm_mode {
 	OFDM_DVBT,

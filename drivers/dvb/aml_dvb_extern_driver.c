@@ -24,7 +24,7 @@
 #include "aml_dvb_extern_i2c.h"
 
 #define AML_DVB_EXTERN_DEVICE_NAME "aml_dvb_extern"
-#define AML_DVB_EXTERN_VERSION     "V1.28"
+#define AML_DVB_EXTERN_VERSION     "V1.29"
 
 static struct dvb_extern_device *dvb_extern_dev;
 static struct mutex dvb_extern_mutex;
@@ -40,6 +40,7 @@ static char *fe_type_name[] = {
 	"FE_ISDBT"
 };
 
+#define END_SYS_DELIVERY	20
 static char *fe_delsys_name[] = {
 	"SYS_UNDEFINED",
 	"SYS_DVBC_ANNEX_A",
@@ -60,7 +61,7 @@ static char *fe_delsys_name[] = {
 	"SYS_DVBT2",
 	"SYS_TURBO",
 	"SYS_DVBC_ANNEX_C",
-	"DVBC2",
+	"SYS_DVBC2",
 	"SYS_ANALOG"
 };
 
@@ -78,7 +79,14 @@ static char *fe_modulation_name[] = {
 	"APSK_16",
 	"APSK_32",
 	"DQPSK",
-	"QAM_4_NR"
+	"QAM_4_NR",
+	"QAM_1024",
+	"QAM_4096",
+	"APSK_8_L",
+	"APSK_16_L",
+	"APSK_32_L",
+	"APSK_64",
+	"APSK_64_L"
 };
 
 static void aml_dvb_extern_set_power(struct gpio_config *pin_cfg, int on)
@@ -196,6 +204,16 @@ void aml_dvb_extern_attach(void)
 
 		schedule_work(&dvb_extern_dev->attach_work.work);
 	}
+}
+
+static const char *aml_get_cur_delsys(enum fe_delivery_system delsys)
+{
+	if (delsys >= SYS_UNDEFINED && delsys < END_SYS_DELIVERY)
+		return fe_delsys_name[delsys];
+	else if (delsys == SYS_ANALOG_DVB_V512)
+		return fe_delsys_name[END_SYS_DELIVERY];
+	else
+		return "invalid delsys";
 }
 
 static ssize_t tuner_debug_store(const struct class *class,
@@ -668,7 +686,7 @@ static ssize_t demod_debug_store(const struct class *class,
 		else
 			delsys = SYS_DTMB;
 
-		if (delsys > SYS_ANALOG) {
+		if (delsys >= END_SYS_DELIVERY && delsys != SYS_ANALOG_DVB_V512) {
 			pr_err("init demod delsys [%d] error\n",
 					delsys);
 			goto EXIT;
@@ -681,7 +699,7 @@ static ssize_t demod_debug_store(const struct class *class,
 
 		pr_err("init demod delsys [%d][%s]\n",
 				c->delivery_system,
-				fe_delsys_name[c->delivery_system]);
+				aml_get_cur_delsys(c->delivery_system));
 
 		if (fe->ops.init)
 			fe->ops.init(fe);
@@ -787,7 +805,7 @@ static ssize_t demod_debug_store(const struct class *class,
 		}
 	} else if (fe && !strncmp(parm[0], "uninit", 6)) {
 		memset(&tvp, 0, sizeof(tvp));
-		c->delivery_system = SYS_ANALOG;
+		c->delivery_system = SYS_ANALOG_DVB_V512;
 		tvp.cmd = DTV_DELIVERY_SYSTEM;
 		tvp.u.data = c->delivery_system;
 
@@ -838,7 +856,7 @@ static ssize_t demod_debug_store(const struct class *class,
 		if (!strncmp(parm[1], "enum_delsys", 11)) { //prop cmd:DTV_ENUM_DELSYS
 			n = 0;
 			while (n < MAX_DELSYS && fe->ops.delsys[n]) {
-				pr_err("%s\n", fe_delsys_name[fe->ops.delsys[n]]);
+				pr_err("%s\n", aml_get_cur_delsys(fe->ops.delsys[n]));
 				n++;
 			}
 		} else if (!strncmp(parm[1], "ts_input", 8)) { //prop cmd: DTV_TS_INPUT
@@ -861,7 +879,7 @@ static ssize_t demod_debug_store(const struct class *class,
 		} else if (!strncmp(parm[1], "symbol_rate", 11)) { //prop cmd: DTV_SYMBOL_RATE
 			pr_err("symbol_rate: %d\n", c->symbol_rate);
 		} else if (!strncmp(parm[1], "delsys", 6)) { //prop cmd: DTV_DELIVERY_SYSTEM
-			pr_err("delsys: %s\n", fe_delsys_name[c->delivery_system]);
+			pr_err("delsys: %s\n", aml_get_cur_delsys(c->delivery_system));
 		} else {
 			pr_err("invalid prop cmd: %s\n", parm[1]);
 		}
@@ -924,7 +942,8 @@ static ssize_t demod_debug_show(const struct class *class,
 	n += sprintf(buff + n, "\tDVBT2        : 16\n");
 	n += sprintf(buff + n, "\tTURBO        : 17\n");
 	n += sprintf(buff + n, "\tDVBC_ANNEX_C : 18\n");
-	n += sprintf(buff + n, "\tANALOG       : 19\n");
+	n += sprintf(buff + n, "\tDVBC2        : 19\n");
+	n += sprintf(buff + n, "\tANALOG       : %d\n", SYS_ANALOG_DVB_V512);
 	n += sprintf(buff + n, "[tune]\n");
 	n += sprintf(buff + n, "echo tune [frequency_hz] [symbol_rate_bps] ");
 	n += sprintf(buff + n, "[bw_hz] [modulation] [rolloff]");
