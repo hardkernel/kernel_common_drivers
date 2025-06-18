@@ -887,6 +887,9 @@ static int _xisoc_complete(dwc_otg_pcd_t *pcd, void *ep_handle,
 	struct usb_request *req;
 
 	req = (struct usb_request *)req_handle;
+	if (!req)
+		return 0;
+
 	ereqorg = &req->ext_req;
 	ereqport = (struct dwc_iso_xreq_port *)ereq_port;
 	desc_org = ereqorg->per_io_frame_descs;

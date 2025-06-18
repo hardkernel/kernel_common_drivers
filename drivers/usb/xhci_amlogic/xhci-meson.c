@@ -3030,7 +3030,7 @@ static int xhci_configure_endpoint(struct aml_xhci_hcd *xhci,
 #if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 	 /*Full speed device disconnect*/
 	if ((xhci->meson_quirks & XHCI_CRG_HOST_003) &&
-		(udev) && udev->speed == USB_SPEED_FULL && udev->level == 1 &&
+		udev->speed == USB_SPEED_FULL && udev->level == 1 &&
 		 udev->state == USB_STATE_NOTATTACHED) {
 		for (i = 0; i < 31; i++) {
 			ring = xhci->devs[udev->slot_id]->eps[i].ring;
@@ -3107,7 +3107,7 @@ static int xhci_configure_endpoint(struct aml_xhci_hcd *xhci,
 
 #if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 	if ((xhci->meson_quirks & XHCI_CRG_HOST_003) &&
-		(udev) && udev->speed == USB_SPEED_FULL && udev->level == 1 &&
+		udev->speed == USB_SPEED_FULL && udev->level == 1 &&
 		udev->state == USB_STATE_NOTATTACHED) {
 		db_wait  = 0;
 		for (i = 0; i < MAX_HC_SLOTS; i++) {

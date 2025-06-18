@@ -1609,16 +1609,15 @@ static int cfi_ep_set_tx_fifo_val(uint8_t *buf, dwc_otg_pcd_t *pcd)
 	size = ptxfifoval->wDepth;
 
 	ep = get_ep_by_addr(pcd, ep_addr);
-
-	CFI_INFO
-	    ("%s: Set Tx FIFO size: endpoint addr=0x%02x, depth=%d, FIFO Num=%d\n",
-	     __func__, ep_addr, size, ep->dwc_ep.tx_fifo_num);
-
 	if (NULL == ep) {
 		CFI_INFO("%s: Unable to get the endpoint addr=0x%02x\n",
 			 __func__, ep_addr);
 		return -DWC_E_INVALID;
 	}
+
+	CFI_INFO
+	    ("%s: Set Tx FIFO size: endpoint addr=0x%02x, depth=%d, FIFO Num=%d\n",
+	     __func__, ep_addr, size, ep->dwc_ep.tx_fifo_num);
 
 	fsiz = params->dev_tx_fifo_size[ep->dwc_ep.tx_fifo_num - 1];
 	params->dev_tx_fifo_size[ep->dwc_ep.tx_fifo_num - 1] = size;

@@ -144,7 +144,7 @@ int dwc_dh_pk(void *mem_ctx, uint8_t nd, uint8_t *exp, uint8_t *pk, uint8_t *has
 #endif
 
 	/* Compute the pkd */
-	retval = dwc_dh_modpow(mem_ctx, dh_g, 4, exp, 32, dh_p, 384, pk)
+	retval = dwc_dh_modpow(mem_ctx, dh_g, 4, exp, 32, dh_p, 384, pk);
 	if (retval)
 		return retval;
 
@@ -176,7 +176,7 @@ int dwc_dh_derive_keys(void *mem_ctx, uint8_t nd, uint8_t *pkh, uint8_t *pkd,
 	else
 		pk = pkh;
 
-	retval = dwc_dh_modpow(mem_ctx, pk, 384, exp, 32, dh_p, 384, shared_secret)
+	retval = dwc_dh_modpow(mem_ctx, pk, 384, exp, 32, dh_p, 384, shared_secret);
 
 	if (retval)
 		return retval;

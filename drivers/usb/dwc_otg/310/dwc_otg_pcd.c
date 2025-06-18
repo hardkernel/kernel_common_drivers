@@ -988,8 +988,10 @@ void dwc_otg_pcd_get_iso_packet_params(dwc_otg_pcd_t *pcd, void *ep_handle,
 	dwc_ep_t *dwc_ep;
 
 	ep = get_ep_from_handle(pcd, ep_handle);
-	if (!ep)
+	if (!ep) {
 		DWC_WARN("bad ep\n");
+		return;
+	}
 
 	dwc_ep = &ep->dwc_ep;
 
