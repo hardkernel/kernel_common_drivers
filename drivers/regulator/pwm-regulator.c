@@ -22,6 +22,8 @@
 #include <linux/delay.h>
 #define USLEEP_TIME 200
 int usleep_time;
+int udelay_time;
+int ustep_time;
 #endif
 
 struct pwm_continuous_reg_data {
@@ -135,8 +137,12 @@ static int pwm_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	drvdata->state = selector;
 
 #ifdef CONFIG_AMLOGIC_REGULATOR_PWM_MODIFY
-	if (drvdata->desc.vsel_step)
-		usleep_range(usleep_time - 10, usleep_time);
+	if (drvdata->desc.vsel_step) {
+		if (udelay_time != 0)
+			udelay(udelay_time);
+		else
+			usleep_range(usleep_time - 10, usleep_time);
+	}
 #endif
 
 	return 0;
@@ -276,9 +282,37 @@ static int pwm_regulator_set_voltage(struct regulator_dev *rdev,
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_REGULATOR_PWM_MODIFY
+static int pwm_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
+					      unsigned int old_selector,
+					      unsigned int new_selector)
+{
+	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
+	unsigned int steps;
+	unsigned int selector;
+	unsigned int delay;
+
+	if (udelay_time == 0)
+		return 0;
+	selector = abs(new_selector - old_selector);
+	steps = selector / drvdata->desc.vsel_step;
+	steps += selector % drvdata->desc.vsel_step ? 1 : 0;
+	delay = ustep_time * steps;
+
+	if (delay > 60) {
+		usleep_range(delay - 10, delay);
+		delay = 0;
+	}
+	return delay;
+}
+#endif
+
 static const struct regulator_ops pwm_regulator_voltage_table_ops = {
 	.set_voltage_sel = pwm_regulator_set_voltage_sel,
 	.get_voltage_sel = pwm_regulator_get_voltage_sel,
+#ifdef CONFIG_AMLOGIC_REGULATOR_PWM_MODIFY
+	.set_voltage_time_sel = pwm_regulator_set_voltage_time_sel,
+#endif
 	.list_voltage    = pwm_regulator_list_voltage,
 	.map_voltage     = regulator_map_voltage_iterate,
 	.enable          = pwm_regulator_enable,
@@ -308,7 +342,9 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
 	struct pwm_voltages *duty_cycle_table;
 	unsigned int length = 0;
 	int ret;
-
+#ifdef CONFIG_AMLOGIC_REGULATOR_PWM_MODIFY
+	u32 val[2];
+#endif
 	of_find_property(np, "voltage-table", &length);
 
 	if ((length < sizeof(*duty_cycle_table)) ||
@@ -334,6 +370,15 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
 	drvdata->desc.n_voltages	= length / sizeof(*duty_cycle_table);
 
 #ifdef CONFIG_AMLOGIC_REGULATOR_PWM_MODIFY
+	ret = of_property_read_u32_array(np, "amlogic,udelay-time", val, 2);
+	if (ret) {
+		udelay_time = 0;
+		ustep_time = 0;
+	} else {
+		udelay_time = val[0];
+		ustep_time = val[1];
+	}
+
 	of_property_read_u32(np, "amlogic,vsel-step", &drvdata->desc.vsel_step);
 	ret = of_property_read_u32(np, "amlogic,usleep-time", &usleep_time);
 	if (ret || usleep_time < 10)
