@@ -2213,6 +2213,7 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 						aml_tdm_mute_playback(p_tdm->actrl, p_tdm->id,
 							true, i);
 				}
+				udelay(200);
 			}
 			if (!p_tdm->tdm_fade_out_enable)
 				aml_tdmout_enable_gain(p_tdm->id, true,
