@@ -158,7 +158,7 @@ static int meson_gxbb_wdt_set_timeout(struct watchdog_device *wdt_dev,
 				      unsigned int timeout)
 {
 	struct meson_gxbb_wdt *data = watchdog_get_drvdata(wdt_dev);
-	unsigned long tcnt = timeout * 1000;
+	unsigned int tcnt = timeout * 1000;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 	if (wdt_debug)
@@ -194,7 +194,7 @@ static int meson_gxbb_wdt_set_pretimeout(struct watchdog_device *wdt_dev,
 					 unsigned int pretimeout)
 {
 	struct meson_gxbb_wdt *data = watchdog_get_drvdata(wdt_dev);
-	unsigned long tcnt = pretimeout * 1000;
+	unsigned int tcnt = pretimeout * 1000;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 	if (wdt_debug)
