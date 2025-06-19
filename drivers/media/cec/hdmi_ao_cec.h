@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2025/05/20: cec sw check signal_free_time"
+#define CEC_DRIVER_VERSION     "2025/06/26: remove rx msg uevent"
 
 #define CEC_DEV_NAME		"cec"
 
