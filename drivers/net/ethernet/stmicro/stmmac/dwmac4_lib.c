@@ -253,6 +253,16 @@ void stmmac_dwmac4_set_mac(void __iomem *ioaddr, bool enable)
 		writel(value, ioaddr + GMAC_CONFIG);
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+void dwmac4_set_mac_rxtx_enable(void __iomem *ioaddr)
+{
+	u32 value = readl(ioaddr + GMAC_CONFIG);
+
+	value |= GMAC_CONFIG_RE | GMAC_CONFIG_TE;
+	writel(value, ioaddr + GMAC_CONFIG);
+}
+#endif
+
 void stmmac_dwmac4_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 				unsigned int high, unsigned int low)
 {

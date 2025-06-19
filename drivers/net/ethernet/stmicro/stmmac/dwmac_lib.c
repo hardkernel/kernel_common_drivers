@@ -281,6 +281,16 @@ void stmmac_set_mac(void __iomem *ioaddr, bool enable)
 		writel(value, ioaddr + MAC_CTRL_REG);
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+void dwmac_set_mac_rxtx_enable(void __iomem *ioaddr)
+{
+	u32 value = readl(ioaddr + MAC_CTRL_REG);
+
+	value |= MAC_ENABLE_RX | MAC_ENABLE_TX;
+	writel(value, ioaddr + MAC_CTRL_REG);
+}
+#endif
+
 void stmmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 			 unsigned int high, unsigned int low)
 {

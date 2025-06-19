@@ -295,15 +295,15 @@ static void stmmac_amlogic_task(struct work_struct *work)
 {
 	struct stmmac_priv *priv = container_of(work, struct stmmac_priv,
 			amlogic_task);
-	u32 regval;
 
 	if (priv->amlogic_task_action == 100) {
+		// re-set MAC Rx/Tx enable to resolve network broken issue
 		if (priv->plat->has_gmac) {
 			msleep(3000);
-			// re-enable MAC Rx/Tx to resolve network broken issue
-			regval = readl(priv->ioaddr + MAC_CTRL_REG);
-			regval |= MAC_ENABLE_RX | MAC_ENABLE_TX;
-			writel(regval, priv->ioaddr + MAC_CTRL_REG);
+			dwmac_set_mac_rxtx_enable(priv->ioaddr);
+		} else if (priv->synopsys_id >= DWMAC_CORE_4_10) {
+			msleep(1000);
+			dwmac4_set_mac_rxtx_enable(priv->ioaddr);
 		}
 	} else if (priv->amlogic_task_action == 101) {
 		msleep(3000);

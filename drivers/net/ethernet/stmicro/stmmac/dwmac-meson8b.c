@@ -791,6 +791,11 @@ static int meson8b_resume(struct device *dev)
 		if (priv->plat->has_gmac) {
 			priv->amlogic_task_action = 100;
 			stmmac_trigger_amlogic_task(priv);
+		} else {
+			if (mdns_switch_from_user) {
+				priv->amlogic_task_action = 100;
+				stmmac_trigger_amlogic_task(priv);
+			}
 		}
 	} else {
 		if (internal_phy == 2) {
