@@ -34,6 +34,7 @@ static void __iomem *reboot_reason_vaddr;
 static u32 psci_function_id_restart;
 static u32 psci_function_id_poweroff;
 static char *kernel_panic;
+static char *reboot_check;
 /* Represents if it can support reboot reason extension - */
 /* which can support up to 128 kind of reboot reasons */
 static bool support_reboot_reason_ext;
@@ -291,6 +292,9 @@ static void disable_non_bootcpu_shutdown(void)
 {
 	int error = 0, cpu, primary = 0;
 
+	if (reboot_check)
+		return;
+
 	if (!cpu_online(primary))
 		primary = cpumask_first(cpu_online_mask);
 
@@ -315,6 +319,22 @@ static void disable_non_bootcpu_shutdown(void)
 	cpu_hotplug_disable();
 }
 
+static int do_aml_set_reboot_flag(struct notifier_block *nb,
+	unsigned long event, void *ptr)
+{
+	switch (event) {
+	case SYS_HALT:
+		break;
+	case SYS_POWER_OFF:
+		break;
+	case SYS_RESTART:
+		reboot_check = "reboot_system";
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 static struct syscore_ops disable_non_bootcpu_syscore_ops = {
 	.shutdown		= disable_non_bootcpu_shutdown,
 };
@@ -328,6 +348,10 @@ static int __init reboot_pm_init_ops(void)
 static struct notifier_block aml_restart_nb = {
 	.notifier_call = do_aml_restart,
 	.priority = 130,
+};
+
+static struct notifier_block aml_set_reboot_flag = {
+	.notifier_call = do_aml_set_reboot_flag,
 };
 
 static int aml_restart_probe(struct platform_device *pdev)
@@ -366,6 +390,14 @@ static int aml_restart_probe(struct platform_device *pdev)
 					"dis_nb_cpus_in_shutdown")) {
 		pr_debug("Enable disable_nonboot_cpus in syscore shutdown.\n");
 		reboot_pm_init_ops();
+	}
+
+	/* Register a reboot_notifier*/
+	ret = register_reboot_notifier(&aml_set_reboot_flag);
+	if (ret != 0) {
+		pr_err("%s,register reboot notifier failed,ret =%d!\n",
+		       __func__, ret);
+		return ret;
 	}
 
 	ret = register_die_notifier(&panic_notifier);
