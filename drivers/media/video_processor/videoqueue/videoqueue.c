@@ -196,7 +196,7 @@ void videoqueue_pcrscr_update(u8 vpp_index, s32 inc, u32 base)
 		is_vlock_locked = vlock_get_vlock_flag();
 	vsync_pts_inc = 90000 * 16 * (u64)inc;
 	vsync_pts_inc = div64_u64(vsync_pts_inc, base);
-	vq_print(VIDEO_QUEUE_MAIN, P_SYNC, "vlock: %d, special_fps: %d, vsync_pts_inc: %ld.\n",
+	vq_print(VIDEO_QUEUE_MAIN, P_SYNC, "vlock: %d, special_fps: %d, vsync_pts_inc: %lld.\n",
 		is_vlock_locked,
 		vq_dev->is_special_fps,
 		vsync_pts_inc);

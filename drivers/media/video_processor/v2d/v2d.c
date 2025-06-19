@@ -1641,7 +1641,7 @@ static int v2d_config_uninit(struct v2d_dev *dev)
 			 "unreg:do file wait time left:%d\n", time_left);
 	if (dev->fence_creat_count != dev->fence_signal_count) {
 		v2d_print(dev->index, PRINT_ERROR,
-			 "uninit: fence_r=%lld, fence_c=%lld\n",
+			 "uninit: fence_r=%u, fence_c=%u\n",
 			 dev->fence_signal_count,
 			 dev->fence_creat_count);
 		v2d_timeline_increase(dev, dev->fence_creat_count - dev->fence_signal_count);

@@ -3248,8 +3248,8 @@ static void vframe_composer(struct composer_dev *dev)
 					dst_vf->vf_lossycomp_param.burst_length_add_value = 2;
 					dst_vf->vf_lossycomp_param.quant_diff_root_leave = 2;
 				}
-				if (dst_vf->compHeadAddr >= ADDR_VALUE_8G ||
-					dst_vf->compBodyAddr >= ADDR_VALUE_8G)
+				if (dst_vf->compHeadAddr >= (unsigned long long)ADDR_VALUE_8G ||
+					dst_vf->compBodyAddr >= (unsigned long long)ADDR_VALUE_8G)
 					dst_vf->vf_lossycomp_param.ofset_burst4_en = 1;
 				else
 					dst_vf->vf_lossycomp_param.ofset_burst4_en = 0;

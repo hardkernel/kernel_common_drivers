@@ -4118,7 +4118,7 @@ int vd_set_frames(int index, struct frames_info_t *frames_info)
 		frames_info->frame_info[index].release_fence);
 
 	vd_print(dev->index, PRINT_AXIS,
-		"%s: buf: addr0:0x%lx, addr1:0x%lx, stride:%d, w:%d, h:%d.\n",
+		"%s: buf: addr0:0x%llx, addr1:0x%llx, stride:%d, w:%d, h:%d.\n",
 		__func__,
 		frames_info->frame_info[index].phy_addr[0],
 		frames_info->frame_info[index].phy_addr[1],
