@@ -488,7 +488,7 @@ int meson_atomic_commit(struct drm_device *dev,
 			     bool nonblock)
 {
 	int ret, crtc_index = 0;
-	struct meson_commit_work_item *work_item;
+	struct meson_commit_work_item *work_item = NULL;
 	struct kthread_worker *worker;
 	struct drm_crtc *dest_crtc = NULL;
 	struct meson_drm *priv = dev->dev_private;

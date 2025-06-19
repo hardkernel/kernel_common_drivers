@@ -424,11 +424,12 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	struct drm_atomic_state *atomic_state = state->state;
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_display_mode *mode;
+	struct drm_display_mode *mode = NULL;
 
 	if (crtc) {
 		crtc_state = drm_atomic_get_crtc_state(atomic_state, crtc);
-		mode = &crtc_state->mode;
+		if (crtc_state)
+			mode = &crtc_state->mode;
 	} else {
 		DRM_DEBUG("Disabling plane %d, so skip postion calc",
 			 plane_info->plane_index);
@@ -588,12 +589,13 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 	struct drm_atomic_state *atomic_state = state->state;
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_display_mode *mode;
+	struct drm_display_mode *mode = NULL;
 	struct am_video_plane *avp;
 
 	if (crtc) {
 		crtc_state = drm_atomic_get_crtc_state(atomic_state, crtc);
-		mode = &crtc_state->mode;
+		if (crtc_state)
+			mode = &crtc_state->mode;
 	} else {
 		DRM_DEBUG("Disabling video plane %d, so skip postion calc",
 			 plane_info->plane_index);
@@ -2360,9 +2362,9 @@ static void meson_plane_get_primary_plane(struct meson_drm *priv,
 
 	for (i = 0; i < MESON_MAX_CRTC; i++) {
 		for (j = 0; j < MESON_MAX_OSDS; j++) {
-			if (i == priv->of_conf.crtcmask_osd[j] &&
-				priv->osd_occupied_index != j &&
-				j < MESON_MAX_OSDS) {
+			if (j < MESON_MAX_OSDS &&
+				i == priv->of_conf.crtcmask_osd[j] &&
+				priv->osd_occupied_index != j) {
 				type[j] = DRM_PLANE_TYPE_PRIMARY;
 				priv->primary_plane_index[i] = j;
 				break;
