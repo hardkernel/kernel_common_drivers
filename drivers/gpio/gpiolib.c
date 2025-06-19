@@ -58,9 +58,6 @@ int gpiod_set_pull(struct gpio_desc *desc, unsigned int value)
 	VALIDATE_DESC(desc);
 	chip = desc->gdev->chip;
 	if (!chip || !chip->set_config) {
-		gpiod_dbg(desc,
-			  "%s: missing set() or set_config() operations\n",
-			  __func__);
 		return -ENOTSUPP;
 	}
 

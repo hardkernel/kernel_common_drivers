@@ -605,10 +605,6 @@ static int gpiod_sysfs_export(struct gpio_desc *desc, bool direction_may_change)
 	if (!test_bit(FLAG_REQUESTED, &desc->flags) ||
 	     test_bit(FLAG_EXPORT, &desc->flags)) {
 		spin_unlock_irqrestore(&gpio_sysfs_lock, flags);
-		gpiod_dbg(desc, "%s: unavailable (requested=%d, exported=%d)\n",
-				__func__,
-				test_bit(FLAG_REQUESTED, &desc->flags),
-				test_bit(FLAG_EXPORT, &desc->flags));
 		status = -EPERM;
 		goto err_unlock;
 	}
@@ -648,7 +644,6 @@ err_free_data:
 	kfree(data);
 err_unlock:
 	mutex_unlock(&sysfs_lock);
-	gpiod_dbg(desc, "%s: status %d\n", __func__, status);
 	return status;
 }
 
