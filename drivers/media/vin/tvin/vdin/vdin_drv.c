@@ -537,10 +537,16 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 	vrr_data.target_vfreq_den = 1;
 	vrr_data.vrr_priority = vrr_instead_vlock();
 	vrr_data.vrr_mode = devp->prop.vtem_data.vrr_en ||
+			devp->prop.qms_plus_flag ||
 			(vdin_check_is_spd_data(devp) &&
 			(devp->prop.spd_data.data[5] >> 1 & 0x7));
 	/* save vrr_mode status */
 	devp->vrr_data.vrr_mode = vrr_data.vrr_mode;
+
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VRR_DATA)
+		pr_info("vdin%d,vrr_data:%d %d;vrr_mode:%d,game:%d,state:%d\n", devp->index,
+			vrr_data.target_vfreq_num, vrr_data.vrr_priority, vrr_data.vrr_mode,
+			devp->game_mode, state);
 
 	if (state) {
 		if (devp->game_mode) {
@@ -3601,15 +3607,22 @@ void vdin_resume_hw_write(struct vdin_dev_s *devp, bool rdma_en)
 
 static inline void vdin_dynamic_switch_vrr(struct vdin_dev_s *devp)
 {
-	bool is_freesync = 0, is_vrr = 0;
+	bool is_freesync = 0, is_vrr = 0, is_qms_plus = 0;
 
 	is_vrr = devp->prop.vtem_data.vrr_en;
 	is_freesync = (vdin_check_is_spd_data(devp) &&
 			(devp->prop.spd_data.data[5] >> 1 & 0x7));
+	is_qms_plus = devp->prop.qms_plus_flag;
+
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VRR_DATA)
+		pr_info("vdin%d,vrr:%d %d %d;game:%#x,frame_lock_vrr_en:%d,%d %d\n",
+			devp->index, is_vrr, is_freesync, is_qms_plus, devp->game_mode,
+			devp->vrr_data.frame_lock_vrr_en,
+			devp->vrr_on_add_cnt, devp->vrr_off_add_cnt);
 
 	/* FRAME_LOCK_EVENT_OFF */
 	if (!devp->vrr_data.frame_lock_vrr_en) {
-		if ((is_vrr || is_freesync) && devp->game_mode) {
+		if ((is_vrr || is_freesync || is_qms_plus) && devp->game_mode) {
 			devp->vrr_on_add_cnt++;
 			devp->vrr_off_add_cnt = 0;
 		} else {
@@ -3621,7 +3634,7 @@ static inline void vdin_dynamic_switch_vrr(struct vdin_dev_s *devp)
 			devp->vrr_off_add_cnt = 0;
 		}
 	} else {/* FRAME_LOCK_EVENT_ON */
-		if (!(is_vrr || is_freesync)) {
+		if (!(is_vrr || is_freesync || is_qms_plus)) {
 			devp->vrr_off_add_cnt++;
 			devp->vrr_on_add_cnt = 0;
 		} else {

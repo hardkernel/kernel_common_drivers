@@ -89,8 +89,6 @@ static int fpll_stable_max = 150;
 static int reset_pcs_en;
 static int force_avi_stable;
 int fsm_debug;
-//qms plus detect enable flag
-int qms_plus_cfg;
 static int ecc_err_monitor;
 u32 vrr_func_en = 0xff;
 u32 allm_func_en = 0xff;
@@ -3385,7 +3383,6 @@ void rx_get_global_variable(const char *buf)
 	pr_var(fps_unready_max, i++);
 	pr_var(rx_emp_dbg_en, i++);
 	pr_var(fsm_debug, i++);
-	pr_var(qms_plus_cfg, i++);
 	pr_var(rs_err_chk, i++);
 	pr_var(err_cnt, i++);
 	pr_var(vga_tuning_max, i++);
@@ -3870,9 +3867,6 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(fsm_debug),
 		&fsm_debug, value))
 		return pr_var(fsm_debug, index);
-	if (set_pr_var(tmpbuf, var_to_str(qms_plus_cfg),
-		&qms_plus_cfg, value))
-		return pr_var(qms_plus_cfg, index);
 	if (set_pr_var(tmpbuf, var_to_str(rs_err_chk),
 		&rs_err_chk, value))
 		return pr_var(rs_err_chk, index);
@@ -8181,12 +8175,10 @@ int hdmirx_debug(const char *buf, int size)
 		else if (tmpbuf[4] == '1')
 			rx_internal_dacr_mclk_en(1, port);
 	} else if (strncmp(tmpbuf, "scdc_qms", 8) == 0) {
-		if (qms_plus_cfg) {
-			if (tmpbuf[8] == '0')
-				hdmirx_qms_plus_en(false, port);
-			else
-				hdmirx_qms_plus_en(true, port);
-		}
+		if (tmpbuf[8] == '0')
+			hdmirx_qms_plus_en(false, port);
+		else
+			hdmirx_qms_plus_en(true, port);
 	}
 	return 0;
 }

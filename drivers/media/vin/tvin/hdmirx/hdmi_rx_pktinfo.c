@@ -2147,8 +2147,6 @@ int rx_pkt_fifodecode(struct packet_info_s *prx,
 			rx[port].vs_info_details.vsi_state |= E_VSI_4K3D;
 			break;
 		case IEEE_QMS_PLUS:
-			if (!qms_plus_cfg)
-				break;
 			memcpy(&prx->multi_vs_info[QMS_PLUS], pktdata,
 				sizeof(struct pd_infoframe_s));
 			rx[port].vs_info_details.vsi_state |= E_VSI_QMS_PLUS;
@@ -2556,7 +2554,7 @@ int rx_check_emp_type(struct emp_pkt_st *pkt, u8 port)
 			emp_type = EMP_CUVA;
 		else if (u_ieee == IEEE_DV15) //dv
 			emp_type = EMP_AMDV;
-		else if (u_ieee == IEEE_QMS_PLUS && qms_plus_cfg)
+		else if (u_ieee == IEEE_QMS_PLUS)
 			emp_type = EMP_QMS_PLUS;
 	} else if (ds_type == 0 &&
 		vfr == 1 &&
@@ -2766,8 +2764,6 @@ void rx_get_em_info(u8 port)
 		case EMP_VTEM_CLASS0:
 			/* spec2.1a table 10-36 gaming-vrr & FVA*/
 			tmp = pkt->cnt.md[0];
-			if (!qms_plus_cfg && tmp & _BIT(3))
-				break;
 			//gaming-vrr use vrr_en notify vdin enable hw_vrr
 			if (tmp & _BIT(0)) {
 				rx[port].vtem_info.vrr_en = 1;

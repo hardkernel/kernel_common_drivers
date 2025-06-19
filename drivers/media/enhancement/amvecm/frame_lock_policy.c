@@ -727,7 +727,7 @@ u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vfr
 		ret = FRAMELOCK_VLOCK;
 		vrr_skip_frame_cnt = 15;
 		hdr_low_latency = 0;
-	} else if (vf->vf_vrr_param.qms_en || vf->vf_vrr_param.qms_plus_en) {
+	} else if (vf->vf_vrr_param.qms_en) {
 		ret = FRAMELOCK_NOLOCK;
 		vrr_skip_frame_cnt = 15;
 		hdr_low_latency = 0;

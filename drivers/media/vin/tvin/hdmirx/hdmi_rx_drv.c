@@ -1957,8 +1957,6 @@ void hdmirx_get_fmm_info(struct tvin_sig_property_s *prop, u8 port)
 void hdmirx_get_qms_plus_info(struct tvin_sig_property_s *prop, u8 port)
 {
 	prop->qms_plus_flag = rx[port].qms_plus_flag ? true : false;
-//	if (qms_plus_cfg && prop->qms_plus_flag && rx[port].qms_plus_flag != QMS_PLUS_VTEM)
-//		prop->vtem_data.vrr_en = 1;
 }
 
 /*

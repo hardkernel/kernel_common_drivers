@@ -192,7 +192,6 @@ extern int port_debug_en;
 extern int fpll_ready_max;
 extern int rx_emp_dbg_en;
 extern int fsm_debug;
-extern int qms_plus_cfg;
 extern int rs_err_chk;
 extern int err_cnt;
 extern int edid_seg_flag[4];
