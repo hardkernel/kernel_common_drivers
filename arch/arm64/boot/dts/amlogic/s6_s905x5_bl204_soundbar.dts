@@ -495,10 +495,10 @@
 		fe0_i2c_adap_id = <&i2c5>;
 		fe0_demod_i2c_addr = <0xD8>;
 		fe0_reset_value = <0>;
-		fe0_reset_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		//fe0_reset_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 		fe0_reset_dir = <0>; //0: out, 1: in.
 		fe0_ant_poweron_value = <1>;
-		fe0_ant_power_gpio = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
+		//fe0_ant_power_gpio = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
 		fe0_ts = <0>;
 		fe0_ts_out_mode = <0>; //0: serial, 1: parallel.
 		fe0_tuner0 = <0>; //T,C
@@ -538,8 +538,8 @@
 		ts2_control = <0x0>;
 		ts2_invert = <0>;
 
-		pinctrl-names = "s_ts0";
-		pinctrl-0 = <&dvb_s_ts0_pins>;
+		//pinctrl-names = "s_ts0";
+		//pinctrl-0 = <&dvb_s_ts0_pins>;
 	};
 
 	multi-di {
@@ -744,7 +744,7 @@
 		#sound-dai-cells = <0>;
 		reg = <0x30>;
 		status = "okay";
-		reset_pin-gpios = <&gpio GPIOA_8 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		reset_pin-gpios = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
 	};
 
 	ad82128_31: ad82128_31@31 {
