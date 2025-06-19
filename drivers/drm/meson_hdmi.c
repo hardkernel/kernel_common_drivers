@@ -1276,15 +1276,19 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\t\t frac_rate_policy:[%d]\n", hdmitx_state->hcs.para.frac_mode);
 	drm_printf(p, "\t\t qms vrr info:\n");
 	for (i = 0; i < num_group; i++) {
-		group = &groups[i];
-		drm_printf(p, "\t\t\t %u,%u,%u-%u,%u\n", group->width, group->height,
-			   group->vrr_min, group->vrr_max, group->brr_vic);
+		if (groups) {
+			group = &groups[i];
+			drm_printf(p, "\t\t\t %u,%u,%u-%u,%u\n", group->width, group->height,
+				group->vrr_min, group->vrr_max, group->brr_vic);
+		}
 	}
 	drm_printf(p, "\t\t game vrr info:\n");
 	for (i = 0; i < num_group; i++) {
-		group = &groups[i];
-		drm_printf(p, "\t\t\t %u,%u,%u-%u,%u\n", group->width, group->height,
-			   group->game_vrr_min, group->game_vrr_max, group->game_brr_vic);
+		if (groups) {
+			group = &groups[i];
+			drm_printf(p, "\t\t\t %u,%u,%u-%u,%u\n", group->width, group->height,
+				group->game_vrr_min, group->game_vrr_max, group->game_brr_vic);
+		}
 	}
 
 	kfree(groups);

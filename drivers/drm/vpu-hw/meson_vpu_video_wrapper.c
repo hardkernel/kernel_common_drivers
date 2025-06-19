@@ -289,7 +289,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			  __func__, dec_vf->flag, dec_vf->type,
 			  dec_vf->compWidth, dec_vf->compHeight,
 			  dec_vf->width, dec_vf->height);
-		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
+		if (mvvs->vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
 			vf = mvvs->vf->vf_ext;
 			MESON_DRM_BLOCK("DI vf, %s, flag-0x%x, type-0x%x, comp[%u, %u][%u, %u]\n",
 				  __func__, vf->flag, vf->type,
