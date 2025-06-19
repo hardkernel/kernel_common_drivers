@@ -10,11 +10,11 @@ while (<$FILE>) {
 	chomp;
 	my $line = $_;
 	my $new = "";
-	if($line =~/^A\s+(.+\.[cChH])/)
+	if($line =~/^[AM]\s+(.+\.[cChH])/)
 	{
 		$new = $1;
 	}
-	elsif(/^A\s+(.+\.dts*)/i)
+	elsif(/^[AM]\s+(.+\.(?:dts|dtsi))\b/i)
 	{
 		$new = $1;
 	}
@@ -44,7 +44,8 @@ if($result_0 =~/$match/)
 {
 	$out =1;
 	print $result_0;
-	print "\n  Licence Check Error, please try to fix:\n  $pl $flist\n\n"
+	print "\n  Licence Check Warning, For amlogic drivers only, it is recommended to ignore third-party code\n";
+	print "\n  please try to fix:\n  $pl $flist\n\n"
 }
 else
 {
