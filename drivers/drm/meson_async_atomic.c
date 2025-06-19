@@ -121,7 +121,7 @@ bool is_am_osd_async_commit(struct drm_atomic_state *atomic_state)
 	if (n_planes != 1)
 		DRM_WARN("only single plane async updates are supported\n");
 
-	return !strncmp(plane->name, "osd", 3);
+	return plane && !strncmp(plane->name, "osd", 3);
 }
 
 /**

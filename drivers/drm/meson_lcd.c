@@ -513,16 +513,6 @@ int meson_panel_dev_bind(struct drm_device *drm,
 			encoder_type = DRM_MODE_ENCODER_DSI;
 			connector_name = "MIPI-B";
 			break;
-		case DRM_MODE_CONNECTOR_MESON_EDP_A:
-			connector_type = DRM_MODE_CONNECTOR_eDP;
-			encoder_type = DRM_MODE_ENCODER_TMDS;
-			connector_name = "EDP-A";
-			break;
-		case DRM_MODE_CONNECTOR_MESON_EDP_B:
-			connector_type = DRM_MODE_CONNECTOR_eDP;
-			encoder_type = DRM_MODE_ENCODER_TMDS;
-			connector_name = "EDP-B";
-			break;
 		default:
 			connector_type = DRM_MODE_CONNECTOR_Unknown;
 			encoder_type = DRM_MODE_ENCODER_NONE;

@@ -486,8 +486,8 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	int *vics;
 	int count = 0, count_qms = 0, i = 0, j = 0;
 	struct drm_display_mode *mode;
-	struct am_hdmi_tx *am_hdmitx = connector_to_am_hdmi(connector);
-	struct hdmitx_common *tx_comm = to_hdmitx_common(am_hdmitx->hdmitx_dev);
+	struct am_hdmi_tx *am_hdmitx;
+	struct hdmitx_common *tx_comm;
 	struct hdmitx_vrr_mode_group *groups;
 	struct hdmitx_vrr_mode_group *group;
 	int *vrr_list;
@@ -495,10 +495,17 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	int num_group = 0;
 	u64 sequence_id = 0;
 
-	if (!am_hdmitx) {
-		DRM_ERROR("am_hdmitx is NULL!\n");
+	if (!connector) {
+		DRM_ERROR("connector is NULL!\n");
 		return count;
 	}
+	am_hdmitx = connector_to_am_hdmi(connector);
+	if (!am_hdmitx) {
+		DRM_ERROR("amhdmitx is NULL!\n");
+		return count;
+	}
+
+	tx_comm = to_hdmitx_common(am_hdmitx->hdmitx_dev);
 
 	sequence_id = am_hdmitx->sequence_id;
 	edid = (struct edid *)hdmitx_get_raw_edid(tx_comm);

@@ -1138,7 +1138,7 @@ int combine_layer_path(int *path_num_array, int num_planes,
 
 	for (index = MESON_MAX_OSDS - 1; index >= 0; index--) {
 		if (mvps->plane_info[index].enable &&
-			mvps->index == mvps->plane_info[i].crtc_index)
+			mvps->index == mvps->plane_info[index].crtc_index)
 			break;
 	}
 
@@ -1174,7 +1174,7 @@ int combine_layer_path(int *path_num_array, int num_planes,
 
 		for (j = 0; j < MESON_MAX_OSDS; j++) {
 			if (combination[j] != 0 && mvps->plane_info[j].enable &&
-			    mvps->index == mvps->plane_info[i].crtc_index) {
+			    mvps->index == mvps->plane_info[j].crtc_index) {
 				is_continue = true;
 				break;
 			}

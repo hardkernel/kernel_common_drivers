@@ -211,7 +211,7 @@ static ssize_t meson_blank_write(struct file *file, const char __user *ubuf,
 
 	if (copy_from_user(buf, ubuf, len))
 		return -EFAULT;
-	if (buf[len - 1] == '\n')
+	if (len >= 1 && buf[len - 1] == '\n')
 		buf[len - 1] = '\0';
 	buf[len] = '\0';
 
@@ -273,7 +273,7 @@ static ssize_t meson_osd_reverse_write(struct file *file,
 
 	if (copy_from_user(buf, ubuf, len))
 		return -EFAULT;
-	if (buf[len - 1] == '\n')
+	if (len >= 1 && buf[len - 1] == '\n')
 		buf[len - 1] = '\0';
 	buf[len] = '\0';
 
@@ -334,7 +334,7 @@ static ssize_t meson_osd_blend_bypass_write(struct file *file,
 
 	if (copy_from_user(buf, ubuf, len))
 		return -EFAULT;
-	if (buf[len - 1] == '\n')
+	if (len >= 1 && buf[len - 1] == '\n')
 		buf[len - 1] = '\0';
 	buf[len] = '\0';
 

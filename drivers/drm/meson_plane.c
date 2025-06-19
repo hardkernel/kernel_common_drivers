@@ -719,16 +719,18 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 			if (plane_info->dst_x >= mode->hdisplay) {
 				plane_info->enable = 0;
 			} else {
+				u32 crop_w_src;
 				crop_w = plane_info->dst_x + plane_info->dst_w - mode->hdisplay;
-				plane_info->src_w -= crop_w * orig_w / state->crtc_w;
-				DRM_DEBUG("(x+w)>hdisplay:origw=%d, cropw=%d, src_w=%d\n",
-					orig_w, crop_w, plane_info->src_w);
-				if (plane_info->src_w < 0)
+				crop_w_src = crop_w * orig_w / state->crtc_w;
+				if (plane_info->src_w >= crop_w_src)
+					plane_info->src_w -= crop_w_src;
+				else
 					plane_info->src_w = 0;
 
+				DRM_DEBUG("(x+w)>hdisplay:orig_w=%d, crop_w=%d, src_w=%d\n",
+					orig_w, crop_w, plane_info->src_w);
+
 				plane_info->dst_w -= crop_w;
-				if (plane_info->dst_w < 0)
-					plane_info->dst_w = 0;
 			}
 			DRM_DEBUG("(x+w)>hdisplay:src_w=%d, dst_w=%d, enable=%d\n",
 				plane_info->src_w, plane_info->dst_w, plane_info->enable);
@@ -738,16 +740,19 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 			if (plane_info->dst_y >= mode->vdisplay) {
 				plane_info->enable = 0;
 			} else {
+				u32 crop_h_src;
 				crop_h = plane_info->dst_y + plane_info->dst_h - mode->vdisplay;
-				plane_info->src_h -= crop_h * orig_h / state->crtc_h;
-				DRM_DEBUG("(y+h)>vdisplay:origh=%d, croph=%d, src_h=%d\n",
-					orig_h, crop_h, plane_info->src_h);
-				if (plane_info->src_h < 0)
+				crop_h_src = crop_h * orig_h / state->crtc_h;
+
+				if (plane_info->src_h >= crop_h_src)
+					plane_info->src_h -= crop_h_src;
+				else
 					plane_info->src_h = 0;
 
+				DRM_DEBUG("(y+h)>vdisplay:orig_h=%d, crop_h=%d, src_h=%d\n",
+					orig_h, crop_h, plane_info->src_h);
+
 				plane_info->dst_h -= crop_h;
-				if (plane_info->dst_h < 0)
-					plane_info->dst_h = 0;
 			}
 			DRM_DEBUG("(y+h)>vdisplay:src_h=%d, dst_h=%d, enable=%d\n",
 				plane_info->src_h, plane_info->dst_h, plane_info->enable);
@@ -756,7 +761,7 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 	DRM_DEBUG("modified:src[(%d %d), %dx%d], dst[(%d %d), %dx%d]\n",
 		plane_info->src_x, plane_info->src_y, plane_info->src_w, plane_info->src_h,
 		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h);
-	DRM_DEBUG("modified:enable = %d, ori[%d %d], crop[%d %d]\n",
+	DRM_DEBUG("modified:enable = %d, orig[%d %d], crop[%d %d]\n",
 		plane_info->enable, orig_w, orig_h, crop_w, crop_h);
 }
 
