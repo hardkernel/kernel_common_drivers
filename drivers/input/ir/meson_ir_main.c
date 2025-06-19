@@ -186,7 +186,7 @@ int meson_ir_scancode_sort(struct ir_map_tab *ir_map)
 }
 
 struct meson_ir_map_tab_list *meson_ir_seek_map_tab(struct meson_ir_chip *chip,
-						    int custom_code)
+						    unsigned int custom_code)
 {
 	struct meson_ir_map_tab_list *ir_map = NULL;
 

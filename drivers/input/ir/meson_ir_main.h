@@ -192,7 +192,7 @@ int meson_ir_cdev_init(struct meson_ir_chip *chip);
 void meson_ir_cdev_free(struct meson_ir_chip *chip);
 int meson_ir_scancode_sort(struct ir_map_tab *ir_map);
 struct meson_ir_map_tab_list *meson_ir_seek_map_tab(struct meson_ir_chip *chip,
-						    int custom_code);
+						    unsigned int custom_code);
 void meson_ir_timer_keyup(struct timer_list *t);
 void meson_ir_tab_free(struct meson_ir_map_tab_list *ir_map_list);
 struct input_dev *meson_ir_match_input_dev(struct meson_ir_dev *dev,
