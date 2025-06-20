@@ -546,7 +546,7 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sd_iso7816_pins>;
-		clocks = <&clkc CLKID_SYS_CLK_SMART_CARD>;
+		clocks = <&clkc CLKID_SYS_SMART_CARD>;
 		clock-names = "smartcard";
 	};
 

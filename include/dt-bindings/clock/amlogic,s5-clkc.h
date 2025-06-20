@@ -3,400 +3,348 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#ifndef __S5_CLKC_H
-#define __S5_CLKC_H
+#ifndef _DT_BINDINGS_CLOCK_AMLOGIC_S5_CLKC_H
+#define _DT_BINDINGS_CLOCK_AMLOGIC_S5_CLKC_H
 
-/*
- * CLKID index values
- */
-#define CLKID_SYS_PLL_DCO		0
-#define CLKID_SYS_PLL			1
-#define CLKID_SYS1_PLL_DCO		2
-#define CLKID_SYS1_PLL			3
-#define CLKID_FIXED_PLL_DCO		4
-#define CLKID_FIXED_PLL			5
-#define CLKID_FCLK_DIV2_DIV		6
-#define CLKID_FCLK_DIV2			7
-#define CLKID_FCLK_DIV3_DIV		8
-#define CLKID_FCLK_DIV3			9
-#define CLKID_FCLK_DIV4_DIV		10
-#define CLKID_FCLK_DIV4			11
-#define CLKID_FCLK_DIV5_DIV		12
-#define CLKID_FCLK_DIV5			13
-#define CLKID_FCLK_DIV7_DIV		14
-#define CLKID_FCLK_DIV7			15
-#define CLKID_FCLK_DIV2P5_DIV		16
-#define CLKID_FCLK_DIV2P5		17
-#define CLKID_FCLK_CLK50M_DIV		18
-#define CLKID_FCLK_CLK50M		19
-#define CLKID_GP0_PLL_DCO		20
-#define CLKID_GP0_PLL			21
-#define CLKID_GP1_PLL_DCO		22
-#define CLKID_GP1_PLL			23
-#define CLKID_CPU_DYN_CLK		24
-#define CLKID_CPU_CLK			25
-#define CLKID_HIFI_PLL_DCO		26
-#define CLKID_HIFI_PLL			27
-#define CLKID_PCIE_PLL_DCO		28
-#define CLKID_PCIE_PLL_DCO_DIV2		29
-#define CLKID_PCIE_PLL_OD		30
-#define CLKID_PCIE_PLL			31
-#define CLKID_PCIE_BGP			32
-#define CLKID_PCIE_HCSL_OUT		33
-#define CLKID_PCIE_HCSL_PAD		34
-#define CLKID_PCIE_HCSL_IN_PAD		35
-#define CLKID_PCIE_CLK_IN		36
-#define CLKID_PCIE1_PLL_DCO		37
-#define CLKID_PCIE1_PLL_DCO_DIV2	38
-#define CLKID_PCIE1_PLL_OD		39
-#define CLKID_PCIE1_PLL			40
-#define CLKID_PCIE1_BGP			41
-#define CLKID_PCIE1_HCSL_OUT		42
-#define CLKID_PCIE1_HCSL_PAD		43
-#define CLKID_PCIE1_HCSL_IN_PAD		44
-#define CLKID_PCIE1_CLK_IN		45
-#define CLKID_SYS2_PLL_DCO		46
-#define CLKID_SYS2_PLL			47
-#define CLKID_A76_DYN_CLK		48
-#define CLKID_A76_CLK			49
-#define CLKID_DSU_DYN_CLK		50
-#define CLKID_DSU_CLK			51
-#define CLKID_DSU_FINAL_CLK		52
-#define CLKID_GP2_PLL_DCO		53
-#define CLKID_GP2_PLL			54
-#define CLKID_NNA_PLL_DCO		55
-#define CLKID_NNA_PLL			56
-#define CLKID_NNA_PLL_AUDIO		57
-#define CLKID_HIFI1_PLL_DCO		58
-#define CLKID_HIFI1_PLL			59
-#define CLKID_FDLE_PLL_DCO		60
-#define CLKID_FDLE_PLL_OD		61
-#define CLKID_FDLE_PLL_OD1		62
-#define CLKID_FDLE_PLL_TMDS		63
-#define CLKID_FDLE_PLL_PIXEL		64
-#define CLKID_CPU4_CLK			65
+#define CLKID_SYS2_PLL                            0
+#define CLKID_GP0_PLL                             1
+#define CLKID_GP2_PLL                             2
+#define CLKID_HIFI_PLL                            3
+#define CLKID_HIFI1_PLL                           4
+#define CLKID_FPLL_DCO                            5
+#define CLKID_NNA_PLL                             6
+#define CLKID_PCIE_PLL_DCO                        7
+#define CLKID_PCIE1_PLL_DCO                       8
+#define CLKID_FCLK_50M_EN                         9
+#define CLKID_FCLK_50M                            10
+#define CLKID_FCLK_DIV2_DIV                       11
+#define CLKID_FCLK_DIV2                           12
+#define CLKID_FCLK_DIV2P5_DIV                     13
+#define CLKID_FCLK_DIV2P5                         14
+#define CLKID_FCLK_DIV3_DIV                       15
+#define CLKID_FCLK_DIV3                           16
+#define CLKID_FCLK_DIV4_DIV                       17
+#define CLKID_FCLK_DIV4                           18
+#define CLKID_FCLK_DIV5_DIV                       19
+#define CLKID_FCLK_DIV5                           20
+#define CLKID_FCLK_DIV7_DIV                       21
+#define CLKID_FCLK_DIV7                           22
+#define CLKID_FPLL_TMDS_OD                        23
+#define CLKID_FPLL_TMDS_OD1                       24
+#define CLKID_FPLL_TMDS                           25
+#define CLKID_FPLL_PIXEL                          26
+#define CLKID_NNA_PLL_AUDIO                       27
+#define CLKID_PCIE_PLL_DCO_DIV2                   28
+#define CLKID_PCIE_PLL_OD                         29
+#define CLKID_PCIE_PLL                            30
+#define CLKID_PCIE_BGP                            31
+#define CLKID_PCIE_HCSL                           32
+#define CLKID_PCIE_HCSL_IN_PAD                    33
+#define CLKID_PCIE_CLK_IN                         34
+#define CLKID_PCIE1_PLL_DCO_DIV2                  35
+#define CLKID_PCIE1_PLL_OD                        36
+#define CLKID_PCIE1_PLL                           37
+#define CLKID_PCIE1_BGP                           38
+#define CLKID_PCIE1_HCSL                          39
+#define CLKID_PCIE1_HCSL_IN_PAD                   40
+#define CLKID_PCIE1_CLK_IN                        41
+#define CLKID_RTC_DUAL_CLKIN                      42
+#define CLKID_RTC_DUAL_DIV                        43
+#define CLKID_RTC_DUAL_MUX                        44
+#define CLKID_RTC_DUAL                            45
+#define CLKID_RTC_CLK                             46
+#define CLKID_CECA_DUAL_CLKIN                     47
+#define CLKID_CECA_DUAL_DIV                       48
+#define CLKID_CECA_DUAL_MUX                       49
+#define CLKID_CECA_DUAL                           50
+#define CLKID_CECA_CLK                            51
+#define CLKID_CECB_DUAL_CLKIN                     52
+#define CLKID_CECB_DUAL_DIV                       53
+#define CLKID_CECB_DUAL_MUX                       54
+#define CLKID_CECB_DUAL                           55
+#define CLKID_CECB_CLK                            56
+#define CLKID_VAPB_MUX                            57
+#define CLKID_VAPB_DIV                            58
+#define CLKID_VAPB                                59
+#define CLKID_GE2D_MUX                            60
+#define CLKID_GE2D_DIV                            61
+#define CLKID_GE2D                                62
+#define CLKID_SC_MUX                              63
+#define CLKID_SC_DIV                              64
+#define CLKID_SC                                  65
+#define CLKID_VIDEO_SRC0_IN_MUX                   66
+#define CLKID_VIDEO_SRC0_IN                       67
+#define CLKID_VIDEO_SRC0_DIV                      68
+#define CLKID_VIDEO_SRC0                          69
+#define CLKID_VIDEO_SRC1_IN_MUX                   70
+#define CLKID_VIDEO_SRC1_IN                       71
+#define CLKID_VIDEO_SRC1_DIV                      72
+#define CLKID_VIDEO_SRC1                          73
+#define CLKID_VIDEO0_DIV1                         74
+#define CLKID_VIDEO0_DIV2_GATE                    75
+#define CLKID_VIDEO0_DIV2                         76
+#define CLKID_VIDEO0_DIV4_GATE                    77
+#define CLKID_VIDEO0_DIV4                         78
+#define CLKID_VIDEO0_DIV6_GATE                    79
+#define CLKID_VIDEO0_DIV6                         80
+#define CLKID_VIDEO0_DIV12_GATE                   81
+#define CLKID_VIDEO0_DIV12                        82
+#define CLKID_VIDEO2_DIV1                         83
+#define CLKID_VIDEO2_DIV2_GATE                    84
+#define CLKID_VIDEO2_DIV2                         85
+#define CLKID_VIDEO2_DIV4_GATE                    86
+#define CLKID_VIDEO2_DIV4                         87
+#define CLKID_VIDEO2_DIV6_GATE                    88
+#define CLKID_VIDEO2_DIV6                         89
+#define CLKID_VIDEO2_DIV12_GATE                   90
+#define CLKID_VIDEO2_DIV12                        91
+#define CLKID_ENCI_MUX                            92
+#define CLKID_ENCI                                93
+#define CLKID_ENCT_MUX                            94
+#define CLKID_ENCT                                95
+#define CLKID_ENCP_MUX                            96
+#define CLKID_ENCP                                97
+#define CLKID_ENCL_MUX                            98
+#define CLKID_ENCL                                99
+#define CLKID_VDAC_MUX                            100
+#define CLKID_VDAC                                101
+#define CLKID_ENC0_HDMITX_PIXEL_MUX               102
+#define CLKID_ENC0_HDMITX_PIXEL                   103
+#define CLKID_ENC0_HDMITX_FE_MUX                  104
+#define CLKID_ENC0_HDMITX_FE                      105
+#define CLKID_ENC0_HDMITX_PNX_MUX                 106
+#define CLKID_ENC0_HDMITX_PNX                     107
+#define CLKID_HDMITX_PIXEL_MUX                    108
+#define CLKID_HDMITX_PIXEL_DIV                    109
+#define CLKID_HDMITX_PIXEL                        110
+#define CLKID_HDMITX_FE_MUX                       111
+#define CLKID_HDMITX_FE_DIV                       112
+#define CLKID_HDMITX_FE                           113
+#define CLKID_HDMITX_PNX_MUX                      114
+#define CLKID_HDMITX_PNX_DIV                      115
+#define CLKID_HDMITX_PNX                          116
+#define CLKID_VPU_0_MUX                           117
+#define CLKID_VPU_0_DIV                           118
+#define CLKID_VPU_0                               119
+#define CLKID_VPU_1_MUX                           120
+#define CLKID_VPU_1_DIV                           121
+#define CLKID_VPU_1                               122
+#define CLKID_VPU                                 123
+#define CLKID_VPU_CLKB_TMP_MUX                    124
+#define CLKID_VPU_CLKB_TMP_DIV                    125
+#define CLKID_VPU_CLKB_TMP                        126
+#define CLKID_VPU_CLKB_DIV                        127
+#define CLKID_VPU_CLKB                            128
+#define CLKID_VDIN_MEAS_MUX                       129
+#define CLKID_VDIN_MEAS_DIV                       130
+#define CLKID_VDIN_MEAS                           131
+#define CLKID_VID_LOCK_MUX                        132
+#define CLKID_VID_LOCK_DIV                        133
+#define CLKID_VID_LOCK                            134
+#define CLKID_CMPR_MUX                            135
+#define CLKID_CMPR_DIV                            136
+#define CLKID_CMPR                                137
+#define CLKID_MALI_0_MUX                          138
+#define CLKID_MALI_0_DIV                          139
+#define CLKID_MALI_0                              140
+#define CLKID_MALI_1_MUX                          141
+#define CLKID_MALI_1_DIV                          142
+#define CLKID_MALI_1                              143
+#define CLKID_MALI                                144
+#define CLKID_VDEC_0_MUX                          145
+#define CLKID_VDEC_0_DIV                          146
+#define CLKID_VDEC_0                              147
+#define CLKID_VDEC_1_MUX                          148
+#define CLKID_VDEC_1_DIV                          149
+#define CLKID_VDEC_1                              150
+#define CLKID_VDEC                                151
+#define CLKID_HCODEC_0_MUX                        152
+#define CLKID_HCODEC_0_DIV                        153
+#define CLKID_HCODEC_0                            154
+#define CLKID_HCODEC_1_MUX                        155
+#define CLKID_HCODEC_1_DIV                        156
+#define CLKID_HCODEC_1                            157
+#define CLKID_HCODEC                              158
+#define CLKID_HEVC_0_MUX                          159
+#define CLKID_HEVC_0_DIV                          160
+#define CLKID_HEVC_0                              161
+#define CLKID_HEVC_1_MUX                          162
+#define CLKID_HEVC_1_DIV                          163
+#define CLKID_HEVC_1                              164
+#define CLKID_HEVC                                165
+#define CLKID_VC9000E_AXI_MUX                     166
+#define CLKID_VC9000E_AXI_DIV                     167
+#define CLKID_VC9000E_AXI                         168
+#define CLKID_VC9000E_CORE_MUX                    169
+#define CLKID_VC9000E_CORE_DIV                    170
+#define CLKID_VC9000E_CORE                        171
+#define CLKID_HDMITX_SYS_MUX                      172
+#define CLKID_HDMITX_SYS_DIV                      173
+#define CLKID_HDMITX_SYS                          174
+#define CLKID_HDMITX_PRIF_MUX                     175
+#define CLKID_HDMITX_PRIF_DIV                     176
+#define CLKID_HDMITX_PRIF                         177
+#define CLKID_HDMITX_200M_MUX                     178
+#define CLKID_HDMITX_200M_DIV                     179
+#define CLKID_HDMITX_200M                         180
+#define CLKID_HDMITX_AUD_MUX                      181
+#define CLKID_HDMITX_AUD_DIV                      182
+#define CLKID_HDMITX_AUD                          183
+#define CLKID_HTX_TMDS_MUX                        184
+#define CLKID_HTX_TMDS_DIV                        185
+#define CLKID_HTX_TMDS                            186
+#define CLKID_NNA_0_MUX                           187
+#define CLKID_NNA_0_DIV                           188
+#define CLKID_NNA_0                               189
+#define CLKID_NNA_1_MUX                           190
+#define CLKID_NNA_1_DIV                           191
+#define CLKID_NNA_1                               192
+#define CLKID_NNA                                 193
+#define CLKID_PWM_A_MUX                           194
+#define CLKID_PWM_A_DIV                           195
+#define CLKID_PWM_A                               196
+#define CLKID_PWM_B_MUX                           197
+#define CLKID_PWM_B_DIV                           198
+#define CLKID_PWM_B                               199
+#define CLKID_PWM_C_MUX                           200
+#define CLKID_PWM_C_DIV                           201
+#define CLKID_PWM_C                               202
+#define CLKID_PWM_D_MUX                           203
+#define CLKID_PWM_D_DIV                           204
+#define CLKID_PWM_D                               205
+#define CLKID_PWM_E_MUX                           206
+#define CLKID_PWM_E_DIV                           207
+#define CLKID_PWM_E                               208
+#define CLKID_PWM_F_MUX                           209
+#define CLKID_PWM_F_DIV                           210
+#define CLKID_PWM_F                               211
+#define CLKID_PWM_G_MUX                           212
+#define CLKID_PWM_G_DIV                           213
+#define CLKID_PWM_G                               214
+#define CLKID_PWM_H_MUX                           215
+#define CLKID_PWM_H_DIV                           216
+#define CLKID_PWM_H                               217
+#define CLKID_PWM_I_MUX                           218
+#define CLKID_PWM_I_DIV                           219
+#define CLKID_PWM_I                               220
+#define CLKID_PWM_J_MUX                           221
+#define CLKID_PWM_J_DIV                           222
+#define CLKID_PWM_J                               223
+#define CLKID_SPICC0_MUX                          224
+#define CLKID_SPICC0_DIV                          225
+#define CLKID_SPICC0                              226
+#define CLKID_SPICC1_MUX                          227
+#define CLKID_SPICC1_DIV                          228
+#define CLKID_SPICC1                              229
+#define CLKID_SPICC2_MUX                          230
+#define CLKID_SPICC2_DIV                          231
+#define CLKID_SPICC2                              232
+#define CLKID_SD_EMMC_A_MUX                       233
+#define CLKID_SD_EMMC_A_DIV                       234
+#define CLKID_SD_EMMC_A                           235
+#define CLKID_SD_EMMC_B_MUX                       236
+#define CLKID_SD_EMMC_B_DIV                       237
+#define CLKID_SD_EMMC_B                           238
+#define CLKID_SD_EMMC_C_MUX                       239
+#define CLKID_SD_EMMC_C_DIV                       240
+#define CLKID_SD_EMMC_C                           241
+#define CLKID_ETH_CLK_RMII_MUX                    242
+#define CLKID_ETH_CLK_RMII_DIV                    243
+#define CLKID_ETH_CLK_RMII                        244
+#define CLKID_ETH_CLK125M_DIV                     245
+#define CLKID_ETH_CLK125M                         246
+#define CLKID_TS_DIV                              247
+#define CLKID_TS                                  248
+#define CLKID_CDAC_MUX                            249
+#define CLKID_CDAC_DIV                            250
+#define CLKID_CDAC                                251
+#define CLKID_SAR_ADC_MUX                         252
+#define CLKID_SAR_ADC_DIV                         253
+#define CLKID_SAR_ADC                             254
+#define CLKID_USB_250M_MUX                        255
+#define CLKID_USB_250M_DIV                        256
+#define CLKID_USB_250M                            257
+#define CLKID_PCIE_400M_MUX                       258
+#define CLKID_PCIE_400M_DIV                       259
+#define CLKID_PCIE_400M                           260
+#define CLKID_PCIE_MUX                            261
+#define CLKID_PCIE_DIV                            262
+#define CLKID_PCIE                                263
+#define CLKID_PCIE_TL_MUX                         264
+#define CLKID_PCIE_TL_DIV                         265
+#define CLKID_PCIE_TL                             266
+#define CLKID_CLK_24M_IN                          267
+#define CLKID_CLK_24M_DIV                         268
+#define CLKID_CLK_12_24M                          269
+#define CLKID_CLK_25M_DIV                         270
+#define CLKID_CLK_25M                             271
+#define CLKID_GEN_MUX                             272
+#define CLKID_GEN_DIV                             273
+#define CLKID_GEN                                 274
+#define CLKID_SYS_DDR                             275
+#define CLKID_SYS_ETHPHY                          276
+#define CLKID_SYS_GPU                             277
+#define CLKID_SYS_AOCPU                           278
+#define CLKID_SYS_AUCPU                           279
+#define CLKID_SYS_DEWARPC                         280
+#define CLKID_SYS_DEWARPB                         281
+#define CLKID_SYS_DEWARPA                         282
+#define CLKID_SYS_AMPIPE_NAND                     283
+#define CLKID_SYS_AMPIPE_ETH                      284
+#define CLKID_SYS_AM2AXI0                         285
+#define CLKID_SYS_SD_EMMC_A                       286
+#define CLKID_SYS_SD_EMMC_B                       287
+#define CLKID_SYS_SD_EMMC_C                       288
+#define CLKID_SYS_VC9000E                         289
+#define CLKID_SYS_ACODEC                          290
+#define CLKID_SYS_SPIFC                           291
+#define CLKID_SYS_MSR_CLK                         292
+#define CLKID_SYS_IR_CTRL                         293
+#define CLKID_SYS_AUDIO                           294
+#define CLKID_SYS_DOS                             295
+#define CLKID_SYS_ETH                             296
+#define CLKID_SYS_UART_A                          297
+#define CLKID_SYS_UART_B                          298
+#define CLKID_SYS_UART_C                          299
+#define CLKID_SYS_UART_D                          300
+#define CLKID_SYS_UART_E                          301
+#define CLKID_SYS_UART_F                          302
+#define CLKID_SYS_SPICC2                          303
+#define CLKID_SYS_TS_A55                          304
+#define CLKID_SYS_GE2D                            305
+#define CLKID_SYS_SPICC0                          306
+#define CLKID_SYS_SPICC1                          307
+#define CLKID_SYS_SMART_CARD                      308
+#define CLKID_SYS_PCIE                            309
+#define CLKID_SYS_PCIEPHY                         310
+#define CLKID_SYS_USBGENERAL                      311
+#define CLKID_SYS_PCIEPHY0                        312
+#define CLKID_SYS_PCIEPHY1                        313
+#define CLKID_SYS_PCIEPHY2                        314
+#define CLKID_SYS_I2C_M_A                         315
+#define CLKID_SYS_I2C_M_B                         316
+#define CLKID_SYS_I2C_M_C                         317
+#define CLKID_SYS_I2C_M_D                         318
+#define CLKID_SYS_I2C_M_E                         319
+#define CLKID_SYS_I2C_M_F                         320
+#define CLKID_SYS_I2C_S_A                         321
+#define CLKID_SYS_CMPR                            322
+#define CLKID_SYS_MMC_PCLK                        323
+#define CLKID_SYS_HDMITX_PCLK                     324
+#define CLKID_SYS_HDMI20_AES_CLK                  325
+#define CLKID_SYS_PCLK_SYS_CPU_APB                326
+#define CLKID_SYS_CEC                             327
+#define CLKID_SYS_VPU_INTR                        328
+#define CLKID_SYS_SAR_ADC                         329
+#define CLKID_SYS_GIC                             330
+#define CLKID_SYS_TS_GPU                          331
+#define CLKID_SYS_TS_NNA                          332
+#define CLKID_SYS_TS_VPU                          333
+#define CLKID_SYS_TS_DOS                          334
+#define CLKID_SYS_PWM_AB                          335
+#define CLKID_SYS_PWM_CD                          336
+#define CLKID_SYS_PWM_EF                          337
+#define CLKID_SYS_PWM_GH                          338
+#define CLKID_SYS_PWM_IJ                          339
 
-#define CLKID_BASE			66
-#define CLKID_RTC_32K_CLKIN		(CLKID_BASE + 0)
-#define CLKID_RTC_32K_DIV		(CLKID_BASE + 1)
-#define CLKID_RTC_32K_XATL		(CLKID_BASE + 2)
-#define CLKID_RTC_32K_SEL		(CLKID_BASE + 3)
-#define CLKID_RTC_CLK			(CLKID_BASE + 4)
-#define CLKID_SYS_CLK_1_SEL		(CLKID_BASE + 5)
-#define CLKID_SYS_CLK_1_DIV		(CLKID_BASE + 6)
-#define CLKID_SYS_CLK_1			(CLKID_BASE + 7)
-#define CLKID_SYS_CLK_0_SEL		(CLKID_BASE + 8)
-#define CLKID_SYS_CLK_0_DIV		(CLKID_BASE + 9)
-#define CLKID_SYS_CLK_0			(CLKID_BASE + 10)
-#define CLKID_SYS_CLK			(CLKID_BASE + 11)
-#define CLKID_CECA_32K_CLKIN		(CLKID_BASE + 12)
-#define CLKID_CECA_32K_DIV		(CLKID_BASE + 13)
-#define CLKID_CECA_32K_MUX_PRE		(CLKID_BASE + 14)
-#define CLKID_CECA_32K_MUX		(CLKID_BASE + 15)
-#define CLKID_CECA_32K_CLKOUT		(CLKID_BASE + 16)
-#define CLKID_CECB_32K_CLKIN		(CLKID_BASE + 17)
-#define CLKID_CECB_32K_DIV		(CLKID_BASE + 18)
-#define CLKID_CECB_32K_MUX_PRE		(CLKID_BASE + 19)
-#define CLKID_CECB_32K_MUX		(CLKID_BASE + 20)
-#define CLKID_CECB_32K_CLKOUT		(CLKID_BASE + 21)
-#define CLKID_AXICLK_1_SEL		(CLKID_BASE + 22)
-#define CLKID_AXICLK_1_DIV		(CLKID_BASE + 23)
-#define CLKID_AXICLK_1			(CLKID_BASE + 24)
-#define CLKID_AXICLK_0_SEL		(CLKID_BASE + 25)
-#define CLKID_AXICLK_0_DIV		(CLKID_BASE + 26)
-#define CLKID_AXICLK_0			(CLKID_BASE + 27)
-#define CLKID_AXICLK			(CLKID_BASE + 28)
-#define CLKID_24M_CLK_GATE		(CLKID_BASE + 29)
-#define CLKID_24M_DIV2			(CLKID_BASE + 30)
-#define CLKID_12M_CLK			(CLKID_BASE + 31)
-#define CLKID_25M_CLK_DIV		(CLKID_BASE + 32)
-#define CLKID_25M_CLK			(CLKID_BASE + 33)
-
-#define VIDEO_BASE			(CLKID_BASE + 34)
-#define CLKID_VCLK_SEL			(VIDEO_BASE + 0)
-#define CLKID_VCLK2_SEL			(VIDEO_BASE + 1)
-#define CLKID_VCLK_INPUT		(VIDEO_BASE + 2)
-#define CLKID_VCLK2_INPUT		(VIDEO_BASE + 3)
-#define CLKID_VCLK_DIV			(VIDEO_BASE + 4)
-#define CLKID_VCLK2_DIV			(VIDEO_BASE + 5)
-#define CLKID_VCLK			(VIDEO_BASE + 6)
-#define CLKID_VCLK2			(VIDEO_BASE + 7)
-#define CLKID_VCLK_DIV1			(VIDEO_BASE + 8)
-#define CLKID_VCLK_DIV2_EN		(VIDEO_BASE + 9)
-#define CLKID_VCLK_DIV4_EN		(VIDEO_BASE + 10)
-#define CLKID_VCLK_DIV6_EN		(VIDEO_BASE + 11)
-#define CLKID_VCLK_DIV12_EN		(VIDEO_BASE + 12)
-#define CLKID_VCLK2_DIV1		(VIDEO_BASE + 13)
-#define CLKID_VCLK2_DIV2_EN		(VIDEO_BASE + 14)
-#define CLKID_VCLK2_DIV4_EN		(VIDEO_BASE + 15)
-#define CLKID_VCLK2_DIV6_EN		(VIDEO_BASE + 16)
-#define CLKID_VCLK2_DIV12_EN		(VIDEO_BASE + 17)
-#define CLKID_VCLK_DIV2			(VIDEO_BASE + 18)
-#define CLKID_VCLK_DIV4			(VIDEO_BASE + 19)
-#define CLKID_VCLK_DIV6			(VIDEO_BASE + 20)
-#define CLKID_VCLK_DIV12		(VIDEO_BASE + 21)
-#define CLKID_VCLK2_DIV2		(VIDEO_BASE + 22)
-#define CLKID_VCLK2_DIV4		(VIDEO_BASE + 23)
-#define CLKID_VCLK2_DIV6		(VIDEO_BASE + 24)
-#define CLKID_VCLK2_DIV12		(VIDEO_BASE + 25)
-#define CLKID_CTS_ENCI_SEL		(VIDEO_BASE + 26)
-#define CLKID_CTS_ENCT_SEL		(VIDEO_BASE + 28)
-#define CLKID_CTS_ENCP_SEL		(VIDEO_BASE + 29)
-#define CLKID_CTS_ENCL_SEL		(VIDEO_BASE + 30)
-#define CLKID_CTS_VDAC_SEL		(VIDEO_BASE + 31)
-#define CLKID_CTS_ENCI			(VIDEO_BASE + 32)
-#define CLKID_CTS_ENCT			(VIDEO_BASE + 33)
-#define CLKID_CTS_ENCP			(VIDEO_BASE + 34)
-#define CLKID_CTS_ENCL			(VIDEO_BASE + 35)
-#define CLKID_CTS_VDAC			(VIDEO_BASE + 36)
-
-#define PERI_BASE			(VIDEO_BASE + 37)
-#define CLKID_SD_EMMC_C_CLK_SEL		(PERI_BASE + 0)
-#define CLKID_SD_EMMC_C_CLK_DIV		(PERI_BASE + 1)
-#define CLKID_SD_EMMC_C_CLK		(PERI_BASE + 2)
-#define CLKID_SD_EMMC_A_CLK_SEL		(PERI_BASE + 3)
-#define CLKID_SD_EMMC_A_CLK_DIV		(PERI_BASE + 4)
-#define CLKID_SD_EMMC_A_CLK		(PERI_BASE + 5)
-#define CLKID_SD_EMMC_B_CLK_SEL		(PERI_BASE + 6)
-#define CLKID_SD_EMMC_B_CLK_DIV		(PERI_BASE + 7)
-#define CLKID_SD_EMMC_B_CLK		(PERI_BASE + 8)
-#define CLKID_SPICC0_SEL		(PERI_BASE + 9)
-#define CLKID_SPICC0_DIV		(PERI_BASE + 10)
-#define CLKID_SPICC0			(PERI_BASE + 11)
-#define CLKID_SPICC1_SEL		(PERI_BASE + 12)
-#define CLKID_SPICC1_DIV		(PERI_BASE + 13)
-#define CLKID_SPICC1			(PERI_BASE + 14)
-#define CLKID_SPICC2_SEL		(PERI_BASE + 15)
-#define CLKID_SPICC2_DIV		(PERI_BASE + 16)
-#define CLKID_SPICC2			(PERI_BASE + 17)
-#define CLKID_PWM_A_SEL			(PERI_BASE + 27)
-#define CLKID_PWM_A_DIV			(PERI_BASE + 28)
-#define CLKID_PWM_A			(PERI_BASE + 29)
-#define CLKID_PWM_B_SEL			(PERI_BASE + 30)
-#define CLKID_PWM_B_DIV			(PERI_BASE + 31)
-#define CLKID_PWM_B			(PERI_BASE + 32)
-#define CLKID_PWM_C_SEL			(PERI_BASE + 33)
-#define CLKID_PWM_C_DIV			(PERI_BASE + 34)
-#define CLKID_PWM_C			(PERI_BASE + 35)
-#define CLKID_PWM_D_SEL			(PERI_BASE + 36)
-#define CLKID_PWM_D_DIV			(PERI_BASE + 37)
-#define CLKID_PWM_D			(PERI_BASE + 38)
-#define CLKID_PWM_E_SEL			(PERI_BASE + 39)
-#define CLKID_PWM_E_DIV			(PERI_BASE + 40)
-#define CLKID_PWM_E			(PERI_BASE + 41)
-#define CLKID_PWM_F_SEL			(PERI_BASE + 42)
-#define CLKID_PWM_F_DIV			(PERI_BASE + 43)
-#define CLKID_PWM_F			(PERI_BASE + 44)
-#define CLKID_PWM_G_SEL			(PERI_BASE + 45)
-#define CLKID_PWM_G_DIV			(PERI_BASE + 46)
-#define CLKID_PWM_G			(PERI_BASE + 47)
-#define CLKID_PWM_H_SEL			(PERI_BASE + 48)
-#define CLKID_PWM_H_DIV			(PERI_BASE + 49)
-#define CLKID_PWM_H			(PERI_BASE + 50)
-#define CLKID_PWM_I_SEL			(PERI_BASE + 51)
-#define CLKID_PWM_I_DIV			(PERI_BASE + 52)
-#define CLKID_PWM_I			(PERI_BASE + 53)
-#define CLKID_PWM_J_SEL			(PERI_BASE + 54)
-#define CLKID_PWM_J_DIV			(PERI_BASE + 55)
-#define CLKID_PWM_J			(PERI_BASE + 56)
-#define CLKID_SARADC_SEL		(PERI_BASE + 57)
-#define CLKID_SARADC_DIV		(PERI_BASE + 58)
-#define CLKID_SARADC			(PERI_BASE + 59)
-#define CLKID_GEN_SEL			(PERI_BASE + 60)
-#define CLKID_GEN_DIV			(PERI_BASE + 61)
-#define CLKID_GEN			(PERI_BASE + 62)
-#define CLKID_ETH_RMII_SEL		(PERI_BASE + 63)
-#define CLKID_ETH_RMII_DIV		(PERI_BASE + 64)
-#define CLKID_ETH_RMII			(PERI_BASE + 65)
-#define CLKID_ETH_DIV8			(PERI_BASE + 66)
-#define CLKID_ETH_125M			(PERI_BASE + 67)
-#define CLKID_TS_CLK_DIV		(PERI_BASE + 68)
-#define CLKID_TS_CLK			(PERI_BASE + 69)
-#define CLKID_USB_250M_SEL		(PERI_BASE + 70)
-#define CLKID_USB_250M_DIV		(PERI_BASE + 71)
-#define CLKID_USB_250M			(PERI_BASE + 72)
-#define CLKID_PCIE_400M_SEL		(PERI_BASE + 73)
-#define CLKID_PCIE_400M_DIV		(PERI_BASE + 74)
-#define CLKID_PCIE_400M			(PERI_BASE + 75)
-#define CLKID_PCIE_CLK_SEL		(PERI_BASE + 76)
-#define CLKID_PCIE_CLK_DIV		(PERI_BASE + 77)
-#define CLKID_PCIE_CLK			(PERI_BASE + 78)
-#define CLKID_PCIE_TL_CLK_SEL		(PERI_BASE + 79)
-#define CLKID_PCIE_TL_CLK_DIV		(PERI_BASE + 80)
-#define CLKID_PCIE_TL_CLK		(PERI_BASE + 81)
-#define CLKID_CDAC_SEL			(PERI_BASE + 82)
-#define CLKID_CDAC_DIV			(PERI_BASE + 83)
-#define CLKID_CDAC			(PERI_BASE + 84)
-#define CLKID_SC_SEL			(PERI_BASE + 85)
-#define CLKID_SC_DIV			(PERI_BASE + 86)
-#define CLKID_SC			(PERI_BASE + 87)
-
-#define MEDIA_BASE			(PERI_BASE + 88)
-#define CLKID_VAPB_0_SEL		(MEDIA_BASE + 1)
-#define CLKID_VAPB_0_DIV		(MEDIA_BASE + 2)
-#define CLKID_VAPB_0			(MEDIA_BASE + 3)
-#define CLKID_GE2D_SEL			(MEDIA_BASE + 4)
-#define CLKID_GE2D_DIV			(MEDIA_BASE + 5)
-#define CLKID_GE2D			(MEDIA_BASE + 6)
-#define CLKID_NNA_0_SEL			(MEDIA_BASE + 7)
-#define CLKID_NNA_0_DIV			(MEDIA_BASE + 8)
-#define CLKID_NNA_0			(MEDIA_BASE + 9)
-#define CLKID_NNA_1_SEL			(MEDIA_BASE + 10)
-#define CLKID_NNA_1_DIV			(MEDIA_BASE + 11)
-#define CLKID_NNA_1			(MEDIA_BASE + 12)
-#define CLKID_NNA			(MEDIA_BASE + 14)
-#define CLKID_VPU0_SEL			(MEDIA_BASE + 15)
-#define CLKID_VPU0_DIV			(MEDIA_BASE + 16)
-#define CLKID_VPU0			(MEDIA_BASE + 17)
-#define CLKID_VPU1_SEL			(MEDIA_BASE + 18)
-#define CLKID_VPU1_DIV			(MEDIA_BASE + 19)
-#define CLKID_VPU1			(MEDIA_BASE + 20)
-#define CLKID_VPU			(MEDIA_BASE + 21)
-#define CLKID_VPU_CLKB_TMP_SEL		(MEDIA_BASE + 22)
-#define CLKID_VPU_CLKB_TMP_DIV		(MEDIA_BASE + 23)
-#define CLKID_VPU_CLKB_TMP		(MEDIA_BASE + 24)
-#define CLKID_VPU_CLKB_DIV		(MEDIA_BASE + 25)
-#define CLKID_VPU_CLKB			(MEDIA_BASE + 26)
-#define CLKID_VIN_MEAS_SEL		(MEDIA_BASE + 27)
-#define CLKID_VIN_MEAS_DIV		(MEDIA_BASE + 28)
-#define CLKID_VIN_MEAS			(MEDIA_BASE + 29)
-#define CLKID_VID_LOCK_SEL		(MEDIA_BASE + 30)
-#define CLKID_VID_LOCK_DIV		(MEDIA_BASE + 31)
-#define CLKID_VID_LOCK			(MEDIA_BASE + 32)
-#define CLKID_CMPR_SEL			(MEDIA_BASE + 33)
-#define CLKID_CMPR_DIV			(MEDIA_BASE + 34)
-#define CLKID_CMPR			(MEDIA_BASE + 35)
-#define CLKID_MALI0_SEL			(MEDIA_BASE + 36)
-#define CLKID_MALI0_DIV			(MEDIA_BASE + 37)
-#define CLKID_MALI0			(MEDIA_BASE + 38)
-#define CLKID_MALI1_SEL			(MEDIA_BASE + 39)
-#define CLKID_MALI1_DIV			(MEDIA_BASE + 40)
-#define CLKID_MALI1			(MEDIA_BASE + 41)
-#define CLKID_MALI			(MEDIA_BASE + 42)
-#define CLKID_VDEC0_SEL			(MEDIA_BASE + 43)
-#define CLKID_VDEC0_DIV			(MEDIA_BASE + 44)
-#define CLKID_VDEC0			(MEDIA_BASE + 45)
-#define CLKID_VDEC1_SEL			(MEDIA_BASE + 46)
-#define CLKID_VDEC1_DIV			(MEDIA_BASE + 47)
-#define CLKID_VDEC1			(MEDIA_BASE + 48)
-#define CLKID_VDEC			(MEDIA_BASE + 49)
-#define CLKID_HCODEC0_SEL		(MEDIA_BASE + 50)
-#define CLKID_HCODEC0_DIV		(MEDIA_BASE + 51)
-#define CLKID_HCODEC0			(MEDIA_BASE + 52)
-#define CLKID_HCODEC1_SEL		(MEDIA_BASE + 53)
-#define CLKID_HCODEC1_DIV		(MEDIA_BASE + 54)
-#define CLKID_HCODEC1			(MEDIA_BASE + 55)
-#define CLKID_HCODEC			(MEDIA_BASE + 56)
-#define CLKID_HEVC0_SEL			(MEDIA_BASE + 57)
-#define CLKID_HEVC0_DIV			(MEDIA_BASE + 58)
-#define CLKID_HEVC0			(MEDIA_BASE + 59)
-#define CLKID_HEVC1_SEL			(MEDIA_BASE + 60)
-#define CLKID_HEVC1_DIV			(MEDIA_BASE + 61)
-#define CLKID_HEVC1			(MEDIA_BASE + 62)
-#define CLKID_HEVC			(MEDIA_BASE + 63)
-#define CLKID_VC9000E_AXI_SEL		(MEDIA_BASE + 64)
-#define CLKID_VC9000E_AXI_DIV		(MEDIA_BASE + 65)
-#define CLKID_VC9000E_AXI		(MEDIA_BASE + 66)
-#define CLKID_VC9000E_CORE_SEL		(MEDIA_BASE + 67)
-#define CLKID_VC9000E_CORE_DIV		(MEDIA_BASE + 68)
-#define CLKID_VC9000E_CORE		(MEDIA_BASE + 69)
-#define CLKID_HDMITX_SYS_SEL		(MEDIA_BASE + 70)
-#define CLKID_HDMITX_SYS_DIV		(MEDIA_BASE + 71)
-#define CLKID_HDMITX_SYS		(MEDIA_BASE + 72)
-#define CLKID_HDMITX_PRIF_SEL		(MEDIA_BASE + 73)
-#define CLKID_HDMITX_PRIF_DIV		(MEDIA_BASE + 74)
-#define CLKID_HDMITX_PRIF		(MEDIA_BASE + 75)
-#define CLKID_HDMITX_200M_SEL		(MEDIA_BASE + 76)
-#define CLKID_HDMITX_200M_DIV		(MEDIA_BASE + 77)
-#define CLKID_HDMITX_200M		(MEDIA_BASE + 78)
-#define CLKID_HDMITX_AUD_SEL		(MEDIA_BASE + 79)
-#define CLKID_HDMITX_AUD_DIV		(MEDIA_BASE + 80)
-#define CLKID_HDMITX_AUD		(MEDIA_BASE + 81)
-#define CLKID_ENC_HDMI_TX_PNX_SEL	(MEDIA_BASE + 82)
-#define CLKID_ENC_HDMI_TX_PNX		(MEDIA_BASE + 83)
-#define CLKID_ENC_HDMI_TX_FE_SEL	(MEDIA_BASE + 84)
-#define CLKID_ENC_HDMI_TX_FE		(MEDIA_BASE + 85)
-#define CLKID_ENC_HDMI_TX_PIXEL_SEL	(MEDIA_BASE + 86)
-#define CLKID_ENC_HDMI_TX_PIXEL		(MEDIA_BASE + 87)
-#define CLKID_HDMI_TX_PNX_SEL		(MEDIA_BASE + 88)
-#define CLKID_HDMI_TX_FE_SEL		(MEDIA_BASE + 89)
-#define CLKID_HDMI_TX_PIXEL_SEL		(MEDIA_BASE + 90)
-#define CLKID_HDMI_TX_PNX_DIV		(MEDIA_BASE + 91)
-#define CLKID_HDMI_TX_FE_DIV		(MEDIA_BASE + 92)
-#define CLKID_HDMI_TX_PIXEL_DIV		(MEDIA_BASE + 93)
-#define CLKID_HDMI_TX_PNX		(MEDIA_BASE + 94)
-#define CLKID_HDMI_TX_FE		(MEDIA_BASE + 95)
-#define CLKID_HDMI_TX_PIXEL		(MEDIA_BASE + 96)
-#define CLKID_HTX_TMDS_SEL		(MEDIA_BASE + 97)
-#define CLKID_HTX_TMDS_DIV		(MEDIA_BASE + 98)
-#define CLKID_HTX_TMDS			(MEDIA_BASE + 99)
-
-#define SYS_BASE			(MEDIA_BASE + 100)
-#define CLKID_SYS_CLK_DDR		(SYS_BASE + 0)
-#define CLKID_SYS_CLK_ETHPHY		(SYS_BASE + 1)
-#define CLKID_SYS_CLK_GPU		(SYS_BASE + 2)
-#define CLKID_SYS_CLK_VC9000E		(SYS_BASE + 3)
-#define CLKID_SYS_CLK_AOCPU		(SYS_BASE + 4)
-#define CLKID_SYS_CLK_AUCPU		(SYS_BASE + 5)
-#define CLKID_SYS_CLK_DEWARPC		(SYS_BASE + 6)
-#define CLKID_SYS_CLK_DEWARPB		(SYS_BASE + 7)
-#define CLKID_SYS_CLK_DEWARPA		(SYS_BASE + 8)
-#define CLKID_SYS_CLK_AMPIPE_NAND	(SYS_BASE + 9)
-#define CLKID_SYS_CLK_AMPIPE_ETH	(SYS_BASE + 10)
-#define CLKID_SYS_CLK_AM2AXI0		(SYS_BASE + 11)
-#define CLKID_SYS_CLK_IR_CTRL		(SYS_BASE + 12)
-#define CLKID_SYS_CLK_SD_EMMC_B		(SYS_BASE + 13)
-#define CLKID_SYS_CLK_SD_EMMC_A		(SYS_BASE + 14)
-#define CLKID_SYS_CLK_SD_EMMC_C		(SYS_BASE + 15)
-#define CLKID_SYS_CLK_SPIFC		(SYS_BASE + 16)
-#define CLKID_SYS_CLK_MSR_CLK		(SYS_BASE + 17)
-#define CLKID_SYS_CLK_AUDIO		(SYS_BASE + 18)
-#define CLKID_SYS_CLK_ETH		(SYS_BASE + 19)
-#define CLKID_SYS_CLK_UART_A		(SYS_BASE + 20)
-#define CLKID_SYS_CLK_UART_B		(SYS_BASE + 21)
-#define CLKID_SYS_CLK_UART_C		(SYS_BASE + 22)
-#define CLKID_SYS_CLK_UART_D		(SYS_BASE + 23)
-#define CLKID_SYS_CLK_UART_E		(SYS_BASE + 24)
-#define CLKID_SYS_CLK_UART_F		(SYS_BASE + 25)
-#define CLKID_SYS_CLK_DOS		(SYS_BASE + 26)
-#define CLKID_SYS_CLK_SPICC2		(SYS_BASE + 27)
-#define CLKID_SYS_CLK_ACODEC		(SYS_BASE + 28)
-#define CLKID_SYS_CLK_TS_A55		(SYS_BASE + 29)
-#define CLKID_SYS_CLK_SMART_CARD	(SYS_BASE + 30)
-#define CLKID_SYS_CLK_G2D		(SYS_BASE + 31)
-#define CLKID_SYS_CLK_SPICC0		(SYS_BASE + 32)
-#define CLKID_SYS_CLK_SPICC1		(SYS_BASE + 33)
-#define CLKID_SYS_CLK_PCIE		(SYS_BASE + 34)
-#define CLKID_SYS_CLK_PCIEPHY		(SYS_BASE + 35)
-#define CLKID_SYS_CLK_USB		(SYS_BASE + 36)
-#define CLKID_SYS_CLK_PCIE_PHY0		(SYS_BASE + 37)
-#define CLKID_SYS_CLK_PCIE_PHY1		(SYS_BASE + 38)
-#define CLKID_SYS_CLK_PCIE_PHY2		(SYS_BASE + 39)
-#define CLKID_SYS_CLK_I2C_M_A		(SYS_BASE + 40)
-#define CLKID_SYS_CLK_I2C_M_B		(SYS_BASE + 41)
-#define CLKID_SYS_CLK_I2C_M_C		(SYS_BASE + 42)
-#define CLKID_SYS_CLK_I2C_M_D		(SYS_BASE + 43)
-#define CLKID_SYS_CLK_I2C_M_E		(SYS_BASE + 44)
-#define CLKID_SYS_CLK_I2C_M_F		(SYS_BASE + 45)
-#define CLKID_SYS_CLK_TS_GPU		(SYS_BASE + 46)
-#define CLKID_SYS_CLK_I2C_S_A		(SYS_BASE + 47)
-#define CLKID_SYS_CLK_CMPR		(SYS_BASE + 48)
-#define CLKID_SYS_CLK_MMC_PCLK		(SYS_BASE + 49)
-#define CLKID_SYS_CLK_HDMITX_PCLK	(SYS_BASE + 50)
-#define CLKID_SYS_CLK_HDMI20_AES_CLK	(SYS_BASE + 51)
-#define CLKID_SYS_CLK_PCLK_SYS_CPU_APB	(SYS_BASE + 52)
-#define CLKID_SYS_CLK_CEC		(SYS_BASE + 53)
-#define CLKID_SYS_CLK_VPU_INTR		(SYS_BASE + 54)
-#define CLKID_SYS_CLK_SAR_ADC		(SYS_BASE + 55)
-#define CLKID_SYS_CLK_GIC		(SYS_BASE + 56)
-#define CLKID_SYS_CLK_TS_NNA		(SYS_BASE + 57)
-#define CLKID_SYS_CLK_PWM_AB		(SYS_BASE + 58)
-#define CLKID_SYS_CLK_PWM_CD		(SYS_BASE + 59)
-#define CLKID_SYS_CLK_PWM_EF		(SYS_BASE + 60)
-#define CLKID_SYS_CLK_PWM_GH		(SYS_BASE + 61)
-#define CLKID_SYS_CLK_PWM_IJ		(SYS_BASE + 62)
-#define CLKID_SYS_CLK_TS_VPU		(SYS_BASE + 63)
-#define CLKID_SYS_CLK_TS_DOS		(SYS_BASE + 64)
-#define NR_CLKS				(SYS_BASE + 65)
-
-#endif /* __S5_CLKC_H */
+#endif /* _DT_BINDINGS_CLOCK_AMLOGIC_S5_CLKC_H */
