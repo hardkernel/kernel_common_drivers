@@ -11937,7 +11937,7 @@ static void osd_2slice_param_init(u32 index_orin)
 	u32 slice_pad_en = 0;
 	u32 slice_pad_h_bgn = 0, slice_pad_h_end = 0;
 	u32 slice_pad_v_bgn = 0, slice_pad_v_end = 0;
-	u32 xoffset, yoffset, left, right;
+	u32 xoffset = 0, yoffset = 0, left = 0, right = 0;
 	u32 osd_in_hsize_real, osd_out_hsize_real;
 	u32 osd_in_vsize_real, osd_out_vsize_real;
 	u32 i, count  = osd_hw.osd_meson_dev.viu1_osd_count;

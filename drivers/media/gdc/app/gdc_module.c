@@ -538,8 +538,8 @@ static int meson_gdc_init_dma_addr(struct gdc_context_s *context,
 {
 	int ret = -1;
 	struct gdc_dma_cfg *dma_cfg = NULL;
-	struct gdc_cmd_s *gdc_cmd = &context->cmd;
-	struct gdc_config_s *gc = &gdc_cmd->gdc_config;
+	struct gdc_cmd_s *gdc_cmd = NULL;
+	struct gdc_config_s *gc = NULL;
 	struct device *dev = NULL;
 
 	if (!context || !gs) {
@@ -547,6 +547,8 @@ static int meson_gdc_init_dma_addr(struct gdc_context_s *context,
 		return -EINVAL;
 	}
 
+	gdc_cmd = &context->cmd;
+	gc = &gdc_cmd->gdc_config;
 	dev = GDC_DEVICE(context->cmd.dev_type);
 
 	switch (gc->format) {
@@ -605,13 +607,16 @@ static int meson_gdc_init_dma_addr(struct gdc_context_s *context,
 static void meson_gdc_deinit_dma_addr(struct gdc_context_s *context)
 {
 	struct gdc_dma_cfg *dma_cfg = NULL;
-	struct gdc_cmd_s *gdc_cmd = &context->cmd;
-	struct gdc_config_s *gc = &gdc_cmd->gdc_config;
+	struct gdc_cmd_s *gdc_cmd = NULL;
+	struct gdc_config_s *gc = NULL;
 
 	if (!context) {
 		gdc_log(LOG_ERR, "Error input param\n");
 		return;
 	}
+
+	gdc_cmd = &context->cmd;
+	gc = &gdc_cmd->gdc_config;
 
 	switch (gc->format & FORMAT_TYPE_MASK) {
 	case NV12:
@@ -832,7 +837,7 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 	unsigned long addr;
 	long size = 0;
 	struct aml_dma_cfg *cfg = NULL;
-	struct gdc_cmd_s *gdc_cmd = &context->cmd;
+	struct gdc_cmd_s *gdc_cmd = NULL;
 	int i, plane_number;
 	struct device *dev = NULL;
 
@@ -841,6 +846,7 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 		return -EINVAL;
 	}
 
+	gdc_cmd = &context->cmd;
 	dev = GDC_DEVICE(context->cmd.dev_type);
 
 	if (gs_ex->input_buffer.plane_number < 1 ||
@@ -910,7 +916,7 @@ static int gdc_process_output_dma_info(struct gdc_context_s *context,
 	int ret = -1;
 	unsigned long addr;
 	struct aml_dma_cfg *cfg = NULL;
-	struct gdc_cmd_s *gdc_cmd = &context->cmd;
+	struct gdc_cmd_s *gdc_cmd = NULL;
 	int i, plane_number;
 	struct device *dev = NULL;
 
@@ -919,6 +925,7 @@ static int gdc_process_output_dma_info(struct gdc_context_s *context,
 		return -EINVAL;
 	}
 
+	gdc_cmd = &context->cmd;
 	dev = GDC_DEVICE(context->cmd.dev_type);
 
 	if (gs_ex->output_buffer.plane_number < 1 ||
@@ -976,7 +983,7 @@ static int gdc_process_ex_info(struct gdc_context_s *context,
 	int ret;
 	unsigned long addr = 0;
 	struct aml_dma_cfg *cfg = NULL;
-	struct gdc_cmd_s *gdc_cmd = &context->cmd;
+	struct gdc_cmd_s *gdc_cmd = NULL;
 	struct gdc_queue_item_s *pitem = NULL;
 	struct device *dev = NULL;
 	int i;
@@ -986,6 +993,7 @@ static int gdc_process_ex_info(struct gdc_context_s *context,
 		return -EINVAL;
 	}
 
+	gdc_cmd = &context->cmd;
 	dev = GDC_DEVICE(context->cmd.dev_type);
 
 	mutex_lock(&context->d_mutext);
@@ -1236,7 +1244,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 			struct gdc_settings_with_fw *gs_with_fw)
 {
 	int ret = -1;
-	struct gdc_cmd_s *gdc_cmd = &context->cmd;
+	struct gdc_cmd_s *gdc_cmd = NULL;
 	char *fw_name = NULL;
 	struct gdc_queue_item_s *pitem = NULL;
 	struct firmware_load_s  fw_load;
@@ -1246,6 +1254,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 		return -EINVAL;
 	}
 
+	gdc_cmd = &context->cmd;
 	gs_with_fw->fw_info.virt_addr = NULL;
 	gs_with_fw->fw_info.cma_pages = NULL;
 

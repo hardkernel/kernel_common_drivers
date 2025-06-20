@@ -821,7 +821,7 @@ static int is_cmd_queue_ready(struct ge2d_queue_item_s *pitem)
 static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 {
 	struct ge2d_queue_item_s *pitem;
-	struct list_head  *head = &wq->work_queue, *pos;
+	struct list_head  *head, *pos;
 	int ret = 0;
 	unsigned int block_mode;
 	int timeout = 0, cmd_queue_mode, residual_cnt0, residual_cnt1;
@@ -830,6 +830,7 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 		ge2d_log_err("wq is null\n");
 		return ret;
 	}
+	head = &wq->work_queue;
 
 	if (wq->ge2d_request_exit)
 		goto exit;
