@@ -873,6 +873,7 @@
 			mmc_debug_flag;
 			ignore_desc_busy;
 			tx_delay = <18>;
+			save_para = <1>;
 			no-sd;
 			no-sdio;
 			resets = <&reset RESET_SD_EMMC_C>;

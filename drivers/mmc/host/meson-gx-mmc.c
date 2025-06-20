@@ -37,14 +37,14 @@
 #include <linux/random.h>
 #include <linux/sched/clock.h>
 #include <linux/debugfs.h>
-#include "mmc_key.h"
-#include "mmc_dtb.h"
-#include "mmc_common.h"
 #include <linux/proc_fs.h>
 #include <linux/moduleparam.h>
 #include <linux/amlogic/gki_module.h>
 #include <linux/thermal.h>
-
+#include <linux/amlogic/cpu_info.h>
+#include "mmc_key.h"
+#include "mmc_dtb.h"
+#include "mmc_common.h"
 #include "meson-cqhci.h"
 
 struct wifi_clk_table wifi_clk[WIFI_CLOCK_TABLE_MAX] = {
@@ -1594,7 +1594,10 @@ static void meson_mmc_set_blksz(struct mmc_host *mmc, unsigned int blksz)
 	if (!is_power_of_2(blksz))
 		dev_err(host->dev, "blksz %u is not a power of 2\n", blksz);
 
-	blksz = ilog2(blksz);
+	if (blksz > 0)
+		blksz = ilog2(blksz);
+	else
+		return;
 
 	/* check if block-size matches, if not update */
 	if (blksz == blksz_old)
@@ -2147,6 +2150,33 @@ static int single_read_scan(struct mmc_host *mmc, u8 opcode,
 	sg_init_one(&sg, blk_test, blksz * data.blocks);
 	mrq.cmd = &cmd;
 	mrq.data = &data;
+	mrq.stop = NULL;
+	mmc_wait_for_req(mmc, &mrq);
+	return data.error | cmd.error;
+}
+
+static int single_write(struct mmc_host *mmc, u8 opcode,
+			u8 *blk_test, u32 blksz,
+			u32 blocks, u32 offset)
+{
+	struct mmc_request mrq = {NULL};
+	struct mmc_command cmd = {0};
+	struct mmc_data data = {0};
+	struct scatterlist sg;
+
+	cmd.opcode = opcode;
+	cmd.arg = offset;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+	data.blksz = blksz;
+	data.blocks = blocks;
+	data.flags = MMC_DATA_WRITE;
+	data.sg = &sg;
+	data.sg_len = 1;
+	data.timeout_ns = 2048000000;
+	sg_init_one(&sg, blk_test, blksz * data.blocks);
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+	mrq.stop = NULL;
 	mmc_wait_for_req(mmc, &mrq);
 	return data.error | cmd.error;
 }
@@ -2357,33 +2387,6 @@ static unsigned int tl1_emmc_line_timing(struct mmc_host *mmc)
 	return 0;
 }
 
-static int single_read_cmd_for_scan(struct mmc_host *mmc,
-		 u8 opcode, u8 *blk_test, u32 blksz, u32 blocks, u32 offset)
-{
-	struct mmc_request mrq = {NULL};
-	struct mmc_command cmd = {0};
-	struct mmc_data data = {0};
-	struct scatterlist sg;
-
-	cmd.opcode = opcode;
-	cmd.arg = offset;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-
-	data.blksz = blksz;
-	data.blocks = blocks;
-	data.flags = MMC_DATA_READ;
-	data.sg = &sg;
-	data.sg_len = 1;
-
-	memset(blk_test, 0, blksz * data.blocks);
-	sg_init_one(&sg, blk_test, blksz * data.blocks);
-
-	mrq.cmd = &cmd;
-	mrq.data = &data;
-	mmc_wait_for_req(mmc, &mrq);
-	return data.error | cmd.error;
-}
-
 static int emmc_test_bus(struct mmc_host *mmc)
 {
 	int err = 0;
@@ -2522,7 +2525,7 @@ static void aml_emmc_hs400_tl1(struct mmc_host *mmc)
 static long long _para_checksum_calc(struct aml_tuning_para *para)
 {
 	int i = 0;
-	int size = sizeof(struct aml_tuning_para) - 6 * sizeof(unsigned int);
+	int size = sizeof(struct aml_tuning_para) - sizeof(long long) - sizeof(int);
 	unsigned int *buffer;
 	long long checksum = 0;
 
@@ -2543,28 +2546,23 @@ static long long _para_checksum_calc(struct aml_tuning_para *para)
  */
 static int aml_read_tuning_para(struct mmc_host *mmc)
 {
-	int off, blk;
-	int ret;
-	int para_size;
 	struct meson_host *host = mmc_priv(mmc);
+	int off, blk = 1;
+	int ret = 0;
 
 	if (host->save_para == 0)
 		return 0;
 
-	para_size = sizeof(struct aml_tuning_para);
-	blk = (para_size - 1) / 512 + 1;
-	off = MMC_TUNING_OFFSET;
-
-	ret = single_read_cmd_for_scan(mmc,
-				       MMC_READ_SINGLE_BLOCK,
-				       host->blk_test, 512,
-				       blk, off);
+	off = (get_reserve_partition_off_from_tbl() + MMC_TUNING_PARA_RESERVED) >> 9;
+	mmc_claim_host(mmc);
+	ret = single_read_scan(mmc, MMC_READ_SINGLE_BLOCK, host->blk_test, 512, blk, off);
+	mmc_release_host(mmc);
 	if (ret) {
 		pr_info("read tuning parameter failed\n");
 		return ret;
 	}
 
-	memcpy(&host->para, host->blk_test, para_size);
+	memcpy(&host->para, host->blk_test, sizeof(struct aml_tuning_para));
 	return ret;
 }
 
@@ -2597,7 +2595,7 @@ static void aml_set_tuning_para(struct mmc_host *mmc)
 		writel(delay2, host->regs + SD_EMMC_DELAY2);
 		writel(intf3, host->regs + SD_EMMC_INTF3);
 	} else {
-		temp_index = para->temperature / 10000;
+		temp_index = para->temp_index;
 		delay1 = host->para.hs4[temp_index].delay1;
 		delay2 = host->para.hs4[temp_index].delay2;
 		intf3 = host->para.hs4[temp_index].intf3;
@@ -2606,87 +2604,63 @@ static void aml_set_tuning_para(struct mmc_host *mmc)
 		writel(delay2, host->regs + SD_EMMC_DELAY2);
 		writel(intf3, host->regs + SD_EMMC_INTF3);
 	}
-}
-
-static int thermal_get_temp_by_name(const char *name)
-{
-	struct thermal_zone_device *tz;
-	int temperature = 0;
-	int ret;
-
-	tz = thermal_zone_get_zone_by_name(name);
-	if (!tz)
-		return -1;
-	ret = thermal_zone_get_temp(tz, &temperature);
-	if (ret)
-		return -1;
-	return temperature;
+	cmd_delay = (delay2 & DELAY2_CMD_MASK) >> __ffs(DELAY2_CMD_MASK);
+	pr_info("cmd-best-c:%d, ds_sht:%lu, intf3:0x%x, clock:0x%x\n",
+		cmd_delay, (intf3 & DS_SHT_M_MASK) >> __ffs(DS_SHT_M_MASK),
+		readl(host->regs + SD_EMMC_INTF3),
+		readl(host->regs + SD_EMMC_CLOCK));
 }
 
 /*save parameter on mmc_host pdata*/
-static void aml_save_tuning_para(struct mmc_host *mmc)
+static int aml_save_tuning_para(struct mmc_host *mmc)
 {
 	long long checksum;
-	int temp_index;
+	int temp_index, ret = 0;
 	struct meson_host *host = mmc_priv(mmc);
 	struct aml_tuning_para *para = &host->para;
+	unsigned char chip_id[16];
+	int offset;
 
 	u32 delay1 = readl(host->regs + SD_EMMC_DELAY1);
 	u32 delay2 = readl(host->regs + SD_EMMC_DELAY2);
 	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
 
 	if (host->save_para == 0)
-		return;
+		return -1;
 
-	temp_index = para->temperature / 10000;
-	if (para->temperature < 0 || temp_index > 6) {
-		para->update = 0;
-		return;
+	temp_index = para->temp_index;
+	if (temp_index < 0 || temp_index > 9) {
+		pr_info("temperature %d is out of index\n", temp_index);
+		return -1;
 	}
+	cpuinfo_get_chipid(chip_id, sizeof(chip_id));
+	memcpy(para->chip_id, chip_id, sizeof(chip_id));
 
+	host->para.magic = TUNED_MAGIC;
+	host->para.version = TUNED_VERSION;
+	host->para.clk_rate = mmc->actual_clock;
+
+	pr_info("temp index %d\n", temp_index);
 	host->para.hs4[temp_index].delay1 = delay1;
 	host->para.hs4[temp_index].delay2 = delay2;
 	host->para.hs4[temp_index].intf3 = intf3;
 	host->para.hs4[temp_index].flag = TUNED_FLAG;
-	host->para.magic = TUNED_MAGIC; /*E~K\0*/
-	host->para.version = TUNED_VERSION;
-	host->para.clk = mmc->actual_clock;
 
 	checksum = _para_checksum_calc(para);
 	host->para.checksum = checksum;
-}
 
-/*write tuning para on emmc, the offset is 0x14400*/
-static int amlmmc_write_tuning_para(struct mmc_card *card,
-					unsigned int dev_addr)
-{
-	unsigned int size;
-	struct mmc_host *mmc = card->host;
-	struct meson_host *host = mmc_priv(mmc);
-	struct aml_tuning_para *parameter = &host->para;
-	unsigned int *buf;
-	int para_size;
-	int blocks;
+	memset(host->blk_test, 0, 512);
+	memcpy(host->blk_test, para, sizeof(struct aml_tuning_para));
 
-	if (host->save_para == 0 || parameter->update == 0)
-		return 0;
+	offset = (get_reserve_partition_off_from_tbl() + MMC_TUNING_PARA_RESERVED) >> 9;
 
-	parameter->update = 0;
-	para_size = sizeof(struct aml_tuning_para);
-	blocks = (para_size - 1)  / 512 + 1;
-	size = blocks << card->csd.read_blkbits;
-	buf = kmalloc(size, GFP_KERNEL);
-	memset(buf, 0, size);
-	memcpy(buf, parameter, sizeof(struct aml_tuning_para));
+	mmc_claim_host(mmc);
+	ret = single_write(mmc, MMC_WRITE_BLOCK, host->blk_test, 512, 1, offset);
+	mmc_release_host(mmc);
+	if (!ret)
+		pr_info("write hs400 parameter success\n");
 
-	mmc_claim_host(card->host);
-	aml_disable_mmc_cqe(card);
-	mmc_transfer(card, dev_addr, blocks, buf, 1);
-	aml_enable_mmc_cqe(card);
-	mmc_release_host(card->host);
-
-	kfree(buf);
-	return 0;
+	return ret;
 }
 
 /*
@@ -2702,34 +2676,28 @@ static int amlmmc_write_tuning_para(struct mmc_card *card,
  */
 static int aml_para_is_exist(struct mmc_host *mmc)
 {
-	int temperature;
-	int temp_index;
 	long long checksum;
 	struct meson_host *host = mmc_priv(mmc);
 	struct aml_tuning_para *para = &host->para;
-	int i, trynum = 0;
+	struct thermal_zone_device *tz;
+	int temperature, temp_index = -1;
+	long err;
 
 	if (host->save_para == 0)
 		return 0;
 
-	para->update = 1;
-	temperature = -1;
-
-	while (trynum < 100) {
-		temperature = thermal_get_temp_by_name("soc_thermal");
-		if (temperature > 0)
-			break;
-		trynum++;
-		mdelay(5);
-	}
-	if (trynum == 100) {
-		pr_info("get temperature failed, trynum:%d\n", trynum);
+	para->temp_index = -1;
+	tz = thermal_zone_get_zone_by_name("soc_thermal");
+	if (IS_ERR(tz)) {
+		err = PTR_ERR(tz);
+		pr_info("get thermal zone failed %ld\n", err);
 		return 0;
+	} else {
+		if (thermal_zone_get_temp(tz, &temperature)) {
+			pr_info("get temperature failed\n");
+			return 0;
+		}
 	}
-	pr_info("current temperature is %d\n", temperature);
-
-	temp_index = temperature / 10000;
-	para->temperature = temperature;
 
 	checksum = _para_checksum_calc(para);
 	if (checksum != para->checksum) {
@@ -2737,46 +2705,22 @@ static int aml_para_is_exist(struct mmc_host *mmc)
 		return 0;
 	}
 
-	if (mmc->actual_clock != para->clk) {
-		pr_info("warning: clk is not match\n");
-		return 0;
-	}
+	temp_index = temperature / 10000;
+	para->temp_index = temp_index;
 
-	if (para->magic != TUNED_MAGIC) {
-		pr_warn("[%s] magic is not match\n", __func__);
-		return 0;
-	}
-
-	if (para->version != TUNED_VERSION) {
-		pr_warn("[%s] VERSION is not match\n", __func__);
-		return 0;
-	}
-
-	if (host->compute_cmd_delay == 1) {
-		for (i = 0; i < 7; i++) {
-			if (para->hs4[i].flag == TUNED_FLAG) {
-				host->first_temp_index = i;
-				host->cur_temp_index = temp_index;
-				para->update = 0;
-				return 1;
-			}
-		}
-	}
-
-	/* temperature range is 0 ~ 69 */
-	if (temperature < 0 || temp_index > 6) {
-		pr_info("temperature is out of normal range\n");
+	/* temperature range is 0 ~ 89 */
+	if (temp_index < 0 || temp_index > 9) {
+		pr_info("temperature %d is out of normal range\n", temp_index);
 		return 0;
 	}
 
 	if (para->hs4[temp_index].flag != TUNED_FLAG) {
-		pr_info("current temperature %d degree not tuning yet\n",
-			temperature / 1000);
+		pr_info("current temperature %d not tuning yet\n",
+			temp_index);
 		return 0;
 	}
 
-	para->update = 0;
-
+	pr_debug("the hs400 parameter is useful\n");
 	return 1;
 }
 
@@ -2952,12 +2896,12 @@ static void aml_get_ctrl_ver(struct mmc_host *mmc)
 
 static void aml_post_hs400_timming(struct mmc_host *mmc)
 {
-	aml_sd_emmc_clktest(mmc);
-
 	if (aml_para_is_exist(mmc)) {
 		aml_set_tuning_para(mmc);
 		return;
 	}
+
+	aml_sd_emmc_clktest(mmc);
 	aml_get_ctrl_ver(mmc);
 
 	aml_save_tuning_para(mmc);
@@ -3929,7 +3873,6 @@ static void add_dtbkey(struct work_struct *work)
 		amlmmc_dtb_init(mmc->card, &ret);
 		if (ret)
 			pr_err("%s:%d,amlmmc_dtb_init fail\n", __func__, __LINE__);
-		amlmmc_write_tuning_para(mmc->card, MMC_TUNING_OFFSET);
 		add_emmc_attr();
 	} else {
 		schedule_delayed_work(&host->dtbkey, 50);

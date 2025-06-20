@@ -35,10 +35,10 @@
 #define EMMC_CMD_LINE_DELAY_MODE BIT(0)
 #define EMMC_CMD_RX_DELAY_MODE BIT(1)
 
-/* flag is "@ML" */
-#define TUNED_FLAG            0x004C4D40
-/* version is "V3" */
-#define TUNED_VERSION         0x00003356
+/* flag is "AML" */
+#define TUNED_FLAG            0x004C4D41
+/* version is "V4" */
+#define TUNED_VERSION         0x00003456
 /* magic is 0x00487e44 */
 #define TUNED_MAGIC           0x00487e44
 
@@ -110,28 +110,14 @@ struct hs400_para {
 	unsigned int flag;
 };
 
-struct hs200_para {
-	unsigned int adjust;
-};
-
-struct hs_para {
-	unsigned int adjust;
-};
-
 struct aml_tuning_para {
-	unsigned int chip_id[4];
+	unsigned char chip_id[16];
 	unsigned int magic;
-	unsigned int vddee;
-	struct hs400_para hs4[7];
-	struct hs200_para hs2;
-	struct hs_para hs;
+	unsigned int clk_rate;
+	struct hs400_para hs4[10];
 	unsigned int version;
-	unsigned int busmode;
-	unsigned int update;
-	int temperature;
-	long long clk;
-	long long checksum;
-
+	int temp_index;
+	u64 checksum;
 };
 
 struct mmc_stat_t {
@@ -461,7 +447,7 @@ extern struct mmc_host *sdio_host;
 #define DELAY_CELL_COUNTS 14
 
 /* emmc partition */
-#define MMC_TUNING_OFFSET				0X14400
+#define MMC_TUNING_PARA_RESERVED	(10 * SZ_1M)
 
 #define RESULT_OK                       0
 #define RESULT_FAIL                     1

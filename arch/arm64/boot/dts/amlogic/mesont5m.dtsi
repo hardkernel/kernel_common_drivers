@@ -885,6 +885,7 @@
 			mmc_debug_flag;
 			ignore_desc_busy;
 			tx_delay = <18>;
+			save_para = <1>;
 			full-pwr-cycle;
 			no-sd;
 			no-sdio;
