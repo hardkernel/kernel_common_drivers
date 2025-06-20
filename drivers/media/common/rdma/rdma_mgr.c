@@ -2129,7 +2129,7 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 					read_val =
 						write_table[(i << 1) + 1];
 					match_lowlatency = 1;
-					read_from = 3;
+					read_from = 4;
 					if (rdma_trace_enable)
 						pr_info("(%s) handle %d, %04x=0x%08x from lowlatency table(%d %d), cur_val:0x%x\n",
 							__func__,
@@ -2179,7 +2179,7 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 					match,
 					match ? i : ins->rdma_item_count,
 					READ_VCBUS_REG(adr));
-			else if (read_from == 3)
+			else if (read_from == 4)
 				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from lowlatency table(%d %d), cur_val:0x%x\n",
 					__func__,
 					lowlatency_reg.rdma_handle, current->comm, adr,

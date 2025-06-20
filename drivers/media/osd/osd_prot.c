@@ -75,37 +75,37 @@ int osd_set_prot(unsigned char   x_rev,
 		/* before rotate set big endian */
 		VSYNCOSD_CLR_MPEG_REG_MASK(VIU_OSD2_BLK0_CFG_W0, 1 << 15);
 	}
-	data32  = (x_end    << 16)  |
-		  (x_start  << 0);
+	data32  = ((u32)x_end    << 16)  |
+		  ((u32)x_start  << 0);
 	VSYNCOSD_WR_MPEG_REG(VPU_PROT1_X_START_END,  data32);
-	data32  = (y_end    << 16)  |
-		  (y_start  << 0);
+	data32  = ((u32)y_end    << 16)  |
+		  ((u32)y_start  << 0);
 	VSYNCOSD_WR_MPEG_REG(VPU_PROT1_Y_START_END,  data32);
-	data32  = (y_step   << 16)  |
-		  (y_len_m1 << 0);
+	data32  = ((u32)y_step   << 16)  |
+		  ((u32)y_len_m1 << 0);
 	VSYNCOSD_WR_MPEG_REG(VPU_PROT1_Y_LEN_STEP,   data32);
-	data32  = (pat_start_ptr    << 4)   |
-		  (pat_end_ptr      << 0);
+	data32  = ((u32)pat_start_ptr    << 4)   |
+		  ((u32)pat_end_ptr      << 0);
 	VSYNCOSD_WR_MPEG_REG(VPU_PROT1_RPT_LOOP,     data32);
 	VSYNCOSD_WR_MPEG_REG(VPU_PROT1_RPT_PAT,      pat_val);
-	data32  = (cugt         << 20)  |
-		  (cid_mode     << 16)  |
-		  (cid_val      << 8)   |
-		  (canv_addr    << 0);
+	data32  = ((u32)cugt         << 20)  |
+		  ((u32)cid_mode     << 16)  |
+		  ((u32)cid_val      << 8)   |
+		  ((u32)canv_addr    << 0);
 	VSYNCOSD_WR_MPEG_REG(VPU_PROT1_DDR,          data32);
-	data32  = (hold_lines       << 8)   |
-		  (little_endian    << 7)   |
-		  (conv_422to444    << 6)   |
-		  (bytes_per_pixel  << 4)   |
-		  (y_rev            << 3)   |
-		  (x_rev            << 2)   |
-		  (1                <<
+	data32  = ((u32)hold_lines       << 8)   |
+		  ((u32)little_endian    << 7)   |
+		  ((u32)conv_422to444    << 6)   |
+		  ((u32)bytes_per_pixel  << 4)   |
+		  ((u32)y_rev            << 3)   |
+		  ((u32)x_rev            << 2)   |
+		  (1U                <<
 		   0);
 	/* [1:0] req_en: 0=Idle; 1=Rotate mode; 2=FIFO mode. */
 	VSYNCOSD_WR_MPEG_REG(VPU_PROT1_GEN_CNTL, data32);
-	data32  = (req_onoff_en << 31)  |
-		  (req_off_min  << 16)  |
-		  (req_on_max   << 0);
+	data32  = ((u32)req_onoff_en << 31)  |
+		  ((u32)req_off_min  << 16)  |
+		  ((u32)req_on_max   << 0);
 	VSYNCOSD_WR_MPEG_REG(VPU_PROT1_REQ_ONOFF, data32);
 	/* Enable clock */
 	VSYNCOSD_WR_MPEG_REG(VPU_PROT1_CLK_GATE, 1);

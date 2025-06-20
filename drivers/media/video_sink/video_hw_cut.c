@@ -8299,12 +8299,19 @@ void dump_pps_coefs_info(u8 layer_id, u8 bit9_mode, u8 coef_type)
 	int scaler_sep_coef_en;
 	/* bit9_mode : 0 8bit, 1: 9bit*/
 	/* coef_type : 0 horz, 1: vert*/
-	vd_pps_reg = &vd_layer[layer_id].pps_reg;
-	scaler_sep_coef_en = cur_dev->scaler_sep_coef_en;
+
+	if (layer_id >= 3) {
+		pr_err("%s: invalid layer_id=%d\n", __func__, layer_id);
+		return;
+	}
+
 	if (layer_id == 0xff) {
 		vd_pps_reg = &cur_dev->aisr_pps_reg;
 		scaler_sep_coef_en = 0;
 		layer_id = 0;
+	} else {
+		vd_pps_reg = &vd_layer[layer_id].pps_reg;
+		scaler_sep_coef_en = cur_dev->scaler_sep_coef_en;
 	}
 	pps_coef_idx_save = READ_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx);
 	if (hscaler_8tap_enable[layer_id]) {

@@ -1806,6 +1806,8 @@ static s32 get_recovery_item_old(u32 addr, u32 *value, u32 *mask)
 	default:
 		/* recovery misc */
 		table = gRecovery[4].table;
+		if (!table)
+			break;
 		for (i = 0; i <  gRecovery[4].size; i++) {
 			if (addr == table[i].addr) {
 				table += i;
@@ -2260,6 +2262,8 @@ static s32 get_recovery_item_g12a(u32 addr, u32 *value, u32 *mask)
 	default:
 		/* recovery misc */
 		table = gRecovery[11].table;
+		if (!table)
+			break;
 		for (i = 0; i <  gRecovery[11].size; i++) {
 			if (addr == table[i].addr) {
 				table += i;
@@ -3078,6 +3082,8 @@ static s32 get_recovery_item_t7(u32 addr, u32 *value, u32 *mask)
 	default:
 		/* recovery misc */
 		table = gRecovery[14].table;
+		if (!table)
+			break;
 		for (i = 0; i <  gRecovery[14].size; i++) {
 			if (addr == table[i].addr) {
 				table += i;
@@ -3327,6 +3333,8 @@ static s32 get_recovery_item_s5(u32 addr, u32 *value, u32 *mask)
 	default:
 		/* recovery misc */
 		table = gRecovery[13].table;
+		if (!table)
+			break;
 		for (i = 0; i <  gRecovery[13].size; i++) {
 			if (addr == table[i].addr) {
 				table += i;

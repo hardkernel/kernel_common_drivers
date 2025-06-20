@@ -1891,7 +1891,12 @@ static int parse_para(const char *para, int para_num, int *result)
 	if (!para)
 		return 0;
 	params = kstrdup(para, GFP_KERNEL);
+	if (!params)
+		return 0;
 	token = params;
+	if (!token)
+		goto exit;
+
 	len = strlen(token);
 	do {
 		token = strsep(&params, " ");
@@ -1908,6 +1913,8 @@ static int parse_para(const char *para, int para_num, int *result)
 		*out++ = res;
 		count++;
 	} while ((token) && (count < para_num) && (len > 0));
+
+exit:
 	kfree(params);
 	return count;
 }
