@@ -47,7 +47,8 @@ struct lcd_extern_driver_s *lcd_extern_get_driver(int drv_index)
 	return ext_driver[drv_index];
 }
 
-struct lcd_extern_dev_s *lcd_extern_get_dev(struct lcd_extern_driver_s *edrv, int dev_index)
+struct lcd_extern_dev_s *lcd_extern_get_dev(struct lcd_extern_driver_s *edrv,
+						unsigned int dev_index)
 {
 	int i = 0;
 

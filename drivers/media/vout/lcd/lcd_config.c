@@ -293,10 +293,12 @@ int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	switch (pdrv->debug_ctrl->debug_lcd_mode) {
 	case 1:
 		LCDPR("[%d]: debug_lcd_mode: 1,tv mode\n", pdrv->index);
+		mode_str = lcd_mode_table[0];
 		pdrv->mode = LCD_MODE_TV;
 		break;
 	case 2:
 		LCDPR("[%d]: debug_lcd_mode: 2,tablet mode\n", pdrv->index);
+		mode_str = lcd_mode_table[1];
 		pdrv->mode = LCD_MODE_TABLET;
 		break;
 	default:
@@ -399,7 +401,7 @@ int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	/* only for test */
 	ret = of_property_read_string(np, "lcd_propname_sel", &str);
 	if (ret == 0) {
-		strcpy(pdrv->config.propname, str);
+		strscpy(pdrv->config.propname, str, 24);
 		LCDPR("[%d]: find lcd_propname_sel: %s\n",
 			pdrv->index, pdrv->config.propname);
 	}

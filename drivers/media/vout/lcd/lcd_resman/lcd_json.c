@@ -104,6 +104,8 @@ int lcd_panel_json_init_try_file(int index, void *mem)
 		return -1;
 
 	if (json_init(jsp, JSON_STR_MAX, JSON_NODE_MAX) < 0) {
+		kfree(jsp->js);
+		kfree(jsp->root);
 		kfree(jsp);
 		return -1;
 	}

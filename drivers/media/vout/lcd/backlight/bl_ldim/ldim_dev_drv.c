@@ -1286,7 +1286,7 @@ static void ldim_dev_probe_func(struct work_struct *work)
 
 	if (ldim_dev_drv.boundary_y) {
 		if (ldim_drv->fw && ldim_drv->fw->param)
-			ldim_drv->fw->param->conf->boundary_x = ldim_dev_drv.boundary_y;
+			ldim_drv->fw->param->conf->boundary_y = ldim_dev_drv.boundary_y;
 		LDIMPR("%s: use boundary_y\n", __func__);
 	}
 

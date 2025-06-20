@@ -237,7 +237,7 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		bconf->method = BL_CTRL_MAX;
 		return -1;
 	}
-	sprintf(bl_propname, "backlight_%d", bconf->index);
+	snprintf(bl_propname, 20, "backlight_%d", bconf->index);
 	child = of_get_child_by_name(bdrv->dev->of_node, bl_propname);
 	if (!child) {
 		BLERR("[%d]: failed to get %s\n", bdrv->index, bl_propname);

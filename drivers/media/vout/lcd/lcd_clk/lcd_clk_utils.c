@@ -1584,7 +1584,7 @@ int lcd_clk_config_print_dft(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	int n, len = 0;
 
 	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
+	if (!cconf || !cconf->data)
 		return -1;
 
 	n = lcd_debug_info_len(len + offset);
@@ -1603,7 +1603,7 @@ int lcd_clk_config_print_dft(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		cconf->xd, cconf->fout, cconf->pll_mode,
 		cconf->pll_tcon_div_sel,
 		cconf->data->vclk_sel);
-	if (cconf->data && cconf->data->ss_support) {
+	if (cconf->data->ss_support) {
 		n = lcd_debug_info_len(len + offset);
 		len += snprintf((buf + len), n,
 			"[%d]: clk config:\n"

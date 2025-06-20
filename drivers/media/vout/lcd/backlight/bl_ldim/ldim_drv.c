@@ -782,6 +782,10 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		argp = (void __user *)ldim_buff.ptr;
 		LDIMPR("index =  0x%x, len=  0x%x\n", ldim_buff.index, ldim_buff.len);
+		if (ldim_buff.len == 0 || ldim_buff.len > 0x40000) {
+			LDIMERR("pq bin size = %d is invalid!!\n", ldim_buff.len);
+			return -EFAULT;
+		}
 
 		if (ldim_buff.index) {
 			ldim_driver.pq_num = (ldim_buff.index >> 8) & 0xf;

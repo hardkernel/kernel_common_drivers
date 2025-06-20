@@ -126,6 +126,9 @@ static s32 buffer_skip_invalid(char *input, s32 pos, s32 limit)
 {
 	s32 p = pos, len = 0;
 
+	if (pos < 0 || limit < 0 || pos < limit)
+		return -1;
+
 	while (p < limit && js_space_or_comment_entry(input[p])) {
 		len = buffer_skip_space(input, p, limit);
 		p += len;
