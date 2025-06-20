@@ -189,6 +189,7 @@ struct aml_card_data {
 #endif
 	struct task_struct *thread;
 	int gpio_set_flag;
+	int multi_codec;
 	wait_queue_head_t wq;
 	int suspend_flag;
 	bool spk_mute_enable;
@@ -884,6 +885,64 @@ static int aml_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+static int aml_snd_soc_of_get_dai_link_codecs(struct device *dev,
+				   struct device_node *of_node,
+				   struct snd_soc_dai_link *dai_link)
+{
+	struct of_phandle_args args;
+	struct snd_soc_dai_link_component *component, *real_component;
+	char *name;
+	int index, num_codecs, ret, success_codec = 0;
+
+	name = "sound-dai";
+	num_codecs = of_count_phandle_with_args(of_node, name,
+						"#sound-dai-cells");
+	if (num_codecs <= 0) {
+		if (num_codecs == -ENOENT)
+			dev_err(dev, "No 'sound-dai' property\n");
+		else
+			dev_err(dev, "Bad phandle in 'sound-dai'\n");
+		return num_codecs;
+	}
+	component = devm_kcalloc(dev,
+				 num_codecs, sizeof(*component),
+				 GFP_KERNEL);
+	if (!component)
+		return -ENOMEM;
+	dai_link->codecs = component;
+	dai_link->num_codecs = num_codecs;
+	real_component = component;
+
+	for_each_link_codecs(dai_link, index, component) {
+		ret = of_parse_phandle_with_args(of_node, name,
+						 "#sound-dai-cells",
+						 index, &args);
+		if (ret)
+			goto err;
+		ret = snd_soc_get_dai_name(&args, &component->dai_name);
+		if (ret >= 0) {
+			real_component[success_codec].of_node = args.np;
+			real_component[success_codec].dai_name = component->dai_name;
+			success_codec++;
+		}
+	}
+
+	dai_link->num_codecs = success_codec;
+
+	if (dai_link->num_codecs < 2) {
+		ret = -517;
+		pr_err("multi_codec num_codecs:%d error\n", dai_link->num_codecs);
+		goto err;
+	}
+	return 0;
+err:
+	snd_soc_of_put_dai_link_codecs(dai_link);
+	dai_link->codecs = NULL;
+	dai_link->num_codecs = 0;
+
+	return ret;
+}
+
 static int aml_card_dai_link_of(struct device_node *node,
 					struct aml_card_data *priv,
 					int idx,
@@ -945,7 +1004,16 @@ static int aml_card_dai_link_of(struct device_node *node,
 		goto dai_link_of_err;
 	}
 
-	ret = snd_soc_of_get_dai_link_codecs(dev, codec, dai_link);
+	ret = of_property_read_u32(node, "multi_codec_overlay", &priv->multi_codec);
+	if (ret < 0)
+		priv->multi_codec = 0;
+	else
+		pr_info("multi_codec support:%d\n", priv->multi_codec);
+
+	if (priv->multi_codec == 1)
+		ret = aml_snd_soc_of_get_dai_link_codecs(dev, codec, dai_link);
+	else
+		ret = snd_soc_of_get_dai_link_codecs(dev, codec, dai_link);
 
 	if (ret < 0) {
 		dev_err(dev, "%s, error dai-link idx:%d, error getting codec dai, ret %d\n",

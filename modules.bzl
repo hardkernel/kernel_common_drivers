@@ -234,8 +234,6 @@ AMLOGIC_COMMON_MODULES = [
     "//common_drivers/drivers/wireless:amlogic-wireless",
     "common_drivers/drivers/seckey/amlogic-seckey.ko",
     "//common_drivers/drivers/seckey:amlogic-seckey",
-    "common_drivers/sound/soc/amlogic/amlogic-snd-soc.ko",
-    "//common_drivers/sound/soc:amlogic-snd-soc",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-ad82128.ko",
     "//common_drivers/sound/soc:amlogic-snd-codec-ad82128",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-ad82584f.ko",
@@ -260,6 +258,8 @@ AMLOGIC_COMMON_MODULES = [
     "//common_drivers/sound/soc:amlogic-snd-codec-t6d",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-ad82120b.ko",
     "//common_drivers/sound/soc:amlogic-snd-codec-ad82120b",
+    "common_drivers/sound/soc/amlogic/amlogic-snd-soc.ko",
+    "//common_drivers/sound/soc:amlogic-snd-soc",
     "sound/drivers/snd-aloop.ko",
 ]
 

@@ -535,7 +535,6 @@
 
 		avout_mute-gpios = <&gpio GPIOH_27 GPIO_ACTIVE_HIGH>;
 		av_mute_sleep_time = <900>;
-		multi_codec_overlay = <1>;
 
 		/* headphone insert det */
 		aml-audio-card,hp-det-gpio = <&gpio_analog CDAC_IOUT GPIO_ACTIVE_HIGH>;
@@ -578,6 +577,7 @@
 			format = "i2s";
 			mclk-fs = <256>;
 			continuous-clock;
+			multi_codec_overlay = <1>;
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */

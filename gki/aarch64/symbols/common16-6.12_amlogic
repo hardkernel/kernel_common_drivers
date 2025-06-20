@@ -22,6 +22,8 @@
   snd_pcm_new
   snd_pcm_set_managed_buffer_all
   snd_pcm_set_ops
+  snd_soc_get_dai_name
+  snd_soc_of_put_dai_link_codecs
   snd_timer_close
   snd_timer_instance_free
   snd_timer_instance_new
