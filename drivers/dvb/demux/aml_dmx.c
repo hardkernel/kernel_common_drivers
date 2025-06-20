@@ -356,7 +356,9 @@ static int check_data_pack_align(char *mem, int len, struct aml_dmx *pdmx)
 		}
 	}
 
+	/*last ts packet, copy it*/
 	if (*ops_mem == 0x47 && left == pack_len) {
+		memmove(mem + total, ops_mem, left);
 		total += pack_len;
 		left -= pack_len;
 	}
