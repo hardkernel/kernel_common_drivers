@@ -1193,8 +1193,6 @@ static int lcd_vbyone_vsync_handler(struct aml_lcd_drv_s *pdrv)
 				lcd_vbyone_hw_filter(pdrv, 0);
 				lcd_vbyone_sw_reset(pdrv);
 				LCDPR("[%d]: vx1 sw_reset 4\n", pdrv->index);
-				while (lcd_vcbus_read(reg_status) & 0x4)
-					break;
 				lcd_vcbus_setb(reg_intr_ctrl, 0x3ff, 0, 10);
 				lcd_vcbus_setb(reg_intr_ctrl, 0, 0, 10);
 				lcd_vbyone_hw_filter(pdrv, 1);
@@ -1225,9 +1223,8 @@ static int lcd_vbyone_vsync_handler(struct aml_lcd_drv_s *pdrv)
 				lcd_vbyone_hw_filter(pdrv, 0);
 				lcd_vbyone_sw_reset(pdrv);
 				LCDPR("[%d]: vx1 sw_reset 2\n", pdrv->index);
-				while (lcd_vcbus_read(reg_status) & 0x4)
-					break;
-
+				while (!(lcd_vcbus_read(reg_status) & 0x4))
+					;
 				lcd_vcbus_setb(reg_intr_ctrl, 0, 15, 1);
 				lcd_vcbus_setb(reg_intr_ctrl, 1, 15, 1);
 			} else {

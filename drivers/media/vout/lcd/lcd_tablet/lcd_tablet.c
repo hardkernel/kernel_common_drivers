@@ -201,11 +201,11 @@ static void lcd_tablet_add_all_vmode(struct aml_lcd_drv_s *pdrv)
 // * act_timing to pdrv->vinfo (lcd_config_init)
 static void lcd_act_timing_update_vinfo(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_detail_timing_s *ptiming = &pdrv->config.timing.act_timing;
+	struct lcd_detail_timing_s *ptiming;
 
 	if (!pdrv)
 		return;
-
+	ptiming = &pdrv->config.timing.act_timing;
 	memset(pdrv->output_name, 0, sizeof(pdrv->output_name));
 
 	if (lcd_legacy_panel_disp_mode) {

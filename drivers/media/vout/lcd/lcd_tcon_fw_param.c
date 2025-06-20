@@ -424,7 +424,7 @@ void lcd_tcon_fw_update_core(struct lcd_tcon_fw_s *fw)
 	//step 3. update core reg
 	if (match_reg) {
 		lcd_tcon_fw_alloc_core_reg(fw, match_reg);
-		if (mm_table->core_reg_header) {
+		if (mm_table->core_reg_header && match_reg->init_header) {
 			memcpy(mm_table->core_reg_header, match_reg->init_header,
 				mm_table->core_reg_header->header_size);
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)

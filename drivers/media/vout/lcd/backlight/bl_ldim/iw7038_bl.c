@@ -888,7 +888,7 @@ static int iw7038_ldim_driver_update(struct aml_ldim_driver_s *ldim_drv)
 int ldim_dev_iw7038_probe(struct aml_ldim_driver_s *ldim_drv)
 {
 	struct class *dev_class;
-	int ret, i;
+	int i;
 	int max_data_size;
 
 	if (!ldim_drv->ldev_conf->spi_dev) {
@@ -956,7 +956,7 @@ int ldim_dev_iw7038_probe(struct aml_ldim_driver_s *ldim_drv)
 	iw7038_on_flag = 1; /* default enable in uboot */
 
 	LDIMPR("%s ok\n", __func__);
-	return ret;
+	return 0;
 }
 
 int ldim_dev_iw7038_remove(struct aml_ldim_driver_s *ldim_drv)

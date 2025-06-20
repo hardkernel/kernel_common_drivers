@@ -201,7 +201,7 @@ static int ldim_power_on(void)
 	}
 	LDIMPR("%s\n", __func__);
 
-	if (fw || ldim_driver.dev_drv) {
+	if (fw && ldim_driver.dev_drv) {
 		fw->fw_ctrl |= FW_CTRL_RESUME;
 		if (ldim_driver.dev_drv->spi_sync == SPI_DMA_TRIG)
 			ldim_wr_vcbus(VPP_INT_LINE_NUM, ldim_driver.dev_drv->spi_line_n);

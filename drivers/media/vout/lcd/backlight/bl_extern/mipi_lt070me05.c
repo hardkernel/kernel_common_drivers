@@ -47,10 +47,10 @@ static int mipi_lt070me05_set_level(struct bl_extern_driver_s *bext, unsigned in
 	struct aml_lcd_drv_s *pdrv;
 	unsigned char payload[] = {0x15, 2, 0x51, 0xe6, 0xff, 0xff};
 
+	pdrv = aml_lcd_get_driver(bext->index);
 	if (!pdrv)
 		return -1;
 
-	pdrv = aml_lcd_get_driver(bext->index);
 	payload[3] = level & 0xff;
 	dsi_write_cmd(pdrv, &payload[0]);
 #endif
