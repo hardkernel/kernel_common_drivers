@@ -79,13 +79,6 @@ static int register_cool_dev(struct platform_device *pdev,
 		pr_err("thermal: unknown type:%s\n", cool->device_type);
 		return -EINVAL;
 	}
-
-	if (IS_ERR(cool->cooling_dev)) {
-		pr_debug("thermal: register %s failed\n", cool->device_type);
-		cool->cooling_dev = NULL;
-		return -EINVAL;
-	}
-	return 0;
 }
 
 static int parse_cool_device(struct platform_device *pdev)

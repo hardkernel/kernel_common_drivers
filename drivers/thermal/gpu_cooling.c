@@ -242,11 +242,14 @@ EXPORT_SYMBOL_GPL(gpufreq_cooling_alloc);
 int gpufreq_cooling_register(struct gpufreq_cooling_device *gpufreq_dev)
 {
 	struct thermal_cooling_device *cool_dev;
-	char dev_name[THERMAL_NAME_LENGTH];
+	char *dev_name;
 
 	gpu_coolingdevice_id_get(&gpufreq_dev->id);
-	snprintf(dev_name, sizeof(dev_name), "thermal-gpufreq-%d",
-		 gpufreq_dev->id);
+	dev_name = kasprintf(GFP_KERNEL, "thermal-gpufreq-%d", gpufreq_dev->id);
+	if (!dev_name) {
+		gpu_coolingdevice_id_put();
+		return -EINVAL;
+	}
 	gpufreq_dev->gpufreq_state = 0;
 
 	cool_dev = thermal_of_cooling_device_register(gpufreq_dev->np,
