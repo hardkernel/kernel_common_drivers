@@ -37,6 +37,7 @@ enum {
 	KERNEL_ATRACE_TAG_DIM,
 	KERNEL_ATRACE_TAG_DRM,
 	KERNEL_ATRACE_TAG_MEMORY,
+	KERNEL_ATRACE_TAG_PIPE_KPI,
 	KERNEL_ATRACE_TAG_MAX = 64,
 	KERNEL_ATRACE_TAG_ALL
 };
@@ -69,6 +70,37 @@ int atrace_mem_init(void);
 
 void cma_alloc_trace_start(char *name, unsigned long count);
 void cma_alloc_trace_end(char *name, unsigned long count, struct page *page);
+
+#define ATRACE_COUNTER_WITH_TAG(tag, name, value) \
+	meson_atrace(tag, name, \
+		(1 << KERNEL_ATRACE_COUNTER), value)
+#define ATRACE_BEGIN_WITH_TAG(tag, name) \
+	meson_atrace(tag, name, \
+		(1 << KERNEL_ATRACE_BEGIN), 0)
+#define ATRACE_END_WITH_TAG(tag) \
+	meson_atrace(tag, "", \
+		(1 << KERNEL_ATRACE_END), 1)
+#define ATRACE_END_NAME_WITH_TAG(tag, name) \
+	meson_atrace(tag, name, \
+		(1 << KERNEL_ATRACE_END), 1)
+#define ATRACE_ASYNC_BEGIN_WITH_TAG(tag, name, cookie) \
+	meson_atrace(tag, name, \
+		(1 << KERNEL_ATRACE_ASYNC_BEGIN), cookie)
+#define ATRACE_ASYNC_END_WITH_TAG(tag, name, cookie) \
+	meson_atrace(tag, name, \
+		(1 << KERNEL_ATRACE_ASYNC_END), cookie)
+#define ATRACE_COUNTER_TASK_WITH_TAG(tag, name, value) \
+	meson_atrace_task(tag, name, \
+		(1 << KERNEL_ATRACE_COUNTER), value)
+#define ATRACE_BEGIN_TASK_WITH_TAG(tag, name) \
+	meson_atrace_task(tag, name, \
+		(1 << KERNEL_ATRACE_BEGIN), 0)
+#define ATRACE_END_TASK_WITH_TAG(tag) \
+	meson_atrace_task(tag, "", \
+		(1 << KERNEL_ATRACE_END), 1)
+#define ATRACE_END_NAME_TASK_WITH_TAG(tag, name) \
+	meson_atrace_task(tag, name, \
+		(1 << KERNEL_ATRACE_END), 1)
 
 #define ATRACE_COUNTER(name, value) \
 	meson_atrace(KERNEL_ATRACE_TAG, name, \
@@ -132,6 +164,17 @@ static inline void cma_alloc_trace_start(char *name, unsigned long count)
 static inline void cma_alloc_trace_end(char *name, unsigned long count, struct page *page)
 {
 }
+
+#define ATRACE_COUNTER_WITH_TAG(tag, name, value)
+#define ATRACE_BEGIN_WITH_TAG(tag, name)
+#define ATRACE_END_WITH_TAG(tag)
+#define ATRACE_END_NAME_WITH_TAG(tag, name)
+#define ATRACE_ASYNC_BEGIN_WITH_TAG(tag, name, cookie)
+#define ATRACE_ASYNC_END_WITH_TAG(tag, name, cookie)
+#define ATRACE_COUNTER_TASK_WITH_TAG(tag, name, value)
+#define ATRACE_BEGIN_TASK_WITH_TAG(tag, name)
+#define ATRACE_END_TASK_WITH_TAG(tag)
+#define ATRACE_END_NAME_TASK_WITH_TAG(tag, name)
 
 #define ATRACE_COUNTER(name, value)
 #define ATRACE_BEGIN(name)

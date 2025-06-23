@@ -33,6 +33,7 @@ struct {
 	TAG_INFO(DIM),
 	TAG_INFO(DRM),
 	TAG_INFO(MEMORY),
+	TAG_INFO(PIPE_KPI),
 	{ NULL, 0 }
 };
 
