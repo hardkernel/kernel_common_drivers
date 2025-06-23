@@ -187,7 +187,7 @@ void frhdmirx_clr_SPDIF_irq_bits(void)
 				0xf << 8 * i, 0xf << 8 * i);
 			audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL3,
 				0xf << 8 * i, 0x0 << 8 * i);
-			pr_info("raw to pcm change: irq status:%x, lane: %d\n",
+			pr_debug("raw to pcm change: irq status:%x, lane: %d\n",
 				value, i);
 		}
 	}
@@ -208,7 +208,7 @@ void frhdmirx_clr_SPDIF_irq_bits_for_t7_version(void)
 	if (value & 0x20) {
 		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL6, 0xf << 24, 0xf << 24);
 		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL6, 0xf << 24, 0 << 24);
-		pr_info("t7 raw to pcm change: irq status:%x\n", value);
+		pr_debug("t7 raw to pcm change: irq status:%x\n", value);
 	}
 }
 
