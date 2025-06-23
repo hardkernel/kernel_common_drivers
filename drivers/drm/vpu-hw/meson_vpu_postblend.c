@@ -792,6 +792,9 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk,
 	int crtc_index = vblk->index;
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
 	struct postblend1_reg_s *reg1 = postblend->reg1;
+	struct meson_vpu_sub_pipeline_state *mvsps =
+		priv_to_sub_pipeline_state(sub_pipeline->obj.state);
+
 
 	if (vblk->index == 0) {
 		vpp_osd1_postblend_mux_set(vblk, sub_pipeline->reg_ops, postblend->reg, VPP_NULL);
@@ -806,7 +809,11 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk,
 			MESON_DRM_BLOCK("invalid crtc index\n");
 
 		drm_postblend_notify_amvideo();
-		drm_wait_one_vblank(sub_pipeline->pipeline->priv->drm, crtc_index);
+		if (!mvsps->vsync_disabled)
+			drm_wait_one_vblank(sub_pipeline->pipeline->priv->drm, crtc_index);
+		else
+			MESON_DRM_BLOCK("%s, vsync disabled %s do not wait vblank.\n",
+				__func__, postblend->base.name);
 	}
 
 	MESON_DRM_BLOCK("%s disable called.\n", postblend->base.name);
@@ -940,6 +947,8 @@ static void s5_postblend_hw_disable(struct meson_vpu_block *vblk,
 	u32 vpp1_bld;
 	int crtc_index = vblk->index;
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct meson_vpu_sub_pipeline_state *mvsps =
+		priv_to_sub_pipeline_state(sub_pipeline->obj.state);
 
 	if (crtc_index == 0) {
 		vpp_osd1_postblend_5mux_set(vblk, sub_pipeline->reg_ops, postblend->reg, VPP_NULL);
@@ -948,7 +957,11 @@ static void s5_postblend_hw_disable(struct meson_vpu_block *vblk,
 		vpp1_bld = vpp1_bld & 0xffffff0f;
 		osd_vpp1_bld_ctrl = vpp1_bld | osd_vpp_bld_ctrl_update_mask;
 		drm_postblend_notify_amvideo();
-		drm_wait_one_vblank(vblk->pipeline->priv->drm, crtc_index);
+		if (!mvsps->vsync_disabled)
+			drm_wait_one_vblank(vblk->pipeline->priv->drm, crtc_index);
+		else
+			MESON_DRM_BLOCK("%s, vsync disabled %s do not wait vblank.\n",
+				__func__, postblend->base.name);
 	}
 	MESON_DRM_BLOCK("%s disable called.\n", postblend->base.name);
 }
