@@ -1032,6 +1032,10 @@ static int lcd_tcon_data_multi_match_policy(struct aml_lcd_drv_s *pdrv, unsigned
 					bl_pwm = bldrv->bconf.bl_pwm_combo1;
 			}
 			break;
+		case BL_CTRL_PWM_ARRAY:
+			if (data_list->ctrl_data[0] < 4)
+				bl_pwm = bldrv->bconf.bl_pwm_array[data_list->ctrl_data[0]];
+			break;
 		default:
 			break;
 		}
@@ -1263,6 +1267,10 @@ static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
 			else
 				bl_pwm = bldrv->bconf.bl_pwm_combo1;
 			break;
+		case BL_CTRL_PWM_ARRAY:
+			if (data_list->ctrl_data[0] < 4)
+				bl_pwm = bldrv->bconf.bl_pwm_array[data_list->ctrl_data[0]];
+			break;
 		default:
 			break;
 		}
@@ -1425,6 +1433,10 @@ int lcd_tcon_data_multi_init_check(struct aml_lcd_drv_s *pdrv, unsigned short bl
 				bl_pwm = bldrv->bconf.bl_pwm_combo0;
 			else
 				bl_pwm = bldrv->bconf.bl_pwm_combo1;
+			break;
+		case BL_CTRL_PWM_ARRAY:
+			if (data < 4)
+				bl_pwm = bldrv->bconf.bl_pwm_array[data];
 			break;
 		default:
 			break;

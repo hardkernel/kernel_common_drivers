@@ -526,6 +526,8 @@ void init_bl_pwm_mapping(struct bl_pwm_config_s *bl_pwm)
 
 void bl_pwm_mapping_init(struct aml_bl_drv_s *bdrv)
 {
+	int i;
+
 	switch (bdrv->bconf.method) {
 	case BL_CTRL_PWM:
 		init_bl_pwm_mapping(bdrv->bconf.bl_pwm);
@@ -533,6 +535,10 @@ void bl_pwm_mapping_init(struct aml_bl_drv_s *bdrv)
 	case BL_CTRL_PWM_COMBO:
 		init_bl_pwm_mapping(bdrv->bconf.bl_pwm_combo0);
 		init_bl_pwm_mapping(bdrv->bconf.bl_pwm_combo1);
+		break;
+	case BL_CTRL_PWM_ARRAY:
+		for (i = 0; i < 4; i++)
+			init_bl_pwm_mapping(bdrv->bconf.bl_pwm_array[i]);
 		break;
 	default:
 		break;

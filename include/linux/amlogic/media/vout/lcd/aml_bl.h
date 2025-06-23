@@ -45,6 +45,7 @@ enum bl_ctrl_method_e {
 	BL_CTRL_GPIO = 0,
 	BL_CTRL_PWM,
 	BL_CTRL_PWM_COMBO,
+	BL_CTRL_PWM_ARRAY,
 	BL_CTRL_LOCAL_DIMMING,
 	BL_CTRL_EXTERN,
 	BL_CTRL_MAX,
@@ -161,6 +162,7 @@ struct bl_config_s {
 	unsigned int en_sequence_reverse;
 
 	struct bl_pwm_config_s *bl_pwm;
+	struct bl_pwm_config_s *bl_pwm_array[4];
 	struct bl_pwm_config_s *bl_pwm_combo0;
 	struct bl_pwm_config_s *bl_pwm_combo1;
 	struct bl_pwm_config_s *bl_pwm_switch;
