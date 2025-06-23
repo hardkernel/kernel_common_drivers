@@ -696,6 +696,7 @@ struct meson_vpu_sub_pipeline_state {
 	u32 blend_dout_vsize[2];
 	u32 slice2ppc_hsize;
 	u32 slice2ppc_vsize;
+	int vsync_disabled;
 };
 
 struct meson_vpu_pipeline_state {
