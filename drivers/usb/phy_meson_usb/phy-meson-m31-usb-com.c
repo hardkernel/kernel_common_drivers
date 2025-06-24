@@ -557,6 +557,7 @@ int meson_u2phy_m31_set_test_mode(struct amlogic_usb_v2 *phy, u32 test_mode)
 int meson_m31_u2phy_parse(struct device *dev, struct meson_uphy_instance *instance)
 {
 	struct amlogic_usb_v2 *phy;
+	const char *gpio_name = NULL;
 	int addr_i = 0, ret = 0;
 	u64 addr, size;
 
@@ -573,6 +574,15 @@ int meson_m31_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	phy->portspeed = instance->port_speed;
 
 	dev_dbg(dev, "portspeed: %d\n", phy->portspeed);
+
+	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
+	if (gpio_name) {
+		phy->vbus_power_pin = 1;
+		phy->usb_gpio_desc = devm_gpiod_get_index(dev,
+					 NULL, 0, GPIOD_OUT_LOW);
+		if (IS_ERR(phy->usb_gpio_desc))
+			return -ENODEV;
+	}
 
 	ret = of_property_read_reg(dev->of_node, addr_i++, &addr, &size);
 	if (ret) {

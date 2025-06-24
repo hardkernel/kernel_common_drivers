@@ -32,8 +32,9 @@ enum meson_uphy_mode {
 };
 
 struct meson_uphy_configure_opts {
-#define MESON_USB_DEVICE_TEST_MODE_COMPL 0
-#define	MESON_USB_DEVICE_TEST_JK_COMPL	 1
+#define MESON_USB_DEVICE_TEST_MODE_UNKNOWN	0
+#define MESON_USB_DEVICE_TEST_MODE_COMPL	1
+#define	MESON_USB_DEVICE_TEST_JK_COMPL		2
 	u32 test_mode;
 	u32 cfg_tune:1;
 	u32 tune:1;

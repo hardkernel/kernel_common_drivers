@@ -63,9 +63,11 @@ static int meson_u2phy_m31_t5m_set_mode(void *phy, enum meson_uphy_mode mode)
 	return meson_u2phy_set_mode((struct amlogic_usb_v2 *)phy, mode);
 }
 
-int meson_u2phy_m31_configure(void *phy, struct meson_uphy_configure_opts *opts)
+static int meson_u2phy_m31_t5m_configure(void *phy, struct meson_uphy_configure_opts *opts)
 {
-	return meson_u2phy_m31_set_test_mode((struct amlogic_usb_v2 *)phy, opts->test_mode);
+	if (opts->test_mode)
+		return meson_u2phy_m31_set_test_mode((struct amlogic_usb_v2 *)phy, opts->test_mode);
+	return 0;
 }
 
 static int meson_u3phy_m31_t5m_set_mode(void *phy, enum meson_uphy_mode mode)
@@ -86,6 +88,7 @@ static int meson_u3phy_m31_t5m_exit(void *phy)
 /* m31 phy usb2 does not need configuration. */
 static struct meson_uphy_ops meson_u2phy_t5m_m31_ops = {
 	.set_mode = meson_u2phy_m31_t5m_set_mode,
+	.configure = meson_u2phy_m31_t5m_configure,
 };
 
 static struct meson_uphy_ops meson_u3phy_t5m_m31_ops = {

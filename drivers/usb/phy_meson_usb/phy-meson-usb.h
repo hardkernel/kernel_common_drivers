@@ -108,6 +108,7 @@ struct meson_uphy_pdata {
 };
 
 extern struct meson_uphy_pdata meson_uphy_sc2_pdata;
+extern struct meson_uphy_pdata meson_uphy_s4_pdata;
 extern struct meson_uphy_pdata meson_uphy_t7c_pdata;
 extern struct meson_uphy_pdata meson_uphy_a5_pdata;
 extern struct meson_uphy_pdata meson_uphy_t5m_aml_pdata;
@@ -117,6 +118,8 @@ extern struct meson_uphy_pdata meson_uphy_s7_pdata;
 extern struct meson_uphy_pdata meson_uphy_s7d_pdata;
 extern struct meson_uphy_pdata meson_uphy_s6_pdata;
 extern struct meson_uphy_pdata meson_uphy_t6d_pdata;
+extern struct meson_uphy_pdata meson_uphy_s5_aml_pdata;
+extern struct meson_uphy_pdata meson_uphy_s5_m31_pdata;
 
 struct meson_u2phy_priv {
 	int (*set_mode)(struct amlogic_usb_v2 *phy, enum meson_uphy_mode mode);

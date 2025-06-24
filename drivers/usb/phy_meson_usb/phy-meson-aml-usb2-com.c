@@ -14,7 +14,7 @@ int meson_u2phy_usb_reset(struct amlogic_usb_v2 *phy)
 
 	dev_dbg(phy->dev, "%s initial: 0x%x.\n", __func__,
 				readl(phy->reset_regs + phy->reset_level));
-	if (!init_count) {
+	if (!init_count && phy->usb_reset_bit != -1U) {
 		init_count++;
 		if (phy->usb_reset_bit == 2)
 			writel((readl(phy->reset_regs) |
@@ -284,7 +284,6 @@ int meson_usb2phy_legacy_set_pll(struct amlogic_usb_v2 *phy)
  * due to GKI requirements.
  */
 
-/* FIXME: Some socs will enter this with no pll_dis_thred_enhance prop. Is it a BUG? */
 void meson_usb2phy_legacy_cali_disc_squelch(struct amlogic_usb_v2 *phy)
 {
 	void __iomem	*reg = phy->phy_cfg[0];
@@ -293,11 +292,17 @@ void meson_usb2phy_legacy_cali_disc_squelch(struct amlogic_usb_v2 *phy)
 	/* BIT_5_0 set to MAX. */
 	writel(0x3f, reg + 0xC);
 
+	if (phy->pll_dis_thred_enhance == -1U)
+		goto validate;
+
 	/* Extended disconnect threshold bit[26-27] */
 	val = readl(reg + 0x38);
 	val &= ~0xc000000;
 	val |= (phy->pll_dis_thred_enhance << 26 & 0xc000000);
 	writel(val, reg + 0x38);
+validate:
+	/* validate disc value update. */
+	writel(0x78000, reg + 0x34);
 }
 
 void meson_usb2phy_legacy_cali_disc_squelch_n(struct amlogic_usb_v2 *phy)
@@ -308,10 +313,16 @@ void meson_usb2phy_legacy_cali_disc_squelch_n(struct amlogic_usb_v2 *phy)
 	/* BIT_5_0 set to MAX. */
 	writel(0x3f, reg + 0xC);
 
+	if (phy->pll_dis_thred_enhance == -1U)
+		goto validate;
+
 	val = readl(reg + 0x38);
 	val &= ~0x18000000;
 	val |= (phy->pll_dis_thred_enhance << 27 & 0x18000000);
 	writel(val, reg + 0x38);
+validate:
+	/* validate disc value update. */
+	writel(0x78000, reg + 0x34);
 }
 
 /* i.e. phy_version != 3 && phy_version != 0 */
@@ -328,10 +339,9 @@ void meson_usb2phy_legacy_cali(struct amlogic_usb_v2 *phy)
 
 	writel(phy->pll_setting[3], reg + 0x50);
 	writel(0x2a, reg + 0x54);
-	writel(0x78000, reg + 0x34);
 }
 
-/* i.e. phy_version == 3 */
+/* i.e. new phy_version == 3 */
 void meson_usb2phy_legacy_cali_n(struct amlogic_usb_v2 *phy)
 {
 	void __iomem	*reg = phy->phy_cfg[0];
@@ -341,7 +351,6 @@ void meson_usb2phy_legacy_cali_n(struct amlogic_usb_v2 *phy)
 
 	writel(phy->pll_setting[3], reg + 0x50);
 	writel(0x2a, reg + 0x54);
-	writel(0x78000, reg + 0x34);
 }
 
 /* Legacy multi-port roothub. Typical seen in socs contains the dwc2_a pcd.*/
@@ -854,6 +863,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	for (i = 0; i < 8; i++)
 		dev_dbg(dev, "pll-settings: 0x%x\n", aml_u2phy->pll_setting[i]);
 
+	aml_u2phy->pll_dis_thred_enhance = -1U;
 	ret = of_property_read_u32(dev->of_node,
 		"dis-thred-enhance", &aml_u2phy->pll_dis_thred_enhance);
 
@@ -861,10 +871,12 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	aml_u2phy->sw_hsp = of_property_read_bool(dev->of_node, "sw-hsp");
 
+	ret = 0;
+
 	cnt = of_property_count_strings(dev->of_node, "clock-names");
 	if (cnt < 0) {
-		dev_err(dev, "no clks? exit.");
-		return -EINVAL;
+		dev_err(dev, "no clks? Please double-check.\n");
+		goto no_clks;
 	} else if (cnt > AML_USB_PHY_MAX_CLK_NUMBER) {
 		dev_err(dev, "too many clks. exit.");
 		return -EOVERFLOW;
@@ -888,7 +900,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	for (i = 0; i < aml_u2phy->clk_num; i++)
 		dev_dbg(dev, "%s %px.\n", aml_u2phy->clks[i].id, (void *)aml_u2phy->clks[i].clk);
-
+no_clks:
 	/* Default OFF. */
 	meson_u2phy_hold_reset(aml_u2phy, false);
 	/* Don't hold comb reset bit. Otg driver may want it. */
