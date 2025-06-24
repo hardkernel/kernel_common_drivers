@@ -237,7 +237,7 @@ static int t5m_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
 			io = db->ddr_reg4;
 			break;
 		default:
-			break;
+			return ret;
 		}
 
 		val = readl(io + DMC_MON_CTRL0);
