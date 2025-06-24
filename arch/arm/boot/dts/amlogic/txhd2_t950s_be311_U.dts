@@ -300,7 +300,7 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x1000000>;
+			size = <0xc00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x3f000000>;
 		};
