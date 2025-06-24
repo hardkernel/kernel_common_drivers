@@ -223,13 +223,27 @@ static void osd_set_vpp_path_default(struct meson_vpu_block *vblk,
 				     struct rdma_reg_ops *reg_ops,
 				     u32 osd_index, u32 vpp_index)
 {
-	/* osd_index is vpp mux input */
-	/* default setting osd2 route to vpp0 vsync */
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	int go_field;
+
+	/* The T3/T5M chips support memc.
+	 * When memc is supported, VPP0 select post go_field with a
+	 * value of 0x3; pre go_field must not be selected (value 0)
+	 */
+	if (postblend->memc_go_field && vpp_index == VPP0)
+		go_field = 0x3;
+	else
+		go_field = vpp_index;
+
+	/* default setting osd route to vpp0 vsync */
+	if (osd_index == 1 && go_field)
+		reg_ops->rdma_write_reg_bits(PATH_START_SEL, go_field, 16, 2);
+	if (osd_index == 2 && go_field)
+		reg_ops->rdma_write_reg_bits(PATH_START_SEL, go_field, 20, 2);
 	if (osd_index == 3)
-		reg_ops->rdma_write_reg_bits(PATH_START_SEL, vpp_index, 24, 2);
-	/* default setting osd3 route to vpp0 vsync */
+		reg_ops->rdma_write_reg_bits(PATH_START_SEL, go_field, 24, 2);
 	if (osd_index == 4)
-		reg_ops->rdma_write_reg_bits(PATH_START_SEL, vpp_index, 28, 2);
+		reg_ops->rdma_write_reg_bits(PATH_START_SEL, go_field, 28, 2);
 }
 #endif
 
@@ -1241,6 +1255,8 @@ static void fix_vpu_clk2_default_regs(struct meson_vpu_block *vblk,
 static void independ_path_default_regs(struct meson_vpu_block *vblk,
 				       struct rdma_reg_ops *reg_ops)
 {
+	int i;
+
 	/* default: osd1_bld_din_sel -- do not osd_data_byp osd_blend */
 	reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, 0x0, 4, 1);
 	reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x0, 4, 1);
@@ -1265,10 +1281,9 @@ static void independ_path_default_regs(struct meson_vpu_block *vblk,
 	reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x0, 17, 1);
 	reg_ops->rdma_write_reg_bits(VIU_OSD3_PATH_CTRL, 0x0, 17, 1);
 
-	/* OSD3  uses VPP0*/
-	osd_set_vpp_path_default(vblk, reg_ops, 3, 0);
-	/* OSD4  uses VPP0*/
-	osd_set_vpp_path_default(vblk, reg_ops, 4, 0);
+	/* default setting vpp0_post_go_field */
+	for (i = 0; i < MESON_MAX_OSDS; i++)
+		osd_set_vpp_path_default(vblk, reg_ops, i + 1, 0);
 
 	/* postblend uses dummy black with limit range YUV */
 	reg_ops->rdma_write_reg(VPP_POST_BLEND_BLEND_DUMMY_DATA, 0x108080);
@@ -1395,6 +1410,18 @@ static void t3_postblend_hw_init(struct meson_vpu_block *vblk)
 	postblend->reg = &postblend_reg;
 
 	/*t3 t5w t5m path crtl flag*/
+	postblend->postblend_path_mask = true;
+	postblend->memc_go_field = true;
+	MESON_DRM_BLOCK("%s hw_init called.\n", postblend->base.name);
+}
+
+static void t5w_postblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+
+	postblend->reg = &postblend_reg;
+
+	/*t3 t5w t5m paht crtl flag*/
 	postblend->postblend_path_mask = true;
 	MESON_DRM_BLOCK("%s hw_init called.\n", postblend->base.name);
 }
@@ -1547,6 +1574,16 @@ struct meson_vpu_block_ops t3_postblend_ops = {
 	.disable = postblend_hw_disable,
 	.dump_register = postblend_dump_register,
 	.init = t3_postblend_hw_init,
+	.init_register = t3_postblend_register_init,
+};
+
+struct meson_vpu_block_ops t5w_postblend_ops = {
+	.check_state = postblend_check_state,
+	.update_state = t7_postblend_set_state,
+	.enable = postblend_hw_enable,
+	.disable = postblend_hw_disable,
+	.dump_register = postblend_dump_register,
+	.init = t5w_postblend_hw_init,
 	.init_register = t3_postblend_register_init,
 };
 

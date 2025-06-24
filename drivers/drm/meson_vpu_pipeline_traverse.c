@@ -175,6 +175,7 @@ static u8 find_in_port(struct meson_vpu_block *in, struct meson_vpu_block *out)
 void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 					 struct meson_vpu_sub_pipeline_state *mvps)
 {
+	u32 scaler_h_ratio;
 	u8 m, i;
 	u32 ratio_w_num, ratio_w_den;
 	u32 ratio_h_num, ratio_h_den;
@@ -207,6 +208,11 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 		scaler_param->calc_done_mask |=
 			SCALER_RATIO_X_CALC_DONE |
 			SCALER_RATIO_Y_CALC_DONE;
+
+		scaler_h_ratio = scaler_param->ratio_h_den * RATIO_BASE / scaler_param->ratio_h_num;
+		if (scaler_h_ratio < RATIO_H_MIX)
+			DRM_DEBUG("The osd [%d] scaling factor [%d] may be too small!\n",
+						osd_index, scaler_h_ratio);
 
 		if (scaler_param->before_osdblend) {
 			/*scale size follow buffer size*/
@@ -352,6 +358,13 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 			/*TODO*/
 			DRM_ERROR("two scaler after blend?!\n");
 		}
+
+		scaler_h_ratio = scaler_param->output_height * RATIO_BASE
+						 / scaler_param->input_height;
+		if (scaler_h_ratio < RATIO_H_MIX)
+			DRM_DEBUG("The osd [%d] scaling factor [%d] may be too small!\n",
+						osd_index, scaler_h_ratio);
+
 		/*reclac second scaler size, it may changed according to blend output.*/
 		/*scaler_param_1->before_osdblend == 0*/
 		if (scaler_param_1->input_width <

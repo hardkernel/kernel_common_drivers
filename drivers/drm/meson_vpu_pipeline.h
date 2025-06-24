@@ -40,6 +40,7 @@
 #define MESON_BLOCK_MAX_NAME_LEN 32
 /*ratio base for scaler calc;maybe need bigger than 1000*/
 #define RATIO_BASE 1000
+#define RATIO_H_MIX 500
 #define MESON_OSD_INPUT_W_LIMIT 3840
 #define MESON_OSD_INPUT_H_LIMIT 2160
 
@@ -619,6 +620,7 @@ struct meson_vpu_postblend {
 	struct postblend_reg_s *reg;
 	struct postblend1_reg_s *reg1;
 	bool postblend_path_mask;
+	bool memc_go_field;
 };
 
 struct meson_vpu_postblend_state {
@@ -966,6 +968,7 @@ extern struct meson_vpu_block_ops t7_postblend_ops;
 extern struct meson_vpu_block_ops t3_afbc_ops;
 extern struct meson_vpu_block_ops t3_scaler_ops;
 extern struct meson_vpu_block_ops t3_postblend_ops;
+extern struct meson_vpu_block_ops t5w_postblend_ops;
 
 
 /*
