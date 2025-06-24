@@ -1303,6 +1303,7 @@ static s32 aucpu_init_try(struct platform_device *pdev)
 	aucpu_pr(LOG_DEBUG, "Aucpu ->irq: %d\n", s_aucpu_irq);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	aucpu_pr(LOG_ERROR, "res:0x%px\n", res);
 
 	/* if platform driver is implemented */
 	if (res && res->start != 0) {
@@ -1313,7 +1314,7 @@ static s32 aucpu_init_try(struct platform_device *pdev)
 		pctx->aucpu_reg.size = resource_size(res);
 
 		aucpu_pr(LOG_DEBUG,
-			 "aucpu base address get from platfor");
+			 "aucpu base address get from platform");
 		aucpu_pr(LOG_DEBUG,
 			 " physical addr=0x%lx, base addr=0x%lx\n",
 			 pctx->aucpu_reg.phys_addr,
@@ -1325,10 +1326,10 @@ static s32 aucpu_init_try(struct platform_device *pdev)
 			AUCPU_REG_SIZE);
 
 		pctx->aucpu_reg.size = AUCPU_REG_SIZE;
-		aucpu_pr(LOG_DEBUG,
-			 "aucpu base address get from defined value ");
-		aucpu_pr(LOG_DEBUG,
-			 "physical addr=0x%lx, base addr=0x%lx\n",
+		aucpu_pr(LOG_ERROR,
+			 "warning: aucpu base address get from defined value");
+		aucpu_pr(LOG_ERROR,
+			 "warning: defined physical addr=0x%lx, base addr=0x%lx\n",
 			 pctx->aucpu_reg.phys_addr,
 			 pctx->aucpu_reg.base);
 	}

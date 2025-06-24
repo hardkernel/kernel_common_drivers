@@ -2833,9 +2833,7 @@
 		#address-cells=<1>;
 		#size-cells=<1>;
 		ranges;
-		io_reg_base{
-			reg = <0xff650080 0x100>;
-		};
+		reg = <0xff650080 0x100>;
 	};
 }; /* end of / */
 
