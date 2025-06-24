@@ -1624,7 +1624,7 @@ void earctx_enable(struct regmap *top_map,
 		/* first biphase work clear, and then start
 		 * only for earc
 		 */
-		if (type == ATNDTYP_EARC && !chipinfo->tx_pll_new) {
+		if (type == ATNDTYP_EARC) {
 			mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 					 0x1 << 30,
 					 0x1 << 30);
