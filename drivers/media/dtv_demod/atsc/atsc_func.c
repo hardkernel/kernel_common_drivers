@@ -636,7 +636,7 @@ unsigned int atsc_read_ser(void)
 {
 	unsigned int ser;
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 		ser = atsc_read_reg_v4(ATSC_FEC_REG_0XFB);
 	else
 		ser = atsc_read_reg(0x0687) + (atsc_read_reg(0x0686) << 8) +
@@ -691,7 +691,7 @@ int atsc_read_snr_10(void)
 	int snr;
 	int snr_db;
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 		snr = atsc_read_reg_v4(ATSC_EQ_REG_0XC3);
 	else
 		snr = (atsc_read_reg(0x0511) << 8) + atsc_read_reg(0x0512);

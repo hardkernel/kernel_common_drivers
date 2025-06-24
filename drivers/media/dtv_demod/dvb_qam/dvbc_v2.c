@@ -405,14 +405,14 @@ int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc,
 		demod->demod_status.ch_if = DEMOD_5M_IF;
 	demod->demod_status.symb_rate = symb_rate;
 
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+	if (!demod_chip_after_eq(DTVDEMOD_HW_TL1) && demod_chip_after_eq(DTVDEMOD_HW_TXLX))
 		demod->demod_status.adc_freq = demod_dvbc->dat0;
 
 	demod_dvbc_qam_reset(demod);
 
-	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
+	if (demod_chip_eq(DTVDEMOD_HW_GXTVBB) || demod_chip_eq(DTVDEMOD_HW_TXL))
 		dvbc_reg_initial_old(demod);
-	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX) && !is_meson_txhd_cpu())
+	else if (demod_chip_after_eq(DTVDEMOD_HW_TXLX) && !demod_chip_eq(DTVDEMOD_HW_TXHD))
 		dvbc_reg_initial(demod, fe);
 
 	return ret;

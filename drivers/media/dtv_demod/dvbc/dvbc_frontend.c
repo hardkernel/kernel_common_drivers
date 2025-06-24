@@ -104,8 +104,8 @@ int gxtv_demod_dvbc_read_status_timer(struct dvb_frontend *fe,
 		if (ilock == 0) {
 			demod->fast_search_finish = false;
 			demod->fsm_reset = false;
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5W) &&
-				!is_meson_s1a_cpu() &&
+			if (demod_chip_after_eq(DTVDEMOD_HW_T5W) &&
+				!demod_chip_eq(DTVDEMOD_HW_S1A) &&
 				demod->auto_qam_done &&
 				fe->dtv_property_cache.modulation == QAM_AUTO) {
 				demod->auto_qam_mode = QAM_MODE_256;
@@ -191,7 +191,7 @@ int gxtv_demod_dvbc_init(struct aml_dtvdemod *demod, int mode)
 		demod->demod_status.tmp = CRY_MODE;
 	}
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 		sys.adc_clk = ADC_CLK_24M;
 		sys.demod_clk = DEMOD_CLK_167M;
 		demod->demod_status.tmp = CRY_MODE;
@@ -213,9 +213,9 @@ int gxtv_demod_dvbc_init(struct aml_dtvdemod *demod, int mode)
 	devp->dvbc_inited = true;
 
 	/* sys clk div */
-	if (devp->data->hw_ver == DTVDEMOD_HW_S4 || devp->data->hw_ver == DTVDEMOD_HW_S4D) {
+	if (demod_chip_eq(DTVDEMOD_HW_S4) || demod_chip_eq(DTVDEMOD_HW_S4D)) {
 		//for new dvbc_blind_scan mode
-		if (is_meson_s4d_cpu() && !devp->blind_scan_stop) {
+		if (demod_chip_eq(DTVDEMOD_HW_S4D) && !devp->blind_scan_stop) {
 			//CLKCTRL_DEMOD_CLK_CNTL,CLKCTRL_DEMOD_CLK_CNTL1
 			//cts_demod_core_clk=24M,cts_demod_core_t2_clk=48M
 			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x70f);
@@ -223,7 +223,7 @@ int gxtv_demod_dvbc_init(struct aml_dtvdemod *demod, int mode)
 		} else {
 			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501); //250M
 		}
-	} else if (devp->data->hw_ver >= DTVDEMOD_HW_TL1) {
+	} else if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x502);
 	}
 
@@ -271,7 +271,7 @@ int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 
 	demod->sr_val_hw = param.symb_rate;
 
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+	if (!demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 		if (param.mode == 3 && demod->demod_status.tmp != ADC_MODE)
 			ret = gxtv_demod_dvbc_init(demod, ADC_MODE);
 	}
@@ -292,7 +292,7 @@ int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 	dvbc_set_ch(demod, &param, fe);
 
 	/*0xf33 dvbc mode, 0x10f33 j.83b mode*/
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX) && !is_meson_txhd_cpu())
+	if (demod_chip_after_eq(DTVDEMOD_HW_TXLX) && !demod_chip_eq(DTVDEMOD_HW_TXHD))
 		dvbc_init_reg_ext(demod);
 
 	if (demod->autoflags == 1) {
@@ -504,7 +504,7 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		}
 	}
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5W) && !is_meson_s1a_cpu()) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5W) && !demod_chip_eq(DTVDEMOD_HW_S1A)) {
 		if (!demod->auto_qam_done) {
 			demod->auto_done_times = 0;
 			ret = dvbc_auto_qam_process(demod, demod->auto_qam_list);
@@ -558,7 +558,7 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 
 		return 1;
 	} else if ((fsm_state & 0xf) == 6) {
-		if ((is_meson_t5d_cpu() || is_meson_t3_cpu()) &&
+		if ((demod_chip_eq(DTVDEMOD_HW_T5D) || demod_chip_eq(DTVDEMOD_HW_T3)) &&
 			demod->qam_wait_times < 4) {
 			PR_DVBC("qam wait times %d.\n", demod->qam_wait_times);
 			if (demod->qam_wait_times == 1)
@@ -570,8 +570,8 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		}
 	}
 
-	if (demod->auto_times == 15 || ((cpu_after_eq(MESON_CPU_MAJOR_ID_T5W) &&
-		!is_meson_s1a_cpu()) &&
+	if (demod->auto_times == 15 || ((demod_chip_after_eq(DTVDEMOD_HW_T5W) &&
+		!demod_chip_eq(DTVDEMOD_HW_S1A)) &&
 		((demod->auto_times == 2 && !demod->auto_qam_done) ||
 		(demod->auto_qam_index >= 5 && demod->auto_qam_done)))) {
 		demod->auto_times = 0;
@@ -579,7 +579,8 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		*delay = HZ / 4;
 
 		return 0;
-	} else if (demod->auto_times == 5 && (is_meson_t5d_cpu() || is_meson_t3_cpu())) {
+	} else if (demod->auto_times == 5 && (demod_chip_eq(DTVDEMOD_HW_T5D) ||
+		demod_chip_eq(DTVDEMOD_HW_T3))) {
 		demod->auto_times = 0;
 		demod->auto_no_sig_cnt = 0;
 		*delay = HZ / 4;
@@ -588,11 +589,11 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		return 0;
 	}
 
-	if (is_meson_t5d_cpu() || is_meson_t3_cpu())
+	if (demod_chip_eq(DTVDEMOD_HW_T5D) || demod_chip_eq(DTVDEMOD_HW_T3))
 		*delay = HZ / 10;
 	demod->auto_times++;
 	/* loop from 16 to 256 */
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T5W) || is_meson_s1a_cpu()) {
+	if (!demod_chip_after_eq(DTVDEMOD_HW_T5W) || demod_chip_eq(DTVDEMOD_HW_S1A)) {
 		demod->auto_qam_mode = dvbc_switch_qam(demod->auto_qam_mode);
 		demod_dvbc_set_qam(demod, demod->auto_qam_mode, false);
 		demod->qam_wait_times = 0;
@@ -832,8 +833,8 @@ int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 			demod->fast_search_finish = false;
 			demod->fsm_reset = false;
 			/* loss lock, reset 256qam, start auto qam again. */
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5W) &&
-				!is_meson_s1a_cpu() &&
+			if (demod_chip_after_eq(DTVDEMOD_HW_T5W) &&
+				!demod_chip_eq(DTVDEMOD_HW_S1A) &&
 				demod->auto_qam_done &&
 				auto_qam) {
 				demod->auto_qam_mode = QAM_MODE_256;
@@ -1076,6 +1077,7 @@ int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tu
 		*status = FE_LOCKED;
 		demod->real_para.modulation = dvbc_get_dvbc_qam(demod->auto_qam_mode);
 		demod->real_para.symbol = sr * 1000;
+		demod->real_para.snr = dvbc_get_snr(demod);
 
 		last_locked_freq = c->frequency;
 		last_locked_time = cur_time;
@@ -1283,7 +1285,7 @@ void dvbc_blind_scan_work(struct aml_dtvdemod *demod)
 	gxtv_demod_dvbc_init(demod, ADC_MODE);
 
 	//2.use frontend agc instead;
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5D))
 		demod_enable_frontend_agc(demod, c->delivery_system, true);
 
 	//3.start to check signal in the dvbc frequency range [48000, 859000KHz]
@@ -1291,7 +1293,7 @@ void dvbc_blind_scan_work(struct aml_dtvdemod *demod)
 	dvbc_blind_scan_process(demod);
 
 	//4.exit stage 1: exit dvbc_blind_scan mode and switch back to local agc
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
+	if (demod_chip_after_eq((DTVDEMOD_HW_T5D)))
 		demod_enable_frontend_agc(demod, c->delivery_system, false);
 
 	//disable dvbc_blind_scan mode to avoid hang when switch to other demod

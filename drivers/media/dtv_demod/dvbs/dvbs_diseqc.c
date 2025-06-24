@@ -289,7 +289,7 @@ static int aml_diseqc_get_reply_msg(struct aml_diseqc *diseqc)
 	if (!diseqc->rx_enable) {
 		diseqc->rx_enable = true;
 		aml_diseqc_enable_rx(diseqc, true);
-		if (is_meson_s4d_cpu()) {
+		if (demod_chip_eq(DTVDEMOD_HW_S4D)) {
 #ifdef DISEQC_SAR_ADC_RX
 			meson_sar_adc_diseqc_in_mode_enable();
 #endif
@@ -333,7 +333,7 @@ static int aml_diseqc_get_reply_msg(struct aml_diseqc *diseqc)
 
 	if (diseqc->rx_enable) {
 		diseqc->rx_enable = false;
-		if (is_meson_s4d_cpu()) {
+		if (demod_chip_eq(DTVDEMOD_HW_S4D)) {
 #ifdef DISEQC_SAR_ADC_RX
 			meson_sar_adc_diseqc_in_mode_disable();
 #endif

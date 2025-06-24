@@ -64,6 +64,10 @@ MODULE_PARM_DESC(t2_snr_threshold, "");
 static unsigned int t2_snr_threshold = 529;
 __module_param(t2_snr_threshold, int, 0644);
 
+MODULE_PARM_DESC(jita_det_enable, "");
+static bool jita_det_enable = true;
+__module_param(jita_det_enable, bool, 0644);
+
 #define FIXED_SHIFT 16
 #define FIXED_ONE  0x10000 //65536
 typedef s32 fixed_t;
@@ -486,7 +490,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 	unsigned int plp_num = 0, fef_info = 0;
 	unsigned int data_plp = 0, common_plp = 0;
 	u64_t plp_common = 0;
-	unsigned char fft_size = -1, r_0x2a1c, r_0x839;
+	unsigned char fft_size = -1, r_0x2a1c, r_0x839, fft_mode;
 	long tmp;
 
 	cur_time = jiffies_to_msecs(jiffies);
@@ -553,7 +557,25 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 	if (snr > 190)
 		snr = snr + (snr - 190 + 5) / 10;
 
-	if (is_meson_t6d_cpu() && l1post) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6W)) {
+		PR_DVBT("cfo_jita_det 0x%x\n", (dvbt_t2_rdb(0x28D9) >> 7) & 0x01);
+		PR_DVBT("cfo_gain 0x%x\n", dvbt_t2_rdb(0x2897));
+		PR_DVBT("cfo_jita 0x%x\n", ((dvbt_t2_rdb(0x28d9) & 0x1f) << 8) +
+			(dvbt_t2_rdb(0x28d8) & 0xff));
+	}
+
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6W) && l1post && jita_det_enable) {
+		fft_mode = dvbt_t2_rdb(0x840) & 0x7;
+		if (fft_mode == 0x1 || fft_mode == 0x4 || fft_mode == 0x5 ||
+			fft_mode == 0x6 || fft_mode == 0x7) {
+			PR_DVBT("8/16/32K\n");
+			dvbt_t2_wrb(0x28d6, 0x3);
+		} else {
+			dvbt_t2_wrb(0x28d6, 0xf);
+		}
+	}
+
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6D) && l1post) {
 		/* detect T2 echo 20us case */
 		if (doppler_detect) {
 			dvbt2_optimize_doppler(fe);
@@ -619,6 +641,8 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 
 		PR_DVBT("data plp: %d (0x%x)\n", data_plp, data_plp);
 		PR_DVBT("common plp: %d (0x%x)\n", common_plp, common_plp);
+		if (!demod_is_t5d_cpu(devp))
+			PR_DVBT("cur plp: %d\n", dvbt_t2_rdb(0x806));
 	}
 
 	PR_DVBT("code_rate=%d, modu=%d, ldpc=%d, snr=%d dBx10, l1post=%d\n",
@@ -819,6 +843,11 @@ int dvbt2_set_frontend(struct dvb_frontend *fe)
 		PR_INFO("same freq and mplp_retune %d not retune\n",
 				dvbt2_mplp_retune);
 
+		demod->last_lock = 0;
+		demod->last_status = 0;
+		demod->p1_peak = 0;
+		real_para_clear(&demod->real_para);
+
 		demod->time_start = jiffies_to_msecs(jiffies);
 
 		return 0;
@@ -830,7 +859,7 @@ int dvbt2_set_frontend(struct dvb_frontend *fe)
 	demod->p1_peak = 0;
 	real_para_clear(&demod->real_para);
 
-	if (is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+	if (demod_chip_eq(DTVDEMOD_HW_T5W) || demod_chip_eq(DTVDEMOD_HW_T3) ||
 		demod_is_t5d_cpu(devp)) {
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 		dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
@@ -841,12 +870,12 @@ int dvbt2_set_frontend(struct dvb_frontend *fe)
 		dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
 		dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
 
-		if (is_meson_t3_cpu() && is_meson_rev_b())
+		if (demod_chip_eq(DTVDEMOD_HW_T3) && is_meson_rev_b())
 			t3_revb_set_ambus_state(false, true);
 
-		if (is_meson_t5w_cpu())
+		if (demod_chip_eq(DTVDEMOD_HW_T5W))
 			t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
-	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M)) {
+	} else if (demod_chip_after_eq(DTVDEMOD_HW_T5M)) {
 		//set f040 = 0x0, disable t/t2 mode, stop to
 		top_saved = demod_top_read_reg(DEMOD_TOP_CFG_REG_4);
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
@@ -885,7 +914,7 @@ int dvbt2_set_frontend(struct dvb_frontend *fe)
 	demod->freq = c->frequency / 1000;
 	demod->time_start = jiffies_to_msecs(jiffies);
 
-	if (is_meson_t5w_cpu())
+	if (demod_chip_eq(DTVDEMOD_HW_T5W))
 		t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
 
 	return 0;
@@ -945,7 +974,7 @@ int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 
 	/*polling*/
 	dvbt2_read_status(fe, status, &is_signal);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3))
+	if (demod_chip_after_eq(DTVDEMOD_HW_T3))
 		dvbt2_info(demod, NULL);
 
 	return 0;
@@ -990,7 +1019,7 @@ int dvbtx_tune(struct dvb_frontend *fe, bool re_tune,
 
 	read_status = cur_system == SYS_DVBT ? dvbt_read_status : dvbt2_read_status;
 	read_status(fe, status, &is_signal);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3)) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T3)) {
 		show_info = cur_system == SYS_DVBT ? dvbt_info : dvbt2_info;
 		show_info(demod, NULL);
 	}
@@ -1064,7 +1093,7 @@ unsigned int dvbt_init(struct aml_dtvdemod *demod)
 	demod->demod_status.clk_freq = sys.demod_clk;
 	demod->last_status = 0;
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_T6D) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	} else {
@@ -1098,7 +1127,7 @@ unsigned int dtvdemod_dvbt2_init(struct aml_dtvdemod *demod)
 	demod->demod_status.clk_freq = sys.demod_clk;
 	demod->last_status = 0;
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_T6D) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	} else {

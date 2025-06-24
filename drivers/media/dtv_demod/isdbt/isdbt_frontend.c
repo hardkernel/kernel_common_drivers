@@ -89,67 +89,41 @@ void isdbt_reset_demod(void)
 	dvbt_isdbt_wr_reg_new(0x02, dvbt_isdbt_rd_reg_new(0x02) | (1 << 0));
 	dvbt_isdbt_wr_reg_new(0x02, dvbt_isdbt_rd_reg_new(0x02) | (1 << 24));
 
-	if (is_meson_t6d_cpu()) {
-		front_write_reg(0x36, 0x0);
-		front_write_reg(0x37, 0x0);
-
-		front_write_reg(0x20, 0x6011b);
-		front_write_reg(0x20, 0x6011b);//0xe20=6011b
-		front_write_reg(0x21, 0x10122);
-		front_write_reg(0x22, 0x7200a16);
-		front_write_reg(0x23, 0x42190190);
-		front_write_reg(0x26, 0x1a000f0f);
-
-		front_write_reg(0x28, 0x20003030);
-		front_write_reg(0x2a, 0x4404101a);
-		front_write_reg(0x2c, 0x8c042214);//31bit:disable src search
-		front_write_reg(0x2d, 0x00007011);
-		front_write_reg(0x2b, 0x302f4000);
-		front_write_reg(0x27, 0x03555555);
-		front_write_reg(0x2e, 0x00400000);
-		front_write_reg(0x2f, 0x00000005);
-		front_write_reg(0x40, 0x061e81bc);
-		front_write_reg(0x36, 0x3fffffff);
-		front_write_reg(0x37, 0x3fffffff);
-
-		front_write_reg(0x41, 0x1450a9);
-		front_write_reg(0x42, 0x187b7);
-		front_write_reg(0x43, 0x7977b0);
-		front_write_reg(0x44, 0x7e901f);
-		front_write_reg(0x45, 0x3c036);
-		front_write_reg(0x46, 0x177f1);
-		front_write_reg(0x47, 0x7d97d8);
-		front_write_reg(0x48, 0x7ea006);
-		front_write_reg(0x49, 0x1b020);
-		front_write_reg(0x4a, 0x14000);
-		front_write_reg(0x4b, 0x7ee7e7);
-		front_write_reg(0x4c, 0x7ed7fd);
-		front_write_reg(0x4d, 0xc014);
-		front_write_reg(0x4e, 0x11006);
-		front_write_reg(0x4f, 0x7f87f0);
-		front_write_reg(0x50, 0x7f17f9);
-		front_write_reg(0x51, 0x400d);
-		front_write_reg(0x52, 0xe008);
-		front_write_reg(0x53, 0x7fe7f7);
-		front_write_reg(0x54, 0x7f47f8);
-		front_write_reg(0x55, 0x7);
-		front_write_reg(0x56, 0xa008);
-		front_write_reg(0x57, 0x27fb);
-		front_write_reg(0x58, 0x7f87f9);
-		front_write_reg(0x59, 0x7fd003);
-		front_write_reg(0x5a, 0x6006);
-		front_write_reg(0x5b, 0x37ff);
-		front_write_reg(0x5c, 0x7fc7fb);
-		front_write_reg(0x5d, 0x7fc000);
-		front_write_reg(0x5e, 0x3004);
-		front_write_reg(0x5f, 0x4002);
-		front_write_reg(0x60, 0x7ff7fe);
-		front_write_reg(0x61, 0x7fe);
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
+		demod_set_top_frontend(SYS_ISDBT);
 
 		dvbt_isdbt_wr_reg(0x8 << 2, 0x00013000);//bypass ISDBT frontend
 	}
 
 	PR_ISDBT("do a isdbt reset\n");
+}
+
+static int isdbt_sfec_set_coderate(int cr)
+{
+	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+	switch (cr) {
+	case 0:// 1/2
+		dvbt_t2_wrb(0x53c, 0x41);
+		break;
+	case 1:// 2/3
+		dvbt_t2_wrb(0x53c, 0x42);
+		break;
+	case 2:// 3/4
+		dvbt_t2_wrb(0x53c, 0x44);
+		break;
+	case 3:// 5/6
+		dvbt_t2_wrb(0x53c, 0x48);
+		break;
+	case 4:// 7/8
+		dvbt_t2_wrb(0x53c, 0x60);
+		break;
+	default:
+		break;
+	}
+	PR_ISDBT(" cr %d 0x53c 0x%x\n", cr, dvbt_t2_rdb(0x53c));
+	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+
+	return 0;
 }
 
 int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tune)
@@ -158,7 +132,7 @@ int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool
 	unsigned char s = 0;
 	unsigned int fsm = 0;
 	s16 strength = 0;
-	int lock = 0, snr10 = 0;
+	int lock = 0, snr10 = 0, layer = 0, cr = 0;
 	static int has_signal;
 	static int no_signal_cnt, unlock_cnt;
 	int lock_continuous_cnt = isdbt_lock_continuous_cnt > 1 ? isdbt_lock_continuous_cnt : 1;
@@ -209,7 +183,29 @@ int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool
 	PR_ISDBT("fsm=0x%x, strength=%ddBm snr=%d dBx10, time_passed=%dms\n",
 		fsm, strength, snr10, demod->time_passed);
 
-	s = dvbt_isdbt_rd_reg(0x0) >> 12 & 1;
+	PR_ISDBT("per=0x%x\n", demod_top_read_reg(0x40));
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6W) && isdbt_reuse_sfec) {
+		//check layer
+		if (fsm >= 0x9) {
+			layer = isdbt_get_super_fec_layer();
+			if (layer == DTV_ISDBT_LAYERA_FEC) {
+				cr = (dvbt_isdbt_rd_reg(0x07 << 2) & 0x1c00000) >> 22;
+				isdbt_sfec_set_coderate(cr);
+			} else if (layer == DTV_ISDBT_LAYERB_FEC) {
+				cr = (dvbt_isdbt_rd_reg(0x06 << 2) & 0x7000000) >> 24;
+				isdbt_sfec_set_coderate(cr);
+			} else if (layer == DTV_ISDBT_LAYERC_FEC) {
+				cr = (dvbt_isdbt_rd_reg(0x06 << 2) & 0x3800) >> 11;
+				isdbt_sfec_set_coderate(cr);
+			}
+		}
+		//check lock
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+		s = (dvbt_t2_rdb(0x53e) >> 3) & 1;
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+	} else {
+		s = dvbt_isdbt_rd_reg(0x0) >> 12 & 1;
+	}
 	if (s == 1) {
 		lock = 1;
 	} else if (demod->time_passed < check_signal_time ||
@@ -307,7 +303,8 @@ int dvbt_isdbt_tune(struct dvb_frontend *fe, bool re_tune,
 
 	/*polling*/
 	dvbt_isdbt_read_status(fe, status, re_tune);
-	isdbt_get_tmcc_info(NULL);
+	if (*status == FE_LOCKED)
+		isdbt_get_tmcc_info(NULL);
 
 	return 0;
 }
@@ -344,6 +341,9 @@ int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	struct aml_demod_dvbt param;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	unsigned int front_0x38 = 0, front_0x39 = 0;
+	unsigned int abus_en_dly = 0, dc_arb_enable = 0;
+	int retry_count = 2;
 
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
@@ -370,24 +370,63 @@ int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	demod->last_lock = -1;
 	demod->last_status = 0;
 
-	if (is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+	if (demod_chip_eq(DTVDEMOD_HW_T5W) || demod_chip_eq(DTVDEMOD_HW_T3) ||
 		demod_is_t5d_cpu(devp)) {
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
 
-		if (is_meson_t3_cpu() && is_meson_rev_b())
+		if (demod_chip_eq(DTVDEMOD_HW_T3) && is_meson_rev_b())
 			t3_revb_set_ambus_state(false, false);
 
-		if (is_meson_t5w_cpu())
+		if (demod_chip_eq(DTVDEMOD_HW_T5W))
 			t5w_write_ambus_reg(0xe138, 0x1, 23, 1);
+	} else if (demod_chip_after_eq(DTVDEMOD_HW_T5M)) {
+		front_0x38 = front_read_reg(DEMOD_FRONT_REG38);
+		front_0x39 = front_read_reg(DEMOD_FRONT_REG39);
+		PR_INFO("before 0x38 %#x, 0x39 %#x\n",
+				front_0x38, front_0x39);
+		dc_arb_enable = front_0x39 & 0x40000000;
+		if (dc_arb_enable) {
+			//0x39[29], enable abus_en delay logic
+			front_write_bits(DEMOD_FRONT_REG39, 0x1, 29, 1);
+			//0x39[30], set dc_arb_enable = 0
+			front_write_bits(DEMOD_FRONT_REG39, 0x0, 30, 1);
+
+			//0x38[31], when read abus_en_dly = 0,
+			//then continue the following flow of closing demod.
+			front_0x38 = front_read_reg(DEMOD_FRONT_REG38);
+			abus_en_dly = front_0x38 & 0x80000000;
+			PR_INFO("after 0x38 %#x, abus_en_dly %#x\n",
+					front_0x38, abus_en_dly);
+			while (abus_en_dly && retry_count--) {
+				msleep(20);
+				abus_en_dly = front_read_reg(DEMOD_FRONT_REG38) & 0x80000000;
+				PR_INFO("retry_count %d, 0x38 %#x\n", retry_count,
+					front_read_reg(DEMOD_FRONT_REG38));
+			}
+
+			//0x39[29], disable abus_en delay logic
+			front_write_bits(DEMOD_FRONT_REG39, 0x0, 29, 1);
+
+			if (abus_en_dly) {
+				PR_ERR("abus_en_dly ERROR!\n");
+
+				abus_en_dly = front_read_reg(DEMOD_FRONT_REG38) & 0x80000000;
+				PR_INFO("after disable abus_en_dly_en, abus_en_dly %#x\n",
+						abus_en_dly);
+			}
+		}
+
+		//0x39[30], set dc_arb_enable = 1
+		front_write_bits(DEMOD_FRONT_REG39, 0x1, 30, 1);
 	}
 
 	tuner_set_params(fe);
 	msleep(20);
 	dvbt_isdbt_set_ch(demod, &param);
 
-	if (is_meson_t5w_cpu())
+	if (demod_chip_eq(DTVDEMOD_HW_T5W))
 		t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
 
 	return 0;
@@ -428,11 +467,18 @@ int dvbt_isdbt_init(struct aml_dtvdemod *demod)
 	demod->demod_status.adc_freq = sys.adc_clk;
 	demod->demod_status.clk_freq = sys.demod_clk;
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
-		if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
-			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
-		else
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
+		if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
+			if (demod_chip_after_eq(DTVDEMOD_HW_T6W) && isdbt_reuse_sfec) {
+				/* 180M */
+				dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
+				dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x700);
+			} else {
+				dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+			}
+		} else {
 			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x507);
+		}
 	} else {
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	}

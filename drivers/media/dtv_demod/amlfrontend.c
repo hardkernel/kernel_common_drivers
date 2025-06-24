@@ -399,11 +399,12 @@ static void demod_32k_ctrl(unsigned int onoff)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 
-	if (devp->data->hw_ver != DTVDEMOD_HW_T3 &&
-		devp->data->hw_ver != DTVDEMOD_HW_T5M &&
-		devp->data->hw_ver != DTVDEMOD_HW_T5W &&
-		devp->data->hw_ver != DTVDEMOD_HW_T3X &&
-		devp->data->hw_ver != DTVDEMOD_HW_T6D)
+	if (!demod_chip_eq(DTVDEMOD_HW_T3) &&
+		!demod_chip_eq(DTVDEMOD_HW_T5M) &&
+		!demod_chip_eq(DTVDEMOD_HW_T5W) &&
+		!demod_chip_eq(DTVDEMOD_HW_T3X) &&
+		!demod_chip_eq(DTVDEMOD_HW_T6D) &&
+		!demod_chip_eq(DTVDEMOD_HW_T6W))
 		return;
 
 	if (onoff) {
@@ -472,7 +473,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 		demod->act_dtmb = true;
 		dtmb_set_mem_st(devp->mem_start);
 
-		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+		if (!demod_chip_after_eq(DTVDEMOD_HW_TL1))
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x8);
 		break;
 #endif
@@ -496,7 +497,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 		if (ret)
 			break;
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 			timer_set_max(demod, D_TIMER_DETECT, demod->timeout_atsc_ms);
 		break;
 #endif
@@ -506,7 +507,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 		if (ret)
 			break;
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 			timer_set_max(demod, D_TIMER_DETECT, demod->timeout_atsc_ms);
 		break;
 #endif
@@ -520,7 +521,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 		break;
 
 	case SYS_DVBT2:
-		if (devp->data->hw_ver == DTVDEMOD_HW_T5D) {
+		if (demod_chip_eq(DTVDEMOD_HW_T5D)) {
 			devp->dmc_saved = dtvdemod_dmc_reg_read(0x274);
 			PR_INFO("dmc 0x%x\n", devp->dmc_saved);
 			dtvdemod_dmc_reg_write(0x274, 0x18100000);
@@ -528,7 +529,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 
 		ret = dtvdemod_dvbt2_init(demod);
 		if (ret) {
-			if (devp->data->hw_ver == DTVDEMOD_HW_T5D) {
+			if (demod_chip_eq(DTVDEMOD_HW_T5D)) {
 				PR_INFO("resume dmc 0x%x\n", devp->dmc_saved);
 				dtvdemod_dmc_reg_write(0x274, devp->dmc_saved);
 			}
@@ -647,7 +648,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 	case SYS_DVBT2:
 		demod->plp_id = 0xffff;
 
-		if (devp->data->hw_ver == DTVDEMOD_HW_T5D && delsys == SYS_DVBT2) {
+		if (demod_chip_eq(DTVDEMOD_HW_T5D) && delsys == SYS_DVBT2) {
 			PR_INFO("resume dmc 0x%x\n", devp->dmc_saved);
 			dtvdemod_dmc_reg_write(0x274, devp->dmc_saved);
 		}
@@ -706,17 +707,17 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 	int retry_count = 2;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_t3_cpu() && ldelsys == SYS_DTMB) {
+	if (demod_chip_eq(DTVDEMOD_HW_T3) && ldelsys == SYS_DTMB) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 		dtmb_write_reg(0x7, 0x6ffffd);
 		//dtmb_write_reg(0x47, 0xed33221);
 		dtmb_write_reg_bits(0x47, 0x1, 22, 1);
 		dtmb_write_reg_bits(0x47, 0x1, 23, 1);
 
-		if (is_meson_t3_cpu() && is_meson_rev_b())
+		if (demod_chip_eq(DTVDEMOD_HW_T3) && is_meson_rev_b())
 			t3_revb_set_ambus_state(true, false);
 #endif
-	} else if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+	} else if ((demod_chip_eq(DTVDEMOD_HW_T5W) || demod_chip_eq(DTVDEMOD_HW_T3) ||
 		demod_is_t5d_cpu(devp)) && ldelsys == SYS_DVBT2) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
@@ -728,30 +729,30 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 		dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
 		dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
 
-		if (is_meson_t3_cpu() && is_meson_rev_b())
+		if (demod_chip_eq(DTVDEMOD_HW_T3) && is_meson_rev_b())
 			t3_revb_set_ambus_state(true, true);
 
-		if (is_meson_t5w_cpu())
+		if (demod_chip_eq(DTVDEMOD_HW_T5W))
 			t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
 #endif
-	} else if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+	} else if ((demod_chip_eq(DTVDEMOD_HW_T5W) || demod_chip_eq(DTVDEMOD_HW_T3) ||
 		demod_is_t5d_cpu(devp)) && ldelsys == SYS_ISDBT) {
 #ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
 
-		if (is_meson_t3_cpu() && is_meson_rev_b())
+		if (demod_chip_eq(DTVDEMOD_HW_T3) && is_meson_rev_b())
 			t3_revb_set_ambus_state(true, false);
 
-		if (is_meson_t5w_cpu())
+		if (demod_chip_eq(DTVDEMOD_HW_T5W))
 			t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
 #endif
 	}
 #endif
 
 	//disable demod output AMBUS LSB signal
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M) && (ldelsys == SYS_DTMB ||
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5M) && (ldelsys == SYS_DTMB ||
 			ldelsys == SYS_DVBT2 || ldelsys == SYS_ISDBT)) {
 		if (ldelsys == SYS_DVBT2) {
 			//set f040 = 0x0, disable t/t2 mode, stop to
@@ -792,7 +793,7 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 		(cdelsys == SYS_UNDEFINED || cdelsys == SYS_ANALOG_DVB_V512))
 		fe->ops.tuner_ops.release(fe);
 
-	if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+	if ((demod_chip_eq(DTVDEMOD_HW_T5W) || demod_chip_eq(DTVDEMOD_HW_T3) ||
 		demod_is_t5d_cpu(devp)) &&
 		(ldelsys == SYS_DTMB ||
 		ldelsys == SYS_DVBT2 ||
@@ -804,12 +805,12 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 	leave_mode(demod, ldelsys);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_t5w_cpu() &&
+	if (demod_chip_eq(DTVDEMOD_HW_T5W) &&
 		(ldelsys == SYS_DVBT2 || ldelsys == SYS_ISDBT)) {
 		msleep(20);
 
 		t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
-	} else if (is_meson_t3_cpu() && is_meson_rev_b() &&
+	} else if (demod_chip_eq(DTVDEMOD_HW_T3) && is_meson_rev_b() &&
 			(ldelsys == SYS_DTMB ||
 			ldelsys == SYS_DVBT2 ||
 			ldelsys == SYS_ISDBT)) {
@@ -1088,6 +1089,25 @@ const struct meson_ddemod_data  data_t6d = {
 	.hw_ver = DTVDEMOD_HW_T6D,
 };
 
+const struct meson_ddemod_data  data_t6w = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x82,
+		.demod_clk_ctl_1 = 0x83,
+	},
+	.regoff = {
+		.off_demod_top = 0xf000,
+		.off_dvbc = 0x1000,
+		.off_dtmb = 0x0000,
+		.off_atsc = 0x0c00,
+		.off_isdbt = 0x800,
+		.off_front = 0x3800,
+		.off_dvbs = 0x2000,
+		.off_dvbt_isdbt = 0x800,
+		.off_dvbt_t2 = 0x0000,
+	},
+	.hw_ver = DTVDEMOD_HW_T6W,
+};
+
 #endif
 
 static const struct of_device_id meson_ddemod_match[] = {
@@ -1156,6 +1176,9 @@ static const struct of_device_id meson_ddemod_match[] = {
 	}, {
 		.compatible = "amlogic, ddemod-t6d",
 		.data		= &data_t6d,
+	}, {
+		.compatible = "amlogic, ddemod-t6w",
+		.data		= &data_t6w,
 	},
 #endif
 	/* DO NOT remove, to avoid scan err of KASAN */
@@ -1210,6 +1233,7 @@ static int dds_init_reg_map(struct platform_device *pdev)
 	case DTVDEMOD_HW_T5M:
 	case DTVDEMOD_HW_T3X:
 	case DTVDEMOD_HW_T6D:
+	case DTVDEMOD_HW_T6W:
 		devp->ddr_phy_addr = 0xfe000000;
 		devp->ddr_v_addr = devm_ioremap(&pdev->dev, 0xfe000000, 0x2000);
 		break;
@@ -1484,7 +1508,7 @@ static void blind_scan_work(struct work_struct *work)
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 		//only s4d support the new dvbc_blind_scan mode now
-		if (is_meson_s4d_cpu())
+		if (demod_chip_eq(DTVDEMOD_HW_S4D))
 			dvbc_blind_scan_work(demod);
 		break;
 #endif
@@ -1557,7 +1581,7 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 
 	aml_demod_init();
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
 		pm_runtime_enable(devp->dev);
 		if (pm_runtime_get_sync(devp->dev) < 0)
 			pr_err("failed to set pwr\n");
@@ -1567,10 +1591,10 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 			ret = -ENOMEM;
 
 		/* delayed workqueue for dvbt2 fw downloading */
-		if (dtvdd_devp->data->hw_ver != DTVDEMOD_HW_S4 &&
-			dtvdd_devp->data->hw_ver != DTVDEMOD_HW_S4D &&
-			dtvdd_devp->data->hw_ver != DTVDEMOD_HW_TXHD2 &&
-			dtvdd_devp->data->hw_ver != DTVDEMOD_HW_S1A) {
+		if (!demod_chip_eq(DTVDEMOD_HW_S4) &&
+			!demod_chip_eq(DTVDEMOD_HW_S4D) &&
+			!demod_chip_eq(DTVDEMOD_HW_TXHD2) &&
+			!demod_chip_eq(DTVDEMOD_HW_S1A)) {
 			INIT_DELAYED_WORK(&devp->fw_dwork, dtvdemod_fw_dwork);
 			schedule_delayed_work(&devp->fw_dwork, 5 * HZ);
 		}
@@ -1619,7 +1643,7 @@ static void aml_dtvdemod_remove(struct platform_device *pdev)
 	dtvdemod_remove_class_files(devp->clsp);
 	class_destroy(devp->clsp);
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
 		kfree(devp->fw_buf);
 		pm_runtime_put_sync(devp->dev);
 		pm_runtime_disable(devp->dev);
@@ -1663,7 +1687,7 @@ static void aml_dtvdemod_shutdown(struct platform_device *pdev)
 			delsys_exit(demod, demod->last_delsys, SYS_UNDEFINED);
 	}
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D)
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5D))
 		pm_runtime_force_suspend(devp->dev);
 
 	PR_INFO("%s ok\n", __func__);
@@ -2815,7 +2839,7 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 			PR_INFO("blind_scan already started\n");
 			break;
 		}
-		PR_INFO("DTV_START_BLIND_SCAN\n");
+		PR_INFO("DTV_START_BLIND_SCAN blind_scan_new %d\n", blind_scan_new);
 		devp->blind_scan_stop = 0;
 		schedule_work(&devp->blind_scan_work);
 		PR_INFO("schedule blind scan workqueue\n");
@@ -2823,11 +2847,20 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 
 	case DTV_CANCEL_BLIND_SCAN:
 		devp->blind_scan_stop = 1;
+		devp->singlecable_param.version = 0;
 		PR_INFO("DTV_CANCEL_BLIND_SCAN\n");
 		/* Normally, need to call cancel_work_sync()
 		 * wait to workqueue exit,
 		 * but this will cause a deadlock.
 		 */
+		break;
+	case DTV_BLIND_SCAN_STEP_NEXT:
+		if (demod->blind_step == DTVBLIND_SCAN_STEP_LOCK) {
+			PR_INFO("blind_scan already is step lock\n");
+			break;
+		}
+		demod->blind_step = DTVBLIND_SCAN_STEP_LOCK;
+		PR_INFO("blind_scan step lock\n");
 		break;
 	case DTV_SINGLE_CABLE_VER:
 		/* not singlecable: 0, 1.0X - 1(EN50494), 2.0X - 2(EN50607) */
@@ -2985,9 +3018,10 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 		break;
 
 	case DTV_TS_INPUT:
-		if (is_meson_s4d_cpu() || is_meson_s4_cpu() || is_meson_s1a_cpu())
+		if (demod_chip_eq(DTVDEMOD_HW_S4D) || demod_chip_eq(DTVDEMOD_HW_S4) ||
+			demod_chip_eq(DTVDEMOD_HW_S1A))
 			tvp->u.data = demod->id + 1; // tsin1 and tsin2.
-		else if (is_meson_t3x_cpu())
+		else if (demod_chip_eq(DTVDEMOD_HW_T3X))
 			tvp->u.data = 3; // tsin3.
 		else
 			tvp->u.data = 2; // tsin2.
@@ -3121,10 +3155,10 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 
 	mutex_lock(&amldtvdemod_device_mutex);
 
-	if ((devp->data->hw_ver != DTVDEMOD_HW_S4 &&
-		devp->data->hw_ver != DTVDEMOD_HW_S4D && devp->index > 0) ||
-		(devp->data->hw_ver == DTVDEMOD_HW_S4 && devp->index > 1) ||
-		(devp->data->hw_ver == DTVDEMOD_HW_S4D && devp->index > 1)) {
+	if ((!demod_chip_eq(DTVDEMOD_HW_S4) &&
+		!demod_chip_eq(DTVDEMOD_HW_S4D) && devp->index > 0) ||
+		(demod_chip_eq(DTVDEMOD_HW_S4) && devp->index > 1) ||
+		(demod_chip_eq(DTVDEMOD_HW_S4D) && devp->index > 1)) {
 		mutex_unlock(&amldtvdemod_device_mutex);
 
 		return NULL;
@@ -3164,10 +3198,11 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 	demod->suspended = false;
 	demod->freq = 0;
 	demod->plp_id = 0xfff;
+	demod->blind_step = DTVBLIND_SCAN_NORMAL;
 
 	/* select dvbc module for s4 and S4D */
-	if (devp->data->hw_ver == DTVDEMOD_HW_S4 ||
-		devp->data->hw_ver == DTVDEMOD_HW_S4D)
+	if (demod_chip_eq(DTVDEMOD_HW_S4) ||
+		demod_chip_eq(DTVDEMOD_HW_S4D))
 		demod->dvbc_sel = demod->id;
 	else
 		demod->dvbc_sel = 0;
@@ -3367,6 +3402,21 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 			aml_dtvdm_ops.delsys[8] = SYS_ANALOG_DVB_V512;
 			strcpy(aml_dtvdm_ops.info.name,
 					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT ddemod t6d");
+			break;
+		case DTVDEMOD_HW_T6W:
+			/* max delsys is 8, index: 0~7 */
+			aml_dtvdm_ops.delsys[0] = SYS_DVBC_ANNEX_A;
+			aml_dtvdm_ops.delsys[1] = SYS_ATSC;
+			aml_dtvdm_ops.delsys[2] = SYS_DVBS2;
+			aml_dtvdm_ops.delsys[3] = SYS_ISDBT;
+			aml_dtvdm_ops.delsys[4] = SYS_DVBS;
+			aml_dtvdm_ops.delsys[5] = SYS_DVBT2;
+			aml_dtvdm_ops.delsys[6] = SYS_DVBT;
+			aml_dtvdm_ops.delsys[7] = SYS_DVBC_ANNEX_B;
+			aml_dtvdm_ops.delsys[8] = SYS_DTMB;
+			aml_dtvdm_ops.delsys[9] = SYS_ANALOG_DVB_V512;
+			strcpy(aml_dtvdm_ops.info.name,
+					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT/DTMB ddemod t6w");
 			break;
 #endif //end of CONFIG_AMLOGIC_ZAPPER_CUT
 

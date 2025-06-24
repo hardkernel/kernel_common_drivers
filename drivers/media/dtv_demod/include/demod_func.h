@@ -69,6 +69,7 @@
 #define DEMOD_TOP_CFG_REG_4	(0x10)
 #define DEMOD_TOP_CFG_REG_5	(0x14)
 #define DEMOD_TOP_CFG_REG_6	(0x18)
+#define DEMOD_TOP_CFG_REG_7	(0x1c)
 #define DEMOD_FRONT_REG38	(0x38)
 #define DEMOD_FRONT_REG39	(0x39)
 
@@ -272,6 +273,9 @@ void demod_set_tvfe_reg(unsigned int data, unsigned int addr);
 unsigned int demod_read_demod_reg(unsigned int addr);
 
 /* extern int clk_measure(char index); */
+void isdbt_dvbt_comb_super_fec(void);
+int isdbt_super_fec_layer_mode(int mode);
+int isdbt_get_super_fec_layer(void);
 
 void ofdm_initial(int bandwidth,
 		  /* 00:8M 01:7M 10:6M 11:5M */
@@ -283,6 +287,8 @@ void ofdm_initial(int bandwidth,
 		  /* 00:DVBT,01:ISDBT */
 		  int tc_mode
 		  /* 0: Unsigned, 1:TC */);
+
+void demod_set_top_frontend(enum fe_delivery_system delsys);
 
 /*no use void monitor_isdbt(void);*/
 void demod_set_reg(struct aml_dtvdemod *demod, struct aml_demod_reg *demod_reg);

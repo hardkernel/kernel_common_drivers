@@ -302,11 +302,11 @@ int gxtv_demod_dtmb_read_status_old(struct dvb_frontend *fe,
 	int ilock;
 	unsigned char s = 0;
 
-	if (is_meson_gxtvbb_cpu()) {
+	if (demod_chip_eq(DTVDEMOD_HW_GXTVBB)) {
 		dtmb_check_status_gxtv(fe);
-	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
+	} else if (demod_chip_after_eq(DTVDEMOD_HW_TXL)) {
 		dtmb_bch_check(fe);
-		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+		if (!demod_chip_after_eq(DTVDEMOD_HW_TL1))
 			dtmb_check_status_txl(fe);
 	} else {
 		return -1;
@@ -405,16 +405,16 @@ int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 
 	demod->last_lock = -1;
 
-	if (is_meson_t3_cpu()) {
+	if (demod_chip_eq(DTVDEMOD_HW_T3)) {
 		PR_DTMB("dtmb set ddr\n");
 		dtmb_write_reg(0x7, 0x6ffffd);
 		//dtmb_write_reg(0x47, 0xed33221);
 		dtmb_write_reg_bits(0x47, 0x1, 22, 1);
 		dtmb_write_reg_bits(0x47, 0x1, 23, 1);
 
-		if (is_meson_t3_cpu() && is_meson_rev_b())
+		if (demod_chip_eq(DTVDEMOD_HW_T3) && is_meson_rev_b())
 			t3_revb_set_ambus_state(false, false);
-	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M)) {
+	} else if (demod_chip_after_eq(DTVDEMOD_HW_T5M)) {
 		front_0x38 = front_read_reg(DEMOD_FRONT_REG38);
 		front_0x39 = front_read_reg(DEMOD_FRONT_REG39);
 		PR_INFO("before 0x38 %#x, 0x39 %#x\n",
@@ -459,7 +459,7 @@ int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 	if (!dtmb_new_driver)
 		msleep(100);
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 		if (fe->ops.tuner_ops.get_if_frequency)
 			fe->ops.tuner_ops.get_if_frequency(fe, tuner_freq);
 		if (tuner_freq[0] == 0)
@@ -588,7 +588,7 @@ static void dtmb_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 			has_signal = 0x1;
 
 	val = dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR);
-	if (is_meson_gxtvbb_cpu())
+	if (demod_chip_eq(DTVDEMOD_HW_GXTVBB))
 		demod->real_para.snr = dtmb_convert_snr(val & 0xfff) * 10;
 	else
 		demod->real_para.snr = dtmb_convert_snr(val & 0x3fff) * 10;
@@ -697,14 +697,14 @@ int Gxtv_Demod_Dtmb_Init(struct aml_dtvdemod *demod)
 	memset(&demod->demod_status, 0, sizeof(demod->demod_status));
 	demod->demod_status.delsys = SYS_DTMB;
 
-	if (is_meson_gxtvbb_cpu()) {
+	if (demod_chip_eq(DTVDEMOD_HW_GXTVBB)) {
 		sys.adc_clk = ADC_CLK_25M;
 		sys.demod_clk = DEMOD_CLK_200M;
-	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-		if (is_meson_txl_cpu()) {
+	} else if (demod_chip_after_eq(DTVDEMOD_HW_TXL)) {
+		if (demod_chip_eq(DTVDEMOD_HW_TXL)) {
 			sys.adc_clk = ADC_CLK_25M;
 			sys.demod_clk = DEMOD_CLK_225M;
-		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		} else if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 			sys.adc_clk = ADC_CLK_24M;
 			sys.demod_clk = DEMOD_CLK_250M;
 		} else {
@@ -721,7 +721,7 @@ int Gxtv_Demod_Dtmb_Init(struct aml_dtvdemod *demod)
 	demod->demod_status.clk_freq = sys.demod_clk;
 	demod->last_status = 0;
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 
 	ret = demod_set_sys(demod, &sys);

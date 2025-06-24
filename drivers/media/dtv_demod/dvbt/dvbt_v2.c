@@ -232,10 +232,10 @@ void dvbt2_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	dvbt_t2_wr_byte_bits(0x570, 1, 0, 1);
 
 	/* change T2 ts clock 5.43MHz(0x54b = 0xb0) to 6.75MHz to fix CI issue. */
-	dvbt_t2_wrb(0x54b, 0x40);
+	dvbt_t2_wrb(0x54b, 0x50); //0x40 to 0x50 clock
 
 	/* T2 MPLP config */
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M)) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5M)) {
 		dvbt_t2_wrb(0x592, 0x11);
 		dvbt_t2_wrb(0x634, 0x25);
 		dvbt_t2_wrb(0x520, 0xda);
@@ -486,7 +486,7 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	front_write_reg(TEST_BUS_DC_ADDR, devp->mem_start);
 	front_write_reg(TEST_BUS_VLD, 0x80000000);
 
-	if (is_meson_t3_cpu() && is_meson_rev_b())
+	if (demod_chip_eq(DTVDEMOD_HW_T3) && is_meson_rev_b())
 		front_write_reg(TEST_BUS, 0x40002000);
 	else
 		front_write_reg(TEST_BUS, 0xc0002000);
@@ -536,7 +536,8 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		break;
 	}
 
-	if (is_meson_t3x_cpu() || is_meson_t6d_cpu())
+	/* fix DTG161 */
+	if (demod_chip_eq(DTVDEMOD_HW_T3X) || demod_chip_after_eq(DTVDEMOD_HW_T6D))
 		dvbt_t2_wrb(0x2a04, 0xaa);
 
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
@@ -561,6 +562,7 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		dtvdemod_ddr_reg_write(0x54, dtvdemod_ddr_reg_read(0x54) | 0x00000020);
 		break;
 	case DTVDEMOD_HW_T6D:
+	case DTVDEMOD_HW_T6W:
 		dtvdemod_ddr_reg_write(0x44, dtvdemod_ddr_reg_read(0x44) & 0xffffffdf);
 		usleep_range(8000, 9000);
 		dtvdemod_ddr_reg_write(0x44, dtvdemod_ddr_reg_read(0x44) | 0x00000020);
@@ -690,7 +692,7 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 	}
 
 	/* T3 chip close dccomp*/
-	if (is_meson_t3_cpu())
+	if (demod_chip_eq(DTVDEMOD_HW_T3))
 		dvbt_t2_wrb(0x15a8, 0x02);
 
 	setsrcgain(calcul_src_gain_m(bandwidth, s_r));
@@ -835,9 +837,7 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 
 void dvbt_rst_demod(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 {
-	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
 		demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 		demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
 		demod_top_write_reg(DEMOD_TOP_REGC, 0x110010);
@@ -991,14 +991,14 @@ int dvbt2_get_plp(u32 *plp_num, u64 *plp_common)
 
 	*plp_common = 0;
 
-	if (is_meson_t5d_cpu()) {
+	if (demod_chip_eq(DTVDEMOD_HW_T5D)) {
 		value = front_read_reg(0x3e);
 		*plp_num = (value >> 24) & 0x3f;
 	} else {
 		*plp_num = dvbt_t2_rdb(0x805);
 	}
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3)) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T3)) {
 		value = dvbt_t2_rdb(0xe0);
 		for (i = 0; i < value; i++) {
 			id = dvbt_t2_rdb(0xa0 + i);
@@ -1041,7 +1041,7 @@ void dvbt2_get_plp_dbg(void)
 void dvbt2_set_plpid(char id)
 {
 	dvbt_t2_wrb(0x806, id);
-	PR_INFO("%s: %d\n", __func__, id);
+	usleep_range(10000, 10001);
 }
 
 static int calcul_carrier_offset(struct aml_dtvdemod *demod)
@@ -1475,7 +1475,7 @@ int dvbt2_get_modulation_coderate(u32 *modulation, u32 *coderate)
 {
 	unsigned int value = 0;
 
-	if (is_meson_t5d_cpu()) {
+	if (demod_chip_eq(DTVDEMOD_HW_T5D)) {
 		value = front_read_reg(0x3e);
 		*coderate = (value >> 2) & 0x7;
 		*modulation = (value >> 5) & 0x3;
@@ -1519,7 +1519,7 @@ int dvbt2_get_FFT_GI(u32 *fft_mode, u32 *guard_interval)
 	unsigned int gi = 0;
 	unsigned int fft = 0;
 
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T3)) {
+	if (!demod_chip_after_eq(DTVDEMOD_HW_T3)) {
 		*fft_mode = TRANSMISSION_MODE_AUTO;
 		*guard_interval = GUARD_INTERVAL_AUTO;
 

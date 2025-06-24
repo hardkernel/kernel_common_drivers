@@ -203,6 +203,18 @@
 /*  V3.6.023 switch dvb-t/t2 top agc to inner agc on T6D */
 /*  V3.6.024 fix debug cmd compile and style error */
 /*  V3.6.025 fix frontend compatibility issue */
+/*  V3.7.000 T6W bringup */
+/*  V3.7.001 fix dvbt2 mplp tune */
+/*  V3.7.002 fix debug cmd compile and style error */
+/*  V3.7.003 fix dvbc_auto_qam_process stack allocation */
+/*  V3.7.004 fix isdbt frontend(t6d) and ambus(t5m) */
+/*  V3.7.005 improve dvbs bindscan(2) and adapter tuner (rt710/rda5815m) */
+/*  V3.7.006 improve T6W ATSC/ISDBT/DVBT2 performance */
+/*  V3.7.007 fix dvbt2 CICAM by increase ts clock */
+/*  V3.7.008 remove the use of cpu_after_eq */
+/*  V3.7.009 fix no snr in dvbc new driver */
+/*  V3.7.010 fix frontend compatibility issue */
+/*  V4.0.000 synchronize code from kernel5.15(V3.7.000-V3.7.010) */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -219,8 +231,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.025"
-#define DTVDEMOD_VER	"2025/06/18: /*  V3.6.025 "
+#define AMLDTVDEMOD_VER "V4.0.000"
+#define DTVDEMOD_VER	"2025/06/27: /*  V4.0.000 "
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -338,7 +350,11 @@ struct ddemod_reg_off {
 
 enum dtv_demod_hw_ver_e {
 	DTVDEMOD_HW_ORG = 0,
+	DTVDEMOD_HW_GXTVBB,
+	DTVDEMOD_HW_TXL,
 	DTVDEMOD_HW_TXLX,
+	DTVDEMOD_HW_GXLX,
+	DTVDEMOD_HW_TXHD,
 	DTVDEMOD_HW_SM1,
 	DTVDEMOD_HW_TL1,
 	DTVDEMOD_HW_TM2,
@@ -354,7 +370,8 @@ enum dtv_demod_hw_ver_e {
 	DTVDEMOD_HW_T3X,
 	DTVDEMOD_HW_TXHD2,
 	DTVDEMOD_HW_S1A,
-	DTVDEMOD_HW_T6D
+	DTVDEMOD_HW_T6D,
+	DTVDEMOD_HW_T6W
 };
 
 struct ddemod_dig_clk_addr {
@@ -420,6 +437,12 @@ enum ddemod_timer_s {
 	D_TIMER_SET,
 	D_TIMER_DBG1,
 	D_TIMER_DBG2,
+};
+
+enum dtvblind_scan_step {
+	DTVBLIND_SCAN_NORMAL,
+	DTVBLIND_SCAN_STEP_LOCK,  //step search on
+	DTVBLIND_SCAN_LOCKED_SEARCH, //Wait until the upper search is over
 };
 
 struct aml_dtvdemod {
@@ -512,6 +535,7 @@ struct aml_dtvdemod {
 
 	u32 blind_result_frequency;
 	u32 blind_result_symbol_rate;
+	enum dtvblind_scan_step blind_step;
 };
 
 struct amldtvdemod_device_s {
@@ -762,5 +786,19 @@ unsigned int demod_is_t5d_cpu(struct amldtvdemod_device_s *devp);
 #ifdef MODULE
 struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config);
 #endif
+
+static inline bool demod_chip_after_eq(enum dtv_demod_hw_ver_e chip_id)
+{
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	return devp->data->hw_ver >= chip_id;
+}
+
+static inline bool demod_chip_eq(enum dtv_demod_hw_ver_e chip_id)
+{
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	return devp->data->hw_ver == chip_id;
+}
 
 #endif

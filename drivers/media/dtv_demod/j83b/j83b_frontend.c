@@ -63,7 +63,7 @@ int dtvdemod_j83b_init(struct aml_dtvdemod *demod)
 	sys.adc_clk = ADC_CLK_24M;
 
 	PR_DBG("%s modulation: %d\n", __func__, c->modulation);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 		sys.demod_clk = DEMOD_CLK_250M;
 	else
 		sys.demod_clk = DEMOD_CLK_225M;
@@ -74,7 +74,7 @@ int dtvdemod_j83b_init(struct aml_dtvdemod *demod)
 	demod->demod_status.clk_freq = sys.demod_clk;
 	demod->last_status = 0;
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 
 	ret = demod_set_sys(demod, &sys);
@@ -106,7 +106,7 @@ int gxtv_demod_j83b_set_frontend(struct dvb_frontend *fe)
 	tuner_set_params(fe);
 
 	if (c->modulation <= QAM_AUTO && c->modulation != QPSK) {
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 			/* add for j83b 256 qam, livetv and timeshif */
 			demod->demod_status.clk_freq = DEMOD_CLK_167M;
 			nco_rate = (demod->demod_status.adc_freq * 256) /
@@ -114,8 +114,8 @@ int gxtv_demod_j83b_set_frontend(struct dvb_frontend *fe)
 			PR_ATSC("demod_clk:%d, ADC_CLK:%d, nco_rate:%d\n",
 				demod->demod_status.clk_freq,
 				demod->demod_status.adc_freq, nco_rate);
-			if (devp->data->hw_ver == DTVDEMOD_HW_S4D ||
-				devp->data->hw_ver == DTVDEMOD_HW_S1A) {
+			if (demod_chip_eq(DTVDEMOD_HW_S4D) ||
+				demod_chip_eq(DTVDEMOD_HW_S1A)) {
 				front_write_bits(AFIFO_ADC_S4D, nco_rate,
 					AFIFO_NCO_RATE_BIT, AFIFO_NCO_RATE_WID);
 			} else {
@@ -129,8 +129,8 @@ int gxtv_demod_j83b_set_frontend(struct dvb_frontend *fe)
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x502);
 
 		demod_set_mode_ts(demod, SYS_DVBC_ANNEX_B);
-		if (devp->data->hw_ver == DTVDEMOD_HW_S4D ||
-			devp->data->hw_ver == DTVDEMOD_HW_S1A) {
+		if (demod_chip_eq(DTVDEMOD_HW_S4D) ||
+			demod_chip_eq(DTVDEMOD_HW_S1A)) {
 			demod_top_write_reg(DEMOD_TOP_REG0, 0x00);
 			demod_top_write_reg(DEMOD_TOP_REGC, 0xcc0011);
 		}
@@ -148,7 +148,7 @@ int gxtv_demod_j83b_set_frontend(struct dvb_frontend *fe)
 
 		dvbc_set_ch(demod, &param_j83b, fe);
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 			qam_write_reg(demod, 0x7, 0x10f33);
 			set_j83b_filter_reg_v4(demod);
 			qam_write_reg(demod, 0x12, 0x50e1000);
@@ -258,7 +258,7 @@ int gxtv_demod_j83b_read_status(struct dvb_frontend *fe,
 		*status = FE_LOCKED;
 	} else {
 		ilock = 0;
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 			if (timer_not_enough(demod, D_TIMER_DETECT)) {
 				*status = 0;
 				PR_INFO("WAIT!\n");
@@ -554,7 +554,7 @@ int gxtv_demod_j83b_tune(struct dvb_frontend *fe, bool re_tune,
 		demod->en_detect = 1; /*fist set*/
 		gxtv_demod_j83b_set_frontend(fe);
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 			timer_begain(demod, D_TIMER_DETECT);
 
 		if (c->modulation == QPSK) {
@@ -575,7 +575,7 @@ int gxtv_demod_j83b_tune(struct dvb_frontend *fe, bool re_tune,
 		return 0;
 	}
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 		if (c->modulation <= QAM_AUTO && c->modulation !=  QPSK) {
 			lastlock = demod->last_lock;
 			j83b_read_status(fe, status, re_tune);

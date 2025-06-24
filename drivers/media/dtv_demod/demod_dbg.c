@@ -144,7 +144,9 @@ static void get_chip_name(struct amldtvdemod_device_s *devp, char *str)
 	case DTVDEMOD_HW_T6D:
 		strscpy(str, "T6D", 4);
 		break;
-
+	case DTVDEMOD_HW_T6W:
+		strscpy(str, "T6W", 4);
+		break;
 	default:
 		strscpy(str, "UNKNOWN", 8);
 		break;
@@ -160,12 +162,12 @@ static void seq_dump_regs(struct seq_file *seq)
 	unsigned int polling_en = 1;
 #endif
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 		seq_puts(seq, "demod top start\n");
 		for (reg_start = 0; reg_start <= 0xc; reg_start += 4)
 			seq_printf(seq, "[0x%x]=0x%x\n", reg_start, demod_top_read_reg(reg_start));
 
-		if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+		if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
 			seq_printf(seq, "[0x10]=0x%x\n", demod_top_read_reg(DEMOD_TOP_CFG_REG_4));
 			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 		}
@@ -181,11 +183,11 @@ static void seq_dump_regs(struct seq_file *seq)
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
 		case SYS_ATSC:
 		case SYS_ATSCMH:
-			if (is_meson_txlx_cpu()) {
+			if (demod_chip_eq(DTVDEMOD_HW_TXLX)) {
 				for (reg_start = 0; reg_start <= 0xfff; reg_start++)
 					seq_printf(seq, "[0x%x] = 0x%x\n",
 						   reg_start, atsc_read_reg(reg_start));
-			} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			} else if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 				for (reg_start = 0x0; reg_start <= 0xff; reg_start++)
 					seq_printf(seq, "[0x%x] = 0x%x\n",
 						   reg_start, atsc_read_reg_v4(reg_start));
@@ -197,7 +199,7 @@ static void seq_dump_regs(struct seq_file *seq)
 		case SYS_DVBC_ANNEX_C:
 		case SYS_DVBC_ANNEX_B:
 			seq_puts(seq, "dvbc/j83b start\n");
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 				for (reg_start = 0; reg_start <= 0xff; reg_start++)
 					seq_printf(seq, "[0x%x] = 0x%x\n",
 						   reg_start, qam_read_reg(demod, reg_start));
@@ -211,7 +213,7 @@ static void seq_dump_regs(struct seq_file *seq)
 			devp->demod_thread = 0;
 			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 
-			if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+			if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
 				for (reg_start = 0x0; reg_start <= 0xf4; reg_start++)
 					seq_printf(seq, "[0x%x] = 0x%x\n",
 						   reg_start, dvbt_t2_rdb(reg_start));
@@ -324,7 +326,7 @@ static void seq_dump_status(struct seq_file *seq)
 			snr = atsc_read_snr();
 			seq_printf(seq, "snr: %d\n", snr);
 
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+			if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 				lock_status = dtvdemod_get_atsc_lock_sts(demod);
 			else
 				lock_status = atsc_read_reg(0x0980);
@@ -700,9 +702,9 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	PR_INFO("%s:[path]%s,[cap_mode]%d\n", __func__, path, capture_mode);
 	switch (capture_mode) {
 	case 0: /* common fe */
-		if (devp->data->hw_ver == DTVDEMOD_HW_S4D ||
-			devp->data->hw_ver == DTVDEMOD_HW_S4 ||
-			devp->data->hw_ver == DTVDEMOD_HW_S1A) {
+		if (demod_chip_eq(DTVDEMOD_HW_S4D) ||
+			demod_chip_eq(DTVDEMOD_HW_S4) ||
+			demod_chip_eq(DTVDEMOD_HW_S1A)) {
 			addr = 0x101b;
 			//tb_depth = 10;
 			/* sample bit width */
@@ -734,9 +736,9 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 		break;
 
 	case 5: /* S/S2 */
-		if (devp->data->hw_ver == DTVDEMOD_HW_S4D ||
-			devp->data->hw_ver == DTVDEMOD_HW_S4 ||
-			devp->data->hw_ver == DTVDEMOD_HW_S1A) {
+		if (demod_chip_eq(DTVDEMOD_HW_S4D) ||
+			demod_chip_eq(DTVDEMOD_HW_S4) ||
+			demod_chip_eq(DTVDEMOD_HW_S1A)) {
 			addr = 0x101b;
 			//tb_depth = 10;
 			/* sample bit width */
@@ -779,7 +781,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	PR_INFO("%s:testbus addr:0x%x,width:%d,vld:0x%x,read_only:%d\n",
 			__func__, addr, width, vld, testbus_read_only);
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
 		polling_en = devp->demod_thread;
 		devp->demod_thread = 0;
 		top_saved = demod_top_read_reg(DEMOD_TOP_CFG_REG_4);
@@ -794,7 +796,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	front_write_bits(0x3a, 1, 12, 1);
 
 	//tb_capture_en 0x39[28]: disable capture data to ddr enable
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M))
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5M))
 		front_write_bits(0x39, 0, 28, 1);
 
 	/* testbus addr */
@@ -873,7 +875,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 		front_write_bits(0x39, 1, 31, 1);
 
 		//tb_capture_en 0x39[28]: capture data to ddr enable
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M))
+		if (demod_chip_after_eq(DTVDEMOD_HW_T5M))
 			front_write_bits(0x39, 1, 28, 1);
 
 		/* go tb */
@@ -883,12 +885,12 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 
 	/* stop tb */
 	front_write_bits(0x3a, 1, 12, 1);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M))
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5M))
 		front_write_bits(0x39, 0, 28, 1);
 
 	tb_start = front_read_reg(0x3f);
 	PR_INFO("%s: tb_start: %#x", __func__, tb_start);
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, top_saved);
 		devp->demod_thread = polling_en;
 	}
@@ -922,7 +924,7 @@ unsigned int clear_ddr_bus_data(struct aml_dtvdemod *demod)
 	width = 9;
 	vld = 0x100000;
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
 		polling_en = devp->demod_thread;
 		devp->demod_thread = 0;
 		top_saved = demod_top_read_reg(DEMOD_TOP_CFG_REG_4);
@@ -936,7 +938,7 @@ unsigned int clear_ddr_bus_data(struct aml_dtvdemod *demod)
 	front_write_bits(0x3a, 1, 12, 1);
 
 	//tb_capture_en 0x39[28]: disable capture data to ddr enable
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M))
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5M))
 		front_write_bits(0x39, 0, 28, 1);
 
 	/* testbus addr */
@@ -967,7 +969,7 @@ unsigned int clear_ddr_bus_data(struct aml_dtvdemod *demod)
 	front_write_bits(0x39, 1, 31, 1);
 
 	//tb_capture_en 0x39[28]: enable capture data to ddr enable
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M))
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5M))
 		front_write_bits(0x39, 1, 28, 1);
 
 	/* go tb */
@@ -976,14 +978,14 @@ unsigned int clear_ddr_bus_data(struct aml_dtvdemod *demod)
 	wait_capture(0x3f, tb_depth, start_addr);
 
 	//tb_capture_en 0x39[28]: disable capture data to ddr enable
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M))
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5M))
 		front_write_bits(0x39, 0, 28, 1);
 
 	/* stop tb */
 	front_write_bits(0x3a, 1, 12, 1);
 	tb_start = front_read_reg(0x3f);
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, top_saved);
 		devp->demod_thread = polling_en;
 	}
@@ -1064,7 +1066,7 @@ static void info_show(void)
 		PR_INFO("current delsys: %s\n", dtvdemod_get_cur_delsys(demod->last_delsys));
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 		if (c->delivery_system == SYS_DVBT2) {
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3))
+			if (demod_chip_after_eq(DTVDEMOD_HW_T3))
 				fw_ver = dvbt_t2_rdb(0x48);
 			PR_INFO("T2 FW ver: V%d.%s\n", fw_ver, AMLDTVDEMOD_T2_FW_VER);
 		}
@@ -1101,7 +1103,7 @@ static void info_show(void)
 			snr = atsc_read_snr();
 			PR_INFO("snr: %d\n", snr);
 
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+			if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 				lock_status = dtvdemod_get_atsc_lock_sts(demod);
 			else
 				lock_status = atsc_read_reg(0x0980);
@@ -1155,7 +1157,7 @@ static void dump_regs(struct aml_dtvdemod *demod)
 	unsigned int polling_en = 1;
 #endif
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 		pr_info("top start\n");
 		for (reg_start = 0; reg_start <= 0xc; reg_start += 4)
 			pr_info("[0x%x]=0x%x\n", reg_start, demod_top_read_reg(reg_start));
@@ -1172,10 +1174,10 @@ static void dump_regs(struct aml_dtvdemod *demod)
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 		pr_info("atsc start\n");
-		if (is_meson_txlx_cpu()) {
+		if (demod_chip_eq(DTVDEMOD_HW_TXLX)) {
 			for (reg_start = 0; reg_start <= 0xfff; reg_start++)
 				pr_info("[0x%x]=x%x\n", reg_start, atsc_read_reg(reg_start));
-		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		} else if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 			for (reg_start = 0; reg_start <= 0xff; reg_start++)
 				pr_info("[0x%x]=0x%x\n", reg_start, atsc_read_reg_v4(reg_start));
 		}
@@ -1187,7 +1189,7 @@ static void dump_regs(struct aml_dtvdemod *demod)
 	case SYS_DVBC_ANNEX_C:
 	case SYS_DVBC_ANNEX_B:
 		pr_info("dvbc/j83b start\n");
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 			for (reg_start = 0; reg_start <= 0xff; reg_start++)
 				pr_info("[0x%x]=0x%x\n", reg_start,
 						qam_read_reg(demod, reg_start));
@@ -1205,7 +1207,7 @@ static void dump_regs(struct aml_dtvdemod *demod)
 			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 		}
 
-		if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+		if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
 			for (reg_start = 0x0; reg_start <= 0xf4; reg_start++)
 				pr_info("[0x%x]=0x%x\n", reg_start, dvbt_t2_rdb(reg_start));
 
@@ -1982,10 +1984,10 @@ void demod_dmc_notifier(void)
 	demod_dmc_id = 0;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
-	if (is_meson_t5w_cpu())
+	if (demod_chip_eq(DTVDEMOD_HW_T5W))
 		demod_dmc_id = register_dmc_dev_access_notifier("DEVICE0",
 				&demod_dmc_dev_access_nb);
-	else if (is_meson_t3_cpu())
+	else if (demod_chip_eq(DTVDEMOD_HW_T3))
 		demod_dmc_id = register_dmc_dev_access_notifier("DEMOD",
 				&demod_dmc_dev_access_nb);
 	else

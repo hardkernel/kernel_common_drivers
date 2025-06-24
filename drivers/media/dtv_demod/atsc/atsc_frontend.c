@@ -97,7 +97,7 @@ int gxtv_demod_atsc_read_status(struct dvb_frontend *fe,
 		/*atsc_thread();*/
 		s = amdemod_stat_atsc_islock(demod, SYS_ATSC);
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 			atsc_check_fsm_status(demod);
 
 			if (!s) {
@@ -117,7 +117,7 @@ int gxtv_demod_atsc_read_status(struct dvb_frontend *fe,
 		*status = FE_LOCKED;
 	} else {
 		ilock = 0;
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 			if (timer_not_enough(demod, D_TIMER_DETECT)) {
 				*status = 0;
 				PR_INFO("WAIT!\n");
@@ -254,7 +254,7 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 		if (fe->ops.tuner_ops.get_if_frequency)
 			fe->ops.tuner_ops.get_if_frequency(fe, tuner_freq);
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 			/* bit0~3: AGC bandwidth select */
 			atsc_write_reg_v4(ATSC_DEMOD_REG_0X58, 0x528220d);
 			/*bit 2: invert spectrum, for r842 tuner AGC control*/
@@ -269,7 +269,7 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 				atsc_write_reg_v4(ATSC_AGC_REG_0X42, 0x40208003);
 
 				/* agc target */
-				if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M))
+				if (demod_chip_after_eq(DTVDEMOD_HW_T5M))
 					atsc_write_reg_bits_v4(ATSC_AGC_REG_0X40,
 						atsc_agc_target ? atsc_agc_target : 0x1f, 0, 8);
 				else
@@ -283,12 +283,23 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 			atsc_write_reg_v4(ATSC_EQ_REG_0XA5, 0x8c);
 			/* bit30: enable CCI */
 			atsc_write_reg_v4(ATSC_EQ_REG_0X92, 0x40000240);
-			if (is_meson_t6d_cpu()) {
+			if (demod_chip_eq(DTVDEMOD_HW_T6D)) {
 				//improve C/N
 				atsc_write_reg_v4(0xde, 0x8a0a0a0c);
 				atsc_write_reg_v4(0xdf, 0x4449);
 				atsc_write_reg_v4(0xdb, 0x80a0ff40);
 				atsc_write_reg_v4(0xdd, 0x2040600);
+				//dynamic echo
+				atsc_write_reg_v4(0x8a, 0x94000008);
+				//static echo
+				atsc_write_reg_v4(ATSC_EQ_REG_0X93, 0x90f0310);
+			} else if (demod_chip_eq(DTVDEMOD_HW_T6W)) {
+				//improve C/N
+				atsc_write_reg_v4(0xde, 0x94a5a9ac);
+				atsc_write_reg_v4(0xdf, 0x446459);
+				atsc_write_reg_v4(0xdb, 0x80a0ff40);
+				atsc_write_reg_v4(0xdd, 0x21a1fff);
+				atsc_write_reg_v4(0xa9, 0x44444);
 				//dynamic echo
 				atsc_write_reg_v4(0x8a, 0x94000008);
 				//static echo
@@ -392,7 +403,7 @@ void atsc_optimize_cn(bool reset)
 	static unsigned int arr_d8[10] = { 0 };
 	static unsigned int times;
 
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+	if (!demod_chip_after_eq(DTVDEMOD_HW_TL1))
 		return;
 
 	if (reset) {
@@ -440,7 +451,7 @@ int gxtv_demod_atsc_read_ber(struct dvb_frontend *fe, u32 *ber)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
 	if (c->modulation > QAM_AUTO) {
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 			*ber = atsc_read_reg_v4(ATSC_FEC_BER);
 		else
 			*ber = atsc_read_reg(0x980) & 0xffff;
@@ -496,18 +507,21 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 		goto finish;
 	}
 
-	if (((atsc_read_reg_v4(0xcf) & 0x8000000) == 0x8000000) && // detected doppler
-		((atsc_read_reg_v4(0xcf) & 0x1000000) == 0x0) && //dop_det detected awgn
-		((atsc_read_reg_v4(0xce) & 0xff) < 0x14)) {
-		if (atsc_read_reg_v4(0xde) != 0x8c0a0a0c)
-			atsc_write_reg_v4(0xde, 0x8c0a0a0c);
-		if (atsc_read_reg_v4(0xdf) != 0x9449)
-			atsc_write_reg_v4(0xdf, 0x9449);
-	} else {
-		if (atsc_read_reg_v4(0xde) != 0x8a0a0a0c)
-			atsc_write_reg_v4(0xde, 0x8a0a0a0c);
-		if (atsc_read_reg_v4(0xdf) != 0x4449)
-			atsc_write_reg_v4(0xdf, 0x4449);
+	/* only t6d need */
+	if (demod_chip_eq(DTVDEMOD_HW_T6D)) {
+		if (((atsc_read_reg_v4(0xcf) & 0x8000000) == 0x8000000) && // detected doppler
+			((atsc_read_reg_v4(0xcf) & 0x1000000) == 0x0) && //dop_det detected awgn
+			((atsc_read_reg_v4(0xce) & 0xff) < 0x14)) {
+			if (atsc_read_reg_v4(0xde) != 0x8c0a0a0c)
+				atsc_write_reg_v4(0xde, 0x8c0a0a0c);
+			if (atsc_read_reg_v4(0xdf) != 0x9449)
+				atsc_write_reg_v4(0xdf, 0x9449);
+		} else {
+			if (atsc_read_reg_v4(0xde) != 0x8a0a0a0c)
+				atsc_write_reg_v4(0xde, 0x8a0a0a0c);
+			if (atsc_read_reg_v4(0xdf) != 0x4449)
+				atsc_write_reg_v4(0xdf, 0x4449);
+		}
 	}
 	PR_ATSC("0xde=0x%x, 0xdf=%x\n", atsc_read_reg_v4(0xde), atsc_read_reg_v4(0xdf));
 
@@ -639,7 +653,7 @@ int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 		demod->en_detect = 1; /*fist set*/
 		gxtv_demod_atsc_set_frontend(fe);
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 			timer_begain(demod, D_TIMER_DETECT);
 
 		if (c->modulation == QPSK) {
@@ -660,7 +674,7 @@ int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 		return 0;
 	}
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 		if (c->modulation > QAM_AUTO)
 			atsc_read_status(fe, status, re_tune);
 	} else {
@@ -684,7 +698,7 @@ int dtvdemod_atsc_init(struct aml_dtvdemod *demod)
 	sys.adc_clk = ADC_CLK_24M;
 
 	PR_DBG("atsc modulation: %d\n", c->modulation);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 		sys.demod_clk = DEMOD_CLK_250M;
 	else
 		sys.demod_clk = DEMOD_CLK_225M;
@@ -695,7 +709,7 @@ int dtvdemod_atsc_init(struct aml_dtvdemod *demod)
 	demod->demod_status.clk_freq = sys.demod_clk;
 	demod->last_status = 0;
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
+	if (demod_chip_after_eq(DTVDEMOD_HW_TL1))
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 
 	ret = demod_set_sys(demod, &sys);
@@ -711,7 +725,7 @@ int amdemod_stat_atsc_islock(struct aml_dtvdemod *demod,
 	unsigned int val;
 
 	if (demod->atsc_mode == VSB_8) {
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 			//ret = amdemod_check_8vsb_rst(demod);
 			val = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
 			if (val >= ATSC_LOCK)

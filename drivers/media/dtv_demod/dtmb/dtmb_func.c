@@ -107,7 +107,7 @@ void dtmb_all_reset(struct aml_dtvdemod *demod)
 	int temp_data = 0;
 	unsigned int reg_val;
 
-	if (is_meson_txl_cpu()) {
+	if (demod_chip_eq(DTVDEMOD_HW_TXL)) {
 		/*fix bug 139044: DTMB lost sync*/
 		/*dtmb_write_reg(DTMB_FRONT_AFIFO_ADC, 0x1f);*/
 		dtmb_write_reg(DTMB_FRONT_AFIFO_ADC, 0x22);
@@ -126,7 +126,7 @@ void dtmb_all_reset(struct aml_dtvdemod *demod)
 		dtmb_write_reg(DTMB_FRONT_46_CONFIG, 0x1a000f0f);
 		dtmb_write_reg(DTMB_FRONT_ST_FREQ, 0xf2400000);
 		dtmb_clk_set(ADC_CLK_25M);
-	} else if (is_meson_txhd_cpu()) {
+	} else if (demod_chip_eq(DTVDEMOD_HW_TXHD)) {
 		/* dtmb_write_reg(DTMB_FRONT_AFIFO_ADC, 0x1f); */
 		dtmb_write_reg(DTMB_FRONT_AFIFO_ADC, 0x1e);
 
@@ -150,7 +150,7 @@ void dtmb_all_reset(struct aml_dtvdemod *demod)
 		dtmb_write_reg(DTMB_FRONT_ST_FREQ, 0xf2400000);
 		dtmb_clk_set(ADC_CLK_24M);
 		dtmb_write_reg(DTMB_CHE_EQ_CONFIG, 0x1b027719);
-	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+	} else if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
 		if (demod_get_adc_clk(demod) == ADC_CLK_24M) {
 			dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x6aaaaa);
 			dtmb_write_reg(DTMB_FRONT_SRC_CONFIG1, 0x13196596);
@@ -245,12 +245,10 @@ void dtmb_all_reset(struct aml_dtvdemod *demod)
 
 void dtmb_initial(struct aml_dtvdemod *demod)
 {
-	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-
 	/* dtmb_write_reg(0x049, memstart);		//only for init */
 	dtmb_register_reset();
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+	if (demod_chip_eq(DTVDEMOD_HW_T3)) {
 		clear_ddr_bus_data(demod);
 		//dtmb_write_reg(0x47, 0x133220);
 		dtmb_write_reg_bits(0x47, 0x0, 22, 1);
@@ -258,7 +256,7 @@ void dtmb_initial(struct aml_dtvdemod *demod)
 	}
 	dtmb_all_reset(demod);
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+	if (demod_chip_eq(DTVDEMOD_HW_T3)) {
 		//dtmb_write_reg(0x7, 0x4ffffff);
 		dtmb_write_reg_bits(0x7, 0x1, 26, 1);
 		dtmb_write_reg_bits(0x7, 0x0, 25, 1);
@@ -391,7 +389,6 @@ int dtmb_check_cci(void)
 int dtmb_bch_check(struct dvb_frontend *fe)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
-	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	union DTMB_TOP_CTRL_SW_RST_BITS sw_rst;
 	unsigned int value_before;
 	int fec_bch_add, i, strength;
@@ -408,7 +405,7 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 	if ((dtmb_reg_r_bch() - fec_bch_add) >= 50) {
 		PR_DTMB("%s\n", info1);
 
-		if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+		if (demod_chip_eq(DTVDEMOD_HW_T3)) {
 			value_before = dtmb_read_reg(0x7);
 			PR_INFO("dtmb set ddr\n");
 			dtmb_write_reg(0x7, 0x6ffffd);
@@ -423,7 +420,7 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 		sw_rst.b.ctrl_sw_rst_noreg = 1;
 		dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
 
-		if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+		if (demod_chip_eq(DTVDEMOD_HW_T3)) {
 			clear_ddr_bus_data(demod);
 			dtmb_write_reg(0x7, value_before);
 			dtmb_write_reg_bits(0x47, 0x0, 22, 1);
@@ -459,7 +456,6 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 void dtmb_bch_check_new(struct dvb_frontend *fe, bool reset)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
-	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	int fec_bch;
 	static int last_fec_bch;
 	union DTMB_TOP_CTRL_SW_RST_BITS sw_rst;
@@ -473,7 +469,7 @@ void dtmb_bch_check_new(struct dvb_frontend *fe, bool reset)
 	fec_bch = dtmb_reg_r_bch();
 	if (last_fec_bch != -1 && (fec_bch - last_fec_bch) > 50) {
 		PR_DTMB("fec lock, but bch add, need reset\n");
-		if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+		if (demod_chip_eq(DTVDEMOD_HW_T3)) {
 			val = dtmb_read_reg(0x7);
 			PR_INFO("dtmb set ddr\n");
 			dtmb_write_reg(0x7, 0x6ffffd);
@@ -487,7 +483,7 @@ void dtmb_bch_check_new(struct dvb_frontend *fe, bool reset)
 		sw_rst.b.ctrl_sw_rst_noreg = 1;
 		dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
 
-		if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+		if (demod_chip_eq(DTVDEMOD_HW_T3)) {
 			clear_ddr_bus_data(demod);
 			dtmb_write_reg(0x7, val);
 			dtmb_write_reg_bits(0x47, 0x0, 22, 1);
@@ -752,6 +748,110 @@ int dtmb_set_ch(struct aml_dtvdemod *demod,
 
 	dtmb_initial(demod);
 
+	//use top frontend
+	if (demod_chip_eq(DTVDEMOD_HW_T6W)) {
+		dtmb_write_reg(0xa, 0x00000011); //bypass local frontend
+
+		front_write_reg(0x36, 0x0);//fsm config
+		front_write_reg(0x37, 0x0);
+
+		front_write_reg(0x20, (front_read_reg(0x20) | (1 << 17)));
+		front_write_reg(0x20, (front_read_reg(0x20) | (1 << 18)));
+		//app_apb_write_reg(0xe20,0x6011a);
+		front_write_reg(0x21, 0x00010122);
+		front_write_reg(0x22, 0x07200a16);
+		front_write_reg(0x23, 0x42190190);
+		front_write_reg(0x26, 0x1a000f0f);
+		front_write_reg(0x28, 0x20003030);
+
+		front_write_reg(0x2c, 0x8c042214);
+		front_write_reg(0x2d, 0x00007011);
+		front_write_reg(0x27, 0x03555555); //ddc
+		front_write_reg(0x2e, 0x80400000);
+		front_write_reg(0x2f, 0x00000004);
+		front_write_reg(0x39, 0x40001000); //ddr  dvbc-wu
+
+		if (demod->demod_status.ch_bw == 6000) { //6M BW
+			front_write_reg(0x2a, 0x4204101a);
+			//app_apb_write_reg(0xe2b, 0x301b6db7); //src
+			front_write_reg(0x2b, 0x3021dcc8); //src---24m-6m
+			front_write_reg(0x40, 0x061e81bc);
+
+			front_write_reg(0x41, 0x1450a9);
+			front_write_reg(0x42, 0x187b7);
+			front_write_reg(0x43, 0x7977b0);
+			front_write_reg(0x44, 0x7e901f);
+			front_write_reg(0x45, 0x3c036);
+			front_write_reg(0x46, 0x177f1);
+			front_write_reg(0x47, 0x7d97d8);
+			front_write_reg(0x48, 0x7ea006);
+			front_write_reg(0x49, 0x1b020);
+			front_write_reg(0x4a, 0x14000);
+			front_write_reg(0x4b, 0x7ee7e7);
+			front_write_reg(0x4c, 0x7ed7fd);
+			front_write_reg(0x4d, 0xc014);
+			front_write_reg(0x4e, 0x11006);
+			front_write_reg(0x4f, 0x7f87f0);
+			front_write_reg(0x50, 0x7f17f9);
+			front_write_reg(0x51, 0x400d);
+			front_write_reg(0x52, 0xe008);
+			front_write_reg(0x53, 0x7fe7f7);
+			front_write_reg(0x54, 0x7f47f8);
+			front_write_reg(0x55, 0x7);
+			front_write_reg(0x56, 0xa008);
+			front_write_reg(0x57, 0x27fb);
+			front_write_reg(0x58, 0x7f87f9);
+			front_write_reg(0x59, 0x7fd003);
+			front_write_reg(0x5a, 0x6006);
+			front_write_reg(0x5b, 0x37ff);
+			front_write_reg(0x5c, 0x7fc7fb);
+			front_write_reg(0x5d, 0x7fc000);
+			front_write_reg(0x5e, 0x3004);
+			front_write_reg(0x5f, 0x4002);
+			front_write_reg(0x60, 0x7ff7fe);
+			front_write_reg(0x61, 0x7fe);
+		} else { //8M BW
+			front_write_reg(0x2a, 0x4404101a);
+			//app_apb_write_reg(0xe2b, 0x301b6db7); //src
+			front_write_reg(0x2b, 0x30196596); //src---24m-8m
+			front_write_reg(0x40, 0x0629922b);
+
+			front_write_reg(0x41, 0x123013);
+			front_write_reg(0x42, 0x77e788);
+			front_write_reg(0x43, 0x7ee046);
+			front_write_reg(0x44, 0x4e013);
+			front_write_reg(0x45, 0x7d47c8);
+			front_write_reg(0x46, 0x7ef01f);
+			front_write_reg(0x47, 0x2d012);
+			front_write_reg(0x48, 0x7eb7dc);
+			front_write_reg(0x49, 0x7f0010);
+			front_write_reg(0x4a, 0x1f011);
+			front_write_reg(0x4b, 0x7f57e7);
+			front_write_reg(0x4c, 0x7f1008);
+			front_write_reg(0x4d, 0x1600f);
+			front_write_reg(0x4e, 0x7fc7ee);
+			front_write_reg(0x4f, 0x7f3003);
+			front_write_reg(0x50, 0x1000e);
+			front_write_reg(0x51, 0x7ff7f3);
+			front_write_reg(0x52, 0x7f4000);
+			front_write_reg(0x53, 0xc00c);
+			front_write_reg(0x54, 0x27f7);
+			front_write_reg(0x55, 0x7f67ff);
+			front_write_reg(0x56, 0x800a);
+			front_write_reg(0x57, 0x37fa);
+			front_write_reg(0x58, 0x7f87fe);
+			front_write_reg(0x59, 0x5008);
+			front_write_reg(0x5a, 0x47fd);
+			front_write_reg(0x5b, 0x7fa7fd);
+			front_write_reg(0x5c, 0x3006);
+			front_write_reg(0x5d, 0x47fe);
+			front_write_reg(0x5e, 0x7fb7fd);
+			front_write_reg(0x5f, 0x2005);
+			front_write_reg(0x60, 0x3000);
+			front_write_reg(0x61, 0x7fd);
+		}
+	}
+
 	if (demod->demod_status.ch_bw == 6000) { // 6M BW
 		dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x006aaaab);  //(0x25)
 
@@ -788,6 +888,10 @@ int dtmb_set_ch(struct aml_dtvdemod *demod,
 		dtmb_write_reg(0x60, 0x07570347); //(0x60)
 	}
 
+	if (demod_chip_eq(DTVDEMOD_HW_T6W)) {
+		front_write_reg(0x36, 0x3fffffff);//fsm config enable
+		front_write_reg(0x37, 0x3fffffff);
+	}
 	return ret;
 }
 
@@ -834,7 +938,7 @@ unsigned int dtmb_reg_r_fec_lock(void)
 
 	rval.d32 = dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR);
 
-	if (is_meson_gxtvbb_cpu())
+	if (demod_chip_eq(DTVDEMOD_HW_GXTVBB))
 		fec_lock = rval.b_v2.fec_lock;
 	else
 		fec_lock = rval.b.fec_lock;
@@ -849,7 +953,7 @@ unsigned int dtmb_reg_r_che_snr(void)
 
 	rval.d32 = dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR);
 
-	if (is_meson_gxtvbb_cpu())
+	if (demod_chip_eq(DTVDEMOD_HW_GXTVBB))
 		che_snr = rval.b_v2.che_snr;
 	else
 		che_snr = rval.b.che_snr;

@@ -7,6 +7,7 @@
 
 #define __ISDBT_FRONTEND_H__
 
+extern bool isdbt_reuse_sfec;
 int dvbt_isdbt_read_ber(struct dvb_frontend *fe, u32 *ber);
 int gxtv_demod_dvbt_isdbt_read_snr(struct dvb_frontend *fe, u16 *snr);
 
