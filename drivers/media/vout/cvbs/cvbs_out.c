@@ -2063,8 +2063,11 @@ static int cvbsout_probe(struct platform_device *pdev)
 	cvbs_log_dbg("%s, cpu_id:%d,name:%s\n", __func__,
 		cvbs_drv->cvbs_data->cpu_id, cvbs_drv->cvbs_data->name);
 	cvbs_drv->video_mute = false;
-	if (cvbs_drv->cvbs_data->cpu_id <= CVBS_CPU_TYPE_S1A &&
-	    cvbs_drv->cvbs_data->cpu_id >= CVBS_CPU_TYPE_S4)
+	if (cvbs_drv->cvbs_data->cpu_id == CVBS_CPU_TYPE_G12A ||
+			cvbs_drv->cvbs_data->cpu_id == CVBS_CPU_TYPE_G12B ||
+			cvbs_drv->cvbs_data->cpu_id == CVBS_CPU_TYPE_SM1 ||
+			cvbs_drv->cvbs_data->cpu_id == CVBS_CPU_TYPE_TM2 ||
+			cvbs_drv->cvbs_data->cpu_id == CVBS_CPU_TYPE_T5D)
 		cvbsout_clktree_probe(&pdev->dev);
 
 	cvbsout_get_config(&pdev->dev);
