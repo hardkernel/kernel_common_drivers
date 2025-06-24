@@ -641,6 +641,9 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 #if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES_MODELINE_FILE)
 	count += load_odroid_modelines(connector);
 #endif
+#if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES_CMDLINE)
+	count += load_odroid_modeline_from_commandline(connector);
+#endif
 
 	connector->display_info.monitor_range.max_vfreq = am_hdmitx->max_vfreq;
 	connector->display_info.monitor_range.min_vfreq = am_hdmitx->min_vfreq;

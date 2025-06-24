@@ -124,4 +124,8 @@ config ODROID_CUSTOM_DISPLAY_MODES_MODELINE_FILE
 	bool "Custom display modes from userspace file"
 	default n
 	select ODROID_CUSTOM_DISPLAY_MODES
+config ODROID_CUSTOM_DISPLAY_MODES_CMDLINE
+	bool "Custom display modes from kernel command line"
+	default n
+	select ODROID_CUSTOM_DISPLAY_MODES
 endif
