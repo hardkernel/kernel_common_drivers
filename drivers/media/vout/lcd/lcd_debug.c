@@ -1109,8 +1109,10 @@ static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv, unsigned int pclk)
 	lcd_set_clk(pdrv);
 
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
-	if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+	if (pdrv->config.basic.lcd_type == LCD_VBYONE) {
 		lcd_vbyone_wait_stable(pdrv);
+		lcd_vbyone_interrupt_enable(pdrv, 1);
+	}
 #endif
 
 	lcd_vout_notify_mode_change(pdrv);

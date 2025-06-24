@@ -766,6 +766,7 @@ void lcd_vbyone_wait_stable(struct aml_lcd_drv_s *pdrv)
 
 	vx1_conf = &pdrv->config.control.vbyone_cfg;
 
+	lcd_vbyone_sw_reset(pdrv);
 	while (i++ < VX1_LOCKN_WAIT_TIMEOUT) {
 		if ((lcd_vcbus_read(vx1_conf->reg_status) & 0x3f) == 0x20)
 			break;
@@ -1104,13 +1105,14 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *data)
 	encl_clk = lcd_encl_clk_msr(pdrv);
 	data32 = (lcd_vcbus_read(vx1_conf->reg_intr_state) & 0x7fff);
 	/* clear the interrupt */
-	data32_1 = ((data32 >> 9) << 3);
-	if (data32 & 0x1c0)
+	data32_1 = ((data32 >> 9) << 3); //htpdn lockn fsm interrupt
+	if (data32 & 0x1c0) //de timing error
 		data32_1 |= (1 << 2);
-	if (data32 & 0x38)
+	if (data32 & 0x38) //vsync timing error
 		data32_1 |= (1 << 1);
-	if (data32 & 0x7)
+	if (data32 & 0x7) //hsync timing error
 		data32_1 |= (1 << 0);
+	// clear interrupt status 1 -> 0
 	lcd_vcbus_setb(vx1_conf->reg_intr_ctrl, data32_1, 0, 9);
 	lcd_vcbus_setb(vx1_conf->reg_intr_ctrl, 0, 0, 9);
 	if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
@@ -1123,7 +1125,7 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *data)
 	 * ****************************************
 	 */
 	if (vx1_conf->vs_intr_en == 3) {
-		if (data32 & 0x1000) {
+		if (data32 & 0x1000) { //bit:12 lockn rise up
 			if (vx1_conf->unstable_trg == 0) {
 				vx1_conf->unstable_trg = 1;
 				vx1_conf->vsync_cnt = 0;
@@ -1143,7 +1145,7 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *data)
 	 * vsync_intr_en: 1 and 0
 	 * ****************************************
 	 */
-	if (data32 & 0x2000) {
+	if (data32 & 0x2000) { //bit:13 FSM acquisition
 		if (vx1_conf->vx1_fsm_acq_st == 0)
 			vx1_conf->unstable_trg = 1;
 		if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
@@ -1153,7 +1155,7 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *data)
 		}
 	}
 
-	if (data32 & 0x1ff) {
+	if (data32 & 0x1ff) { //bit9:0 hsync/vsync/de timing error
 		if (lcd_debug_print_flag & LCD_DBG_PR_ISR)
 			LCDPR("[%d]: vx1 reset for timing err\n", pdrv->index);
 		if (vx1_conf->unstable_trg) {
