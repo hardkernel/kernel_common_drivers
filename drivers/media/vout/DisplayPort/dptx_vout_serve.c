@@ -331,7 +331,7 @@ void dptx_vout_server_init(struct dptx_drv_s *dptx)
 	dptx->vout_server.data = (void *)dptx;
 	dptx->vout_server.name = kzalloc(32, GFP_KERNEL);
 	if (dptx->vout_server.name)
-		sprintf(dptx->vout_server.name, "%s_vout_server", dptx_edp_connector);
+		snprintf(dptx->vout_server.name, 30, "%s_vout_server", dptx_edp_connector);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	DPTXPR(dptx->idx, LOG_I, "regist: %s", dptx->vout_server.name);

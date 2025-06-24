@@ -23,7 +23,7 @@ enum DP_training_status_e {
 	DP_TRAINING_ADJ_SPD_EQ_FAIL_OVERTIME,
 };
 
-struct DPTX_test_pat_s DP_test_pat[] = {
+struct DPTX_test_pat_s DP_test_pat[11] = {
 	{"TPS_DISABLE",        0x00, 0, 1}, //TPS_DISABLE
 	{"TPS1",               0x01, 1, 1}, //TPS1
 	{"TPS2",               0x02, 1, 1}, //TPS2
@@ -39,7 +39,7 @@ struct DPTX_test_pat_s DP_test_pat[] = {
 
 static void dptx_training_status_print(struct dptx_drv_s *dptx)
 {
-	unsigned char aux_data[3];
+	unsigned char aux_data[3] = {0, 0, 0};
 	int ret;
 
 	ret = dptx_if_aux_read(dptx, DPCD_LANE0_1_STATUS, 3, aux_data);
@@ -88,7 +88,7 @@ static int dptx_link_rate_config_reduce(struct dptx_drv_s *dptx)
 static int dptx_training_phy_adj_req_process(struct dptx_drv_s *dptx)
 {
 	struct dptx_link_cfg_s *link_s = &dptx->link_cfg;
-	unsigned char adj_req[2], i;
+	unsigned char adj_req[2] = {0, 0}, i;
 
 	if (dptx_if_aux_read(dptx, DPCD_ADJUST_REQUEST_LANE0_1, 2, adj_req)) {
 		DPTXPR(dptx->idx, LOG_E, "%s: aux read DPCD_ADJUST_REQUEST failed", __func__);
@@ -216,7 +216,7 @@ int dptx_set_pattern(struct dptx_drv_s *dptx, unsigned char pattern)
 static int dptx_check_channel_equalization(struct dptx_drv_s *dptx)
 {
 	unsigned int cr_done, channel_eq_done, symbol_lock_done, lane_align_done;
-	unsigned char clk_rec[4], chan_eq[4], sym_lock[4], aux_data[3];
+	unsigned char clk_rec[4], chan_eq[4], sym_lock[4], aux_data[3] = {0, 0, 0};
 	unsigned char lane_cnt;
 	int ret;
 
@@ -294,7 +294,7 @@ static int dptx_run_channel_equalization_loop(struct dptx_drv_s *dptx)
 
 static int dptx_check_clk_recovery(struct dptx_drv_s *dptx)
 {
-	unsigned char cr_done[4], aux_data[2];
+	unsigned char cr_done[4], aux_data[2] = {0, 0};
 	unsigned char lane_cnt, cr_all_done = 0;
 	int ret;
 
@@ -460,7 +460,7 @@ int __dptx_full_link_training(struct dptx_drv_s *dptx)
 {
 	unsigned int training_done = 0, retry_cnt = 0;
 	int ret;
-	unsigned char aux_data[4];
+	unsigned char aux_data[4] = {0, 0, 0, 0};
 
 	DPTXPR(dptx->idx, LOG_I, "%s", __func__);
 

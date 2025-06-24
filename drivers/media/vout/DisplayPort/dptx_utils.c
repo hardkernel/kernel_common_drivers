@@ -154,6 +154,7 @@ u8 dptx_DPCD_capability_to_link_cfg(struct dptx_drv_s *dptx)
 
 	//dptx_reg_print(dptx);
 
+	memset(auxdata, 0, sizeof(u8) * 16);
 	if (dptx_if_aux_read(dptx, DPCD_DPCD_REV, 16, auxdata)) {
 		DPTXPR(dptx->idx, LOG_I, "fail to get DPCD capability");
 		return 1;
@@ -186,7 +187,7 @@ u8 dptx_DPCD_capability_to_link_cfg(struct dptx_drv_s *dptx)
 		}
 	}
 	//8b/10b_TRAINING_AUX_RD_INTERVAL: 0x000e
-	sink_train_aux_rd_interval = auxdata[0xe] & 0x7f;
+	sink_train_aux_rd_interval = ((auxdata[0xe] & 0x7f) > 4) ? 4 : (auxdata[0xe] & 0x7f);
 	sink_extended_receiver_cap = (auxdata[0xe] >> 7) & 0x1;
 
 	//limit to prevent out of bound
@@ -333,7 +334,7 @@ u8 __str_add_vmode(struct dptx_drv_s *dptx, char *buf, struct dptx_vmode_s *vmd_
 		{1280,  720, { 60, 50,  0,  0,  0}},
 	};
 
-	if (vmd_p->base_dtd_idx == 0xff)
+	if (vmd_p->base_dtd_idx >= DPTX_DRV_TIMING_MAX)
 		vmd_timing = &DPTX_SafeMode_640x480_timing;
 	else
 		vmd_timing = &dptx->edid_info.dtd_timing[vmd_p->base_dtd_idx];

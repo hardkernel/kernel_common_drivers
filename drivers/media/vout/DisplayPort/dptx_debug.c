@@ -162,7 +162,7 @@ static struct dptx_debug_info_reg_s dptx_debug_info_reg_t7_1 = {
 static ssize_t dptx_regs_pr(struct dptx_drv_s *dptx, u8 reg_t,
 			    struct reg_sets_s *reg_sets, char *buf)
 {
-	u8 idx, str_pos = 0, reg_temp;
+	u8 idx, str_pos = 0, reg_temp = 0;
 	u32 reg_addr, reg_val, len = 0, n;
 
 	for (idx = 0; reg_sets[idx].addr != DPTX_REG_END; idx++) {

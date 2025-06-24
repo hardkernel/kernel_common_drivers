@@ -14,7 +14,7 @@ void dptx_vmode_apply_to_act_timing(struct dptx_drv_s *dptx, struct dptx_vmode_s
 	struct dptx_detail_timing_s *vmd_dtd;
 	unsigned long long pclk;
 
-	if (vmd->base_dtd_idx > DPTX_DRV_VMODE_MAX) // overflow or safemode
+	if (vmd->base_dtd_idx >= DPTX_DRV_TIMING_MAX) // overflow or safemode
 		vmd_dtd = &DPTX_SafeMode_640x480_timing;
 	else
 		vmd_dtd = &dptx->edid_info.dtd_timing[vmd->base_dtd_idx];
@@ -121,7 +121,7 @@ u32 dptx_print_vmode(struct dptx_drv_s *dptx, char *c_buf, u8 print_flag)
 		// h_a   = dptx->edid_info.dtd_timing[vmode_p->base_dtd_idx].h_act;
 		// v_a   = dptx->edid_info.dtd_timing[vmode_p->base_dtd_idx].v_act;
 
-		if (vmode_p->base_dtd_idx > DPTX_DRV_VMODE_MAX) {// overflow or safemode
+		if (vmode_p->base_dtd_idx >= DPTX_DRV_TIMING_MAX) {// overflow or safemode
 			h_a = 640;
 			v_a = 480;
 		} else {
@@ -151,14 +151,16 @@ u32 dptx_print_vmode(struct dptx_drv_s *dptx, char *c_buf, u8 print_flag)
 	return str_n;
 }
 
-static u8 dtd_add_vmode_list(struct dptx_drv_s *dptx,
-		u8 dtd_idx, u32 fr_int, u8 fr_frac)
+static u8 dtd_add_vmode_list(struct dptx_drv_s *dptx, u8 dtd_idx, u32 fr_int, u8 fr_frac)
 {
 	u8 idx, i;
 	u64 temp_fr;
 	u32 pixel_cnt;
 	struct dptx_vmode_s *tmp_vmode;
 	struct dptx_detail_timing_s *tmp_dtd;
+
+	if (dtd_idx >= DPTX_DRV_TIMING_MAX)
+		return 0;
 
 	fr_int = 100 * fr_int;
 
@@ -167,7 +169,7 @@ static u8 dtd_add_vmode_list(struct dptx_drv_s *dptx,
 			break;
 
 		tmp_vmode = &dptx->vmode_mgr.vmodes[idx];
-		if (tmp_vmode->base_dtd_idx > DPTX_DRV_VMODE_MAX) // overflow or safemode
+		if (tmp_vmode->base_dtd_idx >= DPTX_DRV_TIMING_MAX) // overflow or safemode
 			continue;
 
 		tmp_dtd = &dptx->edid_info.dtd_timing[tmp_vmode->base_dtd_idx];
@@ -260,12 +262,11 @@ static void dptx_vmodes_reorder(struct dptx_drv_s *dptx)
 			      (vmode_p1->flag & VMODE_FLAG_VALID)))
 				continue;
 
-			if (vmode_p->base_dtd_idx > DPTX_DRV_VMODE_MAX) {// overflow or safemode
-				memcpy(&vmd_t, vmode_p, s_size);
-				memcpy(vmode_p, vmode_p1, s_size);
-				memcpy(vmode_p1, &vmd_t, s_size);
-				continue;
-			} else if (vmode_p1->base_dtd_idx > DPTX_DRV_VMODE_MAX) {
+			if (vmode_p->base_dtd_idx >= DPTX_DRV_TIMING_MAX ||
+			    vmode_p1->base_dtd_idx >= DPTX_DRV_TIMING_MAX) {// overflow or safemode
+				//memcpy(&vmd_t, vmode_p, s_size);
+				//memcpy(vmode_p, vmode_p1, s_size);
+				//memcpy(vmode_p1, &vmd_t, s_size);
 				continue;
 			}
 
