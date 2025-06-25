@@ -5,7 +5,6 @@
  */
 #include <linux/security.h>
 #include "xattr.h"
-#include <linux/posix_acl_xattr.h>
 
 struct xattr_iter {
 	struct super_block *sb;
@@ -491,14 +490,14 @@ static int erofs_xattr_generic_get(const struct xattr_handler *handler,
 	return erofs_getxattr(inode, handler->flags, name, buffer, size);
 }
 
-const struct xattr_handler erofs_xattr_user_handler = {
+struct xattr_handler erofs_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
 	.flags	= EROFS_XATTR_INDEX_USER,
 	.list	= erofs_xattr_user_list,
 	.get	= erofs_xattr_generic_get,
 };
 
-const struct xattr_handler erofs_xattr_trusted_handler = {
+struct xattr_handler erofs_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
 	.flags	= EROFS_XATTR_INDEX_TRUSTED,
 	.list	= erofs_xattr_trusted_list,
@@ -506,18 +505,18 @@ const struct xattr_handler erofs_xattr_trusted_handler = {
 };
 
 #ifdef CONFIG_AMLOGIC_EROFS_SECURITY
-const struct xattr_handler __maybe_unused erofs_xattr_security_handler = {
+struct xattr_handler __maybe_unused erofs_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
 	.flags	= EROFS_XATTR_INDEX_SECURITY,
 	.get	= erofs_xattr_generic_get,
 };
 #endif
 
-const struct xattr_handler *erofs_xattr_handlers[] = {
+struct xattr_handler *erofs_xattr_handlers[] = {
 	&erofs_xattr_user_handler,
 #ifdef CONFIG_AMLOGIC_EROFS_POSIX_ACL
-	&posix_acl_access_xattr_handler,
-	&posix_acl_default_xattr_handler,
+	NULL, //posix_acl_access_xattr_handler_t,
+	NULL, //posix_acl_default_xattr_handler_t,
 #endif
 	&erofs_xattr_trusted_handler,
 #ifdef CONFIG_AMLOGIC_EROFS_SECURITY

@@ -37,33 +37,31 @@ static inline unsigned int xattrblock_offset(struct erofs_sb_info *sbi,
 }
 
 #ifdef CONFIG_AMLOGIC_EROFS_XATTR
-extern const struct xattr_handler erofs_xattr_user_handler;
-extern const struct xattr_handler erofs_xattr_trusted_handler;
+extern struct xattr_handler erofs_xattr_user_handler;
+extern struct xattr_handler erofs_xattr_trusted_handler;
 #ifdef CONFIG_AMLOGIC_EROFS_SECURITY
-extern const struct xattr_handler erofs_xattr_security_handler;
+extern struct xattr_handler erofs_xattr_security_handler;
 #endif
 
 static inline const struct xattr_handler *erofs_xattr_handler(unsigned int idx)
 {
-	static const struct xattr_handler *xattr_handler_map[] = {
+	static struct xattr_handler *xattr_handler_map[] = {
 		[EROFS_XATTR_INDEX_USER] = &erofs_xattr_user_handler,
-#ifdef CONFIG_AMLOGIC_EROFS_POSIX_ACL
-		[EROFS_XATTR_INDEX_POSIX_ACL_ACCESS] =
-			&posix_acl_access_xattr_handler,
-		[EROFS_XATTR_INDEX_POSIX_ACL_DEFAULT] =
-			&posix_acl_default_xattr_handler,
-#endif
 		[EROFS_XATTR_INDEX_TRUSTED] = &erofs_xattr_trusted_handler,
 #ifdef CONFIG_AMLOGIC_EROFS_SECURITY
 		[EROFS_XATTR_INDEX_SECURITY] = &erofs_xattr_security_handler,
 #endif
 	};
 
+#ifdef CONFIG_AMLOGIC_EROFS_POSIX_ACL
+	xattr_handler_map[EROFS_XATTR_INDEX_POSIX_ACL_ACCESS] =	posix_acl_access_xattr_handler_t;
+	xattr_handler_map[EROFS_XATTR_INDEX_POSIX_ACL_DEFAULT] = posix_acl_default_xattr_handler_t;
+#endif
 	return idx && idx < ARRAY_SIZE(xattr_handler_map) ?
 		xattr_handler_map[idx] : NULL;
 }
 
-extern const struct xattr_handler *erofs_xattr_handlers[];
+extern struct xattr_handler *erofs_xattr_handlers[];
 
 int erofs_getxattr(struct inode *, int, const char *, void *, size_t);
 ssize_t erofs_listxattr(struct dentry *, char *, size_t);

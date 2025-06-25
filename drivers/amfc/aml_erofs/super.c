@@ -702,6 +702,10 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_time_gran = 1;
 
 	sb->s_op = &erofs_sops;
+#if CONFIG_AMLOGIC_EROFS_POSIX_ACL
+	erofs_xattr_handlers[1] = posix_acl_access_xattr_handler_t;
+	erofs_xattr_handlers[2] = posix_acl_default_xattr_handler_t;
+#endif
 	sb->s_xattr = (const struct xattr_handler **)erofs_xattr_handlers;
 
 	if (test_opt(&sbi->opt, POSIX_ACL))

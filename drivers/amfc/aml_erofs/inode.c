@@ -272,7 +272,7 @@ static int erofs_fill_inode(struct inode *inode, int isdir)
 	case S_IFREG:
 		inode->i_op = &erofs_generic_iops;
 		if (erofs_inode_is_data_compressed(vi->datalayout)) {
-			inode->i_fop = &generic_ro_fops;
+			inode->i_fop = generic_ro_fops_t;
 		} else {
 		#ifdef CONFIG_FS_DAX
 			erofs_file_fops.mmap = erofs_file_mmap;
