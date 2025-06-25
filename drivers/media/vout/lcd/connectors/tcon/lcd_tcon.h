@@ -291,12 +291,14 @@ void lcd_tcon_global_reset_t5(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_global_reset_t3(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_global_reset_t3x(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_init_table_pre_proc(unsigned char *table);
+void lcd_tcon_init_table_pre_proc_txhd2(unsigned char *table);
 void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 			   struct lcd_tcon_config_s *tcon_conf,
 			   struct tcon_mem_map_table_s *mm_table,
 			   unsigned char *core_reg_table);
 int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_disable_txhd2(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_top_set_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_top_set_t6d(struct aml_lcd_drv_s *pdrv);
 
