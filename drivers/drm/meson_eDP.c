@@ -69,6 +69,7 @@ int meson_eDP_get_modes(struct drm_connector *connector)
 	struct meson_panel_dev *eDP_dev = am_eDP->eDP_dev;
 	struct meson_drm *priv = am_eDP->base.drm_priv;
 	struct drm_display_mode *modes, *mode;
+	char outputmode[VMODE_NAME_LEN_MAX] = {0};
 	int modes_cnt = 0;
 	int i = 0, ret = 0;
 
@@ -76,6 +77,9 @@ int meson_eDP_get_modes(struct drm_connector *connector)
 		DRM_ERROR("No get Modes function.");
 		return 0;
 	}
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
+	strcpy(outputmode, get_vout_mode_uboot());
+#endif
 
 	if (eDP_dev->get_modes_vrr_range) {
 		ret = eDP_dev->get_modes_vrr_range(eDP_dev, (void *)am_eDP->groups,
@@ -96,31 +100,40 @@ int meson_eDP_get_modes(struct drm_connector *connector)
 			connector->display_info.width_mm = modes[i].width_mm;
 			connector->display_info.height_mm = modes[i].height_mm;
 		}
-		/*
-		 *when recovery is set to a mode greater than 1080p but the osd not support,
-		 *return virtual 1080p timing to minui，it can allocate 1920x1080 fb according
-		 *to the virtual timing
-		 */
-		DRM_DEBUG("%s: %d, %d, %d, %d\n", __func__, modes[i].hdisplay,
-				  modes[i].vdisplay, priv->recovery_mode,
-				  priv->of_conf.max_fb_size);
-		if ((modes[i].hdisplay > 1920 || modes[i].vdisplay > 1080) &&
-			priv->recovery_mode && !priv->of_conf.max_fb_size) {
-			priv->recovery_dst_w = modes[i].hdisplay;
-			priv->recovery_dst_h = modes[i].vdisplay;
-			priv->recovery_dst_ctrl = true;
-			strncpy(recovery.name, modes[i].name, DRM_DISPLAY_MODE_LEN);
-			modes[i] = recovery;
-		} else {
-			priv->recovery_dst_ctrl = false;
-		}
 
 		for (i = 0; i < modes_cnt; i++) {
-			DRM_DEBUG("[%s]-[%d] mode_name-%s\n", __func__, __LINE__, modes[i].name);
-			mode = drm_mode_duplicate(connector->dev, &modes[i]);
-			if (mode) {
-				drm_mode_probed_add(connector, mode);
-				drm_mode_debug_printmodeline(mode);
+			/*
+			 *when recovery is set to a mode greater than 1080p but the osd not
+			 *support,return virtual 1080p timing to minui，it can allocate
+			 *1920x1080 fb according to the virtual timing
+			 */
+			if ((modes[i].hdisplay > 1920 || modes[i].vdisplay > 1080) &&
+				priv->recovery_mode && !priv->of_conf.max_fb_size) {
+				priv->recovery_dst_ctrl = true;
+				if (!strcmp(outputmode, modes[i].name)) {
+					priv->recovery_dst_w = modes[i].hdisplay;
+					priv->recovery_dst_h = modes[i].vdisplay;
+					strncpy(recovery.name, modes[i].name, DRM_DISPLAY_MODE_LEN);
+					modes[i] = recovery;
+
+					DRM_DEBUG("[%s]-[%d] virtual mode_name-%s\n", __func__,
+							  __LINE__, modes[i].name);
+					mode = drm_mode_duplicate(connector->dev, &modes[i]);
+					if (mode) {
+						drm_mode_probed_add(connector, mode);
+						drm_mode_debug_printmodeline(mode);
+					}
+				}
+			}
+
+			if (!priv->recovery_dst_ctrl) {
+				DRM_DEBUG("[%s]-[%d] mode_name-%s\n", __func__,
+						  __LINE__, modes[i].name);
+				mode = drm_mode_duplicate(connector->dev, &modes[i]);
+				if (mode) {
+					drm_mode_probed_add(connector, mode);
+					drm_mode_debug_printmodeline(mode);
+				}
 			}
 		}
 		kfree(modes);
