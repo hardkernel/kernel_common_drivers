@@ -109,6 +109,16 @@
 #define DDR_PRIORITY_DEBUG		BIT(31)
 #define DDR_PRIORITY_POWER		BIT(30)
 
+enum ddr_type {
+	DDR3 = 0,
+	DDR4,
+	LPDDR4,
+	LPDDR3,
+	LPDDR2,
+	LPDDR4X,
+	LPDDR5,
+};
+
 enum outstanding_type {
 	OUTSTANDING_SET = 1,
 	OUTSTANDING_GET,
@@ -224,6 +234,7 @@ struct ddr_bandwidth {
 	unsigned int channels;
 	unsigned int dmc_number;
 	unsigned int usage_stat[10];
+	enum ddr_type ddr_type;
 	unsigned long ddr_freq;
 	unsigned long dmc_freq;
 	raw_spinlock_t lock;		/* lock for usage statistics */
