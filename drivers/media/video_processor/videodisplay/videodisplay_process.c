@@ -1820,6 +1820,7 @@ static int video_wait_dma_fence(struct videodisplay_dev *dev,
 		 ret,
 		 div64_u64(time_cost, 1000000));
 
+	dma_fence_put(fence_file);
 	return 1;
 }
 
