@@ -22,3 +22,9 @@ exit 1;
 fi
 
 git diff --name-status --cached $against -- | ./scripts/amlogic/licence_pre.pl -
+if [ $? -ne 0 ]
+then
+exit 1;
+fi
+
+git diff --name-status  --cached $against -- | ./scripts/amlogic/merge_pre_check.pl -
