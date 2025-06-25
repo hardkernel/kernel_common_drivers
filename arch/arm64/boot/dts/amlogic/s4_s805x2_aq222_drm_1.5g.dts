@@ -1304,7 +1304,7 @@
 
 &amhdmitx {
 	res_1080p = <1>;
-	status = "disabled";
+	status = "okay";
 };
 
 &drm_amhdmitx {

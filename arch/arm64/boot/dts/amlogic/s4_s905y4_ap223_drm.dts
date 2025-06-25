@@ -1293,7 +1293,7 @@
 };
 
 &amhdmitx {
-	status = "disabled";
+	status = "okay";
 };
 
 &drm_amhdmitx {
