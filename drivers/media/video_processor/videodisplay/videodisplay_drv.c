@@ -1421,7 +1421,7 @@ static int videodisplay_probe(struct platform_device *pdev)
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "vpu_dma_mask", &port->vpu_dma_mask);
 		if (ret) {
-			pr_err("videodisplay don't find vpu_dma_mask\n");
+			pr_debug("videodisplay don't find vpu_dma_mask\n");
 			port->vpu_dma_mask = 0;
 		}
 		if (port->vpu_dma_mask) {
@@ -1447,7 +1447,7 @@ static int videodisplay_probe(struct platform_device *pdev)
 
 	}
 	pr_info("%s num=%d\n", __func__, videodisplay_instance_num);
-	return ret;
+	return 0;
 error1:
 	pr_err("%s error\n", __func__);
 	unregister_chrdev(VIDEODISPLAY_MAJOR, VIDEODISPLAY_DEVICE_NAME);
