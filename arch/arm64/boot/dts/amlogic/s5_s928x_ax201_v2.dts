@@ -648,7 +648,7 @@
 		regulator-max-microvolt = <1100000>;
 		pinctrl-names = "default";
 		gpio = <&gpio GPIOD_8 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
+		startup-delay-us = <7000>;
 		enable-active-high;
 		regulator-boot-on;
 		regulator-always-on;
@@ -662,7 +662,7 @@
 		regulator-max-microvolt = <1100000>;
 		pinctrl-names = "default";
 		gpio = <&gpio GPIOD_8 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
+		startup-delay-us = <7000>;
 		enable-active-high;
 		regulator-boot-on;
 		regulator-always-on;
@@ -676,7 +676,7 @@
 		regulator-max-microvolt = <823000>;
 		pinctrl-names = "default";
 		gpio = <&gpio GPIOD_8 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
+		startup-delay-us = <7000>;
 		enable-active-high;
 		regulator-boot-on;
 		regulator-always-on;
@@ -720,7 +720,7 @@
 		regulator-max-microvolt = <3300000>;
 		pinctrl-names = "default";
 		gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
+		startup-delay-us = <7000>;
 		enable-active-high;
 		regulator-boot-on;
 		regulator-always-on;
@@ -756,6 +756,7 @@
 		gpio = <&gpio GPIOH_7 GPIO_ACTIVE_LOW>;
 		// (GPIOH_7 |sdcard-3v3) out lo ACTIVE LOW
 		enable-active-low; //3.3V , high: 0V
+		startup-delay-us = <7000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
@@ -770,6 +771,7 @@
 		gpio = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
 		// (GPIOH_8 |VDDIO_C) out lo : 3300mV, 3.3V
 		gpios-states = <0>;
+		startup-delay-us = <7000>;
 
 		/* Based on P200 schematics, signal CARD_1.8V/3.3V_CTR */
 		states = <1800000 1
@@ -1773,11 +1775,11 @@
 &pwm_ab {
 	pinctrl-0 = <&pwm_a_pins1>;
 	pinctrl-names = "default";
-	status = "disabled";
+	status = "okay";
 };
 
 &pwm_cd {
-	status = "disabled";
+	status = "okay";
 };
 
 &pwm_ef {
