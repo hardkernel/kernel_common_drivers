@@ -251,6 +251,11 @@ AMLOGIC_COMMON_MODULES = [
     "//common_drivers/sound/soc:amlogic-snd-codec-t6d",
 ]
 
+
+AMLOGOC_COMMON_MODULES_REMOVE = [
+    "kernel/kheaders.ko"
+] if project_configs.GKI_CONFIG in ("", "non_gki") else []
+
 AMLOGIC_UPGRADE_COMMON_MODULES = [
     # keep sorted
     "arch/arm64/crypto/sha1-ce.ko",
@@ -424,11 +429,11 @@ def define_modules(
     AMLOGIC_UNIQUE_PROJECT_ALL_MODULES = [k for k in {x: None for x in AMLOGIC_PROJECT_ALL_MODULES}]
 
     AMLOGIC_PROJECT_REMOVE_MODULES = \
-        project_configs.MODULES_OUT_REMOVE + AMLOGIC_UPGRADE_R_REMOVE_MODULES if project_configs.UPGRADE_PROJECT == "r" or project_configs.UPGRADE_PROJECT == "R" else \
-        project_configs.MODULES_OUT_REMOVE + AMLOGIC_UPGRADE_S_REMOVE_MODULES if project_configs.UPGRADE_PROJECT == "s" or project_configs.UPGRADE_PROJECT == "S" else \
-        project_configs.MODULES_OUT_REMOVE + AMLOGIC_UPGRADE_P_REMOVE_MODULES if project_configs.UPGRADE_PROJECT == "p" or project_configs.UPGRADE_PROJECT == "P" else \
-        project_configs.MODULES_OUT_REMOVE + AMLOGIC_UPGRADE_U_REMOVE_MODULES if project_configs.UPGRADE_PROJECT == "u" or project_configs.UPGRADE_PROJECT == "U" else \
-        project_configs.MODULES_OUT_REMOVE
+        AMLOGOC_COMMON_MODULES_REMOVE + project_configs.MODULES_OUT_REMOVE + AMLOGIC_UPGRADE_R_REMOVE_MODULES if project_configs.UPGRADE_PROJECT == "r" or project_configs.UPGRADE_PROJECT == "R" else \
+        AMLOGOC_COMMON_MODULES_REMOVE + project_configs.MODULES_OUT_REMOVE + AMLOGIC_UPGRADE_S_REMOVE_MODULES if project_configs.UPGRADE_PROJECT == "s" or project_configs.UPGRADE_PROJECT == "S" else \
+        AMLOGOC_COMMON_MODULES_REMOVE + project_configs.MODULES_OUT_REMOVE + AMLOGIC_UPGRADE_P_REMOVE_MODULES if project_configs.UPGRADE_PROJECT == "p" or project_configs.UPGRADE_PROJECT == "P" else \
+        AMLOGOC_COMMON_MODULES_REMOVE + project_configs.MODULES_OUT_REMOVE + AMLOGIC_UPGRADE_U_REMOVE_MODULES if project_configs.UPGRADE_PROJECT == "u" or project_configs.UPGRADE_PROJECT == "U" else \
+        AMLOGOC_COMMON_MODULES_REMOVE + project_configs.MODULES_OUT_REMOVE
     AMLOGIC_UNIQUE_PROJECT_REMOVE_MODULES = [k for k in {x: None for x in AMLOGIC_PROJECT_REMOVE_MODULES}]
     AMLOGIC_REMOVE_KERNEL_MODULES = [module for module in depset(AMLOGIC_UNIQUE_PROJECT_REMOVE_MODULES).to_list() if "common_drivers" not in module]
 

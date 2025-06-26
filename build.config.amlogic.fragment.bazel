@@ -10,6 +10,7 @@ echo "Base Kernel parm: LTO=${LTO} GKI_CONFIG=${GKI_CONFIG} ANDROID_PROJECT=${AN
 FRAGMENT_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_gki.fragment
 FRAGMENT_CONFIG_GKI10=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_gki.10
 FRAGMENT_CONFIG_DEBUG=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_gki.debug
+FRAGMENT_CONFIG_NOGKI=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_gki.nogki
 FRAGMENT_CONFIG_UPGRADE=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_upgrade.defconfig
 FRAGMENT_CONFIG_UPGRADE_P=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_upgrade_p.defconfig
 FRAGMENT_CONFIG_KASAN=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_kasan.defconfig
@@ -46,6 +47,11 @@ function post_defconfig_cmds() {
 		KCONFIG_CONFIG=${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
 				${ARM64_DEFCONFIG} ${FRAGMENT_CONFIG} ${FRAGMENT_CONFIG_GKI10} \
 				${FRAGMENT_CONFIG_DEBUG} ${temp_file}
+
+		if [[ -z ${GKI_CONFIG} || ${GKI_CONFIG} == non_gki ]]; then
+			KCONFIG_CONFIG=${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
+				${KCONFIG_DEFCONFIG} ${FRAGMENT_CONFIG_NOGKI}
+		fi
 
 		if [[ ${UPGRADE_PROJECT} == r || ${UPGRADE_PROJECT} == R || ${UPGRADE_PROJECT} == s || ${UPGRADE_PROJECT} == S \
 		   || ${UPGRADE_PROJECT} == u || ${UPGRADE_PROJECT} == U ]]; then
