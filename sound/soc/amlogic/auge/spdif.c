@@ -98,7 +98,7 @@ struct aml_spdif {
 	int spdif_soft_mute;
 	enum SPDIF_SRC spdifin_src;
 	int clk_tuning_enable;
-	bool on;
+	bool spdifout_on;
 	int same_src_on;
 	int in_err_cnt;
 	/* share buffer with module */
@@ -168,6 +168,9 @@ void aml_spdifout_enable(int spdif_id, bool is_enable, bool reenable)
 
 static void aml_spdif_out_reset(unsigned int spdif_id)
 {
+	if (spdif_priv[spdif_id]->spdifout_on)
+		return;
+
 	aml_audio_reset(spdif_priv[spdif_id]->chipinfo->out_reset_reg_offset,
 		spdif_priv[spdif_id]->chipinfo->out_reset_reg_shift,
 		false);
@@ -271,6 +274,14 @@ static int ss_prepare(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct samesrc_ops *ops = NULL;
 	int spdif_id = -1;
+	struct aml_spdif *p_spdif;
+
+	ops = get_samesrc_ops(samesource_sel);
+	if (ops && ops->private) {
+		p_spdif = ops->private;
+		if (p_spdif->spdifout_on)
+			return 0;
+	}
 
 	pr_debug("%s() %d, lvl %d\n", __func__, __LINE__, share_lvl);
 	if (samesource_sel >= SHAREBUFFER_SPDIFA &&
@@ -291,9 +302,8 @@ static int ss_prepare(struct snd_pcm_substream *substream,
 		share_lvl,
 		separated);
 
-	ops = get_samesrc_ops(samesource_sel);
 	if (ops && ops->private) {
-		struct aml_spdif *p_spdif = ops->private;
+		p_spdif = ops->private;
 
 		p_spdif->same_src_on = 1;
 		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
@@ -317,14 +327,21 @@ static int ss_set_clk(int samesource_sel,
 		struct clk *clk_src, int rate, int same)
 {
 	struct samesrc_ops *ops = NULL;
+	struct aml_spdif *p_spdif;
+
+	ops = get_samesrc_ops(samesource_sel);
+	if (ops && ops->private) {
+		p_spdif = ops->private;
+		if (p_spdif->spdifout_on)
+			return 0;
+	}
 
 	spdif_set_audio_clk(samesource_sel - 3,
 		clk_src,
 		rate, same, false);
 
-	ops = get_samesrc_ops(samesource_sel);
 	if (ops && ops->private) {
-		struct aml_spdif *p_spdif = ops->private;
+		p_spdif = ops->private;
 
 		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
 		    get_samesrc_ops(p_spdif->samesource_sel) &&
@@ -343,6 +360,14 @@ static int ss_free(struct snd_pcm_substream *substream,
 	void *pfrddr, int samesource_sel, int share_lvl)
 {
 	struct samesrc_ops *ops = NULL;
+	struct aml_spdif *p_spdif;
+
+	ops = get_samesrc_ops(samesource_sel);
+	if (ops && ops->private) {
+		p_spdif = ops->private;
+		if (p_spdif->spdifout_on)
+			return 0;
+	}
 
 	pr_info("%s() samesrc %d, lvl %d\n",
 		__func__, samesource_sel, share_lvl);
@@ -352,9 +377,8 @@ static int ss_free(struct snd_pcm_substream *substream,
 			pfrddr, samesource_sel, share_lvl);
 	}
 
-	ops = get_samesrc_ops(samesource_sel);
 	if (ops && ops->private) {
-		struct aml_spdif *p_spdif = ops->private;
+		p_spdif = ops->private;
 
 		p_spdif->same_src_on = 0;
 		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
@@ -374,14 +398,20 @@ static int ss_free(struct snd_pcm_substream *substream,
 static int ss_trigger(int cmd, int samesource_sel, bool reenable)
 {
 	struct samesrc_ops *ops = NULL;
+	struct aml_spdif *p_spdif;
 
+	ops = get_samesrc_ops(samesource_sel);
+	if (ops && ops->private) {
+		p_spdif = ops->private;
+		if (p_spdif->spdifout_on)
+			return 0;
+	}
 	pr_debug("%s() ss %d\n", __func__, samesource_sel);
 	sharebuffer_trigger(cmd,
 		samesource_sel, reenable);
 
-	ops = get_samesrc_ops(samesource_sel);
 	if (ops && ops->private) {
-		struct aml_spdif *p_spdif = ops->private;
+		p_spdif = ops->private;
 
 		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
 		    get_samesrc_ops(p_spdif->samesource_sel) &&
@@ -399,13 +429,20 @@ static void ss_mute(int samesource_sel, bool mute)
 {
 	struct samesrc_ops *ops = NULL;
 	int spdif_reg_mute = mute;
+	struct aml_spdif *p_spdif;
+
+	ops = get_samesrc_ops(samesource_sel);
+	if (ops && ops->private) {
+		p_spdif = ops->private;
+		if (p_spdif->spdifout_on)
+			return;
+	}
 
 	pr_debug("%s() %d, mute %d, id %d\n", __func__, __LINE__,
 		mute, samesource_sel - 3);
 
-	ops = get_samesrc_ops(samesource_sel);
 	if (ops && ops->private) {
-		struct aml_spdif *p_spdif = ops->private;
+		p_spdif = ops->private;
 		if (p_spdif->spdif_soft_mute)
 			spdif_reg_mute =  p_spdif->mute;
 		aml_spdifout_mute_without_actrl(samesource_sel - 3, !mute, spdif_reg_mute);
@@ -782,7 +819,7 @@ int spdif_set_audio_clk(int id, struct clk *clk_src,
 {
 	int ret = 0;
 
-	if (spdif_priv[id]->on && same) {
+	if (spdif_priv[id]->spdifout_on && same) {
 		pr_debug("spdif priority");
 		return 0;
 	}
@@ -1105,10 +1142,10 @@ static int aml_spdif_open(struct snd_soc_component *component,
 		dev, SPDIF_BUFFER_BYTES / 2, SPDIF_BUFFER_BYTES);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		p_spdif->on = true;
-
 		if (p_spdif->same_src_on)
 			release_spdif_same_src(p_spdif, substream);
+
+		p_spdif->spdifout_on = true;
 
 		p_spdif->fddr = aml_audio_register_frddr(dev,
 			aml_spdif_ddr_isr, substream, false);
@@ -1156,7 +1193,7 @@ static int aml_spdif_close(struct snd_soc_component *component,
 	struct aml_spdif *p_spdif = runtime->private_data;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		p_spdif->on = false;
+		p_spdif->spdifout_on = false;
 		aml_audio_unregister_frddr(p_spdif->dev, substream);
 	} else {
 		aml_audio_unregister_toddr(p_spdif->dev, substream, 0);
