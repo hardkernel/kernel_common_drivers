@@ -1392,7 +1392,7 @@ static int optee_probe(struct platform_device *pdev)
 	struct tee_device *teedev;
 	struct tee_context *ctx;
 	u32 max_notif_value;
-	u32 arg_cache_flags;
+	u32 arg_cache_flags = 0;
 	u32 sec_caps;
 	int rc;
 
