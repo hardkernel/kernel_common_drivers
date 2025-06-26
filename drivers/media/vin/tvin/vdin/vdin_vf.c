@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/vin/tvin/vdin/vdin_vf.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 /* Standard Linux headers */
@@ -28,11 +15,11 @@
 #include <linux/spinlock.h>
 #include <linux/time.h>
 #include <linux/seq_file.h>
-
 /* Amlogic Headers */
 #include <linux/amlogic/media/vfm/vframe.h>
 
 /* Local Headers */
+#include "vdin_drv.h"
 #include "vdin_vf.h"
 #include "vdin_ctl.h"
 #include "vdin_mem_scatter.h"
@@ -55,16 +42,16 @@ static void vf_log(struct vf_pool *p, enum vf_operation_e operation,
 	unsigned int i = 0;
 	struct vf_log_s *log = &p->log;
 
-	if (!p->vf_log_enable)
+	if (!vf_log_enable)
 		return;
 
-	if (!p->vf_log_fe)
+	if (!vf_log_fe)
 		if (operation == VF_OPERATION_FPEEK ||
 		    operation == VF_OPERATION_FGET ||
 		    operation == VF_OPERATION_FPUT)
 			return;
 
-	if (!p->vf_log_be)
+	if (!vf_log_be)
 		if (operation == VF_OPERATION_BPEEK ||
 		    operation == VF_OPERATION_BGET ||
 		    operation == VF_OPERATION_BPUT)
@@ -343,7 +330,7 @@ int vf_pool_init(struct vf_pool *p, int size)
 		list_del(&pos->list);
 	}
 	spin_unlock_irqrestore(&p->wr_lock, flags);
-	if (p->vf_list_dbg & VDIN_VF_DBG_EN)
+	if (vf_list_dbg & VDIN_VF_DBG_EN)
 		pr_info("--clear write list end--\n");
 
 	/* clear read list */
@@ -379,7 +366,7 @@ int vf_pool_init(struct vf_pool *p, int size)
 	p->tmp_list_size = 0;
 	p->last_vfe = NULL;
 	p->last_last_vfe = NULL;
-	p->vf_move_prt_cnt = p->vf_move_print_cnt;
+	p->vf_move_prt_cnt = vf_move_print_cnt;
 	/* initialize provider write list */
 	for (i = 0; i < size; i++) {
 		p->dv_buf_size[i] = 0;
@@ -398,7 +385,7 @@ int vf_pool_init(struct vf_pool *p, int size)
 		spin_unlock_irqrestore(&p->wr_lock, flags);
 	}
 
-	if (p->vf_list_dbg & VDIN_VF_DBG_EN) {
+	if (vf_list_dbg & VDIN_VF_DBG_EN) {
 		pr_info("init wr list:0x%x\n", p->wr_list_size);
 		spin_lock_irqsave(&p->wr_lock, flags);
 		list_for_each_entry_safe(pos, tmp, &p->wr_list, list) {
@@ -553,7 +540,7 @@ struct vf_entry *provider_vf_get(struct vf_pool *p)
 	vfe = vf_pool_get(&p->wr_list);
 	if (vfe) {
 		if (vfe->status != VF_STATUS_WL) {
-			if (p->vf_list_dbg & VDIN_VF_DBG_EN)
+			if (vf_list_dbg & VDIN_VF_DBG_EN)
 				pr_info("not WL entry:0x%p index:%x sta:%x\n",
 					vfe, vfe->vf.index, vfe->status);
 			spin_unlock_irqrestore(&p->wr_lock, flags);
@@ -562,7 +549,7 @@ struct vf_entry *provider_vf_get(struct vf_pool *p)
 		p->wr_list_size--;
 		vfe->status = VF_STATUS_WM;
 		p->wr_mode_size++;
-		if (p->vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
+		if (vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
 			p->vf_move_prt_cnt--;
 			pr_info("%s(): WL--:%d, WM++:%d, id:%x status:%x\n",
 				__func__, p->wr_list_size, p->wr_mode_size,
@@ -588,7 +575,7 @@ void provider_vf_put(struct vf_entry *vfe, struct vf_pool *p)
 
 	spin_lock_irqsave(&p->rd_lock, flags);
 	if (vfe->status != VF_STATUS_WM) {
-		if (p->vf_list_dbg & VDIN_VF_DBG_EN)
+		if (vf_list_dbg & VDIN_VF_DBG_EN)
 			pr_info("not WM entry:%p index:%x sta:%x\n",
 				vfe, vfe->vf.index, vfe->status);
 		spin_unlock_irqrestore(&p->rd_lock, flags);
@@ -598,7 +585,7 @@ void provider_vf_put(struct vf_entry *vfe, struct vf_pool *p)
 	vf_pool_put(vfe, &p->rd_list);
 	p->rd_list_size++;
 	p->wr_mode_size--;
-	if (p->vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
+	if (vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
 		p->vf_move_prt_cnt--;
 		pr_info("%s(): WM--:%d, RL++:%d id:%x status:%x\n",
 			__func__, p->wr_mode_size, p->rd_list_size,
@@ -666,7 +653,7 @@ struct vf_entry *receiver_vf_get(struct vf_pool *p)
 
 	vfe = vf_pool_get(&p->rd_list);
 	if (vfe->status != VF_STATUS_RL) {
-		if (p->vf_list_dbg & VDIN_VF_DBG_EN)
+		if (vf_list_dbg & VDIN_VF_DBG_EN)
 			pr_info("not RL entry:0x%p index:%x sta:%x\n",
 				vfe, vfe->vf.index, vfe->status);
 		spin_unlock_irqrestore(&p->rd_lock, flags);
@@ -675,7 +662,7 @@ struct vf_entry *receiver_vf_get(struct vf_pool *p)
 	p->rd_list_size--;
 	vfe->status = VF_STATUS_RM;
 	p->rd_mode_size++;
-	if (p->vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
+	if (vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
 		p->vf_move_prt_cnt--;
 		pr_info("%s(): RL--:%d, RM++:%d, id:%x status:%x\n",
 			__func__, p->rd_list_size, p->rd_mode_size,
@@ -741,7 +728,7 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 		spin_lock_irqsave(&p->wr_lock, flags);
 		if (master->status == VF_STATUS_WL ||
 		    master->status == VF_STATUS_RL) {
-			if (p->vf_list_dbg & VDIN_VF_DBG_EN)
+			if (vf_list_dbg & VDIN_VF_DBG_EN)
 				pr_info("not WL and RL entry:0x%p index:%x sta:%x\n",
 					master, vf->index, master->status);
 			spin_unlock_irqrestore(&p->wr_lock, flags);
@@ -754,7 +741,7 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 		master->status = VF_STATUS_WL;
 		vf_pool_put(master, &p->wr_list);
 		p->wr_list_size++;
-		if (p->vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
+		if (vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
 			p->vf_move_prt_cnt--;
 			pr_info("%s(): WL++:%d, id:%x status:%x\n",
 				__func__, p->wr_list_size, vf->index, master->status);
@@ -859,7 +846,7 @@ struct vframe_s *vdin_vf_get(void *op_arg)
 	if (!vfe)
 		return NULL;
 	atomic_inc(&p->buffer_cnt);
-	if (p->vf_list_dbg & VDIN_VF_MOVE_EN)
+	if (vf_list_dbg & VDIN_VF_MOVE_EN)
 		pr_info("%s,index:%d,index_disp:%d,disp_mode:%d\n", __func__,
 			vfe->vf.index, vfe->vf.index_disp,
 			p->disp_mode[vfe->vf.index_disp % VFRAME_DISP_MAX_NUM]);
@@ -887,7 +874,7 @@ void vdin_vf_put(struct vframe_s *vf, void *op_arg)
 		/*	memset(p->dv_buf_ori[vf->index], 0, dolby_size_byte);*/
 	}
 	atomic_dec(&p->buffer_cnt);
-	if (p->vf_list_dbg & VDIN_VF_MOVE_EN)
+	if (vf_list_dbg & VDIN_VF_MOVE_EN)
 		pr_info("%s,index:%d,index_disp:%d,disp_mode:%d\n", __func__,
 			vf->index, vf->index_disp,
 			p->disp_mode[vf->index_disp % VFRAME_DISP_MAX_NUM]);

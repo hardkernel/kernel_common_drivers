@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/vin/tvin/vdin/vdin_debug.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 /* Standard Linux Headers */
@@ -4280,30 +4267,6 @@ start_chk:
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
 			devp->debug.sm_debug_enable = temp;
 		pr_info("sm_debug_enable:%d\n", devp->debug.sm_debug_enable);
-	} else if (!strcmp(parm[0], "vf_log_enable")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
-			if (temp)
-				devp->vfp->vf_log_enable = true;
-			else
-				devp->vfp->vf_log_enable = false;
-		}
-		pr_info("vf_log_enable:%d\n", devp->vfp->vf_log_enable);
-	} else if (!strcmp(parm[0], "vf_log_fe")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
-			if (temp)
-				devp->vfp->vf_log_fe = true;
-			else
-				devp->vfp->vf_log_fe = false;
-		}
-		pr_info("vf_log_fe:%d\n", devp->vfp->vf_log_fe);
-	} else if (!strcmp(parm[0], "vf_list_dbg")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
-			devp->vfp->vf_list_dbg = temp;
-		pr_info("vf_list_dbg:%d\n", devp->vfp->vf_list_dbg);
-	} else if (!strcmp(parm[0], "vf_move_print_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
-			devp->vfp->vf_move_print_cnt = temp;
-		pr_info("vf_move_print_cnt:%d\n", devp->vfp->vf_move_print_cnt);
 	} else if (!strcmp(parm[0], "dmc_ctrl")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			vdin_dmc_ctrl(devp, !!temp);

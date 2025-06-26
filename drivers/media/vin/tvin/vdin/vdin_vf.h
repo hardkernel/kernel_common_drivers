@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/vin/tvin/vdin/vdin_vf.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __VDIN_VF_H
@@ -183,11 +170,6 @@ struct vf_pool {
 	unsigned int vf_move_prt_cnt;
 	enum vframe_disp_mode_e	disp_mode[VFRAME_DISP_MAX_NUM];
 	void *priv;
-	bool vf_log_enable;
-	bool vf_log_fe;
-	bool vf_log_be;
-	unsigned int vf_list_dbg;
-	unsigned int vf_move_print_cnt;
 	unsigned int dv_dbg_mask;
 };
 

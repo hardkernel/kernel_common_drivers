@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/vin/tvin/vdin/vdin_drv.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __TVIN_VDIN_DRV_H
@@ -29,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/clk.h>
 #include <linux/workqueue.h>
+#include <linux/amlogic/gki_module.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/registers/cpu_version.h>
@@ -1346,6 +1334,14 @@ extern unsigned int max_ignore_frame_cnt;
 extern unsigned int skip_frame_debug;
 extern unsigned int vdin0_afbce_debug_force;
 extern unsigned int vdin_dv_de_scramble;
+
+extern bool vf_log_enable;
+extern bool vf_log_fe;
+extern bool vf_log_be;
+extern unsigned int vf_list_dbg;
+extern unsigned int vf_move_print_cnt;
+
+extern struct param_entry vdin_params[];
 
 struct vframe_provider_s *vf_get_provider_by_name(const char *provider_name);
 extern bool enable_reset;

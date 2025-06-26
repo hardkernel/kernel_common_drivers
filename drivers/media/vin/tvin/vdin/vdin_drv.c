@@ -115,6 +115,22 @@ static unsigned int g_disp_count;/* Multiple display */
 
 u32 vdin_cfg_444_to_422_wmif_en;
 
+bool vf_log_enable = true;
+bool vf_log_fe = true;
+bool vf_log_be = true;
+unsigned int vf_list_dbg;
+unsigned int vf_move_print_cnt;
+
+struct param_entry vdin_params[] = {
+	PARAM_BOOL(vf_log_enable),
+	PARAM_BOOL(vf_log_fe),
+	PARAM_BOOL(vf_log_be),
+	PARAM_UINT(vf_list_dbg),
+	PARAM_UINT(vf_move_print_cnt),
+};
+
+module_param_cb(debug_vdin, &key_value_param_ops, &vdin_params, 0644);
+
 /* module_param(vrr_input_switch_frames, int, 0664);
  *MODULE_PARM_DESC(vrr_input_switch_frames,
  *		 "vrr input M_CONST switch <n> frames");
@@ -1500,9 +1516,6 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 	devp->debug.vdin_frame_work_mode = VDIN_VF_PUT;
 	devp->debug.sleep_time = 50;
 	devp->debug.sm_debug_enable = VDIN_SM_LOG_L_1;
-	devp->vfp->vf_log_enable = false;
-	devp->vfp->vf_log_fe = false;
-	devp->vfp->vf_log_be = false;
 }
 
 static void vdin_get_secure_state(struct vdin_dev_s *devp)
