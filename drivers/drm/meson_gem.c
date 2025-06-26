@@ -919,7 +919,7 @@ struct drm_gem_object *am_meson_drm_gem_prime_import(struct drm_device *dev,
 
 		handle = dmabuf->priv;
 		DRM_DEBUG_PRIME("info:%px %px %px\n", dmabuf, handle, handle->ua->obj);
-		if (handle->ua && handle->ua->obj) {
+		if (handle->ua && handle->ua->sgt[0] && handle->ua->obj) {
 			ubo = handle->ua->obj;
 
 			DRM_DEBUG_PRIME("dev: %px %px %px\n", ubo->dev, dev, dev->dev);
