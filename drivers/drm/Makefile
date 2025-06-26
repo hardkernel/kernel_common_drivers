@@ -57,3 +57,10 @@ endif
 ifeq ($(CONFIG_AMLOGIC_ZAPPER_CUT),)
         $(MESON_DRM_MODULE_NAME)-y += meson_lcd.o
 endif
+
+ifneq ($(CONFIG_ODROID_CUSTOM_DISPLAY_MODES),)
+	$(MESON_DRM_MODULE_NAME)-y += odroid_helper.o
+ifneq ($(CONFIG_ODROID_CUSTOM_DISPLAY_MODES_MODELINE_FILE),)
+	$(MESON_DRM_MODULE_NAME)-y += odroid_helper_modelines.o
+endif
+endif
