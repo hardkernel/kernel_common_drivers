@@ -400,7 +400,7 @@
 			    "ddrfw-region";
 		reg = <0x0 0xfe340018 0x0 0x114>, /*host base reg address*/
 		      <0x0 0xfe010258 0x0 0x4>, /*host health reg address*/
-		      <0x0 0xfe440068 0x0 0x4>, /*dsp support region*/
+		      <0x0 0xfe44006c 0x0 0x4>, /*dsp support region*/
 		      <0x0 0xf7030000 0x0 0x1D0000>, /*host sram region [boot_sram_addr size]*/
 		      <0x0 0x780000 0x0 0x80000>, /*host shm region [offset size]*/
 		      <0x0 0x0 0x0 0x800000>; /*host ddrfw region [offset size]*/
@@ -408,7 +408,17 @@
 		clock-names = "dspa_clk";
 		mboxes = <&mbox_fifo A5_REE2DSPA_DSP>;
 		power-domains = <&pwrdm PDID_A5_DSPA>;
-		pm-support = <1>;
+		/* host dsp support bit
+		 * efuse reg OTP_LIC23 bit[24]
+		 * 1: disable
+		 * 0: enable
+		 */
+		dsp-support-bit = <0x1000000>;
+		/* bit0: pm_support_suspend
+		 * bit1: pm_support_always_on
+		 * bit2: pm_support_ffv
+		 */
+		pm-support = /bits/ 8 <0x1>;
 		//logbuff-polling-ms = <50>;
 		clkfreq-khz = <800000>;
 	};
