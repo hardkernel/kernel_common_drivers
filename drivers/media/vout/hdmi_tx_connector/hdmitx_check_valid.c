@@ -12,6 +12,11 @@ bool hdmitx_edid_validate_mode(struct rx_cap *rxcap, u32 vic)
 	int i = 0;
 	bool edid_matched = false;
 
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+	if (vic == HDMI_ODROID_CUSTOM_VIDEO)
+		return true;
+#endif
+
 	if (!rxcap)
 		return false;
 
