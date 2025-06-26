@@ -4723,12 +4723,14 @@ static void hdcptx_events_handle(struct timer_list *t)
 	static unsigned int st_flag = -1;
 	static unsigned int hdcpobs3_1;
 	unsigned int hdcpobs3_2;
-	struct hdcprp14_topo *topo14 = &hdev->topo_info->topo.topo14;
+	struct hdcprp14_topo *topo14 = NULL;
 	int bstatus0 = 0;
 	int bstatus1 = 0;
 
 	if (hdev->tx_comm.rxsense_policy && !hdmitx_tmds_rxsense())
 		return;
+	if (hdev->topo_info)
+		topo14 = &hdev->topo_info->topo.topo14;
 	if (hdev->hdcp_max_exceed_cnt == 0) {
 		hdcpobs3_1 = 0;
 		bcaps_5_ksvfifoready = 0;
@@ -4748,7 +4750,7 @@ static void hdcptx_events_handle(struct timer_list *t)
 		hdev->hdcp_max_exceed_cnt++;
 	if (bcaps_6_rp && bcaps_5_ksvfifoready) {
 		if (hdev->hdcp_max_exceed_cnt > max_exceed &&
-		    !ksv_sha_matched) {
+		    !ksv_sha_matched && topo14) {
 			topo14->max_devs_exceeded = 1;
 			topo14->max_cascade_exceeded = 1;
 			hdev->hdcp_max_exceed_state = 1;

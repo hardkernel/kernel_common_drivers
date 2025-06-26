@@ -397,7 +397,7 @@ irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx_dev *hdev)
 	if (!hdev->dsc_en || emp_no == 0)
 		return IRQ_HANDLED;
 
-	if (emp_no != -1 || emp_no > 0)
+	if (emp_no > 0)
 		emp_no--;
 
 	timing = &hdev->tx_comm.fmt_para.timing;

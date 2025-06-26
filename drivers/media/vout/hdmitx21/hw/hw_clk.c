@@ -922,11 +922,12 @@ void set_hdmitx_s7_htx_pll(struct hdmitx_dev *hdev)
 	u32 base_pixel_clk = 25200;
 	u32 htx_vco = 5940000;
 	u32 div = 1;
-	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
+	struct hdmi_format_para *para = NULL;
 
-	if (!hdev || !para)
+	if (!hdev)
 		return;
 
+	para = &hdev->tx_comm.fmt_para;
 	vic = para->timing.vic;
 	cs = para->cs;
 	cd = para->cd;
@@ -991,11 +992,12 @@ void set_hdmitx_s7d_htx_pll(struct hdmitx_dev *hdev)
 	u32 base_pixel_clk = 25200;
 	u32 htx_vco = 5940000;
 	u32 div = 1;
-	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
+	struct hdmi_format_para *para = NULL;
 
-	if (!hdev || !para)
+	if (!hdev)
 		return;
 
+	para = &hdev->tx_comm.fmt_para;
 	vic = para->timing.vic;
 	cs = para->cs;
 	cd = para->cd;
@@ -1062,10 +1064,12 @@ void set_hdmitx_s6_htx_pll(struct hdmitx_dev *hdev)
 	u32 base_pixel_clk = 25200;
 	u32 htx_vco = 5940000;
 	u32 div = 1;
-	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
+	struct hdmi_format_para *para = NULL;
 
-	if (!hdev || !para)
+	if (!hdev)
 		return;
+
+	para = &hdev->tx_comm.fmt_para;
 
 	vic = para->timing.vic;
 	cs = para->cs;

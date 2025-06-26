@@ -712,7 +712,7 @@ static void edid_receiverproductnameparse(struct rx_cap *prxcap,
 	if (!prxcap || !data)
 		return;
 	/* some Display Product name end with 0x20, not 0x0a */
-	while ((data[i] != 0x0a) && (data[i] != 0x20) && (i < 13)) {
+	while ((i < 13) && (data[i] != 0x0a) && (data[i] != 0x20)) {
 		prxcap->ReceiverProductName[i] = data[i];
 		i++;
 	}
@@ -972,18 +972,24 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 
 static void edid_parsingvendspec(struct rx_cap *prxcap, u8 *buf)
 {
-	struct dv_info *dv = &prxcap->dv_info;
-	struct dv_info *dv2 = &prxcap->dv_info2;
-	struct hdr10_plus_info *hdr10_plus = &prxcap->hdr_info.hdr10plus_info;
-	struct hdr10_plus_info *hdr10_plus2 = &prxcap->hdr_info2.hdr10plus_info;
-	struct cuva_info *cuva = &prxcap->hdr_info.cuva_info;
-	struct cuva_info *cuva2 = &prxcap->hdr_info2.cuva_info;
-
+	struct dv_info *dv;
+	struct dv_info *dv2;
+	struct hdr10_plus_info *hdr10_plus;
+	struct hdr10_plus_info *hdr10_plus2;
+	struct cuva_info *cuva;
+	struct cuva_info *cuva2;
 	u8 pos = 0;
 	u32 ieeeoui = 0;
 
 	if (!prxcap || !buf)
 		return;
+
+	dv = &prxcap->dv_info;
+	dv2 = &prxcap->dv_info2;
+	hdr10_plus = &prxcap->hdr_info.hdr10plus_info;
+	hdr10_plus2 = &prxcap->hdr_info2.hdr10plus_info;
+	cuva = &prxcap->hdr_info.cuva_info;
+	cuva2 = &prxcap->hdr_info2.cuva_info;
 
 	pos++;
 
