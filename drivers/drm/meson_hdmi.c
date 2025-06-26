@@ -40,6 +40,10 @@
 #include "meson_crtc.h"
 #include "../media/vout/hdmitx_common/hdmitx_check_valid.h"
 
+#if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+#include "odroid_helper.h"
+#endif
+
 #define HDMITX_ATTR_LEN_MAX	16
 #define HDMITX_MAX_BPC	12
 
@@ -565,6 +569,10 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 			count++;
 		}
 	}
+
+#if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES_MODELINE_FILE)
+	count += load_odroid_modelines(connector);
+#endif
 
 	connector->display_info.monitor_range.max_vfreq = am_hdmi_info.max_vfreq;
 	connector->display_info.monitor_range.min_vfreq = am_hdmi_info.min_vfreq;
@@ -2018,6 +2026,10 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	bool do_valid = true;
 	char attr_str[HDMITX_ATTR_LEN_MAX];
 	u32 brr = 0, qms_en = 0;
+
+#if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+	update_odroid_custom_hdmi_timing(&am_hdmi_info.base.connector, modename);;
+#endif
 
 	/* do not atomic check if hpd is low*/
 	if (strstr(modename, "dummy") || !hdmitx_get_hpd_state(common))
