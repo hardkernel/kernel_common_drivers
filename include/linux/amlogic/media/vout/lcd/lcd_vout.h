@@ -500,8 +500,11 @@ enum lcd_power_type_e {
 	LCD_POWER_TYPE_TCON_SPI_DATA_LOAD,
 	LCD_POWER_TYPE_BACKLIGHT,           /* 7 */
 	LCD_POWER_TYPE_MUTE,                /* 8 */
+	LCD_POWER_TYPE_OFF_DELAY = 0xfd,
 	LCD_POWER_TYPE_MAX,
 };
+
+#define LCD_POWER_TYPE_END    0xff
 
 enum lcd_pmu_gpio_e {
 	LCD_PMU_GPIO0 = 0,
@@ -646,6 +649,8 @@ struct lcd_power_ctrl_s {
 	struct lcd_power_step_s power_off_step[LCD_PWR_STEP_MAX];
 	int power_on_step_max; /*  internal use for debug */
 	int power_off_step_max; /* internal use for debug */
+	int power_off_delay;
+	unsigned long long off_time;
 };
 
 #define LCD_ENABLE_RETRY_MAX    3
@@ -919,6 +924,7 @@ struct aml_lcd_drv_s {
 	unsigned int switch_off_event;
 	unsigned char config_check_glb;
 	unsigned char config_check_en;
+	unsigned char enter_shutdown;
 	int fr_lock_en;
 
 	struct lcd_data_s *data;

@@ -447,7 +447,7 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 	struct lcd_extern_dev_s *edev;
 #endif
 	unsigned long long local_time[2];
-	unsigned int i = 0, index, wait;
+	unsigned int i = 0, index, wait, delay;
 	int max_step, value = -1;
 
 	if (pdrv->lcd_pxp) {
@@ -455,14 +455,27 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 		return;
 	}
 
-	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
 	if (status) {
 		power_step = pdrv->config.power.power_on_step;
 		max_step = pdrv->config.power.power_on_step_max;
+		//power off delay
+		if (pdrv->config.power.power_off_delay && pdrv->config.power.off_time) {
+			local_time[0] = sched_clock();
+			local_time[1] = local_time[0] - pdrv->config.power.off_time;
+			delay = lcd_do_div(local_time[1], 1000000);
+			if (delay < pdrv->config.power.power_off_delay) {
+				delay = pdrv->config.power.power_off_delay - delay;
+				LCDPR("[%d]: %s: adapt power off delay: %d\n",
+					pdrv->index, __func__, delay);
+				lcd_delay_ms(delay);
+			}
+		}
 	} else {
 		power_step = pdrv->config.power.power_off_step;
 		max_step = pdrv->config.power.power_off_step_max;
 	}
+	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
+
 	while (i < max_step) {
 		if (power_step[i].type >= LCD_POWER_TYPE_MAX)
 			break;
@@ -472,13 +485,11 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 			      power_step[i].type, power_step[i].index,
 			      power_step[i].value, power_step[i].delay);
 		}
+		delay = power_step[i].delay;
 		switch (power_step[i].type) {
 		case LCD_POWER_TYPE_GPIO:
 			index = power_step[i].index;
 			lcd_cpu_gpio_set(pdrv, index, power_step[i].value);
-			break;
-		case LCD_POWER_TYPE_PMU:
-			LCDPR("to do\n");
 			break;
 		case LCD_POWER_TYPE_SIGNAL:
 			local_time[0] = sched_clock();
@@ -519,6 +530,7 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 #endif
 		case LCD_POWER_TYPE_WAIT_GPIO:
 			index = power_step[i].index;
+			delay = 0;
 			lcd_cpu_gpio_set(pdrv, index, LCD_GPIO_INPUT);
 			LCDPR("[%d]: lcd_power_type_wait_gpio wait\n", pdrv->index);
 			for (wait = 0; wait < power_step[i].delay; wait++) {
@@ -536,6 +548,7 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 			}
 			break;
 		case LCD_POWER_TYPE_CLK_SS:
+			delay = 0;
 			break;
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
 		case LCD_POWER_TYPE_BACKLIGHT:
@@ -551,12 +564,15 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 			else
 				lcd_power_screen_restore(pdrv);
 			break;
+		case LCD_POWER_TYPE_OFF_DELAY:
+			pdrv->config.power.off_time = sched_clock();
+			delay = 0;
+			break;
 		default:
 			break;
 		}
-		if (power_step[i].type != LCD_POWER_TYPE_WAIT_GPIO &&
-		    power_step[i].delay > 0)
-			lcd_delay_ms(power_step[i].delay);
+		if (delay)
+			lcd_delay_ms(delay);
 		i++;
 	}
 
@@ -975,12 +991,14 @@ void lcd_power_screen_black(struct aml_lcd_drv_s *pdrv)
 		pdrv->mute_wait_cnt = pdrv->mute_cnt;
 	pdrv->mute_switch = 1;
 	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
-	LCDPR("[%d]: %s: mute_wait_cnt: %d, mute_cnt: %d\n",
-		pdrv->index, __func__, pdrv->mute_wait_cnt, pdrv->mute_cnt);
-	//wait for mute apply
-	ret = wait_for_completion_timeout(&pdrv->vsync_done, msecs_to_jiffies(500));
-	if (!ret)
-		LCDERR("[%d]: %s: wait_completion timeout\n", pdrv->index, __func__);
+	if (pdrv->enter_shutdown == 0) {
+		LCDPR("[%d]: %s: mute_wait_cnt: %d, mute_cnt: %d\n",
+			pdrv->index, __func__, pdrv->mute_wait_cnt, pdrv->mute_cnt);
+		//wait for mute apply
+		ret = wait_for_completion_timeout(&pdrv->vsync_done, msecs_to_jiffies(500));
+		if (!ret)
+			LCDERR("[%d]: %s: wait_completion timeout\n", pdrv->index, __func__);
+	}
 
 	local_time[1] = sched_clock();
 	pdrv->proc_time.mute_time = local_time[1] - local_time[0];
@@ -2889,10 +2907,12 @@ static void lcd_shutdown(struct platform_device *pdev)
 		LCDPR("lcd_debug_print: %s\n", __func__);
 
 	pdrv->init_flag = 0;
+	pdrv->enter_shutdown = 1;
 	if (pdrv->status & LCD_STATUS_ENCL_ON) {
 		pdrv->status &= ~(LCD_STATE_PREPARE | LCD_STATE_POWER);
 		aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)pdrv);
 	}
+	pdrv->enter_shutdown = 0;
 }
 
 static struct platform_driver lcd_platform_driver = {

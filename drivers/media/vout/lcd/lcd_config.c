@@ -626,6 +626,9 @@ static int lcd_power_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_nod
 			case LCD_POWER_TYPE_MUTE:
 				append_more = 0;
 				break;
+			case LCD_POWER_TYPE_OFF_DELAY:
+				pdrv->config.power.power_off_delay = pstep[i].delay;
+				break;
 			default:
 				break;
 			}
@@ -1850,6 +1853,9 @@ static int lcd_panel_parse_power(struct json_parse_s *jsp, struct aml_lcd_drv_s 
 		case LCD_POWER_TYPE_MUTE:
 			pdrv->mute_cnt = step[i].value;
 			break;
+		case LCD_POWER_TYPE_OFF_DELAY:
+			pdrv->config.power.power_off_delay = step[i].delay;
+			break;
 		default:
 			break;
 		}
@@ -2223,6 +2229,9 @@ static int lcd_power_load_from_ini(struct aml_lcd_drv_s *pdrv, void *inip, void 
 			case LCD_POWER_TYPE_BACKLIGHT:
 			case LCD_POWER_TYPE_MUTE:
 				append_more = 0;
+				break;
+			case LCD_POWER_TYPE_OFF_DELAY:
+				pdrv->config.power.power_off_delay = pstep[i].delay;
 				break;
 			default:
 				break;
