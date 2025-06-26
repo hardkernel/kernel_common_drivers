@@ -2094,7 +2094,7 @@ render_exit:
 				if (debug_flag & DEBUG_FLAG_AI_FACE) {
 					pr_info("vd1:frame_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d.\n",
 						vd_layer[1].dispbuf->frame_index,
-						k,
+						l,
 						ai_face_value.face_value[l].x,
 						ai_face_value.face_value[l].y,
 						ai_face_value.face_value[l].w,

@@ -1309,31 +1309,31 @@ static int parse_para(const char *para, int para_num, int *result)
 		return 0;
 
 	params = kstrdup(para, GFP_KERNEL);
-	if (!params)
-		return 0;
 	params_base = params;
 	token = params;
-	if (!token)
-		goto exit;
-	len = strlen(token);
-	do {
-		token = strsep(&params, " ");
-		while (token && (isspace(*token) ||
-				 !isgraph(*token)) && len) {
-			token++;
-			len--;
-		}
-		if (len == 0 || !token)
-			break;
-		ret = kstrtoint(token, 0, &res);
-		if (ret < 0)
-			break;
+	if (token) {
 		len = strlen(token);
-		*out++ = res;
-		count++;
-	} while ((token) && (count < para_num) && (len > 0));
+		do {
+			token = strsep(&params, " ");
+			if (!token)
+				break;
+			while (token &&
+			       (isspace(*token) ||
+				!isgraph(*token)) && len) {
+				token++;
+				len--;
+			}
+			if (len == 0)
+				break;
+			ret = kstrtoint(token, 0, &res);
+			if (ret < 0)
+				break;
+			len = strlen(token);
+			*out++ = res;
+			count++;
+		} while ((count < para_num) && (len > 0));
+	}
 
-exit:
 	kfree(params_base);
 	return count;
 }

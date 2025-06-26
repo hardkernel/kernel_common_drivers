@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/video_sink/vpp.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -2884,6 +2871,7 @@ RESTART:
 	if ((next_frame_par->vscale_skip_count < MAX_VSKIP_COUNT ||
 	     (!next_frame_par->hscale_skip_count && !is_comb_mode)) &&
 	    (!(vpp_flags & VPP_FLAG_VSCALE_DISABLE))) {
+	    /*coverity[INTEGER_OVERFLOW]*/
 		if (cur_dev->frm2fld_support && id == 0)
 			screen_h = vinfo_height;
 		else

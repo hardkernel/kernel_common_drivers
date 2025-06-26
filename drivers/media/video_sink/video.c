@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/video_sink/video.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/version.h>
@@ -4178,7 +4165,7 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 						dv_new_vf =
 						dv_toggle_frame(vf, VD1_PATH, true);
 					if (hold_video) {
-						/*coverity[Event value_over_write]*/
+						/*coverity[UNUSED_VALUE]*/
 						dv_new_vf = NULL;
 					}
 #endif
@@ -4838,13 +4825,19 @@ static ssize_t pts_enforce_pulldown_write_file(struct file *file,
 	if (copy_from_user(buf, userbuf, count))
 		return -EFAULT;
 	buf[count] = 0;
-	ret = kstrtouint(buf, 0, &write_val);
-	if (ret != 0)
-		return -EINVAL;
-	pr_info("pts_enforce_pulldown: %d->%d\n",
-		pts_enforce_pulldown, write_val);
-	pts_enforce_pulldown = write_val;
-	return count;
+	if (!strnchr(buf, count, '\n') && !strnchr(buf, count, '\r')) {
+		ret = kstrtouint(buf, 0, &write_val);
+		if (ret != 0)
+			return -EINVAL;
+
+		pr_info("pts_enforce_pulldown: %d->%d\n",
+			pts_enforce_pulldown, write_val);
+		pts_enforce_pulldown = write_val;
+
+		return count;
+	}
+
+	return -EINVAL;
 }
 
 static ssize_t dump_reg_write(struct file *file, const char __user *userbuf,
@@ -6878,7 +6871,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		}
 
 	case AMSTREAM_IOC_SET_TUNNEL_MODE: {
-		u32 tunnelmode = 0;
+		int tunnelmode = 0;
 
 		if (copy_from_user(&tunnelmode, argp, sizeof(u32)) == 0)
 			tsync_set_tunnel_mode(tunnelmode);
@@ -6996,7 +6989,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 	case AMSTREAM_IOC_SET_AISR_EN:
 		{
-			u32 val;
+			int val = 0;
 
 			if (copy_from_user(&val, argp, sizeof(u32)) == 0)
 				set_aisr_en(val);
@@ -11911,6 +11904,7 @@ static ssize_t pre_hscaler_ntap_set_store
 		if (parsed[0] < MAX_VD_LAYER)
 			layer_id = parsed[0];
 		/* check valid */
+		/*coverity[INTEGER_OVERFLOW]*/
 		if (has_pre_hscaler_8tap(layer_id)) {
 			/* only support 2,4,6,8 tap */
 			if (parsed[1] > 8) {
@@ -12003,6 +11997,7 @@ static ssize_t pre_vscaler_ntap_set_store
 	if (likely(parse_para(buf, 2, parsed) == 2)) {
 		if (parsed[0] < MAX_VD_LAYER)
 			layer_id = parsed[0];
+		/*coverity[INTEGER_OVERFLOW]*/
 		if (has_pre_vscaler_ntap(layer_id)) {
 			/* only support 2,4 tap */
 			if (parsed[1] > 4) {

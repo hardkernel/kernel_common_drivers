@@ -262,6 +262,7 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	default:
 		pr_info("wrong layer_id:%d, vd_path_id:%d\n",
 			layer_id, vd_path_id);
+		return IRQ_NONE;
 	}
 	if (cur_vd_path_id == 0xff)
 		cur_vd_path_id = vd_path_id;
