@@ -5025,16 +5025,6 @@ static int hdmitx20_hw_cntl_hdcp(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		return hdmitx_hdcp_opr(0xa);
 	case HDCP_22_LSTORE:
 		return hdmitx_hdcp_opr(0xb);
-	case HDCP_22_PRIVATE_KEY_RDY:
-		/*
-		 * check hdcp_tx22 daemon running state for linux.
-		 * for android platform, always treat it as ready
-		 */
-		if (hdev->tx_comm.hdcptx_comm.hdcp_ctl_lvl > 0 &&
-			!drm_hdcp_tx22_daemon_ready(&hdev->tx_comm))
-			return 0;
-		else
-			return 1;
 	case HDCP22_GET_RX_VER:
 		return hdcp_rd_hdcp22_ver();
 	case HDCP14_GET_TOPO_INFO:

@@ -244,20 +244,10 @@ EXPORT_SYMBOL(drm_hdmitx_common_hdcp_disconnect);
 /* bit1: hdcp22, bit0: hdcp1.4 */
 unsigned int drm_hdmitx_common_get_tx_hdcp_cap(struct hdmitx_common *tx_comm)
 {
-	unsigned int hdcptx_cap = 0;
-
-	if (!tx_comm) {
-		HDMITX_ERROR("%s NULL tx_comm instance!\n", __func__);
+	if (tx_comm && tx_comm->hdcptx_comm.get_tx_hdcp_cap)
+		return tx_comm->hdcptx_comm.get_tx_hdcp_cap(tx_comm);
+	else
 		return 0;
-	}
-	/* check hdcp key load status */
-	hdcptx_cap = hdcptx_get_key_store(tx_comm);
-	/* check additional private hdcp daemon status */
-	if (!hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_22_PRIVATE_KEY_RDY, NULL, NULL))
-		hdcptx_cap &= HDCP_MODE14;
-
-	HDMITX_DEBUG("%s tx hdcp [%d]\n", __func__, hdcptx_cap);
-	return hdcptx_cap;
 }
 EXPORT_SYMBOL(drm_hdmitx_common_get_tx_hdcp_cap);
 

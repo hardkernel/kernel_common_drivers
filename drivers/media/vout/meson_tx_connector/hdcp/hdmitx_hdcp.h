@@ -278,5 +278,6 @@ bool hdcptx_ddc_check_busy(void);
 /* hdcp clk gate related */
 void hdmitx21_ctrl_hdcp_gate(enum amhdmitx_chip_e chip_type, int hdcp_mode, bool en);
 u32 hdmitx21_get_gate_status(void);
+unsigned int hdcptx_get_key_store(struct hdmitx_common *tx_comm);
 
 #endif /* __HDMI_HDCP_H__ */

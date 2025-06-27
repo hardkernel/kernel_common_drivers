@@ -67,8 +67,6 @@
 #define HDCP22_GET_RX_VER		(CMD_HDCP_OFFSET + 0x0a)
 #define HDCP_REQ_AUTH			(CMD_HDCP_OFFSET + 0x0b)
 #define HDCP14_KEY_VALIDATE		(CMD_HDCP_OFFSET + 0x0c)
-/* for hdcp_tx22 ready check on linux platform */
-#define HDCP_22_PRIVATE_KEY_RDY	(CMD_HDCP_OFFSET + 0x0d)
 #define HDCP_MUX_INIT			(CMD_HDCP_OFFSET + 0x0e)
 #define HDCP_14_LSTORE			(CMD_HDCP_OFFSET + 0x0f)
 #define HDCP_22_LSTORE			(CMD_HDCP_OFFSET + 0x10)

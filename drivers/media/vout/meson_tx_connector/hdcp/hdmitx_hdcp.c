@@ -2269,6 +2269,20 @@ static int hdmitx21_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int l
 	return pos;
 }
 
+static int hdmitx21_get_tx_hdcp_cap(struct hdmitx_common *tx_comm)
+{
+	unsigned int hdcptx_cap = 0;
+
+	if (!tx_comm) {
+		HDMITX_ERROR("%s NULL tx_comm instance\n", __func__);
+		return 0;
+	}
+
+	/* check hdcp key load status */
+	hdcptx_cap = hdcptx_get_key_store(tx_comm);
+	return hdcptx_cap;
+}
+
 /*************DRM connector API**************/
 void drm_hdmitx_start_hdcp_handler(struct work_struct *work)
 {
@@ -2474,6 +2488,7 @@ static void hdcptx_21_ctrl_ops_init(struct hdcptx_common *hdcptx_comm)
 
 	hdcptx_comm->set_hdcp_mode = hdmitx21_set_hdcp_mode;
 	hdcptx_comm->get_hdcp_ver = hdmitx21_get_hdcp_ver;
+	hdcptx_comm->get_tx_hdcp_cap = hdmitx21_get_tx_hdcp_cap;
 }
 
 static int hdcp_communicate_open(struct inode *inode, struct file *file)

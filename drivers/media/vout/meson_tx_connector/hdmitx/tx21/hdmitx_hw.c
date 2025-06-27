@@ -4250,9 +4250,6 @@ static int hdmitx21_hw_cntl_hdcp(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		return get_hdcp1_lstore(&hdev->tx_comm);
 	case HDCP_22_LSTORE:
 		return get_hdcp2_lstore(&hdev->tx_comm);
-	case HDCP_22_PRIVATE_KEY_RDY:
-		/* no additional hdcp_tx22 need for hdmitx21, always treat it as ready */
-		return 1;
 	case HDCP22_GET_RX_VER:
 		return is_rx_hdcp2ver();
 	case HDCP_GET_AUTH_RESULT:

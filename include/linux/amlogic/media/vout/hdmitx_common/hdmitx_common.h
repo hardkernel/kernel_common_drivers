@@ -87,6 +87,7 @@ struct hdcptx_common {
 	/* diff hw20/hw21, for sysfs operation */
 	void (*set_hdcp_mode)(struct hdmitx_common *tx_comm, const char *buf);
 	int (*get_hdcp_ver)(struct hdmitx_common *tx_comm, char *buf, int len);
+	int (*get_tx_hdcp_cap)(struct hdmitx_common *tx_comm);
 
 	/* diff hw20/hw21, for linux/drm control */
 	void (*drm_hdcp_init)(struct hdmitx_common *tx_comm);
