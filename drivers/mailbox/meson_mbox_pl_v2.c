@@ -21,6 +21,7 @@
 #include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/of_device.h>
+#include <linux/kthread.h>
 #include <linux/amlogic/aml_mbox.h>
 #include <dt-bindings/mailbox/t5w-mbox.h>
 #include <dt-bindings/mailbox/t5d-mbox.h>
@@ -241,7 +242,7 @@ static int mbox_chk_valid_drv_id(int drvid)
 
 static int mbox_rx_msg_submit(struct device *dev)
 {
-	struct aml_mbox_wq_rx_packet *rx_packet;
+	struct aml_mbox_rx_packet *rx_packet;
 	struct aml_mbox_rx_data mbox_rx_data;
 	struct mbox_chan *mbox_chan;
 	struct mbox_controller *mbox_ctrl;
@@ -285,35 +286,38 @@ static int mbox_rx_msg_submit(struct device *dev)
 		return -EINVAL;
 	}
 
-	dev_dbg(dev, "%s: send chan_id %d msg to client driver\n",
-			__func__, chan_id);
+	dev_dbg(dev, "%s: send chan_id %d, cmd 0x%x to client driver\n",
+			__func__, chan_id, mbox_rx_data.cmd);
 	mbox_chan = &mbox_ctrl->chans[chan_id];
 	/* transfer data to client driver */
 	mbox_chan_received_data(mbox_chan, &mbox_rx_data);
+	dev_dbg(dev, "%s: chan_id %d, cmd 0x%x callback done\n",
+			__func__, chan_id, mbox_rx_data.cmd);
 
 	return 0;
 }
 
-static void mbox_rx_work_handler(struct work_struct *work)
+static int mbox_rx_process(void *data)
 {
-	struct aml_mbox_rx_work *rx_work = container_of(work,
-			struct aml_mbox_rx_work, work);
-	struct device *dev = rx_work->dev;
-	struct aml_priv_data *mbox_priv_data;
-	struct aml_mbox_rx_msg *mbox_rx_msg;
-	int ret = 0;
+	struct device *dev = (struct device *)data;
+	struct aml_priv_data *mbox_priv_data = dev_get_drvdata(dev);
+	struct aml_mbox_rx_msg *mbox_rx_msg = mbox_priv_data->rx_msg;
 
-	mbox_priv_data = dev_get_drvdata(dev);
-	mbox_rx_msg = mbox_priv_data->rx_msg;
+	while (!kthread_should_stop()) {
+		if (down_interruptible(&mbox_rx_msg->sem))
+			continue;
 
-	while (ret != -ENODATA)
-		ret = mbox_rx_msg_submit(dev);
+		while (mbox_rx_msg_submit(dev) != -ENODATA)
+			;
+	}
+
+	return 0;
 }
 
 static int mbox_add_rx_buf(struct device *dev, int chan_id,
 		struct aml_mbox_data *aml_data)
 {
-	struct aml_mbox_wq_rx_packet *rx_packet;
+	struct aml_mbox_rx_packet *rx_packet;
 	struct aml_priv_data *mbox_priv_data;
 	struct aml_mbox_rx_msg *mbox_rx_msg;
 	unsigned int idx;
@@ -350,14 +354,14 @@ static int mbox_add_rx_buf(struct device *dev, int chan_id,
 	return idx;
 }
 
-static void mbox_add_rx_work_queue(struct device *dev, int drv_id,
+static void mbox_add_rx_queue(struct device *dev, int drv_id,
 		struct aml_mbox_data *aml_data)
 {
 	struct aml_priv_data *mbox_priv_data;
 	struct aml_mbox_rx_msg *mbox_rx_msg;
 	struct mbox_controller *mbox_ctrl;
 	int chan_id;
-	int ret;
+	int msg_idx;
 
 	if (mbox_chk_valid_drv_id(drv_id)) {
 		dev_err(dev, "Invalid driver ID!\n");
@@ -374,12 +378,14 @@ static void mbox_add_rx_work_queue(struct device *dev, int drv_id,
 		mbox_rx_msg = mbox_priv_data->rx_msg;
 		dev_dbg(dev, "%s: add chan_id %d msg to buffer\n",
 				__func__, chan_id);
-		ret = mbox_add_rx_buf(dev, chan_id, aml_data);
-		if (ret < 0) {
+		msg_idx = mbox_add_rx_buf(dev, chan_id, aml_data);
+		if (msg_idx < 0) {
 			dev_err(dev, "Try increasing mailbox rx queue length\n");
 			return;
+		} else {
+			/* Wake up rx thread to process mssg */
+			up(&mbox_rx_msg->sem);
 		}
-		queue_work(mbox_rx_msg->wq, &mbox_rx_msg->work_items.work);
 	} else {
 		dev_err(dev, "%s: error: chan_id %d invalid!\n", __func__, chan_id);
 	}
@@ -400,7 +406,6 @@ static irqreturn_t mbox_irq_handler(int irq, void *p)
 	mbox_stat.set_cmd = readl(aml_chan->mbox_fsts_addr);
 	dev_dbg(dev, "%s: received cmd 0x%x\n", __func__, mbox_stat.set_cmd);
 	if (mbox_stat.set_cmd) {
-		aml_data.cmd = mbox_cmd->cmd;
 		if (mbox_cmd->size >= MBOX_HEAD_SIZE) {
 			aml_data.cmd = mbox_cmd->cmd;
 			if (mbox_cmd->size > (MBOX_DATA_SIZE + MBOX_HEAD_SIZE))
@@ -418,7 +423,7 @@ static irqreturn_t mbox_irq_handler(int irq, void *p)
 			}
 
 			drv_id = mbox_header->status;
-			mbox_add_rx_work_queue(dev, drv_id, &aml_data);
+			mbox_add_rx_queue(dev, drv_id, &aml_data);
 		}
 	}
 mbox_irq_handler_done:
@@ -511,11 +516,13 @@ static int mbox_pl_parse_dt(struct platform_device *pdev, struct aml_chan_priv *
 				err, MBOX_RX_QUEUE_LEN_DEFAULT);
 		rx_queue_len = MBOX_RX_QUEUE_LEN_DEFAULT;
 	} else {
-		if (rx_queue_len <= 1 || rx_queue_len >= 50) {
-			dev_err(dev, "rx queue length should be: 1 < length < 50\n");
+		if (rx_queue_len < 1 || rx_queue_len > 100) {
+			dev_err(dev, "rx queue length should be: 1 < length <= 100\n");
 			dev_err(dev, "set to default length %d\n", MBOX_RX_QUEUE_LEN_DEFAULT);
+			rx_queue_len = MBOX_RX_QUEUE_LEN_DEFAULT;
 		}
 	}
+	dev_dbg(dev, "rx queue length is %d\n", rx_queue_len);
 	priv->mbox_rx_queue_len = rx_queue_len;
 	return 0;
 }
@@ -593,7 +600,7 @@ static int mbox_pl_probe(struct platform_device *pdev)
 	if (IS_ERR(mbox_rx_msg))
 		return PTR_ERR(mbox_rx_msg);
 
-	rx_pkt_size = sizeof(struct aml_mbox_wq_rx_packet);
+	rx_pkt_size = sizeof(struct aml_mbox_rx_packet);
 	mbox_rx_msg->msg_data = devm_kzalloc(dev,
 			rx_pkt_size * rx_queue_len, GFP_KERNEL);
 	if (IS_ERR(mbox_rx_msg->msg_data))
@@ -602,10 +609,13 @@ static int mbox_pl_probe(struct platform_device *pdev)
 	mbox_rx_msg->msg_free = 0;
 	mbox_rx_msg->rx_queue_len = rx_queue_len;
 	spin_lock_init(&mbox_rx_msg->lock);
-	mbox_rx_msg->wq = alloc_workqueue("mbox_wq",
-			WQ_MEM_RECLAIM | WQ_HIGHPRI, MAX_ACTIVE_WORK);
-	mbox_rx_msg->work_items.dev = dev;
-	INIT_WORK(&mbox_rx_msg->work_items.work, mbox_rx_work_handler);
+	sema_init(&mbox_rx_msg->sem, 0);
+	mbox_rx_msg->thread =
+		kthread_run(mbox_rx_process, dev, "mbox_rx_thread");
+	if (IS_ERR_OR_NULL(mbox_rx_msg->thread)) {
+		dev_err(dev, "Failed to create rx thread\n");
+		return PTR_ERR(mbox_rx_msg->thread);
+	}
 	mbox_priv_data->rx_msg = mbox_rx_msg;
 
 	platform_set_drvdata(pdev, mbox_priv_data);
@@ -648,8 +658,11 @@ static void mbox_pl_remove(struct platform_device *pdev)
 
 	mbox_priv_data = platform_get_drvdata(pdev);
 	mbox_rx_msg = mbox_priv_data->rx_msg;
-	flush_workqueue(mbox_rx_msg->wq);
-	destroy_workqueue(mbox_rx_msg->wq);
+
+	if (mbox_rx_msg->thread) {
+		up(&mbox_rx_msg->sem);
+		kthread_stop(mbox_rx_msg->thread);
+	}
 	platform_set_drvdata(pdev, NULL);
 }
 
