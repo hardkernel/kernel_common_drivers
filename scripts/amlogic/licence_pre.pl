@@ -42,8 +42,20 @@ $out = 0;
 $result_0 = `$pl --nofix $flist`;
 if($result_0 =~/$match/)
 {
+	$flist="";
 	$out =1;
 	print $result_0;
+
+	my @license_files;
+	while ($result_0 =~ /Licence_WARN:\s*<([^>]+)>/g) {
+		push @license_files, $1;
+	}
+
+	foreach my $file (@license_files) {
+		#print "- $file\n";
+		$flist.=" $file";
+	}
+
 	print "\n  Licence Check Warning, For amlogic drivers only, it is recommended to ignore third-party code\n";
 	print "\n  please try to fix:\n  $pl $flist\n\n"
 }
