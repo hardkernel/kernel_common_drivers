@@ -485,8 +485,12 @@ static struct vframe_s *pipx_toggle_frame(u8 path_index, struct vframe_s *vf)
 	if (cur_dispbuf[i] != vf)
 		vf->type_backup = vf->type;
 
-	if (first_picture && (debug_flag & DEBUG_FLAG_PRINT_TOGGLE_FRAME))
-		pr_info("%s pip%d (%p)\n", __func__, i - 1, vf);
+	if (first_picture) {
+		pip_first_frame_toggled = 1;
+		if (debug_flag & DEBUG_FLAG_PRINT_TOGGLE_FRAME)
+			pr_info("%s pip%d (%p)\n", __func__, i - 1, vf);
+	}
+
 	cur_dispbuf[i] = vf;
 	return cur_dispbuf[i];
 }
@@ -6200,6 +6204,7 @@ static void pipx_vf_unreg_provider(u8 path_index)
 	int i;
 #endif
 
+	pip_first_frame_toggled = 0;
 	atomic_inc(&video_unreg_flag);
 	while (atomic_read(&video_inirq_flag) > 0)
 		schedule();

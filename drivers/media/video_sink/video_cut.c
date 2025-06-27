@@ -303,6 +303,7 @@ static u32 rgb_screen;
 static u32 last_frame_count;
 static u32 frame_count;
 static u32 first_frame_toggled;
+u32 pip_first_frame_toggled;
 static u32 last_frame_time;
 
 /* video freerun mode */
@@ -3908,6 +3909,33 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	void __user *argp = (void __user *)arg;
 	struct disp_info_s *layer = &glayer_info[0];
 	u32 layer_id;
+	int val = 0;
+
+	switch (cmd) {
+	case AMSTREAM_IOC_TRICKMODE:
+	case AMSTREAM_IOC_VPAUSE:
+	case AMSTREAM_IOC_AVTHRESH:
+	case AMSTREAM_IOC_SYNCTHRESH:
+	case AMSTREAM_IOC_SYNCENABLE:
+	case AMSTREAM_IOC_SET_SYNC_ADISCON:
+	case AMSTREAM_IOC_SET_SYNC_VDISCON:
+	case AMSTREAM_IOC_SET_SYNC_ADISCON_DIFF:
+	case AMSTREAM_IOC_SET_SYNC_VDISCON_DIFF:
+	case AMSTREAM_IOC_SET_VIDEO_DISCONTINUE_REPORT:
+	case AMSTREAM_IOC_SET_FREERUN_MODE:
+	case AMSTREAM_IOC_DISABLE_SLOW_SYNC:
+	case AMSTREAM_IOC_SET_3D_TYPE:
+	case AMSTREAM_IOC_SET_VSYNC_UPINT:
+	case AMSTREAM_IOC_SET_VSYNC_SLOW_FACTOR:
+	case AMSTREAM_IOC_GLOBAL_SET_VIDEOPIP_OUTPUT:
+	case AMSTREAM_IOC_GLOBAL_SET_VIDEOPIP2_OUTPUT:
+	case AMSTREAM_IOC_GLOBAL_SET_VIDEO_OUTPUT:
+		if (get_user(val, (int __user *)argp))
+			return -EFAULT;
+		break;
+	default:
+		break;
+	}
 
 	switch (cmd) {
 	case AMSTREAM_IOC_GLOBAL_SET_VIDEOPIP_OUTPUT:
@@ -3950,9 +3978,9 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_TRICKMODE:
-		if (arg == TRICKMODE_I) {
+		if (val == TRICKMODE_I) {
 			trickmode_i = 1;
-		} else if (arg == TRICKMODE_FFFB) {
+		} else if (val == TRICKMODE_FFFB) {
 			trickmode_fffb = 1;
 		} else {
 			trickmode_i = 0;
@@ -3973,27 +4001,27 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_VPAUSE:
-		tsync_avevent(VIDEO_PAUSE, arg);
+		tsync_avevent(VIDEO_PAUSE, val);
 		break;
 
 	case AMSTREAM_IOC_AVTHRESH:
-		tsync_set_avthresh(arg);
+		tsync_set_avthresh(val);
 		break;
 
 	case AMSTREAM_IOC_SYNCTHRESH:
-		tsync_set_syncthresh(arg);
+		tsync_set_syncthresh(val);
 		break;
 
 	case AMSTREAM_IOC_SYNCENABLE:
-		tsync_set_enable(arg);
+		tsync_set_enable(val);
 		break;
 
 	case AMSTREAM_IOC_SET_SYNC_ADISCON:
-		tsync_set_sync_adiscont(arg);
+		tsync_set_sync_adiscont(val);
 		break;
 
 	case AMSTREAM_IOC_SET_SYNC_VDISCON:
-		tsync_set_sync_vdiscont(arg);
+		tsync_set_sync_vdiscont(val);
 		break;
 
 	case AMSTREAM_IOC_GET_SYNC_ADISCON:
@@ -4013,11 +4041,11 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_SET_SYNC_ADISCON_DIFF:
-		tsync_set_sync_adiscont_diff(arg);
+		tsync_set_sync_adiscont_diff(val);
 		break;
 
 	case AMSTREAM_IOC_SET_SYNC_VDISCON_DIFF:
-		tsync_set_sync_vdiscont_diff(arg);
+		tsync_set_sync_vdiscont_diff(val);
 		break;
 
 	case AMSTREAM_IOC_VF_STATUS:{
@@ -4075,7 +4103,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_SET_VIDEO_DISCONTINUE_REPORT:
-		enable_video_discontinue_report = (arg == 0) ? 0 : 1;
+		enable_video_discontinue_report = (val == 0) ? 0 : 1;
 		break;
 
 	case AMSTREAM_IOC_GET_VIDEOPIP_AXIS:
@@ -4236,10 +4264,10 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_SET_FREERUN_MODE:
-		if (arg > FREERUN_DUR)
+		if (val > FREERUN_DUR)
 			ret = -EFAULT;
 		else
-			freerun_mode = arg;
+			freerun_mode = val;
 		break;
 
 	case AMSTREAM_IOC_GET_FREERUN_MODE:
@@ -4247,7 +4275,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_DISABLE_SLOW_SYNC:
-		if (arg)
+		if (val)
 			disable_slow_sync = 1;
 		else
 			disable_slow_sync = 0;
@@ -4270,7 +4298,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_GET_SOURCE_VIDEO_3D_TYPE:
 		break;
 	case AMSTREAM_IOC_SET_VSYNC_UPINT:
-		vsync_pts_inc_upint = arg;
+		vsync_pts_inc_upint = val;
 		break;
 
 	case AMSTREAM_IOC_GET_VSYNC_SLOW_FACTOR:
@@ -4278,13 +4306,13 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_SET_VSYNC_SLOW_FACTOR:
-		vsync_slow_factor = arg;
+		vsync_slow_factor = val;
 		break;
 
 	case AMSTREAM_IOC_GLOBAL_SET_VIDEOPIP_OUTPUT:
 	case AMSTREAM_IOC_GLOBAL_SET_VIDEOPIP2_OUTPUT:
 	case AMSTREAM_IOC_GLOBAL_SET_VIDEO_OUTPUT:
-		video_set_global_output(layer->layer_id, arg ? 1 : 0);
+		video_set_global_output(layer->layer_id, val ? 1 : 0);
 		break;
 
 	case AMSTREAM_IOC_GLOBAL_GET_VIDEOPIP_OUTPUT:
