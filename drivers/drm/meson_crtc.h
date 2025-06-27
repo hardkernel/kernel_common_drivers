@@ -67,10 +67,6 @@ struct am_meson_crtc_state {
 	bool dv_mode;
 	/*hdr core enabled, always on if soc support hdr.*/
 	bool crtc_hdr_enable;
-	/*eotf policy update by property*/
-	bool crtc_eotf_by_property_flag;
-	/*eotf value by property*/
-	u8 eotf_type_by_property;
 	/* force output by property */
 	u8 force_output_type;
 	/*crtc background*/
@@ -109,7 +105,6 @@ struct am_meson_crtc {
 	struct meson_vpu_pipeline *pipeline;
 
 	struct drm_property *hdr_policy;
-	struct drm_property *hdmi_eotf;
 	struct drm_property *dv_enable_property;
 	struct drm_property *brr_update_property;
 	struct drm_property *dv_mode_property;

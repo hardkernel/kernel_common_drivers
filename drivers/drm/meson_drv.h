@@ -156,7 +156,6 @@ struct meson_drm {
 	bool irq_enabled;
 	wait_queue_head_t wq_shut_ctrl;
 	bool shutdown_on;
-	bool compat_mode;
 	bool recovery_mode;
 	bool recovery_dst_ctrl;
 	u32 osd_occupied_index;

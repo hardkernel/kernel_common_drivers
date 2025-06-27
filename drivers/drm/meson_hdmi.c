@@ -1515,6 +1515,31 @@ void meson_hdmitx_update(struct drm_connector_state *new_state,
 		to_am_hdmitx_connector_state(old_state);
 	struct am_hdmitx_connector_state *new_hdmitx_state =
 		to_am_hdmitx_connector_state(new_state);
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc_state *new_crtc_state;
+	struct am_meson_crtc_state *old_am_crtc_state;
+	struct am_meson_crtc_state *meson_crtc_state;
+	struct drm_atomic_state *old_atomic_state = old_state->state;
+	struct drm_crtc *crtc = new_state->crtc;
+
+	if (crtc) {
+		old_crtc_state = drm_atomic_get_old_crtc_state(old_atomic_state, crtc);
+		old_am_crtc_state = to_am_meson_crtc_state(old_crtc_state);
+		new_crtc_state = drm_atomic_get_new_crtc_state(old_atomic_state, crtc);
+		meson_crtc_state = to_am_meson_crtc_state(new_crtc_state);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+		if (meson_crtc_state->crtc_hdr_process_policy !=
+			old_am_crtc_state->crtc_hdr_process_policy) {
+			set_hdr_policy(meson_crtc_state->crtc_hdr_process_policy);
+		}
+#endif
+
+		if (meson_crtc_state->force_output_type !=
+			old_am_crtc_state->force_output_type) {
+			set_force_output(meson_crtc_state->force_output_type);
+		}
+	}
 
 	if (new_state->content_type != old_state->content_type)
 		hdmitx_common_set_contenttype(tx_comm, new_state->content_type);
@@ -1774,10 +1799,7 @@ static int meson_hdmitx_decide_eotf_type
 			__func__, crtc_eotf_type);
 	}
 
-	if (!meson_crtc_state->crtc_eotf_by_property_flag)
-		meson_crtc_state->crtc_eotf_type = crtc_eotf_type;
-	else
-		meson_crtc_state->crtc_eotf_type = meson_crtc_state->eotf_type_by_property;
+	meson_crtc_state->crtc_eotf_type = crtc_eotf_type;
 
 	DRM_DEBUG_KMS("%s: [%u->%u]\n", __func__,
 		hdmitx_state->pref_hdr_policy,
@@ -2006,6 +2028,44 @@ int meson_encoder_vrr_change(struct drm_encoder *encoder,
 	return meson_crtc_state->seamless;
 }
 
+static void meson_hdmitx_encoder_pre_enable(struct am_meson_crtc_state *meson_crtc_state,
+	struct am_meson_crtc_state *old_am_crtc_state)
+{
+	int hdrpolicy = 0;
+
+	/* update follow source/follow sink to hdr/dv core.
+	 * drm didnot send hdmitx pkt, we just set policy to hdr core.
+	 */
+	if (meson_crtc_state->crtc_hdr_process_policy
+			== MESON_HDR_POLICY_FOLLOW_SOURCE ||
+		meson_crtc_state->crtc_hdr_process_policy
+			== MESON_HDR_POLICY_FOLLOW_SINK) {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	/*enable/disable dv*/
+		if (meson_crtc_state->crtc_dv_enable) {
+			if (meson_crtc_state->crtc_eotf_type
+					== HDMI_EOTF_MESON_DOLBYVISION_LL) {
+				set_amdv_ll_policy(1);
+			} else {
+				set_amdv_ll_policy(0);
+			}
+			set_amdv_enable(true);
+		}
+#endif
+
+		hdrpolicy = (meson_crtc_state->crtc_hdr_process_policy
+			== MESON_HDR_POLICY_FOLLOW_SINK) ? 0 : 1;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+		set_hdr_policy(hdrpolicy);
+#endif
+	}
+
+	if (meson_crtc_state->force_output_type !=
+		old_am_crtc_state->force_output_type) {
+		set_force_output(meson_crtc_state->force_output_type);
+	}
+}
+
 void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
@@ -2014,6 +2074,10 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct vrr_setting_info vrr_info;
 	struct am_meson_crtc_state *meson_crtc_state =
 		to_am_meson_crtc_state(encoder->crtc->state);
+	struct drm_crtc_state *old_crtc_state =
+		drm_atomic_get_old_crtc_state(state, encoder->crtc);
+	struct am_meson_crtc_state *old_am_crtc_state =
+		to_am_meson_crtc_state(old_crtc_state);
 	struct drm_connector_state *conn_state =
 		drm_atomic_get_new_connector_state(state, conn);
 	struct drm_connector_state *old_conn_state =
@@ -2035,6 +2099,9 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 		DRM_INFO("[%s] skip vmode[%d]\n", __func__, vmode);
 		return;
 	}
+
+	if (!am_hdmi->android_path)
+		meson_hdmitx_encoder_pre_enable(meson_crtc_state, old_am_crtc_state);
 
 	is_alter = meson_hdmitx_is_alter_mode(mode);
 	if (is_alter) {
@@ -2734,8 +2801,6 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_create_range_property(drm, am_hdmi);
 	meson_hdmitx_init_scan_info_property(drm, am_hdmi);
 
-	/*TODO:update compat_mode for drm driver, remove later.*/
-	priv->compat_mode = am_hdmi->android_path;
 	/* notifier phy addr to cec when boot
 	 * so that to not miss any hpd event
 	 */
