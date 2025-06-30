@@ -248,7 +248,7 @@
 		fe0_demod_code = <0x258c>;
 		//0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3, 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2
 		//not require in parallel mode
-		fe0_ts_mux_mode = <2>;
+		fe0_ts_mux_mode = <4>;
 		fe0_ts_clk = <112>; //10, 21, 25, 28, 42, 56, 84, 112 (MHz).
 		fe0_reset_value = <0>;
 		fe0_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
@@ -262,7 +262,7 @@
 		fe1_i2c_adap_id = <&i2c3>;
 		fe1_demod_i2c_addr = <0x50>;
 		fe1_demod_code = <0x258c>;
-		fe1_ts_mux_mode = <2>;
+		fe1_ts_mux_mode = <4>;
 		fe1_ts_clk = <112>;
 		fe1_reset_value = <0>;
 		fe1_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
@@ -276,28 +276,28 @@
 		fe2_i2c_adap_id = <&i2c3>;
 		fe2_demod_i2c_addr = <0x50>;
 		fe2_demod_code = <0x258c>;
-		fe2_ts_mux_mode = <2>;
+		fe2_ts_mux_mode = <4>;
 		fe2_ts_clk = <112>;
 		fe2_reset_value = <0>;
 		fe2_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
 		fe2_reset_dir = <0>; //0:out, 1:in
 		//fe2_ant_poweron_value = <0>;
 		//fe2_ant_power_gpio = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
-		fe2_ts = <0>; //select tsin port
+		fe2_ts = <1>; //select tsin port
 		fe2_ts_out_mode = <0>; //0: serial, 1: parallel.
 
 		fe3_demod = "MXL258C";
 		fe3_i2c_adap_id = <&i2c3>;
 		fe3_demod_i2c_addr = <0x50>;
 		fe3_demod_code = <0x258c>;
-		fe3_ts_mux_mode = <2>;
+		fe3_ts_mux_mode = <4>;
 		fe3_ts_clk = <112>;
 		fe3_reset_value = <0>;
 		fe3_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
 		fe3_reset_dir = <0>; //0:out, 1:in
 		//fe3_ant_poweron_value = <0>;
 		//fe3_ant_power_gpio = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
-		fe3_ts = <0>; //select tsin port
+		fe3_ts = <1>; //select tsin port
 		fe3_ts_out_mode = <0>; //0: serial, 1: parallel.
 
 		fe4_demod = "dummy";
@@ -323,9 +323,11 @@
 		ts0_invert = <0>;
 
 		ts1_sid = <0x11>;
-		ts1 = "parallel";
+		ts1 = "serial-4wire";
 		ts1_control = <0x0>;
 		ts1_invert = <0>;
+
+		tsinb = <0>;
 
 		ts2_sid = <0x12>;
 		ts2 = "parallel";
@@ -350,8 +352,9 @@
 
 		ts4_sid = <0x7>;
 
-		pinctrl-names = "s_ts0";
+		pinctrl-names = "s_ts0", "s_ts1";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
+		pinctrl-1 = <&dvb_s_ts1_pins>;
 	};
 
 	multi-di {
@@ -806,6 +809,15 @@
 				"tsin_a_valid",
 				"tsin_a_clk",
 				"tsin_a_d0";
+			function = "tsin";
+		};
+	};
+	dvb_s_ts1_pins: dvb_s_ts1_pins {
+		tsin_b {
+			groups = "tsin_b_sop_z10",
+				"tsin_b_valid_z11",
+				"tsin_b_clk_z7",
+				"tsin_b_d0_z12";
 			function = "tsin";
 		};
 	};
