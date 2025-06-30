@@ -24,6 +24,9 @@
 #include <linux/workqueue.h>
 #include <linux/mm.h>
 #include <linux/sched/clock.h>
+#ifdef CONFIG_PM
+#include <linux/pm.h>
+#endif
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -2838,10 +2841,13 @@ static void lcd_remove(struct platform_device *pdev)
 	LCDPR("[%d]: %s, init_state:0x%x\n", index, __func__, lcd_drv_init_state);
 }
 
-static int lcd_resume(struct platform_device *pdev)
+#ifdef CONFIG_PM
+static int lcd_resume(struct device *dev)
 {
-	struct aml_lcd_drv_s *pdrv = platform_get_drvdata(pdev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_lcd_drv_s *pdrv;
 
+	pdrv = platform_get_drvdata(pdev);
 	if (!pdrv)
 		return 0;
 
@@ -2861,10 +2867,12 @@ static int lcd_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static int lcd_suspend(struct platform_device *pdev, pm_message_t state)
+static int lcd_suspend(struct device *dev)
 {
-	struct aml_lcd_drv_s *pdrv = platform_get_drvdata(pdev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_lcd_drv_s *pdrv;
 
+	pdrv = platform_get_drvdata(pdev);
 	if (!pdrv)
 		return 0;
 
@@ -2882,6 +2890,72 @@ static int lcd_suspend(struct platform_device *pdev, pm_message_t state)
 	mutex_unlock(&lcd_power_mutex);
 	return 0;
 }
+
+static int lcd_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_lcd_drv_s *pdrv;
+
+	pdrv = platform_get_drvdata(pdev);
+	if (!pdrv)
+		return 0;
+
+	LCD_DBG(pdrv, "[%d]: %s: dummy callback, status=0x%x\n",
+		pdrv->index, __func__, pdrv->status);
+	return 0;
+}
+
+static int lcd_thaw(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_lcd_drv_s *pdrv;
+
+	pdrv = platform_get_drvdata(pdev);
+	if (!pdrv)
+		return 0;
+
+	LCD_DBG(pdrv, "[%d]: %s: dummy callback, status=0x%x\n",
+		pdrv->index, __func__, pdrv->status);
+	return 0;
+}
+
+static int lcd_poweroff(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_lcd_drv_s *pdrv;
+
+	pdrv = platform_get_drvdata(pdev);
+	if (!pdrv)
+		return 0;
+
+	LCD_DBG(pdrv, "[%d]: %s: dummy callback, status=0x%x\n",
+		pdrv->index, __func__, pdrv->status);
+	return 0;
+}
+
+static int lcd_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_lcd_drv_s *pdrv;
+
+	pdrv = platform_get_drvdata(pdev);
+	if (!pdrv)
+		return 0;
+
+	LCD_DBG(pdrv, "[%d]: %s: dummy callback, status=0x%x\n",
+		pdrv->index, __func__, pdrv->status);
+	return 0;
+}
+
+static const struct dev_pm_ops lcd_pm = {
+	.suspend  = lcd_suspend,
+	.resume   = lcd_resume,
+	.freeze   = lcd_freeze,
+	.thaw     = lcd_thaw,
+	.poweroff = lcd_poweroff,
+	.restore  = lcd_restore,
+};
+#endif
 
 static void lcd_shutdown(struct platform_device *pdev)
 {
@@ -2904,12 +2978,13 @@ static void lcd_shutdown(struct platform_device *pdev)
 static struct platform_driver lcd_platform_driver = {
 	.probe = lcd_probe,
 	.remove = lcd_remove,
-	.suspend = lcd_suspend,
-	.resume = lcd_resume,
 	.shutdown = lcd_shutdown,
 	.driver = {
 		.name = "mesonlcd",
 		.owner = THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm = &lcd_pm,
+#endif
 #ifdef CONFIG_OF
 		.of_match_table = of_match_ptr(lcd_dt_match_table),
 #endif
