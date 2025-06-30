@@ -571,6 +571,7 @@ static int host_resume(struct device *dev)
 {
 	struct host_module *host = dev_get_drvdata(dev);
 	char message[30];
+	int ret = 0;
 
 	if (pm_runtime_suspended(dev))
 		return 0;
@@ -597,8 +598,13 @@ static int host_resume(struct device *dev)
 				       message,
 				       sizeof(message),
 				       MBOX_SYNC);
-	} else if (!host->host_dsp->pm_support_always_on)
-		clk_prepare_enable(host->clk);
+	} else if (!host->host_dsp->pm_support_always_on) {
+		ret = clk_prepare_enable(host->clk);
+		if (ret < 0) {
+			dev_err(dev, "Can not enable clock\n");
+			return ret;
+		}
+	}
 
 	return 0;
 }
