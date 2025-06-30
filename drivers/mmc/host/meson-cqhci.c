@@ -209,7 +209,7 @@ int amlogic_add_host(struct meson_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
 	struct cqhci_host *cq_host;
-	bool dma64;
+	bool dma64 = false;
 	int ret;
 
 	if (!aml_card_type_mmc(host) ||
@@ -236,10 +236,11 @@ int amlogic_add_host(struct meson_host *host)
 		meson_crypto_init(cq_host);
 	}
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	dma64 = host->flags & AML_CQE_64BIT_DMA;
 	if (dma64)
 		cq_host->caps |= CQHCI_TASK_DESC_SZ_128;
-
+#endif
 	ret = cqhci_init(cq_host, host->mmc, dma64);
 	if (ret)
 		return ret;

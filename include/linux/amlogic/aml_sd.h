@@ -468,9 +468,11 @@ extern struct mmc_host *sdio_host;
 #define RESULT_UNSUP_HOST               2
 #define RESULT_UNSUP_CARD               3
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 /* Host attributes */
 #define AML_CQE_64BIT_DMA        BIT(0)
 #define AML_NONCQE_64BIT_DMA     BIT(1)
+#endif
 
 /* Set to 1 for no timeout */
 #define SD_EMMC_CMD_NO_TIMEOUT 1

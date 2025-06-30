@@ -184,11 +184,13 @@ static int amlogic_of_parse(struct mmc_host *host)
 	else
 		mmc->enable_inline_crypto = false;
 
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	if (device_property_read_bool(dev, "aml-cqe-64bit-dma"))
 		mmc->flags |= AML_CQE_64BIT_DMA;
 
 	if (device_property_read_bool(dev, "aml-non-cqe-64bit-dma"))
 		mmc->flags |= AML_NONCQE_64BIT_DMA;
+#endif
 
 	if (device_property_read_bool(dev, "auto-clock-sdio"))
 		mmc->auto_clk = true;
@@ -1631,7 +1633,10 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 	u32 *sg_desc = host->sg_descs;
 	struct mmc_data *data = host->cmd->data;
 	struct scatterlist *sg;
-	u32 start, addr64 = 0;
+	u32 start;
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	u32 addr64 = 0;
+#endif
 	int i = 0, j = 0, k = 0, cnt = 0;
 	bool split = false;
 
@@ -1667,10 +1672,12 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 			sg_desc[k++] =
 				lower_32_bits(sg_dma_address(sg) +
 					(split ? (SG_LENGTH_MAX * cnt) : 0));
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 			if (host->flags & AML_NONCQE_64BIT_DMA) {
 				sg_desc[k++] = upper_32_bits(sg_dma_address(sg));
 				sg_desc[k++] = 0;//reserved
 			}
+#endif
 			if (len > SG_LENGTH_MAX) {
 				len -= SG_LENGTH_MAX;
 				split = true;
@@ -1680,9 +1687,11 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 			}
 		} while (split);
 	}
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	if (host->flags & AML_NONCQE_64BIT_DMA)
 		sg_desc[k - 4] |= SG_EOC;
 	else
+#endif
 		sg_desc[k - 2] |= SG_EOC;
 
 	desc[j].cmd_cfg = cmd_cfg;
@@ -1692,13 +1701,14 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 	desc[j].cmd_arg = host->cmd->arg;
 	desc[j].cmd_resp = 0;
 	desc[j].cmd_data = lower_32_bits(host->sg_descs_dma_addr);
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	if (host->flags & AML_NONCQE_64BIT_DMA) {
 		addr64 = readl(host->regs + SD_EMMC_ADDR64) & ~DATA_ADDR64_MASK;
 		addr64 |= FIELD_PREP(DATA_ADDR64_MASK,
 			upper_32_bits(host->sg_descs_dma_addr) & 0xff);
 		writel(addr64, host->regs + SD_EMMC_ADDR64);
 	}
-
+#endif
 	if (mmc_op_multi(cmd->opcode) && !cmd->mrq->sbc) {
 		j++;
 		desc[j].cmd_cfg = 0;
@@ -1717,12 +1727,14 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 	desc[j].cmd_cfg |= CMD_CFG_END_OF_CHAIN;
 
 	dma_wmb(); /* ensure descriptor is written before kicked */
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	if (host->flags & AML_NONCQE_64BIT_DMA) {
 		addr64 = readl(host->regs + SD_EMMC_ADDR64) & ~DESC_ADDR64_MASK;
 		addr64 |= FIELD_PREP(DESC_ADDR64_MASK,
 			upper_32_bits(host->descs_dma_addr) & 0xff);
 		writel(addr64, host->regs + SD_EMMC_ADDR64);
 	}
+#endif
 	start = lower_32_bits(host->descs_dma_addr) | START_DESC_BUSY;
 	writel(start, host->regs + SD_EMMC_START);
 }
@@ -1921,13 +1933,14 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 					  host->bounce_buf, xfer_bytes);
 			dma_wmb();
 		}
-
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 		if (host->flags & AML_NONCQE_64BIT_DMA) {
 			cmd_data = readl(host->regs + SD_EMMC_ADDR64) & ~DESC_ADDR64_MASK;
 			cmd_data |= FIELD_PREP(DESC_ADDR64_MASK,
 				upper_32_bits(host->bounce_dma_addr) & 0xff);
 			writel(cmd_data, host->regs + SD_EMMC_ADDR64);
 		}
+#endif
 		cmd_data = lower_32_bits(host->bounce_dma_addr) & CMD_DATA_MASK;
 
 		if (host->dram_access_quirk) {
@@ -4143,12 +4156,18 @@ static int meson_mmc_probe(struct platform_device *pdev)
 			MMC_SRAM_DESC_BUF_OFF(host);
 
 	} else {
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 		if (host->flags & AML_NONCQE_64BIT_DMA) {
 			dev_notice(host->dev, "Enable DMA access 64bit address.\n");
 			writel(BUS64, host->regs + SD_EMMC_ADDR64);
-			dma_set_mask(host->dev, DMA_BIT_MASK(36));
+			ret = dma_set_mask(host->dev, DMA_BIT_MASK(36));
+			if (ret) {
+				dev_err(host->dev, "failed to set dma mask to 36 bits\n");
+				goto err_free_irq;
+			}
 			dma_set_coherent_mask(host->dev, DMA_BIT_MASK(36));
 		}
+#endif
 		/* data bounce buffer */
 		host->bounce_buf_size = mmc->max_req_size;
 		host->bounce_buf =
