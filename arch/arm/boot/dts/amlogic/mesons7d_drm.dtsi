@@ -69,6 +69,7 @@
 		gamma_ctl = <0>; /*0:skip gamma init 1:gamma init*/
 		pxp_mode = <0>;
 		gfcd_enable = /bits/ 8  <0>;
+		afbc_aligned_size = <1>; /*0:fbdev alloc non-afbc memory 1:fbdev alloc afbc memory*/
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {

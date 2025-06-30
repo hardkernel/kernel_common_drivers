@@ -67,6 +67,7 @@
 		crtcmask_of_osd = <0 0 0>; /* indicate the crtc mask of osd plane */
 		crtcmask_of_video = <0 0>; /* indicate the crtc mask of video plane */
 		crtc_masks = <1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
+		afbc_aligned_size = <1>; /*0:fbdev alloc non-afbc memory 1:fbdev alloc afbc memory*/
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {

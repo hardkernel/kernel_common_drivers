@@ -61,6 +61,7 @@
 		osd_afbc_mask = <3>;
 		memory-region = <&logo_reserved>;
 		crtc_masks = <0 1 1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
+		afbc_aligned_size = <1>; /*0:fbdev alloc non-afbc memory 1:fbdev alloc afbc memory*/
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {

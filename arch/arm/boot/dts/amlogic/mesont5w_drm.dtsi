@@ -40,6 +40,8 @@
 		crtc_masks = <1 1 1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
 		/* OSD1&OSD2 with afbc, OSD3 has no afbc */
 		osd_afbc_mask = <3>;
+		afbc_aligned_size = <1>; /*0:fbdev alloc non-afbc memory 1:fbdev alloc afbc memory*/
+
 		vpu_topology: vpu_topology {
 			vpu_blocks {
 				osd1_block: block@0 {

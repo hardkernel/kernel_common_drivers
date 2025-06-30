@@ -27,38 +27,7 @@
 #define uvm_to_gem_obj(x) container_of(x, struct am_meson_gem_object, ubo)
 #define MESON_GEM_NAME "meson_gem"
 
-#if (defined CONFIG_AMLOGIC_HEAP_CMA) || (defined CONFIG_AMLOGIC_HEAP_CODEC_MM)
-static void zap_dma_buf_range(struct page *dma_page, unsigned long len)
-{
-	struct page *page;
-	void *vaddr;
-	int num_pages = len / PAGE_SIZE;
-
-	if (PageHighMem(dma_page)) {
-		page = dma_page;
-
-		while (num_pages > 0) {
-			vaddr = kmap_atomic(page);
-			memset(vaddr, 0, PAGE_SIZE);
-			kunmap_atomic(vaddr);
-
-			/*
-			 *Avoid wasting time zeroing memory if the process
-			 *has been killed by SIGKILL
-			 */
-			if (fatal_signal_pending(current))
-				return;
-
-			page++;
-			num_pages--;
-		}
-	} else {
-		memset(page_address(dma_page), 0, PAGE_ALIGN(len));
-	}
-}
-#endif
-
-static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
+static int am_meson_gem_alloc_buff(struct am_meson_gem_object *
 				       meson_gem_obj, int flags)
 {
 #if (defined CONFIG_AMLOGIC_HEAP_CMA) || (defined CONFIG_AMLOGIC_HEAP_CODEC_MM)
@@ -67,8 +36,7 @@ static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
 	struct dma_buf_attachment *attachment = NULL;
 	struct sg_table *sg_table = NULL;
 	struct page *page;
-	bool from_heap_codecmm = false;
-	char DMAHEAP[][20] = {"heap-fb", "heap-gfx", "heap-codecmm"};
+	char DMAHEAP[][20] = {"heap-fb", "heap-gfx"};
 #endif
 #ifdef CONFIG_AMLOGIC_ION_DEV
 	size_t len;
@@ -99,24 +67,19 @@ static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
 #endif
 	} else if (((flags & (MESON_USE_SCANOUT | MESON_USE_CURSOR)) != 0) || flags == 0) {
 #if (defined CONFIG_AMLOGIC_HEAP_CMA) || (defined CONFIG_AMLOGIC_HEAP_CODEC_MM)
-		for (i = 0; i < 3; i++) {
+		for (i = 0; i < 2; i++) {
 			heap = dma_heap_find(DMAHEAP[i]);
 			if (!IS_ERR_OR_NULL(heap)) {
 				dmabuf = dma_heap_buffer_alloc(heap, meson_gem_obj->base.size,
 					O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
 				if (!IS_ERR_OR_NULL(dmabuf)) {
-					DRM_DEBUG("%s alloc success.\n", DMAHEAP[i]);
-					if (i == 2)
-						from_heap_codecmm = true;
 					meson_gem_obj->is_dma = true;
 					break;
+				} else {
+					DRM_DEBUG("%s:%s alloc fail\n", __func__, DMAHEAP[i]);
 				}
-				if (IS_ERR_OR_NULL(dmabuf) && i == 2)
-					DRM_ERROR("%s: dma_heap_alloc fail.\n", __func__);
 			} else {
 				DRM_DEBUG("%s: dma_heap_find %s fail.\n", __func__, DMAHEAP[i]);
-				if (i == 2)
-					DRM_ERROR("%s: dma_heap_find fail.\n", __func__);
 			}
 		}
 		DRM_DEBUG("%s: dmabuf(%p) dma_heap_alloc success. size = %zu\n",
@@ -217,9 +180,6 @@ static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
 
 		sg_dma_address(sg_table->sgl) = sg_phys(sg_table->sgl);
 		page = sg_page(sg_table->sgl);
-
-		if (from_heap_codecmm)
-			zap_dma_buf_range(page, meson_gem_obj->base.size);
 
 		dma_sync_sg_for_device(meson_gem_obj->base.dev->dev,
 					   sg_table->sgl,
@@ -722,7 +682,7 @@ struct am_meson_gem_object *am_meson_gem_object_create(struct drm_device *dev,
 	if ((flags & MESON_USE_VIDEO_PLANE) && (flags & MESON_USE_PROTECTED))
 		ret = am_meson_gem_alloc_video_secure_buff(meson_gem_obj);
 	else
-		ret = am_meson_gem_alloc_ion_buff(meson_gem_obj, flags);
+		ret = am_meson_gem_alloc_buff(meson_gem_obj, flags);
 	if (ret < 0) {
 		drm_gem_object_release(&meson_gem_obj->base);
 		goto error;

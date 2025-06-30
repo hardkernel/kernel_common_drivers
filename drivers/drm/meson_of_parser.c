@@ -66,7 +66,7 @@ static void meson_osd_parse_config(struct drm_device *dev, struct meson_of_conf 
 {
 	u32 osd_afbc_mask = 0xff;
 	u32 osd_force_slice = 0;
-	u32 afbc_aligned_size = 1;
+	u32 afbc_aligned_size = 0;
 	int ret;
 
 	ret = of_property_read_u32(dev->dev->of_node,
