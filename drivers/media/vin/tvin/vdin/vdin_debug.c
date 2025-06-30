@@ -4946,6 +4946,14 @@ start_chk:
 			devp->debug.force_afbce_422_12bit = temp;
 			pr_info("force_afbce_422_12bit:%d\n", devp->debug.force_afbce_422_12bit);
 		}
+	} else if (!strcmp(parm[0], "invert_secure")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				devp->debug.invert_secure = true;
+			else
+				devp->debug.invert_secure = false;
+			pr_info("invert_secure:%d\n", devp->debug.invert_secure);
+		}
 	} else if (!strcmp(parm[0], "bypass_filter_vsync")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
 			devp->debug.bypass_filter_vsync = temp;

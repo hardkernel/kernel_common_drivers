@@ -899,12 +899,34 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		return 0;
 	}
 
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	vdin_get_secure_state(devp);
+#endif
+
 	if (devp->work_mode == VDIN_WORK_MD_V4L) {
 		max_buffer_num       = devp->v4l2_req_buf_num;
 		devp->canvas_max_num = devp->v4l2_req_buf_num;
 		devp->vf_mem_max_cnt  = devp->v4l2_req_buf_num;
 		pr_info("%s vdin%d max_buffer_num = %d!\n", __func__,
 			devp->index, devp->vf_mem_max_cnt);
+
+#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
+	if (devp->secure_video && devp->mem_registered) {
+		devp->secure_mem_size = devp->secure_mem_size * devp->v4l2_req_buf_num;
+		res = tee_protect_mem_by_type(devp->secure_type,
+						devp->secure_mem_start,
+						devp->secure_mem_size,
+						&devp->secure_handle);
+		if (res)
+			devp->mem_protected = 0;
+		else
+			devp->mem_protected = 1;
+		if (devp->debug.vdin_dbg_en)
+			pr_info("%s(): vdin%d v4l2 secure mem protect: %d (addr:0x%lx, size:0x%x)\n",
+				__func__, devp->index, devp->mem_protected,
+				devp->secure_mem_start, devp->secure_mem_size);
+	}
+#endif
 		return 0;
 	}
 	if (devp->cma_config_flag & MEM_ALLOC_DISCRETE) {
@@ -987,14 +1009,16 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		/* Secure memory is supported in projector scenario */
 		if (devp->secure_en && devp->set_canvas_manual) {
 			devp->secure_handle = 0;
-			res = tee_protect_mem_by_type(TEE_MEM_TYPE_VDIN,
+			res = tee_protect_mem_by_type(devp->secure_type,
 						      devp->mem_start,
 						      mem_size,
 						      &devp->secure_handle);
-			if (res)
+			if (res) {
 				devp->mem_protected = 0;
-			else
+				pr_info("vdin%d secure protect error!\n", devp->index);
+			} else {
 				devp->mem_protected = 1;
+			}
 		}
 #endif
 		for (i = 0; i < max_buffer_num; i++) {
@@ -1112,14 +1136,21 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 	unsigned int i;
 
 	if (devp->cma_config_en == 0 || devp->cma_mem_alloc == 0) {
-		if (devp->work_mode == VDIN_WORK_MD_V4L)
-			pr_err("vdin%d %s v4l2 mode do not need do this (%d,%d)!!!\n",
+		if (devp->work_mode == VDIN_WORK_MD_V4L) {
+#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
+			if (devp->mem_protected) {
+				tee_unprotect_mem(devp->secure_handle);
+				devp->mem_protected = 0;
+				if (devp->debug.vdin_dbg_en)
+					pr_info("%s(): vdin%d v4l2 secure mem unprotect\n",
+						__func__, devp->index);
+			}
+#endif
+		} else {
+			pr_err("vdin%d %s fail for (%d,%d)!!!\n",
 				devp->index, __func__, devp->cma_config_en,
 				devp->cma_mem_alloc);
-		else
-			pr_err("vdin%d %s fail for (%d,%d)!!!\n",
-			       devp->index, __func__, devp->cma_config_en,
-			       devp->cma_mem_alloc);
+		}
 		return;
 	}
 
@@ -1151,6 +1182,9 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 		if (devp->secure_en && devp->mem_protected) {
 			tee_unprotect_mem(devp->secure_handle);
 			devp->mem_protected = 0;
+			if (devp->debug.vdin_dbg_en)
+				pr_info("%s(): vdin%d secure mem unprotect\n",
+					__func__, devp->index);
 		}
 #endif
 		if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC) {
@@ -1204,6 +1238,9 @@ void vdin_set_mem_protect(struct vdin_dev_s *devp, unsigned int protect)
 		tee_unprotect_mem(devp->secure_handle);
 		devp->mem_protected = 0;
 	}
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_SECURE)
+		pr_info("%s(): vdin%d secure mem protect:%d\n",
+			__func__, devp->index, devp->mem_protected);
 #endif
 }
 

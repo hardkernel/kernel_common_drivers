@@ -1188,7 +1188,8 @@
 				0x0000a005   /* WB0_OSD2 */
 				0x0000a006   /* WB0_VPP */
 				0x0000a007   /* WB0_VDIN_BIST */
-				0x0000a008>; /* WB0_POST_BLEND */
+				0x0000a008   /* WB0_POST_BLEND */
+				0x0000a001>; /* VIDEO */
 			/* vdin v4l2 end */
 		};
 

@@ -54,6 +54,9 @@
 #include "../../../vout/lcd/lcd_common.h"
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #endif
+#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
+#include <linux/amlogic/tee.h>
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
 #endif
@@ -1377,9 +1380,9 @@ int vdin_axis_parm_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para)
 
 	if (vdin_support_axis_change(devp) &&
 		vdin_get_video_ready_state(devp->parm.port)) {
-		if (para->port == TVIN_PORT_VIU1_WB0_VD1)
+		if (devp->parm.port == TVIN_PORT_VIU1_WB0_VD1)
 			get_vdx_real_axis(0, devp->cur_axis);
-		else if (para->port == TVIN_PORT_VIU2_VD1)
+		else if (devp->parm.port == TVIN_PORT_VIU2_VD1)
 			get_vdx_real_axis(1, devp->cur_axis);
 
 		memcpy(devp->last_axis, devp->cur_axis, sizeof(devp->cur_axis));
@@ -1401,11 +1404,11 @@ static bool vdin_is_axis_change(struct vdin_dev_s *devp)
 
 	if (vdin_support_axis_change(devp) &&
 		vdin_get_video_ready_state(devp->parm.port)) {
-		if (devp->parm.port == TVIN_PORT_VIU1_VIDEO ||
-			devp->parm.port == TVIN_PORT_VIU1_WB0_VD1)
+		if (devp->parm.port == TVIN_PORT_VIU1_WB0_VD1)
 			get_vdx_real_axis(0, devp->cur_axis);
 		else if (devp->parm.port == TVIN_PORT_VIU2_VD1)
 			get_vdx_real_axis(1, devp->cur_axis);
+
 		if (devp->cur_axis[0] != devp->last_axis[0] ||
 			devp->cur_axis[1] != devp->last_axis[1] ||
 			devp->cur_axis[2] != devp->last_axis[2] ||
@@ -1664,7 +1667,7 @@ unsigned int vdin_check_secure_write_error(struct vdin_dev_s *devp)
 
 void vdin_get_secure_state(struct vdin_dev_s *devp)
 {
-	/* config secure_en by loopback port */
+	/* for vdin loopback, check secure states */
 	switch (devp->parm.port) {
 	case TVIN_PORT_VIU1_VIDEO:
 	case TVIN_PORT_VIU1_WB0_VD1:
@@ -1701,8 +1704,13 @@ void vdin_get_secure_state(struct vdin_dev_s *devp)
 		devp->secure_video = 0;
 		break;
 	}
+
+	if (devp->debug.invert_secure)
+		devp->secure_video = devp->secure_video ^ devp->debug.invert_secure;
+
 	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_SECURE)
-		pr_info("secure_video=%d\n", devp->secure_video);
+		pr_info("%s() secure:%d invert:%d\n",
+			__func__, devp->secure_video, devp->debug.invert_secure);
 }
 
 static void vdin_set_pc_mode(struct vdin_dev_s *devp)
@@ -1948,7 +1956,8 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_frame_lock_check(devp, 1);
 	vdin_vf_init(devp);
 	/* config dolby mem base */
-	vdin_dolby_addr_alloc(devp, devp->vfp->size);
+	if (devp->hw_core == VDIN_HW_CORE_NORMAL)
+		vdin_dolby_addr_alloc(devp, devp->vfp->size);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (vdin_is_dolby_signal_in(devp) &&
 	    devp->index == devp->dv.dv_path_idx &&
@@ -2159,7 +2168,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	int frm_done_timeout = 200;
 	int i = 0;
 #endif
-	struct vdin_dev_s *vdin1_devp = vdin_devp[1];
 	/* avoid null pointer oops */
 	if (!devp) {
 		pr_info("vdin err no frontend\n");
@@ -2288,10 +2296,10 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	rdma_clear(devp->rdma_handle);
 #endif
-	if (!IS_ERR_OR_NULL(vdin1_devp)) {
-		if (vdin1_devp->flags & VDIN_FLAG_HIST_STARTED) {
+	if (devp->hw_core == VDIN_HW_CORE_LITE) {
+		if (devp->flags & VDIN_FLAG_HIST_STARTED) {
 			viuin_select_loopback_path();
-			vdin1_hw_hist_on_off(vdin1_devp, true);
+			vdin1_hw_hist_on_off(devp, true);
 		}
 	}
 	vdin_frame_lock_check(devp, 0);
@@ -2542,7 +2550,8 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		/* check input content is protected */
 		if ((vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
 		    (vdin0_devp->flags & VDIN_FLAG_DEC_STARTED) &&
-		    !devp->set_canvas_manual) {
+		    !devp->set_canvas_manual &&
+		    !devp->mem_ta_access) {
 			if ((vdin0_devp->prop.hdcp_sts || vdin0_devp->prop.macrovision_sts) &&
 				!devp->mem_protected) {
 				pr_err("hdmi or tvafe secure en, non-secure buffer\n");
@@ -4639,6 +4648,7 @@ static void vdin_v4l2_handle_secure_chg(struct vdin_dev_s *devp)
 			protect_mode = 0;
 		if (protect_mode != devp->matrix_pattern_mode && !devp->mem_protected &&
 			!devp->set_canvas_manual &&
+			!devp->mem_ta_access &&
 			(vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
 			(vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
 			devp->matrix_pattern_mode = protect_mode;
@@ -7415,6 +7425,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/*struct resource *res;*/
 	unsigned int bit_mode = VDIN_WR_COLOR_DEPTH_8BIT;
 	const struct of_device_id *of_id;
+#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
+	unsigned int res = 0;
+#endif
 
 	/* const void *name; */
 	/* int offset, size; */
@@ -7533,6 +7546,31 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		devp->cma_config_en = 1;
 	}
 #endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
+	devp->mem_ta_access = of_property_read_bool(pdev->dev.of_node,
+							"mem_ta_access");
+
+	devp->secure_type = TEE_MEM_TYPE_VDIN;
+
+	if (devp->cma_mem_size && !devp->cma_config_flag &&
+		devp->mem_ta_access) {
+		devp->secure_mem_size = devp->cma_mem_size;
+		devp->secure_mem_start = cma_get_base(dev_get_cma_area(&pdev->dev));
+
+		res = tee_register_mem(devp->secure_type,
+			devp->secure_mem_start,
+			devp->secure_mem_size);
+		if (res) {
+			devp->mem_registered = 0;
+			pr_err("vdin%d secure mem register error\n", devp->index);
+		} else {
+			devp->mem_registered = 1;
+			devp->secure_handle = 0;
+		}
+	}
+#endif
+
 	use_reserved_mem = 0;
 	/*use reserved mem*/
 	if (devp->cma_config_en != 1) {

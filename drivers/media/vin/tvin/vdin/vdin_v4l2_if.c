@@ -284,10 +284,18 @@ void vdin_fill_pix_format(struct vdin_dev_s *devp)
 			devp->index, v4l2_fmt->fmt.pix_mp.num_planes);
 		return;
 	}
-	v4l2_fmt->fmt.pix_mp.plane_fmt[0].sizeimage =
-		PAGE_ALIGN(v4l2_fmt->fmt.pix_mp.plane_fmt[0].sizeimage);
-	v4l2_fmt->fmt.pix_mp.plane_fmt[1].sizeimage =
-		PAGE_ALIGN(v4l2_fmt->fmt.pix_mp.plane_fmt[1].sizeimage);
+	if (devp->mem_ta_access) {
+		v4l2_fmt->fmt.pix_mp.plane_fmt[0].sizeimage =
+			roundup(v4l2_fmt->fmt.pix_mp.plane_fmt[0].sizeimage, 64 * 1024);
+		v4l2_fmt->fmt.pix_mp.plane_fmt[1].sizeimage =
+			roundup(v4l2_fmt->fmt.pix_mp.plane_fmt[1].sizeimage, 64 * 1024);
+		devp->secure_mem_size = v4l2_fmt->fmt.pix_mp.plane_fmt[0].sizeimage;
+	} else {
+		v4l2_fmt->fmt.pix_mp.plane_fmt[0].sizeimage =
+			PAGE_ALIGN(v4l2_fmt->fmt.pix_mp.plane_fmt[0].sizeimage);
+		v4l2_fmt->fmt.pix_mp.plane_fmt[1].sizeimage =
+			PAGE_ALIGN(v4l2_fmt->fmt.pix_mp.plane_fmt[1].sizeimage);
+	}
 
 	dprintk(1, "vdin%d,num_planes=%d\n ",
 		devp->index, v4l2_fmt->fmt.pix_mp.num_planes);
@@ -366,6 +374,7 @@ static int vdin_v4l2_get_phy_addr(struct vdin_dev_s *devp,
 		roundup(devp->vf_mem_start[idx], devp->canvas_align);
 	devp->vf_mem_c_start[idx] =
 		roundup(devp->vf_mem_c_start[idx], devp->canvas_align);
+
 	dprintk(1, "%s vdin%d,paddr[%d][%d] = %lx,size=%x\n", __func__,
 		devp->index, idx, plane_no,
 		devp->st_vdin_set_canvas_addr[idx][plane_no].paddr,
@@ -678,16 +687,27 @@ static int vdin_vidioc_streamon(struct file *file, void *priv,
 				enum v4l2_buf_type i)
 {
 	struct vdin_dev_s *devp = video_drvdata(file);
-	unsigned int ret = 0;
+	int ret = 0;
 
 	dprintk(2, "dbg enter %s\n", __func__);
 
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
-	if (devp->parm.info.status != TVIN_SIG_STATUS_STABLE) {
+	if (devp->hw_core == VDIN_HW_CORE_NORMAL &&
+		devp->parm.info.status != TVIN_SIG_STATUS_STABLE) {
 		dprintk(0, "%s failed with status=%d\n", __func__,
 			devp->parm.info.status);
 		return -EBUSY;
+	}
+
+	if ((!get_video_enabled(0) &&
+		(devp->v4l2_port_cur == TVIN_PORT_VIU1_VIDEO ||
+		devp->v4l2_port_cur == TVIN_PORT_VIU1_WB0_VD1)) ||
+		(!get_video_enabled(1) &&
+		devp->v4l2_port_cur == TVIN_PORT_VIU2_VD1)) {
+		dprintk(0, "%s capture video but no video\n", __func__);
+		if (devp->mem_ta_access)
+			return -EBUSY;
 	}
 
 	ret = vb2_ioctl_streamon(file, priv, i);
@@ -1014,7 +1034,47 @@ static int vdin_vidioc_g_cid_plane_info(struct vdin_dev_s *devp,
 static int vdin_vidioc_g_cid_video_win_info(struct vdin_dev_s *devp,
 	struct v4l2_ext_control *control)
 {
+	unsigned int input_h_size = 0, input_v_size = 0;
+	unsigned int output_h_size, output_v_size;
+	struct video_input_info video_input_parms;
+	int cur_axis[4];
+
+	memset(&cur_axis, 0, sizeof(cur_axis));
+	memset(&video_input_parms, 0, sizeof(struct video_input_info));
+
+	if (devp->hw_core == VDIN_HW_CORE_LITE) {
+		if (vdin_get_video_ready_state(devp->v4l2_port_cur)) {
+			if (devp->v4l2_port_cur == TVIN_PORT_VIU1_WB0_VD1) {
+				get_vdx_real_axis(0, cur_axis);
+				input_h_size = cur_axis[2] - cur_axis[0] + 1;
+				input_v_size = cur_axis[3] - cur_axis[1] + 1;
+			} else if (devp->v4l2_port_cur == TVIN_PORT_VIU2_VD1) {
+				get_vdx_real_axis(1, cur_axis);
+				input_h_size = cur_axis[2] - cur_axis[0] + 1;
+				input_v_size = cur_axis[3] - cur_axis[1] + 1;
+			} else if (devp->v4l2_port_cur == TVIN_PORT_VIU1_VIDEO) {
+				get_video_input_info(&video_input_parms);
+				input_h_size = video_input_parms.width;
+				input_v_size = video_input_parms.height;
+			}
+
+			devp->ext_cap_video_win_info.in.w = input_h_size;
+			devp->ext_cap_video_win_info.in.h = input_v_size;
+
+			output_h_size = devp->v4l2_fmt.fmt.pix_mp.width;
+			output_v_size = devp->v4l2_fmt.fmt.pix_mp.height;
+
+			if (output_h_size > input_h_size)
+				devp->ext_cap_video_win_info.out.w = input_h_size;
+			if (output_v_size > input_v_size)
+				devp->ext_cap_video_win_info.out.h = input_v_size;
+		}
+	}
+
 	if (control->size == sizeof(struct v4l2_ext_capture_video_win_info)) {
+		dprintk(3, "%s,video info in:%dx%d -> out:%dx%d\n", __func__,
+			devp->ext_cap_video_win_info.in.w, devp->ext_cap_video_win_info.in.h,
+			devp->ext_cap_video_win_info.out.w, devp->ext_cap_video_win_info.out.h);
 		if (copy_to_user(control->ptr, &devp->ext_cap_video_win_info,
 				sizeof(struct v4l2_ext_capture_video_win_info)))
 			return -EFAULT;
@@ -1050,13 +1110,15 @@ static int vdin_vidioc_g_cid_phy_mem_info(struct vdin_dev_s *devp,
 	unsigned int chroma_size = 0;
 	struct v4l2_ext_capture_physical_memory_info info;
 
+	memset(&info, 0, sizeof(struct v4l2_ext_capture_physical_memory_info));
+
 	if (control->size == sizeof(struct v4l2_ext_capture_physical_memory_info)) {
 		if (copy_from_user(&info, control->ptr,
 				sizeof(struct v4l2_ext_capture_physical_memory_info)))
 			ret = -EFAULT;
-		if (info.buf_index < 0 || info.buf_index >= devp->vfp->size) {
-			dprintk(0, "%s,LINE:%d,buf_index:%d,over range\n",
-				__func__, __LINE__, info.buf_index);
+		if (info.buf_index < 0 || info.buf_index >= VDIN_CANVAS_MAX_CNT) {
+			dprintk(0, "%s, buf_index:%d invalid, error\n",
+				__func__, info.buf_index);
 			return -EINVAL;
 		}
 
@@ -1065,7 +1127,11 @@ static int vdin_vidioc_g_cid_phy_mem_info(struct vdin_dev_s *devp,
 		case VDIN_FORMAT_CONVERT_YUV_NV21:
 		case VDIN_FORMAT_CONVERT_RGB_NV12:
 		case VDIN_FORMAT_CONVERT_RGB_NV21:
-			chroma_size = devp->canvas_w * devp->canvas_h / 2;
+			if (!devp->mem_ta_access)
+				chroma_size = devp->canvas_w * devp->canvas_h / 2;
+			else
+				chroma_size = devp->v4l2_fmt.fmt.pix_mp.width *
+					devp->v4l2_fmt.fmt.pix_mp.height;
 			break;
 		default:
 			break;
@@ -1073,10 +1139,12 @@ static int vdin_vidioc_g_cid_phy_mem_info(struct vdin_dev_s *devp,
 
 		info.compat_y_data = (unsigned int)devp->vf_mem_start[info.buf_index];
 		info.compat_c_data = info.compat_y_data + chroma_size;
+
 		info.buf_location = V4L2_EXT_CAPTURE_INPUT_BUF;
 
-		dprintk(1, "%s,index:%d,y:%#x,c:%#x,buf_loc:%d\n", __func__,
-			info.buf_index, info.compat_y_data, info.compat_c_data, info.buf_location);
+		dprintk(1, "%s,index:%d,y:%#x,c:%#x(%#x),buf_loc:%d\n", __func__,
+			info.buf_index, info.compat_y_data, info.compat_c_data,
+			(unsigned int)devp->vf_mem_c_start[info.buf_index], info.buf_location);
 		if (copy_to_user(control->ptr, &info,
 				sizeof(struct v4l2_ext_capture_physical_memory_info)))
 			ret = -EFAULT;
@@ -1528,6 +1596,14 @@ static int vdin_v4l2_open(struct file *file)
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
+	mutex_lock(&devp->fe_lock);
+
+	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
+		dprintk(0, "%s,vdin%d already opened!\n", __func__, devp->index);
+		mutex_unlock(&devp->fe_lock);
+		return -EBUSY;
+	}
+
 	dprintk(0, "%s,vdin%d\n", __func__, devp->index);
 	/*dump_stack();*/
 	devp->afbce_flag_backup = devp->afbce_flag;
@@ -1535,7 +1611,7 @@ static int vdin_v4l2_open(struct file *file)
 	v4l2_fh_open(file);
 
 	INIT_LIST_HEAD(&devp->buf_list);
-
+	mutex_unlock(&devp->fe_lock);
 	return 0;
 }
 
@@ -2125,21 +2201,33 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 	int ret;
 	struct vdin_parm_s vdin_cap_param;
 	const struct tvin_format_s *fmt_info_p;
+	struct video_input_info video_input_parms;
 	int cur_axis[4];
 	const struct vinfo_s *vinfo;
 
 	memset(&vdin_cap_param, 0, sizeof(struct vdin_parm_s));
 	memset(&cur_axis, 0, sizeof(cur_axis));
+	memset(&video_input_parms, 0, sizeof(struct video_input_info));
 
 	if (devp->hw_core == VDIN_HW_CORE_LITE) {
 		if (vdin_get_video_ready_state(devp->v4l2_port_cur)) {
-			if (devp->v4l2_port_cur == TVIN_PORT_VIU1_WB0_VD1)
+			if (devp->v4l2_port_cur == TVIN_PORT_VIU1_WB0_VD1) {
 				get_vdx_real_axis(0, cur_axis);
-			else if (devp->v4l2_port_cur == TVIN_PORT_VIU2_VD1)
+				vdin_cap_param.h_active = cur_axis[2] - cur_axis[0] + 1;
+				vdin_cap_param.v_active = cur_axis[3] - cur_axis[1] + 1;
+			} else if (devp->v4l2_port_cur == TVIN_PORT_VIU2_VD1) {
 				get_vdx_real_axis(1, cur_axis);
+				vdin_cap_param.h_active = cur_axis[2] - cur_axis[0] + 1;
+				vdin_cap_param.v_active = cur_axis[3] - cur_axis[1] + 1;
+			} else if (devp->v4l2_port_cur == TVIN_PORT_VIU1_VIDEO) {
+				get_video_input_info(&video_input_parms);
+				vdin_cap_param.h_active = video_input_parms.width;
+				vdin_cap_param.v_active = video_input_parms.height;
+			}
 
-			vdin_cap_param.h_active = cur_axis[2] - cur_axis[0] + 1;
-			vdin_cap_param.v_active = cur_axis[3] - cur_axis[1] + 1;
+			devp->ext_cap_video_win_info.in.w = vdin_cap_param.h_active;
+			devp->ext_cap_video_win_info.in.h = vdin_cap_param.v_active;
+
 			dprintk(1, "[%s] hv active: %dx%d (video only)\n",
 				__func__, vdin_cap_param.h_active, vdin_cap_param.v_active);
 		} else {
@@ -2191,14 +2279,13 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 	}
 
 	/* vdin can not do scale up */
-	if (devp->v4l2_fmt.fmt.pix_mp.width > vdin_cap_param.h_active ||
-		devp->v4l2_fmt.fmt.pix_mp.height > vdin_cap_param.v_active) {
-		dprintk(0, "%s,out of range!v4l2_fmt:%dx%d > active:%dx%d\n",
-			__func__, devp->v4l2_fmt.fmt.pix_mp.width,
-			devp->v4l2_fmt.fmt.pix_mp.height, vdin_cap_param.h_active,
-			vdin_cap_param.v_active);
-		return -EINVAL;
-	}
+	if (vdin_cap_param.dest_h_active > vdin_cap_param.h_active)
+		vdin_cap_param.dest_h_active = vdin_cap_param.h_active;
+	if (vdin_cap_param.dest_v_active > vdin_cap_param.v_active)
+		vdin_cap_param.dest_v_active = vdin_cap_param.v_active;
+
+	devp->ext_cap_video_win_info.out.w = vdin_cap_param.dest_h_active;
+	devp->ext_cap_video_win_info.out.h = vdin_cap_param.dest_v_active;
 
 	if (devp->v4l2_fmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV21 ||
 		devp->v4l2_fmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV21M)
@@ -2243,7 +2330,7 @@ void vdin_v4l2_init(struct vdin_dev_s *devp, struct platform_device *pl_dev)
 {
 	int fe_ports_num;
 	int i, ret;
-	u32 tmp_u32;
+	u32 tmp_u32 = 0;
 	const char *str = NULL;
 
 	memset(devp->v4l2_port, TVIN_PORT_NULL, sizeof(devp->v4l2_port));
@@ -2266,7 +2353,8 @@ void vdin_v4l2_init(struct vdin_dev_s *devp, struct platform_device *pl_dev)
 			devp->v4l2_port[4] = TVIN_PORT_VIU1_WB0_VPP;
 			//devp->v4l2_port[5] = TVIN_PORT_VIU1_WB0_VDIN_BIST;
 			devp->v4l2_port[5] = TVIN_PORT_VIU1_WB0_POST_BLEND;
-			devp->v4l2_port_num = 6;
+			devp->v4l2_port[6] = TVIN_PORT_VIU1_VIDEO;
+			devp->v4l2_port_num = 7;
 		}
 	} else {
 		devp->v4l2_port_num = 0;

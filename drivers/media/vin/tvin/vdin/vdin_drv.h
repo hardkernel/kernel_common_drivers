@@ -148,8 +148,9 @@
 //#define VDIN_BRINGUP_NO_VLOCK
 //#define VDIN_BRINGUP_NO_AML_VECM
 //#define VDIN_BRINGUP_BYPASS_COLOR_CN_VT
+
 #define K_FORCE_HV_SHRINK	0
-#define VDIN_V4L2_INPUT_MAX	7
+#define VDIN_V4L2_INPUT_MAX	8
 #define VDIN_DROP_FRAME_NUM_DEF	2
 #define VDIN_RESET_PCS_CNT     5
 
@@ -719,6 +720,7 @@ struct vdin_debug_s {
 	bool bypass_update_prop;
 	bool bypass_pc_mode;//bypass pc mode set
 	bool bypass_game_mode;//bypass game mode set
+	bool invert_secure;
 	bool pause_mif_dec;
 	bool pause_afbce_dec;
 	bool bypass_filter_vsync;
@@ -1065,7 +1067,8 @@ struct vdin_dev_s {
 	struct vpu_dev_s *vpu_dev_clk_gate;
 
 	unsigned int vdin_max_pixel_clk;
-
+	unsigned long secure_mem_start;
+	unsigned int secure_mem_size;
 	unsigned long mem_start;
 	unsigned int mem_size;
 	unsigned long vf_mem_start[VDIN_CANVAS_MAX_CNT];
@@ -1074,9 +1077,12 @@ struct vdin_dev_s {
 
 	/* save secure handle */
 	unsigned int secure_handle;
+	unsigned int secure_type;
 	bool secure_en;
 	bool secure_video;
+	bool mem_ta_access;
 	bool mem_protected;
+	bool mem_registered;
 	unsigned int vf_mem_size;
 	unsigned int vf_mem_size_small;/* double write use */
 	unsigned int frame_size;
