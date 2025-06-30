@@ -1167,7 +1167,7 @@
 };
 
 &drm_amcvbsout {
-	status = "okay";
+	status = "disabled";
 };
 
 /*if you want to use vdin just modify status to "ok"*/
@@ -1240,3 +1240,12 @@
 	/*0: 709/601  1: bt2020*/
 	tx_op_color_primary = <0>;
 };
+
+&cvbsout {
+	status = "disabled";
+};
+
+&vdac {
+	status = "disabled";
+};
+

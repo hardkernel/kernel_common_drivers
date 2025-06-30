@@ -1253,7 +1253,7 @@
 			      0 61 IRQ_TYPE_EDGE_RISING>;
 	};
 
-	cvbsout {
+	cvbsout: cvbsout {
 		compatible = "amlogic, cvbsout-sc2";
 		status = "okay";
 
@@ -1540,7 +1540,7 @@
 			0x0 0xfe000000 0x0 0x4a0>; /* clk reg */
 	};
 
-	vdac {
+	vdac: vdac {
 		compatible = "amlogic, vdac-sc2";
 		status = "okay";
 	};
