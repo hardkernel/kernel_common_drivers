@@ -11383,10 +11383,17 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 			virtual_layer->dispbuf = mosaic_frame->vf;
 		}
 	}
-	if (layer->switch_vf)
+	if (layer->switch_vf) {
+		if (is_vframe_changed(layer_id, layer->vf_ext, vf_ext)) {
+			layer->new_vpp_setting = true;
+			if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
+				pr_info("layer%d: need prop change for vf_ext: %px\n",
+					layer->layer_id, vf_ext);
+		}
 		layer->vf_ext = vf_ext;
-	else
+	} else {
 		layer->vf_ext = NULL;
+	}
 	return ret;
 }
 
