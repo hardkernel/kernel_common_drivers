@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/vin/tvin/vdin/vdin_ctl.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -7436,12 +7423,10 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 	} else {
 		field_status = vdin_get_field_type(devp->addr_offset);
 		/*tvafe FIELD POLARITY 0 TOP,vdin must invert for correct*/
-
-		if (devp->debug.invert_top_bot ||
-			IS_TVAFE_SRC(devp->parm.port) || IS_HDMI_SRC(devp->parm.port)) {
-			field_status = field_status ^ 1;
-			type |=	field_status ?
-			VIDTYPE_INTERLACE_TOP :	VIDTYPE_INTERLACE_BOTTOM;
+		field_status = field_status ^ devp->debug.invert_top_bot;
+		if (IS_TVAFE_SRC(devp->parm.port)) {
+			type |= field_status ?
+			VIDTYPE_INTERLACE_TOP : VIDTYPE_INTERLACE_BOTTOM;
 		} else {
 			type |= field_status ?
 			VIDTYPE_INTERLACE_BOTTOM : VIDTYPE_INTERLACE_TOP;
