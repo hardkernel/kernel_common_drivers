@@ -1490,6 +1490,10 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 		if (IS_ERR(priv->regmap))
 			return PTR_ERR(priv->regmap);
 	} else {
+		base = dev_get_drvdata(pdev->dev.parent);
+		if (!base)
+			return dev_err_probe(&pdev->dev, -EINVAL, "Couldn't get parent's base\n");
+
 		priv->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 		if (!priv->regmap)
 			return dev_err_probe(&pdev->dev, -EINVAL, "Couldn't get parent's regmap\n");

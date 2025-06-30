@@ -31,6 +31,7 @@ static int amlogic_saradc_common_probe(struct platform_device *pdev)
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
+	dev_set_drvdata(&pdev->dev, base);
 
 	regmap = devm_regmap_init_mmio(dev, base,
 				       &amlogic_saradc_common_regmap_config);
