@@ -2867,7 +2867,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 
 	detect_vf_type(frame_info, &is_dec_vf, &is_v4l_vf);
 	get_dma_buf(frame_info->dmabuf);
-	if ((dev->last_file == (struct file *)frame_info->dmabuf) && (is_dec_vf || is_v4l_vf))
+	if (dev->last_file == (struct file *)frame_info->dmabuf)
 		is_repeat_vf = true;
 
 	if (is_repeat_vf) {
