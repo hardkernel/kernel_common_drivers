@@ -918,8 +918,8 @@ static struct lcd_clk_data_s lcd_clk_data_t3x_0 = {
 };
 
 static struct lcd_clk_data_s lcd_clk_data_t3x_1 = {
-	.pll_data[0] = &lcd_pll_data_t3x_0,
-	.pll_data[1] = &lcd_pll_data_t3x_1,
+	.pll_data[0] = &lcd_pll_data_t3x_1,
+	.pll_data[1] = NULL,
 	.xd_out_fmax = 820000000,
 	.phy_clk_location = 1,
 
@@ -1007,7 +1007,6 @@ struct lcd_clk_config_s *lcd_clk_config_chip_init_t3x(struct aml_lcd_drv_s *pdrv
 		cconf->pll_config[0].pll_id = 0;
 		cconf->pll_config[0].pll_od_fb = lcd_pll_data_t3x_0.pll_od_fb;
 		if (cconf->pll_conf_num > 1) {
-			cconf[1].data = &lcd_clk_data_t3x_1;
 			cconf->pll_config[1].pll_id = 1;
 			cconf->data->vclk_sel = 4;
 			cconf->pll_config[1].pll_offset = 0x5; /*without << 2*/

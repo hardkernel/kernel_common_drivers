@@ -53,11 +53,18 @@ struct lcd_clk_config_s *get_lcd_clk_config(struct aml_lcd_drv_s *pdrv)
 		LCD_ERR(pdrv, "%s: clk_config is null", __func__);
 		return NULL;
 	}
+
 	cconf = (struct lcd_clk_config_s *)pdrv->clk_conf;
+	if (!cconf->data) {
+		LCDERR("[%d]: %s: clk config data is null\n",
+				pdrv->index, __func__);
+		return NULL;
+	}
 
 	for (i = 0; i < cconf->pll_conf_num; i++) {
-		if (!cconf[i].data) {
-			LCD_ERR(pdrv, "%s: clk config data is null", __func__);
+		if (!cconf->data->pll_data[i]) {
+			LCDERR("[%d]: %s: pll data is null\n",
+				pdrv->index, __func__);
 			return NULL;
 		}
 	}
