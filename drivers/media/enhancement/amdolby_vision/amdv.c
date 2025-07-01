@@ -3005,7 +3005,7 @@ int dv_inst_map(int *inst)
 				p_funcs_stb->multi_mp_init(dolby_vision_flags
 								& FLAG_CHANGE_SEQ_HEAD
 								? 1 : 0);
-		if (dv_inst[*inst].metadata_parser) {
+		if (dv_inst[*inst].metadata_parser && p_funcs_stb) {
 			p_funcs_stb->multi_mp_reset(dv_inst[*inst].metadata_parser, 1);
 			pr_dv_dbg("reset mp\n");
 		}
@@ -3911,6 +3911,8 @@ bool is_primesl_frame(struct vframe_s *vf)
 
 bool is_cuva_frame(struct vframe_s *vf)
 {
+	if (!vf)
+		return false;
 	if (signal_cuva)
 		return true;
 	return false;
@@ -9217,7 +9219,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 	}
 
 	if (dolby_vision_flags & FLAG_USE_SINK_MIN_MAX) {
-		if (vinfo->dv_info.ieeeoui == 0x00d046) {
+		if (vinfo && vinfo->dv_info.ieeeoui == 0x00d046) {
 			if (vinfo->dv_info.ver == 0) {
 				/* need lookup PQ table ... */
 			} else if (vinfo->dv_info.ver == 1) {
@@ -10731,7 +10733,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 	last_dst_format = dst_format;
 
 	if (dolby_vision_flags & FLAG_USE_SINK_MIN_MAX) {
-		if (vinfo->dv_info.ieeeoui == 0x00d046) {
+		if (vinfo && vinfo->dv_info.ieeeoui == 0x00d046) {
 			if (vinfo->dv_info.ver == 0) {
 				/* need lookup PQ table ... */
 			} else if (vinfo->dv_info.ver == 1) {
@@ -11375,7 +11377,8 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2,
 		new_m_dovi_setting.input[0].src_format == FORMAT_DOVI) {
 		pr_dv_dbg("dv source but metadata checked as el, force as sdr source\n");
 		new_m_dovi_setting.input[0].src_format = FORMAT_SDR;
-		flag = p_funcs_stb->multi_control_path(&new_m_dovi_setting);
+		if (p_funcs_stb)
+			flag = p_funcs_stb->multi_control_path(&new_m_dovi_setting);
 	}
 
 	if (flag >= 0) {
@@ -12743,7 +12746,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 			& FLAG_FRAME_DELAY_MASK;
 		bool ott_mode = true;
 
-		if (is_aml_tvmode())
+		if (is_aml_tvmode() && tv_dovi_setting)
 			ott_mode =
 				(tv_dovi_setting->input_mode !=
 				IN_MODE_HDMI);
@@ -15211,11 +15214,13 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		is_aml_t5m() || is_aml_s5() || is_aml_t3x() || is_aml_s7d() ||
 		is_aml_s6()) {
 		total_name_len = get_chip_name();
-		get_ko = strstr(func->version_info, total_chip_name);
-
-		if (!get_ko) {
-			pr_info("error: dolby vision get fail ko, version: %s", func->version_info);
-			return ret;
+		if (func) {
+			get_ko = strstr(func->version_info, total_chip_name);
+			if (!get_ko) {
+				pr_info("error: dolby vision get fail ko, version: %s",
+					func->version_info);
+				return ret;
+			}
 		}
 	}
 
