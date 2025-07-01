@@ -14338,6 +14338,22 @@ static int _video_hw_init(void)
 {
 	u32 ofifo_size;
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
+	if (video_is_meson_t3_cpu()) {
+		WRITE_VCBUS_REG(VPU_AXI_CACHE, 0x11111);
+		set_vpu_super_urgent_t3(FRC0_R, 3, 3);
+		set_vpu_super_urgent_t3(FRC0_W, 3, 3);
+		set_vpu_super_urgent_t3(FRC1_R, 2, 2);
+		set_vpu_super_urgent_t3(FRC1_W, 2, 2);
+		set_vpu_super_urgent_t3(FRC2_R, 3, 7);
+		set_vpu_super_urgent_t3(VPU0_R, 3, 5);
+		set_vpu_super_urgent_t3(VPU0_W, 3, 5);
+		set_vpu_super_urgent_t3(VPU1_R, 0, 0);
+		set_vpu_super_urgent_t3(VPU1_W, 0, 0);
+		set_vpu_super_urgent_t3(VPU2_R, 3, 5);
+	}
+#endif
+
 	if (cur_dev->display_module == C3_DISPLAY_MODULE) {
 		video_hw_init_c3();
 		return 0;

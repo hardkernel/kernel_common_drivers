@@ -16505,17 +16505,6 @@ static int amvideom_probe(struct platform_device *pdev)
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
 		cur_dev->power_ctrl = true;
-		WRITE_VCBUS_REG(VPU_AXI_CACHE, 0x11111);
-		set_vpu_super_urgent_t3(FRC0_R, 3, 3);
-		set_vpu_super_urgent_t3(FRC0_W, 3, 3);
-		set_vpu_super_urgent_t3(FRC1_R, 2, 2);
-		set_vpu_super_urgent_t3(FRC1_W, 2, 2);
-		set_vpu_super_urgent_t3(FRC2_R, 3, 7);
-		set_vpu_super_urgent_t3(VPU0_R, 3, 5);
-		set_vpu_super_urgent_t3(VPU0_W, 3, 5);
-		set_vpu_super_urgent_t3(VPU1_R, 0, 0);
-		set_vpu_super_urgent_t3(VPU1_W, 0, 0);
-		set_vpu_super_urgent_t3(VPU2_R, 3, 5);
 	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T5W_) {
 		memcpy(&amvideo_meson_dev.dev_property, &t5w_dev_property,
 		       sizeof(struct video_device_hw_s));
