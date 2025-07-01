@@ -3525,6 +3525,7 @@ static long amvecm_ioctl(struct file *file,
 	struct vpp_mtx_info_s *mtx_p = &mtx_info;
 	struct pre_gamma_table_s *pre_gma_tb = NULL;
 	struct hdr_tmo_sw pre_tmo_reg;
+	struct hdr_tmo_sw_ext pre_tmo_reg_ext;
 	struct db_cabc_param_s db_cabc_param;
 	struct db_aad_param_s db_aad_param;
 	struct eye_protect_s *eye_prot = NULL;
@@ -4449,6 +4450,28 @@ static long amvecm_ioctl(struct file *file,
 			pr_info("tmo_reg copy to user fail\n");
 		} else {
 			pr_info("tmo_reg copy to user success\n");
+		}
+		break;
+	case AMVECM_IOC_S_HDR_TMO_EXT:
+		if (copy_from_user(&pre_tmo_reg_ext,
+			(void __user *)arg,
+			sizeof(struct hdr_tmo_sw_ext))) {
+			ret = -EFAULT;
+			pr_info("tmo_reg ext info cp from usr failed\n");
+		} else {
+			hdr10_tmo_reg_ext_set(&pre_tmo_reg_ext);
+			pr_info("tmo_reg ext set success\n");
+		}
+		break;
+	case AMVECM_IOC_G_HDR_TMO_EXT:
+		argp = (void __user *)arg;
+		hdr10_tmo_reg_ext_get(&pre_tmo_reg_ext);
+		if (copy_to_user(argp, &pre_tmo_reg_ext,
+			sizeof(struct hdr_tmo_sw_ext))) {
+			ret = -EFAULT;
+			pr_info("tmo_reg ext copy to user fail\n");
+		} else {
+			pr_info("tmo_reg ext copy to user success\n");
 		}
 		break;
 	case AMVECM_IOC_S_CABC_PARAM:
@@ -7145,7 +7168,7 @@ static ssize_t amvecm_hdr_tmo_show(const struct class *cla,
 {
 	int len = 0;
 
-	hdr10_tmo_parm_show();
+	// hdr10_tmo_parm_show();
 	len = hdr_tmo_adb_show(buf);
 	return len;
 

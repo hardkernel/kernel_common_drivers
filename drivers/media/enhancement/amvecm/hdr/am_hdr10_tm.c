@@ -235,6 +235,7 @@ void decasteliau_alg(u64 *ebzcur, u64 step, u64 range, u64 *p, u32 order)
 
 static u64 curvex[OE_X], curvey[OE_X];
 static u32 oo_gain[OE_X];
+static u32 tm_cgain[TM_CGAIN_SIZE];
 
 int gen_knee_anchor(u32 maxl, u32 panell, u64 *sx, u64 *sy, u64 *anchor)
 {
@@ -503,8 +504,9 @@ int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p)
 		dynamic_hdr_sdr_ootf(maxl, panel_luma, sx, sy, anchor);
 		memcpy(oo_y_lut_hdr_sdr, oo_gain, sizeof(u32) * OE_X);
 	} else if (hdr10_tm_sel == 2) {
-		hdr10_tmo_gen(oo_gain);
+		hdr10_tmo_gen(oo_gain, tm_cgain);
 		memcpy(oo_y_lut_hdr_sdr, oo_gain, sizeof(u32) * OE_X);
+		memcpy(cgain_lut_hdr_sdr, tm_cgain, sizeof(u32) * TM_CGAIN_SIZE);
 	} else {
 		memcpy(oo_y_lut_hdr_sdr, oo_y_lut_hdr_sdr_def,
 			sizeof(u32) * OE_X);

@@ -113,6 +113,7 @@ extern int oo_y_lut_hdr_sdr_def[HDR2_OOTF_LUT_SIZE];
 extern int oo_y_lut_hdr_sdr[HDR2_OOTF_LUT_SIZE];
 extern int oo_y_lut_hlg_sdr[HDR2_OOTF_LUT_SIZE];
 extern int cgain_lut_bypass[HDR2_CGAIN_LUT_SIZE];
+extern int cgain_lut_hdr_sdr[HDR2_CGAIN_LUT_SIZE];
 extern unsigned int hdr10_pr;
 extern unsigned int hdr10_clip_disable;
 extern unsigned int hdr10_clip_luma;

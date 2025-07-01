@@ -25,6 +25,7 @@
 
 #define MAX12_BIT 12
 #define OE_X 149
+#define TM_CGAIN_SIZE 65
 #define MAX32_BIT 32
 #define MAX_BEIZER_ORDER 10
 #define TM_GAIN_BIT 6

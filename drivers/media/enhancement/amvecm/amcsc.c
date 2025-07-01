@@ -8590,6 +8590,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	static struct hdr10plus_para *para;
 	static int signal_change_latch;
 	int i, k;
+	struct aml_tmo_reg_sw *pre_tmo_reg = NULL;
 
 	if (!vinfo || vinfo->mode == VMODE_NULL ||
 	    vinfo->mode == VMODE_INVALID)
@@ -8868,8 +8869,14 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	    (get_cpu_type() != MESON_CPU_MAJOR_ID_TL1)) {
 		if (hdr_process_mode[vd_path] == PROC_HDR_TO_SDR &&
 		    csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB &&
-			!(get_hdr_type() & HLG_FLAG))
+			!(get_hdr_type() & HLG_FLAG)) {
+			pre_tmo_reg = tmo_fw_param_get();
+			pre_tmo_reg->w = (vf->type & VIDTYPE_COMPRESS) ?
+				vf->compWidth : vf->width;
+			pre_tmo_reg->h = (vf->type & VIDTYPE_COMPRESS) ?
+				vf->compHeight : vf->height;
 			hdr10_tm_process_update(p, vd_path, vpp_index);
+		}
 		if (hdr10p_meta_updated &&
 		    hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_SDR)
 			hdr10_plus_process_update(0, vd_path, vpp_index);

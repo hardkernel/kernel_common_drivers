@@ -426,10 +426,10 @@ struct pre_gamma_table_s {
 struct hdr_tmo_sw {
 	int tmo_en;              /* 0 1 */
 	int reg_highlight;       /* u10: control overexposure level */
-	int reg_hist_th;         /* u7 */
-	int reg_light_th;
-	int reg_highlight_th1;
-	int reg_highlight_th2;
+	int reg_hist_th;         /* u8 */
+	int reg_light_th;        /* u7 */
+	int reg_highlight_th1;   /* u10 */
+	int reg_highlight_th2;   /* u10 */
 	int reg_display_e;       /* u10 */
 	int reg_middle_a;        /* u7 */
 	int reg_middle_a_adj;    /* u10 */
@@ -443,23 +443,81 @@ struct hdr_tmo_sw {
 	int reg_thold4;          /* u10 */
 	int reg_max_th2;         /* u10 */
 	int reg_pnum_th;         /* u16 */
-	int reg_hl0;
+	int reg_hl0;             /* u7 (0 ~ 128) */
 	int reg_hl1;             /* u7 */
 	int reg_hl2;             /* u7 */
 	int reg_hl3;             /* u7 */
 	int reg_display_adj;     /* u7 */
-	int reg_avg_th;
-	int reg_avg_adj;
+	int reg_avg_th;          /* u10 */
+	int reg_avg_adj;         /* u8 (0 ~ 256) */
 	int reg_low_adj;         /* u7 */
 	int reg_high_en;         /* u3 */
 	int reg_high_adj1;       /* u7 */
 	int reg_high_adj2;       /* u7 */
 	int reg_high_maxdiff;    /* u7 */
 	int reg_high_mindiff;    /* u7 */
-	unsigned int alpha;
+	unsigned int alpha;      /* u8 */
 	int reg_ratio;           /* u10 */
 	int reg_max_th3;         /* s11 */
 	int oo_init_lut[13];     /* u10 */
+};
+
+struct hdr_tmo_sw_ext {
+	int reg_display_e_bc;                  /* u10 */
+	int reg_max_th4;                       /* u10 */
+	int reg_highlight_bc;                  /* u10 */
+	int reg_hl0_bc;                        /* u7 (0 ~ 128) */
+	int reg_hl1_bc;                        /* u7 (0 ~ 128) */
+	int reg_hl2_bc;                        /* u7 (0 ~ 128) */
+	int reg_hl3_bc;                        /* u7 (0 ~ 128) */
+	int reg_middle_a_bc;                   /* u7 */
+	int reg_low_adj_bc;                    /* u7 */
+	int reg_olut_bit_mode;                 /* u1, 0: 12 bits, 1: 16 bits */
+	int reg_curve_smo_mode;                /* u2 */
+	int reg_soft_clip_th;                  /* u10 */
+	int reg_r0_32;                         /* u10 */
+	int reg_r1_32;                         /* u10 */
+	int reg_y_highlight_ratio;             /* u10 */
+	int reg_ratio_sat;                     /* u11 */
+	int reg_avg_lum_ratio;                 /* u10 */
+	int reg_model;                         /* u2 */
+	int reg_highlight_lut_gain;            /* u8 */
+	int reg_highlight_lut_clip;            /* u12 */
+	int reg_force_xy_point_en;             /* u1 */
+	int reg_highlight_lut_x;               /* 0 ~ 148 : ogian x index value */
+	int reg_highlight_lut_y;               /* u12 */
+	int reg_highlight_lut_pst_gain_en;     /* u1 */
+	int reg_highlight_lut_pst_gain;        /* u8 (0 ~ 256) */
+	int reg_highlight_y_clip_pos_low;      /* u6 */
+	int reg_highlight_y_clip_pos_high;     /* u6 */
+	int reg_highlight_y_clip_pos_sup_high; /* u6 */
+	int reg_highlight_y_clip_en;           /* u1 */
+	int reg_fcurv_low_th;                  /* u8 */
+	int reg_fcurv_mid1_th;                 /* u8 */
+	int reg_fcurv_mid2_th;                 /* u8 */
+	int reg_fcurv_high1_th;                /* u8 */
+	int reg_fcurv_high2_th;                /* u8 */
+	int reg_fcurv_high3_th;                /* u8 */
+	int reg_avg_lum_th0;                   /* u10 */
+	int reg_avg_lum_th1;                   /* u10 */
+	int reg_avg_lum_th2;                   /* u10 */
+	int reg_avg_lum_alpha0;                /* u8 (0 ~ 256) */
+	int reg_avg_lum_alpha1;                /* u8 (0 ~ 256) */
+	int reg_avg_lum_alpha2;                /* u8 (0 ~ 256) */
+	int reg_avg_lum_alpha3;                /* u8 (0 ~ 256) */
+	int reg_fcurve_adj_en;                 /* u1 */
+	int reg_fcurve_adj_sync_idx[10];       /* 0 ~ 148 : ogian x index value, suggest 90~120*/
+	int reg_fcurve_adj_gain[10];           /* u9 */
+	int reg_avg_lum_alpha_sc_flag;         /* u8 (0 ~ 256) */
+	int reg_sc_hist_th;                    /* u10 */
+	int reg_sc_maxl_th;                    /* u10 */
+	int reg_fcurv_clip_val[10][4];         /* u12 */
+	int reg_single_bin_th;                 /* 0 ~ 100 : special bin percentage*/
+	int reg_full_black_th;                 /* u10 */
+	int reg_full_white_th0;                /* u10 */
+	int reg_full_white_th1;                /* u10 */
+	int reg_special_pat1_th;               /* u10 */
+	int reg_special_pat2_th;               /* u10 */
 };
 
 struct db_cabc_aad_param_s {
@@ -778,6 +836,10 @@ struct hdr_parameter_reg_s {
 #define AMVECM_IOC_S_HDR_PARAM_REG _IOW(_VE_CM, 0x91, struct hdr_parameter_reg_s)
 #define AMVECM_IOC_S_HDR_GAMUT_COEF _IOW(_VE_CM, 0x92, struct hdr_gamut_data_s)
 #define AMVECM_IOC_S_HDR_MTRX_COEF _IOW(_VE_CM, 0x93, struct hdr_mtrx_data_s)
+
+/*hdr10_tmo ext ioc*/
+#define AMVECM_IOC_S_HDR_TMO_EXT	_IOW(_VE_CM, 0x97, struct hdr_tmo_sw_ext)
+#define AMVECM_IOC_G_HDR_TMO_EXT	_IOR(_VE_CM, 0x98, struct hdr_tmo_sw_ext)
 
 #define AMVECM_IOC_S_CM_CTRL     _IO(_VE_CM, 0xa0)
 #define AMVECM_IOC_S_FORCE_OUT   _IO(_VE_CM, 0xa1)
