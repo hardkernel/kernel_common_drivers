@@ -45,7 +45,7 @@ static struct adc_key *meson_adc_kp_search_key(struct meson_adc_kp *kp)
 			if (value < 0)
 				continue;
 			list_for_each_entry(key, &kp->adckey_head, list) {
-				if (key->chan == kp->chan[i] && !key->ignore &&
+				if (key->chan == kp->chan[i] &&
 				    (value >= key->value - key->tolerance) &&
 				    (value <= key->value + key->tolerance)) {
 					mutex_unlock(&kp->kp_lock);
@@ -92,7 +92,8 @@ static void meson_adc_kp_poll(struct work_struct *pwork)
 	int code = key ? key->code : KEY_RESERVED;
 
 	if (kp->report_code && kp->report_code != code) {
-		meson_adc_kp_report_key(kp, kp->report_code, kp->report_type, 0);
+		if (!kp->report_ignore)
+			meson_adc_kp_report_key(kp, kp->report_code, kp->report_type, 0);
 		kp->report_code = 0;
 	}
 
@@ -104,12 +105,17 @@ static void meson_adc_kp_poll(struct work_struct *pwork)
 			kp->count++;
 		} else {
 			if (keypad_enable_flag && kp->report_code != code) {
-				meson_adc_kp_report_key(kp, code, key->type, 1);
-				if (code == KEY_POWER)
-					pm_wakeup_hard_event(kp->input->dev.parent);
+				if (!key->ignore) {
+					meson_adc_kp_report_key(kp, code, key->type, 1);
+					if (code == KEY_POWER)
+						pm_wakeup_hard_event(kp->input->dev.parent);
+				}
 
 				kp->report_code = code;
 				kp->report_type = key->type;
+				kp->report_ignore = key->ignore;
+				kp->last_code = code;
+				key->press_count++;
 			}
 			kp->count = 0;
 		}
@@ -590,12 +596,51 @@ err:
 	return -EINVAL;
 }
 
+static ssize_t press_count_show(const struct class *cls, const struct class_attribute *attr,
+				char *buf)
+{
+	struct meson_adc_kp *kp = container_of(cls, struct meson_adc_kp, kp_class);
+	struct adc_key *key;
+	int len = 0;
+
+	mutex_lock(&kp->kp_lock);
+	list_for_each_entry(key, &kp->adckey_head, list) {
+		len += sysfs_emit_at(buf, len, "%s,%u: %u\n", key->name,
+				     key->code, key->press_count);
+	}
+	mutex_unlock(&kp->kp_lock);
+
+	return len;
+}
+
+static ssize_t last_code_show(const struct class *cls, const struct class_attribute *attr,
+			      char *buf)
+{
+	struct meson_adc_kp *kp = container_of(cls, struct meson_adc_kp, kp_class);
+
+	return sysfs_emit(buf, "%u\n", kp->last_code);
+}
+
+static ssize_t last_code_store(const struct class *cls, const struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct meson_adc_kp *kp = container_of(cls, struct meson_adc_kp, kp_class);
+
+	kp->last_code = 0;
+
+	return count;
+}
+
 static CLASS_ATTR_RW(table);
 static CLASS_ATTR_RW(ignore);
+static CLASS_ATTR_RO(press_count);
+static CLASS_ATTR_RW(last_code);
 
 static struct attribute *meson_adckey_attrs[] = {
 	&class_attr_table.attr,
 	&class_attr_ignore.attr,
+	&class_attr_press_count.attr,
+	&class_attr_last_code.attr,
 	NULL
 };
 

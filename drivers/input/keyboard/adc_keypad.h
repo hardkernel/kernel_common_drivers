@@ -39,6 +39,7 @@ struct adc_key {
 	int value; /* voltage/3.3v * 1023 */
 	int tolerance;
 	bool ignore;
+	unsigned int press_count;
 	struct list_head list;
 };
 
@@ -48,6 +49,8 @@ struct meson_adc_kp {
 	unsigned char count;
 	unsigned int report_code;
 	unsigned int report_type;
+	bool report_ignore;
+	unsigned int last_code;
 	unsigned int prev_code;
 	unsigned int poll_period; /*key scan period*/
 	struct mutex kp_lock;

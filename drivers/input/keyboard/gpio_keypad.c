@@ -32,6 +32,8 @@ struct pin_desc {
 	const char *name;
 	int count;
 	bool ignore;
+	u32 press_count;
+	bool next_ignore;
 };
 
 struct gpio_keypad {
@@ -43,6 +45,7 @@ struct gpio_keypad {
 	struct timer_list polling_timer;
 	struct input_dev *input_dev;
 	struct class kp_class;
+	u32 last_code;
 };
 
 static irqreturn_t gpio_irq_handler(int irq, void *data)
@@ -62,20 +65,23 @@ static void report_key_code(struct gpio_keypad *keypad, int gpio_val)
 	if (key->count >= KEY_JITTER_COUNT) {
 		key->current_status = gpio_val;
 		if (key->current_status) {
-			input_event(keypad->input_dev, key->key_type,
-				    key->code, 0);
+			if (key->next_ignore)
+				goto skip;
 
-			dev_dbg(&keypad->input_dev->dev,
-				 "key %d up.\n", key->code);
+			input_event(keypad->input_dev, key->key_type, key->code, 0);
+			dev_dbg(&keypad->input_dev->dev, "key %d up.\n", key->code);
 		} else {
-			input_event(keypad->input_dev, key->key_type,
-				    key->code, 1);
+			keypad->last_code = key->code;
+			key->press_count++;
+			key->next_ignore = key->ignore;
+			if (key->next_ignore)
+				goto skip;
 
-			dev_dbg(&keypad->input_dev->dev,
-				 "key %d down.\n", key->code);
+			input_event(keypad->input_dev, key->key_type, key->code, 1);
+			dev_dbg(&keypad->input_dev->dev, "key %d down.\n", key->code);
 		}
 		input_sync(keypad->input_dev);
-
+skip:
 		key->count = 0;
 	}
 }
@@ -90,7 +96,6 @@ static void polling_timer_handler(struct timer_list *t)
 	if (keypad->use_irq) {/* irq mode */
 		for (i = 0; i < keypad->key_size; i++) {
 			gpio_val = gpiod_get_value(keypad->key[i].desc);
-			gpio_val |= keypad->key[i].ignore;
 
 			if (keypad->key[i].current_status != gpio_val) {
 				keypad->key[i].count++;
@@ -110,7 +115,6 @@ static void polling_timer_handler(struct timer_list *t)
 	} else {/* polling mode */
 		for (i = 0; i < keypad->key_size; i++) {
 			gpio_val = gpiod_get_value(keypad->key[i].desc);
-			gpio_val |= keypad->key[i].ignore;
 			if (keypad->key[i].current_status != gpio_val) {
 				keypad->key[i].count++;
 				keypad->current_key = &keypad->key[i];
@@ -226,12 +230,51 @@ err:
 	return -EINVAL;
 }
 
+static ssize_t press_count_show(const struct class *cls, const struct class_attribute *attr,
+				char *buf)
+{
+	struct gpio_keypad *keypad = container_of(cls, struct gpio_keypad, kp_class);
+	int index;
+	int len = 0;
+
+	for (index = 0; index < keypad->key_size; index++) {
+		len += sysfs_emit_at(buf, len, "%s,%d: %d\n",
+				     keypad->key[index].name,
+				     keypad->key[index].code,
+				     keypad->key[index].press_count);
+	}
+
+	return len;
+}
+
+static ssize_t last_code_show(const struct class *cls, const struct class_attribute *attr,
+			      char *buf)
+{
+	struct gpio_keypad *keypad = container_of(cls, struct gpio_keypad, kp_class);
+
+	return sysfs_emit(buf, "%u\n", keypad->last_code);
+}
+
+static ssize_t last_code_store(const struct class *cls, const struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct gpio_keypad *keypad = container_of(cls, struct gpio_keypad, kp_class);
+
+	keypad->last_code = 0;
+
+	return count;
+}
+
 static CLASS_ATTR_RO(table);
 static CLASS_ATTR_RW(ignore);
+static CLASS_ATTR_RO(press_count);
+static CLASS_ATTR_RW(last_code);
 
 static struct attribute *meson_gpiokey_attrs[] = {
 	&class_attr_table.attr,
 	&class_attr_ignore.attr,
+	&class_attr_press_count.attr,
+	&class_attr_last_code.attr,
 	NULL
 };
 
