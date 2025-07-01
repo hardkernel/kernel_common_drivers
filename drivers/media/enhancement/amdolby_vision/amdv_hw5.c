@@ -731,7 +731,7 @@ static void dolby5_top1_ini(struct dolby5_top1_type *dolby5_top1, bool reset)
 		top1b_ahb_num = dolby5_top1->core1b_ahb_num;
 	}
 
-	if (py_enabled)
+	if (py_enabled && p_reg_top1 && p_reg_top1b)
 		check_pr_enabled_in_reg(p_reg_top1, p_reg_top1b);
 
 	if (p_reg_top1)

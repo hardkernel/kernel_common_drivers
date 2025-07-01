@@ -1166,6 +1166,8 @@ void calculate_panel_max_pq(enum signal_format_enum src_format,
 	struct target_config *config = p_config;
 	struct target_config_dvp *config_dvp = p_config;
 
+	if (!vinfo)
+		return;
 	if (use_target_lum_from_cfg &&
 	    !(src_format == FORMAT_HDR10 && force_hdr_tonemapping))
 		return;
@@ -1968,12 +1970,12 @@ static int load_cfg_by_name(char *fw_name)
 	}
 
 	txt_buf = vmalloc(fw->size + 2);
-	memset(txt_buf, 0, fw->size + 2);
 
 	if (!txt_buf) {
 		ret = -ENOMEM;
 		goto release;
 	}
+	memset(txt_buf, 0, fw->size + 2);
 	memcpy(txt_buf, (char *)fw->data, fw->size);
 	get_picture_mode_info(txt_buf);
 
@@ -2031,12 +2033,12 @@ int load_user_cfg_by_name(char *fw_name)
 	}
 
 	txt_buf = vmalloc(fw->size + 2);
-	memset(txt_buf, 0, fw->size + 2);
 
 	if (!txt_buf) {
 		ret = -ENOMEM;
 		goto release;
 	}
+	memset(txt_buf, 0, fw->size + 2);
 	memcpy(txt_buf, (char *)fw->data, fw->size);
 	get_user_cfg_info(txt_buf);
 
@@ -2096,12 +2098,12 @@ static int cp_cfg_data(void)
 	char *txt_buf = NULL;
 
 	txt_buf = vmalloc(cfg_size + 2);
-	memset(txt_buf, 0, cfg_size + 2);
 
 	if (!txt_buf) {
 		ret = -ENOMEM;
 		goto release;
 	}
+	memset(txt_buf, 0, cfg_size + 2);
 	memcpy(txt_buf, cfg_data, cfg_size);
 	get_picture_mode_info(txt_buf);
 
@@ -2261,12 +2263,12 @@ bool user_cfg_to_bin(char *user_cfg_data, int user_cfg_size)
 	char *cfg_buf = NULL;
 
 	cfg_buf = vmalloc(user_cfg_size + 2);
-	memset(cfg_buf, 0, user_cfg_size + 2);
 
 	if (!cfg_buf) {
 		ret = -ENOMEM;
 		goto release;
 	}
+	memset(cfg_buf, 0, user_cfg_size + 2);
 	memcpy(cfg_buf, user_cfg_data, user_cfg_size);
 	get_user_cfg_info(cfg_buf);
 	calculate_user_pq_config();
@@ -3920,6 +3922,9 @@ void read_stb26_reg_lut_to_buf(char *reg_txt, struct m_fixed_setting_s *setting,
 	u32 value3;
 	u32 value4;
 
+	if (!reg_txt || !setting)
+		return;
+
 	u32 *p_core1a_dm = &setting->core1[0].dm_reg.s_range;
 	u32 *p_core1a_comp = &setting->core1[0].comp_reg.composer_mode;
 	u32 *p_core1a_dmlut = &setting->core1[0].dm_lut.tm_lut_i[0];
@@ -3929,9 +3934,6 @@ void read_stb26_reg_lut_to_buf(char *reg_txt, struct m_fixed_setting_s *setting,
 	u32 *p_core2_dm = &setting->dm_reg2.s_range;
 	u32 *p_core2_lut = &setting->dm_lut2.tm_lut_i[0];
 	u32 *p_core3_dm = &setting->dm_reg3.d2c_coeff1;
-
-	if (!reg_txt || !setting)
-		return;
 
 	while (!eof_flag) {
 		eof_flag = read_one_line(&reg_txt, (char *)&cur_line);

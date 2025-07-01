@@ -762,9 +762,10 @@ int parse_sei_and_meta_ext_hw5(struct vframe_s *vf,
 
 			/* prepare metadata parser */
 			if (!prepare_parser(reset_flag, v_inst_info)) {
-				pr_dv_error
-				("meta(%d), pts(%lld) -> parser init fail\n",
-					rpu_size, vf->pts_us64);
+				if (vf)
+					pr_dv_error
+					("meta(%d), pts(%lld) -> parser init fail\n",
+						rpu_size, vf->pts_us64);
 				ret = 1;
 				goto parse_err;
 			}
