@@ -2848,6 +2848,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 	bool is_dec_vf = false, is_v4l_vf = false, is_repeat_vf = false;
 	struct vd_prepare_s *vd_prepare = NULL;
 	u64 phy_addr2 = 0;
+	u64 time_us64;
 	struct vframe_s *vf_ext = NULL;
 	int pic_w = 0, pic_h = 0;
 	bool enable_prelink = false;
@@ -2860,6 +2861,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 	frames_info = &received_frames->frames_info;
 	num = frames_info->layer_index;
 	frame_info = &frames_info->frame_info[num];
+	time_us64 = received_frames->time_us64;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	enable_prelink = dim_get_pre_link();
@@ -2925,6 +2927,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 	vf->crop[3] = pic_w - frame_info->crop_w - frame_info->crop_x;
 	vf->zorder = frame_info->zorder;
 	vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER | VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+	vf->pts_us64 = time_us64;
 	vf->disp_pts = 0;
 
 	drop_cnt = vf->frame_index + 1 - dev->received_new_count;
@@ -3332,7 +3335,11 @@ static struct vframe_s *vd_vf_peek(void *op_arg)
 		/*dv video on TV platform tog more then 2ms, if hwc set frame after HW vsync 1ms,*/
 		/*this vf will be get by current vsync;*/
 		/*only enable for android, if linux set frame also set pts_us64, we can enable it */
-		if (!is_meson_t7_cpu() && !dev->is_drm_enable) {
+		if (!is_meson_t7_cpu()) {
+			vd_print(dev->index, PRINT_PATTERN,
+				 "pts_us64=%lld, time_vsync=%lld\n",
+				 vf->pts_us64, time_vsync);
+
 			if (vf->pts_us64 >= time_vsync && vf->pts_us64 < (time_vsync + 10000)) {
 				vd_print(dev->index, PRINT_PATTERN,
 					 "display next vsync: pts_us64=%lld, time_vsync=%lld\n",
