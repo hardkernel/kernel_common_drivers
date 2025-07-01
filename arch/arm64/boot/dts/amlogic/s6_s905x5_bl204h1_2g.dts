@@ -11,8 +11,8 @@
 #include "mesons6_audio.dtsi"
 #include "firmware_ab.dtsi"
 / {
-	amlogic-dt-id = "s6_s905x5_bl204-4g";
-	compatible = "s6_s905x5_bl204";
+	amlogic-dt-id = "s6_s905x5_bl204h1-2g";
+	compatible = "s6_s905x5_bl204h1-2g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -35,8 +35,7 @@
 
 	memory@0 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x000000 0x0 0xe0000000
-					0x1 0x000000 0x0 0x20000000>;
+		linux,usable-memory = <0x0 0x0 0x0 0x80000000>;
 	};
 
 	reserved-memory {
@@ -50,7 +49,6 @@
 		};
 
 		/* global autoconfigured region for contiguous allocations */
-
 		ramoops@6b00000 {
 			compatible = "ramoops";
 			reg = <0x0 0x06b00000 0x0 0x00080000>;/* addr set in uboot */
@@ -73,12 +71,6 @@
 		dmc_reserved:linux,dmc_monitor {
 			compatible = "amlogic,dmc_monitor-reserved";
 			reg = <0x0 0x0 0x0 0x80000>;
-		};
-
-		mte_reserved:linux,mte {
-			compatible = "shared-dma-pool";
-			no-map;
-			reg = <0x0 0x0c000000 0x0 0x8000000>;
 		};
 
 		secmon_reserved:linux,secmon {
@@ -170,7 +162,6 @@
 			reusable;
 			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 			linux,contiguous-region;
 			clear-map;
 		};
@@ -180,7 +171,6 @@
 			reusable;
 			size = <0x0 0x6000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 			linux,contiguous-region;
 			clear-map;
 		};
@@ -197,7 +187,6 @@
 			 */
 			size = <0x0 0x1bc00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 			linux,contiguous-region;
 		};
 
@@ -211,9 +200,8 @@
 
 		codec_mm_reserved_ext:linux,codec_mm_reserved_ext {
 			compatible = "amlogic, codec-mm-reserved_ext";
-			size = <0x00000000 0x000c00000>;
+			size = <0x00000000 0x00000000>;
 			alignment = <0x0 0x100000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		secure_vdec_reserved:linux,secure_vdec_reserved {
@@ -221,7 +209,6 @@
 			no-map;
 			size = <0x0 0x1000000>;
 			alignment = <0x0 0x100000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -241,7 +228,7 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x1.5x4 = 12 M
 			 */
-			size = <0x0 0x00c00000>;
+			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
 		};
 		/* global autoconfigured region for contiguous allocations */
@@ -260,7 +247,6 @@
 			reusable;
 			size = <0x0 0x1000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 	};
 
@@ -445,7 +431,7 @@
 		//dvb_power_value = <0>;
 		//dvb_power_dir = <0>; //0: out, 1: in.
 
-		fe_num = <2>;
+		fe_num = <1>;
 		fe0_demod = "cxd2856";
 		fe0_i2c_adap_id = <&i2c5>;
 		fe0_demod_i2c_addr = <0xD8>;
@@ -458,9 +444,6 @@
 		fe0_ts_out_mode = <0>; //0: serial, 1: parallel.
 		fe0_tuner0 = <0>; //T,C
 		fe0_tuner1 = <1>; //S
-
-		fe1_demod = "dummy";
-		fe1_ts = <3>;
 
 		tuner_num = <2>; //tuner number, multi tuner support
 		tuner0_name = "r836_tuner";
@@ -495,8 +478,6 @@
 		ts2 = "parallel";
 		ts2_control = <0x0>;
 		ts2_invert = <0>;
-
-		ts3_sid = <0x7>;
 
 		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
@@ -872,12 +853,12 @@
 	reset-gpio = <&gpio GPIOX_0 GPIO_ACTIVE_HIGH>;
 	max-link-speed=<1>;
 	iommu-map = <0x100 &smmu 0x5 0x10>;
-	status = "okay";
+	status = "disabled";
 };
 
 /* SDIO */
 &sd_emmc_a {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&sdio_pins>;
 	pinctrl-1 = <&sdio_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -1051,6 +1032,10 @@
 	};
 };
 
+&chosen {
+	bootargs = "usbcore.autosuspend=-1 arm64.nomte";
+};
+
 &saradc {
 	status = "okay";
 };
@@ -1118,6 +1103,25 @@
 	status = "okay";
 	logo_addr = "0x7f800000";
 
+	connectors_dev: port@1 {
+		drm_to_dummyl: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&dummyl_to_drm>;
+		};
+	};
+};
+
+&dummy_venc {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			dummyl_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_dummyl>;
+			};
+		};
+	};
 };
 
 &drm_subsystem {

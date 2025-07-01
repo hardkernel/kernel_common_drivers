@@ -11,8 +11,8 @@
 #include "mesons6_audio.dtsi"
 #include "firmware_ab.dtsi"
 / {
-	amlogic-dt-id = "s6_s905x5_bl204-4g";
-	compatible = "s6_s905x5_bl204";
+	amlogic-dt-id = "s6_s905x5_bl204h1-4g";
+	compatible = "s6_s905x5_bl204h1";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -445,7 +445,7 @@
 		//dvb_power_value = <0>;
 		//dvb_power_dir = <0>; //0: out, 1: in.
 
-		fe_num = <2>;
+		fe_num = <1>;
 		fe0_demod = "cxd2856";
 		fe0_i2c_adap_id = <&i2c5>;
 		fe0_demod_i2c_addr = <0xD8>;
@@ -458,9 +458,6 @@
 		fe0_ts_out_mode = <0>; //0: serial, 1: parallel.
 		fe0_tuner0 = <0>; //T,C
 		fe0_tuner1 = <1>; //S
-
-		fe1_demod = "dummy";
-		fe1_ts = <3>;
 
 		tuner_num = <2>; //tuner number, multi tuner support
 		tuner0_name = "r836_tuner";
@@ -495,8 +492,6 @@
 		ts2 = "parallel";
 		ts2_control = <0x0>;
 		ts2_invert = <0>;
-
-		ts3_sid = <0x7>;
 
 		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
@@ -872,12 +867,12 @@
 	reset-gpio = <&gpio GPIOX_0 GPIO_ACTIVE_HIGH>;
 	max-link-speed=<1>;
 	iommu-map = <0x100 &smmu 0x5 0x10>;
-	status = "okay";
+	status = "disabled";
 };
 
 /* SDIO */
 &sd_emmc_a {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&sdio_pins>;
 	pinctrl-1 = <&sdio_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
