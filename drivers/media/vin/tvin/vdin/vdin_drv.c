@@ -1612,7 +1612,21 @@ bool vdin_get_video_ready_state(enum tvin_port_e port)
 	return video_ready;
 }
 
-static void vdin_get_secure_state(struct vdin_dev_s *devp)
+unsigned int vdin_check_secure_write_error(struct vdin_dev_s *devp)
+{
+	if (!is_meson_s6_cpu() || devp->debug.bypass_secure_check)
+		return 0;
+
+	if ((devp->secure_en || devp->secure_video) &&
+		!devp->mem_protected && !devp->set_canvas_manual)
+		devp->pause_dec = 1;
+	else
+		devp->pause_dec = 0;
+
+	return devp->pause_dec;
+}
+
+void vdin_get_secure_state(struct vdin_dev_s *devp)
 {
 	/* config secure_en by loopback port */
 	switch (devp->parm.port) {
@@ -1858,6 +1872,11 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 
 	/* reverse/non-reverse write buffer */
 	vdin_wr_reverse(devp, devp->parm.h_reverse, devp->parm.v_reverse);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	vdin_get_secure_state(devp);
+	vdin_check_secure_write_error(devp);
+#endif
 
 #ifdef CONFIG_CMA
 	vdin_cma_malloc_mode(devp);
@@ -2557,9 +2576,6 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		return -1;
 	}
 
-#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-	vdin_get_secure_state(devp);
-#endif
 	ret = vdin_start_dec(devp);
 	if (ret) {
 		pr_err("[vdin]%s kmalloc error.\n", __func__);
@@ -4515,10 +4531,9 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		goto irq_handled;
 	}
 
-	/* protect mem will fail sometimes due to no res from tee module */
-	if (devp->secure_en && !devp->mem_protected && !devp->set_canvas_manual) {
+	if (vdin_check_secure_write_error(devp)) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_SECURE_MD;
-		vdin_drop_frame_info(devp, "secure mode without protect mem");
+		vdin_drop_frame_info(devp, "secure video without secure buffer");
 		goto irq_handled;
 	}
 

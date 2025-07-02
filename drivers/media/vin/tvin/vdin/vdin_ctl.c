@@ -3131,6 +3131,9 @@ void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 
 void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en)
 {
+	if (devp->debug.pause_mif_dec || devp->pause_dec)
+		pause_en = true;
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t3x_cpu()) {
 		vdin_pause_mif_write_t3x(devp, rdma_enable, pause_en);

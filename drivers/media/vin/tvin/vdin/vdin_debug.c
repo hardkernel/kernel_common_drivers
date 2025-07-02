@@ -4540,6 +4540,14 @@ start_chk:
 		}
 		pr_info("invalid_input_en:%d\n",
 			devp->debug.invalid_input_en);
+	} else if (!strcmp(parm[0], "bypass_secure_check")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (temp)
+				devp->debug.bypass_secure_check = true;
+			else
+				devp->debug.bypass_secure_check = false;
+		}
+		pr_info("bypass_secure_check:%d\n", devp->debug.bypass_secure_check);
 	} else if (!strcmp(parm[0], "v4l2_buff_area")) {
 		/*
 		 * 0: codec_mm_cma area

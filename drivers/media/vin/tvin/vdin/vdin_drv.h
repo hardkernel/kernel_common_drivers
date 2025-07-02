@@ -728,6 +728,7 @@ struct vdin_debug_s {
 	bool rgb_info_enable;
 	bool vdin_time_en;
 	bool invert_top_bot;
+	bool bypass_secure_check;
 	int vdin_memset_dbg_en;
 	int vdin_memset_en;
 	int vdin_ctl_dbg;
@@ -1488,5 +1489,7 @@ void *output_body_ptr, struct vdin_dev_s *devp, unsigned int buf_num);
 u32 get_video_enabled(u8 layer_id);
 bool vdin_get_video_ready_state(enum tvin_port_e port);
 void vdin_dyn_fmt(struct vdin_dev_s *devp);
+void vdin_get_secure_state(struct vdin_dev_s *devp);
+unsigned int vdin_check_secure_write_error(struct vdin_dev_s *devp);
 #endif /* __TVIN_VDIN_DRV_H */
 
