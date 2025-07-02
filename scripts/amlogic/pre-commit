@@ -27,4 +27,4 @@ then
 exit 1;
 fi
 
-git diff --name-status  --cached $against -- | ./scripts/amlogic/merge_pre_check.pl -
+git diff --name-status  --cached $against -- | ./scripts/amlogic/merge_check.pl -
