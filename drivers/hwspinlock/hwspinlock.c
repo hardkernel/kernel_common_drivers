@@ -117,6 +117,8 @@ static int aml_hwspinlock_probe(struct platform_device *pdev)
 		field.reg = base + i * stride;
 		field.lsb = 0;
 		field.msb = 31;
+		field.id_size = 0;
+		field.id_offset = 0;
 
 		bank->lock[i].priv = devm_regmap_field_alloc(&pdev->dev,
 							     regmap, field);
