@@ -369,6 +369,18 @@ void aipq_scs_proc(int (*cfg)[SCENES_VALUE],
 			pre_skin_pct, pre_green_pct, pre_blue_pct);
 		pr_info("cur_skin/green/blue_pct = %d/%d/%d\n",
 			cur_skin_pct, cur_green_pct, cur_blue_pct);
+
+		pr_info("before pre_top_one = %d\n", pre_top_one);
+		pr_info("top_one/top_one_prob = %d/%d\n",
+			top_one, top_one_prob);
+		pr_info("top_two/top_two_prob = %d/%d\n",
+			top_two, top_two_prob);
+		pr_info("top_three/top_three_prob = %d/%d\n",
+			top_three, top_three_prob);
+
+		for (i = 0; i < 32; i++)
+			pr_info("[%d] pre_/cur_hue_hist = 0x%x/%x\n",
+				i, pre_hist[i], p->vpp_hue_gamma[i]);
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
@@ -381,8 +393,8 @@ void aipq_scs_proc(int (*cfg)[SCENES_VALUE],
 		scene_prob[1] = top_one_prob;
 		if (pq_debug[2] > 0x10)
 			pr_info("pre_top_one == top_one\n");
-	} else if (((pre_top_one == top_two) && (top_two_prob > 1000)) ||
-			((pre_top_one == top_three) && (top_three_prob > 1000))) {
+	} else if (((pre_top_one == top_two) && (top_two_prob > 2000)) ||
+			((pre_top_one == top_three) && (top_three_prob > 2000))) {
 		memcpy(out, cfg[pre_top_one], sizeof(int) * SCENES_VALUE);
 
 		if (pre_top_one == top_two) {
@@ -397,7 +409,7 @@ void aipq_scs_proc(int (*cfg)[SCENES_VALUE],
 			pr_info("top_two = %d, top_two_prob = %d\n",
 				top_two, top_two_prob);
 			pr_info("top_three = %d, top_three_prob = %d\n",
-				top_two, top_two_prob);
+				top_three, top_three_prob);
 		}
 	} else if ((diff_skin_pct + diff_green_pct + diff_blue_pct < color_th) &&
 			    (pre_top_one >= 0)) {
@@ -762,7 +774,7 @@ void vf_pq_process(struct vframe_s *vf,
 		aipq_scs_proc(vpp_pq_data, prob, bld_ofst, pq_debug);
 #endif
 
-	if (pq_debug[2] == 0x1)
+	if (pq_debug[2] & 0x1)
 		pr_info("top5:%d,%d; %d,%d; %d,%d; %d,%d; %d,%d;\n",
 			vf->nn_value[0].maxclass, vf->nn_value[0].maxprob,
 			vf->nn_value[1].maxclass, vf->nn_value[1].maxprob,
