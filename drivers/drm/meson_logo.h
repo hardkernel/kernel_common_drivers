@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __AM_MESON_LOGO_H
@@ -30,6 +30,7 @@ struct am_meson_logo {
 	u32 loaded;
 	char *outputmode_t;
 	char outputmode[VMODE_NAME_LEN_MAX];
+	bool is_std;
 };
 
 enum osd_dev_e {

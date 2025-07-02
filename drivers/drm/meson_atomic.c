@@ -683,3 +683,20 @@ void meson_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
 	__meson_atomic_helper_commit_tail(old_state);
 }
 
+void meson_atomic_state_free(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct meson_drm *priv = dev->dev_private;
+
+	if (!priv) {
+		DRM_ERROR("%s: Failed to get meson drm!\n", __func__);
+		return;
+	}
+
+	if (is_cma && logo.is_std)
+		am_meson_free_logo_memory();
+
+	drm_atomic_state_default_release(state);
+	kfree(state);
+}
+

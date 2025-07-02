@@ -81,6 +81,7 @@ __setup("reboot_mode=", check_reboot_mode);
 static const struct drm_mode_config_funcs meson_mode_config_funcs = {
 	.atomic_check        = drm_atomic_helper_check,
 	.atomic_commit       = meson_atomic_commit,
+	.atomic_state_free   = meson_atomic_state_free,
 #ifdef CONFIG_AMLOGIC_DRM_USE_ION
 	.fb_create           = am_meson_fb_create,
 #else
@@ -822,8 +823,7 @@ static int am_meson_drm_pm_restore(struct device *dev)
 	int ret;
 
 	ret = am_meson_drm_pm_resume(dev);
-	if (is_cma)
-		am_meson_free_logo_memory();
+	logo.is_std = 1;
 
 	DRM_INFO("drm restore done\n");
 	return ret;

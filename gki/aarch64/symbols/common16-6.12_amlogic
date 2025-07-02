@@ -5,3 +5,4 @@
   nbcon_device_try_acquire
   strreplace
   sysfs_emit_at
+  drm_atomic_state_default_release

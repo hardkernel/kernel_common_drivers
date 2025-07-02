@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -331,6 +332,7 @@ void am_meson_free_logo_memory(void)
 	}
 
 	logo.alloc_flag = 0;
+	logo.is_std = 0;
 }
 
 static int am_meson_logo_info_update(struct meson_drm *priv)

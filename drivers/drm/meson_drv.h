@@ -185,6 +185,7 @@ int meson_atomic_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
 			     bool nonblock);
 void meson_atomic_helper_commit_tail(struct drm_atomic_state *old_state);
+void meson_atomic_state_free(struct drm_atomic_state *state);
 
 /*meson of parse*/
 void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
