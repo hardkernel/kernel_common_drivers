@@ -215,6 +215,7 @@ struct hdmi_dsc_pps_data_s {
 
 	/*for dsc parameter config*/
 	int htotal;
+	int hactive;
 	int fps;
 	int color_depth;
 	int color_fmt;

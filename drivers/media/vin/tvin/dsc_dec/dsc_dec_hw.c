@@ -346,6 +346,8 @@ void dsc_dec_config_vpu_mux(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 	wr_bits(0, VPU_VDIN_HDMI0_CTRL0, dsc_dec_drv->pix_per_clk + 1, IN_PPC_BIT, IN_PPC_WID);
 	wr_bits(0, VPU_VDIN_HDMI0_CTRL0, 1, OUT_PPC_BIT, OUT_PPC_BIT);
 
+	if (dsc_dec_drv->pix_per_clk == 2 && !dsc_dec_drv->pps_data.native_420)
+		wr_bits(0, VPU_VDIN_HDMI0_CTRL1, 1, 30, 1);
 	if (dsc_dec_drv->pps_data.convert_rgb)
 		wr_bits(0, VPU_VDIN_HDMI0_CTRL0, 0, DSC_PPC_BIT, DSC_PPC_BIT);
 	else if (dsc_dec_drv->pps_data.native_422)

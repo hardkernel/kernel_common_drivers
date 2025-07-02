@@ -1796,6 +1796,7 @@ void hdmirx_get_pps_info(struct tvin_sig_property_s *prop, u8 port)//todo)
 	prop->pps_data.nsl_bpg_offset = rx[port].dsc_pps_data.nsl_bpg_offset;
 	prop->pps_data.second_line_offset_adj = rx[port].dsc_pps_data.second_line_offset_adj;
 	prop->pps_data.htotal = rx[port].cur.htotal;
+	prop->pps_data.hactive = rx[port].cur.hactive;
 	prop->pps_data.vbegin = rx[port].cur.vbegin;
 	prop->pps_data.vend =  rx[port].cur.vend;
 	prop->pps_data.fps = (rx[port].cur.frame_rate + 99) / 100;

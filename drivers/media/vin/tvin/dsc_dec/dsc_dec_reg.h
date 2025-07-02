@@ -18,6 +18,7 @@
 #define CLKCTRL_PIX_PLL_STS			0x02f4
 
 #define VPU_VDIN_HDMI0_CTRL0			0x272c
+#define VPU_VDIN_HDMI0_CTRL1			0x272d
 // Bit0:reg_hdmi_en Bit1:reg_dsc_en
 #define HDMI_OR_DSC_EN_BIT		0
 #define HDMI_OR_DSC_EN_WID		2

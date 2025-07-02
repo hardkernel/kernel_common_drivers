@@ -5815,11 +5815,21 @@ void rx_switch_to_self_hsync(u8 port, bool en)
 	hdmirx_wr_bits_cor(RX_PWD_CTRL_PWD_IVCRX, _BIT(3), en, port);
 	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL1_PWD_IVCRX, _BIT(5), en, port);
 	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL1_PWD_IVCRX, _BIT(7), en, port);
-	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL2_PWD_IVCRX, _BIT(2), en, port);
+	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL2_PWD_IVCRX, _BIT(1), en, port);
 	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL1_PWD_IVCRX, _BIT(5), en, port);
 	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL1_PWD_IVCRX, _BIT(7), en, port);
-	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL2_PWD_IVCRX, _BIT(2), en, port);
+	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL2_PWD_IVCRX, _BIT(1), en, port);
 	//hdmirx_wr_bits_cor(VP_FDET_CLEAR_VID_IVCRX, _BIT(0), 0, port);
+	//when dsc vsync polarity negative, we need us vid if func to reverse;
+	if (hdmirx_rd_bits_cor(VP_FDET_STATUS_VID_IVCRX, _BIT(1), port) == 0) {
+		if (rx[port].cur.colorspace == E_COLOR_YUV422) {
+			hdmirx_wr_bits_cor(RX_PWD_CTRL_PWD_IVCRX, _BIT(3), 1, port);
+			hdmirx_wr_bits_top_common_1(TOP_VID_CNTL, _BIT(28), 1);
+			hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, _BIT(31), 0);
+		} else {
+			hdmirx_wr_bits_cor(RX_PWD_CTRL_PWD_IVCRX, _BIT(3), 0, port);
+		}
+	}
 }
 
 bool rx_is_switch_to_analog_clk(u8 port)

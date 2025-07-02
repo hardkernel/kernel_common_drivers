@@ -2651,6 +2651,10 @@ void parse_dsc_pps_data(u8 *buff, u8 port)
 	rx[port].dsc_pps_data.second_line_bpg_offset = buff[89] & 0x1f;
 	rx[port].dsc_pps_data.nsl_bpg_offset = (buff[90] << 8) | buff[91];
 	rx[port].dsc_pps_data.second_line_offset_adj = (buff[92] << 8) | buff[93];
+	rx[port].dsc_pps_data.hfront = (buff[129] << 8) | buff[128];
+	rx[port].dsc_pps_data.hsync = (buff[131] << 8) | buff[130];
+	rx[port].dsc_pps_data.hback = (buff[133] << 8) | buff[132];
+	rx[port].dsc_pps_data.hc_active_bytes = (buff[135] << 8) | buff[134];
 }
 
 void dump_dsc_pps_info(u8 port)
@@ -2847,10 +2851,12 @@ void rx_get_em_info(u8 port)
 			memcpy(rx[port].cvtem_info.dsc_info + 21, (u8 *)pkt + 36, 28);
 			memcpy(rx[port].cvtem_info.dsc_info + 49, (u8 *)pkt + 68, 28);
 			memcpy(rx[port].cvtem_info.dsc_info + 77, (u8 *)pkt + 100, 28);
-			memcpy(rx[port].cvtem_info.dsc_info + 105, (u8 *)pkt + 132, 23);
-			memcpy(rx[port].cvtem_info.dsc_info + 128, (u8 *)pkt + 159, 8);
-			if (log_level & 0x400)
+			memcpy(rx[port].cvtem_info.dsc_info + 105, (u8 *)pkt + 132, 28);
+			memcpy(rx[port].cvtem_info.dsc_info + 133, (u8 *)pkt + 164, 3);
+			if (log_level & 0x400) {
+				memcpy(rx[port].cvtem_info.dsc_info, (u8 *)pkt, 192);
 				dump_cvtem_packet(port);
+			}
 			parse_dsc_pps_data(rx[port].cvtem_info.dsc_info, port);
 			break;
 		case EMP_QMS_PLUS:

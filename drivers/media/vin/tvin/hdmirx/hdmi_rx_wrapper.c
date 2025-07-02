@@ -470,7 +470,7 @@ void hdmirx_fsm_var_init(void)
 		sig_unready_max = 0;
 		/* decreased to 2 */
 		/* decreased to 2 */
-		diff_pixel_th = 1;
+		diff_pixel_th = 2;
 		/* decreased to 2 */
 		diff_line_th = 1;
 		/* (25hz-24hz)/2 = 50/100 */
@@ -1437,7 +1437,7 @@ irqreturn_t irq2_handler(int irq, void *params)
 		rx[E_PORT2].irq_err_cnt++;
 	else
 		rx[E_PORT2].irq_err_cnt = 0;
-	if (rx[E_PORT2].irq_err_cnt >= irq_err_max) {
+	if (rx[E_PORT2].irq_err_cnt >= irq_err_max && !rx[E_PORT2].dsc_flag) {
 		rx_pr("IRQ ERR\n");
 		if (video_mute_enabled(E_PORT2)) {
 			hdmirx_mute_vpp(true, E_PORT2);
@@ -1455,7 +1455,7 @@ irqreturn_t irq2_handler(int irq, void *params)
 		rx[E_PORT2].de_err_cnt++;
 	else
 		rx[E_PORT2].de_err_cnt = 0;
-	if (rx[E_PORT2].de_err_cnt >= de_err_max) {
+	if (rx[E_PORT2].de_err_cnt >= de_err_max && !rx[E_PORT2].dsc_flag) {
 		rx_pr("DE ERR\n");
 		if (video_mute_enabled(E_PORT2))
 			hdmirx_mute_vpp(true, E_PORT2);
@@ -1629,7 +1629,7 @@ irqreturn_t irq3_handler(int irq, void *params)
 		rx[E_PORT3].irq_err_cnt++;
 	else
 		rx[E_PORT3].irq_err_cnt = 0;
-	if (rx[E_PORT3].irq_err_cnt >= irq_err_max) {
+	if (rx[E_PORT3].irq_err_cnt >= irq_err_max && !rx[E_PORT3].dsc_flag) {
 		rx_pr("IRQ ERR\n");
 		if (video_mute_enabled(E_PORT3)) {
 			hdmirx_mute_vpp(true, E_PORT3);
@@ -1647,7 +1647,7 @@ irqreturn_t irq3_handler(int irq, void *params)
 		rx[E_PORT3].de_err_cnt++;
 	else
 		rx[E_PORT3].de_err_cnt = 0;
-	if (rx[E_PORT3].de_err_cnt >= de_err_max) {
+	if (rx[E_PORT3].de_err_cnt >= de_err_max && !rx[E_PORT3].dsc_flag) {
 		rx_pr("DE ERR\n");
 		if (video_mute_enabled(E_PORT3))
 			hdmirx_mute_vpp(true, E_PORT3);
@@ -1919,6 +1919,10 @@ static const struct freq_ref_s freq_ref[] = {
 	{0,	0,	0,	3840,	2160,	HDMI_2160p24_16x9},
 	{0,	4,	0,	1370,	2160,	HDMI_2160p24_16x9},
 	{0,	4,	0,	1130,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1850,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1851,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1852,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1900,	2160,	HDMI_2160p24_16x9},
 	/* 8k and 8k dsc mode */
 	{0,	0,	0,	7680,	4320,	HDMI_7680x4320p60_16x9},
 	{0,	4,	0,	3840,	4320,	HDMI_7680x4320p60_16x9},
@@ -6057,8 +6061,8 @@ void rx_port2_main_state_machine(void)
 		if (rx_is_timing_stable(port)) {
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max +
 				frl_extra_stable_cnt[rx[port].var.frl_rate]) {
-				rx_irq_en(IRQ_EN_ALL, port);
 				get_timing_fmt(port);
+				rx_irq_en(IRQ_EN_ALL, port);
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;
@@ -6567,8 +6571,8 @@ void rx_port3_main_state_machine(void)
 		if (rx_is_timing_stable(port)) {
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max +
 				frl_extra_stable_cnt[rx[port].var.frl_rate]) {
-				rx_irq_en(IRQ_EN_ALL, port);
 				get_timing_fmt(port);
+				rx_irq_en(IRQ_EN_ALL, port);
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;

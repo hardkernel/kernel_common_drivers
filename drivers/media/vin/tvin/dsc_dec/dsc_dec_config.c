@@ -6,6 +6,7 @@
 #include "dsc_dec_drv.h"
 #include "dsc_dec_hw.h"
 #include "dsc_dec_debug.h"
+#include "dsc_dec_reg.h"
 
 #define MHz	1000000
 
@@ -942,7 +943,7 @@ void dsc_clk_config(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 	dsc_dec_config_fix_pll_clk(DSC_CLK_BAND0);
 	if ((pps_data->pic_width == 3840 && pps_data->pic_height == 2160) ||
 		(pps_data->pic_width == 4096 && pps_data->pic_height == 2160)) {
-		if (pps_data->pixel_clk <= 320 * MHz) {
+		if (pps_data->pixel_clk <= 318 * MHz) {
 			dsc_dec_drv->pix_per_clk = 1;
 			if (pps_data->hw_vic == 97)
 				dsc_dec_config_fix_pll_clk(DSC_CLK_BAND0);
@@ -973,6 +974,8 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 {
 	struct hdmi_dsc_pps_data_s *pps_data = &dsc_dec_drv->pps_data;
 	int idx;
+	//int input_htotal = R_DSC_DEC_BIT(DSC_ASIC_CTRL16,
+		//INPUT_HTOTAL, INPUT_HTOTAL_WID);
 
 	dsc_dec_drv->pix_per_clk = 1;
 	dsc_clk_config(dsc_dec_drv);
@@ -1049,6 +1052,11 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 
 	dsc_dec_drv->hc_htotal_offs_oddline = 0;
 	dsc_dec_drv->hc_htotal_offs_evenline = 0;
+	//if (pps_data->htotal == 4000 && pps_data->hactive == 1852)
+		//dsc_dec_drv->hc_htotal_m1 = 961;
+	//else if (pps_data->htotal == 3920 && pps_data->hactive == 1852)
+		//dsc_dec_drv->hc_htotal_m1 = 956;
+	//else
 	dsc_dec_drv->hc_htotal_m1 = pps_data->htotal / 2 - 1;
 	dsc_dec_drv->pix_out_swap0 = 0x76543210;
 	dsc_dec_drv->intr_maskn = 0;
@@ -1074,7 +1082,7 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 
 	/* config timing register */
 	if (pps_data->pic_width == 3840 && pps_data->pic_height == 2160) {
-		if (pps_data->pixel_clk <= 320 * MHz) {
+		if (pps_data->pixel_clk <= 318 * MHz) {
 			dsc_dec_drv->tmg_ctrl.tmg_havon_begin = 1260;
 			dsc_dec_drv->tmg_ctrl.tmg_hso_begin = 1068;
 			dsc_dec_drv->tmg_ctrl.tmg_hso_end = 1112;
@@ -1082,6 +1090,16 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 			dsc_dec_drv->tmg_ctrl.tmg_vso_end = 0;
 			dsc_dec_drv->tmg_ctrl.tmg_vso_bline = 3;
 			dsc_dec_drv->tmg_ctrl.tmg_vso_eline = 13;
+			//if (pps_data->htotal == 4000 && pps_data->hactive == 1852) {
+				//dsc_dec_drv->tmg_cb_von_bline = 153;
+				//dsc_dec_drv->tmg_cb_von_eline = 2313;
+			//} else if (pps_data->htotal == 3920 && pps_data->hactive == 1852) {
+				//dsc_dec_drv->tmg_cb_von_bline = 15;
+				//dsc_dec_drv->tmg_cb_von_eline = 2175;
+			//} else {
+				//dsc_dec_drv->tmg_cb_von_bline = dsc_dec_drv->pps_data.vbegin + 1;
+				//dsc_dec_drv->tmg_cb_von_eline = dsc_dec_drv->pps_data.vend + 1;
+			//}
 			dsc_dec_drv->tmg_cb_von_bline = dsc_dec_drv->pps_data.vbegin + 1;
 			dsc_dec_drv->tmg_cb_von_eline = dsc_dec_drv->pps_data.vend + 1;
 		} else {
@@ -1092,6 +1110,19 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 			dsc_dec_drv->tmg_ctrl.tmg_vso_end = 0;
 			dsc_dec_drv->tmg_ctrl.tmg_vso_bline = 3;
 			dsc_dec_drv->tmg_ctrl.tmg_vso_eline = 13;
+			//if (pps_data->htotal == 4000 && pps_data->hactive == 1852) {
+				//dsc_dec_drv->tmg_cb_von_bline = 153;
+				//dsc_dec_drv->tmg_cb_von_eline = 2313;
+			//} else if (pps_data->htotal == 3920 && pps_data->hactive == 1852) {
+				//dsc_dec_drv->tmg_cb_von_bline = 15;
+				//dsc_dec_drv->tmg_cb_von_eline = 2175;
+			//} else if (pps_data->htotal == 1964 && pps_data->hactive == 1900) {
+				//dsc_dec_drv->tmg_cb_von_bline = 15;
+				//dsc_dec_drv->tmg_cb_von_eline = 2175;
+			//} else {
+				//dsc_dec_drv->tmg_cb_von_bline = dsc_dec_drv->pps_data.vbegin + 1;
+				//dsc_dec_drv->tmg_cb_von_eline = dsc_dec_drv->pps_data.vend + 1;
+			//}
 			dsc_dec_drv->tmg_cb_von_bline = dsc_dec_drv->pps_data.vbegin + 1;
 			dsc_dec_drv->tmg_cb_von_eline = dsc_dec_drv->pps_data.vend + 1;
 		}
@@ -1131,7 +1162,8 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 		}
 	}
 	//now some chip flash,hc_total_m1 + 1 to work around.
-	if (pps_data->pic_width == 3840 && pps_data->pic_height == 2160)
+	if (pps_data->pic_width == 3840 && pps_data->pic_height == 2160 &&
+		!dsc_dec_drv->pps_data.native_422)
 		dsc_dec_drv->hc_htotal_m1 += 1;
 	dsc_dec_config_register(dsc_dec_drv);
 	dsc_dec_config_vpu_mux(dsc_dec_drv);

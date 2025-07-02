@@ -765,6 +765,9 @@ struct rx_dsc_pps_data_s {
 	u8 second_line_bpg_offset;
 	unsigned int nsl_bpg_offset;
 	unsigned int second_line_offset_adj;
+	unsigned int hfront;
+	unsigned int hsync;
+	unsigned int hback;
 	unsigned int hc_active_bytes;
 };
 
