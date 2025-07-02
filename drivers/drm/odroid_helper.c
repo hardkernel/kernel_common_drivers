@@ -1,5 +1,6 @@
 #include <linux/fs.h>
 #include <linux/gcd.h>
+#include <video/display_timing.h>
 
 #include "odroid_helper.h"
 

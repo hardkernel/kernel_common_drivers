@@ -17,4 +17,6 @@ extern int update_odroid_custom_hdmi_timing(
 
 extern int load_odroid_modelines(struct drm_connector *connector);
 extern int load_odroid_modeline_from_commandline(struct drm_connector *connector);
+extern int load_odroid_display_mode_from_dt(struct drm_connector *connector,
+		struct device_node *node);
 #endif
