@@ -1469,6 +1469,8 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&remote_pins>;
+	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+	map = <&custom_maps_linux>;
 };
 
 &dcon_led {
@@ -1555,5 +1557,6 @@
 	status = "okay";
 	bt_en-gpios = <&gpio  GPIOD_11  GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio  GPIOD_13  GPIO_ACTIVE_HIGH>;
+	btwakeup-gpios = <&gpio    GPIOD_8 GPIO_ACTIVE_HIGH>;
 	power_down_disable = <1>;
 };
