@@ -110,7 +110,8 @@ static int audio_clocks_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct clk **clks;
 	struct clk_onecell_data *clk_data = NULL;
-	void __iomem *clk_base = NULL, *clk_base2 = NULL;
+	void __iomem *clk_base = NULL;
+	void __iomem *clk_base2 = NULL;
 	struct audio_clk_init *p_audioclk_init = NULL;
 	int ret;
 	struct regmap *audio_top_vad_regmap;

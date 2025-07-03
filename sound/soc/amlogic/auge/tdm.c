@@ -447,7 +447,7 @@ static int aml_set_tdm_mclk_s4(struct aml_tdm *p_tdm,
 static int aml_set_tdm_mclk_1(struct aml_tdm *p_tdm,
 		unsigned int freq, bool tune)
 {
-	unsigned int ratio = aml_mpll_mclk_ratio(freq);
+	unsigned int ratio = 0;
 	unsigned int mpll_freq = 0;
 	bool mpll_change = false;
 	char *clk_name;
@@ -457,6 +457,7 @@ static int aml_set_tdm_mclk_1(struct aml_tdm *p_tdm,
 		return 0;
 	}
 
+	ratio = aml_mpll_mclk_ratio(freq);
 	clk_name = (char *)__clk_get_name(p_tdm->clk);
 	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
 		if (p_tdm->syssrc_clk_rate &&
@@ -2482,7 +2483,7 @@ static int aml_set_default_tdm_clk(struct aml_tdm *p_tdm)
 	unsigned int mclk = 12288000;
 	unsigned int ratio = aml_mpll_mclk_ratio(mclk);
 	unsigned int lrclk_hi;
-	unsigned long pll = mclk * ratio;
+	unsigned long pll = (unsigned long)(mclk * ratio);
 	char *clk_name;
 
 	/*set default i2s  timing sequence*/
@@ -2490,8 +2491,6 @@ static int aml_set_default_tdm_clk(struct aml_tdm *p_tdm)
 	| SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CONT;
 
 	aml_tdm_set_fmt(p_tdm, fmt, true);
-	/*set default i2s clk for codec sequence*/
-
 	/*set default i2s clk for codec sequence*/
 	p_tdm->setting.bclk_lrclk_ratio = 64;
 	p_tdm->setting.sysclk_bclk_ratio = 4;

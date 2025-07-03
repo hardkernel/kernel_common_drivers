@@ -1520,9 +1520,8 @@ static int datain_parse_of(struct device_node *node,
 
 	pdev = of_find_device_by_node(node);
 	if (!pdev) {
-		dev_err(&pdev->dev,
-			"failed to find platform device\n");
-		return -EINVAL;
+		ret = -ENXIO;
+		goto err;
 	}
 
 	if (p_loopback->datain_chnum > 0) {
@@ -1549,7 +1548,7 @@ static int datain_parse_of(struct device_node *node,
 	return 0;
 err:
 	pr_err("%s, error:%d\n", __func__, ret);
-	return -EINVAL;
+	return ret;
 }
 
 static int datalb_tdminlb_parse_of(struct device_node *node,
@@ -1560,9 +1559,8 @@ static int datalb_tdminlb_parse_of(struct device_node *node,
 
 	pdev = of_find_device_by_node(node);
 	if (!pdev) {
-		dev_err(&pdev->dev,
-			"failed to find platform device\n");
-		return -EINVAL;
+		ret = -ENXIO;
+		goto err;
 	}
 
 	/* mpll used for tdmin_lb */
@@ -1604,7 +1602,7 @@ static int datalb_tdminlb_parse_of(struct device_node *node,
 	return 0;
 err:
 	pr_err("%s, error:%d\n", __func__, ret);
-	return -EINVAL;
+	return ret;
 }
 
 static unsigned int loopback_parse_format(struct device_node *node)
@@ -1648,8 +1646,7 @@ static int loopback_parse_of(struct device_node *node,
 
 	pdev = of_find_device_by_node(node);
 	if (!pdev) {
-		dev_err(&pdev->dev, "failed to find platform device\n");
-		ret = -EINVAL;
+		ret = -ENXIO;
 		goto fail;
 	}
 

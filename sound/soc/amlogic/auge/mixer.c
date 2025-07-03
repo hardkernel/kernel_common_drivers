@@ -114,17 +114,19 @@ static int aml_dai_mixer_prepare(struct snd_pcm_substream *substream,
 	struct frddr *fddr = NULL;
 	unsigned int fddr_type = 0;
 
-	bit_depth = snd_pcm_format_width(runtime->format);
 	if (!mixer_p) {
-		dev_err(mixer_p->dev, "%s:mixer null\n", __func__);
-		return -EINVAL;
+		pr_err("%s:mixer null\n", __func__);
+		return -ENXIO;
 	}
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		fddr = mixer_p->fddr;
 		if (!fddr) {
 			dev_err(mixer_p->dev, "%s:fddr not find\n", __func__);
 			return -EINVAL;
 		}
+
+		bit_depth = snd_pcm_format_width(runtime->format);
 		fifo_id = fddr->fifo_id;
 		fddr_type = aml_get_mixer_frddr_type(bit_depth);
 		mic_mixer_format_set(bit_depth, fddr_type);
@@ -268,18 +270,18 @@ static int aml_mixer_prepare(struct snd_soc_component *component,
 	unsigned int start_addr, end_addr, int_addr;
 	unsigned int period, threshold;
 
-	start_addr = runtime->dma_addr;
-	end_addr = start_addr + runtime->dma_bytes - FIFO_BURST;
-	period	 = frames_to_bytes(runtime, runtime->period_size);
-	int_addr = period / FIFO_BURST;
-
 	if (!mixer_p) {
-		dev_err(mixer_p->dev, "%s:mixer null\n", __func__);
-		return -EINVAL;
+		pr_err("%s:mixer null\n", __func__);
+		return -ENXIO;
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct frddr *fr = mixer_p->fddr;
+
+		start_addr = runtime->dma_addr;
+		end_addr = start_addr + runtime->dma_bytes - FIFO_BURST;
+		period   = frames_to_bytes(runtime, runtime->period_size);
+		int_addr = period / FIFO_BURST;
 
 		mixer_fifo_reset();
 		mic_mixer_fifo_reset();

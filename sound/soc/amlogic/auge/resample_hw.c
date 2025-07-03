@@ -222,12 +222,13 @@ static void resample_set_bits(enum resample_idx id, int msb, int lsb)
 void new_resampleA_set_format(enum resample_idx id, int channel, int bits)
 {
 	int msb = bits - 1, lsb = 0;
-	int mclk_ratio = 256 / channel;
+	int mclk_ratio = 0;
 	enum toddr_src src = get_resample_source(id);
 
 	if (channel > 8 || channel == 0 || bits < 16)
 		return;
 
+	mclk_ratio = 256 / channel;
 	new_resample_update_bits(id, AUDIO_RSAMP_CTRL1,
 				 0x1 << 11, 0 << 11);
 
