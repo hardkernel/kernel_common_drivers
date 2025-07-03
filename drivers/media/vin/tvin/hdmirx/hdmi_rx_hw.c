@@ -4789,6 +4789,8 @@ void hdmirx_hw_probe(void)
 	else
 		hdmirx_wr_top_common(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0, port);//to do
+	if (rx_info.chip_id >= CHIP_ID_T6D && rx_info.chip_id != CHIP_ID_T3X)
+		hdmirx_wr_bits_top(TOP_EDID_GEN_CNTL1, MSK(4, 20), 0xf, port);
 }
 
 /*

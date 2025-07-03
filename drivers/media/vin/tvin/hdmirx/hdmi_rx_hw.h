@@ -46,7 +46,8 @@
 /* 2025.06.06 enable dacr for all frequency of t6w */
 /* 2025.06.10 Fix audio fifo keeps resetting after fastswitch */
 /* 2025.06.06 fix 74M input unstable issue */
-#define RX_HW_VER "ver.2025/06/13"
+/* 2025.07.04 enable edid segment auto clr */
+#define RX_HW_VER "ver.2025/07/04"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -233,6 +234,7 @@
 	#define TOP_VID_FMT		MSK(4, 20)
 #define TOP_ACR_CNTL_STAT                0x00E
 #define TOP_ACR_AUDFIFO                  0x00F
+#define TOP_EDID_GEN_CNTL1               0x00F
 #define TOP_ARCTX_CNTL                   0x010
 #define TOP_METER_HDMI_CNTL              0x011
 #define TOP_METER_HDMI_STAT              0x012
