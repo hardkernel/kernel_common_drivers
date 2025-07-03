@@ -2427,8 +2427,11 @@ static int aml_dtvdm_read_signal_strength(struct dvb_frontend *fe,
 #endif
 #ifdef AML_DEMOD_SUPPORT_DVBT
 	case SYS_DVBT:
-	case SYS_DVBT2:
 		ret = gxtv_demod_dvbt_read_signal_strength(fe, (s16 *)strength);
+		break;
+
+	case SYS_DVBT2:
+		ret = gxtv_demod_dvbt2_read_signal_strength(fe, (s16 *)strength);
 		break;
 #endif
 #ifdef AML_DEMOD_SUPPORT_ISDBT
@@ -3035,8 +3038,11 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 #endif
 #ifdef AML_DEMOD_SUPPORT_DVBT
 		case SYS_DVBT:
-		case SYS_DVBT2:
 			gxtv_demod_dvbt_read_signal_strength(fe, &strength);
+			break;
+
+		case SYS_DVBT2:
+			gxtv_demod_dvbt2_read_signal_strength(fe, &strength);
 			break;
 #endif
 #ifdef AML_DEMOD_SUPPORT_ISDBT

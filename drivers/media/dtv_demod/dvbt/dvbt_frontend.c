@@ -495,7 +495,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 	if (devp->tuner_strength_limit)
 		strength_limit = devp->tuner_strength_limit;
 
-	gxtv_demod_dvbt_read_signal_strength(fe, &strength);
+	gxtv_demod_dvbt2_read_signal_strength(fe, &strength);
 	if (!tuner_find_by_name(fe, "mxl661") || demod->last_status != 0x1F) {
 		if (strength < strength_limit) {
 			if (!(no_signal_cnt++ % 20))
@@ -764,10 +764,37 @@ int gxtv_demod_dvbt_read_signal_strength(struct dvb_frontend *fe,
 	*strength = (s16)tuner_get_ch_power(fe);
 	if (tuner_find_by_name(fe, "r842") ||
 		tuner_find_by_name(fe, "r836") ||
-		tuner_find_by_name(fe, "r850"))
-		*strength += 7;
-	else if (tuner_find_by_name(fe, "mxl661"))
+		tuner_find_by_name(fe, "r850")) {
+		*strength -= 3;
+		if (fe->dtv_property_cache.frequency == 474000000)
+			*strength -= 1;
+		else if (fe->dtv_property_cache.frequency == 690000000)
+			*strength -= 3;
+	} else if (tuner_find_by_name(fe, "mxl661")) {
 		*strength += 3;
+	}
+
+	PR_DVBT("[id %d] strength %d dBm\n", demod->id, *strength);
+
+	return 0;
+}
+
+int gxtv_demod_dvbt2_read_signal_strength(struct dvb_frontend *fe, s16 *strength)
+{
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+
+	*strength = (s16)tuner_get_ch_power(fe);
+	if (tuner_find_by_name(fe, "r842") ||
+		tuner_find_by_name(fe, "r836") ||
+		tuner_find_by_name(fe, "r850")) {
+		*strength += 6;
+		if (fe->dtv_property_cache.frequency == 474000000)
+			*strength += 2;
+		else if (fe->dtv_property_cache.frequency == 578000000)
+			*strength += 3;
+	} else if (tuner_find_by_name(fe, "mxl661")) {
+		*strength += 3;
+	}
 
 	PR_DVBT("[id %d] strength %d dBm\n", demod->id, *strength);
 

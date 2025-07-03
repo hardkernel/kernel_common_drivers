@@ -10,6 +10,7 @@ int dvbt_read_ber(struct dvb_frontend *fe, u32 *ber);
 int dvbt_read_snr(struct dvb_frontend *fe, u16 *snr);
 int dvbt2_read_snr(struct dvb_frontend *fe, u16 *snr);
 int gxtv_demod_dvbt_read_signal_strength(struct dvb_frontend *fe, s16 *strength);
+int gxtv_demod_dvbt2_read_signal_strength(struct dvb_frontend *fe, s16 *strength);
 int dvbt_set_frontend(struct dvb_frontend *fe);
 int dvbt2_set_frontend(struct dvb_frontend *fe);
 int dvbt_tune(struct dvb_frontend *fe, bool re_tune,

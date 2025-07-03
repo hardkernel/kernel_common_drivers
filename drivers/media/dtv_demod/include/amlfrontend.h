@@ -205,6 +205,7 @@
 /*  V3.7.003 fix dvbc_auto_qam_process stack allocation */
 /*  V3.7.004 fix isdbt frontend(t6d) and ambus(t5m) */
 /*  V3.7.005 improve dvbs bindscan(2) and adapter tuner (rt710/rda5815m) */
+/*  V3.7.005.1 calibrate dvbt/t2 strength (r842) */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -221,8 +222,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.7.005"
-#define DTVDEMOD_VER	"2025/06/04 improve dvbs bindscan(2) and adapter tuner (rt710/rda5815m)"
+#define AMLDTVDEMOD_VER "V3.7.5.1"
+#define DTVDEMOD_VER	"2025/07/03 calibrate dvbt/t2 strength (r842)"
 #define AMLDTVDEMOD_T2_FW_VER "v1059.20250521"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
