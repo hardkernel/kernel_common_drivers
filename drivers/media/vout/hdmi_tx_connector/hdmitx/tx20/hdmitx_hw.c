@@ -747,6 +747,8 @@ void hdmitx20_meson_init(struct hdmitx_hw_common *hw_comm)
 	hdmitx20_hw_cntl(hw_comm, AUX_PKT_CONFIG_AVMUTE, (void *)&arg, NULL);
 	/* load init audio fmt for HW info */
 	hdmitx_audio_init(&hdev->tx_comm);
+	/* hdmitx20 does not support qms, so the qms capability in edid needs to be masked */
+	hdev->tx_comm.edid_mask_qms = 1;
 }
 
 static void hdmitx_phy_band_gap_en(struct hdmitx20_dev *hdev)
