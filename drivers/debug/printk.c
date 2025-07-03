@@ -97,7 +97,7 @@ void printk_caller(void *data, char *caller, size_t size, u32 id, int *ret)
 				irqs_off, hardsoft_irq);
 }
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
+#ifdef CONFIG_ANDROID_VENDOR_HOOKS
 int printk_vendor_hook_init(void)
 {
 	int ret;

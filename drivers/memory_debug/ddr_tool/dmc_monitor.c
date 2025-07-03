@@ -1650,7 +1650,6 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 }
 
 #if IS_ENABLED(CONFIG_AMLOGIC_USER_FAULT) && \
-	defined(CONFIG_TRACEPOINTS) && \
 	defined(CONFIG_ANDROID_VENDOR_HOOKS)
 
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
@@ -1776,7 +1775,6 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 				init_end_addr, init_dev_mask, DMC_MODE_NORMAL, 1);
 	}
 #if IS_ENABLED(CONFIG_AMLOGIC_USER_FAULT) && \
-	defined(CONFIG_TRACEPOINTS) && \
 	defined(CONFIG_ANDROID_VENDOR_HOOKS)
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
 	register_trace_android_rvh_arm64_serror_panic(arm64_serror_panic, NULL);

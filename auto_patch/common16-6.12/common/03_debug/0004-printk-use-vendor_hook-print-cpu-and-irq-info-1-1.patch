@@ -1,4 +1,4 @@
-From 8ae9790206595b58dcbbc92837636351f058ff39 Mon Sep 17 00:00:00 2001
+From 72122fe1a47b9b27951864ecc40c3ae09bab912a Mon Sep 17 00:00:00 2001
 From: "qiankun.wang" <qiankun.wang@amlogic.com>
 Date: Fri, 12 May 2023 17:53:21 +0800
 Subject: [PATCH 3/9] printk: use vendor_hook print cpu and irq info [1/1]
@@ -17,19 +17,18 @@ sc2
 Change-Id: I337e61de17494367063f0a14d59ce4cde6d07679
 Signed-off-by: qiankun.wang <qiankun.wang@amlogic.com>
 ---
- include/trace/hooks/printk.h | 5 +++++
- 1 file changed, 5 insertions(+)
+ include/trace/hooks/printk.h | 4 ++++
+ 1 file changed, 4 insertions(+)
 
 diff --git a/include/trace/hooks/printk.h b/include/trace/hooks/printk.h
-index b3e9598386c7..57127130a288 100644
+index b3e9598386c7b..e22c5cc44a823 100644
 --- a/include/trace/hooks/printk.h
 +++ b/include/trace/hooks/printk.h
-@@ -13,12 +13,17 @@ DECLARE_HOOK(android_vh_printk_hotplug,
+@@ -13,12 +13,16 @@ DECLARE_HOOK(android_vh_printk_hotplug,
  	TP_PROTO(int *flag),
  	TP_ARGS(flag));
-
-+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_PRINTK) && \
-+	(!defined(CONFIG_TRACEPOINTS) || !defined(CONFIG_ANDROID_VENDOR_HOOKS))
+ 
++#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_PRINTK) && !defined(CONFIG_ANDROID_VENDOR_HOOKS)
 +#include <linux/amlogic/debug_printk.h>
 +#else
  DECLARE_HOOK(android_vh_printk_caller_id,
@@ -42,6 +41,6 @@ index b3e9598386c7..57127130a288 100644
  DECLARE_HOOK(android_vh_printk_ext_header,
  	TP_PROTO(char *caller, size_t size, u32 id, int *ret),
  	TP_ARGS(caller, size, id, ret));
---
-2.41.0
+-- 
+2.47.1
 

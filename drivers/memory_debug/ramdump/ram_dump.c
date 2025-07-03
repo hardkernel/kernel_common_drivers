@@ -398,7 +398,7 @@ static void lazy_clear_work(struct work_struct *work)
 			free / 1024 / 1024, tick / 1000000);
 }
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
+#ifdef CONFIG_ANDROID_VENDOR_HOOKS
 static void flush_all_cache_hook(void *data, struct pt_regs *regs)
 {
 	int cpu = smp_processor_id();
@@ -657,7 +657,7 @@ static int __init ramdump_probe(struct platform_device *pdev)
 	pr_info("%s, %ld MB, args base:%lx, size:%lx\n",
 			__func__, total_mem / 1024 / 1024, ramdump_base, ramdump_size);
 	if (!ramdump_disable) {
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
+#ifdef CONFIG_ANDROID_VENDOR_HOOKS
 		/* flush cache for online cpu */
 		ret = register_trace_android_vh_ipi_stop(flush_all_cache_hook, NULL);
 		if (ret)
