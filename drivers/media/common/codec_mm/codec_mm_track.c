@@ -337,12 +337,13 @@ static bool find_match_file(struct task_struct *tsk,
 	if (!tsk || !trk)
 		return -ENOENT;
 
-	rcu_read_lock();
-
 	for (;; fd++) {
+		rcu_read_lock();
 		f = task_lookup_next_fdget_rcu(tsk, &fd);
+		rcu_read_unlock();
 		if (!f)
 			break;
+		fput(f);
 
 		if (f == file) {
 			cs_printf(m, "|   |-- FD:%4u, PID:%4d, comm: %s, leader: %s\n",
@@ -364,8 +365,6 @@ static bool find_match_file(struct task_struct *tsk,
 			}
 		}
 	}
-
-	rcu_read_unlock();
 
 	return found;
 }
@@ -923,12 +922,13 @@ static int find_dma_buf_in_tsk(struct task_struct *tsk,
 	if (!tsk || !trk)
 		return -ENOENT;
 
-	rcu_read_lock();
-
 	for (;; fd++) {
+		rcu_read_lock();
 		f = task_lookup_next_fdget_rcu(tsk, &fd);
+		rcu_read_unlock();
 		if (!f)
 			break;
+		fput(f);
 
 		if (!f->private_data || !virt_addr_valid(f->private_data))
 			continue;
@@ -953,8 +953,6 @@ static int find_dma_buf_in_tsk(struct task_struct *tsk,
 			}
 		}
 	}
-
-	rcu_read_unlock();
 
 	return 0;
 }
