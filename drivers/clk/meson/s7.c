@@ -252,7 +252,7 @@ static struct clk_regmap hifi1_pll = {
 		.od = {
 			.reg_off = ANACTRL_HIFI1PLL_CTRL0,
 			.shift   = 9,
-			.width   = 3,
+			.width   = 2,
 		},
 		.l = {
 			.reg_off = ANACTRL_HIFI1PLL_CTRL0,
