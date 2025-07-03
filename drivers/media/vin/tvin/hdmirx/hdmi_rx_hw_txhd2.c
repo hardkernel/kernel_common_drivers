@@ -21,7 +21,7 @@
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
-#include <linux/amlogic/arm-smccc.h>
+#include <linux/arm-smccc.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
@@ -234,57 +234,42 @@ void txhd2_4k30_pll_cfg(void)
 	rx[port].phy.aud_div = 0;
 }
 
-void txhd2_4k60_pll_cfg(void)
+void txhd2_4k60_pll_cfg(u32 clkrate)
 {
 	u8 port = rx_info.main_port;
+	u8 div_4 = 0;
 
-	if (rx[port].clk.cable_clk > 300 &&
-		rx[port].clk.cable_clk < 340) {
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, 0x05028040);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_1, 0x01481f42);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, 0x05028041);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, 0x05028043);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_1, 0x21401f42);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, 0x05028047);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, 0x45028047);
-		usleep_range(10, 20);
-		rx[port].phy.aud_div = 0;
-	} else {
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, 0x05028010);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_1, 0x01481f52);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, 0x05028011);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, 0x05028013);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_1, 0x01401f52);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, 0x05028017);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, 0x45028017);
-		rx[port].phy.aud_div = 0;
-	}
+	/* clkrate 1:10 case */
+	if (!clkrate)
+		div_4 = 1;
+
+	hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, (0x05028010 | (div_4 << 5)));
+	usleep_range(10, 20);
+	hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_1, 0x01481f52);
+	usleep_range(10, 20);
+	hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, (0x05028011 | (div_4 << 5)));
+	usleep_range(10, 20);
+	hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, (0x05028013 | (div_4 << 5)));
+	usleep_range(10, 20);
+	hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_1, 0x01401f52);
+	usleep_range(10, 20);
+	hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, (0x05028017 | (div_4 << 5)));
+	usleep_range(10, 20);
+	hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, (0x45028017 | (div_4 << 5)));
+	rx[port].phy.aud_div = 0;
 	usleep_range(10, 20);
 }
 
-void aml_pll_bw_cfg_txhd2(void)
+void aml_pll_bw_cfg_txhd2(u32 cable_clk)
 {
 	u8 port = rx_info.main_port;
-	u32 idx = rx[port].phy.pll_bw;
-	u32 cableclk = rx[port].clk.cable_clk / KHz;
+	u32 idx = 0;
 	int pll_rst_cnt = 0;
 	u32 clk_rate;
 
 	clk_rate = rx_get_scdc_clkrate_sts(port);
-	idx = aml_phy_pll_band(rx[port].clk.cable_clk, clk_rate);
-	if (!is_clk_stable(port) || !cableclk)
+	idx = aml_phy_pll_band(cable_clk, clk_rate);
+	if (!is_clk_stable(port) || !cable_clk)
 		return;
 	if (log_level & PHY_LOG)
 		rx_pr("pll bw: %d\n", idx);
@@ -309,7 +294,7 @@ void aml_pll_bw_cfg_txhd2(void)
 		txhd2_4k30_pll_cfg();
 		break;
 	case PLL_BW_4:
-		txhd2_4k60_pll_cfg();
+		txhd2_4k60_pll_cfg(clk_rate);
 		break;
 	}
 	/* do 5 times when clk not stable within a interrupt */
@@ -323,7 +308,7 @@ void aml_pll_bw_cfg_txhd2(void)
 		if (idx == PLL_BW_3)
 			txhd2_4k30_pll_cfg();
 		if (idx == PLL_BW_4)
-			txhd2_4k60_pll_cfg();
+			txhd2_4k60_pll_cfg(clk_rate);
 		if (log_level & PHY_LOG)
 			rx_pr("PLL0=0x%x\n", hdmirx_rd_amlphy(TXHD2_RG_RX20PLL_0));
 		if (pll_rst_cnt++ > pll_rst_max) {
@@ -638,6 +623,7 @@ void aml_phy_offset_cal_txhd2(void)
 	/* PHY */
 	u32 data32;
 
+	rx_pr("ofst task start\n");
 	hdmirx_wr_amlphy(TXHD2_HDMIRX20PHY_DCHD_EQ, 0x70080050);
 	usleep_range(10, 20);
 	hdmirx_wr_amlphy(TXHD2_HDMIRX20PHY_DCHD_CDR, 0x04008013);
@@ -675,10 +661,14 @@ void aml_phy_offset_cal_txhd2(void)
 	usleep_range(10, 20);
 	hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHD_CDR, MSK(2, 12), 0X3);
 	usleep_range(10, 20);
-	hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHD_CDR, _BIT(27), 1);
-	usleep_range(200, 210);
-	hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHD_CDR, _BIT(27), 0);
-	hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHA_DFE, _BIT(13), 0);
+	hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHA_DFE, TXHD2_SLICER_OFSTCAL_START, 1);
+	usleep_range(10, 20);
+	hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHD_CDR, TXHD2_OFSET_CAL_START, 1);
+	usleep_range(10000, 11000);
+	hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHD_CDR, TXHD2_OFSET_CAL_START, 0);
+	hdmirx_wr_bits_amlphy(TXHD2_HDMIRX20PHY_DCHA_DFE, TXHD2_SLICER_OFSTCAL_START, 0);
+	hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_0, 0x0);
+	hdmirx_wr_amlphy(TXHD2_RG_RX20PLL_1, 0x0);
 	if (log_level & PHY_LOG)
 		rx_pr("ofst cal\n");
 }
@@ -1273,12 +1263,10 @@ void aml_eq_cfg_txhd2(void)
 		/*udelay(100);*/
 		/* hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, */
 			/* _BIT(28), 1); */
-//		if (rx_info.aml_phy.long_cable) {
+//		if (rx_info.aml_phy.long_cable)
 //			;/* aml_phy_long_cable_det_t3(); */
-//		}
-//		if (rx_info.aml_phy.vga_dbg) {
+//		if (rx_info.aml_phy.vga_dbg)
 //			;/* aml_vga_tuning_t3();*/
-//		}
 	} else if (rx[port].phy.phy_bw == PHY_BW_2) {
 		if (rx_info.aml_phy.long_cable) {
 			/*1.5G should enable DFE first*/
@@ -1350,7 +1338,7 @@ void aml_phy_get_trim_val_txhd2(void)
 	rx_info.aml_phy.rterm_val = txhd2_rlevel[rx_info.aml_phy.rterm_dts_lvl];
 }
 
-void aml_phy_cfg_txhd2(void)
+void aml_phy_cfg_txhd2(u32 cable_clk)
 {
 	u8 port = rx_info.main_port;
 	u32 idx = rx[port].phy.phy_bw;
@@ -1361,7 +1349,7 @@ void aml_phy_cfg_txhd2(void)
 		rx_pr("phy start\n");
 	if (rx_info.aml_phy.pre_int) {
 		clk_rate = rx_get_scdc_clkrate_sts(port);
-		idx = aml_cable_clk_band(rx[port].clk.cable_clk, clk_rate);
+		idx = aml_cable_clk_band(cable_clk, clk_rate);
 		if (log_level & PHY_LOG)
 			rx_pr("\nphy reg bw: %d\n", idx);
 		if (rx_info.aml_phy.ofst_en)
@@ -1428,15 +1416,16 @@ void aml_phy_cfg_txhd2(void)
 void aml_phy_init_txhd2(void)
 {
 	u8 port = rx_info.main_port;
+	u32 cable_clk = rx[port].clk.cable_clk;
 
 	if (rx[port].state == FSM_WAIT_CLK_STABLE &&
 		!rx[port].cableclk_stb_flg) {
-		aml_phy_cfg_txhd2();
+		aml_phy_cfg_txhd2(cable_clk);
 		return;
 	}
-	aml_phy_cfg_txhd2();
+	aml_phy_cfg_txhd2(cable_clk);
 	usleep_range(10, 20);
-	aml_pll_bw_cfg_txhd2();
+	aml_pll_bw_cfg_txhd2(cable_clk);
 	usleep_range(10, 20);
 	aml_eq_cfg_txhd2();
 }
@@ -2104,8 +2093,8 @@ void hdcp_init_txhd2(void)
 	data8 |= 0 << 3; //max_devs
 	hdmirx_wr_cor(CP2PAX_RPT_DETAIL_HDCP2X_IVCRX, data8, port);
 
-	hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0x83, port);
-	hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0x80, port);
+	hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0xe3, port);
+	hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0xe0, port);
 
 	//======================================
 	// HDCP 1.X Config ---- RX
@@ -2338,4 +2327,58 @@ void txhd2_aud_clk_cal(void)
 	rx_pr("n = %d\n", n);
 	aud_clk = pll_clk_test_out * n / cts / cts_div;
 	rx_pr("aud_clk = %d\n", aud_clk);
+}
+
+void rx_aud_pll_ctl_txhd2(bool en, u8 port)
+{
+	int tmp = 0;
+
+	if (en) {
+		tmp = rd_reg_hhi(HHI_VDAC_CNTL0);
+		tmp |= (1 << 7);
+		tmp |= (1 << 11);
+		wr_reg_hhi(HHI_VDAC_CNTL0, tmp);
+		tmp = rd_reg_hhi(TXHD2_PWR_CTL);
+		tmp |= (1 << 1);
+		wr_reg_hhi(TXHD2_PWR_CTL, tmp);
+
+		tmp = rd_reg_clk_ctl(CLK_MUX_TXHD2);
+		/* [    8] clk_en for cts_hdmirx_aud_pll_clk */
+		tmp |= (1 << 8);
+		wr_reg_clk_ctl(CLK_MUX_TXHD2, tmp);
+
+		/* AUD_CLK=N/CTS*TMDS_CLK */
+		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x60001540);
+		/* use mpll */
+		tmp = 0;
+		/* 2:tmds_clk 1:ref_clk 0:mpll_clk */
+		if (rx[port].phy.pll_bw == 0)
+			tmp = 0xc80;
+		else if (rx[port].phy.pll_bw == 1)
+			tmp = 0x80;
+		else
+			tmp = 0x88;
+		wr_reg_hhi(HHI_AUD_PLL_CNTL2, tmp);
+		/* cntl3 2:0 0=1*cts 1=2*cts */
+		/* 010=4*cts 011=8*cts */
+		wr_reg_hhi(HHI_AUD_PLL_CNTL3, rx[port].phy.aud_div);
+		if (log_level & AUDIO_LOG)
+			rx_pr("aud div=%d\n",
+			rd_reg_hhi(HHI_AUD_PLL_CNTL3));
+		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40005540);
+		if (log_level & AUDIO_LOG) {
+			/* pll lock bit:*/
+			/*top reg acr_cntl_stat bit'31 */
+			tmp = hdmirx_rd_top_common(TOP_ACR_CNTL_STAT);
+			rx_pr("apll lock:0x%x\n", (tmp >> 31));
+		}
+		rx_audio_pll_sw_update(port);
+		//hdmirx_audio_fifo_rst(port);
+	} else {
+		hdmirx_audio_disabled(port);
+		tmp = rd_reg_clk_ctl(CLK_MUX_TXHD2);
+		/* [    8] clk_en for cts_hdmirx_aud_pll_clk */
+		tmp &= ~(1 << 8);
+		wr_reg_clk_ctl(CLK_MUX_TXHD2, tmp);
+	}
 }

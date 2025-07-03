@@ -22,7 +22,7 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/amlogic/arm-smccc.h>
+#include <linux/arm-smccc.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
@@ -427,6 +427,8 @@ void aml_pll_bw_cfg_tl1(void)
 	od = apll_tab_tl1[bw].od;
 	M = apll_tab_tl1[bw].M;
 	N = apll_tab_tl1[bw].N;
+	if (bw == PLL_BW_4 && !clk_rate)
+		N = 4;
 	od2_div = apll_tab_tl1[bw].od2_div;
 	od2 = apll_tab_tl1[bw].od2;
 
@@ -879,3 +881,55 @@ void rx_dig_clk_en_tl1(bool en)
 	wr_reg_hhi_bits(HHI_HDMIRX_CLK_CNTL, CFG_CLK_EN, en);
 }
 
+void rx_aud_pll_ctl_tl1(bool en, u8 port)
+{
+	int tmp = 0;
+
+	if (en) {
+		/* AUD_CLK=N/CTS*TMDS_CLK */
+		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40001540);
+		/* use mpll */
+		tmp = 0;
+		tmp |= 2 << 2; /* 0:tmds_clk 1:ref_clk 2:mpll_clk */
+		wr_reg_hhi(HHI_AUD_PLL_CNTL2, tmp);
+		/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
+		wr_reg_hhi(HHI_AUD_PLL_CNTL3, rx[port].phy.aud_div);
+
+		if (log_level & AUDIO_LOG)
+			rx_pr("aud div=%d\n", rd_reg_hhi(HHI_AUD_PLL_CNTL3));
+		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x60001540);
+		if (log_level & AUDIO_LOG)
+			rx_pr("audio pll lock:0x%x\n",
+			      rd_reg_hhi(HHI_AUD_PLL_CNTL_I));
+		/*rx_audio_pll_sw_update();*/
+	} else {
+		/* disable pll, into reset mode */
+		hdmirx_audio_disabled(port);
+		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x0);
+	}
+}
+
+void rx_aud_pll_ctl_txlx(bool en, u8 port)
+{
+	int tmp = 0;
+
+	if (en) {
+		rx_audio_bandgap_en();
+		tmp = hdmirx_rd_phy(PHY_MAINFSM_STATUS1);
+		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x20000000);
+		/* audio pll div depends on input freq */
+		wr_reg_hhi(HHI_AUD_PLL_CNTL6, (tmp >> 9 & 3) << 28);
+		/* audio pll div fixed to N/CTS as below*/
+		/* wr_reg_hhi(HHI_AUD_PLL_CNTL6, 0x40000000); */
+		wr_reg_hhi(HHI_AUD_PLL_CNTL5, 0x0000002e);
+		wr_reg_hhi(HHI_AUD_PLL_CNTL4, 0x30000000);
+		wr_reg_hhi(HHI_AUD_PLL_CNTL3, 0x00000000);
+		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40000000);
+		wr_reg_hhi(HHI_ADC_PLL_CNTL4, 0x805);
+		rx_audio_pll_sw_update(port);
+		//hdmirx_audio_fifo_rst(port);
+		/*External_Mute(0);*/
+	} else {
+		wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x20000000);
+	}
+}

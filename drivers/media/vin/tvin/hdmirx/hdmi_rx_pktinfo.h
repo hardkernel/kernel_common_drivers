@@ -9,9 +9,16 @@
 #include <linux/workqueue.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <uapi/amlogic/hdmi_rx.h>
+#include "hdmi_rx_diag.h"
 
 /* 2024.08.27 Parse DRM & SPD packets during irq and update prop when no DRM & SPD packets */
-#define RX_PKT_VER "ver.2024/08/27"
+/* 2025.02.24 fix vrr base framerate error and game mode error in DV15 */
+/* 2025.04.17 fill CUVA data to vframe */
+/* 2025.06.09 tolerate devices that DRM packet checksum error */
+/* 2025.06.24 support SSTM & HLG+ */
+/* 2025.07.07 fix gaming-vrr base framerate error,set vrr_en when gaming-vrr */
+#define RX_PKT_VER "ver.2025/07/07"
+
 
 #define K_ONEPKT_BUFF_SIZE		8
 #define K_PKT_REREAD_SIZE		2
@@ -25,6 +32,7 @@
 #define IEEE_CUVAHDR		0x047503
 #define IEEE_FILMMAKER		0x1ABBFB
 #define IEEE_IMAX		0xDA4162
+#define IEEE_QMS_PLUS		0x001DF2
 #define IEEE_DV_PLUS_ALLM 0x1
 #define IEEE_HDR10P_PLUS_ALLM 0x2
 
@@ -55,6 +63,7 @@ enum vsi_state_e {
 	E_VSI_CUVAHDR = 0x20,
 	E_VSI_FILMMAKER = 0x40,
 	E_VSI_IMAX = 0x80,
+	E_VSI_QMS_PLUS = 0x100,
 };
 
 enum vsi_type {
@@ -65,7 +74,16 @@ enum vsi_type {
 	IMAX,
 	VSI21,
 	VSI14,
+	QMS_PLUS,
 	VSI_TYPE_MAX
+};
+
+enum qms_plus_type_e {
+	QMS_PLUS_DISABLE,
+	QMS_PLUS_VSIF,
+	QMS_PLUS_EMP,
+	QMS_PLUS_SCDC,
+	QMS_PLUS_VTEM,
 };
 
 enum pkt_length_e {
@@ -677,7 +695,8 @@ struct vsi_infoframe_st {
 			u8 source_dm_ver:3;
 			/*pb5*/
 			u8 tmax_pq_hi:4;
-			u8 rsvd:2;
+			u8 rsvd:1;
+			u8 l11_md_present:1;
 			u8 aux_md:1;
 			u8 bklt_md:1;
 			/*pb6*/
@@ -718,7 +737,10 @@ struct vsi_infoframe_st {
 			u8 knee_point_y_lo;
 			/*pb18~26*/
 			u8 data[9]; /* val=0 */
-			u8 rsvd1:6;
+			/* pb27 */
+			u8 rsvd1:4;
+			u8 allm:1;
+			u8 src_tm_flag:1;
 			u8 vsif_timing_mode:1;
 			u8 graphics_overlay_flag:1;
 		} __packed vsi_hdr10p;
@@ -765,6 +787,16 @@ struct vsi_infoframe_st {
 			u8 entry_data:8;
 		} __packed vsi_imax;
 
+		/* ui-vrr ieee 0x001DF2 */
+		struct vsi_qms_plus {
+			/* pb4 */
+			u8 ver:4;
+			u8 cn_type1:3;
+			u8 qms_plus:1;
+			/* pb5 */
+			u8 rsvd1:6;
+			u8 cn_type2:2;
+		} __packed vsi_qms_plus;
 	} __packed sbpkt;
 } __packed;
 
@@ -956,12 +988,14 @@ struct rxpkt_st {
 };
 
 enum emp_pkt_type_e {
+	EMP_NULL = 0,
 	EMP_VTEM_CLASS0,
 	EMP_VTEM_CLASS1,
 	EMP_SBTM,
 	EMP_AMDV,
 	EMP_CUVA,
-	EMP_CVTEM
+	EMP_CVTEM,
+	EMP_QMS_PLUS,
 };
 
 struct packet_info_s {
@@ -1048,16 +1082,6 @@ extern struct packet_info_s rx_pkt[4];
 extern u32 rx_vsif_type[4];
 extern u32 rx_emp_type[4];
 /*extern bool hdr_enable;*/
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-/*
- * HDR10plus is only supported by OTT when is_hdr10plus_enable is true
- * add weak function declaration to prevent compilation errors
- */
-__weak bool is_hdr10plus_enable(void)
-{
-	return false;
-}
-#endif
 bool rx_chk_avi_valid(u8 port);
 void rx_pkt_status(u8 port);
 void rx_pkt_debug(void);
@@ -1076,6 +1100,7 @@ void rx_pkt_get_audif_ex(void *pktinfo);
 void rx_pkt_get_avi_ex(void *pktinfo, u8 port);
 void rx_pkt_get_drm_ex(void *pktinfo, u8 port);
 void rx_pkt_get_acr_ex(void *pktinfo);
+void rx_pkt_get_spd_ex(void *pktinfo, u8 port);
 void rx_pkt_get_gmd_ex(void *pktinfo);
 void rx_pkt_get_ntscvbi_ex(void *pktinfo);
 void rx_pkt_get_amp_ex(void *pktinfo);
@@ -1105,4 +1130,6 @@ bool rx_chk_drm_valid(u8 port);
 void hdmirx_pkt_var_init(u8 port);
 void rx_reset_pkt_cnt(enum pkt_type_e type, u8 port);
 bool rx_is_dv_unique_drm(struct drm_infoframe_st *drm_pkt);
+void rx_dump_aud_sample_pkt(u8 port);
+void get_hdmirx_qms_plus_info(char *buf, u32 max_len);
 #endif

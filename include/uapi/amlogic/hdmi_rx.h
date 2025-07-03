@@ -6,6 +6,9 @@
 #ifndef HDMI_RX_H_
 #define HDMI_RX_H_
 
+#define RC_BUF_THRESH_NUM		14
+#define RC_RANGE_PARAMETERS_NUM		15
+
 struct _hdcp_ksv {
 	int bksv0;
 	int bksv1;
@@ -157,6 +160,75 @@ struct avi_infoframe_st {
 	unsigned char additional_colorimetry;
 };
 
+struct hdmi_dsc_rc_range_parameters {
+	unsigned char range_min_qp;
+	unsigned char range_max_qp;
+	signed char range_bpg_offset; /* only 6 bit signal variable */
+};
+
+struct hdmi_dsc_rc_parameter_set {
+	unsigned int rc_model_size;
+	unsigned char rc_edge_factor;
+	unsigned char rc_quant_incr_limit0;
+	unsigned char rc_quant_incr_limit1;
+	unsigned char rc_tgt_offset_hi;
+	unsigned char rc_tgt_offset_lo;
+	unsigned char rc_buf_thresh[RC_BUF_THRESH_NUM]; /* config value need note >> 6 */
+	struct hdmi_dsc_rc_range_parameters rc_range_parameters[RC_RANGE_PARAMETERS_NUM];
+};
+
+struct hdmi_dsc_pps_data_s {
+	unsigned char dsc_version_major;
+	unsigned char dsc_version_minor;
+	unsigned char pps_identifier;
+	unsigned char bits_per_component;
+	unsigned char line_buf_depth;
+	unsigned char block_pred_enable;
+	unsigned char convert_rgb;
+	unsigned char simple_422;
+	unsigned char vbr_enable;
+	unsigned int bits_per_pixel;
+	unsigned int pic_height;
+	unsigned int pic_width;
+	unsigned int slice_height;
+	unsigned int slice_width;
+	unsigned int chunk_size;
+	unsigned int initial_xmit_delay;
+	unsigned int initial_dec_delay;
+	unsigned char initial_scale_value;
+	unsigned int scale_increment_interval;
+	unsigned int scale_decrement_interval;
+	unsigned char first_line_bpg_offset;
+	unsigned int nfl_bpg_offset;
+	unsigned int slice_bpg_offset;
+	unsigned int initial_offset;
+	unsigned int final_offset;
+	unsigned char flatness_min_qp;
+	unsigned char flatness_max_qp;
+	struct hdmi_dsc_rc_parameter_set rc_parameter_set;
+	unsigned char native_420;
+	unsigned char native_422;
+	unsigned char second_line_bpg_offset;
+	unsigned int nsl_bpg_offset;
+	unsigned int second_line_offset_adj;
+	unsigned int hc_active_bytes;
+
+	/*for dsc parameter config*/
+	int htotal;
+	int fps;
+	int color_depth;
+	int color_fmt;
+	int vbegin;
+	int vend;
+	unsigned int pixel_clk;
+	int hw_vic;
+};
+
+struct hdmirx_scdc_info {
+	unsigned char reg;
+	unsigned int val;
+};
+
 #define HDMI_IOC_MAGIC 'H'
 #define HDMI_IOC_HDCP_ON	_IO(HDMI_IOC_MAGIC, 0x01)
 #define HDMI_IOC_HDCP_OFF	_IO(HDMI_IOC_MAGIC, 0x02)
@@ -171,7 +243,7 @@ struct avi_infoframe_st {
 #define HDMI_IOC_PD_FIFO_PKTTYPE_DIS	_IOW(HDMI_IOC_MAGIC, 0x0b, unsigned int)
 #define HDMI_IOC_GET_PD_FIFO_PARAM	_IOWR(HDMI_IOC_MAGIC, 0x0c, struct pd_infoframe_s)
 #define HDMI_IOC_HDCP14_KEY_MODE	_IOR(HDMI_IOC_MAGIC, 0x0d, enum hdcp14_key_mode_e)
-#define HDMI_IOC_HDCP22_NOT_SUPPORT	_IO(HDMI_IOC_MAGIC, 0x0e)
+#define HDMI_IOC_HDCP22_NOT_SUPPORT	_IOR(HDMI_IOC_MAGIC, 0x0e, unsigned int)
 #define HDMI_IOC_SET_AUD_SAD		_IOW(HDMI_IOC_MAGIC, 0x0f, int)
 #define HDMI_IOC_GET_AUD_SAD		_IOR(HDMI_IOC_MAGIC, 0x10, int)
 #define HDMI_IOC_GET_SPD_SRC_INFO	_IOR(HDMI_IOC_MAGIC, 0x11, struct spd_infoframe_st)
@@ -182,5 +254,10 @@ struct avi_infoframe_st {
 #define HDMI_IOC_SET_HPD	_IOW(HDMI_IOC_MAGIC, 0x15, struct hdmirx_hpd_info)
 #define HDMI_IOC_GET_HPD	_IOR(HDMI_IOC_MAGIC, 0x16, struct hdmirx_hpd_info)
 #define HDMI_IOC_GET_AVI_INFO	_IOR(HDMI_IOC_MAGIC, 0x17, struct avi_infoframe_st)
+#define HDMI_IOC_SET_SCDC_REG	_IOW(HDMI_IOC_MAGIC, 0x18, struct hdmirx_scdc_info)
+#define HDMI_IOC_GET_SCDC_REG	_IOR(HDMI_IOC_MAGIC, 0x19, struct hdmirx_scdc_info)
+#define HDMI_IOC_SET_DUMP_PARAMS	_IO(HDMI_IOC_MAGIC, 0x1a)
+#define HDMI_IOC_AUDIO_DATA_DUMP	_IO(HDMI_IOC_MAGIC, 0x1b)
+
 #endif
 

@@ -7,11 +7,20 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/amlogic/media/vpu/vpu.h>
-#include <linux/amlogic/media/vout/dsc.h>
+#include <uapi/amlogic/hdmi_rx.h>
+
 #include "../tvin_global.h"
 #include "dsc_dec_reg.h"
 #include "dsc_dec_drv.h"
 #include "dsc_dec_debug.h"
+#include "dsc_dec_hw.h"
+
+const unsigned int ctrl0_vals[4][3] = {
+	[DSC_CLK_BAND0] = {0x20020cc6, 0x30020cc6, 0x10020cc6},
+	[DSC_CLK_BAND1] = {0x2001083c, 0x3001083c, 0x1001083c},
+	[DSC_CLK_BAND2] = {0x20010845, 0x30010845, 0x10010845},
+	[DSC_CLK_BAND3] = {0x20010cc6, 0x30010cc6, 0x10010cc6}
+};
 
 unsigned int R_DSC_DEC_CLKCTRL_REG(unsigned int reg)
 {
@@ -40,8 +49,8 @@ unsigned int R_DSC_DEC_CLKCTRL_BIT(u32 reg, const u32 start, const u32 len)
 void W_DSC_DEC_CLKCTRL_BIT(u32 reg, const u32 value, const u32 start, const u32 len)
 {
 	W_DSC_DEC_CLKCTRL_REG(reg, ((R_DSC_DEC_CLKCTRL_REG(reg) &
-			     ~(((1L << (len)) - 1) << (start))) |
-			    (((value) & ((1L << (len)) - 1)) << (start))));
+				 ~(((1L << (len)) - 1) << (start))) |
+				(((value) & ((1L << (len)) - 1)) << (start))));
 }
 
 unsigned int R_DSC_DEC_REG(unsigned int reg)
@@ -71,8 +80,8 @@ unsigned int R_DSC_DEC_BIT(u32 reg, const u32 start, const u32 len)
 void W_DSC_DEC_BIT(u32 reg, const u32 value, const u32 start, const u32 len)
 {
 	W_DSC_DEC_REG(reg, ((R_DSC_DEC_REG(reg) &
-			     ~(((1L << (len)) - 1) << (start))) |
-			    (((value) & ((1L << (len)) - 1)) << (start))));
+				 ~(((1L << (len)) - 1) << (start))) |
+				(((value) & ((1L << (len)) - 1)) << (start))));
 }
 
 void set_dsc_dec_en(unsigned int enable)
@@ -88,7 +97,7 @@ void set_dsc_dec_en(unsigned int enable)
 	}
 }
 
-static void dsc_dec_config_rc_parameter_register(struct dsc_rc_parameter_set *rc_parameter_set)
+static void dsc_dec_config_rc_parameter_register(struct hdmi_dsc_rc_parameter_set *rc_parameter_set)
 {
 	int i;
 	unsigned char range_bpg_offset;
@@ -135,7 +144,7 @@ static void dsc_dec_config_timing_register(struct aml_dsc_dec_drv_s *dsc_dec_drv
 
 void dsc_dec_config_register(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 {
-	struct dsc_pps_data_s *pps_data = &dsc_dec_drv->pps_data;
+	struct hdmi_dsc_pps_data_s *pps_data = &dsc_dec_drv->pps_data;
 
 	/* config pps register begin */
 	W_DSC_DEC_BIT(DSC_COMP_CTRL, pps_data->native_422, NATIVE_422, NATIVE_422_WID);
@@ -299,31 +308,18 @@ void dsc_dec_config_register(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 	W_DSC_DEC_BIT(DSC_ASIC_CTRL14, dsc_dec_drv->dbg_hcnt, DBG_HCNT, DBG_HCNT_WID);
 }
 
-void dsc_dec_config_fix_pll_clk(unsigned int value)
+void dsc_dec_config_fix_pll_clk(enum dsc_clk_band value)
 {
-	if (value == 297) {
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL0, 0x20020cc6);
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL0, 0x30020cc6);
-		usleep_range(20, 30);
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL1, 0x03a00000);
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL2, 0x00040000);
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL3, 0x090da000);
-		usleep_range(20, 30);
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL0, 0x10020cc6);
-		usleep_range(20, 30);
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL3, 0x090da200);
-	} else if (value == 594) {
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL0, 0x20010cc6);
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL0, 0x30010cc6);
-		usleep_range(20, 30);
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL1, 0x03a00000);
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL2, 0x00040000);
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL3, 0x090da000);
-		usleep_range(20, 30);
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL0, 0x10010cc6);
-		usleep_range(20, 30);
-		W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL3, 0x090da200);
-	}
+	W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL0, ctrl0_vals[value][0]);
+	W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL0, ctrl0_vals[value][1]);
+	//udelay(20);
+	W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL1, 0x03a00000);
+	W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL2, 0x00040000);
+	W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL3, 0x090da000);
+	//udelay(20);
+	W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL0, ctrl0_vals[value][2]);
+	//udelay(20);
+	W_DSC_DEC_CLKCTRL_REG(CLKCTRL_PIX_PLL_CTRL3, 0x090da200);
 }
 
 void dsc_dec_config_pll_clk(unsigned int od, unsigned int dpll_m,

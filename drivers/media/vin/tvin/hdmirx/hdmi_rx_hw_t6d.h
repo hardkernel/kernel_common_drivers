@@ -18,12 +18,16 @@
 	#define T6D_LEQ_POLE                MSK(3, 12)
 	#define T6D_VGA_GAIN				MSK(12, 0)
 #define T6D_HDMIRX20PHY_DCHA_DFE		(0x003 << 2)
+	#define T6D_PI_BAND_SEL	MSK(2, 26)
+	#define T6D_PI_DIV_SEL	MSK(2, 24)
+	#define T6D_TMDS_DIV_SEL	MSK(3, 20)
 	#define T6D_SLICER_OFSTCAL_START	_BIT(13)
 	#define T6D_DCHA_DFE				MSK(5, 12)
 	#define T6D_PI_CFG					MSK(8, 20)
 	#define T6D_DFE_OFST_CAL_START		_BIT(9)
 #define T6D_HDMIRX20PHY_DCHD_CDR		(0x004 << 2)
 	#define T6D_EHM_DBG_SEL			_BIT(31)
+	#define T6D_DFE_OFST_DBG_SEL		MSK(3, 28)
 	#define T6D_OFSET_CAL_START		_BIT(27)
 	#define T6D_CDR_LKDET_EN		_BIT(14)
 	#define T6D_CDR_RSTB			_BIT(13)
@@ -32,6 +36,7 @@
 	#define T6D_MUX_CDR_DBG_SEL		_BIT(19)
 	#define T6D_CDR_PI_DIV			MSK(2, 10)
 	#define T6D_CDR_OS_RATE			MSK(2, 8)
+	#define T6D_CDR_PH_DIV	MSK(3, 0)
 	#define T6D_DFE_OFST_DBG_SEL		MSK(3, 28)
 	#define T6D_ERROR_CNT			0X0
 	#define T6D_SCAN_STATE			0X1
@@ -62,9 +67,11 @@
 	#define T6D_VCO_TMDS_EN			_BIT(20)
 	#define T6D_RTERM_CNTL			MSK(4, 12)
 	#define T6D_DCH_RSTN			MSK(3, 4)
+	#define RTERM_FLAG_EFUSE_T6D	_BIT(2)
 #define T6D_HDMIRX20PHY_DCHA_MISC2		(0x007 << 2)
 	#define T6D_TMDS_VALID_SEL		_BIT(10)
 	#define T6D_PLL_CLK_SEL			_BIT(9)
+	#define T6D_CABLE_CLK_SEL			_BIT(5)
 #define T6D_HDMIRX20PHY_DCHD_STAT       (0x009 << 2)
 #define T6D_HDMIRX_EARCTX_CNTL0         (0x040 << 2)
 #define T6D_HDMIRX_EARCTX_CNTL1         (0x041 << 2)
@@ -95,6 +102,7 @@ void dump_aml_phy_sts_t6d(void);
 void aml_phy_short_bist_t6d(void);
 bool aml_get_tmds_valid_t6d(void);
 void aml_phy_power_off_t6d(void);
+bool rx_is_power_off_t6d(void);
 void aml_phy_switch_port_t6d(void);
 void aml_phy_iq_skew_monitor_t6d(void);
 void dump_vsi_reg_t6d(u8 port);
@@ -115,7 +123,10 @@ void clk_init_cor_t6d(void);
 void rx_dig_clk_en_t6d(bool en);
 void dump_aml_phy_sts_t6d(void);
 void aml_phy_offset_cal_t6d(void);
-
+void rx_aud_pll_ctl_t6d(bool en, u8 port);
+void aml_phy_exbist_t6d(u8 port, u8 ch);
+void rx_i2c_mux_cfg_t6d(u8 port);
+void rx_dump_pll_param_t6d(void);
 /*function declare end*/
 
 #endif /*_HDMI_RX_T6D_H*/

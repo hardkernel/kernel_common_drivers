@@ -22,7 +22,7 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/amlogic/arm-smccc.h>
+#include <linux/arm-smccc.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
@@ -650,6 +650,8 @@ void aml_pll_bw_cfg_tm2(void)
 		M = apll_tab_tm2[bw].M;
 	}
 	N = apll_tab_tm2[bw].N;
+	if (bw == PLL_BW_4 && !clk_rate)
+		N = 4;
 	if (rx_info.aml_phy.pll_div && idx == PHY_BW_5) {
 		M *= rx_info.aml_phy.pll_div;
 		N *= rx_info.aml_phy.pll_div;

@@ -21,7 +21,7 @@
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
-#include <linux/amlogic/arm-smccc.h>
+#include <linux/arm-smccc.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
@@ -141,7 +141,7 @@ unsigned int graytodecimal_t5(unsigned int x)
 	return y;
 }
 
-void aml_pll_bw_cfg_t5(void)
+void aml_pll_bw_cfg_t5(u32 cable_clk)
 {
 	u8 port = rx_info.main_port;
 
@@ -152,15 +152,13 @@ void aml_pll_bw_cfg_t5(void)
 	u32 bw = rx[port].phy.pll_bw;
 	u32 vco_clk;
 	u32 data, data2;
-	u32 cableclk = rx[port].clk.cable_clk / KHz;
 	int pll_rst_cnt = 0;
 	u32 clk_rate;
 
 	clk_rate = rx_get_scdc_clkrate_sts(port);
-	bw = aml_phy_pll_band(rx[port].clk.cable_clk, clk_rate);
-	if (!is_clk_stable(port) || !cableclk)
+	bw = aml_phy_pll_band(cable_clk, clk_rate);
+	if (!is_clk_stable(port) || !cable_clk)
 		return;
-
 	od_div = apll_tab_t5[bw].od_div;
 	od = apll_tab_t5[bw].od;
 	if (rx_info.aml_phy.osc_mode && idx == PHY_BW_5) {
@@ -173,6 +171,8 @@ void aml_pll_bw_cfg_t5(void)
 		M = apll_tab_t5[bw].M;
 	}
 	N = apll_tab_t5[bw].N;
+	if (bw == PLL_BW_4 && !clk_rate)
+		N = 4;
 	if (rx_info.aml_phy.pll_div && idx == PHY_BW_5) {
 		M *= rx_info.aml_phy.pll_div;
 		N *= rx_info.aml_phy.pll_div;
@@ -249,7 +249,7 @@ void aml_pll_bw_cfg_t5(void)
 		hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHA_CNTL2, MSK(2, 25), 0x2);
 	}
 	rx[port].phy.aud_div = apll_tab_t5[bw].aud_div;
-	vco_clk = (cableclk * M) / N; /*KHz*/
+	vco_clk = (cable_clk / KHz * M) / N; /*KHz*/
 	if ((vco_clk < (2970 * KHz)) || (vco_clk > (6000 * KHz))) {
 		if (log_level & VIDEO_LOG)
 			rx_pr("err: M=%d,N=%d,vco_clk=%d\n", M, N, vco_clk);
@@ -678,7 +678,16 @@ void aml_phy_offset_cal_t5(void)
 	usleep_range(100, 110);
 	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL0,
 		T5_CDR_EQ_RSTB, 3);
-	usleep_range(1000, 1010);
+	usleep_range(10000, 11000);
+	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHA_CNTL1,
+			      T5_DFE_OFSETCAL_START, 0x0);
+	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL1,
+			      T5_OFST_CAL_START, 0x0);
+	hdmirx_wr_amlphy(T5_HHI_RX_APLL_CNTL0, 0x0);
+	hdmirx_wr_amlphy(T5_HHI_RX_APLL_CNTL1, 0x0);
+	hdmirx_wr_amlphy(T5_HHI_RX_APLL_CNTL2, 0x0);
+	hdmirx_wr_amlphy(T5_HHI_RX_APLL_CNTL3, 0x0);
+	hdmirx_wr_amlphy(T5_HHI_RX_APLL_CNTL4, 0x0);
 	if (log_level & PHY_LOG)
 		rx_pr("ofst cal\n");
 }
@@ -861,24 +870,22 @@ void aml_phy_get_trim_val_t5(void)
 	rx_info.aml_phy.rterm_val = t5_t7_rlevel[rx_info.aml_phy.rterm_dts_lvl];
 }
 
-void aml_phy_cfg_t5(void)
+void aml_phy_cfg_t5(u32 cable_clk)
 {
 	u8 port = rx_info.main_port;
 
 	u32 idx = rx[port].phy.phy_bw;
 	u32 data32;
 	u32 term_value = hdmirx_rd_top(TOP_HPD_PWR5V, port) & 0x7;
+	u32 clk_rate;
 
 	if (rx_info.aml_phy.pre_int) {
 		if (log_level & PHY_LOG)
 			rx_pr("\nphy reg init\n");
 		if (rx_info.aml_phy.ofst_en)
 			aml_phy_offset_cal_t5();
-		hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL1,
-				      T5_OFST_CAL_START, 0);
-		usleep_range(100, 110);
-		hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHA_CNTL1,
-				      T5_DFE_OFSETCAL_START, 0);
+		clk_rate = rx_get_scdc_clkrate_sts(port);
+		idx = aml_cable_clk_band(cable_clk, clk_rate);
 		usleep_range(20, 30);
 		data32 = phy_misci_t5[idx][0];
 		hdmirx_wr_amlphy(T5_HHI_RX_PHY_MISC_CNTL0, data32);
@@ -958,9 +965,12 @@ void aml_phy_cfg_t5(void)
  /* For T5 */
 void aml_phy_init_t5(void)
 {
-	aml_phy_cfg_t5();
+	u8 port = rx_info.main_port;
+	u32 cable_clk = rx[port].clk.cable_clk;
+
+	aml_phy_cfg_t5(cable_clk);
 	usleep_range(10, 20);
-	aml_pll_bw_cfg_t5();
+	aml_pll_bw_cfg_t5(cable_clk);
 	usleep_range(10, 20);
 	aml_eq_cfg_t5();
 }

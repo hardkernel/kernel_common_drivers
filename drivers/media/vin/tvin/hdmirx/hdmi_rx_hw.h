@@ -20,7 +20,33 @@
 /* 2024.10.10 optimize hdcp2.2 suspend flow */
 /* 2024.10.22 modify incorrect register config method in phy init */
 /* 2024.11.4 close override when 420 */
-#define RX_HW_VER "ver.2024/11/04"
+/* 2024.11.06 fix specific pc no signal issue */
+/* 2024.10.24 fix 420 display */
+/* 2024.11.28 enable hdcp2.x irq mask */
+/* 2024.12.12 add phy exbist function */
+/* 2024.12.13 fix resume no signal */
+/* 2024.12.24 remove hdcp2.3 enc sts chg irq mask*/
+/* 2024.12.25 fix dolbyvision YUV422 can't display issue */
+/* 2024.12.16 modify hdcp reauth flow */
+/* 2025.01.10 keep irq off when early suspend */
+/* 2024.1.13 close hdcp auth done irq */
+/* 2024.1.17 correct clk_ctrl register address */
+/* 2025.01.20 change audio clk source clk from mpll to tmdsclk for the frequency over 300M */
+/* 2025.02.26 add fpll en when frl config */
+/* 2025.03.12 add 300M+ clk but 1:10 clkrate support */
+/* 2025.03.31 fix some 2.1 cts problem */
+/* 2025.04.07 hdcp 22 state */
+/* 2025.04.22 Change EMP max packet count from 16 to 32 */
+/* 2025.04.24 close hdcp irq mask */
+/* 2025.04.25 t6w i2c monitor */
+/* 2025.04.27 auto clear reauth_req flag at AKE_init */
+/* 2025.05.06 set hpd low after cor reset */
+/* 2025.05.19 modify 1080p phy && pll reg */
+/* 2025.05.23 modify 3.71g phy eq setting */
+/* 2025.06.06 enable dacr for all frequency of t6w */
+/* 2025.06.10 Fix audio fifo keeps resetting after fastswitch */
+/* 2025.06.06 fix 74M input unstable issue */
+#define RX_HW_VER "ver.2025/06/13"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -37,10 +63,6 @@
 #define _BIT(n)			MSK(1, (n))
 #define MHz	1000000
 #define KHz	1000
-
-#define IRQ_EN_ALL	3
-#define IRQ_EN_EDID 2
-#define IRQ_EN_HDCP 1
 
 #define HHI_GCLK_MPEG0			(0x50  <<  2) /* (0xC883C000 + 0x140) */
 #define HHI_HDMIRX_CLK_CNTL		0x200 /* (0xC883C000 + 0x200)  */
@@ -1389,6 +1411,7 @@
 #define RX_CBUS_PORT_SEL_AON_IVCRX        0x000000fe
 
 //==================== SCDC ===============
+#define SCDCS_OFFSET                   0x00000300
 #define SCDCS_SNK_VER_SCDC_IVCRX       0x00000301
 #define SCDCS_SRC_VER_SCDC_IVCRX       0x00000302
 #define SCDCS_UPD_FLAGS_SCDC_IVCRX       0x00000310
@@ -1611,6 +1634,8 @@
 #define   PWD_SW_CLMP_AUE_OIF_PWD_IVCRX        0x000010c4
 #define  AUD_MCLK_OUT_DIV_SEL_PWD_IVCRX        0x000010c5
 #define  EXT_MCLK_SEL_PWD_IVCRX        0x000010c6
+/* 1: select external mclk(analog pll), 0: select internal dacr mclk*/
+#define EXT_MCLK_SEL	_BIT(0)
 #define EXHAUST_CHK_EN_PWD_IVCRX        0x000010c7
 #define GCP_WINDOW_CHK_1_PWD_IVCRX        0x000010c8
 #define GCP_WINDOW_CHK_2_PWD_IVCRX        0x000010c9
@@ -3170,6 +3195,14 @@
 #define I2C_MONITOR_AXI_STATUS		(rx_info.i2c_buff.addr_base + (0x010 << 2))
 #define I2C_MONITOR_INTR_STATUS		(rx_info.i2c_buff.addr_base + (0x011 << 2))
 #define I2C_MONITOR_AXI_CMD_CNT		(rx_info.i2c_buff.addr_base + (0x012 << 2))
+#define I2C_MONITOR_ADDR_INTR		(rx_info.i2c_buff.addr_base + (0x013 << 2))
+
+enum top_irq_mode_e {
+	IRQ_DISABLE = 0,
+	IRQ_EN_HDCP = 1,
+	IRQ_EN_EDID = 2,
+	IRQ_EN_ALL = 3
+};
 
 enum i2c_trigger_mode_e {
 	E_HW_TRIGGER,
@@ -3366,13 +3399,19 @@ extern u32 afifo_underflow_cnt;
 extern int frl_scrambler_en;
 extern u32 frl_sync_cnt;
 extern int force_clk_stable;
-extern int audio_debug;
+extern int audio_dump;
 extern int edid_auto_debug;
 extern int clk_msr_param;
 extern int fpll_clk_sel;
 /* i2c monitor */
 extern int sda_filter;
+extern int scl_filter;
 extern int clk_div;
+
+extern int secure_debug;
+extern int audio_dump_frame;
+extern int audio_dump_type;
+
 void hdmirx_set_vp_mapping(enum colorspace_e cs, u8 port);
 void rx_get_best_eq_setting(u8 port);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
@@ -3468,7 +3507,7 @@ void hdmirx_phy_pddq(unsigned int enable);
 void rx_get_video_info(u8 port);
 void hdmirx_set_video_mute(bool mute, u8 port);
 void rx_clr_gcp_avmute(u8 port);
-void hdmirx_config_compress_video(u8 port);
+void hdmirx_late_config_video(u8 port);
 void hdmirx_config_video(u8 port);
 void hdmirx_config_audio(u8 port);
 void set_dv_ll_mode(bool en, u8 port);
@@ -3629,10 +3668,26 @@ bool rx_is_need_edid_reset(u8 port);
 
 bool rx_is_phy_power_off(u8 port);
 void rx_hdcp_access_on_ddc_en(bool en);
-
+u32 rd_reg_clk_ctl(u32 offset);
+void wr_reg_clk_ctl(u32 offset, u32 val);
+u32 rd_reg_ana_ctl(u32 offset);
+void wr_reg_ana_ctl(u32 offset, u32 val);
+void wr_bits_reg_ana_ctl(u32 addr, u32 mask, u32 value);
+bool is_emp_pkt_sent_out(void);
+void rx_dump_pll_param(void);
 /* i2c monitor */
 void rx_i2c_dbg_monitor(void);
 void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod);
 void rx_i2c_dump(void);
-
+void rx_add_timer(struct hdmirx_dev_s *rx_dev);
+void rx_del_timer(struct hdmirx_dev_s *rx_dev);
+void aml_phy_offset_cal_handler(struct kthread_work *work);
+unsigned int is_rx22_binary_needed(void);
+void hdmirx_scdc_reset(u8 port);
+void aml_phy_exbist(u8 port, u8 ch);
+void rx_power_consumption_cntl(u8 tmp_5v_sts);
+void hdmirx_qms_plus_en(bool en, u8 port);
+void rx_get_aud_pkt(u8 port);
+void rx_aud_to_emp_init(u8 port);
+bool rx_get_dvi_mode(u8 port);
 #endif

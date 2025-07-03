@@ -73,7 +73,6 @@ extern u32 cdr_value;
 extern u32 eq_value;
 extern u32 misc2_value;
 extern u32 misc1_value;
-extern int bist_delay;
 /*--------------------------function declare------------------*/
 /* T5m */
 void aml_phy_init_t5m(void);
@@ -103,6 +102,7 @@ void rx_dig_clk_en_t5m(bool en);
 void aml_phy_get_trim_val_t5m(void);
 void aml_phy_offset_cal_t5m(void);
 bool rx_check_tap0(void);
+void rx_aud_pll_ctl_t5m(bool en, u8 port);
 /*function declare end*/
 
 #endif /*_HDMI_RX_T5M_H*/

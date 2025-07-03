@@ -6,6 +6,7 @@
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_wrapper.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_hw.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_drv.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_diag.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdcp_rx_main.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_eq.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_repeater.o
@@ -19,6 +20,7 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_r
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_hw_t3x.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_hw_t6d.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_hw_txhd2.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_hw_t6w.o
 #obj-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += tvin_hdmirx.o
 #tvin_hdmirx-objs := hdmi_rx_wrapper.o hdmi_rx_hw.o hdmi_rx_drv.o \
 #		hdcp_rx_main.o hdmi_rx_eq.o \

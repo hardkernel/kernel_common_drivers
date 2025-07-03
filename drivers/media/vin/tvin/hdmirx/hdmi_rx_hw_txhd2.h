@@ -104,7 +104,7 @@ void txhd2_pbist(void);
 void clk_init_cor_txhd2(void);
 void rx_dig_clk_en_txhd2(bool en);
 void txhd2_aud_clk_cal(void);
-
+void rx_aud_pll_ctl_txhd2(bool en, u8 port);
 /*function declare end*/
 
 #endif /*_HDMI_RX_TXHD2_H*/

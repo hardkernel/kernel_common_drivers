@@ -22,6 +22,7 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
+#include "hdmi_rx_diag.h"
 
 //2023.03.01
 //added interlaced mode protection
@@ -83,8 +84,19 @@
 //2024.09.24 reduce rx boot print
 //2024.09.30 update fsm when update edid
 //2024.10.09 t3x/t7c hdmirx support std hibernate
-//2024.12.26 clean module params
-#define RX_DRV_VER "ver.2024/12/26"
+//2024.11.15 add protect for fsm
+//2024.11.29 optimize early suspend flow
+//2025.01.02 optimize timer execution logic
+//2025.01.16 t3 hdmirx support std hibernate
+//2025.02.20 add 4k144 165 dsc timing support
+//2025.03.05 fix no signal when on/off dlg on home
+//2025.03.20 optimize early suspend flow
+//2025.05.06 hdmi 422 to 444 for pre proc problem
+//2025.05.19 change resume flow
+//2025.06.05 Fix aspect ratio flow
+//2025.06.20 use hrtimer to poll edid sts
+//2025.06.26 modify acr_ref_clk config method
+#define RX_DRV_VER "ver.2025/06/26"
 
 /*print type*/
 #define COR1_LOG	0x10000
@@ -111,6 +123,7 @@
 #define EDID_DATA_LOG	0x20000
 #define RP_LOG		0x40000
 #define FRL_LOG		0x80000
+#define DUMP_AUD_LOG	0x100005
 
 #define FRAME_RATE_MIN 20
 #define FRAME_RATE_MAX 300
@@ -145,6 +158,9 @@
 //for dump i2c_monitor data to file
 //#define I2C_MONITOR_DUMP_FILE
 
+/* support dump audio sample packet from emp */
+#define CONFIG_RX_AUDIO_TO_EMP
+
 enum chip_id_e {
 	CHIP_ID_NONE,
 	CHIP_ID_GXTVBB,
@@ -161,6 +177,7 @@ enum chip_id_e {
 	CHIP_ID_T5M,
 	CHIP_ID_TXHD2,
 	CHIP_ID_T6D,
+	CHIP_ID_T6W,
 	CHIP_ID_T3X,
 };
 
@@ -175,6 +192,7 @@ enum phy_ver_e {
 	PHY_VER_T5M,
 	PHY_VER_TXHD2,
 	PHY_VER_T6D,
+	PHY_VER_T6W,
 	PHY_VER_T3X,
 };
 
@@ -261,6 +279,13 @@ enum port_sts_e {
 	E_INIT = 0xff,
 };
 
+enum data_ch_e {
+	E_CH0,
+	E_CH1,
+	E_CH2,
+	E_CH3,
+	E_ALL_CH,
+};
 /* flag: need to request downstream re-auth */
 #define HDCP_NEED_REQ_DS_AUTH 0x10
 #define HDCP_VER_MASK 0xf
@@ -375,6 +400,13 @@ struct rx_var_param {
 	int fpll_stable_cnt;
 	int flt_update;
 	int lock;
+	/*
+	 * Usually,for yuv422 input data is 8bit,need force 8bit,
+	 * for some specific sources,the data is 10/12bit,
+	 * do not need set colordepth override
+	 */
+	bool special_422_dev;
+	u8 over_eotf;
 };
 
 struct rx_aml_phy {
@@ -440,7 +472,11 @@ struct rx_aml_phy {
 	int buf_gain;
 	/* bit[3:0]:pll bw,bit[4:7]:phy bw, bit'8 enable bit */
 	u32 force_bw;
+	u32 phy_bw_pre;
+	u32 pll_bw_pre;
 	int eq_sslms_en;
+	/* audio pll source: 0: analog pll,1: digital */
+	bool dacr_en;
 };
 
 struct rx_aml_phy_21 {
@@ -527,6 +563,8 @@ struct rx_video_info {
 	u32 bar_start_right;
 	bool sw_fp;
 	bool sw_alternative;
+	/* AVI ver4 byte15 bit[0,5] Resolution Identification*/
+	u8 rid;
 };
 
 /** Receiver key selection size - 40 bits */
@@ -586,6 +624,8 @@ struct hdmi_rx_hdcp {
 	u8 stream_type;
 	bool hdcp_source;
 	unsigned char hdcp22_exception;/*esm exception code,reg addr :0x60*/
+	u32 ake_init_cnt;
+	u32 reauth_req_cnt;
 };
 
 static const unsigned int rx22_ext[] = {
@@ -604,17 +644,21 @@ struct vsi_info_s {
 	unsigned int eff_tmax_pq;
 	bool dv_allm;
 	bool hdmi_allm;
+	bool hdr_allm;
+	bool src_tm_flag;
 	bool hdr10plus;
 	bool cuva_hdr;
 	bool filmmaker;
 	bool imax;
+	bool qms_plus;
 	u8 ccbpc;
-	u8 vsi_state; // bit0-6: 4K3D/VSI21/HDR10+/DV10/DV15/CUVA/filmmaker/imax
+	u32 vsi_state; //4K3D/VSI21/HDR10+/DV10/DV15/CUVA/filmmaker/imax/QMS+
 	u8 emp_pkt_cnt;
 	u8 timeout;
 	u8 max_frl_rate;
 	u8 sys_start_code;
 	u8 cuva_version_code;
+	enum hdmirx_packet_status_e pkt_status;
 };
 
 //===============emp start
@@ -627,6 +671,10 @@ struct vtem_info_s {
 	u8 m_const;
 	u8 qms_en;
 	u32 next_tfr;
+
+	/* qms+ */
+	u8 qms_plus_en;
+	u32 ieee;
 
 	u8 base_vfront;
 	u16 base_framerate;
@@ -752,6 +800,7 @@ struct aud_info_s {
 	/* channel status */
 	unsigned char channel_status[CHANNEL_STATUS_SIZE];
 	unsigned char channel_status_bak[CHANNEL_STATUS_SIZE];
+	unsigned char ch_sts_bits;
     /**/
 	unsigned int cts;
 	unsigned int n;
@@ -818,8 +867,7 @@ struct emp_info_s {
 enum i2c_sample_mode_e {
 	E_FUNC_SAMPLE,
 	E_I2C_WAVE_SAMPLE,
-	E_CEC_WAVE_SAMPLE,
-	E_BIST_MODE
+	E_CEC_WAVE_SAMPLE
 };
 
 struct i2c_info_s {
@@ -827,6 +875,30 @@ struct i2c_info_s {
 	struct page *pg_addr;
 	enum i2c_sample_mode_e mode;
 	u32 addr_base;
+};
+
+struct dump_params {
+	int dump_type;
+	unsigned int dump_frame;
+};
+
+struct buf_item_s {
+	u32 aud_pkt_cnt;
+	u32 total_pkt;
+	u8 buf[2048][32];
+}  __packed;
+
+struct aud_to_emp_s {
+	void *buf_a;
+	void *buf_b;
+	struct page *aud_pg;
+	phys_addr_t aud_emp_a;
+	phys_addr_t aud_emp_b;
+	u8 flag;
+	unsigned long irq_cnt;
+	int dump_work_cnt;
+	struct buf_item_s *buf;
+	int buf_count;
 };
 
 struct spkts_rcvd_sts {
@@ -904,6 +976,12 @@ struct rx_info_s {
 	struct edid_capacity edid_cap;
 	bool suspend_flag;
 	u8 edid_update_done;
+	bool timer_flag;
+	/* bit[3:0]:HDMI4/3/2/1 */
+	u32 disable_port_num;
+#ifdef CONFIG_RX_AUDIO_TO_EMP
+	struct aud_to_emp_s aud_emp;
+#endif
 };
 
 struct rx_s {
@@ -941,6 +1019,9 @@ struct rx_s {
 	struct vsi_info_s vs_info_details;
 	struct tvin_3d_meta_data_s threed_info;
 	struct tvin_hdr_info_s hdr_info;
+	u8 emp_type;
+	enum hdmirx_packet_status_e spd_pkt_st;
+	enum hdmirx_packet_status_e avi_pkt_st;
 	struct vtem_info_s vtem_info;
 	struct sbtm_info_s sbtm_info;
 	struct cuva_emds_s emp_cuva_info;
@@ -948,6 +1029,7 @@ struct rx_s {
 	bool vsif_fmm_flag;
 	bool avi_fmm_flag;
 	u8 drm_dv_flag;
+	u8 qms_plus_flag;
 	struct dv_info_s emp_dv_info;
 	struct cvtem_info_s cvtem_info;
 	u8 emp_vid_idx;
@@ -963,6 +1045,8 @@ struct rx_s {
 	struct phy_sts phy;
 	struct clk_msr clk;
 	enum edid_ver_e edid_ver;
+	u16 edid_size;
+	bool sup_frl;
 	u8 tx_type;
 	bool arc_5vsts;
 	u32 vsync_cnt;
@@ -987,6 +1071,8 @@ struct rx_s {
 	u32 irq_err_cnt;
 	u32 de_err_cnt;
 	int pkt_mini_interval[PACKET_TYPE_MAX]; //unit:frame
+	int dump_aud_cnt;
+	struct hdmirx_phy_status_s phy_sts;
 };
 
 struct reg_map {
@@ -1009,6 +1095,13 @@ struct work_data {
 
 struct edid_delayed_work_data {
 	struct delayed_work delayed_work;
+	u8 port;
+	unsigned int state[E_PORT_NUM];
+	u32 edid_offset_cur[E_PORT_NUM];
+};
+
+struct edid_timer_data {
+	struct hrtimer timer;
 	u8 port;
 	unsigned int state[E_PORT_NUM];
 	u32 edid_offset_cur[E_PORT_NUM];
@@ -1081,6 +1174,10 @@ extern struct kthread_worker frl1_worker;
 extern struct task_struct *frl1_worker_task;
 extern struct kthread_work frl1_work;
 
+extern struct kthread_worker phy_ofset_worker;
+extern struct task_struct *phy_ofset_worker_task;
+extern struct kthread_work phy_ofset_work;
+
 extern wait_queue_head_t tx_wait_queue;
 
 extern struct tasklet_struct rx_tasklet;
@@ -1095,8 +1192,6 @@ extern int boot_info_num;
 extern struct tvin_latency_s latency_info;
 extern struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
 extern bool downstream_repeat_support;
-extern u32 vrr_range_dynamic_update_en;
-extern u32 allm_update_en;
 
 void rx_tasklet_handler(unsigned long arg);
 void skip_frame(unsigned int cnt, u8 port, char *str);
@@ -1140,6 +1235,8 @@ extern u32 rpt_edid_selection;
 extern u32 rpt_only_mode;
 extern u32 vrr_func_en;
 extern u32 allm_func_en;
+extern u32 qms_func_en;
+
 /* debug */
 extern bool hdcp_enable;
 extern int log_level;
@@ -1165,14 +1262,21 @@ extern int gcp_mute_cnt;
 extern int gcp_mute_flag[4];
 extern int def_trim_value;
 extern u32 edid_auto_sel;
+extern int audio_dump_frame;
+extern struct edid_timer_data edid_timer;
+extern ktime_t interval;
+
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 extern struct notifier_block vrr_notify;
 #endif
-#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
-extern struct notifier_block tx_notify;
-void hdmitx_update_latency_mode(struct tvin_latency_s *latency_info);
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+extern bool early_suspend_flag;
 #endif
-void __weak hdmitx_update_latency_mode(struct tvin_latency_s *latency_info)
+#ifdef CONFIG_AMLOGIC_HDMITX
+extern struct notifier_block tx_notify;
+void hdmitx_update_latency_info(struct tvin_latency_s *latency_info);
+#endif
+void __weak hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
 {
 }
 
@@ -1215,10 +1319,9 @@ int rx_hdcp22_send_uevent(int val);
 
 /* for cec set tx_type */
 void register_cec_rx_notify(cec_spd_callback callback);
-__weak void register_cec_rx_notify(cec_spd_callback callback)
-{
-	;
-}
+void rx_alloc_aud_ddr(u8 port);
+void rx_free_aud_ddr(u8 port);
+
 //#define RX_VER0 "ver.2021/06/21"
 //1. added colorspace detection
 //2. add afifo detection

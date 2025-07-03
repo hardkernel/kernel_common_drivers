@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef _HDMI_RX_T3X_H
@@ -171,6 +171,8 @@ extern int vga_tuning_max;
 extern int cal_phy_time;
 extern int pll_band;
 extern int cdr_bw;
+extern int give_n;
+
 /*--------------------------function declare------------------*/
 /* T3X */
 void aml_phy_init_t3x(u8 port);
@@ -239,7 +241,7 @@ void rx_mute_t3x(bool en, u8 port_type);
 bool rx_get_clkready_sts(u8 port);
 bool rx_get_valid_m_sts(u8 port);
 bool rx_is_power_off_t3x(u8 port);
-
+void rx_aud_pll_ctl_t3x(bool en, u8 port);
 //void reset_pcs(void);
 
 /*function declare end*/

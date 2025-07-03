@@ -98,11 +98,12 @@ void rx_pkt_status(u8 port)
 void rx_pkt_debug(void)
 {
 	u32 data32;
+	u8 i;
 
 	if (rx_info.chip_id >= CHIP_ID_T7)
 		return;
-
-	memset(&rxpktsts, 0, sizeof(struct rxpkt_st) * rx_info.port_num);
+	for (i = 0; i < E_PORT_NUM; i++)
+		memset(&rxpktsts[i], 0, sizeof(struct rxpkt_st));
 
 	data32 = hdmirx_rd_dwc(DWC_PDEC_CTRL);
 	data32 |= (rx_pkt_type_mapping(PKT_TYPE_INFOFRAME_VSI));
@@ -557,12 +558,16 @@ static void rx_pktdump_emp(u8 port)
 	}
 }
 
-static void rx_dump_aud_sample_pkt(u8 port)
+void rx_dump_aud_sample_pkt(u8 port)
 {
 	u32 i, j, tmp = 0;
 	char str[256];
 	struct emp_info_s *emp_p = NULL;
 
+	if (log_level != DUMP_AUD_LOG)
+		return;
+	if (rx_get_port_type(port) == TVIN_PORT_SUB)
+		return;
 	if (rx[port].emp_vid_idx) {
 		tmp = hdmirx_rd_top_common(TOP_EMP1_DDR_FILTER);
 		hdmirx_wr_top_common(TOP_EMP1_DDR_FILTER, 1 << 1); //only audio sample pkt
@@ -572,18 +577,18 @@ static void rx_dump_aud_sample_pkt(u8 port)
 		hdmirx_wr_top_common(TOP_EMP_DDR_FILTER, 1 << 1); //only audio sample pkt
 		emp_p = &rx_info.emp_buff_a;
 	}
-	while (audio_debug) {
-		for (i = 0; i < emp_p->emp_pkt_cnt; i++) {
-			memset(str, '\0', sizeof(str));
-			for (j = 0; j < 31; j++)
-				sprintf(str + strlen(str), "0x%02x ",
-					emp_buf[rx[port].emp_vid_idx][j + i * 31]);
-			rx_pr("pkt[%2d]: %s\n", i, str);
-		}
+	for (i = 0; i < emp_p->emp_pkt_cnt; i++) {
+		memset(str, '\0', sizeof(str));
+		for (j = 0; j < 31; j++)
+			sprintf(str + strlen(str), "0x%02x ",
+				emp_buf[rx[port].emp_vid_idx][j + i * 31]);
+		rx_pr("pkt[%2d]: %s\n", i, str);
 	}
 
 	/* recover emp filter */
 	hdmirx_wr_top_common(TOP_EMP_DDR_FILTER, tmp);
+	if (rx[port].dump_aud_cnt >= dump_aud_max)
+		log_level = LOG_EN;
 }
 
 void rx_pkt_dump(enum pkt_type_e typeid, u8 port)
@@ -721,20 +726,7 @@ void rx_pkt_initial(u8 port)
 	int j = 0;
 	struct emp_info_s *emp_info_p = rx_get_emp_info(port);
 
-	rx[i].vs_info_details.vsi_state = E_VSI_NULL;
-	//vsi info
-	rx[i].vs_info_details._3d_structure = 0;
-	rx[i].vs_info_details._3d_ext_data = 0;
 	rx[i].threed_info.meta_data_flag = false;
-	rx[i].vs_info_details.low_latency = false;
-	rx[i].vs_info_details.backlt_md_bit = false;
-	rx[i].vs_info_details.dv_allm = false;
-	rx[i].vs_info_details.hdmi_allm = false;
-	rx[i].vs_info_details.dolby_vision_flag = DV_NULL;
-	rx[i].vs_info_details.hdr10plus = false;
-	rx[i].vs_info_details.cuva_hdr = false;
-	rx[i].vs_info_details.filmmaker = false;
-	rx[i].vs_info_details.imax = false;
 	//emp info
 	rx[i].sbtm_info.flag = false;
 	rx[i].vtem_info.vrr_en = false;
@@ -742,12 +734,18 @@ void rx_pkt_initial(u8 port)
 	rx[i].emp_cuva_info.flag = false;
 	rx[i].vsif_fmm_flag = false;
 	rx[i].avi_fmm_flag = false;
+	rx[i].qms_plus_flag = false;
+	rx[i].hdr_info.hdr_type = HDMIRX_HDR_MODE_SDR;
+	rx[i].vs_info_details.pkt_status = HDMIRX_PACKET_STATUS_NOT_RECEIVED;
+	rx[i].spd_pkt_st = HDMIRX_PACKET_STATUS_NOT_RECEIVED;
+	rx[i].avi_pkt_st = HDMIRX_PACKET_STATUS_NOT_RECEIVED;
 
 	if (!emp_info_p) {
 		rx_pr("%s emp info null\n", __func__);
 		return;
 	}
 	emp_info_p->emp_pkt_cnt = 0;
+	memset(&rx[i].vs_info_details, 0, sizeof(struct vsi_info_s));
 	memset(&rx[i].vtem_info, 0, sizeof(rx[port].vtem_info));
 	//memset(&rxpktsts[i], 0, sizeof(struct rxpkt_st));
 	while (j < VSI_TYPE_MAX)
@@ -918,6 +916,8 @@ void rx_pkt_get_avi_ex(void *pktinfo, u8 port)
 	pkt->pix_num_right_bar = hdmirx_rd_cor(AVIRX_DBYTE12_DP2_IVCRX, port) |
 		(u16)hdmirx_rd_cor(AVIRX_DBYTE13_DP2_IVCRX, port) << 8;
 	pkt->additional_colorimetry = hdmirx_rd_cor(AVIRX_DBYTE14_DP2_IVCRX, port);
+	if (hdmirx_rd_cor(AVIRX_LENGTH_DP2_IVCRX, port) != 0)
+		rx[port].avi_pkt_st = HDMIRX_PACKET_STATUS_UPDATED;
 }
 
 void rx_pkt_get_spd_ex(void *pktinfo, u8 port)
@@ -932,9 +932,8 @@ void rx_pkt_get_spd_ex(void *pktinfo, u8 port)
 
 	pkt->pkttype = PKT_TYPE_INFOFRAME_SPD;
 	pkt->pkttype = hdmirx_rd_cor(SPDRX_TYPE_DP2_IVCRX, port);
-//	if (pkt->pkttype != PKT_TYPE_INFOFRAME_SPD) {
+//	if (pkt->pkttype != PKT_TYPE_INFOFRAME_SPD)
 //		;//rx_pr("wrong SPD\n");
-//	}
 	pkt->version = hdmirx_rd_cor(SPDRX_VERS_DP2_IVCRX, port);
 	pkt->length = hdmirx_rd_cor(SPDRX_LENGTH_DP2_IVCRX, port);
 	pkt->checksum = hdmirx_rd_cor(SPDRX_CHSUM_DP2_IVCRX, port);
@@ -1325,22 +1324,28 @@ bool rx_chk_avi_valid(u8 port)
 bool rx_chk_drm_valid(u8 port)
 {
 	union infoframe_u *drm_data;
-	u32 chk = 0;
-	u8 i;
-	bool flag = true;
+	static u8 chk, drm_unstable_cnt;
+	u32 i, temp = 0;
+	bool ret = true;
 
 	drm_data = (union infoframe_u *)&rx_pkt[port].drm_info;
-	if (drm_data->raw_infoframe.length != 0x1a ||
-		drm_data->raw_infoframe.version != 0x1)
-		flag = false;
+	for (i = 0; i < sizeof(struct fifo_rawdata_st); i++)
+		temp += *((u8 *)drm_data + i);
+	temp = temp & 0xff;
+	if (temp != chk) {
+		chk = temp;
+		drm_unstable_cnt++;
+	} else {
+		drm_unstable_cnt = 0;
+	}
 
-	for (i = 0; flag && i < sizeof(struct fifo_rawdata_st); i++)
-		chk += *((u8 *)drm_data + i);
-	flag &= (chk & 0xff) ? false : true;
+	if (drm_unstable_cnt >= 2) {
+		ret = false;
+		if (log_level & PACKET_LOG)
+			rx_pr("invalid drm pkt, temp:0x%x\n", temp);
+	}
 
-	if (!flag && (log_level & PACKET_LOG))
-		rx_pr("invalid drm pkt\n");
-	return flag;
+	return ret;
 }
 
 /* refer to dolby version unique drm spec Table-6 */
@@ -1433,6 +1438,7 @@ void rx_get_vsi_info(u8 port)
 	unsigned int tmp;
 	static u32 num;
 	struct emp_info_s *emp_info_p = rx_get_emp_info(port);
+	bool l11_md_present;
 
 	if (!emp_info_p) {
 		rx_pr("%s emp info null\n", __func__);
@@ -1471,8 +1477,9 @@ void rx_get_vsi_info(u8 port)
 					      (pkt->sbpkt.payload.data[0] & 0xf00);
 					rx[port].vs_info_details.eff_tmax_pq = tmp;
 				}
+				l11_md_present = (pkt->sbpkt.payload.data[0] >> 8) & _BIT(5);
 				tmp = (pkt->sbpkt.payload.data[1] >> 16 & 0xf);
-				if (tmp == 2)
+				if (l11_md_present && tmp == 2)
 					rx[port].vs_info_details.dv_allm = true;
 			}
 		} else if (pkt->ieee == IEEE_HDR10PLUS) {
@@ -1486,6 +1493,9 @@ void rx_get_vsi_info(u8 port)
 			/* consider hdr10+ is true when IEEE matched */
 			rx[port].vs_info_details.vsi_state |= E_VSI_HDR10PLUS;
 			rx[port].vs_info_details.hdr10plus = true;
+			/* SSTM: source side tone mapping */
+			rx[port].vs_info_details.hdr_allm = pkt->sbpkt.vsi_hdr10p.allm;
+			rx[port].vs_info_details.src_tm_flag = pkt->sbpkt.vsi_hdr10p.src_tm_flag;
 		} else if (pkt->ieee == IEEE_CUVAHDR) {
 			if (pkt->length != E_PKT_LENGTH_27) {
 				if (log_level & PACKET_LOG)
@@ -1570,6 +1580,13 @@ void rx_get_vsi_info(u8 port)
 			tmp = pkt->sbpkt.payload.data[0] & _BIT(9);
 			rx[port].vs_info_details.vsi_state |= E_VSI_VSI21;
 			rx[port].vs_info_details.hdmi_allm = tmp ? true : false;
+		} else if (pkt->ieee == IEEE_QMS_PLUS) {
+			if (pkt->length != E_PKT_LENGTH_5) {
+				if (log_level & PACKET_LOG)
+					rx_pr("vsif QMS+ pkt err\n");
+			}
+			rx[port].vs_info_details.vsi_state |= E_VSI_QMS_PLUS;
+			rx[port].vs_info_details.qms_plus = pkt->sbpkt.vsi_qms_plus.qms_plus;
 		}
 		i++;
 	}
@@ -2129,6 +2146,13 @@ int rx_pkt_fifodecode(struct packet_info_s *prx,
 				sizeof(struct pd_infoframe_s));
 			rx[port].vs_info_details.vsi_state |= E_VSI_4K3D;
 			break;
+		case IEEE_QMS_PLUS:
+			if (!qms_plus_cfg)
+				break;
+			memcpy(&prx->multi_vs_info[QMS_PLUS], pktdata,
+				sizeof(struct pd_infoframe_s));
+			rx[port].vs_info_details.vsi_state |= E_VSI_QMS_PLUS;
+			break;
 		default:
 			break;
 		}
@@ -2477,6 +2501,7 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src, u8 port)
 			(*pkt_cnt)++;
 		}
 	} else if (pkt_int_src == PKT_BUFF_SET_SPD) {
+		rx[port].spd_pkt_st = HDMIRX_PACKET_STATUS_UPDATED;
 		rxpktsts[port].pkt_op_flag |= PKT_OP_SPD;
 		rx_pkt_get_spd_ex(&prx->spd_info, port);
 		rxpktsts[port].pkt_cnt_spd++;
@@ -2531,6 +2556,8 @@ int rx_check_emp_type(struct emp_pkt_st *pkt)
 			emp_type = EMP_CUVA;
 		else if (u_ieee == IEEE_DV15) //dv
 			emp_type = EMP_AMDV;
+		else if (u_ieee == IEEE_QMS_PLUS && qms_plus_cfg)
+			emp_type = EMP_QMS_PLUS;
 	} else if (ds_type == 0 &&
 		vfr == 1 &&
 		afr == 0 &&
@@ -2704,7 +2731,6 @@ void dump_dsc_pps_info(u8 port)
 void rx_get_em_info(u8 port)
 {
 	u8 i, tmp;
-	int emp_type = -1;
 	struct emp_pkt_st *pkt;
 	static int qms_en = -1;
 	static int m_const = -1;
@@ -2724,19 +2750,32 @@ void rx_get_em_info(u8 port)
 		rx_pr("emp_dsf_cnt:0x%x\n", rx[port].emp_dsf_cnt);
 	for (i = 0; i < rx[port].emp_dsf_cnt; i++) {
 		pkt = (struct emp_pkt_st *)rx[port].emp_dsf_info[i].pkt_addr;
-		emp_type = rx_check_emp_type(pkt);
+		rx[port].emp_type = rx_check_emp_type(pkt);
 
-		switch (emp_type) {
+		switch (rx[port].emp_type) {
 		case EMP_VTEM_CLASS0:
 			/* spec2.1a table 10-36 gaming-vrr & FVA*/
 			tmp = pkt->cnt.md[0];
-			rx[port].vtem_info.vrr_en = tmp & 1;
+			if (!qms_plus_cfg && tmp & _BIT(3))
+				break;
+			//gaming-vrr use vrr_en notify vdin enable hw_vrr
+			if (tmp & _BIT(0))
+				rx[port].vtem_info.vrr_en = 1;
 			rx[port].vtem_info.fva_factor_m1 = (tmp >> 4) & 0xf;
 			tmp = pkt->cnt.md[1];
 			rx[port].vtem_info.base_vfront = tmp;
-			rx[port].vtem_info.base_framerate = (pkt->cnt.md[2] & 0x3) |
-				(pkt->cnt.md[3] << 8);
-			pkt->pkttype = 0;
+			rx[port].vtem_info.base_framerate = ((pkt->cnt.md[2] & 0x3) << 8) |
+				pkt->cnt.md[3];
+			/* qms+ by vtem */
+			if (pkt->cnt.md[0] & _BIT(3)) {
+				rx[port].vtem_info.qms_plus_en = 1;
+				rx[port].vtem_info.ieee = pkt->cnt.md[4] |
+					(pkt->cnt.md[5] << 8) |
+					(pkt->cnt.md[6] << 16);
+				if (rx[port].vtem_info.qms_plus_en &&
+					rx[port].vtem_info.ieee == IEEE_QMS_PLUS)
+					rx[port].qms_plus_flag |= QMS_PLUS_VTEM;
+			}
 			break;
 		case EMP_VTEM_CLASS1:
 			/* spec2.1a table 10-37 */
@@ -2813,6 +2852,10 @@ void rx_get_em_info(u8 port)
 			if (log_level & 0x400)
 				dump_cvtem_packet(port);
 			parse_dsc_pps_data(rx[port].cvtem_info.dsc_info, port);
+			break;
+		case EMP_QMS_PLUS:
+			// Assume that MD[3] indicates whether QMS+ is enabled or not.
+			rx[port].qms_plus_flag |= pkt->cnt.md[3] ? QMS_PLUS_EMP : QMS_PLUS_DISABLE;
 			break;
 		default:
 			memset(&rx[port].vtem_info, 0, sizeof(struct vtem_info_s));

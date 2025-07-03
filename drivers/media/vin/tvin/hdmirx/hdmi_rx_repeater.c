@@ -2,7 +2,8 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
+
+#ifdef CONFIG_AMLOGIC_HDMITX
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -30,8 +31,16 @@
 #include "hdmi_rx_wrapper.h"
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_hw_t7.h"
-
+/*edid original data from device*/
+static unsigned char receive_edid[MAX_RECEIVE_EDID];
+int receive_edid_len = MAX_RECEIVE_EDID;
+MODULE_PARM_DESC(receive_edid, "\n receive_edid\n");
+module_param_array(receive_edid, byte, &receive_edid_len, 0664);
 int tx_hpd_event;
+int edid_len;
+MODULE_PARM_DESC(edid_len, "\n edid_len\n");
+module_param(edid_len, int, 0664);
+bool new_edid;
 /*original bksv from device*/
 //unsigned char receive_hdcp[MAX_KSV_LIST_SIZE];
 //int hdcp_array_len = MAX_KSV_LIST_SIZE;
@@ -39,8 +48,18 @@ int tx_hpd_event;
 //module_param_array(receive_hdcp, byte, &hdcp_array_len, 0664);
 int hdcp_len;
 int hdcp_repeat_depth;
+bool new_hdcp;
+bool start_auth_14;
+MODULE_PARM_DESC(start_auth_14, "\n start_auth_14\n");
+module_param(start_auth_14, bool, 0664);
+
+bool repeat_plug;
+MODULE_PARM_DESC(repeat_plug, "\n repeat_plug\n");
+module_param(repeat_plug, bool, 0664);
 
 int up_phy_addr;/*d c b a 4bit*/
+MODULE_PARM_DESC(up_phy_addr, "\n up_phy_addr\n");
+module_param(up_phy_addr, int, 0664);
 int hdcp22_firm_switch_timeout;
 
 u8 ksvlist[10] = {
@@ -56,10 +75,11 @@ u8 ksvlist[10] = {
 
 void rx_start_repeater_auth(void)
 {
+	rx[rx_info.main_port].hdcp.state = REPEATER_STATE_START;
+	start_auth_14 = 1;
+	rx[rx_info.main_port].hdcp.delay = 0;
 	hdcp_len = 0;
 	hdcp_repeat_depth = 0;
-	rx[rx_info.main_port].hdcp.state = REPEATER_STATE_START;
-	rx[rx_info.main_port].hdcp.delay = 0;
 	rx[rx_info.main_port].hdcp.dev_exceed = 0;
 	rx[rx_info.main_port].hdcp.cascade_exceed = 0;
 	rx[rx_info.main_port].hdcp.depth = 0;
@@ -249,7 +269,7 @@ void rx_check_repeat(u8 port)
 		memset(&pre_topo, 0, sizeof(pre_topo));
 		memset(&hdcp_convert_topo, 0, sizeof(hdcp_convert_topo));
 		rx[port].hdcp.topo_updated = 0;
-#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
+#ifdef CONFIG_AMLOGIC_HDMITX
 		hdmitx_reauth_request(0);
 #endif
 		//rx_start_repeater_auth();
@@ -267,11 +287,16 @@ void rx_check_repeat(u8 port)
 		if (log_level & HDCP_LOG)
 			rx_pr("step5-%d\n", data8);
 		rx[port].hdcp.stream_type = data8;
-#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
+#ifdef CONFIG_AMLOGIC_HDMITX
 		hdmitx_reauth_request(data8 | STREAMTYPE_UPDATE);
 #endif
 		rx[port].hdcp.stream_manage_rcvd = false;
 	}
+}
+
+unsigned char *rx_get_dw_edid_addr(void)
+{
+	return receive_edid;
 }
 
 bool get_rx_active_sts(void)
@@ -283,6 +308,7 @@ EXPORT_SYMBOL(get_rx_active_sts);
 void rx_set_repeater_support(bool enable)
 {
 	downstream_repeat_support = enable;
+	repeat_plug = enable;
 	rx_pr("****************=%d\n", downstream_repeat_support);
 }
 EXPORT_SYMBOL(rx_set_repeater_support);

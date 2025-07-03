@@ -809,6 +809,8 @@ ddk_module(
                 "vin/tvin/hdmirx/hdmi_rx_hw_t3x.c",
                 "vin/tvin/hdmirx/hdmi_rx_hw_t6d.c",
                 "vin/tvin/hdmirx/hdmi_rx_hw_txhd2.c",
+                "vin/tvin/hdmirx/hdmi_rx_diag.c",
+                "vin/tvin/hdmirx/hdmi_rx_hw_t6w.c",
             ],
         },
         "CONFIG_AMLOGIC_MEDIA_TVIN_DSC_DEC": {

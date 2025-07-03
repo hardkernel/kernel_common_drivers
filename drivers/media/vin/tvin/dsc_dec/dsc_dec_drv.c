@@ -20,13 +20,13 @@
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-
 #include <linux/amlogic/iomap.h>
 #include "dsc_dec_drv.h"
 #include "dsc_dec_reg.h"
 #include "dsc_dec_hw.h"
 #include "dsc_dec_config.h"
 #include "dsc_dec_debug.h"
+#include "../tvin_global.h"
 
 #include <linux/amlogic/gki_module.h>
 
@@ -38,6 +38,23 @@ static struct aml_dsc_dec_drv_s *dsc_dec_drv_local;
 struct aml_dsc_dec_drv_s *dsc_dec_drv_get(void)
 {
 	return dsc_dec_drv_local;
+}
+
+void dsc_dec_en(bool on_off, struct hdmi_dsc_pps_data_s *pps_data)
+{
+	if (!dsc_dec_drv_local) {
+		DSC_DEC_PR("dsc_dec_drv_local is NULL\n");
+		return;
+	}
+
+	if (on_off) {
+		dsc_dec_drv_local->pps_data = *pps_data;
+		dsc_dec_config_init(dsc_dec_drv_local);
+		dsc_dec_drv_local->dsc_dec_en = 1;
+	} else {
+		dsc_dec_drv_local->dsc_dec_en = 0;
+		set_dsc_dec_en(0);
+	}
 }
 
 static inline int dsc_dec_ioremap(struct platform_device *pdev,

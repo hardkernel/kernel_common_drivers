@@ -32,6 +32,7 @@
 #define HPD_WAIT_NORMAL 74
 #define HPD_WAIT_21 110
 #define HPD_WAIT_512 110
+#define FRL_UNREADY_MAX 200
 /* 2024.07.02 optimize suspend flow */
 /* 2024.07.19 optimize cts flow */
 /* 2024.08.22 Fix the issue of flashing green screen at the end of SDR playback */
@@ -43,7 +44,19 @@
 /* 2024.10.11 fix dsc timing judge */
 /* 2024.10.12 reduce fsm print */
 /* 2024.11.06 Adjust the HPD pull down time based on EDID type */
-#define RX_WRAPPER_VER "ver.2024/11/06"
+/* 2024.11.27 fix fsm unnormal */
+/* 2024.12.03 adjust audio fifo enable timing */
+/* 2024.12.16 remove fsm restart on t3x */
+/* 2024.12.19 add protection when not in hdmi source */
+/* 2024.12.24 rx statemachine hold when resume on other src*/
+/* 2025.01.08 resume flag can not effect switch port*/
+/* 2025.1.15 fix frl timing no signal */
+/* 2025.2.11 add avi fsm change */
+/* 2025.5.14 No delay added after checking hdcp */
+/* 2025.5.16 fmt detect add 420 judge */
+/* 2025.05.22 do not override 8bit when data was not 422 8bit */
+/* 2025.06.27 Fix YUV420 8k signal recognition error issue */
+#define RX_WRAPPER_VER "ver.2025/06/27"
 
 struct freq_ref_s {
 	bool interlace;
@@ -153,9 +166,11 @@ extern int fpll_ready_max;
 extern int frl_debug_en;
 extern int rx_emp_dbg_en;
 extern int fsm_debug;
+extern int qms_plus_cfg;
 extern int rs_err_chk;
 extern int err_cnt;
 extern int edid_seg_flag[4];
+extern int dump_aud_max;
 
 enum tvin_sig_fmt_e hdmirx_hw_get_fmt(u8 port);
 void rx_mute_vpp(u8 port_type);
@@ -177,7 +192,7 @@ unsigned int rx_get_scdc_clkrate_sts(u8 port);
 void hdmirx_clr_scdc(bool en, u8 port);
 void fsm_restart(u8 port);
 void rx_5v_monitor(void);
-void rx_audio_pll_sw_update(void);
+void rx_audio_pll_sw_update(u8 port);
 void rx_acr_info_sw_update(void);
 void rx_sw_reset(int level, u8 port);
 void rx_aud_pll_ctl(bool en, u8 port);
@@ -205,7 +220,8 @@ bool __weak get_video_mute_val(u32 owner)
 	return false;
 }
 
+void dump_phy_status(u8 port);
 void rx_monitor_error_counter(u8 port);
 void rx_fsm_print_handler(struct work_struct *work);
-
+bool rx_is_need_recovery_after_cor_reset(u8 port);
 #endif

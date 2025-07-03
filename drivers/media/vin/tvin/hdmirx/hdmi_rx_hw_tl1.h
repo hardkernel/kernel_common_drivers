@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef _HDMI_RX_TL1_H
@@ -45,7 +45,8 @@ bool aml_get_tmds_valid_tl1(void);
 void aml_phy_power_off_tl1(void);
 void aml_phy_switch_port_tl1(void);
 void rx_dig_clk_en_tl1(bool en);
-
+void rx_aud_pll_ctl_tl1(bool en, u8 port);
+void rx_aud_pll_ctl_txlx(bool en, u8 port);
 /*function declare end*/
 
 #endif /*_HDMI_RX_TL1_H*/

@@ -6,7 +6,7 @@
 #ifndef __DSC_DEC_DRV_H__
 #define __DSC_DEC_DRV_H__
 
-#include <linux/amlogic/media/vout/dsc.h>
+#include <uapi/amlogic/hdmi_rx.h>
 #include <linux/cdev.h>
 
 #define DSC_DEC_NORMAL_DEBUG		BIT(0)
@@ -50,7 +50,7 @@ struct aml_dsc_dec_drv_s {
 
 	struct dsc_dec_debug_s dsc_dec_debug;
 	//PPS parameter start
-	struct dsc_pps_data_s pps_data;
+	struct hdmi_dsc_pps_data_s pps_data;
 	unsigned int flatness_det_thresh;
 	bool full_ich_err_precision;
 	unsigned int rcb_bits;

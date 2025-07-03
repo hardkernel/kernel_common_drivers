@@ -13,7 +13,12 @@
 //2024.11.01 Optimize clear of edid segment
 //2024.11.06 get edid size and frl
 //2024.11.20 add new edid function
-#define RX_EDID_H_VER "ver.2024/11/20"
+//2024.11.28 change the location for get edid size and frl
+//2024.12.18 add qms function
+//2025.01.13 no need rm data blk before use splice_data_blk_to_edid
+//2025.05.14 add edid size check before data copy
+//2025.06.18 add edid protect
+#define RX_EDID_H_VER "ver.2025/06/18"
 
 #define EDID_EXT_BLK_OFF	128
 #define EDID_BLK_SIZE		128
@@ -28,7 +33,7 @@
 #define PORT_NUM		3
 #define LATENCY_MAX		254
 #define EDID_MAX_REFRESH_RATE 123 //No use for reference board
-
+#define EDID_OFFSET_512 0x10100
 /* for clear 512 edid segment */
 #define EDID_WAIT_STABLE_MAX 5
 #define EDID_RST_TIMEOUT 5
@@ -117,14 +122,25 @@
 #define MAX_V_ACTIVE 2160
 #define MAX_FRAME_RATE 60
 #define REFRESH_RATE 60
-#define EDID_TYPE_256_PLUS_256 0
-#define EDID_TYPE_512_PLUS_512 1
-#define EDID_TYPE_256_PLUS_512 2
-#define EDID_TYPE_256_PLUS_256_PLUS_256 3
-#define EDID_TYPE_256_PLUS_512_PLUS_256 4
-#define EDID_TYPE_256_PLUS_512_PLUS_512 5
+
+#define EDID_SIZE_256_PLUS_256 513
+#define EDID_SIZE_512_PLUS_512 1025
+#define EDID_SIZE_256_PLUS_512 769
+#define EDID_SIZE_256_PLUS_256_PLUS_256 769
+#define EDID_SIZE_256_PLUS_512_PLUS_256 1025
+//#define EDID_SIZE_256_PLUS_512_PLUS_512 1281
 
 #define END_OF_BLK(x) (((x) + 1) * EDID_BLK_SIZE - 1)
+
+enum edid_type_e {
+	EDID_TYPE_256_PLUS_256 = 0,
+	EDID_TYPE_512_PLUS_512 = 1,
+	EDID_TYPE_256_PLUS_512 = 2,
+	EDID_TYPE_256_PLUS_256_PLUS_256 = 3,
+	EDID_TYPE_256_PLUS_512_PLUS_256 = 4,
+	EDID_TYPE_256_PLUS_512_PLUS_512 = 5,
+	EDID_TYPE_MAX,
+};
 
 enum edid_audio_format_e {
 	AUDIO_FORMAT_HEADER,
@@ -648,7 +664,7 @@ struct earc_cap_ds {
 };
 
 enum hdmi_vic_e {
-	/* Refer to CEA 861-D */
+	/* Refer to CEA 861-I */
 	HDMI_UNKNOWN = 0,
 	HDMI_640x480p60 = 1,
 	/* for video format which have two different
@@ -665,8 +681,8 @@ enum hdmi_vic_e {
 	HDMI_1080i60 = 5,
 	HDMI_480i60 = 6,
 	HDMI_480i60_16x9 = 7,
-	HDMI_1440x240p60 = 8,
-	HDMI_1440x240p60_16x9 = 9,
+	HDMI_720x240p60 = 8,
+	HDMI_720x240p60_16x9 = 9,
 	HDMI_2880x480i60 = 10,
 	HDMI_2880x480i60_16x9 = 11,
 	HDMI_2880x240p60 = 12,
@@ -717,7 +733,7 @@ enum hdmi_vic_e {
 	HDMI_480p240_16x9 = 57,
 	HDMI_480i240 = 58,
 	HDMI_480i240_16x9 = 59,
-	/* Refer to CEA 861-F */
+	/* Refer to CEA 861-I */
 	HDMI_720p24 = 60,
 	HDMI_720p25 = 61,
 	HDMI_720p30 = 62,
@@ -769,23 +785,69 @@ enum hdmi_vic_e {
 	HDMI_2160p30_64x27 = 105,
 	HDMI_2160p50_64x27 = 106,
 	HDMI_2160p60_64x27 = 107,
-	HDMI_720x480i = 108,
-	HDMI_1920x2160p60_16x9 = 109,
-	HDMI_960x540 = 110,
-	HDMI_7680x4320 = 111,
-	HDMI_3840x4320 = 112,
-	HDMI_5120x2880 = 113,
-	HDMI_2560x2880 = 114,
-	HDMI_720X240 = 115,
-	HDMI_360x480i = 116,
-	HDMI_360x576i = 117,
-	HDMI_360x480p = 118,
-	HDMI_360x576p = 119,
-	HDMI_1440x480i60 = 120,
-	HDMI_1440x576i50 = 121,
-	HDMI_3840x1080p60 = 122,
-	HDMI_RESERVED = 123,
-	/* VIC 111~255: Reserved for the Future */
+	HDMI_1280x720p48_16x9 = 108,
+	HDMI_1280x720p48_64x27 = 109,
+	HDMI_1680x720p48 = 110,
+	HDMI_1920x1080p48_16x9 = 111,
+	HDMI_1920x1080p48_64x27 = 112,
+	HDMI_2560x1080p48 = 113,
+	HDMI_3840x2160p48 = 114,
+	HDMI_4090x2160p48 = 115,
+	HDMI_3840x2160p48_64x27 = 116,
+	HDMI_3840x2160p100_16x9 = 117,
+	HDMI_3840x2160p120_16x9 = 118,
+	HDMI_3840x2160p100_64x27 = 119,
+	HDMI_3840x2160p120_64x27 = 120,
+	HDMI_5120x2160p24_64x27 = 121,
+	HDMI_5120x2160p25_64x27 = 122,
+	HDMI_5120x2160p30_64x27 = 123,
+	HDMI_5120x2160p48_64x27 = 124,
+	HDMI_5120x2160p50_64x27 = 125,
+	HDMI_5120x2160p60_64x27 = 126,
+	HDMI_5120x2160p100_64x27 = 127,
+	/* VIC 128~192: Reserved for the Future */
+	HDMI_5120x2160p120_64x27 = 193,
+	HDMI_7680x4320p24_16x9 = 194,
+	HDMI_7680x4320p25_16x9 = 195,
+	HDMI_7680x4320p30_16x9 = 196,
+	HDMI_7680x4320p48_16x9 = 197,
+	HDMI_7680x4320p50_16x9 = 198,
+	HDMI_7680x4320p60_16x9 = 199,
+	HDMI_7680x4320p100_16x9 = 200,
+	HDMI_7680x4320p120_16x9 = 201,
+	HDMI_7680x4320p24_64x27 = 202,
+	HDMI_7680x4320p25_64x27 = 203,
+	HDMI_7680x4320p30_64x27 = 204,
+	HDMI_7680x4320p48_64x27 = 205,
+	HDMI_7680x4320p50_64x27 = 206,
+	HDMI_7680x4320p60_64x27 = 207,
+	HDMI_7680x4320p100_64x27 = 208,
+	HDMI_7680x4320p120_64x27 = 209,
+	HDMI_10240x4320p24_64x27 = 210,
+	HDMI_10240x4320p25_64x27 = 211,
+	HDMI_10240x4320p30_64x27 = 212,
+	HDMI_10240x4320p48_64x27 = 213,
+	HDMI_10240x4320p50_64x27 = 214,
+	HDMI_10240x4320p60_64x27 = 215,
+	HDMI_10240x4320p100_64x27 = 216,
+	HDMI_10240x4320p120_64x27 = 217,
+	HDMI_3840x2160p100_256x135 = 218,
+	HDMI_3840x2160p120_256x135 = 219,
+
+	/* CTA Non-standard resolution */
+	HDMI_1920x2160p60_16x9,
+	HDMI_960x540,
+	HDMI_3840x4320,
+	HDMI_5120x2880,
+	HDMI_2560x2880,
+	HDMI_1440x240,
+	HDMI_1440x480i60,
+	HDMI_1440x576i50,
+	HDMI_360x480i,
+	HDMI_360x576i,
+	HDMI_360x480p,
+	HDMI_360x576p,
+	HDMI_3840x1080p60,
 
 	/* the following VICs are for y420 mode,
 	 * they are fake VICs that used to diff
@@ -849,6 +911,68 @@ enum hdmi_vic_e {
 	HDMI_UNSUPPORT,
 };
 
+/* CTA-861 I table-11 */
+enum hdmi_rid_e {
+	RID_NULL = 0,
+	RID_1280X720P_16x9 = 1,
+	RID_1280X720P_64x27 = 2,
+	RID_1680x720p_64x27 = 3,
+	RID_1920x1080p_16x9 = 4,
+	RID_1920x1080p_64x27 = 5,
+	RID_2560x1080p_64x27 = 6,
+	RID_3840x1080p_32x9 = 7,
+	RID_2560x14440_16x9 = 8,
+	RID_3440x1440p_64x27 = 9,
+	RID_5120x1440p_32x9 = 10,
+	RID_3840x2160p_16x9 = 11,
+	RID_3840x2160p_64x27 = 12,
+	RID_5120x2160p_64x27 = 13,
+	RID_7680x2160p_32x9 = 14,
+	RID_5120x2880p_16x9 = 15,
+	RID_5120x2880p_64x27 = 16,
+	RID_6880x2880p_64x27 = 17,
+	RID_10240x2880p_32x9 = 18,
+	RID_7680x4320p_16x9 = 19,
+	RID_7680x4320p_64x27 = 20,
+	RID_10240x4320p_64x27 = 21,
+	RID_15360x4320p_32x9 = 22,
+	RID_11520x6480p_16x9 = 23,
+	RID_11520x6480p_64x27 = 24,
+	RID_15360x6480p_64x27 = 25,
+	RID_15360x8640p_16x9 = 26,
+	RID_15360x8640p_64x27 = 27,
+	RID_20480x8640p_64x27 = 28,
+	/* 29-62 reserved future use */
+};
+
+enum hdmi_aspect_ratio_e {
+	HDMI_ASPECT_RATIO_NULL,
+	HDMI_ASPECT_RATIO_4X3,
+	HDMI_ASPECT_RATIO_16X9,
+	HDMI_ASPECT_RATIO_32x9,
+	HDMI_ASPECT_RATIO_64X27,
+	HDMI_ASPECT_RATIO_256X135
+};
+
+/* CTA 861 Table-24 */
+enum hdmi_active_aspect_ratio_e {
+	ACTIVE_ASPECT_RATIO_NULL = 0,
+	ACTIVE_ASPECT_RATIO_AS_PIC = 8,
+	ACTIVE_ASPECT_RATIO_4X3 = 9,
+	ACTIVE_ASPECT_RATIO_16X9 = 10,
+	ACTIVE_ASPECT_RATIO_14X9 = 11,
+};
+
+struct vic_aspect_ratio_s {
+	enum hdmi_vic_e vic;
+	enum hdmi_aspect_ratio_e pic_aspect_ratio;
+};
+
+struct rid_aspect_ratio_s {
+	enum hdmi_rid_e rid;
+	enum hdmi_aspect_ratio_e pic_aspect_ratio;
+};
+
 enum earc_cap_block_id {
 	EARC_CAP_BLOCK_ID_0 = 0,
 	EARC_CAP_BLOCK_ID_1 = 1,
@@ -887,7 +1011,7 @@ extern enum edid_delivery_mothed_e edid_delivery_mothed;
 extern unsigned int edid_reset_max;
 extern u8 edid_port_type[4];
 
-#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
+#ifdef CONFIG_AMLOGIC_HDMITX
 extern u32 tx_hdr_priority;
 #endif
 //edid auto start
@@ -946,7 +1070,7 @@ void get_edid_standard_timing_info(u8 *p_edid, struct edid_standard_timing *edid
 void rm_unsupported_st(u8 *p_edid,
 	struct edid_standard_timing *edid_st_info, unsigned int refresh_rate);
 
-#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
+#ifdef CONFIG_AMLOGIC_HDMITX
 bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
 					unsigned char *audio_block);
 void rpt_edid_hf_vs_db_extraction(unsigned char *p_edid);
@@ -964,6 +1088,8 @@ void rx_edid_reset_task(u8 port);
 void rx_get_edid_support(u8 port);
 void rx_print_edid_support(void);
 bool is_valid_edid_data(unsigned char *p_edid);
-u32 rx_get_edid_size(u8 port);
-bool is_support_frl(u8 port);
+u32 rx_get_edid_size(u8 *pedid);
+bool is_support_frl(u8 *pedid, u8 port);
+enum hrtimer_restart edid_reset_callback(struct hrtimer *timer);
+
 #endif

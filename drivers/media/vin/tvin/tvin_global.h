@@ -13,7 +13,7 @@
 #include <linux/amlogic/media/registers/register_map.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vfm/vframe.h>
-#include <linux/amlogic/media/vout/dsc.h>
+#include <uapi/amlogic/hdmi_rx.h>
 
 #if IS_ENABLED(CONFIG_AMLOGIC_TVIN_USE_DEBUG_FILE)
 #include <linux/kernel.h>
@@ -405,6 +405,7 @@ struct tvin_hdr_info_s {
 	struct tvin_hdr_data_s hdr_data;
 	enum tvin_hdr_state_e hdr_state;
 	unsigned int hdr_check_cnt;
+	u8 hdr_type;
 };
 
 struct tvin_dv_vsif_raw_s {
@@ -430,6 +431,10 @@ struct tvin_vtem_data_s {
 	u8 m_const;
 	u8 qms_en;
 	u32 next_tfr;
+
+	/* qms+ */
+	u8 qms_plus_en;
+	u32 ieee;
 
 	u8 base_vfront;
 	u16 base_framerate;
@@ -594,7 +599,7 @@ struct tvin_sig_property_s {
 	struct tvin_cuva_emds_data_s cuva_emds_data;
 	struct tvin_spd_data_s spd_data;
 	bool dsc_flag;
-	struct dsc_pps_data_s pps_data;
+	struct hdmi_dsc_pps_data_s pps_data;
 	unsigned int cnt;
 	unsigned int hw_vic;
 	unsigned int avi_colorimetry;//hdmi avi colorimetry

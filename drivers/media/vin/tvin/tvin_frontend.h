@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/vin/tvin/tvin_frontend.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __TVIN_DECODER_H
@@ -124,8 +111,8 @@ void tvin_update_vdin_prop(u8 port_type, u8 pkt_type);
 bool tvin_get_game_mode_status(u8 port_type);
 void viuin_select_loopback_path(void);
 void viuin_clear_loopback_path(void);
-void dsc_dec_en(bool on_off, struct dsc_pps_data_s *pps_data);
-void __weak dsc_dec_en(bool on_off, struct dsc_pps_data_s *pps_data)
+void dsc_dec_en(bool on_off, struct hdmi_dsc_pps_data_s *pps_data);
+void __weak dsc_dec_en(bool on_off, struct hdmi_dsc_pps_data_s *pps_data)
 {
 }
 
