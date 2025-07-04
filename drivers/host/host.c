@@ -456,9 +456,9 @@ static int __maybe_unused host_runtime_resume(struct device *dev)
 static void host_mbox_callback_from_dev(struct mbox_client *cl, void *msg)
 {
 	struct host_module *host = dev_get_drvdata(cl->dev);
-	struct aml_mbox_data *mbox_msg = msg;
+	struct aml_mbox_rx_data *mbox_msg = msg;
 	u32 mbox_cmd = mbox_msg->cmd;
-	u32 mbox_data = *(u32 *)(mbox_msg->rxbuf);
+	u32 mbox_data = *(u32 *)(mbox_msg->buf);
 
 	pr_debug("host receive cmd 0x%x, data 0x%x\n", mbox_cmd, mbox_data);
 
