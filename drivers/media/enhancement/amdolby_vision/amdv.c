@@ -1374,7 +1374,7 @@ int VSYNC_WR_DV_REG(u32 adr, u32 val)
 	/*new rdma api is prior to old api*/
 	if (vpp_vsync_id == 0) {
 		if (table_index >= 0)
-			VSYNC_WR_TABLE_REG(table_index, adr, val);
+			VSYNC_WR_TABLE_REG_SIMPLE(table_index, adr, val);
 		else
 			VSYNC_WR_MPEG_REG(adr, val);
 	} else if (vpp_vsync_id == 1) {

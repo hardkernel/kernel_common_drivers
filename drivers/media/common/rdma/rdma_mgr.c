@@ -1871,6 +1871,59 @@ int rdma_part_write_reg(int tbl_index, int handle, u32 adr, u32 val)
 }
 EXPORT_SYMBOL(rdma_part_write_reg);
 
+inline int rdma_part_write_reg_simple(int tbl_index, int handle, u32 adr, u32 val)
+{
+	struct rdma_device_info *info = &rdma_info;
+	int vpp_index = handle_trans_vpp(handle);
+	struct rdma_partition_ins_s *part_ins = NULL;
+	u32 rdma_tbl_count = 0;
+	int i = 0, j = 0;
+
+	if (vpp_index == -1) {
+		pr_info("%s %d vpp_index error\n", __func__, __LINE__);
+		return 0;
+	}
+	part_ins = &info->rdma_part_ins[vpp_index][tbl_index];
+	rdma_tbl_count = part_ins->rdma_item_count;
+
+	if (part_ins->flag) {
+		if (part_ins->rdma_item_count < part_ins->max_reg_cnt) {
+			part_ins->rdma_item[rdma_tbl_count << 1] = adr;
+			part_ins->rdma_item[(rdma_tbl_count << 1) + 1] = val;
+			part_ins->rdma_item_count++;
+		} else {
+			pr_info("%s(%s)(%d, %x, %x ,%d) buf overflow, tbl_index = %d rdma_item_count=%d\n",
+				__func__, current->comm, rdma_watchdog_count[handle],
+				handle, adr, val, tbl_index,
+				part_ins->rdma_item_count);
+			for (i = 0; i < part_ins->rdma_item_count; i++)
+				WRITE_VCBUS_REG(part_ins->rdma_item[i << 1],
+					part_ins->rdma_item[(i << 1) + 1]);
+			part_ins->rdma_item_count = 0;
+			rdma_tbl_count = part_ins->rdma_item_count;
+			part_ins->rdma_item[rdma_tbl_count << 1] = adr;
+			part_ins->rdma_item[(rdma_tbl_count << 1) + 1] = val;
+			part_ins->rdma_item_count++;
+		}
+	}
+
+	if (rdma_trace_enable) {
+		for (j = 0; j < rdma_trace_num; j++) {
+			if (adr == rdma_trace_reg[j]) {
+				pr_info("table_idx:%d (%s) handle %d(%s), %04x=0x%08x (%d), cur_val:0x%x\n",
+					tbl_index,
+					__func__,
+					handle, current->comm, adr,
+					val,
+					rdma_tbl_count,
+					READ_VCBUS_REG(adr));
+			}
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(rdma_part_write_reg_simple);
+
 int rdma_part_write_reg_bits(int tbl_index, int handle, u32 adr, u32 val, u32 start, u32 len)
 {
 	int i, j = 0;

@@ -120,6 +120,8 @@ u32 VSYNC_RD_TABLE_REG(int tbl_idx, u32 adr);
 
 int VSYNC_WR_TABLE_REG(int tbl_idx, u32 adr, u32 val);
 
+inline int VSYNC_WR_TABLE_REG_SIMPLE(int tbl_idx, u32 adr, u32 val);
+
 int VSYNC_WR_TABLE_REG_BITS(int tbl_idx, u32 adr, u32 val, u32 start, u32 len);
 
 u32 PRE_VSYNC_RD_TABLE_REG(int tbl_idx, u32 adr);
