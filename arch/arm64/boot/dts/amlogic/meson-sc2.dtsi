@@ -1555,8 +1555,6 @@
 		 *    2: force (60/50/30/24/59.94/23.97)
 		 */
 		fr_policy = <2>;
-		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "vsync";
 	};
 
 	vout_mux: vout_mux {
@@ -2032,7 +2030,7 @@
 		memory-region = <&pcie_dma_ops_mm>;
 	};
 
-	codec_mm {
+	codec_mm: codec_mm {
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
 		dev_name = "codec_mm";

@@ -74,10 +74,10 @@
 		};
 
 		dsp_fw_reserved1:linux,dsp_fw1 {
+			status = "disabled";
 			compatible = "amlogic, dsp";
 			size = <0x0 0x400000>;
 			reg = <0x0 0x3800000 0x0 0x400000>;
-			status = "disabled";
 		};
 
 		secmon_reserved:linux,secmon {
@@ -85,6 +85,15 @@
 			no-map;
 			alignment = <0x0 0x100000>;
 			reg = <0x0 0x03d00000 0x0 0x00300000>;
+		};
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x800000>;
+			alignment = <0x0 0x400000>;
+			linux,cma-default;
 		};
 	};
 
@@ -225,6 +234,9 @@
 		aml-audio-card,dai-link@4 {
 			mclk-fs = <256>;
 			continuous-clock;
+			format = "i2s";
+			bitclock-master = <&loopback>;
+			frame-master = <&loopback>;
 			suffix-name = "alsaPORT-loopback";
 			cpu {
 				sound-dai = <&loopback>;
@@ -786,7 +798,7 @@
 &dwc2_a {
 	status = "okay";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
-	controller-type = <1>;
+	controller-type = <3>;
 };
 
 &dwc3 {

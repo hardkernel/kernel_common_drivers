@@ -179,12 +179,13 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
+			/* up to 720p yuv420 8bit and 4 buffers
+			 * 1280x720x1.5x4 = 8 M
 			 */
 			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
 		};
+
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
 			compatible = "shared-dma-pool";
@@ -873,8 +874,6 @@
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <0 0 0 0>;
 
-		src-clk-freq = <491520000>;
-
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
 
@@ -894,6 +893,7 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
+		src-clk-freq = <491520000>;
 
 		status = "okay";
 	};

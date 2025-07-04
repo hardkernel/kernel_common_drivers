@@ -225,7 +225,7 @@
 			compatible = "shared-dma-pool";
 			size = <0x01800000>;
 			alignment = <0x00400000>;
-			alloc-ranges = <0x0d000000 0x03000000>;
+			alloc-ranges = <0x05000000 0x07000000>;
 			linux,contiguous-region;
 			no-map;
 			status = "disabled";
@@ -435,6 +435,11 @@
 		regulator-always-on;
 	};
 
+	multi-di {
+		post-wr-support = <0>;
+		postlink_en = <1>;
+	};
+
 	/* for external keypad */
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
@@ -630,6 +635,7 @@
 };
 &sd_emmc_c {
 	status = "okay";
+	run-low-mem;
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -643,7 +649,6 @@
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
-	run-low-mem;
 
 //  mmc-pwrseq = <&emmc_pwrseq>;
 //  vmmc-supply = <&vddao_3v3>;

@@ -299,17 +299,6 @@
 		pinctrl-0 = <&dvb_s_ts0_pins>;
 	};
 
-	amlvecm {
-		compatible = "amlogic, vecm";
-		dev_name = "aml_vecm";
-		status = "okay";
-		gamma_en = <0>;/*1:enable ;0:disable*/
-		wb_en = <0>;/*1:enable ;0:disable*/
-		cm_en = <0>;/*1:enable ;0:disable*/
-		/*0: 709/601  1: bt2020*/
-		tx_op_color_primary = <0>;
-	};
-
 	multi-di {
 		compatible = "amlogic, dim-s4";
 		status = "okay";
@@ -1386,4 +1375,15 @@
 		&dvfs666_cfg
 		&dvfs850_cfg
 		&dvfs850_cfg>;
+};
+
+&amlvecm {
+	compatible = "amlogic, vecm";
+	dev_name = "aml_vecm";
+	status = "okay";
+	gamma_en = <0>;/*1:enable ;0:disable*/
+	wb_en = <0>;/*1:enable ;0:disable*/
+	cm_en = <0>;/*1:enable ;0:disable*/
+	/*0: 709/601  1: bt2020*/
+	tx_op_color_primary = <0>;
 };

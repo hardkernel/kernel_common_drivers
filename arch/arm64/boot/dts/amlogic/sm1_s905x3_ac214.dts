@@ -172,14 +172,7 @@
 			alignment = <0x0 0x100000>;
 			//no-map;
 		};
-		/*  vdin0 CMA pool */
-		vdin0_cma_reserved:linux,vdin0_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-		/* 1920x1080x2x4  =16+4 M */
-			size = <0x0 0x04000000>;
-			alignment = <0x0 0x400000>;
-		};
+
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
@@ -602,7 +595,12 @@
 };
 
 &aml_cams {
+	compatible = "amlogic, cams_prober";
 	status = "disabled";
+	pinctrl-names="default";
+	pinctrl-0=<&cam_dvp_pins &gen_clk_ee_z>;
+//		clocks = <&clkc CLKID_GEN_CLK>;
+	clock-names = "g12a_24m";
 	cam_0{
 		status = "disabled";
 		cam_name = "gc2145";

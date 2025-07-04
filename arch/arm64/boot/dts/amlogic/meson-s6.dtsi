@@ -1114,6 +1114,7 @@
 			src_clk_rate = <1152000000>;
 			tx_delay = <16>;
 			cap-mmc-crypto;
+			aml-non-cqe-64bit-dma;
 		//	nwr_cnt = <0>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
@@ -3307,6 +3308,14 @@
 	remote_pins: remote_pin {
 		mux {
 			groups = "ir_remote_in_f3";
+			function = "ir_remote";
+			bias-disable;
+		};
+	};
+
+	remote_pins_1: remote_pin_1 {
+		mux {
+			groups = "ir_remote_in_d";
 			function = "ir_remote";
 			bias-disable;
 		};

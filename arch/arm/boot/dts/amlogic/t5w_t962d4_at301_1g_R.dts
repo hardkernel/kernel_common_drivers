@@ -213,7 +213,6 @@
 			reusable;
 			size = <0x0>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x00000000 0x2ec00000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -221,7 +220,6 @@
 			reusable;
 			size = <0x0>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x00000000 0x2ec00000>;
 		};
 	};
 
@@ -513,19 +511,6 @@
 					 * SLAVE_XTAL_SHARE(3)
 					 */
 		tuner1_xtal_cap = <30>;
-	};
-
-	dmx_aucpu: aucpu {
-		compatible = "amlogic, aucpu";
-		dev_name = "aml_aucpu";
-		status = "okay";
-		interrupts = <0 95 1>;
-		interrupt-names = "aucpu_irq";
-
-		#address-cells=<1>;
-		#size-cells=<1>;
-		ranges;
-		reg = <0xff650080 0x100>;
 	};
 
 	dvb-demux {

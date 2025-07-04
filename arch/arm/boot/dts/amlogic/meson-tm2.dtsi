@@ -354,6 +354,7 @@
 	dmc_monitor {
 		compatible = "amlogic,dmc_monitor-tm2";
 		status = "disabled";
+		memory-region = <&dmc_reserved>;
 		reg = <0xff638000 0x100>;
 		reg_base = <0xff639000>;
 		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;

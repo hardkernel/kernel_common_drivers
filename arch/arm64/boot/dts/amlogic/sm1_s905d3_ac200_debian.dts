@@ -386,93 +386,6 @@
 		pps-enable = <1>;
 	};
 
-	ionvideo {
-		compatible = "amlogic, ionvideo";
-		dev_name = "ionvideo";
-		status = "okay";
-	};
-	amlvideo2_0 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <0>;
-		cma_mode = <1>;
-	};
-	amlvideo2_1 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <1>;
-		cma_mode = <1>;
-	};
-
-	vm0 {
-		compatible = "amlogic, vm";
-		memory-region = <&vm0_cma_reserved>;
-		dev_name = "vm0";
-		status = "okay";
-		vm_id = <0>;
-	};
-
-	amvdec_656in {
-		/*bt656 gpio conflict with i2c0*/
-		compatible = "amlogic, amvdec_656in";
-		dev_name = "amvdec_656in";
-		status = "okay";
-		reg = <0x0 0xffe02000 0x0 0x7c>;
-		//clocks = <&clkc CLKID_BT656_COMP>,
-		//      <&clkc CLKID_BT656>;
-		//clock-names = "cts_bt656_clk1",
-		//      "clk_gate_bt656";
-		/* bt656in1, bt656in2 */
-		bt656in1 {
-		bt656_id = <1>;
-		status = "okay";
-		};
-	};
-
-	aml_cams {
-		compatible = "amlogic, cams_prober";
-		status = "okay";
-		pinctrl-names="default";
-		pinctrl-0=<&clk12_24_z_pins>;
-		clocks = <&clkc CLKID_24M_CLK_GATE>;
-		clock-names = "g12a_24m";
-		cam_0{
-			cam_name = "ov5640";
-			front_back = <0>;
-			camera-i2c-bus = <&i2c2>;
-			camvdd-gpios = <&gpio GPIOZ_5 GPIO_ACTIVE_HIGH>;
-			gpio_pwdn-gpios = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
-			gpio_rst-gpios = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
-			mirror_flip = <1>;
-			vertical_flip = <1>;
-			spread_spectrum = <0>;
-			bt_path = "csi";
-			interface = "mipi";
-			clk_channel = "a";
-			bt_path_count = <1>;
-			status = "okay";
-		};
-	};
-
-	amvdec_csi {
-		compatible = "amlogic, amvdec_csi";
-		status = "okay";
-		csi_id = <0>;
-		reg = <0x0 0xff650000 0x0 0x00000100>,
-		      <0x0 0xffe0c000 0x0 0x00000100>,
-		      <0x0 0xffe0d000 0x0 0x00000100>;
-		reg-names = "csi_phy", "csi_host", "csi_adapt";
-		clocks = <&clkc CLKID_CSI_ADAPT_CLK>,
-		      <&clkc CLKID_MIPI_CSI_PHY_CLK0>;
-		clock-names = "cts_csi_adapt_clk_composite",
-		      "cts_csi_phy_clk_composite";
-		power-domains = <&pwrdm PWRC_SM1_CSI_ID>;
-		/* interrupts = <0 1 0>; */
-		/* interrupt-names = "csi_phy"; */
-	};
-
 	gpio_keypad{
 		compatible = "amlogic, gpio_keypad";
 		status = "okay";
@@ -495,30 +408,6 @@
 		key_code = <114 115 97>;
 		key_val = <252 468 684>; // Unit: millivolt
 		key_tolerance = <70 70 70>; // Unit: millivolt
-	};
-
-	/* Audio Related start */
-	pdm_codec:dummy{
-		#sound-dai-cells = <0>;
-		compatible = "amlogic, pdm_dummy_codec";
-		status = "okay";
-	};
-	dummy_codec:dummy{
-		#sound-dai-cells = <0>;
-		compatible = "amlogic, aml_dummy_codec";
-		status = "okay";
-	};
-	amlogic_codec:t9015{
-		#sound-dai-cells = <0>;
-		compatible = "amlogic, aml_codec_T9015";
-		reg = <0x0 0xFF632000 0x0 0x2000>;
-		is_auge_used = <1>; /* meson or auge chipset used */
-		tocodec_inout = <1>;
-		tdmout_index = <1>;
-		ch0_sel = <0>;
-		ch1_sel = <1>;
-
-		status = "okay";
 	};
 
 	auge_sound {
@@ -831,6 +720,24 @@
 
 }; /* end of / */
 
+&aml_cams {
+	cam_0{
+		cam_name = "ov5640";
+		front_back = <0>;
+		camera-i2c-bus = <&i2c2>;
+		camvdd-gpios = <&gpio GPIOZ_5 GPIO_ACTIVE_HIGH>;
+		gpio_pwdn-gpios = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
+		gpio_rst-gpios = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
+		mirror_flip = <1>;
+		vertical_flip = <1>;
+		spread_spectrum = <0>;
+		bt_path = "csi";
+		interface = "mipi";
+		clk_channel = "a";
+		bt_path_count = <1>;
+		status = "okay";
+	};
+};
 &meson_fb {
 	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;

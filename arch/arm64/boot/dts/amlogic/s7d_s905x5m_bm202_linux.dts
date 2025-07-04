@@ -577,6 +577,11 @@
 	};
 };
 
+&amlvideo2_1 {
+	/*720P_NV21:1, 1080P_NV21:2, 4K_NV21:3, default:4*/
+	codec_mm_alloc = <2>;
+};
+
 &i2c3 {
 	status = "disabled";
 	pinctrl-names="default";
@@ -644,11 +649,6 @@
 
 &crg {
 	status = "disabled";
-};
-
-&pcie {
-	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-	status = "disable";
 };
 
 /* SDIO */
@@ -813,7 +813,7 @@
 };
 
 &ir {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
 	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
@@ -899,11 +899,6 @@
 	 *bit3:support 12bit
 	 */
 	tv_bit_mode = <1>;
-};
-
-&amlvideo2_1 {
-	/*1:720P_NV21 2:1080P_NV21 3:4K_NV21*/
-	codec_mm_alloc = <2>;
 };
 
 &aml_wifi{

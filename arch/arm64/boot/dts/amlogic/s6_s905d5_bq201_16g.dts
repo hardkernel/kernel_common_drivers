@@ -220,10 +220,10 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x1.5x4 = 12 M
+			/* up to 720p yuv420 8bit and 4 buffers
+			 * 1280x720x1.5x4 = 8 M
 			 */
-			size = <0x0 0x00c00000>;
+			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
 		};
 		/*  amlvideo2_1 CMA pool */
@@ -244,14 +244,14 @@
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
 			linux,cma-default;
-			alloc-ranges = <0x0 0x30000000>;
+			alloc-ranges = <0x0 0x0 0x0 0x30000000>;
 		};
 
 		pcie_dma_ops_mm:linux,pcie_dma_ops {
 			compatible = "shared-dma-pool";
 			status = "okay";
 			reusable;
-			size = <0x0 0x1000000>;
+			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -780,6 +780,10 @@
 	};
 };
 
+&amvdec_csi {
+	squlech_mode = <1>;
+};
+
 &i2c0 {
 	status = "okay";
 	pinctrl-names="default";
@@ -847,6 +851,7 @@
 };
 
 &CPU0 {
+	#cooling-cells = <2>;
 	operating-points-v2 = <&cpu_opp_table0>,
 						<&cpu_opp_table1_2400>,
 						<&cpu_opp_table2_2400>,
@@ -1261,10 +1266,6 @@
 &uart_A {
 	status = "okay";
 	uart-has-rtscts;
-};
-
-&cma_shrinker {
-	free = <7680 24288 28528 32600 32768 36624>;
 };
 
 &amlogic_codec {

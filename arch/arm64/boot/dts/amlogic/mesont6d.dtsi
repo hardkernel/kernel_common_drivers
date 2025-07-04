@@ -181,16 +181,17 @@
 	amfc {
 		compatible = "amlogic,amfc-t6d";
 		status = "okay";
-		/* registers and clk */
+		/* registers and clk, efuse license */
 		reg = <0x0 0xfe092000 0x0 0x200
-		       0x0 0xFDFFFF6C 0x0 0x400>;
-		interrupts = <0 185 IRQ_TYPE_EDGE_RISING
-			      0 186 IRQ_TYPE_EDGE_RISING>;
+		       0x0 0xFDFFFF6C 0x0 0x400
+		       0x0 0xfe440048 0x0 0x400>;
+		interrupts = <0 221 IRQ_TYPE_EDGE_RISING
+			      0 222 IRQ_TYPE_EDGE_RISING>;
 		power-domains = <&pwrdm PDID_T6D_AMFC>;
 		interrupt-names = "amfc0", "amfc1";
 		clocks = <&clkc CLKID_AMFC>;
 		assigned-clocks = <&clkc CLKID_AMFC>;
-		assigned-clock-rates = <666666666>;
+		assigned-clock-rates = <576000000>;
 	};
 
 	ddr_bandwidth {
@@ -757,6 +758,8 @@
 				protocol = <REMOTE_TYPE_NEC>;
 				interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
 				map = <&custom_maps>;
+				wakeup_map = <&ir_wakeup_key>;
+				mboxes = <&mbox_fifo T6D_REE2AO_IR>;
 				max_frame_time = <200>;
 			};
 
@@ -1025,7 +1028,7 @@
 			 * bit9:use 10bit at 4k_50/60hz_10bit
 			 * bit10: support 10bit when double write
 			 */
-			tv_bit_mode = <0x235>;
+			tv_bit_mode = <0x215>;
 			/* afbce_bit_mode: (amlogic frame buff compression encoder)
 			 * bit0 -- enable afbce
 			 * bit1 -- enable afbce compression-lossy
@@ -1320,9 +1323,6 @@
 	};
 
 	amlvecm: amlvecm {
-		compatible = "amlogic, vecm-t5m";
-		status = "disabled";
-		dev_name = "aml_vecm";
 		clocks = <&clkc CLKID_VID_LOCK>;
 		clock-names = "cts_vid_lock_clk";
 	};

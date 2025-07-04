@@ -217,10 +217,10 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
+			/* up to 720p yuv420 8bit and 4 buffers
+			 * 1280x720x1.5x4 = 8 M
 			 */
-			size = <0x0 0x00c00000>;
+			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -618,20 +618,6 @@
 		key_tolerance = <40 40 40>;
 	};
 
-	vdd_npu: fixedregulator@vdd_npu {
-		compatible = "regulator-fixed";
-		vin-supply = <&vbat>;
-		regulator-name = "vdd_npu";
-		regulator-min-microvolt = <910000>;
-		regulator-max-microvolt = <910000>;
-		pinctrl-names = "default";
-		gpio = <&gpio GPIOE_4 GPIO_ACTIVE_LOW>;
-		startup-delay-us = <7000>;
-		enable-active-low;
-		regulator-boot-on;
-		//regulator-always-on;
-	};
-
 	vddq_reg: fixedregulator@vddq {
 		compatible = "regulator-fixed";
 		vin-supply = <&vbat>;
@@ -801,8 +787,8 @@
 			&tdm_d1_pins
 			&tdma_clk_pins>;
 		/* suspend disable clk */
-		src-clk-freq = <491520000>;
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -820,8 +806,8 @@
 		pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
 		i2s2hdmi = <1>;
 		/* suspend disable clk */
-		src-clk-freq = <491520000>;
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -849,9 +835,9 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
-		src-clk-freq = <491520000>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -872,9 +858,9 @@
 		clock-names = "gate_in", "gate_out", "mclk",
 					"mclk_pad", "clk_srcpll", "clk_src_cd";
 		/* suspend disable clk */
-		src-clk-freq = <491520000>;
 		suspend-clk-off = <1>;
 		start_clk_enable = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -896,8 +882,9 @@
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 		filter_mode = <1>;
-		src-clk-freq = <491520000>;
+
 		train_sample_count = <0xb>;
+		src-clk-freq = <491520000>;
 
 		status = "okay";
 	};
@@ -925,8 +912,8 @@
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 		/* suspend disable clk */
-		src-clk-freq = <491520000>;
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -940,8 +927,8 @@
 		clock-names = "sysclk", "clk_src_cd",
 				"gate_spdifout", "clk_spdifout";
 		/* suspend disable clk */
-		src-clk-freq = <491520000>;
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -1111,9 +1098,9 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
-		src-clk-freq = <491520000>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 

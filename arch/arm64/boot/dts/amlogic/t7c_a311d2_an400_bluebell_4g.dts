@@ -248,7 +248,17 @@
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
-
+		/*  amlvideo2_1 CMA pool */
+		amlvideo2_1_cma_reserved:linux,amlvideo2_1_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 3840x2160 yuv420 8bit and 4 buffers
+			 * 3840x2160x1.5x4 = 48 M
+			 */
+			size = <0x0 0x3000000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
 		ldc_mem_reserved:linux,ldc_mem {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -783,7 +793,7 @@
 };
 
 &hdmirx {
-	status = "okay";
+	status = "disabled";
 };
 
 &amlvideo2_1 {
@@ -1377,53 +1387,6 @@
 			};
 		};
 	};
-	touchscreen@5d {
-			compatible = "goodix,gt9xx";
-			status = "okay";
-			reg = <0x5d>;
-			reset-gpio = <&gpio GPIOZ_11 GPIO_ACTIVE_HIGH>;
-			irq-gpio = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
-			rotation = <0>;
-			tp_id = <1>;
-			abs_x_max = <1280>;
-			abs_y_max = <800>;
-			goodix,cfg-group0 = [
-				5B 00 05 20 03 0A 0D 00 01 08 32
-				05 64 3C 03 05 00 00 00 00 00 00
-				00 1C 1E 22 14 90 30 AA 1E 1C D6
-				09 00 00 01 9A 04 25 00 00 00 00
-				00 00 00 00 07 00 00 14 2F 94 C5
-				02 07 00 00 04 A5 15 00 8D 19 00
-				78 1E 00 67 24 00 58 2B 00 58 00
-				00 00 00 00 00 00 00 00 00 00 00
-				00 00 00 00 00 00 00 00 00 00 00
-				00 00 00 00 00 00 00 00 00 00 00
-				00 00 19 18 17 16 15 14 11 10 0F
-				0E 0D 0C 09 08 07 06 05 04 01 00
-				00 00 00 00 00 00 00 00 00 00 00
-				02 04 06 07 08 0A 0C 0D 0E 0F 10
-				11 12 13 14 19 1B 1C 1E 1F 20 21
-				22 23 24 25 26 27 28 29 2A 00 00
-				00 00 00 00 00 00 00 00 F6 01];
-			goodix,cfg-group2 = [
-				5B 00 05 20 03 0A 0D 00 01 08 32
-				05 64 3C 03 05 00 00 00 00 00 00
-				00 1C 1E 22 14 90 30 AA 1E 1C D6
-				09 00 00 01 9A 04 25 00 00 00 00
-				00 00 00 00 07 00 00 14 2F 94 C5
-				02 07 00 00 04 A5 15 00 8D 19 00
-				78 1E 00 67 24 00 58 2B 00 58 00
-				00 00 00 00 00 00 00 00 00 00 00
-				00 00 00 00 00 00 00 00 00 00 00
-				00 00 00 00 00 00 00 00 00 00 00
-				00 00 19 18 17 16 15 14 11 10 0F
-				0E 0D 0C 09 08 07 06 05 04 01 00
-				00 00 00 00 00 00 00 00 00 00 00
-				02 04 06 07 08 0A 0C 0D 0E 0F 10
-				11 12 13 14 19 1B 1C 1E 1F 20 21
-				22 23 24 25 26 27 28 29 2A 00 00
-				00 00 00 00 00 00 00 00 F6 01];
-	};
 };
 
 &i2c5 {
@@ -1620,61 +1583,6 @@
 	logo_addr = "0x3f800000";
 	/* 1:sel afbcd and can not be changed; 0:sel afbcd or mif according data source */
 	osd_axi_sel = <1>;
-
-	connectors_dev: port@1 {
-		drm_to_lcd0: endpoint@2 {
-			reg = <2>;
-			remote-endpoint = <&lcd0_to_drm>;
-		};
-		drm_to_lcd1: endpoint@3 {
-			reg = <3>;
-			remote-endpoint = <&lcd1_to_drm>;
-		};
-		drm_to_lcd2: endpoint@4 {
-			reg = <4>;
-			remote-endpoint = <&lcd2_to_drm>;
-		};
-	};
-};
-
-&lcd {
-	status = "okay";
-	ports {
-		port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			lcd0_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd0>;
-			};
-		};
-	};
-};
-
-&lcd1 {
-	status = "okay";
-	ports {
-		port {
-			lcd1_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd1>;
-			};
-		};
-	};
-};
-
-&lcd2 {
-	status = "okay";
-	ports {
-		port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			lcd2_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd2>;
-			};
-		};
-	};
 };
 
 &amhdmitx {

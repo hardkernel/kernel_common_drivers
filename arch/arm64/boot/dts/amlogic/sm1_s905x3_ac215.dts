@@ -643,10 +643,6 @@
 	status = "disabled";
 };
 
-&vddcpu0 {
-	status = "okay";
-};
-
 &CPU0 {
 	/*set multi table cpufreq max*/
 	multi_tables_available;
@@ -1274,14 +1270,6 @@
 			function = "bt656";
 		};
 	};
-
-	//spdifout: spdifout {
-	//	mux { /* GPIOH_4 */
-	//		groups = "spdif_out_ao";
-	//		function = "spdif_out_ao";
-	//	};
-	//};
-
 }; /* end of pinctrl_periphs */
 
 &pinctrl_aobus {
@@ -1526,6 +1514,10 @@
 	status = "okay";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
+};
+
+&vddcpu0 {
+	status = "okay";
 };
 
 &defendkey {

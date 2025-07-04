@@ -12,7 +12,7 @@
 #include "firmware_ab.dtsi"
 / {
 	amlogic-dt-id = "s6_s905x5_bl204h1-4g";
-	compatible = "s6_s905x5_bl204h1";
+	compatible = "s6_s905x5_bl204h1-4g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -218,11 +218,22 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			/* up to 720p yuv420 8bit and 4 buffers
+			 * 1280x720x1.5x4 = 8 M
+			 */
+			size = <0x0 0x00800000>;
+			alignment = <0x0 0x400000>;
+		};
+		/*  amlvideo2_1 CMA pool */
+		amlvideo2_1_cma_reserved:linux,amlvideo2_1_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1920x1080 yuv420 8bit and 4 buffers
 			 * 1920x1080x1.5x4 = 12 M
 			 */
 			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
@@ -238,7 +249,7 @@
 			compatible = "shared-dma-pool";
 			status = "okay";
 			reusable;
-			size = <0x0 0x1000000>;
+			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -425,7 +436,7 @@
 		//dvb_power_value = <0>;
 		//dvb_power_dir = <0>; //0: out, 1: in.
 
-		fe_num = <1>;
+		fe_num = <2>;
 		fe0_demod = "cxd2856";
 		fe0_i2c_adap_id = <&i2c5>;
 		fe0_demod_i2c_addr = <0xD8>;
@@ -438,6 +449,9 @@
 		fe0_ts_out_mode = <0>; //0: serial, 1: parallel.
 		fe0_tuner0 = <0>; //T,C
 		fe0_tuner1 = <1>; //S
+
+		fe1_demod = "dummy";
+		fe1_ts = <3>;
 
 		tuner_num = <2>; //tuner number, multi tuner support
 		tuner0_name = "r836_tuner";
@@ -472,6 +486,8 @@
 		ts2 = "parallel";
 		ts2_control = <0x0>;
 		ts2_invert = <0>;
+
+		ts3_sid = <0x7>;
 
 		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
@@ -1144,6 +1160,11 @@
 	 *bit3:support 12bit
 	 */
 	tv_bit_mode = <1>;
+};
+
+&amlvideo2_1 {
+	memory-region = <&amlvideo2_1_cma_reserved>;
+	cma_mode = <0>;
 };
 
 &aml_wifi{

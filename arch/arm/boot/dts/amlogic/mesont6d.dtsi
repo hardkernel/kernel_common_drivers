@@ -181,16 +181,17 @@
 	amfc {
 		compatible = "amlogic,amfc-t6d";
 		status = "okay";
-		/* registers and clk */
+		/* registers and clk, efuse license */
 		reg = <0xfe092000 0x200
-		       0xFDFFFF6C 0x400>;
+		       0xFDFFFF6C 0x400
+		       0xfe440048 0x400>;
 		interrupts = <0 221 IRQ_TYPE_EDGE_RISING
 			      0 222 IRQ_TYPE_EDGE_RISING>;
 		power-domains = <&pwrdm PDID_T6D_AMFC>;
 		interrupt-names = "amfc0", "amfc1";
 		clocks = <&clkc CLKID_AMFC>;
 		assigned-clocks = <&clkc CLKID_AMFC>;
-		assigned-clock-rates = <666666666>;
+		assigned-clock-rates = <576000000>;
 	};
 
 	ddr_bandwidth {
@@ -1073,6 +1074,7 @@
 			clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
 				clock-names = "fclk_div5", "cts_vdin_meas_clk";
 			tv_bit_mode = <0x15>;
+			chk_wr_done_en;
 			/* vdin v4l2 */
 			v4l_support_en = <0>;
 			v4l_vd_num = <71>;
@@ -1320,9 +1322,6 @@
 	};
 
 	amlvecm: amlvecm {
-		compatible = "amlogic, vecm-t5m";
-		status = "disabled";
-		dev_name = "aml_vecm";
 		clocks = <&clkc CLKID_VID_LOCK>;
 		clock-names = "cts_vid_lock_clk";
 	};

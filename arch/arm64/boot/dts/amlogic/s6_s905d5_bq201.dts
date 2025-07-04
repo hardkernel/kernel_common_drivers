@@ -14,7 +14,7 @@
 
 / {
 	amlogic-dt-id = "s6_s905d5_bq201-8g";
-	compatible = "s6_s905d5_bq201";
+	compatible = "s6_s905d5_bq201-8g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -220,11 +220,22 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			/* up to 720p yuv420 8bit and 4 buffers
+			 * 1280x720x1.5x4 = 8 M
+			 */
+			size = <0x0 0x00800000>;
+			alignment = <0x0 0x400000>;
+		};
+		/*  amlvideo2_1 CMA pool */
+		amlvideo2_1_cma_reserved:linux,amlvideo2_1_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1920x1080 yuv420 8bit and 4 buffers
 			 * 1920x1080x1.5x4 = 12 M
 			 */
 			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
@@ -240,7 +251,7 @@
 			compatible = "shared-dma-pool";
 			status = "okay";
 			reusable;
-			size = <0x0 0x1000000>;
+			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -840,6 +851,7 @@
 };
 
 &CPU0 {
+	#cooling-cells = <2>;
 	operating-points-v2 = <&cpu_opp_table0>,
 						<&cpu_opp_table1_2400>,
 						<&cpu_opp_table2_2400>,
@@ -1225,6 +1237,11 @@
 	 *bit3:support 12bit
 	 */
 	tv_bit_mode = <1>;
+};
+
+&amlvideo2_1 {
+	memory-region = <&amlvideo2_1_cma_reserved>;
+	cma_mode = <0>;
 };
 
 &aml_wifi{

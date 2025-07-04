@@ -168,6 +168,7 @@
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -175,6 +176,7 @@
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x1c800000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -283,14 +285,6 @@
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
-
-		/* ldc_mem_reserved:linux,ldc_mem {
-		 *	compatible = "shared-dma-pool";
-		 *	reusable;
-		 *	size = <0x0 0x400000>;
-		 *	alignment = <0x0 0x400000>;
-		 *};
-		 */
 	};
 
 	multi-di {
@@ -1643,6 +1637,11 @@
 &vdin2 {
 	memory-region = <&vdin1_cma_reserved>;
 	status = "okay";
+};
+
+&amlvideo2_1 {
+	memory-region = <&amlvideo2_1_cma_reserved>;
+	cma_mode = <0>;
 };
 
 &periphs_pinctrl {

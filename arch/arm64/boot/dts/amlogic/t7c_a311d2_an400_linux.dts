@@ -240,14 +240,24 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 3840x2160 yuv420 8bit and 5 buffers
-			 * 3840x2160x2x5 = 60 M
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x0 0x03C00000>;
+			size = <0x0 0x00C00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
-
+		/*  amlvideo2_1 CMA pool */
+		amlvideo2_1_cma_reserved:linux,amlvideo2_1_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 3840x2160 yuv420 8bit and 4 buffers
+			 * 3840x2160x1.5x4 = 48 M
+			 */
+			size = <0x0 0x3000000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
 		ldc_mem_reserved:linux,ldc_mem {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -316,10 +326,10 @@
 		/*avout mute gpio*/
 		avout_mute-gpios = <&gpio GPIOH_2 GPIO_ACTIVE_HIGH>;
 		//spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
-		av_mute_sleep_time = <900>;
+
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
-
+		av_mute_sleep_time = <900>;
 		status = "okay";
 
 		aml-audio-card,dai-link@0 {

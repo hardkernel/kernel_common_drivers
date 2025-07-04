@@ -2669,7 +2669,6 @@
 		wifi_static_buf = <2>;
 		//pinctrl-0 = <&pwm_e_pins>;
 		//pinctrl-names = "default";
-
 		pwm_channel1_conf {
 			pwms = <&pwm_ab 0 30550 0>;
 			duty-cycle = <15270>;

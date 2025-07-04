@@ -223,9 +223,9 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
+			 * 1920x1080x1.5x4 = 20 M
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -759,6 +759,11 @@
 		states = <1800000 1
 			  3300000 0>;
 	};
+};
+
+&amlvideo2_1 {
+	/*720P_NV21:1, 1080P_NV21:2, 4K_NV21:3, default:4*/
+	codec_mm_alloc = <2>;
 };
 
 &hdmirx {
@@ -1558,11 +1563,6 @@
 &vdin1 {
 	memory-region = <&vdin1_cma_reserved>;
 	status = "okay";
-};
-
-&amlvideo2_1 {
-	/*1:720P_NV21 2:1080P_NV21 3:4K_NV21*/
-	codec_mm_alloc = <2>;
 };
 
 &periphs_pinctrl {

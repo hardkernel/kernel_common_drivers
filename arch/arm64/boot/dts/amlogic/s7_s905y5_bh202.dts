@@ -12,7 +12,7 @@
 #include "firmware_ab.dtsi"
 / {
 	amlogic-dt-id = "s7_s905y5_bh202";
-	compatible = "s7_s905y5_bh201";
+	compatible = "s7_s905y5_bh202";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

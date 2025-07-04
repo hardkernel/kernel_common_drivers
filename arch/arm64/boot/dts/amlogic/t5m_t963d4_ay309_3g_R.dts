@@ -1569,6 +1569,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&remote_pins>;
+	/* disable new wakeup flow for android R */
+	wakeup_map = <>;
+	mboxes = <>;
 };
 
 &dcon_led {

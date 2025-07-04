@@ -118,6 +118,13 @@
 			size = <0x0>;
 			alignment = <0x400000>;
 		};
+		dmaheap_secure_reserved:heap-secure {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1080p TV secure size 56M, 1 osd layer + 3 framebuffers */
+			size = <0x0>;
+			alignment = <0x400000>;
+		};
 
 		/*  vdin0 CMA pool */
 		/*vdin0_cma_reserved:linux,vdin0_cma {*/
@@ -722,7 +729,7 @@
 	 * total size:(27.5+1.5)x buffernumber
 	 */
 	cma_size = <330>;
-	frame_buff_num = <10>;
+	frame_buff_num = <14>;
 };
 
 &vdin1 {
@@ -732,6 +739,7 @@
 
 &sd_emmc_c {
 	status = "okay";
+	run-low-mem;
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -744,7 +752,6 @@
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
-	run-low-mem;
 //	amlogic,dram-access-quirk;
 
 //	mmc-pwrseq = <&emmc_pwrseq>;
@@ -859,9 +866,9 @@
 &i2c2 {
 	status = "okay";
 	clock-frequency = <100000>;
-	pinctrl-names="default", "sleep";
-	pinctrl-0=<&i2c2_pins2>;
-	pinctrl-0=<&i2c2_pins2_sleep>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2c2_pins2>;
+	pinctrl-1 = <&i2c2_pins2_sleep>;
 
 	lcd_extern_i2c0: lcd_extern_i2c@29 {
 		compatible = "lcd_ext, i2c";

@@ -212,7 +212,6 @@
 			reusable;
 			size = <0x0>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x3f400000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -220,7 +219,6 @@
 			reusable;
 			size = <0x0>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x3f400000>;
 		};
 	};
 

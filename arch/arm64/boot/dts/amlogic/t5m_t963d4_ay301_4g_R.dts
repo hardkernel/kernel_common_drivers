@@ -106,6 +106,7 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
+			/* 1080p TV androidR size 84M */
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x00000000 0x0 0x40000000>;
@@ -1478,6 +1479,9 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&remote_pins>;
+	/* disable new wakeup flow for android R */
+	wakeup_map = <>;
+	mboxes = <>;
 };
 
 &dcon_led {
@@ -1564,6 +1568,7 @@
 	status = "okay";
 	bt_en-gpios = <&gpio  GPIOD_11  GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio  GPIOD_13  GPIO_ACTIVE_HIGH>;
+	btwakeup-gpios = <&gpio    GPIOD_8 GPIO_ACTIVE_HIGH>;
 	power_down_disable = <1>;
 };
 

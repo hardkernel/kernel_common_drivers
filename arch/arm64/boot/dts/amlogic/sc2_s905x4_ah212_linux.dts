@@ -9,8 +9,8 @@
 #include "hdr10plus.dtsi"
 #include "mesonsc2_drm.dtsi"
 #include "partition_normal_linux.dtsi"
-#include "meson-ir-map-linux.dtsi"
 #include <dt-bindings/input/input.h>
+#include "meson-ir-map-linux.dtsi"
 
 / {
 	amlogic-dt-id = "sc2_s905x4_ah212";
@@ -66,6 +66,16 @@
 			reg = <0x0 0x0 0x0 0x80000>;
 		};
 
+		debug_reserved:linux,iotrace {
+			compatible = "amlogic, iotrace";
+			reg = <0x0 0x04f00000 0x0 0x00100000>;
+			io-size = <0x1b000>;
+			sched-size = <0x2000>;
+			irq-size = <0x1000>;
+			smc-size = <0x1000>;
+			misc-size = <0x1000>;
+		};
+
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			/*reusable;*/
@@ -92,6 +102,13 @@
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
+
+		dmaheap_fb_reserved:heap-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x400000>;
+		};
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -101,12 +118,6 @@
 			 *   3 buffers for direct display(enabled on weston)
 			 */
 			size = <0x0 0x3800000>;
-			alignment = <0x0 0x400000>;
-		};
-		dmaheap_fb_reserved:heap-fb {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 		/*di CMA pool */
@@ -157,29 +168,38 @@
 		};
 
 		/*  vdin0 CMA pool */
-		vdin0_cma_reserved:linux,vdin0_cma {
-			compatible = "shared-dma-pool";
-			reusable;
+		//vdin0_cma_reserved:linux,vdin0_cma {
+		//	compatible = "shared-dma-pool";
+		//	reusable;
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x0 0x01400000>;
-			alignment = <0x0 0x400000>;
-		};
+		//	size = <0x0 0x01400000>;
+		//	alignment = <0x0 0x400000>;
+		//};
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
+			/* up to 1920x1080 yuv420 8bit and 4 buffers
+			 * 1920x1080x1.5x4 = 12 M
 			 */
-			size = <0x0 0x00800000>;
+			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
 		};
 		dsp_fw_reserved:linux,dsp_fw {
 			compatible = "amlogic, dsp";
 			size = <0x0 0x00800000>;
 			reg = <0x0 0x30000000 0x0 0x00800000>;
+		};
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x800000>;
+			alignment = <0x0 0x400000>;
+			linux,cma-default;
 		};
 
 		pcie_dma_ops_mm:linux,pcie_dma_ops {
@@ -189,6 +209,16 @@
 			size = <0x0 0x5000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0x80000000>;
+		};
+	};
+
+	gpio_leds {
+		compatible = "gpio-leds";
+		status = "okay";
+		pwr_led {
+			label = "pwr_led";
+			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
 		};
 	};
 
@@ -233,16 +263,6 @@
 		regulator-max-microvolt = <1800000>;
 		regulator-boot-on;
 		regulator-always-on;
-	};
-
-	gpio_leds {
-		compatible = "gpio-leds";
-		status = "okay";
-		pwr_led {
-			label = "pwr_led";
-			gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-		};
 	};
 
 	dvb-extern {
@@ -529,6 +549,11 @@
 			};
 		};
 	};
+};
+
+&amlvideo2_1 {
+	/*720P_NV21:1, 1080P_NV21:2, 4K_NV21:3, default:4*/
+	codec_mm_alloc = <2>;
 };
 
 &i2c2 {
@@ -1178,7 +1203,7 @@
 	pinctrl-1 = <&sdcard_clk_gate_pins>;
 	pinctrl-2 = <&sd_1bit_pins>;
 	pinctrl-3 = <&sd_to_ao_uart_clr_pins
-		&sdcard_clk_gate_pins &ao_to_sd_uart_pins>;
+		&sdcard_pins &ao_to_sd_uart_pins>;
 	pinctrl-4 = <&sd_to_ao_uart_clr_pins
 		&sd_1bit_pins &ao_to_sd_uart_pins>;
 	pinctrl-5 = <&sdcard_pins &ao_uart_pins>;
@@ -1252,14 +1277,14 @@
 };
 
 &spicc0 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_x>;
 	cs-gpios = <&gpio GPIOX_10 GPIO_ACTIVE_LOW>;
 };
 
 &spicc1 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins_h>;
 	cs-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_LOW>;
@@ -1378,11 +1403,6 @@
 	 *bit3:support 12bit
 	 */
 	tv_bit_mode = <1>;
-};
-
-&amlvideo2_1 {
-	/*1:720P_NV21 2:1080P_NV21 3:4K_NV21*/
-	codec_mm_alloc = <2>;
 };
 
 &aml_wifi{

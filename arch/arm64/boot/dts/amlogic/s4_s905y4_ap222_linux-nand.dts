@@ -9,6 +9,7 @@
 #include "hdr10plus.dtsi"
 #include "mesons4_drm.dtsi"
 #include <dt-bindings/input/input.h>
+#include "meson-ir-map-linux.dtsi"
 
 / {
 	amlogic-dt-id = "s4_s905y4_ap222";
@@ -657,6 +658,11 @@
 		<&s905y4_opp_table3>;
 };
 
+&amlvideo2_1 {
+	/*720P_NV21:1, 1080P_NV21:2, 4K_NV21:3, default:4*/
+	codec_mm_alloc = <2>;
+};
+
 &audiobus {
 	tdma: tdm@0 {
 		compatible = "amlogic, t5-snd-tdma";
@@ -1280,6 +1286,8 @@
 	status = "okay";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
+	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+	map = <&custom_maps_linux>;
 };
 
 &spicc0 {
@@ -1323,7 +1331,7 @@
 
 &drm_amhdmitx {
 	status = "okay";
-	hdcp = "okay";
+	hdcp = "disabled";
 };
 
 &drm_amcvbsout {
@@ -1331,7 +1339,7 @@
 };
 
 &drm_lcd {
-	status = "disable";
+	status = "disabled";
 };
 
 &vpu {
@@ -1368,11 +1376,6 @@
 	 *bit3:support 12bit
 	 */
 	tv_bit_mode = <1>;
-};
-
-&amlvideo2_1 {
-	/*1:720P_NV21 2:1080P_NV21 3:4K_NV21*/
-	codec_mm_alloc = <2>;
 };
 
 &aml_wifi{

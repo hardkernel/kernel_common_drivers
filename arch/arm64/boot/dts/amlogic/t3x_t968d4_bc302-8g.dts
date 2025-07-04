@@ -7,8 +7,8 @@
 #include "mesont3x.dtsi"
 #include "hdr10plus.dtsi"
 #include "partition_mbox_ab.dtsi"
-#include "mesont3x_drm.dtsi"
 #include "mesont3x_bc302-panel.dtsi"
+#include "mesont3x_drm.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
@@ -143,6 +143,7 @@
 			size = <0x0 0x400000>;
 			//size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  POST PROCESS MANAGER */
@@ -165,6 +166,7 @@
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -172,6 +174,7 @@
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x1c800000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -280,14 +283,6 @@
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
-
-		/* ldc_mem_reserved:linux,ldc_mem {
-		 *	compatible = "shared-dma-pool";
-		 *	reusable;
-		 *	size = <0x0 0x400000>;
-		 *	alignment = <0x0 0x400000>;
-		 *};
-		 */
 	};
 
 	multi-di {
@@ -1294,8 +1289,10 @@
 
 &i2c1 {
 	status = "okay";
-	pinctrl-names="default";
+	pinctrl-names="default", "sleep";
 	pinctrl-0=<&i2c1_pins1>;
+	pinctrl-1=<&i2c1_pins1_sleep>;
+
 	ad82128: ad82128@34 {
 		compatible = "ESMT,ad82128";
 		#sound-dai-cells = <0>;

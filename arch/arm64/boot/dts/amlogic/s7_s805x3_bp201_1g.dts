@@ -160,7 +160,7 @@
 		secure_vdec_reserved:linux,secure_vdec_reserved {
 			compatible = "amlogic, secure-vdec-reserved";
 			no-map;
-			size = <0x0 0x400000>;
+			size = <0x0 0x800000>;
 			alignment = <0x0 0x100000>;
 		};
 		/*  vdin0 CMA pool */
@@ -893,6 +893,7 @@
 
 &sd_emmc_c {
 	status = "okay";
+	run-low-mem;
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -905,7 +906,6 @@
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
-	run-low-mem;
 
 //	mmc-pwrseq = <&emmc_pwrseq>;
 //	vmmc-supply = <&vddao_3v3>;

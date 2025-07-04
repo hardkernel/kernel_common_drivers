@@ -309,6 +309,14 @@
 							      0 0 89>;
 					};
 
+					remote_pins: remote_pin {
+						mux {
+							groups = "remote_input";
+							function = "remote_input";
+							bias-disable;
+						};
+					};
+
 					i2c0_c_pins:i2c0_c {
 						mux {
 							groups = "i2c0_sda_c",

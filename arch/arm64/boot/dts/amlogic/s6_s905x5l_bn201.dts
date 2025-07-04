@@ -12,7 +12,7 @@
 #include "firmware_ab.dtsi"
 / {
 	amlogic-dt-id = "s6_s905x5l_bn201-4g";
-	compatible = "s6_s905x5l_bn201";
+	compatible = "s6_s905x5l_bn201-4g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -224,6 +224,17 @@
 			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
 		};
+		/*  amlvideo2_1 CMA pool */
+		amlvideo2_1_cma_reserved:linux,amlvideo2_1_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1920x1080 yuv420 8bit and 4 buffers
+			 * 1920x1080x1.5x4 = 12 M
+			 */
+			size = <0x0 0x00c00000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
 			compatible = "shared-dma-pool";
@@ -238,7 +249,7 @@
 			compatible = "shared-dma-pool";
 			status = "okay";
 			reusable;
-			size = <0x0 0x1000000>;
+			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -697,6 +708,13 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
+};
+
+&amlvideo2_1 {
+	memory-region = <&amlvideo2_1_cma_reserved>;
+	cma_mode = <0>;
+	support_4k = <0>;
+	codec_mm_alloc = <0>;
 };
 
 &i2c3 {

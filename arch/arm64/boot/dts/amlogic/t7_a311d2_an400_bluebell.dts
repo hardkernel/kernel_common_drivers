@@ -798,7 +798,7 @@
 };
 
 &hdmirx {
-	status = "okay";
+	status = "disabled";
 };
 
 &audiobus {
@@ -1427,62 +1427,8 @@
 };
 
 &drm_vpu {
-	status = "disabled";
+	status = "okay";
 	logo_addr = "0x3f800000";
-	connectors_dev: port@1 {
-		drm_to_lcd0: endpoint@2 {
-			reg = <2>;
-			remote-endpoint = <&lcd0_to_drm>;
-		};
-		drm_to_lcd1: endpoint@3 {
-			reg = <3>;
-			remote-endpoint = <&lcd1_to_drm>;
-		};
-		drm_to_lcd2: endpoint@4 {
-			reg = <4>;
-			remote-endpoint = <&lcd2_to_drm>;
-		};
-	};
-};
-
-&lcd {
-	status = "disabled";
-	ports {
-		port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			lcd0_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd0>;
-			};
-		};
-	};
-};
-
-&lcd1 {
-	status = "disabled";
-	ports {
-		port {
-			lcd1_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd1>;
-			};
-		};
-	};
-};
-
-&lcd2 {
-	status = "disabled";
-	ports {
-		port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			lcd2_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd2>;
-			};
-		};
-	};
 };
 
 &amvideom {

@@ -137,7 +137,7 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x01400000>;
+			size = <0x00c00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x2b800000>;
 		};
@@ -145,10 +145,11 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x010000000>;
+			/* ion_codec_mm max can alloc size 80M*/
+			size = <0x10000000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x010000000>;
 			linux,contiguous-region;
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		/*di CMA pool */
@@ -181,7 +182,6 @@
 			no-map;
 			size = <0x1000000>;
 			alignment = <0x100000>;
-			alloc-ranges = <0x00000000 0x30000000>;
 		};
 
 		dmaheap_cma_reserved:heap-gfx {
@@ -215,7 +215,6 @@
 			 */
 			size = <0x0>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x00000000 0x2b800000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -224,9 +223,7 @@
 			/* 1920x1080x4x3 round up 4M align */
 			size = <0x0000000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x00000000 0x2b800000>;
 		};
-
 	};
 
 	vddio_3v3_reg: fixedregulator@5{

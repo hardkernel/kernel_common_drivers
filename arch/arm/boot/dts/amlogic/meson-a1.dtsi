@@ -116,14 +116,6 @@
 		status = "okay";
 	};
 
-	ram-dump {
-		compatible = "amlogic, ram_dump";
-		status = "okay";
-		reg = <0xFE005AD8 4>;
-		reg-names = "SYSCTRL_STICKY_REG6";
-		store_device = "data";
-	};
-
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -687,6 +679,14 @@
 		#clock-cells = <0>;
 	};
 
+	ram-dump {
+		compatible = "amlogic, ram_dump";
+		status = "okay";
+		reg = <0xFE005AD8 0x4>;
+		reg-names = "SYSCTRL_STICKY_REG6";
+		store_device = "data";
+	};
+
 	secmon {
 		compatible = "amlogic, secmon";
 		no-memory;
@@ -946,7 +946,6 @@
 		wifi_static_buf = <1>;	//static buf level
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm_d_pins1>;
-
 		pwm_channel1_conf {
 			pwms = <&pwm_cd MESON_PWM_1 30541 0>;
 			duty-cycle = <15270>;

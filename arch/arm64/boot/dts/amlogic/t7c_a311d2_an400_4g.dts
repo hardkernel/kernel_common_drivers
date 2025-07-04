@@ -242,10 +242,10 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* normally,3840x2160 yuv420 8bit and 4 buffers
-			 * 3840x2160x1.5x4 = 48 M
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x0 0x9000000>;
+			size = <0x0 0x00C00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -1720,7 +1720,7 @@
 
 &drm_subsystem {
 	crtc_masks = <3 3 1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
-	/**
+	/*
 	 *  dual display uses OSD4 on VPP1 for some app(index starts from 1)
 	 */
 	crtcmask_of_osd = <0 0 1 0>; /* indicate the crtc mask of osd plane */

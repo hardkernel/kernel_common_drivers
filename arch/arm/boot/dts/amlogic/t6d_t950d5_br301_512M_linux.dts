@@ -115,7 +115,13 @@
 			status = "disabled";
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p TV androidT size 36M */
+			size = <0x0>;
+			alignment = <0x400000>;
+		};
+		dmaheap_secure_reserved:heap-secure {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1080p TV secure size 56M, 1 osd layer + 3 framebuffers */
 			size = <0x0>;
 			alignment = <0x400000>;
 		};
@@ -712,6 +718,7 @@
 
 &sd_emmc_c {
 	status = "okay";
+	run-low-mem;
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -975,6 +982,14 @@
 	status = "disabled";
 };
 
+&CPU0 {
+	#cooling-cells = <2>;
+	operating-points-v2 = <&opp_table0>,
+			    <&opp_table1>,
+			    <&opp_table2>,
+			    <&opp_table3>;
+};
+
 &vdac {
 	cdac_disable = <1>;
 };
@@ -1015,6 +1030,7 @@
 	status = "okay";
 	bt_en-gpios = <&gpio  GPIOD_11  GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio  GPIOD_13  GPIO_ACTIVE_HIGH>;
+	btwakeup-gpios = <&gpio  GPIOD_8  GPIO_ACTIVE_HIGH>;
 	power_down_disable = <1>;
 };
 
@@ -1046,3 +1062,8 @@
 		pinctrl-0 = <&spdifout_b>;
 		pinctrl-1 = <&spdifout_b_mute>;
 };
+
+&drm_subsystem {
+	fbdev_sizes = <1280 720 1280 1440 32>;
+};
+

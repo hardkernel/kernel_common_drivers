@@ -11,8 +11,8 @@
 #include "mesons7d_audio.dtsi"
 #include "firmware_ab.dtsi"
 / {
-	amlogic-dt-id = "s7d_s905x5m_bm201";
-	compatible = "s7d_s905x5m_bm201";
+	amlogic-dt-id = "s7d_s905a_bm221";
+	compatible = "s7d_s905a_bm221";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -772,11 +772,6 @@
 
 &crg {
 	status = "okay";
-};
-
-&pcie {
-	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-	status = "disable";
 };
 
 /* SDIO */

@@ -100,20 +100,6 @@
 			tcon-size = <0 0x00a02840>;
 		};
 
-		ion_cma_reserved:linux,ion-dev {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x0>;
-			alignment = <0x0 0x400000>;
-		};
-
-		ion_fb_reserved:linux,ion-fb {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x0>;
-			alignment = <0x0 0x400000>;
-		};
-
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
 			compatible = "shared-dma-pool";
@@ -131,7 +117,7 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-		/*	size = <0x0 0x01400000>;*/
+		/*	size = <0x0 0x00c00000>;*/
 		/*	alignment = <0x0 0x400000>;*/
 		/*};*/
 		/*  vdin1 CMA pool */
@@ -141,7 +127,7 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -204,6 +190,21 @@
 			alignment = <0x0 0x400000>;
 		};
 
+		ion_cma_reserved:linux,ion-dev {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
+		};
+
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
+		};
 	};
 
 	vddio_3v3_reg: fixedregulator@5{
@@ -491,19 +492,6 @@
 					 * SLAVE_XTAL_SHARE(3)
 					 */
 		tuner1_xtal_cap = <30>;
-	};
-
-	dmx_aucpu: aucpu {
-		compatible = "amlogic, aucpu";
-		dev_name = "aml_aucpu";
-		status = "okay";
-		interrupts = <0 95 1>;
-		interrupt-names = "aucpu_irq";
-
-		#address-cells=<2>;
-		#size-cells=<2>;
-		ranges;
-		reg = <0x0 0xff650080 0x0 0x100>;
 	};
 
 	dvb-demux {

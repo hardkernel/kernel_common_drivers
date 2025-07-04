@@ -253,7 +253,7 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -1433,7 +1433,7 @@
 };
 
 &drm_vpu {
-	status = "disabled";
+	status = "okay";
 	logo_addr = "0x3f800000";
 	connectors_dev: port@1 {
 		drm_to_lcd0: endpoint@2 {
@@ -1740,6 +1740,10 @@
 };
 
 &pwm_ef {
+	status = "okay";
+};
+
+&irblaster {
 	status = "okay";
 };
 

@@ -943,7 +943,7 @@
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
 			&clkc CLKID_MPLL0
-			&clkaudio CLKID_AUDIO_MCLK_A>;
+			&clkaudio CLKID_AUDIO_MCLK_B>;
 		clock-names = "pdm_gate",
 			"pdm_sysclk_srcpll",
 			"pdm_dclk_srcpll",

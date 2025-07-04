@@ -895,8 +895,9 @@
 
 &i2c2 {
 	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c2_master_pins2>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2c2_master_pins2>;
+	pinctrl-1 = <&i2c2_master_sleep_pins2>;
 	clock-frequency = <100000>; /* default 100k */
 	sensor-i2c@6c {
 		compatible = "arm, i2c-sensor";
@@ -1176,10 +1177,17 @@
 	status = "okay";
 };
 
+&uart_C {
+	status = "disabled";
+	rs485 = <0>;
+	rts-gpio = <&gpio GPIOA_0 GPIO_ACTIVE_HIGH>;
+};
+
 &i2c3 {
 	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c3_master_pins2>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2c3_master_pins2>;
+	pinctrl-1 = <&i2c3_master_sleep_pins2>;
 	clock-frequency = <400000>; /* max supported freq */
 
 	pcf8536@51 {
@@ -1255,12 +1263,6 @@
 
 &uart_A {
 	status = "okay";
-};
-
-&uart_C {
-	status = "disabled";
-	rs485 = <1>;
-	rts-gpio = <&gpio GPIOA_0 GPIO_ACTIVE_HIGH>;
 };
 
 &aml_wifi {

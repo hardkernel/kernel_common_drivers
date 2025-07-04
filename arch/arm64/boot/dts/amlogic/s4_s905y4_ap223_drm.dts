@@ -187,6 +187,7 @@
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
 			linux,cma-default;
+			alloc-ranges = <0x0 0x0 0x0 0x30000000>;
 		};
 	};
 
@@ -1359,6 +1360,7 @@
 &aml_bt {
 	status = "okay";
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
+	bt_en-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 };

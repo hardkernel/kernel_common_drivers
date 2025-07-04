@@ -110,7 +110,7 @@
 
 		ramoops@8800000 {
 			compatible = "ramoops";
-			reg = <0x08800000 0x00100000>;
+			reg = <0x08800000  0x00080000>;/* addr set in uboot */
 			record-size = <0x30000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x0>;

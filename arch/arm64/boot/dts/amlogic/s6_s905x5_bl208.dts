@@ -12,7 +12,7 @@
 #include "firmware_ab.dtsi"
 / {
 	amlogic-dt-id = "s6_s905x5_bl208-4g";
-	compatible = "s6_s905x5_bl208";
+	compatible = "s6_s905x5_bl208-4g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -221,10 +221,10 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x1.5x4 = 12 M
+			/* up to 720p yuv420 8bit and 4 buffers
+			 * 1280x720x1.5x4 = 8 M
 			 */
-			size = <0x0 0x00c00000>;
+			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
 		};
 		/* global autoconfigured region for contiguous allocations */
@@ -241,7 +241,7 @@
 			compatible = "shared-dma-pool";
 			status = "okay";
 			reusable;
-			size = <0x0 0x1000000>;
+			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};

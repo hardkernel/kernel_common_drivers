@@ -331,9 +331,9 @@
 
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
-
-		status = "okay";
 		av_mute_sleep_time = <900>;
+		status = "okay";
+
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
 			mclk-fs = <64>;
@@ -794,7 +794,7 @@
 };
 
 &hdmirx {
-	status = "okay";
+	status = "disabled";
 };
 
 &amlvideo2_1 {
@@ -1584,61 +1584,6 @@
 	logo_addr = "0x3f800000";
 	/* 1:sel afbcd and can not be changed; 0:sel afbcd or mif according data source */
 	osd_axi_sel = <1>;
-
-	connectors_dev: port@1 {
-		drm_to_lcd0: endpoint@2 {
-			reg = <2>;
-			remote-endpoint = <&lcd0_to_drm>;
-		};
-		drm_to_lcd1: endpoint@3 {
-			reg = <3>;
-			remote-endpoint = <&lcd1_to_drm>;
-		};
-		drm_to_lcd2: endpoint@4 {
-			reg = <4>;
-			remote-endpoint = <&lcd2_to_drm>;
-		};
-	};
-};
-
-&lcd {
-	status = "okay";
-	ports {
-		port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			lcd0_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd0>;
-			};
-		};
-	};
-};
-
-&lcd1 {
-	status = "okay";
-	ports {
-		port {
-			lcd1_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd1>;
-			};
-		};
-	};
-};
-
-&lcd2 {
-	status = "okay";
-	ports {
-		port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			lcd2_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd2>;
-			};
-		};
-	};
 };
 
 &amhdmitx {

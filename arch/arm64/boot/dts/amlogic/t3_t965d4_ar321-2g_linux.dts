@@ -139,9 +139,9 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
+			 * 1920x1080x1.5x4 = 12 M
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -167,7 +167,7 @@
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
 			//size = <0x0 0x0B000000>;
-			size = <0x0 0x0>;
+			size = <0x0 0x400000>; //for 4k's afbc
 			alignment = <0x0 0x400000>;
 		};
 		/* codec shared reserved */
@@ -222,23 +222,15 @@
 			reusable;
 			/* frc:size need 4M alignment
 			 * 1080P 16 buffer:88Mhz (0x5800000)
-			 * 4k 16 buffer:348Mhz (0x15c00000)
+			 * 4k 16 buffer:348Mhz (0x15c00000) 212Mhz
 			 * 400Mhz (0x19000000)
 			 * 384Mhz (0x18000000)
 			 * 368Mhz (0x17000000)
 			 */
-			size = <0x0 0x0a000000>;
+			size = <0x0 0x0a400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
-		};
-
-		frc_rdma_reserved:linux,frc_rdma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* frc rdma reserved*/
-			size = <0x0 0x400000>;
-			alignment = <0x0 0x400000>;
 		};
 
 		ldc_mem_reserved:linux,ldc_mem {
@@ -703,7 +695,7 @@
 };
 
 &aml_frc {
-	memory-region = <&frc_cma_reserved>, <&frc_rdma_reserved>;
+	memory-region = <&frc_cma_reserved>;
 };
 
 &thermal_zones {
@@ -720,7 +712,7 @@
 				type = "passive";
 			};
 			vpu_critical {
-				temperature = <110000>;
+				temperature = <115000>;
 				hysteresis = <1000>;
 				type = "critical";
 			};
@@ -784,6 +776,10 @@
 			remote-endpoint = <&lcd0_to_drm>;
 		};
 	};
+};
+
+&drm_amcvbsout {
+	status = "okay";
 };
 
 &lcd {
@@ -1010,9 +1006,9 @@
 		 *	SPDIFIN_LB, 10
 		 *	EARC_RX,    11
 		 */
-		src-clk-freq = <491520000>;
 		resample_module = <8>;
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 

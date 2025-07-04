@@ -34,6 +34,7 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			dynamic-power-coefficient = <230>;
+			#cooling-cells = <2>;
 		};
 
 		CPU1:cpu@1 {
@@ -43,6 +44,7 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			dynamic-power-coefficient = <230>;
+			#cooling-cells = <2>;
 		};
 
 		CPU2:cpu@2 {
@@ -52,6 +54,7 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			dynamic-power-coefficient = <230>;
+			#cooling-cells = <2>;
 		};
 
 		CPU3:cpu@3 {
@@ -61,6 +64,7 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			dynamic-power-coefficient = <230>;
+			#cooling-cells = <2>;
 		};
 
 		idle-states {
@@ -1367,7 +1371,7 @@
 	vout_sys: vout_sys {
 		compatible = "amlogic, vout_sys_serve";
 		status = "okay";
-		reg = <0x0 0xfe01029c 0x0 0x4>;
+		reg = <0xfe01029c 0x4>;
 	};
 
 	vdac {

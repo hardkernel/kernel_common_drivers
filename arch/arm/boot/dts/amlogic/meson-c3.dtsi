@@ -1524,13 +1524,16 @@
 
 	efuse: efuse{
 		compatible = "amlogic, efuse";
+		reg=<0xfe440040 0x4>;
+		secureboot_mask = <0x00000c00>;
 		read_cmd = <0x82000030>;
 		write_cmd = <0x82000031>;
 		get_max_cmd = <0x82000033>;
 		mem_in_base_cmd = <0x82000020>;
 		mem_out_base_cmd = <0x82000021>;
-		efuse_pattern_size = <0x400>;
-		key = <&efusekey>;
+		efuse_pattern_size = <0x200>;
+		efuse_obj_cmd_status = <0x1>;
+		//key = <&efusekey>;
 		clock-names = "efuse_clk";
 		status = "okay";
 	};

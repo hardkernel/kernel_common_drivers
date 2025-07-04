@@ -180,7 +180,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
+			 * 1920x1080x1.5x4 = 12 M
 			 */
 			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
@@ -467,10 +467,9 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		pinctrl-names = "default";
-		//GPIOH_8(OD) Set:
-		// Output disable= Enable VCC5V
-		//gpio = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
+		//GPIOH_8(OD) can up/down by setting GPIO_OPEN_DRAIN
+		gpio = <&gpio GPIOH_8 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		startup-delay-us = <7000>;
 		enable-active-high;
 		regulator-boot-on;
 		regulator-always-on;
@@ -507,7 +506,7 @@
 		//Output L= Disable VCC3.3V
 		//Output H= Enable VCC3.3V
 		gpio = <&gpio_ao GPIO_TEST_N GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
+		startup-delay-us = <7000>;
 		enable-active-high;
 		regulator-boot-on;
 		regulator-always-on;

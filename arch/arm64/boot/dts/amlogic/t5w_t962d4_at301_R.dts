@@ -186,7 +186,8 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x0>;
+			/* 1080p TV androidR size 84M */
+			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
 		};
@@ -238,6 +239,7 @@
 		key_code = <116 114 115 28 139 466 174>;
 		key_val = <0 143 266 389 507 143 266>; //val=voltage/1800mV*1023
 		key_tolerance = <40 40 40 40 40 40 40>;
+		mboxes = <&mbox_pl T5W_REE2AO_KEYPAD>;
 	};
 
 	/* Audio Related start */

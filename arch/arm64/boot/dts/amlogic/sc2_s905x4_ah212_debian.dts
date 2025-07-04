@@ -51,9 +51,29 @@
 			status = "disabled";
 		};
 
+		/* global autoconfigured region for contiguous allocations */
+		ramoops@8400000 {
+			compatible = "ramoops";
+			reg = <0x0 0x08400000 0x0 0x00080000>;/* addr set in uboot */
+			record-size = <0x30000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x0>;
+			pmsg-size = <0x10000>;
+		};
+
 		dmc_reserved:linux,dmc_monitor {
 			compatible = "amlogic,dmc_monitor-reserved";
 			reg = <0x0 0x0 0x0 0x80000>;
+		};
+
+		debug_reserved:linux,iotrace {
+			compatible = "amlogic, iotrace";
+			reg = <0x0 0x04f00000 0x0 0x00100000>;
+			io-size = <0x1b000>;
+			sched-size = <0x2000>;
+			irq-size = <0x1000>;
+			smc-size = <0x1000>;
+			misc-size = <0x1000>;
 		};
 
 		secmon_reserved:linux,secmon {
@@ -82,15 +102,22 @@
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
+		dmaheap_fb_reserved:heap-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x400000>;
+		};
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x0 0x12c00000>;
 			alignment = <0x0 0x400000>;
 		};
-		dmaheap_fb_reserved:heap-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+		dmaheap_secure_reserved:heap-secure {
+			compatible = "amlogic, heap-secure-mem";
+			no-map;
+			/* advice heap-secure size: 208M */
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
@@ -404,7 +431,6 @@
 		key_code = <114 115 116>;
 		key_val = <1109 1601 35>; // Unit: millivolt
 		key_tolerance = <70 70 70>; // Unit: millivolt
-		mboxes = <&mbox_fifo SC2_REE2AO_KEYPAD>;
 	};
 
 	/* Audio Related start */
@@ -666,10 +692,6 @@
 			b_io_number = <5>;
 		};
 	};
-};
-
-&vddcpu0 {
-	status = "okay";
 };
 
 &audiobus {
@@ -1231,7 +1253,7 @@
 	pinctrl-1 = <&sdcard_clk_gate_pins>;
 	pinctrl-2 = <&sd_1bit_pins>;
 	pinctrl-3 = <&sd_to_ao_uart_clr_pins
-		&sdcard_clk_gate_pins &ao_to_sd_uart_pins>;
+		&sdcard_pins &ao_to_sd_uart_pins>;
 	pinctrl-4 = <&sd_to_ao_uart_clr_pins
 		&sd_1bit_pins &ao_to_sd_uart_pins>;
 	pinctrl-5 = <&sdcard_pins &ao_uart_pins>;
@@ -1442,6 +1464,7 @@
 &aml_bt {
 	status = "okay";
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
+	btwakeup-gpios = <&gpio GPIOX_18 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 	power_down_disable = <1>;
 };

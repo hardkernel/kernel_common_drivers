@@ -952,8 +952,9 @@
 
 &i2c2 {
 	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c2_master_pins2>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2c2_master_pins2>;
+	pinctrl-1 = <&i2c2_master_sleep_pins2>;
 	clock-frequency = <100000>; /* default 100k */
 	sensor-i2c@6c {
 		compatible = "arm, i2c-sensor";
@@ -1235,8 +1236,9 @@
 
 &i2c3 {
 	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c3_master_pins2>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2c3_master_pins2>;
+	pinctrl-1 = <&i2c3_master_sleep_pins2>;
 	clock-frequency = <400000>; /* max supported freq */
 
 	pcf8536@51 {

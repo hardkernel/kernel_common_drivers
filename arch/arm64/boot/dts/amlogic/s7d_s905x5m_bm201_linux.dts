@@ -282,6 +282,8 @@
 		ts2_control = <0x0>;
 		ts2_invert = <0>;
 
+		ts3_sid = <0x7>;
+
 		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
 	};
@@ -661,6 +663,11 @@
 	clock-frequency = <300000>;
 };
 
+&amlvideo2_1 {
+	/*720P_NV21:1, 1080P_NV21:2, 4K_NV21:3, default:4*/
+	codec_mm_alloc = <2>;
+};
+
 &i2c3 {
 	status = "okay";
 	pinctrl-names="default";
@@ -772,11 +779,6 @@
 
 &crg {
 	status = "okay";
-};
-
-&pcie {
-	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-	status = "disable";
 };
 
 /* SDIO */
@@ -1007,11 +1009,6 @@
 	 *bit3:support 12bit
 	 */
 	tv_bit_mode = <1>;
-};
-
-&amlvideo2_1 {
-	/*1:720P_NV21 2:1080P_NV21 3:4K_NV21*/
-	codec_mm_alloc = <2>;
 };
 
 &aml_wifi{

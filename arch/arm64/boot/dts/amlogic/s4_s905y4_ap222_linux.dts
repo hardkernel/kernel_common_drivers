@@ -180,7 +180,7 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv420 8bit and 5 buffers
+			/* up to 1920x1080 yuv420 8bit and 4 buffers
 			 * 1920x1080x1.5x4 = 12 M
 			 */
 			size = <0x0 0x00c00000>;
@@ -194,6 +194,7 @@
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
 			linux,cma-default;
+			alloc-ranges = <0x0 0x0 0x0 0x30000000>;
 		};
 	};
 
@@ -659,6 +660,11 @@
 		<&s905y4_opp_table1>,
 		<&s905y4_opp_table2>,
 		<&s905y4_opp_table3>;
+};
+
+&amlvideo2_1 {
+	/*720P_NV21:1, 1080P_NV21:2, 4K_NV21:3, default:4*/
+	codec_mm_alloc = <2>;
 };
 
 &audiobus {
@@ -1309,7 +1315,7 @@
 
 &drm_amhdmitx {
 	status = "okay";
-	hdcp = "okay";
+	hdcp = "disabled";
 };
 
 &drm_amcvbsout {
@@ -1317,7 +1323,7 @@
 };
 
 &drm_lcd {
-	status = "disable";
+	status = "disabled";
 };
 
 &vpu {
@@ -1356,11 +1362,6 @@
 	tv_bit_mode = <1>;
 };
 
-&amlvideo2_1 {
-	/*1:720P_NV21 2:1080P_NV21 3:4K_NV21*/
-	codec_mm_alloc = <2>;
-};
-
 &aml_wifi{
 	status = "disabled";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
@@ -1393,6 +1394,11 @@
 		&dvfs666_cfg
 		&dvfs850_cfg
 		&dvfs850_cfg>;
+};
+
+&amlogic_codec {
+	tocodec_inout = <1>;
+	tdmout_index = <1>;
 };
 
 &amlvecm {

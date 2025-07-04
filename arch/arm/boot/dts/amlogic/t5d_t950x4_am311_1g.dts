@@ -844,6 +844,7 @@
 
 &sd_emmc_c {
 	status = "okay";
+	run-low-mem;
 	pinctrl-names = "default", "clk-gate";
 	pinctrl-0 = <&emmc_conf_pull_up &emmc_conf_pull_done>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
@@ -856,7 +857,6 @@
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
-	run-low-mem;
 	hs4_core_phase = <0>;
 	hs2_core_phase = <2>;
 	init_core_phase = <3>;

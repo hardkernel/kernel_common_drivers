@@ -42,13 +42,13 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+		/* global autoconfigured region for contiguous allocations */
 
 		ramdump_bl33z@0 {
 			reg = <0x0 0x0 0x0 0x1800000>; /* 0 ~ 24M */
 			status = "disabled";
 		};
 
-		/* global autoconfigured region for contiguous allocations */
 		ramoops@7400000 {
 			compatible = "ramoops";
 			reg = <0x0 0x07400000 0x0 0x00080000>;/* addr set in uboot */
@@ -709,10 +709,10 @@
 		samesource_sel = <3>;
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
+		suspend-clk-off = <1>;
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
-		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -804,8 +804,8 @@
 				&clkaudio CLKID_AUDIO_SPDIFOUTB_CTRL>;
 		clock-names = "sysclk",
 				"gate_spdifout", "clk_spdifout";
-		suspend-clk-off = <1>;
 		status = "okay";
+		suspend-clk-off = <1>;
 	};
 
 	aml_pdm: pdm {
@@ -1306,21 +1306,4 @@
 			function = "tdm_clk_outb";
 		};
 	};
-};
-
-&gpu {
-	/*
-	 * Mali clocking is provided by two identical clock paths
-	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
-	 * free mux to safely change frequency while running.
-	 */
-	assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
-			  <&clkc CLKID_MALI_0>,
-			  <&clkc CLKID_MALI>; /* Glitch free mux */
-	assigned-clock-parents = <&clkc CLKID_FCLK_DIV4>,
-				 <0>, /* Do Nothing */
-				 <&clkc CLKID_MALI_0>;
-	assigned-clock-rates = <0>, /* Do Nothing */
-			       <500000000>,
-			       <0>; /* Do Nothing */
 };

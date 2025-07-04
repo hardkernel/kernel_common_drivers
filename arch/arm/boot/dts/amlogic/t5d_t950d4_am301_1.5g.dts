@@ -217,16 +217,6 @@
 			size = <0x0>;
 		};
 
-		/* 24MB for screen capture and record */
-		/* please use 48M if screen capture + record at same time */
-		amlvideo2_cma_reserved:linux,amlvideo2 {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x1800000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x40000000 0x20000000>;
-		};
-
 		picdec_cma_reserved:linux,picdec {
 			compatible = "shared-dma-pool";
 			reusable;

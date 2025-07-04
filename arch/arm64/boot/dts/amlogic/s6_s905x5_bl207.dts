@@ -12,7 +12,7 @@
 #include "firmware_ab.dtsi"
 / {
 	amlogic-dt-id = "s6_s905x5_bl207-4g";
-	compatible = "s6_s905x5_bl207";
+	compatible = "s6_s905x5_bl207-4g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -218,10 +218,10 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x1.5x4 = 12 M
+			/* up to 720p yuv420 8bit and 4 buffers
+			 * 1280x720x1.5x4 = 8 M
 			 */
-			size = <0x0 0x00c00000>;
+			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
 		};
 		/* global autoconfigured region for contiguous allocations */
@@ -238,7 +238,7 @@
 			compatible = "shared-dma-pool";
 			status = "okay";
 			reusable;
-			size = <0x0 0x1000000>;
+			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -425,7 +425,7 @@
 		dvb_power_value = <1>;
 		dvb_power_dir = <0>; /* 0: out, 1: in. */
 
-		fe_num = <3>; /* internal 2 * dvb-c, extern 1 * dvb-s */
+		fe_num = <4>; /* internal 2 * dvb-c, extern 1 * dvb-s */
 		fe0_demod = "internal";
 		fe0_tuner0 = <0>; /* use tuner0 */
 
@@ -442,6 +442,9 @@
 		//fe2_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
 		fe2_ts = <0>;
 		fe2_tuner1 = <3>; /* use tuner3, only S. */
+
+		fe3_demod = "dummy";
+		fe3_ts = <3>;
 
 		tuner_num = <4>; /* tuner number, multi tuner support */
 		tuner0_name = "r836_tuner";
@@ -501,6 +504,9 @@
 		ts2 = "parallel";
 		ts2_control = <0x0>;
 		ts2_invert = <0>;
+
+		ts3_sid = <0x7>;
+
 	};
 
 	multi-di {

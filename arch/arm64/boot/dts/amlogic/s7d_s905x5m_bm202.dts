@@ -651,11 +651,6 @@
 	status = "disabled";
 };
 
-&pcie {
-	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-	status = "disable";
-};
-
 /* SDIO */
 &sd_emmc_a {
 	status = "okay";
@@ -818,7 +813,7 @@
 };
 
 &ir {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
 };
