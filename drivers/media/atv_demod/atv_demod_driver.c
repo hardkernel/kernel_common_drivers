@@ -79,7 +79,8 @@
 /* 2024/11/13 --- V4.02 --- add ops callbacks mutex and state callbacks for tvafe. */
 /* 2024/11/22 --- V4.03 --- Revert V4.02 commit. */
 /* 2024/12/27 --- V4.04 --- add vfmt_cnt config to fix cvbs detect. */
-#define AMLATVDEMOD_VER "V4.04"
+/* 2025/07/04 --- V4.05 --- fix coverity issues */
+#define AMLATVDEMOD_VER "V4.05"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 

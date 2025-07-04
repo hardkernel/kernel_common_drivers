@@ -114,7 +114,7 @@ int amlatvdemod_periphs_reg_write(unsigned int reg, unsigned int val)
 
 void atv_dmd_wr_reg(unsigned char block, unsigned char reg, unsigned long data)
 {
-	unsigned long reg_addr = (block << 8) + reg * 4;
+	unsigned long reg_addr = (unsigned long)(block << 8) + reg * 4;
 
 	amlatvdemod_reg_write(reg_addr, data);
 }

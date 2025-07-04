@@ -68,7 +68,7 @@ static void atv_demod_afc_do_work_pre(struct atv_demod_afc *afc)
 	if (afc->lock)
 		retrieve_frequency_offset(&freq_offset);
 
-	if (!afc->lock || (afc->lock && abs(freq_offset) >= (ATV_AFC_400KHZ / 1000))) {
+	if (!afc->lock || abs(freq_offset) >= (ATV_AFC_400KHZ / 1000)) {
 		afc->pre_lock_cnt = 0;
 		if (afc->status != AFC_LOCK_STATUS_PRE_UNLOCK && afc->offset) {
 			param->frequency -= afc->offset * 1000;
