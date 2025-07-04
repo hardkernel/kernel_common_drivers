@@ -1732,6 +1732,7 @@
 		mux {
 			groups = "tsout_clk";
 			function = "tsout";
+			drive-strength-microamp = <4000>;
 		};
 
 	};

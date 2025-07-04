@@ -3218,6 +3218,7 @@
 		mux {
 			groups =  "tsout_clk";
 			function = "tsout";
+			drive-strength-microamp = <4000>;
 		};
 	};
 	ci_gpio_pins: ci_gpio_pins {
