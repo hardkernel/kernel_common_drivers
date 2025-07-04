@@ -265,8 +265,9 @@
 		ts0_control = <0x0>;
 		ts0_invert = <0>;
 
-		pinctrl-names = "s_ts0";
+		pinctrl-names = "s_ts0", "sleep";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
+		pinctrl-1 = <&dvb_pins_sleep>;
 	};
 
 	/* SMC */
@@ -764,6 +765,16 @@
 				"tsin_a_clk",
 				"tsin_a_din0";
 			function = "tsin_a";
+		};
+	};
+
+	dvb_pins_sleep:dvb_pins_sleep {
+		mux {
+			groups = "GPIOZ_0",
+				"GPIOZ_1",
+				"GPIOZ_2",
+				"GPIOZ_3";
+			function = "gpio_periphs";
 		};
 	};
 }; /* end of periphs_pinctrl */
