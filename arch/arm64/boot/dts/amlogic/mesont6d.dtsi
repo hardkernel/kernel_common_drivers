@@ -161,7 +161,7 @@
 		reg = <0x0 0xFE0102D8 0x0 4>;
 		reg-names = "SYSCTRL_STICKY_REG6";
 		store_device = "data";
-		status = "disabled";
+		status = "okay";
 	};
 
 	xtal: xtal-clk {
