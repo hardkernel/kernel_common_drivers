@@ -558,8 +558,8 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 
 		return 1;
 	} else if ((fsm_state & 0xf) == 6) {
-		if ((demod_chip_eq(DTVDEMOD_HW_T5D) || demod_chip_eq(DTVDEMOD_HW_T3)) &&
-			demod->qam_wait_times < 4) {
+		if ((demod_chip_eq(DTVDEMOD_HW_T5D) || demod_chip_eq(DTVDEMOD_HW_T5D_B) ||
+			demod_chip_eq(DTVDEMOD_HW_T3)) && demod->qam_wait_times < 4) {
 			PR_DVBC("qam wait times %d.\n", demod->qam_wait_times);
 			if (demod->qam_wait_times == 1)
 				demod_dvbc_fsm_reset(demod);
@@ -580,7 +580,7 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 
 		return 0;
 	} else if (demod->auto_times == 5 && (demod_chip_eq(DTVDEMOD_HW_T5D) ||
-		demod_chip_eq(DTVDEMOD_HW_T3))) {
+		demod_chip_eq(DTVDEMOD_HW_T5D_B) || demod_chip_eq(DTVDEMOD_HW_T3))) {
 		demod->auto_times = 0;
 		demod->auto_no_sig_cnt = 0;
 		*delay = HZ / 4;
@@ -589,7 +589,8 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		return 0;
 	}
 
-	if (demod_chip_eq(DTVDEMOD_HW_T5D) || demod_chip_eq(DTVDEMOD_HW_T3))
+	if (demod_chip_eq(DTVDEMOD_HW_T5D) || demod_chip_eq(DTVDEMOD_HW_T5D_B) ||
+			demod_chip_eq(DTVDEMOD_HW_T3))
 		*delay = HZ / 10;
 	demod->auto_times++;
 	/* loop from 16 to 256 */

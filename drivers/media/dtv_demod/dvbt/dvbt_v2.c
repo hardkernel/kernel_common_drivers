@@ -991,7 +991,7 @@ int dvbt2_get_plp(u32 *plp_num, u64 *plp_common)
 
 	*plp_common = 0;
 
-	if (demod_chip_eq(DTVDEMOD_HW_T5D)) {
+	if (demod_chip_eq(DTVDEMOD_HW_T5D) || demod_chip_eq(DTVDEMOD_HW_T5D_B)) {
 		value = front_read_reg(0x3e);
 		*plp_num = (value >> 24) & 0x3f;
 	} else {
@@ -1475,7 +1475,7 @@ int dvbt2_get_modulation_coderate(u32 *modulation, u32 *coderate)
 {
 	unsigned int value = 0;
 
-	if (demod_chip_eq(DTVDEMOD_HW_T5D)) {
+	if (demod_chip_eq(DTVDEMOD_HW_T5D) || demod_chip_eq(DTVDEMOD_HW_T5D_B)) {
 		value = front_read_reg(0x3e);
 		*coderate = (value >> 2) & 0x7;
 		*modulation = (value >> 5) & 0x3;

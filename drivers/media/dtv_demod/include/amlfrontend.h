@@ -215,6 +215,7 @@
 /*  V3.7.009 fix no snr in dvbc new driver */
 /*  V3.7.010 fix frontend compatibility issue */
 /*  V4.0.000 synchronize code from kernel5.15(V3.7.000-V3.7.010) */
+/*  V4.0.001 fix t5d DVB-T2 stuck issue */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -231,8 +232,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V4.0.000"
-#define DTVDEMOD_VER	"2025/06/27: /*  V4.0.000 "
+#define AMLDTVDEMOD_VER "V4.0.001"
+#define DTVDEMOD_VER	"2025/07/04: /*  V4.0.001 "
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
