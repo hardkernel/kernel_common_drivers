@@ -576,7 +576,7 @@ const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name)
 			return timing;
 
 		/* check full name first */
-		if (!strncmp(timing->name, name, strlen(timing->name)))
+		if (timing->name && !strncmp(timing->name, name, strlen(timing->name)))
 			return timing;
 
 		i++;
