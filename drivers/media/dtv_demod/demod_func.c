@@ -1265,14 +1265,14 @@ int adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *demo
 	freq_osc = 24 * unit;
 
 	if (clk_a < 1000)
-		freq_a = clk_a * unit;
+		freq_a = (long)clk_a * unit;
 	else
-		freq_a = clk_a * (unit / 1000);
+		freq_a = (long)clk_a * (unit / 1000);
 
 	if (clk_b < 1000)
-		freq_b = clk_b * unit;
+		freq_b = (long)clk_b * unit;
 	else
-		freq_b = clk_b * (unit / 1000);
+		freq_b = (long)clk_b * (unit / 1000);
 
 	ena = clk_a > 0 ? 1 : 0;
 	enb = clk_b > 0 ? 1 : 0;
@@ -1423,9 +1423,9 @@ int adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *demo
 			dig_clk_cfg.b.demod_clk_en = 1;
 			dig_clk_cfg.b.demod_clk_sel = 3;
 			if (clk_sys < 1000)
-				freq_sys = clk_sys * unit;
+				freq_sys = (long)clk_sys * unit;
 			else
-				freq_sys = clk_sys * (unit / 1000);
+				freq_sys = (long)clk_sys * (unit / 1000);
 
 			dig_clk_cfg.b.demod_clk_div = freq_dco / (1 + div2) /
 			    freq_sys - 1;
