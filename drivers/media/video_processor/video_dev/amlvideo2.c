@@ -4256,8 +4256,8 @@ static int amlvideo2_fill_black(struct amlvideo2_fh *fh,
 
 	output.v4l2_format = fh->fmt->fourcc;
 	output.vbuf = vbuf;
-	output.width = fh->buf_width;
-	output.height = fh->buf_height;
+	output.buf_width = fh->buf_width;
+	output.buf_height = fh->buf_height;
 	output.canvas_id = buf->canvas_id;
 	output.angle = node->qctl_regs[0];
 	output.frame = &buf->axis;
