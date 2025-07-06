@@ -160,6 +160,7 @@ struct ddr_bandwidth_ops {
 #endif
 	int (*property_access)(struct ddr_bandwidth *db, u64 *val,
 			       enum property_type type, int rw);
+	int (*side_band)(struct ddr_bandwidth *db, unsigned char dmc, unsigned char bus);
 };
 
 struct ddr_bandwidth_sample {
@@ -217,6 +218,32 @@ struct ddr_outstanding {
 	struct outstanding_reg *regs;
 };
 
+struct device_id {
+	unsigned char id;
+	char *name;
+};
+
+struct side_band {
+	unsigned char flags;
+	unsigned char rw;
+	unsigned char block_num;
+	unsigned char block_bus[32];
+	struct mutex lock;			// protect the data of this structure
+};
+
+struct bus_devices {
+	unsigned char bus;
+	unsigned char vpu;
+	struct side_band side_band;
+	unsigned char num;
+	struct device_id *device;
+};
+
+struct dmc_bus {
+	unsigned char num;
+	struct bus_devices *bus;
+};
+
 struct ddr_bandwidth {
 	unsigned short cpu_type;
 	unsigned short real_ports;
@@ -227,6 +254,8 @@ struct ddr_bandwidth {
 	int mali_port[2];
 	int stat_flag;
 	int bus_num;
+	int async_dmc_num;
+	struct dmc_bus dmc_bus[4];
 	unsigned int ddr_priority_num;
 	unsigned int threshold;
 	unsigned int irq_num;
@@ -313,6 +342,8 @@ extern struct ddr_bandwidth_ops t6d_ddr_bw_ops;
 
 unsigned int aml_get_ddr_usage(void);
 
+int one_dmc_reg_field_access(struct ddr_bandwidth *db, unsigned char dmc, u64 *val, int type,
+			     unsigned int reg, unsigned int offset, unsigned int bits_width);
 int reg_field_access(struct ddr_bandwidth *db, u64 *val, int type,
 		     unsigned int reg, unsigned int offset, unsigned int bits_width);
 

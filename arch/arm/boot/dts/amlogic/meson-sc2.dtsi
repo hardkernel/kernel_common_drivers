@@ -1237,7 +1237,7 @@
 	ddr_bandwidth {
 		compatible = "amlogic,ddr-bandwidth-sc2";
 		status = "okay";
-		reg = <0xfe0360C0 0x100
+		reg = <0xfe0360C0 0x1000
 		       0xfe036c00 0x100>;
 		interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "ddr_bandwidth";

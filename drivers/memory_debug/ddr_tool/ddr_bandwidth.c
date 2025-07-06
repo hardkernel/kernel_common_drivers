@@ -21,6 +21,8 @@
 #include <linux/timer.h>
 #include <linux/vmalloc.h>
 #include <linux/debugfs.h>
+#include <linux/ctype.h>
+#include <linux/sort.h>
 
 #include <linux/amlogic/gki_module.h>
 #include <linux/amlogic/aml_ddr_tool.h>
@@ -1709,6 +1711,54 @@ static void get_ddr_external_bus_width(struct ddr_bandwidth *db,
 	pr_info("bytes_per_cycle:%d, reg:%lx\n", db->bytes_per_cycle, reg);
 }
 
+int one_dmc_reg_field_access(struct ddr_bandwidth *db, unsigned char dmc, u64 *val, int rw,
+			     unsigned int reg, unsigned int offset, unsigned int bits_width)
+{
+	void *io;
+	u32 reg_value;
+	u32 mask1, mask2;
+
+	mask1 = (1 << bits_width) - 1;
+	mask2 = mask1 << offset;
+	switch (dmc) {
+	case 0:
+		io = db->ddr_reg1;
+		break;
+	case 1:
+		io = db->ddr_reg2;
+		break;
+	case 2:
+		io = db->ddr_reg3;
+		break;
+	case 3:
+		io = db->ddr_reg4;
+		break;
+	default:
+		break;
+	}
+
+	if (rw == WRITE) {
+		if (*val & ~mask1) {
+			pr_err("%s: out of range. Max=%d, Attempted=%lld\n",
+			       __func__, mask1, *val);
+			return -1;
+		}
+		reg_value = readl(io + reg);
+		reg_value &= ~mask2;
+		reg_value |= (((u32)*val & mask1) << offset);
+		writel(reg_value, io + reg);
+	} else {
+		reg_value = readl(io + reg);
+		reg_value &= mask2;
+		reg_value = reg_value >> offset;
+		*val = reg_value;
+		pr_debug("DMC%d reg[0x%04x << 2][%d...%d] = 0x%x\n",
+			 dmc, reg >> 2, offset, offset + bits_width - 1, reg_value);
+	}
+
+	return 0;
+}
+
 int reg_field_access(struct ddr_bandwidth *db, u64 *val, int rw,
 		     unsigned int reg, unsigned int offset, unsigned int bits_width)
 {
@@ -1786,10 +1836,656 @@ static int wbuf_mid_level_set(void *data, u64 val)
 }
 DEFINE_DEBUGFS_ATTRIBUTE(wbuf_mid_level_fops, wbuf_mid_level_get, wbuf_mid_level_set, "%llu\n");
 
+static void dmc_bus_data_init(int dmc)
+{
+	int i, j, k, l;
+	unsigned char bus, max_bus;
+	struct device_id *dd;
+	int device_num = 0;
+	unsigned char vpu;
+	char vpu_name[] = "VPU";
+
+	max_bus = 0;
+	for (i = 0; i < aml_db->real_ports; i++) {
+		bus = (aml_db->port_desc[i].bus >> (8 * dmc)) & 0xff;
+		if (aml_db->async_dmc_num == 0 || (bus & 0x80)) {
+			bus &= 0x7f;
+			if (bus > max_bus)
+				max_bus = bus;
+			device_num++;
+		}
+	}
+	aml_db->dmc_bus[dmc].num = max_bus + 1;
+	l = sizeof(struct bus_devices) * aml_db->dmc_bus[dmc].num +
+		sizeof(struct device_id) * device_num;
+	aml_db->dmc_bus[dmc].bus = kzalloc(l, GFP_KERNEL);
+	dd = (struct device_id *)(aml_db->dmc_bus[dmc].bus + aml_db->dmc_bus[dmc].num);
+	for (i = 0, l = 0; i < aml_db->dmc_bus[dmc].num; i++) {
+		k = 0;
+		vpu = 0;
+		for (j = 0; j < aml_db->real_ports; j++) {
+			bus = (aml_db->port_desc[j].bus >> (8 * dmc)) & 0xff;
+			if (aml_db->async_dmc_num == 0 || (bus & 0x80)) {
+				bus &= 0x7f;
+				if (i == bus) {
+					dd[l].id = aml_db->port_desc[j].port_id;
+					dd[l].name = aml_db->port_desc[j].port_name;
+					if (strstr(aml_db->port_desc[j].port_name, vpu_name))
+						vpu = 1;
+					l++;
+					k++;
+				}
+			}
+		}
+		aml_db->dmc_bus[dmc].bus[i].bus = i;
+		aml_db->dmc_bus[dmc].bus[i].vpu = vpu;
+		aml_db->dmc_bus[dmc].bus[i].num = k;
+		aml_db->dmc_bus[dmc].bus[i].device = dd + (l - k);
+		if (vpu)
+			mutex_init(&aml_db->dmc_bus[dmc].bus[i].side_band.lock);
+	}
+}
+
+static void dmc_bus_init(void)
+{
+	int i;
+	int num = 0;
+
+	for (i = 0; i < aml_db->real_ports; i++) {
+		if (aml_db->port_desc[i].bus & 0x80)
+			num |= 1;
+		if (aml_db->port_desc[i].bus & 0x8000)
+			num |= 2;
+		if (aml_db->port_desc[i].bus & 0x800000)
+			num |= 4;
+		if (aml_db->port_desc[i].bus & 0x80000000)
+			num |= 8;
+		if (num == 0x0f)
+			break;
+	}
+	aml_db->async_dmc_num = num;
+	for (i = 0;
+	     ((1 << i) & aml_db->async_dmc_num) || (i == 0 && aml_db->async_dmc_num == 0);
+	     i++)
+		dmc_bus_data_init(i);
+}
+
+static ssize_t bus_devices_read(struct file *file,
+				char __user *to, size_t count, loff_t *ppos)
+{
+	struct ddr_bandwidth *aml_db = file->private_data;
+	int len = 0;
+	char buf[1800];
+	int i, j, k, l;
+
+	for (i = 0, l = 0;
+	     ((1 << i) & aml_db->async_dmc_num) || (i == 0 && aml_db->async_dmc_num == 0);
+	     i++) {
+		len += sprintf(buf + len, "-------------------dmc[%d]-------------------\n", i);
+		len += sprintf(buf + len, "bus:\t\tport id:\tdevice\n");
+		for (j = 0; j < aml_db->dmc_bus[i].num; j++) {
+			for (k = 0; k < aml_db->dmc_bus[i].bus[j].num; k++) {
+				if (k == 0) {
+					if (aml_db->dmc_bus[i].bus[j].vpu)
+						len += sprintf(buf + len, "\033[31;1m");
+					len += sprintf(buf + len, "%2d\t\t%3d\t\t%s",
+						       j, aml_db->dmc_bus[i].bus[j].device[k].id,
+						       aml_db->dmc_bus[i].bus[j].device[k].name);
+					if (aml_db->dmc_bus[i].bus[j].vpu &&
+					    aml_db->dmc_bus[i].bus[j].num == 1)
+						len += sprintf(buf + len, "\033[0m");
+					len += sprintf(buf + len, "\n");
+				} else {
+					len += sprintf(buf + len, "\t\t%3d\t\t%s",
+						       aml_db->dmc_bus[i].bus[j].device[k].id,
+						       aml_db->dmc_bus[i].bus[j].device[k].name);
+					if (aml_db->dmc_bus[i].bus[j].vpu &&
+					    ((k + 1) == aml_db->dmc_bus[i].bus[j].num))
+						len += sprintf(buf + len, "\033[0m");
+					len += sprintf(buf + len, "\n");
+				}
+			}
+		}
+	}
+
+	return simple_read_from_buffer(to, count, ppos, buf, len);
+}
+
+static const struct file_operations bus_devices_fops = {
+	.open = simple_open,
+	.read = bus_devices_read,
+	.llseek = default_llseek,
+};
+
+/**
+ * parse_side_band_string - Parse side_band format string
+ * @input: Input string (e.g., "1:2:rw:3 4 5 6")
+ * @dmc:    Output for part1 (unsigned char)
+ * @bus:    Output for part2 (unsigned char)
+ * @rw:     Output for part3 (1=r, 2=w, 3=rw)
+ * @block_bus: Output array for blocks
+ * @max_block_num: Maximum capacity of block_bus array
+ * @block_num: Actual number of blocks parsed
+ *
+ * Return: 0 on success, negative error code on failure
+ */
+int parse_side_band_string(const char *input,
+		     unsigned char *dmc,
+		     unsigned char *bus,
+		     unsigned char *rw,
+		     unsigned char *block_bus,
+		     unsigned char max_block_num,
+		     unsigned char *block_num)
+{
+	/* Variable declarations */
+	char *str = NULL;
+	char *cur = NULL;
+	char *token = NULL;
+	char *parts[4] = { NULL };
+	int part_count = 0;
+	int i;
+	int ret = 0;
+	unsigned long val;
+	char *p = NULL;
+	char *ptr = NULL;
+	unsigned char count = 0;
+	int valid_block_found = 0;
+	char *trimmed = NULL;
+	size_t len = 0;
+	/* Removed unused endp variable */
+	char *dmc_str = NULL;
+	char *bus_str = NULL;
+	char *rw_str = NULL;
+	char *block_str = NULL;
+	char *temp = NULL;
+
+	/* Added variables for block parsing */
+	char *num_start = NULL;
+	char *num_end = NULL;
+	char saved_char;
+	int parse_ret;
+
+	/* Parameter validation */
+	if (!input || !dmc || !bus || !rw || !block_bus || !block_num) {
+		pr_err("%s: Invalid parameters (NULL pointer)\n", __func__);
+		return -EINVAL;
+	}
+
+	if (max_block_num == 0) {
+		pr_err("%s: max_block_num cannot be zero\n", __func__);
+		return -EINVAL;
+	}
+
+	pr_debug("%s: Parsing input: '%s'\n", __func__, input);
+
+	/* Duplicate input string */
+	str = kstrdup(input, GFP_KERNEL);
+	if (!str)
+		return -ENOMEM;
+
+	cur = str;
+
+	/* Split string by colon and collect non-empty parts */
+	for (i = 0; i < 4; i++) {
+		token = strsep(&cur, ":");
+		if (!token)
+			break;
+
+		trimmed = strim(token);
+		if (*trimmed) {
+			if (part_count < 4) {
+				parts[part_count] = trimmed;
+				pr_debug("%s: Part %d: '%s'\n", __func__, part_count, trimmed);
+				part_count++;
+			} else {
+				pr_warn("%s: Ignoring extra part: '%s'\n", __func__, trimmed);
+			}
+		} else {
+			pr_debug("%s: Skipping empty part\n", __func__);
+		}
+	}
+
+	/* Initialize defaults */
+	*dmc = 0;
+	*bus = 0;
+	*rw = 3;
+	*block_num = 0;
+
+	pr_debug("%s: Found %d valid parts\n", __func__, part_count);
+
+	/* Validate minimum required parts */
+	if (part_count < 2) {
+		pr_err("%s: Invalid format - at least 2 parts required\n", __func__);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	/* Fixed field assignment based on position */
+	switch (part_count) {
+	case 4:
+		dmc_str = parts[0];
+		bus_str = parts[1];
+		rw_str = parts[2];
+		block_str = parts[3];
+		break;
+	case 3:
+		/* Could be: <dmc>:<bus>:<blocks> OR <bus>:<rw>:<blocks> */
+		if (isdigit(*parts[0]) && isdigit(*parts[1])) {
+			dmc_str = parts[0];
+			bus_str = parts[1];
+			block_str = parts[2];
+		} else {
+			bus_str = parts[0];
+			rw_str = parts[1];
+			block_str = parts[2];
+		}
+		break;
+	case 2:
+		bus_str = parts[0];
+		block_str = parts[1];
+		break;
+	default:
+		pr_err("%s: Unsupported number of parts: %d\n", __func__, part_count);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	pr_debug("%s: Assigned fields: dmc=%s, bus=%s, rw=%s, blocks=%s\n",
+		 __func__,
+		 dmc_str ? dmc_str : "NULL",
+		 bus_str ? bus_str : "NULL",
+		 rw_str ? rw_str : "NULL",
+		 block_str ? block_str : "NULL");
+
+	/* Parse dmc if present */
+	if (dmc_str) {
+		p = skip_spaces(dmc_str);
+		if (*p) {
+			if (kstrtoul(p, 10, &val) == 0 && val <= U8_MAX) {
+				*dmc = (unsigned char)val;
+				pr_debug("%s: Dmc value: %u\n", __func__, *dmc);
+			} else {
+				pr_err("%s: Invalid dmc number: '%s'\n", __func__, p);
+				ret = -EINVAL;
+				goto cleanup;
+			}
+		} else {
+			pr_err("%s: Dmc field is empty\n", __func__);
+			ret = -EINVAL;
+			goto cleanup;
+		}
+	}
+
+	/* Parse bus (must be present) */
+	if (bus_str) {
+		p = skip_spaces(bus_str);
+		if (*p) {
+			if (kstrtoul(p, 10, &val) == 0 && val <= U8_MAX) {
+				*bus = (unsigned char)val;
+				pr_debug("%s: Bus value: %u\n", __func__, *bus);
+			} else {
+				pr_err("%s: Invalid bus number: '%s'\n", __func__, p);
+				ret = -EINVAL;
+				goto cleanup;
+			}
+		} else {
+			pr_err("%s: Bus field is empty\n", __func__);
+			ret = -EINVAL;
+			goto cleanup;
+		}
+	} else {
+		pr_err("%s: Bus field is missing\n", __func__);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	/* Parse rw if present */
+	if (rw_str) {
+		p = skip_spaces(rw_str);
+		len = strlen(p);
+
+		if (len == 1) {
+			if (*p == 'r') {
+				*rw = 1;
+				pr_debug("%s: Rw value: r (1)\n", __func__);
+			} else if (*p == 'w') {
+				*rw = 2;
+				pr_debug("%s: Rw value: w (2)\n", __func__);
+			} else {
+				pr_err("%s: Invalid rw value: '%s'\n", __func__, p);
+				ret = -EINVAL;
+				goto cleanup;
+			}
+		} else if (len == 2) {
+			if (strcmp(p, "rw") == 0) {
+				*rw = 3;
+				pr_debug("%s: Rw value: rw (3)\n", __func__);
+			} else {
+				pr_err("%s: Invalid rw value: '%s'\n", __func__, p);
+				ret = -EINVAL;
+				goto cleanup;
+			}
+		} else {
+			pr_err("%s: Invalid rw value: '%s'\n", __func__, p);
+			ret = -EINVAL;
+			goto cleanup;
+		}
+	}
+
+	/* Parse block_bus array (must be present) */
+	if (!block_str) {
+		pr_err("%s: Block_bus field is missing\n", __func__);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	pr_debug("%s: Parsing block_bus (max: %u)\n", __func__, max_block_num);
+	ptr = block_str;
+	count = 0;
+	valid_block_found = 0;
+
+	/* Check for special case: entire block_str is exactly "-1" (with whitespace allowed) */
+	temp = kstrdup(block_str, GFP_KERNEL);
+	if (temp) {
+		char *trimmed_block = strim(temp);
+
+		if (strcmp(trimmed_block, "-1") == 0) {
+			block_bus[0] = (unsigned char)-1; // 0xFF (255)
+			*block_num = 1;
+			valid_block_found = 1;
+			pr_debug("%s: Special case: block_bus set to -1 (255)\n", __func__);
+			kfree(temp);
+			goto block_parse_done;
+		}
+		kfree(temp);
+	}
+
+	/* Check for invalid "-1" with additional data */
+	if (strstr(block_str, "-1")) {
+		pr_err("%s: Invalid format: '-1' must be the only element in block_bus\n",
+		       __func__);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	/* Normal block parsing */
+	while (*ptr && count < max_block_num) {
+		/* Skip leading spaces */
+		ptr = skip_spaces(ptr);
+		if (!*ptr)
+			break;
+
+		/* Initialize variables for this iteration */
+		num_start = ptr;
+		num_end = ptr;
+		saved_char = '\0';
+		parse_ret = -EINVAL;
+		val = 0;
+
+		/* Find the end of the current number */
+		while (*num_end && !isspace(*num_end))
+			num_end++;
+
+		/* Temporarily null-terminate the number string */
+		saved_char = *num_end;
+		if (saved_char != '\0')
+			*num_end = '\0';
+
+		/* Parse the number */
+		parse_ret = kstrtoul(ptr, 10, &val);
+
+		/* Restore the original character */
+		if (saved_char != '\0')
+			*num_end = saved_char;
+
+		/* Move pointer to the end of the number */
+		ptr = num_end;
+
+		/* Check parsing result */
+		if (parse_ret == 0) {
+			if (val <= U8_MAX) {
+				block_bus[count] = (unsigned char)val;
+				pr_debug("%s: Block_bus[%u] = %u\n",
+					 __func__, count, block_bus[count]);
+				count++;
+				valid_block_found = 1;
+				continue;
+			} else {
+				pr_warn("%s: Number out of range (0-255): %lu\n", __func__, val);
+			}
+		} else {
+			pr_warn("%s: Invalid number: '%.*s'\n",
+				__func__, (int)(num_end - num_start), num_start);
+		}
+
+		/* Skip to next space (if not already there) */
+		if (*ptr && !isspace(*ptr))
+			ptr++;
+	}
+
+	if (!valid_block_found) {
+		pr_err("%s: No valid numbers in block_bus: '%s'\n", __func__, block_str);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	*block_num = count;
+
+block_parse_done:
+	pr_debug("%s: Found %u valid block values\n", __func__, *block_num);
+
+	pr_debug("%s: Parse successful: dmc=%u, bus=%u, rw=%u, blocks=%u\n",
+		__func__, *dmc, *bus, *rw, *block_num);
+
+cleanup:
+	kfree(str);
+
+	if (ret != 0)
+		pr_err("%s: Parse failed with error %d\n", __func__, ret);
+
+	return ret;
+}
+
+static int compare_uchar(const void *a, const void *b)
+{
+	return *(const unsigned char *)a - *(const unsigned char *)b;
+}
+
+static int set_side_band(struct ddr_bandwidth *aml_db, unsigned char dmc,
+			 unsigned char bus, unsigned char rw,
+			 unsigned char *block_bus, unsigned char block_num)
+{
+	int ret;
+	int bus_index;
+	int i, j;
+
+	if (!((1 << dmc) & aml_db->async_dmc_num) && !(dmc == 0 && aml_db->async_dmc_num == 0)) {
+		pr_err("Invalid dmc: %d\n", dmc);
+		return -1;
+	}
+
+	for (i = 0; i < aml_db->dmc_bus[dmc].num; i++)
+		if (aml_db->dmc_bus[dmc].bus[i].bus == bus)
+			break;
+	if (i == aml_db->dmc_bus[dmc].num) {
+		pr_err("Invalid bus: %d\n", bus);
+		return -1;
+	}
+	if (!aml_db->dmc_bus[dmc].bus[i].vpu) {
+		pr_err("Bus %d invalid: not VPU bus, cannot be sideband channel.\n", bus);
+		return -1;
+	}
+	bus_index = i;
+
+	if (block_num == 1 && block_bus[0] == (unsigned char)-1) {
+		mutex_lock(&aml_db->dmc_bus[dmc].bus[i].side_band.lock);
+		aml_db->dmc_bus[dmc].bus[i].side_band.flags = 0;
+		aml_db->dmc_bus[dmc].bus[i].side_band.rw = 0;
+		aml_db->dmc_bus[dmc].bus[i].side_band.block_num = 0;
+		ret = aml_db->ops->side_band(aml_db, dmc, i);
+		mutex_unlock(&aml_db->dmc_bus[dmc].bus[i].side_band.lock);
+	} else {
+		if (rw == 0) {
+			pr_err("Invalid rw = 0\n");
+			return -1;
+		}
+		for (i = 0; i < block_num; i++) {
+			for (j = 0; j < aml_db->dmc_bus[dmc].num; j++)
+				if (aml_db->dmc_bus[dmc].bus[j].bus == block_bus[i])
+					break;
+			if (j == aml_db->dmc_bus[dmc].num)
+				break;
+		}
+		if (i != block_num) {
+			pr_err("Invalid block_bus: %d\n", block_bus[i]);
+			return -1;
+		}
+		i = bus_index;
+
+		mutex_lock(&aml_db->dmc_bus[dmc].bus[i].side_band.lock);
+		aml_db->dmc_bus[dmc].bus[i].side_band.flags = 1;
+		aml_db->dmc_bus[dmc].bus[i].side_band.rw = rw;
+		memcpy(aml_db->dmc_bus[dmc].bus[i].side_band.block_bus, block_bus, block_num);
+		aml_db->dmc_bus[dmc].bus[i].side_band.block_num = block_num;
+		sort(aml_db->dmc_bus[dmc].bus[i].side_band.block_bus, block_num,
+		     sizeof(unsigned char), compare_uchar, NULL);
+		ret = aml_db->ops->side_band(aml_db, dmc, i);
+		mutex_unlock(&aml_db->dmc_bus[dmc].bus[i].side_band.lock);
+	}
+
+	return ret;
+}
+
+static ssize_t side_band_write(struct file *file,
+			       const char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct ddr_bandwidth *aml_db = file->private_data;
+	char *buf;
+	unsigned char dmc, bus, rw, block_num;
+	unsigned char block_bus[32];
+	int ret;
+
+	if (!aml_db->ops->side_band) {
+		pr_err("The driver currently does not support the side band functionality of the chip\n");
+		return -1;
+	}
+
+	buf = memdup_user(user_buf, count);
+	buf[count - 1] = '\0';
+
+	ret = parse_side_band_string(buf, &dmc, &bus, &rw,
+				     block_bus, sizeof(block_bus), &block_num);
+	if (ret < 0) {
+		kfree(buf);
+		return ret;
+	}
+
+	ret = set_side_band(aml_db, dmc, bus, rw, block_bus, block_num);
+	if (ret < 0) {
+		kfree(buf);
+		return ret;
+	}
+
+	kfree(buf);
+	return count;
+}
+
+static ssize_t side_band_read(struct file *file,
+			      char __user *to, size_t count, loff_t *ppos)
+{
+	struct ddr_bandwidth *aml_db = file->private_data;
+	int len = 0, ret;
+	int i, j, k, l;
+	char buf[1800];
+
+	for (i = 0, k = 0;
+	     ((1 << i) & aml_db->async_dmc_num) || (i == 0 && aml_db->async_dmc_num == 0);
+	     i++) {
+		len += sprintf(buf + len, "-------------------dmc[%d]-------------------\n", i);
+		for (j = 0; j < aml_db->dmc_bus[i].num; j++) {
+			if (!aml_db->dmc_bus[i].bus[j].vpu)
+				continue;
+			mutex_lock(&aml_db->dmc_bus[i].bus[j].side_band.lock);
+			if (aml_db->dmc_bus[i].bus[j].side_band.flags) {
+				len += sprintf(buf + len, "[%d] %d:", k, j);
+				if (aml_db->dmc_bus[i].bus[j].side_band.rw & 1)
+					len += sprintf(buf + len, "r");
+				if (aml_db->dmc_bus[i].bus[j].side_band.rw & 2)
+					len += sprintf(buf + len, "w");
+				if (aml_db->dmc_bus[i].bus[j].side_band.rw)
+					len += sprintf(buf + len, ":");
+				for (l = 0;
+				     l < aml_db->dmc_bus[i].bus[j].side_band.block_num - 1;
+				     l++)
+					len += sprintf(buf + len, "%d ",
+						aml_db->dmc_bus[i].bus[j].side_band.block_bus[l]);
+				len += sprintf(buf + len, "%d\n",
+					       aml_db->dmc_bus[i].bus[j].side_band.block_bus[l]);
+				k++;
+			}
+			mutex_unlock(&aml_db->dmc_bus[i].bus[j].side_band.lock);
+		}
+	}
+
+	ret = simple_read_from_buffer(to, count, ppos, buf, len);
+
+	return ret;
+}
+
+static const struct file_operations side_band_fops = {
+	.open = simple_open,
+	.read = side_band_read,
+	.write = side_band_write,
+	.llseek = default_llseek,
+};
+
+int enable_side_band(struct dmc_side_band *sb)
+{
+	return set_side_band(aml_db, sb->dmc, sb->bus, sb->rw, sb->block_bus, sb->block_num);
+}
+EXPORT_SYMBOL(enable_side_band);
+
+int disable_side_band(unsigned char dmc, unsigned char bus)
+{
+	unsigned char block_bus = -1;
+
+	return set_side_band(aml_db, dmc, bus, 0, &block_bus, 1);
+}
+EXPORT_SYMBOL(disable_side_band);
+
+int get_side_band(struct dmc_side_band *sb, unsigned char num)
+{
+	int i, j, k;
+
+	for (i = 0, k = 0;
+	     ((1 << i) & aml_db->async_dmc_num) || (i == 0 && aml_db->async_dmc_num == 0);
+	     i++) {
+		for (j = 0; j < aml_db->dmc_bus[i].num && k < num; j++) {
+			mutex_lock(&aml_db->dmc_bus[i].bus[j].side_band.lock);
+			if (aml_db->dmc_bus[i].bus[j].side_band.flags) {
+				sb->dmc = i;
+				sb->bus = j;
+				sb->rw = aml_db->dmc_bus[i].bus[j].side_band.rw;
+				sb->block_num = aml_db->dmc_bus[i].bus[j].side_band.block_num;
+				memcpy(sb->block_bus,
+				       aml_db->dmc_bus[i].bus[j].side_band.block_bus,
+				       sb->block_num);
+				k++;
+			}
+			mutex_unlock(&aml_db->dmc_bus[i].bus[j].side_band.lock);
+		}
+	}
+	return k;
+}
+EXPORT_SYMBOL(get_side_band);
+
 static void debugfs_init(void)
 {
 	aml_db->debugfs = debugfs_create_dir("aml_ddr", NULL);
-	debugfs_create_file("wbuf_mid_level", 0440, aml_db->debugfs, aml_db, &wbuf_mid_level_fops);
+	debugfs_create_file("wbuf_mid_level", 0660, aml_db->debugfs, aml_db, &wbuf_mid_level_fops);
+	debugfs_create_file("bus_device", 0660, aml_db->debugfs, aml_db, &bus_devices_fops);
+	debugfs_create_file("side_band", 0660, aml_db->debugfs, aml_db, &side_band_fops);
 }
 
 /*
@@ -1931,6 +2627,8 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	r = class_register(&aml_ddr_class);
 	if (r)
 		pr_info("%s, class regist failed\n", __func__);
+
+	dmc_bus_init();
 
 	debugfs_init();
 

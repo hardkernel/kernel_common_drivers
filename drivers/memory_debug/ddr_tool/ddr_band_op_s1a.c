@@ -260,6 +260,44 @@ static int property_access(struct ddr_bandwidth *db, u64 *val,
 	return -1;
 }
 
+#define AM_REGISTER_COUNT		((4 << 2))
+#define SIDE_BAND_REG			((2 << 2))
+#define SIDE_BAND_BLOCK_ENABLE		31
+#define BUS_COUNT			24
+static int side_band(struct ddr_bandwidth *db, unsigned char dmc, unsigned char bus)
+{
+	int i;
+	u64 val;
+	unsigned int reg;
+
+	reg = DMC_AM0_CHAN_CTRL + AM_REGISTER_COUNT * (bus - 16) + SIDE_BAND_REG;
+	if (db->dmc_bus[dmc].bus[bus].side_band.flags) {
+		u64 val0 = 0;
+
+		for (i = 0, val = 0; i < db->dmc_bus[dmc].bus[bus].side_band.block_num; i++)
+			val |= 1 << db->dmc_bus[dmc].bus[bus].side_band.block_bus[i];
+
+		if (db->dmc_bus[dmc].bus[bus].side_band.rw & 1)
+			reg_field_access(db, &val, WRITE, reg, 0, BUS_COUNT);
+		else
+			reg_field_access(db, &val0, WRITE, reg, 0, BUS_COUNT);
+		if (db->dmc_bus[dmc].bus[bus].side_band.rw & 2)
+			reg_field_access(db, &val, WRITE, reg + 4, 0, BUS_COUNT);
+		else
+			reg_field_access(db, &val0, WRITE, reg + 4, 0, BUS_COUNT);
+
+		val = 1;
+		reg_field_access(db, &val, WRITE, reg, SIDE_BAND_BLOCK_ENABLE, 1);
+	} else {
+		val = 0;
+		reg_field_access(db, &val, WRITE, reg, SIDE_BAND_BLOCK_ENABLE, 1);
+		reg_field_access(db, &val, WRITE, reg, 0, BUS_COUNT);
+		reg_field_access(db, &val, WRITE, reg + 4, 0, BUS_COUNT);
+	}
+
+	return 0;
+}
+
 struct ddr_bandwidth_ops s1a_ddr_bw_ops = {
 	.init             = s1a_dmc_bandwidth_init,
 	.config_port      = s1a_dmc_port_config,
@@ -271,4 +309,5 @@ struct ddr_bandwidth_ops s1a_ddr_bw_ops = {
 	.dump_reg         = s1a_dump_reg,
 #endif
 	.property_access  = property_access,
+	.side_band	  = side_band,
 };

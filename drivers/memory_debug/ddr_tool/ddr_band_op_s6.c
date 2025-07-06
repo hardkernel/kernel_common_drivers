@@ -263,6 +263,36 @@ static int property_access(struct ddr_bandwidth *db, u64 *val,
 	return -1;
 }
 
+#undef DMC_AXI0_CHAN_CTRL
+#define DMC_AXI0_CHAN_CTRL		((0x0080  << 2))
+#define AXI_REGISTER_COUNT		((4 << 2))
+#define SIDE_BAND_REG			((2 << 2))
+#define SIDE_BAND_BLOCK_RW_OFFSET	28
+#define SIDE_BAND_BLOCK_OFFSET		8
+#define BUS_COUNT			20
+static int side_band(struct ddr_bandwidth *db, unsigned char dmc, unsigned char bus)
+{
+	int i;
+	u64 val;
+	unsigned int reg;
+
+	reg = DMC_AXI0_CHAN_CTRL + AXI_REGISTER_COUNT * bus + SIDE_BAND_REG;
+	if (db->dmc_bus[dmc].bus[bus].side_band.flags) {
+		for (i = 0, val = 0; i < db->dmc_bus[dmc].bus[bus].side_band.block_num; i++)
+			val |= 1 << db->dmc_bus[dmc].bus[bus].side_band.block_bus[i];
+
+		reg_field_access(db, &val, WRITE, reg, SIDE_BAND_BLOCK_OFFSET, BUS_COUNT);
+		val = db->dmc_bus[dmc].bus[bus].side_band.rw;
+		reg_field_access(db, &val, WRITE, reg, SIDE_BAND_BLOCK_RW_OFFSET, 2);
+	} else {
+		val = 0;
+		reg_field_access(db, &val, WRITE, reg, SIDE_BAND_BLOCK_RW_OFFSET, 2);
+		reg_field_access(db, &val, WRITE, reg, SIDE_BAND_BLOCK_OFFSET, BUS_COUNT);
+	}
+
+	return 0;
+}
+
 struct ddr_bandwidth_ops s6_ddr_bw_ops = {
 	.init             = s6_dmc_bandwidth_init,
 	.config_port      = s6_dmc_port_config,
@@ -273,4 +303,5 @@ struct ddr_bandwidth_ops s6_ddr_bw_ops = {
 	.dump_reg         = s6_dump_reg,
 #endif
 	.property_access  = property_access,
+	.side_band	  = side_band,
 };

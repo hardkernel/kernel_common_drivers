@@ -43,6 +43,18 @@ int set_bus_ots_by_value(int bus, int value);
 int set_bus_ots_by_level(int bus, unsigned int level);
 int get_ots_level(void);
 int set_all_ots_by_level(unsigned int level);
+
+struct dmc_side_band {
+	unsigned char dmc;
+	unsigned char bus;
+	unsigned char rw;
+	unsigned char block_num;
+	unsigned char block_bus[32];
+};
+
+int enable_side_band(struct dmc_side_band *sb);
+int disable_side_band(unsigned char dmc, unsigned char bus);
+int get_side_band(struct dmc_side_band *sb, unsigned char num);
 #else
 static inline int get_bus_num(void)
 {
@@ -70,6 +82,21 @@ int get_ots_level(void)
 }
 
 int set_all_ots_by_level(unsigned int level)
+{
+	return -1;
+}
+
+static inline int enable_side_band(struct dmc_side_band *sb)
+{
+	return -1
+}
+
+static inline int disable_side_band(unsigned char dmc, unsigned char bus)
+{
+	return -1;
+}
+
+static inline int get_side_band(struct dmc_side_band *sb, unsigned char num)
 {
 	return -1;
 }

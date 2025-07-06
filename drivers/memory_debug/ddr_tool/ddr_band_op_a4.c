@@ -64,6 +64,8 @@
 #define DMC_MON7_CTRL2			((0x0036  << 2))
 #define DMC_MON7_BW			((0x0037  << 2))
 
+#define DMC_CMD_FILTER_CTRL3		((0x0042  << 2))
+
 static void a4_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 {
 	unsigned int val;
@@ -227,6 +229,47 @@ static int a4_dump_reg(struct ddr_bandwidth *db, char *buf)
 }
 #endif
 
+static int dmc_buf_level_handle(struct ddr_bandwidth *db, u32 *val,
+				enum property_type type, int rw)
+{
+	switch (type) {
+	case WBUF_EMPTY:
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 31, 1);
+		break;
+	case WBUF_H:
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 26, 5);
+		break;
+	case WBUF_M:
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 21, 5);
+		break;
+	case WBUF_L:
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 16, 5);
+		break;
+	case RBUF_H:
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 10, 5);
+		break;
+	case RBUF_M:
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 5, 5);
+		break;
+	case RBUF_L:
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 0, 5);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int property_access(struct ddr_bandwidth *db, u64 *val,
+			   enum property_type type, int rw)
+{
+	if (type >= WBUF_EMPTY && type <= RBUF_L)
+		return dmc_buf_level_handle(db, (u32 *)val, type, rw);
+
+	return -1;
+}
+
 struct ddr_bandwidth_ops a4_ddr_bw_ops = {
 	.init             = a4_dmc_bandwidth_init,
 	.config_port      = a4_dmc_port_config,
@@ -237,4 +280,5 @@ struct ddr_bandwidth_ops a4_ddr_bw_ops = {
 #if DDR_BANDWIDTH_DEBUG
 	.dump_reg         = a4_dump_reg,
 #endif
+	.property_access  = property_access,
 };
