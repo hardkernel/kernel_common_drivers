@@ -7211,6 +7211,7 @@ static void set_wrmif_t6d(struct DI_SIM_MIF_S *mif,
 	unsigned int field_mode;
 	unsigned int separate; //420 or 422@2plane
 	unsigned int uv_swap;
+	unsigned int tmp_uv;
 	unsigned int y_swap;
 	unsigned int fmt_t;
 	unsigned int bubble;
@@ -7349,8 +7350,17 @@ static void set_wrmif_t6d(struct DI_SIM_MIF_S *mif,
 	field_mode = (ldrop == 1) ? 2 : (ldrop == 2 ? 3 : 0);
 
 	separate = fmt == 2 || (fmt == 1 && vmode > 2); //420 or 422@2plane
-	//uv_swap is only care rev_x
-	uv_swap =  ((fmt == 2) && (rev_x ^  (!(endian == 1)))) ? 1 : 0;
+	tmp_uv = rev_x ^ (endian ? 0 : 1);
+	if (fmt == 2) {
+		if (mif->cbcr_swap) /* NV12 */
+			uv_swap = tmp_uv ? 0 : 1;
+		else
+			uv_swap = tmp_uv ? 1 : 0;
+	} else if (fmt == 1) {
+		uv_swap = tmp_uv ? 0 : 1;
+	} else {
+		uv_swap = 0;
+	}
 	y_swap = ((fmt == 2) && (bits == 1) && (endian == 1)) ? 1 : 0;
 	fmt_t = (fmt == 3) ? 1 : fmt;
 	bubble = (fmt == 1) ? 1 : 0;
@@ -7427,6 +7437,7 @@ static void set_wrmif_pp_t6d(struct DI_MIF_S *mif,
 	unsigned int field_mode;
 	unsigned int separate; //420 or 422@2plane
 	unsigned int uv_swap;
+	unsigned int tmp_uv;
 	unsigned int y_swap;
 	unsigned int fmt_t;
 	unsigned int bubble;
@@ -7562,8 +7573,17 @@ static void set_wrmif_pp_t6d(struct DI_MIF_S *mif,
 	field_mode = (ldrop == 1) ? 2 : (ldrop == 2 ? 3 : 0);
 
 	separate = fmt == 2 || (fmt == 1 && vmode > 2); //420 or 422@2plane
-	//uv_swap is only care rev_x
-	uv_swap =  ((fmt == 2) && (rev_x ^  (!(endian == 1)))) ? 1 : 0;
+	tmp_uv = rev_x ^ (endian ? 0 : 1);
+	if (fmt == 2) {
+		if (mif->cbcr_swap) /* NV12 */
+			uv_swap = tmp_uv ? 0 : 1;
+		else
+			uv_swap = tmp_uv ? 1 : 0;
+	} else if (fmt == 1) {
+		uv_swap = tmp_uv ? 0 : 1;
+	} else {
+		uv_swap = 0;
+	}
 	y_swap = ((fmt == 2) && (bits == 1) && (endian == 1)) ? 1 : 0;
 	fmt_t = (fmt == 3) ? 1 : fmt;
 	bubble = (fmt == 1) ? 1 : 0;
