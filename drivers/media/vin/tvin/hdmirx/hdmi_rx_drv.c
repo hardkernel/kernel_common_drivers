@@ -4758,7 +4758,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	}
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
-		rx_sprintf(&boot_info_num, "warning: no rev cmd mem\n");
+		rx_sprintf(&boot_info_num, " no rev mem\n");
 	rx_is_hdcp22_support();
 	hdmirx_wr_bits_top_common(TOP_EDID_RAM_OVR0_DATA, _BIT(0), 0);
 	if (rx_5v_wake_up_en)
