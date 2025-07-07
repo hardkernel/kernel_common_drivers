@@ -744,7 +744,7 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 		vsr_safa->dejaggy_en = false;
 	}
 
-	if (hsize_out <= 45 || hsize_in <= 35)
+	if (hsize_out <= 66 || hsize_in <= 35)
 		vsr_top->sharpness_en = false;
 	else
 		vsr_top->sharpness_en = true;
