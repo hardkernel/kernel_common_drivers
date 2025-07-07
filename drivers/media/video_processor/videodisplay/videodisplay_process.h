@@ -120,8 +120,10 @@ enum videodisplay_debug_class_type {
 	VD_DEBUG_CLASS_MAX
 };
 
-extern u32 vd_vsync_pts_inc_scale[MAX_VD_LAYERS];
-extern u32 vd_vsync_pts_inc_scale_base[MAX_VD_LAYERS];
+extern struct timespec64 isr_spec_time;
+extern u32 next_vsync_wakeup_vpp_to_get;
+extern u32 allow_vpp_to_get;
+extern u64 next_isr_spec_time;
 
 #ifndef MAX
 #define MAX(a, b) ({ \

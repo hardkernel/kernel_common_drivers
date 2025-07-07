@@ -5458,10 +5458,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	if (get_lowlatency_mode() || get_low_latency_version() == 2)
 		put_buffer_proc();
 	lowlatency_vsync_count++;
-	ktime_get_ts64(&isr_spec_time);
 
 	if (get_low_latency_version() == 2) {
-		vpp_vsync_in();
 		if (overrun_flag) {
 			overrun_flag = false;
 			vsync_proc_drop++;
@@ -5469,6 +5467,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 			vsync_cnt[VPP0]++;
 		}
 		atomic_set(&video_llm_wake, 1);
+		ktime_get_ts64(&isr_spec_time);
+		vpp_vsync_in();
 		return IRQ_HANDLED;
 	}
 

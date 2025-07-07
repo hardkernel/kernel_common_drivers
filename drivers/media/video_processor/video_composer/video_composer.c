@@ -141,6 +141,8 @@ u64 vd_test_vsync_val[MAX_VD_LAYERS] = {1, 1, 1};
 u32 dewarp_load_flag; /*0 dynamic load, 1 load bin file*/
 u32 new_afr_pulldown;
 u32 next_vsync_wakeup_vpp_to_get;
+u32 allow_vpp_to_get;
+u64 next_isr_spec_time;
 
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
@@ -4174,6 +4176,68 @@ static int is_pulldown_1_1(struct composer_dev *dev, int duration)
 	return ret;
 }
 
+static void calculate_low_latency_case(struct composer_dev *dev, struct vframe_s *vf)
+{
+	bool enable_prelink = false;
+	int vsync_pts = 0;
+	u64 elapsed_ns = 0;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+	enable_prelink = dim_get_pre_link();
+#endif
+
+	if (vd_vsync_pts_inc_scale[dev->index])
+		vsync_pts = vd_vsync_pts_inc_scale_base[dev->index] /
+			vd_vsync_pts_inc_scale[dev->index];
+
+	if (dev->is_tv_path) {
+		if (get_vframe_src_fmt(vf) == VFRAME_SIGNAL_FMT_DOVI && vsync_pts >= 100) {
+			dev->low_latency_case = 2;
+			vc_print(dev->index, PRINT_OTHER,
+				"case2:need next vsync to get, dv tv path case.\n");
+		} else if (is_pulldown_1_1(dev, vf->duration)) {
+			vpp_lowlatency_wakeup();
+			dev->low_latency_case = 1;
+			vc_print(dev->index, PRINT_OTHER,
+				"case1:tv path 1:1 mode use low latency2 mode.\n");
+		} else if ((vf->flag & VFRAME_FLAG_GAME_MODE)) {
+			dev->low_latency_case = 2;
+			vc_print(dev->index, PRINT_OTHER,
+				"case2:need next vsync to get, game mode case.\n");
+		} else {
+			dev->low_latency_case = 0;
+			vc_print(dev->index, PRINT_OTHER,
+				"case3:tv path normal to get.\n");
+		}
+	} else {
+		if (get_vframe_src_fmt(vf) == VFRAME_SIGNAL_FMT_DOVI && vsync_pts >= 100) {
+			dev->low_latency_case = 2;
+			vc_print(dev->index, PRINT_OTHER,
+				"case2:need next vsync to get,dv local play case.\n");
+		} else if ((enable_prelink &&
+			!(vf->type_original & VIDTYPE_TYPEMASK)) ||
+			(!is_panel_output() && !(vf->type_original & VIDTYPE_TYPEMASK) &&
+			get_cpu_type() != MESON_CPU_MAJOR_ID_S5)) {
+			vpp_lowlatency_wakeup();
+			dev->low_latency_case = 1;
+			vc_print(dev->index, PRINT_OTHER,
+				"case1:P and prelink vc use low latency2 mode.\n");
+		}
+	}
+
+	if (dev->low_latency_case == 2)
+		next_vsync_wakeup_vpp_to_get = 1;
+	if (vd_vsync_pts_inc_scale_base[dev->index])
+		elapsed_ns = div_u64(1000000000LL *
+			vd_vsync_pts_inc_scale[dev->index],
+			vd_vsync_pts_inc_scale_base[dev->index]);
+	next_isr_spec_time = isr_spec_time.tv_sec * 1000000000LL +
+		isr_spec_time.tv_nsec + elapsed_ns;
+	vc_print(dev->index, PRINT_OTHER,
+		"elapsed_ns=%llu, next_isr_spec_time=%llu\n",
+		elapsed_ns, next_isr_spec_time);
+}
+
 static void video_composer_task(struct composer_dev *dev)
 {
 	struct vframe_s *vf = NULL;
@@ -4537,30 +4601,7 @@ static void video_composer_task(struct composer_dev *dev)
 				vc_print(dev->index, PRINT_ERROR,
 					 "by_pass ready_q is full\n");
 			if (is_video_process_in_thread()) {
-				if (dev->is_tv_path) {
-					if (is_pulldown_1_1(dev, vf->duration)) {
-						vpp_lowlatency_wakeup();
-						dev->low_latency_case = 1;
-						vc_print(dev->index, PRINT_OTHER,
-							"case1:tv path 1:1 mode use low latency2 mode.\n");
-					} else if ((vf->flag & VFRAME_FLAG_GAME_MODE)) {
-						dev->low_latency_case = 2;
-						vc_print(dev->index, PRINT_OTHER,
-							"case:need next vsync to get.\n");
-					} else {
-						dev->low_latency_case = 0;
-						vc_print(dev->index, PRINT_OTHER,
-							"case:tv path normal to get.\n");
-					}
-				} else {
-					if (enable_prelink &&
-						!(vf->type_original & VIDTYPE_TYPEMASK)) {
-						vpp_lowlatency_wakeup();
-						dev->low_latency_case = 1;
-						vc_print(dev->index, PRINT_OTHER,
-							"case1:P and prelink vc use low latency2 mode.\n");
-					}
-				}
+				calculate_low_latency_case(dev, vf);
 			} else {
 				dev->low_latency_case = 0;
 				vc_print(dev->index, PRINT_OTHER,
@@ -4621,7 +4662,9 @@ void vpp_vsync_in(void)
 	vc_print(0, PRINT_OTHER, "enter %s, %d\n",
 		__func__, next_vsync_wakeup_vpp_to_get);
 	if (is_video_process_in_thread() && next_vsync_wakeup_vpp_to_get) {
-		vc_print(0, PRINT_OTHER, "vc start wake vpp to get\n");
+		allow_vpp_to_get = 1;
+		vc_print(0, PRINT_OTHER,
+			"vc start wake vpp to get,allow_vpp_to_get=%d\n", allow_vpp_to_get);
 		vpp_lowlatency_wakeup();
 		next_vsync_wakeup_vpp_to_get = 0;
 	}

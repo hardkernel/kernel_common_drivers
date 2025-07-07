@@ -39,7 +39,9 @@ extern u64 vd_test_fps_val[MAX_VD_LAYERS];
 extern u64 vd_test_vsync_val[MAX_VD_LAYERS];
 extern struct video_composer_port_s ports[];
 extern u32 next_vsync_wakeup_vpp_to_get;
+extern u32 allow_vpp_to_get;
 extern struct timespec64 isr_spec_time;
+extern u64 next_isr_spec_time;
 #ifdef CONFIG_AMLOGIC_MEDIA_PROXY
 extern struct mediaproxy_info_t mediaproxy_display_info[];
 #endif

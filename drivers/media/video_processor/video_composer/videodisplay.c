@@ -680,9 +680,7 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	int input_fps, output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
 	int aisr_delay_vsync;
 	int total_delay_vsync;
-	u64 elapsed_ns = 0;
 	struct timespec64 cur_spec_time;
-	u64 next_isr_spec_time = 0;
 
 	time1 = dev->start_time;
 	time2 = vsync_time[dev->index];
@@ -692,20 +690,13 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 			return vf;
 
 		if (is_video_process_in_thread() && dev->low_latency_case == 2) {
-			if (vd_vsync_pts_inc_scale_base[dev->index])
-				elapsed_ns =
-					div_u64(1000000000LL * vd_vsync_pts_inc_scale[dev->index],
-					vd_vsync_pts_inc_scale_base[dev->index]);
-			next_isr_spec_time = isr_spec_time.tv_sec * 1000000000LL +
-				isr_spec_time.tv_nsec + next_isr_spec_time;
 			ktime_get_ts64(&cur_spec_time);
 			vc_print(dev->index, PRINT_OTHER,
-				"elapsed_ns=%llu, cur_spec_time=%llu, next_isr_spec_time=%llu\n",
-				elapsed_ns, cur_spec_time.tv_sec * 1000000000LL +
-				cur_spec_time.tv_nsec, next_isr_spec_time);
-			if (cur_spec_time.tv_sec * 1000000000LL +
-				cur_spec_time.tv_nsec < next_isr_spec_time) {
-				next_vsync_wakeup_vpp_to_get = 1;
+				"cur_spec_time=%llu, next_isr_spec_time=%llu, allow_vpp_to_get=%d\n",
+				cur_spec_time.tv_sec * 1000000000LL + cur_spec_time.tv_nsec,
+				next_isr_spec_time, allow_vpp_to_get);
+			if ((cur_spec_time.tv_sec * 1000000000LL +
+				cur_spec_time.tv_nsec < next_isr_spec_time) && !allow_vpp_to_get) {
 				vc_print(dev->index, PRINT_OTHER, "vpp to get, not allow to get\n");
 				return NULL;
 			}
@@ -986,6 +977,8 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			div_u64(vf->timestamp, 1000000000));
 		ATRACE_COUNTER("video_composer_get_vf_timestamp", 0);
 #endif
+		if (allow_vpp_to_get)
+			allow_vpp_to_get = 0;
 		return vf;
 	} else {
 		return NULL;

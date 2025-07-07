@@ -140,10 +140,6 @@ static int vsync_count[MAX_VIDEODISPLAY_INSTANCE_NUM];
 static struct videodisplay_dev *mdev[MAX_VIDEODISPLAY_INSTANCE_NUM];
 static DEFINE_MUTEX(videodisplay_mutex);
 
-#ifndef CONFIG_AMLOGIC_VIDEO_COMPOSER
-u32 next_vsync_wakeup_vpp_to_get;
-#endif
-
 #define to_dst_buf(vf)	container_of(vf, struct dst_buf_t, frame)
 #define IS_DI_PRELINK_BYPASS(di_flag) ((di_flag) & DI_FLAG_DI_PVPPLINK_BYPASS)
 
@@ -2792,7 +2788,9 @@ void vpp_vsync_in(void)
 	vd_print(0, PRINT_OTHER, "enter %s, %d\n",
 		__func__, next_vsync_wakeup_vpp_to_get);
 	if (is_video_process_in_thread() && next_vsync_wakeup_vpp_to_get) {
-		vd_print(0, PRINT_OTHER, "vc start wake vpp to get\n");
+		allow_vpp_to_get = 1;
+		vd_print(0, PRINT_OTHER,
+			"vc start wake vpp to get,allow_vpp_to_get=%d\n", allow_vpp_to_get);
 		vpp_lowlatency_wakeup();
 		next_vsync_wakeup_vpp_to_get = 0;
 	}
@@ -2804,9 +2802,9 @@ static int is_pulldown_1_1(struct videodisplay_dev *dev, int duration)
 	int ret = 0;
 	int vsync_pts = 0;
 
-	if (vd_vsync_pts_inc_scale[dev->index])
-		vsync_pts = vd_vsync_pts_inc_scale_base[dev->index] /
-			vd_vsync_pts_inc_scale[dev->index];
+	if (vsync_pts_inc_scale[dev->index])
+		vsync_pts = vsync_pts_inc_scale_base[dev->index] /
+			vsync_pts_inc_scale[dev->index];
 
 	vd_print(dev->index, PRINT_OTHER, "vsync_pts=%d, duration=%d.\n",
 		vsync_pts, duration);
@@ -2835,6 +2833,67 @@ static int is_pulldown_1_1(struct videodisplay_dev *dev, int duration)
 		break;
 	}
 	return ret;
+}
+
+static void calculate_low_latency_case(struct videodisplay_dev *dev, struct vframe_s *vf)
+{
+	bool enable_prelink = false;
+	int vsync_pts = 0;
+	u64 elapsed_ns = 0;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+	enable_prelink = dim_get_pre_link();
+#endif
+
+	if (vsync_pts_inc_scale[dev->index])
+		vsync_pts = vsync_pts_inc_scale_base[dev->index] /
+			vsync_pts_inc_scale[dev->index];
+
+	if (dev->is_tv_path) {
+		if (get_vframe_src_fmt(vf) == VFRAME_SIGNAL_FMT_DOVI && vsync_pts >= 100) {
+			dev->low_latency_case = 2;
+			vd_print(dev->index, PRINT_OTHER,
+				"case2:need next vsync to get.\n");
+		} else if (is_pulldown_1_1(dev, vf->duration)) {
+			vpp_lowlatency_wakeup();
+			dev->low_latency_case = 1;
+			vd_print(dev->index, PRINT_OTHER,
+				"case1:tv path 1:1 mode use low latency2 mode.\n");
+		} else if ((vf->flag & VFRAME_FLAG_GAME_MODE)) {
+			dev->low_latency_case = 2;
+			vd_print(dev->index, PRINT_OTHER,
+				"case2:need next vsync to get.\n");
+		} else {
+			dev->low_latency_case = 0;
+			vd_print(dev->index, PRINT_OTHER,
+				"case3:tv path normal to get.\n");
+		}
+	} else {
+		if (get_vframe_src_fmt(vf) == VFRAME_SIGNAL_FMT_DOVI && vsync_pts >= 100) {
+			dev->low_latency_case = 2;
+			vd_print(dev->index, PRINT_OTHER,
+				"case2:need next vsync to get.\n");
+		} else if ((enable_prelink &&
+			!(vf->type_original & VIDTYPE_TYPEMASK)) ||
+			(!is_panel_output() && !(vf->type_original & VIDTYPE_TYPEMASK) &&
+			get_cpu_type() != MESON_CPU_MAJOR_ID_S5)) {
+			vpp_lowlatency_wakeup();
+			dev->low_latency_case = 1;
+			vd_print(dev->index, PRINT_OTHER,
+				"case1:P and prelink vc use low latency2 mode.\n");
+		}
+	}
+	if (dev->low_latency_case == 2)
+		next_vsync_wakeup_vpp_to_get = 1;
+	if (vsync_pts_inc_scale_base[dev->index])
+		elapsed_ns = div_u64(1000000000LL *
+			vsync_pts_inc_scale[dev->index],
+			vsync_pts_inc_scale_base[dev->index]);
+	next_isr_spec_time = isr_spec_time.tv_sec * 1000000000LL +
+		isr_spec_time.tv_nsec + elapsed_ns;
+	vd_print(dev->index, PRINT_OTHER,
+		"elapsed_ns=%llu, next_isr_spec_time=%llu\n",
+		elapsed_ns, next_isr_spec_time);
 }
 
 static void vframe_display(struct videodisplay_dev *dev,
@@ -3046,30 +3105,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 		return;
 	}
 	if (is_video_process_in_thread()) {
-		if (dev->is_tv_path) {
-			if (is_pulldown_1_1(dev, vf->duration)) {
-				vpp_lowlatency_wakeup();
-				dev->low_latency_case = 1;
-				vd_print(dev->index, PRINT_OTHER,
-					"case1:tv path 1:1 mode use low latency2 mode.\n");
-			} else if ((vf->flag & VFRAME_FLAG_GAME_MODE)) {
-				dev->low_latency_case = 2;
-				vd_print(dev->index, PRINT_OTHER,
-					"case:need next vsync to get.\n");
-			} else {
-				dev->low_latency_case = 0;
-				vd_print(dev->index, PRINT_OTHER,
-					"case:tv path normal to get.\n");
-			}
-		} else {
-			if (enable_prelink &&
-				!(vf->type_original & VIDTYPE_TYPEMASK)) {
-				vpp_lowlatency_wakeup();
-				dev->low_latency_case = 1;
-				vd_print(dev->index, PRINT_OTHER,
-					"case1:P and prelink vc use low latency2 mode.\n");
-			}
-		}
+		calculate_low_latency_case(dev, vf);
 	} else {
 		dev->low_latency_case = 0;
 		vd_print(dev->index, PRINT_OTHER,
@@ -3273,11 +3309,25 @@ static struct vframe_s *vd_vf_peek(void *op_arg)
 	int input_fps, output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
 	int aisr_delay_vsync;
 	int total_delay_vsync;
+	struct timespec64 cur_spec_time;
 
 	time1 = dev->start_time;
 	time2 = vsync_time[dev->index];
 
 	if (kfifo_peek(&dev->ready_q, &vf)) {
+		if (is_video_process_in_thread() && dev->low_latency_case == 2) {
+			ktime_get_ts64(&cur_spec_time);
+			vd_print(dev->index, PRINT_OTHER,
+				"cur_spec_time=%llu, next_isr_spec_time=%llu, allow_vpp_to_get=%d\n",
+				cur_spec_time.tv_sec * 1000000000LL + cur_spec_time.tv_nsec,
+				next_isr_spec_time, allow_vpp_to_get);
+			if ((cur_spec_time.tv_sec * 1000000000LL +
+				cur_spec_time.tv_nsec < next_isr_spec_time) && !allow_vpp_to_get) {
+				vd_print(dev->index, PRINT_OTHER, "vpp to get, not allow to get\n");
+				return NULL;
+			}
+		}
+
 		if (dev->index == 0 && is_meson_t3x_cpu() && check_frc_n2m_status())
 			aisr_delay_vsync = 1;
 		else
@@ -3698,6 +3748,8 @@ static struct vframe_s *vd_vf_get(void *op_arg)
 			div_u64(vf->timestamp, 1000000000));
 		ATRACE_COUNTER("video_composer_get_vf_timestamp", 0);
 #endif
+		if (allow_vpp_to_get)
+			allow_vpp_to_get = 0;
 		return vf;
 	} else {
 		return NULL;
