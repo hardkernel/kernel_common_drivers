@@ -191,30 +191,30 @@ static int g12_dump_reg(struct ddr_bandwidth *db, char *buf)
 }
 #endif
 
-static int dmc_buf_level_handle(struct ddr_bandwidth *db, u64 *val,
+static int dmc_buf_level_handle(struct ddr_bandwidth *db, u32 *val,
 				enum property_type type, int rw)
 {
 	switch (type) {
 	case WBUF_EMPTY:
-		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 31, 1);
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 31, 1);
 		break;
 	case WBUF_H:
-		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 26, 5);
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 26, 5);
 		break;
 	case WBUF_M:
-		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 21, 5);
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 21, 5);
 		break;
 	case WBUF_L:
-		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 16, 5);
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 16, 5);
 		break;
 	case RBUF_H:
-		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 10, 5);
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 10, 5);
 		break;
 	case RBUF_M:
-		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 5, 5);
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 5, 5);
 		break;
 	case RBUF_L:
-		reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 0, 5);
+		all_dmc_reg_field_access(db, val, rw, DMC_CMD_FILTER_CTRL3, 0, 5);
 		break;
 	default:
 		break;
@@ -227,7 +227,7 @@ static int property_access(struct ddr_bandwidth *db, u64 *val,
 			   enum property_type type, int rw)
 {
 	if (type >= WBUF_EMPTY && type <= RBUF_L)
-		return dmc_buf_level_handle(db, val, type, rw);
+		return dmc_buf_level_handle(db, (u32 *)val, type, rw);
 
 	return -1;
 }
@@ -239,7 +239,7 @@ static int property_access(struct ddr_bandwidth *db, u64 *val,
 static int side_band(struct ddr_bandwidth *db, unsigned char dmc, unsigned char bus)
 {
 	int i;
-	u64 val;
+	u32 val;
 	unsigned int reg;
 
 	if (db->cpu_type == DMC_TYPE_SC2)
@@ -248,27 +248,27 @@ static int side_band(struct ddr_bandwidth *db, unsigned char dmc, unsigned char 
 		reg = DMC_AM0_CHAN_CTRL + AM_REGISTER_COUNT * (bus - 16) + SIDE_BAND_REG;
 
 	if (db->dmc_bus[dmc].bus[bus].side_band.flags) {
-		u64 val0 = 0;
+		u32 val0 = 0;
 
 		for (i = 0, val = 0; i < db->dmc_bus[dmc].bus[bus].side_band.block_num; i++)
 			val |= 1 << db->dmc_bus[dmc].bus[bus].side_band.block_bus[i];
 
 		if (db->dmc_bus[dmc].bus[bus].side_band.rw & 1)
-			reg_field_access(db, &val, WRITE, reg, 0, BUS_COUNT);
+			all_dmc_reg_field_access(db, &val, WRITE, reg, 0, BUS_COUNT);
 		else
-			reg_field_access(db, &val0, WRITE, reg, 0, BUS_COUNT);
+			all_dmc_reg_field_access(db, &val0, WRITE, reg, 0, BUS_COUNT);
 		if (db->dmc_bus[dmc].bus[bus].side_band.rw & 2)
-			reg_field_access(db, &val, WRITE, reg + 4, 0, BUS_COUNT);
+			all_dmc_reg_field_access(db, &val, WRITE, reg + 4, 0, BUS_COUNT);
 		else
-			reg_field_access(db, &val0, WRITE, reg + 4, 0, BUS_COUNT);
+			all_dmc_reg_field_access(db, &val0, WRITE, reg + 4, 0, BUS_COUNT);
 
 		val = 1;
-		reg_field_access(db, &val, WRITE, reg, SIDE_BAND_BLOCK_ENABLE, 1);
+		all_dmc_reg_field_access(db, &val, WRITE, reg, SIDE_BAND_BLOCK_ENABLE, 1);
 	} else {
 		val = 0;
-		reg_field_access(db, &val, WRITE, reg, SIDE_BAND_BLOCK_ENABLE, 1);
-		reg_field_access(db, &val, WRITE, reg, 0, BUS_COUNT);
-		reg_field_access(db, &val, WRITE, reg + 4, 0, BUS_COUNT);
+		all_dmc_reg_field_access(db, &val, WRITE, reg, SIDE_BAND_BLOCK_ENABLE, 1);
+		all_dmc_reg_field_access(db, &val, WRITE, reg, 0, BUS_COUNT);
+		all_dmc_reg_field_access(db, &val, WRITE, reg + 4, 0, BUS_COUNT);
 	}
 
 	return 0;

@@ -342,10 +342,10 @@ extern struct ddr_bandwidth_ops t6d_ddr_bw_ops;
 
 unsigned int aml_get_ddr_usage(void);
 
-int one_dmc_reg_field_access(struct ddr_bandwidth *db, unsigned char dmc, u64 *val, int type,
+int one_dmc_reg_field_access(struct ddr_bandwidth *db, unsigned char dmc, u32 *val, int rw,
 			     unsigned int reg, unsigned int offset, unsigned int bits_width);
-int reg_field_access(struct ddr_bandwidth *db, u64 *val, int type,
-		     unsigned int reg, unsigned int offset, unsigned int bits_width);
+int all_dmc_reg_field_access(struct ddr_bandwidth *db, u32 *val, int rw,
+			     unsigned int reg, unsigned int offset, unsigned int bits_width);
 
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH
 int __init ddr_bandwidth_init(void);

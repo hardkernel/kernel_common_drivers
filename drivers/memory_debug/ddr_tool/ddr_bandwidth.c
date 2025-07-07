@@ -1711,15 +1711,41 @@ static void get_ddr_external_bus_width(struct ddr_bandwidth *db,
 	pr_info("bytes_per_cycle:%d, reg:%lx\n", db->bytes_per_cycle, reg);
 }
 
-int one_dmc_reg_field_access(struct ddr_bandwidth *db, unsigned char dmc, u64 *val, int rw,
-			     unsigned int reg, unsigned int offset, unsigned int bits_width)
+static int reg_field_access(unsigned char dmc, void *io, u32 *val, int rw,
+			    unsigned int reg, unsigned int offset, unsigned int bits_width)
 {
-	void *io;
 	u32 reg_value;
 	u32 mask1, mask2;
 
 	mask1 = (1 << bits_width) - 1;
 	mask2 = mask1 << offset;
+	if (rw == WRITE) {
+		if (*val & ~mask1) {
+			pr_err("%s: out of range. Max=0x%x, Attempted=0x%x\n",
+			       __func__, mask1, *val);
+			return -1;
+		}
+		reg_value = readl(io + reg);
+		reg_value &= ~mask2;
+		reg_value |= ((*val & mask1) << offset);
+		writel(reg_value, io + reg);
+	} else {
+		reg_value = readl(io + reg);
+		reg_value &= mask2;
+		reg_value = reg_value >> offset;
+		*val = reg_value;
+		pr_debug("DMC%d reg[0x%04x << 2][%d...%d] = 0x%x\n",
+			 dmc, reg >> 2, offset, offset + bits_width - 1, reg_value);
+	}
+
+	return 0;
+}
+
+int one_dmc_reg_field_access(struct ddr_bandwidth *db, unsigned char dmc, u32 *val, int rw,
+			     unsigned int reg, unsigned int offset, unsigned int bits_width)
+{
+	void *io;
+
 	switch (dmc) {
 	case 0:
 		io = db->ddr_reg1;
@@ -1734,41 +1760,19 @@ int one_dmc_reg_field_access(struct ddr_bandwidth *db, unsigned char dmc, u64 *v
 		io = db->ddr_reg4;
 		break;
 	default:
-		break;
+		return -1;
 	}
 
-	if (rw == WRITE) {
-		if (*val & ~mask1) {
-			pr_err("%s: out of range. Max=%d, Attempted=%lld\n",
-			       __func__, mask1, *val);
-			return -1;
-		}
-		reg_value = readl(io + reg);
-		reg_value &= ~mask2;
-		reg_value |= (((u32)*val & mask1) << offset);
-		writel(reg_value, io + reg);
-	} else {
-		reg_value = readl(io + reg);
-		reg_value &= mask2;
-		reg_value = reg_value >> offset;
-		*val = reg_value;
-		pr_debug("DMC%d reg[0x%04x << 2][%d...%d] = 0x%x\n",
-			 dmc, reg >> 2, offset, offset + bits_width - 1, reg_value);
-	}
-
-	return 0;
+	return reg_field_access(dmc, io, val, rw, reg, offset, bits_width);
 }
 
-int reg_field_access(struct ddr_bandwidth *db, u64 *val, int rw,
+int all_dmc_reg_field_access(struct ddr_bandwidth *db, u32 *val, int rw,
 		     unsigned int reg, unsigned int offset, unsigned int bits_width)
 {
-	unsigned int i;
+	unsigned char i;
 	void *io;
-	u32 reg_value;
-	u32 mask1, mask2;
+	int ret;
 
-	mask1 = (1 << bits_width) - 1;
-	mask2 = mask1 << offset;
 	for (i = 0; i < db->dmc_number; i++) {
 		switch (i) {
 		case 0:
@@ -1784,27 +1788,12 @@ int reg_field_access(struct ddr_bandwidth *db, u64 *val, int rw,
 			io = db->ddr_reg4;
 			break;
 		default:
-			break;
+			return -1;
 		}
 
-		if (rw == WRITE) {
-			if (*val & ~mask1) {
-				pr_err("%s: out of range. Max=%d, Attempted=%lld\n",
-				       __func__, mask1, *val);
-				return -1;
-			}
-			reg_value = readl(io + reg);
-			reg_value &= ~mask2;
-			reg_value |= (((u32)*val & mask1) << offset);
-			writel(reg_value, io + reg);
-		} else {
-			reg_value = readl(io + reg);
-			reg_value &= mask2;
-			reg_value = reg_value >> offset;
-			*val = reg_value;
-			pr_debug("DMC%d reg[0x%04x << 2][%d...%d] = 0x%x\n",
-				 i, reg >> 2, offset, offset + bits_width - 1, reg_value);
-		}
+		ret = reg_field_access(i, io, val, rw, reg, offset, bits_width);
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;
@@ -1823,6 +1812,7 @@ static int property_access(u64 *val, enum property_type type, int rw)
 
 static int wbuf_mid_level_get(void *data, u64 *val)
 {
+	*val = 0;
 	property_access(val, WBUF_M, READ);
 
 	return 0;
