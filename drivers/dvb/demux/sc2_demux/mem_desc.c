@@ -371,18 +371,8 @@ static int dmc_range_init(struct dmc_range *range, int sec_level)
 	unsigned long buf_start_virt = 0;
 	u32 ret = -1;
 	u32 len = range->size;
-	struct tee_sectbl_info tbl_info = { 0 };
 
-	ret = tee_sectbl_get_info(&tbl_info);
-	if (ret) {
-		pr_dbg("tee_sectbl_get_info not support sectbl\n");
-	} else {
-		if (tbl_info.tbl0_en == 1 || tbl_info.tbl1_en == 1)
-			flags = CODEC_MM_FLAGS_TVP;
-		pr_dbg("%s flags:%d\n", __func__, flags);
-	}
-
-	flags |= CODEC_MM_FLAGS_DMA_CPU | CODEC_MM_FLAGS_FOR_VDECODER;
+	flags = CODEC_MM_FLAGS_DMA_CPU | CODEC_MM_FLAGS_FOR_VDECODER;
 
 	buf_page_num = PAGE_ALIGN(len) / PAGE_SIZE;
 
@@ -402,11 +392,8 @@ static int dmc_range_init(struct dmc_range *range, int sec_level)
 	}
 	pr_dbg_mem("dmc mem init phy:0x%lx, virt:0x%lx, len:%d\n",
 		buf_start, buf_start_virt, len);
-	if ((flags & CODEC_MM_FLAGS_TVP) == 0) {
-		pr_dbg("%s codec_mm_dma_flush\n", __func__);
-		memset((char *)buf_start_virt, 0, len);
-		codec_mm_dma_flush((void *)buf_start_virt, len, DMA_TO_DEVICE);
-	}
+	memset((char *)buf_start_virt, 0, len);
+	codec_mm_dma_flush((void *)buf_start_virt, len, DMA_TO_DEVICE);
 	range->level = sec_level;
 	if (sec_level) {
 		sec_level = sec_level == 1 ? 0 : sec_level;
