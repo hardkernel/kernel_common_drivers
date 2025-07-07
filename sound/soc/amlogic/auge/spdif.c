@@ -95,6 +95,7 @@ struct aml_spdif {
 
 	/* mixer control vals */
 	bool mute;
+	bool pinmux_mute;
 	int spdif_soft_mute;
 	enum SPDIF_SRC spdifin_src;
 	int clk_tuning_enable;
@@ -735,12 +736,52 @@ static void mute_work_func(struct work_struct *p_work)
 		aml_spdif_out_mute(p_spdif->actrl, p_spdif->id, p_spdif->mute);
 }
 
+static void aml_spdif_pinmux_mute(struct aml_spdif *p_spdif, bool pinmux_mute)
+{
+	struct pinctrl_state *state = NULL;
+
+	if (pinmux_mute) {
+		state = pinctrl_lookup_state(p_spdif->pin_ctl, "spdif_pins_mute");
+		if (!IS_ERR_OR_NULL(state))
+			pinctrl_select_state(p_spdif->pin_ctl, state);
+	} else {
+		state = pinctrl_lookup_state(p_spdif->pin_ctl, "spdif_pins");
+		if (!IS_ERR_OR_NULL(state))
+			pinctrl_select_state(p_spdif->pin_ctl, state);
+	}
+	p_spdif->pinmux_mute = pinmux_mute;
+}
+
+static int aml_audio_get_spdif_pinmux_mute(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct aml_spdif *p_spdif = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = p_spdif->pinmux_mute;
+	return 0;
+}
+
+static int aml_audio_set_spdif_pinmux_mute(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct aml_spdif *p_spdif = snd_soc_component_get_drvdata(component);
+	bool pinmux_mute = !!ucontrol->value.integer.value[0];
+
+	if (IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
+		pr_err("%s(), no pinctrl", __func__);
+		return 0;
+	}
+	aml_spdif_pinmux_mute(p_spdif, pinmux_mute);
+	return 0;
+}
+
 static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct aml_spdif *p_spdif = snd_soc_component_get_drvdata(component);
-	struct pinctrl_state *state = NULL;
 	bool mute = !!ucontrol->value.integer.value[0];
 
 	if (!p_spdif->spdif_soft_mute) {
@@ -748,19 +789,7 @@ static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
 			pr_err("%s(), no pinctrl", __func__);
 			return 0;
 		}
-		if (mute) {
-			state = pinctrl_lookup_state
-				(p_spdif->pin_ctl, "spdif_pins_mute");
-
-			if (!IS_ERR_OR_NULL(state))
-				pinctrl_select_state(p_spdif->pin_ctl, state);
-		} else {
-			state = pinctrl_lookup_state
-				(p_spdif->pin_ctl, "spdif_pins");
-
-			if (!IS_ERR_OR_NULL(state))
-				pinctrl_select_state(p_spdif->pin_ctl, state);
-		}
+		aml_spdif_pinmux_mute(p_spdif, mute);
 	} else {
 		if (!p_spdif->is_arc || mute || p_spdif->codec_type != AUD_CODEC_TYPE_DTS) {
 			if (aml_spdif_out_get_mute(p_spdif->actrl, p_spdif->id) != mute)
@@ -960,6 +989,9 @@ static const struct snd_kcontrol_new snd_spdif_controls[] = {
 				0, 0, 2000000, 0,
 				spdif_clk_get,
 				spdif_clk_set),
+	SOC_SINGLE_BOOL_EXT("Audio spdif pinmux mute",
+				0, aml_audio_get_spdif_pinmux_mute,
+				aml_audio_set_spdif_pinmux_mute),
 };
 
 static int spdif_b_format_get_enum(struct snd_kcontrol *kcontrol,
@@ -1002,6 +1034,9 @@ static const struct snd_kcontrol_new snd_spdif_b_controls[] = {
 				0, 0, 0xffffffff, 0,
 				spdif_get_cs,
 				spdif_set_cs),
+	SOC_SINGLE_BOOL_EXT("Audio spdif_b pinmux mute",
+				0, aml_audio_get_spdif_pinmux_mute,
+				aml_audio_set_spdif_pinmux_mute),
 };
 
 #define SPDIFIN_ERR_CNT 100
