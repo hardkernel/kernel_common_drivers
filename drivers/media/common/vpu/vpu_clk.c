@@ -63,7 +63,10 @@ unsigned long get_vpu_clk_freq(unsigned int clk_level)
 unsigned int get_vpu_clk_level_from_venc(unsigned int venc_clk)
 {
 	unsigned int clk_level = 0;
+	unsigned int gpll_clk = 0;
 
+	gpll_clk = clk_get_rate(vpu_conf.gp_pll);
+	VPUPR("get gp_pll clk: %uHz\n", gpll_clk);
 	/*
 	 * vpu_overclock means whether hardware support vpu overclock
 	 * overclock_sel means whether software enable vpu overclock
@@ -75,11 +78,18 @@ unsigned int get_vpu_clk_level_from_venc(unsigned int venc_clk)
 		} else if (vpu_conf.overclock_sel == 1) {
 			clk_level = 11;
 		} else if (vpu_conf.overclock_sel == 2) {
-			if (venc_clk <= 700000000) {
+			if (venc_clk <= 680000000) {
 				clk_level = 8;
-			} else if (venc_clk > 700000000 && venc_clk < 800000000) {
+			} else if (venc_clk > 680000000 && venc_clk < 800000000) {
 				if (vpu_conf.vpu_overclock) {
-					clk_level = 11;
+					/*
+					 * if gpll_clk = 1536M switch vpu clk to 736M
+					 * else if gpll_clk = 1544.4M switch vpu clk to 772.2M
+					 */
+					if (gpll_clk < 1540000000)
+						clk_level = 11;
+					else
+						clk_level = 15;
 				} else {
 					clk_level = 8;
 					VPUPR("do not support vpu overclock\n");
@@ -141,6 +151,22 @@ static unsigned int get_fclk_div_freq(unsigned int mux_id)
 	return clk_source;
 }
 
+static unsigned long get_gp_pll_freq(unsigned int mux_id)
+{
+	struct vpu_clk_s *gp_pll;
+	unsigned long div, clk_source = 0;
+	unsigned int i;
+
+	for (i = 0; i < FCLK_DIV_MAX; i++) {
+		gp_pll = vpu_conf.data->clk_table + i;
+		if (gp_pll->mux == mux_id) {
+			div = gp_pll->div + 1;
+			clk_source = gp_pll->freq * div;
+		}
+	}
+	return clk_source;
+}
+
 static unsigned int get_vpu_clk_mux_id(void)
 {
 	struct fclk_div_s *fclk_div;
@@ -196,10 +222,9 @@ unsigned int vpu_clk_get(void)
 			clk_source = get_fclk_div_freq(mux_id);
 			break;
 		case GPLL_CLK:
-			if (IS_ERR_OR_NULL(vpu_conf.gp_pll))
-				clk_source = vpu_conf.data->clk_table[vpu_conf.clk_level].freq;
-			else
-				clk_source = clk_get_rate(vpu_conf.gp_pll);
+		case GPLL_CLK1:
+		case GPLL_CLK2:
+			clk_source = get_gp_pll_freq(mux_id);
 			break;
 		default:
 			clk_source = 0;
@@ -386,7 +411,7 @@ int set_vpu_clk(unsigned int vclk)
 		return ret;
 	}
 #endif
-	if (clk_level >= 14) {
+	if (clk_level >= 16) {
 		ret = 7;
 		VPUERR("clk_level %d is invalid\n", clk_level);
 		return ret;
@@ -468,6 +493,11 @@ void vpu_clktree_init_dft(struct device *dev)
 			VPUERR("%s: %d clk_prepare_enable error\n", __func__, __LINE__);
 		vpu_conf.vpu_clk_en = true;
 	}
+
+	/* init gpll clk */
+	vpu_conf.gp_pll = devm_clk_get(dev, "gp_pll");
+	if (!IS_ERR_OR_NULL(vpu_conf.gp_pll))
+		VPUPR("%s: gp_pll init\n", __func__);
 }
 
 void vpu_clktree_init_c3(struct device *dev)

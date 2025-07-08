@@ -103,6 +103,9 @@ enum vpu_mod_e {
 enum vpu_arb_mod_e {
 	VPU_ARB_OSD1 = 1,
 	VPU_ARB_OSD2,
+	VPU_ARB_MC_SUB,
+	VPU_ARB_MC_SUB2,
+	VPU_ARB_MC_SUB3,
 	VPU_ARB_VD1,
 	VPU_ARB_VD1_RDMIF,
 	VPU_ARB_VD1_AFBCD,
@@ -117,12 +120,20 @@ enum vpu_arb_mod_e {
 	VPU_ARB_RDMA_READ,
 	VPU_ARB_VIU2,
 	VPU_ARB_TCON_P1,
+	VPU_ARB_AMDOLBY,
 	VPU_ARB_TVFE_READ,
 	VPU_ARB_TCON_P2,
 	VPU_ARB_LDIM_RD,
 	VPU_ARB_VDIN_AFBCE_RD,
+	VPU_ARB_LUT_DMA,
 	VPU_ARB_VPU_DMA,
 
+	VPU_ARB_DAE_RD,
+	VPU_ARB_INP_RD,
+	VPU_ARB_RDMA_RD,
+	VPU_ARB_NR_VFCD_RD,
+	VPU_ARB_MC_VFCD_RD,
+	VPU_ARB_MMU_RD,
 	VPU_ARB_DI_IF1,
 	VPU_ARB_DI_MEM,
 	VPU_ARB_DI_INP,
@@ -134,11 +145,16 @@ enum vpu_arb_mod_e {
 
 	VPU_ARB_VDIN_WR,
 	VPU_ARB_RDMA_WR,
+	VPU_ARB_AMDOLBY_WR,
 	VPU_ARB_TVFE_WR,
 	VPU_ARB_TCON1_WR,
+	VPU_ARB_DAE_WR,
+	VPU_ARB_INP_WR,
+	VPU_ARB_VFCE_WR,
 	VPU_ARB_DI_AXI1_WR,
 	VPU_ARB_TCON2_WR,
 	VPU_ARB_TCON3_WR,
+	VPU_ARB_LDIM_WR,
 	VPU_ARB_VPU_DMA_WR,
 
 	VPU_ARB_NR_WR,
@@ -193,5 +209,5 @@ int vpu_arb_register(enum vpu_arb_mod_e module, void *cb);
 int vpu_arb_unregister(enum vpu_arb_mod_e module);
 int vpu_arb_config(enum vpu_arb_mod_e module, u32 urgent_value);
 void init_di_arb_urgent(void);
-void set_vpu_sideband_enable(u32 enable);
+void set_vpu_sideband_enable(u32 arb_port, u32 port_enable);
 #endif

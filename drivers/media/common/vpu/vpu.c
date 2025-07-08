@@ -33,6 +33,7 @@
 #include "vpu_ctrl.h"
 #include "vpu_module.h"
 #include "vpu_arb.h"
+#include "vpu_sideband.h"
 
 /* v20200530: initial version */
 /* v20220607: add c3 support */
@@ -242,7 +243,8 @@ static int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod)
 			new_freq = get_vpu_clk_freq(clk_level);
 			vpu_clk_info.new_freq = new_freq;
 			if (vpu_conf.data->chip_type == VPU_CHIP_T5M) {
-				if (new_freq == 768000000) {
+				if (new_freq == 768000000 ||
+					new_freq == 772200000) {
 					vd_signal_notifier_call_chain(VIDEO_VPU_CLK_CHANGED,
 								      &vpu_clk_info);
 					dim_set_vpuclkb_ext(500000000);
@@ -1070,21 +1072,19 @@ static const char *vpu_usage_str = {
 "		0: 25M     1: 100M    2: 167M    3: 200M\n"
 "		4: 250M    5: 333M    6: 400M    7: 500M\n"
 "		8: 667M    9: 800M    10: 744M   11:768M\n"
-"		12:912M    13:960M\n"
+"		12:912M    13:960M    14: 850M   15:772M\n"
 "\n"
 "	echo <0|1> > /sys/class/vpu/print ; set debug print flag\n"
 };
 
 static ssize_t vpu_debug_help(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+			      const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", vpu_usage_str);
 }
 
-static ssize_t vpu_clk_debug(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpu_clk_debug(const struct class *class, const struct class_attribute *attr,
+			     const char *buf, size_t count)
 {
 	unsigned int ret = 0;
 	unsigned int tmp[2], n;
@@ -1194,9 +1194,8 @@ static int parse_para(const char *para, int para_num, int *result)
 	return count;
 }
 
-static ssize_t vpu_mem_debug(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpu_mem_debug(const struct class *class, const struct class_attribute *attr,
+			     const char *buf, size_t count)
 {
 	unsigned long flags = 0;
 	unsigned int tmp[2], val;
@@ -1271,8 +1270,8 @@ static ssize_t vpu_mem_debug(const struct class *class,
 }
 
 static ssize_t vpu_clk_gate_debug(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				  const struct class_attribute *attr,
+				  const char *buf, size_t count)
 {
 	unsigned long flags = 0;
 	unsigned int tmp[2];
@@ -1326,9 +1325,8 @@ static ssize_t vpu_clk_gate_debug(const struct class *class,
 	return count;
 }
 
-static ssize_t vpu_dev_debug(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpu_dev_debug(const struct class *class, const struct class_attribute *attr,
+			     const char *buf, size_t count)
 {
 	int i;
 
@@ -1362,33 +1360,69 @@ static ssize_t vpu_dev_debug(const struct class *class,
 	return count;
 }
 
-static ssize_t vpu_arb_info_debug(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpu_arb_info_show(const struct class *class,
+				    const struct class_attribute *attr, char *buf)
+{
+	int rd_port_cnt = 3;
+	int wr_port_cnt = 2;
+
+	if (vpu_conf.data->vpu_arb_type == ARB_3RD_2WR) {
+		rd_port_cnt = 3;
+		wr_port_cnt = 2;
+	} else if (vpu_conf.data->vpu_arb_type == ARB_2RD_2WR) {
+		rd_port_cnt = 2;
+		wr_port_cnt = 2;
+	} else if (vpu_conf.data->vpu_arb_type == ARB_4RD_3WR) {
+		rd_port_cnt = 4;
+		wr_port_cnt = 3;
+	}
+	return sprintf(buf, "%d READ PORT %d WRITE PORT\n",
+		rd_port_cnt, wr_port_cnt);
+}
+
+static ssize_t vpu_arb_info_debug(const struct class *class, const struct class_attribute *attr,
+			     const char *buf, size_t count)
 {
 	int ret = 0;
 
 	vpu_print_level = 1;
-	if (strncmp(buf, "rdarb0_2", strlen("rdarb0_2")) == 0)
-		ret = 1;
+	if (strncmp(buf, "rdarb0_2", strlen("rdarb0")) == 0)
+		ret = 0;
 	else if (strncmp(buf, "rdarb1", strlen("rdarb1")) == 0)
+		ret = 1;
+	else if (strncmp(buf, "rdarb2", strlen("rdarb2")) == 0)
 		ret = 2;
-	else if (strncmp(buf, "wrarb0", strlen("wrarb0")) == 0)
+	else if (strncmp(buf, "rdarb3", strlen("rdarb3")) == 0)
 		ret = 3;
+	else if (strncmp(buf, "wrarb0", strlen("wrarb0")) == 0)
+		ret = 4;
 	else if (strncmp(buf, "wrarb1", strlen("wrarb1")) == 0)
-		ret = 4;
+		ret = 5;
+	else if (strncmp(buf, "wrarb2", strlen("wrarb2")) == 0)
+		ret = 6;
+	else
+		ret = -1;
 	switch (ret) {
+	case 0:
+		get_module_info_by_port(VPU_READ0);
+		break;
 	case 1:
-		get_rdarb0_2_module_info();
+		get_module_info_by_port(VPU_READ1);
 		break;
 	case 2:
-		get_rdarb1_module_info();
+		get_module_info_by_port(VPU_READ2);
 		break;
 	case 3:
-		get_wrarb0_module_info();
+		get_module_info_by_port(VPU_READ3);
 		break;
 	case 4:
-		get_wrarb1_module_info();
+		get_module_info_by_port(VPU_WRITE0);
+		break;
+	case 5:
+		get_module_info_by_port(VPU_WRITE1);
+		break;
+	case 6:
+		get_module_info_by_port(VPU_WRITE2);
 		break;
 	default:
 		break;
@@ -1397,33 +1431,49 @@ static ssize_t vpu_arb_info_debug(const struct class *class,
 	return count;
 }
 
-static ssize_t vpu_arb_bind_debug(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpu_arb_bind_debug(const struct class *class, const struct class_attribute *attr,
+			     const char *buf, size_t count)
 {
 	int ret = 0;
 
 	vpu_print_level = 1;
-	if (strncmp(buf, "rdarb0_2", strlen("rdarb0_2")) == 0)
-		ret = 1;
+	if (strncmp(buf, "rdarb0_2", strlen("rdarb0")) == 0)
+		ret = 0;
 	else if (strncmp(buf, "rdarb1", strlen("rdarb1")) == 0)
+		ret = 1;
+	else if (strncmp(buf, "rdarb2", strlen("rdarb2")) == 0)
 		ret = 2;
-	else if (strncmp(buf, "wrarb0", strlen("wrarb0")) == 0)
+	else if (strncmp(buf, "rdarb3", strlen("rdarb3")) == 0)
 		ret = 3;
-	else if  (strncmp(buf, "wrarb1", strlen("wrarb1")) == 0)
+	else if (strncmp(buf, "wrarb0", strlen("wrarb0")) == 0)
 		ret = 4;
+	else if (strncmp(buf, "wrarb1", strlen("wrarb1")) == 0)
+		ret = 5;
+	else if (strncmp(buf, "wrarb2", strlen("wrarb2")) == 0)
+		ret = 6;
+	else
+		ret = -1;
 	switch (ret) {
+	case 0:
+		get_module_bind_info_by_port(VPU_READ0);
+		break;
 	case 1:
-		dump_vpu_clk2_rdarb_table();
+		get_module_bind_info_by_port(VPU_READ1);
 		break;
 	case 2:
-		dump_vpu_clk1_rdarb_table();
+		get_module_bind_info_by_port(VPU_READ2);
 		break;
 	case 3:
-		dump_vpu_clk2_wrarb_table();
+		get_module_bind_info_by_port(VPU_READ3);
 		break;
 	case 4:
-		dump_vpu_clk1_wrarb_table();
+		get_module_bind_info_by_port(VPU_WRITE0);
+		break;
+	case 5:
+		get_module_bind_info_by_port(VPU_WRITE1);
+		break;
+	case 6:
+		get_module_bind_info_by_port(VPU_WRITE2);
 		break;
 	default:
 		break;
@@ -1432,9 +1482,8 @@ static ssize_t vpu_arb_bind_debug(const struct class *class,
 	return count;
 }
 
-static ssize_t vpu_urgent_debug(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpu_urgent_debug(const struct class *class, const struct class_attribute *attr,
+			     const char *buf, size_t count)
 {
 	int ret = 0;
 
@@ -1449,16 +1498,16 @@ static ssize_t vpu_urgent_debug(const struct class *class,
 		ret = 4;
 	switch (ret) {
 	case 1:
-		dump_vpu_urgent_table(VPU_READ0);
+		get_urgent_info_by_port(VPU_READ0);
 		break;
 	case 2:
-		dump_vpu_urgent_table(VPU_READ1);
+		get_urgent_info_by_port(VPU_READ1);
 		break;
 	case 3:
-		dump_vpu_urgent_table(VPU_WRITE0);
+		get_urgent_info_by_port(VPU_WRITE0);
 		break;
 	case 4:
-		dump_vpu_urgent_table(VPU_WRITE1);
+		get_urgent_info_by_port(VPU_WRITE1);
 		break;
 	default:
 		break;
@@ -1505,9 +1554,8 @@ static void vcbus_test(void)
 	}
 }
 
-static ssize_t vpu_test_debug(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpu_test_debug(const struct class *class, const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	vcbus_test();
 
@@ -1515,16 +1563,15 @@ static ssize_t vpu_test_debug(const struct class *class,
 }
 
 static ssize_t vpu_debug_print_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				    const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "vpu debug print: %d\n",
 		vpu_debug_print_flag);
 }
 
 static ssize_t vpu_debug_print_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				     const struct class_attribute *attr,
+				     const char *buf, size_t count)
 {
 	unsigned int ret;
 
@@ -1535,8 +1582,8 @@ static ssize_t vpu_debug_print_store(const struct class *class,
 }
 
 static ssize_t vpu_arb_bind_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				     const struct class_attribute *attr,
+				     const char *buf, size_t count)
 {
 	int parsed[3];
 
@@ -1555,9 +1602,31 @@ static ssize_t vpu_arb_bind_store(const struct class *class,
 	return count;
 }
 
+static ssize_t vpu_super_urgent_show(const struct class *class,
+				    const struct class_attribute *attr, char *buf)
+{
+	ssize_t len;
+
+	len = show_super_urgent_status(buf);
+	return len;
+}
+
+static ssize_t vpu_super_urgent_store(const struct class *class,
+				     const struct class_attribute *attr,
+				     const char *buf, size_t count)
+{
+	int parsed[3];
+
+	vpu_print_level = 2;
+	if (likely(parse_para(buf, 3, parsed) == 3))
+		super_urgent_set(parsed[0], parsed[1], parsed[2]);
+	vpu_print_level = 0;
+	return count;
+}
+
 static ssize_t vpu_urgent_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				     const struct class_attribute *attr,
+				     const char *buf, size_t count)
 {
 	int parsed[2];
 
@@ -1571,8 +1640,7 @@ static ssize_t vpu_urgent_store(const struct class *class,
 }
 
 static ssize_t vpu_debug_info(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+			      const struct class_attribute *attr, char *buf)
 {
 	unsigned int _reg[VPU_MEM_PD_REG_CNT];
 	unsigned int level_max, clk;
@@ -1649,8 +1717,7 @@ static ssize_t vpu_debug_info(const struct class *class,
 static unsigned int vpu_reg_dbg_flag = 0xff;
 static unsigned int vpu_reg_dbg_addr, vpu_reg_dbg_val, vpu_reg_dbg_mask, vpu_reg_dbg_cnt;
 static ssize_t vpu_debug_reg_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				    const struct class_attribute *attr, char *buf)
 {
 	unsigned int temp, i;
 	ssize_t len = 0;
@@ -1691,8 +1758,8 @@ static ssize_t vpu_debug_reg_show(const struct class *class,
 }
 
 static ssize_t vpu_debug_reg_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	int ret = 0;
 	unsigned int temp;
@@ -1769,267 +1836,13 @@ static ssize_t vpu_debug_reg_store(const struct class *class,
 	return count;
 }
 
-static u32 vpu_sideband_en = 0xff; /* 1:enable, 0:disable, 0xff:auto */
-static u32 vpu_sideband_level_up;
-static u32 vpu_sideband_level_down;
-static u32 vpu_sideband_block_device;
-static u32 vpu_arb_urg_ctrl;
-static u32 vpp_ofifo_urg_ctrl;
-static u32 vpp_ofifo_urg_ctrl_slice1;
-//static u32 vpp_ofifo_urg_ctrl_slice2;
-//static u32 vpp_ofifo_urg_ctrl_slice3;
-
-static void set_vpu_sideband_init(void)
-{
-	u32 sideband_up = 0, sideband_down = 0;
-	u32 sideband_level = 0;
-	u32 dmc_reg_value = 0;
-
-	if (vpu_conf.data->chip_type == VPU_CHIP_T7) {
-		vpu_arb_urg_ctrl = VPU_ARB_URG_CTRL;
-		vpp_ofifo_urg_ctrl = VPP_OFIFO_URG_CTRL;
-		//bit15； urgent_ctrl_en
-		//fifo cnt < 256xsideband_down pixel
-		//fifo cnt > 256xsideband_up pixel, sideband worked
-		sideband_level = vpu_vcbus_read(vpp_ofifo_urg_ctrl);
-		sideband_level |= 1 << 15;
-		sideband_up = 8;
-		sideband_down = 5;
-		sideband_level |= (sideband_up << 6 | sideband_down);
-		//set vpu sideband level
-		vpu_vcbus_write(vpp_ofifo_urg_ctrl, sideband_level);
-
-		dmc_reg_value = vpu_dmc0_read(DMC_AXI2_CHAN_CTRL1);
-		dmc_reg_value |= ((0 << 16) | 0xfb);
-		pr_info("dmc_reg_value=0x%x\n", dmc_reg_value);
-		//write vpu chan dmc reg DMC_AXI2_CHAN_CTRL1
-		//block cpu and gpu
-		vpu_dmc0_write(DMC_AXI2_CHAN_CTRL1, 0xFFFFB);
-		vpu_dmc1_write(DMC_AXI2_CHAN_CTRL1, 0xFFFFB);
-	} else if (vpu_conf.data->chip_type == VPU_CHIP_T3X) {
-		vpu_arb_urg_ctrl = VPU_ARB_URG_CTRL1_T3X;
-		vpp_ofifo_urg_ctrl = VPP_OFIFO_URG_CTRL_T3X;
-		vpp_ofifo_urg_ctrl_slice1 = VPP_SLICE1_OFIFO_URG_CTRL_T3X;
-		//write vpu chan dmc reg DMC_AXI2_CHAN_CTRL1
-		//bit15； urgent_ctrl_en
-		//fifo cnt < 256xsideband_down pixel
-		//fifo cnt > 256xsideband_up pixel, sideband worked
-		sideband_level = vpu_vcbus_read(vpp_ofifo_urg_ctrl);
-		sideband_level |= 1 << 15;
-		sideband_up = 8;
-		sideband_down = 5;
-		sideband_level |= (sideband_up << 6 | sideband_down);
-		//set vpu sideband level
-		vpu_vcbus_write(vpp_ofifo_urg_ctrl, sideband_level);
-		vpu_vcbus_write(vpp_ofifo_urg_ctrl_slice1, sideband_level);
-
-		//write vpu chan dmc reg DMC_AXI2_CHAN_CTRL1
-		//enable vpu read, block cpu and gpu
-		dmc_reg_value = vpu_dmc0_read(DMC_AXI2_CHAN_CTRL1);
-		dmc_reg_value |= ((0 << 16) | (1 << 20) | (1 << 26));
-		//pr_info("dmc_reg_value=0x%x\n", dmc_reg_value);
-		vpu_dmc0_write(DMC_AXI2_CHAN_CTRL1, dmc_reg_value);
-		vpu_dmc1_write(DMC_AXI2_CHAN_CTRL1, dmc_reg_value);
-	}
-}
-
-void set_vpu_sideband_enable(u32 enable)
-{
-	static u32 enable_pre;
-
-	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
-		vpu_conf.data->chip_type == VPU_CHIP_T3X) {
-		if (vpu_sideband_en != 0xff)
-			enable = vpu_sideband_en;
-		else if (enable == 0xff)
-			return;
-		if (enable != enable_pre) {
-			//enable sideband
-			vpu_vcbus_setb(vpu_arb_urg_ctrl, enable, 28, 1);
-			//enable vpp0 ofifo
-			vpu_vcbus_setb(vpu_arb_urg_ctrl, enable, 0, 1);
-			if (vpu_conf.data->chip_type == VPU_CHIP_T3X) {
-				vpu_dmc0_setb(DMC_AXI2_CHAN_CTRL1, enable, 16, 1);
-				vpu_dmc1_setb(DMC_AXI2_CHAN_CTRL1, enable, 16, 1);
-			}
-			VPUPR("%s,enable=%d, enable_pre=%d, vpu_sideband_en=%d\n",
-				__func__, enable, enable_pre, vpu_sideband_en);
-		}
-		enable_pre = enable;
-	}
-}
-EXPORT_SYMBOL(set_vpu_sideband_enable);
-
-static void set_vpu_sideband_level_set(u32 sideband_up, u32 sideband_down)
-{
-	u32 sideband_level;
-
-	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
-		vpu_conf.data->chip_type == VPU_CHIP_T3X) {
-		//set vpu sideband level
-		//bit15； urgent_ctrl_en
-		//fifo cnt < 256xsideband_down pixel
-		//fifo cnt > 256xsideband_up pixel, sideband worked
-		sideband_level = vpu_vcbus_read(vpp_ofifo_urg_ctrl);
-		sideband_level &= ~0xfff;
-		sideband_level |= 1 << 15;
-		sideband_level |= (sideband_up << 6 | sideband_down);
-		vpu_vcbus_write(vpp_ofifo_urg_ctrl, sideband_level);
-		if (vpu_conf.data->chip_type == VPU_CHIP_T3X) {
-			//set vpu sideband level
-			vpu_vcbus_write(vpp_ofifo_urg_ctrl_slice1, sideband_level);
-		}
-	}
-}
-
-static ssize_t vpu_sideband_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
-{
-	return sprintf(buf, "vpu_sideband_en: %d\n",
-		vpu_sideband_en);
-}
-
-static ssize_t vpu_sideband_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
-{
-	unsigned int ret;
-	unsigned int res;
-
-	ret = kstrtoint(buf, 0, &res);
-	vpu_sideband_en = res;
-	set_vpu_sideband_enable(res);
-	pr_info("set vpu_sideband_en: %d\n", res);
-
-	return count;
-}
-
-static ssize_t vpu_sideband_level_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
-{
-	return sprintf(buf, "vpu sideband level up/down(%d~%d)\n",
-		vpu_sideband_level_up,
-		vpu_sideband_level_down);
-}
-
-static ssize_t vpu_sideband_level_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
-{
-	int parsed[2];
-
-	if (likely(parse_para(buf, 2, parsed) == 2)) {
-		vpu_sideband_level_up = parsed[0];
-		vpu_sideband_level_down = parsed[1];
-		set_vpu_sideband_level_set(vpu_sideband_level_up, vpu_sideband_level_down);
-	} else {
-		pr_err("echo sideband_level_up  sideband_level_down > vpu_sideband_level\n");
-		return -EINVAL;
-	}
-	return count;
-}
-
-static ssize_t sideband_block_device_show_t7c(char *buf)
-{
-	ssize_t len = 0;
-
-	const char *axi_device_usage_str = {
-	"Usage:\n"
-	"bit0: CPU/A73/A53/GPU async interface\n"
-	"bit1: reserved\n"
-	"bit2: VPU Async interface\n"
-	"bit3: NNA Async interface\n"
-	"bit4: device/usb/pcie/hdmi rx Async interface\n"
-	"bit5: reserved for dmc_test\n"
-	"bit6: DOS/GE2D interface\n"
-	"bit7: device2/isp/demux/dsp Async interface\n"
-	"bit8: reserved\n"
-	"echo 'value' > /sys/class/vpu/sideband_block_device\n"
-	};
-	len += sprintf(buf + len, "%s\n", axi_device_usage_str);
-	len += sprintf(buf + len, "sideband_block_device: %d\n", vpu_sideband_block_device);
-	return len;
-}
-
-static ssize_t sideband_block_device_show_t3x(char *buf)
-{
-	ssize_t len = 0;
-
-	const char *axi_device_usage_str = {
-	"Usage:\n"
-	"bit0: CPU/A55   async interface\n"
-	"bit1: FRC Async interface\n"
-	"bit2: VPU Async interface\n"
-	"bit3: DOS Async interface\n"
-	"bit4: system Async interface\n"
-	"bit5: reserved for dmc_test\n"
-	"bit6: GPU async interface\n"
-	"bit7: VGE Async interface\n"
-	"bit8: NNA Async interface\n"
-	"echo 'value' > /sys/class/vpu/sideband_block_device\n"
-	};
-	len += sprintf(buf + len, "%s\n", axi_device_usage_str);
-	len += sprintf(buf + len, "sideband_block_device: 0x%x\n", vpu_sideband_block_device);
-	return len;
-}
-
-static void set_vpu_sideband_block_device(u32 block_device)
-{
-	unsigned int dmc_reg_value;
-
-	dmc_reg_value = vpu_dmc0_read(DMC_AXI2_CHAN_CTRL1);
-
-	if (vpu_conf.data->chip_type == VPU_CHIP_T7) {
-		dmc_reg_value &= ~0xff;
-		dmc_reg_value |= (block_device << 0);
-
-		vpu_dmc0_write(DMC_AXI2_CHAN_CTRL1, dmc_reg_value);
-		vpu_dmc1_write(DMC_AXI2_CHAN_CTRL1, dmc_reg_value);
-	} else if (vpu_conf.data->chip_type == VPU_CHIP_T3X) {
-		dmc_reg_value &= ~0xff00000;
-		dmc_reg_value |= (block_device << 20);
-
-		vpu_dmc0_write(DMC_AXI2_CHAN_CTRL1, dmc_reg_value);
-		vpu_dmc1_write(DMC_AXI2_CHAN_CTRL1, dmc_reg_value);
-	}
-}
-
-static ssize_t vpu_sideband_block_device_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
-{
-	ssize_t len = 0;
-
-	if (vpu_conf.data->chip_type == VPU_CHIP_T7)
-		len = sideband_block_device_show_t7c(buf);
-	else if (vpu_conf.data->chip_type == VPU_CHIP_T3X)
-		len = sideband_block_device_show_t3x(buf);
-	return len;
-}
-
-static ssize_t vpu_sideband_block_device_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
-{
-	unsigned int ret;
-	unsigned int res;
-
-	ret = kstrtoint(buf, 0, &res);
-	vpu_sideband_block_device = res;
-	set_vpu_sideband_block_device(res);
-
-	return count;
-}
-
 static struct class_attribute vpu_debug_class_attrs[] = {
 	__ATTR(clk,         0644, NULL, vpu_clk_debug),
 	__ATTR(mem,         0644, NULL, vpu_mem_debug),
 	__ATTR(gate,        0644, NULL, vpu_clk_gate_debug),
 	__ATTR(dev,         0644, NULL, vpu_dev_debug),
 	__ATTR(test,        0644, NULL, vpu_test_debug),
-	__ATTR(arb_info,    0644, NULL, vpu_arb_info_debug),
+	__ATTR(arb_info,    0644, vpu_arb_info_show, vpu_arb_info_debug),
 	__ATTR(arb_bind,    0644, NULL, vpu_arb_bind_debug),
 	__ATTR(urgent,      0644, NULL, vpu_urgent_debug),
 	__ATTR(bind_set,    0644, NULL, vpu_arb_bind_store),
@@ -2037,6 +1850,7 @@ static struct class_attribute vpu_debug_class_attrs[] = {
 	__ATTR(print,       0644, vpu_debug_print_show, vpu_debug_print_store),
 	__ATTR(reg,         0644, vpu_debug_reg_show, vpu_debug_reg_store),
 	__ATTR(info,        0444, vpu_debug_info, NULL),
+	__ATTR(super_urgent,   0644, vpu_super_urgent_show, vpu_super_urgent_store),
 	__ATTR(sideband_en,    0644, vpu_sideband_show, vpu_sideband_store),
 	__ATTR(sideband_level, 0644, vpu_sideband_level_show, vpu_sideband_level_store),
 	__ATTR(sideband_block_device, 0644, vpu_sideband_block_device_show,
@@ -2181,7 +1995,7 @@ static struct vpu_data_s vpu_data_tm2 = {
 	.mem_pd_reg[3] = HHI_VPU_MEM_PD_REG3,
 	.mem_pd_reg[4] = HHI_VPU_MEM_PD_REG4,
 	.mem_pd_reg_flag = 0,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2192,6 +2006,10 @@ static struct vpu_data_s vpu_data_tm2 = {
 
 	.mem_pd_table = vpu_mem_pd_tm2,
 	.clk_gate_table = vpu_clk_gate_g12a,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
@@ -2225,7 +2043,7 @@ static struct vpu_data_s vpu_data_tm2b = {
 	.mem_pd_reg[3] = HHI_VPU_MEM_PD_REG3,
 	.mem_pd_reg[4] = HHI_VPU_MEM_PD_REG4,
 	.mem_pd_reg_flag = 0,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2236,6 +2054,10 @@ static struct vpu_data_s vpu_data_tm2b = {
 
 	.mem_pd_table = vpu_mem_pd_tm2b,
 	.clk_gate_table = vpu_clk_gate_g12a,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
@@ -2269,7 +2091,7 @@ static struct vpu_data_s vpu_data_sc2 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2280,6 +2102,10 @@ static struct vpu_data_s vpu_data_sc2 = {
 
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -2313,7 +2139,7 @@ static struct vpu_data_s vpu_data_t5 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2324,6 +2150,10 @@ static struct vpu_data_s vpu_data_t5 = {
 
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -2357,7 +2187,7 @@ static struct vpu_data_s vpu_data_t5d = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2368,6 +2198,10 @@ static struct vpu_data_s vpu_data_t5d = {
 
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -2401,7 +2235,7 @@ static struct vpu_data_s vpu_data_t5w = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2412,6 +2246,10 @@ static struct vpu_data_s vpu_data_t5w = {
 
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = &vpu_dmc_axi_t5w[0][0],
+	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_t5w,
+	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_t5w,
 
 	.power_on = NULL,
 	.power_off = NULL,
@@ -2445,7 +2283,7 @@ static struct vpu_data_s vpu_data_t7 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t7,
 
@@ -2456,6 +2294,10 @@ static struct vpu_data_s vpu_data_t7 = {
 
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = vpu_dmc_axi_t7,
+	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_t7,
+	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_t7,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -2489,7 +2331,7 @@ static struct vpu_data_s vpu_data_s4 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2500,6 +2342,10 @@ static struct vpu_data_s vpu_data_s4 = {
 
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -2533,7 +2379,7 @@ static struct vpu_data_s vpu_data_t3 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t3,
 
@@ -2544,6 +2390,10 @@ static struct vpu_data_s vpu_data_t3 = {
 
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = vpu_dmc_axi_t3,
+	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_t3,
+	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_t3,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -2579,7 +2429,7 @@ static struct vpu_data_s vpu_data_s4d = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2590,6 +2440,10 @@ static struct vpu_data_s vpu_data_s4d = {
 
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -2624,7 +2478,7 @@ static struct vpu_data_s vpu_data_s1a = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2635,6 +2489,10 @@ static struct vpu_data_s vpu_data_s1a = {
 
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -2670,7 +2528,7 @@ static struct vpu_data_s vpu_data_c3 = {
 	.mem_pd_reg[3] = VPU_REG_END,
 	.mem_pd_reg[4] = VPU_REG_END,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2681,6 +2539,10 @@ static struct vpu_data_s vpu_data_c3 = {
 
 	.mem_pd_table = NULL,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = NULL,
 	.power_off = NULL,
@@ -2694,49 +2556,6 @@ static struct vpu_data_s vpu_data_c3 = {
 };
 
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
-static struct vpu_data_s vpu_data_a4 = {
-	.chip_type = VPU_CHIP_A4,
-	.chip_name = "A4",
-
-	.clk_level_dft = CLK_LEVEL_DFT_C3,
-	.clk_level_max = CLK_LEVEL_MAX_C3,
-	.fclk_div_table = fclk_div_table_c3,
-	.clk_table = vpu_clk_table,
-	.reg_map_table = vpu_reg_table_a4,
-	.test_reg_table = vcbus_test_reg_a4,
-
-	.vpu_clk_reg = CLKCTRL_VOUTENC_CLK_CTRL_A4,
-	.vapb_clk_reg = VPU_REG_END,
-
-	.gp_pll_valid = 0,
-	.mem_pd_reg[0] = PWRCTRL_MEM_PD6_A4,
-	.mem_pd_reg[1] = VPU_REG_END,
-	.mem_pd_reg[2] = VPU_REG_END,
-	.mem_pd_reg[3] = VPU_REG_END,
-	.mem_pd_reg[4] = VPU_REG_END,
-	.mem_pd_reg_flag = 1,
-
-	.pwrctrl_id_table = NULL,
-
-	.power_table = NULL,
-	.iso_table = NULL,
-	.reset_table = NULL,
-	.module_init_table = NULL,
-
-	.mem_pd_table = NULL,
-	.clk_gate_table = NULL,
-
-	.power_on = NULL,
-	.power_off = NULL,
-	.mem_pd_init_off = NULL,
-	.module_init_config = NULL,
-	.power_init_check = vpu_power_init_check_c3,
-	.mempd_switch = NULL,
-	.mempd_get = NULL,
-	.clk_apply = vpu_clk_apply_c3,
-	.clktree_init = vpu_clktree_init_c3,
-};
-
 static struct vpu_data_s vpu_data_s5 = {
 	.chip_type = VPU_CHIP_S5,
 	.chip_name = "s5",
@@ -2758,7 +2577,7 @@ static struct vpu_data_s vpu_data_s5 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t7,
 
@@ -2769,6 +2588,10 @@ static struct vpu_data_s vpu_data_s5 = {
 
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -2803,7 +2626,7 @@ static struct vpu_data_s vpu_data_t5m = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2814,6 +2637,10 @@ static struct vpu_data_s vpu_data_t5m = {
 
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -2847,7 +2674,7 @@ static struct vpu_data_s vpu_data_g12a = {
 	.mem_pd_reg[3] = VPU_REG_END,
 	.mem_pd_reg[4] = VPU_REG_END,
 	.mem_pd_reg_flag = 0,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2858,6 +2685,10 @@ static struct vpu_data_s vpu_data_g12a = {
 
 	.mem_pd_table = vpu_mem_pd_g12b,
 	.clk_gate_table = vpu_clk_gate_g12a,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
@@ -2891,7 +2722,7 @@ static struct vpu_data_s vpu_data_g12b = {
 	.mem_pd_reg[3] = VPU_REG_END,
 	.mem_pd_reg[4] = VPU_REG_END,
 	.mem_pd_reg_flag = 0,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2902,6 +2733,10 @@ static struct vpu_data_s vpu_data_g12b = {
 
 	.mem_pd_table = vpu_mem_pd_g12b,
 	.clk_gate_table = vpu_clk_gate_g12a,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
@@ -2935,7 +2770,7 @@ static struct vpu_data_s vpu_data_t3x = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t3x,
 
@@ -2946,6 +2781,10 @@ static struct vpu_data_s vpu_data_t3x = {
 
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = vpu_dmc_axi_t3x,
+	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_t3x,
+	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_t3x,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -2979,7 +2818,7 @@ static struct vpu_data_s vpu_data_sm1 = {
 	.mem_pd_reg[3] = HHI_VPU_MEM_PD_REG3_SM1,
 	.mem_pd_reg[4] = HHI_VPU_MEM_PD_REG4_SM1,
 	.mem_pd_reg_flag = 0,
-	.vpu_read_type = READ0_2,
+	.vpu_arb_type = ARB_3RD_2WR,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2990,6 +2829,10 @@ static struct vpu_data_s vpu_data_sm1 = {
 
 	.mem_pd_table = vpu_mem_pd_sm1,
 	.clk_gate_table = vpu_clk_gate_g12a,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on,
 	.power_off = vpu_power_off,
@@ -3023,7 +2866,7 @@ static struct vpu_data_s vpu_data_txhd2 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = ONLY_READ0,
+	.vpu_arb_type = ARB_2RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -3034,6 +2877,10 @@ static struct vpu_data_s vpu_data_txhd2 = {
 
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = &vpu_dmc_axi_txhd2[0][0],
+	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_txhd2,
+	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_txhd2,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -3067,7 +2914,7 @@ static struct vpu_data_s vpu_data_s7 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = ONLY_READ0,
+	.vpu_arb_type = ARB_2RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -3078,6 +2925,10 @@ static struct vpu_data_s vpu_data_s7 = {
 
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = &vpu_dmc_axi_s7[0][0],
+	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_s7,
+	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_s7,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -3111,7 +2962,7 @@ static struct vpu_data_s vpu_data_s7d = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = ONLY_READ0,
+	.vpu_arb_type = ARB_2RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -3122,6 +2973,10 @@ static struct vpu_data_s vpu_data_s7d = {
 
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -3166,6 +3021,10 @@ static struct vpu_data_s vpu_data_s6 = {
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
 
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
+
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
 	.mem_pd_init_off = vpu_mem_pd_init_off,
@@ -3199,7 +3058,7 @@ static struct vpu_data_s vpu_data_t6d = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_read_type = ONLY_READ0,
+	.vpu_arb_type = ARB_2RD_2WR,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -3210,6 +3069,59 @@ static struct vpu_data_s vpu_data_t6d = {
 
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = NULL,
+	.vpu_arb_urg_ctrl_table = NULL,
+	.vpp_ofifo_urg_ctrl_table = NULL,
+
+	.power_on = vpu_power_on_new,
+	.power_off = vpu_power_off_new,
+	.mem_pd_init_off = vpu_mem_pd_init_off,
+	.module_init_config = vpu_module_init_config,
+	.power_init_check = vpu_power_init_check_dft,
+	.mempd_switch = vpu_vmod_mem_pd_switch_new,
+	.mempd_get = vpu_vmod_mem_pd_get_new,
+	.clk_apply = vpu_clk_apply_dft,
+	.clktree_init = vpu_clktree_init_dft,
+};
+
+static struct vpu_data_s vpu_data_t6w = {
+	.chip_type = VPU_CHIP_T6W,
+	.chip_name = "t6w",
+
+	.clk_level_dft = CLK_LEVEL_DFT_T6W,
+	.clk_level_max = CLK_LEVEL_MAX_T6W,
+	.fclk_div_table = fclk_div_table_g12a,
+	.clk_table = vpu_t6w_clk_table,
+
+	.reg_map_table = vpu_reg_table_new,
+	.test_reg_table = vcbus_test_reg,
+
+	.vpu_clk_reg = CLKCTRL_VPU_CLK_CTRL,
+	.vapb_clk_reg = CLKCTRL_VAPBCLK_CTRL,
+
+	.gp_pll_valid = 1,
+	.mem_pd_reg[0] = PWRCTRL_MEM_PD5_SC2,
+	.mem_pd_reg[1] = PWRCTRL_MEM_PD6_SC2,
+	.mem_pd_reg[2] = PWRCTRL_MEM_PD7_SC2,
+	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
+	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
+	.mem_pd_reg_flag = 1,
+	.vpu_arb_type = ARB_4RD_3WR,
+
+	.pwrctrl_id_table = vpu_pwrctrl_id_table,
+
+	.power_table = NULL,
+	.iso_table = NULL,
+	.reset_table = NULL,
+	.module_init_table = NULL,
+
+	.mem_pd_table = vpu_mem_pd_t5,
+	.clk_gate_table = NULL,
+
+	.vpu_dmc_axi_table = &vpu_dmc_axi_t6w[0][0],
+	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_t6w,
+	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_t6w,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -3297,10 +3209,6 @@ static const struct of_device_id vpu_of_table[] = {
 		.data = &vpu_data_s5,
 	},
 	{
-		.compatible = "amlogic, vpu-a4",
-		.data = &vpu_data_a4,
-	},
-	{
 		.compatible = "amlogic, vpu-t3x",
 		.data = &vpu_data_t3x,
 	},
@@ -3332,6 +3240,11 @@ static const struct of_device_id vpu_of_table[] = {
 		.compatible = "amlogic, vpu-t6d",
 		.data = &vpu_data_t6d,
 	},
+	{
+		.compatible = "amlogic, vpu-t6w",
+		.data = &vpu_data_t6w,
+	},
+
 #endif
 #endif
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
@@ -3389,6 +3302,9 @@ static void vpu_late_resume(struct early_suspend *h)
 		set_vpu_clk(vpu_conf.clk_level);
 		mutex_unlock(&vpu_clk_mutex);
 	}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	set_vpu_sideband_init();
+#endif
 	suspend_status = false;
 	VPUPR("late_resume clk: %uHz(0x%x) suspend_status = %d\n",
 	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)), suspend_status);
@@ -3480,7 +3396,8 @@ static int vpu_probe(struct platform_device *pdev)
 		vpu_conf.data->chip_type == VPU_CHIP_S7D ||
 		vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
 		vpu_conf.data->chip_type == VPU_CHIP_T6D ||
-		vpu_conf.data->chip_type == VPU_CHIP_T5M)
+		vpu_conf.data->chip_type == VPU_CHIP_T5M ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6W)
 		ret = init_arb_urgent_table();
 	if (ret)
 		vpu_power_init();
@@ -3595,6 +3512,9 @@ static int vpu_resume(struct device *dev)
 		set_vpu_clk(vpu_conf.clk_level);
 		mutex_unlock(&vpu_clk_mutex);
 	}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	set_vpu_sideband_init();
+#endif
 	suspend_status = false;
 	VPUPR("resume clk: %uHz(0x%x) suspend_status = %d\n",
 	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)), suspend_status);
@@ -3632,6 +3552,9 @@ static int vpu_restore(struct device *dev)
 	mutex_unlock(&vpu_clk_mutex);
 	if (ret)
 		vpu_power_init();
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	set_vpu_sideband_init();
+#endif
 	return 0;
 }
 

@@ -5,4 +5,5 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_VPU) += common/vpu/vpu_arb.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_VPU) += common/vpu/vpu_reg.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_VPU) += common/vpu/vpu_power.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_VPU) += common/vpu/vpu_clk.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_VPU) += common/vpu/vpu_sideband.o
 

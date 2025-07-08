@@ -6,9 +6,11 @@
 #define VPU_READ0   0
 #define VPU_READ1   1
 #define VPU_READ2   2
-#define VPU_WRITE0  3
-#define VPU_WRITE1  4
-#define NO_PORT     5
+#define VPU_READ3   3
+#define VPU_WRITE0  4
+#define VPU_WRITE1  5
+#define VPU_WRITE2  6
+#define NO_PORT     7
 
 extern unsigned int vpu_print_level;
 
@@ -32,6 +34,18 @@ struct vpu_arb_table_s {
 	unsigned int reqen_slv_reg;
 	unsigned int reqen_slv_bit;
 	unsigned int reqen_slv_len;
+};
+
+struct vpu_super_urgent_ctl_s {
+	unsigned int port;
+	unsigned int port_sp_ugt_reg;
+	unsigned int port_en_val;
+	unsigned int port_en_bit;
+	unsigned int port_en_len;
+	unsigned int port_offset_val;
+	unsigned int port_offset_bit;
+	unsigned int port_offset_len;
+	char *name;
 };
 
 struct vpu_urgent_table_s {
@@ -59,16 +73,12 @@ void print_bind1_change_info(enum vpu_arb_mod_e level1_module,
 void print_bind2_change_info(enum vpu_arb_mod_e level1_module,
 					enum vpu_arb_mod_e level2_module);
 int vpu_urgent_get(enum vpu_arb_mod_e vmod);
-void dump_vpu_rdarb_table(void);
-void dump_vpu_wrarb_table(void);
-void dump_vpu_clk1_rdarb_table(void);
-void dump_vpu_clk2_rdarb_table(void);
-void dump_vpu_clk1_wrarb_table(void);
-void dump_vpu_clk2_wrarb_table(void);
+void get_module_bind_info_by_port(int port);
 void dump_vpu_urgent_table(u32 vpu_port);
 int init_arb_urgent_table(void);
 void dump_vpu_rdarb_table(void);
-void get_rdarb0_2_module_info(void);
-void get_rdarb1_module_info(void);
-void get_wrarb0_module_info(void);
-void get_wrarb1_module_info(void);
+void get_module_info_by_port(int port);
+void get_urgent_info_by_port(int port);
+ssize_t show_super_urgent_status(char *buf);
+void super_urgent_set(int port, u32 enable, u32 urgent_value);
+

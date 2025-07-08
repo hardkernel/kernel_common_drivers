@@ -46,13 +46,6 @@ int vpu_reg_table_c3[] = {
 	VPU_MAP_MAX
 };
 
-int vpu_reg_table_a4[] = {
-	VPU_MAP_CLK,
-	VPU_MAP_PWRCTRL,
-	VPU_MAP_VCBUS,
-	VPU_MAP_MAX
-};
-
 struct vpu_reg_map_s {
 	unsigned int base_addr;
 	unsigned int size;
@@ -72,8 +65,15 @@ int vpu_ioremap(struct platform_device *pdev, int *reg_map_table)
 
 	//for t7 and t3x and dmc0 and dmc1
 	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
-		vpu_conf.data->chip_type == VPU_CHIP_T3X)
+		vpu_conf.data->chip_type == VPU_CHIP_T3X ||
+		vpu_conf.data->chip_type == VPU_CHIP_T3)
 		vpu_io_max = VPU_MAP_MAX;
+	//for t6w dmc0
+	else if (vpu_conf.data->chip_type == VPU_CHIP_T6W ||
+			vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
+			vpu_conf.data->chip_type == VPU_CHIP_T5W ||
+			vpu_conf.data->chip_type == VPU_CHIP_S7)
+		vpu_io_max = VPU_MAP_MAX - 1;
 	else
 		vpu_io_max = VPU_MAP_MAX - 2;
 	if (!reg_map_table) {

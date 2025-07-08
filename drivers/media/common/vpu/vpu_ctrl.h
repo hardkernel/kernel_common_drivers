@@ -38,7 +38,12 @@
 /* T5M */
 /* connect to gp0 clk=768M, default=768M */
 #define CLK_LEVEL_DFT_T5M    8
-#define CLK_LEVEL_MAX_T5M    13
+#define CLK_LEVEL_MAX_T5M    16
+
+/* T6W */
+/* connect to gp1 clk=840M, default=840M */
+#define CLK_LEVEL_DFT_T6W    10
+#define CLK_LEVEL_MAX_T6W    12
 
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
 /* vpu clk setting */
@@ -95,9 +100,30 @@ static struct vpu_clk_s vpu_clk_table[] = {
 	{768000000,    GPLL_CLK,     0}, /* 11 */
 	{912000000,    GPLL_CLK,     0}, /* 12 */
 	{960000000,    GPLL_CLK,     0}, /* 13 */
-	{850000000,    FCLK_DIV_MAX, 0}, /* 14 */ /* invalid */
+	{850000000,    FCLK_DIV_MAX, 0}, /* 14 */
+	{772200000,    GPLL_CLK,     0}, /* 15 */ /* invalid */
 };
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
+static struct vpu_clk_s vpu_t6w_clk_table[] = {
+	/* frequency   clk_mux       div */
+	{25000000,     FCLK_DIV5,    16}, /* 0 */
+	{100000000,    FCLK_DIV5,    3}, /* 1 */
+	{166666667,    FCLK_DIV3,    3}, /* 2 */
+	{200000000,    FCLK_DIV5,    1}, /* 3 */
+	{250000000,    FCLK_DIV4,    1}, /* 4 */
+	{333333333,    FCLK_DIV3,    1}, /* 5 */
+	{400000000,    FCLK_DIV5,    0}, /* 6 */
+	{500000000,    FCLK_DIV4,    0}, /* 7 */
+	{666666667,    FCLK_DIV3,    0}, /* 8 */
+	{800000000,    FCLK_DIV2P5,  0}, /* 9 */
+	{840000000,    GPLL_CLK1,    1}, /* 10 */ /* for t6w gp1 div gp1 1680 to 840M*/
+	{808000000,    GPLL_CLK2,    0}, /* 11 */ /* for t6w gp2 808M*/
+	{744000000,    GPLL_CLK,     0}, /* 12 */
+};
+#endif
+#endif
 /* ******************************************************* */
 /*                VPU reg access test                      */
 /* ******************************************************* */
@@ -122,12 +148,6 @@ static unsigned int vcbus_test_reg_s5[VCBUS_REG_CNT_MAX] = {
 	VENC_VDAC_TST_VAL,
 	ENCP_DVI_HSO_BEGIN,
 	S5_VPU_VPU_PWM_V0
-};
-
-static unsigned int vcbus_test_reg_a4[VCBUS_REG_CNT_MAX] = {
-	VPU_VOUT_BLEND_DUMDATA_A4,
-	VPP_VD1_MATRIX_OFFSET0_1_A4,
-	VPU_VOUT_DTH_DATA_A4
 };
 
 /* ******************************************************* */

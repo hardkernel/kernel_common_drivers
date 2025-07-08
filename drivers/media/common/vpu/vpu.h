@@ -26,7 +26,6 @@ enum vpu_chip_e {
 	VPU_CHIP_G12B,
 	VPU_CHIP_SM1,
 	VPU_CHIP_S5,
-	VPU_CHIP_A4,
 	VPU_CHIP_T3X,
 	VPU_CHIP_TXHD2,
 	VPU_CHIP_S1A,
@@ -36,6 +35,7 @@ enum vpu_chip_e {
 	VPU_CHIP_S7D,
 	VPU_CHIP_S6,
 	VPU_CHIP_T6D,
+	VPU_CHIP_T6W,
 	VPU_CHIP_MAX,
 };
 
@@ -76,12 +76,15 @@ enum vpu_mux_e {
 	VID_PLL_CLK,
 	VID2_PLL_CLK,
 	GPLL_CLK,
+	GPLL_CLK1,
+	GPLL_CLK2,
 	FCLK_DIV_MAX,
 };
 
 enum vpu_read_type_e {
-	READ0_2 = 0,
-	ONLY_READ0,
+	ARB_3RD_2WR,
+	ARB_2RD_2WR,
+	ARB_4RD_3WR,
 };
 
 struct fclk_div_s {
@@ -126,7 +129,7 @@ struct vpu_data_s {
 	unsigned char gp_pll_valid;
 	unsigned int mem_pd_reg[VPU_MEM_PD_REG_CNT];
 	unsigned int mem_pd_reg_flag;
-	unsigned int vpu_read_type;
+	unsigned int vpu_arb_type;
 
 	unsigned int *pwrctrl_id_table;
 
@@ -136,6 +139,10 @@ struct vpu_data_s {
 	struct vpu_ctrl_s *module_init_table;
 	struct vpu_ctrl_s *mem_pd_table;
 	struct vpu_ctrl_s *clk_gate_table;
+
+	struct vpu_sideband_ctrl_s *vpu_dmc_axi_table;
+	struct vpu_sideband_ctrl_s *vpu_arb_urg_ctrl_table;
+	struct vpu_sideband_ctrl_s *vpp_ofifo_urg_ctrl_table;
 
 	void (*power_on)(void);
 	void (*power_off)(void);
@@ -188,7 +195,6 @@ extern int vpu_debug_print_flag;
 extern int vpu_reg_table[];
 extern int vpu_reg_table_new[];
 extern int vpu_reg_table_c3[];
-extern int vpu_reg_table_a4[];
 
 int vpu_chip_valid_check(void);
 

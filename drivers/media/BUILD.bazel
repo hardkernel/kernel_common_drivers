@@ -65,6 +65,7 @@ ddk_module(
                 "common/vpu/vpu_reg.c",
                 "common/vpu/vpu_power.c",
                 "common/vpu/vpu_clk.c",
+		"common/vpu/vpu_sideband.c",
             ],
         },
         "CONFIG_AMLOGIC_MEDIA_RDMA": {
