@@ -2094,16 +2094,15 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 				"%s dmabuf not vf, i=%d fd=%d phy_addr=0x%lx\n",
 				__func__, vf_dev[i], vframe_info_cur->fd, input_addr);
 		}
-		v2d_print(dev->index, PRINT_AXIS,
-			 "===============================\n");
+		v2d_print(dev->index, PRINT_AXIS, "===============================\n");
 
 		v2d_composer_param.input_vf = input_vf;
+		v2d_composer_param.dst_buf = output_buffer;
 		v2d_composer_param.addr = input_addr;
 		v2d_composer_param.is_tvp = is_tvp;
 		v2d_composer_param.count = count;
 		v2d_composer_param.index = i;
 		v2d_composer_param.zorder = vf_dev[i];
-
 		dev->config_param_func(dev, vframe_info_cur, &v2d_composer_param);
 
 		dev->process_data_func(dev, &v2d_composer_param);
