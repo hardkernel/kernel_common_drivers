@@ -37,6 +37,10 @@ struct hdmi_format_para {
 	u32 flag_3dss:1;
 };
 
+int hdmitx_format_para_init(struct hdmi_format_para *para,
+			    enum hdmi_vic vic, u32 frac_rate_policy,
+			    enum hdmi_colorspace cs, enum hdmi_color_depth cd,
+			    enum hdmi_quantization_range cr);
 int hdmitx_format_para_reset(struct hdmi_format_para *para);
 
 /* log_buf = null, will print with printk. or will write to log_buf.

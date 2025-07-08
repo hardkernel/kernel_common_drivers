@@ -203,8 +203,8 @@ static enum vmode_e hdmitx_validate_vmode(char *_mode, unsigned int frac, void *
 	char *mode = _mode;
 
 	/* vout validate vmode only used to confirm the mode is
-	 * supported by this server. And dont check with edid,
-	 * maybe we dont have edid when this function called.
+	 * supported by this server. And don't check with edid,
+	 * maybe we don't have edid when this function called.
 	 */
 	if (is_mode_name_frac(mode)) {
 		convert_name_frac2int(mode, conv_name);

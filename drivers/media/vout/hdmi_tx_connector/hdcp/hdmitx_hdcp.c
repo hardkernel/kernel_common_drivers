@@ -1000,7 +1000,7 @@ static void hdcp_stream_mute_whandler(struct work_struct *work)
 
 /*
  * note that if hdcp is not enabled currently,
- * (as hdcp disabled somehow, e.g hdmirx request
+ * (as hdcp disabled somehow, e.g. hdmirx request
  * re-auth, but hdmitx suddenly disconnected),
  * should exit the propagate this time, just save
  * the stream type.

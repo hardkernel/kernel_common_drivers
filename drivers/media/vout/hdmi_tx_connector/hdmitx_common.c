@@ -26,10 +26,6 @@
 #define ERR_CNT_THRESHOLD 1000
 #define ERR_CNT_CHECK_NUM 1
 
-int hdmitx_format_para_init(struct hdmi_format_para *para,
-		enum hdmi_vic vic, u32 frac_rate_policy,
-		enum hdmi_colorspace cs, enum hdmi_color_depth cd,
-		enum hdmi_quantization_range cr);
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 
 static struct vout_device_s hdmitx_vdev = {
@@ -709,7 +705,7 @@ int hdmitx_common_parse_vic_in_edid(struct hdmitx_common *tx_comm, const char *m
 		prefer_vic = HDMI_0_UNKNOWN;
 
 	/*
-	 * Dont call hdmitx_common_check_valid_para_of_vic anymore.
+	 * Don't call hdmitx_common_check_valid_para_of_vic anymore.
 	 * This function used to parse user passed mode name which should already
 	 * checked by hdmitx_common_check_valid_para_of_vic().
 	 */

@@ -6664,7 +6664,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32 |= (0 << 0);
 	hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCONF, data32);
 
-/* the audio setting bellow are only used for I2S audio IEC60958-3 frame
+/* the audio setting below are only used for I2S audio IEC60958-3 frame
  * insertion
  */
 	data32  = 0;

@@ -13,6 +13,6 @@ config AMLOGIC_HDMITX_DRIVER
 	This option is used to configure Amlogic hdmtix drivers
 
 
-source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/meson_tx_connector/hdmitx/tx21/Kconfig"
-source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/meson_tx_connector/hdmitx/tx20/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmi_tx_connector/hdmitx/tx21/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmi_tx_connector/hdmitx/tx20/Kconfig"
 endmenu

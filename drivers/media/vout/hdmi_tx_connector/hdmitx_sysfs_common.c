@@ -2227,7 +2227,7 @@ static ssize_t hdcp22_top_reset_store(struct device *dev,
 
 static DEVICE_ATTR_WO(hdcp22_top_reset);
 
-/*For hdcp daemon, dont del.*/
+/*For hdcp daemon, don't del.*/
 static ssize_t hdmitx_drm_flag_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
