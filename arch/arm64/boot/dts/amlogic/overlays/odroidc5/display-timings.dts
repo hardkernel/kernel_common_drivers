@@ -1,0 +1,55 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&drm_subsystem>;
+
+		__overlay__ {
+			display-timings {
+				native-mode = <&timing0>;
+
+				timing0: 1024x768 {
+					clock-frequency = <63500000>;
+					hactive = <1024>;
+					vactive = <768>;
+					hfront-porch = <48>;
+					hsync-len = <104>;
+					hback-porch = <152>;
+					vfront-porch = <3>;
+					vsync-len = <4>;
+					vback-porch = <23>;
+					hsync-active = <0>;
+					vsync-active = <1>;
+				};
+				timing1: 1280x720 {
+					clock-frequency = <74250000>;
+					hactive = <1280>;
+					vactive = <720>;
+					hfront-porch = <110>;
+					hsync-len = <40>;
+					hback-porch = <220>;
+					vfront-porch = <5>;
+					vsync-len = <5>;
+					vback-porch = <20>;
+					hsync-active = <1>;
+					vsync-active = <1>;
+				};
+				timing2: 1920x1080v2 {
+					clock-frequency = <173000000>;
+					hactive = <1920>;
+					vactive = <1080>;
+					hfront-porch = <128>;
+					hsync-len = <200>;
+					hback-porch = <328>;
+					vfront-porch = <3>;
+					vsync-len = <5>;
+					vback-porch = <32>;
+					hsync-active = <0>;
+					vsync-active = <1>;
+				};
+			};
+		};
+	};
+};
+
