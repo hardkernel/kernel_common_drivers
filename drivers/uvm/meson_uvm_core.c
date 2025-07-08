@@ -403,6 +403,12 @@ static int meson_uvm_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 		UVM_PRINTK(UVM_ERROR, "buffer was not allocated.\n");
 		return -EINVAL;
 	}
+
+	if ((vma->vm_flags & VM_WRITE) && (handle->flags & BIT(UVM_READONLY_ALLOC))) {
+		UVM_PRINTK(UVM_ERROR, "Write access not allowed!\n");
+		return -EPERM;
+	}
+
 	if (!(handle->flags & BIT(UVM_USAGE_CACHED)))
 		vma->vm_page_prot = pgprot_dmacoherent(vma->vm_page_prot);
 	UVM_PRINTK(UVM_DBG, "size[dmabuf:%zu,handle:%zu,sgt:%d],flag:0x%llx.\n",
@@ -489,13 +495,17 @@ static struct uvm_handle *uvm_handle_alloc(size_t len, size_t align,
 static struct dma_buf *uvm_dmabuf_export(struct uvm_handle *handle)
 {
 	struct dma_buf *dmabuf;
+	int flag = O_RDWR;
+
+	if (handle->flags & BIT(UVM_READONLY_ALLOC))
+		flag = O_RDONLY;
 
 	struct dma_buf_export_info exp_info = {
 		.exp_name = "uvm",
 		.owner = THIS_MODULE,
 		.ops = &meson_uvm_dma_ops,
 		.size = handle->size,
-		.flags = O_RDWR,
+		.flags = flag,
 		.priv = handle,
 	};
 

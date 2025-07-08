@@ -290,6 +290,23 @@ static int am_meson_gem_alloc_buff(struct am_meson_gem_object *
 	return 0;
 }
 
+int am_meson_prime_handle_to_fd(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv)
+{
+	struct drm_prime_handle *args = data;
+
+	if (!dev->driver->prime_handle_to_fd)
+		return -EOPNOTSUPP;
+
+	/* check flags are valid */
+	if (args->flags & ~(DRM_CLOEXEC | DRM_RDWR | MESON_RDONLY))
+		return -EINVAL;
+
+	DRM_INFO("%s flags:%u\n", __func__, args->flags);
+	return dev->driver->prime_handle_to_fd(dev, file_priv,
+			args->handle, args->flags, &args->fd);
+}
+
 static void am_meson_gem_free_buf(struct drm_device *dev,
 				      struct am_meson_gem_object *meson_gem_obj)
 {
@@ -486,12 +503,16 @@ static struct dma_buf *meson_gem_prime_export(struct drm_gem_object *obj,
 	struct dma_buf *dmabuf;
 	struct am_meson_gem_object *meson_gem_obj;
 	struct uvm_alloc_info info;
+	int alloc_flag = flags;
 
 	meson_gem_obj = to_am_meson_gem_obj(obj);
 	memset(&info, 0, sizeof(struct uvm_alloc_info));
 
 	if (meson_gem_obj->is_uvm) {
-		dmabuf = uvm_alloc_dmabuf(obj->size, 0, 0);
+		if (flags == MESON_RDONLY)
+			alloc_flag = BIT(UVM_READONLY_ALLOC);
+
+		dmabuf = uvm_alloc_dmabuf(obj->size, 0, alloc_flag);
 		if (dmabuf) {
 			if (meson_gem_obj->is_afbc || meson_gem_obj->is_secure) {
 				info.sgt =

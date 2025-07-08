@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- * Copyright (c) 2019-2022 Amlogic Inc.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef _MESON_DRM_H_
@@ -24,6 +24,7 @@
 #define MESON_USE_VIDEO_AFBC            (1ull << 19)
 #define MESON_USE_VD1			(1ull << 20)
 #define MESON_USE_VD2			(1ull << 21)
+#define MESON_RDONLY O_RDONLY
 
 #define FBIOPUT_OSD_WINDOW_AXIS          0x4513
 #define FBIOGET_DISPLAY_MODE             0x4580
@@ -171,6 +172,8 @@ struct drm_meson_connector_info {
 		0x02, struct drm_meson_dma_buf_export_sync_file)
 #define DRM_IOCTL_MESON_ADDFB2	DRM_IOWR(DRM_COMMAND_BASE + \
 		0x03, struct drm_mode_fb_cmd2)
+#define DRM_IOCTL_MESON_PRIME_HANDLE_TO_FD	DRM_IOWR(DRM_COMMAND_BASE + \
+		0x04, struct drm_prime_handle)
 
 /*KMS related.*/
 #define DRM_IOCTL_MESON_ASYNC_ATOMIC    DRM_IOWR(DRM_COMMAND_BASE + \

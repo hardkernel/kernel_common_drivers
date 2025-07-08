@@ -48,6 +48,9 @@ int am_meson_gem_dumb_destroy(struct drm_file *file,
 int am_meson_gem_create_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 
+int am_meson_prime_handle_to_fd(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv);
+
 int am_meson_gem_dumb_map_offset(struct drm_file *file_priv,
 				 struct drm_device *dev,
 				 u32 handle, uint64_t *offset);
