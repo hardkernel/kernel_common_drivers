@@ -946,14 +946,13 @@ function modules_install() {
 		cp ${DIST_DIR}/System.map ${OUT_AMLOGIC_DIR}/symbols
 		tar -xzf ${DIST_DIR}/unstripped_modules.tar.gz -C ${OUT_AMLOGIC_DIR}/symbols --strip-components=1 unstripped/
 
-		pushd ${ROOT_DIR}/bazel-out/k8-fastbuild
-		AMLOGIC_CONFIG=`find -name .config | grep -w "${project_config}"`
-		KERNEL_AARCH64_CONFIG=`find -name .config | grep kernel_aarch64_tv_config/out_dir`
+		AMLOGIC_CONFIG=${DIST_DIR}/_amlogic_config/.config
+		KERNEL_AARCH64_CONFIG=${DIST_DIR}/_kernel_aarch64_config/.config
 		cp ${AMLOGIC_CONFIG} ${DIST_DIR}/amlogic.config
 		cp ${KERNEL_AARCH64_CONFIG} ${DIST_DIR}/.config
 		cp ${AMLOGIC_CONFIG} ${OUT_AMLOGIC_DIR}/symbols/amlogic.config
 		cp ${KERNEL_AARCH64_CONFIG} ${OUT_AMLOGIC_DIR}/symbols/.config
-		popd
+		rm -rf ${DIST_DIR}/_amlogic_config/ ${DIST_DIR}/_kernel_aarch64_config
 	else
 		cp ${OUT_DIR}/vmlinux ${OUT_AMLOGIC_DIR}/symbols
 		find ${OUT_DIR} -type f -name "*.ko" -exec cp {} ${OUT_AMLOGIC_DIR}/symbols \;
@@ -1558,6 +1557,10 @@ function handle_input_parameters () {
 			VA=1
 			shift
 			;;
+		--image_type)
+			export KERNEL_IMAGE_TYPE=$2
+			shift
+			;;
 		-h|--help)
 			show_help
 			exit 0
@@ -1600,6 +1603,9 @@ function set_default_parameters () {
 		ANDROID_PROJECT=ohm
 	fi
 
+	if [[ -z "${KERNEL_IMAGE_TYPE}" ]]; then
+		export KERNEL_IMAGE_TYPE=kernel_aarch64_tv
+	fi
 	if [[ -z "${BUILD_CONFIG}" ]]; then
 		if [ "${ARCH}" = "arm64" ]; then
 				BUILD_CONFIG=${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/build.config.amlogic
@@ -1798,6 +1804,9 @@ function build_kernel_with_bazel() {
 		echo "    KCONFIG_EXT_SRCS = [" 		>> ${PROJECT_DIR}/project.bzl
 		echo "    ]," 					>> ${PROJECT_DIR}/project.bzl
 	fi
+
+	echo							>> ${PROJECT_DIR}/project.bzl
+	echo "    KERNEL_IMAGE_TYPE = \"${KERNEL_IMAGE_TYPE}\"," >> ${PROJECT_DIR}/project.bzl
 
 	echo 							>> ${PROJECT_DIR}/project.bzl
 	echo "    BRANCH = \"${BRANCH}\"," 			>> ${PROJECT_DIR}/project.bzl

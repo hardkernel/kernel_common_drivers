@@ -28,13 +28,16 @@ load("//build/kernel/kleaf:print_debug.bzl", "print_debug")
 load("//common_drivers:project/project.bzl", amlogic_project_configs = "project_configs")
 load("//project/sei/adt4:project/project.bzl", adt4_project_configs = "project_configs")
 
-
 def define_common_amlogic(
         name,
         branch,
         outs,
         dtbo_srcs,
         build_config = None,
+        base_kernel = None,
+        pre_defconfig_fragments = None,
+        page_size = None,
+        base_pkg_files = None,
         module_outs = None,
         make_goals = None,
         define_abi_targets = None,
@@ -65,9 +68,10 @@ def define_common_amlogic(
         module_outs = module_outs,
         build_config = build_config,
         # Enable mixed build.
-        base_kernel = "//common:kernel_aarch64_tv",
+        base_kernel = base_kernel,
         defconfig = "//common:arch/arm64/configs/gki_defconfig",
-        pre_defconfig_fragments = ["//common:arch/arm64/configs/tv_gki.fragment"],
+        pre_defconfig_fragments = pre_defconfig_fragments,
+        page_size = page_size,
         # check_defconfig = "disabled",
         ddk_module_defconfig_fragments = ddk_module_defconfig_fragments,
         ddk_module_headers = ddk_module_headers,
@@ -127,17 +131,20 @@ def define_common_amlogic(
 
     pkg_files(
         name = name + "_dist_files",
-        srcs = [
+        srcs = base_pkg_files + [
             name,
             name + "_dtbo",
             name + "_initramfs",
             name + "_modules_install",
             name + "_unstripped_modules_archive",
             name + "_merged_kernel_uapi_headers",
-            # Mixed build: Additional GKI artifacts.
-            "//common:kernel_aarch64_tv",
-            "//common:kernel_aarch64_tv_additional_artifacts",
+            base_kernel + "_config",
+            name + "_config",
         ],
+        renames = {
+            base_kernel + "_config": "_kernel_aarch64_config",
+            name + "_config": "_amlogic_config",
+        },
         strip_prefix = strip_prefix.files_only(),
         visibility = ["//visibility:private"],
     )
