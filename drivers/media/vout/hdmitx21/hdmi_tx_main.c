@@ -3952,6 +3952,7 @@ static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_
 #endif
 		HDMITX_INFO("vinfo: set cur_enc_ppc as %d, vpp color: %d\n",
 			vinfo->cur_enc_ppc, vinfo->vpp_post_out_color_fmt);
+		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_UNBLANK, NULL);
 	}
 
 	return 0;

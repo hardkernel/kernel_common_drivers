@@ -19,6 +19,8 @@
 #define HDMITX_UNPLUG			2
 #define HDMITX_PHY_ADDR_VALID		3
 #define HDMITX_KSVLIST	4
+#define HDMITX_UNBLANK		5
+#define HDMITX_BLANK		6
 
 enum vrr_type {
 	T_VRR_NONE,
