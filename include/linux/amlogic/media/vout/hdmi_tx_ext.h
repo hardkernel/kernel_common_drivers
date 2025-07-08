@@ -20,6 +20,9 @@
 #define HDMITX_PHY_ADDR_VALID		3
 #define HDMITX_KSVLIST	4
 
+#define HDMITX_UNBLANK		5
+#define HDMITX_BLANK		6
+
 enum hdcp_ver_e {
 	HDCPVER_NONE = 0,
 	HDCPVER_14,
