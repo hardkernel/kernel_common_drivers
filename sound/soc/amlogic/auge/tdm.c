@@ -3006,6 +3006,11 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		pr_debug("TDM id %d output clk enable:%d\n",
 			p_tdm->id, p_tdm->start_clk_enable);
 
+	if (p_tdm->id > ARRAY_SIZE(aml_tdm_dai) - 1) {
+		dev_err(&pdev->dev, "need add new tdm dai\n");
+		return -EINVAL;
+	}
+
 	ret = of_property_read_u32(node, "symmetric_rate_disable", &p_tdm->symmetric_rate_disable);
 	if (ret < 0) {
 		p_tdm->symmetric_rate_disable = 0;

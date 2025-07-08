@@ -2623,7 +2623,6 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 	struct aml_audio_controller *actrl = NULL;
 	struct ddr_chipinfo *p_ddr_chipinfo;
 	int i, ret;
-	const char *name;
 	void __iomem *regs;
 	struct resource *res_mem;
 
@@ -2663,7 +2662,8 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 
 			regmap_config.max_register = resource_size(res_mem) - 4;
 			regmap_config.name =
-				devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s-%s", node->name, name);
+				devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s-%s",
+						node->name, "toddr_vad");
 
 			if (!regmap_config.name)
 				return -ENOMEM;

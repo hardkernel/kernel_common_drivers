@@ -228,6 +228,7 @@ int card_add_effects_init(struct snd_soc_card *card)
 	struct device_node *audio_effect_np;
 	int eq_enable = -1, drc_enable = -1, eqdrc_module = -1;
 	int lane_mask = -1, channel_mask = -1;
+	int ret = 0;
 
 	audio_effect_np = of_parse_phandle(card->dev->of_node, "aml-audio-card, effect", 0);
 	if (!audio_effect_np) {
@@ -235,11 +236,21 @@ int card_add_effects_init(struct snd_soc_card *card)
 		return -EINVAL;
 	}
 
-	of_property_read_u32(audio_effect_np, "eq_enable", &eq_enable);
-	of_property_read_u32(audio_effect_np, "drc_enable", &drc_enable);
-	of_property_read_u32(audio_effect_np, "eqdrc_module", &eqdrc_module);
-	of_property_read_u32(audio_effect_np, "lane_mask", &lane_mask);
-	of_property_read_u32(audio_effect_np, "channel_mask", &channel_mask);
+	ret = of_property_read_u32(audio_effect_np, "eq_enable", &eq_enable);
+	if (ret < 0)
+		eq_enable = 0;
+	ret = of_property_read_u32(audio_effect_np, "drc_enable", &drc_enable);
+	if (ret < 0)
+		drc_enable = 0;
+	ret = of_property_read_u32(audio_effect_np, "eqdrc_module", &eqdrc_module);
+	if (ret < 0)
+		eqdrc_module = 0;
+	ret = of_property_read_u32(audio_effect_np, "lane_mask", &lane_mask);
+	if (ret < 0)
+		lane_mask = 0;
+	ret = of_property_read_u32(audio_effect_np, "channel_mask", &channel_mask);
+	if (ret < 0)
+		channel_mask = 0;
 
 	init_EQ_DRC_module();
 

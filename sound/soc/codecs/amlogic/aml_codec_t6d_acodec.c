@@ -647,7 +647,7 @@ static int aml_DAC_source_sel_get_enum
 		val -= (aml_acodec->tdmout_index << 3);
 	}
 
-	if (val < 0 || val > 3) {
+	if (val > 3) {
 		pr_info("Warning: tdmout_index = %d, val = 0x%x\n", aml_acodec->tdmout_index, val);
 		val = 0;
 	}
@@ -663,7 +663,7 @@ static int aml_DAC_source_sel_set_enum
 	struct am_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
 	u32 val = ucontrol->value.enumerated.item[0];
 
-	if (val < 0 || val > 3) {
+	if (val > 3) {
 		pr_info("Warning: tdmout_index = %d, val = 0x%x\n", aml_acodec->tdmout_index, val);
 		return 0;
 	}

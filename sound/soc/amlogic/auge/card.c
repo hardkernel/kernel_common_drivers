@@ -927,7 +927,9 @@ static int aml_card_dai_link_of(struct device_node *node,
 			__func__);
 		goto dai_link_of_err;
 	}
-	of_property_read_u32(node, "mclk-fs", &dai_props->mclk_fs);
+	ret = of_property_read_u32(node, "mclk-fs", &dai_props->mclk_fs);
+	if (ret < 0)
+		dai_props->mclk_fs = 0;
 
 	ret = aml_card_parse_cpu(cpu, dai_link,
 					 DAI, CELL, &single_cpu);
@@ -1171,8 +1173,9 @@ static int aml_card_parse_of(struct device_node *node,
 	}
 
 	/* Factor to mclk, used in hw_params() */
-	of_property_read_u32(node, PREFIX "mclk-fs", &priv->mclk_fs);
-
+	ret = of_property_read_u32(node, PREFIX "mclk-fs", &priv->mclk_fs);
+	if (ret < 0)
+		priv->mclk_fs = 0;
 	/* Single/Muti DAI link(s) & New style of DT node */
 	if (dai_link) {
 		struct device_node *np = NULL;

@@ -1555,7 +1555,7 @@ static int datalb_tdminlb_parse_of(struct device_node *node,
 	struct loopback *p_loopback)
 {
 	struct platform_device *pdev;
-	int ret;
+	int ret = 0;
 
 	pdev = of_find_device_by_node(node);
 	if (!pdev) {
@@ -1591,7 +1591,6 @@ static int datalb_tdminlb_parse_of(struct device_node *node,
 	if (ret) {
 		pr_warn_once("failed to get mclk-fs node, set it default\n");
 		p_loopback->mclk_fs_ratio = 256;
-		ret = 0;
 	}
 
 	ret = of_property_read_u32(node, "data_lb_rate",

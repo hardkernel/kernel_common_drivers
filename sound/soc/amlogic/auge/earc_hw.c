@@ -2211,7 +2211,7 @@ void earcrx_err_correction_force_mode(struct regmap *dmac_map, bool enable)
 
 void earcrx_efuse_trim_set(struct regmap *rx_top_map)
 {
-	unsigned int val = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_EARCRX);
+	int val = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_EARCRX);
 
 	if (val >= 0 && val <= 0x1f) {
 		pr_info("%s:trim value %d\n", __func__, val);

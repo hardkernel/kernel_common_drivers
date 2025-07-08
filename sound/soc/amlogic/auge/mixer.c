@@ -342,7 +342,7 @@ static int mixer_vol_set(struct snd_kcontrol *kcontrol,
 	struct mixer *mixer_p  = snd_soc_component_get_drvdata(component);
 	unsigned int value = ucontrol->value.enumerated.item[0];
 
-	if (value > 0x7fffffff || value < 0) {
+	if (value > 0x7fffffff) {
 		pr_err("vol not support %d\n",
 				value);
 		return 0;

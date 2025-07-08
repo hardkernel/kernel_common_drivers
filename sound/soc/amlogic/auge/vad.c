@@ -319,7 +319,7 @@ static int vad_engine_check(struct vad *p_vad, bool init)
 				return 0;
 			}
 			/*not in vad buffer*/
-			if (!p_vad || !p_vad->en || /*!p_vad->callback ||*/
+			if (!p_vad->en || /*!p_vad->callback ||*/
 				!p_vad->tddr || !p_vad->a2v_buf) {
 				msleep_interruptible(5);
 				pr_info("%s:wait switch to vad buffer!\n", __func__);
