@@ -1504,13 +1504,13 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 	devp->h_skip_en = false;
 	devp->v_skip_en = false;
 	memset(&devp->stats, 0, sizeof(devp->stats));
+	devp->afbce_flag = devp->dts_config.afbce_flag_cfg;
 
 	if (devp->dtdata->hw_ver == VDIN_HW_T6W && (devp->afbce_flag & VDIN_AFBCE_EN_LOSSY))
 		devp->is_vfce_en = true;
 	else
 		devp->is_vfce_en = false;
 	//TBC
-
 	devp->debug.dv_dbg_log_du = 60;
 	devp->debug.dv_dbg_mask = (DV_BUF_START_RESET);
 	devp->debug.vdin_frame_work_mode = VDIN_VF_PUT;

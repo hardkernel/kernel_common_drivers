@@ -3818,7 +3818,7 @@ start_chk:
 	} else if (!strcmp(parm[0], "afbce_flag")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 16, &temp) == 0) {
-				devp->afbce_flag = temp;
+				devp->dts_config.afbce_flag_cfg = temp;
 				pr_info("set afbce_flag: 0x%x\n", devp->afbce_flag);
 			}
 		} else {
