@@ -954,7 +954,7 @@
 };
 
 &ir {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&remote_pins>;
 	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/

@@ -1802,7 +1802,7 @@
 };
 
 &ir {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-1 = <&remote_pins_sleep>;
 	pinctrl-names = "default", "sleep";

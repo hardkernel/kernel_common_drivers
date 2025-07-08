@@ -1111,3 +1111,8 @@
 	interrupts = <0 87 1>;
 	interrupt-names = "lc_curve";
 };
+
+/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+&remote {
+	map = <&custom_maps_linux>;
+};
