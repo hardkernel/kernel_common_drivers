@@ -88,11 +88,12 @@ void hdmitx_set_s6_htxpll_clk_out(const u32 clk, u32 div)
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
 	enum hdmi_color_depth cd = COLORDEPTH_24B;
-	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
+	struct hdmi_format_para *para = NULL;
 
-	if (!hdev || !para)
+	if (!hdev)
 		return;
 
+	para = &hdev->tx_comm.fmt_para;
 	cs = para->cs;
 	cd = para->cd;
 

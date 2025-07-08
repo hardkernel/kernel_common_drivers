@@ -1312,6 +1312,10 @@ static void cvbs_debug_store(const char *buf)
 		break;
 
 	case CMD_BIST:
+		if (!cvbs_drv) {
+			pr_info("[%s] cvbs_drv is null\n", __func__);
+			goto DEBUG_END;
+		}
 		if (argc != 2) {
 			pr_info("[%s] cmd_bist format:\n"
 			"\tbist 1/2/3/4/5/6/7/8/0\n", __func__);
@@ -1331,6 +1335,10 @@ static void cvbs_debug_store(const char *buf)
 		break;
 
 	case CMD_VP_SET:
+		if (!cvbs_drv || !(cvbs_drv->vinfo)) {
+			pr_info("[%s] cvbs_drv or cvbs_drv->vinfo is null\n", __func__);
+			goto DEBUG_END;
+		}
 		if (cvbs_drv->vinfo->mode != VMODE_CVBS) {
 			pr_info("NOT VMODE_CVBS,Return\n");
 			return;
@@ -1402,6 +1410,10 @@ static void cvbs_debug_store(const char *buf)
 		cvbs_log_info("%s\n", __func__);
 		break;
 	case CMD_TTC_VALUE:
+		if (!cvbs_drv) {
+			pr_info("[%s] cvbs_drv is null\n", __func__);
+			goto DEBUG_END;
+		}
 		perfconf = &cvbs_drv->perf_conf_ntsc_ttc;
 		if (!perfconf)
 			return;
@@ -2119,17 +2131,16 @@ static void cvbsout_remove(struct platform_device *pdev)
 	free_irq(INT_VIU_VSYNC, (void *)"tvout_vsync");
 #endif
 	cvbsout_clktree_remove(&pdev->dev);
-
-	if (cvbs_drv->base_class) {
-		for (i = 0; i < ARRAY_SIZE(cvbs_attr); i++)
-			class_remove_file(cvbs_drv->base_class, cvbs_attr[i]);
-		class_destroy(cvbs_drv->base_class);
-	}
 	if (cvbs_drv) {
+		if (cvbs_drv->base_class) {
+			for (i = 0; i < ARRAY_SIZE(cvbs_attr); i++)
+				class_remove_file(cvbs_drv->base_class, cvbs_attr[i]);
+			class_destroy(cvbs_drv->base_class);
+		}
 		cdev_del(cvbs_drv->cdev);
 #ifdef CONFIG_AMLOGIC_VPU
-	/*vpu gate unregister for cvbs*/
-	vpu_dev_unregister(cvbs_drv->cvbs_vpu_dev);
+		/*vpu gate unregister for cvbs*/
+		vpu_dev_unregister(cvbs_drv->cvbs_vpu_dev);
 #endif
 		kfree(cvbs_drv);
 	}
