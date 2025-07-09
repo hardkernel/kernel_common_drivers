@@ -20,6 +20,13 @@
 
 //#define TCON_DBG_TIME
 
+struct lcd_tcon_init_setting_s {
+	unsigned int reg;
+	unsigned int val;
+	unsigned int bit;
+	unsigned int len;
+};
+
 struct lcd_tcon_axi_mem_cfg_s {
 	unsigned int mem_type;
 	unsigned int mem_size;
@@ -55,6 +62,7 @@ struct lcd_tcon_config_s {
 	unsigned int bin_path_size;
 	unsigned int secure_cfg_size;
 
+	struct lcd_tcon_init_setting_s *init_pre_setting;
 	unsigned int axi_tbl_len;
 	struct lcd_tcon_axi_mem_cfg_s *axi_mem_cfg_tbl;
 	struct lcd_tcon_dma_ops_s *lut_dma_ops;
@@ -62,6 +70,7 @@ struct lcd_tcon_config_s {
 	void (*tcon_axi_mem_config)(void);
 	void (*tcon_axi_mem_secure)(void);
 	void (*tcon_init_table_pre_proc)(unsigned char *table);
+	void (*tcon_lut_post_proc)(struct aml_lcd_drv_s *pdrv, unsigned int lut_type);
 	void (*tcon_global_reset)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_top_init)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_enable)(struct aml_lcd_drv_s *pdrv);
@@ -232,14 +241,7 @@ void lcd_tcon_fw_update_core(struct lcd_tcon_fw_s *fw);
 #define LCD_TCON_TABLE_LEN_T5            0x18d4 /* 0x635*4 */
 #define LCD_TCON_AXI_BANK_T5             2
 
-#define BIT_TOP_EN_T5                    4
-
 #define TCON_CORE_REG_START_T5           0x0100
-#define REG_CORE_OD_T5                   0x263
-#define BIT_OD_EN_T5                     31
-#define REG_CORE_CTRL_TIMING_BASE_T5     0x1b
-#define CTRL_TIMING_OFFSET_T5            12
-#define CTRL_TIMING_CNT_T5               0
 
 /* T5D */
 #define LCD_TCON_CORE_REG_WIDTH_T5D       32
@@ -247,14 +249,7 @@ void lcd_tcon_fw_update_core(struct lcd_tcon_fw_s *fw);
 #define LCD_TCON_TABLE_LEN_T5D            0x102c /* 0x40b*4 */
 #define LCD_TCON_AXI_BANK_T5D             1
 
-#define BIT_TOP_EN_T5D                    4
-
 #define TCON_CORE_REG_START_T5D           0x0100
-#define REG_CORE_OD_T5D                   0x263
-#define BIT_OD_EN_T5D                     31
-#define REG_CTRL_TIMING_BASE_T5D          0x1b
-#define CTRL_TIMING_OFFSET_T5D            12
-#define CTRL_TIMING_CNT_T5D               0
 
 /* T3X */
 #define LCD_TCON_TABLE_LEN_T3X            0x1478 /* 0x51e*4 */
@@ -290,8 +285,7 @@ struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
 void lcd_tcon_global_reset_t5(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_global_reset_t3(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_global_reset_t3x(struct aml_lcd_drv_s *pdrv);
-void lcd_tcon_init_table_pre_proc(unsigned char *table);
-void lcd_tcon_init_table_pre_proc_txhd2(unsigned char *table);
+void lcd_tcon_lut_post_proc(struct aml_lcd_drv_s *pdrv, unsigned int lut_type);
 void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 			   struct lcd_tcon_config_s *tcon_conf,
 			   struct tcon_mem_map_table_s *mm_table,
