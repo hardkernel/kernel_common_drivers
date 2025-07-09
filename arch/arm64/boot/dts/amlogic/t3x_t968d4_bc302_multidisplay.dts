@@ -1314,8 +1314,8 @@
 };
 
 &i2c1 {
-	status = "disabled";
-	pinctrl-names="default";
+	status = "okay";
+	pinctrl-names="default", "sleep";
 	pinctrl-0=<&i2c1_pins1>;
 	pinctrl-1=<&i2c1_pins1_sleep>;
 
@@ -1404,7 +1404,7 @@
 };
 
 &i2c2 {
-	status = "disabled";
+	status = "okay";
 	clock-frequency = <100000>;
 	pinctrl-names="default";
 	pinctrl-0=<&i2c2_pins3>;
@@ -1824,7 +1824,7 @@
 };
 
 &i2c0 {
-	status = "disabled";
+	status = "okay";
 	clock-frequency = <300000>;
 	pinctrl-names="default";
 	pinctrl-0=<&i2c0_pins1>;
