@@ -1370,8 +1370,8 @@
 		pinctrl-0=<&eecec_a>;
 		pinctrl-1=<&eecec_b>;
 		pinctrl-2=<&eecec_b>;
-		clocks = <&clkc CLKID_CECA_CLK>,
-			<&clkc CLKID_CECB_CLK>;
+		clocks = <&clkc CLKID_CECA_DUAL>,
+			<&clkc CLKID_CECB_DUAL>;
 		clock-names = "ceca_clk","cecb_clk";
 		reg = <0xfe044000 0x2ff
 		       0xfe010000 0xfff

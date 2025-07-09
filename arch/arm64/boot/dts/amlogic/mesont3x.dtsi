@@ -4138,7 +4138,6 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <0>;
 		arc_port = <2>;
-		vrr_range_dynamic_update_en = <1>;
 		/* for 2.2R:0x8, for 5.1R:0x6 */
 		term_lvl = <0x8>;
 		term_lvl_t3x_21 = <0x8>;

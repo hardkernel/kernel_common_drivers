@@ -1089,26 +1089,29 @@
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
 		 */
 		vendor_id = <0x000000>;
-		product_desc = "T6D"; /* Max Chars: 16    */
+		product_desc = "T6W"; /* Max Chars: 16    */
 		cec_osd_string = "AML_TV"; /* Max Chars: 14    */
 		cec_version = <5>;/*5:1.4;6:2.0*/
-		port_num = <2>;
+		port_num = <4>;
 		output = <0>;
 		cec_sel = <1>;/*1:use one ip, 2:use 2 ip*/
 		ee_cec; /*use cec a or b*/
 		arc_port_mask = <0x1>;
 		interrupts = <GIC_SPI 180 IRQ_TYPE_EDGE_RISING>;/*0:snps*/
 		interrupt-names = "hdmi_aocecb";
-		//pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
-		//pinctrl-0=<&cec_b>;
-		//pinctrl-1=<&cec_b>;
-		//pinctrl-2=<&cec_b>;
-		//clocks = <&clkc CLKID_CECB_32K_CLKOUT>;
-		//clock-names = "cecb_clk";
-		reg = <0xfe044000 0x2000
-		       0xfe010000 0x2000
-		       0xfe000000 0x2000
-		       0xfe004000 0x2000>;
+		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep",
+		"cec_pin_sleep_new","cec_pin_new_state";
+		pinctrl-0=<&cec_b>;
+		pinctrl-1=<&cec_b>;
+		pinctrl-2=<&cec_b>;
+		pinctrl-3=<&cecb_w17 &cec_default_a>;
+		pinctrl-4=<&cecb_w17 &cec_default_a>;
+		clocks = <&clkc CLKID_CECB_32K_CLKOUT>;
+		clock-names = "cecb_clk";
+		reg = <0x0 0xfe044000 0x0 0x2000
+		       0x0 0xfe010000 0x0 0x2000
+		       0x0 0xfe000000 0x0 0x2000
+		       0x0 0xfe004000 0x0 0x2000>;
 		reg-names = "ao","periphs","clock","pad_reg";
 		mbox-names = "mbox_cec";
 		mboxes = <&mbox_fifo T6W_REE2AO_AOCEC>;
@@ -1947,13 +1950,43 @@
 		};
 	};
 
+	hdmirx_d_mux:hdmirx_d_mux {
+		mux {
+			groups = "hdmirx_hpd_d",
+				"hdmirx_5vdet_d",
+				"hdmirx_sda_d",
+				"hdmirx_scl_d";
+			function = "hdmirx";
+		};
+	};
+
 	cec_b: cec_b {
 		mux {
-			groups = "cec";
+			groups = "cec_w16";
 			function = "cec";
 		};
 	};
 
+	cecb_w17: cecb_w17 {
+		mux {
+			groups = "cec_w17";
+			function = "cec";
+		};
+	};
+
+	cec_default_a: cec_default_a {
+		mux {
+			groups = "GPIOW_16";
+			function = "gpio_periphs";
+		};
+	};
+
+	cec_default_b: cec_default_b {
+		mux {
+			groups = "GPIOW_17";
+			function = "gpio_periphs";
+		};
+	};
 	irblaster_pins1:irblaster_pin1 {
 		mux {
 			groups = "remote_out_b";
