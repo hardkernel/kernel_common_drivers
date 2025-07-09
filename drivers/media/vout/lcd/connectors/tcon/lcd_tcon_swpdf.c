@@ -130,7 +130,7 @@ struct swpdf_block_s *swpdf_block_create_add(struct swpdf_pat_s *pat,
 
 	cnt = w * h;
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
-	pixs = kcalloc(cnt, sizeof(pix), GFP_KERNEL);
+	pixs = kcalloc(cnt, sizeof(struct swpdf_pix_s *), GFP_KERNEL);
 	if (!block || !pixs)
 		goto __pdf_pat_block_create_add_err;
 

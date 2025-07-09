@@ -170,10 +170,12 @@ static int get_lcd_tv_modes(struct meson_panel_dev *panel,
 	struct lcd_detail_timing_s *ptiming;
 	unsigned int i, frame_rate, mode_cnt = 0, mode_idx;
 
-	LCD_DBG(pdrv, "%s", __func__);
-
 	if (!pdrv || !pdrv->vmode_mgr.vmode_list_header)
 		return 0;
+
+	LCD_DBG(pdrv, "%s", __func__);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
 	mode_cnt = pdrv->vmode_mgr.vmode_cnt;
 	nmodes = kcalloc(mode_cnt, sizeof(struct drm_display_mode), GFP_KERNEL);

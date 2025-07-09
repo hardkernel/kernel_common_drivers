@@ -487,3 +487,4 @@ void lcd_fr_lock(struct aml_lcd_drv_s *pdrv)
 fr_lock_exit:
 	return;
 }
+

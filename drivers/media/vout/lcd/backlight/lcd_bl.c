@@ -1473,12 +1473,16 @@ static int bl_pwm_switch_notifier(struct notifier_block *nb,
 	/* choose default pwm or switch pwm*/
 	switch (bdrv->bconf.method) {
 	case BL_CTRL_PWM:
-		bconf->bl_pwm_switch->bl_level = bconf->bl_pwm->bl_level;
-		bconf->bl_pwm_default->bl_level = bconf->bl_pwm->bl_level;
+		if (bconf->bl_pwm_switch)
+			bconf->bl_pwm_switch->bl_level = bconf->bl_pwm->bl_level;
+		if (bconf->bl_pwm_default)
+			bconf->bl_pwm_default->bl_level = bconf->bl_pwm->bl_level;
 		break;
 	case BL_CTRL_PWM_COMBO:
-		bconf->bl_pwm_switch->bl_level = bconf->bl_pwm_combo0->bl_level;
-		bconf->bl_pwm_default->bl_level = bconf->bl_pwm_combo0->bl_level;
+		if (bconf->bl_pwm_switch)
+			bconf->bl_pwm_switch->bl_level = bconf->bl_pwm_combo0->bl_level;
+		if (bconf->bl_pwm_default)
+			bconf->bl_pwm_default->bl_level = bconf->bl_pwm_combo0->bl_level;
 		break;
 	default:
 		BLWARN("wrong bl control method\n");

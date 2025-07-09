@@ -201,7 +201,7 @@ static int ldim_power_on(void)
 	}
 	LDIMPR("%s\n", __func__);
 
-	if (fw || ldim_driver.dev_drv) {
+	if (fw && ldim_driver.dev_drv) {
 		fw->fw_ctrl |= FW_CTRL_RESUME;
 		if (ldim_driver.dev_drv->spi_sync == SPI_DMA_TRIG)
 			ldim_wr_vcbus(VPP_INT_LINE_NUM, ldim_driver.dev_drv->spi_line_n);
@@ -1190,7 +1190,7 @@ static int aml_ldim_malloc(struct platform_device *pdev, struct ldim_drv_data_s 
 	return 0;
 
 ldim_malloc_t7_err6:
-	if (fw)
+	if (fw && fw->param)
 		kfree(fw->param->iparam);
 ldim_malloc_t7_err5:
 	if (fw_cus && fw_cus->fw_param)
