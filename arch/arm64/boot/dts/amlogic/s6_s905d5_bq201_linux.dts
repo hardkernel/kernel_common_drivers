@@ -765,6 +765,8 @@
 		// using cm_mclk_0 24M
 		clocks = <&clkc CLKID_MCLK0>;
 		clock-names = "mclk0";
+		assigned-clocks = <&clkc CLKID_MCLK0>;
+		assigned-clock-rates = <24000000>;
 
 		pwdn-gpios = <&gpio GPIOX_5 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio GPIOX_4 GPIO_ACTIVE_HIGH>;
