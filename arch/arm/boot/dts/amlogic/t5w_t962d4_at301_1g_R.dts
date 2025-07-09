@@ -1137,3 +1137,10 @@
 	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
 };
 
+&aml_vpq {
+	status = "disabled";
+};
+
+&aml_vpp {
+	status = "disabled";
+};

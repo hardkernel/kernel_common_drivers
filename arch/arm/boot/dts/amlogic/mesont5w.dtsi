@@ -2835,6 +2835,19 @@
 		ranges;
 		reg = <0xff650080 0x100>;
 	};
+
+	aml_vpq: aml_vpq {
+		compatible = "amlogic, vpq-t5w";
+		dev_name = "aml_vpq";
+		status = "disabled";
+	};
+
+	aml_vpp: aml_vpp {
+		compatible = "amlogic, vpp-t5w";
+		dev_name = "aml_vpp";
+		status = "disabled";
+		pq_en = <1>;
+	};
 }; /* end of / */
 
 &pinctrl_periphs {

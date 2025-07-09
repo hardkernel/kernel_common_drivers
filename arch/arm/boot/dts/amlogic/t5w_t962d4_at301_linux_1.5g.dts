@@ -1133,3 +1133,11 @@
 &remote {
 	map = <&custom_maps_linux>;
 };
+
+&aml_vpq {
+	status = "disabled";
+};
+
+&aml_vpp {
+	status = "disabled";
+};
