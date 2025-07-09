@@ -345,7 +345,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M */
-			size = <0xa800000>;
+			size = <0x6400000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x30000000 0x10000000>;
@@ -851,3 +851,12 @@
 	};
 };
 
+&codec_mm {
+		/*
+		 * scatter_alloc_mode: the mode of scatter memory allocation
+		 * 0: default mode, alloc from system and cma
+		 * 1: only alloc from system
+		 * 2: only alloc from cma
+		 */
+		scatter_alloc_mode = <1>;
+};

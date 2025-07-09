@@ -1879,7 +1879,7 @@
 		status = "okay";
 	};
 
-	codec_mm {
+	codec_mm: codec_mm {
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
 		dev_name = "codec_mm";
