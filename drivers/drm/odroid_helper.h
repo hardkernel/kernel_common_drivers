@@ -15,6 +15,12 @@ extern int update_odroid_custom_hdmi_timing(
 		struct drm_connector *connector,
 		const char *modename);
 
+const char *odroid_preferred_display_mode(void);
+extern int odroid_set_preferred_mode(
+		struct drm_connector *connector,
+		const char *name);
+extern int odroid_force_single_display_mode(void);
+
 extern int load_odroid_modelines(struct drm_connector *connector);
 extern int load_odroid_modeline_from_commandline(struct drm_connector *connector);
 extern int load_odroid_display_mode_from_dt(struct drm_connector *connector,

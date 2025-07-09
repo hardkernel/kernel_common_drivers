@@ -651,6 +651,12 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	count += load_odroid_display_mode_from_dt(connector, dev->of_node);
 #endif
 
+#if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+	/* set default preferred display mode */
+	odroid_set_preferred_mode(connector,
+			odroid_preferred_display_mode());
+#endif
+
 	connector->display_info.monitor_range.max_vfreq = am_hdmitx->max_vfreq;
 	connector->display_info.monitor_range.min_vfreq = am_hdmitx->min_vfreq;
 
