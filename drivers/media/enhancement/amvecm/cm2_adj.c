@@ -155,6 +155,16 @@ static void color_adj(int inp_color, int inp_val, int lpf_en,
 	int x, k;
 	int kpt = 0;
 	int varargin_1;
+	int size = 9;
+
+	if (!lpf_coef || !color_key_pts || !smth_coef ||
+		!out_lut)
+		return;
+
+	if (cm_cur_work_color_md == cm_9_color)
+		size = 9;
+	else
+		size = 14;
 
 	inp_val2 = max(-128, min(127, inp_val));
 
@@ -173,8 +183,8 @@ static void color_adj(int inp_color, int inp_val, int lpf_en,
 		}
 	}
 
-	if (inp_color >= 0 && (inp_color <= cm_14_ecm2colormode_max ||
-		inp_color <= ecm2colormode_max))
+	if (inp_color >= 0 && (inp_color < cm_14_ecm2colormode_max ||
+		inp_color < ecm2colormode_max) && inp_color < size)
 		kpt = color_key_pts[inp_color];
 
 	for (x = 0; x < NUM_SMTH_PARAM; x++) {
