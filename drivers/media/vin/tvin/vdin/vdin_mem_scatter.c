@@ -103,9 +103,18 @@ void vdin_sct_free_wr_list_idx(struct vf_pool *p, struct vframe_s *vf)
 
 void vdin_sct_read_mmu_num(struct vdin_dev_s *devp, struct vf_entry *vfe)
 {
+	unsigned int *paddr = NULL;
+
 	if (devp->mem_type == VDIN_MEM_TYPE_SCT && vfe) {
 		if (devp->dtdata->hw_ver == VDIN_HW_T6W) {
-			vfe->vf.afbce_num = devp->afbce_mmu_num;
+			paddr = VSYNC_GET_RD_BACK_ADDR(&devp->reg_hnd);
+			if (paddr) {
+				vfe->vf.afbce_num = *paddr;
+			} else {
+				vfe->vf.afbce_num = devp->msct_top.mmu_4k_number * 8 / 10;
+				if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_MMU_NUM)
+					pr_info("vdin%d rdma read mmu failed!!!\n", devp->index);
+			}
 			devp->afbce_mmu_num = 0;
 		} else if (devp->dtdata->hw_ver == VDIN_HW_T3X) {
 			vfe->vf.afbce_num = rd(devp->addr_offset, VDIN0_AFBCE_MMU_NUM);
@@ -189,7 +198,7 @@ int vdin_sct_alloc(struct vdin_dev_s *devp, int vf_idx)
 	diff = timer_end - timer_st;
 	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_ALLOC_IDX)
 		pr_info("%s:use %u us\n", __func__, (unsigned int)diff);
-	if (diff > 10000)
+	if (diff > 12000)
 		pr_info("%s:takes %llu us,too long\n", __func__, diff);
 	return ret;
 }

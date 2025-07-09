@@ -7,6 +7,7 @@
 #define __VDIN_T6W_REGS_H
 
 /* t6w newly added registers start */
+#define VFCE_TRIGGER                          0x4121 /* 0~ 31 */
 
 #define VFCE_CHNL0_ENABLE                          0x4200
 //Bit 31:18       reg_gclk_ctrl                   // unsigned ,   RW,  default = 0

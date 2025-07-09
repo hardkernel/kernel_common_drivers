@@ -29,6 +29,7 @@
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
+#include "../common/rdma/rdma.h"
 #endif
 
 /* v4l2 header */
@@ -731,6 +732,7 @@ struct vdin_debug_s {
 	enum vdin_vf_put_md vdin_frame_work_mode;
 	unsigned int ignore_vdin_ioctl;
 	unsigned int force_disp_mode;
+	unsigned int reg_addr;
 };
 
 struct vdin_dv_s {
@@ -1355,6 +1357,7 @@ struct vdin_dev_s {
 	bool enable_reset;
 	bool vdin_get_prop_in_fe_en;
 	bool work_mode_simple;
+	struct reg_handle reg_hnd;
 };
 
 extern unsigned int max_ignore_frame_cnt;

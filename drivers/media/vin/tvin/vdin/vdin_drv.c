@@ -1633,6 +1633,36 @@ static void vdin_set_pc_mode(struct vdin_dev_s *devp)
 	} //todo
 }
 
+void vdin_register_rdma_read(struct vdin_dev_s *devp)
+{
+	int ret = 0;
+
+	if (devp->dtdata->hw_ver == VDIN_HW_T6W && devp->mem_type == VDIN_MEM_TYPE_SCT) {
+		if (devp->debug.reg_addr)
+			devp->reg_hnd.reg_addr = devp->debug.reg_addr;
+		else
+			devp->reg_hnd.reg_addr = VFCE_MIF_PLANE0_MMU_STA;
+		ret = VSYNC_ADD_RD_REG(&devp->reg_hnd);
+		if (ret) {
+			pr_err("vdin%d error: offset:%d,reg_addr:%#x,ret:%d\n", devp->index,
+				devp->reg_hnd.offset, devp->reg_hnd.reg_addr, ret);
+		}
+	}
+}
+
+void vdin_unregister_rdma_read(struct vdin_dev_s *devp)
+{
+	unsigned int ret;
+
+	if (devp->reg_hnd.reg_addr) {
+		ret = VSYNC_REMOVE_RD_REG(&devp->reg_hnd, 1);
+		if (ret) {
+			pr_err("vdin%d error: offset:%d,reg_addr:%#x,ret:%d\n", devp->index,
+				devp->reg_hnd.offset, devp->reg_hnd.reg_addr, ret);
+		}
+	}
+}
+
 /*
  * 1. config canvas base on  canvas_config_mode
  *		0: canvas_config in driver probe
@@ -1925,6 +1955,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	}
 #endif
 	vdin_set_to_vpp_parm(devp);
+	vdin_register_rdma_read(devp);
 
 	if (devp->debug.vdin_dbg_en)
 		pr_info("****[%s]ok!****\n", __func__);
@@ -2060,6 +2091,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 #endif
 	disable_irq(devp->irq);
 	devp->flags &= (~VDIN_FLAG_ISR_EN);
+	vdin_unregister_rdma_read(devp);
 	vdin_delay_n_vsync(devp, 2);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&

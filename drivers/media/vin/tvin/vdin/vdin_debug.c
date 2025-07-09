@@ -4925,6 +4925,11 @@ start_chk:
 			devp->debug.dbg_force_type = temp;
 		pr_info("vdin%d,dbg_force_type = %#x\n",
 			devp->index, devp->debug.dbg_force_type);
+	} else if (!strcmp(parm[0], "reg_addr")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.reg_addr = temp;
+		pr_info("vdin%d,reg_addr = %#x\n",
+			devp->index, devp->debug.reg_addr);
 	}
 #endif
 	else if (!strcmp(parm[0], "state")) {
