@@ -99,6 +99,10 @@ sub boards_check
 	my @dts64_str = ("");
 	my @dts_str = ("");
 	my %modified_boards;
+	my $all64_dts = `find $arm64_dts -name "*dts"`;
+	my $all_dts = `find $arm_dts -name "*dts"`;
+	my @all64_files = split(/\n/, $all64_dts);
+	my @all_files = split(/\n/, $all_dts);
 
 	for (@diff_str)
 	{
@@ -123,14 +127,26 @@ sub boards_check
 			}
 	}
 	for my $board (keys %modified_boards) {
+		my $cnt64 = 0;
+		my $cnt = 0;
 		my $arms_modified = $modified_boards{$board}{'arm'} || 0;
 		my $arm64s_modified = $modified_boards{$board}{'arm64'} || 0;
-
-		if ($arm64s_modified > 0 && $arms_modified == 0) {
+		for my $dts (@all64_files) {
+			if ($dts =~ $board) {
+				$cnt64 = 1;
+			}
+		}
+		for my $dts (@all_files) {
+			if ($dts =~ $board) {
+				$cnt = 1;
+			}
+		}
+		print $board;
+		if ($arm64s_modified > 0 && $arms_modified == 0 && $cnt == 1) {
 			$err_cnt += 1;
 			$err_msg .= "	$err_cnt: Please confirm should you modify the same boards in arch/arm/boot/dts/amlogic/ too?\n";
 		}
-		elsif ($arms_modified > 0 && $arm64s_modified == 0) {
+		elsif ($arms_modified > 0 && $arm64s_modified == 0 && $cnt64 == 1) {
 			$err_cnt += 1;
 			$err_msg .= "	$err_cnt: Please confirm should you modify the same boards in arch/arm64/boot/dts/amlogic/ too?\n";
 		}
