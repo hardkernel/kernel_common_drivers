@@ -345,6 +345,27 @@ static void meson_hdmitx_convert_timing_para(int vic,
 {
 	const struct hdmi_timing *timing;
 	char *strp = NULL;
+	/*
+	 * From edid_cea_modes_1 in drm_edid.c:
+	 * 6 - 720(1440)x480i@60Hz 4:3
+	 * 7 - 720(1440)x480i@60Hz 16:9
+	 * 8 - 720(1440)x240@60Hz 4:3
+	 * 9 - 720(1440)x240@60Hz 16:9
+	 * 21 - 720(1440)x576i@50Hz 4:3
+	 * 22 - 720(1440)x576i@50Hz 16:9
+	 * 23 - 720(1440)x288@50Hz 4:3
+	 * 24 - 720(1440)x288@50Hz 16:9
+	 * 44 - 720(1440)x576i@100Hz 4:3
+	 * 45 - 720(1440)x576i@100Hz 16:9
+	 * 50 - 720(1440)x480i@120Hz 4:3
+	 * 51 - 720(1440)x480i@120Hz 16:9
+	 * 54 - 720(1440)x576i@200Hz 4:3
+	 * 55 - 720(1440)x576i@200Hz 16:9
+	 * 58 - 720(1440)x480i@240Hz 4:3
+	 * 59 - 720(1440)x480i@240Hz 16:9
+	 */
+	static int vic_dbl_clk[] = {6, 7, 8, 9, 21, 22, 23, 24, 44, 45, 50, 51, 54, 55, 58, 59};
+	int i;
 
 	timing = hdmitx_mode_vic_to_hdmi_timing(vic);
 	if (!timing) {
@@ -406,6 +427,12 @@ static void meson_hdmitx_convert_timing_para(int vic,
 
 	if (!timing->pi_mode)
 		mode->flags |= DRM_MODE_FLAG_INTERLACE;
+
+	for (i = 0; i < ARRAY_SIZE(vic_dbl_clk); i++)
+		if (vic_dbl_clk[i] == vic) {
+			mode->flags |= DRM_MODE_FLAG_DBLCLK;
+			DRM_DEBUG("found vic %d with DBLCK\n", vic);
+		}
 }
 
 static int meson_hdmitx_mode_probed_add(int count, int *vics,
@@ -2205,6 +2232,9 @@ static bool meson_hdmitx_is_alter_mode(struct drm_display_mode *mode)
 		if (drm_mode_vrefresh(mode) % 6 == 0 &&
 		    cea_mode_alternate_clock(&vic_mode) == mode->clock) {
 			strncpy(mode->name, vic_mode.name, DRM_DISPLAY_MODE_LEN);
+
+			DRM_DEBUG("match ok, vic-%d, name-%s, %s\n",
+						vic, mode->name, vic_mode.name);
 			return true;
 		}
 		return false;
