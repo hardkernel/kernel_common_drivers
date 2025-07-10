@@ -149,5 +149,11 @@ struct light_sensor_s {
 /* get dv status for current mode */
 #define DV_IOC_GET_DV_STATUS _IOR((DV_M), 0x16, uint32_t)
 
+/* get dv status for current mode */
+#define DV_IOC_GET_DV_POLICY _IOR((DV_M), 0x17, uint32_t)
+
+/* get dv status for current mode */
+#define DV_IOC_GET_DV_LL_POLICY _IOR((DV_M), 0x18, uint32_t)
+
 #endif
 

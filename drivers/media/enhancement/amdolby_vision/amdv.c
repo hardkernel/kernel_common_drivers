@@ -15961,6 +15961,12 @@ static long amdolby_vision_ioctl(struct file *file,
 	case DV_IOC_GET_DV_STATUS:
 		put_user(dolby_vision_status, (uint32_t __user *)argp);
 		break;
+	case DV_IOC_GET_DV_POLICY:
+		put_user(dolby_vision_policy, (uint32_t __user *)argp);
+		break;
+	case DV_IOC_GET_DV_LL_POLICY:
+		put_user(dolby_vision_ll_policy, (uint32_t __user *)argp);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
