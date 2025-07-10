@@ -159,5 +159,11 @@ struct dv_cfg_support_s {
 /*1: enable dv gd, 0: disable dv gd*/
 #define DV_IOC_SET_DV_GD _IOW((DV_M), 0x17, int)
 
+/* get dv status for current mode */
+#define DV_IOC_GET_DV_POLICY _IOR((DV_M), 0x18, uint32_t)
+
+/* get dv status for current mode */
+#define DV_IOC_GET_DV_LL_POLICY _IOR((DV_M), 0x19, uint32_t)
+
 #endif
 
