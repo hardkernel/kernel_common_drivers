@@ -9,6 +9,11 @@
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 #include <linux/in.h>
+#include <linux/err.h>
+#include <linux/module.h>
+#include <linux/skbuff.h>
+#include <net/sock.h>
+#include <net/netlink.h>
 #include "amlogic-wol.h"
 
 #undef pr_fmt
@@ -35,6 +40,19 @@ struct mbox_payload {
 #define DATA_TYPE_WKUP_REASON		0x01	/* Get wakeup reason */
 #define DATA_TYPE_WKUP_SRC		0x02	/* Controlling the sources that can wake up */
 #define DATA_TYPE_IPV4_ADDR		0x03	/* Set IPv4 address */
+#define DATA_TYPE_OFFLOADSTATE		0x04	/* For mDNS offload */
+#define DATA_TYPE_RESET_ALL		0x05	/* For mDNS offload */
+#define DATA_TYPE_RECORD_KEY		0x06	/* For mDNS offload */
+#define DATA_TYPE_ADD_RESPONSE		0x07	/* For mDNS offload */
+#define DATA_TYPE_REMOVE_RESPONSE	0x08	/* For mDNS offload */
+#define DATA_TYPE_RESET_HITCOUNT	0x09	/* For mDNS offload */
+#define DATA_TYPE_RESET_MISSCOUNT	0x0a	/* For mDNS offload */
+#define DATA_TYPE_ADD_PASST		0x0b	/* For mDNS offload */
+#define DATA_TYPE_REMOVE_PASST		0x0c	/* For mDNS offload */
+#define DATA_TYPE_PASST_BEHAVIOR	0x0d	/* For mDNS offload */
+#define DATA_TYPE_MDNS_FRAME_SIZE	0x0e	/* For mDNS offload */
+#define DATA_TYPE_MDNS_FRAME_INFO	0x0f	/* For mDNS offload */
+#define DATA_TYPE_GET_PASST_STATUS	0x10	/* For mDNS offload */
 
 #define WKUP_REASON_UNUSED		0x00
 #define WKUP_REASON_MAGIC		0x01	/* Magic packet wakeup */
@@ -50,6 +68,70 @@ static struct device *dev;
 static struct mbox_chan *mbox;
 static struct mutex lock;
 static u32 wakeup_src;
+static struct sock *g_sk;
+static int g_mdnsoffload_result;
+
+//#define DEBUG_MDNS
+#define MDNS_LIST_CRITERIA_MAX          8
+#define MDNS_RAW_DATA_LENGTH_MAX        492
+#define MDNS_QNAME_LENGTH_MAX           80
+#define NETLINK_TEST                    17
+#define TYPE_SET_OFFLOAD_STATE          1
+#define TYPE_ENABLE_NETLINK_SERVER      2
+#define TYPE_IPV4_PEER_ADDR             3
+#define TYPE_ADD_RESPONSE               4
+#define TYPE_REMOVE_RESPONSE            5
+#define TYPE_SET_PASSTHROUGH_BEHAVIOR   6
+
+#pragma pack(push, 1)
+struct match_criteria {
+	u16 type;
+	u16 offset;
+};
+
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct mdns_protocol_data {
+	s32 hit_counter;
+	u8 valid;
+	u8 list_len;
+	u16 raw_len;
+	u16 web_port;
+	u16 srv_port;
+	struct match_criteria list_criteria[MDNS_LIST_CRITERIA_MAX];
+	u8 raw_offload_packet[MDNS_RAW_DATA_LENGTH_MAX];
+};
+
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct mdns_passthrough {
+	u8 valid;
+	u8 qname_len;
+	u8 qname[MDNS_QNAME_LENGTH_MAX];
+};
+
+#pragma pack(pop)
+
+enum passthrough_behavior_enum {
+	FORWARD_ALL,
+	DROP_ALL,
+	PASSTHROUGH_LIST,
+};
+
+#ifdef DEBUG_MDNS
+//_googlecast._tcp.local
+static u8 passthrough_qname_test[] = {
+	0x0b, 0x5f,
+	0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x63, 0x61,
+	0x73, 0x74, 0x04, 0x5f, 0x74, 0x63, 0x70, 0x05,
+	0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x00
+};
+#endif
+
+static int handle_offload_msg(unsigned char *puc, const char *mode);
+static u8 set_mdns_notify_bl30(int flag);
 
 static inline void __mbox_data_swap(void *wdata, u32 wlen, void *rdata, u32 rlen)
 {
@@ -212,9 +294,42 @@ static ssize_t wakeup_reason_show(const struct class *class, const struct class_
 }
 static CLASS_ATTR_RO(wakeup_reason);
 
+static ssize_t mdnsoffload_show(const struct class *class, const struct class_attribute *attr,
+				char *buf)
+{
+	(void)class;
+	(void)attr;
+	(void)buf;
+
+	return 0;
+}
+
+static ssize_t mdnsoffload_store(const struct class *class, const struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	g_mdnsoffload_result = handle_offload_msg((unsigned char *)buf, "SYSFS");
+	print_hex_dump(KERN_DEBUG, "mdnsoffload: ", DUMP_PREFIX_OFFSET, 16, 1, buf, count, true);
+	return count;
+}
+static CLASS_ATTR_RW(mdnsoffload);
+
+static ssize_t mdnsoffload_result_show(const struct class *class,
+				       const struct class_attribute *attr, char *buf)
+{
+	int ret = __get_wakeup_reason();
+
+	if (ret < 0)
+		return ret;
+
+	return sysfs_emit(buf, "%d\n", g_mdnsoffload_result);
+}
+static CLASS_ATTR_RO(mdnsoffload_result);
+
 static struct attribute *wol_class_attrs[] = {
 	&class_attr_wakeup_src.attr,
 	&class_attr_wakeup_reason.attr,
+	&class_attr_mdnsoffload.attr,
+	&class_attr_mdnsoffload_result.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(wol_class);
@@ -240,7 +355,6 @@ static void __set_ipv4_address(void)
 		in_dev_for_each_ifa_rcu(ifa, in_dev) {
 			ip = ifa->ifa_local;
 			snprintf(ip_str, sizeof(ip_str), "%pI4", &ip);
-			pr_info("found IPv4 address: %s\n", ip_str);
 			found = true;
 			break;
 		}
@@ -254,6 +368,7 @@ static void __set_ipv4_address(void)
 void amlogic_wol_enter(void)
 {
 	__set_ipv4_address();
+	set_mdns_notify_bl30(1);
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_enter);
 
@@ -262,9 +377,11 @@ bool amlogic_wol_exit(void)
 	int ret = __get_wakeup_reason();
 	bool report_event = false;
 
+	set_mdns_notify_bl30(0);
+
 	if (ret < 0)
 		goto out;
-	pr_info("%s wakeup\n", wakeup_names[ret]);
+	pr_debug("%s wakeup\n", wakeup_names[ret]);
 
 	switch (ret) {
 	case WKUP_REASON_MAGIC:
@@ -296,3 +413,255 @@ void amlogic_wol_remove(void)
 	mbox = NULL;
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_remove);
+
+static inline u8 mdns_set_offload_state(u8 enable)
+{
+	u8 ret;
+
+	__mbox_data_write(DATA_TYPE_OFFLOADSTATE, &enable, 1);
+	__mbox_data_read(DATA_TYPE_OFFLOADSTATE, &ret, 1);
+	return ret;
+}
+
+static inline void mdns_remove_response(int record_key)
+{
+	__mbox_data_write(DATA_TYPE_RECORD_KEY, &record_key, 4);
+	__mbox_notify(DATA_TYPE_REMOVE_RESPONSE);
+}
+
+static inline void mdns_get_reset_hitcount(int record_key, int *hit_counter)
+{
+	__mbox_data_write(DATA_TYPE_RECORD_KEY, &record_key, 4);
+	__mbox_data_read(DATA_TYPE_RESET_HITCOUNT, hit_counter, 4);
+}
+
+static inline void mdns_get_reset_misscount(int *miss_counter)
+{
+	__mbox_data_read(DATA_TYPE_RESET_MISSCOUNT, miss_counter, 4);
+}
+
+static inline void mdns_set_passthrough_behavior(u8 behavior)
+{
+	__mbox_data_write(DATA_TYPE_PASST_BEHAVIOR, &behavior, 1);
+}
+
+static inline void mdns_reset_all(void)
+{
+	__mbox_notify(DATA_TYPE_RESET_ALL);
+}
+
+static inline int mdns_get_mdns_frame(u8 *buf, u16 buf_len)
+{
+	u16 frame_size;
+
+	__mbox_data_read(DATA_TYPE_MDNS_FRAME_SIZE, &frame_size, 1);
+	__mbox_data_read(DATA_TYPE_MDNS_FRAME_INFO, buf,
+			 buf_len > frame_size ? frame_size : buf_len);
+
+	return frame_size;
+}
+
+static int mdns_add_response(u8 *offload_data, u16 offload_size,
+			      struct match_criteria *criteria_data,
+			      u8 criteria_size, u16 web_port, u16 srv_port)
+{
+	int ret;
+	struct mdns_protocol_data protocol_data;
+
+	protocol_data.hit_counter = 0;
+	protocol_data.valid = true;
+	protocol_data.list_len = criteria_size;
+	protocol_data.raw_len = offload_size;
+	protocol_data.web_port = web_port;
+	protocol_data.srv_port = srv_port;
+	memcpy(protocol_data.list_criteria, criteria_data,
+		protocol_data.list_len * sizeof(struct match_criteria));
+	memcpy(protocol_data.raw_offload_packet, offload_data, protocol_data.raw_len);
+
+	__mbox_data_write(DATA_TYPE_ADD_RESPONSE, &protocol_data, sizeof(protocol_data));
+	__mbox_data_read(DATA_TYPE_ADD_RESPONSE, &ret, 4);
+	return ret;
+}
+
+#ifdef DEBUG_MDNS
+static u8 mdns_add_passthrough(u8 *qname, u8 len)
+{
+	u8 ret = 0;
+	struct mdns_passthrough passthrough_data;
+
+	passthrough_data.valid = true;
+	passthrough_data.qname_len = len;
+	memcpy(passthrough_data.qname, qname, passthrough_data.qname_len);
+
+	__mbox_data_write(DATA_TYPE_ADD_PASST, &passthrough_data, sizeof(passthrough_data));
+	__mbox_data_read(DATA_TYPE_GET_PASST_STATUS, &ret, 1);
+	return ret;
+}
+
+static void mdns_remove_passthrough(u8 *qname, u8 len)
+{
+	struct mdns_passthrough passthrough_data;
+
+	passthrough_data.valid = true;
+	passthrough_data.qname_len = len;
+	memcpy(passthrough_data.qname, qname, passthrough_data.qname_len);
+
+	__mbox_data_write(DATA_TYPE_REMOVE_PASST, &passthrough_data, sizeof(passthrough_data));
+}
+#endif
+
+void mdns_netlink_recv_msg(struct sk_buff *skb)
+{
+	struct sk_buff *skb_out;
+	struct nlmsghdr *nlh;
+	int msg_size;
+	unsigned char *msg;
+	unsigned char *puc;
+	int len, type;
+	char outmsg[32] = "Done!";
+	int outmsg_size = strlen(outmsg);
+	int pid;
+	int res;
+
+	nlh = (struct nlmsghdr *)skb->data;
+	pid = nlh->nlmsg_pid; /* pid of sending process */
+	msg = (unsigned char *)nlmsg_data(nlh);
+	puc = msg;
+	type = *((int *)puc);
+	len = *((int *)(puc + 4));
+
+	msg_size = strlen(msg);
+
+	// create reply
+	skb_out = nlmsg_new(msg_size, 0);
+	if (!skb_out) {
+		pr_err("%s: Failed to allocate new skb\n", __func__);
+		return;
+	}
+
+	// put received message into reply
+	nlh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
+	if (!nlh) {
+		pr_err("%s: Failed to put nlmsg\n", __func__);
+		kfree_skb(skb_out);
+		return;
+	}
+	NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
+
+	res = handle_offload_msg(puc, "NETLINK");
+	snprintf(outmsg, sizeof(outmsg), (res < 0) ? "Unknown message" : "Done: %d", res);
+	outmsg_size = strlen(outmsg);
+	strncpy(nlmsg_data(nlh), outmsg, outmsg_size);
+
+	res = nlmsg_unicast(g_sk, skb_out, pid);
+	if (res < 0)
+		pr_err("%s: Error while sending skb to user\n", __func__);
+}
+
+int mdns_netlink_init(void)
+{
+	struct netlink_kernel_cfg cfg = {
+		.input = mdns_netlink_recv_msg,
+	};
+	if (g_sk)
+		return 0;
+
+	g_sk = netlink_kernel_create(&init_net, NETLINK_TEST, &cfg);
+	if (!g_sk) {
+		pr_err("%s: Error creating socket.\n", __func__);
+		return -10;
+	}
+
+	return 0;
+}
+
+int handle_offload_msg(unsigned char *puc, const char *mode)
+{
+	int len, type;
+
+	type = *((int *)puc);
+	len = *((int *)(puc + 4));
+
+	print_hex_dump(KERN_DEBUG, "OFFLOAD-MSG: ", DUMP_PREFIX_OFFSET, 16, 1, puc + 8, len, true);
+
+	if (type == TYPE_SET_OFFLOAD_STATE && len == 1) {
+		unsigned char val = puc[8];
+
+		return set_mdns_notify_bl30(val);
+	} else if (type == TYPE_ENABLE_NETLINK_SERVER && len == 1) {
+		unsigned char val = puc[8];
+
+		if (val == 1)
+			mdns_netlink_init();
+	} else if (type == TYPE_ADD_RESPONSE) {
+		int response_len = *((int *)(puc + 8));
+		unsigned char *response;
+		unsigned char *q;
+		int i;
+		int numberOfCriteria;
+		struct match_criteria *list;
+		unsigned short web_port, srv_port;
+
+		q = puc + 4 + 4 + 4;
+		response = q;
+		print_hex_dump(KERN_DEBUG, "MDNS response: ",
+			DUMP_PREFIX_OFFSET, 16, 1, q, response_len, true);
+		q += response_len;
+		numberOfCriteria = *((int *)q);
+		q += 4;
+		list = (struct match_criteria *)q;
+		for (i = 0; i < numberOfCriteria; i++)
+			q += sizeof(struct match_criteria);
+
+		web_port = *((unsigned short *)q);
+		q += 2;
+		srv_port = *((unsigned short *)q);
+
+		return mdns_add_response(response, response_len,
+			list, numberOfCriteria, web_port, srv_port);
+	} else if (type == TYPE_REMOVE_RESPONSE && len == 1) {
+		unsigned char val = puc[8];
+
+		mdns_remove_response(val);
+	} else if (type == TYPE_SET_PASSTHROUGH_BEHAVIOR && len == 1) {
+		unsigned char val = puc[8];
+
+		mdns_set_passthrough_behavior(val);
+	} else {
+		pr_err("%s: unsupported type: %d\n", mode, type);
+		return -1;
+	}
+
+	return 0;
+}
+
+static u8 set_mdns_notify_bl30(int flag)
+{
+	int ret;
+	u8 set_ret;
+	int miss_counter = 1;
+	int hit_counter = 1;
+	int record_key = 1;
+	u8 behavior = PASSTHROUGH_LIST;
+	char buf[1024] = { 0 };
+
+	if (flag) {
+#ifdef DEBUG_MDNS
+		mdns_reset_all();
+		mdns_remove_passthrough(passthrough_qname_test,
+					ARRAY_SIZE(passthrough_qname_test));
+		mdns_add_passthrough(passthrough_qname_test, ARRAY_SIZE(passthrough_qname_test));
+#endif
+		mdns_set_passthrough_behavior(behavior);
+		mdns_get_reset_misscount(&miss_counter);
+		mdns_get_reset_hitcount(record_key, &hit_counter);
+		set_ret = mdns_set_offload_state(1);
+	} else {
+		set_ret = mdns_set_offload_state(0);
+		ret = mdns_get_mdns_frame(buf, ARRAY_SIZE(buf));
+		print_hex_dump(KERN_DEBUG, "MDNS frame: ",
+			DUMP_PREFIX_OFFSET, 16, 1, buf, ret, true);
+	}
+
+	return set_ret;
+}
