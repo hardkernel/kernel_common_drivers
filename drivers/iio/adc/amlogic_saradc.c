@@ -19,6 +19,7 @@
 #include <linux/regmap.h>
 #include <linux/mutex.h>
 #include <linux/reset.h>
+#include <linux/amlogic/watch-key.h>
 
 #define SARADC_REG0				0x00
 #define SARADC_REG0_SAMPLING_STOP		BIT(14)
@@ -627,6 +628,15 @@ static int amlogic_saradc_probe(struct platform_device *pdev)
 	int ret;
 	int fifo_irq;
 	struct resource *res;
+	struct amlogic_watchkey *wk;
+
+	wk = devm_of_amlogic_watchkey_get(dev);
+	if (!IS_ERR(wk)) {
+		ret = amlogic_watchkey_disable(wk);
+		dev_info(&pdev->dev, "watchkey exists, disable it: %s\n", ret ? "fail" : "done");
+	} else if (PTR_ERR(wk) == -EPROBE_DEFER) {
+		return PTR_ERR(wk);
+	}
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)

@@ -412,6 +412,7 @@
 				 <&clkc CLKID_SARADC_SEL>;
 			clock-names = "clkin", "core", "adc_clk", "adc_sel";
 			interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
+			watch-key = <&wk_adckey>;
 		};
 
 		pdd: pdd {
@@ -444,6 +445,27 @@
 			      <&saradc SARADC_CH6>, <&saradc SARADC_CH7>;
 		amlogic,threshold = <512 512 512 512 512 512 512 512>;
 		status = "disabled";
+	};
+
+	watchkey: watchkey {
+		compatible = "amlogic,watch-key";
+		mboxes = <&mbox_fifo T6D_REE2AO_WATCHKEY>;
+
+		wk_adckey: wk-0 {
+			wk-name = "adc-keypad";
+			wk-id = <0>;
+			wk-type = <EV_KEY>;
+			wk-code = <KEY_POWER>;
+			/* wk-report-event; */
+		};
+
+		wk_gpiokey: wk-1 {
+			wk-name = "gpio-keypad";
+			wk-id = <1>;
+			wk-type = <EV_KEY>;
+			wk-code = <KEY_POWER>;
+			/* wk-report-event; */
+		};
 	};
 
 	shmem@50f6000 {

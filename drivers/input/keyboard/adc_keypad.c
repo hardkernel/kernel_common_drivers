@@ -81,6 +81,9 @@ static void meson_adc_kp_report_key(struct meson_adc_kp *kp, int code, int type,
 		led_trigger_blink_oneshot(kp->led_blink, kp->led_delay_on,
 					  kp->led_delay_off, 0);
 	}
+
+	if (!IS_ERR(kp->wk) && value)
+		amlogic_watchkey_report(kp->wk, type, code);
 }
 
 static void meson_adc_kp_poll(struct work_struct *pwork)
@@ -650,7 +653,12 @@ static void meson_adc_kp_led_blink_unregister(struct platform_device *pdev)
 static int meson_adc_kp_probe(struct platform_device *pdev)
 {
 	struct meson_adc_kp *kp;
+	struct amlogic_watchkey *wk;
 	int ret = 0;
+
+	wk = devm_of_amlogic_watchkey_get(&pdev->dev);
+	if (PTR_ERR(wk) == -EPROBE_DEFER)
+		return PTR_ERR(wk);
 
 	if (of_property_read_bool(pdev->dev.of_node, "mboxes"))
 		adc_mbox_chan = aml_mbox_request_channel_byidx(&pdev->dev, 0);
@@ -670,6 +678,7 @@ static int meson_adc_kp_probe(struct platform_device *pdev)
 	kp->report_code = 0;
 	kp->prev_code = 0;
 	kp->count = 0;
+	kp->wk = wk;
 	ret = meson_adc_kp_get_devtree_pdata(pdev, kp);
 	if (ret)
 		goto err;
@@ -724,6 +733,9 @@ static int meson_adc_kp_probe(struct platform_device *pdev)
 			 msecs_to_jiffies(kp->poll_period));
 
 	meson_adc_kp_led_blink_register(pdev);
+
+	if (!IS_ERR(wk))
+		amlogic_watchkey_try_fixed(wk, kp->input);
 
 	return ret;
 

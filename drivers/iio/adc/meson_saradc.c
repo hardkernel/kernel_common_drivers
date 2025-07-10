@@ -28,6 +28,7 @@
 #include <linux/iio/kfifo_buf.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/amlogic/watch-key.h>
 #include "meson_saradc.h"
 
 #define MESON_SAR_ADC_REG0					0x00
@@ -1442,7 +1443,16 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	int irq, ret;
 	struct meson_sar_adc_param *match_param;
 	struct iio_chan_spec *chan;
+	struct amlogic_watchkey *wk;
 	int i;
+
+	wk = devm_of_amlogic_watchkey_get(&pdev->dev);
+	if (!IS_ERR(wk)) {
+		ret = amlogic_watchkey_disable(wk);
+		dev_info(&pdev->dev, "watchkey exists, disable it: %s\n", ret ? "fail" : "done");
+	} else if (PTR_ERR(wk) == -EPROBE_DEFER) {
+		return PTR_ERR(wk);
+	}
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*priv));
 	if (!indio_dev) {

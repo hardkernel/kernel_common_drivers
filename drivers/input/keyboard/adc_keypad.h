@@ -16,6 +16,7 @@
 #include <linux/iio/consumer.h>
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include <linux/leds.h>
+#include <linux/amlogic/watch-key.h>
 
 #define DRIVE_NAME "adc_keypad"
 #define MAX_NAME_LEN 20
@@ -59,6 +60,7 @@ struct meson_adc_kp {
 	unsigned long led_delay_on;
 	unsigned long led_delay_off;
 	const char *led_trigger_name;
+	struct amlogic_watchkey *wk;
 };
 
 #endif
