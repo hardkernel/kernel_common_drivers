@@ -96,7 +96,8 @@
 //2025.06.05 Fix aspect ratio flow
 //2025.06.20 use hrtimer to poll edid sts
 //2025.06.26 modify acr_ref_clk config method
-#define RX_DRV_VER "ver.2025/06/26"
+//2025.07.10 fix irq init error
+#define RX_DRV_VER "ver.2025/07/10"
 
 /*print type*/
 #define COR1_LOG	0x10000
