@@ -3376,6 +3376,13 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 					}
 					if (once_alloc > smgt->force_cache_page_cnt)
 						once_alloc = smgt->force_cache_page_cnt;
+				} else {
+					int actual_need = smgt->keep_size_PAGE - smgt->cached_pages;
+
+					if (actual_need <= 0)
+						once_alloc = 0;
+					else if (actual_need < once_alloc)
+						once_alloc = actual_need;
 				}
 
 				need = codec_mm_queue_len(mms->queue) + once_alloc;
