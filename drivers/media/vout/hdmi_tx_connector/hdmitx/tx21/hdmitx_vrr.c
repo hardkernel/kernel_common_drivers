@@ -1254,27 +1254,34 @@ static void updata_vinfo_sync_duration(struct vinfo_s *vinfo,
  */
 int hdmitx_set_vrr_rate(struct hdmitx_hw_common *tx_hw, int _rate, void *data)
 {
-	struct hdmitx21_dev *hdev = get_hdmitx21_device();
-	struct hdmitx_common *tx_comm = &hdev->tx_comm;
-	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
+	struct hdmitx21_dev *hdev = container_of(tx_hw, struct hdmitx21_dev, hw_comm);
+	struct hdmitx_common *tx_comm = NULL;
+	struct rx_cap *prxcap = NULL;
 	struct vrr_conf_para para;
 	enum TARGET_FRAME_RATE tfr = TFR_QMSVRR_INACTIVE;
 	int tmp_rate;
-	struct hdmi_format_para *fmt_para = &hdev->tx_comm.fmt_para;
+	struct hdmi_format_para *fmt_para = NULL;
 	struct vrr_setting_info *vrr_info = NULL;
 	const int rate = _rate;
+
+	if (!hdev || !tx_hw || !data) {
+		HDMITX_ERROR("qms: %s invalid param\n", __func__);
+		return -1;
+	}
+	tx_comm = &hdev->tx_comm;
+	prxcap = &hdev->tx_comm.rxcap;
+	fmt_para = &hdev->tx_comm.fmt_para;
+	vrr_info = (struct vrr_setting_info *)data;
 
 	HDMITX_DEBUG_QMS("%s[%d] rate %d\n", __func__, __LINE__, rate);
 	hdmitx_vrr_disable();
 
-	if (data)
-		vrr_info = (struct vrr_setting_info *)data;
 	if (vrr_info->type >= T_VRR_MAX) {
 		HDMITX_INFO("vrr: invalid type %d\n", vrr_info->type);
 		return -1;
 	}
 	fmt_para->frac_mode = vrr_info->frac_mode;
-	tx_comm->vrr_mode = vrr_info ? vrr_info->type : T_VRR_QMS;
+	tx_comm->vrr_mode = vrr_info->type;
 	/* check current rate, should less or equal than current rate of BRR */
 	tmp_rate = fmt_para->timing.v_freq / 10;
 	/* TODO, BRR mode should have frac_rate_policy as 0 */

@@ -2350,6 +2350,8 @@ static void add_game_vic_to_group(struct hdmitx_common *tx_comm, enum hdmi_vic q
 
 	for (i = 0; i < ARRAY_SIZE(game_brr_list); i++) {
 		game_timing = hdmitx_mode_vic_to_hdmi_timing(game_brr_list[i]);
+		if (!game_timing)
+			continue;
 		if (prxcap->vrr_max != 0) {
 			if (game_timing->v_freq / 1000 > prxcap->vrr_max)
 				continue;

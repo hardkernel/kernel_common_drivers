@@ -1572,10 +1572,14 @@ void hdmitx_set_clkdiv(struct hdmitx21_dev *hdev)
 
 static void hdmitx_check_frac_rate(struct hdmitx21_dev *hdev)
 {
-	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
+	struct hdmi_format_para *para = NULL;
 
+	if (!hdev)
+		return;
+
+	para = &hdev->tx_comm.fmt_para;
 	frac_rate = para->frac_mode;
-	if (para && para->timing.name && likely_frac_rate_mode(para->timing.name)) {
+	if (para->timing.name && likely_frac_rate_mode(para->timing.name)) {
 		;
 	} else {
 		HDMITX_DEBUG("this mode doesn't have frac_rate\n");

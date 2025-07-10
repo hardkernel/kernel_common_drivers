@@ -42,7 +42,7 @@ static int scdc_ced_cnt(struct hdmitx_common *tx_comm)
 	struct ced_cnt *ced = &tx_comm->ced_cnt;
 	u8 raw[7];
 	u8 chksum;
-	int i;
+	u8 i;
 
 	memset(raw, 0, sizeof(raw));
 	memset(ced, 0, sizeof(struct ced_cnt));
