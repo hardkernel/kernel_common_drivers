@@ -1065,6 +1065,7 @@ static __nocfi u32 vaddr_to_paddr(unsigned long vaddr)
 	pte_t *pte;
 	unsigned long  paddr = 0;
 	struct mm_struct *local_init_mm = NULL;
+	struct task_struct  __maybe_unused *task = NULL;
 #ifdef CONFIG_ARM64
 	pgd_t *pgd_f;
 	unsigned long long ttbr1_el1 = read_sysreg(ttbr1_el1);
@@ -1073,7 +1074,17 @@ static __nocfi u32 vaddr_to_paddr(unsigned long vaddr)
 	pgd_f = phys_to_virt(ttbr1_el1);
 	local_init_mm = container_of(&pgd_f, struct mm_struct, pgd);
 #else
-	local_init_mm = init_task.active_mm;
+	rcu_read_lock();
+	for_each_process(task) {
+		if (task->pid == 1) {
+			local_init_mm = task->active_mm;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	if (!local_init_mm)
+		goto failed;
 #endif
 	/* table walking */
 	pgd = pgd_offset(local_init_mm, vaddr);
