@@ -229,7 +229,9 @@ static struct input_axis_s adjust_output_axis(struct v2d_dev *dev,
 	dst_height = vframe_info->dst_h;
 
 	if (vframe_info->transform == V2D_TRANSFORM_ROT_90 ||
-		vframe_info->transform == V2D_TRANSFORM_ROT_270) {
+		vframe_info->transform == V2D_TRANSFORM_ROT_270 ||
+		vframe_info->transform == V2D_TRANSFORM_FLIP_H_ROT_90 ||
+		vframe_info->transform == V2D_TRANSFORM_FLIP_V_ROT_90) {
 		tmp_size = src_height;
 		src_height = src_width;
 		src_width = tmp_size;
@@ -1180,6 +1182,10 @@ static int config_ge2d_param(struct v2d_dev *dev,
 		else
 			cur_transform |= V2D_TRANSFORM_FLIP_V;
 	}
+	if (cur_transform == V2D_TRANSFORM_FLIP_H_ROT_90 ||
+		cur_transform == V2D_TRANSFORM_FLIP_V_ROT_90)
+		cur_transform = V2D_TRANSFORM_ROT_90;
+
 	v2d_print(dev->index, PRINT_AXIS,
 		"display_axis: left top width height: %d %d %d %d\n",
 		v2d_composer_param->frame_axis.left, v2d_composer_param->frame_axis.top,
@@ -1449,7 +1455,8 @@ static void set_v2d_mediaproxy_info(struct v2d_dev *dev, struct vframe_s *src_vf
 #endif
 
 static void config_output_vf_param(struct v2d_dev *dev, struct vframe_s *output_vf,
-		bool is_tvp, struct dst_buf_t *output_buffer, struct composer_info_t *composer_info)
+		bool is_tvp, struct dst_buf_t *output_buffer, struct composer_info_t *composer_info,
+		struct frame_info_t *vframe_info)
 {
 	if (!dev || !output_vf) {
 		pr_info("%s:input param err\n", __func__);
@@ -1464,6 +1471,10 @@ static void config_output_vf_param(struct v2d_dev *dev, struct vframe_s *output_
 	} else {
 		output_vf->type = (VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE | VIDTYPE_VIU_FIELD);
 	}
+	if (vframe_info->transform == V2D_TRANSFORM_FLIP_H_ROT_90)
+		output_vf->flag |= VFRAME_FLAG_MIRROR_V;
+	if (vframe_info->transform == V2D_TRANSFORM_FLIP_V_ROT_90)
+		output_vf->flag |= VFRAME_FLAG_MIRROR_H;
 	if (is_tvp)
 		output_vf->flag |= VFRAME_FLAG_VIDEO_SECURE;
 	output_vf->canvas0Addr = -1;
@@ -2134,7 +2145,8 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 			 composer_info->axis[i][3]);
 	}
 
-	config_output_vf_param(dev, output_vf, is_tvp, output_buffer, composer_info);
+	config_output_vf_param(dev, output_vf, is_tvp, output_buffer,
+		composer_info, vframe_info_cur);
 
 	if (count == 1 && input_vf)
 		output_vf->duration = input_vf->duration;
