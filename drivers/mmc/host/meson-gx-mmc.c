@@ -4260,6 +4260,39 @@ static void meson_mmc_remove(struct platform_device *pdev)
 	mmc_free_host(host->mmc);
 }
 
+#ifdef CONFIG_HIBERNATION
+static int meson_mmc_freeze(struct device *dev)
+{
+	//struct meson_host *host = dev_get_drvdata(dev);
+	return 0;
+}
+
+static int meson_mmc_restore(struct device *dev)
+{
+	struct meson_host *host = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (aml_card_type_sdio(host))
+		return ret;
+	ret = clk_set_rate(host->mmc_clk, host->mmc->f_min);
+	if (ret) {
+		pr_info("[%s]set rate failed.ret:%d\n", __func__, ret);
+		return ret;
+	}
+	clk_prepare_enable(host->mmc_clk);
+	/* set config to sane default */
+	meson_mmc_cfg_init(host);
+	/* clear, ack and enable interrupts */
+	writel(0, host->regs + SD_EMMC_IRQ_EN);
+	writel(IRQ_CRC_ERR | IRQ_TIMEOUTS | IRQ_END_OF_CHAIN,
+	       host->regs + SD_EMMC_STATUS);
+	writel(IRQ_CRC_ERR | IRQ_TIMEOUTS | IRQ_END_OF_CHAIN,
+	       host->regs + SD_EMMC_IRQ_EN);
+
+	return ret;
+}
+#endif
+
 static const struct meson_mmc_data meson_axg_data = {
 	.tx_delay_mask	= CLK_V3_TX_DELAY_MASK,
 	.rx_delay_mask	= CLK_V3_RX_DELAY_MASK,
@@ -4288,12 +4321,22 @@ static const struct of_device_id meson_mmc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, meson_mmc_of_match);
 
+#ifdef CONFIG_HIBERNATION
+static const struct dev_pm_ops meson_mmc_pm_ops = {
+	.freeze = meson_mmc_freeze,
+	.restore = meson_mmc_restore,
+};
+#endif
+
 static struct platform_driver meson_mmc_driver = {
 	.probe		= meson_mmc_probe,
 	.remove		= meson_mmc_remove,
 	.driver		= {
 		.name = DRIVER_NAME,
 		.of_match_table = of_match_ptr(meson_mmc_of_match),
+#ifdef CONFIG_HIBERNATION
+		.pm = &meson_mmc_pm_ops,
+#endif
 	},
 };
 
