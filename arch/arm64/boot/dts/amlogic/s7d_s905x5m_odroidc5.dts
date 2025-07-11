@@ -887,13 +887,13 @@
 &usb_phy20 {
 	portnum = <1>;
 	status = "okay";
+	gpio-vbus-power = "GPIOH_8";
+	gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
 };
 
 &usb_phy21 {
 	portnum = <1>;
 	status = "okay";
-	gpio-vbus-power = "GPIOH_8";
-	gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
 };
 
 &usb_phy30 {
@@ -906,7 +906,7 @@
 
 &crg_otg {
 	status = "okay";
-	controller-type = <1>; /* 0~3: normal, host, device, otg */
+	controller-type = <3>; /* 0~3: normal, host, device, otg */
 };
 
 &crg_drd {
