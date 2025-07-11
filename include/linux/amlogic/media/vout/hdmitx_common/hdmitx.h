@@ -15,14 +15,6 @@
 #define DTS_HD_MA               (0x1 << 8)
 #define CT_DOLBY_D              CT_DD_P
 
-enum hdmi_color_depth {
-	COLORDEPTH_24B = 4,
-	COLORDEPTH_30B = 5,
-	COLORDEPTH_36B = 6,
-	COLORDEPTH_48B = 7,
-	COLORDEPTH_RESERVED = 11,
-};
-
 /* audio */
 
 /*

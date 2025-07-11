@@ -8,7 +8,7 @@
 #include <linux/hdmi.h>
 #include <linux/types.h>
 #include <uapi/amlogic/vout_ioc.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
+//#include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 
 /* the MSB is represent vmode set by vmode_init */
 #define	VMODE_INIT_BIT_MASK	0x8000
@@ -39,6 +39,20 @@ enum vinfo_3d_e {
 	SS_3D,
 	FP_3D,
 	TB_3D,
+};
+
+/* for dptx, besides 8/10/12/16 bits per component,
+ * it also support 6/14 bits per component
+ */
+enum hdmi_color_depth {
+	COLORDEPTH_24B = 4,
+	COLORDEPTH_30B = 5,
+	COLORDEPTH_36B = 6,
+	COLORDEPTH_48B = 7,
+	/* for DP */
+	COLORDEPTH_18B = 8,
+	COLORDEPTH_42B = 9,
+	COLORDEPTH_RESERVED = 11,
 };
 
 /*emp : extended metadata type*/

@@ -70,6 +70,24 @@ static inline int amhdmitx_init(void)
 }
 #endif
 
+#if (defined(CONFIG_AMLOGIC_TX_CONNECTOR_COMMON_MODERN))
+int meson_tx_phy_drv_init(void);
+#else
+static inline int meson_tx_phy_drv_init(void)
+{
+	return 0;
+}
+#endif
+
+#if (defined(CONFIG_AMLOGIC_DPTX))
+int dptx_init(void);
+#else
+static inline int dptx_init(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 int hdmirx_init(void);
 int hld_init(void);

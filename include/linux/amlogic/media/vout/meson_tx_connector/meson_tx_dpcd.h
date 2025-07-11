@@ -1,0 +1,21 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+#ifndef __MESON_TX_DPCD_H_
+#define __MESON_TX_DPCD_H_
+
+#include <linux/types.h>
+
+#define DP_RECEIVER_CAP_SIZE                   0xf
+
+struct dpcd_cap {
+	/* DPCD version, not DP version. 10h: r1.0, ... 14h: r1.4 */
+	u8 dpcd_ver;
+	/* unit: kHz  5.4Gbps/lane, 5400000 */
+	u32 max_link_rate;
+	/* 4, 2, or 1 lanes */
+	u8 max_lane_count;
+};
+
+#endif

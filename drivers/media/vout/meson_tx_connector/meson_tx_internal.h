@@ -1,0 +1,65 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#ifndef __MESON_TX_DEV_INTERNAL_H
+#define __MESON_TX_DEV_INTERNAL_H
+
+#include <linux/platform_device.h>
+
+struct meson_tx_dev;
+struct meson_tx_hw;
+struct meson_tx_state;
+struct vout_op_s;
+
+struct meson_tx_helper_ops {
+	int (*create_sysfs)(struct meson_tx_dev *tx_dev);
+	void (*remove_sysfs)(struct meson_tx_dev *tx_dev);
+	int (*hpd_plugin)(struct meson_tx_dev *tx_dev);
+	int (*hpd_plugout)(struct meson_tx_dev *tx_dev);
+	int (*validate_fmt_para)(struct meson_tx_dev *tx_base, struct meson_tx_state *state);
+	int (*pre_mode_enable)(struct meson_tx_dev *tx_base, struct meson_tx_format_para *para);
+	int (*mode_enable)(struct meson_tx_dev *tx_base, struct meson_tx_format_para *para);
+	int (*post_mode_enable)(struct meson_tx_dev *tx_base, struct meson_tx_format_para *para);
+};
+
+struct meson_tx_plat_data {
+	struct meson_tx_hw *(*alloc_tx_hw)(void);
+	void (*free_tx_hw)(struct meson_tx_hw *tx_hw);
+};
+
+struct meson_tx_log *meson_get_tx_log(struct meson_tx_dev *tx_dev);
+void meson_tx_plugin_handler(void *para);
+void meson_tx_plugout_handler(void *para);
+void meson_tx_plugin_unlocked(struct meson_tx_dev *tx_dev);
+void meson_tx_plugout_unlocked(struct meson_tx_dev *tx_dev);
+
+void meson_tx_dev_init(struct meson_tx_dev *tx_dev, struct meson_tx_hw *tx_hw,
+		       struct meson_tx_helper_ops *ops);
+void meson_tx_dev_release(struct meson_tx_dev *tx_dev);
+int meson_tx_attch_platform_data(struct meson_tx_dev *tx_dev,
+	enum TX_PLATFORM_API_TYPE type, void *plt_data);
+int meson_tx_notify_hpd_status(struct meson_tx_dev *tx_dev, bool force_uevent);
+
+/* meson_tx_hw interface */
+int meson_tx_hw_cntl(struct meson_tx_hw *tx_hw, u32 cmd,
+		     void *input_argv, void *output_struct);
+/* meson_tx_hw bind with tx_phy and tx_log */
+void meson_tx_hw_setup_phy(struct meson_tx_hw *tx_hw,
+		       struct meson_tx_phy *tx_phy);
+
+bool meson_tx_edid_validate_timing(struct tx_timing *timing, struct rx_cap *rx_cap);
+bool meson_tx_edid_validate_color(struct tx_timing *timing,
+	enum hdmi_colorspace cs, enum hdmi_color_depth cd, struct rx_cap *rx_cap);
+
+/* meson_tx_vout */
+int meson_tx_set_current_vmode(enum vmode_e mode, void *data);
+int meson_tx_vout_set_state(int index, void *data);
+int meson_tx_vout_clr_state(int index, void *data);
+int meson_tx_vout_get_state(void *data);
+void meson_tx_vout_init(struct meson_tx_dev *tx_dev, struct vout_op_s *ops);
+void meson_tx_vout_uninit(struct meson_tx_dev *tx_dev);
+void meson_tx_update_vinfo(struct meson_tx_dev *tx_dev);
+
+#endif

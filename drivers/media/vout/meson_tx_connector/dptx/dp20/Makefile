@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/meson_tx_connector/ \
+		-I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/meson_tx_connector/dptx/
+
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DPTX) += \
+	vout/meson_tx_connector/dptx/dp20/dptx_hw.o \
+	vout/meson_tx_connector/dptx/dp20/dptx_reg.o \
+	vout/meson_tx_connector/dptx/dp20/dptx_hw_aux.o

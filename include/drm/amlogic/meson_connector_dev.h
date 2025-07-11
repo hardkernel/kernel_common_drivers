@@ -11,6 +11,8 @@
 
 #define MESON_CONNECTOR_TYPE_PROP_NAME "meson.connector_type"
 
+struct vout_server_s;
+
 enum {
 	MESON_DRM_CONNECTOR_V10 = 0,
 };
@@ -18,6 +20,9 @@ enum {
 struct meson_connector_dev {
 	int ver;
 	struct drm_connector *conn;
+	int connector_type;
+	int vout_state;
+	struct vout_server_s *vout_serv;
 };
 
 /*hdmitx specified struct*/

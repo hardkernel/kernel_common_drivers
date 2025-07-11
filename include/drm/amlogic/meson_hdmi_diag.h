@@ -197,7 +197,7 @@ struct hdmi_diagnosis_info {
 	struct hdmi_reserved_info reserved_info;
 };
 
-#ifdef CONFIG_AMLOGIC_HDMITX21
+#if defined(CONFIG_AMLOGIC_HDMITX21) || defined(CONFIG_AMLOGIC_HDMITX21_MODERN)
 /* hdmitx diagnosis infoframe related */
 #define DRM_IOCTL_MESON_GET_HDMITX_DIAG DRM_IOWR(DRM_COMMAND_BASE + \
 		0x14, struct hdmi_diagnosis_info)

@@ -51,6 +51,7 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #include <linux/amlogic/media/vrr/vrr.h>
 /*#include <linux/amlogic/amports/vframe.h>*/
 //#include <linux/amlogic/media/vout/hdmi_tx_ext.h>

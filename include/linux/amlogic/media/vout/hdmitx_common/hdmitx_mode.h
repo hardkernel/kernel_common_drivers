@@ -8,6 +8,9 @@
 
 #include <linux/types.h>
 #include <linux/hdmi.h>
+
+#include <linux/amlogic/media/vout/vinfo.h>
+
 #include "hdmitx.h"
 #include "hdmitx_types.h"
 

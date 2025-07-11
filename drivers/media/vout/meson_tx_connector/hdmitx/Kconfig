@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+#
+# Amlogic hdmitx driver configuration
+#
+
+menu "Amlogic HDMITX Driver"
+
+config AMLOGIC_HDMITX_DRIVER_MODERN
+	bool "AMLOGIC HDMITX DRIVER"
+	default n
+	select AMLOGIC_TX_CONNECTOR_COMMON_MODERN
+	help
+	This option is used to configure Amlogic hdmtix drivers
+
+
+source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/meson_tx_connector/hdmitx/tx21/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/meson_tx_connector/hdmitx/tx20/Kconfig"
+endmenu

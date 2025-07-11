@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+#
+# DPTX
+#
+menu "Amlogic DPTX Module"
+
+config AMLOGIC_DPTX
+	bool "AMLOGIC DPTX driver"
+	select AMLOGIC_DPTX_DRIVER
+	default n
+	help
+	This option is used to configure Amlogic drivers
+        of the dp tx output
+
+endmenu
+

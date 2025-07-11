@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+#
+# Amlogic dptx driver configuration
+#
+
+menu "Amlogic DPTX Driver"
+
+config AMLOGIC_DPTX_DRIVER
+	bool "AMLOGIC DPTX DRIVER"
+	default n
+	select AMLOGIC_TX_CONNECTOR_COMMON_MODERN
+	help
+	This option is used to configure Amlogic dptx drivers
+
+
+source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/meson_tx_connector/dptx/dp20/Kconfig"
+endmenu

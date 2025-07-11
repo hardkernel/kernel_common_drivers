@@ -1,0 +1,76 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#ifndef __DPTX_COMMON_H
+#define __DPTX_COMMON_H
+
+#include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_dev.h>
+
+struct dptx_hw_common;
+
+struct meson_dp_aux_msg {
+	unsigned int address;
+	u8 request;
+	u8 reply;
+	void *buffer;
+	size_t size;
+};
+
+struct meson_dp_aux {
+	/**
+	 * @name: user-visible name of this AUX channel and the
+	 * I2C-over-AUX adapter.
+	 *
+	 * It's also used to specify the name of the I2C adapter. If set
+	 * to %NULL, dev_name() of @dev will be used.
+	 */
+	const char *name;
+
+	/**
+	 * @hw_mutex: internal mutex used for locking transfers.
+	 *
+	 * Note that if the underlying hardware is shared among multiple
+	 * channels, the driver needs to do additional locking to
+	 * prevent concurrent access.
+	 */
+	struct mutex hw_mutex;
+
+	/**
+	 * @i2c_nack_count: Counts I2C NACKs, used for DP validation.
+	 */
+	unsigned int i2c_nack_count;
+	/**
+	 * @i2c_defer_count: Counts I2C DEFERs, used for DP validation.
+	 */
+	unsigned int i2c_defer_count;
+};
+
+struct meson_tx_phy;
+
+/* TODO: dptx fresh rate/timing limitation, lane/link_rate limitation */
+struct dptx_cap {
+};
+
+struct dptx_common {
+	struct meson_tx_dev base;
+	int drm_dptx_id;
+
+	struct dptx_hw_common *hw_comm;
+	/* instance index */
+	u32 dev_idx;
+
+	struct dptx_aux *tx_aux;
+	struct dptx_hw_fmt_para hw_fmt_para;
+};
+
+#define to_dptx_common(x)	container_of(x, struct dptx_common, base)
+#define conn_to_dptx_common(x) container_of(to_meson_tx_dev(x), struct dptx_common, base)
+
+/* for drm */
+int dptx_get_mode_list(struct dptx_common *tx_comm, struct tx_timing **timing_list);
+void dptx_register_dev_to_txdev_xlate(struct meson_tx_dev *base,
+		conn_dev_to_txdev convert);
+
+#endif

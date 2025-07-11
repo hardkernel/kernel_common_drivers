@@ -6,6 +6,8 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/vout_serve/Makefile
 
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmi_tx_connector/Makefile
 
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/meson_tx_connector/Makefile
+
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/cvbs/Makefile
 
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/vdac/Makefile

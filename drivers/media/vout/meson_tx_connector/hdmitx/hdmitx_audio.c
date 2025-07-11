@@ -1,0 +1,728 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#include <linux/kernel.h>
+#include <linux/string.h>
+#include <linux/soundcard.h>
+#include <linux/mutex.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
+#include <sound/initval.h>
+#include <sound/control.h>
+#include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_common.h>
+#include "hdmitx_log.h"
+#include "hdmitx_audio.h"
+
+/* Recommended N and Expected CTS for 32kHz */
+static const struct hdmi_audio_fs_ncts aud_32k_para = {
+	.array[0] = {
+		.tmds_clk = 25175,
+		.n = 4576,
+		.cts = 28125,
+		.n_30bit = 9152,
+		.cts_30bit = 70312,
+		.n_36bit = 9152,
+		.cts_36bit = 84375,
+		.n_48bit = 4576,
+		.cts_48bit = 56250,
+	},
+	.array[1] = {
+		.tmds_clk = 25200,
+		.n = 4096,
+		.cts = 25200,
+		.n_30bit = 4096,
+		.cts_30bit = 31500,
+		.n_36bit = 4096,
+		.cts_36bit = 37800,
+		.n_48bit = 4096,
+		.cts_48bit = 50400,
+	},
+	.array[2] = {
+		.tmds_clk = 27000,
+		.n = 4096,
+		.cts = 27000,
+		.n_30bit = 4096,
+		.cts_30bit = 33750,
+		.n_36bit = 4096,
+		.cts_36bit = 40500,
+		.n_48bit = 4096,
+		.cts_48bit = 54000,
+	},
+	.array[3] = {
+		.tmds_clk = 27027,
+		.n = 4096,
+		.cts = 27027,
+		.n_30bit = 8192,
+		.cts_30bit = 67567,
+		.n_36bit = 8192,
+		.cts_36bit = 81081,
+		.n_48bit = 4096,
+		.cts_48bit = 54054,
+	},
+	.array[4] = {
+		.tmds_clk = 54000,
+		.n = 4096,
+		.cts = 54000,
+		.n_30bit = 4096,
+		.cts_30bit = 67500,
+		.n_36bit = 4096,
+		.cts_36bit = 81000,
+		.n_48bit = 4096,
+		.cts_48bit = 108000,
+	},
+	.array[5] = {
+		.tmds_clk = 54054,
+		.n = 4096,
+		.cts = 54054,
+		.n_30bit = 8192,
+		.cts_30bit = 135135,
+		.n_36bit = 4096,
+		.cts_36bit = 81081,
+		.n_48bit = 4096,
+		.cts_48bit = 108108,
+	},
+	.array[6] = {
+		.tmds_clk = 74176,
+		.n = 11648,
+		.cts = 210937,
+		.n_30bit = 11648,
+		.cts_30bit = 263671,
+		.n_36bit = 11648,
+		.cts_36bit = 316406,
+		.n_48bit = 11648,
+		.cts_48bit = 421875,
+	},
+	.array[7] = {
+		.tmds_clk = 74250,
+		.n = 4096,
+		.cts = 74250,
+		.n_30bit = 8192,
+		.cts_30bit = 185625,
+		.n_36bit = 4096,
+		.cts_36bit = 111375,
+		.n_48bit = 4096,
+		.cts_48bit = 148500,
+	},
+	.array[8] = {
+		.tmds_clk = 148352,
+		.n = 11648,
+		.cts = 421875,
+		.n_30bit = 11648,
+		.cts_30bit = 527343,
+		.n_36bit = 11648,
+		.cts_36bit = 632812,
+		.n_48bit = 11648,
+		.cts_48bit = 843750,
+	},
+	.array[9] = {
+		.tmds_clk = 148500,
+		.n = 4096,
+		.cts = 148500,
+		.n_30bit = 4096,
+		.cts_30bit = 185625,
+		.n_36bit = 4096,
+		.cts_36bit = 222750,
+		.n_48bit = 4096,
+		.cts_48bit = 297000,
+	},
+	.array[10] = {
+		.tmds_clk = 296703,
+		.n = 5824,
+		.cts = 421875,
+		.n_30bit = 5824,
+		.cts_30bit = 527343,
+		.n_36bit = 5824,
+		.cts_36bit = 632812,
+		.n_48bit = 5824,
+		.cts_48bit = 843750,
+	},
+	.array[11] = {
+		.tmds_clk = 297000,
+		.n = 3072,
+		.cts = 222750,
+		.n_30bit = 6144,
+		.cts_30bit = 556875,
+		.n_36bit = 4096,
+		.cts_36bit = 445500,
+		.n_48bit = 3072,
+		.cts_48bit = 445500,
+	},
+	.array[12] = {
+		.tmds_clk = 593407,
+		.n = 5824,
+		.cts = 843750,
+	},
+	.array[13] = {
+		.tmds_clk = 594000,
+		.n = 3072,
+		.cts = 445500,
+	},
+	.def_n = 4096,
+};
+
+/* Recommended N and Expected CTS for 44.1kHz and Multiples */
+static const struct hdmi_audio_fs_ncts aud_44k1_para = {
+	.array[0] = {
+		.tmds_clk = 25175,
+		.n = 7007,
+		.cts = 31250,
+		.n_30bit = 14014,
+		.cts_30bit = 78125,
+		.n_36bit = 7007,
+		.cts_36bit = 46875,
+		.n_48bit = 7007,
+		.cts_48bit = 62500,
+	},
+	.array[1] = {
+		.tmds_clk = 25200,
+		.n = 6272,
+		.cts = 28000,
+		.n_30bit = 6272,
+		.cts_30bit = 35000,
+		.n_36bit = 6272,
+		.cts_36bit = 42000,
+		.n_48bit = 6272,
+		.cts_48bit = 56000,
+	},
+	.array[2] = {
+		.tmds_clk = 27000,
+		.n = 6272,
+		.cts = 30000,
+		.n_30bit = 6272,
+		.cts_30bit = 37500,
+		.n_36bit = 6272,
+		.cts_36bit = 45000,
+		.n_48bit = 6272,
+		.cts_48bit = 60000,
+	},
+	.array[3] = {
+		.tmds_clk = 27027,
+		.n = 6272,
+		.cts = 30030,
+		.n_30bit = 12544,
+		.cts_30bit = 75075,
+		.n_36bit = 6272,
+		.cts_36bit = 45045,
+		.n_48bit = 6272,
+		.cts_48bit = 60060,
+	},
+	.array[4] = {
+		.tmds_clk = 54000,
+		.n = 6272,
+		.cts = 60000,
+		.n_30bit = 6272,
+		.cts_30bit = 75000,
+		.n_36bit = 6272,
+		.cts_36bit = 90000,
+		.n_48bit = 6272,
+		.cts_48bit = 120000,
+	},
+	.array[5] = {
+		.tmds_clk = 54054,
+		.n = 6272,
+		.cts = 60060,
+		.n_30bit = 6272,
+		.cts_30bit = 75075,
+		.n_36bit = 6272,
+		.cts_36bit = 90090,
+		.n_48bit = 6272,
+		.cts_48bit = 120120,
+	},
+	.array[6] = {
+		.tmds_clk = 74176,
+		.n = 17836,
+		.cts = 234375,
+		.n_30bit = 17836,
+		.cts_30bit = 292968,
+		.n_36bit = 17836,
+		.cts_36bit = 351562,
+		.n_48bit = 17836,
+		.cts_48bit = 468750,
+	},
+	.array[7] = {
+		.tmds_clk = 74250,
+		.n = 6272,
+		.cts = 82500,
+		.n_30bit = 6272,
+		.cts_30bit = 103125,
+		.n_36bit = 6272,
+		.cts_36bit = 123750,
+		.n_48bit = 6272,
+		.cts_48bit = 165000,
+	},
+	.array[8] = {
+		.tmds_clk = 148352,
+		.n = 8918,
+		.cts = 234375,
+		.n_30bit = 17836,
+		.cts_30bit = 585937,
+		.n_36bit = 17836,
+		.cts_36bit = 703125,
+		.n_48bit = 8918,
+		.cts_48bit = 468750,
+	},
+	.array[9] = {
+		.tmds_clk = 148500,
+		.n = 6272,
+		.cts = 165000,
+		.n_30bit = 6272,
+		.cts_30bit = 206250,
+		.n_36bit = 6272,
+		.cts_36bit = 247500,
+		.n_48bit = 6272,
+		.cts_48bit = 330000,
+	},
+	.array[10] = {
+		.tmds_clk = 296703,
+		.n = 4459,
+		.cts = 234375,
+		.n_30bit = 8918,
+		.cts_30bit = 585937,
+		.n_36bit = 8918,
+		.cts_36bit = 703125,
+		.n_48bit = 4459,
+		.cts_48bit = 468750,
+	},
+	.array[11] = {
+		.tmds_clk = 297000,
+		.n = 4707,
+		.cts = 247500,
+		.n_30bit = 4704,
+		.cts_30bit = 309375,
+		.n_36bit = 4704,
+		.cts_36bit = 371250,
+		.n_48bit = 4704,
+		.cts_48bit = 495000,
+	},
+	.array[12] = {
+		.tmds_clk = 593407,
+		.n = 8918,
+		.cts = 937500,
+	},
+	.array[13] = {
+		.tmds_clk = 594000,
+		.n = 9408,
+		.cts = 990000,
+	},
+	.def_n = 6272,
+};
+
+/* Recommended N and Expected CTS for 48kHz and Multiples */
+static const struct hdmi_audio_fs_ncts aud_48k_para = {
+	.array[0] = {
+		.tmds_clk = 25175,
+		.n = 6864,
+		.cts = 28125,
+		.n_30bit = 9152,
+		.cts_30bit = 46875,
+		.n_36bit = 9152,
+		.cts_36bit = 58250,
+		.n_48bit = 6864,
+		.cts_48bit = 56250,
+	},
+	.array[1] = {
+		.tmds_clk = 25200,
+		.n = 6144,
+		.cts = 25200,
+		.n_30bit = 6144,
+		.cts_30bit = 31500,
+		.n_36bit = 6144,
+		.cts_36bit = 37800,
+		.n_48bit = 6144,
+		.cts_48bit = 50400,
+	},
+	.array[2] = {
+		.tmds_clk = 27000,
+		.n = 6144,
+		.cts = 27000,
+		.n_30bit = 6144,
+		.cts_30bit = 33750,
+		.n_36bit = 6144,
+		.cts_36bit = 40500,
+		.n_48bit = 6144,
+		.cts_48bit = 54000,
+	},
+	.array[3] = {
+		.tmds_clk = 27027,
+		.n = 6144,
+		.cts = 27027,
+		.n_30bit = 8192,
+		.cts_30bit = 45045,
+		.n_36bit = 8192,
+		.cts_36bit = 54054,
+		.n_48bit = 6144,
+		.cts_48bit = 54054,
+	},
+	.array[4] = {
+		.tmds_clk = 54000,
+		.n = 6144,
+		.cts = 54000,
+		.n_30bit = 6144,
+		.cts_30bit = 67500,
+		.n_36bit = 6144,
+		.cts_36bit = 81000,
+		.n_48bit = 6144,
+		.cts_48bit = 108000,
+	},
+	.array[5] = {
+		.tmds_clk = 54054,
+		.n = 6144,
+		.cts = 54054,
+		.n_30bit = 8192,
+		.cts_30bit = 90090,
+		.n_36bit = 6144,
+		.cts_36bit = 81081,
+		.n_48bit = 6144,
+		.cts_48bit = 108108,
+	},
+	.array[6] = {
+		.tmds_clk = 74176,
+		.n = 11648,
+		.cts = 140625,
+		.n_30bit = 11648,
+		.cts_30bit = 175781,
+		.n_36bit = 11648,
+		.cts_36bit = 210937,
+		.n_48bit = 11648,
+		.cts_48bit = 281250,
+	},
+	.array[7] = {
+		.tmds_clk = 74250,
+		.n = 6144,
+		.cts = 74250,
+		.n_30bit = 12288,
+		.cts_30bit = 185625,
+		.n_36bit = 6144,
+		.cts_36bit = 111375,
+		.n_48bit = 6144,
+		.cts_48bit = 148500,
+	},
+	.array[8] = {
+		.tmds_clk = 148352,
+		.n = 5824,
+		.cts = 140625,
+		.n_30bit = 11648,
+		.cts_30bit = 351562,
+		.n_36bit = 11648,
+		.cts_36bit = 421875,
+		.n_48bit = 5824,
+		.cts_48bit = 281250,
+	},
+	.array[9] = {
+		.tmds_clk = 148500,
+		.n = 6144,
+		.cts = 148500,
+		.n_30bit = 6144,
+		.cts_30bit = 185625,
+		.n_36bit = 6144,
+		.cts_36bit = 222750,
+		.n_48bit = 6144,
+		.cts_48bit = 297000,
+	},
+	.array[10] = {
+		.tmds_clk = 296703,
+		.n = 5824,
+		.cts = 281250,
+		.n_30bit = 11648,
+		.cts_30bit = 703125,
+		.n_36bit = 5824,
+		.cts_36bit = 421875,
+		.n_48bit = 5824,
+		.cts_48bit = 562500,
+	},
+	.array[11] = {
+		.tmds_clk = 297000,
+		.n = 5120,
+		.cts = 247500,
+		.n_30bit = 5120,
+		.cts_30bit = 309375,
+		.n_36bit = 5120,
+		.cts_36bit = 371250,
+		.n_48bit = 5120,
+		.cts_48bit = 495000,
+	},
+	.array[12] = {
+		.tmds_clk = 593407,
+		.n = 5824,
+		.cts = 562500,
+	},
+	.array[13] = {
+		.tmds_clk = 594000,
+		.n = 6144,
+		.cts = 594000,
+	},
+	.def_n = 6144,
+};
+
+static const struct hdmi_audio_fs_ncts *all_aud_paras[] = {
+	&aud_32k_para,
+	&aud_44k1_para,
+	&aud_48k_para,
+	NULL,
+};
+
+/*
+ * note: param tmds_clk is actually pixel_clk
+ * for 8bit mode, use param cd for ACR_N of
+ * deep color mode
+ */
+u32 hdmitx_hw_get_audio_n_paras(enum hdmi_audio_fs fs,
+				  enum hdmi_color_depth cd,
+				  u32 tmds_clk)
+{
+	const struct hdmi_audio_fs_ncts *p = NULL;
+	u32 i, n;
+	u32 N_multiples = 1;
+
+	HDMITX_DEBUG("audio: fs = %d, cd = %d, tmds_clk = %d\n", fs, cd, tmds_clk);
+	switch (fs) {
+	case FS_32K:
+		p = all_aud_paras[0];
+		N_multiples = 1;
+		break;
+	case FS_44K1:
+		p = all_aud_paras[1];
+		N_multiples = 1;
+		break;
+	case FS_88K2:
+		p = all_aud_paras[1];
+		N_multiples = 2;
+		break;
+	case FS_176K4:
+		p = all_aud_paras[1];
+		N_multiples = 4;
+		break;
+	case FS_48K:
+		p = all_aud_paras[2];
+		N_multiples = 1;
+		break;
+	case FS_96K:
+		p = all_aud_paras[2];
+		N_multiples = 2;
+		break;
+	case FS_192K:
+		p = all_aud_paras[2];
+		N_multiples = 4;
+		break;
+	default: /* Default as FS_48K */
+		p = all_aud_paras[2];
+		N_multiples = 1;
+		break;
+	}
+	for (i = 0; i < AUDIO_PARA_MAX_NUM; i++) {
+		if (tmds_clk == p->array[i].tmds_clk ||
+		    (tmds_clk + 1) == p->array[i].tmds_clk ||
+		    (tmds_clk - 1) == p->array[i].tmds_clk)
+			break;
+	}
+
+	if (i < AUDIO_PARA_MAX_NUM)
+		if (cd == COLORDEPTH_24B)
+			n = p->array[i].n ? p->array[i].n : p->def_n;
+		else if (cd == COLORDEPTH_30B)
+			n = p->array[i].n_30bit ?
+				p->array[i].n_30bit : p->def_n;
+		else if (cd == COLORDEPTH_36B)
+			n = p->array[i].n_36bit ?
+				p->array[i].n_36bit : p->def_n;
+		else if (cd == COLORDEPTH_48B)
+			n = p->array[i].n_48bit ?
+				p->array[i].n_48bit : p->def_n;
+		else
+			n = p->array[i].n ? p->array[i].n : p->def_n;
+	else
+		n = p->def_n;
+	return n * N_multiples;
+}
+
+static struct rate_map_fs map_fs[] = {
+	{0, FS_REFER_TO_STREAM},
+	{32000, FS_32K},
+	{44100, FS_44K1},
+	{48000, FS_48K},
+	{88200, FS_88K2},
+	{96000, FS_96K},
+	{176400, FS_176K4},
+	{192000, FS_192K},
+};
+
+static enum hdmi_audio_fs aud_samp_rate_map(u32 rate)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(map_fs); i++) {
+		if (map_fs[i].rate == rate)
+			return map_fs[i].fs;
+	}
+	return FS_MAX;
+}
+
+static u8 *aud_type_string[] = {
+	"CT_REFER_TO_STREAM",
+	"CT_PCM",
+	"CT_AC_3",
+	"CT_MPEG1",
+	"CT_MP3",
+	"CT_MPEG2",
+	"CT_AAC",
+	"CT_DTS",
+	"CT_ATRAC",
+	"CT_ONE_BIT_AUDIO",
+	"CT_DOLBY_D",
+	"CT_DTS_HD",
+	"CT_MAT",
+	"CT_DST",
+	"CT_WMA",
+	"CT_MAX",
+};
+
+static struct size_map aud_size_map_ss[] = {
+	{0,	 SS_REFER_TO_STREAM},
+	{16,	SS_16BITS},
+	{20,	SS_20BITS},
+	{24,	SS_24BITS},
+	/* for hdmitx, max is 24bits */
+	{32,	SS_24BITS},
+};
+
+static enum hdmi_audio_sampsize aud_size_map(u32 bits)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(aud_size_map_ss); i++) {
+		if (bits == aud_size_map_ss[i].sample_bits)
+			return aud_size_map_ss[i].ss;
+	}
+	return SS_MAX;
+}
+
+static void hdmitx_set_i2s_mask(struct aud_para *tx_aud_param, char ch_num, char ch_msk)
+{
+	unsigned int update_flag;
+
+	if (!tx_aud_param) {
+		HDMITX_ERROR("audio: aud_param is NULL\n");
+		return;
+	}
+	if (!tx_aud_param->aud_src_if) {
+		tx_aud_param->aud_output_i2s_ch = 0;
+		return;
+	}
+	if (!(ch_num == 2 || ch_num == 4 ||
+				ch_num == 6 || ch_num == 8)) {
+		ch_num = 2;
+		HDMITX_ERROR("audio: chn setting, must be 2, 4, 6 or 8, Rst as def 2\n");
+	}
+	if (ch_msk == 0) {
+		ch_msk = 1;
+		HDMITX_ERROR("audio: chn msk, must larger than 0, Rst as def 1\n");
+	}
+	update_flag = (ch_num << 4) + ch_msk;
+	tx_aud_param->aud_output_i2s_ch = update_flag;
+}
+
+void hdmitx_audio_mute_op(struct hdmitx_common *tx_comm, u32 flag, unsigned int path)
+{
+	static unsigned int aud_mute_path;
+	u32 arg = 0;
+
+	if (!tx_comm) {
+		HDMITX_ERROR("[%s]: tx_comm is NULL\n", __func__);
+		return;
+	}
+	mutex_lock(&tx_comm->aud_mute_mutex);
+	if (flag == 0)
+		aud_mute_path |= path;
+	else
+		aud_mute_path &= ~path;
+
+	tx_comm->cur_audio_param.aud_output_en = !aud_mute_path;
+
+	if (flag == 0) {
+		HDMITX_INFO("audio: AUD_MUTE path = 0x%x\n", path);
+		arg = AUDIO_MUTE;
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUDIO_MUTE_OP, (void *)&arg, NULL);
+	} else {
+		/* unmute only if none of the paths are muted */
+		if (aud_mute_path == 0) {
+			HDMITX_INFO("audio: AUD_UNMUTE path = 0x%x\n", path);
+			arg = AUDIO_UNMUTE;
+			hdmitx_hw_cntl(tx_comm->tx_hw, AUDIO_MUTE_OP, (void *)&arg, NULL);
+		}
+	}
+	mutex_unlock(&tx_comm->aud_mute_mutex);
+}
+
+#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
+static int hdmitx_audio_notify_callback(struct notifier_block *block,
+	unsigned long cmd, void *para)
+{
+	struct hdmitx_common *tx_comm = container_of(block,
+		struct hdmitx_common, hdmitx_notifier_nb_a);
+	struct aud_para *tx_aud_param = &tx_comm->cur_audio_param;
+	/* front audio module callback parameters */
+	struct aud_para *aud_param = (struct aud_para *)para;
+	enum hdmi_audio_fs n_rate = aud_samp_rate_map(aud_param->rate);
+	enum hdmi_audio_sampsize n_size = aud_size_map(aud_param->size);
+
+	if (aud_param->prepare) {
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUDIO_ACR_CTRL, NULL, NULL);
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUDIO_PREPARE, NULL, NULL);
+		tx_aud_param->type = CT_PREPARE;
+		HDMITX_INFO("audio: prepare\n");
+		return 0;
+	}
+	HDMITX_INFO("audio: type:%lu rate:%d size:%d chs:%d i2s_ch_mask:%d aud_src_if:%d\n",
+		cmd, n_rate, n_size, aud_param->chs,
+		aud_param->i2s_ch_mask, aud_param->aud_src_if);
+	/* no need check audio parameters changing, update hdmitx audio hw */
+	hdmitx_set_i2s_mask(tx_aud_param, aud_param->chs, aud_param->i2s_ch_mask);
+
+	tx_aud_param->rate = n_rate;
+	tx_aud_param->type = cmd;
+	tx_aud_param->size = n_size;
+	tx_aud_param->chs = aud_param->chs - 1;
+	tx_aud_param->aud_src_if = aud_param->aud_src_if;
+	hdmitx_set_i2s_mask(tx_aud_param, aud_param->chs, aud_param->i2s_ch_mask);
+	HDMITX_DEBUG_AUDIO("audio: aout notify format %s\n",
+		aud_type_string[cmd & 0xff]);
+
+	memcpy(tx_aud_param->status, aud_param->status, sizeof(aud_param->status));
+
+	tx_aud_param->aud_notify_update = 1;
+	tx_comm->tx_hw->set_aud_mode(tx_comm->tx_hw, tx_aud_param);
+	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_AUDIO_MODE_SETTING);
+	tx_aud_param->aud_notify_update = 0;
+	HDMITX_DEBUG_AUDIO("audio: set audio end\n");
+
+	return 0;
+}
+#endif
+
+void hdmitx_audio_init(struct hdmitx_common *tx_comm)
+{
+	bool audio_en;
+
+	if (!tx_comm)
+		return;
+
+	audio_en = hdmitx_hw_cntl(tx_comm->tx_hw,
+			AUDIO_GET_UBOOT_ST, NULL, NULL);
+#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
+	if (!tx_comm->pxp_mode && audio_en) {
+		struct aud_para *audpara = &tx_comm->cur_audio_param;
+
+		audpara->rate = FS_48K;
+		audpara->type = CT_PCM;
+		audpara->size = SS_16BITS;
+		audpara->chs = 2 - 1;
+	}
+	/* default audio clock is ON */
+	hdmitx_audio_mute_op(tx_comm, 1, 0);
+	tx_comm->hdmitx_notifier_nb_a.notifier_call = hdmitx_audio_notify_callback;
+	if (!tx_comm->pxp_mode)
+		aout_register_client(&tx_comm->hdmitx_notifier_nb_a);
+#endif
+}

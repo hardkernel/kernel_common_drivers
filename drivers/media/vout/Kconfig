@@ -24,6 +24,7 @@ source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/peripheral_lcd/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/dsc/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmi_tx_connector/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/meson_tx_connector/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/cvbs/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/vout/vdac/Kconfig"
 endif

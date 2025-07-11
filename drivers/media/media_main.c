@@ -45,7 +45,9 @@ static int __init media_main_init(void)
 	call_sub_init(dsc_enc_init);
 	call_sub_init(amcanvas_init);
 	call_sub_init(amrdma_init);
+	call_sub_init(meson_tx_phy_drv_init);
 	call_sub_init(amhdmitx_init);
+	call_sub_init(dptx_init);
 	call_sub_init(aml_vdac_init);
 	call_sub_init(cvbs_init_module);
 	call_sub_init(DisplayPort_TX_init);
