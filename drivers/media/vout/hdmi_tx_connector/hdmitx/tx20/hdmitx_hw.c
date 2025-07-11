@@ -30,6 +30,7 @@
 #include <linux/gpio.h>
 #include <linux/reset.h>
 #include <linux/compiler.h>
+
 #include <linux/amlogic/arm-smccc.h>
 
 #include <linux/amlogic/media/vout/vinfo.h>
@@ -46,11 +47,11 @@
 #include "hdmitx_hw_clk.h"
 #include "hdmitx_check_sha.h"
 #include "hdmitx_reg_sc2.h"
-#include "hdmitx_compliance.h"
+#include "hdmi_tx_connector/hdmitx_compliance.h"
 #include "hdmitx_hdcp.h"
-#include "hdmitx_infoframe.h"
-#include "hdmitx_audio.h"
-#include "hdmitx_module.h"
+#include "hdmi_tx_connector/hdmitx_infoframe.h"
+#include "hdmi_tx_connector/hdmitx_audio.h"
+#include "hdmi_tx_connector/hdmitx_module.h"
 
 #define HDMITX_VIC_MASK			0xff
 

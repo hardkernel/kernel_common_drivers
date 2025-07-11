@@ -26,13 +26,14 @@
 #include <linux/amlogic/arm-smccc.h>
 #include <linux/spinlock.h>
 #include <linux/seq_file.h>
+
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 
 #include "hdmitx_hw_platform.h"
 #include "hdmitx_hw_core.h"
 #include "hdmitx_packet.h"
-#include "hdmitx_log.h"
+#include "hdmi_tx_connector/hdmitx_log.h"
 
 static DEFINE_SPINLOCK(tpi_lock);
 static void tpi_info_send(u8 sel, u8 *data, bool no_chksum_flag)

@@ -8,6 +8,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/amlogic/gki_module.h>
+
 #include "hdmitx_boot_parameters.h"
 #include "hdmitx_log.h"
 

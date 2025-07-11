@@ -29,19 +29,21 @@
 #include <linux/spinlock.h>
 #include <linux/spinlock_types.h>
 #include <linux/extcon-provider.h>
-#include "hdmitx_hdcp_type.h"
-#include "hdmitx_ddc.h"
-#include "hdmitx_hw.h"
-#include <linux/uaccess.h>
-#include "hdmitx_hdcp.h"
-
-#include <drm/drmP.h>
-#include <drm/amlogic/meson_connector_dev.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/workqueue.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/uaccess.h>
+
+#include <drm/drmP.h>
+
+#include <drm/amlogic/meson_connector_dev.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
+
+#include "hdmitx_hdcp_type.h"
+#include "hdmitx_ddc.h"
+#include "hdmitx_hw.h"
+#include "hdmitx_hdcp.h"
 
 static void drm_hdmitx_disable_hdcp_mode(unsigned int content_type);
 static void drm_hdmitx_enable_hdcp_mode(unsigned int content_type);

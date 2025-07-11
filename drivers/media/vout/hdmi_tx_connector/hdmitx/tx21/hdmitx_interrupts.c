@@ -24,10 +24,12 @@
 #include <linux/rtc.h>
 #include <linux/timekeeping.h>
 #include <linux/gpio.h>
+
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+
 #include "hdmitx_hw_platform.h"
 #include "hdmitx_hw_core.h"
-#include "hdmitx_hdcp.h"
+#include "hdmi_tx_connector/hdcp/hdmitx_hdcp.h"
 
 static void intr2_sw_handler(struct intr_t *, void *intr_para);
 static void intr5_sw_handler(struct intr_t *, void *intr_para);

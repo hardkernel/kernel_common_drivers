@@ -21,9 +21,10 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+
 #include "hdmitx_hw_platform.h"
 #include "hdmitx_hw_core.h"
-#include "hdmitx_hdcp.h"
+#include "hdmi_tx_connector/hdcp/hdmitx_hdcp.h"
 
 static DEFINE_MUTEX(ddc_mutex);
 

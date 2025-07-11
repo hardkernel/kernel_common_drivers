@@ -4,7 +4,9 @@
  */
 
 #include <linux/delay.h>
+
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+
 #include "hdmitx_log.h"
 
 static int hdmi_authenticated;

@@ -9,8 +9,10 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/hdmi.h>
+
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#include "hdmitx_infoframe.h"
+
+#include "hdmi_tx_connector/hdmitx_infoframe.h"
 
 #define HDMI_INFOFRAME_TYPE_EMP 0x7f
 /* SBTM-EM PKT use GEN5*/

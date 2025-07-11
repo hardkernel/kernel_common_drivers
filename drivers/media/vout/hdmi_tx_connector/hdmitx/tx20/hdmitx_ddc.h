@@ -7,6 +7,7 @@
 #define __HDMI_TX_DDC_H__
 
 #include <linux/types.h>
+
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 
 #define EDID_SLAVE	0x50

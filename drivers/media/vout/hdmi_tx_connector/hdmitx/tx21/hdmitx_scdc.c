@@ -4,6 +4,7 @@
  */
 
 #include <linux/delay.h>
+
 #include "hdmitx_hw_platform.h"
 
 void scdc21_config(struct hdmitx21_dev *hdev)

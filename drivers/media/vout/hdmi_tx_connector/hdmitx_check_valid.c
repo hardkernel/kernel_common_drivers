@@ -4,6 +4,7 @@
  */
 
 #include "hdmitx_check_valid.h"
+#include "hdmitx_log.h"
 
 /* only check vic in edid */
 bool hdmitx_edid_validate_mode(struct rx_cap *rxcap, u32 vic)

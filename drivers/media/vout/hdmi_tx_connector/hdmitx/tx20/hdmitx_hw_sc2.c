@@ -4,7 +4,8 @@
  */
 
 #include <linux/printk.h>
-#include "hdmitx_compliance.h"
+
+#include "hdmi_tx_connector/hdmitx_compliance.h"
 #include "hdmitx_hw.h"
 #include "hdmitx_mach_reg.h"
 #include "hdmitx_reg_sc2.h"

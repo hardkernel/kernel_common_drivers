@@ -27,9 +27,10 @@
 #include <linux/spinlock.h>
 #include <linux/spinlock_types.h>
 #include <linux/extcon-provider.h>
-#include "hdmitx_hdcp.h"
-#include "hdmitx_hw_platform.h"
-#include "hdmitx_audio.h"
+
+#include "hdmi_tx_connector/hdcp/hdmitx_hdcp.h"
+#include "hdmi_tx_connector/hdmitx/tx21/hdmitx_hw_platform.h"
+#include "hdmi_tx_connector/hdmitx_audio.h"
 #include "hdmi_rx_repeater.h"
 
 #define TEE_HDCP_IOC_START _IOW('P', 0, int)

@@ -10,8 +10,10 @@
 #include <linux/extcon.h>
 #include <linux/notifier.h>
 #include <linux/extcon-provider.h>
+
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_event_mgr.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_platform_linux.h>
+
 #include "hdmitx_log.h"
 
 static const unsigned int hdmi_extcon_cable[] = {

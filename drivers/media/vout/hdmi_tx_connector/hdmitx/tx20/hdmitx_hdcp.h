@@ -6,6 +6,7 @@
 #ifndef __HDMI_TX_HDCP_H
 #define __HDMI_TX_HDCP_H
 #include <linux/miscdevice.h>
+
 #include <drm/amlogic/meson_connector_dev.h>
 
 /* linux/drm hdcp usage only start */

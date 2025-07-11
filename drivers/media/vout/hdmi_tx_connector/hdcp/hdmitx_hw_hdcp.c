@@ -22,8 +22,9 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/amlogic/arm-smccc.h>
-#include "hdmitx_hw_platform.h"
-#include "hdmitx_hw_core.h"
+
+#include "hdmi_tx_connector/hdmitx/tx21/hdmitx_hw_platform.h"
+#include "hdmi_tx_connector/hdmitx/tx21/hdmitx_hw_core.h"
 #include "hdmitx_hdcp.h"
 
 static void hdcptx2_smng_auto(bool en);

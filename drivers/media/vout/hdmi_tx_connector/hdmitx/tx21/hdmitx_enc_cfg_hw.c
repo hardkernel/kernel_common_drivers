@@ -21,7 +21,9 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+
 #include <linux/amlogic/media/vout/vinfo.h>
+
 #include "hdmitx_hw_platform.h"
 #include "hdmitx_platform_reg.h"
 #include "hdmitx_hw_core.h"

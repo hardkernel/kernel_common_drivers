@@ -3,13 +3,14 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#include "hdmitx_dump.h"
+#include "hdmi_tx_connector/hdmitx_dump.h"
+#include "hdmi_tx_connector/hdmitx_module.h"
+
 #include "hdmitx_hw.h"
 #include "hdmitx_mach_reg.h"
 #include "hdmitx_reg_ops.h"
 #include "hdmitx_reg.h"
 #include "hdmitx_reg_sc2.h"
-#include "hdmitx_module.h"
 
 #define PR_BUS(a) \
 	do { \

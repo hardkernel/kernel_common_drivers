@@ -7,7 +7,9 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/math64.h>
+
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_mode.h>
+
 #include "hdmitx_log.h"
 
 #define INVALID_HDMI_TIMING (&edid_cea_modes_0[0])

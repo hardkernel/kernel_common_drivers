@@ -12,14 +12,15 @@
 #include <linux/clk-provider.h>
 #include <linux/device.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/miscdevice.h>
+
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vrr/vrr.h>
-#include <drm/amlogic/meson_connector_dev.h>
-#include <linux/miscdevice.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_hw_common.h>
-#include <linux/amlogic/media/vout/hdmi_tx_repeater.h>
+
+#include <drm/amlogic/meson_connector_dev.h>
 
 #define HDMITX_HZ  250
 

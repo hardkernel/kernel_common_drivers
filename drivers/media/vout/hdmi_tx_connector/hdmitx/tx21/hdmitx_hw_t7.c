@@ -5,6 +5,7 @@
 
 #include <linux/printk.h>
 #include <linux/delay.h>
+
 #include "hdmitx_hw_platform.h"
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT

@@ -8,9 +8,9 @@
 #include <linux/hdmi.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
+
 #include "hdmitx_packet.h"
 #include "hdmitx_hw_platform.h"
-#include "hdmitx_packet.h"
 
 /* L_0 will always be printed, set log level to L_1/2/3 for detail */
 #define L_0 0

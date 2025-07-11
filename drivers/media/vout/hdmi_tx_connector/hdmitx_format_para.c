@@ -6,7 +6,9 @@
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/string.h>
+
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_format_para.h>
+
 #include "hdmitx_log.h"
 
 static struct parse_cd parse_cd_[] = {

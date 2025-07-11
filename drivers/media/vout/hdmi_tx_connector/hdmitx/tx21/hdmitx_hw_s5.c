@@ -6,6 +6,7 @@
 #include <linux/printk.h>
 #include <linux/delay.h>
 #include <linux/amlogic/arm-smccc.h>
+
 #include "hdmitx_hw_platform.h"
 #include "hdmitx_hw_core.h"
 

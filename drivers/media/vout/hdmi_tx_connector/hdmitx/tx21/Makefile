@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 
-ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmi_tx_connector \
-				-I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmi_tx_connector/hdcp
+ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/
 
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX21) += vout/hdmi_tx_connector/hdmitx/tx21/hdmitx_scdc.o
 ifndef CONFIG_AMLOGIC_ZAPPER_CUT

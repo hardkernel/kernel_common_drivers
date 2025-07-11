@@ -11,8 +11,10 @@
 #include <linux/rtc.h>
 #include <linux/timekeeping.h>
 #include <linux/vmalloc.h>
+
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+
 #include "hdmitx_boot_parameters.h"
 #include "hdmitx_log.h"
 #include "hdmitx_check_valid.h"
@@ -20,7 +22,7 @@
 #include "efuse.h"
 #include "hdmitx_hdr.h"
 #include "hdmitx_compliance.h"
-#include "hdmitx_ddc.h"
+#include "hdmi_tx_connector/hdmitx/tx21/hdmitx_ddc.h"
 
 #define MAX_ERR_CNT       0x7fff
 #define ERR_CNT_THRESHOLD 1000

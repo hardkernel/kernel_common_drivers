@@ -5,8 +5,10 @@
 
 #include <linux/vmalloc.h>
 #include <linux/kfifo.h>
+
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_tracer.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_event_mgr.h>
+
 #include "hdmitx_log.h"
 
 #define HDMI_TRACE_SIZE (BIT(12)) /* 4k */

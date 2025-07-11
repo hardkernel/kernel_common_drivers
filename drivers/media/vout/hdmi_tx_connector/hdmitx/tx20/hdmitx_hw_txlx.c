@@ -5,6 +5,7 @@
 
 #include <linux/printk.h>
 #include <linux/pinctrl/devinfo.h>
+
 #include "hdmitx_reg_ops.h"
 #include "hdmitx_txlx_reg.h"
 #include "hdmitx_hw.h"

@@ -28,6 +28,7 @@
 #include <linux/device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/miscdevice.h>
+
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vrr/vrr.h>
@@ -39,7 +40,7 @@
 #ifdef CONFIG_AMLOGIC_DSC
 #include <linux/amlogic/media/vout/dsc.h>
 #endif
-#include "hdmitx_log.h"
+#include "hdmi_tx_connector/hdmitx_log.h"
 #include "hdmitx_core_reg.h"
 #include "hdmitx_ddc.h"
 #include "hdmitx_platform_reg.h"

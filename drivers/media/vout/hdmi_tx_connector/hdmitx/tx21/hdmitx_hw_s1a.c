@@ -5,6 +5,7 @@
 
 #include <linux/printk.h>
 #include <linux/delay.h>
+
 #include "hdmitx_hw_platform.h"
 
 void hdmitx_s1a_reset_div_clk(struct hdmitx21_dev *hdev)

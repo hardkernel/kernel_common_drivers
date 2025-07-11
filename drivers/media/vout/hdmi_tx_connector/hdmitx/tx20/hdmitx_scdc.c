@@ -5,6 +5,7 @@
 
 #include <linux/delay.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+
 #include "hdmitx_ddc.h"
 #include "hdmitx_hw.h"
 

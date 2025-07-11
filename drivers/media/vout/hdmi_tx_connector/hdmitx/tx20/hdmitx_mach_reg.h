@@ -7,6 +7,7 @@
 #define __MACH_REG_H__
 
 #include <linux/delay.h>
+
 #include "hdmitx_reg_ops.h"
 
 struct reg_s {

@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/amlogic/gki_module.h>
+
 #include "hdmitx_log.h"
 
 #define HDMITX_NAME		"hdmitx"

@@ -6,8 +6,9 @@
 #include <linux/types.h>
 #include <linux/printk.h>
 #include <linux/string.h>
+
 #include "hdmitx_check_sha.h"
-#include "hdmitx_log.h"
+#include "hdmi_tx_connector/hdmitx_log.h"
 
 static void shamsg_reset(struct shamsg_t *msg)
 {

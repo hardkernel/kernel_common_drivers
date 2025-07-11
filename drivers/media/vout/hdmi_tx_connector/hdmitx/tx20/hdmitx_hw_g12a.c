@@ -5,9 +5,10 @@
 
 #include <linux/printk.h>
 #include <linux/pinctrl/devinfo.h>
+
 #include "hdmitx_hw.h"
 #include "hdmitx_mach_reg.h"
-#include "hdmitx_compliance.h"
+#include "hdmi_tx_connector/hdmitx_compliance.h"
 
 /*
  * NAME		PAD		PINMUX		GPIO

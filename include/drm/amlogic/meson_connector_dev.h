@@ -7,8 +7,6 @@
 #define MESON_CONNECTOR_DEV_H_
 #include <drm/drm_connector.h>
 #include <drm/drm_modes.h>
-#include <linux/amlogic/media/vout/vout_notify.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_format_para.h>
 #include <uapi/amlogic/drm/meson_drm.h>
 
 #define MESON_CONNECTOR_TYPE_PROP_NAME "meson.connector_type"

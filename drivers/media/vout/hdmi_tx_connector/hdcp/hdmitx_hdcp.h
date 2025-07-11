@@ -5,7 +5,7 @@
 
 #ifndef __HDMI_HDCP_H__
 #define __HDMI_HDCP_H__
-#include "hdmitx/tx21/hdmitx_hw_core.h"
+#include "hdmi_tx_connector/hdmitx/tx21/hdmitx_hw_core.h"
 
 #define DDC_HDCP_DEVICE_ADDR 0x74
 #define REG_DDC_HDCP_VERSION 0x50

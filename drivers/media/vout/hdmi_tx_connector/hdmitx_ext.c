@@ -4,6 +4,7 @@
  */
 
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+
 #include "tvin_global.h"
 #include "hdmitx_log.h"
 #include "hdmi_rx_repeater.h"

@@ -3,10 +3,13 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+#include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+
 #include "hdmitx_dump.h"
 #include "hdmitx_check_valid.h"
+#include "hdmitx_log.h"
 
 int dump_hdmitx_basic_config(struct seq_file *s, void *p)
 {

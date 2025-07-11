@@ -4,6 +4,7 @@
  */
 
 #include <linux/printk.h>
+
 #include "hdmitx_hw.h"
 #include "hdmitx_mach_reg.h"
 

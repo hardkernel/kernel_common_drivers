@@ -7,12 +7,13 @@
 #include <linux/printk.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/amlogic/clk_measure.h>
-#include "hdmitx_hw_platform.h"
 
+#include <linux/amlogic/clk_measure.h>
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
+
+#include "hdmitx_hw_platform.h"
 
 #define SET_CLK_MAX_TIMES 10
 #define CLK_TOLERANCE 2 /* Unit: MHz */

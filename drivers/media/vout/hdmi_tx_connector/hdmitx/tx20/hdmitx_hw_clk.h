@@ -8,6 +8,7 @@
 
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/amlogic/media/vout/vinfo.h>
+
 #include "hdmitx_hw.h"
 
 #define VID_PLL_DIV_1      0

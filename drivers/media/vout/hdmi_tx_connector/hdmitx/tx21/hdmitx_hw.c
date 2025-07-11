@@ -30,14 +30,15 @@
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/clk_measure.h>
+
 #include "hdmitx_hw_core.h"
 #include "hdmitx_hw_platform.h"
-#include "hdmitx_compliance.h"
+#include "hdmi_tx_connector/hdmitx_compliance.h"
 #include "hdmitx_packet.h"
-#include "hdmitx_audio.h"
-#include "hdmitx_module.h"
-#include "hdmitx_hdr.h"
-#include "hdmitx_hdcp.h"
+#include "hdmi_tx_connector/hdmitx_audio.h"
+#include "hdmi_tx_connector/hdmitx_module.h"
+#include "hdmi_tx_connector/hdmitx_hdr.h"
+#include "hdmi_tx_connector/hdcp/hdmitx_hdcp.h"
 
 #define yuv2rgb  1
 #define rgb2yuv  2

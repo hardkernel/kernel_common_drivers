@@ -6,6 +6,7 @@
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/printk.h>
+
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_edid.h>
 #include <linux/amlogic/media/vout/hdmi_tx_repeater.h>

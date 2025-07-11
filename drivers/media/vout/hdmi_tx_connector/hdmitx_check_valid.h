@@ -13,10 +13,11 @@
 #include <linux/types.h>
 #include "hdmitx_log.h"
 #elif __KERNEL__
+#include <linux/types.h>
+
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#include <linux/types.h>
-#include "hdmitx_log.h"
+
 #endif
 
 /*check valid mode api*/

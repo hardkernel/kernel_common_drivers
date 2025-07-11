@@ -529,6 +529,8 @@ int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 				       struct hdmitx_common_state *new_state,
 				       char *mode,  enum hdmi_colorspace cs,
 				       enum hdmi_color_depth cd, bool brr_valid);
+int hdmitx_common_check_valid_para_of_vic(struct hdmitx_common *tx_comm,
+					  enum hdmi_vic vic);
 int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 			       struct hdmitx_common_state *new_state);
 int set_disp_mode_debug(struct hdmitx_common *tx_comm, const char *mode, char *fmt_attr);
