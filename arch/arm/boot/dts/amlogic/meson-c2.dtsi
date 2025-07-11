@@ -522,13 +522,11 @@
 				compatible = "amlogic,meson-uart";
 				reg = <0x2000 0x18>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_EDGE_RISING>;
-				status = "disabled";
 				clocks = <&xtal>;
 				clock-names = "clk_uart";
 				fifosize = < 64 >;
 				xtal_tick_en = <1>;
-				//pinctrl-names = "default";
-				//pinctrl-0 = <&b_uart_enable_pins1>;
+				/* 0 not support; 1 support */
 				support-sysrq = <1>;
 			};
 

@@ -1441,8 +1441,8 @@
 				clock-names = "clk_uart";
 				fifosize = <64>;
 				xtal_tick_en = <2>;
-				status = "disabled";
-				support-sysrq = <1>;  /* 0 not support*/
+				/* 0 not support; 1 support */
+				support-sysrq = <1>;
 			};
 
 			uart_AO_B: serial@4000 {

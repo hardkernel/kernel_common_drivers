@@ -653,7 +653,8 @@
 				clock-names = "clk_uart";
 				xtal_tick_en = <2>;
 				fifosize = < 64 >;
-				support-sysrq = <1>;  /* 0 not support*/
+				/* 0 not support; 1 support */
+				support-sysrq = <1>;
 			};
 
 			eth_phy: mdio-multiplexer@360000 {

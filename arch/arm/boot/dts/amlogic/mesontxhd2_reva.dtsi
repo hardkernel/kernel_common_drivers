@@ -1160,8 +1160,8 @@
 				reg = <0x3000 0x18>;
 				interrupts = <0 193 1>;
 				status = "disabled";
-				clocks = <&xtal &clkc_AO CLKID_AO_UART1>;
-				clock-names = "clk_uart", "clk_gate";
+				clocks = <&xtal>;
+				clock-names = "clk_uart";
 				xtal_tick_en = <1>;
 				fifosize = < 64 >;
 				/* 0 not support; 1 support */

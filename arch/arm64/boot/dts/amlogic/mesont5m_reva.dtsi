@@ -834,6 +834,7 @@
 				clocks = <&xtal>;
 				clock-names = "clk_uart";
 				xtal_tick_en = <2>;
+				/* 0 not support; 1 support */
 				fifosize = < 64 >;
 			};
 

@@ -508,6 +508,7 @@
 				clock-names = "clk_uart";
 				xtal_tick_en = <2>;
 				fifosize = < 64 >;
+				/* 0 not support; 1 support */
 				support-sysrq = <1>;
 			};
 
