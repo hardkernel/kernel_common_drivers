@@ -7119,6 +7119,8 @@ static void hdmitx20_disable_hdcp(struct hdmitx_common *tx_comm)
 	hdmitx20_hw_cntl(tx_hw_base, HDCP_MUX_INIT, (void *)&arg, NULL);
 	arg = HDCP14_OFF;
 	hdmitx20_hw_cntl(tx_hw_base, HDCP_MODE_OP, (void *)&arg, NULL);
+	/* need to update hdcp auth result */
+	hdmitx20_hw_cntl(tx_hw_base, HDCP_GET_AUTH_RESULT, NULL, NULL);
 	tx_comm->hdcptx_comm.hdcp_mode = 0;
 	tx_comm->hdcptx_comm.hdcp_bcaps_repeater = 0;
 }
