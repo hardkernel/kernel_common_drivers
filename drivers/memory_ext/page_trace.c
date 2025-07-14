@@ -802,9 +802,7 @@ do_kunwind(struct aml_kunwind_state *state, aml_kunwind_consume_fn consume_state
  */
 #define AML_STACKINFO_SDEI(name)					\
 	({							\
-		((task == current) && in_nmi())			\
-			? stackinfo_get_sdei_##name()		\
-			: stackinfo_get_unknown();		\
+			stackinfo_get_unknown();		\
 	})
 
 #define AML_STACKINFO_EFI						\

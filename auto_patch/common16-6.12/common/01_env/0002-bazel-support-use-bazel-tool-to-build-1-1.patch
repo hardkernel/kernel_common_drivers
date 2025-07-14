@@ -1,7 +1,7 @@
-From dd5ea40a4c4fe56975cdc3ac00fab0bc0dfe82e0 Mon Sep 17 00:00:00 2001
+From 4b4f7416898b60090962011c5a9df3b1ec39bb51 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Fri, 17 Mar 2023 17:35:31 +0800
-Subject: [PATCH 2/2] bazel: support use bazel tool to build [1/1]
+Subject: [PATCH] bazel: support use bazel tool to build [1/1]
 
 PD#SWPL-112151
 
@@ -22,10 +22,10 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
  2 files changed, 13 insertions(+), 1 deletion(-)
 
 diff --git a/BUILD.bazel b/BUILD.bazel
-index 34d4b31f5854..eb1ccc0beddd 100644
+index 680f6a9708ed..93a50314e618 100644
 --- a/BUILD.bazel
 +++ b/BUILD.bazel
-@@ -45,6 +45,13 @@ package(
+@@ -44,6 +44,13 @@ package(
      ],
  )
  
@@ -39,7 +39,7 @@ index 34d4b31f5854..eb1ccc0beddd 100644
  _GKI_AARCH64_MAKE_GOALS = [
      "Image",
      "Image.lz4",
-@@ -165,7 +172,7 @@ filegroup(
+@@ -170,7 +177,7 @@ filegroup(
              "cscope.*",
              "ncscope.*",
          ],
@@ -49,7 +49,7 @@ index 34d4b31f5854..eb1ccc0beddd 100644
  )
  
 diff --git a/modules.bzl b/modules.bzl
-index 49700e6cf657..226f1273559b 100644
+index febc4bd0bcce..c5af91c9ed44 100644
 --- a/modules.bzl
 +++ b/modules.bzl
 @@ -5,6 +5,7 @@
@@ -58,9 +58,9 @@ index 49700e6cf657..226f1273559b 100644
  """
 +load("//common_drivers:modules.bzl", "AMLOGIC_REMOVE_KERNEL_MODULES")
  
- # LINT.IfChange
  _COMMON_GKI_MODULES_LIST = [
-@@ -143,6 +144,10 @@ def get_gki_modules_list(arch = None):
+     # keep sorted
+@@ -140,6 +141,10 @@ def get_gki_modules_list(arch = None):
              arch,
          ))
  

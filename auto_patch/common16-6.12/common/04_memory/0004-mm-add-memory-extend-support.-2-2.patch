@@ -1,4 +1,4 @@
-From 0abcbac580b22cd51bea8e0f426a930c59f532ad Mon Sep 17 00:00:00 2001
+From fac014c0465ec211bd81149e63d110c3aa3998ca Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 15 Oct 2024 16:24:49 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -189,7 +189,7 @@ index 9ecee51266cf..05c66b609e67 100644
  					rmem->size, nomap, reusable);
  		if (reusable && !of_flat_dt_is_compatible(node, "shared-dma-pool"))
 diff --git a/fs/dcache.c b/fs/dcache.c
-index 0f6b16ba30d0..da7e074aa44d 100644
+index 9ded79c3651a..2c07e6a075c3 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
 @@ -3141,7 +3141,11 @@ ino_t d_parent_ino(struct dentry *dentry)
@@ -221,30 +221,26 @@ index 1897b03bdbdf..be6bc5a942f9 100644
  {
  	if (!str)
 diff --git a/include/linux/android_kabi.h b/include/linux/android_kabi.h
-index 02ba25dbfdbf..7c8dde659f65 100644
+index 95cdb96e8692..79cc94f30de1 100644
 --- a/include/linux/android_kabi.h
 +++ b/include/linux/android_kabi.h
-@@ -84,11 +84,15 @@
-  *   number: the "number" of the padding variable in the structure.  Start with
-  *   1 and go up.
+@@ -89,7 +89,11 @@
+  *   Similar to ANDROID_KABI_RESERVE, but this is for planned feature backports
+  *   (not for LTS).
   */
 +#ifdef CONFIG_AMLOGIC_MEMORY_OPT
 +#define ANDROID_KABI_RESERVE(number)
 +#else
- #ifdef CONFIG_ANDROID_KABI_RESERVE
- #define ANDROID_KABI_RESERVE(number)	_ANDROID_KABI_RESERVE(number)
- #else
- #define ANDROID_KABI_RESERVE(number)
- #endif
+ #define ANDROID_KABI_RESERVE(number)		u64 __kabi_reserved##number
 +#endif
+ #define ANDROID_BACKPORT_RESERVE(number)	u64 __kabi_reserved_backport##number
  
  /*
-  * ANDROID_KABI_BACKPORT_OK
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 3ea5db2617f8..89484153cbd4 100644
+index 35db1662ba5d..0b977f1af285 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -124,7 +124,18 @@ extern int page_group_by_mobility_disabled;
+@@ -126,7 +126,18 @@ extern int page_group_by_mobility_disabled;
  struct free_area {
  	struct list_head	free_list[MIGRATE_TYPES];
  	unsigned long		nr_free;
@@ -327,10 +323,10 @@ index 61e34b09c5c5..ead4b79e3917 100644
  EXPORT_SYMBOL(init_task);
  
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 87866b037fbe..068c0ec91ac2 100644
+index ff3f6d9db62b..a610785c28e4 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -82,7 +82,9 @@ obj-$(CONFIG_UTS_NS) += utsname.o
+@@ -87,7 +87,9 @@ obj-$(CONFIG_UTS_NS) += utsname.o
  obj-$(CONFIG_USER_NS) += user_namespace.o
  obj-$(CONFIG_PID_NS) += pid_namespace.o
  obj-$(CONFIG_IKCONFIG) += configs.o
@@ -340,7 +336,7 @@ index 87866b037fbe..068c0ec91ac2 100644
  obj-$(CONFIG_SMP) += stop_machine.o
  obj-$(CONFIG_AUDIT) += audit.o auditfilter.o
  obj-$(CONFIG_AUDITSYSCALL) += auditsc.o audit_watch.o audit_fsnotify.o audit_tree.o
-@@ -148,8 +150,16 @@ $(obj)/config_data.gz: $(obj)/config_data FORCE
+@@ -153,8 +155,16 @@ $(obj)/config_data.gz: $(obj)/config_data FORCE
  
  filechk_cat = cat $<
  
@@ -490,10 +486,10 @@ index d7809affe740..aa4135c3c43e 100644
  	}
  
 diff --git a/mm/cma.c b/mm/cma.c
-index b6e08accf9a6..815d884de3b0 100644
+index 7adfc711311a..21ebf6f3d8cd 100644
 --- a/mm/cma.c
 +++ b/mm/cma.c
-@@ -520,10 +520,12 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
+@@ -522,10 +522,12 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
  		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
  				bitmap_maxno, start, bitmap_count, mask,
  				offset);
@@ -532,7 +528,7 @@ index ed4873e18c75..84761ffbfc2a 100644
  		     KASAN_PAGE_REDZONE, false);
  }
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 15027e10398d..69f1e350351f 100644
+index 03d7b45c06d4..c8b43a085521 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -73,6 +73,10 @@
@@ -546,7 +542,7 @@ index 15027e10398d..69f1e350351f 100644
  EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_alloc);
  EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_free);
  
-@@ -948,7 +952,15 @@ static inline void __free_one_page(struct page *page,
+@@ -968,7 +972,15 @@ static inline void __free_one_page(struct page *page,
  	else if (is_shuffle_order(order))
  		to_tail = shuffle_pick_tail();
  	else
@@ -562,7 +558,7 @@ index 15027e10398d..69f1e350351f 100644
  
  	__add_to_free_list(page, zone, order, migratetype, to_tail);
  
-@@ -2902,7 +2914,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
+@@ -2922,7 +2934,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
  	pcp->alloc_factor >>= 1;
  	__count_vm_events(PGFREE, 1 << order);
  	pindex = order_to_pindex(migratetype, order);
@@ -578,7 +574,7 @@ index 15027e10398d..69f1e350351f 100644
  	pcp->count += 1 << order;
  
  	batch = READ_ONCE(pcp->batch);
-@@ -5192,6 +5212,9 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
+@@ -5215,6 +5235,9 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
  	 */
  	alloc_flags |= alloc_flags_nofragment(zonelist_zone(ac.preferred_zoneref), gfp);
  
@@ -588,7 +584,7 @@ index 15027e10398d..69f1e350351f 100644
  	/* First allocation attempt */
  	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
  	if (likely(page))
-@@ -7469,6 +7492,41 @@ bool put_page_back_buddy(struct page *page)
+@@ -7521,6 +7544,41 @@ bool put_page_back_buddy(struct page *page)
  }
  #endif
  
@@ -631,7 +627,7 @@ index 15027e10398d..69f1e350351f 100644
  bool has_managed_dma(void)
  {
 diff --git a/mm/show_mem.c b/mm/show_mem.c
-index 637d4ff87afd..2a3b72212776 100644
+index f6e59cd713d0..da619d6a21a1 100644
 --- a/mm/show_mem.c
 +++ b/mm/show_mem.c
 @@ -195,6 +195,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
@@ -644,7 +640,7 @@ index 637d4ff87afd..2a3b72212776 100644
  
  	for_each_populated_zone(zone) {
  		if (zone_idx(zone) > max_zone_idx)
-@@ -378,6 +381,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
+@@ -380,6 +383,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
  
  			types[order] = 0;
  			for (type = 0; type < MIGRATE_TYPES; type++) {
@@ -654,7 +650,7 @@ index 637d4ff87afd..2a3b72212776 100644
  				if (!free_area_empty(area, type))
  					types[order] |= 1 << type;
  			}
-@@ -390,6 +396,12 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
+@@ -392,6 +398,12 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
  				show_migration_types(types[order]);
  		}
  		printk(KERN_CONT "= %lukB\n", K(total));
@@ -862,10 +858,10 @@ index 83c164aba6e0..5400ce215e2c 100644
  		if (n > folio_size(folio) - offset)
  			usercopy_abort("page alloc", NULL, to_user, offset, n);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 6f5bf108d1c9..d897bcad91d6 100644
+index 54549264ae4c..4bd0c79b82e6 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -910,9 +910,11 @@ static enum folio_references folio_check_references(struct folio *folio,
+@@ -911,9 +911,11 @@ static enum folio_references folio_check_references(struct folio *folio,
  	unsigned long vm_flags;
  	int ret = 0;
  
@@ -877,7 +873,7 @@ index 6f5bf108d1c9..d897bcad91d6 100644
  #endif
  	trace_android_vh_check_folio_look_around_ref(folio, &ret);
  	if (ret)
-@@ -1101,6 +1103,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
+@@ -1102,6 +1104,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
  	return !data_race(folio_swap_flags(folio) & SWP_FS_OPS);
  }
  
@@ -895,7 +891,7 @@ index 6f5bf108d1c9..d897bcad91d6 100644
  /*
   * shrink_folio_list() returns the number of reclaimed pages
   */
-@@ -1149,8 +1162,12 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1150,8 +1163,12 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (unlikely(!folio_evictable(folio)))
  			goto activate_locked;
  
@@ -909,7 +905,7 @@ index 6f5bf108d1c9..d897bcad91d6 100644
  
  		/*
  		 * The number of dirty pages determines if a node is marked
-@@ -1898,8 +1915,10 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
+@@ -1899,8 +1916,10 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
  	 * won't get blocked by normal direct-reclaimers, forming a circular
  	 * deadlock.
  	 */
@@ -920,7 +916,7 @@ index 6f5bf108d1c9..d897bcad91d6 100644
  
  	too_many = isolated > inactive;
  
-@@ -2173,9 +2192,11 @@ static void shrink_active_list(unsigned long nr_to_scan,
+@@ -2174,9 +2193,11 @@ static void shrink_active_list(unsigned long nr_to_scan,
  			}
  		}
  
@@ -932,7 +928,7 @@ index 6f5bf108d1c9..d897bcad91d6 100644
  #endif
  		if (unlikely(should_protect)) {
  			nr_rotated += folio_nr_pages(folio);
-@@ -5999,9 +6020,11 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+@@ -6000,9 +6021,11 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
  			return false;
  	}
  
@@ -944,7 +940,7 @@ index 6f5bf108d1c9..d897bcad91d6 100644
  #endif
  	if (!continue_reclaim)
  		return false;
-@@ -6090,10 +6113,12 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
+@@ -6091,10 +6114,12 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
  				   sc->nr_scanned - scanned,
  				   sc->nr_reclaimed - reclaimed);
  
@@ -957,7 +953,7 @@ index 6f5bf108d1c9..d897bcad91d6 100644
  #endif
  
  		/* If partial walks are allowed, bail once goal is reached */
-@@ -6402,10 +6427,12 @@ static void modify_scan_control(struct scan_control *sc)
+@@ -6403,10 +6428,12 @@ static void modify_scan_control(struct scan_control *sc)
  {
  	bool file_is_tiny = false, may_writepage = true;
  
