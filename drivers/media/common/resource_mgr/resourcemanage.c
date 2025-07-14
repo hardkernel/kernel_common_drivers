@@ -60,6 +60,8 @@ struct {
 	{RESMAN_ID_HWC, "hwc"},
 	{RESMAN_ID_DMX, "dmx"},
 	{RESMAN_ID_DI, "di"},
+	{RESMAN_ID_VDPLANE, "videoplane"},
+	{RESMAN_ID_AUDIO_DECODER, "audiodecoder"},
 };
 
 enum RESMAN_STATUS {
@@ -76,6 +78,17 @@ enum RESMAN_STATUS {
 struct resman_event {
 	struct list_head list;
 	__u32 type;
+};
+
+struct counter_res_state {
+	int index;
+	int ssid;
+	int state;
+};
+
+struct counter_res_state_list {
+	struct counter_res_state *items;
+	int size;
 };
 
 /**
@@ -182,6 +195,7 @@ struct resman_resource {
 		 */
 		struct {
 			__u32 avail;
+			struct counter_res_state_list *counter_list;
 		} counter;
 		/**
 		 * @total: total score
@@ -353,6 +367,79 @@ static int resman_count_codec_mm_session(bool secure)
 	return count;
 }
 
+struct counter_res_state_list *resman_counter_res_list_init(struct resman_resource *resource,
+								int size)
+{
+	int i = 0;
+
+	struct counter_res_state_list *counter_list =
+		kcalloc(1, sizeof(struct counter_res_state_list), GFP_KERNEL);
+	if (!counter_list)
+		return NULL;
+
+	counter_list->items =
+		kcalloc(size, sizeof(struct counter_res_state), GFP_KERNEL);
+	if (!counter_list->items) {
+		kfree(counter_list);
+		return NULL;
+	}
+	counter_list->size = size;
+	dprintk(3, "%s list size %d res id %d\n", __func__, size, resource->id);
+
+	for (i = 0; i < size; i++) {
+		counter_list->items[i].index = i;
+		counter_list->items[i].state = 0;
+		counter_list->items[i].ssid = -1;
+	}
+	return counter_list;
+}
+
+void resman_counter_res_list_release(struct counter_res_state_list *counter_list)
+{
+	if (counter_list) {
+		kfree(counter_list->items);
+		kfree(counter_list);
+	}
+}
+
+int resman_counter_res_list_acquire_item(struct counter_res_state_list *counter_list, int ssid)
+{
+	int i = 0;
+	int index = -1;
+
+	if (!counter_list)
+		return -1;
+	for (i = 0; i < counter_list->size; i++) {
+		if (counter_list->items[i].state == 0) {
+			counter_list->items[i].state = 1;
+			counter_list->items[i].ssid = ssid;
+			dprintk(3, "i %d and id %d\n", i,
+				 counter_list->items[i].ssid);
+			index = counter_list->items[i].index;
+			break;
+		}
+	}
+	return index;
+}
+
+void resman_counter_res_list_release_item(struct counter_res_state_list *counter_list,
+			int index, int ssid)
+{
+	int i = 0;
+
+	if (!counter_list || ssid <= 0)
+		return;
+	for (i = 0; i < counter_list->size; i++) {
+		if (counter_list->items[i].ssid == ssid) {
+			counter_list->items[i].state = 0;
+			dprintk(3, "release i %d and id %d\n", i,
+				 counter_list->items[i].ssid);
+			counter_list->items[i].ssid = -1;
+			break;
+		}
+	}
+}
+
 static bool resman_acquire_resource(struct resman_session *sess,
 				    struct resman_resource *resource,
 				    bool preempt,
@@ -452,6 +539,7 @@ static void resman_close_session(struct resman_session *sess)
 	wake_up_interruptible_all(&sess->wq_event);
 	list_for_each_safe(pos, tmp, &sess->resources) {
 		node = list_entry(pos, struct resman_node, rlist);
+		dprintk(3, "%d release\n", sess->id);
 		resman_release_resource(node);
 	}
 	list_for_each_safe(pos, tmp, &sess->events) {
@@ -619,6 +707,7 @@ static bool resman_counter_acquire(struct resman_session *sess,
 	}
 	if (resource->value < resource->d.counter.avail) {
 		resource->value++;
+		resman_counter_res_list_acquire_item(resource->d.counter.counter_list, sess->id);
 		ret = true;
 	}
 	return ret;
@@ -635,8 +724,11 @@ static void resman_counter_release(struct resman_session *sess,
 				   struct resman_resource *resource,
 				   struct resman_node *node)
 {
-	if (resource->value > 0)
+	if (resource->value > 0) {
 		resource->value--;
+		resman_counter_res_list_release_item(resource->d.counter.counter_list,
+		resource->value, sess->id);
+	}
 }
 
 /**
@@ -976,7 +1068,7 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 	while ((opt = strsep(&arg, ","))) {
 		if (!strncmp(opt, "size", 4)) {
 			if (!resman_parser_kv(opt, "size", &score))
-				dprintk(1, "parser size error\n");
+				dprintk(1, "default fhd size\n");
 		}
 		else if (!strcmp(opt, "single"))
 		/*single mode, 64M codec mm size is enough*/
@@ -1252,6 +1344,7 @@ static bool resman_create_resource(const char *name,
 	resource->id = -1;
 	for (i = 0; i < ARRAY_SIZE(resources_map) && resources_map[i].name;
 			i++) {
+		dprintk(3, "map: [%s]\n", resources_map[i].name);
 		if (!strcmp(resources_map[i].name, name)) {
 			restmp = resman_find_resource_by_id(resources_map[i].id);
 			if (restmp) {
@@ -1306,6 +1399,8 @@ static bool resman_create_resource(const char *name,
 				      &resource->d.counter.avail)) {
 			goto error;
 		}
+		resource->d.counter.counter_list =
+			resman_counter_res_list_init(resource, resource->d.counter.avail);
 		break;
 	case RESMAN_TYPE_TOGGLE:
 		resource->acquire = resman_toggle_acquire;
@@ -1654,7 +1749,7 @@ static void all_resource_init(void)
  */
 	char *default_configs = NULL;
 	int len = 0, i = 0;
-	char c[8][100] = {
+	char c[10][100] = {
 	"{\"resman_config\":[{\"name\":\"vfm_default\",\"type\":1,\"args\":\"avail:1\"},",
 	"{\"name\": \"amvideo\",\"type\": 1,\"args\": \"avail:1\"},",
 	"{\"name\": \"videopip\",\"type\": 1,\"args\": \"avail:1\"},",
@@ -1662,14 +1757,17 @@ static void all_resource_init(void)
 	"{\"name\": \"tsparser\",\"type\": 1,\"args\": \"avail:1\"},",
 	"{\"name\": \"codec_mm\",\"type\": 4,\"args\": \"total:0\"},",
 	"{\"name\": \"adc_pll\",\"type\": 1,\"args\": \"avail:1\"},",
-	"{\"name\": \"decoder\",\"type\": 1,\"args\": \"avail:9\"}]}"};
+	"{\"name\": \"decoder\",\"type\": 1,\"args\": \"avail:9\"},",
+	"{\"name\": \"videoplane\",\"type\": 1,\"args\": \"avail:1\"},",
+	"{\"name\": \"audiodecoder\",\"type\": 1,\"args\": \"avail:2\"}]}"};
 
 	len = strlen(c[0]) + strlen(c[1]) + strlen(c[2]) + strlen(c[3]) +
-			strlen(c[4]) + strlen(c[5]) + strlen(c[6]) + strlen(c[7]);
+			strlen(c[4]) + strlen(c[5]) + strlen(c[6]) + strlen(c[7]) +
+			strlen(c[8]) + strlen(c[9]);
 	default_configs = kzalloc(len + 1, GFP_KERNEL);
 	len = 0;
 	if (default_configs) {
-		for (i = 0; i < 8; i++) {
+		for (i = 0; i < 10; i++) {
 			memcpy(default_configs + len, c[i], strlen(c[i]));
 			len +=  strlen(c[i]);
 		}
@@ -1845,7 +1943,7 @@ static long resman_ioctl_release(struct resman_session *sess,
 	int select_res = (int)para;
 	struct resman_resource *resource;
 	struct resman_node  *node;
-	dprintk(2, "%d appname:%s, type=%d\n",
+	dprintk(2, "%d appname:%s release, type=%d\n",
 			sess->id,
 			sess->app_name,
 			sess->app_type);
@@ -2242,6 +2340,34 @@ static long resman_get_sys_debug_level(struct resman_session *sess, unsigned lon
 	return len;
 }
 
+static long resman_get_counter_index(struct resman_session *sess, unsigned long para)
+{
+	long r = -1;
+	int select_res = 0, i = 0;
+	__u32 id = 0;
+	struct resman_resource *resource;
+
+	if (copy_from_user((void *)&id, (void *)para, sizeof(id))) {
+		dprintk(0, "getcount index para error\n");
+		return -EINVAL;
+	}
+
+	select_res = id;
+	resource = resman_find_resource_by_id(select_res);
+	if (!resource)
+		return r;
+	for (i = 0; i < resource->d.counter.counter_list->size; i++) {
+		dprintk(3, "items[i].state %d\n", resource->d.counter.counter_list->items[i].state);
+		if (resource->d.counter.counter_list->items[i].state == 1 &&
+			resource->d.counter.counter_list->items[i].ssid == sess->id) {
+			dprintk(3, "find i %d and id %d\n", i, id);
+			r = i;
+			break;
+		}
+	}
+	return r;
+}
+
 static long resman_set_sys_debug_level(struct resman_session *sess, unsigned long para)
 {
 	long r = 0;
@@ -2327,7 +2453,10 @@ long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para)
 	case RESMAN_IOC_GET_ERROR_INFO:
 		retval = resman_get_error_info(sess, para);
 		break;
-    default:
+	case RESMAN_IOC_GET_COUNTER_INDEX:
+		retval = resman_get_counter_index(sess, para);
+		break;
+	default:
 		retval = -EINVAL;
 		break;
 	}
