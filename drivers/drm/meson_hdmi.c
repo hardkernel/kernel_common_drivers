@@ -2239,8 +2239,10 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	is_alter = meson_hdmitx_is_alter_mode(adj_mode);
 	if (is_alter) {
 		hdmitx_state->hcs.para.frac_mode = true;
+		meson_crtc_state->frac = 1;
 	} else {
 		hdmitx_state->hcs.para.frac_mode = false;
+		meson_crtc_state->frac = 0;
 	}
 
 	if (meson_crtc_state->uboot_mode_init == 1) {

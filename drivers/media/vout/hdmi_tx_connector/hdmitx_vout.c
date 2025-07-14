@@ -201,6 +201,7 @@ static enum vmode_e hdmitx_validate_vmode(char *_mode, unsigned int frac, void *
 	struct hdmitx_common *tx_comm = (struct hdmitx_common *)data;
 	struct vinfo_s *vinfo = &tx_comm->hdmitx_vinfo;
 	const struct hdmi_timing *timing = 0;
+	struct hdmi_timing t;
 	char conv_name[32] = {0};
 	char *mode = _mode;
 
@@ -213,9 +214,12 @@ static enum vmode_e hdmitx_validate_vmode(char *_mode, unsigned int frac, void *
 		mode = conv_name;
 	}
 	timing = hdmitx_mode_match_timing_name(mode);
+	t = *timing;
+	if (frac)
+		hdmitx_mode_update_timing(&t, frac);
 	if (hdmitx_common_validate_vic(tx_comm, timing->vic) == 0) {
 		/*should save mode name to vinfo, will be used in set_vmode*/
-		calc_vinfo_from_hdmi_timing(tx_comm, timing, vinfo);
+		calc_vinfo_from_hdmi_timing(tx_comm, &t, vinfo);
 		vinfo->vout_device = tx_comm->vdev;
 		return VMODE_HDMI;
 	}

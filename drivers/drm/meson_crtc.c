@@ -755,7 +755,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 			return;
 		}
 		mode = vout_func_validate_vmode(amcrtc->vout_index, name,
-			mesonconn->connector_type, 0);
+			mesonconn->connector_type,  meson_crtc_state->frac);
 		DRM_DEBUG("%s, connector_type = %d, mode = %s, vmode =%d\n",
 			__func__, mesonconn->connector_type, name, mode);
 		if (mode == VMODE_MAX) {

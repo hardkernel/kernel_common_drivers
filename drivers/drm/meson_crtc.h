@@ -93,6 +93,7 @@ struct am_meson_crtc_state {
 	bool brr_update;
 
 	bool seamless;
+	unsigned int frac;
 };
 
 struct am_meson_crtc {
