@@ -707,6 +707,11 @@
 	};
 };
 
+&aml_wifi{
+	status = "okay";
+	disable-wifi-32k;
+};
+
 &uart_AO {
 	status = "okay";
 };
