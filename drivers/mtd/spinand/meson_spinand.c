@@ -377,10 +377,13 @@ static void mtd_loop_encrypted_partition(struct mtd_info *mtd)
 
 static const char * const meson_mtd_types[] = {
 	"cmdlinepart",
+	"meson_spinand_ofpartitions",
 	NULL
 };
 
-int meson_add_mtd_partitions(struct mtd_info *mtd)
+static int meson_parse_partitions(struct mtd_info *master,
+				  const struct mtd_partition **pparts,
+				  struct mtd_part_parser_data *data)
 {
 	struct meson_partition_platform_data *pdata;
 	struct mtd_partition *part;
@@ -388,35 +391,20 @@ int meson_add_mtd_partitions(struct mtd_info *mtd)
 	u32 rsv_block_num = meson_rsv_get_block_cnt(NAND_RSV_INDEX);
 	int i = 0;
 
-	mtd->name = "aml-mtd";
-	if (mtd_device_parse_register(mtd, meson_mtd_types, NULL, NULL, 0) == 0) {
-		if (!mtd_has_partitions(mtd)) {
-			if (device_is_registered(&mtd->dev))
-				mtd_device_unregister(mtd);
-			goto parse_dtb;
-		}
-		pr_debug("init partition from env!\n");
-#ifdef CONFIG_NAND_ENCRYPTION
-		mtd_loop_encrypted_partition(mtd);
-#endif
-		return 0;
-	}
-
-parse_dtb:
-	pdata = meson_partition_parse_platform_data(mtd_get_of_node(mtd));
+	pdata = meson_partition_parse_platform_data(mtd_get_of_node(master));
 	if (!pdata)
-		return -1;
+		return -ENODATA;
 
 	/* bootloader */
 	part = pdata->part;
 	offset = 0;
 	part->offset = offset;
-	part->size = SPI_NAND_BOOT_TOTAL_PAGES * mtd->writesize;
+	part->size = SPI_NAND_BOOT_TOTAL_PAGES * master->writesize;
 	offset += part->size;
 
 	if (pdata->bl_mode == NAND_FIPMODE_ADVANCE) {
 		/* get boot area entry form env */
-		aml_nand_param_check_and_layout_init(mtd);
+		aml_nand_param_check_and_layout_init(master);
 		/* bl2e, bl2x, ddrfip, devfip */
 		for (i = 1; i < (BOOT_AREA_DEVFIP + 1); i++) {
 			part[i].offset =
@@ -436,7 +424,7 @@ parse_dtb:
 		part += 4;
 	} else if (pdata->bl_mode == NAND_FIPMODE_DISCRETE) {
 		/* skip rsv */
-		offset += rsv_block_num * (loff_t)mtd->erasesize;
+		offset += rsv_block_num * (loff_t)master->erasesize;
 
 		/* tpl, support NAND_FIPMODE_DISCRETE only */
 		part++;
@@ -447,35 +435,54 @@ parse_dtb:
 		i = pdata->part_num - 3;
 	} else {
 		pr_err("Invalid mode!\n");
-		goto meson_add_mtd_partitions_err;
+		kfree(pdata);
+		return -EINVAL;
 	}
 
 	while (i--) {
 		part++;
 		part->offset = offset;
-		meson_partition_relocate(mtd, part);
+		meson_partition_relocate(master, part);
 		offset += part->size;
-#ifdef CONFIG_NAND_ENCRYPTION
-		set_region_encrypted(mtd, part, true);
-#endif
-		if (offset > mtd->size)
-			goto meson_add_mtd_partitions_err;
+		if (offset > master->size) {
+			kfree(pdata);
+			pr_err("%s: offset %llx over device size %llx\n", __func__,
+			       offset, master->size);
+			return -ENOSPC;
+		}
 	}
 
 	/* data */
 	part++;
 	part->offset = offset;
-	part->size = mtd->size - offset;
+	part->size = master->size - offset;
+
+	*pparts = kmemdup(pdata->part, sizeof(*pdata->part) * pdata->part_num,
+			  GFP_KERNEL);
+	if (!*pparts)
+		return -ENOMEM;
+
+	return pdata->part_num;
+}
+
+struct mtd_part_parser meson_spinand_parser = {
+	.parse_fn = meson_parse_partitions,
+	.name = "meson_spinand_ofpartitions",
+};
+
+int meson_add_mtd_partitions(struct mtd_info *mtd)
+{
+	mtd->name = "aml-mtd";
+	register_mtd_parser(&meson_spinand_parser);
+	if (mtd_device_parse_register(mtd, meson_mtd_types, NULL, NULL, 0) != 0) {
+		pr_err("%s() register partitions failed\n", __func__);
+		return -1;
+	}
+
 #ifdef CONFIG_NAND_ENCRYPTION
-	set_region_encrypted(mtd, part, true);
+	mtd_loop_encrypted_partition(mtd);
 #endif
-
-	return mtd_device_register(mtd, pdata->part, pdata->part_num);
-
-meson_add_mtd_partitions_err:
-	pr_err("%s: add partition failed\n", __func__);
-	kfree(pdata);
-	return mtd_device_register(mtd, NULL, 0);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(meson_add_mtd_partitions);
 
