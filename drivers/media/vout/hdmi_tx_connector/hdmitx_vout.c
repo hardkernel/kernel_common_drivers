@@ -212,7 +212,8 @@ static enum vmode_e hdmitx_validate_vmode(char *_mode, unsigned int frac, void *
 	}
 	timing = hdmitx_mode_match_timing_name(mode);
 	if (hdmitx_common_validate_vic(tx_comm, timing->vic) == 0) {
-		/* probe will check valid mode, there needn't update vinfo */
+		/*should save mode name to vinfo, will be used in set_vmode*/
+		calc_vinfo_from_hdmi_timing(tx_comm, timing, vinfo);
 		vinfo->vout_device = tx_comm->vdev;
 		return VMODE_HDMI;
 	}
