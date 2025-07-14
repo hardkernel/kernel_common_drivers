@@ -56,6 +56,7 @@
 /* 2025.5.16 fmt detect add 420 judge */
 /* 2025.05.22 do not override 8bit when data was not 422 8bit */
 /* 2025.06.27 Fix YUV420 8k signal recognition error issue */
+/* 2025.07.14 update 1440p 420 in freq_ref*/
 #define RX_WRAPPER_VER "ver.2025/06/27"
 
 struct freq_ref_s {
