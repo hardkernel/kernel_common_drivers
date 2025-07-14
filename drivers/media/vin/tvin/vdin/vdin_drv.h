@@ -150,6 +150,8 @@
 #define VDIN_DROP_FRAME_NUM_DEF	2
 #define VDIN_RESET_PCS_CNT     5
 
+#define VDIN_MAX_INSTANCE 1
+
 enum vdin_work_mode_e {
 	VDIN_WORK_MD_NORMAL = 0,
 	VDIN_WORK_MD_V4L = 1,
@@ -612,8 +614,9 @@ struct vdin_vf_info {
 
 /***vdin_dbg_en control for print***/
 #define DBG_VDIN1_HIST		(BIT(1)) /*print vdin1 HIST_IOC */
-#define VDIN_DBG_CNTL_IOCTL	BIT(10)
-#define VDIN_DBG_CNTL_FLUSH	BIT(11)
+#define DBG_VDIN_DUMP		(BIT(4)) /*print vdin dump (close to avoid watchdog timeout) */
+#define VDIN_DBG_CNTL_IOCTL	(BIT(10))
+#define VDIN_DBG_CNTL_FLUSH	(BIT(11))
 
 struct vdin_slt_test_s {
 	bool en;
@@ -632,10 +635,28 @@ enum vdin_memset_dbg_flag {
 	RGB_8B_LIMIT
 };
 
+struct dump_info_s {
+	u32 highmem_flag;
+	u32 width;
+	u32 height;
+	u32 sizeimage;
+	u32 remain_map_size;
+	u32 remain_span;
+	u64 phy_addr;
+	u64 map_addr;
+	u64 map_size;
+	void *vir_addr;
+	struct mutex mutex;/*for dump finish then user layer to dq*/
+};
+
 /*******for debug **********/
 struct vdin_debug_s {
 	struct tvin_cutwin_s cutwin;
 	struct vdin_slt_test_s slt_test;
+	struct dump_info_s dump_info_afbc_head;
+	struct dump_info_s dump_info_afbc_table;
+	struct dump_info_s dump_info_afbc_body;
+	struct dump_info_s dump_info_mif;
 	unsigned int vdin_recycle_num;/* debug for vdin recycle frame by self */
 	unsigned int dbg_print_cntl;/* debug for vdin print control */
 	unsigned int dbg_pattern;

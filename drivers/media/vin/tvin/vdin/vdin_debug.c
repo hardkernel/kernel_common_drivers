@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 /* Standard Linux Headers */
@@ -33,6 +33,7 @@
 #include "vdin_regs.h"
 #include "vdin_afbce.h"
 #include "vdin_canvas.h"
+#include <asm/div64.h>
 /*2018-07-18 add debugfs*/
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
@@ -41,6 +42,7 @@
 #include "vdin_hw.h"
 
 extern unsigned int vdin_game_mode_dly;
+static const char vdin_group_name[] = "vdin";
 
 void vdin_parse_param(char *buf_orig, char **parm)
 {
@@ -239,6 +241,443 @@ ssize_t attr_show(struct device *dev,
 		       "echo dv_crc x >/sys/class/vdin/vdinx/attr (0:force false 1:force true 2:auto)\n");
 	return len;
 }
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static ssize_t dump_vdin_mif_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	int ret = 0;
+	struct device *dev = kobj_to_dev(kobj);
+	struct vdin_dev_s *devp = dev_get_drvdata(dev);
+	struct dump_info_s *info = &devp->debug.dump_info_mif;
+	u32 sizeimage;
+	size_t to_copy = 0;
+	unsigned int span = 0;
+	u64 map_addr;
+	loff_t line_id;
+	u32 line_offset;
+	bool is_data_end;
+	size_t remaining_bytes;
+
+	if (!info->vir_addr && off == 0) {
+		ret = mutex_lock_interruptible(&info->mutex);
+		if (ret < 0) {
+			pr_info("%s() interrupted while waiting for mutex\n",
+				__func__);
+			return ret;
+		}
+
+		if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)
+			info->phy_addr = devp->vf_mem_start[0];
+		else
+			info->phy_addr = devp->mem_start;
+
+		info->highmem_flag = PageHighMem(phys_to_page(info->phy_addr));
+
+		if (vdin_is_convert_to_nv21(devp->format_convert))
+			info->height = (devp->canvas_h * 3) / 2;
+		else
+			info->height = devp->canvas_h;
+
+		info->width = devp->canvas_w;
+
+		info->sizeimage = info->width * info->height;
+
+		pr_info("%s() phy_addr:0x%llx width:%d height:%d sizeimage:0x%x\n",
+			__func__, info->phy_addr, info->width, info->height, info->sizeimage);
+
+		if (info->highmem_flag == 0) {
+			pr_info("low mem area: cma_flag:0x%x\n", devp->cma_config_flag);
+			if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)
+				info->vir_addr = codec_mm_phys_to_virt(info->phy_addr);
+			else
+				info->vir_addr = phys_to_virt(info->phy_addr);
+		} else {
+			pr_info("high mem area: cma_flag:0x%x\n", devp->cma_config_flag);
+		}
+	}
+
+	sizeimage = info->sizeimage;
+	if (off >= sizeimage) {
+		mutex_unlock(&info->mutex);
+		return 0;
+	}
+
+	if (info->highmem_flag) {
+		remaining_bytes = min_t(size_t, count, sizeimage - off);
+		info->map_size = devp->canvas_w;
+		span = devp->canvas_w;
+		line_id = div_u64(off, info->map_size);
+		div_u64_rem(off, info->map_size, &line_offset);
+
+		while (remaining_bytes) {
+			map_addr = info->phy_addr + line_id * info->map_size;
+			info->vir_addr = vdin_vmap(map_addr, info->map_size);
+			if (!info->vir_addr) {
+				pr_info("vmap failed. vir_addr is null\n");
+				mutex_unlock(&info->mutex);
+				return -EINVAL;
+			}
+			vdin_dma_flush(devp, info->vir_addr, info->map_size, DMA_FROM_DEVICE);
+			size_t bytes_this_line = info->map_size - line_offset;
+
+			if (bytes_this_line > remaining_bytes)
+				bytes_this_line = remaining_bytes;
+			if (devp->debug.vdin_dbg_en & DBG_VDIN_DUMP)
+				pr_info("copy %zu bytes to line id=%lld, map=%llu, offset=%d, off=%lld\n",
+						bytes_this_line, line_id,
+						info->map_size, line_offset, off);
+
+			memcpy(buf, info->vir_addr + line_offset, bytes_this_line);
+			buf += bytes_this_line;
+			to_copy += bytes_this_line;
+			remaining_bytes -= bytes_this_line;
+
+			vdin_unmap_phyaddr(info->vir_addr);
+
+			if (line_offset + bytes_this_line >= info->map_size) {
+				line_id++;
+				line_offset = 0;
+			} else {
+				line_offset += bytes_this_line;
+			}
+		}
+	} else {
+		if (!info->vir_addr) {
+			pr_info("vmap failed. vir_addr is null\n");
+			mutex_unlock(&info->mutex);
+			return -EINVAL;
+		}
+		to_copy = min_t(size_t, count, info->sizeimage - off);
+		memcpy(buf, info->vir_addr + off, to_copy);
+	}
+
+	is_data_end = (off + to_copy) >= info->sizeimage;
+
+	if (is_data_end) {
+		info->vir_addr = NULL;
+		pr_info("%s() dump finish\n", __func__);
+		if (info->highmem_flag)
+			vdin_unmap_phyaddr(info->vir_addr);
+		mutex_unlock(&info->mutex);
+	}
+
+	return to_copy;
+}
+
+static ssize_t dump_vdin_afbc_head_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	int ret = 0;
+	struct device *dev = kobj_to_dev(kobj);
+	struct vdin_dev_s *devp = dev_get_drvdata(dev);
+	struct dump_info_s *info = &devp->debug.dump_info_afbc_head;
+	u32 sizeimage;
+	u8 *vir_addr;
+	size_t to_copy;
+
+	if (!info->vir_addr && off == 0) {
+		ret = mutex_lock_interruptible(&info->mutex);
+		if (ret < 0) {
+			pr_info("dump src: interrupted while waiting for mutex\n");
+			return ret;
+		}
+
+		info->phy_addr = devp->afbce_info->fm_head_paddr[0];
+		info->sizeimage = devp->afbce_info->frame_head_size;
+
+		info->highmem_flag =
+				PageHighMem(phys_to_page(devp->afbce_info->fm_body_paddr[0]));
+
+		pr_info("%s(): phy_addr:0x%llx sizeimage:0x%x\n",
+			__func__, info->phy_addr, info->sizeimage);
+
+		if (info->highmem_flag == 0) {
+			pr_info("low mem area, cma_flag=0x%x\n", devp->cma_config_flag);
+			if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)
+				info->vir_addr = codec_mm_phys_to_virt(info->phy_addr);
+			else
+				info->vir_addr = phys_to_virt(info->phy_addr);
+		} else {
+			pr_info("high mem area, cma_flag=0x%x\n", devp->cma_config_flag);
+			info->vir_addr = vdin_vmap(info->phy_addr, info->sizeimage);
+		}
+
+		if (!info->vir_addr) {
+			pr_info("vmap failed. vir_addr is null\n");
+			mutex_unlock(&info->mutex);
+			return -EINVAL;
+		}
+	}
+
+	sizeimage = info->sizeimage;
+	vir_addr = info->vir_addr;
+
+	if (!vir_addr || off >= sizeimage) {
+		mutex_unlock(&info->mutex);
+		return 0;
+	}
+
+	vdin_dma_flush(devp, vir_addr, sizeimage, DMA_FROM_DEVICE);
+	to_copy = min_t(size_t, count, sizeimage - off);
+	memcpy(buf, vir_addr + off, to_copy);
+
+	if (devp->debug.vdin_dbg_en & DBG_VDIN_DUMP)
+		pr_info("%s() copy %zu bytes to off:%lld\n", __func__, to_copy, off);
+
+	if ((off + to_copy) >= sizeimage) {
+		pr_info("%s() dump finish\n", __func__);
+		if (info->highmem_flag)
+			vdin_unmap_phyaddr(vir_addr);
+		info->vir_addr = NULL;
+		mutex_unlock(&info->mutex);
+	}
+
+	return to_copy;
+}
+
+static ssize_t dump_vdin_afbc_table_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	int ret = 0;
+	struct device *dev = kobj_to_dev(kobj);
+	struct vdin_dev_s *devp = dev_get_drvdata(dev);
+	struct dump_info_s *info = &devp->debug.dump_info_afbc_table;
+	u32 sizeimage;
+	u8 *vir_addr;
+	size_t to_copy;
+
+	if (!info->vir_addr && off == 0) {
+		ret = mutex_lock_interruptible(&info->mutex);
+		if (ret < 0) {
+			pr_info("dump src: interrupted while waiting for mutex\n");
+			return ret;
+		}
+
+		info->phy_addr = devp->afbce_info->fm_table_paddr[0];
+		info->sizeimage = devp->afbce_info->frame_table_size;
+
+		info->highmem_flag =
+				PageHighMem(phys_to_page(devp->afbce_info->fm_body_paddr[0]));
+
+		pr_info("%s(): phy_addr:0x%llx sizeimage:0x%x\n",
+			__func__, info->phy_addr, info->sizeimage);
+
+		if (info->highmem_flag == 0) {
+			pr_info("low mem area, cma_flag=0x%x\n", devp->cma_config_flag);
+			if ((devp->cma_config_flag & 0xfff) == 0x101)
+				info->vir_addr = codec_mm_phys_to_virt(info->phy_addr);
+			else
+				info->vir_addr = phys_to_virt(info->phy_addr);
+		} else {
+			pr_info("high mem area, cma_flag=0x%x\n", devp->cma_config_flag);
+
+			info->vir_addr = vdin_vmap(info->phy_addr, info->sizeimage);
+		}
+
+		if (!info->vir_addr) {
+			pr_info("vmap failed. vir_addr is null\n");
+			mutex_unlock(&info->mutex);
+			return -EINVAL;
+		}
+	}
+
+	sizeimage = info->sizeimage;
+	vir_addr = info->vir_addr;
+
+	if (!vir_addr || off >= sizeimage) {
+		mutex_unlock(&info->mutex);
+		return 0;
+	}
+
+	vdin_dma_flush(devp, vir_addr, sizeimage, DMA_FROM_DEVICE);
+	to_copy = min_t(size_t, count, sizeimage - off);
+	memcpy(buf, vir_addr + off, to_copy);
+
+	if (devp->debug.vdin_dbg_en & DBG_VDIN_DUMP)
+		pr_info("%s() copy %zu bytes to off:%lld\n", __func__, to_copy, off);
+
+	if ((off + to_copy) >= sizeimage) {
+		pr_info("%s() dump finish\n", __func__);
+		if (info->highmem_flag)
+			vdin_unmap_phyaddr(vir_addr);
+		info->vir_addr = NULL;
+		mutex_unlock(&info->mutex);
+	}
+
+	return to_copy;
+}
+
+static ssize_t dump_vdin_afbc_body_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	int ret = 0;
+	struct device *dev = kobj_to_dev(kobj);
+	struct vdin_dev_s *devp = dev_get_drvdata(dev);
+	struct dump_info_s *info = &devp->debug.dump_info_afbc_body;
+	u32 sizeimage;
+	u8 *vir_addr;
+	size_t to_copy;
+	u64 map_addr;
+	unsigned int span = SZ_1M;
+	loff_t block_idx = off / span;
+	loff_t block_offset = off % span;
+	bool is_block_end;
+	bool is_data_end;
+
+	if (!info->vir_addr && off == 0) {
+		ret = mutex_lock_interruptible(&info->mutex);
+		if (ret < 0) {
+			pr_info("interrupted while waiting for mutex\n");
+			return ret;
+		}
+
+		info->phy_addr = devp->afbce_info->fm_body_paddr[0];
+		info->sizeimage = devp->afbce_info->frame_body_size;
+		info->highmem_flag = PageHighMem(phys_to_page(devp->afbce_info->fm_body_paddr[0]));
+
+		pr_info("%s(): phy_addr:0x%llx sizeimage:0x%x\n",
+			__func__, info->phy_addr, info->sizeimage);
+
+		if (info->highmem_flag == 0) {
+			pr_info("low mem area, cma_flag=0x%x\n", devp->cma_config_flag);
+			if ((devp->cma_config_flag & 0xfff) == 0x101)
+				info->vir_addr = codec_mm_phys_to_virt(info->phy_addr);
+			else
+				info->vir_addr = phys_to_virt(info->phy_addr);
+		} else {
+			pr_info("high mem area, cma_flag=0x%x\n", devp->cma_config_flag);
+			info->remain_span = devp->afbce_info->frame_body_size % PAGE_ALIGN(span);
+
+			if (info->remain_span)
+				info->remain_map_size =
+					devp->afbce_info->frame_body_size - info->remain_span;
+
+			if (devp->debug.vdin_dbg_en & DBG_VDIN_DUMP)
+				pr_info("high mem area, body_size:%d - remain:%d = remain_size:%d\n",
+					devp->afbce_info->frame_body_size,
+					info->remain_span, info->remain_map_size);
+
+			info->map_addr = info->phy_addr;
+			info->map_size = span;
+			info->vir_addr = vdin_vmap(info->map_addr, info->map_size);
+			if (!info->vir_addr) {
+				pr_info("vmap failed. vir_addr is null\n");
+				mutex_unlock(&info->mutex);
+				return -EINVAL;
+			}
+			vdin_dma_flush(devp, info->vir_addr, info->map_size, DMA_FROM_DEVICE);
+		}
+	}
+
+	sizeimage = info->sizeimage;
+	vir_addr = info->vir_addr;
+	if (!vir_addr || off >= sizeimage) {
+		mutex_unlock(&info->mutex);
+		return 0;
+	}
+
+	if (info->highmem_flag) {
+		map_addr = info->phy_addr + (block_idx * span);
+
+		if (info->remain_span &&
+			(map_addr >= info->phy_addr + info->remain_map_size))
+			info->map_size = info->remain_span;
+		else
+			info->map_size = span;
+
+		if (map_addr != info->map_addr) {
+			info->map_addr = map_addr;
+			info->vir_addr = vdin_vmap(info->map_addr, info->map_size);
+			if (!info->vir_addr) {
+				pr_info("vmap failed. vir_addr is null\n");
+				mutex_unlock(&info->mutex);
+				return -EINVAL;
+			}
+			vdin_dma_flush(devp, info->vir_addr, info->map_size, DMA_FROM_DEVICE);
+			if (devp->debug.vdin_dbg_en & DBG_VDIN_DUMP)
+				pr_info("Remapping: block_idx=%lld, map_size=%llu\n",
+					block_idx, info->map_size);
+		}
+
+		to_copy = min_t(size_t, count, info->map_size);
+		memcpy(buf, info->vir_addr + block_offset, to_copy);
+
+		is_block_end = (block_offset + to_copy) >= span;
+		if (devp->debug.vdin_dbg_en & DBG_VDIN_DUMP)
+			pr_info("Freeing mapping: block_idx=%lld, is_block_end=%d\n",
+				block_idx, is_block_end);
+		if (is_block_end)
+			vdin_unmap_phyaddr(info->vir_addr);
+	} else {
+		to_copy = min_t(size_t, count, info->sizeimage - off);
+		memcpy(buf, info->vir_addr + off, to_copy);
+	}
+
+	is_data_end = (off + to_copy) >= info->sizeimage;
+
+	if (is_data_end) {
+		pr_info("%s() dump finish\n", __func__);
+		info->vir_addr = NULL;
+		if (info->highmem_flag)
+			vdin_unmap_phyaddr(info->vir_addr);
+		mutex_unlock(&info->mutex);
+	}
+
+	return to_copy;
+}
+
+static struct bin_attribute vdin_attr[] = {
+	{
+		.attr.name = "dump_mif",
+		.attr.mode = 0664,
+		.private = NULL,
+		.read = dump_vdin_mif_show,
+		.write = NULL,
+	},
+	{
+		.attr.name = "dump_afbc_head",
+		.attr.mode = 0664,
+		.private = NULL,
+		.read = dump_vdin_afbc_head_show,
+		.write = NULL,
+	},
+	{
+		.attr.name = "dump_afbc_table",
+		.attr.mode = 0664,
+		.private = NULL,
+		.read = dump_vdin_afbc_table_show,
+		.write = NULL,
+	},
+	{
+		.attr.name = "dump_afbc_body",
+		.attr.mode = 0664,
+		.private = NULL,
+		.read = dump_vdin_afbc_body_show,
+		.write = NULL,
+	},
+};
+
+static struct bin_attribute *vdin_bin_attrs[] = {
+	&vdin_attr[0],
+	&vdin_attr[1],
+	&vdin_attr[2],
+	&vdin_attr[3],
+	NULL,
+};
+
+static const struct attribute_group vdin_attr_group[VDIN_MAX_INSTANCE] = {
+	{
+		.name = vdin_group_name,
+		.bin_attrs = vdin_bin_attrs,
+	},
+};
+
+#endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void vdin_dump_write_sct_mem_user(struct vdin_dev_s *devp,
@@ -5281,6 +5720,9 @@ static DEVICE_ATTR_RW(sct_attr);
 int vdin_create_debug_files(struct device *dev)
 {
 	int ret = 0;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	unsigned int i = 0;
+#endif
 
 	ret = device_create_file(dev, &dev_attr_sig_det);
 	ret = device_create_file(dev, &dev_attr_attr);
@@ -5301,6 +5743,11 @@ int vdin_create_debug_files(struct device *dev)
 	ret = device_create_file(dev, &dev_attr_snow_flag);
 	ret = device_create_file(dev, &dev_attr_input_rate);
 	ret = device_create_file(dev, &dev_attr_slt_test);
+	for (i = 0; i < VDIN_MAX_INSTANCE; i++) {
+		ret = sysfs_create_group(&dev->kobj, &vdin_attr_group[i]);
+		if (ret)
+			pr_err("vdin creat dump node fail.\n");
+	}
 #endif
 	return ret;
 }
