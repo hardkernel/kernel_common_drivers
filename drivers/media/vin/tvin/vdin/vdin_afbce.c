@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/vin/tvin/vdin/vdin_afbce.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 /******************** READ ME ************************
@@ -276,17 +263,15 @@ void vdin_afbce_update(struct vdin_dev_s *devp)
 	if (is_meson_t3x_cpu()) {
 		vdin_afbce_update_t3x(devp);
 		return;
+	} else if (is_meson_t6w_cpu()) {
+		vdin_vfce_update(devp);
+		return;
 	}
 #endif
 
 	if (!devp->afbce_info)
 		return;
 
-#ifndef CONFIG_AMLOGIC_MEDIA_RDMA
-	pr_info("##############################################\n");
-	pr_info("vdin afbce must use RDMA,but it not be opened\n");
-	pr_info("##############################################\n");
-#endif
 	reg_fmt444_comb = vdin_chk_is_comb_mode(devp);
 
 	switch (devp->format_convert) {
@@ -310,10 +295,10 @@ void vdin_afbce_update(struct vdin_dev_s *devp)
 		break;
 	}
 	uncompress_bits = devp->source_bitdepth;
-
 	/* bit size of uncompressed mode */
 	uncompress_size = (((((16 * uncompress_bits * bits_num) + 7) >> 3) + 31)
 		      / 32) << 1;
+
 	rdma_write_reg(devp->rdma_handle, AFBCE_MODE,
 		       (0 & 0x7) << 29 | (0 & 0x3) << 26 | (3 & 0x3) << 24 |
 		       (hold_line_num & 0x7f) << 16 |
@@ -725,6 +710,9 @@ void vdin_pause_afbce_write(struct vdin_dev_s *devp, unsigned int rdma_enable, b
 	if (is_meson_t3x_cpu()) {
 		vdin_pause_afbce_write_t3x(devp, rdma_enable, pause_en);
 		return;
+	} else if (is_meson_t6w_cpu()) {
+		vdin_vfce_pause_write(devp, rdma_enable, pause_en);
+		return;
 	}
 #endif
 
@@ -856,7 +844,7 @@ void vdin_afbce_mode_update(struct vdin_dev_s *devp)
 		vdin_afbce_mode_update_t3x(devp);
 		return;
 	} else if (is_meson_t6w_cpu()) {
-		//todo
+		/* no needed anymore */
 		return;
 	}
 #endif

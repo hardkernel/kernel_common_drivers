@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/vin/tvin/vdin/vdin_canvas.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 /* Standard Linux headers */
@@ -62,6 +49,12 @@ const unsigned int vdin_canvas_ids[VDIN_MAX_DEVS][VDIN_CANVAS_MAX_CNT] = {
 	},
 };
 
+unsigned int vdin_get_canvas_num(struct vdin_dev_s *devp)
+{
+	return (devp->hw_core == VDIN_HW_CORE_NORMAL) ?
+			VDIN0_CANVAS_MAX_CNT : VDIN1_CANVAS_MAX_CNT;
+}
+
 //#define TEE_MEM_TYPE_VDIN	0x7
 
 /*function:
@@ -99,6 +92,120 @@ void vdin_canvas_init(struct vdin_dev_s *devp)
 			canvas_max_w, canvas_max_h,
 			(devp->canvas_max_size >> 10));
 	}
+}
+
+void vdin_cal_canvas_w(struct vdin_dev_s *devp)
+{
+	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
+	unsigned int max_buffer_num = devp->dts_config.max_buf_num;
+	unsigned int h_active, v_active;
+
+	if (devp->vf_mem_size_small) {
+		h_active = devp->h_shrink_out;
+		v_active = devp->v_shrink_out;
+	} else {
+		if (devp->hw_core == VDIN_HW_CORE_LITE) {
+			if (vdin_support_axis_change(devp)) {
+				h_active = devp->dest_h_active;
+				v_active = devp->dest_v_active;
+			} else {
+				h_active = devp->h_active;
+				v_active = devp->v_active;
+			}
+		} else {
+			h_active = devp->h_active + devp->crop_h;
+			v_active = devp->v_active + devp->crop_v;
+		}
+	}
+	if (devp->set_canvas_manual) //pixels align up to 64 in keystone
+		h_active = roundup(h_active, devp->canvas_align);
+
+	switch (devp->format_convert) {
+	case VDIN_FORMAT_CONVERT_YUV_YUV444:
+	case VDIN_FORMAT_CONVERT_YUV_RGB:
+	case VDIN_FORMAT_CONVERT_RGB_YUV444:
+	case VDIN_FORMAT_CONVERT_RGB_RGB:
+	case VDIN_FORMAT_CONVERT_YUV_GBR:
+	case VDIN_FORMAT_CONVERT_YUV_BRG:
+		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH ||
+		    devp->local_var.is_rgba_en)
+			devp->canvas_w = h_active * VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
+		else
+			devp->canvas_w = h_active * VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
+		break;
+	case VDIN_FORMAT_CONVERT_YUV_NV12:
+	case VDIN_FORMAT_CONVERT_YUV_NV21:
+	case VDIN_FORMAT_CONVERT_RGB_NV12:
+	case VDIN_FORMAT_CONVERT_RGB_NV21:
+		/* screencap case:S4/S4D cannot use the same canvas id */
+		if (devp->dtdata->hw_ver == VDIN_HW_S4 ||
+			devp->dtdata->hw_ver == VDIN_HW_S4D)
+			canvas_num = vdin_get_canvas_num(devp);
+		/* screencap case:end */
+		if (!devp->baddr_en)
+			canvas_num = canvas_num / 2;
+
+		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
+			if (devp->dtdata->hw_ver == VDIN_HW_T6D ||
+			    devp->dtdata->hw_ver == VDIN_HW_T6W)
+				devp->canvas_w = (h_active * 10) / 8;
+			else
+				devp->canvas_w = (h_active * 3) / 2;
+		} else {
+			devp->canvas_w = h_active;
+		}
+		break;
+	case VDIN_FORMAT_CONVERT_YUV_YUV422:
+	case VDIN_FORMAT_CONVERT_RGB_YUV422:
+	case VDIN_FORMAT_CONVERT_GBR_YUV422:
+	case VDIN_FORMAT_CONVERT_BRG_YUV422:
+		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
+			if (devp->dtdata->hw_ver == VDIN_HW_T6W && devp->debug.yuv422_2plane_en)
+				devp->canvas_w = (h_active * 10) / 8;
+			else if (devp->full_pack == VDIN_422_FULL_PK_EN)
+				devp->canvas_w = (h_active * 5) / 2;
+			else if (devp->full_pack == VDIN_422_FULL_PK_DIS)
+				devp->canvas_w = h_active * VDIN_YUV422_10BIT_PER_PIXEL_BYTE;
+		} else {
+			devp->canvas_w = h_active * VDIN_YUV422_8BIT_PER_PIXEL_BYTE;
+		}
+
+		/* dw only support 8bit mode */
+		if (devp->double_wr)
+			devp->canvas_w = h_active * VDIN_YUV422_8BIT_PER_PIXEL_BYTE;
+
+		break;
+	default:
+		break;
+	}
+	if (devp->double_wr && (devp->dv_hw5.hw5_ctl & BIT3)) {
+		devp->canvas_w = h_active * VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
+		pr_info("%s dw_wrmif_444_10bit,%dx%d;canvas_w:%d\n",
+			__func__, h_active, v_active, devp->canvas_w);
+	}
+	/*backup before roundup*/
+	devp->canvas_active_w = devp->canvas_w;
+	/*canvas_w must ensure divided exact by 256bit(32byte)*/
+	devp->canvas_w = roundup(devp->canvas_w, devp->canvas_align);
+	devp->canvas_h = v_active;
+
+	if (vdin_is_convert_to_nv21(devp->format_convert))
+		devp->chroma_size = devp->canvas_w * devp->canvas_h / 2;
+	else if (vdin_is_convert_to_422(devp->format_convert) &&
+		devp->dtdata->hw_ver == VDIN_HW_T6W && devp->debug.yuv422_2plane_en)
+		devp->chroma_size = devp->canvas_w * devp->canvas_h;
+
+	devp->canvas_max_size =
+		PAGE_ALIGN(devp->canvas_w * devp->canvas_h + devp->chroma_size);
+	/* devp->canvas_max_num  = devp->mem_size / devp->canvas_max_size; */
+
+	devp->canvas_max_num = min(devp->canvas_max_num, canvas_num);
+	devp->canvas_max_num = min(devp->canvas_max_num, max_buffer_num);
+	if (devp->canvas_max_num < devp->vf_mem_max_cnt) {
+		pr_err("vdin%d canvas_max_num %d less vf_mem_max_cnt %d\n",
+			devp->index, devp->canvas_max_num, devp->vf_mem_max_cnt);
+	}
+	devp->vf_mem_max_cnt = min(devp->vf_mem_max_cnt, devp->canvas_max_num);
 }
 
 /*function:canvas_config when canvas_config_mode=1
@@ -248,11 +355,6 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 	}
 }
 
-unsigned int vdin_get_canvas_num(struct vdin_dev_s *devp)
-{
-	return (devp->index == 0) ? VDIN0_CANVAS_MAX_CNT : VDIN1_CANVAS_MAX_CNT;
-}
-
 /*
  *this function used for configure canvas when canvas_config_mode=2
  *base on the input format
@@ -269,139 +371,15 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	int canvas_id;
 	unsigned long canvas_addr;
 	unsigned long chroma_canvas_addr;
-	unsigned int chroma_size = 0;
 	unsigned int canvas_step = 1;
-	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
-	unsigned int max_buffer_num = devp->dts_config.max_buf_num;
-	unsigned int h_active, v_active;
 
-	if (devp->vf_mem_size_small) {
-		h_active = devp->h_shrink_out;
-		v_active = devp->v_shrink_out;
-	} else {
-		if (devp->hw_core == VDIN_HW_CORE_LITE) {
-			if (vdin_support_axis_change(devp)) {
-				h_active = devp->dest_h_active;
-				v_active = devp->dest_v_active;
-			} else {
-				h_active = devp->h_active;
-				v_active = devp->v_active;
-			}
-		} else {
-			h_active = devp->h_active + devp->crop_h;
-			v_active = devp->v_active + devp->crop_v;
-		}
-	}
-	if (devp->set_canvas_manual) //pixels align up to 64 in keystone
-		h_active = roundup(h_active, devp->canvas_align);
+	vdin_cal_canvas_w(devp);
 
-	switch (devp->format_convert) {
-	case VDIN_FORMAT_CONVERT_YUV_YUV444:
-	case VDIN_FORMAT_CONVERT_YUV_RGB:
-	case VDIN_FORMAT_CONVERT_RGB_YUV444:
-	case VDIN_FORMAT_CONVERT_RGB_RGB:
-	case VDIN_FORMAT_CONVERT_YUV_GBR:
-	case VDIN_FORMAT_CONVERT_YUV_BRG:
-		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH ||
-		    devp->local_var.is_rgba_en)
-			devp->canvas_w = h_active * VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
-		else
-			devp->canvas_w = h_active * VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
-		break;
-	case VDIN_FORMAT_CONVERT_YUV_NV12:
-	case VDIN_FORMAT_CONVERT_YUV_NV21:
-	case VDIN_FORMAT_CONVERT_RGB_NV12:
-	case VDIN_FORMAT_CONVERT_RGB_NV21:
-		/* screencap case:S4/S4D cannot use the same canvas id */
-		if (devp->dtdata->hw_ver == VDIN_HW_S4 ||
-			devp->dtdata->hw_ver == VDIN_HW_S4D)
-			canvas_num = vdin_get_canvas_num(devp);
-		/* screencap case:end */
-		if (!devp->baddr_en) {
-			canvas_step = 2;
-			canvas_num = canvas_num / 2;
-		}
-		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
-			if (devp->dtdata->hw_ver == VDIN_HW_T6D ||
-			    devp->dtdata->hw_ver == VDIN_HW_T6W)
-				devp->canvas_w = (h_active * 10) / 8;
-			else
-				devp->canvas_w = (h_active * 3) / 2;
-		} else {
-			devp->canvas_w = h_active;
-		}
-		break;
-	case VDIN_FORMAT_CONVERT_YUV_YUV422:
-	case VDIN_FORMAT_CONVERT_RGB_YUV422:
-	case VDIN_FORMAT_CONVERT_GBR_YUV422:
-	case VDIN_FORMAT_CONVERT_BRG_YUV422:
-		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
-			if (devp->dtdata->hw_ver == VDIN_HW_T6W && devp->debug.yuv422_2plane_en)
-				devp->canvas_w = (h_active * 10) / 8;
-			else if (devp->full_pack == VDIN_422_FULL_PK_EN)
-				devp->canvas_w = (h_active * 5) / 2;
-			else if (devp->full_pack == VDIN_422_FULL_PK_DIS)
-				devp->canvas_w = h_active * VDIN_YUV422_10BIT_PER_PIXEL_BYTE;
-		} else {
-			devp->canvas_w = h_active * VDIN_YUV422_8BIT_PER_PIXEL_BYTE;
-		}
-
-		/* dw only support 8bit mode */
-		if (devp->double_wr)
-			devp->canvas_w = h_active * VDIN_YUV422_8BIT_PER_PIXEL_BYTE;
-
-		break;
-	default:
-		break;
-	}
-	if (devp->double_wr && (devp->dv_hw5.hw5_ctl & BIT3)) {
-		devp->canvas_w = h_active * VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
-		pr_info("%s dw_wrmif_444_10bit,%dx%d;canvas_w:%d\n",
-			__func__, h_active, v_active, devp->canvas_w);
-	}
-	/*backup before roundup*/
-	devp->canvas_active_w = devp->canvas_w;
-	/*canvas_w must ensure divided exact by 256bit(32byte)*/
-	devp->canvas_w = roundup(devp->canvas_w, devp->canvas_align);
-	devp->canvas_h = v_active;
-
-	switch (devp->format_convert) {
-	case VDIN_FORMAT_CONVERT_YUV_NV12:
-	case VDIN_FORMAT_CONVERT_YUV_NV21:
-	case VDIN_FORMAT_CONVERT_RGB_NV12:
-	case VDIN_FORMAT_CONVERT_RGB_NV21:
-		chroma_size = devp->canvas_w * devp->canvas_h / 2;
-		break;
-	case VDIN_FORMAT_CONVERT_YUV_YUV422:
-	case VDIN_FORMAT_CONVERT_RGB_YUV422:
-	case VDIN_FORMAT_CONVERT_GBR_YUV422:
-	case VDIN_FORMAT_CONVERT_BRG_YUV422:
-		if (devp->dtdata->hw_ver == VDIN_HW_T6W && devp->debug.yuv422_2plane_en)
-			chroma_size = devp->canvas_w * devp->canvas_h;
-		break;
-	default:
-		break;
-	}
-
-	devp->canvas_max_size =
-		PAGE_ALIGN(devp->canvas_w * devp->canvas_h + chroma_size);
-	/* devp->canvas_max_num  = devp->mem_size / devp->canvas_max_size; */
-
-	devp->canvas_max_num = min(devp->canvas_max_num, canvas_num);
-	devp->canvas_max_num = min(devp->canvas_max_num, max_buffer_num);
-	if (devp->canvas_max_num < devp->vf_mem_max_cnt) {
-		pr_err("vdin%d canvas_max_num %d less vf_mem_max_cnt %d\n",
-			devp->index, devp->canvas_max_num, devp->vf_mem_max_cnt);
-	}
-	devp->vf_mem_max_cnt = min(devp->vf_mem_max_cnt, devp->canvas_max_num);
-
-#ifdef VDIN_DEBUG
-	pr_info("vdin%d canvas auto configuration table:%d %d %d %d\n",
-		devp->index, devp->format_convert, devp->source_bitdepth,
-		devp->double_wr, devp->full_pack);
-#endif
-	if (devp->baddr_en)
+	if (devp->baddr_en) /* use phy addr */
 		return;
+
+	if (vdin_is_convert_to_nv21(devp->format_convert))
+		canvas_step = 2;
 
 	for (i = 0; i < devp->canvas_max_num; i++) {
 		devp->vf_mem_start[i] =
@@ -409,7 +387,7 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 		canvas_id = vdin_canvas_ids[devp->index][i * canvas_step];
 		canvas_addr = devp->vf_mem_start[i];
 		canvas_config(canvas_id, canvas_addr,
-			      devp->canvas_w, devp->canvas_h,
+			      devp->canvas_max_stride, devp->canvas_h,
 			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 		/* vdin v4l2:two non contiguous planes */
 		if (devp->work_mode == VDIN_WORK_MD_V4L &&
@@ -418,22 +396,20 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 			if (devp->vf_mem_c_start[i] == 0)
 				pr_err("vdin%d,addr for chroma is NULL!\n", devp->index);
 		} else {
-			chroma_canvas_addr = canvas_addr + devp->canvas_w * devp->canvas_h;
+			chroma_canvas_addr = canvas_addr + devp->canvas_max_stride * devp->canvas_h;
 		}
-		if (chroma_size)
+		if (devp->chroma_size)
 			canvas_config(canvas_id + 1,
 				      chroma_canvas_addr,
-				      devp->canvas_w,
+				      devp->canvas_max_stride,
 				      devp->canvas_h / 2,
 				      CANVAS_ADDR_NOWRAP,
 				      CANVAS_BLKMODE_LINEAR);
-#ifdef VDIN_DEBUG
-		pr_info("\t%3d: 0x%lx-0x%lx %ux%u\n",
-			canvas_id, canvas_addr,
-			canvas_addr + devp->canvas_max_size,
-			devp->canvas_w, devp->canvas_h);
-#endif
 	}
+	if (devp->debug.vdin_dbg_en)
+		pr_info("vdin%d,canvas:%d %d %d;chroma_size:%#x,max_num:%d\n", devp->index,
+			devp->canvas_max_stride, devp->canvas_w, devp->canvas_h,
+			devp->chroma_size, devp->canvas_max_num);
 }
 
 #ifdef CONFIG_CMA
@@ -739,16 +715,18 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		else if (devp->v_shrink_out < devp->v_active)
 			devp->vf_mem_size_small =
 				devp->vf_mem_size / devp->v_shrink_times;
-		else
-			devp->vf_mem_size_small = 0;
+		else /* dw size:1:1 */
+			devp->vf_mem_size_small = devp->vf_mem_size;
 		if (devp->dv_hw5.hw5_ctl & BIT3) {
 			devp->vf_mem_size_small = devp->h_shrink_out * devp->v_shrink_out *
 				VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
 			pr_info("vdin%d,dw_wrmif_444_10bit,%dx%d",
 				devp->index, devp->h_shrink_out, devp->v_shrink_out);
 		}
+		devp->canvas_max_stride = devp->vf_mem_size_small / devp->v_shrink_out;
 	} else {
 		devp->vf_mem_size_small = 0;
+		devp->canvas_max_stride = h_size;
 	}
 
 	if (devp->vf_mem_size_small)

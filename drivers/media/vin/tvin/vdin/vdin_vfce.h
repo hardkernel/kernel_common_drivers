@@ -26,9 +26,9 @@ int vdin_vfce_read_write_down_flag(struct vdin_dev_s *devp);
 void vdin_vfce_afbce_soft_reset(struct vdin_dev_s *devp);
 void vdin_vfce_afbce_mode_init(struct vdin_dev_s *devp);
 void vdin_vfce_afbce_mode_update(struct vdin_dev_s *devp);
-void vdin_vfce_pause_afbce_write(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en);
-
+void vdin_vfce_pause_write(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en);
 void vdin_vfce_set_next_frame(struct vdin_dev_s *devp,
 	unsigned int rdma_enable, struct vf_entry *vfe);
 void vdin_vfce_config(struct vdin_dev_s *devp);
+void vdin_vfce_update(struct vdin_dev_s *devp);
 #endif

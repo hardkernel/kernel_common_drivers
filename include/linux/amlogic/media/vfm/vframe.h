@@ -682,6 +682,8 @@ struct vf_vrr_param_s {
 	u32 vin_base_fps;
 	u32 qms_en;
 	u32 qms_in_fps;
+	u32 qms_plus_en;
+	u32 frc_get_vrr;
 };
 
 struct vframe_s {

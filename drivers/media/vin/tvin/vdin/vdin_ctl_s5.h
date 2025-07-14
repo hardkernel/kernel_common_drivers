@@ -37,7 +37,7 @@ bool vdin_write_done_check_s5(struct vdin_dev_s *devp);
 void vdin_wr_reverse_s5(unsigned int offset, bool h_reverse,
 		     bool v_reverse);
 void vdin_set_hv_scale_s5(struct vdin_dev_s *devp);
-void vdin_set_bitdepth_s5(struct vdin_dev_s *devp);
+void vdin_set_bitdepth_s5(struct vdin_dev_s *devp, unsigned int rdma_enable);
 void vdin_set_cm2_s5(unsigned int offset, unsigned int w,
 		  unsigned int h, unsigned int *data, bool cm_enable);
 void vdin_hdmiin_patch(struct vdin_dev_s *devp);
@@ -80,6 +80,7 @@ void vdin_set_frame_mif_write_addr_s5(struct vdin_dev_s *devp,
 			unsigned int rdma_enable, struct vf_entry *vfe);
 void vdin_sw_reset_s5(struct vdin_dev_s *devp);
 void vdin_bist_s5(struct vdin_dev_s *devp, unsigned int mode);
+void vdin_dlg_update_hist_hv_s5(unsigned int temp_hist_width, unsigned int temp_hist_height);
 void vdin_get_hist_val_s5(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist_temp);
 void vdin_hist_init_s5(struct vdin_dev_s *devp);
 #endif

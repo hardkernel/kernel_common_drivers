@@ -187,7 +187,66 @@ void vdin_vfce_write_mif_or_afbce(struct vdin_dev_s *devp,
 
 void vdin_vfce_update(struct vdin_dev_s *devp)
 {
-	//todo
+	unsigned int reg_offset = 0, i;
+	unsigned int reg_fmt444_comb;
+	unsigned int reg_inp_format = 0, reg_enc_format;
+	unsigned int reg_comp_yc_map;
+	unsigned int uncmp_size, uncmp_bits, cmp_bits;
+
+	if (vdin_is_convert_to_nv21(devp->format_convert)) {
+		reg_enc_format = 2;/*420*/
+		uncmp_bits = 12;
+	} else if (vdin_is_convert_to_422(devp->format_convert)) {
+		reg_enc_format = 1;/*422*/
+		uncmp_bits = 16;
+	} else {
+		reg_enc_format = 0;/*444*/
+		uncmp_bits = 24;
+	}
+
+	reg_fmt444_comb = vdin_chk_is_comb_mode(devp);
+	cmp_bits   = devp->source_bitdepth;
+	if (devp->is_422_12bit_enabled) {
+		reg_enc_format = 1;/*422*/
+		uncmp_bits = 16;
+		reg_inp_format = 0;/* always 444 input */
+		reg_fmt444_comb = 0;
+	}
+	//bit size of uncompressed mode
+	uncmp_size = (((((16 * cmp_bits * uncmp_bits) + 7) >> 3) + 31)
+		      / 32) << 1;
+	reg_comp_yc_map = cmp_bits == 8  ? 0 :
+			  cmp_bits == 10 ? 1 :
+			  cmp_bits == 12 ? 2 :
+			  cmp_bits == 14 ? 3 : 4;
+	for (i = 0; i <= 1; i++) { //channel0 & channel1 have the same regs
+		reg_offset = (VFCE_CHNL1_MODE - VFCE_CHNL0_MODE) * i;
+
+		rdma_write_reg_bits(devp->rdma_handle,
+			VFCE_CHNL0_MODE, reg_fmt444_comb, 0, 1);//reg_fmt444_comb
+		rdma_write_reg_bits(devp->rdma_handle,
+			VFCE_CHNL0_MODE, reg_enc_format, 4, 3);	//reg_enc_format
+		rdma_write_reg_bits(devp->rdma_handle,
+			VFCE_CHNL0_MODE, reg_comp_yc_map, 7, 3);//comp_c_map
+		rdma_write_reg_bits(devp->rdma_handle,
+			VFCE_CHNL0_MODE, reg_comp_yc_map, 10, 3);//comp_c_map
+
+		if (devp->is_vfce_en) {
+			rdma_write_reg_bits(devp->rdma_handle,
+				VFCE_AFRCE_CORE_PIXEL_DEPTH, cmp_bits, 8, 4);//plane 1 bits
+			rdma_write_reg_bits(devp->rdma_handle,
+				VFCE_AFRCE_CORE_PIXEL_DEPTH, cmp_bits, 12, 4);//plane 0 bits
+			rdma_write_reg_bits(devp->rdma_handle,
+				VFCE_CHNL0_AFBC_MODE_0, uncmp_size, 5, 8);//reg_uncmp_size
+		} else {
+			rdma_write_reg_bits(devp->rdma_handle,
+				VFCE_AFBCE_FORMAT, reg_enc_format, 8, 2);//reg_uncmp_size
+			rdma_write_reg_bits(devp->rdma_handle,
+				VFCE_AFBCE_FORMAT, cmp_bits, 0, 4);//reg_comp_bits_y
+			rdma_write_reg_bits(devp->rdma_handle,
+				VFCE_AFBCE_FORMAT, cmp_bits, 4, 4);//reg_comp_bits_c
+		}
+	}
 }
 
 void vdin_vfce_chnl(struct vdin_dev_s *devp)
@@ -812,16 +871,19 @@ void vdin_vfce_set_next_frame(struct vdin_dev_s *devp,
 	vdin_afbce_clear_write_down_flag(devp);
 }
 
-void vdin_vfce_paus_write(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en)
+void vdin_vfce_pause_write(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	if (rdma_enable)
+	if (rdma_enable) {
 		rdma_write_reg_bits(devp->rdma_handle, VFCE_CHNL0_ENABLE,
 			!pause_en, 0, 1);
-	else
+		rdma_write_reg_bits(devp->rdma_handle, VFCE_CHNL1_ENABLE,
+			!pause_en, 0, 1);
+	} else {
 		W_VCBUS_BIT(VFCE_CHNL0_ENABLE, !pause_en, 0, 1);
+		W_VCBUS_BIT(VFCE_CHNL1_ENABLE, !pause_en, 0, 1);
+	}
 #endif
-	vdin_afbce_clear_write_down_flag(devp);
 }
 
 /* frm_end will not pull up if using rdma IF to clear afbce flag */

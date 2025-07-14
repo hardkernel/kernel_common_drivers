@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/vin/tvin/vdin/vdin_sm.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 /* Standard Linux Headers */
@@ -98,6 +85,8 @@ void vdin_update_prop(struct vdin_dev_s *devp)
 	/*devp->pre_prop.latency.allm_mode = devp->prop.latency.allm_mode;*/
 	/*devp->pre_prop.aspect_ratio = devp->prop.aspect_ratio;*/
 	devp->parm.info.aspect_ratio = devp->prop.aspect_ratio;
+	devp->misc_info.afd_info = (devp->prop.pic_aspect_ratio << 4) |
+				devp->prop.active_ratio;
 	vdin_get_base_fr(devp);
 	memcpy(&devp->pre_prop, &devp->prop,
 	       sizeof(struct tvin_sig_property_s));
@@ -148,7 +137,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 	sm_ops = devp->frontend->sm_ops;
 	port = devp->parm.port;
 
-	if (!IS_HDMI_SRC(port))
+	if (!IS_HDMI_SRC(port) &&
+		!IS_TVAFE_SRC(port))
 		return signal_chg;
 
 	if (sm_ops->get_sig_property) {
@@ -341,19 +331,32 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 		} else {
 			devp->sg_chg_fps_cnt = 0;
 		}
+		if (devp->debug.sm_debug_enable & VDIN_SM_LOG_L_2)
+			pr_info("%s(): PAR:%d->%d, AR:%d->%d, ACR:%d->%d, cnt:%d\n",
+				__func__,
+				devp->pre_prop.pic_aspect_ratio, devp->prop.pic_aspect_ratio,
+				devp->pre_prop.aspect_ratio, devp->prop.aspect_ratio,
+				devp->pre_prop.active_ratio, devp->prop.active_ratio,
+				devp->sg_chg_afd_cnt);
 
-		if (devp->pre_prop.aspect_ratio != devp->prop.aspect_ratio) {
-			if (devp->sg_chg_afd_cnt > 1) {
+		if (devp->pre_prop.aspect_ratio != devp->prop.aspect_ratio ||
+			devp->pre_prop.pic_aspect_ratio != devp->prop.pic_aspect_ratio ||
+			devp->pre_prop.active_ratio != devp->prop.active_ratio) {
+			if (devp->sg_chg_afd_cnt > 1 ||
+				(IS_TVAFE_SRC(port))) {
 				signal_chg |= TVIN_SIG_CHG_AFD;
-				if (signal_chg)
-					pr_info("%s afd chg:(0x%x->0x%x)\n",
-						__func__,
-						devp->pre_prop.aspect_ratio,
-						devp->prop.aspect_ratio);
-				devp->pre_prop.aspect_ratio =
-						    devp->prop.aspect_ratio;
-				devp->parm.info.aspect_ratio =
-					prop->aspect_ratio;
+				pr_info("%s(): PAR:%d->%d, AR:%d->%d, ACR:%d->%d\n",
+					__func__,
+					devp->pre_prop.pic_aspect_ratio,
+					devp->prop.pic_aspect_ratio,
+					devp->pre_prop.aspect_ratio, devp->prop.aspect_ratio,
+					devp->pre_prop.active_ratio, devp->prop.active_ratio);
+				devp->pre_prop.aspect_ratio = devp->prop.aspect_ratio;
+				devp->pre_prop.pic_aspect_ratio = devp->prop.pic_aspect_ratio;
+				devp->pre_prop.active_ratio = devp->prop.active_ratio;
+				devp->parm.info.aspect_ratio = prop->aspect_ratio;
+				devp->misc_info.afd_info = (devp->prop.pic_aspect_ratio << 4) |
+							devp->prop.active_ratio;
 			}
 		} else {
 			devp->sg_chg_afd_cnt = 0;

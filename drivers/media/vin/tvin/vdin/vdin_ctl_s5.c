@@ -1526,6 +1526,29 @@ void vdin_set_vframe_prop_info_s5(struct vframe_s *vf,
 	}
 }
 
+void vdin_dlg_update_hist_hv_s5(unsigned int temp_hist_width, unsigned int temp_hist_height)
+{
+	struct vdin_dev_s *devp_vdin1 = vdin_get_dev(1);
+	unsigned int hist_offset;
+
+	/* s5 no vdin0 */
+	hist_offset = devp_vdin1->addr_offset;
+
+	/*  win_h */
+	wr_bits(hist_offset, VDIN_LUMA_HIST_H_START_END, temp_hist_width - 1,
+		HIST_HEND_BIT, HIST_HEND_WID);
+	/* win_v */
+	wr_bits(hist_offset, VDIN_LUMA_HIST_V_START_END, temp_hist_height - 1,
+		HIST_VEND_BIT, HIST_VEND_WID);
+
+	if (devp_vdin1->debug.vdin_dbg_en)
+		pr_info("hist width (0x%x):0x%x, height (0x%x):0x%x\n",
+			VDIN_LUMA_HIST_H_START_END + hist_offset,
+			rd(hist_offset, VDIN_HIST_H_START_END),
+			VDIN_LUMA_HIST_V_START_END + hist_offset,
+			rd(hist_offset, VDIN_HIST_V_START_END));
+}
+
 void vdin_get_hist_val_s5(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist_temp)
 {
 	unsigned int offset = devp->addr_offset;
@@ -2178,116 +2201,27 @@ set_hv_shrink:
  *	base on color_depth_config:
  *		10, 8, 0, other
  */
-void vdin_set_bitdepth_s5(struct vdin_dev_s *devp)
+void vdin_set_bitdepth_s5(struct vdin_dev_s *devp, unsigned int rdma_enable)
 {
-	//unsigned int offset = devp->addr_offset;
-	unsigned int set_width = 0;
-	unsigned int port;
-	enum vdin_color_deeps_e bit_dep;
-	unsigned int convert_fmt, offset;
+	unsigned int reg_bit_depth = 0;
 
-	offset = devp->addr_offset;
-	/* yuv 422 full pack check */
-	if (devp->color_depth_support &
-	    VDIN_WR_COLOR_DEPTH_10BIT_FULL_PACK_MODE)
-		devp->full_pack = VDIN_422_FULL_PK_EN;
-	else
-		devp->full_pack = VDIN_422_FULL_PK_DIS;
+	if (devp->source_bitdepth_dw == VDIN_COLOR_DEEPS_8BIT)
+		reg_bit_depth = 0;
+	else if (devp->source_bitdepth_dw == VDIN_COLOR_DEEPS_10BIT)
+		reg_bit_depth = 1;
 
-	/*hw verify:de-tunnel 444 to 422 12bit*/
-	//if (devp->dtdata->ipt444_to_422_12bit && vdin_cfg_444_to_422_wmif_en)
-	//	devp->full_pack = VDIN_422_FULL_PK_DIS;
-
-	if (devp->output_color_depth &&
-	    (devp->prop.fps == 50 || devp->prop.fps == 60) &&
-	    (devp->parm.info.fmt == TVIN_SIG_FMT_HDMI_3840_2160_00HZ ||
-	     devp->parm.info.fmt == TVIN_SIG_FMT_HDMI_4096_2160_00HZ) &&
-	    devp->prop.colordepth == VDIN_COLOR_DEEPS_10BIT) {
-		set_width = devp->output_color_depth;
-		pr_info("set output color depth %d bit from dts\n", set_width);
-	}
-
-	switch (devp->color_depth_config & 0xff) {
-	case COLOR_DEEPS_8BIT:
-		bit_dep = VDIN_COLOR_DEEPS_8BIT;
-		break;
-	case COLOR_DEEPS_10BIT:
-		bit_dep = VDIN_COLOR_DEEPS_10BIT;
-		break;
-	/*
-	 * vdin not support 12bit now, when rx submit is 12bit,
-	 * vdin config it as 10bit , 12 to 10
-	 */
-	case COLOR_DEEPS_12BIT:
-		bit_dep = VDIN_COLOR_DEEPS_10BIT;
-		break;
-	case COLOR_DEEPS_AUTO:
-		/* vdin_bitdepth is set to 0 by default, in this case,
-		 * devp->source_bitdepth is controlled by colordepth
-		 * change default to 10bit for 8in8out detail maybe lost
-		 */
-		if (vdin_is_convert_to_444(devp->format_convert) &&
-		    vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)) {
-			bit_dep = VDIN_COLOR_DEEPS_8BIT;
-		} else if (vdin_is_convert_to_nv21(devp->format_convert)) {
-			/*For chips other than T3X, when NV21 is output, source_bitdepth is 8*/
-			bit_dep = VDIN_COLOR_DEEPS_8BIT;
-		} else if (devp->prop.colordepth == VDIN_COLOR_DEEPS_8BIT) {
-			/* hdmi YUV422, 8 or 10 bit valid is unknown*/
-			/* so need vdin 10bit to frame buffer*/
-			port = devp->parm.port;
-			if (IS_HDMI_SRC(port)) {
-				convert_fmt = devp->format_convert;
-				if ((vdin_is_convert_to_422(convert_fmt) &&
-				     (devp->color_depth_support &
-				      VDIN_WR_COLOR_DEPTH_10BIT)) ||
-				    devp->prop.vdin_hdr_flag)
-					bit_dep = VDIN_COLOR_DEEPS_10BIT;
-				else
-					bit_dep = VDIN_COLOR_DEEPS_8BIT;
-
-				if (vdin_is_dolby_tunnel_444_input(devp))
-					bit_dep = VDIN_COLOR_DEEPS_8BIT;
-			} else {
-				bit_dep = VDIN_COLOR_DEEPS_8BIT;
-			}
-		} else if ((devp->color_depth_support & VDIN_WR_COLOR_DEPTH_10BIT) &&
-			   ((devp->prop.colordepth == VDIN_COLOR_DEEPS_10BIT) ||
-			   (devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT))) {
-			if (set_width == VDIN_COLOR_DEEPS_8BIT)
-				bit_dep = VDIN_COLOR_DEEPS_8BIT;
-			else
-				bit_dep = VDIN_COLOR_DEEPS_10BIT;
-		} else {
-			bit_dep = VDIN_COLOR_DEEPS_8BIT;
-		}
-
-		break;
-	default:
-		bit_dep = VDIN_COLOR_DEEPS_8BIT;
-		break;
-	}
-
-	if (devp->work_mode == VDIN_WORK_MD_V4L)
-		bit_dep = VDIN_COLOR_DEEPS_8BIT;
-	devp->source_bitdepth = bit_dep;
-#ifdef VDIN_BRINGUP_BYPASS_COLOR_CNVT
-	devp->source_bitdepth = devp->prop.colordepth;
-#endif
-	if (devp->source_bitdepth == VDIN_COLOR_DEEPS_8BIT)
-		wr_bits(offset, VDIN_WRMIF_CTRL2, 0,
-			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
-	else if (devp->source_bitdepth == VDIN_COLOR_DEEPS_10BIT)
-		wr_bits(offset, VDIN_WRMIF_CTRL2, 1,
-			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
-
-	/* only support 8bit mode at vpp side when double wr */
-	if (!vdin_is_support_10bit_for_dw_s5(devp))
-		wr_bits(offset, VDIN_WRMIF_CTRL2, MIF_8BIT,
+	if (rdma_enable) {
+		rdma_write_reg_bits(devp->rdma_handle,
+			VDIN_WRMIF_CTRL2 + devp->addr_offset,
+			reg_bit_depth, VDIN_WR_10BIT_MODE_BIT,	VDIN_WR_10BIT_MODE_WID);
+	} else {
+		wr_bits(devp->addr_offset, VDIN_WRMIF_CTRL2, reg_bit_depth,
 			VDIN_WR_10BIT_MODE_BIT,	VDIN_WR_10BIT_MODE_WID);
+
 	if (devp->debug.vdin_dbg_en)
 		pr_info("%s %d cfg:0x%x prop.dep:%x\n", __func__, devp->source_bitdepth,
 			devp->color_depth_config, devp->prop.colordepth);
+	}
 }
 
 /* do horizontal reverse and vertical reverse

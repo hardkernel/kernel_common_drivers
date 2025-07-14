@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 /* Standard Linux Headers */
@@ -39,6 +39,8 @@
 #include "vdin_hdr.h"
 #include "vdin_mem_scatter.h"
 #include "vdin_hw.h"
+
+extern unsigned int vdin_game_mode_dly;
 
 void vdin_parse_param(char *buf_orig, char **parm)
 {
@@ -528,7 +530,7 @@ int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
 
 	if (highmem_flag == 0) {
 		pr_info("low mem area: one line size (%d, active:%d),vf_mem_start[%d]:%lx\n",
-				devp->canvas_w, devp->canvas_active_w, buf_num,
+				devp->canvas_max_stride, devp->canvas_active_w, buf_num,
 				devp->vf_mem_start[buf_num]);
 		if (devp->cma_config_flag & 0x1)
 			buf = codec_mm_phys_to_virt(devp->vf_mem_start[buf_num]);
@@ -536,7 +538,7 @@ int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
 			buf = phys_to_virt(devp->vf_mem_start[buf_num]);
 		/*only write active data*/
 		for (i = 0; i < count; i++) {
-			vdin_dma_flush(devp, buf, devp->canvas_w,
+			vdin_dma_flush(devp, buf, devp->canvas_max_stride,
 						   DMA_FROM_DEVICE);
 			memcpy(output_ptr, buf, devp->canvas_active_w);
 			output_ptr += devp->canvas_active_w;
@@ -548,18 +550,18 @@ int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
 					buf + devp->canvas_active_w + 8 - 2 * offset, offset);
 				output_ptr += offset;
 			}
-			buf += devp->canvas_w;
+			buf += devp->canvas_max_stride;
 		}
 		pr_info("write buffer %2d of %2u  to output buffer.offset=%d\n",
 				buf_num, devp->canvas_max_num, offset);
 	} else {
 		pr_info("high mem area: one line size (%d, active:%d)\n",
-				devp->canvas_w, devp->canvas_active_w);
+				devp->canvas_max_stride, devp->canvas_active_w);
 		span = devp->canvas_active_w;
 		phys = devp->vf_mem_start[buf_num];
 
 		for (j = 0; j < count; j++) {
-			high_addr = phys + j * devp->canvas_w;
+			high_addr = phys + j * devp->canvas_max_stride;
 			buf = vdin_vmap(high_addr, span);
 			if (!buf) {
 				pr_info("vdin_vmap error\n");
@@ -734,9 +736,9 @@ static void vdin_dump_more_mem(char *path, struct vdin_dev_s *devp,
 
 			/*only write active data*/
 			for (i = 0; i < count; i++) {
-				vdin_dma_flush(devp, buf, devp->canvas_w, DMA_FROM_DEVICE);
+				vdin_dma_flush(devp, buf, devp->canvas_max_stride, DMA_FROM_DEVICE);
 				kernel_write(filp, buf, devp->canvas_active_w, &pos);
-				buf += devp->canvas_w;
+				buf += devp->canvas_max_stride;
 			}
 		}
 	} else {
@@ -753,7 +755,7 @@ static void vdin_dump_more_mem(char *path, struct vdin_dev_s *devp,
 			rec_dum_frame[k] = pre_put_frames;
 			phys = devp->vfp->last_last_vfe->vf.canvas0_config[0].phy_addr;
 			for (i = 0; i < count; i++) {
-				high_addr = phys + i * devp->canvas_w;
+				high_addr = phys + i * devp->canvas_max_stride;
 				buf = vdin_vmap(high_addr, devp->canvas_active_w);
 				if (!buf) {
 					filp_close(filp, NULL);
@@ -834,7 +836,7 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 
 	if (highmem_flag == 0) {
 		pr_info("low mem area: one line size (%d, active:%d),vf_mem_start[%d]:%lx\n",
-			devp->canvas_w, devp->canvas_active_w, buf_num,
+			devp->canvas_max_stride, devp->canvas_active_w, buf_num,
 			devp->vf_mem_start[buf_num]);
 		if (devp->cma_config_flag & 0x1)
 			buf = codec_mm_phys_to_virt(devp->vf_mem_start[buf_num]);
@@ -842,7 +844,7 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 			buf = phys_to_virt(devp->vf_mem_start[buf_num]);
 		/*only write active data*/
 		for (i = 0; i < count; i++) {
-			vdin_dma_flush(devp, buf, devp->canvas_w,
+			vdin_dma_flush(devp, buf, devp->canvas_max_stride,
 				       DMA_FROM_DEVICE);
 			kernel_write(filp, buf, devp->canvas_active_w, &pos);
 			offset = devp->canvas_active_w % 8;
@@ -851,19 +853,19 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 				kernel_write(filp, buf + devp->canvas_active_w + 8 - 2 * offset,
 					offset, &pos);
 			}
-			buf += devp->canvas_w;
+			buf += devp->canvas_max_stride;
 		}
 		/*kernel_write(filp, buf, devp->canvas_max_size, &pos);*/
 		pr_info("write buffer %2d of %2u  to %s.offset=%d\n",
 			buf_num, devp->canvas_max_num, path, offset);
 	} else {
 		pr_info("high mem area: one line size (%d, active:%d)\n",
-			devp->canvas_w, devp->canvas_active_w);
+			devp->canvas_max_stride, devp->canvas_active_w);
 		span = devp->canvas_active_w;
 		phys = devp->vf_mem_start[buf_num];
 
 		for (j = 0; j < count; j++) {
-			high_addr = phys + j * devp->canvas_w;
+			high_addr = phys + j * devp->canvas_max_stride;
 			buf = vdin_vmap(high_addr, span);
 			if (!buf) {
 				filp_close(filp, NULL);
@@ -937,7 +939,7 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 	if (highmem_flag == 0) {
 		/*low mem area*/
 		pr_info("low mem area: one line size (%d, active:%d)\n",
-			devp->canvas_w, devp->canvas_active_w);
+			devp->canvas_max_stride, devp->canvas_active_w);
 		for (i = 0; i < devp->canvas_max_num; i++) {
 			pos = mem_size * i;
 			if ((devp->cma_config_flag & 0xfff) == 0x1)
@@ -951,16 +953,16 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 
 			/*only write active data*/
 			for (j = 0; j < count; j++) {
-				vdin_dma_flush(devp, buf, devp->canvas_w,
+				vdin_dma_flush(devp, buf, devp->canvas_max_stride,
 					       DMA_FROM_DEVICE);
 				if (devp->cma_config_flag & 0x100) {
 					kernel_write(filp, vfbuf[i],
 						  devp->canvas_active_w, &pos);
-					vfbuf[i] += devp->canvas_w;
+					vfbuf[i] += devp->canvas_max_stride;
 				} else {
 					kernel_write(filp, buf,
 						  devp->canvas_active_w, &pos);
-					buf += devp->canvas_w;
+					buf += devp->canvas_max_stride;
 				}
 			}
 			pr_info("write buffer %2d of %2u to %s.\n",
@@ -969,14 +971,14 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 	} else {
 		/*high mem area*/
 		pr_info("high mem area: one line size (%d, active:%d)\n",
-			devp->canvas_w, devp->canvas_active_w);
+			devp->canvas_max_stride, devp->canvas_active_w);
 		span = devp->canvas_active_w;
 
 		for (i = 0; i < devp->canvas_max_num; i++) {
 			pos = mem_size * i;
 			phys = devp->vf_mem_start[i];
 			for (j = 0; j < count; j++) {
-				high_addr = phys + j * devp->canvas_w;
+				high_addr = phys + j * devp->canvas_max_stride;
 				buf = vdin_vmap(high_addr, span);
 				if (!buf) {
 					filp_close(filp, NULL);
@@ -1412,8 +1414,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("flags=0x%x,flags_isr=0x%x\n", devp->flags, devp->flags_isr);
 	pr_info("h_active = %d, v_active = %d\n",
 		devp->h_active, devp->v_active);
-	pr_info("canvas_w = %d, canvas_h = %d\n",
-		devp->canvas_w, devp->canvas_h);
+	pr_info("canvas_w = %d,%d, canvas_h = %d\n",
+		devp->canvas_w, devp->canvas_max_stride, devp->canvas_h);
 	pr_info("canvas_align_w = %d, canvas_active_w = %d\n",
 		devp->canvas_align_w, devp->canvas_active_w);
 	pr_info("double write cfg:0x%x, cur:%d,10bit sup: %d\n", devp->double_wr_cfg,
@@ -1651,6 +1653,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("dbg_dump_frames: %d,dbg_stop_dec_delay:%d\n",
 		devp->dbg_dump_frames, devp->dbg_stop_dec_delay);
 	pr_info("fs_open_cnt: %d\n", devp->fs_open_cnt);
+	pr_info("tuner_id: %d\n", devp->tuner_id);
 	pr_info("vdin_function_sel: 0x%x\n", devp->vdin_function_sel);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 	pr_info("Vdin driver version_V1 :  %s\n", VDIN_VER_V1);
@@ -2107,7 +2110,7 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 		pr_info("low mem area,addr:%lx\n", addr);
 		dts = phys_to_virt(addr);
 		for (j = 0; j < devp->canvas_h; j++) {
-			kernel_read(filp, dts + (devp->canvas_w * j),
+			kernel_read(filp, dts + (devp->canvas_max_stride * j),
 				 devp->canvas_active_w, &pos);
 		}
 		iounmap(dts);
@@ -2117,7 +2120,7 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 		count = devp->canvas_h;
 		span = devp->canvas_active_w;
 		for (j = 0; j < count; j++) {
-			high_addr = addr + j * devp->canvas_w;
+			high_addr = addr + j * devp->canvas_max_stride;
 			dts = vdin_vmap(high_addr, span);
 			if (!dts) {
 				pr_info("vdin_vmap error\n");
@@ -2766,7 +2769,7 @@ void vdin_dbg_access_reg(struct vdin_dev_s *devp, unsigned int update_site)
 		wr(0x200, VDIN0_WRMIF_H_START_END, 0x77f);
 		wr_bits(0x200, VDIN0_CORE_CTRL, 1, 10, 1);
 		wr_bits(0x200, VDIN0_CORE_CTRL, 0, 6, 1);
-		wr(0x200, VDIN0_WRMIF_STRIDE_LUMA, (devp->canvas_w / 2) >> 4);
+		wr(0x200, VDIN0_WRMIF_STRIDE_LUMA, (devp->canvas_max_stride / 2) >> 4);
 		wr_bits(0, T3X_VDIN_TOP_CTRL, 1, 25, 1);//reg_vdin0to1_en
 		wr_bits(0x200, VDIN0_WRMIF_CTRL, 1,
 			WR_REQ_EN_BIT, WR_REQ_EN_WID);
@@ -2872,6 +2875,7 @@ static ssize_t attr_store(struct device *dev,
 	long val = 0;
 	unsigned int offset;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	ulong flags = 0;
 	struct vdin_hist_s vdin1_hist_temp;
 	unsigned int i = 0;
 	char ret = 0;
@@ -3858,15 +3862,15 @@ start_chk:
 			vdin_check_vdi6_afifo_overflow(devp->addr_offset));
 	} else if (!strcmp(parm[0], "vdi6_afifo_clear")) {
 		vdin_clear_vdi6_afifo_overflow_flg(devp->addr_offset);
-	} else if (!strcmp(parm[0], "skip_frame_check")) {
+	} else if (!strcmp(parm[0], "force_disp_mode")) {
 		if (parm[1]) {
-			if (kstrtouint(parm[1], 10, &devp->skip_disp_md_check)
+			if (kstrtouint(parm[1], 0, &devp->debug.force_disp_mode)
 				== 0)
-				pr_info("skip frame check: %d\n",
-					devp->skip_disp_md_check);
+				pr_info("force_disp_mode: %#x\n",
+					devp->debug.force_disp_mode);
 		} else {
-			pr_info("skip frame check para err, ori: %d\n",
-				devp->skip_disp_md_check);
+			pr_info("force_disp_mode para err, ori: %#x\n",
+				devp->debug.force_disp_mode);
 		}
 	} else if (!strcmp(parm[0], "vdin_mtx")) {
 		if (parm[1]) {
@@ -3948,11 +3952,38 @@ start_chk:
 			devp->game_mode, devp->debug.bypass_game_mode, vdin_force_game_mode);
 	} else if (!strcmp(parm[0], "game_mode_chg")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
-			pr_info("set new game mode to: 0x%x,pre:%#x\n", temp, game_mode);
+			pr_info("set new game mode to: 0x%x,pre:%#x %d\n",
+				temp, game_mode, devp->game_mode);
 			if (game_mode != temp)
 				vdin_game_mode_chg(devp, game_mode, temp);
 			game_mode = temp;
 		}
+	} else if (!strcmp(parm[0], "dyn_fmt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			pr_info("set dyn_fmt to: 0x%x,game %d\n", temp, devp->game_mode);
+			spin_lock_irqsave(&devp->isr_lock, flags);
+			devp->debug.force_fmt = temp;
+			vdin_dyn_fmt(devp);
+			spin_unlock_irqrestore(&devp->isr_lock, flags);
+		}
+	} else if (!strcmp(parm[0], "auto_pc_mode")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (temp) {
+				vdin_pc_mode = 1;
+				devp->vdin_pc_mode = vdin_pc_mode;
+				//devp->debug.bypass_pc_mode = true;
+				devp->flags |= VDIN_FLAG_DYN_RECONFIG;
+				devp->game_mode_dly = vdin_game_mode_dly;
+			} else {
+				vdin_pc_mode = 0;
+				devp->vdin_pc_mode = vdin_pc_mode;
+				//devp->debug.bypass_pc_mode = false;
+				devp->flags |= VDIN_FLAG_DYN_RECONFIG;
+				devp->game_mode_dly = vdin_game_mode_dly;
+			}
+		}
+		pr_info("auto bypass_pc_mode:%d pc_mode:%d %d\n",
+			devp->debug.bypass_pc_mode, devp->vdin_pc_mode, vdin_pc_mode);
 	} else if (!strcmp(parm[0], "pc_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp) {

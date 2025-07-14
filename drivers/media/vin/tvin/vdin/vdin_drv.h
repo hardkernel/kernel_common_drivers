@@ -298,6 +298,7 @@ struct match_data_s {
 #define VDIN_FLAG_ISR_EN		0x00100000
 /*flag for get vdin1 hist start interface*/
 #define VDIN_FLAG_HIST_STARTED		0x00200000
+#define VDIN_FLAG_DYN_RECONFIG		0x00400000
 
 /*values of vdin isr bypass check flag */
 #define VDIN_BYPASS_STOP_CHECK          0x00000001
@@ -345,6 +346,8 @@ struct match_data_s {
 #define VDIN_SET_DISPLAY_RATIO_TRANS	BIT(22) //vdin transparent transmission aspect ratio
 #define VDIN_MEM_MEMSET_EN		BIT(23)
 #define VDIN_CROP_SEL			BIT(24) //0-vdin cut win;1-vdin set src_crop in vf
+#define VDIN_AFD_DISABLE		BIT(25) //0-enable AFD;1-disable AFD
+#define VDIN_AUTO_DST_FMT		BIT(26)
 
 /* vdin_function_sel control bits end */
 
@@ -642,6 +645,7 @@ struct vdin_debug_s {
 	unsigned int dbg_de_interlanced_ctl;
 	unsigned int dbg_force_convert;
 	unsigned int force_afbce_422_12bit;/* 0-auto,1-force enable,2-force disable */
+	unsigned int force_fmt;
 	unsigned int sar_width;
 	unsigned int sar_height;
 	unsigned int ratio_control;
@@ -704,6 +708,8 @@ struct vdin_debug_s {
 	int sct_print_ctl;
 	enum vdin_memset_dbg_flag flag;
 	enum vdin_vf_put_md vdin_frame_work_mode;
+	unsigned int ignore_vdin_ioctl;
+	unsigned int force_disp_mode;
 };
 
 struct vdin_dv_s {
@@ -772,6 +778,7 @@ enum vdin_game_mode_chg_e {
 	VDIN_GAME_MODE_ON_TO_OFF,
 	VDIN_GAME_MODE_1_TO_2,
 	VDIN_GAME_MODE_2_TO_1,
+	VDIN_GAME_MODE_CHK,
 	VDIN_GAME_MODE_NUM
 };
 
@@ -963,6 +970,7 @@ struct vdin_dev_s {
 	struct tvin_sig_property_s pre_prop;
 	struct tvin_sig_property_s prop;
 	struct vframe_provider_s vf_provider;
+	struct tvin_misc_info_s misc_info;
 	struct vdin_dv_s dv;
 	struct vdin_hdr_s hdr;
 	struct delayed_work vlock_dwork;
@@ -1053,12 +1061,14 @@ struct vdin_dev_s {
 	unsigned int canvas_align_w;
 	unsigned int canvas_max_size;
 	unsigned int canvas_max_num;
+	unsigned int canvas_max_stride;
 	unsigned int vf_canvas_id[VDIN_CANVAS_MAX_CNT];
 	/*before G12A:32byte(256bit)align;
 	 *after G12A:64byte(512bit)align
 	 */
 	unsigned int canvas_align;
-
+	unsigned int chroma_size;
+	int tuner_id;
 	int irq;
 	unsigned int rdma_irq;
 	int vpu_crash_irq;
@@ -1155,12 +1165,9 @@ struct vdin_dev_s {
 	 *vdin & vpp read/write same buffer may happen
 	 */
 	unsigned int game_mode;
-	/* game mode state before game change in ISR */
-	unsigned int game_mode_pre;
 	enum vdin_game_mode_chg_e game_mode_chg;
-	/* game mode state before ioctl change game mode */
-	unsigned int game_mode_bak;
 	unsigned char af_num;/* for one buffer mode */
+	unsigned int game_mode_dly;
 
 	int chg_drop_frame_cnt;
 	unsigned int vdin_pc_mode;
@@ -1185,6 +1192,7 @@ struct vdin_dev_s {
 	unsigned int afbce_mode_pre;
 	unsigned int afbce_mode;
 	unsigned int afbce_valid;
+	unsigned int afbce_mmu_num;
 	struct vdin_lossy_comp_param_s cr_lossy_param;
 
 	unsigned int cfg_dma_buf;
@@ -1201,7 +1209,6 @@ struct vdin_dev_s {
 	bool hist_bar_enable;
 	bool rdma_not_register;
 	bool auto_game_flag;
-	bool auto_pc_flag;
 	bool interlace_drop_bottom;
 	bool h_skip_en;
 	bool v_skip_en;
@@ -1210,6 +1217,7 @@ struct vdin_dev_s {
 	bool baddr_en;/*0-use canvas;1-use phy addr*/
 	bool is_vfce_en;
 	bool is_422_12bit_enabled;
+	bool force_unlock;
 	unsigned int ignore_frames;
 	/*use frame rate to cal duration*/
 	unsigned int use_frame_rate;
@@ -1228,7 +1236,6 @@ struct vdin_dev_s {
 	/*atv non-std signal,force drop the field if previous already dropped*/
 	unsigned int interlace_force_drop;
 	unsigned int frame_drop_num;
-	unsigned int skip_disp_md_check;
 	unsigned int vframe_wr_en;
 	unsigned int vframe_wr_en_pre;
 	unsigned int pause_dec;
@@ -1257,7 +1264,6 @@ struct vdin_dev_s {
 	/*struct v4l2_fh fh;*/
 	unsigned long vf_mem_c_start[VDIN_CANVAS_MAX_CNT];/* Y/C non-contiguous mem */
 	unsigned int dbg_v4l_pause;
-	unsigned int dbg_v4l_no_vdin_ioctl;
 	unsigned int dbg_v4l_no_vdin_event;
 	struct vdin_v4l2_dbg_ctl_s v4l2_dbg_ctl;
 	struct vdin_set_canvas_addr_s st_vdin_set_canvas_addr[VDIN_CANVAS_MAX_CNT][VDIN_MAX_PLANES];
@@ -1441,5 +1447,8 @@ int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
 void vdin_dump_one_afbce_mem_user(void *output_head_ptr, void *output_table_ptr,
 void *output_body_ptr, struct vdin_dev_s *devp, unsigned int buf_num);
 #endif
+u32 get_video_enabled(u8 layer_id);
+bool vdin_get_video_ready_state(enum tvin_port_e port);
+void vdin_dyn_fmt(struct vdin_dev_s *devp);
 #endif /* __TVIN_VDIN_DRV_H */
 

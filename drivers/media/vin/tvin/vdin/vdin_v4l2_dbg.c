@@ -96,8 +96,8 @@ static ssize_t v4l_dbg_store(struct device *dev,
 		pr_info("v4l pause %d\n", devp->dbg_v4l_pause);
 	} else if (!strcmp(parm[0], "no_vdin_ioctl")) {/* for v4l2 test app */
 		if (kstrtol(parm[1], 0, &val) == 0)
-			devp->dbg_v4l_no_vdin_ioctl = val;
-		pr_info("v4l dbg_v4l_no_vdin_ioctl %d\n", devp->dbg_v4l_no_vdin_ioctl);
+			devp->debug.ignore_vdin_ioctl = val;
+		pr_info("ignore_vdin_ioctl %d\n", devp->debug.ignore_vdin_ioctl);
 	} else if (!strcmp(parm[0], "no_vdin_event")) {/* for v4l2 test app */
 		if (kstrtol(parm[1], 0, &val) == 0)
 			devp->dbg_v4l_no_vdin_event = val;

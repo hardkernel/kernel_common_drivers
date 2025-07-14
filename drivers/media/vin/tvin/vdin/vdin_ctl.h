@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/vin/tvin/vdin/vdin_ctl.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __TVIN_VDIN_CTL_H
@@ -246,7 +233,7 @@ bool vdin_write_done_check(struct vdin_dev_s *devp);
 void vdin_calculate_duration(struct vdin_dev_s *devp);
 void vdin_wr_reverse(struct vdin_dev_s *devp, bool h_reverse, bool v_reverse);
 void vdin_set_hv_scale(struct vdin_dev_s *devp);
-void vdin_set_bitdepth(struct vdin_dev_s *devp);
+void vdin_set_bitdepth(struct vdin_dev_s *devp, unsigned int rdma_enable);
 void vdin_set_cm2(unsigned int offset, unsigned int w,
 		  unsigned int h, unsigned int *data, bool cm_enable);
 void vdin_bypass_isp(unsigned int offset);
@@ -254,7 +241,6 @@ void vdin_set_mpegin(struct vdin_dev_s *devp);
 void vdin_force_go_filed(struct vdin_dev_s *devp);
 void vdin_adjust_tvafe_snow_brightness(void);
 void vdin_set_config(struct vdin_dev_s *devp);
-void vdin_set_wr_mif(struct vdin_dev_s *devp);
 void vdin_dolby_config(struct vdin_dev_s *devp);
 void vdin_dolby_buffer_update(struct vdin_dev_s *devp,
 			      unsigned int index);
@@ -296,6 +282,9 @@ void vdin_set_pixel_aspect_ratio(struct vdin_dev_s *devp,
 void vdin_set_display_ratio(struct vdin_dev_s *devp,
 			    struct vframe_s *vf);
 void vdin_source_bitdepth_reinit(struct vdin_dev_s *devp);
+void vdin_set_vf_reinit_flag(struct vdin_dev_s *devp);
+void vdin_vf_reinit(struct vdin_dev_s *devp, struct vf_entry *vfe);
+void set_invert_top_bot(bool invert_flag);
 void vdin_clk_on_off(struct vdin_dev_s *devp, bool on_off);
 
 extern enum tvin_force_color_range_e color_range_force;
@@ -333,6 +322,7 @@ bool vdin_is_convert_to_444(u32 format_convert);
 bool vdin_is_convert_to_422(u32 format_convert);
 bool vdin_is_convert_to_nv21(u32 format_convert);
 bool vdin_is_convert_to_rgb(u32 format_convert);
+bool vdin_is_444_input(enum tvin_color_fmt_e color_format);
 bool vdin_is_4k(struct vdin_dev_s *devp);
 void vdin_set_matrix_color(struct vdin_dev_s *devp);
 void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int pat);
@@ -392,4 +382,5 @@ void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 				    enum vdin_format_convert_e format_convert,
 				    unsigned int full_pack,
 				    unsigned int source_bitdepth);
+void vdin_dlg_update_hist_hv(unsigned int temp_hist_width, unsigned int temp_hist_height);
 #endif

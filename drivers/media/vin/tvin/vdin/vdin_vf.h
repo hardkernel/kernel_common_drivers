@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __VDIN_VF_H
@@ -25,9 +25,10 @@
 
 #define VDIN_DV_MAX_NUM		        9
 
-#define VF_FLAG_NORMAL_FRAME		 0x00000001
-#define VF_FLAG_FREEZED_FRAME		 0x00000002
-#define VF_FLAG_ONE_BUFFER_MODE		 0x00000004
+#define VF_FLAG_NORMAL_FRAME		0x00000001
+#define VF_FLAG_FREEZED_FRAME		0x00000002
+#define VF_FLAG_ONE_BUFFER_MODE		0x00000004
+#define VF_FLAG_NEED_UPDATE		0x00000008
 
 #define VFRAME_DISP_MAX_NUM	25
 #define VDIN_CANVAS_MIN_CNT	3

@@ -57,11 +57,6 @@ void vdin_afbce_update_t3x(struct vdin_dev_s *devp)
 	if (!devp->afbce_info)
 		return;
 
-#ifndef CONFIG_AMLOGIC_MEDIA_RDMA
-	pr_info("##############################################\n");
-	pr_info("vdin afbce must use RDMA,but it not be opened\n");
-	pr_info("##############################################\n");
-#endif
 	reg_fmt444_comb = vdin_chk_is_comb_mode(devp);
 
 	switch (devp->format_convert) {
@@ -85,10 +80,9 @@ void vdin_afbce_update_t3x(struct vdin_dev_s *devp)
 		break;
 	}
 	uncompress_bits = devp->source_bitdepth;
-
 	/* bit size of uncompressed mode */
 	uncompress_size = (((((16 * uncompress_bits * bits_num) + 7) >> 3) + 31)
-		      / 32) << 1;
+		/ 32) << 1;
 	rdma_write_reg(devp->rdma_handle, devp->addr_offset + VDIN0_AFBCE_MODE,
 		       (0 & 0x7) << 29 | (0 & 0x3) << 26 | (3 & 0x3) << 24 |
 		       (hold_line_num & 0x7f) << 16 |

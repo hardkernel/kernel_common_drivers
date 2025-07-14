@@ -366,6 +366,7 @@ struct tvin_to_vpp_info_s {
 	unsigned int width;
 	unsigned int height;
 	enum tvin_color_fmt_e cfmt;
+	int tuner_id;
 };
 
 struct tvin_info_s {
@@ -432,6 +433,11 @@ struct tvin_buf_info_s {
 	unsigned int buf_height;
 	unsigned int buf_size;
 	unsigned int wr_list_size;
+};
+
+struct tvin_misc_info_s {
+	unsigned int afd_info; /* bit[7:4] pic_aspect_ratio, bit[3:0] active_ratio */
+	unsigned int reserved[7];
 };
 
 struct tvin_video_buf_s {
@@ -666,6 +672,7 @@ struct vdin_dump_afbc_buf_arg {
 #define TVIN_IOC_G_BUF_INFO         _IOR(_TM_T, 0x08, struct tvin_buf_info_s)
 #define TVIN_IOC_START_GET_BUF      _IO(_TM_T, 0x09)
 #define TVIN_IOC_G_EVENT_INFO	_IOW(_TM_T, 0x0a, struct vdin_event_info)
+#define TVIN_IOC_G_MISC_INFO         _IOR(_TM_T, 0x0b, struct tvin_misc_info_s)
 
 #define TVIN_IOC_GET_BUF            _IOR(_TM_T, 0x10, struct tvin_video_buf_s)
 #define TVIN_IOC_PAUSE_DEC          _IO(_TM_T, 0x41)
@@ -698,6 +705,7 @@ struct vdin_dump_afbc_buf_arg {
 #define TVIN_IOC_G_QMS_STATUS		_IOR(_TM_T, 0x57, struct vdin_qms_param_s)
 #define TVIN_IOC_DUMP_BUF _IOWR(_TM_T, 0x58, unsigned int)
 #define TVIN_IOC_DUMP_AFBC_BUF _IOWR(_TM_T, 0x59, unsigned int)
+#define TVIN_IOC_S_TUNER_ID		_IOW(_TM_T, 0x5a, int)
 #define TVIN_IOC_S_CANVAS_RECOVERY  _IO(_TM_T, 0x0a)
 /* TVAFE */
 #define TVIN_IOC_S_AFE_VGA_PARM     _IOW(_TM_T, 0x16, struct tvafe_vga_parm_s)
