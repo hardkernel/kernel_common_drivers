@@ -963,6 +963,11 @@ int get_amdv_src_format(enum vd_path_e vd_path, struct vframe_s *vf)
 {
 	return 0;
 }
+
+int get_amdv_ll_policy(void)
+{
+	return 0;
+}
 #endif
 
 bool is_dovi_tv_on(void)
