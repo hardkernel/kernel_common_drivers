@@ -4527,7 +4527,7 @@ u32 codec_mm_get_property_from_dts(char *property_name)
 	}
 
 	if (of_property_read_u32(pnode, property_name, &ret)) {
-		pr_info("read format in dts failed, ret = %d\n", ret);
+		pr_debug("read format in dts failed, ret = %d\n", ret);
 		return -EINVAL;
 	}
 
@@ -4656,8 +4656,7 @@ static int codec_mm_probe(struct platform_device *pdev)
 	if (r == 0)
 		pr_debug("codec_mm cma memory probed done\n");
 
-	pr_info("%s ok\n", __func__);
-
+	pr_debug("%s ok\n", __func__);
 	codec_mm_mgt_init(&pdev->dev);
 	codec_mm_scatter_mgt_init(&pdev->dev);
 	codec_mm_keeper_mgr_init();
@@ -4727,7 +4726,7 @@ static struct platform_driver codec_mm_driver = {
 
 int __init codec_mm_module_init(void)
 {
-	pr_err("now in %s\n", __func__);
+	pr_debug("now in %s\n", __func__);
 
 	if (platform_driver_register(&codec_mm_driver)) {
 		pr_err("failed to register amports mem module\n");

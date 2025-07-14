@@ -336,7 +336,7 @@ int init_prealloc_boost_task(void)
 		if (!IS_ERR(task)) {
 			set_user_nice(task, -17);
 			work->task = task;
-			pr_err("create prealloc task%p, for cpu %d\n", task, cpu);
+			pr_debug("create prealloc task%p, for cpu %d\n", task, cpu);
 			wake_up_process(task);
 		} else {
 			pr_err("create task for cpu %d fail:%p\n", cpu, task);

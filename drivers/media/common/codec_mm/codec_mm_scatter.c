@@ -587,7 +587,8 @@ static int codec_mm_scatter_cache_creat(struct codec_mm_scatter_mgt *smgt,
 {
 	struct codec_mm_scatter *cache;
 
-	pr_info("[%s]creat cache[%d]\n", __func__, cache_id);
+	if (scatter_debug_mode & DUMP_NORMAL_INFO)
+		INFO_LOG("[%s]creat cache[%d]\n", __func__, cache_id);
 	cache = codec_mm_scatter_alloc_new(smgt, CACHE_QUEUE_LEN, 0);
 	if (cache) {
 		codec_mm_cache_queue_init(cache);
@@ -3223,7 +3224,8 @@ int codec_mm_scatter_owner_register(char *owner_name,
 	codec_mm_scatter_update_owner_config(smgt);
 	spin_unlock(&smgt->owner_list_lock);
 
-	INFO_LOG("[%s]new owner[%d]:%px, keep size:%d/%d", __func__,
+	if (scatter_debug_mode & DUMP_NORMAL_INFO)
+		INFO_LOG("[%s]new owner[%d]:%px, keep size:%d/%d", __func__,
 			owner->owner_id, owner, owner->cache_keep_size, smgt->keep_size_PAGE);
 
 	return owner->owner_id;

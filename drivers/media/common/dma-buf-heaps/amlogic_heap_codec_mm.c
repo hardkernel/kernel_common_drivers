@@ -517,7 +517,7 @@ int __init amlogic_codec_mm_dma_buf_init(void)
 
 	codec_mm_heap_ops.allocate = codec_mm_heap_allocate;
 
-	pr_info("codecmm dmaheap:enter %s\n", __func__);
+	pr_debug("codecmm dmaheap:enter %s\n", __func__);
 	return 0;
 }
 
