@@ -254,6 +254,7 @@ struct ddr_bandwidth {
 	int mali_port[2];
 	int stat_flag;
 	int bus_num;
+	int vpu_bus_num;
 	int async_dmc_num;
 	struct dmc_bus dmc_bus[4];
 	unsigned int ddr_priority_num;

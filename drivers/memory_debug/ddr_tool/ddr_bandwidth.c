@@ -1860,8 +1860,10 @@ static void dmc_bus_data_init(int dmc)
 				if (i == bus) {
 					dd[l].id = aml_db->port_desc[j].port_id;
 					dd[l].name = aml_db->port_desc[j].port_name;
-					if (strstr(aml_db->port_desc[j].port_name, vpu_name))
+					if (strstr(aml_db->port_desc[j].port_name, vpu_name)) {
+						aml_db->vpu_bus_num++;
 						vpu = 1;
+					}
 					l++;
 					k++;
 				}
@@ -2443,6 +2445,12 @@ int disable_side_band(unsigned char dmc, unsigned char bus)
 	return set_side_band(aml_db, dmc, bus, 0, &block_bus, 1);
 }
 EXPORT_SYMBOL(disable_side_band);
+
+int get_vpu_bus_num(void)
+{
+	return aml_db->vpu_bus_num;
+}
+EXPORT_SYMBOL(get_vpu_bus_num);
 
 int get_side_band(struct dmc_side_band *sb, unsigned char num)
 {

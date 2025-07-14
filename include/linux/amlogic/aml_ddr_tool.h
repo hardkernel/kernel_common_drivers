@@ -54,6 +54,7 @@ struct dmc_side_band {
 
 int enable_side_band(struct dmc_side_band *sb);
 int disable_side_band(unsigned char dmc, unsigned char bus);
+int get_vpu_bus_num(void);
 int get_side_band(struct dmc_side_band *sb, unsigned char num);
 #else
 static inline int get_bus_num(void)
@@ -92,6 +93,11 @@ static inline int enable_side_band(struct dmc_side_band *sb)
 }
 
 static inline int disable_side_band(unsigned char dmc, unsigned char bus)
+{
+	return -1;
+}
+
+static inline int get_vpu_bus_num(void)
 {
 	return -1;
 }
