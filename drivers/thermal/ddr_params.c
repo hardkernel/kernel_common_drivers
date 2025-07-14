@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/bitfield.h>
 #include <linux/of_device.h>
+#include <linux/reboot.h>
 #include <dt-bindings/thermal/ddr-params.h>
 #include "ddr_control.h"
 
@@ -440,6 +441,17 @@ static int ddr_params_init(struct control_device *cdev)
 	return ret;
 }
 
+static int ddr_control_reboot(struct notifier_block *nb,
+	unsigned long event, void *ptr)
+{
+	ddr_control_disable();
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ddr_control_reboot_nb = {
+	.notifier_call = ddr_control_reboot,
+};
+
 static int ddr_control_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -465,8 +477,23 @@ static int ddr_control_probe(struct platform_device *pdev)
 			&cdev->poll_dwork,
 			msecs_to_jiffies(cdev->poll_time_ms));
 
+	/* Register a reboot_notifier*/
+	ret = register_reboot_notifier(&ddr_control_reboot_nb);
+	if (ret) {
+		dev_err(dev, "register reboot notifier failed,ret = %d!\n", ret);
+		return ret;
+	}
+
 	dev_dbg(dev, "probe done\n");
 	return 0;
+}
+
+static void ddr_control_shutdown(struct platform_device *pdev)
+{
+	struct control_device *cdev;
+
+	cdev = platform_get_drvdata(pdev);
+	cancel_delayed_work_sync(&cdev->poll_dwork);
 }
 
 static void ddr_control_remove(struct platform_device *pdev)
@@ -488,4 +515,5 @@ struct platform_driver ddr_control_platdrv = {
 	},
 	.probe  = ddr_control_probe,
 	.remove = ddr_control_remove,
+	.shutdown = ddr_control_shutdown,
 };

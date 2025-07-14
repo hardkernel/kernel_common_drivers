@@ -63,4 +63,5 @@ extern struct platform_driver ddr_control_platdrv;
 
 int ddr_control_device(struct control_device *control_dev);
 void control_poll_work(struct work_struct *work);
+void ddr_control_disable(void);
 #endif

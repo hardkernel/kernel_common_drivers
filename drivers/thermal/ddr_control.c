@@ -19,6 +19,11 @@
 static bool ddr_control_enable = 1;
 module_param(ddr_control_enable, bool, 0644);
 
+void ddr_control_disable(void)
+{
+	ddr_control_enable = 0;
+}
+
 static u32 ddr_get_temperature(const struct ddr_control *control, int idx)
 {
 	struct ddr_cstep *ddr_cstep = control->ddr_cstep;
