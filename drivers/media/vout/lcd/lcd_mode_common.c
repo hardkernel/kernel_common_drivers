@@ -261,7 +261,7 @@ void lcd_mode_vmode_switch(struct aml_lcd_drv_s *pdrv)
 
 int lcd_mode_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 {
-	int clk_change = 0;
+	unsigned int clk_change = 0;
 
 	if (!pdrv)
 		return -1;
@@ -271,9 +271,8 @@ int lcd_mode_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 
 	lcd_frame_rate_change(pdrv);
 
-	if (pdrv->curr_dev->dev_cfg.timing.clk_change & LCD_CLK_CHANGE) {
-		clk_change = 1;
-		//pdrv->curr_dev->dev_cfg.timing.clk_change will clear in lcd_clk_change
+	clk_change = pdrv->curr_dev->dev_cfg.timing.clk_change;
+	if (clk_change & LCD_CLK_CHANGE) {
 		if (pdrv->status & LCD_STATUS_IF_ON) {
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
 			if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE)
@@ -287,9 +286,11 @@ int lcd_mode_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->status & LCD_STATUS_IF_ON) {
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
-		if (clk_change && pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE) {
-			lcd_vbyone_wait_stable(pdrv);
-			lcd_vbyone_interrupt_enable(pdrv, 1);
+		if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE) {
+			if (clk_change & LCD_CLK_PLL_CHANGE)
+				lcd_vbyone_wait_stable(pdrv);
+			if (clk_change & LCD_CLK_CHANGE)
+				lcd_vbyone_interrupt_enable(pdrv, 1);
 		}
 #endif
 	}

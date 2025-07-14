@@ -542,8 +542,7 @@ void lcd_clk_change(struct aml_lcd_drv_s *pdrv)
 {
 	LCD_DBG(pdrv, "%s: clk_change:0x%x", __func__, pdrv->curr_dev->dev_cfg.timing.clk_change);
 
-	if ((pdrv->curr_dev->dev_cfg.timing.clk_change & LCD_CLK_PLL_CHANGE) ||
-	    (pdrv->curr_dev->dev_cfg.timing.clk_change & LCD_CLK_PLL_RESET)) {
+	if (pdrv->curr_dev->dev_cfg.timing.clk_change & LCD_CLK_PLL_CHANGE) {
 		if (pdrv->vmode_switch)
 			lcd_request_vpu_overclk(pdrv, pdrv->curr_dev->dev_cfg.timing.enc_clk);
 		lcd_set_clk(pdrv);
