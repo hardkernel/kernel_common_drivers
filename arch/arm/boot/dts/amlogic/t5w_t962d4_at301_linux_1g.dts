@@ -843,6 +843,8 @@
 	 */
 	 vlock_pll_m_limit = <1>;
 	 vlock_line_limit = <2>;
+	interrupts = <0 87 1>;
+	interrupt-names = "lc_curve";
 };
 
 /*if you want to use vdin just modify status to "ok"*/
