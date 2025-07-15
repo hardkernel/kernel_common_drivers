@@ -9,6 +9,7 @@
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 
 #include "meson_uvm_buffer_info.h"
 
@@ -17,14 +18,14 @@
 #define LOG_DEBUG   3
 
 static int mubi_debug_level;
-__module_param(mubi_debug_level, int, 0644);
+module_param(mubi_debug_level, int, 0644);
 #define MUBI_PRINTK(level, fmt, arg...) \
 	do { \
 		if (mubi_debug_level >= (level)) \
 			pr_info("uvm_buffer_info: [%s] " fmt, __func__, ## arg); \
 	} while (0)
 
-static bool is_dv_video(const struct vframe_s *vfp)
+static bool is_dv_video(struct vframe_s *vfp)
 {
 	/* dolby vision: bit 30 */
 	/*
@@ -35,7 +36,7 @@ static bool is_dv_video(const struct vframe_s *vfp)
 	 */
 
 	if (!vfp->discard_dv_data)
-		return true;
+		return (is_amdv_frame(vfp) > 0) ? true : false;
 
 	return false;
 }
@@ -116,6 +117,8 @@ static struct vframe_s *get_vf_from_fd(int fd)
 		MUBI_PRINTK(LOG_ERROR, "fget fd fail\n");
 		goto exit_null;
 	}
+
+	MUBI_PRINTK(LOG_DEBUG, "%s fd:%d, buffer_file: %px\n", __func__, fd, file_vf);
 
 	is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
 	if (is_dec_vf) {
