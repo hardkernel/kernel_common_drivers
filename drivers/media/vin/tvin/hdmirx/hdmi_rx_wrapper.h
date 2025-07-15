@@ -144,7 +144,8 @@ enum dumpinfo_e {
 	RX_DUMP_AUDIO = 0x02,
 	RX_DUMP_HDCP = 0x04,
 	RX_DUMP_PHY = 0x08,
-	RX_DUMP_CLK = 0x10
+	RX_DUMP_CLK = 0x10,
+	RX_DUMP_VIDEO_SIMPLE = 0x14
 };
 
 enum fps_e {

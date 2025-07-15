@@ -94,6 +94,43 @@ enum pkt_length_e {
 	E_PKT_LENGTH_27 = 0x1B
 };
 
+enum emp_pkt_type_e {
+	EMP_NULL = 0,
+	EMP_VTEM_CLASS0,
+	EMP_VTEM_CLASS1,
+	EMP_SBTM,
+	EMP_AMDV,
+	EMP_CUVA,
+	EMP_CVTEM,
+	EMP_QMS_PLUS,
+};
+
+enum rx_sig_type_e {
+	E_SIG_NULL	= 0,
+	E_DRM_HDR10	= 0x1,
+	E_DRM_HLG	= 0x2,
+	E_DRM_AMDV	= 0x4,
+	E_VSIF_HDR10PLUS = 0x8,
+	E_VSIF_AMDV	= 0x10,
+	E_VSIF_AMDV_LL	= 0x20,
+	E_VSIF_CUVAHDR	= 0x40,
+	E_VSIF_FILMMAKER = 0x80,
+	E_VSIF_IMAX	= 0x100,
+	E_VSIF_QMS_PLUS	= 0x200,
+	E_VSIF_HDR_ALLM	= 0x400,
+	E_VSIF_SSTM	= 0x800,
+	E_VSIF_HDMI_ALLM = 0x1000,
+	E_VSIF_DV_ALLM	= 0x2000,
+	E_EMP_VRR	= 0x4000,
+	E_EMP_QMS	= 0x8000,
+	E_EMP_SBTM	= 0x10000,
+	E_EMP_AMDV	= 0x20000,
+	E_EMP_CUVA	= 0x40000,
+	E_EMP_CVTEM	= 0x80000,
+	E_EMP_QMS_PLUS	= 0x100000,
+	E_AVI_FILMMAKER	= 0x200000,
+};
+
 enum pkt_decode_type {
 	PKT_BUFF_SET_FIFO = 0x01,
 	PKT_BUFF_SET_GMD = 0x02,
@@ -986,17 +1023,6 @@ struct rxpkt_st {
 
 	u32 pkt_attach_vsi;
 	u32 pkt_attach_drm;
-};
-
-enum emp_pkt_type_e {
-	EMP_NULL = 0,
-	EMP_VTEM_CLASS0,
-	EMP_VTEM_CLASS1,
-	EMP_SBTM,
-	EMP_AMDV,
-	EMP_CUVA,
-	EMP_CVTEM,
-	EMP_QMS_PLUS,
 };
 
 struct packet_info_s {

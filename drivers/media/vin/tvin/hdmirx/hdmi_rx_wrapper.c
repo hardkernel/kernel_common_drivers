@@ -1047,6 +1047,7 @@ static int rx_cor_irq_handler(u8 port)
 		if (rx_get_bits(intr_2, INTR2_BIT0_AVI))
 			rx[port].irq_flag |= IRQ_AVI_CHG_FLAG;
 		if (rx_get_bits(intr_2, INTR2_BIT4_UNREC)) {
+			rx[port].rx_sig_type &= ~(MSK(3, 0));
 			rx[port].drm_dv_flag = DV_NULL;
 			rx_pkt_clr_attach_drm(port);
 			memset(&rx_pkt[port].drm_info, 0, sizeof(struct pd_infoframe_s));
@@ -4458,7 +4459,6 @@ char *fsm_st[] = {
 	"FSM_SIG_STABLE_TO_READY",
 	"FSM_SIG_FRL_CHECK",
 	"FSM_SIG_FRL_DOUBLE_CHECK",
-	"FSM_SIG_FRL_CHG_PIX",
 	"FSM_SIG_FDET_CHECK",
 	"FSM_SIG_READY",
 	"FSM_NULL",
@@ -4497,7 +4497,8 @@ void rx_fsm_print_handler(struct work_struct *work)
 	struct work_data *dd = container_of(work, struct work_data, work_wq);
 	if (rx[dd->port].state == FSM_SIG_READY)
 		dump_state(RX_DUMP_VIDEO, dd->port);
-	rx_pr("%s\n", fsm_pr_buff[dd->port]);
+	if (log_level & VIDEO_LOG)
+		rx_pr("%s\n", fsm_pr_buff[dd->port]);
 }
 
 /*
@@ -4598,6 +4599,7 @@ void rx_main_state_machine(void)
 				if (!rx[port].resume_flag && port != rx_info.arc_port &&
 					rx[port].ddc_filter_en) {
 					rx[port].state = FSM_HPD_LOW;
+					rx_pr("clk-unstable-rest\n");
 					rx_i2c_err_monitor(port);
 					hdmi_rx_top_edid_update();
 				}
@@ -4657,6 +4659,7 @@ void rx_main_state_machine(void)
 			}
 			if (rx[port].err_rec_mode == ERR_REC_EQ_RETRY) {
 				rx[port].state = FSM_WAIT_CLK_STABLE;
+				rx_pr("tmds invalid\n");
 				if (rx_sw_scramble_en() &&
 					force_clk_rate > 1) {
 					if (force_clk_rate & 1)
@@ -4759,8 +4762,8 @@ void rx_main_state_machine(void)
 		} else {
 			rx[port].var.sig_stable_cnt = 0;
 			rx[port].var.de_stable = false;
+			rx[port].var.sig_unstable_cnt++;
 			if (rx[port].var.sig_unstable_cnt < sig_unstable_max) {
-				rx[port].var.sig_unstable_cnt++;
 				if (rx_phy_level & 0x1 &&
 					(rx[port].var.sig_unstable_cnt >= reset_pcs_flag &&
 					rx[port].var.sig_unstable_cnt <=
@@ -4771,8 +4774,11 @@ void rx_main_state_machine(void)
 						rx_pr("reset pcs\n");
 				}
 				break;
+			} else if (rx[port].var.sig_unstable_cnt == sig_unstable_max) {
+				dump_unnormal_info(port);
+			} else {
+				rx[port].state = FSM_WAIT_CLK_STABLE;
 			}
-			rx[port].state = FSM_WAIT_CLK_STABLE;
 		}
 		break;
 	case FSM_SIG_STABLE_TO_READY:
@@ -4822,6 +4828,7 @@ void rx_main_state_machine(void)
 				break;
 			}
 			rx_irq_en(0, port);
+			dump_unnormal_info(port);
 			rx[port].state = FSM_WAIT_CLK_STABLE;
 		}
 		break;
@@ -7222,62 +7229,10 @@ static void dump_clk_status(u8 port)
 		      rx[port].clk.mpll_clk);
 }
 
-void dump_video_status(u8 port)
+static void dump_edid_status(u8 port)
 {
 	enum edid_ver_e edid_ver =
 		rx_parse_edid_ver(rx_get_cur_used_edid(port));
-
-	rx_get_video_info(port);
-	rx_pr("[HDMI info]\n");
-	if (rx[port].cur.colorspace == 0)
-		rx_pr("colorspace:RGB\n");
-	else if (rx[port].cur.colorspace == 1)
-		rx_pr("colorspace:YUV422\n");
-	else if (rx[port].cur.colorspace == 2)
-		rx_pr("colorspace:YUV444\n");
-	else if (rx[port].cur.colorspace == 3)
-		rx_pr("colorspace:YUV420\n");
-	else
-		rx_pr("colorspace:%d\n", rx[port].cur.colorspace);
-	rx_pr("colordepth %d\n", rx[port].cur.colordepth);
-	rx_pr("interlace %d\n", rx[port].cur.interlaced);
-	rx_pr("htotal %d\n", rx[port].cur.htotal);
-	rx_pr("hactive %d\n", rx[port].cur.hactive);
-	rx_pr("vtotal %d\n", rx[port].cur.vtotal);
-	rx_pr("vactive %d\n", rx[port].cur.vactive);
-	rx_pr("frame_rate %d\n", rx[port].cur.frame_rate);
-	rx_pr("repetition %d\n", rx[port].cur.repeat);
-	rx_pr("dvi %d,", rx[port].cur.hw_dvi);
-	rx_pr("sw_dvi:%d,", rx[port].pre.sw_dvi);
-	rx_pr("fmt=0x%x,", hdmirx_hw_get_fmt(port));
-	rx_pr("hw_vic %d,", rx[port].cur.hw_vic);
-	rx_pr("sw_vic %d,", rx[port].pre.sw_vic);
-	rx_pr("rx[%d].no_signal=%d, state=%d,", port,  rx[port].no_signal, rx[port].state);
-	rx_pr("VRR en = %d\n", rx[port].vtem_info.vrr_en);
-	rx_pr("skip frame=%d\n", rx[port].skip);
-	rx_pr("avmute_skip:0x%x\n", rx[port].avmute_skip);
-	rx_pr("ecc cnt:%d\n", rx[port].ecc_err);
-	rx_pr("****pkts_info_details:*****\n");
-	rx_pr("hdr10plus = %d\n", rx[port].vs_info_details.hdr10plus);
-	rx_pr("hdr10p_allm = %d\n", rx[port].vs_info_details.hdr_allm);
-	rx_pr("hdr10p tm_flag = %d\n", rx[port].vs_info_details.src_tm_flag);
-	rx_pr("hdr10P_en = %d\n", rx_info.hdr10p_en);
-	rx_pr("hdmi_allm_mode = %d\n", rx[port].vs_info_details.hdmi_allm);
-	rx_pr("dv_allm_mode = %d\n", rx[port].vs_info_details.dv_allm);
-	rx_pr("itcontent = %d\n", rx[port].cur.it_content);
-	rx_pr("cnt_type = %d\n", rx[port].cur.cn_type);
-	rx_pr("dolby_vision = %d\n", rx[port].vs_info_details.dolby_vision_flag);
-	rx_pr("dv ll = %d\n", rx[port].vs_info_details.low_latency);
-	rx_pr("cuva hdr = %d\n", rx[port].vs_info_details.cuva_hdr |
-		rx[port].emp_cuva_info.flag);
-	rx_pr("VSIF_filmmaker = %d\n", rx[port].vs_info_details.filmmaker);
-	rx_pr("AVI_filmmaker = %d\n", rx[port].avi_fmm_flag);
-	rx_pr("iMax = %d\n", rx[port].vs_info_details.imax);
-	rx_pr("QMS+ = %d\n", rx[port].qms_plus_flag);
-	//rx_pr("VTEM = %d\n", rx[port_idx].vrr_en);
-	rx_pr("DRM = %d\n", rx_pkt_chk_attach_drm(port));
-	rx_pr("freesync = %d\n-bit0 supported,bit1:enabled.bit2:active",
-		rx[port].free_sync_sts);
 	rx_pr("0:14; 1:20; 2:Auto20; 4:Auto14\n");
 	rx_pr("edid_selected_ver: %d\n", rx[port].edid_type.cfg);
 	rx_pr("edid_cur_ver: %d\n", rx[port].edid_type.edid_ver);
@@ -7287,6 +7242,37 @@ void dump_video_status(u8 port)
 	rx_pr("tx_type: %d\n", rx[port].tx_type);
 	if (log_level & EDID_LOG)
 		rx_print_edid_support(port);
+}
+
+void dump_video_status(u8 port)
+{
+	//rx_get_video_info(port);
+	//rx_pr("[HDMI info]\n");
+	rx_pr("%d*%d-%d-%dbit\n", rx[port].cur.hactive,
+								rx[port].cur.vactive,
+								rx[port].cur.frame_rate,
+								rx[port].cur.colordepth);
+	if (rx[port].cur.colorspace == 0)
+		rx_pr("RGB\n");
+	else if (rx[port].cur.colorspace == 1)
+		rx_pr("YUV422\n");
+	else if (rx[port].cur.colorspace == 2)
+		rx_pr("YUV444\n");
+	else if (rx[port].cur.colorspace == 3)
+		rx_pr("YUV420\n");
+	else
+		rx_pr("colorspace:%d\n", rx[port].cur.colorspace);
+	if (rx[port].cur.interlaced)
+		rx_pr("interlace\n");
+	if (rx[port].cur.repeat)
+		rx_pr("repetition %d\n", rx[port].cur.repeat);
+	if (rx[port].cur.hw_dvi)
+		rx_pr("dvi\n");
+	rx_pr("fmt=0x%x,hw_vic:%d, sw_vic:%d\n",
+		  hdmirx_hw_get_fmt(port),
+		  rx[port].cur.hw_vic,
+		  rx[port].pre.sw_vic);
+	dump_pktinfo_status(port);
 }
 
 void dump_audio_status(u8 port)
@@ -7356,11 +7342,11 @@ void dump_state(int enable, u8 port)
 		dump_video_status(port);
 	} else if (enable & RX_DUMP_ALL) {
 		dump_clk_status(port);
+		dump_edid_status(port);
 		dump_phy_status(port);
 		dump_video_status(port);
 		dump_audio_status(port);
 		dump_hdcp_status(port);
-		dump_pktinfo_status(port);
 	} else if (enable & RX_DUMP_AUDIO) {
 		/* audio info */
 		dump_audio_status(port);

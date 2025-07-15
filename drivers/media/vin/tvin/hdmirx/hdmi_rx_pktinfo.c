@@ -739,7 +739,7 @@ void rx_pkt_initial(u8 port)
 	rx[i].vs_info_details.pkt_status = HDMIRX_PACKET_STATUS_NOT_RECEIVED;
 	rx[i].spd_pkt_st = HDMIRX_PACKET_STATUS_NOT_RECEIVED;
 	rx[i].avi_pkt_st = HDMIRX_PACKET_STATUS_NOT_RECEIVED;
-
+	rx[i].rx_sig_type &= MSK(3, 0);
 	if (!emp_info_p) {
 		rx_pr("%s emp info null\n", __func__);
 		return;
@@ -763,6 +763,7 @@ void rx_pkt_initial(u8 port)
 	if (!(rxpktsts[port].pkt_op_flag & PKT_OP_DRM)) {
 		rx[port].drm_dv_flag = DV_NULL;
 		rx_pkt_clr_attach_drm(port);
+		rx[i].rx_sig_type &= ~(MSK(3, 0));
 		memset(&rx_pkt[i].drm_info, 0, sizeof(struct pd_infoframe_s));
 		tvin_update_vdin_prop(rx_get_port_type(port), PKT_TYPE_INFOFRAME_DRM);
 	} else {
@@ -1436,7 +1437,6 @@ void rx_get_vsi_info(u8 port)
 {
 	struct vsi_infoframe_st *pkt;
 	unsigned int tmp;
-	static u32 num;
 	struct emp_info_s *emp_info_p = rx_get_emp_info(port);
 	bool l11_md_present;
 
@@ -1459,6 +1459,7 @@ void rx_get_vsi_info(u8 port)
 					rx_pr("vsi dv15 length err\n");
 				//dv vsif
 				rx[port].vs_info_details.dolby_vision_flag = DV_VSIF;
+				rx[port].rx_sig_type |= E_VSIF_AMDV;
 				i++;
 				continue;
 			}
@@ -1466,9 +1467,12 @@ void rx_get_vsi_info(u8 port)
 			if (tmp) {
 				rx[port].vs_info_details.vsi_state |= E_VSI_DV15;
 				rx[port].vs_info_details.dolby_vision_flag = DV_VSIF;
+				rx[port].rx_sig_type |= E_VSIF_AMDV;
 				tmp = pkt->sbpkt.payload.data[0] & _BIT(0);
 				rx[port].vs_info_details.low_latency =
 					tmp ? true : false;
+				if (rx[port].vs_info_details.low_latency)
+					rx[port].rx_sig_type |= E_VSIF_AMDV_LL;
 				tmp = pkt->sbpkt.payload.data[0] >> 15 & 0x01;
 				rx[port].vs_info_details.backlt_md_bit =
 					tmp ? true : false;
@@ -1479,8 +1483,10 @@ void rx_get_vsi_info(u8 port)
 				}
 				l11_md_present = (pkt->sbpkt.payload.data[0] >> 8) & _BIT(5);
 				tmp = (pkt->sbpkt.payload.data[1] >> 16 & 0xf);
-				if (l11_md_present && tmp == 2)
+				if (l11_md_present && tmp == 2) {
 					rx[port].vs_info_details.dv_allm = true;
+					rx[port].rx_sig_type |= E_VSIF_DV_ALLM;
+				}
 			}
 		} else if (pkt->ieee == IEEE_HDR10PLUS) {
 			/* HDR10+ */
@@ -1493,9 +1499,14 @@ void rx_get_vsi_info(u8 port)
 			/* consider hdr10+ is true when IEEE matched */
 			rx[port].vs_info_details.vsi_state |= E_VSI_HDR10PLUS;
 			rx[port].vs_info_details.hdr10plus = true;
+			rx[port].rx_sig_type |= E_VSIF_HDR10PLUS;
 			/* SSTM: source side tone mapping */
 			rx[port].vs_info_details.hdr_allm = pkt->sbpkt.vsi_hdr10p.allm;
+			if (rx[port].vs_info_details.hdr_allm)
+				rx[port].rx_sig_type |= E_VSIF_HDR_ALLM;
 			rx[port].vs_info_details.src_tm_flag = pkt->sbpkt.vsi_hdr10p.src_tm_flag;
+			if (rx[port].vs_info_details.src_tm_flag)
+				rx[port].rx_sig_type |= E_VSIF_SSTM;
 		} else if (pkt->ieee == IEEE_CUVAHDR) {
 			if (pkt->length != E_PKT_LENGTH_27) {
 				if (log_level & PACKET_LOG)
@@ -1509,6 +1520,7 @@ void rx_get_vsi_info(u8 port)
 			pkt->sbpkt.vsi_cuva_hdr.monitor_mode_enable = 1;
 			rx[port].vs_info_details.vsi_state |= E_VSI_CUVAHDR;
 			rx[port].vs_info_details.cuva_hdr = true;
+			rx[port].rx_sig_type |= E_VSIF_CUVAHDR;
 		} else if (pkt->ieee == IEEE_FILMMAKER) {
 			if (pkt->length != E_PKT_LENGTH_5 ||
 				pkt->pkttype != 0x01 ||
@@ -1519,6 +1531,7 @@ void rx_get_vsi_info(u8 port)
 					rx_pr("vsi filmmaker pkt err\n");
 			rx[port].vs_info_details.vsi_state |= E_VSI_FILMMAKER;
 			rx[port].vs_info_details.filmmaker = true;
+			rx[port].rx_sig_type |= E_VSIF_FILMMAKER;
 		} else if (pkt->ieee == IEEE_IMAX) {
 			if (pkt->length != E_PKT_LENGTH_5 ||
 				pkt->ver_st.version != 0x01 ||
@@ -1528,6 +1541,7 @@ void rx_get_vsi_info(u8 port)
 					rx_pr("vsi imax pkt err\n");
 			rx[port].vs_info_details.vsi_state |= E_VSI_IMAX;
 			rx[port].vs_info_details.imax = true;
+			rx[port].rx_sig_type |= E_VSIF_IMAX;
 		}
 
 		if (pkt->ieee == IEEE_VSI14) {
@@ -1540,6 +1554,7 @@ void rx_get_vsi_info(u8 port)
 					if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0)
 						pkt->sbpkt.payload.data[0] = 0xffff;
 					rx[port].vs_info_details.dolby_vision_flag = DV_VSIF;
+					rx[port].rx_sig_type |= E_VSIF_AMDV;
 					rx[port].vs_info_details.vsi_state |= E_VSI_DV10;
 					if (log_level & PACKET_LOG)
 						rx_pr("IEEE_VSI14 DV10\n");
@@ -1580,6 +1595,8 @@ void rx_get_vsi_info(u8 port)
 			tmp = pkt->sbpkt.payload.data[0] & _BIT(9);
 			rx[port].vs_info_details.vsi_state |= E_VSI_VSI21;
 			rx[port].vs_info_details.hdmi_allm = tmp ? true : false;
+			if (rx[port].vs_info_details.hdmi_allm)
+				rx[port].rx_sig_type |= E_VSIF_HDMI_ALLM;
 		} else if (pkt->ieee == IEEE_QMS_PLUS) {
 			if (pkt->length != E_PKT_LENGTH_5) {
 				if (log_level & PACKET_LOG)
@@ -1587,40 +1604,19 @@ void rx_get_vsi_info(u8 port)
 			}
 			rx[port].vs_info_details.vsi_state |= E_VSI_QMS_PLUS;
 			rx[port].vs_info_details.qms_plus = pkt->sbpkt.vsi_qms_plus.qms_plus;
+			rx[port].rx_sig_type |= E_VSIF_QMS_PLUS;
 		}
 		i++;
 	}
-	if (rx[port].vs_info_details.emp_pkt_cnt &&
-	    emp_info_p->emp_tagid == IEEE_DV15) {
-		//pkt->ieee = rx[rx_info.main_port].emp_buff.emp_tagid;
-		rx[port].vs_info_details.dolby_vision_flag = DV_EMP;
-		rx[port].vs_info_details.vsi_state |= E_VSI_DV15;
-		pkt->sbpkt.vsi_dobv15.dv_vs10_sig_type = 1;
-		pkt->sbpkt.vsi_dobv15.ll =
-			(emp_info_p->data_ver & 1) ? 1 : 0;
-		pkt->sbpkt.vsi_dobv15.bklt_md = 0;
-		pkt->sbpkt.vsi_dobv15.aux_md = 0;
-		pkt->sbpkt.vsi_dobv15.content_type =
-			emp_info_p->emp_content_type;
-		if (pkt->sbpkt.vsi_dobv15.content_type == 2)
-			rx[port].vs_info_details.dv_allm = true;
-		if (log_level & PACKET_LOG)
-			rx_pr("dv_emp-allm-%d\n", rx[port].vs_info_details.dv_allm);
-	} else {
-		if (num == rxpktsts[port].pkt_cnt_vsi)
-			pkt->ieee = 0;
-		num = rxpktsts[port].pkt_cnt_vsi;
-	}
-	emp_info_p->emp_tagid = 0;
-	/* pkt->ieee = 0; */
-	/* memset(&rx_pkt.vs_info, 0, sizeof(struct pd_infoframe_s)); */
 	rxpktsts[port].pkt_op_flag &= ~PKT_OP_VSI;
 }
 
 void rx_get_avi_info(u8 port)
 {
-	if (rx[port].cur.it_content && rx[port].cur.cn_type == CINEMA)
+	if (rx[port].cur.it_content && rx[port].cur.cn_type == CINEMA) {
 		rx[port].avi_fmm_flag = true;
+		rx[port].rx_sig_type |= E_AVI_FILMMAKER;
+	}
 }
 
 void rx_pkt_buffclear(enum pkt_type_e pkt_type, u8 port)
@@ -2767,8 +2763,10 @@ void rx_get_em_info(u8 port)
 			if (!qms_plus_cfg && tmp & _BIT(3))
 				break;
 			//gaming-vrr use vrr_en notify vdin enable hw_vrr
-			if (tmp & _BIT(0))
+			if (tmp & _BIT(0)) {
 				rx[port].vtem_info.vrr_en = 1;
+				rx[port].rx_sig_type |= E_EMP_VRR;
+			}
 			rx[port].vtem_info.fva_factor_m1 = (tmp >> 4) & 0xf;
 			tmp = pkt->cnt.md[1];
 			rx[port].vtem_info.base_vfront = tmp;
@@ -2790,6 +2788,8 @@ void rx_get_em_info(u8 port)
 			tmp = pkt->cnt.md[0];
 			rx[port].vtem_info.m_const = (tmp >> 1) & 1;
 			rx[port].vtem_info.qms_en = (tmp >> 2) & 1;
+			if (rx[port].vtem_info.qms_en)
+				rx[port].rx_sig_type |= E_EMP_QMS;
 			/* TODO: gaming-vrr/qms-vrr */
 			//rx[port].vtem_info.vrr_en = rx[port].vtem_info.qms_en;
 			tmp = pkt->cnt.md[1];
@@ -2822,6 +2822,7 @@ void rx_get_em_info(u8 port)
 			rx[port].sbtm_info.frm_pb_limit_int |= tmp;
 			pkt->pkttype = 0;
 			rx[port].sbtm_info.flag = true;
+			rx[port].rx_sig_type |= E_EMP_SBTM;
 			break;
 		case EMP_AMDV:
 			rx[port].emp_dv_info.flag = true;
@@ -2834,12 +2835,14 @@ void rx_get_em_info(u8 port)
 			}
 			memcpy(rx[port].emp_dv_info.dv_addr, (u8 *)pkt,
 				rx[port].emp_dv_info.dv_pkt_cnt * 32);
+			rx[port].rx_sig_type |= E_EMP_AMDV;
 			break;
 		case EMP_CUVA:
 			rx[port].emp_cuva_info.flag = true;
 			rx[port].emp_cuva_info.emds_addr = (u8 *)pkt;
 			rx[port].emp_cuva_info.cuva_emds_size =
 				rx[port].emp_dsf_info[i].pkt_cnt * 32;
+			rx[port].rx_sig_type |= E_EMP_CUVA;
 			break;
 		case EMP_CVTEM:
 			// to do
@@ -2862,10 +2865,12 @@ void rx_get_em_info(u8 port)
 				dump_cvtem_packet(port);
 			}
 			parse_dsc_pps_data(rx[port].cvtem_info.dsc_info, port);
+			rx[port].rx_sig_type |= E_EMP_CVTEM;
 			break;
 		case EMP_QMS_PLUS:
 			// Assume that MD[3] indicates whether QMS+ is enabled or not.
 			rx[port].qms_plus_flag |= pkt->cnt.md[3] ? QMS_PLUS_EMP : QMS_PLUS_DISABLE;
+			rx[port].rx_sig_type |= E_EMP_QMS_PLUS;
 			break;
 		default:
 			memset(&rx[port].vtem_info, 0, sizeof(struct vtem_info_s));
@@ -2896,12 +2901,66 @@ void rx_get_aif_info(u8 port)
 	/*}*/
 }
 
+static void rx_sig_type_parse(u32 sig_type)
+{
+	if (sig_type == E_SIG_NULL) {
+		rx_pr("No special signals parsed\n");
+		return;
+	}
+	/* Detection needs to be done in the order defined by rx_sig_type_e */
+	if (sig_type & E_DRM_HDR10)
+		rx_pr("HDR10\n");
+	if (sig_type & E_DRM_HLG)
+		rx_pr("HLG\n");
+	if (sig_type & E_DRM_AMDV)
+		rx_pr("Unique DRM DV\n");
+	if (sig_type & E_VSIF_HDR10PLUS)
+		rx_pr("HDR10Plus\n");
+	if (sig_type & E_VSIF_AMDV)
+		rx_pr("vsif AMDV\n");
+	if (sig_type & E_VSIF_AMDV_LL)
+		rx_pr("dolby vision low latency\n");
+	if (sig_type & E_VSIF_CUVAHDR)
+		rx_pr("VSIF CUVA HDR\n");
+	if (sig_type & E_VSIF_FILMMAKER)
+		rx_pr("VSIF filmmaker\n");
+	if (sig_type & E_VSIF_IMAX)
+		rx_pr("imax\n");
+	if (sig_type & E_VSIF_QMS_PLUS)
+		rx_pr("VSIF QMS Plus\n");
+	if (sig_type & E_VSIF_HDR_ALLM)
+		rx_pr("hdr10p_allm\n");
+	if (sig_type & E_VSIF_SSTM)
+		rx_pr("SSTM\n");
+	if (sig_type & E_VSIF_HDMI_ALLM)
+		rx_pr("hdmi_allm_mode\n");
+	if (sig_type & E_VSIF_DV_ALLM)
+		rx_pr("dv_allm_mode\n");
+	if (sig_type & E_EMP_VRR)
+		rx_pr("gaming VRR\n");
+	if (sig_type & E_EMP_QMS)
+		rx_pr("QMS\n");
+	if (sig_type & E_EMP_SBTM)
+		rx_pr("SBTM\n");
+	if (sig_type & E_EMP_AMDV)
+		rx_pr("EMP AMDV\n");
+	if (sig_type & E_EMP_CUVA)
+		rx_pr("EMP CUVA HDR\n");
+	if (sig_type & E_EMP_CVTEM)
+		rx_pr("DSC\n");
+	if (sig_type & E_EMP_QMS_PLUS)
+		rx_pr("EMP QMS Plus\n");
+	if (sig_type & E_AVI_FILMMAKER)
+		rx_pr("AVI filmmaker\n");
+}
+
 void dump_pktinfo_status(u8 port)
 {
-	rx_pr("vsi pkt:%d\n", rxpktsts[port].pkt_cnt_vsi);
-	rx_pr("spd pkt:%d\n", rxpktsts[port].pkt_cnt_spd);
-	rx_pr("emp pkt:%d\n", rxpktsts[port].pkt_cnt_emp);
-	rx_pr("drm pkt:%d\n", rxpktsts[port].pkt_cnt_drm);
+	if (!rx[port].rx_sig_type)
+		return;
+	rx_pr("****pkts_info_details:*****\n");
+	rx_pr("rx signal type: 0x%x，parsing result:\n", rx[port].rx_sig_type);
+	rx_sig_type_parse(rx[port].rx_sig_type);
 }
 
 void rx_get_freesync_info(u8 port)

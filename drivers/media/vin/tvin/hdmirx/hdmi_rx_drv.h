@@ -98,7 +98,9 @@
 //2025.06.20 use hrtimer to poll edid sts
 //2025.06.26 modify acr_ref_clk config method
 //2025.07.31 Fix t3x bright line issue on frl mode
-#define RX_DRV_VER "ver.2025/07/31"
+//2025.08.12 Fixed info_show function array out-of-bounds issue
+//2025.8.22 clean hdmirx log
+#define RX_DRV_VER "ver.2025/08/22"
 
 /*print type*/
 #define COR1_LOG	0x10000
@@ -1088,6 +1090,7 @@ struct rx_s {
 	u32 frl_double_check;
 	u32 frl_pix_cnt;
 	u8 frl_fdet_check_step;
+	u32 rx_sig_type;
 };
 
 struct reg_map {

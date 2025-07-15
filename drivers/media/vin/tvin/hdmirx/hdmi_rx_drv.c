@@ -1522,10 +1522,6 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop, u8 port)
 	rx_info.hdr10p_en = false;
 #endif
 	if (last_vsi_state != rx[port].vs_info_details.vsi_state) {
-		if (log_level & PACKET_LOG) {
-			rx_pr("!!!vsi state = %d\n",
-			      rx[port].vs_info_details.vsi_state);
-		}
 		if (rx[port].vs_info_details.vsi_state == E_VSI_NULL)
 			rx[port].vs_info_details.pkt_status = HDMIRX_PACKET_STATUS_STOPPED;
 		else
@@ -1956,6 +1952,7 @@ void hdmirx_get_hdr_info(struct tvin_frontend_s *fe, struct tvin_sig_property_s 
 		if (rx_is_dv_unique_drm(drm_pkt)) {
 			prop->dv_unique_drm_flag = true;
 			rx[port].drm_dv_flag = DV_UNIQUE_DRM;
+			rx[port].rx_sig_type |= E_DRM_AMDV;
 			memcpy(prop->hdr_info.hdr_data.rawdata, (u8 *)drm_pkt, 3);
 			memcpy(prop->hdr_info.hdr_data.rawdata + 3, (u8 *)drm_pkt + 4, 28);
 			return;
@@ -1964,6 +1961,16 @@ void hdmirx_get_hdr_info(struct tvin_frontend_s *fe, struct tvin_sig_property_s 
 		prop->hdr_info.hdr_data.length = drm_pkt->length;
 		prop->hdr_info.hdr_data.eotf = drm_pkt->des_u.tp1.eotf;
 		rx[port].hdr_info.hdr_type = drm_pkt->des_u.tp1.eotf;
+		switch (prop->hdr_info.hdr_data.eotf) {
+		case HDMIRX_HDR_MODE_HDR10:
+			rx[port].rx_sig_type |= E_DRM_HDR10;
+			break;
+		case HDMIRX_HDR_MODE_HLG:
+			rx[port].rx_sig_type |= E_DRM_HLG;
+			break;
+		default:
+			break;
+		}
 		prop->hdr_info.hdr_data.metadata_id =
 			drm_pkt->des_u.tp1.meta_des_id;
 		prop->hdr_info.hdr_data.primaries[0].x =

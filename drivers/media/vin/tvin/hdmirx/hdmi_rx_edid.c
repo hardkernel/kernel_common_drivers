@@ -6057,7 +6057,8 @@ void edid_rm_db_by_tag(u8 *p_edid, u16 tagid)
 	tag_offset = ret.pos[0];
 	cta_blk = tag_offset / EDID_BLK_SIZE;
 	if (!tag_offset) {
-		rx_pr("no this data blk in edid\n");
+		if (log_level & EDID_LOG)
+			rx_pr("no this data blk in edid %d\n", tagid);
 		return;
 	}
 	tag_len = BLK_LENGTH(p_edid[tag_offset]) + 1;
