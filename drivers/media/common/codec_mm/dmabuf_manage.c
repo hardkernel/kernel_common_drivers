@@ -59,6 +59,7 @@ static u32 force_secmem_v3;
 #define pr_enter() pr_inf("enter")
 
 #define SIZE_MB (1024 * 1024)
+#define ALLOC_ALIGN_SIZE (4096)
 
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
 #define DMABUF_MANAGE_BLOCK_MIN_SIZE_KB				(256 * 1024)
@@ -1092,21 +1093,27 @@ static long dmabuf_manage_get_dmabufinfo(unsigned long args)
 	struct dmabuf_manage_buffer info;
 	struct dmabuf_manage_block *block;
 	struct dma_buf *dbuf;
+	int fd = -1;
 
 	pr_enter();
+	memset(&info, 0, sizeof(struct dmabuf_manage_buffer));
 	if (copy_from_user((void *)&info, (void __user *)args, sizeof(info))) {
 		pr_error("copy_from_user failed\n");
 		goto error;
 	}
-	if (info.type == DMA_BUF_TYPE_INVALID)
+	if (info.type <= DMA_BUF_TYPE_INVALID || info.type >= DMA_BUF_TYPE_MAX)
 		goto error;
-	dbuf = dma_buf_get(info.fd);
+
+	fd = (int)info.fd;
+	if (fd < 0)
+		goto error;
+	dbuf = dma_buf_get(fd);
 	if (IS_ERR(dbuf))
 		goto error;
 	if (dbuf->priv && dbuf->ops == &dmabuf_manage_ops) {
 		block = dbuf->priv;
 		if (block->type != info.type)
-			goto error;
+			goto error_fd;
 		info.paddr = block->paddr;
 		info.size = block->size;
 		info.handle = block->handle;
@@ -1182,13 +1189,15 @@ static int dmabuf_manage_alloc_dmabuf(unsigned long args)
 	int fd_flags = O_RDWR | O_CLOEXEC;
 	struct dmabuf_manage_block *block;
 	struct dma_buf *dbuf;
+	int alloc_page = 0;
 
 	pr_enter();
+	memset(&info, 0, sizeof(struct dmabuf_manage_buffer));
 	res = copy_from_user((void *)&info, (void __user *)args, sizeof(info));
 	if (res)
 		goto error_copy;
-	if (info.size <= 0 || info.size % 4096 != 0) {
-		pr_error("Invalid size isn't 4K align %d", info.size);
+	if ((int)info.size <= 0 || info.size % ALLOC_ALIGN_SIZE != 0) {
+		pr_error("Invalid size %d", info.size);
 		goto error_copy;
 	}
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
@@ -1196,7 +1205,15 @@ static int dmabuf_manage_alloc_dmabuf(unsigned long args)
 		pr_error("kmalloc failed\n");
 		goto error_copy;
 	}
-	block->paddr = codec_mm_alloc_for_dma("dmabuf", info.size / PAGE_SIZE,
+
+	alloc_page = info.size / PAGE_SIZE;
+	if (alloc_page < 0) {
+		pr_error("Error size %d", info.size);
+		goto error_alloc_object;
+	} else if (alloc_page == 0) {
+		alloc_page = 1;
+	}
+	block->paddr = codec_mm_alloc_for_dma("dmabuf", alloc_page,
 		PAGE_SHIFT, CODEC_MM_FLAGS_DMA);
 	if (block->paddr <= 0)
 		goto error_alloc_object;
@@ -1233,13 +1250,14 @@ static int dmabuf_manage_extend_alloc_dmabuf(unsigned long args)
 	int fd_flags = O_RDWR | O_CLOEXEC;
 	struct dmabuf_manage_block *block;
 	struct dma_buf *dbuf;
+	int alloc_page = 0;
 
 	pr_enter();
 	res = copy_from_user((void *)&info, (void __user *)args, sizeof(info));
 	if (res)
 		goto error_copy;
-	if (info.size <= 0 || info.size % 4096 != 0) {
-		pr_error("Invalid size isn't 4K align");
+	if ((int)info.size <= 0 || info.size % ALLOC_ALIGN_SIZE != 0) {
+		pr_error("Invalid size %lld", info.size);
 		goto error_copy;
 	}
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
@@ -1248,7 +1266,15 @@ static int dmabuf_manage_extend_alloc_dmabuf(unsigned long args)
 		goto error_copy;
 	}
 	block->extend = 1;
-	block->extend_paddr = codec_mm_alloc_for_dma("dmabuf", info.size / PAGE_SIZE,
+
+	alloc_page = info.size / PAGE_SIZE;
+	if (alloc_page < 0) {
+		pr_error("Error size %lld", info.size);
+		goto error_alloc_object;
+	} else if (alloc_page == 0) {
+		alloc_page = 1;
+	}
+	block->extend_paddr = codec_mm_alloc_for_dma("dmabuf", alloc_page,
 		PAGE_SHIFT, CODEC_MM_FLAGS_DMA);
 	if (block->extend_paddr <= 0)
 		goto error_alloc_object;
