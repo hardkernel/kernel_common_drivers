@@ -249,6 +249,7 @@ AMLOGIC_COMMON_MODULES = [
     "//common_drivers/sound/soc:amlogic-snd-codec-sy6026l",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-t6d.ko",
     "//common_drivers/sound/soc:amlogic-snd-codec-t6d",
+    "sound/drivers/snd-aloop.ko",
 ]
 
 
