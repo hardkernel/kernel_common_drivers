@@ -150,18 +150,6 @@ enum lcd_chip_e {
 	LCD_CHIP_MAX,
 };
 
-enum lcd_type_e {
-	LCD_RGB = 0,
-	LCD_LVDS,
-	LCD_VBYONE,
-	LCD_MIPI,
-	LCD_MLVDS,
-	LCD_P2P,
-	LCD_BT656,
-	LCD_BT1120,
-	LCD_TYPE_MAX,
-};
-
 #define MOD_LEN_MAX        30
 struct lcd_basic_s {
 	char model_name[MOD_LEN_MAX];

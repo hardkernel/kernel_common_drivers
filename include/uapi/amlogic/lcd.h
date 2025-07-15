@@ -8,6 +8,24 @@
 
 #include <linux/types.h>
 
+enum lcd_type_e {
+	LCD_RGB = 0,
+	LCD_LVDS,
+	LCD_VBYONE,
+	LCD_MIPI,
+	LCD_MLVDS,
+	LCD_P2P,
+	LCD_EDP,
+	LCD_BT656,
+	LCD_BT1120,
+	LCD_TYPE_MAX,
+};
+
+struct aml_lcd_panel_info_s {
+	enum lcd_type_e lcd_type;
+	unsigned int status;
+};
+
 /* **********************************
  * HDR info define
  * **********************************
@@ -125,6 +143,8 @@ struct aml_lcd_tcon_ctrl_s {
 #define LCD_IOC_SET_SS                    0xc
 #define LCD_IOC_GET_SS                    0xd
 #define LCD_IOC_SET_TCON_BIN_DATA_FINISH  0xe
+#define LCD_IOC_GET_CONFIG_READY          0xf
+#define LCD_IOC_GET_PANEL_INFO            0x10
 
 /*
  * tcon dccd: use 0x20~0x2f
@@ -170,6 +190,10 @@ struct aml_lcd_tcon_ctrl_s {
 	_IOR(LCD_IOC_TYPE, LCD_IOC_GET_SS, struct aml_lcd_ss_ctl_s)
 #define LCD_IOC_CMD_SET_TCON_BIN_DATA_FINISH   \
 	_IOW(LCD_IOC_TYPE, LCD_IOC_SET_TCON_BIN_DATA_FINISH, unsigned int)
+#define LCD_IOC_CMD_GET_CONFIG_READY   \
+	_IOW(LCD_IOC_TYPE, LCD_IOC_GET_CONFIG_READY, unsigned int)
+#define LCD_IOC_CMD_GET_PANEL_INFO   \
+	_IOW(LCD_IOC_TYPE, LCD_IOC_GET_PANEL_INFO, struct aml_lcd_panel_info_s)
 
 #define TCON_IOC_CMD_SET_DCCD \
 	_IOW(LCD_IOC_TYPE, TCON_IOC_SET_DCCD, struct aml_lcd_dccd_config_s)

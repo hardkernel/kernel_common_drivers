@@ -1763,6 +1763,7 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct ioctl_phy_config_s *ioctl_phy_cfg = &ioctl_phy_config, ioctl_phy_usr;
 	unsigned int ss_level = 0xffffffff, ss_freq = 0xffffffff, ss_mode = 0xffffffff;
 	struct aml_lcd_ss_ctl_s ss_ctl = {0xffffffff, 0xffffffff, 0xffffffff};
+	struct aml_lcd_panel_info_s panel_info;
 	unsigned int temp, i = 0, lane_num;
 	int ret = 0;
 
@@ -1973,6 +1974,21 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (ss_mode <= 0xff)
 				pdrv->curr_dev->dev_cfg.timing.ss_mode = ss_mode;
 		}
+		break;
+	case LCD_IOC_GET_CONFIG_READY:
+		if (copy_to_user(argp, (const void *)&pdrv->probe_done, sizeof(unsigned int)))
+			ret = -EFAULT;
+		break;
+	case LCD_IOC_GET_PANEL_INFO:
+		if (!pdrv->curr_dev) {
+			ret = -EFAULT;
+			break;
+		}
+		panel_info.lcd_type = pdrv->curr_dev->dev_cfg.basic.lcd_type;
+		panel_info.status = !!(pdrv->status & LCD_STATE_POWER);
+		if (copy_to_user(argp, (const void *)&panel_info,
+				 sizeof(struct aml_lcd_panel_info_s)))
+			ret = -EFAULT;
 		break;
 	default:
 #ifdef CONFIG_AMLOGIC_LCD_TCON
