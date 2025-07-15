@@ -271,6 +271,7 @@ struct earc {
 	bool rx_spdifin_mute;
 	bool rx_parity_err;
 	bool hold_bus_flag;
+	bool shutdown;
 };
 
 static struct earc *s_earc;
@@ -892,6 +893,8 @@ static void earctx_update_attend_event(struct earc *p_earc,
 	unsigned long flags;
 	bool send = false;
 
+	if (p_earc->shutdown)
+		return;
 	spin_lock_irqsave(&p_earc->tx_lock, flags);
 	if (state) {
 		if (is_earc) {
@@ -3291,6 +3294,8 @@ static void send_uevent_work_func(struct work_struct *p_work)
 	struct earc *p_earc = container_of(p_work, struct earc, send_uevent_work.work);
 	enum attend_type type = earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
 
+	if (p_earc->shutdown)
+		return;
 	mutex_lock(&earc_mutex);
 	if (!p_earc->resumed)
 		earc_clock_enable();
@@ -3790,6 +3795,18 @@ static const struct dev_pm_ops meson_earc_pm_ops = {
 	.resume  = earc_platform_resume,
 };
 
+static void earc_platform_shutdown(struct platform_device *pdev)
+{
+	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
+
+	p_earc->shutdown = true;
+	if (p_earc->chipinfo->tx_enable)
+		devm_free_irq(p_earc->dev, p_earc->irq_earc_tx, p_earc);
+
+	if (p_earc->chipinfo->rx_enable)
+		devm_free_irq(p_earc->dev, p_earc->irq_earc_rx, p_earc);
+}
+
 struct platform_driver earc_driver = {
 	.driver = {
 		.name           = DRV_NAME,
@@ -3798,6 +3815,7 @@ struct platform_driver earc_driver = {
 	},
 	.probe = earc_platform_probe,
 	.remove = earc_platform_remove,
+	.shutdown = earc_platform_shutdown,
 };
 
 int __init earc_init(void)
