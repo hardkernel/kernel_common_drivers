@@ -1409,33 +1409,44 @@ static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 
 int ge2d_set_clut_table(struct ge2d_context_s *context, unsigned long args)
 {
-	struct ge2d_clut8_t clut8_table_t;
+	struct ge2d_clut8_t *clut8_table_t;
 	void __user *argp = (void __user *)args;
 	u32 *data;
 	int ret;
 
-	ret = copy_from_user(&clut8_table_t, (struct ge2d_clut8_t *)argp,
+	clut8_table_t = kmalloc(sizeof(*clut8_table_t), GFP_KERNEL);
+	if (!clut8_table_t)
+		return -ENOMEM;
+
+	ret = copy_from_user(clut8_table_t, (struct ge2d_clut8_t *)argp,
 				 sizeof(struct ge2d_clut8_t));
 	if (ret) {
 		ge2d_log_dbg("ge2d error: clut8_data, copy_from_user fail\n");
-		return -1;
+		kfree(clut8_table_t);
+		return -EFAULT;
 	}
-	if (clut8_table_t.count > 0 && clut8_table_t.count <= 256) {
+
+	if (clut8_table_t->count > 0 && clut8_table_t->count <= 256) {
 		/* memory is allocated only once when running here. */
 		if (!context->config.clut8_table.data) {
 			data = kcalloc(256, sizeof(u32), GFP_KERNEL);
-			if (!data)
-				return -1;
+			if (!data) {
+				kfree(clut8_table_t);
+				return -ENOMEM;
+			}
 			context->config.clut8_table.data = data;
 		}
 		memcpy(context->config.clut8_table.data,
-		       &clut8_table_t.data, clut8_table_t.count * sizeof(u32));
-		context->config.clut8_table.count = clut8_table_t.count;
+		       clut8_table_t->data, clut8_table_t->count * sizeof(u32));
+		context->config.clut8_table.count = clut8_table_t->count;
 	} else {
 		ge2d_log_dbg("ge2d error: clut8_count, out of range\n");
-		return -1;
+		kfree(clut8_table_t);
+		return -EINVAL;
 	}
-	return ret;
+
+	kfree(clut8_table_t);
+	return 0;
 }
 
 int ge2d_antiflicker_enable(struct ge2d_context_s *context,

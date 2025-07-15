@@ -2717,26 +2717,26 @@ static ssize_t store_ex_vsync_rdma(const struct class *class,
 static ssize_t rdma_irq_count_show(const struct class *cla,
 				       const struct class_attribute *attr, char *buf)
 {
-	int i;
-	char str_info[1024];
-	char chan_info[128];
+	int i, len = 0;
 	struct rdma_device_info *info = &rdma_info;
 
-	sprintf(str_info, "rdma_isr_count:%d\n", rdma_isr_count);
+	len += snprintf(buf + len, PAGE_SIZE - len,
+		"rdma_isr_count:%d\n", rdma_isr_count);
+
 	for (i = 1; i < rdma_meson_dev.channel_num; i++) {
 		if (info->rdma_ins[i].rdma_table_size) {
-			sprintf(chan_info,
-			"rdma handle=%d, cb irq_count=%d, empty_config=%d, rdma_config_count=%d",
+			len += snprintf(buf + len, PAGE_SIZE - len,
+				"rdma handle=%d, cb irq_count=%d, empty_config=%d, rdma_config_count=%d",
 				i, info->rdma_ins[i].irq_count,
 				info->rdma_ins[i].rdma_empty_config_count,
 				info->rdma_ins[i].rdma_config_count);
-			strcat(str_info, chan_info);
-			strcat(str_info, "\n");
+
+			if (len >= PAGE_SIZE)
+				break;
 		}
 	}
 
-	i = snprintf(buf, PAGE_SIZE, "%s\n", str_info);
-	return i;
+	return len;
 }
 
 static ssize_t rdma_mgr_trace_channel_show(const struct class *cla,
