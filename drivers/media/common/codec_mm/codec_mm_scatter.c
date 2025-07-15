@@ -608,7 +608,7 @@ static int codec_mm_scatter_cache_creat(struct codec_mm_scatter_mgt *smgt,
 	return -2;
 }
 
-static int codec_mm_scatter_cache_less_page(struct codec_mm_scatter_mgt *smgt,
+static int codec_mm_scatter_cache_page_free(struct codec_mm_scatter_mgt *smgt,
 					 struct codec_mm_scatter *cache,
 					 int free_page_num)
 {
@@ -663,7 +663,7 @@ static void codec_mm_scatter_cache_destroy(struct codec_mm_scatter_mgt *smgt,
 	codec_mm_queue_tail_unlock(cache->queue);
 	codec_mm_queue_head_unlock(cache->queue);
 	if (free_len)
-		codec_mm_scatter_cache_less_page(smgt, cache, free_len);
+		codec_mm_scatter_cache_page_free(smgt, cache, free_len);
 
 	/* free cache */
 	codec_mm_cache_queue_release(cache);
@@ -2140,19 +2140,6 @@ int codec_mm_scatter_free_unused_pages(struct codec_mm_scatter *mms)
 }
 EXPORT_SYMBOL(codec_mm_scatter_free_unused_pages);
 
-int codec_mm_scatter_less_pages(struct codec_mm_scatter *mms, int nums)
-{
-	int ret = 0;
-	int tail_pages_start = codec_mm_scatter_align_count(nums);
-
-	pr_dbg("%s tail_pages_start %d start_id %d\n",
-		__func__, tail_pages_start, nums);
-
-	ret = codec_mm_scatter_free_tail_pages_in(mms, tail_pages_start, 0, 2);
-	return ret;
-}
-EXPORT_SYMBOL(codec_mm_scatter_less_pages);
-
 /*
  *free all pages only
  *don't free scatter
@@ -3422,7 +3409,7 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 			/*wait time out can free.*/
 			mms = codec_mm_get_next_cache_scatter(smgt, NULL, 1);
 			if (mms) {/*only free some 1M cache*/
-				codec_mm_scatter_less_pages(mms, 256);
+				codec_mm_scatter_cache_page_free(smgt, mms, 256);
 			}
 		}
 	}
@@ -3451,7 +3438,7 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 	if (smgt->keep_size_PAGE == 0 && smgt->delay_free_on) {
 		mms = codec_mm_get_next_cache_scatter(smgt, NULL, 1);
 		if (mms) {/*only free some 1M cache*/
-			codec_mm_scatter_cache_less_page(smgt, mms, 256);
+			codec_mm_scatter_cache_page_free(smgt, mms, 256);
 		}
 	}
 }
