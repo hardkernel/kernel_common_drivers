@@ -25,6 +25,7 @@
 #define CODEC_DBG_DUMP_INFO		(0x40)
 #define CODEC_DBG_MEM_EXT_INFO		(0x80)
 #define CODEC_DBG_DBUF_REF_TRACE	(0x100)
+#define CODEC_DBG_DUMP_STACK		(0x200)
 
 extern u32 debug_mode;
 #define codec_dbg_level(args) ((args) & debug_mode)

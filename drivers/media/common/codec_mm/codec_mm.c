@@ -265,6 +265,7 @@ unsigned long cma_get_size(const struct cma *cma)
  * 0x40	dump info for clear
  * 0x80	scatter watermark info
  * 0x100	dmabuf ref trace
+ * 0x200	dump stack when allocation/free happens
  */
 u32 debug_mode;
 
@@ -1259,6 +1260,9 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	unsigned long flags;
 	u32 local_id = 0;
 
+	if (codec_dbg_level(CODEC_DBG_DUMP_INFO))
+		dump_stack();
+
 	if (secure_mem_ctrl && (memflags & CODEC_MM_FLAGS_TVP) &&
 		(memflags & CODEC_MM_FLAGS_FOR_TRY_PREALLOC)) {
 		bool no_check_inst_id = false;
@@ -1355,6 +1359,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		       memflags, mem->flags, align2n);
 		ATRACE_ASYNC_END("codec_mm_alloc", mem->local_id);
 		kfree(mem);
+		codec_mm_dbuf_walk(NULL);
 		dump_mem_infos(NULL);
 		if (mgt->tvp_enable)
 			dump_tvp_pool_info();
@@ -1439,6 +1444,9 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 	release_cb = (struct codec_mm_cb_s **)
 		vzalloc(sizeof(struct codec_mm_cb_s *) * (mem->release_cb_cnt + 1));
 
+	if (codec_dbg_level(CODEC_DBG_DUMP_INFO))
+		dump_stack();
+
 	spin_lock_irqsave(&mgt->lock, flags);
 	if (!codec_mm_valid_mm_locked(mem)) {
 		pr_err("codec mm not valid!\n");
@@ -1454,9 +1462,9 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 			mem->owner[i] = max_owner;
 	}
 
-	codec_pr_dbg(CODEC_DBG_TRACE_ALLOC_FREE, "mem_id [%d] %s free mem size %d at %lx from %d,index =%d\n",
+	codec_pr_dbg(CODEC_DBG_TRACE_ALLOC_FREE, "mem_id [%d] %s free mem size %d at %lx from %d,index =%d comm :%s pid:%d tgid:%d\n",
 		mem->mem_id, owner, mem->buffer_size, mem->phy_addr,
-		mem->from_flags, index);
+		mem->from_flags, index, current->comm, current->pid, current->tgid);
 
 	mem->owner[index] = NULL;
 	if (index == 0) {
