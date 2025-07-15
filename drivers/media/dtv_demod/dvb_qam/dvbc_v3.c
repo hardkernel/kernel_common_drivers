@@ -419,6 +419,20 @@ void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam, bool auto
 	}
 }
 
+void dvbc_improve_impulse_noise(struct aml_dtvdemod *demod, bool enable)
+{
+	if (enable) {
+		qam_write_reg(demod, 0x65, 0x710c);
+		qam_write_reg(demod, 0x70, 0x9132080);
+	} else {
+		qam_write_reg(demod, 0x65, 0x700c);
+		qam_write_reg(demod, 0x70, 0x2a132100);
+	}
+
+	PR_DVBC("%s enable: %d, 0x65: 0x%x, 0x70 0x%x\n", __func__, enable,
+		qam_read_reg(demod, 0x65), qam_read_reg(demod, 0x70));
+}
+
 void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 {
 	u32 clk_freq;
@@ -648,12 +662,6 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	qam_write_reg(demod, 0x65, 0x700c); // offset
 	qam_write_reg(demod, 0xb4, 0x32030);
 	qam_write_reg(demod, 0xb7, 0x3084);
-
-	if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
-		//QAM impulse noise
-		qam_write_reg(demod, 0x65, 0x410c);
-		qam_write_reg(demod, 0x70, 0x9132080);
-	}
 
 	// agc gain
 	qam_write_reg(demod, 0x24, (qam_read_reg(demod, 0x24) | (1 << 17)));

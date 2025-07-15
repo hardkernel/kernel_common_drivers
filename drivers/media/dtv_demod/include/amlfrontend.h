@@ -211,12 +211,13 @@
 /*  V3.7.005 improve dvbs bindscan(2) and adapter tuner (rt710/rda5815m) */
 /*  V3.7.006 improve T6W ATSC/ISDBT/DVBT2 performance */
 /*  V3.7.007 fix dvbt2 CICAM by increase ts clock */
-/*  V3.7.008 remove the use of cpu_after_eq */
+/*  V3.7.008 remove the use of cpu_after_eq which cause t6w isdbt unlock*/
 /*  V3.7.009 fix no snr in dvbc new driver */
 /*  V3.7.010 fix frontend compatibility issue */
 /*  V4.0.000 synchronize code from kernel5.15(V3.7.000-V3.7.010) */
 /*  V4.0.001 fix t5d DVB-T2 stuck issue */
 /*  V4.0.002 fix coverity issues */
+/*  V4.0.003 fix T6D/T6W dvbc probability missing channels caused by qam impuse noise */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -233,8 +234,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V4.0.002"
-#define DTVDEMOD_VER	"2025/07/07: /*  V4.0.002 "
+#define AMLDTVDEMOD_VER "V4.0.003"
+#define DTVDEMOD_VER	"2025/07/15: fix T6D/T6W dvbc probability missing channels"
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

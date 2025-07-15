@@ -847,6 +847,8 @@ int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 			}
 			PR_DBG("%s [id %d] [%d] >>>unlock<<<\n",
 				__func__, demod->id, c->frequency);
+			if (demod_chip_after_eq(DTVDEMOD_HW_T6D))
+				dvbc_improve_impulse_noise(demod, false);
 			break;
 		case 1:
 			*status = FE_LOCKED;
@@ -855,6 +857,8 @@ int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 			PR_DBG("%s [id %d] [%d] >>>lock<<< [qam %d]\n",
 				__func__, demod->id, c->frequency,
 				auto_qam ? demod->real_para.modulation : c->modulation);
+			if (demod_chip_after_eq(DTVDEMOD_HW_T6D))
+				dvbc_improve_impulse_noise(demod, true);
 			break;
 		case 2:
 			*status = 0;

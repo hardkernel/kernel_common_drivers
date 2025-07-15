@@ -479,6 +479,7 @@ void dvbc_cfg_tim_sweep_range(struct aml_dtvdemod *demod, enum dvbc_sym_speed sp
 void dvbc_cfg_sr_cnt(struct aml_dtvdemod *demod, enum dvbc_sym_speed spd);
 u32 dvbc_get_symb_rate(struct aml_dtvdemod *demod);
 void demod_dvbc_qam_reset(struct aml_dtvdemod *demod);
+void dvbc_improve_impulse_noise(struct aml_dtvdemod *demod, bool enable);
 void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 void dvbc_reg_initial_old(struct aml_dtvdemod *demod);
 int dvbc_isr_islock(void);
