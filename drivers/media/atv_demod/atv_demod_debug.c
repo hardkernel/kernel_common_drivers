@@ -99,6 +99,8 @@
 	DEBUGFS_CREATE_NODE(check_rssi, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(force_set, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(vfmt_cnt, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(pre_std, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(auddet_cnt, 0640, dentry, u32)\
 }
 
 /* name, mode, parent, data, fops, type */

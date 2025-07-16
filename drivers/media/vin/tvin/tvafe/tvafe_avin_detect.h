@@ -10,6 +10,13 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 
+/* 20241231: removed unnecessary reset */
+/* 20250108: close workqueue when release */
+/* 20250227: fix the problem of slow recognition of certain signals */
+/* 20250311: reconfig timer when release */
+/* 20250320: update release flow */
+/* 20250604: try format when status in; when status out, report no signal */
+#define AV_DETECT_VER "update release flow"
 /* avin debug control start */
 #define AVIN_NORMAL_DBG				BIT(0)
 #define AVIN_SIGNAL_DBG				BIT(1)
@@ -18,6 +25,7 @@
 /* avin debug control end */
 
 #define ANACTRL_CVBS_DETECT_CNTL 0x9f
+#define ANACTRL_CVBS_DETECT_CNTL_T6W 0x19f
 #define HHI_CVBS_DETECT_CNTL	0x2e
 #define AFE_DETECT_RSV3_BIT		31
 #define AFE_DETECT_RSV3_WIDTH	1
@@ -109,6 +117,7 @@
 /* add t3x */
 #define PADCTRL_ANALOG_I		0xf3
 #define PADCTRL_ANALOG_EN		0xf4
+#define AVIN_DETECT_DELAY		100
 
 #define CVBS0_EN_DIG_FUNC_BIT		1
 #define CVBS0_EN_DIG_FUNC_WIDTH		1
@@ -174,7 +183,8 @@ struct tvafe_avin_det_s {
 
 struct avin_detect_state_s {
 	unsigned int black_cnt;
-	unsigned int state;
+	enum tvafe_avin_status_e ch1_state;
+	enum tvafe_avin_status_e ch2_state;
 };
 enum avin_cpu_type {
 	AVIN_CPU_TYPE_TL1   = 3,
@@ -187,6 +197,7 @@ enum avin_cpu_type {
 	AVIN_CPU_TYPE_T3X   = 10,
 	AVIN_CPU_TYPE_TXHD2   = 11,
 	AVIN_CPU_TYPE_T6D   = 12,
+	AVIN_CPU_TYPE_T6W   = 13,
 	AVIN_CPU_TYPE_MAX,
 };
 
@@ -210,20 +221,19 @@ struct meson_avin_data {
 	unsigned int irq_filter;
 };
 
-void tvafe_cha1_SYNCTIP_close_config(void);
-void tvafe_cha2_SYNCTIP_close_config(void);
-void tvafe_cha1_detect_restart_config(void);
-void tvafe_cha2_detect_restart_config(void);
+void tvafe_avin_detect_ch1_dc_enable(bool en);
+void tvafe_avin_detect_ch2_dc_enable(bool en);
 void tvafe_avin_detect_ch1_anlog_enable(bool enable);
 void tvafe_avin_detect_ch2_anlog_enable(bool enable);
-unsigned int avin_read_analog_i(void);
+int tvafe_avin_init_resource(void);
 
 /*opened port,1:av1, 2:av2, 0:none av*/
 extern unsigned int avport_opened;
 /*0:in, 1:out*/
-extern unsigned int av1_plugin_state;
-extern unsigned int av2_plugin_state;
 extern bool tvafe_clk_status;
-extern bool detect_start;
+extern bool tvafe_start_flag;
+extern struct avin_detect_state_s *detect_state;
+extern unsigned int avin_detect_delay;
+extern unsigned int avin_detect_debug_val;
 #endif /* TVAFE_AVIN_DETECT_H_ */
 

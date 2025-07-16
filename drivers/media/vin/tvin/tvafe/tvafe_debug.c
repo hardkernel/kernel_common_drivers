@@ -173,7 +173,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->acc358_cnt:%d\n",
 		hw->acc358_cnt);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->secam_detected:%d\n",
-		hw->secam_detected);
+		hw->secam_acd_sts);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->secam_phase:%d\n",
 		hw->secam_phase);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->fsc_358:%d\n", hw->fsc_358);
@@ -239,7 +239,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("try_fmt_max_atv:%d\n", try_fmt_max_atv);
 	tvafe_pr_info("try_fmt_max_av:%d\n", try_fmt_max_av);
 	tvafe_pr_info("avout_en:%d\n", user_param->avout_en);
-	tvafe_pr_info("macrovision:%d\n", user_param->macrovision);
+	tvafe_pr_info("support macrovision:%d\n", user_param->macrovision);
 	tvafe_pr_info("tvafe_function_sel:%#x\n", devp->tvafe_function_sel);
 	tvafe_pr_info("tvafe version :  %s\n", TVAFE_VER);
 }
@@ -296,6 +296,8 @@ static ssize_t debug_store(struct device *dev,
 			devp->tvafe.cvd2.manual_fmt = TVIN_SIG_FMT_CVBS_PAL_CN;
 		} else if (!strncmp(buff + fmt_index, "secam", strlen("secam"))) {
 			devp->tvafe.cvd2.manual_fmt = TVIN_SIG_FMT_CVBS_SECAM;
+		} else if (!strncmp(buff + fmt_index, "n50", strlen("n50"))) {
+			devp->tvafe.cvd2.manual_fmt = TVIN_SIG_FMT_CVBS_NTSC_50;
 		} else if (!strncmp(buff + fmt_index, "null", strlen("null"))) {
 			devp->tvafe.cvd2.manual_fmt = TVIN_SIG_FMT_NULL;
 		} else {
@@ -498,6 +500,26 @@ static ssize_t debug_store(struct device *dev,
 			goto tvafe_store_err;
 		pr_info("[tvafe..]%s: set try_fmt_max_av = %d\n",
 			__func__, try_fmt_max_av);
+	} else if (!strncmp(buff, "wait_av", strlen("wait_av"))) {
+		if (kstrtouint(parm[1], 10, &wait_cnt_max_av) < 0)
+			goto tvafe_store_err;
+		pr_info("[tvafe..]%s: set wait_cnt_max_av = %d\n",
+			__func__, wait_cnt_max_av);
+	} else if (!strncmp(buff, "wait_atv", strlen("wait_atv"))) {
+		if (kstrtouint(parm[1], 10, &wait_cnt_max_atv) < 0)
+			goto tvafe_store_err;
+		pr_info("[tvafe..]%s: set wait_cnt_max_atv = %d\n",
+			__func__, wait_cnt_max_atv);
+	} else if (!strncmp(buff, "try_avin", strlen("try_avin"))) {
+		if (kstrtouint(parm[1], 10, &try_avin_max) < 0)
+			goto tvafe_store_err;
+		pr_info("[tvafe..]%s: set try_avin_max = %d\n",
+			__func__, try_avin_max);
+	} else if (!strncmp(buff, "try_atv", strlen("try_atv"))) {
+		if (kstrtouint(parm[1], 10, &try_atv_max) < 0)
+			goto tvafe_store_err;
+		pr_info("[tvafe..]%s: set try_atv_max = %d\n",
+			__func__, try_atv_max);
 	} else if (!strncmp(buff, "avout_en", strlen("avout_en"))) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 16, &user_param->avout_en) < 0)
@@ -513,13 +535,6 @@ static ssize_t debug_store(struct device *dev,
 		}
 		pr_info("[tvafe..]%s: tvafe_atv_search_channel = %d\n",
 			__func__, tvafe_atv_search_channel);
-	} else if (!strncmp(buff, "dbg_print", strlen("dbg_print"))) {
-		if (parm[1]) {
-			if (kstrtouint(parm[1], 16, &tvafe_dbg_print) < 0)
-				goto tvafe_store_err;
-		}
-		pr_info("[tvafe..]%s: tvafe_dbg_print = 0x%x\n",
-			__func__, tvafe_dbg_print);
 	} else if (!strncmp(buff, "print", strlen("print"))) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 16, &tvafe_dbg_print) < 0)
@@ -568,8 +583,6 @@ static ssize_t debug_store(struct device *dev,
 			pr_info("[tvafe]%s nostd_bypass_iir, ori val = %u\n",
 				__func__, user_param->nostd_bypass_iir);
 		}
-	} else if (!strncmp(parm[0], "tvafe_init", strlen("tvafe_init"))) {
-		tvafe_bringup_detect_signal(devp, TVIN_PORT_CVBS1);
 	} else if (!strncmp(parm[0], "low_amp_level",
 		   strlen("low_amp_level"))) {
 		if (parm[1]) {
@@ -598,11 +611,6 @@ static ssize_t debug_store(struct device *dev,
 			tvafe_reset_module();
 		else if (parm[0][5] == '1')
 			tvafe_cvd2_hold_rst();
-	} else if (!strncmp(parm[0], "enable_db_reg", strlen("enable_db_reg"))) {
-		if (parm[0][13] == '1')
-			enable_db_reg = 1;
-		else
-			enable_db_reg = 0;
 	} else {
 		tvafe_pr_info("[%s]:invalid command.\n", __func__);
 	}
@@ -659,7 +667,7 @@ static ssize_t debug_show(struct device *dev,
 
 static DEVICE_ATTR_RW(debug);
 
-static void tvafe_dumpmem_adc(struct tvafe_dev_s *devp)
+void tvafe_dumpmem_adc(struct tvafe_dev_s *devp)
 {
 	unsigned long mem_start, mem_end;
 	unsigned int i, n;
@@ -798,6 +806,45 @@ static int tvafe_dumpmem_save_buf(struct tvafe_dev_s *devp, const char *str)
 	return 0;
 }
 
+int tvafe_dumpmem_save_buf_user(struct tvafe_dev_s *devp, void *buf, size_t buf_size)
+{
+	unsigned int highmem_flag = 0;
+	unsigned long high_addr;
+	void *mapped_buf = NULL;
+	unsigned int block_count;
+	unsigned int i;
+
+	if (!buf || buf_size < devp->mem.size)
+		return -1;
+
+	highmem_flag = PageHighMem(phys_to_page(devp->mem.start));
+	pr_info("highmem_flag:%d\n", highmem_flag);
+
+	if (devp->cma_config_flag == 1 && highmem_flag != 0) {
+		if (buf_size % SZ_1M != 0)
+			return -1;
+		block_count = buf_size / SZ_1M;
+		pr_info("Copying %u 1MB blocks\n", block_count);
+
+		for (i = 0; i < block_count; i++) {
+			high_addr = devp->mem.start + i * SZ_1M;
+			mapped_buf = vdin_vmap(high_addr, SZ_1M);
+			if (!mapped_buf)
+				return -1;
+			pr_info("mapped_buf:0x%p for block %u\n", mapped_buf, i);
+			memcpy((char *)buf + (i * SZ_1M), mapped_buf, SZ_1M);
+			vdin_unmap_phyaddr(mapped_buf);
+		}
+	} else {
+		mapped_buf = phys_to_virt(devp->mem.start);
+		memcpy(buf, mapped_buf, devp->mem.size);
+	}
+
+	tvafe_pr_info("read mem 0x%lx (size 0x%x) to buffer done\n",
+		      devp->mem.start, devp->mem.size);
+	return 0;
+}
+
 static ssize_t dumpmem_store(struct device *dev,
 		struct device_attribute *attr, const char *buff, size_t len)
 {
@@ -856,10 +903,6 @@ static ssize_t reg_store(struct device *dev,
 	char *argv[3];
 
 	devp = dev_get_drvdata(dev);
-	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
-		tvafe_pr_err("tvafe haven't opened, error!!!\n");
-		return count;
-	}
 
 	buf_work = kstrdup(buff, GFP_KERNEL);
 	p = buf_work;
@@ -888,6 +931,10 @@ static ssize_t reg_store(struct device *dev,
 					addr = tmp;
 				else
 					break;
+				if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) && addr < TOP_BASE_ADD) {
+					tvafe_pr_err("tvafe haven't opened, error!!!\n");
+					return count;
+				}
 				value = R_APB_REG(addr << 2);
 				tvafe_pr_info("APB[0x%04x]=0x%08x\n",
 					addr, value);
@@ -906,6 +953,10 @@ static ssize_t reg_store(struct device *dev,
 					addr = tmp;
 				else
 					break;
+				if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) && addr < TOP_BASE_ADD) {
+					tvafe_pr_err("tvafe haven't opened, error!!!\n");
+					return count;
+				}
 				W_APB_REG(addr << 2, value);
 				if (addr << 2 == CVD2_CHROMA_SATURATION_ADJUSTMENT &&
 				    devp->tvafe.cvd2.config_fmt == TVIN_SIG_FMT_CVBS_PAL_I)
@@ -927,12 +978,20 @@ static ssize_t reg_store(struct device *dev,
 					end = tmp;
 				else
 					break;
+				if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) && addr < TOP_BASE_ADD) {
+					tvafe_pr_err("tvafe haven't opened, error!!!\n");
+					return count;
+				}
 				for (; addr <= end; addr++)
 					tvafe_pr_info("APB[0x%04x]=0x%08x\n",
 					addr, R_APB_REG(addr << 2));
 			}
 			break;
 		case 'D':
+			if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
+				tvafe_pr_err("tvafe haven't opened, error!!!\n");
+				return count;
+			}
 			tvafe_pr_info("dump TOP reg----\n");
 			for (addr = TOP_BASE_ADD;
 				addr <= (TOP_BASE_ADD + 0xb2); addr++)

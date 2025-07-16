@@ -18,18 +18,19 @@
 static DEFINE_MUTEX(aml_fe_hook_mutex);
 
 static hook_func_t aml_fe_hook_atv_status;
-static hook_func_t aml_fe_hook_hv_lock;
+static hook_func2_t aml_fe_hook_set_fmt;
 static hook_func_t aml_fe_hook_get_fmt;
-static hook_func1_t aml_fe_hook_set_mode;
+static hook_func2_t aml_fe_hook_set_mode;
 static hook_func_t aml_fe_hook_force_fmt;
 
-void aml_fe_hook_cvd(hook_func_t atv_mode, hook_func_t cvd_hv_lock,
-	hook_func_t get_fmt, hook_func1_t set_mode, hook_func_t force_fmt)
+void aml_fe_hook_cvd(hook_func_t atv_mode, hook_func2_t set_fmt,
+	hook_func_t get_fmt, hook_func2_t set_mode, hook_func_t force_fmt)
+
 {
 	mutex_lock(&aml_fe_hook_mutex);
 
 	aml_fe_hook_atv_status = atv_mode;
-	aml_fe_hook_hv_lock = cvd_hv_lock;
+	aml_fe_hook_set_fmt = set_fmt;
 	aml_fe_hook_get_fmt = get_fmt;
 	aml_fe_hook_set_mode = set_mode;
 	aml_fe_hook_force_fmt = force_fmt;
@@ -47,7 +48,7 @@ bool aml_fe_has_hook_up(void)
 	mutex_lock(&aml_fe_hook_mutex);
 
 	if (!aml_fe_hook_atv_status ||
-			!aml_fe_hook_hv_lock ||
+			!aml_fe_hook_set_fmt ||
 			!aml_fe_hook_get_fmt ||
 			!aml_fe_hook_set_mode ||
 			!aml_fe_hook_force_fmt)
@@ -58,6 +59,22 @@ bool aml_fe_has_hook_up(void)
 	mutex_unlock(&aml_fe_hook_mutex);
 
 	return state;
+}
+
+int aml_fe_hook_call_get_atv_status(void)
+{
+	//0:In search.
+	//1:Not find
+	int status = 0;
+
+	mutex_lock(&aml_fe_hook_mutex);
+
+	if (aml_fe_hook_atv_status)
+		status = aml_fe_hook_atv_status();
+
+	mutex_unlock(&aml_fe_hook_mutex);
+
+	return status;
 }
 
 bool aml_fe_hook_call_get_fmt(int *fmt)
@@ -96,7 +113,28 @@ bool aml_fe_hook_call_force_fmt(int *fmt)
 	return state;
 }
 
-bool aml_fe_hook_call_set_mode(bool mode)
+bool aml_fe_hook_call_set_fmt(int fmt)
+{
+	bool state = false;
+
+	mutex_lock(&aml_fe_hook_mutex);
+
+	if (aml_fe_hook_set_fmt) {
+		aml_fe_hook_set_fmt(fmt);
+		state = true;
+	} else {
+		state = false;
+	}
+
+	mutex_unlock(&aml_fe_hook_mutex);
+
+	return state;
+}
+
+//1: demod ch lock
+//0: demod not find
+//2: demod set pal-dk, default is ntsc-m
+bool aml_fe_hook_call_set_mode(int mode)
 {
 	bool state = false;
 

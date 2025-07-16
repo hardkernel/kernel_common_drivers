@@ -22,6 +22,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/of_irq.h>
 #include <linux/compat.h>
+#include <linux/of_address.h>
 
 /* #include <linux/mutex.h> */
 #include <linux/mm.h>
@@ -1835,11 +1836,11 @@ int vbi_alloc_memory(void)
 		/* remap the package vbi hardware address for our conversion */
 		vbi_dev->pac_addr_start = phys_to_virt(vbi_dev->mem_start);
 		/*ioremap_nocache(vbi_dev->mem_start, vbi_dev->mem_size); */
-		memset(vbi_dev->pac_addr_start, 0, vbi_dev->mem_size);
 		if (!vbi_dev->pac_addr_start) {
 			tvafe_pr_err(": ioremap error!!!\n");
 			return -1;
 		}
+		memset(vbi_dev->pac_addr_start, 0, vbi_dev->mem_size);
 		tvafe_pr_info("vbi: reserved memory phy start_addr is:0x%lx, size is:0x%x\n",
 				vbi_dev->mem_start, vbi_dev->mem_size);
 	} else {
@@ -1849,6 +1850,10 @@ int vbi_alloc_memory(void)
 		vbi_mem_flag = VBI_MEM_CODEC_MALLOC;
 		vbi_dev->mem_start =
 			codec_mm_alloc_for_dma("tvfe_vbi", vbi_dev->mem_size / PAGE_SIZE, 0, flags);
+		if (vbi_dev->mem_start == 0) {
+			tvafe_pr_err("vbi:Failed to allocate memory from codec_mm!!!\n");
+			return -1;
+		}
 		/* remap the package vbi hardware address for our conversion */
 		vbi_dev->pac_addr_start =
 			(unsigned char *)codec_mm_vmap(vbi_dev->mem_start, vbi_dev->mem_size);
@@ -1868,7 +1873,7 @@ int vbi_alloc_memory(void)
 	vbi_dev->mem_size <<= 4;
 	vbi_mem_start = vbi_dev->mem_start;
 	vbi_dev->pac_addr_end = vbi_dev->pac_addr_start + vbi_dev->mem_size - 1;
-	tvafe_pr_info(": vbi_dev->pac_addr_start=0x%p, end:0x%p, size:0x%x\n",
+	tvafe_pr_info(": vbi_dev->pac_addr_start=0x%px, end:0x%px, size:0x%x\n",
 		vbi_dev->pac_addr_start, vbi_dev->pac_addr_end,
 		vbi_dev->mem_size);
 	vbi_dev->pac_addr = vbi_dev->pac_addr_start;
@@ -1885,6 +1890,7 @@ int vbi_release_memory(void)
 
 	if (vbi_mem_flag == VBI_MEM_MALLOC && vbi_dev->pac_addr_start) {
 		kfree(vbi_dev->pac_addr_start);
+		vbi_dev->pac_addr_start = NULL;
 	} else if (vbi_mem_flag == VBI_MEM_CODEC_MALLOC && vbi_dev->mem_start) {
 		if (vbi_dev->pac_addr_start) {
 			codec_mm_unmap_phyaddr(vbi_dev->pac_addr_start);
@@ -2558,8 +2564,7 @@ static DEVICE_ATTR_RW(debug);
 
 static int vbi_probe(struct platform_device *pdev)
 {
-	int ret = 0;
-	struct resource *res;
+	int ret = 0, res = 0;
 	struct vbi_dev_s *vbi_dev;
 
 	ret = alloc_chrdev_region(&vbi_id, 0, 1, VBI_NAME);
@@ -2646,23 +2651,20 @@ static int vbi_probe(struct platform_device *pdev)
 	vbi_dev->slicer->state = VBI_STATE_FREE;
 	vbi_dev->vbi_function_sel |= VBI_BYPASS_CHECK_DATA;//close check weather has teletext
 
-	vbi_dev->vs_irq = of_irq_get_byname(pdev->dev.of_node, "vsync_int");
-	if (vbi_dev->vs_irq <= 0) {
-		/* get irq from resource */
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-		if (!res) {
-			tvafe_pr_err("%s: can't get vsync irq resource\n", __func__);
-			ret = -ENXIO;
-			goto fail_get_resource_irq;
-		}
-		vbi_dev->vs_irq = res->start;
+	/* get irq from resource */
+	res = platform_get_irq(pdev, 0);
+	if (!res) {
+		tvafe_pr_err("%s: can't get irq resource\n", __func__);
+		ret = -ENXIO;
+		goto fail_get_resource_irq;
 	}
+	vbi_dev->vs_irq = res;
 
 	snprintf(vbi_dev->irq_name, sizeof(vbi_dev->irq_name),
 			"vbi-irq");
 	tvafe_pr_info("vbi irq: %d\n", vbi_dev->vs_irq);
 
-	tvafe_pr_info(": driver probe ok\n");
+	tvafe_pr_info("%s probe ok\n", __func__);
 	return 0;
 
 fail_get_resource_irq:
@@ -2711,6 +2713,8 @@ static void vbi_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int vbi_drv_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	vbi_release_memory();
+	tvafe_pr_info("vbi suspend ok.\n");
 	return 0;
 }
 

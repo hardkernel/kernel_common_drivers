@@ -401,6 +401,8 @@
 #define FRONT_LPF0_VBI_WID             8
 
 #define ACD_REG_28                    ((ACD_BASE_ADD + 0x28) << 2)
+#define ACD_SYNC_DELAY_BIT			   16
+#define ACD_SYNC_DELAY_WID			   6
 #define ACD_CHROMA_MODE_BIT            14
 #define ACD_CHROMA_MODE_WID            2
 #define ACD_DEBYPASS_BIT               13

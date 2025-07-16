@@ -18,6 +18,7 @@
 #include "tvafe.h"
 #include "tvafe_regs.h"
 #include "tvafe_cvd.h"
+#include "tvafe_avin_detect.h"
 #include "tvafe_debug.h"
 #include "tvafe_general.h"
 /***************************Local defines**************************/
@@ -31,6 +32,7 @@
 #define VAFE_CLK_EN_WIDTH		1
 #define VAFE_CLK_SELECT			24
 #define VAFE_CLK_SELECT_WIDTH	2
+static DEFINE_SPINLOCK(tvafe_rst_lock);
 
 /* TOP */
 static const unsigned int cvbs_top_reg_default[][2] = {
@@ -339,14 +341,10 @@ int tvafe_adc_pin_mux(enum tvafe_adc_ch_e adc_ch)
 	if (adc_ch == TVAFE_ADC_CH_0) {
 		W_APB_BIT(TVFE_VAFE_CTRL1, 1,
 			  VAFE_IN_SEL_BIT, VAFE_IN_SEL_WID);
-		if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TL1)
-			W_APB_BIT(TVFE_VAFE_CTRL2, 3, 4, 3);
 
 	} else if (adc_ch == TVAFE_ADC_CH_1) {
 		W_APB_BIT(TVFE_VAFE_CTRL1, 2,
 			  VAFE_IN_SEL_BIT, VAFE_IN_SEL_WID);
-		if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TL1)
-			W_APB_BIT(TVFE_VAFE_CTRL2, 5, 4, 3);
 
 	} else if (adc_ch == TVAFE_ADC_CH_2) {
 		W_APB_BIT(TVFE_VAFE_CTRL1, 3,
@@ -414,8 +412,6 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 	unsigned int i = 0;
 
 	/**disable auto mode clock**/
-	if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TL1)
-		W_HIU_REG(HHI_TVFE_AUTOMODE_CLK_CNTL, 0);
 
 	/** enable tv_decoder mem clk **/
 	if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TM2_B)
@@ -466,9 +462,6 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 	}
 	/* init some variables  */
 	cvd2->vd_port = port;
-
-	/* set cvd2 default format to pal-i */
-	tvafe_cvd2_try_format(cvd2, mem, TVIN_SIG_FMT_CVBS_PAL_I);
 }
 
 void tvafe_enable_avout(enum tvin_port_e port, bool enable)
@@ -507,12 +500,6 @@ void tvafe_init_reg(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2_mem_s *mem,
 	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 
 	if (IS_TVAFE_SRC(port)) {
-#ifdef CRYSTAL_25M
-		if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TL1)
-			/* can't write !!! */
-			W_HIU_REG(HHI_VAFE_CLKIN_CNTL, 0x703);
-#endif
-
 #if (defined(CONFIG_AMLOGIC_ADC_DOUBLE_SAMPLING_FOR_CVBS) && defined(CRYSTAL_24M))
 		if (!IS_TVAFE_ATV_SRC(port)) {
 			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0xa92a2110);
@@ -559,6 +546,9 @@ void tvafe_set_apb_bus_err_ctrl(void)
  */
 void tvafe_reset_module(void)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&tvafe_rst_lock, flags);
 	pr_info("%s: reset module\n", __func__);
 	W_APB_BIT(TVFE_RST_CTRL, 1, DCLK_RST_BIT, DCLK_RST_WID);
 	W_APB_BIT(TVFE_RST_CTRL, 0, DCLK_RST_BIT, DCLK_RST_WID);
@@ -566,6 +556,7 @@ void tvafe_reset_module(void)
 	/*for greenscreen on repeatedly power on/off*/
 	W_APB_BIT(TVFE_RST_CTRL, 1, SAMPLE_OUT_RST_BIT, SAMPLE_OUT_RST_WID);
 	W_APB_BIT(TVFE_RST_CTRL, 0, SAMPLE_OUT_RST_BIT, SAMPLE_OUT_RST_WID);
+	spin_unlock_irqrestore(&tvafe_rst_lock, flags);
 }
 
 void tvafe_reg_setb(void __iomem *reg, unsigned int value,
@@ -661,35 +652,23 @@ void tvafe_enable_module(bool enable)
 /*
  * tvafe power control of the module
  */
-static void tvafe_top_enable_module(bool enable)
+bool tvafe_get_av_state(void)
 {
 	/* disable */
-	if (!enable) {
-		W_APB_BIT(TVFE_VAFE_CTRL1, 0,
-			  VAFE_PGA_EN_BIT, VAFE_PGA_EN_WID);
-	}
-	W_APB_BIT(TVFE_TOP_CTRL, 0, DCLK_ENABLE_BIT, DCLK_ENABLE_WID);
-	tvafe_pr_info("reset module\n");
-	W_APB_BIT(TVFE_RST_CTRL, 1, DCLK_RST_BIT, DCLK_RST_WID);
-	W_APB_BIT(TVFE_RST_CTRL, 0, DCLK_RST_BIT, DCLK_RST_WID);
-}
+	bool ret = false;
 
-static void tvafe_top_init_reg(enum tvin_port_e port)
-{
-	W_APB_BIT(TVFE_TOP_CTRL, 1, DCLK_ENABLE_BIT, DCLK_ENABLE_WID);
-	if (IS_TVAFE_AVIN_SRC(port)) {
-		if (port == TVIN_PORT_CVBS1)
-			W_APB_REG(TVFE_VAFE_CTRL1, 0x0000110e);
+	if ((avport_opened & 0x03) == TVAFE_PORT_AV1) {
+		if (av_dev->report_data_s[0].status == TVAFE_AVIN_STATUS_IN)
+			ret = true;
 		else
-			W_APB_REG(TVFE_VAFE_CTRL1, 0x0000210e);
-	}
-	tvafe_pr_info("%s ok.\n", __func__);
+			ret = false;
+	} else if ((avport_opened & 0x03) == TVAFE_PORT_AV2) {
+		if (av_dev->report_data_s[1].status == TVAFE_AVIN_STATUS_IN)
+			ret = true;
+		else
+			ret = false;
 }
 
-void white_pattern_pga_reset(enum tvin_port_e port)
-{
-	tvafe_top_enable_module(false);
-	tvafe_top_init_reg(port);
-	W_APB_BIT(TVFE_CLAMP_INTF, 1, CLAMP_EN_BIT, CLAMP_EN_WID);
+	return ret;
 }
 

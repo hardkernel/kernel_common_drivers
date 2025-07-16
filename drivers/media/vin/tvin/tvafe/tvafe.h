@@ -41,7 +41,16 @@
 /* 20230609: chip bringup */
 /* 20230804: atv add filter format and set saturation fail */
 /* 20241007: wss function optimization */
-#define TVAFE_VER "20241007: wss function optimization"
+/* 20241105: fmt detection optimization */
+/* 20241217: removed unnecessary reset */
+/* 20241227: modify pal-n adc setting. fix double shadow issue */
+/* 20250115: adjust the image positions of various formats */
+/* 20250317: fix white field recognition problem */
+/* 20250604: remove softreset in av; try manual fmt when manual fmt is not null */
+/* 20250618: return no signal when entering a empty channel */
+/* 20250625: ATV snow function protect */
+/* 20250711: No skip frame when ATV searching */
+#define TVAFE_VER "20250711: No skip frame when ATV searching"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
@@ -88,14 +97,19 @@ struct tvafe_info_s {
 extern bool disable_api;
 extern bool force_stable;
 extern bool tvafe_atv_search_channel;
-extern bool enable_db_reg;
+extern bool tvafe_signal_stable;
+extern bool tvafe_mode;
+extern bool demod_is_pal;
+extern struct tvafe_avin_det_s *av_dev;
 
-extern unsigned int force_nostd;
+extern enum tvafe_no_std_config_e force_nostd;
 
 #define TVAFE_DBG_NORMAL		BIT(0)
 #define TVAFE_DBG_ISR			BIT(4)
 #define TVAFE_DBG_SMR			BIT(8)
 #define TVAFE_DBG_SMR2			BIT(9)
+#define TVAFE_DBG_SMR3			BIT(10)
+#define TVAFE_DBG_SMR4			BIT(11)
 #define TVAFE_DBG_NOSTD			BIT(12)
 #define TVAFE_DBG_NOSTD2		BIT(13)
 #define TVAFE_DBG_AUTO_VS		BIT(14)
@@ -183,6 +197,19 @@ struct tvafe_dev_s {
 	u8 tvafe_dbg;
 };
 
+struct tvafe_image_position_s {
+	int cvd_hstart;
+	int cvd_hwidth;
+	int cvd_vstart;
+	int cvd_vheight;
+	int acd_delay;
+	int acd_debypass;
+	int acd_af_delay;
+	int acd_hstart;
+	int acd_hend;
+	int acd_vstart;
+	int acd_vend;
+};
 bool tvafe_get_snow_cfg(void);
 void tvafe_set_snow_cfg(bool cfg);
 

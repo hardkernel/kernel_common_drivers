@@ -7,11 +7,18 @@
 #define __ATV_DEMOD_EXT_H__
 
 /* This module is atv demod interacts with other modules */
+enum demod_set_mode {
+	CH_IN_PLAY = 0,
+	CH_IN_SEARCH = 1,
+	DEMOD_IS_PAL = 2,
+};
 
-extern bool aml_fe_has_hook_up(void);
-extern bool aml_fe_hook_call_get_fmt(int *fmt);
+bool aml_fe_has_hook_up(void);
+bool aml_fe_hook_call_get_fmt(int *fmt);
+bool aml_fe_hook_call_set_fmt(int fmt);
 bool aml_fe_hook_call_force_fmt(int *fmt);
-extern bool aml_fe_hook_call_set_mode(bool mode);
+bool aml_fe_hook_call_set_mode(int mode);
+int aml_fe_hook_call_get_atv_status(void);
 
 extern void atvdemod_power_switch(bool on);
 

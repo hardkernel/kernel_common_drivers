@@ -727,6 +727,8 @@ struct vdin_dump_afbc_buf_arg {
 #define TVIN_IOC_S_AFE_ATV_SEARCH  _IOW(_TM_T, 0x29, unsigned int)
 #define TVIN_IOC_G_VDIN_GET_HIST       _IOW(_TM_T, 0x30, struct vdin_hist_s)
 #define TVIN_IOC_G_VDIN_STOP_HIST       _IO(_TM_T, 0x31)
+#define TVIN_IOC_S_AFE_IMG_POS  _IOW(_TM_T, 0x32, struct tvafe_image_position_s)
+#define TVIN_IOC_S_AFE_DUMP  _IO(_TM_T, 0x33)
 
 #endif
 
