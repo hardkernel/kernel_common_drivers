@@ -74,7 +74,6 @@ static u32 wakeup_src;
 static struct sock *g_sk;
 static int g_mdnsoffload_result;
 
-//#define DEBUG_MDNS
 #define MDNS_LIST_CRITERIA_MAX          8
 #define MDNS_RAW_DATA_LENGTH_MAX        492
 #define MDNS_QNAME_LENGTH_MAX           80
@@ -122,16 +121,6 @@ enum passthrough_behavior_enum {
 	DROP_ALL,
 	PASSTHROUGH_LIST,
 };
-
-#ifdef DEBUG_MDNS
-//_googlecast._tcp.local
-static u8 passthrough_qname_test[] = {
-	0x0b, 0x5f,
-	0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x63, 0x61,
-	0x73, 0x74, 0x04, 0x5f, 0x74, 0x63, 0x70, 0x05,
-	0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x00
-};
-#endif
 
 static int handle_offload_msg(unsigned char *puc, const char *mode);
 static u8 set_mdns_notify_bl30(int flag);
@@ -465,45 +454,51 @@ void amlogic_wol_remove(void)
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_remove);
 
-static inline u8 mdns_set_offload_state(u8 enable)
+static u8 mdns_set_offload_state(u8 enable)
 {
-	u8 ret;
+	u8 ret = 0;
 
 	__mbox_data_write(DATA_TYPE_OFFLOADSTATE, &enable, 1);
 	__mbox_data_read(DATA_TYPE_OFFLOADSTATE, &ret, 1);
 	return ret;
 }
 
-static inline void mdns_remove_response(int record_key)
+static void mdns_remove_response(int record_key)
 {
 	__mbox_data_write(DATA_TYPE_RECORD_KEY, &record_key, 4);
 	__mbox_notify(DATA_TYPE_REMOVE_RESPONSE);
 }
 
-static inline void mdns_get_reset_hitcount(int record_key, int *hit_counter)
+static int __maybe_unused mdns_get_reset_hitcount(int record_key)
 {
+	int hit_counter = -1;
+
 	__mbox_data_write(DATA_TYPE_RECORD_KEY, &record_key, 4);
-	__mbox_data_read(DATA_TYPE_RESET_HITCOUNT, hit_counter, 4);
+	__mbox_data_read(DATA_TYPE_RESET_HITCOUNT, &hit_counter, 4);
+	return hit_counter;
 }
 
-static inline void mdns_get_reset_misscount(int *miss_counter)
+static int __maybe_unused mdns_get_reset_misscount(void)
 {
-	__mbox_data_read(DATA_TYPE_RESET_MISSCOUNT, miss_counter, 4);
+	int miss_counter = -1;
+
+	__mbox_data_read(DATA_TYPE_RESET_MISSCOUNT, &miss_counter, 4);
+	return miss_counter;
 }
 
-static inline void mdns_set_passthrough_behavior(u8 behavior)
+static void __maybe_unused mdns_set_passthrough_behavior(u8 behavior)
 {
 	__mbox_data_write(DATA_TYPE_PASST_BEHAVIOR, &behavior, 1);
 }
 
-static inline void mdns_reset_all(void)
+static void __maybe_unused mdns_reset_all(void)
 {
 	__mbox_notify(DATA_TYPE_RESET_ALL);
 }
 
-static inline int mdns_get_mdns_frame(u8 *buf, u16 buf_len)
+static int mdns_get_mdns_frame(u8 *buf, u16 buf_len)
 {
-	u16 frame_size;
+	u16 frame_size = 0;
 
 	__mbox_data_read(DATA_TYPE_MDNS_FRAME_SIZE, &frame_size, 1);
 	__mbox_data_read(DATA_TYPE_MDNS_FRAME_INFO, buf,
@@ -516,7 +511,7 @@ static int mdns_add_response(u8 *offload_data, u16 offload_size,
 			      struct match_criteria *criteria_data,
 			      u8 criteria_size, u16 web_port, u16 srv_port)
 {
-	int ret;
+	int ret = -1;
 	struct mdns_protocol_data protocol_data;
 
 	protocol_data.hit_counter = 0;
@@ -530,12 +525,11 @@ static int mdns_add_response(u8 *offload_data, u16 offload_size,
 	memcpy(protocol_data.raw_offload_packet, offload_data, protocol_data.raw_len);
 
 	__mbox_data_write(DATA_TYPE_ADD_RESPONSE, &protocol_data, sizeof(protocol_data));
-	__mbox_data_read(DATA_TYPE_ADD_RESPONSE, &ret, 4);
+	__mbox_data_read(DATA_TYPE_RECORD_KEY, &ret, 4);
 	return ret;
 }
 
-#ifdef DEBUG_MDNS
-static u8 mdns_add_passthrough(u8 *qname, u8 len)
+static u8 __maybe_unused mdns_add_passthrough(u8 *qname, u8 len)
 {
 	u8 ret = 0;
 	struct mdns_passthrough passthrough_data;
@@ -549,7 +543,7 @@ static u8 mdns_add_passthrough(u8 *qname, u8 len)
 	return ret;
 }
 
-static void mdns_remove_passthrough(u8 *qname, u8 len)
+static void __maybe_unused mdns_remove_passthrough(u8 *qname, u8 len)
 {
 	struct mdns_passthrough passthrough_data;
 
@@ -559,7 +553,6 @@ static void mdns_remove_passthrough(u8 *qname, u8 len)
 
 	__mbox_data_write(DATA_TYPE_REMOVE_PASST, &passthrough_data, sizeof(passthrough_data));
 }
-#endif
 
 void mdns_netlink_recv_msg(struct sk_buff *skb)
 {
@@ -690,22 +683,16 @@ static u8 set_mdns_notify_bl30(int flag)
 {
 	int ret;
 	u8 set_ret;
-	int miss_counter = 1;
-	int hit_counter = 1;
-	int record_key = 1;
+	int miss_counter;
+	int hit_counter;
+	int record_key = 0;
 	u8 behavior = PASSTHROUGH_LIST;
 	char buf[1024] = { 0 };
 
 	if (flag) {
-#ifdef DEBUG_MDNS
-		mdns_reset_all();
-		mdns_remove_passthrough(passthrough_qname_test,
-					ARRAY_SIZE(passthrough_qname_test));
-		mdns_add_passthrough(passthrough_qname_test, ARRAY_SIZE(passthrough_qname_test));
-#endif
 		mdns_set_passthrough_behavior(behavior);
-		mdns_get_reset_misscount(&miss_counter);
-		mdns_get_reset_hitcount(record_key, &hit_counter);
+		miss_counter = mdns_get_reset_misscount();
+		hit_counter = mdns_get_reset_hitcount(record_key);
 		set_ret = mdns_set_offload_state(1);
 	} else {
 		set_ret = mdns_set_offload_state(0);
