@@ -761,7 +761,9 @@ static struct uart_driver meson_uart_driver = {
 };
 
 #ifdef CONFIG_HIBERNATION
-static u32 save_mode;
+static u32 uart_reg_ctrl;
+static u32 uart_reg_misc;
+static u32 uart_reg_reg5;
 
 static int meson_uart_freeze(struct device *dev)
 {
@@ -771,9 +773,13 @@ static int meson_uart_freeze(struct device *dev)
 	pdev = to_platform_device(dev);
 	port = platform_get_drvdata(pdev);
 
-	save_mode = readl_relaxed(port->membase + AML_UART_CONTROL);
+	uart_reg_ctrl = readl_relaxed(port->membase + AML_UART_CONTROL);
+	uart_reg_misc = readl_relaxed(port->membase + AML_UART_MISC);
+	uart_reg_reg5 = readl_relaxed(port->membase + AML_UART_REG5);
 
-	pr_debug("uart freeze, mode: %x\n", save_mode);
+	pr_debug("uart freeze, uart_reg_ctrl = 0x%x\n", uart_reg_ctrl);
+	pr_debug("uart freeze, uart_reg_misc = 0x%x\n", uart_reg_misc);
+	pr_debug("uart freeze, uart_reg_reg5 = 0x%x\n", uart_reg_reg5);
 
 	return 0;
 }
@@ -791,8 +797,14 @@ static int meson_uart_restore(struct device *dev)
 	pdev = to_platform_device(dev);
 	port = platform_get_drvdata(pdev);
 
-	writel_relaxed(save_mode, port->membase + AML_UART_CONTROL);
-	pr_debug("uart restore, mode: %x\n", save_mode);
+	writel_relaxed(uart_reg_ctrl, port->membase + AML_UART_CONTROL);
+	writel_relaxed(uart_reg_misc, port->membase + AML_UART_MISC);
+	writel_relaxed(uart_reg_reg5, port->membase + AML_UART_REG5);
+
+	pr_debug("uart restore, uart_reg_ctrl = 0x%x\n", uart_reg_ctrl);
+	pr_debug("uart restore, uart_reg_misc = 0x%x\n", uart_reg_misc);
+	pr_debug("uart restore, uart_reg_reg5 = 0x%x\n", uart_reg_reg5);
+
 	return 0;
 }
 
