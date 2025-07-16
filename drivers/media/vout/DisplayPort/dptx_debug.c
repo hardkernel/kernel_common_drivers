@@ -63,29 +63,23 @@ static ssize_t dptx_act_timing_info_print(struct dptx_drv_s *dptx, char *buf)
 	return len;
 }
 
-static ssize_t dptx_link_cfg_info_print(struct dptx_drv_s *dptx, char *buf)
+static ssize_t dptx_link_cfg_info_print(struct dptx_drv_s *dptx, u8 port, char *buf)
 {
 	u32 len = 0, n;
 
 	n = dptx_debug_info_len(len);
 	len += snprintf(buf + len, n,
 		"LINK status:\n"
-		"  max_lane_count: %u\n"
-		"  max_link_rate : %u\n"
-		"  TPS_support   : %u\n"
-		"  DACP_support  : %u\n"
-		"  training_mode : %u\n"
-		"  sync_clk_mode : %u\n"
-		"  lane_count    : %u\n"
-		"  link_rate     : %u\n\n",
-		dptx->link_cfg.max_lane_count,
-		dptx->link_cfg.max_link_rate,
-		dptx->link_cfg.TPS_support,
-		dptx->link_cfg.DACP_support,
-		dptx->link_cfg.training_mode,
-		dptx->link_cfg.sync_clk_mode,
-		dptx->link_cfg.lane_count,
-		dptx->link_cfg.link_rate);
+		"max_link        %u lane %u MHz\n"
+		"act_link        %u lane %u MHz\n"
+		"DACP_support    %u\n"
+		"training_mode   %u\n"
+		"sync_clk_mode   %u\n",
+		dptx->sink.link[port]->max_lane_count, dptx->sink.link[port]->max_link_rate * 270,
+		dptx->sink.link[port]->lane_count,     dptx->sink.link[port]->link_rate * 270,
+		dptx->sink.link[port]->DACP_support,
+		dptx->sink.link[port]->training_mode,
+		dptx->sink.link[port]->sync_clk_mode);
 
 	return len;
 }
@@ -127,7 +121,7 @@ static ssize_t dptx_debug_info_show(struct device *dev, struct device_attribute 
 
 	len += dptx_act_timing_info_print(dptx, buf + len);
 
-	len += dptx_link_cfg_info_print(dptx, buf + len);
+	len += dptx_link_cfg_info_print(dptx, 0, buf + len);
 
 	return len;
 }
@@ -159,7 +153,7 @@ static struct dptx_debug_info_reg_s dptx_debug_info_reg_t7_1 = {
 	.reg_dptx_IP    = dptx_reg_dptx_IP,
 };
 
-static ssize_t dptx_regs_pr(struct dptx_drv_s *dptx, u8 reg_t,
+static ssize_t dptx_regs_pr(struct dptx_drv_s *dptx, u8 port, u8 reg_t,
 			    struct reg_sets_s *reg_sets, char *buf)
 {
 	u8 idx, str_pos = 0, reg_temp = 0;
@@ -203,7 +197,7 @@ static ssize_t dptx_regs_pr(struct dptx_drv_s *dptx, u8 reg_t,
 			break;
 		case DPTX_REG_TYPE_DP_IP:
 			reg_addr = reg_sets[idx].addr;
-			reg_val  = __dptx_reg_read(dptx, reg_addr);
+			reg_val  = __dptx_reg_read(dptx, port, reg_addr);
 			break;
 		case DPTX_REG_TYPE_COMBO_DPHY:
 			reg_addr = reg_sets[idx].addr;
@@ -214,7 +208,7 @@ static ssize_t dptx_regs_pr(struct dptx_drv_s *dptx, u8 reg_t,
 		case DPTX_REG_TYPE_DPCD_LINK_STATUS:
 			reg_addr = reg_sets[idx].addr;
 			reg_val = 0;
-			if (dptx_if_aux_read(dptx, reg_addr, 1, &reg_temp))
+			if (dptx_if_aux_read(dptx, port, reg_addr, 1, &reg_temp))
 				break;
 			reg_val = reg_temp;
 			break;
@@ -235,6 +229,7 @@ static ssize_t dptx_debug_reg_dump_show(struct device *dev,
 					struct device_attribute *attr, char *buf)
 {
 	u32 len = 0;
+	u8 port = 0;
 	struct dptx_drv_s *dptx = dev_get_drvdata(dev);
 	struct dptx_debug_info_reg_s *debug_info_reg = NULL;
 
@@ -251,33 +246,61 @@ static ssize_t dptx_debug_reg_dump_show(struct device *dev,
 		return 0;
 	}
 
-	DPTXPR(dptx->idx, LOG_I, "DisplayPort TX driver regs:\n");
+	DPTX_PR(dptx, "DisplayPort TX driver regs:");
 
 	if (debug_info_reg->reg_pll)
-		len += dptx_regs_pr(dptx, DPTX_REG_TYPE_PLL, debug_info_reg->reg_pll, buf + len);
+		len += dptx_regs_pr(dptx, port,
+			DPTX_REG_TYPE_PLL, debug_info_reg->reg_pll, buf + len);
 	if (debug_info_reg->reg_clk)
-		len += dptx_regs_pr(dptx, DPTX_REG_TYPE_CLK, debug_info_reg->reg_clk, buf + len);
+		len += dptx_regs_pr(dptx, port,
+			DPTX_REG_TYPE_CLK, debug_info_reg->reg_clk, buf + len);
 	if (debug_info_reg->reg_combo_dphy)
-		len += dptx_regs_pr(dptx,
+		len += dptx_regs_pr(dptx, port,
 			DPTX_REG_TYPE_COMBO_DPHY, debug_info_reg->reg_combo_dphy, buf + len);
 	if (debug_info_reg->reg_encl)
-		len += dptx_regs_pr(dptx, DPTX_REG_TYPE_VENC, debug_info_reg->reg_encl, buf + len);
+		len += dptx_regs_pr(dptx, port,
+			DPTX_REG_TYPE_VENC, debug_info_reg->reg_encl, buf + len);
 	if (debug_info_reg->reg_encl_if)
-		len += dptx_regs_pr(dptx,
+		len += dptx_regs_pr(dptx, port,
 			DPTX_REG_TYPE_VENC_IF, debug_info_reg->reg_encl_if, buf + len);
 	if (debug_info_reg->reg_encl_data)
-		len += dptx_regs_pr(dptx,
+		len += dptx_regs_pr(dptx, port,
 			DPTX_REG_TYPE_VENC_DATA, debug_info_reg->reg_encl_data, buf + len);
 	if (debug_info_reg->reg_vpu)
-		len += dptx_regs_pr(dptx, DPTX_REG_TYPE_VPU, debug_info_reg->reg_vpu, buf + len);
+		len += dptx_regs_pr(dptx, port,
+			DPTX_REG_TYPE_VPU, debug_info_reg->reg_vpu, buf + len);
 	if (debug_info_reg->reg_analog_phy)
-		len += dptx_regs_pr(dptx,
+		len += dptx_regs_pr(dptx, port,
 			DPTX_REG_TYPE_PHY, debug_info_reg->reg_analog_phy, buf + len);
-	if (debug_info_reg->reg_dptx_IP)
-		len += dptx_regs_pr(dptx,
+	if (debug_info_reg->reg_dptx_IP) {
+		len += dptx_regs_pr(dptx, port,
 			DPTX_REG_TYPE_DP_IP, debug_info_reg->reg_dptx_IP, buf + len);
+		if (dptx->sink.port_mask == 0x3)
+			len += dptx_regs_pr(dptx, 1,
+				DPTX_REG_TYPE_DP_IP, debug_info_reg->reg_dptx_IP, buf + len);
+	}
+
+	if (dptx->status & DPTX_STA_LINK_ON) {
+		len += dptx_regs_pr(dptx, port,
+			DPTX_REG_TYPE_DPCD_RECEIVER_CAP, dptx_reg_DPCD_receiver_cap, buf + len);
+		len += dptx_regs_pr(dptx, port,
+			DPTX_REG_TYPE_DPCD_LINK_CONFIG, dptx_reg_DPCD_link_config, buf + len);
+		len += dptx_regs_pr(dptx, port,
+			DPTX_REG_TYPE_DPCD_LINK_STATUS, dptx_reg_DPCD_link_status, buf + len);
+	}
 
 	return len;
+}
+
+void dptx_debug_reset(struct dptx_drv_s *dptx, u8 port_mask, u8 reset_part)
+{
+	u8 port;
+
+	for (port = 0; port < 4; port++) {
+		if (!dptx->sink.link[port])
+			continue;
+		dptx_if_path_reset(dptx, port, reset_part);
+	}
 }
 
 /************* dptx_debug_reg_dump_show END **************/
@@ -290,11 +313,11 @@ static ssize_t dptx_debug_DPCD_dump_show(struct device *dev,
 	struct dptx_drv_s *dptx = dev_get_drvdata(dev);
 
 	if (dptx->status & DPTX_STA_LINK_ON) {
-		len += dptx_regs_pr(dptx,
+		len += dptx_regs_pr(dptx, 0,
 			DPTX_REG_TYPE_DPCD_RECEIVER_CAP, dptx_reg_DPCD_receiver_cap, buf + len);
-		len += dptx_regs_pr(dptx,
+		len += dptx_regs_pr(dptx, 0,
 			DPTX_REG_TYPE_DPCD_LINK_CONFIG, dptx_reg_DPCD_link_config, buf + len);
-		len += dptx_regs_pr(dptx,
+		len += dptx_regs_pr(dptx, 0,
 			DPTX_REG_TYPE_DPCD_LINK_STATUS, dptx_reg_DPCD_link_status, buf + len);
 	}
 
@@ -381,6 +404,30 @@ static ssize_t dptx_debug_plug_store(struct device *dev, struct device_attribute
 
 /* ************ dptx_debug_plug_store END************* */
 
+/* ************ dptx_debug_enable_store ************* */
+static ssize_t dptx_debug_enable_store(struct device *dev, struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct dptx_drv_s *dptx = dev_get_drvdata(dev);
+	unsigned int temp = 1;
+
+	int ret = 0;
+
+	ret = kstrtouint(buf, 10, &temp);
+	if (ret) {
+		DPTXPR(dptx->idx, LOG_E, "invalid data");
+		return -EINVAL;
+	}
+	if (temp)
+		dptx_notifier_call_chain(DPTX_EVENT_ENABLE, dptx);
+	else
+		dptx_notifier_call_chain(DPTX_EVENT_DISABLE, dptx);
+
+	return count;
+}
+
+/* ************ dptx_debug_enable_store END************* */
+
 /* ************ dptx_debug_pattern_store ************* */
 static ssize_t dptx_debug_pattern_store(struct device *dev, struct device_attribute *attr,
 				     const char *buf, size_t count)
@@ -410,7 +457,7 @@ static ssize_t dptx_debug_status_show(struct device *dev, struct device_attribut
 
 	len += snprintf(buf, PR_BUF_MAX,
 			"DPTX-%u status:\n"
-			" TX-ready  : %c\n"
+			" TX-ready    : %c\n"
 			" HPD-trigger : %c\n"
 			" HPD high    : %c\n"
 			" link-on     : %c\n"
@@ -432,6 +479,7 @@ static struct device_attribute dptx_debug_attrs[] = {
 	//__ATTR(HPD,    0644, dptx_debug_HPD_show,    dptx_debug_HPD_store),
 	__ATTR(status,   0444, dptx_debug_status_show,    NULL),
 	__ATTR(plug,     0200, NULL,                      dptx_debug_plug_store),
+	__ATTR(enable,   0200, NULL,                      dptx_debug_enable_store),
 	__ATTR(pattern,  0200, NULL,                      dptx_debug_pattern_store),
 	//__ATTR(timing, 0644, dptx_debug_timing_show, dptx_debug_timing_store),
 	__ATTR(info,     0444, dptx_debug_info_show,      NULL),

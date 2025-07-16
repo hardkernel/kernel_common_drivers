@@ -55,34 +55,51 @@ struct dptx_cdev_s {
 
 static struct dptx_cdev_s *dptx_cdev;
 
-/* ! FOLLOW UBOOT
- *bit[7:0]: link rate
- *bit[9:8]: lane count: 0=disabled, 1=1lane, 2=2lane, 3=4lane
- *bit[17:10]: vmode_sel_idx, 0xff for non-edid or invalid
- *bit[21:18]: vmode_cfmt_sel, 0xf for invalid
- *******
- *bit[31:30]: DPTX debug_level
- */
-
 struct dptx_boot_ctrl_s dptx_uboot_configs[DPTX_MAX_DRV] = {
 	{
-		.link_rate = 0,
-		.lane_count = 0,
+		.link = {{0, 0}, {0, 0}, {0, 0}, {0, 0}},
 		.vmode_sel_idx = 0,
 		.vmode_cfmt_sel = 0,
 		.tx_prepared = 0,
 		.disp_on = 0,
 		.uboot_edid_crc = 0,
+		.user_debug_port_count = 0,
 	}, {
-		.link_rate = 0,
-		.lane_count = 0,
+		.link = {{0, 0}, {0, 0}, {0, 0}, {0, 0}},
 		.vmode_sel_idx = 0,
 		.vmode_cfmt_sel = 0,
 		.tx_prepared = 0,
 		.disp_on = 0,
 		.uboot_edid_crc = 0,
+		.user_debug_port_count = 0,
 	},
 };
+
+void dptx_print_helper(struct dptx_drv_s *dptx, u8 port, u8 pr_type, const char *fmt, ...)
+{
+	va_list args;
+	struct va_format vaf;
+	char buffer[24];
+
+	if (pr_type > dptx_print_level)
+		return;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	if (port == 0xff)
+		snprintf(buffer, sizeof(buffer), "%u]", dptx->idx);
+	else
+		snprintf(buffer, sizeof(buffer), "%u]-%u", dptx->idx, port);
+
+	if (pr_type == LOG_E)
+		pr_err("[DPTX-%s(err): %pV\n", buffer, &vaf);
+	else
+		pr_info("[DPTX-%s: %pV\n", buffer, &vaf);
+
+	va_end(args);
+}
 
 static struct dptx_drv_s *dptx_driver_add(u8 index)
 {
@@ -186,15 +203,15 @@ static irqreturn_t dptx_HPD_isr(int irq, void *data)
 	if (!dptx)
 		return IRQ_HANDLED;
 
-	DPTXPR(dptx->idx, LOG_V, "HPD[%d] triggerd. sta=0x%02x", irq, dptx->status);
+	DPTX_DBG(dptx, "HPD[%d] triggered. sta=0x%02x", irq, dptx->status);
 
 	if (!(dptx->status & DPTX_STA_HPD_TRI_EN))
 		return IRQ_HANDLED;
 
-	curr_HPD_level = dptx_if_get_hpd_level(dptx);
-	curr_irq = dptx_if_get_hpd_irq(dptx);
+	curr_HPD_level = dptx_if_get_hpd_level(dptx, 0);
+	curr_irq = dptx_if_get_hpd_irq(dptx, 0);
 
-	DPTXPR(dptx->idx, LOG_V, "HPD[%d] triggerd. ignore=%d level=%u irq=0x%x", irq,
+	DPTX_DBG(dptx, "HPD[%d] triggered. ignore=%d level=%u irq=0x%x", irq,
 		dptx->status & DPTX_STA_HPD_TRI_EN ? 0 : 1, curr_HPD_level, curr_irq);
 
 	if ((dptx->status & DPTX_STA_HPD_TRI_EN) && curr_irq == 0x2 &&
@@ -209,7 +226,7 @@ static irqreturn_t dptx_HPD_post_handler(int irq, void *data)
 {
 	struct dptx_drv_s *dptx = (struct dptx_drv_s *)data;
 
-	DPTXPR(dptx->idx, LOG_I, "%s", __func__);
+	DPTX_PR(dptx, "%s-0x%x", __func__, dptx->status);
 
 	dptx_notifier_call_chain(DPTX_EVENT_HPD_CHECK, dptx);
 
@@ -258,7 +275,7 @@ static long dptx_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -EFAULT;
 
 	mcd_nr = _IOC_NR(cmd);
-	DPTXPR(dptx->idx, LOG_I, "%s: dir=0x%x, nr=0x%x\n", __func__, _IOC_DIR(cmd), mcd_nr);
+	DPTX_PR(dptx, "%s: dir=0x%x, nr=0x%x\n", __func__, _IOC_DIR(cmd), mcd_nr);
 
 	return 0;
 }
@@ -302,13 +319,13 @@ static int dptx_cdev_add(struct dptx_drv_s *dptx, struct device *parent)
 	dev_set_drvdata(dptx->dev, dptx);
 	dptx->dev->of_node = parent->of_node;
 
-	DPTXPR(dptx->idx, LOG_I, "%s OK", __func__);
+	DPTX_PR(dptx, "%s OK", __func__);
 	return 0;
 
 lcd_cdev_add_failed0:
 	cdev_del(&dptx->cdev);
 lcd_cdev_add_failed1:
-	DPTXPR(dptx->idx, LOG_E, "%s: failed: %d", __func__, ret);
+	DPTX_ERR(dptx, "%s: failed: %d", __func__, ret);
 	return -1;
 }
 
@@ -390,9 +407,9 @@ static int dptx_irq_init(struct dptx_drv_s *dptx)
 		snprintf(dptx->vsync_name[0], 15, "dptx%d_vsync", dptx->idx);
 		if (request_irq(dptx->vsync_irq[0], dptx_vsync1_isr, IRQF_SHARED,
 				dptx->vsync_name[0], (void *)dptx)) {
-			DPTXPR(dptx->idx, LOG_E, "can't request %s", dptx->vsync_name[0]);
+			DPTX_ERR(dptx, "can't request %s", dptx->vsync_name[0]);
 		} else {
-			DPTXPR(dptx->idx, LOG_I, "%s requested", dptx->vsync_name[0]);
+			DPTX_PR(dptx, "%s requested", dptx->vsync_name[0]);
 		}
 	}
 
@@ -400,9 +417,9 @@ static int dptx_irq_init(struct dptx_drv_s *dptx)
 		snprintf(dptx->vsync_name[1], 15, "dptx%d_vsync2", dptx->idx);
 		if (request_irq(dptx->vsync_irq[1], dptx_vsync2_isr, IRQF_SHARED,
 				dptx->vsync_name[1], (void *)dptx)) {
-			DPTXPR(dptx->idx, LOG_E, "can't request %s", dptx->vsync_name[1]);
+			DPTX_ERR(dptx, "can't request %s", dptx->vsync_name[1]);
 		} else {
-			DPTXPR(dptx->idx, LOG_I, "%s requested", dptx->vsync_name[1]);
+			DPTX_PR(dptx, "%s requested", dptx->vsync_name[1]);
 		}
 	}
 
@@ -410,9 +427,9 @@ static int dptx_irq_init(struct dptx_drv_s *dptx)
 		snprintf(dptx->vsync_name[2], 15, "dptx%d_vsync3", dptx->idx);
 		if (request_irq(dptx->vsync_irq[2], dptx_vsync3_isr, IRQF_SHARED,
 				dptx->vsync_name[2], (void *)dptx)) {
-			DPTXPR(dptx->idx, LOG_E, "can't request %s", dptx->vsync_name[2]);
+			DPTX_ERR(dptx, "can't request %s", dptx->vsync_name[2]);
 		} else {
-			DPTXPR(dptx->idx, LOG_I, "%s requested", dptx->vsync_name[2]);
+			DPTX_PR(dptx, "%s requested", dptx->vsync_name[2]);
 		}
 	}
 
@@ -421,9 +438,9 @@ static int dptx_irq_init(struct dptx_drv_s *dptx)
 		if (request_threaded_irq(dptx->HPD_irq,
 				dptx_HPD_isr, dptx_HPD_post_handler, IRQF_SHARED,
 				dptx->HPD_name, (void *)dptx)) {
-			DPTXPR(dptx->idx, LOG_E, "can't request %s", dptx->HPD_name);
+			DPTX_ERR(dptx, "can't request %s", dptx->HPD_name);
 		} else {
-			DPTXPR(dptx->idx, LOG_I, "%s requested", dptx->HPD_name);
+			DPTX_PR(dptx, "%s requested", dptx->HPD_name);
 		}
 	}
 
@@ -466,29 +483,58 @@ static int dptx_config_remove(struct dptx_drv_s *dptx)
 static void dptx_bootup_config_init(struct dptx_drv_s *dptx)
 {
 	unsigned int link_rate = 0;
+	u8 port;
 
 	dptx->viu_sel = 0;
 
 	dptx->status |= dptx_uboot_configs[dptx->idx].tx_prepared ? DPTX_STA_DRV_READY : 0;
+	dptx->status |= dptx_uboot_configs[dptx->idx].disp_on     ? DPTX_STA_DISP_ON   : 0;
+	dptx->status |= dptx_uboot_configs[dptx->idx].link[0][1]  ? DPTX_STA_LINK_ON   : 0;
 
-	if (dptx_uboot_configs[dptx->idx].lane_count) {
-		dptx->status |= DPTX_STA_LINK_ON;
-		dptx->status |= dptx_uboot_configs[dptx->idx].disp_on ? DPTX_STA_DISP_ON : 0;
-		dptx->link_cfg.lane_count = dptx_uboot_configs[dptx->idx].lane_count;
-		if (dptx->link_cfg.lane_count == 3)
-			dptx->link_cfg.lane_count = 4;
-		dptx->uboot_edid_crc = dptx_uboot_configs[dptx->idx].uboot_edid_crc;
+	if (dptx_uboot_configs[dptx->idx].user_debug_port_count == 3)
+		dptx->sink.port_mask = 0xf;
+	else if (dptx_uboot_configs[dptx->idx].user_debug_port_count == 2)
+		dptx->sink.port_mask = 0x3;
+	else if (dptx_uboot_configs[dptx->idx].user_debug_port_count == 1)
+		dptx->sink.port_mask = 0x1;
 
-		dptx->link_cfg.link_rate = dptx_uboot_configs[dptx->idx].link_rate;
-		link_rate = dptx->link_cfg.link_rate;
+	if (dptx_uboot_configs[dptx->idx].user_hpd_debug)
+		dptx->setting.user_hpd_ignore = 255;
+
+	for (port = 0; port < 4; port++) {
+		if (dptx->sink.port_mask & BIT(port)) {
+			if (!dptx->sink.link[port])
+				dptx->sink.link[port] =
+					kzalloc(sizeof(struct dptx_link_cfg_s), GFP_KERNEL);
+			if (!dptx->sink.link[port]) {
+				DPTX_ERR(dptx, "link[%d] malloc failed", port);
+				continue;
+			}
+			memset(dptx->sink.link[port], 0, sizeof(struct dptx_link_cfg_s));
+		} else {
+			if (!dptx->sink.link[port])
+				continue;
+			kfree(dptx->sink.link[port]);
+			dptx->sink.link[port] = NULL;
+			DPTX_PR(dptx, "clean unused link[%d]", port);
+			continue;
+		}
+
+		dptx->sink.link[port]->lane_count = dptx_uboot_configs[dptx->idx].link[port][1];
+		if (dptx->sink.link[port]->lane_count == 3)
+			dptx->sink.link[port]->lane_count = 4;
+
+		dptx->sink.link[port]->link_rate = dptx_uboot_configs[dptx->idx].link[port][0];
+		link_rate = dptx->sink.link[port]->link_rate;
 		link_rate *= 27;
-		DPTXPR(dptx->idx, LOG_I, "uboot: %u lane, %u.%u GHz, crc:0x%02x",
-			dptx->link_cfg.lane_count, link_rate / 100, link_rate % 100,
-			dptx->uboot_edid_crc);
-	} else {
-		DPTXPR(dptx->idx, LOG_I, "uboot: %s",
-			dptx->status & DPTX_STA_DRV_READY ? "disconnected" : "not inited");
+		DPTX_P_DBG(dptx, port, "uboot: %u lane, %u.%u GHz",
+			dptx->sink.link[port]->lane_count, link_rate / 100, link_rate % 100);
 	}
+
+	dptx->uboot_edid_crc = dptx_uboot_configs[dptx->idx].uboot_edid_crc;
+
+	DPTX_PR(dptx, "uboot: port:0x%x, sta=0x%x, crc:0x%02x",
+		dptx->sink.port_mask, dptx->status, dptx->uboot_edid_crc);
 }
 
 void dptx_pinmux_set(struct dptx_drv_s *dptx, u8 status)
@@ -496,13 +542,13 @@ void dptx_pinmux_set(struct dptx_drv_s *dptx, u8 status)
 	struct pinctrl *pin_sel;
 	//unsigned int index;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: %u", __func__, status);
+	DPTX_PR(dptx, "%s: %u", __func__, status);
 
 	pin_sel = devm_pinctrl_get_select(dptx->dev, status ? "DPTX-ON" : "DPTX-OFF");
 	if (IS_ERR(pin_sel))
-		DPTXPR(dptx->idx, LOG_E, "%s %u error", __func__, status);
+		DPTX_ERR(dptx, "%s %u error", __func__, status);
 	else
-		DPTXPR(dptx->idx, LOG_I, "%s %u ok (0x%px)", __func__, status, pin_sel);
+		DPTX_PR(dptx, "%s %u ok (0x%px)", __func__, status, pin_sel);
 }
 
 int dptx_config_load_from_dts(struct dptx_drv_s *dptx)
@@ -514,36 +560,28 @@ int dptx_config_load_from_dts(struct dptx_drv_s *dptx)
 	int ret = 0;
 
 	if (!dptx->dev->of_node) {
-		DPTXPR(dptx->idx, LOG_E, "dev of_node is null");
+		DPTX_ERR(dptx, "dev of_node is null");
 		return -1;
 	}
 	np = dptx->dev->of_node;
 
 	ret = of_property_read_u16(np, "HPD-ignore", &val);
 	if (!ret) {
-		dptx->hpd_ignore = (unsigned char)val;
-		DPTXPR(dptx->idx, LOG_I, "HPD ignore: %ums", dptx->hpd_ignore);
+		dptx->setting.user_hpd_ignore = (unsigned char)val;
+		if (dptx->setting.user_hpd_ignore)
+			DPTX_PR(dptx, "HPD ignore: %ums", dptx->setting.user_hpd_ignore);
 	}
 
-	//dptx->PWR_gpio = devm_gpiod_get(dptx->dev, "dptx-gpio-PWR", GPIOD_OUT_HIGH);
+	//dptx->PWR_gpio = devm_gpiod_get(dptx->dev, "edptx_vcc", GPIOD_OUT_HIGH);
 	//if (IS_ERR(dptx->PWR_gpio)) {
-	//	DPTXPR(dptx->idx, LOG_E, "regist PWR gpio: %p, err: %d",
+	//	DPTX_ERR(dptx, "regist PWR gpio: %p, err: %d",
 	//	       dptx->PWR_gpio, IS_ERR(dptx->PWR_gpio));
 	//}
-	//dptx->CFG1_gpio = devm_gpiod_get(dptx->dev, "dptx-gpio-CFG1", GPIOD_IN);
-	//if (IS_ERR(dptx->CFG1_gpio)) {
-	//	DPTXPR(dptx->idx, LOG_E, "regist CFG1 gpio: %p, err: %d",
-	//	       dptx->CFG1_gpio, IS_ERR(dptx->CFG1_gpio));
-	//}
-	//dptx->CFG2_gpio = devm_gpiod_get(dptx->dev, "dptx-gpio-CFG2", GPIOD_IN);
-	//if (IS_ERR(dptx->CFG2_gpio)) {
-	//	DPTXPR(dptx->idx, LOG_E, "regist CFG2 gpio: %p, err: %d",
-	//	       dptx->CFG2_gpio, IS_ERR(dptx->CFG2_gpio));
-	//}
+
 	memset(&para[0], 0, 30 * sizeof(unsigned char));
 	ret = of_property_read_u16_array(np, "drive-strength-lut", &para[0], 30);
 	if (ret) {
-		DPTXPR(dptx->idx, LOG_E, "DPCD level to PHY LUT not set");
+		DPTX_ERR(dptx, "DPCD level to PHY LUT not set");
 	} else {
 		for (i = 0; i < 30; i++)
 			dptx->phy_cfg.level_to_phy_lut[i / 10][i % 3] = para[i];
@@ -551,17 +589,60 @@ int dptx_config_load_from_dts(struct dptx_drv_s *dptx)
 
 	ret = of_property_read_u16(np, "assigned-link-rate", &val);
 	if (!ret) {
-		dptx->user_link_rate = (unsigned char)val;
-		DPTXPR(dptx->idx, LOG_I, "assigned link rate: %u", dptx->user_link_rate);
+		dptx->setting.user_link_rate = (unsigned char)val;
+		if (dptx->setting.user_link_rate)
+			DPTX_PR(dptx, "assigned link rate: %u", dptx->setting.user_link_rate);
 	}
 	ret = of_property_read_u16(np, "assigned-lane-count", &val);
 	if (!ret) {
-		dptx->user_lane_count = (unsigned char)val;
-		DPTXPR(dptx->idx, LOG_I, "assigned lane count: %u", dptx->user_lane_count);
+		dptx->setting.user_lane_count = (unsigned char)val;
+		if (dptx->setting.user_lane_count)
+			DPTX_PR(dptx, "assigned lane count: %u", dptx->setting.user_lane_count);
 	} else {
-		dptx->user_lane_count = 0xff;
+		dptx->setting.user_lane_count = 0xff;
 	}
 
+	ret = of_property_read_u16(np, "assigned-port-count", &val);
+	if (!ret && (unsigned char)val) {
+		if ((unsigned char)val == 4)
+			dptx->sink.port_mask = 0xf;
+		else if ((unsigned char)val == 2)
+			dptx->sink.port_mask = 0x3;
+		else
+			dptx->sink.port_mask = 0x1;
+		DPTX_PR(dptx, "assigned port mask: %u", dptx->sink.port_mask);
+	} else {
+		dptx->sink.port_mask = 0x1;
+	}
+
+	ret = of_property_read_u16(np, "assigned-vmode", &val);
+	if (!ret) {
+		dptx->setting.user_vmode_sel = (unsigned char)val;
+		if (dptx->setting.user_vmode_sel)
+			DPTX_PR(dptx, "assigned vmode idx: %u", dptx->setting.user_vmode_sel);
+	} else {
+		dptx->setting.user_vmode_sel = 0;
+	}
+
+	ret = of_property_read_u16(np, "assigned-disable-PSR", &val);
+	if (!ret) {
+		dptx->setting.user_disable_PSR = (unsigned char)val;
+		if (dptx->setting.user_disable_PSR)
+			DPTX_PR(dptx, "assigned disable PSR: %u", dptx->setting.user_disable_PSR);
+	} else {
+		dptx->setting.user_disable_PSR = 0;
+	}
+
+	ret = of_property_read_u16(np, "assigned-preset-timing", &val);
+	if (!ret) {
+		dptx->setting.user_preset_timing = (unsigned char)val;
+		if (dptx->setting.user_preset_timing)
+			DPTX_PR(dptx, "assigned preset timing: %u", dptx->setting.user_disable_PSR);
+	} else {
+		dptx->setting.user_preset_timing = 0;
+	}
+
+	dptx->setting.user_color_format = 0xff;
 	return 0;
 }
 
@@ -589,11 +670,15 @@ static int dptx_config_probe(struct dptx_drv_s *dptx, struct platform_device *pd
 	dptx_vout_server_init(dptx); // get viu sel here
 
 	/* lock pinmux as when dptx is used ?? or link on */
-	if (dptx->viu_sel || dptx->status & DPTX_STA_LINK_ON)
+	if (dptx->viu_sel || dptx->status & DPTX_STA_LINK_ON) {
+		dptx_driver_panel_power_ctrl(dptx, 1);
+
 		dptx_pinmux_set(dptx, 1);
 
-	if (dptx->status & DPTX_STA_LINK_ON)
+		dptx_drv_check_HPD(dptx);
+
 		dptx_timing_config_restore(dptx);
+	}
 
 	//lcd_vrr_dev_register(dptx);
 
@@ -620,11 +705,13 @@ static struct dptx_chip_data_s dptx_data_t7 = {
 	.offset_venc      = {0x0, 0x600},
 	.offset_venc_if   = {0x0, 0x500},
 	.offset_venc_data = {0x0, 0x100},
+	.venc_clk_msr_id  = {222, 221},
 
-	.link_rate    = DP_LINK_RATE_HBR,
+	.link_rate    = {{DP_LINK_RATE_HBR, DP_LINK_RATE_HBR}, {DP_LINK_RATE_HBR, 0}},
+	.lane_count   = {{4, 4}, {4, 0}},
 	.TPS_support  = BIT(0),
 	.DACP_support = BIT(2),
-	.venc_clk_msr_id = {222, 221},
+	.pixel_clk_limit = 667,
 };
 
 static struct dptx_chip_data_s dptx_data_a9 = {
@@ -635,11 +722,12 @@ static struct dptx_chip_data_s dptx_data_a9 = {
 	.offset_venc      = {0x0},
 	.offset_venc_if   = {0x0},
 	.offset_venc_data = {0x0},
-
-	.link_rate    = DP_LINK_RATE_HBR2,
-	.TPS_support  = BIT(0),
-	.DACP_support = BIT(2),
-	// .venc_clk_msr_id = {222},
+	// .venc_clk_msr_id  = {222, 221},
+	.link_rate        = {{DP_LINK_RATE_HBR, 0}, {DP_LINK_RATE_HBR, 0}},
+	.lane_count       = {{4, 0}, {4, 0}},
+	.TPS_support      = BIT(0),
+	.DACP_support     = BIT(2),
+	.pixel_clk_limit  = 667,
 };
 
 static const struct of_device_id dptx_dt_match_table[] = {
@@ -719,7 +807,7 @@ static int dptx_probe(struct platform_device *pdev)
 
 	dptx->status |= DPTX_STA_PROBE_DONE;
 
-	DPTXPR(index, LOG_I, "%s ok, status:0x0%2x", __func__, dptx->status);
+	DPTX_PR(dptx, "%s ok, status:0x0%2x", __func__, dptx->status);
 
 	return 0;
 
@@ -772,7 +860,7 @@ static int dptx_resume(struct platform_device *pdev)
 
 	dptx_notifier_call_chain(DPTX_EVENT_PREPARE, (void *)dptx);
 
-	DPTXPR(dptx->idx, LOG_I, "%s finished (0x%x)", __func__, dptx->status);
+	DPTX_PR(dptx, "%s finished (0x%x)", __func__, dptx->status);
 
 	//mutex_unlock(&lcd_power_mutex);
 	return 0;
@@ -790,7 +878,7 @@ static int dptx_suspend(struct platform_device *pdev, pm_message_t state)
 
 	dptx_notifier_call_chain(DPTX_EVENT_UNPREPARE, (void *)dptx);
 
-	DPTXPR(dptx->idx, LOG_I, "%s finished (0x%x)", __func__, dptx->status);
+	DPTX_PR(dptx, "%s finished (0x%x)", __func__, dptx->status);
 
 	//mutex_unlock(&lcd_power_mutex);
 	return 0;
@@ -838,42 +926,74 @@ void __exit DisplayPort_TX_exit(void)
 	platform_driver_unregister(&DisplayPort_platform_driver);
 }
 
+/* ! FOLLOW UBOOT
+ *0:bit[ 7: 0], [ 9: 8]: A = [link rate], [lane count: 0=disabled, 1=1lane, 2=2lane, 3=4lane]
+ *0:bit[17:10]: vmode_sel_idx, 0xff for non-edid or invalid
+ *0:bit[21:18]: vmode_cfmt_sel, 0xf for invalid
+ *0:bit[22]: dptx-ip enabled
+ *0:bit[23]: dptx disp enabled
+ *0:bit[31:24]: dptx edid_crc
+ *1:bit[ 7: 0], [19:18]: B = [link rate], [lane count: 0=disabled, 1=1lane, 2=2lane, 3=4lane]
+ *1:bit[17:10], [19:18]: C = [link rate], [lane count: 0=disabled, 1=1lane, 2=2lane, 3=4lane]
+ *1:bit[27:20], [29:28]: D = [link rate], [lane count: 0=disabled, 1=1lane, 2=2lane, 3=4lane]
+ *1:bit[31:30]: user_port_set: 0=user_default, 1=1port, 2=2port, 3=4port
+ *2:bit[    0]: user_hpd_ignore: 255ms
+ */
 static void dptx_boot_ctrl_setup(u8 idx, char *str)
 {
 	int ret;
-	unsigned int data32 = 0;
+	unsigned int data32[2] = {0, 0}, len;
+	const char *ptr;
+	char temp_str[12];
 
 	if (!str)
 		return;
 
-	ret = kstrtouint(str, 16, &data32);
+	ptr = strstr(str, ",");
+	len = ptr - str;
+	if (!ptr || len == 0 || len >= sizeof(temp_str)) {
+		DPTXPR(idx, LOG_V, "%s: invalid boot ctrl str: %s", __func__, str);
+		return;
+	}
+	strncpy(temp_str, str, len);
+	temp_str[len] = '\0';
+	ret = kstrtouint(temp_str, 16, &data32[0]);
 	if (ret) {
-		DPTXPR(idx, LOG_E, "%s: invalid (%s)", __func__, str);
+		DPTXPR(idx, LOG_V, "%s: invalid data0", __func__);
+		return;
+	}
+	dptx_uboot_configs[idx].link[0][0]     = data32[0] & 0xff;
+	dptx_uboot_configs[idx].link[0][1]     = (data32[0] >> 8) & 0x3;
+	dptx_uboot_configs[idx].vmode_sel_idx  = (data32[0] >> 10) & 0xff;
+	dptx_uboot_configs[idx].vmode_cfmt_sel = (data32[0] >> 18) & 0xf;
+	dptx_uboot_configs[idx].tx_prepared    = (data32[0] >> 22) & 0x1;
+	dptx_uboot_configs[idx].disp_on        = (data32[0] >> 23) & 0x1;
+	dptx_uboot_configs[idx].uboot_edid_crc = (data32[0] >> 24) & 0xff;
+
+	ptr++;
+	len = strlen(ptr);
+	if (len == 0 || len >= sizeof(temp_str)) {
+		DPTXPR(idx, LOG_V, "%s: invalid boot ctrl str: %s", __func__, str);
+		return;
+	}
+	strncpy(temp_str, ptr, len);
+	temp_str[len] = '\0';
+	ret = kstrtouint(ptr, 16, &data32[1]);
+	if (ret) {
+		DPTXPR(idx, LOG_V, "%s: invalid data1", __func__);
 		return;
 	}
 
-	/*
-	 *bit[7:0]: link rate
-	 *bit[9:8]: lane count: 0=disabled, 1=1lane, 2=2lane, 3=4lane
-	 *bit[17:10]: vmode_sel_idx, 0xff for non-edid or invalid
-	 *bit[21:18]: vmode_cfmt_sel, 0xf for invalid
-	 *bit[22]: dptx-ip enabled
-	 *bit[23]: dptx disp enabled
-	 *bit[27:24]: 4bit crc
-	 *******
-	 *bit[31:30]: DPTX debug_level
-	 */
+	dptx_uboot_configs[idx].link[1][0]            = data32[1] & 0xff;
+	dptx_uboot_configs[idx].link[1][1]            = (data32[1] >> 8) & 0x3;
+	dptx_uboot_configs[idx].link[2][0]            = (data32[1] >> 10) & 0xff;
+	dptx_uboot_configs[idx].link[2][1]            = (data32[1] >> 18) & 0x3;
+	dptx_uboot_configs[idx].link[3][0]            = (data32[1] >> 20) & 0xff;
+	dptx_uboot_configs[idx].link[3][1]            = (data32[1] >> 28) & 0x3;
+	dptx_uboot_configs[idx].link[3][1]            = (data32[1] >> 28) & 0x3;
+	dptx_uboot_configs[idx].user_debug_port_count = (data32[1] >> 30) & 0x3;
 
-	dptx_uboot_configs[idx].link_rate      = data32 & 0xff;
-	dptx_uboot_configs[idx].lane_count     = (data32 >> 8) & 0x3;
-	dptx_uboot_configs[idx].vmode_sel_idx  = (data32 >> 10) & 0xff;
-	dptx_uboot_configs[idx].vmode_cfmt_sel = (data32 >> 18) & 0xf;
-	dptx_uboot_configs[idx].tx_prepared     = (data32 >> 22) & 0x1;
-	dptx_uboot_configs[idx].disp_on = (data32 >> 23) & 0x1;
-	dptx_uboot_configs[idx].uboot_edid_crc = (data32 >> 24) & 0xff;
-	// dptx_print_level = data32 >> 30;
-
-	DPTXPR(idx, LOG_I, "boot[0x%8x] ", data32);
+	DPTXPR(idx, LOG_I, "boot[0x%8x, 0x%08x]", data32[0], data32[1]);
 }
 
 static int __dptx0_boot_ctrl_setup(char *str)
@@ -903,6 +1023,15 @@ static int __dptx_debug_setup(char *str)
 	}
 
 	dptx_print_level = data32 & 0x3;
+
+	if (DPTX_MAX_DRV > 0)
+		dptx_uboot_configs[0].user_hpd_debug = 1;
+	if (DPTX_MAX_DRV > 1)
+		dptx_uboot_configs[1].user_hpd_debug = 1;
+	//if (DPTX_MAX_DRV > 2)
+	//	dptx_uboot_configs[2].user_hpd_debug = 1;
+	//if (DPTX_MAX_DRV > 3)
+	//	dptx_uboot_configs[3].user_hpd_debug = 1;
 	return 1;
 }
 
@@ -928,7 +1057,7 @@ EXPORT_SYMBOL(aml_dptx_regist_hpd_cb);
 
 struct edid *aml_dptx_get_raw_edid(struct dptx_drv_s *dptx)
 {
-	return dptx->edid_info.drm_edid;
+	return dptx->sink.exp_edid.drm_edid;
 }
 EXPORT_SYMBOL(aml_dptx_get_raw_edid);
 

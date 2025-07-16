@@ -8,6 +8,21 @@
 
 #include <linux/amlogic/media/vout/DisplayPort/DPTX.h>
 
+#ifndef EDPTX0_A_BASE
+#define EDPTX0_A_BASE          EDPTX0_BASE
+#endif
+
+#ifndef EDPTX0_B_BASE
+#define EDPTX0_B_BASE          0
+#endif
+
+#ifndef EDPTX1_A_BASE
+#define EDPTX1_A_BASE          EDPTX1_BASE
+#endif
+
+#ifndef EDPTX1_B_BASE
+#define EDPTX1_B_BASE          0
+#endif
 /* register offset address define */
 /* base & offset */
 
@@ -907,6 +922,9 @@
 #define VPU_DISP_VIU0_CTRL                         0x2786
 #define VPU_DISP_VIU1_CTRL                         0x2787
 #define VPU_DISP_VIU2_CTRL                         0x2788
+#define VPU_VENC_RGN_CTRL                          0x2789
+#define VPU_VENC_RGN_RSIZE                         0x278a
+#define VPU_DISP_WRAP_CTRL                         0x278b
 
 #define LCD_RGB_BASE_ADDR                          0x14a5
 #define LCD_RGB_COEFF_ADDR                         0x14a6
@@ -1134,10 +1152,10 @@ u32 dptx_ana_getb(u32 reg, u32 start, u32 len);
 u32 dptx_periphs_read(struct dptx_drv_s *dptx, u32 reg);
 void dptx_periphs_write(struct dptx_drv_s *dptx, u32 reg, u32 value);
 
-u32 __dptx_reg_read(struct dptx_drv_s *dptx, u32 reg);
-void __dptx_reg_write(struct dptx_drv_s *dptx, u32 reg, u32 value);
-void __dptx_reg_setb(struct dptx_drv_s *dptx, u32 reg, u32 value, u32 start, u32 len);
-u32 __dptx_reg_getb(struct dptx_drv_s *dptx, u32 reg, u32 start, u32 len);
+u32 __dptx_reg_read(struct dptx_drv_s *dptx, u8 port, u32 reg);
+void __dptx_reg_write(struct dptx_drv_s *dptx, u8 port, u32 reg, u32 value);
+void __dptx_reg_setb(struct dptx_drv_s *dptx, u8 port, u32 reg, u32 value, u32 start, u32 len);
+u32 __dptx_reg_getb(struct dptx_drv_s *dptx, u8 port, u32 reg, u32 start, u32 len);
 
 u32 dptx_combo_dphy_read(struct dptx_drv_s *dptx, u32 reg);
 void dptx_combo_dphy_write(struct dptx_drv_s *dptx, u32 reg, u32 value);

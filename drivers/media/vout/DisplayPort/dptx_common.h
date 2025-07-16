@@ -14,6 +14,15 @@
 
 //extern unsigned long clk_util_clk_msr(unsigned long clk_mux);
 
+static inline u32 count_bit(u32 n)
+{
+	u32 c = 0;
+
+	for (; n; ++c)
+		n &= n - 1;
+	return c;
+}
+
 static inline unsigned long long dptx_div(unsigned long long num, u32 den)
 {
 	unsigned long long ret = num;
@@ -60,6 +69,8 @@ enum DP_link_rate_e {
 #define DPTX_PRBS7            8
 #define DPTX_80BIT_CUSTOM     9
 #define DPTX_HBR2_EYE         10
+#define DPTX_TRP_CR           DPTX_TPS1
+#define DPTX_TRP_EQ           0xf0
 
 #define DPTX_AUX_CMD_WRITE            0x8
 #define DPTX_AUX_CMD_READ             0x9
@@ -89,52 +100,57 @@ void dptx_mute_set(struct dptx_drv_s *dptx, u8 flag);
 int dptx_venc_probe(struct dptx_drv_s *dptx);
 
 /* ANALOG PHY */
-void dptx_phy_enable(struct dptx_drv_s *dptx);
-void dptx_phy_disable(struct dptx_drv_s *dptx);
-void dptx_phy_set_lane(struct dptx_drv_s *dptx, u8 lane_mask);
+void dptx_phy_enable(struct dptx_drv_s *dptx, u8 port);
+void dptx_phy_disable(struct dptx_drv_s *dptx, u8 port);
+void dptx_phy_set_lane(struct dptx_drv_s *dptx, u8 port, u8 lane_mask);
 void dptx_phy_probe(struct dptx_drv_s *dptx);
 
 /* CLK */
 void dptx_clk_config_print(struct dptx_drv_s *dptx);
-void dptx_clk_set_link_clk(struct dptx_drv_s *dptx, u8 dptx_link_rate);
+void dptx_clk_set_link_clk(struct dptx_drv_s *dptx, u8 port, u8 dptx_link_rate);
 void dptx_clk_set_vid_clk(struct dptx_drv_s *dptx, u32 pixel_clk);
 void dptx_clk_set_ssc(struct dptx_drv_s *dptx, u8 status);
 void dptx_clk_config_probe(struct dptx_drv_s *dptx);
 void dptx_clk_init(void);
 
 /* IP-interface */
-u8 dptx_if_aux_write(struct dptx_drv_s *dptx, u32 addr, int len, u8 *buf);
-u8 dptx_if_aux_write_single(struct dptx_drv_s *dptx, u32 addr, u8 val);
-u8 dptx_if_aux_read(struct dptx_drv_s *dptx, u32 addr, int len, u8 *buf);
-u8 dptx_if_aux_i2c_op(struct dptx_drv_s *dptx, u8 cmd_type, u32 dev_addr, u8 len, u8 *data);
-void dptx_if_transmit_pattern(struct dptx_drv_s *dptx, u8 pattern, u8 lane);
-void dptx_if_set_MSA(struct dptx_drv_s *dptx);
+u8 dptx_if_aux_write(struct dptx_drv_s *dptx, u8 port, u32 addr, int len, u8 *buf);
+u8 dptx_if_aux_write_single(struct dptx_drv_s *dptx, u8 port, u32 addr, u8 val);
+u8 dptx_if_aux_read(struct dptx_drv_s *dptx, u8 port, u32 addr, int len, u8 *buf);
+u8 dptx_if_aux_i2c_op(struct dptx_drv_s *dptx, u8 port,
+					u8 cmd_type, u32 dev_addr, u8 len, u8 *data);
+void dptx_if_transmit_pattern(struct dptx_drv_s *dptx, u8 port, u8 pattern, u8 lane);
+void dptx_if_set_MSA(struct dptx_drv_s *dptx, u8 port);
 #define DPTX_RESET_COMBO_DPHY          BIT(0)
 #define DPTX_RESET_eDP_PIPE            BIT(1)
 #define DPTX_RESET_eDP_CTRL            BIT(2)
 #define DPTX_RESET_AUX_CLK_DIVIDER     BIT(3)
 #define DPTX_RESET_PHY                 BIT(4)
+#define DPTX_RESET_VENC                BIT(5)
 #define DPTX_RESET_ALL                 0xff
-void dptx_if_path_reset(struct dptx_drv_s *dptx, u8 mask);
-void dptx_if_set_lane_cfg(struct dptx_drv_s *dptx);
-void dptx_if_set_phy_cfg(struct dptx_drv_s *dptx, u8 lane_mask);
-void dptx_if_transmitter_init(struct dptx_drv_s *dptx);
-void dptx_if_transmitter_output(struct dptx_drv_s *dptx, u8 en);
-u8 dptx_if_get_hpd_level(struct dptx_drv_s *dptx);
-u16 dptx_if_get_hpd_irq(struct dptx_drv_s *dptx);
+void dptx_if_path_reset(struct dptx_drv_s *dptx, u8 port, u8 mask);
+void dptx_if_set_lane_cfg(struct dptx_drv_s *dptx, u8 port);
+void dptx_if_set_phy_cfg(struct dptx_drv_s *dptx, u8 port, u8 lane_mask);
+void dptx_if_transmitter_init(struct dptx_drv_s *dptx, u8 port);
+void dptx_if_transmitter_output(struct dptx_drv_s *dptx, u8 port, u8 en);
+u8 dptx_if_get_hpd_level(struct dptx_drv_s *dptx, u8 port);
+u16 dptx_if_get_hpd_irq(struct dptx_drv_s *dptx, u8 port);
 
 #define DPTX_IRQ_REPLY_TIMEOUT_MASK    BIT(3)
 #define DPTX_IRQ_REPLY_RECEIVED_MASK   BIT(2)
 #define DPTX_IRQ_HPD_EVENT_MASK        BIT(1)
 #define DPTX_IRQ_HPD_IRQ_EVENT         BIT(0)
-void dptx_if_set_hpd_interrupt_mask(struct dptx_drv_s *dptx, u8 mask);
+void dptx_if_set_hpd_interrupt_mask(struct dptx_drv_s *dptx, u8 port, u8 mask);
 
 #define DPTX_SCRAMBLE_RESET_OFF              0
 #define DPTX_SCRAMBLE_RESET_ON               1
 #define DPTX_eDP_ALTERNATIVE_SCRAMBLE_RESET  2
-void dptx_if_scramble_reset_set(struct dptx_drv_s *dptx, u8 sr_type);
+void dptx_if_scramble_reset_set(struct dptx_drv_s *dptx, u8 port, u8 sr_type);
+void dptx_if_PSR1_ctrl(struct dptx_drv_s *dptx, u8 port, u8 flag);
+void dptx_if_PSR2_ctrl(struct dptx_drv_s *dptx, u8 port, u8 flag);
 
 void dptx_if_IP_probe(struct dptx_drv_s *dptx);
+/* IP-interface END */
 
 /* dptx_link_training.c */
 struct DPTX_test_pat_s {
@@ -147,14 +163,13 @@ extern struct DPTX_test_pat_s DP_test_pat[];
 #define DPTX_LINK_TRAINING_AUTO      0
 #define DPTX_FAST_LINK_TRAINING      1
 #define DPTX_FULL_LINK_TRAINING      2
-int dptx_set_pattern(struct dptx_drv_s *dptx, unsigned char pattern); //debug usage
 int __dptx_link_training(struct dptx_drv_s *dptx);
 int __ptx_full_link_training(struct dptx_drv_s *dptx);
 int __ptx_fast_link_training(struct dptx_drv_s *dptx);
 
 /* dptx_EDID_DisplayID.c */
 void dptx_edid_print_raw(unsigned char *_buf);  //?
-void dptx_edid_print_parsed(struct dptx_drv_s *dptx); //?
+void dptx_edid_print_parsed(struct dptx_drv_s *dptx, u8 port); //?
 int __dptx_EDID_probe(struct dptx_drv_s *dptx, u8 check_crc);
 // int dptx_EDID_load_dts_probe(struct dptx_drv_s *dptx);
 
@@ -163,8 +178,8 @@ u32 dptx_print_vmode(struct dptx_drv_s *dptx, char *c_buf, u8 print_flag);
 void dptx_vmode_manage(struct dptx_drv_s *dptx);
 
 /* dptx_utils.c */
-extern u16 dptx_training_rd_interval[5];
-extern char *eDP_ver_str[6];
+extern u16 dptx_train_rd_intv[5];
+extern u16 dptx_PSR_setup_time[8];
 void dptx_delay_us(int us);
 void dptx_delay_ms(int ms);
 u8 dptx_vswing_ds_to_phy(struct dptx_drv_s *dptx, u8 ds_level);
@@ -173,14 +188,18 @@ u8 ds_to_DPCD_LANESET(u8 ds_level);
 u8 dptx_ds_to_vswing(u8 ds);
 u8 dptx_ds_to_preem(u8 ds);
 u8 dptx_v_p_to_ds(u8 vsw, u8 preem);
-u8 dptx_DPCD_capability_to_link_cfg(struct dptx_drv_s *dptx);
-u8 dptx_vid_band_width_check(u8 link_rate, u8 lane_cnt, u32 pclk, u8 bpp);
+void dptx_link_cfg_dft(struct dptx_drv_s *dptx, u8 port);
+u8 dptx_DPCD_capability_to_link_cfg(struct dptx_drv_s *dptx, u8 port);
+void dptx_link_policy_maker(struct dptx_drv_s *dptx, u8 port);
+u8 dptx_vid_band_width_check(struct dptx_drv_s *dptx, u32 pclk, u8 bpp);
 
 int dptx_connector_check(struct dptx_drv_s *dptx);
 int dptx_outputmode_check(struct dptx_drv_s *dptx, char *mode);
 
-void __dptx_set_phy_config(struct dptx_drv_s *dptx, u8 use_preset);
-void __dptx_set_lane_config(struct dptx_drv_s *dptx);
+void __dptx_set_phy_config(struct dptx_drv_s *dptx, u8 port, u8 use_preset);
+void __dptx_set_lane_config(struct dptx_drv_s *dptx, u8 port);
+void dptx_eDP_PSR1(struct dptx_drv_s *dptx, u8 port, u8 flag);
+void dptx_eDP_PSR2(struct dptx_drv_s *dptx, u8 port, u8 flag);
 
 /* ************* DPTX VMODE related ************/
 struct dptx_vmode_s *dptx_get_vmode(struct dptx_drv_s *dptx, u8 th);
@@ -218,14 +237,17 @@ void dptx_vout_notify_mode_change_pre(struct dptx_drv_s *dptx);
 void dptx_vout_notify_mode_change(struct dptx_drv_s *dptx);
 
 ////! Content Protect
-void dptx_set_content_protection(struct dptx_drv_s *dptx);
+void dptx_set_content_protection(struct dptx_drv_s *dptx, u8 port);
 
 void dptx_drv_check_HPD(struct dptx_drv_s *dptx);
 void dptx_driver_ready(struct dptx_drv_s *dptx);
+void dptx_driver_panel_power_ctrl(struct dptx_drv_s *dptx, u8 en);
 void dptx_drv_start(struct dptx_drv_s *dptx);
 void dptx_drv_disp_on(struct dptx_drv_s *dptx);
 void dptx_drv_disp_off(struct dptx_drv_s *dptx);
 void dptx_driver_close(struct dptx_drv_s *dptx);
+void dptx_drv_eDP_PSR1_en(struct dptx_drv_s *dptx, u8 port_mask, u8 en);
+void dptx_drv_eDP_PSR2_en(struct dptx_drv_s *dptx, u8 port_mask, u8 en);
 
 //void dptx_info_print(struct dptx_drv_s *dptx);
 //void dptx_reg_print(struct dptx_drv_s *dptx);
@@ -233,6 +255,7 @@ void dptx_driver_close(struct dptx_drv_s *dptx);
 //dptx_debug.c
 int dptx_debug_probe(struct dptx_drv_s *dptx);
 int dptx_debug_remove(struct dptx_drv_s *dptx);
+void dptx_debug_reset(struct dptx_drv_s *dptx, u8 port_mask, u8 reset_part);
 
 //dptx_notify.c
 int dptx_notifier_init(void);

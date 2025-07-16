@@ -60,8 +60,8 @@ u8 dptx_clk_msr_check(u32 msr_id, u32 freq)
 
 	clk_msrd = meson_clk_measure(msr_id);
 	if (dptx_diff(freq, clk_msrd) >= PLL_CLK_CHECK_MAX) {
-		DPTXPR(0, LOG_E, "%s[%d]: exp:%d, msr:%d\n", __func__, msr_id, freq, clk_msrd);
-		return 1;
+		DPTXPR(0, LOG_E, "%s[%d]: exp:%d, msr:%d", __func__, msr_id, freq, clk_msrd);
+	return 1;
 	}
 
 	return 0;

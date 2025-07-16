@@ -40,7 +40,7 @@ unsigned int dptx_get_max_line_cnt(struct dptx_drv_s *dptx)
 	if (!dptx)
 		return 0;
 	if (!dptx_venc_op.get_max_lcnt) {
-		DPTXPR(dptx->idx, LOG_E, "%s: invalid\n", __func__);
+		DPTX_ERR(dptx, "%s: invalid\n", __func__);
 		return 0;
 	}
 
@@ -55,18 +55,18 @@ void dptx_debug_test(struct dptx_drv_s *dptx, u8 num)
 	if (!dptx)
 		return;
 	if (!dptx_venc_op.venc_debug_test) {
-		DPTXPR(dptx->idx, LOG_E, "%s: invalid\n", __func__);
+		DPTX_ERR(dptx, "%s: invalid", __func__);
 		return;
 	}
 
 	ret = dptx_venc_op.venc_debug_test(dptx, num);
 	if (ret) {
-		DPTXPR(dptx->idx, LOG_E, "%s: %d not support\n", __func__, num);
+		DPTX_ERR(dptx, "%s: %d not support", __func__, num);
 		return;
 	}
 
 	if (num == 0)
-		DPTXPR(dptx->idx, LOG_I, "disable test pattern");
+		DPTX_ERR(dptx, "disable test pattern");
 }
 
 //static void dptx_gamma_init(struct dptx_drv_s *dptx)
@@ -89,11 +89,10 @@ void dptx_set_venc_timing(struct dptx_drv_s *dptx)
 	if (!dptx)
 		return;
 	if (!dptx_venc_op.venc_set_timing) {
-		DPTXPR(dptx->idx, LOG_E, "%s: invalid", __func__);
+		DPTX_ERR(dptx, "%s: invalid", __func__);
 		return;
 	}
 
-	DPTXPR(dptx->idx, LOG_I, "%s", __func__);
 	dptx_venc_op.venc_set_timing(dptx);
 }
 
@@ -102,11 +101,10 @@ void dptx_set_venc(struct dptx_drv_s *dptx)
 	if (!dptx)
 		return;
 	if (!dptx_venc_op.venc_set) {
-		DPTXPR(dptx->idx, LOG_E, "%s: invalid", __func__);
+		DPTX_ERR(dptx, "%s: invalid", __func__);
 		return;
 	}
 
-	DPTXPR(dptx->idx, LOG_I, "%s", __func__);
 	dptx_venc_op.venc_set(dptx);
 	//lcd_gamma_init(dptx);
 }
@@ -116,11 +114,11 @@ void dptx_venc_enable(struct dptx_drv_s *dptx, u8 flag)
 	if (!dptx)
 		return;
 	if (!dptx_venc_op.venc_switch) {
-		DPTXPR(dptx->idx, LOG_E, "%s: invalid", __func__);
+		DPTX_ERR(dptx, "%s: invalid", __func__);
 		return;
 	}
 
-	DPTXPR(dptx->idx, LOG_I, "%s: %d", __func__, flag);
+	DPTX_PR(dptx, "%s: %d", __func__, flag);
 	dptx_venc_op.venc_switch(dptx, flag);
 }
 
@@ -129,11 +127,11 @@ void dptx_mute_set(struct dptx_drv_s *dptx, u8 flag)
 	if (!dptx)
 		return;
 	if (!dptx_venc_op.mute_set) {
-		DPTXPR(dptx->idx, LOG_E, "%s: invalid", __func__);
+		DPTX_ERR(dptx, "%s: invalid", __func__);
 		return;
 	}
 
-	DPTXPR(dptx->idx, LOG_I, "%s: %d", __func__, flag);
+	DPTX_PR(dptx, "%s: %d", __func__, flag);
 	dptx_venc_op.mute_set(dptx, flag);
 }
 

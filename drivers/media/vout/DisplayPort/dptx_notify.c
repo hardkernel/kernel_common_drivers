@@ -39,10 +39,10 @@ static int dptx_backlight_off_notifier(struct notifier_block *nb, unsigned long 
 		DPTXPR(0, LOG_E, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
-	if (!(dptx->status & DPTX_STA_PROBE_DONE))
+	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
 		return NOTIFY_DONE;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: 0x%lx", __func__, event);
+	DPTX_DBG(dptx, "%s: 0x%lx", __func__, event);
 
 	dptx_notify_set_backlight(dptx, (event & DPTX_EVENT_BACKLIGHT_OFF) ? 0 : 1);
 
@@ -64,10 +64,10 @@ static int dptx_backlight_on_notifier(struct notifier_block *nb, unsigned long e
 		DPTXPR(0, LOG_E, "%s: data is null", __func__);
 		return NOTIFY_OK;
 	}
-	if (!(dptx->status & DPTX_STA_PROBE_DONE))
+	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
 		return NOTIFY_OK;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: 0x%lx", __func__, event);
+	DPTX_DBG(dptx, "%s: 0x%lx", __func__, event);
 
 	dptx_notify_set_backlight(dptx, (event & DPTX_EVENT_BACKLIGHT_OFF) ? 0 : 1);
 
@@ -89,10 +89,10 @@ static int dptx_mute_event_notifier(struct notifier_block *nb, unsigned long eve
 		DPTXPR(0, LOG_E, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
-	if (!(dptx->status & DPTX_STA_PROBE_DONE))
+	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
 		return NOTIFY_DONE;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: 0x%lx", __func__, event);
+	DPTX_DBG(dptx, "%s: 0x%lx", __func__, event);
 
 	dptx_notify_set_screen_mute(dptx, 1);
 
@@ -114,10 +114,10 @@ static int dptx_unmute_event_notifier(struct notifier_block *nb, unsigned long e
 		DPTXPR(0, LOG_E, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
-	if (!(dptx->status & DPTX_STA_PROBE_DONE))
+	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
 		return NOTIFY_DONE;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: 0x%lx", __func__, event);
+	DPTX_DBG(dptx, "%s: 0x%lx", __func__, event);
 
 	dptx_notify_set_screen_mute(dptx, 0);
 
@@ -139,10 +139,10 @@ static int dptx_link_on_notifier(struct notifier_block *nb, unsigned long event,
 		DPTXPR(0, LOG_E, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
-	if (!(dptx->status & DPTX_STA_PROBE_DONE))
+	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
 		return NOTIFY_DONE;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: 0x%lx", __func__, event);
+	DPTX_DBG(dptx, "%s: 0x%lx", __func__, event);
 
 	dptx_notify_set_link(dptx, 1);
 
@@ -164,10 +164,10 @@ static int dptx_link_off_notifier(struct notifier_block *nb, unsigned long event
 		DPTXPR(0, LOG_E, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
-	if (!(dptx->status & DPTX_STA_PROBE_DONE))
+	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
 		return NOTIFY_DONE;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: 0x%lx", __func__, event);
+	DPTX_DBG(dptx, "%s: 0x%lx", __func__, event);
 
 	dptx_notify_set_link(dptx, 0);
 
@@ -192,7 +192,7 @@ static int dptx_driver_ready_notifier(struct notifier_block *nb, unsigned long e
 	if (!(dptx->status & DPTX_STA_PROBE_DONE))
 		return NOTIFY_DONE;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: 0x%lx", __func__, event);
+	DPTX_DBG(dptx, "%s: 0x%lx", __func__, event);
 
 	dptx_notify_set_driver_ready(dptx, 1);
 	dptx_notify_set_venc(dptx, 1);
@@ -215,10 +215,10 @@ static int dptx_driver_close_notifier(struct notifier_block *nb, unsigned long e
 		DPTXPR(0, LOG_E, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
-	if (!(dptx->status & DPTX_STA_PROBE_DONE))
+	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
 		return NOTIFY_DONE;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: 0x%lx", __func__, event);
+	DPTX_DBG(dptx, "%s: 0x%lx", __func__, event);
 
 	dptx_notify_set_driver_ready(dptx, 0);
 	dptx_notify_set_venc(dptx, 0);
@@ -241,10 +241,10 @@ static int dptx_HPD_check_event_notifier(struct notifier_block *nb, unsigned lon
 		DPTXPR(0, LOG_E, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
-	if (!(dptx->status & DPTX_STA_PROBE_DONE))
+	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
 		return NOTIFY_DONE;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: 0x%lx", __func__, event);
+	DPTX_DBG(dptx, "%s: 0x%lx", __func__, event);
 
 	dptx_notify_check_HPD(dptx);
 
@@ -266,10 +266,10 @@ static int dptx_HPD_trigger_en_notifier(struct notifier_block *nb, unsigned long
 		DPTXPR(0, LOG_E, "%s: data is null", __func__);
 		return NOTIFY_OK;
 	}
-	if (!(dptx->status & DPTX_STA_PROBE_DONE))
+	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
 		return NOTIFY_OK;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: 0x%lx", __func__, event);
+	DPTX_DBG(dptx, "%s: 0x%lx", __func__, event);
 
 	dptx_notify_set_HPD_trigger(dptx, 1);
 
@@ -289,13 +289,13 @@ static int dptx_HPD_trigger_ignore_notifier(struct notifier_block *nb,
 	if (!(event & DPTX_EVENT_HPD_IGNORE))
 		return NOTIFY_DONE;
 	if (!dptx) {
-		DPTXPR(0, LOG_E, "%s: data is null", __func__);
+		DPTX_ERR(0, LOG_E, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
-	if (!(dptx->status & DPTX_STA_PROBE_DONE))
+	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
 		return NOTIFY_DONE;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: 0x%lx", __func__, event);
+	DPTX_PR(dptx, "%s: 0x%lx", __func__, event);
 
 	dptx_notify_set_HPD_trigger(dptx, 0);
 

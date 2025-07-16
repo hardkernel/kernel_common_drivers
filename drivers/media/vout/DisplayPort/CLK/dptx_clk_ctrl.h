@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/amlogic/media/vout/DisplayPort/DPTX.h>
 
-#define PLL_CLK_CHECK_MAX    20000000 /* Hz */
+#define PLL_CLK_CHECK_MAX    1000000000 /* Hz */
 u8 dptx_clk_msr_check(u32 msr_id, u32 freq);
 u8 dptx_pll_wait_lock(u32 reg, u8 lock_bit);
 
@@ -56,13 +56,13 @@ struct dptx_clk_op_s {
 	void (*clk_config_print)(struct dptx_drv_s *dptx);
 	void (*clktree_set)(struct dptx_drv_s *dptx);
 
-	void (*link_clk_config)(struct dptx_drv_s *dptx, u8 dptx_link_rate);
-	void (*link_clk_set)(struct dptx_drv_s *dptx);
+	void (*link_clk_config)(struct dptx_drv_s *dptx, u8 port, u8 dptx_link_rate);
+	void (*link_clk_set)(struct dptx_drv_s *dptx, u8 port);
 
 	void (*vid_clk_config)(struct dptx_drv_s *dptx, u32 pixel_clk);
 	void (*vid_clk_set)(struct dptx_drv_s *dptx);
 
-	void (*clk_ssc_switch)(struct dptx_drv_s *dptx, u8 status);
+	void (*clk_ssc_switch)(struct dptx_drv_s *dptx, u8 port, u8 status);
 
 	//void (*prbs)(struct dptx_drv_s *dptx);
 };

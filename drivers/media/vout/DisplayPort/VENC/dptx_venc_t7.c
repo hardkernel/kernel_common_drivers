@@ -21,7 +21,7 @@ static void dptx_venc_wait_vsync(struct dptx_drv_s *dptx)
 	reg = VPU_VENCP_STAT + offset;
 
 	line_cnt_previous = dptx_vcbus_getb(reg, 16, 13);
-	while (i++ < LCD_WAIT_VSYNC_TIMEOUT) {
+	while (i++ < DPTX_WAIT_VSYNC_TIMEOUT) {
 		line_cnt = dptx_vcbus_getb(reg, 16, 13);
 		if (line_cnt < line_cnt_previous)
 			break;
@@ -87,7 +87,7 @@ static int dptx_venc_debug_test(struct dptx_drv_s *dptx, u8 num)
 	dptx_vcbus_write(ENCL_TST_EN           + offset, dptx_enc_tst[num].tst_en);
 	dptx_vcbus_setb(ENCL_VIDEO_MODE_ADV    + offset, dptx_enc_tst[num].vfifo_en, 3, 1);
 	if (num > 0)
-		DPTXPR(dptx->idx, LOG_I, "show test pattern: %s", dptx_enc_tst[num].name);
+		DPTX_PR(dptx, "show test pattern: %s", dptx_enc_tst[num].name);
 
 	return 0;
 }
@@ -153,6 +153,72 @@ static void dptx_venc_set_timing(struct dptx_drv_s *dptx)
 	dptx_venc_set_tcon(dptx);
 }
 
+static void dptx_dual_set_t7(struct dptx_drv_s *dptx, u8 en, u8 to_port, u8 dual_mode)
+{
+	// uint16_t single_ha = pdrv->config.timing.act_timing.h_active / 2;
+
+	if (dptx->idx != 0) {
+		DPTX_PR(dptx, "dual-port on VENC %u not supported", dptx->idx);
+		return;
+	}
+
+	if (to_port != 1) {
+		DPTX_PR(dptx, "dual-port to PORT-%c not supported", 'A' + to_port);
+		return;
+	}
+
+	if (en == 0) {
+		dptx_vcbus_write(VPU_VENC_RGN_CTRL, 0);
+		return;
+	}
+
+	DPTX_PR(dptx, "set dual split %s mode (%c->[%c] | %c->[%c])",
+		(dual_mode == DPTX_DUAL_PORT_L_R || dual_mode == DPTX_DUAL_PORT_R_L) ?
+			"Left-Right" : "Odd-Even",
+		dual_mode == DPTX_DUAL_PORT_L_R ? 'L' :
+			(dual_mode == DPTX_DUAL_PORT_R_L ? 'R' :
+				(dual_mode == DPTX_DUAL_PORT_O_E ? 'O' : 'E')), 'A' + dptx->idx,
+		dual_mode == DPTX_DUAL_PORT_L_R ? 'R' :
+			(dual_mode == DPTX_DUAL_PORT_R_L ? 'L' :
+				(dual_mode == DPTX_DUAL_PORT_O_E ? 'E' : 'O')), 'A' + to_port);
+
+	if (dptx->act_timing.h_act % 2 || dptx->act_timing.h_pw % 2 ||
+		dptx->act_timing.h_bp % 2 || dptx->act_timing.h_fp % 2) {
+		DPTX_ERR(dptx, "dual-port H-active/bp/fp/sync should be even value");
+	}
+
+	/* @reg: VPU_VENC_RGN_RSIZE 0x278a
+	 * [23:12] reg_region0_size: output region0 size (hsize+1)/2
+	 * [11:0]  reg_region1_size: output region0 size hsize - reg_region0_size
+	 */
+
+	dptx_vcbus_write(VPU_VENC_RGN_RSIZE,
+		((dptx->act_timing.h_act / 2) << 12) | (dptx->act_timing.h_act / 2));
+	/* @reg: VPU_DISP_WRAP_CTRL 0x278b
+	 * [7:5] reg_difx_link_prot: 0:disp0 sync venc0 1:disp1 sync venc0 2:disp2 sync venc0
+	 * [4] reg_splt2_mode: enable 1ppc->2ppc
+	 * [2:0] reg_venc0_difx_link[2:0]:
+	 */
+	dptx_vcbus_write(VPU_DISP_WRAP_CTRL, 0x13);
+
+	/* @reg: VPU_VENC_RGN_CTRL 0x2789
+	 * [11:10] reg_gclk_ctrl: ram clk
+	 * [9:8] reg_gclk_ctrl: logic clk
+	 * [7] reg_rgn_swap: 0:(0-left, 1right) 1:converse
+	 * [6] sw_rst: rgn_buffer soft reset
+	 * [5] reg_sync_ctrl: rgn buffer related en signal sync enable
+	 * [4] reg_sync_ctrl: vsync polarity 0:up edge 1:down edge
+	 * [3] reg_vsync_ctrl: vsync polarity 0:positive 1:negative
+	 * [2] reg_hsync_ctrl: hsync polarity 0:positive 1:negative
+	 * [1] oe_sp_en: odd even split enable
+	 * [0] rgn_en: vbo rgn_buffer enable
+	 */
+	dptx_vcbus_write(VPU_VENC_RGN_CTRL,
+		((dual_mode == DPTX_DUAL_PORT_L_R || dual_mode == DPTX_DUAL_PORT_R_L) << 0 |
+		 (dual_mode == DPTX_DUAL_PORT_O_E || dual_mode == DPTX_DUAL_PORT_E_O) << 1 |
+		 (dual_mode == DPTX_DUAL_PORT_R_L || dual_mode == DPTX_DUAL_PORT_E_O) << 7));
+}
+
 static void dptx_venc_set(struct dptx_drv_s *dptx)
 {
 	unsigned int reg_disp_viu_ctrl, offset;
@@ -181,7 +247,7 @@ static void dptx_venc_set(struct dptx_drv_s *dptx)
 		reg_disp_viu_ctrl = VPU_DISP_VIU2_CTRL;
 		break;
 	default:
-		DPTXPR(dptx->idx, LOG_E, "%s: invalid drv_index", __func__);
+		DPTX_ERR(dptx, "%s: invalid drv_index", __func__);
 		return;
 	}
 
@@ -191,6 +257,9 @@ static void dptx_venc_set(struct dptx_drv_s *dptx)
 					    (1 << 28)); //bit28: dsi_edp enable
 
 	dptx_vcbus_write(VPU_VENC_CTRL + offset, 2);
+
+	if (dptx->sink.port_mask == 0x3)
+		dptx_dual_set_t7(dptx, 1, 1, dptx->setting.dual_port_type);
 }
 
 static void dptx_venc_enable_ctrl(struct dptx_drv_s *dptx, unsigned char flag)

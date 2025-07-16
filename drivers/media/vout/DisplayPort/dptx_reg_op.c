@@ -17,14 +17,16 @@
 #include "dptx_reg_op.h"
 
 #define DPTX_REG_MAP_PERIPHS     0
-#define DPTX_REG_MAP_EDP         1
-#define DPTX_REG_MAP_COMBO_DPHY  2
-#define DPTX_REG_MAP_RST         3
-#define DPTX_REG_MAP_MAX         4
+#define DPTX_REG_MAP_EDP_A       1
+#define DPTX_REG_MAP_EDP_B       2
+#define DPTX_REG_MAP_COMBO_DPHY  3
+#define DPTX_REG_MAP_RST         4
+#define DPTX_REG_MAP_MAX         5
 
 int dptx_reg_t7[] = {
 	DPTX_REG_MAP_COMBO_DPHY,
-	DPTX_REG_MAP_EDP,
+	DPTX_REG_MAP_EDP_A,
+	DPTX_REG_MAP_EDP_B,
 	DPTX_REG_MAP_RST,
 	DPTX_REG_MAP_PERIPHS,
 	DPTX_REG_MAP_MAX,
@@ -43,7 +45,7 @@ int dptx_ioremap(struct dptx_drv_s *dptx, struct platform_device *pdev)
 	int i = 0;
 
 	if (!dptx->data) {
-		DPTXPR(dptx->idx, LOG_E, "%s: reg_map table is null", __func__);
+		DPTX_ERR(dptx, "%s: reg_map table is null", __func__);
 		return -1;
 	}
 
@@ -52,7 +54,7 @@ int dptx_ioremap(struct dptx_drv_s *dptx, struct platform_device *pdev)
 		table = dptx_reg_t7;
 		break;
 	default:
-		DPTXPR(dptx->idx, LOG_E, "%s: unknown chip", __func__);
+		DPTX_ERR(dptx, "%s: unknown chip", __func__);
 		return -1;
 	}
 
@@ -63,26 +65,30 @@ int dptx_ioremap(struct dptx_drv_s *dptx, struct platform_device *pdev)
 
 	spin_lock_init(&dptx_reg_spinlock);
 
-	while (i < DPTX_REG_MAP_MAX && table[i] < DPTX_REG_MAP_MAX) {
+	for (i = 0; i < DPTX_REG_MAP_MAX; i++) {
+		if (table[i] == DPTX_REG_MAP_MAX)
+			break;
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res) {
-			DPTXPR(dptx->idx, LOG_E, "%s: get resource %d error", __func__, i);
+			DPTX_ERR(dptx, "%s: get resource %d error", __func__, i);
 			goto dptx_ioremap_err;
 		}
+
+		if (res->start == 0)
+			continue;
+
 		reg_map[table[i]].base_addr = res->start;
 		reg_map[table[i]].size = resource_size(res);
 		reg_map[table[i]].p = devm_ioremap(&pdev->dev, res->start, reg_map[table[i]].size);
 		if (!reg_map[table[i]].p) {
 			reg_map[table[i]].flag = 0;
-			DPTXPR(dptx->idx, LOG_E, "%s: reg %d failed: 0x%x 0x%x", __func__, i,
+			DPTX_ERR(dptx, "%s: reg %d failed: 0x%x 0x%x", __func__, i,
 			       reg_map[table[i]].base_addr, reg_map[table[i]].size);
 			goto dptx_ioremap_err;
 		}
 		reg_map[table[i]].flag = 1;
-		DPTXPR(dptx->idx, LOG_V, "%s: reg %d: 0x%x -> 0x%px, size: 0x%x", __func__, i,
+		DPTX_DBG(dptx, "%s: reg %d: 0x%x -> 0x%px, size: 0x%x", __func__, i,
 			reg_map[table[i]].base_addr, reg_map[table[i]].p, reg_map[table[i]].size);
-
-		i++;
 	}
 
 	return 0;
@@ -96,7 +102,7 @@ dptx_ioremap_err:
 static int dptx_check_ioremap(struct dptx_drv_s *dptx, u32 n)
 {
 	if (!dptx->reg_map) {
-		DPTXPR(dptx->idx, LOG_E, "%s: reg_map is null", __func__);
+		DPTX_ERR(dptx, "%s: reg_map is null", __func__);
 		return -1;
 	}
 	if (n >= DPTX_REG_MAP_MAX)
@@ -104,7 +110,7 @@ static int dptx_check_ioremap(struct dptx_drv_s *dptx, u32 n)
 	if (dptx->reg_map[n].flag)
 		return 0;
 
-	DPTXPR(dptx->idx, LOG_E, "%s: reg 0x%x map error", __func__, dptx->reg_map[n].base_addr);
+	DPTX_ERR(dptx, "%s: reg map:%u error", __func__, n);
 	return -1;
 }
 
@@ -113,21 +119,24 @@ static inline void __iomem *dptx_check_periphs_reg(struct dptx_drv_s *dptx, u32 
 	if (dptx_check_ioremap(dptx, DPTX_REG_MAP_PERIPHS))
 		return NULL;
 	if (DPTX_REG_OFFSET(reg) >= dptx->reg_map[DPTX_REG_MAP_PERIPHS].size) {
-		DPTXPR(dptx->idx, LOG_E, "invalid periphs reg offset: 0x%04x", reg);
+		DPTX_ERR(dptx, "invalid periphs reg offset: 0x%04x", reg);
 		return NULL;
 	}
 	return dptx->reg_map[DPTX_REG_MAP_PERIPHS].p + DPTX_REG_OFFSET(reg);
 }
 
-static inline void __iomem *dptx_check_IP_reg(struct dptx_drv_s *dptx, u32 reg)
+static inline void __iomem *dptx_check_IP_reg(struct dptx_drv_s *dptx, u8 port, u32 reg)
 {
-	if (dptx_check_ioremap(dptx, DPTX_REG_MAP_EDP))
+	u8 ip_reg = port == 1 ? DPTX_REG_MAP_EDP_B : DPTX_REG_MAP_EDP_A;
+
+	if (dptx_check_ioremap(dptx, ip_reg))
 		return NULL;
-	if (reg >= dptx->reg_map[DPTX_REG_MAP_EDP].size) {
-		DPTXPR(dptx->idx, LOG_E, "invalid dptx reg offset: 0x%04x", reg);
+
+	if (reg >= dptx->reg_map[ip_reg].size) {
+		DPTX_ERR(dptx, "invalid dptx reg offset: 0x%04x", reg);
 		return NULL;
 	}
-	return dptx->reg_map[DPTX_REG_MAP_EDP].p + reg;
+	return dptx->reg_map[ip_reg].p + reg;
 }
 
 static inline void __iomem *dptx_check_combo_dphy_reg(struct dptx_drv_s *dptx, u32 reg)
@@ -135,7 +144,7 @@ static inline void __iomem *dptx_check_combo_dphy_reg(struct dptx_drv_s *dptx, u
 	if (dptx_check_ioremap(dptx, DPTX_REG_MAP_COMBO_DPHY))
 		return NULL;
 	if (DPTX_REG_OFFSET(reg) >= dptx->reg_map[DPTX_REG_MAP_COMBO_DPHY].size) {
-		DPTXPR(dptx->idx, LOG_E, "invalid combo dphy reg offset: 0x%04x", reg);
+		DPTX_ERR(dptx, "invalid combo dphy reg offset: 0x%04x", reg);
 		return NULL;
 	}
 	return dptx->reg_map[DPTX_REG_MAP_COMBO_DPHY].p + DPTX_REG_OFFSET(reg);
@@ -146,7 +155,7 @@ static inline void __iomem *dptx_check_reset_reg(struct dptx_drv_s *dptx, u32 re
 	if (dptx_check_ioremap(dptx, DPTX_REG_MAP_RST))
 		return NULL;
 	if (DPTX_REG_OFFSET(reg) >= dptx->reg_map[DPTX_REG_MAP_RST].size) {
-		DPTXPR(dptx->idx, LOG_E, "invalid reset reg offset: 0x%04x\n", reg);
+		DPTX_ERR(dptx, "invalid reset reg offset: 0x%04x\n", reg);
 		return NULL;
 	}
 	return dptx->reg_map[DPTX_REG_MAP_RST].p + DPTX_REG_OFFSET(reg);
@@ -310,14 +319,14 @@ void dptx_periphs_write(struct dptx_drv_s *dptx, u32 reg, u32 val)
 	spin_unlock_irqrestore(&dptx_reg_spinlock, flags);
 };
 
-u32 __dptx_reg_read(struct dptx_drv_s *dptx, u32 reg)
+u32 __dptx_reg_read(struct dptx_drv_s *dptx, u8 port, u32 reg)
 {
 	void __iomem *p;
 	u32 temp = 0;
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&dptx_reg_spinlock, flags);
-	p = dptx_check_IP_reg(dptx, reg);
+	p = dptx_check_IP_reg(dptx, port, reg);
 	if (p)
 		temp = readl(p);
 	spin_unlock_irqrestore(&dptx_reg_spinlock, flags);
@@ -325,26 +334,26 @@ u32 __dptx_reg_read(struct dptx_drv_s *dptx, u32 reg)
 	return temp;
 };
 
-void __dptx_reg_write(struct dptx_drv_s *dptx, u32 reg, u32 val)
+void __dptx_reg_write(struct dptx_drv_s *dptx, u8 port, u32 reg, u32 val)
 {
 	void __iomem *p;
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&dptx_reg_spinlock, flags);
-	p = dptx_check_IP_reg(dptx, reg);
+	p = dptx_check_IP_reg(dptx, port, reg);
 	if (p)
 		writel(val, p);
 	spin_unlock_irqrestore(&dptx_reg_spinlock, flags);
 };
 
-void __dptx_reg_setb(struct dptx_drv_s *dptx, u32 reg, u32 value, u32 start, u32 len)
+void __dptx_reg_setb(struct dptx_drv_s *dptx, u8 port, u32 reg, u32 value, u32 start, u32 len)
 {
 	void __iomem *p;
 	u32 temp = 0;
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&dptx_reg_spinlock, flags);
-	p = dptx_check_IP_reg(dptx, reg);
+	p = dptx_check_IP_reg(dptx, port, reg);
 	if (p) {
 		temp = readl(p);
 		temp = (temp & (~(((1L << len) - 1) << start))) |
@@ -354,14 +363,14 @@ void __dptx_reg_setb(struct dptx_drv_s *dptx, u32 reg, u32 value, u32 start, u32
 	spin_unlock_irqrestore(&dptx_reg_spinlock, flags);
 }
 
-u32 __dptx_reg_getb(struct dptx_drv_s *dptx, u32 reg, u32 start, u32 len)
+u32 __dptx_reg_getb(struct dptx_drv_s *dptx, u8 port, u32 reg, u32 start, u32 len)
 {
 	void __iomem *p;
 	u32 temp = 0;
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&dptx_reg_spinlock, flags);
-	p = dptx_check_IP_reg(dptx, reg);
+	p = dptx_check_IP_reg(dptx, port, reg);
 	if (p) {
 		temp = readl(p);
 		temp = (temp >> start) & ((1L << len) - 1);

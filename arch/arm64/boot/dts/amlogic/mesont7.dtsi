@@ -2832,6 +2832,7 @@
 
 		reg = <0x0 0xfe018000 0x0 0x60>,    /* combo dphy */
 		      <0x0 0xfe0b0000 0x0 0x10b0>,  /* edp_a host */
+		      <0x0 0xfe0b2000 0x0 0x10b0>,  /* edp_b host */
 		      <0x0 0xfe002000 0x0 0xa0>,    /* reset */
 		      <0x0 0xfe004000 0x0 0x70>;    /* periphs */
 		power-domains = <&pwrdm PDID_T7_EDP0>;
@@ -2841,14 +2842,20 @@
 		pinctrl-1 = <&lcd_edp_a_off_pins>;
 		pinctrl-names = "DPTX-ON","DPTX-OFF";
 
-		device_name = "amlogic-DisplayPort_TX";
-		HPD-ignore = <0>;
-		dptx-gpio-PWR      = <&gpio GPIOY_0 GPIO_ACTIVE_HIGH>;
-		dptx-gpio-PWR-name = "GPIOY_0";
-		// dptx-gpio-CFG1 = <>;
-		// dptx-gpio-CFG1-name = "";
-		// dptx-gpio-CFG2 = <>;
-		// dptx-gpio-CFG2-name = "";
+		edptx_vcc-gpio      = <&gpio GPIOY_0 GPIO_ACTIVE_HIGH>;
+		edptx_vcc-gpio-name = "GPIOY_0";
+		/* edptx-gpio-OD     = <&gpio GPIOY_0 GPIO_ACTIVE_HIGH>; */
+		/* edptx-gpio-OD-name = "GPIOY_0"; */
+		assigned-link-rate = <0>;
+		assigned-lane-count = <0>;
+		assigned-port-count = <0>;
+		assigned-vmode = <0>;
+		assigned-disable-PSR = <0>;
+
+		assigned-preset-timing = <0>;
+		timing-0 = <2200 1920 48 148 1250 1080 5 30 60>; /*timing with dft fr*/
+		timing-0-fr = <60 70 80 100 120>; /* timing with frxed fr */
+		timing-0-range = <48 144>; /* timing with frxed fr */
 
 		drive-strength-lut =
 			<0x3 0x3 0x0>,<0x3 0x7 0x0>,<0x3 0xb 0x0>,<0x3 0xf 0x0>,
@@ -2875,6 +2882,7 @@
 
 		reg = <0x0 0xfe018000 0x0 0x60>,    /* combo dphy */
 		      <0x0 0xfe0b2000 0x0 0x10b0>,  /* edp_a host */
+		      <0x0 0x0 0x0 0>,              /* edp_a host */
 		      <0x0 0xfe002000 0x0 0xa0>,    /* reset */
 		      <0x0 0xfe004000 0x0 0x70>;    /* periphs */
 		power-domains = <&pwrdm PDID_T7_EDP1>;
@@ -2886,12 +2894,20 @@
 
 		device_name = "amlogic-DisplayPort_TX";
 		HPD-ignore = <0>;
-		dptx-gpio-PWR      = <&gpio GPIOY_14 GPIO_ACTIVE_HIGH>;
-		dptx-gpio-PWR-name = "GPIOY_14";
-		// dptx-gpio-CFG1 = <>;
-		// dptx-gpio-CFG1-name = "";
-		// dptx-gpio-CFG2 = <>;
-		// dptx-gpio-CFG2-name = "";
+		edptx_vcc-gpio      = <&gpio GPIOY_14 GPIO_ACTIVE_HIGH>;
+		edptx_vcc-gpio-name = "GPIOY_14";
+		/* edptx-gpio-OD     = <&gpio GPIOY_0 GPIO_ACTIVE_HIGH>; */
+		/* edptx-gpio-OD-name = "GPIOY_0"; */
+		assigned-link-rate = <0>;
+		assigned-lane-count = <0>;
+		assigned-port-count = <0>;
+		assigned-vmode = <0>;
+		assigned-disable-PSR = <0>;
+
+		/*assigned-preset-timing = <0>;*/
+		/*timing-0 = <2200 1920 48 148 1250 1080 5 30 60>; // timing with dft fr*/
+		/*timing-0-fr = <60 70 80 100 120>; // timing with frxed fr*/
+		/*timing-0-range = <48 144>; // timing with frxed fr*/
 
 		drive-strength-lut =
 			<0x3 0x3 0x0>,<0x3 0x7 0x0>,<0x3 0xb 0x0>,<0x3 0xf 0x0>,

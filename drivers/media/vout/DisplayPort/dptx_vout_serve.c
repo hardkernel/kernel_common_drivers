@@ -56,7 +56,7 @@ static int dptx_vmode_is_supported(enum vmode_e mode, void *data)
 {
 	struct dptx_drv_s *dptx = (struct dptx_drv_s *)data;
 
-	DPTXPR(dptx->idx, LOG_V, "%s: %x", __func__, mode);
+	DPTXPR(dptx->idx, LOG_V, "%s: 0x%x", __func__, mode);
 
 	if ((mode & VMODE_MODE_BIT_MASK) == VMODE_eDP)
 		return true;

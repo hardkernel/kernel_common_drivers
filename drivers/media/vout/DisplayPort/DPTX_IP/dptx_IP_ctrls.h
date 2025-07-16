@@ -28,27 +28,31 @@
 #define AUX_REPLY_CODE_I2C_Defer 0x8
 
 struct dptx_if_ctrl_s {
-	u8 (*aux_write)(struct dptx_drv_s *dptx, u32 addr, int len, u8 *buf);
-	u8 (*aux_write_single)(struct dptx_drv_s *dptx, u32 addr, u8 val);
-	u8 (*aux_read)(struct dptx_drv_s *dptx, u32 addr, int len, u8 *buf);
-	u8 (*aux_i2c_op)(struct dptx_drv_s *dptx, u8 cmd_type, u32 dev_addr, u8 len, u8 *data);
+	u8 (*aux_write)(struct dptx_drv_s *dptx, u8 port, u32 addr, int len, u8 *buf);
+	u8 (*aux_write_single)(struct dptx_drv_s *dptx, u8 port, u32 addr, u8 val);
+	u8 (*aux_read)(struct dptx_drv_s *dptx, u8 port, u32 addr, int len, u8 *buf);
+	u8 (*aux_i2c_op)(struct dptx_drv_s *dptx, u8 port,
+			u8 cmd_type, u32 dev_addr, u8 len, u8 *data);
 
-	void (*transmit_pattern)(struct dptx_drv_s *dptx, u8 pattern, u8 lane_mask);
-	void (*set_MSA)(struct dptx_drv_s *dptx);
+	void (*transmit_pattern)(struct dptx_drv_s *dptx, u8 port, u8 pattern, u8 lane_mask);
+	void (*set_MSA)(struct dptx_drv_s *dptx, u8 port);
 
-	void (*path_reset)(struct dptx_drv_s *dptx, u8 mask);
+	void (*path_reset)(struct dptx_drv_s *dptx, u8 port, u8 mask);
 
-	void (*lane_cfg_to_IP)(struct dptx_drv_s *dptx);
-	void (*phy_cfg_to_IP)(struct dptx_drv_s *dptx, u8 lane_mask);
+	void (*lane_cfg_to_IP)(struct dptx_drv_s *dptx, u8 port);
+	void (*phy_cfg_to_IP)(struct dptx_drv_s *dptx, u8 port, u8 lane_mask);
 
-	void (*transmitter_init)(struct dptx_drv_s *dptx);
-	void (*transmitter_output)(struct dptx_drv_s *dptx, u8 en);
+	void (*transmitter_init)(struct dptx_drv_s *dptx, u8 port);
+	void (*transmitter_output)(struct dptx_drv_s *dptx, u8 port_mask, u8 en);
 
-	u8 (*get_hpd_level)(struct dptx_drv_s *dptx);
-	u16 (*get_hpd_irq)(struct dptx_drv_s *dptx);
-	void (*set_hpd_interrupt_mask)(struct dptx_drv_s *dptx, u8 mask);
+	u8 (*get_hpd_level)(struct dptx_drv_s *dptx, u8 port);
+	u16 (*get_hpd_irq)(struct dptx_drv_s *dptx, u8 port);
+	void (*set_hpd_interrupt_mask)(struct dptx_drv_s *dptx, u8 port, u8 mask);
 
-	void (*scramble_reset_set)(struct dptx_drv_s *dptx, u8 sr_type);
+	void (*scramble_reset_set)(struct dptx_drv_s *dptx, u8 port, u8 sr_type);
+
+	void (*PSR1_SDP_ctrl)(struct dptx_drv_s *dptx, u8 port, u8 flag);
+	void (*PSR2_SDP_ctrl)(struct dptx_drv_s *dptx, u8 port, u8 flag);
 };
 
 struct dptx_if_ctrl_s *dptx_if_bind_t7(struct dptx_drv_s *dptx);
