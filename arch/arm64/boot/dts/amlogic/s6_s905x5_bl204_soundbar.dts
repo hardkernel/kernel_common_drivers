@@ -853,6 +853,7 @@
 
 &aed {
 	eqdrc_module = <1>;
+	status = "disabled";
 };
 
 &tdmb {
