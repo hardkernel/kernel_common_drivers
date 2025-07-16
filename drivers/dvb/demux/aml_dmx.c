@@ -494,7 +494,7 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 			mutex_unlock(pdmx->pmutex);
 		}
 	} else {
-		ret = ts_clone_write(pdmx->hw_source, pmem_start,
+		ret = ts_clone_write(pdmx->id, pmem_start,
 				pmem_start_phys, len, mode, pack_len);
 	}
 //	if (signal_pending(current))
