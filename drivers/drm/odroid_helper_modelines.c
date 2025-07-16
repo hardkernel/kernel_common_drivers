@@ -1,17 +1,31 @@
 #include "odroid_helper.h"
 
+#define DISPLAY_TIMING_FILENAME		"display-timings.txt"
+
+static const char * const display_timings[] = {
+	"/fat/"DISPLAY_TIMING_FILENAME,
+	"/boot/"DISPLAY_TIMING_FILENAME,
+	"/usr/lib/firmware/"DISPLAY_TIMING_FILENAME
+};
+
 int load_odroid_modelines(struct drm_connector *connector)
 {
 	struct drm_display_mode mode;
-	struct file *file;
+	struct file *file = NULL;
 	unsigned long len = 4096;
 	loff_t pos = 0;
 	char *buf;
 	char *str;
 	int ret;
 	int count = 0;
+	int i = 0;
 
-	file = filp_open("/usr/lib/firmware/display-timings.txt", O_RDONLY, 0);
+	for (i = 0; i < ARRAY_SIZE(display_timings); i++) {
+		file = filp_open(display_timings[i], O_RDONLY, 0);
+		if (!IS_ERR(file))
+			break;
+	}
+
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
