@@ -4771,7 +4771,8 @@ static int get_hdr_type(void)
 {
 	int change_flag = 0;
 
-	if (signal_transfer_characteristic == 18)
+	if (signal_transfer_characteristic == 18 ||
+		signal_transfer_characteristic == 14)
 		change_flag |= HLG_FLAG;
 
 	return change_flag;
@@ -4781,7 +4782,8 @@ enum hdr_type_e get_hdr_source_type(void)
 {
 	enum hdr_type_e hdr_type;
 
-	if (signal_transfer_characteristic == 18 &&
+	if ((signal_transfer_characteristic == 18 ||
+		signal_transfer_characteristic == 14) &&
 	    signal_color_primaries == 9) {
 		hdr_source_type =
 			signal_cuva ? CUVA_HLG_SOURCE : HLG_SOURCE;
@@ -7435,7 +7437,8 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path,
 	    == HDRTYPE_DOVI)
 		return HDRTYPE_DOVI;
 #endif
-	if (signal_transfer_characteristic == 18 &&
+	if ((signal_transfer_characteristic == 18 ||
+		signal_transfer_characteristic == 14) &&
 	     signal_color_primaries == 9) {
 		if (signal_cuva)
 			hdr_type = HDRTYPE_CUVA_HLG;
@@ -7467,14 +7470,11 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path,
 			else
 				hdr_type = HDRTYPE_HDR10_709;
 		}
-	} else if (signal_transfer_characteristic == 14 ||
-		signal_transfer_characteristic == 1) {
+	} else {
 		if (signal_color_primaries == 9)
 			hdr_type = HDRTYPE_SDR2020;
 		else
 			hdr_type = HDRTYPE_SDR;
-	} else {
-		hdr_type = HDRTYPE_SDR;
 	}
 
 	ext_signal_type = get_cur_vd_ext_signal_type(vd_path);
