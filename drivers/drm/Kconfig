@@ -32,6 +32,24 @@ config AMLOGIC_DRM_CUT_HDMI
 		We should confirm AMLOGIC_HDMITX is configured if
 		AMLOGIC_DRM_HDMI is selected.
 
+config AMLOGIC_DRM_CUT_HDMI_MODERN
+	bool "support drm hdmi function for meson drm display."
+	depends on !(AMLOGIC_HDMITX_MODERN || AMLOGIC_HDMITX21_MODERN)
+	help
+		add drm hdmi support.
+		use internal amlogic media vout hdmi driver.
+		We should confirm AMLOGIC_HDMITX_MODERN is configured if
+		AMLOGIC_DRM_HDMI is selected.
+
+config AMLOGIC_DRM_DP
+	bool "support drm dp function for meson drm display."
+	depends on AMLOGIC_DPTX
+	help
+		add drm dp support.
+		use internal amlogic media vout dp driver.
+		We should confirm AMLOGIC_DPTX is configured if
+		AMLOGIC_DRM_DP is selected.
+
 config AMLOGIC_DRM_CUT_CVBS
 	bool "support drm cvbs function for meson drm display."
 	depends on !AMLOGIC_CVBS_OUTPUT

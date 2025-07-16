@@ -26,7 +26,7 @@ static struct vout_module_s vout_module = {
 		&vout_module.vout_server_list
 	},
 	.curr_vout_server = {NULL},
-	.next_vout_server = NULL,
+	.next_vout_server = {NULL},
 	.init_flag = {0},
 	/* vout_fr_policy:
 	 *    0: disable
@@ -222,16 +222,16 @@ void vout_func_set_state(int index, enum vmode_e mode)
 
 	list_for_each_entry(p_server, &p_module->vout_server_list, list) {
 		data = p_server->data;
-		if (p_module->next_vout_server && p_server->name &&
-		    p_module->next_vout_server->name &&
-		    (strcmp(p_server->name, p_module->next_vout_server->name) == 0)) {
+		if (p_module->next_vout_server[index - 1] && p_server->name &&
+		    p_module->next_vout_server[index - 1]->name &&
+		    (strcmp(p_server->name, p_module->next_vout_server[index - 1]->name) == 0)) {
 			if (vout_debug_print) {
 				VOUTPR("vout[%d]: %s: valid: server_name=%s, data=%px\n",
 					index, __func__, p_server->name, data);
 			}
 			if (p_server->op.vmode_is_supported(mode, data)) {
 				p_module->curr_vout_server[index - 1] = p_server;
-				p_module->next_vout_server = NULL;
+				p_module->next_vout_server[index - 1] = NULL;
 				if (p_server->op.set_state)
 					p_server->op.set_state(index, data);
 			}
@@ -375,7 +375,7 @@ enum vmode_e vout_func_validate_vmode(int index, char *name, int type, unsigned 
 		mutex_unlock(&vout_mutex);
 		return VMODE_MAX;
 	}
-	p_module->next_vout_server = NULL;
+	p_module->next_vout_server[index - 1] = NULL;
 	list_for_each_entry(p_server, &p_module->vout_server_list, list) {
 		data = p_server->data;
 		if (vout_debug_print) {
@@ -413,12 +413,12 @@ enum vmode_e vout_func_validate_vmode(int index, char *name, int type, unsigned 
 		if (p_server->op.validate_vmode) {
 			ret = p_server->op.validate_vmode(name, frac, data);
 			if (ret != VMODE_MAX) { /* valid vmode find. */
-				p_module->next_vout_server = p_server;
+				p_module->next_vout_server[index - 1] = p_server;
 				if (vout_debug_print) {
 					VOUTPR("vout[%d]: %s: valid server: name=%s, data=%px\n",
 						index, __func__,
-						p_module->next_vout_server->name,
-						p_module->next_vout_server->data);
+						p_module->next_vout_server[index - 1]->name,
+						p_module->next_vout_server[index - 1]->data);
 				}
 				break;
 			}
@@ -429,6 +429,28 @@ enum vmode_e vout_func_validate_vmode(int index, char *name, int type, unsigned 
 	return ret;
 }
 EXPORT_SYMBOL(vout_func_validate_vmode);
+
+/*
+ *interface export to client who want to set current vmode.
+ */
+void update_curr_vout_server(int index, struct vout_server_s *vout_server)
+{
+	struct vout_module_s *p_module = NULL;
+
+	mutex_lock(&vout_mutex);
+
+	p_module = &vout_module;
+
+	if (!p_module) {
+		VOUTERR("vout%d: %s: vout_module is NULL\n", index, __func__);
+		mutex_unlock(&vout_mutex);
+		return;
+	}
+	p_module->next_vout_server[index - 1] = vout_server;
+
+	mutex_unlock(&vout_mutex);
+}
+EXPORT_SYMBOL(update_curr_vout_server);
 
 int vout_func_get_disp_cap(int index, char *buf)
 {

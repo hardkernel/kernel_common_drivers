@@ -8,6 +8,7 @@
 
 #include <linux/hdmi.h>
 
+#include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_mode.h>
 
 enum frl_rate_enum {

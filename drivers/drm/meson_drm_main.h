@@ -17,6 +17,8 @@ static inline int am_meson_vpu_init(void)
 static inline void am_meson_vpu_exit(void) {}
 #endif
 
+int  meson_tx_venc_init(void);
+void meson_tx_venc_exit(void);
 int am_meson_drm_init(void);
 void am_meson_drm_exit(void);
 

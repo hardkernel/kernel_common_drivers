@@ -26,6 +26,16 @@ ifeq ($(CONFIG_AMLOGIC_DRM_CUT_HDMI),)
         $(MESON_DRM_MODULE_NAME)-y += meson_hdmitx_diag.o
 endif
 
+ifeq ($(CONFIG_AMLOGIC_DRM_DP),y)
+        $(MESON_DRM_MODULE_NAME)-y += meson_dptx.o
+	$(MESON_DRM_MODULE_NAME)-y += meson_tx_helper.o
+endif
+
+ifeq ($(CONFIG_AMLOGIC_DRM_CUT_HDMI_MODERN),)
+        $(MESON_DRM_MODULE_NAME)-y += meson_hdmi_modern.o
+        $(MESON_DRM_MODULE_NAME)-y += meson_tx_helper.o
+endif
+
 ifeq ($(CONFIG_AMLOGIC_DRM_CUT_CVBS),)
         $(MESON_DRM_MODULE_NAME)-y += meson_cvbs.o
 endif
@@ -41,6 +51,7 @@ $(MESON_DRM_MODULE_NAME)-y += meson_drv.o meson_plane.o \
                               meson_drm_bind.o\
                               meson_dummy.o \
                               meson_drm_rdma.o \
+                              meson_venc.o \
                               vpu-hw/meson_vpu_video_wrapper.o \
                               vpu-hw/meson_vpu_osd_mif.o \
                               vpu-hw/meson_osd_gfcd.o \

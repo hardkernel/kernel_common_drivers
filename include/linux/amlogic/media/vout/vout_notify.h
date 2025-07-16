@@ -61,7 +61,7 @@ struct vout_server_s {
 struct vout_module_s {
 	struct list_head vout_server_list;
 	struct vout_server_s *curr_vout_server[MAX_VOUT];
-	struct vout_server_s *next_vout_server;
+	struct vout_server_s *next_vout_server[MAX_VOUT];
 	unsigned int init_flag[MAX_VOUT];
 	/* fr_policy: 0=disable, 1=nearby, 2=force */
 	unsigned int fr_policy[MAX_VOUT];

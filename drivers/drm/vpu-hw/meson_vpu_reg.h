@@ -753,6 +753,16 @@
 #define ENCL_MAX_LINE_SWITCH_POINT 0x1cc8
 #define ENCL_DACSEL_0 0x1cc9
 #define ENCL_DACSEL_1 0x1cca
+
+#define ENCL_INBUF_CNTL0                           0x1cd3
+#define ENCL_INBUF_CNTL1                           0x1cd4
+#define ENCL_INBUF_CNT                             0x1cd5
+
+#define LCD_RGB_BASE_ADDR                          0x14a5
+#define LCD_RGB_COEFF_ADDR                         0x14a6
+#define LCD_POL_CNTL_ADDR                          0x14a7
+#define LCD_DITH_CNTL_ADDR                         0x14a8
+
 #define RDMA_AHB_START_ADDR_MAN 0x1100
 #define RDMA_AHB_END_ADDR_MAN 0x1101
 #define RDMA_AHB_START_ADDR_1 0x1102

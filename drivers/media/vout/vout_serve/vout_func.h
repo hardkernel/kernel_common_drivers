@@ -48,6 +48,7 @@ int vout_func_set_current_vmode(int index, enum vmode_e mode);
 int vout_func_check_same_vmodeattr(int index, char *name);
 enum vmode_e vout_func_validate_vmode(int index, char *name,
 	int type, unsigned int frac);
+void update_curr_vout_server(int index, struct vout_server_s *vout_server);
 int vout_func_get_disp_cap(int index, char *buf);
 int vout_func_set_vframe_rate_hint(int index, int duration);
 int vout_func_get_vframe_rate_hint(int index);
