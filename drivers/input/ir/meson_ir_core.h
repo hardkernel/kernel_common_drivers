@@ -71,6 +71,7 @@ struct meson_ir_dev {
 	u32 keypressed;
 	u32 last_scancode;
 	u32 last_keycode;
+	u32 last_framecode;
 	u32 cur_hardcode;
 	u32 cur_customcode;
 	u32 repeat_time;

@@ -428,6 +428,21 @@ static ssize_t preboot_key_show(struct device *dev,
 	return sprintf(buf, "0x%x\n", data);
 }
 
+static ssize_t framecode_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct meson_ir_chip *chip = dev_get_drvdata(dev);
+	unsigned long flags;
+	u32 code;
+
+	spin_lock_irqsave(&chip->slock, flags);
+	code = chip->r_dev->last_framecode;
+	chip->r_dev->last_framecode = 0x0;
+	spin_unlock_irqrestore(&chip->slock, flags);
+
+	return sprintf(buf, "0x%x\n", code);
+}
+
 DEVICE_ATTR_RW(learned_pulse);
 DEVICE_ATTR_RW(ir_learning);
 DEVICE_ATTR_RW(led_frq);
@@ -439,6 +454,7 @@ DEVICE_ATTR_RW(enable);
 DEVICE_ATTR_WO(ao_enable);
 DEVICE_ATTR_RO(wakeup_key_event);
 DEVICE_ATTR_RO(preboot_key);
+DEVICE_ATTR_RO(framecode);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 DEVICE_ATTR_RO(map_tables);
 #endif
@@ -458,6 +474,7 @@ static struct attribute *meson_ir_sysfs_attrs[] = {
 	&dev_attr_ao_enable.attr,
 	&dev_attr_wakeup_key_event.attr,
 	&dev_attr_preboot_key.attr,
+	&dev_attr_framecode.attr,
 	NULL,
 };
 

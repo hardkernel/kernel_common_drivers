@@ -92,6 +92,7 @@ static void meson_ir_do_keydown(struct meson_ir_dev *dev, int scancode,
 		dev->keypressed = 1;
 		dev->last_scancode = scancode;
 		dev->last_keycode = keycode;
+		dev->last_framecode = dev->cur_hardcode;
 
 		input_device = meson_ir_match_input_dev(dev, ct);
 		if (!input_device)
