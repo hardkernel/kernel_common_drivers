@@ -1519,6 +1519,8 @@ void restore_dv_pq_setting(enum pq_reset_e pq_reset)
 				bin_to_cfg_dvp[mode].tdc.d_saturation;
 			cfg_info[mode].dark_detail =
 				bin_to_cfg_dvp[mode].tdc.ambient_config.dark_detail;
+			cfg_info[mode].global_dimming =
+				bin_to_cfg_dvp[mode].tdc.gd_config.global_dimming;
 			cfg_info[mode].bypass_pd_from_user = false;
 			memcpy(cfg_info[mode].vsvdb,
 			       bin_to_cfg_dvp[mode].tdc.vsvdb,
@@ -1550,6 +1552,8 @@ void restore_dv_pq_setting(enum pq_reset_e pq_reset)
 				bin_to_cfg[mode].tdc.d_saturation;
 			cfg_info[mode].dark_detail =
 				bin_to_cfg[mode].tdc.ambient_config.dark_detail;
+			cfg_info[mode].global_dimming =
+				bin_to_cfg[mode].tdc.gd_config.gd_enable;
 			memcpy(cfg_info[mode].vsvdb,
 			       bin_to_cfg[mode].tdc.vsvdb,
 			       sizeof(cfg_info[mode].vsvdb));
@@ -2813,6 +2817,7 @@ int get_dv_pq_info(char *buf)
 	"echo saturation value   > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo darkdetail value   > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo lightsense value   > /sys/class/amdolby_vision/dv_pq_info;\n"
+	"echo global_dimming value   > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo hlg_min value      > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo hlg_max value      > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo bypass_pd_from_user value   > /sys/class/amdolby_vision/dv_pq_info;\n"
@@ -2888,6 +2893,10 @@ int get_dv_pq_info(char *buf)
 	pos += sprintf(buf + pos,
 		       "current darkdetail:        [%d]\n",
 		       cfg_info[cur_pic_mode].dark_detail);
+
+	pos += sprintf(buf + pos,
+		       "current global_dimming:    [%d]\n",
+		       cfg_info[cur_pic_mode].global_dimming);
 
 	pos += sprintf(buf + pos,
 		       "current lightsense:        [%d]\n",
@@ -3077,6 +3086,17 @@ int set_dv_pq_info(const char *buf, size_t count)
 		if (val != cfg_info[cur_pic_mode].dark_detail) {
 			set_update_cfg(true);
 			cfg_info[cur_pic_mode].dark_detail = val;
+		}
+	} else if (!strcmp(parm[0], "global_dimming")) {
+		if (kstrtoint(parm[1], 10, &val) != 0)
+			goto ERR;
+		if (debug_dolby & 0x200)
+			pr_info("[DV]: set mode %d global_dimming %d\n",
+				cur_pic_mode, val);
+		val = val > 0 ? 1 : 0;
+		if (val != cfg_info[cur_pic_mode].global_dimming) {
+			set_update_cfg(true);
+			cfg_info[cur_pic_mode].global_dimming = val;
 		}
 	} else if (!strcmp(parm[0], "lightsense")) {
 		if (kstrtoint(parm[1], 10, &val) != 0)

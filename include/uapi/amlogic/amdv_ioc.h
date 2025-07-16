@@ -123,7 +123,7 @@ struct dv_cfg_support_s {
 /*1: disable dv GD, 0: restore dv GD*/
 #define DV_IOC_CONFIG_DV_BL _IOW((DV_M), 0xb, int)
 
-/*1: enable dv dark detail, 0: disable dv GD*/
+/*1: enable dv dark detail, 0: disable dv dark detail*/
 #define DV_IOC_SET_DV_DARK_DETAIL _IOW((DV_M), 0xc, int)
 
 /* set Amlogic_cfg.txt and dv_config.bin data */
@@ -155,6 +155,9 @@ struct dv_cfg_support_s {
 
 /* get dv status for current mode */
 #define DV_IOC_GET_DV_STATUS _IOR((DV_M), 0x16, uint32_t)
+
+/*1: enable dv gd, 0: disable dv gd*/
+#define DV_IOC_SET_DV_GD _IOW((DV_M), 0x17, int)
 
 #endif
 

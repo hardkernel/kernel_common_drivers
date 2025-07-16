@@ -63,6 +63,7 @@ static u32 last_vf_valid_crc_top1;
 
 struct dynamic_cfg_s dynamic_config_new;
 struct dynamic_cfg_s dynamic_darkdetail = {16, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0};
+struct dynamic_cfg_s dynamic_gd = {128, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0};
 
 const char level_str[4][10] = {
 	"6",
@@ -2573,6 +2574,13 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 		/*light sense: update rear and front*/
 		p_ambient = &dynamic_config_new;
 		update_ambient_lightsense_hw5(p_ambient);
+	}
+
+	if (((struct pq_config_dvp *)pq_config_dvp_fake)->
+		tdc.gd_config.global_dimming) {
+		dynamic_gd.global_dimming =
+			cfg_info[cur_pic_mode].global_dimming;
+			p_ambient = &dynamic_gd;
 	}
 
 	if (variable_fps_mode == 1 && toggle_mode == 1 &&

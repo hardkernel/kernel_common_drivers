@@ -290,6 +290,7 @@ struct dv_cfg_info_s {
 	int t_front_lux;
 	int t_rear_lum;
 	bool bypass_pd_from_user;
+	bool global_dimming;    /*global dimming, on or off*/
 };
 
 struct dv_pq_center_value_s {

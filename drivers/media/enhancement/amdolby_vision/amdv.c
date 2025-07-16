@@ -15901,6 +15901,7 @@ static long amdolby_vision_ioctl(struct file *file,
 	unsigned char bin_name[MAX_BYTES] = "";
 	unsigned char cfg_name[MAX_BYTES] = "";
 	int dark_detail = 0;
+	int global_dimming = 0;
 	char *user_cfg_data = NULL;
 	int bypass_pd = 0;
 	bool amdv_enable;
@@ -16182,6 +16183,22 @@ static long amdolby_vision_ioctl(struct file *file,
 			ret = -EFAULT;
 		}
 		break;
+	case DV_IOC_SET_DV_GD:
+		mode_id = get_pic_mode();
+		if (copy_from_user(&global_dimming, argp,
+			sizeof(s32)) == 0) {
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: set mode %d global_dimming %d\n",
+					mode_id, global_dimming);
+			global_dimming = global_dimming > 0 ? 1 : 0;
+			if (global_dimming != cfg_info[mode_id].global_dimming) {
+				need_update_cfg = true;
+				cfg_info[mode_id].global_dimming = global_dimming;
+			}
+		} else {
+			ret = -EFAULT;
+		}
+		break;
 	case DV_IOC_SET_DV_AMBIENT:
 		if (copy_from_user(&ambient_config_new, argp,
 			sizeof(struct ambient_cfg_s)) == 0) {
@@ -16367,6 +16384,7 @@ static const char *amdolby_vision_debug_usage_str = {
 	"echo dv_cert_graphic_height value > /sys/class/amdolby_vision/debug;\n"
 	"echo force_two_valid value > /sys/class/amdolby_vision/debug;\n"
 	"echo ambient_test_mode value > /sys/class/amdolby_vision/debug;\n"
+	"echo lightsense_test_mode value > /sys/class/amdolby_vision/debug;\n"
 	"echo atsc_sei value > /sys/class/amdolby_vision/debug;\n"
 	"echo primary_debug value > /sys/class/amdolby_vision/debug;\n"
 	"echo hdmi_to_stb_policy value > /sys/class/amdolby_vision/debug;\n"
@@ -16769,6 +16787,11 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		ambient_test_mode = val;
 		pr_info("set ambient_test_mode %d\n", ambient_test_mode);
+	} else if (!strcmp(parm[0], "lightsense_test_mode")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		lightsense_test_mode = val;
+		pr_info("set lightsense_test_mode %d\n", lightsense_test_mode);
 	} else if (!strcmp(parm[0], "atsc_sei")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
