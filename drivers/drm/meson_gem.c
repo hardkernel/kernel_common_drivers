@@ -27,6 +27,37 @@
 #define uvm_to_gem_obj(x) container_of(x, struct am_meson_gem_object, ubo)
 #define MESON_GEM_NAME "meson_gem"
 
+#if (defined CONFIG_AMLOGIC_HEAP_CMA) || (defined CONFIG_AMLOGIC_HEAP_CODEC_MM)
+static void zap_dma_buf_range(struct page *dma_page, unsigned long len)
+{
+	struct page *page;
+	void *vaddr;
+	int num_pages = len / PAGE_SIZE;
+
+	if (PageHighMem(dma_page)) {
+		page = dma_page;
+
+		while (num_pages > 0) {
+			vaddr = kmap_atomic(page);
+			memset(vaddr, 0, PAGE_SIZE);
+			kunmap_atomic(vaddr);
+
+			/*
+			 *Avoid wasting time zeroing memory if the process
+			 *has been killed by SIGKILL
+			 */
+			if (fatal_signal_pending(current))
+				return;
+
+			page++;
+			num_pages--;
+		}
+	} else {
+		memset(page_address(dma_page), 0, PAGE_ALIGN(len));
+	}
+}
+#endif
+
 static int am_meson_gem_alloc_buff(struct am_meson_gem_object *
 				       meson_gem_obj, int flags)
 {
@@ -36,12 +67,16 @@ static int am_meson_gem_alloc_buff(struct am_meson_gem_object *
 	struct dma_buf_attachment *attachment = NULL;
 	struct sg_table *sg_table = NULL;
 	struct page *page;
-	char DMAHEAP[][20] = {"heap-fb", "heap-gfx"};
+	bool from_heap_codecmm = false;
+	char DMAHEAP[][20] = {"heap-fb", "heap-gfx", "heap-codecmm"};
+	int dma_heap_num = 2; /* "heap-fb", "heap-gfx" */
+	struct meson_drm *priv = NULL;
 #endif
 #ifdef CONFIG_AMLOGIC_ION_DEV
 	size_t len;
 	unsigned int id;
 	struct ion_buffer *buffer;
+	bool alloc_flag = false;
 #endif
 	u32 bscatter = 0;
 	struct dma_buf *dmabuf = NULL;
@@ -49,6 +84,9 @@ static int am_meson_gem_alloc_buff(struct am_meson_gem_object *
 	if (!meson_gem_obj)
 		return -EINVAL;
 
+	DRM_DEBUG_PRIME("%s:pid[%s %d], meson_gem_obj %p, flags 0x%x, size 0x%x\n",
+		__func__, current->comm, current->pid,
+		meson_gem_obj, flags, (u32)meson_gem_obj->base.size);
 	/*
 	 *check flags to set different ion heap type.
 	 *if flags is set to 0, need to use ion dma buffer.
@@ -67,23 +105,39 @@ static int am_meson_gem_alloc_buff(struct am_meson_gem_object *
 #endif
 	} else if (((flags & (MESON_USE_SCANOUT | MESON_USE_CURSOR)) != 0) || flags == 0) {
 #if (defined CONFIG_AMLOGIC_HEAP_CMA) || (defined CONFIG_AMLOGIC_HEAP_CODEC_MM)
-		for (i = 0; i < 2; i++) {
+		if (!meson_gem_obj->base.dev) {
+			DRM_ERROR("%s: dev is NULL\n", __func__);
+			return -EINVAL;
+		}
+		priv = meson_gem_obj->base.dev->dev_private;
+		if (priv && priv->recovery_mode) {
+			DRM_INFO("%s: dma heap of recovery mode add heap-codecmm\n", __func__);
+			dma_heap_num = 3; /* "heap-fb", "heap-gfx", "heap-codecmm" */
+		}
+
+		for (i = 0; i < dma_heap_num; i++) {
 			heap = dma_heap_find(DMAHEAP[i]);
 			if (!IS_ERR_OR_NULL(heap)) {
 				dmabuf = dma_heap_buffer_alloc(heap, meson_gem_obj->base.size,
 					O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
 				if (!IS_ERR_OR_NULL(dmabuf)) {
+					if (i == 2)
+						from_heap_codecmm = true;
 					meson_gem_obj->is_dma = true;
 					break;
 				} else {
-					DRM_DEBUG("%s:%s alloc fail\n", __func__, DMAHEAP[i]);
+					DRM_DEBUG_PRIME("%s:%s alloc fail\n", __func__, DMAHEAP[i]);
 				}
 			} else {
-				DRM_DEBUG("%s: dma_heap_find %s fail.\n", __func__, DMAHEAP[i]);
+				DRM_DEBUG_PRIME("%s: dma_heap_find %s fail.\n",
+					__func__, DMAHEAP[i]);
 			}
 		}
-		DRM_DEBUG("%s: dmabuf(%p) dma_heap_alloc success. size = %zu\n",
-			__func__, dmabuf, meson_gem_obj->base.size);
+		if (!meson_gem_obj->is_dma)
+			DRM_INFO("%s: fail to alloc memory from heap\n", __func__);
+		else
+			DRM_DEBUG_PRIME("%s:alloc dmabuf(%px) from %s heap.size=0x%x\n",
+				__func__, dmabuf, DMAHEAP[i], (u32)meson_gem_obj->base.size);
 #endif
 #ifdef CONFIG_AMLOGIC_ION_DEV
 		if (!meson_gem_obj->is_dma) {
@@ -91,13 +145,22 @@ static int am_meson_gem_alloc_buff(struct am_meson_gem_object *
 			if (id) {
 				dmabuf = ion_alloc(meson_gem_obj->base.size, (1 << id),
 					ION_FLAG_EXTEND_MESON_HEAP);
+				if (IS_ERR_OR_NULL(dmabuf))
+					DRM_DEBUG_PRIME("%s: ion_fb alloc fail\n", __func__);
+				else
+					alloc_flag = true;
 			} else {
+				DRM_DEBUG_PRIME("%s: ion_fb_heap_id_get fail.\n", __func__);
+			}
+
+			if (!alloc_flag) {
+				DRM_DEBUG_PRIME("%s: will try ion-dev next.\n", __func__);
 				id = meson_ion_cma_heap_id_get();
 				if (id) {
 					dmabuf = ion_alloc(meson_gem_obj->base.size, (1 << id),
 						ION_FLAG_EXTEND_MESON_HEAP);
 					if (IS_ERR_OR_NULL(dmabuf)) {
-						DRM_ERROR("%s: ion_alloc fail.\n", __func__);
+						DRM_ERROR("%s: ion-dev alloc fail.\n", __func__);
 						return -ENOMEM;
 					}
 				} else {
@@ -181,6 +244,9 @@ static int am_meson_gem_alloc_buff(struct am_meson_gem_object *
 		sg_dma_address(sg_table->sgl) = sg_phys(sg_table->sgl);
 		page = sg_page(sg_table->sgl);
 
+		if (from_heap_codecmm)
+			zap_dma_buf_range(page, meson_gem_obj->base.size);
+
 		dma_sync_sg_for_device(meson_gem_obj->base.dev->dev,
 					   sg_table->sgl,
 					   sg_table->nents,
@@ -224,7 +290,7 @@ static int am_meson_gem_alloc_buff(struct am_meson_gem_object *
 	return 0;
 }
 
-static void am_meson_gem_free_ion_buf(struct drm_device *dev,
+static void am_meson_gem_free_buf(struct drm_device *dev,
 				      struct am_meson_gem_object *meson_gem_obj)
 {
 #ifdef CONFIG_AMLOGIC_ION
@@ -294,7 +360,7 @@ void meson_gem_object_free(struct drm_gem_object *obj)
 	    (meson_gem_obj->flags & MESON_USE_PROTECTED))
 		am_meson_gem_free_video_secure_buf(meson_gem_obj);
 	else if (!obj->import_attach)
-		am_meson_gem_free_ion_buf(obj->dev, meson_gem_obj);
+		am_meson_gem_free_buf(obj->dev, meson_gem_obj);
 	else
 		drm_prime_gem_destroy(obj, meson_gem_obj->sg);
 
@@ -684,6 +750,10 @@ struct am_meson_gem_object *am_meson_gem_object_create(struct drm_device *dev,
 	else
 		ret = am_meson_gem_alloc_buff(meson_gem_obj, flags);
 	if (ret < 0) {
+		DRM_ERROR("pid[%s %d] alloc buf failed, flags 0x%x, size 0x%x, ret = %d\n",
+			current->comm, current->pid, flags,
+			(u32)meson_gem_obj->base.size, ret);
+		dump_stack();
 		drm_gem_object_release(&meson_gem_obj->base);
 		goto error;
 	}
@@ -726,8 +796,10 @@ int am_meson_gem_dumb_create(struct drm_file *file_priv,
 	args->size = round_up(args->size, PAGE_SIZE);
 	meson_gem_obj = am_meson_gem_object_create(dev,
 						   args->flags, args->size);
-	if (IS_ERR(meson_gem_obj))
+	if (IS_ERR(meson_gem_obj)) {
+		DRM_ERROR("%s: meson_gem_obj IS_ERR\n", __func__);
 		return PTR_ERR(meson_gem_obj);
+	}
 
 	/*
 	 * allocate a id of idr table where the obj is registered
