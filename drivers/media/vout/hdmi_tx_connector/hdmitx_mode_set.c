@@ -376,14 +376,7 @@ void hdmitx_process_plugin(struct hdmitx_common *tx_comm, bool boot_flag, bool s
 		rx_set_repeater_support(1);
 	tx_comm->last_hpd_handle_done_stat = HDMI_TX_HPD_PLUGIN;
 
-	/* step4: SW: set audio */
-	/* TODO: need remove/optimised, keep it temporarily */
-	if (set_audio) {
-		if (tx_comm->tx_hw->set_aud_mode)
-			tx_comm->tx_hw->set_aud_mode(tx_comm->tx_hw, &tx_comm->cur_audio_param);
-	}
-
-	/* step5: SW: notify client modules and update uevent state */
+	/* step4: SW: notify client modules and update uevent state */
 	hdmitx_common_notify_hpd_status(tx_comm, false);
 }
 

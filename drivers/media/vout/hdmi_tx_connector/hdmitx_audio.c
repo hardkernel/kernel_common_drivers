@@ -716,7 +716,6 @@ void hdmitx_audio_init(struct hdmitx_common *tx_comm)
 		audpara->chs = 2 - 1;
 	}
 	/* default audio clock is ON */
-	hdmitx_audio_mute_op(tx_comm, 1, 0);
 	tx_comm->hdmitx_notifier_nb_a.notifier_call = hdmitx_audio_notify_callback;
 	if (!tx_comm->pxp_mode)
 		aout_register_client(&tx_comm->hdmitx_notifier_nb_a);

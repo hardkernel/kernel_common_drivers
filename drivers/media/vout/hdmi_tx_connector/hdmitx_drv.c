@@ -802,7 +802,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_hw_cntl(hw_comm, MODE_FLOW_HPD_IRQ_TOP_HALF, (void *)&hpd_state, NULL);
 	/* actions in bottom half of plug intr */
 	if (hpd_state)
-		hdmitx_process_plugin(tx_comm, true, tx_comm->ready);
+		hdmitx_process_plugin(tx_comm, true, false);
 	else
 		hdmitx_process_plugout(tx_comm);
 	/*
