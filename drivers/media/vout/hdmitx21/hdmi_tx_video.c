@@ -92,6 +92,9 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 {
 	struct hdmi_format_para *param = &hdev->tx_comm.fmt_para;
 	int ret = -1;
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	int voutmode = odroid_voutmode();
+#endif
 
 	if (videocode >= HDMITX_VESA_OFFSET) {
 		param->cs = HDMI_COLORSPACE_RGB;
@@ -117,6 +120,17 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base,
 				CONF_HDMI_DVI_MODE, HDMI_MODE);
 		}
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+		if (voutmode == VOUTMODE_HDMI) {
+			HDMITX_INFO("Sink is HDMI device\n");
+			hdmitx_hw_cntl_config(&hdev->tx_hw.base,
+				CONF_HDMI_DVI_MODE, HDMI_MODE);
+		} else if (voutmode == VOUTMODE_DVI) {
+			HDMITX_INFO("Sink is DVI device\n");
+			hdmitx_hw_cntl_config(&hdev->tx_hw.base,
+				CONF_HDMI_DVI_MODE, DVI_MODE);
+		}
+#endif
 		if (videocode == HDMI_95_3840x2160p30_16x9 ||
 		    videocode == HDMI_94_3840x2160p25_16x9 ||
 		    videocode == HDMI_93_3840x2160p24_16x9 ||

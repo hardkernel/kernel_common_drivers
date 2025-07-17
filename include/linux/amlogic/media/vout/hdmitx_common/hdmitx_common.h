@@ -361,4 +361,13 @@ enum hdmi_color_depth get_hdmi_colordepth(const struct vinfo_s *vinfo);
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
 enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+
+#define VOUTMODE_NOINIT 0x00
+#define VOUTMODE_HDMI   0x01
+#define VOUTMODE_DVI    0x02
+
+int odroid_voutmode(void);
+#endif
+
 #endif
