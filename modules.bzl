@@ -254,7 +254,8 @@ AMLOGIC_COMMON_MODULES = [
 
 
 AMLOGOC_COMMON_MODULES_REMOVE = [
-    "kernel/kheaders.ko"
+    "kernel/kheaders.ko",
+    "drivers/android/rust_binder.ko",
 ] if project_configs.GKI_CONFIG in ("", "non_gki") else []
 
 AMLOGIC_UPGRADE_COMMON_MODULES = [
