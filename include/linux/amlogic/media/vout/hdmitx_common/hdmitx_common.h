@@ -739,4 +739,13 @@ ssize_t _vrr_cap_show(struct device *dev, struct device_attribute *attr,
 	char *buf);
 /**********only used for hdmitx21 end**********/
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+
+#define VOUTMODE_NOINIT 0x00
+#define VOUTMODE_HDMI   0x01
+#define VOUTMODE_DVI    0x02
+
+int odroid_voutmode(void);
+#endif
+
 #endif

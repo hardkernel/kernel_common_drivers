@@ -105,6 +105,29 @@
 #define GET_BITS_FILED(val, start, len) \
 	(((val) >> (start)) & ((1 << (len)) - 1))
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+static int dvi_mode = VOUTMODE_NOINIT;
+
+static char *voutmode;
+module_param(voutmode, charp, 0644);
+MODULE_PARM_DESC(voutmode, "set forcely voutmode as DVI or HDMI");
+
+int odroid_voutmode(void)
+{
+	if (!voutmode)
+		return dvi_mode;
+
+	if (!strcmp(voutmode, "hdmi"))
+		dvi_mode = VOUTMODE_HDMI;
+	else if (!strcmp(voutmode, "dvi"))
+		dvi_mode = VOUTMODE_DVI;
+	else
+		dvi_mode = VOUTMODE_NOINIT;
+
+	return dvi_mode;
+}
+#endif
+
 static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct rx_cap *prxcap);
 static void edid_check_pcm_declare(struct rx_cap *prxcap);
@@ -2448,6 +2471,9 @@ static void _edid_parse_base_structure(struct rx_cap *prxcap, unsigned char *edi
 	unsigned char zero_numbers;
 	unsigned char cta_block_count;
 	int i;
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	int voutmode = odroid_voutmode();
+#endif
 
 	if (!prxcap || !edid_buf)
 		return;
@@ -2492,6 +2518,12 @@ static void _edid_parse_base_structure(struct rx_cap *prxcap, unsigned char *edi
 			prxcap->ieeeoui = HDMI_IEEE_OUI;
 		if (zero_numbers > 120)
 			prxcap->ieeeoui = HDMI_IEEE_OUI;
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+		if (voutmode == VOUTMODE_DVI)
+			prxcap->ieeeoui = 0;
+		else if (voutmode == VOUTMODE_HDMI)
+			prxcap->ieeeoui = HDMI_IEEE_OUI;
+#endif
 	}
 }
 
@@ -2538,6 +2570,9 @@ static int update_edid_chksum(struct rx_cap *prxcap, u8 *edid_buf)
 static int hdmitx_edid_parse_ieeeoui(struct rx_cap *prxcap, u8 *edid_buf)
 {
 	u32 ieeeoui;
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	int voutmode = odroid_voutmode();
+#endif
 
 	/* strictly DVI device judgement */
 	/* valid EDID & no audio tag & no IEEEOUI */
@@ -2548,6 +2583,14 @@ static int hdmitx_edid_parse_ieeeoui(struct rx_cap *prxcap, u8 *edid_buf)
 	} else {
 		ieeeoui = HDMI_IEEE_OUI;
 	}
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	if (voutmode == VOUTMODE_DVI) {
+		ieeeoui = 0x0;
+		pr_debug(EDID "not find IEEEOUT\n");
+	} else if (voutmode == VOUTMODE_HDMI) {
+		ieeeoui = HDMI_IEEE_OUI;
+	}
+#endif
 
 	return ieeeoui;
 }

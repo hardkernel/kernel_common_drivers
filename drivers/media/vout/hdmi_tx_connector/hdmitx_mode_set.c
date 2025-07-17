@@ -541,6 +541,9 @@ int hdmitx_set_display(struct hdmitx_common *tx_comm, enum hdmi_vic video_code)
 	int ret = -1;
 	unsigned char buffer[31] = {0x87, 0x1, 26};
 	u32 arg;
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	int voutmode = odroid_voutmode();
+#endif
 
 	HDMITX_DEBUG_VIDEO("%s set VIC = %d\n", __func__, video_code);
 
@@ -572,6 +575,19 @@ int hdmitx_set_display(struct hdmitx_common *tx_comm, enum hdmi_vic video_code)
 			hdmitx_hw_cntl(hw_comm,
 				CORE_MISC_SET_HDMI_DVI_MODE, (void *)&arg, NULL);
 		}
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+		if (voutmode == VOUTMODE_HDMI) {
+			HDMITX_INFO("Sink is HDMI device\n");
+			arg = HDMI_MODE;
+			hdmitx_hw_cntl(hw_comm,
+				CORE_MISC_SET_HDMI_DVI_MODE, (void *)&arg, NULL);
+		} else if (voutmode == VOUTMODE_DVI) {
+			HDMITX_INFO("Sink is DVI device\n");
+			arg = DVI_MODE;
+			hdmitx_hw_cntl(hw_comm,
+				CORE_MISC_SET_HDMI_DVI_MODE, (void *)&arg, NULL);
+		}
+#endif
 
 		if (video_code == HDMI_95_3840x2160p30_16x9 ||
 			video_code == HDMI_94_3840x2160p25_16x9 ||
