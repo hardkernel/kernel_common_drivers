@@ -42,13 +42,14 @@ void vout_viu_mux_update(int index, unsigned int mux_sel);
 void vout_viu_mux_clear(int index, unsigned int mux_sel);
 
 void vout_func_set_state(int index, enum vmode_e mode);
-void vout_func_update_viu(int index);
+void vout_func_update_viu(int index, int viu_mux);
 int vout_func_set_vmode(int index, enum vmode_e mode);
 int vout_func_set_current_vmode(int index, enum vmode_e mode);
 int vout_func_check_same_vmodeattr(int index, char *name);
 enum vmode_e vout_func_validate_vmode(int index, char *name,
 	int type, unsigned int frac);
 void update_curr_vout_server(int index, struct vout_server_s *vout_server);
+unsigned int vout_func_get_viu_mux(int index, struct vout_server_s *vout_server, char *_mode);
 int vout_func_get_disp_cap(int index, char *buf);
 int vout_func_set_vframe_rate_hint(int index, int duration);
 int vout_func_get_vframe_rate_hint(int index);

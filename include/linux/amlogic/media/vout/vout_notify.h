@@ -14,6 +14,8 @@
 /* Local Headers */
 #include "vinfo.h"
 
+#define VIU_MUX_CONFIG_MASK 8
+
 enum viu_index {
 	VOUT_VIU0 = 0,
 	VOUT_VIU1,
@@ -48,6 +50,7 @@ struct vout_op_s {
 	int (*vout_suspend)(void *data);
 	int (*vout_resume)(void *data);
 	int (*vout_shutdown)(void *data);
+	unsigned int (*get_viu_mux)(char *_mode, void *data);
 };
 
 struct vout_server_s {

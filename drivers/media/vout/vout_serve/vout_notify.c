@@ -133,7 +133,7 @@ EXPORT_SYMBOL(set_vout_init);
 
 void update_vout_viu(void)
 {
-	vout_func_update_viu(1);
+	vout_func_update_viu(1, 0);
 }
 EXPORT_SYMBOL(update_vout_viu);
 

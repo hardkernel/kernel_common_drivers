@@ -148,6 +148,7 @@ struct am_meson_crtc {
 		bool in_vblank_irq, int *vpos, int *hpos,
 		ktime_t *stime, ktime_t *etime,
 		const struct drm_display_mode *mode);
+	unsigned int viu_mux;
 };
 
 #define to_am_meson_crtc(x) container_of(x, \

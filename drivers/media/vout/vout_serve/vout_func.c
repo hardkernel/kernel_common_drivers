@@ -250,7 +250,7 @@ void vout_func_set_state(int index, enum vmode_e mode)
 }
 EXPORT_SYMBOL(vout_func_set_state);
 
-void vout_func_update_viu(int index)
+void vout_func_update_viu(int index, int viu_mux)
 {
 	struct vinfo_s *vinfo = NULL;
 	struct vout_server_s *p_server;
@@ -283,13 +283,40 @@ void vout_func_update_viu(int index)
 	if (!vinfo)
 		vinfo = get_invalid_vinfo(index, flag);
 
-	mux_sel = vinfo->viu_mux;
+	if (viu_mux & BIT(VIU_MUX_CONFIG_MASK))
+		mux_sel = viu_mux;
+	else
+		mux_sel = vinfo->viu_mux;
 
 	vout_viu_mux_update(index, mux_sel);
 
 	mutex_unlock(&vout_mutex);
 }
 EXPORT_SYMBOL(vout_func_update_viu);
+
+/*
+ *interface export to client who want to get viu_mux.
+ */
+unsigned int vout_func_get_viu_mux(int index, struct vout_server_s *vout_server, char *_mode)
+{
+	unsigned int ret = 0;
+	struct vout_server_s *p_server = NULL;
+	void *data;
+
+	mutex_lock(&vout_mutex);
+
+	p_server = vout_module.curr_vout_server[index - 1];
+
+	if (p_server) {
+		data = p_server->data;
+		if (p_server->op.get_viu_mux)
+			ret = p_server->op.get_viu_mux(_mode, data);
+	}
+
+	mutex_unlock(&vout_mutex);
+	return ret;
+}
+EXPORT_SYMBOL(vout_func_get_viu_mux);
 
 int vout_func_set_vmode(int index, enum vmode_e mode)
 {
@@ -329,7 +356,7 @@ EXPORT_SYMBOL(vout_func_set_vmode);
 int vout_func_set_current_vmode(int index, enum vmode_e mode)
 {
 	vout_func_set_state(index, mode);
-	vout_func_update_viu(index);
+	vout_func_update_viu(index, 0);
 
 	return vout_func_set_vmode(index, mode);
 }

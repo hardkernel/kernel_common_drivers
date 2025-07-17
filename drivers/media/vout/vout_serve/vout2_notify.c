@@ -158,7 +158,7 @@ EXPORT_SYMBOL(set_vout2_init);
 
 void update_vout2_viu(void)
 {
-	vout_func_update_viu(2);
+	vout_func_update_viu(2, 0);
 }
 EXPORT_SYMBOL(update_vout2_viu);
 

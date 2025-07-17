@@ -669,7 +669,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	}
 
 	vout_func_set_state(amcrtc->vout_index, mode);
-	vout_func_update_viu(amcrtc->vout_index);
+	vout_func_update_viu(amcrtc->vout_index, amcrtc->viu_mux);
 
 	meson_crtc_state->vmode = mode;
 	pipeline->subs[amcrtc->crtc_index]->vmode = mode;

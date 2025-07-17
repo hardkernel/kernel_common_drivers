@@ -1886,46 +1886,11 @@ static void meson_hdmitx_cal_brr(struct am_hdmi_tx *am_hdmi,
 	kfree(groups);
 }
 
-static int meson_hdmitx_choose_preset_mode(struct am_hdmi_tx *am_hdmi,
-	struct am_meson_crtc *amcrtc,
-	struct am_meson_crtc_state *meson_crtc_state,
-	char *modename, enum hdmi_vic vic)
-{
-	enum vmode_e vout_mode;
-	int type = am_hdmi->base.connector_type;
-	struct hdmitx_common *common = to_hdmitx_common(am_hdmi->hdmitx_dev);
-
-	meson_crtc_state->preset_vmode = VMODE_INVALID;
-
-	/* check if hdmi can support this mode. if not, set vmode to dummy*/
-	vout_mode = vout_func_validate_vmode(amcrtc->vout_index, modename, type, 0);
-	DRM_INFO(" %s validate vmode %s, %x\n", __func__, modename, vout_mode);
-	if (vout_mode != VMODE_HDMI && hdmitx_get_hpd_state(common)) {
-		DRM_INFO("no matched hdmi mode\n");
-		return -EINVAL;
-	} else if (vout_mode == VMODE_DUMMY_ENCL) {
-		meson_crtc_state->preset_vmode = VMODE_DUMMY_ENCL;
-		return 0;
-	}
-
-	if (hdmitx_common_check_valid_para_of_vic(common, vic)) {
-		type = 0;
-		vout_mode = vout_func_validate_vmode(amcrtc->vout_index, "dummy_l", type, 0);
-		meson_crtc_state->preset_vmode = vout_mode;
-	} else {
-		meson_crtc_state->preset_vmode = VMODE_HDMI;
-	}
-
-	DRM_INFO("%s update %s expect %x\n", __func__, modename, vout_mode);
-	return 0;
-}
-
 /*Calculate preset_mode and eotf_type before enable crtc&encoder.*/
 void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	struct drm_crtc_state *crtc_state,
 	struct drm_connector_state *conn_state)
 {
-	enum hdmi_vic vic;
 	struct am_meson_crtc_state *meson_crtc_state =
 		to_am_meson_crtc_state(crtc_state);
 	struct am_hdmitx_connector_state *hdmitx_state =
@@ -1934,22 +1899,16 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *adj_mode = &crtc_state->adjusted_mode;
 	struct am_hdmi_tx *am_hdmi = encoder_to_am_hdmi(encoder);
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc_state->crtc);
-	struct hdmitx_common *tx_comm = to_hdmitx_common(am_hdmi->hdmitx_dev);
 	char *modename = adj_mode->name;
+	struct meson_connector_dev *hdmitx_dev = am_hdmi->hdmitx_dev;
 
 	DRM_DEBUG("%s[%d]: enter\n", __func__, __LINE__);
 
+	update_curr_vout_server(amcrtc->vout_index, hdmitx_dev->vout_serv);
+	amcrtc->viu_mux = vout_func_get_viu_mux(amcrtc->vout_index,
+		hdmitx_dev->vout_serv, modename);
+
 	if (am_hdmi->android_path)
-		return;
-
-	vic = hdmitx_common_parse_vic_in_edid(tx_comm, modename);
-	if (vic == HDMI_0_UNKNOWN) {
-		DRM_ERROR("invalid vic for %s\n", modename);
-		return;
-	}
-
-	if (meson_hdmitx_choose_preset_mode(am_hdmi, amcrtc,
-	    meson_crtc_state, modename, hdmitx_state->hcs.para.vic) < 0)
 		return;
 
 	DRM_INFO("%s enter:attr[%d-%d]\n", __func__,
@@ -2386,10 +2345,14 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 		ret = meson_hdmitx_encoder_autoselect_attr(encoder, crtc_state, conn_state);
 	}
 
+	if (!ret)
+		meson_crtc_state->preset_vmode = VMODE_HDMI;
+	else
+		DRM_ERROR("%s validate fail %d\n", __func__, ret);
+
 	DRM_DEBUG("vic:%d, cs:%d, cd:%d frac:%d ret:%d\n", hdmitx_state->hcs.para.vic,
 		 hdmitx_state->hcs.para.cs, hdmitx_state->hcs.para.cd,
 		 hdmitx_state->hcs.para.frac_mode, ret);
-
 
 	return ret;
 }

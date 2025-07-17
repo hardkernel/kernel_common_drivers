@@ -116,6 +116,7 @@ static void update_vinfo_from_format_para(struct hdmitx_common *tx_comm)
 
 	/* update vinfo for out device */
 	calc_vinfo_from_hdmi_timing(tx_comm, &fmtpara->timing, vinfo);
+	vinfo->vout_device = tx_comm->vdev;
 	/*
 	 * vinfo->info_3d = NON_3D;
 	 * if (fmtpara->flag_3dfp)
@@ -228,6 +229,38 @@ static enum vmode_e hdmitx_validate_vmode(char *_mode, unsigned int frac, void *
 	return VMODE_MAX;
 }
 
+static unsigned int hdmitx_get_viu_mux(char *_mode, void *data)
+{
+	struct hdmitx_common *tx_comm = (struct hdmitx_common *)data;
+	const struct hdmi_timing *timing = 0;
+	char conv_name[32] = {0};
+	char *mode = _mode;
+	unsigned int viu_mux;
+
+	/* vout validate vmode only used to confirm the mode is
+	 * supported by this server. And don't check with edid,
+	 * maybe we don't have edid when this function called.
+	 */
+	if (is_mode_name_frac(mode)) {
+		convert_name_frac2int(mode, conv_name);
+		mode = conv_name;
+	}
+	timing = hdmitx_mode_match_timing_name(mode);
+
+	if (hdmitx_common_validate_vic(tx_comm, timing->vic) == 0) {
+		viu_mux = timing->pi_mode ? VIU_MUX_ENCP : VIU_MUX_ENCI;
+		/* 1080i use the ENCP, not ENCI */
+		if (timing->name && strstr(timing->name, "1080i"))
+			viu_mux = VIU_MUX_ENCP;
+		viu_mux |= tx_comm->enc_idx << 4;
+		viu_mux |= 1 << VIU_MUX_CONFIG_MASK;
+		return viu_mux;
+	}
+
+	HDMITX_ERROR("%s validate %s fail\n", __func__, _mode);
+	return 0;
+}
+
 static int hdmitx_vmode_is_supported(enum vmode_e mode, void *data)
 {
 	if ((mode & VMODE_MODE_BIT_MASK) == VMODE_HDMI)
@@ -310,6 +343,7 @@ static struct vout_server_s hdmitx_vout_server = {
 		.set_vframe_rate_hint = hdmitx_vout_set_vframe_rate_hint,
 		.get_vframe_rate_hint = hdmitx_vout_get_vframe_rate_hint,
 		.set_bist = hdmitx_set_bist,
+		.get_viu_mux = hdmitx_get_viu_mux,
 #ifdef CONFIG_PM
 		.vout_suspend = NULL,
 		.vout_resume = NULL,
@@ -331,6 +365,7 @@ void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx
 		+ tx_comm->enc_idx;
 	hdmitx_vout_server.data = tx_comm;
 	vout_register_server(&hdmitx_vout_server);
+	tx_comm->base.vout_serv = &hdmitx_vout_server;
 #endif
 }
 
