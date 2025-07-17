@@ -2375,7 +2375,7 @@
 			status = "okay";
 		};
 
-		amlvideo2_0 {
+		amlvideo2_0: amlvideo2_0 {
 			compatible = "amlogic, amlvideo2";
 			dev_name = "amlvideo2";
 			status = "okay";
@@ -2383,7 +2383,7 @@
 			cma_mode = <1>;
 		};
 
-		amlvideo2_1 {
+		amlvideo2_1: amlvideo2_1 {
 			compatible = "amlogic, amlvideo2";
 			dev_name = "amlvideo2";
 			status = "okay";

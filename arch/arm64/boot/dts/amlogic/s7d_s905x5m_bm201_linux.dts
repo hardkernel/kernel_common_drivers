@@ -1009,6 +1009,11 @@
 	tv_bit_mode = <1>;
 };
 
+&amlvideo2_1 {
+	/*1:720P_NV21 2:1080P_NV21 3:4K_NV21*/
+	codec_mm_alloc = <2>;
+};
+
 &aml_wifi{
 	status = "disabled";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
