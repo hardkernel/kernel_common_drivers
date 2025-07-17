@@ -602,7 +602,7 @@ static struct kprobe kp_lookup_name = {
 };
 #endif
 
-static long __nocfi get_user_pfn(struct mm_struct *mm, unsigned long addr)
+long __nocfi get_user_pfn(struct mm_struct *mm, unsigned long addr)
 {
 	long pfn = -1;
 	pgd_t *pgd;
@@ -651,6 +651,7 @@ static long __nocfi get_user_pfn(struct mm_struct *mm, unsigned long addr)
 
 	return pfn;
 }
+EXPORT_SYMBOL(get_user_pfn);
 
 #ifdef CONFIG_ARM64
 void show_all_pfn(struct task_struct *task, struct pt_regs *regs)

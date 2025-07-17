@@ -94,6 +94,25 @@
 #define ADDR_DST				1
 
 #define AMFC_STREAM_MARGIN			64
+#define CACHELINE_SIZE				64
+
+#define AMFC_VER_1_0				0x0100
+#define AMFC_VER_1_1				0x0101
+
+#define AMFC_IOC_MAGIC				'A'
+#define AMFC_MAX_FRAME_SIZE			(4 * 1024 * 1024)
+
+#define AMFC_IOC_COMPRESS			_IOWR(AMFC_IOC_MAGIC, 1, int)
+#define AMFC_IOC_DECOMPRESS			_IOWR(AMFC_IOC_MAGIC, 2, int)
+
+#define PAGE_OFF(a)				(((unsigned long)a) & ~PAGE_MASK)
+
+struct amfc_args {
+	unsigned long long src_addr;
+	unsigned long long dst_addr;
+	int src_size;
+	int dst_size;
+};
 
 enum amfc_page_table {
 	TABLE_SRC_COMPRESS = 0,
@@ -111,15 +130,17 @@ struct amfc_cmd_list {
 	union {
 		unsigned int control;
 		struct {
-			unsigned irq_mask    : 8;
+			unsigned src_hash_l  : 8;
 			unsigned algorithm   : 4;
-			unsigned rsved       : 12;
+			unsigned rsved       : 4;
+			unsigned dst_addr_h  : 4;
+			unsigned src_addr_h  : 4;
 			unsigned end         : 1;
 			unsigned dst_scatter : 1;
 			unsigned src_scatter : 1;
 			unsigned link_mode   : 1;
-			unsigned interrupt   : 1;
-			unsigned ratio_check : 1;
+			unsigned stream      : 1;
+			unsigned hash        : 1;
 			unsigned compress    : 1;
 			unsigned owner       : 1;
 		};
@@ -142,6 +163,7 @@ struct amfc {
 
 	spinlock_t com_lock;		/* lock for compress     */
 	spinlock_t dec_lock;		/* lock for decompress   */
+	unsigned int hw_version;	/* RTL version of amfc   */
 
 	/*
 	 * direct pages for fast quick page mode
@@ -162,7 +184,8 @@ struct amfc {
 
 	unsigned long rate;			/* hz */
 	struct clk *clk;
-	atomic_t need_reset;		/* 1: reset compress, 2: reset decompress*/
+	int in_dec_err;
+	int in_enc_err;
 	unsigned char chip;
 	unsigned char work_mode;		/* 0: irq mode, 1: poll mode  */
 	unsigned char log;
@@ -179,12 +202,15 @@ void cache_clean_flush(unsigned long start, unsigned long end);
 
 static inline int amfc_supported(void)
 {
-	if (is_meson_s7d_cpu())
+	int cpu = get_cpu_type();
+
+	switch (cpu) {
+	case MESON_CPU_MAJOR_ID_T6W:
+	case MESON_CPU_MAJOR_ID_S7D:
+	case MESON_CPU_MAJOR_ID_S6:
+	case MESON_CPU_MAJOR_ID_T6D:
 		return 1;
-	if (is_meson_s6_cpu())
-		return 1;
-	if (is_meson_t6d_cpu())
-		return 1;
+	}
 	return 0;
 }
 

@@ -28,6 +28,7 @@
 #include <linux/pm_domain.h>
 #include <linux/syscore_ops.h>
 #include <linux/sched/clock.h>
+#include <linux/ioctl.h>
 #include <linux/vmalloc.h>
 #include <crypto/internal/scompress.h>
 
@@ -47,12 +48,15 @@
 #include <linux/highmem.h>
 #include <linux/amlogic/amfc_regs.h>
 #include <linux/amlogic/amfc.h>
+#include <linux/amlogic/user_fault.h>
 
 #undef CONFIG_AMFC_TEST
 #undef CONFIG_AMFC_DEBUG
 
 static struct amfc *amfc;
 static struct page *garbage_page;
+static dev_t amfc_devno;
+static struct cdev *amfc_cdev;
 
 inline static int _vmalloc_or_module_addr(const void *x)
 {
@@ -106,14 +110,14 @@ static unsigned int amfc_clk[] = {
 	285000000
 };
 
-static unsigned int init_clk __initdata;
+static unsigned int init_clk;
 
 static int early_amfc_clk_set(char *buf)
 {
 	int clk = 0;
 	int i = 0;
 
-	if (kstrtoint(buf, 10, &clk) != 1)
+	if (kstrtoint(buf, 10, &clk))
 		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(amfc_clk); i++) {
@@ -131,14 +135,17 @@ static int amfc_hw_init(void)
 {
 	unsigned int value;
 
+	if (init_clk)
+		amfc->rate = init_clk;
 	/* fix 500mhz for s7d reva */
 	if (is_meson_s7d_cpu() && is_meson_rev_a()) {
 		pr_info("reva of s7d\n");
 		amfc->rate = 500000000;
 	}
 
+	amfc->hw_version = amfc_hw_read(AMFC_GL_VERSION);
 	pr_info("AMFC VLSI version:%x, feature:%x, clk:%ld\n",
-		amfc_hw_read(AMFC_GL_VERSION),
+		amfc->hw_version,
 		amfc_hw_read(AMFC_GL_CMD0_FEATURE), amfc->rate);
 	clk_set_rate(amfc->clk, amfc->rate);
 
@@ -165,11 +172,36 @@ static int amfc_hw_init(void)
 	return 0;
 }
 
+static void fix_amfc_clock(struct platform_device *pdev)
+{
+	struct resource *res;
+	void *license;
+	unsigned int package, reg;
+	if (!is_meson_t6d_cpu())
+		return;
+	package = get_meson_cpu_version(MESON_CPU_VERSION_LVL_PACK);
+	pr_info("T6D, package:%d\n", package);
+	if (package == 2) { /* t950d5z */
+		amfc->rate = 666666666;
+		return;
+	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	if (res) {
+		license = ioremap(res->start, resource_size(res));
+		if (license) {
+			reg = readl(license);
+			pr_info("license:%x\n", reg);
+			if (reg & BIT(20))
+				amfc->rate = 666666666;
+			iounmap(license);
+		}
+	}
+}
 static unsigned long vmalloc_to_phys(void *va)
 {
 	unsigned long pfn = vmalloc_to_pfn(va);
 
-	WARN_ON(!pfn);
+	WARN_ON(!pfn_valid(pfn));
 	return __pa(pfn_to_kaddr(pfn)) + offset_in_page(va);
 }
 
@@ -190,17 +222,21 @@ inline static unsigned long get_cache_line_size(void)
 	return ctr_el0;
 }
 
-static void amfc_map_addr(unsigned long addr, unsigned long size, int dir)
+static void amfc_map_addr(unsigned long addr, long size, int dir)
 {
 	unsigned long ctr_el0 = get_cache_line_size();
+	unsigned long offset;
 
-	size = addr + size;
 	// cache line size
 	ctr_el0 = ((ctr_el0 >> 16) & 0xf) << 4;
-	addr = addr & ~(ctr_el0 - 1);
+	offset = addr & (ctr_el0 - 1);
+	if (offset) { // align down to cache line
+		size += offset;
+		addr -= offset;
+	}
 
 	if (dir & DMA_FROM_DEVICE) {	// invalid
-		while (addr < size) {
+		while (size > 0) {
 			asm volatile (
 			#ifdef CONFIG_ARM64
 				"dc	civac, %[addr]			\n"
@@ -212,9 +248,10 @@ static void amfc_map_addr(unsigned long addr, unsigned long size, int dir)
 				: "memory", "cc"
 			);
 			addr += ctr_el0;
+			size -= ctr_el0;
 		}
 	} else {
-		while (addr < size) {	// clean
+		while (size > 0) {	// clean
 			asm volatile (
 			#ifdef CONFIG_ARM64
 				"dc	cvac, %[addr]		\n"
@@ -226,6 +263,7 @@ static void amfc_map_addr(unsigned long addr, unsigned long size, int dir)
 				: "memory", "cc"
 			);
 			addr += ctr_el0;
+			size -= ctr_el0;
 		}
 	}
 #ifdef CONFIG_ARM64
@@ -237,17 +275,21 @@ static void amfc_map_addr(unsigned long addr, unsigned long size, int dir)
 #endif
 }
 
-static void amfc_unmap_addr(unsigned long addr, ssize_t size, int dir)
+static void amfc_unmap_addr(unsigned long addr, long size, int dir)
 {
 	unsigned long ctr_el0 = get_cache_line_size();
+	unsigned long offset;
 
-	size = addr + size;
 	// cache line size
 	ctr_el0 = ((ctr_el0 >> 16) & 0xf) << 4;
-	addr = addr & ~(ctr_el0 - 1);
+	offset = addr & (ctr_el0 - 1);
+	if (offset) {
+		size += offset;
+		addr -= offset;
+	}
 
 	if (dir & DMA_FROM_DEVICE) {	// invalid
-		while (addr < size) {
+		while (size > 0) {
 			asm volatile (
 			#ifdef CONFIG_ARM64
 				"dc	civac, %[addr]			\n"
@@ -259,6 +301,7 @@ static void amfc_unmap_addr(unsigned long addr, ssize_t size, int dir)
 				: "memory", "cc"
 			);
 			addr += ctr_el0;
+			size -= ctr_el0;
 		}
 	} else {
 	#if 0
@@ -355,19 +398,20 @@ inline static void dump_addr(void *buf, unsigned int size)
 static void *build_tables(unsigned int *table, void *base, ssize_t size, int stream)
 {
 	int i, count;
-	unsigned long tmp, pfn;
+	unsigned long tmp, pfn, end = (unsigned long)base + size - 1;
 	struct page *page;
 
 	if (!table)
 		return NULL;
 
-	if ((unsigned long)base & ~PAGE_MASK) {
-		pr_info("%s, base:%px not align to %ld\n", __func__, base, PAGE_SIZE);
+	if (((unsigned long)base & ~PAGE_MASK) && amfc->hw_version < AMFC_VER_1_1) {
+		pr_emerg("%s, base:%px not align to %ld\n", __func__, base, PAGE_SIZE);
+		WARN_ON(1);
 		return NULL;
 	}
 
 	/* physical contiguous in uboot */
-	count = ALIGN(size, PAGE_SIZE) / PAGE_SIZE;
+	count = (end >> PAGE_SHIFT) - (((unsigned long)base) >> PAGE_SHIFT) + 1;
 	for (i = 0; i < count; i++) {
 		if (_vmalloc_or_module_addr(base)) {
 			page = vmalloc_to_page(base);
@@ -379,6 +423,48 @@ static void *build_tables(unsigned int *table, void *base, ssize_t size, int str
 		} else {
 			pfn = virt_to_pfn(base);
 		}
+		tmp = (pfn << 6) | 1;
+		table[i] = tmp;
+	#ifdef CONFIG_AMFC_DEBUG
+		pr_info("%s, base:%px, table:%px:%x, pfn:%lx\n",
+			__func__, base, table, tmp, pfn);
+	#endif
+		base += PAGE_SIZE;
+	}
+	if (stream) {
+		/* avoid overflow if we force exit */
+		pfn = page_to_pfn(garbage_page);
+		tmp = (pfn << 6) | 1;
+		table[count++] = tmp;
+	}
+	table[count++] = 0;	// hardware stop
+	amfc_map_addr((long)table, count * 4, DMA_TO_DEVICE);
+
+	return table;
+}
+
+/* build table address for user space */
+static void *build_user_tables(unsigned int *table, void *base, ssize_t size, int stream)
+{
+	int i, count;
+	unsigned long tmp, pfn, end = (unsigned long)base + size - 1;
+	struct mm_struct *mm;
+
+	mm = current->mm;
+
+	if (!mm)
+		return NULL;
+
+	if (((unsigned long)base & ~PAGE_MASK) && amfc->hw_version < AMFC_VER_1_1) {
+		pr_emerg("%s, base:%px not align to %ld\n", __func__, base, PAGE_SIZE);
+		WARN_ON(1);
+		return NULL;
+	}
+
+	/* physical contiguous in uboot */
+	count = (end >> PAGE_SHIFT) - (((unsigned long)base) >> PAGE_SHIFT) + 1;
+	for (i = 0; i < count; i++) {
+		pfn = get_user_pfn(mm, (unsigned long)base);
 		tmp = (pfn << 6) | 1;
 		table[i] = tmp;
 	#ifdef CONFIG_AMFC_DEBUG
@@ -411,7 +497,7 @@ inline static int get_page_count(size_t size)
 static struct page *alloc_page_table(size_t size, int type, int *order)
 {
 	struct page *page;
-	int pages;
+	unsigned long pages;
 
 	pages = get_page_count(size);
 	if (likely(pages == 1))
@@ -422,7 +508,8 @@ static struct page *alloc_page_table(size_t size, int type, int *order)
 	return page;
 }
 
-static void set_up_addr(struct amfc_cmd_list *acl, unsigned long addr, int type)
+static void set_up_addr(struct amfc_cmd_list *acl, unsigned long addr, unsigned int off,
+			int type, int isvmalloc)
 {
 	unsigned int low, high = 0;
 
@@ -433,17 +520,114 @@ static void set_up_addr(struct amfc_cmd_list *acl, unsigned long addr, int type)
 	switch (type) {
 	case ADDR_SRC:
 		acl->src_addr = low;
-		acl->control |= (high << 20);
+		acl->src_addr_h = high;
+		if (amfc->hw_version > AMFC_VER_1_0)
+			acl->link_addr |= (off << 16);
 		break;
 
 	case ADDR_DST:
 		acl->dst_addr = low;
-		acl->control |= (high << 16);
+		acl->dst_addr_h = high;
+		if (amfc->hw_version > AMFC_VER_1_0)
+			acl->link_addr |= (off);
 		break;
 
 	default:
 		break;
 	}
+}
+
+/* map for physical scatter address */
+static void *create_map(struct amfc_cmd_list *acl, void *addr,
+			ssize_t size, int stream, int type, int *order)
+{
+	struct page *page_table = NULL;
+	void *table_addr = NULL;
+	int addr_type = -1;
+	int need_scatter = 1;
+
+	if (stream)
+		size -= AMFC_STREAM_MARGIN;
+
+	/* start and end in same page */
+	if ((((unsigned long)addr + size - 1) >> PAGE_SHIFT) ==
+	    ((unsigned long)addr >> PAGE_SHIFT) && !stream)
+		need_scatter = 0;
+
+	if (need_scatter) {
+		page_table = alloc_page_table(size, type, order);
+		if (!page_table)
+			return ERR_PTR(-ENOMEM);
+
+		table_addr = build_tables(page_address(page_table), addr, size, stream);
+		if (!table_addr)
+			return ERR_PTR(-EINVAL);
+	}
+
+	switch (type) {
+	case TABLE_SRC_DECOMPRESS:
+	case TABLE_SRC_COMPRESS:
+		addr_type = ADDR_SRC;
+		break;
+
+	case TABLE_DST_DECOMPRESS:
+	case TABLE_DST_COMPRESS:
+		addr_type = ADDR_DST;
+		break;
+
+	default:
+		WARN_ON(1);
+		break;
+	}
+	if (need_scatter) {
+		set_up_addr(acl, page_to_phys(page_table), PAGE_OFF(addr), addr_type, 1);
+		if (addr_type == ADDR_SRC)
+			acl->src_scatter = 1;
+		else if (addr_type == ADDR_DST)
+			acl->dst_scatter = 1;
+		return page_table;
+	}
+	set_up_addr(acl, vmalloc_to_phys(addr), PAGE_OFF(addr), addr_type, 1);
+	return NULL;
+}
+
+/* map for user address, always use scatter */
+static void *create_user_map(struct amfc_cmd_list *acl, void *addr,
+			     ssize_t size, int type, int *order)
+{
+	struct page *page_table = NULL;
+	void *table_addr = NULL;
+	int addr_type = -1;
+
+	page_table = alloc_page_table(size, type, order);
+	if (!page_table)
+		return ERR_PTR(-ENOMEM);
+
+	table_addr = build_user_tables(page_address(page_table), addr, size, 1);
+	if (!table_addr)
+		return ERR_PTR(-EINVAL);
+
+	switch (type) {
+	case TABLE_SRC_DECOMPRESS:
+	case TABLE_SRC_COMPRESS:
+		addr_type = ADDR_SRC;
+		break;
+
+	case TABLE_DST_DECOMPRESS:
+	case TABLE_DST_COMPRESS:
+		addr_type = ADDR_DST;
+		break;
+
+	default:
+		WARN_ON(1);
+		break;
+	}
+	set_up_addr(acl, page_to_phys(page_table), PAGE_OFF(addr), addr_type, 1);
+	if (addr_type == ADDR_SRC)
+		acl->src_scatter = 1;
+	else if (addr_type == ADDR_DST)
+		acl->dst_scatter = 1;
+	return page_table;
 }
 
 /*
@@ -461,16 +645,18 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 	struct amfc_cmd_list *acl;
 	int ret = -EINVAL;
 	int src_order = 0, dst_order = 0;
-	void *table_addr1 = NULL, *table_addr2 = NULL;
 	unsigned int status, control, clks = 0;
 	unsigned long flags;
-	unsigned long timeout = ((src_size) / PAGE_SIZE) * 50 + 5000; // us
+	unsigned long long timeout = ((src_size) / PAGE_SIZE) * 50 + 5000; // us
 	unsigned long long tick, cur;
 	int need_copy = 0;
 	void *tmp;
 
 	if (!amfc || !amfc->decompress)
 		return -ENOMEM;
+
+	if (!src || !dst || !src_size || !dst_size)
+		return -EINVAL;
 
 	if (amfc->log > 1)
 		pr_info("%s, src:%px, dst:%px, src size:%d, dst size:%d\n",
@@ -490,7 +676,7 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 		spin_lock_irqsave(&amfc->dec_lock, flags);
 
 	amfc->d_count++;
-	if (((unsigned long)dst & ~PAGE_MASK) &&
+	if ((amfc->hw_version < AMFC_VER_1_1) && ((unsigned long)dst & ~PAGE_MASK) &&
 	    (dst_size + ((unsigned long)dst & ~PAGE_MASK) > PAGE_SIZE)) {
 		tmp = dst;
 		dst = amfc->bounce_buffer;
@@ -503,56 +689,31 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 	acl->src_size = src_size;
 	acl->dst_size = dst_size;
 	if (_vmalloc_or_module_addr(src)) {
-		if (src_size <= PAGE_SIZE) {
-			/* TODO: fix src + src_size cross page case */
-			WARN_ON((((unsigned long)src + src_size - 1) >> PAGE_SHIFT) >
-				((unsigned long)src >> PAGE_SHIFT));
-			set_up_addr(acl, vmalloc_to_phys(src), ADDR_SRC);
-		} else {
-			src_table = alloc_page_table(src_size, TABLE_SRC_DECOMPRESS,
-						     &src_order);
-			if (!src_table) {
-				ret = -ENOMEM;
-				goto out;
-			}
-
-			table_addr1 = build_tables(page_address(src_table), src, src_size, 0);
-			set_up_addr(acl, page_to_phys(src_table), ADDR_SRC);
-			acl->src_scatter = 1;
-		}
+		src_table = create_map(acl, src, src_size, 0,
+				       TABLE_SRC_DECOMPRESS, &src_order);
+		if (IS_ERR(src_table))
+			goto out;
+	} else if ((unsigned long)src < TASK_SIZE) {
+		src_table = create_user_map(acl, src, src_size,
+				       TABLE_SRC_DECOMPRESS, &src_order);
+		if (IS_ERR(src_table))
+			goto out;
 	} else {
-		set_up_addr(acl, virt_to_phys(src), ADDR_SRC);
+		set_up_addr(acl, virt_to_phys(src), PAGE_OFF(src), ADDR_SRC, 0);
 	}
 
 	if (_vmalloc_or_module_addr(dst) || stream) {
-		if (dst_size <= PAGE_SIZE) {
-			WARN_ON((((unsigned long)dst + dst_size - 1) >> PAGE_SHIFT) >
-				((unsigned long)dst >> PAGE_SHIFT));
-			set_up_addr(acl, vmalloc_to_phys(dst), ADDR_DST);
-		} else {
-			dst_table = alloc_page_table(dst_size, TABLE_DST_DECOMPRESS,
-						     &dst_order);
-			if (!dst_table) {
-				ret = -ENOMEM;
-				goto out;
-			}
-
-			/* special handle for erofs stream decompress:
-			 * source added a cache line to make sure content write
-			 * to DDR when truncate output, but build page table should
-			 * not consider it.
-			 */
-			if (stream)
-				table_addr2 = build_tables(page_address(dst_table), dst,
-							   dst_size - AMFC_STREAM_MARGIN, stream);
-			else
-				table_addr2 = build_tables(page_address(dst_table),
-							   dst, dst_size, 0);
-			set_up_addr(acl, page_to_phys(dst_table), ADDR_DST);
-			acl->dst_scatter = 1;
-		}
+		dst_table = create_map(acl, dst, dst_size, stream,
+				       TABLE_DST_DECOMPRESS, &dst_order);
+		if (IS_ERR(dst_table))
+			goto out;
+	} else if ((unsigned long)dst < TASK_SIZE) {
+		dst_table = create_user_map(acl, dst, dst_size,
+				       TABLE_DST_DECOMPRESS, &dst_order);
+		if (IS_ERR(dst_table))
+			goto out;
 	} else {
-		set_up_addr(acl, virt_to_phys(dst), ADDR_DST);
+		set_up_addr(acl, virt_to_phys(dst), PAGE_OFF(dst), ADDR_DST, 0);
 	}
 again:
 	control        = 1;
@@ -562,7 +723,7 @@ again:
 	acl->owner     = 1;
 	acl->status    = 0xffffffff;
 	if (!amfc->work_mode) {
-		acl->interrupt = 1;
+		//acl->interrupt = 1;
 		control |= (1 << 4);
 	}
 
@@ -589,11 +750,11 @@ again:
 				break;
 			cur = sched_clock();
 			if (cur - tick >= timeout * 1000) {
-				pr_emerg("%s timeout:%lld -> %lld, %ld\n",
+				pr_emerg("%s timeout:%lld -> %lld, %lld\n",
 					 __func__, tick, cur, timeout);
 				show_regs(NULL);
 				show_acl(acl);
-				if (cur - tick >= timeout * 50000)
+				if (cur - tick >= timeout * 50000UL)
 					break;
 				// init again and retry;
 				amfc_hw_init();
@@ -604,29 +765,25 @@ again:
 	clks = amfc_hw_read(AMFC_CMD1_TIME_MEASURE);
 
 	amfc_unmap_addr((long)acl, sizeof(*acl), DMA_FROM_DEVICE);
-	if (table_addr1)
-		amfc_unmap_addr((long)table_addr1, ALIGN(src_size, PAGE_SIZE) / PAGE_SIZE,
-				DMA_TO_DEVICE);
-	if (table_addr2)
-		amfc_unmap_addr((long)table_addr2, ALIGN(dst_size, PAGE_SIZE) / PAGE_SIZE,
-				DMA_TO_DEVICE);
 	status = amfc_hw_read(AMFC_GL_CMD1_STATUS);
-	if (!(status & AMFC_ERROR_MASK))
+	if (!(status & AMFC_ERROR_MASK)) {
 		ret = acl->result_size;
-	else
+	} else {
 		ret = 0 - ((status & AMFC_ERROR_MASK) >> 8);
+	}
 out:
-	if (src_table && src_table != amfc->pages[TABLE_SRC_DECOMPRESS])
+	if (!IS_ERR_OR_NULL(src_table) && src_table != amfc->pages[TABLE_SRC_DECOMPRESS])
 		__free_pages(src_table, src_order);
-	if (dst_table && dst_table != amfc->pages[TABLE_DST_DECOMPRESS])
+	if (!IS_ERR_OR_NULL(dst_table) && dst_table != amfc->pages[TABLE_DST_DECOMPRESS])
 		__free_pages(dst_table, dst_order);
 	if (ret < 0) {
+		amfc->in_dec_err = 1;
 		if ((ret == -AMFC_DEC_DST_SIZE_OVF || ret == -AMFC_DEC_DST_PAGE_ERR) && stream) {
 			while (amfc_hw_read(AMFC_WR_MIF_STATUS))
 				;
 			if (amfc->log)
-				pr_info("decompress acl:%px, src:%px, dst:%px, src size:%5d, result size:%5d:%5d, tick:%d\n",
-					acl, src, dst, (int)src_size, ret,
+				pr_info("decompress acl:%px, src:%px, dst:%px, src size:%5d, dstsize:%5d result size:%5d:%5d, tick:%d\n",
+					acl, src, dst, (int)src_size, (int)dst_size, ret,
 					acl->result_size, clks);
 		} else {
 			pr_err("acl:%px, decompress failed, src:%px, dst:%px, ssize:%d, dsize:%d, ret:%d, status:%x\n",
@@ -634,14 +791,25 @@ out:
 				ret, amfc_hw_read(AMFC_GL_CMD1_STATUS));
 			show_regs(NULL);
 			show_acl(acl);
+			if (!IS_ERR_OR_NULL(src_table))
+				dump_addr(page_address(src_table), 128);
+			if (!IS_ERR_OR_NULL(dst_table))
+				dump_addr(page_address(dst_table), 128);
 			dump_addr(src, src_size);
 			dump_addr(dst, dst_size);
 			need_copy = 0;	// decompress real failed
 		}
 		/* sw reset */
-		spin_lock(&amfc->com_lock);
+		while (!spin_trylock(&amfc->com_lock)) {
+			if (amfc->in_enc_err) {
+				amfc_hw_write(0x80000000, AMFC_GL_CMD1_CONTROL);
+				goto error_handled;
+			}
+		}
 		amfc_hw_write(0x80000000, AMFC_GL_CMD1_CONTROL);
 		spin_unlock(&amfc->com_lock);
+error_handled:
+		amfc->in_dec_err = 0;
 	} else {
 		amfc->din += src_size;
 		if (stream) {  // separate for EROFS and ZRAM
@@ -654,27 +822,22 @@ out:
 			amfc->total_dtick += clks;
 		}
 		if (amfc->log)
-			pr_info("decompress acl:%px, src:%px, dst:%px, src size:%5d, result size:%5d, tick:%d\n",
-				acl, src, dst, (int)src_size, ret, clks);
+			pr_info("decompress ACL:%px, src:%px, dst:%px, src size:%5d, dst size,%5d, result size:%5d, tick:%d\n",
+				acl, src, dst, (int)src_size, (int)dst_size, ret, clks);
 	}
 	amfc_hw_write(0x03, AMFC_GL_CMD1_IRQCLR);
 	if (need_copy)
 		memcpy(tmp, amfc->bounce_buffer, dst_size - AMFC_STREAM_MARGIN);
 
-	if (atomic_read(&amfc->need_reset) & 2) {
-		amfc_hw_write(0x80000000, AMFC_GL_CMD0_CONTROL);
-		atomic_andnot(2, &amfc->need_reset);
-		pr_err("amfc: reset dec due to error from enc\n");
-	}
 	if (amfc->work_mode == AMFC_POLL_MODE)
 		spin_unlock(&amfc->dec_lock);
 	else
 		spin_unlock_irqrestore(&amfc->dec_lock, flags);
+
 	if (stream)
 		amfc_unmap_addr((long)dst, dst_size - AMFC_STREAM_MARGIN, DMA_FROM_DEVICE);
 	else
 		amfc_unmap_addr((long)dst, dst_size, DMA_FROM_DEVICE);
-	amfc_unmap_addr((long)src, src_size, DMA_TO_DEVICE);
 
 	return ret;
 }
@@ -694,14 +857,16 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 	struct amfc_cmd_list *acl;
 	int ret = -EINVAL;
 	int src_order = 0, dst_order = 0;
-	void *table_addr1 = NULL, *table_addr2 = NULL;
 	unsigned int status = 0, control, clks = 0;
 	unsigned long flags;
-	unsigned long timeout = ((src_size) / PAGE_SIZE) * 100 + 5000; // us
+	unsigned long long timeout = ((src_size) / PAGE_SIZE) * 100 + 5000; // us
 	unsigned long long tick, cur;
 
 	if (!amfc || !amfc->compress)
 		return -ENOMEM;
+
+	if (!src || !dst || !src_size || !dst_size)
+		return -EINVAL;
 
 	if (amfc->log > 1)
 		pr_info("%s, src:%px, dst:%px, src size:%d, dst size:%d\n",
@@ -710,8 +875,7 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 	/* for compress, zram usually give size large than source, but we only
 	 * need flush source size
 	 */
-	amfc_map_addr((long)dst, src_size, DMA_FROM_DEVICE);
-
+	amfc_map_addr((long)dst, dst_size > (src_size + CACHELINE_SIZE) ? (src_size + CACHELINE_SIZE) : dst_size, DMA_FROM_DEVICE);
 	if (spin_is_locked(&amfc->com_lock))
 		amfc->c_congestion++;
 
@@ -726,46 +890,31 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 	acl->src_size = src_size;
 	acl->dst_size = dst_size;
 	if (_vmalloc_or_module_addr(src)) {
-		if (src_size <= PAGE_SIZE) {
-			/* TODO: fix src + src_size cross page case */
-			WARN_ON((((unsigned long)src + src_size - 1) >> PAGE_SHIFT) >
-				((unsigned long)src >> PAGE_SHIFT));
-			set_up_addr(acl, vmalloc_to_phys(src), ADDR_SRC);
-		} else {
-			src_table = alloc_page_table(src_size, TABLE_SRC_COMPRESS,
-						     &src_order);
-			if (!src_table) {
-				ret = -ENOMEM;
-				goto out;
-			}
-
-			table_addr1 = build_tables(page_address(src_table), src, src_size, 0);
-			set_up_addr(acl, page_to_phys(src_table), ADDR_SRC);
-			acl->src_scatter = 1;
-		}
+		src_table = create_map(acl, src, src_size, 0,
+				       TABLE_SRC_COMPRESS, &src_order);
+		if (IS_ERR(src_table))
+			goto out;
+	} else if ((unsigned long)src < TASK_SIZE) {
+		src_table = create_user_map(acl, src, src_size,
+				       TABLE_SRC_COMPRESS, &src_order);
+		if (IS_ERR(src_table))
+			goto out;
 	} else {
-		set_up_addr(acl, virt_to_phys(src), ADDR_SRC);
+		set_up_addr(acl, virt_to_phys(src), PAGE_OFF(src), ADDR_SRC, 0);
 	}
 
 	if (_vmalloc_or_module_addr(dst)) {
-		if (dst_size <= PAGE_SIZE) {
-			WARN_ON((((unsigned long)dst + dst_size - 1) >> PAGE_SHIFT) >
-				((unsigned long)dst >> PAGE_SHIFT));
-			set_up_addr(acl, vmalloc_to_phys(dst), ADDR_DST);
-		} else {
-			dst_table = alloc_page_table(dst_size, TABLE_DST_COMPRESS,
-						     &dst_order);
-			if (!dst_table) {
-				ret = -ENOMEM;
-				goto out;
-			}
-
-			table_addr2 = build_tables(page_address(dst_table), dst, dst_size, 0);
-			set_up_addr(acl, page_to_phys(dst_table), ADDR_DST);
-			acl->dst_scatter = 1;
-		}
+		dst_table = create_map(acl, dst, dst_size, 1,
+				       TABLE_DST_COMPRESS, &dst_order);
+		if (IS_ERR(dst_table))
+			goto out;
+	} else if ((unsigned long)dst < TASK_SIZE) {
+		dst_table = create_user_map(acl, dst, dst_size,
+				       TABLE_DST_COMPRESS, &dst_order);
+		if (IS_ERR(dst_table))
+			goto out;
 	} else {
-		set_up_addr(acl, virt_to_phys(dst), ADDR_DST);
+		set_up_addr(acl, virt_to_phys(dst), PAGE_OFF(dst), ADDR_DST, 0);
 	}
 again:
 	control        = 1;
@@ -775,7 +924,7 @@ again:
 	acl->owner     = 1;
 	acl->status    = 0xffffffff;
 	if (!amfc->work_mode) {
-		acl->interrupt = 1;
+		//acl->interrupt = 1;
 		control |= (1 << 4);
 	}
 
@@ -801,12 +950,13 @@ again:
 				break;
 			cur = sched_clock();
 			if (cur - tick >= timeout * 1000) {
-				pr_emerg("%s timeout:%lld -> %lld, %ld\n",
-					 __func__, tick, cur, timeout);
+				pr_emerg("%s timeout:%lld -> %lld, %lld, tick:%d\n",
+					 __func__, tick, cur, timeout, amfc_hw_read(AMFC_CMD0_TIME_MEASURE));
 				show_regs(NULL);
 				show_acl(acl);
-				if (cur - tick >= timeout * 50000)
+				if (cur - tick >= timeout * 50000UL)
 					break;
+
 				// init again and retry;
 				amfc_hw_init();
 				goto again;
@@ -816,38 +966,35 @@ again:
 	clks = amfc_hw_read(AMFC_CMD0_TIME_MEASURE);
 
 	amfc_unmap_addr((long)acl, sizeof(*acl), DMA_FROM_DEVICE);
-	if (table_addr1)
-		amfc_unmap_addr((long)table_addr1, ALIGN(src_size, PAGE_SIZE) / PAGE_SIZE,
-				DMA_TO_DEVICE);
-	if (table_addr2)
-		amfc_unmap_addr((long)table_addr2, ALIGN(dst_size, PAGE_SIZE) / PAGE_SIZE,
-				DMA_TO_DEVICE);
 	status = amfc_hw_read(AMFC_GL_CMD0_STATUS);
 	if (!(status & AMFC_ERROR_MASK))
 		ret = acl->result_size;
 	else
 		ret = 0 - ((status & AMFC_ERROR_MASK) >> 8);
 out:
-	if (src_table && src_table != amfc->pages[TABLE_SRC_COMPRESS])
+	if (!IS_ERR_OR_NULL(src_table) && src_table != amfc->pages[TABLE_SRC_COMPRESS])
 		__free_pages(src_table, src_order);
-	if (dst_table && dst_table != amfc->pages[TABLE_DST_COMPRESS])
+	if (!IS_ERR_OR_NULL(dst_table) && dst_table != amfc->pages[TABLE_DST_COMPRESS])
 		__free_pages(dst_table, dst_order);
 	if (ret < 0) {
+		amfc->in_enc_err = 1;
 		if (((status & AMFC_ERR_MASK) >> 8) != AMFC_ENC_DST_SIZE_OVF) {
 			pr_err("acl:%px, compress failed, src:%px, dst:%px, ssize:%d, dsize:%d, ret:%d, status:%x\n",
 				acl, src, dst, (int)src_size, (int)dst_size,
 				ret, amfc_hw_read(AMFC_GL_CMD0_STATUS));
 			show_regs(NULL);
 			show_acl(acl);
-			/* sw reset */
-			/* May dead lock if both enc/dec have error and
-			 * need reset together, so just set flag and warning
-			 * herre
-			 */
-			amfc_hw_write(0x80000000, AMFC_GL_CMD0_CONTROL);
-			atomic_or(2, &amfc->need_reset);
-			WARN_ON(spin_is_locked(&amfc->dec_lock));
 		}
+		while (!spin_trylock(&amfc->dec_lock)) {
+			if (amfc->in_dec_err) {
+				amfc_hw_write(0x80000000, AMFC_GL_CMD0_CONTROL);
+				goto error_handled;
+			}
+		}
+		amfc_hw_write(0x80000000, AMFC_GL_CMD0_CONTROL);
+		spin_unlock(&amfc->dec_lock);
+error_handled:
+		amfc->in_enc_err = 0;
 	} else {
 		amfc->cin         += src_size;
 		amfc->cout        += ret;
@@ -863,8 +1010,7 @@ out:
 		spin_unlock_irqrestore(&amfc->com_lock, flags);
 
 	if (ret > 0)
-		amfc_unmap_addr((long)dst, ret, DMA_FROM_DEVICE);
-	amfc_unmap_addr((long)src, src_size, DMA_TO_DEVICE);
+		amfc_unmap_addr((long)dst, ret > dst_size ? dst_size : ret, DMA_FROM_DEVICE);
 	return ret;
 }
 EXPORT_SYMBOL(amfc_compress);
@@ -994,6 +1140,38 @@ static struct crypto_alg eamfc_alg = {
 		.compress = {
 			.coa_compress	= amfc_crypto_compress,
 			.coa_decompress	= eamfc_crypto_decompress,
+		}
+	}
+};
+
+static int eamfc2_crypto_decompress(struct crypto_tfm *tfm, const u8 *src,
+			   unsigned int slen, u8 *dst, unsigned int *dlen)
+{
+	int ret;
+	unsigned int out_size;
+
+	out_size = *dlen;
+	*dlen += AMFC_STREAM_MARGIN;
+	ret = amfc_decompress((void *)src, dst, slen, *dlen, 1);
+	if (ret < 0 && ((ret != -AMFC_DEC_DST_SIZE_OVF) && (ret != -AMFC_DEC_DST_PAGE_ERR)))
+		return ret;
+	*dlen = out_size;
+	return 0;
+}
+
+/* for erofs*/
+static struct crypto_alg eamfc2_alg = {
+	.cra_name		= "eamfc2",
+	.cra_driver_name	= "eamfc2-generic",
+	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
+	.cra_ctxsize		= 0,
+	.cra_module		= THIS_MODULE,
+	.cra_init		= amfc_crypto_init,
+	.cra_exit		= amfc_crypto_exit,
+	.cra_u			= {
+		.compress = {
+			.coa_compress	= amfc_crypto_compress,
+			.coa_decompress	= eamfc2_crypto_decompress,
 		}
 	}
 };
@@ -1276,6 +1454,95 @@ static struct class amfc_class = {
 	.class_groups = amfc_groups,
 };
 
+static int amfc_open(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
+int amfc_close(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
+long amfc_ioctrl(struct file *filp, unsigned int cmd, unsigned long userdata)
+{
+	struct amfc_args arg;
+	struct amfc_args __user *argp;
+	int ret = -2;
+
+	if (_IOC_TYPE(cmd) != AMFC_IOC_MAGIC)
+		return -EINVAL;
+
+	argp = (void __user *)userdata;
+	if (copy_from_user((void *)&arg, argp, sizeof(arg)))
+		return -ENOMEM;
+
+	pr_debug("user arg, src:%llx, dst:%llx, src_size:%d, dst_size:%d\n",
+		arg.src_addr, arg.dst_addr, arg.src_size, arg.dst_size);
+	if (!arg.src_addr || !arg.dst_addr || !arg.src_size || !arg.dst_size) {
+		pr_debug("NULL addr or size\n");
+		return -EINVAL;
+	}
+	if (arg.src_size > AMFC_MAX_FRAME_SIZE || arg.dst_size > AMFC_MAX_FRAME_SIZE) {
+		pr_debug("Input size over flow\n");
+		return -ERANGE;
+	}
+
+	/* input source and dest address must be page aligned */
+	if ((arg.src_addr & ~PAGE_MASK) || (arg.dst_addr & ~PAGE_MASK)) {
+		pr_debug("address not 4KB aligned\n");
+		return -EFAULT;
+	}
+
+	/* should be mapped already */
+	if (!access_ok((void *)((long)arg.src_addr), arg.src_size)) {
+		pr_debug("src can't full access\n");
+		return -EFAULT;
+	}
+
+	if (!access_ok((void *)((long)arg.dst_addr), arg.dst_size)) {
+		pr_debug("dst can't full access\n");
+		return -EFAULT;
+	}
+
+	pr_debug("user arg check pass\n");
+	switch (cmd) {
+	case AMFC_IOC_COMPRESS:
+		ret = amfc_compress((void *)((long)arg.src_addr),
+				    (void *)((long)arg.dst_addr),
+				    arg.src_size, arg.dst_size);
+		break;
+	case AMFC_IOC_DECOMPRESS:
+		ret = amfc_decompress((void *)((long)arg.src_addr),
+				      (void *)((long)arg.dst_addr),
+				      arg.src_size, arg.dst_size, 0);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long amfc_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
+{
+	long ret = 0;
+
+	ret = amfc_ioctrl(file, cmd, (ulong)compat_ptr(arg));
+	return ret;
+}
+#endif
+
+const struct file_operations amfc_fops = {
+	.owner          = THIS_MODULE,
+	.open           = amfc_open,
+	.release        = amfc_close,
+	.unlocked_ioctl = amfc_ioctrl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = amfc_compat_ioctl,
+#endif
+};
 /*------------ driver layer ---------------*/
 static void amfc_remove(struct platform_device *pdev)
 {
@@ -1284,6 +1551,7 @@ static void amfc_remove(struct platform_device *pdev)
 
 	if (amfc) {
 		amfc = NULL;
+		device_destroy(&amfc_class, MKDEV(MAJOR(amfc_devno), 0));
 		class_destroy(&amfc_class);
 		for (i = 0; i < 4; i++) {
 			if (tmp->pages[i])
@@ -1293,6 +1561,11 @@ static void amfc_remove(struct platform_device *pdev)
 		kfree(tmp->compress);
 		kfree(tmp->decompress);
 		devm_kfree(&pdev->dev, tmp);
+		if (amfc_cdev)
+			cdev_del(amfc_cdev);
+		if (amfc_devno)
+			unregister_chrdev_region(amfc_devno, 1);
+		kfree(amfc_cdev);
 	}
 }
 
@@ -1311,12 +1584,13 @@ static struct syscore_ops amfc_syscore_ops = {
 	.shutdown = amfc_syscore_shutdown,
 };
 
-static int __init amfc_probe(struct platform_device *pdev)
+static int amfc_probe(struct platform_device *pdev)
 {
 	int r = 0, irq, num;
 	unsigned int tmp;
 	struct resource *res;
 	struct device_node *node;
+	struct device *dev;
 
 	amfc = devm_kzalloc(&pdev->dev, sizeof(*amfc), GFP_KERNEL);
 	if (!amfc)
@@ -1326,17 +1600,10 @@ static int __init amfc_probe(struct platform_device *pdev)
 	if (!garbage_page)
 		return -ENOMEM;
 
-	amfc->bounce_buffer = vzalloc(128 * 1024 + AMFC_STREAM_MARGIN);
-	if (!amfc->bounce_buffer)
-		return -ENOMEM;
-
 	node = pdev->dev.of_node;
 	amfc->dev = &pdev->dev;
-	
-	if (dma_set_mask(amfc->dev, DMA_BIT_MASK(36))) {
-		pr_err("Set dma mask failed\n");
-		goto err;
-	}
+
+	dma_set_mask(amfc->dev, DMA_BIT_MASK(36));
 	amfc->compress = kzalloc(sizeof(*amfc->compress), GFP_KERNEL);
 	amfc->decompress = kzalloc(sizeof(*amfc->decompress), GFP_KERNEL);
 	if (!amfc->compress || !amfc->decompress) {
@@ -1374,17 +1641,30 @@ static int __init amfc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	irq = platform_get_irq_byname(pdev, "amfc0");
-	r = request_irq(irq, amfc0_irq_handler,
-			IRQF_SHARED, "amfc0", amfc);
-	if (r < 0)
-		pr_err("request irq failed:%d, r:%d\n", irq, r);
+	/*
+	 * Test on T6D:
+	 * ZRAM  average compress time:6.7us, max:16us, decompress is faster
+	 * than compress of ZRAM. EROFS decomperss average time:18us, max:69us.
+	 * There are too many atomic envs in upper layer caller,so can't
+	 * use schedule, if with IRQ enabled when spinlock, AMFC hardware
+	 * may be interrupted by other long IRQ over 7 ~ 9 ms,
+	 * this will cause long waiting time of AMFC upper caller compared
+	 * with IRQ disabled. So finally chose spinlock with IRQ off.
+	 */
+	amfc->work_mode = AMFC_POLL_IRQ_OFF;
+	if (!amfc->work_mode) {
+		irq = platform_get_irq_byname(pdev, "amfc0");
+		r = request_irq(irq, amfc0_irq_handler,
+				IRQF_SHARED, "amfc0", amfc);
+		if (r < 0)
+			pr_err("request irq failed:%d, r:%d\n", irq, r);
 
-	irq = platform_get_irq_byname(pdev, "amfc1");
-	r = request_irq(irq, amfc1_irq_handler,
-			IRQF_SHARED, "amfc1", amfc);
-	if (r < 0)
-		pr_err("request irq failed:%d, r:%d\n", irq, r);
+		irq = platform_get_irq_byname(pdev, "amfc1");
+		r = request_irq(irq, amfc1_irq_handler,
+				IRQF_SHARED, "amfc1", amfc);
+		if (r < 0)
+			pr_err("request irq failed:%d, r:%d\n", irq, r);
+	}
 
 	amfc->clk = devm_clk_get(&pdev->dev, NULL);
 	if (!amfc->clk) {
@@ -1400,25 +1680,21 @@ static int __init amfc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	fix_amfc_clock(pdev);
 	init_completion(&amfc->ccomp);
 	init_completion(&amfc->dcomp);
 	spin_lock_init(&amfc->com_lock);
 	spin_lock_init(&amfc->dec_lock);
 	amfc_hw_init();
-	/*
-	 * Test on T6D:
-	 * ZRAM  average compress time:6.7us, max:16us, decompress is faster
-	 * than compress of ZRAM. EROFS decomperss average time:18us, max:69us.
-	 * There are too many atomic envs in upper layer caller,so can't
-	 * use schedule, if with IRQ enabled when spinlock, AMFC hardware
-	 * may be interrupted by other long IRQ over 7 ~ 9 ms,
-	 * this will cause long waiting time of AMFC upper caller compared
-	 * with IRQ disabled. So finally chose spinlock with IRQ off.
-	 */
-	amfc->work_mode = AMFC_POLL_IRQ_OFF;
 #ifdef CONFIG_AMFC_DEBUG
 	amfc->log = 1;
 #endif
+
+	if (amfc->hw_version < AMFC_VER_1_1) {
+		amfc->bounce_buffer = vzalloc(128 * 1024 + AMFC_STREAM_MARGIN);
+		if (!amfc->bounce_buffer)
+			goto err;
+	}
 
 	r = crypto_register_alg(&amfc_alg);
 	if (r) {
@@ -1427,6 +1703,8 @@ static int __init amfc_probe(struct platform_device *pdev)
 	}
 
 	r = crypto_register_alg(&eamfc_alg);
+	if (amfc->hw_version > AMFC_VER_1_0)
+		r = crypto_register_alg(&eamfc2_alg);
 	if (r) {
 		crypto_unregister_alg(&amfc_alg);
 		pr_err("register eamfc crypto failed:%d\n", r);
@@ -1437,6 +1715,32 @@ static int __init amfc_probe(struct platform_device *pdev)
 	if (r)
 		pr_info("%s, class regist failed:%d\n", __func__, r);
 
+	r = alloc_chrdev_region(&amfc_devno, 0, 1, "amfc");
+	if (r < 0) {
+		pr_emerg("alloc amfc cdev no failed\n");
+		goto err;
+	}
+	pr_info("%s, dev no:%d\n", __func__, amfc_devno);
+	amfc_cdev = kmalloc(sizeof(*amfc_cdev), GFP_KERNEL);
+	if (!amfc_cdev) {
+		r = -ENOMEM;
+		pr_emerg("alloc amfc cdev failed\n");
+		goto err;
+	}
+	cdev_init(amfc_cdev, &amfc_fops);
+	amfc_cdev->owner = THIS_MODULE;
+	r = cdev_add(amfc_cdev, amfc_devno, 1);
+	if (r) {
+		pr_emerg("amfc cdev add failed\n");
+		goto err;
+	}
+
+	dev = device_create(&amfc_class, NULL, MKDEV(MAJOR(amfc_devno), 0), NULL, "amfc");
+	if (IS_ERR_OR_NULL(dev)) {
+		pr_emerg("amfc cdev create failed:%px\n", dev);
+		r = -EINVAL;
+		goto err;
+	}
 	register_syscore_ops(&amfc_syscore_ops);
 	return 0;
 err:
@@ -1444,6 +1748,11 @@ err:
 		if (amfc->pages[num])
 			__free_pages(amfc->pages[num], 0);
 	}
+	if (amfc_cdev)
+		cdev_del(amfc_cdev);
+	if (amfc_devno)
+		unregister_chrdev_region(amfc_devno, 1);
+	kfree(amfc_cdev);
 	kfree(amfc->compress);
 	kfree(amfc->decompress);
 	devm_kfree(&pdev->dev, amfc);
@@ -1485,23 +1794,20 @@ static struct platform_driver amfc_driver = {
 		.name  = "amfc",
 		.owner = THIS_MODULE,
 		.pm = &amfc_pm_ops,
+		.of_match_table = amfc_match,
 	},
-	.remove   = amfc_remove,
+	.remove = amfc_remove,
+	.probe  = amfc_probe,
 };
 
 int __init amfc_init(void)
 {
 	int ret;
 
-#ifdef CONFIG_OF
-	const struct of_device_id *match_id;
-	match_id = amfc_match;
-	amfc_driver.driver.of_match_table = match_id;
-#endif
 	if (!amfc_supported())
 		return -ENODEV;
 
-	ret = platform_driver_probe(&amfc_driver, amfc_probe);
+	ret = platform_driver_register(&amfc_driver);
 	return ret;
 }
 

@@ -18,6 +18,7 @@ void _dump_dmc_reg(void);
 void show_user_fault_info(struct pt_regs *regs, u64 lr, u64 sp);
 void show_extra_reg_data(struct pt_regs *regs);
 void set_dump_dmc_func(void *f);
+long get_user_pfn(struct mm_struct *mm, unsigned long addr);
 
 #else
 static inline void show_all_pfn(struct task_struct *task, struct pt_regs *regs)
@@ -42,6 +43,11 @@ static inline void show_extra_reg_data(struct pt_regs *regs)
 
 static inline void set_dump_dmc_func(void *f)
 {
+}
+
+static inline long get_user_pfn(struct mm_struct *mm, unsigned long addr)
+{
+	return -1;
 }
 #endif /* CONFIG_AMLOGIC_USER_FAULT */
 
