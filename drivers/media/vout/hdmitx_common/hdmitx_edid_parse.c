@@ -62,6 +62,29 @@
 #define GET_BITS_FILED(val, start, len) \
 	(((val) >> (start)) & ((1 << (len)) - 1))
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+static int dvi_mode = VOUTMODE_NOINIT;
+
+static char *voutmode;
+module_param(voutmode, charp, 0644);
+MODULE_PARM_DESC(voutmode, "set forcely voutmode as DVI or HDMI");
+
+int odroid_voutmode(void)
+{
+	if (!voutmode)
+		return dvi_mode;
+
+	if (!strcmp(voutmode, "hdmi"))
+		dvi_mode = VOUTMODE_HDMI;
+	else if (!strcmp(voutmode, "dvi"))
+		dvi_mode = VOUTMODE_DVI;
+	else
+		dvi_mode = VOUTMODE_NOINIT;
+
+	return dvi_mode;
+}
+#endif
+
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct rx_cap *prxcap);
@@ -2619,12 +2642,27 @@ static void _edid_parse_base_structure(struct rx_cap *prxcap, unsigned char *EDI
 		}
 		HDMITX_DEBUG_EDID("edid blk0 checksum:%d ext_flag:%d\n",
 			checksum, EDID_buf[0x7e]);
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+		if (odroid_voutmode() == VOUTMODE_DVI)
+			prxcap->ieeeoui = 0;
+		else if (odroid_voutmode() == VOUTMODE_HDMI)
+			prxcap->ieeeoui = HDMI_IEEE_OUI;
+		else {
+			if ((checksum & 0xff) == 0)
+				prxcap->ieeeoui = 0;
+			else
+				prxcap->ieeeoui = HDMI_IEEE_OUI;
+			if (zero_numbers > 120)
+				prxcap->ieeeoui = HDMI_IEEE_OUI;
+		}
+#else
 		if ((checksum & 0xff) == 0)
 			prxcap->ieeeoui = 0;
 		else
 			prxcap->ieeeoui = HDMI_IEEE_OUI;
 		if (zero_numbers > 120)
 			prxcap->ieeeoui = HDMI_IEEE_OUI;
+#endif
 	}
 }
 
@@ -2779,6 +2817,22 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 		}
 	}
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+		if (odroid_voutmode() == VOUTMODE_DVI) {
+			prxcap->ieeeoui = 0x0;
+			pr_debug(EDID "not find IEEEOUT\n");
+		} else if (odroid_voutmode() == VOUTMODE_HDMI) {
+			prxcap->ieeeoui = HDMI_IEEE_OUI;
+		} else {
+			if (hdmitx_edid_search_IEEEOUI(&edid_buf[128])) {
+				prxcap->ieeeoui = HDMI_IEEE_OUI;
+				pr_debug(EDID "find IEEEOUT\n");
+			} else {
+				prxcap->ieeeoui = 0x0;
+				pr_debug(EDID "not find IEEEOUT\n");
+			}
+		}
+#else
 	if (hdmitx_edid_search_IEEEOUI(&edid_buf[128])) {
 		prxcap->ieeeoui = HDMI_IEEE_OUI;
 		HDMITX_DEBUG("find IEEEOUT\n");
@@ -2786,9 +2840,28 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 		prxcap->ieeeoui = 0x0;
 		HDMITX_DEBUG("not find IEEEOUT\n");
 	}
+#endif
 
 	/* strictly DVI device judgement */
 	/* valid EDID & no audio tag & no IEEEOUI */
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	if (odroid_voutmode() == VOUTMODE_DVI) {
+		prxcap->ieeeoui = 0x0;
+		pr_debug(EDID "sink is DVI device\n");
+	} else if (odroid_voutmode() == VOUTMODE_HDMI) {
+		prxcap->ieeeoui = HDMI_IEEE_OUI;
+	} else {
+		if (hdmitx_edid_check_data_valid(edid_check, &edid_buf[0]) &&
+			!hdmitx_edid_search_IEEEOUI(&edid_buf[128])) {
+			prxcap->ieeeoui = 0x0;
+			pr_debug(EDID "sink is DVI device\n");
+		} else {
+			prxcap->ieeeoui = HDMI_IEEE_OUI;
+		}
+		if (edid_zero_data(edid_buf))
+			prxcap->ieeeoui = HDMI_IEEE_OUI;
+	}
+#else
 	if (hdmitx_edid_check_data_valid(edid_check, &edid_buf[0]) &&
 		!hdmitx_edid_search_IEEEOUI(&edid_buf[128])) {
 		prxcap->ieeeoui = 0x0;
@@ -2798,6 +2871,7 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	}
 	if (edid_zero_data(edid_buf))
 		prxcap->ieeeoui = HDMI_IEEE_OUI;
+#endif
 
 	update_edid_chksum(prxcap, edid_buf);
 

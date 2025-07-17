@@ -108,6 +108,27 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		 * TMDS_MODE[hdmi_config]
 		 * 0: DVI Mode	   1: HDMI Mode
 		 */
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+		if (odroid_voutmode() == VOUTMODE_HDMI) {
+			HDMITX_INFO("Sink is HDMI device\n");
+			hdmitx_hw_cntl_config(&hdev->tx_hw.base,
+				CONF_HDMI_DVI_MODE, HDMI_MODE);
+		} else if (odroid_voutmode() == VOUTMODE_DVI) {
+			HDMITX_INFO("Sink is DVI device\n");
+			hdmitx_hw_cntl_config(&hdev->tx_hw.base,
+				CONF_HDMI_DVI_MODE, DVI_MODE);
+		} else {
+			if (is_dvi_device(&hdev->tx_comm.rxcap)) {
+				HDMITX_INFO("Sink is DVI device\n");
+				hdmitx_hw_cntl_config(&hdev->tx_hw.base,
+					CONF_HDMI_DVI_MODE, DVI_MODE);
+			} else {
+				HDMITX_INFO("Sink is HDMI device\n");
+				hdmitx_hw_cntl_config(&hdev->tx_hw.base,
+					CONF_HDMI_DVI_MODE, HDMI_MODE);
+			}
+		}
+#else
 		if (is_dvi_device(&hdev->tx_comm.rxcap)) {
 			HDMITX_INFO("Sink is DVI device\n");
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base,
@@ -117,6 +138,7 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base,
 				CONF_HDMI_DVI_MODE, HDMI_MODE);
 		}
+#endif
 		if (videocode == HDMI_95_3840x2160p30_16x9 ||
 		    videocode == HDMI_94_3840x2160p25_16x9 ||
 		    videocode == HDMI_93_3840x2160p24_16x9 ||
