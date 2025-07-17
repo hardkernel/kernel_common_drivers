@@ -536,7 +536,7 @@ static const struct snd_kcontrol_new snd_effect_v3_controls[] = {
 			mixer_set_3D_Surround_params),
 
 	SOC_SINGLE_EXT("AED Clip THD",
-			AED_CLIP_THD_V3, 0, 0x7FFFFFF, 0,
+			AED_CLIP_THD_V3, 0, AED_CLIP_THD_MAX, 0,
 			mixer_aed_read, mixer_aed_write),
 
 	SOC_SINGLE_EXT("AED Mixer Gain LL",

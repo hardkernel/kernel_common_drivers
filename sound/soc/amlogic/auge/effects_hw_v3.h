@@ -9,6 +9,7 @@
 #include "ddr_mngr.h"
 
 #define EQ_V3_BAND        (16)
+#define AED_CLIP_THD_MAX 0x7FFFFF
 
 void aed_v3_set_volume(unsigned int master_volume,
 		    unsigned int lch_vol, unsigned int rch_vol);

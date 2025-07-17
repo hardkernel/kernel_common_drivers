@@ -36,7 +36,7 @@ void aed_v3_set_mixer_params(void)
 	eqdrc_write(AEQ_MIX0_RL, 0x0);
 	eqdrc_write(AEQ_MIX0_LR, 0x0);
 	eqdrc_write(AEQ_MIX0_RR, 0x00800000);
-	eqdrc_write(AED_CLIP_THD_V3, 0x7ffffff);
+	eqdrc_write(AED_CLIP_THD_V3, AED_CLIP_THD_MAX);
 }
 
 void aed_v3_eq_taps(unsigned int eq1_taps)
