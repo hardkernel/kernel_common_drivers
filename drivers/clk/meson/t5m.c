@@ -189,9 +189,10 @@ static struct clk_regmap t5m_fclk_div2p5 = {
 };
 
 static const struct pll_params_table t5m_gp0_pll_table[] = {
-	PLL_PARAMS_OD(128, 1, 2), /* DCO = 3072M OD = 2 PLL = 768M */
-	PLL_PARAMS_OD(96, 1, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
-	PLL_PARAMS_OD(128, 1, 1), /* DCO = 3072M OD = 1 PLL = 1536M */
+	PLL_PARAMS_OD(256, 1, 2), /* DCO = 3072M OD = 2 PLL = 768M */
+	PLL_PARAMS_OD(192, 1, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
+	PLL_PARAMS_OD(256, 1, 1), /* DCO = 3072M OD = 1 PLL = 1536M */
+	PLL_PARAMS_OD(257, 1, 1), /* DCO = 3084M OD = 1 PLL = 1542M */
 	{ /* sentinel */  }
 };
 
@@ -201,7 +202,7 @@ static const struct pll_params_table t5m_gp0_pll_table[] = {
 static const struct reg_sequence t5m_gp0_init_regs[] = {
 	{ .reg = ANACTRL_GP0PLL_CTRL1,	.def = 0x03a00000 },
 	{ .reg = ANACTRL_GP0PLL_CTRL2,	.def = 0x00040000 },
-	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x090da200 },
+	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x0e0da200 },
 };
 
 static struct clk_regmap t5m_gp0_pll = {
@@ -245,7 +246,8 @@ static struct clk_regmap t5m_gp0_pll = {
 		.od_max = 4,
 		.init_regs = t5m_gp0_init_regs,
 		.init_count = ARRAY_SIZE(t5m_gp0_init_regs),
-		.flags = CLK_MESON_PLL_FIXED_N | CLK_MESON_PLL_NOINIT_ENABLED,
+		.flags = CLK_MESON_PLL_FIXED_N | CLK_MESON_PLL_NOINIT_ENABLED |
+				CLK_MESON_PLL_FIXED_EN0P5,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll",
