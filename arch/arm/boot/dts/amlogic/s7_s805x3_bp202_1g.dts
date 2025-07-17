@@ -152,10 +152,11 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/*
-			 * S7 1G lowram platform, the maximum scenario
-			 * is HEVC 1080i local playback, need 92M.
+			 * S7 1G lowram platform, the maximum scenario is
+			 * Primary 1080p secure + Secondary 720p secure +
+			 * PIP 480p need 156M.
 			 */
-			size = <0x5c00000>;
+			size = <0x9C00000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x30000000 0x10000000>;
