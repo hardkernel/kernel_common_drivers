@@ -37,6 +37,7 @@
 
 /* 0 dummyl, 1 dummyp, 2 dummyi */
 static u32 dummy_venc_type;
+static u32 vpp_loopback;
 
 enum dummy_venc_chip_e {
 	DUMMY_VENC_DFT = 0,
@@ -517,6 +518,19 @@ static struct vinfo_s *dummy_encp_get_current_info(void *data)
 	return venc_drv->vinfo;
 }
 
+static int vout_notify_amvideo(void)
+{
+	u32 para[7];
+
+	para[0] = vpp_loopback;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+	amvideo_notifier_call_chain(AMVIDEO_UPDATE_VOUT,
+					    (void *)&para[0]);
+#endif
+	return 0;
+}
+
 static int dummy_encp_set_current_vmode(enum vmode_e mode, void *data)
 {
 	struct dummy_venc_driver_s *venc_drv;
@@ -546,7 +560,8 @@ static int dummy_encp_set_current_vmode(enum vmode_e mode, void *data)
 		if (venc_drv->vinfo_index == 1)
 			dummy_panel_clear_mute(venc_drv);
 	} else {
-		vout_vcbus_setb(VPP_MISC_TXHD2, 1, 27, 1);
+		vpp_loopback = 1;
+		vout_notify_amvideo();
 		if (venc_drv->vinfo_index == 1)
 			dummy_panel_clear_mute(venc_drv);
 		VOUTPR("%s txhd2 enable keystone\n", __func__);
@@ -651,7 +666,8 @@ static int dummy_encp_disable(enum vmode_e cur_vmod, void *data)
 #endif
 		}
 	} else {
-		vout_vcbus_setb(VPP_MISC_TXHD2, 0, 27, 1);
+		vpp_loopback = 0;
+		vout_notify_amvideo();
 		VOUTPR("%s disable txhd2 projector func\n", __func__);
 	}
 

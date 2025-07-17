@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * include/linux/amlogic/media/video_sink/video.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef VIDEO_H
@@ -389,6 +376,7 @@ struct mediasync_ptr {
 #define AMVIDEO_UPDATE_SIGNAL_MODE      0x00000003
 #define AMVIDEO_UPDATE_VT_REG      0x00000004
 #define AMVIDEO_UPDATE_FRC_CHAR_FLASH    0x00000005 /*fix High frequency char flicker*/
+#define AMVIDEO_UPDATE_VOUT	0x00000006 /*fix write loopback register conflict*/
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 int amvideo_notifier_call_chain(unsigned long val, void *v);
