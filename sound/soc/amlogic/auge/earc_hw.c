@@ -1157,6 +1157,14 @@ void earctx_dmac_init(struct regmap *top_map,
 			 0x1 << 18
 			);
 
+	/* need Req_frddr_rst[15] and clear ECC[1] */
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+			 0x1 << 15,
+			 0x1 << 15);
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+			 0x1 << 15,
+			 0x0 << 15);
+
 	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL2, 0xff << 16, 0x1 << 16);
 	if (earc_spdifout_lane_mask == EARC_SPDIFOUT_LANE_MASK_V2)
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL2,
@@ -1191,13 +1199,6 @@ void earctx_dmac_init(struct regmap *top_map,
 		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL0,
 				 0x1 << 15 | 0x7 << 8,
 				 0x0 << 15 | rswap_masks << 8);
-
-	/* use for channel sync init with t6w */
-	mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL1,
-			0x1 << 18 |
-			0xff << 8,
-			1 << 18 |
-			ch_num << 8);
 
 	mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL4,
 			 0xf << 17,
@@ -1660,8 +1661,6 @@ void earctx_enable(struct regmap *top_map,
 				 type,
 				 coding_type,
 				 enable);
-	/* earc tx new ip with channel sync function */
-	mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL1, 0x1 << 16, !enable << 16);
 }
 
 static void earcrx_cmdc_get_reg(struct regmap *cmdc_map, int dev_id, int offset,

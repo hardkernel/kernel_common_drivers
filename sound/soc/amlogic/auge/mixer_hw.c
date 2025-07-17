@@ -113,8 +113,6 @@ int mixer_demux_sel(enum frddr_dest dst, int enable)
 		audiobus_update_bits(reg, 0x1 << 1, enable << 1);
 	} else if (dst == EARCTX_DMAC) {
 		earc_mixer_enable(enable);
-		if (enable)
-			earc_fifo_reset();
 	}
 	return 0;
 }
