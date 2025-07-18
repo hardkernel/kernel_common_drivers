@@ -784,4 +784,6 @@ struct hdr_parameter_reg_s {
 #define AMVECM_IOC_S_HDR_POLICY  _IO(_VE_CM, 0xa2)
 #define AMVECM_IOC_S_HDR_MODE    _IO(_VE_CM, 0xa3)
 #define AMVECM_IOC_S_SDR_MODE    _IO(_VE_CM, 0xa4)
+#define AMVECM_IOC_G_FORCE_OUT   _IOR(_VE_CM, 0xa5, int)
+
 #endif

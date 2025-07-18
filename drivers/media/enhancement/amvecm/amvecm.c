@@ -4708,6 +4708,12 @@ static long amvecm_ioctl(struct file *file,
 			force_output = tmp;
 		pr_amvecm_dbg("AMVECM_IOC_S_FORCE_OUT: %d\n", force_output);
 		break;
+	case AMVECM_IOC_G_FORCE_OUT:
+		tmp = force_output;
+		argp = (void __user *)arg;
+		if (copy_to_user(argp, &tmp, sizeof(int)))
+			ret = -EFAULT;
+		break;
 	case AMVECM_IOC_S_HDR_POLICY:
 		if (copy_from_user(&tmp,
 			(void __user *)arg,
