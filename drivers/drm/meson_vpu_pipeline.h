@@ -664,6 +664,7 @@ struct meson_vpu_sub_pipeline {
 	struct rdma_reg_ops *reg_ops;
 	enum vmode_e vmode;
 	struct meson_vpu_state_check status[MESON_MAX_OSDS];
+	struct am_meson_fb *logo_fb;
 };
 
 struct meson_video_sub_pipeline {

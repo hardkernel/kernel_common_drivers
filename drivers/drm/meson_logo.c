@@ -42,7 +42,6 @@
 #include "meson_gem.h"
 #include "meson_fb.h"
 #endif
-#include "meson_drv.h"
 #include "meson_vpu.h"
 #include "meson_vpu_pipeline.h"
 #include "meson_crtc.h"
@@ -62,7 +61,7 @@ struct cma *cma_logo;
 #endif
 
 static char *strmode;
-struct am_meson_logo logo;
+struct am_meson_logo logo[MESON_MAX_CRTC];
 static struct platform_device *gp_dev;
 static unsigned long gem_mem_start, gem_mem_size;
 static struct resource osd_mem_res;
@@ -315,46 +314,63 @@ static void free_reserved_mem(unsigned long start, unsigned long size)
 void am_meson_free_logo_memory(void)
 {
 	if (is_cma) {
-		phys_addr_t logo_addr = page_to_phys(logo.logo_page);
+		phys_addr_t logo_addr = page_to_phys(logo[VPP0].logo_page);
 
-		if (logo.size > 0 && logo.alloc_flag) {
+		if (logo[VPP0].size > 0 && logo[VPP0].alloc_flag) {
 #ifdef CONFIG_CMA
 			DRM_INFO("%s, free cma memory: addr:0x%pa,size:0x%x\n",
-				 __func__, &logo_addr, logo.size);
+				 __func__, &logo_addr, logo[VPP0].size);
 
-			cma_release(cma_logo, logo.logo_page, logo.size >> PAGE_SHIFT);
+			cma_release(cma_logo, logo[VPP0].logo_page, logo[VPP0].size >> PAGE_SHIFT);
 #endif
 		}
 	} else {
-		free_reserved_mem(logo.start, logo.size);
+		free_reserved_mem(logo[VPP0].start, logo[VPP0].size);
 		DRM_INFO("%s, free none_cma memory: addr:0x%pa,size:0x%x\n",
-				 __func__, &logo.start, logo.size);
+				 __func__, &logo[VPP0].start, logo[VPP0].size);
 	}
 
-	logo.alloc_flag = 0;
-	logo.is_std = 0;
+	logo[VPP0].alloc_flag = 0;
+	logo[VPP0].is_std = 0;
+}
+
+void am_meson_drm_put_logo_fb(struct drm_device *dev,
+	int index, int uboot_mode_init)
+{
+	struct meson_vpu_sub_pipeline *sub_pipe;
+	struct meson_drm *private;
+
+	private = dev->dev_private;
+	sub_pipe = private->pipeline->subs[index];
+	if (sub_pipe->logo_fb && !uboot_mode_init) {
+		DRM_INFO("%s, logo_fb[id:%d,ref:%d]\n", __func__,
+			sub_pipe->logo_fb->base.base.id,
+			kref_read(&sub_pipe->logo_fb->base.base.refcount));
+		drm_framebuffer_put(&sub_pipe->logo_fb->base);
+		sub_pipe->logo_fb = NULL;
+	}
 }
 
 static int am_meson_logo_info_update(struct meson_drm *priv)
 {
 	if (is_cma)
-		logo.start = page_to_phys(logo.logo_page);
+		logo[VPP0].start = page_to_phys(logo[VPP0].logo_page);
 
-	logo.alloc_flag = 1;
+	logo[VPP0].alloc_flag = 1;
 	/*config 1080p logo as default*/
-	if (!logo.width || !logo.height) {
-		logo.width = 1920;
-		logo.height = 1080;
+	if (!logo[VPP0].width || !logo[VPP0].height) {
+		logo[VPP0].width = 1920;
+		logo[VPP0].height = 1080;
 	}
-	if (!logo.bpp)
-		logo.bpp = 16;
-	if (!logo.outputmode_t) {
-		strcpy(logo.outputmode, "1080p60hz");
+	if (!logo[VPP0].bpp)
+		logo[VPP0].bpp = 16;
+	if (!logo[VPP0].outputmode_t) {
+		strcpy(logo[VPP0].outputmode, "1080p60hz");
 	} else {
-		strncpy(logo.outputmode, logo.outputmode_t, VMODE_NAME_LEN_MAX);
-		logo.outputmode[VMODE_NAME_LEN_MAX - 1] = '\0';
+		strncpy(logo[VPP0].outputmode, logo[VPP0].outputmode_t, VMODE_NAME_LEN_MAX);
+		logo[VPP0].outputmode[VMODE_NAME_LEN_MAX - 1] = '\0';
 	}
-	priv->logo = &logo;
+	priv->logo = &logo[VPP0];
 
 	return 0;
 }
@@ -363,14 +379,10 @@ static int am_meson_logo_init_fb(struct drm_device *dev,
 		struct drm_framebuffer *fb, int idx)
 {
 	struct am_meson_fb *meson_fb;
-	struct am_meson_logo *slogo;
+	struct am_meson_logo *slogo = &logo[idx];
 	struct meson_drm *priv = dev->dev_private;
 
-	slogo = kzalloc(sizeof(*slogo), GFP_KERNEL);
-	if (!slogo)
-		return -EFAULT;
-
-	memcpy(slogo, &logo, sizeof(struct am_meson_logo));
+	memcpy(slogo, &logo[VPP0], sizeof(struct am_meson_logo));
 	if (idx == VPP0) {
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 		strcpy(slogo->outputmode, get_vout_mode_uboot());
@@ -385,16 +397,9 @@ static int am_meson_logo_init_fb(struct drm_device *dev,
 #endif
 	}
 
-	if (!strcmp("null", slogo->outputmode) ||
-		!strcmp("dummy_l", slogo->outputmode)) {
-		DRM_DEBUG("NULL MODE or DUMMY MODE, nothing to do.");
-		kfree(slogo);
-		return -EINVAL;
-	}
-
-	slogo->logo_page = logo.logo_page;
-	slogo->vaddr = logo.vaddr;
-	slogo->start = logo.start;
+	slogo->logo_page = logo[VPP0].logo_page;
+	slogo->vaddr = logo[VPP0].vaddr;
+	slogo->start = logo[VPP0].start;
 	slogo->panel_index = priv->primary_plane_index[idx];
 	slogo->vpp_index = idx;
 
@@ -406,6 +411,12 @@ static int am_meson_logo_init_fb(struct drm_device *dev,
 
 	meson_fb = to_am_meson_fb(fb);
 	meson_fb->logo = slogo;
+
+	if (!strcmp("null", slogo->outputmode) ||
+		!strcmp("dummy_l", slogo->outputmode)) {
+		DRM_DEBUG("NULL MODE or DUMMY MODE, nothing to do.");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -601,7 +612,7 @@ static int am_meson_drm_set_config(struct drm_mode_set *set,
 	plane_state->src_y = set->y << 16;
 	plane_state->zpos = zpos + osd_plane->plane_index;
 
-	switch (logo.osd_reverse) {
+	switch (meson_fb->logo->osd_reverse) {
 	case 1:
 		plane_state->rotation = DRM_MODE_REFLECT_MASK;
 		break;
@@ -648,7 +659,8 @@ commit:
 }
 
 static void am_meson_load_logo(struct drm_device *dev,
-	struct drm_framebuffer *fb, struct drm_atomic_state *state, int idx)
+	struct drm_framebuffer *fb, struct drm_atomic_state *state,
+	struct meson_vpu_sub_pipeline *sub_pipe)
 {
 	struct drm_display_mode *mode;
 	struct drm_connector **connector_set;
@@ -658,16 +670,19 @@ static void am_meson_load_logo(struct drm_device *dev,
 	char *connector_type = NULL;
 	u32 found, num_modes;
 	int ret = 0;
+	int idx = sub_pipe->index;
 
 	DRM_DEBUG("%s idx[%d]\n", __func__, idx);
 
-	if (!logo.alloc_flag) {
+	if (!logo[VPP0].alloc_flag) {
 		DRM_INFO("%s: logo memory is not alloc\n", __func__);
 		return;
 	}
 
 	if (am_meson_logo_init_fb(dev, fb, idx)) {
 		DRM_DEBUG("vout%d logo is disabled!\n", idx + 1);
+		meson_fb = to_am_meson_fb(fb);
+		sub_pipe->logo_fb = meson_fb;
 		return;
 	}
 
@@ -742,11 +757,13 @@ static void am_meson_load_logo(struct drm_device *dev,
 			connector->connector_type, mode->name);
 		if (!strcmp("null", mode->name)) {
 			DRM_INFO("NULL MODE, nothing to do.");
+			sub_pipe->logo_fb = meson_fb;
 			return;
 		}
 	} else {
 		connector = NULL;
 		mode = NULL;
+		sub_pipe->logo_fb = meson_fb;
 		return;
 	}
 
@@ -804,29 +821,29 @@ void am_meson_logo_cma_alloc(struct device *dev, int logo_init)
 		rmem = of_reserved_mem_lookup(mem_node);
 		of_node_put(mem_node);
 		if (rmem) {
-			logo.size = rmem->size;
+			logo[VPP0].size = rmem->size;
 			DRM_DEBUG("of read %s reservememsize=0x%x, base %pa\n",
-				rmem->name, logo.size, &rmem->base);
+				rmem->name, logo[VPP0].size, &rmem->base);
 		}
 
 		cma_logo = dev_get_cma_area(&gp_dev->dev);
 
 		if (cma_logo) {
-			if (logo.size > 0) {
-				logo.logo_page = cma_alloc(cma_logo,
-						ALIGN(logo.size, PAGE_SIZE) >> PAGE_SHIFT,
+			if (logo[VPP0].size > 0) {
+				logo[VPP0].logo_page = cma_alloc(cma_logo,
+						ALIGN(logo[VPP0].size, PAGE_SIZE) >> PAGE_SHIFT,
 						0, GFP_KERNEL);
 
-				if (!logo.logo_page)
+				if (!logo[VPP0].logo_page)
 					DRM_ERROR("allocate buffer failed\n");
 				else if (logo_init)
 					am_meson_logo_info_update(private);
 
 				DRM_INFO(" cma_alloc from %s start page %px-%px size %x\n",
 					cma_get_name(cma_logo),
-					logo.logo_page,
-					(void *)logo.start,
-					logo.size);
+					logo[VPP0].logo_page,
+					(void *)logo[VPP0].start,
+					logo[VPP0].size);
 			}
 		}
 #endif
@@ -863,6 +880,7 @@ void am_meson_logo_init(struct drm_device *dev)
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_framebuffer *fb;
 	struct meson_drm *private = dev->dev_private;
+	struct meson_vpu_sub_pipeline *sub_pipe;
 	struct platform_device *pdev = to_platform_device(private->dev);
 	struct drm_atomic_state *state;
 #ifdef CONFIG_CMA
@@ -896,17 +914,17 @@ void am_meson_logo_init(struct drm_device *dev)
 		if (ret != 0) {
 			DRM_ERROR("failed to init none_cma memory\n");
 		} else {
-			logo.size = resource_size(&osd_mem_res);
-			logo.start = osd_mem_res.start;
+			logo[VPP0].size = resource_size(&osd_mem_res);
+			logo[VPP0].start = osd_mem_res.start;
 		}
 
-		if (logo.size == 0) {
+		if (logo[VPP0].size == 0) {
 			DRM_ERROR("logo size 0, error!\n");
 		} else {
-			logo.vaddr = memremap(logo.start, logo.size,
+			logo[VPP0].vaddr = memremap(logo[VPP0].start, logo[VPP0].size,
 					MEMREMAP_WB);
 
-			if (!logo.vaddr)
+			if (!logo[VPP0].vaddr)
 				DRM_ERROR("allocate buffer failed\n");
 			else
 				am_meson_logo_info_update(private);
@@ -916,32 +934,33 @@ void am_meson_logo_init(struct drm_device *dev)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
 	get_logo_osd_reverse(&osd_index, &reverse_type);
-	logo.osd_reverse = reverse_type;
-	logo.width = get_logo_fb_width();
-	logo.height = get_logo_fb_height();
-	logo.bpp = get_logo_display_bpp();
+	logo[VPP0].osd_reverse = reverse_type;
+	logo[VPP0].width = get_logo_fb_width();
+	logo[VPP0].height = get_logo_fb_height();
+	logo[VPP0].bpp = get_logo_display_bpp();
 #else
 	drm_logo_get_osd_reverse(&osd_index, &reverse_type);
-	logo.osd_reverse = reverse_type;
-	logo.width = drm_logo_get_fb_width();
-	logo.height = drm_logo_get_fb_height();
-	logo.bpp = drm_logo_get_display_bpp();
+	logo[VPP0].osd_reverse = reverse_type;
+	logo[VPP0].width = drm_logo_get_fb_width();
+	logo[VPP0].height = drm_logo_get_fb_height();
+	logo[VPP0].bpp = drm_logo_get_display_bpp();
 #endif
-	if (!logo.bpp)
-		logo.bpp = 16;
+	if (!logo[VPP0].bpp)
+		logo[VPP0].bpp = 16;
 
-	if (logo.bpp == 16)
+	if (logo[VPP0].bpp == 16)
 		mode_cmd.pixel_format = DRM_FORMAT_RGB565;
-	else if (logo.bpp == 24)
+	else if (logo[VPP0].bpp == 24)
 		mode_cmd.pixel_format = DRM_FORMAT_RGB888;
 	else
 		mode_cmd.pixel_format = DRM_FORMAT_XRGB8888;
+	logo[VPP0].is_cma = is_cma;
 
 	mode_cmd.offsets[0] = 0;
-	mode_cmd.width = logo.width;
-	mode_cmd.height = logo.height;
+	mode_cmd.width = logo[VPP0].width;
+	mode_cmd.height = logo[VPP0].height;
 	mode_cmd.modifier[0] = DRM_FORMAT_MOD_LINEAR;
-	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * logo.bpp, 32) / 8;
+	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * logo[VPP0].bpp, 32) / 8;
 	fb = am_meson_fb_alloc(dev, &mode_cmd, NULL);
 	if (IS_ERR_OR_NULL(fb)) {
 		DRM_ERROR("drm fb allocate failed\n");
@@ -961,11 +980,18 @@ void am_meson_logo_init(struct drm_device *dev)
 		}
 		state->acquire_ctx = dev->mode_config.acquire_ctx;
 
-		for (i = 0; i < private->num_crtcs; i++)
-			am_meson_load_logo(dev, fb, state, i);
+		for (i = 0; i < private->num_crtcs; i++) {
+			sub_pipe = private->pipeline->subs[i];
+			am_meson_load_logo(dev, fb, state, sub_pipe);
+			if (sub_pipe->logo_fb) {
+				drm_framebuffer_get(&sub_pipe->logo_fb->base);
+				DRM_INFO("logo_fb[id:%d,ref:%d]\n",
+					sub_pipe->logo_fb->base.base.id,
+					kref_read(&sub_pipe->logo_fb->base.base.refcount));
+			}
+		}
 
 		ret = drm_atomic_commit(state);
-
 		if (ret != 0) {
 			drm_atomic_state_put(state);
 			DRM_ERROR("failed to commit state\n");

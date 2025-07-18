@@ -67,5 +67,4 @@ struct meson_drm_fbdev {
 	struct region dst_changed;
 };
 
-extern struct am_meson_logo logo;
 #endif /* __AM_MESON_FBDEV_H */

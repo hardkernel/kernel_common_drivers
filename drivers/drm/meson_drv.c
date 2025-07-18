@@ -776,11 +776,18 @@ static int am_meson_drm_pm_suspend(struct device *dev)
 
 static int am_meson_drm_pm_freeze(struct device *dev)
 {
+	struct meson_drm *priv;
 	int ret;
 
-	if (is_cma) {
+	priv = dev_get_drvdata(dev);
+	if (!priv) {
+		DRM_ERROR("%s: Failed to get meson drm!\n", __func__);
+		return 0;
+	}
+
+	if (priv->logo->is_cma) {
 		am_meson_logo_cma_alloc(dev, 0);
-		am_meson_logo_cma_mem_reset_zero(&logo);
+		am_meson_logo_cma_mem_reset_zero(priv->logo);
 	}
 
 	ret = am_meson_drm_pm_suspend(dev);
@@ -821,10 +828,17 @@ static int am_meson_drm_pm_resume(struct device *dev)
 
 static int am_meson_drm_pm_restore(struct device *dev)
 {
+	struct meson_drm *priv;
 	int ret;
 
+	priv = dev_get_drvdata(dev);
+	if (!priv) {
+		DRM_ERROR("%s: Failed to get meson drm!\n", __func__);
+		return 0;
+	}
+
 	ret = am_meson_drm_pm_resume(dev);
-	logo.is_std = 1;
+	priv->logo->is_std = 1;
 
 	DRM_INFO("drm restore done\n");
 	return ret;

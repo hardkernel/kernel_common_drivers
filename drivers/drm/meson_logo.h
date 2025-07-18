@@ -9,9 +9,6 @@
 
 #define VMODE_NAME_LEN_MAX    64
 
-extern struct am_meson_logo logo;
-extern bool is_cma;
-
 struct am_meson_logo {
 	struct page *logo_page;
 	void *vaddr;
@@ -31,6 +28,7 @@ struct am_meson_logo {
 	char *outputmode_t;
 	char outputmode[VMODE_NAME_LEN_MAX];
 	bool is_std;
+	bool is_cma;
 };
 
 enum osd_dev_e {
@@ -72,6 +70,8 @@ void am_meson_logo_init(struct drm_device *dev);
 void am_meson_free_logo_memory(void);
 void am_meson_logo_cma_alloc(struct device *dev, int logo_init);
 void am_meson_logo_cma_mem_reset_zero(struct am_meson_logo *logo);
+void am_meson_drm_put_logo_fb(struct drm_device *dev,
+	int index, int uboot_mode_init);
 
 #endif
 

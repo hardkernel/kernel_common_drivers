@@ -36,3 +36,6 @@
   zstd_max_clevel
   system_state
   nop_mnt_idmap
+
+# aml_drm.ko
+  drm_mode_object_get

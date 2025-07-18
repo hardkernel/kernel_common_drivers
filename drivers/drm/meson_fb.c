@@ -25,6 +25,7 @@ void am_meson_fb_destroy(struct drm_framebuffer *fb)
 	drm_framebuffer_cleanup(fb);
 	if (meson_fb->logo && meson_fb->logo->alloc_flag)
 		am_meson_free_logo_memory();
+
 	DRM_DEBUG("meson_fb=0x%p,\n", meson_fb);
 	kfree(meson_fb);
 }

@@ -693,7 +693,7 @@ void meson_atomic_state_free(struct drm_atomic_state *state)
 		return;
 	}
 
-	if (is_cma && logo.is_std)
+	if (priv->logo->is_cma && priv->logo->is_std)
 		am_meson_free_logo_memory();
 
 	drm_atomic_state_default_release(state);

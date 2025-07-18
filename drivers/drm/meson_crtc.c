@@ -86,6 +86,8 @@ static void meson_crtc_destroy_state(struct drm_crtc *crtc,
 	struct am_meson_crtc_state *meson_crtc_state;
 
 	meson_crtc_state = to_am_meson_crtc_state(state);
+
+	am_meson_drm_put_logo_fb(crtc->dev, crtc->index, meson_crtc_state->uboot_mode_init);
 	__drm_atomic_helper_crtc_destroy_state(&meson_crtc_state->base);
 	kfree(meson_crtc_state);
 }
