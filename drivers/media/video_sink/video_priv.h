@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/video_sink/video_priv.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef VIDEO_PRIV_HEADER_HH
@@ -1069,6 +1056,7 @@ extern bool update_osd2_blend_src_ctrl;
 extern u32 osd2_postbld_src;
 extern u32 osd2_blend_path_sel;
 extern u32 osd_preblend_en;
+extern u32 vpp_loopback_en;
 extern u32 framepacking_support;
 extern u32 g_framepacking_support;
 extern unsigned int framepacking_blank;

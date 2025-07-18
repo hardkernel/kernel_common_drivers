@@ -7945,8 +7945,6 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 
 	if (!legacy_vpp) {
 		u32 set_value = 0;
-		u32 set_value1 = 0;
-		u32 set_value2 = 0;
 
 		/* for sr core0, put it between prebld & pps as default */
 		if (vd1_frame_par &&
@@ -7998,6 +7996,10 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			VPP_PREBLEND_EN |
 			VPP_POSTBLEND_EN |
 			0xf);
+		if (vpp_loopback_en)
+			vpp_misc_set |= (0x1 << 27);
+		else
+			vpp_misc_set &= ~(0x1 << 27);
 		if (vpp_misc_set != vpp_misc_set_save || force_flush) {
 			u32 port_val[4] = {0, 0, 0, 0};
 			u32 vd1_port, vd2_port, vd3_port;
@@ -8091,12 +8093,6 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 					port_val[i]);
 
 			set_value = vpp_misc_set;
-			set_value &=
-				((1 << 29) | VPP_CM_ENABLE |
-				(0x1ff << VPP_VD2_ALPHA_BIT) |
-				VPP_POSTBLEND_EN |
-				VPP_PREBLEND_EN |
-				0xf);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			if (get_force_bypass_from_prebld_to_vadj1() &&
 			    for_amdv_certification()) {
@@ -8118,28 +8114,15 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 				set_value |= VPP_POSTBLEND_EN;
 				set_value |= VPP_PREBLEND_EN;
 			}
-			if (!is_meson_t6d_cpu()) {
 			/* t5d bit 9:11 used by wm ctrl, chip after g12 not used bit 9:11, mask it*/
-				set_value &= 0xfffff1ff;
-				set_value |= (vpp_misc_save & 0xe00);
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(VPP_MISC + vpp_off,
-					set_value);
-				cur_dev->rdma_func[vpp_index].rdma_wr_bits
-					(VPP_MISC2 + vpp_off,
-					vd_layer[2].layer_alpha, 0, 9);
-			} else {
-				/*for t6d keystone,VPP_MISC bit27 set in uboot by vout*/
-				set_value1 = set_value & 0x7ffffff;
-				set_value2 = set_value & 0xf0000000;
-				cur_dev->rdma_func[vpp_index].rdma_wr_bits
-					(VPP_MISC + vpp_off,
-					set_value1, 0, 27);
-				cur_dev->rdma_func[vpp_index].rdma_wr_bits
-					(VPP_MISC + vpp_off,
-					set_value2 >> 28, 28, 4);
-			}
-
+			set_value &= 0xfffff1ff;
+			set_value |= (vpp_misc_save & 0xe00);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(VPP_MISC + vpp_off,
+				set_value);
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(VPP_MISC2 + vpp_off,
+				vd_layer[2].layer_alpha, 0, 9);
 		}
 	}
 	vpp_misc_set_save = vpp_misc_set;
@@ -8886,8 +8869,6 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 
 	if (!legacy_vpp) {
 		u32 set_value = 0;
-		u32 set_value1 = 0;
-		u32 set_value2 = 0;
 		u8 max_cnt = 3;
 
 		/* for sr core0, put it between prebld & pps as default */
@@ -8935,6 +8916,10 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 			VPP_PREBLEND_EN |
 			VPP_POSTBLEND_EN |
 			0xf);
+		if (vpp_loopback_en)
+			vpp_misc_set |= (0x1 << 27);
+		else
+			vpp_misc_set &= ~(0x1 << 27);
 		if (vpp_misc_set != vpp_misc_set_save || force_flush) {
 			u32 port_val[3] = {0, 0, 0};
 			u32 vd1_port, vd2_port, icnt;
@@ -8998,12 +8983,6 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 					port_val[icnt]);
 
 			set_value = vpp_misc_set;
-			set_value &=
-				((1 << 29) | VPP_CM_ENABLE |
-				(0x1ff << VPP_VD2_ALPHA_BIT) |
-				VPP_POSTBLEND_EN |
-				VPP_PREBLEND_EN |
-				0xf);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			if (get_force_bypass_from_prebld_to_vadj1() &&
 			    for_amdv_certification()) {
@@ -9032,28 +9011,15 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 			/* t5d bit 9:11 used by wm ctrl, chip after g12 not used bit 9:11, mask it*/
 			set_value &= 0xfffff1ff;
 			set_value |= (vpp_misc_save & 0xe00);
-
-			if (!is_meson_txhd2_cpu()) {
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(VPP_MISC + vpp_off,
-					set_value);
-				if (cur_dev->frm2fld_support &&
-					vinfo->field_height != vinfo->height) {
-					cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
-						1, 4, 1);
-					cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
-						0, 5, 1);
-				}
-			} else {
-				/*for txhd2 keystone,VPP_MISC bit27 set in uboot by vout*/
-				set_value1 = set_value & 0x7ffffff;
-				set_value2 = set_value & 0xf0000000;
-				cur_dev->rdma_func[vpp_index].rdma_wr_bits
-					(VPP_MISC + vpp_off,
-					set_value1, 0, 27);
-				cur_dev->rdma_func[vpp_index].rdma_wr_bits
-					(VPP_MISC + vpp_off,
-					set_value2 >> 28, 28, 4);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(VPP_MISC + vpp_off,
+				set_value);
+			if (cur_dev->frm2fld_support &&
+				vinfo->field_height != vinfo->height) {
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
+					1, 4, 1);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
+					0, 5, 1);
 			}
 		}
 	} else if (vpp_misc_save != vpp_misc_set) {
