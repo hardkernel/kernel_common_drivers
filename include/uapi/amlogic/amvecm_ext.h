@@ -851,5 +851,6 @@ struct hdr_parameter_reg_s {
 
 #define AMDI_IOC_SET_NR2_EN    _IOW(_DI_, 0xa7, unsigned char)
 #define AMDI_IOC_SET_DNR_EN    _IOW(_DI_, 0xa8, unsigned char)
+#define AMVECM_IOC_G_FORCE_OUT   _IOR(_VE_CM, 0xa9, int)
 
 #endif
