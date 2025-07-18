@@ -301,11 +301,13 @@
 		cpuinfo_cmd = <0x82000044>;
 	};
 
-	vrtc: rtc@fe010288 {
-		compatible = "amlogic,meson-vrtc";
+	rtc: rtc@fe010288 {
+		compatible = "amlogic,meson-rtc";
 		reg = <0x0 0xfe010288 0x0 0x4>;
+		interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
 		status = "okay";
 		mboxes = <&mbox_fifo T7_REE2AO_VRTC>;
+		rtc-virtual;
 	};
 
 	pwrdm: power-domains {

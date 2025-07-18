@@ -238,11 +238,13 @@
 		nn_power_version = <5>;
 	};
 
-	vrtc: rtc@fe010288 {
-		compatible = "amlogic,meson-vrtc";
+	rtc: rtc@fe010288 {
+		compatible = "amlogic,meson-rtc";
 		reg = <0xfe010288 0x4>; //SYSCTRL_STATUS_REG2
+		interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
 		status = "okay";
 		mboxes = <&mbox_fifo T5M_REE2AO_VRTC>;
+		rtc-virtual;
 	};
 
 	aml_reboot {

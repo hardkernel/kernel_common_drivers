@@ -36,4 +36,3 @@ config AMLOGIC_MESON_RTC
 
 source "$(COMMON_DRIVERS_DIR)/drivers/rtc/meson_pmic6b/Kconfig"
 endif # RTC_CLASS
-

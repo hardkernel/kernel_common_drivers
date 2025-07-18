@@ -5,67 +5,93 @@
 
 /*******************************************************************/
 #include <linux/types.h>
-#include <linux/mailbox_client.h>
+#include <linux/regmap.h>
+#include <linux/alarmtimer.h>
+#include <linux/clk-provider.h>
 
-/* RTC_CTRL Bit[8]: 0 - select 32K oscillator, 1 - select 24M oscillator */
-#define RTC_OSC_SEL_BIT		(8)
-/* RTC_CTRL Bit[12]: 0 - disable rtc, 1 - enable rtc */
-#define RTC_ENABLE_BIT		(12)
-/* RTC_CTRL Bit[3:0]: 0 - disable rtc alarm, 1 - enable rtc alarm */
-#define RTC_ALRM0_EN_BIT	(0)
-#define RTC_ALRM1_EN_BIT	(1)
-#define RTC_ALRM2_EN_BIT	(2)
-#define RTC_ALRM3_EN_BIT	(3)
-/* RTC_INT_MASK Bit[3:0]: 0 - enable alarm irq, 1 - disable alarm irq */
-#define RTC_ALRM0_IRQ_MSK_BIT	(0)
-#define RTC_ALRM1_IRQ_MSK_BIT	(1)
-#define RTC_ALRM2_IRQ_MSK_BIT	(2)
-#define RTC_ALRM3_IRQ_MSK_BIT	(3)
-/* RTC_INT_STATUS Bit[7:4]: 0 - alarm is disable, 1 - alarm is enable */
-#define RTC_ALRM0_STATUS_BIT	(4)
-#define RTC_ALRM1_STATUS_BIT	(5)
-#define RTC_ALRM2_STATUS_BIT	(6)
-#define RTC_ALRM3_STATUS_BIT	(7)
-/* RTC_INT_STATUS Bit[3:0]: 0 - alarm irq triggered, 1 - alarm irq triggered */
-#define RTC_ALRM0_IRQ_STATUS_BIT    (0)
-#define RTC_ALRM1_IRQ_STATUS_BIT    (1)
-#define RTC_ALRM2_IRQ_STATUS_BIT    (2)
-#define RTC_ALRM3_IRQ_STATUS_BIT    (3)
-/* RTC_INT_CLR Bit[3:0]: software write “1” to clean alarm irq, hardware self clear to 0 */
-#define RTC_ALRM0_CLR_STATUS_BIT    (0)
-#define RTC_ALRM1_CLR_STAUTS_BIT    (1)
-#define RTC_ALRM2_CLR_STATUS_BIT    (2)
-#define RTC_ALRM3_CLR_STAUTS_BIT    (3)
+/* rtc oscillator rate */
+#define OSC_32K			(32768)
+#define OSC_24M			(24000000)
 
-/* RTC register address offset */
-#define RTC_CTRL		(0)	 /* Control RTC -RW*/
-#define RTC_COUNTER_REG		BIT(2)   /* Program RTC counter initial value -RW*/
-#define RTC_ALARM0_REG		(2 << 2) /* Program RTC alarm0 value -RW*/
-#define RTC_ALARM1_REG		(3 << 2) /* Program RTC alarm1 value -RW*/
-#define RTC_ALARM2_REG		(4 << 2) /* Program RTC alarm2 value -RW*/
-#define RTC_ALARM3_REG		(5 << 2) /* Program RTC alarm3 value -RW*/
-#define RTC_SEC_ADJUST_REG	(6 << 2) /* Control second-based timing adjustment -RW*/
-#define RTC_WIDEN_VAL		(7 << 2) /* Cross clock domain widen val -RW*/
-#define RTC_INT_MASK		(8 << 2) /* RTC interrupt mask -RW*/
-#define RTC_INT_CLR		(9 << 2) /* Clear RTC interrupt -RW*/
-#define RTC_OSCIN_CTRL0		(10 << 2)/* Control RTC clk from 24M -RW*/
-#define RTC_OSCIN_CTRL1		(11 << 2)/* Control RTC clk from 24M -RW*/
-#define RTC_INT_STATUS		(12 << 2)/* RTC interrupt status -R*/
-#define RTC_REAL_TIME		(13 << 2)/* RTC counter value -R*/
+#define RTC_CTRL_REG		(0x0 << 2)	 /* Control RTC -RW*/
+#define RTC_ALRM0_EN		BIT(0)
+#define RTC_ALRM1_EN		BIT(1)
+#define RTC_ALRM2_EN		BIT(2)
+#define RTC_ALRM3_EN		BIT(3)
+#define RTC_OSC_SEL		BIT(8)
+#define RTC_ENABLE		BIT(12)
 
-enum meson_rtc_adj {
-	ADJUST_NONE		= 0,
-	ADJUST_DROP		= 1,
-	ADJUST_INSERT		= 2,
-	ADJUST_MAX		= 3,
+#define RTC_COUNTER_REG		(0x1 << 2)  /* Program RTC counter initial value -RW*/
+
+#define RTC_ALARM0_REG		(0x2 << 2)  /* Program RTC alarm0 value -RW*/
+
+#define RTC_ALARM1_REG		(0x3 << 2)  /* Program RTC alarm1 value -RW*/
+
+#define RTC_ALARM2_REG		(0x4 << 2)  /* Program RTC alarm2 value -RW*/
+
+#define RTC_ALARM3_REG		(0x5 << 2)  /* Program RTC alarm3 value -RW*/
+
+#define RTC_SEC_ADJUST_REG	(0x6 << 2)  /* Control second-based timing adjustment -RW*/
+#define RTC_MATCH_COUNTER	GENMASK(18, 0)
+#define RTC_SEC_ADJUST_CTRL	GENMASK(20, 19)
+#define RTC_ADJ_VALID		BIT(23)
+#define RTC_DIV256_ADJ_VAL	BIT(24)
+#define RTC_DIV256_ADJ_DSR	BIT(25)
+
+#define RTC_INT_MASK		(0x8 << 2)  /* RTC interrupt mask -RW*/
+#define RTC_ALRM0_IRQ_MSK	BIT(0)
+#define RTC_ALRM1_IRQ_MSK	BIT(1)
+#define RTC_ALRM2_IRQ_MSK	BIT(2)
+#define RTC_ALRM3_IRQ_MSK	BIT(3)
+
+#define RTC_INT_CLR		(0x9 << 2)  /* Clear RTC interrupt -RW*/
+#define RTC_ALRM0_IRQ_CLR	BIT(0)
+#define RTC_ALRM1_IRQ_CLR	BIT(1)
+#define RTC_ALRM2_IRQ_CLR	BIT(2)
+#define RTC_ALRM3_IRQ_CLR	BIT(3)
+
+#define RTC_OSCIN_CTRL0		(0xa << 2) /* Control RTC clk from 24M -RW*/
+#define RTC_OSCIN_CTRL1		(0xb << 2) /* Control RTC clk from 24M -RW*/
+#define RTC_OSCIN_IN_EN		BIT(31)
+#define RTC_OSCIN_OUT_CFG	GENMASK(29, 28)
+#define RTC_OSCIN_OUT_N0M0	GENMASK(11, 0)
+#define RTC_OSCIN_OUT_N1M1	GENMASK(23, 12)
+
+#define RTC_INT_STATUS		(0xc << 2) /* RTC interrupt status -R*/
+#define RTC_ALRM0_IRQ_STATUS	BIT(0)
+#define RTC_ALRM1_IRQ_STATUS	BIT(1)
+#define RTC_ALRM2_IRQ_STATUS	BIT(2)
+#define RTC_ALRM3_IRQ_STATUS	BIT(3)
+
+#define RTC_REAL_TIME		(0xd << 2) /* RTC counter value -R*/
+
+#define RTC_OSCIN_OUT_32K_N0	0x2dc
+#define RTC_OSCIN_OUT_32K_N1	0x2db
+#define RTC_OSCIN_OUT_32K_M0	0x1
+#define RTC_OSCIN_OUT_32K_M1	0x2
+
+#define RTC_SWALLOW_SECOND	0x2
+#define RTC_INSERT_SECOND	0x3
+
+/* vrtc alarm reg */
+#define VRTC_ALARM_REG		(0x0 << 2)
+
+static struct regmap_config aml_rtc_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.name = "aml_rtc",
 };
 
-struct meson_rtc_data {
-	void __iomem *reg_base;
+struct aml_rtc_data {
+	struct regmap *map;
 	struct rtc_device *rtc_dev;
 	struct mbox_chan *mbox_chan;
-	bool alarm_enabled;
 	int irq;
-	u32 freq;
+	bool rtc_virtual;
+	struct clk *rtc_clk;
+	struct clk *sys_clk;
+	bool alarm_enabled;
+	bool wakealrm_enabled;
 	bool time_storage_format;
 };

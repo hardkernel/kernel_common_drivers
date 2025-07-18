@@ -5,45 +5,16 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/bitfield.h>
 #include <linux/rtc.h>
-#include <linux/io.h>
-#include <linux/of.h>
+#include <linux/clk.h>
 #include <linux/time64.h>
 #include <linux/delay.h>
 #include <linux/amlogic/rtc.h>
-#include <dt-bindings/rtc/amlogic,rtc.h>
 #include <linux/amlogic/aml_mbox.h>
 #include "main.h"
 
-#define RTC_CALIBRATION
-
-static void meson_set_time(struct meson_rtc_data *rtc, u32 time_sec)
-{
-	writel(time_sec, rtc->reg_base + RTC_COUNTER_REG);
-}
-
-static u32 meson_read_time(struct meson_rtc_data *rtc)
-{
-	u32 time_val;
-
-	time_val = readl(rtc->reg_base + RTC_REAL_TIME);
-	return time_val;
-}
-
-static u32 meson_read_alarm(struct meson_rtc_data *rtc)
-{
-	u32 alarm_val;
-
-	alarm_val = readl(rtc->reg_base + RTC_ALARM0_REG);
-	return alarm_val;
-}
-
-static void meson_set_alarm(struct meson_rtc_data *rtc, u32 alarm_sec)
-{
-	writel(alarm_sec, rtc->reg_base + RTC_ALARM0_REG);
-}
-
-static u32 gray_to_binary(u32 gray)
+static inline u32 gray_to_binary(u32 gray)
 {
 	u32 bcd = gray;
 	int size = sizeof(bcd) * 8;
@@ -55,512 +26,594 @@ static u32 gray_to_binary(u32 gray)
 	return bcd;
 }
 
-static u32 binary_to_gray(u32 bcd)
+static inline u32 binary_to_gray(u32 bcd)
 {
 	return bcd ^ (bcd >> 1);
 }
 
-static int meson_rtc_read_time(struct device *dev, struct rtc_time *tm)
+static void meson_set_time(struct aml_rtc_data *rtc, u32 time_sec)
 {
-	struct meson_rtc_data *rtc = dev_get_drvdata(dev);
+	u32 time_val = time_sec;
+	int ret;
+
+	if (rtc->rtc_virtual) {
+		ret = aml_mbox_transfer_data(rtc->mbox_chan, MBOX_CMD_SET_RTC,
+			&time_val, sizeof(time_val), NULL, 0, MBOX_SYNC);
+		if (ret < 0)
+			dev_err(&rtc->rtc_dev->dev, "set vrtc time failed\n");
+	} else {
+		if (rtc->time_storage_format)
+			time_val = binary_to_gray(time_val);
+		regmap_write(rtc->map, RTC_COUNTER_REG, time_val);
+	}
+}
+
+static u32 meson_read_time(struct aml_rtc_data *rtc)
+{
+	u32 time_val = 0;
+	int ret;
+
+	if (rtc->rtc_virtual) {
+		ret = aml_mbox_transfer_data(rtc->mbox_chan, MBOX_CMD_GET_RTC,
+			NULL, 0, &time_val, sizeof(time_val), MBOX_SYNC);
+		if (ret < 0)
+			dev_err(&rtc->rtc_dev->dev, "get vrtc time failed\n");
+	} else {
+		regmap_read(rtc->map, RTC_REAL_TIME, &time_val);
+		if (rtc->time_storage_format)
+			time_val = gray_to_binary(time_val);
+	}
+
+	return time_val;
+}
+
+static u32 meson_read_alarm(struct aml_rtc_data *rtc)
+{
+	u32 alarm_val = 0, time_val;
+
+	if (rtc->rtc_virtual) {
+		regmap_read(rtc->map, VRTC_ALARM_REG, &alarm_val);
+	} else {
+		regmap_read(rtc->map, RTC_ALARM0_REG, &alarm_val);
+		time_val = meson_read_time(rtc);
+		if (rtc->time_storage_format)
+			alarm_val = gray_to_binary(alarm_val);
+		alarm_val = (alarm_val > time_val) ? (alarm_val - time_val) : 0;
+	}
+
+	return alarm_val;
+}
+
+static void meson_set_alarm(struct aml_rtc_data *rtc, u32 alarm_sec)
+{
+	u32 alarm_val = alarm_sec;
+
+	if (rtc->rtc_virtual) {
+		regmap_write(rtc->map, VRTC_ALARM_REG, alarm_val);
+	} else {
+		if (alarm_val) {
+			alarm_val += meson_read_time(rtc);
+			if (rtc->time_storage_format)
+				alarm_val = binary_to_gray(alarm_val);
+		}
+		regmap_write(rtc->map, RTC_ALARM0_REG, alarm_val);
+	}
+}
+
+static void meson_enable_alarm(struct aml_rtc_data *rtc, bool enable)
+{
+	int ret = 0;
+
+	if (rtc->rtc_virtual) {
+		ret = aml_mbox_transfer_data(rtc->mbox_chan, MBOX_CMD_RTC_ENABLE_ALRM,
+			&enable, sizeof(enable), NULL, 0, MBOX_SYNC);
+		if (ret < 0)
+			dev_err(&rtc->rtc_dev->dev, "enable vrtc timer failed\n");
+	} else {
+		if (enable) {
+			regmap_update_bits(rtc->map, RTC_CTRL_REG,
+					   RTC_ALRM0_EN, RTC_ALRM0_EN);
+			regmap_update_bits(rtc->map, RTC_INT_MASK,
+					   RTC_ALRM0_IRQ_MSK, 0);
+		} else {
+			regmap_update_bits(rtc->map, RTC_INT_MASK,
+					   RTC_ALRM0_IRQ_MSK, RTC_ALRM0_IRQ_MSK);
+			regmap_update_bits(rtc->map, RTC_CTRL_REG,
+					   RTC_ALRM0_EN, 0);
+		}
+	}
+}
+
+static int aml_rtc_read_time(struct device *dev, struct rtc_time *tm)
+{
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev);
 	u32 time_sec;
-	time64_t time64;
 
 	time_sec = meson_read_time(rtc);
-	if (rtc->time_storage_format)
-		time_sec = gray_to_binary(time_sec);
-	time64 = (time64_t)time_sec;
-	dev_dbg(dev, "%s: read time = %u\n",
-		__func__, time_sec);
-	rtc_time64_to_tm(time64, tm);
+	rtc_time64_to_tm(time_sec, tm);
+	dev_dbg(dev, "read time = %us\n", time_sec);
 
 	return 0;
 }
 
-static int meson_rtc_set_time(struct device *dev, struct rtc_time *tm)
+static int aml_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct meson_rtc_data *rtc = dev_get_drvdata(dev);
-	unsigned long time_sec;
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev);
+	u32 time_sec;
 
 	time_sec = rtc_tm_to_time64(tm);
-	dev_dbg(dev, "%s: set_time = %lu\n",
-		__func__, time_sec);
-	if (rtc->time_storage_format)
-		time_sec = binary_to_gray(time_sec);
+	dev_dbg(dev, "set time = %us\n", time_sec);
 	meson_set_time(rtc, time_sec);
 
 	return 0;
 }
 
-static int meson_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
+static int aml_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
-	struct meson_rtc_data *rtc = dev_get_drvdata(dev);
-	u32 alarm_sec = 0;
-	u32 reg_val;
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev);
+	u32 time_sec = 0;
+	ktime_t alarm_sec = 0;
 	time64_t alarm_sec64;
 
-	if (alarm->enabled) {
-		/* Enable alarm0 */
-		reg_val = readl(rtc->reg_base + RTC_CTRL);
-		reg_val |= (1 << RTC_ALRM0_EN_BIT);
-		writel(reg_val, rtc->reg_base + RTC_CTRL);
-
-		/* unMask alarm0 irq */
-		reg_val = readl(rtc->reg_base + RTC_INT_MASK);
-		reg_val &= (~(1 << RTC_ALRM0_IRQ_MSK_BIT));
-		writel(reg_val, rtc->reg_base + RTC_INT_MASK);
-
+	if (rtc->wakealrm_enabled) {
 		alarm_sec64 = rtc_tm_to_time64(&alarm->time);
-		if (alarm_sec64 > 0x7fffffff) {
+		if (alarm_sec64 > U32_MAX) {
 			dev_err(dev, "alarm value invalid!\n");
 			return -EINVAL;
 		}
+		time_sec = meson_read_time(rtc);
+		if (alarm_sec64 > time_sec) {
+			alarm_sec = alarm_sec64 - time_sec;
+			/* set rtc alarm */
+			meson_set_alarm(rtc, alarm_sec);
+			meson_enable_alarm(rtc, alarm->enabled);
+			rtc->alarm_enabled = alarm->enabled;
 
-		alarm_sec = (u32)alarm_sec64;
-		if (rtc->time_storage_format)
-			alarm_sec = binary_to_gray(alarm_sec);
-		meson_set_alarm(rtc, alarm_sec);
+			dev_dbg(dev, "alarm->enabled=%d time=%u alarm=%lld\n",
+				alarm->enabled, time_sec, alarm_sec);
+		} else {
+			dev_info(dev, "alarm already expired!\n");
+		}
+	} else {
+		rtc->alarm_enabled = 0;
+		dev_info(dev, "rtc alarm is disabled\n");
 	}
 
-	rtc->alarm_enabled = alarm->enabled;
-	if (rtc->time_storage_format)
-		alarm_sec = gray_to_binary(alarm_sec);
-	dev_dbg(dev, "%s: alarm->enabled=%d alarm_set=0x%llx alarm=0x%x\n",
-		__func__, alarm->enabled, alarm_sec64, alarm_sec);
-
 	return 0;
 }
 
-static int meson_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
+static int aml_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
-	struct meson_rtc_data *rtc = dev_get_drvdata(dev);
-	u32 alarm_sec;
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev);
+	u32 alarm_sec = 0;
 
-	alarm_sec = meson_read_alarm(rtc);
-	if (rtc->time_storage_format)
-		alarm_sec = gray_to_binary(alarm_sec);
+	if (rtc->wakealrm_enabled)
+		alarm_sec = meson_read_alarm(rtc);
 	rtc_time64_to_tm((time64_t)alarm_sec, &alarm->time);
-	dev_dbg(dev, "%s: alarm->enabled=%d alarm=0x%x\n", __func__,
-		alarm->enabled, alarm_sec);
-
 	alarm->enabled = rtc->alarm_enabled;
+	dev_dbg(dev, "alarm->enabled=%d alarm=%u\n", alarm->enabled, alarm_sec);
 
 	return 0;
 }
 
-static irqreturn_t meson_rtc_handler(int irq, void *data)
+static irqreturn_t aml_rtc_alarm_handler(int irq, void *data)
 {
-	struct meson_rtc_data *rtc = (struct meson_rtc_data *)data;
-	u32 reg_val;
+	struct aml_rtc_data *rtc = (struct aml_rtc_data *)data;
 
-	/* Clear alarm0 */
-	writel(0, rtc->reg_base + RTC_ALARM0_REG);
-
-	/* Mask alarm0 irq */
-	reg_val = readl(rtc->reg_base + RTC_INT_MASK);
-	reg_val |= (1 << RTC_ALRM0_IRQ_MSK_BIT);
-	writel(reg_val, rtc->reg_base + RTC_INT_MASK);
-
-	reg_val = readl(rtc->reg_base + RTC_INT_STATUS)
-				& (1 << RTC_ALRM0_IRQ_STATUS_BIT);
-	/* Clear alarm0 int status */
-	if (reg_val)
-		writel((1 << RTC_ALRM0_IRQ_STATUS_BIT), rtc->reg_base + RTC_INT_CLR);
-
+	/* Clear alarm0 & disable alarm0 */
+	meson_set_alarm(rtc, 0);
+	meson_enable_alarm(rtc, 0);
+	if (!rtc->rtc_virtual) {
+		/* Clear alarm0 int status */
+		if (regmap_test_bits(rtc->map, RTC_INT_STATUS, RTC_ALRM0_IRQ_STATUS))
+			regmap_update_bits(rtc->map, RTC_INT_CLR,
+					   RTC_ALRM0_IRQ_CLR, RTC_ALRM0_IRQ_CLR);
+	}
 	rtc_update_irq(rtc->rtc_dev, 1, RTC_AF | RTC_IRQF);
+
 	return IRQ_HANDLED;
 }
 
-static int meson_rtc_alarm_enable(struct device *dev, unsigned int enabled)
+/* rtc adjust function, using rtc_ops implementation */
+static int aml_rtc_read_offset(struct device *dev, long *offset)
 {
-	struct meson_rtc_data *rtc = dev_get_drvdata(dev);
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev);
 	u32 reg_val;
+	long val = 0;
+	int sign, match_counter, enable;
 
-	dev_dbg(dev, "%s: enabled = %d\n", __func__,
-		enabled);
-
-	/* Operate RTC alarm0 by default */
-	if (enabled) {
-		/* Enable alarm0 */
-		reg_val = readl(rtc->reg_base + RTC_CTRL);
-		reg_val |= (1 << RTC_ALRM0_EN_BIT);
-		writel(reg_val, rtc->reg_base + RTC_CTRL);
+	if (!rtc->rtc_virtual) {
+		regmap_read(rtc->map, RTC_SEC_ADJUST_REG, &reg_val);
+		enable = FIELD_GET(RTC_ADJ_VALID, reg_val);
+		if (!enable) {
+			val = 0;
+		} else {
+			sign = FIELD_GET(RTC_SEC_ADJUST_CTRL, reg_val);
+			match_counter = FIELD_GET(RTC_MATCH_COUNTER, reg_val);
+			val = 1000000000 / (match_counter + 1);
+			if (sign == RTC_SWALLOW_SECOND)
+				val = -val;
+		}
 	} else {
-		/* Disable alarm0 */
-		reg_val = readl(rtc->reg_base + RTC_CTRL);
-		reg_val &= (~(1 << RTC_ALRM0_EN_BIT));
-		writel(reg_val, rtc->reg_base + RTC_CTRL);
-		/* clear alarm */
-		meson_set_alarm(rtc, 0);
+		dev_info(dev, "virtual rtc donot support read offset\n");
+		return -ENODEV;
+	}
+	*offset = val;
+
+	return 0;
+}
+
+static int aml_rtc_set_offset(struct device *dev, long offset)
+{
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev);
+	int sign = 0, match_counter = 0, enable = 0;
+	u32 reg_val;
+
+	if (!rtc->rtc_virtual) {
+		if (offset) {
+			enable = 1;
+			sign = offset < 0 ? RTC_SWALLOW_SECOND : RTC_INSERT_SECOND;
+			match_counter = 1000000000 / abs(offset) - 1;
+			if (match_counter < 0 || match_counter > RTC_MATCH_COUNTER)
+				return -EINVAL;
+		}
+
+		reg_val = FIELD_PREP(RTC_ADJ_VALID, enable) |
+			FIELD_PREP(RTC_SEC_ADJUST_CTRL, sign) |
+			FIELD_PREP(RTC_MATCH_COUNTER, match_counter);
+		regmap_update_bits(rtc->map, RTC_SEC_ADJUST_REG, RTC_MATCH_COUNTER |
+				   RTC_SEC_ADJUST_CTRL | RTC_ADJ_VALID, reg_val);
+	} else {
+		dev_info(dev, "virtual rtc donot support set offset\n");
+		return -ENODEV;
 	}
 
+	return 0;
+}
+
+static int aml_rtc_alarm_enable(struct device *dev, unsigned int enabled)
+{
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev);
+
+	if (!enabled)
+		meson_enable_alarm(rtc, enabled);
 	rtc->alarm_enabled = enabled;
-	return 0;
-}
-
-static void meson_rtc_clk_config(struct meson_rtc_data *rtc)
-{
-	u32 reg_val;
-
-	if (rtc->freq == OSC_24MHZ) {
-		reg_val = readl(rtc->reg_base + RTC_CTRL);
-		/* Select RTC oscillator to 24MHz clock output */
-		reg_val |= (1 << RTC_OSC_SEL_BIT);
-		writel(reg_val, rtc->reg_base + RTC_CTRL);
-
-		/* Set RTC oscillator to freq_out to freq_in/((N0*M0+N1*M1)/(M0+M1)) */
-		reg_val = readl(rtc->reg_base + RTC_OSCIN_CTRL0);
-		reg_val &= (~(0x3 << 28));
-		reg_val |= (0x1 << 28);
-		/* Enable clock_in gate of oscillator 24MHz */
-		reg_val |= (1 << 31);
-		/* N0 is set to 733, N1 is set to 732 by default*/
-		writel(reg_val, rtc->reg_base + RTC_OSCIN_CTRL0);
-		/* Set M0 to 2, M1 to 3, so freq_out = 32768 Hz*/
-		reg_val = readl(rtc->reg_base + RTC_OSCIN_CTRL1);
-		reg_val &= ~(0xfff);
-		reg_val |= (0x1 << 0);
-		reg_val &= ~(0xfff << 12);
-		reg_val |= (0x2 << 12);
-		writel(reg_val, rtc->reg_base + RTC_OSCIN_CTRL1);
-	}
-}
-
-#ifdef RTC_CALIBRATION
-static int meson_rtc_adjust_sec(struct device *dev, u32 match_counter,
-				enum meson_rtc_adj ops)
-{
-	struct meson_rtc_data *rtc = dev_get_drvdata(dev->parent);
-	u32 reg_val;
-
-	if (match_counter > 0x7ffff) {
-		pr_err("%s: invalid match_counter\n", __func__);
-		return -EINVAL;
-	}
-
-	reg_val = readl(rtc->reg_base + RTC_SEC_ADJUST_REG);
-	/* Set sec_adjust_ctrl */
-	reg_val &= (~(0x3 << 19));
-	if (ops == ADJUST_DROP)
-		reg_val |= (0x2 << 19);
-	else if (ops == ADJUST_INSERT)
-		reg_val |= (0x3 << 19);
-	/* Set match_counter */
-	reg_val &= (~(0x7ffff << 0));
-	reg_val |= match_counter;
-	/* Valid adjust */
-	reg_val |= (0x1 << 23);
-	writel(reg_val, rtc->reg_base + RTC_SEC_ADJUST_REG);
 
 	return 0;
 }
 
-static int meson_rtc_set_calibration(struct device *dev, u32 calibration)
+static ssize_t div256_adj_show(struct device *dev,
+	struct device_attribute *attr,
+	char *buf)
 {
-	enum meson_rtc_adj cal_ops;
-	u32 match_counter;
-	u32 sec_adjust_ctrl;
-	int ret;
-
-	match_counter = calibration & 0x7ffff;
-	sec_adjust_ctrl = (calibration >> 30) & 0x3;
-	cal_ops = sec_adjust_ctrl;
-
-	if (cal_ops == ADJUST_MAX) {
-		pr_err("%s: calibration ops val invalid!\n", __func__);
-		return -EINVAL;
-	}
-
-	ret = meson_rtc_adjust_sec(dev, match_counter, cal_ops);
-	dev_dbg(dev, "%s: Success to store RTC calibration attribute\n",
-		__func__);
-
-	return ret;
-}
-
-static int meson_rtc_get_calibration(struct device *dev, u32 *calibration)
-{
-	struct meson_rtc_data *rtc = dev_get_drvdata(dev->parent);
-	enum meson_rtc_adj cal_ops;
-	u32 match_counter;
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev->parent);
 	u32 reg_val;
-	u32 sec_adjust_ctrl;
+	int adj_val, adj_dsr;
 
-	reg_val = readl(rtc->reg_base + RTC_SEC_ADJUST_REG);
-	match_counter = reg_val & 0x7ffff;
-	sec_adjust_ctrl = (reg_val >> 19) & 3U;
+	if (rtc->rtc_virtual) {
+		dev_info(dev, "virtual rtc donot support div256_adj\n");
+		return -ENODEV;
+	}
 
-	if (sec_adjust_ctrl == 0 || sec_adjust_ctrl == 1)
-		cal_ops = ADJUST_NONE;
-	else if (sec_adjust_ctrl == 2)
-		cal_ops = ADJUST_DROP;
-	else
-		cal_ops = ADJUST_INSERT;
+	regmap_read(rtc->map, RTC_SEC_ADJUST_REG, &reg_val);
+	adj_dsr = FIELD_GET(RTC_DIV256_ADJ_DSR, reg_val);
+	adj_val = FIELD_GET(RTC_DIV256_ADJ_VAL, reg_val);
 
-	*calibration = ((cal_ops & 0x3) << 30) | (match_counter & 0x7ffff);
-	return 0;
+	return sprintf(buf, "%d %d\n", adj_dsr, adj_val);
 }
 
-/* The calibration value transferred from buf takes bit[18:0] to represent   */
-/* match counter, while takes bit[31:30] to represent operation style       */
-/* which can be set to: 0 represents no calibration; 1 represents drop one */
-/* second every match counter; 2 represents insert one second every match counter */
-static ssize_t rtc_calibration_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
+/*
+ * this node looks at the action of writing, and writes once remove/insert 1/128s.
+ */
+static ssize_t div256_adj_store(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf, size_t count)
 {
-	int retval;
-	int calibration = 0;
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev->parent);
+	int val;
+	int adj_val, adj_dsr;
+	unsigned int reg_val = 0;
 
-	if (sscanf(buf, " %i ", &calibration) != 1) {
-		dev_err(dev, "Failed to store RTC calibration attribute\n");
+	if (rtc->rtc_virtual) {
+		dev_info(dev, "virtual rtc donot support div256_adj\n");
+		return -ENODEV;
+	}
+
+	if (kstrtouint(buf, 0, &val)) {
+		dev_err(dev, "invalid div256_daj parm=%d\n", val);
 		return -EINVAL;
 	}
 
-	retval = meson_rtc_set_calibration(dev, calibration);
+	adj_val = val % 10;
+	adj_dsr = val / 10;
+	reg_val |= (FIELD_PREP(RTC_DIV256_ADJ_DSR, adj_dsr) |
+		    FIELD_PREP(RTC_DIV256_ADJ_VAL, adj_val));
+	regmap_write_bits(rtc->map, RTC_SEC_ADJUST_REG,
+		RTC_DIV256_ADJ_DSR | RTC_DIV256_ADJ_VAL, reg_val);
+	/* rtc need about 30ms to adjust its time after write reg*/
+	mdelay(30);
 
-	return retval ? retval : count;
+	return count;
 }
+static DEVICE_ATTR_RW(div256_adj);
 
-static ssize_t rtc_calibration_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t wakealrm_enabled_show(struct device *dev,
+	struct device_attribute *attr,
+	char *buf)
 {
-	int  retval = 0;
-	u32  calibration = 0;
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev->parent);
+	int enabled = rtc->wakealrm_enabled;
 
-	retval = meson_rtc_get_calibration(dev, &calibration);
-	if (retval < 0) {
-		dev_err(dev, "Failed to read RTC calibration attribute\n");
-		sprintf(buf, "0\n");
-		return retval;
-	}
-
-	return sprintf(buf, "0x%x\n", calibration);
+	return sprintf(buf, "%d\n", enabled);
 }
 
-static DEVICE_ATTR_RW(rtc_calibration);
+static ssize_t wakealrm_enabled_store(struct device *dev,
+	 struct device_attribute *attr,
+	 const char *buf, size_t count)
+{
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev->parent);
+	int enabled;
+
+	if (kstrtoint(buf, 0, &enabled)) {
+		dev_err(dev, "invalid wakealrm_enabled=%d\n", enabled);
+		return -EINVAL;
+	}
+	rtc->wakealrm_enabled = enabled;
+
+	return count;
+}
+static DEVICE_ATTR_RW(wakealrm_enabled);
 
 static struct attribute *meson_rtc_attrs[] = {
-	&dev_attr_rtc_calibration.attr,
+	&dev_attr_div256_adj.attr,
+	&dev_attr_wakealrm_enabled.attr,
 	NULL
 };
 
 static const struct attribute_group meson_rtc_sysfs_files = {
 	.attrs	= meson_rtc_attrs,
 };
-#endif
 
-static const struct rtc_class_ops aml_meson_rtc_ops = {
-	.read_time = meson_rtc_read_time,
-	.set_time = meson_rtc_set_time,
-	.read_alarm = meson_rtc_read_alarm,
-	.set_alarm = meson_rtc_set_alarm,
-	.alarm_irq_enable = meson_rtc_alarm_enable,
+static const struct rtc_class_ops aml_rtc_ops = {
+	.read_time = aml_rtc_read_time,
+	.set_time = aml_rtc_set_time,
+	.read_alarm = aml_rtc_read_alarm,
+	.set_alarm = aml_rtc_set_alarm,
+	.alarm_irq_enable = aml_rtc_alarm_enable,
+	.read_offset = aml_rtc_read_offset,
+	.set_offset = aml_rtc_set_offset,
 };
 
-static void meson_rtc_init(struct device *dev, struct meson_rtc_data *rtc)
+static void aml_rtc_init(struct device *dev, struct aml_rtc_data *rtc)
 {
-	u32 reg_val, rtc_enable;
-	u32 rtc_time;
-	int ret = 0;
+	u32 reg_val = 0;
 
-	reg_val = readl(rtc->reg_base + RTC_CTRL);
-	rtc_enable = ((reg_val >> RTC_ENABLE_BIT) & 1);
+	if (!regmap_test_bits(rtc->map, RTC_CTRL_REG, RTC_ENABLE)) {
+		if (clk_get_rate(rtc->rtc_clk) == OSC_24M) {
+			/* select 24M oscillator */
+			regmap_write_bits(rtc->map, RTC_CTRL_REG, RTC_OSC_SEL, RTC_OSC_SEL);
 
-	dev_dbg(dev, "%s: rtc enable = %u\n", __func__, rtc_enable);
-	/* If rtc is not enable, enable and init it */
-	if (!rtc_enable) {
-		meson_rtc_clk_config(rtc);
-		/* Enable RTC */
-		reg_val |= (1 << RTC_ENABLE_BIT);
-		writel(reg_val, rtc->reg_base + RTC_CTRL);
+			/*
+			 * Set RTC oscillator to freq_out to freq_in/((N0*M0+N1*M1)/(M0+M1))
+			 * Enable clock_in gate of oscillator 24MHz
+			 * Set N0 to 733, N1 to 732
+			 */
+			reg_val = FIELD_PREP(RTC_OSCIN_IN_EN, 1)
+				  | FIELD_PREP(RTC_OSCIN_OUT_CFG, 1)
+				  | FIELD_PREP(RTC_OSCIN_OUT_N0M0, RTC_OSCIN_OUT_32K_N0)
+				  | FIELD_PREP(RTC_OSCIN_OUT_N1M1, RTC_OSCIN_OUT_32K_N1);
+			regmap_write_bits(rtc->map, RTC_OSCIN_CTRL0, RTC_OSCIN_IN_EN
+					  | RTC_OSCIN_OUT_CFG | RTC_OSCIN_OUT_N0M0
+					  | RTC_OSCIN_OUT_N1M1, reg_val);
+
+			/* Set M0 to 2, M1 to 3, so freq_out = 32768 Hz*/
+			reg_val = FIELD_PREP(RTC_OSCIN_OUT_N0M0, RTC_OSCIN_OUT_32K_M0)
+				  | FIELD_PREP(RTC_OSCIN_OUT_N1M1, RTC_OSCIN_OUT_32K_M1);
+			regmap_write_bits(rtc->map, RTC_OSCIN_CTRL1, RTC_OSCIN_OUT_N0M0
+					  | RTC_OSCIN_OUT_N1M1, reg_val);
+		} else {
+			/* select 32K oscillator */
+			regmap_write_bits(rtc->map, RTC_CTRL_REG, RTC_OSC_SEL, 0);
+		}
+		/* enable rtc */
+		regmap_write_bits(rtc->map, RTC_CTRL_REG, RTC_ENABLE, RTC_ENABLE);
 		usleep_range(100, 200);
 	}
-
-	/* Temporarily use: restore rtc time when reboot, prevent rtc time being */
-	/* reset by reboot, it can be removed if rtc can preserve time in reboot */
-	/* procedure */
-	rtc->mbox_chan = aml_mbox_request_channel_byidx(dev, 0);
-	if (IS_ERR_OR_NULL(rtc->mbox_chan)) {
-		rtc_time = 0;
-	} else {
-		ret = aml_mbox_transfer_data(rtc->mbox_chan, MBOX_CMD_GET_RTC,
-				       NULL, 0, &rtc_time, sizeof(rtc_time),
-				       MBOX_SYNC);
-		if (ret < 0) {
-			rtc_time = 0;
-			dev_err(dev, "Fail to send mbox message\n");
-		}
-	}
-	dev_dbg(dev, "%s: Successfully restored rtc time %u\n",
-				__func__, rtc_time);
-	if (rtc->time_storage_format)
-		rtc_time = binary_to_gray(rtc_time);
-	meson_set_time(rtc, rtc_time);
-
-	/* Mask alarm0 irq */
-	reg_val = readl(rtc->reg_base + RTC_INT_MASK);
-	reg_val |= (1 << RTC_ALRM0_IRQ_MSK_BIT);
-	writel(reg_val, rtc->reg_base + RTC_INT_MASK);
-
-	rtc->alarm_enabled = false;
-	/* Show rtc time */
-	reg_val = readl(rtc->reg_base + RTC_REAL_TIME);
-	if (rtc->time_storage_format)
-		reg_val = gray_to_binary(reg_val);
-	dev_dbg(dev, "%s: rtc time stamp = %u\n", __func__, reg_val);
+	/* mask alarm0 irq */
+	regmap_write_bits(rtc->map, RTC_INT_MASK, RTC_ALRM0_IRQ_MSK, RTC_ALRM0_IRQ_MSK);
+	/* disable alarm0 */
+	regmap_write_bits(rtc->map, RTC_CTRL_REG, RTC_ALRM0_EN, 0);
 }
 
-static int meson_rtc_probe(struct platform_device *pdev)
+static int aml_rtc_probe(struct platform_device *pdev)
 {
-	struct meson_rtc_data *rtc;
-	struct device_node *node = pdev->dev.of_node;
+	struct aml_rtc_data *rtc;
+	void __iomem *base;
+	struct resource *res;
+	u32 rtc_time = 0;
 	int ret;
-	u32 freq = 0;
-
-	if (!node) {
-		dev_err(&pdev->dev,
-			"meson-rtc requires of_node!\n");
-		return -EINVAL;
-	}
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
-	rtc->irq = platform_get_irq(pdev, 0);
-	if (rtc->irq < 0)
-		return rtc->irq;
-
-	rtc->reg_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(rtc->reg_base)) {
-		pr_err("resource ioremap failed\n");
-		return PTR_ERR(rtc->reg_base);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(base)) {
+		dev_err_probe(&pdev->dev, PTR_ERR(base), "resource ioremap failed\n");
+		return PTR_ERR(base);
+	}
+	aml_rtc_regmap_config.max_register = resource_size(res) - 4;
+	rtc->map = devm_regmap_init_mmio(&pdev->dev, base, &aml_rtc_regmap_config);
+	if (IS_ERR(rtc->map)) {
+		dev_err_probe(&pdev->dev, PTR_ERR(rtc->map), "regmap init failed\n");
+		return PTR_ERR(rtc->map);
 	}
 
-	rtc->time_storage_format = false;
-	rtc->time_storage_format = of_property_read_bool(pdev->dev.of_node,
-					"time-storage-format-gray");
+	if (of_property_read_bool(pdev->dev.of_node, "time-storage-format-gray"))
+		rtc->time_storage_format = true;
+	else
+		rtc->time_storage_format = false;
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "osc_freq", &freq);
-	if (!ret) {
-		if (freq != OSC_24MHZ && freq != OSC_32KHZ) {
-			pr_err("%s: Invalid clock configuration\n",
-				__func__);
+	/* rtc supports setting alarm flag */
+	if (of_property_read_bool(pdev->dev.of_node, "wakealarm-disabled"))
+		rtc->wakealrm_enabled = false;
+	else
+		rtc->wakealrm_enabled = true;
+
+	if (of_property_read_bool(pdev->dev.of_node, "rtc-virtual"))
+		rtc->rtc_virtual = true;
+	else
+		rtc->rtc_virtual = false;
+
+	rtc->mbox_chan = aml_mbox_request_channel_byidx(&pdev->dev, 0);
+	if (IS_ERR_OR_NULL(rtc->mbox_chan))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rtc->mbox_chan),
+				     "failed to get mbox chan\n");
+
+	if (!rtc->rtc_virtual) {
+		rtc->rtc_clk = devm_clk_get(&pdev->dev, "osc");
+		if (IS_ERR(rtc->rtc_clk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(rtc->rtc_clk),
+					     "failed to get rtc clock\n");
+		if (clk_get_rate(rtc->rtc_clk) != OSC_32K &&
+		    clk_get_rate(rtc->rtc_clk) != OSC_24M) {
+			dev_err(&pdev->dev, "Invalid clock configuration\n");
 			return -EINVAL;
 		}
-		dev_dbg(&pdev->dev, "%s: Select %dHz oscillator as rtc source clock\n",
-			__func__, freq);
-		rtc->freq = freq;
-	} else {
-		pr_err("%s: Get rtc clock frequency failed!\n", __func__);
-		return -EINVAL;
+
+		rtc->sys_clk = devm_clk_get(&pdev->dev, "sys");
+		if (IS_ERR(rtc->sys_clk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(rtc->sys_clk),
+					     "failed to get rtc sys clk\n");
+		ret = clk_prepare_enable(rtc->sys_clk);
+		if (ret)
+			return dev_err_probe(&pdev->dev, ret, "Failed to enable clk\n");
+
+		aml_rtc_init(&pdev->dev, rtc);
+
+		ret = aml_mbox_transfer_data(rtc->mbox_chan, MBOX_CMD_GET_RTC,
+			NULL, 0, &rtc_time, sizeof(rtc_time), MBOX_SYNC);
+		if (ret < 0) {
+			dev_err_probe(&pdev->dev, ret, "Fail to get rtc init time\n");
+			goto err_clk;
+		}
+		dev_dbg(&pdev->dev, "Successfully restored rtc time %u\n", rtc_time);
+		meson_set_time(rtc, rtc_time);
 	}
 
-	meson_rtc_init(&pdev->dev, rtc);
+	rtc->irq = platform_get_irq(pdev, 0);
+	if (rtc->irq < 0) {
+		dev_err_probe(&pdev->dev, rtc->irq, "Failed to get rtc irq\n");
+		goto err_clk;
+	} else {
+		ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL, aml_rtc_alarm_handler,
+				       IRQF_ONESHOT, "aml-rtc alarm", rtc);
+		if (ret) {
+			dev_err_probe(&pdev->dev, ret, "Failed to request irq\n");
+			goto err_clk;
+		}
+	}
 
-	device_init_wakeup(&pdev->dev, 1);
-
+	device_init_wakeup(&pdev->dev, true);
 	platform_set_drvdata(pdev, rtc);
 
 	rtc->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
-	if (IS_ERR(rtc->rtc_dev))
-		return PTR_ERR(rtc->rtc_dev);
-
-	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL, meson_rtc_handler,
-			       IRQF_ONESHOT, "meson-rtc alarm", rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "IRQ%d request failed, ret = %d\n",
-			rtc->irq, ret);
-		return ret;
+	if (IS_ERR(rtc->rtc_dev)) {
+		ret = PTR_ERR(rtc->rtc_dev);
+		goto err_clk;
 	}
 
-	rtc->rtc_dev->ops = &aml_meson_rtc_ops;
+	rtc->rtc_dev->ops = &aml_rtc_ops;
 
-#ifdef RTC_CALIBRATION
 	ret = rtc_add_group(rtc->rtc_dev, &meson_rtc_sysfs_files);
-	if (ret)
-		return ret;
-#endif
+	if (ret) {
+		dev_err_probe(&pdev->dev, ret, "Failed to add RTC group: %d\n", ret);
+		goto err_clk;
+	}
 
 	ret = devm_rtc_register_device(rtc->rtc_dev);
-	if (ret)
+	if (ret) {
+		dev_err_probe(&pdev->dev, ret, "Failed to register RTC device: %d\n", ret);
+		goto err_clk;
+	}
+
+	return 0;
+err_clk:
+	if (!rtc->rtc_virtual)
+		clk_disable_unprepare(rtc->sys_clk);
+
+	return ret;
+}
+
+static int aml_rtc_suspend(struct device *dev)
+{
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (!rtc->wakealrm_enabled)
 		return ret;
 
-	dev_dbg(&pdev->dev, "%s: probe done\n", __func__);
-	return 0;
-}
-
-static int meson_rtc_suspend(struct device *dev)
-{
-	struct meson_rtc_data *rtc = dev_get_drvdata(dev);
-
-	dev_dbg(dev, "%s\n", __func__);
 	if (device_may_wakeup(dev))
-		enable_irq_wake(rtc->irq);
+		ret = enable_irq_wake(rtc->irq);
 
-	return 0;
+	return ret;
 }
 
-static int meson_rtc_resume(struct device *dev)
+static int aml_rtc_resume(struct device *dev)
 {
-	struct meson_rtc_data *rtc = dev_get_drvdata(dev);
-	int remain_time;
-	u32 alarm, time, reg_val;
+	struct aml_rtc_data *rtc = dev_get_drvdata(dev);
+	int ret = 0;
 
-	dev_dbg(dev, "%s\n", __func__);
+	if (!rtc->wakealrm_enabled)
+		return ret;
+
 	if (device_may_wakeup(dev))
-		disable_irq_wake(rtc->irq);
+		ret = disable_irq_wake(rtc->irq);
+	/* alarm fired, handler donot executed, trigger it munally */
+	/* clean 'rtc->alarm' to allow a new .set_alarm to the upper RTC layer */
+	if (!meson_read_alarm(rtc))
+		aml_rtc_alarm_handler(rtc->irq, (void *)rtc);
 
-	alarm = readl(rtc->reg_base + RTC_ALARM0_REG);
-	time = readl(rtc->reg_base + RTC_REAL_TIME);
-	if (rtc->time_storage_format) {
-		alarm = gray_to_binary(alarm);
-		time = gray_to_binary(time);
-	}
-	remain_time = alarm - time;
-	if (remain_time <= 0) {
-		/* Clear alarm0 */
-		writel(0, rtc->reg_base + RTC_ALARM0_REG);
-
-		/* Mask alarm0 irq */
-		reg_val = readl(rtc->reg_base + RTC_INT_MASK);
-		reg_val |= (1 << RTC_ALRM0_IRQ_MSK_BIT);
-		writel(reg_val, rtc->reg_base + RTC_INT_MASK);
-	}
-
-	return 0;
+	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(meson_rtc_pm_ops,
-			 meson_rtc_suspend, meson_rtc_resume);
+static SIMPLE_DEV_PM_OPS(aml_rtc_pm_ops,
+			 aml_rtc_suspend, aml_rtc_resume);
 
-static void meson_rtc_shutdown(struct platform_device *pdev)
+static void aml_rtc_shutdown(struct platform_device *pdev)
 {
-	struct meson_rtc_data *rtc = dev_get_drvdata(&pdev->dev);
+	struct aml_rtc_data *rtc = dev_get_drvdata(&pdev->dev);
+	struct rtc_wkalrm aie_timer;
 	u32 rtc_time;
-
-	dev_dbg(&pdev->dev, "%s\n", __func__);
+	u64 alarm_sec = 0;
+	int ret;
 
 	/* Temporarily use: store rtc time when reboot, prevent rtc time being   */
 	/* reset by reboot, it can be removed if rtc can preserve time in reboot */
-	/* procedure */
+	/* procedure, only rtc needed */
 	rtc_time = meson_read_time(rtc);
-	if (rtc->time_storage_format)
-		rtc_time = gray_to_binary(rtc_time);
-	if (rtc->mbox_chan) {
-		aml_mbox_transfer_data(rtc->mbox_chan, MBOX_CMD_SET_RTC,
-			       &rtc_time, sizeof(rtc_time),
-			       NULL, 0, MBOX_SYNC);
-		dev_dbg(&pdev->dev, "%s: mailbox store rtc time success!\n",
-			__func__);
-	} else {
-		dev_err(&pdev->dev, "Fail to send mbox message\n");
+	if (!rtc->rtc_virtual && rtc->mbox_chan) {
+		ret = aml_mbox_transfer_data(rtc->mbox_chan, MBOX_CMD_SET_RTC,
+			&rtc_time, sizeof(rtc_time), NULL, 0, MBOX_SYNC);
+		if (ret < 0)
+			dev_err(&pdev->dev, "Fail to set rtc time\n");
 	}
 
-	if (device_may_wakeup(&pdev->dev))
-		enable_irq_wake(rtc->irq);
+	if (!rtc->wakealrm_enabled)
+		return;
+
+	/* only aie timer can wakeup system when poweroff */
+	rtc_read_alarm(rtc->rtc_dev, &aie_timer);
+	alarm_sec = rtc_tm_to_time64(&aie_timer.time);
+	if (alarm_sec > rtc_time && aie_timer.enabled) {
+		alarm_sec -= rtc_time;
+		/* set alarm to reg */
+		meson_set_alarm(rtc, alarm_sec);
+		/* enable rtc alarm */
+		meson_enable_alarm(rtc, 1);
+
+		dev_info(&pdev->dev, "system will wakeup %llus later\n", alarm_sec);
+	}
 }
 
 static const struct of_device_id meson_rtc_dt_match[] = {
@@ -570,13 +623,13 @@ static const struct of_device_id meson_rtc_dt_match[] = {
 MODULE_DEVICE_TABLE(of, meson_rtc_dt_match);
 
 static struct platform_driver meson_rtc_driver = {
-	.probe = meson_rtc_probe,
+	.probe = aml_rtc_probe,
 	.driver = {
 		.name = "meson-rtc",
 		.of_match_table = meson_rtc_dt_match,
-		.pm = &meson_rtc_pm_ops,
+		.pm = &aml_rtc_pm_ops,
 	},
-	.shutdown = meson_rtc_shutdown,
+	.shutdown = aml_rtc_shutdown,
 };
 
 int __init rtc_init(void)

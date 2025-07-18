@@ -481,11 +481,13 @@
 		irq_trigger_type = "IRQF_TRIGGER_LOW";
 	};
 
-	vrtc: rtc@ff8000a8 {
-		compatible = "amlogic,meson-vrtc";
+	rtc: rtc@ff8000a8 {
+		compatible = "amlogic,meson-rtc";
 		reg = <0xff8000a8 0x4>;
+		interrupts = <GIC_SPI 29 IRQ_TYPE_EDGE_RISING>;
 		status = "okay";
 		mboxes = <&mbox_pl TXHD2_REE2AO_VRTC>;
+		rtc-virtual;
 	};
 
 	vcodec_dec {

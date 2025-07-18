@@ -243,11 +243,13 @@
 		status = "okay";
 	};
 
-	vrtc: rtc@fe010288 {
-		compatible = "amlogic,meson-vrtc";
+	rtc: rtc@fe010288 {
+		compatible = "amlogic,meson-rtc";
 		reg = <0x0 0xfe010288 0x0 0x4>; //SYSCTRL_STATUS_REG2
+		interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
 		status = "okay";
 		mboxes = <&mbox_fifo T6D_REE2AO_VRTC>;
+		rtc-virtual;
 	};
 
 	mbox_fifo: mbox_fifo@fe006000 {

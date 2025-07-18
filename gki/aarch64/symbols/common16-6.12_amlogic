@@ -85,3 +85,8 @@
 
 #aml_media.ko
  __vmalloc_array_noprof
+
+# amlogic-rtc.ko
+ regmap_test_bits
+ rtc_read_alarm
+

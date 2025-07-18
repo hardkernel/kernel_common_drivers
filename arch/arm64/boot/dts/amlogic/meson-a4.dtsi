@@ -21,7 +21,6 @@
 #include <dt-bindings/input/meson_ir.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
 #include <dt-bindings/mailbox/a4-mbox.h>
-#include <dt-bindings/rtc/amlogic,rtc.h>
 #include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 #include "meson-ir-map.dtsi"
 / {
@@ -323,11 +322,11 @@
 		#clock-cells = <0>;
 	};
 
-	vrtc: rtc@fe010288 {
-		compatible = "amlogic,meson-vrtc";
-		reg = <0x0 0xfe010288 0x0 0x4>;
-		status = "disabled";
-		mboxes = <&mbox_fifo A4_REE2AO_VRTC>;
+	xtal_32k: xtal-32k-clk {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "xtal_32k";
+		#clock-cells = <0>;
 	};
 
 	rtc: rtc@fe08e600 {
@@ -335,9 +334,10 @@
 		reg = <0x0 0xfe08e600 0x0 0x38>;
 		time-storage-format-gray;
 		interrupts = <GIC_SPI 135 IRQ_TYPE_EDGE_RISING>;
-		status = "okay";
 		mboxes = <&mbox_fifo A4_REE2AO_RTC>;
-		osc_freq = <OSC_32KHZ>;
+		clocks = <&xtal_32k>, <&clkc CLKID_SYS_RTC>;
+		clock-names = "osc", "sys";
+		status = "okay";
 	};
 
 	audio_data: audio_data {

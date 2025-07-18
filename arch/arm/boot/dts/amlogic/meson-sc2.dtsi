@@ -226,11 +226,13 @@
 		#clock-cells = <0>;
 	};
 
-	vrtc: rtc@fe010288 {
-		compatible = "amlogic,meson-vrtc";
+	rtc: rtc@fe010288 {
+		compatible = "amlogic,meson-rtc";
 		reg = <0xfe010288 0x4>;
+		interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
 		status = "okay";
 		mboxes = <&mbox_fifo SC2_REE2AO_VRTC>;
+		rtc-virtual;
 	};
 
 	audio_data: audio_data {
