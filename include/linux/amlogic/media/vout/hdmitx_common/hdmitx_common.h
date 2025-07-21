@@ -29,9 +29,11 @@
 #define HDMITX21 21
 #define DEVICE_NAME "amhdmitx"
 
-#define HDMI_TX_POOL_NUM  6
-#define HDMI_TX_RESOURCE_NUM 4
-#define HDMI_TX_PWR_CTRL_NUM	6
+#define HDMI_TX_POOL_NUM      6
+#define HDMI_TX_RESOURCE_NUM  4
+#define HDMI_TX_PWR_CTRL_NUM  6
+/* this value must be >= 1 */
+#define CSC_DELAY_FRAME       2
 
 struct hdmitx_common_state {
 	struct hdmi_format_para para;
@@ -304,6 +306,9 @@ struct hdmitx_common {
 	u32 hdr_8bit_en;
 	/*for color space conversion*/
 	bool config_csc_en;
+	u32 output_color_format;
+	bool csc_config_in_next_frame;
+	u8 csc_delay_frame;
 	u32 hdmi_last_hdr_mode;
 	u32 hdmi_current_hdr_mode;
 	/*

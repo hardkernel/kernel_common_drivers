@@ -218,6 +218,8 @@ void hdmitx_set_tv_enci_new(struct hdmitx21_dev *hdev, u32 enc_index,
 	enum hdmi_vic vic, u32 enable);
 void hdmitx21_venc_en(bool en, bool pi_mode);
 void hdmitx21_dither_config(struct hdmitx21_dev *hdev);
+void hdmitx21_color_convert(struct hdmitx21_dev *hdev, u32 output_color_format);
+void hdmitx21_csc_update_avi_infoframe(struct hdmitx21_dev *hdev, u32 output_color_format);
 
 /* 5. hdmi phy */
 void hdmitx21_phy_band_gap_en_t7(void);
