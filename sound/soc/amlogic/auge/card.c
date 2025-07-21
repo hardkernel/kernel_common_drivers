@@ -179,6 +179,7 @@ struct aml_card_data {
 	int gpio_set_flag;
 	wait_queue_head_t wq;
 	int suspend_flag;
+	bool spk_mute_enable;
 };
 
 #define aml_priv_to_dev(priv) ((priv)->snd_card.dev)
@@ -1096,25 +1097,34 @@ static int aml_card_parse_gpios(struct device_node *node,
 	struct snd_soc_card *soc_card = &priv->snd_card;
 	unsigned int sleep_time = 500;
 	unsigned int spk_mute_sleep_time = 200;
-	struct gpio_desc *spk_mute = devm_gpiod_get(dev, "spk_mute", GPIOD_ASIS);
+	int mute_value = 0, ret = 0;
 
-	int value = 0;
-
-	if (!IS_ERR_OR_NULL(spk_mute)) {
-		priv->spk_mute = spk_mute;
+	if (IS_ERR_OR_NULL(priv->spk_mute)) {
+		/*only first time */
+		priv->spk_mute = devm_gpiod_get(dev, "spk_mute", GPIOD_ASIS);
+		/*there are no spk gpio*/
+		if (IS_ERR_OR_NULL(priv->spk_mute))
+			goto avout;
 		/* delay to depop the speaker noise */
-		if (!of_property_read_u32(node,
-				"spk_mute_sleep_time", &spk_mute_sleep_time))
-			msleep(spk_mute_sleep_time);
-
-		if (priv->spk_mute_flag)
-			value = 1;
-
-		gpiod_direction_output(spk_mute, value);
+		ret = of_property_read_u32(node,
+			"spk_mute_sleep_time", &spk_mute_sleep_time);
+		if (ret < 0)
+			pr_warn("spk_mute not add delay\n");
 		snd_soc_add_card_controls(soc_card, card_controls,
-						ARRAY_SIZE(card_controls));
+					ARRAY_SIZE(card_controls));
 	}
-
+	if (!IS_ERR_OR_NULL(priv->spk_mute)) {
+		if (priv->spk_mute_flag || priv->spk_mute_enable)
+			mute_value = 1;
+		/*delay when unmute spk, to avoid dac pop nosie  */
+		if (mute_value == 0)
+			msleep(spk_mute_sleep_time);
+		/*need check suspend exit after sleep, don't enable*/
+		if (priv->suspend_flag && priv->spk_mute_enable == 0)
+			mute_value = 1;
+		gpiod_direction_output(priv->spk_mute, mute_value);
+	}
+avout:
 	if (IS_ERR_OR_NULL(priv->avout_mute_desc)) {
 		priv->avout_mute_desc = devm_gpiod_get(dev,
 					"avout_mute", GPIOD_ASIS);
@@ -1258,6 +1268,7 @@ static int card_suspend_pre(struct snd_soc_card *card)
 	struct device_node *np = dev->of_node;
 
 	priv->av_mute_enable = 1;
+	priv->spk_mute_enable = 1;
 	priv->suspend_flag = 1;
 	if (priv->thread) {
 		kthread_stop(priv->thread);
@@ -1275,6 +1286,7 @@ static int card_resume_post(struct snd_soc_card *card)
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
 
 	priv->av_mute_enable = 0;
+	priv->spk_mute_enable = 0;
 	pr_info("it is card_post_resume\n");
 
 	priv->gpio_set_flag = 1;
@@ -1576,6 +1588,8 @@ static void aml_card_platform_shutdown(struct platform_device *pdev)
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
 
 	priv->av_mute_enable = 1;
+	priv->spk_mute_enable = 1;
+
 	aml_card_parse_gpios(pdev->dev.of_node, priv);
 
 	if (priv->thread) {
