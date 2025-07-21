@@ -18,6 +18,7 @@
 //2025.01.13 no need rm data blk before use splice_data_blk_to_edid
 //2025.05.14 add edid size check before data copy
 //2025.06.18 add edid protect
+//2025.07.23 update qms length
 #define RX_EDID_H_VER "ver.2025/06/18"
 
 #define EDID_EXT_BLK_OFF	128
@@ -129,7 +130,10 @@
 #define EDID_SIZE_256_PLUS_256_PLUS_256 769
 #define EDID_SIZE_256_PLUS_512_PLUS_256 1025
 //#define EDID_SIZE_256_PLUS_512_PLUS_512 1281
-
+#define VRR_OFFSET 10
+#define ADD_FIELD_OFFSET 8
+#define DSC_QMS_OFFSET 11
+#define DSC_FIELD_OFFSET 13
 #define END_OF_BLK(x) (((x) + 1) * EDID_BLK_SIZE - 1)
 
 enum edid_type_e {

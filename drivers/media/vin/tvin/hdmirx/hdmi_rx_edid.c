@@ -694,7 +694,7 @@ void rx_edid_update_vrr_info(unsigned char *p_edid)
 		return;
 
 	tag_len = (p_edid[hf_vsdb_start] & 0x1f) + 1;
-	if (tag_len <= 9 || vrr_func_en == 0xff)
+	if (tag_len < VRR_OFFSET || vrr_func_en == 0xff)
 		return;
 	if (log_level & EDID_LOG)
 		rx_pr("tag_len = %d", tag_len);
@@ -725,7 +725,7 @@ void rx_edid_update_allm_info(unsigned char *p_edid)
 	if (!hf_vsdb_start)
 		return;
 	tag_len = p_edid[hf_vsdb_start] & 0x1f;
-	if (tag_len < 8 || allm_func_en == 0xff)
+	if (tag_len < ADD_FIELD_OFFSET || allm_func_en == 0xff)
 		return;
 	if (log_level & EDID_LOG)
 		rx_pr("tag_len = %d", tag_len);
@@ -754,7 +754,7 @@ void rx_edid_update_qms_info(unsigned char *p_edid)
 	if (!hf_vsdb_start)
 		return;
 	tag_len = p_edid[hf_vsdb_start] & 0x1f;
-	if (tag_len < 10 || qms_func_en == 0xff)
+	if (tag_len < DSC_QMS_OFFSET || qms_func_en == 0xff)
 		return;
 	if (log_level & EDID_LOG)
 		rx_pr("tag_len = %d", tag_len);
@@ -764,8 +764,6 @@ void rx_edid_update_qms_info(unsigned char *p_edid)
 		p_edid[hf_vsdb_start + 11] &= ~0x20;
 		if (log_level & EDID_LOG)
 			rx_pr("disable qms.\n");
-	} else {
-		rx_pr("invalid qms_func_en: %d.\n", qms_func_en);
 	}
 }
 
