@@ -17,7 +17,8 @@
 /* 2025.06.09 tolerate devices that DRM packet checksum error */
 /* 2025.06.24 support SSTM & HLG+ */
 /* 2025.07.07 fix gaming-vrr base framerate error,set vrr_en when gaming-vrr */
-#define RX_PKT_VER "ver.2025/07/07"
+/* 2025.07.22 dump_cvtem_packet optimize stack size */
+#define RX_PKT_VER "ver.2025/07/22"
 
 
 #define K_ONEPKT_BUFF_SIZE		8

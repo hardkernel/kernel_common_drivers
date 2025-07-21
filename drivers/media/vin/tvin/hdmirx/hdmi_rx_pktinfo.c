@@ -2589,12 +2589,16 @@ int rx_check_emp_type(struct emp_pkt_st *pkt)
 void dump_cvtem_packet(u8 port)
 {
 	int i, j;
-	unsigned char buff[1024] = {0};
+	unsigned char buff[192] = {0};
 	int k = 0;
 
 	for (i = 0; i < 6; i++) {
-		for (j = 0; j < 32; j++)
-			k += sprintf(buff + k, "0x%x ", rx[port].cvtem_info.dsc_info[i * 32 + j]);
+		for (j = 0; j < 32; j++) {
+			k += snprintf(buff + k, sizeof(buff) - k, "0x%x ",
+				rx[port].cvtem_info.dsc_info[i * 32 + j]);
+			if (k >= sizeof(buff))
+				break;
+		}
 		pr_info("%s", buff);
 		k = 0;
 	}
