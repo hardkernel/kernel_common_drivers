@@ -698,12 +698,12 @@ static struct lcd_pll_data_s lcd_pll_data_g12a_path0 = {
 	.pll_ref_fmin = 5000000,
 	.pll_vco_fmax = 6000000000ULL,
 	.pll_vco_fmin = 3000000000ULL,
-	.pll_out_fmax = 750000000,
+	.pll_out_fmax = 1500000000,
 	.pll_out_fmin = 187500000,
 	.od_cnt = 3,
 	.have_tcon_div = 0,
-	.div_in_fmax = 0,
-	.div_out_fmax = 750000000,
+	.div_in_fmax = 3100000000ULL,
+	.div_out_fmax = 1500000000ULL,
 	.div_sel_max = CLK_DIV_SEL_2p33,
 };
 
@@ -764,12 +764,12 @@ static struct lcd_pll_data_s lcd_pll_data_g12a_path1 = {
 	.pll_ref_fmin = 5000000,
 	.pll_vco_fmax = 6000000000ULL,
 	.pll_vco_fmin = 3000000000ULL,
-	.pll_out_fmax = 750000000,
+	.pll_out_fmax = 1000000000,
 	.pll_out_fmin = 187500000,
 	.od_cnt = 1,
 	.have_tcon_div = 0,
-	.div_in_fmax = 0,
-	.div_out_fmax = 750000000,
+	.div_in_fmax = 3100000000ULL,
+	.div_out_fmax = 1500000000ULL,
 	.div_sel_max = CLK_DIV_SEL_1,
 };
 
@@ -830,12 +830,12 @@ static struct lcd_pll_data_s lcd_pll_data_g12b_path0 = {
 	.pll_ref_fmin = 5000000,
 	.pll_vco_fmax = 6000000000ULL,
 	.pll_vco_fmin = 3000000000ULL,
-	.pll_out_fmax = 750000000,
+	.pll_out_fmax = 1500000000,
 	.pll_out_fmin = 187500000,
 	.od_cnt = 3,
 	.have_tcon_div = 0,
-	.div_in_fmax = 0,
-	.div_out_fmax = 750000000,
+	.div_in_fmax = 3100000000ULL,
+	.div_out_fmax = 1500000000ULL,
 	.div_sel_max = CLK_DIV_SEL_2p33,
 };
 
@@ -896,12 +896,12 @@ static struct lcd_pll_data_s lcd_pll_data_g12b_path1 = {
 	.pll_ref_fmin = 5000000,
 	.pll_vco_fmax = 6000000000ULL,
 	.pll_vco_fmin = 3000000000ULL,
-	.pll_out_fmax = 750000000,
+	.pll_out_fmax = 1000000000,
 	.pll_out_fmin = 187500000,
 	.od_cnt = 1,
 	.have_tcon_div = 0,
-	.div_in_fmax = 0,
-	.div_out_fmax = 750000000,
+	.div_in_fmax = 3100000000ULL,
+	.div_out_fmax = 1500000000ULL,
 	.div_sel_max = CLK_DIV_SEL_1,
 };
 
