@@ -759,18 +759,19 @@ static int mbox_fifo_probe(struct platform_device *pdev)
 	mbox_rx_msg->rx_queue_len = rx_queue_len;
 	spin_lock_init(&mbox_rx_msg->lock);
 	sema_init(&mbox_rx_msg->sem, 0);
-	mbox_rx_msg->thread =
-		kthread_run(mbox_rx_process, dev, "mbox_rx_thread");
-	if (IS_ERR_OR_NULL(mbox_rx_msg->thread)) {
-		dev_err(dev, "Failed to create rx thread\n");
-		return PTR_ERR(mbox_rx_msg->thread);
-	}
 	mbox_priv_data->rx_msg = mbox_rx_msg;
 
 	platform_set_drvdata(pdev, mbox_priv_data);
 	if (devm_mbox_controller_register(dev, mbox_cons)) {
 		dev_err(dev, "failed to register mailbox controller\n");
 		return -ENOMEM;
+	}
+
+	mbox_rx_msg->thread =
+		kthread_run(mbox_rx_process, dev, "mbox_rx_thread");
+	if (IS_ERR_OR_NULL(mbox_rx_msg->thread)) {
+		dev_err(dev, "Failed to create rx thread\n");
+		return PTR_ERR(mbox_rx_msg->thread);
 	}
 
 	for (idx0 = 0; idx0 < mbox_nums; idx0++)
