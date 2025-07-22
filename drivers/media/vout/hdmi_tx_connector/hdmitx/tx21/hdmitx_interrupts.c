@@ -27,6 +27,12 @@
 
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+char *disablehpd = "false";
+module_param(disablehpd, charp, 0644);
+MODULE_PARM_DESC(disablehpd, "\n disablehpd\n");
+#endif
+
 #include "hdmitx_hw_platform.h"
 #include "hdmitx_hw_core.h"
 #include "hdmi_tx_connector/hdcp/hdmitx_hdcp.h"
@@ -279,6 +285,17 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 			else
 				dat_top &= ~(1 << 1);
 		}
+
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+		if (!strcmp(disablehpd, "true")) {
+			HDMITX_INFO(HW "disablehpd = %s\n", disablehpd);
+			hdev->tx_comm.last_hpd_handle_done_stat |= HDMI_TX_HPD_PLUGIN;
+			hdev->tx_comm.last_hpd_handle_done_stat &= ~HDMI_TX_HPD_PLUGOUT;
+			hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT_CLR, dat_top | 0x6);
+			return;
+		}
+#endif
+
 		/* bit[2:1] of dat_top means HPD falling and rising */
 		if ((dat_top & 0x6) && hdev->hw_comm.hdmitx_gpios_hpd >= 0) {
 			struct timespec64 kts;
@@ -561,5 +578,16 @@ int hdmitx_setup_irqs(struct hdmitx_hw_common *tx_hw)
 	if (r != 0)
 		HDMITX_INFO(SYS "can't request emp_vsync irq\n");
 #endif
+
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	if (!strcmp(disablehpd, "true")) {
+		HDMITX_INFO(HW "disablehpd = %s\n", disablehpd);
+		phdev->tx_comm.last_hpd_handle_done_stat |= HDMI_TX_HPD_PLUGIN;
+		phdev->tx_comm.last_hpd_handle_done_stat &= ~HDMI_TX_HPD_PLUGOUT;
+		queue_delayed_work(phdev->tx_comm.hdmi_hpd_wq,
+			&phdev->tx_comm.work_hpd_plugin, HZ / 3);
+	}
+#endif
+
 	return r;
 }

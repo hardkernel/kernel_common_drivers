@@ -5018,6 +5018,10 @@ static int hdmitx21_hw_cntl_core_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	return ret;
 }
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+extern char *disablehpd;
+#endif
+
 static int hdmitx21_hw_cntl_platform(struct hdmitx_hw_common *tx_hw, u32 cmd,
 				  void *input_argv, void *output_struct)
 {
@@ -5042,6 +5046,12 @@ static int hdmitx21_hw_cntl_platform(struct hdmitx_hw_common *tx_hw, u32 cmd,
 #endif
 		break;
 	case PLATFORM_GET_HPD_GPI_ST:
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+		if (!strcmp(disablehpd, "true")) {
+			HDMITX_INFO(HW "disablehpd = %s\n", disablehpd);
+			return 1;
+		}
+#endif
 		return hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO);
 	case PLATFORM_PHY_OP:
 		ret = hdmitx21_check_input_argv(cmd, input_argv);
