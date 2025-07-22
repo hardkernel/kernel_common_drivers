@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/ddr_tool/dmc_tm2.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/cdev.h>
@@ -153,13 +140,7 @@ static void tm2_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 	port = (mon_comm->status >> 11) & 0x1f;
 	subport = (mon_comm->status >> 6) & 0xf;
 
-	mon_comm->port.name = to_ports(port);
-	if (!mon_comm->port.name)
-		sprintf(mon_comm->port.id, "%d", port);
-
-	mon_comm->sub.name = to_sub_ports_name(port, subport, mon_comm->rw);
-	if (!mon_comm->sub.name)
-		sprintf(mon_comm->sub.id, "%d", subport);
+	set_port_to_mon_comm(data, port, subport);
 }
 
 static int tm2_dmc_mon_set(struct dmc_monitor *mon)

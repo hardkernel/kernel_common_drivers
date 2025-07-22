@@ -47,7 +47,7 @@
 #include "dmc_trace.h"
 
 // #define DEBUG
-#define DMC_VERSION		"1.10.2"
+#define DMC_VERSION		"1.10.3"
 
 #define IRQ_CHECK		0
 #define IRQ_CLEAR		1
@@ -454,8 +454,8 @@ void show_violation_mem_printk(char *title, void *data)
 	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx lru:%d a:%psi(%d) t:%lld rw:%c%s\n",
 		mon_comm->addr, read_violation_mem(mon_comm->addr, mon_comm->rw),
 		mon_comm->status,
-		virt_addr_valid(mon_comm->port.name) ? mon_comm->port.name : mon_comm->port.id,
-		virt_addr_valid(mon_comm->sub.name) ? mon_comm->sub.name : mon_comm->sub.id,
+		mon_comm->port.name ? mon_comm->port.name : mon_comm->port.id,
+		mon_comm->sub.name ? mon_comm->sub.name : mon_comm->sub.id,
 		mon_comm->page_flags,
 		test_bit(PG_lru, &mon_comm->page_flags),
 		(void *)dmc_unpack_ip(&mon_comm->trace),
@@ -466,8 +466,8 @@ void show_violation_mem_printk(char *title, void *data)
 void show_violation_mem_trace_event(char *title, void *data)
 {
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
-	char *port = virt_addr_valid(mon_comm->port.name) ? mon_comm->port.name : mon_comm->port.id;
-	char *sub = virt_addr_valid(mon_comm->sub.name) ? mon_comm->sub.name : mon_comm->sub.id;
+	char *port = mon_comm->port.name ? mon_comm->port.name : mon_comm->port.id;
+	char *sub = mon_comm->sub.name ? mon_comm->sub.name : mon_comm->sub.id;
 
 	trace_dmc_violation(title, mon_comm->addr,
 				mon_comm->status, port, sub,
@@ -564,6 +564,23 @@ char *to_sub_ports_name(int mid, int sid, char rw)
 		}
 	}
 	return name;
+}
+
+void set_port_to_mon_comm(void *data, int port, int subport)
+{
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+
+	mon_comm->port.name = to_ports(port);
+	if (!mon_comm->port.name) {
+		mon_comm->port.name = NULL;
+		sprintf(mon_comm->port.id, "%d", port);
+	}
+
+	mon_comm->sub.name = to_sub_ports_name(port, subport, mon_comm->rw);
+	if (!mon_comm->sub.name) {
+		mon_comm->sub.name = NULL;
+		sprintf(mon_comm->sub.id, "%d", subport);
+	}
 }
 
 unsigned int get_all_dev_mask(void)
@@ -728,13 +745,13 @@ int dmc_violation_ignore(char *title, void *data, unsigned long vio_bit)
 
 	/* ignore black dev or symbol filter */
 	for (i = 0; i < dmc_mon->filter.num; i++) {
-		if (virt_addr_valid(mon_comm->port.name)) {
+		if (mon_comm->port.name) {
 			if (strstr(mon_comm->port.name, dmc_mon->filter.name[i])) {
 				is_ignore = 1;
 				goto dmc_ignore;
 			}
 		}
-		if (virt_addr_valid(mon_comm->sub.name)) {
+		if (mon_comm->sub.name) {
 			if (strstr(mon_comm->sub.name, dmc_mon->filter.name[i])) {
 				is_ignore = 1;
 				goto dmc_ignore;

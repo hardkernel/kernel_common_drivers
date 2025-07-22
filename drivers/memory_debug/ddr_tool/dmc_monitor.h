@@ -58,7 +58,7 @@ struct dmc_filter {
 	unsigned char name[DMC_FILTER_MAX][KSYM_SYMBOL_LEN];
 };
 
-union port_type {
+struct port_type {
 	char *name;
 	char id[4];
 };
@@ -71,8 +71,8 @@ struct dmc_mon_comm {
 	int irq;
 	int irq_sec;
 	char rw;
-	union port_type port;
-	union port_type sub;
+	struct port_type port;
+	struct port_type sub;
 	unsigned long addr;
 	unsigned long status;
 	struct page_trace trace;
@@ -145,6 +145,7 @@ void show_violation_mem_printk(char *title, void *data);
 void show_violation_mem_trace_event(char *title, void *data);
 void dmc_irq_sleep(void *data);
 void dmc_output_violation(struct dmc_monitor *mon, void *data);
+void set_port_to_mon_comm(void *data, int port, int subport);
 
 extern struct dmc_monitor *dmc_mon;
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_GX

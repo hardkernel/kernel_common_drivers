@@ -144,13 +144,7 @@ static void c2_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 	port = get_c2_port((mon_comm->status >> 16) & 0x3ff);
 	subport = (mon_comm->status >> 6) & 0xf;
 
-	mon_comm->port.name = to_ports(port);
-	if (!mon_comm->port.name)
-		sprintf(mon_comm->port.id, "%d", port);
-
-	mon_comm->sub.name = to_sub_ports_name(port, subport, mon_comm->rw);
-	if (!mon_comm->sub.name)
-		sprintf(mon_comm->sub.id, "%d", subport);
+	set_port_to_mon_comm(data, port, subport);
 }
 
 static int c2_dmc_mon_set(struct dmc_monitor *mon)
