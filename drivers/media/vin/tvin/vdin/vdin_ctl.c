@@ -6688,7 +6688,7 @@ void vdin_dv_desc_to_4448bit(struct vdin_dev_s *devp,
 		vdin_descramble_setting_t3x(devp, on_off);
 		return;
 	} else if (is_meson_t6w_cpu()) {
-		vdin_dv_de_tunnel_to_44410bit(devp, on_off);
+		/* dw path:dsc and shrink scaling,bypass sc */
 		return;
 	}
 #endif
@@ -6801,11 +6801,6 @@ void vdin_dv_de_tunnel_to_44410bit(struct vdin_dev_s *devp,
 				wr_bits(offset, VDIN_CFMT_CTRL, 0, 3, 1);
 				/*h_size before of the hshrink*/
 				wr(offset, VDIN_INTF_WIDTHM1, devp->h_active - 1);
-				/* disable aa_flt h */
-				wr_bits(offset, VDIN_LFIFO_CTRL, 0, 19, 2);
-				/* disable aa_flt v */
-				wr_bits(offset, VDIN_LFIFO_CTRL, 0, 21, 2);
-
 				/*de-scramble enable*/
 				wr_bits(offset, VDIN_VSHRK_CTRL, 0x1, 28, 1);
 			}
