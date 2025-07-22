@@ -2363,7 +2363,7 @@ static int crg_udc_ep_set_halt(struct usb_ep *_ep, int value)
 
 	if (value && usb_endpoint_dir_in(udc_ep_ptr->desc) &&
 			!list_empty(&udc_ep_ptr->queue)) {
-		CRG_ERROR("set_halt: list not empty\n");
+		CRG_DEBUG("set_halt: list not empty\n");
 		spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
 		return -EAGAIN;
 	}
