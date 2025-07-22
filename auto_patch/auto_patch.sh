@@ -127,14 +127,46 @@ function auto_patch()
 		am_patch ${file} ${dir} "${compare_change_id[@]}"
 	done
 }
+function auto_release_patch()
+{
+	local kernel_type=
+	if (cd "${KERNEL_DIR}" && git log -n 200 | grep -q "release: kernel_aarch64 release patch flag"); then
+		kernel_type=kernel_aarch64
+	fi
+
+	if (cd "${KERNEL_DIR}" && git log -n 200 | grep -q "release: kernel_aarch64_tv release patch flag"); then
+		kernel_type=kernel_aarch64_tv
+	fi
+
+	if [[ -z ${kernel_type} ]]; then
+		(cd "${KERNEL_DIR}" &&  git commit --allow-empty -m "release: ${KERNEL_IMAGE_TYPE} release patch flag")
+	fi
+
+	if [[ -n ${kernel_type} && ${kernel_type} != ${KERNEL_IMAGE_TYPE} ]]; then
+		echo "Kernel Type '${kernel_type}' change to '${KERNEL_IMAGE_TYPE}'"
+		echo -e "\e[31mWarning: save your modify in the '${KERNEL_DIR}' directory before execute the cmd\e[0m"
+		echo -e "\e[33mExecute the following cmd and rebuild\e[0m"
+		echo -e "\e[33m	cd ${KERNEL_DIR}\e[0m"
+		echo -e "\e[33m	git reset --hard $(awk '/AML_PATCH_VERSION/ { match($0, /"([^"]+)"/, arr); print arr[1] }' common_drivers/include/linux/upstream_version.h)\e[0m"
+		exit 1
+	fi
+
+	local release_change_id=$(cd ${KERNEL_DIR} && git log -n 200 | grep "Change-Id:" | awk '{print $2}')
+	if [ -d ${PATCHES_PATH}/release/${KERNEL_IMAGE_TYPE} ]; then
+		for patch in `find ${PATCHES_PATH}/release/${KERNEL_IMAGE_TYPE} -name "*.patch" | sort`; do
+			am_patch ${patch} ${KERNEL_DIR} "${release_change_id[@]}"
+		done
+	fi
+}
 
 function traverse_patch_dir()
 {
 	# git am common and common_driver patches
 	echo "Auto Patch Start"
 	{
+		local common_change_id=$(cd ${KERNEL_DIR} && git log -n 200 | grep "Change-Id:" | awk '{print $2}')
+		auto_release_patch
 		if [[ "${PATCH_PARM}" != "non_common" ]]; then
-			local common_change_id=$(cd ${KERNEL_DIR} && git log -n 200 | grep "Change-Id:" | awk '{print $2}')
 			for file in `ls ${PATCHES_PATH}/common`; do
 				if [ -d ${PATCHES_PATH}/common/${file} ]; then
 					for patch in `find ${PATCHES_PATH}/common/${file} -name "*.patch" | sort`; do
@@ -167,6 +199,7 @@ function handle_lunch_patch()
 {
 	echo "Auto Patch lunch's patch Start"
 
+	auto_release_patch
 	auto_patch ${PATCHES_PATH}/tools
 
 	echo

@@ -1,4 +1,4 @@
-From db15e6555c0657fdc52986a9a1668c464b695c85 Mon Sep 17 00:00:00 2001
+From dffbf5246db4ebda06cae0339ce8eef976e683ec Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 15 Oct 2024 15:51:10 +0800
 Subject: [PATCH] mm: porting CMA optimization from 5.15 [1/2]
@@ -73,7 +73,7 @@ index 134e3db98bc8..13d45d37b796 100644
  	bdev = I_BDEV(inode);
  	mutex_init(&bdev->bd_fsfreeze_mutex);
 diff --git a/drivers/usb/host/xhci.c b/drivers/usb/host/xhci.c
-index bb7c7af48a76..bb040e490544 100644
+index ac7751c13892..b16a1da735e4 100644
 --- a/drivers/usb/host/xhci.c
 +++ b/drivers/usb/host/xhci.c
 @@ -1970,7 +1970,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
@@ -262,7 +262,7 @@ index 42297d6b5f7a..7adfc711311a 100644
  	cma_sysfs_account_release_pages(cma, count);
  	trace_cma_release(cma->name, pfn, pages, count);
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 1925ed24c6e1..2c7b5e0ed2a8 100644
+index c134f7c224ec..d8405191dd77 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
 @@ -29,6 +29,9 @@
@@ -311,8 +311,8 @@ index 1925ed24c6e1..2c7b5e0ed2a8 100644
  			valid_page = page;
 @@ -1026,6 +1042,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
  					ret = 0;
- 				low_pfn += compound_nr(page) - 1;
- 				nr_scanned += compound_nr(page) - 1;
+ 				low_pfn += (1UL << order) - 1;
+ 				nr_scanned += (1UL << order) - 1;
 +			#ifdef CONFIG_AMLOGIC_CMA_INFO
 +				if (cc->alloc_contig)
 +					cma_debug(1, page, "abort by huge, low_pfn:%lx\n",
@@ -468,7 +468,7 @@ index 1925ed24c6e1..2c7b5e0ed2a8 100644
  		/* Found a block suitable for isolating free pages from. */
  		nr_isolated = isolate_freepages_block(cc, &isolate_start_pfn,
  					block_end_pfn, cc->freepages, stride, false);
-@@ -2770,6 +2863,9 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
+@@ -2768,6 +2861,9 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
  			cc->zone->compact_cached_free_pfn = free_pfn;
  	}
  
@@ -501,7 +501,7 @@ index a2e2a521df0a..c046cd70a7a9 100644
  		bool split;
  
 diff --git a/mm/memory.c b/mm/memory.c
-index 8bfae79ae64c..62629143af4f 100644
+index e22095383477..32619c108f88 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
 @@ -1062,11 +1062,23 @@ static inline struct folio *folio_prealloc(struct mm_struct *src_mm,
@@ -528,7 +528,7 @@ index 8bfae79ae64c..62629143af4f 100644
  
  	if (!new_folio)
  		return NULL;
-@@ -5889,6 +5901,12 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
+@@ -5893,6 +5905,12 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
  	p4d_t *p4d;
  	vm_fault_t ret;
  
@@ -650,7 +650,7 @@ index 972ee53353cb..98b52dc7bc87 100644
  			}
  			dst = dst2;
 diff --git a/mm/mm_init.c b/mm/mm_init.c
-index 88e55176d173..ff9b4b4bdeb0 100644
+index dd430c75d74e..38acdafb8775 100644
 --- a/mm/mm_init.c
 +++ b/mm/mm_init.c
 @@ -2634,7 +2634,14 @@ static void __init mem_init_print_info(void)
@@ -669,7 +669,7 @@ index 88e55176d173..ff9b4b4bdeb0 100644
  #ifdef	CONFIG_HIGHMEM
  		, K(totalhigh_pages())
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a3ae985d7851..03d7b45c06d4 100644
+index e60088a39a43..770dd3e3f6ed 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -69,6 +69,10 @@
@@ -683,7 +683,7 @@ index a3ae985d7851..03d7b45c06d4 100644
  EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_alloc);
  EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_free);
  
-@@ -1696,7 +1700,11 @@ static bool check_new_page(struct page *page)
+@@ -1698,7 +1702,11 @@ static bool check_new_page(struct page *page)
  	return true;
  }
  
@@ -695,7 +695,7 @@ index a3ae985d7851..03d7b45c06d4 100644
  {
  	if (is_check_pages_enabled()) {
  		for (int i = 0; i < (1 << order); i++) {
-@@ -1802,8 +1810,13 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
+@@ -1804,8 +1812,13 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
  	pgalloc_tag_add(page, current, 1 << order);
  }
  
@@ -709,8 +709,8 @@ index a3ae985d7851..03d7b45c06d4 100644
  {
  	post_alloc_hook(page, order, gfp_flags);
  
-@@ -2559,6 +2572,32 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
- 	return page;
+@@ -2439,6 +2452,32 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
+ 	return NULL;
  }
  
 +#ifdef CONFIG_AMLOGIC_NO_CMA
@@ -742,7 +742,7 @@ index a3ae985d7851..03d7b45c06d4 100644
  /*
   * Obtain a specified number of elements from the buddy allocator, all under
   * a single hold of the lock, for efficiency.  Add them to the supplied list.
-@@ -3492,6 +3531,9 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+@@ -3520,6 +3559,9 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
  			min -= min / 2;
  	}
  
@@ -752,7 +752,7 @@ index a3ae985d7851..03d7b45c06d4 100644
  	/*
  	 * Check watermarks for an order-0 allocation request. If these
  	 * are not met, then a high-order request also cannot go ahead
-@@ -5073,8 +5115,13 @@ unsigned long alloc_pages_bulk_noprof(gfp_t gfp, int preferred_nid,
+@@ -5101,8 +5143,13 @@ unsigned long alloc_pages_bulk_noprof(gfp_t gfp, int preferred_nid,
  			continue;
  		}
  
@@ -766,7 +766,7 @@ index a3ae985d7851..03d7b45c06d4 100644
  		if (unlikely(!page)) {
  			/* Try and allocate at least one page */
  			if (!nr_account) {
-@@ -5133,6 +5180,10 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
+@@ -5161,6 +5208,10 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
  	gfp_t alloc_gfp; /* The gfp_t that was actually used for allocation */
  	struct alloc_context ac = { };
  
@@ -777,7 +777,7 @@ index a3ae985d7851..03d7b45c06d4 100644
  	trace_android_vh_alloc_pages_entry(&gfp, order, preferred_nid, nodemask);
  	/*
  	 * There are several places where we assume that the order value is sane
-@@ -6930,7 +6981,11 @@ int __alloc_contig_migrate_range(struct compact_control *cc,
+@@ -6958,7 +7009,11 @@ int __alloc_contig_migrate_range(struct compact_control *cc,
  	return (ret < 0) ? ret : 0;
  }
  
@@ -806,7 +806,7 @@ index 64af7b93a0b9..cedf3fa19c4d 100644
  	index = mapping_align_index(mapping, index);
  
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index acdac2f8f4a1..54549264ae4c 100644
+index f78cfe059f14..f08a473aed94 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -65,6 +65,10 @@
@@ -820,7 +820,7 @@ index acdac2f8f4a1..54549264ae4c 100644
  #include "internal.h"
  #include "swap.h"
  
-@@ -1643,13 +1647,20 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
+@@ -1650,13 +1654,20 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
  	struct folio *folio, *next;
  	LIST_HEAD(clean_folios);
  	unsigned int noreclaim_flag;
@@ -841,7 +841,7 @@ index acdac2f8f4a1..54549264ae4c 100644
  		}
  	}
  
-@@ -1665,6 +1676,9 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
+@@ -1672,6 +1683,9 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
  	memalloc_noreclaim_restore(noreclaim_flag);
  
  	list_splice(&clean_folios, folio_list);
@@ -851,7 +851,7 @@ index acdac2f8f4a1..54549264ae4c 100644
  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE,
  			    -(long)nr_reclaimed);
  	/*
-@@ -1894,6 +1908,9 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
+@@ -1901,6 +1915,9 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
  	if (!too_many)
  		wake_throttle_isolated(pgdat);
  
@@ -862,5 +862,5 @@ index acdac2f8f4a1..54549264ae4c 100644
  }
  
 -- 
-2.42.0
+2.50.1
 

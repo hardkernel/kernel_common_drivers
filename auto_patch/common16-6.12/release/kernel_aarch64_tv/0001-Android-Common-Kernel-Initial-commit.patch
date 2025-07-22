@@ -1,0 +1,11 @@
+From 648e13791289125f4447184856d1b211f32d5daf Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Wed, 4 Oct 2023 08:56:10 +0000
+Subject: [PATCH 01/14] Android Common Kernel: Initial commit
+
+Initial empty commit for AOSP's kernel/common project.
+
+Signed-off-by: Matthias Maennich <maennich@google.com>
+-- 
+2.50.1
+

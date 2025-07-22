@@ -1,4 +1,4 @@
-From 4b4f7416898b60090962011c5a9df3b1ec39bb51 Mon Sep 17 00:00:00 2001
+From ce9ad1a92a2e611e735874b3caa3a62482a78f2b Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Fri, 17 Mar 2023 17:35:31 +0800
 Subject: [PATCH] bazel: support use bazel tool to build [1/1]
@@ -22,7 +22,7 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
  2 files changed, 13 insertions(+), 1 deletion(-)
 
 diff --git a/BUILD.bazel b/BUILD.bazel
-index 680f6a9708ed..93a50314e618 100644
+index c32ce7b8e4fb..edfc2123e435 100644
 --- a/BUILD.bazel
 +++ b/BUILD.bazel
 @@ -44,6 +44,13 @@ package(
@@ -39,9 +39,9 @@ index 680f6a9708ed..93a50314e618 100644
  _GKI_AARCH64_MAKE_GOALS = [
      "Image",
      "Image.lz4",
-@@ -170,7 +177,7 @@ filegroup(
-             "cscope.*",
-             "ncscope.*",
+@@ -173,7 +180,7 @@ filegroup(
+             # ABI and symbol list files
+             "gki/**",
          ],
 -    ),
 +    ) + ["//common_drivers:common_drivers_sources"],
@@ -72,5 +72,5 @@ index febc4bd0bcce..c5af91c9ed44 100644
  
  _KUNIT_FRAMEWORK_MODULES = [
 -- 
-2.42.0
+2.50.1
 

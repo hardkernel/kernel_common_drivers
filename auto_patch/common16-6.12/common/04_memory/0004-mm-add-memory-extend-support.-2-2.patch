@@ -1,4 +1,4 @@
-From fac014c0465ec211bd81149e63d110c3aa3998ca Mon Sep 17 00:00:00 2001
+From 7f1d2cf76edea29e2090da001d677f75e321657e Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 15 Oct 2024 16:24:49 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -29,7 +29,6 @@ Change-Id: I571a5894121e82a3c18f03d03ad409a750018f60
 Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
 ---
  arch/arm64/include/asm/cache.h |  4 +++
- arch/arm64/kernel/hibernate.c  |  3 ++
  drivers/base/core.c            |  2 ++
  drivers/of/base.c              |  4 +++
  drivers/of/of_reserved_mem.c   | 22 ++++++++++++-
@@ -54,7 +53,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  mm/slub.c                      | 32 +++++++++++++++++++
  mm/usercopy.c                  |  4 +++
  mm/vmscan.c                    | 29 ++++++++++++++++-
- 26 files changed, 299 insertions(+), 3 deletions(-)
+ 25 files changed, 296 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
 index 06a4670bdb0b..515e6f726e95 100644
@@ -72,25 +71,11 @@ index 06a4670bdb0b..515e6f726e95 100644
  #define ARCH_KMALLOC_MINALIGN	(8)
  
  #ifndef __ASSEMBLY__
-diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.c
-index 7e7fd28464b6..a5a3a30c73c0 100644
---- a/arch/arm64/kernel/hibernate.c
-+++ b/arch/arm64/kernel/hibernate.c
-@@ -83,6 +83,9 @@ static struct arch_hibernate_hdr {
- 	u64		sleep_cpu_mpidr;
- 
- 	ANDROID_VENDOR_DATA(1);
-+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG) && (IS_ENABLED(CONFIG_AMLOGIC_MEMORY_OPT) || !defined(CONFIG_ANDROID_VENDOR_OEM_DATA))
-+	u64 android_vendor_data1;
-+#endif
- } resume_hdr;
- 
- static inline void arch_hdr_invariants(struct arch_hibernate_hdr_invariants *i)
 diff --git a/drivers/base/core.c b/drivers/base/core.c
-index ec0ef6a0de94..61a6484844ef 100644
+index ba9b4cbef9e0..e9b5f70e2253 100644
 --- a/drivers/base/core.c
 +++ b/drivers/base/core.c
-@@ -3401,8 +3401,10 @@ static int device_add_class_symlinks(struct device *dev)
+@@ -3427,8 +3427,10 @@ static int device_add_class_symlinks(struct device *dev)
  
  	if (of_node) {
  		error = sysfs_create_link(&dev->kobj, of_node_kobj(of_node), "of_node");
@@ -221,10 +206,10 @@ index 1897b03bdbdf..be6bc5a942f9 100644
  {
  	if (!str)
 diff --git a/include/linux/android_kabi.h b/include/linux/android_kabi.h
-index 95cdb96e8692..79cc94f30de1 100644
+index f36faf4654cd..b17e1bcd5111 100644
 --- a/include/linux/android_kabi.h
 +++ b/include/linux/android_kabi.h
-@@ -89,7 +89,11 @@
+@@ -100,7 +100,11 @@
   *   Similar to ANDROID_KABI_RESERVE, but this is for planned feature backports
   *   (not for LTS).
   */
@@ -237,10 +222,10 @@ index 95cdb96e8692..79cc94f30de1 100644
  
  /*
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 35db1662ba5d..0b977f1af285 100644
+index 149c33b14807..cff7b14ad105 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -126,7 +126,18 @@ extern int page_group_by_mobility_disabled;
+@@ -142,7 +142,18 @@ extern int page_group_by_mobility_disabled;
  struct free_area {
  	struct list_head	free_list[MIGRATE_TYPES];
  	unsigned long		nr_free;
@@ -261,7 +246,7 @@ index 35db1662ba5d..0b977f1af285 100644
  struct pglist_data;
  
 diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 32abd4eb213d..37e191608d47 100644
+index 8908304de608..e94b272a0d87 100644
 --- a/include/linux/page-flags.h
 +++ b/include/linux/page-flags.h
 @@ -554,6 +554,9 @@ FOLIO_FLAG(swapbacked, FOLIO_HEAD_PAGE)
@@ -275,10 +260,10 @@ index 32abd4eb213d..37e191608d47 100644
  /* owner_2 can be set on tail pages for anon memory */
  FOLIO_FLAG(owner_2, FOLIO_HEAD_PAGE)
 diff --git a/include/linux/printk.h b/include/linux/printk.h
-index eca9bb2ee637..1e766ac5899b 100644
+index 0cb647ecd77f..b0aadd0686b7 100644
 --- a/include/linux/printk.h
 +++ b/include/linux/printk.h
-@@ -376,6 +376,10 @@ extern int kptr_restrict;
+@@ -382,6 +382,10 @@ extern int kptr_restrict;
   * would prefix all pr_info, pr_emerg... messages in the file with the module
   * name.
   */
@@ -354,10 +339,10 @@ index ff3f6d9db62b..a610785c28e4 100644
  $(obj)/kheaders.o: $(obj)/kheaders_data.tar.xz
  
 diff --git a/kernel/dma/contiguous.c b/kernel/dma/contiguous.c
-index 6badfaeda89a..33ebccdb9471 100644
+index 1568fea739ca..3907df250c3d 100644
 --- a/kernel/dma/contiguous.c
 +++ b/kernel/dma/contiguous.c
-@@ -493,7 +493,9 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
+@@ -492,7 +492,9 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
  	err = cma_init_reserved_mem(rmem->base, rmem->size, 0, rmem->name,
  				    &cma, gcma);
  	if (err) {
@@ -367,7 +352,7 @@ index 6badfaeda89a..33ebccdb9471 100644
  		return err;
  	}
  	/* Architecture specific contiguous memory fixup. */
-@@ -505,8 +507,10 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
+@@ -504,8 +506,10 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
  	rmem->ops = &rmem_cma_ops;
  	rmem->priv = cma;
  
@@ -406,7 +391,7 @@ index bf65e0c3c86f..0daac1bf3491 100644
  	    || mod_mem_type_is_init(type))
  		return false;
 diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index e60953c0fec2..d51fbd2ac2be 100644
+index 452363dc020a..88801220a9d2 100644
 --- a/kernel/printk/printk.c
 +++ b/kernel/printk/printk.c
 @@ -541,8 +541,13 @@ static u32 log_buf_len = __LOG_BUF_LEN;
@@ -528,7 +513,7 @@ index ed4873e18c75..84761ffbfc2a 100644
  		     KASAN_PAGE_REDZONE, false);
  }
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 03d7b45c06d4..c8b43a085521 100644
+index 770dd3e3f6ed..a087276eaef7 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -73,6 +73,10 @@
@@ -558,7 +543,7 @@ index 03d7b45c06d4..c8b43a085521 100644
  
  	__add_to_free_list(page, zone, order, migratetype, to_tail);
  
-@@ -2922,7 +2934,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
+@@ -2804,7 +2816,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
  	pcp->alloc_factor >>= 1;
  	__count_vm_events(PGFREE, 1 << order);
  	pindex = order_to_pindex(migratetype, order);
@@ -574,7 +559,7 @@ index 03d7b45c06d4..c8b43a085521 100644
  	pcp->count += 1 << order;
  
  	batch = READ_ONCE(pcp->batch);
-@@ -5215,6 +5235,9 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
+@@ -5243,6 +5263,9 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
  	 */
  	alloc_flags |= alloc_flags_nofragment(zonelist_zone(ac.preferred_zoneref), gfp);
  
@@ -584,7 +569,7 @@ index 03d7b45c06d4..c8b43a085521 100644
  	/* First allocation attempt */
  	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
  	if (likely(page))
-@@ -7521,6 +7544,41 @@ bool put_page_back_buddy(struct page *page)
+@@ -7549,6 +7572,41 @@ bool put_page_back_buddy(struct page *page)
  }
  #endif
  
@@ -766,7 +751,7 @@ index e95d747d3432..3d3dd6d9185f 100644
  	seq_putc(m, '\n');
  }
 diff --git a/mm/slub.c b/mm/slub.c
-index 8eab8f476207..4347d5612af7 100644
+index 29f291203f5c..54cbde837e5d 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
 @@ -48,6 +48,9 @@
@@ -779,7 +764,7 @@ index 8eab8f476207..4347d5612af7 100644
  /*
   * Lock order:
   *   1. slab_mutex (Global Mutex)
-@@ -4290,11 +4293,29 @@ static void *___kmalloc_large_node(size_t size, gfp_t flags, int node)
+@@ -4287,11 +4290,29 @@ static void *___kmalloc_large_node(size_t size, gfp_t flags, int node)
  		flags = kmalloc_fix_flags(flags);
  
  	flags |= __GFP_COMP;
@@ -809,7 +794,7 @@ index 8eab8f476207..4347d5612af7 100644
  	}
  
  	trace_android_vh_kmalloc_large_alloced(folio, order, flags);
-@@ -4807,7 +4828,14 @@ void kfree(const void *object)
+@@ -4804,7 +4825,14 @@ void kfree(const void *object)
  
  	folio = virt_to_folio(object);
  	if (unlikely(!folio_test_slab(folio))) {
@@ -824,7 +809,7 @@ index 8eab8f476207..4347d5612af7 100644
  		return;
  	}
  
-@@ -5141,6 +5169,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
+@@ -5138,6 +5166,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
  
  static inline int calculate_order(unsigned int size)
  {
@@ -834,7 +819,7 @@ index 8eab8f476207..4347d5612af7 100644
  	unsigned int order;
  	unsigned int min_objects;
  	unsigned int max_objects;
-@@ -5200,6 +5231,7 @@ static inline int calculate_order(unsigned int size)
+@@ -5197,6 +5228,7 @@ static inline int calculate_order(unsigned int size)
  	if (order <= MAX_PAGE_ORDER)
  		return order;
  	return -ENOSYS;
@@ -858,7 +843,7 @@ index 83c164aba6e0..5400ce215e2c 100644
  		if (n > folio_size(folio) - offset)
  			usercopy_abort("page alloc", NULL, to_user, offset, n);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 54549264ae4c..4bd0c79b82e6 100644
+index f08a473aed94..44d95b2a60a2 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -911,9 +911,11 @@ static enum folio_references folio_check_references(struct folio *folio,
@@ -891,7 +876,7 @@ index 54549264ae4c..4bd0c79b82e6 100644
  /*
   * shrink_folio_list() returns the number of reclaimed pages
   */
-@@ -1150,8 +1163,12 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1157,8 +1170,12 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (unlikely(!folio_evictable(folio)))
  			goto activate_locked;
  
@@ -905,7 +890,7 @@ index 54549264ae4c..4bd0c79b82e6 100644
  
  		/*
  		 * The number of dirty pages determines if a node is marked
-@@ -1899,8 +1916,10 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
+@@ -1906,8 +1923,10 @@ static bool too_many_isolated(struct pglist_data *pgdat, int file,
  	 * won't get blocked by normal direct-reclaimers, forming a circular
  	 * deadlock.
  	 */
@@ -916,7 +901,7 @@ index 54549264ae4c..4bd0c79b82e6 100644
  
  	too_many = isolated > inactive;
  
-@@ -2174,9 +2193,11 @@ static void shrink_active_list(unsigned long nr_to_scan,
+@@ -2181,9 +2200,11 @@ static void shrink_active_list(unsigned long nr_to_scan,
  			}
  		}
  
@@ -928,7 +913,7 @@ index 54549264ae4c..4bd0c79b82e6 100644
  #endif
  		if (unlikely(should_protect)) {
  			nr_rotated += folio_nr_pages(folio);
-@@ -6000,9 +6021,11 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+@@ -6007,9 +6028,11 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
  			return false;
  	}
  
@@ -940,7 +925,7 @@ index 54549264ae4c..4bd0c79b82e6 100644
  #endif
  	if (!continue_reclaim)
  		return false;
-@@ -6091,10 +6114,12 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
+@@ -6103,10 +6126,12 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
  				   sc->nr_scanned - scanned,
  				   sc->nr_reclaimed - reclaimed);
  
@@ -953,7 +938,7 @@ index 54549264ae4c..4bd0c79b82e6 100644
  #endif
  
  		/* If partial walks are allowed, bail once goal is reached */
-@@ -6403,10 +6428,12 @@ static void modify_scan_control(struct scan_control *sc)
+@@ -6416,10 +6441,12 @@ static void modify_scan_control(struct scan_control *sc)
  {
  	bool file_is_tiny = false, may_writepage = true;
  
@@ -967,5 +952,5 @@ index 54549264ae4c..4bd0c79b82e6 100644
  
  	if (file_is_tiny)
 -- 
-2.42.0
+2.50.1
 

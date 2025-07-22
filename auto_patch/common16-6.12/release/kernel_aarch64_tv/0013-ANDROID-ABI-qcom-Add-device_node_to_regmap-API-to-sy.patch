@@ -1,0 +1,32 @@
+From eb8d5942a6704e6aa373c491f1f56135785c4ef9 Mon Sep 17 00:00:00 2001
+From: Jagadeesh Kona <quic_jkona@quicinc.com>
+Date: Wed, 2 Jul 2025 22:03:24 +0530
+Subject: [PATCH 13/14] ANDROID: ABI: qcom: Add device_node_to_regmap() API to
+ symbol list
+
+Add device_node_to_regmap() API to qcom symbol list.
+
+Bug: 429175772
+Bug: 433866235
+Change-Id: I5abb99b5b1cae909c83708692016c5f5abc44556
+Signed-off-by: Jagadeesh Kona <quic_jkona@quicinc.com>
+(cherry picked from commit a11268a7e25780336e0a486166bd9c99522b2c12)
+---
+ gki/aarch64/symbols/qcom | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/gki/aarch64/symbols/qcom b/gki/aarch64/symbols/qcom
+index ecda459a6b87..162fee8f44e4 100644
+--- a/gki/aarch64/symbols/qcom
++++ b/gki/aarch64/symbols/qcom
+@@ -552,6 +552,7 @@
+   device_match_name
+   device_match_of_node
+   device_move
++  device_node_to_regmap
+   device_property_match_string
+   device_property_present
+   device_property_read_string
+-- 
+2.50.1
+

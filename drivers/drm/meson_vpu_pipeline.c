@@ -754,6 +754,7 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 {
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_AMLOGIC_ZAPPER_CUT)
 	int i;
+	struct rdma_reg_ops *reg_ops;
 #endif
 	int crtc_index;
 	unsigned long id;
@@ -761,7 +762,6 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	struct meson_vpu_block_state *mvbs, *old_mvbs;
 	struct meson_vpu_sub_pipeline_state *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
-	struct rdma_reg_ops *reg_ops;
 	struct am_meson_crtc *amcrtc;
 	unsigned long affected_blocks = 0;
 
@@ -849,6 +849,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 {
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_AMLOGIC_ZAPPER_CUT)
 	int i;
+	struct rdma_reg_ops *reg_ops;
 #endif
 
 	int crtc_index, j;
@@ -857,7 +858,6 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	struct meson_vpu_block_state *mvbs, *old_mvbs;
 	struct meson_vpu_sub_pipeline_state *old_mvsps, *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
-	struct rdma_reg_ops *reg_ops;
 	struct am_meson_crtc *amcrtc;
 	unsigned long affected_blocks = 0;
 
