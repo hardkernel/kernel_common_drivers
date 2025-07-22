@@ -83,6 +83,8 @@ COMMON_GKI_MODULES_LIST=(
 	cdc-acm.ko
 	goodix.ko
 	gpio-reset.ko
+	lt8619c-qc4011.ko
+	pwm_bl.ko
 )
 
 GKI_MODULES_LOAD_WHITE_LIST=(
