@@ -351,7 +351,7 @@
 		spk_mute_sleep_time = <800>;
 
 		/* headphone insert det */
-		aml-audio-card,hp-det-gpio = <&gpio_analog CDAC_IOUT GPIO_ACTIVE_LOW>;
+		hp-det-gpios = <&gpio_analog CDAC_IOUT GPIO_ACTIVE_LOW>;
 
 		interrupts = <GIC_SPI 149 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";

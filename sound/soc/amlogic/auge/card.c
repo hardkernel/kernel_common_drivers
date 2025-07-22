@@ -635,10 +635,6 @@ static void jack_work_func(struct work_struct *work)
 
 		if (card_data->hp_detect_flag != flag) {
 			card_data->hp_detect_flag = flag;
-
-			if (gpiod_is_active_low(card_data->hp_jack.gpio.desc))
-				flag = (flag) ? 0 : 1;
-
 			if (flag) {
 				extcon_set_state_sync(audio_extcon_headphone,
 					EXTCON_JACK_HEADPHONE, 1);
@@ -684,14 +680,12 @@ static int aml_card_init_jack(struct snd_soc_card *card,
 {
 	struct aml_card_data *priv = aml_card_to_priv(card);
 	struct device *dev = card->dev;
-	char prop[128];
 	char *pin_name;
 	char *gpio_name;
 	int mask;
 	struct gpio_desc *det;
 
 	if (is_hp) {
-		snprintf(prop, sizeof(prop), "%shp-det-gpio", prefix);
 		pin_name	= "Headphones";
 		gpio_name	= "Headphone detection";
 		mask		= SND_JACK_HEADPHONE;
@@ -701,17 +695,15 @@ static int aml_card_init_jack(struct snd_soc_card *card,
 			priv->hp_det_enable = 0;
 			return -1;
 		}
-
 		priv->hp_det_enable = 1;
 		pr_info("find headphone detection pin success! hp_det_flags:%ld\n",
 				priv->hp_det_flags);
 	} else {
-		snprintf(prop, sizeof(prop), "%smic-det-gpio", prefix);
 		pin_name	= "Mic Jack";
 		gpio_name	= "Mic detection";
 		mask		= SND_JACK_MICROPHONE;
 
-		det = devm_gpiod_get(dev, "hp-det", GPIOD_ASIS);
+		det = devm_gpiod_get(dev, "mic-det", GPIOD_ASIS);
 		if (IS_ERR(det)) {
 			priv->mic_det_enable = 0;
 			return -1;
