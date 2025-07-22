@@ -48,7 +48,10 @@ ddk_module(
     linux_includes = [
         "../../../common/include/media",
     ],
-    local_defines = ["pr_fmt(fmt)=\"[dvb]: \" fmt"],
+    local_defines = [
+        "pr_fmt(fmt)=\"[dvb]: \" fmt",
+        #"AML_DVB_EXTERN_EN_EARLY_SUSPEND",
+    ],
     out = "amlogic-dvb.ko",
     kernel_build = kernel_select(),
     visibility = ["//visibility:public"],

@@ -722,6 +722,25 @@
 			b_io_number = <6>;
 		};
 	};
+
+	aml_dvb_extern_i2c0: aml_dvb_extern_i2c@1a {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "r836";
+		reg = <0x1a>;
+		status = "okay";
+	};
+	aml_dvb_extern_i2c1: aml_dvb_extern_i2c@62 {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "av2018";
+		reg = <0x62>;
+		status = "okay";
+	};
+	aml_dvb_extern_i2c2: aml_dvb_extern_i2c@6c {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "cxd2856";
+		reg = <0x6c>;
+		status = "okay";
+	};
 };
 
 &vddcpu0 {

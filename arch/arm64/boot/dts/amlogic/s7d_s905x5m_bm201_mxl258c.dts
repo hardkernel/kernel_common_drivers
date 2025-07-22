@@ -789,6 +789,13 @@
 			b_io_number = <6>;
 		};
 	};
+
+	aml_dvb_extern_i2c0: aml_dvb_extern_i2c@50 {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "mxl258c";
+		reg = <0x50>;
+		status = "okay";
+	};
 };
 
 &vddcpu0 {

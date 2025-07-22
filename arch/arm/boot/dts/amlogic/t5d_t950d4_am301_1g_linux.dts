@@ -748,6 +748,19 @@
 	clock-frequency = <300000>;
 	pinctrl-names="default";
 	pinctrl-0=<&i2c0_z_pins>;
+
+	aml_dvb_extern_i2c0: aml_dvb_extern_i2c@60 {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "mxl661";
+		reg = <0x60>;
+		status = "okay";
+	};
+	aml_dvb_extern_i2c1: aml_dvb_extern_i2c@7a {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "rt710";
+		reg = <0x7a>;
+		status = "okay";
+	};
 };
 
 &tdmb {

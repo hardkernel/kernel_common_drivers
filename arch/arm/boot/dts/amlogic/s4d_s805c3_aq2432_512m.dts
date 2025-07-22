@@ -520,6 +520,19 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c4_pins3>;
 	clock-frequency = <300000>;
+
+	aml_dvb_extern_i2c0: aml_dvb_extern_i2c@62 {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "av2018";
+		reg = <0x62>;
+		status = "okay";
+	};
+	aml_dvb_extern_i2c2: aml_dvb_extern_i2c@6c {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "cxd2856";
+		reg = <0x6c>;
+		status = "okay";
+	};
 };
 
 &i2c1 {

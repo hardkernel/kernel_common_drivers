@@ -545,6 +545,13 @@
 	clock-frequency = <300000>;
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
+
+	aml_dvb_extern_i2c0: aml_dvb_extern_i2c@60 {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "atbm253";
+		reg = <0x60>;
+		status = "okay";
+	};
 };
 
 &acodec {

@@ -488,6 +488,13 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_pins2>;
 	clock-frequency = <300000>;
+
+	aml_dvb_extern_i2c0: aml_dvb_extern_i2c@c {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "rda5815m";
+		reg = <0xc>;
+		status = "okay";
+	};
 };
 
 &i2c4 {

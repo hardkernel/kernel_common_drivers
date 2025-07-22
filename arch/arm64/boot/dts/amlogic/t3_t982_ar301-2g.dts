@@ -628,6 +628,13 @@
 	pinctrl-names="default", "sleep";
 	pinctrl-0=<&i2c0_pins1>;
 	pinctrl-1=<&i2c0_pins1_sleep>;
+
+	aml_dvb_extern_i2c0: aml_dvb_extern_i2c@60 {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "atbm253";
+		reg = <0x60>;
+		status = "okay";
+	};
 };
 
 &i2c2 {

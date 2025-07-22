@@ -253,6 +253,7 @@
 		tuner2_lt_out = <1>;
 
 		tuner3_name = "av2018_tuner";
+		tuner3_i2c_addr = <0xC4>; /* 8bit */
 		tuner3_lt_out = <1>;
 	};
 
@@ -536,6 +537,25 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_pins2>;
 	clock-frequency = <300000>;
+
+	aml_dvb_extern_i2c0: aml_dvb_extern_i2c@1a {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "r836";
+		reg = <0x1a>;
+		status = "okay";
+	};
+	aml_dvb_extern_i2c1: aml_dvb_extern_i2c@3a {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "r836";
+		reg = <0x3a>;
+		status = "okay";
+	};
+	aml_dvb_extern_i2c2: aml_dvb_extern_i2c@62 {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "av2018";
+		reg = <0x62>;
+		status = "okay";
+	};
 };
 
 &i2c4 {
@@ -543,6 +563,19 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c4_pins3>;
 	clock-frequency = <300000>;
+
+	aml_dvb_extern_i2c3: aml_dvb_extern_i2c@62 {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "av2018";
+		reg = <0x62>;
+		status = "okay";
+	};
+	aml_dvb_extern_i2c4: aml_dvb_extern_i2c@6c {
+		compatible = "aml_dvb_extern_i2c";
+		dev_name = "cxd2856";
+		reg = <0x6c>;
+		status = "okay";
+	};
 };
 
 &i2c1 {
