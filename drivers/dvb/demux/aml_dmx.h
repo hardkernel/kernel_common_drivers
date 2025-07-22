@@ -126,7 +126,7 @@ struct aml_dmx {
 	int init;
 
 	/*dvr sec mem*/
-	__u32 sec_dvr_buff;
+	__u64 sec_dvr_buff;
 	__u32 sec_dvr_size;
 	void *dvr_ts_output;
 

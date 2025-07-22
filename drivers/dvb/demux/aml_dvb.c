@@ -202,8 +202,16 @@ unsigned int get_dmx_version(void)
 {
 	unsigned int value;
 
-	value = (unsigned int)aml_read_self(0x2c04);
-	return value >> 16;
+	// set demux version to 6
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_S6) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_T6W)) {
+		value = 6;
+	} else {
+		value = (unsigned int)aml_read_self(0x2c04);
+		value = value >> 16;
+	}
+
+	return value;
 }
 
 static ssize_t get_chip_version(char *buf)

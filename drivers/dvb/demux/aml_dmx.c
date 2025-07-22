@@ -132,6 +132,8 @@ static int del_adjust_mem_item(int dmx_id, int format, int pid);
 static int recovery_dmx_input(struct aml_dmx *pdmx);
 static int free_all_dmx_input(void);
 static int trigger_cache_clear_timer(void);
+static int _dmx_decode_info_64bits(struct dmx_demux *dmx, void *v_info);
+static int _dmx_get_mem_info_64bits(struct dmx_demux *dmx, void *v_info);
 
 static inline void _invert_mode(struct dmx_section_filter *filter)
 {
@@ -388,6 +390,7 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 	char *pmem_start;
 	char *pmem_start_phys;
 	int len = 0;
+	unsigned int gfp_flags = 0;
 	struct aml_dvb *advb = aml_get_dvb_device();
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -441,9 +444,16 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 			pdmx->input_len = 0;
 		}
 		//alloc new memory
+		if ((get_dmx_version() >= 6) && (sizeof(unsigned long) == 8)) {
+			gfp_flags = GFP_KERNEL;
+			if (dma_set_mask_and_coherent(aml_get_device(), DMA_BIT_MASK(64)))
+				dprint("%s dma_set_mask_and_coherent fail\n", __func__);
+		} else {
+			gfp_flags = GFP_KERNEL | GFP_DMA32;
+		}
 		pdmx->input_mem = (unsigned long)dma_alloc_coherent(aml_get_device(),
 				(count + CACHE_ALIGNMENT_LEN), (dma_addr_t *)&pdmx->input_mem_phys,
-				GFP_KERNEL | GFP_DMA32);
+				gfp_flags);
 		if (!pdmx->input_mem) {
 			dprint("can't alloc memory\n");
 			if (enable_w_mutex)
@@ -451,6 +461,7 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 			return -1;
 		}
 		pdmx->input_len = count + CACHE_ALIGNMENT_LEN;
+		pr_dbg("%s pdmx->input_mem_phys:0x%lx\n", __func__, pdmx->input_mem_phys);
 	}
 
 	if (copy_from_user((char *)pdmx->input_mem + CACHE_ALIGNMENT_LEN, buf, count)) {
@@ -775,10 +786,12 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	struct dump_node *d_node = NULL;
 	int dump_sid = 0;
 	int dump_type = ((filter->params.pes.flags >> 16) & 0xff);
+	int support_64bits = (filter->params.pes.flags & DMX_SUPPORT_64BITS) ? 1 : 0;
 
 	feed->temi_index = -1;
 
 	pr_dbg("%s dmx id:%d pid:0x%0x\n", __func__, demux->id, pid);
+	pr_dbg("%s support_64bits:%d\n", __func__, support_64bits);
 	if (pid > SWDMX_MAX_PID && pid != 0x2000)
 		return -EINVAL;
 
@@ -865,7 +878,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		pr_dbg("%s tsn out loop, sid:%d\n", __func__, sid);
 	}
 
-	is_temi = ((filter->params.pes.flags >> 18) & 0x01);
+	is_temi = (filter->params.pes.flags & DMX_TEMI_FLAGS) ? 1 : 0;
 	pr_dbg("%s %d is_temi=%d\n", __func__, __LINE__, is_temi);
 	if (!get_demux_feature(SUPPORT_TEMI) && is_temi == 1) {
 		dprint("no support temi\n");
@@ -913,7 +926,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			}
 
 			feed->ts_out_elem = ts_output_open(sid, demux->id, format, type,
-								media_type, output_mode);
+							media_type, output_mode, support_64bits);
 			if (!feed->ts_out_elem) {
 				dprint("%s open ts output fail\n", __func__);
 				mutex_unlock(demux->pmutex);
@@ -1014,7 +1027,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		}
 
 		feed->ts_out_elem = ts_output_open(sid, demux->id, format, type,
-							media_type, output_mode);
+						media_type, output_mode, support_64bits);
 		if (!feed->ts_out_elem) {
 			dprint("%s open ts output fail\n", __func__);
 			mutex_unlock(demux->pmutex);
@@ -1205,7 +1218,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		pts_level = 0;
 
 	feed->ts_out_elem = ts_output_open(sid, demux->id, format,
-		type, media_type, output_mode);
+		type, media_type, output_mode, support_64bits);
 	if (feed->ts_out_elem) {
 		if (format == DVR_FORMAT) {
 			demux->dvr_ts_output = feed->ts_out_elem;
@@ -1525,7 +1538,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 		}
 	}
 	sec_feed->sec_out_elem = ts_output_open(sid, demux->id,
-		SECTION_FORMAT, SEC_TYPE, MEDIA_TS_SYS, 0);
+		SECTION_FORMAT, SEC_TYPE, MEDIA_TS_SYS, 0, 0);
 	if (sec_feed->sec_out_elem) {
 		mem_size = find_adjust_mem_item(demux->id, SECTION_FORMAT, sec_feed->pid);
 		if (mem_size == -1)
@@ -2248,6 +2261,318 @@ int _dmx_get_ts_mem_info(struct dmx_demux *dmx,
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
 	struct sw_demux_ts_feed *ts_feed = (struct sw_demux_ts_feed *)v_feed;
 	struct dmx_mem_info *info = v_info;
+	u64 dmx_buf_phy_start = 0;
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+	if (ts_feed && ts_feed->ts_out_elem) {
+		ts_output_get_mem_info(ts_feed->ts_out_elem,
+				       &info->dmx_total_size,
+				       &dmx_buf_phy_start,
+				       &info->dmx_free_size, &info->wp_offset,
+				       &info->newest_pts);
+		info->dmx_buf_phy_start = (u32)dmx_buf_phy_start;
+	}
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
+int _dmx_get_sec_mem_info(struct dmx_demux *dmx,
+			  void *v_feed,
+			  void *v_info)
+{
+	struct sw_demux_sec_feed *sec_feed;
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	struct dmx_mem_info *info = v_info;
+	u64 dmx_buf_phy_start = 0;
+
+	sec_feed = (struct sw_demux_sec_feed *)v_feed;
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	if (sec_feed && sec_feed->sec_out_elem) {
+		ts_output_get_mem_info(sec_feed->sec_out_elem,
+				       &info->dmx_total_size,
+				       &dmx_buf_phy_start,
+				       &info->dmx_free_size, &info->wp_offset,
+				       &info->newest_pts);
+		info->dmx_buf_phy_start = (u32)dmx_buf_phy_start;
+	}
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
+int _dmx_get_mem_info(struct dmx_demux *dmx, void *v_info)
+{
+	struct filter_mem_info *pinfo;
+	struct dmx_filter_mem_info *info = v_info;
+	struct filter_mem_info_64bits *pinfo_64bits;
+	struct dmx_filter_mem_info_64bits info_64bits;
+	int ret = 0;
+	int i = 0;
+
+	ret = _dmx_get_mem_info_64bits(dmx, &info_64bits);
+	if (!ret) {
+		info->filter_num = info_64bits.filter_num;
+		for (i = 0; i < 40; i++) {
+			pinfo = &info->info[i];
+			pinfo_64bits = &info_64bits.info[i];
+			pinfo->type = pinfo_64bits->type;
+			pinfo->pid = pinfo_64bits->pid;
+			pinfo->filter_info.dmx_total_size =
+				pinfo_64bits->filter_info.dmx_total_size;
+			pinfo->filter_info.dmx_buf_phy_start =
+				(u32)pinfo_64bits->filter_info.dmx_buf_phy_start;
+			pinfo->filter_info.dmx_free_size =
+				pinfo_64bits->filter_info.dmx_free_size;
+			pinfo->filter_info.dvb_core_total_size =
+				pinfo_64bits->filter_info.dvb_core_total_size;
+			pinfo->filter_info.dvb_core_free_size =
+				pinfo_64bits->filter_info.dvb_core_free_size;
+			pinfo->filter_info.wp_offset =
+				pinfo_64bits->filter_info.wp_offset;
+			pinfo->filter_info.newest_pts =
+				pinfo_64bits->filter_info.newest_pts;
+		}
+	}
+	return ret;
+}
+
+static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	struct aml_dvb *advb = aml_get_dvb_device();
+
+	pr_dbg("%s dmx%d source:%d\n", __func__, demux->id, hw_source);
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	if (advb->ts_clone) {
+		_dmx_set_hw_source_ts_clone(dmx, hw_source);
+		if (demux->sc2_input && demux->sid != demux->sc2_input->id) {
+			demux->sid = demux->sc2_input->id;
+			ts_output_update_filter(demux->id, demux->sid);
+		}
+		dsc_set_sid(demux->id, demux->sid);
+		mutex_unlock(demux->pmutex);
+		return 0;
+	}
+
+	if (hw_source >= DMA_0 && hw_source <= DMA_7) {
+		if (demux->hw_source != hw_source) {
+			demux->sid = hw_source - DMA_0;
+			ts_output_update_filter(demux->id, demux->sid);
+			dsc_set_sid(demux->id, demux->sid);
+		}
+		advb->tsn_flag &= (~(1 << demux->id));
+		if (!advb->tsn_flag)
+			tsn_set_double_out(0);
+	} else if (hw_source >= FRONTEND_TS0 && hw_source <= FRONTEND_TS7) {
+		if (demux->hw_source != hw_source) {
+			demux->ts_index = hw_source - FRONTEND_TS0;
+			if (advb->ts[demux->ts_index].ts_sid != -1 &&
+				advb->ts[demux->ts_index].ts_sid != demux->sid) {
+				demux->sid = advb->ts[demux->ts_index].ts_sid;
+				ts_output_update_filter(demux->id, demux->sid);
+				dsc_set_sid(demux->id, demux->sid);
+			}
+			advb->tsn_flag &= (~(1 << demux->id));
+			if (!advb->tsn_flag)
+				tsn_set_double_out(0);
+		}
+	} else if (hw_source >= DMA_0_1 && hw_source <= DMA_7_1) {
+		if (demux->hw_source != hw_source) {
+			demux->sid = hw_source - DMA_0_1 + 0x20;
+			ts_output_update_filter(demux->id, demux->sid);
+			dsc_set_sid(demux->id, hw_source - DMA_0_1);
+		}
+		advb->tsn_flag |= (1 << demux->id);
+		tsn_set_double_out(1);
+	} else if (hw_source >= FRONTEND_TS0_1 && hw_source <= FRONTEND_TS7_1) {
+		if (demux->hw_source != hw_source) {
+			demux->ts_index = hw_source - FRONTEND_TS0_1;
+			if (advb->ts[demux->ts_index].ts_sid != -1) {
+				if (demux->sid !=
+					(advb->ts[demux->ts_index].ts_sid ^ 0x20)) {
+					demux->sid =
+						advb->ts[demux->ts_index].ts_sid ^ 0x20;
+					ts_output_update_filter(demux->id, demux->sid);
+				}
+				if (advb->dsc[demux->id]->sid !=
+					advb->ts[demux->ts_index].ts_sid)
+					dsc_set_sid(demux->id, advb->ts[demux->ts_index].ts_sid);
+			}
+			advb->tsn_flag |= (1 << demux->id);
+			tsn_set_double_out(1);
+		}
+	}
+	demux->hw_source = hw_source;
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
+static int _dmx_get_hw_source(struct dmx_demux *dmx, int *hw_source)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+
+	pr_dbg("%s dmx%d\n", __func__, demux->id);
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	*hw_source = demux->hw_source;
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
+static int _dmx_set_sec_mem(struct dmx_demux *dmx, void *v_sec_mem)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	struct dmx_sec_mem *sec_mem = v_sec_mem;
+
+	pr_dbg("%s dmx%d\n", __func__, demux->id);
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	demux->sec_dvr_buff = (u64)sec_mem->buff;
+	demux->sec_dvr_size = sec_mem->size;
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
+static int _dmx_get_dvr_mem(struct dmx_demux *dmx,
+			void *v_info)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	unsigned int total_mem = 0;
+	u64 buf_phy_start = 0;
+	unsigned int free_mem = 0;
+	unsigned int wp_offset = 0;
+	struct dvr_mem_info *info = v_info;
+
+	pr_dbg("%s dmx%d\n", __func__, demux->id);
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+	if (demux->dvr_ts_output)
+		ts_output_get_mem_info(demux->dvr_ts_output,
+			   &total_mem,
+			   &buf_phy_start,
+			   &free_mem, &wp_offset, NULL);
+
+	info->wp_offset = wp_offset;
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
+static int _dmx_remap_pid(struct dmx_demux *dmx, u16 pids[2])
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	int pid = (short)pids[0];
+	int pid_new = (short)pids[1];
+	unsigned int sid;
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	sid = demux->sid;
+
+	ts_output_remap_pid(sid, pid, pid_new);
+
+	mutex_unlock(demux->pmutex);
+
+	return 0;
+}
+
+static int _dmx_decode_info(struct dmx_demux *dmx, void *v_info)
+{
+	struct decoder_mem_info *info = v_info;
+	struct decoder_mem_info_64bits info_64bits;
+
+	info_64bits.rp_phy = (u64)info->rp_phy;
+	return _dmx_decode_info_64bits(dmx, &info_64bits);
+}
+
+static int _dmx_set_command(struct dmx_demux *dmx, void *v_info)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	struct dmx_set_command_info *info = v_info;
+	int ret = 0;
+	int format;
+	int pid;
+	int mem_size;
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	if (info->command == DMX_CLEAR_CACHE) {
+		free_all_dmx_input();
+		ret = cache_clear();
+		if (ret != 0)
+			ret = -EFAULT;
+	} else if (info->command == DMX_FILTER_HW_MEM_SIZE) {
+		format = (info->reserved0 >> 16) & 0xffff;
+		pid = info->reserved0 & 0xffff;
+		mem_size = info->reserved1;
+
+		if (mem_size == 0) {
+			if (format == DVR_FORMAT)
+				ret = del_adjust_mem_item(demux->id, DVR_FORMAT, 0);
+			else
+				ret = del_adjust_mem_item(demux->id, format, pid);
+		} else {
+			ret = add_adjust_mem_item(demux->id, format, pid, mem_size);
+		}
+		pr_dbg("%s dmx%d HW_MEM_SIZE, pid:%d, mem size:0x%0x ret:%d\n",
+			__func__, demux->id, pid, mem_size, ret);
+	} else {
+		pr_dbg("%s dmx%d fail\n",
+			__func__, demux->id);
+		ret = -EINVAL;
+	}
+	mutex_unlock(demux->pmutex);
+	return ret;
+}
+
+static int _dmx_get_dma_buf_fd(struct dmx_demux *dmx, void *v_info)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	struct dmx_dma_buf_info *info = v_info;
+	int res = -EFAULT;
+
+	//pr_dbg("%s dmx%d\n", __func__, demux->id);
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	res = dma_buf_get_fd(info, dmx);
+	mutex_unlock(demux->pmutex);
+	return res;
+}
+
+static int _dmx_get_dma_buf_info(struct dmx_demux *dmx, void *v_info)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	struct dmx_dma_buf_info *info = v_info;
+	int res = -EFAULT;
+
+	pr_dbg("%s dmx%d\n", __func__, demux->id);
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	res = dma_buf_get_info(info);
+	mutex_unlock(demux->pmutex);
+	return res;
+}
+
+int _dmx_get_ts_mem_info_64bits(struct dmx_demux *dmx,
+			 void *v_feed, void *v_info)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	struct sw_demux_ts_feed *ts_feed = (struct sw_demux_ts_feed *)v_feed;
+	struct dmx_mem_info_64bits *info = v_info;
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
@@ -2261,13 +2586,13 @@ int _dmx_get_ts_mem_info(struct dmx_demux *dmx,
 	return 0;
 }
 
-int _dmx_get_sec_mem_info(struct dmx_demux *dmx,
+int _dmx_get_sec_mem_info_64bits(struct dmx_demux *dmx,
 			  void *v_feed,
 			  void *v_info)
 {
 	struct sw_demux_sec_feed *sec_feed;
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
-	struct dmx_mem_info *info = v_info;
+	struct dmx_mem_info_64bits *info = v_info;
 
 	sec_feed = (struct sw_demux_sec_feed *)v_feed;
 
@@ -2284,21 +2609,21 @@ int _dmx_get_sec_mem_info(struct dmx_demux *dmx,
 	return 0;
 }
 
-int _dmx_get_mem_info(struct dmx_demux *dmx, void *v_info)
+static int _dmx_get_mem_info_64bits(struct dmx_demux *dmx, void *v_info)
 {
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
 	int filter_num = 0;
 	int j = 0;
 	int free_mem = 0;
 	int total_mem = 0;
-	__u64 newest_pts = 0;
+	u64 newest_pts = 0;
 	struct sw_demux_ts_feed *ts_feed;
 	struct sw_demux_sec_feed *section_feed;
 	struct dmxdev_filter *filter;
-	unsigned int buf_phy_start;
+	u64 buf_phy_start;
 	unsigned int wp_offset;
-	struct filter_mem_info *pinfo;
-	struct dmx_filter_mem_info *info = v_info;
+	struct filter_mem_info_64bits *pinfo;
+	struct dmx_filter_mem_info_64bits *info = v_info;
 	struct sw_demux_sec_feed *entry = NULL;
 	struct sw_demux_sec_feed *tmp = NULL;
 	struct sw_demux_ts_feed *ts_entry = NULL;
@@ -2408,98 +2733,10 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, void *v_info)
 	return 0;
 }
 
-static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
+static int _dmx_set_sec_mem_64bits(struct dmx_demux *dmx, void *v_sec_mem)
 {
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
-	struct aml_dvb *advb = aml_get_dvb_device();
-
-	pr_dbg("%s dmx%d source:%d\n", __func__, demux->id, hw_source);
-
-	if (mutex_lock_interruptible(demux->pmutex))
-		return -ERESTARTSYS;
-
-	if (advb->ts_clone) {
-		_dmx_set_hw_source_ts_clone(dmx, hw_source);
-		if (demux->sc2_input && demux->sid != demux->sc2_input->id) {
-			demux->sid = demux->sc2_input->id;
-			ts_output_update_filter(demux->id, demux->sid);
-		}
-		dsc_set_sid(demux->id, demux->sid);
-		mutex_unlock(demux->pmutex);
-		return 0;
-	}
-
-	if (hw_source >= DMA_0 && hw_source <= DMA_7) {
-		if (demux->hw_source != hw_source) {
-			demux->sid = hw_source - DMA_0;
-			ts_output_update_filter(demux->id, demux->sid);
-			dsc_set_sid(demux->id, demux->sid);
-		}
-		advb->tsn_flag &= (~(1 << demux->id));
-		if (!advb->tsn_flag)
-			tsn_set_double_out(0);
-	} else if (hw_source >= FRONTEND_TS0 && hw_source <= FRONTEND_TS7) {
-		if (demux->hw_source != hw_source) {
-			demux->ts_index = hw_source - FRONTEND_TS0;
-			if (advb->ts[demux->ts_index].ts_sid != -1 &&
-				advb->ts[demux->ts_index].ts_sid != demux->sid) {
-				demux->sid = advb->ts[demux->ts_index].ts_sid;
-				ts_output_update_filter(demux->id, demux->sid);
-				dsc_set_sid(demux->id, demux->sid);
-			}
-			advb->tsn_flag &= (~(1 << demux->id));
-			if (!advb->tsn_flag)
-				tsn_set_double_out(0);
-		}
-	} else if (hw_source >= DMA_0_1 && hw_source <= DMA_7_1) {
-		if (demux->hw_source != hw_source) {
-			demux->sid = hw_source - DMA_0_1 + 0x20;
-			ts_output_update_filter(demux->id, demux->sid);
-			dsc_set_sid(demux->id, hw_source - DMA_0_1);
-		}
-		advb->tsn_flag |= (1 << demux->id);
-		tsn_set_double_out(1);
-	} else if (hw_source >= FRONTEND_TS0_1 && hw_source <= FRONTEND_TS7_1) {
-		if (demux->hw_source != hw_source) {
-			demux->ts_index = hw_source - FRONTEND_TS0_1;
-			if (advb->ts[demux->ts_index].ts_sid != -1) {
-				if (demux->sid !=
-					(advb->ts[demux->ts_index].ts_sid ^ 0x20)) {
-					demux->sid =
-						advb->ts[demux->ts_index].ts_sid ^ 0x20;
-					ts_output_update_filter(demux->id, demux->sid);
-				}
-				if (advb->dsc[demux->id]->sid !=
-					advb->ts[demux->ts_index].ts_sid)
-					dsc_set_sid(demux->id, advb->ts[demux->ts_index].ts_sid);
-			}
-			advb->tsn_flag |= (1 << demux->id);
-			tsn_set_double_out(1);
-		}
-	}
-	demux->hw_source = hw_source;
-	mutex_unlock(demux->pmutex);
-	return 0;
-}
-
-static int _dmx_get_hw_source(struct dmx_demux *dmx, int *hw_source)
-{
-	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
-
-	pr_dbg("%s dmx%d\n", __func__, demux->id);
-
-	if (mutex_lock_interruptible(demux->pmutex))
-		return -ERESTARTSYS;
-
-	*hw_source = demux->hw_source;
-	mutex_unlock(demux->pmutex);
-	return 0;
-}
-
-static int _dmx_set_sec_mem(struct dmx_demux *dmx, void *v_sec_mem)
-{
-	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
-	struct dmx_sec_mem *sec_mem = v_sec_mem;
+	struct dmx_sec_mem_64bits *sec_mem = v_sec_mem;
 
 	pr_dbg("%s dmx%d\n", __func__, demux->id);
 
@@ -2512,56 +2749,10 @@ static int _dmx_set_sec_mem(struct dmx_demux *dmx, void *v_sec_mem)
 	return 0;
 }
 
-static int _dmx_get_dvr_mem(struct dmx_demux *dmx,
-			void *v_info)
+static int _dmx_decode_info_64bits(struct dmx_demux *dmx, void *v_info)
 {
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
-	unsigned int total_mem = 0;
-	unsigned int buf_phy_start = 0;
-	unsigned int free_mem = 0;
-	unsigned int wp_offset = 0;
-	struct dvr_mem_info *info = v_info;
-
-	pr_dbg("%s dmx%d\n", __func__, demux->id);
-
-	if (mutex_lock_interruptible(demux->pmutex))
-		return -ERESTARTSYS;
-	if (demux->dvr_ts_output)
-		ts_output_get_mem_info(demux->dvr_ts_output,
-			   &total_mem,
-			   &buf_phy_start,
-			   &free_mem, &wp_offset, NULL);
-
-	info->wp_offset = wp_offset;
-	mutex_unlock(demux->pmutex);
-	return 0;
-}
-
-static int _dmx_remap_pid(struct dmx_demux *dmx, u16 pids[2])
-{
-	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
-	int pid = (short)pids[0];
-	int pid_new = (short)pids[1];
-	unsigned int sid;
-
-	if (mutex_lock_interruptible(demux->pmutex))
-		return -ERESTARTSYS;
-
-	sid = demux->sid;
-
-	ts_output_remap_pid(sid, pid, pid_new);
-
-	mutex_unlock(demux->pmutex);
-
-	return 0;
-}
-
-static int _dmx_decode_info(struct dmx_demux *dmx, void *v_info)
-{
-	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
-	struct decoder_mem_info *info = v_info;
-
-//	pr_dbg("%s dmx%d\n", __func__, demux->id);
+	struct decoder_mem_info_64bits *info = v_info;
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
@@ -2569,58 +2760,6 @@ static int _dmx_decode_info(struct dmx_demux *dmx, void *v_info)
 	ts_output_set_decode_info(demux->sid, info);
 	mutex_unlock(demux->pmutex);
 	return 0;
-}
-
-static int _dmx_set_command(struct dmx_demux *dmx, void *v_info)
-{
-	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
-	struct dmx_set_command_info *info = v_info;
-	int ret = 0;
-//	pr_dbg("%s dmx%d\n", __func__, demux->id);
-
-	if (mutex_lock_interruptible(demux->pmutex))
-		return -ERESTARTSYS;
-
-	if (info->command == DMX_CLEAR_CACHE) {
-		free_all_dmx_input();
-		ret = cache_clear();
-		if (ret != 0)
-			ret = -EFAULT;
-	} else {
-		ret = -EINVAL;
-	}
-	mutex_unlock(demux->pmutex);
-	return ret;
-}
-
-static int _dmx_get_dma_buf_fd(struct dmx_demux *dmx, void *v_info)
-{
-	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
-	struct dmx_dma_buf_info *info = v_info;
-	int res = -EFAULT;
-
-	pr_dbg("%s dmx%d\n", __func__, demux->id);
-	if (mutex_lock_interruptible(demux->pmutex))
-		return -ERESTARTSYS;
-
-	res = dma_buf_get_fd(info, dmx);
-	mutex_unlock(demux->pmutex);
-	return res;
-}
-
-static int _dmx_get_dma_buf_info(struct dmx_demux *dmx, void *v_info)
-{
-	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
-	struct dmx_dma_buf_info *info = v_info;
-	int res = -EFAULT;
-
-	pr_dbg("%s dmx%d\n", __func__, demux->id);
-	if (mutex_lock_interruptible(demux->pmutex))
-		return -ERESTARTSYS;
-
-	res = dma_buf_get_info(info);
-	mutex_unlock(demux->pmutex);
-	return res;
 }
 
 static int _check_timer_cache_wakeup(void)
@@ -2767,6 +2906,11 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	pdmx->dmx_ext.dmx_set_command = _dmx_set_command;
 	pdmx->dmx_ext.get_dma_buf_fd = _dmx_get_dma_buf_fd;
 	pdmx->dmx_ext.get_dma_buf_info = _dmx_get_dma_buf_info;
+	pdmx->dmx_ext.get_sec_mem_info_64bits = _dmx_get_sec_mem_info_64bits;
+	pdmx->dmx_ext.get_ts_mem_info_64bits = _dmx_get_ts_mem_info_64bits;
+	pdmx->dmx_ext.get_dmx_mem_info_64bits = _dmx_get_mem_info_64bits;
+	pdmx->dmx_ext.set_sec_mem_64bits = _dmx_set_sec_mem_64bits;
+	pdmx->dmx_ext.decode_info_64bits = _dmx_decode_info_64bits;
 	pdmx->dev.filternum = (MAX_TS_FEED_NUM + MAX_SEC_FEED_NUM);
 	pdmx->dev.demux = &pdmx->dmx_ext.dmx;
 	pdmx->dev.capabilities = DMXDEV_CAP_DUPLEX;
@@ -3142,10 +3286,10 @@ static ssize_t dump_av_level_show(const struct class *class,
 			char *buf)
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
-	struct dmx_filter_mem_info *pinfo = NULL;
+	struct dmx_filter_mem_info_64bits *pinfo = NULL;
 	int i = 0, h;
 	int r, total = 0;
-	struct filter_mem_info *fpinfo;
+	struct filter_mem_info_64bits *fpinfo;
 
 	for (h = 0; h < DMX_DEV_COUNT; h++) {
 		if (!advb->dmx[h])
@@ -3161,8 +3305,8 @@ static ssize_t dump_av_level_show(const struct class *class,
 				continue;
 			}
 		}
-		memset(pinfo, 0, sizeof(struct dmx_filter_mem_info));
-		_dmx_get_mem_info(&advb->dmx[h]->dmx_ext.dmx, pinfo);
+		memset(pinfo, 0, sizeof(*pinfo));
+		_dmx_get_mem_info_64bits(&advb->dmx[h]->dmx_ext.dmx, pinfo);
 		for (i = 0; i < pinfo->filter_num; i++) {
 			if (pinfo->info[i].type != DMX_VIDEO_TYPE &&
 				pinfo->info[i].type != DMX_AUDIO_TYPE)
@@ -3182,7 +3326,7 @@ static ssize_t dump_av_level_show(const struct class *class,
 			total += r;
 
 			r = sprintf(buf,
-					"	buf addr:0x%0x\n",
+					"	buf addr:0x%0llx\n",
 					fpinfo->filter_info.dmx_buf_phy_start);
 			buf += r;
 			total += r;

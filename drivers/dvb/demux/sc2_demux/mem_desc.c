@@ -85,7 +85,7 @@ static struct mem_cache *second_cache;
 
 struct mem_region {
 	u8 status;
-	unsigned int start_phy;
+	unsigned long start_phy;
 	unsigned long start_virt;
 	unsigned int len;
 	struct mem_region *pnext;
@@ -96,9 +96,9 @@ struct dmc_range {
 	u8 level;
 	unsigned int handle;
 	unsigned int size;
-	unsigned int buf_start_phy;
+	unsigned long buf_start_phy;
 	unsigned int ref;
-	unsigned int free_start_phy;
+	unsigned long free_start_phy;
 	unsigned int free_len;
 	struct mem_region *region_list;
 };
@@ -120,8 +120,8 @@ LIST_HEAD(dump_input_head);
 static int cache_init(int cache_level)
 {
 	int total_size = 0;
-	int flags = 0;
 	int buf_page_num = 0;
+	unsigned int gfp_flags = 0;
 
 	if (cache_level == 0 && !first_cache) {
 		first_cache = vmalloc(sizeof(*first_cache));
@@ -132,15 +132,23 @@ static int cache_init(int cache_level)
 		first_cache->elem_size = sizeof(union mem_desc);
 		first_cache->elem_count = cache0_count_max;
 		total_size = sizeof(union mem_desc) * cache0_count_max;
+		if ((get_dmx_version() >= 6) && (sizeof(unsigned long) == 8)) {
+			gfp_flags = GFP_KERNEL;
+			if (dma_set_mask_and_coherent(aml_get_device(), DMA_BIT_MASK(64)))
+				dprint("%s dma_set_mask_and_coherent fail\n", __func__);
+		} else {
+			gfp_flags = GFP_KERNEL | GFP_DMA32;
+		}
 		first_cache->start_virt = (unsigned long)dma_alloc_coherent(aml_get_device(),
-			total_size, (dma_addr_t *)&first_cache->start_phys,
-			GFP_KERNEL | GFP_DMA32);
+			total_size, (dma_addr_t *)&first_cache->start_phys, gfp_flags);
 		if (!first_cache->start_virt) {
 			vfree(first_cache);
 			first_cache = NULL;
 			dprint("%s first cache fail\n", __func__);
 			return -1;
 		}
+		pr_dbg("first_cache start_phys:0x%lx, start_virt:0x%lx\n",
+			first_cache->start_phys, first_cache->start_virt);
 	} else if (cache_level == 1 && !second_cache) {
 		second_cache = vmalloc(sizeof(*second_cache));
 		if (!second_cache)
@@ -150,14 +158,12 @@ static int cache_init(int cache_level)
 		second_cache->elem_size = SECOND_CACHE_ELEM_SIZE;
 		second_cache->elem_count = cache1_count_max;
 		total_size = cache1_count_max * SECOND_CACHE_ELEM_SIZE;
-
-		flags = CODEC_MM_FLAGS_DMA_CPU;
 		buf_page_num = PAGE_ALIGN(total_size) / PAGE_SIZE;
 
 		pr_dbg_mem("%s size:%d\n", __func__, total_size);
 		second_cache->start_phys =
 		    codec_mm_alloc_for_dma("dmx_cache", buf_page_num,
-					4 + PAGE_SHIFT, flags);
+					4 + PAGE_SHIFT, CODEC_MM_FLAGS_DMA_CPU);
 		if (!second_cache->start_phys) {
 			vfree(second_cache);
 			second_cache = NULL;
@@ -174,6 +180,8 @@ static int cache_init(int cache_level)
 			return -1;
 		}
 		pr_dbg_mem("%s size:%d done\n", __func__, total_size);
+		pr_dbg("second_cache start_phys:0x%lx, start_virt:0x%lx\n",
+			second_cache->start_phys, second_cache->start_virt);
 	}
 	return 0;
 }
@@ -943,7 +951,7 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 	pchan->memdescs = (union mem_desc *)memdescs;
 	pchan->memdescs_phy = memdescs_phy;
 
-	if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+	if (get_dmx_version() >= 6)
 		pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
 							((mem_phy >> 32) & 0x3) : 0;
 	pchan->memdescs->bits.address_low = mem_phy & 0xFFFFFFFF;
@@ -1053,7 +1061,7 @@ static int _bufferid_alloc_chan_r_for_ts(struct bufferid_attr *attr, struct chan
 }
 
 #ifdef CHECK_PACKET_ALIGNM
-static void check_packet_alignm(unsigned int start, unsigned int end, int pack_len)
+static void check_packet_alignm(unsigned long start, unsigned long end, int pack_len)
 {
 	int n = 0;
 	char *p = NULL;
@@ -1184,9 +1192,9 @@ int SC2_bufferid_set_mem(struct chan_id *pchan,
  * \retval -1:fail.
  */
 int SC2_bufferid_set_sec_mem(struct chan_id *pchan,
-			 unsigned int sec_mem, unsigned int sec_size)
+			 u64 sec_mem, unsigned int sec_size)
 {
-	pr_dbg("%s sec_mem:0x%x,sec_size:0x%0x\n", __func__, sec_mem, sec_size);
+	pr_dbg("%s sec_mem:0x%llx,sec_size:0x%0x\n", __func__, sec_mem, sec_size);
 	pchan->sec_mem = sec_mem;
 	pchan->sec_size = sec_size;
 	return 0;
@@ -1210,7 +1218,7 @@ int SC2_bufferid_set_enable(struct chan_id *pchan, int enable, int sid, int pid)
 
 	pchan->enable = enable;
 
-	if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+	if (get_dmx_version() >= 6)
 		tmp = pchan->memdescs->bits.address_high;
 	tmp = (tmp << 32) + pchan->memdescs->bits.address_low;
 	pr_dbg("WCH_ADDR, buffer id:%d, desc_phy:0x%lx, addr:0x%llx, length:%d\n",
@@ -1446,9 +1454,12 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 		       unsigned int count, int isphybuf, int pack_len)
 {
 	unsigned int ret;
-	unsigned long tmp;
+	u64 tmp;
 	unsigned int times = 0;
 	struct dmx_sec_ts_data *ts_data;
+	struct dmx_sec_ts_data_64bits *ts_data_64bits;
+	u64 buf_start;
+	u64 buf_end;
 	int total = count;
 	s64 prev_time_nsec;
 	s64 max_timeout_nsec;
@@ -1458,8 +1469,8 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 	struct page *page = NULL;
 	int alignment = sizeof(unsigned long);
 
-	pr_dbg("%s start w:%d id:%d, addr:0x%0x\n", __func__,
-			count, pchan->id, (u32)(long)buf_phys);
+	pr_dbg("%s start w:%d id:%d, buf_phys:0x%0lx\n", __func__,
+			count, pchan->id, (unsigned long)buf_phys);
 	do {
 	} while (!rdma_get_ready(pchan->id) && times++ < 20);
 
@@ -1471,26 +1482,32 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 	times = 0;
 	if (isphybuf) {
 		pchan->enable = 1;
-		ts_data = (struct dmx_sec_ts_data *)buf;
+		if (count == sizeof(*ts_data)) {
+			ts_data = (struct dmx_sec_ts_data *)buf;
+			buf_start = (u64)ts_data->buf_start;
+			buf_end = (u64)ts_data->buf_end;
+		} else {
+			ts_data_64bits = (struct dmx_sec_ts_data_64bits *)buf;
+			buf_start = (u64)ts_data_64bits->buf_start;
+			buf_end = (u64)ts_data_64bits->buf_end;
+		}
 #ifdef CHECK_PACKET_ALIGNM
-		check_packet_alignm(ts_data->buf_start, ts_data->buf_end, pack_len);
+		check_packet_alignm(buf_start, buf_end, pack_len);
 #endif
-		tmp = (unsigned long)ts_data->buf_start;
-		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
-			pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
-								((tmp >> 32) & 0x3) : 0;
+		tmp = (u64)buf_start;
+		if (get_dmx_version() >= 6)
+			pchan->memdescs->bits.address_high = (tmp >> 32) & 0x3;
 		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
-		pchan->memdescs->bits.byte_length =
-			ts_data->buf_end - ts_data->buf_start;
+		pchan->memdescs->bits.byte_length = buf_end - buf_start;
 
 		if (dump_input_cb) {
 			#ifdef CONFIG_ARM64
-			if (pfn_is_map_memory(ts_data->buf_start >> PAGE_SHIFT)) {
+			if (pfn_is_map_memory(buf_start >> PAGE_SHIFT)) {
 			#else
-			if (pfn_valid(ts_data->buf_start >> PAGE_SHIFT)) {
+			if (pfn_valid(buf_start >> PAGE_SHIFT)) {
 			#endif
-				page = pfn_to_page(ts_data->buf_start >> PAGE_SHIFT);
-				vaddr = kmap(page) + (ts_data->buf_start & ~PAGE_MASK);
+				page = pfn_to_page(buf_start >> PAGE_SHIFT);
+				vaddr = kmap(page) + (buf_start & ~PAGE_MASK);
 				kasan_disable_current();
 				//pr_dbg("%s %d buffers start = %lx phy addr = %lx
 				//vir addr = %lx\n",
@@ -1500,9 +1517,8 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 				kasan_enable_current();
 				kunmap(page);
 			} else {
-				reg = round_down(ts_data->buf_start, alignment - 1);
-				length = (ts_data->buf_end - ts_data->buf_start) +
-								(ts_data->buf_start - reg);
+				reg = round_down(buf_start, alignment - 1);
+				length = (buf_end - buf_start) + (buf_start - reg);
 				vaddr = (void *)ioremap_wc(reg, length);
 				if (IS_ERR_OR_NULL(vaddr)) {
 					dprint("%s %d ioremap fail\n", __func__, __LINE__);
@@ -1512,7 +1528,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 					//__func__, __LINE__, ts_data.buf_start,
 					//tmp, vaddr);
 					dump_input_cb(pchan->id, -1, DMX_DUMP_INPUT_TYPE,
-						vaddr + (ts_data->buf_start - reg),
+						vaddr + (buf_start - reg),
 						pchan->memdescs->bits.byte_length,
 						&dump_input_head);
 
@@ -1536,10 +1552,9 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 		dma_sync_single_for_device(aml_get_device(),
 			(dma_addr_t)buf_phys, total, DMA_TO_DEVICE);
 
-		tmp = (unsigned long)buf_phys;
-		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
-			pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
-								((tmp >> 32) & 0x3) : 0;
+		tmp = (u64)(unsigned long)buf_phys;
+		if (get_dmx_version() >= 6)
+			pchan->memdescs->bits.address_high = (tmp >> 32) & 0x3;
 		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
 		//set desc mem ==len for trigger data transfer.
 		pchan->memdescs->bits.byte_length = total;
@@ -1551,9 +1566,9 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 
 		pr_dbg("%s, input data:0x%0x, des len:%d\n", __func__,
 		       (*(char *)(pchan->mem)), total);
-		pr_dbg("%s, desc data:0x%0lx 0x%0lx\n", __func__,
-		       (*(unsigned long *)(pchan->memdescs)),
-		       (*((unsigned long *)(pchan->memdescs) + 1)));
+		pr_dbg("%s, desc data:0x%0llx 0x%0llx\n", __func__,
+		       (*(u64 *)(pchan->memdescs)),
+		       (*((u64 *)(pchan->memdescs) + 1)));
 
 		pchan->enable = 1;
 		rdma_config_enable(pchan, 1, pchan->memdescs_phy,
@@ -1602,9 +1617,12 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 		       unsigned int count, int isphybuf, int pack_len)
 {
-	unsigned long tmp;
+	u64 tmp;
 	unsigned int times = 0;
 	struct dmx_sec_ts_data *ts_data;
+	struct dmx_sec_ts_data_64bits *ts_data_64bits;
+	u64 buf_start;
+	u64 buf_end;
 	int total = count;
 
 	pr_dbg("%s id:%d start w:%d\n", __func__, pchan->id, count);
@@ -1619,17 +1637,23 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 	times = 0;
 	if (isphybuf) {
 		pchan->enable = 1;
-		ts_data = (struct dmx_sec_ts_data *)buf;
+		if (count == sizeof(*ts_data)) {
+			ts_data = (struct dmx_sec_ts_data *)buf;
+			buf_start = (u64)ts_data->buf_start;
+			buf_end = (u64)ts_data->buf_end;
+		} else {
+			ts_data_64bits = (struct dmx_sec_ts_data_64bits *)buf;
+			buf_start = (u64)ts_data_64bits->buf_start;
+			buf_end = (u64)ts_data_64bits->buf_end;
+		}
 #ifdef CHECK_PACKET_ALIGNM
-		check_packet_alignm(ts_data->buf_start, ts_data->buf_end, pack_len);
+		check_packet_alignm(buf_start, buf_end, pack_len);
 #endif
-		tmp = (unsigned long)ts_data->buf_start;
-		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
-			pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
-								((tmp >> 32) & 0x3) : 0;
+		tmp = (u64)buf_start;
+		if (get_dmx_version() >= 6)
+			pchan->memdescs->bits.address_high = (tmp >> 32) & 0x3;
 		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
-		pchan->memdescs->bits.byte_length =
-			ts_data->buf_end - ts_data->buf_start;
+		pchan->memdescs->bits.byte_length = buf_end - buf_start;
 
 		dma_sync_single_for_device(aml_get_device(),
 			pchan->memdescs_phy, sizeof(union mem_desc),
@@ -1643,10 +1667,9 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 			dump_input_cb(pchan->id, -1, DMX_DUMP_INPUT_TYPE, (char *)buf,
 				total, &dump_input_head);
 
-		tmp = (unsigned long)buf_phys;
-		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
-			pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
-								((tmp >> 32) & 0x3) : 0;
+		tmp = (u64)(unsigned long)buf_phys;
+		if (get_dmx_version() >= 6)
+			pchan->memdescs->bits.address_high = (tmp >> 32) & 0x3;
 		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
 		//set desc mem ==len for trigger data transfer.
 		pchan->memdescs->bits.byte_length = total;
@@ -1658,9 +1681,9 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 
 		pr_dbg("%s, input data:0x%0x, des len:%d\n", __func__,
 			   (*(char *)(pchan->mem)), total);
-		pr_dbg("%s, desc data:0x%0x 0x%0x\n", __func__,
-			   (*(unsigned int *)(pchan->memdescs)),
-			   (*((unsigned int *)(pchan->memdescs) + 1)));
+		pr_dbg("%s, desc data:0x%0llx 0x%0llx\n", __func__,
+		       (*(u64 *)(pchan->memdescs)),
+		       (*((u64 *)(pchan->memdescs) + 1)));
 
 		pchan->enable = 1;
 		rdma_config_enable(pchan, 1, pchan->memdescs_phy,
@@ -1738,7 +1761,7 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	dma_sync_single_for_device(aml_get_device(),
 		phys, len, DMA_TO_DEVICE);
 
-	if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+	if (get_dmx_version() >= 6)
 		pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
 							((phys >> 32) & 0x3) : 0;
 	pchan->memdescs->bits.address_low = phys & 0xFFFFFFFF;
@@ -1750,9 +1773,9 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 
 	wmb();	/*Ensure pchan->mem contents visible */
 
-	pr_dbg("%s, desc data:0x%0x 0x%0x\n", __func__,
-	       (*(unsigned int *)(pchan->memdescs)),
-	       (*((unsigned int *)(pchan->memdescs) + 1)));
+	pr_dbg("%s, desc data:0x%0llx 0x%0llx\n", __func__,
+		(*(u64 *)(pchan->memdescs)),
+		(*((u64 *)(pchan->memdescs) + 1)));
 
 	pchan->enable = 1;
 	rdma_config_enable(pchan, 1, pchan->memdescs_phy, len, len, 188);

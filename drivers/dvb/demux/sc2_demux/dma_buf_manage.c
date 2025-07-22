@@ -174,7 +174,7 @@ static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 {
 	struct dmabuf_manage_block *block = NULL;
 	struct dmx_dma_buf_sec_es_data *es = (struct dmx_dma_buf_sec_es_data *)dbuf->priv;
-	struct decoder_mem_info rp_info;
+	struct decoder_mem_info_64bits rp_info;
 	struct dmx_demux *demux = NULL;
 	struct dmx_demux_ext *demux_ext = NULL;
 
@@ -186,9 +186,9 @@ static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 	if (es->buf_rp >= es->buf_start && es->buf_rp <= es->buf_end && demux) {
 		rp_info.rp_phy = es->buf_rp;
 		demux_ext = container_of(demux, struct dmx_demux_ext, dmx);
-		if (demux_ext && demux_ext->decode_info) {
-			demux_ext->decode_info(demux, &rp_info);
-			pr_dbg("decode_info rp_phy:0x%x\n", rp_info.rp_phy);
+		if (demux_ext && demux_ext->decode_info_64bits) {
+			demux_ext->decode_info_64bits(demux, &rp_info);
+			pr_dbg("decode_info rp_phy:0x%llx\n", rp_info.rp_phy);
 		}
 	}
 
