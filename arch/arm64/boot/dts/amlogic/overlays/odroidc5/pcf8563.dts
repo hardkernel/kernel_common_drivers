@@ -18,4 +18,14 @@
 			};
 		};
 	};
+
+	fragment@1 {
+		target-path = "/";
+		__overlay__ {
+			aliases {
+				rtc0 = "/soc/i2c@66400/rtc@51";
+				rtc1 = "/rtc@0xfe010288";
+			};
+		};
+	};
 };
