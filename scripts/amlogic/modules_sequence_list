@@ -46,6 +46,7 @@ RAMDISK_MODULES_LOAD_LIST=(
 	aml_drm.ko
 	amlogic-soc-amfc.ko
 	amlogic-soc-erofs.ko
+	amlogic-soc-f2fs.ko
 	amlogic-audio-utils.ko
 )
 

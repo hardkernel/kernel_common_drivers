@@ -28,3 +28,9 @@
   snd_timer_open
   snd_timer_start
   snd_timer_stop
+
+# amlogic-soc-f2fs.ko
+  LZ4_compress_HC
+  LZ4_compress_default
+  zstd_min_clevel
+  zstd_max_clevel

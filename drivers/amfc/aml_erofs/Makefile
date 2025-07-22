@@ -2,6 +2,11 @@
 
 MODULE_NAME = amlogic-soc-erofs
 
+ifdef CONFIG_CFI_CLANG
+KBUILD_CFLAGS := $(filter-out -fno-sanitize-blacklist, $(KBUILD_CFLAGS))
+KBUILD_CFLAGS += -fsanitize-ignorelist=$(srctree)/common_drivers/drivers/amfc/aml_erofs/cfi_ignore.txt
+endif
+
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_EROFS) := super.o inode.o data.o namei.o dir.o sysfs.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_EROFS_XATTR) += xattr.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_EROFS_ZIP) += decompressor.o zmap.o zdata.o zutil.o decompressor_cryptor.o
