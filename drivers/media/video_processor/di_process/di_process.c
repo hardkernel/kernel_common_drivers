@@ -1744,8 +1744,12 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		}
 
 		private_data = di_proc_get_file_private_data(dmabuf->file, true);
+		if (!private_data) {
+			dp_print(dev->index, PRINT_ERROR, "%s: get private_data fail.\n", __func__);
+			dp_put_file(dev, file_vf);
+			return -EINVAL;
+		}
 
-		//private_data->vf = *vf;
 		private_data->vf_p = NULL;
 		private_data->vf.frame_index = vf->frame_index;
 		private_data->vf.index_disp = vf->index_disp;
