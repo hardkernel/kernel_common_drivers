@@ -490,6 +490,9 @@ enum lcd_pmu_gpio_e {
 
 #define LCD_CLK_SS_BIT_FREQ             0
 #define LCD_CLK_SS_BIT_MODE             4
+#define LCD_CLK_SS_DEP_MAX              12
+#define LCD_CLK_SS_STR_MAX              10
+#define LCD_CLK_SS_FREQ_MAX             6
 
 /* Power Control */
 #define LCD_CPU_GPIO_NUM_MAX         10

@@ -143,7 +143,11 @@ static inline void lcd_fr_lock_auto_switch(struct aml_lcd_drv_s *pdrv)
 	unsigned int ss_ppm;
 	int sta = 0, sta1 = 0;
 	int ret;
+	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 
+	if (!cconf)
+		return;
+	//hw_vlock_sta: 0=hw vlock and vrr closed, 1=hw vlock or vrr on
 	fr_lock->hw_vlock_sta = hw_framelock_working(pdrv->index);
 	if (fr_lock->hw_vlock_sta && !fr_lock->hw_vlock_sta_last) {
 		sta = -1;//off
@@ -156,9 +160,11 @@ static inline void lcd_fr_lock_auto_switch(struct aml_lcd_drv_s *pdrv)
 	}
 	fr_lock->hw_vlock_sta_last = fr_lock->hw_vlock_sta;
 
+	//ss_sta: 1=ss off or ss on but stable, 0=ss on and ss unstable
 	ret = lcd_get_ss_num(pdrv, &fr_lock->ss_level, &ss_ppm,
 			&fr_lock->ss_freq, &fr_lock->ss_mode);
 	fr_lock->ss_sta = (ret < 0) ? 0 : ret;
+	fr_lock->ss_sta = cconf->ss_freq_stable == 0 && fr_lock->ss_sta;
 	if (!fr_lock->ss_switching) {
 		if (fr_lock->ss_sta && !fr_lock->ss_sta_last)
 			sta1 = 1;//on

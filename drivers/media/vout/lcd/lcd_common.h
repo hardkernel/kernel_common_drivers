@@ -186,6 +186,7 @@ extern spinlock_t lcd_clk_lock;
 int meson_clk_measure(unsigned int clk_mux);
 void lcd_clk_frac_generate(struct aml_lcd_drv_s *pdrv);
 void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv);
+void lcd_ss_optimize_print(struct aml_lcd_drv_s *pdrv);
 
 int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf);
 int lcd_get_ss_num(struct aml_lcd_drv_s *pdrv,

@@ -2153,11 +2153,14 @@ static ssize_t lcd_debug_ss_store(struct device *dev, struct device_attribute *a
 				  const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 	unsigned char set_val = 0xff;
 	char *buf_orig;
 	char **parm = NULL;
 	int ret;
 
+	if (!cconf)
+		return count;
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	if (!buf_orig)
 		return count;
@@ -2187,7 +2190,7 @@ static ssize_t lcd_debug_ss_store(struct device *dev, struct device_attribute *a
 			goto lcd_ss_debug_store_end;
 		if (kstrtou8(parm[1], 10, &set_val))
 			goto lcd_ss_debug_store_err;
-		ret = lcd_set_ss(pdrv, set_val, 0xff, 0xff);
+		ret = lcd_set_ss(pdrv, set_val, cconf->ss_freq, 0xff);
 		if (ret)
 			goto lcd_ss_debug_store_err;
 		pdrv->curr_dev->dev_cfg.timing.ss_level = set_val;
@@ -2197,7 +2200,7 @@ static ssize_t lcd_debug_ss_store(struct device *dev, struct device_attribute *a
 			goto lcd_ss_debug_store_end;
 		if (kstrtou8(parm[1], 10, &set_val))
 			goto lcd_ss_debug_store_err;
-		ret = lcd_set_ss(pdrv, 0xff, set_val, 0xff);
+		ret = lcd_set_ss(pdrv, cconf->ss_level, set_val, 0xff);
 		if (ret)
 			goto lcd_ss_debug_store_err;
 		pdrv->curr_dev->dev_cfg.timing.ss_freq = set_val;
@@ -2211,6 +2214,8 @@ static ssize_t lcd_debug_ss_store(struct device *dev, struct device_attribute *a
 		if (ret)
 			goto lcd_ss_debug_store_err;
 		pdrv->curr_dev->dev_cfg.timing.ss_mode = set_val;
+	} else if (strcmp(parm[0], "stable_dep") == 0) {
+		lcd_ss_optimize_print(pdrv);
 	} else {
 		ssc_debug_type = SSC_DEBUG_UNKNOWN;
 		goto lcd_ss_debug_store_err;

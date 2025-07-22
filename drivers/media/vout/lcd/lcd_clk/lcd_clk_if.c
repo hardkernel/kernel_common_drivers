@@ -239,9 +239,9 @@ int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf)
 	}
 
 	if (cconf->ss_level) {
-		len += sprintf(buf + len, "ss_level: %d, %dppm, dep_sel=%d, str_m=%d\n",
+		len += sprintf(buf + len, "ss_level: %d, %dppm, dep_sel=%d, str_m=%d, stable=%d\n",
 			cconf->ss_level, cconf->ss_ppm,
-			cconf->ss_dep_sel, cconf->ss_str_m);
+			cconf->ss_dep_sel, cconf->ss_str_m, cconf->ss_freq_stable);
 	} else {
 		len += sprintf(buf + len, "ss_level: %d, disabled\n", cconf->ss_level);
 	}
@@ -739,6 +739,7 @@ void lcd_clk_ss_param_init(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 	unsigned int ss_level, ss_freq, ss_mode;
+	int ret = 0;
 
 	if (!cconf || !cconf->data)
 		return;
@@ -761,8 +762,9 @@ void lcd_clk_ss_param_init(struct aml_lcd_drv_s *pdrv)
 	if (cconf->data->clk_ss_init)
 		cconf->data->clk_ss_init(cconf);
 
-	LCD_DBG(pdrv, "%s: ss_level=%d, ss_freq=%d, ss_mode=%d",
-		__func__, cconf->ss_level, cconf->ss_freq, cconf->ss_mode);
+	ret = lcd_pll_ss_level_generate(cconf);
+	LCD_DBG(pdrv, "%s: ss_level=%d, ss_freq=%d, ss_mode=%d, ret=%d",
+		__func__, cconf->ss_level, cconf->ss_freq, cconf->ss_mode, ret);
 }
 
 void lcd_clk_config_parameter_init(struct aml_lcd_drv_s *pdrv)
