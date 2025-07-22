@@ -78,7 +78,7 @@ static int find_first_new_crtc(struct drm_atomic_state *state)
 }
 
 /* flag: 0:block 1:nonblock 2:async*/
-static void meson_commit_reenter_inc(struct meson_drm *priv,
+void meson_commit_reenter_inc(struct meson_drm *priv,
 	int crtc_index, int flag)
 {
 	struct am_meson_crtc *amcrtc;
@@ -94,7 +94,7 @@ static void meson_commit_reenter_inc(struct meson_drm *priv,
 		crtc_index, atomic_read(&amcrtc->commit_num), flag);
 }
 
-static void meson_commit_reenter_dec(struct meson_drm *priv,
+void meson_commit_reenter_dec(struct meson_drm *priv,
 	int crtc_index, int flag)
 {
 	struct am_meson_crtc *amcrtc;
@@ -260,11 +260,7 @@ static void meson_commit_work(struct kthread_work *work)
 	struct drm_atomic_state *state = container_of(work_item->work,
 						      struct drm_atomic_state,
 						      commit_work);
-	struct meson_drm *priv = state->dev->dev_private;
-
-	meson_commit_reenter_inc(priv, work_item->crtc_id, NONBLOCK_MODE);
 	meson_commit_tail(state);
-	meson_commit_reenter_dec(priv, work_item->crtc_id, NONBLOCK_MODE);
 	kfree(work_item);
 	work_item = NULL;
 }
@@ -459,7 +455,6 @@ int meson_atomic_commit(struct drm_device *dev,
 	struct drm_crtc *dest_crtc = NULL;
 	struct meson_drm *priv = dev->dev_private;
 	bool is_parallel = check_parallel_commit(state, &dest_crtc);
-	bool is_osd_async;
 
 	DRM_DEBUG("wait for no shutdown start!\n");
 	wait_event_interruptible(priv->wq_shut_ctrl,
@@ -471,10 +466,7 @@ int meson_atomic_commit(struct drm_device *dev,
 	else
 		crtc_index = find_first_new_crtc(state);
 
-	is_osd_async = is_am_osd_async_commit(state);
 	if (state->async_update) {
-		if (is_osd_async)
-			meson_commit_reenter_inc(priv, crtc_index, ASYNC_MODE);
 
 		priv->pan_async_commit_ran = true;
 		ret = drm_atomic_helper_prepare_planes(dev, state);
@@ -483,8 +475,6 @@ int meson_atomic_commit(struct drm_device *dev,
 
 		drm_atomic_helper_async_commit(dev, state);
 		drm_atomic_helper_cleanup_planes(dev, state);
-		if (is_osd_async)
-			meson_commit_reenter_dec(priv, crtc_index, ASYNC_MODE);
 
 		return 0;
 	}
@@ -558,9 +548,7 @@ int meson_atomic_commit(struct drm_device *dev,
 			DRM_DEBUG_ATOMIC("atomic state:%p line:%d queuework fail!\n",
 			state, __LINE__);
 	} else {
-		meson_commit_reenter_inc(priv, crtc_index, BLOCK_MODE);
 		meson_commit_tail(state);
-		meson_commit_reenter_dec(priv, crtc_index, BLOCK_MODE);
 	}
 
 	return 0;

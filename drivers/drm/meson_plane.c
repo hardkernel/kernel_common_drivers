@@ -2083,26 +2083,8 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 				state->state);
 	if (old_mvps) {
 		old_plane_info = &old_mvps->plane_info[osd_plane->plane_index];
-		if (plane_info->src_w != old_plane_info->src_w ||
-			plane_info->src_h != old_plane_info->src_h ||
-			plane_info->dst_w != old_plane_info->dst_w ||
-			plane_info->dst_h != old_plane_info->dst_h ||
-			plane_info->zorder != old_plane_info->zorder ||
-			plane_info->enable != old_plane_info->enable) {
-			DRM_DEBUG_DRIVER("old:src(%dx%d)dst(%d,%d)(%dx%d), zorder=%d\n",
-				old_plane_info->src_w, old_plane_info->src_h,
-				old_plane_info->dst_x, old_plane_info->dst_y,
-				old_plane_info->dst_w, old_plane_info->dst_h,
-				old_plane_info->zorder);
-			DRM_DEBUG_DRIVER("new:src(%dx%d)dst(%d,%d)(%dx%d), zorder=%d, enable=%d\n",
-				plane_info->src_w, plane_info->src_h,
-				plane_info->dst_x, plane_info->dst_y,
-				plane_info->dst_w, plane_info->dst_h,
-				plane_info->zorder, plane_info->enable);
-			plane_info->status_changed = 1;
-		} else {
-			plane_info->status_changed = 0;
-		}
+		plane_info->status_changed =
+				plane_info->enable != old_plane_info->enable;
 	} else {
 		DRM_DEBUG_DRIVER("old_mvps is NULL\n");
 		plane_info->status_changed = 1;
@@ -2456,9 +2438,9 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 	struct am_meson_crtc *amcrtc;
 	struct meson_vpu_pipeline *pipeline;
 	struct drm_private_obj *obj;
-	struct drm_private_state *new_obj_state;
 	struct meson_vpu_sub_pipeline_state *cur_sps, *new_sps;
 	int i, crtc_index;
+	struct drm_private_state *new_obj_state;
 
 	old_plane_state = drm_atomic_get_old_plane_state(state, plane);
 	if (!old_plane_state) {
@@ -2481,6 +2463,53 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 		osd_plane->plane_index, crtc_index, new_state->fb,
 		new_state->src_x, new_state->src_y,
 		new_state->crtc_x, new_state->crtc_y);
+
+	do {
+		struct drm_connector *connector;
+		struct drm_connector_state *old_conn_state;
+		struct drm_crtc *crtc;
+		struct drm_crtc_state *old_crtc_state;
+		struct drm_plane *plane;
+		struct drm_plane_state *old_plane_state;
+		struct drm_crtc_commit *commit;
+		int ret;
+
+		for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
+			commit = old_crtc_state->commit;
+
+			if (!commit)
+				continue;
+
+			ret = wait_for_completion_interruptible(&commit->hw_done);
+			if (ret)
+				DRM_ERROR("crtc timeout!");
+		}
+
+		for_each_old_connector_in_state(state, connector, old_conn_state, i) {
+			commit = old_conn_state->commit;
+
+			if (!commit)
+				continue;
+
+			ret = wait_for_completion_interruptible(&commit->hw_done);
+			if (ret)
+				DRM_ERROR("connector  timeout!");
+		}
+
+		for_each_old_plane_in_state(state, plane, old_plane_state, i) {
+			commit = old_plane_state->commit;
+
+			if (!commit)
+				continue;
+
+			ret = wait_for_completion_interruptible(&commit->hw_done);
+			if (ret)
+				DRM_ERROR("plane  timeout!");
+		}
+	} while (0);
+
+	meson_commit_reenter_inc(pipeline->priv, crtc_index, ASYNC_MODE);
+
 	plane->state->src_x = new_state->src_x;
 	plane->state->src_y = new_state->src_y;
 	plane->state->src_w = new_state->src_w;
@@ -2489,8 +2518,8 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 	plane->state->crtc_y = new_state->crtc_y;
 	plane->state->crtc_w = new_state->crtc_w;
 	plane->state->crtc_h = new_state->crtc_h;
+	plane->state->zpos = new_state->zpos;
 	swap(plane->state->fb, new_state->fb);
-
 	for_each_new_private_obj_in_state(state, obj, new_obj_state, i) {
 		if (obj != &sub_pipe->obj)
 			continue;
@@ -2504,6 +2533,8 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 			drm_mode_vrefresh(&new_state->crtc->mode), crtc_index);
 	vpu_pipeline_osd_update(sub_pipe, state);
 	vpu_pipeline_finish_update(pipeline, crtc_index);
+
+	meson_commit_reenter_dec(pipeline->priv, crtc_index, ASYNC_MODE);
 }
 
 void meson_video_plane_async_update(struct drm_plane *plane,

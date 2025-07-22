@@ -936,6 +936,11 @@ void sort_osd_by_zorder(struct osd_zorder_s *din, u32 osd_num);
 const struct meson_drm_format_info *meson_drm_format_info(struct meson_vpu_block *vblk, u32 format,
 							  bool afbc_en);
 
+void meson_commit_reenter_inc(struct meson_drm *priv,
+			int crtc_index, int flag);
+void meson_commit_reenter_dec(struct meson_drm *priv,
+			int crtc_index, int flag);
+
 extern struct rdma_reg_ops common_reg_ops[3];
 extern struct rdma_reg_ops g12b_reg_ops[2];
 

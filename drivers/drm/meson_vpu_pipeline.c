@@ -768,30 +768,34 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			struct drm_atomic_state *old_state)
 {
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_AMLOGIC_ZAPPER_CUT)
-	int i;
 	struct rdma_reg_ops *reg_ops;
 #endif
+	int i;
 	int crtc_index;
 	unsigned long id;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs, *old_mvbs;
-	struct meson_vpu_sub_pipeline_state *new_mvsps;
+	struct meson_vpu_sub_pipeline_state *new_mvsps = NULL;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
 	struct am_meson_crtc *amcrtc;
 	unsigned long affected_blocks = 0;
+	struct drm_private_obj *obj;
+	struct drm_private_state *new_obj_state;
 
 	crtc_index = sub_pipeline->index;
-	new_mvsps = priv_to_sub_pipeline_state(sub_pipeline->obj.state);
+
+	for_each_new_private_obj_in_state(old_state, obj, new_obj_state, i) {
+		if (obj != &sub_pipeline->obj)
+			continue;
+		new_mvsps = priv_to_sub_pipeline_state(new_obj_state);
+		break;
+	}
 	amcrtc = pipeline->priv->crtcs[crtc_index];
 
 	affected_blocks = new_mvsps->enable_blocks;
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
-		/*TODO: we may need also update other blocks on newer soc.*/
-		if (mvb->type != MESON_BLK_OSD &&
-			mvb->type != MESON_BLK_AFBC &&
-			mvb->type != MESON_BLK_VPPBLEND &&
-			mvb->type != MESON_BLK_OSDBLEND)
+		if (mvb->type == MESON_BLK_VIDEO)
 			continue;
 
 		mvbs = meson_vpu_block_get_new_state(mvb, old_state);

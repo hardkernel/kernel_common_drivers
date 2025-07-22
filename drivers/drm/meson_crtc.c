@@ -897,6 +897,7 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
 	ATRACE_BEGIN("crtc_flush");
 #endif
+	meson_commit_reenter_inc(pipeline->priv, crtc_index, NONBLOCK_MODE);
 	vpu_pipeline_prepare_update(amcrtc->pipeline,
 		crtc->mode.vdisplay, drm_mode_vrefresh(&crtc->mode), crtc_index);
 	if (!meson_crtc_state->uboot_mode_init) {
@@ -905,6 +906,7 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 		vpu_pipeline_finish_update(pipeline, crtc_index);
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 	}
+	meson_commit_reenter_dec(pipeline->priv, crtc_index, NONBLOCK_MODE);
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
 	ATRACE_END();
 #endif
