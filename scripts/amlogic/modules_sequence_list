@@ -82,6 +82,7 @@ COMMON_GKI_MODULES_LIST=(
 	can-dev.ko
 	cdc-acm.ko
 	goodix.ko
+	gpio-reset.ko
 )
 
 GKI_MODULES_LOAD_WHITE_LIST=(
