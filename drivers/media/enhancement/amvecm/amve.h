@@ -269,6 +269,8 @@ void osd_sharpness_init(void);
 void osd_sharpness_ctrl(unsigned int sel, unsigned int enable);
 void amvecm_vadj_enable(enum vadj_index_e vadj_idx, int enable);
 void init_pq_rdma_part_ins(void);
+void amve_sharpness_sub_vsync_ctrl(unsigned int enable, int vpp_index);
+void amve_old_sharpness_sub_vsync_ctrl(unsigned int enable, int vpp_index);
 
 #endif
 

@@ -3682,9 +3682,15 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index)
 		} else {
 			if (pq_cfg_cur.sharpness0_en != pq_cfg.sharpness0_en) {
 				pq_cfg_cur.sharpness0_en = pq_cfg.sharpness0_en;
-				WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
-					pq_cfg.sharpness0_en, 1, 1);
+				if (chip_type_id == chip_t6d || chip_type_id == chip_s6 ||
+					chip_type_id == chip_s7d)
+					WRITE_VPP_REG_BITS(VPP_SR_EN,
+						pq_cfg.sharpness0_en, 0, 1);
+				else
+					WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
+						pq_cfg.sharpness0_en, 1, 1);
 			}
+
 			if (pq_cfg_cur.sharpness1_en != pq_cfg.sharpness1_en) {
 				pq_cfg_cur.sharpness1_en = pq_cfg.sharpness1_en;
 				if (chip_type_id != chip_txhd2)
@@ -3872,9 +3878,15 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index)
 		} else {
 			if (pq_cfg_cur.sharpness0_en != pq_cfg.sharpness0_en) {
 				pq_cfg_cur.sharpness0_en = pq_cfg.sharpness0_en;
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_PK_NR_ENABLE,
-					pq_cfg.sharpness0_en, 1, 1, vpp_index);
+				if (chip_type_id == chip_t6d || chip_type_id == chip_s6 ||
+					chip_type_id == chip_s7d)
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_SR_EN,
+						pq_cfg.sharpness0_en, 0, 1, vpp_index);
+				else
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_PK_NR_ENABLE,
+						pq_cfg.sharpness0_en, 1, 1, vpp_index);
 			}
+
 			if (pq_cfg_cur.sharpness1_en != pq_cfg.sharpness1_en) {
 				pq_cfg_cur.sharpness1_en = pq_cfg.sharpness1_en;
 				if (chip_type_id != chip_txhd2)
@@ -4089,9 +4101,9 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 		cfg.cm_en = pq_cfg.cm_en;
 		cfg.dnlp_en = dv_cfg_bypass.dnlp_en;
 		cfg.cm_en = dv_cfg_bypass.cm_en;
-		cfg.vadj1_en = dv_cfg_bypass.vadj1_en;
+		cfg.vadj1_en = pq_cfg.vadj1_en;
 		cfg.vd1_ctrst_en = dv_cfg_bypass.vd1_ctrst_en;
-		cfg.vadj2_en = dv_cfg_bypass.vadj2_en;
+		cfg.vadj2_en = pq_cfg.vadj2_en;
 		cfg.post_ctrst_en = dv_cfg_bypass.post_ctrst_en;
 		cfg.wb_en = dv_cfg_bypass.wb_en;
 		cfg.gamma_en = dv_cfg_bypass.gamma_en;
@@ -6431,5 +6443,193 @@ void init_pq_rdma_part_ins(void)
 	rdma_part_table_register(&pq_rdma_part_ins[2]);
 
 	pq_rdma_init = true;
+}
+
+void amve_sharpness_sub_vsync_ctrl(unsigned int enable, int vpp_index)
+{
+	struct sharpness_param_reg vsr_reg_param;
+
+	vsr_reg_param.reg_vpp_sr_en =
+		VSYNC_READ_VPP_REG_VPP_SEL(VPP_SR_EN, vpp_index);
+	vsr_reg_param.reg_vpp_pk_en =
+		VSYNC_READ_VPP_REG_VPP_SEL(VPP_PK_EN, vpp_index);
+	vsr_reg_param.reg_vpp_hti_en =
+		VSYNC_READ_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE, vpp_index);
+	vsr_reg_param.reg_vpp_vti_en =
+		VSYNC_READ_VPP_REG_VPP_SEL(VPP_VTI_EN, vpp_index);
+	vsr_reg_param.reg_vpp_dering_en =
+		VSYNC_READ_VPP_REG_VPP_SEL(VPP_DERING_EN, vpp_index);
+	vsr_reg_param.reg_vpp_nr_lpf_en =
+		VSYNC_READ_VPP_REG_VPP_SEL(VPP_NR_LPF_EN, vpp_index);
+
+	if (enable) {
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_SR_EN,
+			enable | vsr_reg_param.reg_vpp_sr_en, 0, 1, vpp_index);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_PK_EN,
+			enable | vsr_reg_param.reg_vpp_pk_en, 0, 1, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE,
+			vsr_reg_param.reg_vpp_hti_en | (enable << 12), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE,
+			vsr_reg_param.reg_vpp_hti_en | (enable << 4), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VTI_EN,
+			vsr_reg_param.reg_vpp_vti_en | (enable << 8), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VTI_EN,
+			vsr_reg_param.reg_vpp_vti_en | (enable << 4), vpp_index);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_DERING_EN,
+			enable | vsr_reg_param.reg_vpp_dering_en, 0, 1, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_NR_LPF_EN,
+			vsr_reg_param.reg_vpp_nr_lpf_en | (enable << 24), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_NR_LPF_EN,
+			vsr_reg_param.reg_vpp_nr_lpf_en | (enable << 16), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_NR_LPF_EN,
+			vsr_reg_param.reg_vpp_nr_lpf_en | (enable << 12), vpp_index);
+	} else {
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_SR_EN,
+			0xfffffffe & vsr_reg_param.reg_vpp_sr_en, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_EN,
+			0xfffffffe & vsr_reg_param.reg_vpp_pk_en, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE,
+			0xffffefff & vsr_reg_param.reg_vpp_hti_en, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE,
+			0xffffffef & vsr_reg_param.reg_vpp_hti_en, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VTI_EN,
+			0xfffffeff & vsr_reg_param.reg_vpp_vti_en, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VTI_EN,
+			0xffffffef & vsr_reg_param.reg_vpp_vti_en, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_DERING_EN,
+			0xfffffffe & vsr_reg_param.reg_vpp_dering_en, vpp_index);
+
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_NR_LPF_EN,
+			0xfeffffff & vsr_reg_param.reg_vpp_nr_lpf_en, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_NR_LPF_EN,
+			0xfffeffff & vsr_reg_param.reg_vpp_nr_lpf_en, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_NR_LPF_EN,
+			0xffffefff & vsr_reg_param.reg_vpp_nr_lpf_en, vpp_index);
+	}
+}
+
+void amve_old_sharpness_sub_vsync_ctrl(unsigned int enable, int vpp_index)
+{
+	struct sharpness_param reg_param;
+	unsigned int drtlpf_config;
+
+	reg_param.sr0_pk = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_PK_NR_ENABLE, vpp_index);
+	reg_param.sr1_pk = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP1_PK_NR_ENABLE, vpp_index);
+
+	reg_param.sr0_hcti = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_HCTI_FLT_CLP_DC, vpp_index);
+	reg_param.sr1_hcti = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP1_HCTI_FLT_CLP_DC, vpp_index);
+
+	reg_param.sr0_hlti = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_HLTI_FLT_CLP_DC, vpp_index);
+	reg_param.sr1_hlti = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP1_HLTI_FLT_CLP_DC, vpp_index);
+
+	reg_param.sr0_vlti = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_VLTI_FLT_CON_CLP, vpp_index);
+	reg_param.sr1_vlti = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP1_VLTI_FLT_CON_CLP, vpp_index);
+
+	reg_param.sr0_vcti = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_VCTI_FLT_CON_CLP, vpp_index);
+	reg_param.sr1_vcti = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP1_VCTI_FLT_CON_CLP, vpp_index);
+
+	reg_param.sr0_dej = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_DEJ_CTRL, vpp_index);
+	reg_param.sr0_drt = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_SR3_DRTLPF_EN, vpp_index);
+	reg_param.sr0_der = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_SR3_DERING_CTRL, vpp_index);
+	reg_param.sr1_dej = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP1_DEJ_CTRL, vpp_index);
+	reg_param.sr1_drt = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP1_SR3_DRTLPF_EN, vpp_index);
+	reg_param.sr1_der = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP1_SR3_DERING_CTRL, vpp_index);
+
+	if (enable) {
+		/* sharpness on */
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_PK_NR_ENABLE,
+				reg_param.sr0_pk | (pq_cfg.sharpness0_en << 1), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_PK_NR_ENABLE,
+				reg_param.sr1_pk | (pq_cfg.sharpness1_en << 1), vpp_index);
+
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_HCTI_FLT_CLP_DC,
+				reg_param.sr0_hcti | (pq_cfg.sharpness0_en << 28), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_HCTI_FLT_CLP_DC,
+				reg_param.sr1_hcti | (pq_cfg.sharpness1_en << 28), vpp_index);
+
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_HLTI_FLT_CLP_DC,
+				reg_param.sr0_hlti | (pq_cfg.sharpness0_en << 28), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_HLTI_FLT_CLP_DC,
+				reg_param.sr1_hlti | (pq_cfg.sharpness1_en << 28), vpp_index);
+
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_VLTI_FLT_CON_CLP,
+				reg_param.sr0_vlti | (pq_cfg.sharpness0_en << 14), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_VLTI_FLT_CON_CLP,
+				reg_param.sr1_vlti | (pq_cfg.sharpness1_en << 14), vpp_index);
+
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_VCTI_FLT_CON_CLP,
+				reg_param.sr0_vcti | (pq_cfg.sharpness0_en << 14), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_VCTI_FLT_CON_CLP,
+				reg_param.sr1_vcti | (pq_cfg.sharpness1_en << 14), vpp_index);
+
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_DEJ_CTRL,
+					reg_param.sr0_dej | pq_cfg.sharpness0_en, vpp_index);
+
+			drtlpf_config = pq_cfg.sharpness0_en ? 0x7 : 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_SR3_DRTLPF_EN,
+					(reg_param.sr0_drt & 0xfffffff8) |
+					drtlpf_config, vpp_index);
+
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_SR3_DERING_CTRL,
+					(reg_param.sr0_der & 0x8fffffff) |
+					pq_cfg.sharpness0_en, vpp_index);
+
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_DEJ_CTRL,
+					reg_param.sr1_dej | pq_cfg.sharpness1_en, vpp_index);
+
+			drtlpf_config = pq_cfg.sharpness1_en ? 0x7 : 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_SR3_DRTLPF_EN,
+					(reg_param.sr1_drt & 0xfffffff8) |
+					drtlpf_config, vpp_index);
+
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_SR3_DERING_CTRL,
+					(reg_param.sr1_der & 0x8fffffff) |
+					pq_cfg.sharpness1_en, vpp_index);
+		}
+
+	} else {
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_PK_NR_ENABLE,
+					 reg_param.sr0_pk & 0xfffffffe, vpp_index);
+
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_PK_NR_ENABLE,
+					 reg_param.sr1_pk & 0xfffffffd, vpp_index);
+
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_HCTI_FLT_CLP_DC,
+					   reg_param.sr0_hcti & 0xefffffff, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_HCTI_FLT_CLP_DC,
+					   reg_param.sr1_hcti & 0xefffffff, vpp_index);
+
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_HLTI_FLT_CLP_DC,
+					   reg_param.sr0_hlti & 0xefffffff, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_HLTI_FLT_CLP_DC,
+					   reg_param.sr1_hlti & 0xefffffff, vpp_index);
+
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_VLTI_FLT_CON_CLP,
+					   reg_param.sr0_vlti & 0xffffbfff, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_VLTI_FLT_CON_CLP,
+					   reg_param.sr1_vlti & 0xffffbfff, vpp_index);
+
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_VCTI_FLT_CON_CLP,
+					   reg_param.sr0_vcti & 0xffffbfff, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_VCTI_FLT_CON_CLP,
+					   reg_param.sr1_vcti & 0xffffbfff, vpp_index);
+
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_DEJ_CTRL,
+							reg_param.sr0_dej & 0xfffffffe, vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_SR3_DRTLPF_EN,
+							reg_param.sr0_drt & 0xfffffff8, vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_SR3_DERING_CTRL,
+							reg_param.sr0_der & 0x8fffffff, vpp_index);
+
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_DEJ_CTRL,
+							reg_param.sr1_dej & 0xfffffffe, vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_SR3_DRTLPF_EN,
+							reg_param.sr1_drt & 0xfffffff8, vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_SR3_DERING_CTRL,
+							reg_param.sr1_der & 0x8fffffff, vpp_index);
+		}
+	}
 }
 

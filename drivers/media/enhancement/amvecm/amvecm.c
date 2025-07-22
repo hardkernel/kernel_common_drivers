@@ -8323,8 +8323,6 @@ free_buf:
 
 void pc_mode_process(int vpp_index)
 {
-	unsigned int reg_val, drtlpf_config;
-
 	if (pc_mode == 1 && pc_mode != pc_mode_last) {
 		/* open dnlp clock gate */
 		lc_en = pq_cfg.lc_en;
@@ -8335,53 +8333,12 @@ void pc_mode_process(int vpp_index)
 			ve_disable_dnlp();
 		cm_en = pq_cfg.cm_en;
 
-		if (chip_type_id != chip_t6d) {
+		if (chip_type_id == chip_t6d || chip_type_id == chip_s6 ||
+			chip_type_id == chip_s7d) {
+			amve_sharpness_sub_vsync_ctrl(1, vpp_index);
+		} else {
 			/* sharpness on */
-			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_PK_NR_ENABLE,
-						 pq_cfg.sharpness0_en, 1, 1, vpp_index);
-			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_PK_NR_ENABLE,
-						 pq_cfg.sharpness1_en, 1, 1, vpp_index);
-			reg_val = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_HCTI_FLT_CLP_DC, vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_HCTI_FLT_CLP_DC,
-					    reg_val | (pq_cfg.sharpness0_en << 28), vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_HCTI_FLT_CLP_DC,
-					    reg_val | (pq_cfg.sharpness1_en << 28), vpp_index);
-
-			reg_val = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_HLTI_FLT_CLP_DC, vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_HLTI_FLT_CLP_DC,
-					    reg_val | (pq_cfg.sharpness0_en << 28), vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_HLTI_FLT_CLP_DC,
-					    reg_val | (pq_cfg.sharpness1_en << 28), vpp_index);
-
-			reg_val = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_VLTI_FLT_CON_CLP, vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_VLTI_FLT_CON_CLP,
-					    reg_val | (pq_cfg.sharpness0_en << 14), vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_VLTI_FLT_CON_CLP,
-					    reg_val | (pq_cfg.sharpness1_en << 14), vpp_index);
-
-			reg_val = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_VCTI_FLT_CON_CLP, vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_VCTI_FLT_CON_CLP,
-					    reg_val | (pq_cfg.sharpness0_en << 14), vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_VCTI_FLT_CON_CLP,
-					    reg_val | (pq_cfg.sharpness1_en << 14), vpp_index);
-
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_DEJ_CTRL,
-							 pq_cfg.sharpness0_en, 0, 1, vpp_index);
-				drtlpf_config = pq_cfg.sharpness0_en ? 0x7 : 0x0;
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_SR3_DRTLPF_EN,
-							 drtlpf_config, 0, 3, vpp_index);
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_SR3_DERING_CTRL,
-							 pq_cfg.sharpness0_en, 28, 3, vpp_index);
-
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_DEJ_CTRL,
-							 pq_cfg.sharpness1_en, 0, 1, vpp_index);
-				drtlpf_config = pq_cfg.sharpness1_en ? 0x7 : 0x0;
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_SR3_DRTLPF_EN,
-							 drtlpf_config, 0, 3, vpp_index);
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_SR3_DERING_CTRL,
-							 pq_cfg.sharpness1_en, 28, 3, vpp_index);
-			}
+			amve_old_sharpness_sub_vsync_ctrl(1, vpp_index);
 		}
 
 		pc_mode_last = pc_mode;
@@ -8391,50 +8348,11 @@ void pc_mode_process(int vpp_index)
 		ve_disable_dnlp();
 		cm_en = 0;
 
-		if (chip_type_id != chip_t6d) {
-			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_PK_NR_ENABLE,
-						 0, 1, 1, vpp_index);
-			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_PK_NR_ENABLE,
-						 0, 1, 1, vpp_index);
-			reg_val = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_HCTI_FLT_CLP_DC, vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_HCTI_FLT_CLP_DC,
-					    reg_val & 0xefffffff, vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_HCTI_FLT_CLP_DC,
-					    reg_val & 0xefffffff, vpp_index);
-
-			reg_val = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_HLTI_FLT_CLP_DC, vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_HLTI_FLT_CLP_DC,
-					    reg_val & 0xefffffff, vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_HLTI_FLT_CLP_DC,
-					    reg_val & 0xefffffff, vpp_index);
-
-			reg_val = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_VLTI_FLT_CON_CLP, vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_VLTI_FLT_CON_CLP,
-					    reg_val & 0xffffbfff, vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_VLTI_FLT_CON_CLP,
-					    reg_val & 0xffffbfff, vpp_index);
-
-			reg_val = VSYNC_READ_VPP_REG_VPP_SEL(SRSHARP0_VCTI_FLT_CON_CLP, vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP0_VCTI_FLT_CON_CLP,
-					    reg_val & 0xffffbfff, vpp_index);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SRSHARP1_VCTI_FLT_CON_CLP,
-					    reg_val & 0xffffbfff, vpp_index);
-
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_DEJ_CTRL,
-							 0, 0, 1, vpp_index);
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_SR3_DRTLPF_EN,
-							 0, 0, 3, vpp_index);
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_SR3_DERING_CTRL,
-							 0, 28, 3, vpp_index);
-
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_DEJ_CTRL,
-							 0, 0, 1, vpp_index);
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_SR3_DRTLPF_EN,
-							 0, 0, 3, vpp_index);
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_SR3_DERING_CTRL,
-							 0, 28, 3, vpp_index);
-			}
+		if (chip_type_id == chip_t6d || chip_type_id == chip_s6 ||
+			chip_type_id == chip_s7d) {
+			amve_sharpness_sub_vsync_ctrl(0, vpp_index);
+		} else {
+			amve_old_sharpness_sub_vsync_ctrl(0, vpp_index);
 		}
 
 		pc_mode_last = pc_mode;
@@ -9231,65 +9149,75 @@ static void amvecm_pq_enable(int enable)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 			amcm_enable(WR_VCB, 0);
 
-		amvecm_sharpness_enable(0);
-		amvecm_sharpness_enable(2);
+		if (chip_type_id == chip_t6d ||
+			chip_type_id == chip_s6 ||
+			chip_type_id == chip_s7d) {
+			amve_sharpness_sub_ctrl(0, enable);
+			amve_sharpness_sub_ctrl(1, enable);
+			amve_sharpness_sub_ctrl(2, enable);
+			amve_sharpness_sub_ctrl(3, enable);
+			amve_sharpness_sub_ctrl(6, enable);
+		} else {
+			amvecm_sharpness_enable(0);
+			amvecm_sharpness_enable(2);
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-			amvecm_sharpness_enable(8);
-			amvecm_sharpness_enable(10);
-			amvecm_sharpness_enable(12);
-		}
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
+				amvecm_sharpness_enable(8);
+				amvecm_sharpness_enable(10);
+				amvecm_sharpness_enable(12);
+			}
 
-		/*sr4 drtlpf theta/ debanding en*/
+			/*sr4 drtlpf theta/ debanding en*/
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
-			amvecm_sharpness_enable(4);
-			amvecm_sharpness_enable(6);
-		}
+			if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
+				amvecm_sharpness_enable(4);
+				amvecm_sharpness_enable(6);
+			}
 #endif
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
-					   0x3f, 0, 6);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
-					   0x7, 8, 3);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_PKDRT_BLD_EN,
-					   1, 0, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_TIBLD_PRT,
-					   3, 2, 2);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_TIBLD_PRT,
-					   3, 12, 2);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_XTI_SDFDEN,
-					   3, 0, 2);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_TI_BPF_EN,
-					   0xf, 0, 4);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_PKLONG_PF_EN,
-					   3, 0, 2);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_CC_PK_ADJ,
-					   1, 24, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_GRAPHIC_CTRL,
-					   1, 10, 1);
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
+						   0x3f, 0, 6);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
+						   0x7, 8, 3);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_PKDRT_BLD_EN,
+						   1, 0, 1);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_TIBLD_PRT,
+						   3, 2, 2);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_TIBLD_PRT,
+						   3, 12, 2);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_XTI_SDFDEN,
+						   3, 0, 2);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_TI_BPF_EN,
+						   0xf, 0, 4);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_PKLONG_PF_EN,
+						   3, 0, 2);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_CC_PK_ADJ,
+						   1, 24, 1);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_GRAPHIC_CTRL,
+						   1, 10, 1);
 
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_DRTLPF_EN,
-					   0x3f, 0, 6);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_DRTLPF_EN,
-					   0x7, 8, 3);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_PKDRT_BLD_EN,
-					   1, 0, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_TIBLD_PRT,
-					   3, 2, 2);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_TIBLD_PRT,
-					   3, 12, 2);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_XTI_SDFDEN,
-					   3, 0, 2);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_TI_BPF_EN,
-					   0xf, 0, 4);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_PKLONG_PF_EN,
-					   3, 0, 2);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_CC_PK_ADJ,
-					   1, 24, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_GRAPHIC_CTRL,
-					   1, 10, 1);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_DRTLPF_EN,
+						   0x3f, 0, 6);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_DRTLPF_EN,
+						   0x7, 8, 3);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_PKDRT_BLD_EN,
+						   1, 0, 1);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_TIBLD_PRT,
+						   3, 2, 2);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_TIBLD_PRT,
+						   3, 12, 2);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_XTI_SDFDEN,
+						   3, 0, 2);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_TI_BPF_EN,
+						   0xf, 0, 4);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_PKLONG_PF_EN,
+						   3, 0, 2);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_CC_PK_ADJ,
+						   1, 24, 1);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_GRAPHIC_CTRL,
+						   1, 10, 1);
+			}
 		}
 #endif
 
@@ -9320,64 +9248,74 @@ static void amvecm_pq_enable(int enable)
 
 		amcm_disable(WR_VCB, 0);
 
-		amvecm_sharpness_enable(1);
-		amvecm_sharpness_enable(3);
+		if (chip_type_id == chip_t6d ||
+			chip_type_id == chip_s7d ||
+			chip_type_id == chip_s6) {
+			amve_sharpness_sub_ctrl(0, enable);
+			amve_sharpness_sub_ctrl(1, enable);
+			amve_sharpness_sub_ctrl(2, enable);
+			amve_sharpness_sub_ctrl(3, enable);
+			amve_sharpness_sub_ctrl(6, enable);
+		} else {
+			amvecm_sharpness_enable(1);
+			amvecm_sharpness_enable(3);
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-			amvecm_sharpness_enable(9);
-			amvecm_sharpness_enable(11);
-			amvecm_sharpness_enable(13);
-		}
-		/*sr4 drtlpf theta/ debanding en*/
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
+				amvecm_sharpness_enable(9);
+				amvecm_sharpness_enable(11);
+				amvecm_sharpness_enable(13);
+			}
+			/*sr4 drtlpf theta/ debanding en*/
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-		if (is_meson_txlx_cpu()) {
-			amvecm_sharpness_enable(5);
-			amvecm_sharpness_enable(7);
-		}
+			if (is_meson_txlx_cpu()) {
+				amvecm_sharpness_enable(5);
+				amvecm_sharpness_enable(7);
+			}
 #endif
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
-					   0, 0, 6);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
-					   0, 8, 3);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_PKDRT_BLD_EN,
-					   0, 0, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_TIBLD_PRT,
-					   0, 2, 2);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_TIBLD_PRT,
-					   0, 12, 2);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_XTI_SDFDEN,
-					   0, 0, 2);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_TI_BPF_EN,
-					   0, 0, 4);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_PKLONG_PF_EN,
-					   0, 0, 2);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_CC_PK_ADJ,
-					   0, 24, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR7_GRAPHIC_CTRL,
-					   0, 10, 1);
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
+						   0, 0, 6);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
+						   0, 8, 3);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_PKDRT_BLD_EN,
+						   0, 0, 1);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_TIBLD_PRT,
+						   0, 2, 2);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_TIBLD_PRT,
+						   0, 12, 2);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_XTI_SDFDEN,
+						   0, 0, 2);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_TI_BPF_EN,
+						   0, 0, 4);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_PKLONG_PF_EN,
+						   0, 0, 2);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_CC_PK_ADJ,
+						   0, 24, 1);
+				WRITE_VPP_REG_BITS(SRSHARP0_SR7_GRAPHIC_CTRL,
+						   0, 10, 1);
 
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_DRTLPF_EN,
-					   0, 0, 6);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_DRTLPF_EN,
-					   0, 8, 3);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_PKDRT_BLD_EN,
-					   0, 0, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_TIBLD_PRT,
-					   0, 2, 2);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_TIBLD_PRT,
-					   0, 12, 2);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_XTI_SDFDEN,
-					   0, 0, 2);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_TI_BPF_EN,
-					   0, 0, 4);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_PKLONG_PF_EN,
-					   0, 0, 2);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_CC_PK_ADJ,
-					   0, 24, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR7_GRAPHIC_CTRL,
-					   0, 10, 1);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_DRTLPF_EN,
+						   0, 0, 6);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_DRTLPF_EN,
+						   0, 8, 3);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_PKDRT_BLD_EN,
+						   0, 0, 1);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_TIBLD_PRT,
+						   0, 2, 2);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_TIBLD_PRT,
+						   0, 12, 2);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_XTI_SDFDEN,
+						   0, 0, 2);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_TI_BPF_EN,
+						   0, 0, 4);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_PKLONG_PF_EN,
+						   0, 0, 2);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_CC_PK_ADJ,
+						   0, 24, 1);
+				WRITE_VPP_REG_BITS(SRSHARP1_SR7_GRAPHIC_CTRL,
+						   0, 10, 1);
+			}
 		}
 #endif
 

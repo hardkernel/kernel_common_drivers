@@ -663,6 +663,34 @@ enum vpp_matrix_ext_csc_e {
 	VPP_MATRIX_BT_2100,
 };
 
+struct sharpness_param_reg {
+	unsigned int reg_vpp_sr_en;
+	unsigned int reg_vpp_pk_en;
+	unsigned int reg_vpp_hti_en;
+	unsigned int reg_vpp_vti_en;
+	unsigned int reg_vpp_dering_en;
+	unsigned int reg_vpp_nr_lpf_en;
+};
+
+struct sharpness_param {
+	unsigned int sr0_pk;
+	unsigned int sr1_pk;
+	unsigned int sr0_hcti;
+	unsigned int sr1_hcti;
+	unsigned int sr0_hlti;
+	unsigned int sr1_hlti;
+	unsigned int sr0_vcti;
+	unsigned int sr1_vcti;
+	unsigned int sr0_vlti;
+	unsigned int sr1_vlti;
+	unsigned int sr0_dej;
+	unsigned int sr1_dej;
+	unsigned int sr0_drt;
+	unsigned int sr1_drt;
+	unsigned int sr0_der;
+	unsigned int sr1_der;
+};
+
 extern struct vpp_mtx_info_s mtx_info;
 #endif /* AMVECM_H */
 
