@@ -223,21 +223,21 @@ void vdin_vfce_update(struct vdin_dev_s *devp)
 		reg_offset = (VFCE_CHNL1_MODE - VFCE_CHNL0_MODE) * i;
 
 		rdma_write_reg_bits(devp->rdma_handle,
-			VFCE_CHNL0_MODE, reg_fmt444_comb, 0, 1);//reg_fmt444_comb
+			reg_offset + VFCE_CHNL0_MODE, reg_fmt444_comb, 0, 1);//reg_fmt444_comb
 		rdma_write_reg_bits(devp->rdma_handle,
-			VFCE_CHNL0_MODE, reg_enc_format, 4, 3);	//reg_enc_format
+			reg_offset + VFCE_CHNL0_MODE, reg_enc_format, 4, 3);	//reg_enc_format
 		rdma_write_reg_bits(devp->rdma_handle,
-			VFCE_CHNL0_MODE, reg_comp_yc_map, 7, 3);//comp_c_map
+			reg_offset + VFCE_CHNL0_MODE, reg_comp_yc_map, 7, 3);//comp_c_map
 		rdma_write_reg_bits(devp->rdma_handle,
-			VFCE_CHNL0_MODE, reg_comp_yc_map, 10, 3);//comp_c_map
+			reg_offset + VFCE_CHNL0_MODE, reg_comp_yc_map, 10, 3);//comp_c_map
+		rdma_write_reg_bits(devp->rdma_handle,
+			reg_offset + VFCE_CHNL0_AFBC_MODE_0, uncmp_size, 5, 8);//reg_uncmp_size
 
 		if (devp->is_vfce_en) {
 			rdma_write_reg_bits(devp->rdma_handle,
 				VFCE_AFRCE_CORE_PIXEL_DEPTH, cmp_bits, 8, 4);//plane 1 bits
 			rdma_write_reg_bits(devp->rdma_handle,
 				VFCE_AFRCE_CORE_PIXEL_DEPTH, cmp_bits, 12, 4);//plane 0 bits
-			rdma_write_reg_bits(devp->rdma_handle,
-				VFCE_CHNL0_AFBC_MODE_0, uncmp_size, 5, 8);//reg_uncmp_size
 		} else {
 			rdma_write_reg_bits(devp->rdma_handle,
 				VFCE_AFBCE_FORMAT, reg_enc_format, 8, 2);//reg_uncmp_size
