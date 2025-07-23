@@ -626,6 +626,8 @@ static struct rdma_partition_ins_s amdv_rdma_part_ins[MAX_RDMA_TABLE_CNT];
 static struct rdma_partition_ins_s *vpp_rdma_part;
 static bool use_rdma_part_table = true;
 
+static bool clear_hdr10plus_pkt = true;
+
 bool amdv_rdma_init;
 u32 vpp_reg[MAX_REG_CNT];
 u32 other_reg[MAX_REG_CNT];
@@ -11725,6 +11727,14 @@ int amdv_wait_metadata_v1(struct vframe_s *vf)
 		if (!get_disable_video_flag(VD1_PATH)) {
 			/*update only after app enable video display,*/
 			/* to distinguish play start and netflix exit*/
+
+			/* clr hdr+ pkt before dv vsif */
+			if (!dolby_vision_on &&
+				clear_hdr10plus_pkt &&
+			    vinfo && vinfo->vout_device &&
+			    vinfo->vout_device->fresh_tx_hdr10plus_pkt)
+				vinfo->vout_device->fresh_tx_hdr10plus_pkt
+				(vinfo->vout_device->tx_instance, 0, NULL);
 			send_hdmi_pkt_ahead(FORMAT_DOVI, vinfo);
 			amdv_wait_count--;
 		} else {
@@ -11905,6 +11915,14 @@ int amdv_wait_metadata_v2(struct vframe_s *vf, enum vd_path_e vd_path)
 		if (!get_disable_video_flag(VD1_PATH)) {
 			/*update only after app enable video display,*/
 			/* to distinguish play start and netflix exit*/
+
+			/* clr hdr+ pkt before dv vsif */
+			if (!dolby_vision_on &&
+				clear_hdr10plus_pkt &&
+			    vinfo && vinfo->vout_device &&
+			    vinfo->vout_device->fresh_tx_hdr10plus_pkt)
+				vinfo->vout_device->fresh_tx_hdr10plus_pkt
+				(vinfo->vout_device->tx_instance, 0, NULL);
 			send_hdmi_pkt_ahead(FORMAT_DOVI, vinfo);
 			dv_inst[dv_id].amdv_wait_count--;
 		} else {
@@ -13212,7 +13230,9 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 						     reset_flag);
 				/* clr hdr+ pkt when enable dv */
 				if (!dolby_vision_on &&
-				    vinfo && vinfo->vout_device) {
+					clear_hdr10plus_pkt &&
+				    vinfo && vinfo->vout_device &&
+				    dolby_vision_policy == AMDV_FOLLOW_SINK) {
 					p_vout = vinfo->vout_device;
 					if (p_vout->fresh_tx_hdr10plus_pkt)
 						p_vout->fresh_tx_hdr10plus_pkt
@@ -14187,8 +14207,10 @@ static int amdolby_vision_process_v2_stb
 
 			/* clr hdr+ pkt when enable dv */
 			if (!dolby_vision_on &&
+				clear_hdr10plus_pkt &&
 			    vinfo && vinfo->vout_device &&
-			    vinfo->vout_device->fresh_tx_hdr10plus_pkt)
+			    vinfo->vout_device->fresh_tx_hdr10plus_pkt &&
+			    dolby_vision_policy == AMDV_FOLLOW_SINK)
 				vinfo->vout_device->fresh_tx_hdr10plus_pkt
 				(vinfo->vout_device->tx_instance, 0, NULL);
 
@@ -16935,6 +16957,11 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		force_update_top2 = val;
 		pr_info("set force_update_top2 %d\n", force_update_top2);
+	} else if (!strcmp(parm[0], "clear_hdr10plus_pkt")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		clear_hdr10plus_pkt = val;
+		pr_info("set clear_hdr10plus_pkt %d\n", clear_hdr10plus_pkt);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
