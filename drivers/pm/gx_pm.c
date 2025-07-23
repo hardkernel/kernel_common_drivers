@@ -595,11 +595,15 @@ void gx_pm_syscore_shutdown(void)
 {
 	u32 val;
 
-	if (exit_reg && is_extd_resume_reason &&
-			clear_suspend_reason) {
+	if (exit_reg && is_extd_resume_reason) {
 		val = readl_relaxed(exit_reg);
-		if ((val & 0x7f) == clear_suspend_reason)
-			val &= ~clear_suspend_reason;
+		if ((val & 0x7f) == REMOTE_CUS_WAKEUP) {
+			/*Defalut clear netflix wakeup reason*/
+			val &= ~REMOTE_CUS_WAKEUP;
+		} else if (clear_suspend_reason) {
+			if ((val & 0x7f) == clear_suspend_reason)
+				val &= ~clear_suspend_reason;
+		}
 		writel_relaxed(val, exit_reg);
 	}
 }
