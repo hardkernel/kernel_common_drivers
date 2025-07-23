@@ -524,9 +524,25 @@ static int lcd_cus_ctrl_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 			break;
 		}
 
-		tmp_phy.phy_clk = lcd_ini_get_val(inip, tuning_sec, "phy_clk", 0);
-		//tmp_phy.phy_clk_min  //reversed
-		//tmp_phy.phy_clk_max  //reversed
+		// phy_clk_min and phy_clk_max
+		tmp_phy.phy_clk_min = lcd_ini_get_val(inip, tuning_sec, "phy_clk_min", 0);
+		tmp_phy.phy_clk_max = lcd_ini_get_val(inip, tuning_sec, "phy_clk_max", 0);
+		// phy_clk_min and phy_clk_max
+
+		// phy_clk_min and phy_clk_max error, should read phy_clk:
+		// 1.phy_clk_min or phy_clk_max equal to 0
+		// 2.phy_clk_min > phy_clk_max
+		if ((!tmp_phy.phy_clk_min && !tmp_phy.phy_clk_max) ||
+			tmp_phy.phy_clk_min > tmp_phy.phy_clk_max) {
+			tmp_phy.phy_clk = lcd_ini_get_val(inip, tuning_sec, "phy_clk", 0);
+			if (tmp_phy.phy_clk) {
+				tmp_phy.phy_clk_min = tmp_phy.phy_clk - 20;
+				tmp_phy.phy_clk_max = tmp_phy.phy_clk + 20;
+			} else {
+				tmp_phy.phy_clk_min = 0;
+				tmp_phy.phy_clk_max = 0;
+			}
+		}
 
 		tmp_phy.ss.level = lcd_ini_get_val(inip, tuning_sec, "ss_level", tmp_phy.ss.level);
 		tmp_phy.ss.freq =
@@ -566,6 +582,11 @@ static int lcd_cus_ctrl_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 
 		LCD_DEV_DBG(pdrv, dev_p->idx, "%s: tuning_param[%d]: phy_clk:%d, lane_cnt:%d",
 			TUNING_ATTR_PARSE, i, tmp_phy.phy_clk, lane_cnt);
+		if (tmp_phy.phy_clk_min || tmp_phy.phy_clk_max)
+			LCD_DEV_DBG(pdrv, dev_p->idx,
+				"%s: tuning_param[%d]: phy_clk_match_range:%d~%d\n",
+				TUNING_ATTR_PARSE, i, tmp_phy.phy_clk_min, tmp_phy.phy_clk_max);
+
 	}
 
 	if (phy_cfg->phys[0] && phy_cfg->phys[1] &&

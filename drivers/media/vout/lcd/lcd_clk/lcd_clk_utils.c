@@ -987,6 +987,8 @@ static int lcd_pll_frac_generate_phy(struct aml_lcd_drv_s *pdrv)
 		cconf->pll_config[0].pll_div_fout = clk_div_out;
 		cconf->pll_config[0].pll_fout = pll_fout;
 		cconf->pll_config[0].pll_fvco = pll_fvco;
+		cconf->phy_clk = lcd_do_div(pll_fvco, tcon_div_table[cconf->pll_tcon_div_sel]);
+
 		pconf->timing.clk_ctrl &= ~(0x1ffffff);
 		pconf->timing.clk_ctrl |=
 			(cconf->pll_config[0].pll_frac << CLK_CTRL_FRAC) |
