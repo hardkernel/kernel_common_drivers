@@ -389,6 +389,8 @@ struct crg_gadget_dev {
 	int portsc_on_reconnecting;
 	int controller_type;
 	u32 phy_id;
+	int recovery;
+	struct delayed_work	reset_udc;
 };
 
 static inline bool crg_udc_suspend_reinit(struct crg_gadget_dev *crg_udc)
@@ -497,6 +499,7 @@ do {									\
 } while (0)
 
 #define CRG_ERROR(fmt...) pr_err(fmt)
+int crg_rewrite_otg_write_UDC(void);
 
 static struct usb_endpoint_descriptor crg_udc_ep0_desc = {
 	.bLength = USB_DT_ENDPOINT_SIZE,
@@ -505,6 +508,12 @@ static struct usb_endpoint_descriptor crg_udc_ep0_desc = {
 	.bmAttributes = USB_ENDPOINT_XFER_CONTROL,
 	.wMaxPacketSize = cpu_to_le16(64),
 };
+
+static void crg_rewrite_udc_for_error(struct work_struct *work)
+{
+	CRG_ERROR("--------------%s---\n", __func__);
+	crg_rewrite_otg_write_UDC();
+}
 
 static int  crg_udc_reset_line_assert(struct crg_gadget_dev *crg_udc, bool on)
 {
@@ -2273,6 +2282,7 @@ crg_udc_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	u64 dq_pt_addr;
 	u8 DCI;
 	unsigned long flags = 0;
+	u32 times = 4000;
 
 	if (!_ep || !_req)
 		return -EINVAL;
@@ -2295,6 +2305,18 @@ crg_udc_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		crg_issue_command(crg_udc, CRG_CMD_STOP_EP, param0, 0);
 		do {
 			tmp = reg_read(&uccr->ep_running);
+			if ((tmp & param0) != 0) {
+				udelay(5);
+				if (!--times) {
+					CRG_ERROR("%s time out, read ep_running: 0x%x\n",
+								__func__, tmp);
+					spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
+					if (!delayed_work_pending(&crg_udc->reset_udc))
+						queue_delayed_work(system_long_wq,
+									&crg_udc->reset_udc, 1000);
+					return -EIO;
+				}
+			}
 		} while ((tmp & param0) != 0);
 		udc_ep_ptr->ep_state = EP_STATE_STOPPED;
 	}
@@ -2378,8 +2400,21 @@ crg_udc_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 #if CRG_MTP_WR
 	if (usb_endpoint_xfer_bulk(udc_ep_ptr->desc)) {
 		crg_issue_command(crg_udc, CRG_CMD_STOP_EP, 1 << DCI, 0);
+		times = 4000;
 		do {
 			tmp = reg_read(&uccr->ep_running);
+			if ((tmp & (1 << DCI)) != 0) {
+				udelay(5);
+				if (!--times) {
+					CRG_ERROR("%s time out,line=%u, read ep_running: 0x%x\n",
+								__func__, __LINE__, tmp);
+					spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
+					if (!delayed_work_pending(&crg_udc->reset_udc))
+						queue_delayed_work(system_long_wq,
+									&crg_udc->reset_udc, 1000);
+					return -EIO;
+				}
+			}
 		} while ((tmp & (1 << DCI)) != 0);
 
 		mdelay(10);
@@ -2387,8 +2422,21 @@ crg_udc_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 		mdelay(10);
 		crg_issue_command(crg_udc, CRG_CMD_STOP_EP, 1 << DCI, 0);
+		times = 4000;
 		do {
 			tmp = reg_read(&uccr->ep_running);
+			if ((tmp & (1 << DCI)) != 0) {
+				udelay(5);
+				if (!--times) {
+					CRG_ERROR("%s time out,line=%u, read ep_running: 0x%x\n",
+								__func__, __LINE__, tmp);
+					spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
+					if (!delayed_work_pending(&crg_udc->reset_udc))
+						queue_delayed_work(system_long_wq,
+									&crg_udc->reset_udc, 1000);
+					return -EIO;
+				}
+			}
 		} while ((tmp & (1 << DCI)) != 0);
 	}
 #endif
@@ -4955,6 +5003,7 @@ static int crg_udc_probe(struct platform_device *pdev)
 	/*g_vaddr = dma_alloc_coherent(crg_udc->dev,4096, &g_dma, */
 	/*	GFP_KERNEL);*/
 	//g_device_phy_id = phy_id;
+	INIT_DELAYED_WORK(&crg_udc->reset_udc, crg_rewrite_udc_for_error);
 	crg_udc_probe_state = 1;
 	return ret;
 
