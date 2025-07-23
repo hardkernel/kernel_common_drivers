@@ -172,6 +172,7 @@ void lcd_lvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
 void lcd_vbyone_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
 void lcd_mlvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
 void lcd_p2p_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
+void lcd_dphy_set_data(struct aml_lcd_drv_s *pdrv, int data);
 int lcd_dphy_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 
 /* lcd debug */

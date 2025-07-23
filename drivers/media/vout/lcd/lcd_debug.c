@@ -4534,6 +4534,36 @@ lcd_phy_debug_store_err:
 	return count;
 }
 
+static ssize_t lcd_dphy_debug_store(struct device *dev, struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	char *buf_orig;
+	char *parm[2];
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return count;
+
+	lcd_debug_parse_param(buf_orig, parm, 2);
+
+	if ((strcmp(parm[0], "0") == 0) ||
+	    (strcmp(parm[0], "low") == 0)) {
+		lcd_dphy_set_data(pdrv, 0);
+	} else if ((strcmp(parm[0], "1") == 0) ||
+		   (strcmp(parm[0], "high") == 0)) {
+		lcd_dphy_set_data(pdrv, 1);
+	} else if ((strcmp(parm[0], "0xff") == 0) ||
+		   (strcmp(parm[0], "off") == 0)) {
+		lcd_dphy_set_data(pdrv, 0xff);
+	} else {
+		pr_err("err: invalid parameters!\n");
+	}
+
+	kfree(buf_orig);
+	return count;
+}
+
 /***** LCD debug file operation ******/
 static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(help,        0444, lcd_debug_common_help, NULL),
@@ -4568,6 +4598,7 @@ static struct device_attribute lcd_debug_attrs[] = {
 static struct device_attribute lcd_debug_attrs_lvds[] = {
 	__ATTR(lvds,   0644, lcd_lvds_debug_show, lcd_lvds_debug_store),
 	__ATTR(phy,    0644, lcd_phy_debug_show, lcd_phy_debug_store),
+	__ATTR(dphy,   0200, NULL, lcd_dphy_debug_store),
 	__ATTR(null,   0644, NULL, NULL)
 };
 
@@ -4575,6 +4606,7 @@ static struct device_attribute lcd_debug_attrs_lvds[] = {
 static struct device_attribute lcd_debug_attrs_vbyone[] = {
 	__ATTR(vbyone, 0644, lcd_vx1_debug_show, lcd_vx1_debug_store),
 	__ATTR(phy,    0644, lcd_phy_debug_show, lcd_phy_debug_store),
+	__ATTR(dphy,   0200, NULL, lcd_dphy_debug_store),
 	__ATTR(status, 0444, lcd_vx1_status_show, NULL),
 	__ATTR(null,   0644, NULL, NULL)
 };
@@ -4606,6 +4638,7 @@ static struct device_attribute lcd_debug_attrs_mipi[] = {
 static struct device_attribute lcd_debug_attrs_mlvds[] = {
 	__ATTR(mlvds,  0644, lcd_mlvds_debug_show, lcd_mlvds_debug_store),
 	__ATTR(phy,    0644, lcd_phy_debug_show, lcd_phy_debug_store),
+	__ATTR(dphy,   0200, NULL, lcd_dphy_debug_store),
 	__ATTR(tcon,   0644, lcd_tcon_debug_show, lcd_tcon_debug_store),
 	__ATTR(tcon_status,   0444, lcd_tcon_status_show, NULL),
 	__ATTR(tcon_reg,   0644, lcd_tcon_reg_debug_show, lcd_tcon_reg_debug_store),
@@ -4620,6 +4653,7 @@ static struct device_attribute lcd_debug_attrs_mlvds[] = {
 static struct device_attribute lcd_debug_attrs_p2p[] = {
 	__ATTR(p2p,    0644, lcd_p2p_debug_show, lcd_p2p_debug_store),
 	__ATTR(phy,    0644, lcd_phy_debug_show, lcd_phy_debug_store),
+	__ATTR(dphy,   0200, NULL, lcd_dphy_debug_store),
 	__ATTR(tcon,   0644, lcd_tcon_debug_show, lcd_tcon_debug_store),
 	__ATTR(tcon_status,   0444, lcd_tcon_status_show, NULL),
 	__ATTR(tcon_reg,   0644, lcd_tcon_reg_debug_show, lcd_tcon_reg_debug_store),
