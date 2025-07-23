@@ -6337,7 +6337,7 @@ static void vd_set_blk_mode_slice_s5(struct video_layer_s *layer, u32 slice, u8 
 	struct vd_mif_reg_s *vd_mif_reg = NULL;
 	struct vd_mif_linear_reg_s *vd_mif_linear_reg = NULL;
 
-	u32 pic_32byte_aligned = 0;
+	u32 pic_32byte_aligned = 0, burst_len = 2;
 	u8 vpp_index;
 
 	if (slice > SLICE_NUM)
@@ -6346,12 +6346,14 @@ static void vd_set_blk_mode_slice_s5(struct video_layer_s *layer, u32 slice, u8 
 	vd_mif_reg = &vd_proc_reg.vd_mif_reg[slice];
 	vd_mif_linear_reg = &vd_proc_reg.vd_mif_linear_reg[slice];
 	vpp_index = layer->vpp_index;
-	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_mif_reg->vd_if0_gen_reg3,
-		block_mode, 12, 2);
-	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_mif_reg->vd_if0_gen_reg3,
-		block_mode, 14, 2);
-	if (block_mode)
+	if (block_mode == 1 || block_mode == 2) {
+		burst_len = block_mode;
 		pic_32byte_aligned = 7;
+	}
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_mif_reg->vd_if0_gen_reg3,
+		burst_len, 12, 2);
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_mif_reg->vd_if0_gen_reg3,
+		burst_len, 14, 2);
 	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_mif_reg->vd_if0_gen_reg3,
 		(pic_32byte_aligned << 6) |
 		(block_mode << 4) |
@@ -6377,7 +6379,7 @@ void vd_set_blk_mode_s5(struct video_layer_s *layer, u8 block_mode)
 	struct vd_mif_reg_s *vd_mif_reg = NULL;
 	struct vd_mif_linear_reg_s *vd_mif_linear_reg = NULL;
 	u32 layer_index = 0;
-	u32 pic_32byte_aligned = 0;
+	u32 pic_32byte_aligned = 0, burst_len = 2;
 	u8 vpp_index;
 
 	if (layer->layer_id >= MAX_VD_CHAN_S5)
@@ -6390,12 +6392,14 @@ void vd_set_blk_mode_s5(struct video_layer_s *layer, u8 block_mode)
 	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer_index];
 	vd_mif_linear_reg = &vd_proc_reg.vd_mif_linear_reg[layer_index];
 	vpp_index = layer->vpp_index;
-	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_mif_reg->vd_if0_gen_reg3,
-		block_mode, 12, 2);
-	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_mif_reg->vd_if0_gen_reg3,
-		block_mode, 14, 2);
-	if (block_mode)
+	if (block_mode == 1 || block_mode == 2) {
+		burst_len = block_mode;
 		pic_32byte_aligned = 7;
+	}
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_mif_reg->vd_if0_gen_reg3,
+		burst_len, 12, 2);
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_mif_reg->vd_if0_gen_reg3,
+		burst_len, 14, 2);
 	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_mif_reg->vd_if0_gen_reg3,
 		(pic_32byte_aligned << 6) |
 		(block_mode << 4) |
