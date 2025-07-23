@@ -983,8 +983,8 @@ static int vad_set_enable_enum(struct snd_kcontrol *kcontrol,
 		vad_init(p_vad);
 		aml_set_vad(p_vad->en, p_vad->src);
 	} else {
-		aml_set_vad(p_vad->en, p_vad->src);
 		vad_deinit(p_vad);
+		aml_set_vad(p_vad->en, p_vad->src);
 #if (defined CONFIG_VAD_WAKEUP_ASR)
 		aml_asr_disable();
 #endif
