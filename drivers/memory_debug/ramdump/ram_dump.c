@@ -341,7 +341,7 @@ noinline void ramdump_sync_data(void)
 		"ldr x10, [sp,#72]\n"
 		"ldr x11, [sp,#80]\n"
 		"add sp, sp, #0x60\n"
-		"ret\n");
+	);
 }
 #else
 noinline void ramdump_sync_data(void)
