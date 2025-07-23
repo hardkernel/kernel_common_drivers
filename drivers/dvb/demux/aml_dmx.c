@@ -252,7 +252,7 @@ static int _dmx_set_hw_source_ts_clone(struct dmx_demux *dmx, int hw_source)
 {
 	struct aml_dmx *pdmx = (struct aml_dmx *)dmx->priv;
 
-	if (!pdmx->sc2_input)
+	if (!pdmx->sc2_input && pdmx->used_feed_num)
 		_dmx_alloc_input(pdmx);
 
 	if (pdmx->hw_source != hw_source) {
@@ -2221,7 +2221,6 @@ static int _dmx_set_input(struct dmx_demux *demux, int source)
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
 	struct aml_dmx *pdmx = (struct aml_dmx *)demux->priv;
-	int id = 0;
 
 	pr_dbg("%s local:%d, input:%d\n", __func__, pdmx->source, source);
 //      if (pdmx->source == source)
@@ -2230,22 +2229,6 @@ static int _dmx_set_input(struct dmx_demux *demux, int source)
 		return -ERESTARTSYS;
 	if (source == INPUT_LOCAL || source == INPUT_LOCAL_SEC) {
 		pr_dbg("%s local:%d\n", __func__, source);
-		if (!pdmx->sc2_input) {
-			id = _dmx_find_input_id(pdmx->id);
-			if (id == -1) {
-				dprint("%s find input fail\n", __func__);
-				mutex_unlock(pdmx->pmutex);
-				return -ENODEV;
-			}
-			pdmx->sc2_input = ts_input_open(id);
-			if (!pdmx->sc2_input) {
-				dprint("ts_input_open fail\n");
-				mutex_unlock(pdmx->pmutex);
-				return -ENODEV;
-			}
-			if (advb->ts_clone)
-				pdmx->sid = pdmx->sc2_input->id;
-		}
 	} else {
 		pr_dbg("%s remote\n", __func__);
 		if (advb->ts_clone == 0 && pdmx->sc2_input) {
@@ -2437,7 +2420,7 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 
 	if (advb->ts_clone) {
 		_dmx_set_hw_source_ts_clone(dmx, hw_source);
-		if (demux->sid != demux->sc2_input->id) {
+		if (demux->sc2_input && demux->sid != demux->sc2_input->id) {
 			demux->sid = demux->sc2_input->id;
 			ts_output_update_filter(demux->id, demux->sid);
 		}

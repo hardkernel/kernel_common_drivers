@@ -781,7 +781,7 @@ int ts_clone_connect(int dmx_id, int source, struct in_elem *input)
 	int source_tmp = 0;
 	int demod_source = 0;
 
-	if (!ts_clone_init_flag)
+	if (!ts_clone_init_flag || !input)
 		return -1;
 
 	pr_dbg("%s dmx:%d, source:%d input id:%d\n", __func__, dmx_id, source, input->id);
@@ -808,7 +808,7 @@ int ts_clone_disconnect(int dmx_id, int source, struct in_elem *input)
 	int source_tmp = 0;
 	int demod_source = 0;
 
-	if (!ts_clone_init_flag)
+	if (!ts_clone_init_flag || !input)
 		return -1;
 
 	pr_dbg("%s dmx:%d, source:%d input id:%d\n", __func__, dmx_id, source, input->id);
