@@ -415,8 +415,7 @@ static void tx_hold_bus_work_func(struct work_struct *p_work)
 	}
 	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
 
-	if (earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC)
-		p_earc->hold_bus_flag = false;
+	p_earc->hold_bus_flag = false;
 	pr_info("earc tx hold bus and mute finish\n");
 }
 
@@ -1537,8 +1536,6 @@ void aml_earctx_enable(bool enable)
 
 	if (s_earc->tx_dmac_clk_on) {
 		if (enable) {
-			if (!s_earc->hold_bus_flag)
-				schedule_work(&s_earc->tx_hold_bus_work);
 			s_earc->last_tx_audio_coding_type = s_earc->tx_audio_coding_type;
 			aml_earctx_set_audio_coding_type(s_earc->tx_audio_coding_type);
 		}
@@ -1550,6 +1547,8 @@ void aml_earctx_enable(bool enable)
 			s_earc->chipinfo);
 		if (enable) {
 			earctx_dmac_mute(s_earc->tx_dmac_map, s_earc->tx_mute);
+			if (!s_earc->hold_bus_flag)
+				schedule_work(&s_earc->tx_hold_bus_work);
 			s_earc->tx_stream_state = SNDRV_PCM_STATE_RUNNING;
 		} else {
 			s_earc->tx_stream_state = SNDRV_PCM_STATE_DISCONNECTED;
@@ -1573,8 +1572,6 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			dev_info(p_earc->dev, "eARC/ARC TX enable\n");
 
 			aml_frddr_enable(p_earc->fddr, true);
-			if (!p_earc->hold_bus_flag)
-				schedule_work(&p_earc->tx_hold_bus_work);
 			iec_get_cnsmr_cs_info(&cs_info,
 				      p_earc->tx_audio_coding_type,
 				      runtime->channels,
@@ -1590,6 +1587,8 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				      true,
 				      p_earc->chipinfo);
 			earctx_dmac_mute(p_earc->tx_dmac_map, p_earc->tx_mute);
+			if (!p_earc->hold_bus_flag)
+				schedule_work(&p_earc->tx_hold_bus_work);
 			p_earc->last_tx_audio_coding_type = p_earc->tx_audio_coding_type;
 			p_earc->tx_stream_state = SNDRV_PCM_STATE_RUNNING;
 		} else {
