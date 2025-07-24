@@ -494,3 +494,22 @@ ddk_module(
     deps = amlogic_pinctrl_soc_deps,
 )
 
+ddk_module(
+    name = "amlogic-pinctrl-soc-t6w",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_PINCTRL_MESON_T6W": {
+            True: ["pinctrl/pinctrl-meson-t6w.c"],
+        },
+    },
+    hdrs = [
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[pinctrl-soc-t6w]: \" fmt"],
+    out = "amlogic-pinctrl-soc-t6w.ko",
+    kernel_build = kernel_select(),
+    visibility = ["//visibility:public"],
+    deps = amlogic_pinctrl_soc_deps,
+)
+

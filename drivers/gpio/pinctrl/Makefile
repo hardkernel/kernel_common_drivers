@@ -165,3 +165,10 @@ $(T6D_MODULE_NAME)-y += pinctrl/pinctrl-meson-t6d.o
 PR_FMT_T6D = $(subst amlogic-,,$(T6D_MODULE_NAME))
 PR_FMT_DEFINE_T6D="-Dpr_fmt(fmt)= \"[$(PR_FMT_T6D)]: \" fmt"
 CFLAGS_pinctrl-meson-t6d.o += $(PR_FMT_DEFINE_T6D)
+
+T6W_MODULE_NAME = amlogic-pinctrl-soc-t6w
+obj-$(CONFIG_AMLOGIC_PINCTRL_MESON_T6W) += $(T6W_MODULE_NAME).o
+$(T6W_MODULE_NAME)-y += pinctrl/pinctrl-meson-t6w.o
+PR_FMT_T6W = $(subst amlogic-,,$(T6W_MODULE_NAME))
+PR_FMT_DEFINE_T6W="-Dpr_fmt(fmt)= \"[$(PR_FMT_T6W)]: \" fmt"
+CFLAGS_pinctrl-meson-t6w.o += $(PR_FMT_DEFINE_T6W)

@@ -339,4 +339,15 @@ config AMLOGIC_COMMON_CLK_S6
 	help
 	  Support for the clock controller on Amlogic S6
 	  devices. Say Y if you want peripherals to work.
+
+config AMLOGIC_COMMON_CLK_T6W
+	tristate "Meson T6W clock controller"
+	depends on AMLOGIC_COMMON_CLK_MESON_REGMAP
+	depends on AMLOGIC_COMMON_CLK_MESON_DUALDIV
+	depends on AMLOGIC_COMMON_CLK_MESON_PLL
+	depends on AMLOGIC_COMMON_CLK_MESON_VID_PLL_DIV
+	depends on MFD_SYSCON
+	help
+	  Support for the clock controller on Amlogic T6W
+	  devices, aka T6W. Say Y if you want peripherals to work.
 endmenu

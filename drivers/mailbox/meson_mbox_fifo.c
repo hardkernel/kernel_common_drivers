@@ -39,6 +39,7 @@
 #include <dt-bindings/mailbox/s7-mbox.h>
 #include <dt-bindings/mailbox/s7d-mbox.h>
 #include <dt-bindings/mailbox/t6d-mbox.h>
+#include <dt-bindings/mailbox/t6w-mbox.h>
 #include "meson_mbox_fifo.h"
 #include "meson_mbox_comm.h"
 
@@ -1247,6 +1248,25 @@ static struct mbox_domain_data t6d_mbox_domains_data __initdata = {
 	.domain_counts = ARRAY_SIZE(t6d_mbox_domains),
 };
 
+const struct mbox_domain t6w_mbox_domains[] = {
+	MBOX_DOMAIN(T6W_REE2AO0, T6W_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(T6W_REE2AO1, T6W_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(T6W_REE2AO2, T6W_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(T6W_REE2AO3, T6W_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(T6W_REE2AO4, T6W_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(T6W_REE2AO5, T6W_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(T6W_REE2AO6, T6W_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(T6W_REE2AO7, T6W_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(T6W_REE2AO8, T6W_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(T6W_REE2AO9, T6W_MBOX_REE2AO, 0),
+	MBOX_DOMAIN(T6W_REE2AO10, T6W_MBOX_REE2AO, 0),
+};
+
+static struct mbox_domain_data t6w_mbox_domains_data __initdata = {
+	.mbox_domains = t6w_mbox_domains,
+	.domain_counts = ARRAY_SIZE(t6w_mbox_domains),
+};
+
 const struct mbox_domain s7d_mbox_domains[] = {
 	MBOX_DOMAIN(S7D_AO2REE0, S7D_MBOX_AO2REE, 0),
 	MBOX_DOMAIN(S7D_AO2REE1, S7D_MBOX_AO2REE, 0),
@@ -1357,6 +1377,10 @@ static const struct of_device_id mbox_of_match[] = {
 	{
 		.compatible = "amlogic, t6d-mbox-fifo",
 		.data = &t6d_mbox_domains_data,
+	},
+	{
+		.compatible = "amlogic, t6w-mbox-fifo",
+		.data = &t6w_mbox_domains_data,
 	},
 	{
 		.compatible = "amlogic, s7d-mbox-fifo",

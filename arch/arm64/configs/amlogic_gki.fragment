@@ -103,6 +103,9 @@ CONFIG_AMLOGIC_COMMON_CLK_T5W=m
 # amlogic-clk-soc-t6d.ko
 CONFIG_AMLOGIC_COMMON_CLK_T6D=m
 
+# amlogic-clk-soc-t6d.ko
+CONFIG_AMLOGIC_COMMON_CLK_T6W=m
+
 # amlogic-clk-soc-s7.ko
 CONFIG_AMLOGIC_COMMON_CLK_S7=m
 
@@ -156,6 +159,9 @@ CONFIG_AMLOGIC_PINCTRL_MESON_S6=m
 
 # amlogic-pinctrl-soc-t6d.ko
 CONFIG_AMLOGIC_PINCTRL_MESON_T6D=m
+
+# amlogic-pinctrl-soc-t6w.ko
+CONFIG_AMLOGIC_PINCTRL_MESON_T6W=m
 
 # amlogic-secmon.ko
 CONFIG_AMLOGIC_SECMON=m
