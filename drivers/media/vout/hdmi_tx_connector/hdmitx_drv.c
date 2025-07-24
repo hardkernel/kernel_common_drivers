@@ -482,7 +482,13 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 		if (ret < 0)
 			HDMITX_ERROR("ERROR: hdmitx io_remap fail!\n");
 
-		tx_comm->enc_idx = hdmitx_get_connector();
+		ret = of_property_read_u32(pdev->dev.of_node,
+					   "enc_idx", &val);
+		if (!ret && val == 2)
+			tx_comm->enc_idx = 2;
+		else
+			tx_comm->enc_idx = 0;
+
 		HDMITX_INFO("enc_idx %d\n", tx_comm->enc_idx);
 	}
 #else

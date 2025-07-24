@@ -559,7 +559,6 @@ int drm_hdmitx_common_register_hdcp_notify(struct hdmitx_common *tx_comm,
 					   struct connector_hdcp_cb *cb);
 int drm_hdmitx_common_get_dw_hdcp_topo_info(struct hdmitx_common *tx_comm);
 
-int hdmitx_get_connector(void);
 void hdmitx_common_sw_debug_func(struct hdmitx_common *tx_comm, const char *cmd_str);
 /*******************************hdmitx common api end*******************************/
 
