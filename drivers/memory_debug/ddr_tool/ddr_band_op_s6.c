@@ -37,7 +37,7 @@ static void s6_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 	for (i = 0; i < db->channels; i++) {
 		db->port[i] = 1 << i;
 		db->range[i].start = 0;
-		db->range[i].end   = 0x3ffffffffULL;
+		db->range[i].end   = DEFAULT_RANGE_LARGE_DDR;
 	}
 
 	val = readl(db->ddr_reg1 + DMC_MON_CTRL0);

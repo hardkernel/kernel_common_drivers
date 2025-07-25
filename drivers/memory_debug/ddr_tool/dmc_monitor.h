@@ -10,6 +10,12 @@
 #include <linux/amlogic/page_trace.h>
 #include "ddr_port.h"
 
+#ifdef ARM
+#define DMC_ADDR_HIGH(addr)	0
+#else
+#define DMC_ADDR_HIGH(addr)	((addr) << 32ULL)
+#endif
+
 #define PROTECT_READ		BIT(0)
 #define PROTECT_WRITE		BIT(1)
 

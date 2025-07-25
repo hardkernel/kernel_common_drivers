@@ -118,7 +118,7 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 		mon_comm->time = sched_clock();
 		mon_comm->status = dmc_prot_rw(mon_comm->io_mem, DMC_PROT_VIO_1, 0, DMC_READ);
 		mon_comm->addr  = (mon_comm->status >> 20) & 0x03;
-		mon_comm->addr  = (mon_comm->addr << 32ULL);
+		mon_comm->addr  = DMC_ADDR_HIGH(mon_comm->addr);
 		mon_comm->addr |= dmc_prot_rw(mon_comm->io_mem, DMC_PROT_VIO_0, 0, DMC_READ);
 		mon_comm->rw = 'w';
 		ret = 0;
@@ -128,7 +128,7 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 		mon_comm->status = dmc_prot_rw(mon_comm->io_mem, DMC_PROT_VIO_3, 0, DMC_READ);
 		/* combine address */
 		mon_comm->addr  = (mon_comm->status >> 20) & 0x03;
-		mon_comm->addr  = (mon_comm->addr << 32ULL);
+		mon_comm->addr  = DMC_ADDR_HIGH(mon_comm->addr);
 		mon_comm->addr |= dmc_prot_rw(mon_comm->io_mem, DMC_PROT_VIO_2, 0, DMC_READ);
 		mon_comm->rw = 'r';
 		ret = 0;
@@ -286,7 +286,7 @@ static int t5m_reg_analysis(char *input, char *output)
 	if (status & 0x1) { /* read */
 		rw = 'r';
 		addr  = (vio_reg3 >> 20) & 0x03;
-		addr  = (addr << 32ULL);
+		addr  = DMC_ADDR_HIGH(addr);
 		addr |= vio_reg2;
 		port = vio_reg3 & 0xff;
 		subport = (vio_reg3 >> 16) & 0x7;
@@ -298,7 +298,7 @@ static int t5m_reg_analysis(char *input, char *output)
 	if (status & 0x2) { /* write */
 		rw = 'w';
 		addr  = (vio_reg1 >> 20) & 0x03;
-		addr  = (addr << 32ULL);
+		addr  = DMC_ADDR_HIGH(addr);
 		addr |= vio_reg0;
 		port = vio_reg1 & 0xff;
 		subport = (vio_reg1 >> 16) & 0x7;
@@ -324,7 +324,7 @@ static int dmc_sec_check(char *output, unsigned char index)
 		error = 1;
 		rw = 'r';
 		addr  = (dmc_vio_reg[3] >> 20) & 0x03;
-		addr  = (addr << 32ULL);
+		addr  = DMC_ADDR_HIGH(addr);
 		addr |= dmc_vio_reg[2];
 		port = dmc_vio_reg[3] & 0xff;
 		subport = (dmc_vio_reg[3] >> 16) & 0x7;
@@ -336,7 +336,7 @@ static int dmc_sec_check(char *output, unsigned char index)
 		error = 1;
 		rw = 'w';
 		addr  = (dmc_vio_reg[1] >> 20) & 0x03;
-		addr  = (addr << 32ULL);
+		addr  = DMC_ADDR_HIGH(addr);
 		addr |= dmc_vio_reg[0];
 		port = dmc_vio_reg[1] & 0xff;
 		subport = (dmc_vio_reg[1] >> 16) & 0x7;

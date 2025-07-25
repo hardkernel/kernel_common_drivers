@@ -103,7 +103,7 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 		mon_comm->time = sched_clock();
 		mon_comm->status = dmc_prot_rw(mon_comm->io_mem, DMC_PROT_VIO_1, 0, DMC_READ);
 		mon_comm->addr  = (mon_comm->status >> DMC_PROT_VIO_AXADDR_OFFSET) & DMC_PROT_VIO_AXADDR_MASK;
-		mon_comm->addr  = (mon_comm->addr << 32ULL);
+		mon_comm->addr  = DMC_ADDR_HIGH(mon_comm->addr);
 		mon_comm->addr |= dmc_prot_rw(mon_comm->io_mem, DMC_PROT_VIO_0, 0, DMC_READ);
 		mon_comm->rw = 'w';
 		ret = 0;
@@ -113,7 +113,7 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 		mon_comm->status = dmc_prot_rw(mon_comm->io_mem, DMC_PROT_VIO_3, 0, DMC_READ);
 		/* combine address */
 		mon_comm->addr  = (mon_comm->status >> DMC_PROT_VIO_AXADDR_OFFSET) & DMC_PROT_VIO_AXADDR_MASK;
-		mon_comm->addr  = (mon_comm->addr << 32ULL);
+		mon_comm->addr  = DMC_ADDR_HIGH(mon_comm->addr);
 		mon_comm->addr |= dmc_prot_rw(mon_comm->io_mem, DMC_PROT_VIO_2, 0, DMC_READ);
 		mon_comm->rw = 'r';
 		ret = 0;
@@ -220,7 +220,7 @@ static int s6_reg_analysis(char *input, char *output)
 	if (status & DMC_READ_VIOLATION) {	/* read */
 		rw = 'r';
 		addr  = (vio_reg3 >> DMC_PROT_VIO_AXADDR_OFFSET) & DMC_PROT_VIO_AXADDR_MASK;
-		addr  = (addr << 32ULL);
+		addr  = DMC_ADDR_HIGH(addr);
 		addr |= vio_reg2;
 
 		port = (vio_reg3 >> 10) & 0x1f;
@@ -240,7 +240,7 @@ static int s6_reg_analysis(char *input, char *output)
 	if (status & DMC_WRITE_VIOLATION) {	/* write */
 		rw = 'w';
 		addr  = (vio_reg1 >> DMC_PROT_VIO_AXADDR_OFFSET) & DMC_PROT_VIO_AXADDR_MASK;
-		addr  = (addr << 32ULL);
+		addr  = DMC_ADDR_HIGH(addr);
 		addr |= vio_reg0;
 
 		port = (vio_reg1 >> 10) & 0x1f;
@@ -273,7 +273,7 @@ static int dmc_sec_check(char *output)
 		error = 1;
 		rw = 'r';
 		addr  = (dmc_vio_reg[3] >> DMC_PROT_VIO_AXADDR_OFFSET) & DMC_PROT_VIO_AXADDR_MASK;
-		addr  = (addr << 32ULL);
+		addr  = DMC_ADDR_HIGH(addr);
 		addr |= dmc_vio_reg[2];
 		addr &= ~0x3f;
 
@@ -290,7 +290,7 @@ static int dmc_sec_check(char *output)
 		error = 1;
 		rw = 'w';
 		addr  = (dmc_vio_reg[1] >> DMC_VIO_AXADDR_OFFSET) & DMC_VIO_AXADDR_MASK;
-		addr  = (addr << 32ULL);
+		addr  = DMC_ADDR_HIGH(addr);
 		addr |= dmc_vio_reg[0];
 		addr &= ~0x3f;
 		port = (dmc_vio_reg[0] >> 1) & 0x1f;

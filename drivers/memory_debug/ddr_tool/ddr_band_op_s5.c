@@ -203,9 +203,9 @@ static void s5_dmc_bandwidth_init(struct ddr_bandwidth *db)
 	for (i = 0; i < db->channels; i++) {
 		if (!db->port[i])
 			s5_dmc_port_config(db, i, -1);
-		s5_dmc_range_config(db, i, 0, 0x3ffffffffULL);
+		s5_dmc_range_config(db, i, 0, DEFAULT_RANGE_LARGE_DDR);
 		db->range[i].start = 0;
-		db->range[i].end   = 0x3ffffffffULL;
+		db->range[i].end   = DEFAULT_RANGE_LARGE_DDR;
 	}
 }
 

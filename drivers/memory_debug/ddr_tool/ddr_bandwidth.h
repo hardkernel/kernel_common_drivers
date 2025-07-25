@@ -10,6 +10,11 @@
 #define MODE_ENABLE			1
 #define MODE_AUTODETECT			2
 
+#ifdef ARM
+#define DEFAULT_RANGE_LARGE_DDR		0xffffffff
+#else
+#define DEFAULT_RANGE_LARGE_DDR		0x3ffffffffULL
+#endif
 #define DEFAULT_THRESHOLD		5000
 
 #define DEFAULT_CLK_CNT			48000000
