@@ -88,28 +88,26 @@
 #define IOTM_IRQ_CTRL_SEC_WDT_IRQ		BIT(17)
 #define IOTM_IRQ_CTRL_PACK_IRQ			BIT(14)
 #define IOTM_IRQ_CTRL_PACK_IRQ_CLEAR		BIT(13)
+#define IOTM_IRQ_CTRL_PACK_IRQ_MASK		BIT(12)
 #define IOTM_IRQ_CTRL_VAPB4_TIMEOUT		BIT(11)
 #define IOTM_IRQ_CTRL_VAPB4_FULL		BIT(10)
 #define IOTM_IRQ_CTRL_VAPB4_TIMEOUT_CLEAR	BIT(9)
 #define IOTM_IRQ_CTRL_VAPB4_FULL_CLEAR		BIT(8)
+#define IOTM_IRQ_CTRL_VAPB4_FULL_MASK		BIT(6)
 #define IOTM_IRQ_CTRL_CAPU_TIMEOUT		BIT(5)
 #define IOTM_IRQ_CTRL_CAPU_FULL			BIT(4)
 #define IOTM_IRQ_CTRL_CAPU_TIMEOUT_CLEAR	BIT(3)
 #define IOTM_IRQ_CTRL_CAPU_FULL_CLEAR		BIT(2)
+#define IOTM_IRQ_CTRL_CAPU_FULL_MASK		BIT(0)
 #define SW_DATA_STREAM1_WRITE			BIT(31)
 
 #define ADDR_OFFSET				0xE0000000
 #define AOCPU_TRACE				1
 #define SW_TRACE				2
-#define MAX_EXCLUDE_RANGE			5
+#define MAX_MONITOR_RANGE			8
 #define MAX_TS					0x7ffffff
 //NSEC_PER_IOTM_TS:TS1 * NSEC_PER_IOTM_TS = NS
 #define NSEC_PER_IOTM_TS			666
-#define IOTM_DUMP_NONE				0
-#define IOTM_DUMP_WATCHDOG			1
-#define IOTM_DUMP_ALL				2
-
-#define IOTM_TYPE_T6D				0x00
 
 #define iotm_smccc_smc(cmd, arg0, arg1, arg2, arg3, res) \
 __arm_smccc_smc(cmd, arg0, arg1, arg2, arg3, 0, 0, 0, &(res), NULL)
@@ -169,7 +167,7 @@ struct iotm_record_v2 {
 
 extern const char *sw_record_name[];
 
-struct exclude_range {
+struct monitor_range {
 	phys_addr_t start;
 	phys_addr_t end;
 };
@@ -181,14 +179,17 @@ struct reg_entry {
 };
 
 struct iotm_ops {
-	void (*ddr_range_set)(void);
+	void (*ddr_range_set)(u32 trace_buf_start);
 	void (*ddr_range_get)(u32 *reg_base, void *buf, int *offset);
 	void (*etb_coresight_clk)(void);
 	void (*boot_time_record)(u64 pct, u64 ns_time);
+	void (*boot_timer_setup)(void);
 	bool (*is_watchdog)(void);
 	bool (*is_trace_loop)(void);
 	void (*print_single_trace)(void *ptr, char *buf);
 	void (*sw_record_write)(u32 sw_type, u32 val1, u32 val2);
+	void (*trace_time_loop_check)(void *trace_start, void *trace_end, u64 *prev_time);
+	void (*clean_buf)(void);
 };
 
 struct iotm {
@@ -201,7 +202,7 @@ struct iotm {
 	void __iomem *cssys_base;
 	unsigned int monitor_mode;
 	unsigned int version;
-	struct exclude_range range[MAX_EXCLUDE_RANGE];
+	struct monitor_range range[MAX_MONITOR_RANGE];
 	unsigned int buf_start;
 	unsigned int buf_end;
 	void *saved_trace;
@@ -211,16 +212,17 @@ struct iotm {
 	spinlock_t record_lock;
 	struct timer_list ts_to_kernel_timer;
 	int timeout_irq_handled;
-	int fail_trace_cnt;
 	struct iotm_ops *ops;
 	struct reg_entry *reg_table;
 	int reg_table_size;
+	int saved_trace_show;
 };
 
 extern struct iotm iotm;
 extern struct iotm_ops iotm_v1_ops;
 extern struct iotm_ops iotm_v2_ops;
 const char *find_register_node(phys_addr_t addr);
+void get_boot_time(struct timer_list *t);
 
 #endif  /* __DEBUG_IOTM_HW_H_ */
 

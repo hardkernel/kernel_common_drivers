@@ -17,6 +17,8 @@
 #include <linux/smpboot.h>
 #include <asm/irq_regs.h>
 #include <linux/perf_event.h>
+#include <linux/sched/clock.h>
+#include <linux/amlogic/aml_iotm.h>
 
 #include "lockup.h"
 
@@ -27,7 +29,7 @@ static cpumask_t __read_mostly watchdog_cpus;
 static ulong __read_mostly sample_period;
 module_param(sample_period, ulong, 0644);
 
-static int hardlockup_thresh = 10; /* seconds */
+static int hardlockup_thresh = 100; /* cnt * sample_period = 10s */
 module_param(hardlockup_thresh, int, 0644);
 
 static int hardlockup_panic = 1;
@@ -40,7 +42,7 @@ static DEFINE_PER_CPU(struct hrtimer, watchdog_hrtimer);
 
 static void set_sample_period(void)
 {
-	sample_period = 1 * (u64)NSEC_PER_SEC;
+	sample_period = 100 * (u64)USEC_PER_SEC; /* 100ms */
 }
 
 static unsigned int watchdog_next_cpu(unsigned int cpu)
@@ -115,6 +117,12 @@ static void watchdog_check_hardlockup_other_cpu(void)
 /* watchdog kicker functions */
 static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 {
+	u64 ns_time = sched_clock();
+
+	/* record kernel time */
+	do_div(ns_time, 1000);
+	iotm_sw_record_write(IOTM_SW_TIME, (u32)(ns_time >> 32), (u32)ns_time);
+
 	/* kick the hardlockup detector */
 	__this_cpu_inc(hrtimer_interrupts);
 

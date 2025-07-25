@@ -31,6 +31,30 @@
 #include <linux/string.h>
 #include "iotm_hw.h"
 
+struct iotm_time {
+	int long_time_en;
+	int trace_loop_cnt;
+	int trace_loop_cnt_now;
+	int trace_loop_confirm;
+	u64 prev_time;
+};
+
+static struct iotm_time iotm_time;
+
+static int iotm_long_time_en_setup(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	if (kstrtoint(buf, 0, &iotm_time.long_time_en)) {
+		pr_err("IOTM:iotm_long_time_en error: %s\n", buf);
+		return -EINVAL;
+	}
+
+	return 1;
+}
+__setup("iotm_long_time_en=", iotm_long_time_en_setup);
+
 static void sw_record_write_v1(u32 sw_type, u32 val1, u32 val2)
 {
 	struct iotm_record_v1 record_v1;
@@ -54,8 +78,8 @@ static u64 ts_to_kernel_time_v1(int ts)
 	u32 high, low;
 	void *base_addr = NULL;
 
-	if (!iotm.timeout_irq_handled && iotm.supported)
-		/* It is neither automatically printed after timeout nor after reboot. */
+	if (iotm.saved_trace_show)
+		/* cat /proc/aml_iotm_trace */
 		base_addr = iotm.saved_trace - ADDR_RANGE0_BEGIN;
 	else
 		base_addr = iotm.cssys_base;
@@ -73,7 +97,41 @@ static u64 ts_to_kernel_time_v1(int ts)
 		kernel_time = (long long)(ts - pct_time) * NSEC_PER_IOTM_TS +
 						sched_clock_time;
 
+	if (iotm_time.trace_loop_confirm && iotm_time.trace_loop_cnt_now > 0) {
+		if (kernel_time < iotm_time.prev_time)
+			iotm_time.trace_loop_cnt_now--;
+
+		iotm_time.prev_time = kernel_time;
+
+		kernel_time -= (u64)(iotm_time.trace_loop_cnt_now) * MAX_TS * NSEC_PER_IOTM_TS;
+	}
 	return kernel_time;
+}
+
+static void clean_buf_v1(void)
+{
+	iotm_time.trace_loop_cnt = 0;
+	iotm_time.trace_loop_confirm = 0;
+	iotm_time.prev_time = 0;
+}
+
+static void trace_time_loop_check_v1(void *trace_start, void *trace_end, u64 *prev_time)
+{
+	if (!iotm_time.long_time_en)
+		return;
+
+	while (trace_start < trace_end) {
+		struct iotm_record_v1 *record = trace_start;
+		int	ts = record->stream0.ts;
+		u64 now_time = ts_to_kernel_time_v1(ts);
+
+		if (now_time < *prev_time)
+			iotm_time.trace_loop_cnt++;
+		*prev_time = now_time;
+		trace_start += iotm.bytes_per_trace;
+	}
+	iotm_time.trace_loop_confirm = 1;
+	iotm_time.trace_loop_cnt_now = iotm_time.trace_loop_cnt;
 }
 
 static void print_single_trace_v1(void *ptr, char *buf)
@@ -83,10 +141,14 @@ static void print_single_trace_v1(void *ptr, char *buf)
 	struct iotm_record_v1 *record = ptr;
 	int ts = record->stream0.ts;
 	u64 kernel_time = ts_to_kernel_time_v1(ts);
-	u64 rem_nsec = do_div(kernel_time, 1000000000);
+	u64 rem_nsec = do_div(kernel_time, NSEC_PER_SEC);
 	u32 sched_stream1;
+	u64 per_cpu_time, per_cpu_us_time;
 
 	do_div(rem_nsec, 1000);
+//	pos += sprintf(buf + pos, "%d", iotm_time.trace_loop_cnt_now);
+
+//	pos += sprintf(buf + pos, "<%x %x %x>", *(int *)ptr, *((int *)ptr + 1), *((int *)ptr + 2));
 	pos += sprintf(buf + pos, "[%05llu.%06llu] <%02d> ",
 			kernel_time, rem_nsec, record->stream0.idx);
 
@@ -122,6 +184,14 @@ static void print_single_trace_v1(void *ptr, char *buf)
 
 			pos += sprintf(buf + pos, "<%s next:%s> ",
 				sw_record_name[record->sw_stream1.sw_type], sched_comm);
+			break;
+		case IOTM_SW_TIME:
+			per_cpu_time = ((u64)(record->sw_stream1.reserved) << 32) +
+							record->stream2;
+			per_cpu_us_time = do_div(per_cpu_time, USEC_PER_SEC);
+			pos += sprintf(buf + pos, "<%s kernel_time:%llu.%06llu> ",
+				sw_record_name[record->sw_stream1.sw_type],
+				per_cpu_time, per_cpu_us_time);
 			break;
 		default:
 			break;
@@ -169,13 +239,18 @@ static bool is_watchdog_v1(void)
 	return false;
 }
 
+static void boot_timer_setup_v1(void)
+{
+	/* create timer to record kernel_time and iotm timestamp */
+	timer_setup(&iotm.ts_to_kernel_timer, get_boot_time, 0);
+	mod_timer(&iotm.ts_to_kernel_timer, jiffies + msecs_to_jiffies(10000));
+}
+
 static void boot_time_record_v1(u64 pct, u64 ns_time)
 {
 	writel((pct >> 4) & MAX_TS, iotm.cssys_base + ADDR_RANGE5_END);
 	writel((u32)(ns_time >> 32), iotm.cssys_base + ADDR_RANGE6_BEGIN);
 	writel((u32)ns_time, iotm.cssys_base + ADDR_RANGE6_END);
-
-	mod_timer(&iotm.ts_to_kernel_timer, jiffies + msecs_to_jiffies(10000));
 }
 
 static void ddr_range_get_v1(u32 *reg_base, void *buf, int *pos)
@@ -186,19 +261,22 @@ static void ddr_range_get_v1(u32 *reg_base, void *buf, int *pos)
 		(reg_base[(MONITOR_BUF_SIZE_LOW - ADDR_RANGE0_BEGIN) >> 2] << 4));
 }
 
-static void ddr_range_set_v1(void)
+static void ddr_range_set_v1(u32 trace_buf_start)
 {
-	writel((iotm.buf_end - iotm.buf_start + 1) / 16,
+	writel((iotm.buf_end - trace_buf_start + 1) >> 4,
 		iotm.cssys_base + MONITOR_BUF_SIZE_LOW);
 }
 
 struct iotm_ops iotm_v1_ops = {
 	.ddr_range_set = ddr_range_set_v1,
 	.etb_coresight_clk = etb_coresight_clk_v1,
+	.boot_timer_setup = boot_timer_setup_v1,
 	.boot_time_record = boot_time_record_v1,
 	.is_watchdog = is_watchdog_v1,
 	.ddr_range_get = ddr_range_get_v1,
 	.is_trace_loop = is_trace_loop_v1,
 	.print_single_trace = print_single_trace_v1,
 	.sw_record_write = sw_record_write_v1,
+	.trace_time_loop_check = trace_time_loop_check_v1,
+	.clean_buf = clean_buf_v1,
 };

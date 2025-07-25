@@ -31,6 +31,8 @@
 #include <linux/string.h>
 #include "iotm_hw.h"
 
+#define STREAM1_TS_BITS		27
+
 static void sw_record_write_v2(u32 sw_type, u32 val1, u32 val2)
 {
 	struct iotm_record_v2 record_v2;
@@ -49,22 +51,30 @@ static void sw_record_write_v2(u32 sw_type, u32 val1, u32 val2)
 static u64 ts_to_kernel_time_v2(u64 ts)
 {
 	u64 kernel_time;
-	u64 time_offset;
+	u64 boot_time;
 	u32 high, low;
 	void *base_addr = NULL;
 
-	if (!iotm.timeout_irq_handled && iotm.supported)
-		/* It is neither automatically printed after timeout nor after reboot. */
+	if (iotm.saved_trace_show)
+		/* cat /proc/aml_iotm_trace */
 		base_addr = iotm.saved_trace - ADDR_RANGE0_BEGIN;
 	else
 		base_addr = iotm.cssys_base;
 
 	high = readl(base_addr + ADDR_RANGE6_BEGIN);
 	low = readl(base_addr + ADDR_RANGE6_END);
-	time_offset = PACK_U32_TO_U64(high, low);
+	boot_time = PACK_U32_TO_U64(high, low);
 
-	kernel_time = ts - time_offset;
+	kernel_time = ts - boot_time;
 	return kernel_time;
+}
+
+static void clean_buf_v2(void)
+{
+}
+
+static void trace_time_loop_check_v2(void *trace_start, void *trace_end, u64 *prev_time)
+{
 }
 
 static void print_single_trace_v2(void *ptr, char *buf)
@@ -72,10 +82,12 @@ static void print_single_trace_v2(void *ptr, char *buf)
 	u8 sched_comm[7] = {0};
 	int pos = 0;
 	struct iotm_record_v2 *record = ptr;
-	u64 ts = ((u64)record->stream0 + record->stream1.ts) * NSEC_PER_IOTM_TS;
+	u64 ts = ((u64)(record->stream0) << STREAM1_TS_BITS | record->stream1.ts) *
+				NSEC_PER_IOTM_TS;
 	u64 kernel_time = ts_to_kernel_time_v2(ts);
-	u64 rem_nsec = do_div(kernel_time, 1000000000);
+	u64 rem_nsec = do_div(kernel_time, NSEC_PER_SEC);
 	u32 sched_stream2;
+	u64 per_cpu_time, per_cpu_us_time;
 
 	do_div(rem_nsec, 1000);
 	pos += sprintf(buf + pos, "[%05llu.%06llu] <%02d> ",
@@ -112,6 +124,14 @@ static void print_single_trace_v2(void *ptr, char *buf)
 			pos += sprintf(buf + pos, "<%s next:%s> ",
 				sw_record_name[record->sw_stream2.sw_type], sched_comm);
 			break;
+		case IOTM_SW_TIME:
+			per_cpu_time = ((u64)(record->sw_stream2.reserved) << 32) +
+							record->stream3;
+			per_cpu_us_time = do_div(per_cpu_time, USEC_PER_SEC);
+			pos += sprintf(buf + pos, "<%s kernel_time:%llu.%06llu> ",
+				sw_record_name[record->sw_stream2.sw_type],
+				per_cpu_time, per_cpu_us_time);
+			break;
 		default:
 			break;
 		}
@@ -129,6 +149,7 @@ static void print_single_trace_v2(void *ptr, char *buf)
 				record->io_stream2.mid == AOCPU_TRACE ? "AOCPU" : "",
 				node_name);
 	}
+
 	pos += sprintf(buf + pos, "\n");
 }
 
@@ -162,18 +183,21 @@ static bool is_watchdog_v2(void)
 	return false;
 }
 
+static void boot_timer_setup_v2(void)
+{
+}
+
 static void boot_time_record_v2(u64 pct, u64 ns_time)
 {
-	u64 tmp_pct = pct * 1000;
-	u64 pos;
+	u64 boot_time, ns_of_pct;
 
-	do_div(tmp_pct, 24);
-	pos = tmp_pct - ns_time;
+	//cnt is increased according to the 24M crystal oscillator
+	ns_of_pct = pct * 1000;
+	do_div(ns_of_pct, 24);
+	boot_time = ns_of_pct - ns_time;
 
-	writel((u32)(pos >> 32), iotm.cssys_base + ADDR_RANGE6_BEGIN);
-	writel((u32)pos, iotm.cssys_base + ADDR_RANGE6_END);
-	pr_err("iotm:TS1 = %llu, ns_time = %llu, pos = %llu\n",
-			pct, ns_time, pos);
+	writel((u32)(boot_time >> 32), iotm.cssys_base + ADDR_RANGE6_BEGIN);
+	writel((u32)boot_time, iotm.cssys_base + ADDR_RANGE6_END);
 }
 
 static void ddr_range_get_v2(u32 *reg_base, void *buf, int *pos)
@@ -184,19 +208,22 @@ static void ddr_range_get_v2(u32 *reg_base, void *buf, int *pos)
 		reg_base[(MONITOR_BUF_SIZE_LOW - ADDR_RANGE0_BEGIN) >> 2]);
 }
 
-static void ddr_range_set_v2(void)
+static void ddr_range_set_v2(u32 trace_buf_start)
 {
-	writel(iotm.buf_end - iotm.buf_start + 1,
+	writel(iotm.buf_end - trace_buf_start + 1,
 		iotm.cssys_base + MONITOR_BUF_SIZE_LOW);
 }
 
 struct iotm_ops iotm_v2_ops = {
 	.ddr_range_set = ddr_range_set_v2,
 	.etb_coresight_clk = etb_coresight_clk_v2,
+	.boot_timer_setup = boot_timer_setup_v2,
 	.boot_time_record = boot_time_record_v2,
 	.is_watchdog = is_watchdog_v2,
 	.ddr_range_get = ddr_range_get_v2,
 	.is_trace_loop = is_trace_loop_v2,
 	.print_single_trace = print_single_trace_v2,
 	.sw_record_write = sw_record_write_v2,
+	.trace_time_loop_check = trace_time_loop_check_v2,
+	.clean_buf = clean_buf_v2,
 };

@@ -30,19 +30,16 @@
 #include <linux/seq_file.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
+#include <linux/sort.h>
 #include "iotm_hw.h"
 
-#define IOTM_DISABLE				0
-#define IOTM_ENABLE				1
-#define IOTM_ENABLE_NO_TRACE			2
 #define AML_IOTM_SMC_CMD			0x8200007A
 #define AML_IOTM_INIT_SMC_ARG			0x1
 #define AML_IOTM_RANGE_SMC_ARG			0x2
 #define AML_IOTM_JTAG_SMC_ARG			0x3
 #define AML_IOTM_JTAG_DISABLE_SMC_ARG		0x0
 #define AML_IOTM_JTAG_ENABLE_SMC_ARG		0x1
-#define IOTM_FAIL_TRACE_CNT_MAX			5
-#define IOTM_DUMP_TRACE_CNT			100
+#define IOTM_DUMP_TRACE_CNT			3000
 #define ETB_SIZE				(8 * 1024)
 #define TRACE_BUF_SIZE				512
 #define IOTM_MONITOR_RANGE_MAX			0xFFFFFFFF
@@ -51,12 +48,33 @@
 #define CONTINUOUS_PULSE_TIME			10
 #define IOTM_V1					0x1
 #define IOTM_V2					0x2
-#define DDR_TRACE_MAGIC			"IOTM_trace:"
+#define DDR_TRACE_MAGIC				"IOTM_trace:"
+#define SIZE_OF_TRACE_MAGIC			48
+#define NUM_OF_IRQ				1000
+#define ETB_BUF_FULL				0x7FF
+#define NUM_OF_UNRELIABLE			10
+
+enum iotm_en_mode {
+	IOTM_DISABLE,
+	IOTM_ENABLE,
+	IOTM_ENABLE_NO_TRACE,
+};
 
 enum iotm_mode {
 	AXI_MODE,
 	TPIU_MODE,
 	ETB_MODE,
+};
+
+enum iotm_type {
+	IOTM_TYPE_T6D,
+	IOTM_TYPE_T6W,
+};
+
+enum iotm_dump {
+	IOTM_DUMP_NONE,
+	IOTM_DUMP_WATCHDOG,
+	IOTM_DUMP_ALL,
 };
 
 struct iotm iotm = {
@@ -75,9 +93,10 @@ const char *sw_record_name[] = {
 	[IOTM_SW_SMC_IN] = "IOTM_SMC_IN",
 	[IOTM_SW_SMC_OUT] = "IOTM_SMC_OUT",
 	[IOTM_SW_SMC_NORET_IN] = "IOTM_SMC_NORET_IN",
+	[IOTM_SW_TIME] = "IOTM_SW_TIME",
 };
 
-static struct reg_entry reg_table_t6d[] __initdata = {
+static struct reg_entry reg_table_public[] __initdata = {
 	{0xF7000000, 0xF703AFFF, "axi_sram"},
 	{0xF7100000, 0xF71FFFFF, "NIC_SYS_GPV"},
 	{0xFC000000, 0xFCFFFFFF, "ddrphy_and_pll_0"},
@@ -138,6 +157,19 @@ static struct reg_entry reg_table_t6d[] __initdata = {
 	{0xFFFF8000, 0xFFFFFFFF, "ROM_MMU"},
 };
 
+static struct reg_entry reg_table_t6d[] __initdata = {
+};
+
+static struct reg_entry reg_table_t6w[] __initdata = {
+	{0xFE014000, 0xFE015FFF, "bcon"},
+	{0xFE016000, 0xFE017FFF, "vx1_lvds"},
+	{0xFE018000, 0xFE019FFF, "apb2btc"},
+	{0xFE09E000, 0xFE09FFFF, "aucpu"},
+	{0xFE340000, 0xFE34FFFF, "dmc0"},
+	{0xFE370000, 0xFE37FFFF, "usb2_2"},
+	{0xFF850000, 0xFF88FFFF, "dpss"},
+};
+
 const char *find_register_node(phys_addr_t addr)
 {
 	int left = 0, right = iotm.reg_table_size - 1;
@@ -156,21 +188,52 @@ const char *find_register_node(phys_addr_t addr)
 	return "Unknown";
 }
 
+static int range_cmp(const void *a, const void *b)
+{
+	const struct reg_entry *ra = a;
+	const struct reg_entry *rb = b;
+
+	if (ra->reg_start < rb->reg_start)
+		return -1;
+	else if (ra->reg_start > rb->reg_start)
+		return 1;
+
+	return 0;
+}
+
 static void confirm_chip_mmap(void)
 {
+	iotm.reg_table_size = ARRAY_SIZE(reg_table_public);
+
 	switch (iotm.cpu_type) {
 	case IOTM_TYPE_T6D:
-		iotm.reg_table_size = ARRAY_SIZE(reg_table_t6d);
-		iotm.reg_table = kmalloc(sizeof(reg_table_t6d), GFP_KERNEL);
+		iotm.reg_table_size += ARRAY_SIZE(reg_table_t6d);
+		iotm.reg_table = kmalloc(sizeof(reg_table_public) + sizeof(reg_table_t6d),
+								GFP_KERNEL);
+		if (iotm.reg_table) {
+			memcpy(iotm.reg_table, reg_table_public, sizeof(reg_table_public));
+			memcpy((char *)(iotm.reg_table) + sizeof(reg_table_public),
+					reg_table_t6d, sizeof(reg_table_t6d));
+		}
+		break;
+	case IOTM_TYPE_T6W:
+		iotm.reg_table_size += ARRAY_SIZE(reg_table_t6w);
+		iotm.reg_table = kmalloc(sizeof(reg_table_public) + sizeof(reg_table_t6w),
+								GFP_KERNEL);
+		if (iotm.reg_table) {
+			memcpy(iotm.reg_table, reg_table_public, sizeof(reg_table_public));
+			memcpy((char *)(iotm.reg_table) + sizeof(reg_table_public),
+					reg_table_t6w, sizeof(reg_table_t6w));
+		}
 		break;
 	default:
 		break;
 	}
 
-	if (!iotm.reg_table)
-		return;
-
-	memcpy(iotm.reg_table, reg_table_t6d, sizeof(reg_table_t6d));
+	if (iotm.reg_table) {
+		sort(iotm.reg_table, iotm.reg_table_size,
+				sizeof(struct reg_entry), range_cmp, NULL);
+	}
 }
 
 /* Obtain the operating mode of the IOTM */
@@ -317,22 +380,16 @@ EXPORT_SYMBOL(iotm_sw_record_write);
 
 static void print_ddr_buf(int *cnt, int trace_cnt, void *trace_start, void *trace_end)
 {
-	char *buf;
-
-	buf = kmalloc(TRACE_BUF_SIZE, GFP_KERNEL);
-	if (!buf)
-		return;
+	char buf[TRACE_BUF_SIZE] = "";
 
 	while (trace_start < trace_end) {
 		iotm.ops->print_single_trace(trace_start, buf);
-
 		if (*cnt > trace_cnt)
 			pr_err("%s", buf);
 
 		(*cnt)++;
 		trace_start += iotm.bytes_per_trace;
 	}
-	kfree(buf);
 }
 
 /* Ddr buffer can't be confirmed to have been overwritten.
@@ -341,42 +398,54 @@ static void print_ddr_buf(int *cnt, int trace_cnt, void *trace_start, void *trac
  */
 static void auto_dump_ddr_buf(void)
 {
-	unsigned int iotm_ddr_size = iotm.buf_end - iotm.buf_start + 1;
-	unsigned int iotm_axi_addr_val = readl(iotm.cssys_base + IOTM_AXI_ADDR);
-	unsigned int last_seg_size = iotm_axi_addr_val - iotm.buf_start;
+	/* the first data is DDR_TRACE_MAGIC, need to be excluded  */
+	u32 trace_buf_start = iotm.buf_start + SIZE_OF_TRACE_MAGIC;
+	u32 iotm_ddr_size = iotm.buf_end - trace_buf_start + 1;
+	u32 iotm_axi_addr_val = readl(iotm.cssys_base + IOTM_AXI_ADDR);
+	u32 last_seg_size = iotm_axi_addr_val - trace_buf_start;
 	int trace_cnt = iotm_ddr_size / iotm.bytes_per_trace;
-	void *vaddr;
+	void *buf_start_vaddr;
 	void *trace_start, *trace_end;
 	u32 offset = 0;
 	int cnt = 0;
+	u64 prev_time = 0;
+
+	buf_start_vaddr = phys_to_virt(trace_buf_start);
+	if (!buf_start_vaddr) {
+		pr_err("IOTM: NOMEM\n");
+		return;
+	}
 
 	offset = last_seg_size % iotm.bytes_per_trace;
 	if (offset)
 		last_seg_size += iotm.bytes_per_trace - offset;
 
-	if (iotm_axi_addr_val < iotm.buf_start || iotm_axi_addr_val > iotm.buf_end) {
+	if (iotm_axi_addr_val < trace_buf_start || iotm_axi_addr_val > iotm.buf_end + 1) {
 		pr_err("IOTM:dump error!IOTM_AXI_ADDR=0x%x, ddr_buf=[0x%x, 0x%x]\n",
-				iotm_axi_addr_val, iotm.buf_start, iotm.buf_end);
+				iotm_axi_addr_val, trace_buf_start, iotm.buf_end);
 		return;
 	}
 
-	vaddr = phys_to_virt(iotm.buf_start);
-	if (!vaddr) {
-		pr_err("IOTM: NOMEM\n");
-		return;
-	}
+	iotm.ops->clean_buf();
+	iotm.ops->trace_time_loop_check(buf_start_vaddr + last_seg_size,
+		buf_start_vaddr + iotm_ddr_size, &prev_time);
+/*
+ * Due to the offset of IOTM_AXI_ADDR, the last few data entries are unreliable,
+ * and when calculating whether the time overflows, these entries need to be filtered out.
+ */
+	iotm.ops->trace_time_loop_check(buf_start_vaddr,
+		buf_start_vaddr + last_seg_size - NUM_OF_UNRELIABLE * iotm.bytes_per_trace,
+		&prev_time);
 
 	trace_cnt = trace_cnt - iotm.dump_cnt;
 	if (iotm.ops->is_trace_loop()) {
-		trace_start = vaddr + last_seg_size;
-		trace_end = vaddr + iotm_ddr_size;
-
+		trace_start = buf_start_vaddr + last_seg_size;
+		trace_end = buf_start_vaddr + iotm_ddr_size;
 		print_ddr_buf(&cnt, trace_cnt, trace_start, trace_end);
 	}
 
-	iotm.fail_trace_cnt = 0;
-	trace_start = vaddr;
-	trace_end = vaddr + last_seg_size;
+	trace_start = buf_start_vaddr;
+	trace_end = buf_start_vaddr + last_seg_size;
 	print_ddr_buf(&cnt, trace_cnt, trace_start, trace_end);
 }
 
@@ -408,11 +477,7 @@ static void auto_dump_etb_buf(void)
 	int i, j;
 	int words_per_trace = iotm.bytes_per_trace / sizeof(u32);
 	u32 iotm_trace[4];
-	u8 *buf;
-
-	buf = kmalloc(TRACE_BUF_SIZE, GFP_KERNEL);
-	if (!buf)
-		return;
+	char buf[TRACE_BUF_SIZE] = "";
 
 	// stop etb trace
 	writel(0x0, iotm.cssys_base + ETB_CTL);
@@ -451,7 +516,6 @@ static void auto_dump_etb_buf(void)
 		if (need_dump() && (i > iotm.etb_buf_words_cnt - iotm.dump_cnt * words_per_trace))
 			pr_err("%s", buf);
 	}
-	kfree(buf);
 }
 
 static void dump_register_info(void *buf)
@@ -460,11 +524,10 @@ static void dump_register_info(void *buf)
 	int pos = 0;
 	u32 *reg_base = NULL;
 
-	if (!iotm.timeout_irq_handled && iotm.supported)
-		//manual dump
+	if (iotm.saved_trace_show)
+		/* cat /proc/aml_iotm_trace */
 		reg_base = iotm.saved_trace;
 	else
-		//auto dump
 		reg_base = iotm.cssys_base + ADDR_RANGE0_BEGIN;
 
 //monitor_range
@@ -473,10 +536,12 @@ static void dump_register_info(void *buf)
 			reg_base[(ADDR_RANGE7_END - ADDR_RANGE0_BEGIN) >> 2]);
 	pos += sprintf(buf + pos, "IOTM:exclude monitor range:");
 
-	for (i = 0; i < MAX_EXCLUDE_RANGE * 2; i += 2)
+	for (i = 0; i < MAX_MONITOR_RANGE * 2; i += 2)
 		if (reg_base[i] != 0)
 			pos += sprintf(buf + pos, "[%x, %x] ",
 						reg_base[i], reg_base[i + 1]);
+		else
+			break;
 
 	pos += sprintf(buf + pos, "\n");
 
@@ -497,12 +562,8 @@ static void dump_register_info(void *buf)
 
 static void dump_trace(void)
 {
-	char *buf;
+	char buf[TRACE_BUF_SIZE] = "";
 	bool is_need_dump = need_dump();
-
-	buf = kmalloc(TRACE_BUF_SIZE, GFP_KERNEL);
-	if (!buf)
-		return;
 
 	if (is_need_dump) {
 		pr_err("IOTM:dump trace start==========\n");
@@ -510,9 +571,7 @@ static void dump_trace(void)
 		dump_register_info(buf);
 		pr_err("%s", buf);
 	}
-	kfree(buf);
 
-	iotm.fail_trace_cnt = 0;
 	if (iotm.monitor_mode == AXI_MODE && is_need_dump)
 		auto_dump_ddr_buf();
 	else if (iotm.monitor_mode == ETB_MODE)
@@ -587,9 +646,48 @@ static irqreturn_t iotm_irq_handler(int irq, void *data)
 	}
 
 	if (val & (IOTM_IRQ_CTRL_PACK_IRQ | IOTM_IRQ_CTRL_VAPB4_FULL | IOTM_IRQ_CTRL_CAPU_FULL)) {
-		pr_err("IOTM:full irq! IOTM_IRQ_CTRL = 0x%x\n", val);
+		pr_err("IOTM:full irq! IOTM_IRQ_CTRL = 0x%x, MONITOR_STATUS = 0x%x, IOTM_CTRL_MODE = 0x%x, IOTM_AXI_ADDR = 0x%x\n",
+			val,
+			readl(iotm.cssys_base + MONITOR_STATUS),
+			readl(iotm.cssys_base + IOTM_CTRL_MODE),
+			readl(iotm.cssys_base + IOTM_AXI_ADDR));
 		writel(val | IOTM_IRQ_CTRL_PACK_IRQ_CLEAR | IOTM_IRQ_CTRL_VAPB4_FULL_CLEAR |
 				IOTM_IRQ_CTRL_CAPU_FULL_CLEAR, iotm.cssys_base + IOTM_IRQ_CTRL);
+
+		if (iotm.monitor_mode == AXI_MODE) {
+			int i = NUM_OF_IRQ;
+
+			/* read iotm status NUM_OF_IRQ times to wait for trace to be brushed out. */
+			while (i-- &&
+			(readl(iotm.cssys_base + MONITOR_STATUS) & ETB_BUF_FULL) == ETB_BUF_FULL)
+				;
+
+			if (i < 0) {
+				val = readl(iotm.cssys_base + IOTM_IRQ_CTRL);
+				val |= (IOTM_IRQ_CTRL_PACK_IRQ_MASK |
+					IOTM_IRQ_CTRL_VAPB4_FULL_MASK |
+					IOTM_IRQ_CTRL_CAPU_FULL_MASK |
+					IOTM_IRQ_CTRL_PACK_IRQ_CLEAR |
+					IOTM_IRQ_CTRL_VAPB4_FULL_CLEAR |
+					IOTM_IRQ_CTRL_CAPU_FULL_CLEAR);
+				writel(val, iotm.cssys_base + IOTM_IRQ_CTRL);
+
+				/* stop iotm. */
+				val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
+				val |= IOTM_CTRL_MODE_TRACE_DISABLE;
+				writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
+
+				pr_err("IOTM:clear irq,close iotm!IOTM_IRQ_CTRL = 0x%x, MONITOR_STATUS = 0x%x, IOTM_CTRL_MODE = 0x%x, IOTM_AXI_ADDR = 0x%x\n",
+					readl(iotm.cssys_base + IOTM_IRQ_CTRL),
+					readl(iotm.cssys_base + MONITOR_STATUS),
+					readl(iotm.cssys_base + IOTM_CTRL_MODE),
+					readl(iotm.cssys_base + IOTM_AXI_ADDR));
+
+				del_timer(&iotm.ts_to_kernel_timer);
+
+				return IRQ_HANDLED;
+			}
+		}
 
 		/* restart trace data */
 		val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
@@ -611,8 +709,7 @@ static int iotm_dt_init(struct platform_device *pdev)
 	int ret = 0;
 	struct resource *res;
 	struct device_node *dn = pdev->dev.of_node;
-	int index = 1;
-	const __be32 *exclude_reg;
+	const __be32 *exclude_reg, *include_reg;
 	int len, i;
 
 	/* get the version of iotm */
@@ -645,14 +742,18 @@ static int iotm_dt_init(struct platform_device *pdev)
 		return PTR_ERR(iotm.cssys_base);
 	}
 
-	/* get registers of exclude_monitor_range */
+	/* get registers of monitor_range */
 	exclude_reg = of_get_property(dn, "exclude-reg", &len);
-	if (!exclude_reg || len % (sizeof(u32) * 2))
-		dev_err(&pdev->dev, "Invalid or missing exclude-reg property\n");
+	if (exclude_reg && !(len % (sizeof(u32) * 2)))
+		for (i = 0; i < len / (sizeof(u32) * 2); i++) {
+			iotm.range[i].start = be32_to_cpup(exclude_reg++);
+			iotm.range[i].end = be32_to_cpup(exclude_reg++);
+		}
 
-	for (i = 0; i < len / (sizeof(u32) * 2); i++, index++) {
-		iotm.range[MAX_EXCLUDE_RANGE - index].start = be32_to_cpup(exclude_reg++);
-		iotm.range[MAX_EXCLUDE_RANGE - index].end = be32_to_cpup(exclude_reg++);
+	include_reg = of_get_property(dn, "include-reg", &len);
+	if (include_reg && !(len % (sizeof(u32) * 2))) {
+		iotm.range[7].start = be32_to_cpup(include_reg++);
+		iotm.range[7].end = be32_to_cpup(include_reg++);
 	}
 
 	/* get ddr_range buffer */
@@ -696,7 +797,7 @@ static void etb_coresight_init(void)
 	writel(ETB_CTL_ENABLE_CAPTURE, iotm.cssys_base + ETB_CTL);
 }
 
-static void get_boot_time(struct timer_list *t)
+void get_boot_time(struct timer_list *t)
 {
 	u64 ns_time, pct;
 	unsigned long flags;
@@ -707,6 +808,9 @@ static void get_boot_time(struct timer_list *t)
 	local_irq_restore(flags);
 
 	iotm.ops->boot_time_record(pct, ns_time);
+
+	if (t)
+		mod_timer(t, jiffies + msecs_to_jiffies(10000));
 }
 
 static int ddr_trace_magic_set(void)
@@ -733,7 +837,7 @@ static int ddr_trace_magic_set(void)
 		return -ENOMEM;
 
 	memset(vaddr, 0, size);
-	memcpy(vaddr, DDR_TRACE_MAGIC, size);
+	memcpy(vaddr, DDR_TRACE_MAGIC, strlen(DDR_TRACE_MAGIC) + 1);
 
 	vunmap(vaddr);
 	vaddr = NULL;
@@ -762,8 +866,8 @@ static int coresight_init(void)
 		pr_info("IOTM:can't record trace, just trigger timeout\n");
 	}
 
-	/* do exclude registers */
-	for (i = 0; i < MAX_EXCLUDE_RANGE; i++) {
+	/* do monitor registers */
+	for (i = 0; i < MAX_MONITOR_RANGE; i++) {
 		if (iotm.range[i].start != 0)
 			iotm_smccc_smc(AML_IOTM_SMC_CMD, AML_IOTM_RANGE_SMC_ARG, i,
 				iotm.range[i].start, iotm.range[i].end, res);
@@ -771,15 +875,16 @@ static int coresight_init(void)
 
 	if (iotm.monitor_mode == AXI_MODE) {
 		int ret = ddr_trace_magic_set();
+		u32 trace_buf_start = iotm.buf_start + SIZE_OF_TRACE_MAGIC;
 
 		if (ret)
 			return ret;
 
 		/* Allocate DDR reserved space to MONITOR_BUF_SIZE_LOW. */
-		writel(iotm.buf_start + iotm.bytes_per_trace,
+		writel(trace_buf_start,
 			iotm.cssys_base + MONITOR_BUF_BASEADDR_LOW);
 
-		iotm.ops->ddr_range_set();
+		iotm.ops->ddr_range_set(trace_buf_start);
 	} else if (iotm.monitor_mode == ETB_MODE) {
 		/* init coresight and set iotm_mode*/
 		etb_coresight_init();
@@ -788,6 +893,9 @@ static int coresight_init(void)
 		val |= ETB_MODE;
 		writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
 	}
+
+	/* Obtain the TS and kernel timestamps */
+	get_boot_time(NULL);
 
 	/* enable iotm */
 	val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
@@ -841,7 +949,7 @@ static int iotm_syscore_suspend(void)
 {
 	unsigned int iotm_ctrl_mode_val;
 
-	if (!iotm.supported)
+	if (!iotm.supported || iotm_en == IOTM_DISABLE)
 		return 0;
 
 	iotm.en_saved = iotm_en;
@@ -858,12 +966,14 @@ static void iotm_syscore_resume(void)
 {
 	int ret;
 
-	if (!iotm.supported)
+	if (!iotm.supported || iotm.en_saved == IOTM_DISABLE)
 		return;
 
 	ret = coresight_init();
 	if (!ret)
 		iotm_en = iotm.en_saved;
+
+	iotm.en_saved = IOTM_DISABLE;
 }
 
 static void iotm_syscore_shutdown(void)
@@ -881,7 +991,9 @@ static int trace_show(struct seq_file *m, void *v)
 {
 	void *ptr, *ptr_end = NULL;
 	u8 buf[TRACE_BUF_SIZE];
+	u64 prev_time = 0;
 
+	iotm.saved_trace_show = 1;
 	seq_puts(m, "IOTM:dump trace start==========\n");
 
 	dump_register_info(buf);
@@ -889,11 +1001,13 @@ static int trace_show(struct seq_file *m, void *v)
 
 	ptr = iotm.saved_trace + NUM_OF_IOTM_REGISTERS * sizeof(int);
 	if (iotm.monitor_mode == AXI_MODE)
-		ptr_end = ptr + iotm.buf_end - iotm.buf_start + 1;
+		ptr_end = ptr + iotm.buf_end - iotm.buf_start - SIZE_OF_TRACE_MAGIC + 1;
 	else if (iotm.monitor_mode == ETB_MODE)
 		ptr_end = ptr + iotm.etb_buf_words_cnt * sizeof(int);
 
-	iotm.fail_trace_cnt = 0;
+	iotm.ops->clean_buf();
+	iotm.ops->trace_time_loop_check(ptr,
+		ptr_end - NUM_OF_UNRELIABLE * iotm.bytes_per_trace, &prev_time);
 	while (ptr < ptr_end) {
 		iotm.ops->print_single_trace(ptr, buf);
 		seq_printf(m, "%s", buf);
@@ -901,6 +1015,7 @@ static int trace_show(struct seq_file *m, void *v)
 	}
 
 	seq_puts(m, "IOTM:dump trace end==========\n");
+	iotm.saved_trace_show = 0;
 
 	return 0;
 }
@@ -916,7 +1031,7 @@ static void iotm_proc_init(void)
 	else if (iotm.monitor_mode == ETB_MODE)
 		saved_trace_size = (iotm.etb_buf_words_cnt + NUM_OF_IOTM_REGISTERS) * sizeof(int);
 
-	iotm.saved_trace = kmalloc(saved_trace_size, GFP_KERNEL);
+	iotm.saved_trace = vmalloc(saved_trace_size);
 	if (!iotm.saved_trace)
 		return;
 
@@ -924,7 +1039,7 @@ static void iotm_proc_init(void)
 					0400, NULL, trace_show, NULL);
 	if (!aml_iotm_trace) {
 		pr_err("IOTM:fail to create /proc/aml_iotm_trace\n");
-		kfree(iotm.saved_trace);
+		vfree(iotm.saved_trace);
 		return;
 	}
 
@@ -932,25 +1047,26 @@ static void iotm_proc_init(void)
 					NUM_OF_IOTM_REGISTERS * sizeof(int));
 	if (iotm.monitor_mode == AXI_MODE) {
 		u32 iotm_axi_addr_val = readl(iotm.cssys_base + IOTM_AXI_ADDR);
-		u32 iotm_ddr_size = iotm.buf_end - iotm.buf_start + 1;
+		u32 trace_buf_start = iotm.buf_start + SIZE_OF_TRACE_MAGIC;
+		u32 iotm_ddr_size = iotm.buf_end - trace_buf_start + 1;
 		u32 offset = 0;
-		u32 last_seg_size = iotm_axi_addr_val - iotm.buf_start;
+		u32 last_seg_size = iotm_axi_addr_val - trace_buf_start;
 
 		offset = last_seg_size % iotm.bytes_per_trace;
 		if (offset)
 			last_seg_size += iotm.bytes_per_trace - offset;
 
-		if (iotm_axi_addr_val < iotm.buf_start || iotm_axi_addr_val > iotm.buf_end) {
-			kfree(iotm.saved_trace);
+		if (iotm_axi_addr_val < trace_buf_start || iotm_axi_addr_val > iotm.buf_end + 1) {
+			vfree(iotm.saved_trace);
 			return;
 		}
 
 		memcpy_fromio(iotm.saved_trace + NUM_OF_IOTM_REGISTERS * sizeof(int),
-			phys_to_virt(iotm.buf_start + last_seg_size),
+			phys_to_virt(trace_buf_start + last_seg_size),
 						iotm_ddr_size - last_seg_size);
 		memcpy_fromio(iotm.saved_trace + NUM_OF_IOTM_REGISTERS * sizeof(int) +
-			iotm_ddr_size - last_seg_size, phys_to_virt(iotm.buf_start),
-			iotm_axi_addr_val - iotm.buf_start);
+			iotm_ddr_size - last_seg_size, phys_to_virt(trace_buf_start),
+			iotm_axi_addr_val - trace_buf_start);
 	} else if (iotm.monitor_mode == ETB_MODE) {
 		memcpy_fromio(iotm.saved_trace + NUM_OF_IOTM_REGISTERS * sizeof(int),
 				(void *)iotm.etb_buf, iotm.etb_buf_words_cnt * sizeof(int));
@@ -966,7 +1082,7 @@ static bool ddr_trace_valid(void)
 		return false;
 	}
 
-	if (!memcmp(vaddr, DDR_TRACE_MAGIC, iotm.bytes_per_trace))
+	if (!memcmp(vaddr, DDR_TRACE_MAGIC, strlen(DDR_TRACE_MAGIC) + 1))
 		return true;
 
 	return false;
@@ -1035,14 +1151,13 @@ static int __ref iotm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* create timer to record kernel_time and iotm timestamp */
-	timer_setup(&iotm.ts_to_kernel_timer, get_boot_time, 0);
-	mod_timer(&iotm.ts_to_kernel_timer, jiffies + msecs_to_jiffies(1));
-
 	/* print iotm trace */
 	atomic_notifier_chain_register(&panic_notifier_list, &iotm_panic_notifier);
 
 	register_syscore_ops(&iotm_syscore_ops);
+
+	iotm.ops->boot_timer_setup();
+
 	iotm.supported = 1;
 
 	return 0;
@@ -1053,6 +1168,10 @@ static const struct of_device_id iotm_match[] = {
 	{
 		.compatible = "amlogic, iotm-t6d",
 		.data = (void *)IOTM_TYPE_T6D,
+	},
+	{
+		.compatible = "amlogic, iotm-t6w",
+		.data = (void *)IOTM_TYPE_T6W,
 	},
 	{}
 };

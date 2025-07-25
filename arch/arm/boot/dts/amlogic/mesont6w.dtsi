@@ -221,12 +221,18 @@
 	};
 
 	iotm {
-		compatible = "amlogic, iotm";
-		status = "disabled";
+		compatible = "amlogic, iotm-t6w";
+		status = "okay";
 		/* a53_dbg: CSSYS_BASE_ADDR + iotm & coresight */
-		reg = <0xfe800000 0x8000>;
+		/* a53_dbg: CSSYS_BASE_ADDR + iotm & coresight */
+		reg = <0xfe800000 0x8000>;/* a53_debug */
+		exclude-reg = <0xfe807044 0xfe807048>, /* software_write_record of a53_debug */
+			      <0xfe078000 0xfe07a000>, /* uart(a-d) */
+			      <0xff8100e4 0xff8100e8>, /* vpu amvecm */
+			      <0xfe092000 0xfe094000>; /* amfc */
 		memory-region = <&debug_reserved>;
 		interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+		version = <2>;
 	};
 
 	pwrdm: power-domains {
