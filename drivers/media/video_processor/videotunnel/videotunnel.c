@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/video_processor/videotunnel/videotunnel.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -1226,9 +1213,9 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 			data->video_cmd == VT_VIDEO_SET_STATUS ||
 			data->video_cmd == VT_VIDEO_SET_SOURCE_CROP ||
 			data->video_cmd == VT_VIDEO_SET_DISPLAY_FRAME) {
-		/* no instance or instance has no consumer */
-		if (!instance || !instance->consumer) {
-			vt_debug(VT_DEBUG_CMD, "vt [%d] video cmd %d, no consumer",
+		/* no instance or instance has no consumer and no producer*/
+		if (!instance || (!instance->consumer && !instance->producer)) {
+			vt_debug(VT_DEBUG_CMD, "vt [%d] video cmd %d, no instance or consumer",
 				id, data->video_cmd);
 			mutex_unlock(&dev->instance_lock);
 			return -ENOTCONN;
