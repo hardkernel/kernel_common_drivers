@@ -197,3 +197,11 @@ config AMLOGIC_PREEMPT_RT
 	help
 	  this option is provided for AMLOGIC RT kernel
 
+config AMLOGIC_DEBUG_BGKI_SCHED
+	bool "Amlogic debug sched optimization noGKI"
+	depends on AMLOGIC_DEBUG
+	depends on AMLOGIC_BREAK_GKI
+	default y
+	help
+	  This option supports sched optimization for noGKI
+	  If in doubt, say "Y"

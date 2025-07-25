@@ -1,0 +1,45 @@
+From d7b9e2fef3acd26d706e735b7138f1c59e34e104 Mon Sep 17 00:00:00 2001
+From: Hanjie Lin <hanjie.lin@amlogic.com>
+Date: Fri, 25 Jul 2025 15:42:09 +0800
+Subject: [PATCH] debug: add schedule info in task_struct [1/1]
+
+PD#SWPL-224595
+
+Problem:
+GKI remove android_vendor_data function
+
+Solution:
+for GKI mode use stack save debug schedule info
+for noGKI mode add schedule info in task_struct
+
+Verify:
+s6
+
+Change-Id: Id59a351e3a1194476b677db28938b748a216d695
+Signed-off-by: Hanjie Lin <hanjie.lin@amlogic.com>
+---
+ include/linux/sched.h | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index ea6a653518a5..5b07a9ae1e08 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1633,6 +1633,14 @@ struct task_struct {
+ 	 */
+ 	randomized_struct_fields_end
+ 
++#ifdef CONFIG_AMLOGIC_DEBUG_BGKI_SCHED
++	unsigned long long sched_last_wakeup_time;
++	unsigned long long sched_last_in_cpu_time;
++	unsigned long long sched_last_out_cpu_time;
++	unsigned long long sched_last_sleep_time;
++	unsigned long long sched_last_tick_time;
++#endif
++
+ 	/* CPU-specific state of this task: */
+ 	struct thread_struct		thread;
+ 
+-- 
+2.29.0
+

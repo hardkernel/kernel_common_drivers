@@ -33,11 +33,22 @@
 #include <trace/events/meson_atrace.h>
 #include "lockup.h"
 
-#define SCHED_LAST_WAKEUP_TIME     android_vendor_data1[0]
-#define SCHED_LAST_IN_CPU_TIME     android_vendor_data1[1]
-#define SCHED_LAST_OUT_CUP_TIME    android_vendor_data1[2]
-#define SCHED_LAST_SLEEP_TIME      android_vendor_data1[3]
-#define SCHED_LAST_TICK_TIME       android_vendor_data1[4]
+#ifdef CONFIG_AMLOGIC_DEBUG_BGKI_SCHED
+//for noGKI, use struct task_struct save schedule information
+#define SCHED_LAST_WAKEUP_TIME(p)    p->sched_last_wakeup_time
+#define SCHED_LAST_IN_CPU_TIME(p)    p->sched_last_in_cpu_time
+#define SCHED_LAST_OUT_CPU_TIME(p)   p->sched_last_out_cpu_time
+#define SCHED_LAST_SLEEP_TIME(p)     p->sched_last_sleep_time
+#define SCHED_LAST_TICK_TIME(p)      p->sched_last_tick_time
+#else
+//for GKI both GKI10 and GKI20, use stack save schedule information
+//skip stack[0] because it's used for STACK_END_MAGIC
+#define SCHED_LAST_WAKEUP_TIME(p)    ((unsigned long long *)(p->stack))[1]
+#define SCHED_LAST_IN_CPU_TIME(p)    ((unsigned long long *)(p->stack))[2]
+#define SCHED_LAST_OUT_CPU_TIME(p)   ((unsigned long long *)(p->stack))[3]
+#define SCHED_LAST_SLEEP_TIME(p)     ((unsigned long long *)(p->stack))[4]
+#define SCHED_LAST_TICK_TIME(p)      ((unsigned long long *)(p->stack))[5]
+#endif
 
 #if defined(CONFIG_ANDROID_VENDOR_HOOKS) && defined(CONFIG_FAIR_GROUP_SCHED)
 static int sched_big_weight = 10; // * NICE_0_LOAD
@@ -313,7 +324,7 @@ static int task_interactive_score(struct task_struct *p, unsigned long weight, i
 	prio_score = (sched_task_high_prio - p->prio) * 10;
 
 	if (!ignore_wait) {
-		delta = rq_clock(rq_of(p->se.cfs_rq)) - p->SCHED_LAST_WAKEUP_TIME;
+		delta = rq_clock(rq_of(p->se.cfs_rq)) - SCHED_LAST_WAKEUP_TIME(p);
 		delta = delta >> 20;
 		wait_score = delta * 10; //wait 1ms = 10, 10ms = 100, 20ms = 200;
 
@@ -327,7 +338,7 @@ static int task_interactive_score(struct task_struct *p, unsigned long weight, i
 	if (sched_pick_next_task_debug)
 		aml_trace_printk("interactive_task: %s/%d score:%d/%d,%d,%d,%d, wait:%llu util=%lu\n",
 			     p->comm, p->pid, score, weight_score, prio_score, wait_score, util_score,
-			     p->SCHED_LAST_WAKEUP_TIME, p->se.avg.util_avg);
+			     SCHED_LAST_WAKEUP_TIME(p), p->se.avg.util_avg);
 
 	return score;
 }
@@ -432,11 +443,11 @@ static void __maybe_unused sched_show_task_hook(void *data, struct task_struct *
 		p->se.sum_exec_runtime,
 		p->se.avg.runnable_avg,
 		p->se.avg.util_avg,
-		p->SCHED_LAST_WAKEUP_TIME,
-		p->SCHED_LAST_IN_CPU_TIME,
-		p->SCHED_LAST_OUT_CUP_TIME,
-		p->SCHED_LAST_SLEEP_TIME,
-		p->SCHED_LAST_TICK_TIME,
+		SCHED_LAST_WAKEUP_TIME(p),
+		SCHED_LAST_IN_CPU_TIME(p),
+		SCHED_LAST_OUT_CPU_TIME(p),
+		SCHED_LAST_SLEEP_TIME(p),
+		SCHED_LAST_TICK_TIME(p),
 		p->rcu_read_lock_nesting);
 }
 
@@ -446,21 +457,23 @@ static void sched_switch_hook(void *data, bool mode, struct task_struct *prev,
 	unsigned long long now;
 
 	now = sched_clock();
-	next->SCHED_LAST_IN_CPU_TIME = now; //last in cpu time
-	prev->SCHED_LAST_OUT_CUP_TIME = now; //last off cpu time
+	SCHED_LAST_IN_CPU_TIME(next) = now; //last in cpu time
+	SCHED_LAST_OUT_CPU_TIME(prev) = now; //last off cpu time
 	if (prev->__state & TASK_INTERRUPTIBLE || prev->__state & TASK_UNINTERRUPTIBLE)
-		prev->SCHED_LAST_SLEEP_TIME = now; //last sleep time
+		SCHED_LAST_SLEEP_TIME(prev) = now; //last sleep time
 }
 
 static void enqueue_task_hook(void *data, struct rq *rq, struct task_struct *p, int flags)
 {
 	if (p->__state == TASK_WAKING)
-		p->SCHED_LAST_WAKEUP_TIME = sched_clock(); //last wakeup time
+		SCHED_LAST_WAKEUP_TIME(p) = sched_clock(); //last wakeup time
 }
 
 static void tick_entry_hook(void *data, struct rq *rq)
 {
-	current->SCHED_LAST_TICK_TIME = sched_clock(); //last tick time
+	struct task_struct *p = current;
+
+	SCHED_LAST_TICK_TIME(p) = sched_clock(); //last tick time
 }
 #endif
 
