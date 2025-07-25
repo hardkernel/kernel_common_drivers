@@ -676,6 +676,36 @@ static inline void VSYNC_WRITE_VPP_REG_VPP_SEL(u32 reg,
 	}
 }
 
+static inline void VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(u32 reg,
+				       const u32 value, int vpp_sel)
+{
+	int index;
+	u32 reg1;
+
+	reg1 = offset_addr(reg);
+	index = index_rdma_part_ins(reg1);
+
+	if (vpp_sel == 0xff) {
+		aml_write_vcbus_s(reg1, value);
+	} else if (vpp_sel == 0xfe) {
+		aml_write_vcbus(reg, value);
+	} else if (vpp_sel == 3) {
+		if (pq_rdma_init)
+			PRE_VSYNC_WR_TABLE_REG(index, reg1, value);
+		else
+			PRE_VSYNC_WR_MPEG_REG(reg1, value);
+	} else if (vpp_sel == 2) {
+		VSYNC_WR_MPEG_REG_VPP2(reg1, value);
+	} else if (vpp_sel == 1) {
+		VSYNC_WR_MPEG_REG_VPP1(reg1, value);
+	} else {
+		if (pq_rdma_init)
+			VSYNC_WR_TABLE_REG_SIMPLE(index, reg1, value);
+		else
+			VSYNC_WR_MPEG_REG(reg1, value);
+	}
+}
+
 static inline u32 VSYNC_READ_VPP_REG_VPP_SEL(u32 reg, int vpp_sel)
 {
 	int index;

@@ -1257,54 +1257,54 @@ static int dv_core1_set(u32 dm_count,
 #endif
 		if (is_aml_s5())
 			dma_ctrl = 0x1409;/*bit3=1 disable latch*/
-		VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_CTRL, dma_ctrl);
+		VSYNC_WR_DV_REG_LUT(AMDV_CORE1A_DMA_CTRL, dma_ctrl);
 		if (copy_core1a_to_core1b)
-			VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_CTRL, dma_ctrl);
+			VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_CTRL, dma_ctrl);
 		if (copy_core1a_to_core1c)
-			VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_CTRL, dma_ctrl);
+			VSYNC_WR_DV_REG_LUT(AMDV_CORE1C_DMA_CTRL, dma_ctrl);
 		if (lut_endian) {
 			for (i = 0; i < count; i += 4) {
-				VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1A_DMA_PORT,
 						p_core1_lut[i + 3]);
-				VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1A_DMA_PORT,
 						p_core1_lut[i + 2]);
-				VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1A_DMA_PORT,
 						p_core1_lut[i + 1]);
-				VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1A_DMA_PORT,
 						p_core1_lut[i]);
 				if (copy_core1a_to_core1b) {
-					VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 							p_core1_lut[i + 3]);
-					VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 							p_core1_lut[i + 2]);
-					VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 							p_core1_lut[i + 1]);
-					VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 							p_core1_lut[i]);
 				}
 				if (copy_core1a_to_core1c) {
-					VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1C_DMA_PORT,
 							p_core1_lut[i + 3]);
-					VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1C_DMA_PORT,
 							p_core1_lut[i + 2]);
-					VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1C_DMA_PORT,
 							p_core1_lut[i + 1]);
-					VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1C_DMA_PORT,
 							p_core1_lut[i]);
 				}
 			}
 		} else {
 			for (i = 0; i < count; i++)
-				VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1A_DMA_PORT,
 						p_core1_lut[i]);
 			if (copy_core1a_to_core1b) {
 				for (i = 0; i < count; i++)
-					VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 							p_core1_lut[i]);
 			}
 			if (copy_core1a_to_core1c) {
 				for (i = 0; i < count; i++)
-					VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1C_DMA_PORT,
 							p_core1_lut[i]);
 			}
 		}
@@ -1830,54 +1830,54 @@ static int dv_core1a_set(u32 dm_count,
 	if (is_aml_s5())
 		dma_ctrl = 0x1409;/*s5 latch on by default; disable latch bit3*/
 	if (count && (set_lut || reset)) {
-		VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_CTRL, dma_ctrl);
+		VSYNC_WR_DV_REG_LUT(AMDV_CORE1A_DMA_CTRL, dma_ctrl);
 		if (copy_core1a_to_core1b)
-			VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_CTRL, dma_ctrl);
+			VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_CTRL, dma_ctrl);
 		if (copy_core1a_to_core1c)
-			VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_CTRL, dma_ctrl);
+			VSYNC_WR_DV_REG_LUT(AMDV_CORE1C_DMA_CTRL, dma_ctrl);
 		if (lut_endian) {
 			for (i = 0; i < count; i += 4) {
-				VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1A_DMA_PORT,
 						p_core1_lut[i + 3]);
-				VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1A_DMA_PORT,
 						p_core1_lut[i + 2]);
-				VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1A_DMA_PORT,
 						p_core1_lut[i + 1]);
-				VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1A_DMA_PORT,
 						p_core1_lut[i]);
 				if (copy_core1a_to_core1b) {
-					VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 							p_core1_lut[i + 3]);
-					VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 							p_core1_lut[i + 2]);
-					VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 							p_core1_lut[i + 1]);
-					VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 							p_core1_lut[i]);
 				}
 				if (copy_core1a_to_core1c) {
-					VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1C_DMA_PORT,
 							p_core1_lut[i + 3]);
-					VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1C_DMA_PORT,
 							p_core1_lut[i + 2]);
-					VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1C_DMA_PORT,
 							p_core1_lut[i + 1]);
-					VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1C_DMA_PORT,
 							p_core1_lut[i]);
 				}
 			}
 		} else {
 			for (i = 0; i < count; i++)
-				VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1A_DMA_PORT,
 						p_core1_lut[i]);
 			if (copy_core1a_to_core1b) {
 				for (i = 0; i < count; i++)
-					VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 							p_core1_lut[i]);
 			}
 			if (copy_core1a_to_core1c) {
 				for (i = 0; i < count; i++)
-					VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_PORT,
+					VSYNC_WR_DV_REG_LUT(AMDV_CORE1C_DMA_PORT,
 							p_core1_lut[i]);
 			}
 		}
@@ -2338,21 +2338,21 @@ static int dv_core1b_set(u32 dm_count,
 	if (is_aml_s5())
 		dma_ctrl = 0x1409;/*s5 latch on by default; disable latch bit3*/
 	if (count && (set_lut || reset)) {
-		VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_CTRL, dma_ctrl);
+		VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_CTRL, dma_ctrl);
 		if (lut_endian) {
 			for (i = 0; i < count; i += 4) {
-				VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 					p_core1_lut[i + 3]);
-				VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 					p_core1_lut[i + 2]);
-				VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 					p_core1_lut[i + 1]);
-				VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 					p_core1_lut[i]);
 			}
 		} else {
 			for (i = 0; i < count; i++)
-				VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE1B_DMA_PORT,
 					p_core1_lut[i]);
 		}
 	}
@@ -2654,24 +2654,24 @@ static int dv_core2c_set
 				2, 2, 2);
 #endif
 		if (is_aml_s5())
-			VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_CTRL, 0x1409);/*bit3=1,disable latch*/
+			VSYNC_WR_DV_REG_LUT(AMDV_CORE2C_DMA_CTRL, 0x1409);/*bit3=1,disable latch*/
 		else
-			VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_CTRL, 0x1401);
+			VSYNC_WR_DV_REG_LUT(AMDV_CORE2C_DMA_CTRL, 0x1401);
 
 		if (lut_endian) {
 			for (i = 0; i < count; i += 4) {
-				VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE2C_DMA_PORT,
 					p_core2_lut[i + 3]);
-				VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE2C_DMA_PORT,
 					p_core2_lut[i + 2]);
-				VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE2C_DMA_PORT,
 					p_core2_lut[i + 1]);
-				VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE2C_DMA_PORT,
 					p_core2_lut[i]);
 			}
 		} else {
 			for (i = 0; i < count; i++) {
-				VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE2C_DMA_PORT,
 					p_core2_lut[i]);
 			}
 		}
@@ -2884,24 +2884,24 @@ static int dv_core2a_set
 				2, 2, 2);
 #endif
 		if (is_aml_s5())
-			VSYNC_WR_DV_REG(AMDV_CORE2A_DMA_CTRL, 0x1409);/*bit3=1 disable latch*/
+			VSYNC_WR_DV_REG_LUT(AMDV_CORE2A_DMA_CTRL, 0x1409);/*bit3=1 disable latch*/
 		else
-			VSYNC_WR_DV_REG(AMDV_CORE2A_DMA_CTRL, 0x1401);
+			VSYNC_WR_DV_REG_LUT(AMDV_CORE2A_DMA_CTRL, 0x1401);
 
 		if (lut_endian) {
 			for (i = 0; i < count; i += 4) {
-				VSYNC_WR_DV_REG(AMDV_CORE2A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE2A_DMA_PORT,
 					p_core2_lut[i + 3]);
-				VSYNC_WR_DV_REG(AMDV_CORE2A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE2A_DMA_PORT,
 					p_core2_lut[i + 2]);
-				VSYNC_WR_DV_REG(AMDV_CORE2A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE2A_DMA_PORT,
 					p_core2_lut[i + 1]);
-				VSYNC_WR_DV_REG(AMDV_CORE2A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE2A_DMA_PORT,
 					p_core2_lut[i]);
 			}
 		} else {
 			for (i = 0; i < count; i++) {
-				VSYNC_WR_DV_REG(AMDV_CORE2A_DMA_PORT,
+				VSYNC_WR_DV_REG_LUT(AMDV_CORE2A_DMA_PORT,
 					p_core2_lut[i]);
 			}
 		}

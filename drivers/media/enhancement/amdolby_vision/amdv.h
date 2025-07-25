@@ -1265,6 +1265,7 @@ bool is_aml_s6(void);
 
 u32 VSYNC_RD_DV_REG(u32 adr);
 int VSYNC_WR_DV_REG(u32 adr, u32 val);
+int VSYNC_WR_DV_REG_LUT(u32 adr, u32 val);
 int VSYNC_WR_DV_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 u32 READ_VPP_DV_REG(u32 adr);
 int WRITE_VPP_DV_REG(u32 adr, const u32 val);

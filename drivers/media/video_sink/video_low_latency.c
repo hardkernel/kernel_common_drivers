@@ -2219,7 +2219,7 @@ void video_lowlatency_init(struct platform_device *pdev)
 {
 	int err, ret;
 	int video_line_n_int = -ENXIO;
-	struct sched_param param = {.sched_priority = 2};
+	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
 	const void *prop;
 	int low_latency_en = 0;
 

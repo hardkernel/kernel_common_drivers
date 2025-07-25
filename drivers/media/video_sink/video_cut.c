@@ -778,7 +778,7 @@ static int threadfunc(void *data)
 static void video_start_monitor(void)
 {
 	int err;
-	struct sched_param param = {.sched_priority = 2};
+	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
 
 	if (!lowlatency_enable)
 		return;

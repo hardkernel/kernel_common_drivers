@@ -2417,9 +2417,9 @@ void set_eotf_lut(enum hdr_module_sel module_sel,
 	if (!hdr_lut_param->lut_on)
 		return;
 
-	VSYNC_WRITE_VPP_REG_VPP_SEL(eotf_lut_addr_port, 0x0, vpp_sel);
+	VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(eotf_lut_addr_port, 0x0, vpp_sel);
 	for (i = 0; i < HDR2_EOTF_LUT_SIZE; i++)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(eotf_lut_data_port, lut[i], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(eotf_lut_data_port, lut[i], vpp_sel);
 }
 
 void set_ootf_lut(enum hdr_module_sel module_sel,
@@ -2503,12 +2503,12 @@ void set_ootf_lut(enum hdr_module_sel module_sel,
 	if (!hdr_lut_param->lut_on)
 		return;
 
-	VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut_addr_port, 0x0, vpp_sel);
+	VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(ootf_lut_addr_port, 0x0, vpp_sel);
 	for (i = 0; i < HDR2_OOTF_LUT_SIZE / 2; i++)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut_data_port,
+		VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(ootf_lut_data_port,
 			(lut[i * 2 + 1] << 16) +
 			lut[i * 2], vpp_sel);
-	VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut_data_port, lut[148], vpp_sel);
+	VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(ootf_lut_data_port, lut[148], vpp_sel);
 }
 
 void set_oetf_lut(enum hdr_module_sel module_sel,
@@ -2592,21 +2592,21 @@ void set_oetf_lut(enum hdr_module_sel module_sel,
 	if (!hdr_lut_param->lut_on)
 		return;
 
-	VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_addr_port, 0x0, vpp_sel);
+	VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(oetf_lut_addr_port, 0x0, vpp_sel);
 	for (i = 0; i < HDR2_OETF_LUT_SIZE / 2; i++) {
 		if (hdr_lut_param->bitdepth == 10)
-			VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_data_port,
+			VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(oetf_lut_data_port,
 				((lut[i * 2 + 1] >> 2) << 16) +
 				(lut[i * 2] >> 2), vpp_sel);
 		else
-			VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_data_port,
+			VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(oetf_lut_data_port,
 				(lut[i * 2 + 1] << 16) +
 				lut[i * 2], vpp_sel);
 	}
 	if (hdr_lut_param->bitdepth == 10)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_data_port, lut[148] >> 2, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(oetf_lut_data_port, lut[148] >> 2, vpp_sel);
 	else
-		VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_data_port, lut[148], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(oetf_lut_data_port, lut[148], vpp_sel);
 }
 
 void set_c_gain(enum hdr_module_sel module_sel,
@@ -2719,11 +2719,11 @@ void set_c_gain(enum hdr_module_sel module_sel,
 	if (!hdr_lut_param->cgain_en)
 		return;
 
-	VSYNC_WRITE_VPP_REG_VPP_SEL(cgain_lut_addr_port, 0x0, vpp_sel);
+	VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(cgain_lut_addr_port, 0x0, vpp_sel);
 	for (i = 0; i < HDR2_CGAIN_LUT_SIZE / 2; i++)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(cgain_lut_data_port,
+		VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(cgain_lut_data_port,
 			(lut[i * 2 + 1] << 16) + lut[i * 2], vpp_sel);
-	VSYNC_WRITE_VPP_REG_VPP_SEL(cgain_lut_data_port, lut[64], vpp_sel);
+	VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(cgain_lut_data_port, lut[64], vpp_sel);
 }
 
 void set_ootf_lut_1(enum hdr_module_sel module_sel,
@@ -2822,12 +2822,12 @@ void set_ootf_lut_1(enum hdr_module_sel module_sel,
 	if (!hdr_lut_param->lut_on)
 		return;
 
-	VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut_addr_port, 0x0, vpp_sel);
+	VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(ootf_lut_addr_port, 0x0, vpp_sel);
 	for (i = 0; i < HDR2_OOTF_LUT_SIZE / 2; i++)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut_data_port,
+		VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(ootf_lut_data_port,
 			(lut[i * 2 + 1] << 16) +
 			lut[i * 2], vpp_sel);
-	VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut_data_port, lut[148], vpp_sel);
+	VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(ootf_lut_data_port, lut[148], vpp_sel);
 
 	if (module_sel == VD1_HDR ||
 		module_sel == VD2_HDR ||
@@ -2838,12 +2838,12 @@ void set_ootf_lut_1(enum hdr_module_sel module_sel,
 			lut1_param->reg_ogain_blend, 17, 1, vpp_sel);
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_adps_ctrl,
 			lut1_param->reg_adpscl1_sft, 20, 4, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut1_addr_port, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(ootf_lut1_addr_port, 0x0, vpp_sel);
 		for (i = 0; i < HDR2_OOTF_LUT_SIZE / 2; i++)
-			VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut1_data_port,
+			VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(ootf_lut1_data_port,
 				(lut1[i * 2 + 1] << 16) +
 				lut1[i * 2], vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut1_data_port, lut1[148], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(ootf_lut1_data_port, lut1[148], vpp_sel);
 	}
 }
 

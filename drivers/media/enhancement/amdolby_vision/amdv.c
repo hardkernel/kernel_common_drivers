@@ -1374,7 +1374,7 @@ int VSYNC_WR_DV_REG(u32 adr, u32 val)
 	/*new rdma api is prior to old api*/
 	if (vpp_vsync_id == 0) {
 		if (table_index >= 0)
-			VSYNC_WR_TABLE_REG_SIMPLE(table_index, adr, val);
+			VSYNC_WR_TABLE_REG(table_index, adr, val);
 		else
 			VSYNC_WR_MPEG_REG(adr, val);
 	} else if (vpp_vsync_id == 1) {
@@ -1395,6 +1395,47 @@ int VSYNC_WR_DV_REG(u32 adr, u32 val)
 				(end.tv_usec - begin.tv_usec);
 		//if (time_use > 10)
 			pr_info("[0x%04x]WR write time: %5ld us\n", adr, time_use);
+	}
+	return 0;
+}
+
+int VSYNC_WR_DV_REG_LUT(u32 adr, u32 val)
+{
+	int table_index = -1;
+	unsigned long time_use = 0;
+	struct timeval begin;
+	struct timeval end;
+
+	adr = addr_map(adr);
+	table_index = map_reg_to_rdma_table_index(adr);
+
+	if (debug_dolby & 0x400)
+		do_gettimeofday(&begin);
+
+	/*new rdma api is prior to old api*/
+	if (vpp_vsync_id == 0) {
+		if (table_index >= 0)
+			VSYNC_WR_TABLE_REG_SIMPLE(table_index, adr, val);
+		else
+			VSYNC_WR_MPEG_REG(adr, val);
+	} else if (vpp_vsync_id == 1) {
+		VSYNC_WR_MPEG_REG_VPP1(adr, val);
+	} else if (vpp_vsync_id == 2) {
+		VSYNC_WR_MPEG_REG_VPP2(adr, val);
+	} else if (vpp_vsync_id == 3) {
+		if (table_index >= 0)
+			PRE_VSYNC_WR_TABLE_REG(table_index, adr, val);
+		else
+			PRE_VSYNC_WR_MPEG_REG(adr, val);
+	} else {
+		pr_dv_error("error vpp_vsync_id %d\n", vpp_vsync_id);
+	}
+	if (debug_dolby & 0x400) {
+		do_gettimeofday(&end);
+		time_use = (end.tv_sec - begin.tv_sec) * 1000000 +
+				(end.tv_usec - begin.tv_usec);
+		//if (time_use > 10)
+		pr_info("[0x%04x]WR write time: %5ld us\n", adr, time_use);
 	}
 	return 0;
 }
