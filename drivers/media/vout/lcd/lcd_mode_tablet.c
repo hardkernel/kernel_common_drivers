@@ -421,7 +421,7 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 	if (!pdrv->curr_dev->dev_cfg.timing.base_timing)
 		return;
 	/* clear clk_change flag */
-	pdrv->curr_dev->dev_cfg.timing.clk_change &= ~(LCD_CLK_PLL_CHANGE);
+	pdrv->curr_dev->dev_cfg.timing.clk_change &= ~(LCD_CLK_PLL_RESET);
 	if (pdrv->vmode_mgr.next_vmode_info) {
 		pre_pclk = pdrv->curr_dev->dev_cfg.timing.base_timing->pixel_clk;
 		pdrv->vmode_mgr.cur_vmode_info = pdrv->vmode_mgr.next_vmode_info;
@@ -434,7 +434,8 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 		//update base_timing to act_timing
 		lcd_base_to_enc_timing_init_config(pdrv);
 		if (pdrv->curr_dev->dev_cfg.timing.base_timing->pixel_clk != pre_pclk) {
-			pdrv->curr_dev->dev_cfg.timing.clk_change |= LCD_CLK_PLL_CHANGE;
+			pdrv->curr_dev->dev_cfg.timing.clk_change |=
+				(LCD_CLK_PLL_RESET | LCD_CLK_PLL_CHANGE);
 			lcd_clk_generate_parameter(pdrv);
 		}
 
