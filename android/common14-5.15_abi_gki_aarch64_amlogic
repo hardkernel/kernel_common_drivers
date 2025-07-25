@@ -134,6 +134,9 @@
   snd_timer_start
   snd_timer_stop
 
+# amlogic-maxio.ko
+  genphy_read_lpa
+
 # amlogic-input.ko
   sysfs_emit_at
   strreplace
