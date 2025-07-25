@@ -228,6 +228,9 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 	amlatvdemod_devp->std = 0;
 	amlatvdemod_devp->audmode = 0;
 	amlatvdemod_devp->sound_mode = 0xFF;
+	priv->atvdemod_sound.soundsys = 0xFF;
+	priv->atvdemod_sound.input_mode = 0xFF;
+	priv->atvdemod_sound.output_mode = 0xFF;
 
 	pr_info("%s:OK\n", __func__);
 
@@ -273,6 +276,9 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 	amlatvdemod_devp->std = 0;
 	amlatvdemod_devp->audmode = 0;
 	amlatvdemod_devp->sound_mode = 0xFF;
+	priv->atvdemod_sound.soundsys = 0xFF;
+	priv->atvdemod_sound.input_mode = 0xFF;
+	priv->atvdemod_sound.output_mode = 0xFF;
 
 	atvdemod_power_switch(false);
 
@@ -358,7 +364,8 @@ static int atv_demod_has_signal(struct dvb_frontend *fe, u16 *signal)
 
 	*signal = V4L2_TIMEDOUT;
 
-	if (!priv || priv->state != ATVDEMOD_STATE_WORK) {
+	if (!priv || priv->state != ATVDEMOD_STATE_WORK ||
+		!atv_demod_get_adc_status()) {
 		mutex_unlock(&atv_demod_list_mutex);
 
 		return -EPERM;
@@ -371,7 +378,7 @@ static int atv_demod_has_signal(struct dvb_frontend *fe, u16 *signal)
 
 	if (vpll_lock == 0 && line_lock == 0) {
 		*signal = V4L2_HAS_LOCK;
-		pr_info("%s locked [vpll:0x%x line:0x%x]\n",
+		pr_dbg("%s locked [vpll:0x%x line:0x%x]\n",
 				__func__, vpll_lock, line_lock);
 	} else {
 		*signal = V4L2_TIMEDOUT;
@@ -413,7 +420,8 @@ static int atv_demod_get_afc(struct dvb_frontend *fe, s32 *afc)
 
 	*afc = 0;
 
-	if (!priv || priv->state != ATVDEMOD_STATE_WORK) {
+	if (!priv || priv->state != ATVDEMOD_STATE_WORK ||
+		!atv_demod_get_adc_status()) {
 		mutex_unlock(&atv_demod_list_mutex);
 
 		return -EPERM;
@@ -1094,7 +1102,7 @@ static int atvdemod_fe_set_property(struct v4l2_frontend *v4l2_fe,
 	struct atv_demod_priv *priv = fe->analog_demod_priv;
 	struct v4l2_analog_parameters *params = &v4l2_fe->params;
 
-	pr_dbg("%s:cmd 0x%x\n", __func__, tvp->cmd);
+	pr_dbg("%s:cmd 0x%x, data 0x%x\n", __func__, tvp->cmd, tvp->data);
 
 	switch (tvp->cmd) {
 	case V4L2_SOUND_SYS:
@@ -1129,8 +1137,6 @@ static int atvdemod_fe_set_property(struct v4l2_frontend *v4l2_fe,
 static int atvdemod_fe_get_property(struct v4l2_frontend *v4l2_fe,
 		struct v4l2_property *tvp)
 {
-	pr_dbg("%s:cmd 0x%x\n", __func__, tvp->cmd);
-
 	switch (tvp->cmd) {
 	case V4L2_SOUND_SYS:
 		tvp->data = ((aud_std & 0xFF) << 16)
@@ -1150,6 +1156,8 @@ static int atvdemod_fe_get_property(struct v4l2_frontend *v4l2_fe,
 		break;
 	}
 
+	pr_dbg("%s:cmd 0x%x, data 0x%x\n", __func__, tvp->cmd, tvp->data);
+
 	return 0;
 }
 
@@ -1168,23 +1176,53 @@ static int atvdemod_fe_get_frontend(struct v4l2_frontend *v4l2_fe,
 	p->afc_range = v4l2_fe->params.afc_range;
 	p->reserved = v4l2_fe->params.reserved;
 
-	pr_dbg("%s:frequency %d\n", __func__, p->frequency);
+	pr_dbg("%s:frequency %d, std 0x%llx\n", __func__, p->frequency, p->std);
 
 	return 0;
 }
 
-static int atvdemod_fe_tune(struct v4l2_frontend *v4l2_fe,
-		struct v4l2_tune_status *status)
+static int atvdemod_fe_tune(struct v4l2_frontend *v4l2_fe, bool re_tune,
+		struct v4l2_tune_status *status, unsigned int *delay,
+		enum v4l2_status *fe_status)
 {
 	bool lock = false;
 	int priv_cfg = 0;
 	int try_cnt = 4;
-	int auto_search_std = 0;
+	int auto_search_std = 0, audio_mode = 0;
 	enum v4l2_status state = V4L2_TIMEDOUT;
 	struct v4l2_analog_parameters *p = &v4l2_fe->params;
 	struct dvb_frontend *fe = &v4l2_fe->fe;
-	//struct atv_demod_priv *priv = fe->analog_demod_priv;
+	struct atv_demod_priv *priv = fe->analog_demod_priv;
 	//unsigned int tuner_id = priv->atvdemod_param.tuner_id;
+
+	if (!re_tune && fe_status) {
+		if (fe->ops.analog_ops.has_signal)
+			fe->ops.analog_ops.has_signal(fe, (u16 *)&state);
+
+		if (state == V4L2_HAS_LOCK) {
+			*fe_status = V4L2_HAS_LOCK;
+
+			audio_mode = get_audio_signal_input_mode();
+			if (priv->atvdemod_sound.input_mode != audio_mode) {
+				priv->atvdemod_sound.input_mode = audio_mode;
+
+				v4l2_fe->params.soundsys = (get_audio_std_mode() & 0xFF) << 16;
+				v4l2_fe->params.soundsys |= (audio_mode & 0xFF) << 8;
+				v4l2_fe->params.soundsys |= (get_audio_out_mode() & 0xFF);
+
+				*fe_status |= V4L2_MTS_CHANGE;
+
+				pr_dbg("audio_mode %d, soundsys 0x%x\n",
+						audio_mode, v4l2_fe->params.soundsys);
+			}
+		} else {
+			*fe_status = V4L2_TIMEDOUT;
+		}
+
+		*delay = 2 * HZ;
+
+		return 0;
+	}
 
 	/* for scan tune */
 	if (p->flag & ANALOG_FLAG_ENABLE_AFC) {
@@ -1304,7 +1342,7 @@ static int atvdemod_fe_detect(struct v4l2_frontend *v4l2_fe)
 	return 0;
 }
 
-static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
+static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe, bool re_tune)
 {
 	struct analog_parameters *param;
 	struct dvb_frontend *fe = &v4l2_fe->fe;

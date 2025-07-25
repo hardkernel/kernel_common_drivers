@@ -43,8 +43,7 @@ static int v4l2_frontend_get_event(struct v4l2_frontend *v4l2_fe,
 {
 	struct v4l2_frontend_private *fepriv = v4l2_fe->frontend_priv;
 	struct v4l2_fe_events *events = &fepriv->events;
-
-	pr_dbg("%s\n", __func__);
+	int ret = 0;
 
 	if (events->overflow) {
 		events->overflow = 0;
@@ -52,8 +51,6 @@ static int v4l2_frontend_get_event(struct v4l2_frontend *v4l2_fe,
 	}
 
 	if (events->eventw == events->eventr) {
-		int ret;
-
 		if (flags & O_NONBLOCK)
 			return -EWOULDBLOCK;
 
@@ -66,7 +63,7 @@ static int v4l2_frontend_get_event(struct v4l2_frontend *v4l2_fe,
 			return -ERESTARTSYS;
 
 		if (ret < 0) {
-			pr_err("ret %d\n", ret);
+			pr_err("%s ret %d\n", __func__, ret);
 			return ret;
 		}
 	}
@@ -75,6 +72,8 @@ static int v4l2_frontend_get_event(struct v4l2_frontend *v4l2_fe,
 	*event = events->events[events->eventr];
 	events->eventr = (events->eventr + 1) % MAX_EVENT;
 	mutex_unlock(&events->mtx);
+
+	pr_dbg("%s 0x%x\n", __func__, event->status);
 
 	return 0;
 }
@@ -85,9 +84,9 @@ static void v4l2_frontend_add_event(struct v4l2_frontend *v4l2_fe,
 	struct v4l2_frontend_private *fepriv = v4l2_fe->frontend_priv;
 	struct v4l2_fe_events *events = &fepriv->events;
 	struct v4l2_frontend_event *e = NULL;
-	int wp;
+	int wp = 0;
 
-	pr_dbg("%s\n", __func__);
+	pr_dbg("%s 0x%x\n", __func__, status);
 
 	if (v4l2_frontend_check_mode(v4l2_fe, __func__))
 		return;
@@ -165,8 +164,11 @@ static int v4l2_frontend_thread(void *data)
 {
 	struct v4l2_frontend *v4l2_fe = (struct v4l2_frontend *) data;
 	struct v4l2_frontend_private *fepriv = v4l2_fe->frontend_priv;
-	enum v4l2_status s = V4L2_TIMEDOUT;
+	enum v4l2_status s = V4L2_NONE;
 	unsigned long timeout = 0;
+	struct v4l2_tune_status status;
+	bool re_tune = false;
+	int ret = 0;
 
 	pr_dbg("%s\n", __func__);
 
@@ -200,8 +202,12 @@ restart:
 		if (fepriv->state & V4L2FE_STATE_RETUNE) {
 			pr_dbg("%s:Retune requested, V4L2FE_STATE_RETUNE\n",
 					__func__);
+			re_tune = true;
 			fepriv->state = V4L2FE_STATE_TUNED;
+		} else {
+			re_tune = false;
 		}
+
 		/* Case where we are going to search for a carrier
 		 * User asked us to retune again
 		 * for some reason, possibly
@@ -211,7 +217,7 @@ restart:
 			&& !(fepriv->state & V4L2FE_STATE_IDLE)) {
 			if (v4l2_fe->ops.search) {
 				fepriv->algo_status =
-						v4l2_fe->ops.search(v4l2_fe);
+						v4l2_fe->ops.search(v4l2_fe, re_tune);
 			/* We did do a search as was requested,
 			 * the flags are now unset as well and has
 			 * the flags wrt to search.
@@ -219,16 +225,24 @@ restart:
 			} else {
 				fepriv->algo_status &= ~V4L2_SEARCH_AGAIN;
 			}
-		}
-		/* Track the carrier if the search was successful */
-		if (fepriv->algo_status == V4L2_SEARCH_SUCCESS) {
-			s = V4L2_HAS_LOCK;
-		} else {
-			/*dev->algo_status |= AML_ATVDEMOD_ALGO_SEARCH_AGAIN;*/
-			if (fepriv->algo_status != V4L2_SEARCH_INVALID) {
-				fepriv->delay = HZ / 2;
-				s = V4L2_TIMEDOUT;
+
+			/* Track the carrier if the search was successful */
+			if (fepriv->algo_status == V4L2_SEARCH_SUCCESS) {
+				s = V4L2_HAS_LOCK;
+			} else {
+				/*dev->algo_status |= AML_ATVDEMOD_ALGO_SEARCH_AGAIN;*/
+				if (fepriv->algo_status != V4L2_SEARCH_INVALID) {
+					fepriv->delay = HZ / 2;
+					s = V4L2_TIMEDOUT;
+				}
 			}
+		} else if (!(fepriv->state & V4L2FE_STATE_IDLE)) {
+			if (v4l2_fe->ops.tune)
+				ret = v4l2_fe->ops.tune(v4l2_fe, re_tune,
+						&status, &fepriv->delay, &s);
+
+			if (!ret)
+				fepriv->algo_status = V4L2_SEARCH_ASLEEP;
 		}
 
 		if (s != fepriv->status) {
@@ -239,7 +253,10 @@ restart:
 				fepriv->delay = HZ / 10;
 				fepriv->algo_status |= V4L2_SEARCH_AGAIN;
 			} else {
-				fepriv->delay = 60 * HZ;
+				if (fepriv->algo_status & V4L2_SEARCH_ASLEEP)
+					fepriv->delay = 2 * HZ;
+				else
+					fepriv->delay = 60 * HZ;
 			}
 		}
 	}
@@ -424,6 +441,13 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 			v4l2_fe->ops.set_property(v4l2_fe, &tvp);
 
 		fe->ops.analog_ops.set_params(fe, &p);
+
+		fepriv->state = V4L2FE_STATE_TUNED;
+
+		v4l2_frontend_clear_events(v4l2_fe);
+		v4l2_frontend_wakeup(v4l2_fe);
+
+		fepriv->status = 0;
 	}
 
 	return 0;
@@ -494,12 +518,14 @@ static int v4l2_frontend_detect_tune(struct v4l2_frontend *v4l2_fe,
 		struct v4l2_tune_status *status)
 {
 	int ret = 0;
+	enum v4l2_status fe_status = 0;
+	unsigned int delay = 0;
 
 	if (!status)
 		return -1;
 
 	if (v4l2_fe->ops.tune)
-		ret = v4l2_fe->ops.tune(v4l2_fe, status);
+		ret = v4l2_fe->ops.tune(v4l2_fe, true, status, &delay, &fe_status);
 
 	return ret;
 }

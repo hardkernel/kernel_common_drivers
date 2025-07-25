@@ -129,15 +129,16 @@ struct v4l2_tune_status {
 };
 
 enum v4l2_status {
+	V4L2_NONE        = 0x00, /* doesn't have any kind of lock, the initial status. */
 	V4L2_HAS_SIGNAL  = 0x01, /* found something above the noise level */
-	V4L2_HAS_CARRIER = 0x02, /* found a DVB signal */
+	V4L2_HAS_CARRIER = 0x02, /* found a signal */
 	V4L2_HAS_VITERBI = 0x04, /* FEC is stable  */
 	V4L2_HAS_SYNC    = 0x08, /* found sync bytes  */
 	V4L2_HAS_LOCK    = 0x10, /* everything's working... */
 	V4L2_TIMEDOUT    = 0x20, /* no lock within the last ~2 seconds */
 	V4L2_REINIT      = 0x40, /* frontend was reinitialized, */
-};				/* application is recommended to reset */
-				/* DiSEqC, tone and parameters */
+	V4L2_MTS_CHANGE  = 0x80, /* BTSC/A2/NICAM input change, */
+};
 
 struct v4l2_property {
 	unsigned int cmd;
@@ -215,8 +216,10 @@ struct v4l2_frontend_ops {
 			struct v4l2_analog_parameters *p);
 
 	/* for signal one shot search, return lock status and afc value */
-	int (*tune)(struct v4l2_frontend *v4l2_fe,
-			struct v4l2_tune_status *status);
+	int (*tune)(struct v4l2_frontend *v4l2_fe, bool re_tune,
+			struct v4l2_tune_status *status,
+			unsigned int *delay,
+			enum v4l2_status *fe_status);
 
 	/* for auto standard detection */
 	int (*detect)(struct v4l2_frontend *v4l2_fe);
@@ -225,7 +228,7 @@ struct v4l2_frontend_ops {
 	 * These callbacks are for devices that implement their own
 	 * tuning algorithms, rather than a simple tune.
 	 */
-	enum v4l2_search (*search)(struct v4l2_frontend *v4l2_fe);
+	enum v4l2_search (*search)(struct v4l2_frontend *v4l2_fe, bool re_tune);
 };
 
 struct v4l2_frontend {

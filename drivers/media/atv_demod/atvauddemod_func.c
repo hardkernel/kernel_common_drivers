@@ -1162,6 +1162,16 @@ int get_audio_signal_input_mode(void)
 	return signal_audmode;
 }
 
+int get_audio_std_mode(void)
+{
+	return aud_std;
+}
+
+int get_audio_out_mode(void)
+{
+	return aud_mode;
+}
+
 void update_nicam_mode(int *nicam_flag, int *nicam_mono_flag,
 		int *nicam_stereo_flag, int *nicam_dual_flag)
 {

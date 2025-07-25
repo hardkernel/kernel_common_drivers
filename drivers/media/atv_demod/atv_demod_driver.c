@@ -81,7 +81,8 @@
 /* 2024/12/27 --- V4.04 --- add vfmt_cnt config to fix cvbs detect. */
 /* 2025/07/04 --- V4.05 --- fix coverity issues */
 /* 2025/04/21 --- V4.06 --- fix IO V4L2_READ_STATUS call and sync. */
-#define AMLATVDEMOD_VER "V4.06"
+/* 2025/08/01 --- V4.07 --- add event for mts input change */
+#define AMLATVDEMOD_VER "V4.07"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -448,7 +449,7 @@ static ssize_t atvdemod_debug_show(const struct class *class,
 			p->afc_range);
 	len += sprintf(buff + len, "frequency:%dHz\n",
 			p->frequency);
-	len += sprintf(buff + len, "soundsys:%d\n",
+	len += sprintf(buff + len, "soundsys:0x%x\n",
 			p->soundsys);
 	len += sprintf(buff + len, "std:0x%x(%s, %s)\n",
 			(unsigned int) dev->std,
@@ -456,9 +457,13 @@ static ssize_t atvdemod_debug_show(const struct class *class,
 			v4l2_std_to_str((0xffffff & dev->std)));
 	len += sprintf(buff + len, "audmode:0x%x(%s)\n",
 			dev->audmode, v4l2_std_to_str(0xffffff & dev->audmode));
+	len += sprintf(buff + len, "aud_std:0x%x, signal_audmode:%d, aud_mode:%d\n",
+			get_audio_std_mode(),
+			get_audio_signal_input_mode(),
+			get_audio_out_mode());
 	len += sprintf(buff + len, "flag:%d\n", p->flag);
-	len += sprintf(buff + len, "tuner_id:%d\n",
-			dev->tuner_id);
+	len += sprintf(buff + len, "tuner_id:%d, atvdemod_agc_new:%d\n",
+			dev->tuner_id, atvdemod_agc_new);
 	len += sprintf(buff + len, "if_freq:%d\n",
 			dev->if_freq);
 	len += sprintf(buff + len, "if_inv:%d\n",
