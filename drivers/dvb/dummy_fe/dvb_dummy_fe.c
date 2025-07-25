@@ -17,6 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
+#include <linux/kdev_t.h>
 
 #include <linux/amlogic/aml_demod_common.h>
 #include "dummy_fe_wrapper.h"
@@ -241,7 +242,16 @@ static struct device *dummy_device;
 static struct cdev dummy_cdev;
 static int __init dummy_fe_wrapper_init(void)
 {
-	major_number = register_chrdev(0, DEVICE_NAME, &fops);
+	dev_t dev = 0;
+	int ret;
+
+	// alloc dev. replace register_chrdev.
+	ret = alloc_chrdev_region(&dev, 0, 1, DEVICE_NAME);
+	if (ret < 0) {
+		fe_err("dummy-fe: device alloc fail.\n");
+		return ret;
+	}
+	major_number = MAJOR(dev);
 	if (major_number < 0) {
 		fe_err("dummy-fe: Failed to register a major number\n");
 		return major_number;
@@ -249,35 +259,40 @@ static int __init dummy_fe_wrapper_init(void)
 	fe_debug("dummy-fe: Registered correctly with major number %d\n",
 		major_number);
 
+	// init cdev
+	cdev_init(&dummy_cdev, &fops);
+	dummy_cdev.owner = THIS_MODULE;
+
+	// add cdev
+	ret = cdev_add(&dummy_cdev, dev, 1);
+	if (ret < 0) {
+		fe_err("dummy-fe: add cdev fail.\n");
+		unregister_chrdev_region(dev, 1);
+		return ret;
+	}
+
+	// create class
 	dummy_class = class_create(CLASS_NAME);
 	if (IS_ERR(dummy_class)) {
-		unregister_chrdev(major_number, DEVICE_NAME);
-		fe_err("dummy-fe: Failed to register device class\n");
+		fe_err("dummy-fe: class creat failed.\n");
+		cdev_del(&dummy_cdev);
+		unregister_chrdev_region(dev, 1);
 		return PTR_ERR(dummy_class);
 	}
 
 	fe_debug("dummy-fe: Device class registered correctly\n");
 
-	dummy_device = device_create(dummy_class, NULL,
-					MKDEV(major_number, 0),
-					NULL, DEVICE_NAME);
+	//device create
+	dummy_device = device_create(dummy_class, NULL, dev, NULL, DEVICE_NAME);
 	if (IS_ERR(dummy_device)) {
-		class_destroy(dummy_class);
-		unregister_chrdev(major_number, DEVICE_NAME);
 		fe_err("dummy-fe: Failed to create the device\n");
+		class_destroy(dummy_class);
+		cdev_del(&dummy_cdev);
+		unregister_chrdev_region(dev, 1);
 		return PTR_ERR(dummy_device);
 	}
 
 	fe_debug("dummy-fe: Device created\n");
-
-	cdev_init(&dummy_cdev, &fops);
-	if (cdev_add(&dummy_cdev, MKDEV(major_number, 0), 1) < 0) {
-		device_destroy(dummy_class, MKDEV(major_number, 0));
-		class_destroy(dummy_class);
-		unregister_chrdev(major_number, DEVICE_NAME);
-		fe_err("dummy-fe: Failed to add cdev\n");
-		return -1;
-	}
 
 	demod_attach_register_cb(AM_DTV_DEMOD_DUMMY, dvb_dummy_fe_attach);
 	fe_debug("dummy-fe: register demod attach cb\n");
@@ -287,10 +302,16 @@ static int __init dummy_fe_wrapper_init(void)
 
 static void __exit dummy_fe_wrapper_exit(void)
 {
+	if (dummy_device)
+		device_destroy(dummy_class, MKDEV(major_number, 0));
+
+	if (dummy_class)
+		class_destroy(dummy_class);
+
 	cdev_del(&dummy_cdev);
-	device_destroy(dummy_class, MKDEV(major_number, 0));
-	class_destroy(dummy_class);
-	unregister_chrdev(major_number, DEVICE_NAME);
+
+	unregister_chrdev_region(MKDEV(major_number, 0), 1);
+
 	fe_debug("Goodbye from the LKM!\n");
 }
 
@@ -298,7 +319,16 @@ static int dvb_dummy_fe_read_status(struct dvb_frontend *fe,
 				    enum fe_status *status)
 {
 	struct dummy_fe_ctx_t *ctx = fe->demodulator_priv;
+	int i = 0;
 
+	for (i = 0; i < 3; i++) {
+		if (ctx->state == DUMMY_FE_LOCK) {
+			fe_debug("tuner is locking. wait for 50ms!");
+			msleep(50);
+		} else {
+			break;
+		}
+	}
 	if (ctx->state == DUMMY_FE_LOCKED)
 		ctx->status = FE_HAS_LOCK;
 	else
