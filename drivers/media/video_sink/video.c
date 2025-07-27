@@ -111,7 +111,9 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include <linux/amlogic/media/amprime_sl/prime_sl.h>
 #endif
 #include <linux/amlogic/media/video_processor/video_pp_common.h>
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 #include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
+#endif
 
 #include <linux/math64.h>
 #include "video_receiver.h"
@@ -4334,7 +4336,7 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	u64 ext_delay = 0;
 	u32 vdin_buf_count = 0;
 	u32 dv_flag = 0;
-	bool di_backend_en = false;
+	int di_backend_en = 0;
 	int display_path_count = DIS_PATH_DELAY_COUNT;
 	u32 sync_count_pre = 0;
 
@@ -4365,7 +4367,9 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 	vdin_keep_count += get_vdin_add_delay_num();
 #endif
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 	di_backend_en = get_di_proc_enable();
+#endif
 	if (di_backend_en) {
 		vdin_keep_count += 1;
 		di_keep_count = 0;
@@ -4474,7 +4478,7 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 	int vdin_keep_count = VDIN_KEEP_COUNT;
 	u64 ext_delay = 0;
 	u32 vdin_buf_count = 0;
-	bool di_backend_en = false;
+	int di_backend_en = 0;
 	int display_path_count = DIS_PATH_DELAY_COUNT;
 	u32 sync_count_pre = 0;
 
@@ -4495,7 +4499,9 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 	vdin_keep_count += get_vdin_add_delay_num();
 #endif
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 	di_backend_en = get_di_proc_enable();
+#endif
 	if (di_backend_en) {
 		vdin_keep_count += 1;
 		di_keep_count = 0;

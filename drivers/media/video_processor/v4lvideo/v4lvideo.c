@@ -43,8 +43,9 @@
 #include "../../common/vfm/vfm.h"
 #include <linux/amlogic/media/utils/am_com.h>
 #include <linux/amlogic/media/di/di_interface.h>
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 #include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
-
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
@@ -1775,7 +1776,9 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	v4l2q_init(&dev->input_queue, V4LVIDEO_POOL_SIZE,
 		   (void **)&dev->v4lvideo_input_queue[0]);
 	mutex_unlock(&dev->mutex_input);
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 	buf_mgr_reset(dev->dp_buf_mgr);
+#endif
 	return 0;
 }
 
@@ -1833,11 +1836,13 @@ static int vidioc_open(struct file *file)
 	mutex_lock(&dev->mutex_opened);
 	dev->opened = true;
 	mutex_unlock(&dev->mutex_opened);
-
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 	dev->dp_buf_mgr = buf_mgr_creat(DEC_TYPE_V4LVIDEO,
 		dev->inst,
 		(void *)dev, v4lvideo_recycle_vf);
-
+#else
+	dev->dp_buf_mgr = NULL;
+#endif
 	return 0;
 }
 
@@ -1871,7 +1876,9 @@ static int vidioc_close(struct file *file)
 		total_release_count[inst_id],
 		total_get_count[inst_id] - total_put_count[inst_id]
 		- total_release_count[inst_id]);
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 	buf_mgr_release(dev->dp_buf_mgr);
+#endif
 
 	return 0;
 }
@@ -2173,6 +2180,7 @@ static int vidioc_qbuf_1(struct file *file, void *priv, struct v4l2_buffer *p)
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 void v4lvideo_recycle_vf(void *caller_data, struct file *file, int instance_id)
 {
 	struct v4lvideo_dev *dev = (struct v4lvideo_dev *)caller_data;
@@ -2295,13 +2303,21 @@ static int vidioc_qbuf_2(struct file *file, void *priv, struct v4l2_buffer *p)
 	fput(file_vf);
 	return 0;
 }
+#endif
 
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
-	if (get_di_proc_enable())
+	int di_backend_en = 0;
+
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
+	di_backend_en = get_di_proc_enable();
+	if (di_backend_en)
 		return vidioc_qbuf_2(file, priv, p);
 	else
 		return vidioc_qbuf_1(file, priv, p);
+#else
+	return vidioc_qbuf_1(file, priv, p);
+#endif
 }
 
 static void canvas_to_addr(struct vframe_s *vf)
@@ -2610,10 +2626,11 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	mutex_unlock(&dev->mutex_input);
 
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 	ret = buf_mgr_dq_checkin(dev->dp_buf_mgr, file_vf);
 	if (ret != 0)
 		v4l_print(dev->inst, PRINT_OTHER, "dq_checkin fail\n");
-
+#endif
 	fput(file_vf);
 
 	return 0;

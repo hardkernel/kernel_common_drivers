@@ -24,6 +24,10 @@
 #include <linux/amlogic/media/di/di_interface.h>
 #include <linux/amlogic/meson_uvm_core.h>
 
+#define PRINT_ERROR		0X0
+#define PRINT_OTHER		0X0001
+#define PRINT_MORE		0X0080
+
 extern u32 dp_buf_mgr_print_flag;
 extern u32 total_fill_count;
 

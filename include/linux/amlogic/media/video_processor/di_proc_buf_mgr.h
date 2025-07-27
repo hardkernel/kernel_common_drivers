@@ -14,8 +14,12 @@
  *
  */
 
+#ifndef _DI_PROC_BUF_MGR_H
+#define _DI_PROC_BUF_MGR_H
+
 #include <linux/types.h>
 #include <linux/atomic.h>
+#include <linux/amlogic/media/vfm/vframe.h>
 
 #define VF_LIST_COUNT 64
 
@@ -64,6 +68,31 @@ struct dp_buf_mgr_t {
 	int reset_id;
 	int receive_count;
 };
+
+struct uvm_di_mgr_t {
+	//struct vframe_s *vf;
+	//struct vframe_s *vf_1;   //n-1
+	//struct vframe_s *vf_2;   //n-2
+	//bool di_processed_flag;  /*true: di process done; false: dropped*/
+	struct dp_buf_mgr_t *buf_mgr;
+	struct file *file;
+	struct uvm_hook_mod *uhmod_v4lvideo;
+	struct uvm_hook_mod *uhmod_dec;
+};
+
+int buf_mgr_free_checkin(struct dp_buf_mgr_t *buf_mgr, struct file *file);
+void buf_mgr_file_lock(struct uvm_di_mgr_t *uvm_di_mgr);
+void buf_mgr_file_unlock(struct uvm_di_mgr_t *uvm_di_mgr);
+int update_di_process_state(struct file *file);
+
+/**
+ * @brief  get_buf_mgr  get buf mgr
+ *
+ * @param[in]  file
+ *
+ * @return     struct buf_manager_t * for  success, or NULL for fail
+ */
+struct dp_buf_mgr_t *get_buf_mgr(struct file *file);
 
 /**
  * @brief  buf_mgr_creat  creat buf mgr instance
@@ -129,7 +158,35 @@ int buf_mgr_q_checkin_dec(struct dp_buf_mgr_t *buf_mgr, struct file *file,
 /**
  * @brief  get_di_proc_enable  judge whether the di post is enable
  *
- * @return  1 for enable, 0 for disenable
+ * @return  1 for enable, 0 for disable
  */
 int get_di_proc_enable(void);
 
+/**
+ * @brief  set_di_proc_enable  judge whether the di post is enable
+ *
+ *@param[in]  1 for enable, 0 for disable
+ *
+ * @return  0 for  success, or fail type if < 0
+ */
+int set_di_proc_enable(int enable);
+
+/**
+ * @brief  get_buf_mgr_print_flag  get buf manager print flag
+ *
+ *@param[in]
+ *
+ * @return  current print flag
+ */
+int get_buf_mgr_print_flag(void);
+
+/**
+ * @brief  set_buf_mgr_print_flag: set buf manager print flag
+ *
+ *@param[in]  print flag
+ *
+ * @return  0 for  success, or fail type if < 0
+ */
+int set_buf_mgr_print_flag(int flag);
+
+#endif /* _DI_PROC_BUF_MGR_H */

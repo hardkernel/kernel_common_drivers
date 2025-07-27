@@ -36,8 +36,9 @@
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
 #include <linux/amlogic/media/di/di_interface.h>
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 #include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
-
+#endif
 #include "../../common/vfm/vfm.h"
 #include "videoqueue.h"
 #include "../videotunnel/videotunnel.h"
@@ -1183,7 +1184,11 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 		dev->dq_info[i].fence_file = NULL;
 	}
 
+	dev->di_backend_en = 0;
+
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 	dev->di_backend_en = get_di_proc_enable();
+#endif
 	if (dev->di_backend_en) {
 		vq_print(dev->inst, P_ERROR, "di backend enabled.\n");
 		INIT_KFIFO(dev->out2vt_q);

@@ -15,14 +15,17 @@
  * more details.
  *
  */
-#include <linux/vmalloc.h>
+
 #include <linux/file.h>
 #include <linux/mutex.h>
 #include <linux/time.h>
 #include <linux/sched/clock.h>
 #include <linux/delay.h>
 #include <linux/dma-buf.h>
-
+#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/vmalloc.h>
 #include <linux/sync_file.h>
 #include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
 #include <linux/amlogic/media/vfm/vframe.h>
@@ -30,26 +33,28 @@
 #include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
 
-#include "di_proc_buf_mgr_internal.h"
-
 #define WAIT_DISP_Q_TIMEOUT 100
 
 static u32 list_q_wait = 15;
-u32 dp_buf_mgr_print_flag;
-u32 di_proc_enable;
+static u32 print_flag;
+static u32 di_proc_enable;
+
+#define PRINT_ERROR		0X0
+#define PRINT_OTHER		0X0001
+#define PRINT_MORE		0X0080
 
 static DEFINE_MUTEX(buf_mgr_mutex);
 
-static int dp_buf_print(struct dp_buf_mgr_t *mgr, int debug_flag, const char *fmt, ...)
+static int buf_mgr_print(struct dp_buf_mgr_t *mgr, int debug_flag, const char *fmt, ...)
 {
-	if ((dp_buf_mgr_print_flag & debug_flag) ||
+	if ((print_flag & debug_flag) ||
 		debug_flag == PRINT_ERROR) {
 		unsigned char buf[256];
 		int len = 0;
 		va_list args;
 
 		va_start(args, fmt);
-		len = sprintf(buf, "dp_buf:[%d:%d]", mgr->dec_type, mgr->instance_id);
+		len = sprintf(buf, "buf_mgr:[%d:%d]", mgr->dec_type, mgr->instance_id);
 		vsnprintf(buf + len, 256 - len, fmt, args);
 		pr_info("%s", buf);
 		va_end(args);
@@ -63,6 +68,32 @@ int get_di_proc_enable(void)
 }
 EXPORT_SYMBOL(get_di_proc_enable);
 
+int set_di_proc_enable(int enable)
+{
+	mutex_lock(&buf_mgr_mutex);
+	di_proc_enable = enable;
+	mutex_unlock(&buf_mgr_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL(set_di_proc_enable);
+
+int get_buf_mgr_print_flag(void)
+{
+	return print_flag;
+}
+EXPORT_SYMBOL(get_buf_mgr_print_flag);
+
+int set_buf_mgr_print_flag(int flag)
+{
+	mutex_lock(&buf_mgr_mutex);
+	print_flag = flag;
+	mutex_unlock(&buf_mgr_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL(set_buf_mgr_print_flag);
+
 static struct file_private_data *dp_get_v4lvideo_private(struct dp_buf_mgr_t *buf_mgr,
 							  struct file *file_vf)
 {
@@ -75,10 +106,10 @@ static struct file_private_data *dp_get_v4lvideo_private(struct dp_buf_mgr_t *bu
 	}
 
 	if (is_v4lvideo_buf_file(file_vf)) {
-		dp_buf_print(buf_mgr, PRINT_OTHER, "%s: v4lvideo buf.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: v4lvideo buf.\n", __func__);
 		file_private_data = (struct file_private_data *)(file_vf->private_data);
 	} else {
-		dp_buf_print(buf_mgr, PRINT_OTHER, "%s: dma buf.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: dma buf.\n", __func__);
 		uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
 			VF_PROCESS_V4LVIDEO);
 		if (uhmod) {
@@ -88,7 +119,10 @@ static struct file_private_data *dp_get_v4lvideo_private(struct dp_buf_mgr_t *bu
 		}
 	}
 
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s: private_data=%px\n", __func__, file_private_data);
+	buf_mgr_print(buf_mgr, PRINT_OTHER,
+			"%s: private_data=%px\n",
+			__func__,
+			file_private_data);
 
 	return file_private_data;
 }
@@ -111,9 +145,9 @@ static struct dma_buf *get_uvmdma_from_yuvfile(struct dp_buf_mgr_t *buf_mgr,
 		if (buffer)
 			uvm_dma = (struct dma_buf *)buffer->priv;
 		else
-			dp_buf_print(buf_mgr, PRINT_ERROR, "%s: buffer is NULL.\n", __func__);
+			buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: buffer is NULL.\n", __func__);
 	} else {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: yuv_dma is NULL.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: yuv_dma is NULL.\n", __func__);
 	}
 
 	return uvm_dma;
@@ -134,7 +168,7 @@ static struct file *get_uvmfile_from_yuvfile(struct dp_buf_mgr_t *buf_mgr,
 	if (uvm_dma)
 		uvm_file = (struct file *)uvm_dma->file;
 	else
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: uvm_dma is NULL.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: uvm_dma is NULL.\n", __func__);
 
 	return uvm_file;
 }
@@ -156,25 +190,25 @@ static struct vframe_s *get_vf_from_file(struct dp_buf_mgr_t *buf_mgr,
 	is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
 
 	if (is_dec_vf) {
-		dp_buf_print(buf_mgr, PRINT_OTHER, "%s: decoder vf.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: decoder vf.\n", __func__);
 		vf = dmabuf_get_vframe((struct dma_buf *)(file_vf->private_data));
 		dmabuf_put_vframe((struct dma_buf *)(file_vf->private_data));
 	} else if (is_v4l_vf) {
-		dp_buf_print(buf_mgr, PRINT_OTHER, "%s: v4lvideo vf.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: v4lvideo vf.\n", __func__);
 		file_private_data = dp_get_v4lvideo_private(buf_mgr, file_vf);
 		if (!file_private_data)
-			dp_buf_print(buf_mgr, PRINT_ERROR, "invalid fd: uvm is v4lvideo!!\n");
+			buf_mgr_print(buf_mgr, PRINT_ERROR, "invalid fd: uvm is v4lvideo!!\n");
 		else
 			vf = &file_private_data->vf;
 	} else {
-		dp_buf_print(buf_mgr, PRINT_OTHER, "unknown vf type!!\n");
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "unknown vf type!!\n");
 	}
 
 	if (vf)
-		dp_buf_print(buf_mgr, PRINT_OTHER,
+		buf_mgr_print(buf_mgr, PRINT_OTHER,
 			"vframe_type = 0x%x, vframe_flag = 0x%x.\n", vf->type, vf->flag);
 	else
-		dp_buf_print(buf_mgr, PRINT_OTHER, "vf is NULL.\n");
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "vf is NULL.\n");
 
 	return vf;
 }
@@ -188,10 +222,10 @@ static void print_all_in_ref_list(struct dp_buf_mgr_t *buf_mgr)
 		return;
 	}
 
-	dp_buf_print(buf_mgr, PRINT_OTHER, "print ref list in\n");
+	buf_mgr_print(buf_mgr, PRINT_OTHER, "print ref list in\n");
 	for (i = 0; i < VF_LIST_COUNT; i++) {
 		if (atomic_read(&buf_mgr->ref_list[i].on_use)) {
-			dp_buf_print(buf_mgr, PRINT_OTHER,
+			buf_mgr_print(buf_mgr, PRINT_OTHER,
 				"ref_list[%2d]:%d; %d/%d; %d, %px, %d, %d; %d, %px, %px.\n",
 				i,
 				buf_mgr->ref_list[i].frame_index,
@@ -206,7 +240,7 @@ static void print_all_in_ref_list(struct dp_buf_mgr_t *buf_mgr)
 				buf_mgr->ref_list[i].file_ext);
 		}
 	}
-	dp_buf_print(buf_mgr, PRINT_OTHER, "print ref list out\n");
+	buf_mgr_print(buf_mgr, PRINT_OTHER, "print ref list out\n");
 }
 
 void pop_from_ref_list(struct dp_buf_mgr_t *buf_mgr, struct vf_ref_t *vf_ref)
@@ -216,7 +250,10 @@ void pop_from_ref_list(struct dp_buf_mgr_t *buf_mgr, struct vf_ref_t *vf_ref)
 		return;
 	}
 
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s frame_index=%d\n", __func__, vf_ref->frame_index);
+	buf_mgr_print(buf_mgr, PRINT_OTHER,
+			"%s frame_index=%d\n",
+			__func__,
+			vf_ref->frame_index);
 	vf_ref->index = -1;
 	vf_ref->frame_index = -1;
 	vf_ref->vf_p = NULL;
@@ -251,11 +288,12 @@ int vf_ref_count_dec(struct dp_buf_mgr_t *buf_mgr, struct vf_ref_t *vf_ref)
 
 	vf = &vf_ref->vf;
 	if (!vf) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: vf is NULL.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: vf is NULL.\n", __func__);
 		return -1;
 	}
 
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s: frame_index=%d, count=%d, file:%px, file_ext:%px\n",
+	buf_mgr_print(buf_mgr, PRINT_OTHER,
+		"%s: frame_index=%d, count=%d, file:%px, file_ext:%px\n",
 		__func__,
 		vf->frame_index,
 		vf_ref->ref_count,
@@ -272,12 +310,12 @@ int vf_ref_count_dec(struct dp_buf_mgr_t *buf_mgr, struct vf_ref_t *vf_ref)
 
 		if (vf_ref->qbuf_id == buf_mgr->reset_id ||
 			buf_mgr->dec_type == DEC_TYPE_VDEC_CORE_I) {
-			dp_buf_print(buf_mgr, PRINT_OTHER, "recycle:frame_index=%d\n",
+			buf_mgr_print(buf_mgr, PRINT_OTHER, "recycle:frame_index=%d\n",
 				vf->frame_index);
 			buf_mgr->recycle_buffer_cb(buf_mgr->caller_data, vf_ref->file,
 				buf_mgr->instance_id);
 		} else {
-			dp_buf_print(buf_mgr, PRINT_ERROR,
+			buf_mgr_print(buf_mgr, PRINT_ERROR,
 				"not recycle:frame_index=%d, qbuf_id: %d, reset_id: %d\n",
 				vf->frame_index,
 				vf_ref->qbuf_id,
@@ -286,12 +324,11 @@ int vf_ref_count_dec(struct dp_buf_mgr_t *buf_mgr, struct vf_ref_t *vf_ref)
 		pop_from_ref_list(buf_mgr, vf_ref);
 	} else {
 		mutex_unlock(&buf_mgr->ref_count_mutex);
-		dp_buf_print(buf_mgr, PRINT_ERROR, "ref_count is 0 !!!\n");
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "ref_count is 0 !!!\n");
 	}
 
 	return 0;
 }
-
 
 /**
  * @brief  push_to_ref_list  put vf to disp list
@@ -326,12 +363,14 @@ int push_to_ref_list(struct dp_buf_mgr_t *buf_mgr, struct vframe_s *vf, struct f
 			print_all_in_ref_list(buf_mgr);
 			j++;
 			if (j > WAIT_DISP_Q_TIMEOUT) {
-				dp_buf_print(buf_mgr, PRINT_ERROR,
+				buf_mgr_print(buf_mgr, PRINT_ERROR,
 					"ref_list is full, wait timeout!\n");
 				return -1;
 			}
 			usleep_range(1000 * list_q_wait, 1000 * (list_q_wait + 1));
-			dp_buf_print(buf_mgr, PRINT_ERROR, "ref_list is full, need wait =%d\n", j);
+			buf_mgr_print(buf_mgr, PRINT_ERROR,
+				"ref_list is full, need wait =%d\n",
+				j);
 			continue;
 		} else {
 			break;
@@ -339,7 +378,7 @@ int push_to_ref_list(struct dp_buf_mgr_t *buf_mgr, struct vframe_s *vf, struct f
 	}
 	vf_ref = &buf_mgr->ref_list[i];
 	if (!vf_ref) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: vf_ref is NULL.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: vf_ref is NULL.\n", __func__);
 		return -1;
 	}
 	atomic_set(&vf_ref->on_use, true);
@@ -366,7 +405,7 @@ int push_to_ref_list(struct dp_buf_mgr_t *buf_mgr, struct vframe_s *vf, struct f
 			ref_list_tmp1->vf_p &&
 			!(ref_list_tmp1->vf_p->type & VIDTYPE_INTERLACE)) {
 			vf_ref->ref_other_number = 2;
-			dp_buf_print(buf_mgr, PRINT_OTHER, "P->I\n");
+			buf_mgr_print(buf_mgr, PRINT_OTHER, "P->I\n");
 		}
 
 		if ((ref_list_tmp1 && ref_list_tmp1->vf_p &&
@@ -374,7 +413,7 @@ int push_to_ref_list(struct dp_buf_mgr_t *buf_mgr, struct vframe_s *vf, struct f
 			(ref_list_tmp2 && ref_list_tmp2->vf_p &&
 			!(ref_list_tmp2->vf_p->type & VIDTYPE_INTERLACE))) {
 			vf_ref->ref_other_number = 2;
-			dp_buf_print(buf_mgr, PRINT_OTHER, "P->I->I\n");
+			buf_mgr_print(buf_mgr, PRINT_OTHER, "P->I->I\n");
 		}
 	} else {
 		if (buf_mgr->receive_count == 0) {
@@ -391,12 +430,12 @@ int push_to_ref_list(struct dp_buf_mgr_t *buf_mgr, struct vframe_s *vf, struct f
 		if (ref_list_tmp1 && ref_list_tmp1->vf_p &&
 			ref_list_tmp1->vf_p->type & VIDTYPE_INTERLACE) {
 			vf_ref_count_dec(buf_mgr, ref_list_tmp1);
-			dp_buf_print(buf_mgr, PRINT_OTHER, "I->P: ref_list_1 count need -1\n");
+			buf_mgr_print(buf_mgr, PRINT_OTHER, "I->P: ref_list_1 count need -1\n");
 
 			if (ref_list_tmp2 && ref_list_tmp2->vf_p &&
 				ref_list_tmp2->vf_p->type & VIDTYPE_INTERLACE) {
 				vf_ref_count_dec(buf_mgr, ref_list_tmp2);
-				dp_buf_print(buf_mgr, PRINT_OTHER, "I->P: ref_list_2 count -1\n");
+				buf_mgr_print(buf_mgr, PRINT_OTHER, "I->P: ref_list_2 count -1\n");
 			}
 		}
 	}
@@ -412,7 +451,7 @@ int push_to_ref_list(struct dp_buf_mgr_t *buf_mgr, struct vframe_s *vf, struct f
 	vf_ref->flag = 0;
 	buf_mgr->ref_list_2 = ref_list_tmp1;
 	buf_mgr->ref_list_1 = vf_ref;
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s, i =%d, ref_count=%d, other=%d\n",
+	buf_mgr_print(buf_mgr, PRINT_OTHER, "%s, i =%d, ref_count=%d, other=%d\n",
 		__func__, i, vf_ref->ref_count, vf_ref->ref_other_number);
 
 	return 0;
@@ -433,25 +472,27 @@ struct vf_ref_t *get_ref_from_list(struct dp_buf_mgr_t *buf_mgr, struct vframe_s
 			break;
 	}
 	if (i == VF_LIST_COUNT) {
-		dp_buf_print(buf_mgr, PRINT_OTHER, "%s get ref fail\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "%s get ref fail\n", __func__);
 		print_all_in_ref_list(buf_mgr);
 		return NULL;
 	}
 
 	if (!atomic_read(&buf_mgr->ref_list[i].on_use)) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s get ref fail: on_use is false\n",  __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR,
+			"%s get ref fail: on_use is false\n",
+			__func__);
 		print_all_in_ref_list(buf_mgr);
 		return NULL;
 	}
 
 	vf_ref = &buf_mgr->ref_list[i];
 	if (!vf_ref) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: vf_ref is NULL.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: vf_ref is NULL.\n", __func__);
 		return NULL;
 	}
 
 	if (vf->frame_index != vf_ref->frame_index) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s err: %d %d\n",
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s err: %d %d\n",
 			__func__, vf->frame_index, vf_ref->frame_index);
 		print_all_in_ref_list(buf_mgr);
 	}
@@ -475,14 +516,14 @@ struct vf_ref_t *get_ref1_from_list(struct dp_buf_mgr_t *buf_mgr, struct vf_ref_
 			break;
 	}
 	if (i == VF_LIST_COUNT) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "get ref1 fail, not find ref, frame_index=%d\n",
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "get ref1 fail, not find ref, frame_index=%d\n",
 			vf_ref->frame_index);
 		print_all_in_ref_list(buf_mgr);
 		return NULL;
 	}
 
 	if (!atomic_read(&buf_mgr->ref_list[i].on_use)) {
-		dp_buf_print(buf_mgr, PRINT_ERROR,
+		buf_mgr_print(buf_mgr, PRINT_ERROR,
 			"get ref1 fail: i=%d, index=%d, vf_ref->frame_index=%d, frame_index=%d\n",
 			i, buf_mgr->ref_list[i].index,
 			vf_ref->frame_index, vf_ref->vf.frame_index);
@@ -512,20 +553,22 @@ static struct vf_ref_t *get_ref_from_yuvfile(struct dp_buf_mgr_t *buf_mgr,
 			break;
 	}
 	if (i == VF_LIST_COUNT) {
-		dp_buf_print(buf_mgr, PRINT_OTHER, "%s get ref fail\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "%s get ref fail\n", __func__);
 		print_all_in_ref_list(buf_mgr);
 		return NULL;
 	}
 
 	if (!atomic_read(&buf_mgr->ref_list[i].on_use)) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s get ref fail: on_use is false\n",  __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR,
+			"%s get ref fail: on_use is false\n",
+			__func__);
 		print_all_in_ref_list(buf_mgr);
 		return NULL;
 	}
 
 	vf_ref = &buf_mgr->ref_list[i];
 	if (!vf_ref) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s failed.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s failed.\n", __func__);
 		return NULL;
 	}
 
@@ -543,33 +586,39 @@ static int process_ref_in_list(struct dp_buf_mgr_t *buf_mgr, struct vf_ref_t *vf
 	}
 
 	if (vf_ref->qbuf_id > 0) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: second:%d %d\n",
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: second:%d %d\n",
 			__func__, vf_ref->qbuf_id, buf_mgr->reset_id);
 		vf_ref->qbuf_id = buf_mgr->reset_id;
 		return 0;
 	}
 	vf_ref->qbuf_id = buf_mgr->reset_id;
 
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s: di_processed=%d\n", __func__, vf_ref->di_processed);
+	buf_mgr_print(buf_mgr, PRINT_OTHER,
+		"%s: di_processed=%d\n",
+		__func__,
+		vf_ref->di_processed);
 	/*drop frame, need N, N-1, N-2 ref-1*/
 	if (!vf_ref->di_processed) {
 		if (vf_ref->ref_other_number == 2) {
 			vf_ref1 = get_ref1_from_list(buf_mgr, vf_ref);
 			if (!vf_ref1) {
-				dp_buf_print(buf_mgr, PRINT_ERROR, "%s:0ref1 dec fail\n", __func__);
+				buf_mgr_print(buf_mgr, PRINT_ERROR, "%s:0ref1 dec fail\n",
+					__func__);
 				goto exit;
 			}
 			vf_ref_count_dec(buf_mgr, vf_ref1);
 		} else if  (vf_ref->ref_other_number == 3) {
 			vf_ref1 = get_ref1_from_list(buf_mgr, vf_ref);
 			if (!vf_ref1) {
-				dp_buf_print(buf_mgr, PRINT_ERROR, "%s:1ref1 dec fail\n", __func__);
+				buf_mgr_print(buf_mgr, PRINT_ERROR, "%s:1ref1 dec fail\n",
+					__func__);
 				goto exit;
 			}
 
 			vf_ref2 = get_ref1_from_list(buf_mgr, vf_ref1);
 			if (!vf_ref2) {
-				dp_buf_print(buf_mgr, PRINT_ERROR, "%s:ref2 dec fail\n", __func__);
+				buf_mgr_print(buf_mgr, PRINT_ERROR, "%s:ref2 dec fail\n",
+					__func__);
 				vf_ref_count_dec(buf_mgr, vf_ref1);
 				goto exit;
 			}
@@ -580,7 +629,7 @@ static int process_ref_in_list(struct dp_buf_mgr_t *buf_mgr, struct vf_ref_t *vf
 
 exit:
 	if (vf_ref->di_processed && !(vf_ref->flag & VF_REF_FLAG_DIPROCESS_CHECKIN)) {
-		dp_buf_print(buf_mgr, PRINT_OTHER, "%s: ref need dec self.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: ref need dec self.\n", __func__);
 		vf_ref->flag |= VF_REF_FLAG_DECREASE_SELF;
 	} else {
 		vf_ref_count_dec(buf_mgr, vf_ref);
@@ -598,7 +647,7 @@ void buf_mgr_get(struct dp_buf_mgr_t *buf_mgr)
 
 	mutex_lock(&buf_mgr_mutex);
 	buf_mgr->get_count++;
-	dp_buf_print(buf_mgr, PRINT_MORE, "%s: get_count=%d\n", __func__, buf_mgr->get_count);
+	buf_mgr_print(buf_mgr, PRINT_MORE, "%s: get_count=%d\n", __func__, buf_mgr->get_count);
 	mutex_unlock(&buf_mgr_mutex);
 }
 
@@ -611,10 +660,10 @@ void buf_mgr_put(struct dp_buf_mgr_t *buf_mgr)
 
 	mutex_lock(&buf_mgr_mutex);
 	buf_mgr->get_count--;
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s: get_count=%d\n", __func__, buf_mgr->get_count);
+	buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: get_count=%d\n", __func__, buf_mgr->get_count);
 	if (buf_mgr->get_count == 0) {
 		mutex_unlock(&buf_mgr_mutex);
-		dp_buf_print(buf_mgr, PRINT_ERROR, "di buf_mgr free\n");
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "di buf_mgr free\n");
 		vfree(buf_mgr);
 		return;
 	}
@@ -631,18 +680,18 @@ void free_di_mgr_data(void *arg)
 			return;
 		}
 
-		dp_buf_print(uvm_di_mgr->buf_mgr, PRINT_OTHER, "%s: arg=%px, file=%px\n",
+		buf_mgr_print(uvm_di_mgr->buf_mgr, PRINT_OTHER, "%s: arg=%px, file=%px\n",
 			__func__, arg, uvm_di_mgr->file);
 		buf_mgr_free_checkin(uvm_di_mgr->buf_mgr, uvm_di_mgr->file);
 		if (!IS_ERR_OR_NULL(uvm_di_mgr->uhmod_v4lvideo) &&
 			!IS_ERR_OR_NULL(uvm_di_mgr->file)) {
-			dp_buf_print(uvm_di_mgr->buf_mgr, PRINT_OTHER, "put v4lvideo data.\n");
+			buf_mgr_print(uvm_di_mgr->buf_mgr, PRINT_OTHER, "put v4lvideo data.\n");
 			uvm_put_hook_mod((struct dma_buf *)(uvm_di_mgr->file->private_data),
 				VF_PROCESS_V4LVIDEO);
 		}
 
 		if (!IS_ERR_OR_NULL(uvm_di_mgr->uhmod_dec) && !IS_ERR_OR_NULL(uvm_di_mgr->file)) {
-			dp_buf_print(uvm_di_mgr->buf_mgr, PRINT_OTHER, "put decoder data.\n");
+			buf_mgr_print(uvm_di_mgr->buf_mgr, PRINT_OTHER, "put decoder data.\n");
 			uvm_put_hook_mod((struct dma_buf *)(uvm_di_mgr->file->private_data),
 				VF_SRC_DECODER);
 		}
@@ -688,14 +737,14 @@ int buf_mgr_to_file(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 
 	dmabuf = (struct dma_buf *)(file->private_data);
 	if (!dmabuf) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "dmabuf is NULL\n");
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "dmabuf is NULL\n");
 		return -1;
 	}
 
 	uhmod = uvm_get_hook_mod(dmabuf, PROCESS_DI_MGR);
 	if (IS_ERR_OR_NULL(uhmod)) {
 		uvm_di_mgr = vmalloc(sizeof(*uvm_di_mgr));
-		dp_buf_print(buf_mgr, PRINT_OTHER, "attach:PROCESS_DI_MGR\n");
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "attach:PROCESS_DI_MGR\n");
 		if (!uvm_di_mgr) {
 			dma_buf_put(dmabuf);
 			return -ENOMEM;
@@ -705,12 +754,12 @@ int buf_mgr_to_file(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 		attached = true;
 		uvm_di_mgr = uhmod->arg;
 		if (!uvm_di_mgr) {
-			dp_buf_print(buf_mgr, PRINT_ERROR,
+			buf_mgr_print(buf_mgr, PRINT_ERROR,
 				"attach:uvm_di_mgr is null, dmabuf=%p\n", dmabuf);
 			dma_buf_put(dmabuf);
 			return -EINVAL;
 		}
-		dp_buf_print(buf_mgr, PRINT_OTHER, "uvm_di_mgr=%px\n", uvm_di_mgr);
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "uvm_di_mgr=%px\n", uvm_di_mgr);
 	}
 
 	if (attached) {
@@ -718,7 +767,7 @@ int buf_mgr_to_file(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 			buf_mgr_put(uvm_di_mgr->buf_mgr);
 			buf_mgr_get(buf_mgr);
 			uvm_di_mgr->buf_mgr = buf_mgr;
-			dp_buf_print(buf_mgr, PRINT_ERROR, "%s:buf_mgr changed\n", __func__);
+			buf_mgr_print(buf_mgr, PRINT_ERROR, "%s:buf_mgr changed\n", __func__);
 		}
 		return 0;
 	}
@@ -728,7 +777,7 @@ int buf_mgr_to_file(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 	uvm_di_mgr->file = file;
 	uvm_di_mgr->uhmod_v4lvideo = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
 	uvm_di_mgr->uhmod_dec = uvm_get_hook_mod(dmabuf, VF_SRC_DECODER);
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s:uvm_di_mgr=%px, file=%px\n",
+	buf_mgr_print(buf_mgr, PRINT_OTHER, "%s:uvm_di_mgr=%px, file=%px\n",
 		__func__, uvm_di_mgr, file);
 
 	buf_mgr_get(buf_mgr);
@@ -742,7 +791,7 @@ int buf_mgr_to_file(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 
 	ret = uvm_attach_hook_mod(dmabuf, &info);
 	if (ret < 0) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "fail attach PROCESS_DI_MGR\n");
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "fail attach PROCESS_DI_MGR\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -798,7 +847,7 @@ struct dp_buf_mgr_t *buf_mgr_creat(int dec_type, int id, void *caller_data,
 	buf_mgr->caller_data = caller_data;
 	buf_mgr->recycle_buffer_cb = recycle_buffer_cb;
 	buf_mgr->reset_id = 1;
-	dp_buf_print(buf_mgr, PRINT_ERROR, "buf mgr creat\n");
+	buf_mgr_print(buf_mgr, PRINT_ERROR, "buf mgr creat\n");
 	buf_mgr_get(buf_mgr);
 	mutex_init(&buf_mgr->ref_count_mutex);
 	mutex_init(&buf_mgr->file_mutex);
@@ -821,7 +870,7 @@ int buf_mgr_release(struct dp_buf_mgr_t *buf_mgr)
 	}
 
 	buf_mgr->reset_id++;
-	dp_buf_print(buf_mgr, PRINT_ERROR, "%s func is called\n", __func__);
+	buf_mgr_print(buf_mgr, PRINT_ERROR, "%s func is called\n", __func__);
 	buf_mgr_put(buf_mgr);
 	return 0;
 }
@@ -841,7 +890,7 @@ int buf_mgr_reset(struct dp_buf_mgr_t *buf_mgr)
 		return -1;
 	}
 
-	dp_buf_print(buf_mgr, PRINT_ERROR, "%s func is called\n", __func__);
+	buf_mgr_print(buf_mgr, PRINT_ERROR, "%s func is called\n", __func__);
 
 	mutex_lock(&buf_mgr->file_mutex);
 	buf_mgr->reset_id++;
@@ -901,16 +950,16 @@ int buf_mgr_dq_checkin(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 		vf = get_vf_from_file(buf_mgr, file);
 	}
 	if (!vf) {
-		dp_buf_print(buf_mgr, PRINT_ERROR,
+		buf_mgr_print(buf_mgr, PRINT_ERROR,
 			"%s: not find vf, buf_mgr=%px, file=%px\n", __func__, buf_mgr, file);
 		return -1;
 	}
 
-	dp_buf_print(buf_mgr, PRINT_OTHER,
+	buf_mgr_print(buf_mgr, PRINT_OTHER,
 		"%s: frame_index=%d, %px, %px\n", __func__, vf->frame_index, buf_mgr, file);
 
 	if (vf->type & VIDTYPE_V4L_EOS) {
-		dp_buf_print(buf_mgr, PRINT_OTHER, "%s: eos\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: eos\n", __func__);
 		return -1;
 	}
 
@@ -941,15 +990,13 @@ int buf_mgr_q_checkin(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 		return -1;
 	}
 
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s in.\n", __func__);
-
 	if (!di_proc_enable)
 		return -1;
 
 	/*get main vf*/
 	vf = get_vf_from_file(buf_mgr, file);
 	if (!vf) {
-		dp_buf_print(buf_mgr, PRINT_OTHER,
+		buf_mgr_print(buf_mgr, PRINT_OTHER,
 			"%s: not find vf, buf_mgr=%px, file=%px\n",
 			__func__,
 			buf_mgr,
@@ -957,7 +1004,7 @@ int buf_mgr_q_checkin(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 		return -1;
 	}
 
-	dp_buf_print(buf_mgr, PRINT_OTHER,
+	buf_mgr_print(buf_mgr, PRINT_OTHER,
 		"%s: frame_index=%d, buf_mgr=%px, file=%px\n",
 		__func__,
 		vf->frame_index,
@@ -967,7 +1014,7 @@ int buf_mgr_q_checkin(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 	mutex_lock(&buf_mgr->file_mutex);
 	vf_ref = get_ref_from_list(buf_mgr, vf);
 	if (!vf_ref) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: ref dec fail\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: ref dec fail\n", __func__);
 		mutex_unlock(&buf_mgr->file_mutex);
 		return -1;
 	}
@@ -993,8 +1040,6 @@ int buf_mgr_q_checkin_dec(struct dp_buf_mgr_t *buf_mgr, struct file *file,
 	struct vf_ref_t *vf_ref = NULL;
 	int ret = 0;
 
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s in.\n", __func__);
-
 	if (!buf_mgr || !file) {
 		pr_err("%s: NULL param.\n", __func__);
 		return -1;
@@ -1007,7 +1052,7 @@ int buf_mgr_q_checkin_dec(struct dp_buf_mgr_t *buf_mgr, struct file *file,
 		mutex_lock(&buf_mgr->file_mutex);
 		vf_ref = get_ref_from_yuvfile(buf_mgr, file, file_ext);
 		if (!vf_ref) {
-			dp_buf_print(buf_mgr, PRINT_OTHER,
+			buf_mgr_print(buf_mgr, PRINT_OTHER,
 				"%s: ref dec fail, buf_mgr=%px, file=%px, file_ext=%px.\n",
 				__func__,
 				buf_mgr,
@@ -1017,7 +1062,7 @@ int buf_mgr_q_checkin_dec(struct dp_buf_mgr_t *buf_mgr, struct file *file,
 			return -1;
 		}
 
-		dp_buf_print(buf_mgr, PRINT_OTHER,
+		buf_mgr_print(buf_mgr, PRINT_OTHER,
 			"%s: frame_index=%d, buf_mgr=%px, file=%px, file_ext=%px.\n",
 			__func__,
 			vf_ref->vf.frame_index,
@@ -1039,8 +1084,6 @@ int buf_mgr_free_checkin(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 	struct vframe_s *vf = NULL;
 	struct vf_ref_t *vf_ref = NULL;
 
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s in.\n", __func__);
-
 	if (!buf_mgr) {
 		pr_err("%s: NULL param.\n", __func__);
 		return -1;
@@ -1049,17 +1092,17 @@ int buf_mgr_free_checkin(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 	/*get main vf*/
 	vf = get_vf_from_file(buf_mgr, file);
 	if (!vf) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: not find vf\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: not find vf\n", __func__);
 		return -1;
 	}
 
 	vf_ref = get_ref_from_list(buf_mgr, vf);
 	if (!vf_ref) {
-		dp_buf_print(buf_mgr, PRINT_OTHER, "%s: ref dec fail\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: ref dec fail\n", __func__);
 		return -1;
 	}
 
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s: frame_index=%d\n", __func__, vf->frame_index);
+	buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: frame_index=%d\n", __func__, vf->frame_index);
 
 	mutex_lock(&buf_mgr->file_mutex);
 	pop_from_ref_list(buf_mgr, vf_ref);
@@ -1111,19 +1154,19 @@ int di_processed_checkin(struct file *file)
 
 	vf = get_vf_from_file(buf_mgr, file);
 	if (!vf) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: not find vf\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: not find vf\n", __func__);
 		return -1;
 	}
 
 	mutex_lock(&buf_mgr->file_mutex);
 	vf_ref = get_ref_from_list(buf_mgr, vf);
 	if (!vf_ref) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: ref dec fail\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: ref dec fail\n", __func__);
 		mutex_unlock(&buf_mgr->file_mutex);
 		return -1;
 	}
 
-	dp_buf_print(buf_mgr, PRINT_OTHER,
+	buf_mgr_print(buf_mgr, PRINT_OTHER,
 		"%s: frame_index=%d, ref_other_number=%d.\n",
 		__func__,
 		vf->frame_index,
@@ -1134,7 +1177,7 @@ int di_processed_checkin(struct file *file)
 	if (vf_ref->ref_other_number > 1) {
 		vf_ref1 = get_ref1_from_list(buf_mgr, vf_ref);
 		if (!vf_ref1) {
-			dp_buf_print(buf_mgr, PRINT_ERROR, "%s: ref1 dec fail.\n", __func__);
+			buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: ref1 dec fail.\n", __func__);
 			mutex_unlock(&buf_mgr->file_mutex);
 			return -1;
 		}
@@ -1145,7 +1188,7 @@ int di_processed_checkin(struct file *file)
 	if (need_dec_two) {
 		vf_ref2 = get_ref1_from_list(buf_mgr, vf_ref1);
 		if (!vf_ref2) {
-			dp_buf_print(buf_mgr, PRINT_ERROR, "%s: ref2 dec fail.\n", __func__);
+			buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: ref2 dec fail.\n", __func__);
 			vf_ref_count_dec(buf_mgr, vf_ref1);
 			mutex_unlock(&buf_mgr->file_mutex);
 			return -1;
@@ -1155,12 +1198,12 @@ int di_processed_checkin(struct file *file)
 	}
 
 	if (vf_ref->di_processed && !(vf->flag & VFRAME_FLAG_DOUBLE_FRAM))
-		dp_buf_print(buf_mgr, PRINT_MORE, "processed: already processed!!!\n");
+		buf_mgr_print(buf_mgr, PRINT_MORE, "processed: already processed!!!\n");
 	vf_ref->di_processed = true;
 	vf_ref->flag |= VF_REF_FLAG_DIPROCESS_CHECKIN;
 
 	if (vf_ref->flag & VF_REF_FLAG_DECREASE_SELF) {
-		dp_buf_print(buf_mgr, PRINT_OTHER, "%s: self ref decrease.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: self ref decrease.\n", __func__);
 		vf_ref_count_dec(buf_mgr, vf_ref);
 	}
 
@@ -1200,34 +1243,34 @@ int di_get_ref_vf(struct file *file, struct vframe_s **vf_1, struct vframe_s **v
 		return -1;
 	}
 
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s: file:%px.\n", __func__, file);
+	buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: file:%px.\n", __func__, file);
 
 	if (buf_mgr->dec_type == DEC_TYPE_VDEC_CORE_I) {
-		dp_buf_print(buf_mgr, PRINT_OTHER, "%s: new flow for di.\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: new flow for di.\n", __func__);
 		is_vdec_core_i = true;
 	}
 
 	vf = get_vf_from_file(buf_mgr, file);
 	if (!vf) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: vf is null\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: vf is null\n", __func__);
 		return -1;
 	}
 
-	dp_buf_print(buf_mgr, PRINT_OTHER, "%s: file:%px, frame_index=%d.\n",
+	buf_mgr_print(buf_mgr, PRINT_OTHER, "%s: file:%px, frame_index=%d.\n",
 		__func__,
 		file,
 		vf->frame_index);
 
 	vf_ref = get_ref_from_list(buf_mgr, vf);
 	if (!vf_ref) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "%s: get vf_ref fail\n", __func__);
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: get vf_ref fail\n", __func__);
 		return -1;
 	}
 
 	if (vf_ref->ref_number > 1 && vf_ref->buf_mgr_reset_id == buf_mgr->reset_id) {
 		vf_ref1 = get_ref1_from_list(buf_mgr, vf_ref);
 		if (!vf_ref1) {
-			dp_buf_print(buf_mgr, PRINT_ERROR, "%s: get vf_ref1 fail\n", __func__);
+			buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: get vf_ref1 fail\n", __func__);
 			return -1;
 		}
 		*vf_1 = &vf_ref1->vf;
@@ -1240,7 +1283,7 @@ int di_get_ref_vf(struct file *file, struct vframe_s **vf_1, struct vframe_s **v
 	if (vf_ref->ref_number > 2 && vf_ref->buf_mgr_reset_id == buf_mgr->reset_id) {
 		vf_ref2 = get_ref1_from_list(buf_mgr, vf_ref1);
 		if (!vf_ref2) {
-			dp_buf_print(buf_mgr, PRINT_ERROR, "processed: ref2 dec fail\n");
+			buf_mgr_print(buf_mgr, PRINT_ERROR, "processed: ref2 dec fail\n");
 			return -1;
 		}
 		*vf_2 = &vf_ref2->vf;
@@ -1295,17 +1338,17 @@ int update_di_process_state(struct file *file)
 	/*get main vf*/
 	vf = get_vf_from_file(buf_mgr, file);
 	if (!vf) {
-		dp_buf_print(buf_mgr, PRINT_OTHER,
+		buf_mgr_print(buf_mgr, PRINT_OTHER,
 			"%s: not find vf, buf_mgr=%px, file=%px\n", __func__, buf_mgr, file);
 		return -1;
 	}
 
-	dp_buf_print(buf_mgr, PRINT_OTHER,
+	buf_mgr_print(buf_mgr, PRINT_OTHER,
 		"%s: frame_index=%d, %px, %px\n", __func__, vf->frame_index, buf_mgr, file);
 
 	vf_ref = get_ref_from_list(buf_mgr, vf);
 	if (!vf_ref) {
-		dp_buf_print(buf_mgr, PRINT_ERROR, "get ref fail.\n");
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "get ref fail.\n");
 		return -1;
 	}
 

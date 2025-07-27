@@ -30,7 +30,6 @@
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
 #include <linux/amlogic/aml_sync_api.h>
-#include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
 #include <linux/compat.h>
 
 #include "di_process.h"
@@ -61,6 +60,7 @@ static u32 di_pre_buf_count_postlink = 7;
 static u32 compression_ratio_limit;
 static u32 di_rotate[DI_INSTANCE_COUNT];
 static u32 di_force_rotate;
+u32 dp_buf_mgr_print_flag;
 
 static DEFINE_MUTEX(di_process_mutex);
 
@@ -1279,9 +1279,8 @@ static int di_process_uninit(struct di_process_dev *dev)
 				if (ret != 0)
 					dp_print(dev->index, PRINT_ERROR,
 						" uninit not empty done buf failed.\n");
-				dp_put_file(dev, buf->caller_mng.src_file);
 			}
-
+			dp_put_file(dev, buf->caller_mng.src_file);
 			if (buf->caller_mng.dummy)
 				uninit_dummy_vf_param(dev);
 
@@ -2149,7 +2148,11 @@ static ssize_t buf_mgr_print_flag_show(const struct class *class,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 	return sprintf(buf, "%d\n", dp_buf_mgr_print_flag);
+#else
+	return sprintf(buf, "%d\n", 0);
+#endif
 }
 
 static ssize_t buf_mgr_print_flag_store(const struct class *cla,
@@ -2164,6 +2167,9 @@ static ssize_t buf_mgr_print_flag_store(const struct class *cla,
 		pr_info("ERROR converting %s to long int!\n", buf);
 		return ret;
 	}
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
+	set_buf_mgr_print_flag(tmp);
+#endif
 	dp_buf_mgr_print_flag = tmp;
 	return count;
 }
@@ -2172,7 +2178,11 @@ static ssize_t di_proc_enable_show(const struct class *class,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
-	return sprintf(buf, "%d\n", di_proc_enable);
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
+	return sprintf(buf, "%d\n", get_di_proc_enable());
+#else
+	return sprintf(buf, "%d\n", 0);
+#endif
 }
 
 static ssize_t di_proc_enable_store(const struct class *cla,
@@ -2187,7 +2197,9 @@ static ssize_t di_proc_enable_store(const struct class *cla,
 		pr_info("ERROR converting %s to long int!\n", buf);
 		return ret;
 	}
-	di_proc_enable = tmp;
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
+	set_di_proc_enable(tmp);
+#endif
 	return count;
 }
 

@@ -753,9 +753,11 @@ ddk_module(
         "CONFIG_AMLOGIC_DI_PROCESS": {
             True: [
                 "video_processor/di_process/di_proc_file.c",
-                "video_processor/di_process/di_proc_buf_mgr.c",
                 "video_processor/di_process/di_process.c",
             ],
+        },
+        "CONFIG_AMLOGIC_BUF_MANAGER": {
+            True: ["video_processor/buf_manager/buf_manager.c"],
         },
         "CONFIG_AMLOGIC_MEDIA_V2D": {
             True: [

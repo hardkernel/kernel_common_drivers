@@ -16,12 +16,13 @@
  *
  */
 #include <linux/vmalloc.h>
+#include "di_proc_file.h"
+#include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 #include <linux/amlogic/media/di/di_interface.h>
 #endif
 #include <linux/amlogic/media/codec_mm/codec_mm_keeper.h>
-#include "di_proc_file.h"
-#include "di_proc_buf_mgr_internal.h"
+
 #define IS_DI_PSTLINK(di_flag) ((di_flag) & DI_FLAG_DI_PSTVPPLINK)
 
 static int di_proc_file_print(int debug_flag, const char *fmt, ...)
@@ -33,7 +34,7 @@ static int di_proc_file_print(int debug_flag, const char *fmt, ...)
 		va_list args;
 
 		va_start(args, fmt);
-		len = sprintf(buf, "dp_buf: file:");
+		len = sprintf(buf, "dp_file:");
 		vsnprintf(buf + len, 256 - len, fmt, args);
 		pr_info("%s", buf);
 		va_end(args);

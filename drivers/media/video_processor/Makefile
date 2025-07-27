@@ -10,5 +10,6 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/videotunn
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/videoqueue/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/common/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/di_process/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/buf_manager/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/videodisplay/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/v2d/Makefile

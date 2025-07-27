@@ -34,7 +34,7 @@
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/codec_mm/codec_mm_keeper.h>
-#include "di_proc_buf_mgr_internal.h"
+#include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
 
 #define DIPR_POOL_SIZE 16
 
@@ -44,9 +44,6 @@
 #define PRINT_MORE		0X0080
 
 #define IS_DI_PSTLINK(di_flag) ((di_flag) & DI_FLAG_DI_PSTVPPLINK)
-
-extern u32 dp_buf_mgr_print_flag;
-extern u32 di_proc_enable;
 
 enum di_backend_transform_t {
 	DI_BACKEND_TRANSFORM_90 = 4,

@@ -65,7 +65,7 @@
 #endif
 #include <linux/amlogic/media/video_sink/video.h>
 
-#ifdef CONFIG_AMLOGIC_DI_PROCESS
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 #include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
 #endif
 #include "../common/vfm/vfm.h"
@@ -10060,7 +10060,7 @@ int dim_process_post_vframe(unsigned int channel)
 		return 1;
 	}
 
-	#ifndef CONFIG_AMLOGIC_DI_PROCESS
+	#ifndef CONFIG_AMLOGIC_BUF_MANAGER
 	if (di_que_is_empty(channel, QUE_POST_FREE) &&
 	    !dimp_get(edi_mp_bypass_post_state)) {
 		dbg_bypass("%s:bypass no post\n", __func__);
@@ -11715,7 +11715,7 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 			dim_afds()->reg_val(pch);
 		check_tvp_state(pch);
 
-#ifdef CONFIG_AMLOGIC_DI_PROCESS
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 		/*if dts not enable 4k, should not alloc dct buf*/
 		if (!cfgg(4K) &&
 			get_di_proc_enable() &&

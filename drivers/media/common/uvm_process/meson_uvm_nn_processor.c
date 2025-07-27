@@ -20,11 +20,9 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
-
-#ifdef CONFIG_AMLOGIC_DI_PROCESS
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 #include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
 #endif
-
 #include "meson_uvm_nn_processor.h"
 
 static int uvm_nn_debug;
@@ -245,7 +243,7 @@ int attach_nn_hook_mod_info(int shared_fd,
 		ai_sr_info->hf_height = 0;
 		ai_sr_info->need_do_aisr = 0;
 	} else {
-#ifdef CONFIG_AMLOGIC_DI_PROCESS
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
 		di_backend_en = get_di_proc_enable();
 #endif
 		if (!di_backend_en) {

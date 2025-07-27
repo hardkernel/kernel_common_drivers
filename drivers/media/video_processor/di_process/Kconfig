@@ -9,7 +9,7 @@ menu "Amlogic di_process support"
 config AMLOGIC_DI_PROCESS
 	tristate "Amlogic di_process device support"
 	default n
-
+	select AMLOGIC_BUF_MANAGER
 	help
 		Select to enable "Amlogic di_process device support.
 

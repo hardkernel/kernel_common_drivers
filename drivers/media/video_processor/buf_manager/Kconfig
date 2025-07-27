@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+#
+# Amlogic buf_manager device configuration
+#
+
+menu "Amlogic buf_manager support"
+
+config AMLOGIC_BUF_MANAGER
+	tristate "Amlogic buf_manager device support"
+	default n
+
+	help
+		Select to enable "Amlogic buf_manager device support.
+
+endmenu
