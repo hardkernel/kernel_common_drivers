@@ -758,7 +758,15 @@ static int vt_instance_trim(struct vt_session *session)
 
 void vt_session_destroy(struct vt_session *session)
 {
-	struct vt_dev *dev = session->dev;
+	struct vt_dev *dev = NULL;
+
+	if (!session) {
+		vt_debug(VT_DEBUG_USER, "%s session is null, it is impossible\n",
+				__func__);
+		return;
+	}
+
+	dev = session->dev;
 
 	vt_debug(VT_DEBUG_USER, "vt session %s destroy\n",
 		 session->display_name);
@@ -1207,6 +1215,12 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 	mutex_lock(&dev->instance_lock);
 	instance = idr_find(&dev->instance_idr, id);
 
+	if (!instance || instance == &dummy_instance) {
+		vt_debug(VT_DEBUG_USER, "vt [%d] no instance or is dummy instance", id);
+		mutex_unlock(&dev->instance_lock);
+		return -EINVAL;
+	}
+
 	if (data->video_cmd == VT_VIDEO_SET_COLOR_BLACK ||
 			data->video_cmd == VT_VIDEO_SET_COLOR_BLUE ||
 			data->video_cmd == VT_VIDEO_SET_COLOR_GREEN ||
@@ -1214,14 +1228,14 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 			data->video_cmd == VT_VIDEO_SET_SOURCE_CROP ||
 			data->video_cmd == VT_VIDEO_SET_DISPLAY_FRAME) {
 		/* no instance or instance has no consumer and no producer*/
-		if (!instance || (!instance->consumer && !instance->producer)) {
+		if (!instance->consumer && !instance->producer) {
 			vt_debug(VT_DEBUG_CMD, "vt [%d] video cmd %d, no instance or consumer",
 				id, data->video_cmd);
 			mutex_unlock(&dev->instance_lock);
 			return -ENOTCONN;
 		}
 	} else {
-		if (!instance || session->role != VT_ROLE_PRODUCER) {
+		if (session->role != VT_ROLE_PRODUCER) {
 			mutex_unlock(&dev->instance_lock);
 			return -EINVAL;
 		}
@@ -1241,9 +1255,9 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 	if (cmd->cmd == VT_VIDEO_SET_GAME_MODE)
 		instance->mode =
 		    cmd->cmd_data ?  VT_MODE_GAME : VT_MODE_NONE_BLOCK;
-	kfifo_put(&instance->fifo_cmd, cmd);
 
-	vt_debug(VT_DEBUG_CMD, "vt [%d] send cmd:%d ", instance->id, cmd->cmd);
+	vt_debug(VT_DEBUG_USER, "vt [%d] called: %s pid: %d send cmd:%d ",
+		instance->id, current->comm, current->pid, cmd->cmd);
 
 	if (cmd->cmd == VT_VIDEO_SET_SOURCE_CROP)
 		instance->backup_sourcecrop = cmd->rect;
@@ -1252,12 +1266,13 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 
 	if (cmd->cmd == VT_VIDEO_SET_SOURCE_CROP ||
 		cmd->cmd == VT_VIDEO_SET_DISPLAY_FRAME)
-		vt_debug(VT_DEBUG_CMD, "rect (%d %d %d %d)\n",
+		vt_debug(VT_DEBUG_USER, "vt [%d] rect (%d %d %d %d)\n", instance->id,
 			 cmd->rect.left, cmd->rect.top,
 			 cmd->rect.right, cmd->rect.bottom);
 	else
-		vt_debug(VT_DEBUG_CMD, "data:%d\n", cmd->cmd_data);
+		vt_debug(VT_DEBUG_USER, "vt [%d] data:%d\n", instance->id, cmd->cmd_data);
 	instance->last_cmd = *cmd;
+	kfifo_put(&instance->fifo_cmd, cmd);
 	mutex_unlock(&instance->cmd_lock);
 
 	mutex_lock(&instance->lock);
