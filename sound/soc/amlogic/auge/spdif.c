@@ -529,7 +529,8 @@ static int spdifin_check_audio_type(void)
 	if (!is_raw)
 		return 0;
 
-	for (i = 0; i < total_num; i++) {
+	/* loop from 1 to skip 0 which is LPCM */
+	for (i = 1; i < total_num; i++) {
 		if (pc == type_texts[i].pc) {
 			audio_type = type_texts[i].aud_type;
 			break;
