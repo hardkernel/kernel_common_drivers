@@ -21,7 +21,7 @@
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <linux/pid.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/major.h>
@@ -2451,7 +2451,7 @@ static long msync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			return -EMFILE;
 		}
 
-		priv = vmalloc(sizeof(*priv));
+		priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 		if (!priv)
 			return -ENOMEM;
 
@@ -2461,7 +2461,7 @@ static long msync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			sync.id_pool[i] = 0;
 			spin_unlock_irqrestore(&sync.lock, flags);
 			msync_dbg(LOG_ERR, "fail to create session %d\n", i);
-			vfree(priv);
+			kfree(priv);
 			return rc;
 		}
 		put_user(i, (u32 __user *)argp);
@@ -2487,7 +2487,7 @@ static long msync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		spin_unlock_irqrestore(&sync.lock, flags);
 
 		destroy_session(id);
-		vfree(file->private_data);
+		kfree(file->private_data);
 		file->private_data = NULL;
 		break;
 	}
@@ -2536,7 +2536,7 @@ static int msync_release(struct inode *inode, struct file *file)
 	spin_unlock_irqrestore(&sync.lock, flags);
 
 	destroy_session(id);
-	vfree(priv);
+	kfree(priv);
 	file->private_data = NULL;
 	return 0;
 }
@@ -2666,9 +2666,9 @@ static void session_dev_cleanup(void)
 		device_destroy(&session->session_class,
 				MKDEV(AMSYNC_SESSION_MAJOR, i));
 		class_unregister(&session->session_class);
-		vfree(session->class_name);
-		vfree(session->device_name);
-		vfree(session);
+		kfree(session->class_name);
+		kfree(session->device_name);
+		kfree(session);
 		sync.session[i] = NULL;
 	}
 }
@@ -2723,19 +2723,19 @@ int __init msync_init(void)
 	for (i = 0 ; i < MAX_SESSION_NUM ; i++) {
 		struct sync_session *s = NULL;
 
-		sync.session[i] = vzalloc(sizeof(*s));
+		sync.session[i] = kzalloc(sizeof(*s), GFP_KERNEL);
 		if (!sync.session[i]) {
 			r = -ENOMEM;
 			goto err4;
 		}
 		s = sync.session[i];
 
-		s->class_name = vmalloc(AVS_DEV_NAME_MAX);
+		s->class_name = kmalloc(AVS_DEV_NAME_MAX, GFP_KERNEL);
 		if (!s->class_name) {
 			r = -ENOMEM;
 			goto err4;
 		}
-		s->device_name = vmalloc(AVS_DEV_NAME_MAX);
+		s->device_name = kmalloc(AVS_DEV_NAME_MAX, GFP_KERNEL);
 		if (!s->device_name) {
 			r = -ENOMEM;
 			goto err4;
