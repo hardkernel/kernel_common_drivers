@@ -337,13 +337,22 @@ static int zstd_init_compress_ctx(struct compress_ctx *cc)
 {
 #if IS_ENABLED(CONFIG_AMLOGIC_AMFC)
 	int cpu;
+	char *p;
+	long size;
 
-	for (cpu = 0; cpu < num_possible_cpus(); cpu++) {
-		if (!bounce_buffer[cpu]) {
-			bounce_buffer[cpu] = kmalloc(cc->rlen, GFP_KERNEL);
+	/* padding 64 bytes to avoid hardware overwrite */
+	size = num_possible_cpus() * (cc->rlen + 64);
+	if (!bounce_buffer[0]) {
+		p = kmalloc(size, GFP_KERNEL);
+		if (!p)
+			return -ENOMEM;
+		for (cpu = 0; cpu < num_possible_cpus(); cpu++) {
+			bounce_buffer[cpu] = p;
+			p += (cc->rlen + 64);
 			pr_debug("%s, alloc %px for cpu:%d\n",
 				__func__, bounce_buffer[cpu], cpu);
 		}
+		p = NULL;
 	}
 	cc->clen = cc->rlen - PAGE_SIZE - COMPRESS_HEADER_SIZE;
 	return 0;
