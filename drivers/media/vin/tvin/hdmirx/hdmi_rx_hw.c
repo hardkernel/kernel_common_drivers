@@ -4655,6 +4655,13 @@ void cor_init(u8 port)
 	/* dacr init */
 	hdmirx_wr_bits_cor(EXT_MCLK_SEL_PWD_IVCRX, EXT_MCLK_SEL, !rx_info.aml_phy.dacr_en, port);
 
+	// auto override dc for 422
+	if (rx_info.chip_id > CHIP_ID_T6D && rx_info.chip_id != CHIP_ID_T3X) {
+		data8 = 0;
+		data8 |= (1 << 3);//[3] auto override dc for 422
+		data8 |= (0 << 0);//[0-2] config tmds mode
+		hdmirx_wr_cor(RX_AUTO_DC_MODE_IVCRX, data8, port);
+	}
 	cor_config(port);
 }
 
@@ -5629,7 +5636,8 @@ void hdmirx_config_video(u8 port)
 	else
 		rx_fmt_override(false, port);
 	/* for yuv422,bypass mode */
-	if (rx[port].cur.colorspace == E_COLOR_YUV422 && rx[port].var.special_422_dev)
+	if (!(rx_info.chip_id > CHIP_ID_T6D && rx_info.chip_id != CHIP_ID_T3X) &&
+		rx[port].cur.colorspace == E_COLOR_YUV422 && rx[port].var.special_422_dev)
 		rx_cd_override(true, port);
 	else
 		rx_cd_override(false, port);

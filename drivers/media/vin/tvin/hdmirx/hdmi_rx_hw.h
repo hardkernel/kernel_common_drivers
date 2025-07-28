@@ -48,7 +48,8 @@
 /* 2025.06.06 fix 74M input unstable issue */
 /* 2025.07.04 enable edid segment auto clr */
 /* 2025.08.05 update m and os_rate when vco error */
-#define RX_HW_VER "ver.2025/08/06"
+/* 2025.08.15 auto override dc for 422 */
+#define RX_HW_VER "ver.2025/08/15"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -1682,6 +1683,7 @@
 #define DEC_AV_MUTE_DP2_IVCRX        0x00001122
 #define RX_DC_HEADER_DP2_IVCRX        0x00001123
 #define RX_PHASE_LUT_DP2_IVCRX        0x00001124
+#define RX_AUTO_DC_MODE_IVCRX         0x00001126
 #define RX_AUDP_STAT_DP2_IVCRX        0x00001127
 #define RX_AUTO_CLR_PKT1_DP2_IVCRX        0x00001128
 #define RX_AUTO_CLR_PKT2_DP2_IVCRX        0x00001129
