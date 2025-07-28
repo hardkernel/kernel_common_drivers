@@ -83,6 +83,7 @@ int __init amlogic_crg_init(void);
 int __init amlogic_crg_drd_usb3_drv_init(void);
 int __init amlogic_crg_host_driver_init(void);
 void __exit amlogic_crg_host_driver_exit(void);
+int __init crg_drd_glue_init(void);
 int __init amlogic_usb3_m31_drv_init(void);
 int __init amlogic_usb2_m31_drv_init(void);
 int __init crg_otg_init(void);
@@ -110,6 +111,11 @@ static inline  int __init amlogic_crg_host_driver_init(void)
 
 static inline void __exit amlogic_crg_host_driver_exit(void)
 {
+}
+
+int __init crg_drd_glue_init(void)
+{
+	return -1;
 }
 
 static inline int __init crg_otg_init(void)

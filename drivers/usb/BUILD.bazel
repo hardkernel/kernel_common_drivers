@@ -66,6 +66,7 @@ ddk_module(
         },
         "CONFIG_AMLOGIC_CRG": {
             True: [
+                "crg/crg-drd-glue.c",
                 "crg/crg.c",
                 "crg/crg_drd.c",
                 "crg/crg_udc.c",

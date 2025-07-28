@@ -66,6 +66,7 @@ static int __init usb_main_init(void)
 	call_sub_init(amlogic_bc_driver_init);		//bc
 #endif
 
+	call_sub_init(crg_drd_glue_init);
 	call_sub_init(meson_uphy_drv_init);
 
 #ifndef AML_USBPHY_REMOVE_LEGACY

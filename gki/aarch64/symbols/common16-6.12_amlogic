@@ -79,3 +79,6 @@
 
 #amlogic-memory-debug.ko
  bpf_trace_run12
+
+#amlogic-usb.ko
+ of_add_property
