@@ -919,11 +919,6 @@ unsigned long __nocfi find_back_trace(void)
 			return frame.pc;
 	}
 #endif
-#if DEBUG_PAGE_TRACE
-	pr_info("can't get pc\n");
-	dump_stack();
-#endif
-	return 0;
 }
 
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)

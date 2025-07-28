@@ -58,6 +58,7 @@
 			console-size = <0x40000>;
 			ftrace-size = <0x0>;
 			pmsg-size = <0x10000>;
+			status = "disabled";
 		};
 
 		dmc_reserved:linux,dmc_monitor {
