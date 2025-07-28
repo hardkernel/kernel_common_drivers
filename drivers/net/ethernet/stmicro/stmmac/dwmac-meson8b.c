@@ -21,6 +21,7 @@
 
 #include "stmmac_platform.h"
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#include <linux/amlogic/cpu_version.h>
 #ifdef CONFIG_PM_SLEEP
 #include <linux/amlogic/scpi_protocol.h>
 #ifdef MBOX_NEW_VERSION
@@ -443,14 +444,34 @@ static void set_wol_notify_bl30(struct meson8b_dwmac *dwmac, u32 enable_bl30)
 	#endif
 }
 #endif
+void __iomem *ee_reset_base;
+int eth_reset_bit;
 unsigned int mc_val;
 static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac *dwmac)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	void __iomem *addr = NULL;
 	unsigned int cali_val = 0;
+	unsigned int eth_reset_reg;
 
 	pr_debug("aml_cust_setting\n");
+
+	if (of_property_read_u32(np, "eth_reset_reg", &eth_reset_reg) == 0) {
+		addr = devm_ioremap(&pdev->dev, eth_reset_reg, 4);
+		if (IS_ERR_OR_NULL(addr)) {
+			dev_err(&pdev->dev, "Unable to map reset base\n");
+			ee_reset_base = NULL;
+		} else {
+			pr_info("eth_reset_reg=0x%x\n", eth_reset_reg);
+			ee_reset_base = addr;
+			if (of_property_read_u32(np, "eth_reset_bit", &eth_reset_bit) != 0)
+				eth_reset_bit = 11;
+			pr_info("eth_reset_bit=%d\n", eth_reset_bit);
+		}
+	} else {
+		ee_reset_base = NULL;
+	}
 
 	if (of_property_read_u32(np, "mc_val", &mc_val) == 0) {
 		pr_debug("cover mc_val as 0x%x\n", mc_val);
@@ -491,6 +512,7 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 			pr_err("set default cali_val as 0\n");
 		writel(cali_val, dwmac->regs + PRG_ETH1);
 	}
+	mc_val = readl(dwmac->regs + PRG_ETH0);
 
 	return 0;
 }
@@ -855,16 +877,34 @@ static int meson8b_resume(struct device *dev)
 		}
 	} else {
 		if (internal_phy == 2) {
-			if (phydev)
+			if (phydev) {
 				phy_resume(phydev);
-		} else {
-			if (dwmac->data->resume)
-				dwmac->data->resume(dwmac);
+				/*our phy not support wol by now*/
+				phydev->irq_suspended = 0;
+			}
+			ret = stmmac_resume(dev);
 		}
-		/*our phy not support wol by now*/
-		if (phydev)
-			phydev->irq_suspended = 0;
-		ret = stmmac_resume(dev);
+		if (internal_phy != 2) {
+			if (ee_reset_base) {
+				pr_info("do eth reset\n");
+				writel((1 << eth_reset_bit), ee_reset_base);
+				writel(mc_val, dwmac->regs + PRG_ETH0);
+				g12a_resume_enable_internal_mdio();
+				/*our phy not support wol by now*/
+				if (phydev)
+					phydev->irq_suspended = 0;
+				ret = stmmac_resume(dev);
+				if (phydev)
+					gxl_resume_internal_registers(phydev);
+			} else {
+				if (dwmac->data->resume)
+					dwmac->data->resume(dwmac);
+				/*our phy not support wol by now*/
+				if (phydev)
+					phydev->irq_suspended = 0;
+				ret = stmmac_resume(dev);
+			}
+		}
 		/*RTC wait linkup*/
 		pr_info("eth hold wakelock 5s\n");
 		pm_wakeup_event(dev, 5000);

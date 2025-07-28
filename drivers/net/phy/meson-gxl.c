@@ -423,17 +423,15 @@ static int gxl_resume(struct phy_device *phydev)
 	}
 	return rtn;
 }
+#endif
 
-#ifdef CONFIG_HIBERNATION
 int gxl_resume_internal_registers(struct phy_device *phydev)
 {
+	pr_err("gxl_resume_internal_registers\n");
 	phy_write(phydev, 30, 0x7e);
 	return custom_internal_config(phydev);
 }
 EXPORT_SYMBOL_GPL(gxl_resume_internal_registers);
-#endif
-
-#endif
 #endif
 static struct phy_driver meson_gxl_phy[] = {
 	{
