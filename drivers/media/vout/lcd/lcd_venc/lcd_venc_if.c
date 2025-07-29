@@ -24,6 +24,7 @@ static struct lcd_venc_op_s lcd_venc_op = {
 	.get_max_lcnt = NULL,
 	.gamma_test_en = NULL,
 	.venc_debug_test = NULL,
+	.venc_bist_change = NULL,
 	.venc_set_timing = NULL,
 	.venc_set = NULL,
 	.venc_set_dummy = NULL,
@@ -34,6 +35,7 @@ static struct lcd_venc_op_s lcd_venc_op = {
 	.venc_vrr_recovery = NULL,
 	.get_encl_line_cnt = NULL,
 	.get_encl_frm_cnt = NULL,
+	.venc_set_htotal = NULL,
 	.venc_set_vtotal = NULL,
 	.venc_reg_dump = NULL,
 };
@@ -137,6 +139,16 @@ void lcd_screen_black(struct aml_lcd_drv_s *pdrv)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 #endif
 	}
+}
+
+//vsync isr stage
+void lcd_bist_change(struct aml_lcd_drv_s *pdrv, unsigned int level_r,
+		     unsigned int level_g, unsigned int level_b)
+{
+	if (!lcd_venc_op.venc_bist_change)
+		return;
+
+	lcd_venc_op.venc_bist_change(pdrv, level_r, level_g, level_b);
 }
 
 void lcd_set_venc_timing(struct aml_lcd_drv_s *pdrv)
@@ -277,6 +289,15 @@ void lcd_venc_vrr_recovery(struct aml_lcd_drv_s *pdrv)
 	LCD_DBG(pdrv, "%s", __func__);
 
 	lcd_venc_op.venc_vrr_recovery(pdrv);
+}
+
+/*vsync stage*/
+void lcd_venc_adj_htotal(struct aml_lcd_drv_s *pdrv, unsigned int htotal)
+{
+	if (!lcd_venc_op.venc_set_htotal)
+		return;
+
+	lcd_venc_op.venc_set_htotal(pdrv, htotal);
 }
 
 /*vsync stage*/

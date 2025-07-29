@@ -891,6 +891,10 @@ struct aml_lcd_device_mgr_s {
 	unsigned char uboot_dev_idx;
 };
 
+#define LCD_VSYNC_TEST_HTOTAL    1
+#define LCD_VSYNC_TEST_VTOTAL    2
+#define LCD_VSYNC_TEST_BIST      3
+
 struct aml_lcd_drv_s {
 	unsigned int index;
 	unsigned int status;
@@ -989,6 +993,9 @@ struct aml_lcd_drv_s {
 	unsigned int tcon_status;
 	unsigned int vsync_cnt;
 	unsigned int vsync_cnt_previous;
+	unsigned int vsync_test[8];
+	unsigned int vsync_test_cnt;
+	unsigned long long vs_time;
 
 	// void (*driver_init_pre)(struct aml_lcd_drv_s *pdrv);
 	// void (*driver_disable_post)(struct aml_lcd_drv_s *pdrv);

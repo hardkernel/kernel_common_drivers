@@ -225,6 +225,8 @@ int lcd_venc_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 
 void lcd_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag);
 void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num);
+void lcd_bist_change(struct aml_lcd_drv_s *pdrv, unsigned int level_r,
+		     unsigned int level_g, unsigned int level_b);
 void lcd_set_venc_timing(struct aml_lcd_drv_s *pdrv);
 void lcd_set_venc(struct aml_lcd_drv_s *pdrv);
 void lcd_venc_set_dummy(struct aml_lcd_drv_s *pdrv);
@@ -239,6 +241,7 @@ void lcd_screen_black(struct aml_lcd_drv_s *pdrv);
 void lcd_screen_restore(struct aml_lcd_drv_s *pdrv);
 void lcd_module_reset(struct aml_lcd_drv_s *pdrv);
 
+void lcd_venc_adj_htotal(struct aml_lcd_drv_s *pdrv, unsigned int htotal);
 void lcd_venc_adj_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal);
 
 void lcd_connector_driver_init_pre(struct aml_lcd_drv_s *pdrv);

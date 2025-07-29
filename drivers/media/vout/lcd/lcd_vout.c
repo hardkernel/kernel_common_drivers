@@ -1159,7 +1159,7 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned long long local_time[2];
 	unsigned long flags = 0;
-	unsigned int temp;
+	unsigned int temp, duration;
 	unsigned int fr;
 
 	if (!pdrv)
@@ -1193,7 +1193,42 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->fr_show) {
 		fr = vout_frame_rate_measure(1);
-		pr_info("fr=%d.%d\n", fr / 1000, fr % 1000);
+		duration = lcd_do_div(local_time[0] - pdrv->vs_time, 100000);
+		pr_info("fr=%d.%03d, duration=%d.%d\n",
+			fr / 1000, fr % 1000, duration / 10, duration % 10);
+	}
+	if (pdrv->vsync_test[0] == LCD_VSYNC_TEST_HTOTAL) {
+		if ((pdrv->vsync_cnt % pdrv->vsync_test[1]) == 0) {
+			if (pdrv->vsync_test_cnt == 0) {
+				lcd_venc_adj_htotal(pdrv, pdrv->vsync_test[2]);
+				pdrv->vsync_test_cnt = 1;
+			} else {
+				lcd_venc_adj_htotal(pdrv, pdrv->vsync_test[3]);
+				pdrv->vsync_test_cnt = 0;
+			}
+		}
+	} else if (pdrv->vsync_test[0] == LCD_VSYNC_TEST_VTOTAL) {
+		if ((pdrv->vsync_cnt % pdrv->vsync_test[1]) == 0) {
+			if (pdrv->vsync_test_cnt == 0) {
+				lcd_venc_adj_vtotal(pdrv, pdrv->vsync_test[2]);
+				pdrv->vsync_test_cnt = 1;
+			} else {
+				lcd_venc_adj_vtotal(pdrv, pdrv->vsync_test[3]);
+				pdrv->vsync_test_cnt = 0;
+			}
+		}
+	} else if (pdrv->vsync_test[0] == LCD_VSYNC_TEST_BIST) {
+		if ((pdrv->vsync_cnt % pdrv->vsync_test[1]) == 0) {
+			if (pdrv->vsync_test_cnt == 0) {
+				lcd_bist_change(pdrv, pdrv->vsync_test[2],
+						pdrv->vsync_test[3], pdrv->vsync_test[4]);
+				pdrv->vsync_test_cnt = 1;
+			} else {
+				lcd_bist_change(pdrv, pdrv->vsync_test[5],
+						pdrv->vsync_test[6], pdrv->vsync_test[7]);
+				pdrv->vsync_test_cnt = 0;
+			}
+		}
 	}
 
 	if (pdrv->mute_switch) {
@@ -1233,6 +1268,8 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 				pdrv->vs_msr_i = 0;
 		}
 	}
+	pdrv->vsync_cnt++;
+	pdrv->vs_time = local_time[0];
 	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 
 	local_time[1] = sched_clock();
@@ -1249,11 +1286,8 @@ static irqreturn_t lcd_vsync_isr(int irq, void *data)
 	if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0)
 		return IRQ_HANDLED;
 
-	if (pdrv->viu_sel == 1) {
+	if (pdrv->viu_sel == 1)
 		lcd_vsync_handler(pdrv);
-		if (pdrv->vsync_cnt++ >= 65536)
-			pdrv->vsync_cnt = 0;
-	}
 	return IRQ_HANDLED;
 }
 
@@ -1267,11 +1301,8 @@ static irqreturn_t lcd_vsync2_isr(int irq, void *data)
 	if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0)
 		return IRQ_HANDLED;
 
-	if (pdrv->viu_sel == 2) {
+	if (pdrv->viu_sel == 2)
 		lcd_vsync_handler(pdrv);
-		if (pdrv->vsync_cnt++ >= 65536)
-			pdrv->vsync_cnt = 0;
-	}
 	return IRQ_HANDLED;
 }
 
@@ -1285,11 +1316,8 @@ static irqreturn_t lcd_vsync3_isr(int irq, void *data)
 	if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0)
 		return IRQ_HANDLED;
 
-	if (pdrv->viu_sel == 3) {
+	if (pdrv->viu_sel == 3)
 		lcd_vsync_handler(pdrv);
-		if (pdrv->vsync_cnt++ >= 65536)
-			pdrv->vsync_cnt = 0;
-	}
 	return IRQ_HANDLED;
 }
 

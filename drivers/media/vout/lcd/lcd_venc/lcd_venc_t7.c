@@ -157,6 +157,34 @@ static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 	return 0;
 }
 
+static void lcd_venc_bist_change(struct aml_lcd_drv_s *pdrv, unsigned int level_r,
+				 unsigned int level_g, unsigned int level_b)
+{
+	struct lcd_enc_test_t *pcur_test = lcd_enc_tst_comm;
+	unsigned int bist_num, r_data, g_data, b_data, offset;
+
+	if (level_r > 0x3ff) {
+		bist_num = 0;
+		r_data = 0;
+		g_data = 0;
+		b_data = 0;
+	} else {
+		bist_num = 8;
+		r_data = level_r;
+		g_data = level_g;
+		b_data = level_b;
+	}
+
+	offset = pdrv->data->offset_venc[pdrv->index];
+	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, pcur_test[bist_num].rgb_in);
+	lcd_vcbus_write(ENCL_TST_MDSEL + offset, pcur_test[bist_num].mode);
+	lcd_vcbus_write(ENCL_TST_Y + offset, r_data);
+	lcd_vcbus_write(ENCL_TST_CB + offset, g_data);
+	lcd_vcbus_write(ENCL_TST_CR + offset, b_data);
+	lcd_vcbus_setb(ENCL_TST_EN + offset, pcur_test[bist_num].en, 0, 1);
+	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, pcur_test[bist_num].vfifo_en, 3, 1);
+}
+
 static void lcd_venc_gamma_init(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int data[2];
@@ -624,6 +652,14 @@ static unsigned int lcd_venc_get_encl_frm_cnt(struct aml_lcd_drv_s *pdrv)
 	return cnt;
 }
 
+static void lcd_venc_set_htotal(struct aml_lcd_drv_s *pdrv, unsigned int htotal)
+{
+	unsigned int offset;
+
+	offset = pdrv->data->offset_venc[pdrv->index];
+	lcd_vcbus_write(ENCL_VIDEO_MAX_PXCNT + offset, htotal - 1);
+}
+
 static void lcd_venc_set_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal)
 {
 	unsigned int offset;
@@ -792,10 +828,13 @@ int lcd_venc_op_init_t7(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op)
 	venc_op->venc_vrr_recovery = lcd_venc_set_vrr_recovery;
 	venc_op->get_encl_line_cnt = lcd_venc_get_encl_line_cnt;
 	venc_op->get_encl_frm_cnt = lcd_venc_get_encl_frm_cnt;
+	venc_op->venc_set_htotal = lcd_venc_set_htotal;
 	venc_op->venc_set_vtotal = lcd_venc_set_vtotal;
 	venc_op->venc_reg_dump = lcd_venc_reg_dump;
-	if (pdata->chip_type == LCD_CHIP_T6D)
+	if (pdata->chip_type == LCD_CHIP_T6D) {
+		venc_op->venc_bist_change = lcd_venc_bist_change;
 		venc_op->mute_set = lcd_venc_mute_set;
+	}
 
 	return 0;
 };

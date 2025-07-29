@@ -2041,28 +2041,121 @@ static ssize_t lcd_debug_frame_rate_store(struct device *dev, struct device_attr
 					  const char *buf, size_t count)
 {
 	int ret = 0;
-	unsigned int temp = 0;
+	unsigned int temp = 0, val[7];
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	struct lcd_config_s *pconf;
+	char *str;
+	unsigned long flags = 0;
 
+	if (!pdrv->curr_dev) {
+		LCDERR("[%d]: %s: curr_dev is null\n", pdrv->index, __func__);
+		return -EINVAL;
+	}
+	str = kzalloc(128 * sizeof(char), GFP_KERNEL);
+	if (!str)
+		return -EINVAL;
+
+	pconf = &pdrv->curr_dev->dev_cfg;
 	switch (buf[0]) {
 	case 't':
 		ret = sscanf(buf, "type %d", &temp);
 		if (ret == 1) {
-			pdrv->curr_dev->dev_cfg.timing.act_timing.fr_adjust_type = temp;
-			pr_info("set fr_adjust_type: %d\n", temp);
+			pconf->timing.act_timing.fr_adjust_type = temp;
+			snprintf(str, 128, "set fr_adjust_type: %d", temp);
 		} else {
-			pr_info("invalid data\n");
-			return -EINVAL;
+			goto lcd_debug_frame_rate_store_err;
 		}
 		break;
 	case 's':
 		ret = sscanf(buf, "set %d", &temp);
 		if (ret == 1) {
-			pr_info("set frame rate(*100): %d\n", temp);
+			snprintf(str, 128, "set frame rate(*100): %d", temp);
 			lcd_connector_frame_rate_adjust(pdrv, temp);
 		} else {
-			pr_info("invalid data\n");
-			return -EINVAL;
+			goto lcd_debug_frame_rate_store_err;
+		}
+		break;
+	case 'h':
+		ret = sscanf(buf, "h %d %d %d", &val[0], &val[1], &val[2]);
+		if (ret == 3) {
+			snprintf(str, 128, "htotal %d frame change: %d %d", val[0], val[1], val[2]);
+			spin_lock_irqsave(&pdrv->isr_lock, flags);
+			pdrv->vsync_test[0] = LCD_VSYNC_TEST_HTOTAL;
+			pdrv->vsync_test[1] = val[0];
+			pdrv->vsync_test[2] = val[1];
+			pdrv->vsync_test[3] = val[2];
+			pdrv->vsync_test_cnt = 0;
+			spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+		} else if (ret == 1) {
+			spin_lock_irqsave(&pdrv->isr_lock, flags);
+			pdrv->vsync_test[0] = 0;
+			lcd_venc_adj_htotal(pdrv, pconf->timing.act_timing.h_period);
+			spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+			snprintf(str, 128, "htotal frame change: stop");
+		} else {
+			goto lcd_debug_frame_rate_store_err;
+		}
+		break;
+	case 'v':
+		ret = sscanf(buf, "v %d %d %d", &val[0], &val[1], &val[2]);
+		if (ret == 3) {
+			snprintf(str, 128, "vtotal %d frame change: %d %d", val[0], val[1], val[2]);
+			spin_lock_irqsave(&pdrv->isr_lock, flags);
+			pdrv->vsync_test[0] = LCD_VSYNC_TEST_VTOTAL;
+			pdrv->vsync_test[1] = val[0];
+			pdrv->vsync_test[2] = val[1];
+			pdrv->vsync_test[3] = val[2];
+			pdrv->vsync_test_cnt = 0;
+			spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+		} else if (ret == 1) {
+			spin_lock_irqsave(&pdrv->isr_lock, flags);
+			pdrv->vsync_test[0] = 0;
+			lcd_venc_adj_vtotal(pdrv, pconf->timing.act_timing.v_period);
+			spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+			snprintf(str, 128, "vtotal frame change: stop\n");
+		} else {
+			goto lcd_debug_frame_rate_store_err;
+		}
+		break;
+	case 'b':
+		ret = sscanf(buf, "bist %d %d %d %d %d %d %d",
+			     &val[0], &val[1], &val[2], &val[3], &val[4], &val[5], &val[6]);
+		if (ret == 3) {
+			snprintf(str, 128, "bist w-level %d frame change: %d %d",
+				val[0], val[1], val[2]);
+			spin_lock_irqsave(&pdrv->isr_lock, flags);
+			pdrv->vsync_test[0] = LCD_VSYNC_TEST_BIST;
+			pdrv->vsync_test[1] = val[0];
+			pdrv->vsync_test[2] = val[1];
+			pdrv->vsync_test[3] = val[1];
+			pdrv->vsync_test[4] = val[1];
+			pdrv->vsync_test[5] = val[2];
+			pdrv->vsync_test[6] = val[2];
+			pdrv->vsync_test[7] = val[2];
+			pdrv->vsync_test_cnt = 0;
+			spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+		} else if (ret == 7) {
+			snprintf(str, 128, "bist rgb-level %d frame change: %d %d %d %d %d %d",
+				val[0], val[1], val[2], val[3], val[4], val[5], val[6]);
+			spin_lock_irqsave(&pdrv->isr_lock, flags);
+			pdrv->vsync_test[0] = LCD_VSYNC_TEST_BIST;
+			pdrv->vsync_test[1] = val[0];
+			pdrv->vsync_test[2] = val[1];
+			pdrv->vsync_test[3] = val[2];
+			pdrv->vsync_test[4] = val[3];
+			pdrv->vsync_test[5] = val[4];
+			pdrv->vsync_test[6] = val[5];
+			pdrv->vsync_test[7] = val[6];
+			pdrv->vsync_test_cnt = 0;
+			spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+		} else if (ret == 1) {
+			spin_lock_irqsave(&pdrv->isr_lock, flags);
+			pdrv->vsync_test[0] = 0;
+			lcd_bist_change(pdrv, 0xffff, 0xffff, 0xffff);
+			spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+			snprintf(str, 128, "bist_level frame change: stop");
+		} else {
+			goto lcd_debug_frame_rate_store_err;
 		}
 		break;
 	case 'f':
@@ -2070,11 +2163,17 @@ static ssize_t lcd_debug_frame_rate_store(struct device *dev, struct device_attr
 		pdrv->fr_show = (unsigned char)temp;
 		break;
 	default:
-		pr_info("wrong command\n");
-		break;
+		goto lcd_debug_frame_rate_store_err;
 	}
 
+	pr_info("%s\n", str);
+	kfree(str);
 	return count;
+
+lcd_debug_frame_rate_store_err:
+	pr_info("invalid data\n");
+	kfree(str);
+	return -EINVAL;
 }
 
 static ssize_t lcd_debug_fr_flag_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -3507,8 +3606,7 @@ static const char *lcd_vbyone_debug_usage_str = {
 "Usage:\n"
 "  echo <lane_count> <region_num> <byte_mode> > vbyone\n"
 "  echo <vswing> <preem> > phy\n"
-"  echo intr <state> <en> > vbyone\n"
-"  echo vintr <en> > vbyone\n"
+"  echo intr <vx1_intr_en> <vintr_en> > vbyone\n"
 "  echo ctrl <ctrl_flag> <power_on_reset_delay> <hpd_data_delay> <cdr_training_hold> > vbyone\n"
 };
 

@@ -378,6 +378,14 @@ static unsigned int lcd_venc_get_encl_frm_cnt(struct aml_lcd_drv_s *pdrv)
 	return cnt;
 }
 
+static void lcd_venc_set_htotal(struct aml_lcd_drv_s *pdrv, unsigned int htotal)
+{
+	unsigned int offset;
+
+	offset = pdrv->data->offset_venc[pdrv->index];
+	lcd_vcbus_write(ENCL_VIDEO_MAX_PXCNT + offset, htotal - 1);
+}
+
 static void lcd_venc_set_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal)
 {
 	unsigned int offset;
@@ -470,6 +478,7 @@ int lcd_venc_op_init_dft(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op
 	venc_op->venc_vrr_recovery = lcd_venc_set_vrr_recovery;
 	venc_op->get_encl_line_cnt = lcd_venc_get_encl_line_cnt;
 	venc_op->get_encl_frm_cnt = lcd_venc_get_encl_frm_cnt;
+	venc_op->venc_set_htotal = lcd_venc_set_htotal;
 	venc_op->venc_set_vtotal = lcd_venc_set_vtotal;
 	venc_op->venc_reg_dump = lcd_venc_reg_dump;
 

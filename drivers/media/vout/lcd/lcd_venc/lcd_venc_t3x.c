@@ -180,6 +180,77 @@ static void lcd_venc_gamma_init(struct aml_lcd_drv_s *pdrv)
 	aml_lcd_atomic_notifier_call_chain(LCD_EVENT_GAMMA_UPDATE, (void *)data);
 }
 
+static void lcd_venc_set_htotal(struct aml_lcd_drv_s *pdrv, unsigned int h_period)
+{
+	struct lcd_config_s *pconf;
+	unsigned int offset, ppc, slice, p2s_px_dly;
+	unsigned int hde_px_bgn, hde_px_end;
+	unsigned int vde_ln_bgn, vde_ln_end;
+	unsigned int hso_px_bgn, hso_px_end;
+	unsigned int vso_px_bgn, vso_px_end;
+	unsigned int vso_ln_bgn, vso_ln_end;
+	unsigned int hact, ht, vt;
+
+	if (!pdrv->curr_dev)
+		return;
+	pconf = &pdrv->curr_dev->dev_cfg;
+
+	ppc = pconf->timing.ppc;//must check zero in init place
+	offset = pdrv->data->offset_venc[pdrv->index];
+
+	hde_px_bgn = __cal_h_timing_to_reg(pconf->timing.hstart, ppc);
+	hde_px_end = __cal_h_timing_to_reg(pconf->timing.hend + 1, ppc) - 1;
+
+	ht = h_period / ppc;
+	vt = pconf->timing.act_timing.v_period;
+	hact = hde_px_end - hde_px_bgn + 1;
+
+	lcd_vcbus_setb(ENCL_VIDEO_MAX_CNT + offset, ht - 1, 16, 16);
+
+	if (pconf->basic.lcd_type == LCD_VBYONE) {
+		slice = ppc;
+		p2s_px_dly = hact  + ((slice == 2) ? hact / 2 : 0);
+
+		vde_ln_bgn = pconf->timing.vstart;
+		vde_ln_end = pconf->timing.vend;
+
+		hso_px_bgn =  __cal_h_timing_to_reg(pconf->timing.hs_hs_addr, ppc);
+		hso_px_end = __cal_h_timing_to_reg(pconf->timing.hs_he_addr, ppc);
+
+		vso_px_bgn = __cal_h_timing_to_reg(pconf->timing.vs_hs_addr, ppc);
+		vso_px_end = __cal_h_timing_to_reg(pconf->timing.vs_he_addr, ppc);
+
+		vso_ln_bgn = pconf->timing.vs_vs_addr;
+		vso_ln_end = pconf->timing.vs_ve_addr;
+
+		vde_ln_bgn = __lcd_round_inc(vde_ln_bgn, (hde_px_bgn + p2s_px_dly) / ht, vt);
+		vde_ln_end = __lcd_round_inc(vde_ln_end, (hde_px_end + p2s_px_dly) / ht, vt);
+		hde_px_bgn = __lcd_round_inc(hde_px_bgn, p2s_px_dly, ht);
+		hde_px_end = __lcd_round_inc(hde_px_end + 1, p2s_px_dly, ht);
+		hso_px_bgn = __lcd_round_inc(hso_px_bgn, p2s_px_dly, ht);
+		hso_px_end = __lcd_round_inc(hso_px_end, p2s_px_dly, ht);
+		vso_ln_bgn = __lcd_round_inc(vso_ln_bgn, (vso_px_bgn + p2s_px_dly) / ht, vt);
+		vso_ln_end = __lcd_round_inc(vso_ln_end, (vso_px_end + p2s_px_dly) / ht, vt);
+		vso_px_bgn = __lcd_round_inc(vso_px_bgn, p2s_px_dly, ht);
+		vso_px_end = __lcd_round_inc(vso_px_end, p2s_px_dly, ht);
+
+		lcd_vcbus_setb(ENCL_VIDEO_H_PRE_DE_PX_RNG + offset, hde_px_bgn, 16, 16);
+		lcd_vcbus_setb(ENCL_VIDEO_H_PRE_DE_PX_RNG + offset, hde_px_end, 0, 16);
+
+		lcd_vcbus_setb(ENCL_VIDEO_V_PRE_DE_LN_RNG + offset, vde_ln_bgn, 16, 16);
+		lcd_vcbus_setb(ENCL_VIDEO_V_PRE_DE_LN_RNG + offset, vde_ln_end, 0, 16);
+
+		lcd_vcbus_setb(ENCL_VIDEO_HSO_PRE_PX_RNG + offset, hso_px_bgn, 16, 16);
+		lcd_vcbus_setb(ENCL_VIDEO_HSO_PRE_PX_RNG + offset, hso_px_end, 0, 16);
+
+		lcd_vcbus_setb(ENCL_VIDEO_VSO_PRE_PX_RNG + offset, vso_px_bgn, 16, 16);
+		lcd_vcbus_setb(ENCL_VIDEO_VSO_PRE_PX_RNG + offset, vso_px_end, 0, 16);
+
+		lcd_vcbus_setb(ENCL_VIDEO_VSO_PRE_LN_RNG + offset, vso_ln_bgn, 16, 16);
+		lcd_vcbus_setb(ENCL_VIDEO_VSO_PRE_LN_RNG + offset, vso_ln_end, 0, 16);
+	}
+}
+
 static void lcd_venc_set_timing(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
@@ -410,22 +481,17 @@ static void lcd_venc_change_timing(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int htotal, vtotal, offset, ppc;
 
-	offset = pdrv->data->offset_venc[pdrv->index];
-	ppc = pdrv->curr_dev->dev_cfg.timing.ppc;
-	htotal = (lcd_vcbus_getb(ENCL_VIDEO_MAX_CNT + offset, 16, 16) + 1) * ppc;
-
 	if (pdrv->vmode_switch) {
 		lcd_venc_set_timing(pdrv);
-	} else if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE &&
-		pdrv->curr_dev->dev_cfg.timing.act_timing.h_period != htotal) {
-		lcd_enc_h_timing_change(pdrv);
-		lcd_venc_set_timing(pdrv);
 	} else {
+		offset = pdrv->data->offset_venc[pdrv->index];
+		ppc = pdrv->curr_dev->dev_cfg.timing.ppc;
+		htotal = (lcd_vcbus_getb(ENCL_VIDEO_MAX_CNT + offset, 16, 16) + 1) * ppc;
 		vtotal = lcd_vcbus_getb(ENCL_VIDEO_MAX_CNT + offset, 0, 16) + 1;
+
 		if (pdrv->curr_dev->dev_cfg.timing.act_timing.h_period != htotal) {
-			lcd_vcbus_setb(ENCL_VIDEO_MAX_CNT + offset,
-				pdrv->curr_dev->dev_cfg.timing.act_timing.h_period / ppc - 1,
-				16, 16);
+			lcd_venc_set_htotal(pdrv,
+				pdrv->curr_dev->dev_cfg.timing.act_timing.h_period);
 		}
 		if (pdrv->curr_dev->dev_cfg.timing.act_timing.v_period != vtotal) {
 			lcd_vcbus_setb(ENCL_VIDEO_MAX_CNT + offset,
@@ -614,6 +680,7 @@ int lcd_venc_op_init_t3x(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op
 	venc_op->venc_vrr_recovery = lcd_venc_set_vrr_recovery;
 	venc_op->get_encl_line_cnt = lcd_venc_get_encl_line_cnt;
 	venc_op->get_encl_frm_cnt = lcd_venc_get_encl_frm_cnt;
+	venc_op->venc_set_htotal = lcd_venc_set_htotal;
 	venc_op->venc_set_vtotal = lcd_venc_set_vtotal;
 	venc_op->venc_reg_dump = lcd_venc_reg_dump;
 
