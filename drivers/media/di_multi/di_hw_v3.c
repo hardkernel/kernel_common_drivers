@@ -5047,7 +5047,8 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	const struct reg_acc *op;
 	int nrpt_phase0_en = 1;
 	unsigned int burst_len = 2;
-	unsigned int bits, bit16_mode; //
+	unsigned int bits, bit16_mode;
+	u32 rev_x, rev_y;
 
 	if (!opin)
 		op = &di_pre_regset;
@@ -5208,8 +5209,15 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	}
 
 	// reverse X and Y
-	op->bwr(off + reg[MIF_GEN_REG2], ((mif->rev_y << 1) |
-		(mif->rev_x)), 2, 2);
+	rev_x = mif->rev_x;
+	rev_y = mif->rev_y;
+	if (DIM_IS_IC(T6D) && mif_index == DI_MIF0_ID_INP) {
+		if (di_reverse && cfgg(EN_POST_LINK)) {
+			rev_x = 1;
+			rev_y = 1;
+		}
+	}
+	op->bwr(off + reg[MIF_GEN_REG2], ((rev_y << 1) | (rev_x)), 2, 2);
 
 	// ----------------------
 	// Canvas
@@ -5325,12 +5333,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		(vt_phase_step << 1) |     //vt phase step (3.4)
 		(vfmt_en << 0)             //vt enable
 		);
-	if (DIM_IS_IC(T6D) && mif_index == DI_MIF0_ID_INP) {
-		if (di_reverse && cfgg(EN_POST_LINK))
-			DIM_RDMA_WR_BITS(reg[MIF_GEN_REG2], 3, 2, 2);
-		else
-			DIM_RDMA_WR_BITS(reg[MIF_GEN_REG2], 0, 2, 2);
-	}
+
 	op->wr(off + reg[MIF_FMT_W],    (y_length << 16) |
 		//hz format width
 	       (c_length << 0)); //vt format width
