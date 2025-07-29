@@ -509,6 +509,7 @@ struct amlvideo2_node {
 	struct dump_info_s dump_info_src;
 	struct dump_info_s dump_info_dst;
 	bool is_reg;
+	int screencap_type;  //0:only video, 1:osd+video, 2:only osd
 };
 
 struct amlvideo2_fh {
@@ -5057,7 +5058,7 @@ static int amlvideo2_thread(void *data)
 			video_enable = true;
 
 		if (node->vid == 1) {
-			if (video_enable && is_black_frame) {
+			if (video_enable && is_black_frame && node->screencap_type == 0) {
 				pr_info("amlvideo2:video already ok\n");
 				is_black_frame = false;
 				ret = start_send_normal_frame(fh);
@@ -5065,7 +5066,7 @@ static int amlvideo2_thread(void *data)
 					pr_err("start normal frame err.\n");
 				node->frame_inittime = 1;
 			}
-			if (!video_enable && !is_black_frame) {
+			if (!video_enable && !is_black_frame && node->screencap_type == 0) {
 				is_black_frame = true;
 				stop_vdin1_service(node);
 				pr_info("send from normal to black.\n");
@@ -6873,51 +6874,61 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	if ((i & 0xffff) == 1) {
 		node->vdin_port_ext = PORT_VPP0_OSD_VIDEO;
 		node->porttype = TVIN_PORT_VIU1_WB0_VPP;
+		node->screencap_type = 1;
 		if (amlvideo2_dbg_en)
 			pr_info("amlvideo2: vpp0(osd+video)\n");
 	} else if ((i & 0xffff) == 0) {
 		node->vdin_port_ext = PORT_VPP0_VIDEO_ONLY;
 		node->porttype = TVIN_PORT_VIU1_WB0_VD1;
+		node->screencap_type = 0;
 		if (amlvideo2_dbg_en)
 			pr_info("amlvideo2: vpp0 video only\n");
 	} else if ((i & 0xffff) == 2) {
 		node->vdin_port_ext = PORT_VPP1_VIDEO_ONLY;
 		node->porttype = TVIN_PORT_VIU2_VD1;
+		node->screencap_type = 0;
 		if (amlvideo2_dbg_en)
 			pr_info("amlvideo2: vpp1 video only\n");
 	} else if ((i & 0xffff) == 3) {
 		node->vdin_port_ext = PORT_VPP1_OSD_VIDEO;
 		node->porttype = TVIN_PORT_VIU2_VPP;
+		node->screencap_type = 1;
 		if (amlvideo2_dbg_en)
 			pr_info("amlvideo2: vpp1(osd+video)\n");
 	} else if ((i & 0xffff) == 4) {
 		node->vdin_port_ext = PORT_VPP0_OSD1_ONLY;
 		node->porttype = TVIN_PORT_VIU1_WB0_OSD1;
+		node->screencap_type = 2;
 		if (amlvideo2_dbg_en)
 			pr_info("amlvideo2: vpp0 osd1 only\n");
 	} else if ((i & 0xffff) == 5) {
 		node->vdin_port_ext = PORT_VPP0_OSD2_ONLY;
 		node->porttype = TVIN_PORT_VIU1_WB0_OSD2;
+		node->screencap_type = 2;
 		if (amlvideo2_dbg_en)
 			pr_info("amlvideo2: vpp0 osd2 only)\n");
 	} else if ((i & 0xffff) == 6) {
 		node->vdin_port_ext = PORT_VPP1_OSD1_ONLY;
 		node->porttype = TVIN_PORT_VIU2_OSD1;
+		node->screencap_type = 2;
 		if (amlvideo2_dbg_en)
 			pr_info("amlvideo2: vpp1 osd1 only)\n");
 	} else if ((i & 0xffff) == 7) {
 		node->vdin_port_ext = PORT_VPP2_OSD1_ONLY;
 		node->porttype = TVIN_PORT_VIU3_OSD1;
+		node->screencap_type = 2;
 		if (amlvideo2_dbg_en)
 			pr_info("amlvideo2: vpp2 osd1 only)\n");
 	} else if ((i & 0xffff) == 8) {
 		node->vdin_port_ext = PORT_VPP0_VIDEO_ONLY_NO_PQ;
 		node->porttype = TVIN_PORT_VIU1_VIDEO;
+		node->screencap_type = 0;
 		if (amlvideo2_dbg_en)
 			pr_info("amlvideo2: vpp0 video only no pq)\n");
 	} else if ((i & 0xffff) == 9) {
 		node->vdin_port_ext = PORT_VPP0_OSD_VIDEO_NO_PQ;
 		node->porttype = TVIN_PORT_VIU1_WB0_POST_BLEND;
+		node->screencap_type = 1;
 		if (amlvideo2_dbg_en)
 			pr_info("amlvideo2: vpp0(osd+video) no pq\n");
 	} else {
