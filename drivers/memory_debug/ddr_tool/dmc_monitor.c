@@ -238,7 +238,7 @@ struct page_trace *dmc_find_page_base(struct page *page)
 #ifdef CONFIG_ARM64
 #define PAGE_TRACE_OFFSET	(_PAGE_END(CONFIG_ARM64_VA_BITS))
 #else
-#define PAGE_TRACE_OFFSET	0
+#define PAGE_TRACE_OFFSET	PAGE_OFFSET
 #endif
 
 static struct pglist_data *next_online_pgdat_dmc(struct pglist_data *pgdat)
@@ -309,6 +309,11 @@ static unsigned long dmc_unpack_ip(struct page_trace *trace)
 
 	if (trace->order == IP_INVALID)
 		return 0;
+
+#ifdef CONFIG_ARM
+	if (trace->module_flag)
+		text = MODULES_VADDR;
+#endif
 
 	return text + ((trace->ret_ip) << 2);
 }
