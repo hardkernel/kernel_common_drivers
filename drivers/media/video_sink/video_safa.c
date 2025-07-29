@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/video_sink/video_safa.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/version.h>
@@ -1407,6 +1394,9 @@ void s7d_vsr_default_init(void)
 
 void vsr_default_init(void)
 {
+	struct hw_vsr_safa_reg_s *vsr_reg;
+
+	vsr_reg = &vd_layer[0].vsr_safa_reg;
 	/*
 	 *SAFA_PPS_DIR_MIN_IDX_VALID bit0 set 1 to enhanced interpolation
 	 */
@@ -1417,6 +1407,7 @@ void vsr_default_init(void)
 		WRITE_VCBUS_REG_BITS(T6D_SAFA_PPS_DIR_MIN_IDX_VALID, 1, 0, 1);
 		WRITE_VCBUS_REG_BITS(T6D_SAFA_PPS_SAD_FLAT_THD, 0x18, 0, 8);
 	}
+	WRITE_VCBUS_REG_BITS(vsr_reg->safa_pps_sc_misc, 1, 12, 1);
 }
 
 void vsr_debug_mode_update(u32 debug_mode, struct vsr_setting_s *vsr)
