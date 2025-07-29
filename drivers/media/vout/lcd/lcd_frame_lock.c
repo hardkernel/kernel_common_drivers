@@ -562,12 +562,12 @@ static inline void lcd_sw_vrr_update(struct aml_lcd_drv_s *pdrv,
 void lcd_sw_vrr_proc(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned long flags = 0;
-	struct lcd_detail_timing_s *pt = &pdrv->curr_dev->dev_cfg.timing.act_timing;
+	struct lcd_detail_timing_s *pt;
 	unsigned int fr, duration_num, duration_den;
 
 	if (!pdrv)
 		return;
-
+	pt = &pdrv->curr_dev->dev_cfg.timing.act_timing;
 	spin_lock_irqsave(&pdrv->sw_vrr.set_lock, flags);
 	if (pdrv->sw_vrr.en) {
 		if (pdrv->sw_vrr.sta == 0) {
