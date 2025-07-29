@@ -65,10 +65,6 @@ CONFIG_DEBUG_LIST=y
 CONFIG_BUG=y
 CONFIG_DEBUG_BUGVERBOSE=n
 
-# amlogic-debug.ko feature
-#only for TM5, isolate one cpu.
-CONFIG_AMLOGIC_DEBUG_ISOLCPUS=n
-
 # amlogic-seckey.ko  keyladder is safe to remove
 #CONFIG_AMLOGIC_SECKEY=n
 #CONFIG_AMLOGIC_SECKEY_KT=n
