@@ -66,6 +66,11 @@ static const char * const audio_format[] = {
 	"DOLBY_THD_ATMOS_PROMPT_ON_ATMOS",
 	"DOLBY_MAT_ATMOS_PROMPT_ON_ATMOS",
 	"DOLBY_AC4_ATMOS_PROMPT_ON_ATMOS",
+	"AAC",
+	"HEAAC",
+	"DTSX",
+	"MPEGH",
+	"MPEGH_ASI_UPDATE",
 };
 
 #ifdef CONFIG_AMLOGIC_AUDIO_CUT
@@ -84,6 +89,7 @@ static const char * const audio_output[] = {
 };
 #endif
 
+/*the same as "AUDIO HAL FORMAT" in audiohal*/
 enum audio_hal_format {
 	TYPE_PCM = 0,
 	TYPE_DTS_EXPRESS = 1,
@@ -106,6 +112,11 @@ enum audio_hal_format {
 	TYPE_TRUE_HD_ATMOS_PROMPT_ON_ATMOS = 18,
 	TYPE_MAT_ATMOS_PROMPT_ON_ATMOS = 19,
 	TYPE_AC4_ATMOS_PROMPT_ON_ATMOS = 20,
+	TYPE_AAC  = 21,
+	TYPE_HEAAC = 22,
+	TYPE_DTSX = 23,
+	TYPE_MPEGH = 24,
+	TYPE_MPEGH_ASI_UPDATE = 25,
 };
 
 #ifdef CONFIG_AMLOGIC_AUDIO_CUT
