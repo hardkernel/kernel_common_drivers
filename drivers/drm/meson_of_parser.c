@@ -121,10 +121,12 @@ static void meson_parse_gfcd_config(struct drm_device *dev,
 		if (is_meson_rev_a()) {
 			conf->gfcd_mask = BIT(GFCD_ODD_SIZE);
 			if (conf->gfcd_enable)
-				conf->drm_policy_mask = BIT(GFCD_GLOBAL_ALPHA);
+				conf->drm_policy_mask =
+					(BIT(GFCD_ODD_SIZE) | BIT(GFCD_GLOBAL_ALPHA));
 		} else if (is_meson_rev_b()) {
-			conf->gfcd_mask = BIT(GFCD_GLOBAL_ALPHA);
-			conf->drm_policy_mask = 0;
+			conf->gfcd_mask = (BIT(GFCD_ODD_SIZE) | BIT(GFCD_GLOBAL_ALPHA));
+			if (conf->gfcd_enable)
+				conf->drm_policy_mask = BIT(GFCD_ODD_SIZE);
 		}
 	}
 
