@@ -40,6 +40,9 @@
 #if IS_MODULE(CONFIG_AMLOGIC_MEM_DEBUG)
 #include <linux/module.h>
 #endif
+#include <linux/page_owner.h>
+#include <linux/cma.h>
+#include <linux/debugfs.h>
 
 static int pagemap_en;
 unsigned long mlock_fault_size;
@@ -325,6 +328,215 @@ void dump_mem_layout_boot_phase(void)
 	}
 }
 
+struct cma_info *cma_g;
+
+/* copy from mm/cma.h */
+struct dummy_cma {
+	unsigned long   base_pfn;
+	unsigned long   count;
+	unsigned long   *bitmap;
+	unsigned int order_per_bit; /* Order of pages represented by one bit */
+	spinlock_t	lock;
+#ifdef CONFIG_CMA_DEBUGFS
+	struct hlist_head mem_head;
+	/* spinlock for cma allocation */
+	spinlock_t mem_head_lock;
+	struct debugfs_u32_array dfs_bitmap;
+#endif
+	char name[CMA_MAX_NAME];
+	bool gcma;
+#ifdef CONFIG_CMA_SYSFS
+	/* the number of CMA page successful allocations */
+	atomic64_t nr_pages_succeeded;
+	/* the number of CMA page allocation failures */
+	atomic64_t nr_pages_failed;
+	/* the number of CMA page released */
+	atomic64_t nr_pages_released;
+	/* kobject requires dynamic object */
+	struct cma_kobject *cma_kobj;
+#endif
+	bool reserve_pages_on_error;
+
+	ANDROID_VENDOR_DATA(1);
+};
+
+static inline unsigned long aml_cma_bitmap_maxno(struct dummy_cma *cma)
+{
+	return cma->count >> cma->order_per_bit;
+}
+
+static int update_cma_stat(struct cma *cma_ori, struct cma_stat *stat)
+{
+	unsigned long start, pfn;
+	struct page *page;
+	struct dummy_cma *cma = (struct dummy_cma *)cma_ori;
+	unsigned long *bitmap;
+	unsigned long nbits;
+	int pos = 0;
+	char *buf = NULL;
+
+	if (!cma) {
+		pr_err("not find mm_cma pool\n");
+		return -1;
+	}
+
+	if (!stat->buffer) {
+		pr_err("not alloc stat buffer, suggest: vzalloc(d_cma->count * 3)\n");
+		return -EINVAL;
+	}
+	buf = stat->buffer;
+	nbits = aml_cma_bitmap_maxno(cma);
+
+	bitmap = bitmap_zalloc(aml_cma_bitmap_maxno(cma), GFP_KERNEL);
+	if (!bitmap) {
+		pr_info("codec cma bitmap alloc failed.\n");
+		return -ENOMEM;
+	}
+
+	spin_lock_irq(&cma->lock);
+	bitmap_copy(bitmap, cma->bitmap, nbits);
+	spin_unlock_irq(&cma->lock);
+
+	start = cma->base_pfn;
+	pos += sprintf(buf + pos, "cma base: %lx, count: %lx\n", start, cma->count);
+	pos += sprintf(buf + pos, "D: driver, B: buddy free, A: anon, F: file\n");
+
+	for (pfn = start; pfn < start + cma->count; pfn++) {
+		if (pfn % 64 == 0)
+			pos += sprintf(buf + pos, "\npfn: %lx", pfn);
+		if (test_bit(pfn - start, bitmap)) {
+			stat->driver_c++;
+			pos += sprintf(buf + pos, " D");
+			continue;
+		}
+		page = pfn_to_page(pfn);
+		if (PageBuddy(page) || (!folio_mapcount(page_folio(page)) &&
+				!folio_ref_count(page_folio(page)))) {
+			stat->free_c++;
+			pos += sprintf(buf + pos, " B");
+			continue;
+		}
+		if (PageAnon(page)) {
+			stat->anon_c++;
+			pos += sprintf(buf + pos, " A");
+		} else {
+			stat->file_c++;
+			pos += sprintf(buf + pos, " F");
+		}
+	}
+
+	pos += sprintf(buf + pos, "\ncount: %ld, driver: %d, free: %d, anon: %d, file: %d\n",
+			cma->count, stat->driver_c, stat->free_c, stat->anon_c, stat->file_c);
+
+	bitmap_free(bitmap);
+
+	return 0;
+}
+
+int get_cma_stat(struct cma *cma, struct cma_stat *stat, bool print_log)
+{
+	int ret = update_cma_stat(cma, stat);
+
+	if (ret)
+		return ret;
+	if (print_log)
+		pr_info("%s\n", stat->buffer);
+
+	return 0;
+}
+EXPORT_SYMBOL(get_cma_stat);
+
+static int offset_show;
+static struct cma *g_cma;
+
+static int list_cma_pool(struct cma *cma, void *data)
+{
+	const char *cma_name = cma_get_name(cma);
+	char *buf = (char *)data;
+
+	offset_show += sprintf(buf + offset_show, "\t%s\n", cma_name);
+
+	return 0;
+}
+
+static int cma_stat_show(struct seq_file *m, void *arg)
+{
+	char *buf;
+	struct cma_stat stat = {0};
+	struct dummy_cma *d_cma = NULL;
+
+	if (!g_cma) {
+		buf = kzalloc(512, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		offset_show = 0;
+		cma_for_each_area(list_cma_pool, buf);
+		seq_puts(m, "please echo cma_name, then cat /proc/cma_stat.\n");
+		seq_printf(m, "cma list:\n%s\n", buf);
+		kfree(buf);
+	} else {
+		d_cma = (struct dummy_cma *)g_cma;
+		stat.buffer = vzalloc(d_cma->count * 3);
+		if (!stat.buffer)
+			return -ENOMEM;
+		update_cma_stat(g_cma, &stat);
+		seq_printf(m, "%s\n", stat.buffer);
+		vfree(stat.buffer);
+	}
+
+	return 0;
+}
+
+static int cma_stat_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, cma_stat_show, NULL);
+}
+
+static int get_cma_pool(struct cma *cma, void *data)
+{
+	const char *cma_name = cma_get_name(cma);
+	char *buf = (char *)data;
+
+	if (strstr(cma_name, buf))
+		g_cma = cma;
+
+	return 0;
+}
+
+static ssize_t cma_stat_write(struct file *file, const char __user *buffer,
+		size_t count, loff_t *ppos)
+{
+	char *buf;
+
+	buf = kzalloc(count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	/*remove line break at the end*/
+	if (copy_from_user(buf, buffer, count - 1)) {
+		kfree(buf);
+		return -EINVAL;
+	}
+
+	if (!strncmp(buf, "none", 4))
+		g_cma = NULL;
+	else
+		cma_for_each_area(get_cma_pool, buf);
+
+	kfree(buf);
+
+	return count;
+}
+
+static const struct proc_ops cma_stat_ops = {
+	.proc_open	= cma_stat_open,
+	.proc_read	= seq_read,
+	.proc_write	= cma_stat_write,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+};
+
 static int __init memory_debug_init(void)
 {
 	struct proc_dir_entry *d_mdebug;
@@ -332,6 +544,12 @@ static int __init memory_debug_init(void)
 	d_mdebug = proc_create("mem_debug", 0444, NULL, &mdebug_ops);
 	if (IS_ERR_OR_NULL(d_mdebug)) {
 		pr_err("%s, create proc failed\n", __func__);
+		return -1;
+	}
+
+	d_mdebug = proc_create("cma_stat", 0444, NULL, &cma_stat_ops);
+	if (IS_ERR_OR_NULL(d_mdebug)) {
+		pr_err("create /proc/cma_stat failed\n");
 		return -1;
 	}
 
