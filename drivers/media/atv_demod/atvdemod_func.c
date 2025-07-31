@@ -2168,6 +2168,102 @@ void atv_dmd_set_std(unsigned long std, unsigned long audmode)
 	pr_dbg("[%s] if_freq %d, if_inv %d\n", __func__, if_freq, if_inv);
 }
 
+struct AIF_PARAM {
+	int color_sys;
+	int aud_sys;
+};
+
+struct AIF_PARAM array_aif[] = {
+	{V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK, V4L2_STD_PAL_DK},
+	{V4L2_COLOR_STD_PAL | V4L2_STD_PAL_I, V4L2_STD_PAL_I},
+	{V4L2_COLOR_STD_PAL | V4L2_STD_PAL_BG, V4L2_STD_PAL_BG},
+	{V4L2_COLOR_STD_NTSC | V4L2_STD_NTSC_M, V4L2_STD_NTSC_M},
+};
+
+int aml_audiomode_autodet1(struct v4l2_frontend *v4l2_fe)
+{
+	struct dvb_frontend *fe = &v4l2_fe->fe;
+	struct v4l2_analog_parameters *p = &v4l2_fe->params;
+	struct analog_parameters params;
+	unsigned int carrier_power = 0;
+	unsigned long carrier_power_max = 0;
+	//unsigned long carrier_power_average_max = 0;
+	unsigned long carrier_power_average[4] = {0};
+	int lock = 0, line_lock = 0;
+	//int broad_std_final = 0;
+	int num = 0, i = 0, final_id = 0;
+	//int cur_std = ID_PAL_DK;
+	//int cvbs_std = 0;
+	u8 check_time = 0;
+	//bool secam_signal = false;
+	//bool ntsc_signal = false;
+	//bool pal_signal = false;
+	bool has_audio = false;
+
+	/* SIF_STG_2[0x09],address 0x03 */
+	num = 0;
+	check_time++;
+	while (num < 4) {
+		i = 4;
+		has_audio = false;
+		params.frequency = p->frequency;
+		params.mode = p->afc_range;
+		params.audmode = array_aif[num].aud_sys;
+		params.std = array_aif[num].color_sys;
+		if (fe->ops.analog_ops.set_params)
+			fe->ops.analog_ops.set_params(fe, &params);
+		while (i--) {
+			retrieve_vpll_carrier_lock(&lock);
+			line_lock = atv_dmd_rd_byte(APB_BLOCK_ADDR_VDAGC, 0x4f);
+			if (lock == 0 && (line_lock & 0x10) == 0) {
+				has_audio = true;
+				break;
+			}
+			usleep_range(6000, 9000);
+		}
+		/* ----------------read carrier_power--------------------- */
+		carrier_power = 0;
+		if (has_audio)
+			retrieve_vpll_carrier_audio_power(&carrier_power, 100);
+		else
+			pr_err("[%s]pll and line unlock\n", __func__);
+
+		pr_err("[%s][num:%d][broad_std:%d][%s] audio carrier power:%d\n",
+			__func__, num, broad_std, AUDIO_NAME[num],
+			carrier_power);
+		carrier_power_average[num] = carrier_power;
+		num++;
+	}
+
+	carrier_power_max = carrier_power_average[0];
+	for (i = 0; i < ID_PAL_M; i++) {
+		if (carrier_power_max < carrier_power_average[i]) {
+			carrier_power_max = carrier_power_average[i];
+			final_id = i;
+		}
+	}
+	if (carrier_power_average[final_id] < AUDIO_CARRIER_POWER_MIN &&
+		carrier_power_average[ID_PAL_M] > AUDIO_CARRIER_POWER_MIN)
+		final_id = ID_PAL_M;
+	if (carrier_power_average[ID_PAL_I] < 30 &&
+		carrier_power_average[ID_PAL_M] < 30 &&
+		carrier_power_average[ID_PAL_DK] < 30 &&
+		carrier_power_average[ID_PAL_BG] < 30) {
+		final_id = ID_MAX;
+		pr_err("%s:power all < 30\n", __func__);
+	}
+
+	pr_info("%s:freq:%d,broad_std:%d,carrier-DK-I-BG-M:%ld-%ld-%ld-%ld\n",
+			__func__, p->frequency, broad_std,
+			carrier_power_average[0],
+			carrier_power_average[1],
+			carrier_power_average[2],
+			carrier_power_average[3]);
+
+	aml_fe_hook_call_set_fmt(final_id);
+	return broad_std;
+}
+
 int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 {
 	struct dvb_frontend *fe = &v4l2_fe->fe;

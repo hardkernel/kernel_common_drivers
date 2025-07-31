@@ -48,9 +48,14 @@
 #define TVAFE_H_UNLOCK_CNT_THRESHOLD	20
 
 //atv not filter control
-#define NOT_FILTER_NTSC_443		BIT(0)
-#define NOT_FILTER_NTSC_50		BIT(1)
-#define NOT_FILTER_PAL_60		BIT(2)
+#define FMT_NTSC_M		BIT(0)
+#define FMT_PAL_I		BIT(1)
+#define FMT_PAL_M		BIT(2)
+#define FMT_PAL_CN		BIT(3)
+#define FMT_SECAM		BIT(4)
+#define FMT_PAL_60		BIT(5)
+#define FMT_N_443		BIT(6)
+#define FMT_N_50		BIT(7)
 
 /* test with vlsi guys */
 #define TVAFE_VS_VE_VAL		20
@@ -75,6 +80,14 @@ enum tvafe_no_std_config_e {
 	FORCE_CONFIG_ALL,
 	FORCE_CONFIG_ONCE,
 	NO_CONFIG,
+};
+
+enum AUDIO_IF {
+	AIF_DK = 0,//6.5M
+	AIF_I,//6M
+	AIF_BG,//5.5M
+	AIF_M,//4.5M
+	AIF_MAX,
 };
 /* ****************************************** */
 /* *** structure definitions *********** */
@@ -207,7 +220,6 @@ struct tvafe_cvd2_s {
 /* ******** GLOBAL FUNCTION CLAIM ******** */
 /* ********************************************* */
 int cvd_get_rf_strength(void);
-void tvafe_cvd2_rst(void);
 void tvafe_try_format(struct tvafe_cvd2_s *cvd2,
 		struct tvafe_cvd2_mem_s *mem, enum tvin_sig_fmt_e fmt);
 bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
@@ -248,14 +260,13 @@ int cvd_set_debug_parm(const char *buff, char **parm);
 bool get_tvafe_signal_state(void);
 bool get_tvafe_signal_state(void);
 enum tvin_sig_fmt_e get_tvafe_signal_fmt(void);
-bool tvafe_fmt_support(enum tvin_sig_fmt_e fmt);
 void tvafe_clr_visit_array(void);
 
 extern bool tvafe_snow_function_flag;
 extern bool reinit_scan;
 extern int force_fmt_flag;
-extern char *fmt_info[];
 
+extern enum AUDIO_IF atv_aif;
 extern unsigned int try_fmt_max_atv;
 extern unsigned int try_fmt_max_av;
 extern bool agc_gain_sts;
@@ -263,6 +274,9 @@ extern unsigned int wait_cnt_max_av;
 extern unsigned int wait_cnt_max_atv;
 extern unsigned int try_atv_max;
 extern unsigned int try_avin_max;
+extern unsigned int av_fmt;
+extern unsigned int atv_fmt;
+extern u8 check_twice;
 
 #endif /* _TVAFE_CVD_H */
 

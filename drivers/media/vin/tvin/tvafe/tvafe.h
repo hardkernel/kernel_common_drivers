@@ -53,7 +53,8 @@
 /* 20250804: Reduces av format check time */
 /* 20250805: remove clear state in dec_stop */
 /* 20250820: drop 40 frames before wss stable */
-#define TVAFE_VER "20250820: drop 40 frames before wss stable"
+/* 20250829: Determine the standard based on the audio format */
+#define TVAFE_VER "20250829: Determine the standard based on the audio format"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
@@ -119,7 +120,8 @@ extern enum tvafe_no_std_config_e force_nostd;
 #define TVAFE_DBG_AUTO_VS		BIT(14)
 #define TVAFE_DBG_AUTO_HS		BIT(15)
 #define TVAFE_DBG_WSS			BIT(16)
-#define TVAFE_DBG_HORSTP_REGBASE	BIT(17)
+#define TVAFE_DBG_WSS1			BIT(17)
+#define TVAFE_DBG_HORSTP_REGBASE	BIT(18)
 extern unsigned int tvafe_dbg_print;
 
 struct tvafe_user_param_s {

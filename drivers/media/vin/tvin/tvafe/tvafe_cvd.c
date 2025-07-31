@@ -86,6 +86,10 @@
 
 /*0:NORMAL  1:a little sharper 2:sharper 3:even sharper*/
 #define CVD2_FILTER_CONFIG_LEVEL 0
+
+#define AV_INIT_WAIT_CNT 3
+#define ATV_INIT_WAIT_CNT 5
+
 char fmt_sts[8];
 char *fmt_info[] = {
 	"NTSC",
@@ -129,12 +133,14 @@ static unsigned int config_force_fmt;
 unsigned int try_fmt_max_atv = 80; /* 26 for SECAM identify to PAL */
 unsigned int try_fmt_max_av = 30;
 //wait for decoder-ready; secam detection need 200~400ms.
-unsigned int wait_cnt_max_av = 20;
-unsigned int wait_cnt_max_atv = 10;
+unsigned int wait_cnt_max_av = 8;
+unsigned int wait_cnt_max_atv = 8;
 //wait for secam flag
-unsigned int try_atv_max = 4;
+
+unsigned int try_atv_max = 2;
 unsigned int try_avin_max = 2;
 
+enum AUDIO_IF atv_aif = AIF_MAX;
 /*0:normal nonstandard configure every loop*/
 /*1:force nonstandard configure every loop*/
 /*2:nonstandard configure once*/
@@ -195,7 +201,11 @@ static unsigned int acd_128 = 0x14;
 static unsigned int acd_128_l1 = 0x1f;
 static unsigned int try_format_cnt;
 static unsigned int always_try_format;
-static unsigned int filter_format = 0x1;
+
+//ntsc+pal-i+pal-m+pal-nc+secam+pak-60+n443
+unsigned int av_fmt = 0x7f;
+//ntsc+pal-i+pal-m+pal-nc+secam
+unsigned int atv_fmt = 0x1f;//0x7f;
 
 static int dg_ave_last = 0x200;
 static int pga_step_last = 1;
@@ -219,6 +229,26 @@ unsigned long vbi_mem_start;
 
 bool agc_gain_sts = true;
 static int acd_2d_adjust = 0x94;
+module_param(acd_2d_adjust, int, 0644);
+MODULE_PARM_DESC(acd_2d_adjust, "enable/disable acd_2d_adjust");
+
+//bit 1:function enable/disable, bit 0:on/off
+u8 check_twice = 0x2;
+
+//TODO
+//const static int wss_asr_tbl[TVIN_ASPECT_MAX][2] = {
+//	{TVIN_ASPECT_NULL, TVIN_AR_NOT_VALUE},
+//	{TVIN_ASPECT_1x1, TVIN_AR_NOT_VALUE},
+//	{TVIN_ASPECT_4x3_FULL, TVIN_AR_4x3_FULL_VAL},
+//	{TVIN_ASPECT_14x9_FULL, TVIN_AR_16x9_FULL_VAL},
+//	{TVIN_ASPECT_14x9_LB_CENTER, TVIN_AR_16x9_LB_CENTER_VAL},
+//	{TVIN_ASPECT_14x9_LB_TOP, TVIN_AR_14x9_LB_TOP_VAL},
+//	{TVIN_ASPECT_16x9_FULL, TVIN_AR_16x9_FULL_VAL},
+//	{TVIN_ASPECT_16x9_LB_CENTER, TVIN_AR_16x9_LB_CENTER_VAL},
+//	{TVIN_ASPECT_16x9_LB_CENTER, TVIN_AR_16x9_LB_CENTER1_VAL},
+//	{TVIN_ASPECT_16x9_LB_TOP, TVIN_AR_16x9_LB_TOP_VAL},
+//	{TVIN_ASPECT_MAX, TVIN_AR_NOT_VALUE},
+//};
 
 void cvd_set_shift_cnt(enum tvafe_cvd2_shift_cnt_e src, unsigned int val)
 {
@@ -886,10 +916,11 @@ inline void tvafe_try_format(struct tvafe_cvd2_s *cvd2,
 		fmt = TVIN_SIG_FMT_CVBS_PAL_I;
 	}
 
-	if (fmt != cvd2->config_fmt) {
+	if (fmt != cvd2->config_fmt || reinit_scan) {
 		lock_cnt = 0;
 		cvd2->config_fmt = fmt;
 		tvafe_cvd2_info_init(cvd2);
+		reinit_scan = false;
 		tvafe_cvd2_write_mode_reg(cvd2, mem);
 	}
 }
@@ -1034,27 +1065,30 @@ static void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 		tvafe_pr_info("acc4xx_cnt=%d,acc425_cnt=%d,acc3xx_cnt=%d,acc358_cnt=%d\n",
 			cvd2->hw.acc4xx_cnt, cvd2->hw.acc425_cnt,
 			cvd2->hw.acc3xx_cnt, cvd2->hw.acc358_cnt);
-	cvd2->hw.fsc_358 = false;
-	cvd2->hw.fsc_443 = false;
-	if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
-		if (!cvd2->hw.no_color_burst) {
-			if (cvd2->hw.acc358_cnt < CNT_VLD_TH)// &&
-				//cvd2->hw.acc3xx_cnt > CNT_VLD_TH)
-				cvd2->hw.fsc_443 = true;
-			else
-				cvd2->hw.fsc_358 = true;
-			}
-	} else {
-		if (!cvd2->hw.no_color_burst) {
-			if (cvd2->hw.acc358_cnt < CNT_VLD_TH &&
-				cvd2->hw.acc425_cnt < CNT_VLD_TH &&
-				cvd2->hw.acc4xx_cnt > CNT_VLD_TH &&
-				cvd2->hw.acc3xx_cnt > CNT_VLD_TH)
-				cvd2->hw.fsc_443 = true;
-			else
-				cvd2->hw.fsc_358 = true;
-			}
-		}
+
+	//if (cvd2->hw.acc3xx_cnt > CNT_VLD_TH) {
+		//if (cvd2->hw.acc3xx_cnt >= CNT_3XX_IS_LINE625_TH) {
+			//if (cvd2->hw.acc358_cnt >
+			    //((cvd2->hw.acc3xx_cnt - (cvd2->hw.acc3xx_cnt >> 3)) + 2)) {
+				//cvd2->hw.fsc_358 = true;
+				//cvd2->hw.fsc_425 = false;
+				//cvd2->hw.fsc_443 = false;
+			//}
+		//} else if (cvd2->hw.acc358_cnt >
+		    //(cvd2->hw.acc3xx_cnt - (cvd2->hw.acc3xx_cnt >> 3))) {
+			//cvd2->hw.fsc_358 = true;
+			//cvd2->hw.fsc_425 = false;
+			//cvd2->hw.fsc_443 = false;
+		//} else if (cvd2->hw.acc358_cnt < (cvd2->hw.acc3xx_cnt << 1) / 5) {
+			//cvd2->hw.fsc_358 = false;
+			//if (cvd2->hw.acc4xx_cnt > CNT_VLD_TH) {
+				//cvd2->hw.fsc_425 = false;
+				//cvd2->hw.fsc_443 = true;
+			//} else if (cvd2->hw.acc4xx_cnt  < 40) {
+				//cvd2->hw.fsc_425 = false;
+				//cvd2->hw.fsc_443 = false;
+			//}
+		//}
 
 	//} else if (cvd2->hw.acc3xx_cnt < 40) {
 		//cvd2->hw.fsc_358 = false;
@@ -1240,6 +1274,27 @@ static void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 		cvd2->hw.no_sig = false;
 #endif
 
+	cvd2->hw.fsc_358 = false;
+	cvd2->hw.fsc_443 = false;
+	if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
+		if (cvd2->hw.acc358_cnt < CNT_VLD_TH &&
+			cvd2->hw.acc425_cnt < CNT_VLD_TH &&
+			cvd2->hw.acc4xx_cnt > CNT_VLD_TH &&
+			cvd2->hw.acc3xx_cnt > CNT_VLD_TH) {
+			cvd2->hw.fsc_443 = true;
+		} else if (cvd2->hw.acc358_cnt < CNT_VLD_TH &&
+			cvd2->hw.acc425_cnt < CNT_VLD_TH &&
+			cvd2->hw.acc4xx_cnt < CNT_VLD_TH &&
+			cvd2->hw.acc3xx_cnt < CNT_VLD_TH) {
+			cvd2->hw.fsc_358 = false;
+			cvd2->hw.fsc_425 = false;
+			cvd2->hw.fsc_443 = false;
+			cvd2->hw.no_color_burst = true;
+		} else {
+			cvd2->hw.fsc_358 = true;
+		}
+	}
+
 	data  = 0;
 	data += (int)cvd2->hw_data[0].cordic;
 	data += (int)cvd2->hw_data[1].cordic;
@@ -1344,14 +1399,14 @@ static inline bool tvafe_is_secam(struct tvafe_cvd2_s *cvd2)
 static inline bool tvafe_is_pal(struct tvafe_cvd2_s *cvd2)
 {
 	if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
-		if (((cvd2->hw.fsc_443 && cvd2->hw.pal && cvd2->hw.chroma_lock) ||
-			cvd2->hw.no_color_burst) && cvd2->hw.line625)
+		if (cvd2->hw.line625 && ((cvd2->hw.chroma_lock &&
+			cvd2->hw.pal && cvd2->hw.fsc_443) ||
+			cvd2->hw.no_color_burst))
 			return true;
 		else
 			return false;
 	} else {
-		if (((cvd2->hw.pal && cvd2->hw.chroma_lock) ||
-			cvd2->hw.no_color_burst) && cvd2->hw.line625)
+		if (cvd2->hw.pal && cvd2->hw.line625)
 			return true;
 		else
 			return false;
@@ -1361,14 +1416,14 @@ static inline bool tvafe_is_pal(struct tvafe_cvd2_s *cvd2)
 static inline bool tvafe_is_ntsc(struct tvafe_cvd2_s *cvd2)
 {
 	if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
-		if (((cvd2->hw.fsc_358 && !cvd2->hw.pal && cvd2->hw.chroma_lock) ||
-			cvd2->hw.no_color_burst) && !cvd2->hw.line625)
+		if (!cvd2->hw.line625 && ((cvd2->hw.chroma_lock &&
+			!cvd2->hw.pal && cvd2->hw.fsc_358) ||
+			cvd2->hw.no_color_burst))
 			return true;
 		else
 			return false;
 	} else {
-		if (((!cvd2->hw.pal && cvd2->hw.chroma_lock) ||
-			cvd2->hw.no_color_burst) && !cvd2->hw.line625)
+		if (!cvd2->hw.pal && !cvd2->hw.line625)
 			return true;
 		else
 			return false;
@@ -1378,12 +1433,14 @@ static inline bool tvafe_is_ntsc(struct tvafe_cvd2_s *cvd2)
 static inline bool tvafe_is_palm(struct tvafe_cvd2_s *cvd2)
 {
 	if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
-		if (cvd2->hw.fsc_358 && cvd2->hw.pal && !cvd2->hw.line625)
+		if (cvd2->hw.pal && !cvd2->hw.line625 &&
+			cvd2->hw.fsc_358 && cvd2->hw.chroma_lock)
 			return true;
 		else
 			return false;
 	} else {
-		if (cvd2->hw.pal && !cvd2->hw.line625)
+		if (cvd2->hw.pal &&
+			!cvd2->hw.line625)
 			return true;
 		else
 			return false;
@@ -1393,7 +1450,8 @@ static inline bool tvafe_is_palm(struct tvafe_cvd2_s *cvd2)
 static inline bool tvafe_is_palcn(struct tvafe_cvd2_s *cvd2)
 {
 	if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
-		if (cvd2->hw.fsc_358 && cvd2->hw.pal && cvd2->hw.line625)
+		if (cvd2->hw.pal && cvd2->hw.line625 &&
+			cvd2->hw.fsc_358 && cvd2->hw.chroma_lock)
 			return true;
 		else
 			return false;
@@ -1407,32 +1465,50 @@ static inline bool tvafe_is_palcn(struct tvafe_cvd2_s *cvd2)
 
 static inline bool tvafe_is_pal60(struct tvafe_cvd2_s *cvd2)
 {
-	if (cvd2->hw.fsc_443 && cvd2->hw.pal && !cvd2->hw.line625 &&
-		tvafe_fmt_support(TVIN_SIG_FMT_CVBS_PAL_60) &&
-		IS_TVAFE_AVIN_SRC(cvd2->vd_port))
-		return true;
-	else
-		return false;
+	if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
+		if (cvd2->hw.pal && !cvd2->hw.line625 &&
+			cvd2->hw.fsc_443 && cvd2->hw.chroma_lock)
+			return true;
+		else
+			return false;
+	} else {
+		if (cvd2->hw.pal && !cvd2->hw.line625)
+			return true;
+		else
+			return false;
+	}
 }
 
 static inline bool tvafe_is_n50(struct tvafe_cvd2_s *cvd2)
 {
-	if (cvd2->hw.fsc_358 && !cvd2->hw.pal && cvd2->hw.line625 &&
-		tvafe_fmt_support(TVIN_SIG_FMT_CVBS_NTSC_50) &&
-		IS_TVAFE_AVIN_SRC(cvd2->vd_port))
-		return true;
-	else
-		return false;
+	if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
+		if (!cvd2->hw.pal && cvd2->hw.line625 &&
+			cvd2->hw.fsc_358 && cvd2->hw.chroma_lock)
+			return true;
+		else
+			return false;
+	} else {
+		if (!cvd2->hw.pal && cvd2->hw.line625)
+			return true;
+		else
+			return false;
+	}
 }
 
 static inline bool tvafe_is_n443(struct tvafe_cvd2_s *cvd2)
 {
-	if (cvd2->hw.fsc_443 && !cvd2->hw.pal && !cvd2->hw.line625 &&
-		tvafe_fmt_support(TVIN_SIG_FMT_CVBS_NTSC_443) &&
-		IS_TVAFE_AVIN_SRC(cvd2->vd_port))
-		return true;
-	else
-		return false;
+	if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
+		if (!cvd2->hw.pal && !cvd2->hw.line625 &&
+			cvd2->hw.fsc_443 && cvd2->hw.chroma_lock)
+			return true;
+		else
+			return false;
+	} else {
+		if (!cvd2->hw.pal && !cvd2->hw.line625)
+			return true;
+		else
+			return false;
+	}
 }
 
 void tvafe_clr_visit_array(void)
@@ -1543,18 +1619,20 @@ bool tvafe_cvd2_set_format(int fmt)
 					devp->flags);
 		return false;
 	}
-	if (tvafe_dbg_print & TVAFE_DBG_SMR3)
-		tvafe_pr_info("demod->cvd force fmt: %x\n", fmt);
-	if (fmt != devp->tvafe.cvd2.config_fmt &&
-		(fmt == TVIN_SIG_FMT_CVBS_PAL_I || fmt == TVIN_SIG_FMT_CVBS_PAL_CN) &&
-		devp->tvafe.cvd2.info.state == TVAFE_CVD2_STATE_FIND) {
-		force_fmt_flag = true;
-		if (fmt == TVIN_SIG_FMT_CVBS_PAL_I)
-			tvafe_pr_info("demod->cvd force fmt: PAL-i\n");
-		else
-			tvafe_pr_info("demod->cvd force fmt: PAL-CN\n");
-		tvafe_try_format(&devp->tvafe.cvd2, &devp->mem, fmt);
-	}
+	if (fmt <= AIF_MAX)
+		atv_aif = fmt;
+	//if (tvafe_dbg_print & TVAFE_DBG_SMR3)
+		tvafe_pr_info("demod->cvd aud_if: %x\n", fmt);
+	//if (fmt != devp->tvafe.cvd2.config_fmt &&
+		//(fmt == TVIN_SIG_FMT_CVBS_PAL_I || fmt == TVIN_SIG_FMT_CVBS_PAL_CN) &&
+		//devp->tvafe.cvd2.info.state == TVAFE_CVD2_STATE_FIND) {
+		//force_fmt_flag = true;
+		//if (fmt == TVIN_SIG_FMT_CVBS_PAL_I)
+			//tvafe_pr_info("demod->cvd force fmt: PAL-i\n");
+		//else
+			//tvafe_pr_info("demod->cvd force fmt: PAL-CN\n");
+		//tvafe_try_format(&devp->tvafe.cvd2, &devp->mem, fmt);
+	//}
 	return true;
 }
 EXPORT_SYMBOL(tvafe_cvd2_set_format);
@@ -1910,32 +1988,6 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 	}
 }
 
-void tvafe_cvd2_rst(void)
-{
-	W_APB_BIT(CVD2_RESET_REGISTER, 1, SOFT_RST_BIT, SOFT_RST_WID);
-	if (tvafe_dbg_print & TVAFE_DBG_SMR3)
-		tvafe_pr_info("rst\n");
-	W_APB_BIT(CVD2_RESET_REGISTER, 0, SOFT_RST_BIT, SOFT_RST_WID);
-}
-
-bool tvafe_fmt_support(enum tvin_sig_fmt_e fmt)
-{
-	if (fmt != TVIN_SIG_FMT_CVBS_PAL_60 &&
-		fmt != TVIN_SIG_FMT_CVBS_NTSC_50 &&
-		fmt != TVIN_SIG_FMT_CVBS_NTSC_443)
-		return true;
-	if ((filter_format & NOT_FILTER_PAL_60) &&
-		fmt == TVIN_SIG_FMT_CVBS_PAL_60)
-		return true;
-	else if ((filter_format & NOT_FILTER_NTSC_443) &&
-		fmt == TVIN_SIG_FMT_CVBS_NTSC_443)
-		return true;
-	else if ((filter_format & NOT_FILTER_NTSC_50) &&
-		fmt == TVIN_SIG_FMT_CVBS_NTSC_50)
-		return true;
-	return false;
-}
-
 void tvafe_soft_reset(void)
 {
 	W_APB_BIT(CVD2_RESET_REGISTER, 1, SOFT_RST_BIT, SOFT_RST_WID);
@@ -1965,54 +2017,57 @@ static void tvafe_check_format_avin(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2
 {
 	enum tvin_sig_fmt_e try_fmt = cvd2->config_fmt;
 	switch (cvd2->config_fmt) {
+	//------------------------------------625L-----------------------------------//
+	//pal-i -> pal-cn -> ntsc-50
 	case TVIN_SIG_FMT_CVBS_PAL_I:
-		if (tvafe_is_secam(cvd2) &&
-			tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_SECAM) < 3) {
-			try_fmt = TVIN_SIG_FMT_CVBS_SECAM;
-		} else if (tvafe_is_line625(cvd2)) {
-			if (tvafe_is_pal(cvd2) &&
-				tvafe_is_lock(cvd2)) {
+		tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_PAL_I);
+		if (tvafe_is_line625(cvd2)) {
+			if (tvafe_is_secam(cvd2) &&
+				tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_SECAM) < 3) {
+				try_fmt = TVIN_SIG_FMT_CVBS_SECAM;
+			} else if (tvafe_is_pal(cvd2) &&
+				(tvafe_is_lock(cvd2) || (check_twice & 3))) {
 				cvd2->det_cnt++;
 				cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
 				if (cvd2->det_cnt > try_avin_max)
 					cvd2->info.state = TVAFE_CVD2_STATE_FIND;
-			} else if (!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_PAL_CN)) {
+			} else if ((av_fmt & FMT_PAL_CN) &&
+				!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_PAL_CN)) {
 				try_fmt = TVIN_SIG_FMT_CVBS_PAL_CN;
-			} else if (!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_NTSC_50) &&
-					   tvafe_fmt_support(TVIN_SIG_FMT_CVBS_NTSC_50)) {
+			} else if ((av_fmt & FMT_N_50) &&
+				!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_NTSC_50)) {
 				try_fmt = TVIN_SIG_FMT_CVBS_NTSC_50;
 			} else {
 				try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
 				cvd2->det_cnt = 0;
-				tvafe_clr_visit_array();
+				check_twice |= 1;
+				//tvafe_clr_visit_array();
 				tvafe_pr_info("retry-pal\n");
 			}
 		} else {
-			if (tvafe_is_palm(cvd2) &&
-				!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_PAL_M)) {
-				try_fmt = TVIN_SIG_FMT_CVBS_PAL_M;
-			} else if (tvafe_is_pal60(cvd2) &&
-				!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_PAL_60)) {
-				try_fmt = TVIN_SIG_FMT_CVBS_PAL_60;
-			} else {
-				try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
-				tvafe_pr_info("PAL-NTSC\n");
-			}
+			try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
+			check_twice &= ~1;
+			tvafe_pr_info("PAL-NTSC\n");
 		}
 		break;
 	case TVIN_SIG_FMT_CVBS_PAL_CN:
+		tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_PAL_CN);
 		if (tvafe_is_palcn(cvd2) &&
 			tvafe_is_lock(cvd2)) {
 			cvd2->det_cnt++;
 			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
 			if (cvd2->det_cnt > try_avin_max)
 				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
+		} else if ((av_fmt & FMT_N_50) &&
+			!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_NTSC_50)) {
+			try_fmt = TVIN_SIG_FMT_CVBS_NTSC_50;
 		} else {
 			try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
-			tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_PAL_CN);
+			check_twice |= 1;
 		}
 		break;
 	case TVIN_SIG_FMT_CVBS_NTSC_50:
+		tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_NTSC_50);
 		if (tvafe_is_n50(cvd2) &&
 			tvafe_is_lock(cvd2)) {
 			cvd2->det_cnt++;
@@ -2021,7 +2076,7 @@ static void tvafe_check_format_avin(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2
 				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
 		} else {
 			try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
-			tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_NTSC_50);
+			check_twice |= 1;
 		}
 		break;
 	case TVIN_SIG_FMT_CVBS_SECAM:
@@ -2033,47 +2088,82 @@ static void tvafe_check_format_avin(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2
 		} else {
 			tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_SECAM);
 			try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
+			check_twice |= 1;
 		}
 		break;
+	//------------------------------------525L-----------------------------------//
+	//ntsc-m -> pal-m -> pal-60 -> ntsc-443
 	case TVIN_SIG_FMT_CVBS_NTSC_M:
+		tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_NTSC_M);
 		if (tvafe_is_secam(cvd2) &&
 			tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_SECAM) < 3) {
 			try_fmt = TVIN_SIG_FMT_CVBS_SECAM;
 		} else if (!tvafe_is_line625(cvd2)) {
 			if (tvafe_is_ntsc(cvd2) &&
-				tvafe_is_lock(cvd2)) {
+				(tvafe_is_lock(cvd2) || (check_twice & 3))) {
 				cvd2->det_cnt++;
 				cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
 				if (cvd2->det_cnt > try_avin_max)
 					cvd2->info.state = TVAFE_CVD2_STATE_FIND;
-			} else if (!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_PAL_M)) {
+			} else if ((av_fmt & FMT_PAL_M) &&
+				!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_PAL_M)) {
 				try_fmt = TVIN_SIG_FMT_CVBS_PAL_M;
-			} else if (!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_PAL_60) &&
-					   tvafe_fmt_support(TVIN_SIG_FMT_CVBS_PAL_60) &&
-					   IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
+			} else if ((av_fmt & FMT_PAL_60) &&
+				!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_PAL_60)) {
 				try_fmt = TVIN_SIG_FMT_CVBS_PAL_60;
-			} else if (!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_NTSC_443) &&
-					   tvafe_fmt_support(TVIN_SIG_FMT_CVBS_NTSC_443) &&
-					   IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
+			} else if ((av_fmt & FMT_N_443) &&
+				!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_NTSC_443)) {
 				try_fmt = TVIN_SIG_FMT_CVBS_NTSC_443;
 			} else {
 				try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
 				cvd2->det_cnt = 0;
-				tvafe_clr_visit_array();
+				check_twice |= 1;
+				//tvafe_clr_visit_array();
 				tvafe_pr_info("retry-ntsc\n");
 			}
 		} else {
-			if (tvafe_is_palcn(cvd2)) {
-				try_fmt = TVIN_SIG_FMT_CVBS_PAL_CN;
-			} else if (tvafe_is_n50(cvd2)) {
-				try_fmt = TVIN_SIG_FMT_CVBS_NTSC_50;
-			} else {
-				try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
-				tvafe_pr_info("NTSC-PAL\n");
-			}
+			try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
+			check_twice &= ~1;
+			tvafe_pr_info("NTSC-PAL\n");
+		}
+		break;
+	case TVIN_SIG_FMT_CVBS_PAL_M:
+		tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_PAL_M);
+		if (tvafe_is_palm(cvd2) &&
+			tvafe_is_lock(cvd2)) {
+			cvd2->det_cnt++;
+			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
+			if (cvd2->det_cnt > try_avin_max)
+				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
+		} else if ((av_fmt & FMT_PAL_60) &&
+			!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_PAL_60)) {
+			try_fmt = TVIN_SIG_FMT_CVBS_PAL_60;
+		} else if ((av_fmt & FMT_N_443) &&
+			!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_NTSC_443)) {
+			try_fmt = TVIN_SIG_FMT_CVBS_NTSC_443;
+		} else {
+			try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
+			check_twice |= 1;
+		}
+		break;
+	case TVIN_SIG_FMT_CVBS_PAL_60:
+		tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_PAL_60);
+		if (tvafe_is_pal60(cvd2) &&
+			tvafe_is_lock(cvd2)) {
+			cvd2->det_cnt++;
+			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
+			if (cvd2->det_cnt > try_avin_max)
+				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
+		} else if ((av_fmt & FMT_N_443) &&
+			!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_NTSC_443)) {
+			try_fmt = TVIN_SIG_FMT_CVBS_NTSC_443;
+		} else {
+			try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
+			check_twice |= 1;
 		}
 		break;
 	case TVIN_SIG_FMT_CVBS_NTSC_443:
+		tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_NTSC_443);
 		if (tvafe_is_n443(cvd2) &&
 			tvafe_is_lock(cvd2)) {
 			cvd2->det_cnt++;
@@ -2081,32 +2171,8 @@ static void tvafe_check_format_avin(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2
 			if (cvd2->det_cnt > try_avin_max)
 				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
 		} else {
-			try_fmt = TVIN_SIG_FMT_CVBS_PAL_M;
-			tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_NTSC_443);
-		}
-		break;
-	case TVIN_SIG_FMT_CVBS_PAL_M:
-		if (tvafe_is_palm(cvd2) &&
-			tvafe_is_lock(cvd2)) {
-			cvd2->det_cnt++;
-			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
-			if (cvd2->det_cnt > try_avin_max)
-				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
-		} else {
 			try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
-			tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_PAL_M);
-		}
-		break;
-	case TVIN_SIG_FMT_CVBS_PAL_60:
-		if (tvafe_is_pal60(cvd2) &&
-			tvafe_is_lock(cvd2)) {
-			cvd2->det_cnt++;
-			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
-			if (cvd2->det_cnt > try_avin_max)
-				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
-		} else {
-			try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
-			tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_PAL_60);
+			check_twice |= 1;
 		}
 		break;
 	default:
@@ -2114,8 +2180,8 @@ static void tvafe_check_format_avin(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2
 	}
 	if (tvafe_dbg_print & TVAFE_DBG_SMR3)
 		tvafe_pr_info("%s->%s,pal=%d,4xx_cnt=%d,425_cnt=%d,3xx_cnt=%d,358_cnt=%d,secam:%d-%d,625:%d,non:%d-%d,chroma-%d-%d,hvlock:%d-%d,fsc358=%d,fsc443=%d,try_cnt:%d\n",
-			fmt_info[cvd2->config_fmt - TVIN_SIG_FMT_CVBS_NTSC_M],
-			fmt_info[try_fmt - TVIN_SIG_FMT_CVBS_NTSC_M],
+			tvin_sig_fmt_str(cvd2->config_fmt),
+			tvin_sig_fmt_str(try_fmt),
 			cvd2->hw.pal,
 			cvd2->hw.acc4xx_cnt,
 			cvd2->hw.acc425_cnt,
@@ -2138,6 +2204,7 @@ static void tvafe_check_format_avin(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2
 	if (cvd2->info.state == TVAFE_CVD2_STATE_FIND) {
 		cvd2->det_secam_cnt = 0;
 		cvd2->det_cnt = 0;
+		check_twice &= ~1;
 		tvafe_clr_visit_array();
 	} else if (cvd2->info.state == TVAFE_CVD2_STATE_CHECK) {
 		;
@@ -2153,100 +2220,134 @@ static void tvafe_check_format_atv(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2_
 	enum tvin_sig_fmt_e try_fmt = cvd2->config_fmt;
 
 	if (cvd2->info.state == TVAFE_CVD2_STATE_NO_FIND ||
-		cvd2->info.state == TVAFE_CVD2_STATE_COMPARE ||
 		reinit_scan)
 		goto _wait;
 	switch (try_fmt) {
 	case TVIN_SIG_FMT_CVBS_PAL_I:
-		if (force_fmt_flag) {
-			cvd2->info.state = TVAFE_CVD2_STATE_FIND;
-		} else if (demod_is_pal && tvafe_is_secam(cvd2) &&
+		if (demod_is_pal && tvafe_is_secam(cvd2) &&
 			!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_SECAM)) {
 			try_fmt = TVIN_SIG_FMT_CVBS_SECAM;
-		} else if ((tvafe_is_pal(cvd2) &&
+		} else if (tvafe_is_pal(cvd2) &&
 					tvafe_is_lock(cvd2) &&
-					tvafe_is_chroma_lock(cvd2))) {
+					tvafe_is_chroma_lock(cvd2) &&
+					atv_aif != AIF_M) {
 			cvd2->det_cnt++;
 			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
 			if (cvd2->det_cnt > try_atv_max) {
-				if (demod_is_pal) {
-					cvd2->info.state = TVAFE_CVD2_STATE_INIT;
-					try_fmt = TVIN_SIG_FMT_CVBS_PAL_CN;
-					cvd2->det_pali_sts |= 2;
-				} else {
+				if (demod_is_pal)
+					cvd2->info.state = TVAFE_CVD2_STATE_FIND;
+				else
 					cvd2->info.state = TVAFE_CVD2_STATE_NO_FIND;
-					//cvd2->det_pali_sts = 1;
-				}
-			}
-		} else if (!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_PAL_CN)) {
-			try_fmt = TVIN_SIG_FMT_CVBS_PAL_CN;
-			cvd2->info.state = TVAFE_CVD2_STATE_INIT;
-		} else if (!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_PAL_M)) {
-			try_fmt = TVIN_SIG_FMT_CVBS_PAL_M;
-			cvd2->info.state = TVAFE_CVD2_STATE_INIT;
-		} else if (!tvafe_get_visit_array(TVIN_SIG_FMT_CVBS_NTSC_M)) {
-			try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
-			cvd2->info.state = TVAFE_CVD2_STATE_INIT;
-		} else {
-			if (demod_is_pal)
-				cvd2->info.state = TVAFE_CVD2_STATE_COMPARE;
-			else
-				cvd2->info.state = TVAFE_CVD2_STATE_NO_FIND;
-		}
-		break;
-	case TVIN_SIG_FMT_CVBS_PAL_CN:
-		if (force_fmt_flag) {
-			/* line525 + 358 =>*/
-			/*confirm NTSC_M */
-			cvd2->info.state = TVAFE_CVD2_STATE_FIND;
-		} else if (tvafe_is_palcn(cvd2) &&
-			tvafe_is_lock(cvd2) &&
-			tvafe_is_chroma_lock(cvd2)) {
-			cvd2->det_cnt++;
-			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
-			if (cvd2->det_cnt > try_atv_max) {
-				if (demod_is_pal) {
-					cvd2->info.state = TVAFE_CVD2_STATE_COMPARE;
-					cvd2->det_palcn_sts |= 2;
-				} else {
-					cvd2->info.state = TVAFE_CVD2_STATE_NO_FIND;
-					cvd2->det_palcn_sts = 1;
-				}
 			}
 		} else {
-			try_fmt = TVIN_SIG_FMT_CVBS_PAL_M;
-			tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_PAL_CN);
+			if (atv_fmt & FMT_PAL_60) {
+				try_fmt = TVIN_SIG_FMT_CVBS_PAL_60;
+			} else if (atv_fmt & FMT_N_443) {
+				try_fmt = TVIN_SIG_FMT_CVBS_NTSC_443;
+			} else if (atv_aif == AIF_MAX) {
+				try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
+			} else {
+				if (demod_is_pal)
+					try_format_cnt = try_fmt_max_atv;
+				else
+					cvd2->info.state = TVAFE_CVD2_STATE_NO_FIND;
+			}
 		}
 		break;
-	case TVIN_SIG_FMT_CVBS_PAL_M:
-		if (tvafe_is_palm(cvd2) &&
+	case TVIN_SIG_FMT_CVBS_PAL_60:
+		if (tvafe_is_pal60(cvd2) &&
 			tvafe_is_lock(cvd2) &&
-			tvafe_is_chroma_lock(cvd2)) {
+			tvafe_is_chroma_lock(cvd2) &&
+			atv_aif < AIF_M) {
 			cvd2->det_cnt++;
 			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
 			if (cvd2->det_cnt > try_atv_max)
 				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
 		} else {
-			/* set default to pal i */
-			try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
-			cvd2->info.state = TVAFE_CVD2_STATE_INIT;
-			tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_PAL_M);
+			if ((atv_fmt & FMT_NTSC_M)) {
+				try_fmt = TVIN_SIG_FMT_CVBS_NTSC_443;
+			} else if (atv_aif == AIF_MAX) {
+				try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
+			} else {
+				if (demod_is_pal)
+					try_format_cnt = try_fmt_max_atv;
+				else
+					cvd2->info.state = TVAFE_CVD2_STATE_NO_FIND;
+			}
+		}
+		break;
+	case TVIN_SIG_FMT_CVBS_NTSC_443:
+		if (tvafe_is_n443(cvd2) &&
+			tvafe_is_lock(cvd2) &&
+			tvafe_is_chroma_lock(cvd2) &&
+			atv_aif < AIF_M) {
+			cvd2->det_cnt++;
+			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
+			if (cvd2->det_cnt > try_atv_max)
+				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
+		} else {
+			if (atv_aif == AIF_MAX) {
+				try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
+			} else {
+				if (demod_is_pal)
+					try_format_cnt = try_fmt_max_atv;
+				else
+					cvd2->info.state = TVAFE_CVD2_STATE_NO_FIND;
+			}
 		}
 		break;
 	case TVIN_SIG_FMT_CVBS_NTSC_M:
 		if (tvafe_is_ntsc(cvd2) &&
 			tvafe_is_lock(cvd2) &&
-			tvafe_is_chroma_lock(cvd2)) {
+			tvafe_is_chroma_lock(cvd2) &&
+			atv_aif >= AIF_M) {
+			cvd2->det_cnt++;
+			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
+			if (cvd2->det_cnt > try_atv_max)
+				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
+		} else {
+			if (atv_fmt & FMT_PAL_M)
+				try_fmt = TVIN_SIG_FMT_CVBS_PAL_M;
+			else if (atv_fmt & FMT_PAL_CN)
+				try_fmt = TVIN_SIG_FMT_CVBS_PAL_CN;
+			else if (demod_is_pal)
+				try_format_cnt = try_fmt_max_atv;
+			else
+				cvd2->info.state = TVAFE_CVD2_STATE_NO_FIND;
+		}
+		break;
+	case TVIN_SIG_FMT_CVBS_PAL_M:
+		if (tvafe_is_palm(cvd2) &&
+			tvafe_is_lock(cvd2) &&
+			tvafe_is_chroma_lock(cvd2) &&
+			atv_aif == AIF_M) {
+			cvd2->det_cnt++;
+			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
+			if (cvd2->det_cnt > try_atv_max)
+				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
+		} else {
+			if (atv_fmt & FMT_PAL_CN)
+				try_fmt = TVIN_SIG_FMT_CVBS_PAL_CN;
+			else if (demod_is_pal)
+				try_format_cnt = try_fmt_max_atv;
+			else
+				cvd2->info.state = TVAFE_CVD2_STATE_NO_FIND;
+		}
+		break;
+	case TVIN_SIG_FMT_CVBS_PAL_CN:
+		if (tvafe_is_palcn(cvd2) &&
+			tvafe_is_lock(cvd2) &&
+			tvafe_is_chroma_lock(cvd2) &&
+			atv_aif == AIF_M) {
 			cvd2->det_cnt++;
 			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
 			if (cvd2->det_cnt > try_atv_max)
 				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
 		} else {
 			if (demod_is_pal)
-				cvd2->info.state = TVAFE_CVD2_STATE_COMPARE;
+				try_format_cnt = try_fmt_max_atv;
 			else
 				cvd2->info.state = TVAFE_CVD2_STATE_NO_FIND;
-			tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_NTSC_M);
 		}
 		break;
 	case TVIN_SIG_FMT_CVBS_SECAM:
@@ -2256,12 +2357,15 @@ static void tvafe_check_format_atv(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2_
 			cvd2->info.state = TVAFE_CVD2_STATE_CHECK;
 			if (cvd2->det_cnt > try_atv_max)
 				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
-			} else {
-				if (cvd2->det_secam_cnt++ > 5)
-					tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_SECAM);
-				else
-					try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
-			}
+		} else {
+			//if (cvd2->det_secam_cnt++ > 3)
+				//tvafe_set_visit_array(TVIN_SIG_FMT_CVBS_SECAM);
+			//else
+			if (atv_fmt & FMT_PAL_I)
+				try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
+			else
+				try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
+		}
 		break;
 	default:
 		break;
@@ -2269,8 +2373,8 @@ static void tvafe_check_format_atv(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2_
 _wait:
 	if (tvafe_dbg_print & TVAFE_DBG_SMR3)
 		tvafe_pr_info("%s->%s,pal=%d,4xx_cnt=%d,425_cnt=%d,3xx_cnt=%d,358_cnt=%d,secam:%d-%d,625:%d,non:%d-%d,chroma-%d-%d,hvlock:%d-%d,pali=%d,palcn=%d,try_cnt:%d\n",
-			fmt_info[cvd2->config_fmt - TVIN_SIG_FMT_CVBS_NTSC_M],
-			fmt_info[try_fmt - TVIN_SIG_FMT_CVBS_NTSC_M],
+			tvin_sig_fmt_str(cvd2->config_fmt),
+			tvin_sig_fmt_str(try_fmt),
 			cvd2->hw.pal,
 			cvd2->hw.acc4xx_cnt,
 			cvd2->hw.acc425_cnt,
@@ -2291,8 +2395,6 @@ _wait:
 	if (try_fmt != cvd2->config_fmt || reinit_scan)
 		cvd2->info.state = TVAFE_CVD2_STATE_INIT;
 	if (reinit_scan) {
-		try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
-		reinit_scan = false;
 		cvd2->det_secam_cnt = 0;
 		cvd2->det_pali_sts = 0;
 		cvd2->det_palcn_sts = 0;
@@ -2310,37 +2412,15 @@ _wait:
 		cvd2->det_cnt = 0;
 		if (demod_is_pal) {
 			cvd2->info.state = TVAFE_CVD2_STATE_INIT;
-			try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
+			if (atv_aif == AIF_M && (atv_fmt & FMT_PAL_CN))
+				try_fmt = TVIN_SIG_FMT_CVBS_PAL_CN;
+			else if (atv_fmt & FMT_PAL_I)
+				try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
+			else
+				try_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;//todo
 			tvafe_try_format(cvd2, mem, try_fmt);
 			tvafe_clr_visit_array();
 		}
-	} else if (cvd2->info.state == TVAFE_CVD2_STATE_COMPARE) {
-		if (!cvd2->det_pali_sts && cvd2->det_palcn_sts) {
-			try_fmt = TVIN_SIG_FMT_CVBS_PAL_CN;
-			tvafe_pr_info("comp_palcn\n");
-			if (try_fmt != cvd2->config_fmt)
-				tvafe_try_format(cvd2, mem, try_fmt);
-			force_fmt_flag = true;
-			cvd2->info.state = TVAFE_CVD2_STATE_INIT;
-		} else if (cvd2->det_pali_sts && !cvd2->det_palcn_sts) {
-			force_fmt_flag = true;
-			try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
-			tvafe_pr_info("comp_pali\n");
-			if (try_fmt != cvd2->config_fmt)
-				tvafe_try_format(cvd2, mem, try_fmt);
-			cvd2->info.state = TVAFE_CVD2_STATE_INIT;
-		} else {
-			force_fmt_flag = true;
-			try_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
-			if (try_fmt != cvd2->config_fmt)
-				tvafe_try_format(cvd2, mem, try_fmt);
-			tvafe_pr_info("comp_failed-pali=%d,palcn=%d\n",
-						  cvd2->det_pali_sts, cvd2->det_palcn_sts);
-		}
-		cvd2->det_cnt = 0;
-		cvd2->det_pali_sts = 0;
-		cvd2->det_palcn_sts = 0;
-		tvafe_clr_visit_array();
 	} else {
 		tvafe_soft_reset();
 		tvafe_try_format(cvd2, mem, try_fmt);
@@ -2348,6 +2428,7 @@ _wait:
 		cvd2->det_cnt = 0;
 	}
 }
+
 #endif
 
 /*
@@ -2366,11 +2447,13 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 		shift_cnt = cvd2_shift_cnt_atv;
 		wait_cnt_max =  wait_cnt_max_atv;
 		if (reinit_scan || cvd2->info.state == TVAFE_CVD2_STATE_INIT)
-			wait_cnt_max = wait_cnt_max_atv * 3;
+			wait_cnt_max = wait_cnt_max_atv * ATV_INIT_WAIT_CNT;
 	} else {
 		try_format_max = try_fmt_max_av;
 		shift_cnt = cvd2_shift_cnt_av;
 		wait_cnt_max =  wait_cnt_max_av;
+		if (cvd2->info.state == TVAFE_CVD2_STATE_INIT)
+			wait_cnt_max = wait_cnt_max_av * AV_INIT_WAIT_CNT;
 	}
 
 	/* execute manual mode */
@@ -2414,22 +2497,24 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 #endif
 		}
 		/* wait for signal stable */
-		if (++cvd2->info.state_cnt <= wait_cnt_max)// &&
+		if (++cvd2->info.state_cnt <= wait_cnt_max &&
+			!cvd2->manual_fmt)
+			//cvd2->info.state != TVAFE_CVD2_STATE_CHECK)
 			return;
 		//force_fmt_flag = 0;
 		cvd_pr_flag = false;
-		cvd2->info.state_cnt = 0;
 		/* manual mode =>*/
 		/*go directly to the manual format */
 		if (cvd2->manual_fmt) {
 			try_format_cnt = 0;
-			cvd2->info.state = TVAFE_CVD2_STATE_FIND;
 			tvafe_try_format(cvd2, mem, cvd2->manual_fmt);
+			cvd2->info.state = TVAFE_CVD2_STATE_FIND;
 			if (tvafe_dbg_print & TVAFE_DBG_SMR)
 				tvafe_pr_info("%s: manual fmt is:%s,do not need try other format!!!\n",
 				__func__, tvin_sig_fmt_str(cvd2->manual_fmt));
 			return;
 		}
+		cvd2->info.state_cnt = 0;
 		/* auto mode */
 		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_info("%s: switch to fmt:%s,hnon:%d,vnon:%d,c-lk:%d,pal:%d,secam:%d,h-lk:%d,v-lk:%d,fsc358:%d,fsc425:%d,fsc443:%d,secam detected %d,line625:%d\n",
@@ -2488,6 +2573,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				cvd2->info.ntsc_switch_cnt = 0;
 				try_format_cnt = 0;
 				cvd_pr_flag = false;
+				check_twice &= ~1;
 				if (tvafe_dbg_print & TVAFE_DBG_SMR) {
 					tvafe_pr_info("%s: fmt_shift try_format\n",
 					__func__);
@@ -3952,13 +4038,20 @@ int cvd_set_debug_parm(const char *buff, char **parm)
 			goto cvd_store_err;
 		always_try_format = val;
 		tvafe_pr_info("always_try_format:%#x\n", always_try_format);
-	} else if (!strncmp(parm[0], "filter_format", strlen("filter_format"))) {
+	} else if (!strncmp(parm[0], "atv_fmt", strlen("atv_fmt"))) {
 		if (!parm[1])
 			goto cvd_store_err;
 		if (kstrtouint(parm[1], 16, &val) < 0)
 			goto cvd_store_err;
-		filter_format = val;
-		tvafe_pr_info("filter_format:%#x\n", filter_format);
+		atv_fmt = val;
+		tvafe_pr_info("atv_fmt:%#x\n", atv_fmt);
+	} else if (!strncmp(parm[0], "av_fmt", strlen("av_fmt"))) {
+		if (!parm[1])
+			goto cvd_store_err;
+		if (kstrtouint(parm[1], 16, &val) < 0)
+			goto cvd_store_err;
+		av_fmt = val;
+		tvafe_pr_info("av_fmt:%#x\n", av_fmt);
 	} else if (!strncmp(parm[0], "try_fmt_max_atv", strlen("try_fmt_max_atv"))) {
 		if (!parm[1])
 			goto cvd_store_err;

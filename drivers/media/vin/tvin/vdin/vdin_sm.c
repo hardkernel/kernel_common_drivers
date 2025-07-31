@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 /* Standard Linux Headers */
@@ -42,7 +42,7 @@ static int sm_print_prestable;
 static int atv_stable_fmt_check_enable;
 
 static int hdmi_prestable_out_cnt = 3;
-static int manual_unstable_out_cnt = 30;
+static int manual_unstable_out_cnt = 20;
 bool manual_flag;
 
 //#ifdef DEBUG_SUPPORT

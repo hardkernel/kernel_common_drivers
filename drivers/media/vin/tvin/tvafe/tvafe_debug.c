@@ -22,6 +22,7 @@
 #include "tvafe_debug.h"
 #include "tvafe.h"
 #include "../vdin/vdin_ctl.h"
+#include "../tvin_format_table.h"
 
 bool disable_api;
 bool force_stable;
@@ -75,16 +76,10 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvin_parm_s->v_reverse:%d\n", parm->v_reverse);
 	/* tvafe_dev_s->tvafe_cvd2_s struct info */
 	tvafe_pr_info("\n!!tvafe_dev_s->tvafe_cvd2_s struct info:\n");
-	if (cvd2->config_fmt < TVIN_SIG_FMT_CVBS_NTSC_M)
-		tvafe_pr_info("tvafe_cvd2_s->config_fmt:0\n");
-	else
-		tvafe_pr_info("tvafe_cvd2_s->config_fmt:%s\n",
-			fmt_info[cvd2->config_fmt - TVIN_SIG_FMT_CVBS_NTSC_M]);
-	if (cvd2->manual_fmt < TVIN_SIG_FMT_CVBS_NTSC_M)
-		tvafe_pr_info("tvafe_cvd2_s->manual_fmt:0\n");
-	else
-		tvafe_pr_info("tvafe_cvd2_s->manual_fmt:%s\n",
-			fmt_info[cvd2->manual_fmt - TVIN_SIG_FMT_CVBS_NTSC_M]);
+	tvafe_pr_info("tvafe_cvd2_s->config_fmt:%s\n",
+			tvin_sig_fmt_str(cvd2->config_fmt));
+	tvafe_pr_info("tvafe_cvd2_s->manual_fmt:%s\n",
+			tvin_sig_fmt_str(cvd2->manual_fmt));
 	tvafe_pr_info("tvafe_cvd2_s->vd_port:0x%x\n", cvd2->vd_port);
 	tvafe_pr_info("tvafe_cvd2_s->cvd2_init_en:%d\n", cvd2->cvd2_init_en);
 	tvafe_pr_info("tvafe_cvd2_s->nonstd_detect_dis:%d\n",
@@ -619,11 +614,16 @@ static ssize_t debug_store(struct device *dev,
 			tvafe_reset_module();
 		else if (parm[0][5] == '1')
 			tvafe_cvd2_hold_rst();
-	} else if (!strncmp(parm[0], "enable_db_reg", strlen("enable_db_reg"))) {
-		if (parm[0][13] == '1')
-			enable_db_reg = 1;
-		else
-			enable_db_reg = 0;
+	} else if (!strncmp(parm[0], "av_force", strlen("av_force"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 16, &val) < 0)
+				goto tvafe_store_err;
+			if (val)
+				check_twice |= 0x2;
+			else
+				check_twice &= ~0x2;
+		}
+		pr_info("%s: check_twice = %d\n", __func__, check_twice);
 	} else {
 		tvafe_pr_info("[%s]:invalid command.\n", __func__);
 	}

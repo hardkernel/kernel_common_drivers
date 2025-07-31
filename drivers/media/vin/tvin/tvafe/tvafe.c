@@ -321,15 +321,18 @@ static bool tvafe_work_mode(int mode)
 		tvafe_mode = true;
 		reinit_scan = true;
 		if (g_tvafe_info) {
-			g_tvafe_info->cvd2.config_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
+			if (atv_aif != AIF_M)
+				g_tvafe_info->cvd2.config_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
+			else
+				g_tvafe_info->cvd2.config_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
 			g_tvafe_info->cvd2.info.state = TVAFE_CVD2_STATE_INIT;
 			tvafe_clr_visit_array();
 		}
 	} else if (mode == 0) {
 		tvafe_mode = false;
 		reinit_scan = false;
-		if (tvafe_atv_search_channel) {
-			if (g_tvafe_info) {
+		//if (tvafe_atv_search_channel) {
+			//if (g_tvafe_info) {
 				//g_tvafe_info->cvd2.manual_fmt =
 					//tvafe_manual_fmt_save;
 				//tvafe_pr_info("%s: set cvd2 manual fmt:%s.\n",
@@ -337,8 +340,8 @@ static bool tvafe_work_mode(int mode)
 			      //tvin_sig_fmt_str(tvafe_manual_fmt_save));
 			//if (tvafe_manual_fmt_save != TVIN_SIG_FMT_NULL)
 				//manual_flag = 1;
-			}
-		}
+			//}
+		//}
 	} else if (mode == 2) {
 		demod_is_pal = true;
 	}
@@ -735,8 +738,9 @@ static void tvafe_get_aspect_ratio_value(struct tvafe_dev_s *devp)
 		}
 
 		if (maybe_ratio) {
-			pr_info("wss aspect_ratio:%d->%d,%d\n",
-				tvafe->aspect_ratio, maybe_ratio, aspect_ratio);
+			if (tvafe_dbg_print & TVAFE_DBG_WSS1)
+				pr_info("wss aspect_ratio:%d->%d,%d\n",
+					tvafe->aspect_ratio, maybe_ratio, aspect_ratio);
 			tvafe->aspect_ratio = TVIN_ASPECT_4x3_FULL;
 			tvafe->active_ratio = maybe_ratio;
 		} else {

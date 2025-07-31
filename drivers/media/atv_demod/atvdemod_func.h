@@ -200,6 +200,7 @@ extern void aml_fix_PWM_adjust(int enable);
 void aml_audio_volume_gain_set(unsigned int audio_gain);
 unsigned int aml_audio_volume_gain_get(void);
 extern int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe);
+int aml_audiomode_autodet1(struct v4l2_frontend *v4l2_fe);
 extern void retrieve_frequency_offset(int *freq_offset);
 extern void retrieve_field_lock(int *lock);
 extern void set_atvdemod_scan_mode(int val);

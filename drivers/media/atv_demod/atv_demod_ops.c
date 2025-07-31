@@ -692,8 +692,8 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 			//1: need set demod to pal
 			//2: find
 			atv_sts = aml_fe_hook_call_get_atv_status();
-			if (i >= try_vfmt_cnt)// || atv_sts == 2)
-				break;
+			//if (i >= try_vfmt_cnt)// || atv_sts == 2)
+				//break;
 
 			if (atv_sts == 1) {
 				/* Before enter search,
@@ -716,20 +716,20 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 					aml_fe_hook_call_set_mode(DEMOD_IS_PAL);
 				}
 			} else if (atv_sts == 2) {
-				if (cvbs_std == TVIN_SIG_FMT_CVBS_PAL_CN &&
-					!(p->std & V4L2_STD_PAL_M)) {
-					p->std = V4L2_COLOR_STD_PAL
-					| V4L2_STD_PAL_M;
-					p->audmode = V4L2_STD_PAL_M;
+				//if (cvbs_std == TVIN_SIG_FMT_CVBS_PAL_CN &&
+					//!(p->std & V4L2_STD_PAL_M)) {
+					//p->std = V4L2_COLOR_STD_PAL
+					//| V4L2_STD_PAL_M;
+					//p->audmode = V4L2_STD_PAL_M;
 					pr_info("%s:%d set new std:%#x %#x %s\n", __func__,
 						i, (unsigned int)p->std, p->audmode,
 						v4l2_std_to_str(p->std & 0xFF000000));
-					params.frequency = p->frequency;
-					params.mode = p->afc_range;
-					params.audmode = p->audmode;
-					params.std = p->std;
-					fe->ops.analog_ops.set_params(fe, &params);
-				}
+					//params.frequency = p->frequency;
+					//params.mode = p->afc_range;
+					//params.audmode = p->audmode;
+					//params.std = p->std;
+					//fe->ops.analog_ops.set_params(fe, &params);
+				//}
 				i = try_vfmt_cnt;
 			}
 			usleep_range(30 * 1000, 30 * 1000 + 100);
@@ -1500,6 +1500,7 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe, bool r
 			ret = atvdemod_fe_afc_closer(v4l2_fe, minafcfreq,
 					maxafcfreq + ATV_AFC_500KHZ, 1);
 			if (ret == 0) {
+				aml_audiomode_autodet1(v4l2_fe);
 				aml_fe_hook_call_set_mode(CH_IN_SEARCH);
 				atvdemod_fe_try_analog_format(v4l2_fe,
 						auto_search_std,
