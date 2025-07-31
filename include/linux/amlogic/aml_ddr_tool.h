@@ -89,7 +89,7 @@ int set_all_ots_by_level(unsigned int level)
 
 static inline int enable_side_band(struct dmc_side_band *sb)
 {
-	return -1
+	return -1;
 }
 
 static inline int disable_side_band(unsigned char dmc, unsigned char bus)
