@@ -1841,6 +1841,7 @@ void vdin_set_frame_mif_write_addr_t3x(struct vdin_dev_s *devp,
 	}
 }
 
+/* DONOT DISABLE WRMIF IN the ACTIVE VIDEO AREA,OR IT WILL CAUSE WRMIF DEADLOCK */
 void vdin_pause_mif_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
@@ -1850,13 +1851,7 @@ void vdin_pause_mif_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable,
 		rdma_write_reg_bits(devp->rdma_handle, VDIN0_WRMIF_CTRL + devp->addr_offset,
 			!pause_en, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 	}
-	else
 #endif
-	{
-		wr_bits(devp->addr_offset, VDIN0_CORE_CTRL, !pause_en, 6, 1);
-		wr_bits(devp->addr_offset, VDIN0_WRMIF_CTRL, !pause_en,
-			WR_REQ_EN_BIT, WR_REQ_EN_WID);
-	}
 }
 
 //static unsigned int vdin_luma_max;
@@ -2033,7 +2028,8 @@ void vdin_set_double_write_regs_t3x(struct vdin_dev_s *devp)
 		/* reg_pp_path_en */
 		wr_bits(offset, VDIN0_CORE_CTRL, 1, 5, 1);
 		/* reg_dw_path_en */
-		wr_bits(offset, VDIN0_CORE_CTRL, 1, 6, 1);
+		wr_bits(offset, VDIN0_CORE_CTRL, 0, 6, 1);
+		wr_bits(offset, VDIN0_WRMIF_CTRL, 0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		/* reg_dith_path_en */
 		wr_bits(offset, VDIN0_CORE_CTRL, 1, 7, 1);
 		/* reg_afbce_path_en */
