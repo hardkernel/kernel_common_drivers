@@ -1104,54 +1104,54 @@ static void hdmitx_pure_csc_config(unsigned char input_color_format,
 
 	conv_en = (((input_color_format  == HDMI_COLORSPACE_RGB) ||
 		(output_color_format == HDMI_COLORSPACE_RGB)) &&
-		(input_color_format  != output_color_format)) ? 1 : 0;
+		(input_color_format != output_color_format)) ? 1 : 0;
 
 	if (conv_en) {
 		if (output_color_format == HDMI_COLORSPACE_RGB) {
-			csc_coeff_a1 = 0x2000;
-			csc_coeff_a2 = 0x6926;
-			csc_coeff_a3 = 0x74fd;
-			csc_coeff_a4 = (color_depth == COLORDEPTH_24B) ?
-				0x010e :
-			(color_depth == COLORDEPTH_30B) ? 0x043b :
-			(color_depth == COLORDEPTH_36B) ? 0x10ee :
-			(color_depth == COLORDEPTH_48B) ? 0x10ee : 0x010e;
-		csc_coeff_b1 = 0x2000;
-		csc_coeff_b2 = 0x2cdd;
-		csc_coeff_b3 = 0x0000;
-		csc_coeff_b4 = (color_depth == COLORDEPTH_24B) ? 0x7e9a :
-			(color_depth == COLORDEPTH_30B) ? 0x7a65 :
-			(color_depth == COLORDEPTH_36B) ? 0x6992 :
-			(color_depth == COLORDEPTH_48B) ? 0x6992 : 0x7e9a;
-		csc_coeff_c1 = 0x2000;
-		csc_coeff_c2 = 0x0000;
-		csc_coeff_c3 = 0x38b4;
-		csc_coeff_c4 = (color_depth == COLORDEPTH_24B) ? 0x7e3b :
-			(color_depth == COLORDEPTH_30B) ? 0x78ea :
-			(color_depth == COLORDEPTH_36B) ? 0x63a6 :
-			(color_depth == COLORDEPTH_48B) ? 0x63a6 : 0x7e3b;
-		csc_scale = 1;
-	} else { /* input_color_format == COLORSPACE_RGB444 */
-		csc_coeff_a1 = 0x2591;
-		csc_coeff_a2 = 0x1322;
-		csc_coeff_a3 = 0x074b;
-		csc_coeff_a4 = 0x0000;
-		csc_coeff_b1 = 0x6535;
-		csc_coeff_b2 = 0x2000;
-		csc_coeff_b3 = 0x7acc;
-		csc_coeff_b4 = (color_depth == COLORDEPTH_24B) ? 0x0200 :
-			(color_depth == COLORDEPTH_30B) ? 0x0800 :
-			(color_depth == COLORDEPTH_36B) ? 0x2000 :
-			(color_depth == COLORDEPTH_48B) ? 0x2000 : 0x0200;
-		csc_coeff_c1 = 0x6acd;
-		csc_coeff_c2 = 0x7534;
-		csc_coeff_c3 = 0x2000;
-		csc_coeff_c4 = (color_depth == COLORDEPTH_24B) ? 0x0200 :
-			(color_depth == COLORDEPTH_30B) ? 0x0800 :
-			(color_depth == COLORDEPTH_36B) ? 0x2000 :
-			(color_depth == COLORDEPTH_48B) ? 0x2000 : 0x0200;
-		csc_scale = 0;
-	}
+			csc_coeff_a1 = 0x1000;
+			csc_coeff_a2 = 0xf883;
+			csc_coeff_a3 = 0xfd01;
+			csc_coeff_a4 = (color_depth == COLORDEPTH_24B) ? 0x0053 :
+				(color_depth == COLORDEPTH_30B) ? 0x014f :
+				(color_depth == COLORDEPTH_36B) ? 0x053e :
+				(color_depth == COLORDEPTH_48B) ? 0x053e : 0x0053;
+			csc_coeff_b1 = 0x1000;
+			csc_coeff_b2 = 0x1932;
+			csc_coeff_b3 = 0x0000;
+			csc_coeff_b4 = (color_depth == COLORDEPTH_24B) ? 0xff37 :
+				(color_depth == COLORDEPTH_30B) ? 0xfcda :
+				(color_depth == COLORDEPTH_36B) ? 0xf367 :
+				(color_depth == COLORDEPTH_48B) ? 0xf367 : 0xff37;
+			csc_coeff_c1 = 0x1000;
+			csc_coeff_c2 = 0x0000;
+			csc_coeff_c3 = 0x1db0;
+			csc_coeff_c4 = (color_depth == COLORDEPTH_24B) ? 0xff13 :
+				(color_depth == COLORDEPTH_30B) ? 0xfc4a :
+				(color_depth == COLORDEPTH_36B) ? 0xf128 :
+				(color_depth == COLORDEPTH_48B) ? 0xf128 : 0xff13;
+			csc_scale = 2;
+		} else {
+			/* input_color_format == HDMI_COLORSPACE_RGB */
+			csc_coeff_a1 = 0x2591;
+			csc_coeff_a2 = 0x1322;
+			csc_coeff_a3 = 0x074b;
+			csc_coeff_a4 = 0x0000;
+			csc_coeff_b1 = 0x6535;
+			csc_coeff_b2 = 0x2000;
+			csc_coeff_b3 = 0x7acc;
+			csc_coeff_b4 = (color_depth == COLORDEPTH_24B) ? 0x0200 :
+				(color_depth == COLORDEPTH_30B) ? 0x0800 :
+				(color_depth == COLORDEPTH_36B) ? 0x2000 :
+				(color_depth == COLORDEPTH_48B) ? 0x2000 : 0x0200;
+			csc_coeff_c1 = 0x6acd;
+			csc_coeff_c2 = 0x7534;
+			csc_coeff_c3 = 0x2000;
+			csc_coeff_c4 = (color_depth == COLORDEPTH_24B) ? 0x0200 :
+				(color_depth == COLORDEPTH_30B) ? 0x0800 :
+				(color_depth == COLORDEPTH_36B) ? 0x2000 :
+				(color_depth == COLORDEPTH_48B) ? 0x2000 : 0x0200;
+			csc_scale = 0;
+		}
 	} else {
 		csc_coeff_a1 = 0x2000;
 		csc_coeff_a2 = 0x0000;
@@ -6984,54 +6984,54 @@ static void hdmitx_csc_config(unsigned char input_color_format,
 
 	conv_en = (((input_color_format  == HDMI_COLORSPACE_RGB) ||
 		(output_color_format == HDMI_COLORSPACE_RGB)) &&
-		(input_color_format  != output_color_format)) ? 1 : 0;
+		(input_color_format != output_color_format)) ? 1 : 0;
 
 	if (conv_en) {
 		if (output_color_format == HDMI_COLORSPACE_RGB) {
-			csc_coeff_a1 = 0x2000;
-			csc_coeff_a2 = 0x6926;
-			csc_coeff_a3 = 0x74fd;
-			csc_coeff_a4 = (color_depth == COLORDEPTH_24B) ?
-				0x010e :
-			(color_depth == COLORDEPTH_30B) ? 0x043b :
-			(color_depth == COLORDEPTH_36B) ? 0x10ee :
-			(color_depth == COLORDEPTH_48B) ? 0x10ee : 0x010e;
-		csc_coeff_b1 = 0x2000;
-		csc_coeff_b2 = 0x2cdd;
-		csc_coeff_b3 = 0x0000;
-		csc_coeff_b4 = (color_depth == COLORDEPTH_24B) ? 0x7e9a :
-			(color_depth == COLORDEPTH_30B) ? 0x7a65 :
-			(color_depth == COLORDEPTH_36B) ? 0x6992 :
-			(color_depth == COLORDEPTH_48B) ? 0x6992 : 0x7e9a;
-		csc_coeff_c1 = 0x2000;
-		csc_coeff_c2 = 0x0000;
-		csc_coeff_c3 = 0x38b4;
-		csc_coeff_c4 = (color_depth == COLORDEPTH_24B) ? 0x7e3b :
-			(color_depth == COLORDEPTH_30B) ? 0x78ea :
-			(color_depth == COLORDEPTH_36B) ? 0x63a6 :
-			(color_depth == COLORDEPTH_48B) ? 0x63a6 : 0x7e3b;
-		csc_scale = 1;
-	} else { /* input_color_format == HDMI_COLORSPACE_RGB */
-		csc_coeff_a1 = 0x2591;
-		csc_coeff_a2 = 0x1322;
-		csc_coeff_a3 = 0x074b;
-		csc_coeff_a4 = 0x0000;
-		csc_coeff_b1 = 0x6535;
-		csc_coeff_b2 = 0x2000;
-		csc_coeff_b3 = 0x7acc;
-		csc_coeff_b4 = (color_depth == COLORDEPTH_24B) ? 0x0200 :
-			(color_depth == COLORDEPTH_30B) ? 0x0800 :
-			(color_depth == COLORDEPTH_36B) ? 0x2000 :
-			(color_depth == COLORDEPTH_48B) ? 0x2000 : 0x0200;
-		csc_coeff_c1 = 0x6acd;
-		csc_coeff_c2 = 0x7534;
-		csc_coeff_c3 = 0x2000;
-		csc_coeff_c4 = (color_depth == COLORDEPTH_24B) ? 0x0200 :
-			(color_depth == COLORDEPTH_30B) ? 0x0800 :
-			(color_depth == COLORDEPTH_36B) ? 0x2000 :
-			(color_depth == COLORDEPTH_48B) ? 0x2000 : 0x0200;
-		csc_scale = 0;
-	}
+			csc_coeff_a1 = 0x1000;
+			csc_coeff_a2 = 0xf883;
+			csc_coeff_a3 = 0xfd01;
+			csc_coeff_a4 = (color_depth == COLORDEPTH_24B) ? 0x0053 :
+				(color_depth == COLORDEPTH_30B) ? 0x014f :
+				(color_depth == COLORDEPTH_36B) ? 0x053e :
+				(color_depth == COLORDEPTH_48B) ? 0x053e : 0x0053;
+			csc_coeff_b1 = 0x1000;
+			csc_coeff_b2 = 0x1932;
+			csc_coeff_b3 = 0x0000;
+			csc_coeff_b4 = (color_depth == COLORDEPTH_24B) ? 0xff37 :
+				(color_depth == COLORDEPTH_30B) ? 0xfcda :
+				(color_depth == COLORDEPTH_36B) ? 0xf367 :
+				(color_depth == COLORDEPTH_48B) ? 0xf367 : 0xff37;
+			csc_coeff_c1 = 0x1000;
+			csc_coeff_c2 = 0x0000;
+			csc_coeff_c3 = 0x1db0;
+			csc_coeff_c4 = (color_depth == COLORDEPTH_24B) ? 0xff13 :
+				(color_depth == COLORDEPTH_30B) ? 0xfc4a :
+				(color_depth == COLORDEPTH_36B) ? 0xf128 :
+				(color_depth == COLORDEPTH_48B) ? 0xf128 : 0xff13;
+			csc_scale = 2;
+		} else {
+			/* input_color_format == COLORSPACE_RGB444 */
+			csc_coeff_a1 = 0x2591;
+			csc_coeff_a2 = 0x1322;
+			csc_coeff_a3 = 0x074b;
+			csc_coeff_a4 = 0x0000;
+			csc_coeff_b1 = 0x6535;
+			csc_coeff_b2 = 0x2000;
+			csc_coeff_b3 = 0x7acc;
+			csc_coeff_b4 = (color_depth == COLORDEPTH_24B) ? 0x0200 :
+				(color_depth == COLORDEPTH_30B) ? 0x0800 :
+				(color_depth == COLORDEPTH_36B) ? 0x2000 :
+				(color_depth == COLORDEPTH_48B) ? 0x2000 : 0x0200;
+			csc_coeff_c1 = 0x6acd;
+			csc_coeff_c2 = 0x7534;
+			csc_coeff_c3 = 0x2000;
+			csc_coeff_c4 = (color_depth == COLORDEPTH_24B) ? 0x0200 :
+				(color_depth == COLORDEPTH_30B) ? 0x0800 :
+				(color_depth == COLORDEPTH_36B) ? 0x2000 :
+				(color_depth == COLORDEPTH_48B) ? 0x2000 : 0x0200;
+			csc_scale = 0;
+		}
 	} else {
 		csc_coeff_a1 = 0x2000;
 		csc_coeff_a2 = 0x0000;
