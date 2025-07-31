@@ -448,7 +448,8 @@ struct userdata_meta_info_t {
 	/* how many records left in queue waiting to be read*/
 	__u32 records_in_que;
 	unsigned long long priv_data;
-	__u32 padding_data[4];
+	__u64 vpts_64;
+	__u32 padding_data[2];
 };
 
 struct userdata_param_t {
