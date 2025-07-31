@@ -1248,6 +1248,8 @@ static void dvb_ci_slotstate_linkinit(struct dvb_ca_private *ca, int slot)
 			return;
 		}
 		dvb_ringbuffer_init(&ca->slot_info[slot].rx_buffer, rxbuf, RX_BUFFER_SIZE);
+	} else {
+		dvb_ringbuffer_reset(&ca->slot_info[slot].rx_buffer);
 	}
 
 	ca->pub->slot_ts_enable(ca->pub, slot);
