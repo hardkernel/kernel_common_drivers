@@ -113,7 +113,7 @@ void lcd_clk_frame_rate_init(struct lcd_detail_timing_s *ptiming);
 void lcd_default_to_basic_timing_init_config(struct aml_lcd_drv_s *pdrv,
 				struct aml_lcd_device_s *dev_p);
 void lcd_enc_timing_init_config(struct aml_lcd_drv_s *pdrv);
-void lcd_base_to_enc_timing_init_config(struct aml_lcd_drv_s *pdrv);
+void lcd_base_to_act_timing_init_config(struct aml_lcd_drv_s *pdrv);
 void lcd_enc_h_timing_change(struct aml_lcd_drv_s *pdrv);
 
 int lcd_fr_is_fixed(struct aml_lcd_drv_s *pdrv);

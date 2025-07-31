@@ -416,10 +416,11 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 	struct lcd_detail_timing_s *ptiming;
 	unsigned int pre_pclk;
 	int dur_index;
-	unsigned char switch_type, switch_type_pre = pdrv->curr_dev->dev_cfg.timing.switch_type;
+	unsigned char switch_type, switch_type_pre;
 
-	if (!pdrv->curr_dev->dev_cfg.timing.base_timing)
+	if (!pdrv->curr_dev || !pdrv->curr_dev->dev_cfg.timing.base_timing)
 		return;
+	switch_type_pre = pdrv->curr_dev->dev_cfg.timing.act_timing.switch_type;
 	/* clear clk_change flag */
 	pdrv->curr_dev->dev_cfg.timing.clk_change &= ~(LCD_CLK_PLL_RESET);
 	if (pdrv->vmode_mgr.next_vmode_info) {
@@ -432,7 +433,7 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 		pdrv->curr_dev->dev_cfg.timing.base_timing = ptiming;
 
 		//update base_timing to act_timing
-		lcd_base_to_enc_timing_init_config(pdrv);
+		lcd_base_to_act_timing_init_config(pdrv);
 		if (pdrv->curr_dev->dev_cfg.timing.base_timing->pixel_clk != pre_pclk) {
 			pdrv->curr_dev->dev_cfg.timing.clk_change |=
 				(LCD_CLK_PLL_RESET | LCD_CLK_PLL_CHANGE);
@@ -460,12 +461,23 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 		else if (switch_type == LCD_VMODE_SWITCH_LIMIT)
 			pdrv->curr_dev->dev_cfg.timing.switch_type = LCD_VMODE_SWITCH_LIMIT;
 		else
-			pdrv->curr_dev->dev_cfg.timing.switch_type = LCD_VMODE_SWITCH_MIN;
+			pdrv->curr_dev->dev_cfg.timing.switch_type = switch_type;
 		break;
 	default:
 		pdrv->curr_dev->dev_cfg.timing.switch_type = switch_type;
 		break;
 	}
+	LCD_DBG(pdrv, "%s: switch_type: pre: %d, cur: %d, final: %d, lcd_status: 0x%x",
+		__func__, switch_type_pre, switch_type,
+		pdrv->curr_dev->dev_cfg.timing.switch_type, pdrv->status);
+
+	if (pdrv->curr_dev->dev_cfg.timing.switch_type_dbg) {
+		pdrv->curr_dev->dev_cfg.timing.switch_type =
+			pdrv->curr_dev->dev_cfg.timing.switch_type_dbg;
+		LCD_PR(pdrv, "%s: force dbg to final: %d",
+		      __func__, pdrv->curr_dev->dev_cfg.timing.switch_type);
+	}
+
 	switch (pdrv->curr_dev->dev_cfg.timing.switch_type) {
 	case LCD_VMODE_SWITCH_MIN:
 	case LCD_VMODE_SWITCH_MIN_WO_TCON_RST:
@@ -481,18 +493,6 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 		pdrv->switch_off_event = LCD_EVENT_POWER_OFF;
 		pdrv->switch_on_event = LCD_EVENT_POWER_ON;
 		break;
-	}
-
-	LCD_DBG(pdrv, "%s: timing_switch_flag: %d, lcd_status: 0x%x", __func__,
-		pdrv->curr_dev->dev_cfg.timing.switch_type, pdrv->status);
-
-	if (pdrv->curr_dev->dev_cfg.timing.switch_type_dbg) {
-		pdrv->curr_dev->dev_cfg.timing.switch_type =
-			pdrv->curr_dev->dev_cfg.timing.switch_type_dbg;
-		LCD_PR(pdrv, "%s: timing_switch_flag pre: %d, cur: %d, force dbg to final: %d",
-		      __func__, switch_type_pre,
-		      pdrv->curr_dev->dev_cfg.timing.act_timing.switch_type,
-		      pdrv->curr_dev->dev_cfg.timing.switch_type);
 	}
 
 	if (!pdrv->vmode_mgr.cur_vmode_info || !pdrv->std_duration) {
@@ -930,7 +930,7 @@ static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 {
-	lcd_base_to_enc_timing_init_config(pdrv);
+	lcd_base_to_act_timing_init_config(pdrv);
 
 	lcd_clk_config_parameter_init(pdrv);
 	lcd_clk_generate_parameter(pdrv);

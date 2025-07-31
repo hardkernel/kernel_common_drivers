@@ -1491,7 +1491,7 @@ void lcd_enc_timing_init_config(struct aml_lcd_drv_s *pdrv)
 
 }
 
-void lcd_base_to_enc_timing_init_config(struct aml_lcd_drv_s *pdrv)
+void lcd_base_to_act_timing_init_config(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_detail_timing_s *ptiming;
 
