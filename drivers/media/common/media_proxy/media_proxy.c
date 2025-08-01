@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/debugfs.h>
 #include <linux/vmalloc.h>
+#include <linux/compat.h>
 
 static struct mediaproxy_dev *mediaproxy;
 static struct device *mediaproxy_device;
@@ -653,7 +654,7 @@ static unsigned int mediaproxy_poll(struct file *filp, struct poll_table_struct 
 	return mask;
 }
 
-int mediaproxy_inject_buf(struct mediaproxy_session *session, unsigned long arg)
+int mediaproxy_inject_buf(struct mediaproxy_session *session, unsigned long arg, bool is32)
 {
 	struct aml_buffer_info user_argp;
 	struct aml_video_user_data msg;
@@ -678,15 +679,21 @@ int mediaproxy_inject_buf(struct mediaproxy_session *session, unsigned long arg)
 
 	if (!ptr) {
 		result = -EINVAL;
-		pr_err("buf copy_from_user error\n");
 		return result;
 	}
-	int ret = copy_from_user(ptr, (void *)(unsigned long)user_argp.data.buf_info.ptr,
+
+	unsigned long data_ptr = 0l;
+
+	if (is32)
+		data_ptr = (unsigned long)compat_ptr(user_argp.data.buf_info.ptr);
+	else
+		data_ptr = (unsigned long)(user_argp.data.buf_info.ptr);
+
+	int ret = copy_from_user(ptr, (void *)data_ptr,
 					size);
 	if (ret) {
 		result = -EINVAL;
 		vfree(ptr);
-		pr_err("buf copy_from_user error\n");
 		return result;
 	}
 	msg.data.buf_info.ptr = ptr;
@@ -706,7 +713,7 @@ int mediaproxy_inject_buf(struct mediaproxy_session *session, unsigned long arg)
 	return result;
 }
 
-int mediaproxy_get_buf(struct mediaproxy_session *session, unsigned long arg)
+int mediaproxy_get_buf(struct mediaproxy_session *session, unsigned long arg, bool is32)
 {
 	struct aml_buffer_info user_argp;
 	struct aml_video_user_data msg;
@@ -728,10 +735,8 @@ int mediaproxy_get_buf(struct mediaproxy_session *session, unsigned long arg)
 		pr_err("session not connect or disconnect,can not get buf\n");
 		return -EFAULT;
 	}
-	if (kfifo_is_empty(&mediaproxy->c_fifo[session->fifo_idx]->msg_kfifo)) {
-		pr_err("kfifo[%d] is empty when get buf", session->fifo_idx);
+	if (kfifo_is_empty(&mediaproxy->c_fifo[session->fifo_idx]->msg_kfifo))
 		return -EFAULT;
-	}
 
 	if (kfifo_out(&mediaproxy->c_fifo[session->fifo_idx]->msg_kfifo, &msg, 1) != 1)
 		return -EFAULT;
@@ -742,14 +747,22 @@ int mediaproxy_get_buf(struct mediaproxy_session *session, unsigned long arg)
 	user_argp.data.buf_info.size = msg.data.buf_info.size;
 	void *ptr = msg.data.buf_info.ptr;
 
+	unsigned long data_ptr = 0l;
+
+	if (is32)
+		data_ptr = (unsigned long)compat_ptr(user_argp.data.buf_info.ptr);
+	else
+		data_ptr = (unsigned long)(user_argp.data.buf_info.ptr);
+
 	if (ptr)
-		ret = copy_to_user((void *)(unsigned long)user_argp.data.buf_info.ptr,
+		ret = copy_to_user((void *)(unsigned long)data_ptr,
 						(void *)ptr, size);
 	if (ret)
 		result = -EINVAL;
 
 	if (copy_to_user((void *)arg, &user_argp, sizeof(user_argp)))
 		result = -EINVAL;
+
 	vfree(ptr);
 	return result;
 }
@@ -840,12 +853,12 @@ static long mediaproxy_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 		break;
 	case MEDIAPROXY_INJECT_BUF_INFO:
 		{
-			result = mediaproxy_inject_buf(session, arg);
+			result = mediaproxy_inject_buf(session, arg, false);
 		}
 		break;
 	case MEDIAPROXY_GET_BUF_INFO:
 		{
-			result = mediaproxy_get_buf(session, arg);
+			result = mediaproxy_get_buf(session, arg, false);
 		}
 		break;
 	default:
@@ -855,6 +868,30 @@ static long mediaproxy_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 	}
 	return result;
 }
+
+#ifdef CONFIG_COMPAT
+static long mediaproxy_ioctl_compat(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	int result = 0;
+	struct mediaproxy_session *session = filp->private_data;
+
+	switch (cmd) {
+	case MEDIAPROXY_INJECT_BUF_INFO:
+	{
+		result = mediaproxy_inject_buf(session, arg, true);
+	}
+	return result;
+	case MEDIAPROXY_GET_BUF_INFO:
+	{
+		result = mediaproxy_get_buf(session, arg, true);
+	}
+	return result;
+	default:
+		break;
+	}
+	return mediaproxy_ioctl(filp, cmd, arg);
+}
+#endif
 
 static int _check_thread_wakeup(void)
 {
@@ -1171,7 +1208,7 @@ const struct file_operations mediaproxy_fops = {
 	.release = mediaproxy_release,
 	.unlocked_ioctl = mediaproxy_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl = mediaproxy_ioctl,
+	.compat_ioctl = mediaproxy_ioctl_compat,
 #endif
 };
 
