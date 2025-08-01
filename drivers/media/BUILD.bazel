@@ -824,6 +824,12 @@ ddk_module(
                 "enhancement/amvecm/hdr/am_hdr_sbtm.c",
             ],
         },
+        "CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL": {
+            True: [
+                "enhancement/amprime_sl/amprime_sl.c",
+                "enhancement/amprime_sl/amprime_sl_hw.c",
+            ],
+        },
         "CONFIG_AMLOGIC_MEDIA_FRAME_SYNC": {
             True: [
                 "frame_sync/ptsserv.c",

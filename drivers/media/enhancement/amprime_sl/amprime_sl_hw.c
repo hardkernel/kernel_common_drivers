@@ -4,15 +4,14 @@
  */
 
 #include <linux/types.h>
-#include <linux/amlogic/media/utils/am_com.h>
 #include <linux/amlogic/media/amprime_sl/prime_sl.h>
 #include <linux/amlogic/media/registers/register.h>
+#include <linux/amlogic/media/rdma/rdma_mgr.h>
 
 #include "amprime_sl.h"
 
 /*======================================*/
 /*#define USE_TASKLET	1*/
-
 static inline void wbits_PRIMESL_CTRL0(unsigned int primesl_en,
 		unsigned int gclk_ctrl, unsigned int reg_gclk_ctrl,
 		unsigned int inv_y_ratio, unsigned int inv_chroma_ratio,
@@ -317,6 +316,11 @@ static void slctr_set_lut_d(const int *ptab)
 		SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTD_DATA_PORT, ptab[i]);
 }
 
+void prime_sl_module_enable(void)
+{
+	SL_VSYNC_WR_MPEG_REG_BITS(PRIMESL_CTRL0, 1, 0, 1);
+}
+
 void prime_sl_set_reg(const struct prime_sl_t *ps)
 {
 	wbits_PRIMESL_CTRL1(ps->footroom, ps->l_headroom);
@@ -329,45 +333,57 @@ void prime_sl_set_reg(const struct prime_sl_t *ps)
 	slctr_set_lut_c(&ps->lut_c[0]);
 	slctr_set_lut_p(&ps->lut_p[0]);
 	slctr_set_lut_d(&ps->lut_d[0]);
-
-	if (is_meson_tl1() || is_meson_tm2() || is_meson_sc2()) {
-		wbits_PRIMESL_CTRL16(1024, 0, 3,
+	wbits_PRIMESL_CTRL16(1024, 0, 3,
 			0, 0, 0,
 			0, 0, 0);
-		if (is_meson_tm2() || is_meson_sc2()) {
-			u32 data32;
+	SL_VSYNC_WR_MPEG_REG_BITS(PRIMESL_CTRL0, ps->inv_y_ratio, 4, 11);
+	SL_VSYNC_WR_MPEG_REG_BITS(PRIMESL_CTRL0, ps->inv_chroma_ratio, 16, 11);
+	if (is_meson_tm2() || is_meson_sc2() || is_meson_s7d() || is_meson_s6()) {
+		wbits_PRIMESL_OMAT_OFFSET0(512, 512);
+		wbits_PRIMESL_OMAT_OFFSET1(256, 512);
+		wbits_PRIMESL_OMAT_OFFSET2(2048, 2048);
 
-			wbits_PRIMESL_OMAT_OFFSET0(512, 512);
-			wbits_PRIMESL_OMAT_OFFSET1(256, 512);
-			wbits_PRIMESL_OMAT_OFFSET2(2048, 2048);
-			/* path select */
-			data32 = SL_VSYNC_RD_MPEG_REG(AMDV_PATH_CTRL);
-			data32 &= ~(3 << 24);
-			data32 &= ~(1 << 22);
-			data32 &= ~(1 << 18);
-			data32 &= ~(1 << 12);
-			data32 &= ~(3 << 8);
-			data32 &= ~(1 << 0);
-			data32 |= 2 << 24;
-			data32 |= 2 << 8;
-			SL_VSYNC_WR_MPEG_REG(AMDV_PATH_CTRL, data32);
-		}
+		u32 data32;
+		/* path select */
+		data32 = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, AMDV_PATH_CTRL);
+		data32 &= ~(3 << 24);
+		data32 &= ~(1 << 22);
+		data32 &= ~(1 << 18);
+		data32 &= ~(1 << 12);
+		data32 &= ~(3 << 8);
+		data32 &= ~(1 << 0);
+		data32 |= 2 << 24;
+		data32 |= 2 << 8;
+		WRITE_VCBUS_REG(AMDV_PATH_CTRL, data32);
+		pr_sl(1, "[test],run into stb prime path reg set\n");
+	} else if (is_meson_t5m()) {
+		wbits_PRIMESL_OMAT_OFFSET0(2048, 2048);
+		wbits_PRIMESL_OMAT_OFFSET1(64, 2048);
+		wbits_PRIMESL_OMAT_OFFSET2(512, 512);
+		SL_VSYNC_WR_MPEG_REG(AMDV_PATH_SWAP_CTRL1, 0x2002);
+		SL_VSYNC_WR_MPEG_REG(AMDV_PATH_SWAP_CTRL2, 0x0);
+		SL_VSYNC_WR_MPEG_REG(VIU_VD1_PATH_CTRL, 0x0);
+		pr_sl(1, "[test],run into tv prime path reg set\n");
 	}
-	wbits_PRIMESL_CTRL0(1, 0, 0, ps->inv_y_ratio,
-		ps->inv_chroma_ratio, 0, 0);
 }
 
 void prime_sl_close(void)
 {
-	wbits_PRIMESL_CTRL0(0, 0, 0, 0, 0, 0, 0);
-	if (is_meson_tm2() || is_meson_sc2()) {
+	SL_VSYNC_WR_MPEG_REG_BITS(PRIMESL_CTRL0, 0, 0, 1);
+	if (is_meson_tm2() || is_meson_sc2() || is_meson_s7d() || is_meson_s6()) {
 		u32 data32;
 
 		/* path select */
-		data32 = SL_VSYNC_RD_MPEG_REG(AMDV_PATH_CTRL);
+		data32 = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, AMDV_PATH_CTRL);
 		data32 &= ~(3 << 24);
 		data32 &= ~(3 << 8);
 		data32 |= 1 << 0;
-		SL_VSYNC_WR_MPEG_REG(AMDV_PATH_CTRL, data32);
+		VSYNC_WR_TABLE_REG(VIDEO_PARTITION_TABLE, AMDV_PATH_CTRL, data32);
+		pr_sl(1, "[test],run into stb prime reg close\n");
+	} else if (is_meson_t5m()) {
+		SL_VSYNC_WR_MPEG_REG(AMDV_PATH_SWAP_CTRL1, 0x0);
+		SL_VSYNC_WR_MPEG_REG(AMDV_PATH_SWAP_CTRL2, 0x0);
+		SL_VSYNC_WR_MPEG_REG(VIU_VD1_PATH_CTRL, 0x10000);
+		pr_sl(1, "[test],run into tv prime reg close\n");
 	}
 }

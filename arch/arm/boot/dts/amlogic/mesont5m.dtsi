@@ -1567,6 +1567,12 @@
 		clock-names = "cts_vid_lock_clk";
 	};
 
+	aml_primesl {
+		compatible = "amlogic, prime_sl_t5m";
+		dev_name = "amprime_sl";
+		status = "okay";
+	};
+
 	amdolby_vision {
 		compatible = "amlogic, dolby_vision_t5m";
 		dev_name = "aml_amdolby_vision_driver";
