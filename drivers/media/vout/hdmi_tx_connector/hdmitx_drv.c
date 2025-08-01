@@ -823,7 +823,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
 	/* load init hdr state from HW info */
 	hdmitx_hdr_state_init(tx_comm);
-	hdmitx_bootup_post_process(tx_comm);
+	/* only when hpd is high does it need to update vinfo and send the div40 signal */
+	if (hpd_state)
+		hdmitx_bootup_post_process(tx_comm);
 
 	/* after unlock, now can take actions of bottom half of hpd irq */
 	mutex_unlock(&tx_comm->hdmimode_mutex);
