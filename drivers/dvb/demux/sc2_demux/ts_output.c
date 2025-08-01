@@ -237,7 +237,8 @@ static int debug_es_len;
 #define READ_CACHE_SIZE      (188)
 #define INVALID_DECODE_RP	(0xFFFFFFFF)
 
-static int out_flush_time = 10;
+/*for get data quickly, refer to SWPL-225792*/
+static int out_flush_time = 3;
 static int out_es_flush_time = 10;
 
 static int _handle_es(struct out_elem *pout, struct es_params_t *es_params);
