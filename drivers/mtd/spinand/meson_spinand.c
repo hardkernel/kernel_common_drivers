@@ -33,25 +33,12 @@
 #define NAND_BLOCK_BAD	1
 #define NAND_FACTORY_BAD	2
 
-#define NAND_FIPMODE_COMPACT   (0)
-#define NAND_FIPMODE_DISCRETE  (1)
-#define NAND_FIPMODE_ADVANCE   (2)
 //#define CONFIG_NOT_SKIP_BAD_BLOCK
-
-struct meson_partition_platform_data {
-	u32 reserved_part_blk_num;
-	u32 bl_mode;
-	u32 fip_copies;
-	u32 fip_size;
-	struct mtd_partition *part;
-	u32 part_num;
-};
 
 struct meson_spinand {
 	struct mtd_info *mtd;
 	struct spinand_device *spinand;
 	struct meson_rsv_handler_t *rsv;
-	struct meson_partition_platform_data *pdata;
 	s8 *block_status;
 	unsigned int erasesize_shift;
 };
@@ -107,10 +94,8 @@ void meson_spinand_rsv_release_device(struct mtd_info *mtd)
 
 void spinand_get_tpl_info(u32 *fip_size, u32 *fip_copies)
 {
-	if (meson_spinand_global->pdata) {
-		*fip_size = meson_spinand_global->pdata->fip_size;
-		*fip_copies = meson_spinand_global->pdata->fip_copies;
-	}
+	*fip_size = meson_nand_get_fipsize();
+	*fip_copies = meson_nand_get_fipcopies();
 }
 EXPORT_SYMBOL_GPL(spinand_get_tpl_info);
 
@@ -187,10 +172,53 @@ static int spinand_mtd_block_markbad(struct mtd_info *mtd, loff_t offs)
 	return -EINVAL;
 }
 
+static int meson_spinand_parse_dt(struct mtd_info *mtd)
+{
+	u32 bl_mode, fip_copies, fip_size = 0;
+	struct device_node *np = mtd_get_of_node(mtd);
+
+	if (!np) {
+		pr_err("%s %d: can't get np\n", __func__, __LINE__);
+		return -ENODEV;
+	}
+
+	if (of_property_read_u32(np, "bl_mode", &bl_mode)) {
+		pr_info("%s %d: use default discrete mode\n\n", __func__, __LINE__);
+		bl_mode = NAND_FIPMODE_DISCRETE;
+	}
+
+	if (bl_mode == NAND_FIPMODE_DISCRETE) {
+		if (of_property_read_u32(np, "fip_size", &fip_size)) {
+			pr_err("%s %d: no fip size in dts\n", __func__, __LINE__);
+			return -EINVAL;
+		}
+	}
+
+	if (of_property_read_u32(np, "fip_copies", &fip_copies)) {
+		pr_err("%s %d: no fip size in dts\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	meson_nand_set_bootloader_mode(bl_mode);
+	meson_nand_set_fipsize(fip_size);
+	meson_nand_set_fipcopies(fip_copies);
+#ifndef CONFIG_NOT_SKIP_BAD_BLOCK
+	meson_nand_set_skip_bad_block(1);
+#else
+	meson_nand_set_skip_bad_block(0);
+#endif
+
+	return 0;
+}
+
 int meson_spinand_init(struct spinand_device *spinand, struct mtd_info *mtd)
 {
 	struct meson_spinand *meson_spinand = NULL;
 	int err = 0;
+
+	err = meson_spinand_parse_dt(mtd);
+	if (err)
+		return err;
 
 	meson_spinand = kzalloc(sizeof(*meson_spinand), GFP_KERNEL);
 	if (!meson_spinand)
@@ -217,6 +245,7 @@ int meson_spinand_init(struct spinand_device *spinand, struct mtd_info *mtd)
 		goto exit_error1;
 	}
 
+	mtd->name = AML_MTD_NAME;
 	mtd->_block_isbad = spinand_mtd_block_isbad;
 	mtd->_block_markbad = spinand_mtd_block_markbad;
 	mtd->_block_isreserved = NULL;
@@ -248,242 +277,6 @@ exit_error2:
 	return err;
 }
 EXPORT_SYMBOL_GPL(meson_spinand_init);
-
-static struct meson_partition_platform_data *
-	meson_partition_parse_platform_data(struct device_node *np)
-{
-	struct meson_partition_platform_data *pdata = NULL;
-	struct device_node *part_np, *child;
-	struct mtd_partition *part;
-	phandle phandles;
-	int part_num, ret;
-
-	if (!np)
-		return NULL;
-
-	ret = of_property_read_u32(np, "partition", (u32 *)&phandles);
-	if (ret) {
-		pr_info("%s: no partition in dts\n", __func__);
-		return NULL;
-	}
-
-	part_np = of_find_node_by_phandle(phandles);
-	if (!part_np) {
-		pr_info("%s: partition handle error\n", __func__);
-		return NULL;
-	}
-
-	child = of_get_next_child(part_np, NULL);
-	part_num = of_get_child_count(part_np);
-	if (!child || !part_num) {
-		pr_info("%s: no partition table in dts\n", __func__);
-		return NULL;
-	}
-
-	pdata = kzalloc(sizeof(*pdata) + sizeof(*part) * part_num,
-			GFP_KERNEL);
-	pdata->part = (struct mtd_partition *)&pdata[1];
-	pdata->part_num = part_num;
-	meson_spinand_global->pdata = pdata;
-
-	ret = of_property_read_u32(np, "bl_mode", &pdata->bl_mode);
-	if (ret) {
-		pdata->bl_mode = NAND_FIPMODE_DISCRETE;
-		pr_info("%s: use default discrete mode\n\n", __func__);
-	}
-
-	if (pdata->bl_mode == NAND_FIPMODE_COMPACT)
-		pr_debug("bl_mode compact\n");
-	else if (pdata->bl_mode == NAND_FIPMODE_DISCRETE)
-		pr_debug("bl_mode discrete\n");
-	else if (pdata->bl_mode == NAND_FIPMODE_ADVANCE)
-		pr_debug("bl_mode advance\n");
-
-	if (pdata->bl_mode == NAND_FIPMODE_DISCRETE) {
-		ret = of_property_read_u32(np, "fip_size", &pdata->fip_size);
-		if (ret) {
-			pr_info("%s: no fip size in dts\n", __func__);
-			return NULL;
-		}
-	}
-
-	ret = of_property_read_u32(np, "fip_copies", &pdata->fip_copies);
-	if (ret) {
-		pr_info("%s: no fip copies in dts\n", __func__);
-		return NULL;
-	}
-
-	part = pdata->part;
-	for_each_child_of_node(part_np, child) {
-		part->name = (char *)child->name;
-		if (of_property_read_u64(child, "offset", &part->offset))
-			goto parse_err;
-		if (of_property_read_u64(child, "size", &part->size))
-			goto parse_err;
-		part++;
-	}
-
-	return pdata;
-
-parse_err:
-	kfree(pdata);
-	return NULL;
-}
-
-static void meson_partition_relocate(struct mtd_info *mtd,
-				     struct mtd_partition *part)
-{
-#ifndef CONFIG_NOT_SKIP_BAD_BLOCK
-	struct meson_spinand *meson_spinand = meson_spinand_global;
-	struct nand_device *nand = mtd_to_nanddev(mtd);
-	struct nand_pos pos;
-	loff_t offset = part->offset;
-	loff_t end = offset + part->size;
-
-	BUG_ON(!meson_spinand->block_status);
-	while (offset < end) {
-		nanddev_offs_to_pos(nand, offset, &pos);
-		if (meson_spinand->block_status[pos.eraseblock] == NAND_FACTORY_BAD) {
-			pr_err("add partition detect FBB at %llx\n",
-				(u64)offset);
-			part->size += mtd->erasesize;
-			end += mtd->erasesize;
-			if (end > mtd->size)
-				break;
-		}
-		offset += mtd->erasesize;
-	}
-#endif
-}
-
-#ifdef CONFIG_NAND_ENCRYPTION
-static void mtd_loop_encrypted_partition(struct mtd_info *mtd)
-{
-	struct mtd_info *child, *master = mtd_get_master(mtd);
-	struct mtd_partition part, *ppart;
-
-	ppart = &part;
-	mutex_lock(&master->master.partitions_lock);
-	list_for_each_entry(child, &mtd->partitions, part.node) {
-		ppart->offset = child->part.offset;
-		ppart->size = child->part.size;
-		ppart->name = child->name;
-		set_region_encrypted(mtd, ppart, true);
-	}
-	mutex_unlock(&master->master.partitions_lock);
-}
-#endif
-
-static const char * const meson_mtd_types[] = {
-	"cmdlinepart",
-	"meson_spinand_ofpartitions",
-	NULL
-};
-
-static int meson_parse_partitions(struct mtd_info *master,
-				  const struct mtd_partition **pparts,
-				  struct mtd_part_parser_data *data)
-{
-	struct meson_partition_platform_data *pdata;
-	struct mtd_partition *part;
-	loff_t offset;
-	u32 rsv_block_num = meson_rsv_get_block_cnt();
-	int i = 0;
-
-	pdata = meson_partition_parse_platform_data(mtd_get_of_node(master));
-	if (!pdata)
-		return -ENODATA;
-
-	/* bootloader */
-	part = pdata->part;
-	offset = 0;
-	part->offset = offset;
-	part->size = SPI_NAND_BOOT_TOTAL_PAGES * master->writesize;
-	offset += part->size;
-
-	if (pdata->bl_mode == NAND_FIPMODE_ADVANCE) {
-		/* get boot area entry form env */
-		aml_nand_param_check_and_layout_init(master);
-		/* bl2e, bl2x, ddrfip, devfip */
-		for (i = 1; i < (BOOT_AREA_DEVFIP + 1); i++) {
-			part[i].offset =
-				g_ssp.boot_entry[i].offset;
-			if (i == BOOT_AREA_DEVFIP) /* devfip */
-				part[i].size = g_ssp.boot_entry[i].size *
-					pdata->fip_copies;
-			else
-				part[i].size = g_ssp.boot_entry[i].size *
-					g_ssp.boot_backups;
-			pr_debug("%s: off %llx, size %llx\n",
-				part[i].name, part[i].offset,
-				part[i].size);
-		}
-		offset = part[BOOT_AREA_DEVFIP].offset + part[BOOT_AREA_DEVFIP].size;
-		i = pdata->part_num - 6;
-		part += 4;
-	} else if (pdata->bl_mode == NAND_FIPMODE_DISCRETE) {
-		/* skip rsv */
-		offset += rsv_block_num * (loff_t)master->erasesize;
-
-		/* tpl, support NAND_FIPMODE_DISCRETE only */
-		part++;
-		part->offset = offset;
-		part->size = pdata->fip_copies * pdata->fip_size;
-		offset += part->size;
-
-		i = pdata->part_num - 3;
-	} else {
-		pr_err("Invalid mode!\n");
-		kfree(pdata);
-		return -EINVAL;
-	}
-
-	while (i--) {
-		part++;
-		part->offset = offset;
-		meson_partition_relocate(master, part);
-		offset += part->size;
-		if (offset > master->size) {
-			kfree(pdata);
-			pr_err("%s: offset %llx over device size %llx\n", __func__,
-			       offset, master->size);
-			return -ENOSPC;
-		}
-	}
-
-	/* data */
-	part++;
-	part->offset = offset;
-	part->size = master->size - offset;
-
-	*pparts = kmemdup(pdata->part, sizeof(*pdata->part) * pdata->part_num,
-			  GFP_KERNEL);
-	if (!*pparts)
-		return -ENOMEM;
-
-	return pdata->part_num;
-}
-
-struct mtd_part_parser meson_spinand_parser = {
-	.parse_fn = meson_parse_partitions,
-	.name = "meson_spinand_ofpartitions",
-};
-
-int meson_add_mtd_partitions(struct mtd_info *mtd)
-{
-	mtd->name = "aml-mtd";
-	register_mtd_parser(&meson_spinand_parser);
-	if (mtd_device_parse_register(mtd, meson_mtd_types, NULL, NULL, 0) != 0) {
-		pr_err("%s() register partitions failed\n", __func__);
-		return -1;
-	}
-
-#ifdef CONFIG_NAND_ENCRYPTION
-	mtd_loop_encrypted_partition(mtd);
-#endif
-	return 0;
-}
-EXPORT_SYMBOL_GPL(meson_add_mtd_partitions);
 
 MODULE_DESCRIPTION("MESON SPI NAND INTERFACE");
 MODULE_AUTHOR("sunny luo<sunny.luo@amlogic.com>");

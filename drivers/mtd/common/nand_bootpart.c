@@ -10,6 +10,9 @@
 #include <linux/amlogic/gki_module.h>
 #include <linux/amlogic/aml_rsv.h>
 
+static u32 fipsize;
+static u32 fipcopies;
+static u32 bootloader_mode;
 static char *cmdline;
 static char *rsv_cmdline;
 struct storage_startup_parameter g_ssp;
@@ -155,6 +158,57 @@ int aml_nand_param_check_and_layout_init(struct mtd_info *mtd)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(aml_nand_param_check_and_layout_init);
+
+void meson_nand_set_fipsize(u32 fip_size)
+{
+	if (fipsize)
+		pr_warn("WARNING !!! fip size %x would overwrite to 0x%x\n",
+			  fipsize, fip_size);
+	fipsize = fip_size;
+
+	pr_info("fipsize 0x%x\n", fipsize);
+}
+EXPORT_SYMBOL_GPL(meson_nand_set_fipsize);
+
+u32 meson_nand_get_fipsize(void)
+{
+	return fipsize;
+}
+EXPORT_SYMBOL_GPL(meson_nand_get_fipsize);
+
+void meson_nand_set_fipcopies(u32 fip_copies)
+{
+	if (fipcopies)
+		pr_warn("WARNING !!! fip copies %d would overwrite to %d\n",
+			  fipcopies, fip_copies);
+	fipcopies = fip_copies;
+
+	pr_info("fipcopies 0x%x\n", fipcopies);
+}
+EXPORT_SYMBOL_GPL(meson_nand_set_fipcopies);
+
+u32 meson_nand_get_fipcopies(void)
+{
+	return fipcopies;
+}
+EXPORT_SYMBOL_GPL(meson_nand_get_fipcopies);
+
+void meson_nand_set_bootloader_mode(u32 bl_mode)
+{
+	if (bootloader_mode)
+		pr_warn("WARNING !!! bl mode %d would overwrite to %d\n",
+			  bootloader_mode, bl_mode);
+	bootloader_mode = bl_mode;
+
+	pr_info("bootloader_mode 0x%x\n", bootloader_mode);
+}
+EXPORT_SYMBOL_GPL(meson_nand_set_bootloader_mode);
+
+u32 meson_nand_get_bootloader_mode(void)
+{
+	return bootloader_mode;
+}
+EXPORT_SYMBOL_GPL(meson_nand_get_bootloader_mode);
 
 char *aml_nand_get_rsv_cmdline(void)
 {

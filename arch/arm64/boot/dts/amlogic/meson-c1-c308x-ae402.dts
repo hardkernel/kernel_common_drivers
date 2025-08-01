@@ -1256,35 +1256,44 @@
 		bl_mode = <1>;
 		fip_copies = <4>;
 		fip_size = <0x200000>;
-		partition = <&snand_partitions>;
-		snand_partitions: snand_partitions{
-			bootloader{
-				offset=<0x0 0x0>;
-				size=<0x0 0x0>;
+
+		partitions {
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bootloader";
+				reg = <0x00000000 0x00000000>;
 			};
-			tpl{
-				offset=<0x0 0x0>;
-				size=<0x0 0x0>;
+
+			partition@1 {
+				label = "tpl";
+				reg = <0x00000000 0x00000000>;
 			};
-			logo{
-				offset=<0x0 0x0>;
-				size=<0x0 0x200000>;
+
+			partition@2 {
+				label = "logo";
+				reg = <0x00000000 0x00200000>;
 			};
-			recovery{
-				offset=<0x0 0x0>;
-				size=<0x0 0x1000000>;
+
+			partition@3 {
+				label = "recovery";
+				reg = <0x00000000 0x01000000>;
 			};
-			boot{
-				offset=<0x0 0x0>;
-				size=<0x0 0x1000000>;
+
+			partition@4 {
+				label = "boot";
+				reg = <0x00000000 0x01000000>;
 			};
-			system{
-				offset=<0x0 0x0>;
-				size=<0x0 0x4000000>;
+
+			partition@5 {
+				label = "system";
+				reg = <0x00000000 0x04000000>;
 			};
-			data{
-				offset=<0xffffffff 0xffffffff>;
-				size=<0x0 0x0>;
+
+			partition@6 {
+				label = "data";
+				reg = <0x00000000 0xffffffff>;
 			};
 		};
 	};

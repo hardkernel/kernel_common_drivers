@@ -1206,55 +1206,69 @@
 		bl_mode = <2>; /* advance mode */
 		fip_copies = <2>;
 		info_p_mode = <1>; /* Info page on page 0 */
-		partition = <&snand_partitions>;
-		snand_partitions: snand_partitions{
-			bootloader{
-				offset=<0x0 0x0>;
-				size=<0x0 0x0>;
+
+		partitions {
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bootloader";
+				reg = <0x00000000 0x00000000>;
 			};
-			bl2e{
-				offset=<0x0 0x0>;
-				size=<0x0 0x0>;
+
+			partition@1 {
+				label = "bl2e";
+				reg = <0x00000000 0x00000000>;
 			};
-			bl2x{
-				offset=<0x0 0x0>;
-				size=<0x0 0x0>;
+
+			partition@2 {
+				label = "bl2x";
+				reg = <0x00000000 0x00000000>;
 			};
-			ddrfip{
-				offset=<0x0 0x0>;
-				size=<0x0 0x0>;
+
+			partition@3 {
+				label = "ddrfip";
+				reg = <0x00000000 0x00000000>;
 			};
-			devfip{
-				offset=<0x0 0x0>;
-				size=<0x0 0x0>;
+
+			partition@4 {
+				label = "devfip";
+				reg = <0x00000000 0x00000000>;
 			};
-			logo{
-				offset=<0x0 0x0>;
-				size=<0x0 0x100000>;
+
+			partition@5 {
+				label = "logo";
+				reg = <0x00000000 0x00100000>;
 			};
-			misc{
-				offset=<0x0 0x0>;
-				size=<0x0 0x100000>;
+
+			partition@6 {
+				label = "misc";
+				reg = <0x00000000 0x00100000>;
 			};
-			recovery{
-				offset=<0x0 0x0>;
-				size=<0x0 0x800000>;
+
+			partition@7 {
+				label = "recovery";
+				reg = <0x00000000 0x00800000>;
 			};
-			boot{
-				offset=<0x0 0x0>;
-				size=<0x0 0xA00000>;
+
+			partition@8 {
+				label = "boot";
+				reg = <0x00000000 0x00a00000>;
 			};
-			system{
-				offset=<0x0 0x0>;
-				size=<0x0 0xA00000>;
+
+			partition@9 {
+				label = "system";
+				reg = <0x00000000 0x00a00000>;
 			};
-			vendor{
-				offset=<0x0 0x0>;
-				size=<0x0 0x3600000>;
+
+			partition@10 {
+				label = "vendor";
+				reg = <0x00000000 0x03600000>;
 			};
-			data{
-				offset=<0xffffffff 0xffffffff>;
-				size=<0x0 0x0>;
+
+			partition@11 {
+				label = "data";
+				reg = <0x00000000 0xffffffff>;
 			};
 		};
 	};

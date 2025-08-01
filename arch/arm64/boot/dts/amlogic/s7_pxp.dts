@@ -952,7 +952,7 @@
 	pinctrl-0 = <&all_nand_pins>;
 	pinctrl-1 = <&nand_cs_pins>;
 	bl2ex_8_copies;
-	bl_mode = <1>;
+	bl_mode = <2>;
 	fip_copies = <2>;
 	fip_size = <0x200000>;
 	ship_bad_block = <1>;

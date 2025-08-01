@@ -1078,7 +1078,7 @@
 		};
 
 		mtd_nand: nfc@fe08c800 {
-			compatible = "amlogic,meson-nfc-full-ecc-bl2ex";
+			compatible = "amlogic,meson-nfc-full-ecc";
 			status = "disabled";
 			reg = <0xfe08c800 0x200>;
 			interrupts = <GIC_SPI 175 IRQ_TYPE_EDGE_RISING>;

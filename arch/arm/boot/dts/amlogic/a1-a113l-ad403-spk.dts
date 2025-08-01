@@ -742,35 +742,44 @@
 		bl_mode = <1>;
 		fip_copies = <4>;
 		fip_size = <0x200000>;
-		partition = <&partitions>;
-		partitions: partitions{
-			bootloader{
-				offset=<0x0 0x0>;
-				size=<0x0 0x0>;
+
+		partitions {
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bootloader";
+				reg = <0x00000000 0x00000000>;
 			};
-			tpl{
-				offset=<0x0 0x0>;
-				size=<0x0 0x0>;
+
+			partition@1 {
+				label = "tpl";
+				reg = <0x00000000 0x00000000>;
 			};
-			misc{
-				offset=<0x0 0x0>;
-				size=<0x0 0x40000>;
+
+			partition@2 {
+				label = "misc";
+				reg = <0x00000000 0x00040000>;
 			};
-			recovery{
-				offset=<0x0 0x0>;
-				size=<0x0 0x1000000>;
+
+			partition@3 {
+				label = "recovery";
+				reg = <0x00000000 0x01000000>;
 			};
-			boot{
-				offset=<0x0 0x0>;
-				size=<0x0 0xc00000>;
+
+			partition@4 {
+				label = "boot";
+				reg = <0x00000000 0x00c00000>;
 			};
-			system{
-				offset=<0x0 0x0>;
-				size=<0x0 0x4e00000>;
+
+			partition@5 {
+				label = "system";
+				reg = <0x00000000 0x04e00000>;
 			};
-			data{
-				offset=<0xffffffff 0xffffffff>;
-				size=<0x0 0x0>;
+
+			partition@6 {
+				label = "data";
+				reg = <0x00000000 0xffffffff>;
 			};
 		};
 	};

@@ -1710,11 +1710,6 @@ int meson_nand_block_markbad(struct mtd_info *mtd, loff_t offs)
 	return ret;
 }
 
-static const char * const meson_types[] = {
-	"meson-partitions",
-	NULL
-};
-
 static int meson_choose_interface_config(struct nand_chip *chip,
 					struct nand_interface_config *iface)
 {
@@ -1834,14 +1829,10 @@ meson_nfc_nand_chip_init(struct device *dev,
 		}
 	}
 
-	if (mtd_device_parse_register(mtd, meson_types, NULL, NULL, 0) < 0) {
-		/* default_mtd_part_types to parse register */
-		mtd->name = "aml-mtd";
-		if (mtd_device_parse_register(mtd, NULL, NULL, NULL, 0)) {
-			dev_err(dev, "failed to register MTD device: %d\n", ret);
-			nand_cleanup(nand);
-			return ret;
-		}
+	if (meson_add_mtd_partitions(mtd)) {
+		dev_err(dev, "failed to register MTD device: %d\n", ret);
+		nand_cleanup(nand);
+		return ret;
 	}
 
 	if (aml_mtd_devnum == 0) {
@@ -1974,6 +1965,11 @@ static int prase_nand_parameter_from_dtb(struct meson_nfc *nfc,
 	pr_debug("disa_irq_hand vale: %d\n", nfc->param_from_dts.disa_irq_hand);
 	pr_debug("common_pageinfo: 0x%x\n", nfc->param_from_dts.common_pageinfo);
 
+	meson_nand_set_bootloader_mode(nfc->param_from_dts.bl_mode);
+	meson_nand_set_fipsize(nfc->param_from_dts.fip_size);
+	meson_nand_set_fipcopies(nfc->param_from_dts.fip_copies);
+	meson_nand_set_skip_bad_block(nfc->param_from_dts.skip_bad_block);
+
 	return ret;
 }
 
@@ -1985,16 +1981,6 @@ static const struct meson_nfc_data meson_single_ecc_data = {
 	.ecc_caps = &meson_512_ecc_caps,
 };
 
-static const struct meson_nfc_data meson_full_ecc_bl2ex_data = {
-	.ecc_caps = &meson_1K_ecc_caps,
-	.bl2ex_mode = 1,
-};
-
-static const struct meson_nfc_data meson_single_ecc_bl2ex_data = {
-	.ecc_caps = &meson_512_ecc_caps,
-	.bl2ex_mode = 1,
-};
-
 static const struct of_device_id meson_nfc_id_table[] = {
 	{
 		.compatible = "amlogic,meson-nfc-full-ecc",
@@ -2002,12 +1988,6 @@ static const struct of_device_id meson_nfc_id_table[] = {
 	}, {
 		.compatible = "amlogic,meson-nfc-single-ecc",
 		.data = (void *)&meson_single_ecc_data,
-	}, {
-		.compatible = "amlogic,meson-nfc-full-ecc-bl2ex",
-		.data = (void *)&meson_full_ecc_bl2ex_data,
-	}, {
-		.compatible = "amlogic,meson-nfc-single-ecc-bl2ex",
-		.data = (void *)&meson_single_ecc_bl2ex_data,
 	},
 	{}
 };
@@ -2142,7 +2122,6 @@ static int meson_nfc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, nfc);
 
-	register_mtd_parser(&ofpart_meson_parser);
 	ret = meson_nfc_nand_chips_init(dev, nfc);
 	if (ret) {
 		dev_err(dev, "failed to init NAND chips\n");

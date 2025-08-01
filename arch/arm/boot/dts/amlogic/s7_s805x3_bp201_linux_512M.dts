@@ -919,7 +919,7 @@
 	pinctrl-names = "nand_norb_mod","nand_cs_only";
 	pinctrl-0 = <&all_nand_pins>;
 	pinctrl-1 = <&nand_cs_pins>;
-	bl_mode = <1>;
+	bl_mode = <2>;
 	fip_copies = <4>;
 	fip_size = <0x200000>;
 	ship_bad_block = <1>;

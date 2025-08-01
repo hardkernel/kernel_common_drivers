@@ -29,6 +29,17 @@
 #define BAE_DDRFIP                  "DDRFIP"
 #define BAE_DEVFIP                  "DEVFIP"
 
+#define NAND_FIPMODE_COMPACT   (0)
+#define NAND_FIPMODE_DISCRETE  (1)
+#define NAND_FIPMODE_ADVANCE   (2)
+
+/*cmdline_parser - MTD Master Name*/
+#define AML_MTD_NAME                 "aml-mtd"
+
+/* slc nand mtd name */
+#define NAND_BOOT_NAME	"bootloader"
+#define NAND_NORMAL_NAME AML_MTD_NAME
+
 struct boot_area_entry {
 	char name[11];
 	unsigned char idx;
@@ -69,6 +80,14 @@ struct storage_startup_parameter {
 
 extern struct storage_startup_parameter g_ssp;
 int aml_nand_param_check_and_layout_init(struct mtd_info *mtd);
+void meson_nand_set_fipsize(u32 fip_size);
+u32 meson_nand_get_fipsize(void);
+void meson_nand_set_fipcopies(u32 fip_copies);
+u32 meson_nand_get_fipcopies(void);
+void meson_nand_set_bootloader_mode(u32 bl_mode);
+u32 meson_nand_get_bootloader_mode(void);
+void meson_nand_set_skip_bad_block(u32 skip);
+int meson_add_mtd_partitions(struct mtd_info *mtd);
 /**sc2 new layout**/
 
 #endif  /* __AML_STORAGE_H_ */

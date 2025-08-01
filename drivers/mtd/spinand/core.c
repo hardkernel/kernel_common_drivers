@@ -6,7 +6,6 @@
  *	Peter Pan <peterpandong@micron.com>
  *	Boris Brezillon <boris.brezillon@bootlin.com>
  */
-
 #include <linux/device.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
@@ -22,6 +21,7 @@
 #include <linux/amlogic/aml_pageinfo.h>
 #include <linux/amlogic/nand_encryption.h>
 #include <linux/amlogic/key_manage.h>
+#include <linux/amlogic/aml_storage.h>
 
 static int spinand_read_reg_op(struct spinand_device *spinand, u8 reg, u8 *val)
 {

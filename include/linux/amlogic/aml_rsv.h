@@ -24,8 +24,6 @@
 #define SEC_NAND_MAGIC	"nsec"
 #define DTB_NAND_MAGIC	"ndtb"
 
-#define NAND_BOOT_NAME	"bootloader"
-#define NAND_NORMAL_NAME "nandnormal"
 /*define abnormal state for reserved area*/
 #define POWER_ABNORMAL_FLAG	0x01
 #define ECC_ABNORMAL_FLAG	0x02

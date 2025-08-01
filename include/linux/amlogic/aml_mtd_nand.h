@@ -115,7 +115,6 @@
 
 /* Max total is 1024 as romboot says so... */
 #define BOOT_TOTAL_PAGES	(1024)
-#define NAND_FIPMODE_DISCRETE   (1)
 struct meson_nfc_nand_chip {
 	struct list_head node;
 	struct nand_chip nand;
