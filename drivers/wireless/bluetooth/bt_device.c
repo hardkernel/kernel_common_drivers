@@ -239,11 +239,6 @@ static void bt_device_init(struct bt_dev_data *pdata)
 	if (pdata->gpio_en > 0)
 		gpio_request(pdata->gpio_en, BT_RFKILL);
 
-	if (pdata->gpio_hostwake > 0) {
-		gpio_request(pdata->gpio_hostwake, BT_RFKILL);
-		gpio_direction_output(pdata->gpio_hostwake, 1);
-	}
-
 	if (pdata->gpio_btwakeup > 0) {
 		gpio_request(pdata->gpio_btwakeup, BT_RFKILL);
 		gpio_direction_input(pdata->gpio_btwakeup);
@@ -259,8 +254,6 @@ static void bt_device_deinit(struct bt_dev_data *pdata)
 		gpio_free(pdata->gpio_en);
 
 	btpower_evt = 0;
-	if (pdata->gpio_hostwake > 0)
-		gpio_free(pdata->gpio_hostwake);
 }
 
 static void bt_device_on(struct bt_dev_data *pdata, unsigned long down_time, unsigned long up_time)
@@ -412,17 +405,6 @@ static int bt_probe(struct platform_device *pdev)
 			pdata->gpio_en = of_get_named_gpio
 							(pdev->dev.of_node,
 							"bt_en-gpios", 0);
-		}
-		ret = of_property_read_string(pdev->dev.of_node,
-					      "hostwake-gpios", &str);
-		if (ret) {
-			pr_debug("not get gpio_hostwake\n");
-			pdata->gpio_hostwake = 0;
-		} else {
-			pdata->gpio_hostwake = of_get_named_gpio
-							(pdev->dev.of_node,
-							"hostwake-gpios",
-							0);
 		}
 		/*gpio_btwakeup = BT_WAKE_HOST*/
 		ret = of_property_read_string(pdev->dev.of_node,
