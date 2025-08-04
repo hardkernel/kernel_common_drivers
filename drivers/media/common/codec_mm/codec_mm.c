@@ -1459,7 +1459,7 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 		return;
 
 	release_cb = (struct codec_mm_cb_s **)
-		vzalloc(sizeof(struct codec_mm_cb_s *) * (mem->release_cb_cnt + 1));
+		kzalloc(sizeof(struct codec_mm_cb_s *) * (mem->release_cb_cnt + 1), GFP_KERNEL);
 
 	if (codec_dbg_level(CODEC_DBG_DUMP_INFO))
 		dump_stack();
@@ -1468,8 +1468,7 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 	if (!codec_mm_valid_mm_locked(mem)) {
 		pr_err("codec mm not valid!\n");
 		spin_unlock_irqrestore(&mgt->lock, flags);
-		if (release_cb)
-			vfree(release_cb);
+		kfree(release_cb);
 		return;
 	}
 	index = atomic_dec_return(&mem->use_cnt);
@@ -1521,14 +1520,12 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 		ATRACE_COUNTER("codec_mm_free_id", mem->mem_id);
 		ATRACE_COUNTER("codec_mm_free_id", 0);
 		kfree(mem);
-		if (release_cb)
-			vfree(release_cb);
+		kfree(release_cb);
 		return;
 	}
 	spin_unlock_irqrestore(&mgt->lock, flags);
 
-	if (release_cb)
-		vfree(release_cb);
+	kfree(release_cb);
 }
 EXPORT_SYMBOL(codec_mm_release);
 
