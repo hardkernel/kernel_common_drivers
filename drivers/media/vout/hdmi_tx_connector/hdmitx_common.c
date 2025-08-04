@@ -10,7 +10,6 @@
 #include <linux/spinlock.h>
 #include <linux/rtc.h>
 #include <linux/timekeeping.h>
-#include <linux/vmalloc.h>
 
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -1923,13 +1922,17 @@ int hdmitx_common_get_vic_list(struct hdmitx_common *tx_comm, int **vics)
 	int len = prxcap->VIC_count + VESA_MAX_TIMING;
 	int i;
 	int count = 0;
-	int *viclist = 0;
-	int *edid_vics = 0;
+	int *viclist = NULL;
+	int *edid_vics = NULL;
 	enum hdmi_vic prefer_vic = HDMI_0_UNKNOWN;
 
 	mutex_lock(&tx_comm->valid_mutex);
 	viclist = kcalloc(len, sizeof(int),  GFP_KERNEL);
-	edid_vics = vmalloc(len * sizeof(int));
+	edid_vics = kcalloc(len, sizeof(int), GFP_KERNEL);
+	if (!viclist || !edid_vics) {
+		HDMITX_ERROR("%s alloc fail\n", __func__);
+		goto out;
+	}
 	memset(edid_vics, 0, len * sizeof(int));
 
 	/* step1: only select VIC which is supported in EDID */
@@ -1968,8 +1971,8 @@ int hdmitx_common_get_vic_list(struct hdmitx_common *tx_comm, int **vics)
 		viclist[count] = vic;
 		count++;
 	}
-
-	vfree(edid_vics);
+out:
+	kfree(edid_vics);
 
 	if (count == 0)
 		kfree(viclist);

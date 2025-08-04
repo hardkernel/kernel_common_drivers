@@ -491,9 +491,14 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 	const char *mode_name;
 	enum hdmi_vic vic;
 	int vic_len = prxcap->VIC_count + VESA_MAX_TIMING;
-	int *edid_vics = vmalloc(vic_len * sizeof(int));
+	int *edid_vics = kcalloc(vic_len, sizeof(int), GFP_KERNEL);
 	enum hdmi_vic prefer_vic = HDMI_0_UNKNOWN;
 	int hdr10plus_supported = 0;
+
+	if (!edid_vics) {
+		HDMITX_ERROR("%s alloc fail\n", __func__);
+		return 0;
+	}
 
 	len = 2048;
 	buf = kcalloc(len, sizeof(char), GFP_KERNEL);
@@ -580,7 +585,6 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 
 	seq_puts(s, "\n******disp_cap******\n");
 	mutex_lock(&tx_comm->valid_mutex);
-	memset(edid_vics, 0, vic_len * sizeof(int));
 	/* step1: only select VIC which is supported in EDID */
 	/* copy edid vic list */
 	if (prxcap->VIC_count > 0)
@@ -623,7 +627,7 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 		else
 			seq_puts(s, "\n");
 	}
-	vfree(edid_vics);
+	kfree(edid_vics);
 	mutex_unlock(&tx_comm->valid_mutex);
 
 	seq_puts(s, "\n******dv_cap******\n");

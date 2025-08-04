@@ -6,10 +6,10 @@
 #include <linux/cdev.h>
 #include <linux/kobject.h>
 #include <linux/platform_device.h>
-#include <linux/vmalloc.h>
 #include <linux/extcon.h>
 #include <linux/notifier.h>
 #include <linux/extcon-provider.h>
+#include <linux/slab.h>
 
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_event_mgr.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_platform_linux.h>
@@ -93,9 +93,14 @@ static struct hdmitx_uevent hdmi_events[] = {
 struct hdmitx_event_mgr *hdmitx_event_mgr_create(struct platform_device *extcon_dev,
 	struct device *uevent_dev)
 {
-	struct hdmitx_event_mgr *instance = vzalloc(sizeof(*instance));
+	struct hdmitx_event_mgr *instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	struct blocking_notifier_head *notify_head = &instance->hdmitx_event_notify_list;
 	int ret = 0;
+
+	if (!instance) {
+		HDMITX_ERROR("%s alloc fail\n", __func__);
+		return NULL;
+	}
 
 	/*uevent*/
 	instance->kobj = &uevent_dev->kobj;
@@ -145,7 +150,7 @@ int hdmitx_event_mgr_destroy(struct hdmitx_event_mgr *event_mgr)
 		event_mgr->hdmitx_extcon_hdmi = 0;
 	}
 
-	vfree(event_mgr);
+	kfree(event_mgr);
 
 	return 0;
 }

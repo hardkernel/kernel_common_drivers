@@ -18,7 +18,6 @@
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/types.h>
-#include <linux/vmalloc.h>
 
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 

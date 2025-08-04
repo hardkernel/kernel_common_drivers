@@ -3,8 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#include <linux/vmalloc.h>
 #include <linux/kfifo.h>
+#include <linux/slab.h>
 
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_tracer.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_event_mgr.h>
@@ -120,19 +120,19 @@ static void hdmitx_log_events_handler(struct work_struct *work)
 
 struct hdmitx_tracer *hdmitx_tracer_create(struct hdmitx_event_mgr *event_mgr)
 {
-	struct hdmitx_tracer *instance = vmalloc(sizeof(*instance));
-	int ret = 0;
+	struct hdmitx_tracer *instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 
-	if (!instance) {
-		HDMITX_ERROR("%s FAIL\n", __func__);
-	} else {
+	if (instance) {
 		instance->event_mgr = event_mgr;
-		instance->previous_event = -1;
-		instance->hdr10plus_event = -1;
-		ret = kfifo_alloc(&instance->log_fifo, HDMI_TRACE_SIZE, GFP_KERNEL);
-		if (ret)
-			HDMITX_ERROR("alloc hdmi_log_kfifo fail [%d]\n", ret);
-		INIT_WORK(&instance->uevent_work, hdmitx_log_events_handler);
+		if (kfifo_alloc(&instance->log_fifo, HDMI_TRACE_SIZE, GFP_KERNEL) != 0) {
+			HDMITX_ERROR("alloc hdmi_log_kfifo fail\n");
+			kfree(instance);
+			instance = NULL;
+		} else {
+			INIT_WORK(&instance->uevent_work, hdmitx_log_events_handler);
+		}
+	} else {
+		HDMITX_ERROR("%s: alloc instance failed\n", __func__);
 	}
 
 	return instance;
@@ -142,7 +142,7 @@ int hdmitx_tracer_destroy(struct hdmitx_tracer *tracer)
 {
 	if (tracer) {
 		kfifo_free(&tracer->log_fifo);
-		vfree(tracer);
+		kfree(tracer);
 	}
 
 	return 0;
