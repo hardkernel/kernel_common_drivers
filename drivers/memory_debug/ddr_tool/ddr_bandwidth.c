@@ -139,7 +139,10 @@ static void cal_ddr_usage_single(struct ddr_bandwidth *db)
 		freq = db->data_extern[i].ddr_freq;
 		if (db->ddr_type == LPDDR5)
 			freq = (u64)freq * 4;
-		mbw = (u64)freq * (db->data_extern[i].data_bus_width >> 2);
+		if (db->bus_width[i])
+			mbw = (u64)freq * (db->bus_width[i] >> 2);
+		else
+			mbw = (u64)freq * (db->data_extern[i].data_bus_width >> 2);
 		mbw /= 1024;
 		mul  = db->data_extern[i].dg.all_grant;
 		mul *= db->data_extern[i].dmc_freq;
@@ -205,6 +208,7 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	u64 mul = 0, mul_tmp = 0, mbw = 0; /* avoid overflow */
 	unsigned long i, cnt, freq = 0, flags;
 	char chann_names[] = "ddr_bw ch 0 (MB/S)";
+	unsigned int bus_width = 0;
 
 	if (db->mode == MODE_AUTODETECT) { /* ignore mali bandwidth */
 		static int count;
@@ -242,7 +246,10 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 				freq = db->data_extern[i].ddr_freq;
 				if (db->ddr_type == LPDDR5)
 					freq = (u64)freq * 4;
-				mbw += (u64)freq * (db->data_extern[i].data_bus_width >> 2);
+				if (db->bus_width[i])
+					mbw += (u64)freq * (db->bus_width[i] >> 2);
+				else
+					mbw += (u64)freq * (db->data_extern[i].data_bus_width >> 2);
 			}
 		} else {
 			/* theoretic max bandwidth =  ddr_freq * 2 * width / 8 */
@@ -250,7 +257,13 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 				mbw = (u64)db->ddr_freq * 4;
 			else
 				mbw = (u64)db->ddr_freq;
-			if (ddr_width_is_16bit(db))
+
+			for (i = 0; i < db->dmc_number; i++)
+				bus_width += db->bus_width[i];
+
+			if (bus_width)
+				mbw = (u64)mbw * bus_width / 4;
+			else if (ddr_width_is_16bit(db))
 				mbw = (u64)mbw * 2 * 2;
 			else if (ddr_width_is_64bit(db))
 				mbw = (u64)mbw * 2 * 8;
@@ -2612,13 +2625,13 @@ static void debugfs_init(void)
  */
 static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 {
-	int r = 0, i;
+	int r = 0, i, count;
 #ifdef CONFIG_OF
 	struct device_node *node = pdev->dev.of_node;
 	/*struct pinctrl *p;*/
 	struct resource *res;
 	resource_size_t *base;
-	unsigned int sec_base = 0, freq_reg = 0;
+	unsigned int sec_base = 0, freq_reg = 0, bus_width_reg[4];
 	int io_idx = 0;
 #endif
 	struct ddr_port_desc *desc = NULL;
@@ -2724,9 +2737,27 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 		aml_db->freq_reg = (void *)0;
 	else
 		aml_db->freq_reg = (void *)ioremap(freq_reg, 4);
+
+	count = of_property_count_u32_elems(node, "bus_width_reg");
+	if (count) {
+		r = of_property_read_u32_array(node, "bus_width_reg", bus_width_reg, count);
+		for (i = 0; i < count; i++) {
+			if (r < 0) {
+				aml_db->bus_width_reg[i].io_addr = (void *)0;
+				aml_db->bus_width_reg[i].addr = 0;
+			} else {
+				aml_db->bus_width_reg[i].io_addr =
+						(void *)ioremap(bus_width_reg[i], 4);
+				aml_db->bus_width_reg[i].addr = bus_width_reg[i];
+			}
+		}
+	}
 #endif
 	if (aml_db->ops && aml_db->ops->get_freq)
 		aml_db->ops->get_freq(aml_db);
+
+	if (aml_db->ops && aml_db->ops->bus_width_init)
+		aml_db->ops->bus_width_init(aml_db);
 
 	raw_spin_lock_init(&aml_db->lock);
 	aml_db->clock_count = aml_db->ops->get_freq(aml_db) / 100; /* default 100HZ */

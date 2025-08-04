@@ -143,6 +143,26 @@ static unsigned long t6d_get_dmc_freq_quick(struct ddr_bandwidth *db)
 	return db->dmc_freq;
 }
 
+#define CONFIG_DDR0_16BIT_CH0			1
+#define CONFIG_DDR0_16BIT_RANK01_CH0		4
+static void t6d_bus_width_init(struct ddr_bandwidth *db)
+{
+	int i;
+	unsigned int val;
+
+	for (i = 0; i < db->dmc_number; i++) {
+		if (db->bus_width_reg[i].io_addr) {
+			val = readl(db->bus_width_reg[i].io_addr);
+			val = val >> 16;
+			if (val == CONFIG_DDR0_16BIT_CH0 || val == CONFIG_DDR0_16BIT_RANK01_CH0)
+				db->bus_width[i] = 16;
+			else
+				db->bus_width[i] = 32;
+		}
+		pr_debug("dmc%d bus width is %d\n", i, db->bus_width[i]);
+	}
+}
+
 static void t6d_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 {
 	unsigned int val;
@@ -389,6 +409,7 @@ struct ddr_bandwidth_ops t6d_ddr_bw_ops = {
 	.config_port      = t6d_dmc_port_config,
 	.config_range     = t6d_dmc_range_config,
 	.get_freq         = t6d_get_dmc_freq_quick,
+	.bus_width_init   = t6d_bus_width_init,
 	.handle_irq       = t6d_handle_irq,
 	.bandwidth_enable = t6d_dmc_bandwidth_enable,
 	.outstanding_init = outstanding_init,

@@ -208,6 +208,7 @@
 		status = "okay";
 		reg = <0xfe036000 0x1000
 		       0xfe0368a8 0x4>;
+		bus_width_reg = <0xfe036814>;
 		interrupts = <0 136 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ddr_bandwidth";
 	};

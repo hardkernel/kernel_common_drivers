@@ -17,7 +17,7 @@
 #endif
 #define DEFAULT_THRESHOLD		5000
 
-#define DEFAULT_CLK_CNT			48000000
+#define DEFAULT_IRQ_CYCLE		100
 #define DEFAULT_XTAL_FREQ		24000000UL
 
 #define DMC_QOS_IRQ			BIT(30)
@@ -157,6 +157,7 @@ struct ddr_bandwidth_ops {
 	int  (*handle_irq)(struct ddr_bandwidth *db, struct ddr_grant *dg);
 	void (*bandwidth_enable)(struct ddr_bandwidth *db);
 	unsigned long (*get_freq)(struct ddr_bandwidth *db);
+	void (*bus_width_init)(struct ddr_bandwidth *db);
 	int (*outstanding)(struct ddr_bandwidth *db, int bus,
 					int value, enum outstanding_type type);
 	int (*outstanding_init)(struct ddr_bandwidth *db);
@@ -249,6 +250,11 @@ struct dmc_bus {
 	struct bus_devices *bus;
 };
 
+struct bus_width_reg {
+	unsigned long addr;
+	void __iomem *io_addr;
+};
+
 struct ddr_bandwidth {
 	unsigned short cpu_type;
 	unsigned short real_ports;
@@ -269,6 +275,7 @@ struct ddr_bandwidth {
 	unsigned int channels;
 	unsigned int dmc_number;
 	unsigned int usage_stat[10];
+	unsigned int bus_width[MAX_DMC_NUM];
 	enum ddr_type ddr_type;
 	unsigned long ddr_freq;
 	unsigned long dmc_freq;
@@ -286,6 +293,7 @@ struct ddr_bandwidth {
 	void __iomem *ddr_reg4;		/* dmc 4 */
 	void __iomem *pll_reg;
 	void __iomem *freq_reg;
+	struct bus_width_reg bus_width_reg[MAX_DMC_NUM];
 	struct class *class;
 	struct ddr_port_desc *port_desc;
 	struct ddr_priority *ddr_priority_desc;
