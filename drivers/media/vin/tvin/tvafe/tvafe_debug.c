@@ -75,8 +75,16 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvin_parm_s->v_reverse:%d\n", parm->v_reverse);
 	/* tvafe_dev_s->tvafe_cvd2_s struct info */
 	tvafe_pr_info("\n!!tvafe_dev_s->tvafe_cvd2_s struct info:\n");
-	tvafe_pr_info("tvafe_cvd2_s->config_fmt:0x%x\n", cvd2->config_fmt);
-	tvafe_pr_info("tvafe_cvd2_s->manual_fmt:0x%x\n", cvd2->manual_fmt);
+	if (cvd2->config_fmt < TVIN_SIG_FMT_CVBS_NTSC_M)
+		tvafe_pr_info("tvafe_cvd2_s->config_fmt:0\n");
+	else
+		tvafe_pr_info("tvafe_cvd2_s->config_fmt:%s\n",
+			fmt_info[cvd2->config_fmt - TVIN_SIG_FMT_CVBS_NTSC_M]);
+	if (cvd2->manual_fmt < TVIN_SIG_FMT_CVBS_NTSC_M)
+		tvafe_pr_info("tvafe_cvd2_s->manual_fmt:0\n");
+	else
+		tvafe_pr_info("tvafe_cvd2_s->manual_fmt:%s\n",
+			fmt_info[cvd2->manual_fmt - TVIN_SIG_FMT_CVBS_NTSC_M]);
 	tvafe_pr_info("tvafe_cvd2_s->vd_port:0x%x\n", cvd2->vd_port);
 	tvafe_pr_info("tvafe_cvd2_s->cvd2_init_en:%d\n", cvd2->cvd2_init_en);
 	tvafe_pr_info("tvafe_cvd2_s->nonstd_detect_dis:%d\n",

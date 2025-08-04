@@ -254,6 +254,7 @@ void tvafe_clr_visit_array(void);
 extern bool tvafe_snow_function_flag;
 extern bool reinit_scan;
 extern int force_fmt_flag;
+extern char *fmt_info[];
 
 extern unsigned int try_fmt_max_atv;
 extern unsigned int try_fmt_max_av;

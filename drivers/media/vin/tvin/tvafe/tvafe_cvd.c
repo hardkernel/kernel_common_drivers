@@ -87,6 +87,16 @@
 /*0:NORMAL  1:a little sharper 2:sharper 3:even sharper*/
 #define CVD2_FILTER_CONFIG_LEVEL 0
 char fmt_sts[8];
+char *fmt_info[] = {
+	"NTSC",
+	"N-443",
+	"PAL-I",
+	"PAL-M",
+	"PAL-60",
+	"PAL_N",
+	"SECAM",
+	"N-50",
+};
 
 /********Local variables*********************************/
 static const unsigned int cvd_mem_4f_length[TVIN_SIG_FMT_CVBS_MAX -
@@ -123,7 +133,7 @@ unsigned int wait_cnt_max_av = 20;
 unsigned int wait_cnt_max_atv = 10;
 //wait for secam flag
 unsigned int try_atv_max = 4;
-unsigned int try_avin_max = 10;
+unsigned int try_avin_max = 2;
 
 /*0:normal nonstandard configure every loop*/
 /*1:force nonstandard configure every loop*/
@@ -1925,17 +1935,6 @@ bool tvafe_fmt_support(enum tvin_sig_fmt_e fmt)
 		return true;
 	return false;
 }
-
-char *fmt_info[] = {
-	"NTSC",
-	"N-443",
-	"PAL-I",
-	"PAL-M",
-	"PAL-60",
-	"PAL_N",
-	"SECAM",
-	"N-50",
-};
 
 void tvafe_soft_reset(void)
 {
