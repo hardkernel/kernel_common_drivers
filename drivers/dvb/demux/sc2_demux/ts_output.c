@@ -1496,6 +1496,8 @@ static int aucpu_bufferid_read_newest_pts(struct out_elem *pout,
 		if (r_offset != w_offset)
 			return aucpu_read_process(pout,
 					w_offset, pread, 16, 2);
+		else if (w_offset != pout->aucpu_pts_r_offset)
+			return -1;
 	}
 	return 0;
 }
@@ -3675,6 +3677,9 @@ int ts_output_get_mem_info(struct out_elem *pout,
 			pout->newest_pts = tmp_pts;
 			*newest_pts = pout->newest_pts;
 		} else {
+			pr_dbg("c newest_pts %s pid:0x%0x pts:0x%lx\n",
+					pout->type == VIDEO_TYPE ? "video" : "audio",
+					pout->es_pes->pid, (unsigned long)pout->newest_pts);
 			*newest_pts = pout->newest_pts;
 		}
 	}
