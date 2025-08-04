@@ -28,6 +28,7 @@ struct keep_mem_info {
 	int type;
 	int user;
 	u64 delay_on_jiffies64;
+	char *keep_caller;
 };
 
 struct codec_mm_keeper_mgr {
@@ -65,7 +66,10 @@ int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type)
 	int have_samed = 0;
 
 	if (codec_mm_get_keep_debug_mode() & 1)
-		pr_err("%s %p\n", __func__, mem_handle);
+		pr_err("[%s]%px(%s) keep by %pS\n", __func__, mem_handle,
+			(type == MEM_TYPE_CODEC_MM) ? "CMA" :
+			(type == MEM_TYPE_CODEC_MM_SCATTER ? "SCT" : "Unknown"),
+			__builtin_return_address(0));
 	if (!mem_handle) {
 		pr_err("NULL mem_handle for keeper!!\n");
 		return -2;
@@ -110,6 +114,7 @@ int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type)
 		mgr->keep_list[slot_i].keep_id = keep_id;
 		mgr->keep_list[slot_i].type = type;
 		mgr->keep_list[slot_i].user = 1;
+		mgr->keep_list[slot_i].keep_caller = __builtin_return_address(0);
 		mgr->num++;
 	} else {
 		if (!have_samed)
@@ -118,7 +123,7 @@ int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type)
 	spin_unlock_irqrestore(&mgr->lock, flags);
 	if (codec_mm_get_keep_debug_mode() & 1) {
 		/*kept info */
-		pr_err("%s %p id=%d\n", __func__,
+		pr_crit("[%s] %p id=%d\n", __func__,
 		       mem_handle, keep_id);
 	}
 	if (keep_id < 0 || have_samed) {
@@ -143,12 +148,12 @@ int codec_mm_keeper_unmask_keeper(int keep_id, int delayms)
 	int i;
 	unsigned long flags;
 
-	if (codec_mm_get_keep_debug_mode() & 1)
-		pr_err("%s %d\n", __func__, keep_id);
 	if (keep_id < START_KEEP_ID || keep_id >= MAX_KEEP_ID) {
 		pr_err("invalid keepid %d\n", keep_id);
 		return -1;
 	}
+	if (codec_mm_get_keep_debug_mode() & 1)
+		pr_err("[%s]%d unkeep by %pS\n", __func__, keep_id, __builtin_return_address(0));
 	spin_lock_irqsave(&mgr->lock, flags);
 	for (i = 0; i < MAX_KEEP_FRAME; i++) {
 		if (keep_id == mgr->keep_list[i].keep_id) {
@@ -175,6 +180,8 @@ static int codec_mm_keeper_free_keep(int index)
 	mem_handle = mgr->keep_list[index].handle;
 	type = mgr->keep_list[index].type;
 	mgr->keep_list[index].handle = NULL;
+	mgr->keep_list[index].type = 0;
+	mgr->keep_list[index].keep_caller = NULL;
 	mgr->keep_list[index].delay_on_jiffies64 = 0;
 	mgr->num--;
 	spin_unlock_irqrestore(&mgr->lock, flags);
@@ -246,12 +253,13 @@ int codec_mm_keeper_dump_info(void *buf, int size)
 		 mgr->work_runs,
 		 mgr->num);
 	for (i = 0; i < MAX_KEEP_FRAME; i++) {
-		BUFPRINT("keeper:[%d]:\t\tid:%d\thandle:%p,type:%d,user:%d\n",
+		BUFPRINT("[%d]:\tid:%d\tmem:%px,type:%d,user:%d,caller:%pS\n",
 			 i,
 			 mgr->keep_list[i].keep_id,
 			 mgr->keep_list[i].handle,
 			 mgr->keep_list[i].type,
-			 mgr->keep_list[i].user);
+			 mgr->keep_list[i].user,
+			 mgr->keep_list[i].keep_caller);
 	}
 #undef BUFPRINT
 	if (!buf)
