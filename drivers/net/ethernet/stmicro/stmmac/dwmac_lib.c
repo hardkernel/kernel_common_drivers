@@ -22,9 +22,15 @@ int dwmac_dma_reset(void __iomem *ioaddr)
 	value |= DMA_BUS_MODE_SFT_RESET;
 	writel(value, ioaddr + DMA_BUS_MODE);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	return readl_poll_timeout(ioaddr + DMA_BUS_MODE, value,
+				 !(value & DMA_BUS_MODE_SFT_RESET),
+				 10000, 1000000);
+#else
 	return readl_poll_timeout(ioaddr + DMA_BUS_MODE, value,
 				 !(value & DMA_BUS_MODE_SFT_RESET),
 				 10000, 200000);
+#endif
 }
 
 /* CSR1 enables the transmit DMA to check for new descriptor */
