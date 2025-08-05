@@ -51,7 +51,8 @@
 /* 20250625: ATV snow function protect */
 /* 20250711: No skip frame when ATV searching */
 /* 20250804: Reduces av format check time */
-#define TVAFE_VER "20250804: Reduces av format check time"
+/* 20250805: remove clear state in dec_stop */
+#define TVAFE_VER "20250805: remove clear state in dec_stop"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010

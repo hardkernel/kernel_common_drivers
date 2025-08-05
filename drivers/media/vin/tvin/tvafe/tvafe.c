@@ -584,25 +584,6 @@ static void tvafe_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		return;
 	}
 
-	/* init variable */
-	memset(&tvafe->cvd2.info, 0, sizeof(struct tvafe_cvd2_info_s));
-	memset(&tvafe->parm.info, 0, sizeof(struct tvin_info_s));
-
-	tvafe->parm.port = port;
-	/* need to do ... */
-	/** write 7740 register for cvbs clamp **/
-	if (!(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
-		tvafe->cvd2.fmt_loop_cnt = 0;
-		/* reset loop cnt after channel switch */
-#ifdef TVAFE_SET_CVBS_PGA_EN
-		tvafe_cvd2_reset_pga();
-#endif
-
-#ifdef TVAFE_SET_CVBS_CDTO_EN
-		tvafe_cvd2_set_default_cdto(&tvafe->cvd2);
-#endif
-		tvafe_cvd2_set_default_de(&tvafe->cvd2);
-	}
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
 	if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) {
 		adc_ch = tvafe_port_to_channel(port, devp->pinmux);
