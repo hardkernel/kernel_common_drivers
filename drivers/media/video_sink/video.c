@@ -5827,10 +5827,10 @@ static char *check_media_sei(char *sei, u32 sei_size, u32 fmt_type, u32 *ret_siz
 		}
 		p += size;
 	}
-	if (!ret && !ret_av1_hdr10p && ret_size)
+	if (!ret && ret_size)
 		*ret_size = 0;
 
-	return ret ? ret : ret_av1_hdr10p;
+	return ret;
 }
 
 static s32 clear_vframe_dovi_md_info(struct vframe_s *vf)
