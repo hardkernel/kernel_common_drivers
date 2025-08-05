@@ -4007,8 +4007,8 @@ static int video_display_open(int index)
 	struct sched_param param = {.sched_priority = 2};
 	u32 layer_cap = 0;
 
-	if (index >= MAX_VIDEODISPLAY_INSTANCE_NUM) {
-		pr_info("%s: index(%d) is invalid.\n", __func__, index);
+	if (!port) {
+		pr_info("%s: vd[%d] not opened.\n", __func__, index);
 		return -ENODEV;
 	}
 
@@ -4122,7 +4122,12 @@ int vd_set_enable(int index, u32 val)
 
 	if (!dev) {
 		if (val == VIDEO_COMPOSER_ENABLE_NORMAL) {
-			video_display_open(index);
+			ret = video_display_open(index);
+			if (ret) {
+				vd_print(index, PRINT_ERROR, "%s: open Dev failed.\n", __func__);
+				return -EINVAL;
+			}
+
 			dev = mdev[index];
 			dev->enable = VIDEO_COMPOSER_ENABLE_NORMAL;
 			ret = video_display_init(dev);
