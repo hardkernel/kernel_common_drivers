@@ -284,6 +284,11 @@ struct hdmitx_common {
 	struct vpu_dev_s *hdmi_vpu_dev;
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 #endif
+	/* when the mode setting fails, it is necessary to ensure
+	 * that vsync is enabled so that subsequent actions are not
+	 * blocked. Phy cannot be enabled to avoid affecting TV
+	 */
+	bool skip_phy_setting;
 
 	/* 7. audio mode related */
 	struct aud_para cur_audio_param;

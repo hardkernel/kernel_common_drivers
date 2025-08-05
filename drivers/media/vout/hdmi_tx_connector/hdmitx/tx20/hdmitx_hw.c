@@ -2804,6 +2804,13 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw, struct hdmi_forma
 		break;
 	}
 	HDMITX_DEBUG("adjust decouple fifo\n");
+	/* when the mode setting fails, it is necessary to ensure
+	 * that vsync is enabled so that subsequent actions are not
+	 * blocked. Phy cannot be enabled to avoid affecting TV
+	 */
+	if (hdev->tx_comm.skip_phy_setting)
+		return -1;
+
 	/* For 3D, enable phy by SystemControl at last step */
 	if (!para->flag_3dfp && !para->flag_3dtb && !para->flag_3dss)
 		hdmitx_set_phy(hdev);
@@ -5952,7 +5959,7 @@ static int hdmitx20_hw_cntl(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 	case CMD_MODE_FLOW_MISC_OFFSET:
 		switch (cmd) {
 		case MODE_FLOW_ENABLE_MODE:
-			hdmitx20_enable_mode(tx_comm);
+			ret = hdmitx20_enable_mode(tx_comm);
 			break;
 		case MODE_FLOW_HPD_IRQ_TOP_HALF:
 			ret = hdmitx20_check_input_argv(cmd, input_argv);
@@ -7133,7 +7140,7 @@ struct hdmitx20_dev *get_hdmitx20_device(void)
 
 static int hdmitx20_enable_mode(struct hdmitx_common *tx_comm)
 {
-	int ret;
+	int ret = 0;
 
 	/* if vic is HDMI_UNKNOWN, hdmitx_set_display will disable HDMI */
 	ret = hdmitx_set_display(tx_comm, tx_comm->fmt_para.vic);
@@ -7141,7 +7148,7 @@ static int hdmitx20_enable_mode(struct hdmitx_common *tx_comm)
 	if (tx_comm->tx_hw->set_aud_mode)
 		tx_comm->tx_hw->set_aud_mode(tx_comm->tx_hw, &tx_comm->cur_audio_param);
 
-	return 0;
+	return ret;
 }
 
 static void hdmitx20_disable_hdcp(struct hdmitx_common *tx_comm)

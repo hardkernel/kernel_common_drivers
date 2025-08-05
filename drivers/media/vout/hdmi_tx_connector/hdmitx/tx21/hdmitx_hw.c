@@ -2215,6 +2215,12 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw, struct hdmi_forma
 	} else {
 		hdmitx21_venc_en(1, 1);
 	}
+	/* when the mode setting fails, it is necessary to ensure
+	 * that vsync is enabled so that subsequent actions are not
+	 * blocked. Phy cannot be enabled to avoid affecting TV
+	 */
+	if (hdev->tx_comm.skip_phy_setting)
+		return -1;
 
 	hdmitx_set_phy_todig(hdev);
 	/*
@@ -6965,7 +6971,7 @@ static int hdmitx21_pre_enable_mode(struct hdmitx_common *tx_comm)
 
 static int hdmitx21_enable_mode(struct hdmitx_common *tx_comm)
 {
-	int ret;
+	int ret = 0;
 
 	/* if vic is HDMI_UNKNOWN, hdmitx_set_display will disable HDMI */
 	ret = hdmitx_set_display(tx_comm, tx_comm->fmt_para.vic);
@@ -6973,7 +6979,7 @@ static int hdmitx21_enable_mode(struct hdmitx_common *tx_comm)
 	if (tx_comm->tx_hw->set_aud_mode)
 		tx_comm->tx_hw->set_aud_mode(tx_comm->tx_hw, &tx_comm->cur_audio_param);
 
-	return 0;
+	return ret;
 }
 
 static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm)
