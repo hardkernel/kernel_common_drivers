@@ -136,6 +136,24 @@ static unsigned int vout_vs_measure_dft(int index)
 	return fr;
 }
 
+static unsigned int vout_vs_measure_dft_t6x(int index)
+{
+	unsigned int val, fr = 0;
+	unsigned long long clk_msr;
+
+	if (index > 1)
+		return 0;
+	if (vout_vdo_meas_init == 0)
+		return 0;
+
+	clk_msr  = vdin_meas_clk_val;
+	clk_msr *= 1000;
+	val = vout_vcbus_read(VPU_VENC_RO_MEAS0);
+	fr = vout_do_div(clk_msr, val);
+
+	return fr;
+}
+
 static unsigned int vout_vs_measure_high_res_dft(int index)
 {
 	unsigned int val[2], fr;
@@ -500,6 +518,15 @@ static struct vout_mux_data_s vout_mux_match_data_txhd2 = {
 	.clear_viu_mux = NULL,
 };
 
+static struct vout_mux_data_s vout_mux_match_data_t6x = {
+	.msr_clk = NULL,
+	.vs_cnt_measure = vout_vs_cnt_measure_dft,
+	.vs_measure = vout_vs_measure_dft_t6x,
+	.msr_ctrl_init = vout_meas_ctrl_init_dft,
+	.update_viu_mux = vout_viu_mux_update_default_txhd2,
+	.clear_viu_mux = NULL,
+};
+
 static struct vout_mux_data_s vout_mux_match_data_t7 = {
 	.msr_clk = NULL,
 	.vs_cnt_measure = vout_vs_cnt_measure_dft,
@@ -594,6 +621,10 @@ static const struct of_device_id vout_mux_dt_match_table[] = {
 	{
 		.compatible = "amlogic, vout_mux-t6w",
 		.data = &vout_mux_match_data_txhd2,
+	},
+	{
+		.compatible = "amlogic, vout_mux-t6x",
+		.data = &vout_mux_match_data_t6x,
 	},
 #endif
 	{}
