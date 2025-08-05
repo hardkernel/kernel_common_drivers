@@ -722,7 +722,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 #ifdef CONFIG_AMLOGIC_LCD
 	/*0=tv, 1=tablet, 2=invalid*/
 	if ((meson_crtc_state->vmode & VMODE_MASK) == VMODE_LCD &&
-		get_vout_lcd_mode(amcrtc->crtc_index) == 0) {
+		get_vout_lcd_mode(amcrtc->vout_index) == 0) {
 		DRM_INFO("%s[%d], lcd skip setting null vmode\n",
 				 __func__, meson_crtc_state->vmode);
 		return;
