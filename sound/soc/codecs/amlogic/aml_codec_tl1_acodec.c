@@ -72,6 +72,7 @@ struct tl1_acodec_priv {
 	int adc_pga_gain;
 	/* store user setting */
 	u32 user_setting[ACODEC_REG_NUM];
+	u32 tocodec_val;
 };
 
 static const struct reg_default tl1_acodec_init_list[] = {
@@ -889,9 +890,12 @@ static int tl1_acodec_suspend(struct snd_soc_component *component)
 {
 	struct tl1_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
 	int i = 0;
+	int ret = 0;
 
 	if (aml_acodec) {
-		regcache_cache_only(aml_acodec->to_acodec_regmap, true);
+		ret = regmap_read(aml_acodec->to_acodec_regmap, 0, &aml_acodec->tocodec_val);
+		if (ret < 0)
+			pr_err("%s:can't read tocodec reg\n", __func__);
 		for (i = 0; i < ARRAY_SIZE(tl1_acodec_init_list); i++)
 			aml_acodec->user_setting[i] = snd_soc_component_read(component,
 				tl1_acodec_init_list[i].reg);
@@ -908,18 +912,27 @@ static int tl1_acodec_resume(struct snd_soc_component *component)
 	struct tl1_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
 	int i = 0;
 	int ret;
+	unsigned int val = 0;
 
 	if (aml_acodec) {
-		regcache_cache_only(aml_acodec->to_acodec_regmap, false);
-		tl1_acodec_set_toacodec(aml_acodec);
-		regcache_mark_dirty(aml_acodec->to_acodec_regmap);
-		ret = regcache_sync(aml_acodec->to_acodec_regmap);
-		if (ret < 0) {
-			dev_err(component->dev, "failed to sync regcache: %d\n", ret);
-			return ret;
+		ret = regmap_read(aml_acodec->to_acodec_regmap, 0, &val);
+		if (ret < 0)
+			pr_err("%s: can't read tocodec reg\n", __func__);
+	}
+	/*a4/a5 chip disable power domain, need restore tocodec*/
+	if (val == 0) {
+		if (aml_acodec) {
+			aml_acodec->tocodec_val &= 0x1fffffff;
+			regmap_write(aml_acodec->to_acodec_regmap, 0, aml_acodec->tocodec_val);
+			if (aml_acodec->chipinfo->separate_toacodec_en) {
+				regmap_update_bits(aml_acodec->to_acodec_regmap,
+							0, 0x20000000, 0x1 << 29);
+				regmap_update_bits(aml_acodec->to_acodec_regmap,
+							0, 0x40000000, 0x1 << 30);
+			}
+			regmap_update_bits(aml_acodec->to_acodec_regmap, 0, 0x80000000, 0x1 << 31);
 		}
 	}
-
 	tl1_acodec_reset(component);
 	tl1_acodec_start_up(component);
 
