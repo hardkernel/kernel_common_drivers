@@ -135,7 +135,6 @@ void aml_phy_offset_cal_t6w(void);
 void rx_aud_pll_ctl_t6w(bool en, u8 port);
 void aml_phy_exbist_t6w(u8 port, u8 ch);
 void rx_i2c_mux_cfg_t6w(u8 port);
-void rx_internal_dacr_mclk_en(bool en, u8 port);
 bool rx_is_power_off_t6w(void);
 void rx_dump_pll_param_t6w(void);
 /*function declare end*/

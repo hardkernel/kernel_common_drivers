@@ -2147,14 +2147,10 @@ bool rx_get_afifo_cfg(void)
 
 void hdmirx_audio_disabled(u8 port)
 {
-	if (rx_info.chip_id >= CHIP_ID_T7) {
+	if (rx_info.chip_id >= CHIP_ID_T7)
 		hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 1, port);
-		if (rx_info.aml_phy.dacr_en)
-			/* dacr reset */
-			hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(4), 1, port);
-	} else {
+	else
 		hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_INIT, 1);
-	}
 
 	if (log_level & AUDIO_LOG)
 		rx_pr("Aml %s\n", __func__);
@@ -4658,6 +4654,10 @@ void cor_init(u8 port)
 	//hdmirx_wr_cor(HDCP2X_RX_GVN_FRM, 30, port);
 
 	hdmirx_wr_cor(DPLL_HDMI2_DPLL_IVCRX, 0, port);
+
+	/* dacr init */
+	hdmirx_wr_bits_cor(EXT_MCLK_SEL_PWD_IVCRX, EXT_MCLK_SEL, !rx_info.aml_phy.dacr_en, port);
+
 	cor_config(port);
 }
 
@@ -4904,50 +4904,71 @@ bool is_aud_pll_error_21(void)
 }
 
 /*
+ * rx_internal_dacr_mclk_en: 0-dacr on, 1-dacr off
+ */
+void rx_internal_dacr_mclk_en(bool en, u8 port)
+{
+	if (rx_info.chip_id <= CHIP_ID_T5D)
+		return;
+	hdmirx_wr_bits_cor(EXT_MCLK_SEL_PWD_IVCRX, EXT_MCLK_SEL, !en, port);
+}
+
+/*
  * rx_aud_pll_ctl - audio pll config
  */
 void rx_aud_pll_ctl(bool en, u8 port)
 {
-	switch (rx_info.chip_id) {
-	case CHIP_ID_TL1:
-	case CHIP_ID_TM2:
-	case CHIP_ID_T5:
-	case CHIP_ID_T5D:
-		rx_aud_pll_ctl_tl1(en, port);
-		break;
-	case CHIP_ID_T3:
-		rx_aud_pll_ctl_t3(en, port);
-		break;
-	case CHIP_ID_T7:
-		rx_aud_pll_ctl_t7(en, port);
-		break;
-	case CHIP_ID_T5W:
-		rx_aud_pll_ctl_t5w(en, port);
-		break;
-	case CHIP_ID_T5M:
-		rx_aud_pll_ctl_t5m(en, port);
-		break;
-	case CHIP_ID_TXHD2:
-		rx_aud_pll_ctl_txhd2(en, port);
-		break;
-	case CHIP_ID_T3X:
-		rx_aud_pll_ctl_t3x(en, port);
-		break;
-	case CHIP_ID_T6D:
-		rx_aud_pll_ctl_t6d(en, port);
-		break;
-	case CHIP_ID_T6W:
-		rx_aud_pll_ctl_t6w(en, port);
-		break;
-	case CHIP_ID_TXL:
-	case CHIP_ID_TXLX:
-	case CHIP_ID_GXTVBB:
-	case CHIP_ID_TXHD:
-		rx_aud_pll_ctl_txlx(en, port);
-		break;
-	default:
-		rx_pr("%s error\n", __func__);
-		break;
+	if (rx_info.aml_phy.dacr_en) {
+		if (en)
+			/* select internal dacr mclk from digital */
+			rx_internal_dacr_mclk_en(true, port);
+		else
+			/* dacr reset */
+			hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(4), 1, port);
+	} else {
+		/* select internal dacr mclk from analog pll */
+		rx_internal_dacr_mclk_en(false, port);
+		switch (rx_info.chip_id) {
+		case CHIP_ID_TL1:
+		case CHIP_ID_TM2:
+		case CHIP_ID_T5:
+		case CHIP_ID_T5D:
+			rx_aud_pll_ctl_tl1(en, port);
+			break;
+		case CHIP_ID_T3:
+			rx_aud_pll_ctl_t3(en, port);
+			break;
+		case CHIP_ID_T7:
+			rx_aud_pll_ctl_t7(en, port);
+			break;
+		case CHIP_ID_T5W:
+			rx_aud_pll_ctl_t5w(en, port);
+			break;
+		case CHIP_ID_T5M:
+			rx_aud_pll_ctl_t5m(en, port);
+			break;
+		case CHIP_ID_TXHD2:
+			rx_aud_pll_ctl_txhd2(en, port);
+			break;
+		case CHIP_ID_T3X:
+			rx_aud_pll_ctl_t3x(en, port);
+			break;
+		case CHIP_ID_T6D:
+			rx_aud_pll_ctl_t6d(en, port);
+			break;
+		case CHIP_ID_T6W:
+			rx_aud_pll_ctl_t6w(en, port);
+			break;
+		case CHIP_ID_TXL:
+		case CHIP_ID_TXLX:
+		case CHIP_ID_GXTVBB:
+		case CHIP_ID_TXHD:
+			rx_aud_pll_ctl_txlx(en, port);
+			break;
+		default:
+			rx_pr("%s error\n", __func__);
+			break;
+		}
 	}
 }
 

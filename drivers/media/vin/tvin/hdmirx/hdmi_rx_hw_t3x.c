@@ -4133,8 +4133,8 @@ void rx_lts_2_flt_ready(u8 port)
 	//-------
 	data8  = 0;
 	data8 |= (1 << 4); //reg_dual_pipe_en
-	data8 |= (1 << 2); //reg_acr_div2mode
-	data8 |= (0 << 1); //reg_acr_clk_sel
+	data8 |= (0 << 2); //reg_acr_div2mode
+	data8 |= (1 << 1); //reg_acr_clk_sel
 	data8 |= (1 << 0); //reg_tmds_clk_sel  0:tmds_clk ;1: hdmi21_tmds_clk
 
 	//inv_hal_rx_h21_ctrl_write(port,0x00);
@@ -5526,23 +5526,27 @@ void clk_init_cor_t3x(void)
 	wr_reg_clk_ctl(RX_CLK_CTRL1, data32);
 
 	data32  = 0;
-	data32 |= (1 << 25);// [26:25] clk_sel for cts_hdmirx_acr_ref_clk: 1=fclk_div4
-	data32 |= (0 << 24);// [   24] clk_en for cts_hdmirx_acr_ref_clk
-	data32 |= (0 << 16);// [22:16] clk_div for cts_hdmirx_acr_ref_clk://fclk_div4/1=500M
+	data32 |= (0 << 25);// [26:25] clk_sel for cts_hdmirx_aud_pll_clk
+	data32 |= (0 << 24);// [   24] clk_en for cts_hdmirx_aud_pll_clk
+	data32 |= (0 << 16);// [22:16] clk_div for cts_hdmirx_aud_pll_clk
 	data32 |= (0 << 9);// [10: 9] clk_sel for cts_hdmirx_aud_pll_clk
 	data32 |= (0 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
 	data32 |= (0 << 0);// [ 6: 0] clk_div for cts_hdmirx_aud_pll_clk
 	wr_reg_clk_ctl(RX_CLK_CTRL2, data32);
-	data32 |= (1 << 24);// [   24] clk_en for cts_hdmirx_acr_ref_clk
+	data32 |= (1 << 24);// [   24] clk_en for cts_hdmirx_aud_pll_clk_1
 	data32 |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
 	wr_reg_clk_ctl(RX_CLK_CTRL2, data32);
 
 	data32  = 0;
-	data32 |= (0 << 9);// [10: 9] clk_sel for cts_hdmirx_meter_clk: 0=cts_oscin_clk
-	data32 |= (0 << 8);// [    8] clk_en for cts_hdmirx_meter_clk
-	data32 |= (0 << 0);// [ 6: 0] clk_div for cts_hdmirx_meter_clk: 24M
+	data32 |= (0 << 25);// [26:25] clk_sel for cts_hdmirx_meter_clk
+	data32 |= (0 << 24);// [   24] clk_en for cts_hdmirx_meter_clk
+	data32 |= (0 << 16);// [22:16] clk_div for cts_hdmirx_meter_clk
+	data32 |= (1 << 9);// [10: 9] clk_sel for cts_hdmirx_acr_ref_clk: 1=fclk_div4
+	data32 |= (0 << 8);// [    8] clk_en for cts_hdmirx_acr_ref_clk
+	data32 |= (0 << 0);// [ 6: 0] clk_div for cts_hdmirx_acr_ref_clk: 24M
 	wr_reg_clk_ctl(RX_CLK_CTRL3, data32);
-	data32 |= (1 << 8);// [    8] clk_en for cts_hdmirx_meter_clk
+	data32 |= (1 << 24);// [   24] clk_en for cts_hdmirx_meter_clk
+	data32 |= (1 << 8);// [    8] clk_en for cts_hdmirx_acr_ref_clk
 	wr_reg_clk_ctl(RX_CLK_CTRL3, data32);
 
 	/* new added for t3x emp */

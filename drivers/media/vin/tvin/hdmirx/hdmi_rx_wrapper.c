@@ -281,6 +281,8 @@ void hdmirx_phy_var_init(void)
 		rx_info.aml_phy.tap2_byp = 0;
 		rx_info.aml_phy.long_bist_en = 0;
 		rx_info.aml_phy.reset_pcs_en = 0;
+		if (rx_info.phy_ver >= PHY_VER_T7)
+			rx_info.aml_phy.dacr_en = 1;
 	} else if (rx_info.phy_ver >= PHY_VER_T5M) {
 		rx_info.aml_phy.dfe_en = 1;
 		rx_info.aml_phy.ofst_en = 0;
@@ -306,14 +308,11 @@ void hdmirx_phy_var_init(void)
 		rx_info.aml_phy.vga_gain = 0x1000;
 		rx_info.aml_phy.eq_stg1 = 0x1f;
 		rx_info.aml_phy.eq_stg2 = 0x1f;
-		if (rx_info.phy_ver == PHY_VER_T6D) {
+		if (rx_info.phy_ver == PHY_VER_T6D || rx_info.phy_ver == PHY_VER_T6W)
 			rx_info.aml_phy.eq_hold = 3;
-		} else if (rx_info.phy_ver == PHY_VER_T6W) {
-			rx_info.aml_phy.dacr_en = 1;
-			rx_info.aml_phy.eq_hold = 3;
-		} else {
+		else
 			rx_info.aml_phy.eq_hold = 0;
-		}
+		rx_info.aml_phy.dacr_en = 1;
 		rx_info.aml_phy.dfe_hold  = 0;
 		rx_info.aml_phy.eye_delay = 50;
 		rx_info.aml_phy.eq_retry = 0;

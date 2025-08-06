@@ -1565,54 +1565,42 @@ void rx_dig_clk_en_t6w(bool en)
 	hdmirx_wr_bits_clk_ctl(RX_CLK_CTRL3, METER_CLK_EN, en);
 }
 
-void rx_internal_dacr_mclk_en(bool en, u8 port)
-{
-	hdmirx_wr_bits_cor(EXT_MCLK_SEL_PWD_IVCRX, EXT_MCLK_SEL, !en, port);
-}
-
 void rx_aud_pll_ctl_t6w(bool en, u8 port)
 {
 	int tmp = 0;
 
 	if (en) {
-		if (rx_info.aml_phy.dacr_en) {
-			/* select internal dacr mclk from digital */
-			rx_internal_dacr_mclk_en(true, port);
-		} else {
-			/* select internal dacr mclk from analog */
-			rx_internal_dacr_mclk_en(false, port);
-			/* analog pll */
-			tmp = rd_reg_ana_ctl(ANACTRL_VDAC_CTRL0_T6W);
-			tmp |= (1 << 7);
-			wr_reg_ana_ctl(ANACTRL_VDAC_CTRL0_T6W, tmp);
-			tmp = rd_reg_ana_ctl(ANACTRL_VDAC_CTRL0_T6W);
-			tmp |= (1 << 5);
-			wr_reg_ana_ctl(ANACTRL_VDAC_CTRL0_T6W, tmp);
-			wr_bits_reg_ana_ctl(ANACTRL_VDAC_CTRL0_T6W, _BIT(5), 0);
-			wr_reg_ana_ctl(ANACTRL_VDAC_CTRL1_T6W, 0);
-			tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
-			tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
-			wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
-			/* AUD_CLK=N/CTS*TMDS_CLK */
-			wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL_T6W, 0x20000000);
-			wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL_T6W, 0x60008000);
-			wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL2_T6W, 0x80b);
-			wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL2_T6W, 0x89b);
-			if (rx[port].phy.pll_bw == PLL_BW_4)
-				wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL2_T6W, 0x90);
-			/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
-			wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL3_T6W,
-				rx[port].phy.aud_div);
-			if (log_level & AUDIO_LOG)
-				rx_pr("aud div=%d\n",
-					rd_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL3_T6W));
-			wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL_T6W, 0x40004000);
-			if (log_level & AUDIO_LOG)
-				/* t3 audio pll lock bit: top reg acr_cntl_stat bit'31 */
-				rx_pr("audio pll lock:0x%x\n",
-					  (hdmirx_rd_top_common(TOP_ACR_CNTL_STAT) >> 31));
-			rx_audio_pll_sw_update(port);
-		}
+		/* analog pll */
+		tmp = rd_reg_ana_ctl(ANACTRL_VDAC_CTRL0_T6W);
+		tmp |= (1 << 7);
+		wr_reg_ana_ctl(ANACTRL_VDAC_CTRL0_T6W, tmp);
+		tmp = rd_reg_ana_ctl(ANACTRL_VDAC_CTRL0_T6W);
+		tmp |= (1 << 5);
+		wr_reg_ana_ctl(ANACTRL_VDAC_CTRL0_T6W, tmp);
+		wr_bits_reg_ana_ctl(ANACTRL_VDAC_CTRL0_T6W, _BIT(5), 0);
+		wr_reg_ana_ctl(ANACTRL_VDAC_CTRL1_T6W, 0);
+		tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+		tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
+		wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+		/* AUD_CLK=N/CTS*TMDS_CLK */
+		wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL_T6W, 0x20000000);
+		wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL_T6W, 0x60008000);
+		wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL2_T6W, 0x80b);
+		wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL2_T6W, 0x89b);
+		if (rx[port].phy.pll_bw == PLL_BW_4)
+			wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL2_T6W, 0x90);
+		/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
+		wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL3_T6W,
+			rx[port].phy.aud_div);
+		if (log_level & AUDIO_LOG)
+			rx_pr("aud div=%d\n",
+				rd_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL3_T6W));
+		wr_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL_T6W, 0x40004000);
+		if (log_level & AUDIO_LOG)
+			/* t3 audio pll lock bit: top reg acr_cntl_stat bit'31 */
+			rx_pr("audio pll lock:0x%x\n",
+				  (hdmirx_rd_top_common(TOP_ACR_CNTL_STAT) >> 31));
+		rx_audio_pll_sw_update(port);
 		//hdmirx_audio_fifo_rst(port);
 	} else {
 		/* disable pll, into reset mode */

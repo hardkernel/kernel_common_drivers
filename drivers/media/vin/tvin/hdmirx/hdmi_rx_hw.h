@@ -3690,4 +3690,5 @@ void hdmirx_qms_plus_en(bool en, u8 port);
 void rx_get_aud_pkt(u8 port);
 void rx_aud_to_emp_init(u8 port);
 bool rx_get_dvi_mode(u8 port);
+void rx_internal_dacr_mclk_en(bool en, u8 port);
 #endif
