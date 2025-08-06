@@ -314,6 +314,23 @@ struct pq_ctrl_s pq_cfg_init[PQ_CFG_MAX] = {
 		.black_ext_en = 0,
 		.chroma_cor_en = 0,
 		.reserved = 0,
+	},
+	/*for init current cfg*/
+	{
+		.sharpness0_en = 0xf,
+		.sharpness1_en = 0xf,
+		.dnlp_en = 0xf,
+		.cm_en = 0xf,
+		.vadj1_en = 0xf,
+		.vd1_ctrst_en = 0xf,
+		.vadj2_en = 0xf,
+		.post_ctrst_en = 0xf,
+		.wb_en = 0xf,
+		.gamma_en = 0xf,
+		.lc_en = 0xf,
+		.black_ext_en = 0xf,
+		.chroma_cor_en = 0xf,
+		.reserved = 0xf,
 	}
 };
 
@@ -332,6 +349,7 @@ int freerun_en = GAME_MODE;/* 0:game mode;1:freerun mode */
 unsigned int hdr_output_mode;
 unsigned int data_path;  /* 0:main;1:sub */
 unsigned int pq_user_value;
+unsigned int pq_bypass_debug_flag;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static int debug_amvecm_bringup;
@@ -8400,8 +8418,8 @@ static void amvecm_pq_enable(int enable)
 #endif
 
 		white_balance_adjust(0, 1);
-
 		vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;
+		pq_bypass_debug_flag = 0;
 	} else {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		lc_en = 0;
@@ -8488,8 +8506,8 @@ static void amvecm_pq_enable(int enable)
 #endif
 
 		white_balance_adjust(0, 0);
-
 		vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
+		pq_bypass_debug_flag = 1;
 	}
 }
 
@@ -12853,13 +12871,14 @@ struct param_parse_cmd_s {
 };
 
 struct param_parse_cmd_s param_cmd[] = {
-	{"debug_amvecm", &debug_amvecm},
 	{"probe_ok", &probe_ok},
 	{"pq_load_en", &pq_load_en},
-	{"wb_en", &wb_en},
-	{"debug_game_mode_1", &debug_game_mode_1},
+	{"debug_amvecm", &debug_amvecm},
+	{"debug_amve", &amve_debug},
 	{"debug_amcm", &debug_amcm},
 	{"debug_regload", &debug_regload},
+	{"debug_game_mode_1", &debug_game_mode_1},
+	{"wb_en", &wb_en},
 	{"cm_en", &cm_en},
 	{"pq_reg_wr_rdma", &pq_reg_wr_rdma},
 	{"video_rgb_ogo_mode_sw", &video_rgb_ogo_mode_sw},
@@ -13035,17 +13054,18 @@ void init_pq_control(unsigned int enable)
 {
 	if (enable) {
 		memcpy(&pq_cfg, &pq_cfg_init[TV_CFG_DEF],
-		       sizeof(struct pq_ctrl_s));
+			sizeof(struct pq_ctrl_s));
 		memcpy(&dv_cfg_bypass, &pq_cfg_init[TV_DV_BYPASS],
-		       sizeof(struct pq_ctrl_s));
+			sizeof(struct pq_ctrl_s));
 	} else {
 		memcpy(&pq_cfg, &pq_cfg_init[OTT_CFG_DEF],
-		       sizeof(struct pq_ctrl_s));
+			sizeof(struct pq_ctrl_s));
 		memcpy(&dv_cfg_bypass, &pq_cfg_init[OTT_DV_BYPASS],
-		       sizeof(struct pq_ctrl_s));
+			sizeof(struct pq_ctrl_s));
 	}
-	memcpy(&pq_cfg_cur, &pq_cfg_init[OTT_DV_BYPASS],
-		       sizeof(struct pq_ctrl_s));
+
+	memcpy(&pq_cfg_cur, &pq_cfg_init[INIT_CUR_CFG],
+		sizeof(struct pq_ctrl_s));
 }
 
 int vinfo_lcd_support(void)

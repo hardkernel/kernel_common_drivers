@@ -469,6 +469,15 @@ enum pq_module_e {
 	pq_module_module_max,
 };
 
+enum pq_ctl_cfg_e {
+	TV_CFG_DEF = 0,
+	OTT_CFG_DEF,
+	TV_DV_BYPASS,
+	OTT_DV_BYPASS,
+	INIT_CUR_CFG,
+	PQ_CFG_MAX
+};
+
 /*flag:
  *bit 0: brigtness
  *bit 1: contrast
@@ -489,6 +498,7 @@ extern enum hdr_type_e hdr_source_type;
 extern unsigned int pd_detect_en;
 extern int wb_en;
 extern struct pq_ctrl_s pq_cfg_cur;
+extern struct pq_ctrl_s pq_cfg_init[PQ_CFG_MAX];
 
 extern struct pq_ctrl_s pq_cfg;
 extern struct pq_ctrl_s dv_cfg_bypass;
@@ -716,5 +726,6 @@ enum vpp_matrix_ext_csc_e {
 };
 
 extern struct vpp_mtx_info_s mtx_info;
+extern unsigned int pq_bypass_debug_flag;
 #endif /* AMVECM_H */
 

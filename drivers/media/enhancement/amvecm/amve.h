@@ -32,14 +32,6 @@
 #define LUT3D_SINGLE_SIZE9 729 /* 9*9*9 */
 #define LUT3D_POINTS9 9
 
-enum pq_ctl_cfg_e {
-	TV_CFG_DEF = 0,
-	OTT_CFG_DEF,
-	TV_DV_BYPASS,
-	OTT_DV_BYPASS,
-	PQ_CFG_MAX
-};
-
 struct ve_regs_s {
 	unsigned int val:32;
 	unsigned int reg:14;

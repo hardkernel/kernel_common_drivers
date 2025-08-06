@@ -152,6 +152,9 @@ struct tcon_rgb_ogo_s video_rgb_ogo_sub = {
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int dnlp_en;/* 0:disable;1:enable */
+module_param(dnlp_en, int, 0664);
+MODULE_PARM_DESC(dnlp_en, "\n enable or disable dnlp\n");
+
 static int dnlp_status = 1;/* 0:done;1:todo */
 int dnlp_en_2_pre = 1;
 int dnlp_en_2 = 1;/* 0:disable;1:enable */
@@ -1172,6 +1175,8 @@ void ve_enable_dnlp(void)
 	} else {
 		ve_dnlp_ctl(1);
 	}
+
+	pr_amve_dbg("\n[amve..] ve_enable_dnlp done.\n");
 }
 
 void ve_disable_dnlp(void)
@@ -1211,6 +1216,8 @@ void ve_disable_dnlp(void)
 	} else {
 		ve_dnlp_ctl(0);
 	}
+
+	pr_amve_dbg("\n[amve..] ve_disable_dnlp done.\n");
 }
 
 void ve_dnlp_ctrl_vsync(int enable)
@@ -3297,7 +3304,6 @@ void amvecm_wb_enable(int enable)
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-
 void amvecm_wb_enable_sub(int enable)
 {
 	if (enable)
@@ -3628,6 +3634,7 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index)
 				dnlp_en = 0;
 			}
 		}
+
 		if (pq_cfg_cur.cm_en != pq_cfg.cm_en) {
 			pq_cfg_cur.cm_en = pq_cfg.cm_en;
 			if (pq_cfg.cm_en) {
@@ -3905,7 +3912,7 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 	struct pq_ctrl_s cfg;
 	int vpp_index = 0;
 
-	if (chip_type_id == chip_t3x)
+	if (chip_type_id == chip_t3x || pq_bypass_debug_flag)
 		return 0;
 
 	switch (ctl) {
@@ -3921,7 +3928,6 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 	case DV_PQ_STB_BYPASS:
 		cfg.sharpness0_en = pq_cfg.sharpness0_en;
 		cfg.sharpness1_en = pq_cfg.sharpness1_en;
-		cfg.cm_en = pq_cfg.cm_en;
 		cfg.dnlp_en = dv_cfg_bypass.dnlp_en;
 		cfg.cm_en = dv_cfg_bypass.cm_en;
 		cfg.vadj1_en = dv_cfg_bypass.vadj1_en;
@@ -3933,10 +3939,12 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 		cfg.lc_en = dv_cfg_bypass.lc_en;
 		cfg.black_ext_en = dv_cfg_bypass.black_ext_en;
 		cfg.chroma_cor_en = dv_cfg_bypass.chroma_cor_en;
+		memcpy(&pq_cfg_cur, &pq_cfg_init[INIT_CUR_CFG],
+			sizeof(struct pq_ctrl_s));
 		vpp_pq_ctrl_config(cfg, WR_DMA, vpp_index);
 		dv_pq_bypass = 2;
 		pr_amve_dbg("dv enable, for STB pq disable, dv_pq_bypass = %d\n",
-				dv_pq_bypass);
+			dv_pq_bypass);
 		break;
 	case DV_PQ_CERT:
 		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
