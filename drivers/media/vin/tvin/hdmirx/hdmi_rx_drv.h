@@ -86,6 +86,7 @@
 //2024.10.09 t3x/t7c hdmirx support std hibernate
 //2024.11.15 add protect for fsm
 //2024.11.29 optimize early suspend flow
+//2024.12.26 clean module params
 //2025.01.02 optimize timer execution logic
 //2025.01.16 t3 hdmirx support std hibernate
 //2025.02.20 add 4k144 165 dsc timing support

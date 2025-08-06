@@ -107,9 +107,6 @@ int rx22_ver;
 MODULE_PARM_DESC(rx22_ver, "\n rx22_ver\n");
 module_param(rx22_ver, int, 0664);
 
-MODULE_PARM_DESC(force_clk_rate, "\n force_clk_rate\n");
-module_param(force_clk_rate, int, 0664);
-
 /* test for HBR CTS, audio module can set it to force 8ch */
 int hbr_force_8ch;
 /*

@@ -611,6 +611,11 @@ static ssize_t debug_store(struct device *dev,
 			tvafe_reset_module();
 		else if (parm[0][5] == '1')
 			tvafe_cvd2_hold_rst();
+	} else if (!strncmp(parm[0], "enable_db_reg", strlen("enable_db_reg"))) {
+		if (parm[0][13] == '1')
+			enable_db_reg = 1;
+		else
+			enable_db_reg = 0;
 	} else {
 		tvafe_pr_info("[%s]:invalid command.\n", __func__);
 	}
