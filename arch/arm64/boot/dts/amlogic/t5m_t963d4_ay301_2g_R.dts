@@ -898,8 +898,7 @@
 
 		pinctrl-names = "spdif_pins",
 			"spdif_pins_mute";
-		pinctrl-0 = <&spdif_out_a_z19_pins
-					&spdifin_m29_pins>;
+		pinctrl-0 = <&spdif_out_a_z19_pins>;
 		pinctrl-1 = <&spdifout_z19_mute>;
 
 		/*
