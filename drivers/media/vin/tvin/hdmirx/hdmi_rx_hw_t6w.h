@@ -67,6 +67,7 @@
 	#define T6W_VCO_TMDS_EN			_BIT(20)
 	#define T6W_RTERM_CNTL			MSK(4, 12)
 	#define T6W_DCH_RSTN			MSK(3, 4)
+	#define RTERM_FLAG_EFUSE_T6W	_BIT(2)
 #define T6W_HDMIRX20PHY_DCHA_MISC2		(0x007 << 2)
 	#define RTERM_EN_SEL	MSK(4, 28)
 	#define T6W_TMDS_VALID_SEL		_BIT(10)

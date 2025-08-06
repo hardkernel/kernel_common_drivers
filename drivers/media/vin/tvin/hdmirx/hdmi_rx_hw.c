@@ -7799,6 +7799,14 @@ void aml_phy_get_def_trim_value(void)
 			hdmirx_rd_bits_amlphy(T6D_HDMIRX20PHY_DCHA_MISC1,
 			RTERM_FLAG_EFUSE_T6D);
 		break;
+	case CHIP_ID_T6W:
+		rx_info.aml_phy.rterm_val =
+			hdmirx_rd_bits_amlphy(T6W_HDMIRX20PHY_DCHA_MISC1,
+			T6W_RTERM_CNTL);
+		rx_info.aml_phy.rterm_flag =
+			hdmirx_rd_bits_amlphy(T6W_HDMIRX20PHY_DCHA_MISC1,
+			RTERM_FLAG_EFUSE_T6W);
+		break;
 	default:
 		break;
 	}

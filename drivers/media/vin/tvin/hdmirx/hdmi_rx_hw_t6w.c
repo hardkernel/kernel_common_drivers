@@ -203,34 +203,33 @@ void t6w_4k30_pll_cfg(void)
 	rx[port].phy.aud_div = 0;
 }
 
-void t6w_4k60_pll_cfg(void)
+/*
+ * M: pll0 bit[8:0]
+ * N: pll0 bit [15:11]
+ * step: 0.5
+ * M = M * step
+ * clkrate 1:10 M/N = 10
+ * clkrate 1:40 M/N = 40
+ */
+void t6w_4k60_pll_cfg(u32 clkrate)
 {
 	u8 port = rx_info.main_port;
+	u32 m_n = 0;
 
-	if (rx[port].clk.cable_clk > 300 * MHz &&
-		rx[port].clk.cable_clk < 340 * MHz) {
-		hdmirx_wr_amlphy(T6W_RG_RX20PLL_0, 0x01490850);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(T6W_RG_RX20PLL_1, 0x12301865);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(T6W_RG_RX20PLL_0, 0x11490850);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(T6W_RG_RX20PLL_0, 0x51490850);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(T6W_RG_RX20PLL_0, 0x71490850);
-		rx[port].phy.aud_div = 0;
-	} else {
-		hdmirx_wr_amlphy(T6W_RG_RX20PLL_0, 0x01290850);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(T6W_RG_RX20PLL_1, 0x12301865);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(T6W_RG_RX20PLL_0, 0x11290850);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(T6W_RG_RX20PLL_0, 0x51290850);
-		usleep_range(10, 20);
-		hdmirx_wr_amlphy(T6W_RG_RX20PLL_0, 0x71290850);
-		rx[port].phy.aud_div = 0;
-	}
+	if (clkrate)
+		m_n = 0x0850;
+	else
+		m_n = 0x1028;
+	hdmirx_wr_amlphy(T6W_RG_RX20PLL_0, (0x01090000 | m_n));
+	usleep_range(10, 20);
+	hdmirx_wr_amlphy(T6W_RG_RX20PLL_1, 0x12301865);
+	usleep_range(10, 20);
+	hdmirx_wr_amlphy(T6W_RG_RX20PLL_0, (0x11090000 | m_n));
+	usleep_range(10, 20);
+	hdmirx_wr_amlphy(T6W_RG_RX20PLL_0, (0x51090000 | m_n));
+	usleep_range(10, 20);
+	hdmirx_wr_amlphy(T6W_RG_RX20PLL_0, (0x71090000 | m_n));
+	rx[port].phy.aud_div = 0;
 	usleep_range(10, 20);
 }
 
@@ -263,7 +262,7 @@ void aml_pll_bw_cfg_t6w(u32 cable_clk)
 		t6w_4k30_pll_cfg();
 		break;
 	case PLL_BW_4:
-		t6w_4k60_pll_cfg();
+		t6w_4k60_pll_cfg(clk_rate);
 		break;
 	}
 	/* do 5 times when clk not stable within a interrupt */
@@ -277,7 +276,7 @@ void aml_pll_bw_cfg_t6w(u32 cable_clk)
 		if (idx == PLL_BW_3)
 			t6w_4k30_pll_cfg();
 		if (idx == PLL_BW_4)
-			t6w_4k60_pll_cfg();
+			t6w_4k60_pll_cfg(clk_rate);
 		if (log_level & PHY_LOG)
 			rx_pr("PLL0=0x%x\n", hdmirx_rd_amlphy(T6W_RG_RX20PLL_0));
 		if (pll_rst_cnt++ > pll_rst_max) {
@@ -384,7 +383,13 @@ void aml_dfe_en_t6w(void)
 /* phy offset calibration based on different chip and board */
 void aml_phy_offset_cal_t6w(void)
 {
-	//misc1 to do
+	u32 data32;
+
+	data32 = 0xfb320000;
+	if (rx_info.aml_phy.rterm_flag) {
+		data32 = ((data32 & (~((0xf << 12) | 0x4))) |
+			(rx_info.aml_phy.rterm_val << 12) | rx_info.aml_phy.rterm_flag << 2);
+	}
 	hdmirx_wr_amlphy(T6W_HDMIRX20PHY_DCHA_MISC1, 0xfb320000);
 	usleep_range(10, 20);
 	hdmirx_wr_amlphy(T6W_HDMIRX20PHY_DCHA_MISC2, 0x00873000);
@@ -1125,7 +1130,7 @@ void aml_phy_exbist_t6w(u8 port, u8 ch)
 	//set registers to default
 	hdmirx_wr_amlphy(T6W_HDMIRX20PHY_DCHD_EQ, 0x30211050);
 	hdmirx_wr_amlphy(T6W_HDMIRX20PHY_DCHD_CDR, 0x04005013);
-	data32 = 0x70873000;
+	data32 = 0xf0873000;
 	data32 |= ((1 << port) << 24);
 	hdmirx_wr_amlphy(T6W_HDMIRX20PHY_DCHA_MISC2, data32);//port_sel
 	hdmirx_wr_amlphy(T6W_HDMIRX20PHY_DCHA_MISC1, 0xfb320000);
@@ -1646,11 +1651,13 @@ void rx_dump_pll_param_t6w(void)
 	int m_n_val = 0;
 	int ctstemp = 0;
 	int ctsa = 0;
+	int cts_rate = 0;
+	int n_rate = 0;
 	u8 clk_rate = (hdmirx_rd_cor(SCDCS_TMDS_CONFIG_SCDC_IVCRX, port) >> 1) & 1;
-	u8 aud_dds_ext_clkdiv2_en = (rd_reg_ana_ctl(ANACTL_AUD_PLL_CNTL) >> 13) & 1;
-	u8 aud_dds_tmds_flag = rd_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3) & 3;
-	u8 aud_dds_dac_cntrl = (rd_reg_ana_ctl(ANACTL_AUD_PLL_CNTL) >> 9) & 7;
-	u8 aud_dds_digit_reve = (rd_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3) >> 19) & 1;
+	u8 aud_dds_ext_clkdiv2_en = (rd_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL_T6W) >> 13) & 1;
+	u8 aud_dds_tmds_flag = rd_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL3_T6W) & 7;
+	u32 aud_dds_dac_cntrl = rd_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL2_T6W)  & 0xfff;
+	u32 aud_dds_digit_reve = (rd_reg_ana_ctl(ANACTRL_AUD_PLL_CNTL3_T6W) >> 16) & 0xffff;
 	static struct aud_info_s aud_info_a;
 	//u32 val0, val1;
 
@@ -1674,7 +1681,7 @@ void rx_dump_pll_param_t6w(void)
 			rx[port].clk.tmds_clk <= 297 * MHz)
 			m_n_val = 20;
 		else if (rx[port].clk.tmds_clk >= 300 * MHz &&
-			rx[port].clk.tmds_clk <= 330 * MHz)
+			rx[port].clk.tmds_clk <= 360 * MHz)
 			m_n_val = 10;
 	} else {
 		m_n_val = 40;
@@ -1684,7 +1691,7 @@ void rx_dump_pll_param_t6w(void)
 	data32 = hdmirx_rd_amlphy(T6W_RG_RX20PLL_0);
 	rx_pr("src clk=%s\n", ((data32 >> 19) & 1) ? "tmdsclk" : "osci");
 	rx_pr("ref_div=%d\n", (data32 >> 11) & 0x1f);
-	rx_pr("ref_div=%d\n", data32 & 0x1ff);
+	rx_pr("fb_div=%d\n", data32 & 0x1ff);
 	rx_pr("en=%d\n", (data32 >> 19) & 1);
 	rx_pr("od_1_5=%s\n", ((data32 >> 20) & 0x1) ? "div5" : "div1");
 	if (((data32 >> 21) & 0x3) == 0)
@@ -1700,14 +1707,15 @@ void rx_dump_pll_param_t6w(void)
 	rx_pr("aud_dds_hdmirx_n=%d\n", aud_info_a.n);
 	rx_pr("aud_dds_hdmirx_cts=%d\n", aud_info_a.cts);
 	rx_pr("acr clk=%d\n", aud_info_a.arc);
-	rx_pr("aud_dds_digit_reve = %d\n", aud_dds_digit_reve);
-	rx_pr("aud_dds_dac_cntrl = %d\n", aud_dds_dac_cntrl);
+	rx_pr("aud_dds_digit_reve = 0x%x\n", aud_dds_digit_reve);
+	rx_pr("aud_dds_dac_cntrl = 0x%x\n", aud_dds_dac_cntrl);
 	rx_pr("aud_dds_tmds_flag = %d\n", aud_dds_tmds_flag);
 	rx_pr("aud_dds_ext_clkdiv2_en = %d\n", aud_dds_ext_clkdiv2_en);
 	if (aud_dds_ext_clkdiv2_en)
-		rx_pr("Na=%d\n", aud_info_a.n * 2);
+		n_rate = 2;
 	else
-		rx_pr("Na=%d\n", aud_info_a.n);
+		n_rate = 1;
+	rx_pr("N_rate=%d, Na=%d\n", n_rate, aud_info_a.n * n_rate);
 	if (aud_dds_tmds_flag == 0)
 		ctstemp = aud_info_a.cts;
 	else if (aud_dds_tmds_flag == 1)
@@ -1716,23 +1724,26 @@ void rx_dump_pll_param_t6w(void)
 		ctstemp = aud_info_a.cts * 4;
 	else if (aud_dds_tmds_flag == 3)
 		ctstemp = aud_info_a.cts * 8;
+
+	aud_dds_dac_cntrl = (aud_dds_dac_cntrl >> 9) & 7;
 	if (aud_dds_dac_cntrl == 0)
-		ctsa = ctstemp;
+		cts_rate = 1;
 	else if (aud_dds_dac_cntrl == 1)
-		ctsa = ctstemp * 40;
+		cts_rate = 40;
 	else if (aud_dds_dac_cntrl == 2)
-		ctsa = ctstemp * 4;
+		cts_rate = 4;
 	else if (aud_dds_dac_cntrl == 3)
-		ctsa = ctstemp * 8;
+		cts_rate = 8;
 	else if (aud_dds_dac_cntrl == 4)
-		ctsa = ctstemp * 5;
+		cts_rate = 5;
 	else if (aud_dds_dac_cntrl == 5)
-		ctsa = ctstemp * 10;
+		cts_rate = 10;
 	else if (aud_dds_dac_cntrl == 6)
-		ctsa = ctstemp * 16;
+		cts_rate = 16;
 	else if (aud_dds_dac_cntrl == 7)
-		ctsa = ctstemp * 20;
-	rx_pr("CTSa=%d\n", ctsa);
+		cts_rate = 20;
+	ctsa = ctstemp * cts_rate;
+	rx_pr("cts_rate=%d, CTSa=%d\n", cts_rate, ctsa);
 
 	/* phy rate */
 	rx_pr("cdr_os_rate=0x%x\n",
