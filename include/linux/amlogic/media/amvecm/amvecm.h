@@ -611,6 +611,7 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl);
 int cm_force_update_flag(void);
 int get_lum_ave(void);
 extern int flag_lc_evc;
+extern int flag_lc_evc_src;
 int get_ep_ipt_flag(void);
 
 enum demo_module_e {
@@ -671,7 +672,7 @@ struct gamma_data_s *get_gm_data(void);
 void bs_ct_latch(void);
 int pkt_adv_chip(void);
 extern unsigned int ai_color_enable;
-void amve_lc_elc_ctrl(unsigned int enable);
+void amve_lc_evc_ctrl(unsigned int enable, unsigned int lc_evc_src);
 
 int register_osd_status_cb(int (*get_osd_enable_status)(u32 index));
 void resume_recovery_process(int vpp_index);
@@ -727,5 +728,9 @@ enum vpp_matrix_ext_csc_e {
 
 extern struct vpp_mtx_info_s mtx_info;
 extern unsigned int pq_bypass_debug_flag;
+extern int cur_contrast_v;
+extern int cur_contrast_u;
+extern int cur_vpp_index;
+
 #endif /* AMVECM_H */
 

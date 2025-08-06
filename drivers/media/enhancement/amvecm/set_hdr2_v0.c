@@ -1369,6 +1369,12 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	unsigned int addr_offset_osd2 = 0;
 	unsigned int addr_offset_vd1 = 0;
 	unsigned int addr_offset_vd2 = 0;
+	int pre_offset[3] = {0, 0, 0};
+	int pos_offset[3] = {0, 0, 0};
+	int clip_comp_th[2] = {0, 0};/*0:in, 1:out*/
+	int clip_conv_rs[2] = {0, 0};
+	int clip_clmod[2] = {0, 0};
+	unsigned int tmp = 0;
 
 	struct aml_tmo_reg_sw *pre_tmo_reg = NULL;
 
@@ -1880,6 +1886,14 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 		return;
 	}
 
+	if (flag_lc_evc_src &&
+		chip_type_id == chip_t6w &&
+		module_sel == VD2_HDR) {
+		hdr_mtx_param->mtx_on = 0;
+		pr_csc(128, "%s: sel(%d) off.\n",
+			__func__, module_sel);
+	}
+
 	/* need change clock gate as freerun when mtx on directly, not rdma op */
 	/* Now only operate osd1/vd1/vd2 hdr core */
 	if (((get_cpu_type() <= MESON_CPU_MAJOR_ID_S4D) &&
@@ -1912,8 +1926,14 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	pr_csc(128, "%s: mtx_sel = 0x%x\n", __func__, mtx_sel);
 
 	if (mtx_sel == HDR_IN_MTX) {
-		for (i = 0; i < MTX_NUM_PARAM; i++)
+		for (i = 0; i < MTX_NUM_PARAM; i++) {
 			in_mtx[i] = hdr_mtx_param->mtx_in[i];
+
+			if (i < 3) {
+				pre_offset[i] = hdr_mtx_param->mtxi_pre_offset[i];
+				pos_offset[i] = hdr_mtx_param->mtxi_pos_offset[i];
+			}
+		}
 
 		pr_csc(64, "hdr: in_mtx on %d only %d = %x,%x %x %x %x %x,%x\n",
 			hdr_mtx_param->mtx_on,
@@ -1944,6 +1964,16 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			16, 1, vpp_sel);
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl, 1, 14, 1, vpp_sel);
 
+		if (flag_lc_evc &&
+			chip_type_id == chip_t6w &&
+			module_sel == VD1_HDR) {
+			for (i = 0; i < 3; i++) {
+				pre_offset[i] = (pre_offset[i] >> 1) - 256;
+				pr_csc(128, "%s: in_mtx sel(%d) lc_evc pre_offset[%d] %d\n",
+					__func__, module_sel, i, pre_offset[i]);
+			}
+		}
+
 		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_COEF00_01,
 				    (in_mtx[0 * 3 + 0] << 16) |
 				    (in_mtx[0 * 3 + 1] & 0x1FFF), vpp_sel);
@@ -1959,15 +1989,28 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_COEF22,
 				    in_mtx[2 * 3 + 2], vpp_sel);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_OFFSET0_1,
-				    (hdr_mtx_param->mtxi_pos_offset[0] << 16) |
-				    (hdr_mtx_param->mtxi_pos_offset[1] & 0xFFF), vpp_sel);
+				    (pos_offset[0] << 16) |
+				    (pos_offset[1] & 0xFFF), vpp_sel);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_OFFSET2,
-				    hdr_mtx_param->mtxi_pos_offset[2], vpp_sel);
+				    pos_offset[2], vpp_sel);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_PRE_OFFSET0_1,
-				    (hdr_mtx_param->mtxi_pre_offset[0] << 16) |
-				    (hdr_mtx_param->mtxi_pre_offset[1] & 0xFFF), vpp_sel);
+				    (pre_offset[0] << 16) |
+				    (pre_offset[1] & 0xFFF), vpp_sel);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_PRE_OFFSET2,
-				    hdr_mtx_param->mtxi_pre_offset[2], vpp_sel);
+				    pre_offset[2], vpp_sel);
+
+		if (flag_lc_evc &&
+			chip_type_id == chip_t6w &&
+			module_sel == VD1_HDR) {
+			clip_conv_rs[0] -= 1;
+			pr_csc(128, "%s: in_mtx sel(%d) lc_evc clip_conv_rs %d\n",
+				__func__, module_sel, clip_conv_rs[0]);
+		}
+
+		tmp = ((clip_comp_th[0] & 0xfff) << 8) |
+			((clip_conv_rs[0] & 0x7) << 5) |
+			((clip_clmod[0] & 0x3) << 3);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_CLIP, tmp, vpp_sel);
 	} else if (mtx_sel == HDR_GAMUT_MTX) {
 		u32 ogain_lut_148 = hdr_lut_param->ogain_lut[148];
 
@@ -3327,6 +3370,215 @@ void hdr_gclk_ctrl_switch(enum hdr_module_sel module_sel,
 			vpu_module_clk_disable(vpp_sel, OSD2_HDR_CORE, 0);
 		else if (module_sel == OSD3_HDR)
 			vpu_module_clk_disable(vpp_sel, OSD3_HDR_CORE, 0);
+	}
+}
+
+static unsigned int pre_muxio_sel;
+
+enum vpu_muxio_ipath_sub_e {
+	VPU_MUXIO_IPATH_DD_IN = 0,/*bit3:0*/
+	VPU_MUXIO_IPATH_HDR2_IN,/*bit7:4*/
+	VPU_MUXIO_IPATH_PRIME_SL_IN,/*bit11:8*/
+	VPU_MUXIO_IPATH_MAX,
+};
+
+enum vpu_muxio_opath_sub_e {
+	VPU_MUXIO_OPATH_VDIN = 0,/*bit3:0*/
+	VPU_MUXIO_OPATH_PRE_BLEND,/*bit7:4*/
+	VPU_MUXIO_OPATH_VD1,/*bit11:8*/
+	VPU_MUXIO_OPATH_DPSS_NR,/*bit15:12*/
+	VPU_MUXIO_OPATH_DPSS_NR_OUT,/*bit19:16*/
+	VPU_MUXIO_OPATH_LOOP,/*bit23:20*/
+	VPU_MUXIO_OPATH_MAX,
+};
+
+struct muxio_cfg_param_s {
+	unsigned int ipath_cfg[VPU_MUXIO_IPATH_MAX];
+	unsigned int opath_cfg[VPU_MUXIO_OPATH_MAX];
+};
+
+enum vpu_muxio_in_sel_e {
+	VPU_MUXIO_IN_SEL_VDIN = 0x0,
+	VPU_MUXIO_IN_SEL_DPSS_NR,
+	VPU_MUXIO_IN_SEL_PRE_BLEND,
+	VPU_MUXIO_IN_SEL_VD1,
+	VPU_MUXIO_IN_SEL_DPSS_NR_OUT,
+	VPU_MUXIO_IN_SEL_LOOP,
+	VPU_MUXIO_IN_SEL_BYPASS = 0xf,
+};
+
+enum vpu_muxio_out_sel_e {
+	VPU_MUXIO_OUT_SEL_DD = 0x0,
+	VPU_MUXIO_OUT_SEL_HDR2,
+	VPU_MUXIO_OUT_SEL_PRIME_SL,
+	VPU_MUXIO_OUT_SEL_BYPASS = 0xf,
+};
+
+void muxio_config(enum vpp_muxio_sel_e sel,
+	int rdma_mode, int vpp_index)
+{
+	int i = 0;
+	unsigned int mode = 0;
+	unsigned int reg_val[3] = {
+		0x0, 0x0, 0x0
+	};
+	unsigned int pre_reg_val[3];
+	unsigned int reg_mask[3] = {
+		0xfff, 0xffffff, 0x3
+	};
+	unsigned int reg_addr[3] = {
+		MUXIO_IPATH_SEL,
+		MUXIO_OPATH_SEL,
+		AXIRD_PATH_CTRL
+	};
+	unsigned int start[3] = {
+		0, 0, 8
+	};
+	unsigned int len[3] = {
+		12, 24, 2
+	};
+	struct muxio_cfg_param_s cfg_param;
+
+	if (chip_type_id != chip_t6w)
+		return;
+
+	switch (sel) {
+	case VPP_MUXIO_SEL_VD1_HDR:
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_BYPASS;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_HDR2_IN] = VPU_MUXIO_IN_SEL_LOOP;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_PRIME_SL_IN] = VPU_MUXIO_IN_SEL_VD1;
+
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VDIN] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_PRE_BLEND] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VD1] = VPU_MUXIO_OUT_SEL_HDR2;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR_OUT] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_PRIME_SL;
+
+		reg_val[2] = 0x2;/*bit9:8 dv_path_mode*/
+		break;
+	case VPP_MUXIO_SEL_DPSS_HDR_DPE:/*dct->nr->hdr*/
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_BYPASS;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_HDR2_IN] = VPU_MUXIO_IN_SEL_LOOP;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_PRIME_SL_IN] = VPU_MUXIO_IN_SEL_DPSS_NR_OUT;
+
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VDIN] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_PRE_BLEND] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VD1] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR_OUT] = VPU_MUXIO_OUT_SEL_HDR2;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_PRIME_SL;
+
+		reg_val[2] = 0x0;
+		break;
+	case VPP_MUXIO_SEL_DPSS_HDR:/*hdr->dct->nr*/
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_BYPASS;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_HDR2_IN] = VPU_MUXIO_IN_SEL_LOOP;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_PRIME_SL_IN] = VPU_MUXIO_IN_SEL_DPSS_NR;
+
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VDIN] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_PRE_BLEND] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VD1] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR] = VPU_MUXIO_OUT_SEL_HDR2;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR_OUT] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_PRIME_SL;
+
+		reg_val[2] = 0x1;
+		break;
+	case VPP_MUXIO_SEL_LC_EVC_HDR:
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_BYPASS;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_HDR2_IN] = VPU_MUXIO_IN_SEL_LOOP;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_PRIME_SL_IN] = VPU_MUXIO_IN_SEL_PRE_BLEND;
+
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VDIN] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_PRE_BLEND] = VPU_MUXIO_OUT_SEL_HDR2;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VD1] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR_OUT] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_PRIME_SL;
+
+		reg_val[2] = 0x0;
+		break;
+	case VPP_MUXIO_SEL_VD1_DD:
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_VD1;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_HDR2_IN] = VPU_MUXIO_IN_SEL_LOOP;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_PRIME_SL_IN] = VPU_MUXIO_IN_SEL_VD1;
+
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VDIN] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_PRE_BLEND] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VD1] = VPU_MUXIO_OUT_SEL_DD;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR_OUT] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_BYPASS;
+
+		reg_val[2] = 0x2;
+		break;
+	case VPP_MUXIO_SEL_DPSS_DD:
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_DPSS_NR;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_HDR2_IN] = VPU_MUXIO_IN_SEL_LOOP;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_PRIME_SL_IN] = VPU_MUXIO_IN_SEL_PRE_BLEND;
+
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VDIN] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_PRE_BLEND] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VD1] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR] = VPU_MUXIO_OUT_SEL_DD;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR_OUT] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_BYPASS;
+
+		reg_val[2] = 0x1;
+		break;
+	case VPP_MUXIO_SEL_DE_LINK:
+	default:
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_BYPASS;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_HDR2_IN] = VPU_MUXIO_IN_SEL_BYPASS;
+		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_PRIME_SL_IN] = VPU_MUXIO_IN_SEL_BYPASS;
+
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VDIN] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_PRE_BLEND] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_VD1] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_DPSS_NR_OUT] = VPU_MUXIO_OUT_SEL_BYPASS;
+		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_BYPASS;
+
+		reg_val[2] = 0x0;
+		break;
+	}
+
+	for (i = VPU_MUXIO_IPATH_DD_IN; i < VPU_MUXIO_IPATH_MAX; i++)
+		reg_val[0] |= cfg_param.ipath_cfg[i] << (4 * i);
+
+	for (i = VPU_MUXIO_OPATH_VDIN; i < VPU_MUXIO_OPATH_MAX; i++)
+		reg_val[1] |= cfg_param.opath_cfg[i] << (4 * i);
+
+	if (sel != pre_muxio_sel) {
+		pr_csc(128, "%s: sel/rdma_mode/vpp_index = %d/%d/%d\n",
+			__func__, sel, rdma_mode, vpp_index);
+		pre_muxio_sel = sel;
+	}
+
+	for (i = 0; i < 3; i++) {
+		pre_reg_val[i] = READ_VPP_REG(reg_addr[i]);
+		pre_reg_val[i] = (pre_reg_val[i] >> start[i]) & reg_mask[i];
+
+		if (pre_reg_val[i] != reg_val[i]) {
+			if (rdma_mode == 1)
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg_addr[i], reg_val[i],
+					start[i], len[i], vpp_index);
+			else
+				WRITE_VPP_REG_BITS(reg_addr[i], reg_val[i],
+					start[i], len[i]);
+
+			if (i == 2) {
+				mode = reg_val[2];
+				/*update_hdr_axi_path_mode(mode);*/
+			}
+
+			pr_csc(128, "%s: [0x%x][%d:%d] from 0x%x to 0x%x\n",
+				__func__, reg_addr[i], start[i] + len[i] - 1, start[i],
+				pre_reg_val[i], reg_val[i]);
+			pr_csc(128, "%s: sel/rdma_mode/vpp_index = %d/%d/%d\n",
+				__func__, sel, rdma_mode, vpp_index);
+		}
 	}
 }
 
@@ -4888,7 +5140,12 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		set_eotf_lut(module_sel, &hdr_lut_param, vpp_index);
 		set_hdr_matrix(module_sel, HDR_GAMUT_MTX,
 			&hdr_mtx_param, NULL, &hdr_lut_param, vpp_index);
-		if (chip_type_id == chip_t6d) {
+		if (chip_type_id >= chip_t6d) {
+			if (module_sel == VD1_HDR &&
+				flag_lc_evc_src &&
+				chip_type_id == chip_t6w)
+				set_hdr_matrix(VD2_HDR, HDR_IN_MTX,
+					&hdr_mtx_param, NULL, NULL, vpp_index);
 			set_gmut_comp(module_sel, gmt_comp_para, vpp_index);
 			set_ootf_lut_1(module_sel, &hdr_lut_param, &hdr_lut1_param, vpp_index);
 		} else {
@@ -4949,14 +5206,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				mtx_sel = VPP_OSD2_MTX;
 		}
 
-		if (!flag_lc_evc) {
-			mtx_setting(mtx_sel, mtx_csc, mtx_on);
-		} else {
-			if (mtx_sel == VPP_OSD1_MTX)
-				mtx_setting(mtx_sel, MATRIX_OSD_LC_EVC, mtx_on);
-			else
-				mtx_setting(mtx_sel, mtx_csc, mtx_on);
-		}
+		mtx_setting(mtx_sel, mtx_csc, mtx_on);
 
 		pr_csc(12, "%s: ic(%d) OSD(%d) mtx_csc(%d) mtx_on(%d)\n",
 			__func__, chip_type_id, mtx_sel, mtx_csc, mtx_on);

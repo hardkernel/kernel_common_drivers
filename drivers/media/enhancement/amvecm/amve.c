@@ -92,6 +92,10 @@ unsigned int dnlp_sel = NEW_DNLP_IN_SHARPNESS;
 #endif
 
 int flag_lc_evc;
+int flag_lc_evc_src;
+int cur_contrast_v;
+int cur_contrast_u;
+int cur_vpp_index;
 
 int amve_debug;
 
@@ -1852,6 +1856,21 @@ void vpp_contrast_adj_by_uv(int cont_u, int cont_v, int vpp_index)
 	rs = matrix_yuv_bypass_coef[15];
 	en = matrix_yuv_bypass_coef[16];
 
+	if (flag_lc_evc) {
+		coef00 = coef00 << 1;
+		coef01 = coef01 << 1;
+		coef02 = coef02 << 1;
+		coef10 = coef10 << 1;
+		coef11 = coef11 << 1;
+		coef12 = coef12 << 1;
+		coef20 = coef20 << 1;
+		coef21 = coef21 << 1;
+		coef22 = coef22 << 1;
+		pre_offst0 = (pre_offst0 >> 1) - 256;
+		pre_offst1 = (pre_offst1 >> 1) - 256;
+		pre_offst2 = (pre_offst2 >> 1) - 256;
+	}
+
 	VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VD1_MATRIX_COEF00_01,
 			    ((coef00 & 0x1fff) << 16) | (coef01 & 0x1fff), vpp_index);
 	VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VD1_MATRIX_COEF02_10,
@@ -1927,6 +1946,9 @@ void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf, int vpp_inde
 		//VSYNC_WRITE_VPP_REG(VPP_VADJ1_Y_2, vd1_contrast);
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_Y_2, cont_val, 0, 8, vpp_index);
 
+		cur_contrast_u = contrast_u;
+		cur_contrast_v = contrast_v;
+		cur_vpp_index = vpp_index;
 		vpp_contrast_adj_by_uv(contrast_u, contrast_v, vpp_index);
 		return;
 	} else if (get_cpu_type() > MESON_CPU_MAJOR_ID_GXTVBB) {
@@ -6271,68 +6293,43 @@ void osd_sharpness_demo_ctrl(void)
 	WRITE_VPP_REG_BITS(OSD_PK_FINAL_GAIN, reg_pk_final_ngain, 0, 8);
 }
 
-void amve_lc_elc_ctrl(unsigned int enable)
+void amve_lc_evc_ctrl(unsigned int enable, unsigned int lc_evc_src)
 {
-	unsigned int matrix_coef00_01 = 0;
-	unsigned int matrix_coef11_12 = 0;
-	unsigned int matrix_coef22 = 0;
-	unsigned int matrix_pre_offset0_1 = 0;
-	unsigned int matrix_pre_offset2 = 0;
-	unsigned int matrix_en_ctrl = 0;
-
-	if (flag_lc_evc == enable)
+	if (flag_lc_evc == enable &&
+		flag_lc_evc_src == lc_evc_src)
 		return;
 
-	if (chip_cls_id == TV_CHIP) {
-		matrix_coef00_01 = VPP_POST_MATRIX_COEF00_01;
-		matrix_coef11_12 = VPP_POST_MATRIX_COEF11_12;
-		matrix_coef22 = VPP_POST_MATRIX_COEF22;
-		matrix_pre_offset0_1 = VPP_POST_MATRIX_PRE_OFFSET0_1;
-		matrix_pre_offset2 = VPP_POST_MATRIX_PRE_OFFSET2;
-		matrix_en_ctrl = VPP_POST_MATRIX_EN_CTRL;
-	} else {
-		matrix_coef00_01 = VPP_POST2_MATRIX_COEF00_01;
-		matrix_coef11_12 = VPP_POST2_MATRIX_COEF11_12;
-		matrix_coef22 = VPP_POST2_MATRIX_COEF22;
-		matrix_pre_offset0_1 = VPP_POST2_MATRIX_PRE_OFFSET0_1;
-		matrix_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2;
-		matrix_en_ctrl = VPP_POST2_MATRIX_EN_CTRL;
+	if (chip_type_id == chip_t6w) {
+		if (lc_evc_src) {
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(0x1a73, 1, 25, 1, 0);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			muxio_config(VPP_MUXIO_SEL_LC_EVC_HDR, 1, 0);
+#endif
+		} else {
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(0x1a73, 0, 25, 1, 0);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			muxio_config(VPP_MUXIO_SEL_VD1_HDR, 1, 0);
+#endif
+		}
+
+		pr_amve_dbg("[%s] set flag_lc_evc %d-->%d, flag_lc_evc_src %d --> %d\n",
+			__func__, flag_lc_evc, enable, flag_lc_evc_src, lc_evc_src);
+
+		flag_lc_evc = enable;
+		flag_lc_evc_src = lc_evc_src;
+
+		return;
 	}
 
 	if (enable) {
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_en_ctrl, 1, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01, lc_evc[0], 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12, lc_evc[1], 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22, lc_evc[2], 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset0_1, lc_evc[3], 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset2, lc_evc[4], 0);
 		flag_lc_evc = 1;
-
-		/*osd*/
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_COEF00_01, 0x005e013a, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_COEF02_10, 0x00201fcc, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_COEF11_12, 0x1f5300e1, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_COEF20_21, 0x00e11f35, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_COEF22, 0x00001feb, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_OFFSET0_1, 0x01200200, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_OFFSET2, 0x00000200, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET0_1, 0, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET2, 0, 0);
+		vpp_contrast_adj_by_uv(cur_contrast_u, cur_contrast_v, cur_vpp_index);
 	} else {
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_en_ctrl, 0, 0);
 		flag_lc_evc = 0;
-
-		/*osd*/
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_COEF00_01, 0x00bb0275, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_COEF02_10, 0x003f1f99, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_COEF11_12, 0x1ea601c2, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_COEF20_21, 0x01c21e67, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_COEF22, 0x00001fd7, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_OFFSET0_1, 0x00400200, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_OFFSET2, 0x00000200, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET0_1, 0, 0);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET2, 0, 0);
+		vpp_contrast_adj_by_uv(cur_contrast_u, cur_contrast_v, cur_vpp_index);
 	}
+
+	flag_lc_evc_src = lc_evc_src;
 }
 
 void init_pq_rdma_part_ins(void)

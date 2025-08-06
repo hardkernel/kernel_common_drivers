@@ -93,6 +93,7 @@ static bool cur_hdmi_out_fmt;
 #endif
 bool limit_8bit_hdr10 = true;
 struct hdr_cap_info_s hdr_cap_info;
+static unsigned int pre_flag_lc_evc;
 
 /*hdr------------------------------------*/
 
@@ -4301,6 +4302,14 @@ int signal_type_changed(struct vframe_s *vf,
 		change_flag |= SIG_OP_CHG;
 		pr_csc(1, "hdmi out format changed = 0x%x\n",
 			cur_hdmi_out_fmt);
+	}
+
+	if (flag_lc_evc != pre_flag_lc_evc &&
+		vd_path == VD1_PATH) {
+		change_flag |= SIG_SRC_CHG;
+		pr_csc(128, "flag_lc_evc changed from 0x%x to 0x%x\n",
+			pre_flag_lc_evc, flag_lc_evc);
+		pre_flag_lc_evc = flag_lc_evc;
 	}
 #endif
 
@@ -9167,6 +9176,14 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			pre_max_output_lum_sdr = max_output_lum_sdr;
 			pr_csc(4, "max_output_lum_sdr changed = %d\n",
 				max_output_lum_sdr);
+		}
+
+		if (flag_lc_evc != pre_flag_lc_evc &&
+			vd_path == VD1_PATH) {
+			video_process_flags[vd_path] |= PROC_FLAG_FORCE_PROCESS;
+			pr_csc(128, "flag_lc_evc changed when vf_rpt from 0x%x to 0x%x\n",
+				pre_flag_lc_evc, flag_lc_evc);
+			pre_flag_lc_evc = flag_lc_evc;
 		}
 
 		if ((video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS) ||

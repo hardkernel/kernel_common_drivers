@@ -167,4 +167,18 @@ int get_hdr_setting(enum hdr_module_sel module_sel,
 				enum hdr_process_sel hdr_process_select,
 				struct hdr_proc_setting_param_s *hdr_params,
 				enum hdr_params_op op);
+
+enum vpp_muxio_sel_e {
+	VPP_MUXIO_SEL_VD1_HDR = 0,
+	VPP_MUXIO_SEL_DPSS_HDR_DPE,
+	VPP_MUXIO_SEL_DPSS_HDR,
+	VPP_MUXIO_SEL_LC_EVC_HDR,
+	VPP_MUXIO_SEL_VD1_DD,
+	VPP_MUXIO_SEL_DPSS_DD,
+	VPP_MUXIO_SEL_DE_LINK,
+};
+
+void muxio_config(enum vpp_muxio_sel_e sel,
+	int rdma_mode, int vpp_index);
+
 #endif

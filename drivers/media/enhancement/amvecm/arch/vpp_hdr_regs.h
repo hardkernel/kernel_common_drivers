@@ -37,6 +37,10 @@ extern struct am_regs_s r_lut_hdr_sdr_level1;
 extern struct am_regs_s r_lut_hdr_sdr_level2;
 extern struct am_regs_s r_lut_hdr_sdr_level3;
 
+#define MUXIO_IPATH_SEL                0x4512
+#define MUXIO_OPATH_SEL                0x4513
+#define AXIRD_PATH_CTRL                0x6d02
+
 #define VD1_HDR2_CTRL                      0x3800
 #define VD1_HDR2_CLK_GATE                  0x3801
 #define VD1_HDR2_MATRIXI_COEF00_01         0x3802
