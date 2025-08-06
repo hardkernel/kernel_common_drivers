@@ -246,6 +246,7 @@ static int _dmx_alloc_input(struct aml_dmx *pdmx)
 			return -ENODEV;
 		}
 		pdmx->sid = pdmx->sc2_input->id;
+		dsc_set_sid(pdmx->id, pdmx->sid);
 	}
 	return 0;
 }
@@ -2353,9 +2354,9 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 		_dmx_set_hw_source_ts_clone(dmx, hw_source);
 		if (demux->sc2_input && demux->sid != demux->sc2_input->id) {
 			demux->sid = demux->sc2_input->id;
+			dsc_set_sid(demux->id, demux->sid);
 			ts_output_update_filter(demux->id, demux->sid);
 		}
-		dsc_set_sid(demux->id, demux->sid);
 		mutex_unlock(demux->pmutex);
 		return 0;
 	}
@@ -3235,8 +3236,11 @@ static int recovery_dmx_input(struct aml_dmx *pdmx)
 			dprint("%s ts_input_open fail\n", __func__);
 			return -ENODEV;
 		}
-		if (advb->ts_clone)
+		if (advb->ts_clone) {
 			pdmx->sid = pdmx->sc2_input->id;
+			/*keep dsc sid same with demux sid*/
+			dsc_set_sid(pdmx->id, pdmx->sid);
+		}
 	}
 	return 0;
 }
