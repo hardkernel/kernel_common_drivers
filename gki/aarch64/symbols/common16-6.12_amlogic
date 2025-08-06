@@ -34,3 +34,5 @@
   LZ4_compress_default
   zstd_min_clevel
   zstd_max_clevel
+  system_state
+  nop_mnt_idmap

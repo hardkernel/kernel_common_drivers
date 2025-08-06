@@ -30,6 +30,7 @@
 #include <linux/amlogic/amfc.h>
 #include <linux/amlogic/gki_module.h>
 #include <linux/amlogic/symbols.h>
+#include <linux/xattr.h>
 
 #include <linux/proc_fs.h>
 
@@ -281,11 +282,10 @@ FUN_TYPE1(d_instantiate_new);
 FUN_TYPE1(fscrypt_prepare_symlink);
 FUN_TYPE1(fscrypt_prepare_new_inode);
 FUN_TYPE1(__fscrypt_prepare_rename);
+#ifdef CONFIG_KALLSYMS_ALL
 OBJ_TYPE(struct kmem_cache, f2fs_cf_name_slab);
-OBJ_TYPE(struct shrinker, f2fs_shrinker_info);
 OBJ_TYPE(struct kmem_cache, f2fs_inode_cachep);
-OBJ_TYPE(struct mnt_idmap, nop_mnt_idmap);
-OBJ_TYPE(enum system_states, system_state);
+#endif
 
 /*--------- erofs symbols ----------*/
 FUN_TYPE1(xxh32);
@@ -325,6 +325,39 @@ FUN_TYPE1(memchr_inv);
 OBJ_TYPE(struct qstr, dotdot_name);
 OBJ_TYPE(struct xattr_handler , nop_posix_acl_access);
 OBJ_TYPE(struct xattr_handler , nop_posix_acl_default);
+#ifndef CONFIG_KALLSYMS_ALL
+static struct qstr _dotdot_name = QSTR_INIT("..", 2);
+
+static bool
+f_posix_acl_xattr_list(struct dentry *dentry)
+{
+	return IS_POSIXACL(d_backing_inode(dentry));
+}
+
+/*
+ * nop_posix_acl_access - legacy xattr handler for access POSIX ACLs
+ *
+ * This is the legacy POSIX ACL access xattr handler. It is used by some
+ * filesystems to implement their ->listxattr() inode operation. New code
+ * should never use them.
+ */
+static struct xattr_handler _nop_posix_acl_access = {
+	.name = XATTR_NAME_POSIX_ACL_ACCESS,
+	.list = f_posix_acl_xattr_list,
+};
+
+/*
+ * nop_posix_acl_default - legacy xattr handler for default POSIX ACLs
+ *
+ * This is the legacy POSIX ACL default xattr handler. It is used by some
+ * filesystems to implement their ->listxattr() inode operation. New code
+ * should never use them.
+ */
+static struct xattr_handler _nop_posix_acl_default = {
+	.name = XATTR_NAME_POSIX_ACL_DEFAULT,
+	.list = f_posix_acl_xattr_list,
+};
+#endif
 
 struct ksymbol {
 	const char *name;
@@ -399,7 +432,9 @@ static struct ksymbol module_symbols[] = {
 	KSYM_FUN(d_invalidate),
 	KSYM_FUN(d_parent_ino),
 	KSYM_FUN(d_tmpfile),
+#ifdef CONFIG_KALLSYMS_ALL
 	KSYM_OBJ(dotdot_name),
+#endif
 	KSYM_FUN(dqget),
 	KSYM_FUN(dqput),
 	KSYM_FUN(dquot_acquire),
@@ -433,7 +468,9 @@ static struct ksymbol module_symbols[] = {
 	KSYM_FUN(end_page_writeback),
 	KSYM_FUN(errseq_set),
 	KSYM_FUN(evict_inodes),
+#ifdef CONFIG_KALLSYMS_ALL
 	KSYM_OBJ(f2fs_cf_name_slab),
+#endif
 	KSYM_FUN(f2fs_destroy_bio_entry_cache),
 	KSYM_FUN(f2fs_destroy_bioset),
 	KSYM_FUN(f2fs_destroy_checkpoint_caches),
@@ -448,8 +485,9 @@ static struct ksymbol module_symbols[] = {
 	KSYM_FUN(f2fs_destroy_root_stats),
 	KSYM_FUN(f2fs_destroy_segment_manager_caches),
 	KSYM_FUN(f2fs_exit_sysfs),
+#ifdef CONFIG_KALLSYMS_ALL
 	KSYM_OBJ(f2fs_inode_cachep),
-	KSYM_OBJ(f2fs_shrinker_info),
+#endif
 	KSYM_FUN(fdget),
 	KSYM_FUN(file_bdev),
 	KSYM_FUN(file_modified),
@@ -575,9 +613,10 @@ static struct ksymbol module_symbols[] = {
 	KSYM_FUN(mnt_drop_write_file),
 	KSYM_FUN(mnt_want_write_file),
 	KSYM_FUN(mount_bdev),
-	KSYM_OBJ(nop_mnt_idmap),
+#ifdef CONFIG_KALLSYMS_ALL
 	KSYM_OBJ(nop_posix_acl_access),
 	KSYM_OBJ(nop_posix_acl_default),
+#endif
 	KSYM_FUN(page_cache_ra_unbounded),
 	KSYM_FUN(page_cache_sync_ra),
 	KSYM_FUN(page_symlink),
@@ -605,7 +644,6 @@ static struct ksymbol module_symbols[] = {
 	KSYM_FUN(strndup_user),
 	KSYM_FUN(super_setup_bdi),
 	KSYM_FUN(sync_inodes_sb),
-	KSYM_OBJ(system_state),
 	KSYM_FUN(tag_pages_for_writeback),
 	KSYM_FUN(thaw_super),
 	KSYM_FUN(thp_get_unmapped_area),
@@ -1234,6 +1272,12 @@ int symbol_fix(void)
 	*(int *)kptr->data = old;
 
 	proc_remove(entry);
+	/* fake for handle */
+#ifndef CONFIG_KALLSYMS_ALL
+	dotdot_name_t = &_dotdot_name;
+	nop_posix_acl_access_t = &_nop_posix_acl_access;
+	nop_posix_acl_default_t = &_nop_posix_acl_default;
+#endif
 
 #ifdef CONFIG_ARM
 	direct_symbol_assign();

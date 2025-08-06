@@ -251,15 +251,15 @@ static int recover_quota_data(struct inode *inode, struct page *page)
 	attr.ia_vfsuid = VFSUIDT_INIT(make_kuid(inode->i_sb->s_user_ns, i_uid));
 	attr.ia_vfsgid = VFSGIDT_INIT(make_kgid(inode->i_sb->s_user_ns, i_gid));
 
-	if (!vfsuid_eq(attr.ia_vfsuid, f_i_uid_into_vfsuid(nop_mnt_idmap_t, inode)))
+	if (!vfsuid_eq(attr.ia_vfsuid, f_i_uid_into_vfsuid(&nop_mnt_idmap, inode)))
 		attr.ia_valid |= ATTR_UID;
-	if (!vfsgid_eq(attr.ia_vfsgid, f_i_gid_into_vfsgid(nop_mnt_idmap_t, inode)))
+	if (!vfsgid_eq(attr.ia_vfsgid, f_i_gid_into_vfsgid(&nop_mnt_idmap, inode)))
 		attr.ia_valid |= ATTR_GID;
 
 	if (!attr.ia_valid)
 		return 0;
 
-	err = f_dquot_transfer(nop_mnt_idmap_t, inode, &attr);
+	err = f_dquot_transfer(&nop_mnt_idmap, inode, &attr);
 	if (err)
 		set_sbi_flag(F2FS_I_SB(inode), SBI_QUOTA_NEED_REPAIR);
 	return err;

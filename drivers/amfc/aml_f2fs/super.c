@@ -4242,8 +4242,8 @@ void f2fs_handle_error_async(struct f2fs_sb_info *sbi, unsigned char error)
 
 static bool system_going_down(void)
 {
-	return *system_state_t == SYSTEM_HALT || *system_state_t == SYSTEM_POWER_OFF
-		|| *system_state_t == SYSTEM_RESTART;
+	return system_state == SYSTEM_HALT || system_state == SYSTEM_POWER_OFF
+		|| system_state == SYSTEM_RESTART;
 }
 
 void f2fs_handle_critical_error(struct f2fs_sb_info *sbi, unsigned char reason)
@@ -5096,7 +5096,9 @@ static noinline void remove_f2fs(void)
 		return;
 	}
 	unregister_filesystem(old_fs);
+#ifdef CONFIG_KALLSYMS_ALL
 	kmem_cache_destroy(f2fs_cf_name_slab_t);
+#endif
 	if (f_f2fs_destroy_compress_cache)
 		f_f2fs_destroy_compress_cache();
 	if (f_f2fs_destroy_compress_mempool)
@@ -5106,7 +5108,6 @@ static noinline void remove_f2fs(void)
 	f_f2fs_destroy_iostat_processing();
 	f_f2fs_destroy_post_read_processing();
 	f_f2fs_destroy_root_stats();
-//	shrinker_free(f2fs_shrinker_info_t);
 	f_f2fs_exit_sysfs();
 	f_f2fs_destroy_garbage_collection_cache();
 	f_f2fs_destroy_extent_cache();
@@ -5115,7 +5116,9 @@ static noinline void remove_f2fs(void)
 	f_f2fs_destroy_segment_manager_caches();
 	f_f2fs_destroy_node_manager_caches();
 	rcu_barrier();
+#ifdef CONFIG_KALLSYMS_ALL
 	kmem_cache_destroy(f2fs_inode_cachep_t);
+#endif
 #endif
 }
 static int __init init_f2fs_fs(void)
