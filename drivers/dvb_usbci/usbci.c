@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * File    : usbci.c
+ * Purpose : USB CAM driver
+ *
+ * Based on USB driver
+ *
+ *
+ *
+ *
  */
-
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -23,14 +29,19 @@
 #include <linux/poll.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
-#include <linux/acpi.h>
 
 #include "usbci.h"
 #include "usb_ci.h"
 
-#define usbcam_dbg(fmt...) pr_info("usbcam: " fmt)
-#define usbcam_err(fmt...) pr_err("usbcam: " fmt)
-#define usbcam_crit(fmt...) pr_crit("usbcam: " fmt)
+#define usbcam_dbg(fmt, args...) \
+do {\
+	if (debug_usbci)\
+		pr_info("usbci: " fmt, ## args);\
+} while (0)
+
+MODULE_PARM_DESC(debug_usbci, "\n\t\t Enable usbci debug information");
+static int debug_usbci;
+module_param(debug_usbci, int, 0644);
 
 static unsigned long aml_get_usbcam_version(struct aml_usbcam *usbcam_dev, unsigned long arg)
 {
@@ -40,13 +51,13 @@ static unsigned long aml_get_usbcam_version(struct aml_usbcam *usbcam_dev, unsig
 	usbcam_dbg("get usbcam version\n");
 
 	if (!usbcam_dev || !arg) {
-		usbcam_err("invalid parameter\n");
+		usbcam_dbg("invalid parameter\n");
 		return -EINVAL;
 	}
 
 	ret = copy_to_user((unsigned int *)arg, &driver_version, sizeof(unsigned int));
 	if (ret) {
-		usbcam_err("copy data to user error\n");
+		usbcam_dbg("copy data to user error\n");
 		return ret;
 	}
 
@@ -60,7 +71,7 @@ static unsigned long aml_get_usbcam_info(struct aml_usbcam *usbcam_dev, unsigned
 	usbcam_dbg("get usbcam info\n");
 
 	if (!usbcam_dev || !arg) {
-		usbcam_err("invalid parameter\n");
+		usbcam_dbg("invalid parameter\n");
 		return -EINVAL;
 	}
 
@@ -68,7 +79,7 @@ static unsigned long aml_get_usbcam_info(struct aml_usbcam *usbcam_dev, unsigned
 							sizeof(struct aml_usbcam_info));
 
 	if (ret) {
-		usbcam_err("copy data to user error\n");
+		usbcam_dbg("copy data to user error\n");
 		return ret;
 	}
 
@@ -82,7 +93,7 @@ static unsigned long aml_get_usbcam_capabilities(struct aml_usbcam *usbcam_dev, 
 	usbcam_dbg("get usbcam capabilities\n");
 
 	if (!usbcam_dev || !arg) {
-		usbcam_err("invalid parameter\n");
+		usbcam_dbg("invalid parameter\n");
 		return -EINVAL;
 	}
 
@@ -91,7 +102,7 @@ static unsigned long aml_get_usbcam_capabilities(struct aml_usbcam *usbcam_dev, 
 				sizeof(struct aml_usbcam_module_capabilities));
 
 	if (ret) {
-		usbcam_err("copy data to user error\n");
+		usbcam_dbg("copy data to user error\n");
 		return ret;
 	}
 
@@ -101,7 +112,7 @@ static unsigned long aml_get_usbcam_capabilities(struct aml_usbcam *usbcam_dev, 
 static unsigned long aml_cancel_transfer(struct file *filp, struct aml_usbcam *usbcam_dev)
 {
 	if (!usbcam_dev) {
-		usbcam_err("invalid parameter\n");
+		usbcam_dbg("invalid parameter\n");
 		return -EINVAL;
 	}
 	if ((filp->f_flags & 0x03) == O_RDONLY || (filp->f_flags & 0x03) == O_RDWR) {
@@ -119,6 +130,50 @@ static unsigned long aml_cancel_transfer(struct file *filp, struct aml_usbcam *u
 	return 0;
 }
 
+static unsigned long aml_get_usbcam_state(struct aml_usbcam *usbcam_dev, unsigned long arg)
+{
+	int ret;
+	unsigned int status;
+
+	usbcam_dbg("get usbcam state\n");
+
+	if (!usbcam_dev || !arg) {
+		usbcam_dbg("invalid parameter\n");
+		return -EINVAL;
+	}
+
+	status = usbcam_dev->device_state;
+
+	ret = copy_to_user((unsigned int *)arg, &status, sizeof(unsigned int));
+	if (ret) {
+		usbcam_dbg("copy data to user error\n");
+		return ret;
+	}
+
+	return ret;
+}
+
+static unsigned long aml_set_usbcam_state(struct aml_usbcam *usbcam_dev, unsigned long arg)
+{
+	int ret;
+
+	usbcam_dbg("set usbcam state\n");
+
+	if (!usbcam_dev || !arg) {
+		usbcam_dbg("invalid parameter\n");
+		return -EINVAL;
+	}
+
+	ret = copy_from_user(&usbcam_dev->device_state, (unsigned int *)arg,
+							sizeof(unsigned int));
+	if (ret) {
+		usbcam_dbg("copy data to user error\n");
+		return ret;
+	}
+
+	return ret;
+}
+
 static int aml_intf_open(struct inode *node, struct file *filp)
 {
 	struct aml_usbcam *usbcam_dev = NULL;
@@ -129,7 +184,7 @@ static int aml_intf_open(struct inode *node, struct file *filp)
 	usbcam_dbg("intf open\n");
 
 	if (!node || !filp) {
-		usbcam_err("invalid parameter\n");
+		usbcam_dbg("invalid parameter\n");
 		return -EINVAL;
 	}
 
@@ -137,13 +192,13 @@ static int aml_intf_open(struct inode *node, struct file *filp)
 
 	intf = usb_find_interface(&aml_usbcam_driver, minor);
 	if (!intf) {
-		usbcam_err("can not find device for minor %d\n", minor);
+		usbcam_dbg("can not find device for minor %d\n", minor);
 		return -ENODEV;
 	}
 
 	usbcam_dev = usb_get_intfdata(intf);
 	if (!usbcam_dev) {
-		usbcam_err("can not get intfdata\n");
+		usbcam_dbg("can not get intfdata\n");
 		return -ENODEV;
 	}
 
@@ -154,7 +209,7 @@ static int aml_intf_open(struct inode *node, struct file *filp)
 	if ((filp->f_flags & 0x03) == O_RDONLY || (filp->f_flags & 0x03) == O_RDWR) {
 		usbcam_dev->read_open_status = READ_OPEN;
 		if (usbcam_dev->read_open_ref >= 1) {
-			usbcam_err("open failed:  interface read fd is opened before\n");
+			usbcam_dbg("open failed:  interface read fd is opened before\n");
 			mutex_unlock(&usbcam_dev->open_mux);
 			ret = -EPERM;
 		} else {
@@ -169,7 +224,7 @@ static int aml_intf_open(struct inode *node, struct file *filp)
 	if ((filp->f_flags & 0x03) == O_RDWR || (filp->f_flags & 0x03) == O_WRONLY) {
 		usbcam_dev->write_open_status = WRITE_OPEN;
 		if (usbcam_dev->write_open_ref >= 1) {
-			usbcam_err("open failed:  interface write fd is opened before\n");
+			usbcam_dbg("open failed:  interface write fd is opened before\n");
 			if ((filp->f_flags & 0x03) == O_RDWR)
 				usbcam_dev->read_open_ref--;
 			mutex_unlock(&usbcam_dev->open_mux);
@@ -200,7 +255,7 @@ static void aml_intf_read_complete(struct urb *urb)
 	ulong flag;
 
 	if (!urb) {
-		usbcam_err("invalid parameter\n");
+		usbcam_dbg("invalid parameter\n");
 		return;
 	}
 
@@ -213,7 +268,7 @@ static void aml_intf_read_complete(struct urb *urb)
 		usbcam_dev->read_len = 0;
 		usbcam_dev->read_err = status;
 		usbcam_dev->read_status = READ_STATUS_ERROR;
-		usbcam_err("urb %p read urb error, status %d\n", urb, status);
+		usbcam_dbg("urb %p read urb error, status %d\n", urb, status);
 	} else {
 		usbcam_dev->read_len = urb->actual_length;
 		usbcam_dev->read_err = 0;
@@ -244,7 +299,7 @@ static int aml_read_usb_submit(struct aml_usbcam *usbcam_dev)
 
 	ret = usb_submit_urb(usbcam_dev->read_urb, GFP_KERNEL);
 	if (ret) {
-		usbcam_err("submit urb %p failed, ret = %d", usbcam_dev->read_urb, ret);
+		usbcam_dbg("submit urb %p failed, ret = %d", usbcam_dev->read_urb, ret);
 		return ret;
 	}
 
@@ -259,18 +314,18 @@ static ssize_t aml_intf_read(struct file *filp, char *buff, size_t size, loff_t 
 	ulong flag;
 
 	if (!filp || !buff || !ppos) {
-		usbcam_err("invalid parameter\n");
+		usbcam_dbg("invalid parameter\n");
 		return -EINVAL;
 	}
 
 	usbcam_dev = filp->private_data;
 	if (!usbcam_dev) {
-		usbcam_err("private data is null");
+		usbcam_dbg("private data is null");
 		return -ENODEV;
 	}
 
 	if (!usbcam_dev->intf) {
-		usbcam_err("read failed, interface is deregistered\n");
+		usbcam_dbg("read failed, interface is deregistered\n");
 		return -ENODEV;
 	}
 
@@ -288,7 +343,7 @@ static ssize_t aml_intf_read(struct file *filp, char *buff, size_t size, loff_t 
 			spin_unlock_irqrestore(&usbcam_dev->read_lock, flag);
 			ret = aml_read_usb_submit(usbcam_dev);
 			if (ret) {
-				usbcam_err("submit %p failed, ret = %d", usbcam_dev->read_urb, ret);
+				usbcam_dbg("submit %p failed, ret = %d", usbcam_dev->read_urb, ret);
 				return ret;
 			}
 		} else {
@@ -304,7 +359,7 @@ static ssize_t aml_intf_read(struct file *filp, char *buff, size_t size, loff_t 
 				(usbcam_dev->read_status == READ_STATUS_ERROR) ||
 				(usbcam_dev->read_open_status == READ_CLOSE));
 		if (ret < 0) {
-			usbcam_err("wait_event_interruptible failed, ret = %d\n", ret);
+			usbcam_dbg("wait_event_interruptible failed, ret = %d\n", ret);
 			return ret;
 		}
 	} else {
@@ -312,12 +367,12 @@ static ssize_t aml_intf_read(struct file *filp, char *buff, size_t size, loff_t 
 	}
 
 	if (usbcam_dev->read_open_status == READ_CLOSE) {
-		usbcam_err(" read_open_status %d\n", usbcam_dev->read_open_status);
+		usbcam_dbg(" read_open_status %d\n", usbcam_dev->read_open_status);
 		return 0;
 	}
 
 	if (usbcam_dev->read_status == READ_STATUS_ERROR) {
-		usbcam_err(" read error, return = %d\n", usbcam_dev->read_err);
+		usbcam_dbg(" read error, return = %d\n", usbcam_dev->read_err);
 		usbcam_dev->read_status = READ_STATUS_EMPTY;
 		return usbcam_dev->read_err;
 	}
@@ -331,7 +386,7 @@ static ssize_t aml_intf_read(struct file *filp, char *buff, size_t size, loff_t 
 
 	ret = copy_to_user(buff, usbcam_dev->read_buf + transfor, chunk);
 	if (ret) {
-		usbcam_err("data to user error\n");
+		usbcam_dbg("data to user error\n");
 		return ret;
 	}
 
@@ -351,7 +406,7 @@ static void aml_intf_write_empty_complete(struct urb *urb)
 	ulong flag;
 
 	if (!urb) {
-		usbcam_err("invalid parameter\n");
+		usbcam_dbg("invalid parameter\n");
 		return;
 	}
 
@@ -363,7 +418,7 @@ static void aml_intf_write_empty_complete(struct urb *urb)
 		usbcam_dev->write_len = 0;
 		usbcam_dev->write_err = status;
 		usbcam_dev->write_status = WRITE_STATUS_ERROR;
-		usbcam_err("urb %p write urb error, status %d\n", urb, status);
+		usbcam_dbg("urb %p write urb error, status %d\n", urb, status);
 	} else {
 		usbcam_dev->write_len = urb->actual_length;
 		usbcam_dev->write_err = 0;
@@ -380,7 +435,7 @@ static int aml_write_usb_submit_empty(struct aml_usbcam *usbcam_dev, size_t size
 	ulong flag;
 
 	if (!usbcam_dev->intf) {
-		usbcam_err("packet write failed,interface is deregistered\n");
+		usbcam_dbg("packet write failed,interface is deregistered\n");
 		return -ENODEV;
 	}
 
@@ -405,7 +460,7 @@ static int aml_write_usb_submit_empty(struct aml_usbcam *usbcam_dev, size_t size
 
 	retval = usb_submit_urb(usbcam_dev->write_urb, GFP_KERNEL);
 	if (retval) {
-		usbcam_err("submit zero-length packet urb %p failed, return = %d\n",
+		usbcam_dbg("submit zero-length packet urb %p failed, return = %d\n",
 						usbcam_dev->write_urb, retval);
 		return retval;
 	}
@@ -423,14 +478,14 @@ static int aml_write_submit_empty_thread(void *data)
 			(usbcam_dev->device_status == DEVICE_STATUS_DISCONNECT) ||
 			(usbcam_dev->write_status == WRITE_STATUS_EMPTY));
 		if (usbcam_dev->device_status == DEVICE_STATUS_DISCONNECT) {
-			usbcam_err("device status is disconnect\n");
+			usbcam_dbg("device status is disconnect\n");
 			break;
 		}
 		if (usbcam_dev->write_status != WRITE_STATUS_WAIT_TS_DONE &&
 			usbcam_dev->write_status != WRITE_STATUS_WAIT_EMPTY_DONE) {
 			aml_write_usb_submit_empty(usbcam_dev, usbcam_dev->write_size);
 		} else {
-			usbcam_err("urb already submitted,unable to repeat submit\n");
+			usbcam_dbg("urb already submitted,unable to repeat submit\n");
 			return -EAGAIN;
 		}
 	}
@@ -444,7 +499,7 @@ static void aml_intf_write_complete(struct urb *urb)
 	ulong flag;
 
 	if (!urb) {
-		usbcam_err("invalid parameter\n");
+		usbcam_dbg("invalid parameter\n");
 		return;
 	}
 
@@ -456,7 +511,7 @@ static void aml_intf_write_complete(struct urb *urb)
 		usbcam_dev->write_len = 0;
 		usbcam_dev->write_err = status;
 		usbcam_dev->write_status = WRITE_STATUS_ERROR;
-		usbcam_err("urb %p write urb error, status %d\n", urb, status);
+		usbcam_dbg("urb %p write urb error, status %d\n", urb, status);
 	} else {
 		usbcam_dev->write_len = urb->actual_length;
 		usbcam_dev->write_err = 0;
@@ -499,7 +554,7 @@ static int aml_write_usb_submit(struct aml_usbcam *usbcam_dev, size_t size)
 
 	retval = usb_submit_urb(usbcam_dev->write_urb, GFP_KERNEL);
 	if (retval) {
-		usbcam_err("submit urb %p failed, return = %d\n",
+		usbcam_dbg("submit urb %p failed, return = %d\n",
 						usbcam_dev->write_urb, retval);
 		return retval;
 	}
@@ -515,18 +570,18 @@ static ssize_t aml_intf_write(struct file *filp, const char *buff, size_t size, 
 	ulong flag;
 
 	if (!filp || !buff || !ppos) {
-		usbcam_err("invalid parameter\n");
+		usbcam_dbg("invalid parameter\n");
 		return -EINVAL;
 	}
 
 	usbcam_dev = filp->private_data;
 	if (!usbcam_dev) {
-		usbcam_err("private data is null\n");
+		usbcam_dbg("private data is null\n");
 		return -ENODEV;
 	}
 
 	if (!usbcam_dev->intf) {
-		usbcam_err("write failed, interface is deregistered\n");
+		usbcam_dbg("write failed, interface is deregistered\n");
 		return -ENODEV;
 	}
 
@@ -539,13 +594,13 @@ static ssize_t aml_intf_write(struct file *filp, const char *buff, size_t size, 
 				(usbcam_dev->write_status == WRITE_STATUS_ERROR) ||
 				(usbcam_dev->write_open_status == WRITE_CLOSE));
 		if (ret < 0) {
-			usbcam_err("wait_event_interruptible failed, ret = %d\n", ret);
+			usbcam_dbg("wait_event_interruptible failed, ret = %d\n", ret);
 			return ret;
 		}
 	}
 
 	if (usbcam_dev->write_open_status == WRITE_CLOSE) {
-		usbcam_err("write failed, interface is close\n");
+		usbcam_dbg("write failed, interface is close\n");
 		return 0;
 	}
 
@@ -559,7 +614,7 @@ static ssize_t aml_intf_write(struct file *filp, const char *buff, size_t size, 
 
 	size = min(size, usbcam_dev->buf_size);
 	if (copy_from_user(usbcam_dev->write_buf, buff, size)) {
-		usbcam_err("copy_from_user error\n");
+		usbcam_dbg("copy_from_user error\n");
 		return -EFAULT;
 	}
 
@@ -569,11 +624,11 @@ static ssize_t aml_intf_write(struct file *filp, const char *buff, size_t size, 
 		usbcam_dev->write_status != WRITE_STATUS_WAIT_EMPTY_DONE) {
 		ret = aml_write_usb_submit(usbcam_dev, size);//bulk transfer
 		if (ret) {
-			usbcam_err("submit urb %p failed, return = %d", usbcam_dev->read_urb, ret);
+			usbcam_dbg("submit urb %p failed, return = %d", usbcam_dev->read_urb, ret);
 			return ret;
 		}
 	} else {
-		usbcam_err("urb already submitted, unable to repeat submit\n");
+		usbcam_dbg("urb already submitted, unable to repeat submit\n");
 		return -EAGAIN;
 	}
 
@@ -585,7 +640,7 @@ static void aml_usbcam_delete(struct kref *ref)
 	struct aml_usbcam *usbcam_dev = NULL;
 
 	if (!ref) {
-		usbcam_err("invalid parameter");
+		usbcam_dbg("invalid parameter");
 		return;
 	}
 
@@ -615,13 +670,13 @@ static int aml_intf_release(struct inode *inode, struct file *filp)
 	struct aml_usbcam *usbcam_dev = NULL;
 
 	if (!inode || !filp) {
-		usbcam_err("invalid parameter\n");
+		usbcam_dbg("invalid parameter\n");
 		return -EINVAL;
 	}
 
 	usbcam_dev = filp->private_data;
 	if (!usbcam_dev) {
-		usbcam_err("private data is null\n");
+		usbcam_dbg("private data is null\n");
 		return -ENODEV;
 	}
 
@@ -636,7 +691,7 @@ static int aml_intf_release(struct inode *inode, struct file *filp)
 			usbcam_dev->read_open_ref--;
 			usbcam_dbg("interface read fd release successfully\n");
 		} else {
-			usbcam_err("interface read fd is released before\n");
+			usbcam_dbg("interface read fd is released before\n");
 		}
 	}
 
@@ -649,7 +704,7 @@ static int aml_intf_release(struct inode *inode, struct file *filp)
 			usbcam_dev->write_open_ref--;
 			usbcam_dbg("interface write fd release successfully\n");
 		} else {
-			usbcam_err("interface write fd is released before\n");
+			usbcam_dbg("interface write fd is released before\n");
 		}
 	}
 
@@ -672,7 +727,7 @@ static long aml_intf_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 
 	usbcam_dev = filp->private_data;
 	if (!usbcam_dev) {
-		usbcam_err("no device connected\r\n");
+		usbcam_dbg("no device connected\r\n");
 		ret = -ENODEV;
 		return ret;
 	}
@@ -700,8 +755,16 @@ static long aml_intf_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 		usbcam_dbg("ioctl op: get usbcam module capabilities\n");
 		ret = aml_get_usbcam_capabilities(usbcam_dev, arg);
 		break;
+	case AML_USBCAM_IOC_GET_MODULE_STATE:
+		usbcam_dbg("ioctl op: get usbcam module status\n");
+		ret = aml_get_usbcam_state(usbcam_dev, arg);
+		break;
+	case AML_USBCAM_IOC_SET_MODULE_STATE:
+		usbcam_dbg("ioctl op: set usbcam module status\n");
+		ret = aml_set_usbcam_state(usbcam_dev, arg);
+		break;
 	default:
-		usbcam_err("unknown op type %08x", cmd);
+		usbcam_dbg("unknown op type %08x", cmd);
 		ret = -1;
 		break;
 	}
@@ -744,7 +807,7 @@ static __poll_t aml_intf_poll(struct file *file, struct poll_table_struct *wait)
 			spin_unlock_irqrestore(&usbcam_dev->read_lock, flag);
 			ret = aml_read_usb_submit(usbcam_dev);
 			if (ret)
-				usbcam_err("poll submit failed");
+				usbcam_dbg("poll submit failed");
 		} else {
 			spin_unlock_irqrestore(&usbcam_dev->read_lock, flag);
 		}
@@ -782,21 +845,29 @@ static const struct file_operations aml_intf_fops = {
 #endif
 };
 
+static char *aml_usbcam_class_devnode(const struct device *dev, umode_t *mode)
+{
+	if (mode)
+		*mode = 0666;
+	return NULL;
+}
+
 static struct usb_class_driver aml_usbcam_command_class = {
 	.name = "cimodule_command%d",
 	.fops = &aml_intf_fops,
 	.minor_base = USBCAM_COMMAND_MINOR_BASE,
+	.devnode = aml_usbcam_class_devnode,
 };
 
 static struct usb_class_driver aml_usbcam_media_class = {
 	.name = "cimodule_media%d",
 	.fops = &aml_intf_fops,
 	.minor_base = USBCAM_MEDIA_MINOR_BASE,
+	.devnode = aml_usbcam_class_devnode,
 };
 
 static ssize_t usb_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr, char *buf)
 {
 	int ret;
 
@@ -823,6 +894,7 @@ static int aml_usbcam_register_class(void)
 		return -ENOMEM;
 
 	snprintf((char *)clp.name, CLASS_NAME_LEN, "amlusbcam-%d", 0);
+	// clp.owner = THIS_MODULE;
 	clp.class_groups = aml_usbcam_groups;
 	ret = class_register(&clp);
 	if (ret)
@@ -857,7 +929,7 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 	int len, temp;
 
 	if (!intf || !id) {
-		usbcam_err("invalid parameter");
+		usbcam_dbg("invalid parameter");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -868,7 +940,7 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 	assoc_desc = pdev->actconfig->intf_assoc[0];
 	usbcam_dbg("assoc_desc = %p\n", assoc_desc);
 	if (!assoc_desc) {
-		usbcam_crit("interface association descriptor is null");
+		usbcam_dbg("interface association descriptor is null");
 		ret = -ENODEV;
 		goto error;
 	}
@@ -880,14 +952,14 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 		!(assoc_desc->bFunctionClass == CI20_IAD_FUNCTION_CLASS &&
 		assoc_desc->bFunctionSubClass == CI20_IAD_FUNCTION_SUBCLASS &&
 		assoc_desc->bFunctionProtocol == CI20_IAD_FUNCTION_PROTOCOL)) {
-		usbcam_crit("mismatched function info in IAD");
+		usbcam_dbg("mismatched function info in IAD");
 		ret = -ENODEV;
 		goto error;
 	}
 
 	if (intf_num < assoc_desc->bFirstInterface ||
 		intf_num > assoc_desc->bFirstInterface + assoc_desc->bInterfaceCount) {
-		usbcam_err("mismatched interface number in IAD");
+		usbcam_dbg("mismatched interface number in IAD");
 		ret = -ENODEV;
 		goto error;
 	}
@@ -905,14 +977,7 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 		intf->cur_altsetting->desc.bInterfaceSubClass == CI20_COMMAND_INTF_SUBCLASS &&
 		intf->cur_altsetting->desc.bInterfaceProtocol == CI20_COMMAND_INTF_PROTOCOL)) {
 		usbcam_dev->device_type = DEVICE_COMMAND;
-		usbcam_dbg(" CI20_COMMAND_INTF !\n");
-		ret = usb_register_dev(intf, &aml_usbcam_command_class);
-		if (ret) {
-			usbcam_crit("get minor failed for command interface\n");
-			usb_set_intfdata(intf, NULL);
-			ret = -ENODEV;
-			goto error;
-		}
+
 		usbcam_dev->buf_size = USBCAM_CMD_BUFFER_SIZE;
 		usbcam_dev->read_buf = kmalloc(usbcam_dev->buf_size, GFP_KERNEL);
 		usbcam_dev->write_buf = kmalloc(usbcam_dev->buf_size, GFP_KERNEL);
@@ -932,14 +997,7 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 		intf->cur_altsetting->desc.bInterfaceSubClass == CI20_MEDIA_INTF_SUBCLASS &&
 		intf->cur_altsetting->desc.bInterfaceProtocol == CI20_MEDIA_INTF_PROTOCOL)) {
 		usbcam_dev->device_type = DEVICE_MEDIA;
-		usbcam_dbg(" CI20_MEDIA_INTF !\n");
-		ret = usb_register_dev(intf, &aml_usbcam_media_class);
-		if (ret) {
-			usbcam_crit("get minor failed for command interface\n");
-			usb_set_intfdata(intf, NULL);
-			ret = -ENODEV;
-			goto error;
-		}
+
 		usbcam_dev->buf_size = USBCAM_MEDIA_BUFFER_SIZE;
 		usbcam_dev->read_buf = kmalloc(usbcam_dev->buf_size, GFP_KERNEL);
 		usbcam_dev->write_buf = kmalloc(usbcam_dev->buf_size, GFP_KERNEL);
@@ -959,7 +1017,7 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 		descriptorlen = *extratemp;
 		descriptortype = *(extratemp + 1);
 		if (descriptorlen > extrasize || descriptorlen < 2) {
-			usbcam_crit("parse the compatibility descriptor failed");
+			usbcam_dbg("parse the compatibility descriptor failed");
 			goto error;
 		}
 		if (descriptortype != 0x41 || descriptorlen != 6) {
@@ -975,7 +1033,7 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 
 			if ((usbcam_dev->usbcam_module_info.ci_compatibility & 0x07) != 2) {
 				// 2:architecture version 2
-				usbcam_crit("this driver no support ARCH value:%d",
+				usbcam_dbg("this driver no support ARCH value:%d",
 				usbcam_dev->usbcam_module_info.ci_compatibility & 0x07);
 				goto error;
 			}
@@ -993,7 +1051,7 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 		usbcam_dbg(" out endpoint is  endpoint[1]!\n");
 		usbcam_dev->out = &intf->cur_altsetting->endpoint[1].desc;
 	} else {
-		usbcam_err("out endpoint not found\n");
+		usbcam_dbg("out endpoint not found\n");
 	}
 
 	if (usb_endpoint_dir_in(&intf->cur_altsetting->endpoint[0].desc)) {
@@ -1003,23 +1061,23 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 		usbcam_dbg(" in endpoint is  endpoint[1]!\n");
 		usbcam_dev->in = &intf->cur_altsetting->endpoint[1].desc;
 	} else {
-		usbcam_err("in endpoint not found\n");
+		usbcam_dbg("in endpoint not found\n");
 	}
 
-	//usbcam_dbg("endpoint_type(usbcam_dev->in) = %d\n",usb_endpoint_type(usbcam_dev->in));
-	//usbcam_dbg("endpoint_type(usbcam_dev->out) = %d\n",usb_endpoint_type(usbcam_dev->out));
+	usbcam_dbg("endpoint_type(usbcam_dev->in) = %d\n", usb_endpoint_type(usbcam_dev->in));
+	usbcam_dbg("endpoint_type(usbcam_dev->out) = %d\n", usb_endpoint_type(usbcam_dev->out));
 
-	//usbcam_dbg("bulk_out(usbcam_dev->out) = %d\n",usb_endpoint_is_bulk_out(usbcam_dev->out));
-	//usbcam_dbg("int_out(usbcam_dev->out) = %d\n",usb_endpoint_is_int_out(usbcam_dev->out));
+	usbcam_dbg("bulk_out(usbcam_dev->out) = %d\n", usb_endpoint_is_bulk_out(usbcam_dev->out));
+	usbcam_dbg("int_out(usbcam_dev->out) = %d\n", usb_endpoint_is_int_out(usbcam_dev->out));
 
-	//usbcam_dbg("is_bulk_in(usbcam_dev->in) = %d\n",usb_endpoint_is_bulk_in(usbcam_dev->in));
-	//usbcam_dbg("is_int_in(usbcam_dev->in) = %d\n",usb_endpoint_is_int_in(usbcam_dev->in));
+	usbcam_dbg("is_bulk_in(usbcam_dev->in) = %d\n", usb_endpoint_is_bulk_in(usbcam_dev->in));
+	usbcam_dbg("is_int_in(usbcam_dev->in) = %d\n", usb_endpoint_is_int_in(usbcam_dev->in));
 
 	if ((!usb_endpoint_is_bulk_out(usbcam_dev->out) &&
 		!usb_endpoint_is_int_out(usbcam_dev->out)) ||
 		(!usb_endpoint_is_bulk_in(usbcam_dev->in) &&
 		!usb_endpoint_is_int_in(usbcam_dev->in))) {
-		usbcam_crit("mismatched endpoint type in interface\n");
+		usbcam_dbg("mismatched endpoint type in interface\n");
 		goto error;
 	}
 
@@ -1042,7 +1100,7 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 			usbcam_dev->usbcam_module_capabilities.ci_manufacturer_name[len] = '\0';
 
 	} else {
-		usbcam_crit("pdev->manufacturer inexistence");
+		usbcam_dbg("pdev->manufacturer inexistence");
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -1058,7 +1116,7 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 		else
 			usbcam_dev->usbcam_module_capabilities.ci_product_name[len] = '\0';
 	} else {
-		usbcam_crit("pdev->product inexistence");
+		usbcam_dbg("pdev->product inexistence");
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -1081,22 +1139,54 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 
 	usbcam_dev->read_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!usbcam_dev->read_urb) {
-		usbcam_crit("read urb alloc failed\n");
+		usbcam_dbg("read urb alloc failed\n");
 		ret = -ENOMEM;
 		goto error;
 	}
 
 	usbcam_dev->write_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!usbcam_dev->write_urb) {
-		usbcam_crit("write urb alloc failed\n");
+		usbcam_dbg("write urb alloc failed\n");
 		ret = -ENOMEM;
 		goto error;
 	}
 
 	usbcam_dev->read_status = READ_STATUS_EMPTY;
 	usbcam_dev->device_status = DEVICE_STATUS_MATCH;
+	usbcam_dev->device_state = DEVICE_CONNECT;
 
 	usb_set_intfdata(intf, usbcam_dev);
+	if ((intf->cur_altsetting->desc.bInterfaceClass == COMMAND_INTF_CLASS &&
+		intf->cur_altsetting->desc.bInterfaceSubClass == COMMAND_INTF_SUBCLASS &&
+		intf->cur_altsetting->desc.bInterfaceProtocol == COMMAND_INTF_PROTOCOL) ||
+		(intf->cur_altsetting->desc.bInterfaceClass == CI20_COMMAND_INTF_CLASS &&
+		intf->cur_altsetting->desc.bInterfaceSubClass == CI20_COMMAND_INTF_SUBCLASS &&
+		intf->cur_altsetting->desc.bInterfaceProtocol == CI20_COMMAND_INTF_PROTOCOL)) {
+		usbcam_dev->device_type = DEVICE_COMMAND;
+		usbcam_dbg(" CI20_COMMAND_INTF !\n");
+		ret = usb_register_dev(intf, &aml_usbcam_command_class);
+		if (ret) {
+			usbcam_dbg("get minor failed for command interface\n");
+			usb_set_intfdata(intf, NULL);
+			ret = -ENODEV;
+			goto error;
+		}
+	} else if ((intf->cur_altsetting->desc.bInterfaceClass == MEDIA_INTF_CLASS &&
+		intf->cur_altsetting->desc.bInterfaceSubClass == MEDIA_INTF_SUBCLASS &&
+		intf->cur_altsetting->desc.bInterfaceProtocol == MEDIA_INTF_PROTOCOL) ||
+		(intf->cur_altsetting->desc.bInterfaceClass == CI20_MEDIA_INTF_CLASS &&
+		intf->cur_altsetting->desc.bInterfaceSubClass == CI20_MEDIA_INTF_SUBCLASS &&
+		intf->cur_altsetting->desc.bInterfaceProtocol == CI20_MEDIA_INTF_PROTOCOL)) {
+		usbcam_dev->device_type = DEVICE_MEDIA;
+		usbcam_dbg(" CI20_MEDIA_INTF !\n");
+		ret = usb_register_dev(intf, &aml_usbcam_media_class);
+		if (ret) {
+			usbcam_dbg("get minor failed for command interface\n");
+			usb_set_intfdata(intf, NULL);
+			ret = -ENODEV;
+			goto error;
+		}
+	}
 
 	usbcam_dev->intf_reg = TRUE;
 
@@ -1149,13 +1239,60 @@ static int aml_usbcam_post_reset(struct usb_interface *intf)
 	return 0;
 }
 
+static int aml_usbcam_suspend(struct usb_interface *intf, pm_message_t msg)
+{
+	struct aml_usbcam *usbcam_dev = NULL;
+
+	if (!intf)
+		return 0;
+
+	dev_set_uevent_suppress(&intf->dev, true);
+
+	usbcam_dev = usb_get_intfdata(intf);
+	usb_kill_urb(usbcam_dev->read_urb);
+	usb_kill_urb(usbcam_dev->write_urb);
+
+	return 0;
+}
+
+static int aml_usbcam_resume(struct usb_interface *intf)
+{
+	struct aml_usbcam *usbcam_dev = NULL;
+	int ret;
+	int retval = 0;
+
+	if (!intf)
+		return 0;
+	dev_set_uevent_suppress(&intf->dev, false);
+
+	usbcam_dev = usb_get_intfdata(intf);
+	ret = usb_reset_device(usbcam_dev->usbdev);
+	if (ret)
+		return ret;
+
+	if (usbcam_dev->read_open_status == READ_OPEN) {
+		retval = usb_submit_urb(usbcam_dev->read_urb, GFP_KERNEL);
+		if (retval)
+			return retval;
+	}
+	if (usbcam_dev->write_open_status == WRITE_OPEN) {
+		retval = usb_submit_urb(usbcam_dev->write_urb, GFP_KERNEL);
+		if (retval)
+			return retval;
+	}
+
+	return 0;
+}
+
 static struct usb_driver aml_usbcam_driver = {
-	.name = "aml_usbcam",
-	.id_table = aml_usbcam_table,
-	.probe = aml_usbcam_probe,
-	.disconnect = aml_usbcam_disconnect,
-	.pre_reset = aml_usbcam_pre_reset,
-	.post_reset = aml_usbcam_post_reset,
+	.name		= "aml_usbcam",
+	.id_table	= aml_usbcam_table,
+	.probe		= aml_usbcam_probe,
+	.disconnect	= aml_usbcam_disconnect,
+	.pre_reset	= aml_usbcam_pre_reset,
+	.post_reset	= aml_usbcam_post_reset,
+	.suspend	= aml_usbcam_suspend,
+	.resume		= aml_usbcam_resume,
 };
 
 static int __init aml_usbcam_init(void)

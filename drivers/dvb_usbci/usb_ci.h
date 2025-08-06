@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * File    : usb_ci.h
+ * Purpose : USB CAM driver
+ *
  */
-
 #ifndef _AML_USBCAM_H
 #define _AML_USBCAM_H
 
@@ -34,6 +35,8 @@
 #define AML_USBCAM_IOC_CANCEL_TRANSFER		_IO(AML_USBCAM_IOC_MAGIC, 3)
 #define AML_USBCAM_IOC_MODULE_CAPABILITIES	_IOR(AML_USBCAM_IOC_MAGIC, 4, \
 							struct aml_usbcam_module_capabilities)
+#define AML_USBCAM_IOC_GET_MODULE_STATE		_IOR(AML_USBCAM_IOC_MAGIC, 5, uint32_t)
+#define AML_USBCAM_IOC_SET_MODULE_STATE		_IOR(AML_USBCAM_IOC_MAGIC, 6, uint32_t)
 
 #define USBCAM_MAX_NAME_LEN 30
 

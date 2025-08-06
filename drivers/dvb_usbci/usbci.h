@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * File    : usbci.h
+ * Purpose : USB CAM driver
+ *
  */
-
 #ifndef _AMLOGIC_USBCAM_H
 #define _AMLOGIC_USBCAM_H
 
@@ -70,6 +71,8 @@
 #define USBCAM_MEDIA_BUFFER_SIZE		0x40000
 // 0x40000 = 1024*4*2^(AML_USB_CI_MEDIA_MAX_PAGE_ORDER))
 #define USBCAM_CMD_BUFFER_SIZE			0x4000
+#define TRUE	1
+#define FALSE	0
 
 #define CLASS_NAME_LEN 48
 
@@ -119,6 +122,11 @@ enum aml_usbcam_device_status {
 	DEVICE_STATUS_MATCH = 0,
 	DEVICE_STATUS_RUNNING = 1,
 	DEVICE_STATUS_DISCONNECT = 2
+};
+
+enum aml_usbcam_device_state {
+	DEVICE_CONNECT = 0,
+	DEVICE_DISCONNECT = 1
 };
 
 enum aml_write_open {
@@ -174,6 +182,8 @@ struct aml_usbcam {
 	struct aml_usbcam_info usbcam_module_info;//usbcam interface message
 
 	struct aml_usbcam_module_capabilities usbcam_module_capabilities;//usbcam capabilities
+
+	enum aml_usbcam_device_state device_state;
 
 	unsigned char intf_reg;//
 	unsigned int open_ref;//
