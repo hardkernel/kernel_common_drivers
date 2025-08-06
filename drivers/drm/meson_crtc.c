@@ -677,7 +677,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	memcpy(&pipeline->subs[amcrtc->crtc_index]->mode, adjusted_mode,
 	       sizeof(struct drm_display_mode));
 
-	mvsps->vsync_disabled = 0;
+	mvsps->vsync_enabled = 1;
 	drm_crtc_vblank_on(crtc);
 
 	DRM_DEBUG("%s-[%d]: out\n", __func__, amcrtc->crtc_index);
@@ -726,7 +726,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		return;
 	}
 #endif
-	mvsps->vsync_disabled = 1;
+	mvsps->vsync_enabled = 0;
 	meson_crtc_state->vmode = VMODE_INVALID;
 	/* disable output by config null
 	 * Todo: replace or delete it if have new method
@@ -808,7 +808,7 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	if (!crtc_state->active)
-		mvsps->vsync_disabled = 1;
+		mvsps->vsync_enabled = 0;
 
 	/*check plane-update*/
 	if (!atomic_state->async_update || is_am_osd_async_commit(atomic_state))

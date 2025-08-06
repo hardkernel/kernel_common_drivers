@@ -780,7 +780,7 @@ struct meson_vpu_sub_pipeline_state {
 	u32 dout_zorder[MAX_DOUT_NUM];
 	u32 global_afbc;
 	int sec_src;
-	int vsync_disabled;
+	int vsync_enabled;
 	enum drm_pm_state pm_state;
 };
 

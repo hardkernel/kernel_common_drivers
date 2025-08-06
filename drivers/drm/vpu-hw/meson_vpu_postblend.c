@@ -809,7 +809,7 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk,
 			MESON_DRM_BLOCK("invalid crtc index\n");
 
 		drm_postblend_notify_amvideo();
-		if (!mvsps->vsync_disabled)
+		if (mvsps->vsync_enabled)
 			drm_wait_one_vblank(sub_pipeline->pipeline->priv->drm, crtc_index);
 		else
 			MESON_DRM_BLOCK("%s, vsync disabled %s do not wait vblank.\n",
@@ -957,7 +957,7 @@ static void s5_postblend_hw_disable(struct meson_vpu_block *vblk,
 		vpp1_bld = vpp1_bld & 0xffffff0f;
 		osd_vpp1_bld_ctrl = vpp1_bld | osd_vpp_bld_ctrl_update_mask;
 		drm_postblend_notify_amvideo();
-		if (!mvsps->vsync_disabled)
+		if (mvsps->vsync_enabled)
 			drm_wait_one_vblank(vblk->pipeline->priv->drm, crtc_index);
 		else
 			MESON_DRM_BLOCK("%s, vsync disabled %s do not wait vblank.\n",
