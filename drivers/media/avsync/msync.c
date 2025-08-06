@@ -161,6 +161,7 @@ struct sync_session {
 	bool start_posted;
 	bool v_timeout;
 	bool a_timeout;
+	bool resync;
 
 	/* debug */
 	bool debug_freerun;
@@ -1330,6 +1331,7 @@ static void session_update_apts(struct sync_session *session)
 	bool reset_wall = false;
 	struct pts_tri *p = &session->last_apts;
 	u32 pts = p->pts;
+	u32 wall_adj_thres = session->wall_adj_thres;
 
 	if (session->mode == AVS_MODE_A_MASTER) {
 
@@ -1338,6 +1340,10 @@ static void session_update_apts(struct sync_session *session)
 		if (pts > p->delay)
 			pts -= p->delay;
 		reset_wall = true;
+		if (session->resync) {
+			wall_adj_thres = 0;
+			session->resync = false;
+		}
 	} else if (LIVE_MODE(session->mode)) {
 		if (session->audio_drop_cnt)
 			msync_dbg(LOG_TRACE, "[%d] a %u clear a drop cnt\n",
@@ -1353,7 +1359,7 @@ static void session_update_apts(struct sync_session *session)
 	}
 	if (reset_wall &&
 		abs_diff(pts, session->wall_clock) >=
-		session->wall_adj_thres) {
+		wall_adj_thres) {
 		unsigned long flags;
 
 		if (session->audio_switching) {
@@ -1820,6 +1826,9 @@ static void session_handle_event(struct sync_session *session,
 		break;
 	case AVS_AUDIO_SWITCH:
 		session_audio_switch(session, event->value);
+		break;
+	case AVS_RESYNC:
+		session->resync = true;
 		break;
 	default:
 		break;
