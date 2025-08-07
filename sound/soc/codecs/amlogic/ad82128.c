@@ -80,6 +80,7 @@ struct ad82128_data {
 	int subwoofer_enable;
 	int no_device;
 	bool power_down;
+	unsigned int rate;
 };
 
 static void print_i2c_client_info(struct i2c_client *client, const char *msg)
@@ -87,24 +88,20 @@ static void print_i2c_client_info(struct i2c_client *client, const char *msg)
 	dev_info(&client->dev, "%s\n", msg);
 }
 
-static int ad82128_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params,
-	struct snd_soc_dai *dai)
+static int ad82128_set_rate(struct snd_soc_component *component, unsigned int rate)
 {
-	struct snd_soc_component *component = dai->component;
-	unsigned int rate = params_rate(params);
 	bool ssz_ds;
 	int ret;
 
 	switch (rate) {
 	case 44100:
 	case 48000:
+	case 176400:
+	case 192000:
 		ssz_ds = false;
 		break;
 	case 88200:
 	case 96000:
-	case 176400:
-	case 192000:
 		ssz_ds = true;
 		break;
 	default:
@@ -112,6 +109,7 @@ static int ad82128_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	pr_info("ad82128_set rate %d\n", rate);
 	ret = snd_soc_component_update_bits(component, AD82128_STATE_CTRL2_REG,
 		AD82128_SSZ_DS, ssz_ds);
 	if (ret < 0) {
@@ -121,6 +119,21 @@ static int ad82128_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	return 0;
+}
+
+static int ad82128_hw_params(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *params,
+	struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	unsigned int rate = params_rate(params);
+	struct ad82128_data *ad82128 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	ret = ad82128_set_rate(component, rate);
+	ad82128->rate = rate;
+
+	return ret;
 }
 
 static int ad82128_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -704,6 +717,8 @@ static int ad82128_resume(struct snd_soc_component *component)
 		dev_err(component->dev, "failed to sync regcache: %d\n", ret);
 		return ret;
 	}
+
+	ad82128_set_rate(component, ad82128->rate);
 	ad82128_mute(component, ad82128->mute);
 	pr_info("ad82128_resume mute %d\n", ad82128->mute);
 	subwoofer_enable(component, ad82128->subwoofer_enable);
