@@ -9,6 +9,7 @@
 #include <crypto/hash.h>
 #include <crypto/algapi.h>
 
+#define MAX_KTE        (255)
 #define MAX_NUM_TABLES (16)
 #define USE_BUSY_POLLING (0)
 

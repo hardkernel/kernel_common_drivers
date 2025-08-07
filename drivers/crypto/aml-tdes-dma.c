@@ -850,6 +850,11 @@ static int aml_des_kl_setkey(struct crypto_skcipher *tfm, const u8 *key,
 
 	/* key[0:3] = kte */
 	ctx->kte = *(uint32_t *)&key[0];
+	if (ctx->kte < 0 || ctx->kte > MAX_KTE) {
+		pr_err("%s: invalid kte: %d\n", __func__, ctx->kte);
+		return -EINVAL;
+	}
+
 	ctx->keylen = keylen;
 
 	return 0;
@@ -1085,6 +1090,10 @@ static int aml_tdes_kl_setkey(struct crypto_skcipher *tfm, const u8 *key,
 
 	/* key[0:3] = kte */
 	ctx->kte = *(uint32_t *)&key[0];
+	if (ctx->kte < 0 || ctx->kte > MAX_KTE) {
+		pr_err("%s: invalid kte: %d\n", __func__, ctx->kte);
+		return -EINVAL;
+	}
 
 	ctx->keylen = keylen;
 

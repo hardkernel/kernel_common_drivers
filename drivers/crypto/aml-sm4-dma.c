@@ -876,6 +876,10 @@ static int aml_sm4_kl_setkey(struct crypto_skcipher *tfm, const u8 *key,
 
 	/* key[0:3] = kte */
 	ctx->kte = *(uint32_t *)&key[0];
+	if (ctx->kte < 0 || ctx->kte > MAX_KTE) {
+		pr_err("%s: invalid kte: %d\n", __func__, ctx->kte);
+		return -EINVAL;
+	}
 
 	if (keylen != SM4_KEY_SIZE) {
 		//crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
