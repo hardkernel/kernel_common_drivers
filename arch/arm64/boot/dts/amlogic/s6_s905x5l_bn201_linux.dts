@@ -1088,7 +1088,7 @@
 	internal_phy = <2>;
 	cali_val = <0x290000>;
 	wol = <1>;
-	mdns_wkup = <1>;
+//	mdns_wkup = <1>;
 };
 
 /*inphy setting*/
