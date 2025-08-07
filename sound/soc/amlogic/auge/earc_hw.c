@@ -2169,6 +2169,7 @@ void earctx_dmac_mute_and_hold_bus(struct regmap *dmac_map, bool enable)
 
 void earctx_dmac_force_mode(struct regmap *dmac_map, bool enable)
 {
+	pr_info("set earc tx force mode %d\n", enable);
 	/* force arc mode as earc mode will consume data faster */
 	if (enable)
 		mmio_write(dmac_map, EARCTX_DMAC_TOP_CTRL0, 0xe);

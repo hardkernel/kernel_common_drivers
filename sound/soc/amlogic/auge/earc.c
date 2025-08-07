@@ -926,7 +926,9 @@ static void earctx_update_attend_event(struct earc *p_earc,
 		}
 	}
 
-	if (p_earc->tx_dmac_clk_on)
+	if (p_earc->tx_dmac_clk_on &&
+	    p_earc->tx_arc_status != ATNDTYP_DISCNCT &&
+	    !p_earc->tx_reset_hpd)
 		earctx_dmac_force_mode(p_earc->tx_dmac_map, false);
 	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
 
