@@ -149,6 +149,7 @@ struct aml_tmo_reg_sw {
 	int w;
 	int h;
 	int hdr_ogain_shift;
+	int hdr_hist_sel;
 	void (*pre_hdr10_tmo_alg)(struct aml_hdr_prm_s *hdr_reg,
 		struct aml_tmo_reg_sw *tmo_reg,
 		int *hdr_hist,

@@ -67,6 +67,10 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #include "hdr/am_hdr_sbtm.h"
 
+uint hdr_hist_select = 1;
+module_param(hdr_hist_select, uint, 0664);
+MODULE_PARM_DESC(hdr_hist_select, "\n hdr_hist_select\n");
+
 uint debug_csc;
 static int cur_mvc_type[VD_PATH_MAX];
 static int cur_rgb_type[VD_PATH_MAX];
@@ -8594,6 +8598,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	static int signal_change_latch;
 	int i, k;
 	struct aml_tmo_reg_sw *pre_tmo_reg = NULL;
+	enum hdr_hist_sel hist_select = HIST_E_RGBMAX;
 
 	if (!vinfo || vinfo->mode == VMODE_NULL ||
 	    vinfo->mode == VMODE_INVALID)
@@ -8602,6 +8607,13 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	/* Tx hdr information */
 	memcpy(&receiver_hdr_info, &vinfo->hdr_info,
 	       sizeof(struct hdr_info));
+
+	if (hdr_hist_select &&
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_T6W)) {
+		hist_select = HIST_E_LUMA;
+		pre_tmo_reg = tmo_fw_param_get();
+		pre_tmo_reg->hdr_hist_sel = HIST_E_LUMA;
+	}
 
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) ||
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)
@@ -8739,7 +8751,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 			if (chip_type_id == chip_s5 || chip_type_id == chip_t3x)
 				s5_get_hist(vd_path, HIST_E_RGBMAX, vpp_index);
 			else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
-				get_hist(vd_path, HIST_E_RGBMAX);
+				get_hist(vd_path, hist_select);
 			else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 				get_hist(vd_path, HIST_E_RGBMAX);
 		}

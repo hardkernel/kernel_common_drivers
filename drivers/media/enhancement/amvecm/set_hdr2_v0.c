@@ -3235,6 +3235,8 @@ void clip_func_after_ootf(int mtx_gamut_mode,
 	int clip_max = 0;
 	unsigned int adps_ctrl;
 	int vpp_sel;
+	unsigned int addr_offset_vd1 = 0;
+	unsigned int addr_offset_vd2 = 0;
 
 	if (vpp_index == VPP_TOP1 &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
@@ -3245,6 +3247,14 @@ void clip_func_after_ootf(int mtx_gamut_mode,
 	else
 		vpp_sel = vpp_index;
 
+	if (chip_type_id == chip_t6d) {
+		addr_offset_vd1 = 0x2a00;
+		addr_offset_vd2 = 0x2a30;
+	} else if (chip_type_id == chip_t6w) {
+		addr_offset_vd1 = 0x1400;
+		addr_offset_vd2 = 0x2a30;
+	}
+
 	/* if Dynamic TMO+ enable : clip_en = 1 clip_max = 524288
 	 * (hdr_process_select is HDR_SDR or HDR10P_SDR);
 	 * else if mtx_gamut_mode = 1 : clip_en = 0/1 clip_max = 524288;
@@ -3252,9 +3262,9 @@ void clip_func_after_ootf(int mtx_gamut_mode,
 	 * else : clip_en = 0 clip_max = 524288;
 	 */
 	if (module_sel == VD1_HDR)
-		adps_ctrl = VD1_HDR2_ADPS_CTRL;
+		adps_ctrl = VD1_HDR2_ADPS_CTRL + addr_offset_vd1;
 	else if (module_sel == VD2_HDR)
-		adps_ctrl = VD2_HDR2_ADPS_CTRL;
+		adps_ctrl = VD2_HDR2_ADPS_CTRL + addr_offset_vd2;
 	else if (module_sel == OSD1_HDR)
 		adps_ctrl = OSD1_HDR2_ADPS_CTRL;
 	else
@@ -4893,7 +4903,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 
 		if (clip_func == 0xff) {
 			if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
-				get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
+				get_cpu_type() == MESON_CPU_MAJOR_ID_T5W ||
+				get_cpu_type() == MESON_CPU_MAJOR_ID_T6W)
 				clip_func_after_ootf(hdr_mtx_param.mtx_gamut_mode,
 							module_sel, vpp_index);
 		}
@@ -5504,7 +5515,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 
 		if (clip_func == 0xff) {
 			if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
-				get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
+				get_cpu_type() == MESON_CPU_MAJOR_ID_T5W ||
+				get_cpu_type() == MESON_CPU_MAJOR_ID_T6W)
 				clip_func_after_ootf(hdr_mtx_param.mtx_gamut_mode,
 							module_sel, vpp_index);
 		}

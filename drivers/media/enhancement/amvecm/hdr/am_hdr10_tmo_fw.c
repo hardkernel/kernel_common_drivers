@@ -172,6 +172,7 @@ struct aml_tmo_reg_sw tmo_reg = {
 	.w = 3840,
 	.h = 2160,
 	.hdr_ogain_shift = 6,
+	.hdr_hist_sel = 0,
 	.pre_hdr10_tmo_alg = NULL,
 };
 
@@ -1186,6 +1187,11 @@ void hdr10_tmo_parm_show(void)
 		tmo_reg.tmo_oo_init_lut[8], tmo_reg.tmo_oo_init_lut[9],
 		tmo_reg.tmo_oo_init_lut[10], tmo_reg.tmo_oo_init_lut[11],
 		tmo_reg.tmo_oo_init_lut[12]);
+
+	pr_info("w = %d\n", tmo_reg.w);
+	pr_info("h = %d\n", tmo_reg.h);
+	pr_info("hdr_ogain_shift = %d\n", tmo_reg.hdr_ogain_shift);
+	pr_info("hdr_hist_sel = %d\n", tmo_reg.hdr_hist_sel);
 }
 
 int hdr10_tmo_dbg(char **parm)
