@@ -5081,6 +5081,8 @@ static void vdin_set_h_aa_ds(struct vdin_dev_s *devp)
 		wr_bits(offset, VDIN0_AA_DS_COEF_3, 16, 0, 8); // for aa_vds coef
 	}
 
+	/* reg_aa_ds_bb_hscp1 */
+	wr_bits(offset, VDIN0_AA_DS_BB_SCP_H, src_w - 1, 0, 16);
 	/* aa_ds_x in_hsize */
 	wr_bits(offset, VDIN_VSHRK_SIZE_M1, src_w - 1, 0, 16);
 	/* aa_ds_x out_hsize */
@@ -5192,6 +5194,8 @@ static void vdin_set_v_aa_ds(struct vdin_dev_s *devp)
 		return;
 	}
 
+	/* reg_aa_ds_bb_vscp1 */
+	wr_bits(offset, VDIN0_AA_DS_BB_SCP_V, src_h - 1, 0, 16);
 	/* aa_ds_x in_vsize */
 	wr_bits(offset, VDIN_VSHRK_SIZE_M1, src_h - 1, 16, 16);
 	/* aa_ds_x out_vsize */

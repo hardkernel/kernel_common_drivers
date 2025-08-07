@@ -804,22 +804,11 @@ void vdin_afbce_mode_init(struct vdin_dev_s *devp)
 			if (devp->afbce_flag & VDIN_AFBCE_EN_SMALL)
 				devp->afbce_valid = 1;
 		}
-		/*afbc up up 4k 444*/
-		/* if is hdr mode, not enable afbc mode*/
-		/* if (devp->prop.hdr_info.hdr_state == HDR_STATE_GET) {
-		 *	if ((devp->prop.hdr_info.hdr_data.eotf ==
-		 *			EOTF_HDR) ||
-		 *		(devp->prop.hdr_info.hdr_data.eotf ==
-		 *			EOTF_SMPTE_ST_2048) ||
-		 *		(devp->prop.hdr_info.hdr_data.eotf ==
-		 *			EOTF_HLG))
-		 *	devp->afbce_valid = false;
-		 *}
-		 *
-		 *if (devp->prop.hdr10p_info.hdr10p_on)
-		 *	devp->afbce_valid = false;
-		 */
 	}
+
+	if (devp->dtdata->hw_ver >= VDIN_HW_T6W &&
+		devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+		devp->afbce_valid = 0;
 
 	/* In dolby afbce mode,disable lossy */
 	if (devp->afbce_valid && vdin_is_dolby_signal_in(devp) &&
