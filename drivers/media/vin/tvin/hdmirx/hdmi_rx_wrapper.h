@@ -57,7 +57,9 @@
 /* 2025.05.22 do not override 8bit when data was not 422 8bit */
 /* 2025.06.27 Fix YUV420 8k signal recognition error issue */
 /* 2025.07.14 update 1440p 420 in freq_ref*/
-#define RX_WRAPPER_VER "ver.2025/06/27"
+/* 2025.08.19 Configure video and audio after the signal is ready */
+/* 2025.08.26 add 1080i 420 fmt */
+#define RX_WRAPPER_VER "ver.2025/08/26"
 
 struct freq_ref_s {
 	bool interlace;

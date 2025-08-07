@@ -1830,6 +1830,7 @@ static const struct freq_ref_s freq_ref[] = {
 	{1,	0,	0,	720,	288,	HDMI_576i50},
 	{1,	0,	0,	1440,	288,	HDMI_1440x576i50},
 	{1,	0,	0,	1920,	540,	HDMI_1080i50},
+	{1,	3,	0,	960,	540,	HDMI_1080i50},
 	{1,	0,	0,	1920,	1103,	HDMI_1080i_ALTERNATIVE},
 	{1,	0,	0,	1920,	2228,	HDMI_1080i_FRAMEPACKING},
 	{1,	0,	0,	360,	240,    HDMI_360x480i},
