@@ -9,6 +9,8 @@ config AMLOGIC_DRM
 	select VIDEOMODE_HELPERS
 	select DRM_DISPLAY_HELPER
 	select DRM_DISPLAY_HDCP_HELPER
+	select DRM_DISPLAY_DP_AUX_BUS
+	select DRM_DISPLAY_DP_HELPER
 	help
 		amlogic new soc display controller
 		use the pipeline and modularized
@@ -75,11 +77,11 @@ config AMLOGIC_DRM_eDP
 	bool "support drm eDP function for meson drm display."
 	default n
 	depends on AMLOGIC_DRM
-	depends on AMLOGIC_DisplayPort_TX
+	depends on AMLOGIC_eDPTX
 	help
 		add drm eDP Panel support.
 		use internal amlogic media vout DisplayPort driver.
-		We should confirm AMLOGIC_DisplayPort_TX is configured if
+		We should confirm AMLOGIC_eDPTX is configured if
 		AMLOGIC_DRM_PANEL is selected.
 
 config AMLOGIC_DRM_USE_ION

@@ -1945,8 +1945,8 @@
 		/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
 	};
 
-	DisplayPort_TX_0: DisplayPort_TX_0{
-		compatible = "amlogic, DisplayPort-TX-T7";
+	eDPTX0: eDPTX0{
+		compatible = "amlogic, eDPTX-T7";
 		status = "okay";
 		index = <0>;
 
@@ -1963,7 +1963,7 @@
 		pinctrl-names = "DPTX-ON","DPTX-OFF";
 
 		// following optional config
-		device_name = "amlogic-DisplayPort_TX";
+		device_name = "amlogic-eDPTX";
 		edptx_vcc-gpio      = <&gpio GPIOY_0 GPIO_ACTIVE_HIGH>;
 		edptx_vcc-gpio-name = "GPIOY_0";
 		/* edptx-gpio-OD     = <&gpio GPIOY_0 GPIO_ACTIVE_HIGH>; */
@@ -1971,8 +1971,10 @@
 		assigned-link-rate = <0>;
 		assigned-lane-count = <0>;
 		assigned-port-count = <0>;
-		assigned-vmode = <0>;
+		/* assigned-vmode = <0>; */
 		assigned-disable-PSR = <0>;
+		/* assigned-TU-size = <64>; */
+		use-aux-backlight = <1>;
 
 		assigned-preset-timing = <0>;
 		timing-0 = <2200 1920 48 148 1250 1080 5 30 60>; /* timing with dft fr*/
@@ -1985,7 +1987,6 @@
 			<0xa 0x4 0x0>,<0xa 0x8 0x0>,
 			<0xf 0x5 0x0>;
 
-		//assigned-
 		ports {
 			port {
 				#address-cells = <1>;
@@ -1998,8 +1999,8 @@
 		};
 	};
 
-	DisplayPort_TX_1: DisplayPort_TX_1{
-		compatible = "amlogic, DisplayPort-TX-T7";
+	eDPTX1: eDPTX1{
+		compatible = "amlogic, eDPTX-T7";
 		status = "okay";
 		index = <1>;
 
@@ -2015,7 +2016,7 @@
 		pinctrl-1 = <&lcd_edp_b_off_pins>;
 		pinctrl-names = "DPTX-ON","DPTX-OFF";
 
-		device_name = "amlogic-DisplayPort_TX";
+		device_name = "amlogic-eDPTX";
 		HPD-ignore = <0>;
 		edptx_vcc-gpio      = <&gpio GPIOY_14 GPIO_ACTIVE_HIGH>;
 		edptx_vcc-gpio-name = "GPIOY_14";
@@ -2026,6 +2027,7 @@
 		assigned-port-count = <0>;
 		assigned-vmode = <0>;
 		assigned-disable-PSR = <0>;
+		use-aux-backlight = <1>;
 
 		/*assigned-preset-timing = <0>;*/
 		/*timing-0 = <2200 1920 48 148 1250 1080 5 30 60>; // timing with dft fr*/

@@ -39,3 +39,34 @@
 
 # aml_drm.ko
   drm_mode_object_get
+# drm_display_helper.ko
+  devm_backlight_device_register
+  drm_atomic_get_old_private_obj_state
+  drm_atomic_private_obj_fini
+  drm_connector_register
+  drm_crtc_commit_wait
+  drm_crtc_wait_one_vblank
+  drm_dev_printk
+  drm_display_mode_from_cea_vic
+  drm_edid_dup
+  drm_edid_duplicate
+  drm_edid_free
+  drm_edid_get_monitor_name
+  drm_edid_raw
+  drm_edid_read_ddc
+  drm_modeset_lock_single_interruptible
+  drm_object_property_set_value
+  guid_gen
+  guid_null
+  __drm_debug
+  __drm_printfn_dbg
+  drm_panel_add
+  drm_panel_init
+  drm_panel_of_backlight
+
+# drm_dp_aux_bus.ko
+  dev_pm_domain_attach
+  device_for_each_child_reverse
+  driver_register
+  of_device_modalias
+  of_device_uevent_modalias

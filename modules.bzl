@@ -33,6 +33,7 @@ AMLOGIC_COMMON_MODULES = [
     "drivers/dma-buf/heaps/system_heap.ko",
     "drivers/gpu/drm/drm_dma_helper.ko",
     "drivers/gpu/drm/display/drm_display_helper.ko",
+    "drivers/gpu/drm/display/drm_dp_aux_bus.ko",
     "drivers/i2c/i2c-dev.ko",
     "drivers/leds/leds-gpio.ko",
     "drivers/net/mdio/mdio-mux.ko",

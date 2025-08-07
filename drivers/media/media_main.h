@@ -175,10 +175,10 @@ static inline int cvbs_init_module(void)
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_DisplayPort_TX
-int DisplayPort_TX_init(void);
+#ifdef CONFIG_AMLOGIC_eDPTX
+int eDPTX_init(void);
 #else
-static inline int DisplayPort_TX_init(void)
+static inline int eDPTX_init(void)
 {
 	return 0;
 }

@@ -509,7 +509,7 @@
 	};
 };
 
-&DisplayPort_TX_0 {
+&eDPTX0 {
 	ports {
 		port {
 			#address-cells = <1>;
@@ -522,7 +522,7 @@
 	};
 };
 
-&DisplayPort_TX_1 {
+&eDPTX1 {
 	ports {
 		port {
 			#address-cells = <1>;
