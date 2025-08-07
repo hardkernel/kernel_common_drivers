@@ -302,6 +302,7 @@ struct match_data_s {
 /*flag for get vdin1 hist start interface*/
 #define VDIN_FLAG_HIST_STARTED		0x00200000
 #define VDIN_FLAG_DYN_RECONFIG		0x00400000
+#define VDIN_FLAG_RDMA_READ_DONE	0x00800000
 
 /*values of vdin isr bypass check flag */
 #define VDIN_BYPASS_STOP_CHECK          0x00000001
@@ -1111,6 +1112,7 @@ struct vdin_dev_s {
 	unsigned int cycle;
 	unsigned int start_time;/* ms vdin start time */
 	int rdma_handle;
+	int rdma_read_handle;
 	/*for unreliable vsync interrupt check*/
 	unsigned long long vs_time_stamp;
 	unsigned int unreliable_vs_cnt;
@@ -1250,6 +1252,7 @@ struct vdin_dev_s {
 	unsigned int vdin_drop_num;
 	unsigned int put_frame_cnt;
 	unsigned int rdma_irq_cnt;
+	unsigned int rdma_read_irq_cnt;
 	unsigned int vdin_irq_flag;
 	unsigned int vdin_reset_flag;
 	unsigned int vdin_dev_ssize;
@@ -1351,6 +1354,7 @@ struct vdin_dev_s {
 	unsigned int delay_line_num;
 	unsigned int dv_work_dolby;
 	int vsync_reset_mask;
+	unsigned int rdma_read_undone_cnt;
 	struct vdin_dv_hw5_s dv_hw5;
 	struct vdin_local_variable_s local_var;
 	bool is_one_buffer;

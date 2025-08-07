@@ -1150,9 +1150,27 @@ __maybe_unused static void vdin_rdma_irq(void *arg)
 
 	devp->rdma_irq_cnt++;
 	devp->rdma_undone_cnt = 0;
-	return;
 }
 __maybe_unused static struct rdma_op_s vdin_rdma_op[VDIN_MAX_DEVS];
+
+__maybe_unused static void vdin_rdma_read_irq(void *arg)
+{
+	struct vdin_dev_s *devp = arg;
+	int ret;
+	int read_rdma_trigger = RDMA_TRIGGER_VDIN0_INPUT;/* vdin vsync trigger */
+
+	ret = rdma_config(devp->rdma_read_handle,
+		read_rdma_trigger | RDMA_READ_MASK);
+	if (ret == 0)
+		devp->flags_isr |= VDIN_FLAG_RDMA_READ_DONE;
+	else
+		devp->flags_isr &= ~VDIN_FLAG_RDMA_READ_DONE;
+
+	devp->rdma_read_irq_cnt++;
+	devp->rdma_read_undone_cnt = 0;
+}
+
+__maybe_unused static struct rdma_op_s vdin_rdma_read_op;
 #endif
 
 static void vdin_double_write_confirm(struct vdin_dev_s *devp)
@@ -1642,7 +1660,7 @@ void vdin_register_rdma_read(struct vdin_dev_s *devp)
 			devp->reg_hnd.reg_addr = devp->debug.reg_addr;
 		else
 			devp->reg_hnd.reg_addr = VFCE_MIF_PLANE0_MMU_STA;
-		ret = VSYNC_ADD_RD_REG(&devp->reg_hnd);
+		ret = rdma_add_read_reg(devp->rdma_read_handle, &devp->reg_hnd);
 		if (ret) {
 			pr_err("vdin%d error: offset:%d,reg_addr:%#x,ret:%d\n", devp->index,
 				devp->reg_hnd.offset, devp->reg_hnd.reg_addr, ret);
@@ -1654,8 +1672,8 @@ void vdin_unregister_rdma_read(struct vdin_dev_s *devp)
 {
 	unsigned int ret;
 
-	if (devp->reg_hnd.reg_addr) {
-		ret = VSYNC_REMOVE_RD_REG(&devp->reg_hnd, 1);
+	if (devp->rdma_read_handle > 0) {
+		ret = rdma_remove_read_reg(devp->rdma_read_handle, &devp->reg_hnd, 1);
 		if (ret) {
 			pr_err("vdin%d error: offset:%d,reg_addr:%#x,ret:%d\n", devp->index,
 				devp->reg_hnd.offset, devp->reg_hnd.reg_addr, ret);
@@ -4285,6 +4303,17 @@ irq_handled:
 			devp->flags_isr &= ~VDIN_FLAG_RDMA_DONE;
 		devp->rdma_undone_cnt = 0;
 		devp->stats.rdma_manual_cnt++;
+	}
+	if (devp->rdma_read_handle > 0 && ((devp->flags_isr & VDIN_FLAG_RDMA_READ_DONE) ||
+	    devp->rdma_read_undone_cnt++ > VDIN_RDMA_UNDONE_MAX_CNT)) {
+		ret = rdma_config(devp->rdma_read_handle,
+			RDMA_TRIGGER_VDIN0_INPUT | RDMA_READ_MASK);
+		if (ret == 0)
+			devp->flags_isr |= VDIN_FLAG_RDMA_READ_DONE;
+		else
+			devp->flags_isr &= ~VDIN_FLAG_RDMA_READ_DONE;
+
+		devp->rdma_read_undone_cnt = 0;
 	}
 #endif
 
@@ -7138,15 +7167,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/* t7 three screen display RDMA not enough remove vdin1 rdma */
 	devp->rdma_not_register = of_property_read_bool(pdev->dev.of_node,
 					"rdma_not_register");
-#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	vdin_rdma_op[devp->index].irq_cb = vdin_rdma_irq;
-	vdin_rdma_op[devp->index].arg = devp;
-	if (!devp->rdma_not_register)
-		devp->rdma_handle = rdma_register(&vdin_rdma_op[devp->index],
-						NULL, RDMA_TABLE_SIZE);
-	else
-		pr_info("vdin%d: rdma_register failed\n", devp->index);
-#endif
 
 	/* create cdev and register with sysfs */
 	ret = vdin_add_cdev(&devp->cdev, &vdin_fops, devp->index_export);
@@ -7171,6 +7191,24 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		goto fail_create_dev_file;
 	}
 	devp->dtdata = of_id->data;
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+	vdin_rdma_op[devp->index].irq_cb = vdin_rdma_irq;
+	vdin_rdma_op[devp->index].arg = devp;
+	if (!devp->rdma_not_register)
+		devp->rdma_handle = rdma_register(&vdin_rdma_op[devp->index],
+						NULL, RDMA_TABLE_SIZE);
+	else
+		pr_info("vdin%d: rdma not register\n", devp->index);
+
+	if (devp->dtdata->hw_ver == VDIN_HW_T6W &&
+		devp->hw_core == VDIN_HW_CORE_NORMAL) {
+		/* rdma read */
+		vdin_rdma_read_op.irq_cb = vdin_rdma_read_irq;
+		vdin_rdma_read_op.arg = devp;
+		devp->rdma_read_handle = rdma_register(&vdin_rdma_read_op, NULL, RDMA_TABLE_SIZE);
+		pr_info("vdin%d: rdma_read_handle:%d\n", devp->index, devp->rdma_read_handle);
+	}
+#endif
 
 	/* vd1, vdin loop back use rev memory
 	 * v4l2 use rev memory
@@ -7501,6 +7539,8 @@ void vdin_drv_remove(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (!devp->rdma_not_register)
 		rdma_unregister(devp->rdma_handle);
+	if (devp->rdma_read_handle > 0)
+		rdma_unregister(devp->rdma_read_handle);
 #endif
 	mutex_destroy(&devp->fe_lock);
 
