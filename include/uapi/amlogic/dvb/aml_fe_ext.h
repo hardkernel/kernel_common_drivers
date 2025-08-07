@@ -10,11 +10,7 @@
 
 #include <linux/videodev2.h>
 
-#ifdef __KERNEL__
 #include <uapi/amlogic/dvb/frontend.h>
-#else
-#include "frontend.h"
-#endif
 
 #define FE_ANALOG		(FE_ATSC + 1)
 #define FE_DTMB			(FE_ANALOG + 1)

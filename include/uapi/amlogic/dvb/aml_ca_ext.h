@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
-
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
@@ -7,11 +6,7 @@
 #ifndef _AML_CA_EXIT_H_
 #define _AML_CA_EXIT_H_
 
-#ifdef __KERNEL__
 #include <uapi/amlogic/dvb/ca.h>
-#else
-#include "ca.h"
-#endif
 
 /* amlogic define */
 /* CW type. */
