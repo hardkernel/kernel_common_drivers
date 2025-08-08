@@ -1650,7 +1650,8 @@ int aml_xhci_endpoint_init(struct aml_xhci_hcd *xhci,
 #endif
 
 #if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
-	if (udev->speed == USB_SPEED_SUPER && endpoint_type == BULK_IN_EP) {
+	if (xhci->meson_quirks & XHCI_CRG_HOST &&
+		udev->speed == USB_SPEED_SUPER && endpoint_type == BULK_IN_EP) {
 		for (i = 0; i < udev->descriptor.bNumConfigurations; i++) {
 			for (j = 0; j < udev->config[i].desc.bNumInterfaces; j++) {
 				if (udev->config[i].intf_cache[j]->altsetting->desc.bInterfaceClass
