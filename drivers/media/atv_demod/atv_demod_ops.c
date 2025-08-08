@@ -298,6 +298,13 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 
 	mutex_lock(&atv_demod_list_mutex);
 
+	if (!priv || priv->state != ATVDEMOD_STATE_WORK ||
+		!atv_demod_get_adc_status()) {
+		mutex_unlock(&atv_demod_list_mutex);
+
+		return;
+	}
+
 	priv->standby = true;
 
 	/* tuner config, no need cvbs format, just audio mode. */
@@ -1194,6 +1201,10 @@ static int atvdemod_fe_tune(struct v4l2_frontend *v4l2_fe, bool re_tune,
 	struct dvb_frontend *fe = &v4l2_fe->fe;
 	struct atv_demod_priv *priv = fe->analog_demod_priv;
 	//unsigned int tuner_id = priv->atvdemod_param.tuner_id;
+
+	if (!priv || priv->state != ATVDEMOD_STATE_WORK ||
+		!atv_demod_get_adc_status())
+		return -ECANCELED;
 
 	if (!re_tune && fe_status) {
 		if (fe->ops.analog_ops.has_signal)

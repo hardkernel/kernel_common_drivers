@@ -82,7 +82,8 @@
 /* 2025/07/04 --- V4.05 --- fix coverity issues */
 /* 2025/04/21 --- V4.06 --- fix IO V4L2_READ_STATUS call and sync. */
 /* 2025/08/01 --- V4.07 --- add event for mts input change */
-#define AMLATVDEMOD_VER "V4.07"
+/* 2025/08/08 --- V4.08 --- fix access reg crash when resumed and tuned but not be inited. */
+#define AMLATVDEMOD_VER "V4.08"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
