@@ -2005,20 +2005,22 @@ static int wake_flag;
 void vpp_lowlatency_wakeup(void)
 {
 	u32 enc_line;
+	unsigned long lock_flags;
 
 	if (only_vpp_wake && !wake_flag)
 		return;
 
 	if (get_low_latency_version() != 2 || !video_thread_init_done)
 		return;
-	spin_lock(&video_llm_lock);
+
+	spin_lock_irqsave(&video_llm_lock, lock_flags);
 	if (!atomic_read(&video_llm_wake) || !atomic_read(&video_llm_done)) {
-		spin_unlock(&video_llm_lock);
+		spin_unlock_irqrestore(&video_llm_lock, lock_flags);
 		return;
 	}
 	atomic_set(&video_llm_wake, 0);
 	atomic_set(&video_llm_done, 0);
-	spin_unlock(&video_llm_lock);
+	spin_unlock_irqrestore(&video_llm_lock, lock_flags);
 
 	line_n_in = 1;
 	wake_up_interruptible(&frame_process_wq);
