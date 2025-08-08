@@ -29,7 +29,7 @@ struct di_mmu_box {//decoder_mmu_box
 	//int box_ref_cnt;
 	struct mutex mutex;	/* for box */
 	struct list_head list;
-	struct codec_mm_scatter *sc_list[1];
+	struct codec_mm_scatter **sc_list;
 };
 
 #define MAX_KEEP_FRAME 4
@@ -113,6 +113,7 @@ void *di_mmu_box_alloc_box(const char *name,
 	box->name = name;
 	box->channel_id = channel_id;
 	box->tvp_mode = mem_flags;
+	box->sc_list = (struct codec_mm_scatter **)(box + 1);
 
 	mutex_init(&box->mutex);
 	INIT_LIST_HEAD(&box->list);
