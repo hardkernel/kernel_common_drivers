@@ -851,37 +851,6 @@
 			};
 		};
 
-		usb_phy20: usbphy20@fe348000 {
-			compatible = "amlogic, amlogic-crg-drd-usb2";
-			status = "disable";
-			reg = <0x0 0xfe348000 0x0 0x10
-					0x0 0xfe002000 0x0 0x100
-					0x0 0xfe34c000 0x0 0x60>;
-			pll-setting-4 = <0x7e18>;
-			pll-setting-5 = <0x7>;
-			pll-version = <3>;
-			phy0-reset-level-bit = <9>;
-			usb-reset-bit = <7>;
-			usb-comb-reset-bit = <8>;
-			reset-level = <0x40>;
-			usb-phy-trim-reg = <0xfe010330>;
-			phy-id = <0>;
-			clocks = <&clkc CLKID_SYS_USB2DRD>;
-			clock-names = "crg_general";
-			pm-controller;
-		};
-
-		crg_otg: crgotg@fe348000 {
-			compatible = "amlogic, amlogic-crg-otg";
-			status = "disabled";
-			usb2-phy-reg = <0xfe348000>;
-			usb2-phy-reg-size = <0x80>;
-			usb3-phy-reg = <0xfe348080>;
-			usb3-phy-reg-size = <0x20>;
-			interrupts = <0 129 IRQ_TYPE_EDGE_RISING>;
-			udc-name = "fe340000.crgudc";
-		};
-
 		usbphy0: usbphy0@fe348000 {
 			compatible = "amlogic,uphy-s6";
 			#address-cells = <1>;
