@@ -275,6 +275,8 @@ static int pts_pattern_exit_cnt[3] = {0, 0, 0};
 static int pts_log_enable[3] = {0, 0, 0};
 static int pre_pts_trace;
 static int pts_escape_vsync = -1;
+int zoom_move_en;
+int move_base_zoom[2] = {0, 0};
 
 #define PTS_41_PATTERN_SINK_MAX 4
 static int pts_41_pattern_sink[PTS_41_PATTERN_SINK_MAX];
@@ -7500,6 +7502,30 @@ static ssize_t video_axis_store(const struct class *cla,
 	return strnlen(buf, count);
 }
 
+static ssize_t move_base_zoom_show(const struct class *cla,
+					const struct class_attribute *attr,
+					char *buf)
+{
+	return snprintf(buf, 40, "move zoom en: %d move size v:%d h:%d\n",
+		zoom_move_en, move_base_zoom[0], move_base_zoom[1]);
+}
+
+static ssize_t move_base_zoom_store(const struct class *cla,
+					 const struct class_attribute *attr,
+					 const char *buf, size_t count)
+{
+	int parsed[3];
+
+	if (likely(parse_para(buf, 3, parsed) == 3)) {
+		zoom_move_en = parsed[0];
+		move_base_zoom[0] = parsed[1];
+		move_base_zoom[1] = parsed[2];
+		vd_layer[0].property_changed = true;
+	}
+
+	return strnlen(buf, count);
+}
+
 static ssize_t video_global_offset_show(const struct class *cla,
 					const struct class_attribute *attr,
 					char *buf)
@@ -13813,6 +13839,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       video_axis_show,
 	       video_axis_store),
+	__ATTR(move_base_zoom,
+	       0664,
+	       move_base_zoom_show,
+	       move_base_zoom_store),
 	__ATTR(real_axis,
 	       0664,
 	       real_axis_show,

@@ -681,6 +681,9 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 		hsize_in : (vsr_safa->preh_ratio == 1) ? ((hsize_in + 1) >> 1) :
 		vsr_safa->preh_ratio == 2 ? ((hsize_in + 3) >> 2) :
 		((hsize_in + 7) >> 3) : hsize_in;
+	/*prev en limited by pre_hsize*/
+	if (pre_hsize > (glayer_info[0].src_width_max / 2))
+		vsr_safa->prev_en = 0;
 	pre_vsize  = vsr_safa->prev_en ? (vsr_safa->prev_ratio == 0) ?
 		vsize_in : (vsr_safa->prev_ratio == 1) ? ((vsize_in + 1) >> 1) :
 		(vsr_safa->prev_ratio == 2) ? ((vsize_in + 3) >> 2) :
