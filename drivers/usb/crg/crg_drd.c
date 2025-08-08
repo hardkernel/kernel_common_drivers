@@ -346,6 +346,26 @@ static void crg_phy_power_off(struct crg_drd *crg)
 	usb_phy_set_suspend(crg->usb2_phy, 1);
 }
 
+static void crg_core_exit(struct crg_drd	*crg)
+{
+	int	i;
+
+	crg_phy_power_off(crg);
+	crg_phy_exit(crg);
+
+	for (i = 0; i < crg->num_usb2_ports; i++) {
+		if (crg->usb2_generic_phy[i])
+			phy_put(crg->dev, crg->usb2_generic_phy[i]);
+	}
+	for (i = 0; i < crg->num_usb3_ports; i++) {
+		if (crg->usb3_generic_phy[i])
+			phy_put(crg->dev, crg->usb3_generic_phy[i]);
+	}
+
+	crg_core_power(crg, false);
+	crg_core_put_reset(crg);
+}
+
 static int crg_core_init(struct crg_drd *crg)
 {
 	int	i;
@@ -407,6 +427,8 @@ static int crg_core_resume(struct crg_drd *crg)
 {
 	int			ret;
 
+	crg_core_power(crg, true);
+
 	ret = crg_phy_init(crg);
 	if (ret)
 		return ret;
@@ -416,8 +438,6 @@ static int crg_core_resume(struct crg_drd *crg)
 		crg_phy_exit(crg);
 		return ret;
 	}
-
-	crg_core_power(crg, true);
 
 	switch (crg->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
@@ -804,27 +824,13 @@ err0:
 static void crg_shutdown(struct platform_device *pdev)
 {
 	struct crg_drd     *crg = platform_get_drvdata(pdev);
-	int i;
 
 	pm_runtime_get_sync(&pdev->dev);
 
-	crg_phy_power_off(crg);
-	crg_phy_exit(crg);
 	crg_host_exit(crg);
+	crg_core_exit(crg);
 	if (crg->regs)
 		iounmap(crg->regs);
-
-	crg_core_power(crg, false);
-	crg_core_put_reset(crg);
-
-	for (i = 0; i < crg->num_usb2_ports; i++) {
-		if (crg->usb2_generic_phy[i])
-			phy_put(crg->dev, crg->usb2_generic_phy[i]);
-	}
-	for (i = 0; i < crg->num_usb3_ports; i++) {
-		if (crg->usb3_generic_phy[i])
-			phy_put(crg->dev, crg->usb3_generic_phy[i]);
-	}
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
@@ -836,27 +842,13 @@ static void crg_shutdown(struct platform_device *pdev)
 static void crg_remove(struct platform_device *pdev)
 {
 	struct crg_drd	   *crg = platform_get_drvdata(pdev);
-	int i;
 
 	pm_runtime_get_sync(&pdev->dev);
 
-	crg_phy_power_off(crg);
-	crg_phy_exit(crg);
 	crg_host_exit(crg);
+	crg_core_exit(crg);
 	if (crg->regs)
 		iounmap(crg->regs);
-
-	crg_core_power(crg, false);
-	crg_core_put_reset(crg);
-
-	for (i = 0; i < crg->num_usb2_ports; i++) {
-		if (crg->usb2_generic_phy[i])
-			phy_put(crg->dev, crg->usb2_generic_phy[i]);
-	}
-	for (i = 0; i < crg->num_usb3_ports; i++) {
-		if (crg->usb3_generic_phy[i])
-			phy_put(crg->dev, crg->usb3_generic_phy[i]);
-	}
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
@@ -880,9 +872,9 @@ static int crg_suspend_common(struct crg_drd *crg)
 		break;
 	}
 
-	crg_core_power(crg, false);
 	crg_phy_power_off(crg);
 	crg_phy_exit(crg);
+	crg_core_power(crg, false);
 
 	return 0;
 }

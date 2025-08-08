@@ -417,7 +417,8 @@ struct gadget_info {
 	struct config_group configs_group;
 	struct config_group strings_group;
 	struct config_group os_desc_group;
-	/*copy from configfs.c*/
+	struct config_group webusb_group;
+
 	struct mutex lock;
 	struct usb_gadget_strings *gstrings[2 + 1];
 	struct list_head string_list;
@@ -428,15 +429,13 @@ struct gadget_info {
 	bool use_os_desc;
 	char b_vendor_code;
 	char qw_sign[OS_STRING_QW_SIGN_LEN];
-	/*copy from configfs.c*/
+	bool use_webusb;
+	u16 bcd_webusb_version;
+	u8 b_webusb_vendor_code;
+	char landing_page[WEBUSB_URL_RAW_MAX_LENGTH];
+
 	spinlock_t spinlock;
 	bool unbind;
-#ifdef CONFIG_USB_CONFIGFS_UEVENT
-	bool connected;
-	bool sw_connected;
-	struct work_struct work;
-	struct device *dev;
-#endif
 };
 
 /*An array should be implemented if we want to support multi
@@ -5002,8 +5001,8 @@ static int crg_udc_probe(struct platform_device *pdev)
 	/*g_vaddr = dma_alloc_coherent(crg_udc->dev,4096, &g_dma, */
 	/*	GFP_KERNEL);*/
 	//g_device_phy_id = phy_id;
-	INIT_DELAYED_WORK(&crg_udc->reset_udc, crg_rewrite_udc_for_error);
 	crg_udc_probe_state = 1;
+	INIT_DELAYED_WORK(&crg_udc->reset_udc, crg_rewrite_udc_for_error);
 	return ret;
 
 	/* TODO: add error resources release. */
@@ -5054,21 +5053,32 @@ static void crg_udc_remove(struct platform_device *pdev)
 	if (crg_udc->irq)
 		free_irq(crg_udc->irq, crg_udc);
 
-	crg_udc_core_put_reset(crg_udc);
+	if (crg_udc->mmio_virt_base) {
+		iounmap(crg_udc->mmio_virt_base);
+		crg_udc->mmio_virt_base = NULL;
+	}
+
+//	if (crg_udc->phy_reg_addr) {
+//		iounmap(crg_udc->phy_reg_addr);
+//		crg_udc->phy_reg_addr = NULL;
+//	}
 
 	//	if (crg_udc->controller_type != USB_M31)
 	//		amlogic_crg_device_usb2_shutdown(g_device_phy_id);
+
+	crg_udc_core_power(crg_udc, false);
+	crg_udc_core_put_reset(crg_udc);
+
 	phy_exit(crg_udc->u3phy);
 	phy_exit(crg_udc->phy);
+
+	crg_clk_disable_usb(pdev);
+
 	if (crg_udc->phy)
 		phy_put(crg_udc->dev, crg_udc->phy);
 	if (crg_udc->u3phy)
 		phy_put(crg_udc->dev, crg_udc->u3phy);
 
-	if (crg_udc->mmio_virt_base)
-		iounmap(crg_udc->mmio_virt_base);
-
-	crg_clk_disable_usb(pdev);
 	/*
 	 * Clear the drvdata pointer.
 	 */
@@ -5098,6 +5108,7 @@ static void crg_udc_shutdown(struct platform_device *pdev)
 	if (crg_udc->irq)
 		free_irq(crg_udc->irq, crg_udc);
 
+	crg_udc_core_power(crg_udc, false);
 	crg_udc_core_put_reset(crg_udc);
 
 //	if (crg_udc->controller_type != USB_M31)
@@ -5105,6 +5116,11 @@ static void crg_udc_shutdown(struct platform_device *pdev)
 	phy_exit(crg_udc->phy);
 
 	crg_clk_disable_usb(pdev);
+
+	if (crg_udc->phy)
+		phy_put(crg_udc->dev, crg_udc->phy);
+	if (crg_udc->u3phy)
+		phy_put(crg_udc->dev, crg_udc->u3phy);
 
 	/*
 	 * Clear the drvdata pointer.
@@ -5292,6 +5308,26 @@ static int crg_udc_suspend(struct device *dev)
 	return ret;
 }
 
+static int crg_udc_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct crg_gadget_dev *crg_udc;
+	int ret = 0;
+
+	crg_udc = &crg_udc_dev;
+
+	crg_clk_enable_usb(pdev);
+
+	ret = phy_init(crg_udc->phy);
+	if (ret)
+		return ret;
+
+	//if (crg_udc->controller_type != USB_M31)
+		//amlogic_crg_device_usb2_init(crg_udc->phy_id);
+
+	return ret;
+}
+
 /* Threads should be runnable or ums unbind will stuck.
  * Defer the udc restart and it also helps to shorten the
  * boot time.
@@ -5311,26 +5347,6 @@ static int crg_udc_resume_post(struct crg_gadget_dev *crg_udc)
 done:
 #endif
 	return 0;
-}
-
-static int crg_udc_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct crg_gadget_dev *crg_udc;
-	int ret = 0;
-
-	crg_udc = &crg_udc_dev;
-
-	crg_clk_enable_usb(pdev);
-
-	ret = phy_init(crg_udc->phy);
-	if (ret)
-		return ret;
-
-	//if (crg_udc->controller_type != USB_M31)
-		//amlogic_crg_device_usb2_init(crg_udc->phy_id);
-
-	return ret;
 }
 
 static int crg_udc_freeze(struct device *dev)
