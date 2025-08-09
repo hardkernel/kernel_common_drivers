@@ -7785,7 +7785,7 @@ void rx_hpd_monitor(void)
 
 void hdmirx_timer_t3x(void)
 {
-	int port;
+	u8 port = 0;
 
 	if (is_fsm_ready_t3x()) {
 		if (!sm_pause) {

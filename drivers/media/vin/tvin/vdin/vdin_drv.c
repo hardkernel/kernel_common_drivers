@@ -3424,7 +3424,7 @@ static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 		vfe->vf.type_ext &= ~VIDTYPE_EXT_AFRC_COMPRESS;
 
 	/* Every vf should be updated after reconfiguration */
-	if (vfe && (vfe->flag & VF_FLAG_NEED_UPDATE)) {
+	if (vfe->flag & VF_FLAG_NEED_UPDATE) {
 		vdin_vf_reinit(devp, vfe);
 		vfe->flag &= ~VF_FLAG_NEED_UPDATE;
 	}
@@ -4016,7 +4016,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		devp->vdin_drop_cnt++;
 		goto irq_handled;
 	}
-	if (IS_TVAFE_SRC(devp->parm.port))
+	if (curr_wr_vf && IS_TVAFE_SRC(devp->parm.port))
 		curr_wr_vf->phase = sm_ops->get_secam_phase(devp->frontend) ?
 				VFRAME_PHASE_DB : VFRAME_PHASE_DR;
 
@@ -4027,7 +4027,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		devp->vdin_drop_cnt++;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (devp->afbce_mode == 1)
+		if (curr_wr_vfe && devp->afbce_mode == 1)
 			vdin_afbce_set_next_frame(devp, (devp->flags &
 						  VDIN_FLAG_RDMA_ENABLE),
 						  curr_wr_vfe);
