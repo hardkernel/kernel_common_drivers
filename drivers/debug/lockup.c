@@ -182,6 +182,48 @@ struct lockup_info {
 };
 
 static struct lockup_info __percpu *infos;
+static void __iomem *irq_latch_mode_reg;
+static void __iomem *irq_latch_clr_reg;
+static spinlock_t irq_latch_lock;
+
+static void irq_latch_clr(int irq)
+{
+	struct irq_desc *desc = NULL;
+	irq_hw_number_t hwirq;
+
+	unsigned int offset;
+	unsigned int bit;
+	unsigned int val;
+	unsigned long flags;
+
+	if (!irq_latch_mode_reg || !irq_latch_clr_reg)
+		return;
+
+	desc = irq_to_desc(irq);
+	if (!desc)
+		return;
+
+	hwirq = desc->irq_data.hwirq;
+	if (hwirq < 32 || hwirq >= IRQ_CNT)
+		return;
+
+	offset = (((hwirq - 32) / 32) << 2);
+	bit = (hwirq - 32) % 32;
+
+	val = readl_relaxed(irq_latch_mode_reg + offset);
+	if (val & (1 << bit)) {
+		spin_lock_irqsave(&irq_latch_lock, flags);
+
+		val = readl_relaxed(irq_latch_clr_reg + offset);
+		val |= (1 << bit);
+		writel_relaxed(val, irq_latch_clr_reg + offset);
+
+		val &= ~(1 << bit);
+		writel_relaxed(val, irq_latch_clr_reg + offset);
+
+		spin_unlock_irqrestore(&irq_latch_lock, flags);
+	}
+}
 
 static void __maybe_unused isr_in_hook(void *data, int irq, struct irqaction *action)
 {
@@ -195,6 +237,8 @@ static void __maybe_unused isr_in_hook(void *data, int irq, struct irqaction *ac
 		.irq  = irq,
 	};
 #endif
+
+	irq_latch_clr(irq);
 
 	if (irq >= IRQ_CNT || !isr_check_en)
 		return;
@@ -1100,6 +1144,29 @@ static void __maybe_unused schedule_hook(void *data, struct task_struct *prev,
 	iotm_sched_record_write(next->comm);
 }
 
+static void irq_latch_init(void)
+{
+	struct device_node *node;
+
+	node = of_find_node_by_path("/irq_latch");
+	if (!node)
+		return;
+
+	irq_latch_mode_reg = of_iomap(node, 0);
+	irq_latch_clr_reg = of_iomap(node, 1);
+
+	if (!irq_latch_mode_reg || !irq_latch_clr_reg) {
+		pr_err("irq latch map fail\n");
+		return;
+	}
+
+	spin_lock_init(&irq_latch_lock);
+
+	pr_info("mode_reg:%lx, clr_reg:%lx\n",
+		(unsigned long)irq_latch_mode_reg,
+		(unsigned long)irq_latch_clr_reg);
+}
+
 int debug_lockup_init(void)
 {
 	int cpu;
@@ -1136,6 +1203,9 @@ int debug_lockup_init(void)
 #if (defined CONFIG_ARM64) || (defined CONFIG_AMLOGIC_ARMV8_AARCH32)
 	fiq_debug_addr_init();
 #endif
+
+	/* GICv3 only */
+	irq_latch_init();
 
 	return 0;
 }
