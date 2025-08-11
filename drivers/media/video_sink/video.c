@@ -11187,9 +11187,9 @@ static u32 parse_vframe_bit(struct vframe_s *vf,
 	return bit;
 }
 
-static ssize_t vdx_state_show(u32 index, char *buf)
+static ssize_t vdx_state_show(u32 index, char *buf, bool mosaic_mode, ssize_t pos)
 {
-	ssize_t len = 0;
+	ssize_t len = pos;
 	struct vppfilter_mode_s *vpp_filter = NULL;
 	struct vpp_frame_par_s *_cur_frame_par = NULL;
 	struct video_layer_s *_vd_layer = NULL;
@@ -11197,16 +11197,28 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 	int afbc = 0, dw = 0, afrc = 0, compress = 0, rdmif = 0;
 	struct vframe_s *dispbuf = NULL;
 
-	if (index >= MAX_VD_LAYER)
-		return 0;
-	_cur_frame_par = cur_frame_par[index];
-	_vd_layer = &vd_layer[index];
-	layer_info = &glayer_info[index];
+	if (mosaic_mode) {
+		struct mosaic_frame_s *mosaic_frame;
+
+		if (index >= SLICE_NUM)
+			return 0;
+		mosaic_frame = get_mosaic_vframe_info(index);
+		_cur_frame_par = mosaic_frame->virtual_layer.cur_frame_par;
+		_vd_layer = &mosaic_frame->virtual_layer;
+		layer_info = &mosaic_frame->virtual_layer_info;
+		dispbuf = mosaic_frame->vf;
+	} else {
+		if (index >= MAX_VD_LAYER)
+			return 0;
+		_cur_frame_par = cur_frame_par[index];
+		_vd_layer = &vd_layer[index];
+		layer_info = &glayer_info[index];
+		dispbuf = get_dispbuf(index);
+	}
 
 	if (!_cur_frame_par)
 		return len;
 
-	dispbuf = get_dispbuf(index);
 	if (dispbuf) {
 		u32 format = 0, bit = 0;
 		char  *str = NULL, *str1 = NULL;
@@ -11498,21 +11510,35 @@ static ssize_t video_state_show(const struct class *cla,
 				const struct class_attribute *attr,
 				char *buf)
 {
-	return vdx_state_show(VD1_PATH, buf);
+	ssize_t len = 0;
+	static int mosaic_index;
+
+	if (vd_layer[0].mosaic_mode) {
+		if (mosaic_index >= SLICE_NUM)
+			mosaic_index = 0;
+		len += sprintf(buf + len,
+			       "===== mosaic window index:%d =====\n", mosaic_index);
+		len = vdx_state_show(mosaic_index, buf, true, len);
+		mosaic_index++;
+	} else {
+		len = vdx_state_show(VD1_PATH, buf, false, 0);
+	}
+
+	return len;
 }
 
 static ssize_t videopip_state_show(const struct class *cla,
 				   const struct class_attribute *attr,
 				   char *buf)
 {
-	return vdx_state_show(VD2_PATH, buf);
+	return vdx_state_show(VD2_PATH, buf, false, 0);
 }
 
 static ssize_t videopip2_state_show(const struct class *cla,
 				   const struct class_attribute *attr,
 				   char *buf)
 {
-	return vdx_state_show(VD3_PATH, buf);
+	return vdx_state_show(VD3_PATH, buf, false, 0);
 }
 
 static ssize_t video_vd_proc_state_show(const struct class *cla,
@@ -16841,7 +16867,9 @@ static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 		layer_cap |= ((u32)vd_layer[0].vpp_index << LAYER0_VPP |
 			(u32)vd_layer[1].vpp_index << LAYER1_VPP |
 			(u32)vd_layer[2].vpp_index << LAYER2_VPP);
-		if (cur_dev->mosaic_support)
+		if (cur_dev->mosaic_support && cur_dev->display_module == T6W_DISPLAY_MODULE)
+			layer_cap |= MOSAIC_MODE | MOSAIC_MODE_V2;
+		else if (cur_dev->mosaic_support)
 			layer_cap |= MOSAIC_MODE;
 	}
 	pr_debug("%s cap:%x, ptype:%d\n", __func__, layer_cap, p_amvideo->cpu_type);

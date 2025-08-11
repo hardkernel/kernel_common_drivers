@@ -955,7 +955,10 @@ static u32 postblend_color;
 
 static u32 bypass_mute;
 u32 g_mosaic_mode;
-u32 pic_axis[4][4];
+static s32 pic_axis_get[4][4];
+static s32 pic_axis_set[4][4];
+#define PIC_AXIS_INVALID (-4096)
+
 /*********************************************************
  * Utils APIs
  *********************************************************/
@@ -4135,6 +4138,23 @@ static int is_rdmif_frame_need_swap(u32 type,
 	return uv_swap;
 }
 
+static bool is_mosaic_layer(struct video_layer_s *layer)
+{
+	int i;
+	struct video_layer_s *virtual_layer;
+
+	if (!layer)
+		return false;
+
+	for (i = 0; i < SLICE_NUM; i++) {
+		virtual_layer = &g_mosaic_frame[i].virtual_layer;
+		if (layer == virtual_layer)
+			return true;
+	}
+
+	return false;
+}
+
 static void vd1_set_dcu_t6w(struct video_layer_s *layer,
 			struct vpp_frame_par_s *frame_par,
 			struct vframe_s *vf)
@@ -4187,13 +4207,15 @@ static void vd1_set_dcu_t6w(struct video_layer_s *layer,
 
 	mif_setting = &layer->mif_info_setting;
 
-	if (is_frc_link_on(layer)) {
-		frc_link = true;
-		vd1_link = false;
+	if (!is_mosaic_layer(layer))  {
+		if (is_frc_link_on(layer)) {
+			frc_link = true;
+			vd1_link = false;
+		}
+		vd1_path_select_t6w(layer, vd1_link, frc_link, di_link);
+		if (frc_link || di_link)
+			return;
 	}
-	vd1_path_select_t6w(layer, vd1_link, frc_link, di_link);
-	if (frc_link || di_link)
-		return;
 
 	if (type & VIDTYPE_MVC)
 		is_mvc = true;
@@ -9325,9 +9347,15 @@ s32 config_vd_pps_internal(struct video_layer_s *layer,
 		/* safa scaler config */
 		/* vsr top disable must bypass pps */
 		setting->vsr.vsr_top.vsr_en = vsr_top_en ? true : setting->sc_top_enable;
-		/* mosaic_mode, need to disable vsr */
-		if (layer->mosaic_mode)
-			setting->vsr.vsr_top.vsr_en = 0;
+		/* mosaic_mode, need to disable vsr scaler, keep vsr top enabled */
+		if (layer->mosaic_mode) {
+			//setting->vsr.vsr_top.vsr_en = 0;
+			vpp_filter->vpp_pre_hsc_en = 0;
+			vpp_filter->vpp_pre_vsc_en = 0;
+			postsc_en = 0;
+			vpp_filter->vpp_pre_hsc_ratio = 0;
+			vpp_filter->vpp_pre_vsc_ratio = 0;
+		}
 		setting->vsr.vsr_safa.preh_en = vpp_filter->vpp_pre_hsc_en;
 		setting->vsr.vsr_safa.prev_en = vpp_filter->vpp_pre_vsc_en;
 		setting->vsr.vsr_safa.postsc_en = postsc_en;
@@ -10907,6 +10935,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	int video1_off_req = 0;
 	int video2_off_req = 0;
 	int video3_off_req = 0;
+	static int video1_on_req;
 	unsigned long flags;
 	struct vpp_frame_par_s *vd1_frame_par =
 		vd_layer[0].cur_frame_par;
@@ -10956,6 +10985,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			vpu_delay_work_flag |=
 				VPU_VIDEO_LAYER1_CHANGED;
 #endif
+			video1_on_req = 1;
 			force_flush = true;
 		} else if (vd_layer[0].onoff_state ==
 			VIDEO_ENABLE_STATE_OFF_REQ) {
@@ -10965,8 +10995,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 				vd_layer[1].pre_blend_en = 0;
 			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_IDLE;
 			vd_layer[0].onoff_time = jiffies_to_msecs(jiffies);
-			if (video_lcevc.vd2_vd1_shared_vf ||
-			    vd_layer[0].mosaic_mode) {
+			if (video_lcevc.vd2_vd1_shared_vf) {
 				vd_layer[1].disable_video = vd_layer[0].disable_video;
 				vd_layer[1].global_output = vd_layer[0].global_output;
 			}
@@ -11008,8 +11037,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 					vd_layer[1].pre_blend_en = 0;
 					vd_layer[1].post_blend_en = 0;
 				} else if (vd_layer[1].dispbuf) {
-					if (video_lcevc.vd2_vd1_shared_vf ||
-					    vd_layer[0].mosaic_mode) {
+					if (video_lcevc.vd2_vd1_shared_vf) {
 						vd_layer[1].pre_blend_en = 1;
 						vd_layer[1].post_blend_en = 1;
 						vd_layer[1].global_output = 1;
@@ -11064,8 +11092,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 				vd_layer[1].pre_blend_en = 0;
 				vd_layer[1].post_blend_en = 0;
 			} else if (vd_layer[1].dispbuf) {
-				if (video_lcevc.vd2_vd1_shared_vf ||
-				    vd_layer[0].mosaic_mode)
+				if (video_lcevc.vd2_vd1_shared_vf)
 					vd_layer[1].pre_blend_en = 1;
 				else
 					vd_layer[1].pre_blend_en = 0;
@@ -11195,8 +11222,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 					vd_layer[1].pre_blend_en = 0;
 					vd_layer[1].post_blend_en = 0;
 				} else if (vd_layer[1].dispbuf) {
-					if (video_lcevc.vd2_vd1_shared_vf ||
-					    vd_layer[0].mosaic_mode)
+					if (video_lcevc.vd2_vd1_shared_vf)
 						vd_layer[1].pre_blend_en = 1;
 					else
 						vd_layer[1].pre_blend_en = 0;
@@ -11263,9 +11289,33 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 		glayer_info[1].zorder = 2;
 		glayer_info[0].zorder = 1;
 	}
+	if (vd_layer[0].mosaic_mode) {
+		if (video1_on_req) {
+			vd_layer[1].pre_blend_en = 1;
+			vd_layer[1].post_blend_en = 0;
+			vpp_misc_set |= VPP_VD2_PREBLEND |
+				VPP_PREBLEND_EN;
+			vpp_misc_set &= ~VPP_VD2_POSTBLEND;
+		}
+		if (video1_off_req) {
+			video1_on_req = 0;
+			vd_layer[1].pre_blend_en = 0;
+			vd_layer[1].post_blend_en = 0;
+			vpp_misc_set &= ~(VPP_VD2_PREBLEND |
+				VPP_VD2_POSTBLEND | VPP_PREBLEND_EN);
+		}
+		/* 2x2 uses video2 */
+		video2_off_req = 0;
+		glayer_info[0].zorder = 2;
+		glayer_info[1].zorder = 1;
+	}
 
-	if (vd_layer[0].mosaic_mode)
-		vd_layer[1].post_blend_en = 0;
+	if (vd_layer[0].mosaic_mode && (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL))
+		pr_info("mosaic_mode:%d vpp_misc_set 0x%x video1_on_req:%d video1_off_req:%d video2_off_req:%d VD2 pre:%d post:%d en:%d\n",
+			vd_layer[0].mosaic_mode, vpp_misc_set, video1_on_req, video1_off_req,
+			video2_off_req, vd_layer[1].pre_blend_en, vd_layer[1].post_blend_en,
+			vd_layer[1].enabled);
+
 	if (force_vpp_blend_update) {
 		force_flush = true;
 		force_vpp_blend_update = false;
@@ -11366,6 +11416,8 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			(0x1ff << VPP_VD2_ALPHA_BIT) |
 			VPP_PREBLEND_EN |
 			VPP_POSTBLEND_EN |
+			VPP_VD2_PREBLEND |
+			VPP_VD2_POSTBLEND |
 			0xf);
 
 		/* if vd2 is bottom layer, need remove alpha for vd2 */
@@ -11534,8 +11586,24 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	     (video2_off_req))))
 		disable_vd2_blend(&vd_layer[1]);
 
-	if (video1_off_req)
+	if (video1_off_req) {
 		disable_vd1_blend(&vd_layer[0]);
+		if (vd_layer[0].mosaic_mode) {
+			int i;
+			struct mosaic_frame_s *mosaic_frame;
+			struct video_layer_s *virtual_layer;
+
+			for (i = 0; i < SLICE_NUM; i++) {
+				mosaic_frame = get_mosaic_vframe_info(i);
+				virtual_layer = &mosaic_frame->virtual_layer;
+				if (!virtual_layer)
+					return;
+				disable_vd1_blend(virtual_layer);
+				virtual_layer->mosaic_mode = 0;
+			}
+			vd_layer[0].mosaic_mode = 0;
+		}
+	}
 }
 
 static void vpp_blend_update_s5(const struct vinfo_s *vinfo, u8 vpp_index)
@@ -11942,8 +12010,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 				VPP_POSTBLEND_EN;
 			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_IDLE;
 			vd_layer[0].onoff_time = jiffies_to_msecs(jiffies);
-			if (video_lcevc.vd2_vd1_shared_vf ||
-			    vd_layer[0].mosaic_mode) {
+			if (video_lcevc.vd2_vd1_shared_vf) {
 				vd_layer[1].disable_video = vd_layer[0].disable_video;
 				vd_layer[1].global_output = vd_layer[0].global_output;
 			}
@@ -12010,8 +12077,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 				vpp_misc_set &= ~(VPP_VD2_PREBLEND |
 					VPP_VD2_POSTBLEND | VPP_PREBLEND_EN);
 			} else if (vd_layer[1].dispbuf) {
-				if (video_lcevc.vd2_vd1_shared_vf ||
-				    vd_layer[0].mosaic_mode) {
+				if (video_lcevc.vd2_vd1_shared_vf) {
 					vd_layer[1].pre_blend_en = 1;
 					vd_layer[1].post_blend_en = 1;
 					vd_layer[1].global_output = 1;
@@ -12075,8 +12141,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 			vpp_misc_set &= ~(VPP_VD2_PREBLEND |
 				VPP_VD2_POSTBLEND | VPP_PREBLEND_EN);
 		} else if (vd_layer[1].dispbuf) {
-			if (video_lcevc.vd2_vd1_shared_vf ||
-			    vd_layer[0].mosaic_mode)
+			if (video_lcevc.vd2_vd1_shared_vf)
 				vd_layer[1].pre_blend_en = 1;
 			else
 				vd_layer[1].pre_blend_en = 0;
@@ -12165,8 +12230,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 				vd_layer[1].pre_blend_en = 0;
 				vd_layer[1].post_blend_en = 0;
 			} else if (vd_layer[1].dispbuf) {
-				if (video_lcevc.vd2_vd1_shared_vf ||
-				    vd_layer[0].mosaic_mode) {
+				if (video_lcevc.vd2_vd1_shared_vf) {
 					vd_layer[1].pre_blend_en = 1;
 					vd_layer[1].post_blend_en = 1;
 				} else {
@@ -12192,8 +12256,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 		glayer_info[1].zorder = 2;
 		glayer_info[0].zorder = 1;
 	}
-	if (vd_layer[0].mosaic_mode)
-		vd_layer[1].post_blend_en = 0;
+
 	if (!vd_layer[1].enabled &&
 	    ((vpp_misc_set & VPP_VD2_POSTBLEND) ||
 	     (vpp_misc_set & VPP_VD2_PREBLEND)))
@@ -13441,10 +13504,10 @@ void set_mosaic_axis(u32 pic_index, u32 x_start, u32 y_start,
 	u32 x_end, u32 y_end)
 {
 	if (pic_index < 4) {
-		pic_axis[pic_index][0] = x_start;
-		pic_axis[pic_index][1] = y_start;
-		pic_axis[pic_index][2] = x_end;
-		pic_axis[pic_index][3] = y_end;
+		pic_axis_set[pic_index][0] = x_start;
+		pic_axis_set[pic_index][1] = y_start;
+		pic_axis_set[pic_index][2] = x_end;
+		pic_axis_set[pic_index][3] = y_end;
 	}
 }
 
@@ -13454,10 +13517,24 @@ void get_mosaic_axis(void)
 
 	for (i = 0; i < 4; i++) {
 		pr_info("pic%d: axis %d, %d, %d, %d\n",
-			i, pic_axis[i][0], pic_axis[i][1],
-			pic_axis[i][2],
-			pic_axis[i][3]);
+			i, pic_axis_get[i][0], pic_axis_get[i][1],
+			pic_axis_get[i][2],
+			pic_axis_get[i][3]);
 	}
+}
+
+static int mosaic_map_to_hw_index(u32 i)
+{
+	int vpp_mosaic_index0[4] = {0, 1, 2, 3};
+	int vpp_mosaic_index1[4] = {0, 2, 1, 3};
+	int hw_index = 0;
+
+	if (cur_dev->display_module == T6W_DISPLAY_MODULE)
+		hw_index = vpp_mosaic_index1[i];
+	else
+		hw_index = vpp_mosaic_index0[i];
+
+	return hw_index;
 }
 
 static void set_mosaic_vframe_info(struct video_layer_s *layer,
@@ -13481,12 +13558,14 @@ static void set_mosaic_vframe_info(struct video_layer_s *layer,
 	}
 	layer->mosaic_mode = g_mosaic_mode;
 	if (layer->mosaic_mode) {
+		struct vframe_s *mosaic_vfp[SLICE_NUM] = {NULL, NULL, NULL, NULL};
+
 		for (i = 0; i < SLICE_NUM; i++) {
 			struct vframe_s *mosaic_vf;
 			int axis[4];
 
 			g_mosaic_frame[i].slice_id = i;
-			mosaic_vf = vf->vc_private->mosaic_vf[i];
+			mosaic_vf = vf->vc_private->mosaic_vf[mosaic_map_to_hw_index(i)];
 			g_mosaic_frame[i].vf = mosaic_vf;
 			memcpy(&g_mosaic_frame[i].virtual_layer,
 				layer,
@@ -13512,22 +13591,38 @@ static void set_mosaic_vframe_info(struct video_layer_s *layer,
 			       sizeof(struct hw_vpp_blend_reg_s));
 
 			if (cur_dev->display_module == T6W_DISPLAY_MODULE) {
+				g_mosaic_frame[i].virtual_layer.frc_link_en = 0;
+				g_mosaic_frame[i].virtual_layer.need_disable_frc_link = 0;
+				g_mosaic_frame[i].virtual_layer.frc_link_bypass_check = 0;
+				g_mosaic_frame[i].virtual_layer.cur_frc_link_mode = 0;
+				g_mosaic_frame[i].virtual_layer.frc_link_skip_cnt = 0;
+				atomic_set(&g_mosaic_frame[i].virtual_layer.disable_frc_link_done,
+					   0);
 				g_mosaic_frame[i].virtual_layer_info.vsr_safa_support = false;
 				if (i == 0 || i == 1)
 					g_mosaic_frame[i].virtual_layer.layer_id = 0;
 				else
 					g_mosaic_frame[i].virtual_layer.layer_id = 1;
 			}
-			pic_axis[i][0] = mosaic_vf->axis[0];
-			pic_axis[i][1] = mosaic_vf->axis[1];
-			pic_axis[i][2] = mosaic_vf->axis[2];
-			pic_axis[i][3] = mosaic_vf->axis[3];
-			axis[0] = pic_axis[i][0];
-			axis[1] = pic_axis[i][1];
-			axis[2] = pic_axis[i][2];
-			axis[3] = pic_axis[i][3];
+			if (pic_axis_set[i][0] != PIC_AXIS_INVALID) {
+				axis[0] = pic_axis_set[i][0];
+				axis[1] = pic_axis_set[i][1];
+				axis[2] = pic_axis_set[i][2];
+				axis[3] = pic_axis_set[i][3];
+			} else {
+				axis[0] = mosaic_vf->axis[0];
+				axis[1] = mosaic_vf->axis[1];
+				axis[2] = mosaic_vf->axis[2];
+				axis[3] = mosaic_vf->axis[3];
+			}
+			pic_axis_get[i][0] = axis[0];
+			pic_axis_get[i][1] = axis[1];
+			pic_axis_get[i][2] = axis[2];
+			pic_axis_get[i][3] = axis[3];
 
 			_set_video_window(&g_mosaic_frame[i].virtual_layer_info, axis);
+			memcpy(&g_mosaic_frame[i].virtual_layer_info.src_crop,
+			       &mosaic_vf->src_crop, sizeof(struct src_crop_s));
 			if (is_crop_from_vf(mosaic_vf))
 				_set_video_crop(&g_mosaic_frame[i].virtual_layer_info,
 					mosaic_vf->crop);
@@ -13536,8 +13631,32 @@ static void set_mosaic_vframe_info(struct video_layer_s *layer,
 			if (mosaic_vf->flag & VFRAME_FLAG_MIRROR_V)
 				mirror |= V_MIRROR;
 			_set_video_mirror(&g_mosaic_frame[i].virtual_layer_info, mirror);
+			/* disable pip alpha */
+			vd_layer[0].alpha_win_en = 0;
+			mosaic_vfp[i] = mosaic_vf;
 		}
 		layer->property_changed = false;
+		if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC) {
+			u32 frame_index[SLICE_NUM] = {0};
+			u64 timestamp[SLICE_NUM] = {0};
+			struct vframe_s *new_frame = NULL;
+
+			pr_info("VID(%s): new_frame:%p, %p, %p, %p\n",
+				__func__,
+				mosaic_vfp[0], mosaic_vfp[1], mosaic_vfp[2], mosaic_vfp[3]);
+			for (i = 0; i < SLICE_NUM; i++) {
+				new_frame = mosaic_vfp[i];
+				if (new_frame) {
+					frame_index[i] = new_frame->frame_index;
+					timestamp[i] = div_u64(new_frame->timestamp,
+							       1000000000);
+				}
+			}
+			pr_info("VID(%s): new_frame frame_index:%d, %d, %d, %d; new_frame timestamp:%lld %lld %lld %lld\n",
+				 __func__,
+				 frame_index[0], frame_index[1], frame_index[2], frame_index[3],
+				 timestamp[0], timestamp[1], timestamp[2], timestamp[3]);
+		}
 	} else {
 		for (i = 0; i < SLICE_NUM; i++)
 			g_mosaic_frame[i].virtual_layer.mosaic_mode = 0;
@@ -13967,9 +14086,12 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 	if (cur_dev->display_module == T6W_DISPLAY_MODULE) {
 		if (layer->mosaic_mode) {
 			for (slice = 0; slice < SLICE_NUM; slice++) {
-				set_layer_display_canvas_t6w(&g_mosaic_frame[slice].virtual_layer,
-							     vf, cur_frame_par,
-							     disp_info, line);
+				set_layer_display_canvas_t6w
+					(&g_mosaic_frame[slice].virtual_layer,
+					 g_mosaic_frame[slice].vf,
+					 g_mosaic_frame[slice].virtual_layer.cur_frame_par,
+					 &g_mosaic_frame[slice].virtual_layer_info,
+					 line);
 			}
 			return 0;
 		} else {
@@ -14973,6 +15095,19 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		layer->dispbuf, vf);
 	sr_phase_changed = is_sr_phase_changed();
 	frc_changed = is_frc_changed();
+	if (layer->mosaic_mode) {
+		int i;
+		struct mosaic_frame_s *mosaic_frame;
+		struct video_layer_s *virtual_layer;
+
+		for (i = 0; i < SLICE_NUM; i++) {
+			mosaic_frame = get_mosaic_vframe_info(i);
+			virtual_layer = &mosaic_frame->virtual_layer;
+			frame_changed |= is_vframe_changed
+					(layer_id,
+					 virtual_layer->dispbuf, mosaic_frame->vf);
+		}
+	}
 
 	/* enable new config on the new frames */
 	if (first_picture || force_toggle || frame_changed ||
@@ -15182,8 +15317,20 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 			}
 			layer->switch_vf = false;
 		}
-		update_vframe_bit(layer, vf);
+		if (layer->mosaic_mode) {
+			int i;
+			struct mosaic_frame_s *mosaic_frame;
+			struct video_layer_s *virtual_layer;
 
+			for (i = 0; i < SLICE_NUM; i++) {
+				mosaic_frame = get_mosaic_vframe_info(i);
+				virtual_layer = &mosaic_frame->virtual_layer;
+
+				update_vframe_bit(virtual_layer, mosaic_frame->vf);
+			}
+		} else {
+			update_vframe_bit(layer, vf);
+		}
 #ifdef CONFIG_AMLOGIC_VPU
 		if (layer_id == 0) {
 			if ((vf->width > 1920 && vf->height > 1088) ||
@@ -15236,7 +15383,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		}
 	}
 	if (vd_layer[0].enabled && !vd_layer[1].enabled &&
-		(is_mvc || video_lcevc.vd2_vd1_shared_vf || vd_layer[0].mosaic_mode))
+		(is_mvc || video_lcevc.vd2_vd1_shared_vf))
 		enable_video_layer2();
 	if (first_picture || sr_phase_changed)
 		layer->new_vpp_setting = true;
@@ -19113,7 +19260,7 @@ int get_video_reg_table(u32 *check_item)
 int video_early_init(struct amvideo_device_data_s *p_amvideo)
 {
 	int r = 0;
-	u8 i = 0;
+	u8 i = 0, j = 0;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		legacy_vpp = false;
@@ -19531,6 +19678,12 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	lcevc_en = true;
 	lcevc_ctrl = 1;
 	video_lcevc.alpha = 0x80;
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++) {
+			pic_axis_get[i][j] = PIC_AXIS_INVALID;
+			pic_axis_set[i][j] = PIC_AXIS_INVALID;
+		}
+	}
 	return r;
 }
 

@@ -1161,6 +1161,11 @@ void _set_video_crop(struct disp_info_s *layer, int *p)
 			else
 				update_vppx_property(layer->layer_id);
 		}
+		if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+			pr_info("VD%d crop changed: %d %d %d %d->%d %d %d %d\n",
+				layer->layer_id + 1,
+				last_t, last_l, last_b, last_r,
+				new_t, new_l, new_b, new_r);
 	}
 }
 
@@ -6059,7 +6064,7 @@ void post_vsync_process(void)
 	for (i = 0; i < cur_dev->max_vd_layers; i++)
 		if (vd_layer[i].vd_func.vd_swap_frame) {
 			do_fun = true;
-			if ((video_lcevc.vd2_vd1_shared_vf || vd_layer[0].mosaic_mode) && i == 1) {
+			if (video_lcevc.vd2_vd1_shared_vf && i == 1) {
 				cur_vd_path_id[i] = glayer_info[0].display_path_id;
 				vd_path_id[i] = glayer_info[0].display_path_id;
 			}
@@ -7124,7 +7129,7 @@ int _video_set_disable(u32 val)
 	}
 	if (get_video_debug_flags() & DEBUG_FLAG_HDMI_DV_CRC)
 		dump_stack();
-	if (video_lcevc.vd2_vd1_shared_vf || vd_layer[0].mosaic_mode)
+	if (video_lcevc.vd2_vd1_shared_vf)
 		_videopip_set_disable(1, val);
 	return 0;
 }
@@ -7184,8 +7189,7 @@ void video_set_global_output(u32 index, u32 val)
 	if (debug_flag & DEBUG_FLAG_BASIC_INFO)
 		pr_info("VID: VD%d set global output as %d\n",
 			index + 1, (val != 0) ? 1 : 0);
-	if (index == 0 &&
-		(video_lcevc.vd2_vd1_shared_vf || vd_layer[0].mosaic_mode))
+	if (index == 0 && video_lcevc.vd2_vd1_shared_vf)
 		video_set_global_output(1, val);
 }
 

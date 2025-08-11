@@ -13,25 +13,26 @@
 
 #define MAX_VD_LAYERS 3
 
-#define MOSAIC_MODE   BIT(24) /* 1 bit */
-#define LAYER2_VPP    22 /* 2 bits */
-#define LAYER1_VPP    20 /* 2 bits */
-#define LAYER0_VPP    18 /* 2 bits */
-#define LAYER2_ALPHA  BIT(17)
-#define LAYER2_BUSY   BIT(16)
-#define LAYER2_AFBC   BIT(15)
-#define LAYER2_SCALER BIT(14)
-#define LAYER2_AVAIL  BIT(13)
-#define LAYER1_ALPHA  BIT(12)
-#define LAYER1_BUSY   BIT(11)
-#define LAYER1_AFBC   BIT(10)
-#define LAYER1_SCALER BIT(9)
-#define LAYER1_AVAIL  BIT(8)
-#define LAYER0_ALPHA  BIT(4)
-#define LAYER0_BUSY   BIT(3)
-#define LAYER0_AFBC   BIT(2)
-#define LAYER0_SCALER BIT(1)
-#define LAYER0_AVAIL  BIT(0)
+#define MOSAIC_MODE_V2 BIT(25) /* 1 bit, t6x... */
+#define MOSAIC_MODE    BIT(24) /* 1 bit, s5 */
+#define LAYER2_VPP     22 /* 2 bits */
+#define LAYER1_VPP     20 /* 2 bits */
+#define LAYER0_VPP     18 /* 2 bits */
+#define LAYER2_ALPHA   BIT(17)
+#define LAYER2_BUSY    BIT(16)
+#define LAYER2_AFBC    BIT(15)
+#define LAYER2_SCALER  BIT(14)
+#define LAYER2_AVAIL   BIT(13)
+#define LAYER1_ALPHA   BIT(12)
+#define LAYER1_BUSY    BIT(11)
+#define LAYER1_AFBC    BIT(10)
+#define LAYER1_SCALER  BIT(9)
+#define LAYER1_AVAIL   BIT(8)
+#define LAYER0_ALPHA   BIT(4)
+#define LAYER0_BUSY    BIT(3)
+#define LAYER0_AFBC    BIT(2)
+#define LAYER0_SCALER  BIT(1)
+#define LAYER0_AVAIL   BIT(0)
 
 #define LAYER_BITS_SHFIT 8
 

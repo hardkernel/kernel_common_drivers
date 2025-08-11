@@ -1879,6 +1879,10 @@ static void dump_zorder_reg(void)
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("VD1_BLEND_SRC_CTRL[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
+		reg_addr = VD2_BLEND_SRC_CTRL;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("VD2_BLEND_SRC_CTRL[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
 		reg_addr = OSD1_BLEND_SRC_CTRL;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("OSD1_BLEND_SRC_CTRL[0x%x] = 0x%X\n",
@@ -1979,9 +1983,25 @@ static void dump_mosaic_reg(void)
 	    cur_dev->mosaic_support &&
 	    vd_layer[0].mosaic_mode) {
 		pr_info("--- mosaic reg dump start ---\n");
-		reg_addr = PLAYER_2X2_CTRL;
+		reg_addr = mosaic_misc_reg.player_2x2_ctrl;
 		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("PLAYER_2X2_CTRL[0x%x] = 0x%X (2x2 enable:bit28 0xff)\n",
+		pr_info("player_2x2_ctrl[0x%x] = 0x%X (2x2 enable:bit28 0xf)\n",
+			   reg_addr, reg_val);
+		reg_addr = mosaic_misc_reg.vfcd_top_ctrl4;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vfcd_top_ctrl4[0x%x] = 0x%X (bit1)\n",
+			   reg_addr, reg_val);
+		reg_addr = mosaic_misc_reg.vfcd_top_ctrl4_1;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vfcd_top_ctrl4_1[0x%x] = 0x%X (bit1)\n",
+			   reg_addr, reg_val);
+		reg_addr = VD1_BLEND_SRC_CTRL;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("VD1_BLEND_SRC_CTRL[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = VD2_BLEND_SRC_CTRL;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("VD2_BLEND_SRC_CTRL[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
 		reg_addr = viu_misc_reg.vpp_misc;
 		reg_val = READ_VCBUS_REG(reg_addr);
