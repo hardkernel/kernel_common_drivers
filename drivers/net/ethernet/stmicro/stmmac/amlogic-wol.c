@@ -365,6 +365,25 @@ static void __set_ipv4_address(void)
 		__mbox_data_write(DATA_TYPE_IPV4_ADDR, &ip, 4);
 }
 
+bool amlogic_wol_wakeup_src_not_empty(void)
+{
+	bool retval = false;
+	int index;
+
+	/* Synchronize from BL30 */
+	__mbox_data_read(DATA_TYPE_WKUP_SRC, &wakeup_src, 4);
+
+	for (index = 1; index < ARRAY_SIZE(wakeup_names); index++) {
+		if (wakeup_src & BIT(index)) {
+			retval = true;
+			break;
+		}
+	}
+
+	return retval;
+}
+EXPORT_SYMBOL_GPL(amlogic_wol_wakeup_src_not_empty);
+
 void amlogic_wol_enter(void)
 {
 	__set_ipv4_address();

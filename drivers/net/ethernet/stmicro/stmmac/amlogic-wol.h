@@ -10,6 +10,7 @@
 
 void amlogic_wol_enter(void);
 bool amlogic_wol_exit(void);
+bool amlogic_wol_wakeup_src_not_empty(void);
 void amlogic_wol_setup(struct device *dev, struct mbox_chan *mbox);
 void amlogic_wol_remove(void);
 

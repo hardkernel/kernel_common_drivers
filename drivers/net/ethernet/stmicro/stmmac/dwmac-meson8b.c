@@ -770,8 +770,8 @@ static int meson8b_suspend(struct device *dev)
 	if (dwmac->wol_en) {
 		/* disable the old WOL to prevent the MAC from being re-enabled */
 		wol_switch_from_user = 0;
-		/* enable WOL when phy ready */
-		if (phydev) {
+		/* enable WOL when phy ready and wakeup source is not empty */
+		if (phydev && amlogic_wol_wakeup_src_not_empty()) {
 			phydev->irq_suspended = 0;
 			set_wol_notify_bl31(true);
 			set_wol_notify_bl30(dwmac, 4);
@@ -829,7 +829,7 @@ static int meson8b_resume(struct device *dev)
 #if IS_ENABLED(CONFIG_AMLOGIC_WOL)
 	/* Using the new WOL mode (processing MAC frames in BL30) */
 	if (dwmac->wol_en) {
-		if (phydev) {
+		if (phydev && amlogic_wol_wakeup_src_not_empty()) {
 			if (amlogic_wol_exit()) {
 				input_event(dwmac->input_dev, EV_KEY, KEY_POWER, 1);
 				input_sync(dwmac->input_dev);
