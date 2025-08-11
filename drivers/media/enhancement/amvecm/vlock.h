@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/enhancement/amvecm/vlock.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __AM_VLOCK_H
@@ -387,4 +374,6 @@ void vlock_set_sts_by_frame_lock(bool en);
 //void vlock_clk_config(struct device *dev);
 void vlock_reg_config(struct device *dev);
 unsigned int vlock_low_latency(unsigned int time, int flag);
+unsigned int vrr_instead_vlock(void);
+int is_video_process_in_thread(void);
 #endif

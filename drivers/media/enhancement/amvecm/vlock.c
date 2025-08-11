@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/enhancement/amvecm/vlock.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/string.h>
@@ -2842,16 +2829,54 @@ u32 vlock_fsm_to_en_func(struct stvlock_sig_sts *pvlock,
 	/* set phase
 	 * out > in, game mode can't read write the same buffer
 	 */
-	if (pvlock->video_inverse)
+	if (pvlock->video_inverse) {
 		pvlock->phlock_percent = 15;
-	else if ((pvlock->input_hz > 0) &&
-		 (pvlock->input_hz * 2 == pvlock->output_hz) &&
-		 (pvlock->output_hz != 100) && (pvlock->output_hz != 120))
-		pvlock->phlock_percent = 25;
-	else if (vlock_input_hz == 60 || vlock_input_hz == 120)
-		pvlock->phlock_percent = 50;
-	else
+	} else if (is_video_process_in_thread()) {
+		if (pvlock->input_hz > 0 &&
+			pvlock->input_hz == pvlock->output_hz) {
+			if (pvlock->input_hz == 60 || pvlock->input_hz == 120)
+				pvlock->phlock_percent = 30;
+			else
+				pvlock->phlock_percent = 40;
+		} else if ((pvlock->input_hz > 0) &&
+			(pvlock->input_hz * 2 == pvlock->output_hz)) {
+			if (pvlock->output_hz == 100 || pvlock->output_hz == 120)
+				pvlock->phlock_percent = 40;
+			else
+				pvlock->phlock_percent = 25;
+		} else {
+			pvlock->phlock_percent = 40;
+		}
+	} else if (!is_video_process_in_thread()) {
+		if (pvlock->input_hz > 0 &&
+			pvlock->input_hz == pvlock->output_hz) {
+			if (vrr_instead_vlock())
+				pvlock->phlock_percent = 50;
+			else if (vlock_input_hz == 60 || vlock_input_hz == 120)
+				pvlock->phlock_percent = 30;
+			else
+				pvlock->phlock_percent = 40;
+		} else if ((pvlock->input_hz > 0) &&
+			(pvlock->input_hz * 2 == pvlock->output_hz)) {
+			if (pvlock->output_hz != 100 && pvlock->output_hz != 120)
+				pvlock->phlock_percent = 25;
+			else if (vlock_input_hz == 60 || vlock_input_hz == 120)
+				pvlock->phlock_percent = 50;
+			else
+				pvlock->phlock_percent = 40;
+		} else {
+			pvlock->phlock_percent = 40;
+		}
+	} else {
 		pvlock->phlock_percent = 40;
+	}
+
+	if (vlock_debug & VLOCK_DEBUG_FLASH)
+		pr_info("%s inverse:%d video_low:%d instead:%d in:%d out:%d phase:%d\n",
+			__func__, pvlock->video_inverse,
+			is_video_process_in_thread(),
+			vrr_instead_vlock(), pvlock->input_hz,
+			pvlock->output_hz, pvlock->phlock_percent);
 
 	return ret;
 }

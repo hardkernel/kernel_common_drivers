@@ -944,6 +944,7 @@ unsigned int vrr_instead_vlock(void)
 
 	return ret;
 }
+EXPORT_SYMBOL(vrr_instead_vlock);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 ssize_t frame_lock_debug_store(const struct class *cla,
