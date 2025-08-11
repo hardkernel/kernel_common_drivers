@@ -31,7 +31,7 @@ static char edid_buf2[EDID_BUF_SIZE] = {0};
 static char edid_buf3[EDID_BUF_SIZE] = {0};
 static char edid_buf4[EDID_BUF_SIZE] = {0};
 u8 edid_port_type[4];
-char edid_cur[EDID_SIZE] = {0};
+char edid_cur[E_PORT_NUM * EDID_SIZE] = {0};
 #ifdef CONFIG_AMLOGIC_HDMITX
 //0: hdmi repeater
 //1: use tx edid directly
@@ -5692,14 +5692,12 @@ bool rx_edid_support_4k(u8 *p_edid)
 	return false;
 }
 
-bool get_edid_support(u8 port, enum edid_support_e func)
+bool get_edid_support(u_char *edid_buf, enum edid_support_e func)
 {
 	u32 hf_vsdb_start = 0;
 	u8 tag_len = 0;
-	u_char *edid_buf = NULL;
 	struct data_block_location_s ret;
 
-	edid_buf = rx_get_cur_used_edid(port);
 	if (!edid_buf)
 		return false;
 	if (func < HF_DB) {
@@ -7497,40 +7495,35 @@ u_char *rx_get_cur_def_edid(u_char port)
 	else if (ver == EDID_V20)
 		edid_offset = 768;
 
-	memset(edid_cur, 0, EDID_SIZE);
 	switch (port) {
 	case 0:
 		memcpy(edid_cur, edid_buf1 + edid_offset, ver == EDID_V21 ? 512 : 256);
 		break;
 	case 1:
-		memcpy(edid_cur, edid_buf2 + edid_offset, ver == EDID_V21 ? 512 : 256);
+		memcpy(edid_cur + EDID_SIZE, edid_buf2 + edid_offset,
+			ver == EDID_V21 ? 512 : 256);
 		break;
 	case 2:
-		memcpy(edid_cur, edid_buf3 + edid_offset, ver == EDID_V21 ? 512 : 256);
+		memcpy(edid_cur + EDID_SIZE * 2, edid_buf3 + edid_offset,
+			ver == EDID_V21 ? 512 : 256);
 		break;
 	case 3:
-		memcpy(edid_cur, edid_buf4 + edid_offset, ver == EDID_V21 ? 512 : 256);
+		memcpy(edid_cur + EDID_SIZE * 3, edid_buf4 + edid_offset,
+			ver == EDID_V21 ? 512 : 256);
 		break;
 	default:
 		break;
 	}
 
-	return edid_cur;
+	return &edid_cur[EDID_SIZE * port];
 }
 
 u_char *rx_get_cur_used_edid(u_char port)
 {
-	u32 i = 0;
-	u32 addr = 0;
+	if (port >= rx_info.port_num)
+		return NULL;
 
-	if (rx_info.chip_id < CHIP_ID_TM2)
-		addr = TOP_EDID_OFFSET; //todo
-	else
-		addr = edid_addr[port];
-	for (i = 0; i < 512; i++)
-		edid_cur[i] = hdmirx_rd_top(addr + i, port);
-
-	return &edid_cur[0];
+	return &edid_cur[port * EDID_SIZE];
 }
 
 void rx_print_edid_support(u8 port)
@@ -7550,16 +7543,21 @@ void rx_print_edid_support(u8 port)
 
 void rx_get_edid_support(u8 port)
 {
-	rx[port].edid_cap.vrr = get_edid_support(port, HF_VRR);
-	rx[port].edid_cap.allm = get_edid_support(port, HF_ALLM);
-	rx[port].edid_cap.qms = get_edid_support(port, HF_QMS);
-	rx[port].edid_cap.hf_db = get_edid_support(port, HF_DB);
-	rx[port].edid_cap.vsdv_db = get_edid_support(port, VSDV_DB);
-	rx[port].edid_cap.hdr10p_db = get_edid_support(port, HDR10P_DB);
-	rx[port].edid_cap.hdr_static_db = get_edid_support(port, HDR_STATIC_DB);
-	rx[port].edid_cap.hdr_dynamic_db = get_edid_support(port, HDR_DYNAMIC_DB);
-	rx[port].edid_cap.freesync_db = get_edid_support(port, FREESYNC_DB);
-	rx[port].edid_cap.timing_4k = get_edid_support(port, TIMING_4K);
+	u_char *edid_buf = NULL;
+
+	edid_buf = rx_get_cur_used_edid(port);
+	if (!edid_buf)
+		return;
+	rx[port].edid_cap.vrr = get_edid_support(edid_buf, HF_VRR);
+	rx[port].edid_cap.allm = get_edid_support(edid_buf, HF_ALLM);
+	rx[port].edid_cap.qms = get_edid_support(edid_buf, HF_QMS);
+	rx[port].edid_cap.hf_db = get_edid_support(edid_buf, HF_DB);
+	rx[port].edid_cap.vsdv_db = get_edid_support(edid_buf, VSDV_DB);
+	rx[port].edid_cap.hdr10p_db = get_edid_support(edid_buf, HDR10P_DB);
+	rx[port].edid_cap.hdr_static_db = get_edid_support(edid_buf, HDR_STATIC_DB);
+	rx[port].edid_cap.hdr_dynamic_db = get_edid_support(edid_buf, HDR_DYNAMIC_DB);
+	rx[port].edid_cap.freesync_db = get_edid_support(edid_buf, FREESYNC_DB);
+	rx[port].edid_cap.timing_4k = get_edid_support(edid_buf, TIMING_4K);
 }
 
 bool hdmi_rx_top_edid_update(void)
@@ -7599,8 +7597,10 @@ bool hdmi_rx_top_edid_update(void)
 #endif
 		for (j = 0; j <= ext_blk_num; ++j)
 			pedid[END_OF_BLK(j)] = rx_edid_calc_cksum(pedid, j);
-		for (j = 0; j < EDID_SIZE; j++)
+		for (j = 0; j < EDID_SIZE; j++) {
 			hdmirx_wr_top(edid_addr[i] + j, pedid[j], i);
+			edid_cur[i * EDID_SIZE + j] = pedid[j];
+		}
 		rx_get_edid_support(i);
 		if (log_level & EDID_LOG)
 			rx_print_edid_support(i);

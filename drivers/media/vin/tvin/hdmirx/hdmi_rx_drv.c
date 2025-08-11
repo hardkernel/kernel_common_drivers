@@ -3149,17 +3149,20 @@ static ssize_t info_show(struct device *dev,
 		pos = hdmirx_show_info(buf, PAGE_SIZE, port);
 	} else {
 		for (port = E_PORT0; port < rx_info.port_num; port++)
-			pos += hdmirx_show_info(buf + strlen(buf), PAGE_SIZE, port);
+			if (rx[port].state == FSM_SIG_READY)
+				pos += hdmirx_show_info(buf + strlen(buf), PAGE_SIZE, port);
 	}
-	pedid = rx_get_cur_used_edid(port);
-	edid_info = kzalloc(sizeof(*edid_info), GFP_KERNEL);
-	if (!edid_info) {
-		rx_pr("no enough space for edid_info\n");
-		return 0;
+	if (log_level & EDID_LOG) {
+		pedid = rx_get_cur_used_edid(rx_info.main_port);
+		edid_info = kzalloc(sizeof(*edid_info), GFP_KERNEL);
+		if (!edid_info) {
+			rx_pr("no enough space for edid_info\n");
+			return 0;
+		}
+		if (rx_edid_parse(pedid, edid_info))
+			rx_edid_parse_print(edid_info);
+		kfree(edid_info);
 	}
-	if (rx_edid_parse(pedid, edid_info))
-		rx_edid_parse_print(edid_info);
-	kfree(edid_info);
 	return pos;
 }
 

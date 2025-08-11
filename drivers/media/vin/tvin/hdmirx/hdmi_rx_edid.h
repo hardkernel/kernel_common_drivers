@@ -1388,7 +1388,7 @@ void rx_prase_earc_capds_dbg(void);
 void edid_splice_earc_capds(unsigned char *p_edid,
 			    unsigned char *earc_cap_ds,
 			    unsigned int len);
-bool get_edid_support(u8 port, enum edid_support_e func);
+bool get_edid_support(u_char *edid_buf, enum edid_support_e func);
 void edid_splice_earc_capds_dbg(u8 *p_edid);
 void edid_splice_data_blk_dbg(u8 *p_edid, u8 idx);
 void edid_rm_db_by_tag(u8 *p_edid, u16 tagid);

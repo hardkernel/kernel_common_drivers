@@ -1274,7 +1274,7 @@ extern u32 disable_hdr;
 extern int rx_phy_level;
 extern int vdin_reset_pcs_en;
 extern u32 rx_5v_wake_up_en;
-extern char edid_cur[EDID_SIZE];
+extern char edid_cur[];
 extern int vpp_mute_cnt;
 extern int gcp_mute_cnt;
 extern int gcp_mute_flag[4];
