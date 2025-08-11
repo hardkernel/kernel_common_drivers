@@ -1054,6 +1054,7 @@ static void vf_pop_display_q(struct videodisplay_dev *dev, struct vframe_s *vf)
 static void display_q_uninit(struct videodisplay_dev *dev)
 {
 	struct vframe_s *vf = NULL;
+	struct vframe_s *dst_vf = NULL;
 	int i, repeat_count;
 	struct file *file_vf;
 	struct vd_prepare_s *vd_prepare;
@@ -1065,7 +1066,11 @@ static void display_q_uninit(struct videodisplay_dev *dev)
 		kfifo_len(&dev->display_q));
 
 	while (kfifo_len(&dev->display_q) > 0) {
-		if (kfifo_get(&dev->display_q, &vf)) {
+		if (kfifo_get(&dev->display_q, &dst_vf)) {
+			if (dst_vf->type_ext & VIDTYPE_EXT_LCEVC)
+				vf = dst_vf->enhance_vf;
+			else
+				vf = dst_vf;
 			vd_prepare = container_of(vf, struct vd_prepare_s, dst_frame);
 			if (IS_ERR_OR_NULL(vd_prepare)) {
 				vd_print(dev->index, PRINT_ERROR,
@@ -2135,6 +2140,133 @@ static bool check_mosaic_22(struct videodisplay_dev *dev,
 	return true;
 }
 
+static struct vframe_s *get_enhance_vf_pointer(struct videodisplay_dev *dev,
+	struct vframe_s *vf)
+{
+	int i;
+	struct vframe_s *enhance_vf;
+
+	if (dev->kfifo_need_initialize) {
+		vd_print(dev->index, PRINT_QUEUE_STATUS, "init buffer free_q for lcevc\n");
+		dev->kfifo_need_initialize = false;
+		for (i = 0; i < DMA_BUF_COUNT; i++) {
+			if (!kfifo_put(&dev->free_q, &dev->enhance_vf[i]))
+				vd_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
+		}
+	}
+
+	if (!kfifo_get(&dev->free_q, &enhance_vf)) {
+		vd_print(dev->index, PRINT_ERROR,
+			 "task: free_q is empty, can not provide enhance_vf\n");
+		enhance_vf = NULL;
+	} else {
+		vd_print(dev->index, PRINT_OTHER,
+			 "task: get_enhance_vf:%px\n", enhance_vf);
+		memcpy(enhance_vf, vf, sizeof(struct vframe_s));
+	}
+
+	return enhance_vf;
+}
+
+static struct  uvm_lcevc_frame_info *vc_get_lcevc_data(struct videodisplay_dev *dev,
+						     struct dma_buf *src_dmabuf)
+{
+	struct uvm_lcevc_hook_data *hook_data;
+	struct uvm_lcevc_frame_info *lcevc_data;
+	struct uvm_hook_mod *uhmod;
+
+	if (!src_dmabuf) {
+		vd_print(dev->index, PRINT_ERROR, "vc get lcevc data fail\n");
+		return NULL;
+	}
+
+	uhmod = uvm_get_hook_mod(src_dmabuf, PROCESS_LCEVC);
+	if (!uhmod) {
+		vd_print(dev->index, PRINT_OTHER, "%s:dma file file_private_data is NULL 1\n",
+			__func__);
+		return NULL;
+	}
+
+	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
+		vd_print(dev->index, PRINT_ERROR, "%s: dma file file_private_data is NULL 2\n",
+			__func__);
+		return NULL;
+	}
+	hook_data = uhmod->arg;
+	lcevc_data = &hook_data->lcevc_vframe;
+	uvm_put_hook_mod(src_dmabuf, PROCESS_LCEVC);
+
+	return lcevc_data;
+}
+
+static bool set_vf_lcevc_data(struct videodisplay_dev *dev,
+	struct vframe_s *enhance_vf, struct uvm_lcevc_frame_info *lcevc_data)
+{
+	int len, i;
+
+	if (!enhance_vf || !lcevc_data)
+		return false;
+
+	enhance_vf->width = lcevc_data->width;
+	enhance_vf->height = lcevc_data->height;
+	enhance_vf->canvas0Addr = -1;
+	enhance_vf->canvas0_config[0].phy_addr = lcevc_data->y_physical_addr;
+	enhance_vf->canvas1Addr = -1;
+	enhance_vf->canvas0_config[1].phy_addr = lcevc_data->uv_physical_addr;
+
+	enhance_vf->canvas0_config[0].width = lcevc_data->stride;
+	enhance_vf->canvas0_config[0].height = enhance_vf->height;
+	enhance_vf->canvas0_config[1].width = lcevc_data->stride;
+	enhance_vf->canvas0_config[1].height = enhance_vf->canvas0_config[0].height;
+
+	enhance_vf->plane_num = 1;
+	enhance_vf->type_ext |= VIDTYPE_EXT_LCEVC;
+	enhance_vf->flag = VFRAME_FLAG_VIDEO_LINEAR
+		| VFRAME_FLAG_VIDEO_COMPOSER
+		| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+
+	if (lcevc_data->frame_type == LCEVC_RESIDUAL_Y10BIT_PACKED) {
+		vd_print(dev->index, PRINT_INDEX_DISP, "get Residual data type: Y10bitPacked\n");
+		enhance_vf->type = VIDTYPE_VIU_FIELD
+			| VIDTYPE_VIU_444
+			| VIDTYPE_VIU_SINGLE_PLANE;
+		enhance_vf->type_ext |= VIDTYPE_EXT_LUMA_ONLY;
+		enhance_vf->bitdepth = BITDEPTH_Y10;
+	} else if (lcevc_data->frame_type == LCEVC_RESIDUAL_UYVY10BIT_PACKED) {
+		vd_print(dev->index, PRINT_INDEX_DISP, "get Residual data type: UYVY10bitPacked\n");
+		enhance_vf->type = VIDTYPE_VIU_FIELD |
+			VIDTYPE_VIU_422 |
+			VIDTYPE_VIU_SINGLE_PLANE;
+		enhance_vf->bitdepth = BITDEPTH_Y10 |
+			BITDEPTH_U10 |
+			BITDEPTH_V10 |
+			FULL_PACK_422_MODE;
+	} else {
+		vd_print(dev->index, PRINT_INDEX_DISP,
+			"get unknown Residual data type: %d\n",
+			lcevc_data->frame_type);
+		return false;
+	}
+
+	memcpy(&enhance_vf->scaler_coeff, &lcevc_data->upsample_kernel, sizeof(struct vf_lcevc_t));
+	len = enhance_vf->scaler_coeff.len;
+	vd_print(dev->index, PRINT_INDEX_DISP, "task: coeff len:%d", len);
+	for (i = 0; i < len; i++) {
+		vd_print(dev->index, PRINT_INDEX_DISP,
+				"task: coeff[%d] %d %d\n",
+				i,
+				enhance_vf->scaler_coeff.k[0][i],
+				enhance_vf->scaler_coeff.k[1][i]);
+	}
+	vd_print(dev->index, PRINT_INDEX_DISP,
+		"task: enhance_vf width:%d, height:%d, enhance_vf yuv addr:%px\n",
+		enhance_vf->width,
+		enhance_vf->height,
+		(void *)enhance_vf->canvas0_config[0].phy_addr);
+
+	return true;
+}
+
 static bool detect_vf_usage(struct videodisplay_dev *dev,
 	struct received_frames_t *received_frames, bool *need_composer_ptr, bool *mosaic_22_ptr)
 {
@@ -2903,6 +3035,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 	struct frame_info_t *frame_info = NULL;
 	u32 num = 0;
 	struct vframe_s *vf = NULL;
+	struct vframe_s *enhance_vf = NULL;
 	int ready_count = 0;
 	bool is_dec_vf = false, is_v4l_vf = false, is_repeat_vf = false;
 	struct vd_prepare_s *vd_prepare = NULL;
@@ -2911,6 +3044,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 	struct vframe_s *vf_ext = NULL;
 	int pic_w = 0, pic_h = 0;
 	bool enable_prelink = false;
+	struct uvm_lcevc_frame_info *lcevc_data;
 
 	if (!dev || !received_frames) {
 		pr_info("%s: NULL param.\n", __func__);
@@ -3108,6 +3242,26 @@ static void vframe_display(struct videodisplay_dev *dev,
 		((struct vframe_s *)vf->vf_ext)->vc_private = vf->vc_private;
 	vf->file_vf = (struct file *)(frame_info->dmabuf);
 	vf->repeat_count = 0;
+
+	if (vf->type_ext & VIDTYPE_EXT_LCEVC) {
+		lcevc_data = vc_get_lcevc_data(dev, frame_info->dmabuf);
+		if (!lcevc_data)
+			vd_print(dev->index, PRINT_ERROR,
+				"task: lcevc data is NULL!\n");
+		else
+			enhance_vf = get_enhance_vf_pointer(dev, vf);
+		if (set_vf_lcevc_data(dev, enhance_vf, lcevc_data)) {
+			vf->enhance_vf = enhance_vf;
+			enhance_vf = vf;
+			vf = vf->enhance_vf;
+			vf->enhance_vf = enhance_vf;
+		} else {
+			vd_print(dev->index, PRINT_ERROR,
+				"task: set lcevc data failed\n");
+			vf->type_ext &= ~VIDTYPE_EXT_LCEVC;
+		}
+	}
+
 	dev->vd_prepare_last = vd_prepare;
 
 	video_display_push_ready(dev, vf);
@@ -3571,7 +3725,7 @@ static void vd_vf_put(struct vframe_s *vf, void *op_arg)
 
 		file_vf = vf->file_vf;
 
-		vf_pop_display_q(dev, vf);
+		vf_pop_display_q(dev, display_vf);
 		if (!file_vf)
 			vd_print(dev->index, PRINT_ERROR, "put: file error!!!\n");
 
@@ -3601,6 +3755,11 @@ static void vd_vf_put(struct vframe_s *vf, void *op_arg)
 		if (vf->vc_private) {
 			vd_private_q_recycle(dev, vf->vc_private);
 			vf->vc_private = NULL;
+		}
+		if (vf->type_ext & VIDTYPE_EXT_LCEVC) {
+			vd_print(dev->index, PRINT_OTHER, "put enhance vf:%px\n", vf->enhance_vf);
+			if (!kfifo_put(&dev->free_q, vf->enhance_vf))
+				vd_print(dev->index, PRINT_ERROR, "put free_q is full\n");
 		}
 		vd_print(dev->index, PRINT_OTHER | PRINT_PATTERN,
 			"%s: frame_index=%d, repeat_count=%d, put_count=%lld.\n",

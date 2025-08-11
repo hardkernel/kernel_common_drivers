@@ -55,6 +55,9 @@
 #define VCOM_PROVIDER_NAME_SIZE 32
 #define PATTEN_FACTOR_MAX 5
 
+#define LCEVC_RESIDUAL_Y10BIT_PACKED	1
+#define LCEVC_RESIDUAL_UYVY10BIT_PACKED	5
+
 struct frame_info_t {
 	struct dma_buf *dmabuf;
 	struct dma_fence *input_fence;
