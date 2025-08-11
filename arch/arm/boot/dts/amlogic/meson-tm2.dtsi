@@ -897,9 +897,11 @@
 		startup-position = /bits/ 8 <PURE_DDR>; /*host dsp start mode : DDR*/
 		memory-region = <&dsp_fw_reserved0>;
 		reg-names = "base-reg",
+			    "health-reg",
 			    "device-support-reg",
 			    "ddrfw-region";
 		reg = <0xff680000 0x114>, /*host base reg address*/
+		      <0xff800138 0x4>, /*host health reg address*/
 		      <0xff63003c 0x4>, /*dsp support region*/
 		      <0x0 0xa00000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPA_MUX>;
@@ -913,6 +915,7 @@
 		dsp-support-bit = <0x4000>;
 		mboxes = <&mbox_pl0 TM2_REE2AO_HIFI4DSPA>;
 		power-domains = <&pwrc  PWRC_TM2_DSPA_ID>;
+		health-polling-ms = <1000>;
 		clkfreq-khz = <400000>;
 	};
 
@@ -922,9 +925,11 @@
 		startup-position = /bits/ 8 <PURE_DDR>; /*host dsp start mode : DDR*/
 		memory-region = <&dsp_fw_reserved1>;
 		reg-names = "base-reg",
+			    "health-reg",
 			    "device-support-reg",
 			    "ddrfw-region";
 		reg = <0xff690000 0x114>, /*host base reg address*/
+		      <0xff80013c 0x4>, /*host health reg address*/
 		      <0xff63003c 0x4>, /*dsp support region*/
 		      <0x0 0x600000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPB_MUX>;
@@ -938,6 +943,7 @@
 		dsp-support-bit = <0x8000>;
 		mboxes = <&mbox_pl0 TM2_REE2AO_HIFI4DSPB>;
 		power-domains = <&pwrc  PWRC_TM2_DSPB_ID>;
+		health-polling-ms = <1000>;
 		clkfreq-khz = <400000>;
 	};
 

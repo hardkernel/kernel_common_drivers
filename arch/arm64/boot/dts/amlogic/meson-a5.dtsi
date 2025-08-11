@@ -420,6 +420,7 @@
 		 */
 		pm-support = /bits/ 8 <0x1>;
 		//logbuff-polling-ms = <50>;
+		health-polling-ms = <1000>;
 		clkfreq-khz = <800000>;
 	};
 

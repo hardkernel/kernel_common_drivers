@@ -437,6 +437,7 @@
 		power-domain-names = "dspa";
 		mboxes = <&mbox_fifo T3_REE2DSPA_DSP>;
 		//logbuff-polling-ms = <50>;
+		health-polling-ms = <1000>;
 		clkfreq-khz = <800000>;
 	};
 

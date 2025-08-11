@@ -415,6 +415,7 @@
 		mboxes = <&mbox_fifo T7_REE2DSPA_DSP>;
 		power-domains = <&pwrdm PDID_T7_DSPA>;
 		//logbuff-polling-ms = <50>;
+		health-polling-ms = <1000>;
 		clkfreq-khz = <800000>;
 	};
 
@@ -442,6 +443,7 @@
 		mboxes = <&mbox_fifo T7_REE2DSPB_DSP>;
 		power-domains = <&pwrdm PDID_T7_DSPB>;
 		//logbuff-polling-ms = <50>;
+		health-polling-ms = <1000>;
 		clkfreq-khz = <800000>;
 	};
 

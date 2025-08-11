@@ -397,9 +397,11 @@
 		startup-position = /bits/ 8 <PURE_DDR>; /*host dsp start mode : DDR*/
 		memory-region = <&dsp_fw_reserved>;
 		reg-names = "base-reg",
+			    "health-reg",
 			    "device-support-reg",
 			    "ddrfw-region";
 		reg = <0x0 0xfe340000 0x0 0x114>, /*host base address*/
+		      <0x0 0xfe010258 0x0 0x4>, /*host health reg address*/
 		      <0x0 0xfe44006c 0x0 0x4>, /*dsp support region*/
 		      <0x0 0x0 0x0 0x800000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPA>;
@@ -419,6 +421,7 @@
 		power-domains = <&pwrdm PDID_SC2_DSP>;
 		mboxes = <&mbox_fifo SC2_REE2DSPA_HOST>,
 			 <&mbox_fifo SC2_DSPA2REE_HOST>;
+		health-polling-ms = <1000>;
 		clkfreq-khz = <800000>;
 	};
 
