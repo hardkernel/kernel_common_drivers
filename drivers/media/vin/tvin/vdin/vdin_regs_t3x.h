@@ -33,6 +33,8 @@ enum vdin_vdi_x_t3x_e {
 };
 
 /* t3x vdin_preproc begin */
+#define VPU_VDIN_HDMI_CTRL_REG_OFFSET              2
+#define VPU_VDIN_HDMI_TUNNEL_REG_OFFSET            1
 #define VPU_VDIN_HDMI0_CTRL0                       0x272c
 // Bit 0        reg_hdmi_en
 // Bit 1        reg_dsc_en

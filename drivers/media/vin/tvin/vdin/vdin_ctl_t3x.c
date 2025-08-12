@@ -628,27 +628,29 @@ void vdin_set_top_t3x(struct vdin_dev_s *devp, enum tvin_port_e port,
 
 	wr_bits(devp->index * VDIN_TOP_OFFSET, VDIN0_SYNC_CONVERT_SECURE_CTRL, vdin_mux, 0, 3);
 	wr_bits(devp->index * VDIN_TOP_OFFSET, VDIN0_SYNC_CONVERT_CTRL, 1, 0, 1); /* reg_enable */
-	/* vdin_preproc */
-	wr(0, VPU_VDIN_HDMI0_CTRL0,
-		(1 << 0) | /* reg_hdmi_en */
-		(0 << 2) | /* reg_in_ppc,hdmi rx */
-		(1 << 4) | /* reg_out_ppc,2ppc */
-		(2 << 6));/* reg_dsc_ppc,444 */
-	wr(0, VPU_VDIN_HDMI0_CTRL1,
-		(0 << 0) |  /* xxx */
-		(100 << 8));/* reg_rdwin_auto */
-	wr(0, VPU_VDIN_HDMI1_CTRL1,
-		(0 << 0) |  /* xxx */
-		(100 << 8));/* reg_rdwin_auto */
-	if (devp->h_skip_en)
-		wr_bits(0, VPU_VDIN_HDMI0_CTRL1, 1, 4, 2); /* reg_hskip_mode */
-	if (devp->v_skip_en)
-		wr_bits(0, VPU_VDIN_HDMI0_CTRL1, 1, 7, 1); /* reg_vskip_en */
-	if (devp->v_active >= 4320)
-		wr_bits(0, VPU_VDIN_HDMI0_CTRL1, 0, 30, 1);
-	else
-		wr_bits(0, VPU_VDIN_HDMI0_CTRL1, devp->pre_prop.up_sample_en, 30, 1);
-
+	if (devp->hw_core == VDIN_HW_CORE_NORMAL) {
+		/* vdin_preproc */
+		wr(devp->index * VPU_VDIN_HDMI_CTRL_REG_OFFSET, VPU_VDIN_HDMI0_CTRL0,
+			(1 << 0) | /* reg_hdmi_en */
+			(0 << 2) | /* reg_in_ppc,hdmi rx */
+			(1 << 4) | /* reg_out_ppc,2ppc */
+			(2 << 6));/* reg_dsc_ppc,444 */
+		wr(devp->index * VPU_VDIN_HDMI_CTRL_REG_OFFSET, VPU_VDIN_HDMI0_CTRL1,
+			(0 << 0) |  /* xxx */
+			(100 << 8));/* reg_rdwin_auto */
+		if (devp->h_skip_en)
+			wr_bits(devp->index * VPU_VDIN_HDMI_CTRL_REG_OFFSET,
+				VPU_VDIN_HDMI0_CTRL1, 1, 4, 2); /* reg_hskip_mode */
+		if (devp->v_skip_en)
+			wr_bits(devp->index * VPU_VDIN_HDMI_CTRL_REG_OFFSET,
+				VPU_VDIN_HDMI0_CTRL1, 1, 7, 1); /* reg_vskip_en */
+		if (devp->v_active >= 4320)
+			wr_bits(devp->index * VPU_VDIN_HDMI_CTRL_REG_OFFSET,
+				VPU_VDIN_HDMI0_CTRL1, 0, 30, 1);
+		else
+			wr_bits(devp->index * VPU_VDIN_HDMI_CTRL_REG_OFFSET,
+				VPU_VDIN_HDMI0_CTRL1, devp->pre_prop.up_sample_en, 30, 1);
+	}
 	vdin_set_scl_mode_t3x(devp, devp->dv_hw5.hw5_ctl & BIT0);
 }
 
@@ -1999,7 +2001,7 @@ void vdin_set_dv_tunnel_t3x(struct vdin_dev_s *devp)
 	} else {
 		if (devp->debug.vdin_dbg_en)
 			pr_info("vdin%d,disable hdmi_if tunnel\n", devp->index);
-		wr(0, VPU_VDIN_HDMI0_TUNNEL, 0x0);
+		wr(devp->index * VPU_VDIN_HDMI_TUNNEL_REG_OFFSET, VPU_VDIN_HDMI0_TUNNEL, 0x0);
 	}
 }
 
