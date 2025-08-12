@@ -3168,6 +3168,7 @@ RESTART:
 	}
 	/*pre hsc&vsc in pps for scaler down*/
 	if (cur_dev->vd1_vsr_safa_support &&
+		input->layer_id == 0 &&
 		((filter->vpp_vsc_start_phase_step >= 0x2000000 &&
 		pre_scaler_en) ||
 		pre_scaler[input->layer_id].force_pre_scaler)) {
@@ -3196,6 +3197,7 @@ RESTART:
 	    pre_scaler_en) ||
 	    pre_scaler[input->layer_id].force_pre_scaler) {
 		filter->vpp_pre_vsc_en = 1;
+		pre_scaler[input->layer_id].pre_vscaler_rate = 1;
 		filter->vpp_vsc_start_phase_step >>=
 			pre_scaler[input->layer_id].pre_vscaler_rate;
 		ratio_y >>= pre_scaler[input->layer_id].pre_vscaler_rate;
@@ -3211,6 +3213,7 @@ RESTART:
 		filter->vpp_pre_hsc_ratio = 0;
 	}
 	if (cur_dev->vd1_vsr_safa_support &&
+		input->layer_id == 0 &&
 		((filter->vpp_hsc_start_phase_step >= 0x2000000 &&
 		pre_scaler_en) ||
 		pre_scaler[input->layer_id].force_pre_scaler)) {
@@ -3243,6 +3246,7 @@ RESTART:
 	    pre_scaler_en) ||
 	    pre_scaler[input->layer_id].force_pre_scaler) {
 		filter->vpp_pre_hsc_en = 1;
+		pre_scaler[input->layer_id].pre_hscaler_rate = 1;
 		filter->vpp_hf_start_phase_step >>=
 			pre_scaler[input->layer_id].pre_hscaler_rate;
 		filter->vpp_hsc_start_phase_step >>=
