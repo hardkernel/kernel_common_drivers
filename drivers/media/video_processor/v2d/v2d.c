@@ -42,7 +42,8 @@
 #define BUFFER_720_WIDTH    1280
 #define BUFFER_720_HEIGHT    720
 
-static u32 v2d_instance_num = 2;
+static u32 v2d_instance_num;
+
 static enum composer_dev  v2d_dev_choice;
 static int use_full_axis_scaling = 1;
 static int display_yuv444;
@@ -73,6 +74,11 @@ static struct v2d_port_s ports[] = {
 	{
 		.name = "v2d.1",
 		.index = 1,
+		.open_count = 0,
+	},
+	{
+		.name = "v2d.2",
+		.index = 2,
 		.open_count = 0,
 	},
 };
@@ -2283,7 +2289,7 @@ static int v2d_release(struct inode *inode, struct file *file)
 
 	pr_info("%s enable=%d\n", __func__, dev->status_enabled);
 
-	if (iminor(inode) >= V2D_INSTANCE_NUM)
+	if (iminor(inode) >= v2d_instance_num)
 		return -ENODEV;
 	if (dev->status_enabled) {
 		ret = v2d_set_enable(dev, 0);
@@ -2604,7 +2610,17 @@ static int v2d_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int i = 0;
+	u32 layer_cap = 0;
 	struct v2d_port_s *st;
+
+	layer_cap = video_get_layer_capability();
+	v2d_instance_num = 0;
+	if (layer_cap & LAYER0_SCALER)
+		v2d_instance_num++;
+	if (layer_cap & LAYER1_SCALER)
+		v2d_instance_num++;
+	if (layer_cap & LAYER2_SCALER)
+		v2d_instance_num++;
 
 	ret = class_register(&v2d_class);
 	if (ret < 0)
@@ -2616,7 +2632,7 @@ static int v2d_probe(struct platform_device *pdev)
 		goto error1;
 	}
 
-	for (st = &ports[0], i = 0; i < V2D_INSTANCE_NUM; i++, st++) {
+	for (st = &ports[0], i = 0; i < v2d_instance_num; i++, st++) {
 		pr_debug("%s:ports[i].name=%s, i=%d\n", __func__,
 		       ports[i].name, i);
 		st->pdev = &pdev->dev;
@@ -2638,7 +2654,7 @@ static void v2d_remove(struct platform_device *pdev)
 	int i;
 	struct v2d_port_s *st;
 
-	for (st = &ports[0], i = 0; i < V2D_INSTANCE_NUM; i++, st++)
+	for (st = &ports[0], i = 0; i < v2d_instance_num; i++, st++)
 		device_destroy(&v2d_class, MKDEV(V2D_MAJOR, i));
 
 	unregister_chrdev(V2D_MAJOR, "v2d");
