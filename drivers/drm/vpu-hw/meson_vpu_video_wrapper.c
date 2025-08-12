@@ -91,6 +91,14 @@ static u32 video_type_get(u32 pixel_format)
 		vframe_type = VIDTYPE_VIU_NV21 | VIDTYPE_VIU_FIELD |
 				VIDTYPE_PROGRESSIVE;
 		break;
+	case DRM_FORMAT_NV16:
+		vframe_type = VIDTYPE_VIU_NV16 | VIDTYPE_VIU_FIELD |
+				VIDTYPE_PROGRESSIVE;
+		break;
+	case DRM_FORMAT_NV61:
+		vframe_type = VIDTYPE_VIU_NV61 | VIDTYPE_VIU_FIELD |
+				VIDTYPE_PROGRESSIVE;
+		break;
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_UYVY:
@@ -125,6 +133,8 @@ static u32 video_bitdepth_get(u32 pixel_format)
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_VYUY:
 	case DRM_FORMAT_VUY888:
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
 		bitdepth_type = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 		break;
 	case DRM_FORMAT_YUVX1010102:
@@ -425,7 +435,9 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		video_vfm_convert_to_vfminfo(mvvs, &vf_info);
 		vf_info.phy_addr[0] = mvvs->phy_addr[0];
 		if (pixel_format == DRM_FORMAT_NV12 ||
-			pixel_format == DRM_FORMAT_NV21) {
+			pixel_format == DRM_FORMAT_NV21 ||
+			pixel_format == DRM_FORMAT_NV16 ||
+			pixel_format == DRM_FORMAT_NV61) {
 			if (!mvvs->phy_addr[1])
 				vf_info.phy_addr[1] = phy_addr + byte_stride * fb_h;
 			else

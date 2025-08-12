@@ -3049,6 +3049,18 @@ static void vframe_display(struct videodisplay_dev *dev,
 			/*big endian default support*/
 			vf->canvas0_config[1].endian = 0;
 			vf->plane_num = 2;
+		} else if ((frame_info->type & VIDTYPE_VIU_NV16) ||
+			(frame_info->type & VIDTYPE_VIU_NV61)) {
+			phy_addr2 = frame_info->phy_addr[1];
+			vf->plane_num = 2;
+			vf->canvas0_config[1].phy_addr = phy_addr2;
+			vf->canvas0_config[1].width = frame_info->buffer_w;
+			vf->canvas0_config[1].height = frame_info->buffer_h;
+			vf->canvas0_config[1].block_mode =
+				CANVAS_BLKMODE_LINEAR;
+			/*big endian default support*/
+			vf->canvas0_config[1].endian = 0;
+			vf->plane_num = 2;
 		}
 
 		vf->width = frame_info->buffer_w;
