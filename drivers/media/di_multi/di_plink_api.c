@@ -3296,6 +3296,12 @@ bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm,
 	    !dpvpp_is_insert(link_mode))
 		return false;
 
+	if (dip_itf_is_ins_exbuf(pch)) {
+		dbg_plink1("%s:exbuf mode, skip link mode:%d\n",
+			__func__, link_mode);
+		return false;
+	}
+
 	if (link_mode == EPVPP_API_MODE_PRE)
 		reason = dpvpp_bypass_check_prelink(vfm, true);
 	else if (link_mode == EPVPP_API_MODE_POST)
