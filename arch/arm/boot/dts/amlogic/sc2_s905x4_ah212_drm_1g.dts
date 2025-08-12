@@ -222,6 +222,8 @@
 			status = "disable";
 			reusable;
 			size = <0x1000000>;
+			swiotlb-size = <0xc00000>;
+			atomic-size = <0x40000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x30000000>;
 		};

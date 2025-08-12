@@ -221,9 +221,7 @@ enum dma_sync_target {
 			((val) & ((align) - 1)))
 
 /* default to 32MB */
-/* #define AML_IO_TLB_DEFAULT_SIZE (64UL << 20) */
-#define AML_IO_TLB_ATOMIC_SIZE (4UL << 20)
-size_t default_size;
+static u64 aml_swiotlb_size;
 
 /*
  * Maximum allowable number of contiguous slabs to map,
@@ -667,17 +665,16 @@ static struct device *aml_dma_dev;
  */
 static void __nocfi pcie_swiotlb_init(struct device *dma_dev)
 {
-	/* size_t default_size = AML_IO_TLB_DEFAULT_SIZE; */
 	unsigned char *vstart;
 	unsigned long bytes;
 	dma_addr_t paddr = 0;
 
-	if (!default_size) {
+	if (!aml_swiotlb_size) {
 		pr_err("swiotlb size init zero.\n");
 		return;
 	}
 	if (!io_tlb_nslabs) {
-		io_tlb_nslabs = (default_size >> IO_TLB_SHIFT);
+		io_tlb_nslabs = (aml_swiotlb_size >> IO_TLB_SHIFT);
 		io_tlb_nslabs = ALIGN(io_tlb_nslabs, IO_TLB_SEGSIZE);
 	}
 
@@ -698,7 +695,7 @@ static void __nocfi pcie_swiotlb_init(struct device *dma_dev)
 static struct gen_pool *aml_atomic_pool;
 
 /* Size can be defined by the coherent_pool command line */
-static size_t atomic_pool_size;
+static u64 atomic_pool_size;
 
 static int __nocfi aml_atomic_pool_expand(struct device *dev, struct gen_pool *pool,
 			      size_t pool_size, gfp_t gfp)
@@ -1311,6 +1308,19 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 		dev_err(dev, "parse memory region failed.\n");
 		return -1;
 	}
+
+	ret = of_property_read_u64(mem_node, "swiotlb-size", &aml_swiotlb_size);
+	if (ret) {
+		dev_err(dev, "Failed to parse swiotlb-size: %d\n", ret);
+		return -1;
+	}
+	ret = of_property_read_u64(mem_node, "atomic-size", &atomic_pool_size);
+	if (ret) {
+		dev_err(dev, "Failed to parse atomic-size: %d\n", ret);
+		return -1;
+	}
+	pr_info("aml_swiotlb_size = %lluKB, atomic_pool_size = %lluKB\n",
+		aml_swiotlb_size / SZ_1K, atomic_pool_size / SZ_1K);
 	rmem = of_reserved_mem_lookup(mem_node);
 	of_node_put(mem_node);
 	if (rmem) {
@@ -1328,7 +1338,6 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 	}
 
 	g_rmem1 = rmem;
-	default_size = rmem->size - AML_IO_TLB_ATOMIC_SIZE;
 	pcie_swiotlb_init(dev);
 	aml_dma_atomic_pool_init(dev);
 
