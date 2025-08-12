@@ -48,8 +48,8 @@
 #include "../vin/tvin/hdmirx/hdmi_rx_drv_ext.h"
 #endif
 
-//CEC spec 5.2.2 Data Bit Timing --- 1 bit period=2.4ms
-#define CEC_BIT_PERIOD_US	2400
+// CEC bus idle check interval in microseconds
+#define CEC_BUS_CHECK_INTERVAL_US     1000
 
 static struct current_spd_device_info  current_spd_info[4];
 
@@ -61,7 +61,7 @@ static int cec_line_cnt;
 static int conflict_result;
 static struct completion conflict_done;
 static atomic_t conflict_attempts;
-static atomic_t required_bit_periods;
+static atomic_t required_idle_checks;
 
 static const char * const cec_reg_name1[] = {
 	"CEC_TX_MSG_LENGTH",
@@ -1637,6 +1637,7 @@ static int cec_read_padreg(void)
 		reg = read_pad_reg(PREG_PAD_GPIO3_I);
 		break;
 	case CEC_CHIP_T5M:
+	case CEC_CHIP_T6D:
 		/* GPIOW_16 */
 		reg = read_pad_reg(PADCTRL_GPIOW_I_T5M);
 		break;
@@ -1682,30 +1683,34 @@ enum hrtimer_restart cec_line_check(struct hrtimer *timer)
 {
 	if (get_line() == 0)
 		cec_line_cnt++;
-	if (atomic_inc_return(&conflict_attempts) >= atomic_read(&required_bit_periods)) {
+	if (atomic_inc_return(&conflict_attempts) >= atomic_read(&required_idle_checks)) {
 		conflict_result = (cec_line_cnt == 0) ? 0 : -EBUSY;
 		complete(&conflict_done);
 		return HRTIMER_NORESTART;
 	}
-	hrtimer_forward_now(timer, ns_to_ktime(CEC_BIT_PERIOD_US * 1000UL));
+	hrtimer_forward_now(timer, ns_to_ktime(CEC_BUS_CHECK_INTERVAL_US * 1000UL));
 	return HRTIMER_RESTART;
 }
 
 int check_conflict(int bit_periods)
 {
 	int i;
+	int required_checks;
 	unsigned int timeout_us = CEC_FREE_TIME_TO_USEC(bit_periods);
 
+	timeout_us += CEC_BUS_CHECK_INTERVAL_US;
+	required_checks = (timeout_us - 1) / CEC_BUS_CHECK_INTERVAL_US;
 	for (i = 0; i < CEC_CHK_BUS_CNT; i++) {
+		cec_line_cnt = 0;
 		conflict_result = -EBUSY;
 		init_completion(&conflict_done);
 		atomic_set(&conflict_attempts, 0);
-		atomic_set(&required_bit_periods, bit_periods);
+		atomic_set(&required_idle_checks, required_checks);
 		hrtimer_start(&start_bit_check,
-					  ns_to_ktime(CEC_BIT_PERIOD_US * 1000UL),
+					  ns_to_ktime(CEC_BUS_CHECK_INTERVAL_US * 1000UL),
 					  HRTIMER_MODE_REL);
 		if (!wait_for_completion_timeout(&conflict_done,
-						usecs_to_jiffies(timeout_us + CEC_BIT_PERIOD_US))) {
+						usecs_to_jiffies(timeout_us))) {
 			hrtimer_cancel(&start_bit_check);
 			continue;
 		}

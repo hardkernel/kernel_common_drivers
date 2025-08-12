@@ -2367,8 +2367,8 @@ static const struct cec_platform_data_s cec_txhd2_data = {
 
 static const struct cec_platform_data_s cec_t6d_data = {
 	.chip_id = CEC_CHIP_T6D,
-	.line_reg = 0xff,/*don't check*/
-	.line_bit = 0,
+	.line_reg = 2,
+	.line_bit = 12,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 0,
 	.ceca_ver = CECA_NONE,
