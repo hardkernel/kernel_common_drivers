@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/vout/cvbs/cvbs_out.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 /* Linux Headers */
@@ -482,6 +469,13 @@ static int cvbs_out_setmode(void)
 #ifdef CONFIG_CVBS_PERFORMANCE_COMPATIBILITY_SUPPORT
 	cvbs_performance_enhancement(local_cvbs_mode);
 #endif
+	/* set CGMS-A level */
+	if (local_cvbs_mode == MODE_480CVBS ||
+		local_cvbs_mode == MODE_NTSC_M)
+		wss_process_cmd(WSS_480I_CMD_CGMS_A, cvbs_drv->cgms_level);
+	else if (local_cvbs_mode == MODE_576CVBS)
+		wss_process_cmd(WSS_576I_CMD_CGMS_A, cvbs_drv->cgms_level);
+
 	cvbs_drv->flag |= CVBS_FLAG_EN_ENCI;
 	schedule_delayed_work(&cvbs_drv->vdac_dwork, msecs_to_jiffies(1000));
 	mutex_unlock(&setmode_mutex);
@@ -701,6 +695,9 @@ static int cvbs_module_disable(enum vmode_e cur_vmod, void *data)
 	cvbs_drv->flag &= ~CVBS_FLAG_EN_ENCI;
 
 	cvbs_vdac_output(0);
+	/* disable CGMS-A */
+	wss_process_cmd(WSS_480I_CMD_CGMS_A, 0xFF);
+	wss_process_cmd(WSS_576I_CMD_CGMS_A, 0xFF);
 
 	/*restore full range for encp/encl*/
 	amvecm_clip_range_limit(0);
@@ -1626,6 +1623,18 @@ static void cvbsout_get_config(struct device *dev)
 				i++;
 			}
 		}
+	}
+	ret = of_property_read_u32(dev->of_node, "cgms_level", &val);
+	if (!ret) {
+		if (val > 0x3) {
+			cvbs_drv->cgms_level = 0xFF;
+			cvbs_log_err("error: invalid cgms_level, set default 0xFF\n");
+		} else {
+			cvbs_drv->cgms_level = val;
+			cvbs_log_info("dts cgms_level:0x%x\n", cvbs_drv->cgms_level);
+		}
+	} else {
+		cvbs_drv->cgms_level = 0xFF;
 	}
 }
 

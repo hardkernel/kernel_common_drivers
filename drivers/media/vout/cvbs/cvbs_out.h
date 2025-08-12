@@ -118,6 +118,13 @@ struct cvbs_drv_s {
 	bool sva_std;
 	/* for NTSC, 1: use TTC performance config, 0: use domestic */
 	bool ntsc_ttc;
+	/* 0: no copy right asserted or status unknown / copying not restricted
+	 * 1: no copy right asserted or status unknown / copying not restricted
+	 * 2: copy right asserted / copying not restricted
+	 * 3: no copy right asserted or status unknown / copying restricted
+	 * 0xff: CGMS disabled, default
+	 */
+	u32 cgms_level;
 	struct delayed_work vdac_dwork;
 	unsigned int flag;
 
@@ -171,5 +178,6 @@ int cvbs_cpu_type(void);
 const struct vinfo_s *get_valid_vinfo(char  *mode);
 int cvbs_set_current_vmode(enum vmode_e mode, void *data);
 struct meson_cvbsout_data *get_cvbs_data(void);
+void wss_process_cmd(unsigned int cmd, unsigned int param);
 
 #endif

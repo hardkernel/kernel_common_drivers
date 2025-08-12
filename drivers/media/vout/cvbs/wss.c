@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/vout/cvbs/wss.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/version.h>
@@ -41,10 +28,11 @@ static unsigned int cgms_ntsc_crc[] = {0x0, 0x5, 0xa, 0xf};
 static unsigned int cvbsout_wss_flag;
 
 static void wss_set_output(unsigned int cmd, unsigned int mode,
-			   unsigned int line, unsigned int data,
+			   unsigned int line, unsigned int param, unsigned int mask,
 			   unsigned int start, unsigned int length)
 {
 	unsigned int value;
+	unsigned int data = param & mask;
 
 	switch (cmd) {
 	case WSS_576I_CMD_CC:
@@ -58,6 +46,10 @@ static void wss_set_output(unsigned int cmd, unsigned int mode,
 		break;
 	case WSS_480I_CMD_CGMS_A:
 		cvbsout_wss_flag |= WSS_480I_CGMS_A_EN_BIT;
+		if (param == 0xFF) {
+			cvbs_out_reg_setb(ENCI_VBI_SETTING, 0x0, 4, 2);
+			break;
+		}
 		data = (data > 3) ? 0 : data;
 		value = ((data << start) | (cgms_ntsc_crc[data] << 14));
 
@@ -84,6 +76,10 @@ static void wss_set_output(unsigned int cmd, unsigned int mode,
 		break;
 	case WSS_576I_CMD_CGMS_A:
 		cvbsout_wss_flag |= WSS_576I_CGMS_A_EN_BIT;
+		if (param == 0xFF) {
+			cvbs_out_reg_setb(ENCI_VBI_SETTING, 0x0, 2, 2);
+			break;
+		}
 		cvbs_out_reg_setb(ENCI_VBI_WSSDT, data, start, length);
 		value = cvbs_out_reg_read(ENCI_VBI_WSSDT);
 		if ((value & 0xf) == 0x0)/* correct the bit3: odd_parity_bit */
@@ -128,7 +124,7 @@ static void wss_close_output(unsigned int mode)
 	//close cgms-a and other
 	if (mode == 480) {
 		cvbsout_wss_flag &= (~WSS_480I_CGMS_A_EN_BIT);
-		cvbs_out_reg_setb(ENCI_VBI_SETTING, 0x0, 2, 4);
+		cvbs_out_reg_setb(ENCI_VBI_SETTING, 0x0, 4, 2);
 	} else {
 		cvbsout_wss_flag &= (~WSS_576I_CGMS_A_EN_BIT);
 		cvbsout_wss_flag &= (~WSS_OTHER_BIT);
@@ -397,7 +393,7 @@ static unsigned int wss_params_mapping(unsigned int cmd, unsigned int param)
 	return value;
 }
 
-static void wss_process_cmd(unsigned int cmd, unsigned int param)
+void wss_process_cmd(unsigned int cmd, unsigned int param)
 {
 	unsigned int value, mode = 576;
 	unsigned int i, max = sizeof(wss_info) / sizeof(struct wss_info_t);
@@ -414,10 +410,9 @@ static void wss_process_cmd(unsigned int cmd, unsigned int param)
 
 		for (i = 0; i < max; i++) {
 			if (cmd == wss_info[i].wss_cmd) {
-				value = param & wss_info[i].mask;
-				value = wss_params_mapping(cmd, value);
+				value = wss_params_mapping(cmd, param);
 				wss_set_output(cmd, mode, wss_info[i].wss_line,
-				value, wss_info[i].start, wss_info[i].length);
+				value, wss_info[i].mask, wss_info[i].start, wss_info[i].length);
 			}
 		}
 	}
@@ -435,7 +430,7 @@ static void wss_process_description(unsigned int cmd)
 
 static void wss_show_status(unsigned int mode, char *wss_cmd)
 {
-	unsigned int data = cvbs_out_reg_read(ENCI_VBI_WSSDT);
+	unsigned int data = 0;
 
 	if (!wss_cmd) {
 		pr_info("%s wss_cmd is null\n", __func__);
@@ -446,12 +441,15 @@ static void wss_show_status(unsigned int mode, char *wss_cmd)
 		__func__, mode, wss_cmd, cvbsout_wss_flag);
 	if (mode == MODE_576CVBS) {
 		if (!strncmp(wss_cmd, "cgms", strlen("cgms"))) {
+			data = cvbs_out_reg_read(ENCI_VBI_SETTING);
+			if (((data >> 2) & 0x3) != 0x1) {
+				pr_info("cgms disabled\n");
+				return;
+			}
+			data = cvbs_out_reg_read(ENCI_VBI_WSSDT);
 			data = (data >> WSS_576I_CGMS_A_START) &
-							WSS_576I_CGMS_A_MASK;
+				WSS_576I_CGMS_A_MASK;
 			switch (data) {
-			case 0:
-				pr_info("cgms 0: no copy right asserted or status unknown / copying not restricted\n");
-				break;
 			case 1:
 				pr_info("cgms 1: copy right asserted / copying not restricted\n");
 				break;
@@ -460,6 +458,10 @@ static void wss_show_status(unsigned int mode, char *wss_cmd)
 				break;
 			case 3:
 				pr_info("cgms 3: copy right asserted / copying restricted\n");
+				break;
+			case 0:
+			default:
+				pr_info("cgms 0: no copy right asserted or status unknown / copying not restricted\n");
 				break;
 			}
 		} else if (!strncmp(wss_cmd, "mvsn", strlen("mvsn"))) {
@@ -481,6 +483,32 @@ static void wss_show_status(unsigned int mode, char *wss_cmd)
 					macro_register[i],
 					cvbs_out_reg_read
 					(macro_register[i]));
+			}
+		}
+	} else if (mode == MODE_480CVBS || mode == MODE_NTSC_M) {
+		if (!strncmp(wss_cmd, "cgms", strlen("cgms"))) {
+			data = cvbs_out_reg_read(ENCI_VBI_SETTING);
+			if (((data >> 4) & 0x3) != 0x3) {
+				pr_info("cgms disabled\n");
+				return;
+			}
+			data = cvbs_out_reg_read(ENCI_VBI_CGMSDT_L);
+			data = (data >> WSS_480I_CGMS_A_START) &
+				WSS_480I_CGMS_A_MASK;
+			switch (data) {
+			case 1:
+				pr_info("cgms 1: Copy Once\n");
+				break;
+			case 2:
+				pr_info("cgms 2: Reserved\n");
+				break;
+			case 3:
+				pr_info("cgms 3: Copy Never\n");
+				break;
+			case 0:
+			default:
+				pr_info("cgms 0: Copy freely\n");
+				break;
 			}
 		}
 	}
