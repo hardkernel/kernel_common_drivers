@@ -110,6 +110,7 @@ struct aml_pdm {
 	bool vad_buf_occupation;
 	bool vad_buf_recovery;
 	int pdm_gain_index;
+	bool pdm_mute;
 
 	int train_sample_count;
 	int pdm_id;

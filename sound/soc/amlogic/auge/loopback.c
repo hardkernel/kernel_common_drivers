@@ -649,6 +649,7 @@ static void datatin_pdm_cfg(struct snd_pcm_runtime *runtime,
 	info.dclk_idx = p_loopback->dclk_idx;
 	info.bypass = 0;
 	info.sample_count = pdm_get_sample_count(0, p_loopback->dclk_idx);
+	info.mute = pdm->pdm_mute;
 
 	if (pdm) {
 		lpf_filter_mode = pdm->lpf_filter_mode;

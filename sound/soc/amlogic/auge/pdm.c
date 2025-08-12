@@ -424,6 +424,34 @@ static int pdm_train_debug_set_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int pdm_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct aml_pdm *p_pdm = dev_get_drvdata(component->dev);
+
+	if (!p_pdm)
+		return 0;
+	ucontrol->value.integer.value[0] = p_pdm->pdm_mute;
+
+	return 0;
+}
+
+static int pdm_mute_set(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct aml_pdm *p_pdm = dev_get_drvdata(component->dev);
+
+	if (!p_pdm)
+		return 0;
+
+	p_pdm->pdm_mute = !!ucontrol->value.integer.value[0];
+	if (__clk_is_enabled(p_pdm->clk_pdm_sysclk))
+		pdm_set_mute_channel(p_pdm->pdm_mute ? 0xff : 0, p_pdm->pdm_id);
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new snd_pdm_controls[] = {
 	/* which set */
 	SOC_ENUM_EXT("PDM Filter Mode",
@@ -469,6 +497,10 @@ static const struct snd_kcontrol_new snd_pdm_controls[] = {
 		     1, 0,
 		     pdm_train_debug_get_enum,
 		     pdm_train_debug_set_enum),
+
+	SOC_SINGLE_BOOL_EXT("PDM mute", 0,
+			    pdm_mute_get,
+			    pdm_mute_set),
 
 };
 
@@ -801,6 +833,7 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 	info.dclk_idx   = dclk_idx;
 	info.bypass     = p_pdm->bypass;
 	info.sample_count = pdm_get_sample_count(p_pdm->islowpower, dclk_idx);
+	info.mute = p_pdm->pdm_mute;
 
 	aml_pdm_ctrl(&info, pdm_id);
 	aml_pdm_filter_ctrl(p_pdm->pdm_gain_index, osr, lpf_filter_mode, hpf_filter_mode, pdm_id);
@@ -1682,6 +1715,7 @@ static int pdm_platform_restore(struct device *dev)
 	info.dclk_idx   = dclk_idx;
 	info.sample_count = pdm_get_sample_count(p_pdm->islowpower, dclk_idx);
 	osr = pdm_get_ors(dclk_idx, p_pdm->rate);
+	info.mute = p_pdm->pdm_mute;
 
 	/* lowpower, force dclk to 768k */
 	if (p_pdm->islowpower)

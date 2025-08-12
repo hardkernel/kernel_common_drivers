@@ -169,6 +169,7 @@ void aml_pdm_ctrl(struct pdm_info *info, int id)
 				);
 
 	pdm_set_channel_ctrl(info->sample_count, id);
+	pdm_set_mute_channel(info->mute ? 0xff : 0, id);
 }
 
 void aml_pdm_arb_config(struct aml_audio_controller *actrl, bool use_arb)

@@ -18,6 +18,7 @@ struct pdm_info {
 	int dclk_idx;  /* mapping for dclk value */
 	int bypass;    /* bypass all filter, capture raw data */
 	int sample_count;
+	bool mute;
 };
 
 void aml_pdm_ctrl(struct pdm_info *info, int id);
