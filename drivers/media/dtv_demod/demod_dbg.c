@@ -1599,6 +1599,8 @@ static ssize_t attr_store(const struct class *cls, const struct class_attribute 
 		val = write_riscv_ram();
 		PR_INFO("download t2 fw:%d\n", val);
 #endif
+	} else if (!strcmp(parm[0], "demod_dbg")) {
+		aml_demod_debug = val;
 	} else {
 		PR_INFO("invalid cmd: %s\n", parm[0]);
 	}
@@ -1618,6 +1620,7 @@ static ssize_t attr_show(const struct class *cls,
 	len += sprintf(buf + len, "\nDTV Demod Usage:\n");
 	len += sprintf(buf + len, "echo [CMD] > /sys/class/dtvdemod/attr\n");
 	len += sprintf(buf + len, "CMD:\n");
+	len += sprintf(buf + len, "\tdemod_dbg [val]\n");
 	len += sprintf(buf + len, "\tsymb_rate [val]\n");
 	len += sprintf(buf + len, "\tsymb_rate_en [val]\n");
 	len += sprintf(buf + len, "\tstate\n");

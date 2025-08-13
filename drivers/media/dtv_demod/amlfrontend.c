@@ -48,7 +48,7 @@
 #include "dvbt_func.h"
 #include "dvbt_frontend.h"
 #endif
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 #include "isdbt_func.h"
 #include "isdbt_frontend.h"
 #endif
@@ -539,7 +539,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 		timer_set_max(demod, D_TIMER_DETECT, demod->timeout_dvbt_ms);
 		break;
 #endif
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = dvbt_isdbt_init(demod);
 		if (ret)
@@ -643,7 +643,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 		break;
 #endif
-#if defined CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
+#if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
 	case SYS_ISDBT:
 	case SYS_DVBT2:
 		demod->plp_id = 0xffff;
@@ -737,7 +737,7 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 #endif
 	} else if ((demod_chip_eq(DTVDEMOD_HW_T5W) || demod_chip_eq(DTVDEMOD_HW_T3) ||
 		demod_is_t5d_cpu(devp)) && ldelsys == SYS_ISDBT) {
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
@@ -2112,7 +2112,7 @@ static int aml_dtvdm_set_parameters(struct dvb_frontend *fe)
 	case SYS_DVBT:
 	case SYS_DVBT2:
 		break;
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		timer_begain(demod, D_TIMER_DETECT);
 		demod->en_detect = 1; /*fist set*/
@@ -2182,7 +2182,7 @@ static int aml_dtvdm_get_frontend(struct dvb_frontend *fe,
 		ret = gxtv_demod_dvbt_get_frontend(fe, p);
 		break;
 #endif
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = gxtv_demod_isdbt_get_frontend(fe, p);
 		break;
@@ -2381,7 +2381,7 @@ static int aml_dtvdm_read_ber(struct dvb_frontend *fe, u32 *ber)
 	case SYS_DVBT2:
 		break;
 #endif
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = dvbt_isdbt_read_ber(fe, ber);
 		break;
@@ -2448,7 +2448,7 @@ static int aml_dtvdm_read_signal_strength(struct dvb_frontend *fe,
 		ret = gxtv_demod_dvbt_read_signal_strength(fe, (s16 *)strength);
 		break;
 #endif
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = gxtv_demod_isdbt_read_signal_strength(fe, (s16 *)strength);
 		break;
@@ -2517,7 +2517,7 @@ static int aml_dtvdm_read_snr(struct dvb_frontend *fe, u16 *snr)
 		ret = dvbt2_read_snr(fe, snr);
 		break;
 #endif
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = gxtv_demod_dvbt_isdbt_read_snr(fe, snr);
 		break;
@@ -2580,7 +2580,7 @@ static int aml_dtvdm_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 		ret = gxtv_demod_dvbt_read_ucblocks(fe, ucblocks);
 		break;
 #endif
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = gxtv_demod_isdbt_read_ucblocks(fe, ucblocks);
 		break;
@@ -2635,7 +2635,7 @@ static void aml_dtvdm_release(struct dvb_frontend *fe)
 	case SYS_DVBT2:
 		break;
 #endif
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		break;
 #endif
@@ -2726,7 +2726,7 @@ static int aml_dtvdm_tune(struct dvb_frontend *fe, bool re_tune,
 			ret = dvbt2_tune(fe, re_tune, mode_flags, delay, status);
 		break;
 #endif
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		ret = dvbt_isdbt_tune(fe, re_tune, mode_flags, delay, status);
 		break;
@@ -2900,7 +2900,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	struct isdbt_tmcc_info tmcc_info;
 #endif
 	s16 strength = 0;
@@ -3026,7 +3026,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 		else
 			tvp->u.data = 2; // tsin2.
 		break;
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case DTV_ISDBT_PARTIAL_RECEPTION:
 		if (demod->last_delsys == SYS_ISDBT && demod->last_status == 0x1F) {
 			isdbt_get_tmcc_info(&tmcc_info);
@@ -3057,7 +3057,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			gxtv_demod_dvbt_read_signal_strength(fe, &strength);
 			break;
 #endif
-#ifdef CONFIG_CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 		case SYS_ISDBT:
 			gxtv_demod_isdbt_read_signal_strength(fe, &strength);
 			break;
