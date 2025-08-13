@@ -790,6 +790,10 @@ void vdin_afbce_mode_init(struct vdin_dev_s *devp)
 {
 	/* afbce_valid means can switch into afbce mode */
 	devp->afbce_valid = 0;
+
+	if (devp->work_mode == VDIN_WORK_MD_V4L)
+		return;
+
 	if (devp->afbce_flag & VDIN_AFBCE_EN) {
 		if (devp->h_active > 1920 || devp->v_active > 1080) {
 			if (devp->afbce_flag & VDIN_AFBCE_EN_4K)
