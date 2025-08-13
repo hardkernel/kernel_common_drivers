@@ -1621,11 +1621,8 @@ void vdin_change_matrix_hdr(u32 offset, u32 matrix_csc)
 	}
 }
 
-static void vdin_manual_matrix_csc(enum vdin_matrix_csc_e *matrix_csc)
+static void vdin_manual_matrix_csc(struct vdin_dev_s *devp, enum vdin_matrix_csc_e *matrix_csc)
 {
-	struct vdin_dev_s *devp;
-
-	devp = vdin_get_dev(0);
 	if (!devp || !devp->debug.manual_change_csc)
 		return;
 
@@ -1638,8 +1635,8 @@ static void vdin_manual_matrix_csc(enum vdin_matrix_csc_e *matrix_csc)
 }
 
 static enum vdin_matrix_csc_e
-vdin_set_color_matrix(enum vdin_matrix_sel_e matrix_sel, struct vdin_dev_s *devp,
-				enum vdin_format_convert_e format_convert)
+vdin_set_color_matrix(struct vdin_dev_s *devp, enum vdin_matrix_sel_e matrix_sel,
+	enum vdin_format_convert_e format_convert)
 {
 	enum vdin_matrix_csc_e    matrix_csc = VDIN_MATRIX_NULL;
 	/*struct vdin_matrix_lup_s *matrix_tbl;*/
@@ -1792,6 +1789,7 @@ vdin_set_color_matrix(enum vdin_matrix_sel_e matrix_sel, struct vdin_dev_s *devp
 			else
 				matrix_csc = VDIN_MATRIX_NULL;
 		}
+
 		break;
 	case VDIN_FORMAT_CONVERT_MAX:
 	default:
@@ -1799,7 +1797,7 @@ vdin_set_color_matrix(enum vdin_matrix_sel_e matrix_sel, struct vdin_dev_s *devp
 		break;
 	}
 
-	vdin_manual_matrix_csc(&matrix_csc);
+	vdin_manual_matrix_csc(devp, &matrix_csc);
 
 	if (matrix_sel == VDIN_SEL_MATRIX0)
 		vdin_change_matrix0(devp->addr_offset, matrix_csc);
@@ -1811,9 +1809,12 @@ vdin_set_color_matrix(enum vdin_matrix_sel_e matrix_sel, struct vdin_dev_s *devp
 		matrix_csc = VDIN_MATRIX_NULL;
 
 	if (devp->debug.vdin_ctl_dbg)
-		pr_info("%s vdin%d fmt_info=%p, fmt_convert=%d, fmt_range=%d, hdr=%d, csc=%d\n",
-			__func__, devp->index, fmt_info, format_convert,
-			devp->prop.color_fmt_range, vdin_hdr_flag, matrix_csc);
+		pr_info("%s() vdin%d fmt=%dx%d(%d), convert=%d, range=%d %d, hdr=%d, csc=%d\n",
+			__func__, devp->index,
+			fmt_info->h_active, fmt_info->v_active, fmt_info->scan_mode,
+			devp->format_convert,
+			devp->color_range_mode, devp->prop.color_fmt_range,
+			vdin_hdr_flag, matrix_csc);
 
 	return matrix_csc;
 }
@@ -1905,6 +1906,7 @@ void vdin_set_hdr(struct vdin_dev_s *devp)
 void vdin_set_matrix(struct vdin_dev_s *devp)
 {
 	enum vdin_format_convert_e format_convert_matrix0;
+	enum vdin_format_convert_e format_convert_matrix1;
 	unsigned int offset = devp->addr_offset;
 	enum vdin_matrix_sel_e matrix_sel;
 
@@ -1935,8 +1937,8 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 		if (!devp->dv.dv_flag || devp->dv_is_not_std ||
 			/* dv hw2 not source-led needs csc */
 		    (vdin_dv_is_hw2(devp) && !vdin_dv_is_source_led(devp))) {
-			devp->csc_idx = vdin_set_color_matrix(matrix_sel, devp,
-				devp->format_convert);
+			devp->csc_idx = vdin_set_color_matrix(devp,
+						matrix_sel, devp->format_convert);
 		} else {
 			devp->csc_idx = VDIN_MATRIX_NULL;
 		}
@@ -1953,15 +1955,17 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 			VDIN_PROBE_SEL_BIT, VDIN_PROBE_SEL_WID);
 	} else {
 		format_convert_matrix0 = vdin_get_format_convert_matrix0(devp);
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+		format_convert_matrix1 = vdin_get_format_convert_matrix1(devp);
+		devp->csc_idx = vdin_set_color_matrix(devp,
+					VDIN_SEL_MATRIX1, format_convert_matrix1);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 			devp->csc_idx =
-				vdin_set_color_matrix(VDIN_SEL_MATRIX1,
-				devp, devp->format_convert);
-		} else {
+				vdin_set_color_matrix(devp,
+					VDIN_SEL_MATRIX1, devp->format_convert);
+		else
 			devp->csc_idx =
-				vdin_set_color_matrix(VDIN_SEL_MATRIX0,
-				devp, format_convert_matrix0);
-		}
+				vdin_set_color_matrix(devp,
+					VDIN_SEL_MATRIX0, format_convert_matrix0);
 		if (devp->parm.info.fmt == TVIN_SIG_FMT_CVBS_SECAM)
 			wr_bits(offset, VDIN_MATRIX_CTRL, 0,
 				VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
@@ -1989,13 +1993,13 @@ void vdin_select_matrix(struct vdin_dev_s *devp, unsigned char id,
 	case 0:
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 			devp->csc_idx =
-				vdin_set_color_matrix(VDIN_SEL_MATRIX1, devp, devp->format_convert);
+				vdin_set_color_matrix(devp, VDIN_SEL_MATRIX1, devp->format_convert);
 		else
 			devp->csc_idx =
-				vdin_set_color_matrix(VDIN_SEL_MATRIX0, devp, csc);
+				vdin_set_color_matrix(devp, VDIN_SEL_MATRIX0, csc);
 		break;
 	case 1:
-		devp->csc_idx = vdin_set_color_matrix(VDIN_SEL_MATRIX1, devp, csc);
+		devp->csc_idx = vdin_set_color_matrix(devp, VDIN_SEL_MATRIX1, csc);
 		break;
 	default:
 		break;

@@ -886,8 +886,8 @@ void vdin_change_matrix_hdr_t3x(u32 offset, u32 matrix_csc)
 }
 
 static enum vdin_matrix_csc_e
-vdin_set_color_matrix_t3x(enum vdin_matrix_sel_e matrix_sel,
-				struct vdin_dev_s *devp, enum vdin_format_convert_e format_convert)
+vdin_set_color_matrix_t3x(struct vdin_dev_s *devp, enum vdin_matrix_sel_e matrix_sel,
+				enum vdin_format_convert_e format_convert)
 {
 	enum vdin_matrix_csc_e    matrix_csc = VDIN_MATRIX_NULL;
 	/*struct vdin_matrix_lup_s *matrix_tbl;*/
@@ -1057,9 +1057,12 @@ vdin_set_color_matrix_t3x(enum vdin_matrix_sel_e matrix_sel,
 		matrix_csc = VDIN_MATRIX_NULL;
 
 	if (devp->debug.vdin_ctl_dbg)
-		pr_info("%s vdin%d fmt_info=%p, fmt_convert=%d, fmt_range=%d, hdr=%d, csc=%d\n",
-			__func__, devp->index, fmt_info, format_convert,
-			devp->prop.color_fmt_range, vdin_hdr_flag, matrix_csc);
+		pr_info("%s() vdin%d fmt=%dx%d(%d), convert=%d, range=%d %d, hdr=%d, csc=%d\n",
+			__func__, devp->index,
+			fmt_info->h_active, fmt_info->v_active, fmt_info->scan_mode,
+			devp->format_convert,
+			devp->color_range_mode, devp->prop.color_fmt_range,
+			vdin_hdr_flag, matrix_csc);
 
 	return matrix_csc;
 }
@@ -1188,8 +1191,8 @@ void vdin_set_matrix_t3x(struct vdin_dev_s *devp)
 			matrix_sel = VDIN_SEL_MATRIX0;/*VDIN_SEL_MATRIX_HDR*/
 
 		if (!devp->dv.dv_flag) {
-			devp->csc_idx = vdin_set_color_matrix_t3x(matrix_sel,
-								devp, devp->format_convert);
+			devp->csc_idx = vdin_set_color_matrix_t3x(devp,
+						matrix_sel, devp->format_convert);
 		} else {
 			devp->csc_idx = VDIN_MATRIX_NULL;
 		}
