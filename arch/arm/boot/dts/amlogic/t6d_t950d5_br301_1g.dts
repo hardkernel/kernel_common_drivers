@@ -887,6 +887,7 @@
 	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
+	amlogic,wol-enable;
 };
 
 &usbphy0 {
