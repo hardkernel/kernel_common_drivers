@@ -2005,6 +2005,10 @@ static void hdmitx_set_phy_todig(struct hdmitx21_dev *hdev)
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 0, 2);
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 1, 3, 1);
 		break;
+	case MESON_CPU_ID_T7:
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 0, 2);
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 1, 3, 1);
+		break;
 	default:
 		/* pr_info("not match chip type to enable phy to dig\n"); */
 		return;
