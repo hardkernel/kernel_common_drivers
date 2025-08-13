@@ -631,7 +631,7 @@ int am_meson_drm_fb_blank(int blank, struct fb_info *info)
 	struct meson_drm_fbdev *fbdev = container_of(helper, struct meson_drm_fbdev, base);
 	struct drm_device *dev = helper->dev;
 	struct meson_drm *priv = dev->dev_private;
-	struct drm_crtc *crtc = fbdev->plane->crtc;
+	struct drm_crtc *crtc = fbdev->modeset.crtc;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
@@ -644,20 +644,25 @@ int am_meson_drm_fb_blank(int blank, struct fb_info *info)
 		MESON_DRM_FBDEV("meson_fbdev[%s-%p] goto blank.\n",
 			fbdev->plane->name, fbdev->plane->fb);
 
-		if (!crtc)
+		if (!crtc) {
+			DRM_ERROR("%s crtc is null, skip %s blank\n",
+				__func__, fbdev->plane->name);
 			return 0;
+		}
 
-		meson_drm_modeset_lock_crtc(crtc, fbdev->plane,  &ctx);
+		meson_drm_modeset_lock_crtc(crtc, fbdev->plane, &ctx);
 		if (priv->pan_async_commit_ran) {
 			DRM_INFO("Force to wait one vblank!\n");
 			drm_wait_one_vblank(dev, 0);
 		}
-		drm_atomic_helper_disable_plane(fbdev->plane, dev->mode_config.acquire_ctx);
+		drm_atomic_helper_disable_plane(fbdev->plane, &ctx);
 		meson_drm_modeset_unlock_crtc(crtc, &ctx);
 
 		fbdev->blank = true;
 	}
 
+	MESON_DRM_FBDEV("%s OUT, meson_fbdev[%s], ret=%d\n",
+		__func__, fbdev->plane->name, ret);
 	return ret;
 }
 
