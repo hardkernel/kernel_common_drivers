@@ -38,16 +38,16 @@ static const unsigned  int dsi_d3p_pins[]		= { DSI_D3P };
 static const unsigned  int dsi_d3n_pins[]		= { DSI_D3N };
 
 /* BANK DSI func2 */
-static const unsigned int pdm_din0_dsi_pins[]		= { DSI_CLKP };
-static const unsigned int pdm_dclk_dsi_pins[]		= { DSI_CLKN };
 static const unsigned int pwm_i_dsi_pins[]		= { DSI_D0P };
 static const unsigned int pwm_j_dsi_pins[]		= { DSI_D0N };
-static const unsigned int uart_f_tx_dsi_pins[]		= { DSI_D1P };
-static const unsigned int uart_f_rx_dsi_pins[]		= { DSI_D1N };
-static const unsigned int i2c1_scl_dsi_pins[]		= { DSI_D2P };
-static const unsigned int i2c1_sda_dsi_pins[]		= { DSI_D2N };
-static const unsigned int uart_c_tx_dsi_pins[]		= { DSI_D3P };
-static const unsigned int uart_c_rx_dsi_pins[]		= { DSI_D3N };
+static const unsigned int uart_f_tx_dsi_pins[]		= { DSI_CLKP };
+static const unsigned int uart_f_rx_dsi_pins[]		= { DSI_CLKN };
+static const unsigned int i2c1_scl_dsi_pins[]		= { DSI_D1P };
+static const unsigned int i2c1_sda_dsi_pins[]		= { DSI_D1N };
+static const unsigned int uart_c_tx_dsi_pins[]		= { DSI_D2P };
+static const unsigned int uart_c_rx_dsi_pins[]		= { DSI_D2N };
+static const unsigned int pdm_din0_dsi_pins[]		= { DSI_D3P };
+static const unsigned int pdm_dclk_dsi_pins[]		= { DSI_D3N };
 
 /* BANK SARADC func1 */
 static const unsigned  int sar_ch0_pins[]		= { SAR_CH0 };
@@ -87,16 +87,16 @@ static struct meson_pmx_group meson_c3_analog_groups[] __initdata = {
 	GROUP(dsi_d3n,			1),
 
 	/* BANK DSI func2 */
-	GROUP(pdm_din0_dsi,		1),
-	GROUP(pdm_dclk_dsi,		1),
-	GROUP(pwm_i_dsi,		1),
-	GROUP(pwm_j_dsi,		1),
-	GROUP(uart_f_tx_dsi,		1),
-	GROUP(uart_f_rx_dsi,		1),
-	GROUP(i2c1_scl_dsi,		1),
-	GROUP(i2c1_sda_dsi,		1),
-	GROUP(uart_c_tx_dsi,		1),
-	GROUP(uart_c_rx_dsi,		1),
+	GROUP(pdm_din0_dsi,		2),
+	GROUP(pdm_dclk_dsi,		2),
+	GROUP(pwm_i_dsi,		2),
+	GROUP(pwm_j_dsi,		2),
+	GROUP(uart_f_tx_dsi,		2),
+	GROUP(uart_f_rx_dsi,		2),
+	GROUP(i2c1_scl_dsi,		2),
+	GROUP(i2c1_sda_dsi,		2),
+	GROUP(uart_c_tx_dsi,		2),
+	GROUP(uart_c_rx_dsi,		2),
 
 	/* BANK SARADC func1 */
 	GROUP(sar_ch0,			1),
@@ -105,7 +105,7 @@ static struct meson_pmx_group meson_c3_analog_groups[] __initdata = {
 	GROUP(sar_ch3,			1),
 
 	/* BANK SARADC func2 */
-	GROUP(gen_clk_sar,		1),
+	GROUP(gen_clk_sar,		2),
 };
 
 static const char * const gpio_analog_groups[] = {
@@ -1197,7 +1197,7 @@ static struct meson_bank meson_c3_analog_banks[] = {
 	BANK("DSI", DSI_D0P,    DSI_D3N,  -1, -1,
 		 0x3,  0,  0x4,  0,  0x2,  0,  0x0,  0,  0x5,  0),
 	BANK("SAR", SAR_CH0,   SAR_CH3,  -1, -1,
-		 0x9,  0,  0x10,  0,  0x8,  0,  0x6,  0,  0xb,  0),
+		 0x9,  0,  0xa,  0,  0x8,  0,  0x6,  0,  0xb,  0),
 };
 
 static struct meson_pmx_bank meson_c3_analog_pmx_banks[] = {
