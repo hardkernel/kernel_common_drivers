@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/kprobes.h>
 #include <linux/stop_machine.h>
+#include <linux/amlogic/gki_module.h>
 #ifdef CONFIG_ARM64
 #include <asm/daifflags.h>
 #endif
@@ -86,6 +87,23 @@ static struct kprobe kp_kprobe_busy_end = {
 static int ignore_check_tty_count = 20000;
 module_param(ignore_check_tty_count, int, 0644);
 
+static int check_tty_en;
+static int check_tty_en_setup(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	if (kstrtoint(buf, 0, &check_tty_en)) {
+		pr_err("check_tty_en error: %s\n", buf);
+		return -EINVAL;
+	}
+
+	pr_info("check_tty_en = %d\n", check_tty_en);
+
+	return 1;
+}
+__setup("check_tty_en=", check_tty_en_setup);
+
 static int __nocfi __kprobes check_tty_count_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 #ifdef CONFIG_ARM64
@@ -121,9 +139,11 @@ int aml_kprobes_init(void)
 {
 	int ret;
 
-	ret = register_kprobe(&kp_check_tty_count);
-	if (ret)
-		pr_err("register_kprobe: kp_check_tty_count failed:%d\n", ret);
+	if (check_tty_en) {
+		ret = register_kprobe(&kp_check_tty_count);
+		if (ret)
+			pr_err("register_kprobe: kp_check_tty_count failed:%d\n", ret);
+	}
 
 	ret = register_kprobe(&kp_kprobe_busy_begin);
 	if (ret) {
