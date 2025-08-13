@@ -53,7 +53,7 @@ struct freesync_vsif_s {
 	u8 freesync_min_fps;
 	u8 freesync_max_fps;
 	u8 freesync_ctr2;
-	u8 reserved_pb10_pb27[18];
+	u8 reserved_pb10_pb28[19];
 };
 
 struct freesync_vtem_s {
