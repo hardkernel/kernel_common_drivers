@@ -26,7 +26,6 @@ static void osd_update_fifo(u32 index);
 
 LIST_HEAD(update_list);
 static DEFINE_SPINLOCK(osd_lock);
-static unsigned long lock_flags;
 #ifdef FIQ_VSYNC
 static unsigned long fiq_flag;
 #endif
@@ -50,6 +49,7 @@ static update_func_t hw_func_array[HW_REG_INDEX_MAX] = {
 #ifdef FIQ_VSYNC
 #define add_to_update_list(osd_idx, cmd_idx) \
 	do { \
+		unsigned long lock_flags; \
 		spin_lock_irqsave(&osd_lock, lock_flags); \
 		raw_local_save_flags(fiq_flag); \
 		local_fiq_disable(); \
@@ -63,6 +63,7 @@ static update_func_t hw_func_array[HW_REG_INDEX_MAX] = {
 #else
 #define add_to_update_list(osd_idx, cmd_idx) \
 	do { \
+		unsigned long lock_flags; \
 		spin_lock_irqsave(&osd_lock, lock_flags); \
 		if (osd_hw.hw_rdma_en || osd_hw.osd_use_latch[osd_idx]) \
 			osd_hw.reg[(cmd_idx)].update_func(osd_idx); \
@@ -75,6 +76,7 @@ static update_func_t hw_func_array[HW_REG_INDEX_MAX] = {
 #ifdef FIQ_VSYNC
 #define add_to_update_list(osd_idx, cmd_idx) \
 	do { \
+		unsigned long lock_flags; \
 		spin_lock_irqsave(&osd_lock, lock_flags); \
 		raw_local_save_flags(fiq_flag); \
 		local_fiq_disable(); \
@@ -85,6 +87,7 @@ static update_func_t hw_func_array[HW_REG_INDEX_MAX] = {
 #else
 #define add_to_update_list(osd_idx, cmd_idx) \
 	do { \
+		unsigned long lock_flags; \
 		spin_lock_irqsave(&osd_lock, lock_flags); \
 		osd_hw.updated[osd_idx] |= (1 << (cmd_idx)); \
 		spin_unlock_irqrestore(&osd_lock, lock_flags); \

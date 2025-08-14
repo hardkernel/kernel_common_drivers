@@ -3899,6 +3899,7 @@ static void osd_update_interlace_mode(int index)
 	unsigned int scan_line_number = 0;
 	unsigned int odd_even;
 	u32 output_index = VIU1;
+	unsigned long lock_flags;
 
 	spin_lock_irqsave(&osd_lock, lock_flags);
 	if ((index & (1 << OSD1)) == (1 << OSD1)) {
@@ -4034,6 +4035,7 @@ static void osd_update_interlace_mode_viu2(void)
 	unsigned int fb3_cfg_w0 = 0;
 	unsigned int odd_even = 0;
 	u32 viu2_index;
+	unsigned long lock_flags;
 
 	spin_lock_irqsave(&osd_lock, lock_flags);
 	viu2_index = osd_hw.osd_meson_dev.viu2_index;
@@ -4282,7 +4284,7 @@ void osd_hw_reset(u32 output_index)
 
 	struct osd_rdma_fun_s *rdma_func = &osd_hw.osd_rdma_func[output_index];
 	osd_rdma_wr_irq_op rdma_wr_irq = rdma_func->osd_rdma_wr_irq;
-
+	unsigned long lock_flags;
 
 	backup_mask = is_backup();
 	osd_hw.hw_reset_flag = reset_bit;
@@ -5286,6 +5288,7 @@ void osd_update_disp_axis_hw(u32 index,
 {
 	struct pandata_s disp_data;
 	struct pandata_s pan_data;
+	unsigned long lock_flags;
 
 	if (!osd_hw.color_info[index])
 		return;
@@ -5354,6 +5357,7 @@ void osd_setup_hw(u32 index,
 	int update_geometry = 0;
 	u32 w = (color->bpp * xres_virtual + 7) >> 3;
 	u32 i;
+	unsigned long lock_flags;
 
 	osd_hw.buffer_alloc[index] = 1;
 	pan_data.x_start = xoffset;
@@ -5502,6 +5506,7 @@ void osd_setpal_hw(u32 index,
 		  )
 {
 	u32 output_index = get_output_device_id(index);
+	unsigned long lock_flags;
 
 	if (osd_hw.osd_meson_dev.has_lut) {
 		if (regno < 256) {
@@ -5540,6 +5545,7 @@ static void osd_set_free_scale_enable_mode1(u32 index, u32 enable)
 	unsigned int h_enable = 0;
 	unsigned int v_enable = 0;
 	int ret = 0;
+	unsigned long lock_flags;
 
 	if (osd_hw.osd_meson_dev.osd_ver == OSD_SIMPLE &&
 		osd_dev_hw.display_type != C3_DISPLAY)
@@ -6013,6 +6019,8 @@ void osd_set_block_mode_hw(u32 index, u32 mode)
 
 void osd_enable_3d_mode_hw(u32 index, u32 enable)
 {
+	unsigned long lock_flags;
+
 	spin_lock_irqsave(&osd_lock, lock_flags);
 	osd_hw.mode_3d[index].enable = enable;
 	spin_unlock_irqrestore(&osd_lock, lock_flags);
@@ -6055,6 +6063,8 @@ void osd_enable_hw(u32 index, u32 enable)
 	if (!osd_hw.enable[index] &&
 	    osd_hw.osd_afbcd[index].enable && enable &&
 	    (get_osd_hwc_type(index) != OSD_G12A_NEW_HWC)) {
+		unsigned long lock_flags;
+
 		spin_lock_irqsave(&osd_lock, lock_flags);
 		if (osd_hw.osd_meson_dev.afbc_type == MESON_AFBC) {
 			osd_reg_write(VIU_SW_RESET, 0x80000000);
@@ -6097,6 +6107,8 @@ void osd_enable_hw(u32 index, u32 enable)
 
 void osd_set_2x_scale_hw(u32 index, u16 h_scale_enable, u16 v_scale_enable)
 {
+	unsigned long lock_flags;
+
 	osd_log_info("osd[%d] set scale, h_scale: %s, v_scale: %s\n",
 		     index, h_scale_enable ? "ENABLE" : "DISABLE",
 		     v_scale_enable ? "ENABLE" : "DISABLE");
@@ -6294,6 +6306,7 @@ void osd_switch_free_scale(u32 pre_index, u32 pre_enable,
 	unsigned int v_enable = 0;
 	int i = 0;
 	int count = (pxp_mode == 1) ? 3 : WAIT_AFBC_READY_COUNT;
+	unsigned long lock_flags;
 
 	osd_log_info("osd[%d] enable: %d scale:0x%x (%s)\n",
 		     pre_index, pre_enable, pre_scale, current->comm);
@@ -6399,6 +6412,8 @@ void osd_set_deband(u32 index, u32 osd_deband_enable)
 
 	if (osd_hw.osd_meson_dev.has_deband) {
 		if (osd_hw.free_scale_enable[index]) {
+			unsigned long lock_flags;
+
 			osd_hw.osd_deband_enable[index] = osd_deband_enable;
 			spin_lock_irqsave(&osd_lock, lock_flags);
 
@@ -7292,6 +7307,7 @@ static void osd_pan_display_single_fence(struct osd_fence_map_s *fence_map)
 	bool skip = false;
 	const struct vinfo_s *vinfo = NULL;
 	u32 output_index = VIU1;
+	unsigned long lock_flags;
 
 	if (index >= OSD2)
 		goto out;
@@ -13173,6 +13189,7 @@ static int osd_setting_order(u32 output_index)
 	u32 secure_src = 0;
 #endif
 	u32 total_line;
+	unsigned long lock_flags;
 
 	if (osd_hw.osd_meson_dev.has_pi)
 		adjust_pi_axis();
@@ -13645,6 +13662,7 @@ static void osd_setting_old_hwc(void)
 	bool freescale_update = false;
 	static u32 osd_enable;
 	static bool first_set = true;
+	unsigned long lock_flags;
 
 	spin_lock_irqsave(&osd_lock, lock_flags);
 	if (!osd_hw.osd_afbcd[index].enable && osd_hw.enable[index]) {
@@ -16154,6 +16172,7 @@ void  osd_suspend_hw(void)
 		/* VSYNCOSD_CLR_MPEG_REG_MASK(VPP_MISC, OSD_RELATIVE_BITS); */
 	} else {
 		int i = 0;
+		unsigned long lock_flags;
 
 		spin_lock_irqsave(&osd_lock, lock_flags);
 		suspend_flag = true;
@@ -16265,6 +16284,7 @@ void osd_resume_hw(void)
 		notify_to_amvideo();
 	} else {
 		int i = 0;
+		unsigned long lock_flags;
 
 		spin_lock_irqsave(&osd_lock, lock_flags);
 		if (osd_hw.hw_rdma_en) {
