@@ -171,14 +171,25 @@ static int am_meson_fbdev_open(struct fb_info *info, int arg)
 	struct meson_drm_fbdev *fbdev = container_of(helper, struct meson_drm_fbdev, base);
 	struct am_osd_plane *osdplane = container_of(fbdev->plane, struct am_osd_plane, base);
 
-	MESON_DRM_FBDEV("%s - %d\n", __func__, osdplane->plane_index);
+	MESON_DRM_FBDEV("%s IN,pid[%s %d],plane_id[%d],screen_size[%ld],res_virtual[%d %d]\n",
+		__func__, current->comm, current->pid, osdplane->plane_index,
+		info->screen_size, info->var.xres_virtual, info->var.yres_virtual);
 	ret = am_meson_fbdev_alloc_fb_gem(info);
+	MESON_DRM_FBDEV("%s OUT, ret=%d\n", __func__, ret);
 	return ret;
 }
 
 static int am_meson_fbdev_release(struct fb_info *info, int arg)
 {
+	struct drm_fb_helper *helper = info->par;
+	struct meson_drm_fbdev *fbdev = container_of(helper, struct meson_drm_fbdev, base);
+	struct am_osd_plane *osdplane = container_of(fbdev->plane, struct am_osd_plane, base);
+
+	MESON_DRM_FBDEV("%s IN, pid[%s %d], plane_id[%d]\n",
+		__func__, current->comm, current->pid, osdplane->plane_index);
 	MESON_DRM_FBDEV("may no need to release memory\n");
+	MESON_DRM_FBDEV("%s OUT\n", __func__);
+
 	return 0;
 }
 
@@ -212,7 +223,7 @@ static int am_meson_drm_fbdev_setcmap(struct fb_cmap *cmap, struct fb_info *info
 	blue    = cmap->blue;
 	transp  = cmap->transp;
 	index   = cmap->start;
-	DRM_DEBUG("%s\n", __func__);
+	MESON_DRM_FBDEV("%s, visual = %d, len = %d\n", __func__, info->fix.visual, cmap->len);
 
 	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR) {
 		for (count = 0; count < cmap->len; count++) {
@@ -242,7 +253,8 @@ am_meson_drm_fbdev_setcolreg(unsigned int regno, unsigned int red, unsigned int 
 	struct drm_device *dev = helper->dev;
 	struct am_osd_plane *osd_plane = to_am_osd_plane(fbdev->plane);
 
-	MESON_DRM_FBDEV("%s, pixel is %d bits\n", __func__, var->bits_per_pixel);
+	MESON_DRM_FBDEV("%s, pixel is %d bits, palette index-%d\n",
+		__func__, var->bits_per_pixel, regno);
 	if (var->bits_per_pixel == 8 && regno < 256) {
 		drm_modeset_lock_all(dev);
 		fbdev->fbdev_rec_palette[regno] = ((red & 0xff) << 24) |
@@ -373,6 +385,7 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 	struct drm_framebuffer *fb = fb_helper->fb;
 	struct meson_drm_fbdev *fbdev = container_of(fb_helper, struct meson_drm_fbdev, base);
 	struct drm_gem_object *fb_gem = fbdev->fb_gem;
+	struct drm_plane *plane = fbdev->plane;
 	struct drm_fb_helper_surface_size sizes;
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
@@ -380,6 +393,9 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 	u32 xres_set = var->xres;
 	u32 yres_set = var->yres;
 	int depth;
+
+	DRM_INFO("%s IN, pid[%s %d], plane_id[%d]\n",
+		__func__, current->comm, current->pid, plane->index);
 
 	if (oops_in_progress)
 		return -EBUSY;
@@ -389,7 +405,10 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	DRM_INFO("%s IN\n", __func__);
+	DRM_INFO("bpp[%d %d], fb[%d %d], res[%d %d], res_virtual[%d %d]\n",
+		var->bits_per_pixel, fb->format->depth,
+		fb->width, fb->height, var->xres, var->yres,
+		var->xres_virtual, var->yres_virtual);
 	if (var->bits_per_pixel != fb->format->depth ||
 		var->xres_virtual != fb->width ||
 		var->yres_virtual != fb->height) {
@@ -418,11 +437,15 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 		mode_cmd.height = sizes.surface_height;
 		mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes.surface_bpp, depth);
 		mode_cmd.pitches[0] = ALIGN(mode_cmd.width * bytes_per_pixel, 64);
-		MESON_DRM_FBDEV("DRM Pixel Format: %c%c%c%c\n",
-				(mode_cmd.pixel_format & 0xFF),
-				((mode_cmd.pixel_format >> 8) & 0xFF),
-				((mode_cmd.pixel_format >> 16) & 0xFF),
-				((mode_cmd.pixel_format >> 24) & 0xFF));
+		MESON_DRM_FBDEV("length[%d %d %d %d]offset[%d %d %d %d]format:%c%c%c%c\n",
+			var->red.length, var->green.length,
+			var->blue.length, var->transp.length,
+			var->red.offset, var->green.offset,
+			var->blue.offset, var->transp.offset,
+			(mode_cmd.pixel_format & 0xFF),
+			((mode_cmd.pixel_format >> 8) & 0xFF),
+			((mode_cmd.pixel_format >> 16) & 0xFF),
+			((mode_cmd.pixel_format >> 24) & 0xFF));
 
 		fb->width = sizes.fb_width;
 		fb->height = sizes.fb_height;
@@ -439,7 +462,8 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 		var->yres = yres_set;
 
 		if (fb_gem && fb_gem->size < info->screen_size) {
-			MESON_DRM_FBDEV("GEM SIZE is not enough, no re-allocate.\n");
+			MESON_DRM_FBDEV("GEM SIZE is not enough, re-allocate(%ld < %ld)\n",
+				(unsigned long)fb_gem->size, info->screen_size);
 			am_meson_fbdev_free_fb_gem(info);
 			fb_gem = NULL;
 		}
@@ -453,7 +477,7 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 		}
 	}
 	drm_wait_one_vblank(fb_helper->dev, 0);
-	DRM_INFO("fb_set_par: %s OUT\n", __func__);
+	DRM_INFO("%s OUT\n", __func__);
 
 	return 0;
 }
@@ -636,12 +660,15 @@ int am_meson_drm_fb_blank(int blank, struct fb_info *info)
 	int ret = 0;
 
 	if (blank == 0) {
-		MESON_DRM_FBDEV("meson_fbdev[%s] goto UNBLANK.\n", fbdev->plane->name);
+		MESON_DRM_FBDEV("%s IN, pid[%s %d] meson_fbdev[%s]fb[%p] goto unblank.\n",
+			__func__, current->comm, current->pid,
+			fbdev->plane->name, fbdev->plane->fb);
 		fbdev->blank = false;
 		ret = am_meson_drm_fb_pan_display(&info->var, info);
 		drm_wait_one_vblank(dev, 0);
 	} else {
-		MESON_DRM_FBDEV("meson_fbdev[%s-%p] goto blank.\n",
+		MESON_DRM_FBDEV("%s IN, pid[%s %d] meson_fbdev[%s]fb[%p] goto blank.\n",
+			__func__, current->comm, current->pid,
 			fbdev->plane->name, fbdev->plane->fb);
 
 		if (!crtc) {
@@ -825,9 +852,13 @@ static int am_meson_drm_fbdev_probe(struct drm_fb_helper *helper,
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes.surface_bpp, PREFERRED_DEPTH);
 	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * bytes_per_pixel, 64);
 
-	DRM_INFO("mode_cmd.width = %d\n", mode_cmd.width);
-	DRM_INFO("mode_cmd.height = %d\n", mode_cmd.height);
-	DRM_INFO("mode_cmd.pixel_format = %d-%d\n", mode_cmd.pixel_format, DRM_FORMAT_ARGB8888);
+	DRM_INFO("fb=%dx%d, surface=%dx%d, bpp=%d\n",
+		sizes.fb_width, sizes.fb_height, sizes.surface_width,
+		sizes.surface_height, sizes.surface_bpp);
+	DRM_INFO("mode_cmd_size=%dx%d,pixel_format=%d-%d-%d,pitches=%d,fb_gem=%p\n",
+		mode_cmd.width, mode_cmd.height, mode_cmd.pixel_format,
+		DRM_FORMAT_ARGB8888, DRM_FORMAT_ABGR8888,
+		mode_cmd.pitches[0], fbdev->fb_gem);
 
 	fbi = drm_fb_helper_alloc_info(helper);
 	if (IS_ERR(fbi)) {
@@ -854,6 +885,10 @@ static int am_meson_drm_fbdev_probe(struct drm_fb_helper *helper,
 	drm_fb_helper_fill_info(fbi, helper, &sizes);
 	am_meson_drm_fbdev_modeset_create(helper);
 
+	DRM_INFO("xres=%dx%d, xres_virtual=%dx%d, bpp=%d, screen_size=%ld\n",
+		fbi->var.xres, fbi->var.yres,
+		fbi->var.xres_virtual, fbi->var.yres_virtual,
+		fbi->var.bits_per_pixel, fbi->screen_size);
 	return 0;
 
 err_release_fbi:
@@ -1018,7 +1053,8 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 		if (fbdev) {
 			fbdev->zorder = OSD_PLANE_BEGIN_ZORDER + drmdev->fbdev_zorder[0];
 			fbdev_cnt++;
-			MESON_DRM_FBDEV("create fbdev for primary plane [%p]\n", fbdev);
+			MESON_DRM_FBDEV("create fbdev(%p) for primary plane, zorder=(%d %d)\n",
+				fbdev, drmdev->fbdev_zorder[i], fbdev->zorder);
 		} else {
 			DRM_ERROR("create fbdev for primary plane failed\n");
 		}
@@ -1038,8 +1074,9 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 		if (fbdev) {
 			fbdev->zorder = OSD_PLANE_BEGIN_ZORDER + drmdev->fbdev_zorder[i];
 			fbdev_cnt++;
-			MESON_DRM_FBDEV("create fbdev for plane (%d %d) zorder=%d\n",
-				i, osd_plane->plane_index, drmdev->fbdev_zorder[i]);
+			MESON_DRM_FBDEV("create fbdev(%p) for plane (%d %d), zorder=(%d %d)\n",
+				fbdev, i, osd_plane->plane_index,
+				drmdev->fbdev_zorder[i], fbdev->zorder);
 		} else {
 			DRM_ERROR("create fbdev for plane %d failed\n", i);
 			break;

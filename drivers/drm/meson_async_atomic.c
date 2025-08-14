@@ -475,8 +475,10 @@ int meson_async_atomic_ioctl(struct drm_device *dev,
 	drm_modeset_acquire_init(&ctx, 0);
 
 	state = drm_atomic_state_alloc(dev);
-	if (!state)
+	if (!state) {
+		DRM_ERROR("state is NULL\n");
 		return -ENOMEM;
+	}
 
 	state->allow_modeset = false;
 	state->acquire_ctx = &ctx;
@@ -498,12 +500,14 @@ retry:
 		struct drm_mode_object *obj;
 
 		if (get_user(obj_id, objs_ptr + copied_objs)) {
+			DRM_ERROR("get_user obj_id fail\n");
 			ret = -EFAULT;
 			goto out;
 		}
 
 		obj = drm_mode_object_find(dev, file_priv, obj_id, DRM_MODE_OBJECT_ANY);
 		if (!obj) {
+			DRM_ERROR("obj is NULL\n");
 			ret = -ENOENT;
 			goto out;
 		}
@@ -516,12 +520,14 @@ retry:
 		}
 
 		if (!obj->properties) {
+			DRM_ERROR("properties is NULL\n");
 			drm_mode_object_put(obj);
 			ret = -ENOENT;
 			goto out;
 		}
 
 		if (get_user(count_props, count_props_ptr + copied_objs)) {
+			DRM_ERROR("get_user count_props fail\n");
 			drm_mode_object_put(obj);
 			ret = -EFAULT;
 			goto out;
@@ -535,6 +541,7 @@ retry:
 			struct drm_property *prop;
 
 			if (get_user(prop_id, props_ptr + copied_props)) {
+				DRM_ERROR("get_user prop_id fail\n");
 				drm_mode_object_put(obj);
 				ret = -EFAULT;
 				goto out;
@@ -542,6 +549,7 @@ retry:
 
 			prop = meson_mode_obj_find_prop_id(obj, prop_id);
 			if (!prop) {
+				DRM_ERROR("prop is NULL\n");
 				drm_mode_object_put(obj);
 				ret = -ENOENT;
 				goto out;
@@ -550,6 +558,7 @@ retry:
 			if (copy_from_user(&prop_value,
 					   prop_values_ptr + copied_props,
 					   sizeof(prop_value))) {
+				DRM_ERROR("copy_from_user get prop_value fail\n");
 				drm_mode_object_put(obj);
 				ret = -EFAULT;
 				goto out;
@@ -557,6 +566,7 @@ retry:
 
 			ret = atomic_set_prop(state, obj, file_priv, prop, prop_value);
 			if (ret) {
+				DRM_ERROR("set prop fail\n");
 				drm_mode_object_put(obj);
 				goto out;
 			}
@@ -581,7 +591,7 @@ retry:
 
 	ret = config->funcs->atomic_commit(state->dev, state, false);
 	if (ret)
-		DRM_ERROR("%s failed .\n", __func__);
+		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
 
 out:
 	if (ret == -EDEADLK) {
