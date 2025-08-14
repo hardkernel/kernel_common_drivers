@@ -1,20 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/enhancement/amvecm/color/color_tune.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #include <linux/types.h>
 #include <linux/init.h>
@@ -126,6 +114,10 @@ void lut_release(void)
 void ct_process(void)
 {
 	struct ct_func_s *ct_func;
+	unsigned int lut3d_points = LUT3D_POINTS;
+
+	if (chip_type_id == chip_t6d)
+		lut3d_points = LUT3D_POINTS9;
 
 	ct_func = get_ct_func();
 
@@ -135,7 +127,7 @@ void ct_process(void)
 	}
 
 	if (ct_func->ct)
-		ct_func->ct(ct_func->cl_par, plut, plut_out);
+		ct_func->ct(ct_func->cl_par, plut, plut_out, lut3d_points);
 	//vpp_set_lut3d(0, 0, plut_out, 0);
 }
 

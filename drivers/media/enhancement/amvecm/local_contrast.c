@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/enhancement/amvecm/local_contrast.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -61,8 +48,8 @@ int lc_demo_mode;
 int lc_force_ctrl;
 int dbg_monitor_ctrl;
 int skip_num = 4;
-int width_limit = 1900;
-int height_limit = 1050;
+int width_limit = 1300;
+int height_limit = 720;
 int lc_reset_done;
 int lc_en_chflg = 0xff;
 static int lc_flag = 0xff;
@@ -276,7 +263,7 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 				WRITE_VPP_REG(matrix_coef02_10, 0x1f680064);
 				WRITE_VPP_REG(matrix_coef11_12, 0x01c21ed6);
 				WRITE_VPP_REG(matrix_coef20_21, 0x1e8701c2);
-				WRITE_VPP_REG(matrix_coef22, 0x1fb70000);
+				WRITE_VPP_REG(matrix_coef22, 0x1fb7);
 				if (bitdepth == 10) {
 					WRITE_VPP_REG(matrix_offset0_1, 0x0200040);
 					WRITE_VPP_REG(matrix_clip, 0x3ff000);
@@ -528,7 +515,7 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 				WRITE_VPP_REG(matrix_coef02_10, 0x1f8a004a);
 				WRITE_VPP_REG(matrix_coef11_12, 0x02001e76);
 				WRITE_VPP_REG(matrix_coef20_21, 0x1e2f0200);
-				WRITE_VPP_REG(matrix_coef22, 0x1fd10000);
+				WRITE_VPP_REG(matrix_coef22, 0x1fd1);
 				if (bitdepth == 10) {
 					WRITE_VPP_REG(matrix_offset0_1, 0x200000);
 					WRITE_VPP_REG(matrix_clip, 0x3ff000);
@@ -2189,10 +2176,7 @@ void lc_change_pattern_curve_nodes(int lc_gain)
 }
 
 void lc_process(struct vframe_s *vf,
-	unsigned int sps_h_en,
-	unsigned int sps_v_en,
-	unsigned int sps_w_in,
-	unsigned int sps_h_in,
+	struct vpq_size_s *pvpq_size,
 	int vpp_index,
 	struct vpp_hist_param_s *vp)
 {
@@ -2202,6 +2186,10 @@ void lc_process(struct vframe_s *vf,
 	int lc_bypass_th = 0;
 	unsigned int height, width;
 	int lc_gain = 0;
+	unsigned int sps_h_en;
+	unsigned int sps_v_en;
+	unsigned int sps_w_in;
+	unsigned int sps_h_in;
 
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1 ||
 		chip_type_id == chip_s5 ||
@@ -2209,6 +2197,11 @@ void lc_process(struct vframe_s *vf,
 		chip_type_id == chip_s6 ||
 		lc_force_ctrl)
 		return;
+
+	sps_h_en = pvpq_size->sr1_hsc_en;
+	sps_v_en = pvpq_size->sr1_vsc_en;
+	sps_w_in = pvpq_size->sr1_in_hsize;
+	sps_h_in = pvpq_size->sr1_in_vsize;
 
 	if (amlc_debug == 0xf0)
 		monitor_lc_stts_overflow();
@@ -2241,6 +2234,15 @@ void lc_process(struct vframe_s *vf,
 	if (chip_type_id == chip_t6d && lc_vd_info) {
 		height = lc_vd_info->vd1_dout_vsize;
 		width = lc_vd_info->vd1_dout_hsize;
+
+		if (amlc_debug == 0x10) {
+			pr_info("[lc_vd_info] out_v/hsize: %d/%d\n",
+				lc_vd_info->vd1_dout_vsize,
+				lc_vd_info->vd1_dout_hsize);
+			pr_info("[lc_vd_info] in_v/hsize: %d/%d\n",
+				lc_vd_info->vd1_in_vsize,
+				lc_vd_info->vd1_in_hsize);
+		}
 	} else {
 		height = sps_h_in << sps_v_en;
 		width = sps_w_in << sps_h_en;

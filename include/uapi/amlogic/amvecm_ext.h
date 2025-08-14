@@ -252,6 +252,15 @@ struct am_vdj_mode_s {
 	int vadj2_en;
 };
 
+struct am_osd_vdj_mode_s {
+	int flag;
+	int brightness; /* [-1024, 1023] */
+	int contrast;   /* [-1024, 1023] */
+	int saturation; /* [-128, 128]   */
+	int hue;		/* [-25, 25]     */
+	int osd_pic_en;
+};
+
 enum hdr_type_e {
 	HDRTYPE_NONE = UNKNOWN_SOURCE,
 	HDRTYPE_SDR = SDR_SOURCE,
@@ -836,6 +845,9 @@ struct hdr_parameter_reg_s {
 #define AMVECM_IOC_S_HDR_PARAM_REG _IOW(_VE_CM, 0x91, struct hdr_parameter_reg_s)
 #define AMVECM_IOC_S_HDR_GAMUT_COEF _IOW(_VE_CM, 0x92, struct hdr_gamut_data_s)
 #define AMVECM_IOC_S_HDR_MTRX_COEF _IOW(_VE_CM, 0x93, struct hdr_mtrx_data_s)
+
+#define AMVECM_IOC_G_OSD_PIC_MODE    _IOR(_VE_CM, 0x94, struct am_osd_vdj_mode_s)
+#define AMVECM_IOC_S_OSD_PIC_MODE    _IOW(_VE_CM, 0x95, struct am_osd_vdj_mode_s)
 
 /*hdr10_tmo ext ioc*/
 #define AMVECM_IOC_S_HDR_TMO_EXT	_IOW(_VE_CM, 0x97, struct hdr_tmo_sw_ext)

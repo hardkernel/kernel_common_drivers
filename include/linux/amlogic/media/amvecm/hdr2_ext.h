@@ -78,11 +78,13 @@ enum hdr_matrix_sel {
 #define LUT_OFF 0
 
 #define HDR2_EOTF_LUT_SIZE 143
+#define HDR2_EOTF_LUT_SIZE_NEW 148
 #define HDR2_OOTF_LUT_SIZE 149
 #define HDR2_OETF_LUT_SIZE 149
 #define HDR2_CGAIN_LUT_SIZE 65
 
 #define MTX_NUM_PARAM 16
+#define MTX_NUM_PARAM_TOOL 9
 
 struct hdr_proc_mtx_param_s {
 	int mtx_only;

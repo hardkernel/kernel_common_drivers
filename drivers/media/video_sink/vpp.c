@@ -5025,6 +5025,8 @@ static void set_vsr_postion(struct disp_info_s *input,
 	if (next_frame_par->supscl_path == VSR_BEFORE_VE) {
 		path = 1;
 		ve_in_size = width_out << 16 | height_out;
+		next_frame_par->cm_input_h = height_out;
+		next_frame_par->cm_input_w = width_out;
 	} else if (next_frame_par->supscl_path == VSR_AFTER_VE) {
 		path = 0;
 		ve_in_size = src_width << 16 | src_height;

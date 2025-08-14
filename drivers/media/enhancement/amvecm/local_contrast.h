@@ -86,10 +86,7 @@ extern int lc_change_curve_nodes_en;
 
 void lc_init(int bitdepth);
 void lc_process(struct vframe_s *vf,
-		unsigned int sps_h_en,
-		unsigned int sps_v_en,
-		unsigned int sps_w_in,
-		unsigned int sps_h_in,
+		struct vpq_size_s *pvpq_size,
 		int vpp_index,
 		struct vpp_hist_param_s *vp);
 void lc_free(void);

@@ -429,35 +429,28 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	struct vpp_frame_par_s *frame_par = NULL;
+	struct vpq_size_s vpq_size = {0};
 
 	if (vd_layer_vpp[vpp_id].next_frame_par)
 		frame_par = vd_layer_vpp[vpp_id].next_frame_par;
 	else
 		frame_par = vd_layer_vpp[vpp_id].cur_frame_par;
 
+	if (frame_par) {
+		vpq_size.cm_hsize = frame_par->cm_input_w;
+		vpq_size.cm_vsize = frame_par->cm_input_h;
+		vpq_size.sr1_hsc_en = frame_par->supsc1_hori_ratio;
+		vpq_size.sr1_vsc_en = frame_par->supsc1_vert_ratio;
+		vpq_size.sr1_in_hsize = frame_par->spsc1_w_in;
+		vpq_size.sr1_in_vsize = frame_par->spsc1_h_in;
+	}
+
 	amvecm_on_vs
 		(!is_local_vf(vd_layer_vpp[vpp_id].dispbuf)
 		? vd_layer_vpp[vpp_id].dispbuf : NULL,
 		new_frame,
 		new_frame ? CSC_FLAG_TOGGLE_FRAME : 0,
-		frame_par ?
-		frame_par->supsc1_hori_ratio :
-		0,
-		frame_par ?
-		frame_par->supsc1_vert_ratio :
-		0,
-		frame_par ?
-		frame_par->spsc1_w_in :
-		0,
-		frame_par ?
-		frame_par->spsc1_h_in :
-		0,
-		frame_par ?
-		frame_par->cm_input_w :
-		0,
-		frame_par ?
-		frame_par->cm_input_h :
-		0,
+		vpq_size,
 		layer_id,
 		vpp_index);
 #endif

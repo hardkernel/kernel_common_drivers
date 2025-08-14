@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * include/linux/amlogic/media/amvecm/amvecm.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef AMVECM_H
@@ -523,18 +510,23 @@ extern enum output_format_e output_format;
 extern unsigned int osd_pic_en;
 extern unsigned int slt_en;
 extern bool pq_rdma_init;
+extern int hdr_tool_matrix_mode;
+
+struct vpq_size_s {
+	unsigned int sr1_in_hsize;
+	unsigned int sr1_in_vsize;
+	unsigned int sr1_hsc_en;
+	unsigned int sr1_vsc_en;
+	unsigned int cm_hsize;//scaler out hsize
+	unsigned int cm_vsize;//scaler out vsize
+};
 
 void amvecm_size_info_update(int vpp_index);
 
 int amvecm_on_vs(struct vframe_s *display_vf,
 		 struct vframe_s *toggle_vf,
 		 int flags,
-		 unsigned int sps_h_en,
-		 unsigned int sps_v_en,
-		 unsigned int sps_w_in,
-		 unsigned int sps_h_in,
-		 unsigned int cm_in_w,
-		 unsigned int cm_in_h,
+		 struct vpq_size_s vpq_size,
 		 enum vd_path_e vd_path,
 		 enum vpp_index_e vpp_index);
 void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf, u32 vpp_index);
@@ -580,6 +572,7 @@ enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,
 int amvecm_set_saturation_hue(int mab, enum wr_md_e mode, int vpp_index);
 void amvecm_saturation_hue_update(int offset_val);
 void amvecm_update_module_status(void);
+void vpp_vadj1_align_vd1_mute(void);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 int frc_set_seg_display(u8 enable, u8 seg1, u8 seg2, u8 seg3);
@@ -724,6 +717,36 @@ enum vpp_matrix_ext_csc_e {
 	VPP_MATRIX_SMPTE_ST_2113_P3D65RGB,
 	VPP_MATRIX_SMPTE_ST_2113_P3DCIRGB,
 	VPP_MATRIX_BT_2100,
+};
+
+struct sharpness_param_reg {
+	unsigned int reg_vpp_sr_en;
+	unsigned int reg_vpp_pk_en;
+	unsigned int reg_vpp_hti_en;
+	unsigned int reg_vpp_vti_en;
+	unsigned int reg_vpp_dering_en;
+	unsigned int reg_vpp_nr_lpf_en;
+};
+
+struct sharpness_param {
+	unsigned int sr0_pk;
+	unsigned int sr1_pk;
+	unsigned int sr0_hcti;
+	unsigned int sr1_hcti;
+	unsigned int sr0_hlti;
+	unsigned int sr1_hlti;
+	unsigned int sr0_vcti;
+	unsigned int sr1_vcti;
+	unsigned int sr0_vlti;
+	unsigned int sr1_vlti;
+	unsigned int sr0_dej;
+	unsigned int sr1_dej;
+	unsigned int sr0_drt;
+	unsigned int sr1_drt;
+	unsigned int sr0_der;
+	unsigned int sr1_der;
+	unsigned int s1_sr0_pk;
+	unsigned int s1_sr1_pk;
 };
 
 extern struct vpp_mtx_info_s mtx_info;

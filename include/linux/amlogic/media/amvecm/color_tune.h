@@ -37,7 +37,10 @@ struct color_param_s {
 
 struct ct_func_s {
 	struct color_param_s *cl_par;
-	void (*ct)(struct color_param_s *parm, int (*lut3di)[3], unsigned int (*lut3do)[3]);
+	void (*ct)(struct color_param_s *parm,
+		int lut3di[][3],
+		unsigned int lut3do[][3],
+		unsigned int lut3d_points);
 };
 
 struct ct_func_s *get_ct_func(void);

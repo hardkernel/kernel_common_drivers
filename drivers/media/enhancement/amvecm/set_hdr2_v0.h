@@ -1,20 +1,8 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/enhancement/amvecm/set_hdr2_v0.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
+
 #ifndef AM_SET_HDR2_V0
 #define AM_SET_HDR2_V0
 
@@ -249,5 +237,14 @@ struct hdr_gmt_comp_param_s {
 
 void hdr_lut1_param_debug(int offset, int sel_val, int para_val);
 void hdr_gmut_comp_debug(int offset, int sel_val, int comp_val);
+void set_hdr_top_ctrl_mode(int mode);
+void set_hdr_mtrx_coef(struct hdr_mtrx_data_s *data);
+void get_hdr_mtrx_coef(struct hdr_mtrx_data_s *data);
+void set_hdr_gamut_coef(struct hdr_gamut_data_s *data);
+void get_hdr_gamut_coef(struct hdr_gamut_data_s *data);
+void set_hdr_parameter_reg(struct hdr_parameter_reg_s *data);
+void get_hdr_parameter_reg(struct hdr_parameter_reg_s *data);
+int hdr10_param_dbg(char **parm);
+
 #endif
 #endif

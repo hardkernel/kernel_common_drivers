@@ -202,6 +202,7 @@ static int lowlatency_vsync(u8 instance_id)
 	int i;
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	u16 line = glayer_info[0].layer_top;
+	struct vpq_size_s vpq_size = {0};
 #endif
 
 	vinfo = get_current_vinfo();
@@ -370,12 +371,7 @@ static int lowlatency_vsync(u8 instance_id)
 				? gvideo_recv[0]->cur_buf : NULL,
 				path3_new_frame,
 				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
+				vpq_size,
 				VD1_PATH,
 				VPP_TOP0);
 		}
@@ -385,12 +381,7 @@ static int lowlatency_vsync(u8 instance_id)
 				? gvideo_recv[0]->cur_buf : NULL,
 				path3_new_frame,
 				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
+				vpq_size,
 				VD2_PATH,
 				VPP_TOP0);
 		if (vd3_path_id == gvideo_recv[0]->path_id)
@@ -399,12 +390,7 @@ static int lowlatency_vsync(u8 instance_id)
 				? gvideo_recv[0]->cur_buf : NULL,
 				path3_new_frame,
 				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
+				vpq_size,
 				VD3_PATH,
 				VPP_TOP0);
 #endif
@@ -429,12 +415,7 @@ static int lowlatency_vsync(u8 instance_id)
 				? gvideo_recv[1]->cur_buf : NULL,
 				path4_new_frame,
 				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
+				vpq_size,
 				VD1_PATH,
 				VPP_TOP0);
 		}
@@ -444,12 +425,7 @@ static int lowlatency_vsync(u8 instance_id)
 				? gvideo_recv[1]->cur_buf : NULL,
 				path4_new_frame,
 				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
+				vpq_size,
 				VD2_PATH,
 				VPP_TOP0);
 		if (vd3_path_id == gvideo_recv[1]->path_id)
@@ -458,12 +434,7 @@ static int lowlatency_vsync(u8 instance_id)
 				? gvideo_recv[1]->cur_buf : NULL,
 				path4_new_frame,
 				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
+				vpq_size,
 				VD3_PATH,
 				VPP_TOP0);
 #endif
@@ -488,12 +459,7 @@ static int lowlatency_vsync(u8 instance_id)
 			? gvideo_recv[2]->cur_buf : NULL,
 			path5_new_frame,
 			CSC_FLAG_CHECK_OUTPUT,
-			0,
-			0,
-			0,
-			0,
-			0,
-			0,
+			vpq_size,
 			VD1_PATH,
 			VPP_TOP0);
 	}
@@ -503,12 +469,7 @@ static int lowlatency_vsync(u8 instance_id)
 			? gvideo_recv[2]->cur_buf : NULL,
 			path5_new_frame,
 			CSC_FLAG_CHECK_OUTPUT,
-			0,
-			0,
-			0,
-			0,
-			0,
-			0,
+			vpq_size,
 			VD2_PATH,
 			VPP_TOP0);
 	if (vd3_path_id == gvideo_recv[2]->path_id)
@@ -517,12 +478,7 @@ static int lowlatency_vsync(u8 instance_id)
 			? gvideo_recv[2]->cur_buf : NULL,
 			path5_new_frame,
 			CSC_FLAG_CHECK_OUTPUT,
-			0,
-			0,
-			0,
-			0,
-			0,
-			0,
+			vpq_size,
 			VD3_PATH,
 			VPP_TOP0);
 #endif
@@ -1022,6 +978,15 @@ static int lowlatency_vsync(u8 instance_id)
 	else
 		frame_par = vd_layer[0].cur_frame_par;
 
+	if (frame_par) {
+		vpq_size.cm_hsize = frame_par->cm_input_w;
+		vpq_size.cm_vsize = frame_par->cm_input_h;
+		vpq_size.sr1_hsc_en = frame_par->supsc1_hori_ratio;
+		vpq_size.sr1_vsc_en = frame_par->supsc1_vert_ratio;
+		vpq_size.sr1_in_hsize = frame_par->spsc1_w_in;
+		vpq_size.sr1_in_vsize = frame_par->spsc1_h_in;
+	}
+
 	refresh_on_vs(new_frame, vd_layer[0].dispbuf, VPP_TOP0);
 
 	amvecm_on_vs
@@ -1029,24 +994,7 @@ static int lowlatency_vsync(u8 instance_id)
 		? vd_layer[0].dispbuf : NULL,
 		new_frame,
 		new_frame ? CSC_FLAG_TOGGLE_FRAME : 0,
-		frame_par ?
-		frame_par->supsc1_hori_ratio :
-		0,
-		frame_par ?
-		frame_par->supsc1_vert_ratio :
-		0,
-		frame_par ?
-		frame_par->spsc1_w_in :
-		0,
-		frame_par ?
-		frame_par->spsc1_h_in :
-		0,
-		frame_par ?
-		frame_par->cm_input_w :
-		0,
-		frame_par ?
-		frame_par->cm_input_h :
-		0,
+		vpq_size,
 		VD1_PATH,
 		VPP_TOP0);
 #endif
@@ -1396,29 +1344,22 @@ static int lowlatency_vsync(u8 instance_id)
 	else
 		frame_par = vd_layer[1].cur_frame_par;
 
+	memset(&vpq_size, 0, sizeof(struct vpq_size_s));
+	if (frame_par) {
+		vpq_size.cm_hsize = frame_par->cm_input_w;
+		vpq_size.cm_vsize = frame_par->cm_input_h;
+		vpq_size.sr1_hsc_en = frame_par->supsc1_hori_ratio;
+		vpq_size.sr1_vsc_en = frame_par->supsc1_vert_ratio;
+		vpq_size.sr1_in_hsize = frame_par->spsc1_w_in;
+		vpq_size.sr1_in_vsize = frame_par->spsc1_h_in;
+	}
+
 	amvecm_on_vs
 		(!is_local_vf(vd_layer[1].dispbuf)
 		? vd_layer[1].dispbuf : NULL,
 		new_frame2,
 		new_frame2 ? CSC_FLAG_TOGGLE_FRAME : 0,
-		frame_par ?
-		frame_par->supsc1_hori_ratio :
-		0,
-		frame_par ?
-		frame_par->supsc1_vert_ratio :
-		0,
-		frame_par ?
-		frame_par->spsc1_w_in :
-		0,
-		frame_par ?
-		frame_par->spsc1_h_in :
-		0,
-		frame_par ?
-		frame_par->cm_input_w :
-		0,
-		frame_par ?
-		frame_par->cm_input_h :
-		0,
+		vpq_size,
 		VD2_PATH,
 		VPP_TOP0);
 #endif
@@ -1688,29 +1629,22 @@ static int lowlatency_vsync(u8 instance_id)
 	else
 		frame_par = vd_layer[2].cur_frame_par;
 
+	memset(&vpq_size, 0, sizeof(struct vpq_size_s));
+	if (frame_par) {
+		vpq_size.cm_hsize = frame_par->cm_input_w;
+		vpq_size.cm_vsize = frame_par->cm_input_h;
+		vpq_size.sr1_hsc_en = frame_par->supsc1_hori_ratio;
+		vpq_size.sr1_vsc_en = frame_par->supsc1_vert_ratio;
+		vpq_size.sr1_in_hsize = frame_par->spsc1_w_in;
+		vpq_size.sr1_in_vsize = frame_par->spsc1_h_in;
+	}
+
 	amvecm_on_vs
 		(!is_local_vf(vd_layer[2].dispbuf)
 		? vd_layer[2].dispbuf : NULL,
 		new_frame3,
 		new_frame3 ? CSC_FLAG_TOGGLE_FRAME : 0,
-		frame_par ?
-		frame_par->supsc1_hori_ratio :
-		0,
-		frame_par ?
-		frame_par->supsc1_vert_ratio :
-		0,
-		frame_par ?
-		frame_par->spsc1_w_in :
-		0,
-		frame_par ?
-		frame_par->spsc1_h_in :
-		0,
-		frame_par ?
-		frame_par->cm_input_w :
-		0,
-		frame_par ?
-		frame_par->cm_input_h :
-		0,
+		vpq_size,
 		VD3_PATH,
 		VPP_TOP0);
 #endif

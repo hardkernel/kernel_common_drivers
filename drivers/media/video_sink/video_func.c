@@ -2467,6 +2467,7 @@ void amvecm_process(struct path_id_s *path_id,
 			    struct vframe_s *new_frame)
 {
 	u32 vpp_index = VPP0;
+	struct vpq_size_s vpq_size = {0};
 
 	if (path_id->vd1_path_id == p_gvideo_recv->path_id)
 		amvecm_on_vs
@@ -2475,12 +2476,7 @@ void amvecm_process(struct path_id_s *path_id,
 			? p_gvideo_recv->cur_buf : NULL,
 			new_frame,
 			CSC_FLAG_CHECK_OUTPUT,
-			0,
-			0,
-			0,
-			0,
-			0,
-			0,
+			vpq_size,
 			VD1_PATH,
 			vd_layer[0].vpp_index);
 	else if (path_id->vd2_path_id == p_gvideo_recv->path_id) {
@@ -2494,12 +2490,7 @@ void amvecm_process(struct path_id_s *path_id,
 			? p_gvideo_recv->cur_buf : NULL,
 			new_frame,
 			CSC_FLAG_CHECK_OUTPUT,
-			0,
-			0,
-			0,
-			0,
-			0,
-			0,
+			vpq_size,
 			VD2_PATH,
 			vpp_index);
 	} else if (path_id->vd3_path_id == p_gvideo_recv->path_id) {
@@ -2513,12 +2504,7 @@ void amvecm_process(struct path_id_s *path_id,
 			? p_gvideo_recv->cur_buf : NULL,
 			new_frame,
 			CSC_FLAG_CHECK_OUTPUT,
-			0,
-			0,
-			0,
-			0,
-			0,
-			0,
+			vpq_size,
 			VD3_PATH,
 			vpp_index);
 	}
@@ -3444,16 +3430,13 @@ static void vdx_misc_late_proc(u8 layer_id)
 int amvecm_update(u8 layer_id, u8 path_index, struct vframe_s *vf)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	struct vpq_size_s vpq_size = {0};
+
 	return amvecm_on_vs
 		((cur_dispbuf[path_index] != &vf_local[path_index])
 		? cur_dispbuf[path_index] : NULL,
 		vf, CSC_FLAG_CHECK_OUTPUT,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
+		vpq_size,
 		layer_id,
 		vd_layer[path_index].vpp_index);
 #else
@@ -4490,6 +4473,7 @@ static void do_vd1_swap_frame(u8 layer_id,
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	struct vpp_frame_par_s *frame_par = NULL;
+	struct vpq_size_s vpq_size = {0};
 
 	if (vd_layer[0].next_frame_par)
 		frame_par = vd_layer[0].next_frame_par;
@@ -4503,6 +4487,14 @@ static void do_vd1_swap_frame(u8 layer_id,
 		vpp_new_frame = 0;
 #endif
 #endif
+	if (frame_par) {
+		vpq_size.cm_hsize = frame_par->cm_input_w;
+		vpq_size.cm_vsize = frame_par->cm_input_h;
+		vpq_size.sr1_hsc_en = frame_par->supsc1_hori_ratio;
+		vpq_size.sr1_vsc_en = frame_par->supsc1_vert_ratio;
+		vpq_size.sr1_in_hsize = frame_par->spsc1_w_in;
+		vpq_size.sr1_in_vsize = frame_par->spsc1_h_in;
+	}
 
 	refresh_on_vs(new_frame, vd_layer[0].dispbuf, vd_layer[0].vpp_index);
 
@@ -4511,24 +4503,7 @@ static void do_vd1_swap_frame(u8 layer_id,
 		? vd_layer[0].dispbuf : NULL,
 		new_frame,
 		new_frame ? CSC_FLAG_TOGGLE_FRAME : 0,
-		frame_par ?
-		frame_par->supsc1_hori_ratio :
-		0,
-		frame_par ?
-		frame_par->supsc1_vert_ratio :
-		0,
-		frame_par ?
-		frame_par->spsc1_w_in :
-		0,
-		frame_par ?
-		frame_par->spsc1_h_in :
-		0,
-		frame_par ?
-		frame_par->cm_input_w :
-		0,
-		frame_par ?
-		frame_par->cm_input_h :
-		0,
+		vpq_size,
 		VD1_PATH,
 		vd_layer[0].vpp_index);
 #endif
@@ -4676,35 +4651,28 @@ static void do_vdx_swap_frame(u8 layer_id,
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	struct vpp_frame_par_s *frame_par = NULL;
+	struct vpq_size_s vpq_size = {0};
 
 	if (vd_layer[layer_id].next_frame_par)
 		frame_par = vd_layer[layer_id].next_frame_par;
 	else
 		frame_par = vd_layer[layer_id].cur_frame_par;
 
+	if (frame_par) {
+		vpq_size.cm_hsize = frame_par->cm_input_w;
+		vpq_size.cm_vsize = frame_par->cm_input_h;
+		vpq_size.sr1_hsc_en = frame_par->supsc1_hori_ratio;
+		vpq_size.sr1_vsc_en = frame_par->supsc1_vert_ratio;
+		vpq_size.sr1_in_hsize = frame_par->spsc1_w_in;
+		vpq_size.sr1_in_vsize = frame_par->spsc1_h_in;
+	}
+
 	amvecm_on_vs
 		(!is_local_vf(vd_layer[layer_id].dispbuf)
 		? vd_layer[layer_id].dispbuf : NULL,
 		new_frame,
 		new_frame ? CSC_FLAG_TOGGLE_FRAME : 0,
-		frame_par ?
-		frame_par->supsc1_hori_ratio :
-		0,
-		frame_par ?
-		frame_par->supsc1_vert_ratio :
-		0,
-		frame_par ?
-		frame_par->spsc1_w_in :
-		0,
-		frame_par ?
-		frame_par->spsc1_h_in :
-		0,
-		frame_par ?
-		frame_par->cm_input_w :
-		0,
-		frame_par ?
-		frame_par->cm_input_h :
-		0,
+		vpq_size,
 		layer_id,
 		vd_layer[layer_id].vpp_index);
 #endif
@@ -5565,8 +5533,14 @@ void pre_vsync_process(void)
 		do_gettimeofday(&cur_line_info->render_end);
 	do_fun = false;
 	/* do blend set */
-	if (cur_dev->pre_vsync_enable)
+	if (cur_dev->pre_vsync_enable) {
 		vpp_blend_update(vinfo, PRE_VSYNC);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+		if (vd_layer[0].dispbuf)
+			vpp_vadj1_align_vd1_mute();
+#endif
+	}
+
 pre_exit_2:
 	if (cur_pre_func->vd_late_process)
 		cur_pre_func->vd_late_process(0, 0);
@@ -6001,8 +5975,14 @@ exit:
 		alpha_win_set(&vd_layer[0]);
 
 	/* do blend,judge really update in update_vpp_input_info for vpp_index */
-	if (!cur_dev->pre_vsync_enable)
+	if (!cur_dev->pre_vsync_enable) {
 		vpp_blend_update(vinfo, VPP0);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+		if (vd_layer[0].dispbuf)
+			vpp_vadj1_align_vd1_mute();
+#endif
+	}
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	vd2_postblend_update(vinfo, VPP0);
 

@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/enhancement/amvecm/amve.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __AM_VE_H
@@ -93,6 +80,8 @@ extern unsigned int gamma_index;
 extern unsigned int gamma_index_sub;
 extern unsigned int gm_par_idx;
 extern unsigned int *plut3d;
+extern unsigned int *plut3d_base;
+
 extern struct tcon_gamma_table_s video_gamma_table_r_sub;
 extern struct tcon_gamma_table_s video_gamma_table_g_sub;
 extern struct tcon_gamma_table_s video_gamma_table_b_sub;
@@ -203,7 +192,7 @@ extern struct am_regs_s sr1reg_sd_scale;
 extern struct am_regs_s sr1reg_hd_scale;
 extern struct am_regs_s sr1reg_cvbs;
 extern struct am_regs_s sr1reg_hv_noscale;
-void amvecm_fresh_overscan(struct vframe_s *vf);
+void amvecm_fresh_overscan(struct vframe_s *vf, struct vframe_s *vf_rpt);
 void amvecm_reset_overscan(void);
 void ve_hist_gamma_tgt(struct vframe_s *vf, struct vpp_hist_param_s *vp);
 int vpp_set_lut3d(int bfromkey,
@@ -221,6 +210,9 @@ void vpp_lut3d_table_release(void);
 int vpp_enable_lut3d(int enable);
 void dump_plut3d_table(void);
 void dump_plut3d_reg_table(void);
+
+void vpp_lut3d_base_table_init(void);
+void update_lut3d_base_data(unsigned int p3dlut_in[][3]);
 
 void amvecm_gamma_init(bool en);
 void set_gamma_regs(int en, int sel);
@@ -271,5 +263,8 @@ extern int video_rgb_ogo_mode_sw;
 extern int video_rgb_ogo_xvy_mtx;
 extern int dv_pq_bypass;
 extern unsigned int contrast_adj_sel;
+void amve_sharpness_sub_vsync_ctrl(unsigned int enable, int vpp_index);
+void amve_old_sharpness_sub_vsync_ctrl(unsigned int enable, int vpp_index);
+
 #endif
 
