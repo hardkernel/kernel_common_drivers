@@ -8,6 +8,8 @@
 
 /* T6D PHY register */
 #define T6D_HDMIRX20PLL_CTRL0			(0x000 << 2)
+#define T6D_M_VALUE MSK(9, 0)
+#define T6D_N_VALUE MSK(5, 11)
 #define T6D_HDMIRX20PLL_CTRL1			(0x001 << 2)
 #define T6D_HDMIRX20PHY_DCHA_AFE		(0x002 << 2)
 	#define T6D_LEQ_HYPER_GAIN_CH0		_BIT(3)
@@ -85,6 +87,9 @@
 /* i2c monitor reg */
 #define T6D_I2C_MONITOR_BASE		0x2c000
 
+/*vco max value */
+#define T6D_VCO_MAX 5500
+
 extern int tapx_value;
 extern int agc_enable;
 extern u32 afe_value;
@@ -99,7 +104,7 @@ void aml_phy_init_t6d(void);
 void aml_eq_eye_monitor_t6d(void);
 void dump_reg_phy_t6d(void);
 void dump_aml_phy_sts_t6d(void);
-void aml_phy_short_bist_t6d(void);
+int aml_phy_short_bist_t6d(void);
 bool aml_get_tmds_valid_t6d(void);
 void aml_phy_power_off_t6d(void);
 bool rx_is_power_off_t6d(void);

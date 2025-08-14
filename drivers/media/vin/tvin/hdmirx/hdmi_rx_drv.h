@@ -475,8 +475,6 @@ struct rx_aml_phy {
 	int buf_gain;
 	/* bit[3:0]:pll bw,bit[4:7]:phy bw, bit'8 enable bit */
 	u32 force_bw;
-	u32 phy_bw_pre;
-	u32 pll_bw_pre;
 	int eq_sslms_en;
 	/* audio pll source: 0: analog pll,1: digital */
 	bool dacr_en;
@@ -1082,6 +1080,8 @@ struct rx_s {
 	u32 de_err_cnt;
 	int pkt_mini_interval[PACKET_TYPE_MAX]; //unit:frame
 	int dump_aud_cnt;
+	u32 phy_bw_pre;
+	u32 pll_bw_pre;
 	struct hdmirx_phy_status_s phy_sts;
 	struct edid_capacity edid_cap;
 	u32 frl_check;

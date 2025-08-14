@@ -4238,8 +4238,8 @@ static void rx_cable_clk_monitor(u8 port)
 
 	if (rx[port].cur_5v_sts == 0) {
 		rx[port].cableclk_stb_flg = false;
-		rx_info.aml_phy.phy_bw_pre = PHY_BW_0;
-		rx_info.aml_phy.pll_bw_pre = PLL_BW_0;
+		rx[port].phy_bw_pre = PHY_BW_0;
+		rx[port].pll_bw_pre = PLL_BW_0;
 	} else {
 		rx[port].cableclk_stb_flg =
 		is_clk_stable(port);
@@ -4247,8 +4247,8 @@ static void rx_cable_clk_monitor(u8 port)
 
 	if (pre_sts[port] != rx[port].cableclk_stb_flg) {
 		pre_sts[port] = rx[port].cableclk_stb_flg;
-		rx_info.aml_phy.phy_bw_pre = PHY_BW_0;
-		rx_info.aml_phy.pll_bw_pre = PLL_BW_0;
+		rx[port].phy_bw_pre = PHY_BW_0;
+		rx[port].pll_bw_pre = PLL_BW_0;
 		if (log_level & PHY_LOG)
 			rx_pr("\n port %d clk_stb_changed to = %d\n", port, pre_sts[port]);
 	}

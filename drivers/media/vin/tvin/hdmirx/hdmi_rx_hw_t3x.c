@@ -349,7 +349,7 @@ void aml_pll_bw_cfg_t3x_20(u8 port, u32 cable_clk)
 	u32 clk_rate;
 
 	clk_rate = rx_get_scdc_clkrate_sts(port);
-	idx = aml_phy_pll_band(cable_clk, clk_rate);
+	idx = aml_phy_pll_band(cable_clk, clk_rate, port);
 	if (!is_clk_stable(port) || !cable_clk)
 		return;
 	if (log_level & PHY_LOG)
@@ -1392,7 +1392,7 @@ void aml_phy_cfg_t3x_20(u8 port, u32 cable_clk)
 		if (rx_info.aml_phy.ofst_en)
 			aml_phy_offset_cal_t3x_20(port);
 		clk_rate = rx_get_scdc_clkrate_sts(port);
-		idx = aml_cable_clk_band(cable_clk, clk_rate);
+		idx = aml_cable_clk_band(cable_clk, clk_rate, port);
 		if (log_level & PHY_LOG)
 			rx_pr("\nphy reg bw: %d\n port = %d\n", idx, port);
 		data32 = phy_dcha_t3x_20[idx][0];
@@ -1661,7 +1661,7 @@ void rx_21_frl_phy_cfg(u8 port, u32 cable_clk)
 		if (rx_info.aml_phy_21.ofst_en)
 			aml_phy_offset_cal_t3x_21(port);
 		clk_rate = rx_get_scdc_clkrate_sts(port);
-		idx = aml_cable_clk_band(cable_clk, clk_rate);
+		idx = aml_cable_clk_band(cable_clk, clk_rate, port);
 		hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_DFE, DFE_TAP_EN, 0x1ff, port);
 		hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHA_DFE, DFE_H1_PD, 0x0, port);
 
@@ -1800,7 +1800,7 @@ void aml_pll_bw_cfg_t3x_21(int f_rate, u8 port, u32 cable_clk)
 	u32 clk_rate = 0;
 
 	clk_rate = rx_get_scdc_clkrate_sts(port);
-	idx = aml_phy_pll_band(cable_clk, clk_rate);
+	idx = aml_phy_pll_band(cable_clk, clk_rate, port);
 	if (f_rate)
 		idx = f_rate + 5;
 	if (rx_info.aml_phy_21.phy_bwth) {

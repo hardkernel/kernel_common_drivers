@@ -47,7 +47,8 @@
 /* 2025.06.10 Fix audio fifo keeps resetting after fastswitch */
 /* 2025.06.06 fix 74M input unstable issue */
 /* 2025.07.04 enable edid segment auto clr */
-#define RX_HW_VER "ver.2025/07/04"
+/* 2025.08.05 update m and os_rate when vco error */
+#define RX_HW_VER "ver.2025/08/06"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -3540,8 +3541,8 @@ void dump_reg_phy(u8 port);
 int rx_get_clock(enum measure_clk_top_e clk_src, u8 port);
 unsigned int clk_util_clk_msr(unsigned int clk_mux);
 void aml_phy_init(u8 port);
-u32 aml_cable_clk_band(u32 cableclk, u32 clkrate);
-u32 aml_phy_pll_band(u32 cableclk, u32 clkrate);
+u32 aml_cable_clk_band(u32 cableclk, u32 clkrate, u8 port);
+u32 aml_phy_pll_band(u32 cableclk, u32 clkrate, u8 port);
 void aml_phy_switch_port(u8 port);
 void aml_phy_bw_switch(void);
 unsigned int aml_phy_pll_lock(u8 port);

@@ -3999,8 +3999,8 @@ bool rx_clk_rate_monitor(u8 port)
 	/* if (rx[rx_info.main_port].state < FSM_WAIT_CLK_STABLE) */
 		/*return changed;*/
 	/*if (is_clk_stable()) { */
-	pll_band = aml_phy_pll_band(rx[port].clk.cable_clk, clk_rate);
-	phy_band = aml_cable_clk_band(rx[port].clk.cable_clk, clk_rate);
+	pll_band = aml_phy_pll_band(rx[port].clk.cable_clk, clk_rate, port);
+	phy_band = aml_cable_clk_band(rx[port].clk.cable_clk, clk_rate, port);
 	if (rx[port].phy.pll_bw != pll_band ||
 	    rx[port].phy.phy_bw != phy_band) {
 		rx[port].phy.cablesel = 0;
@@ -6350,7 +6350,7 @@ int rx_get_aud_pll_err_sts(u8 port)
 	return ret;
 }
 
-u32 aml_cable_clk_band(u32 cable_clk, u32 clk_rate)
+u32 aml_cable_clk_band(u32 cable_clk, u32 clk_rate, u8 port)
 {
 	u32 bw;
 	u32 cab_clk = cable_clk;
@@ -6397,10 +6397,10 @@ u32 aml_cable_clk_band(u32 cable_clk, u32 clk_rate)
 		else
 			bw = PHY_BW_2;
 	}
-	if ((rx_info.aml_phy.phy_bw_pre == PHY_BW_2 &&
+	if ((rx[port].phy_bw_pre == PHY_BW_2 &&
 		bw == PHY_BW_1) && cab_clk >= (73 * MHz))
 		bw = PHY_BW_2;
-	rx_info.aml_phy.phy_bw_pre = bw;
+	rx[port].phy_bw_pre = bw;
 	if (rx_info.aml_phy.force_bw & 0x100) {
 		if (((rx_info.aml_phy.force_bw >> 4) & 0xf) <= 0x6)
 			bw = (rx_info.aml_phy.force_bw >> 4) & 0xf;
@@ -6410,7 +6410,7 @@ u32 aml_cable_clk_band(u32 cable_clk, u32 clk_rate)
 	return bw;
 }
 
-u32 aml_phy_pll_band(u32 cable_clk, u32 clk_rate)
+u32 aml_phy_pll_band(u32 cable_clk, u32 clk_rate, u8 port)
 {
 	u32 bw;
 	u32 cab_clk = cable_clk;
@@ -6430,11 +6430,11 @@ u32 aml_phy_pll_band(u32 cable_clk, u32 clk_rate)
 		bw = PLL_BW_4;
 	else
 		bw = PLL_BW_2;
-	if ((rx_info.aml_phy.pll_bw_pre == PLL_BW_2 &&
+	if ((rx[port].pll_bw_pre == PLL_BW_2 &&
 		bw == PLL_BW_1 &&
 		cab_clk <= (77 * MHz) && cab_clk >= (73 * MHz)))
 		bw = PLL_BW_2;
-	rx_info.aml_phy.pll_bw_pre = bw;
+	rx[port].pll_bw_pre = bw;
 	if (rx_info.aml_phy.force_bw & 0x100) {
 		if ((rx_info.aml_phy.force_bw & 0xf) <= 0x4)
 			bw = rx_info.aml_phy.force_bw & 0xf;

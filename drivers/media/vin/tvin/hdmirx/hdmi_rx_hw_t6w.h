@@ -109,7 +109,7 @@ void aml_phy_init_t6w(void);
 void aml_eq_eye_monitor_t6w(void);
 void dump_reg_phy_t6w(void);
 void dump_aml_phy_sts_t6w(void);
-void aml_phy_short_bist_t6w(void);
+int aml_phy_short_bist_t6w(void);
 bool aml_get_tmds_valid_t6w(void);
 void aml_phy_power_off_t6w(void);
 void aml_phy_switch_port_t6w(void);

@@ -206,7 +206,7 @@ void aml_pll_bw_cfg_t7(u32 cable_clk)
 	u32 clk_rate;
 
 	clk_rate = rx_get_scdc_clkrate_sts(port);
-	bw = aml_phy_pll_band(cable_clk, clk_rate);
+	bw = aml_phy_pll_band(cable_clk, clk_rate, port);
 	if (!is_clk_stable(port) || !cable_clk)
 		return;
 	od_div = apll_tab_t7[bw].od_div;
@@ -983,7 +983,7 @@ void aml_phy_cfg_t7(u32 cable_clk)
 		if (rx_info.aml_phy.ofst_en)
 			aml_phy_offset_cal_t7();
 		clk_rate = rx_get_scdc_clkrate_sts(port);
-		idx = aml_cable_clk_band(cable_clk, clk_rate);
+		idx = aml_cable_clk_band(cable_clk, clk_rate, port);
 		usleep_range(20, 30);
 		data32 = phy_misci_t7[idx][0];
 		hdmirx_wr_amlphy(T7_HHI_RX_PHY_MISC_CNTL0, data32);
