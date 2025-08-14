@@ -51,7 +51,8 @@
 /* 2025.08.15 auto override dc for 422 */
 /* 2025.09.03 optimize dc override flow */
 /* 2025.09.18 modify rterm enable bit for t6x/t3x */
-#define RX_HW_VER "ver.2025/09/18"
+/* 2025.09.19 set cable clk limit to 370M */
+#define RX_HW_VER "ver.2025/09/19"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -1265,7 +1266,7 @@
 /* T7 HIU PHY register */
 
 #define TMDS_CLK_MIN			(15000UL)
-#define TMDS_CLK_MAX			(340000UL)
+#define TMDS_CLK_MAX			(370000UL)
 
 /*
  * SMC CMD define
