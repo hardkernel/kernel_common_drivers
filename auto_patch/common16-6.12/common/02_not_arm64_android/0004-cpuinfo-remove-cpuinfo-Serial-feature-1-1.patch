@@ -1,0 +1,39 @@
+From 8a47966da9c544f1140ec79565206a06409e8b44 Mon Sep 17 00:00:00 2001
+From: "qinglin.li" <qinglin.li@amlogic.com>
+Date: Thu, 14 Aug 2025 18:30:25 +0800
+Subject: [PATCH] cpuinfo: remove cpuinfo Serial feature [1/1]
+
+PD#SWPL-226703
+
+Problem:
+android 16 cts need Serial is zero
+
+Solution:
+remove cpuinfo Serial feature
+
+Verify:
+local
+
+Change-Id: I0ee4427de9068700095f931c7b9bf093b9f5113b
+Signed-off-by: qinglin.li <qinglin.li@amlogic.com>
+---
+ arch/arm/kernel/setup.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
+index 010ef117d2912..44a203396cebf 100644
+--- a/arch/arm/kernel/setup.c
++++ b/arch/arm/kernel/setup.c
+@@ -1329,7 +1329,9 @@ static int c_show(struct seq_file *m, void *v)
+ 
+ 	seq_printf(m, "Hardware\t: %s\n", machine_name);
+ 	seq_printf(m, "Revision\t: %04x\n", system_rev);
++#if !IS_ENABLED(CONFIG_AMLOGIC_CPU_INFO_REMOVE_SERIAL)
+ 	seq_printf(m, "Serial\t\t: %s\n", system_serial);
++#endif
+ 
+ 	return 0;
+ }
+-- 
+2.50.1
+

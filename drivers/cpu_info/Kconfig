@@ -17,3 +17,14 @@ config AMLOGIC_SHOW_CPU_CHIPID
 	default n
 	help
 	  show cpu chipid in /proc/cpuinfo
+
+config AMLOGIC_CPU_INFO_REMOVE_SERIAL
+	tristate "Amlogic chipid"
+	depends on ARM
+	default n
+	help
+	  say y to enable Amlogic chipid driver
+          include to driver
+	  cpu info, access with smccc
+	  cpu version, access with reg
+
