@@ -3219,7 +3219,7 @@ static void aml_cec_pm_complete(struct device *dev)
 
 static int aml_cec_suspend_noirq(struct device *dev)
 {
-	int ret = 0;
+	/* int ret = 0; */
 	/*unsigned int tempaddr;*/
 
 	cec_dev->cec_info.power_status = CEC_PW_TRANS_ON_TO_STANDBY;
@@ -3239,8 +3239,8 @@ static int aml_cec_suspend_noirq(struct device *dev)
 			cec_clear_all_logical_addr(CEC_B);
 		else
 			cec_clear_all_logical_addr(ee_cec);
-		if (!IS_ERR(cec_dev->dbg_dev->pins->sleep_state))
-			ret = pinctrl_pm_select_sleep_state(cec_dev->dbg_dev);
+		/*if (!IS_ERR(cec_dev->dbg_dev->pins->sleep_state))*/
+			/*ret = pinctrl_pm_select_sleep_state(cec_dev->dbg_dev);*/
 	}
 	#ifdef CEC_FREEZE_WAKE_UP
 	}
@@ -3341,10 +3341,10 @@ static int aml_cec_resume_noirq(struct device *dev)
 					      &cec_dev->cec_wk_as_msg[1]);
 	}
 	cec_pre_init();
-	if (!IS_ERR(cec_dev->dbg_dev->pins->default_state))
-		ret = pinctrl_pm_select_default_state(cec_dev->dbg_dev);
-	else
-		CEC_ERR("pinctrl default_state error\n");
+	//if (!IS_ERR(cec_dev->dbg_dev->pins->default_state))
+	//	ret = pinctrl_pm_select_default_state(cec_dev->dbg_dev);
+	//else
+	//	CEC_ERR("pinctrl default_state error\n");
 	cec_irq_enable(true);
 	cec_dev->cec_info.power_status = CEC_PW_POWER_ON;
 	cec_dev->cec_suspend = CEC_PW_POWER_ON;
