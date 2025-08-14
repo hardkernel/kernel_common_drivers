@@ -663,6 +663,10 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct am_meson_crtc_state *meson_crtc_state =
 					to_am_meson_crtc_state(crtc->state);
 	struct meson_drm *priv = amcrtc->priv;
+	struct meson_vpu_pipeline_state *mvps =
+		priv_to_pipeline_state(pipeline->obj.state);
+	struct meson_vpu_sub_pipeline_state *mvsps =
+		&mvps->sub_states[amcrtc->crtc_index];
 	int hdrpolicy = 0;
 
 	DRM_DEBUG("%s[%d]:in\n", __func__, amcrtc->crtc_index);
@@ -777,6 +781,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	memcpy(&pipeline->subs[amcrtc->crtc_index].mode, adjusted_mode,
 	       sizeof(struct drm_display_mode));
 
+	mvsps->vsync_disabled = 0;
 	drm_crtc_vblank_on(crtc);
 
 	DRM_DEBUG("%s-[%d]: out\n", __func__, amcrtc->crtc_index);
@@ -789,6 +794,11 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct drm_crtc_state *old_crtc_state;
 	struct am_meson_crtc_state *meson_crtc_state =
 		to_am_meson_crtc_state(crtc->state);
+	struct meson_vpu_pipeline *pipeline = amcrtc->pipeline;
+	struct meson_vpu_pipeline_state *mvps =
+		priv_to_pipeline_state(pipeline->obj.state);
+	struct meson_vpu_sub_pipeline_state *mvsps =
+		&mvps->sub_states[amcrtc->crtc_index];
 	enum vmode_e mode;
 
 	DRM_INFO("%s-[%d]:in\n", __func__, amcrtc->crtc_index);
@@ -821,6 +831,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		return;
 	}
 #endif
+	mvsps->vsync_disabled = 1;
 	meson_crtc_state->vmode = VMODE_INVALID;
 	/* disable output by config null
 	 * Todo: replace or delete it if have new method
@@ -894,6 +905,9 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 		if (new_state->brr_update)
 			crtc_state->mode_changed = true;
 	}
+
+	if (!crtc_state->active)
+		mvsps->vsync_disabled = 1;
 
 	/*check plane-update*/
 	ret = vpu_pipeline_check(amcrtc->pipeline, atomic_state);
