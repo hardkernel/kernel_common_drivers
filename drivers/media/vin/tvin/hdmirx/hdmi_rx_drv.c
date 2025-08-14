@@ -486,7 +486,7 @@ int rx_init_irq(struct platform_device *pdev, struct hdmirx_dev_s *hdevp)
 /*
  * first_bit_set - get position of the first set bit
  */
-static unsigned int first_bit_set(u32 data)
+unsigned int first_bit_set(u32 data)
 {
 	unsigned int n = 32;
 
@@ -4705,6 +4705,31 @@ static int hdmirx_probe(struct platform_device *pdev)
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node,
+		"preload_port_cfg",
+		&rx_info.pre_load.cfg);
+	if (!ret) {
+		if (rx_info.pre_load.cfg) {
+			if (rx_info.chip_id >= CHIP_ID_T7 && rx_info.chip_id < CHIP_ID_T3X) {
+				rx_info.pre_load.usr_sel_port =
+					first_bit_set(rx_info.pre_load.cfg);
+				// no usr sel port, sel first not arc port
+				if (rx_info.pre_load.usr_sel_port >= rx_info.port_num)
+					rx_info.pre_load.usr_sel_port =
+						rx_info.arc_port == E_PORT0 ? E_PORT1 : E_PORT0;
+				rx_info.main_port = rx_info.pre_load.usr_sel_port;
+			} else {
+				rx_info.pre_load.cfg = 0;
+				rx_info.main_port = rx_info.arc_port;
+			}
+		} else {
+			rx_info.main_port = rx_info.arc_port;
+		}
+	} else {
+		rx_sprintf(&boot_info_num, "not find preload_port_cfg, disable default.");
+	}
+	rx_info.pre_load.cur_load_port = 0xff;
+
+	ret = of_property_read_u32(pdev->dev.of_node,
 		"aud_compose_type",
 		&rpt_edid_selection);
 	if (ret) {
@@ -5062,7 +5087,6 @@ static int hdmirx_resume(struct platform_device *pdev)
 	rx_set_suspend_edid_clk(false);
 	/* enable hdcp access on ddc */
 	rx_hdcp_access_on_ddc_en(true);
-	rx[rx_info.main_port].resume_flag = true;
 	for (i = 0; i < rx_info.port_num; i++)
 		rx[i].fsm_ext_state = FSM_HPD_LOW;
 	rx_pr("hdmirx pm: resume\n");

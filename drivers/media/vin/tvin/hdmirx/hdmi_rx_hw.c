@@ -2076,7 +2076,7 @@ bool is_clk_stable(u8 port)
 {
 	bool flag = false;
 
-	port = (rx_info.chip_id >= CHIP_ID_T3X) ? port : rx_info.main_port;
+	//port = (rx_info.chip_id >= CHIP_ID_T3X) ? port : rx_info.main_port;
 
 	if (force_clk_stable)
 		return true;
@@ -5745,8 +5745,9 @@ void rx_clkmsr_monitor(void)
 	rx[E_PORT2].clk.cable_clk_pre = rx[E_PORT2].clk.cable_clk;
 	rx[E_PORT3].clk.cable_clk_pre = rx[E_PORT3].clk.cable_clk;
 	if ((rx_info.main_port_open ||
-		rx[rx_info.main_port].resume_flag ||
-		rx_info.chip_id == CHIP_ID_T3X) && rx_get_hdmi5v_sts())
+		rx_info.pre_load.cfg ||
+		rx_info.chip_id == CHIP_ID_T3X) &&
+		rx_get_hdmi5v_sts())
 		schedule_work(&clkmsr_dwork);
 }
 

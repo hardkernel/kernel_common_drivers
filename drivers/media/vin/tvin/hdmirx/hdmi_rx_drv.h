@@ -952,6 +952,17 @@ enum hdmirx_event {
 	HDMIRX_NONE_EVENT = 0,
 };
 
+enum pre_load_cfg_e {
+	PRE_LOAD_DISABLE = 0,
+	PRE_LOAD_ENABLE = 0x10,
+};
+
+struct pre_load_info_s {
+	u32 cfg; //bit[3:0] port_sel; bit[4]1- enable, 0: disabled
+	u8 usr_sel_port;
+	u8 cur_load_port;
+};
+
 #define MAX_UEVENT_LEN 64
 struct hdmirx_uevent {
 	const enum hdmirx_event type;
@@ -968,6 +979,7 @@ struct rx_info_s {
 	u8 port_num;
 	u8 main_port;
 	u8 sub_port;
+	struct pre_load_info_s pre_load;
 	u8 vp_cor0_port;
 	u8 vp_cor1_port;
 	bool boot_flag;
@@ -1076,7 +1088,6 @@ struct rx_s {
 	bool dsc_flag;
 	//struct spkts_rcvd_sts pkts_sts;
 	struct rx_edid_auto_mode edid_type;
-	bool resume_flag;
 	bool spec_vendor_id;
 	u32 irq_err_cnt;
 	u32 de_err_cnt;
@@ -1339,6 +1350,7 @@ int rx_hdcp22_send_uevent(int val);
 void register_cec_rx_notify(cec_spd_callback callback);
 void rx_alloc_aud_ddr(u8 port);
 void rx_free_aud_ddr(u8 port);
+unsigned int first_bit_set(u32 data);
 
 //#define RX_VER0 "ver.2021/06/21"
 //1. added colorspace detection
