@@ -1345,6 +1345,8 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 	if (!aml_global_group)
 		return -1;
 	mutex_init(&aml_global_group->mutex);
+	aml_global_group->default_domain = kzalloc(sizeof(*aml_global_group->default_domain),
+						GFP_KERNEL);
 
 	return 0;
 }
