@@ -5544,7 +5544,8 @@ void hdmitx21_dither_config(struct hdmitx21_dev *hdev)
 		(0 << 6) |
 		(((para->cd == COLORDEPTH_24B) ? 1 : 0) << 10) |
 		(0 << 12);
-	if (para->cd == COLORDEPTH_24B && !hdmitx_dv_en(&hdev->hw_comm))
+	if (para->cd == COLORDEPTH_24B && !para->timing.pixel_repetition_factor &&
+		!hdmitx_dv_en(&hdev->hw_comm))
 		data32 |= (1 << 4);
 	hd21_write_reg(VPU_HDMI_DITH_CNTL, data32);
 }
@@ -6398,7 +6399,8 @@ void hdmitx21_color_convert(struct hdmitx21_dev *hdev, u32 output_color_format)
 		/* 2.VPU_HDMI_DITH */
 		data32 = 0;
 		data32 = (1 << 10);
-		if (hdmitx_dv_en(&hdev->hw_comm) == 0)
+		if (hdmitx_dv_en(&hdev->hw_comm) == 0 &&
+			!para->timing.pixel_repetition_factor)
 			data32 |= (1 << 4);
 		hd21_write_reg(VPU_HDMI_DITH_CNTL, data32);
 		/* 3.vp config */
@@ -6436,7 +6438,8 @@ void hdmitx21_color_convert(struct hdmitx21_dev *hdev, u32 output_color_format)
 		/* 2.VPU_HDMI_DITH */
 		data32 = 0;
 		data32 = (1 << 10);
-		if (hdmitx_dv_en(&hdev->hw_comm) == 0)
+		if (hdmitx_dv_en(&hdev->hw_comm) == 0 &&
+			!para->timing.pixel_repetition_factor)
 			data32 |= (1 << 4);
 		hd21_write_reg(VPU_HDMI_DITH_CNTL, data32);
 		/* 3.vp config/ yuv->rgb*/
