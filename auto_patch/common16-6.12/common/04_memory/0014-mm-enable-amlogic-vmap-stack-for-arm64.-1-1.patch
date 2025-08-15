@@ -1,4 +1,4 @@
-From 37f472bc5d96ec9d07db2bf9bca708ea262110d7 Mon Sep 17 00:00:00 2001
+From 83274dc098291c15ecc1e3a310131eb6f44b33ea Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Thu, 28 Nov 2024 15:15:07 +0800
 Subject: [PATCH] mm: add amlogic vmap stack for arm64. [1/1]
@@ -26,6 +26,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  arch/arm64/kernel/Makefile                 |   3 +
  arch/arm64/kernel/entry-common.c           |  15 +++
  arch/arm64/kernel/entry.S                  | 124 +++++++++++++++++++++
+ arch/arm64/kernel/hibernate.c              |   6 +
  arch/arm64/kernel/hw_breakpoint.c          |   7 ++
  arch/arm64/kernel/irq.c                    |   5 +
  arch/arm64/kernel/smp.c                    |  10 ++
@@ -39,13 +40,13 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  kernel/fork.c                              |  25 +++++
  lib/Kconfig.debug                          |   1 +
  mm/kmemleak.c                              |  25 +++++
- 22 files changed, 343 insertions(+), 1 deletion(-)
+ 23 files changed, 349 insertions(+), 1 deletion(-)
 
 diff --git a/Makefile b/Makefile
-index b7e7a63f47a91..a64ae9627e012 100644
+index c7078040490e8..97f7362038c2c 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -887,9 +887,11 @@ ifdef CONFIG_READABLE_ASM
+@@ -886,9 +886,11 @@ ifdef CONFIG_READABLE_ASM
  KBUILD_CFLAGS += -fno-reorder-blocks -fno-ipa-cp-clone -fno-partial-inlining
  endif
  
@@ -57,7 +58,7 @@ index b7e7a63f47a91..a64ae9627e012 100644
  
  KBUILD_CFLAGS += $(stackp-flags-y)
  
-@@ -899,6 +901,11 @@ KBUILD_RUSTFLAGS += $(KBUILD_RUSTFLAGS-y)
+@@ -898,6 +900,11 @@ KBUILD_RUSTFLAGS += $(KBUILD_RUSTFLAGS-y)
  ifdef CONFIG_FRAME_POINTER
  KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
  KBUILD_RUSTFLAGS += -Cforce-frame-pointers=y
@@ -394,6 +395,30 @@ index 7ef0e127b149f..ed2f30ee876ab 100644
 +	ret
 +SYM_CODE_END(switch_vmap_context)
 +#endif /* CONFIG_AMLOGIC_VMAP */
+diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.c
+index 7e7fd28464b6a..3c21b0a58d7a1 100644
+--- a/arch/arm64/kernel/hibernate.c
++++ b/arch/arm64/kernel/hibernate.c
+@@ -34,6 +34,9 @@
+ #include <asm/trans_pgd.h>
+ #include <asm/virt.h>
+ #include <trace/hooks/bl_hib.h>
++#ifdef CONFIG_AMLOGIC_VMAP
++#include <linux/amlogic/vmap_stack.h>
++#endif
+ 
+ /*
+  * Hibernate core relies on this value being 0 on resume, and marks it
+@@ -356,6 +359,9 @@ int swsusp_arch_suspend(void)
+ 		sleep_cpu = smp_processor_id();
+ 		ret = swsusp_save();
+ 	} else {
++	#ifdef CONFIG_AMLOGIC_VMAP
++		__setup_vmap_stack(my_cpu_offset);
++	#endif
+ 		/* Clean kernel core startup/idle code to PoC*/
+ 		dcache_clean_inval_poc((unsigned long)__mmuoff_data_start,
+ 				    (unsigned long)__mmuoff_data_end);
 diff --git a/arch/arm64/kernel/hw_breakpoint.c b/arch/arm64/kernel/hw_breakpoint.c
 index 722ac45f9f7b1..8d3768906afd6 100644
 --- a/arch/arm64/kernel/hw_breakpoint.c
@@ -629,10 +654,10 @@ index d1627b5308491..607d260d707a0 100644
  	seq_printf(m, "ShadowCallStack:%8lu kB\n",
  		   global_node_page_state(NR_KERNEL_SCS_KB));
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 19bfd3673e61b..ba52c4a08d5ee 100644
+index 7e383c82b4742..a8d811399a4dc 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -1975,7 +1975,13 @@ extern unsigned long init_stack[THREAD_SIZE / sizeof(unsigned long)];
+@@ -2002,7 +2002,13 @@ extern unsigned long init_stack[THREAD_SIZE / sizeof(unsigned long)];
  #ifdef CONFIG_THREAD_INFO_IN_TASK
  # define task_thread_info(task)	(&(task)->thread_info)
  #elif !defined(__HAVE_THREAD_FUNCTIONS)
@@ -696,7 +721,7 @@ index 9a2710df972c4..c41c132507988 100644
  
  #endif /* _LINUX_VMALLOC_H */
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 65b90274f2c3a..defc17df4b895 100644
+index eef95d80361ed..b065de864345b 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
 @@ -114,6 +114,10 @@
