@@ -488,7 +488,7 @@ void di_cfg_top_dts(void)
 		PR_WARN("not support post_vpp link?\n");
 
 	if (!cfgg(EN_POST_LINK))
-		di_reverse = false;
+		di_reverse = 0;
 
 	/* tb */
 	if (cfgg(TB) && !IS_IC_SUPPORT(TB)) {

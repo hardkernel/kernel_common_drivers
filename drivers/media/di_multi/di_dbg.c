@@ -3396,7 +3396,8 @@ static struct di_class_debug_s di_debugfs_class_files[] = {
 	#ifdef DBG_BUFFER_FLOW
 	{"s4dw_buf_h", &s4dw_buf_h, 1, 0},
 	#endif
-	{"dim_dbg_o_b", &dim_dbg_o_b, 1, 0}
+	{"dim_dbg_o_b", &dim_dbg_o_b, 1, 0},
+	{"di_reverse", &di_reverse, 1, 0}
 };
 
 static struct di_class_debug_s *search_class_param(char *name)

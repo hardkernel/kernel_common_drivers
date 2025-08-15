@@ -112,7 +112,7 @@
 int dim_trig_fg;
 
 int dim_trig_delay = 1;
-bool di_reverse;
+unsigned int di_reverse;
 
 static bool fg_bypass;
 
@@ -12305,13 +12305,13 @@ static int di_axis_reverse(char *str)
 	 *    mirror -- 0:No flip  1:X flip 2:Y flip
 	 */
 	if (strstr(ptr, "1"))
-		di_reverse = true;
+		di_reverse = 1;
 	else if (strstr(ptr, "2"))
-		di_reverse = false;
+		di_reverse = 0;
 	else if (strstr(ptr, "3"))
-		di_reverse = false;
+		di_reverse = 0;
 	else
-		di_reverse = false;
+		di_reverse = 0;
 
 	return 1;
 }
