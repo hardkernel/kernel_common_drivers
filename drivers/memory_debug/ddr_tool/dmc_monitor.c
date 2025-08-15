@@ -47,7 +47,7 @@
 #include "dmc_trace.h"
 
 // #define DEBUG
-#define DMC_VERSION		"1.10.3"
+#define DMC_VERSION		"1.10.4"
 
 #define IRQ_CHECK		0
 #define IRQ_CLEAR		1
@@ -171,7 +171,30 @@ static int early_dmc_irq_thread(char *buf)
 }
 __setup("dmc_irq_thread=", early_dmc_irq_thread);
 
-static int set_dmc_filter(unsigned char *buf)
+static int dmc_filter_remove(char *p)
+{
+	int i = 0, del_num = 0;
+	unsigned int size;
+
+	for (i = 0; i < dmc_mon->filter.num; i++) {
+		if (!strcmp(p + 1, dmc_mon->filter.dev[i].name)) {
+			size = (DMC_FILTER_MAX - i - 1) * sizeof(struct dmc_filter_dev);
+			if (dmc_mon->filter.dev[i].is_default) {
+				dmc_mon->filter.dev[i].status = 0;
+			} else {
+				memmove(&dmc_mon->filter.dev[i],
+					&dmc_mon->filter.dev[i + 1],
+					size);
+				dmc_mon->filter.dev[i].status = 0;
+				del_num++;
+			}
+		}
+	}
+
+	return del_num;
+}
+
+static int set_dmc_filter(unsigned char *buf, unsigned char is_defalut)
 {
 	int i = 0, del_num, exit;
 	static const char c[] = ",";
@@ -185,23 +208,17 @@ static int set_dmc_filter(unsigned char *buf)
 		p = strsep(&buffer, c);
 		if (p) {
 			if (p[0] == '!') {
-				del_num = 0;
-				for (i = 0; i < dmc_mon->filter.num; i++) {
-					if (!strcmp(p + 1, dmc_mon->filter.name[i])) {
-						memmove(dmc_mon->filter.name[i],
-							dmc_mon->filter.name[i + 1],
-						       (DMC_FILTER_MAX - i - 1) * KSYM_SYMBOL_LEN);
-						del_num++;
-					}
-				}
+				del_num = dmc_filter_remove(p);
 				dmc_mon->filter.num -= del_num;
 				continue;
 			}
 
 			exit = 0;
 			for (i = 0; i < dmc_mon->filter.num; i++) {
-				if (!strcmp(p, dmc_mon->filter.name[i]))
+				if (!strcmp(p, dmc_mon->filter.dev[i].name)) {
 					exit = 1;
+					dmc_mon->filter.dev[i].status = 1;
+				}
 			}
 
 			if (exit)
@@ -212,7 +229,9 @@ static int set_dmc_filter(unsigned char *buf)
 					continue;
 			}
 
-			sprintf(dmc_mon->filter.name[i], "%s", p);
+			sprintf(dmc_mon->filter.dev[i].name, "%s", p);
+			dmc_mon->filter.dev[i].status = 1;
+			dmc_mon->filter.dev[i].is_default = is_defalut;
 			dmc_mon->filter.num++;
 		}
 	} while (p);
@@ -751,19 +770,19 @@ int dmc_violation_ignore(char *title, void *data, unsigned long vio_bit)
 	/* ignore black dev or symbol filter */
 	for (i = 0; i < dmc_mon->filter.num; i++) {
 		if (mon_comm->port.name) {
-			if (strstr(mon_comm->port.name, dmc_mon->filter.name[i])) {
+			if (strstr(mon_comm->port.name, dmc_mon->filter.dev[i].name)) {
 				is_ignore = 1;
 				goto dmc_ignore;
 			}
 		}
 		if (mon_comm->sub.name) {
-			if (strstr(mon_comm->sub.name, dmc_mon->filter.name[i])) {
+			if (strstr(mon_comm->sub.name, dmc_mon->filter.dev[i].name)) {
 				is_ignore = 1;
 				goto dmc_ignore;
 			}
 		}
 	#ifdef CONFIG_KALLSYMS
-		if (strstr(sym, dmc_mon->filter.name[i]) == sym) {
+		if (strstr(sym, dmc_mon->filter.dev[i].name) == sym) {
 			is_ignore = 1;
 			goto dmc_ignore;
 		}
@@ -784,7 +803,8 @@ static void dmc_set_default(struct dmc_monitor *mon)
 		switch (mon->chip) {
 	#ifdef CONFIG_AMLOGIC_DMC_MONITOR_T7
 		case DMC_TYPE_T7:
-			mon->device = 0x02030405;
+			set_dmc_filter("MALI", 1);
+			mon->device = 0x01020305;
 			mon->debug &= ~DMC_DEBUG_INCLUDE;
 			break;
 		case DMC_TYPE_T3:
@@ -1127,9 +1147,9 @@ int dmc_set_monitor(unsigned long start, unsigned long end,
 	if (!dmc_mon)
 		return -EINVAL;
 
-	set_dmc_filter(default_filter_dev);
-	set_dmc_filter(default_filter_sym);
-	set_dmc_filter(exception_filter_sym);
+	set_dmc_filter(default_filter_dev, 1);
+	set_dmc_filter(default_filter_sym, 1);
+	set_dmc_filter(exception_filter_sym, 1);
 
 	dmc_mon->addr_start = start;
 	dmc_mon->addr_end   = end;
@@ -1430,25 +1450,58 @@ static ssize_t cmdline_show(const struct class *class,
 			char *buf)
 {
 	int count = 0;
-	int i = 0;
+	int i = 0, first = 0, flag = 0;
 
-#define FILTER_NOTICE_INFO "NOTICE: as below default be set, when you ignore dmc_filter param.\n dmc_filter=%s ,if ignore, it may cause dmc read value serror.\n dmc_filter=%s,%s ,if ignore, it may cause too much dmc vio print.\n If you want to delete can use !<value> delete it , example: dmc_filter=!__dma_direct_alloc_pages\n\n"
+#define FILTER_NOTICE_INFO "\nIf you want to delete it, 'echo !<value> > /sys/class/dmc_monitor/filter' or uboot cmdline as 'dmc_filter=!USB,!EMMC'\n\n"
+	count += sprintf(buf + count, "Current filter list:\n\t");
+	if (dmc_mon->filter.num) {
+		count += sprintf(buf + count, "%s", dmc_mon->filter.dev[0].name);
+		for (i = 1; i < dmc_mon->filter.num; i++)
+			if (dmc_mon->filter.dev[i].status)
+				count += sprintf(buf + count, ",%s", dmc_mon->filter.dev[i].name);
+	}
+	count += sprintf(buf + count, FILTER_NOTICE_INFO);
 
 	if (init_dmc_mode == DMC_MODE_DEFAULT) {
 		count += sprintf(buf + count, "setenv initargs $initargs dmc_monitor=default");
 	} else {
-		count += sprintf(buf + count, FILTER_NOTICE_INFO,
-				exception_filter_sym, default_filter_dev, default_filter_sym);
 		count += sprintf(buf + count,
 				"setenv initargs $initargs dmc_monitor=0x%lx,0x%lx,0x%llx,0x%x",
 				dmc_mon->addr_start, dmc_mon->addr_end,
 				dmc_mon->device, dmc_mon->debug);
-		if (dmc_mon->filter.num) {
-			count += sprintf(buf + count, " dmc_filter=%s", dmc_mon->filter.name[0]);
-			for (i = 1; i < dmc_mon->filter.num; i++)
-				count += sprintf(buf + count, ",%s", dmc_mon->filter.name[i]);
+	}
+
+	for (i = 0; i < dmc_mon->filter.num; i++) {
+		if (!dmc_mon->filter.dev[i].status)
+			flag = 1;
+		if (!dmc_mon->filter.dev[i].is_default)
+			flag = 2;
+
+		if (flag == 1) {
+			if (!first) {
+				count += sprintf(buf + count, "%s!%s",
+						" dmc_filter=",
+						dmc_mon->filter.dev[i].name);
+				first = 1;
+			} else {
+				count += sprintf(buf + count, ",!%s", dmc_mon->filter.dev[i].name);
+			}
+			flag = 0;
+		}
+
+		if (flag == 2) {
+			if (!first) {
+				count += sprintf(buf + count, "%s%s",
+						" dmc_filter=",
+						dmc_mon->filter.dev[i].name);
+				first = 1;
+			} else {
+				count += sprintf(buf + count, ",%s", dmc_mon->filter.dev[i].name);
+			}
+			flag = 0;
 		}
 	}
+
 	count += sprintf(buf + count, ";saveenv;reset;\n");
 	return count;
 }
@@ -1466,7 +1519,7 @@ static ssize_t filter_store(const struct class *class,
 		strncpy(tmp, buf, sizeof(tmp));
 		if (tmp[strlen(tmp) - 1] == '\n')
 			tmp[strlen(tmp) - 1] = '\0';
-		set_dmc_filter(tmp);
+		set_dmc_filter(tmp, 0);
 	}
 
 	return count;
@@ -1481,7 +1534,8 @@ static ssize_t filter_show(const struct class *class,
 
 	count += sprintf(buf + count, "filter list:\n");
 	for (i = 0; i < dmc_mon->filter.num; i++)
-		count += sprintf(buf + count, "%s\n", dmc_mon->filter.name[i]);
+		if (dmc_mon->filter.dev[i].status)
+			count += sprintf(buf + count, "%s\n", dmc_mon->filter.dev[i].name);
 
 	return count;
 }
@@ -1783,9 +1837,6 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	if (init_dmc_irq_thread_en)
 		dmc_mon->debug |= DMC_DEBUG_IRQ_THREAD;
 
-	if (strlen(dmc_filter_early_buf))
-		set_dmc_filter(dmc_filter_early_buf);
-
 	if (init_dmc_mode == DMC_MODE_RESERVED)
 		dmc_enabled_reserved_memory(pdev, dmc_mon);
 
@@ -1796,6 +1847,10 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 		dmc_set_monitor(init_start_addr,
 				init_end_addr, init_dev_mask, DMC_MODE_NORMAL, 1);
 	}
+
+	if (strlen(dmc_filter_early_buf))
+		set_dmc_filter(dmc_filter_early_buf, 0);
+
 #if IS_ENABLED(CONFIG_AMLOGIC_USER_FAULT) && \
 	defined(CONFIG_ANDROID_VENDOR_HOOKS)
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515

@@ -59,9 +59,15 @@ struct dmc_mon_ops {
 	void (*vio_to_port)(void *data, unsigned long *vio_bit);
 };
 
+struct dmc_filter_dev {
+	unsigned char status; /* 1 set 0 remove*/
+	unsigned char is_default;
+	unsigned char name[KSYM_SYMBOL_LEN];
+};
+
 struct dmc_filter {
 	unsigned int num;
-	unsigned char name[DMC_FILTER_MAX][KSYM_SYMBOL_LEN];
+	struct dmc_filter_dev dev[DMC_FILTER_MAX];
 };
 
 struct port_type {
