@@ -538,7 +538,7 @@ int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
 			buf = phys_to_virt(devp->vf_mem_start[buf_num]);
 		/*only write active data*/
 		for (i = 0; i < count; i++) {
-			vdin_dma_flush(devp, buf, devp->canvas_max_stride,
+			vdin_dma_flush(devp, buf, devp->canvas_w,
 						   DMA_FROM_DEVICE);
 			memcpy(output_ptr, buf, devp->canvas_active_w);
 			output_ptr += devp->canvas_active_w;
@@ -550,7 +550,7 @@ int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
 					buf + devp->canvas_active_w + 8 - 2 * offset, offset);
 				output_ptr += offset;
 			}
-			buf += devp->canvas_max_stride;
+			buf += devp->canvas_w;
 		}
 		pr_info("write buffer %2d of %2u  to output buffer.offset=%d\n",
 				buf_num, devp->canvas_max_num, offset);
@@ -561,7 +561,7 @@ int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
 		phys = devp->vf_mem_start[buf_num];
 
 		for (j = 0; j < count; j++) {
-			high_addr = phys + j * devp->canvas_max_stride;
+			high_addr = phys + j * devp->canvas_w;
 			buf = vdin_vmap(high_addr, span);
 			if (!buf) {
 				pr_info("vdin_vmap error\n");
@@ -736,9 +736,9 @@ static void vdin_dump_more_mem(char *path, struct vdin_dev_s *devp,
 
 			/*only write active data*/
 			for (i = 0; i < count; i++) {
-				vdin_dma_flush(devp, buf, devp->canvas_max_stride, DMA_FROM_DEVICE);
+				vdin_dma_flush(devp, buf, devp->canvas_w, DMA_FROM_DEVICE);
 				kernel_write(filp, buf, devp->canvas_active_w, &pos);
-				buf += devp->canvas_max_stride;
+				buf += devp->canvas_w;
 			}
 		}
 	} else {
@@ -755,7 +755,7 @@ static void vdin_dump_more_mem(char *path, struct vdin_dev_s *devp,
 			rec_dum_frame[k] = pre_put_frames;
 			phys = devp->vfp->last_last_vfe->vf.canvas0_config[0].phy_addr;
 			for (i = 0; i < count; i++) {
-				high_addr = phys + i * devp->canvas_max_stride;
+				high_addr = phys + i * devp->canvas_w;
 				buf = vdin_vmap(high_addr, devp->canvas_active_w);
 				if (!buf) {
 					filp_close(filp, NULL);
@@ -836,7 +836,7 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 
 	if (highmem_flag == 0) {
 		pr_info("low mem area: one line size (%d, active:%d),vf_mem_start[%d]:%lx\n",
-			devp->canvas_max_stride, devp->canvas_active_w, buf_num,
+			devp->canvas_w, devp->canvas_active_w, buf_num,
 			devp->vf_mem_start[buf_num]);
 		if (devp->cma_config_flag & 0x1)
 			buf = codec_mm_phys_to_virt(devp->vf_mem_start[buf_num]);
@@ -844,7 +844,7 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 			buf = phys_to_virt(devp->vf_mem_start[buf_num]);
 		/*only write active data*/
 		for (i = 0; i < count; i++) {
-			vdin_dma_flush(devp, buf, devp->canvas_max_stride,
+			vdin_dma_flush(devp, buf, devp->canvas_w,
 				       DMA_FROM_DEVICE);
 			kernel_write(filp, buf, devp->canvas_active_w, &pos);
 			offset = devp->canvas_active_w % 8;
@@ -853,19 +853,19 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 				kernel_write(filp, buf + devp->canvas_active_w + 8 - 2 * offset,
 					offset, &pos);
 			}
-			buf += devp->canvas_max_stride;
+			buf += devp->canvas_w;
 		}
 		/*kernel_write(filp, buf, devp->canvas_max_size, &pos);*/
 		pr_info("write buffer %2d of %2u  to %s.offset=%d\n",
 			buf_num, devp->canvas_max_num, path, offset);
 	} else {
 		pr_info("high mem area: one line size (%d, active:%d)\n",
-			devp->canvas_max_stride, devp->canvas_active_w);
+			devp->canvas_w, devp->canvas_active_w);
 		span = devp->canvas_active_w;
 		phys = devp->vf_mem_start[buf_num];
 
 		for (j = 0; j < count; j++) {
-			high_addr = phys + j * devp->canvas_max_stride;
+			high_addr = phys + j * devp->canvas_w;
 			buf = vdin_vmap(high_addr, span);
 			if (!buf) {
 				filp_close(filp, NULL);
@@ -939,7 +939,7 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 	if (highmem_flag == 0) {
 		/*low mem area*/
 		pr_info("low mem area: one line size (%d, active:%d)\n",
-			devp->canvas_max_stride, devp->canvas_active_w);
+			devp->canvas_w, devp->canvas_active_w);
 		for (i = 0; i < devp->canvas_max_num; i++) {
 			pos = mem_size * i;
 			if ((devp->cma_config_flag & 0xfff) == 0x1)
@@ -953,16 +953,16 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 
 			/*only write active data*/
 			for (j = 0; j < count; j++) {
-				vdin_dma_flush(devp, buf, devp->canvas_max_stride,
+				vdin_dma_flush(devp, buf, devp->canvas_w,
 					       DMA_FROM_DEVICE);
 				if (devp->cma_config_flag & 0x100) {
 					kernel_write(filp, vfbuf[i],
 						  devp->canvas_active_w, &pos);
-					vfbuf[i] += devp->canvas_max_stride;
+					vfbuf[i] += devp->canvas_w;
 				} else {
 					kernel_write(filp, buf,
 						  devp->canvas_active_w, &pos);
-					buf += devp->canvas_max_stride;
+					buf += devp->canvas_w;
 				}
 			}
 			pr_info("write buffer %2d of %2u to %s.\n",
@@ -971,14 +971,14 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 	} else {
 		/*high mem area*/
 		pr_info("high mem area: one line size (%d, active:%d)\n",
-			devp->canvas_max_stride, devp->canvas_active_w);
+			devp->canvas_w, devp->canvas_active_w);
 		span = devp->canvas_active_w;
 
 		for (i = 0; i < devp->canvas_max_num; i++) {
 			pos = mem_size * i;
 			phys = devp->vf_mem_start[i];
 			for (j = 0; j < count; j++) {
-				high_addr = phys + j * devp->canvas_max_stride;
+				high_addr = phys + j * devp->canvas_w;
 				buf = vdin_vmap(high_addr, span);
 				if (!buf) {
 					filp_close(filp, NULL);
@@ -2110,7 +2110,7 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 		pr_info("low mem area,addr:%lx\n", addr);
 		dts = phys_to_virt(addr);
 		for (j = 0; j < devp->canvas_h; j++) {
-			kernel_read(filp, dts + (devp->canvas_max_stride * j),
+			kernel_read(filp, dts + (devp->canvas_w * j),
 				 devp->canvas_active_w, &pos);
 		}
 		iounmap(dts);
@@ -2120,7 +2120,7 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 		count = devp->canvas_h;
 		span = devp->canvas_active_w;
 		for (j = 0; j < count; j++) {
-			high_addr = addr + j * devp->canvas_max_stride;
+			high_addr = addr + j * devp->canvas_w;
 			dts = vdin_vmap(high_addr, span);
 			if (!dts) {
 				pr_info("vdin_vmap error\n");
