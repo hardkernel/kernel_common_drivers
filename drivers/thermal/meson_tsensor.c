@@ -693,8 +693,8 @@ static int meson_map_dt_data(struct platform_device *pdev)
 	data->rst = devm_reset_control_get(&pdev->dev, "ts_rst");
 	if (IS_ERR(data->rst))
 		dev_warn(&pdev->dev, "Does not support reset func..\n");
-	else
-		reset_control_deassert(data->rst);
+	else if (reset_control_deassert(data->rst))
+		dev_err(&pdev->dev, "Release sensor's reset failed!!!...\n");
 
 	if (of_address_to_resource(pdev->dev.of_node, 0, &res)) {
 		dev_err(&pdev->dev, "failed to get Resource 0\n");
@@ -760,8 +760,9 @@ static int meson_map_dt_data(struct platform_device *pdev)
 	 */
 	if (of_property_read_bool(pdev->dev.of_node, "cal_coeff2")) {
 		if (!(data->trim_info & 0x70000000))
-			of_property_read_u32_array(pdev->dev.of_node, "cal_coeff2",
-				       &pdata->cal_coeff[0], R1P1_CAL_NUM);
+			if (of_property_read_u32_array(pdev->dev.of_node, "cal_coeff2",
+				       &pdata->cal_coeff[0], R1P1_CAL_NUM))
+				dev_err(&pdev->dev, "cal_coeff2 error\n");
 	}
 
 	data->pdata = pdata;
