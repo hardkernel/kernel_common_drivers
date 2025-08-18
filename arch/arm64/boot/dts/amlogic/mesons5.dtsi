@@ -1929,15 +1929,25 @@
 		clocks = <&clkc CLKID_SYS_DOS
 		    &clkc CLKID_VDEC
 		    &clkc CLKID_HCODEC
-		    &clkc CLKID_HEVC>;
+		    &clkc CLKID_HEVC
+		    &clkc CLKID_NNA_PLL>;
 		clock-names = "vdec",
 		    "clk_vdec_mux",
 		    "clk_hcodec_mux",
-		    "clk_hevc_mux";
-		assigned-clock-parents = <&clkc CLKID_VDEC_0>,
-		    <&clkc CLKID_HEVC_0>;
+		    "clk_hevc_mux",
+		     "clk_pll";
 		assigned-clocks = <&clkc CLKID_VDEC>,
-		    <&clkc CLKID_HEVC>;
+		    <&clkc CLKID_HEVC>,
+		    <&clkc CLKID_HEVC_0_MUX>,
+		    <&clkc CLKID_NNA_PLL>;
+		assigned-clock-parents = <&clkc CLKID_VDEC_0>,
+		    <&clkc CLKID_HEVC_0>,
+		    <&clkc CLKID_FCLK_DIV2P5>,
+		    <0>;
+		assigned-clock-rates = <0>,
+				       <0>,
+				       <0>,
+				       <1000000000>;
 	};
 
 	vdec {
