@@ -47,6 +47,7 @@
 #endif
 
 #include <linux/amlogic/aml_iotm.h>
+#include <linux/amlogic/gki_module.h>
 
 #include <sched.h>
 
@@ -1316,6 +1317,39 @@ static const struct file_operations sysrq_trigger_debug_ops = {
 	.llseek		= noop_llseek,
 };
 
+#if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
+static ssize_t sysrq_trigger_store(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	if (count) {
+		char c;
+
+		if (sscanf(buf, "%c", &c) != 1)
+			return -EFAULT;
+		if (c == 'x') {
+			local_irq_disable();
+			pr_emerg("trigger hardlockup\n");
+			while (1)
+				;
+		}
+	}
+	return count;
+}
+
+static struct kobj_attribute sysrq_trigger_attr = __ATTR(sysrq-trigger, 0200,
+							NULL, sysrq_trigger_store);
+
+static struct attribute *aml_debug_attrs[] = {
+	&sysrq_trigger_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group aml_debug_group = {
+	.name = "aml_debug",
+	.attrs = aml_debug_attrs,
+};
+#endif
+
 int aml_debug_init(void)
 {
 	static struct dentry *debug_lockup;
@@ -1325,10 +1359,12 @@ int aml_debug_init(void)
 	if (IS_ERR_OR_NULL(debug_lockup)) {
 		pr_warn("failed to create aml_debug\n");
 		debug_lockup = NULL;
-		return -ENOMEM;
 	}
 	debugfs_create_file("sysrq-trigger", S_IFREG | 0664,
-			    debug_lockup, NULL, &sysrq_trigger_debug_ops);
+				    debug_lockup, NULL, &sysrq_trigger_debug_ops);
+#if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
+	amlogic_class_debug_create_dir(&aml_debug_group, 1);
+#endif
 
 	aml_regmap = proc_create_single_data("aml_regmap",
 					0400, NULL, dts_reg_show, NULL);

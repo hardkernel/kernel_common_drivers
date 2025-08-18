@@ -6,3 +6,11 @@ config AMLOGIC_GKI_TOOL
 	help
 	  provide common tools for GKI ko,
 	  including __setup...
+
+config AMLOGIC_CLASS_DEBUG
+	tristate "Amlogic class debug node"
+	depends on !DEBUG_FS
+	default n
+	help
+	  tv gki debugfs is default disabled,
+	  use /sys/class/debug replace.

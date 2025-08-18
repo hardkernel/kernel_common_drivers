@@ -15,6 +15,11 @@ ddk_module(
                 "gki_tool.c",
             ],
         },
+        "CONFIG_AMLOGIC_CLASS_DEBUG": {
+            True: [
+                "class_debug.c",
+            ],
+        },
     },
     hdrs = [
         "//common:kernel/module/internal.h",

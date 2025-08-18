@@ -453,6 +453,60 @@ static const struct file_operations debugfs_ops = {
 };
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
+struct meson_gxbb_wdt *wdt_private_data;
+
+static ssize_t enabled_store(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buf, size_t size)
+{
+	struct meson_gxbb_wdt *data = wdt_private_data;
+	struct watchdog_device *wdt_dev = &data->wdt_dev;
+
+	if (!strncmp(buf, "false", 5)) {
+		meson_gxbb_wdt_stop(&data->wdt_dev);
+		meson_gxbb_wdt_ping(&data->wdt_dev);
+		watchdog_enabled = 0;
+		dev_info(wdt_dev->parent, "watchdog stop\n");
+	} else if (!strncmp(buf, "true", 4)) {
+		meson_gxbb_wdt_ping(&data->wdt_dev);
+		meson_gxbb_wdt_start(&data->wdt_dev);
+		watchdog_enabled = 1;
+		dev_info(wdt_dev->parent, "watchdog start\n");
+	} else {
+		return -EFAULT;
+	}
+
+	return size;
+}
+
+static ssize_t enabled_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	int ret;
+	struct meson_gxbb_wdt *data = wdt_private_data;
+	char *enabled = "false";
+
+	if (readl(data->reg_base + GXBB_WDT_CTRL_REG) & GXBB_WDT_CTRL_EN)
+		enabled = "true";
+
+	ret = sprintf(buf, "%s\n", enabled);
+
+	return ret;
+}
+
+static struct kobj_attribute watchdog_attr = __ATTR_RW(enabled);
+
+static struct attribute *watchdog_attrs[] = {
+	&watchdog_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group watchdog_group = {
+	.name = "watchdog",
+	.attrs = watchdog_attrs,
+};
+#endif
+
 static int meson_gxbb_wdt_notifier(struct notifier_block *self,
 				   unsigned long v, void *p)
 {
@@ -632,6 +686,10 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 	data->debugfs_dir = debugfs_create_dir("watchdog", NULL);
 	debugfs_create_file("enabled", 0644,
 			    data->debugfs_dir, data, &debugfs_ops);
+#endif
+#if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
+	wdt_private_data = data;
+	amlogic_class_debug_create_dir(&watchdog_group, 1);
 #endif
 
 	/*

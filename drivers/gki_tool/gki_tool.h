@@ -9,4 +9,13 @@
 void gki_module_init(void);
 int module_debug_init(void);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
+int class_debug_init(void);
+#else
+static inline int class_debug_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif //__GKI_TOOL_AMLOGIC_H

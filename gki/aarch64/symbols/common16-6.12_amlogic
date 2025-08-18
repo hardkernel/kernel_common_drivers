@@ -39,6 +39,7 @@
 
 # aml_drm.ko
   drm_mode_object_get
+
 # drm_display_helper.ko
   devm_backlight_device_register
   drm_atomic_get_old_private_obj_state
@@ -70,3 +71,6 @@
   driver_register
   of_device_modalias
   of_device_uevent_modalias
+
+#amlogic-gkitool.ko
+  class_compat_register

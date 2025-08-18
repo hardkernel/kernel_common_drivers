@@ -129,4 +129,5 @@ struct param_entry {
 
 extern struct kernel_param_ops key_value_param_ops;
 
+int amlogic_class_debug_create_dir(const struct attribute_group *group, int debug_level);
 #endif //__GKI_MODULE_AMLOGIC_H

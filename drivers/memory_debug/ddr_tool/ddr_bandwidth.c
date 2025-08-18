@@ -1902,13 +1902,10 @@ static void dmc_bus_init(void)
 		dmc_bus_data_init(i);
 }
 
-static ssize_t bus_devices_read(struct file *file,
-				char __user *to, size_t count, loff_t *ppos)
+static ssize_t bus_devices_display(struct ddr_bandwidth *aml_db, char *buf)
 {
-	struct ddr_bandwidth *aml_db = file->private_data;
-	int len = 0;
-	char buf[1800];
 	int i, j, k, l;
+	ssize_t len = 0;
 
 	for (i = 0, l = 0;
 	     ((1 << i) & aml_db->async_dmc_num) || (i == 0 && aml_db->async_dmc_num == 0);
@@ -1939,6 +1936,18 @@ static ssize_t bus_devices_read(struct file *file,
 			}
 		}
 	}
+
+	return len;
+}
+
+static ssize_t bus_devices_read(struct file *file,
+				char __user *to, size_t count, loff_t *ppos)
+{
+	struct ddr_bandwidth *aml_db = file->private_data;
+	int len = 0;
+	char buf[1800];
+
+	len = bus_devices_display(aml_db, buf);
 
 	return simple_read_from_buffer(to, count, ppos, buf, len);
 }
@@ -2383,13 +2392,10 @@ static ssize_t side_band_write(struct file *file,
 	return count;
 }
 
-static ssize_t side_band_read(struct file *file,
-			      char __user *to, size_t count, loff_t *ppos)
+static ssize_t side_band_display(struct ddr_bandwidth *aml_db, char *buf)
 {
-	struct ddr_bandwidth *aml_db = file->private_data;
-	int len = 0, ret;
+	ssize_t len = 0;
 	int i, j, k, l;
-	char buf[1800];
 
 	for (i = 0, k = 0;
 	     ((1 << i) & aml_db->async_dmc_num) || (i == 0 && aml_db->async_dmc_num == 0);
@@ -2419,6 +2425,18 @@ static ssize_t side_band_read(struct file *file,
 			mutex_unlock(&aml_db->dmc_bus[i].bus[j].side_band.lock);
 		}
 	}
+
+	return len;
+}
+
+static ssize_t side_band_read(struct file *file,
+			      char __user *to, size_t count, loff_t *ppos)
+{
+	struct ddr_bandwidth *aml_db = file->private_data;
+	int len = 0, ret;
+	char buf[1800];
+
+	len = side_band_display(aml_db, buf);
 
 	ret = simple_read_from_buffer(to, count, ppos, buf, len);
 
@@ -2478,12 +2496,105 @@ int get_side_band(struct dmc_side_band *sb, unsigned char num)
 }
 EXPORT_SYMBOL(get_side_band);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
+static ssize_t wbuf_mid_level_store(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	u64 val;
+
+	if (kstrtoul(buf, 10, (unsigned long *)&val)) {
+		pr_info("invalid input:%s\n", buf);
+		return 0;
+	}
+
+	property_access(&val, WBUF_M, WRITE);
+	return count;
+}
+
+static ssize_t wbuf_mid_level_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	u64 val;
+
+	property_access(&val, WBUF_M, READ);
+
+	return sprintf(buf, "%llu\n", val);
+}
+
+static struct kobj_attribute wbuf_mid_level_attr = __ATTR_RW(wbuf_mid_level);
+
+static ssize_t bus_device_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	return bus_devices_display(aml_db, buf);
+}
+
+static struct kobj_attribute bus_device_attr = __ATTR_RO(bus_device);
+
+static ssize_t side_band_store(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buffer, size_t count)
+{
+	char *buf;
+	unsigned char dmc, bus, rw, block_num;
+	unsigned char block_bus[32];
+	int ret;
+
+	if (!aml_db->ops->side_band) {
+		pr_err("The driver currently does not support the side band functionality of the chip\n");
+		return -1;
+	}
+
+	buf = kmemdup(buffer, count, GFP_KERNEL);
+	buf[count - 1] = '\0';
+
+	ret = parse_side_band_string(buf, &dmc, &bus, &rw,
+				     block_bus, sizeof(block_bus), &block_num);
+	if (ret < 0) {
+		kfree(buf);
+		return ret;
+	}
+
+	ret = set_side_band(aml_db, dmc, bus, rw, block_bus, block_num);
+	if (ret < 0) {
+		kfree(buf);
+		return ret;
+	}
+
+	kfree(buf);
+
+	return count;
+}
+
+static ssize_t side_band_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	return side_band_display(aml_db, buf);
+}
+
+static struct kobj_attribute side_band_attr = __ATTR_RW(side_band);
+
+static struct attribute *aml_ddr_attrs[] = {
+	&wbuf_mid_level_attr.attr,
+	&bus_device_attr.attr,
+	&side_band_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group aml_ddr_group = {
+	.name = "aml_ddr",
+	.attrs = aml_ddr_attrs,
+};
+#endif
+
 static void debugfs_init(void)
 {
 	aml_db->debugfs = debugfs_create_dir("aml_ddr", NULL);
 	debugfs_create_file("wbuf_mid_level", 0660, aml_db->debugfs, aml_db, &wbuf_mid_level_fops);
 	debugfs_create_file("bus_device", 0660, aml_db->debugfs, aml_db, &bus_devices_fops);
 	debugfs_create_file("side_band", 0660, aml_db->debugfs, aml_db, &side_band_fops);
+#if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
+	amlogic_class_debug_create_dir(&aml_ddr_group, 2);
+#endif
 }
 
 /*

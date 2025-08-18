@@ -17,6 +17,7 @@
 #include <linux/kasan.h>
 #include <linux/highmem.h>
 #include <linux/uaccess.h>
+#include <linux/amlogic/gki_module.h>
 
 struct aml_ddev {
 	unsigned long cached_reg_addr;
@@ -332,6 +333,227 @@ static const struct file_operations vdump_file_ops = {
 	.release	= single_release,
 };
 
+#if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
+unsigned long paddr_reg, vaddr_reg, pdump_reg, vdump_reg;
+unsigned int pdump_size, vdump_size;
+
+int (*pdump_reg_access_func)(struct aml_ddev *indio_dev,
+			unsigned long reg, unsigned int writeval,
+			unsigned int *readval);
+
+static ssize_t paddr_store(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	unsigned long reg;
+	unsigned int val;
+	int ret;
+	int (*reg_access_func)(struct aml_ddev *indio_dev,
+				unsigned long reg, unsigned int writeval,
+				unsigned int *readval);
+
+	ret = sscanf(buf, "%lx %x", &reg, &val);
+#ifdef CONFIG_ARM64
+	if (pfn_is_map_memory(reg >> PAGE_SHIFT))
+#else
+	if (pfn_valid(reg >> PAGE_SHIFT))
+#endif
+		reg_access_func = aml_mem_access;
+	else
+		reg_access_func = aml_reg_access;
+
+	switch (ret) {
+	case 1:
+		paddr_reg = reg;
+		break;
+	case 2:
+		paddr_reg = reg;
+		ret = reg_access_func(NULL, reg, val, NULL);
+		if (ret) {
+			pr_err("%s: write failed\n", __func__);
+			return ret;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t paddr_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	unsigned int val = 0;
+	int ret;
+	int (*reg_access_func)(struct aml_ddev *indio_dev,
+				unsigned long reg, unsigned int writeval,
+				unsigned int *readval);
+
+#ifdef CONFIG_ARM64
+	if (pfn_is_map_memory(paddr_reg >> PAGE_SHIFT))
+#else
+	if (pfn_valid(reg >> PAGE_SHIFT))
+#endif
+		reg_access_func = aml_mem_access;
+	else
+		reg_access_func = aml_reg_access;
+
+	ret = reg_access_func(NULL, paddr_reg, 0, &val);
+	if (ret) {
+		pr_err("%s: read failed\n", __func__);
+		return ret;
+	}
+
+	return sprintf(buf, "[0x%lx] = 0x%X\n", paddr_reg, val);
+}
+
+static struct kobj_attribute paddr_attr = __ATTR_RW(paddr);
+
+static ssize_t pdump_store(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	unsigned long reg;
+	unsigned int val;
+	int ret;
+
+	ret = sscanf(buf, "%lx %i", &reg, &val);
+	switch (ret) {
+	case 2:
+		pdump_reg = reg;
+		pdump_size = val;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t pdump_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	unsigned long reg = pdump_reg;
+	unsigned int  i = 0, val;
+	int ret;
+	ssize_t count = 0;
+	int (*reg_access_func)(struct aml_ddev *indio_dev,
+				unsigned long reg, unsigned int writeval,
+				unsigned int *readval);
+
+#ifdef CONFIG_ARM64
+	if (pfn_is_map_memory(reg >> PAGE_SHIFT))
+#else
+	if (pfn_valid(reg >> PAGE_SHIFT))
+#endif
+		reg_access_func = aml_mem_access;
+	else
+		reg_access_func = aml_reg_access;
+
+	for (i = 0; i < pdump_size ; i++) {
+		ret = reg_access_func(NULL, reg, 0, &val);
+		if (ret)
+			pr_err("%s: read failed\n", __func__);
+
+		count += sprintf(buf + count, "[0x%lx] = 0x%X\n", reg, val);
+		reg += sizeof(int);
+	}
+
+	return count;
+}
+
+static struct kobj_attribute pdump_attr = __ATTR_RW(pdump);
+
+static ssize_t vaddr_store(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	unsigned long reg;
+	unsigned int val;
+	int ret;
+
+	ret = sscanf(buf, "%lx %x", &reg, &val);
+
+	switch (ret) {
+	case 1:
+		vaddr_reg = reg;
+		break;
+	case 2:
+		vaddr_reg = reg;
+		ret = aml_vaddr_access(NULL, reg, val, NULL);
+		if (ret) {
+			pr_err("%s: write failed,ret = %d\n", __func__, ret);
+			return ret;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t vaddr_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	unsigned int val;
+
+	aml_vaddr_access(NULL, vaddr_reg, 0, &val);
+
+	return sprintf(buf, "[0x%lx] = 0x%X\n", vaddr_reg, val);
+}
+
+static struct kobj_attribute vaddr_attr = __ATTR_RW(vaddr);
+
+static ssize_t vdump_store(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	unsigned long reg;
+	unsigned int val;
+
+	if (sscanf(buf, "%lx %i", &reg, &val) != 2)
+		return -EINVAL;
+
+	vdump_reg = reg;
+	vdump_size = val;
+
+	return count;
+}
+
+static ssize_t vdump_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	unsigned long reg = vdump_reg;
+	unsigned int  i = 0, val;
+	int ret;
+	ssize_t count = 0;
+
+	for (i = 0; i < vdump_size ; i++) {
+		ret = aml_vaddr_access(NULL, reg, 0, &val);
+		if (ret)
+			pr_err("%s: read failed\n", __func__);
+
+		count += sprintf(buf + count, "[0x%lx] = 0x%X\n", reg, val);
+		reg += sizeof(int);
+	}
+
+	return count;
+}
+
+static struct kobj_attribute vdump_attr = __ATTR_RW(vdump);
+
+static struct attribute *aml_reg_attrs[] = {
+	&paddr_attr.attr,
+	&pdump_attr.attr,
+	&vaddr_attr.attr,
+	&vdump_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group aml_reg_group = {
+	.name = "aml_reg",
+	.attrs = aml_reg_attrs,
+};
+#endif
+
 int __init aml_reg_init(void)
 {
 	static struct dentry *dir_aml_reg;
@@ -353,6 +575,9 @@ int __init aml_reg_init(void)
 				    dir_aml_reg, &vdump_dev, &vdump_file_ops);
 	}
 
+#if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
+	amlogic_class_debug_create_dir(&aml_reg_group, 2);
+#endif
 	return 0;
 }
 

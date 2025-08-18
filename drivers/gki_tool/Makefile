@@ -9,3 +9,4 @@ ccflags-y += -I$(srctree)/kernel/module
 
 obj-$(CONFIG_AMLOGIC_GKI_TOOL) = $(MODULE_NAME).o
 $(MODULE_NAME)-y += gki_tool.o gki_module.o
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_CLASS_DEBUG) += class_debug.o

@@ -7,6 +7,8 @@
 
 #include <trace/events/meson_atrace.h>
 #include <linux/device/class.h>
+#include <linux/sysfs.h>
+#include <linux/amlogic/gki_module.h>
 
 static u64 atrace_tag;
 
@@ -57,9 +59,14 @@ void set_atrace_tag_enabled(unsigned short tag, int enable)
 }
 EXPORT_SYMBOL(set_atrace_tag_enabled);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
+static ssize_t show_atrace_tag(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+#else
 static ssize_t show_atrace_tag(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
+#endif
 {
 	ssize_t size = 0;
 	int i;
@@ -73,9 +80,14 @@ static ssize_t show_atrace_tag(const struct class *class,
 	return size;
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
+static ssize_t store_atrace_tag(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buf, size_t size)
+#else
 static ssize_t store_atrace_tag(const struct class *class,
 			const struct class_attribute *attr,
 			const char *buf, size_t size)
+#endif
 {
 	unsigned int tag;
 	ssize_t r;
@@ -90,6 +102,19 @@ static ssize_t store_atrace_tag(const struct class *class,
 	return size;
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
+static struct kobj_attribute atrace_tag_attr = __ATTR(atrace_tag, 0644,
+						show_atrace_tag, store_atrace_tag);
+static struct attribute *atrace_tag_attrs[] = {
+	&atrace_tag_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group atrace_group = {
+	.name = "atrace",
+	.attrs = atrace_tag_attrs,
+};
+#else
 static struct class_attribute debug_attrs[] = {
 	__ATTR(atrace_tag, 0664, show_atrace_tag, store_atrace_tag),
 	__ATTR_NULL
@@ -106,19 +131,23 @@ static struct class debug_class = {
 		.name = "debug",
 		.class_groups = debug_class_groups,
 };
+#endif
 
 int meson_atrace_init(void)
 {
 	int r;
 
+#if !IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
 	r = class_register(&debug_class);
 
 	if (r) {
 		pr_err("debug class create fail.\n");
 		return r;
 	}
-
-	return 0;
+#else
+	r = amlogic_class_debug_create_dir(&atrace_group, 1);
+#endif
+	return r;
 }
 
 static char *print_flags_type(unsigned int flags)
