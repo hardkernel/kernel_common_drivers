@@ -23,6 +23,7 @@
 #include "meson_drv.h"
 #include "meson_async_atomic.h"
 #include "meson_plane.h"
+#include "meson_crtc.h"
 
 struct drm_property *meson_mode_obj_find_prop_id(struct drm_mode_object *obj,
 					       uint32_t prop_id)
@@ -124,6 +125,24 @@ bool is_am_osd_async_commit(struct drm_atomic_state *atomic_state)
 		DRM_WARN("only single plane async updates are supported\n");
 
 	return plane && !strncmp(plane->name, "osd", 3);
+}
+
+static void meson_atomic_bypass_vblank_wait(struct drm_atomic_state *state)
+{
+	struct am_meson_crtc_state *meson_crtc_state;
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	int i;
+
+	if (is_am_osd_async_commit(state))
+		return;
+
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		meson_crtc_state = to_am_meson_crtc_state(crtc_state);
+		meson_crtc_state->nonblock_by_vblank = true;
+		DRM_DEBUG("%s, bypass vblank wait %d\n", __func__,
+			  state->async_update);
+	}
 }
 
 /**
@@ -598,7 +617,7 @@ retry:
 	if (ret)
 		goto out;
 
-	DRM_DEBUG("%s, async_update-%d\n", __func__, state->async_update);
+	meson_atomic_bypass_vblank_wait(state);
 
 	start2 = ktime_get();
 	ret = config->funcs->atomic_commit(state->dev, state, false);
