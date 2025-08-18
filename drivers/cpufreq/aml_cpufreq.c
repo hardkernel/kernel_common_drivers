@@ -380,12 +380,16 @@ static bool aml_setup_opptable(struct cluster_data *data)
 		goto out;
 	}
 	for (i = 0; i < data->dsu_opp_cnt; i++) {
-		of_property_read_u32_index(np, dsutable_name, dsuopp_len * i, &rate);
-		of_property_read_u32_index(np, dsutable_name, dsuopp_len * i + 1, &rate1);
+		if (of_property_read_u32_index(np, dsutable_name, dsuopp_len * i, &rate))
+			goto out;
+		if (of_property_read_u32_index(np, dsutable_name, dsuopp_len * i + 1, &rate1))
+			goto out;
 		data->dsu_opp_table[i].cpurate = rate;
 		data->dsu_opp_table[i].dsurate = rate1;
 		if (data->dsureg) {
-			of_property_read_u32_index(np, dsutable_name, dsuopp_len * i + 2, &volt);
+			if (of_property_read_u32_index(np, dsutable_name, dsuopp_len * i + 2,
+				&volt))
+				goto out;
 			data->dsu_opp_table[i].dsuvolt = volt;
 		}
 	}
