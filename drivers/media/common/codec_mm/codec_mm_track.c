@@ -488,8 +488,17 @@ int codec_mm_dbuf_walk(struct seq_file *m)
 	int ret;
 	struct dma_buf_record_node *entry, *entry_tmp;
 	struct dma_buf_record_node dma_buf_list;
+	int i, list_count = 0;
 
 	INIT_LIST_HEAD(&dma_buf_list.list);
+	/* Initialize a dma_buf_list in advance, based on the length of mem_list */
+	list_count = codec_get_mem_list_count();
+	for (i = 0; i < list_count; i++) {
+		struct dma_buf_record_node *buf_node;
+
+		buf_node = kzalloc(sizeof(*buf_node), GFP_KERNEL);
+		list_add_tail(&buf_node->list, &dma_buf_list.list);
+	}
 	build_dma_buf_list(m, &dma_buf_list);
 
 	cs_printf(m, "Dbuf walk type:%x.\n", dbuf_track_type_flag);
@@ -502,6 +511,7 @@ int codec_mm_dbuf_walk(struct seq_file *m)
 		list_del(&entry->list);
 		kfree(entry);
 	}
+
 	return ret;
 }
 
@@ -926,6 +936,7 @@ static int find_dma_buf_in_tsk(struct task_struct *tsk,
 		rcu_read_lock();
 		f = task_lookup_next_fdget_rcu(tsk, &fd);
 		rcu_read_unlock();
+
 		if (!f)
 			break;
 		fput(f);
@@ -945,11 +956,24 @@ static int find_dma_buf_in_tsk(struct task_struct *tsk,
 			}
 
 			if (!found) {
-				struct dma_buf_record_node *buf_node =
-					kzalloc(sizeof(struct dma_buf_record_node), GFP_KERNEL);
+				list_for_each_entry(entry, &dma_buf_list->list, list) {
+					if (!entry->buf) {
+						entry->buf = dmabuf;
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					struct dma_buf_record_node *node;
 
-				buf_node->buf = dmabuf;
-				list_add(&buf_node->list, &dma_buf_list->list);
+					node = kzalloc(sizeof(*node), GFP_ATOMIC);
+					if (node) {
+						node->buf = dmabuf;
+						list_add(&node->list, &dma_buf_list->list);
+					} else {
+						pr_err("Failed to allocate dma_buf_record_node\n");
+					}
+				}
 			}
 		}
 	}
