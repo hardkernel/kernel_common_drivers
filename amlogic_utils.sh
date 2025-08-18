@@ -231,6 +231,10 @@ function prepare_module_build() {
 	echo EXT_MODULES=${EXT_MODULES}
 
 	rm ${temp_file}
+
+	if [[ -d ${MODULES_STAGING_DIR} ]]; then
+		rm -rf ${MODULES_STAGING_DIR}
+	fi
 }
 export -f prepare_module_build
 
