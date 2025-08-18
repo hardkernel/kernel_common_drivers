@@ -377,53 +377,6 @@ struct meson_plane_supported_formats video_formats = {
 	.format_num = ARRAY_SIZE(video_supported_drm_formats),
 };
 
-/*set dst based on the real hdisplay and vdisplay of the lcd's mode when recovery_dst_ctrl*/
-static void
-meson_plane_position_calc_for_recovery(struct meson_vpu_osd_layer_info *plane_info,
-			  struct drm_plane_state *state)
-{
-	struct am_osd_plane *amp;
-	struct drm_crtc *crtc = state->crtc;
-
-	if (!crtc) {
-		DRM_DEBUG_DRIVER("Disabling plane %d, so skip position calc",
-			 plane_info->plane_index);
-		return;
-	}
-
-	plane_info->src_x = state->src_x >> 16;
-	plane_info->src_y = state->src_y >> 16;
-	plane_info->src_w = (state->src_w >> 16) & 0xffff;
-	plane_info->src_h = (state->src_h >> 16) & 0xffff;
-
-	plane_info->dst_x = state->crtc_x;
-	plane_info->dst_y = state->crtc_y;
-	plane_info->rotation = state->rotation;
-
-	if (state->plane) {
-		amp = to_am_osd_plane(state->plane);
-
-		plane_info->dst_w = amp->drv->recovery_dst_w;
-		plane_info->dst_h = amp->drv->recovery_dst_h;
-		plane_info->hdisplay = amp->drv->recovery_dst_w;
-		plane_info->vdisplay = amp->drv->recovery_dst_h;
-
-		if (plane_info->blend_bypass != amp->osd_blend_bypass)
-			plane_info->blend_bypass = amp->osd_blend_bypass;
-		if (plane_info->read_ports != amp->osd_read_ports)
-			plane_info->read_ports = amp->osd_read_ports;
-		else
-			plane_info->read_ports = 2;
-	}
-
-	DRM_DEBUG_DRIVER("source: src_x=%d, src_y=%d, src_w=%d, src_h=%d\n",
-		plane_info->src_x, plane_info->src_y,
-		plane_info->src_w, plane_info->src_h);
-	DRM_DEBUG_DRIVER("destination: dst_x=%d, dst_y=%d, dst_w=%d, dst_h=%d\n",
-		plane_info->dst_x, plane_info->dst_y,
-		plane_info->dst_w, plane_info->dst_h);
-}
-
 static void
 meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 			  struct drm_plane_state *state,
@@ -2110,10 +2063,7 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 
 	mvps->plane_index[osd_plane->plane_index] = osd_plane->plane_index;
 
-	if (drv->recovery_dst_ctrl)
-		meson_plane_position_calc_for_recovery(plane_info, state);
-	else
-		meson_plane_position_calc(plane_info, state, mvps->pipeline);
+	meson_plane_position_calc(plane_info, state, mvps->pipeline);
 
 	ret = meson_plane_check_size_range(plane_info);
 	if (ret < 0) {
@@ -2788,10 +2738,8 @@ static void meson_plane_add_max_fb_property(struct drm_device *drm_dev,
 	int ret;
 	u32 size_index = 0, max_fb_size;
 	struct drm_property *prop;
-	struct meson_drm *private = drm_dev->dev_private;
 
 	ret = of_property_read_u32(drm_dev->dev->of_node, "max_fb_size", &size_index);
-	private->of_conf.max_fb_size = size_index;
 
 	if (ret)
 		max_fb_size = meson_plane_fb_size_list[0];
