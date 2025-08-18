@@ -107,6 +107,8 @@ struct meson_drm_param {
 	int osdscaler_h_filter_mode;
 	int osd_hold_line;
 	int force_mali_afbc_mode;
+	int async_commit_ioctl_threshold;
+	int fbdev_pan_display_threshold;
 };
 
 extern struct meson_drm_param am_drm_param;

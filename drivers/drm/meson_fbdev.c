@@ -14,6 +14,10 @@
 #include <linux/dma-buf.h>
 #include <linux/fb.h>
 #include <linux/amlogic/ion.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DRM
+#include <trace/events/meson_atrace.h>
+#endif
 
 #include "meson_drv.h"
 #include "meson_gem.h"
@@ -497,6 +501,8 @@ static int am_meson_drm_fb_pan_display(struct fb_var_screeninfo *var,
 	struct drm_plane *plane = fbdev->plane;
 	struct drm_mode_set *mode_set;
 	int hdisplay, vdisplay;
+	ktime_t start1, end1, start2, end2;
+	s64 commit_time_ms, total_time_ms;
 	int ret;
 
 	if (fbdev->blank) {
@@ -510,8 +516,16 @@ static int am_meson_drm_fb_pan_display(struct fb_var_screeninfo *var,
 		return 0;
 	}
 
+	MESON_DRM_FBDEV("%s IN, pid[%s %d], plane_id[%d], plane_type[%d], fb[%p]\n",
+		__func__, current->comm, current->pid, plane->index,
+		plane->type, fb_helper->fb);
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	ATRACE_BEGIN("fbdev_pan_display");
+#endif
+	start1 = ktime_get();
+
 	drm_modeset_lock_all(dev);
-	MESON_DRM_FBDEV("%s IN [%d]\n", __func__, plane->index);
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
@@ -521,7 +535,6 @@ static int am_meson_drm_fb_pan_display(struct fb_var_screeninfo *var,
 
 	state->acquire_ctx = dev->mode_config.acquire_ctx;
 retry:
-	MESON_DRM_FBDEV("%s for plane [%d-%p]\n", __func__, plane->type, fb_helper->fb);
 
 	mode_set = &fbdev->modeset;
 
@@ -568,14 +581,18 @@ retry:
 	/* fix alpha */
 	plane_state->pixel_blend_mode = DRM_MODE_BLEND_PREMULTI;
 
-	MESON_DRM_FBDEV("update fb [%x-%x, %x-%x]-%d->[%d-%d]",
+	MESON_DRM_FBDEV("update fb [%x-%x, %xx%x]-%d->[%d-%d, %dx%d]\n",
 		plane_state->src_x, plane_state->src_y,
 		plane_state->src_w, plane_state->src_h,
-		plane_state->zpos, plane_state->crtc_w,
-		plane_state->crtc_h);
+		plane_state->zpos,
+		plane_state->crtc_x, plane_state->crtc_y,
+		plane_state->crtc_w, plane_state->crtc_h);
 
 	state->legacy_cursor_update = true;
+	start2 = ktime_get();
 	ret = drm_atomic_commit(state);
+	end2 = ktime_get();
+	commit_time_ms = ktime_ms_delta(end2, start2);
 	if (ret != 0)
 		goto fail;
 
@@ -592,9 +609,19 @@ unlock_exit:
 	drm_modeset_unlock_all(dev);
 
 	if (ret)
-		DRM_ERROR("%s failed .\n", __func__);
+		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
 	else
-		DRM_DEBUG("%s OUT [%d]\n", __func__, plane->index);
+		MESON_DRM_FBDEV("%s OUT\n", __func__);
+
+	end1 = ktime_get();
+	total_time_ms = ktime_ms_delta(end1, start1);
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	ATRACE_END();
+	ATRACE_COUNTER("fbdev_pan_display", total_time_ms);
+#endif
+	if (total_time_ms > am_drm_param.fbdev_pan_display_threshold)
+		DRM_WARN("fbdev pan display cost (%lld %lld) ms, it is too long\n",
+			commit_time_ms, total_time_ms);
 
 	return ret;
 

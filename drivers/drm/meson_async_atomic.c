@@ -9,14 +9,16 @@
 #include <linux/file.h>
 #include <linux/types.h>
 
-#include "meson_async_atomic.h"
-#include "meson_plane.h"
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_property.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DRM
+#include <trace/events/meson_atrace.h>
+#endif
 
 #include "meson_drv.h"
 #include "meson_async_atomic.h"
@@ -471,6 +473,15 @@ int meson_async_atomic_ioctl(struct drm_device *dev,
 	struct drm_mode_config *config = &dev->mode_config;
 	int ret = 0;
 	unsigned int i, j, num_fences;
+	ktime_t start1, end1, start2, end2;
+	s64 commit_time_ms = 0, total_time_ms;
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	ATRACE_BEGIN("async_atomic_ioctl");
+#endif
+	start1 = ktime_get();
+
+	DRM_DEBUG_ATOMIC("%s IN, pid[%s %d]\n", __func__, current->comm, current->pid);
 
 	drm_modeset_acquire_init(&ctx, 0);
 
@@ -589,7 +600,9 @@ retry:
 
 	DRM_DEBUG("%s, async_update-%d\n", __func__, state->async_update);
 
+	start2 = ktime_get();
 	ret = config->funcs->atomic_commit(state->dev, state, false);
+	end2 = ktime_get();
 	if (ret)
 		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
 
@@ -604,5 +617,17 @@ out:
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
+
+	end1 = ktime_get();
+	total_time_ms = ktime_ms_delta(end1, start1);
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	ATRACE_END();
+	ATRACE_COUNTER("async_atomic_ioctl", total_time_ms);
+#endif
+	if (total_time_ms > am_drm_param.async_commit_ioctl_threshold)
+		DRM_WARN("async commit cost (%lld %lld) ms, it is too long\n",
+			commit_time_ms, total_time_ms);
+
+	DRM_DEBUG_ATOMIC("%s OUT,  ret = %d\n", __func__, ret);
 	return ret;
 }
