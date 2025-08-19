@@ -107,7 +107,7 @@ EXPORT_SYMBOL(convert_connector_type_to_str);
 struct vinfo_s *get_invalid_vinfo(int index, unsigned int flag)
 {
 	if (flag) {
-		VOUTERR("invalid vinfo%d. current vmode is not supported\n",
+		WARN_ONCE(1, "invalid vinfo%d. current vmode is not supported\n",
 			index);
 	}
 	return &invalid_vinfo;

@@ -14,6 +14,12 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
 #include <linux/amlogic/media/osd/osd_logo.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+#include <linux/amlogic/media/amvecm/amvecm.h>
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#endif
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
 #include "meson_plane.h"
@@ -2036,6 +2042,21 @@ static void meson_video_plane_atomic_update(struct drm_plane *plane,
 	video_pipeline_block_update(mvsp, old_atomic_state, video_index);
 }
 
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION) ||\
+	defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+/* -1: invalid osd index
+ *  0: osd is disabled
+ *  1: osd is enabled
+ */
+int get_osd_status_callback(u32 index)
+{
+	if (index < MESON_MAX_OSDS)
+		return osd_enable[index];
+	else
+		return -1;
+}
+#endif
+
 static int meson_plane_atomic_check(struct drm_plane *plane,
 					struct drm_atomic_state *atomic_state)
 {
@@ -3130,6 +3151,19 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 	return video_plane;
 }
 
+static void register_osd_status_cb_func(void)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	register_osd_status_cb(get_osd_status_callback);
+#endif
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	register_osd_func(get_osd_status_callback);
+#endif
+}
+
 int am_meson_plane_create(struct meson_drm *priv)
 {
 	struct am_osd_plane *plane;
@@ -3145,6 +3179,8 @@ int am_meson_plane_create(struct meson_drm *priv)
 
 	/*calculate primary plane*/
 	meson_plane_get_primary_plane(priv, type);
+
+	register_osd_status_cb_func();
 
 	/*osd plane*/
 	for (i = 0; i < MESON_MAX_OSD; i++) {
