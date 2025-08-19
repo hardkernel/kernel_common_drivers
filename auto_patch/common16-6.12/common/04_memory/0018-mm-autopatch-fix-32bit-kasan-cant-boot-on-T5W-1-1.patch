@@ -1,0 +1,56 @@
+From 5176f8ce39cf8ef417ce721dc40cbde0a7f4eee9 Mon Sep 17 00:00:00 2001
+From: Jianxiong Pan <jianxiong.pan@amlogic.com>
+Date: Tue, 19 Aug 2025 09:31:15 +0800
+Subject: [PATCH] mm: autopatch: fix 32bit kasan can not boot on T5W [1/1]
+
+PD#SWPL-225609
+
+Problem:
+If enabled 32bit kasan on T5W with VMAP, kernel can not boot.
+This case can not happen on T5D.
+
+Solution:
+Rootcause is bss cleared but real data keeps in cache, not flushed
+into DDR, and physical kasan shadow page soon be mapped to shadow
+memory while in shadow virtual address we see random data, which
+caused kasan check failed in vmap fixup function and crashed. So
+just add a dcache flush function call after bss cleared.
+
+Verify:
+T5W
+
+Change-Id: I7c36effe2704c0e73110e93e4b8b64936fcdaf60
+Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
+---
+ arch/arm/kernel/head-common.S | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/arch/arm/kernel/head-common.S b/arch/arm/kernel/head-common.S
+index 42cae73fcc19d..9c3bafb2834ed 100644
+--- a/arch/arm/kernel/head-common.S
++++ b/arch/arm/kernel/head-common.S
+@@ -105,6 +105,21 @@ __mmap_switched:
+ 	mov	r1, #0
+ 	bl	__memset			@ clear .bss
+ 
++#if defined (CONFIG_KASAN) && defined (CONFIG_AMLOGIC_VMAP)
++	/* After bss cleard, kasan_early_shadow_page are 0 in cache
++	 * But on A55 it's physical memory keeps random data, this
++	 * physical page will be mapped to shadow memory very soon(few
++	 * lines behind) in function kasan_early_init, this caused kasan
++	 * shadow memory check failed and crashed in function
++	 * fixup_init_thread_union(). However, this problem don't see on
++	 * A35 processor. Rootcause may related with core's cache replace/
++	 * clean policy.
++	 */
++	push	{r0-r12, lr}
++	bl	v7_flush_dcache_all
++	pop	{r0-r12, lr}
++#endif
++
+ 	adr_l	r0, init_task			@ get swapper task_struct
+ 	set_current r0, r1
+ 
+-- 
+2.50.1
+
