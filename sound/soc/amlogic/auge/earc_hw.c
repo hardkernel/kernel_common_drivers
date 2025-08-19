@@ -1126,9 +1126,21 @@ void earctx_cmdc_hpd_detect(struct regmap *top_map,
 	}
 }
 
+static void earctx_afifo_reset(struct regmap *dmac_map, bool enable)
+{
+	if (enable) {
+		/* afifo out reset */
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x1 << 29, 0x1 << 29);
+		/* afifo in reset */
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x1 << 28, 0x1 << 28);
+	} else {
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x3 << 28, 0x0);
+	}
+}
+
 void earctx_dmac_init(struct regmap *top_map,
 		      struct regmap *dmac_map,
-		      int earc_spdifout_lane_mask,
+		      struct earc_chipinfo *chipinfo,
 		      unsigned int chmask,
 		      unsigned int swap_masks,
 		      bool mute,
@@ -1136,20 +1148,14 @@ void earctx_dmac_init(struct regmap *top_map,
 {
 	unsigned int lswap_masks, rswap_masks;
 
+	earctx_afifo_reset(dmac_map, false);
+	earctx_afifo_reset(dmac_map, true);
 	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-			 0x3 << 28,
-			 0x0 << 28);
-	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-			 0x1 << 29, /* afifo out reset */
-			 0x1 << 29);
-	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-			 0x1 << 28 | /* afifo in reset */
 			 0x1 << 26 | /* user Bit select */
 			 0x1 << 24 | /* chdata select*/
 			 0x1 << 20 | /* reg_data_sel, 1: data from 27bit */
 			 0x1 << 19 | /* 0: lsb first */
 			 0x1 << 18,  /* biphase encode valid Bit value sel */
-			 0x1 << 28 |
 			 0x1 << 26 |
 			 0x1 << 24 |
 			 0x1 << 20 |
@@ -1166,7 +1172,7 @@ void earctx_dmac_init(struct regmap *top_map,
 			 0x0 << 15);
 
 	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL2, 0xff << 16, 0x1 << 16);
-	if (earc_spdifout_lane_mask == EARC_SPDIFOUT_LANE_MASK_V2)
+	if (chipinfo->earc_spdifout_lane_mask == EARC_SPDIFOUT_LANE_MASK_V2)
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL2,
 				 0xffff,   /* lane mask */
 				 chmask);     /*  ODO: lane 0 now */
@@ -1199,6 +1205,19 @@ void earctx_dmac_init(struct regmap *top_map,
 		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL0,
 				 0x1 << 15 | 0x7 << 8,
 				 0x0 << 15 | rswap_masks << 8);
+
+	/*
+	 * use for channel sync init with t6w.
+	 * bit 18, ch_en
+	 * bit 8 - 15, frame count
+	 */
+	if (chipinfo->tx_pll_new) {
+		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL1,
+				0x1 << 18 |
+				0xff << 8,
+				1 << 18 |
+				ch_num << 8);
+	}
 
 	mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL4,
 			 0xf << 17,
@@ -1566,7 +1585,7 @@ void earctx_compressed_enable(struct regmap *dmac_map,
 
 	mmio_update_bits(dmac_map, EARCTX_FE_CTRL0,
 			 0x1 << 30,
-			 enable << 30);
+			 0x1 << 30);
 }
 
 bool get_earctx_enable(struct regmap *cmdc_map, struct regmap *dmac_map)
@@ -1580,6 +1599,27 @@ bool get_earctx_enable(struct regmap *cmdc_map, struct regmap *dmac_map)
 		return true;
 
 	return false;
+}
+
+static void earctx_channel_sync_start(struct regmap *dmac_map, bool statrt)
+{
+	/*
+	 * earc tx new ip with channel sync function
+	 * EARCTX_ERR_CORRT_CTRL1[16] mute_en2
+	 * EARCTX_ERR_CORRT_CTRL1[17] keep ddr init
+	 * EARCTX_SPDIFOUT_CTRL0[15] req frddr reset
+	 */
+	if (statrt) {
+		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL1, 0x1 << 16, 1 << 16);
+		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL1, 0x1 << 17, 1 << 17);
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x1 << 15, 0x1 << 15);
+		earctx_afifo_reset(dmac_map, false);
+	} else {
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x1 << 15, 0);
+		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL1, 0x1 << 16, 0);
+		/* keep bit 17 as 1 always */
+		//mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL1, 0x1 << 17, 0);
+	}
 }
 
 void earctx_enable(struct regmap *top_map,
@@ -1625,28 +1665,23 @@ void earctx_enable(struct regmap *top_map,
 		/* first biphase work clear, and then start
 		 * only for earc
 		 */
-		if (type == ATNDTYP_EARC) {
+		if (type == ATNDTYP_EARC  && !chipinfo->tx_pll_new) {
 			mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 					 0x1 << 30,
 					 0x1 << 30);
 		}
-		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-				 0x3 << 28,
-				 0x0);
 
-		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-				 0x1 << 29, /* afifo out reset */
-				 0x1 << 29);
-		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-				 0x1 << 28, /* afifo in reset */
-				 0x1 << 28);
+		/* t6w chip, set 0 after ERR_CORRT_CTRL1 bit 17 as 1 */
+		if (!chipinfo->tx_pll_new)
+			earctx_afifo_reset(dmac_map, false);
+
+		earctx_afifo_reset(dmac_map, true);
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 				 0x1 << 31,
 				 0x1 << 31);
 	} else {
 		/* earc tx is not disable, only mute, ensure earc outputs zero data */
 		earctx_dmac_mute(dmac_map, true);
-		return;
 	}
 
 	mmio_write(top_map, EARCTX_DMAC_INT_MASK,
@@ -1657,10 +1692,10 @@ void earctx_enable(struct regmap *top_map,
 		   (0x1 << 0)	  /* err_correct c_fifo_empty_set */
 		   );
 
-	earctx_compressed_enable(dmac_map,
-				 type,
-				 coding_type,
-				 enable);
+	earctx_compressed_enable(dmac_map, type, coding_type, enable);
+
+	if (chipinfo->tx_pll_new)
+		earctx_channel_sync_start(dmac_map, !enable);
 }
 
 static void earcrx_cmdc_get_reg(struct regmap *cmdc_map, int dev_id, int offset,

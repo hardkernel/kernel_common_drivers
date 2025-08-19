@@ -306,7 +306,7 @@ void earctx_cmdc_hpd_detect(struct regmap *top_map,
 			    int earc_port, bool st);
 void earctx_dmac_init(struct regmap *top_map,
 		      struct regmap *dmac_map,
-		      int earc_spdifout_lane_mask,
+		      struct earc_chipinfo *chipinfo,
 		      unsigned int chmask,
 		      unsigned int swap_masks,
 		      bool mute,
