@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/video_processor/v4lvideo/v4lvideo.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #undef DEBUG
@@ -1533,6 +1520,7 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 	bool is_v4lvideo_fd = false;
 	struct uvm_hook_mod *uhmod;
 	struct uvm_hook_mod_info info;
+	struct dma_buf *dmabuf;
 	int ret;
 
 	if (!file_vf) {
@@ -1548,11 +1536,14 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 			(struct file_private_data *)(file_vf->private_data);
 		return file_private_data;
 	}
-	if (!file_vf->private_data) {
-		pr_err("v4lvideo: private_data is null\n");
+
+	dmabuf = (struct dma_buf *)file_vf->private_data;
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		pr_err("v4lvideo: %s: private_data is null\n", __func__);
 		return NULL;
 	}
-	if (!dmabuf_is_uvm((struct dma_buf *)file_vf->private_data)) {
+
+	if (!dmabuf_is_uvm(dmabuf)) {
 		pr_err("v4lvideo: dma file private data is not uvm\n");
 		return NULL;
 	}

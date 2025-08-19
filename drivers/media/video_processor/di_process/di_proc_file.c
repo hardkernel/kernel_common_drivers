@@ -1,20 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/video_processor/di_process/di_proc_file.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
+
 #include <linux/vmalloc.h>
 #include "di_proc_file.h"
 #include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
@@ -130,6 +118,7 @@ struct file_private_data *di_proc_get_file_private_data(struct file *file_vf,
 	struct file_private_data *file_private_data;
 	struct uvm_hook_mod *uhmod;
 	struct uvm_hook_mod_info info;
+	struct dma_buf *dmabuf;
 	int ret;
 
 	if (!file_vf) {
@@ -137,7 +126,13 @@ struct file_private_data *di_proc_get_file_private_data(struct file *file_vf,
 		return NULL;
 	}
 
-	if (!dmabuf_is_uvm((struct dma_buf *)file_vf->private_data)) {
+	dmabuf = (struct dma_buf *)file_vf->private_data;
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		di_proc_file_print(PRINT_ERROR, "%s: private_data is null\n", __func__);
+		return NULL;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
 		di_proc_file_print(PRINT_ERROR, "%s: dmabuf is not uvm\n", __func__);
 		return NULL;
 	}

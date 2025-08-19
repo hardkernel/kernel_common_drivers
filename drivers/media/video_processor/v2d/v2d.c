@@ -375,6 +375,7 @@ struct file_private_data *v2d_get_file_private_data(struct file *file_vf,
 	struct file_private_data *file_private_data;
 	struct uvm_hook_mod *uhmod;
 	struct uvm_hook_mod_info info;
+	struct dma_buf *dmabuf;
 	int ret;
 
 	if (!file_vf) {
@@ -382,7 +383,13 @@ struct file_private_data *v2d_get_file_private_data(struct file *file_vf,
 		return NULL;
 	}
 
-	if (!dmabuf_is_uvm((struct dma_buf *)file_vf->private_data)) {
+	dmabuf = (struct dma_buf *)file_vf->private_data;
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		v2d_print(0, PRINT_ERROR, "%s: private_data is null\n", __func__);
+		return NULL;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
 		v2d_print(0, PRINT_ERROR, "%s: dmabuf is not uvm\n", __func__);
 		return NULL;
 	}
