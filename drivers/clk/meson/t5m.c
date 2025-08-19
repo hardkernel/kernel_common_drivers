@@ -1430,10 +1430,11 @@ static struct clk_regmap t5m_hdmi_tx = {
  * 1.gp0 pll only support the 846M, avoid other rate 500/400M from it
  * 2.hifi pll is used for other module, skip it, avoid some rate from it
  */
-static u32 mux_table_mali[] = { 0, 3, 4, 5, 6};
+static u32 mux_table_mali[] = { 0, 1, 3, 4, 5, 6};
 
 static const struct clk_parent_data t5m_mali_0_1_parent_data[] = {
 	{ .fw_name = "xtal", },
+	{ .hw = &t5m_gp0_pll.hw },
 	{ .hw = &t5m_fclk_div2p5.hw },
 	{ .hw = &t5m_fclk_div3.hw },
 	{ .hw = &t5m_fclk_div4.hw },
