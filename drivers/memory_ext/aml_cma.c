@@ -468,11 +468,7 @@ static void update_cma_page_trace(struct page *page, unsigned long cnt)
 		pr_info("c a p:%lx, c:%ld, f:%ps\n",
 			page_to_pfn(page), cnt, (void *)fun);
 	for (i = 0; i < cnt; i++) {
-#ifdef CONFIG_AMLOGIC_CMA
 		set_page_trace(page, 0, __GFP_NO_CMA, (void *)fun);
-#else
-		set_page_trace(page, 0, 0, (void *)fun);
-#endif
 		page++;
 	}
 }
@@ -1182,6 +1178,7 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 	struct cma_pcp *work;
 	struct work_cma job[MAX_JOB_NUM] = {};
 
+	cpus_read_lock();
 	cpumask_clear(&has_work);
 
 	if (allow_cma_tasks)
@@ -1235,6 +1232,7 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 		}
 	}
 	local_irq_restore(flags);
+	cpus_read_unlock();
 
 	for_each_cpu(cpu, &has_work) {
 		work = &per_cpu(cma_pcp_thread, cpu);
@@ -1706,7 +1704,6 @@ try_again:
 	/*
 	 * try to use more cpu to do this job when alloc count is large
 	 */
-	cpus_read_lock();
 	if ((num_online_cpus() > 1) && can_boost &&
 	    ((end - start) >= pageblock_nr_pages / 2)) {
 		ret = cma_alloc_contig_boost(start, end - start);
@@ -1715,7 +1712,6 @@ try_again:
 		ret = aml_alloc_contig_migrate_range(&cc, start,
 						     end, 0, current);
 	}
-	cpus_read_unlock();
 
 	if (ret && (ret != -EBUSY || (gfp_mask & __GFP_NORETRY))) {
 		cma_debug(1, NULL, "ret:%d\n", ret);
@@ -1862,12 +1858,10 @@ void aml_cma_free(unsigned long pfn, unsigned int nr_pages, int update)
 	int free_order, start_order = 0;
 	int batch;
 	unsigned int orig_nr_pages = nr_pages;
+#if (IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE) && IS_MODULE(CONFIG_AMLOGIC_CMA)) || \
+	(IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE) && IS_BUILTIN(CONFIG_AMLOGIC_CMA))
 	unsigned long orig_pfn = pfn;
-
-	if (update) {
-		if (cma_alloc_trace)
-			pr_info("sc f p:%lx, c:%d\n", orig_pfn, orig_nr_pages);
-	}
+#endif
 
 	while (nr_pages) {
 		page = pfn_to_page(pfn);
@@ -2104,11 +2098,10 @@ static void aml_cma_alloc(void *data, struct cma *cma, unsigned long count,
 		preempt_enable();
 	}
 
-	cma_alloc_trace_start(cma->name, count);
-	in_tick = sched_clock();
-
 	if (!cma || !cma->count || !cma->bitmap)
 		goto out;
+
+	cma_alloc_trace_start(cma->name, count);
 
 	cma_debug(0, NULL, "(cma %p, count %lu, align %d)\n",
 		  (void *)cma, count, align);

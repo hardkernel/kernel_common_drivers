@@ -4,6 +4,7 @@ RAMDISK_MODULES_LOAD_LIST=(
 	amlogic-hwspinlock
 	amlogic-soc-sym_helper.ko
 	amlogic-gkitool
+	user_fault
 	amlogic-memory-debug
 	amlogic-secmon
 	aml_cma.ko

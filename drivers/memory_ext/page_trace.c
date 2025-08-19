@@ -23,7 +23,9 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/amlogic/page_trace.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_CMA)
 #include <linux/amlogic/aml_cma.h>
+#endif
 #include <asm/stacktrace.h>
 #include <asm/sections.h>
 #include <linux/moduleparam.h>
@@ -96,7 +98,7 @@ unsigned int trace_step = 1;
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 EXPORT_SYMBOL(trace_step);
 #endif
-static bool page_trace_disable __initdata;
+static bool page_trace_disable;
 
 struct alloc_caller {
 	unsigned long func_start_addr;
@@ -250,7 +252,7 @@ static inline bool page_trace_invalid(struct page_trace *trace)
 }
 
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-static int __init early_page_trace_param(char *buf)
+static int early_page_trace_param(char *buf)
 {
 	if (!buf)
 		return -EINVAL;
@@ -1072,11 +1074,9 @@ unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
 #endif
 
 	trace.ret_ip = (ip - text) >> 2;
-#ifdef CONFIG_AMLOGIC_CMA
 	if (flag == __GFP_NO_CMA)
 		trace.migrate_type = MIGRATE_CMA;
 	else
-#endif
 		trace.migrate_type = aml_gfp_migratetype(flag);
 	trace.order = order;
 #if DEBUG_PAGE_TRACE
