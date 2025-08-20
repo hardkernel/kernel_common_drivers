@@ -442,7 +442,7 @@
 			      <&saradc SARADC_CH2>, <&saradc SARADC_CH3>,
 			      <&saradc SARADC_CH4>, <&saradc SARADC_CH5>,
 			      <&saradc SARADC_CH6>, <&saradc SARADC_CH7>;
-		amlogic,threshold = <512 512 512 512 512 512 512 512>;
+		amlogic,threshold = <900 900 900 900 900 900 900 900>;
 		status = "disabled";
 	};
 
