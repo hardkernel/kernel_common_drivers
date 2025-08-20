@@ -380,6 +380,7 @@ struct crg_gadget_dev {
 	int suspend_scheme;
 #define SUSPEND_SCHEME_POWER_OFF_ONLY 0
 #define SUSPEND_SCHEME_REINIT 1
+	bool resume_recovery;
 
 	unsigned u2_RWE:1;
 	unsigned feature_u1_enable:1;
@@ -511,7 +512,14 @@ static struct usb_endpoint_descriptor crg_udc_ep0_desc = {
 
 static void crg_rewrite_udc_for_error(struct work_struct *work)
 {
-	CRG_ERROR("--------------%s---\n", __func__);
+	struct crg_gadget_dev *crg_udc = container_of(work,
+			struct crg_gadget_dev, reset_udc.work);
+
+	if (!crg_udc->resume_recovery)
+		CRG_ERROR("--------------%s---\n", __func__);
+	else
+		crg_udc->resume_recovery = 0;
+
 	crg_rewrite_otg_write_UDC();
 }
 
@@ -4764,6 +4772,7 @@ static void crg_udc_cleanup(struct crg_gadget_dev *crg_udc)
 	//crg_udc->async_cb_flag = 0;
 
 	crg_udc->suspend_scheme = 0;
+	crg_udc->resume_recovery = 0;
 	crg_udc->u2_RWE = 0;
 
 	/* Cleared in crg_udc_clear_portpm. */
@@ -4778,6 +4787,7 @@ static void crg_udc_cleanup(struct crg_gadget_dev *crg_udc)
 	/* Optional. */
 	crg_udc->controller_type = 0;
 	crg_udc->phy_id = 0;
+
 	crg_udc->recovery = 0;
 }
 
@@ -5252,6 +5262,8 @@ int crg_rewrite_otg_write_UDC(void)
 	char *name;
 	size_t len;
 	int ret;
+	/* 3 seconds. */
+	int timeout = 12;
 
 	crg_udc = &crg_udc_dev;
 	cdev = get_gadget_data(&crg_udc->gadget);
@@ -5292,7 +5304,23 @@ int crg_rewrite_otg_write_UDC(void)
 	gi->composite.gadget_driver.udc_name = NULL;
 	mutex_unlock(&gi->lock);
 
-	mdelay(50);
+	/* Wait for rewrite from the daemon (e.g. the adbd triggers this by setting
+	 * "sys.usb.ffs.ready" to "1" in open_functionfs() after writing USB strings)
+	 * which sets the udc_name upon success. Since there are no methods to know
+	 * whether there is such a daemon or a signal for the rewrite completion,
+	 * poll the udc_name here.
+	 */
+	while (timeout--) {
+		if (READ_ONCE(gi->composite.gadget_driver.udc_name))
+			break;
+		msleep(250);
+	}
+
+	if (READ_ONCE(gi->composite.gadget_driver.udc_name)) {
+		CRG_ERROR("UDC already written. skip.\n");
+		goto err;
+	}
+
 	mutex_lock(&gi->lock);
 	if (!gi->composite.gadget_driver.udc_name) {
 		gi->composite.gadget_driver.udc_name = name;
@@ -5352,15 +5380,6 @@ static int crg_udc_resume(struct device *dev)
 	//if (crg_udc->controller_type != USB_M31)
 		//amlogic_crg_device_usb2_init(crg_udc->phy_id);
 
-	return ret;
-}
-
-/* Threads should be runnable or ums unbind will stuck.
- * Defer the udc restart and it also helps to shorten the
- * boot time.
- */
-static int crg_udc_resume_post(struct crg_gadget_dev *crg_udc)
-{
 #if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 	/* Actually the crg_rewrite_otg_write_UDC() is used to restart the controller
 	 * to workaround quirks emerge in suspend-resume stress test.
@@ -5369,8 +5388,15 @@ static int crg_udc_resume_post(struct crg_gadget_dev *crg_udc)
 	if (crg_udc_suspend_reinit(crg_udc))
 		goto done;
 
-	crg_rewrite_otg_write_UDC();
-
+	/* Threads should be runnable or ums unbind will stuck.
+	 * Defer the udc restart and it also helps to shorten the
+	 * boot time.
+	 */
+	if (!delayed_work_pending(&crg_udc->reset_udc)) {
+		crg_udc->resume_recovery = 1;
+		queue_delayed_work(system_freezable_wq,
+					&crg_udc->reset_udc, msecs_to_jiffies(500));
+	}
 done:
 #endif
 	return 0;
@@ -5431,7 +5457,6 @@ static int crg_udc_pm_cb(struct notifier_block *notifier,
 		 */
 		break;
 	case PM_POST_SUSPEND:
-		crg_udc_resume_post(crg_udc);
 		if (crg_udc_suspend_reinit(crg_udc)) {
 			crg_udc_remove(pdev);
 			crg_udc_probe(pdev);
