@@ -27,7 +27,7 @@ void aed_v3_get_ram_coeff(int add, int len, unsigned int *params)
 
 	eqdrc_write(AEQ_COEF_ADDR, add);
 	for (i = 0; i < len; i++, p++)
-		eqdrc_read(AEQ_COEF_DATA);
+		*p = eqdrc_read(AEQ_COEF_DATA);
 }
 
 void aed_v3_set_mixer_params(void)

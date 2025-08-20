@@ -12,6 +12,7 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <linux/clk-provider.h>
+#include "effects_common.h"
 #include "effects_v2.h"
 #include "effects_v3.h"
 #include "effects_hw_v3.h"
@@ -97,11 +98,13 @@ static int mixer_set_level_meter_coeff(struct snd_kcontrol *kcontrol,
 static int mixer_get_EQ_params(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct audioeffect *p_effect  = snd_kcontrol_chip(kcontrol);
 	unsigned int *value = (unsigned int *)ucontrol->value.bytes.data;
 	unsigned int *p = &AED_EQ_COEFF[0];
 	int i, j = 0;
 
-	aed_v3_get_ram_coeff(AED_EQ_FILTER_RAM_ADD, AED_EQ_FILTER_SIZE_CH, p);
+	if (p_effect->aed_get_ram_mask & V3_EQ_FILTER_RAM_READ)
+		aed_v3_get_ram_coeff(AED_EQ_FILTER_RAM_ADD, AED_EQ_FILTER_SIZE_CH, p);
 
 	for (i = 0; i < (AED_EQ_FILTER_SIZE_CH - 1); i++) {
 		j = i + 1;
@@ -158,11 +161,13 @@ static int mixer_set_EQ_params(struct snd_kcontrol *kcontrol,
 static int mixer_get_post_EQ_params(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct audioeffect *p_effect  = snd_kcontrol_chip(kcontrol);
 	unsigned int *value = (unsigned int *)ucontrol->value.bytes.data;
 	unsigned int *p = &AED_POST_EQ_COEFF[0];
 	int i, j = 0;
 
-	aed_v3_get_ram_coeff(AED_POST_EQ_FILTER_RAM_ADD, AED_POST_EQ_FILTER_SIZE_CH, p);
+	if (p_effect->aed_get_ram_mask & V3_POST_EQ_FILTER_RAM_READ)
+		aed_v3_get_ram_coeff(AED_POST_EQ_FILTER_RAM_ADD, AED_POST_EQ_FILTER_SIZE_CH, p);
 
 	for (i = 0; i < (AED_POST_EQ_FILTER_SIZE_CH - 1); i++) {
 		j = i + 1;
@@ -219,24 +224,30 @@ static int mixer_set_post_EQ_params(struct snd_kcontrol *kcontrol,
 static int mixer_get_crossover_params(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct audioeffect *p_effect  = snd_kcontrol_chip(kcontrol);
 	unsigned int *value = (unsigned int *)ucontrol->value.bytes.data;
 	unsigned int *p = &AED_CROSSOVER_COEFF[0];
 	int i, j = 0;
 
-	aed_v3_get_ram_coeff((AED_CROSSOVER_FILTER_RAM_ADD + AED_CROSSOVER_FILTER_PARAM_SIZE),
-						AED_CROSSOVER_FILTER_PARAM_SIZE, p);
+	if (p_effect->aed_get_ram_mask & V3_CROSSOVER_FILTER_RAM_READ) {
+		aed_v3_get_ram_coeff((AED_CROSSOVER_FILTER_RAM_ADD +
+		AED_CROSSOVER_FILTER_PARAM_SIZE),
+		AED_CROSSOVER_FILTER_PARAM_SIZE, p);
 
-	p = &AED_CROSSOVER_COEFF[AED_CROSSOVER_FILTER_PARAM_SIZE];
-	aed_v3_get_ram_coeff((AED_CROSSOVER_FILTER_RAM_ADD + 2 * AED_CROSSOVER_FILTER_PARAM_SIZE),
-							AED_CROSSOVER_FILTER_PARAM_SIZE, p);
+		p = &AED_CROSSOVER_COEFF[AED_CROSSOVER_FILTER_PARAM_SIZE];
+		aed_v3_get_ram_coeff((AED_CROSSOVER_FILTER_RAM_ADD +
+		2 * AED_CROSSOVER_FILTER_PARAM_SIZE),
+		AED_CROSSOVER_FILTER_PARAM_SIZE, p);
 
-	p = &AED_CROSSOVER_COEFF[2 * AED_CROSSOVER_FILTER_PARAM_SIZE];
-	aed_v3_get_ram_coeff(AED_CROSSOVER_FILTER_RAM_ADD,
-						AED_CROSSOVER_FILTER_PARAM_SIZE, p);
+		p = &AED_CROSSOVER_COEFF[2 * AED_CROSSOVER_FILTER_PARAM_SIZE];
+		aed_v3_get_ram_coeff(AED_CROSSOVER_FILTER_RAM_ADD,
+		AED_CROSSOVER_FILTER_PARAM_SIZE, p);
 
-	p = &AED_CROSSOVER_COEFF[3 * AED_CROSSOVER_FILTER_PARAM_SIZE];
-	aed_v3_get_ram_coeff((AED_CROSSOVER_FILTER_RAM_ADD + 3 * AED_CROSSOVER_FILTER_PARAM_SIZE),
-							AED_CROSSOVER_FILTER_PARAM_SIZE, p);
+		p = &AED_CROSSOVER_COEFF[3 * AED_CROSSOVER_FILTER_PARAM_SIZE];
+		aed_v3_get_ram_coeff((AED_CROSSOVER_FILTER_RAM_ADD +
+		3 * AED_CROSSOVER_FILTER_PARAM_SIZE),
+		AED_CROSSOVER_FILTER_PARAM_SIZE, p);
+	}
 
 	p = &AED_CROSSOVER_COEFF[0];
 	for (i = 0; i < (AED_CROSSOVER_FILTER_SIZE - 1); i++) {
@@ -299,11 +310,14 @@ static int mixer_set_crossover_params(struct snd_kcontrol *kcontrol,
 static int mixer_get_multiband_DRC_params(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct audioeffect *p_effect  = snd_kcontrol_chip(kcontrol);
 	unsigned int *value = (unsigned int *)ucontrol->value.bytes.data;
 	unsigned int *p = &AED_MULTIBAND_DRC_COEFF[0];
 	int i, j = 0;
 
-	aed_v3_get_ram_coeff(AED_MULTIBAND_FILTER_RAM_ADD, AED_MULTIBAND_DRC_SIZE_V3, p);
+	if (p_effect->aed_get_ram_mask & V3_MULTIBAND_FILTER_RAM_READ)
+		aed_v3_get_ram_coeff(AED_MULTIBAND_FILTER_RAM_ADD, AED_MULTIBAND_DRC_SIZE_V3, p);
+
 	p = &AED_MULTIBAND_DRC_COEFF[0];
 	for (i = 0; i < AED_MULTIBAND_DRC_SIZE_V3; i++) {
 		j = i + 1;
@@ -354,11 +368,13 @@ static int mixer_set_multiband_DRC_params(struct snd_kcontrol *kcontrol,
 static int mixer_get_fullband_DRC_params(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct audioeffect *p_effect  = snd_kcontrol_chip(kcontrol);
 	unsigned int *value = (unsigned int *)ucontrol->value.bytes.data;
 	unsigned int *p = &AED_FULLBAND_DRC_COEFF[0];
 	int i;
 
-	aed_v3_get_ram_coeff(AED_FULLBAND_FILTER_RAM_ADD, AED_FULLBAND_DRC_SIZE_V3, p);
+	if (p_effect->aed_get_ram_mask & V3_FULLBAND_FILTER_RAM_READ)
+		aed_v3_get_ram_coeff(AED_FULLBAND_FILTER_RAM_ADD, AED_FULLBAND_DRC_SIZE_V3, p);
 
 	for (i = 0; i < AED_FULLBAND_DRC_SIZE_V3; i++)
 		*value++ = cpu_to_be32(*p++);
@@ -403,11 +419,13 @@ static int mixer_set_fullband_DRC_params(struct snd_kcontrol *kcontrol,
 static int mixer_get_3D_Surround_params(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	struct audioeffect *p_effect  = snd_kcontrol_chip(kcontrol);
 	unsigned int *value = (unsigned int *)ucontrol->value.bytes.data;
 	unsigned int *p = &AED_3D_SURROUND_COEFF[0];
 	int i;
 
-	aed_v3_get_ram_coeff(AED_3D_SURROUND_RAM_ADD, AED_3D_SURROUND_SIZE, p);
+	if (p_effect->aed_get_ram_mask & V3_3D_SURROUND_RAM_READ)
+		aed_v3_get_ram_coeff(AED_3D_SURROUND_RAM_ADD, AED_3D_SURROUND_SIZE, p);
 
 	for (i = 0; i < AED_3D_SURROUND_SIZE; i++)
 		*value++ = cpu_to_be32(*p++);
@@ -450,6 +468,25 @@ static int mixer_set_3D_Surround_params(struct snd_kcontrol *kcontrol,
 		addr = AED_3D_SURROUND_RAM_ADD + AED_FILTER_PARAM_SIZE + 1;
 		aed_v3_set_ram_coeff(addr, AED_FILTER_PARAM_SIZE + 1, p);
 	}
+
+	return 0;
+}
+
+static int v3_aed_get_ram_mask(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct audioeffect *p_effect  = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = p_effect->aed_get_ram_mask;
+	return 0;
+}
+
+static int v3_aed_set_ram_mask(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct audioeffect *p_effect  = snd_kcontrol_chip(kcontrol);
+
+	p_effect->aed_get_ram_mask = ucontrol->value.integer.value[0];
 
 	return 0;
 }
@@ -558,6 +595,11 @@ static const struct snd_kcontrol_new snd_effect_v3_controls[] = {
 	SOC_SINGLE_EXT("AED Level Meter RMS Parameters",
 			AED_LEVEL_METER_RAM_ADD, 0, 0xfffffff, 0,
 			mixer_get_level_meter_coeff, mixer_set_level_meter_coeff),
+
+	SND_SOC_BYTES_EXT("AED RAM Read Debug Mask",
+			1,
+			v3_aed_get_ram_mask,
+			v3_aed_set_ram_mask),
 };
 
 int add_effect_v3_kcontrols(struct snd_soc_card *card)

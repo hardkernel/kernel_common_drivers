@@ -13,6 +13,7 @@
 #include <sound/tlv.h>
 #include <linux/clk-provider.h>
 
+#include "effects_common.h"
 #include "effects_v2.h"
 #include "effects_hw_v2.h"
 #include "effects_hw_v2_coeff.h"
@@ -24,7 +25,6 @@
 #include "sound_init.h"
 #define DRV_NAME "Effects"
 //#define DEBUG
-#define AED_REG_NUM	13
 #define AED_REG_NUM_V5	8
 
 /*
@@ -48,28 +48,6 @@ struct effect_chipinfo {
 	 */
 	int version;
 	bool reserved_frddr;
-};
-
-struct audioeffect {
-	struct device *dev;
-
-	/* gate */
-	struct clk *gate;
-	/* source mpll */
-	struct clk *srcpll;
-	/* eqdrc clk */
-	struct clk *clk;
-
-	struct effect_chipinfo *chipinfo;
-
-	int lane_mask;
-	int ch_mask;
-
-	/* which module should be effected */
-	int effect_module;
-	unsigned int syssrc_clk_rate;
-	/* store user setting */
-	u32 user_setting[AED_REG_NUM];
 };
 
 struct audioeffect *s_effect;
@@ -105,12 +83,16 @@ static unsigned int aed_restore_list_v5[AED_REG_NUM_V5] = {
 
 struct audioeffect *get_audioeffects(void)
 {
-	if (!s_effect) {
+	struct audioeffect *p_effect;
+
+	p_effect = s_effect;
+
+	if (!p_effect) {
 		pr_info("Not init audio effects\n");
 		return NULL;
 	}
 
-	return s_effect;
+	return p_effect;
 }
 
 int get_aed_dst(void)
