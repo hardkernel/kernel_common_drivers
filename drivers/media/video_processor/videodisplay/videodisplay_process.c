@@ -125,6 +125,7 @@ static struct timeval vsync_time[MAX_VD_LAYERS];
 static int patten_trace[MAX_VIDEODISPLAY_INSTANCE_NUM];
 static int vsync_count[MAX_VIDEODISPLAY_INSTANCE_NUM];
 static struct videodisplay_dev *mdev[MAX_VIDEODISPLAY_INSTANCE_NUM];
+static bool vd_composer_en;
 static DEFINE_MUTEX(videodisplay_mutex);
 
 #define to_dst_buf(vf)	container_of(vf, struct dst_buf_t, frame)
@@ -487,6 +488,9 @@ void set_debug_flag_val(enum videodisplay_debug_class_type debug_type, int value
 	case VD_DEBUG_CLASS_USE_LOW_LATENCY:
 		low_latency_en = value;
 		break;
+	case VD_DEBUG_CLASS_VD_COMPOSER_EN:
+		vd_composer_en = value;
+		break;
 	default:
 		pr_info("%s: invalid debug type.\n", __func__);
 		break;
@@ -656,6 +660,9 @@ int get_debug_flag_val(enum videodisplay_debug_class_type debug_type)
 		break;
 	case VD_DEBUG_CLASS_USE_LOW_LATENCY:
 		ret = low_latency_en;
+		break;
+	case VD_DEBUG_CLASS_VD_COMPOSER_EN:
+		ret = vd_composer_en;
 		break;
 	default:
 		pr_info("%s: invalid debug type.\n", __func__);
@@ -2282,7 +2289,6 @@ static bool detect_vf_usage(struct videodisplay_dev *dev,
 			*need_composer_ptr = true;
 		frame_transform = received_frames->frames_info.frame_info[0].rotation;
 		if (frame_transform == VC_TRANSFORM_ROT_90 ||
-			frame_transform == VC_TRANSFORM_ROT_180 ||
 			frame_transform == VC_TRANSFORM_ROT_270 ||
 			frame_transform == VC_TRANSFORM_FLIP_H_ROT_90 ||
 			frame_transform == VC_TRANSFORM_FLIP_V_ROT_90) {
@@ -2346,6 +2352,11 @@ static bool detect_vf_usage(struct videodisplay_dev *dev,
 			if (frame_info->buffer_h > 1088)
 				*need_composer_ptr = true;
 		}
+	}
+
+	if (!vd_composer_en) {
+		*need_composer_ptr = false;
+		*mosaic_22_ptr = false;
 	}
 	return true;
 }
@@ -3132,6 +3143,10 @@ static void vframe_display(struct videodisplay_dev *dev,
 	vf->crop[3] = pic_w - frame_info->crop_w - frame_info->crop_x;
 	vf->zorder = frame_info->zorder;
 	vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER | VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+	if (frame_info->rotation == VC_TRANSFORM_ROT_180) {
+		vd_print(dev->index, PRINT_AXIS, "%s: need rotate 180.\n", __func__);
+		vf->flag |= (VFRAME_FLAG_MIRROR_H | VFRAME_FLAG_MIRROR_V);
+	}
 	vf->pts_us64 = time_us64;
 	vf->disp_pts = 0;
 
