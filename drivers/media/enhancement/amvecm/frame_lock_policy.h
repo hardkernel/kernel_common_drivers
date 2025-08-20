@@ -16,6 +16,7 @@
 #define FRAMELOCK_INVALID    0
 #define FRAMELOCK_VLOCK      1
 #define FRAMELOCK_VRRLOCK    2
+#define FRAMELOCK_NOLOCK	 3
 
 #define VRR_HDR_SIGNAL       0X20091009
 #define VRR_LATENCY_SIGNAL   0X40010100
@@ -40,6 +41,7 @@ struct vrr_sig_sts {
 	u32 vrr_frame_in_fps_max;
 	u32 vrr_frame_out_fps_min;
 	u32 vrr_frame_out_fps_max;
+	bool vrr_small_window;
 };
 
 struct freesync_vsif_s {

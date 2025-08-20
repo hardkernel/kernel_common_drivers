@@ -398,6 +398,9 @@ static void vrr_line_delay_update(struct aml_vrr_drv_s *vdrv)
 	if (temp == vrr_line_dly)
 		return;
 
+	if (dst_line == 200 && pre_dst_line == 0)
+		return;
+
 	if (crop_line > pre_line || dst_line > pre_dst_line) {
 		if (vdrv->data->chip_type == VRR_CHIP_T3X)
 			vrr_reg_setb(VENC_VRR_CTRL_T3X, vrr_line_dly, 16, 32);
@@ -410,6 +413,13 @@ static void vrr_line_delay_update(struct aml_vrr_drv_s *vdrv)
 		else
 			vrr_reg_setb(reg,
 				vrr_line_dly, 8, 16);
+	} else if (line_change_type == VRR_DOT && temp != vrr_dot_line) {
+		if (vdrv->data->chip_type == VRR_CHIP_T3X)
+			vrr_reg_setb(VENC_VRR_CTRL_T3X,
+				vrr_dot_line, 16, 32);
+		else
+			vrr_reg_setb(reg,
+				vrr_dot_line, 8, 16);
 	}
 
 	if (vrr_debug_print & VRR_DBG_PR_NORMAL)
@@ -639,6 +649,10 @@ static int vrr_restart_check(struct aml_vrr_drv_s *vdrv)
 
 	mode = (vdrv->state & VRR_STATE_POLICY) ? 1 : 0;
 	if (vdrv->policy != mode) {
+		vdrv->state |= VRR_STATE_RESET;
+		return 0;
+	}
+	if (vdrv->qms_en) {
 		vdrv->state |= VRR_STATE_RESET;
 		return 0;
 	}

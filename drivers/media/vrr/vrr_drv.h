@@ -90,6 +90,7 @@ struct aml_vrr_drv_s {
 	unsigned int vsync_irq;
 	spinlock_t vrr_isr_lock; /* vsync lock */
 	char vs_isr_name[16];
+	u32 qms_en;
 };
 
 //===========================================================================

@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 #ifdef CONFIG_AMLOGIC_LCD
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
+#include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #endif
 #include "arch/vpp_regs.h"
 #include "vlock.h"
@@ -455,16 +456,6 @@ void vlock_set_panel_pll_frac(struct stvlock_sig_sts *pvlock, u32 val)
 	}
 }
 
-void vlock_set_panel_ss(u32 onoff)
-{
-#ifdef CONFIG_AMLOGIC_LCD
-	if (onoff)
-		lcd_ss_enable(1);
-	else
-		lcd_ss_enable(0);
-#endif
-}
-
 enum vlock_enc_num_e get_cur_enc_mode(void)
 {
 	const struct vinfo_s *vinfo;
@@ -490,6 +481,20 @@ enum vlock_enc_num_e get_cur_enc_mode(void)
 	}
 
 	return enc_mux;
+}
+
+void vlock_set_panel_ss(u32 onoff)
+{
+	enum vlock_enc_num_e enc_mux = VLOCK_ENC0;
+
+	enc_mux = get_cur_enc_mode();
+
+#ifdef CONFIG_AMLOGIC_LCD
+	if (onoff)
+		lcd_ss_enable(enc_mux, 1);
+	else
+		lcd_ss_enable(enc_mux, 0);
+#endif
 }
 
 int __attribute__((weak))frc_is_on(void)
@@ -682,6 +687,12 @@ static unsigned int vlock_check_input_hz(struct vframe_s *vf)
 		else
 			ret_hz = 0;
 	}
+
+	if (vlock_debug & VLOCK_DEBUG_INFO)
+		pr_info("%s in:%d type:%d support:%d duration:%d mode:%d\n",
+			__func__, ret_hz, vf->source_type, vlock_support,
+			duration, vf->source_mode);
+
 	return ret_hz;
 }
 
@@ -697,6 +708,8 @@ static unsigned int vlock_check_output_hz(unsigned int sync_duration_num,
 		ret_hz = 24;
 	else if (tempHz == 3000)
 		ret_hz = 30;
+	else if (tempHz == 4800)
+		ret_hz = 48;
 	else if (tempHz == 5000)
 		ret_hz = 50;
 	else if ((tempHz > 5990) && (tempHz <= 6000))
@@ -709,6 +722,8 @@ static unsigned int vlock_check_output_hz(unsigned int sync_duration_num,
 		ret_hz = 144;
 	else if (tempHz == 16500)
 		ret_hz = 165;
+	else if (tempHz == 20000)
+		ret_hz = 200;
 	else if (tempHz == 24000)
 		ret_hz = 240;
 	else if (tempHz == 28800)
@@ -1027,10 +1042,17 @@ static void vlock_setting(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 		if ((vf->type_original & VIDTYPE_TYPEMASK) &&
 		    !(vlock_mode & VLOCK_MODE_MANUAL_SOFT_ENC)) {
 			/*tl1 fix i problem*/
-			if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1)
+			if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1) {
 				input_hz = input_hz >> 1;
-			else
-				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck, 1, 28, 1);
+			} else {
+				if (input_hz > 0 && output_hz > 0 &&
+				  ((input_hz * 2 == output_hz) || (input_hz * 4 == output_hz)))
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL  + offset_vlck,
+							   0, 28, 1);
+				else
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL  + offset_vlck,
+							   1, 28, 1);
+			}
 		} else {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				if (input_hz > 0 && output_hz > 0 &&
@@ -1106,10 +1128,17 @@ static void vlock_setting(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 		 *bit8~15:output freq
 		 */
 		if (vf->type_original & VIDTYPE_TYPEMASK) {
-			if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1)
+			if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1) {
 				input_hz = input_hz >> 1;
-			else
-				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck, 1, 28, 1);
+			} else {
+				if (input_hz > 0 && output_hz > 0 &&
+				    ((input_hz * 2 == output_hz) || (input_hz * 4 == output_hz)))
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck,
+							   0, 28, 1);
+				else
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck,
+							   1, 28, 1);
+			}
 		} else {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				if (input_hz > 0 && output_hz > 0 &&
@@ -3334,6 +3363,28 @@ u32 vlock_chk_is_small_win(struct vpp_frame_par_s *cur_video_sts)
 	return 0;
 }
 
+void vlock_set_disable(void)
+{
+	struct stvlock_sig_sts *pvlock;
+	enum vlock_enc_num_e enc_mux = VLOCK_ENC0;
+
+	enc_mux = get_cur_enc_mode();
+#ifdef VLOCK_DEBUG_ENC_IDX
+	pvlock = vlock_tab[VLOCK_DEBUG_ENC_IDX];
+#else
+	pvlock = vlock_tab[enc_mux];
+#endif
+
+	if (!pvlock)
+		return;
+
+	if (pvlock->fsm_sts >= VLOCK_STATE_ENABLE_STEP1_DONE &&
+		pvlock->fsm_sts <= VLOCK_STATE_DISABLE_STEP1_DONE) {
+		vlock_set_sts_by_frame_lock(false);
+		pvlock->fsm_sts = VLOCK_STATE_NULL;
+	}
+}
+
 /*new packed separated from amvecm_on_vs,avoid the influence of repeate call,
  *which may affect vlock process
  */
@@ -3353,8 +3404,12 @@ void vlock_process(struct vframe_s *vf,
 	if (!pvlock)
 		return;
 
-	if (!vf)
+	if (!vf) {
+		vlock_set_disable();
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("%s  vf is null\n", __func__);
 		return;
+	}
 
 	if (vf->flag & VFRAME_FLAG_GAME_MODE)
 		vlock_game = 1;
@@ -3392,8 +3447,7 @@ void vlock_process(struct vframe_s *vf,
 
 	if (!(vlock_debug & VLOCK_DEBUG_FORCE_ON)) {
 		if (vlock_chk_is_small_win(cur_video_sts)) {
-			if (pvlock->dtdata->vlk_ctl_for_frc)
-				pvlock->fsm_sts = VLOCK_STATE_NULL;
+			vlock_set_disable();
 			if (vlock_debug & VLOCK_DEBUG_INFO)
 				pr_info("%s is small win\n", __func__);
 			return;
