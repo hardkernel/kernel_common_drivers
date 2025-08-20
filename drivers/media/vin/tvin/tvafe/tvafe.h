@@ -52,7 +52,8 @@
 /* 20250711: No skip frame when ATV searching */
 /* 20250804: Reduces av format check time */
 /* 20250805: remove clear state in dec_stop */
-#define TVAFE_VER "20250805: remove clear state in dec_stop"
+/* 20250820: drop 40 frames before wss stable */
+#define TVAFE_VER "20250820: drop 40 frames before wss stable"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010

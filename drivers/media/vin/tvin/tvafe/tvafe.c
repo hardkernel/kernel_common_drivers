@@ -851,7 +851,7 @@ static int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64,
 	/* prevent zoom aspect ratio change */
 	if ((devp->tvafe_function_sel & TVAFE_WSS_FUNCTION) &&
 	    !tvafe->aspect_ratio &&
-	    tvafe->cvd2.info.isr_cnt < (devp->tvafe_ratio_cnt >> 1))
+	    tvafe->cvd2.info.isr_cnt < devp->tvafe_ratio_cnt)
 		return TVIN_BUF_SKIP;
 
 	return TVIN_BUF_NULL;
