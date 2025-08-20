@@ -2639,7 +2639,7 @@ RESTART:
 	end = min(end, min((s32)(vinfo_height - 1),
 			   (s32)(video_top + video_height - 1)));
 
-	if (start >= end) {
+	if (start > end) {
 		/* nothing to display */
 		next_frame_par->VPP_vsc_startp = 0;
 		next_frame_par->VPP_vsc_endp = 0;
@@ -2862,7 +2862,7 @@ RESTART:
 		  min((s32)(vinfo_width - 1),
 		      (s32)(video_left + video_width - 1)));
 
-	if (start >= end) {
+	if (start > end) {
 		/* nothing to display */
 		next_frame_par->VPP_hsc_startp = 0;
 		next_frame_par->VPP_hsc_endp = 0;
@@ -5592,7 +5592,7 @@ RESTART:
 	end = min(end, min((s32)(vinfo->height - 1),
 			   (s32)(video_top + video_height - 1)));
 
-	if (start >= end) {
+	if (start > end) {
 		/* nothing to display */
 		next_frame_par->VPP_vsc_startp = 0;
 		next_frame_par->VPP_vsc_endp = 0;
@@ -5708,7 +5708,7 @@ RESTART:
 		  min((s32)(vinfo->width - 1),
 		      (s32)(video_left + video_width - 1)));
 
-	if (start >= end) {
+	if (start > end) {
 		/* nothing to display */
 		next_frame_par->VPP_hsc_startp = 0;
 		next_frame_par->VPP_hsc_endp = 0;
