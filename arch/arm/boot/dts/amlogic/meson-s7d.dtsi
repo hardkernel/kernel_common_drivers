@@ -1760,10 +1760,8 @@
 		compatible = "amlogic, amvideom-s7d";
 		dev_name = "amvideom";
 		status = "disabled";
-		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 195 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "vsync", "line_n";
-		low_latency_en = <1>;
+		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "vsync";
 	};
 
 	lut_dma:lut_dma {
