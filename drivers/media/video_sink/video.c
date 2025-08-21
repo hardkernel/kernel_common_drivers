@@ -1272,6 +1272,7 @@ static void video_vf_unreg_provider(void)
 		try_free_keep_vdx(0, 1);
 	}
 
+	switch_from_lcevc_to_nonlcevc(true);
 	atomic_dec(&video_unreg_flag);
 	pr_info("VD1 AFBC 0x%x.\n", is_afbc_enabled(0));
 	enable_video_discontinue_report = 1;
@@ -1421,6 +1422,7 @@ static void video_vf_light_unreg_provider(int need_keep_frame)
 					__func__);
 		}
 	}
+	switch_from_lcevc_to_nonlcevc(true);
 	atomic_dec(&video_unreg_flag);
 }
 

@@ -731,7 +731,7 @@ static int lowlatency_vsync(u8 instance_id)
 				vd2_path_id = glayer_info[0].display_path_id;
 				vd_layer[1].layer_alpha = video_lcevc.alpha;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-				amve_lc_elc_ctrl(lcevc_en);
+				amve_lc_evc_ctrl(lcevc_en, true);
 #endif
 				hscaler_8tap_enable[0] = false;
 				hscaler_8tap_enable[1] = false;
