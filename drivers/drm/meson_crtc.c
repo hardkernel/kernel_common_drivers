@@ -416,7 +416,11 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tvrr_enabled=%u\n", state->vrr_enabled);
 	drm_printf(p, "\t\tbrr_mode=%s\n", cstate->brr_mode);
 	drm_printf(p, "\t\tbrr=%u\n", cstate->brr);
+	drm_printf(p, "\t\tbrr_update=%u\n", cstate->brr_update);
+	drm_printf(p, "\t\tvrr_type=%u\n", cstate->vrr_type);
+	drm_printf(p, "\t\tgame_rate=%u\n", cstate->game_rate);
 	drm_printf(p, "\t\tseamless=%d\n", cstate->seamless);
+	drm_printf(p, "\t\tforce_output=%d\n", cstate->force_output_type);
 	drm_printf(p, "\t\tuboot_mode_init=%u\n", cstate->uboot_mode_init);
 	drm_printf(p, "\t\tcrtc_hdr_policy:[%u,%u]\n",
 		cstate->crtc_hdr_process_policy,
