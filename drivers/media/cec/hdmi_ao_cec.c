@@ -1627,7 +1627,7 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 	cec_cfg = cec_config(0, 0);
 	if (cec_cfg & CEC_FUNC_CFG_CEC_ON) {
 		/*cec module on*/
-		ret = cec_ll_tx(tempbuf, size, SIGNAL_FREE_TIME_NEW_INITIATOR);
+		ret = cec_ll_tx(tempbuf, size, SIGNAL_FREE_TIME_NEXT_XFER);
 	}
 	return ret;
 }
