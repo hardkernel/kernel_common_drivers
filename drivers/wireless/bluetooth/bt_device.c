@@ -3,37 +3,33 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-//#define DEBUG
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/delay.h>
-#include <linux/string.h>
-#include <linux/ctype.h>
-#include <linux/leds.h>
-#include <linux/gpio.h>
-#include <linux/rfkill.h>
-#include <linux/slab.h>
-#include <linux/of.h>
-#include <linux/pinctrl/consumer.h>
-#include <linux/of_gpio.h>
-#include <linux/amlogic/cpu_version.h>
-#include <linux/amlogic/iomap.h>
 #include <linux/io.h>
-#include <linux/amlogic/bt_device.h>
-#include <linux/amlogic/wifi_dt.h>
-#include <linux/random.h>
-#ifdef CONFIG_AM_WIFI_SD_MMC
-#include <linux/amlogic/wifi_dt.h>
-#endif
-#include <gpiolib.h>
-
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/gpio.h>
+#include <linux/input.h>
+#include <linux/leds.h>
+#include <linux/rfkill.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/pm_wakeup.h>
 #include <linux/pm_wakeirq.h>
-#include <linux/amlogic/pm.h>
-#include <linux/irq.h>
+#include <linux/ctype.h>
+#include <linux/delay.h>
+#include <linux/random.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <gpiolib.h>
+
+/* Amlogic SoC-specific */
+#include <linux/amlogic/bt_device.h>
+#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/gki_module.h>
-#include <linux/input.h>
+#include <linux/amlogic/iomap.h>
+#include <linux/amlogic/wifi_dt.h>
 
 #if defined(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND) && defined(CONFIG_AMLOGIC_GX_SUSPEND)
 #include <linux/amlogic/pm.h>
@@ -49,6 +45,11 @@ static struct early_suspend bt_early_suspend;
 #define KEY_NETFLIX (133)
 //#define CONTROL_POWER_EN_LINUX
 
+struct bt_dev_runtime_data {
+	struct rfkill *bt_rfk;
+	struct bt_dev_data *pdata;
+};
+
 char bt_addr[18] = "";
 char *btmac;
 //core_param(btmac, btmac, charp, 0644);
@@ -60,7 +61,9 @@ static int btpower_evt;
 static int flag_n;
 static int flag_p;
 static int cnt;
+static u32 cus_wakeup_key = KEY_NETFLIX;
 
+#ifndef CONFIG_AMLOGIC_BT_WAKE_NOT_REPORT
 static int distinguish_module(void)
 {
 	int vendor_id = 0;
@@ -73,6 +76,25 @@ static int distinguish_module(void)
 
 	return 0;
 }
+
+static void bt_report_key(struct platform_device *pdev, u32 wakeup_key)
+{
+	struct bt_dev_runtime_data *prdata = platform_get_drvdata(pdev);
+
+	if (!prdata || !prdata->pdata || !prdata->pdata->input_dev) {
+		pr_err("%s: null point\n", __func__);
+		return;
+	}
+
+	if (!distinguish_module()) {
+		pr_info("%s: report key:%u\n", dev_name(&pdev->dev), wakeup_key);
+		input_event(prdata->pdata->input_dev, EV_KEY, wakeup_key, 1);
+		input_sync(prdata->pdata->input_dev);
+		input_event(prdata->pdata->input_dev, EV_KEY, wakeup_key, 0);
+		input_sync(prdata->pdata->input_dev);
+	}
+}
+#endif
 
 static ssize_t value_show(const struct class *class,
 			const struct class_attribute *attr,
@@ -116,11 +138,6 @@ static ssize_t value_store(const struct class *class,
 	return count;
 }
 static CLASS_ATTR_RW(value);
-
-struct bt_dev_runtime_data {
-	struct rfkill *bt_rfk;
-	struct bt_dev_data *pdata;
-};
 
 static void off_def_power(struct bt_dev_data *pdata, unsigned long down_time)
 {
@@ -323,12 +340,13 @@ static int bt_suspend(struct platform_device *pdev,
 
 static int bt_resume(struct platform_device *pdev)
 {
-	struct bt_dev_runtime_data *prdata = platform_get_drvdata(pdev);
+	unsigned int resume_reason = get_resume_method();
 
 	btwake_evt = 0;
-	unsigned int rm = get_resume_method();
 
-	switch (rm) {
+	pr_info("%s: resume_reason:%u\n", __func__, resume_reason);
+
+	switch (resume_reason) {
 	case RTC_WAKEUP:
 	case AUTO_WAKEUP:
 		btwake_evt = 1;
@@ -337,31 +355,30 @@ static int bt_resume(struct platform_device *pdev)
 		flag_p = 0;
 		cnt = 0;
 		break;
+#ifndef CONFIG_AMLOGIC_BT_WAKE_NOT_REPORT
 	case BT_WAKEUP:
-		if (!distinguish_module()) {
-			input_event(prdata->pdata->input_dev,
-				EV_KEY, KEY_POWER, 1);
-			input_sync(prdata->pdata->input_dev);
-			input_event(prdata->pdata->input_dev,
-				EV_KEY, KEY_POWER, 0);
-			input_sync(prdata->pdata->input_dev);
-		}
+		bt_report_key(pdev, KEY_POWER);
 		break;
 	case REMOTE_CUS_WAKEUP:
-		if (!distinguish_module()) {
-			input_event(prdata->pdata->input_dev,
-				EV_KEY, KEY_NETFLIX, 1);
-			input_sync(prdata->pdata->input_dev);
-			input_event(prdata->pdata->input_dev,
-				EV_KEY, KEY_NETFLIX, 0);
-			input_sync(prdata->pdata->input_dev);
-		}
+		bt_report_key(pdev, cus_wakeup_key);
 		break;
+#endif
 	default:
 		break;
 	}
-	pr_info("%s:wakeup reason: %d \r", __func__, rm);
+
 	return 0;
+}
+
+static void get_wakeup_key_cfg(struct platform_device *pdev)
+{
+	int ret;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "cus_wakeup_key", &cus_wakeup_key);
+	if (ret < 0)
+		pr_debug("%s: not get cus_wakeup_key, use default:%u\n", __func__, cus_wakeup_key);
+
+	pr_debug("%s: cus_wakeup_key:%u\n", __func__, cus_wakeup_key);
 }
 
 static int bt_probe(struct platform_device *pdev)
@@ -448,6 +465,8 @@ static int bt_probe(struct platform_device *pdev)
 		if (ret)
 			pdata->power_down_disable = 0;
 		pr_debug("dis power down = %d;\n", pdata->power_down_disable);
+
+		get_wakeup_key_cfg(pdev);
 	} else if (pdev) {
 		pdata = (struct bt_dev_data *)(pdev->dev.platform_data);
 	} else {
@@ -481,8 +500,8 @@ static int bt_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_rfk_alloc;
 	}
-#if defined(CONFIG_AMLOGIC_RFKILL_INIT_SW_UNBLOCK) &&                          \
-	IS_ENABLED(CONFIG_AMLOGIC_RFKILL_INIT_SW_UNBLOCK)
+#if IS_ENABLED(CONFIG_AMLOGIC_RFKILL_INIT_SW_UNBLOCK)
+	pr_debug("rfkill init default power on\n");
 	rfkill_init_sw_state(bt_rfk, false);
 #else
 	rfkill_init_sw_state(bt_rfk, true);
@@ -517,7 +536,7 @@ static int bt_probe(struct platform_device *pdev)
 	}
 	set_bit(EV_KEY,  input_dev->evbit);
 	set_bit(KEY_POWER, input_dev->keybit);
-	set_bit(133, input_dev->keybit);
+	set_bit(cus_wakeup_key, input_dev->keybit);
 
 	input_dev->name = "input_btrcu";
 	input_dev->phys = "input_btrcu/input0";
