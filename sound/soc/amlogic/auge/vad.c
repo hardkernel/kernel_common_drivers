@@ -672,7 +672,8 @@ static void vad_deinit(struct vad *p_vad)
 			p_vad->thread = NULL;
 		}
 		memset(p_vad->dma_buffer.area, 0x0, p_vad->dma_buffer.bytes);
-		kfree(p_vad->buf);
+		if (p_vad->buf)
+			vfree(p_vad->buf);
 		p_vad->buf = NULL;
 	}
 
