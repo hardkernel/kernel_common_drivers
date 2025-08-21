@@ -320,7 +320,7 @@ enum vsif_type {
 
 /*edid is good return 0, otherwise return < 0.*/
 bool hdmitx_edid_is_all_zeros(unsigned char *rawedid);
-bool hdmitx_edid_check_data_valid(u8 edid_check, unsigned char *buf);
+bool hdmitx_edid_check_data_valid(struct rx_cap *prxcap, unsigned char *buf);
 int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf);
 unsigned int hdmitx_edid_valid_block_num(unsigned char *edid_buf);
 void hdmitx_edid_print(u8 *edid_buf);

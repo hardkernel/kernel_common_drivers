@@ -527,8 +527,7 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 	seq_puts(s, "\n");
 
 	seq_puts(s, "\nedid_parsing:");
-	if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check,
-		tx_comm->edid_buf))
+	if (hdmitx_edid_check_data_valid(&tx_comm->rxcap, tx_comm->edid_buf))
 		seq_puts(s, "ok\n");
 	else
 		seq_puts(s, "ng\n");

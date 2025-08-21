@@ -190,16 +190,11 @@ static u16 hdmitx_cec_get_edid_phys_addr(const u8 *edid, unsigned int size)
 void hdmitx_cec_phy_addr_parse(struct rx_cap *prxcap, u8 *edid_buf)
 {
 	u16 pa = 0xffff;
-	unsigned char edid_check = 0;
 
 	if (!prxcap || !edid_buf)
 		return;
 
-	edid_check = prxcap->edid_check;
-	if (hdmitx_edid_check_data_valid(edid_check, edid_buf) == false)
-		return;
-
-	if (edid_buf && edid_buf[0x7e]) {
+	if (edid_buf[0x7e]) {
 		pa = hdmitx_cec_get_edid_phys_addr((const u8 *)edid_buf,
 				128 * (edid_buf[0x7e] + 1));
 		prxcap->vsdb_phy_addr.a = (pa >> 12) & 0xf;
@@ -209,26 +204,6 @@ void hdmitx_cec_phy_addr_parse(struct rx_cap *prxcap, u8 *edid_buf)
 		if (pa != 0xffff)
 			prxcap->vsdb_phy_addr.valid = 1;
 	}
-}
-
-static bool hdmitx_edid_header_invalid(u8 edid_check, const u8 *buf)
-{
-	int i = 0;
-
-	if (!buf)
-		return true;
-
-	if (edid_check & 0x01)
-		return false;
-
-	if (buf[0] != 0 || buf[7] != 0)
-		return true;
-	for (i = 1; i < 7; i++) {
-		if (buf[i] != 0xff)
-			return true;
-	}
-
-	return false;
 }
 
 /* return the blocks of extension CTA */
@@ -330,19 +305,23 @@ static bool _check_base_structure(u8 edid_check, unsigned char *buf)
  * base structure: header, checksum
  * extension: the first non-zero byte, checksum
  */
-bool hdmitx_edid_check_data_valid(u8 edid_check, unsigned char *buf)
+bool hdmitx_edid_check_data_valid(struct rx_cap *prxcap, unsigned char *buf)
 {
 	int i;
 	int blk_cnt = 1;
+	u8 edid_check = 0;
 
-	if (!buf)
+	if (!prxcap || !buf)
 		return false;
 
+	edid_check = prxcap->edid_check;
 	blk_cnt = hdmitx_edid_get_block_count(buf);
 
 	/* check block 0 */
-	if (_check_base_structure(edid_check, &buf[0]) == 0)
+	if (_check_base_structure(edid_check, &buf[0]) == false) {
+		prxcap->head_err = 1;
 		return false;
+	}
 
 	if (blk_cnt == 1)
 		return true;
@@ -357,8 +336,10 @@ bool hdmitx_edid_check_data_valid(u8 edid_check, unsigned char *buf)
 			if (buf[i * 0x80] == 0)
 				return false;
 		}
-		if (_check_edid_blk_chksum(edid_check, &buf[i * 0x80]) == false)
+		if (_check_edid_blk_chksum(edid_check, &buf[i * 0x80]) == false) {
+			prxcap->chksum_err = 1;
 			return false;
+		}
 	}
 
 	return true;
@@ -1796,15 +1777,10 @@ int hdmitx_audio_parse(struct rx_cap *prxcap, u8 *block_buf)
 {
 	int i;
 	unsigned char cta_block_count;
-	unsigned char edid_check = 0;
-
-	edid_check = prxcap->edid_check;
-	if (hdmitx_edid_check_data_valid(edid_check, block_buf) == false)
-		return 0;
 
 	cta_block_count = hdmitx_edid_get_cta_block_count(block_buf);
 	for (i = 1; i <= cta_block_count; i++) {
-		if (block_buf[i * 0x80] == 0x02 || edid_check & 0x01)
+		if (block_buf[i * 0x80] == 0x02)
 			hdmitx_edid_audio_block_parse(prxcap, &block_buf[i * 0x80]);
 	}
 	/*
@@ -2111,24 +2087,6 @@ static void edid_physical_size_parse(struct rx_cap *prxcap,
 		prxcap->physical_width  = data[0] * 10;
 		prxcap->physical_height = data[1] * 10;
 	}
-}
-
-/* if edid block 0 are all zeros, then consider RX as HDMI device */
-static bool edid_zero_data(u8 *buf)
-{
-	int sum = 0;
-	int i = 0;
-
-	if (!buf)
-		return false;
-
-	for (i = 0; i < 128; i++)
-		sum += buf[i];
-
-	if (sum == 0)
-		return true;
-	else
-		return false;
 }
 
 static void dump_dtd_info(struct dtd *t)
@@ -2572,36 +2530,22 @@ static int hdmitx_edid_parse_ieeeoui(u8 *edid_buf)
 int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 {
 	unsigned char cta_block_count;
-	unsigned char block_count;
 	int i;
 	int idx[4];
 	struct dv_info *dv;
-	u8 edid_check = 0;
 
 	if (!edid_buf || !prxcap)
 		return -1;
 
-	edid_check = prxcap->edid_check;
 	cta_block_count = hdmitx_edid_get_cta_block_count(edid_buf);
-	block_count = hdmitx_edid_get_block_count(edid_buf);
 	dv = &prxcap->dv_info;
-	prxcap->edid_parsing = hdmitx_edid_check_data_valid(edid_check, edid_buf);
-
-	prxcap->head_err = hdmitx_edid_header_invalid(edid_check, &edid_buf[0]);
-	for (i = 0; i < block_count; i++) {
-		if (_check_edid_blk_chksum(edid_check, edid_buf + i * 128) == 0) {
-			prxcap->chksum_err = 1;
-			break;
-		}
-	}
 
 	HDMITX_DEBUG("EDID Parser:\n");
 
-	if (_check_base_structure(edid_check, edid_buf))
-		_edid_parse_base_structure(prxcap, edid_buf);
+	_edid_parse_base_structure(prxcap, edid_buf);
 
 	for (i = 1; i <= cta_block_count; i++) {
-		if (edid_buf[i * 0x80] == 0x02 || edid_check & 0x01)
+		if (edid_buf[i * 0x80] == 0x02)
 			hdmitx_edid_cta_block_parse(prxcap, &edid_buf[i * 0x80]);
 	}
 
@@ -2681,8 +2625,8 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 		prxcap->physical_height = t->v_image_size;
 	}
 
-	/* if edid are all zeroes, or no VIC, set default vic */
-	if (edid_zero_data(edid_buf) || prxcap->VIC_count == 0)
+	/* if edid no VIC, set default vic */
+	if (prxcap->VIC_count == 0)
 		hdmitx_edid_set_default_vic(prxcap);
 
 	return 0;

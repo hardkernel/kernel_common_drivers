@@ -1145,7 +1145,7 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 		hdmitx_hw_cntl(tx_hw_base, DDC_EDID_READ_DATA, NULL, NULL);
 	}
 	/* If EDID is not correct at first time, then retry */
-	if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->edid_buf) == false) {
+	if (hdmitx_edid_check_data_valid(&tx_comm->rxcap, tx_comm->edid_buf) == false) {
 		struct timespec64 kts;
 		struct rtc_time tm;
 
@@ -1663,49 +1663,58 @@ static int hdmitx_update_ced_en(struct hdmitx_common *tx_comm)
 	return 0;
 }
 
+/*
+ * Connect the HDMI cable and power on.
+ * The boot flag is true, and drm_parse_part is false.
+ *
+ * Connect the HDMI cable after power on is a two-step process.
+ * step1: set the boot flag to false and drm_parse_part to false.
+ * step2: set the boot flag to false and drm_parse_part to true
+ */
 void hdmitx_edid_process(struct hdmitx_common *tx_comm, bool boot_flag, bool drm_parse_part)
 {
 	unsigned long flags = 0;
-	bool edid_valid = false;
+	struct rx_cap *prxcap = NULL;
 
 	if (!tx_comm)
 		return;
 
 	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
-
-	edid_valid = hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->edid_buf);
+	prxcap = &tx_comm->rxcap;
 
 	if (boot_flag || tx_comm->edid_parse_dbg) {
-		hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
+		hdmitx_edid_rxcap_clear(prxcap);
+		prxcap->edid_parsing = hdmitx_edid_check_data_valid(prxcap, tx_comm->edid_buf);
 		/* if edid is valid, parse edid, otherwise set fallback mode */
-		if (edid_valid) {
-			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->edid_buf);
+		if (prxcap->edid_parsing) {
+			hdmitx_edid_parse(prxcap, tx_comm->edid_buf);
 			hdmitx_update_ced_en(tx_comm);
 			/* parse cec phy addr and audio data block */
-			hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->edid_buf);
-			hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->edid_buf);
+			hdmitx_cec_phy_addr_parse(prxcap, tx_comm->edid_buf);
+			hdmitx_audio_parse(prxcap, tx_comm->edid_buf);
 		} else {
-			edid_set_fallback_mode(&tx_comm->rxcap);
+			edid_set_fallback_mode(prxcap);
 		}
-		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
+		hdmitx_common_edid_tracer_post_proc(tx_comm, prxcap);
 	} else if (!drm_parse_part) {
-		hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
+		hdmitx_edid_rxcap_clear(prxcap);
+		prxcap->edid_parsing = hdmitx_edid_check_data_valid(prxcap, tx_comm->edid_buf);
 		/* step1: hdmitx parse part */
-		if (edid_valid) {
+		if (prxcap->edid_parsing) {
 			/* parse cec phy addr and audio data block */
-			hdmitx_cec_phy_addr_parse(&tx_comm->rxcap, tx_comm->edid_buf);
-			hdmitx_audio_parse(&tx_comm->rxcap, tx_comm->edid_buf);
+			hdmitx_cec_phy_addr_parse(prxcap, tx_comm->edid_buf);
+			hdmitx_audio_parse(prxcap, tx_comm->edid_buf);
 		} else {
-			edid_set_fallback_mode(&tx_comm->rxcap);
+			edid_set_fallback_mode(prxcap);
 		}
 		HDMITX_DEBUG_EDID("parse phy_addr/audio on hdmi side\n");
 	} else {
 		/* step2: drm parse part */
-		if (edid_valid) {
-			hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->edid_buf);
+		if (prxcap->edid_parsing) {
+			hdmitx_edid_parse(prxcap, tx_comm->edid_buf);
 			hdmitx_update_ced_en(tx_comm);
 		}
-		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
+		hdmitx_common_edid_tracer_post_proc(tx_comm, prxcap);
 		HDMITX_DEBUG_EDID("parse most parts on drm side\n");
 	}
 
