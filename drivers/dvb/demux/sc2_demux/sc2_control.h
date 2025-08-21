@@ -128,6 +128,7 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 			int sid, int pid, int sec_level);
 
 void wdam_config_ready(u8 chan_id);
+void wdma_set_wch_len(u8 chan_id, unsigned int total_size);
 u64 wdma_get_wptr(u8 chan_id);
 unsigned int wdma_get_wcmdcnt(u8 chan_id);
 unsigned int wdma_get_active(u8 chan_id);

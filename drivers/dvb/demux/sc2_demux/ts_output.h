@@ -192,15 +192,14 @@ struct out_elem *ts_output_find_dvr(int sid, int sec_level);
 int ts_output_sid_debug(void);
 int ts_output_dump_info(char *buf);
 int ts_output_update_filter(int dmx_no, int sid);
-
 int ts_output_set_decode_info(int sid, struct decoder_mem_info_64bits *info);
 int ts_output_check_flow_control(int sid, int percentage);
+
 int ts_output_add_temi_pid(struct out_elem *pout, int pid, int dmx_id,
 						int *cb_id, int *index, int type);
 int ts_output_add_remove_temi_pid(struct out_elem *pout, int index);
 int ts_output_alloc_pcr_temi_entry(int pid, int sid, int type);
 int ts_output_free_pcr_temi_entry(int index, int type);
-
 void *ts_output_find_temi_pcr(int sid, int pid, int *pcr_index, int *temi_index);
 
 int ts_output_add_dump_cb(struct list_head *node, int type, dmx_dump_cb cb);
@@ -209,9 +208,14 @@ int ts_output_get_meminfo(struct out_elem *pout, unsigned int *size,
 	unsigned long *mem, unsigned long *mem_phy);
 int ts_output_dump_clone_info(char *buf);
 int ts_output_debug(int direct, char *param_name, int *param_value);
+
 /*just for cas dsc channel & filter sync*/
 int ts_output_cas_sync_enable(int enable);
 int ts_output_cas_dsc_add(int dmx_id, unsigned int dsc_ch_id, int pid, int key_ready);
 int ts_output_cas_dsc_remove(int dmx_id, unsigned int dsc_ch_id, int pid);
 int ts_output_dump_cas_sync(char *buf);
+
+int ts_output_set_decode_info_by_ch(u32 ch_id, struct decoder_mem_info_64bits *info);
+int ts_output_get_channel_id(u64 buf_start, u32 *ch_id);
+
 #endif

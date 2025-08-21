@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/amlogic/media/dvb-core/aml_demux_ext.h>
 #include "dma_buf_manage.h"
+#include "ts_output.h"
 #include "../dmx_log.h"
 
 #define pr_dbg(fmt, args...)     \
@@ -27,6 +28,7 @@ struct dmabuf_manage_block {
 	__u32 handle;
 	struct dmx_dma_buf_sec_es_data dmxes;
 	void *dmx;
+	__u32 ch_id;
 };
 
 static int debug_dmabuf;
@@ -171,21 +173,17 @@ static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 	struct dmabuf_manage_block *block = NULL;
 	struct dmx_dma_buf_sec_es_data *es = (struct dmx_dma_buf_sec_es_data *)dbuf->priv;
 	struct decoder_mem_info_64bits rp_info;
-	struct dmx_demux *demux = NULL;
-	struct dmx_demux_ext *demux_ext = NULL;
+	__u32 ch_id = 0;
 
 	pr_dbg("release\n");
 	block = container_of(es, struct dmabuf_manage_block, dmxes);
-	demux = (struct dmx_demux *)block->dmx;
 	if (es->buf_rp == 0)
 		es->buf_rp = es->data_end;
-	if (es->buf_rp >= es->buf_start && es->buf_rp <= es->buf_end && demux) {
+	if (es->buf_rp >= es->buf_start && es->buf_rp <= es->buf_end) {
 		rp_info.rp_phy = es->buf_rp;
-		demux_ext = container_of(demux, struct dmx_demux_ext, dmx);
-		if (demux_ext && demux_ext->decode_info_64bits) {
-			demux_ext->decode_info_64bits(demux, &rp_info);
-			pr_dbg("rp_phy:0x%llx\n", rp_info.rp_phy);
-		}
+		ch_id = block->ch_id;
+		ts_output_set_decode_info_by_ch(ch_id, &rp_info);
+		pr_dbg("ch_id:0x%x rp_phy:0x%llx\n", ch_id, rp_info.rp_phy);
 	}
 
 	pr_dbg("handle:0x%x, paddr:0x%llx, size:0x%x\n",
@@ -272,16 +270,23 @@ int dma_buf_get_fd(struct dmx_dma_buf_info *info, struct dmx_demux *dmx)
 	struct dma_buf *dbuf;
 	int fd = -1;
 	int fd_flags = O_CLOEXEC;
+	__u32 ch_id;
+	int ret;
 	int err_val;
 
 	pr_dbg("get fd\n");
-	if (info->paddr != info->dmxes.data_start) {
+	ret = ts_output_get_channel_id(info->dmxes.buf_start, &ch_id);
+	if (ret) {
 		err_val = -1;
+		goto error_copy;
+	}
+	if (info->paddr != info->dmxes.data_start) {
+		err_val = -2;
 		goto error_copy;
 	}
 	block = kzalloc(sizeof(*block), GFP_KERNEL);
 	if (!block) {
-		err_val = -2;
+		err_val = -3;
 		goto error_copy;
 	}
 	memcpy(&block->dmxes, &info->dmxes, sizeof(block->dmxes));
@@ -289,14 +294,15 @@ int dma_buf_get_fd(struct dmx_dma_buf_info *info, struct dmx_demux *dmx)
 	block->paddr = info->paddr;
 	block->size = PAGE_ALIGN(info->size);
 	block->handle = info->handle;
+	block->ch_id = ch_id;
 	dbuf = get_dmabuf(block, fd_flags);
 	if (!dbuf) {
-		err_val = -3;
+		err_val = -4;
 		goto error_alloc_object;
 	}
 	fd = dma_buf_fd(dbuf, fd_flags);
 	if (fd < 0) {
-		pr_error("get fd failed: -4\n");
+		pr_error("get fd failed: -5\n");
 		goto error_fd;
 	}
 	pr_dbg("fd:%d\n", fd);
@@ -308,7 +314,7 @@ error_fd:
 error_alloc_object:
 	kfree(block);
 error_copy:
-	pr_error("get fd failed: %d\n", err_val);
+	pr_error("get fd failed:%d buf:0x%llx\n", err_val, info->dmxes.buf_start);
 	return -EFAULT;
 }
 

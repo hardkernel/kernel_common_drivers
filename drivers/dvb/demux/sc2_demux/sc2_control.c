@@ -593,8 +593,8 @@ u64 rdma_get_rptr(u8 chan_id)
 	u64 rdma_ptr = 0;
 
 	if (get_dmx_version() >= 6)
-		rdma_ptr = READ_CBUS_REG(TS_DMA_RCH_PTR_HIGH(chan_id)) & 0x3;
-	rdma_ptr = (rdma_ptr << 32) + READ_CBUS_REG(TS_DMA_RCH_PTR_LOW(chan_id));
+		rdma_ptr = (u64)(u32)READ_CBUS_REG(TS_DMA_RCH_PTR_HIGH(chan_id)) & 0x3;
+	rdma_ptr = (rdma_ptr << 32) + (u64)(u32)READ_CBUS_REG(TS_DMA_RCH_PTR_LOW(chan_id));
 
 	return rdma_ptr;
 }
@@ -848,13 +848,24 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 	}
 }
 
+void wdma_set_wch_len(u8 chan_id, unsigned int total_size)
+{
+	WRITE_CBUS_REG(TS_DMA_WCH_LEN(chan_id), total_size);
+	//dprint_i("%s chan_id:%d total_size:0x%0x\n", __func__, chan_id, total_size);
+}
+
 u64 wdma_get_wptr(u8 chan_id)
 {
 	u64 wdma_ptr = 0;
 
-	if (get_dmx_version() >= 6)
-		wdma_ptr = READ_CBUS_REG(TS_DMA_WCH_PTR_HIGH(chan_id)) & 0x3;
-	wdma_ptr = (wdma_ptr << 32) + READ_CBUS_REG(TS_DMA_WCH_PTR_LOW(chan_id));
+	if (wdma_get_active(chan_id)) {
+		if (get_dmx_version() >= 6)
+			wdma_ptr = (u64)(u32)READ_CBUS_REG(TS_DMA_WCH_PTR_HIGH(chan_id)) & 0x3;
+		wdma_ptr = (wdma_ptr << 32) + (u64)(u32)READ_CBUS_REG(TS_DMA_WCH_PTR_LOW(chan_id));
+	} else {
+		pr_dbg("%s not active, chan_id:%d wptr:0x%0x\n", __func__, chan_id,
+			READ_CBUS_REG(TS_DMA_WCH_PTR_LOW(chan_id)));
+	}
 
 	return wdma_ptr;
 }

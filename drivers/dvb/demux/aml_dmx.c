@@ -122,6 +122,13 @@ static wait_queue_head_t cache_clear_wait_queue;
 static struct timer_list cache_timer;
 static struct task_struct *cache_clear_task;
 static int cas_check_sync_enable;
+static int multi_es_buf_switch;
+static int multi_es_buf_scale = 50;
+static int multi_es_buf_reduce_switch = 1;
+static int multi_es_buf_reduce_scale = 40;
+static int multi_es_buf_reduce_timeout = 10;
+static int multi_es_buf0_size = 0x300000;
+static int multi_es_buf1_size = 0x500000;
 
 static int out_ts_elem_cb(struct out_elem *pout,
 			  char *buf, int count, void *udata,
@@ -3917,6 +3924,134 @@ static ssize_t cas_check_sync_store(const struct class *class,
 	return size;
 }
 
+static ssize_t multi_es_buf_params_show(const struct class *class,
+					const struct class_attribute *attr, char *buf)
+{
+	int ret;
+
+	ret = sprintf(buf, "multi_es_buf_switch:%d\nmulti_es_buf_scale:%d\n"
+		"multi_es_buf_reduce_switch:%d\n"
+		"multi_es_buf_reduce_scale:%d\nmulti_es_buf_reduce_timeout:%d\n"
+		"multi_es_buf0_size:%d\nmulti_es_buf1_size:%d\n",
+		multi_es_buf_switch, multi_es_buf_scale, multi_es_buf_reduce_switch,
+		multi_es_buf_reduce_scale, multi_es_buf_reduce_timeout,
+		multi_es_buf0_size, multi_es_buf1_size);
+	return ret;
+}
+
+static ssize_t multi_es_buf_params_store(const struct class *class,
+					const struct class_attribute *attr,
+					const char *buf, size_t size)
+{
+	struct aml_dvb *advb = aml_get_dvb_device();
+	int value = -1;
+	int ret;
+
+	dprint("enter %s\n", buf);
+	if (mutex_lock_interruptible(&advb->mutex)) {
+		dprint("error!!! can't lock mutex\n");
+		return -ERESTARTSYS;
+	}
+
+	if (get_dmx_version() < 6) {
+		dprint("error!!! demux_version: %d\n", get_dmx_version());
+		goto exit;
+	}
+
+	if (!strncmp(buf, "multi_es_buf_switch", strlen("multi_es_buf_switch"))) {
+		ret = sscanf(buf, "multi_es_buf_switch %d", &value);
+		if (value < 0 || value > 1)
+			goto error_value;
+		multi_es_buf_switch = value;
+	} else if (!strncmp(buf, "multi_es_buf_scale", strlen("multi_es_buf_scale"))) {
+		ret = sscanf(buf, "multi_es_buf_scale %d", &value);
+		if (value <= 0 || value >= 100)
+			goto error_value;
+		multi_es_buf_scale = value;
+	} else if (!strncmp(buf, "multi_es_buf_reduce_switch",
+		strlen("multi_es_buf_reduce_switch"))) {
+		ret = sscanf(buf, "multi_es_buf_reduce_switch %d", &value);
+		if (value < 0 || value > 1)
+			goto error_value;
+		multi_es_buf_reduce_switch = value;
+	} else if (!strncmp(buf, "multi_es_buf_reduce_scale",
+		strlen("multi_es_buf_reduce_scale"))) {
+		ret = sscanf(buf, "multi_es_buf_reduce_scale %d", &value);
+		if (value <= 0 || value >= 100)
+			goto error_value;
+		multi_es_buf_reduce_scale = value;
+	} else if (!strncmp(buf, "multi_es_buf_reduce_timeout",
+		strlen("multi_es_buf_reduce_timeout"))) {
+		ret = sscanf(buf, "multi_es_buf_reduce_timeout %d", &value);
+		if (value <= 0)
+			goto error_value;
+		multi_es_buf_reduce_timeout = value;
+	} else if (!strncmp(buf, "multi_es_buf0_size", strlen("multi_es_buf0_size"))) {
+		ret = sscanf(buf, "multi_es_buf0_size %d", &value);
+		if ((value + multi_es_buf1_size + DESC_RESERVED_SIZE >= video_buf_size) ||
+			value <= DESC_RESERVED_SIZE)
+			goto error_value;
+		multi_es_buf0_size = value;
+	} else if (!strncmp(buf, "multi_es_buf1_size", strlen("multi_es_buf1_size"))) {
+		ret = sscanf(buf, "multi_es_buf1_size %d", &value);
+		if ((value + multi_es_buf0_size + DESC_RESERVED_SIZE >= video_buf_size) ||
+			value <= DESC_RESERVED_SIZE)
+			goto error_value;
+		multi_es_buf1_size = value;
+	} else {
+		dprint("error!!! %s\n", buf);
+		goto exit;
+	}
+	dprint("successfully store value:%d\n", value);
+	goto exit;
+
+error_value:
+	dprint("error!!! value:%d\n", value);
+exit:
+	mutex_unlock(&advb->mutex);
+	return size;
+}
+
+int get_multi_es_buf_switch(void)
+{
+	return multi_es_buf_switch;
+}
+
+int get_multi_es_buf_scale(void)
+{
+	return multi_es_buf_scale;
+}
+
+int get_multi_es_buf_reduce_switch(void)
+{
+	return multi_es_buf_reduce_switch;
+}
+
+int get_multi_es_buf_reduce_scale(void)
+{
+	return multi_es_buf_reduce_scale;
+}
+
+int get_multi_es_buf_reduce_timeout(void)
+{
+	return multi_es_buf_reduce_timeout;
+}
+
+int get_multi_es_buf0_size(void)
+{
+	return multi_es_buf0_size;
+}
+
+int get_multi_es_buf1_size(void)
+{
+	return multi_es_buf1_size;
+}
+
+int get_video_buf_size(void)
+{
+	return video_buf_size;
+}
+
 #ifdef OPEN_REGISTER_NODE
 static CLASS_ATTR_RW(register_addr);
 static CLASS_ATTR_RW(register_value);
@@ -3932,6 +4067,7 @@ static CLASS_ATTR_RW(adjust_mem);
 static CLASS_ATTR_RW(dmx_params);
 static CLASS_ATTR_RW(alp_tlv);
 static CLASS_ATTR_RW(cas_check_sync);
+static CLASS_ATTR_RW(multi_es_buf_params);
 
 static struct attribute *aml_dmx_class_attrs[] = {
 #ifdef OPEN_REGISTER_NODE
@@ -3949,6 +4085,7 @@ static struct attribute *aml_dmx_class_attrs[] = {
 	&class_attr_dmx_params.attr,
 	&class_attr_alp_tlv.attr,
 	&class_attr_cas_check_sync.attr,
+	&class_attr_multi_es_buf_params.attr,
 	NULL
 };
 

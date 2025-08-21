@@ -10,6 +10,9 @@
 #define u8 unsigned char
 #endif
 
+#define MAX_ES_BUF_NUM		3
+#define DESC_RESERVED_SIZE	0x4000
+
 union mem_desc {
 	u64 data[2];
 	struct {
@@ -23,6 +26,16 @@ union mem_desc {
 		u64 address_high:2;	// 65:64
 		u64 reserved:62;	// 127:66 reserved
 	} bits;
+};
+
+struct multi_es_buf_info {
+	u8 allocated;
+	u8 used;
+	unsigned int buf_size;
+	unsigned long buf_virt;
+	unsigned long buf_phy;
+	union mem_desc *descs_virt;
+	unsigned long descs_phy;
 };
 
 struct chan_id {
@@ -42,6 +55,15 @@ struct chan_id {
 	unsigned long memdescs_map;
 	unsigned int last_w_addr;
 
+	/* for multi es buf */
+	u8 is_multi_buf;
+	u8 buf_num;
+	int descs_size;
+	int reduce_counter;
+	int max_data_size;
+	u64 rptr_phy;
+	struct multi_es_buf_info *es_buf_list;
+
 	/*just for DVR sec direct mem*/
 	u64 sec_mem;
 	unsigned int sec_size;
@@ -53,10 +75,11 @@ enum bufferid_mode {
 	OUTPUT_MODE
 };
 
- /**/ struct bufferid_attr {
+struct bufferid_attr {
 	u8 is_es;
-	enum bufferid_mode mode;
+	u8 is_multi_buf;
 	u8 req_id;
+	enum bufferid_mode mode;
 	int format;
 };
 
@@ -123,18 +146,10 @@ int SC2_bufferid_set_sec_mem(struct chan_id *pchan,
 int SC2_bufferid_set_enable(struct chan_id *pchan, int enable, int sid, int pid);
 
 /**
- * recv data
- * \param pchan:struct chan_id handle
- * \retval 0: no data
- * \retval 1: recv data, it can call SC2_bufferid_read
- */
-int SC2_bufferid_recv_data(struct chan_id *pchan);
-
-/**
  * chan read
  * \param pchan:struct chan_id handle
  * \param pread: if is secure will return physical addr, otherwise virtual addr
- * \param plen:data size addr
+ * \param len:data size
  * \param is_sec: 1 is secure, 0 is normal
  * \retval >=0:read cnt.
  * \retval -1:fail.
@@ -185,8 +200,6 @@ int SC2_bufferid_non_block_write_status(struct chan_id *pchan);
 int SC2_bufferid_non_block_write_free(struct chan_id *pchan);
 
 int SC2_bufferid_write_empty(struct chan_id *pchan, int pid);
-
-unsigned int SC2_bufferid_get_free_size(struct chan_id *pchan);
 unsigned int SC2_bufferid_get_wp_offset(struct chan_id *pchan);
 unsigned int SC2_bufferid_get_data_len(struct chan_id *pchan);
 int SC2_bufferid_read_header_again(struct chan_id *pchan, char **pread);
@@ -214,4 +227,23 @@ int cache_adjust(int cache0_count, int cache1_count);
 int dmc_mem_set_size(int sec_level, unsigned int mem_size);
 int dmc_mem_dump_info(char *buf);
 int mem_desc_debug(int direct, char *param_name, int *param_value);
+
+unsigned int SC2_bufferid_get_data_len_multi_buf(struct chan_id *pchan, u64 rp);
+int SC2_bufferid_get_ptr_buf(struct chan_id *pchan, u64 ptr);
+u64 SC2_bufferid_get_wptr(struct chan_id *pchan);
+u64 SC2_bufferid_update_rptr(struct chan_id *pchan, int rptr_buf_num, u64 rp);
+int SC2_bufferid_add_buf(struct chan_id *pchan);
+int SC2_bufferid_reduce_buf(struct chan_id *pchan, u64 rp);
+int SC2_bufferid_read_multi_buf(struct chan_id *pchan, char **pread, unsigned int len,
+		int is_secure);
+
+int get_multi_es_buf_switch(void);
+int get_multi_es_buf_scale(void);
+int get_multi_es_buf_reduce_switch(void);
+int get_multi_es_buf_reduce_scale(void);
+int get_multi_es_buf_reduce_timeout(void);
+int get_multi_es_buf0_size(void);
+int get_multi_es_buf1_size(void);
+int get_video_buf_size(void);
+
 #endif

@@ -159,6 +159,8 @@ struct out_elem {
 	u8 ts_dump;
 	int temi_index;
 	int support_64bits;
+	u64 decoder_rptr_phy;
+	u32 ch_id;
 };
 
 struct sid_entry {
@@ -208,6 +210,7 @@ static struct ts_out_task ts_out_task_tmp;
 static struct ts_out_task es_out_task_tmp;
 static int timer_wake_up;
 static int timer_es_wake_up;
+static u32 global_ch_id = 1;
 static int s_cas_check_sync;
 
 struct cas_dsc {
@@ -241,6 +244,8 @@ struct list_head cas_filter_head;
 #define pr_sec_dbg(fmt, args...) \
 	dprintk(LOG_DBG, debug_section, "ts_output:" fmt, ## args)
 #define pr_cas_dbg(fmt, args...) \
+	dprintk(LOG_DBG, debug_ts_output, "ts_output:" fmt, ## args)
+#define pr_es_dbg(fmt, args...)     \
 	dprintk(LOG_DBG, debug_ts_output, "ts_output:" fmt, ## args)
 
 static int debug_ts_output;
@@ -851,6 +856,7 @@ static int _task_es_out_func(void *data)
 //0: success
 //-1: exit
 //-2: pid not same
+//-3: no es header
 static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 				 char *cur_header,
 				 struct dmx_non_sec_es_header *pheader)
@@ -1063,6 +1069,10 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 	int h_len = sizeof(struct dmx_non_sec_es_header);
 	int es_len = 0;
 
+	pr_dbg("%s pid:0x%0x enter\n", __func__, pout->es_pes->pid);
+	if (pout->pchan->is_multi_buf)
+		dprint("%s error!!! id:%d\n", __func__, pout->pchan->id);
+
 	if (es_params->have_header == 0)
 		return -1;
 
@@ -1118,7 +1128,10 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 
 	es_len = es_params->header.len;
 	len = es_len - es_params->data_len;
-	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
+	if (pout->pchan->is_multi_buf)
+		ret = SC2_bufferid_read_multi_buf(pout->pchan, &ptmp, len, 0);
+	else
+		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 	if (ret) {
 		if (!es_params->es_overflow)
 			if (!(es_params->header.pts_dts_flag & 0x4) ||
@@ -1150,11 +1163,24 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 				   pout->type == AUDIO_TYPE ? "audio" : "video",
 				   es_len,
 				   es_len - es_params->data_len);
-			if (pout->pchan->r_offset != 0)
+			if (pout->pchan->is_multi_buf == 0 && pout->pchan->r_offset != 0) {
+				dprint("%s error!!! id:%d r_offset:0x%x\n",
+					__func__, pout->pchan->id, pout->pchan->r_offset);
 				return -1;
+			}
+			// TODO: maybe no need to check this, will remove it
+			if (pout->pchan->is_multi_buf &&
+				pout->pchan->rptr_phy != pout->pchan->mem_phy) {
+				dprint("%s error!!! id:%d rptr_phy:0x%llx\n",
+					__func__, pout->pchan->id, pout->pchan->rptr_phy);
+				return -1;
+			}
 			/*loop back ,read one time*/
 			len = es_params->header.len - es_params->data_len;
-			ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
+			if (pout->pchan->is_multi_buf)
+				ret = SC2_bufferid_read_multi_buf(pout->pchan, &ptmp, len, 0);
+			else
+				ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 			if (ret) {
 				if (!es_params->es_overflow) {
 					if (!(es_params->header.pts_dts_flag & 0x4) ||
@@ -1199,7 +1225,10 @@ static int clean_es_data(struct out_elem *pout, struct chan_id *pchan,
 	char *ptmp;
 
 	while (len) {
-		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
+		if (pout->pchan->is_multi_buf)
+			ret = SC2_bufferid_read_multi_buf(pout->pchan, &ptmp, len, 0);
+		else
+			ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 		if (ret != 0) {
 			len -= ret;
 		} else {
@@ -1672,12 +1701,30 @@ static int write_aucpu_es_data(struct out_elem *pout,
 	return -1;
 }
 
+static void write_sec_es_data(struct out_elem *pout, struct dmx_sec_es_data_64bits *sec_es_data)
+{
+	if (pout->support_64bits) {
+		out_ts_cb_list(pout, (char *)sec_es_data, sizeof(*sec_es_data), 0, 0);
+	} else {
+		struct dmx_sec_es_data sec_es_data_32bits;
+
+		sec_es_data_32bits.pts_dts_flag = sec_es_data->pts_dts_flag;
+		sec_es_data_32bits.dts = sec_es_data->dts;
+		sec_es_data_32bits.pts = sec_es_data->pts;
+		sec_es_data_32bits.buf_start = (u32)sec_es_data->buf_start;
+		sec_es_data_32bits.buf_end = (u32)sec_es_data->buf_end;
+		sec_es_data_32bits.data_start = (u32)sec_es_data->data_start;
+		sec_es_data_32bits.data_end = (u32)sec_es_data->data_end;
+		out_ts_cb_list(pout, (char *)&sec_es_data_32bits,
+				sizeof(sec_es_data_32bits), 0, 0);
+	}
+}
+
 static int write_aucpu_sec_es_data(struct out_elem *pout,
 				   struct es_params_t *es_params)
 {
 	unsigned int len = es_params->header.len;
 	struct dmx_sec_es_data_64bits sec_es_data;
-	struct dmx_sec_es_data sec_es_data_32bits;
 	char *ptmp;
 	int ret;
 
@@ -1732,6 +1779,7 @@ static int write_aucpu_sec_es_data(struct out_elem *pout,
 	sec_es_data.buf_end = pout->pchan->mem + pout->pchan->mem_size;
 	sec_es_data.data_start = es_params->data_start;
 	sec_es_data.data_end = (unsigned long)ptmp + len;
+	write_sec_es_data(pout, &sec_es_data);
 
 	if (es_params->has_splice == 0)
 		if ((pout->type == AUDIO_TYPE && audio_es_splice != 0) ||
@@ -1759,20 +1807,6 @@ static int write_aucpu_sec_es_data(struct out_elem *pout,
 	       sec_es_data.pts_dts_flag, (unsigned long)sec_es_data.pts,
 	       (unsigned long)sec_es_data.dts,
 	       (unsigned long)(sec_es_data.data_start - sec_es_data.buf_start));
-
-	if (pout->support_64bits) {
-		out_ts_cb_list(pout, (char *)&sec_es_data, sizeof(sec_es_data), 0, 0);
-	} else {
-		sec_es_data_32bits.pts_dts_flag = sec_es_data.pts_dts_flag;
-		sec_es_data_32bits.dts = sec_es_data.dts;
-		sec_es_data_32bits.pts = sec_es_data.pts;
-		sec_es_data_32bits.buf_start = (u32)sec_es_data.buf_start;
-		sec_es_data_32bits.buf_end = (u32)sec_es_data.buf_end;
-		sec_es_data_32bits.data_start = (u32)sec_es_data.data_start;
-		sec_es_data_32bits.data_end = (u32)sec_es_data.data_end;
-		out_ts_cb_list(pout, (char *)&sec_es_data_32bits,
-				sizeof(sec_es_data_32bits), 0, 0);
-	}
 
 	es_params->data_start = 0;
 	es_params->data_len = 0;
@@ -1861,7 +1895,6 @@ static int write_sec_video_es_data(struct out_elem *pout,
 {
 	unsigned int len = es_params->header.len;
 	struct dmx_sec_es_data_64bits sec_es_data;
-	struct dmx_sec_es_data sec_es_data_32bits;
 	char *ptmp;
 	int ret;
 	int flag = 0;
@@ -1927,6 +1960,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 				es_params->header.len, es_params->data_len);
 		}
 	}
+
 	memset(&sec_es_data, 0, sizeof(sec_es_data));
 	if (es_params->has_splice == 0) {
 		sec_es_data.pts_dts_flag = es_params->header.pts_dts_flag;
@@ -1945,6 +1979,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 		sec_es_data.data_end = (unsigned long)ptmp -
 			pout->pchan->mem + pout->pchan->mem_phy + len;
 	}
+	write_sec_es_data(pout, &sec_es_data);
 
 //	if (sec_es_data.data_end > sec_es_data.data_start)
 //		pr_dbg("video data start:0x%x, end:0x%x len:0x%x\n",
@@ -1992,18 +2027,175 @@ static int write_sec_video_es_data(struct out_elem *pout,
 				sec_es_data.buf_start));
 	}
 
-	if (pout->support_64bits) {
-		out_ts_cb_list(pout, (char *)&sec_es_data, sizeof(sec_es_data), 0, 0);
+	es_params->data_start = 0;
+	es_params->data_len = 0;
+	return 0;
+}
+
+static int write_sec_video_es_data_multi_buf(struct out_elem *pout, struct es_params_t *es_params)
+{
+	unsigned int len = es_params->header.len;
+	struct dmx_sec_es_data_64bits sec_es_data;
+	char *ptmp;
+	int ret;
+	int flag = 0;
+	int rptr_buf_num1;
+	int rptr_buf_num2;
+
+	pr_dbg("%s pid:0x%0x enter\n", __func__, pout->es_pes->pid);
+	if (es_params->header.len == 0)
+		return -1;
+
+	es_params->header.len -= es_params->have_sent_len;
+	es_params->have_sent_len = 0;
+
+	if (pout->pchan->sec_level)
+		flag = 1;
+	len = es_params->header.len - es_params->data_len;
+	rptr_buf_num1 = SC2_bufferid_get_ptr_buf(pout->pchan, pout->pchan->rptr_phy);
+	rptr_buf_num2 = rptr_buf_num1;
+	ret = SC2_bufferid_read_multi_buf(pout->pchan, &ptmp, len, flag);
+	if (ret == 0)
+		return -1;
+
+	if (es_params->data_start == 0)
+		es_params->data_start = (unsigned long)ptmp;
+
+	es_params->data_len += ret;
+
+	if (dump_es_cb) {
+		if (flag) {
+			char *dump_pos = ptmp - pout->pchan->es_buf_list[rptr_buf_num1].buf_phy +
+				pout->pchan->es_buf_list[rptr_buf_num1].buf_virt;
+
+			enforce_flush_cache(ptmp, ret);
+			dump_es_cb(pout->sid, pout->es_pes->pid, DMX_DUMP_ES_VIDEO_TYPE,
+				dump_pos, ret, &dump_es_head);
+		} else {
+			dump_es_cb(pout->sid, pout->es_pes->pid, DMX_DUMP_ES_VIDEO_TYPE,
+				ptmp, ret, &dump_es_head);
+		}
+	}
+
+	memset(&sec_es_data, 0, sizeof(sec_es_data));
+	if (es_params->has_splice == 0) {
+		sec_es_data.pts_dts_flag = es_params->header.pts_dts_flag;
+		sec_es_data.dts = es_params->header.dts;
+		sec_es_data.pts = es_params->header.pts;
+		ATRACE_COUNTER(pout->name, sec_es_data.pts);
+	}
+	sec_es_data.buf_start = pout->pchan->es_buf_list[rptr_buf_num1].buf_phy;
+	sec_es_data.buf_end = pout->pchan->es_buf_list[rptr_buf_num1].buf_phy +
+				pout->pchan->es_buf_list[rptr_buf_num1].buf_size;
+	if (flag) {
+		sec_es_data.data_start = es_params->data_start;
+		sec_es_data.data_end = (unsigned long)ptmp + ret;
 	} else {
-		sec_es_data_32bits.pts_dts_flag = sec_es_data.pts_dts_flag;
-		sec_es_data_32bits.dts = sec_es_data.dts;
-		sec_es_data_32bits.pts = sec_es_data.pts;
-		sec_es_data_32bits.buf_start = (u32)sec_es_data.buf_start;
-		sec_es_data_32bits.buf_end = (u32)sec_es_data.buf_end;
-		sec_es_data_32bits.data_start = (u32)sec_es_data.data_start;
-		sec_es_data_32bits.data_end = (u32)sec_es_data.data_end;
-		out_ts_cb_list(pout, (char *)&sec_es_data_32bits,
-				sizeof(sec_es_data_32bits), 0, 0);
+		sec_es_data.data_start = es_params->data_start -
+			pout->pchan->es_buf_list[rptr_buf_num1].buf_virt +
+			pout->pchan->es_buf_list[rptr_buf_num1].buf_phy;
+		sec_es_data.data_end = (unsigned long)ptmp -
+			pout->pchan->es_buf_list[rptr_buf_num1].buf_virt +
+			pout->pchan->es_buf_list[rptr_buf_num1].buf_phy + ret;
+	}
+	write_sec_es_data(pout, &sec_es_data);
+
+	if (ret != len) {
+//		if (pout->pchan->r_offset != 0)
+//			return -1;
+
+		/*if loop back , read one time */
+		len = es_params->header.len - es_params->data_len;
+		rptr_buf_num2 = SC2_bufferid_get_ptr_buf(pout->pchan, pout->pchan->rptr_phy);
+		ret = SC2_bufferid_read_multi_buf(pout->pchan, &ptmp, len, flag);
+		if (ret != 0) {
+			es_params->data_len += ret;
+
+			if (dump_es_cb) {
+				if (flag) {
+					char *dump_pos = ptmp -
+						pout->pchan->es_buf_list[rptr_buf_num2].buf_phy +
+						pout->pchan->es_buf_list[rptr_buf_num2].buf_virt;
+
+					enforce_flush_cache(ptmp, ret);
+					dump_es_cb(pout->sid, pout->es_pes->pid,
+					DMX_DUMP_ES_VIDEO_TYPE, dump_pos, ret, &dump_es_head);
+				} else {
+					dump_es_cb(pout->sid, pout->es_pes->pid,
+						DMX_DUMP_ES_VIDEO_TYPE, ptmp, ret, &dump_es_head);
+				}
+			}
+			if (ret != len)
+				dprint("get es data error2, req:%d, actual:%d\n",
+					es_params->header.len, es_params->data_len);
+
+			pr_es_dbg("%s 2 part es, ret:0x%x ptmp:%px\n", __func__, ret, ptmp);
+			memset(&sec_es_data, 0, sizeof(sec_es_data));
+			sec_es_data.buf_start = pout->pchan->es_buf_list[rptr_buf_num2].buf_phy;
+			sec_es_data.buf_end = pout->pchan->es_buf_list[rptr_buf_num2].buf_phy +
+						pout->pchan->es_buf_list[rptr_buf_num2].buf_size;
+			if (flag) {
+				sec_es_data.data_start = (unsigned long)ptmp;
+				sec_es_data.data_end = (unsigned long)ptmp + ret;
+			} else {
+				sec_es_data.data_start = (unsigned long)ptmp -
+					pout->pchan->es_buf_list[rptr_buf_num2].buf_virt +
+					pout->pchan->es_buf_list[rptr_buf_num2].buf_phy;
+				sec_es_data.data_end = (unsigned long)ptmp -
+					pout->pchan->es_buf_list[rptr_buf_num2].buf_virt +
+					pout->pchan->es_buf_list[rptr_buf_num2].buf_phy + ret;
+			}
+			write_sec_es_data(pout, &sec_es_data);
+		} else {
+			len = es_params->data_len;
+			dprint("get es data error1, req:%d, actual:%d\n",
+				es_params->header.len, es_params->data_len);
+		}
+	}
+
+	if (rptr_buf_num1 != rptr_buf_num2)
+		pr_es_dbg("%s 1 data_start:0x%llx data_end:0x%llx\n", __func__,
+			sec_es_data.data_start, sec_es_data.data_end);
+	else if (sec_es_data.data_start > sec_es_data.data_end)
+		pr_es_dbg("%s 2 data_start:0x%llx data_end:0x%llx\n", __func__,
+			sec_es_data.data_start, sec_es_data.data_end);
+
+	if (es_params->has_splice == 0) {
+		if (video_es_splice != 0)
+			pr_dbg("0 0 splice video pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
+				pout->es_pes->pid,
+				pout->sid,
+				sec_es_data.pts_dts_flag,
+				(unsigned long)sec_es_data.pts,
+				(unsigned long)sec_es_data.dts,
+				(unsigned long)(sec_es_data.data_start -
+					sec_es_data.buf_start));
+		else
+			pr_dbg("video pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
+				pout->es_pes->pid,
+				pout->sid,
+				sec_es_data.pts_dts_flag,
+				(unsigned long)sec_es_data.pts,
+				(unsigned long)sec_es_data.dts,
+				(unsigned long)(sec_es_data.data_start -
+					sec_es_data.buf_start));
+
+		if (len >= debug_es_len && flag == 0 && debug_es_len) {
+			int tt = 0;
+
+			for (tt = 0; tt < debug_es_len; tt++)
+				dprint("0x%0x ", ptmp[tt]);
+			dprint("\n");
+		}
+	} else {
+		pr_dbg("last splice video pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
+			pout->es_pes->pid,
+			pout->sid,
+			sec_es_data.pts_dts_flag,
+			(unsigned long)sec_es_data.pts,
+			(unsigned long)sec_es_data.dts,
+			(unsigned long)(sec_es_data.data_start -
+				sec_es_data.buf_start));
 	}
 
 	es_params->data_start = 0;
@@ -2066,11 +2258,12 @@ static int _handle_es_splice(struct out_elem *pout, struct es_params_t *es_param
 	unsigned int d_len = 0;
 	unsigned int h_len = 0;
 	struct dmx_sec_es_data_64bits sec_es_data;
-	struct dmx_sec_es_data sec_es_data_32bits;
 	char *ptmp;
 	int ret;
 	int flag = 0;
+	int rptr_buf_num;
 
+	pr_dbg("%s pid:0x%0x enter\n", __func__, pout->es_pes->pid);
 	plast_header = (char *)&es_params->last_header;
 
 	if (plast_header[0] == 0xff && plast_header[1] == 0xff)
@@ -2088,7 +2281,10 @@ static int _handle_es_splice(struct out_elem *pout, struct es_params_t *es_param
 		else
 			d_len = pout->aucpu_mem_size - pout->aucpu_read_offset + w_offset;
 	} else {
-		d_len = SC2_bufferid_get_data_len(pout->pchan);
+		if (pout->pchan->is_multi_buf)
+			d_len = SC2_bufferid_get_data_len_multi_buf(pout->pchan, 0);
+		else
+			d_len = SC2_bufferid_get_data_len(pout->pchan);
 	}
 	if (d_len == 0) {
 //		dprint("pengcc no es data\n");
@@ -2111,7 +2307,13 @@ static int _handle_es_splice(struct out_elem *pout, struct es_params_t *es_param
 		if (pout->pchan->sec_level)
 			flag = 1;
 
-		ret = SC2_bufferid_read(pout->pchan, &ptmp, d_len, flag);
+		if (pout->pchan->is_multi_buf) {
+			rptr_buf_num = SC2_bufferid_get_ptr_buf(pout->pchan,
+				pout->pchan->rptr_phy);
+			ret = SC2_bufferid_read_multi_buf(pout->pchan, &ptmp, d_len, flag);
+		} else {
+			ret = SC2_bufferid_read(pout->pchan, &ptmp, d_len, flag);
+		}
 	}
 	if (ret == 0) {
 //		dprint("pengcc get no es data\n");
@@ -2121,11 +2323,14 @@ static int _handle_es_splice(struct out_elem *pout, struct es_params_t *es_param
 	/*dump es data*/
 	if (dump_es_cb && pout->type == VIDEO_TYPE) {
 		if (flag) {
+			char *dump_pos = pout->pchan->is_multi_buf ?
+				(ptmp - pout->pchan->es_buf_list[rptr_buf_num].buf_phy +
+				pout->pchan->es_buf_list[rptr_buf_num].buf_virt) :
+				(ptmp - pout->pchan->mem_phy + pout->pchan->mem);
+
 			enforce_flush_cache(ptmp, ret);
 			dump_es_cb(pout->sid, pout->es_pes->pid,
-			DMX_DUMP_ES_VIDEO_TYPE,
-			ptmp - pout->pchan->mem_phy + pout->pchan->mem,
-			ret, &dump_es_head);
+				DMX_DUMP_ES_VIDEO_TYPE, dump_pos, ret, &dump_es_head);
 		} else {
 			dump_es_cb(pout->sid, pout->es_pes->pid,
 				DMX_DUMP_ES_VIDEO_TYPE, ptmp, ret, &dump_es_head);
@@ -2164,45 +2369,46 @@ static int _handle_es_splice(struct out_elem *pout, struct es_params_t *es_param
 				dprint("\n");
 			}
 		}
-		sec_es_data.buf_start = pout->pchan->mem_phy;
-		sec_es_data.buf_end = pout->pchan->mem_phy + pout->pchan->mem_size;
+
+		if (pout->pchan->is_multi_buf) {
+			sec_es_data.buf_start = pout->pchan->es_buf_list[rptr_buf_num].buf_phy;
+			sec_es_data.buf_end = pout->pchan->es_buf_list[rptr_buf_num].buf_phy +
+				pout->pchan->es_buf_list[rptr_buf_num].buf_size;
+		} else {
+			sec_es_data.buf_start = pout->pchan->mem_phy;
+			sec_es_data.buf_end = pout->pchan->mem_phy + pout->pchan->mem_size;
+		}
+
 		if (flag) {
 			sec_es_data.data_start = (unsigned long)ptmp;
 			sec_es_data.data_end = (unsigned long)ptmp + len;
 		} else {
-			sec_es_data.data_start = (unsigned long)ptmp -
-				pout->pchan->mem + pout->pchan->mem_phy;
-			sec_es_data.data_end = (unsigned long)ptmp -
-				pout->pchan->mem + pout->pchan->mem_phy + len;
+			if (pout->pchan->is_multi_buf) {
+				sec_es_data.data_start = (unsigned long)ptmp -
+					pout->pchan->es_buf_list[rptr_buf_num].buf_virt +
+					pout->pchan->es_buf_list[rptr_buf_num].buf_phy;
+				sec_es_data.data_end = sec_es_data.data_start + len;
+			} else {
+				sec_es_data.data_start = (unsigned long)ptmp -
+					pout->pchan->mem + pout->pchan->mem_phy;
+				sec_es_data.data_end = (unsigned long)ptmp -
+					pout->pchan->mem + pout->pchan->mem_phy + len;
+			}
 		}
 		es_params->have_sent_len += len;
 		es_params->has_splice++;
+		write_sec_es_data(pout, &sec_es_data);
 
 		pr_dbg("%d %s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
 			es_params->has_splice,
 			pout->type == VIDEO_TYPE ? "splice video" : "splice audio",
 			pout->es_pes->pid,
-		pout->sid,
-		sec_es_data.pts_dts_flag,
-		(unsigned long)sec_es_data.pts,
-		(unsigned long)sec_es_data.dts,
-		(unsigned long)(sec_es_data.data_start -
+			pout->sid,
+			sec_es_data.pts_dts_flag,
+			(unsigned long)sec_es_data.pts,
+			(unsigned long)sec_es_data.dts,
+			(unsigned long)(sec_es_data.data_start -
 			sec_es_data.buf_start));
-
-		if (pout->support_64bits) {
-			out_ts_cb_list(pout, (char *)&sec_es_data, sizeof(sec_es_data), 0, 0);
-		} else {
-			sec_es_data_32bits.pts_dts_flag = sec_es_data.pts_dts_flag;
-			sec_es_data_32bits.dts = sec_es_data.dts;
-			sec_es_data_32bits.pts = sec_es_data.pts;
-			sec_es_data_32bits.buf_start = (u32)sec_es_data.buf_start;
-			sec_es_data_32bits.buf_end = (u32)sec_es_data.buf_end;
-			sec_es_data_32bits.data_start = (u32)sec_es_data.data_start;
-			sec_es_data_32bits.data_end = (u32)sec_es_data.data_end;
-			out_ts_cb_list(pout, (char *)&sec_es_data_32bits,
-					sizeof(sec_es_data_32bits), 0, 0);
-		}
-
 		return 0;
 	}
 	h_len = sizeof(struct dmx_non_sec_es_header);
@@ -2235,22 +2441,6 @@ static int _handle_es_splice(struct out_elem *pout, struct es_params_t *es_param
 	return 0;
 }
 
-static void output_sec_es_data(struct out_elem *pout, u8 pts_dts_flag)
-{
-	struct dmx_sec_es_data_64bits sec_es_data;
-	struct dmx_sec_es_data sec_es_data_32bits;
-
-	memset(&sec_es_data, 0, sizeof(sec_es_data));
-	sec_es_data.pts_dts_flag = pts_dts_flag;
-	if (pout->support_64bits) {
-		out_ts_cb_list(pout, (char *)&sec_es_data, sizeof(sec_es_data), 0, 0);
-	} else {
-		memset(&sec_es_data_32bits, 0, sizeof(sec_es_data_32bits));
-		sec_es_data_32bits.pts_dts_flag = sec_es_data.pts_dts_flag;
-		out_ts_cb_list(pout, (char *)&sec_es_data_32bits, sizeof(sec_es_data_32bits), 0, 0);
-	}
-}
-
 static void notify_encrypt_for_t5w(struct out_elem *pout, struct es_params_t *es_params)
 {
 	s64 now_time_ms;
@@ -2268,7 +2458,11 @@ static void notify_encrypt_for_t5w(struct out_elem *pout, struct es_params_t *es
 				SC2_bufferid_get_wp_offset(pout->pchan1)) {
 				if (pout->output_mode) {
 					if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE) {
-						output_sec_es_data(pout, 0xC);
+						struct dmx_sec_es_data_64bits sec_es_data;
+
+						memset(&sec_es_data, 0, sizeof(sec_es_data));
+						sec_es_data.pts_dts_flag = 0xC;
+						write_sec_es_data(pout, &sec_es_data);
 						pr_dbg("notify sec mode encrypt type:%d\n",
 							pout->type);
 					}
@@ -2293,6 +2487,35 @@ static void notify_encrypt_for_t5w(struct out_elem *pout, struct es_params_t *es
 	}
 }
 
+static void check_and_update_multi_buf(struct out_elem *pout)
+{
+	if (pout->pchan->is_multi_buf && pout->pchan->buf_num) {
+		unsigned int data_size = 0;
+		unsigned int mem_size_after_reduce = pout->pchan->mem_size -
+			pout->pchan->es_buf_list[pout->pchan->buf_num - 1].buf_size;
+
+		data_size = SC2_bufferid_get_data_len_multi_buf(pout->pchan,
+						pout->decoder_rptr_phy);
+		if (data_size > pout->pchan->max_data_size)
+			pout->pchan->max_data_size = data_size;
+
+		if (pout->pchan->buf_num < MAX_ES_BUF_NUM &&
+			data_size > pout->pchan->mem_size * get_multi_es_buf_scale() / 100)
+			SC2_bufferid_add_buf(pout->pchan);
+
+		if (pout->pchan->buf_num >= 2 && get_multi_es_buf_reduce_switch() &&
+			data_size < mem_size_after_reduce *
+			get_multi_es_buf_reduce_scale() / 100) {
+			pout->pchan->reduce_counter++;
+			if (pout->pchan->reduce_counter > get_multi_es_buf_reduce_timeout() *
+				1000 / es_count_one_time)
+				SC2_bufferid_reduce_buf(pout->pchan, pout->decoder_rptr_phy);
+		} else {
+			pout->pchan->reduce_counter = 0;
+		}
+	}
+}
+
 static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 {
 	int ret = 0;
@@ -2313,6 +2536,8 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 
 	if (pout->running != TASK_RUNNING)
 		return -1;
+
+	check_and_update_multi_buf(pout);
 
 	if (es_params->have_header == 0) {
 		mutex_lock(&pout->pts_mutex);
@@ -2380,8 +2605,12 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 
 				if (pout->output_mode) {
 					if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE) {
-						output_sec_es_data(pout,
-							es_params->header.pts_dts_flag & 0xC);
+						struct dmx_sec_es_data_64bits sec_es_data;
+
+						memset(&sec_es_data, 0, sizeof(sec_es_data));
+						sec_es_data.pts_dts_flag =
+							es_params->header.pts_dts_flag & 0xC;
+						write_sec_es_data(pout, &sec_es_data);
 						pr_dbg("notify sec mode encrypt type:%d\n",
 							pout->type);
 					}
@@ -2423,10 +2652,16 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 			else
 				len = pout->aucpu_mem_size - pout->aucpu_read_offset + w_offset;
 		} else {
-			len = SC2_bufferid_get_data_len(pout->pchan);
+			if (pout->pchan->is_multi_buf)
+				len = SC2_bufferid_get_data_len_multi_buf(pout->pchan, 0);
+			else
+				len = SC2_bufferid_get_data_len(pout->pchan);
 		}
 		if (pheader->len - es_params->have_sent_len > len) {
 			dprint("compute len:%d, es len:%d\n", pheader->len, len);
+			dprint("%s pchan1->id:%d wptr:0x%llx r_offset:0x%x\n", __func__,
+				pout->pchan1->id, wdma_get_wptr(pout->pchan1->id),
+				pout->pchan1->r_offset);
 			//re read header data again
 			if (pout->aucpu_pts_start) {
 				goto error_handle;
@@ -2468,7 +2703,10 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 			return -1;
 
 		if (pout->type == VIDEO_TYPE) {
-			ret = write_sec_video_es_data(pout, es_params);
+			if (pout->pchan->is_multi_buf)
+				ret = write_sec_video_es_data_multi_buf(pout, es_params);
+			else
+				ret = write_sec_video_es_data(pout, es_params);
 		} else {
 			//to do for use aucpu to handle non-video data
 			if (pout->output_mode) {
@@ -2940,12 +3178,28 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 	pout->cur_pts = 0;
 	pout->decoder_rp_offset = INVALID_DECODE_RP;
 	pout->support_64bits = support_64bits;
+	pout->decoder_rptr_phy = 0;
+
 	memset(&attr, 0, sizeof(struct bufferid_attr));
 	attr.mode = OUTPUT_MODE;
 	attr.format = format;
 
 	if (format == ES_FORMAT) {
 		attr.is_es = 1;
+		// ch_id is only used for video es
+		if (type == VIDEO_TYPE) {
+			// to ensure ch_id is 1-0x7fffffff for dmabuf judgement
+			if (global_ch_id == 0 || global_ch_id >= 0x7fffffff)
+				global_ch_id = 1;
+			pout->ch_id = global_ch_id;
+			global_ch_id++;
+			dprint("%s ch_id:0x%x", __func__, pout->ch_id);
+
+			if (get_multi_es_buf_switch()) {
+				dprint("%s sid:%d is_multi_buf = 1\n", __func__, sid);
+				attr.is_multi_buf = 1;
+			}
+		}
 		ret = SC2_bufferid_alloc(&attr, &pout->pchan, &pout->pchan1);
 		if (ret != 0) {
 			dprint("%s sid:%d SC2_bufferid_alloc fail\n",
@@ -3568,6 +3822,8 @@ int ts_output_set_mem(struct out_elem *pout, int memsize,
 		ret = SC2_bufferid_set_mem(pout->pchan, memsize, sec_level);
 		if (ret != 0)
 			return -1;
+		if (pout->pchan->is_multi_buf && pout->decoder_rptr_phy == 0)
+			pout->decoder_rptr_phy = pout->pchan->mem_phy;
 	}
 	if (pout && pout->pchan1) {
 		ret = SC2_bufferid_set_mem(pout->pchan1,
@@ -3682,17 +3938,24 @@ int ts_output_get_mem_info(struct out_elem *pout,
 {
 	__u64 tmp_pts = 0;
 	int ret = 0;
+	__u64 now_w = 0;
+	int wptr_buf_num = 0;
 
 	if (!pout || !pout->pchan) {
 		dprint("%s line:%d parameter error\n", __func__, __LINE__);
 		return -1;
 	}
+
 	*total_size = pout->pchan->mem_size;
-	*buf_phy_start = pout->pchan->mem_phy;
-	if (pout->pchan)
+	if (pout->pchan->is_multi_buf) {
+		now_w = SC2_bufferid_get_wptr(pout->pchan);
+		wptr_buf_num = SC2_bufferid_get_ptr_buf(pout->pchan, now_w);
+		*buf_phy_start = pout->pchan->es_buf_list[wptr_buf_num].buf_phy;
+		*wp_offset = now_w - pout->pchan->es_buf_list[wptr_buf_num].buf_phy;
+	} else {
+		*buf_phy_start = pout->pchan->mem_phy;
 		*wp_offset = SC2_bufferid_get_wp_offset(pout->pchan);
-	else
-		*wp_offset = 0;
+	}
 
 	if (pout->aucpu_start) {
 		unsigned int now_w = 0;
@@ -3704,19 +3967,28 @@ int ts_output_get_mem_info(struct out_elem *pout,
 		else
 			*free_size = pout->aucpu_read_offset - now_w;
 	} else {
-		if (pout->decoder_rp_offset == INVALID_DECODE_RP) {
-			*free_size = SC2_bufferid_get_free_size(pout->pchan);
+		if (pout->pchan->is_multi_buf) {
+			*free_size = pout->pchan->mem_size -
+				SC2_bufferid_get_data_len_multi_buf(pout->pchan,
+					pout->decoder_rptr_phy);
+			pr_dbg("%s total_size:0x%x decoder_rptr_phy:0x%llx free_size:0x%x\n",
+				__func__, *total_size, pout->decoder_rptr_phy, *free_size);
 		} else {
-			unsigned int w = 0;
-			unsigned int total = 0;
+			if (pout->decoder_rp_offset == INVALID_DECODE_RP) {
+				*free_size = pout->pchan->mem_size -
+					SC2_bufferid_get_data_len(pout->pchan);
+			} else {
+				unsigned int w = 0;
+				unsigned int total = 0;
 
-//			pr_dbg("decoder rp:0x%0x\n", pout->decoder_rp_offset);
-			w = SC2_bufferid_get_wp_offset(pout->pchan);
-			total = pout->pchan->mem_size;
-			if (w > pout->decoder_rp_offset)
-				*free_size = total - w + pout->decoder_rp_offset;
-			else
-				*free_size = pout->decoder_rp_offset - w;
+				pr_dbg("%s decoder rp:0x%0x\n", __func__, pout->decoder_rp_offset);
+				w = SC2_bufferid_get_wp_offset(pout->pchan);
+				total = pout->pchan->mem_size;
+				if (w > pout->decoder_rp_offset)
+					*free_size = total - w + pout->decoder_rp_offset;
+				else
+					*free_size = pout->decoder_rp_offset - w;
+			}
 		}
 	}
 	if (newest_pts && pout->format == ES_FORMAT) {
@@ -4117,6 +4389,29 @@ int ts_output_dump_info(char *buf)
 			buf += r;
 			total += r;
 
+			if (es_slot->pout->pchan->is_multi_buf) {
+				int j;
+
+				r = sprintf(buf, "wptr_phy:0x%llx, rptr_phy:0x%llx, ",
+					wdma_get_wptr(es_slot->pout->pchan->id),
+					es_slot->pout->pchan->rptr_phy);
+				buf += r;
+				total += r;
+
+				r = sprintf(buf, "decoder_rptr_phy:0x%llx ",
+					es_slot->pout->decoder_rptr_phy);
+				buf += r;
+				total += r;
+
+				for (j = 0; j < es_slot->pout->pchan->buf_num; j++) {
+					r = sprintf(buf, "buf_phy[%d]:0x%lx buf_size[%d]:0x%x ",
+						j, es_slot->pout->pchan->es_buf_list[j].buf_phy,
+						j, es_slot->pout->pchan->es_buf_list[j].buf_size);
+					buf += r;
+					total += r;
+				}
+			}
+
 			if (es_slot->pout->aucpu_start)
 				r = sprintf(buf,
 				    "free size:0x%0x, rp:0x%0x, wp:0x%0x, ",
@@ -4450,17 +4745,137 @@ int ts_output_set_decode_info(int sid, struct decoder_mem_info_64bits *info)
 					       &total_size,
 					       &buf_phy_start,
 					       &free_size, &wp_offset, NULL);
-			if (info->rp_phy >= buf_phy_start &&
+			if (pout->pchan->is_multi_buf) {
+				u64 decoder_rptr = info->rp_phy;
+				int rptr_buf_num;
+				int j;
+
+				for (j = 0; j < pout->pchan->buf_num; j++) {
+					if (decoder_rptr == pout->pchan->es_buf_list[j].buf_phy +
+						pout->pchan->es_buf_list[j].buf_size) {
+						decoder_rptr =
+							SC2_bufferid_update_rptr(pout->pchan, j,
+										decoder_rptr);
+						dprint("%s pchan->id:%d decoder_rptr:0x%llx\n\n",
+							__func__, pout->pchan->id, decoder_rptr);
+						break;
+					}
+				}
+
+				rptr_buf_num = SC2_bufferid_get_ptr_buf(pout->pchan, decoder_rptr);
+				if (rptr_buf_num != -1) {
+					pout->decoder_rptr_phy = decoder_rptr;
+					pr_dbg("%s pchan->id:%d, wp_offset:0x%0x, rp_phy:0x%llx\n",
+					__func__, pout->pchan->id, wp_offset, info->rp_phy);
+					return 0;
+				}
+				dprint("%s error!!! pchan->id:%d, rp_phy:0x%llx\n",
+					__func__, pout->pchan->id, info->rp_phy);
+			} else if (info->rp_phy >= buf_phy_start &&
 				info->rp_phy <= (buf_phy_start + total_size)) {
 				pout->decoder_rp_offset = info->rp_phy - buf_phy_start;
-				pr_dbg("sid:%d, wp_offset:0x%0x, decoder_rp_offset:0x%0x\n",
-					sid, wp_offset, pout->decoder_rp_offset);
+				pr_dbg("%s pchan->id:%d, wp_offset:0x%0x, rp_phy:0x%llx\n",
+					__func__, pout->pchan->id, wp_offset, info->rp_phy);
 				return 0;
 			}
 		}
 	}
 
+	pr_dbg("%s can't find channel, info->rp_phy:0x%llx\n", __func__, info->rp_phy);
 	return 0;
+}
+
+// TODO: should merge this function with ts_output_set_decode_info
+int ts_output_set_decode_info_by_ch(u32 ch_id, struct decoder_mem_info_64bits *info)
+{
+	int i = 0;
+	unsigned int total_size = 0;
+	__u64 buf_phy_start = 0;
+	unsigned int free_size = 0;
+	unsigned int wp_offset = 0;
+	struct out_elem *pout;
+	struct es_entry *es_slot;
+
+	mutex_lock(ts_output_mutex);
+	for (i = 0; i < MAX_ES_NUM; i++) {
+		es_slot = &es_table[i];
+		pout = es_slot->pout;
+
+		if (es_slot->used && es_slot->status == ES_FORMAT &&
+			pout->used && pout->type == VIDEO_TYPE && pout->ch_id == ch_id) {
+			ts_output_get_mem_info(pout,
+					       &total_size,
+					       &buf_phy_start,
+					       &free_size, &wp_offset, NULL);
+			if (pout->pchan->is_multi_buf) {
+				u64 decoder_rptr = info->rp_phy;
+				int rptr_buf_num;
+				int j;
+
+				for (j = 0; j < pout->pchan->buf_num; j++) {
+					if (decoder_rptr == pout->pchan->es_buf_list[j].buf_phy +
+						pout->pchan->es_buf_list[j].buf_size) {
+						decoder_rptr =
+							SC2_bufferid_update_rptr(pout->pchan, j,
+										decoder_rptr);
+						pr_es_dbg("%s pchan->id:%d decoder_rptr:0x%llx\n",
+							__func__, pout->pchan->id, decoder_rptr);
+						break;
+					}
+				}
+
+				rptr_buf_num = SC2_bufferid_get_ptr_buf(pout->pchan, decoder_rptr);
+				if (rptr_buf_num != -1) {
+					pout->decoder_rptr_phy = decoder_rptr;
+					pr_dbg("%s pchan->id:%d, wp_offset:0x%0x, rp_phy:0x%llx\n",
+					__func__, pout->pchan->id, wp_offset, info->rp_phy);
+					goto exit;
+				}
+				pr_es_dbg("%s caution!!! pchan->id:%d, rp_phy:0x%llx\n",
+					__func__, pout->pchan->id, info->rp_phy);
+			} else if (info->rp_phy >= buf_phy_start &&
+				info->rp_phy <= (buf_phy_start + total_size)) {
+				pout->decoder_rp_offset = info->rp_phy - buf_phy_start;
+				pr_dbg("%s pchan->id:%d, wp_offset:0x%0x, rp_phy:0x%llx\n",
+					__func__, pout->pchan->id, wp_offset, info->rp_phy);
+				goto exit;
+			}
+		}
+	}
+
+	pr_dbg("%s can't find channel, ch_id:0x%x\n", __func__, ch_id);
+exit:
+	mutex_unlock(ts_output_mutex);
+	return 0;
+}
+
+int ts_output_get_channel_id(u64 buf_start, u32 *ch_id)
+{
+	int i = 0;
+	struct out_elem *pout;
+	struct es_entry *es_slot;
+
+	for (i = 0; i < MAX_ES_NUM; i++) {
+		es_slot = &es_table[i];
+		pout = es_slot->pout;
+
+		if (es_slot->used && es_slot->status == ES_FORMAT &&
+			pout->used && pout->type == VIDEO_TYPE) {
+			if (pout->pchan->is_multi_buf) {
+				if (SC2_bufferid_get_ptr_buf(pout->pchan, buf_start) >= 0) {
+					*ch_id = pout->ch_id;
+					return 0;
+				}
+				dprint("%s not this channel, ch_id:0x%x\n", __func__, pout->ch_id);
+			} else if (pout->pchan->mem_phy == buf_start) {
+				*ch_id = pout->ch_id;
+				return 0;
+			}
+		}
+	}
+
+	dprint("%s error!!! can't find channel, buf_start:0x%llx\n", __func__, buf_start);
+	return -1;
 }
 
 static int aucpu_get_aud_free_size(struct out_elem *pout)
@@ -4507,7 +4922,29 @@ int ts_output_check_flow_control(int sid, int percentage)
 				&free_size, &wp_offset, NULL);
 			level = (unsigned long)total_size * percentage / 100;
 
-			if (pout->type == VIDEO_TYPE) {
+			if (pout->type == VIDEO_TYPE && pout->pchan->is_multi_buf) {
+				unsigned int valid_size = 0;
+				int j = 0;
+
+				for (j = 0; j < pout->pchan->buf_num; j++)
+					if (pout->pchan->es_buf_list[j].used)
+						valid_size += pout->pchan->es_buf_list[j].buf_size;
+
+				if (valid_size != total_size) {
+					pr_es_dbg("%s valid_size:0x%x total_size:0x%x\n",
+						__func__, valid_size, total_size);
+					level = (unsigned long)valid_size * percentage / 100;
+					free_size = valid_size -
+						SC2_bufferid_get_data_len_multi_buf(pout->pchan,
+						pout->decoder_rptr_phy);
+				}
+
+				if (valid_size - free_size >= level) {
+					pr_dbg("%s multi video buf:0x%0x, level:0x%0x\n",
+						__func__, valid_size - free_size, level);
+					return -1;
+				}
+			} else if (pout->type == VIDEO_TYPE && pout->pchan->is_multi_buf == 0) {
 				if (pout->decoder_rp_offset == INVALID_DECODE_RP)
 					continue;
 				if (pout->decoder_rp_offset <= wp_offset) {

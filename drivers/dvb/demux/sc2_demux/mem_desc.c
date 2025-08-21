@@ -46,6 +46,8 @@ static struct chan_id chan_id_table_r[R_MAX_MEM_CHAN_NUM];
 	dprintk(LOG_ERROR, debug_mem_desc, "mem_desc:" fmt, ## args)
 #define pr_dbg(fmt, args...)     \
 	dprintk(LOG_DBG, debug_mem_desc, "mem_desc:" fmt, ## args)
+#define pr_es_dbg(fmt, args...)     \
+	dprintk(LOG_DBG, debug_mem_desc, "mem_desc:" fmt, ## args)
 #define pr_dbg_mem(fmt, args...)     \
 	do {\
 		if (debug_mem_desc == 2)\
@@ -66,14 +68,14 @@ static int pvr_memory_reserved;
 struct mem_cache {
 	unsigned long start_virt;
 	unsigned long start_phys;
-	unsigned char elem_count;
+	unsigned int elem_count;
 	unsigned int elem_size;
 	unsigned int used_count;
+	// TODO: the array's size should be larger than 2 caches' elem count
 	char flag_arry[64];
 };
 
-#define FIRST_CACHE_ELEM_COUNT    64
-
+#define FIRST_CACHE_ELEM_COUNT     64
 #define SECOND_CACHE_ELEM_COUNT    48
 #define SECOND_CACHE_ELEM_SIZE     (128 * 1024)
 
@@ -111,7 +113,15 @@ struct dmc_mem {
 	struct dmc_range *range;
 };
 
-#define DMC_MEM_DEFAULT_SIZE (20 * 1024 * 1024)
+#define DMC_MEM_DEFAULT_SIZE		(20 * 1024 * 1024)
+#define DMC_MEM_NON_VIDEO_SIZE		(5 * 1024 * 1024)
+#define INIT_DMC_RAGNE_NUM	2
+#define DESC_LAST_SIZE		0x100
+#define DESC_NUM		4
+#define UPDATE_DESC_TIMEOUT	30
+
+static DEFINE_SPINLOCK(add_buf_lock);
+static struct mutex dmc_mutex;
 static struct dmc_mem dmc_mem_level[7];
 static dmx_dump_cb dump_input_cb;
 static int dump_input_cb_ref;
@@ -130,9 +140,9 @@ static int cache_init(int cache_level)
 			return -1;
 
 		memset(first_cache, 0, sizeof(struct mem_cache));
-		first_cache->elem_size = sizeof(union mem_desc);
+		first_cache->elem_size = sizeof(union mem_desc) * MAX_ES_BUF_NUM * DESC_NUM;
 		first_cache->elem_count = cache0_count_max;
-		total_size = sizeof(union mem_desc) * cache0_count_max;
+		total_size = first_cache->elem_size * first_cache->elem_count;
 		if ((get_dmx_version() >= 6) && (sizeof(unsigned long) == 8)) {
 			gfp_flags = GFP_KERNEL;
 			if (dma_set_mask_and_coherent(aml_get_device(), DMA_BIT_MASK(64)))
@@ -176,6 +186,7 @@ static int cache_init(int cache_level)
 		if (IS_ERR_OR_NULL((const void *)second_cache->start_virt)) {
 			codec_mm_free_for_dma("dmx", second_cache->start_phys);
 			vfree(second_cache);
+			second_cache = NULL;
 			err_val = -3;
 			goto error_handle;
 		}
@@ -223,7 +234,7 @@ static int cache_get_block(struct mem_cache *cache,
 	}
 
 	if (i == cache->elem_count) {
-		dprint_i("dmx cache full\n");
+		dprint_i("error!!! dmx cache full, elem_count:%d\n", cache->elem_count);
 		return -1;
 	}
 	if (p_virt)
@@ -253,6 +264,11 @@ static int cache_free_block(struct mem_cache *cache, unsigned long phys_mem)
 			}
 		}
 	}
+
+	dprint("%s error!!! phys_mem:0x%lx\n", __func__, phys_mem);
+	for (i = 0; i < cache->elem_count; i++)
+		dprint("%s flag_arry[%d]:%d addr:0x%lx\n", __func__, i,
+			cache->flag_arry[i], cache->start_phys + i * cache->elem_size);
 	return -1;
 }
 
@@ -430,8 +446,12 @@ static int dmc_range_destroy(struct dmc_range *range)
 	struct mem_region *header = NULL;
 	struct mem_region *tmp = NULL;
 
-	if (!range->used)
+	pr_es_dbg("%s buf_start_phy:0x%lx\n", __func__, range->buf_start_phy);
+	if (!range->used) {
+		dprint("%s error!!! not used\n", __func__);
 		return 0;
+	}
+
 	tee_unprotect_mem(range->handle);
 	codec_mm_free_for_dma("dmx", range->buf_start_phy);
 	range->handle = 0;
@@ -506,6 +526,7 @@ static int dmc_range_get_block(struct dmc_range *range, unsigned int len,
 
 	*p_virt = temp->start_virt;
 	*p_phys = temp->start_phy;
+	pr_es_dbg("%s start_phy:0x%lx len:0x%x\n", __func__, temp->start_phy, len);
 	return 0;
 }
 
@@ -518,6 +539,7 @@ static int dmc_range_free_block(struct dmc_range *range, unsigned long phys_mem)
 			header->status == 1) {
 			header->status = 0;
 			range->ref--;
+			pr_es_dbg("%s phys_mem:0x%lx\n", __func__, phys_mem);
 			return 0;
 		}
 		header = header->pnext;
@@ -561,6 +583,59 @@ static int dmc_mem_init(struct dmc_mem *mem, int sec_level)
 	return 0;
 }
 
+static int dmc_mem_init_multi_buf(struct dmc_mem *mem, int sec_level)
+{
+	struct dmc_range *temp = NULL;
+	int num = 0;
+
+	mem->range_num = INIT_DMC_RAGNE_NUM;
+	temp = vmalloc(sizeof(*temp) * (INIT_DMC_RAGNE_NUM + 3 * (MAX_ES_BUF_NUM - 1)));
+	if (!temp) {
+		dprint("%s err vmalloc\n", __func__);
+		return -1;
+	}
+	memset(temp, 0, sizeof(*temp) * (INIT_DMC_RAGNE_NUM + 3 * (MAX_ES_BUF_NUM - 1)));
+
+	// TODO: need to review this
+	num = mem->total_size / (DMC_MEM_NON_VIDEO_SIZE + get_multi_es_buf0_size());
+	if (num >= mem->range_num) {
+		temp[0].size = DMC_MEM_NON_VIDEO_SIZE + get_multi_es_buf0_size() + 2 * 1024 * 1024;
+		temp[1].size = mem->total_size - temp[0].size;
+	} else {
+		temp[0].size = mem->total_size;
+		mem->range_num = 1;
+	}
+
+	mem->range = temp;
+	mem->level = sec_level;
+	mem->init = 1;
+	dprint("%s total_size:0x%x num:%d range_num:%d\n", __func__, mem->total_size, num,
+		mem->range_num);
+	return 0;
+}
+
+static int dmc_mem_add_range(struct dmc_mem *mem, int range_size)
+{
+	int i = 0;
+
+	for (i = 0; i < (INIT_DMC_RAGNE_NUM + 3 * (MAX_ES_BUF_NUM - 1)); i++) {
+		if (mem->range[i].used == 0)
+			break;
+	}
+
+	if (i >= (INIT_DMC_RAGNE_NUM + 3 * (MAX_ES_BUF_NUM - 1))) {
+		dprint("%s error!!! i:%d\n", __func__, i);
+		return -1;
+	}
+
+	mem->range[i].size = range_size;
+	//mem->total_size += range_size;
+	mem->range_num += 1;
+	dprint("%s range[%d].size:0x%x range_num:%d\n", __func__, i, mem->range[i].size,
+		mem->range_num);
+	return 0;
+}
+
 static int dmc_mem_destroy(struct dmc_mem *mem)
 {
 	int i = 0;
@@ -574,6 +649,8 @@ static int dmc_mem_destroy(struct dmc_mem *mem)
 				not_free = 1;
 		}
 	}
+
+	pr_es_dbg("%s not_free:%d\n", __func__, not_free);
 	if (not_free)
 		return 0;
 	vfree(mem->range);
@@ -597,6 +674,8 @@ static int dmc_mem_get_block(struct dmc_mem *mem, unsigned int len,
 	return -1;
 }
 
+static void dmc_mem_print(int mem_num);
+static void dmc_mem_print_info(void);
 static int dmc_mem_free_block(struct dmc_mem *mem, unsigned long phys_mem)
 {
 	int i = 0;
@@ -610,6 +689,9 @@ static int dmc_mem_free_block(struct dmc_mem *mem, unsigned long phys_mem)
 			}
 		}
 	}
+
+	dprint("%s error!!! no find block\n", __func__);
+	dmc_mem_print_info();
 	return -1;
 }
 
@@ -630,6 +712,39 @@ static int dmc_mem_malloc(int sec_level, int len,
 			return -1;
 	}
 	return dmc_mem_get_block(&dmc_mem_level[dmc_index], len, p_virt, p_phys);
+}
+
+static int dmc_mem_malloc_multi_buf(int sec_level, int len,
+	unsigned long *p_virt, unsigned long *p_phys)
+{
+	int dmc_index = sec_level - 1;
+	int ret = 0;
+
+	if (dmc_index < 0 || dmc_index >= 7) {
+		dprint("%s err level:%d\n", __func__, sec_level);
+		return -1;
+	}
+
+	if (!dmc_mem_level[dmc_index].init) {
+		ret = dmc_mem_init_multi_buf(&dmc_mem_level[dmc_index], sec_level);
+		if (ret != 0)
+			return -1;
+	}
+
+	ret = dmc_mem_get_block(&dmc_mem_level[dmc_index], len, p_virt, p_phys);
+	if (ret != 0) {
+		dprint("%s len:0x%x\n", __func__, len);
+		ret = dmc_mem_add_range(&dmc_mem_level[dmc_index], len);
+		if (ret != 0)
+			return -1;
+		ret = dmc_mem_get_block(&dmc_mem_level[dmc_index], len, p_virt, p_phys);
+	}
+
+	// TODO: added for debug, will remove it
+	if (len > 3 * 1024 * 1024)
+		dmc_mem_print(1);
+
+	return ret;
 }
 
 static int dmc_mem_free(unsigned long buf, unsigned int len, int sec_level)
@@ -662,6 +777,10 @@ int dmc_mem_set_size(int sec_level, unsigned int mem_size)
 {
 	int dmc_index = sec_level - 1;
 
+	// TODO: added for fcc test, will remove this
+	//if (get_multi_es_buf_switch() && mem_size == 66 * 1024 * 1024)
+		//mem_size = 36 * 1024 * 1024;
+
 	if (dmc_index < 0 || dmc_index >= 7) {
 		dprint("%s err level:%d\n", __func__, sec_level);
 		return -1;
@@ -670,43 +789,96 @@ int dmc_mem_set_size(int sec_level, unsigned int mem_size)
 		dmc_mem_level[dmc_index].total_size = mem_size / (64 * 1024) * (64 * 1024);
 	else
 		dprint("%s should set size before app\n", __func__);
+
+	pr_es_dbg("%s mem_size:0x%x total_size:0x%x\n", __func__, mem_size,
+		dmc_mem_level[dmc_index].total_size);
 	return 0;
 }
 
-static int dmc_mem_dump(char *buf, struct dmc_mem *mem)
+static void dmc_mem_print(int mem_num)
+{
+	struct dmc_mem *mem = &dmc_mem_level[mem_num];
+	int n = 0;
+
+	if (mem->init) {
+		pr_es_dbg("%d init:1 level:%d total size:%d range_num:%d\n",
+			mem_num, mem->level, mem->total_size, mem->range_num);
+
+		for (n = 0; n < mem->range_num; n++) {
+			struct mem_region *header = mem->range[n].region_list;
+
+			pr_es_dbg("\t%d used:%d addr:0x%lx size:0x%0x ref:%d free:0x%0x\n",
+				n, mem->range[n].used, mem->range[n].buf_start_phy,
+				mem->range[n].size, mem->range[n].ref, mem->range[n].free_len);
+			while (header) {
+				if (header->len >= 3 * 1024 * 1024)
+					dprint("\t\tstatus:%d addr:0x%lx len 0x%0x\n",
+						header->status, header->start_phy, header->len);
+				header = header->pnext;
+			}
+		}
+	} else {
+		pr_es_dbg("%d init:0 level:%d total size:%d\n",
+			mem_num, mem->level, mem->total_size);
+	}
+}
+
+static void dmc_mem_print_info(void)
 {
 	int i = 0;
+
+	pr_es_dbg("********dmc mem********\n");
+	for (i = 0; i < 7; i++)
+		dmc_mem_print(i);
+}
+
+static int dmc_mem_dump(char *buf, int mem_num)
+{
+	struct dmc_mem *mem = &dmc_mem_level[mem_num];
 	int r, total = 0;
 	int n = 0;
 
 	if (mem->init) {
-		r = sprintf(buf, "%d status: using level:%d total size:%d\n",
-			i,
-		mem->level,
-		mem->total_size);
+		r = sprintf(buf, "%d status: using level:%d total size:%d range_num:%d\n",
+			mem_num,
+			mem->level,
+			mem->total_size,
+			mem->range_num);
 		buf += r;
 		total += r;
 		if (!mem->range)
 			return total;
 
 		for (n = 0; n < mem->range_num; n++) {
-			r = sprintf(buf, " %d status:%d size 0x%0x ref:%d free:0x%0x\n",
-				n + 1,
-			mem->range[n].used,
-			mem->range[n].size,
-			mem->range[n].ref,
-			mem->range[n].free_len);
+			struct mem_region *header = mem->range[n].region_list;
+
+			r = sprintf(buf, "\t%d used:%d addr:0x%lx size:0x%0x ref:%d free:0x%0x\n",
+				n,
+				mem->range[n].used,
+				mem->range[n].buf_start_phy,
+				mem->range[n].size,
+				mem->range[n].ref,
+				mem->range[n].free_len);
 			buf += r;
 			total += r;
+
+			while (header) {
+				r = sprintf(buf, "\t\tstatus:%d addr:0x%lx len 0x%0x\n",
+					header->status, header->start_phy, header->len);
+				buf += r;
+				total += r;
+				header = header->pnext;
+			}
 		}
 	} else {
 		r = sprintf(buf, "%d status: no use level:%d total size:%d\n",
-			i,
-		mem->level,
-		mem->total_size);
+			mem_num,
+			mem->level,
+			mem->total_size);
 		buf += r;
 		total += r;
 	}
+
 	return total;
 }
 
@@ -714,15 +886,13 @@ int dmc_mem_dump_info(char *buf)
 {
 	int i = 0;
 	int r, total = 0;
-	struct dmc_mem *mem;
 
 	r = sprintf(buf, "********dmc mem********\n");
 	buf += r;
 	total += r;
 
 	for (i = 0; i < 7; i++) {
-		mem = &dmc_mem_level[i];
-		r = dmc_mem_dump(buf, mem);
+		r = dmc_mem_dump(buf, i);
 		buf += r;
 		total += r;
 	}
@@ -822,12 +992,20 @@ int _alloc_buff(unsigned int len, int sec_level,
 
 	pr_dbg_mem("%s size:%d\n", __func__, len);
 	if (sec_level) {
-		iret = dmc_mem_malloc(sec_level, len, &buf_start_virt, &buf_start);
+		if (get_multi_es_buf_switch()) {
+			mutex_lock(&dmc_mutex);
+			iret = dmc_mem_malloc_multi_buf(sec_level, len, &buf_start_virt,
+							&buf_start);
+			mutex_unlock(&dmc_mutex);
+		} else {
+			iret = dmc_mem_malloc(sec_level, len, &buf_start_virt, &buf_start);
+		}
 		if (iret == 0) {
 			alloc_pos = 1;
 			goto success_handle;
 		}
 
+		dmc_mem_print_info();
 		err_val = -1;
 		goto error_handle;
 	}
@@ -887,7 +1065,13 @@ void _free_buff(unsigned long vir_mem, unsigned long phy_mem,
 	int iret = 0;
 
 	if (sec_level) {
-		dmc_mem_free(phy_mem, len, sec_level);
+		if (get_multi_es_buf_switch()) {
+			mutex_lock(&dmc_mutex);
+			dmc_mem_free(phy_mem, len, sec_level);
+			mutex_unlock(&dmc_mutex);
+		} else {
+			dmc_mem_free(phy_mem, len, sec_level);
+		}
 		return;
 	}
 
@@ -903,6 +1087,44 @@ void _free_buff(unsigned long vir_mem, unsigned long phy_mem,
 	codec_mm_free_for_dma("dmx", phy_mem);
 }
 
+static void _bufferid_set_descriptors(struct chan_id *pchan, int buf_num, int eoc)
+{
+	union mem_desc *desc_ptr = pchan->es_buf_list[buf_num].descs_virt;
+	u64 desc_addr = pchan->es_buf_list[buf_num].buf_phy;
+
+	//dprint("%s pchan->id:%d buf_num:%d\n", __func__, pchan->id, buf_num);
+	memset(desc_ptr, 0, sizeof(union mem_desc) * DESC_NUM);
+
+	//first descriptor
+	if (get_dmx_version() >= 6)
+		desc_ptr[0].bits.address_high = (desc_addr >> 32) & 0x3;
+	desc_ptr[0].bits.address_low = desc_addr & 0xFFFFFFFF;
+	desc_ptr[0].bits.byte_length = pchan->es_buf_list[buf_num].buf_size - DESC_RESERVED_SIZE;
+
+	//second descriptor
+	desc_addr += desc_ptr[0].bits.byte_length;
+	if (get_dmx_version() >= 6)
+		desc_ptr[1].bits.address_high = (desc_addr >> 32) & 0x3;
+	desc_ptr[1].bits.address_low = desc_addr & 0xFFFFFFFF;
+	desc_ptr[1].bits.byte_length = DESC_RESERVED_SIZE - DESC_LAST_SIZE * 2;
+
+	//third descriptor
+	desc_addr += desc_ptr[1].bits.byte_length;
+	if (get_dmx_version() >= 6)
+		desc_ptr[2].bits.address_high = (desc_addr >> 32) & 0x3;
+	desc_ptr[2].bits.address_low = desc_addr & 0xFFFFFFFF;
+	desc_ptr[2].bits.byte_length = DESC_LAST_SIZE;
+
+	//forth descriptor
+	desc_addr += desc_ptr[2].bits.byte_length;
+	if (get_dmx_version() >= 6)
+		desc_ptr[3].bits.address_high = (desc_addr >> 32) & 0x3;
+	desc_ptr[3].bits.address_low = desc_addr & 0xFFFFFFFF;
+	desc_ptr[3].bits.byte_length = DESC_LAST_SIZE;
+	desc_ptr[3].bits.loop = eoc & loop_desc;
+	desc_ptr[3].bits.eoc = eoc;
+}
+
 static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 				     unsigned int mem_size, int sec_level)
 {
@@ -916,6 +1138,21 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 		dprint("%s fail, need support >=128M bytes\n", __func__);
 		return -1;
 	}
+
+	// TODO: need to review this
+	if (pchan->is_multi_buf) {
+		if ((get_multi_es_buf0_size() + get_multi_es_buf1_size() + DESC_RESERVED_SIZE >=
+			get_video_buf_size()) || get_multi_es_buf0_size() <= DESC_RESERVED_SIZE ||
+			get_multi_es_buf1_size() <= DESC_RESERVED_SIZE) {
+			dprint("%s error!!! buf0_size:0x%x buf1_size:0x%x video_buf_size:0x%x\n",
+				__func__, get_multi_es_buf0_size(), get_multi_es_buf1_size(),
+				get_video_buf_size());
+			return -1;
+		}
+		mem_size = get_multi_es_buf0_size();
+		pr_es_dbg("%s multi_es_buf0_size:0x%x\n", __func__, mem_size);
+	}
+
 	if (pchan->mode == INPUT_MODE && sec_level != 0) {
 		mem = 0;
 		mem_size = 0;
@@ -933,12 +1170,14 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 				dprint("%s malloc fail\n", __func__);
 				return -1;
 			}
-			pr_dbg("%s malloc mem:0x%lx, mem_phy:0x%lx, sec:%d\n",
-					__func__, mem, mem_phy, sec_level);
+			pr_dbg("%s id:%d, mem:0x%lx, mem_phy:0x%lx, mem_size:0x%x, sec:%d\n",
+				__func__, pchan->id, mem, mem_phy, mem_size, sec_level);
 		}
 	}
-	ret =
-	    _alloc_buff(sizeof(union mem_desc), 0, &memdescs, &memdescs_phy, pchan->format);
+
+	pchan->descs_size = pchan->is_multi_buf ?
+		(sizeof(union mem_desc) * MAX_ES_BUF_NUM * DESC_NUM) : sizeof(union mem_desc);
+	ret = _alloc_buff(pchan->descs_size, 0, &memdescs, &memdescs_phy, pchan->format);
 	if (ret != 0) {
 		_free_buff(mem, mem_phy, mem_size, sec_level, pchan->format);
 		dprint("%s malloc 2 fail\n", __func__);
@@ -959,8 +1198,33 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 	pchan->memdescs->bits.loop = loop_desc;
 	pchan->memdescs->bits.eoc = 1;
 
+	if (pchan->is_multi_buf) {
+		pchan->es_buf_list = vmalloc(sizeof(*pchan->es_buf_list) * MAX_ES_BUF_NUM);
+		if (!pchan->es_buf_list) {
+			_free_buff(memdescs, memdescs_phy, pchan->descs_size, 0, pchan->format);
+			_free_buff(mem, mem_phy, mem_size, sec_level, pchan->format);
+			dprint("%s vmalloc error!!!\n", __func__);
+			return -1;
+		}
+		memset(pchan->es_buf_list, 0, sizeof(*pchan->es_buf_list) * MAX_ES_BUF_NUM);
+
+		pchan->buf_num = 1;
+		pchan->rptr_phy = mem_phy;
+		pchan->reduce_counter = 0;
+		pchan->max_data_size = 0;
+
+		pchan->es_buf_list[0].allocated = 1;
+		pchan->es_buf_list[0].used = 1;
+		pchan->es_buf_list[0].buf_size = mem_size;
+		pchan->es_buf_list[0].buf_virt = mem;
+		pchan->es_buf_list[0].buf_phy = mem_phy;
+		pchan->es_buf_list[0].descs_virt = pchan->memdescs;
+		pchan->es_buf_list[0].descs_phy = memdescs_phy;
+		_bufferid_set_descriptors(pchan, 0, 1);
+	}
+
 	dma_sync_single_for_device(aml_get_device(),
-		pchan->memdescs_phy, sizeof(union mem_desc), DMA_TO_DEVICE);
+		pchan->memdescs_phy, pchan->descs_size, DMA_TO_DEVICE);
 	pr_dbg("flush mem descs to ddr\n");
 	pr_dbg("%s mem_desc phy addr 0x%lx, memdescs:0x%lx\n", __func__,
 	       pchan->memdescs_phy, (unsigned long)pchan->memdescs);
@@ -975,16 +1239,167 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 	return 0;
 }
 
+int SC2_bufferid_add_buf(struct chan_id *pchan)
+{
+	unsigned long mem;
+	unsigned long mem_phy;
+	unsigned int add_buf_size;
+	s64 start_time;
+	s64 spent_time;
+	unsigned long flags;
+	u64 now_w = SC2_bufferid_get_wptr(pchan);
+	int wptr_buf_num = SC2_bufferid_get_ptr_buf(pchan, now_w);
+	int ret = 0;
+	int i;
+
+	// TODO: need to review this
+	add_buf_size = (pchan->buf_num == 1) ? get_multi_es_buf1_size() :
+			(get_video_buf_size() - pchan->mem_size);
+	pr_es_dbg("%s buf_num:%d add_buf_size:0x%x\n", __func__, pchan->buf_num, add_buf_size);
+
+	for (i = 0; i < MAX_ES_BUF_NUM; i++) {
+		if (pchan->es_buf_list[i].allocated == 0)
+			break;
+	}
+
+	if (i >= MAX_ES_BUF_NUM || i <= 0) {
+		dprint("%s no more buffer i:%d\n", __func__, i);
+		return -3;
+	}
+
+	ret = _alloc_buff(add_buf_size, pchan->sec_level, &mem, &mem_phy, pchan->format);
+	if (ret != 0) {
+		dprint("%s error!!! alloc memory failed\n", __func__);
+		return -4;
+	}
+	dma_sync_single_for_device(aml_get_device(), mem_phy, add_buf_size, DMA_TO_DEVICE);
+
+	// disable irq to avoid interruption
+	spin_lock_irqsave(&add_buf_lock, flags);
+	start_time = ktime_to_us(ktime_get());
+	if ((wptr_buf_num == i - 1) && (now_w > pchan->es_buf_list[wptr_buf_num].buf_phy +
+		pchan->es_buf_list[wptr_buf_num].buf_size - DESC_RESERVED_SIZE)) {
+		spin_unlock_irqrestore(&add_buf_lock, flags);
+		dprint("%s caution!!! wp not available now, now_w:0x%llx\n", __func__, now_w);
+		_free_buff(mem, mem_phy, add_buf_size, pchan->sec_level, pchan->format);
+		return -5;
+	}
+
+	pchan->es_buf_list[i].allocated = 1;
+	pchan->es_buf_list[i].used = 0;
+	pchan->es_buf_list[i].buf_size = add_buf_size;
+	pchan->es_buf_list[i].buf_virt = mem;
+	pchan->es_buf_list[i].buf_phy = mem_phy;
+	pchan->es_buf_list[i].descs_virt = pchan->es_buf_list[i - 1].descs_virt + DESC_NUM;
+	pchan->es_buf_list[i].descs_phy = pchan->es_buf_list[i - 1].descs_phy +
+					sizeof(union mem_desc) * DESC_NUM;
+	_bufferid_set_descriptors(pchan, i, 1);
+
+	pchan->es_buf_list[i - 1].descs_virt[DESC_NUM - 1].bits.loop = 0;
+	pchan->es_buf_list[i - 1].descs_virt[DESC_NUM - 1].bits.eoc = 0;
+	pchan->buf_num += 1;
+	pchan->mem_size += add_buf_size;
+	pchan->reduce_counter = 0;
+
+	dma_sync_single_for_device(aml_get_device(), pchan->memdescs_phy,
+		sizeof(union mem_desc) * MAX_ES_BUF_NUM * DESC_NUM, DMA_TO_DEVICE);
+	wdma_set_wch_len(pchan->id, pchan->mem_size);
+	spent_time = ktime_to_us(ktime_get()) - start_time;
+	spin_unlock_irqrestore(&add_buf_lock, flags);
+
+	pr_es_dbg("%s id:%d, mem:0x%lx, mem_phy:0x%lx, add_buf_size:0x%x, sec_level:%d\n",
+		__func__, pchan->id, mem, mem_phy, add_buf_size, pchan->sec_level);
+	pr_es_dbg("%s spent time: %lld us\n", __func__, spent_time);
+	if (spent_time > UPDATE_DESC_TIMEOUT)
+		dprint("%s error!!! spent time: %lld us\n", __func__, spent_time);
+
+	return 0;
+}
+
+int SC2_bufferid_reduce_buf(struct chan_id *pchan, u64 rp)
+{
+	s64 start_time;
+	s64 spent_time;
+	unsigned long flags;
+	u64 now_w = SC2_bufferid_get_wptr(pchan);
+	u64 now_r = rp ? rp : pchan->rptr_phy;
+	int wptr_buf_num = SC2_bufferid_get_ptr_buf(pchan, now_w);
+	int rptr_buf_num = SC2_bufferid_get_ptr_buf(pchan, now_r);
+	int i = pchan->buf_num - 1;
+
+	// disable irq to avoid interruption
+	spin_lock_irqsave(&add_buf_lock, flags);
+	start_time = ktime_to_us(ktime_get());
+	if (wptr_buf_num < rptr_buf_num || wptr_buf_num == i ||
+		(wptr_buf_num == rptr_buf_num && now_w < now_r) ||
+		((wptr_buf_num == i - 1) && (now_w > pchan->es_buf_list[wptr_buf_num].buf_phy +
+		pchan->es_buf_list[wptr_buf_num].buf_size - DESC_RESERVED_SIZE))) {
+		spin_unlock_irqrestore(&add_buf_lock, flags);
+		pr_dbg("%s unavailable now_w:0x%llx now_r:0x%llx\n", __func__, now_w, now_r);
+		return -1;
+	}
+
+	pchan->es_buf_list[i].allocated = 0;
+	pchan->es_buf_list[i].used = 0;
+	pchan->es_buf_list[i - 1].descs_virt[DESC_NUM - 1].bits.loop = loop_desc;
+	pchan->es_buf_list[i - 1].descs_virt[DESC_NUM - 1].bits.eoc = 1;
+	pchan->buf_num -= 1;
+	pchan->mem_size -= pchan->es_buf_list[i].buf_size;
+	pchan->reduce_counter = 0;
+
+	dma_sync_single_for_device(aml_get_device(), pchan->memdescs_phy,
+		sizeof(union mem_desc) * MAX_ES_BUF_NUM * DESC_NUM, DMA_TO_DEVICE);
+	wdma_set_wch_len(pchan->id, pchan->mem_size);
+	spent_time = ktime_to_us(ktime_get()) - start_time;
+	spin_unlock_irqrestore(&add_buf_lock, flags);
+
+	_free_buff((unsigned long)pchan->es_buf_list[i].buf_virt,
+		(unsigned long)pchan->es_buf_list[i].buf_phy, pchan->es_buf_list[i].buf_size,
+		pchan->sec_level, pchan->format);
+	pr_es_dbg("%s id:%d, mem:0x%lx, mem_phy:0x%lx, buf_size:0x%x, sec_level:%d\n",
+		__func__, pchan->id, (unsigned long)pchan->es_buf_list[i].buf_virt,
+		(unsigned long)pchan->es_buf_list[i].buf_phy, pchan->es_buf_list[i].buf_size,
+		pchan->sec_level);
+	pr_es_dbg("%s spent time: %lld us\n", __func__, spent_time);
+	if (spent_time > UPDATE_DESC_TIMEOUT)
+		dprint("%s error!!! spent time: %lld us\n", __func__, spent_time);
+
+	return 0;
+}
+
 static void _bufferid_free_desc_mem(struct chan_id *pchan)
 {
-	if (pchan->mem && pchan->sec_size == 0)
-		_free_buff((unsigned long)pchan->mem,
-				(unsigned long)pchan->mem_phy,
-			   pchan->mem_size, pchan->sec_level, pchan->format);
+	// TODO: watch out the size param
+	if (pchan->is_multi_buf) {
+		int i;
+
+		pr_es_dbg("%s max_data_size:0x%x\n", __func__, pchan->max_data_size);
+		for (i = 0; i < pchan->buf_num; i++) {
+			if (pchan->es_buf_list[i].allocated) {
+				pr_es_dbg("%s i:%d buf_phy:0x%lx\n", __func__, i,
+					pchan->es_buf_list[i].buf_phy);
+				_free_buff(pchan->es_buf_list[i].buf_virt,
+					pchan->es_buf_list[i].buf_phy,
+					pchan->es_buf_list[i].buf_size,
+					pchan->sec_level, pchan->format);
+				memset(pchan->es_buf_list + i, 0, sizeof(pchan->es_buf_list[i]));
+			}
+		}
+
+		vfree(pchan->es_buf_list);
+		pchan->es_buf_list = NULL;
+		pchan->is_multi_buf = 0;
+		pchan->buf_num = 0;
+	} else {
+		if (pchan->mem && pchan->sec_size == 0)
+			_free_buff((unsigned long)pchan->mem, (unsigned long)pchan->mem_phy,
+				pchan->mem_size, pchan->sec_level, pchan->format);
+	}
+
 	if (pchan->memdescs)
-		_free_buff((unsigned long)pchan->memdescs,
-				(unsigned long)pchan->memdescs_phy,
-			   sizeof(union mem_desc), 0, pchan->format);
+		_free_buff((unsigned long)pchan->memdescs, (unsigned long)pchan->memdescs_phy,
+			   pchan->descs_size, 0, pchan->format);
+
 	pchan->mem = 0;
 	pchan->mem_phy = 0;
 	pchan->mem_size = 0;
@@ -1012,6 +1427,7 @@ static int _bufferid_alloc_chan_w_for_es(struct bufferid_attr *attr, struct chan
 			pchan1_tmp->is_es = 1;
 			pchan_tmp->format = attr->format;
 			pchan1_tmp->format = attr->format;
+			pchan_tmp->is_multi_buf = attr->is_multi_buf;
 			*pchan = pchan_tmp;
 			*pchan1 = pchan1_tmp;
 			break;
@@ -1104,6 +1520,7 @@ static void check_packet_alignm(unsigned long start, unsigned long end, int pack
  */
 int SC2_bufferid_init(void)
 {
+	unsigned int dmc_mem_size;
 	int i = 0;
 
 	pr_dbg("%s enter\n", __func__);
@@ -1124,8 +1541,15 @@ int SC2_bufferid_init(void)
 		pchan->mode = INPUT_MODE;
 	}
 
+	// TODO: need to review this
+	dmc_mem_size = get_multi_es_buf_switch() ?
+		(DMC_MEM_NON_VIDEO_SIZE + get_multi_es_buf0_size()) :
+		DMC_MEM_DEFAULT_SIZE;
+	pr_es_dbg("%s dmc_mem_size:0x%x\n", __func__, dmc_mem_size);
 	for (i = 1; i <= 7; i++)
-		dmc_mem_set_size(i, DMC_MEM_DEFAULT_SIZE);
+		dmc_mem_set_size(i, dmc_mem_size);
+
+	mutex_init(&dmc_mutex);
 
 	return 0;
 }
@@ -1234,42 +1658,6 @@ int SC2_bufferid_set_enable(struct chan_id *pchan, int enable, int sid, int pid)
 	return 0;
 }
 
-/**
- * recv data
- * \param pchan:struct chan_id handle
- * \retval 0: no data
- * \retval 1: recv data, it can call SC2_bufferid_read
- */
-int SC2_bufferid_recv_data(struct chan_id *pchan)
-{
-	unsigned int wr_offset = 0;
-
-	if (!pchan)
-		return 0;
-
-	wr_offset = wdma_get_wr_len(pchan->id, NULL);
-	if (wr_offset != pchan->r_offset)
-		return 1;
-	return 0;
-}
-
-unsigned int SC2_bufferid_get_free_size(struct chan_id *pchan)
-{
-	unsigned int now_w = 0;
-	unsigned int r = pchan->r_offset;
-	unsigned int mem_size = pchan->mem_size;
-	unsigned int free_space = 0;
-
-	now_w = wdma_get_wr_len(pchan->id, NULL) % pchan->mem_size;
-
-	if (now_w >= r)
-		free_space = mem_size - (now_w - r);
-	else
-		free_space = r - now_w;
-
-	return free_space;
-}
-
 unsigned int SC2_bufferid_get_wp_offset(struct chan_id *pchan)
 {
 	return (wdma_get_wr_len(pchan->id, NULL) % pchan->mem_size);
@@ -1284,6 +1672,158 @@ unsigned int SC2_bufferid_get_data_len(struct chan_id *pchan)
 		return w_offset - pchan->r_offset;
 	else
 		return pchan->mem_size - pchan->r_offset + w_offset;
+}
+
+/**
+ * get which buffer the ptr is in
+ * \param pchan:struct chan_id handle
+ * \param ptr:ptr
+ * \retval >=0:buffer number
+ * \retval -1:fail.
+ */
+int SC2_bufferid_get_ptr_buf(struct chan_id *pchan, u64 ptr)
+{
+	int i;
+
+	for (i = 0; i < pchan->buf_num; i++) {
+		struct multi_es_buf_info *pbuf_info = pchan->es_buf_list + i;
+
+		if (ptr >= pbuf_info->buf_phy && (ptr < pbuf_info->buf_phy + pbuf_info->buf_size))
+			return i;
+	}
+
+	pr_es_dbg("%s caution!!! pchan->id:%d ptr:0x%llx\n", __func__, pchan->id, ptr);
+	for (i = 0; i < pchan->buf_num; i++)
+		pr_es_dbg("%s es_buf_list[%d].buf_phy:0x%lx\n", __func__, i,
+			pchan->es_buf_list[i].buf_phy);
+
+	return -1;
+}
+
+/**
+ * get wptr and update it
+ * \param pchan:struct chan_id handle
+ * \retval:wptr
+ */
+u64 SC2_bufferid_get_wptr(struct chan_id *pchan)
+{
+	u64 now_w = wdma_get_wptr(pchan->id);
+	int i;
+
+	if (pchan->is_multi_buf) {
+		if (now_w == 0)
+			now_w = pchan->es_buf_list[0].buf_phy;
+
+		for (i = 0; i < pchan->buf_num; i++) {
+			if (now_w == pchan->es_buf_list[i].buf_phy +
+				pchan->es_buf_list[i].buf_size) {
+				now_w = pchan->es_buf_list[(i + 1) % pchan->buf_num].buf_phy;
+				dprint("%s id:%d now_w:0x%llx\n", __func__, pchan->id, now_w);
+				break;
+			}
+		}
+	} else {
+		if ((now_w == pchan->mem_phy + pchan->mem_size) || now_w == 0) {
+			dprint("%s pchan->id:%d now_w:0x%llx mem_phy:0x%lx mem_size:0x%x\n",
+				__func__, pchan->id, now_w, pchan->mem_phy, pchan->mem_size);
+			now_w = pchan->mem_phy;
+		}
+	}
+
+	return now_w;
+}
+
+/**
+ * update rptr
+ * \param pchan:struct chan_id handle
+ * \param rptr_buf_num:rptr buffer number
+ * \retval:rptr
+ */
+u64 SC2_bufferid_update_rptr(struct chan_id *pchan, int rptr_buf_num, u64 rp)
+{
+	struct multi_es_buf_info *pbuf_info = pchan->es_buf_list + rptr_buf_num;
+	u64 now_w = SC2_bufferid_get_wptr(pchan);
+	int wptr_buf_num = SC2_bufferid_get_ptr_buf(pchan, now_w);
+	u64 now_r = rp ? rp : pchan->rptr_phy;
+
+	// TODO: no need to check this, will remove it
+	if (now_r > (pbuf_info->buf_phy + pbuf_info->buf_size))
+		dprint("%s error!!! now_r:0x%llx buf_phy:0x%lx buf_size:0x%x\n",
+			__func__, now_r, pbuf_info->buf_phy, pbuf_info->buf_size);
+
+	if (pchan->es_buf_list[wptr_buf_num].used == 0) {
+		pchan->es_buf_list[wptr_buf_num].used = 1;
+		pr_es_dbg("%s set used wptr_buf_num:%d\n", __func__, wptr_buf_num);
+	}
+
+	if (now_r >= (pbuf_info->buf_phy + pbuf_info->buf_size)) {
+		unsigned int rptr_offset = now_r - (pbuf_info->buf_phy + pbuf_info->buf_size);
+		int next_buf_num = (rptr_buf_num + 1) % pchan->buf_num;
+
+		// next buffer is added but not used yet
+		if (pchan->es_buf_list[next_buf_num].used == 0) {
+			pr_es_dbg("%s caution!!! unused id:%d next_buf_num:%d\n",
+				__func__, pchan->id, next_buf_num);
+			next_buf_num = 0;
+		}
+
+		now_r = pchan->es_buf_list[next_buf_num].buf_phy + rptr_offset;
+		pr_es_dbg("%s pchan->id:%d next_buf_num:%d now_r:0x%llx now_w:0x%llx\n",
+			__func__, pchan->id, next_buf_num, now_r, now_w);
+	}
+
+	return now_r;
+}
+
+unsigned int SC2_bufferid_get_data_len_multi_buf(struct chan_id *pchan, u64 rp)
+{
+	u64 now_w = SC2_bufferid_get_wptr(pchan);
+	u64 now_r = rp ? rp : pchan->rptr_phy;
+	int wptr_buf_num = SC2_bufferid_get_ptr_buf(pchan, now_w);
+	int rptr_buf_num = SC2_bufferid_get_ptr_buf(pchan, now_r);
+	unsigned int data_len;
+
+	if (wptr_buf_num < 0 || rptr_buf_num < 0) {
+		dprint("%s error!!! now_w:0x%llx rp:0x%llx rptr_phy:0x%llx\n", __func__,
+			now_w, rp, pchan->rptr_phy);
+		return 0;
+	}
+
+	if (pchan->es_buf_list[wptr_buf_num].used == 0) {
+		pchan->es_buf_list[wptr_buf_num].used = 1;
+		pr_es_dbg("%s set used wptr_buf_num:%d\n", __func__, wptr_buf_num);
+	}
+
+	if (now_w >= now_r && wptr_buf_num == rptr_buf_num) {
+		data_len = now_w - now_r;
+	} else {
+		int next_buf_num = rptr_buf_num;
+		int i;
+
+		data_len = pchan->es_buf_list[next_buf_num].buf_phy +
+			pchan->es_buf_list[next_buf_num].buf_size - now_r;
+
+		for (i = 0; i < pchan->buf_num; i++) {
+			next_buf_num = (next_buf_num + 1) % pchan->buf_num;
+
+			// next buffer is added but not used yet
+			if (pchan->es_buf_list[next_buf_num].used == 0) {
+				pr_dbg("%s unused id:%d next_buf_num:%d\n",
+					__func__, pchan->id, next_buf_num);
+				next_buf_num = 0;
+			}
+
+			if (next_buf_num == wptr_buf_num) {
+				data_len += (now_w - pchan->es_buf_list[next_buf_num].buf_phy);
+				break;
+			}
+
+			data_len += pchan->es_buf_list[next_buf_num].buf_size;
+			pr_dbg("%s id:%d next_buf_num:%d\n", __func__, pchan->id, next_buf_num);
+		}
+	}
+
+	return data_len;
 }
 
 int SC2_bufferid_read_header_again(struct chan_id *pchan, char **pread)
@@ -1347,8 +1887,8 @@ int SC2_bufferid_read_newest_pts(struct chan_id *pchan, char **pread)
  * chan read
  * \param pchan:struct chan_id handle
  * \param pread:data addr
- * \param plen:data size addr
- * \param plen:is secure or not
+ * \param len:data size
+ * \param is_secure:is secure or not
  * \retval >=0:read cnt.
  * \retval -1:fail.
  */
@@ -1416,6 +1956,79 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len,
 		pr_dbg("%s request:%d, ret:%d\n", __func__, len, data_len);
 		return data_len;
 	}
+	return 0;
+}
+
+/**
+ * chan read multi buffer
+ * \param pchan:struct chan_id handle
+ * \param pread:data addr
+ * \param len:data size
+ * \param is_secure:is secure or not
+ * \retval >=0:read cnt.
+ * \retval -1:fail.
+ */
+int SC2_bufferid_read_multi_buf(struct chan_id *pchan, char **pread, unsigned int len,
+		int is_secure)
+{
+	unsigned int buf_len = len;
+	unsigned int data_len = 0;
+	u64 now_w = SC2_bufferid_get_wptr(pchan);
+	int wptr_buf_num = SC2_bufferid_get_ptr_buf(pchan, now_w);
+	int rptr_buf_num = SC2_bufferid_get_ptr_buf(pchan, pchan->rptr_phy);
+	struct multi_es_buf_info *pbuf_info = pchan->es_buf_list + rptr_buf_num;
+
+	if (now_w != pchan->rptr_phy) {
+		usleep_range(20, 30);
+		pr_dbg("%s w:0x%llx, r:0x%llx\n", __func__, now_w, pchan->rptr_phy);
+
+		if (now_w > pchan->rptr_phy && wptr_buf_num == rptr_buf_num) {
+			data_len = min((now_w - pchan->rptr_phy), buf_len);
+			if (!is_secure)
+				dma_sync_single_for_cpu(aml_get_device(),
+						(dma_addr_t)pchan->rptr_phy,
+						data_len, DMA_FROM_DEVICE);
+			*pread = (char *)(unsigned long)(is_secure ? pchan->rptr_phy :
+				pchan->rptr_phy - pbuf_info->buf_phy + pbuf_info->buf_virt);
+			pchan->rptr_phy += data_len;
+
+			// will change buffer soon
+			if (now_w + 0x10000 > pbuf_info->buf_phy + pbuf_info->buf_size)
+				pr_dbg("%s 1 pchan->id:%d rptr_phy:0x%llx now_w:0x%llx\n",
+					__func__, pchan->id, pchan->rptr_phy, now_w);
+		} else {
+			unsigned int part1_len = 0;
+
+			part1_len = pbuf_info->buf_phy + pbuf_info->buf_size - pchan->rptr_phy;
+			data_len = min(part1_len, buf_len);
+			*pread = (char *)(unsigned long)(is_secure ? pchan->rptr_phy :
+				pchan->rptr_phy - pbuf_info->buf_phy + pbuf_info->buf_virt);
+
+			if (data_len < part1_len) {
+				if (!is_secure)
+					dma_sync_single_for_cpu(aml_get_device(),
+							(dma_addr_t)pchan->rptr_phy,
+							data_len, DMA_FROM_DEVICE);
+				pchan->rptr_phy += data_len;
+				pr_dbg("%s 2 pchan->id:%d rptr_phy:0x%llx now_w:0x%llx\n",
+					__func__, pchan->id, pchan->rptr_phy, now_w);
+			} else {
+				data_len = part1_len;
+				if (!is_secure)
+					dma_sync_single_for_cpu(aml_get_device(),
+							(dma_addr_t)pchan->rptr_phy,
+							data_len, DMA_FROM_DEVICE);
+				pchan->rptr_phy += data_len;
+				pchan->rptr_phy = SC2_bufferid_update_rptr(pchan, rptr_buf_num, 0);
+				pr_dbg("%s 3 pchan->id:%d rptr_phy:0x%llx now_w:0x%llx\n\n\n",
+					__func__, pchan->id, pchan->rptr_phy, now_w);
+			}
+		}
+
+		pr_dbg("%s request:%d, ret:%d\n", __func__, len, data_len);
+		return data_len;
+	}
+
 	return 0;
 }
 
