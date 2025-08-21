@@ -872,7 +872,7 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 	phase_step_h <<= (OSD_ZOOM_TOTAL_BITS - OSD_ZOOM_WIDTH_BITS);
 	/*check coef*/
 	if (vsc_double_line_mode == 1) {
-		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
+		coef_h = osd_scaler_filter_table[COEFS_BILINEAR];
 		coef_v = osd_scaler_filter_table[COEFS_2POINT_BILINEAR];
 	} else if (width_out <= 720) {
 		if (width_in <= width_out)
@@ -892,8 +892,8 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 		coef_v = osd_scaler_filter_table[scaler_filter_mode -
 			DRM_SCALING_FILTER_BICUBIC_SHARP];
 	} else {
-		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
-		coef_v = osd_scaler_filter_table[COEFS_BICUBIC];
+		coef_h = osd_scaler_filter_table[COEFS_BILINEAR];
+		coef_v = osd_scaler_filter_table[COEFS_BILINEAR];
 	}
 	if (v_filter_mode_param != -1 &&
 	    v_filter_mode_param < COEFS_MAX)

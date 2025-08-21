@@ -1622,7 +1622,16 @@ static void osd_register_init(struct meson_vpu_block *vblk,
 	struct osd_mif_reg_s *reg;
 	/*Need config follow crtc index.*/
 	u8 holdline = VIU1_DEFAULT_HOLD_LINE;
-	u8 fifo_val = 0x20;
+	/*the fifo_size of the chips below is 512:
+	 *g12a g12b sm1 sc2 s4 s1a s7 s7d s6 t6w gxlx4 t6d t6x
+	 *t3x s5 t5m t5 t5w t3 t7 txhd2 tm2 tx1 txlx tl1
+	 *the fifo_size of the chips below is 256, but unused:
+	 *gxl gxm
+	 */
+	u32 fifo_size = 512;
+	u32 fifo_val = fifo_size / 8;
+	u32 dn_th = (fifo_size / 4) >> 6;
+	u32 up_th = (fifo_size * 3 / 4) >> 6;
 
 	if (vblk->init_done)
 		return;
@@ -1657,6 +1666,12 @@ static void osd_register_init(struct meson_vpu_block *vblk,
 			    (0 << 1) | /*premult_en*/
 			    (0 << 0)/*OSD_BLK_ENABLE*/);
 	reg_ops->rdma_write_reg(reg->viu_osd_tcolor_ag3, 0);
+	reg_ops->rdma_write_reg(reg->viu_osd_prot_ctrl,
+		(fifo_size << 0) | /*13bits*/
+		(1 << 31) | /*auto_urgent_en*/
+		(0 << 30) | /*urgent_wr*/
+		(dn_th << 16) | /*4bits*/
+		(up_th << 20)/*4bits*/);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/*The fifo_crtl bits need to be configured with a maximum value of 0x2, otherwise it

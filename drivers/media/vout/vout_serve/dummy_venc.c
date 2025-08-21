@@ -37,6 +37,7 @@
 
 /* 0 dummyl, 1 dummyp, 2 dummyi */
 static u32 dummy_venc_type;
+static int projector_fps_ctl;
 static u32 vpp_loopback;
 
 enum dummy_venc_chip_e {
@@ -142,6 +143,18 @@ static int dummy_encp_timing_flip_setup(char *str)
 	return 1;
 }
 __setup("dummyp_timing_flip=", dummy_encp_timing_flip_setup);
+
+static int dummy_projector_fps_ctl_setup(char *str)
+{
+	int ret;
+
+	ret = kstrtoint(str, 0, &projector_fps_ctl);
+
+	if (ret)
+		return ret;
+	return 1;
+}
+__setup("projector_fps_ctl=", dummy_projector_fps_ctl_setup);
 
 int get_dummyp_timing_flip(void)
 {
@@ -504,6 +517,12 @@ static void dummy_encp_vinfo_update(struct dummy_venc_driver_s *venc_drv)
 		venc_drv->vinfo->htotal = vinfo->htotal;
 		venc_drv->vinfo->vtotal = vinfo->vtotal;
 		venc_drv->vinfo->viu_color_fmt = vinfo->viu_color_fmt;
+	}
+
+	/*sync_duration_num div 2 when the fps of wrbak is 1/2 display*/
+	if (projector_fps_ctl == 1) {
+		vout_vcbus_setb(VIU_MISC_CTRL0, 1, 12, 1);
+		venc_drv->vinfo->sync_duration_num = vinfo->sync_duration_num  / 2;
 	}
 }
 
@@ -1687,7 +1706,6 @@ static ssize_t dummy_encp_projector_fps_store(const struct class *class,
 			const char *buf, size_t count)
 {
 	int ret;
-	int projector_fps_ctl;
 
 	ret = kstrtoint(buf, 10, &projector_fps_ctl);
 	if (ret)
@@ -1709,6 +1727,25 @@ static ssize_t dummy_encp_projector_fps_show(const struct class *class,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", vout_vcbus_getb(VIU_MISC_CTRL0, 12, 1));
+}
+
+static ssize_t dummy_encp_dummyp_timing_flip_store(const struct class *class,
+				      const struct class_attribute *attr,
+				      const char *buf, size_t count)
+{
+	int ret;
+
+	ret = kstrtoint(buf, 10, &dummyp_timing_flip);
+	if (ret)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t dummy_encp_dummyp_timing_flip_show(const struct class *class,
+				     const struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", dummyp_timing_flip);
 }
 
 static ssize_t dummy_enci_debug_store(const struct class *class,
@@ -1786,6 +1823,8 @@ static struct class_attribute dummy_venc_class_attrs[] = {
 	       dummy_venc_debug_show, dummy_encp_debug_store),
 	__ATTR(encp_projector_fps, 0644,
 	       dummy_encp_projector_fps_show, dummy_encp_projector_fps_store),
+	__ATTR(encp_timing_flip, 0644,
+	       dummy_encp_dummyp_timing_flip_show, dummy_encp_dummyp_timing_flip_store),
 	__ATTR(enci, 0644,
 	       dummy_venc_debug_show, dummy_enci_debug_store),
 	__ATTR(encl, 0644,

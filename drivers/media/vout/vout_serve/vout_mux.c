@@ -450,14 +450,14 @@ static void vout_viu_mux_clear_s6(int index, unsigned int mux_sel)
 		VOUTPR("%s: viu_mux reg=0x%x\n", __func__, reg_value);
 	}
 
-// [ 3: 2] cntl_viu2_sel_venc. Select which one of the encI/P/T that VIU2 connects to:
-//		   0=No connection, 1=ENCI, 2=ENCP, 3=ENCT.
-// [ 1: 0] cntl_viu1_sel_venc. Select which one of the encI/P/T that VIU1 connects to:
-//		   0=No connection, 1=ENCI, 2=ENCP, 3=ENCT.
+	/*
+	 * viu_sel: 0=venc0, 1=venc1, 2=venc2, 3=invalid
+	 */
+
 	if (index == 1)
-		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 0, 0, 2);
+		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 0x3, 0, 2);
 	else
-		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 0, 2, 2);
+		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 0x3, 2, 2);
 }
 #endif
 
