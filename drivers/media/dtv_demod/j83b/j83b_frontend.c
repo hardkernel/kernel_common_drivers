@@ -39,13 +39,8 @@
 #include "j83b_frontend.h"
 #include <linux/amlogic/aml_dtvdemod.h>
 
-MODULE_PARM_DESC(auto_search_std, "");
-static unsigned int auto_search_std;
-__module_param(auto_search_std, int, 0644);
-
-static int dvb_j83b_count = 5;
-__module_param(dvb_j83b_count, int, 0644);
-MODULE_PARM_DESC(dvb_atsc_count, "");
+unsigned int auto_search_std;
+int dvb_j83b_count = 5;
 /*come from j83b_speedup_func*/
 
 /*copy from dtvdemod_atsc_init*/

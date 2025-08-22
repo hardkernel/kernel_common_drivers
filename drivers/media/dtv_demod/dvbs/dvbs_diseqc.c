@@ -46,8 +46,6 @@ u32 sendburst_on;
 u32 diseqc_cmd_bypass;
 
 int lnb_high_voltage;
-__module_param(lnb_high_voltage, int, 0644);
-MODULE_PARM_DESC(lnb_high_voltage, "");
 
 void aml_diseqc_dbg_en(unsigned int val)
 {

@@ -7,54 +7,20 @@
 #include "demod_func.h"
 #include "dvbs.h"
 
-static unsigned char dvbs_iq_swap;
-MODULE_PARM_DESC(dvbs_iq_swap, "");
-module_param(dvbs_iq_swap, byte, 0644);
-
-static unsigned int blind_agc2bandwidth = BLIND_SEARCH_AGC2BANDWIDTH_60;
-MODULE_PARM_DESC(blind_agc2bandwidth, "");
-__module_param(blind_agc2bandwidth, uint, 0644);
-
-static unsigned int blind_agc2bandwidth_RDA = BLIND_SEARCH_AGC2BANDWIDTH_70;
-MODULE_PARM_DESC(blind_agc2bandwidth_RDA, "");
-__module_param(blind_agc2bandwidth_RDA, uint, 0644);
-
-static unsigned int blind_bw_min = BLIND_SEARCH_BW_MIN;
-MODULE_PARM_DESC(blind_bw_min, "");
-__module_param(blind_bw_min, uint, 0644);
-
-static unsigned int blind_pow_th = BLIND_SEARCH_POW_TH2;
-MODULE_PARM_DESC(blind_pow_th, "");
-__module_param(blind_pow_th, uint, 0644);
+unsigned char dvbs_iq_swap;
+unsigned int blind_agc2bandwidth = BLIND_SEARCH_AGC2BANDWIDTH_60;
+unsigned int blind_agc2bandwidth_RDA = BLIND_SEARCH_AGC2BANDWIDTH_70;
+unsigned int blind_bw_min = BLIND_SEARCH_BW_MIN;
+unsigned int blind_pow_th = BLIND_SEARCH_POW_TH2;
 
 //V3 -->
-static unsigned int BLIND_POW_TH1 = 50000;
-__module_param(BLIND_POW_TH1, uint, 0644);
-MODULE_PARM_DESC(BLIND_POW_TH1, "");
-
-static unsigned int BLIND_POW_TH2 = 18000;
-__module_param(BLIND_POW_TH2, uint, 0644);
-MODULE_PARM_DESC(BLIND_POW_TH2, "");
-
-static unsigned int BLIND_POW_TH3 = 80000;
-__module_param(BLIND_POW_TH3, uint, 0644);
-MODULE_PARM_DESC(BLIND_POW_TH3, "");
-
-static unsigned int BLIND_BW_MIN = 7;
-__module_param(BLIND_BW_MIN, uint, 0644);
-MODULE_PARM_DESC(BLIND_BW_MIN, "");
-
-static unsigned int BLIND_CENT_BW = 4;
-__module_param(BLIND_CENT_BW, uint, 0644);
-MODULE_PARM_DESC(BLIND_CENT_BW, "");
-
-static unsigned int BLIND_CENT_BW_RDA = 3;
-__module_param(BLIND_CENT_BW_RDA, uint, 0644);
-MODULE_PARM_DESC(BLIND_CENT_BW_RDA, "");
-
-static unsigned int BLIND_CENT_TH = 15; //x1.5=15/10
-__module_param(BLIND_CENT_TH, uint, 0644);
-MODULE_PARM_DESC(BLIND_CENT_TH, "");
+unsigned int BLIND_POW_TH1 = 50000;
+unsigned int BLIND_POW_TH2 = 18000;
+unsigned int BLIND_POW_TH3 = 80000;
+unsigned int BLIND_BW_MIN = 7;
+unsigned int BLIND_CENT_BW = 4;
+unsigned int BLIND_CENT_BW_RDA = 3;
+unsigned int BLIND_CENT_TH = 15; //x1.5=15/10
 
 static struct fe_lla_lookup_t fe_l2a_s1_cn_lookup = {
 	161, //size

@@ -84,37 +84,20 @@
 
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
 unsigned char dtmb_new_driver = 1;
-MODULE_PARM_DESC(dtmb_new_driver, "");
-__module_param(dtmb_new_driver, byte, 0644);
 #endif
 
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
-MODULE_PARM_DESC(dvbc_new_driver, "");
-static unsigned char dvbc_new_driver;
-__module_param(dvbc_new_driver, byte, 0644);
+unsigned char dvbc_new_driver;
 #endif
 
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
-static unsigned char dvbtx_auto;
-MODULE_PARM_DESC(dvbtx_auto, "");
-__module_param(dvbtx_auto, byte, 0644);
-
-MODULE_PARM_DESC(dvbt2_common_plp_skip, "");
-static bool dvbt2_common_plp_skip = true;
-__module_param(dvbt2_common_plp_skip, bool, 0644);
-
-MODULE_PARM_DESC(dvbt2_mplp_retune, "");
+unsigned char dvbtx_auto;
+bool dvbt2_common_plp_skip = true;
 bool dvbt2_mplp_retune;
-__module_param(dvbt2_mplp_retune, bool, 0644);
 #endif
 
 int aml_demod_debug = DBG_INFO;
-__module_param(aml_demod_debug, int, 0644);
-MODULE_PARM_DESC(aml_demod_debug, "");
-
-static unsigned int cma_mem_size;
-__module_param(cma_mem_size, uint, 0644);
-MODULE_PARM_DESC(cma_mem_size, "");
+unsigned int cma_mem_size;
 
 /*-----------------------------------*/
 static struct amldtvdemod_device_s *dtvdd_devp;

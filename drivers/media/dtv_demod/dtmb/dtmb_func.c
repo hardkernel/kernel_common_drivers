@@ -8,21 +8,10 @@
 #include "demod_dbg.h"
 #include "dtmb_func.h"
 
-MODULE_PARM_DESC(demod_enable_performance, "");
-static int demod_enable_performance = 1;
-__module_param(demod_enable_performance, int, 0644);
-
-MODULE_PARM_DESC(demod_sync_count, "");
-static int demod_sync_count = 60;
-__module_param(demod_sync_count, int, 0644);
-
-MODULE_PARM_DESC(demod_sync_delay_time, "");
-static int demod_sync_delay_time = 8;
-__module_param(demod_sync_delay_time, int, 0644);
-
-MODULE_PARM_DESC(demod_timeout, "");
-static int demod_timeout = 120;
-__module_param(demod_timeout, int, 0644);
+bool demod_enable_performance = true;
+int demod_sync_count = 60;
+int demod_sync_delay_time = 8;
+int demod_timeout = 120;
 
 void dtmb_set_fe_config_modify(unsigned int modify)
 {

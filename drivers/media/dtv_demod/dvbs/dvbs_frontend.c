@@ -44,52 +44,18 @@
 
 //blind_scan algorithm version: 0x0 1st, 0x1 2nd, 0x2 3rd
 unsigned char blind_scan_new = 0x2;
-__module_param(blind_scan_new, byte, 0644);
-MODULE_PARM_DESC(blind_scan_new, "");
 
-static unsigned char dvbs_blind_spectrum_invert;
-__module_param(dvbs_blind_spectrum_invert, byte, 0644);
-MODULE_PARM_DESC(dvbs_blind_spectrum_invert, "");
-
-static unsigned int BLIND_SR_TH = 30000;
-__module_param(BLIND_SR_TH, uint, 0644);
-MODULE_PARM_DESC(BLIND_SR_TH, "");
-
-static unsigned int BLIND_SR_UP_DVBS = 20000;
-__module_param(BLIND_SR_UP_DVBS, uint, 0644);
-MODULE_PARM_DESC(BLIND_SR_UP_DVBS, "");
-
-static unsigned int BLIND_SR_LOW_DVBS = 20000;
-__module_param(BLIND_SR_LOW_DVBS, uint, 0644);
-MODULE_PARM_DESC(BLIND_SR_LOW_DVBS, "");
-
-static unsigned int BLIND_SR_RT_UP_DVBS = 2; //x0.2 = /5
-__module_param(BLIND_SR_RT_UP_DVBS, uint, 0644);
-MODULE_PARM_DESC(BLIND_SR_RT_UP_DVBS, "");
-
-static unsigned int BLIND_SR_RT_LOW_DVBS = 1;
-__module_param(BLIND_SR_RT_LOW_DVBS, uint, 0644);
-MODULE_PARM_DESC(BLIND_SR_RT_LOW_DVBS, "");
-
-static unsigned int BLIND_TIM = 250;
-__module_param(BLIND_TIM, uint, 0644);
-MODULE_PARM_DESC(BLIND_TIM, "");
-
-static unsigned int BLIND_TIM1 = 10;
-__module_param(BLIND_TIM1, uint, 0644);
-MODULE_PARM_DESC(BLIND_TIM1, "");
-
-static unsigned int BLIND_TIM2 = 80;
-__module_param(BLIND_TIM2, uint, 0644);
-MODULE_PARM_DESC(BLIND_TIM2, "");
-
-static bool BLIND_TUNER_BW_ON;
-__module_param(BLIND_TUNER_BW_ON, bool, 0644);
-MODULE_PARM_DESC(BLIND_TUNER_BW_ON, "");
-
-static unsigned int BLIND_TUNER_BW_RANGE = 5000; //Kbps
-__module_param(BLIND_TUNER_BW_RANGE, uint, 0644);
-MODULE_PARM_DESC(BLIND_TUNER_BW_RANGE, "");
+unsigned char dvbs_blind_spectrum_invert;
+unsigned int BLIND_SR_TH = 30000;
+unsigned int BLIND_SR_UP_DVBS = 20000;
+unsigned int BLIND_SR_LOW_DVBS = 20000;
+unsigned int BLIND_SR_RT_UP_DVBS = 2; //x0.2 = /5
+unsigned int BLIND_SR_RT_LOW_DVBS = 1;
+unsigned int BLIND_TIM = 250;
+unsigned int BLIND_TIM1 = 10;
+unsigned int BLIND_TIM2 = 80;
+bool BLIND_TUNER_BW_ON;
+unsigned int BLIND_TUNER_BW_RANGE = 5000; //Kbps
 
 int dtvdemod_dvbs_read_ber(struct dvb_frontend *fe, u32 *ber)
 {

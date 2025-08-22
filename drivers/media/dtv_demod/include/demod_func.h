@@ -273,9 +273,11 @@ void demod_set_tvfe_reg(unsigned int data, unsigned int addr);
 unsigned int demod_read_demod_reg(unsigned int addr);
 
 /* extern int clk_measure(char index); */
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 void isdbt_dvbt_comb_super_fec(void);
 int isdbt_super_fec_layer_mode(int mode);
 int isdbt_get_super_fec_layer(void);
+#endif //CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 
 void ofdm_initial(int bandwidth,
 		  /* 00:8M 01:7M 10:6M 11:5M */

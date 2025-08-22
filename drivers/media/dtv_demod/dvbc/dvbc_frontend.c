@@ -39,21 +39,10 @@
 #include "dvbc_frontend.h"
 #include <linux/amlogic/aml_dtvdemod.h>
 
-MODULE_PARM_DESC(dvbc_lock_continuous_cnt, "");
-static unsigned int dvbc_lock_continuous_cnt = 1;
-__module_param(dvbc_lock_continuous_cnt, int, 0644);
-
-MODULE_PARM_DESC(dvbc_lost_continuous_cnt, "");
-static unsigned int dvbc_lost_continuous_cnt = 10;
-__module_param(dvbc_lost_continuous_cnt, int, 0644);
-
-MODULE_PARM_DESC(dvbc_qam_try_cnt, "");
-static unsigned int dvbc_qam_try_cnt = 1;
-__module_param(dvbc_qam_try_cnt, int, 0644);
-
-MODULE_PARM_DESC(dvbc_check_agc_time, "");
-static unsigned int dvbc_check_agc_time = 150;
-__module_param(dvbc_check_agc_time, int, 0644);
+unsigned int dvbc_lock_continuous_cnt = 1;
+unsigned int dvbc_lost_continuous_cnt = 10;
+unsigned int dvbc_qam_try_cnt = 1;
+unsigned int dvbc_check_agc_time = 150;
 
 static int cci_thread;
 

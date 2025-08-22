@@ -23,33 +23,21 @@
 
 #include "acf_filter_coefficient.h"
 
-MODULE_PARM_DESC(front_agc_target, "");
-static unsigned int front_agc_target;
-__module_param(front_agc_target, uint, 0644);
+unsigned int front_agc_target;
 
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 unsigned int diseqc_out_invert = 1;
-MODULE_PARM_DESC(diseqc_out_invert, "");
-__module_param(diseqc_out_invert, int, 0644);
 #endif
 
 #if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
-static unsigned char dvbs_agc_target = 0x50;
-MODULE_PARM_DESC(dvbs_agc_target, "");
-__module_param(dvbs_agc_target, byte, 0644);
+unsigned char dvbs_agc_target = 0x50;
 #endif
 
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 bool isdbt_reuse_sfec = true;
-MODULE_PARM_DESC(isdbt_reuse_sfec, "");
-__module_param(isdbt_reuse_sfec, bool, 0644);
-
-static unsigned int isdbt_sfec_mode;
-MODULE_PARM_DESC(isdbt_sfec_mode, "");
-__module_param(isdbt_sfec_mode, uint, 0644);
-
-static unsigned int isdbt_sfec_layer;
-MODULE_PARM_DESC(isdbt_sfec_layer, "");
-__module_param(isdbt_sfec_layer, uint, 0644);
+unsigned int isdbt_sfec_mode;
+unsigned int isdbt_sfec_layer;
+#endif
 
 #if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 static struct stchip_register_t l2a_def_val_local[] = {
@@ -2401,7 +2389,7 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x8);
 		}
 		break;
-
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		if (demod_chip_eq(DTVDEMOD_HW_TXLX)) {
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x8);
@@ -2429,7 +2417,7 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 				demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x200000);
 		}
 		break;
-
+#endif //CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 	case SYS_DVBC_ANNEX_B:
@@ -2567,6 +2555,7 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 void demod_set_top_frontend(enum fe_delivery_system delsys)
 {
 	switch (delsys) {
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	case SYS_ISDBT:
 		if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
 			front_write_reg(0x36, 0x0);
@@ -2628,7 +2617,7 @@ void demod_set_top_frontend(enum fe_delivery_system delsys)
 			front_write_reg(0x61, 0x7fe);
 		}
 		break;
-
+#endif //CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	default:
 		break;
 	}
@@ -3501,6 +3490,7 @@ void dvbt_write_regb(unsigned long addr, int index, unsigned long data)
 	/*to achieve write func*/
 }
 
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 // isdbt use t2 sfec
 void isdbt_dvbt_comb_super_fec(void)
 {
@@ -3563,6 +3553,7 @@ int isdbt_get_super_fec_layer(void)
 {
 	return isdbt_sfec_layer;
 }
+#endif //CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 
 void ofdm_initial(int bandwidth,
 		/* 00:8M 01:7M 10:6M 11:5M */
@@ -4036,10 +4027,12 @@ void ofdm_initial(int bandwidth,
 		dvbt_isdbt_rd_reg((0x02 << 2)) | (1 << 24));
 	/* dvbt_check_status(); */
 
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
 	if (demod_chip_after_eq(DTVDEMOD_HW_T6W) && isdbt_reuse_sfec) {
 		isdbt_dvbt_comb_super_fec();
 		isdbt_super_fec_layer_mode(DTV_ISDBT_LAYERA_FEC);
 	}
+#endif
 
 	if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
 		// ISDBT use top frontend and bypass ISDBT frontend

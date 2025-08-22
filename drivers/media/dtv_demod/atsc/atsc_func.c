@@ -14,29 +14,12 @@
 //static int debug_atsc = 1;
 //__module_param(debug_atsc, int, 0644);
 
-MODULE_PARM_DESC(atsc_thread_enable, "");
-static int atsc_thread_enable = 1;
-__module_param(atsc_thread_enable, int, 0644);
-
-MODULE_PARM_DESC(ar_enable, "");
-static int ar_enable;
-__module_param(ar_enable, int, 0644);
-
-MODULE_PARM_DESC(cci_enable, "");
-static int cci_enable = 1;
-__module_param(cci_enable, int, 0644);
-
-MODULE_PARM_DESC(cfo_count, "");
-static int cfo_count;
-__module_param(cfo_count, int, 0644);
-
-MODULE_PARM_DESC(field_test_version, "");
-static int field_test_version;
-__module_param(field_test_version, int, 0644);
-
-MODULE_PARM_DESC(cfo_times, "");
-static int cfo_times = 30;
-__module_param(cfo_times, int, 0644);
+bool atsc_thread_enable = true;
+bool ar_enable;
+bool cci_enable = true;
+int cfo_count;
+int field_test_version;
+int cfo_times = 30;
 
 static int dagc_switch;
 static int ar_flag;

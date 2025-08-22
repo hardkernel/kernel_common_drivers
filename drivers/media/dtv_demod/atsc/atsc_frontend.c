@@ -43,34 +43,16 @@
 #define ATSC_TIME_START_CCI 1500
 
 //atsc-c
-MODULE_PARM_DESC(std_lock_timeout, "");
-static unsigned int std_lock_timeout = 1000;
-module_param(std_lock_timeout, int, 0644);
+unsigned int std_lock_timeout = 1000;
 
 //atsc-t
-MODULE_PARM_DESC(atsc_agc_target, "");
-static unsigned char atsc_agc_target; //after and t5m 0x1f, other 0x28.
-__module_param(atsc_agc_target, byte, 0644);
+unsigned char atsc_agc_target; //after and t5m 0x1f, other 0x28.
 
-MODULE_PARM_DESC(atsc_t_lock_continuous_cnt, "");
-static unsigned int atsc_t_lock_continuous_cnt = 1;
-__module_param(atsc_t_lock_continuous_cnt, int, 0644);
-
-MODULE_PARM_DESC(atsc_t_lost_continuous_cnt, "");
-static unsigned int atsc_t_lost_continuous_cnt = 15;
-__module_param(atsc_t_lost_continuous_cnt, int, 0644);
-
-static unsigned int atsc_check_signal_time = ATSC_TIME_CHECK_SIGNAL;
-MODULE_PARM_DESC(atsc_check_signal_time, "");
-__module_param(atsc_check_signal_time, int, 0644);
-
-static unsigned char atsc_check_rst = 1;
-MODULE_PARM_DESC(atsc_check_rst, "");
-__module_param(atsc_check_rst, byte, 0644);
-
-static unsigned char atsc_check_fsm = 3;
-MODULE_PARM_DESC(atsc_check_fsm, "");
-__module_param(atsc_check_fsm, byte, 0644);
+unsigned int atsc_t_lock_continuous_cnt = 1;
+unsigned int atsc_t_lost_continuous_cnt = 15;
+unsigned int atsc_check_signal_time = ATSC_TIME_CHECK_SIGNAL;
+unsigned char atsc_check_rst = 1;
+unsigned char atsc_check_fsm = 3;
 
 void gxtv_demod_atsc_release(struct dvb_frontend *fe)
 {

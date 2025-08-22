@@ -43,17 +43,9 @@
 
 #define DTMB_TIME_CHECK_SIGNAL 150
 
-static unsigned int dtmb_check_signal_time = DTMB_TIME_CHECK_SIGNAL;
-MODULE_PARM_DESC(dtmb_check_signal_time, "");
-__module_param(dtmb_check_signal_time, int, 0644);
-
-static unsigned int dtmb_lock_continuous_cnt = 1;
-MODULE_PARM_DESC(dtmb_lock_continuous_cnt, "");
-__module_param(dtmb_lock_continuous_cnt, int, 0644);
-
-static unsigned int dtmb_lost_continuous_cnt = 15;
-MODULE_PARM_DESC(dtmb_lost_continuous_cnt, "");
-__module_param(dtmb_lost_continuous_cnt, int, 0644);
+unsigned int dtmb_check_signal_time = DTMB_TIME_CHECK_SIGNAL;
+unsigned int dtmb_lock_continuous_cnt = 1;
+unsigned int dtmb_lost_continuous_cnt = 15;
 
 void gxtv_demod_dtmb_release(struct dvb_frontend *fe)
 {

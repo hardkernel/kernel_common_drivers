@@ -11,13 +11,8 @@
 #include "demod_func.h"
 #include "dvbc_func.h"
 
-MODULE_PARM_DESC(dvbc_agc_target, "");
-static unsigned char dvbc_agc_target = 0xc;
-__module_param(dvbc_agc_target, byte, 0644);
-
-MODULE_PARM_DESC(j83b_agc_target, "");
-static unsigned char j83b_agc_target = 0xe;
-__module_param(j83b_agc_target, byte, 0644);
+unsigned char dvbc_agc_target = 0xc;
+unsigned char j83b_agc_target = 0xe;
 
 static unsigned char dvbc_qam_reg[15] = { 0 };
 static unsigned int dvbc_qam_value[15] = { 0 };

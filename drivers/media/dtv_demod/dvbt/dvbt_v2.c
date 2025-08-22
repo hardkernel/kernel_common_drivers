@@ -16,13 +16,8 @@
 #include <linux/types.h>
 #include "dvbt_func.h"
 
-MODULE_PARM_DESC(dvbt2_agc_target1, "");
-static unsigned char dvbt2_agc_target1 = 0x60;
-__module_param(dvbt2_agc_target1, byte, 0644);
-
-MODULE_PARM_DESC(dvbt2_agc_target2, "");
-static unsigned char dvbt2_agc_target2 = 0x11;
-__module_param(dvbt2_agc_target2, byte, 0644);
+unsigned char dvbt2_agc_target1 = 0x60;
+unsigned char dvbt2_agc_target2 = 0x11;
 
 static void setsrcgain(unsigned int val)
 {

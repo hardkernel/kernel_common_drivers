@@ -16,6 +16,12 @@
 #define ADC_PLL_CNTL1_TL1	(0xb1 << 2)
 #define ADC_PLL_CNTL2_TL1	(0xb2 << 2)
 
+#define DEMOD_ATTR_ADD(name, type)	\
+	else if (!strcmp(parm[0], #name)) {	\
+		extern type name;	\
+		name = (type)val;	\
+	}
+
 enum {
 	ATSC_READ_STRENGTH = 0,
 	ATSC_READ_SNR = 1,

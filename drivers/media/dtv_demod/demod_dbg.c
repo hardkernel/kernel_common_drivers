@@ -46,29 +46,129 @@ static unsigned int atsc_mode_para;
 
 static unsigned long demod_dmc_id;
 static unsigned int demod_ddr_addr;
-static unsigned int demod_ddr_size;
-MODULE_PARM_DESC(demod_ddr_size, "\n\t\t demod_ddr_size");
-__module_param(demod_ddr_size, int, 0644);
+unsigned int demod_ddr_size;
+unsigned int testbus_addr = 0x1000;
+unsigned int testbus_width = 9;
+unsigned int testbus_vld = 0x100000;
+unsigned int testbus_read_only;
+unsigned char testbus_test_mode;
 
-MODULE_PARM_DESC(testbus_addr, "");
-static unsigned int testbus_addr = 0x1000;
-__module_param(testbus_addr, int, 0644);
+#define DEMOD_COMMON_ATTR_DEFINE()	\
+	DEMOD_ATTR_ADD(demod_ddr_size, uint)	\
+	DEMOD_ATTR_ADD(testbus_addr, uint)	\
+	DEMOD_ATTR_ADD(testbus_width, uint)	\
+	DEMOD_ATTR_ADD(testbus_vld, uint)	\
+	DEMOD_ATTR_ADD(testbus_read_only, uint)	\
+	DEMOD_ATTR_ADD(testbus_test_mode, unchar)	\
+	DEMOD_ATTR_ADD(cma_mem_size, uint)	\
+	DEMOD_ATTR_ADD(front_agc_target, uint)
 
-MODULE_PARM_DESC(testbus_width, "");
-static unsigned int testbus_width = 9;
-__module_param(testbus_width, int, 0644);
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#define DEMOD_ISDBT_ATTR_DEFINE()	\
+	DEMOD_ATTR_ADD(isdbt_check_signal_time, uint)	\
+	DEMOD_ATTR_ADD(isdbt_reset_in_unlock_times, uint)	\
+	DEMOD_ATTR_ADD(isdbt_lock_continuous_cnt, uint)	\
+	DEMOD_ATTR_ADD(isdbt_lost_continuous_cnt, uint)	\
+	DEMOD_ATTR_ADD(isdbt_reuse_sfec, bool)	\
+	DEMOD_ATTR_ADD(isdbt_sfec_mode, uint)	\
+	DEMOD_ATTR_ADD(isdbt_sfec_layer, uint)
+#endif
 
-MODULE_PARM_DESC(testbus_vld, "");
-static unsigned int testbus_vld = 0x100000;
-__module_param(testbus_vld, int, 0644);
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
+#define DEMOD_DTMB_ATTR_DEFINE()	\
+	DEMOD_ATTR_ADD(dtmb_check_signal_time, uint)	\
+	DEMOD_ATTR_ADD(dtmb_lock_continuous_cnt, uint)	\
+	DEMOD_ATTR_ADD(dtmb_lost_continuous_cnt, uint)	\
+	DEMOD_ATTR_ADD(demod_enable_performance, bool)	\
+	DEMOD_ATTR_ADD(demod_sync_count, int)	\
+	DEMOD_ATTR_ADD(demod_sync_delay_time, int)	\
+	DEMOD_ATTR_ADD(demod_timeout, int)	\
+	DEMOD_ATTR_ADD(dtmb_new_driver, unchar)
+#endif
 
-MODULE_PARM_DESC(testbus_read_only, "");
-static unsigned int testbus_read_only;
-__module_param(testbus_read_only, int, 0644);
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
+#define DEMOD_ATSC_ATTR_DEFINE()	\
+	DEMOD_ATTR_ADD(std_lock_timeout, uint)	\
+	DEMOD_ATTR_ADD(atsc_agc_target, unchar)	\
+	DEMOD_ATTR_ADD(atsc_t_lock_continuous_cnt, uint)	\
+	DEMOD_ATTR_ADD(atsc_t_lost_continuous_cnt, uint)	\
+	DEMOD_ATTR_ADD(atsc_check_signal_time, uint)	\
+	DEMOD_ATTR_ADD(atsc_check_rst, unchar)	\
+	DEMOD_ATTR_ADD(atsc_check_fsm, unchar)	\
+	DEMOD_ATTR_ADD(atsc_thread_enable, bool)	\
+	DEMOD_ATTR_ADD(ar_enable, bool)	\
+	DEMOD_ATTR_ADD(cci_enable, bool)	\
+	DEMOD_ATTR_ADD(cfo_count, int)	\
+	DEMOD_ATTR_ADD(field_test_version, int)	\
+	DEMOD_ATTR_ADD(cfo_times, int)
+#endif
 
-MODULE_PARM_DESC(testbus_test_mode, "");
-static unsigned char testbus_test_mode;
-__module_param(testbus_test_mode, byte, 0644);
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
+#define DEMOD_DVBT_ATTR_DEFINE()	\
+	DEMOD_ATTR_ADD(dvbt_reset_per_times, uint)	\
+	DEMOD_ATTR_ADD(dvbt2_0x2a1c, unchar)	\
+	DEMOD_ATTR_ADD(dvbtx_auto_check_times, unchar)	\
+	DEMOD_ATTR_ADD(t2_0x2a48_delay, uint)	\
+	DEMOD_ATTR_ADD(t2_snr_threshold, uint)	\
+	DEMOD_ATTR_ADD(jita_det_enable, bool)	\
+	DEMOD_ATTR_ADD(dvbt2_agc_target1, unchar)	\
+	DEMOD_ATTR_ADD(dvbt2_agc_target2, unchar)	\
+	DEMOD_ATTR_ADD(dvbtx_auto, unchar)	\
+	DEMOD_ATTR_ADD(dvbt2_common_plp_skip, bool)	\
+	DEMOD_ATTR_ADD(dvbt2_mplp_retune, bool)
+#endif
+
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
+#define DEMOD_DVBS_ATTR_DEFINE()	\
+	DEMOD_ATTR_ADD(dvbs_iq_swap, unchar)	\
+	DEMOD_ATTR_ADD(blind_agc2bandwidth, uint)	\
+	DEMOD_ATTR_ADD(blind_agc2bandwidth_RDA, uint)	\
+	DEMOD_ATTR_ADD(blind_bw_min, uint)	\
+	DEMOD_ATTR_ADD(blind_pow_th, uint)	\
+	DEMOD_ATTR_ADD(BLIND_POW_TH1, uint)	\
+	DEMOD_ATTR_ADD(BLIND_POW_TH2, uint)	\
+	DEMOD_ATTR_ADD(BLIND_POW_TH3, uint)	\
+	DEMOD_ATTR_ADD(BLIND_BW_MIN, uint)	\
+	DEMOD_ATTR_ADD(BLIND_CENT_BW, uint)	\
+	DEMOD_ATTR_ADD(BLIND_CENT_BW_RDA, uint)	\
+	DEMOD_ATTR_ADD(BLIND_CENT_TH, uint)	\
+	DEMOD_ATTR_ADD(lnb_high_voltage, int)	\
+	DEMOD_ATTR_ADD(blind_scan_new, unchar)	\
+	DEMOD_ATTR_ADD(dvbs_blind_spectrum_invert, unchar)	\
+	DEMOD_ATTR_ADD(BLIND_SR_TH, uint)	\
+	DEMOD_ATTR_ADD(BLIND_SR_UP_DVBS, uint)	\
+	DEMOD_ATTR_ADD(BLIND_SR_LOW_DVBS, uint)	\
+	DEMOD_ATTR_ADD(BLIND_SR_RT_UP_DVBS, uint)	\
+	DEMOD_ATTR_ADD(BLIND_SR_RT_LOW_DVBS, uint)	\
+	DEMOD_ATTR_ADD(BLIND_TIM, uint)	\
+	DEMOD_ATTR_ADD(BLIND_TIM1, uint)	\
+	DEMOD_ATTR_ADD(BLIND_TIM2, uint)	\
+	DEMOD_ATTR_ADD(BLIND_TUNER_BW_ON, bool)	\
+	DEMOD_ATTR_ADD(BLIND_TUNER_BW_RANGE, uint)	\
+	DEMOD_ATTR_ADD(diseqc_out_invert, uint)	\
+	DEMOD_ATTR_ADD(dvbs_agc_target, unchar)
+#endif
+
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
+#define DEMOD_J83B_ATTR_DEFINE()	\
+	DEMOD_ATTR_ADD(auto_search_std, uint)	\
+	DEMOD_ATTR_ADD(dvb_j83b_count, int)	\
+	DEMOD_ATTR_ADD(dvbc_agc_target, unchar)	\
+	DEMOD_ATTR_ADD(j83b_agc_target, unchar)
+#endif
+
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
+#define DEMOD_DVBC_ATTR_DEFINE()	\
+	DEMOD_ATTR_ADD(dvbc_lock_continuous_cnt, uint)	\
+	DEMOD_ATTR_ADD(dvbc_lost_continuous_cnt, uint)	\
+	DEMOD_ATTR_ADD(dvbc_qam_try_cnt, uint)	\
+	DEMOD_ATTR_ADD(dvbc_check_agc_time, uint)	\
+	DEMOD_ATTR_ADD(blind_spectrum_invert, unchar)	\
+	DEMOD_ATTR_ADD(dvbc_new_driver, unchar)	\
+	DEMOD_ATTR_ADD(dvbs_agc_target, unchar)	\
+	DEMOD_ATTR_ADD(dvbc_agc_target, unchar)	\
+	DEMOD_ATTR_ADD(j83b_agc_target, unchar)
+#endif
 
 static void get_chip_name(struct amldtvdemod_device_s *devp, char *str)
 {
@@ -1599,7 +1699,30 @@ static ssize_t attr_store(const struct class *cls, const struct class_attribute 
 		val = write_riscv_ram();
 		PR_INFO("download t2 fw:%d\n", val);
 #endif
-	} else if (!strcmp(parm[0], "demod_dbg")) {
+	}
+	DEMOD_COMMON_ATTR_DEFINE()
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+	DEMOD_ISDBT_ATTR_DEFINE()
+#endif
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB
+	DEMOD_DTMB_ATTR_DEFINE()
+#endif
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC
+	DEMOD_ATSC_ATTR_DEFINE()
+#endif
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT
+	DEMOD_DVBT_ATTR_DEFINE()
+#endif
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
+	DEMOD_DVBS_ATTR_DEFINE()
+#endif
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
+	DEMOD_J83B_ATTR_DEFINE()
+#endif
+#ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
+	DEMOD_DVBC_ATTR_DEFINE()
+#endif
+	else if (!strcmp(parm[0], "demod_dbg")) {
 		aml_demod_debug = val;
 	} else {
 		PR_INFO("invalid cmd: %s\n", parm[0]);

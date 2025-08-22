@@ -41,32 +41,19 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 //dvb-t
-MODULE_PARM_DESC(dvbt_reset_per_times, "");
-static unsigned int dvbt_reset_per_times = 26;
-__module_param(dvbt_reset_per_times, int, 0644);
+unsigned int dvbt_reset_per_times = 26;
 
 //dvb-t2
-static unsigned char dvbt2_0x2a1c = 0x90;
-MODULE_PARM_DESC(dvbt2_0x2a1c, "");
-__module_param(dvbt2_0x2a1c, byte, 0644);
+unsigned char dvbt2_0x2a1c = 0x90;
 
 //dvb-tx
-static unsigned char dvbtx_auto_check_times = 3;
-MODULE_PARM_DESC(dvbtx_auto_check_times, "");
-__module_param(dvbtx_auto_check_times, byte, 0644);
+unsigned char dvbtx_auto_check_times = 3;
 
 //dvb-t2
-MODULE_PARM_DESC(t2_0x2a48_delay, "");
-static unsigned int t2_0x2a48_delay = 100000;
-__module_param(t2_0x2a48_delay, int, 0644);
+unsigned int t2_0x2a48_delay = 100000;
 
-MODULE_PARM_DESC(t2_snr_threshold, "");
-static unsigned int t2_snr_threshold = 529;
-__module_param(t2_snr_threshold, int, 0644);
-
-MODULE_PARM_DESC(jita_det_enable, "");
-static bool jita_det_enable = true;
-__module_param(jita_det_enable, bool, 0644);
+unsigned int t2_snr_threshold = 529;
+bool jita_det_enable = true;
 
 #define FIXED_SHIFT 16
 #define FIXED_ONE  0x10000 //65536

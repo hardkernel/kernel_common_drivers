@@ -17,9 +17,7 @@
 #define BLIND_SEARCH_BW_MIN_DVBC			6
 #define BLIND_SEARCH_OFT_BW_DVBC			1
 
-static unsigned char blind_spectrum_invert = 1;
-module_param(blind_spectrum_invert, byte, 0644);
-MODULE_PARM_DESC(blind_spectrum_invert, "");
+unsigned char blind_spectrum_invert = 1;
 
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 static struct timer_list mytimer;
