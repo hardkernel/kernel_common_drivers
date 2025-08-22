@@ -23,6 +23,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
+#include <linux/amlogic/media/vout/vout_notify.h>
 
 #include "meson_uvm_aipq_processor.h"
 #include "../../video_sink/vpp_pq.h"
@@ -555,6 +556,8 @@ int attach_aipq_hook_mod_info(int shared_fd,
 	int ret = 0;
 	bool enable_aipq = true;
 	int output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
+	struct vinfo_s *vinfo = NULL;
+	struct vinfo_s vinfo_default = {.width = 1280, .height = 720, };
 
 	aipq_info->need_do_aipq = 1;
 	aipq_info->dw_height = 0;
@@ -574,9 +577,17 @@ int attach_aipq_hook_mod_info(int shared_fd,
 		}
 		aipq_print(PRINT_OTHER, "scale: %d, base: %d, output_fps is %d.\n",
 			output_pts_inc_scale, output_pts_inc_scale_base, output_fps);
-		if (output_fps < 24000) {
-			aipq_print(PRINT_OTHER,
-				"output_fps more than 60, ai_pq bypass.\n");
+
+		vinfo = get_current_vinfo();
+		if (IS_ERR_OR_NULL(vinfo)) {
+			vinfo = &vinfo_default;
+			aipq_print(PRINT_ERROR,
+				"%s: aipq get vinfo err.\n", __func__);
+		}
+		if (output_fps >= 24000 || (vinfo->width == 3840 && vinfo->height == 2160)) {
+			aipq_info->need_do_aipq = 1;
+			enable_aipq = true;
+		} else {
 			aipq_info->need_do_aipq = 0;
 			enable_aipq = false;
 		}
