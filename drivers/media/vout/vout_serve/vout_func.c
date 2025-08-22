@@ -305,7 +305,7 @@ unsigned int vout_func_get_viu_mux(int index, struct vout_server_s *vout_server,
 
 	mutex_lock(&vout_mutex);
 
-	p_server = vout_module.curr_vout_server[index - 1];
+	p_server = vout_server;
 
 	if (p_server) {
 		data = p_server->data;
