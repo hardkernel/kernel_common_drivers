@@ -137,56 +137,56 @@ static unsigned int AED_CROSSOVER_COEFF[AED_CROSSOVER_FILTER_SIZE] = {
 };
 
 static unsigned int AED_FULLBAND_DRC_COEFF[AED_FULLBAND_DRC_SIZE_V3] = {
-	0x0005ba29,  /* RMS coeff00 */
-	0x00000000,  /* K0 */
+	0x005ba28b,  /* RMS coeff00 */
+	0x00080000,  /* K0 */
 	0x00000000,  /* THD0 */
-	0xce000000,  /* THD1 */
-	0x00040000,  /* K1 */
-	0x00040000,  /* K2 */
+	0x0fd57acc,  /* THD1 */
+	0x00080000,  /* K1 */
+	0x00000000,  /* K2 */
 	0x00000000,  /* offset1 */
 	0x00000000,  /* offset2 */
-	0x00004aea,  /* RELEASE_COEF00 */
-	0x0002e578,  /* ATTACK_COEF00 */
+	0x0000eff1,  /* RELEASE_COEF00 */
+	0x002e577e,  /* ATTACK_COEF00 */
 };
 
 unsigned int AED_MULTIBAND_DRC_COEFF[AED_MULTIBAND_DRC_SIZE_V3] = {
-	0x00012aa0,  /* Low RMS coeff0 */
-	0x00000000,  /* Low K0*/
+	0x005ba28b,  /* Low RMS coeff0 */
+	0x00080000,  /* Low K0*/
 	0x00000000,  /* Low THD1 */
-	0x00000000,  /* Low THD2 */
-	0x00000000,  /* Low K1*/
+	0x0fd57acc,  /* Low THD2 */
+	0x00080000,  /* Low K1*/
 	0x00000000,  /* Low K2*/
 	0x00000000,  /* Low OFFSET1*/
 	0x00000000,  /* Low OFFSET2*/
-	0x00000eff,  /* Low RELEASE coeff0 */
-	0x000095a8,  /* Low ATTACK coeff0 */
-	0x00000000,  /* low gain*/
+	0x0000eff1,  /* Low RELEASE coeff0 */
+	0x002e577e,  /* Low ATTACK coeff0 */
+	0x00800000,  /* low gain*/
 	0x00000000,
 
-	0x0002e578,  /* Mid RMS coeff0 */
-	0x00000000,  /* Mid K0*/
+	0x005ba28b,  /* Mid RMS coeff0 */
+	0x00080000,  /* Mid K0*/
 	0x00000000,  /* Mid THD1 */
-	0x00000000,  /* Mid THD2 */
-	0x00000000,  /* Mid K1*/
+	0x0fd57acc,  /* Mid THD2 */
+	0x00080000,  /* Mid K1*/
 	0x00000000,  /* Mid K2*/
 	0x00000000,  /* Mid OFFSET1*/
 	0x00000000,  /* Mid OFFSET2*/
-	0x00000eff,  /* Mid RELEASE coeff0 */
-	0x000095a8,  /* Mid ATTACK coeff0 */
-	0x00000000,  /* mid gain*/
+	0x0000eff1,  /* Mid RELEASE coeff0 */
+	0x002e577e,  /* Mid ATTACK coeff0 */
+	0x00800000,  /* mid gain*/
 	0x00000000,
 
-	0x0005ba29,  /* High RMS coeff0 */
-	0x00000000,  /* High K0*/
+	0x005ba28b,  /* High RMS coeff0 */
+	0x00080000,  /* High K0*/
 	0x00000000,  /* High THD1 */
-	0x00000000,  /* High THD2 */
-	0x00000000,  /* High K1*/
+	0x0fd57acc,  /* High THD2 */
+	0x00080000,  /* High K1*/
 	0x00000000,  /* High K2*/
 	0x00000000,  /* High OFFSET1*/
 	0x00000000,  /* High OFFSET2*/
-	0x00000eff,  /* High RELEASE coeff0 */
-	0x000095a8,  /* High ATTACK coeff0 */
-	0x00000000,  /* high gain*/
+	0x0000eff1,  /* High RELEASE coeff0 */
+	0x002e577e,  /* High ATTACK coeff0 */
+	0x00800000,  /* high gain*/
 	0x00000000,
 };
 
