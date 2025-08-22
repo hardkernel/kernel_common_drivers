@@ -3072,6 +3072,36 @@ int codec_mm_dump_all_scatters(void)
 	return 0;
 }
 
+int codec_mm_query_sc_buf(int inst_id, int module_type, bool tvp_flag)
+{
+	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt(tvp_flag);
+	struct codec_mm_scatter *mms;
+	struct list_head *pos, *tmp;
+	int total_pages = 0;
+	int sid;
+	int index;
+
+	codec_mm_list_lock(smgt);
+	do {
+		if (list_empty(&smgt->scatter_list))
+			break;
+		list_for_each_safe(pos, tmp, &smgt->scatter_list) {
+			mms = list_entry(pos, struct codec_mm_scatter, list);
+			if (mms->inst_id != inst_id || mms->module_type != module_type)
+				continue;
+
+			for (index = 0; index < mms->page_cnt; index++) {
+				sid = PAGE_SID_OF_MMS(mms, index);
+				if (sid < MAX_SID)
+					total_pages++;
+			}
+		}
+	} while (0);
+	codec_mm_list_unlock(smgt);
+
+	return total_pages;
+}
+
 int codec_mm_scatter_update_config(struct codec_mm_scatter_mgt *smgt)
 {
 	smgt->keep_size_PAGE = g_scatter.keep_size_PAGE;

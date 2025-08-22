@@ -40,6 +40,8 @@ do {					\
 
 void dma_clear_buffer(struct page *page, size_t size);
 
+u32 codec_mm_get_debug_mode(void);
+u32 codec_mm_get_sc_debug_mode(void);
 u32 codec_mm_get_keep_debug_mode(void);
 bool codec_mm_scatter_available_check(int size);
 void codec_mm_scatter_level_decrease(int size);
@@ -51,4 +53,9 @@ bool is_2k_platform(void);
 u32 codec_mm_get_property_from_dts(char *property_name);
 bool codec_mm_get_secure_mem_ctrl(void);
 void codec_mm_show_dma_buf(void);
+void codec_mm_mgt_lock(unsigned long *flags);
+void codec_mm_mgt_unlock(unsigned long *flags);
+struct list_head *codec_mm_get_list_head(void);
+void *codec_mm_search_mem_by_phy(unsigned long phy_addr);
+
 #endif /**/

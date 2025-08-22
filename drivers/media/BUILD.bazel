@@ -89,6 +89,7 @@ ddk_module(
                 "common/codec_mm/codec_mm_state.c",
                 "common/codec_mm/codec_mm_sys.c",
                 "common/codec_mm/codec_mm_prealloc.c",
+                "common/codec_mm/codec_mm_mem_info.c",
                 "common/codec_mm/configs/configs.c",
                 "common/codec_mm/configs/configs_module.c",
                 "common/codec_mm/configs/configs_test.c",

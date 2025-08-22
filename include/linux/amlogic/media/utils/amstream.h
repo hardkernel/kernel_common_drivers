@@ -168,6 +168,7 @@ struct codec_profile_t {
 #define AMSTREAM_SET_DRMMODE                  0x11C
 #define AMSTREAM_SET_VIDEO_ID                 0x11E
 #define AMSTREAM_SET_FCC_MODE                 0x11F
+#define AMSTREAM_SET_RESMAN_SSID              0x120
 
 /*  video set   cmd */
 #define AMSTREAM_SET_OMX_VPTS                 0x160

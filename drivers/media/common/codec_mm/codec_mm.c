@@ -279,6 +279,17 @@ unsigned long cma_get_size(const struct cma *cma)
  * 0x200	dump stack when allocation/free happens
  */
 u32 debug_mode;
+u32 codec_mm_get_debug_mode(void)
+{
+	return debug_mode;
+}
+
+static u32 debug_sc_mode;
+u32 codec_mm_get_sc_debug_mode(void)
+{
+	return debug_sc_mode;
+}
+EXPORT_SYMBOL(codec_mm_get_sc_debug_mode);
 
 static u32 debug_keep_mode;
 u32 codec_mm_get_keep_debug_mode(void)
@@ -490,6 +501,27 @@ static int codec_mm_valid_mm_locked(struct codec_mm_s *mmhandle)
 	return have_found;
 }
 
+void codec_mm_mgt_lock(unsigned long *flags)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	spin_lock_irqsave(&mgt->lock, *flags);
+}
+
+void codec_mm_mgt_unlock(unsigned long *flags)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	spin_unlock_irqrestore(&mgt->lock, *flags);
+}
+
+struct list_head *codec_mm_get_list_head(void)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	return &mgt->mem_list;
+}
+
 static int codec_mm_alloc_tvp_pre_check_in(struct codec_mm_mgt_s *mgt, int need_size)
 {
 	if (!mgt)
@@ -643,7 +675,7 @@ static void *codec_mm_search_vaddr(unsigned long phy_addr)
 	return vaddr;
 }
 
-static void *codec_mm_search_mem_by_phy(unsigned long phy_addr)
+void *codec_mm_search_mem_by_phy(unsigned long phy_addr)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	struct codec_mm_s *mem = NULL;
@@ -660,7 +692,8 @@ static void *codec_mm_search_mem_by_phy(unsigned long phy_addr)
 		if (mem->flags & CODEC_MM_FLAGS_FOR_LOCAL_MGR)
 			continue;
 
-		if (phy_addr == mem->phy_addr) {
+		if (phy_addr >= mem->phy_addr &&
+			phy_addr < mem->phy_addr + mem->buffer_size) {
 			spin_unlock_irqrestore(&mgt->lock, flags);
 			return mem;
 		}

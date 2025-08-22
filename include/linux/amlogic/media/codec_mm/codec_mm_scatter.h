@@ -45,6 +45,8 @@ struct codec_mm_scatter {
 	/* user scatter mutex lock */
 	struct mutex mutex;
 	struct list_head list;	/*hold list. */
+	int inst_id;
+	int module_type;
 };
 
 struct codec_mm_scatter_owner {

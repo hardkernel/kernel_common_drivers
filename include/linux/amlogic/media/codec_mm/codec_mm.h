@@ -117,6 +117,8 @@ struct codec_mm_s {
 	u64 tee_set_end_time;
 	u64 local_id;
 	struct dma_buf *dma_buf;
+	int mem_type;
+	int module_type;
 };
 
 struct codec_mm_cb_s;

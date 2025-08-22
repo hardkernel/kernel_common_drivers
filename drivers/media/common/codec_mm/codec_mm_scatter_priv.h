@@ -65,4 +65,6 @@ void codec_mm_clear_alloc_infos(void);
 int codec_mm_scatter_get_reserved_size(void);
 
 void codec_mm_scatter_owner_dump(void);
+int codec_mm_query_sc_buf(int inst_id, int module_type, bool tvp_flag);
+
 #endif
