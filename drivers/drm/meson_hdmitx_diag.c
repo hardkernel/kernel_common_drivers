@@ -492,14 +492,20 @@ static void hdmitx_video_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 	diagnosis_info->video_info.total_v_resolution = tx_comm->fmt_para.timing.v_total;
 	diagnosis_info->video_info.pixel_clk = hdmitx_common_get_pixel_clk(tx_comm);
 	hdmitx_get_qms_init_state(tx_comm, &brr, &qms_en);
-	if (brr && qms_en)
+	if (brr && qms_en) {
 		diagnosis_info->video_info.vrr_frequency = frequency;
-	else
+		diagnosis_info->video_info.qms_vrr = 1;
+		diagnosis_info->video_info.m_const = hdmitx_common_get_m_const(tx_comm);
+		diagnosis_info->video_info.next_tfr = hdmitx_common_get_next_tfr(tx_comm);
+		diagnosis_info->video_info.base_refresh_rate =
+			hdmitx_common_get_base_refresh_rate(tx_comm);
+	} else {
 		diagnosis_info->video_info.vrr_frequency = 0;
-	diagnosis_info->video_info.qms_vrr = (brr && qms_en) ? 1 : 0;
-	diagnosis_info->video_info.m_const = hdmitx_common_get_m_const(tx_comm);
-	diagnosis_info->video_info.next_tfr = hdmitx_common_get_next_tfr(tx_comm);
-	diagnosis_info->video_info.base_refresh_rate = hdmitx_common_get_base_refresh_rate(tx_comm);
+		diagnosis_info->video_info.qms_vrr = 0;
+		diagnosis_info->video_info.m_const = 0;
+		diagnosis_info->video_info.next_tfr = 0;
+		diagnosis_info->video_info.base_refresh_rate = 0;
+	}
 }
 
 static void hdmitx_audio_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
