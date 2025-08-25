@@ -69,6 +69,7 @@ enum iotm_mode {
 enum iotm_type {
 	IOTM_TYPE_T6D,
 	IOTM_TYPE_T6W,
+	IOTM_TYPE_T6X,
 };
 
 enum iotm_dump {
@@ -117,19 +118,15 @@ static struct reg_entry reg_table_public[] __initdata = {
 	{0xFE026000, 0xFE027FFF, "sar_adc"},
 	{0xFE02C000, 0xFE02DFFF, "i2c_mon"},
 	{0xFE02E000, 0xFE02FFFF, "startup"},
-	{0xFE036000, 0xFE037FFF, "dmc0"},
 	{0xFE038000, 0xFE039FFF, "Smart Card"},
 	{0xFE044000, 0xFE045FFF, "cec"},
 	{0xFE048000, 0xFE049FFF, "msr_clk"},
 	{0xFE050000, 0xFE051FFF, "spicc(spi_sg_comb)"},
 	{0xFE058000, 0xFE059FFF, "pwm_(a-j)"},
-	{0xFE064000, 0xFE065FFF, "i2c_s_a"},
 	{0xFE066000, 0xFE067FFF, "i2c_m(0-4)"},
 	{0xFE072000, 0xFE073FFF, "tvfe"},
 	{0xFE074000, 0xFE075FFF, "led_ctrl"},
 	{0xFE078000, 0xFE079FFF, "uart(a-d)"},
-	{0xFE07A000, 0xFE07BFFF, "uart_b"},
-	{0xFE07C000, 0xFE07DFFF, "uart_c"},
 	{0xFE080000, 0xFE081FFF, "ci_plus"},
 	{0xFE084000, 0xFE085FFF, "ir_top"},
 	{0xFE08C000, 0xFE08DFFF, "nand_emmc_C"},
@@ -147,7 +144,6 @@ static struct reg_entry reg_table_public[] __initdata = {
 	{0xFE3B0000, 0xFE3BFFFF, "tcon"},
 	{0xFE400000, 0xFE43FFFF, "mali"},
 	{0xFE440000, 0xFE47FFFF, "SECTOP"},
-	{0xFE480000, 0xFE4BFFFF, "usb_wrapper"},
 	{0xFE800000, 0xFF7FFFFF, "a53_dbg"},
 	{0xFF800000, 0xFF83FFFF, "vpu"},
 	{0xFF840000, 0xFF84FFFF, "ge2d"},
@@ -158,14 +154,44 @@ static struct reg_entry reg_table_public[] __initdata = {
 };
 
 static struct reg_entry reg_table_t6d[] __initdata = {
+	{0xFE036000, 0xFE037FFF, "dmc0"},
+	{0xFE064000, 0xFE065FFF, "i2c_s_a"},
+	{0xFE07A000, 0xFE07BFFF, "uart_b"},
+	{0xFE07C000, 0xFE07DFFF, "uart_c"},
+	{0xFE480000, 0xFE4BFFFF, "usb_wrapper"},
 };
 
 static struct reg_entry reg_table_t6w[] __initdata = {
 	{0xFE014000, 0xFE015FFF, "bcon"},
 	{0xFE016000, 0xFE017FFF, "vx1_lvds"},
 	{0xFE018000, 0xFE019FFF, "apb2btc"},
+	{0xFE036000, 0xFE037FFF, "dmc0"},
+	{0xFE064000, 0xFE065FFF, "i2c_s_a"},
+	{0xFE07A000, 0xFE07BFFF, "uart_b"},
+	{0xFE07C000, 0xFE07DFFF, "uart_c"},
 	{0xFE09E000, 0xFE09FFFF, "aucpu"},
 	{0xFE340000, 0xFE34FFFF, "dmc0"},
+	{0xFE370000, 0xFE37FFFF, "usb2_2"},
+	{0xFE480000, 0xFE4BFFFF, "usb_wrapper"},
+	{0xFF850000, 0xFF88FFFF, "dpss"},
+};
+
+static struct reg_entry reg_table_t6x[] __initdata = {
+	{0xFB000000, 0xFBFFFFFF, "ddrphy_and_pll_1"},
+	{0xFE014000, 0xFE015FFF, "bcon"},
+	{0xFE016000, 0xFE017FFF, "vx1_lvds"},
+	{0xFE030000, 0xFE031FFF, "mdc_vpu1"},
+	{0xFE032000, 0xFE033FFF, "mdc_vpu0"},
+	{0xFE034000, 0xFE035FFF, "mdc_sys"},
+	{0xFE036000, 0xFE037FFF, "mdc_cpu"},
+	{0xFE068000, 0xFE069FFF, "i2c_tcon"},
+	{0xFE094000, 0xFE095FFF, "ddr_test"},
+	{0xFE09E000, 0xFE09FFFF, "aucpu"},
+	{0xFE0B8000, 0xFE0B9FFF, "dsc_dec"},
+	{0xFE300000, 0xFE30FFFF, "dmc1"},
+	{0xFE340000, 0xFE34FFFF, "dmc0"},
+	{0xFE350000, 0xFE35FFFF, "usb3_0"},
+	{0xFE360000, 0xFE36FFFF, "usb2_1"},
 	{0xFE370000, 0xFE37FFFF, "usb2_2"},
 	{0xFF850000, 0xFF88FFFF, "dpss"},
 };
@@ -224,6 +250,16 @@ static void confirm_chip_mmap(void)
 			memcpy(iotm.reg_table, reg_table_public, sizeof(reg_table_public));
 			memcpy((char *)(iotm.reg_table) + sizeof(reg_table_public),
 					reg_table_t6w, sizeof(reg_table_t6w));
+		}
+		break;
+	case IOTM_TYPE_T6X:
+		iotm.reg_table_size += ARRAY_SIZE(reg_table_t6x);
+		iotm.reg_table = kmalloc(sizeof(reg_table_public) + sizeof(reg_table_t6x),
+								GFP_KERNEL);
+		if (iotm.reg_table) {
+			memcpy(iotm.reg_table, reg_table_public, sizeof(reg_table_public));
+			memcpy((char *)(iotm.reg_table) + sizeof(reg_table_public),
+					reg_table_t6x, sizeof(reg_table_t6x));
 		}
 		break;
 	default:
@@ -451,9 +487,15 @@ static void auto_dump_ddr_buf(void)
 
 static bool need_dump(void)
 {
-	if (iotm.timeout_irq_handled)
-		/* When timeout occurs */
-		return true;
+	/* before reboot */
+	if (iotm.supported) {
+		unsigned int val;
+
+		val = readl(iotm.cssys_base + IOTM_IRQ_CTRL);
+		if (iotm.timeout_irq_handled || (val & (IOTM_IRQ_CTRL_CAPU_TIMEOUT |
+			IOTM_IRQ_CTRL_VAPB4_TIMEOUT)))
+			return true;
+	}
 
 	/* after reboot */
 	switch (iotm.dump_mode) {
@@ -1082,7 +1124,7 @@ static bool ddr_trace_valid(void)
 		return false;
 	}
 
-	if (!memcmp(vaddr, DDR_TRACE_MAGIC, strlen(DDR_TRACE_MAGIC) + 1))
+	if (!memcmp(vaddr, DDR_TRACE_MAGIC, strlen(DDR_TRACE_MAGIC)))
 		return true;
 
 	return false;
@@ -1172,6 +1214,10 @@ static const struct of_device_id iotm_match[] = {
 	{
 		.compatible = "amlogic, iotm-t6w",
 		.data = (void *)IOTM_TYPE_T6W,
+	},
+	{
+		.compatible = "amlogic, iotm-t6x",
+		.data = (void *)IOTM_TYPE_T6X,
 	},
 	{}
 };

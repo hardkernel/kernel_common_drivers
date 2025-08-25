@@ -196,7 +196,7 @@ struct iotm {
 	int cpu_type;
 	int supported;
 	int en_saved;
-	unsigned int dump_cnt;
+	int dump_cnt;
 	int bytes_per_trace;
 	unsigned int dump_mode;
 	void __iomem *cssys_base;
