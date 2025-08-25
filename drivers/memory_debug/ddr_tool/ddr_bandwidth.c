@@ -271,7 +271,7 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 				mbw = (u64)mbw * 2 * 4;
 		}
 		if (!mbw) {
-			pr_emerg("warning: theoretic max bandwidth is zero\n");
+			pr_err("warning: theoretic max bandwidth is zero\n");
 			return;
 		}
 		mbw /= 1024;	/* theoretic max bandwidth */
@@ -291,8 +291,8 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 		do_div(mul, cnt);
 		if (mul >= mbw) {
 			/* sample may overflow if irq tick changed, ignore it */
-			pr_emerg("%s, bandwidth:%lld large than max :%lld\n", __func__, mul, mbw);
-			//return;
+			pr_info("%s, bandwidth:%lld large than max :%lld\n", __func__, mul, mbw);
+			return;
 		}
 		db->cur_sample.total_bandwidth = mul;
 		mul *= 10000ULL;

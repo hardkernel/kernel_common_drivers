@@ -79,7 +79,7 @@ static void s6_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 			io = db->ddr_reg4;
 			break;
 		default:
-			break;
+			return;
 		}
 
 		val = db->mode << 31;
@@ -109,7 +109,7 @@ static void s6_dmc_bandwidth_init(struct ddr_bandwidth *db)
 			io = db->ddr_reg4;
 			break;
 		default:
-			break;
+			return;
 		}
 		writel(db->clock_count, io + DMC_MON_TIMER);
 	}

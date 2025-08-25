@@ -87,7 +87,7 @@ static void t5m_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 			io = db->ddr_reg4;
 			break;
 		default:
-			break;
+			return;
 		}
 
 		off = DMC_MON0_CTRL + channel * 16;
@@ -126,7 +126,7 @@ static void t5m_dmc_range_config(struct ddr_bandwidth *db, int channel,
 			io = db->ddr_reg4;
 			break;
 		default:
-			break;
+			return;
 		}
 
 		off = DMC_MON0_STA + channel * 16;
@@ -156,18 +156,18 @@ static void t5m_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 	unsigned long val;
 	void *io;
 
-	for (i = 0; i < db->dmc_number; i++) {
+	for (i = db->dmc_number; i > 0; i--) {
 		switch (i) {
-		case 0:
+		case 1:
 			io = db->ddr_reg1;
 			break;
-		case 1:
+		case 2:
 			io = db->ddr_reg2;
 			break;
-		case 2:
+		case 3:
 			io = db->ddr_reg3;
 			break;
-		case 3:
+		case 4:
 			io = db->ddr_reg4;
 			break;
 		default:
@@ -201,7 +201,7 @@ static void t5m_dmc_bandwidth_init(struct ddr_bandwidth *db)
 			io = db->ddr_reg4;
 			break;
 		default:
-			break;
+			return;
 		}
 		writel(db->clock_count, io + DMC_MON_TIMER);
 	}
@@ -240,7 +240,12 @@ static int t5m_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
 			return ret;
 		}
 
-		val = readl(io + DMC_MON_CTRL0);
+		do {
+			val = readl(io + DMC_MON_CTRL0);
+			if (val & DMC_QOS_IRQ)
+				break;
+		} while (1);
+
 		/*
 		 * get total bytes by each channel, each cycle 16 bytes;
 		 */
