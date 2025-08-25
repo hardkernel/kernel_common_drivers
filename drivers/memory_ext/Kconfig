@@ -105,7 +105,7 @@ config AMLOGIC_VMAP
 	depends on AMLOGIC_BREAK_GKI
 	depends on AMLOGIC_STACKPROTECTOR
 	depends on !AMLOGIC_ARM_KASAN
-	depends on AMLOGIC_PTR_AUTH_KERNEL
+	depends on AMLOGIC_PTR_AUTH_KERNEL || ARM
 	default n
 	help
 		This config is used to enable amlogic kernel stack

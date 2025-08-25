@@ -543,6 +543,7 @@ static void check_sp_fault_again(struct pt_regs *regs)
 	unsigned long sp = 0, addr;
 	struct page *page;
 	int cache = 0;
+	int retries = 5000;
 
 #ifdef CONFIG_ARM
 	sp = regs->ARM_sp;
@@ -569,8 +570,18 @@ static void check_sp_fault_again(struct pt_regs *regs)
 		 * it first
 		 */
 		D("fault again, sp:%lx, addr:%lx\n", sp, addr);
-		page = get_vmap_cached_page(&cache);
-		WARN_ON(!page);
+		do {
+			page = get_vmap_cached_page(&cache);
+			if (page)
+				break;
+			udelay(10);
+		} while (retries--);
+
+		if (!page) {
+			pr_emerg("vmap_stack: get cached page failed\n");
+			panic("vmap stack");
+		}
+
 		vmap_mmu_set(page, addr, 1);
 		update_vmap_stack(1);
 	#ifndef CONFIG_KASAN
@@ -601,6 +612,7 @@ int __handle_vmap_fault(unsigned long addr, unsigned int esr,
 {
 	struct page *page;
 	int cache = 0;
+	int retries = 5000;
 
 	if (!is_vmap_addr(addr)) {
 		check_sp_fault_again(regs);
@@ -653,8 +665,18 @@ int __handle_vmap_fault(unsigned long addr, unsigned int esr,
 	/*
 	 * allocate a new page for vmap
 	 */
-	page = get_vmap_cached_page(&cache);
-	WARN_ON(!page);
+	do {
+		page = get_vmap_cached_page(&cache);
+		if (page)
+			break;
+		udelay(10);
+	} while (retries--);
+
+	if (!page) {
+		pr_emerg("vmap_stack: get cached page failed\n");
+		panic("vmap stack");
+	}
+
 	vmap_mmu_set(page, addr, 1);
 	update_vmap_stack(1);
 	if (THREAD_SIZE_ORDER > 1 && stack_floor_page(addr)) {
@@ -923,7 +945,7 @@ static int vmap_task(void *data)
 			break;
 
 		if (!atomic_read(&vmap_cache_flag)) {
-			msleep_interruptible(20);
+			msleep_interruptible(10);
 			continue;
 		}
 		raw_spin_lock_irqsave(&v->page_lock, flags);
