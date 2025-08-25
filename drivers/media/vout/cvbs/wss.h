@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/vout/cvbs/wss.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __WSS_H__
@@ -91,7 +78,7 @@
 #define WSS_576I_MVSN_LINE					0x8
 #define WSS_576I_MVSN_START					0x0
 #define WSS_576I_MVSN_LENGTH					0x1
-#define WSS_576I_MVSN_MASK					0x1
+#define WSS_576I_MVSN_MASK					0xf
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* for 480i, according to <IEC 61880:1998> */
 
@@ -146,7 +133,7 @@
 #define WSS_480I_MVSN_LINE			0xa
 #define WSS_480I_MVSN_START			0x0
 #define WSS_480I_MVSN_LENGTH			0x1
-#define WSS_480I_MVSN_MASK			0x1
+#define WSS_480I_MVSN_MASK			0xf
 
 #define WSS_MVSN_EN_BIT				BIT(0)
 #define WSS_480I_CGMS_A_EN_BIT			BIT(1)

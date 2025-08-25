@@ -63,15 +63,147 @@ static void wss_set_output(unsigned int cmd, unsigned int mode,
 		/*enable odd field for line 283 */
 		break;
 	case WSS_576I_CMD_MVSN:
-	case WSS_480I_CMD_MVSN:
-		if (!data) {
+		/* macrovision on PAL contains only AGC, not have colorstripe */
+		/* only dynamically configured N8 ~ N15 per CPS, keep other Nx not changed */
+		if (data == 0) {
+			/* Macrovision off / AGC off */
 			cvbsout_wss_flag &= (~WSS_MVSN_EN_BIT);
 			cvbs_out_reg_setb(ENCI_VIDEO_MODE_ADV, 0, 15, 1);
 			cvbs_out_reg_write(ENCI_MACV_N0, 0x0);
-		} else {
+		} else if (data == 1) {
+			/* Macrovision On/default: AGC Only */
+			/* refer to TABLE 1b.1 of macrovision spec */
+			cvbsout_wss_flag |= WSS_MVSN_EN_BIT;
+			cvbs_out_reg_setb(ENCI_VIDEO_MODE_ADV, 1, 15, 1);
+			cvbs_out_reg_write(ENCI_MACV_N0, 0x36);
+			cvbs_out_reg_write(ENCI_MACV_N1, 0x1a);
+			cvbs_out_reg_write(ENCI_MACV_N2, 0x22);
+			cvbs_out_reg_write(ENCI_MACV_N3, 0x2a);
+			cvbs_out_reg_write(ENCI_MACV_N4, 0x22);
+			cvbs_out_reg_write(ENCI_MACV_N5, 0x5);
+			cvbs_out_reg_write(ENCI_MACV_N6, 0x2);
+			cvbs_out_reg_write(ENCI_MACV_N7, 0x0);
+			cvbs_out_reg_write(ENCI_MACV_N8, 0x1c);
+			cvbs_out_reg_write(ENCI_MACV_N9, 0x3d);
+			cvbs_out_reg_write(ENCI_MACV_N10, 0x14);
+			cvbs_out_reg_write(ENCI_MACV_N11, 0x3fe);
+			cvbs_out_reg_write(ENCI_MACV_N12, 0x154);
+			cvbs_out_reg_write(ENCI_MACV_N13, 0xfe);
+			cvbs_out_reg_write(ENCI_MACV_N14, 0x7e);
+			cvbs_out_reg_write(ENCI_MACV_N15, 0x60);
+			cvbs_out_reg_write(ENCI_MACV_N16, 0x0);
+			cvbs_out_reg_write(ENCI_MACV_N17, 0x8);
+			cvbs_out_reg_write(ENCI_MACV_N18, 0x0);
+			cvbs_out_reg_write(ENCI_MACV_N19, 0x4);
+			cvbs_out_reg_write(ENCI_MACV_N20, 0x7);
+			cvbs_out_reg_write(ENCI_MACV_N21, 0x155);
+			cvbs_out_reg_write(ENCI_MACV_N22, 0x0);
+		} else if (data == 2) {
+			/*
+			 * PAL test P01: for special project
+			 * Data values as indicated above for Default PAL,
+			 * but Mode Byte(N0) set to activate Colorstripe.
+			 */
+			/* refer to TABLE 1b.1 of macrovision spec */
 			cvbsout_wss_flag |= WSS_MVSN_EN_BIT;
 			cvbs_out_reg_setb(ENCI_VIDEO_MODE_ADV, 1, 15, 1);
 			cvbs_out_reg_write(ENCI_MACV_N0, 0x3e);
+			cvbs_out_reg_write(ENCI_MACV_N1, 0x1a);
+			cvbs_out_reg_write(ENCI_MACV_N2, 0x22);
+			cvbs_out_reg_write(ENCI_MACV_N3, 0x2a);
+			cvbs_out_reg_write(ENCI_MACV_N4, 0x22);
+			cvbs_out_reg_write(ENCI_MACV_N5, 0x5);
+			cvbs_out_reg_write(ENCI_MACV_N6, 0x2);
+			cvbs_out_reg_write(ENCI_MACV_N7, 0x0);
+			cvbs_out_reg_write(ENCI_MACV_N8, 0x1c);
+			cvbs_out_reg_write(ENCI_MACV_N9, 0x3d);
+			cvbs_out_reg_write(ENCI_MACV_N10, 0x14);
+			cvbs_out_reg_write(ENCI_MACV_N11, 0x3fe);
+			cvbs_out_reg_write(ENCI_MACV_N12, 0x154);
+			cvbs_out_reg_write(ENCI_MACV_N13, 0xfe);
+			cvbs_out_reg_write(ENCI_MACV_N14, 0x7e);
+			cvbs_out_reg_write(ENCI_MACV_N15, 0x60);
+			cvbs_out_reg_write(ENCI_MACV_N16, 0x0);
+			cvbs_out_reg_write(ENCI_MACV_N17, 0x8);
+			cvbs_out_reg_write(ENCI_MACV_N18, 0x0);
+			cvbs_out_reg_write(ENCI_MACV_N19, 0x4);
+			cvbs_out_reg_write(ENCI_MACV_N20, 0x7);
+			cvbs_out_reg_write(ENCI_MACV_N21, 0x155);
+			cvbs_out_reg_write(ENCI_MACV_N22, 0x0);
+		} else if (data == 3) {
+			/* PAL test P02: for special project */
+			cvbsout_wss_flag |= WSS_MVSN_EN_BIT;
+			cvbs_out_reg_setb(ENCI_VIDEO_MODE_ADV, 1, 15, 1);
+			cvbs_out_reg_write(ENCI_MACV_N0, 0x3e);
+			cvbs_out_reg_write(ENCI_MACV_N1, 0x1a);
+			cvbs_out_reg_write(ENCI_MACV_N2, 0x22);
+			cvbs_out_reg_write(ENCI_MACV_N3, 0x2a);
+			cvbs_out_reg_write(ENCI_MACV_N4, 0x22);
+			cvbs_out_reg_write(ENCI_MACV_N5, 0x5);
+			cvbs_out_reg_write(ENCI_MACV_N6, 0x2);
+			cvbs_out_reg_write(ENCI_MACV_N7, 0x3);
+
+			cvbs_out_reg_write(ENCI_MACV_N8, 0x21);
+			cvbs_out_reg_write(ENCI_MACV_N9, 0x32);
+			cvbs_out_reg_write(ENCI_MACV_N10, 0x2b);
+			cvbs_out_reg_write(ENCI_MACV_N11, 0x78c6);
+			cvbs_out_reg_write(ENCI_MACV_N12, 0x1f43);
+			cvbs_out_reg_write(ENCI_MACV_N13, 0x53);
+			cvbs_out_reg_write(ENCI_MACV_N14, 0xa3);
+			cvbs_out_reg_write(ENCI_MACV_N15, 0xf0);
+
+			cvbs_out_reg_write(ENCI_MACV_N16, 0x1);
+			cvbs_out_reg_write(ENCI_MACV_N17, 0x7);
+			cvbs_out_reg_write(ENCI_MACV_N18, 0xc);
+			cvbs_out_reg_write(ENCI_MACV_N19, 0x3);
+			cvbs_out_reg_write(ENCI_MACV_N20, 0x2);
+			cvbs_out_reg_write(ENCI_MACV_N21, 0x385);
+			cvbs_out_reg_write(ENCI_MACV_N22, 0x0);
+		} else {
+			pr_err("not support macrovision mode: %d\n", data);
+		}
+		break;
+	case WSS_480I_CMD_MVSN:
+		/* macrovision on NTSC contains AGC/colorstripe, colorstripe: 4/2 lines */
+		if (data == 0) {
+			/* Macrovision off */
+			cvbsout_wss_flag &= (~WSS_MVSN_EN_BIT);
+			cvbs_out_reg_setb(ENCI_VIDEO_MODE_ADV, 0, 15, 1);
+			cvbs_out_reg_write(ENCI_MACV_N0, 0x0);
+		} else if (data == 1) {
+			/* Macrovision APS trigger bit: 0x3 : AGC + 4-line(default setting) */
+			/* refer to TABLE 1a.1 of macrovision spec */
+			cvbsout_wss_flag |= WSS_MVSN_EN_BIT;
+			cvbs_out_reg_setb(ENCI_VIDEO_MODE_ADV, 1, 15, 1);
+			cvbs_out_reg_write(ENCI_MACV_N0, 0x3e);
+			cvbs_out_reg_write(ENCI_MACV_N1, 0x17);
+			cvbs_out_reg_write(ENCI_MACV_N2, 0x15);
+			cvbs_out_reg_write(ENCI_MACV_N3, 0x21);
+			cvbs_out_reg_write(ENCI_MACV_N4, 0x15);
+			cvbs_out_reg_write(ENCI_MACV_N5, 0x5);
+			cvbs_out_reg_write(ENCI_MACV_N6, 0x5);
+			cvbs_out_reg_write(ENCI_MACV_N7, 0x2);
+			cvbs_out_reg_write(ENCI_MACV_N8, 0x1b);
+			cvbs_out_reg_write(ENCI_MACV_N9, 0x1b);
+			cvbs_out_reg_write(ENCI_MACV_N10, 0x24);
+			cvbs_out_reg_write(ENCI_MACV_N11, 0x7f8);
+			cvbs_out_reg_write(ENCI_MACV_N12, 0x0);
+			cvbs_out_reg_write(ENCI_MACV_N13, 0x0f);
+			cvbs_out_reg_write(ENCI_MACV_N14, 0x0f);
+			cvbs_out_reg_write(ENCI_MACV_N15, 0x60);
+			cvbs_out_reg_write(ENCI_MACV_N16, 0x1);
+			cvbs_out_reg_write(ENCI_MACV_N17, 0xa);
+			cvbs_out_reg_write(ENCI_MACV_N18, 0x0);
+			cvbs_out_reg_write(ENCI_MACV_N19, 0x5);
+			cvbs_out_reg_write(ENCI_MACV_N20, 0x4);
+			cvbs_out_reg_write(ENCI_MACV_N21, 0x3ff);
+			cvbs_out_reg_write(ENCI_MACV_N22, 0x0);
+		} else {
+			/* data = 2: Macrovision APS trigger bit: 0x2: AGC + 2-line
+			 * data = 3: Macrovision APS trigger bit: 0x1: AGC only
+			 * others: invalid
+			 */
+			pr_err("not support macrovision mode: %d\n", data);
 		}
 		break;
 	case WSS_576I_CMD_CGMS_A:
@@ -468,6 +600,28 @@ static void wss_show_status(unsigned int mode, char *wss_cmd)
 			unsigned int macro_register[] = {
 				ENCI_VIDEO_MODE_ADV,
 				ENCI_MACV_N0,
+				ENCI_MACV_N1,
+				ENCI_MACV_N2,
+				ENCI_MACV_N3,
+				ENCI_MACV_N4,
+				ENCI_MACV_N5,
+				ENCI_MACV_N6,
+				ENCI_MACV_N7,
+				ENCI_MACV_N8,
+				ENCI_MACV_N9,
+				ENCI_MACV_N10,
+				ENCI_MACV_N11,
+				ENCI_MACV_N12,
+				ENCI_MACV_N13,
+				ENCI_MACV_N14,
+				ENCI_MACV_N15,
+				ENCI_MACV_N16,
+				ENCI_MACV_N17,
+				ENCI_MACV_N18,
+				ENCI_MACV_N19,
+				ENCI_MACV_N20,
+				ENCI_MACV_N21,
+				ENCI_MACV_N22,
 				ENCI_MACV_MAX_AMP,
 				ENCI_MACV_PULSE_LO,
 				ENCI_MACV_PULSE_HI,
