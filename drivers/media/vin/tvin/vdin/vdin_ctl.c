@@ -2313,14 +2313,14 @@ void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 	if (write_fmt == MIF_FMT_NV12_21) {
 		if (devp->dtdata->hw_ver == VDIN_HW_T6W) {
 			/* swap_cbcr */
-			wr_bits(offset, VDIN0_WRMIF_CTRL1, !swap_cbcr,
+			wr_bits(offset, VDIN0_WRMIF_CTRL1, swap_cbcr,
 				24, 1);
 			/* output even lines's cbcr */
 			wr_bits(offset, VDIN0_WRMIF_CTRL1, 0,
 				22, VCONV_MODE_WID);
 		} else if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
 			/* swap_cbcr */
-			wr_bits(offset, VDIN_WRMIF_CTRL1, !swap_cbcr,
+			wr_bits(offset, VDIN_WRMIF_CTRL1, swap_cbcr,
 				24, 1);
 			/* output even lines's cbcr */
 			wr_bits(offset, VDIN_WRMIF_CTRL1, 0,
