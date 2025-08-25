@@ -19,6 +19,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 #include <sound/control.h>
+#include <linux/gpio.h>
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
 #endif
@@ -1141,14 +1142,14 @@ avout:
 				msleep(900);
 			if (!priv->suspend_flag) {
 				gpiod_direction_output(priv->avout_mute_desc,
-					GPIOD_OUT_HIGH);
+					GPIOF_OUT_INIT_HIGH);
 				pr_debug("av out enable status: %s\n",
 					gpiod_get_value(priv->avout_mute_desc) ?
 					"high" : "low");
 			}
 		} else {
 			gpiod_direction_output(priv->avout_mute_desc,
-				GPIOD_OUT_LOW);
+				GPIOF_OUT_INIT_LOW);
 			pr_info("av out status: %s\n",
 				gpiod_get_value(priv->avout_mute_desc) ?
 				"high" : "low");
@@ -1369,7 +1370,7 @@ static void aml_card_early_suspend(struct early_suspend *h)
 
 		if (!IS_ERR(priv->avout_mute_desc)) {
 			gpiod_direction_output(priv->avout_mute_desc,
-					GPIOD_OUT_LOW);
+					GPIOF_OUT_INIT_LOW);
 				pr_info("%s, av out status: %s\n",
 					__func__,
 					gpiod_get_value(priv->avout_mute_desc) ?
@@ -1391,7 +1392,7 @@ static void aml_card_late_resume(struct early_suspend *h)
 
 		if (!IS_ERR(priv->avout_mute_desc)) {
 			gpiod_direction_output(priv->avout_mute_desc,
-					GPIOD_OUT_HIGH);
+				GPIOF_OUT_INIT_HIGH);
 				pr_info("%s, av out status: %s\n",
 					__func__,
 					gpiod_get_value(priv->avout_mute_desc) ?
@@ -1592,7 +1593,6 @@ static void aml_card_platform_shutdown(struct platform_device *pdev)
 
 	priv->av_mute_enable = 1;
 	priv->spk_mute_enable = 1;
-
 	aml_card_parse_gpios(pdev->dev.of_node, priv);
 
 	if (priv->thread) {

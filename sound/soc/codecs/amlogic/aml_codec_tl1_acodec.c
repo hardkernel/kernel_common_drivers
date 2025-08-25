@@ -681,11 +681,9 @@ static int tl1_acodec_dai_set_bias_level
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (component->dapm.bias_level == SND_SOC_BIAS_OFF) {
-			snd_soc_component_cache_sync(component);
-			snd_soc_component_write(component, ACODEC_0, tl1_acodec_init_list[0].def);
-			snd_soc_component_write(component, ACODEC_8, tl1_acodec_init_list[8].def);
-		}
+		snd_soc_component_cache_sync(component);
+		snd_soc_component_write(component, ACODEC_0, tl1_acodec_init_list[0].def);
+		snd_soc_component_write(component, ACODEC_8, tl1_acodec_init_list[8].def);
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -701,7 +699,6 @@ static int tl1_acodec_dai_set_bias_level
 		break;
 	}
 	component->dapm.bias_level = level;
-
 	return 0;
 }
 
