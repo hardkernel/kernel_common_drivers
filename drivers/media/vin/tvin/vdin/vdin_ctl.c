@@ -2053,7 +2053,7 @@ static inline void vdin_set_bbar(unsigned int offset, unsigned int v,
 /*et histogram window
  * pow\h_start\h_end\v_start\v_end
  */
-static inline void vdin_set_histogram(unsigned int offset, unsigned int hs,
+static inline void vdin_set_histogram(struct vdin_dev_s *devp, unsigned int hs,
 				      unsigned int he, unsigned int vs,
 				      unsigned int ve)
 {
@@ -2068,19 +2068,20 @@ static inline void vdin_set_histogram(unsigned int offset, unsigned int hs,
 		}
 		/* #ifdef CONFIG_MESON2_CHIP */
 		/* pow */
-		wr_bits(offset, VDIN_HIST_CTRL, hist_pow,
+
+		wr_bits(devp->addr_offset, VDIN_HIST_CTRL, hist_pow,
 			HIST_POW_BIT, HIST_POW_WID);
 		/* win_hs */
-		wr_bits(offset, VDIN_HIST_H_START_END, hs,
+		wr_bits(devp->addr_offset, VDIN_HIST_H_START_END, hs,
 			HIST_HSTART_BIT, HIST_HSTART_WID);
 		/* win_he */
-		wr_bits(offset, VDIN_HIST_H_START_END, he,
+		wr_bits(devp->addr_offset, VDIN_HIST_H_START_END, he,
 			HIST_HEND_BIT, HIST_HEND_WID);
 		/* win_vs */
-		wr_bits(offset, VDIN_HIST_V_START_END, vs,
+		wr_bits(devp->addr_offset, VDIN_HIST_V_START_END, vs,
 			HIST_VSTART_BIT, HIST_VSTART_WID);
 		/* win_ve */
-		wr_bits(offset, VDIN_HIST_V_START_END, ve,
+		wr_bits(devp->addr_offset, VDIN_HIST_V_START_END, ve,
 			HIST_VEND_BIT, HIST_VEND_WID);
 	}
 }
@@ -3529,9 +3530,9 @@ void vdin_set_vframe_prop_info(struct vframe_s *vf,
 	if (!(devp->flags & VDIN_FLAG_HIST_STARTED) && devp->hw_core == VDIN_HW_CORE_LITE) {
 		/* Update Histgram window with detected BlackBar window */
 		if (devp->hist_bar_enable)
-			vdin_set_histogram(offset, 0, vf->width - 1, 0, vf->height - 1);
+			vdin_set_histogram(devp, 0, vf->width - 1, 0, vf->height - 1);
 		else
-			vdin_set_histogram(offset, bbar.left, bbar.right,
+			vdin_set_histogram(devp, bbar.left, bbar.right,
 					   bbar.top, bbar.bottom);
 	}
 
@@ -3640,7 +3641,7 @@ void vdin_set_all_regs(struct vdin_dev_s *devp)
 	/* hist sub-module */
 
 	if (!(devp->flags & VDIN_FLAG_HIST_STARTED) && devp->hw_core == VDIN_HW_CORE_LITE) {
-		vdin_set_histogram(devp->addr_offset, 0,
+		vdin_set_histogram(devp, 0,
 			h_size - 1, 0, v_size - 1);
 		/* hist mux select */
 		vdin_set_hist_mux(devp);
