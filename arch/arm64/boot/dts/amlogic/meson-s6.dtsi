@@ -1093,7 +1093,7 @@
 			src_clk_rate = <1152000000>;
 			tx_delay = <16>;
 			cap-mmc-crypto;
-			aml-non-cqe-64bit-dma;
+			cap-mmc-64bit-dma;
 		//	nwr_cnt = <0>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};

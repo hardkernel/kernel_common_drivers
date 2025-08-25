@@ -185,11 +185,8 @@ static int amlogic_of_parse(struct mmc_host *host)
 		mmc->enable_inline_crypto = false;
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	if (device_property_read_bool(dev, "aml-cqe-64bit-dma"))
-		mmc->flags |= AML_CQE_64BIT_DMA;
-
-	if (device_property_read_bool(dev, "aml-non-cqe-64bit-dma"))
-		mmc->flags |= AML_NONCQE_64BIT_DMA;
+	if (device_property_read_bool(dev, "cap-mmc-64bit-dma"))
+		mmc->flags |= AML_MMC_64BIT_DMA;
 #endif
 
 	if (device_property_read_bool(dev, "auto-clock-sdio"))
@@ -1676,7 +1673,7 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 				lower_32_bits(sg_dma_address(sg) +
 					(split ? (SG_LENGTH_MAX * cnt) : 0));
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-			if (host->flags & AML_NONCQE_64BIT_DMA) {
+			if (host->flags & AML_MMC_64BIT_DMA) {
 				sg_desc[k++] = upper_32_bits(sg_dma_address(sg));
 				sg_desc[k++] = 0;//reserved
 			}
@@ -1691,7 +1688,7 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 		} while (split);
 	}
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	if (host->flags & AML_NONCQE_64BIT_DMA)
+	if (host->flags & AML_MMC_64BIT_DMA)
 		sg_desc[k - 4] |= SG_EOC;
 	else
 #endif
@@ -1705,7 +1702,7 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 	desc[j].cmd_resp = 0;
 	desc[j].cmd_data = lower_32_bits(host->sg_descs_dma_addr);
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	if (host->flags & AML_NONCQE_64BIT_DMA) {
+	if (host->flags & AML_MMC_64BIT_DMA) {
 		addr64 = readl(host->regs + SD_EMMC_ADDR64) & ~DATA_ADDR64_MASK;
 		addr64 |= FIELD_PREP(DATA_ADDR64_MASK,
 			upper_32_bits(host->sg_descs_dma_addr) & 0xff);
@@ -1731,7 +1728,7 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 
 	dma_wmb(); /* ensure descriptor is written before kicked */
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	if (host->flags & AML_NONCQE_64BIT_DMA) {
+	if (host->flags & AML_MMC_64BIT_DMA) {
 		addr64 = readl(host->regs + SD_EMMC_ADDR64) & ~DESC_ADDR64_MASK;
 		addr64 |= FIELD_PREP(DESC_ADDR64_MASK,
 			upper_32_bits(host->descs_dma_addr) & 0xff);
@@ -1937,7 +1934,7 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 			dma_wmb();
 		}
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-		if (host->flags & AML_NONCQE_64BIT_DMA) {
+		if (host->flags & AML_MMC_64BIT_DMA) {
 			cmd_data = readl(host->regs + SD_EMMC_ADDR64) & ~DESC_ADDR64_MASK;
 			cmd_data |= FIELD_PREP(DESC_ADDR64_MASK,
 				upper_32_bits(host->bounce_dma_addr) & 0xff);
@@ -4164,7 +4161,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 
 	} else {
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-		if (host->flags & AML_NONCQE_64BIT_DMA) {
+		if (host->flags & AML_MMC_64BIT_DMA) {
 			dev_notice(host->dev, "Enable DMA access 64bit address.\n");
 			writel(BUS64, host->regs + SD_EMMC_ADDR64);
 			ret = dma_set_mask(host->dev, DMA_BIT_MASK(36));

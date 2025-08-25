@@ -206,6 +206,10 @@ static int cqhci_host_alloc_tdl(struct cqhci_host *cq_host)
 	} else {
 		cq_host->trans_desc_len = 8;
 		cq_host->link_desc_len = 8;
+#if IS_ENABLED(CONFIG_AMLOGIC_MMC_CQHCI)
+		if (mmc->caps2 & MMC_CAP2_CRYPTO)
+			cq_host->link_desc_len = 16;
+#endif
 	}
 
 	/* total size of a slot: 1 task & 1 transfer (link) */
@@ -233,15 +237,28 @@ static int cqhci_host_alloc_tdl(struct cqhci_host *cq_host)
 	if (!cq_host->desc_base)
 		return -ENOMEM;
 #else
-	cq_host->desc_base = host->regs + MMC_SRAM_DESC_BUF_OFF(host);
-	if (MMC_HOST_VERSION(host) == MMC_HOST_V8)
-		cq_host->desc_dma_base = 0;
-	else
+	if (MMC_HOST_VERSION(host) == MMC_HOST_V8) {
+		/*
+		 * error occur in setup_trans_desc
+		 * when 64bit mode and controller's sram are both active.
+		 *
+		 * cq_host->desc_base = host->regs + MMC_SRAM_DESC_BUF_OFF(host);
+		 * cq_host->desc_dma_base = 0;
+		 */
+		cq_host->desc_base = dmam_alloc_coherent(mmc_dev(cq_host->mmc),
+						 cq_host->desc_size,
+						 &cq_host->desc_dma_base,
+						 GFP_KERNEL);
+		if (!cq_host->desc_base)
+			return -ENOMEM;
+		pr_info("%s: MESON CQHCI version 3.\n", mmc_hostname(cq_host->mmc));
+	} else {
+		cq_host->desc_base = host->regs + MMC_SRAM_DESC_BUF_OFF(host);
 		cq_host->desc_dma_base = host->res[0]->start +
 			MMC_SRAM_DESC_BUF_OFF(host);
+	}
 
 #endif
-
 	cq_host->trans_desc_base = dmam_alloc_coherent(mmc_dev(cq_host->mmc),
 					      cq_host->data_size,
 					      &cq_host->trans_desc_dma_base,
@@ -251,6 +268,12 @@ static int cqhci_host_alloc_tdl(struct cqhci_host *cq_host)
 		dmam_free_coherent(mmc_dev(cq_host->mmc), cq_host->desc_size,
 				   cq_host->desc_base,
 				   cq_host->desc_dma_base);
+#else
+		if (MMC_HOST_VERSION(host) == MMC_HOST_V8)
+			dmam_free_coherent(mmc_dev(cq_host->mmc),
+					   cq_host->desc_size,
+					   cq_host->desc_base,
+					   cq_host->desc_dma_base);
 #endif
 		cq_host->desc_base = NULL;
 		cq_host->desc_dma_base = 0;
@@ -422,6 +445,9 @@ static void cqhci_off(struct mmc_host *mmc)
 static void cqhci_disable(struct mmc_host *mmc)
 {
 	struct cqhci_host *cq_host = mmc->cqe_private;
+#if IS_ENABLED(CONFIG_AMLOGIC_MMC_CQHCI)
+	struct meson_host *host = mmc_priv(mmc);
+#endif
 
 	if (!cq_host->enabled)
 		return;
@@ -433,10 +459,16 @@ static void cqhci_disable(struct mmc_host *mmc)
 	dmam_free_coherent(mmc_dev(mmc), cq_host->data_size,
 			   cq_host->trans_desc_base,
 			   cq_host->trans_desc_dma_base);
+
 #if !IS_ENABLED(CONFIG_AMLOGIC_MMC_CQHCI)
 	dmam_free_coherent(mmc_dev(mmc), cq_host->desc_size,
 			   cq_host->desc_base,
 			   cq_host->desc_dma_base);
+#else
+	if (MMC_HOST_VERSION(host) == MMC_HOST_V8)
+		dmam_free_coherent(mmc_dev(mmc), cq_host->desc_size,
+				   cq_host->desc_base,
+				   cq_host->desc_dma_base);
 #endif
 
 	cq_host->trans_desc_base = NULL;
@@ -615,6 +647,7 @@ static void cqhci_prep_dcmd_desc(struct mmc_host *mmc,
 		dataddr[0] = cpu_to_le32(mrq->cmd->arg);
 	}
 #endif
+
 }
 
 static void cqhci_post_req(struct mmc_host *host, struct mmc_request *mrq)

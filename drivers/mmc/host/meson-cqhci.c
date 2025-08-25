@@ -237,7 +237,7 @@ int amlogic_add_host(struct meson_host *host)
 	}
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	dma64 = host->flags & AML_CQE_64BIT_DMA;
+	dma64 = host->flags & AML_MMC_64BIT_DMA;
 	if (dma64)
 		cq_host->caps |= CQHCI_TASK_DESC_SZ_128;
 #endif

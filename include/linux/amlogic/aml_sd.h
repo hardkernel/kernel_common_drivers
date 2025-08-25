@@ -460,8 +460,7 @@ extern struct mmc_host *sdio_host;
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 /* Host attributes */
-#define AML_CQE_64BIT_DMA        BIT(0)
-#define AML_NONCQE_64BIT_DMA     BIT(1)
+#define AML_MMC_64BIT_DMA     BIT(0)
 #endif
 
 /* Set to 1 for no timeout */
