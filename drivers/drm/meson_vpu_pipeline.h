@@ -992,13 +992,6 @@ extern struct meson_vpu_block_ops txhd2_osdblend_ops;
 extern struct meson_vpu_block_ops txhd2_postblend_ops;
 
 /*
- * for t6d soc
- */
-extern struct meson_vpu_block_ops t6d_osd_ops;
-extern struct meson_vpu_block_ops t6d_postblend_ops;
-extern struct meson_vpu_block_ops t6d_scaler_ops;
-
-/*
  * for s7 soc
  */
 extern struct meson_vpu_block_ops s7_osd_ops;
@@ -1015,13 +1008,21 @@ extern struct meson_vpu_block_ops s7d_osd_ops;
 extern struct meson_vpu_block_ops s7d_afbc_ops;
 extern struct meson_vpu_block_ops s7d_osdblend_ops;
 
+/*
+ * for s6 soc
+ */
 extern struct meson_vpu_block_ops s6_osd_ops;
 extern struct meson_vpu_block_ops s6_scaler_ops;
 extern struct meson_vpu_block_ops s6_afbc_ops;
 extern struct meson_vpu_block_ops s6_postblend_ops;
 
-extern struct meson_vpu_block_ops txhd2_osdblend_ops;
-extern struct meson_vpu_block_ops txhd2_postblend_ops;
+/*
+ * for t6d/t6w soc
+ */
+extern struct meson_vpu_block_ops t6d_osd_ops;
+extern struct meson_vpu_block_ops t6d_scaler_ops;
+extern struct meson_vpu_block_ops t6d_postblend_ops;
+extern struct meson_vpu_block_ops t6w_osdblend_ops;
 
 extern struct meson_vpu_pipeline_ops g12a_vpu_pipeline_ops;
 extern struct meson_vpu_pipeline_ops t7_vpu_pipeline_ops;

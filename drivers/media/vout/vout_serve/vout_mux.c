@@ -591,6 +591,10 @@ static const struct of_device_id vout_mux_dt_match_table[] = {
 		.compatible = "amlogic, vout_mux-t6d",
 		.data = &vout_mux_match_data_txhd2,
 	},
+	{
+		.compatible = "amlogic, vout_mux-t6w",
+		.data = &vout_mux_match_data_txhd2,
+	},
 #endif
 	{}
 };

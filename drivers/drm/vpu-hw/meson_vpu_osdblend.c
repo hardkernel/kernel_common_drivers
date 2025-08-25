@@ -1434,6 +1434,35 @@ static void s7d_osdblend_set_state(struct meson_vpu_block *vblk,
 	MESON_DRM_BLOCK("%s set_state done.\n", osdblend->base.name);
 }
 
+/*
+ * based on osdblend_set_state, have three changes:
+ * 1.remove the patch of osd_version <= OSD_V5
+ * 2.remove GFCD eco resolution
+ * 3.remove write dv register because it leads to system halt
+ */
+static void t6w_osdblend_set_state(struct meson_vpu_block *vblk,
+			       struct meson_vpu_block_state *state,
+			       struct meson_vpu_block_state *old_state,
+			       struct meson_vpu_sub_pipeline_state *mvps)
+{
+	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+	struct meson_vpu_osdblend_state *mvobs;
+	struct osdblend_reg_s *reg = osdblend->reg;
+
+	MESON_DRM_BLOCK("%s set_state called.\n", osdblend->base.name);
+	mvobs = to_osdblend_state(state);
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
+
+	#ifdef OSDBLEND_CHECK_METHOD_COMBINATION
+	osdblend_layer_set(vblk, state->sub->reg_ops,
+			   reg, osdblend, mvps);
+	#else
+	osdblend_hw_update(vblk, state->sub->reg_ops, reg, mvobs);
+	#endif
+	MESON_DRM_BLOCK("%s set_state done.\n", osdblend->base.name);
+}
 #endif
 
 static void osdblend_hw_enable(struct meson_vpu_block *vblk,
@@ -1690,4 +1719,13 @@ struct meson_vpu_block_ops s7d_osdblend_ops = {
 	.init_register = s7d_osdblend_register_init,
 };
 
+struct meson_vpu_block_ops t6w_osdblend_ops = {
+	.check_state = osdblend_check_state,
+	.update_state = t6w_osdblend_set_state,
+	.enable = osdblend_hw_enable,
+	.disable = osdblend_hw_disable,
+	.dump_register = osdblend_dump_register,
+	.init = osdblend_hw_init,
+	.init_register = osdblend_register_init,
+};
 #endif
