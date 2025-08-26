@@ -1,11 +1,12 @@
-From c9ef3350f178e97111c6fe15634b70ee219ad1c3 Mon Sep 17 00:00:00 2001
+From ef5b3097543c381b21114289e76d7a19c42673b6 Mon Sep 17 00:00:00 2001
 From: Feng Chen <feng.chen@amlogic.com>
 Date: Tue, 21 Mar 2023 10:59:15 +0800
-Subject: [PATCH 02/11] mtdblock: modify for squashfs mount [1/2]
+Subject: [PATCH] mtdblock: modify for squashfs mount [1/2]
 
 PD#SWPL-116004
 PD#SWPL-157951
 PD#SWPL-168212
+PD#SWPL-169271
 
 Problem:
 1.squashfs don't handle bad block
@@ -13,27 +14,30 @@ Problem:
 is incorrect
 3.mtdblock io performance
 4.mtdblock report partition size wrong when meet bad block
+5.wrong pointer reference is used in container_of()
 
 Solution:
 1.mtdblock handle bad block
 2.fix mtdblock size
 3.mtd disk block size set to mtd writesize
 4.correct the decrease size when meet bad block
+5.fix wrong pointer reference
 
 Verify:
 s4_aq2432
 BA409-A113L2_SOCKET #10
 C3_C308L_AW419_SOCKET_V01_R05
+s1a_bg201
 
 Change-Id: Icbaec2b6679727ebe0d12fd92bf4d21cc4d5f3fe
 Signed-off-by: Feng Chen <feng.chen@amlogic.com>
 Signed-off-by: zhikui.cui <zhikui.cui@amlogic.com>
 ---
- drivers/mtd/mtdblock.c | 133 ++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 132 insertions(+), 1 deletion(-)
+ drivers/mtd/mtdblock.c | 137 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 134 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/mtd/mtdblock.c b/drivers/mtd/mtdblock.c
-index 9751416c2a91..ff8925ebe48d 100644
+index 9751416c2a91..3026e0aaf5fb 100644
 --- a/drivers/mtd/mtdblock.c
 +++ b/drivers/mtd/mtdblock.c
 @@ -31,6 +31,14 @@ struct mtdblk_dev {
@@ -200,20 +204,25 @@ index 9751416c2a91..ff8925ebe48d 100644
  
  static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
  {
- 	struct mtdblk_dev *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+-	struct mtdblk_dev *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+-
 +#ifdef CONFIG_AMLOGIC_NAND
 +	int i = 0;
-+	struct mtdblk_pbbt *pbbt = kzalloc(sizeof(*pbbt), GFP_KERNEL);
++	struct mtdblk_pbbt *pbbt;
 +#endif
- 
- 	if (!dev)
- 		return;
- 
++	struct mtdblk_dev *dev;
++
 +#ifdef CONFIG_AMLOGIC_NAND
++	pbbt = kzalloc(sizeof(*pbbt), GFP_KERNEL);
 +	if (!pbbt)
 +		return;
++	dev = &pbbt->mb;
++#else
++	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+ 	if (!dev)
+ 		return;
 +#endif
-+
+ 
  	dev->mbd.mtd = mtd;
  	dev->mbd.devnum = mtd->index;
  
@@ -246,11 +255,8 @@ index 9751416c2a91..ff8925ebe48d 100644
  		dev->mbd.readonly = 1;
  
 +#ifdef CONFIG_AMLOGIC_NAND
-+	pbbt->mb = *dev;
-+	if (add_mtd_blktrans_dev(&dev->mbd)) {
-+		kfree(dev);
++	if (add_mtd_blktrans_dev(&dev->mbd))
 +		kfree(pbbt);
-+	}
 +#else
  	if (add_mtd_blktrans_dev(&dev->mbd))
  		kfree(dev);
@@ -259,5 +265,5 @@ index 9751416c2a91..ff8925ebe48d 100644
  
  static void mtdblock_remove_dev(struct mtd_blktrans_dev *dev)
 -- 
-2.42.0
+2.47.1
 
