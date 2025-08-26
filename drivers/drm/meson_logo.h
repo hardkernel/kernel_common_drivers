@@ -19,6 +19,13 @@ struct am_meson_logo {
 	u32 width;
 	u32 height;
 	u32 bpp;
+	/**
+	 * @alloc_flag
+	 *
+	 * if logo buffer have been released.
+	 * 1:not released.
+	 * 0:released.
+	 */
 	u32 alloc_flag;
 	u32 info_loaded_mask;
 	u32 osd_reverse;
@@ -29,6 +36,15 @@ struct am_meson_logo {
 	char outputmode[VMODE_NAME_LEN_MAX];
 	bool is_std;
 	bool is_cma;
+	/**
+	 * @plane_has_fb
+	 *
+	 * if plane attach valid fb to ensure that the
+	 * logo is released at the correct time in std mode.
+	 * 1:attach valid fb and logo will be released.
+	 * 0:not attach valid fb and logo will not be released.
+	 */
+	bool plane_has_fb;
 };
 
 enum osd_dev_e {

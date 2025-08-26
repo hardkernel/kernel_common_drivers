@@ -332,6 +332,7 @@ void am_meson_free_logo_memory(void)
 
 	logo[VPP0].alloc_flag = 0;
 	logo[VPP0].is_std = 0;
+	logo[VPP0].plane_has_fb = 0;
 }
 
 void am_meson_drm_put_logo_fb(struct drm_device *dev,
