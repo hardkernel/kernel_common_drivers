@@ -636,6 +636,7 @@ int meson_eDP_dev_bind(struct drm_device *drm,
 
 	drm_connector_attach_vrr_capable_property(connector);
 
+	am_eDP->aux.drm_dev = drm;
 	am_eDP->aux.name    = get_eDP_aux_name(type);
 	//am_eDP->aux.ddc     = drm;
 	am_eDP->aux.dev     = &dptx_drv->pdev->dev;

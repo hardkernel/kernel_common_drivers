@@ -10,7 +10,7 @@
 //#include <div64.h>
 
 /* 20240704: lcd tcon support user info */
-#define DPTX_DRV_VERSION    "20240820"
+#define DPTX_DRV_VERSION    "20250820"
 
 //extern unsigned long clk_util_clk_msr(unsigned long clk_mux);
 
