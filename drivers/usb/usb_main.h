@@ -8,6 +8,14 @@
 #include <linux/debugfs.h>
 #include <linux/usb.h>
 
+extern bool amlogic_usb_debug;
+
+#define AM_USB_DEBUG(dev, fmt, args...)				\
+do {									\
+	if (amlogic_usb_debug)						\
+		dev_info(dev, fmt, ## args);			\
+} while (0)
+
 #if IS_ENABLED(CONFIG_AMLOGIC_USBPHY)
 int __init amlogic_new_usb3_v2_driver_init(void);
 #else

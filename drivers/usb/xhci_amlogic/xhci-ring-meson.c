@@ -57,6 +57,9 @@
 #include <linux/dma-mapping.h>
 #include "xhci-meson.h"
 #include "xhci-trace-meson.h"
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+#include "../usb_main.h"
+#endif
 
 static int queue_command(struct aml_xhci_hcd *xhci, struct aml_xhci_command *cmd,
 			 u32 field1, u32 field2,
@@ -5020,7 +5023,8 @@ void xhci_stop_endpoint_command_timer(struct timer_list *t)
 	struct aml_xhci_command *command;
 	unsigned long flags;
 
-	aml_xhci_info(xhci, "start stop ep=%d, slot=%d\n", ep->ep_index, ep->slot_id);
+	AM_USB_DEBUG(xhci_to_hcd(xhci)->self.controller, "start stop ep=%d, slot=%d\n",
+				ep->ep_index, ep->slot_id);
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	command = aml_xhci_alloc_command(xhci, false, GFP_ATOMIC);

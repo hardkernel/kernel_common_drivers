@@ -45,6 +45,10 @@ int get_otg_mode(void)
 }
 EXPORT_SYMBOL(get_otg_mode);
 
+bool amlogic_usb_debug;
+module_param(amlogic_usb_debug, bool, 0644);
+MODULE_PARM_DESC(amlogic_usb_debug, "0 or 1");
+
 /* TODO: Remove all these phy init once the phy porting is done.
  * You can still use legacy phy driver by undefining this MARCO.
  */
