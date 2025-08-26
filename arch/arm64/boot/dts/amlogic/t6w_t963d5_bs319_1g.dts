@@ -12,8 +12,8 @@
 #include "mesont6w-panel.dtsi"
 #include "mesont6w_audio.dtsi"
 / {
-	amlogic-dt-id = "t6w_t963d5_bs319-1.5g";
-	compatible = "t6w_t963d5_bs319-1.5g";
+	amlogic-dt-id = "t6w_t963d5_bs319-1g";
+	compatible = "t6w_t963d5_bs319-1g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -37,7 +37,7 @@
 
 	memory@0 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x0 0x0 0x60000000>;
+		linux,usable-memory = <0x0 0x0 0x0 0x40000000>;
 	};
 
 	reserved-memory {
@@ -62,12 +62,17 @@
 
 		dmc_reserved:linux,dmc_monitor {
 			compatible = "amlogic,dmc_monitor-reserved";
-			reg = <0x0 0x0 0x0 0x80000>;
+			reg = <0x0 0x0 0x0 0x10000>;
 		};
 
 		log_reserved:linux,log {
 			compatible = "amlogic,log-reserved";
 			reg = <0x0 0x4e00000 0x0 0x10000>;
+		};
+
+		bl30log_reserved:linux,bl30log {
+			compatible = "amlogic,bl30log-reserved";
+			reg = <0x0 0xf702cc00 0x0 0x400>;
 		};
 
 		debug_reserved:linux,iotrace {
@@ -97,7 +102,7 @@
 
 		lcd_cma_reserved:linux,lcd-reserved {
 			compatible = "amlogic, lcd_rsvd";
-			reg = <0x0 0x40000000 0x0 0x00a80000>;
+			reg = <0x0 0x3e000000 0x0 0x00a80000>;
 			tcon-size = <0x0 0x00a02840>;
 		};
 
@@ -170,9 +175,9 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x19400000>;
+			size = <0x0 0xD000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x30000000 0x0 0x30000000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x10000000>;
 			linux,contiguous-region;
 		};
 
@@ -390,8 +395,9 @@
 			    SARADC_CH2 SARADC_CH2>;
 		key_code = <KEY_POWER KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_ENTER KEY_MENU
 			    KEY_FN_F1 KEY_EXIT>;
-		key_val = <0 252 468 684 892 252 468>; // Unit: millivolt
-		key_tolerance = <70 70 70 70 70 70 70>; // Unit: millivolt
+		/* key_val = voltage / 1800mV * 1023 */
+		key_val = <0 143 266 389 507 143 266>;
+		key_tolerance = <40 40 40 40 40 40 40>;
 	};
 
 	unifykey {
@@ -743,7 +749,6 @@
 
 		spectrum = <1>;
 		cma_mem_size = <16>; // MB
-		iq_swap = <1>;
 	};
 
 	dvb-extern {
@@ -979,10 +984,6 @@
 	};
 };
 
-&pwm_d {
-	status = "okay";
-};
-
 &ethmac {
 	status = "okay";
 	phy-handle = <&internal_ephy>;
@@ -1139,14 +1140,6 @@
 	status = "okay";
 };
 
-&pdd {
-	status = "okay";
-};
-
-&pdd_monitor {
-	status = "okay";
-};
-
 &vdac {
 	cdac_disable = <1>;
 };
@@ -1191,7 +1184,8 @@
 &aml_bt {
 	status = "okay";
 	bt_en-gpios = <&gpio  GPIOD_11  GPIO_ACTIVE_HIGH>;
-	//hostwake-gpios = <&gpio  GPIOD_13  GPIO_ACTIVE_HIGH>;
+	btwakeup-gpios = <&gpio  GPIOD_8  GPIO_ACTIVE_HIGH>;
+	hostwake-gpios = <&gpio  GPIOD_12  GPIO_ACTIVE_HIGH>;
 	power_down_disable = <1>;
 };
 
@@ -1228,9 +1222,5 @@
 };
 
 &aml_vpq {
-	status = "disabled";
-};
-
-&chosen {
-	bootargs = "usbcore.autosuspend=-1 dm_mod.reserved_bio_based_ios=8 rodata=off";
+	status = "okay";
 };
