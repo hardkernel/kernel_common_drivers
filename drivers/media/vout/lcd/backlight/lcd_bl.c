@@ -3383,23 +3383,23 @@ static void bl_init_status_update(struct aml_bl_drv_s *bdrv)
 		break;
 	}
 
-	bdrv->level_brightness = bl_brightness_level_map(bdrv,
-						bdrv->bldev->props.brightness);
+	bdrv->level_brightness = bl_brightness_level_map(bdrv, bdrv->bldev->props.brightness);
 
 	/* default disable lcd & backlight */
 	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
 		return;
 
 	/* update bl status */
-	bdrv->state |= (BL_STATE_LCD_ON | BL_STATE_BL_ON);
+	bdrv->state |= BL_STATE_LCD_ON;
+	if (pdrv->boot_ctrl->bl_state)
+		bdrv->state |= BL_STATE_BL_ON;
 	bdrv->on_request = 1;
 
 	mutex_lock(&bl_level_mutex);
-	if (bdrv->brightness_bypass) {
+	if (bdrv->brightness_bypass)
 		aml_bl_set_level(bdrv, bdrv->level_init_on);
-	} else {
+	else
 		aml_bl_init_level(bdrv, bdrv->level_brightness);
-	}
 	mutex_unlock(&bl_level_mutex);
 
 	switch (bdrv->bconf.method) {
