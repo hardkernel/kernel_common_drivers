@@ -70,7 +70,7 @@ static unsigned int force_composer_pip;
 static int transform = -1;
 static unsigned int vidc_debug;
 static unsigned int vidc_pattern_debug;
-static int last_index[MAX_VD_LAYERS][MXA_LAYER_COUNT];
+static int last_index[MAX_VD_LAYERS];
 static int last_frame_index;
 static u32 full_axis = 1;
 static u32 print_close;
@@ -3123,7 +3123,29 @@ static void vframe_display(struct videodisplay_dev *dev,
 	vf->pts_us64 = time_us64;
 	vf->disp_pts = 0;
 
-	drop_cnt = vf->frame_index + 1 - dev->received_new_count;
+	if (last_index[dev->index] > vf->frame_index) {
+		dev->received_new_count = vf->frame_index;
+		dev->received_count = vf->frame_index;
+		vpp_drop_count = 0;
+		vd_print(dev->index, PRINT_PATTERN, "drop cnt reset!!\n");
+	}
+
+	if (last_index[dev->index] != vf->frame_index) {
+		dev->received_new_count++;
+		last_index[dev->index] = vf->frame_index;
+	}
+
+	if (dev->index == 0) {
+		drop_cnt = vf->frame_index + 1 - dev->received_new_count;
+		receive_new_count = dev->received_new_count;
+		receive_count = dev->received_count + 1;
+		last_frame_index = vf->frame_index;
+	} else if (dev->index == 1) {
+		drop_cnt_pip = vf->frame_index + 1 - dev->received_new_count;
+		receive_new_count_pip = dev->received_new_count;
+		receive_count_pip = dev->received_count + 1;
+		last_frame_index = vf->frame_index;
+	}
 
 	if (is_repeat_vf) {
 		vf->repeat_count++;
@@ -3137,9 +3159,6 @@ static void vframe_display(struct videodisplay_dev *dev,
 		return;
 	}
 
-	dev->received_new_count++;
-	receive_new_count++;
-	last_frame_index = vf->frame_index;
 	/* copy to uvm vf */
 	vf_ext = vf->uvm_vf;
 	if (vf_ext) {
@@ -4016,7 +4035,7 @@ static void disable_video_layer(struct videodisplay_dev *dev, int val)
 static int video_display_init(struct videodisplay_dev *dev)
 {
 	int ret;
-	int i, j;
+	int i;
 	char render_layer[16] = "";
 
 	if (!dev)
@@ -4062,10 +4081,8 @@ static int video_display_init(struct videodisplay_dev *dev)
 	dev->fence_wait_count = 0;
 	dev_array[dev->index] = dev;
 	init_completion(&dev->task_done);
-	for (i = 0; i < MAX_VD_LAYERS; i++) {
-		for (j = 0; j < MXA_LAYER_COUNT; j++)
-			last_index[i][j] = -1;
-	}
+	for (i = 0; i < MAX_VD_LAYERS; i++)
+		last_index[i] = -1;
 	disable_video_layer(dev, 2);
 	video_set_global_output(dev->index, 1);
 
