@@ -207,19 +207,19 @@ static int tvafe_config_init(struct tvafe_dev_s *devp,
 	memset(&devp->tvafe, 0, sizeof(struct tvafe_info_s));
 
 	if (IS_TVAFE_AVIN_SRC(port)) {
-		if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2_B)
-			devp->acd_table = cvbs_acd_table_tm2_b;
-		else
-			devp->acd_table = cvbs_acd_table;
+		//if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2_B)
+		devp->acd_table = cvbs_acd_table_tm2_b;
+		//else
+			//devp->acd_table = cvbs_acd_table;
 
 		devp->pq_conf = s_tvafe_data->cvbs_pq_conf;
 		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
 			tvafe_pr_info("%s: select cvbs config\n", __func__);
 	} else {
-		if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2_B)
-			devp->acd_table = rf_acd_table_tm2_b;
-		else
-			devp->acd_table = rf_acd_table;
+		//if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2_B)
+		devp->acd_table = rf_acd_table_tm2_b;
+		//else
+			//devp->acd_table = rf_acd_table;
 
 		devp->pq_conf = s_tvafe_data->rf_pq_conf;
 		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
