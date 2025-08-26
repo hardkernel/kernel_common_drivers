@@ -239,17 +239,24 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	mvvs->signal_fmt = video_signal_fmt_cov(plane_info->signal_fmt);
 	mvvs->in_fence = plane_info->in_fence;
 
-	MESON_DRM_BLOCK("video->dmabuf-%px plane_info->dmabuf-%px\n",
-		video->dmabuf[0], plane_info->dmabuf[0]);
+	MESON_DRM_BLOCK("video->dmabuf-[%px %px], plane_info->dmabuf-[%px %px]\n",
+		video->dmabuf[0], video->dmabuf[1],
+		plane_info->dmabuf[0], plane_info->dmabuf[1]);
+	if (video->dmabuf[0] != plane_info->dmabuf[0]) {
+		video->dmabuf[0] = plane_info->dmabuf[0];
+		video->dmabuf[1] = plane_info->dmabuf[1];
+	}
 
+	MESON_DRM_BLOCK("mvvs->dmabuf-[%px %px], old_mvvs->dmabuf-[%px %px]\n",
+		mvvs->dmabuf[0], mvvs->dmabuf[1], old_mvvs->dmabuf[0], old_mvvs->dmabuf[1]);
 	if (mvvs->dmabuf[0] != old_mvvs->dmabuf[0])
 		mvvs->repeat_frame = 0;
 	else
 		mvvs->repeat_frame = 1;
 
 	if (mvvs->repeat_frame == 1)
-		MESON_DRM_FENCE("check,video repeat frame! dma_buf:%px\n", mvvs->dmabuf);
-
+		MESON_DRM_FENCE("check,video repeat frame! dma_buf-[%px %px]\n",
+		mvvs->dmabuf[0], mvvs->dmabuf[1]);
 	return 0;
 }
 
