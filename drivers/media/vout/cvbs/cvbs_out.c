@@ -51,6 +51,7 @@
 #include <linux/amlogic/gki_module.h>
 #include <drm/amlogic/meson_drm_bind.h>
 #include <linux/amlogic/media/vout/cvbs.h>
+#include <linux/amlogic/clk_measure.h>
 
 #ifdef CONFIG_AMLOGIC_VOUT_CC_BYPASS
 /* interrupt source */
@@ -195,6 +196,8 @@ static ssize_t aml_CVBS_attr_debug_show(const struct class *class,
 static ssize_t aml_CVBS_attr_debug_store(const struct class *class,
 			const struct class_attribute *attr,
 			const char *buf, size_t count);
+static ssize_t aml_cvbs_dump_show(const struct class *class,
+			const struct class_attribute *attr, char *buf);
 static int meson_cvbs_bind(struct device *dev,
 			      struct device *master, void *data);
 static void meson_cvbs_unbind(struct device *dev,
@@ -203,6 +206,9 @@ static void meson_cvbs_unbind(struct device *dev,
 struct class_attribute class_CVBS_attr_debug =
 	__ATTR(debug, 0644, aml_CVBS_attr_debug_show,
 	       aml_CVBS_attr_debug_store);
+
+struct class_attribute class_cvbs_attr_dump =
+	__ATTR(dump, 0444, aml_cvbs_dump_show, NULL);
 
 #ifdef CONFIG_AMLOGIC_WSS
 struct class_attribute class_CVBS_attr_wss = __ATTR(wss, 0644,
@@ -1475,9 +1481,133 @@ static ssize_t aml_CVBS_attr_debug_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
+static ssize_t cvbs_clk_msr(char *buf)
+{
+	ssize_t len = 0;
+	int cpu_type = cvbs_cpu_type();
+
+	if (cpu_type == CVBS_CPU_TYPE_G12A ||
+	    cpu_type == CVBS_CPU_TYPE_G12B ||
+	    cpu_type == CVBS_CPU_TYPE_SM1) {
+		len += sprintf(buf + len, "[6]cts_enci_clk %d\n",
+			meson_clk_measure(6));
+		len += sprintf(buf + len, "[10]cts_vdac_clk %d\n",
+			meson_clk_measure(10));
+	} else if (cpu_type == CVBS_CPU_TYPE_SC2 ||
+		cpu_type == CVBS_CPU_TYPE_S4 ||
+		cpu_type == CVBS_CPU_TYPE_S4D ||
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		cpu_type == CVBS_CPU_TYPE_S7 ||
+		cpu_type == CVBS_CPU_TYPE_S7D ||
+#endif
+		cpu_type == CVBS_CPU_TYPE_S1A) {
+		len += sprintf(buf + len, "[51]cts_enci_clk %d\n",
+			meson_clk_measure(51));
+		len += sprintf(buf + len, "[54]cts_vdac_clk %d\n",
+			meson_clk_measure(54));
+	}
+	return len;
+}
+
+static ssize_t aml_cvbs_dump_show(const struct class *class,
+			const struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+	struct meson_cvbsout_data *cvbs_data = get_cvbs_data();
+	const struct reg_s *reg_set = NULL;
+	static const char * const cvbs_mode_name[] = {
+		"480cvbs",
+		"576cvbs",
+		"pal_m",
+		"pal_n",
+		"ntsc_m"
+	};
+	unsigned int performance_regs_enci[] = {
+		VENC_VDAC_DAC0_GAINCTRL,
+		ENCI_SYNC_ADJ,
+		ENCI_VIDEO_BRIGHT,
+		ENCI_VIDEO_CONT,
+		ENCI_VIDEO_SAT,
+		ENCI_VIDEO_HUE,
+		ENCI_YC_DELAY,
+		VENC_VDAC_DAC0_FILT_CTRL0,
+		VENC_VDAC_DAC0_FILT_CTRL1
+	};
+	int i = 0;
+	int size = 0;
+
+	if (local_cvbs_mode == MODE_MAX) {
+		len += sprintf(buf + len, "invalid cvbs mode\n");
+		return len;
+	}
+	if (!cvbs_data) {
+		len += sprintf(buf + len, "cvbs_data invalid for cvbs mode: %s\n",
+			cvbs_mode_name[local_cvbs_mode]);
+		return len;
+	}
+
+	reg_set = cvbs_regs_tab[local_cvbs_mode].enc_reg_setting;
+	if (!reg_set) {
+		len += sprintf(buf + len, "reg_set invalid for cvbs mode: %s\n",
+			cvbs_mode_name[local_cvbs_mode]);
+		return len;
+	}
+	len += sprintf(buf + len, "cvbs mode: %s\n", cvbs_mode_name[local_cvbs_mode]);
+	len += sprintf(buf + len, "SW flag(bit1: VDAC, bit0: ENCI): 0x%x\n", cvbs_drv->flag);
+
+	len += sprintf(buf + len, "venc reg dump-----\n");
+	while (reg_set->reg != MREG_END_MARKER) {
+		len += sprintf(buf + len, "[0x%x]:0x%x\n",
+			reg_set->reg, cvbs_out_reg_read(reg_set->reg));
+		reg_set++;
+	}
+
+	len += sprintf(buf + len, "performance reg dump-----\n");
+	len += sprintf(buf + len, "sva_std: 0x%x\n", cvbs_drv->sva_std);
+	len += sprintf(buf + len, "ntsc_ttc: 0x%x\n", cvbs_drv->ntsc_ttc);
+	size = sizeof(performance_regs_enci) / sizeof(unsigned int);
+	for (i = 0; i < size; i++) {
+		len += sprintf(buf + len, "[0x%x] = 0x%x\n", performance_regs_enci[i],
+			cvbs_out_reg_read(performance_regs_enci[i]));
+	}
+
+#ifdef CONFIG_AMLOGIC_WSS
+	len += sprintf(buf + len, "WSS dump-----\n");
+	len += sprintf(buf + len, "cgms_level: 0x%x\n", cvbs_drv->cgms_level);
+	len += aml_CVBS_attr_wss_show(class, attr, buf + len);
+#endif
+	len += sprintf(buf + len, "VIU reg dump-----\n");
+	len += sprintf(buf + len, "[0x%x]:0x%x\n",
+		VPU_VIU_VENC_MUX_CTRL, cvbs_out_reg_read(VPU_VIU_VENC_MUX_CTRL));
+
+	len += sprintf(buf + len, "clk dump-----\n");
+	len += cvbs_clk_msr(buf + len);
+
+	len += sprintf(buf + len, "PLL reg dump-----\n");
+	len += cvbs_dump_pll_reg(buf + len);
+
+	len += sprintf(buf + len, "clk_div reg dump-----\n");
+	len += sprintf(buf + len, "cvbs_clk_path: 0x%x\n", cvbs_clk_path);
+	len += sprintf(buf + len, "vid_pll_div[0x%x]:0x%x\n", cvbs_data->reg_vid_pll_clk_div,
+			cvbs_out_vid_pll_read(cvbs_data->reg_vid_pll_clk_div));
+	len += sprintf(buf + len, "vid_clk_div[0x%x]:0x%x\n", cvbs_data->reg_vid_clk_div,
+			cvbs_out_hiu_read(cvbs_data->reg_vid_clk_div));
+	len += sprintf(buf + len, "vid_clk_ctrl[0x%x]:0x%x\n", cvbs_data->reg_vid_clk_ctrl,
+			cvbs_out_hiu_read(cvbs_data->reg_vid_clk_ctrl));
+	len += sprintf(buf + len, "vid2_clk_div[0x%x]:0x%x\n", cvbs_data->reg_vid2_clk_div,
+			cvbs_out_hiu_read(cvbs_data->reg_vid2_clk_div));
+	len += sprintf(buf + len, "vid2_clk_ctrl[0x%x]:0x%x\n", cvbs_data->reg_vid2_clk_ctrl,
+			cvbs_out_hiu_read(cvbs_data->reg_vid2_clk_ctrl));
+	len += sprintf(buf + len, "vid_clk_ctrl2[0x%x]:0x%x\n", cvbs_data->reg_vid_clk_ctrl2,
+			cvbs_out_hiu_read(cvbs_data->reg_vid_clk_ctrl2));
+
+	return len;
+}
+
 static  struct  class_attribute   *cvbs_attr[] = {
 	&class_CVBS_attr_vdac_power_level,
 	&class_CVBS_attr_debug,
+	&class_cvbs_attr_dump,
 #ifdef CONFIG_AMLOGIC_WSS
 	&class_CVBS_attr_wss,
 #endif

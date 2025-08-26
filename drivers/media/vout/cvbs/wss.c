@@ -745,12 +745,45 @@ ssize_t aml_CVBS_attr_wss_show(const struct class *class,
 	unsigned int line = 0;
 	unsigned int data = 0;
 	ssize_t len = 0;
-	unsigned int enable = ((cvbs_out_reg_read(ENCI_VBI_SETTING) & 0x3c)
-						== 0) ? 0 : 1;
-	if (get_local_cvbs_mode() == MODE_576CVBS) {
+	enum cvbs_mode_e cvbs_mode = get_local_cvbs_mode();
+	unsigned int macro_register[] = {
+		ENCI_VIDEO_MODE_ADV,
+		ENCI_MACV_N0,
+		ENCI_MACV_N1,
+		ENCI_MACV_N2,
+		ENCI_MACV_N3,
+		ENCI_MACV_N4,
+		ENCI_MACV_N5,
+		ENCI_MACV_N6,
+		ENCI_MACV_N7,
+		ENCI_MACV_N8,
+		ENCI_MACV_N9,
+		ENCI_MACV_N10,
+		ENCI_MACV_N11,
+		ENCI_MACV_N12,
+		ENCI_MACV_N13,
+		ENCI_MACV_N14,
+		ENCI_MACV_N15,
+		ENCI_MACV_N16,
+		ENCI_MACV_N17,
+		ENCI_MACV_N18,
+		ENCI_MACV_N19,
+		ENCI_MACV_N20,
+		ENCI_MACV_N21,
+		ENCI_MACV_N22,
+		ENCI_MACV_MAX_AMP,
+		ENCI_MACV_PULSE_LO,
+		ENCI_MACV_PULSE_HI,
+		ENCI_MACV_BKP_MAX,
+		ENCP_MACV_EN,
+	};
+	int i;
+	int size = sizeof(macro_register) / sizeof(unsigned int);
+
+	if (cvbs_mode == MODE_576CVBS) {
 		line = cvbs_out_reg_read(ENCI_VBI_WSS_LN) + 1;
 		data = cvbs_out_reg_read(ENCI_VBI_WSSDT);
-	} else if (get_local_cvbs_mode() == MODE_480CVBS) {
+	} else if (cvbs_mode == MODE_480CVBS || cvbs_mode == MODE_NTSC_M) {
 		line = cvbs_out_reg_read(ENCI_VBI_CGMS_LN);
 		line >>= 8;
 		line = line + 3;
@@ -760,27 +793,88 @@ ssize_t aml_CVBS_attr_wss_show(const struct class *class,
 		data &= 0xff;
 	}
 	len += sprintf(buf + len, "cvbsout_wss_flag:%#x\n", cvbsout_wss_flag);
-	len += sprintf(buf + len, "CC info\n");
+	len += sprintf(buf + len, "CC info-----\n");
 	len += sprintf(buf + len, "%#x:%#x %#x:%#x\n",
 			ENCI_VBI_CCDT_EVN, cvbs_out_reg_read(ENCI_VBI_CCDT_EVN),
 			ENCI_VBI_SETTING, cvbs_out_reg_read(ENCI_VBI_SETTING));
+
+	len += sprintf(buf + len, "CGMS info-----\n");
 	len += sprintf(buf + len, "480i cgms-a info\n");
-	len += sprintf(buf + len, "wss line:%d data %#x enable:%#x\n", line, data, enable);
+	len += sprintf(buf + len, "wss line:%d data %#x\n", line, data);
 	len += sprintf(buf + len, "%#x:%#x %#x:%#x %#x:%#x %#x:%#x\n",
 			ENCI_VBI_CGMSDT_L, cvbs_out_reg_read(ENCI_VBI_CGMSDT_L),
 			ENCI_VBI_CGMSDT_H, cvbs_out_reg_read(ENCI_VBI_CGMSDT_H),
 			ENCI_VBI_CGMS_LN, cvbs_out_reg_read(ENCI_VBI_CGMS_LN),
 			ENCI_VBI_SETTING, cvbs_out_reg_read(ENCI_VBI_SETTING));
-	len += sprintf(buf + len, "MVSN info\n");
-	len += sprintf(buf + len, "%#x:%#x %#x:%#x\n",
-			ENCI_VIDEO_MODE_ADV, cvbs_out_reg_read(ENCI_VIDEO_MODE_ADV),
-			ENCI_MACV_N0, cvbs_out_reg_read(ENCI_MACV_N0));
+
 	len += sprintf(buf + len, "576i cgms-a or other info\n");
-	len += sprintf(buf + len, "wss line:%d data %#x enable:%#x\n", line, data, enable);
+	len += sprintf(buf + len, "wss line:%d data %#x\n", line, data);
 	len += sprintf(buf + len, "%#x:%#x %#x:%#x %#x:%#x\n",
 			ENCI_VBI_WSSDT, cvbs_out_reg_read(ENCI_VBI_WSSDT),
 			ENCI_VBI_WSS_LN, cvbs_out_reg_read(ENCI_VBI_WSS_LN),
 			ENCI_VBI_SETTING, cvbs_out_reg_read(ENCI_VBI_SETTING));
+
+	if (cvbs_mode == MODE_576CVBS) {
+		len += sprintf(buf + len, "576cvbs cgms-a status:\n");
+		data = cvbs_out_reg_read(ENCI_VBI_SETTING);
+		if (((data >> 2) & 0x3) != 0x1) {
+			len += sprintf(buf + len, "cgms disabled\n");
+		} else {
+			data = cvbs_out_reg_read(ENCI_VBI_WSSDT);
+			data = (data >> WSS_576I_CGMS_A_START) &
+				WSS_576I_CGMS_A_MASK;
+			switch (data) {
+			case 1:
+				len += sprintf(buf + len,
+					"cgms 1: copy right asserted / copying not restricted\n");
+				break;
+			case 2:
+				len += sprintf(buf + len,
+					"cgms 2: no copy right asserted or status unknown / copying restricted\n");
+				break;
+			case 3:
+				len += sprintf(buf + len,
+					"cgms 3: copy right asserted / copying restricted\n");
+				break;
+			case 0:
+			default:
+				len += sprintf(buf + len,
+					"cgms 0: no copy right asserted or status unknown / copying not restricted\n");
+				break;
+			}
+		}
+	} else if (cvbs_mode == MODE_480CVBS || cvbs_mode == MODE_NTSC_M) {
+		len += sprintf(buf + len, "480cvbs cgms-a status:\n");
+		data = cvbs_out_reg_read(ENCI_VBI_SETTING);
+		if (((data >> 4) & 0x3) != 0x3) {
+			len += sprintf(buf + len, "cgms disabled\n");
+		} else {
+			data = cvbs_out_reg_read(ENCI_VBI_CGMSDT_L);
+			data = (data >> WSS_480I_CGMS_A_START) &
+				WSS_480I_CGMS_A_MASK;
+			switch (data) {
+			case 1:
+				len += sprintf(buf + len, "cgms 1: Copy Once\n");
+				break;
+			case 2:
+				len += sprintf(buf + len, "cgms 2: Reserved\n");
+				break;
+			case 3:
+				len += sprintf(buf + len, "cgms 3: Copy Never\n");
+				break;
+			case 0:
+			default:
+				len += sprintf(buf + len, "cgms 0: Copy freely\n");
+				break;
+			}
+		}
+	}
+
+	len += sprintf(buf + len, "macrovision reg:-----\n");
+	for (i = 0; i < size; i++)
+		len += sprintf(buf + len, "[0x%x] = 0x%x\n", macro_register[i],
+			cvbs_out_reg_read(macro_register[i]));
+
 	return len;
 }
 

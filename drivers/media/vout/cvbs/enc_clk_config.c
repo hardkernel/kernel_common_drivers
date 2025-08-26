@@ -599,6 +599,42 @@ void set_vmode_clk(void)
 	pr_info("%s DONE\n", __func__);
 }
 
+ssize_t cvbs_dump_pll_reg(char *buf)
+{
+	ssize_t len = 0;
+	unsigned int addr = 0;
+	int cpu_type = cvbs_cpu_type();
+
+	if (cpu_type == CVBS_CPU_TYPE_G12A ||
+	    cpu_type == CVBS_CPU_TYPE_G12B ||
+	    cpu_type == CVBS_CPU_TYPE_SM1) {
+		if (cvbs_clk_path & 0x1) {
+			for (addr = HHI_GP0_PLL_CNTL0; addr <= HHI_GP0_PLL_CNTL6; addr++)
+				len += sprintf(buf + len, "HHI_GP0_PLL_CNTL[0x%x]:0x%x\n", addr,
+					cvbs_out_ana_read(addr));
+		} else {
+			for (addr = HHI_HDMI_PLL_CNTL; addr <= HHI_HDMI_PLL_CNTL7; addr++)
+				len += sprintf(buf + len, "HHI_HDMI_PLL_CNTL[0x%x]:0x%x\n",
+					addr, cvbs_out_ana_read(addr));
+		}
+	} else if (cpu_type == CVBS_CPU_TYPE_SC2 ||
+		cpu_type == CVBS_CPU_TYPE_S4 ||
+		cpu_type == CVBS_CPU_TYPE_S4D ||
+		cpu_type == CVBS_CPU_TYPE_S1A) {
+		for (addr = ANACTRL_HDMIPLL_CTRL0; addr <= ANACTRL_HDMIPLL_CTRL6; addr++)
+			len += sprintf(buf + len, "ANACTRL_HDMIPLL_CTRL[0x%x]:0x%x\n", addr,
+				cvbs_out_ana_read(addr));
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	} else if (cpu_type == CVBS_CPU_TYPE_S7 ||
+		cpu_type == CVBS_CPU_TYPE_S7D) {
+		for (addr = ANACTRL_HDMIPLL_CTRL0; addr <= ANACTRL_HDMIPLL_CTRL3; addr++)
+			len += sprintf(buf + len, "ANACTRL_HDMIPLL_CTRL[0x%x]:0x%x\n", addr,
+				cvbs_out_ana_read(addr));
+#endif
+	}
+	return len;
+}
+
 void disable_vmode_clk(void)
 {
 	struct meson_cvbsout_data *cvbs_data;

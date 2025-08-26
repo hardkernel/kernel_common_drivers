@@ -179,5 +179,6 @@ const struct vinfo_s *get_valid_vinfo(char  *mode);
 int cvbs_set_current_vmode(enum vmode_e mode, void *data);
 struct meson_cvbsout_data *get_cvbs_data(void);
 void wss_process_cmd(unsigned int cmd, unsigned int param);
+ssize_t cvbs_dump_pll_reg(char *buf);
 
 #endif
