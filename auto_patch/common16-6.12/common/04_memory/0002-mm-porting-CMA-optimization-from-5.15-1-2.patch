@@ -1,4 +1,4 @@
-From dffbf5246db4ebda06cae0339ce8eef976e683ec Mon Sep 17 00:00:00 2001
+From 91d80a18975e767dd6edd299b8454524de83b289 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 15 Oct 2024 15:51:10 +0800
 Subject: [PATCH] mm: porting CMA optimization from 5.15 [1/2]
@@ -29,6 +29,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  arch/arm/mm/dma-mapping.c |  4 ++
  block/bdev.c              |  4 ++
  drivers/usb/host/xhci.c   |  4 ++
+ fs/buffer.c               |  4 ++
  include/linux/gfp_types.h |  9 ++++
  mm/cma.c                  | 65 ++++++++++++++++++++++++++
  mm/compaction.c           | 96 +++++++++++++++++++++++++++++++++++++++
@@ -39,10 +40,10 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  mm/page_alloc.c           | 55 ++++++++++++++++++++++
  mm/readahead.c            |  5 ++
  mm/vmscan.c               | 17 +++++++
- 13 files changed, 339 insertions(+)
+ 14 files changed, 343 insertions(+)
 
 diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 88c2d68a69c9..86a432868899 100644
+index 88c2d68a69c9e..86a4328688993 100644
 --- a/arch/arm/mm/dma-mapping.c
 +++ b/arch/arm/mm/dma-mapping.c
 @@ -572,6 +572,10 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
@@ -57,7 +58,7 @@ index 88c2d68a69c9..86a432868899 100644
  		buf->allocator = &cma_allocator;
  	else if (is_coherent)
 diff --git a/block/bdev.c b/block/bdev.c
-index 134e3db98bc8..13d45d37b796 100644
+index 134e3db98bc8b..13d45d37b796b 100644
 --- a/block/bdev.c
 +++ b/block/bdev.c
 @@ -428,7 +428,11 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
@@ -73,7 +74,7 @@ index 134e3db98bc8..13d45d37b796 100644
  	bdev = I_BDEV(inode);
  	mutex_init(&bdev->bd_fsfreeze_mutex);
 diff --git a/drivers/usb/host/xhci.c b/drivers/usb/host/xhci.c
-index ac7751c13892..b16a1da735e4 100644
+index ac7751c138924..b16a1da735e4f 100644
 --- a/drivers/usb/host/xhci.c
 +++ b/drivers/usb/host/xhci.c
 @@ -1970,7 +1970,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
@@ -88,8 +89,23 @@ index ac7751c13892..b16a1da735e4 100644
  		dev_dbg(&udev->dev, "%s - could not initialize ep %#x\n",
  				__func__, ep->desc.bEndpointAddress);
  		return -ENOMEM;
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 32bd0f4c42236..6d232f0a880cd 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -1434,6 +1434,10 @@ struct buffer_head *bdev_getblk(struct block_device *bdev, sector_t block,
+ 	if (bh)
+ 		return bh;
+ 
++#ifdef CONFIG_AMLOGIC_CMA
++	gfp |= __GFP_NO_CMA;
++#endif
++
+ 	return __getblk_slow(bdev, block, size, gfp);
+ }
+ EXPORT_SYMBOL(bdev_getblk);
 diff --git a/include/linux/gfp_types.h b/include/linux/gfp_types.h
-index f9f8106d3783..db4369e2ae9c 100644
+index f9f8106d3783e..db4369e2ae9ca 100644
 --- a/include/linux/gfp_types.h
 +++ b/include/linux/gfp_types.h
 @@ -52,6 +52,9 @@ enum {
@@ -123,7 +139,7 @@ index f9f8106d3783..db4369e2ae9c 100644
  #define __GFP_SKIP_KASAN ((__force gfp_t)___GFP_SKIP_KASAN)
  
 diff --git a/mm/cma.c b/mm/cma.c
-index 42297d6b5f7a..7adfc711311a 100644
+index 42297d6b5f7af..7adfc711311a9 100644
 --- a/mm/cma.c
 +++ b/mm/cma.c
 @@ -35,6 +35,16 @@
@@ -262,7 +278,7 @@ index 42297d6b5f7a..7adfc711311a 100644
  	cma_sysfs_account_release_pages(cma, count);
  	trace_cma_release(cma->name, pfn, pages, count);
 diff --git a/mm/compaction.c b/mm/compaction.c
-index c134f7c224ec..d8405191dd77 100644
+index c134f7c224ec0..d8405191dd777 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
 @@ -29,6 +29,9 @@
@@ -479,7 +495,7 @@ index c134f7c224ec..d8405191dd77 100644
  	count_compact_events(COMPACTFREE_SCANNED, cc->total_free_scanned);
  
 diff --git a/mm/ksm.c b/mm/ksm.c
-index a2e2a521df0a..c046cd70a7a9 100644
+index a2e2a521df0ae..c046cd70a7a94 100644
 --- a/mm/ksm.c
 +++ b/mm/ksm.c
 @@ -2289,6 +2289,17 @@ static void cmp_and_merge_page(struct page *page, struct ksm_rmap_item *rmap_ite
@@ -501,7 +517,7 @@ index a2e2a521df0a..c046cd70a7a9 100644
  		bool split;
  
 diff --git a/mm/memory.c b/mm/memory.c
-index e22095383477..32619c108f88 100644
+index e220953834773..32619c108f88b 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
 @@ -1062,11 +1062,23 @@ static inline struct folio *folio_prealloc(struct mm_struct *src_mm,
@@ -542,7 +558,7 @@ index e22095383477..32619c108f88 100644
  	p4d = p4d_alloc(mm, pgd, address);
  	if (!p4d)
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 972ee53353cb..98b52dc7bc87 100644
+index 972ee53353cb4..98b52dc7bc873 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
 @@ -44,6 +44,10 @@
@@ -650,7 +666,7 @@ index 972ee53353cb..98b52dc7bc87 100644
  			}
  			dst = dst2;
 diff --git a/mm/mm_init.c b/mm/mm_init.c
-index dd430c75d74e..38acdafb8775 100644
+index dd430c75d74e6..38acdafb87755 100644
 --- a/mm/mm_init.c
 +++ b/mm/mm_init.c
 @@ -2634,7 +2634,14 @@ static void __init mem_init_print_info(void)
@@ -669,7 +685,7 @@ index dd430c75d74e..38acdafb8775 100644
  #ifdef	CONFIG_HIGHMEM
  		, K(totalhigh_pages())
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e60088a39a43..770dd3e3f6ed 100644
+index e60088a39a43e..770dd3e3f6ed4 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -69,6 +69,10 @@
@@ -790,7 +806,7 @@ index e60088a39a43..770dd3e3f6ed 100644
  	int order;
  
 diff --git a/mm/readahead.c b/mm/readahead.c
-index 64af7b93a0b9..cedf3fa19c4d 100644
+index 64af7b93a0b97..cedf3fa19c4dd 100644
 --- a/mm/readahead.c
 +++ b/mm/readahead.c
 @@ -233,6 +233,11 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
@@ -806,7 +822,7 @@ index 64af7b93a0b9..cedf3fa19c4d 100644
  	index = mapping_align_index(mapping, index);
  
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f78cfe059f14..f08a473aed94 100644
+index f78cfe059f144..f08a473aed947 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -65,6 +65,10 @@
