@@ -310,7 +310,7 @@ void tvin_update_vdin_prop(u8 port_type, u8 pkt_type)
 		break;
 	}
 	if (vdin_package_done_check_state(devp)) {
-		if (devp->game_mode)
+		if (devp->game_mode && devp->mem_type != VDIN_MEM_TYPE_SCT)
 			vdin_pause_hw_write(devp, 0);
 		devp->frame_drop_num = 1;
 		vdin_vf_skip_all_disp(devp->vfp);
@@ -3865,7 +3865,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	if (devp->frame_drop_num) {
 		devp->frame_drop_num--;
-		if (devp->game_mode & VDIN_GAME_MODE_1_2)
+		if (devp->game_mode && devp->mem_type != VDIN_MEM_TYPE_SCT)
 			vdin_pause_hw_write(devp, 0);
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_DROP_FRAME;
 		vdin_drop_frame_info(devp, "drop frame");
