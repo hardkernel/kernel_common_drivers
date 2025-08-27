@@ -316,6 +316,11 @@ enum {
 	AO_REG_DEF_END
 };
 
+enum {
+	GPIOW_DEFAULT,
+	GPIOW_16_SEL,
+	GPIOW_17_SEL
+};
 #define REG_MASK_ADDR	0x0000ffff
 #define REG_MASK_PR	0x01000000/*periphs register*/
 
@@ -725,5 +730,5 @@ void __weak wr_reg_hhi(unsigned int offset, unsigned int val)
 #endif
 void cecb_irq_handle(void);
 int cec_ll_tx(const unsigned char *msg, unsigned char len, unsigned char signal_free_time);
-
+int cec_get_gpiow_id_selection(void);
 #endif	/* __AO_CEC_H__ */

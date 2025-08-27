@@ -49,6 +49,7 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/aml_mbox.h>
 #include <linux/amlogic/pm.h>
+#include <linux/amlogic/efuse.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 static struct early_suspend aocec_suspend_handler;
@@ -2601,6 +2602,29 @@ static void cec_func_init(unsigned int cec_func_config)
 	cec_config(cec_func, 1);
 }
 
+int cec_get_gpiow_id_selection(void)
+{
+	/* default GPIOW_17 */
+	int ret = GPIOW_DEFAULT;
+	int val = GPIOW_16_SEL;
+
+	if (cec_dev->plat_data->chip_id != CEC_CHIP_T6W)
+		return ret;
+	val = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_CEC_IO);
+	/* val=0:efuse bit not found */
+	if (val < 0) {
+		pr_err("can not find efuse bit\n");
+		ret = GPIOW_16_SEL;
+	} else if (val == 0) {
+		ret = GPIOW_16_SEL;
+	} else if (val == 1) {
+		ret = GPIOW_17_SEL;
+	} else {
+		pr_err("cec read efuse error\n");
+	}
+	return ret;
+}
+
 static int aml_cec_probe(struct platform_device *pdev)
 {
 	struct device *cdev;
@@ -2747,33 +2771,38 @@ static int aml_cec_probe(struct platform_device *pdev)
 	/* pinmux set */
 	if (of_get_property(node, "pinctrl-names", NULL)) {
 		pin = devm_pinctrl_get(&pdev->dev);
-		/*get sleep state*/
-		cec_dev->dbg_dev->pins->sleep_state =
-			pinctrl_lookup_state(pin, "cec_pin_sleep");
-		if (IS_ERR(cec_dev->dbg_dev->pins->sleep_state))
-			pr_info("get sleep state error!\n");
-		/*get active state*/
-		if (ee_cec == CEC_B) {
-			cec_dev->dbg_dev->pins->default_state =
-				pinctrl_lookup_state(pin, "hdmitx_aocecb");
-			if (IS_ERR(cec_dev->dbg_dev->pins->default_state)) {
-				pr_info("get aocecb error!\n");
+		if (cec_get_gpiow_id_selection() == GPIOW_17_SEL) {
+			pin = devm_pinctrl_get_select(&pdev->dev, "cec_pin_new_state");
+			pin = devm_pinctrl_get_select(&pdev->dev, "cec_pin_sleep_new");
+		} else {
+			/*get sleep state*/
+			cec_dev->dbg_dev->pins->sleep_state =
+				pinctrl_lookup_state(pin, "cec_pin_sleep");
+			if (IS_ERR(cec_dev->dbg_dev->pins->sleep_state))
+				pr_info("get sleep state error!\n");
+			/*get active state*/
+			if (ee_cec == CEC_B) {
+				cec_dev->dbg_dev->pins->default_state =
+					pinctrl_lookup_state(pin, "hdmitx_aocecb");
+				if (IS_ERR(cec_dev->dbg_dev->pins->default_state)) {
+					pr_info("get aocecb error!\n");
+					cec_dev->dbg_dev->pins->default_state =
+						pinctrl_lookup_state(pin, "default");
+					CEC_ERR("use default cec\n");
+					/*force use default*/
+					ee_cec = CEC_A;
+				}
+			} else {
 				cec_dev->dbg_dev->pins->default_state =
 					pinctrl_lookup_state(pin, "default");
-				CEC_ERR("use default cec\n");
-				/*force use default*/
-				ee_cec = CEC_A;
+				if (IS_ERR(cec_dev->dbg_dev->pins->default_state))
+					pr_info("get default error1!\n");
 			}
-		} else {
-			cec_dev->dbg_dev->pins->default_state =
-				pinctrl_lookup_state(pin, "default");
-			if (IS_ERR(cec_dev->dbg_dev->pins->default_state))
-				pr_info("get default error1!\n");
+			/*select pin state*/
+			ret = pinctrl_pm_select_default_state(&pdev->dev);
+				if (ret > 0)
+					pr_info("select state error:0x%x\n", ret);
 		}
-		/*select pin state*/
-		ret = pinctrl_pm_select_default_state(&pdev->dev);
-		if (ret > 0)
-			pr_info("select state error:0x%x\n", ret);
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ao_exit");
@@ -3358,7 +3387,10 @@ static int aml_cec_pm_freeze_noirq(struct device *dev)
 
 	//it will check pinctrl state when pinctrl restore pinmux
 	//freeze -- sleep   restore -- default
-	pin = devm_pinctrl_get_select(dev, "cec_pin_sleep");
+	if (cec_get_gpiow_id_selection() == GPIOW_17_SEL)
+		pin = devm_pinctrl_get_select(dev, "cec_pin_new_state");
+	else
+		pin = devm_pinctrl_get_select(dev, "cec_pin_sleep");
 	return 0;
 }
 

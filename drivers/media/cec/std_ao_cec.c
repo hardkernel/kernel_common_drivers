@@ -2348,8 +2348,12 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	/* pinmux set */
 	if (of_get_property(node, "pinctrl-names", NULL)) {
 		pin = devm_pinctrl_get(&pdev->dev);
-		/*get sleep state*/
-		cec_dev->dbg_dev->pins->sleep_state =
+		if (cec_get_gpiow_id_selection() == GPIOW_17_SEL) {
+			pin = devm_pinctrl_get_select(&pdev->dev, "cec_pin_new_state");
+			pin = devm_pinctrl_get_select(&pdev->dev, "cec_pin_sleep_new");
+		} else {
+			/*get sleep state*/
+			cec_dev->dbg_dev->pins->sleep_state =
 			pinctrl_lookup_state(pin, "cec_pin_sleep");
 		if (IS_ERR(cec_dev->dbg_dev->pins->sleep_state))
 			pr_info("get sleep state error!\n");
@@ -2372,9 +2376,10 @@ static int aml_aocec_probe(struct platform_device *pdev)
 				pr_info("get default error1!\n");
 		}
 		/*select pin state*/
-		ret = pinctrl_pm_select_default_state(&pdev->dev);
-		if (ret > 0)
-			pr_info("select state error:0x%x\n", ret);
+			ret = pinctrl_pm_select_default_state(&pdev->dev);
+			if (ret > 0)
+				pr_info("select state error:0x%x\n", ret);
+		}
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ao_exit");
