@@ -103,6 +103,7 @@ enum emp_pkt_type_e {
 	EMP_CUVA,
 	EMP_CVTEM,
 	EMP_QMS_PLUS,
+	EMP_FVA,
 };
 
 enum rx_sig_type_e {
@@ -128,7 +129,8 @@ enum rx_sig_type_e {
 	E_EMP_CUVA	= 0x40000,
 	E_EMP_CVTEM	= 0x80000,
 	E_EMP_QMS_PLUS	= 0x100000,
-	E_AVI_FILMMAKER	= 0x200000,
+	E_EMP_FVA	= 0x200000,
+	E_AVI_FILMMAKER	= 0x400000,
 };
 
 enum pkt_decode_type {

@@ -4752,10 +4752,6 @@ void rx_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
-				hdmirx_config_video(port);
-				rx_get_aud_info(&rx[port].aud_info, port);
-				hdmirx_config_audio(port);
-				rx_aud_pll_ctl(1, port);
 				rx[port].state = FSM_SIG_STABLE_TO_READY;
 				rx[port].var.sig_stable_cnt = 0;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -4811,6 +4807,10 @@ void rx_main_state_machine(void)
 				rx[port].no_signal = false;
 				rx[port].ecc_err = 0;
 				rx[port].var.clk_chg_cnt = 0;
+				hdmirx_config_video(port);
+				rx_get_aud_info(&rx[port].aud_info, port);
+				hdmirx_config_audio(port);
+				rx_aud_pll_ctl(1, port);
 				//hdmirx_audio_fifo_rst(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
@@ -5216,10 +5216,6 @@ void rx_port0_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
-				hdmirx_config_video(port);
-				rx_get_aud_info(&rx[port].aud_info, port);
-				hdmirx_config_audio(port);
-				rx_aud_pll_ctl(1, port);
 				rx[port].state = FSM_SIG_STABLE_TO_READY;
 				rx[port].var.sig_stable_cnt = 0;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -5270,6 +5266,10 @@ void rx_port0_main_state_machine(void)
 				rx[port].no_signal = false;
 				rx[port].ecc_err = 0;
 				rx[port].var.clk_chg_cnt = 0;
+				hdmirx_config_video(port);
+				rx_get_aud_info(&rx[port].aud_info, port);
+				hdmirx_config_audio(port);
+				rx_aud_pll_ctl(1, port);
 				//hdmirx_audio_fifo_rst(port);
 				hdmirx_late_config_video(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
@@ -5632,10 +5632,6 @@ void rx_port1_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
-				hdmirx_config_video(port);
-				rx_get_aud_info(&rx[port].aud_info, port);
-				hdmirx_config_audio(port);
-				rx_aud_pll_ctl(1, port);
 				rx[port].state = FSM_SIG_STABLE_TO_READY;
 				rx[port].var.sig_stable_cnt = 0;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -5686,6 +5682,10 @@ void rx_port1_main_state_machine(void)
 				rx[port].no_signal = false;
 				rx[port].ecc_err = 0;
 				rx[port].var.clk_chg_cnt = 0;
+				hdmirx_config_video(port);
+				rx_get_aud_info(&rx[port].aud_info, port);
+				hdmirx_config_audio(port);
+				rx_aud_pll_ctl(1, port);
 				//hdmirx_audio_fifo_rst(port);
 				hdmirx_late_config_video(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
@@ -6127,10 +6127,6 @@ void rx_port2_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
-				hdmirx_config_video(port);
-				rx_get_aud_info(&rx[port].aud_info, port);
-				hdmirx_config_audio(port);
-				rx_aud_pll_ctl(1, port);
 				rx[port].state = FSM_SIG_STABLE_TO_READY;
 				rx[port].frl_check = 0;
 				rx[port].var.sig_stable_cnt = 0;
@@ -6192,8 +6188,12 @@ void rx_port2_main_state_machine(void)
 				rx[port].no_signal = false;
 				rx[port].ecc_err = 0;
 				rx[port].var.clk_chg_cnt = 0;
-				hdmirx_late_config_video(port);
+				hdmirx_config_video(port);
+				rx_get_aud_info(&rx[port].aud_info, port);
+				hdmirx_config_audio(port);
+				rx_aud_pll_ctl(1, port);
 				//hdmirx_audio_fifo_rst(port);
+				hdmirx_late_config_video(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
 				rx[port].dump_aud_cnt = 0;
@@ -6701,10 +6701,6 @@ void rx_port3_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
-				hdmirx_config_video(port);
-				rx_get_aud_info(&rx[port].aud_info, port);
-				hdmirx_config_audio(port);
-				rx_aud_pll_ctl(1, port);
 				rx[port].frl_check = 0;
 				rx[port].state = FSM_SIG_STABLE_TO_READY;
 				rx[port].var.sig_stable_cnt = 0;
@@ -6766,8 +6762,12 @@ void rx_port3_main_state_machine(void)
 				rx[port].no_signal = false;
 				rx[port].ecc_err = 0;
 				rx[port].var.clk_chg_cnt = 0;
-				hdmirx_late_config_video(port);
+				hdmirx_config_video(port);
+				rx_get_aud_info(&rx[port].aud_info, port);
+				hdmirx_config_audio(port);
+				rx_aud_pll_ctl(1, port);
 				//hdmirx_audio_fifo_rst(port);
+				hdmirx_late_config_video(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
 				rx[port].dump_aud_cnt = 0;
@@ -7127,8 +7127,6 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size, u8 port)
 
 	pos += snprintf(buf + pos, size - pos,
 		"\n\nHDCP info\n\n");
-	pos += snprintf(buf + pos, size - pos,
-		"HDCP Debug Value: 0x%x\n", hdmirx_rd_dwc(DWC_HDCP_DBG));
 	pos += snprintf(buf + pos, size - pos,
 		"HDCP14 state: %d\n", rx[port].cur.hdcp14_state);
 	pos += snprintf(buf + pos, size - pos,

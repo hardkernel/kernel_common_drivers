@@ -2768,6 +2768,8 @@ void rx_get_em_info(u8 port)
 				rx[port].rx_sig_type |= E_EMP_VRR;
 			}
 			rx[port].vtem_info.fva_factor_m1 = (tmp >> 4) & 0xf;
+			if (rx[port].vtem_info.fva_factor_m1)
+				rx[port].rx_sig_type |= E_EMP_FVA;
 			tmp = pkt->cnt.md[1];
 			rx[port].vtem_info.base_vfront = tmp;
 			rx[port].vtem_info.base_framerate = ((pkt->cnt.md[2] & 0x3) << 8) |
@@ -2901,7 +2903,7 @@ void rx_get_aif_info(u8 port)
 	/*}*/
 }
 
-static void rx_sig_type_parse(u32 sig_type)
+static void rx_sig_type_parse(u32 sig_type, u8 port)
 {
 	if (sig_type == E_SIG_NULL) {
 		rx_pr("No special signals parsed\n");
@@ -2950,6 +2952,8 @@ static void rx_sig_type_parse(u32 sig_type)
 		rx_pr("DSC\n");
 	if (sig_type & E_EMP_QMS_PLUS)
 		rx_pr("EMP QMS Plus\n");
+	if (sig_type & E_EMP_FVA)
+		rx_pr("EMP FVA factor:%d\n", rx[port].vtem_info.fva_factor_m1);
 	if (sig_type & E_AVI_FILMMAKER)
 		rx_pr("AVI filmmaker\n");
 }
@@ -2960,7 +2964,7 @@ void dump_pktinfo_status(u8 port)
 		return;
 	rx_pr("****pkts_info_details:*****\n");
 	rx_pr("rx signal type: 0x%x，parsing result:\n", rx[port].rx_sig_type);
-	rx_sig_type_parse(rx[port].rx_sig_type);
+	rx_sig_type_parse(rx[port].rx_sig_type, port);
 }
 
 void rx_get_freesync_info(u8 port)
