@@ -1044,7 +1044,7 @@
 
 	asrca:resample@0 {
 		compatible = "amlogic, t5-resample-a";
-		clocks = <&clkc CLKID_MPLL1
+		clocks = <&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_MCLK_B
 			&clkaudio CLKID_AUDIO_RESAMPLE_A>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
