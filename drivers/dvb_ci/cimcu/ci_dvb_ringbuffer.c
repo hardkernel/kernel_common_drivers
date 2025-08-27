@@ -1,6 +1,23 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ *
+ * dvb_ringbuffer.c: ring buffer implementation for the dvb driver
+ *
+ * Copyright (C) 2003 Oliver Endriss
+ * Copyright (C) 2004 Andrew de Quincey
+ *
+ * based on code originally found in av7110.c & dvb_ci.c:
+ * Copyright (C) 1999-2003 Ralph  Metzler
+ *                       & Marcus Metzler for convergence integrated media GmbH
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * as published by the Free Software Foundation; either version 2.1
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
  */
 
 #include <linux/errno.h>
@@ -10,12 +27,12 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 
-#include <linux/amlogic/media/dvb-core/dvb_ringbuffer.h>
+#include "ci_dvb_ringbuffer.h"
 
 #define PKT_READY 0
 #define PKT_DISPOSED 1
 
-void dvb_ringbuffer_init(struct dvb_ringbuffer *rbuf, void *data, size_t len)
+void ci_dvb_ringbuffer_init(struct dvb_ringbuffer *rbuf, void *data, size_t len)
 {
 	rbuf->pread = 0;
 	rbuf->pwrite = 0;
@@ -24,21 +41,22 @@ void dvb_ringbuffer_init(struct dvb_ringbuffer *rbuf, void *data, size_t len)
 	rbuf->error = 0;
 
 	init_waitqueue_head(&rbuf->queue);
+
 	spin_lock_init(&rbuf->lock);
 }
 
-int dvb_ringbuffer_empty(struct dvb_ringbuffer *rbuf)
+int ci_dvb_ringbuffer_empty(struct dvb_ringbuffer *rbuf)
 {
 	/* smp_load_acquire() to load write pointer on reader side
 	 * this pairs with smp_store_release() in dvb_ringbuffer_write(),
 	 * dvb_ringbuffer_write_user(), or dvb_ringbuffer_reset()
 	 *
-	 * for memory barriers also see Documentation/circular-buffers.txt
+	 * for memory barriers also see Documentation/core-api/circular-buffers.rst
 	 */
 	return (rbuf->pread == smp_load_acquire(&rbuf->pwrite));
 }
 
-ssize_t dvb_ringbuffer_free(struct dvb_ringbuffer *rbuf)
+ssize_t ci_dvb_ringbuffer_free(struct dvb_ringbuffer *rbuf)
 {
 	ssize_t free;
 
@@ -53,7 +71,7 @@ ssize_t dvb_ringbuffer_free(struct dvb_ringbuffer *rbuf)
 	return free - 1;
 }
 
-ssize_t dvb_ringbuffer_avail(struct dvb_ringbuffer *rbuf)
+ssize_t ci_dvb_ringbuffer_avail(struct dvb_ringbuffer *rbuf)
 {
 	ssize_t avail;
 
@@ -67,7 +85,7 @@ ssize_t dvb_ringbuffer_avail(struct dvb_ringbuffer *rbuf)
 	return avail;
 }
 
-void dvb_ringbuffer_flush(struct dvb_ringbuffer *rbuf)
+void ci_dvb_ringbuffer_flush(struct dvb_ringbuffer *rbuf)
 {
 	/* dvb_ringbuffer_flush() counts as read operation
 	 * smp_load_acquire() to load write pointer
@@ -79,7 +97,7 @@ void dvb_ringbuffer_flush(struct dvb_ringbuffer *rbuf)
 	rbuf->error = 0;
 }
 
-void dvb_ringbuffer_reset(struct dvb_ringbuffer *rbuf)
+void ci_dvb_ringbuffer_reset(struct dvb_ringbuffer *rbuf)
 {
 	/* dvb_ringbuffer_reset() counts as read and write operation
 	 * smp_store_release() to update read pointer
@@ -90,18 +108,18 @@ void dvb_ringbuffer_reset(struct dvb_ringbuffer *rbuf)
 	rbuf->error = 0;
 }
 
-void dvb_ringbuffer_flush_spinlock_wakeup(struct dvb_ringbuffer *rbuf)
+void ci_dvb_ringbuffer_flush_spinlock_wakeup(struct dvb_ringbuffer *rbuf)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&rbuf->lock, flags);
-	dvb_ringbuffer_flush(rbuf);
+	ci_dvb_ringbuffer_flush(rbuf);
 	spin_unlock_irqrestore(&rbuf->lock, flags);
 
 	wake_up(&rbuf->queue);
 }
 
-ssize_t dvb_ringbuffer_read_user(struct dvb_ringbuffer *rbuf, u8 __user *buf, size_t len)
+ssize_t ci_dvb_ringbuffer_read_user(struct dvb_ringbuffer *rbuf, u8 __user *buf, size_t len)
 {
 	size_t todo = len;
 	size_t split;
@@ -114,7 +132,7 @@ ssize_t dvb_ringbuffer_read_user(struct dvb_ringbuffer *rbuf, u8 __user *buf, si
 		todo -= split;
 		/* smp_store_release() for read pointer update to ensure
 		 * that buf is not overwritten until read is complete,
-		 * this pairs with ACCESS_ONCE() in dvb_ringbuffer_free()
+		 * this pairs with READ_ONCE() in dvb_ringbuffer_free()
 		 */
 		smp_store_release(&rbuf->pread, 0);
 	}
@@ -127,7 +145,7 @@ ssize_t dvb_ringbuffer_read_user(struct dvb_ringbuffer *rbuf, u8 __user *buf, si
 	return len;
 }
 
-void dvb_ringbuffer_read(struct dvb_ringbuffer *rbuf, u8 *buf, size_t len)
+void ci_dvb_ringbuffer_read(struct dvb_ringbuffer *rbuf, u8 *buf, size_t len)
 {
 	size_t todo = len;
 	size_t split;
@@ -139,7 +157,7 @@ void dvb_ringbuffer_read(struct dvb_ringbuffer *rbuf, u8 *buf, size_t len)
 		todo -= split;
 		/* smp_store_release() for read pointer update to ensure
 		 * that buf is not overwritten until read is complete,
-		 * this pairs with ACCESS_ONCE() in dvb_ringbuffer_free()
+		 * this pairs with READ_ONCE() in dvb_ringbuffer_free()
 		 */
 		smp_store_release(&rbuf->pread, 0);
 	}
@@ -149,7 +167,7 @@ void dvb_ringbuffer_read(struct dvb_ringbuffer *rbuf, u8 *buf, size_t len)
 	smp_store_release(&rbuf->pread, (rbuf->pread + todo) % rbuf->size);
 }
 
-ssize_t dvb_ringbuffer_write(struct dvb_ringbuffer *rbuf, const u8 *buf, size_t len)
+ssize_t ci_dvb_ringbuffer_write(struct dvb_ringbuffer *rbuf, const u8 *buf, size_t len)
 {
 	size_t todo = len;
 	size_t split;
@@ -174,7 +192,7 @@ ssize_t dvb_ringbuffer_write(struct dvb_ringbuffer *rbuf, const u8 *buf, size_t 
 	return len;
 }
 
-ssize_t dvb_ringbuffer_write_user(struct dvb_ringbuffer *rbuf,
+ssize_t ci_dvb_ringbuffer_write_user(struct dvb_ringbuffer *rbuf,
 				  const u8 __user *buf, size_t len)
 {
 	int status;
@@ -205,7 +223,7 @@ ssize_t dvb_ringbuffer_write_user(struct dvb_ringbuffer *rbuf,
 	return len;
 }
 
-ssize_t dvb_ringbuffer_pkt_write(struct dvb_ringbuffer *rbuf, u8 *buf, size_t len)
+ssize_t ci_dvb_ringbuffer_pkt_write(struct dvb_ringbuffer *rbuf, u8 *buf, size_t len)
 {
 	int status;
 	ssize_t oldpwrite = rbuf->pwrite;
@@ -213,14 +231,14 @@ ssize_t dvb_ringbuffer_pkt_write(struct dvb_ringbuffer *rbuf, u8 *buf, size_t le
 	DVB_RINGBUFFER_WRITE_BYTE(rbuf, len >> 8);
 	DVB_RINGBUFFER_WRITE_BYTE(rbuf, len & 0xff);
 	DVB_RINGBUFFER_WRITE_BYTE(rbuf, PKT_READY);
-	status = dvb_ringbuffer_write(rbuf, buf, len);
+	status = ci_dvb_ringbuffer_write(rbuf, buf, len);
 
 	if (status < 0)
 		rbuf->pwrite = oldpwrite;
 	return status;
 }
 
-ssize_t dvb_ringbuffer_pkt_read_user(struct dvb_ringbuffer *rbuf, size_t idx,
+ssize_t ci_dvb_ringbuffer_pkt_read_user(struct dvb_ringbuffer *rbuf, size_t idx,
 				int offset, u8 __user *buf, size_t len)
 {
 	size_t todo;
@@ -250,7 +268,7 @@ ssize_t dvb_ringbuffer_pkt_read_user(struct dvb_ringbuffer *rbuf, size_t idx,
 	return len;
 }
 
-ssize_t dvb_ringbuffer_pkt_read(struct dvb_ringbuffer *rbuf, size_t idx,
+ssize_t ci_dvb_ringbuffer_pkt_read(struct dvb_ringbuffer *rbuf, size_t idx,
 				int offset, u8 *buf, size_t len)
 {
 	size_t todo;
@@ -277,14 +295,14 @@ ssize_t dvb_ringbuffer_pkt_read(struct dvb_ringbuffer *rbuf, size_t idx,
 	return len;
 }
 
-void dvb_ringbuffer_pkt_dispose(struct dvb_ringbuffer *rbuf, size_t idx)
+void ci_dvb_ringbuffer_pkt_dispose(struct dvb_ringbuffer *rbuf, size_t idx)
 {
 	size_t pktlen;
 
 	rbuf->data[(idx + 2) % rbuf->size] = PKT_DISPOSED;
 
 	// clean up disposed packets
-	while (dvb_ringbuffer_avail(rbuf) > DVB_RINGBUFFER_PKTHDRSIZE) {
+	while (ci_dvb_ringbuffer_avail(rbuf) > DVB_RINGBUFFER_PKTHDRSIZE) {
 		if (DVB_RINGBUFFER_PEEK(rbuf, 2) == PKT_DISPOSED) {
 			pktlen = DVB_RINGBUFFER_PEEK(rbuf, 0) << 8;
 			pktlen |= DVB_RINGBUFFER_PEEK(rbuf, 1);
@@ -296,7 +314,7 @@ void dvb_ringbuffer_pkt_dispose(struct dvb_ringbuffer *rbuf, size_t idx)
 	}
 }
 
-ssize_t dvb_ringbuffer_pkt_next(struct dvb_ringbuffer *rbuf, size_t idx, size_t *pktlen)
+ssize_t ci_dvb_ringbuffer_pkt_next(struct dvb_ringbuffer *rbuf, size_t idx, size_t *pktlen)
 {
 	int consumed;
 	int curpktlen;
@@ -312,7 +330,7 @@ ssize_t dvb_ringbuffer_pkt_next(struct dvb_ringbuffer *rbuf, size_t idx, size_t 
 
 	consumed = (idx - rbuf->pread) % rbuf->size;
 
-	while ((dvb_ringbuffer_avail(rbuf) - consumed) > DVB_RINGBUFFER_PKTHDRSIZE) {
+	while ((ci_dvb_ringbuffer_avail(rbuf) - consumed) > DVB_RINGBUFFER_PKTHDRSIZE) {
 		curpktlen = rbuf->data[idx] << 8;
 		curpktlen |= rbuf->data[(idx + 1) % rbuf->size];
 		curpktstatus = rbuf->data[(idx + 2) % rbuf->size];
@@ -329,3 +347,4 @@ ssize_t dvb_ringbuffer_pkt_next(struct dvb_ringbuffer *rbuf, size_t idx, size_t 
 	// no packets available
 	return -1;
 }
+

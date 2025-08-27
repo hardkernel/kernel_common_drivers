@@ -14,7 +14,7 @@
 #include <linux/sched/signal.h>
 #include <linux/compat.h>
 
-#include <linux/amlogic/media/dvb-core/dvb_ringbuffer.h>
+#include "ci_dvb_ringbuffer.h"
 #include "../aml_ci_bus.h"
 #include "dvb_ca_en50221_cimcu.h"
 
@@ -778,7 +778,7 @@ static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot, u8 *ebu
 			status = -EIO;
 			goto exit;
 		}
-		buf_free = dvb_ringbuffer_free(&ca->slot_info[slot].rx_buffer);
+		buf_free = ci_dvb_ringbuffer_free(&ca->slot_info[slot].rx_buffer);
 
 		if (buf_free < (ca->slot_info[slot].link_buf_size + DVB_RINGBUFFER_PKTHDRSIZE)) {
 			status = -EAGAIN;
@@ -858,7 +858,7 @@ static int dvb_ca_en50221_read_data(struct dvb_ca_private *ca, int slot, u8 *ebu
 			status = -EIO;
 			goto exit;
 		}
-		dvb_ringbuffer_pkt_write(&ca->slot_info[slot].rx_buffer, buf, bytes_read);
+		ci_dvb_ringbuffer_pkt_write(&ca->slot_info[slot].rx_buffer, buf, bytes_read);
 	} else {
 		memcpy(ebuf, buf, bytes_read);
 	}
@@ -1247,9 +1247,9 @@ static void dvb_ci_slotstate_linkinit(struct dvb_ca_private *ca, int slot)
 			dvb_ca_en50221_thread_update_delay(ca);
 			return;
 		}
-		dvb_ringbuffer_init(&ca->slot_info[slot].rx_buffer, rxbuf, RX_BUFFER_SIZE);
+		ci_dvb_ringbuffer_init(&ca->slot_info[slot].rx_buffer, rxbuf, RX_BUFFER_SIZE);
 	} else {
-		dvb_ringbuffer_reset(&ca->slot_info[slot].rx_buffer);
+		ci_dvb_ringbuffer_reset(&ca->slot_info[slot].rx_buffer);
 	}
 
 	ca->pub->slot_ts_enable(ca->pub, slot);
@@ -1733,16 +1733,17 @@ static int dvb_ca_en50221_io_read_condition(struct dvb_ca_private *ca,
 			return 0;
 #ifdef READ_LPDU_PKT
 		if (ca->slot_info[slot].rx_offset != 0) {
-			idx = dvb_ringbuffer_pkt_next(&ca->slot_info[slot].rx_buffer, -1, &fraglen);
+			idx = ci_dvb_ringbuffer_pkt_next(&ca->slot_info[slot].rx_buffer,
+				-1, &fraglen);
 			if (idx == -1)
 				return 0;
 			*_slot = slot;
 			return 1;
 		}
 #endif
-		idx = dvb_ringbuffer_pkt_next(&ca->slot_info[slot].rx_buffer, -1, &fraglen);
+		idx = ci_dvb_ringbuffer_pkt_next(&ca->slot_info[slot].rx_buffer, -1, &fraglen);
 		while (idx != -1) {
-			dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 0, hdr, 2);
+			ci_dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 0, hdr, 2);
 			if (connection_id == -1)
 				connection_id = hdr[0];
 #ifndef READ_LPDU_PKT
@@ -1755,7 +1756,7 @@ static int dvb_ca_en50221_io_read_condition(struct dvb_ca_private *ca,
 				break;
 			}
 
-			idx = dvb_ringbuffer_pkt_next(&ca->slot_info[slot].rx_buffer,
+			idx = ci_dvb_ringbuffer_pkt_next(&ca->slot_info[slot].rx_buffer,
 				idx, &fraglen);
 		}
 
@@ -1821,7 +1822,7 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user *buf,
 		return status;
 	}
 
-	idx = dvb_ringbuffer_pkt_next(&ca->slot_info[slot].rx_buffer, -1, &fraglen);
+	idx = ci_dvb_ringbuffer_pkt_next(&ca->slot_info[slot].rx_buffer, -1, &fraglen);
 	pktlen = 2;
 	do {
 		if (idx == -1) {
@@ -1833,7 +1834,7 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user *buf,
 #ifdef READ_LPDU_PKT
 		offset = 2 + ca->slot_info[slot].rx_offset;
 #endif
-		dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 0, hdr, 2);
+		ci_dvb_ringbuffer_pkt_read(&ca->slot_info[slot].rx_buffer, idx, 0, hdr, 2);
 		if (connection_id == -1)
 			connection_id = hdr[0];
 #ifdef READ_LPDU_PKT
@@ -1856,7 +1857,7 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user *buf,
 				}
 
 				status =
-					dvb_ringbuffer_pkt_read_user(&ca->slot_info[slot].rx_buffer,
+				ci_dvb_ringbuffer_pkt_read_user(&ca->slot_info[slot].rx_buffer,
 					idx,
 					offset,
 					buf + pktlen + 2,
@@ -1877,7 +1878,7 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user *buf,
 					fraglen -= 2;
 
 				status =
-				dvb_ringbuffer_pkt_read_user(&ca->slot_info[slot].rx_buffer,
+				ci_dvb_ringbuffer_pkt_read_user(&ca->slot_info[slot].rx_buffer,
 							idx, 2, buf + pktlen, fraglen)
 				if (status < 0)
 					goto exit;
@@ -1889,10 +1890,10 @@ static ssize_t dvb_ca_en50221_io_read(struct file *file, char __user *buf,
 			dispose = 1;
 		}
 #endif
-		idx2 = dvb_ringbuffer_pkt_next(&ca->slot_info[slot].rx_buffer,
+		idx2 = ci_dvb_ringbuffer_pkt_next(&ca->slot_info[slot].rx_buffer,
 				idx, &fraglen);
 		if (dispose)
-			dvb_ringbuffer_pkt_dispose(&ca->slot_info[slot].rx_buffer, idx);
+			ci_dvb_ringbuffer_pkt_dispose(&ca->slot_info[slot].rx_buffer, idx);
 		idx = idx2;
 		dispose = 0;
 	} while (!last_fragment);
@@ -1951,7 +1952,7 @@ static int dvb_ca_en50221_io_open(struct inode *inode, struct file *file)
 				/* it is safe to call this here without locks because
 				 * ca->open == 0. Data is not read in this case
 				 */
-				dvb_ringbuffer_flush(&ca->slot_info[i].rx_buffer);
+				ci_dvb_ringbuffer_flush(&ca->slot_info[i].rx_buffer);
 		}
 	}
 

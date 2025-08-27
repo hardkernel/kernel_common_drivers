@@ -15,7 +15,7 @@ ddk_module(
                 "aml_ci.c",
                 "aml_ci_bus.c",
                 "cimcu/dvb_ca_en50221_cimcu.c",
-                "cimax/dvb_ringbuffer.c",
+                "cimcu/ci_dvb_ringbuffer.c",
             ],
         },
     },

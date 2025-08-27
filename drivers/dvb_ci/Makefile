@@ -6,7 +6,7 @@ obj-$(CONFIG_AMLOGIC_DVB_CI) +=$(MODULE_NAME).o
 $(MODULE_NAME)-y = $(amlci-objs) $(cimcu-objs)
 
 amlci-objs = aml_pcmcia.o  aml_ci.o  aml_ci_bus.o
-cimcu-objs = cimcu/dvb_ca_en50221_cimcu.o cimax/dvb_ringbuffer.o
+cimcu-objs = cimcu/dvb_ca_en50221_cimcu.o cimcu/ci_dvb_ringbuffer.o
 
 ccflags-y += -I$(srctree)/
 ccflags-y += -I$(srctree)/include
