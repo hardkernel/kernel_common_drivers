@@ -17,6 +17,7 @@
 
 bool check_vicp_status(void)
 {
+/*
 	int cpu_type = 0;
 
 	cpu_type = get_cpu_type();
@@ -26,6 +27,8 @@ bool check_vicp_status(void)
 		return true;
 	else
 		return false;
+*/
+	return false;
 }
 
 enum vicp_rotation_mode_e map_rotationmode_from_v2d_to_vicp(int v2d_rotation)

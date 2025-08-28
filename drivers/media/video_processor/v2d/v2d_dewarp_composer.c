@@ -47,7 +47,11 @@ static int get_dewarp_rotation_value(int transform)
 {
 	int rotate_value = 0;
 
-	if (transform == 4 || transform == 5 || transform == 6)
+	if (transform == 1)
+		rotate_value = 1 << 10;
+	else if (transform == 2)
+		rotate_value = 2 << 10;
+	else if (transform == 4 || transform == 5 || transform == 6)
 		rotate_value = 270;
 	else if (transform == 3)
 		rotate_value = 180;
@@ -222,10 +226,8 @@ bool check_dewarp_status(struct vframe_s *input_vf, int count, int work_mode, in
 		return false;
 #endif
 
-	if (count > 1) {
-		pr_info("%s: dewarp not support composer.\n", __func__);
+	if (count > 1)
 		return false;
-	}
 
 	if (work_mode != 1)
 		return false;
@@ -380,6 +382,20 @@ int v2d_config_dewarp_vframe(struct dewarp_vf_para_s *vframe_para,
 		vframe_para->dst_endian = 0;
 		vframe_para->is_tvp = pic_info_in->is_tvp;
 	}
+	if (dewarp_print) {
+		pr_info("v2d:[%d]---------------------------------.\n", call_index);
+		pr_info("v2d:[%d] src:addr0:%lx addr1:%lx width:%d height:%d\n", call_index,
+			vframe_para->src_buf_addr0, vframe_para->src_buf_addr1,
+			vframe_para->src_vf_width, vframe_para->src_vf_height);
+		pr_info("v2d:[%d] src:stride0:%d stride1:%d format:%d swap:%d\n", call_index,
+			vframe_para->src_buf_stride0, vframe_para->src_buf_stride1,
+			vframe_para->src_vf_format, vframe_para->uvswap_enable);
+		pr_info("v2d:[%d] dst:addr0:%lx width:%d height:%d stride:%d\n", call_index,
+			vframe_para->dst_buf_addr, vframe_para->dst_vf_width,
+			vframe_para->dst_vf_height, vframe_para->dst_buf_stride);
+
+		pr_info("v2d:[%d]---------------------------------.\n", call_index);
+	}
 	return 0;
 }
 
@@ -458,5 +474,10 @@ int v2d_dewarp_data_composer(struct dewarp_composer_para *param, bool is_tvp)
 			dewarp_com_dump_last = dewarp_com_dump;
 		}
 	}
+	if (dewarp_print)
+		pr_info("v2d:[%d] %s:dst addr0:%lx addr1:%lx stride0:%d stride1:%d\n",
+			param->index, __func__,
+			gdc_config.out_paddr[0], gdc_config.out_paddr[1],
+			gdc_config.out_y_stride, gdc_config.out_y_stride);
 	return ret;
 }

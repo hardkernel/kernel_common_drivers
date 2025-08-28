@@ -156,6 +156,21 @@ struct received_frames_t {
 	size_t usage;
 };
 
+struct v2d_dump_info_s {
+	u32 plane_num;
+	u32 bit_10;
+	u32 width;
+	u32 height;
+	u32 sizeimage;
+	u64 phy_addr[3];
+	void *vir_addr[3];
+	wait_queue_head_t dump_wq;
+	bool is_dump;
+	bool config_dump_done;
+	bool allow_dump;
+	struct mutex mutex;/*for dump finish then user layer to dq*/
+};
+
 struct dst_buf_t {
 	int index;
 	struct composer_info_t composer_info;
@@ -164,6 +179,8 @@ struct dst_buf_t {
 	ulong phy_addr;
 	u32 buf_w;
 	u32 buf_h;
+	u32 width;
+	u32 height;
 	u32 buf_size;
 	bool is_tvp;
 	u32 dw_size;
@@ -268,6 +285,8 @@ struct v2d_dev {
 	u32 buffer_release_count;
 	u32 fence_wait_count;
 	u32 fence_wait_time_total;
+	struct v2d_dump_info_s info_output_yuv;
+	struct v2d_dump_info_s info_dewarp_src;
 };
 
 struct v2d_port_s {
@@ -276,6 +295,7 @@ struct v2d_port_s {
 	u32 open_count;
 	struct device *class_dev;
 	struct device *pdev;
+	struct v2d_dev *dev;
 };
 
 #endif

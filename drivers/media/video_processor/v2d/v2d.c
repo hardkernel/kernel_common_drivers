@@ -43,7 +43,7 @@
 #define BUFFER_720_HEIGHT    720
 
 static u32 v2d_instance_num;
-static enum composer_dev  v2d_dev_choice = 1;
+static enum composer_dev v2d_dev_choice; /*0:default 1:ge2d 2:dewarp 3:vicp*/
 static int use_full_axis_scaling = 1;
 static int display_yuv444;
 static int vicp_output_mode = 2; /*1 mif 2. fbc 3. mif + fbc*/
@@ -61,6 +61,10 @@ static bool enable_v2d_dump;
 int ge2d_com_debug;
 int dewarp_com_dump;
 int dewarp_print;
+
+static const char v2d_group_name0[] = "v2d0_debug";
+static const char v2d_group_name1[] = "v2d1_debug";
+static const char v2d_group_name2[] = "v2d2_debug";
 
 static DEFINE_MUTEX(v2d_mutex);
 
@@ -602,7 +606,9 @@ static void choose_v2d_device(struct v2d_dev *dev,
 		frame_transform == V2D_TRANSFORM_ROT_180 ||
 		frame_transform == V2D_TRANSFORM_ROT_270 ||
 		frame_transform == V2D_TRANSFORM_FLIP_H_ROT_90 ||
-		frame_transform == V2D_TRANSFORM_FLIP_V_ROT_90)
+		frame_transform == V2D_TRANSFORM_FLIP_V_ROT_90 ||
+		frame_transform == V2D_TRANSFORM_FLIP_H ||
+		frame_transform == V2D_TRANSFORM_FLIP_V)
 		dev->work_mode = V2D_MODE_ROTATE;
 	else
 		dev->work_mode = V2D_MODE_COMPOSER;
@@ -807,6 +813,7 @@ static void set_output_buffer_area(struct v2d_dev *dev, struct frames_info_t *fr
 				dewarp_crop_right = dewarp_src_w - vframe_info_cur->crop_x
 					- vframe_info_cur->crop_w;
 			}
+
 			dewarp_dst_w = (vframe_info_cur->dst_w * dev->buf_width /
 				dev->vinfo_w + 0xf) & ~0xf;
 			dewarp_dst_h = (vframe_info_cur->dst_h * dev->buf_height /
@@ -845,15 +852,27 @@ static void set_output_buffer_area(struct v2d_dev *dev, struct frames_info_t *fr
 
 	frames_info->out_buffer.crop_y = out_crop[0];
 	frames_info->out_buffer.crop_x = out_crop[1];
-	frames_info->out_buffer.crop_h = dev->buf_height - out_crop[2] - out_crop[0];
-	frames_info->out_buffer.crop_w = dev->buf_width - out_crop[3] - out_crop[1];
+	if (dev->dev_choice == COMPOSER_WITH_DEWARP) {
+		frames_info->out_buffer.crop_h = dewarp_dst_h - out_crop[2] - out_crop[0];
+		frames_info->out_buffer.crop_w = dewarp_dst_w - out_crop[3] - out_crop[1];
+	} else {
+		frames_info->out_buffer.crop_h = dev->buf_height - out_crop[2] - out_crop[0];
+		frames_info->out_buffer.crop_w = dev->buf_width - out_crop[3] - out_crop[1];
+	}
 
-	frames_info->out_buffer.dst_x = received_frame->output_axis.min_left;
-	frames_info->out_buffer.dst_y = received_frame->output_axis.min_top;
-	frames_info->out_buffer.dst_w = received_frame->output_axis.max_right -
-		received_frame->output_axis.min_left + 1;
-	frames_info->out_buffer.dst_h = received_frame->output_axis.max_bottom -
-		received_frame->output_axis.min_top + 1;
+	if (dev->dev_choice == COMPOSER_WITH_DEWARP) {
+		frames_info->out_buffer.dst_x = vframe_info_cur->dst_x;
+		frames_info->out_buffer.dst_y = vframe_info_cur->dst_y;
+		frames_info->out_buffer.dst_w = vframe_info_cur->dst_w;
+		frames_info->out_buffer.dst_h = vframe_info_cur->dst_h;
+	} else {
+		frames_info->out_buffer.dst_x = received_frame->output_axis.min_left;
+		frames_info->out_buffer.dst_y = received_frame->output_axis.min_top;
+		frames_info->out_buffer.dst_w = received_frame->output_axis.max_right -
+			received_frame->output_axis.min_left + 1;
+		frames_info->out_buffer.dst_h = received_frame->output_axis.max_bottom -
+			received_frame->output_axis.min_top + 1;
+	}
 }
 
 static struct vframe_s *v2d_get_vf_from_file(struct v2d_dev *dev,
@@ -1263,6 +1282,8 @@ static int config_dewarp_param(struct v2d_dev *dev,
 	common_para.output_para.pic_info.addr[0] = dst_buf->phy_addr;
 	common_para.input_para.pic_info.is_tvp = v2d_composer_param->is_tvp;
 
+	dst_buf->width = common_para.output_para.pic_info.align_w;
+	dst_buf->height = common_para.output_para.pic_info.align_h;
 	ret = v2d_config_dewarp_vframe(dewarp_data, &common_para);
 	if (ret < 0)
 		v2d_print(dev->index, PRINT_ERROR, "dewarp config err.\n");
@@ -1491,8 +1512,13 @@ static void config_output_vf_param(struct v2d_dev *dev, struct vframe_s *output_
 		output_vf->flag |= VFRAME_FLAG_VIDEO_SECURE;
 	output_vf->canvas0Addr = -1;
 	output_vf->canvas1Addr = -1;
-	output_vf->width = output_buffer->buf_w;
-	output_vf->height = output_buffer->buf_h;
+	if (dev->dev_choice == COMPOSER_WITH_DEWARP) {
+		output_vf->width = output_buffer->width;
+		output_vf->height = output_buffer->height;
+	} else {
+		output_vf->width = output_buffer->buf_w;
+		output_vf->height = output_buffer->buf_h;
+	}
 	v2d_print(dev->index, PRINT_AXIS,
 			 "composer:vf_w: %d, vf_h: %d\n", output_vf->width, output_vf->height);
 	if (display_yuv444) {
@@ -1806,6 +1832,8 @@ static int v2d_set_frames(struct v2d_dev *dev,
 		}
 
 		if (j == 0) {
+			dev->received_frames[i].frames_info.input_buffer[0].transform =
+				frames_info->input_buffer[0].transform;
 			choose_v2d_device(dev, &dev->received_frames[i], src_vf);
 			init_output_buffer_size(dev, &dev->received_frames[i]);
 		}
@@ -1938,6 +1966,289 @@ static int v2d_set_fence(struct v2d_dev *dev, struct release_info_t *release_inf
 	if (ret)
 		v2d_print(dev->index, PRINT_ERROR, "dma_fence_add_callback failed: %d\n", ret);
 	return ret;
+}
+
+ssize_t v2d_dump_dewarp_src_show(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr, char *buf, loff_t off,
+		size_t count)
+{
+	int ret = 0;
+	struct v2d_port_s *port = (struct v2d_port_s *)attr->private;
+	struct v2d_dev *v2d_dev = port->dev;
+	struct v2d_dump_info_s *info = &v2d_dev->info_dewarp_src;
+	u32 sizeimage, y_size = 0, uv_size = 0;
+	size_t y_remain = 0;
+	size_t y_copy = 0;
+	size_t uv_remain = 0;
+	size_t uv_copy = 0;
+	size_t to_copy;
+	loff_t cur_off = off;
+	size_t copied = 0;
+	loff_t uv_off = 0;
+
+	if (!info->vir_addr[0] && off == 0) {
+		ret = mutex_lock_interruptible(&info->mutex);
+		if (ret < 0) {
+			pr_info("dump yuv: interrupted while waiting for mutex\n");
+			return ret;
+		}
+		info->is_dump = 1;
+		ret = wait_event_interruptible_timeout(info->dump_wq,
+							info->config_dump_done,
+							msecs_to_jiffies(500000));
+		if (ret <= 0) {
+			pr_info("dump yuv: wait interrupted by signal or timeout, ret=%d\n", ret);
+			info->is_dump = 0;
+			mutex_unlock(&info->mutex);
+			return ret;
+		}
+
+		pr_info("yuv src phy_addr0:%llx phy_addr1:%llx width:%d height:%d sizeimage:%d plane:%d\n",
+			info->phy_addr[0], info->phy_addr[1], info->width, info->height,
+			info->sizeimage, info->plane_num);
+
+		y_size = info->width * info->height;
+		info->vir_addr[0] = codec_mm_vmap(info->phy_addr[0], y_size);
+		if (!info->vir_addr[0]) {
+			pr_info("vmap failed. vir_addr0 is null\n");
+			info->is_dump = 0;
+			mutex_unlock(&info->mutex);
+			return -EINVAL;
+		}
+		if (info->plane_num == 2) {
+			uv_size = info->sizeimage - y_size;
+			info->vir_addr[1] = codec_mm_vmap(info->phy_addr[1], uv_size);
+			if (!info->vir_addr[1]) {
+				pr_info("vmap failed. vir_addr1 is null\n");
+				codec_mm_unmap_phyaddr(info->vir_addr[0]);
+				info->is_dump = 0;
+				mutex_unlock(&info->mutex);
+				return -EINVAL;
+			}
+		}
+	}
+
+	sizeimage = info->sizeimage;
+	y_size = info->width * info->height;
+	uv_size = sizeimage - y_size;
+
+	if (off >= sizeimage) {
+		mutex_unlock(&info->mutex);
+		return 0;
+	}
+
+	to_copy = min_t(size_t, count, sizeimage - off);
+
+	while (to_copy > 0) {
+		if (cur_off < y_size) {
+			y_remain = y_size - cur_off;
+			y_copy = min(to_copy, y_remain);
+			memcpy(buf + copied, info->vir_addr[0] + cur_off, y_copy);
+			copied += y_copy;
+			cur_off += y_copy;
+			to_copy -= y_copy;
+		} else {
+			uv_off = cur_off - y_size;
+			uv_remain = uv_size - uv_off;
+			uv_copy = min(to_copy, uv_remain);
+			memcpy(buf + copied, info->vir_addr[1] + uv_off, uv_copy);
+			copied += uv_copy;
+			cur_off += uv_copy;
+			to_copy -= uv_copy;
+		}
+	}
+
+	if ((off + copied) >= sizeimage) {
+		codec_mm_unmap_phyaddr(info->vir_addr[0]);
+		info->vir_addr[0] = NULL;
+		if (info->plane_num == 2) {
+			codec_mm_unmap_phyaddr(info->vir_addr[1]);
+			info->vir_addr[1] = NULL;
+		}
+		info->is_dump = 0;
+		info->config_dump_done = 0;
+		mutex_unlock(&info->mutex);
+	}
+
+	return copied;
+}
+
+static void config_dewarp_src_data(struct v2d_dev *dev)
+{
+	struct dewarp_composer_para *dewarp_param = NULL;
+	struct v2d_dump_info_s *info = NULL;
+
+	if (!dev)
+		return;
+	dewarp_param = &dev->dewarp_para;
+	info = &dev->info_dewarp_src;
+
+	if (!dewarp_param->vf_para) {
+		pr_info("%s:dewarp_param->vf_para is null\n", __func__);
+		return;
+	}
+
+	info->phy_addr[0] = dewarp_param->vf_para->src_buf_addr0;
+	info->phy_addr[1] = dewarp_param->vf_para->src_buf_addr1;
+	info->width = dewarp_param->vf_para->src_vf_width;
+	info->height = dewarp_param->vf_para->src_vf_height;
+	info->plane_num = 2;
+	info->sizeimage = info->width * info->height * 3 / 2;
+
+	v2d_print(dev->index, PRINT_OTHER, "%s:config done\n", __func__);
+}
+
+static void config_dump_output_yuv_data(struct vframe_s *vf, struct v2d_dev *dev)
+{
+	struct canvas_s cs0;
+	struct canvas_s cs1;
+	struct canvas_s cs2;
+
+	if (!vf || !dev)
+		return;
+	if (vf->canvas0Addr == (u32)-1) {
+		dev->info_output_yuv.width = vf->canvas0_config[0].width;
+		dev->info_output_yuv.height = vf->canvas0_config[0].height;
+		dev->info_output_yuv.phy_addr[0] = vf->canvas0_config[0].phy_addr;
+		if (vf->plane_num == 1) {
+			dev->info_output_yuv.sizeimage = vf->canvas0_config[0].width *
+				vf->canvas0_config[0].height;
+		} else if (vf->plane_num == 2) {
+			dev->info_output_yuv.sizeimage = vf->canvas0_config[0].width *
+				vf->canvas0_config[0].height * 3 / 2;
+			dev->info_output_yuv.phy_addr[1] = vf->canvas0_config[1].phy_addr;
+		} else if (vf->plane_num == 3) {
+			dev->info_output_yuv.sizeimage = vf->canvas0_config[0].width *
+				vf->canvas0_config[0].height * 3 / 2;
+			dev->info_output_yuv.phy_addr[1] = vf->canvas0_config[1].phy_addr;
+			dev->info_output_yuv.phy_addr[2] = vf->canvas0_config[2].phy_addr;
+		}
+	} else {
+		canvas_read(vf->canvas0Addr & 0xff, &cs0);
+		canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
+		canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs2);
+
+		dev->info_output_yuv.width = cs0.width;
+		dev->info_output_yuv.height = cs0.height;
+		dev->info_output_yuv.phy_addr[0] = cs0.addr;
+		if (vf->plane_num == 1) {
+			dev->info_output_yuv.sizeimage = cs0.width * cs0.height;
+		} else if (vf->plane_num == 2) {
+			dev->info_output_yuv.sizeimage = cs0.width * cs0.height * 3 / 2;
+			dev->info_output_yuv.phy_addr[1] = cs1.addr;
+		} else if (vf->plane_num == 3) {
+			dev->info_output_yuv.sizeimage = cs0.width * cs0.height * 3 / 2;
+			dev->info_output_yuv.phy_addr[1] = cs1.addr;
+			dev->info_output_yuv.phy_addr[2] = cs2.addr;
+		}
+	}
+	dev->info_output_yuv.plane_num = vf->plane_num;
+	v2d_print(dev->index, PRINT_OTHER, "%s:config done\n", __func__);
+}
+
+ssize_t v2d_dump_yuv_output_show(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr, char *buf, loff_t off,
+		size_t count)
+{
+	int ret = 0;
+	struct v2d_port_s *port = (struct v2d_port_s *)attr->private;
+	struct v2d_dev *v2d_dev = port->dev;
+	struct v2d_dump_info_s *info = &v2d_dev->info_output_yuv;
+	u32 sizeimage, y_size = 0, uv_size = 0;
+	size_t y_remain = 0;
+	size_t y_copy = 0;
+	size_t uv_remain = 0;
+	size_t uv_copy = 0;
+	size_t to_copy;
+	loff_t cur_off = off;
+	size_t copied = 0;
+	loff_t uv_off = 0;
+
+	if (!info->vir_addr[0] && off == 0) {
+		ret = mutex_lock_interruptible(&info->mutex);
+		if (ret < 0) {
+			pr_info("dump yuv: interrupted while waiting for mutex\n");
+			return ret;
+		}
+		info->is_dump = 1;
+		ret = wait_event_interruptible_timeout(info->dump_wq,
+							info->config_dump_done,
+							msecs_to_jiffies(500000));
+		if (ret <= 0) {
+			pr_info("dump yuv: wait interrupted by signal or timeout, ret=%d\n", ret);
+			info->is_dump = 0;
+			mutex_unlock(&info->mutex);
+			return ret;
+		}
+
+		pr_info("yuv dst phy_addr0:%llx phy_addr1:%llx width:%d height:%d sizeimage:%d plane:%d\n",
+			info->phy_addr[0], info->phy_addr[1], info->width, info->height,
+			info->sizeimage, info->plane_num);
+
+		y_size = info->width * info->height;
+		info->vir_addr[0] = codec_mm_vmap(info->phy_addr[0], y_size);
+		if (!info->vir_addr[0]) {
+			pr_info("vmap failed. vir_addr0 is null\n");
+			info->is_dump = 0;
+			mutex_unlock(&info->mutex);
+			return -EINVAL;
+		}
+		if (info->plane_num == 2) {
+			uv_size = info->sizeimage - y_size;
+			info->vir_addr[1] = codec_mm_vmap(info->phy_addr[1], uv_size);
+			if (!info->vir_addr[1]) {
+				pr_info("vmap failed. vir_addr1 is null\n");
+				codec_mm_unmap_phyaddr(info->vir_addr[0]);
+				info->is_dump = 0;
+				mutex_unlock(&info->mutex);
+				return -EINVAL;
+			}
+		}
+	}
+
+	sizeimage = info->sizeimage;
+	y_size = info->width * info->height;
+	uv_size = sizeimage - y_size;
+
+	if (off >= sizeimage) {
+		mutex_unlock(&info->mutex);
+		return 0;
+	}
+
+	to_copy = min_t(size_t, count, sizeimage - off);
+
+	while (to_copy > 0) {
+		if (cur_off < y_size) {
+			y_remain = y_size - cur_off;
+			y_copy = min(to_copy, y_remain);
+			memcpy(buf + copied, info->vir_addr[0] + cur_off, y_copy);
+			copied += y_copy;
+			cur_off += y_copy;
+			to_copy -= y_copy;
+		} else {
+			uv_off = cur_off - y_size;
+			uv_remain = uv_size - uv_off;
+			uv_copy = min(to_copy, uv_remain);
+			memcpy(buf + copied, info->vir_addr[1] + uv_off, uv_copy);
+			copied += uv_copy;
+			cur_off += uv_copy;
+			to_copy -= uv_copy;
+		}
+	}
+
+	if ((off + copied) >= sizeimage) {
+		codec_mm_unmap_phyaddr(info->vir_addr[0]);
+		info->vir_addr[0] = NULL;
+		if (info->plane_num == 2) {
+			codec_mm_unmap_phyaddr(info->vir_addr[1]);
+			info->vir_addr[1] = NULL;
+		}
+		info->is_dump = 0;
+		info->config_dump_done = 0;
+		mutex_unlock(&info->mutex);
+	}
+
+	return copied;
 }
 
 static void v2d_do_file_task(struct v2d_dev *dev)
@@ -2131,6 +2442,16 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 		dev->process_data_func(dev, &v2d_composer_param);
 	}
 
+	if (dev->dev_choice == COMPOSER_WITH_DEWARP && dev->info_dewarp_src.is_dump) {
+		v2d_print(dev->index, PRINT_OTHER, "%s:src start dump\n", __func__);
+		config_dewarp_src_data(dev);
+		dev->info_dewarp_src.config_dump_done = 1;
+		wake_up_interruptible(&dev->info_dewarp_src.dump_wq);
+		mutex_lock(&dev->info_dewarp_src.mutex);
+		mutex_unlock(&dev->info_dewarp_src.mutex);
+		v2d_print(dev->index, PRINT_OTHER, "%s:src dump end\n", __func__);
+	}
+
 	frames_put_file(dev, received_frames);
 	end_time = ktime_to_ns(ktime_get());
 	cost_time = end_time - start_time;
@@ -2166,6 +2487,18 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 	if (enable_v2d_dump) {
 		enable_v2d_dump = 0;
 		v2d_dump_output_buffer(output_vf);
+	}
+
+	if (dev->info_output_yuv.is_dump) {
+		v2d_print(dev->index, PRINT_ERROR, "v2d_dump:vf->type=%x, vf->flag=%x.\n",
+			output_vf->type, output_vf->flag);
+		v2d_print(dev->index, PRINT_OTHER, "%s:dst start dump\n", __func__);
+		config_dump_output_yuv_data(output_vf, dev);
+		dev->info_output_yuv.config_dump_done = 1;
+		wake_up_interruptible(&dev->info_output_yuv.dump_wq);
+		mutex_lock(&dev->info_output_yuv.mutex);
+		mutex_unlock(&dev->info_output_yuv.mutex);
+		v2d_print(dev->index, PRINT_OTHER, "%s:dst dump end\n", __func__);
 	}
 	data_index = v2d_get_display_data_free_index(dev);
 	atomic_set(&dev->display_data[data_index].on_use, true);
@@ -2242,10 +2575,9 @@ static int v2d_open(struct inode *inode, struct file *file)
 		       port->index);
 		return -EBUSY;
 	}
-
 	dev = vmalloc(sizeof(*dev));
 	memset(dev, 0, sizeof(*dev));
-
+	port->dev = dev;
 	dev->ge2d_para.count = 0;
 	dev->ge2d_para.canvas_dst[0] = -1;
 	dev->ge2d_para.canvas_dst[1] = -1;
@@ -2264,6 +2596,9 @@ static int v2d_open(struct inode *inode, struct file *file)
 
 	dev->buffer_status = UNINITIAL;
 
+	mutex_init(&dev->info_output_yuv.mutex);
+	mutex_init(&dev->info_dewarp_src.mutex);
+
 	dev->thread_need_stop = false;
 	dev->port = port;
 	dev->index = port->index;
@@ -2279,6 +2614,9 @@ static int v2d_open(struct inode *inode, struct file *file)
 	}
 
 	init_waitqueue_head(&dev->file_wq);
+	init_waitqueue_head(&dev->info_output_yuv.dump_wq);
+	init_waitqueue_head(&dev->info_dewarp_src.dump_wq);
+
 	if (sched_setscheduler(dev->file_thread, SCHED_FIFO, &param))
 		pr_err("v2d_composer_thread :set realtime priority failed.\n");
 	wake_up_process(dev->file_thread);
@@ -2583,7 +2921,8 @@ static ssize_t v2d_dev_choice_show(const struct class *cla,
 			       char *buf)
 {
 	return snprintf(buf, 80,
-		"1 ge2d, 2 dewarp, 3 vicp. current choice is %d.\n", v2d_dev_choice);
+		"1 ge2d, 2 dewarp, 3 vicp. current choice is %d.\n",
+		v2d_dev_choice);
 }
 
 static ssize_t v2d_dev_choice_store(const struct class *cla,
@@ -2612,7 +2951,6 @@ static CLASS_ATTR_RW(dewarp_com_dump);
 static CLASS_ATTR_RW(dewarp_print);
 static CLASS_ATTR_RW(v2d_dev_choice);
 
-
 static struct attribute *v2d_class_attrs[] = {
 	&class_attr_print_flag.attr,
 	&class_attr_buffer_height.attr,
@@ -2639,10 +2977,94 @@ static const struct of_device_id amlogic_v2d_dt_match[] = {
 	{},
 };
 
+static struct bin_attribute v2d0_attr[] = {
+	{
+		.attr.name = "dump_dewarp_src",
+		.attr.mode = 0664,
+		.private = &ports[0],
+		.read = v2d_dump_dewarp_src_show,
+		.write = NULL,
+	},
+	{
+		.attr.name = "dump_yuv_output",
+		.attr.mode = 0664,
+		.private = &ports[0],
+		.read = v2d_dump_yuv_output_show,
+		.write = NULL,
+	},
+};
+
+static struct bin_attribute v2d1_attr[] = {
+	{
+		.attr.name = "dump_dewarp_src",
+		.attr.mode = 0664,
+		.private = &ports[1],
+		.read = v2d_dump_dewarp_src_show,
+		.write = NULL,
+	},
+	{
+		.attr.name = "dump_yuv_output",
+		.attr.mode = 0664,
+		.private = &ports[1],
+		.read = v2d_dump_yuv_output_show,
+		.write = NULL,
+	},
+};
+
+static struct bin_attribute v2d2_attr[] = {
+	{
+		.attr.name = "dump_dewarp_src",
+		.attr.mode = 0664,
+		.private = &ports[2],
+		.read = v2d_dump_dewarp_src_show,
+		.write = NULL,
+	},
+	{
+		.attr.name = "dump_yuv_output",
+		.attr.mode = 0664,
+		.private = &ports[2],
+		.read = v2d_dump_yuv_output_show,
+		.write = NULL,
+	},
+};
+
+static struct bin_attribute *v2d_bin_attrs0[] = {
+	&v2d0_attr[0],
+	&v2d0_attr[1],
+	NULL,
+};
+
+static struct bin_attribute *v2d_bin_attrs1[] = {
+	&v2d1_attr[0],
+	&v2d1_attr[1],
+	NULL,
+};
+
+static struct bin_attribute *v2d_bin_attrs2[] = {
+	&v2d2_attr[0],
+	&v2d2_attr[1],
+	NULL,
+};
+
+static const struct attribute_group v2d_attr_group[] = {
+	{
+		.name = v2d_group_name0,
+		.bin_attrs = v2d_bin_attrs0,
+	},
+	{
+		.name = v2d_group_name1,
+		.bin_attrs = v2d_bin_attrs1,
+	},
+	{
+		.name = v2d_group_name2,
+		.bin_attrs = v2d_bin_attrs2,
+	},
+};
+
 static int v2d_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	int i = 0;
+	int i = 0, j;
 	u32 layer_cap = 0;
 	struct v2d_port_s *st;
 
@@ -2658,26 +3080,46 @@ static int v2d_probe(struct platform_device *pdev)
 	ret = class_register(&v2d_class);
 	if (ret < 0)
 		return ret;
-	ret = register_chrdev(V2D_MAJOR,
-			      "v2d", &v2d_fops);
+
+	ret = register_chrdev(V2D_MAJOR, "v2d", &v2d_fops);
 	if (ret < 0) {
 		pr_err("Can't allocate major for v2d device\n");
-		goto error1;
+		goto error_class;
 	}
 
 	for (st = &ports[0], i = 0; i < v2d_instance_num; i++, st++) {
 		pr_debug("%s:ports[i].name=%s, i=%d\n", __func__,
 		       ports[i].name, i);
+
 		st->pdev = &pdev->dev;
 		st->class_dev = device_create(&v2d_class, NULL,
 					      MKDEV(V2D_MAJOR, i),
 					      NULL, ports[i].name);
-	}
-	return ret;
+		if (IS_ERR(st->class_dev)) {
+			ret = PTR_ERR(st->class_dev);
+			pr_err("device_create failed, ret=%d, i=%d\n", ret, i);
+			goto error_device;
+		}
 
-error1:
-	pr_err("%s error\n", __func__);
+		ret = sysfs_create_group(&pdev->dev.kobj, &v2d_attr_group[i]);
+		if (ret) {
+			pr_err("v2d create dump node fail, ret=%d, i=%d.\n", ret, i);
+			goto error_sysfs;
+		}
+	}
+
+	return 0;
+
+error_sysfs:
+	for (j = i - 1; j >= 0; j--) {
+		sysfs_remove_group(&pdev->dev.kobj, &v2d_attr_group[j]);
+		device_destroy(&v2d_class, MKDEV(V2D_MAJOR, j));
+	}
+
+error_device:
 	unregister_chrdev(V2D_MAJOR, "v2d");
+
+error_class:
 	class_unregister(&v2d_class);
 	return ret;
 }
@@ -2687,12 +3129,14 @@ static void v2d_remove(struct platform_device *pdev)
 	int i;
 	struct v2d_port_s *st;
 
-	for (st = &ports[0], i = 0; i < v2d_instance_num; i++, st++)
+	for (st = &ports[0], i = 0; i < v2d_instance_num; i++, st++) {
+		sysfs_remove_group(&pdev->dev.kobj, &v2d_attr_group[i]);
 		device_destroy(&v2d_class, MKDEV(V2D_MAJOR, i));
+	}
 
 	unregister_chrdev(V2D_MAJOR, "v2d");
 	class_destroy(&v2d_class);
-};
+}
 
 static struct platform_driver v2d_driver = {
 	.probe = v2d_probe,
