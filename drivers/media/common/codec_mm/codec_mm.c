@@ -1134,6 +1134,8 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 			codec_mm_clear_alloc_in(mgt, mem, align_2n, &alloc_trace_mask);
 			if (mem->mem_handle) {
 				mem->tee_set_start_time = codec_mm_get_current_us();
+				dma_sync_single_for_device(mgt->dev, mem->phy_addr,
+							   mem->buffer_size, DMA_TO_DEVICE);
 				tee_sectbl_secmem_set(mem->phy_addr, mem->buffer_size, true);
 				codec_mm_update_tee_alloc_time(mgt, mem->tee_set_start_time);
 				mem->tee_set_end_time = codec_mm_get_current_us();
