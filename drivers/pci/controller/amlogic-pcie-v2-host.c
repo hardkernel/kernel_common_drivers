@@ -402,9 +402,7 @@ static int amlogic_pcie_set_reset_gpio(struct amlogic_pcie *aml_pcie)
 		dev_dbg(dev, "normal gpio\n");
 		if (gpio_is_valid(aml_pcie->reset_gpio)) {
 			dev_info(dev, "GPIO normal: assert reset\n");
-			usleep_range(1000, 2000);
-			gpio_set_value_cansleep(aml_pcie->reset_gpio, 0);
-			usleep_range(10000, 15000);
+			usleep_range(100000, 110000);
 			gpio_set_value_cansleep(aml_pcie->reset_gpio, 1);
 		}
 	}
@@ -429,7 +427,7 @@ static int amlogic_pcie_get_reset_gpio(struct amlogic_pcie *aml_pcie)
 	aml_pcie->reset_gpio = of_get_named_gpio(node, "reset-gpio", 0);
 	if (gpio_is_valid(aml_pcie->reset_gpio)) {
 		ret = devm_gpio_request_one(dev, aml_pcie->reset_gpio,
-					    GPIOF_OUT_INIT_HIGH,
+					    GPIOF_OUT_INIT_LOW,
 					    "pcie_perst");
 		if (ret) {
 			dev_err(dev, "unable to get reset gpio\n");
@@ -671,8 +669,11 @@ static int amlogic_pcie_start_link(struct dw_pcie *pci)
 	struct device *dev = pci->dev;
 	u32 tmp, state12, smlh_up = 0, ltssm_up = 0, rdlh_up = 0, cnt = 0;
 	u8 offset;
+	ktime_t start, end;
 
 	amlogic_pcie_ltssm_enable(aml_pcie);
+
+	start = ktime_get();
 
 	do {
 		state12 = amlogic_cfg_readl(aml_pcie, PCIE_CFG_STATUS12);
@@ -698,6 +699,9 @@ static int amlogic_pcie_start_link(struct dw_pcie *pci)
 
 		udelay(2);
 	} while (smlh_up == 0 || rdlh_up == 0 || ltssm_up == 0);
+
+	end = ktime_get();
+	dev_info_once(dev, "LTSSM consumes time:%llu us\n", ktime_to_us(ktime_sub(end, start)));
 
 	offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
 	tmp = dw_pcie_readw_dbi(pci, offset + PCI_EXP_LNKSTA);

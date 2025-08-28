@@ -12,6 +12,7 @@
 #include <linux/reset.h>
 #include <linux/of_gpio.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/ktime.h>
 
 #include "amlogic-pcie-v3.h"
 
@@ -949,7 +950,7 @@ set_rst_reg:
 	val |= (amlogic->pcie_rst_mask << amlogic->pcie_rst_bit);
 	writel(val, amlogic->rst_base + RESETCTRL3_OFFSET);
 
-	usleep_range(1000, 3000);
+	usleep_range(10, 30);
 
 	return 0;
 }
@@ -1107,7 +1108,7 @@ set_rst_reg:
 			 (amlogic->pcie_rst_mask << amlogic->pcie_rst_bit));
 		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
 
-		usleep_range(100, 200);
+		usleep_range(20, 30);
 
 		val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
 		val |= (BIT(amlogic->amlphy_rst_bit) |
@@ -1118,7 +1119,7 @@ set_rst_reg:
 			 (amlogic->pcie_rst_mask << amlogic->pcie_rst_bit));
 		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
 
-		usleep_range(800, 1000);
+		usleep_range(10, 20);
 		flag++;
 	} else {
 		val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
@@ -1157,7 +1158,7 @@ static int amlogic_pcie_get_reset_gpio(struct amlogic_pcie *amlogic)
 			return 0;
 
 		ret = devm_gpio_request_one(dev, amlogic->reset_gpio,
-					    GPIOF_OUT_INIT_HIGH,
+					    GPIOF_OUT_INIT_LOW,
 					    "pcie_perst");
 		if (ret) {
 			dev_err(dev, "unable to get reset gpio\n");
@@ -1188,10 +1189,7 @@ static int amlogic_pcie_set_reset_gpio(struct amlogic_pcie *amlogic)
 		dev_info(dev, "pad gpio\n");
 		if (gpio_is_valid(amlogic->reset_gpio)) {
 			dev_info(dev, "GPIO pad: assert reset\n");
-			ret = gpio_direction_output(amlogic->reset_gpio, 0);
-			if (ret)
-				return ret;
-			usleep_range(5000, 6000);
+			usleep_range(90000, 110000);
 			ret = gpio_direction_input(amlogic->reset_gpio);
 			if (ret)
 				return ret;
@@ -1200,12 +1198,8 @@ static int amlogic_pcie_set_reset_gpio(struct amlogic_pcie *amlogic)
 		dev_info(dev, "normal gpio\n");
 		if (gpio_is_valid(amlogic->reset_gpio)) {
 			dev_info(dev, "GPIO normal: assert reset\n");
+			usleep_range(90000, 110000);
 			gpio_set_value_cansleep(amlogic->reset_gpio, 1);
-			usleep_range(500, 1000);
-			gpio_set_value_cansleep(amlogic->reset_gpio, 0);
-			usleep_range(5000, 8000);
-			gpio_set_value_cansleep(amlogic->reset_gpio, 1);
-			usleep_range(500, 1000);
 		}
 	}
 
@@ -1394,6 +1388,9 @@ bool amlogic_pcie_link_up(struct amlogic_pcie *amlogic)
 	u32 neg_link_speed = 0;
 	int cnt = 0;
 	u32 val = 0;
+	ktime_t start, end;
+
+	start = ktime_get();
 
 	do {
 		val = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL5);
@@ -1425,6 +1422,9 @@ bool amlogic_pcie_link_up(struct amlogic_pcie *amlogic)
 		cnt++;
 		udelay(1);
 	} while (!ltssm_linkup);
+
+	end = ktime_get();
+	dev_info_once(dev, "LTSSM consumes time:%llu us\n", ktime_to_us(ktime_sub(end, start)));
 
 	return true;
 }
@@ -1592,8 +1592,6 @@ static int amlogic_pcie_init_port_for_m31_combphy(struct amlogic_pcie *amlogic)
 		val = 0xe0000;
 		amlogic_pciectrl_write(amlogic, val, 0xbc);
 	}
-
-	usleep_range(100, 500);
 
 	return 0;
 }
@@ -1811,9 +1809,6 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 		val &= ~PORT_TYPE;
 	amlogic_pciectrl_write(amlogic, val, PCIE_A_CTRL0);
 
-	if (amlogic_pcie_set_reset_gpio(amlogic))
-		dev_err(dev, "Set pcie reset gpio faile\n");
-
 	if (amlogic->link_gen == 1) {
 		u32 exp_cap_off = aml_pcie_find_capability(amlogic, PCI_CAP_ID_EXP);
 
@@ -1854,6 +1849,9 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 		if (amlogic->link_gen > 3)
 			dev_err(dev, "Set pcie parameter link_speed is ERR\n");
 	}
+
+	if (amlogic_pcie_set_reset_gpio(amlogic))
+		dev_err(dev, "Set pcie reset gpio faile\n");
 
 	if (!amlogic_pcie_link_up(amlogic))
 		return -ETIMEDOUT;

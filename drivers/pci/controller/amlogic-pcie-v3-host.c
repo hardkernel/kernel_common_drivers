@@ -69,12 +69,17 @@ static void amlogic_pcie_free_irq_domain(struct amlogic_pcie_rc *rc);
 static bool amlogic_pcie_valid_device(struct pci_bus *bus, unsigned int devfn)
 {
 	struct amlogic_pcie_rc *rc = bus->sysdata;
-	struct amlogic_pcie *pcie = &rc->amlogic;
+	struct amlogic_pcie *amlogic = &rc->amlogic;
+	struct device *dev = amlogic->dev;
+	u32 val = 0;
 
 	/* Check link before accessing downstream ports */
 	if (bus->number != rc->root_bus_nr) {
-		if (!amlogic_pcie_link_up(pcie))
+		val = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL5);
+		if (!PCIE_LINK_STATE_CHECK(val, LTSSM_L0)) {
+			dev_dbg(dev, "WARNING: link down.\n");
 			return false;
+		}
 	}
 
 	/* Only one device down on each root port */
@@ -358,14 +363,6 @@ static struct irq_chip amlogic_msi_irq_chip = {
 
 };
 
-static struct msi_domain_info amlogic_msi_domain_info = {
-	.flags = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX),
-	.chip = &amlogic_msi_irq_chip,
-
-};
-#endif
-
 static void amlogic_compose_msi_msg(struct irq_data *data,
 				    struct msi_msg *msg)
 {
@@ -382,17 +379,16 @@ static void amlogic_compose_msi_msg(struct irq_data *data,
 		(int)data->hwirq, msg->address_hi, msg->address_lo);
 }
 
-static int amlogic_msi_set_affinity(struct irq_data *irq_data,
-				    const struct cpumask *mask, bool force)
-{
-	return -EINVAL;
-}
+/* KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE */
+static struct msi_domain_info amlogic_msi_domain_info = {
+	.flags = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+		  MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX | MSI_FLAG_NO_AFFINITY),
+	.chip = &amlogic_msi_irq_chip,
+};
 
 static struct irq_chip amlogic_irq_chip = {
 	.name = "AMLOGIC_MSI",
 	.irq_compose_msi_msg = amlogic_compose_msi_msg,
-	.irq_set_affinity = amlogic_msi_set_affinity,
-
 };
 
 static int amlogic_msi_alloc(struct irq_domain *domain, unsigned int virq,
@@ -444,6 +440,7 @@ static const struct irq_domain_ops dev_msi_domain_ops = {
 	.free   = amlogic_msi_free,
 
 };
+#endif
 
 static int amlogic_pcie_init_msi_irq_domain(struct amlogic_pcie_rc *rc)
 {
