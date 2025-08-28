@@ -1749,6 +1749,9 @@ static enum hdcp_ver_t hdcp_check_ds_hdcp2ver(struct hdcptx21_core_priv *p_hdcp)
 	enum hdcp_ver_t hdcp_type = HDCP_VER_NONE;
 	enum ddc_err_t ddc_err = DDC_ERR_NONE;
 	u8 cap_val = 0;
+	struct hdmitx_common *tx_comm = NULL;
+
+	tx_comm = p_hdcp->bind_instance;
 
 	ddc_err = hdmitx_ddcm_read(0, DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val,
 				   1, TPI_DDC_CMD_SEQUENTIAL_READ);
@@ -1760,6 +1763,7 @@ static enum hdcp_ver_t hdcp_check_ds_hdcp2ver(struct hdcptx21_core_priv *p_hdcp)
 			hdcp_type = HDCP_VER_HDCP1X;
 	} else {
 		hdcptx_update_failures(p_hdcp, HDCP_FAIL_DDC_NACK);
+		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_HDCP_I2C_ERROR);
 	}
 	return hdcp_type;
 }
