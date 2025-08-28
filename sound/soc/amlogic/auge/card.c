@@ -192,6 +192,7 @@ struct aml_card_data {
 	wait_queue_head_t wq;
 	int suspend_flag;
 	bool spk_mute_enable;
+	int hp_mute_flag;
 };
 
 #define aml_priv_to_dev(priv) ((priv)->snd_card.dev)
@@ -1088,10 +1089,43 @@ static int spk_mute_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const struct snd_kcontrol_new card_controls[] = {
+static int hp_mute_set(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *soc_card = snd_kcontrol_chip(kcontrol);
+	struct aml_card_data *priv = aml_card_to_priv(soc_card);
+	bool mute = ucontrol->value.integer.value[0];
+
+	if (!IS_ERR_OR_NULL(priv->avout_mute_desc)) {
+		gpiod_direction_output(priv->avout_mute_desc,
+		mute ? GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH);
+	}
+	priv->hp_mute_flag = mute;
+	return 0;
+}
+
+static int hp_mute_get(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *soc_card = snd_kcontrol_chip(kcontrol);
+	struct aml_card_data *priv = aml_card_to_priv(soc_card);
+
+	if (!IS_ERR_OR_NULL(priv->avout_mute_desc))
+		ucontrol->value.integer.value[0] = gpiod_get_value(priv->avout_mute_desc) ? 0 : 1;
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new spk_controls[] = {
 	SOC_SINGLE_BOOL_EXT("SPK mute", 0,
 			    spk_mute_get,
 			    spk_mute_set),
+};
+
+static const struct snd_kcontrol_new headphone_controls[] = {
+	SOC_SINGLE_BOOL_EXT("HP mute", 0,
+			    hp_mute_get,
+			    hp_mute_set),
 };
 
 static int aml_card_parse_gpios(struct device_node *node,
@@ -1114,8 +1148,8 @@ static int aml_card_parse_gpios(struct device_node *node,
 			"spk_mute_sleep_time", &spk_mute_sleep_time);
 		if (ret < 0)
 			pr_warn("spk_mute not add delay\n");
-		snd_soc_add_card_controls(soc_card, card_controls,
-					ARRAY_SIZE(card_controls));
+		snd_soc_add_card_controls(soc_card, spk_controls,
+					ARRAY_SIZE(spk_controls));
 	}
 	if (!IS_ERR_OR_NULL(priv->spk_mute)) {
 		if (priv->spk_mute_flag || priv->spk_mute_enable)
@@ -1132,6 +1166,11 @@ avout:
 	if (IS_ERR_OR_NULL(priv->avout_mute_desc)) {
 		priv->avout_mute_desc = devm_gpiod_get(dev,
 					"avout_mute", GPIOD_ASIS);
+		if (IS_ERR_OR_NULL(priv->avout_mute_desc))
+			return 0;
+		snd_soc_add_card_controls(soc_card, headphone_controls,
+					ARRAY_SIZE(headphone_controls));
+
 	}
 	if (!IS_ERR_OR_NULL(priv->avout_mute_desc)) {
 		if (!priv->av_mute_enable) {
@@ -1140,7 +1179,7 @@ avout:
 				msleep(sleep_time);
 			else
 				msleep(900);
-			if (!priv->suspend_flag) {
+			if (!priv->suspend_flag && !priv->hp_mute_flag) {
 				gpiod_direction_output(priv->avout_mute_desc,
 					GPIOF_OUT_INIT_HIGH);
 				pr_debug("av out enable status: %s\n",
