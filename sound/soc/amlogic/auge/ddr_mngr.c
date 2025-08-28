@@ -192,6 +192,7 @@ static int unregister_toddr_l(struct device *dev, void *data, int use_vad_toddr)
 	free_irq(to->irq, data);
 	to->dev = NULL;
 	to->in_use = false;
+	to->src = TODDR_INVAL;
 	pr_debug("toddrs[%d] released by device %s\n", i, dev_name(dev));
 
 	return 0;
@@ -1292,7 +1293,7 @@ static int unregister_frddr_l(struct device *dev, void *data)
 	free_irq(from->irq, data);
 	from->dev = NULL;
 	from->in_use = false;
-	from->dest = 0;
+	from->dest = FRDDR_INVAL;
 	from->mixer_exist = 0;
 	pr_info("frddrs[%d] released by device %s\n", i, dev_name(dev));
 	return 0;
@@ -2687,6 +2688,7 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 		toddrs[i].fifo_id    = i;
 		toddrs[i].chipinfo   = p_ddr_chipinfo;
 		toddrs[i].actrl      = actrl;
+		toddrs[i].src        = TODDR_INVAL;
 
 		dev_dbg(&pdev->dev, "ddr_manager: %d, irqs toddr %d\n", i, toddrs[i].irq);
 
@@ -2704,6 +2706,7 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 		frddrs[i].fifo_id    = i;
 		frddrs[i].chipinfo   = p_ddr_chipinfo;
 		frddrs[i].actrl      = actrl;
+		frddrs[i].dest       = FRDDR_INVAL;
 
 		dev_dbg(&pdev->dev, "%d, irqs frddr %d\n", i, frddrs[i].irq);
 

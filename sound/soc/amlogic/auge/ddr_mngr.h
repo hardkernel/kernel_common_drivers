@@ -93,6 +93,7 @@ enum resample_src {
 };
 
 enum frddr_dest {
+	FRDDR_INVAL = -1,
 	TDMOUT_A,
 	TDMOUT_B,
 	TDMOUT_C,
