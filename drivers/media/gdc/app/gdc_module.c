@@ -76,7 +76,7 @@ struct gdc_manager_s gdc_manager;
 static int kthread_created;
 static struct gdc_irq_handle_wq irq_handle_wq[CORE_NUM];
 static struct gdc_fw_func_ptr *g_fw_func_ptr;
-static int fw_size_alloc = 100 * 1024; /* 100KB */
+static int fw_size_alloc = 300 * 1024; /* 300KB */
 
 #define DEF_CLK_RATE 800000000
 
