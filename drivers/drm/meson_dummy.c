@@ -52,9 +52,10 @@ static struct drm_display_mode dummyl_mode = {
 int meson_dummy_get_modes(struct drm_connector *connector)
 {
 	struct drm_display_mode *mode = NULL;
+	int count = 0;
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	struct vinfo_s *vinfo = NULL;
 	u32 dummyp_timing_flip = 0;
-	int count = 0;
 	int tmp = 0;
 
 	if (strstr(dummy_mode.name, "dummy_panel")) {
@@ -91,6 +92,8 @@ int meson_dummy_get_modes(struct drm_connector *connector)
 			dummy_mode.vtotal = vinfo->vtotal;
 		}
 	}
+#endif
+
 	mode = drm_mode_duplicate(connector->dev, &dummy_mode);
 	if (!mode) {
 		DRM_INFO("[%s:%d]dup dummy mode failed.\n", __func__,
