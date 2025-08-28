@@ -8,6 +8,13 @@
 
 #include <linux/types.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/phy/meson_tx_phy_core.h>
+#include <linux/amlogic/media/vout/meson_tx_connector/clk/meson_tx_clk.h>
+
+struct reg_map {
+	u32 phy_addr;
+	u32 size;
+	void __iomem *p;
+};
 
 struct tx_task_manager;
 
@@ -20,6 +27,7 @@ struct meson_hw_event_ops {
 struct meson_tx_hw {
 	int type;
 	int (*init_tx_hw)(struct meson_tx_hw *tx_hw);
+	int (*uninit_tx_hw)(struct meson_tx_hw *tx_hw);
 	int (*hw_cntl)(struct meson_tx_hw *tx_hw, u32 cmd,
 		void *input_argv, void *output_struct);
 
@@ -27,9 +35,13 @@ struct meson_tx_hw {
 	struct meson_tx_phy *tx_phy;
 	/* tx phy configuration */
 	struct meson_tx_phy_cfg_opts tx_phy_conf;
+	struct meson_tx_clk *tx_clk;
 
 	/* for HW queue event */
 	struct meson_hw_event_ops *event_ops;
+
+	/* for HW iomem access */
+	struct reg_map *regs_region;
 };
 
 #endif

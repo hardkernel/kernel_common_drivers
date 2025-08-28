@@ -72,8 +72,14 @@ static inline int amhdmitx_init(void)
 
 #if (defined(CONFIG_AMLOGIC_TX_CONNECTOR_COMMON_MODERN))
 int meson_tx_phy_drv_init(void);
+int meson_tx_clk_drv_init(void);
 #else
 static inline int meson_tx_phy_drv_init(void)
+{
+	return 0;
+}
+
+static inline int meson_tx_clk_drv_init(void)
 {
 	return 0;
 }

@@ -22,6 +22,9 @@ typedef void (*tx_task_callback)(void *);
 enum task_queue_type {
 	TASK_QUEUE_HPD,
 	TASK_QUEUE_CORE,
+	TASK_QUEUE_HPD_IRQ,
+	TASK_QUEUE_AUX,
+	TASK_QUEUE_TIMER,
 	TASK_QUEUE_LOW,
 	TASK_QUEUE_HIGH,
 	TASK_QUEUE_SYSTEM,

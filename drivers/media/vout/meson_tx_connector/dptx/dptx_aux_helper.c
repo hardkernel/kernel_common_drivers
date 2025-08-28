@@ -36,6 +36,10 @@ static int dptx_dpcd_access(struct dptx_aux *aux, u8 request,
 	msg.buffer = buffer;
 	msg.size = size;
 
+	if (!aux) {
+		DPTX_ERROR("%s invalid aux instance\n", __func__);
+		return -EINVAL;
+	}
 	mutex_lock(&aux->hw_mutex);
 
 	for (retry = 0; retry < DPCD_ACCESS_MAX_RETRY; retry++) {

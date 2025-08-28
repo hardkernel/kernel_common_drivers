@@ -14,6 +14,7 @@ enum venc_type {
 };
 
 int meson_venc_mode_set(struct meson_tx_venc *venc, u32 enc_index, u32 enc_type, void *para);
+int meson_venc_bist_mode_set(struct meson_tx_venc *venc, u32 enc_index, void *para);
 int meson_venc_mode_check(struct meson_tx_venc *venc, u32 enc_index, void *para);
 int meson_venc_mode_disable(struct meson_tx_venc *venc, u32 enc_index);
 

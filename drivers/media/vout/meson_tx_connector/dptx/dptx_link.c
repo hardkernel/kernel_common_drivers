@@ -38,7 +38,6 @@ static void link_training_prepare(struct link_train_t *lt)
 {
 	struct dptx_link_param_s *param;
 	struct dptx_link_cfg_s *lc;
-	u8 lane_cnt;
 	u8 *dpcd;
 
 	if (!lt)
@@ -57,8 +56,8 @@ static void link_training_prepare(struct link_train_t *lt)
 	/* retrieve necessary / useful information from DPCD */
 	lc->version = dpcd[DP_DPCD_REV];
 	param->link_rate = min(param->link_rate, dpcd[DP_MAX_LINK_RATE]);
-	lane_cnt = dpcd[DP_MAX_LANE_COUNT] & DP_MAX_LANE_COUNT_MASK;
-	param->lane_count = min(param->lane_count, lane_cnt);
+	param->lane_count = min(param->lane_count,
+		dpcd[DP_MAX_LANE_COUNT] & DP_MAX_LANE_COUNT_MASK);
 	lc->aux_rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] & DP_TRAINING_AUX_RD_MASK;
 	lc->clk_rec_tmr = 1; /* should be 100us, but must be set to 1ms */
 	/* refer to Spec1.4 Table 2-158 */
@@ -107,19 +106,20 @@ static void dptx_training_config_port(struct link_train_t *lt)
 {
 	struct dptx_common *tx_comm = lt->tx_comm;
 	struct dptx_link_cfg_s *lc = lt->link_cfg;
+	bool enable = true;
 
-	dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_ENABLE_LINK, (void *)1, NULL);
-	dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_ENABLE_SRC_VID, (void *)1, NULL);
+	dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_ENABLE_LINK, &enable, NULL);
+	dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_ENABLE_SRC_VID, &enable, NULL);
 	dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_ENABLE_ENHANCED_FRAME,
-		(void *)lc->enhanced_frame_cap, NULL);
+		&lc->enhanced_frame_cap, NULL);
 	dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_SET_LINK_RATE,
-		(void *)lc->curr.link_rate, NULL);
+		&lc->curr.link_rate, NULL);
 	dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_SET_LANE_COUNT,
-		(void *)lc->curr.lane_count, NULL);
+		&lc->curr.lane_count, NULL);
 	dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_SET_DOWNSPREAD,
-		(void *)lc->downspread, NULL);
+		&lc->downspread, NULL);
 	dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_SET_8B10B_CODING,
-		(void *)lc->coding_8b10b, NULL);
+		&lc->coding_8b10b, NULL);
 }
 
 /*
@@ -130,17 +130,19 @@ static void dptx_training_config_port(struct link_train_t *lt)
  */
 static void initialise_phy_drive(struct link_train_t *lt)
 {
-	enum dptx_phy_vswing_e dptx_vs;
-	enum dptx_phy_preemphasis_e dptx_pe;
 	struct dptx_link_cfg_s *lc = lt->link_cfg;
+	struct meson_tx_hw *tx_hw;
+	int i;
 
-	dptx_vs = DPTX_PHY_VSWING_400;
 	lc->curr.vswing = DPTX_PHY_VSWING_400;
-	dptx_pe = DPTX_PHY_PREEMP_0DB;
 	lc->curr.preemp = DPTX_PHY_PREEMP_0DB;
 
-	/* TODO */
-	meson_tx_phy_configure(NULL, NULL);
+	tx_hw = &lt->tx_comm->hw_comm->hw_base;
+	for (i = 0; i < 4; i++) {
+		tx_hw->tx_phy_conf.dp_ops.voltage[i] = DPTX_PHY_VSWING_400;
+		tx_hw->tx_phy_conf.dp_ops.pre[i] = DPTX_PHY_PREEMP_0DB;
+	}
+	meson_tx_phy_configure(tx_hw->tx_phy, &tx_hw->tx_phy_conf);
 }
 
 /*
@@ -322,8 +324,9 @@ static enum link_status_e lt_check_cr_count(struct link_train_t *lt)
 static void lt_cr_dshift_lr(struct link_train_t *lt)
 {
 	struct dptx_common *tx_comm = lt->tx_comm;
-	enum dptx_link_rate_e new_rate = DPTX_LINK_RATE_1P62GHZ;
-	enum dptx_link_rate_e cur_rate = lt->link_cfg->curr.link_rate;
+	enum dp_link_rate_e new_rate = DPTX_LINK_RATE_1P62GHZ;
+	enum dp_link_rate_e cur_rate = lt->link_cfg->curr.link_rate;
+	enum link_pattern_e link_pattern = LINK_PATTERN_OFF;
 
 	switch (cur_rate) {
 	case DPTX_LINK_RATE_8P10GHZ:
@@ -341,12 +344,13 @@ static void lt_cr_dshift_lr(struct link_train_t *lt)
 		break;
 	}
 	dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_SET_TRAIN_PATTERN,
-		(void *)LINK_PATTERN_OFF, NULL);
+		&link_pattern, NULL);
 	dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_SET_LINK_RATE,
-		(void *)new_rate, NULL);
+		&new_rate, NULL);
 	lt->link_cfg->curr.link_rate = new_rate;
+	link_pattern = LINK_PATTERN_1;
 	dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_SET_TRAIN_PATTERN,
-		(void *)LINK_PATTERN_1, NULL);
+		&link_pattern, NULL);
 }
 
 /*
@@ -358,9 +362,9 @@ static void lt_cr_dshift_lr(struct link_train_t *lt)
 static void lt_cr_dshift_lc(struct link_train_t *lt)
 {
 	struct dptx_common *tx_comm = lt->tx_comm;
-	enum dptx_lane_count_e new_lane = DPTX_LANE_COUNT_1;
+	enum dp_lane_count_e new_lane = DPTX_LANE_COUNT_1;
 	struct dptx_link_cfg_s *lc = lt->link_cfg;
-	enum dptx_lane_count_e cur_lane = lc->curr.lane_count;
+	enum dp_lane_count_e cur_lane = lc->curr.lane_count;
 
 	if (cur_lane == DPTX_LANE_COUNT_4)
 		new_lane = DPTX_LANE_COUNT_2;
@@ -399,8 +403,8 @@ static void lt_eq_dshift_lr(struct link_train_t *lt)
 {
 	struct dptx_common *tx_comm = lt->tx_comm;
 	struct dptx_link_cfg_s *lc = lt->link_cfg;
-	enum dptx_link_rate_e new_rate = DPTX_LINK_RATE_1P62GHZ;
-	enum dptx_link_rate_e cur_rate = lt->link_cfg->curr.link_rate;
+	enum dp_link_rate_e new_rate = DPTX_LINK_RATE_1P62GHZ;
+	enum dp_link_rate_e cur_rate = lt->link_cfg->curr.link_rate;
 	enum link_pattern_e pattern = LINK_PATTERN_2;
 
 	switch (cur_rate) {
@@ -545,7 +549,7 @@ static void lt_cr_drive_adjust(struct link_train_t *lt)
 	u8 pe[4] = {0};
 	u8 vs_max, pe_max;
 	struct dptx_link_cfg_s *lc = lt->link_cfg;
-	enum dptx_lane_count_e lanes = lc->curr.lane_count;
+	enum dp_lane_count_e lanes = lc->curr.lane_count;
 
 	switch (lanes) {
 	case DPTX_LANE_COUNT_1:
@@ -854,6 +858,7 @@ int dptx_link_training(struct dptx_common *tx_comm)
 	memset(&train, 0, sizeof(train));
 	train.tx_comm = tx_comm;
 	train.link_st = LINK_ST_INIT;
+	train.aux = tx_comm->tx_aux;
 
 	train_timeout = jiffies + msecs_to_jiffies(LINK_TRAIN_MAX_TIME);
 	while (time_before(jiffies, train_timeout)) {

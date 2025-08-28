@@ -4,6 +4,7 @@
  */
 
 #include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_dev.h>
+#include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_hw_opcode.h>
 
 #include "meson_tx_task_mgr.h"
 #include "meson_tx_event_mgr.h"
@@ -226,6 +227,9 @@ static int meson_tx_task_init(struct meson_tx_dev *tx_dev, struct meson_tx_hw *t
 static void meson_tx_task_release(struct meson_tx_dev *tx_dev)
 {
 	struct tx_task_manager *tx_task = (struct tx_task_manager *)tx_dev->task_mgr;
+
+	kfree(tx_dev->tx_hw_base->event_ops);
+	tx_dev->tx_hw_base->event_ops = NULL;
 
 	tx_task_mgr_release(tx_task);
 }
@@ -582,12 +586,29 @@ int meson_tx_validate_mode(struct meson_tx_dev *tx_dev, struct meson_tx_state *n
 }
 EXPORT_SYMBOL(meson_tx_validate_mode);
 
+int meson_tx_build_clk_param(struct meson_tx_dev *tx_dev,
+	struct meson_tx_format_para *para, u32 enc_idx, u32 hdmi_if_idx)
+{
+	struct meson_tx_log *tx_log = meson_get_tx_log(tx_dev);
+
+	if (!tx_dev || !para) {
+		TX_ERROR(tx_log, "[%s]: invalid input param\n", __func__);
+		return -EINVAL;
+	}
+	para->vid_clk_path = hdmi_if_idx << 4 | enc_idx;
+	meson_tx_hw_cntl(tx_dev->tx_hw_base, PLATFORM_VID_CLK_PARAM_BUILD,
+		para, &tx_dev->tx_hw_base->tx_clk->tx_clk_cfg);
+	return 0;
+}
+EXPORT_SYMBOL(meson_tx_build_clk_param);
+
 int meson_tx_attch_platform_data(struct meson_tx_dev *tx_dev,
 	enum TX_PLATFORM_API_TYPE type, void *plt_data)
 {
-	if (!tx_dev || !plt_data)
+	if (!tx_dev || !plt_data) {
+		TX_ERROR(&tx_dev->tx_log, "[%s]: invalid input param\n", __func__);
 		return -EINVAL;
-
+	}
 	switch (type) {
 	case TX_PLATFORM_TRACER:
 		tx_dev->tx_tracer = (struct meson_tx_tracer *)plt_data;
@@ -605,9 +626,10 @@ int meson_tx_attch_platform_data(struct meson_tx_dev *tx_dev,
 
 int meson_tx_notify_hpd_status(struct meson_tx_dev *tx_dev, bool force_uevent)
 {
-	if (!tx_dev)
+	if (!tx_dev) {
+		TX_ERROR(&tx_dev->tx_log, "%s fail\n", __func__);
 		return -EINVAL;
-
+	}
 	if (!tx_dev->suspend_flag) {
 		/* notify to userspace by uevent */
 		meson_tx_event_mgr_send_uevent(tx_dev->event_mgr,

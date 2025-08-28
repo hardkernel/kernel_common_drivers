@@ -15,24 +15,11 @@
 #include <drm/drm_modeset_lock.h>
 
 #include <drm/amlogic/meson_connector_dev.h>
-#include <linux/amlogic/media/vout/meson_tx_connector/dptx_common/dptx_common.h>
 #include <vout/vout_serve/vout_func.h>
 
 #include "meson_crtc.h"
 #include "meson_dptx.h"
 #include "meson_venc.h"
-
-struct meson_dptx_connector_state {
-	struct drm_connector_state base;
-	struct tx_color_attr color_attr_para;
-	struct meson_tx_state base_state;
-};
-
-#define to_dptx_connector_state(x)	container_of(x, struct meson_dptx_connector_state, base)
-
-#define encoder_to_meson_dptx(x)	container_of(x, struct meson_dp_tx, encoder)
-#define connector_to_meson_dptx(x)  \
-	container_of(connector_to_meson_connector(x), struct meson_dp_tx, base)
 
 static struct dptx_common *connector_to_dptx_common(struct drm_connector *connector)
 {
@@ -53,7 +40,7 @@ static struct meson_tx_dev *conn_dev_to_meson_tx_dev(struct device *dev)
 	return &dptx_comm->base;
 }
 
-static int meson_dptx_mode_probed_add(int count, struct tx_timing *timings,
+static int meson_edp_mode_probed_add(int count, struct tx_timing *timings,
 	struct drm_connector *connector)
 {
 	int i;
@@ -76,15 +63,12 @@ static int meson_dptx_mode_probed_add(int count, struct tx_timing *timings,
 	return 0;
 }
 
-static int meson_dptx_get_modes(struct drm_connector *connector)
+static int meson_edp_get_modes(struct drm_connector *connector)
 {
 	struct edid *edid;
 	struct meson_dp_tx *meson_dptx = connector_to_meson_dptx(connector);
 	struct dptx_common *tx_comm = connector_to_dptx_common(connector);
-	struct meson_dptx_connector_state *dptx_state =
-		to_dptx_connector_state(connector->state);
 	struct tx_timing *timing_list = NULL;
-	u64 sequence_id, new_sequence_id;
 	int count = 0;
 
 	if (!meson_dptx || !meson_dptx->dptx_dev || !tx_comm)
@@ -93,25 +77,9 @@ static int meson_dptx_get_modes(struct drm_connector *connector)
 	edid = (struct edid *)meson_tx_get_raw_edid(&tx_comm->base);
 	drm_connector_update_edid_property(connector, edid);
 
-	sequence_id = dptx_state->base_state.sequence_id;
-	new_sequence_id = meson_tx_get_hpd_hw_sequence_id(&tx_comm->base);
-	/*
-	 * After set mode, hwc will update the connector.
-	 * In order to prevent the edid from being parsed every time,
-	 * the sequence_id judgment is added, and the edid is only parsed
-	 * when the hot_plug time occurs.
-	 */
-	if (sequence_id != new_sequence_id) {
-		dptx_state->base_state.sequence_id = new_sequence_id;
-		meson_tx_clear_rx_cap(&tx_comm->base.rxcap);
-		meson_tx_edid_parse(&tx_comm->base.rxcap, tx_comm->base.edid_buf,
-			tx_comm->base.edid_parse_mask);
-		DRM_INFO("%s[%d]\n", __func__, __LINE__);
-	}
-
 	count = dptx_get_mode_list(tx_comm, &timing_list);
 	if (count > 0) {
-		meson_dptx_mode_probed_add(count, timing_list, connector);
+		meson_edp_mode_probed_add(count, timing_list, connector);
 		vfree(timing_list);
 		timing_list = NULL;
 	}
@@ -120,13 +88,13 @@ static int meson_dptx_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static enum drm_mode_status meson_dptx_check_mode(struct drm_connector *connector,
+static enum drm_mode_status meson_edp_check_mode(struct drm_connector *connector,
 					   struct drm_display_mode *mode)
 {
 	return MODE_OK;
 }
 
-static int meson_dptx_atomic_check(struct drm_connector *connector,
+static int meson_edp_atomic_check(struct drm_connector *connector,
 	struct drm_atomic_state *state)
 {
 	struct meson_dptx_connector_state *new_state, *curr_state;
@@ -146,32 +114,27 @@ static int meson_dptx_atomic_check(struct drm_connector *connector,
 	return 0;
 }
 
-static struct drm_encoder *meson_dptx_best_encoder(struct drm_connector *connector)
+static struct drm_encoder *meson_edp_best_encoder(struct drm_connector *connector)
 {
 	struct meson_dp_tx *meson_dptx = connector_to_meson_dptx(connector);
 
 	return &meson_dptx->encoder;
 }
 
-static const struct drm_connector_helper_funcs meson_dptx_connector_helper_funcs = {
-	.get_modes = meson_dptx_get_modes,
-	.mode_valid = meson_dptx_check_mode,
-	.atomic_check	= meson_dptx_atomic_check,
-	.best_encoder = meson_dptx_best_encoder,
+static const struct drm_connector_helper_funcs meson_edp_connector_helper_funcs = {
+	.get_modes = meson_edp_get_modes,
+	.mode_valid = meson_edp_check_mode,
+	.atomic_check	= meson_edp_atomic_check,
+	.best_encoder = meson_edp_best_encoder,
 };
 
-static enum drm_connector_status meson_dptx_connector_detect
+static enum drm_connector_status meson_edp_connector_detect
 	(struct drm_connector *connector, bool force)
 {
-	struct dptx_common *tx_comm = connector_to_dptx_common(connector);
-	int hpd_state = meson_tx_get_hpd_state(&tx_comm->base);
-
-	DRM_DEBUG("dptx_connector_detect [%d]\n", hpd_state);
-	return hpd_state == 1 ?
-		connector_status_connected : connector_status_disconnected;
+	return connector_status_connected;
 }
 
-static int meson_dptx_connector_atomic_set_property
+static int meson_edp_connector_atomic_set_property
 	(struct drm_connector *connector,
 	struct drm_connector_state *state,
 	struct drm_property *property, uint64_t val)
@@ -191,7 +154,7 @@ static int meson_dptx_connector_atomic_set_property
 	return 0;
 }
 
-static int meson_dptx_connector_atomic_get_property
+static int meson_edp_connector_atomic_get_property
 	(struct drm_connector *connector,
 	const struct drm_connector_state *state,
 	struct drm_property *property, uint64_t *val)
@@ -211,13 +174,13 @@ static int meson_dptx_connector_atomic_get_property
 	return 0;
 }
 
-static void meson_dptx_connector_destroy(struct drm_connector *connector)
+static void meson_edp_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 
-static void meson_dptx_reset(struct drm_connector *connector)
+static void meson_edp_reset(struct drm_connector *connector)
 {
 	struct dptx_common *dptx_comm;
 	struct meson_tx_state *tx_state;
@@ -236,10 +199,9 @@ static void meson_dptx_reset(struct drm_connector *connector)
 	__drm_atomic_helper_connector_reset(connector, &dptx_state->base);
 
 	tx_state = &dptx_state->base_state;
-	tx_state->sequence_id = ~0ULL;
 }
 
-struct drm_connector_state *meson_dptx_atomic_duplicate_state
+struct drm_connector_state *meson_edp_atomic_duplicate_state
 	(struct drm_connector *connector)
 {
 	struct meson_tx_state *tx_state, *curr_tx_state;
@@ -260,7 +222,7 @@ struct drm_connector_state *meson_dptx_atomic_duplicate_state
 	return &new_state->base;
 }
 
-static void meson_dptx_atomic_destroy_state(struct drm_connector *connector,
+static void meson_edp_atomic_destroy_state(struct drm_connector *connector,
 	 struct drm_connector_state *state)
 {
 	struct meson_dptx_connector_state *dptx_state;
@@ -270,78 +232,41 @@ static void meson_dptx_atomic_destroy_state(struct drm_connector *connector,
 	kfree(dptx_state);
 }
 
-static void meson_dptx_atomic_print_state(struct drm_printer *p,
+static void meson_edp_atomic_print_state(struct drm_printer *p,
 	const struct drm_connector_state *state)
 {
 }
 
-static ssize_t venc_cfg_show(struct device *dev, struct device_attribute *attr, char *buf)
+static int meson_edp_late_register(struct drm_connector *connector)
 {
-	return sysfs_emit(buf, "no support show\n");
-}
-
-static ssize_t venc_cfg_store(struct device *dev, struct device_attribute *attr,
-			      const char *buf, size_t count)
-{
-	struct drm_connector *connector = dev_get_drvdata(dev);
-	struct dptx_common *dptx_comm = connector_to_dptx_common(connector);
-	struct meson_dp_tx *meson_dptx = connector_to_meson_dptx(connector);
-
-	if (buf[0] != '0' && buf[0] != '1')
-		return -EINVAL;
-
-	if (buf[0] == '1') {
-		meson_venc_mode_set(meson_dptx->venc, meson_dptx->enc_idx,
-				     VENC_ENCP, &dptx_comm->base.sw_fmt_para);
-		DRM_INFO("enable venc cfg\n");
-	} else if (buf[0] == '0') {
-		meson_venc_mode_disable(meson_dptx->venc, meson_dptx->enc_idx);
-		DRM_INFO("disable venc cfg\n");
-	} else {
-		return -EINVAL;
-	}
-
-	return count;
-}
-static DEVICE_ATTR_RW(venc_cfg);
-
-static int meson_dptx_late_register(struct drm_connector *connector)
-{
-	int ret;
 	struct dptx_common *dptx_comm = connector_to_dptx_common(connector);
 
 	meson_tx_sysfs_create(&dptx_comm->base);
-
-	ret = device_create_file(connector->kdev, &dev_attr_venc_cfg);
-	if (ret)
-		DRM_ERROR("Failed to create sysfs node: %d\n", ret);
-
-	return ret;
+	return 0;
 }
 
-static void meson_dptx_early_unregister(struct drm_connector *connector)
+static void meson_edp_early_unregister(struct drm_connector *connector)
 {
 	struct dptx_common *dptx_comm = connector_to_dptx_common(connector);
 
-	device_remove_file(connector->kdev, &dev_attr_venc_cfg);
 	meson_tx_sysfs_remove(&dptx_comm->base);
 }
 
-static const struct drm_connector_funcs meson_dptx_connector_funcs = {
-	.detect			= meson_dptx_connector_detect,
+static const struct drm_connector_funcs meson_edp_connector_funcs = {
+	.detect			= meson_edp_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
-	.atomic_set_property	= meson_dptx_connector_atomic_set_property,
-	.atomic_get_property	= meson_dptx_connector_atomic_get_property,
-	.destroy		= meson_dptx_connector_destroy,
-	.reset			= meson_dptx_reset,
-	.atomic_duplicate_state	= meson_dptx_atomic_duplicate_state,
-	.atomic_destroy_state	= meson_dptx_atomic_destroy_state,
-	.atomic_print_state	= meson_dptx_atomic_print_state,
-	.late_register		= meson_dptx_late_register,
-	.early_unregister	= meson_dptx_early_unregister,
+	.atomic_set_property	= meson_edp_connector_atomic_set_property,
+	.atomic_get_property	= meson_edp_connector_atomic_get_property,
+	.destroy		= meson_edp_connector_destroy,
+	.reset			= meson_edp_reset,
+	.atomic_duplicate_state	= meson_edp_atomic_duplicate_state,
+	.atomic_destroy_state	= meson_edp_atomic_destroy_state,
+	.atomic_print_state	= meson_edp_atomic_print_state,
+	.late_register		= meson_edp_late_register,
+	.early_unregister	= meson_edp_early_unregister,
 };
 
-static void meson_dptx_encoder_atomic_mode_set(struct drm_encoder *encoder,
+static void meson_edp_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	struct drm_crtc_state *crtc_state,
 	struct drm_connector_state *conn_state)
 {
@@ -352,7 +277,7 @@ static void meson_dptx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	update_curr_vout_server(amcrtc->base.index + 1, tx_dev->vout_serv);
 }
 
-static void meson_dptx_encoder_atomic_enable(struct drm_encoder *encoder,
+static void meson_edp_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
 	struct drm_connector_state *conn_state, *old_conn_state;
@@ -378,19 +303,16 @@ static void meson_dptx_encoder_atomic_enable(struct drm_encoder *encoder,
 
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 				      meson_crtc_state->vmode, EVENT_MODE_SET_START);
-	/* assume hdmi_if_index = venc_idx by default */
-	meson_tx_build_clk_param(tx_dev, &dptx_conn_state->base_state.para,
-		meson_dptx->enc_idx, meson_dptx->enc_idx);
 	meson_tx_do_mode_setting(tx_dev, &dptx_conn_state->base_state,
 				 &old_dptx_conn_state->base_state);
-	meson_venc_mode_set(meson_dptx->venc, meson_dptx->enc_idx, VENC_ENCP,
+	meson_venc_mode_set(meson_dptx->venc, meson_dptx->enc_idx, VENC_ENCL,
 			    &dptx_conn_state->base_state.para);
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 				      meson_crtc_state->vmode, EVENT_MODE_SET_FINISH);
-	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "dptx");
+	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "edp");
 }
 
-static void meson_dptx_encoder_atomic_disable(struct drm_encoder *encoder,
+static void meson_edp_encoder_atomic_disable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
 	struct am_meson_crtc *amcrtc;
@@ -404,13 +326,13 @@ static void meson_dptx_encoder_atomic_disable(struct drm_encoder *encoder,
 	meson_venc_mode_disable(meson_dptx->venc, meson_dptx->enc_idx);
 }
 
-static enum drm_mode_status meson_dptx_encoder_mode_valid(struct drm_encoder *crtc,
+static enum drm_mode_status meson_edp_encoder_mode_valid(struct drm_encoder *crtc,
 				   const struct drm_display_mode *mode)
 {
 	return MODE_OK;
 }
 
-static int meson_dptx_encoder_atomic_check(struct drm_encoder *encoder,
+static int meson_edp_encoder_atomic_check(struct drm_encoder *encoder,
 					     struct drm_crtc_state *crtc_state,
 					     struct drm_connector_state *conn_state)
 {
@@ -448,31 +370,21 @@ static int meson_dptx_encoder_atomic_check(struct drm_encoder *encoder,
 	return ret;
 }
 
-static const struct drm_encoder_helper_funcs meson_dptx_encoder_helper_funcs = {
-	.atomic_mode_set	= meson_dptx_encoder_atomic_mode_set,
-	.atomic_enable		= meson_dptx_encoder_atomic_enable,
-	.atomic_disable		= meson_dptx_encoder_atomic_disable,
-	.atomic_check		= meson_dptx_encoder_atomic_check,
-	.mode_valid			= meson_dptx_encoder_mode_valid,
+static const struct drm_encoder_helper_funcs meson_edp_encoder_helper_funcs = {
+	.atomic_mode_set	= meson_edp_encoder_atomic_mode_set,
+	.atomic_enable		= meson_edp_encoder_atomic_enable,
+	.atomic_disable		= meson_edp_encoder_atomic_disable,
+	.atomic_check		= meson_edp_encoder_atomic_check,
+	.mode_valid			= meson_edp_encoder_mode_valid,
 };
 
-static const struct drm_encoder_funcs meson_dptx_encoder_funcs = {
+static const struct drm_encoder_funcs meson_edp_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-static void meson_dptx_update(struct drm_connector_state *new_state,
+static void meson_edp_update(struct drm_connector_state *new_state,
 			struct drm_connector_state *old_state)
 {
-}
-
-static void meson_dptx_hpd_cb(void *data)
-{
-	struct meson_connector *meson_con = (struct meson_connector *)data;
-	struct drm_connector *connector = &meson_con->connector;
-
-	DRM_INFO("drm hdmitx hpd notify\n");
-
-	drm_kms_helper_hotplug_event(connector->dev);
 }
 
 /* Optional colorspace properties. */
@@ -484,7 +396,7 @@ static const struct drm_prop_enum_list color_space_enum_list[] = {
 	{ HDMI_COLORSPACE_RESERVED6, "HDMI_COLORSPACE_RESERVED6" }
 };
 
-static void meson_dptx_init_colorspace_property(struct drm_device *drm_dev,
+static void meson_edp_init_colorspace_property(struct drm_device *drm_dev,
 						struct meson_dp_tx *meson_dptx,
 						struct meson_tx_state *state)
 {
@@ -506,7 +418,7 @@ static void meson_dptx_init_colorspace_property(struct drm_device *drm_dev,
 	}
 }
 
-static void meson_dptx_init_colordepth_property(struct drm_device *drm_dev,
+static void meson_edp_init_colordepth_property(struct drm_device *drm_dev,
 						struct meson_dp_tx *meson_dptx,
 						struct meson_tx_state *state)
 {
@@ -560,7 +472,7 @@ static int meson_drm_probe_venc(struct meson_dp_tx *meson_dptx, struct device *d
 	return 0;
 }
 
-static void meson_dptx_parse_venc_idx(struct device *dev, u32 *enc_idx)
+static void meson_edp_parse_venc_idx(struct device *dev, u32 *enc_idx)
 {
 	int ret;
 
@@ -569,7 +481,7 @@ static void meson_dptx_parse_venc_idx(struct device *dev, u32 *enc_idx)
 		DRM_ERROR("enc_idx invalid\n");
 }
 
-int meson_dptx_dev_bind(struct drm_device *drm,
+int meson_edp_dev_bind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf)
 {
 	int ret;
@@ -581,7 +493,6 @@ int meson_dptx_dev_bind(struct drm_device *drm,
 	struct meson_connector *mesonconn;
 	struct dptx_common *tx_comm;
 	int encoder_type = DRM_MODE_ENCODER_TMDS;
-	struct connector_hpd_cb hpd_cb;
 	struct meson_tx_state *tx_state;
 
 	meson_dptx = devm_kzalloc(drm->dev, sizeof(*meson_dptx), GFP_KERNEL);
@@ -594,24 +505,24 @@ int meson_dptx_dev_bind(struct drm_device *drm,
 
 	mesonconn = &meson_dptx->base;
 	mesonconn->drm_priv = priv;
-	mesonconn->update = meson_dptx_update;
+	mesonconn->update = meson_edp_update;
 	mesonconn->connector_type = type;
 	encoder = &meson_dptx->encoder;
 	connector = &meson_dptx->base.connector;
 	intf->conn = connector;
-	intf->connector_type = DRM_MODE_CONNECTOR_DisplayPort;
+	intf->connector_type = DRM_MODE_CONNECTOR_eDP;
 
 	meson_drm_probe_venc(meson_dptx, priv->dev);
-	meson_dptx_parse_venc_idx(tx_dev->pdev, &meson_dptx->enc_idx);
+	meson_edp_parse_venc_idx(tx_dev->pdev, &meson_dptx->enc_idx);
 
 	/* Connector */
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->ycbcr_420_allowed = true;
 	drm_connector_helper_add(connector,
-				 &meson_dptx_connector_helper_funcs);
+				 &meson_edp_connector_helper_funcs);
 
-	ret = drm_connector_init(drm, connector, &meson_dptx_connector_funcs,
-				 DRM_MODE_CONNECTOR_DisplayPort);
+	ret = drm_connector_init(drm, connector, &meson_edp_connector_funcs,
+				 DRM_MODE_CONNECTOR_eDP);
 	if (ret) {
 		dev_err(priv->dev, "Failed to init dp tx connector\n");
 		return ret;
@@ -619,8 +530,8 @@ int meson_dptx_dev_bind(struct drm_device *drm,
 
 	/* Encoder */
 	encoder->possible_crtcs = priv->of_conf.crtc_masks[ENCODER_HDMI];
-	drm_encoder_helper_add(encoder, &meson_dptx_encoder_helper_funcs);
-	ret = drm_encoder_init(drm, encoder, &meson_dptx_encoder_funcs,
+	drm_encoder_helper_add(encoder, &meson_edp_encoder_helper_funcs);
+	ret = drm_encoder_init(drm, encoder, &meson_edp_encoder_funcs,
 			       encoder_type, "dptx_encoder");
 	if (ret) {
 		dev_err(priv->dev, "Failed to init hdmi encoder\n");
@@ -628,11 +539,6 @@ int meson_dptx_dev_bind(struct drm_device *drm,
 	}
 
 	drm_connector_attach_encoder(connector, encoder);
-
-	/* register hpd callback */
-	hpd_cb.callback = meson_dptx_hpd_cb;
-	hpd_cb.data = mesonconn;
-	meson_tx_register_hpd_cb(tx_dev, &hpd_cb);
 
 	/* register connector sysfs device translate to meson_tx_dev */
 	dptx_register_dev_to_txdev_xlate(tx_dev, conn_dev_to_meson_tx_dev);
@@ -643,14 +549,14 @@ int meson_dptx_dev_bind(struct drm_device *drm,
 		return -ENOMEM;
 
 	meson_tx_get_init_state(tx_dev, tx_state);
-	meson_dptx_init_colordepth_property(drm, meson_dptx, tx_state);
-	meson_dptx_init_colorspace_property(drm, meson_dptx, tx_state);
+	meson_edp_init_colordepth_property(drm, meson_dptx, tx_state);
+	meson_edp_init_colorspace_property(drm, meson_dptx, tx_state);
 	kfree(tx_state);
 
 	return 0;
 }
 
-int meson_dptx_dev_unbind(struct drm_device *drm,
+int meson_edp_dev_unbind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf)
 {
 	return 0;

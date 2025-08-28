@@ -6,24 +6,8 @@
 #ifndef __DPTX_LINK_H__
 #define __DPTX_LINK_H__
 
+#include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_format_para.h>
 #include "dptx_aux_helper.h"
-
-enum dptx_link_rate_e {
-	DPTX_LINK_RATE_UNKNOWN = -1,
-	DPTX_LINK_RATE_1P62GHZ = 0x06,
-	DPTX_LINK_RATE_2P70GHZ = 0x0a,
-	DPTX_LINK_RATE_5P40GHZ = 0x14,
-	DPTX_LINK_RATE_8P10GHZ = 0x1e,
-	DPTX_LINK_RATE_MAX,
-};
-
-enum dptx_lane_count_e {
-	DPTX_LANE_COUNT_UNKNOWN = -1,
-	DPTX_LANE_COUNT_1 = 1,
-	DPTX_LANE_COUNT_2 = 2,
-	DPTX_LANE_COUNT_4 = 4,
-	DPTX_LANE_COUNT_MAX,
-};
 
 enum dptx_phy_vswing_e {
 	DPTX_PHY_VSWING_UNKNOWN = -1,
@@ -66,8 +50,8 @@ struct phy_vswing_preemp {
 };
 
 struct dptx_link_param_s {
-	enum dptx_link_rate_e link_rate;
-	enum dptx_lane_count_e lane_count;
+	enum dp_link_rate_e link_rate;
+	enum dp_lane_count_e lane_count;
 	enum dptx_phy_vswing_e vswing;
 	enum dptx_phy_preemphasis_e preemp;
 };

@@ -22,19 +22,28 @@ enum frl_rate_enum {
 	FRL_RATE_MAX = 7,
 };
 
-/* Table 1-2: Glossary of Terms */
-enum dp_link_rate {
-	RAR, /* 162MHz for 2.7Gbps/lane */
-	HBR, /* 270MHz for 2.7Gbps/lane */
-	HBR2, /* 540MHz for 5.4Gbps/lane */
-	HBR3, /* 810MHz for 8.1Gbps/lane */
-	LINK_RATE_MAX
+enum dp_link_rate_e {
+	DPTX_LINK_RATE_UNKNOWN = -1,
+	DPTX_LINK_RATE_1P62GHZ = 0x06,
+	DPTX_LINK_RATE_2P70GHZ = 0x0a,
+	DPTX_LINK_RATE_5P40GHZ = 0x14,
+	DPTX_LINK_RATE_8P10GHZ = 0x1e,
+	DPTX_LINK_RATE_MAX,
+};
+
+enum dp_lane_count_e {
+	DPTX_LANE_COUNT_UNKNOWN = -1,
+	DPTX_LANE_COUNT_1 = 1,
+	DPTX_LANE_COUNT_2 = 2,
+	DPTX_LANE_COUNT_4 = 4,
+	DPTX_LANE_COUNT_MAX,
 };
 
 /* HW format param calculated from primary SW format param */
 struct dptx_hw_fmt_para {
-	enum dp_link_rate link_rate;
-	u8 lane_count;
+	u32 total_bandwidth;
+	enum dp_link_rate_e link_rate;
+	enum dp_lane_count_e lane_count;
 };
 
 /* hw related format param, set in calc_format_para() func */
@@ -55,7 +64,15 @@ struct meson_tx_format_para {
 	enum hdmi_color_depth cd; /* cd8, cd10 or cd12 */
 	enum hdmi_colorspace cs; /* 0/1/2/3: rgb/422/444/420 */
 	enum hdmi_quantization_range cr; /* limit, full */
+	bool cta_range; /* 1: cta range; 0: vesa range */
+	bool bt709; /* 1: bt-709; 0: bt-601 */
 	u32 frac_mode;
+	/* video source virtual channel, used for MST index */
+	u8 vc_id;
+	/* enc->vpu_hdmi_if->hdmi/dp_core
+	 * bit[3:0]: venc_idx, bit[7:4]: hdmi_if_idx, other bits for future
+	 */
+	u32 vid_clk_path;
 
 	/* below members only for hdmitx,
 	 * TODO: move into struct hdmitx_hw_fmt_para later
@@ -68,9 +85,7 @@ struct meson_tx_format_para {
 	u8 dsc_en;
 	enum frl_rate_enum frl_rate;
 	/*hw related information end*/
-	/* for future usage */
-	u8 port_type;
-	u8 port_id;
+
 	u32 flag_3dfp:1;
 	u32 flag_3dtb:1;
 	u32 flag_3dss:1;
@@ -79,6 +94,29 @@ struct meson_tx_format_para {
 		struct dptx_hw_fmt_para dptx_hw_para;
 		struct hdmitx_hw_fmt_para hdmitx_hw_para;
 	} tx_hw_para;
+};
+
+enum venc_bist_type {
+	VENC_BIST_PTTN_OFF = 0,
+	VENC_BIST_PTTN_BLACK,
+	VENC_BIST_PTTN_WHITE,
+	VENC_BIST_PTTN_RED,
+	VENC_BIST_PTTN_GREEN,
+	VENC_BIST_PTTN_BLUE,
+	VENC_BIST_PTTN_LINE,
+	VENC_BIST_PTTN_DOT,
+	VENC_BIST_PTTN_COLORBAR,
+	VENC_BIST_PTTN_CROSSING, /* new adding in S5 */
+	VENC_BIST_PTTN_GRAY, /* new adding in A9 */
+};
+
+/*
+ * BIST: built-in self test video pattern
+ *   bist_name: colorbar, red, green, blue, black, white, line, dot, x, gray
+ */
+struct video_bist_format_para {
+	enum venc_bist_type bist_type;
+	u8 enc_sel; /* 0: encp; 1: encl */
 };
 
 #endif

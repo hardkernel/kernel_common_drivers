@@ -110,8 +110,8 @@ static ssize_t dptx_aux_cmd_submit(struct dptx_hw_common *tx_comm, u32 cmd, u16 
 	enum dptx_aux_status_t aux_status = DPTX_AUX_STATUS_NONE;
 	ssize_t ret_size = 0;
 
-	isr_mask |= INTERRUPT_MASK_REPLY_TIMEOUT_MASK;
-	isr_mask |= INTERRUPT_MASK_REPLY_RECEIVED_MASK;
+	isr_mask |= INTERRUPT_MASK_REPLY_TIMEOUT_EVENT;
+	isr_mask |= INTERRUPT_MASK_REPLY_RECEIVED_EVENT;
 	dptx_isr_disable(tx_comm, isr_mask);
 
 	if ((cmd & DP_AUX_NATIVE_WRITE) ||
@@ -161,16 +161,29 @@ static ssize_t dptx_aux_cmd_submit(struct dptx_hw_common *tx_comm, u32 cmd, u16 
 	return ret_size;
 }
 
+/* return actual accessed bytes */
 ssize_t dptx_aux_xfer(struct dptx_hw_common *tx_comm, struct dptx_aux_msg *msg)
 {
 	ssize_t ret;
-	u32 i;
-	u32 iter = 1; // TODO
+	ssize_t accessed_bytes = 0;
 
-	for (i = 0; i < iter; i++) {
-		ret = dptx_aux_cmd_submit(tx_comm, msg->request, msg->address,
-						   msg->buffer, msg->size,
-						   &msg->reply);
+	if (!msg) {
+		DPTX_ERROR("% NULL aux msg!\n", __func__);
+		return -1;
 	}
-	return ret;
+
+	do {
+		ssize_t to_access = MIN(DP_AUX_MAX_PAYLOAD_BYTES, msg->size - accessed_bytes);
+
+		ret = dptx_aux_cmd_submit(tx_comm, msg->request, msg->address + accessed_bytes,
+			msg->buffer + accessed_bytes, to_access, &msg->reply);
+
+		if (ret != to_access) {
+			DPTX_ERROR("%s failed to do AUX transfer:%d\n", __func__, ret);
+			break;
+		}
+		accessed_bytes += to_access;
+	} while (accessed_bytes < msg->size);
+
+	return accessed_bytes;
 }

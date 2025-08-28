@@ -21,3 +21,10 @@ void meson_tx_hw_setup_phy(struct meson_tx_hw *tx_hw,
 {
 	tx_hw->tx_phy = tx_phy;
 }
+
+void meson_tx_hw_setup_clk(struct meson_tx_hw *tx_hw,
+			   struct meson_tx_clk *tx_clk)
+{
+	tx_hw->tx_clk = tx_clk;
+}
+

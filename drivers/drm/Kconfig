@@ -52,6 +52,15 @@ config AMLOGIC_DRM_DP
 		We should confirm AMLOGIC_DPTX is configured if
 		AMLOGIC_DRM_DP is selected.
 
+config AMLOGIC_DRM_EDP
+	bool "support drm edp function for meson drm display."
+	depends on AMLOGIC_DPTX
+	help
+		add drm edp support.
+		use internal amlogic media vout dptx driver.
+		We should confirm AMLOGIC_DPTX is configured if
+		AMLOGIC_DRM_EDP is selected.
+
 config AMLOGIC_DRM_CUT_CVBS
 	bool "support drm cvbs function for meson drm display."
 	depends on !AMLOGIC_CVBS_OUTPUT

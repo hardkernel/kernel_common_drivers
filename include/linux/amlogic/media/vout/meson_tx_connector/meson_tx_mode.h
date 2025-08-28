@@ -349,5 +349,6 @@ unsigned int meson_tx_mode_get_frame_duration(const struct tx_timing *t);
  */
 int meson_tx_mode_update_timing(struct tx_timing *t, bool to_frac_mode);
 const char *meson_tx_mode_get_timing_name(enum hdmi_vic vic);
+const struct tx_timing *meson_tx_mode_index_to_timing(u32 idx);
 
 #endif

@@ -9,8 +9,13 @@
 #include <linux/amlogic/media/vout/meson_tx_connector/dptx_common/dptx_hw_common.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_log.h>
 #include "dptx_log.h"
-#include "../meson_tx_internal.h"
+#include "meson_tx_internal.h"
 #include "dptx_internal.h"
+
+static inline u32 link_rate_khz(enum dp_link_rate_e rate)
+{
+	return rate * 27000 * 10;
+};
 
 /* check timing/refresh_rate and cs/cd support by SOC DPTX */
 static bool dptx_check_tx_cap(struct tx_timing *timing, enum hdmi_colorspace cs,
@@ -21,10 +26,16 @@ static bool dptx_check_tx_cap(struct tx_timing *timing, enum hdmi_colorspace cs,
 		return false;
 	}
 
-	/* step1 TODO: check timing cap of DPTX connector:
+	/* step1: check timing cap of DPTX connector:
 	 * 1.check if there's any limitation of timing
 	 * 2.check refresh rate is within cap of DPTX
 	 */
+	if (timing->v_sync > tx_cap->max_fresh_rate)
+		return false;
+	if (timing->h_active > tx_cap->max_h_active)
+		return false;
+	if (timing->v_active > tx_cap->max_v_active)
+		return false;
 
 	/* step2: check if cs/cd under specific timing is
 	 * supported by SOC dptx.
@@ -57,15 +68,17 @@ static bool dptx_check_rx_cap(struct tx_timing *timing, enum hdmi_colorspace cs,
  * and information contained within the interface configuration data (e.g.
  * DPCD for DisplayPort), the source shall use interface configuration data
  */
-static bool dptx_check_bandwidth_cap(enum number_of_links lane_cnt, enum dp_link_rate link_rate,
-	struct rx_cap *rx_cap, struct dptx_cap *tx_cap)
+static bool dptx_check_bandwidth_cap(enum number_of_links lane_cnt, enum dp_link_rate_e link_rate,
+	struct rx_cap *rx_cap, struct dpcd_cap *dpcd_cap, struct dptx_cap *tx_cap)
 {
 	struct display_id_cap *disp_cap = NULL;
 
 	if (!rx_cap || !tx_cap)
 		return false;
 
-	/* step1: TODO: check bandwidth cap of TX */
+	/* step1: check bandwidth cap of TX */
+	if (lane_cnt > tx_cap->max_lane_count || link_rate_khz(link_rate) > tx_cap->max_link_rate)
+		return false;
 
 	/* step2: check bandwidth cap of RX */
 	disp_cap = &rx_cap->disp_id_cap;
@@ -75,7 +88,10 @@ static bool dptx_check_bandwidth_cap(enum number_of_links lane_cnt, enum dp_link
 			__func__, lane_cnt, disp_cap->display_interface.link.links);
 		/* return false */
 	}
-	/* TODO: check max lane count and link rate in DPCD */
+	/* check max lane count and link rate in DPCD */
+	if (lane_cnt > dpcd_cap->max_lane_count ||
+	    link_rate_khz(link_rate) > dpcd_cap->max_link_rate)
+		return false;
 
 	return true;
 }
@@ -106,8 +122,8 @@ static bool dptx_validate_fmt_para(struct meson_tx_dev *tx_base,
 		return false;
 
 	/* step3: validate bandwidth in tx/rx cap */
-	if (!dptx_check_bandwidth_cap(hw_para->lane_count, hw_para->link_rate,
-		&tx_base->rxcap, tx_base->tx_cap))
+	if (!dptx_check_bandwidth_cap((enum number_of_links)hw_para->lane_count,
+		hw_para->link_rate, &tx_base->rxcap, &tx_base->dpcd_cap, tx_base->tx_cap))
 		return false;
 
 	return true;
@@ -169,8 +185,8 @@ bool dptx_validate_timing_with_basic_cs(struct meson_tx_dev *tx_base, struct tx_
 		return false;
 
 	/* step3: validate bandwidth in tx/rx cap */
-	if (!dptx_check_bandwidth_cap(hw_para.lane_count, hw_para.link_rate,
-		&tx_base->rxcap, tx_base->tx_cap))
+	if (!dptx_check_bandwidth_cap((enum number_of_links)hw_para.lane_count,
+		hw_para.link_rate, &tx_base->rxcap, &tx_base->dpcd_cap, tx_base->tx_cap))
 		return false;
 
 	return true;

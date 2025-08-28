@@ -47,10 +47,36 @@ struct meson_dp_aux {
 	unsigned int i2c_defer_count;
 };
 
+enum timer_wait_type {
+	TIMER_WAIT,
+	TIMER_ISR,
+	TIMER_REPEAT_ISR,
+};
+
+struct timer_config {
+	u32 timer_type;
+	enum timer_wait_type wait_type;
+	u32 us; // timeout count in microseconds
+	s32 repeater_times; // -1 means infinite times
+	void (*callback)(void *cb_data);
+	void *cb_data;
+};
+
+struct dptx_timer_handler {
+	/* each timer has its own mutex */
+	struct mutex timer_mutex;
+	struct timer_config cfg;
+};
+
 struct meson_tx_phy;
 
-/* TODO: dptx fresh rate/timing limitation, lane/link_rate limitation */
+/* dptx fresh rate/timing limitation, lane/link_rate limitation */
 struct dptx_cap {
+	u16 max_fresh_rate;
+	u16 max_h_active;
+	u16 max_v_active;
+	u16 max_lane_count;
+	u32 max_link_rate; /* unit: kHz, 5400000 is 5.4Gbps */
 };
 
 struct dptx_common {
@@ -60,9 +86,12 @@ struct dptx_common {
 	struct dptx_hw_common *hw_comm;
 	/* instance index */
 	u32 dev_idx;
+	u32 is_edp;
 
 	struct dptx_aux *tx_aux;
 	struct dptx_hw_fmt_para hw_fmt_para;
+	/* link/sink status get after irq_hpd or hotplug */
+	unsigned char link_sink_status[6];
 };
 
 #define to_dptx_common(x)	container_of(x, struct dptx_common, base)

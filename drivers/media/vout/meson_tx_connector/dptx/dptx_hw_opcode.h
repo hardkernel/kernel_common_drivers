@@ -46,6 +46,10 @@ enum cmd_dptx_dsc {
 enum cmd_dptx_core_misc {
 	/* dptx start */
 	DP_CORE_MISC_CMD = CMD_CORE_MISC_OFFSET + CMD_DPTX_OFFSET,
+	DP_TIMER_INIT,
+	DP_TIMER_GET,
+	DP_TIMER_START,
+	DP_TIMER_STOP,
 };
 
 /* 0x19 CMD_PLATFORM */
@@ -62,8 +66,7 @@ enum cmd_dptx_mode_flow {
 /* 0x1c dptx link training */
 enum cmd_link_training {
 	/* dptx training start */
-	DP_TRAINING_CMD = CMD_LINK_TRAINING + CMD_DPTX_OFFSET,
-	DP_AUX_LINKCONF_OFFSET,
+	DP_TRAINING_CMD = CMD_LINK_TRAINING_OFFSET + CMD_DPTX_OFFSET,
 	LINKCONF_INIT_TPS1,
 	LINKCONF_ENABLE_LINK,
 	LINKCONF_ENABLE_SRC_VID,
@@ -74,6 +77,18 @@ enum cmd_link_training {
 	LINKCONF_SET_8B10B_CODING,
 	LINKCONF_SET_TRAIN_PATTERN,
 	LINKCONF_SET_VSWING_PREEMP,
+};
+
+enum map_addr_idx_e {
+	DPTX_COR_REG_IDX,
+	SYSCTRL_REG_IDX,
+	ANACTRL_REG_IDX,
+	PWRCTRL_REG_IDX,
+	RESETCTRL_REG_IDX,
+	CLKCTRL_REG_IDX,
+	VPUCTRL_REG_IDX,
+	PADCTRL_REG_IDX,
+	REG_IDX_MAX,
 };
 
 #endif

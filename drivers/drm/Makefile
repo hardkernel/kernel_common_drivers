@@ -31,6 +31,11 @@ ifeq ($(CONFIG_AMLOGIC_DRM_DP),y)
 	$(MESON_DRM_MODULE_NAME)-y += meson_tx_helper.o
 endif
 
+ifeq ($(CONFIG_AMLOGIC_DRM_EDP),y)
+        $(MESON_DRM_MODULE_NAME)-y += meson_edp_modern.o
+	$(MESON_DRM_MODULE_NAME)-y += meson_tx_helper.o
+endif
+
 ifeq ($(CONFIG_AMLOGIC_DRM_CUT_HDMI_MODERN),)
         $(MESON_DRM_MODULE_NAME)-y += meson_hdmi_modern.o
         $(MESON_DRM_MODULE_NAME)-y += meson_tx_helper.o

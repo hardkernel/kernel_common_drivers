@@ -5448,6 +5448,7 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		return hdmitx_get_cur_cuva_st();
 	case AUX_PKT_AVI_CONSTRUCT:
 	case AUX_PKT_SET_EMP_SBTM:
+		break;
 	default:
 		break;
 	}

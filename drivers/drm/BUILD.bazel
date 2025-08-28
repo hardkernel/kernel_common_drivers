@@ -68,6 +68,12 @@ ddk_module(
                 "meson_tx_helper.c",
             ],
         },
+        "CONFIG_AMLOGIC_DRM_EDP": {
+            True: [
+                "meson_edp_modern.c",
+                "meson_tx_helper.c",
+            ],
+        },
         "CONFIG_AMLOGIC_DRM_CUT_CVBS": {
             False: [
                 "meson_cvbs.c",

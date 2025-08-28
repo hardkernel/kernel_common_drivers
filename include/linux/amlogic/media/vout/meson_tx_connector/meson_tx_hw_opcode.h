@@ -16,11 +16,11 @@
 #define CMD_FRL_OFFSET				(0x15 << 24)
 #define CMD_DSC_OFFSET				(0x16 << 24)
 #define CMD_VRR_OFFSET				(0x17 << 24)
-#define CMD_CORE_MISC_OFFSET		(0x18 << 24)
-#define CMD_PLATFORM_CNTL_OFFSET	(0x19 << 24)
+#define CMD_CORE_MISC_OFFSET			(0x18 << 24)
+#define CMD_PLATFORM_CNTL_OFFSET		(0x19 << 24)
 #define CMD_VPU_CNTL_OFFSET			(0x1a << 24)
-#define CMD_MODE_FLOW_MISC_OFFSET	(0x1b << 24)
-#define CMD_LINK_TRAINING			(0x1c << 24)
+#define CMD_MODE_FLOW_MISC_OFFSET		(0x1b << 24)
+#define CMD_LINK_TRAINING_OFFSET		(0x1c << 24)
 
 /* 0x10 DDC */
 enum cmd_ddc_aux {
@@ -104,6 +104,8 @@ enum cmd_aux_pkt {
 	AUX_PKT_SET_EMP_SBTM,
 	AUX_PKT_CONF_EMP_NUMBER,
 	AUX_PKT_CONF_EMP_PHY_ADDR,
+	AUX_PKT_SET_SDP, /* used for setting the Secondary Data Packet */
+	AUX_PKT_GET_SDP, /* used for getting the Secondary Data Packet */
 };
 
 #define OFF_AVMUTE		0x0
@@ -173,17 +175,16 @@ enum cmd_core_misc {
 
 /* 0x19 CMD_PLATFORM */
 enum cmd_platform {
-	/* GPIO PIN */
-	PLATFORM_HPD_MUX_OP = CMD_PLATFORM_CNTL_OFFSET,
-	PLATFORM_GET_HPD_GPI_ST,
-
 	/* hpll/clk */
 	CMD_PLATFORM_CLK_CNTL_OFFSET = CMD_PLATFORM_CNTL_OFFSET + (0x1 << 16),
+	PLATFORM_GET_HPD_GPI_ST,
+	PLATFORM_HPD_MUX_OP,
 	PLATFORM_DIS_HPLL,
 	PLATFORM_ESM_CLK_CTRL,
 	PLATFORM_CLK_DIV_RST,
 	PLATFORM_HDMI_CLKS_CTRL,
 	PLATFORM_GET_CLKMSR,
+	PLATFORM_VID_CLK_PARAM_BUILD,
 
 	/* phy */
 	CMD_PLATFORM_PHY_CNTL_OFFSET = CMD_PLATFORM_CNTL_OFFSET + (0x2 << 16),

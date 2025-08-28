@@ -12,6 +12,7 @@
 #include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_log.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_edid.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_format_para.h>
+#include <linux/amlogic/media/vout/meson_tx_connector/clk/meson_tx_clk.h>
 #include "meson_tx_dpcd.h"
 
 typedef struct meson_tx_dev *(*conn_dev_to_txdev)(struct device *dev);
@@ -60,6 +61,7 @@ struct meson_tx_dev {
 	 * only for android ott.
 	 */
 	u32 already_used_state;
+	/* only for tx common task(hotplug) */
 	struct tx_task_manager *task_mgr;
 	struct connector_hpd_cb drm_hpd_cb;
 
@@ -69,6 +71,7 @@ struct meson_tx_dev {
 	/* edid related */
 	/* edid data for HDMI, and displayid data for DP */
 	unsigned char edid_buf[EDID_MAX_BLOCK * 128];
+	/* 00000h~000ffh */
 	unsigned char dpcd_buf[DP_RECEIVER_CAP_SIZE];
 	struct rx_cap rxcap;
 	struct dpcd_cap dpcd_cap;
@@ -109,6 +112,8 @@ int meson_tx_validate_mode(struct meson_tx_dev *tx_dev, struct meson_tx_state *n
 int meson_tx_format_para_init(struct meson_tx_format_para *para, struct tx_timing *timing,
 	u32 frac_mode, enum hdmi_colorspace cs,
 	enum hdmi_color_depth cd, enum hdmi_quantization_range cr);
+int meson_tx_build_clk_param(struct meson_tx_dev *tx_dev,
+	struct meson_tx_format_para *para, u32 enc_idx, u32 hdmi_if_idx);
 
 int meson_tx_do_mode_setting(struct meson_tx_dev *tx_dev,
 				  struct meson_tx_state *new_state,

@@ -111,12 +111,6 @@ enum map_addr_idx_e {
 	REG_IDX_END
 };
 
-struct reg_map {
-	u32 phy_addr;
-	u32 size;
-	void __iomem *p;
-};
-
 struct reg_s {
 	u32 reg;
 	u32 val;

@@ -22,15 +22,7 @@
 #include <linux/cdev.h>
 #include <linux/io.h>
 //#include <linux/amlogic/iomap.h>
-
-/*
- * RePacket HDMI related registers rd/wr
- */
-struct reg_map {
-	unsigned int phy_addr;
-	unsigned int size;
-	void __iomem *p;
-};
+#include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_hw.h>
 
 enum map_addr_idx_e {
 	/* VPU */

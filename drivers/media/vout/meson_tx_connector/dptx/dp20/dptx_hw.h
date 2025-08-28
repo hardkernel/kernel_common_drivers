@@ -6,22 +6,26 @@
 #ifndef __DPTX_HW_H__
 #define __DPTX_HW_H__
 
+#include <linux/amlogic/media/vout/meson_tx_connector/dptx_common/dptx_hw_common.h>
+
 enum hw_io_type {
 	TOP_LEVEL,
 	CORE_LEVEL,
 };
 
-/*
- * There are 4 MST0/1/2/3 group registers, 4 groups are the same function
- * but the base address are different.
- * DPTX20_MST_SRC0: 0x800 ~ 0x9bc
- * DPTX20_MST_SRC1: 0xa00 ~ 0xbbc
- * DPTX20_MST_SRC2: 0xc00 ~ 0xdbc
- * DPTX20_MST_SRC3: 0xe00 ~ 0xfbc
- * Function: calculate_mst_reg
- *   calculate the MST register with video_num under MST mode
- */
-u32 dptx20_hw_calc_mst_reg(u8 video_num, u32 reg);
+struct tx_task_manager;
+
+struct dptx20_hw {
+	struct dptx_hw_common hw_comm;
+	/* save un-handled interrupts, clear after interrupt handled */
+	u32 intr_state;
+	/* for dptx20 private task manager */
+	struct tx_task_manager *task_mgr;
+};
+
+#define to_dptx20_hw(x) container_of(x, struct dptx20_hw, hw_comm)
+
+#define DP_AUX_XFER_TIMEOUT 50 /* unit: ms */
 
 /* aux transmitter status */
 enum dptx_aux_status_t {
@@ -67,15 +71,22 @@ enum dptx_aux_status_t {
 	DPTX_AUX_STATUS_RESERVED_CMD,
 };
 
-int dptx20_reg_write(struct dptx_hw_common *tx_hw, u32 io_type, u32 offset, u32 value);
-u32 dptx20_reg_read(struct dptx_hw_common *tx_hw, u32 io_type, u32 offset);
+int dptx20_reg_write(struct dptx_hw_common *tx_comm, u32 io_type, u32 offset, u32 value);
+u32 dptx20_reg_read(struct dptx_hw_common *tx_comm, u32 io_type, u32 offset);
+
+u32 dptx20_rd_plt_reg(struct dptx_hw_common *tx_comm, u32 vaddr);
+void dptx20_wr_plt_reg(struct dptx_hw_common *tx_comm, u32 vaddr, u32 val);
+void dptx20_set_plt_reg_bits(struct dptx_hw_common *tx_comm, u32 addr,
+	u32 value, u32 offset, u32 len);
+
+u32 dptx20_hw_calc_mst_reg(u8 vc_id, u32 reg);
 
 ssize_t dptx_aux_xfer(struct dptx_hw_common *tx_comm, struct dptx_aux_msg *msg);
 void dptx_isr_disable(struct dptx_hw_common *tx_comm, u32 flags);
 
 void dptx_hw_get_mnvid_clock(struct dptx_hw_common *hw_comm, u8 video_num,
 	u32 *pixel_clock, u32 *link_clock);
-void dptx_set_data_control(struct dptx_hw_common *hw_comm, u8 video_num,
-	struct meson_tx_format_para *para);
+void dptx_hw_infoframe_send(struct dptx_hw_common *hw_comm, u8 vc_id, u16 info_type, u8 *body);
+int dptx_hw_infoframe_raw_get(struct dptx_hw_common *hw_comm, u8 vc_id, u16 info_type, u8 *body);
 
 #endif

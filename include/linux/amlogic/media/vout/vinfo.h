@@ -55,6 +55,8 @@ enum hdmi_color_depth {
 	COLORDEPTH_RESERVED = 11,
 };
 
+typedef enum hdmi_color_depth color_depth_t;
+
 /*emp : extended metadata type*/
 #define VENDOR_SPECIFIC_EM_DATA 0x0
 #define COMPRESS_VIDEO_TRAMSPORT 0x1

@@ -2,34 +2,11 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-/*
- * Copyright © 2008 Keith Packard
- *
- * Permission to use, copy, modify, distribute, and sell this software and its
- * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
- * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
- * about the suitability of this software for any purpose.  It is provided "as
- * is" without express or implied warranty.
- *
- * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
- * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
- * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
- * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
- * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
- * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
- * OF THIS SOFTWARE.
- */
 
 #ifndef _DPTX_AUX_HELPER_H_
 #define _DPTX_AUX_HELPER_H_
 
 #include <linux/amlogic/media/vout/meson_tx_connector/dptx_common/dptx_common.h>
-
-struct dptx_aux;
 
 #define AUX_RETRY_INTERVAL 500 /* us */
 
@@ -47,33 +24,14 @@ struct dptx_aux_msg {
 };
 
 struct dptx_aux {
+	/* point to aux bound dptx_hw instance */
 	struct dptx_hw_common *hw_comm;
-
-	/**
-	 * @name: user-visible name of this AUX channel and the
-	 * I2C-over-AUX adapter.
-	 *
-	 * It's also used to specify the name of the I2C adapter. If set
-	 * to %NULL, dev_name() of @dev will be used.
-	 */
 	const char *name;
-
-	/**
-	 * @hw_mutex: internal mutex used for locking transfers.
-	 *
-	 * Note that if the underlying hardware is shared among multiple
-	 * channels, the driver needs to do additional locking to
-	 * prevent concurrent access.
-	 */
+	/* mutex for concurrent AUX CH access */
 	struct mutex hw_mutex;
-
-	/**
-	 * @i2c_nack_count: Counts I2C NACKs, used for DP validation.
-	 */
+	/* the count of i2c nacks */
 	unsigned int i2c_nack_count;
-	/**
-	 * @i2c_defer_count: Counts I2C DEFERs, used for DP validation.
-	 */
+	/* the count of i2c defer */
 	unsigned int i2c_defer_count;
 };
 

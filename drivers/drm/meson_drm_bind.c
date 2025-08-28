@@ -64,6 +64,10 @@ int meson_connector_dev_bind(struct drm_device *drm,
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		return meson_dptx_dev_bind(drm, type, intf);
 #endif
+#ifdef CONFIG_AMLOGIC_DRM_EDP
+	case DRM_MODE_CONNECTOR_eDP:
+		return meson_edp_dev_bind(drm, type, intf);
+#endif
 
 #ifndef CONFIG_AMLOGIC_DRM_CUT_CVBS
 	case DRM_MODE_CONNECTOR_TV:
@@ -74,8 +78,6 @@ int meson_connector_dev_bind(struct drm_device *drm,
 	case DRM_MODE_CONNECTOR_LVDS:
 	case DRM_MODE_CONNECTOR_DSI:
 		return meson_panel_dev_bind(drm, type, intf);
-	case DRM_MODE_CONNECTOR_eDP:
-		return meson_eDP_dev_bind(drm, type, intf);
 #endif
 
 	case DRM_MODE_CONNECTOR_MESON_DUMMY_L:

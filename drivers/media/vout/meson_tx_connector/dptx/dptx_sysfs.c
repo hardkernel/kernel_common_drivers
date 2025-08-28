@@ -6,12 +6,17 @@
 #include <linux/device.h>
 #include <linux/vmalloc.h>
 
+#include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_hw_opcode.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/dptx_common/dptx_common.h>
+#include <linux/amlogic/media/vout/meson_tx_connector/dptx_common/dptx_hw_common.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_log.h>
+#include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_mode.h>
+#include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_hw_opcode.h>
 
 #include "dptx_log.h"
 #include "dptx_internal.h"
-#include "../meson_tx_internal.h"
+#include "meson_tx_internal.h"
+#include "dptx_link.h"
 
 conn_dev_to_txdev dptx_convert;
 
@@ -72,6 +77,8 @@ static ssize_t dptx_debug_store(struct device *dev, struct device_attribute *att
 	struct dptx_common *tx_comm = to_dptx_common(tx_dev);
 	struct tx_timing *timing_list = NULL;
 	int cnt = 0;
+	int ret = 0;
+	static char test_color_attr[16];
 
 	token = strsep(&cur, delim);
 	if (token && strncmp(token, "load", 4) == 0) {
@@ -105,14 +112,21 @@ static ssize_t dptx_debug_store(struct device *dev, struct device_attribute *att
 
 		DPTX_INFO("write reg:0x%x val:0x%x\n", addr, val);
 	} else if (token && strncmp(token, "fake_plug", 9) == 0) {
+		int hw_hpd_st = 0;
+
 		token = strsep(&cur, delim);
+		dptx_hw_cntl(&tx_comm->hw_comm->hw_base, PLATFORM_GET_HPD_GPI_ST, NULL, &hw_hpd_st);
 		if (!token || kstrtouint(token, 16, &val) < 0)
 			return count;
-		/* TODO: for fake plug = 1, should check actual hpd status */
+		/* fake plug should be used under HPD is high */
 		if (val == 0)
 			meson_tx_plugout_handler(&tx_comm->base);
-		else
-			meson_tx_plugin_handler(&tx_comm->base);
+		if (val == 1) {
+			if (hw_hpd_st == 1)
+				meson_tx_plugin_handler(&tx_comm->base);
+			else
+				DPTX_INFO("HPD is low, no plug handler\n");
+		}
 		DPTX_INFO("fake hpd plug %s\n", val ? "in" : "out");
 	} else if (token && strncmp(token, "get_modes", 8) == 0) {
 		cnt = dptx_get_mode_list(tx_comm, &timing_list);
@@ -124,6 +138,99 @@ static ssize_t dptx_debug_store(struct device *dev, struct device_attribute *att
 		if (tx_comm->base.rxcap.disp_id_cap.version)
 			display_id_cap_print(&tx_comm->base.rxcap.disp_id_cap);
 		DPTX_INFO("%s get mode list count: %d\n", __func__, cnt);
+	} else if (token && strncmp(token, "test_attr", 9) == 0) {
+		/* step1: for pxp test color attribute, for example: "y444,10bit,f" */
+		token = strsep(&cur, delim);
+		if (!token) {
+			strcpy(test_color_attr, "rgb,8bit");
+			DPTX_ERROR("%s invalid attr, set default to rgb,8bit\n", __func__);
+			return count;
+		}
+		strncpy(test_color_attr, token, sizeof(test_color_attr));
+		test_color_attr[15] = '\0';
+		DPTX_INFO("set test_color_attr: %s\n", test_color_attr);
+	} else if (token && strncmp(token, "test_timing_idx", 15) == 0) {
+		/* step2 build format para with test_attr and test_mode */
+		const struct tx_timing *match_timing = NULL;
+		struct tx_timing *tmp_timing = NULL;
+		struct meson_tx_format_para *sw_para = NULL;
+		struct dptx_hw_fmt_para *hw_para = NULL;
+		enum hdmi_color_depth cd = COLORDEPTH_24B;
+		enum hdmi_colorspace cs = HDMI_COLORSPACE_RGB;
+		enum hdmi_quantization_range cr = HDMI_QUANTIZATION_RANGE_LIMITED;
+		u32 timing_idx = 0;
+
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 10, &timing_idx) < 0)	{
+			DPTX_ERROR("%s invalid timing mode\n", __func__);
+			return count;
+		}
+
+		/* return timing in mode list, not check tx/rx cap */
+		match_timing = meson_tx_mode_index_to_timing(timing_idx);
+		if (!match_timing) {
+			DPTX_ERROR("no timing with timing_idx(%d)\n", timing_idx);
+			return count;
+		}
+		tmp_timing = kzalloc(sizeof(*tmp_timing), GFP_KERNEL);
+		if (!tmp_timing)
+			return count;
+		memcpy(tmp_timing, match_timing, sizeof(struct tx_timing));
+
+		if (strstr(test_color_attr, "8bit"))
+			cd = COLORDEPTH_24B;
+		else if (strstr(test_color_attr, "10bit"))
+			cd = COLORDEPTH_30B;
+		else if (strstr(test_color_attr, "12bit"))
+			cd = COLORDEPTH_36B;
+		else
+			cd = COLORDEPTH_24B;
+
+		if (strstr(test_color_attr, "y444"))
+			cs = HDMI_COLORSPACE_YUV444;
+		else if (strstr(test_color_attr, "y422"))
+			cs = HDMI_COLORSPACE_YUV422;
+		else if (strstr(test_color_attr, "y420"))
+			cs = HDMI_COLORSPACE_YUV420;
+		else
+			cs = HDMI_COLORSPACE_RGB;
+
+		/* "f" means full */
+		if (strstr(test_color_attr, "f"))
+			cr = HDMI_QUANTIZATION_RANGE_FULL;
+		else
+			cr = HDMI_QUANTIZATION_RANGE_LIMITED;
+
+		sw_para = &tx_dev->sw_fmt_para;
+		hw_para = &sw_para->tx_hw_para.dptx_hw_para;
+
+		/* build SW/HW format param */
+		if (meson_tx_format_para_init(sw_para, tmp_timing, 0, cs, cd, cr)) {
+			DPTX_ERROR("%s build SW para failed\n", __func__);
+			kfree(tmp_timing);
+			return count;
+		}
+		if (dptx_calc_hw_fmt_para(tx_dev->tx_hw_base, sw_para, hw_para)) {
+			DPTX_ERROR("%s build HW para failed\n", __func__);
+			kfree(tmp_timing);
+			return count;
+		}
+		DPTX_INFO("%s build test format: %s cs[%d] cd[%d] cr[%d]\n",
+			__func__, tmp_timing->name, cs, cd, cr);
+		kfree(tmp_timing);
+	} else if (token && strncmp(token, "pre_enable", 10) == 0) {
+		/* step3: dptx_pre_mode_enable */
+		dptx_hw_cntl(tx_dev->tx_hw_base, MODE_FLOW_PRE_ENABLE_MODE,
+			&tx_dev->sw_fmt_para, NULL);
+		DPTX_INFO("%s dptx_pre_mode_enable\n", __func__);
+	} else if (token && strncmp(token, "link_train", 10) == 0) {
+		/* step4: link training */
+		ret = dptx_link_training(tx_comm);
+		DPTX_INFO("%s link training: %s\n", __func__, ret == 0 ? "pass" : "failed");
+	} else if (token && strncmp(token, "video_mode_set", 14) == 0) {
+		/* step5: set VPU format & CORE */
+		dptx_hw_cntl(tx_dev->tx_hw_base, MODE_FLOW_ENABLE_MODE, &tx_dev->sw_fmt_para, NULL);
+		DPTX_INFO("%s dptx_mode_enable\n", __func__);
 	}
 
 	return count;

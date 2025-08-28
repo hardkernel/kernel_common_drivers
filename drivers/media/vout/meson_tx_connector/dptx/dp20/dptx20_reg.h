@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __DPTX20_REG_H__
@@ -353,13 +353,13 @@
  #define INTERRUPT_MASK_SRC1_OVF_EVENT               BIT(9)
  #define INTERRUPT_MASK_SRC0_ERR_EVENT               BIT(8)
  #define INTERRUPT_MASK_SRC0_OVF_EVENT               BIT(7)
- #define INTERRUPT_MASK_MST_TIMER_IRQ_MASK           BIT(6)
- #define INTERRUPT_MASK_HDCP_TIMER_IRQ_MASK          BIT(5)
- #define INTERRUPT_MASK_GP_TIMER_IRQ_MASK            BIT(4)
- #define INTERRUPT_MASK_REPLY_TIMEOUT_MASK           BIT(3)
- #define INTERRUPT_MASK_REPLY_RECEIVED_MASK          BIT(2)
+ #define INTERRUPT_MASK_MST_TIMER_IRQ_EVENT          BIT(6)
+ #define INTERRUPT_MASK_HDCP_TIMER_IRQ_EVENT         BIT(5)
+ #define INTERRUPT_MASK_GP_TIMER_IRQ_EVENT           BIT(4)
+ #define INTERRUPT_MASK_REPLY_TIMEOUT_EVENT          BIT(3)
+ #define INTERRUPT_MASK_REPLY_RECEIVED_EVENT         BIT(2)
  #define INTERRUPT_MASK_HPD_IRQ_EVENT                BIT(1)
- #define INTERRUPT_MASK_HPD_EVENT_MASK               BIT(0)
+ #define INTERRUPT_MASK_HPD_EVENT                    BIT(0)
 
 /* RO   REPLY_DATA_COUNT
  *  4:0 Total number of data bytes received during the reply phase of the AUX transaction.

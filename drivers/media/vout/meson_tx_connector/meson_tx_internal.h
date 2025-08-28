@@ -27,6 +27,7 @@ struct meson_tx_helper_ops {
 struct meson_tx_plat_data {
 	struct meson_tx_hw *(*alloc_tx_hw)(void);
 	void (*free_tx_hw)(struct meson_tx_hw *tx_hw);
+	u32 is_edp;
 };
 
 struct meson_tx_log *meson_get_tx_log(struct meson_tx_dev *tx_dev);
@@ -45,9 +46,12 @@ int meson_tx_notify_hpd_status(struct meson_tx_dev *tx_dev, bool force_uevent);
 /* meson_tx_hw interface */
 int meson_tx_hw_cntl(struct meson_tx_hw *tx_hw, u32 cmd,
 		     void *input_argv, void *output_struct);
-/* meson_tx_hw bind with tx_phy and tx_log */
+/* meson_tx_hw bind with tx_phy */
 void meson_tx_hw_setup_phy(struct meson_tx_hw *tx_hw,
 		       struct meson_tx_phy *tx_phy);
+/* meson_tx_hw bind with tx_clk */
+void meson_tx_hw_setup_clk(struct meson_tx_hw *tx_hw,
+			   struct meson_tx_clk *tx_clk);
 
 bool meson_tx_edid_validate_timing(struct tx_timing *timing, struct rx_cap *rx_cap);
 bool meson_tx_edid_validate_color(struct tx_timing *timing,
