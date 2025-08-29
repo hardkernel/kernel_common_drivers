@@ -1069,50 +1069,6 @@
 	phy-mode = "rmii";
 };
 
-&usb_phy20{
-	status = "disable";
-};
-
-&usb_phy30{
-	status = "disable";
-};
-
-&usb_phy21{
-	status = "disable";
-};
-
-&usb_phy31{
-	status = "disable";
-};
-
-&usb_phy22{
-	status = "disable";
-};
-
-&usb_phy32{
-	status = "disable";
-};
-
-&crg20_otg{
-	status = "disabled";
-};
-
-&crg20_drd{
-	status = "disabled";
-};
-
-&crg20_udc{
-	status = "disable";
-};
-
-&crg21_host{
-	status = "disabled";
-};
-
-&crg22_host{
-	status = "disabled";
-};
-
 &spicc0 {	//for TCON
 	status = "disabled";/* disabled as default */
 	pinctrl-names = "default";

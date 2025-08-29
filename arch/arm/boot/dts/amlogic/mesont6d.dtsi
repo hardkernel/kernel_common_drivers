@@ -1640,13 +1640,14 @@
 						"clk_soc_u2drd_48m",
 						"clk_soc_u2drd_48m_pre";
 			/* 48m soc-digital cfg. */
-			//assigned-clocks = <&clkc CLKID_USB2_48M_CLK>;
-			//assigned-clock-parents = <&clkc CLKID_USB2_48M_PRE>;
+			assigned-clocks = <&clkc CLKID_USB2_48M_CLK>;
+			assigned-clock-parents = <&clkc CLKID_USB2_48M_PRE>;
 			/* 48m soc-analog cfg. */
 			//assigned-clocks = <&clkc CLKID_USB2_48M_CLK_TMP_SEL>,
 			//					<&clkc CLKID_USB2_48M_CLK>;
 			//assigned-clock-parents = <&clkc CLKID_USB_PLL>,
 			//					<&clkc CLKID_USB2_48M_CLK_TMP>;
+			//assigned-clock-rates = <0>, <48000000>;
 			phy-otg;
 			interrupts = <0 130 IRQ_TYPE_EDGE_RISING>;
 		};
@@ -1715,6 +1716,7 @@
 			//					<&clkc CLKID_USB2_48M_CLK>;
 			//assigned-clock-parents = <&clkc CLKID_USB_PLL>,
 			//					<&clkc CLKID_USB2_48M_CLK_TMP>;
+			//assigned-clock-rates = <0>, <48000000>;
 			sw-hsp;
 		};
 	};
