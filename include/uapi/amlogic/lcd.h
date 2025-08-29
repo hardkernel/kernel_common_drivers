@@ -61,22 +61,18 @@ struct lcd_optical_info_s {
 struct ioctl_phy_lane_s {
 	unsigned int preem;
 	unsigned int amp;
+	unsigned int rterm;
+	unsigned char data_sel;
+	unsigned char pn_swap;
 };
 
 struct ioctl_phy_config_s {
-	unsigned int flag;
+	unsigned int lane_num; //read only, can't write
 	unsigned int vswing;
 	unsigned int vcm;
 	unsigned int odt;
-	unsigned int ref_bias;
 	unsigned int cv_mode;
-	unsigned int weakly_pull_down;
-	unsigned int lane_num;
-	unsigned int ext_pullup;
-	unsigned int vswing_level;
-	unsigned int preem_level;
-	int ioctl_mode;
-	struct ioctl_phy_lane_s ioctl_lane[CH_LANE_MAX];
+	struct ioctl_phy_lane_s lane[CH_LANE_MAX];
 };
 
 /* **********************************

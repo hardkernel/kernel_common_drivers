@@ -523,6 +523,12 @@ struct lcd_power_step_s {
 	unsigned short delay;
 };
 
+struct ss_config_s {
+	unsigned char level;
+	unsigned char freq;
+	unsigned char mode;
+};
+
 #define PHY_BIT_VSWING      BIT(0)
 #define PHY_BIT_VCM         BIT(1)
 #define PHY_BIT_REF_BIAS    BIT(2)
@@ -541,12 +547,6 @@ struct phy_lane_s {
 	unsigned int preem; //flag bit[12]
 	unsigned int amp;   //flag bit[13]
 	unsigned int rterm;
-};
-
-struct ss_config_s {
-	unsigned char level;
-	unsigned char freq;
-	unsigned char mode;
 };
 
 #define PHY_CMODE   0
