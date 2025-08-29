@@ -472,6 +472,10 @@ static void bl_power_on(struct aml_bl_drv_s *bdrv)
 		BLPR("invalid backlight control method\n");
 		goto exit_power_on_bl;
 	}
+
+	if (bconf->bl_hold_on > 0)
+		lcd_delay_ms(bconf->bl_hold_on);
+
 	bdrv->state |= BL_STATE_BL_ON;
 	BLPR("backlight power on\n");
 
@@ -1768,7 +1772,8 @@ static ssize_t bl_status_show(struct device *dev,
 		      "en_gpio_on:         %d\n"
 		      "en_gpio_off:        %d\n"
 		      "power_on_delay:     %d\n"
-		      "power_off_delay:    %d\n\n",
+		      "power_off_delay:    %d\n"
+		      "bl_hold_on:         %d\n\n",
 		      bdrv->key_valid, bdrv->config_load,
 		      bdrv->index, bconf->name, bdrv->state,
 		      bdrv->level, bdrv->level_brightness, bdrv->level_gd,
@@ -1781,7 +1786,8 @@ static ssize_t bl_status_show(struct device *dev,
 		      (bconf->en_gpio >= BL_GPIO_NUM_MAX) ? "null" :
 		      bconf->bl_gpio[bconf->en_gpio].name,
 		      bconf->en_gpio, bconf->en_gpio_on, bconf->en_gpio_off,
-		      bconf->power_on_delay, bconf->power_off_delay);
+		      bconf->power_on_delay, bconf->power_off_delay,
+		      bconf->bl_hold_on);
 
 	switch (bconf->method) {
 	case BL_CTRL_GPIO:
@@ -2610,8 +2616,10 @@ static ssize_t bl_debug_power_store(struct device *dev,
 			bl_power_off(bdrv);
 	} else {
 		bdrv->state |= BL_STATE_BL_POWER_ON;
-		if ((bdrv->state & BL_STATE_BL_ON) == 0)
+		if ((bdrv->state & BL_STATE_BL_ON) == 0) {
+			bl_pwm_ctrl_status_set(bdrv, 1);
 			bl_power_on(bdrv);
+		}
 	}
 
 	return count;
@@ -3729,7 +3737,38 @@ static int aml_bl_level_setup(char *str)
 
 	return 1;
 }
+
+static int aml_bl1_level_setup(char *str)
+{
+	int ret = 0;
+
+	if (str) {
+		ret = kstrtouint(str, 10, &bl_level_bootup[1]);
+		if (ret)
+			return ret;
+		BLPR("bl1_level: %d\n", bl_level_bootup[1]);
+	}
+
+	return ret;
+}
+
+static int aml_bl2_level_setup(char *str)
+{
+	int ret = 0;
+
+	if (str) {
+		ret = kstrtouint(str, 10, &bl_level_bootup[2]);
+		if (ret)
+			return ret;
+		BLPR("bl2_level: %d\n", bl_level_bootup[2]);
+	}
+
+	return ret;
+}
+
 __setup("bl_level=", aml_bl_level_setup);
+__setup("bl1_level=", aml_bl1_level_setup);
+__setup("bl2_level=", aml_bl2_level_setup);
 
 //MODULE_DESCRIPTION("AML Backlight Driver");
 //MODULE_LICENSE("GPL");

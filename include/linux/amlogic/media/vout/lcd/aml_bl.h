@@ -167,6 +167,7 @@ struct bl_config_s {
 	unsigned int bl_pwm_switch_flag;
 	unsigned int pwm_on_delay;
 	unsigned int pwm_off_delay;
+	unsigned short bl_hold_on;
 
 	struct bl_gpio_s bl_gpio[BL_GPIO_NUM_MAX];
 	unsigned int bl_extern_index;

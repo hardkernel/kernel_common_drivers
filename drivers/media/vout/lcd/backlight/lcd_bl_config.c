@@ -103,6 +103,7 @@ static void bl_config_print(struct aml_bl_drv_s *bdrv)
 	BLPR("en_gpio_off   = %d\n", bconf->en_gpio_off);
 	BLPR("power_on_dly  = %dms\n", bconf->power_on_delay);
 	BLPR("power_off_dly = %dms\n\n", bconf->power_off_delay);
+	BLPR("bl_hold_on    = %dms\n", bconf->bl_hold_on);
 
 	switch (bconf->method) {
 	case BL_CTRL_PWM:
@@ -660,6 +661,7 @@ static int bl_config_load_from_json(struct aml_bl_drv_s *bdrv)
 	bconf->en_sequence_reverse = json_get_obj_u32(jsp, child, "en_sequence_reverse", 0);
 	bconf->bl_pwm_switch_port = json_get_obj_u32(jsp, child, "pwm_switch_port", BL_PWM_MAX);
 	bconf->bl_pwm_switch_freq = json_get_obj_u32(jsp, child, "pwm_switch_freq", 0);
+	bconf->bl_hold_on = json_get_obj_u32(jsp, child, "bl_hold_on", 0);
 	bl_gpio_probe(bdrv, bconf->en_gpio);
 
 	if (bconf->method == BL_CTRL_LOCAL_DIMMING) {
@@ -807,7 +809,7 @@ static int bl_config_load_from_ini(struct aml_bl_drv_s *bdrv)
 	bconf->en_sequence_reverse = lcd_ini_get_val(inip, psec, "bl_custome_val_0", 0);
 	bconf->bl_pwm_switch_port = lcd_ini_get_val(inip, psec, "bl_custome_val_1", 0);
 	bconf->bl_pwm_switch_freq = lcd_ini_get_val(inip, psec, "bl_custome_val_2", 0);
-	//val = lcd_ini_get_val(inip, psec, "bl_custome_val_3", 0);
+	bconf->bl_hold_on = lcd_ini_get_val(inip, psec, "bl_custome_val_3", 0);
 	//val = lcd_ini_get_val(inip, psec, "bl_custome_val_4", 0);
 
 	if (lcd_ini_get_val(inip, psec, "bl_ldim_row", 0) &&
