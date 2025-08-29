@@ -2424,6 +2424,7 @@ static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 
 		switch (pdrv->boot_ctrl->init_level) {
 		case LCD_INIT_LEVEL_NORMAL:
+		case LCD_INIT_LEVEL_PREBOOT:
 			pdrv->status = (LCD_STATUS_ON | LCD_STATE_PREPARE | LCD_STATE_POWER);
 			break;
 		case LCD_INIT_LEVEL_PWR_OFF:

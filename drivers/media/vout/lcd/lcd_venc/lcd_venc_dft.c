@@ -343,7 +343,7 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 		boot_ctrl->init_level = val & 0xf;
 		boot_ctrl->if_state = (val >> 4) & 0x1;
 		boot_ctrl->dccd_flag = (val >> 5) & 0x1;
-		valid = (val >> 6) & 0x7f;
+		boot_ctrl->mute_flag = (val >> 6) & 0x1;
 
 		val = lcd_vcbus_read(L_STH1_HE_ADDR);
 		boot_ctrl->frame_rate = val & 0x1fff;

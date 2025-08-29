@@ -259,6 +259,7 @@ int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv)
 			"\tadvanced_flag   : %d\n"
 			"\tcustom_pinmux   : %d\n"
 			"\tdccd_flag       : %d\n"
+			"\tmute_flag       : %d\n"
 			"\tppc             : %d\n"
 			"\tclk_mode        : %d\n"
 			"\tframe_rate      : %d\n"
@@ -270,6 +271,7 @@ int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv)
 			boot_ctrl->advanced_flag,
 			boot_ctrl->custom_pinmux,
 			boot_ctrl->dccd_flag,
+			boot_ctrl->mute_flag,
 			boot_ctrl->ppc,
 			boot_ctrl->clk_mode,
 			boot_ctrl->frame_rate,

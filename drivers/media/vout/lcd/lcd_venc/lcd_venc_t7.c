@@ -651,6 +651,13 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 		val = lcd_vcbus_read(L_STH1_VE_ADDR_T7 + offset);
 		boot_ctrl->advanced_flag = val & 0xff;
 
+		if (boot_ctrl->mute_flag) {
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+			set_output_mute(true);
+			pdrv->mute_flag = 1;
+#endif
+		}
+
 		init_state |= 0x2;
 	}
 
