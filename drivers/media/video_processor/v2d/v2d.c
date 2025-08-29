@@ -43,8 +43,7 @@
 #define BUFFER_720_HEIGHT    720
 
 static u32 v2d_instance_num;
-
-static enum composer_dev  v2d_dev_choice;
+static enum composer_dev  v2d_dev_choice = 1;
 static int use_full_axis_scaling = 1;
 static int display_yuv444;
 static int vicp_output_mode = 2; /*1 mif 2. fbc 3. mif + fbc*/
@@ -2579,6 +2578,30 @@ static ssize_t dewarp_print_store(const struct class *cla,
 	return count;
 }
 
+static ssize_t v2d_dev_choice_show(const struct class *cla,
+			       const struct class_attribute *attr,
+			       char *buf)
+{
+	return snprintf(buf, 80,
+		"1 ge2d, 2 dewarp, 3 vicp. current choice is %d.\n", v2d_dev_choice);
+}
+
+static ssize_t v2d_dev_choice_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	v2d_dev_choice = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RW(buffer_height);
 static CLASS_ATTR_RW(buffer_width);
@@ -2587,6 +2610,8 @@ static CLASS_ATTR_RW(enable_v2d_dump);
 static CLASS_ATTR_RW(ge2d_com_debug);
 static CLASS_ATTR_RW(dewarp_com_dump);
 static CLASS_ATTR_RW(dewarp_print);
+static CLASS_ATTR_RW(v2d_dev_choice);
+
 
 static struct attribute *v2d_class_attrs[] = {
 	&class_attr_print_flag.attr,
@@ -2597,6 +2622,7 @@ static struct attribute *v2d_class_attrs[] = {
 	&class_attr_ge2d_com_debug.attr,
 	&class_attr_dewarp_com_dump.attr,
 	&class_attr_dewarp_print.attr,
+	&class_attr_v2d_dev_choice.attr,
 	NULL
 };
 
