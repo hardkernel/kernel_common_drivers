@@ -125,6 +125,7 @@ ddk_module(
                 "phy_meson_usb/socs/phy-meson-s7d-usb.c",
                 "phy_meson_usb/socs/phy-meson-s6-usb.c",
                 "phy_meson_usb/socs/phy-meson-t6d-usb.c",
+                "phy_meson_usb/socs/phy-meson-t6w-usb.c",
             ],
         },
         "CONFIG_AMLOGIC_USB2PHY": {

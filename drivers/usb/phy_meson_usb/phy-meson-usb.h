@@ -118,6 +118,7 @@ extern struct meson_uphy_pdata meson_uphy_s7_pdata;
 extern struct meson_uphy_pdata meson_uphy_s7d_pdata;
 extern struct meson_uphy_pdata meson_uphy_s6_pdata;
 extern struct meson_uphy_pdata meson_uphy_t6d_pdata;
+extern struct meson_uphy_pdata meson_uphy_t6w_pdata;
 extern struct meson_uphy_pdata meson_uphy_s5_aml_pdata;
 extern struct meson_uphy_pdata meson_uphy_s5_m31_pdata;
 
@@ -125,7 +126,11 @@ struct meson_u2phy_priv {
 	int (*set_mode)(struct amlogic_usb_v2 *phy, enum meson_uphy_mode mode);
 	void (*cali)(struct amlogic_usb_v2 *phy);
 	int (*set_pll)(struct amlogic_usb_v2 *phy);
+	int (*enable_clock_src)(struct amlogic_usb_v2 *phy);
+	int (*set_clock_src)(struct amlogic_usb_v2 *phy);
 };
+
+extern bool meson_u2phy_960m;
 
 int meson_u2phy_usb_reset(struct amlogic_usb_v2 *phy);
 int meson_u2phy_usb_hold_reset(struct amlogic_usb_v2 *phy, bool on);
@@ -148,6 +153,7 @@ int meson_u2phy_exit(struct amlogic_usb_v2 *phy);
 int meson_u2phy_power_on(struct amlogic_usb_v2 *phy);
 int meson_u2phy_power_off(struct amlogic_usb_v2 *phy);
 int meson_u2phy_aml_init(struct amlogic_usb_v2 *phy,  struct meson_u2phy_priv *priv);
+int meson_u2phy_aml_2t_init(struct amlogic_usb_v2 *phy, struct meson_u2phy_priv *priv);
 int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instance);
 int meson_synopsis_u3phy_init(struct amlogic_usb_v2 *phy);
 int meson_synopsis_u3phy_exit(struct amlogic_usb_v2 *phy);

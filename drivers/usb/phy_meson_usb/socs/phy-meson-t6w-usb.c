@@ -7,18 +7,18 @@
 #include <linux/clk/clk-conf.h>
 #include <linux/amlogic/cpu_version.h>
 
-static inline bool meson_u2phy_t6d_hsp(struct amlogic_usb_v2 *mphy)
+static inline bool meson_u2phy_t6w_hsp(struct amlogic_usb_v2 *mphy)
 {
 	return mphy->sw_hsp && meson_u2phy_960m;
 }
 
-static int meson_u2phy_t6d_enable_clock_src(struct amlogic_usb_v2 *mhy)
+static int meson_u2phy_t6w_enable_clock_src(struct amlogic_usb_v2 *mhy)
 {
 	int ret = 0, rty = 3;
 
 	dev_dbg(mhy->dev, "enable clock num: %d.", mhy->clk_num);
 
-	if (mhy->clk_mux == 2 || mhy->clk_mux == 3) {
+	if (mhy->clk_mux == 2) {
 		/* clk_soc_u2drd_48m_pre. */
 		if (mhy->clks[2].clk) {
 			ret = clk_set_rate(mhy->clks[2].clk, 48000000);
@@ -43,7 +43,7 @@ static int meson_u2phy_t6d_enable_clock_src(struct amlogic_usb_v2 *mhy)
 	return ret;
 }
 
-static int meson_u2phy_t6d_set_clock_src(struct amlogic_usb_v2 *mphy)
+static int meson_u2phy_t6w_set_clock_src(struct amlogic_usb_v2 *mphy)
 {
 	u32 val;
 	void __iomem *cfg = mphy->phy_cfg[0];
@@ -72,7 +72,7 @@ static int meson_u2phy_t6d_set_clock_src(struct amlogic_usb_v2 *mphy)
 	return 0;
 }
 
-static int meson_u2phy_t6d_set_pll(struct amlogic_usb_v2 *mphy)
+static int meson_u2phy_t6w_set_pll(struct amlogic_usb_v2 *mphy)
 {
 #define USB_PLL_RST	BIT(0)
 #define USB_MPLL_EN_CTRL BIT(1)
@@ -84,6 +84,10 @@ static int meson_u2phy_t6d_set_pll(struct amlogic_usb_v2 *mphy)
 	int plldone_i;
 	u32 val;
 	void __iomem *pll_cfg = phy_reg_base + 0x40;
+
+	val = readl(pll_cfg);
+	val |= BIT(3);
+	writel(val, pll_cfg);
 
 	while (retry--) {
 		/* Assert usb_pll_rst and usb_pll_lk_rst. */
@@ -122,7 +126,7 @@ okay:
 	return 0;
 }
 
-static int meson_u2phy_t6d_cali_disc_squelch
+static int meson_u2phy_t6w_cali_disc_squelch
 			(struct amlogic_usb_v2 *mphy)
 {
 /* usb2_squelch_trim:
@@ -158,7 +162,7 @@ static int meson_u2phy_t6d_cali_disc_squelch
 	return 0;
 }
 
-static int meson_u2phy_t6d_set_misc(struct amlogic_usb_v2 *mphy)
+static int meson_u2phy_t6w_set_misc(struct amlogic_usb_v2 *mphy)
 {
 #define USB2_SEL_STRENGTH ((u32)GENMASK(30, 29))
 #define USB2_SEL_STRENGTH_VAL(x) ((0x3 & (x)) << 29)
@@ -181,67 +185,68 @@ static int meson_u2phy_t6d_set_misc(struct amlogic_usb_v2 *mphy)
 	} else if (mphy->portspeed == MESON_USB_SPEED_HIGH) {
 		/* edgedrv cali for signal quality. */
 		val = readl(cfg + 0x50);
-		val = (val & ~ORW_USB2_EDGEDRV_TRIM) | ORW_USB2_EDGEDRV_TRIM_VAL(0x1) |
+		val = (val & ~ORW_USB2_EDGEDRV_TRIM) | ORW_USB2_EDGEDRV_TRIM_VAL(0x0) |
 				ORW_USB2_EDGEDRV_EN;
 		writel(val, cfg + 0x50);
+		writel(0x4, cfg + 0x4);
 	}
 
 	return 0;
 }
 
-static void meson_u2phy_t6d_cali(struct amlogic_usb_v2 *mphy)
+static void meson_u2phy_t6w_cali(struct amlogic_usb_v2 *mphy)
 {
 	meson_usb2phy_set_calibration_trim(mphy);
-	meson_u2phy_t6d_cali_disc_squelch(mphy);
-	meson_u2phy_t6d_set_misc(mphy);
+	meson_u2phy_t6w_cali_disc_squelch(mphy);
+	meson_u2phy_t6w_set_misc(mphy);
 }
 
-static struct meson_u2phy_priv meson_u2phy_t6d_priv = {
+static struct meson_u2phy_priv meson_u2phy_t6w_priv = {
 	.set_mode = meson_u2phy_set_mode,
-	.cali = meson_u2phy_t6d_cali,
-	.set_pll = meson_u2phy_t6d_set_pll,
-	.enable_clock_src = meson_u2phy_t6d_enable_clock_src,
-	.set_clock_src = meson_u2phy_t6d_set_clock_src,
+	.cali = meson_u2phy_t6w_cali,
+	.set_pll = meson_u2phy_t6w_set_pll,
+	.enable_clock_src = meson_u2phy_t6w_enable_clock_src,
+	.set_clock_src = meson_u2phy_t6w_set_clock_src,
 };
 
-static int meson_u2phy_t6d_set_mode(void *phy, enum meson_uphy_mode mode)
+static int meson_u2phy_t6w_set_mode(void *phy, enum meson_uphy_mode mode)
 {
-	return meson_u2phy_t6d_priv.set_mode((struct amlogic_usb_v2 *)phy, mode);
+	return meson_u2phy_t6w_priv.set_mode((struct amlogic_usb_v2 *)phy, mode);
 }
 
-static int meson_u2phy_t6d_init(void *phy)
+static int meson_u2phy_t6w_init(void *phy)
 {
-	return meson_u2phy_aml_2t_init((struct amlogic_usb_v2 *)phy, &meson_u2phy_t6d_priv);
+	return meson_u2phy_aml_2t_init((struct amlogic_usb_v2 *)phy, &meson_u2phy_t6w_priv);
 }
 
-static int meson_u2phy_t6d_exit(void *phy)
+static int meson_u2phy_t6w_exit(void *phy)
 {
 	return meson_u2phy_exit((struct amlogic_usb_v2 *)phy);
 }
 
-static int meson_u2phy_t6d_power_on(void *phy)
+static int meson_u2phy_t6w_power_on(void *phy)
 {
 	return meson_u2phy_power_on((struct amlogic_usb_v2 *)phy);
 }
 
-static int meson_u2phy_t6d_power_off(void *phy)
+static int meson_u2phy_t6w_power_off(void *phy)
 {
 	return meson_u2phy_power_off((struct amlogic_usb_v2 *)phy);
 }
 
-static struct meson_uphy_ops meson_u2phy_t6d_ops = {
-	.init = meson_u2phy_t6d_init,
-	.exit = meson_u2phy_t6d_exit,
-	.power_on = meson_u2phy_t6d_power_on,
-	.power_off = meson_u2phy_t6d_power_off,
-	.set_mode = meson_u2phy_t6d_set_mode,
+static struct meson_uphy_ops meson_u2phy_t6w_ops = {
+	.init = meson_u2phy_t6w_init,
+	.exit = meson_u2phy_t6w_exit,
+	.power_on = meson_u2phy_t6w_power_on,
+	.power_off = meson_u2phy_t6w_power_off,
+	.set_mode = meson_u2phy_t6w_set_mode,
 };
 
-int meson_aml_u2phy_t6d_init_clks(struct amlogic_usb_v2 *mphy)
+int meson_aml_u2phy_t6w_init_clks(struct amlogic_usb_v2 *mphy)
 {
 	int ret = 0;
 
-	if  (meson_u2phy_t6d_hsp(mphy)) {
+	if  (meson_u2phy_t6w_hsp(mphy)) {
 		mphy->portspeed = MESON_USB_SPEED_HIGH_PLUS;
 		mphy->clk_mux = 0;
 		dev_info(mphy->dev, "usb2t_mode %d forces portspeed to %d.",
@@ -264,7 +269,7 @@ int meson_aml_u2phy_t6d_init_clks(struct amlogic_usb_v2 *mphy)
 		dev_info(mphy->dev, "clk-mux=0 in HSP mode, default to %d.", mphy->clk_mux);
 	}
 
-	dev_dbg(mphy->dev, "USB2 phy speed: %d, clk mux: %d.\n", mphy->portspeed, mphy->clk_mux);
+	dev_info(mphy->dev, "USB2 phy speed: %d, clk mux: %d.\n", mphy->portspeed, mphy->clk_mux);
 
 	switch (mphy->clk_mux) {
 	/* Normal HS mode. */
@@ -282,7 +287,7 @@ int meson_aml_u2phy_t6d_init_clks(struct amlogic_usb_v2 *mphy)
 		break;
 	/* 48M soc analog clk src. */
 	case 3:
-		mphy->clk_num = 3;
+		mphy->clk_num = 2;
 		break;
 	}
 
@@ -293,7 +298,7 @@ int meson_aml_u2phy_t6d_init_clks(struct amlogic_usb_v2 *mphy)
 	return ret;
 }
 
-int meson_aml_u2phy_t6d_parse(struct device *dev, struct meson_uphy_instance *instance)
+int meson_aml_u2phy_t6w_parse(struct device *dev, struct meson_uphy_instance *instance)
 {
 	int ret;
 	struct amlogic_usb_v2 *mphy;
@@ -308,15 +313,15 @@ int meson_aml_u2phy_t6d_parse(struct device *dev, struct meson_uphy_instance *in
 	if (!mphy)
 		return -ENODEV;
 
-	ret = meson_aml_u2phy_t6d_init_clks(mphy);
+	ret = meson_aml_u2phy_t6w_init_clks(mphy);
 
 	return ret;
 }
 
-struct meson_uphy_pdata meson_uphy_t6d_pdata = {
-	.u2phy_ops = &meson_u2phy_t6d_ops,
+struct meson_uphy_pdata meson_uphy_t6w_pdata = {
+	.u2phy_ops = &meson_u2phy_t6w_ops,
 	.u3phy_ops = NULL,
-	.u2phy_parse = meson_aml_u2phy_t6d_parse,
+	.u2phy_parse = meson_aml_u2phy_t6w_parse,
 	.u3phy_parse = NULL,
 	.otg_parse = meson_u2phy_crg_otg_parse,
 	.otg_remove = meson_u2phy_crg_otg_remove,

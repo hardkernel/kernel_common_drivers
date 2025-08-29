@@ -4,8 +4,25 @@
  */
 
 #include "phy-meson-usb.h"
+#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/gki_module.h>
 
 /* Meson aml usb2 phy. */
+
+bool meson_u2phy_960m;
+
+static int meson_u2phy_get_speed(char *str)
+{
+	int ret;
+
+	ret = kstrtobool(str, &meson_u2phy_960m);
+	if (ret)
+		return ret;
+
+	return 1;
+}
+
+__setup("usb2t_mode=", meson_u2phy_get_speed);
 
 /* Reset usb controller. */
 int meson_u2phy_usb_reset(struct amlogic_usb_v2 *phy)
@@ -621,7 +638,7 @@ int meson_u2phy_set_mode(struct amlogic_usb_v2 *phy, enum meson_uphy_mode mode)
 	return ret;
 }
 
-int meson_u2phy_aml_init(struct amlogic_usb_v2 *phy,  struct meson_u2phy_priv *priv)
+int meson_u2phy_aml_init(struct amlogic_usb_v2 *phy, struct meson_u2phy_priv *priv)
 {
 	int ret;
 
@@ -681,6 +698,59 @@ int meson_u2phy_aml_init(struct amlogic_usb_v2 *phy,  struct meson_u2phy_priv *p
 	return ret;
 }
 
+int meson_u2phy_aml_2t_init(struct amlogic_usb_v2 *phy, struct meson_u2phy_priv *priv)
+{
+	int ret;
+
+	if (!phy->suspend_flag) {
+		dev_err(phy->dev, "%s excessive init\n", __func__);
+		return 0;
+	}
+
+	ret = priv->enable_clock_src(phy);
+	if (ret)
+		return ret;
+
+	meson_u2phy_hold_reset(phy, false);
+	usleep_range(49, 50);
+	ret = meson_u2phy_reg_hold_reset(phy, true);
+	usleep_range(49, 50);
+	meson_u2phy_reg_reset(phy);
+	usleep_range(49, 50);
+
+	dev_dbg(phy->dev, "init r0~r2 0x%x 0x%x 0x%x.\n",
+			readl(&phy->u2p_aml_regs[0]->r0),
+			readl(&phy->u2p_aml_regs[0]->r1),
+			readl(&phy->u2p_aml_regs[0]->r2));
+
+	if (phy->suspend_flag && phy->current_mode != 0)
+		priv->set_mode(phy, phy->current_mode);
+
+	priv->set_clock_src(phy);
+	priv->cali(phy);
+
+	meson_u2phy_hold_reset(phy, true);
+	usleep_range(49, 50);
+
+	ret = meson_usb2phy_wait_ready(phy, 200);
+	if (ret)
+		dev_err(phy->dev, " wait for ready timeout.\n");
+
+	ret = priv->set_pll(phy);
+	if (ret)
+		return ret;
+
+	dev_dbg(phy->dev, "end r0~r2 0x%x 0x%x 0x%x.\n",
+			readl(&phy->u2p_aml_regs[0]->r0),
+			readl(&phy->u2p_aml_regs[0]->r1),
+			readl(&phy->u2p_aml_regs[0]->r2));
+
+	if (phy->suspend_flag)
+		phy->suspend_flag = 0;
+
+	return ret;
+}
+
 /* Of node parsing common codes. */
 int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instance)
 {
@@ -695,7 +765,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 
 	aml_u2phy->phy_id = instance->index;
 	aml_u2phy->dev = dev;
-	dev_info(dev, "phy_id %d.\n", aml_u2phy->phy_id);
+	dev_dbg(dev, "phy_id %d.\n", aml_u2phy->phy_id);
 	instance->meson_uphy = aml_u2phy;
 	get_device(dev);
 
@@ -870,6 +940,8 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	ret = of_property_read_u32(dev->of_node, "clk-mux", &aml_u2phy->clk_mux);
 
 	aml_u2phy->sw_hsp = of_property_read_bool(dev->of_node, "sw-hsp");
+
+	aml_u2phy->ic_ver = get_cpu_type();
 
 	ret = 0;
 
