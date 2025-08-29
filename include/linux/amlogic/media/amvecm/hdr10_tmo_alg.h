@@ -43,6 +43,7 @@
 struct aml_hdr_prm_s {
 	u32 hdr_ogain_lut[149];
 	u32 hdr_cgain_lut[65];
+	u32 hdr_ogain_lut1[149];
 };
 
 struct aml_special_pattern_s {
@@ -141,6 +142,8 @@ struct aml_tmo_reg_sw {
 	int tmo_full_white_th1;                 //u10
 	int tmo_special_pat1_th;                //u10
 	int tmo_special_pat2_th;                //u10
+	int *tmo_force_ootf1_mode;
+	int *tmo_force_ootf1_val;
 
 	unsigned int *tmo_eo_lut;
 	int *tmo_oo_init_lut;                   //u10

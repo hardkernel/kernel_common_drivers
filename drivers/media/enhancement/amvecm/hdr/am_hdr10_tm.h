@@ -34,6 +34,7 @@
 extern unsigned int hdr10_tm_dbg;
 extern unsigned int hdr10_tm_sel;
 extern unsigned int panell;
+extern unsigned int tmo_force_ootf1_mode;
 
 int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p);
 #endif

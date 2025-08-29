@@ -817,6 +817,23 @@ static int cuva_oo_y_lut_hlg_sdr[HDR2_OOTF_LUT_SIZE] = {
 	73, 71, 68, 66, 64
 };
 
+int oo_y_lut1[HDR2_OOTF_LUT_SIZE] = {
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+	1024, 1024, 1024, 1024, 1024, 1024
+};
+
 unsigned int hdr10_pr;
 unsigned int hdr10_clip_disable = 1;
 unsigned int hdr10_clip_luma;
@@ -3166,7 +3183,12 @@ void set_ootf_lut_1(enum hdr_module_sel module_sel,
 	}
 
 	for (i = 0; i < HDR2_OOTF_LUT_SIZE; i++) {
-		lut[i] = hdr_lut_param->ogain_lut[i];
+		if (hdr_top_ctrl_mode == 7) {
+			lut[i] = oo_y_lut_hdr_sdr_tool[i];
+		} else {
+			lut[i] = hdr_lut_param->ogain_lut[i];
+			oo_y_lut_hdr_sdr_tool[i] =  hdr_lut_param->ogain_lut[i];
+		}
 		lut1[i] = lut1_param->ogain_lut1[i];
 	}
 
@@ -5703,6 +5725,8 @@ int hdr10_tm_update(enum hdr_module_sel module_sel,
 	if (hdr_process_select & HDR_SDR) {
 		for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
 			hdr_lut_param.ogain_lut[i] = oo_y_lut_hdr_sdr[i];
+			if (tmo_force_ootf1_mode)
+				hdr_lut1_param.ogain_lut1[i] = oo_y_lut1[i];
 			if (i < HDR2_CGAIN_LUT_SIZE)
 				hdr_lut_param.cgain_lut[i] = cgain_lut_hdr_sdr[i];
 		}
@@ -5736,7 +5760,11 @@ int hdr10_tm_update(enum hdr_module_sel module_sel,
 	} else
 #endif
 	{
-		set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
+		if (chip_type_id >= chip_t6d && tmo_force_ootf1_mode)
+			set_ootf_lut_1(module_sel, &hdr_lut_param, &hdr_lut1_param,
+				vpp_index);
+		else
+			set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
 	}
 	return 0;
 }

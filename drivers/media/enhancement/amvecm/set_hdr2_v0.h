@@ -100,6 +100,7 @@ extern struct hdr_proc_lut_param_s hdr_lut_param;
 extern int oo_y_lut_hdr_sdr_def[HDR2_OOTF_LUT_SIZE];
 extern int oo_y_lut_hdr_sdr[HDR2_OOTF_LUT_SIZE];
 extern int oo_y_lut_hlg_sdr[HDR2_OOTF_LUT_SIZE];
+extern int oo_y_lut1[HDR2_OOTF_LUT_SIZE];
 extern int cgain_lut_bypass[HDR2_CGAIN_LUT_SIZE];
 extern int cgain_lut_hdr_sdr[HDR2_CGAIN_LUT_SIZE];
 extern unsigned int hdr10_pr;
@@ -202,11 +203,16 @@ struct VPU_LUT_DMA_t {
 	u32 chan_swap_64bit[16];
 };
 
+extern unsigned int tmo_force_ootf1_mode;
+
 struct hdr_lut1_param_s {
 	s32 ogain_lut1[HDR2_OOTF_LUT_SIZE];
 	unsigned int reg_adpscl1_mode; //2bits, 0:r+g+b linear, 1:max(rgb) linear, 2:nolinear input
 	unsigned int reg_ogain_blend;  //1bits, 0:ootf1, 1:ootf1 blend ootf2
 	unsigned int reg_adpscl1_sft;  //4bits
+	unsigned int reg_rgb_gm_mode;
+	unsigned int reg_rgb_gm_en;
+	unsigned int reg_bypass_ootf2_gain;
 };
 
 enum GMT_COMP_SEL_e {

@@ -11,7 +11,7 @@
 
 extern int pr_tmo_en;
 
-void hdr10_tmo_gen(u32 *oo_gain, u32 *cgain);
+void hdr10_tmo_gen(u32 *oo_gain, u32 *cgain, u32 *oo_gain1);
 int hdr10_tmo_dbg(char **param);
 void hdr10_tmo_parm_show(void);
 void hdr10_tmo_reg_set(struct hdr_tmo_sw *pre_tmo_reg);

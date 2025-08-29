@@ -21,6 +21,14 @@
 
 int pr_tmo_en;
 
+unsigned int tmo_force_ootf1_mode;/*0:off  1:force_ootf1_val, 2:force_ootf_lut1*/
+module_param(tmo_force_ootf1_mode, uint, 0664);
+MODULE_PARM_DESC(tmo_force_ootf1_mode, "\n force ootf mode\n");
+
+unsigned int tmo_force_ootf1_val;
+module_param(tmo_force_ootf1_val, uint, 0664);
+MODULE_PARM_DESC(tmo_force_ootf1_val, "\n force ootf val\n");
+
 #define pr_tmo_dbg(fmt, args...)\
 	do {\
 		if (pr_tmo_en)\
@@ -167,7 +175,8 @@ struct aml_tmo_reg_sw tmo_reg = {
 	.tmo_full_white_th1 = 950,
 	.tmo_special_pat1_th = 80,
 	.tmo_special_pat2_th = 600,
-
+	.tmo_force_ootf1_mode = &tmo_force_ootf1_mode,
+	.tmo_force_ootf1_val = &tmo_force_ootf1_val,
 	/*param for alg func*/
 	.w = 3840,
 	.h = 2160,
@@ -1047,7 +1056,7 @@ struct aml_tmo_reg_sw *tmo_fw_param_get(void)
 };
 EXPORT_SYMBOL(tmo_fw_param_get);
 
-void hdr10_tmo_gen(u32 *oo_gain, u32 *cgain)
+void hdr10_tmo_gen(u32 *oo_gain, u32 *cgain, u32 *oo_gain1)
 {
 	struct aml_tmo_reg_sw *pre_tmo_reg;
 	struct vpp_hist_param_s *p = get_vpp_hist();
@@ -1069,6 +1078,8 @@ void hdr10_tmo_gen(u32 *oo_gain, u32 *cgain)
 
 	memcpy(oo_gain, hdr_luts.hdr_ogain_lut, sizeof(int) * 149);
 	memcpy(cgain, hdr_luts.hdr_cgain_lut, sizeof(int) * 65);
+	if (tmo_force_ootf1_mode)
+		memcpy(oo_gain1, hdr_luts.hdr_ogain_lut1, sizeof(int) * 149);
 }
 
 void hdr10_tmo_parm_show(void)
