@@ -949,7 +949,9 @@ static int lowlatency_vsync(u8 instance_id)
 		dvel_swap_frame(cur_dispbuf2);
 #endif
 	}
-	if (vd_layer[0].switch_vd2_vf)
+	if (vd_layer[0].switch_vd2_vf &&
+		vd_layer[0].global_output &&
+		vd_layer[0].disable_video != VIDEO_DISABLE_NORMAL)
 		new_frame = video_lcevc.enhance_vf;
 
 #if defined(CONFIG_AMLOGIC_MEDIA_FRC)

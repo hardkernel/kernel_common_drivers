@@ -4377,6 +4377,7 @@ static void do_vd1_swap_frame(u8 layer_id,
 	new_frame = vdx_swap_frame(0, vd1_path_id,
 				  cur_vd1_path_id,
 				  path_new_frame);
+
 	/* setting video display property in underflow mode */
 	if (!new_frame &&
 		vd_layer[0].dispbuf &&
@@ -4413,7 +4414,9 @@ static void do_vd1_swap_frame(u8 layer_id,
 		dvel_swap_frame(cur_dispbuf2);
 #endif
 	}
-	if (vd_layer[0].switch_vd2_vf)
+	if (vd_layer[0].switch_vd2_vf &&
+		vd_layer[0].global_output &&
+		vd_layer[0].disable_video != VIDEO_DISABLE_NORMAL)
 		new_frame = video_lcevc.enhance_vf;
 
 	/* TODO: need check more vd layer, now only vd1 */
