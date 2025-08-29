@@ -161,7 +161,7 @@ struct ldim_max_s {
 #define DV_META_NORMAL_PKT_SIZE		121
 
 #define VDIN_INPUT_DATA_THRESHOLD	16
-#define VDIN_INPUT_MAX_FPS		4000 //max_fps < 240HZ (us)
+#define VDIN_INPUT_MAX_FPS		2000 //max_fps < 240HZ (us)
 #define VDIN_INPUT_ABNORMAL_SIZE_THRESHOLD		100
 
 struct dv_meta_pkt {
