@@ -131,7 +131,8 @@ struct aml_vrr_drv_s *vrr_drv_get(int index)
 static int vrr_config_load(struct aml_vrr_drv_s *vdrv, struct platform_device *pdev)
 {
 	unsigned int temp;
-	struct resource *res;
+	//struct resource *res;
+	static int res;
 	int ret;
 
 	ret = of_property_read_u32(pdev->dev.of_node, "line_delay", &temp);
@@ -146,12 +147,12 @@ static int vrr_config_load(struct aml_vrr_drv_s *vdrv, struct platform_device *p
 	      vdrv->index, __func__, vdrv->line_dly);
 
 	spin_lock_init(&vdrv->vrr_isr_lock);
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
+	res = platform_get_irq_byname(pdev, "vsync");
 	if (res) {
 		vdrv->state |= VRR_STATE_VS_IRQ;
-		vdrv->vsync_irq = res->start;
+		//vdrv->vsync_irq = res->start;
 		sprintf(vdrv->vs_isr_name, "vrr%d_vsync", vdrv->index);
-		if (request_irq(vdrv->vsync_irq, vrr_vsync_isr_handler, IRQF_SHARED,
+		if (request_irq(res, vrr_vsync_isr_handler, IRQF_SHARED,
 				vdrv->vs_isr_name, (void *)vdrv)) {
 			VRRERR("[%d]: %s: can't request %s\n",
 				vdrv->index, __func__, vdrv->vs_isr_name);
