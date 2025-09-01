@@ -52,7 +52,7 @@ static int dptx_drm_add_modes(struct meson_panel_dev *dptx_drm_dev,
 		raw_timing = &DPTX_SafeMode_640x480_timing;
 	} else {
 		vmd_p = &dptx->vmode_mgr.vmodes[vmd_idx];
-		raw_timing = &dptx->sink.exp_edid.dtd_timing[vmd_p->base_dtd_idx];
+		raw_timing = &dptx->sink.timing[vmd_p->base_dtd_idx];
 	}
 
 	pmode->type        = DRM_MODE_TYPE_DRIVER;

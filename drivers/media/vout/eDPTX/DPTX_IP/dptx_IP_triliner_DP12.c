@@ -601,6 +601,40 @@ void dptx_PSR1_ctrl_set(struct dptx_drv_s *dptx, u8 port, u8 flag)
 	__dptx_reg_write(dptx, port, EDP_TX_PANEL_SELF_REFRESH, flag ? 0x01 : 0x00);
 }
 
+//only 16bit on T7
+static void dptx_reg_store_data(struct dptx_drv_s *dptx, uint8_t port, uint32_t d0, uint32_t d1)
+{
+	__dptx_reg_write(dptx, port, EDP_TX_PHY_POST_EMPHASIS_LANE_0, d0 & 0xf);
+	__dptx_reg_write(dptx, port, EDP_TX_PHY_POST_EMPHASIS_LANE_1, (d0 >> 4) & 0xf);
+	__dptx_reg_write(dptx, port, EDP_TX_PHY_POST_EMPHASIS_LANE_2, (d0 >> 8) & 0xf);
+	__dptx_reg_write(dptx, port, EDP_TX_PHY_POST_EMPHASIS_LANE_3, (d0 >> 12) & 0xf);
+}
+
+static void dptx_reg_get_data(struct dptx_drv_s *dptx, uint8_t port, uint32_t *d0, uint32_t *d1)
+{
+	if (d0) {
+		*d0 = 0;
+		*d0 |= __dptx_reg_read(dptx, port, EDP_TX_PHY_POST_EMPHASIS_LANE_0) & 0xf;
+		*d0 |= (__dptx_reg_read(dptx, port, EDP_TX_PHY_POST_EMPHASIS_LANE_1) & 0xf) << 4;
+		*d0 |= (__dptx_reg_read(dptx, port, EDP_TX_PHY_POST_EMPHASIS_LANE_2) & 0xf) << 8;
+		*d0 |= (__dptx_reg_read(dptx, port, EDP_TX_PHY_POST_EMPHASIS_LANE_3) & 0xf) << 12;
+	}
+	if (d1)
+		*d1 = 0;
+}
+
+static void dptx_reg_get_link(struct dptx_drv_s *dptx, uint8_t port, uint32_t *link, uint8_t *lane)
+{
+	if (link) {
+		*link = 0;
+		*link |= __dptx_reg_read(dptx, port, EDP_TX_LINK_BW_SET);
+	}
+	if (lane) {
+		*lane = 0;
+		*lane |= __dptx_reg_read(dptx, port, EDP_TX_LINK_COUNT_SET);
+	}
+}
+
 struct dptx_if_ctrl_s dptx_if_t7 = {
 	.aux_write = _aux_write,
 	.aux_write_single = _aux_write_single,
@@ -626,6 +660,11 @@ struct dptx_if_ctrl_s dptx_if_t7 = {
 
 	.PSR1_SDP_ctrl = dptx_PSR1_ctrl_set,
 	.PSR2_SDP_ctrl = NULL,
+
+	.reg_store = dptx_reg_store_data,
+	.reg_store_get = dptx_reg_get_data,
+
+	.reg_link_get = dptx_reg_get_link,
 };
 
 struct dptx_if_ctrl_s *dptx_if_bind_t7(struct dptx_drv_s *dptx)

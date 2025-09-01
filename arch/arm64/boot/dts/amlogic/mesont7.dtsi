@@ -2850,17 +2850,6 @@
 		edptx_vcc-gpio-name = "GPIOY_0";
 		/* edptx-gpio-OD     = <&gpio GPIOY_0 GPIO_ACTIVE_HIGH>; */
 		/* edptx-gpio-OD-name = "GPIOY_0"; */
-		assigned-link-rate = <0>;
-		assigned-lane-count = <0>;
-		assigned-port-count = <0>;
-		assigned-vmode = <0>;
-		assigned-disable-PSR = <0>;
-		use-aux-backlight = <1>;
-
-		assigned-preset-timing = <0>;
-		timing-0 = <2200 1920 48 148 1250 1080 5 30 60>; /*timing with dft fr*/
-		timing-0-fr = <60 70 80 100 120>; /* timing with frxed fr */
-		timing-0-range = <48 144>; /* timing with frxed fr */
 
 		drive-strength-lut =
 			<0x3 0x3 0x0>,<0x3 0x7 0x0>,<0x3 0xb 0x0>,<0x3 0xf 0x0>,
@@ -2901,19 +2890,8 @@
 		HPD-ignore = <0>;
 		edptx_vcc-gpio      = <&gpio GPIOY_14 GPIO_ACTIVE_HIGH>;
 		edptx_vcc-gpio-name = "GPIOY_14";
-		/* edptx-gpio-OD     = <&gpio GPIOY_0 GPIO_ACTIVE_HIGH>; */
-		/* edptx-gpio-OD-name = "GPIOY_0"; */
-		assigned-link-rate = <0>;
-		assigned-lane-count = <0>;
-		assigned-port-count = <0>;
-		assigned-vmode = <0>;
-		assigned-disable-PSR = <0>;
-		use-aux-backlight = <1>;
-
-		/*assigned-preset-timing = <0>;*/
-		/*timing-0 = <2200 1920 48 148 1250 1080 5 30 60>; // timing with dft fr*/
-		/*timing-0-fr = <60 70 80 100 120>; // timing with frxed fr*/
-		/*timing-0-range = <48 144>; // timing with frxed fr*/
+		edptx-gpio-OD     = <&gpio GPIOY_7 GPIO_ACTIVE_HIGH>;
+		edptx-gpio-OD-name = "GPIOY_7";
 
 		drive-strength-lut =
 			<0x3 0x3 0x0>,<0x3 0x7 0x0>,<0x3 0xb 0x0>,<0x3 0xf 0x0>,

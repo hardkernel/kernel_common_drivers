@@ -132,6 +132,10 @@ void dptx_if_path_reset(struct dptx_drv_s *dptx, u8 port, u8 mask);
 void dptx_if_set_lane_cfg(struct dptx_drv_s *dptx, u8 port);
 void dptx_if_set_phy_cfg(struct dptx_drv_s *dptx, u8 port, u8 lane_mask);
 void dptx_if_transmitter_init(struct dptx_drv_s *dptx, u8 port);
+
+#define DPTX_IP_TRANSMITTER_OUTPUT_OFF              0
+#define DPTX_IP_TRANSMITTER_OUTPUT_MAIN_STREAM_OFF  1
+#define DPTX_IP_TRANSMITTER_OUTPUT_ON               2
 void dptx_if_transmitter_output(struct dptx_drv_s *dptx, u8 port, u8 en);
 u8 dptx_if_get_hpd_level(struct dptx_drv_s *dptx, u8 port);
 u16 dptx_if_get_hpd_irq(struct dptx_drv_s *dptx, u8 port);
@@ -148,6 +152,9 @@ void dptx_if_set_hpd_interrupt_mask(struct dptx_drv_s *dptx, u8 port, u8 mask);
 void dptx_if_scramble_reset_set(struct dptx_drv_s *dptx, u8 port, u8 sr_type);
 void dptx_if_PSR1_ctrl(struct dptx_drv_s *dptx, u8 port, u8 flag);
 void dptx_if_PSR2_ctrl(struct dptx_drv_s *dptx, u8 port, u8 flag);
+void dptx_if_reg_store(struct dptx_drv_s *dptx, uint8_t port, uint32_t d0, uint32_t d1);
+void dptx_if_reg_store_get(struct dptx_drv_s *dptx, uint8_t port, uint32_t *d0, uint32_t *d1);
+void dptx_if_link_get(struct dptx_drv_s *dptx, uint8_t port, uint32_t *link_rate, uint8_t *lane);
 
 void dptx_if_IP_probe(struct dptx_drv_s *dptx);
 /* IP-interface END */

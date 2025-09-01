@@ -41,8 +41,8 @@ void dptx_act_timing_to_vinfo(struct dptx_drv_s *dptx)
 	dptx->vinfo.field_height        = dptx->act_timing.v_act;
 	dptx->vinfo.aspect_ratio_num    = dptx->act_timing.h_size;
 	dptx->vinfo.aspect_ratio_den    = dptx->act_timing.v_size;
-	dptx->vinfo.screen_real_width   = dptx->sink.exp_edid.display_size[0];
-	dptx->vinfo.screen_real_height  = dptx->sink.exp_edid.display_size[1];
+	dptx->vinfo.screen_real_width   = dptx->sink.edid.display_size[0];
+	dptx->vinfo.screen_real_height  = dptx->sink.edid.display_size[1];
 	dptx->vinfo.sync_duration_num   = dptx->act_timing.sync_duration_num;
 	dptx->vinfo.sync_duration_den   = dptx->act_timing.sync_duration_den;
 	//dptx->vinfo.brr_duration = dptx->act_timings.frame_rate;
@@ -87,9 +87,15 @@ void dptx_HPD_trigger_set(struct dptx_drv_s *dptx, u8 en)
 	}
 }
 
+static void dptx_config_timing_probe(struct dptx_drv_s *dptx)
+{
+	DPTX_DBG(dptx, "%s ok", __func__);
+}
+
 int dptx_timing_config_restore(struct dptx_drv_s *dptx)
 {
 	u8 port;
+	int ret = 0;
 	struct dptx_vmode_s *vmd_p;
 
 	if (dptx->status & DPTX_STA_HPD_HIGH) {
@@ -105,16 +111,23 @@ int dptx_timing_config_restore(struct dptx_drv_s *dptx)
 		}
 	}
 
-	if (dptx->status & DPTX_STA_HPD_HIGH) {
-		if (!__dptx_EDID_probe(dptx, 1)) {
-			dptx_vmode_manage(dptx);
-			dptx->vmode_mgr.vmode_sel_idx = dptx_uboot_configs[dptx->idx].vmode_sel_idx;
-			vmd_p = &dptx->vmode_mgr.vmodes[dptx->vmode_mgr.vmode_sel_idx];
-			dptx_vmode_apply_to_act_timing(dptx, vmd_p);
-		}
-		// todo: edid not same
-		DPTXPR(dptx->idx, LOG_E, "no");
+	if (dptx->sink.dt_cnt) {
+		dptx_config_timing_probe(dptx);
+	} else {
+		ret = __dptx_EDID_probe(dptx, 0);
+		if (ret)
+			vmd_p = &DPTX_SafeMode_640x480_vmode;
 	}
+
+	dptx_vmode_manage(dptx);
+	if (ret) {
+		vmd_p = &DPTX_SafeMode_640x480_vmode;
+	} else {
+		dptx->vmode_mgr.vmode_sel_idx = dptx_uboot_configs[dptx->idx].vmode_sel_idx;
+		vmd_p = &dptx->vmode_mgr.vmodes[dptx->vmode_mgr.vmode_sel_idx];
+	}
+	dptx_vmode_apply_to_act_timing(dptx, vmd_p);
+	// todo: edid not same
 
 	dptx_act_timing_to_vinfo(dptx);
 
@@ -209,6 +222,9 @@ void dptx_drv_start(struct dptx_drv_s *dptx)
 {
 	struct dptx_vmode_s *dp_vmode = NULL;
 	u8 port;
+	int ret;
+
+	DPTX_PR(dptx, "driver start(ver %s)", DPTX_DRV_VERSION);
 
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY | DPTX_STA_HPD_HIGH))) {
 		DPTX_ERR(dptx, "sta=0x%x, not ready for %s", dptx->status, __func__);
@@ -247,25 +263,27 @@ void dptx_drv_start(struct dptx_drv_s *dptx)
 
 	__dptx_link_training(dptx);
 
-	if (1) { // use EDID case
-		if (!__dptx_EDID_probe(dptx, 0)) {
-			dptx_vmode_manage(dptx);
-			if (dptx->setting.user_vmode_sel)
-				dp_vmode = dptx_get_vmode(dptx, dptx->setting.user_vmode_sel);
-			if (!dp_vmode)
-				dp_vmode = dptx_get_optimum_vmode(dptx);
-			//if (dptx->drm_hpd_cb.callback)
-			//	dptx->drm_hpd_cb.callback(dptx->drm_hpd_cb.data);
-		}
-		if (!dp_vmode) {
+	if (dptx->sink.dt_cnt) {
+		dptx_config_timing_probe(dptx);
+	} else {
+		ret = __dptx_EDID_probe(dptx, 0);
+		if (ret)
 			dp_vmode = &DPTX_SafeMode_640x480_vmode;
-			DPTX_ERR(dptx, "no vmode to satisfy BW, to safemode 480P");
-		}
-		dptx_vmode_apply_to_act_timing(dptx, dp_vmode);
-		dptx_act_timing_apply(dptx);
-	} else { // use preset panel_config
-		//TODO
 	}
+
+	dptx_vmode_manage(dptx);
+	if (dptx->setting.user_vmode_sel)
+		dp_vmode = dptx_get_vmode(dptx, dptx->setting.user_vmode_sel);
+	if (!dp_vmode)
+		dp_vmode = dptx_get_optimum_vmode(dptx);
+	//if (dptx->drm_hpd_cb.callback)
+	//	dptx->drm_hpd_cb.callback(dptx->drm_hpd_cb.data);
+	if (!dp_vmode) {
+		dp_vmode = &DPTX_SafeMode_640x480_vmode;
+		DPTX_ERR(dptx, "no vmode to satisfy BW, to safemode 480P");
+	}
+	dptx_vmode_apply_to_act_timing(dptx, dp_vmode);
+	dptx_act_timing_apply(dptx);
 
 	for (port = 0; port < 4; port++) {
 		if (!dptx->sink.link[port])
@@ -301,6 +319,16 @@ void dptx_drv_disp_on(struct dptx_drv_s *dptx)
 	//else
 	//	run_command("gpio set GPIOY_8", 0);
 
+	if (IS_ERR_OR_NULL(dptx->bl_gpio))
+		dptx->bl_gpio = devm_gpiod_get(dptx->dev, "edptx_bl", GPIOD_OUT_HIGH);
+	if (IS_ERR_OR_NULL(dptx->bl_gpio)) {
+		DPTX_ERR(dptx, "regist bl gpio: %p, err: %d",
+		       dptx->bl_gpio, IS_ERR(dptx->bl_gpio));
+		return;
+	}
+	gpiod_direction_output(dptx->bl_gpio, 1);
+	DPTX_DBG(dptx, "panel bl gpio: %p, %d", dptx->bl_gpio, 1);
+
 	dptx_mute_set(dptx, 0);
 
 	dptx->status |= DPTX_STA_DISP_ON;
@@ -312,6 +340,17 @@ void dptx_drv_disp_off(struct dptx_drv_s *dptx)
 		DPTX_ERR(dptx, "sta=0x%x, not ready for %s", dptx->status, __func__);
 		return;
 	}
+
+	if (IS_ERR_OR_NULL(dptx->bl_gpio))
+		dptx->bl_gpio = devm_gpiod_get(dptx->dev, "edptx_bl", GPIOD_OUT_LOW);
+	if (IS_ERR_OR_NULL(dptx->bl_gpio)) {
+		DPTX_ERR(dptx, "regist bl gpio: %p, err: %d",
+		       dptx->bl_gpio, IS_ERR(dptx->bl_gpio));
+		return;
+	}
+
+	gpiod_direction_output(dptx->bl_gpio, 0);
+	DPTX_DBG(dptx, "panel bl gpio: %p, %d", dptx->bl_gpio, 0);
 
 	dptx_mute_set(dptx, 1);
 

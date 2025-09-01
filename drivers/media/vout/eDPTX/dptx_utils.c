@@ -534,7 +534,7 @@ u8 __str_add_vmode(struct dptx_drv_s *dptx, char *buf, struct dptx_vmode_s *vmd_
 	if (vmd_p->base_dtd_idx >= DPTX_DRV_TIMING_MAX)
 		vmd_timing = &DPTX_SafeMode_640x480_timing;
 	else
-		vmd_timing = &dptx->sink.exp_edid.dtd_timing[vmd_p->base_dtd_idx];
+		vmd_timing = &dptx->sink.timing[vmd_p->base_dtd_idx];
 
 	vmd_h = vmd_timing->h_act;
 	vmd_v = vmd_timing->v_act;

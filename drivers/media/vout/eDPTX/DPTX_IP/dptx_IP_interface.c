@@ -130,6 +130,25 @@ void dptx_if_PSR2_ctrl(struct dptx_drv_s *dptx, u8 port, u8 flag)
 		((struct dptx_if_ctrl_s *)dptx->if_ctrls)->PSR2_SDP_ctrl(dptx, port, flag);
 }
 
+void dptx_if_reg_store(struct dptx_drv_s *dptx, uint8_t port, u32 d0, u32 d1)
+{
+	if (likely(((struct dptx_if_ctrl_s *)dptx->if_ctrls)->reg_store))
+		((struct dptx_if_ctrl_s *)dptx->if_ctrls)->reg_store(dptx, port, d0, d1);
+}
+
+void dptx_if_reg_store_get(struct dptx_drv_s *dptx, uint8_t port, u32 *d0, u32 *d1)
+{
+	if (likely(((struct dptx_if_ctrl_s *)dptx->if_ctrls)->reg_store_get))
+		((struct dptx_if_ctrl_s *)dptx->if_ctrls)->reg_store_get(dptx, port, d0, d1);
+}
+
+void dptx_if_link_get(struct dptx_drv_s *dptx, uint8_t port, uint32_t *link_rate, uint8_t *lane)
+{
+	if (likely(((struct dptx_if_ctrl_s *)dptx->if_ctrls)->reg_link_get))
+		((struct dptx_if_ctrl_s *)dptx->if_ctrls)->reg_link_get(dptx,
+								port, link_rate, lane);
+}
+
 void dptx_if_IP_probe(struct dptx_drv_s *dptx)
 {
 	switch (dptx->data->chip_type) {

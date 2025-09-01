@@ -252,10 +252,6 @@ struct dptx_edid_info_s {
 		u16 h_blank_min, v_blank_min;
 	} range;
 
-	u8 dtd_cnt;
-
-	struct dptx_detail_timing_s dtd_timing[DPTX_DRV_TIMING_MAX];
-
 	u8 ext_flag;  //[126]1byte
 	u8 did_version;
 
@@ -333,8 +329,6 @@ struct dptx_link_cfg_s {
 	u8 phy_update;
 	u8 curr_ds[4];
 	u8 adj_req_ds[4];
-
-	struct dptx_edid_info_s int_edid;
 };
 
 #define DPTX_DRV_VMODE_MAX   64
@@ -387,9 +381,10 @@ struct dptx_drv_s {
 	} setting;
 
 	struct gpio_desc *PWR_gpio;
+	struct gpio_desc *bl_gpio;
 	struct pinctrl *pin_c;
 
-	char PWR_gpio_name[DPTX_GPIO_NAME_MAX];
+	//char PWR_gpio_name[DPTX_GPIO_NAME_MAX];
 
 	int vsync_irq[DPTX_MAX_VOUT];
 	int HPD_irq;
@@ -414,7 +409,9 @@ struct dptx_drv_s {
 		u8 port_mask;
 		u8 hpd_mask;
 		u8 pwr_gpio_mask;
-		struct dptx_edid_info_s exp_edid;
+		u8 dt_cnt;
+		struct dptx_detail_timing_s timing[DPTX_DRV_TIMING_MAX];
+		struct dptx_edid_info_s edid;
 		struct dptx_link_cfg_s *link[4];
 	} sink;
 

@@ -290,6 +290,7 @@ void dptx_vout_server_init(struct dptx_drv_s *dptx)
 {
 	char *curr_vout_connector;//, *curr_vout_mode;
 	char dptx_edp_connector[8];
+	dptx->viu_sel = 0;
 
 	snprintf(dptx_edp_connector, 7, "EDP-%c", 'A' + dptx->idx);
 

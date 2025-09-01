@@ -48,6 +48,7 @@ unsigned char dptx_print_level = LOG_I;
 static unsigned char dptx_global_init_flag;
 static struct dptx_drv_s *dptx_driver[DPTX_MAX_DRV];
 
+char eDP_propname[DPTX_MAX_DRV][32];
 struct dptx_cdev_s {
 	dev_t           devno;
 	struct class    *class;
@@ -482,14 +483,16 @@ static int dptx_config_remove(struct dptx_drv_s *dptx)
 
 static void dptx_bootup_config_init(struct dptx_drv_s *dptx)
 {
-	unsigned int link_rate = 0;
-	u8 port;
+	u32 link_rate = 0;
+	u8 lane, port;
+	u32 temp;
 
-	dptx->viu_sel = 0;
+	dptx_if_link_get(dptx, 0, &link_rate, &lane);
+	dptx_if_reg_store_get(dptx, 0, &temp, NULL);
 
-	dptx->status |= dptx_uboot_configs[dptx->idx].tx_prepared ? DPTX_STA_DRV_READY : 0;
-	dptx->status |= dptx_uboot_configs[dptx->idx].disp_on     ? DPTX_STA_DISP_ON   : 0;
-	dptx->status |= dptx_uboot_configs[dptx->idx].link[0][1]  ? DPTX_STA_LINK_ON   : 0;
+	dptx->status |= dptx->viu_sel  ? DPTX_STA_DRV_READY : 0;
+	dptx->status |= temp & BIT(12) ? DPTX_STA_DISP_ON   : 0;
+	dptx->status |= link_rate      ? DPTX_STA_LINK_ON   : 0;
 
 	if (dptx_uboot_configs[dptx->idx].user_debug_port_count == 3)
 		dptx->sink.port_mask = 0xf;
@@ -520,21 +523,17 @@ static void dptx_bootup_config_init(struct dptx_drv_s *dptx)
 			continue;
 		}
 
-		dptx->sink.link[port]->lane_count = dptx_uboot_configs[dptx->idx].link[port][1];
-		if (dptx->sink.link[port]->lane_count == 3)
-			dptx->sink.link[port]->lane_count = 4;
+		dptx_if_link_get(dptx, port, &link_rate, &lane);
 
-		dptx->sink.link[port]->link_rate = dptx_uboot_configs[dptx->idx].link[port][0];
-		link_rate = dptx->sink.link[port]->link_rate;
+		dptx->sink.link[port]->link_rate = link_rate;
+		dptx->sink.link[port]->lane_count = lane;
+
 		link_rate *= 27;
 		DPTX_P_DBG(dptx, port, "uboot: %u lane, %u.%u GHz",
 			dptx->sink.link[port]->lane_count, link_rate / 100, link_rate % 100);
 	}
 
-	dptx->uboot_edid_crc = dptx_uboot_configs[dptx->idx].uboot_edid_crc;
-
-	DPTX_PR(dptx, "uboot: port:0x%x, sta=0x%x, crc:0x%02x",
-		dptx->sink.port_mask, dptx->status, dptx->uboot_edid_crc);
+	DPTX_PR(dptx, "uboot: port:0x%x, sta=0x%x", dptx->sink.port_mask, dptx->status);
 }
 
 void dptx_pinmux_set(struct dptx_drv_s *dptx, u8 status)
@@ -551,11 +550,219 @@ void dptx_pinmux_set(struct dptx_drv_s *dptx, u8 status)
 		DPTX_PR(dptx, "%s %u ok (0x%px)", __func__, status, pin_sel);
 }
 
+static u8 dptx_panel_config_load_timing(struct dptx_drv_s *dptx, const struct device_node *child)
+{
+	char snode[24];
+	unsigned char i, j;
+	unsigned int tmp;
+	int lenp, ret;
+	u32 para[12];
+
+	for (i = 0; i < DPTX_DRV_TIMING_MAX; i++) {
+		memset(snode, 0, 24 * sizeof(char));
+		sprintf(snode, "timing-%u", i);
+
+		ret = of_property_read_u32_array(child, snode, &para[0], 12);
+		if (ret)
+			return i;
+		dptx->sink.timing[i].h_period = (u16)para[0];
+		dptx->sink.timing[i].h_act    = (u16)para[1];
+		dptx->sink.timing[i].h_pw     = (u16)para[2];
+		dptx->sink.timing[i].h_bp     = (u16)para[3];
+		dptx->sink.timing[i].ctrl    |= (u16)para[4] ? CTRL_HSYNC_POS : 0;
+		dptx->sink.timing[i].v_period = (u16)para[5];
+		dptx->sink.timing[i].v_act    = (u16)para[6];
+		dptx->sink.timing[i].v_pw     = (u16)para[7];
+		dptx->sink.timing[i].v_bp     = (u16)para[8];
+		dptx->sink.timing[i].ctrl    |= (u16)para[9] ? CTRL_VSYNC_POS : 0;
+		dptx->sink.timing[i].h_blank  =
+			dptx->sink.timing[i].h_period - dptx->sink.timing[i].h_act;
+		dptx->sink.timing[i].v_blank  =
+			dptx->sink.timing[i].v_period - dptx->sink.timing[i].v_act;
+		dptx->sink.timing[i].h_fp = dptx->sink.timing[i].h_blank -
+			(dptx->sink.timing[i].h_pw + dptx->sink.timing[i].h_bp);
+		dptx->sink.timing[i].v_fp = dptx->sink.timing[i].v_blank -
+			(dptx->sink.timing[i].v_pw + dptx->sink.timing[i].v_bp);
+		tmp = (u16)para[10];
+		if (tmp == 30)
+			dptx->sink.timing[i].cfmt = DPTX_CFMT_RGB_10bit;
+		else if (tmp == 18)
+			dptx->sink.timing[i].cfmt = DPTX_CFMT_RGB_6bit;
+		else if (tmp == 12)
+			dptx->sink.timing[i].cfmt = DPTX_CFMT_Y_only_12bit;
+		else if (tmp == 10)
+			dptx->sink.timing[i].cfmt = DPTX_CFMT_Y_only_10bit;
+		else if (tmp == 8)
+			dptx->sink.timing[i].cfmt = DPTX_CFMT_Y_only_8bit;
+		else
+			dptx->sink.timing[i].cfmt = DPTX_CFMT_RGB_8bit;
+
+		tmp = (u16)para[11];
+		dptx->sink.timing[i].fr1000 =  tmp * 1000L;
+
+		tmp = dptx->sink.timing[i].v_period * dptx->sink.timing[i].h_period * tmp;
+		dptx->sink.timing[i].pclk = tmp;
+
+		DPTX_PR(dptx, "Panel Config add Timing[%u]: %ux%u@%uhz", i,
+			dptx->sink.timing[i].h_act, dptx->sink.timing[i].v_act,
+			dptx->sink.timing[i].fr1000 / 1000);
+		dptx->sink.dt_cnt++;
+
+		memset(snode, 0, 24 * sizeof(char));
+		sprintf(snode, "timing-%u-fr", i);
+
+		// ret = of_property_read_u32(child, snode, &val);
+		lenp = of_property_count_elems_of_size(child, snode, sizeof(unsigned int));
+		if (lenp > 0) {
+			lenp = lenp > 12 ? 12 : lenp;
+			ret = of_property_read_u32_array(child, snode, &para[0], lenp);
+			if (ret)
+				return i;
+			// DPTX_PR(dptx, "lenp=%d", lenp);
+			for (j = 0; j < (lenp / sizeof(u32)); j++) {
+				if (dptx->sink.timing[i].vmode_add_fr[j] == 0) {
+					dptx->sink.timing[i].vmode_add_fr[j] = (u16)para[j];
+					DPTX_DBG(dptx, "Panel Config Timing[%u] add fr[%u]=%u",
+						i, j, dptx->sink.timing[i].vmode_add_fr[j]);
+					break;
+				}
+			}
+		}
+		memset(snode, 0, 24 * sizeof(char));
+		sprintf(snode, "timing-%u-range", i);
+
+		ret = of_property_read_u32_array(child, snode, &para[0], 2);
+		if (!ret) {
+			dptx->sink.timing[i].frame_rate_range[0] = (u16)para[0];
+			dptx->sink.timing[i].frame_rate_range[1] = (u16)para[1];
+			DPTX_DBG(dptx, "Panel Config Timing[%u] range=[%u~%u]", i,
+				dptx->sink.timing[i].frame_rate_range[0],
+				dptx->sink.timing[i].frame_rate_range[1]);
+		}
+
+		memset(snode, 0, 24 * sizeof(char));
+		sprintf(snode, "timing-%u-range-limit", i);
+		ret = of_property_read_u32_array(child, snode, &para[0], 6);
+		if (!ret) {
+			dptx->sink.timing[i].v_period_range[0] = (u16)para[2];
+			dptx->sink.timing[i].v_period_range[1] = (u16)para[3];
+			dptx->sink.timing[i].pclk_range[0] = (u16)para[4];
+			dptx->sink.timing[i].pclk_range[1] = (u16)para[5];
+			DPTX_DBG(dptx, "Panel Config Timing[%u] limit vl=[%u~%u] pclk=[%u~%u]", i,
+				dptx->sink.timing[i].v_period_range[0],
+				dptx->sink.timing[i].v_period_range[1],
+				dptx->sink.timing[i].pclk_range[0],
+				dptx->sink.timing[i].pclk_range[1]);
+		}
+	}
+	return i;
+}
+
+static u8 dptx_panel_config_load_from_dts(struct dptx_drv_s *dptx)
+{
+	const struct device_node *np, *child;
+	u16 val;
+	int ret;
+	const char *prop_name = NULL;
+
+	np = of_find_node_by_name(NULL, "eDP_Groups");
+	if (!np) {
+		DPTX_ERR(dptx, "failed to get eDP_Groups");
+		return 1;
+	}
+
+	prop_name = eDP_propname[dptx->idx];
+	if (!prop_name) {
+		DPTX_PR(dptx, "%s: not load panel_type", __func__);
+		return 1;
+	}
+
+	child = of_get_child_by_name(np, prop_name);
+	if (!child) {
+		DPTX_ERR(dptx, "[%s] is not in eDP_Groups", prop_name);
+		return 1;
+	}
+
+	ret = of_property_read_u16(child, "HPD_ignore", &val);
+	if (!ret) {
+		dptx->setting.user_hpd_ignore = (unsigned char)val;
+		if (dptx->setting.user_hpd_ignore)
+			DPTX_PR(dptx, "HPD ignore: %ums", dptx->setting.user_hpd_ignore);
+	}
+
+	ret = of_property_read_u16(child, "assigned-link-rate", &val);
+	if (!ret) {
+		dptx->setting.user_link_rate = (unsigned char)val;
+		if (dptx->setting.user_link_rate)
+			DPTX_PR(dptx, "assigned link rate: %u", dptx->setting.user_link_rate);
+	}
+	ret = of_property_read_u16(child, "assigned-lane-count", &val);
+	if (!ret) {
+		dptx->setting.user_lane_count = (unsigned char)val;
+		if (dptx->setting.user_lane_count)
+			DPTX_PR(dptx, "assigned lane count: %u", dptx->setting.user_lane_count);
+	} else {
+		dptx->setting.user_lane_count = 0xff;
+	}
+
+	ret = of_property_read_u16(child, "use-aux-backlight", &val);
+	if (!ret) {
+		dptx->setting.use_aux_bl_as_possible = (unsigned char)val;
+		if (dptx->setting.use_aux_bl_as_possible)
+			DPTX_PR(dptx, "AUX backlight: %u", dptx->setting.use_aux_bl_as_possible);
+	} else {
+		dptx->setting.use_aux_bl_as_possible = 0;
+	}
+
+	ret = of_property_read_u16(child, "assigned-port-count", &val);
+	if (!ret && (unsigned char)val) {
+		if ((unsigned char)val == 4)
+			dptx->sink.port_mask = 0xf;
+		else if ((unsigned char)val == 2)
+			dptx->sink.port_mask = 0x3;
+		else
+			dptx->sink.port_mask = 0x1;
+		DPTX_PR(dptx, "assigned port mask: %u", dptx->sink.port_mask);
+	} else {
+		dptx->sink.port_mask = 0x1;
+	}
+
+	ret = of_property_read_u16(child, "assigned-vmode", &val);
+	if (!ret) {
+		dptx->setting.user_vmode_sel = (unsigned char)val;
+		if (dptx->setting.user_vmode_sel)
+			DPTX_PR(dptx, "assigned vmode idx: %u", dptx->setting.user_vmode_sel);
+	} else {
+		dptx->setting.user_vmode_sel = 0;
+	}
+
+	ret = of_property_read_u16(child, "assigned-disable-PSR", &val);
+	if (!ret) {
+		dptx->setting.user_disable_PSR = (unsigned char)val;
+		if (dptx->setting.user_disable_PSR)
+			DPTX_PR(dptx, "assigned disable PSR: %u", dptx->setting.user_disable_PSR);
+	} else {
+		dptx->setting.user_disable_PSR = 0;
+	}
+
+	ret = of_property_read_u16(child, "assigned-preset-timing", &val);
+	if (!ret) {
+		dptx->setting.user_preset_timing = (unsigned char)val;
+		if (dptx->setting.user_preset_timing)
+			DPTX_PR(dptx, "assigned preset timing: %u", dptx->setting.user_disable_PSR);
+	} else {
+		dptx->setting.user_preset_timing = 0;
+	}
+	dptx_panel_config_load_timing(dptx, child);
+
+	return 0;
+}
+
 int dptx_config_load_from_dts(struct dptx_drv_s *dptx)
 {
 	const struct device_node *np;
 	//const char *str = "none";
-	unsigned short val = 0, para[30];
+	unsigned short para[30];
 	unsigned char i;
 	int ret = 0;
 
@@ -564,13 +771,6 @@ int dptx_config_load_from_dts(struct dptx_drv_s *dptx)
 		return -1;
 	}
 	np = dptx->dev->of_node;
-
-	ret = of_property_read_u16(np, "HPD_ignore", &val);
-	if (!ret) {
-		dptx->setting.user_hpd_ignore = (unsigned char)val;
-		if (dptx->setting.user_hpd_ignore)
-			DPTX_PR(dptx, "HPD ignore: %ums", dptx->setting.user_hpd_ignore);
-	}
 
 	//dptx->PWR_gpio = devm_gpiod_get(dptx->dev, "edptx_vcc", GPIOD_OUT_HIGH);
 	//if (IS_ERR(dptx->PWR_gpio)) {
@@ -587,71 +787,16 @@ int dptx_config_load_from_dts(struct dptx_drv_s *dptx)
 			dptx->phy_cfg.level_to_phy_lut[i / 10][i % 3] = para[i];
 	}
 
-	ret = of_property_read_u16(np, "assigned-link-rate", &val);
-	if (!ret) {
-		dptx->setting.user_link_rate = (unsigned char)val;
-		if (dptx->setting.user_link_rate)
-			DPTX_PR(dptx, "assigned link rate: %u", dptx->setting.user_link_rate);
-	}
-	ret = of_property_read_u16(np, "assigned-lane-count", &val);
-	if (!ret) {
-		dptx->setting.user_lane_count = (unsigned char)val;
-		if (dptx->setting.user_lane_count)
-			DPTX_PR(dptx, "assigned lane count: %u", dptx->setting.user_lane_count);
-	} else {
-		dptx->setting.user_lane_count = 0xff;
-	}
-
-	ret = of_property_read_u16(np, "use-aux-backlight", &val);
-	if (!ret) {
-		dptx->setting.use_aux_bl_as_possible = (unsigned char)val;
-		if (dptx->setting.use_aux_bl_as_possible)
-			DPTX_PR(dptx, "AUX backlight: %u", dptx->setting.use_aux_bl_as_possible);
-	} else {
-		dptx->setting.use_aux_bl_as_possible = 0;
-	}
-
-	ret = of_property_read_u16(np, "assigned-port-count", &val);
-	if (!ret && (unsigned char)val) {
-		if ((unsigned char)val == 4)
-			dptx->sink.port_mask = 0xf;
-		else if ((unsigned char)val == 2)
-			dptx->sink.port_mask = 0x3;
-		else
-			dptx->sink.port_mask = 0x1;
-		DPTX_PR(dptx, "assigned port mask: %u", dptx->sink.port_mask);
-	} else {
+	i = dptx_panel_config_load_from_dts(dptx);
+	if (i) {
+		DPTX_PR(dptx, "not loading panel config");
+		dptx->setting.user_link_rate = 0;
+		dptx->setting.user_lane_count = 0;
 		dptx->sink.port_mask = 0x1;
-	}
-
-	ret = of_property_read_u16(np, "assigned-vmode", &val);
-	if (!ret) {
-		dptx->setting.user_vmode_sel = (unsigned char)val;
-		if (dptx->setting.user_vmode_sel)
-			DPTX_PR(dptx, "assigned vmode idx: %u", dptx->setting.user_vmode_sel);
-	} else {
 		dptx->setting.user_vmode_sel = 0;
-	}
-
-	ret = of_property_read_u16(np, "assigned-disable-PSR", &val);
-	if (!ret) {
-		dptx->setting.user_disable_PSR = (unsigned char)val;
-		if (dptx->setting.user_disable_PSR)
-			DPTX_PR(dptx, "assigned disable PSR: %u", dptx->setting.user_disable_PSR);
-	} else {
 		dptx->setting.user_disable_PSR = 0;
+		dptx->setting.user_color_format = 0xff;
 	}
-
-	ret = of_property_read_u16(np, "assigned-preset-timing", &val);
-	if (!ret) {
-		dptx->setting.user_preset_timing = (unsigned char)val;
-		if (dptx->setting.user_preset_timing)
-			DPTX_PR(dptx, "assigned preset timing: %u", dptx->setting.user_disable_PSR);
-	} else {
-		dptx->setting.user_preset_timing = 0;
-	}
-
-	dptx->setting.user_color_format = 0xff;
 	return 0;
 }
 
@@ -674,9 +819,9 @@ static int dptx_config_probe(struct dptx_drv_s *dptx, struct platform_device *pd
 	dptx_debug_probe(dptx);
 	dptx_if_IP_probe(dptx);
 
-	dptx_bootup_config_init(dptx);
-
 	dptx_vout_server_init(dptx); // get viu sel here
+
+	dptx_bootup_config_init(dptx);
 
 	/* lock pinmux as when dptx is used ?? or link on */
 	if (dptx->viu_sel || dptx->status & DPTX_STA_LINK_ON) {
@@ -937,118 +1082,46 @@ void __exit eDPTX_TX_exit(void)
 	platform_driver_unregister(&eDP_platform_driver);
 }
 
-/* ! FOLLOW UBOOT
- *0:bit[ 7: 0], [ 9: 8]: A = [link rate], [lane count: 0=disabled, 1=1lane, 2=2lane, 3=4lane]
- *0:bit[17:10]: vmode_sel_idx, 0xff for non-edid or invalid
- *0:bit[21:18]: vmode_cfmt_sel, 0xf for invalid
- *0:bit[22]: dptx-ip enabled
- *0:bit[23]: dptx disp enabled
- *0:bit[31:24]: dptx edid_crc
- *1:bit[ 7: 0], [19:18]: B = [link rate], [lane count: 0=disabled, 1=1lane, 2=2lane, 3=4lane]
- *1:bit[17:10], [19:18]: C = [link rate], [lane count: 0=disabled, 1=1lane, 2=2lane, 3=4lane]
- *1:bit[27:20], [29:28]: D = [link rate], [lane count: 0=disabled, 1=1lane, 2=2lane, 3=4lane]
- *1:bit[31:30]: user_port_set: 0=user_default, 1=1port, 2=2port, 3=4port
- *2:bit[    0]: user_hpd_ignore: 255ms
- */
-static void dptx_boot_ctrl_setup(u8 idx, char *str)
-{
-	int ret;
-	unsigned int data32[2] = {0, 0}, len;
-	const char *ptr;
-	char temp_str[12];
-
-	if (!str)
-		return;
-
-	ptr = strstr(str, ",");
-	len = ptr - str;
-	if (!ptr || len == 0 || len >= sizeof(temp_str)) {
-		DPTXPR(idx, LOG_V, "%s: invalid boot ctrl str: %s", __func__, str);
-		return;
-	}
-	strncpy(temp_str, str, len);
-	temp_str[len] = '\0';
-	ret = kstrtouint(temp_str, 16, &data32[0]);
-	if (ret) {
-		DPTXPR(idx, LOG_V, "%s: invalid data0", __func__);
-		return;
-	}
-	dptx_uboot_configs[idx].link[0][0]     = data32[0] & 0xff;
-	dptx_uboot_configs[idx].link[0][1]     = (data32[0] >> 8) & 0x3;
-	dptx_uboot_configs[idx].vmode_sel_idx  = (data32[0] >> 10) & 0xff;
-	dptx_uboot_configs[idx].vmode_cfmt_sel = (data32[0] >> 18) & 0xf;
-	dptx_uboot_configs[idx].tx_prepared    = (data32[0] >> 22) & 0x1;
-	dptx_uboot_configs[idx].disp_on        = (data32[0] >> 23) & 0x1;
-	dptx_uboot_configs[idx].uboot_edid_crc = (data32[0] >> 24) & 0xff;
-
-	ptr++;
-	len = strlen(ptr);
-	if (len == 0 || len >= sizeof(temp_str)) {
-		DPTXPR(idx, LOG_V, "%s: invalid boot ctrl str: %s", __func__, str);
-		return;
-	}
-	strncpy(temp_str, ptr, len);
-	temp_str[len] = '\0';
-	ret = kstrtouint(ptr, 16, &data32[1]);
-	if (ret) {
-		DPTXPR(idx, LOG_V, "%s: invalid data1", __func__);
-		return;
-	}
-
-	dptx_uboot_configs[idx].link[1][0]            = data32[1] & 0xff;
-	dptx_uboot_configs[idx].link[1][1]            = (data32[1] >> 8) & 0x3;
-	dptx_uboot_configs[idx].link[2][0]            = (data32[1] >> 10) & 0xff;
-	dptx_uboot_configs[idx].link[2][1]            = (data32[1] >> 18) & 0x3;
-	dptx_uboot_configs[idx].link[3][0]            = (data32[1] >> 20) & 0xff;
-	dptx_uboot_configs[idx].link[3][1]            = (data32[1] >> 28) & 0x3;
-	dptx_uboot_configs[idx].link[3][1]            = (data32[1] >> 28) & 0x3;
-	dptx_uboot_configs[idx].user_debug_port_count = (data32[1] >> 30) & 0x3;
-
-	DPTXPR(idx, LOG_I, "boot[0x%8x, 0x%08x]", data32[0], data32[1]);
-}
-
-static int __dptx0_boot_ctrl_setup(char *str)
-{
-	dptx_boot_ctrl_setup(0, str);
-	return 1;
-}
-
-static int __dptx1_boot_ctrl_setup(char *str)
-{
-	dptx_boot_ctrl_setup(1, str);
-	return 1;
-}
-
-static int __dptx_debug_setup(char *str)
+static int __dptx_bootargs_setup(char *str)
 {
 	int ret = 0;
 	unsigned int data32 = 0;
+	const char *ptr, *ptr2;
+	char temp_str[12];
 
 	if (!str)
 		return -EINVAL;
 
-	ret = kstrtouint(str, 16, &data32);
+	ptr = strstr(str, ",");
+	if (!ptr || ptr == str) {
+		DPTXPR(0, LOG_E, "%s: invalid boot ctrl str: %s", __func__, str);
+		return -EINVAL;
+	}
+	snprintf(temp_str, (ptr - str > 11) ? 11 : ptr - str + 1, "%s", str);
+	ret = kstrtouint(temp_str, 16, &data32);
 	if (ret) {
-		DPTXPR(0, LOG_E, "%s: invalid (%s)", __func__, str);
+		DPTXPR(0, LOG_E, "%s: invalid data", __func__);
 		return -EINVAL;
 	}
 
 	dptx_print_level = data32 & 0x3;
 
-	//if (DPTX_MAX_DRV > 0)
-	//	dptx_uboot_configs[0].user_hpd_debug = 1;
-	//if (DPTX_MAX_DRV > 1)
-	//	dptx_uboot_configs[1].user_hpd_debug = 1;
-	//if (DPTX_MAX_DRV > 2)
-	//	dptx_uboot_configs[2].user_hpd_debug = 1;
-	//if (DPTX_MAX_DRV > 3)
-	//	dptx_uboot_configs[3].user_hpd_debug = 1;
+	ptr++;
+	ptr2 = strstr(ptr, ",");
+	if (ptr2) {
+		if (ptr2 > ptr)
+			snprintf(eDP_propname[0], ptr2 - ptr + 1, "%s", ptr);
+		ptr2++;
+		if (str + strlen(str) > ptr2)
+			snprintf(eDP_propname[1], 32, "%s", ptr2);
+	}
+
+	DPTXPR(0, LOG_I, "%s: data:0x%x, %s,%s", __func__, data32,
+				eDP_propname[0], eDP_propname[1]);
 	return 1;
 }
 
-__setup("dptx0=", __dptx0_boot_ctrl_setup);
-__setup("dptx1=", __dptx1_boot_ctrl_setup);
-__setup("dptx_dbg=", __dptx_debug_setup);
+__setup("eDPTX=", __dptx_bootargs_setup);
 
 struct dptx_drv_s *aml_dptx_get_driver(u8 drv_idx)
 {
@@ -1068,7 +1141,7 @@ EXPORT_SYMBOL(aml_dptx_regist_hpd_cb);
 
 struct edid *aml_dptx_get_raw_edid(struct dptx_drv_s *dptx)
 {
-	return dptx->sink.exp_edid.drm_edid;
+	return dptx->sink.edid.drm_edid;
 }
 EXPORT_SYMBOL(aml_dptx_get_raw_edid);
 

@@ -53,6 +53,10 @@ struct dptx_if_ctrl_s {
 
 	void (*PSR1_SDP_ctrl)(struct dptx_drv_s *dptx, u8 port, u8 flag);
 	void (*PSR2_SDP_ctrl)(struct dptx_drv_s *dptx, u8 port, u8 flag);
+
+	void (*reg_store)(struct dptx_drv_s *dptx, u8 port, u32 d0, u32 d1);
+	void (*reg_store_get)(struct dptx_drv_s *dptx, u8 port, u32 *d0, u32 *d1);
+	void (*reg_link_get)(struct dptx_drv_s *dptx, u8 port, u32 *link_rate, u8 *lane);
 };
 
 struct dptx_if_ctrl_s *dptx_if_bind_t7(struct dptx_drv_s *dptx);
