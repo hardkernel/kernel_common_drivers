@@ -85,7 +85,6 @@ static int aml_hdcp22_pm_notify(struct notifier_block *nb,
 #define TVHDMI_MODULE_NAME		"hdmirx"
 #define TVHDMI_DEVICE_NAME		"hdmirx"
 #define TVHDMI_CLASS_NAME		"hdmirx"
-#define INIT_FLAG_NOT_LOAD		0x80
 
 #define HDMI_DE_REPEAT_DONE_FLAG	0xF0
 #define FORCE_YUV			1
@@ -96,7 +95,6 @@ static int aml_hdcp22_pm_notify(struct notifier_block *nb,
 /*------------------------macro define end------------------------------*/
 
 /*------------------------variable define------------------------------*/
-static unsigned char init_flag;
 static dev_t	hdmirx_devno;
 static struct class	*hdmirx_clsp;
 /* static int open_flage; */
@@ -4172,6 +4170,18 @@ static int hdmirx_probe(struct platform_device *pdev)
 	param.sched_priority = MAX_RT_PRIO - 1;
 	log_init(DEF_LOG_BUF_SIZE);
 	hdmirx_dev = &pdev->dev;
+	ret = alloc_chrdev_region(&hdmirx_devno, 0, 1, TVHDMI_NAME);
+	if (ret < 0) {
+		rx_pr("hdmirx: failed to allocate major number\n");
+		goto fail_alloc_cdev_region;
+	}
+
+	hdmirx_clsp = class_create(TVHDMI_NAME);
+	if (IS_ERR(hdmirx_clsp)) {
+		rx_pr("hdmirx: can't get hdmirx_clsp\n");
+		ret = PTR_ERR(hdmirx_clsp);
+		goto fail_class_create;
+	}
 	/*get compatible matched device, to get chip related data*/
 	of_id = of_match_device(hdmirx_dt_match, &pdev->dev);
 	if (!of_id) {
@@ -4903,6 +4913,11 @@ fail_add_cdev:
 	kfree(hdevp);
 fail_kmalloc_hdev:
 	return ret;
+fail_class_create:
+	unregister_chrdev_region(hdmirx_devno, 1);
+	return ret;
+fail_alloc_cdev_region:
+	return ret;
 }
 
 static void hdmirx_remove(struct platform_device *pdev)
@@ -5241,23 +5256,6 @@ bool rx_is_pip_on(void)
 int __init hdmirx_init(void)
 {
 	int ret = 0;
-	/* struct platform_device *pdev; */
-
-	if (init_flag & INIT_FLAG_NOT_LOAD)
-		return 0;
-
-	ret = alloc_chrdev_region(&hdmirx_devno, 0, 1, TVHDMI_NAME);
-	if (ret < 0) {
-		rx_pr("hdmirx: failed to allocate major number\n");
-		goto fail_alloc_cdev_region;
-	}
-
-	hdmirx_clsp = class_create(TVHDMI_NAME);
-	if (IS_ERR(hdmirx_clsp)) {
-		rx_pr("hdmirx: can't get hdmirx_clsp\n");
-		ret = PTR_ERR(hdmirx_clsp);
-		goto fail_class_create;
-	}
 
 	ret = platform_driver_register(&hdmirx_driver);
 	if (ret != 0) {
@@ -5269,9 +5267,6 @@ int __init hdmirx_init(void)
 
 fail_pdrv_register:
 	class_destroy(hdmirx_clsp);
-fail_class_create:
-	unregister_chrdev_region(hdmirx_devno, 1);
-fail_alloc_cdev_region:
 	return ret;
 }
 

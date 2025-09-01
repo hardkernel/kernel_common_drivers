@@ -100,7 +100,8 @@
 //2025.07.31 Fix t3x bright line issue on frl mode
 //2025.08.12 Fixed info_show function array out-of-bounds issue
 //2025.8.22 clean hdmirx log
-#define RX_DRV_VER "ver.2025/08/22"
+//2025.09.01 optimize hdmirx class create flow
+#define RX_DRV_VER "ver.2025/09/01"
 
 /*print type*/
 #define COR1_LOG	0x10000
