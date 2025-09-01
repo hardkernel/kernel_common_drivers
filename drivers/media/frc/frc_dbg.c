@@ -658,6 +658,7 @@ ssize_t frc_debug_rdma_if_help(struct frc_dev_s *devp, char *buf)
 void frc_debug_rdma_if(struct frc_dev_s *devp, const char *buf, size_t count)
 {
 	u32 val1;
+	u32 val2;
 	char *buf_orig, *parm[47] = {NULL};
 	struct frc_fw_data_s *fw_data;
 	struct frc_rdma_s *frc_rdma = get_frc_rdma();
@@ -675,6 +676,15 @@ void frc_debug_rdma_if(struct frc_dev_s *devp, const char *buf, size_t count)
 
 	if (!strcmp(parm[0], "status")) {
 		frc_rdma_status();
+	} else if (!strcmp(parm[0], "addr_val")) {
+		if (!parm[2])
+			goto exit;
+		if (kstrtoint(parm[1], 16, &val1) == 0)
+			val1 = val1 & 0xffff;
+		if (kstrtoint(parm[2], 16, &val2) == 0)
+			val2 = val2 & 0xffffffff;
+		pr_frc(0, "frc rdma addr:%x, val:%x\n", val1, val2);
+		frc_rdma_table_config(val1, val2);
 	} else if (!strcmp(parm[0], "rdma_en")) {
 		if (!parm[1])
 			goto exit;

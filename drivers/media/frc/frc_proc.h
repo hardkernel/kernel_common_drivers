@@ -74,6 +74,7 @@ void frc_char_flash_check(void);
 void frc_chk_vd_sts_chg(struct frc_dev_s *frc_devp,
 				struct vframe_s *vf);
 u16 frc_check_film_mode(struct frc_dev_s *frc_devp);
+void frc_check_secure_mode(struct vframe_s *vf, struct frc_dev_s *devp);
 void frc_win_align_set(struct frc_dev_s *devp, u8 align_set);
 void frc_win_size_align(void);
 void frc_input_size_align_check(struct frc_dev_s *devp);

@@ -110,6 +110,11 @@ void frame_lock_set_vrr_support_flag(bool support_flag)
 	frame_sts.vrr_support = support_flag;
 }
 
+bool get_vrr_support_st(void)
+{
+	return frame_sts.vrr_support;
+}
+
 void frame_lock_param_config(struct device_node *node)
 {
 	unsigned int val = 0;

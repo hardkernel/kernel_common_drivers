@@ -61,6 +61,7 @@
 int frc_enable_cnt = 1;
 int frc_disable_cnt = 1;
 int frc_re_cfg_cnt;/*need bigger than frc_disable_cnt 3, 15*/
+int sec_flag;
 
 u32 secure_tee_handle;
 
@@ -438,6 +439,15 @@ irqreturn_t frc_output_isr(int irq, void *dev_id)
 	else
 		tasklet_schedule(&devp->output_tasklet);
 
+	if (devp->in_sts.enable_mute_flag == 1 &&
+		// devp->frc_sts.vs_data_cnt == devp->in_sts.mute_vsync_cnt) {
+		devp->out_sts.vs_cnt == devp->in_sts.mute_vsync_cnt) {
+		frc_set_output_pattern(0); // unmute
+		pr_frc(1, "%s: unmute after enable wait %d(%d) frames",
+			__func__, devp->out_sts.vs_cnt,
+			devp->frc_sts.vs_data_cnt);
+	}
+
 	// frc_rdma->rdma_item_count = 0;
 	// rdma trigger 0 manual, 1-7 auto path
 	FRC_RDMA_WR_REG_OUT(FRC_REG_TOP_RESERVE14, devp->out_sts.vs_cnt);
@@ -469,14 +479,14 @@ void frc_output_tasklet_pro(unsigned long arg)
 	iotrace_misc_record_write(RECORD_TYPE_FRC_OUTPUT_IN, 0, 0, 0);
 #endif
 	devp->out_sts.vs_tsk_cnt++;
-	if (devp->in_sts.enable_mute_flag == 1 &&
-		// devp->frc_sts.vs_data_cnt == devp->in_sts.mute_vsync_cnt) {
-		devp->out_sts.vs_cnt == devp->in_sts.mute_vsync_cnt) {
-		frc_set_output_pattern(0); // unmute
-		pr_frc(1, "%s: unmute after enable wait %d(%d) frames",
-			__func__, devp->out_sts.vs_cnt,
-			devp->frc_sts.vs_data_cnt);
-	}
+	// if (devp->in_sts.enable_mute_flag == 1 &&
+	//	// devp->frc_sts.vs_data_cnt == devp->in_sts.mute_vsync_cnt) {
+	//	devp->out_sts.vs_cnt == devp->in_sts.mute_vsync_cnt) {
+	//	frc_set_output_pattern(0); // unmute
+	//	pr_frc(1, "%s: unmute after enable wait %d(%d) frames",
+	//		__func__, devp->out_sts.vs_cnt,
+	//		devp->frc_sts.vs_data_cnt);
+	// }
 	if (devp->task_run_method == MEMC_RUN_IN_TASK) {
 		if (!devp->frc_fw_pause) {
 			timestamp = sched_clock();
@@ -1123,6 +1133,21 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 				devp->in_sts.st_flag & (~FRC_FLAG_PIC_MODE);
 		}
 
+		if (vf->vf_vrr_param.frc_get_vrr) {
+			if ((devp->in_sts.st_flag & FRC_FLAG_VRR_SIG) !=
+						FRC_FLAG_VRR_SIG) {
+				devp->in_sts.st_flag =
+				devp->in_sts.st_flag | FRC_FLAG_VRR_SIG;
+				pr_frc(1, "video = vrr signal size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
+			}
+			no_input = true;
+		} else {
+			devp->in_sts.st_flag =
+				devp->in_sts.st_flag & (~FRC_FLAG_VRR_SIG);
+		}
+
 		if (!cur_video_sts) {
 			pr_frc(1, "vpp_frame_par_s is NULL");
 			no_input = true;
@@ -1180,6 +1205,23 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 		} else {
 			devp->in_sts.st_flag =
 				devp->in_sts.st_flag & (~FRC_FLAG_LIMIT_FREQ);
+		}
+
+		if (frc_pm_str_flag == 1 &&
+			get_chip_type() == ID_T3X &&
+			devp->out_sts.out_framerate <= FRC_VD_FPS_60 + 10) {
+			if ((devp->in_sts.st_flag & FRC_FLAG_AFR_MODE) !=
+					FRC_FLAG_AFR_MODE) {
+				devp->in_sts.st_flag =
+				devp->in_sts.st_flag | FRC_FLAG_AFR_MODE;
+				pr_frc(1, "video = afr mode size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
+			}
+			no_input = true;
+		} else {
+			devp->in_sts.st_flag =
+				devp->in_sts.st_flag & (~FRC_FLAG_AFR_MODE);
 		}
 
 		if (get_video_mute()) {
@@ -2588,6 +2630,44 @@ u16 frc_check_film_mode(struct frc_dev_s *frc_devp)
 	//else
 	//	frc_top->film_mode  = EN_DRV_VIDEO;
 	return (u16)(frc_top->film_mode);
+}
+
+void frc_check_secure_mode(struct vframe_s *vf, struct frc_dev_s *devp)
+{
+	u32 temp;
+	enum chip_id chip;
+	static int secure_mode;
+
+	chip = get_chip_type();
+
+	if (chip == ID_T3) {
+		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) ==
+			VFRAME_FLAG_VIDEO_SECURE)
+			devp->in_sts.secure_mode = true;
+		else
+			devp->in_sts.secure_mode = false;
+	} else if (chip == ID_T5M || chip == ID_T3X) {
+		if (!sec_flag) {
+			temp = READ_FRC_REG(FRC_RO_FRM_SEC_STAT);
+			temp = (temp >> 16) & 0xf; // 1: input frame is security
+			if (temp)
+				devp->in_sts.secure_mode = true;
+			else
+				devp->in_sts.secure_mode = false;
+		} else {
+			if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) ==
+				VFRAME_FLAG_VIDEO_SECURE)
+				devp->in_sts.secure_mode = true;
+			else
+				devp->in_sts.secure_mode = false;
+		}
+	}
+
+	if (secure_mode != devp->in_sts.secure_mode) {
+		pr_frc(0, "frc secure sts:%d, sec_flag:%d, chip:%d\n",
+			devp->in_sts.secure_mode, sec_flag, chip);
+		secure_mode = devp->in_sts.secure_mode;
+	}
 }
 
 void frc_win_align_set(struct frc_dev_s *devp, u8 align_set)

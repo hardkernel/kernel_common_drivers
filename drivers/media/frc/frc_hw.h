@@ -75,6 +75,7 @@ enum frc_arb_ugt {
 	ARB_UGT_WR = 6,
 };
 
+extern int frc_pm_str_flag;
 extern void __iomem *frc_clk_base;
 extern void __iomem *vpu_base;
 void frc_clk_init(struct frc_dev_s *frc_devp);

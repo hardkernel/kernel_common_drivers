@@ -1,19 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/frc/frc_drv.h
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef FRC_DRV_H
@@ -289,6 +276,8 @@ extern int frc_dbg_en;
 #define FRC_FLAG_LIMIT_FREQ		0x200 // 144hz 288hz
 #define FRC_FLAG_OTHER			0x400
 #define FRC_FLAG_MUTE_ST		0x800
+#define FRC_FLAG_VRR_SIG		0x1000
+#define FRC_FLAG_AFR_MODE       0x2000
 
 #define FRC_BUF_MC_Y_IDX	0
 #define FRC_BUF_MC_C_IDX	1

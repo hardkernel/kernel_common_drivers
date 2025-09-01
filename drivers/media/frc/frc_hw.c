@@ -45,6 +45,7 @@ void __iomem *vpu_base;
 
 struct stvlock_frc_param gst_frc_param;
 
+int frc_pm_str_flag;  // suspend/resume flag
 const struct vf_rate_table vf_rate_table[FRAME_RATE_CNT] = {
 	{800,   FRC_VD_FPS_120},
 	{801,   FRC_VD_FPS_120},
@@ -317,7 +318,7 @@ void set_frc_enable(u32 en)
 	WRITE_FRC_REG_BY_CPU(FRC_TOP_CTRL, regdata_topctl_3f01);
 	if (en == 1) {
 		if (READ_FRC_REG(FRC_REG_TOP_CTRL7) & 0xFFFFFFFF) {
-			PR_FRC("CTRL7 reset\n");
+			pr_frc(1, "CTRL7 reset\n");
 			regdata_top_ctl_0007 = 0;
 			WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL7, regdata_top_ctl_0007);
 		}
@@ -1535,6 +1536,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 		tmpvalue = frc_top->hsize;
 		tmpvalue |= (frc_top->vsize) << 16;
 		WRITE_FRC_REG_BY_CPU(FRC_FRAME_SIZE, tmpvalue);
+		WRITE_FRC_REG_BY_CPU(FRC_PROC_SIZE, tmpvalue);
 		frc_top->vfb =
 			(vpu_reg_read(ENCL_VIDEO_VAVON_BLINE_T3X) >> 16) & 0xffff;
 	} else {
@@ -1804,9 +1806,9 @@ void config_phs_lut(enum frc_ratio_mode_type frc_ratio_mode,
 	enum en_drv_film_mode film_mode)
 {
 	#define lut_ary_size	18
-	u32 input_n;
+	u32 input_n = 1;
 	u32 tmpregdata;
-	u32 output_m;
+	u32 output_m = 2;
 	u64 phs_lut_table[lut_ary_size];
 	int i;
 
@@ -2720,13 +2722,25 @@ void frc_internal_initial(struct frc_dev_s *frc_devp)
 				FRC_BYPASS_FRAME_NUM << 4);
 		WRITE_FRC_BITS(FRC_REG_TOP_RESERVE0, ctrl_frame_num, 0, 8);
 	}
-	if (frc_devp->ud_dbg.res2_dbg_en == 3) {
+	if (frc_devp->ud_dbg.res2_dbg_en == 3 && frc_pm_str_flag == 0) {
 		if (frc_devp->out_sts.out_framerate > 90) {
 			t3x_eco_initial();
 			t3x_eco_qp_cfg(2);
-		} else if (frc_devp->out_sts.out_framerate < 70)
+			frc_pm_str_flag = 1; // probe 120Hz
+		} else if (frc_devp->out_sts.out_framerate < 70) {
 			t3x_verB_60hz_patch();
+			frc_pm_str_flag = 2; // probe 60Hz
+		}
+	} else {
+		// suspend/resume restore probe setting
+		if (frc_pm_str_flag == 1) {
+			t3x_eco_initial();
+			t3x_eco_qp_cfg(2);
+		} else if (frc_pm_str_flag == 2) {
+			t3x_verB_60hz_patch();
+		}
 	}
+	pr_frc(2, "%s frc_pm_str_flag = %d\n", __func__, frc_pm_str_flag);
 
 	// protect mode, enable: memc delay 2 frame
 	if (frc_devp->prot_mode) {

@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/frc/frc_drv.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 /* Standard Linux headers */
@@ -801,16 +788,16 @@ int frc_vd_notify_callback(struct notifier_block *block, unsigned long cmd, void
 	switch (cmd) {
 	case VIDEO_INFO_CHANGED:
 		/*if frc on, need disable frc, and enable frc*/
-		if (((flags & VIDEO_SIZE_CHANGE_EVENT)
-			== VIDEO_SIZE_CHANGE_EVENT) &&
-			devp->probe_ok && (!devp->in_sts.frc_seamless_en ||
-			(devp->in_sts.frc_seamless_en && devp->in_sts.frc_is_tvin))) {
-				pr_frc(0, "%s start disable frc", __func__);
-				set_frc_enable(false);
-				set_frc_bypass(true);
-				// frc_change_to_state(FRC_STATE_DISABLE);
-				frc_change_to_state(FRC_STATE_BYPASS);
-				frc_state_change_finish(devp);
+		if (((flags & VIDEO_SIZE_CHANGE_EVENT) ==
+				VIDEO_SIZE_CHANGE_EVENT) &&
+				devp->probe_ok && (!devp->in_sts.frc_seamless_en ||
+				devp->in_sts.frc_is_tvin)) {
+			pr_frc(1, "%s start disable frc", __func__);
+			set_frc_enable(false);
+			set_frc_bypass(true);
+			// frc_change_to_state(FRC_STATE_DISABLE);
+			frc_change_to_state(FRC_STATE_BYPASS);
+			frc_state_change_finish(devp);
 			if (devp->frc_sts.frame_cnt != 0) {
 				devp->frc_sts.frame_cnt = 0;
 				pr_frc(1, "%s reset frm_cnt\n", __func__);
