@@ -265,7 +265,7 @@ void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 	if (ret)
 		return;
 
-	if (!mm_table || !core_reg_table) {
+	if (!tcon_conf || !mm_table || !core_reg_table) {
 		LCDERR("%s: table is NULL\n", __func__);
 		return;
 	}
@@ -318,6 +318,9 @@ void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDPR("%s: set cspi new coding array_len=%#x\n", __func__, cspi_alpha);
 	}
+
+	if (tcon_conf->tcon_init_table_post_proc)
+		tcon_conf->tcon_init_table_post_proc(pdrv);
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("%s finish\n", __func__);
@@ -1196,7 +1199,7 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_write(pdrv, TCON_INTR_MASKN, TCON_INTR_MASKN_VAL);
 
 	//lcd_venc_enable(pdrv, 1);
-	lcd_tcon_setb(pdrv, 0x207, 1, 4, 1);//enable pre_proc_clk
+	//lcd_tcon_setb(pdrv, 0x207, 1, 4, 1);//enable pre_proc_clk, move to init_post_proc
 
 	pdrv->proc_time.tcon_reg_time = local_time[1] - local_time[0];
 	pdrv->proc_time.tcon_data_time = local_time[2] - local_time[1];

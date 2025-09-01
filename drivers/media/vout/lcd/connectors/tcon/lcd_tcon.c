@@ -1752,6 +1752,29 @@ static void lcd_tcon_init_table_pre_proc(unsigned char *table)
 	}
 }
 
+static void lcd_tcon_init_table_post_proc(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+	unsigned int reg = 0, val, bit, len, i = 0;
+
+	if (tcon_conf && tcon_conf->init_post_setting) {
+		while (1) {
+			reg = tcon_conf->init_post_setting[i].reg;
+			if (reg == REG_LCD_TCON_MAX)
+				break;
+			val = tcon_conf->init_post_setting[i].val;
+			bit = tcon_conf->init_post_setting[i].bit;
+			len = tcon_conf->init_post_setting[i].len;
+			lcd_tcon_setb(pdrv, reg, val, bit, len);
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+				LCDPR("%s: reg: 0x%08x[%d:%d] = 0x%x\n",
+					__func__, reg, (bit + len - 1), bit, val);
+			}
+			i++;
+		}
+	}
+}
+
 void lcd_tcon_data_block_regen_crc(unsigned char *data)
 {
 	unsigned int raw_crc32 = 0, new_crc32 = 0;
@@ -2841,12 +2864,14 @@ static struct lcd_tcon_config_s tcon_data_t5d = {
 	.secure_cfg_size = 0x00000040,
 
 	.init_pre_setting = lcd_tcon_init_pre_setting_t5d,
+	.init_post_setting = lcd_tcon_init_post_setting,
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_t5d),
 	.axi_mem_cfg_tbl = axi_mem_cfg_tbl_t5d,
 	.lut_dma_ops = NULL,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
+	.tcon_init_table_post_proc = lcd_tcon_init_table_post_proc,
 	.tcon_lut_post_proc = lcd_tcon_lut_post_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t5,
 	.tcon_top_init = lcd_tcon_top_set_t5,
@@ -2876,12 +2901,14 @@ static struct lcd_tcon_config_s tcon_data_t3 = {
 	.secure_cfg_size = 0x00000040,
 
 	.init_pre_setting = lcd_tcon_init_pre_setting_uhd,
+	.init_post_setting = lcd_tcon_init_post_setting,
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_t5),
 	.axi_mem_cfg_tbl = axi_mem_cfg_tbl_t5,
 	.lut_dma_ops = NULL,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
+	.tcon_init_table_post_proc = lcd_tcon_init_table_post_proc,
 	.tcon_lut_post_proc = lcd_tcon_lut_post_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t3,
 	.tcon_top_init = lcd_tcon_top_set_t5,
@@ -2911,12 +2938,14 @@ static struct lcd_tcon_config_s tcon_data_t5w = {
 	.secure_cfg_size = 0x00000040,
 
 	.init_pre_setting = lcd_tcon_init_pre_setting_uhd,
+	.init_post_setting = lcd_tcon_init_post_setting,
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_t5),
 	.axi_mem_cfg_tbl = axi_mem_cfg_tbl_t5,
 	.lut_dma_ops = NULL,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
+	.tcon_init_table_post_proc = lcd_tcon_init_table_post_proc,
 	.tcon_lut_post_proc = lcd_tcon_lut_post_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t5,
 	.tcon_top_init = lcd_tcon_top_set_t5,
@@ -2946,12 +2975,14 @@ static struct lcd_tcon_config_s tcon_data_t5m = {
 	.secure_cfg_size = 0x00000040,
 
 	.init_pre_setting = lcd_tcon_init_pre_setting_uhd,
+	.init_post_setting = lcd_tcon_init_post_setting,
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_t5),
 	.axi_mem_cfg_tbl = axi_mem_cfg_tbl_t5,
 	.lut_dma_ops = &lcd_tcon_dma_ops_t5m,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
+	.tcon_init_table_post_proc = lcd_tcon_init_table_post_proc,
 	.tcon_lut_post_proc = lcd_tcon_lut_post_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t3,
 	.tcon_top_init = lcd_tcon_top_set_t5,
@@ -2981,12 +3012,14 @@ static struct lcd_tcon_config_s tcon_data_t3x = {
 	.secure_cfg_size = 0x00000040,
 
 	.init_pre_setting = lcd_tcon_init_pre_setting_uhd,
+	.init_post_setting = lcd_tcon_init_post_setting,
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_t3x),
 	.axi_mem_cfg_tbl = (axi_mem_cfg_tbl_t3x),
 	.lut_dma_ops = &lcd_tcon_dma_ops_t3x,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
+	.tcon_init_table_post_proc = lcd_tcon_init_table_post_proc,
 	.tcon_lut_post_proc = lcd_tcon_lut_post_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t3x,
 	.tcon_top_init = lcd_tcon_top_set_t5,
@@ -3012,12 +3045,14 @@ static struct lcd_tcon_config_s tcon_data_txhd2 = {
 	.secure_cfg_size = 0x00000040, /* 64byte */
 
 	.init_pre_setting = lcd_tcon_init_pre_setting_fhd,
+	.init_post_setting = lcd_tcon_init_post_setting,
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_txhd2),
 	.axi_mem_cfg_tbl = axi_mem_cfg_tbl_txhd2,
 	.lut_dma_ops = NULL,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
+	.tcon_init_table_post_proc = lcd_tcon_init_table_post_proc,
 	.tcon_lut_post_proc = lcd_tcon_lut_post_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t5,
 	.tcon_top_init = lcd_tcon_top_set_t5,
@@ -3043,12 +3078,14 @@ static struct lcd_tcon_config_s tcon_data_t6d = {
 	.secure_cfg_size = 0x00000040, /* 64byte */
 
 	.init_pre_setting = lcd_tcon_init_pre_setting_fhd,
+	.init_post_setting = lcd_tcon_init_post_setting,
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_t6d),
 	.axi_mem_cfg_tbl = axi_mem_cfg_tbl_t6d,
 	.lut_dma_ops = &lcd_tcon_dma_ops_t6d,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
+	.tcon_init_table_post_proc = lcd_tcon_init_table_post_proc,
 	.tcon_lut_post_proc = lcd_tcon_lut_post_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t3,
 	.tcon_top_init = lcd_tcon_top_set_t6d,
@@ -3080,12 +3117,14 @@ static struct lcd_tcon_config_s tcon_data_t6w = {
 	.secure_cfg_size = 0x00000040,
 
 	.init_pre_setting = lcd_tcon_init_pre_setting_uhd,
+	.init_post_setting = lcd_tcon_init_post_setting,
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_t5),
 	.axi_mem_cfg_tbl = axi_mem_cfg_tbl_t5,
 	.lut_dma_ops = &lcd_tcon_dma_ops_t6w,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
+	.tcon_init_table_post_proc = lcd_tcon_init_table_post_proc,
 	.tcon_lut_post_proc = lcd_tcon_lut_post_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t3,
 	.tcon_top_init = lcd_tcon_top_set_t6d,
@@ -3117,12 +3156,14 @@ static struct lcd_tcon_config_s tcon_data_t6x = {
 	.secure_cfg_size = 0x00000040,
 
 	.init_pre_setting = lcd_tcon_init_pre_setting_uhd,
+	.init_post_setting = lcd_tcon_init_post_setting,
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_t3x),
 	.axi_mem_cfg_tbl = (axi_mem_cfg_tbl_t3x),
 	.lut_dma_ops = &lcd_tcon_dma_ops_t6w,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
+	.tcon_init_table_post_proc = lcd_tcon_init_table_post_proc,
 	.tcon_lut_post_proc = lcd_tcon_lut_post_proc,
 	.tcon_global_reset = lcd_tcon_global_reset_t3,
 	.tcon_top_init = lcd_tcon_top_set_t6d,
