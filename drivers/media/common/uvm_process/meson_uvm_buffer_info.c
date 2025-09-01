@@ -41,37 +41,6 @@ static bool is_dv_video(struct vframe_s *vfp)
 	return false;
 }
 
-static bool is_hdr_video(const struct vframe_s *vfp)
-{
-	if (vfp->src_fmt.sei_magic_code == SEI_MAGIC_CODE) {
-		if (vfp->src_fmt.fmt == VFRAME_SIGNAL_FMT_HDR10)
-			return true;
-	}
-
-	return false;
-}
-
-static bool is_hdr10_plus_video(const struct vframe_s *vfp)
-{
-	if (vfp->src_fmt.sei_magic_code == SEI_MAGIC_CODE) {
-		if (vfp->src_fmt.fmt == VFRAME_SIGNAL_FMT_HDR10PLUS ||
-			vfp->src_fmt.fmt == VFRAME_SIGNAL_FMT_HDR10PRIME)
-			return true;
-	}
-
-	return false;
-}
-
-static bool is_hlg_video(const struct vframe_s *vfp)
-{
-	if (vfp->src_fmt.sei_magic_code == SEI_MAGIC_CODE) {
-		if (vfp->src_fmt.fmt == VFRAME_SIGNAL_FMT_HLG)
-			return true;
-	}
-
-	return false;
-}
-
 static bool is_secure_video(const struct vframe_s *vfp)
 {
 	if (vfp->flag & VFRAME_FLAG_VIDEO_SECURE)
@@ -88,12 +57,49 @@ static bool is_afbc_video(const struct vframe_s *vfp)
 	return false;
 }
 
+static enum uvm_video_type get_format_vframe(const struct vframe_s *vfp)
+{
+	enum uvm_video_type type = AM_VIDEO_NORMAL;
+	u32 cuva = ((vfp->signal_type >> 31) & 1);
+	u32 color_primaries = ((vfp->signal_type >> 16) & 0xff);
+	u32 transfer_characteristic = ((vfp->signal_type >> 8) & 0xff);
+
+	if (vfp->src_fmt.sei_magic_code != SEI_MAGIC_CODE) {
+		/* invalid src fmt case */
+		if ((transfer_characteristic == 14 || transfer_characteristic == 18) &&
+				color_primaries == 9) {
+			type = AM_VIDEO_HLG;
+		} else if ((transfer_characteristic == 16) &&
+				((color_primaries == 9) || (color_primaries == 2))) {
+			if (cuva)
+				type = AM_VIDEO_HDR10_PLUS;
+			else
+				type = AM_VIDEO_HDR;
+		}
+	} else {
+		if (vfp->src_fmt.fmt == VFRAME_SIGNAL_FMT_HDR10)
+			type = AM_VIDEO_HDR;
+		else if (vfp->src_fmt.fmt == VFRAME_SIGNAL_FMT_HDR10PLUS ||
+				vfp->src_fmt.fmt == VFRAME_SIGNAL_FMT_HDR10PRIME)
+			type = AM_VIDEO_HDR10_PLUS;
+		else if (vfp->src_fmt.fmt == VFRAME_SIGNAL_FMT_HLG)
+			type = AM_VIDEO_HLG;
+	}
+
+	return type;
+}
+
 static enum uvm_video_type get_resolution_vframe(const struct vframe_s *vfp)
 {
 	u32 h, w;
 
-	h = max(vfp->height, vfp->compHeight);
-	w = max(vfp->width, vfp->compWidth);
+	if ((vfp->type & VIDTYPE_COMPRESS) != 0) {
+		w = vfp->compWidth;
+		h = vfp->compHeight;
+	} else {
+		w = vfp->width;
+		h = vfp->height;
+	}
 
 	if (h > 2160 || w > 3840)
 		return AM_VIDEO_8K;
@@ -185,21 +191,13 @@ int get_uvm_video_info(const int fd, struct uvm_fd_info *info)
 	if (is_dv_video(vfp))
 		type |= AM_VIDEO_DV;
 
-	if (is_hdr_video(vfp))
-		type |= AM_VIDEO_HDR;
-
-	if (is_hdr10_plus_video(vfp))
-		type |= AM_VIDEO_HDR10_PLUS;
-
-	if (is_hlg_video(vfp))
-		type |= AM_VIDEO_HLG;
-
 	if (is_secure_video(vfp))
 		type |= AM_VIDEO_SECURE;
 
 	if (is_afbc_video(vfp))
 		type |= AM_VIDEO_AFBC;
 
+	type |= get_format_vframe(vfp);
 	type |= get_resolution_vframe(vfp);
 	info->type = (int)type;
 
@@ -222,7 +220,7 @@ int get_uvm_video_info(const int fd, struct uvm_fd_info *info)
 	info->buf_stride = info->buf_width;
 	info->priority = vfp->priority;
 
-	MUBI_PRINTK(LOG_DEBUG, "videotype: 0x%x timestamp: %lld wxh: %dx%d crop: (%d %d %d %d)\n",
+	MUBI_PRINTK(LOG_DEBUG, "type:0x%x timestamp:%lld wxh:%dx%d crop:(%d %d %d %d)\n",
 			info->type, info->timestamp, info->buf_width, info->buf_height,
 			info->crop_left, info->crop_top, info->crop_right, info->crop_bottom);
 exit_ret:
