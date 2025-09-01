@@ -238,12 +238,14 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 4k TV + 1080p STB android16 size total: 108 + 56 + 128 = 292M
-			 * primary display: (2160p RGBA afbc) * 3 = 108M
-			 * secondary display: (1080p RGBA afbc) * 6 = 56M
-			 * white board: (2160p RGBA afbc) * 4 = 128M
+			/* 4k TV + 1080p STB android16 size total: 105 + 54 + 105 + 84 = 348M
+			 * primary display: (2160p RGBA afbc) * 3 = 105M
+			 * secondary display: (1080p RGBA afbc) * 6 = 54M
+			 * white board: (2160p RGBA afbc) * 3 = 105M
+			 * virtual display(for vdin and output buffer):
+			 * (2160p NV12) * 4 + (2160p NV12) * 3 = 48 + 36 = 84M
 			 */
-			size = <0x0 0x12400000>;
+			size = <0x0 0x15c00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
