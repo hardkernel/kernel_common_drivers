@@ -787,7 +787,7 @@ static int am_meson_drm_pm_freeze(struct device *dev)
 		return 0;
 	}
 
-	if (priv->logo->is_cma) {
+	if (priv->logo && priv->logo->is_cma) {
 		am_meson_logo_cma_alloc(dev, 0);
 		am_meson_logo_cma_mem_reset_zero(priv->logo);
 	}
@@ -840,7 +840,8 @@ static int am_meson_drm_pm_restore(struct device *dev)
 	}
 
 	ret = am_meson_drm_pm_resume(dev);
-	priv->logo->is_std = 1;
+	if (priv->logo)
+		priv->logo->is_std = 1;
 
 	DRM_INFO("drm restore done\n");
 	return ret;
