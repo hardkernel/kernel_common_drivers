@@ -615,7 +615,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				devp->canvas_align);
 			devp->canvas_align_w = h_size / VDIN_RGBA8888_PER_PIXEL_BYTE;
 		} else if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH ||
-		    !(vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)) ||
+		    (!(vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)) &&
+		    !devp->set_canvas_manual) ||
 		    (devp->dv_hw5.hw5_ctl & BIT3)) {
 			/* 4k is not support 10 bit mode in order to save memory
 			 * up to 4k 444 8bit mode
