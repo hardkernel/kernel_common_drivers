@@ -19,7 +19,8 @@
 /* 20250402: protect dummy state for lcd manual power on */
 /* 20250602: lcd multi-device support */
 /* 20250616: support sw vrr */
-#define LCD_DRV_VERSION    "20250616"
+/* 20250902: update ufr clk_change flow */
+#define LCD_DRV_VERSION    "20250902"
 
 #define CFMT_RGB565          0x05
 #define CFMT_RGB_6bit        0x06
@@ -236,6 +237,7 @@ void lcd_venc_vrr_recovery(struct aml_lcd_drv_s *pdrv);
 void lcd_venc_enable(struct aml_lcd_drv_s *pdrv, int flag);
 void lcd_mute_set(struct aml_lcd_drv_s *pdrv, unsigned char flag);
 int lcd_mute_state_get(struct aml_lcd_drv_s *pdrv);
+int lcd_get_venc_state(struct aml_lcd_drv_s *pdrv);
 int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv);
 int lcd_venc_config_init(struct lcd_data_s *pdata);
 void lcd_screen_black(struct aml_lcd_drv_s *pdrv);

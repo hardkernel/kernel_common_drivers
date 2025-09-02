@@ -132,6 +132,14 @@ static void lcd_venc_enable_ctrl(struct aml_lcd_drv_s *pdrv, int flag)
 		lcd_vcbus_setb(VPU_VOUT_CORE_CTRL, 0, 0, 1);
 }
 
+static int lcd_venc_get_state(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int init_state;
+
+	init_state = lcd_vcbus_getb(VPU_VOUT_CORE_CTRL, 0, 1);
+	return init_state;
+}
+
 static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
@@ -189,6 +197,7 @@ int lcd_venc_op_init_c3(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op)
 	venc_op->venc_set = lcd_venc_set;
 	venc_op->venc_change = NULL;
 	venc_op->venc_enable = lcd_venc_enable_ctrl;
+	venc_op->get_venc_state = lcd_venc_get_state;
 	venc_op->get_venc_init_config = lcd_venc_get_init_config;
 	venc_op->venc_vrr_recovery = NULL;
 	venc_op->get_encl_line_cnt = NULL;

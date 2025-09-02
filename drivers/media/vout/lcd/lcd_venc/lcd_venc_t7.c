@@ -217,6 +217,26 @@ static void lcd_venc_bist_change(struct aml_lcd_drv_s *pdrv, unsigned int level_
 	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, pcur_test[bist_num].vfifo_en, 3, 1);
 }
 
+static void lcd_venc_mute_set(struct aml_lcd_drv_s *pdrv, unsigned char flag)
+{
+	unsigned int offset;
+
+	offset = pdrv->data->offset_venc[pdrv->index];
+
+	if (flag) {
+		lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, 3);
+		lcd_vcbus_write(ENCL_TST_MDSEL + offset, 0);
+		lcd_vcbus_write(ENCL_TST_Y + offset, 0);
+		lcd_vcbus_write(ENCL_TST_CB + offset, 0);
+		lcd_vcbus_write(ENCL_TST_CR + offset, 0);
+		lcd_vcbus_setb(ENCL_TST_EN + offset, 1, 0, 1);
+		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 0, 3, 1);
+	} else {
+		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 1, 3, 1);
+		lcd_vcbus_setb(ENCL_TST_EN + offset, 0, 0, 1);
+	}
+}
+
 static void lcd_venc_gamma_init(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int data[2];
@@ -581,24 +601,14 @@ static void lcd_venc_enable_ctrl(struct aml_lcd_drv_s *pdrv, int flag)
 		lcd_vcbus_write(ENCL_VIDEO_EN + offset, 0);
 }
 
-static void lcd_venc_mute_set(struct aml_lcd_drv_s *pdrv, unsigned char flag)
+static int lcd_venc_get_state(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned int offset;
+	unsigned int offset, init_state;
 
 	offset = pdrv->data->offset_venc[pdrv->index];
 
-	if (flag) {
-		lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, 3);
-		lcd_vcbus_write(ENCL_TST_MDSEL + offset, 0);
-		lcd_vcbus_write(ENCL_TST_Y + offset, 0);
-		lcd_vcbus_write(ENCL_TST_CB + offset, 0);
-		lcd_vcbus_write(ENCL_TST_CR + offset, 0);
-		lcd_vcbus_setb(ENCL_TST_EN + offset, 1, 0, 1);
-		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 0, 3, 1);
-	} else {
-		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 1, 3, 1);
-		lcd_vcbus_setb(ENCL_TST_EN + offset, 0, 0, 1);
-	}
+	init_state = lcd_vcbus_read(ENCL_VIDEO_EN + offset);
+	return init_state;
 }
 
 static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
@@ -862,6 +872,7 @@ int lcd_venc_op_init_t7(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op)
 	venc_op->venc_set_dummy = lcd_venc_set_dummy_t6d;
 	venc_op->venc_change = lcd_venc_change_timing;
 	venc_op->venc_enable = lcd_venc_enable_ctrl;
+	venc_op->get_venc_state = lcd_venc_get_state;
 	venc_op->get_venc_init_config = lcd_venc_get_init_config;
 	venc_op->venc_vrr_recovery = lcd_venc_set_vrr_recovery;
 	venc_op->get_encl_line_cnt = lcd_venc_get_encl_line_cnt;

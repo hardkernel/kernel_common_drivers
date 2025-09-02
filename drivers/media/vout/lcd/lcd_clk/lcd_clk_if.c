@@ -537,11 +537,11 @@ static void lcd_request_vpu_overclk(struct aml_lcd_drv_s *pdrv, unsigned int enc
 #ifdef CONFIG_AMLOGIC_VPU
 	if (vpu_support_overclk()) {
 		LCD_PR(pdrv, "%s: vpu overclk flow: enc_clk=%d", __func__, enc_clk);
-		lcd_venc_enable(pdrv, 0);
-		msleep(30);
+		//lcd_venc_enable(pdrv, 0);
+		//msleep(30);
 		vpu_dev_clk_request(pdrv->lcd_vpu_dev, enc_clk);
-		msleep(30);
-		lcd_venc_enable(pdrv, 1);
+		//msleep(30);
+		//lcd_venc_enable(pdrv, 1);
 		LCD_DBG(pdrv, "%s: vpu overclk flow done", __func__);
 	}
 #endif
@@ -549,12 +549,22 @@ static void lcd_request_vpu_overclk(struct aml_lcd_drv_s *pdrv, unsigned int enc
 
 void lcd_clk_change(struct aml_lcd_drv_s *pdrv)
 {
+	int enc_st = lcd_get_venc_state(pdrv);
+
 	LCD_DBG(pdrv, "%s: clk_change:0x%x", __func__, pdrv->curr_dev->dev_cfg.timing.clk_change);
 
 	if (pdrv->curr_dev->dev_cfg.timing.clk_change & LCD_CLK_PLL_CHANGE) {
+		if (enc_st) {
+			lcd_venc_enable(pdrv, 0);
+			msleep(30);
+		}
 		if (pdrv->vmode_switch)
 			lcd_request_vpu_overclk(pdrv, pdrv->curr_dev->dev_cfg.timing.enc_clk);
 		lcd_set_clk(pdrv);
+		if (enc_st) {
+			msleep(30);
+			lcd_venc_enable(pdrv, 1);
+		}
 	} else if (pdrv->curr_dev->dev_cfg.timing.clk_change & LCD_CLK_FRAC_UPDATE) {
 		lcd_update_clk_frac(pdrv);
 	}

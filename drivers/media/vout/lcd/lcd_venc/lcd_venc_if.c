@@ -25,12 +25,13 @@ static struct lcd_venc_op_s lcd_venc_op = {
 	.gamma_test_en = NULL,
 	.venc_debug_test = NULL,
 	.venc_bist_change = NULL,
+	.mute_set = NULL,
 	.venc_set_timing = NULL,
 	.venc_set = NULL,
 	.venc_set_dummy = NULL,
 	.venc_change = NULL,
 	.venc_enable = NULL,
-	.mute_set = NULL,
+	.get_venc_state = NULL,
 	.get_venc_init_config = NULL,
 	.venc_vrr_recovery = NULL,
 	.get_encl_line_cnt = NULL,
@@ -151,6 +152,32 @@ void lcd_bist_change(struct aml_lcd_drv_s *pdrv, unsigned int level_r,
 	lcd_venc_op.venc_bist_change(pdrv, level_r, level_g, level_b);
 }
 
+void lcd_mute_set(struct aml_lcd_drv_s *pdrv,  unsigned char flag)
+{
+	if (!lcd_venc_op.mute_set)
+		return;
+
+	lcd_venc_op.mute_set(pdrv, flag);
+	LCD_DBG(pdrv, "%s: %d", __func__, flag);
+}
+
+int lcd_mute_state_get(struct aml_lcd_drv_s *pdrv)
+{
+	int flag = 0;
+	unsigned long irq_flags = 0;
+
+	if (lcd_venc_op.mute_set) {
+		spin_lock_irqsave(&pdrv->isr_lock, irq_flags);
+		flag = pdrv->mute_state;
+		spin_unlock_irqrestore(&pdrv->isr_lock, irq_flags);
+	} else if (pdrv->viu_sel == 1) {
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+		flag = get_output_mute();
+#endif
+	}
+	return flag;
+}
+
 void lcd_set_venc_timing(struct aml_lcd_drv_s *pdrv)
 {
 	if (!lcd_venc_op.venc_set_timing)
@@ -201,30 +228,17 @@ void lcd_venc_enable(struct aml_lcd_drv_s *pdrv, int flag)
 	lcd_venc_op.venc_enable(pdrv, flag);
 }
 
-void lcd_mute_set(struct aml_lcd_drv_s *pdrv,  unsigned char flag)
+int lcd_get_venc_state(struct aml_lcd_drv_s *pdrv)
 {
-	if (!lcd_venc_op.mute_set)
-		return;
+	int ret = 0;
 
-	lcd_venc_op.mute_set(pdrv, flag);
-	LCD_DBG(pdrv, "%s: %d", __func__, flag);
-}
-
-int lcd_mute_state_get(struct aml_lcd_drv_s *pdrv)
-{
-	int flag = 0;
-	unsigned long irq_flags = 0;
-
-	if (lcd_venc_op.mute_set) {
-		spin_lock_irqsave(&pdrv->isr_lock, irq_flags);
-		flag = pdrv->mute_state;
-		spin_unlock_irqrestore(&pdrv->isr_lock, irq_flags);
-	} else if (pdrv->viu_sel == 1) {
-#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
-		flag = get_output_mute();
-#endif
+	if (!lcd_venc_op.get_venc_state) {
+		LCDERR("[%d]: %s: invalid\n", pdrv->index, __func__);
+		return 0;
 	}
-	return flag;
+
+	ret = lcd_venc_op.get_venc_state(pdrv);
+	return ret;
 }
 
 int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv)

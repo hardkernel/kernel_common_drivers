@@ -517,6 +517,16 @@ static void lcd_venc_enable_ctrl(struct aml_lcd_drv_s *pdrv, int flag)
 		lcd_vcbus_write(ENCL_VIDEO_EN_T3X + offset, 0);
 }
 
+static int lcd_venc_get_state(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int offset, init_state;
+
+	offset = pdrv->data->offset_venc[pdrv->index];
+
+	init_state = lcd_vcbus_read(ENCL_VIDEO_EN_T3X + offset);
+	return init_state;
+}
+
 static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
@@ -679,6 +689,7 @@ int lcd_venc_op_init_t3x(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op
 	venc_op->venc_set = lcd_venc_set;
 	venc_op->venc_change = lcd_venc_change_timing;
 	venc_op->venc_enable = lcd_venc_enable_ctrl;
+	venc_op->get_venc_state = lcd_venc_get_state;
 	venc_op->get_venc_init_config = lcd_venc_get_init_config;
 	venc_op->venc_vrr_recovery = lcd_venc_set_vrr_recovery;
 	venc_op->get_encl_line_cnt = lcd_venc_get_encl_line_cnt;
