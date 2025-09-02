@@ -630,6 +630,7 @@ static struct rdma_partition_ins_s *vpp_rdma_part;
 static bool use_rdma_part_table = true;
 
 static bool clear_hdr10plus_pkt = true;
+static bool clear_amdv_ahead_pkt;
 
 bool amdv_rdma_init;
 u32 vpp_reg[MAX_REG_CNT];
@@ -2414,9 +2415,22 @@ void clear_dolby_vision_wait(void)
 			dv_inst[vd2_dv_id].amdv_wait_init = false;
 			dv_inst[vd2_dv_id].amdv_wait_count = 0;
 		}
+		clear_amdv_ahead_pkt = false;
 	} else {
 		amdv_wait_init = false;
 		amdv_wait_count = 0;
+	}
+}
+
+void clear_ahead_dv_pkt(void)
+{
+	struct vinfo_s *vinfo = get_current_vinfo();
+
+	if (vinfo && vinfo->vout_device &&
+		vinfo->vout_device->fresh_tx_vsif_pkt) {
+		vinfo->vout_device->fresh_tx_vsif_pkt
+			(vinfo->vout_device->tx_instance, 0, 0, NULL, true);
+		clear_dolby_vision_wait();
 	}
 }
 
@@ -2449,6 +2463,7 @@ void reset_dv_param(void)
 		pr_info("reset dv param\n");
 	dolby_vision_on = false;
 	amdv_wait_on = false;
+	clear_amdv_ahead_pkt = false;
 	dolby_vision_status = BYPASS_PROCESS;
 	amdv_target_mode = AMDV_OUTPUT_MODE_BYPASS;
 	dolby_vision_mode = AMDV_OUTPUT_MODE_BYPASS;
@@ -11938,6 +11953,7 @@ int amdv_wait_metadata_v2(struct vframe_s *vf, enum vd_path_e vd_path)
 				(vinfo->vout_device->tx_instance, 0, NULL);
 			send_hdmi_pkt_ahead(FORMAT_DOVI, vinfo);
 			dv_inst[dv_id].amdv_wait_count--;
+			clear_amdv_ahead_pkt = true;
 		} else {
 			/*exit netflix, still process vf after video disable,*/
 			/*wait init will be on, need reset wait init */
@@ -13461,6 +13477,11 @@ static int amdolby_vision_process_v2_stb
 	bool hdmi_inst_change = false;
 	struct vd_proc_info_t *vd_proc_info;
 	unsigned int reg_value;
+
+	if (!vf && get_disable_video_flag(VD1_PATH) && amdv_wait_on &&
+		dolby_vision_policy == 1 && clear_amdv_ahead_pkt) {
+		clear_ahead_dv_pkt();
+	}
 
 	if (vf) {
 		if (dv_inst_valid(vf->src_fmt.dv_id))
