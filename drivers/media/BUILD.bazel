@@ -1012,6 +1012,7 @@ ddk_module(
             True: [
                 "dtv_demod/dvbt/dvbt_v2.c",
                 "dtv_demod/dvbt/dvbt_frontend.c",
+                "dtv_demod/dvbt/dvbt2_fw.c",
             ],
         },
         "CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB": {

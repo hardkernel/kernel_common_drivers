@@ -30,7 +30,6 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
-#include <linux/crc32.h>
 #include <linux/pinctrl/consumer.h>
 
 #ifdef ARC_700
@@ -1361,7 +1360,7 @@ static void dtvdemod_clktree_remove(struct device *dev)
 		devm_clk_put(dev, devp->demod_32k);
 }
 
-static int dtvdemod_request_firmware(const char *file_name, char *buf, int size)
+/*static int dtvdemod_request_firmware(const char *file_name, unsigned char *buf, int size)
 {
 	int ret = -1;
 	const struct firmware *fw;
@@ -1387,7 +1386,7 @@ static int dtvdemod_request_firmware(const char *file_name, char *buf, int size)
 		goto release;
 	}
 
-	memcpy(buf, (char *)fw->data + offset, fw->size - offset);
+	memcpy(buf, fw->data + offset, fw->size - offset);
 	ret = fw->size;
 
 	PR_DBGL("fw:\n");
@@ -1397,18 +1396,6 @@ release:
 	release_firmware(fw);
 err:
 	return ret;
-}
-
-static int fw_check_sum(char *buf, unsigned int len)
-{
-	unsigned int crc;
-
-	crc = crc32_le(~0U, buf, len);
-
-	PR_INFO("fw crc:0x%x, len:%d\n", crc ^ ~0U, len);
-
-	/* return fw->head.checksum != (crc ^ ~0U) ? 0 : 1; */
-	return 0;
 }
 
 static int dtvdemod_download_firmware(struct amldtvdemod_device_s *devp)
@@ -1454,6 +1441,7 @@ static void dtvdemod_fw_dwork(struct work_struct *work)
 
 	cnt++;
 }
+*/
 
 static void blind_scan_work(struct work_struct *work)
 {
@@ -1569,18 +1557,19 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 		if (pm_runtime_get_sync(devp->dev) < 0)
 			pr_err("failed to set pwr\n");
 
-		devp->fw_buf = kzalloc(FW_BUFF_SIZE, GFP_KERNEL);
-		if (!devp->fw_buf)
-			ret = -ENOMEM;
-
 		/* delayed workqueue for dvbt2 fw downloading */
-		if (!demod_chip_eq(DTVDEMOD_HW_S4) &&
+		/*if (!demod_chip_eq(DTVDEMOD_HW_S4) &&
 			!demod_chip_eq(DTVDEMOD_HW_S4D) &&
 			!demod_chip_eq(DTVDEMOD_HW_TXHD2) &&
 			!demod_chip_eq(DTVDEMOD_HW_S1A)) {
+			devp->fw_buf = kzalloc(FW_BUFF_SIZE, GFP_KERNEL);
+			if (!devp->fw_buf)
+				ret = -ENOMEM;
+
 			INIT_DELAYED_WORK(&devp->fw_dwork, dtvdemod_fw_dwork);
 			schedule_delayed_work(&devp->fw_dwork, 5 * HZ);
 		}
+		*/
 
 		/* workqueue for blind scan process */
 		//INIT_WORK(&devp->blind_scan_work, dvbs_blind_scan_work);
@@ -1627,7 +1616,7 @@ static void aml_dtvdemod_remove(struct platform_device *pdev)
 	class_destroy(devp->clsp);
 
 	if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
-		kfree(devp->fw_buf);
+		//kfree(devp->fw_buf);
 		pm_runtime_put_sync(devp->dev);
 		pm_runtime_disable(devp->dev);
 	}

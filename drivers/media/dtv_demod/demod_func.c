@@ -20,6 +20,7 @@
 #include <linux/mutex.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/math64.h>
+#include <linux/crc32.h>
 
 #include "acf_filter_coefficient.h"
 
@@ -4325,3 +4326,15 @@ void float_division(long long dividend, unsigned int divisor, int *integer, unsi
 	//PR_DBGL("%s: remainder %lld result=%d.%d\n", __func__, remainder, *integer, *decimal);
 }
 #endif
+
+int fw_check_sum(unsigned char *buf, unsigned int len)
+{
+	unsigned int crc;
+
+	crc = crc32_le(~0U, buf, len);
+
+	PR_INFO("fw crc:0x%x, len:%d\n", crc ^ ~0U, len);
+
+	/* return fw->head.checksum != (crc ^ ~0U) ? 0 : 1; */
+	return 0;
+}

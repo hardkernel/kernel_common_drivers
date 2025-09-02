@@ -409,15 +409,24 @@ unsigned int write_riscv_ram(void)
 {
 	unsigned int ck0;
 	unsigned int addr = 0;
-	int value;
+	unsigned int value = 0;
 	unsigned int ret = 0;
-	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	//struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	const unsigned char *fw_buf = DTVDEMOD_T2_FW; //devp->fw_buf;
+	unsigned int LEN = dvbt2_get_fw_size();
+
+	PR_INFO("T2_FW_CRC32: %#x\n", T2_FW_CRC32);
+	fw_check_sum(DTVDEMOD_T2_FW, LEN);
 
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0xa0);
 
 	for (ck0 = 0; ck0 < (10240 + 1024) * 4; ck0 += 4) {
-		value = (devp->fw_buf[ck0 + 3] << 24) | (devp->fw_buf[ck0 + 2] << 16) |
-			 (devp->fw_buf[ck0 + 1] << 8) | devp->fw_buf[ck0];
+		if (ck0 + 3 <= LEN - 1)
+			value = (fw_buf[ck0 + 3] << 24) | (fw_buf[ck0 + 2] << 16) |
+					(fw_buf[ck0 + 1] << 8) | fw_buf[ck0];
+		else
+			value = 0;
+
 		dvbt_t2_write_w(addr, value);
 		if (dvbt_t2_read_w(addr) != value) {
 			PR_ERR("write fw err, addr: 0x%x, val: 0x%x, value: 0x%x\n", addr,
@@ -431,8 +440,8 @@ unsigned int write_riscv_ram(void)
 	addr = 0;
 
 	for (ck0 = 0; ck0 < 5120 * 4; ck0 += 4)	{
-		value = (devp->fw_buf[ck0 + 3] << 24) | (devp->fw_buf[ck0 + 2] << 16) |
-			 (devp->fw_buf[ck0 + 1] << 8) | devp->fw_buf[ck0];
+		value = (fw_buf[ck0 + 3] << 24) | (fw_buf[ck0 + 2] << 16) |
+			 (fw_buf[ck0 + 1] << 8) | fw_buf[ck0];
 		dvbt_t2_write_w(addr, value);
 		if (dvbt_t2_read_w(addr) != value) {
 			PR_ERR("write fw err, addr: 0x%x, val: 0x%x, value: 0x%x\n", addr,

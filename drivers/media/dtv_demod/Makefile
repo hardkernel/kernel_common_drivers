@@ -26,6 +26,7 @@ ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/dtv_demod/dvb_qam
 
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT) += dtv_demod/dvbt/dvbt_v2.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT) += dtv_demod/dvbt/dvbt_frontend.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBT) += dtv_demod/dvbt/dvbt2_fw.o
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/dtv_demod/dvbt
 
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DEMOD_SUPPORT_DTMB) += dtv_demod/dtmb/dtmb_func.o

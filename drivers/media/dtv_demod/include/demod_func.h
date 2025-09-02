@@ -595,5 +595,6 @@ int timer_is_en(struct aml_dtvdemod *demod, enum ddemod_timer_s tmid);
 int timer_not_enough(struct aml_dtvdemod *demod, enum ddemod_timer_s tmid);
 int timer_is_enough(struct aml_dtvdemod *demod, enum ddemod_timer_s tmid);
 int timer_tuner_not_enough(struct aml_dtvdemod *demod);
+int fw_check_sum(unsigned char *buf, unsigned int len);
 
 #endif

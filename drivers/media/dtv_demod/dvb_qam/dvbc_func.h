@@ -420,11 +420,11 @@ struct fe_l2a_internal_param {
 	signed int		tuner_index_jump1;
 	unsigned int	sr;
 	unsigned int	state;
-	struct stchip_info handle_demod; /*  Handle to a demodulator */
-	struct stchip_info handle_anafe; /*  Handle to AFE */
-	struct stchip_info handle_soc; /*  Handle to SOC */
-	struct stchip_info handle_tuner; /* Handle to tuner */
-	struct stchip_info handle_vglna; /* Handle to the chip VGLNA*/
+	//struct stchip_info handle_demod; /*  Handle to a demodulator */
+	//struct stchip_info handle_anafe; /*  Handle to AFE */
+	//struct stchip_info handle_soc; /*  Handle to SOC */
+	//struct stchip_info handle_tuner; /* Handle to tuner */
+	//struct stchip_info handle_vglna; /* Handle to the chip VGLNA*/
 	enum fe_sat_rolloff roll_off; /* manual RollOff for DVBS1/DSS only */
 
 	/* Demod */

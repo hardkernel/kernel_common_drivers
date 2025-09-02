@@ -221,6 +221,7 @@
 /*  V4.0.004 add dvbs2x support transport gse on ts packet */
 /*  V4.0.005 fix isdb-t search fail issue */
 /*  V4.0.006 implement module debug parameter */
+/*  V4.0.007 optimize loading method of t2 firmware */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -237,9 +238,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V4.0.006"
-#define DTVDEMOD_VER	"2025/08/25 implement module debug parameter"
-#define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
+#define AMLDTVDEMOD_VER "V4.0.007"
+#define DTVDEMOD_VER	"2025/09/05 optimize loading method of t2 firmware"
+#define AMLDTVDEMOD_T2_FW_VER "v1059.20250521"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_ATSC || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_J83B
@@ -309,10 +310,10 @@ enum DEMOD_TUNER_IF {
 #define DEMOD_CLK_250M	250000
 #define DEMOD_CLK_270M	270000
 
-#define FIRMWARE_NAME	"dtvdemod_t2.bin"
-#define FIRMWARE_DIR	"dtvdemod"
-#define PATH_MAX_LEN	50
-#define FW_BUFF_SIZE	(100 * 1024)
+//#define FIRMWARE_NAME	"dtvdemod_t2.bin"
+//#define FIRMWARE_DIR	"dtvdemod"
+//#define PATH_MAX_LEN	50
+//#define FW_BUFF_SIZE	(100 * 1024)
 
 enum M6_Demod_Pll_Mode {
 	CRY_MODE = 0,
@@ -595,9 +596,9 @@ struct amldtvdemod_device_s {
 
 	struct dtvdemod_capture_s capture_para;
 	unsigned int stop_reg_wr;
-	struct delayed_work fw_dwork;
-	char firmware_path[PATH_MAX_LEN];
-	char *fw_buf;
+	//struct delayed_work fw_dwork;
+	//char firmware_path[PATH_MAX_LEN];
+	//unsigned char *fw_buf;
 
 	struct work_struct blind_scan_work;
 

@@ -498,6 +498,9 @@ enum ldpc_ite_md {
 #define CHC_CIR_SNR1	0x2a09
 
 extern const unsigned int minimum_snr_x10[4][6];
+extern const unsigned int T2_FW_CRC32;
+extern unsigned char DTVDEMOD_T2_FW[];
+
 void dvbt2_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 unsigned int dvbt2_calcul_get_field(unsigned int memory_base,
 		unsigned int nb_bits_shift, unsigned int var_size);
@@ -518,4 +521,6 @@ int dvbt_get_FFT_GI(u32 *fft_mode, u32 *guard_interval);
 unsigned int dvbt_set_ch(struct aml_dtvdemod *demod,
 		struct aml_demod_dvbt *demod_dvbt, struct dvb_frontend *fe);
 int dvbt2_set_ch(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
+unsigned int dvbt2_get_fw_size(void);
+
 #endif
