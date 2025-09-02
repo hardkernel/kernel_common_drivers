@@ -5066,20 +5066,20 @@ static void vdin_set_h_aa_ds(struct vdin_dev_s *devp)
 		return;
 	}
 
-	if (dst_w > 960) {
-		// for 4tap, max_hsize=1920, coef0 + coef1 + coef2 + coef3 = 128
-		wr_bits(offset, VDIN0_AA_DS_CTRL, 1, 21, 1);
-		wr_bits(offset, VDIN0_AA_DS_COEF_0, 32, 0, 8); // for aa_vds coef
-		wr_bits(offset, VDIN0_AA_DS_COEF_1, 32, 0, 8); // for aa_vds coef
-		wr_bits(offset, VDIN0_AA_DS_COEF_2, 32, 0, 8); // for aa_vds coef
-		wr_bits(offset, VDIN0_AA_DS_COEF_3, 32, 0, 8); // for aa_vds coef
-	} else {
+	if (aa_ds_x_rate == 1 || aa_ds_x_rate == 2) {
 		// for 7tap, max_hsize=960, coef0 + (coef1 + coef2 + coef3)*2 = 128
 		wr_bits(offset, VDIN0_AA_DS_CTRL, 0, 21, 1);
-		wr_bits(offset, VDIN0_AA_DS_COEF_0, 24, 0, 8); // for aa_vds coef
-		wr_bits(offset, VDIN0_AA_DS_COEF_1, 20, 0, 8); // for aa_vds coef
-		wr_bits(offset, VDIN0_AA_DS_COEF_2, 16, 0, 8); // for aa_vds coef
-		wr_bits(offset, VDIN0_AA_DS_COEF_3, 16, 0, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_0, 64, 8, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_1, 32, 8, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_2,  0, 8, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_3,  0, 8, 8); // for aa_vds coef
+	} else { //4/8
+		// for 7tap, max_hsize=960, coef0 + (coef1 + coef2 + coef3)*2 = 128
+		wr_bits(offset, VDIN0_AA_DS_CTRL, 0, 21, 1);
+		wr_bits(offset, VDIN0_AA_DS_COEF_0, 24, 8, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_1, 20, 8, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_2, 16, 8, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_3, 16, 8, 8); // for aa_vds coef
 	}
 
 	/* reg_aa_ds_bb_hscp1 */
@@ -5193,6 +5193,23 @@ static void vdin_set_v_aa_ds(struct vdin_dev_s *devp)
 		pr_err("vdin.%d invalid aa_ds_x_rate : %d\n", devp->index,
 		       aa_ds_y_rate);
 		return;
+	}
+
+	if (aa_ds_y_rate == 1 || aa_ds_y_rate == 2) {
+		// for 7tap, max_hsize=960, coef0 + (coef1 + coef2 + coef3)*2 = 128
+		wr_bits(offset, VDIN0_AA_DS_CTRL, 0, 21, 1);
+		wr_bits(offset, VDIN0_AA_DS_COEF_0, 64, 0, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_1, 32, 0, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_2,  0, 0, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_3,  0, 0, 8); // for aa_vds coef
+
+	} else { //4/8
+		// for 7tap, max_hsize=960, coef0 + (coef1 + coef2 + coef3)*2 = 128
+		wr_bits(offset, VDIN0_AA_DS_CTRL, 0, 21, 1);
+		wr_bits(offset, VDIN0_AA_DS_COEF_0, 24, 0, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_1, 20, 0, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_2, 16, 0, 8); // for aa_vds coef
+		wr_bits(offset, VDIN0_AA_DS_COEF_3, 16, 0, 8); // for aa_vds coef
 	}
 
 	/* reg_aa_ds_bb_vscp1 */
