@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+obj-$(CONFIG_AMLOGIC_EXTERNAL_DRIVER) += leds/
+obj-$(CONFIG_AMLOGIC_EXTERNAL_DRIVER) += nfc/nta533/
+obj-$(CONFIG_AMLOGIC_EXTERNAL_DRIVER) += sensor/htu20d/
+obj-$(CONFIG_AMLOGIC_EXTERNAL_DRIVER) += sensor/radar/
+obj-$(CONFIG_AMLOGIC_EXTERNAL_DRIVER) += sensor/ucs11681/
+obj-$(CONFIG_AMLOGIC_EXTERNAL_DRIVER) += video/st7789v3_tft/

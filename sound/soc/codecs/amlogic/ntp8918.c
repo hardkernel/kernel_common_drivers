@@ -69,6 +69,7 @@ static int ntp8918_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S24_BE:
 		NTP_DEBUG("24bit");
+		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
 	case SNDRV_PCM_FORMAT_S20_3LE:
 	case SNDRV_PCM_FORMAT_S20_3BE:
@@ -609,7 +610,7 @@ static int ntp8918_parse_dt(struct ntp8918_priv *ntp8918, struct device *dev)
 	NTP_DEBUG("IS_ERR: %d IS_ERR_OR_NULL: %d", IS_ERR(ntp8918->pdata->pd_gpio),
 				IS_ERR_OR_NULL(ntp8918->pdata->pd_gpio));
 	if (IS_ERR_OR_NULL(ntp8918->pdata->pd_gpio)) {
-		NTP_DEBUG("Failed to allocate reset gpio : %d, try the legacy mode again",
+		NTP_DEBUG("Failed to allocate reset gpio : %ld, try the legacy mode again",
 				PTR_ERR(ntp8918->pdata->pd_gpio));
 		pd_pin = of_get_named_gpio(dev->of_node, "pd_pin", 0);
 		if (pd_pin < 0) {
@@ -638,7 +639,7 @@ static int ntp8918_parse_dt(struct ntp8918_priv *ntp8918, struct device *dev)
 	NTP_DEBUG("IS_ERR: %d IS_ERR_OR_NULL: %d", IS_ERR(ntp8918->pdata->power_gpio),
 				IS_ERR_OR_NULL(ntp8918->pdata->power_gpio));
 	if (IS_ERR_OR_NULL(ntp8918->pdata->power_gpio)) {
-		NTP_DEBUG("Failed to allocate power gpio : %d, try the legacy mode again",
+		NTP_DEBUG("Failed to allocate power gpio : %ld, try the legacy mode again",
 				PTR_ERR(ntp8918->pdata->power_gpio));
 		/* control ntp8918 module vcc power. */
 		power_pin = of_get_named_gpio(dev->of_node, "power_pin", 0);
@@ -668,7 +669,7 @@ static int ntp8918_parse_dt(struct ntp8918_priv *ntp8918, struct device *dev)
 	NTP_DEBUG("IS_ERR: %d IS_ERR_OR_NULL:%d", IS_ERR(ntp8918->pdata->reset_gpio),
 				IS_ERR_OR_NULL(ntp8918->pdata->reset_gpio));
 	if (IS_ERR_OR_NULL(ntp8918->pdata->reset_gpio)) {
-		NTP_DEBUG("Failed to allocate reset gpio : %d, try the legacy mode again",
+		NTP_DEBUG("Failed to allocate reset gpio : %ld, try the legacy mode again",
 				PTR_ERR(ntp8918->pdata->reset_gpio));
 		reset_pin = of_get_named_gpio(dev->of_node, "reset_pin", 0);
 		if (reset_pin < 0) {
@@ -741,8 +742,7 @@ static int ntp8918_parse_dt(struct ntp8918_priv *ntp8918, struct device *dev)
 	return ret;
 }
 
-static int ntp8918_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int ntp8918_i2c_probe(struct i2c_client *i2c)
 {
 	struct ntp8918_priv *ntp8918;
 	struct ntp8918_platform_data *pdata;
@@ -790,11 +790,10 @@ static int ntp8918_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int ntp8918_i2c_remove(struct i2c_client *client)
+static void ntp8918_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_component(&client->dev);
 	NTP_FUNC_EXIT();
-	return 0;
 }
 
 static const struct i2c_device_id ntp8918_i2c_id[] = {
