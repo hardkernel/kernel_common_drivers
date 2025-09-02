@@ -4034,7 +4034,15 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 	if (devp->dtdata->hw_ver == VDIN_HW_T6W) {
 		pr_info("vdin%d,%s t6w\n", devp->index, __func__);
 		wr_bits(offset, VDIN_LFIFO_CTRL, 1, 28, 1);//discard data enable
-		wr(offset, VDIN0_WRMIF_FRM_EN_CTRL, 0);//auto mode
+		if (devp->hw_core == VDIN_HW_CORE_NORMAL) {
+			//vdin0 wrmif hold line=2
+			wr(offset, VDIN0_WRMIF_FRM_EN_CTRL, 0x08);//auto mode
+			wr_bits(offset, VDIN_COM_CTRL0, 2, HOLD_LN_BIT, HOLD_LN_WID);
+		} else {
+			//vdin1 wrmif hold line=0
+			wr(offset, VDIN0_WRMIF_FRM_EN_CTRL, 0x0);//auto mode
+			wr_bits(offset, VDIN_COM_CTRL0, 0, HOLD_LN_BIT, HOLD_LN_WID);
+		}
 	} else if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
 		/* for filter unstable vysnc */
 		wr_bits(offset, VDIN_WRMIF_CTRL0, 0, T6D_EOL_SEL_BIT, T6D_EOL_SEL_WID);
@@ -4047,7 +4055,15 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 		wr(offset, VDIN_WRMIF_CHRM_Y, 0x00000000);
 		wr_bits(offset, VDIN_LFIFO_CTRL, 1, 28, 1);//discard data disable
 		wr_bits(offset, VDIN_WRMIF_FRM_EN_CTRL, 0, 1, 1);/* 0-auto,1-manual */
-		//wr_bits(offset, VDIN_WRMIF_FRM_EN_CTRL, 0, 15, 1);
+		if (devp->hw_core == VDIN_HW_CORE_NORMAL) {
+			//vdin0 wrmif hold line=2
+			wr(offset, VDIN_WRMIF_FRM_EN_CTRL, 0x08);//auto mode
+			wr_bits(offset, VDIN_COM_CTRL0, 2, HOLD_LN_BIT, HOLD_LN_WID);
+		} else {
+			//vdin1 wrmif hold line=0
+			wr(offset, VDIN_WRMIF_FRM_EN_CTRL, 0x0);//auto mode
+			wr_bits(offset, VDIN_COM_CTRL0, 0, HOLD_LN_BIT, HOLD_LN_WID);
+		}
 	} else {
 		/* [27:16] write.output_hs        = 0 */
 		/* [11: 0] write.output_he        = 0 */
