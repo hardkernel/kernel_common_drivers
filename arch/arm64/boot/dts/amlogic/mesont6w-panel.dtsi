@@ -145,7 +145,7 @@
 		status = "okay";
 		index = <0>;
 		key_valid = <1>;
-		i2c_bus = "i2c_bus_3";
+		i2c_bus = "i2c_3";
 
 		extern_0{
 			index = <0>;

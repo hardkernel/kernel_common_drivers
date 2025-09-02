@@ -86,6 +86,42 @@ void lcd_delay_ms(int ms)
 		msleep(ms);
 }
 
+static inline unsigned int pxp_abs_diff(unsigned int a, unsigned int b)
+{
+	return (a > b ? (a - b) : (b - a));
+}
+
+void pxp_clk_div_gen(unsigned int pclk, unsigned int *xd, unsigned int *clk_sel)
+{
+	int i = 0, j = 0;
+	unsigned int clk_in;
+	unsigned int prox_xd = 0, prox_id = 0, prox_diff = 0xffffffff, diff;
+	unsigned int pxp_fclk_div_clk[] = {
+		4, 666000000,
+		5, 500000000,
+		6, 400000000,
+		7, 285000000
+	};
+
+	for (j = 0; j < (sizeof(pxp_fclk_div_clk) / sizeof(unsigned int) >> 1); j++) {
+		clk_in = pxp_fclk_div_clk[(j << 1) | 1];
+		for (i = 1; i < 9; i++) {
+			diff = pxp_abs_diff(clk_in / i, pclk);
+			if (diff <= prox_diff) {
+				prox_id = j;
+				prox_xd = i;
+				prox_diff = diff;
+			}
+		}
+	}
+	*clk_sel = pxp_fclk_div_clk[(prox_id << 1) | 0];
+	*xd = prox_xd;
+
+	LCDPR("pxp: pclk:%d, xd:%d, clk_sel:%d, src_clk:%d real_clk:%d\n",
+		pclk, *xd, *clk_sel, pxp_fclk_div_clk[(prox_id << 1) | 1],
+		pxp_fclk_div_clk[(prox_id << 1) | 1] / *xd);
+}
+
 void lcd_debug_print_helper(struct aml_lcd_drv_s *pdrv, u8 pr_type, const char *fmt, ...)
 {
 	va_list args;
@@ -1153,6 +1189,7 @@ void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
 	unsigned int p2p_type, lcd_bits, lane_num, clk_mode;
 	unsigned long long bit_rate, band_width;
+	unsigned long long cspi_alpha = 0, frame_rate = 0, vtt = 0;
 
 	LCD_DBG(pdrv, "%s", __func__);
 
@@ -1161,6 +1198,9 @@ void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 	lane_num = pconf->control.p2p_cfg.lane_num;
 	band_width = pconf->timing.act_timing.pixel_clk;
 	p2p_type = pconf->control.p2p_cfg.p2p_type & 0x1f;
+	cspi_alpha = pconf->control.p2p_cfg.cspi_alpha;
+	frame_rate = pconf->timing.act_timing.frame_rate;
+	vtt = pconf->timing.act_timing.v_period;
 	switch (p2p_type) {
 	case P2P_CEDS:
 	case P2P_EPI: /*24to28*/
@@ -1187,6 +1227,9 @@ void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 			band_width = band_width * lcd_bits;
 		else //independence & dependence_adapt
 			band_width = lcd_do_div((band_width * lcd_bits * 10), 9);
+		break;
+	case P2P_CSPI_NEW: /* cspi new coding */
+		band_width = frame_rate * vtt * 108 * cspi_alpha * lane_num;
 		break;
 	default:
 		band_width = band_width * lcd_bits;

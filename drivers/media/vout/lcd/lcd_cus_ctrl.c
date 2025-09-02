@@ -501,7 +501,9 @@ static int lcd_cus_ctrl_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 		sprintf(key_str, "ch%u_phase", i);
 		phy_cfg->ch_ctrl[i].phase_sel = lcd_ini_get_val(inip, tuning_sec, key_str, 0xff);
 
-		phy_cfg->ch_ctrl[i].pn_swap = 0; //reversed
+		sprintf(key_str, "ch%u_pn_swap", i);
+		phy_cfg->ch_ctrl[i].pn_swap = lcd_ini_get_val(inip,
+			tuning_sec, key_str, phy_cfg->ch_ctrl[i].pn_swap);
 
 		LCD_DEV_DBG(pdrv, dev_p->idx, "%s: lane[%d]: sel=0x%x, pn_swap=%d, phase_sel=0x%x",
 			TUNING_ATTR_PARSE, i, phy_cfg->ch_ctrl[i].sel,
@@ -565,14 +567,19 @@ static int lcd_cus_ctrl_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 			tmp_phy.ref_bias, tmp_phy.odt, tmp_phy.cv_mode);
 
 		for (j = 0; j < lane_cnt; j++) {
+			sprintf(key_str, "ch%u_rterm", i);
+			tmp_phy.lane[j].rterm =
+				lcd_ini_get_val(inip, tuning_sec, key_str, tmp_phy.lane[j].rterm);
 			sprintf(key_str, "ch%u_amp", i);
 			tmp_phy.lane[j].amp =
 				lcd_ini_get_val(inip, tuning_sec, key_str, tmp_phy.lane[j].amp);
 			sprintf(key_str, "ch%u_preem", i);
 			tmp_phy.lane[j].preem =
 				lcd_ini_get_val(inip, tuning_sec, key_str, tmp_phy.lane[j].preem);
-			LCD_DEV_DBG(pdrv, dev_p->idx, "%s: lane[%d]: preem=0x%x, amp=0x%x",
-				TUNING_ATTR_PARSE, i, tmp_phy.lane[j].preem, tmp_phy.lane[j].amp);
+			LCD_DEV_DBG(pdrv, dev_p->idx,
+				"%s: lane[%d]: preem=0x%x, amp=0x%x, rterm=0x%x",
+				TUNING_ATTR_PARSE, i, tmp_phy.lane[j].preem, tmp_phy.lane[j].amp,
+				tmp_phy.lane[j].rterm);
 		}
 
 		phy = lcd_phy_alloc(pdrv, dev_p);

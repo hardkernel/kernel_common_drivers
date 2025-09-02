@@ -564,6 +564,7 @@ static struct lcd_pll_data_s lcd_pll_data_t5d = {
 	.pll_n_min = 1,
 	.pll_frac_range = (1 << 17),
 	.pll_frac_sign_bit = 18,
+	.pll_0_5_div_en = 0,
 	.pll_od_sel_max = 3,
 	.pll_ref_fmax = 25000000,
 	.pll_ref_fmin = 5000000,
@@ -654,7 +655,6 @@ struct lcd_clk_config_s *lcd_clk_config_chip_init_t5d(struct aml_lcd_drv_s *pdrv
 
 	cconf->data = &lcd_clk_data_t5d;
 	cconf->pll_config[0].pll_id = 0;
-	cconf->pll_config[0].pll_od_fb = lcd_pll_data_t5d.pll_od_fb;
 
 	return cconf;
 }

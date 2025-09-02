@@ -2691,6 +2691,28 @@ static struct lcd_data_s lcd_data_t6d = {
 	.offset_venc_data = {0x0},
 };
 
+static struct lcd_data_s lcd_data_t6w = {
+	.chip_type = LCD_CHIP_T6W,
+	.chip_name = "t6w",
+	.rev_type = 0,
+	.reg_map_table = &lcd_reg_t6w[0],
+	.drv_max = 1,
+	.offset_venc = {0x0},
+	.offset_venc_if = {0x0},
+	.offset_venc_data = {0x0},
+};
+
+static struct lcd_data_s lcd_data_t6x = {
+	.chip_type = LCD_CHIP_T6X,
+	.chip_name = "t6x",
+	.rev_type = 0,
+	.reg_map_table = &lcd_reg_t6w[0],
+	.drv_max = 1,
+	.offset_venc = {0x0},
+	.offset_venc_if = {0x0},
+	.offset_venc_data = {0x0},
+};
+
 static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-g12a",
@@ -2747,6 +2769,14 @@ static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-t6d",
 		.data = &lcd_data_t6d,
+	},
+	{
+		.compatible = "amlogic, lcd-t6w",
+		.data = &lcd_data_t6w,
+	},
+	{
+		.compatible = "amlogic, lcd-t6x",
+		.data = &lcd_data_t6x,
 	},
 	{}
 };

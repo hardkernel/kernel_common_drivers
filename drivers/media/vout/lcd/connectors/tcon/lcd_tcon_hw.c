@@ -34,6 +34,12 @@ int tcon_lut_dma_get_frame_cnt(struct aml_lcd_drv_s *pdrv)
 	return lcd_vcbus_getb(VPU_DMA_RDMIF7_CTRL, 28, 2);
 }
 
+int tcon_lut_dma_get_frame_cnt_t6w(struct aml_lcd_drv_s *pdrv)
+{
+	lcd_wait_vsync(pdrv);
+	return lcd_tcon_getb(pdrv, 0x5d3, 6, 1);
+}
+
 void tcon_lut_dma_start(struct aml_lcd_drv_s *pdrv)
 {
 	lcd_tcon_setb(pdrv, 0x207, 1, 31, 1); //enable dma clk
@@ -72,6 +78,12 @@ void tcon_lut_dma_init_t3x(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s
 	lcd_vcbus_write(VPU_TOP_MISC, 1);
 }
 
+void tcon_lut_dma_init_t6w(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops)
+{
+	ops->status = 0;
+	ops->addr_list = NULL;
+}
+
 void tcon_lut_dma_deinit(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops)
 {
 	struct lcd_tcon_dma_info_s *info;
@@ -83,6 +95,8 @@ void tcon_lut_dma_deinit(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T5M:
 	case LCD_CHIP_T3X:
+	case LCD_CHIP_T6W:
+	case LCD_CHIP_T6X:
 		lcd_tcon_setb(pdrv, 0x367, 0, 16, 1); // disable tcon intr
 		lcd_tcon_setb(pdrv, 0x207, 0, 31, 1); // disable dma clk
 		break;
@@ -133,6 +147,22 @@ void tcon_lut_dma_mif_set(struct aml_lcd_drv_s *pdrv, phys_addr_t paddr, unsigne
 					0 << 14 | //lut_reg_swap_64bit
 					0 << 13 | //lut_reg_little_endian
 					cmd_cnt);//lut_reg_stride
+}
+
+void tcon_lut_dma_mif_set_t6w(struct aml_lcd_drv_s *pdrv, phys_addr_t paddr, unsigned int size)
+{
+	unsigned int stride;
+
+	if (paddr % 16 || size % 16) {
+		LCDERR("%s: paddr or size should be 16 byte aligned\n", __func__);
+		return;
+	}
+	stride = size / 16;
+	lcd_tcon_write(pdrv, 0x5d0, 0x00000040);
+	lcd_tcon_write(pdrv, 0x5d6, paddr);
+	lcd_tcon_setb(pdrv, 0x5d9, stride, 0, 13);
+	lcd_tcon_setb(pdrv, 0x5dc, 0, 0, 13);
+	lcd_tcon_setb(pdrv, 0x5dc, (stride - 1), 16, 13);
 }
 
 static void lcd_tcon_dma_addr_add(struct lcd_tcon_dma_ops_s *ops,
@@ -225,10 +255,11 @@ void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 			   struct tcon_mem_map_table_s *mm_table,
 			   unsigned char *core_reg_table)
 {
+	struct lcd_tcon_reg_skip_s *skip_range = NULL;
 	unsigned char *table8;
 	unsigned int *table32;
-	unsigned int len, offset;//, reg, bit;
-	int i, ret;
+	unsigned int len, offset, p2p_type, cspi_alpha;
+	int i, j, ret;
 
 	ret = lcd_tcon_valid_check();
 	if (ret)
@@ -251,6 +282,8 @@ void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 		}
 	}
 
+	p2p_type = pdrv->curr_dev->dev_cfg.control.p2p_cfg.p2p_type & 0x1f;
+	cspi_alpha = pdrv->curr_dev->dev_cfg.control.p2p_cfg.cspi_alpha;
 	len = mm_table->core_reg_table_size;
 	offset = tcon_conf->core_reg_start;
 	if (tcon_conf->core_reg_width == 8) {
@@ -261,6 +294,16 @@ void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 		if (tcon_conf->reg_table_width == 32) {
 			len /= 4;
 			table32 = (unsigned int *)core_reg_table;
+			if (tcon_conf->reg_skip_tbl_len) {  //have skip reg table
+				for (j = 0; j < tcon_conf->reg_skip_tbl_len; j++) {
+					skip_range = &tcon_conf->reg_skip_tbl[j];
+					for (i = offset; i < skip_range->start_reg &&
+							i < len; i++) {
+						lcd_tcon_write(pdrv, i, table32[i]);
+					}
+					offset = skip_range->end_reg + 1;
+				}
+			}
 			for (i = offset; i < len; i++)
 				lcd_tcon_write(pdrv, i, table32[i]);
 		} else {
@@ -268,6 +311,12 @@ void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 			for (i = offset; i < len; i++)
 				lcd_tcon_write(pdrv, i, table8[i]);
 		}
+	}
+
+	if (p2p_type == P2P_CSPI_NEW) {
+		lcd_tcon_setb(pdrv, 0x496, cspi_alpha, 21, 8);
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("%s: set cspi new coding array_len=%#x\n", __func__, cspi_alpha);
 	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
@@ -280,20 +329,47 @@ static void lcd_tcon_data_init_set(struct aml_lcd_drv_s *pdrv, unsigned char *da
 	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
 	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
 	struct lcd_tcon_init_block_header_s *init_header;
+	struct lcd_tcon_init_block_ext_header_s *init_ext_header = NULL;
 	struct lcd_detail_timing_s *act_timing = NULL;
-	int ret;
+	unsigned char *core_reg_table;
+	unsigned int len = 0;  //header_size + ext_header_size + core_reg_size
 
 	if (!tcon_conf || !mm_table || !local_cfg || !data_buf)
 		return;
 
 	act_timing = &pdrv->curr_dev->dev_cfg.timing.act_timing;
 	init_header = (struct lcd_tcon_init_block_header_s *)data_buf;
+	core_reg_table = data_buf + init_header->header_size + init_header->ext_header_size;
+	init_ext_header = (struct lcd_tcon_init_block_ext_header_s *)
+		(init_header->ext_header_size ? (data_buf + init_header->header_size) : NULL);
+	len = mm_table->core_reg_table_size + init_header->header_size +
+		init_header->ext_header_size;
 	switch (init_header->block_ctrl) {
 	case LCD_TCON_DATA_CTRL_FLAG_UFR:
-		ret = lcd_tcon_init_data_update(data_buf, act_timing);
-		if (ret)
-			break;
-		lcd_tcon_core_reg_set(pdrv, tcon_conf, mm_table, local_cfg->cur_core_reg_table);
+		if (act_timing->h_active == init_header->h_active &&
+		    act_timing->v_active == init_header->v_active) {
+			if (init_ext_header) {
+				if (act_timing->frame_rate < init_ext_header->framerate_min ||
+				    act_timing->frame_rate > init_ext_header->framerate_max)
+					break;
+				if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+					LCDPR("%s: ufr match framerate range %d~%d\n", __func__,
+						init_ext_header->framerate_min,
+						init_ext_header->framerate_max);
+				}
+			}
+			lcd_tcon_init_data_version_update(init_header->version);
+			local_cfg->cur_user_info = NULL;
+			if (init_header->block_size > len)
+				local_cfg->cur_user_info = (char *)(data_buf + len);
+			local_cfg->cur_core_header = init_header;
+			local_cfg->cur_core_ext_header = init_ext_header;
+			local_cfg->cur_core_reg_table = core_reg_table;
+			LCDPR("%s: ufr %dx%d@%dhz init, bin_ver:%s\n",
+				__func__, init_header->h_active,
+				init_header->v_active, act_timing->frame_rate, local_cfg->bin_ver);
+			lcd_tcon_core_reg_set(pdrv, tcon_conf, mm_table, core_reg_table);
+		}
 		break;
 	default:
 		break;
@@ -1094,6 +1170,10 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	local_time[0] = sched_clock();
 	if (local_cfg->cur_core_header) {
 		if (local_cfg->cur_core_header->block_ctrl == 0) {
+			local_cfg->cur_core_reg_table = mm_table->core_reg_table;
+			local_cfg->cur_user_info = mm_table->user_info;
+			local_cfg->cur_core_header = mm_table->core_reg_header;
+			local_cfg->cur_core_ext_header = mm_table->core_reg_ext_header;
 			lcd_tcon_core_reg_set(pdrv, tcon_conf,
 				mm_table, local_cfg->cur_core_reg_table);
 		}

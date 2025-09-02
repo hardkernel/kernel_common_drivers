@@ -56,6 +56,13 @@ static struct tcon_rdma_chip_s tcon_rdma_chip_t6d = {
 	.capacity  = TCON_RDMA_CAP_WR,
 };
 
+static struct tcon_rdma_chip_s tcon_rdma_chip_t6w = {
+	.vcbus_ofs = 0x00790000,
+	.min_reg   = 0x0,
+	.max_reg   = 0x15ea,
+	.capacity  = TCON_RDMA_CAP_WR,
+};
+
 static inline struct tcon_rdma_s *get_tcon_rdma(void)
 {
 	return &tcon_rdma;
@@ -348,6 +355,10 @@ int lcd_tcon_rdma_init(struct aml_lcd_drv_s *pdrv)
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T6D:
 		rdma_chip = &tcon_rdma_chip_t6d;
+		break;
+	case LCD_CHIP_T6W:
+	case LCD_CHIP_T6X:
+		rdma_chip = &tcon_rdma_chip_t6w;
 		break;
 	default:
 		break;

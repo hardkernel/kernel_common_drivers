@@ -542,6 +542,7 @@ lcd_prbs_test_err_t5w:
 
 static struct lcd_pll_data_s lcd_pll_data_t5w = {
 	.pll_od_fb = 0,
+	.pll_0_5_div_en = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
 	.pll_n_max = 1,
@@ -640,7 +641,6 @@ struct lcd_clk_config_s *lcd_clk_config_chip_init_t5w(struct aml_lcd_drv_s *pdrv
 
 	cconf->data = &lcd_clk_data_t5w;
 	cconf->pll_config[0].pll_id = 0;
-	cconf->pll_config[0].pll_od_fb = lcd_pll_data_t5w.pll_od_fb;
 
 	return cconf;
 }

@@ -1159,14 +1159,17 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv, struct aml_lcd_d
 		if (i >= ret)
 			break;
 
-		if (phy_cfg->flag & (1 << 12))
-			phy->lane[i].preem = para[i] & 0xffff;
+		if (phy_cfg->flag & PHY_BIT_LANE_PREEM)
+			phy->lane[i].preem = para[i] & 0xff;
 
-		if (phy_cfg->flag & (1 << 13))
-			phy->lane[i].amp   = para[i] >> 16;
+		if (phy_cfg->flag & PHY_BIT_LANE_AMP)
+			phy->lane[i].amp   = (para[i] >> 16) & 0xff;
 
-		LCD_DEV_DBG(pdrv, dev_p->idx, "%s: lane[%d]: preem=0x%x amp=0x%x",
-			__func__, i, phy->lane[i].preem, phy->lane[i].amp);
+		if (phy_cfg->flag & PHY_BIT_LANE_AMP)
+			phy->lane[i].rterm = (para[i] >> 24) & 0xff;
+
+		LCD_DEV_DBG(pdrv, dev_p->idx, "%s: lane[%d]: preem=0x%x amp=0x%x, rterm=0x%x",
+			__func__, i, phy->lane[i].preem, phy->lane[i].amp, phy->lane[i].rterm);
 	}
 config_phy_adv_attr_done:
 
@@ -1205,6 +1208,7 @@ static struct num_str_s p2p_type_name[] = {
 	{P2P_CHPI, "CHPI"},
 	{P2P_CSPI, "CSPI"},
 	{P2P_USIT, "USIT"},
+	{P2P_CSPI_NEW, "CSPI_NEW"},
 	{P2P_MAX,  "Invalid"}
 };
 #endif
@@ -1529,6 +1533,15 @@ static int lcd_panel_parse_phy(struct json_parse_s *jsp,
 				phy->lane[k].amp = json_get_arr_u32(jsp, child2, k,
 								     phy->lane[k].amp);
 		}
+
+		child2 = json_get_object_child(jsp, child, "ch_rterm");
+		if (child2) {
+			cnt2 = json_get_array_size(jsp, child2);
+			cnt2 = lcd_s32_constraint(cnt2, 0, phy_cfg->lane_num);
+			for (k = 0; k < cnt2; k++)
+				phy->lane[k].rterm = json_get_arr_u32(jsp, child2, k,
+								     phy->lane[k].rterm);
+		}
 	}
 
 	return 0;
@@ -1584,6 +1597,7 @@ static int lcd_panel_parse_interface(struct json_parse_s *jsp,
 		vx1->vx1_intr_en    = json_get_obj_u32(jsp, parent, "vx1_isr", 1);
 		vx1->hw_filter_time = json_get_obj_u32(jsp, parent, "filter_time", 0);
 		vx1->hw_filter_cnt  = json_get_obj_u32(jsp, parent, "filter_cnt", 0);
+		vx1->slice = dev_p->dev_cfg.timing.ppc ? dev_p->dev_cfg.timing.ppc : 1;
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_LCD_TCON
@@ -1593,6 +1607,7 @@ static int lcd_panel_parse_interface(struct json_parse_s *jsp,
 		str = json_get_obj_str(jsp, parent, "protocol", "Invalid");
 		p2p->p2p_type = strnum_get_num(str, p2p_type_name, ARRAY_SIZE(p2p_type_name),
 					       P2P_MAX);
+		p2p->cspi_alpha = json_get_obj_u32(jsp, parent, "cspi_alpha", 80);
 		break;
 	case LCD_MLVDS:
 		mlvds = &cfg->mlvds_cfg;
@@ -2349,14 +2364,19 @@ static int lcd_config_load_from_ini_v2(struct aml_lcd_drv_s *pdrv, struct aml_lc
 		for (i = 0; i < lane_cnt; i++) {
 			pr_len = 0;
 			if (phy_cfg->flag & PHY_BIT_LANE_PREEM) {
-				phy->lane[i].preem = tmp_buf[i] & 0xffff;
+				phy->lane[i].preem = tmp_buf[i] & 0xff;
 				pr_len += sprintf(pr_buf + pr_len, " preem=0x%x",
 						phy->lane[i].preem);
 			}
 			if (phy_cfg->flag & PHY_BIT_LANE_AMP) {
-				phy->lane[i].amp = (tmp_buf[i] >> 16) & 0xffff;
+				phy->lane[i].amp = (tmp_buf[i] >> 16) & 0xff;
 				pr_len += sprintf(pr_buf + pr_len, " amp=0x%x",
 						phy->lane[i].amp);
+			}
+			if (phy_cfg->flag & PHY_BIT_LANE_RTERM) {
+				phy->lane[i].rterm = (tmp_buf[i] >> 24) & 0xff;
+				pr_len += sprintf(pr_buf + pr_len, " rterm=0x%x",
+						phy->lane[i].rterm);
 			}
 			if (pr_len) {
 				LCD_DEV_DBG(pdrv, dev_p->idx, "%s: lane[%d]:%s",
@@ -2563,6 +2583,7 @@ static int lcd_config_load_from_ini(struct aml_lcd_drv_s *pdrv, struct aml_lcd_d
 		pctrl->p2p_cfg.bit_swap = lcd_ini_get_val(inip, psec, "if_attr_7", 0);
 		pctrl->p2p_cfg.phy_vswing = lcd_ini_get_val(inip, psec, "if_attr_8", 0);
 		pctrl->p2p_cfg.phy_preem = lcd_ini_get_val(inip, psec, "if_attr_9", 0);
+		pctrl->p2p_cfg.cspi_alpha = lcd_ini_get_val(inip, psec, "cspi_alpha", 80);
 
 		phy_cfg->vswing_level = pctrl->p2p_cfg.phy_vswing & 0xf;
 		phy_cfg->ext_pullup = (pctrl->p2p_cfg.phy_vswing >> 4) & 0x3;
@@ -2725,7 +2746,7 @@ int lcd_load_device_config(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *
 void lcd_config_load_probe(struct aml_lcd_drv_s *pdrv)
 {
 	// lcd_phy_param_preset(pdrv, pdrv->curr_dev);
-	lcd_lane_map_preset(pdrv);
+	// lcd_lane_map_preset(pdrv);
 
 	lcd_lane_map_update(pdrv);
 

@@ -350,6 +350,7 @@ int lcd_venc_config_init(struct lcd_data_s *pdata)
 	case LCD_CHIP_T5W:
 	case LCD_CHIP_T5M:
 	case LCD_CHIP_T6D:
+	case LCD_CHIP_T6W:
 		ret = lcd_venc_op_init_t7(pdata, &lcd_venc_op);
 		break;
 	case LCD_CHIP_C3:
@@ -357,6 +358,9 @@ int lcd_venc_config_init(struct lcd_data_s *pdata)
 		break;
 	case LCD_CHIP_T3X:
 		ret = lcd_venc_op_init_t3x(pdata, &lcd_venc_op);
+		break;
+	case LCD_CHIP_T6X:
+		ret = lcd_venc_op_init_t6x(pdata, &lcd_venc_op);
 		break;
 	case LCD_CHIP_TXHD2:
 	case LCD_CHIP_S6:

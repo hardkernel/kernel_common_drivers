@@ -583,6 +583,7 @@ static void lcd_clk_disable_t6d(struct aml_lcd_drv_s *pdrv)
 
 static struct lcd_pll_data_s lcd_pll_data_t6d = {
 	.pll_od_fb = 0,
+	.pll_0_5_div_en = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
 	.pll_n_max = 1,
@@ -612,6 +613,7 @@ static struct lcd_clk_data_s lcd_clk_data_t6d = {
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 222,
 	.fifo_clk_msr_id = 86,
+	.tcon_clk_msr_id = 119,
 
 	.xd_max = 256,
 	.phy_div_max = 256,
@@ -671,6 +673,5 @@ struct lcd_clk_config_s *lcd_clk_config_chip_init_t6d(struct aml_lcd_drv_s *pdrv
 
 	cconf->data = &lcd_clk_data_t6d;
 	cconf->pll_config[0].pll_id = 0;
-	cconf->pll_config[0].pll_od_fb = lcd_pll_data_t6d.pll_od_fb;
 	return cconf;
 }

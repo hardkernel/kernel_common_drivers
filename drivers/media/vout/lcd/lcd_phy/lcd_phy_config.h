@@ -28,6 +28,10 @@ struct lcd_phy_ctrl_s {
 		(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p);
 	unsigned char (*phy_lane_phase_sel_def)
 		(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p, unsigned int lane);
+	unsigned char (*phy_lane_pn_swap_dft)
+		(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p, unsigned int lane);
+	unsigned int (*phy_rterm_dft_val)
+		(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p);
 
 	int (*phy_param_get)(struct aml_lcd_drv_s *pdrv,
 			     struct phy_config_s *phy_cfg, struct phy_attr_s *phy);
@@ -52,6 +56,8 @@ struct lcd_phy_ctrl_s *lcd_phy_config_init_t3x(struct lcd_data_s *pdata);
 struct lcd_phy_ctrl_s *lcd_phy_config_init_txhd2(struct lcd_data_s *pdata);
 struct lcd_phy_ctrl_s *lcd_phy_config_init_s6(struct lcd_data_s *pdata);
 struct lcd_phy_ctrl_s *lcd_phy_config_init_t6d(struct lcd_data_s *pdata);
+struct lcd_phy_ctrl_s *lcd_phy_config_init_t6w(struct lcd_data_s *pdata);
+struct lcd_phy_ctrl_s *lcd_phy_config_init_t6x(struct lcd_data_s *pdata);
 unsigned int lcd_phy_vswing_level_to_value_dft(struct aml_lcd_drv_s *pdrv,
 			struct aml_lcd_device_s *dev_p, unsigned int level);
 unsigned int lcd_phy_preem_level_to_value_dft(struct aml_lcd_drv_s *pdrv,

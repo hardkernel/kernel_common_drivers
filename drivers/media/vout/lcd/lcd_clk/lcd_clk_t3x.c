@@ -830,6 +830,7 @@ static void lcd_clk_generate_t3x(struct aml_lcd_drv_s *pdrv)
 
 static struct lcd_pll_data_s lcd_pll_data_t3x_0 = {
 	.pll_od_fb = 0,
+	.pll_0_5_div_en = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
 	.pll_n_max = 1,
@@ -852,6 +853,7 @@ static struct lcd_pll_data_s lcd_pll_data_t3x_0 = {
 
 static struct lcd_pll_data_s lcd_pll_data_t3x_1 = {
 	.pll_od_fb = 0,
+	.pll_0_5_div_en = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
 	.pll_n_max = 1,
@@ -998,19 +1000,16 @@ struct lcd_clk_config_s *lcd_clk_config_chip_init_t3x(struct aml_lcd_drv_s *pdrv
 	case 1:
 		cconf->data = &lcd_clk_data_t3x_1;
 		cconf->pll_config[0].pll_offset = 0x5; /*without << 2*/
-		cconf->pll_config[0].pll_od_fb = lcd_pll_data_t3x_1.pll_od_fb;
 		cconf->pll_config[0].pll_id = 1;
 		break;
 	case 0:
 	default:
 		cconf->data = &lcd_clk_data_t3x_0;
 		cconf->pll_config[0].pll_id = 0;
-		cconf->pll_config[0].pll_od_fb = lcd_pll_data_t3x_0.pll_od_fb;
 		if (cconf->pll_conf_num > 1) {
 			cconf->pll_config[1].pll_id = 1;
 			cconf->data->vclk_sel = 4;
 			cconf->pll_config[1].pll_offset = 0x5; /*without << 2*/
-			cconf->pll_config[1].pll_od_fb = lcd_pll_data_t3x_1.pll_od_fb;
 			cconf->pll_mode |= LCD_PLL_MODE_DUAL_PLL;
 		}
 		break;

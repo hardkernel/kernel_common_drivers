@@ -53,7 +53,9 @@ void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv)
 	    pdrv->data->chip_type == LCD_CHIP_T5M ||
 	    pdrv->data->chip_type == LCD_CHIP_T5W ||
 	    pdrv->data->chip_type == LCD_CHIP_T3X ||
-	    pdrv->data->chip_type == LCD_CHIP_T6D) {
+	    pdrv->data->chip_type == LCD_CHIP_T6D ||
+	    pdrv->data->chip_type == LCD_CHIP_T6W ||
+	    pdrv->data->chip_type == LCD_CHIP_T6X) {
 		reg_lvds_pack_ctrl = LVDS_PACK_CNTL_ADDR_T7 + offset;
 		reg_lvds_gen_ctrl = LVDS_GEN_CNTL_T7 + offset;
 		lcd_vcbus_write(LVDS_SER_EN + offset, 0xfff);
@@ -61,7 +63,9 @@ void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv)
 		reg_lvds_pack_ctrl = LVDS_PACK_CNTL_ADDR;
 		reg_lvds_gen_ctrl = LVDS_GEN_CNTL;
 	}
-	if (pdrv->data->chip_type == LCD_CHIP_T6D)
+	if (pdrv->data->chip_type == LCD_CHIP_T6D ||
+		pdrv->data->chip_type == LCD_CHIP_T6W ||
+		pdrv->data->chip_type == LCD_CHIP_T6X)
 		lsb_first = 1;
 	lcd_vcbus_write(reg_lvds_pack_ctrl,
 			(lvds_repack << 0) | // repack //[1:0]
@@ -79,7 +83,8 @@ void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv)
 	    pdrv->data->chip_type == LCD_CHIP_T3 ||
 	    pdrv->data->chip_type == LCD_CHIP_T7 ||
 	    pdrv->data->chip_type == LCD_CHIP_T3X ||
-	    pdrv->data->chip_type == LCD_CHIP_T6D) {
+	    pdrv->data->chip_type == LCD_CHIP_T6D ||
+	    pdrv->data->chip_type == LCD_CHIP_T6X) {
 		lcd_vcbus_write(P2P_BIT_REV_T7 + offset, 2);
 	}
 
@@ -97,7 +102,8 @@ void lcd_lvds_disable(struct aml_lcd_drv_s *pdrv)
 	    pdrv->data->chip_type == LCD_CHIP_T3 ||
 	    pdrv->data->chip_type == LCD_CHIP_T5M ||
 	    pdrv->data->chip_type == LCD_CHIP_T5W ||
-	    pdrv->data->chip_type == LCD_CHIP_T3X) {
+	    pdrv->data->chip_type == LCD_CHIP_T3X ||
+	    pdrv->data->chip_type == LCD_CHIP_T6X) {
 		lcd_vcbus_setb(LVDS_GEN_CNTL_T7 + offset, 0, 3, 1);
 		lcd_vcbus_setb(LVDS_GEN_CNTL_T7 + offset, 0, 0, 2);
 	} else {

@@ -841,6 +841,7 @@ static void lcd_clk_parameter_init_t7(struct aml_lcd_drv_s *pdrv)
 
 static struct lcd_pll_data_s lcd_pll_data_t7_0 = {
 	.pll_od_fb = 0,
+	.pll_0_5_div_en = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
 	.pll_n_max = 1,
@@ -908,6 +909,7 @@ static struct lcd_clk_data_s lcd_clk_data_t7_0 = {
 
 static struct lcd_pll_data_s lcd_pll_data_t7_1 = {
 	.pll_od_fb = 0,
+	.pll_0_5_div_en = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
 	.pll_n_max = 1,
@@ -975,6 +977,7 @@ static struct lcd_clk_data_s lcd_clk_data_t7_1 = {
 
 static struct lcd_pll_data_s lcd_pll_data_t7_2 = {
 	.pll_od_fb = 0,
+	.pll_0_5_div_en = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
 	.pll_n_max = 1,
@@ -1069,17 +1072,14 @@ struct lcd_clk_config_s *lcd_clk_config_chip_init_t7(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->index == 0) {
 		cconf->data = &lcd_clk_data_t7_0;
-		cconf->pll_config[0].pll_od_fb = lcd_pll_data_t7_0.pll_od_fb;
 		cconf->pll_config[0].pll_id = 0;
 		cconf->pll_config[0].pll_offset = 0;
 	} else if (pdrv->index == 1) {
 		cconf->data = &lcd_clk_data_t7_1;
-		cconf->pll_config[0].pll_od_fb = lcd_pll_data_t7_1.pll_od_fb;
 		cconf->pll_config[0].pll_id = 1;
 		cconf->pll_config[0].pll_offset = 0x5;
 	} else { //pdrv->index == 2
 		cconf->data = &lcd_clk_data_t7_2;
-		cconf->pll_config[0].pll_od_fb = lcd_pll_data_t7_2.pll_od_fb;
 		cconf->pll_config[0].pll_id = 2;
 		cconf->pll_config[0].pll_offset = 0xa;
 	}

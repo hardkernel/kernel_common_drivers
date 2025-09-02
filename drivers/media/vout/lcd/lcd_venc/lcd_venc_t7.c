@@ -118,16 +118,38 @@ static struct lcd_enc_test_t lcd_enc_tst_t6d[] = {
 	{"13-Blue Scale",  5,      0x1,     0x0,   0x4, 1, 0, 3},  /* 13 */
 };
 
+static struct lcd_enc_test_t lcd_enc_tst_t6w[] = {
+	{"0-None",         0,    0x200,   0x200, 0x200, 0, 1, 3},  /* 0 */
+	{"1-Color Bar",    1,    0x200,   0x200, 0x200, 1, 0, 1},  /* 1 */
+	{"2-Thin Line",    2,    0x200,   0x200, 0x200, 1, 0, 1},  /* 2 */
+	{"3-Dot Grid",     3,    0x200,   0x200, 0x200, 1, 0, 1},  /* 3 */
+	{"4-Gray",         0,    0x1ff,   0x1ff, 0x1ff, 1, 0, 3},  /* 4 */
+	{"5-Red",          0,    0x3ff,     0x0,   0x0, 1, 0, 3},  /* 5 */
+	{"6-Green",        0,      0x0,   0x3ff,   0x0, 1, 0, 3},  /* 6 */
+	{"7-Blue",         0,      0x0,     0x0, 0x3ff, 1, 0, 3},  /* 7 */
+	{"8-Black",        0,      0x0,     0x0,   0x0, 1, 0, 3},  /* 8 */
+	{"9-X icon",       4,    0x3ff,    0x10,   0x9, 1, 0, 2},  /* 9 */
+	{"10-Gray Scale",   5, 0xffffffff,   0x7,   0x7, 1, 0, 3}, /* 10 */
+	{"11-Red Scale",   5,      0x1,     0x0,   0x1, 1, 0, 3},  /* 11 */
+	{"12-Green Scale", 5,      0x1,     0x0,   0x2, 1, 0, 3},  /* 12 */
+	{"13-Blue Scale",  5,      0x1,     0x0,   0x4, 1, 0, 3},  /* 13 */
+};
+
 static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 {
-	unsigned int width, video_on_pixel, offset;
+	unsigned int h_active, video_on_pixel, offset;
 	struct lcd_enc_test_t *pcur_test = NULL;
 	unsigned int cur_test_num = 0;
+	unsigned short width, height, gcd_num;
 
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T6D:
 		pcur_test = lcd_enc_tst_t6d;
 		cur_test_num = ARRAY_SIZE(lcd_enc_tst_t6d);
+		break;
+	case LCD_CHIP_T6W:
+		pcur_test = lcd_enc_tst_t6w;
+		cur_test_num = ARRAY_SIZE(lcd_enc_tst_t6w);
 		break;
 	default:
 		pcur_test = lcd_enc_tst_comm;
@@ -139,17 +161,27 @@ static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 		return -1;
 
 	offset = pdrv->data->offset_venc[pdrv->index];
-	width = pdrv->curr_dev->dev_cfg.timing.act_timing.h_active / 8 - 1;
-	video_on_pixel = pdrv->curr_dev->dev_cfg.timing.hstart - 2;
+	h_active = pdrv->curr_dev->dev_cfg.timing.act_timing.h_active;
+	video_on_pixel = pdrv->curr_dev->dev_cfg.timing.hstart;
 
 	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, pcur_test[num].rgb_in);
 	lcd_vcbus_write(ENCL_TST_MDSEL + offset, pcur_test[num].mode);
 	lcd_vcbus_write(ENCL_TST_Y + offset, pcur_test[num].y);
-	lcd_vcbus_write(ENCL_TST_CB + offset, pcur_test[num].cb);
-	lcd_vcbus_write(ENCL_TST_CR + offset, pcur_test[num].cr);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_STRT + offset, video_on_pixel);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH + offset, width);
-	lcd_vcbus_write(ENCL_TST_EN + offset, pcur_test[num].en);
+	if (num == 9) {
+		width = pdrv->curr_dev->dev_cfg.timing.act_timing.h_active;
+		height = pdrv->curr_dev->dev_cfg.timing.act_timing.v_active;
+		gcd_num = gcd(width, height);
+		lcd_vcbus_write(ENCL_TST_CB + offset, width / gcd_num);
+		lcd_vcbus_write(ENCL_TST_CR + offset, height / gcd_num);
+		lcd_vcbus_write(ENCL_TST_CLRBAR_STRT + offset, height);
+		lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH + offset, width);
+	} else {
+		lcd_vcbus_write(ENCL_TST_CB + offset, pcur_test[num].cb);
+		lcd_vcbus_write(ENCL_TST_CR + offset, pcur_test[num].cr);
+		lcd_vcbus_write(ENCL_TST_CLRBAR_STRT + offset, video_on_pixel - 2);
+		lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH + offset, (h_active / 9));
+	}
+	lcd_vcbus_setb(ENCL_TST_EN + offset, pcur_test[num].en, 0, 1);
 	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, pcur_test[num].vfifo_en, 3, 1);
 	if (num > 0)
 		LCD_PR(pdrv, "show test pattern: %s", pcur_test[num].name);
@@ -337,6 +369,7 @@ static void lcd_venc_set_timing(struct aml_lcd_drv_s *pdrv)
 	case LCD_CHIP_T5W:
 	case LCD_CHIP_T5M:
 	case LCD_CHIP_T6D:
+	case LCD_CHIP_T6W:
 		/*[15:14]: 2'b10 or 2'b01*/
 		lcd_vcbus_write(ENCL_INBUF_CNTL1 + offset,
 				(2 << 14) | (pconf->timing.act_timing.h_active - 1));
@@ -559,11 +592,11 @@ static void lcd_venc_mute_set(struct aml_lcd_drv_s *pdrv, unsigned char flag)
 		lcd_vcbus_write(ENCL_TST_Y + offset, 0);
 		lcd_vcbus_write(ENCL_TST_CB + offset, 0);
 		lcd_vcbus_write(ENCL_TST_CR + offset, 0);
-		lcd_vcbus_write(ENCL_TST_EN + offset, 1);
+		lcd_vcbus_setb(ENCL_TST_EN + offset, 1, 0, 1);
 		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 0, 3, 1);
 	} else {
 		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 1, 3, 1);
-		lcd_vcbus_write(ENCL_TST_EN + offset, 0);
+		lcd_vcbus_setb(ENCL_TST_EN + offset, 0, 0, 1);
 	}
 }
 
@@ -592,7 +625,7 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 		boot_ctrl->init_level = val & 0xf;
 		boot_ctrl->if_state = (val >> 4) & 0x1;
 		boot_ctrl->dccd_flag = (val >> 5) & 0x1;
-		valid = (val >> 6) & 0x7f;
+		boot_ctrl->mute_flag = (val >> 6) & 0x1;
 
 		val = lcd_vcbus_read(L_STH1_HE_ADDR_T7 + offset);
 		boot_ctrl->frame_rate = val & 0x1fff;
@@ -831,7 +864,7 @@ int lcd_venc_op_init_t7(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op)
 	venc_op->venc_set_htotal = lcd_venc_set_htotal;
 	venc_op->venc_set_vtotal = lcd_venc_set_vtotal;
 	venc_op->venc_reg_dump = lcd_venc_reg_dump;
-	if (pdata->chip_type == LCD_CHIP_T6D) {
+	if (pdata->chip_type == LCD_CHIP_T6D || pdata->chip_type == LCD_CHIP_T6W) {
 		venc_op->venc_bist_change = lcd_venc_bist_change;
 		venc_op->mute_set = lcd_venc_mute_set;
 	}

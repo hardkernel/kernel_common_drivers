@@ -86,6 +86,18 @@ static inline long long lcd_s64_div(s64 num, s32 den)
 	return ret;
 }
 
+static inline unsigned short gcd(unsigned short a, unsigned short b)
+{
+	unsigned short temp;
+
+	while (b != 0) {
+		temp = b;
+		b = a % b;
+		a = temp;
+	}
+	return a;
+}
+
 struct s32_slide_filter_s {
 	int rst;
 	int len;

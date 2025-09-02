@@ -60,6 +60,7 @@ unsigned int str_parse_vmode(char *str,
 int strnum_get_num(const char *str, struct num_str_s *arr, int size_arr, int dft);
 void lcd_delay_us(int us);
 void lcd_delay_ms(int ms);
+void pxp_clk_div_gen(unsigned int pclk, unsigned int *xd, unsigned int *clk_sel);
 unsigned char *lcd_init_table_load_array(char *name, unsigned char cmd_size,
 					 unsigned int *buf, int buf_len,
 					 int tbl_max, int *tbl_cnt);

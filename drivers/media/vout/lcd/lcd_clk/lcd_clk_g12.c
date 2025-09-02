@@ -687,6 +687,7 @@ static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 
 static struct lcd_pll_data_s lcd_pll_data_g12a_path0 = {
 	.pll_od_fb = 0,
+	.pll_0_5_div_en = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
 	.pll_n_max = 1,
@@ -753,6 +754,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path0 = { //HPLL
 
 static struct lcd_pll_data_s lcd_pll_data_g12a_path1 = {
 	.pll_od_fb = 0,
+	.pll_0_5_div_en = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
 	.pll_n_max = 1,
@@ -819,6 +821,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path1 = {  //GP0
 
 static struct lcd_pll_data_s lcd_pll_data_g12b_path0 = {
 	.pll_od_fb = 0,
+	.pll_0_5_div_en = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
 	.pll_n_max = 1,
@@ -885,6 +888,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path0 = {  //HPLL
 
 static struct lcd_pll_data_s lcd_pll_data_g12b_path1 = {
 	.pll_od_fb = 0,
+	.pll_0_5_div_en = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
 	.pll_n_max = 1,
@@ -962,7 +966,6 @@ static void lcd_clk_path_change_g12a(struct aml_lcd_drv_s *pdrv, int sel)
 		cconf->data = &lcd_clk_data_g12a_path1;
 	else
 		cconf->data = &lcd_clk_data_g12a_path0;
-	cconf->pll_config[0].pll_od_fb = cconf->data->pll_data[0]->pll_od_fb;
 }
 
 static void lcd_clk_path_change_g12b(struct aml_lcd_drv_s *pdrv, int sel)
@@ -980,7 +983,6 @@ static void lcd_clk_path_change_g12b(struct aml_lcd_drv_s *pdrv, int sel)
 		cconf->data = &lcd_clk_data_g12b_path0;
 		cconf->pll_config[0].pll_id = 0;
 	}
-	cconf->pll_config[0].pll_od_fb = cconf->data->pll_data[0]->pll_od_fb;
 }
 
 struct lcd_clk_config_s *lcd_clk_config_chip_init_g12a(struct aml_lcd_drv_s *pdrv)
@@ -1014,12 +1016,10 @@ struct lcd_clk_config_s *lcd_clk_config_chip_init_g12a(struct aml_lcd_drv_s *pdr
 		cconf->data = &lcd_clk_data_g12a_path1;
 		cconf->data->pll_data[0] = &lcd_pll_data_g12a_path1;
 		cconf->pll_config[0].pll_id = 1;
-		cconf->pll_config[0].pll_od_fb = lcd_pll_data_g12a_path1.pll_od_fb;
 	} else {
 		cconf->data = &lcd_clk_data_g12a_path0;
 		cconf->data->pll_data[0] = &lcd_pll_data_g12a_path0;
 		cconf->pll_config[0].pll_id = 0;
-		cconf->pll_config[0].pll_od_fb = lcd_pll_data_g12a_path0.pll_od_fb;
 	}
 	cconf->clk_path_change = lcd_clk_path_change_g12a;
 
@@ -1056,11 +1056,9 @@ struct lcd_clk_config_s *lcd_clk_config_chip_init_g12b(struct aml_lcd_drv_s *pdr
 	if (pdrv->clk_path) {
 		cconf->data = &lcd_clk_data_g12b_path1;
 		cconf->pll_config[0].pll_id = 1;
-		cconf->pll_config[0].pll_od_fb = lcd_pll_data_g12b_path1.pll_od_fb;
 	} else {
 		cconf->data = &lcd_clk_data_g12b_path0;
 		cconf->pll_config[0].pll_id = 0;
-		cconf->pll_config[0].pll_od_fb = lcd_pll_data_g12b_path0.pll_od_fb;
 	}
 	cconf->clk_path_change = lcd_clk_path_change_g12b;
 

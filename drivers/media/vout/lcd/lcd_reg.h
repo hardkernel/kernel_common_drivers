@@ -7,6 +7,7 @@
 #define __LCD_REG_H__
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include "lcd_reg_t3x.h"
+#include "lcd_reg_t6x.h"
 
 struct reg_name_set_s {
 	unsigned int reg;
@@ -27,6 +28,7 @@ struct reg_name_set_s {
 #define LCD_REG_DBG_HHI_BUS               11
 #define LCD_REG_DBG_MIPIHOST_BUS_SUB_PORT 12
 #define LCD_REG_DBG_MIPIPHY_BUS_SUB_PORT  13
+#define LCD_REG_DBG_VX1_LVDS_CTRL_BUS     14
 #define LCD_REG_DBG_MAX_BUS               0xff
 
 /* register offset address define */
@@ -311,6 +313,7 @@ struct reg_name_set_s {
 #define ANACTRL_TCON_PLL0_STS                      0x00ef
 #define ANACTRL_TCON_PLL1_STS                      0x00f0
 #define ANACTRL_TCON_PLL2_STS                      0x00f1
+#define ANACTRL_TCON_PLL_VLOCK                     0x00f2
 
 /*T3*/
 #define ANACTRL_LVDS_TX_PHY_CNTL0                  0x00f4
@@ -332,6 +335,12 @@ struct reg_name_set_s {
 #define ANACTRL_MIPIDSI_CTRL1                      0x00a1
 #define ANACTRL_MIPIDSI_CTRL2                      0x00a2
 #define ANACTRL_MIPIDSI_STS                        0x00a3
+
+#define ANACTRL_GP2PLL_CTRL0                       0x0040
+#define ANACTRL_GP2PLL_CTRL1                       0x0041
+#define ANACTRL_GP2PLL_CTRL2                       0x0042
+#define ANACTRL_GP2PLL_CTRL3                       0x0043
+#define ANACTRL_GP2PLL_STS                         0x0047
 
 #define CLKCTRL_VOUTENC_CLK_CTRL                   0x0046
 
@@ -1824,6 +1833,7 @@ extern int lcd_reg_c3[];
 extern int lcd_reg_t3x[];
 extern int lcd_reg_txhd2[];
 extern int lcd_reg_t6d[];
+extern int lcd_reg_t6w[];
 
 int lcd_ioremap(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev);
 unsigned int lcd_vcbus_read(unsigned int reg);
@@ -1930,5 +1940,18 @@ void lcd_reset_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 int str_add_reg_sets(struct aml_lcd_drv_s *pdrv, char *buf, int offset,
 		     unsigned char reg_bus, unsigned int reg_offset,
 		     struct reg_name_set_s *reg_sets, unsigned char set_cnt);
+unsigned int lcd_vx1_lvds_ctrl_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
+void lcd_vx1_lvds_ctrl_write(struct aml_lcd_drv_s *pdrv,
+		     unsigned int reg, unsigned int val);
+void lcd_vx1_lvds_ctrl_setb(struct aml_lcd_drv_s *pdrv,
+		    unsigned int reg, unsigned int value,
+		    unsigned int start, unsigned int len);
+unsigned int lcd_vx1_lvds_ctrl_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
+			    unsigned int start, unsigned int len);
+void lcd_vx1_lvds_ctrl_set_mask(struct aml_lcd_drv_s *pdrv,
+			unsigned int reg, unsigned int mask);
+void lcd_vx1_lvds_ctrl_clr_mask(struct aml_lcd_drv_s *pdrv,
+			unsigned int reg, unsigned int mask);
+
 #endif
 

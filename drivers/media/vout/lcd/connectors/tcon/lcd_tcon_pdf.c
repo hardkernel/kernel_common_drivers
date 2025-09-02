@@ -813,6 +813,8 @@ int lcd_tcon_pdf_init(struct aml_lcd_drv_s *pdrv)
 		cur_plat = &pdf_txhd2_info;
 		break;
 	case LCD_CHIP_T3X:
+	case LCD_CHIP_T6W:
+	case LCD_CHIP_T6X:
 		cur_plat = &pdf_t3x_info;
 		break;
 	default:

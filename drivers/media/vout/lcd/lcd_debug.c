@@ -130,6 +130,9 @@ int str_add_reg_sets(struct aml_lcd_drv_s *pdrv, char *buf, int offset,
 		case LCD_REG_DBG_HHI_BUS:
 			reg_val = lcd_hiu_read(reg_sets[idx].reg + reg_offset);
 			break;
+		case LCD_REG_DBG_VX1_LVDS_CTRL_BUS:
+			reg_val = lcd_vx1_lvds_ctrl_read(pdrv, reg_sets[idx].reg + reg_offset);
+			break;
 		default:
 			return len;
 		}
@@ -2465,7 +2468,7 @@ static void lcd_debug_reg_op(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 				unsigned int data, unsigned int bus, unsigned char reg_write)
 {
 	unsigned int wr_rd_out, cnt;
-	char reg_bus_name[10];
+	char reg_bus_name[20];
 	char *reg_log;
 
 	reg_log = kzalloc(64 * sizeof(char), GFP_KERNEL);
@@ -2536,6 +2539,12 @@ static void lcd_debug_reg_op(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 		if (reg_write)
 			lcd_hiu_write(reg, data);
 		wr_rd_out = lcd_hiu_read(reg);
+		break;
+	case LCD_REG_DBG_VX1_LVDS_CTRL_BUS:
+		sprintf(reg_bus_name, "VX1_LVDS_CTRL");
+		if (reg_write)
+			lcd_vx1_lvds_ctrl_write(pdrv, reg, data);
+		wr_rd_out = lcd_vx1_lvds_ctrl_read(pdrv, reg);
 		break;
 	default:
 		LCDERR("[%d]: unknown bus %d\n", pdrv->index, bus);
@@ -2649,9 +2658,14 @@ static ssize_t lcd_debug_reg_store(struct device *dev, struct device_attribute *
 
 	switch (buf[0]) {
 	case 'w':
-		if (buf[1] == 'v') { /* vcbus */
-			ret = sscanf(buf, "wv %x %x", &reg32, &data32);
-			bus = LCD_REG_DBG_VC_BUS;
+		if (buf[1] == 'v') {
+			if (buf[2] == 'l') { /* vx1 lvds */
+				ret = sscanf(buf, "wvl %x %x", &reg32, &data32);
+				bus = LCD_REG_DBG_VX1_LVDS_CTRL_BUS;
+			} else { /* vcbus */
+				ret = sscanf(buf, "wv %x %x", &reg32, &data32);
+				bus = LCD_REG_DBG_VC_BUS;
+			}
 		} else if (buf[1] == 'a') { /* ana */
 			ret = sscanf(buf, "wa %x %x", &reg32, &data32);
 			bus = LCD_REG_DBG_ANA_BUS;
@@ -2694,9 +2708,14 @@ static ssize_t lcd_debug_reg_store(struct device *dev, struct device_attribute *
 		}
 		break;
 	case 'r':
-		if (buf[1] == 'v') { /* vcbus */
-			ret = sscanf(buf, "rv %x %d", &reg32, &cnt);
-			bus = LCD_REG_DBG_VC_BUS;
+		if (buf[1] == 'v') {
+			if (buf[2] == 'l') { /* vx1 lvds */
+				ret = sscanf(buf, "rvl %x %x", &reg32, &data32);
+				bus = LCD_REG_DBG_VX1_LVDS_CTRL_BUS;
+			} else { /* vcbus */
+				ret = sscanf(buf, "rv %x %d", &reg32, &cnt);
+				bus = LCD_REG_DBG_VC_BUS;
+			}
 		} else if (buf[1] == 'a') { /* ana */
 			ret = sscanf(buf, "ra %x %d", &reg32, &cnt);
 			bus = LCD_REG_DBG_ANA_BUS;
@@ -4267,13 +4286,15 @@ static ssize_t lcd_mipi_dphy_debug_store(struct device *dev, struct device_attri
 #define PHY_DEBUG_LANE_EN       7
 #define PHY_DEBUG_LANE_PREEM    8
 #define PHY_DEBUG_LANE_AMP      9
-#define PHY_DEBUG_LANE_PHASE    10
-#define PHY_DEBUG_LANE_SEL      11
-#define PHY_DEBUG_STATE         12
-#define PHY_DEBUG_LCD_IF        13
-#define PHY_DEBUG_PHY_CLK       14
-#define PHY_DEBUG_UNKNOWN       15
-#define PHY_DEBUG_ERR           16
+#define PHY_DEBUG_LANE_RTERM    10
+#define PHY_DEBUG_LANE_PHASE    11
+#define PHY_DEBUG_LANE_SEL      12
+#define PHY_DEBUG_LANE_PN_SWAP  13
+#define PHY_DEBUG_STATE         14
+#define PHY_DEBUG_LCD_IF        15
+#define PHY_DEBUG_PHY_CLK       16
+#define PHY_DEBUG_UNKNOWN       17
+#define PHY_DEBUG_ERR           18
 static unsigned int phy_debug_type;
 
 static ssize_t lcd_phy_debug_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -4313,6 +4334,9 @@ static ssize_t lcd_phy_debug_show(struct device *dev, struct device_attribute *a
 	case PHY_DEBUG_LANE_AMP:
 		len = sprintf(buf, "for_tool:0x%x\n", local_phy.lane[i].amp);
 		break;
+	case PHY_DEBUG_LANE_RTERM:
+		len = sprintf(buf, "for_tool:0x%x\n", local_phy.lane[i].rterm);
+		break;
 	case PHY_DEBUG_LANE_SEL:
 		len = sprintf(buf, "for_tool:0x%x\n", local_phy_cfg.ch_ctrl[i].sel);
 		break;
@@ -4320,15 +4344,22 @@ static ssize_t lcd_phy_debug_show(struct device *dev, struct device_attribute *a
 		len = sprintf(buf, "for_tool:%u\n", local_phy_cfg.ch_ctrl[i].en);
 		break;
 	case PHY_DEBUG_LANE_OP:
-		len = sprintf(buf, "for_tool:sel=0x%x, amp=0x%x, preem=0x%x, en=%d\n",
-			local_phy_cfg.ch_ctrl[i].sel, local_phy.lane[i].amp,
-			local_phy.lane[i].preem, local_phy_cfg.ch_ctrl[i].en);
+		len = sprintf(buf, "for_tool:sel=0x%x, rterm=0x%x, amp=0x%x, preem=0x%x, en=%d\n",
+			local_phy_cfg.ch_ctrl[i].sel, local_phy.lane[i].rterm,
+			local_phy.lane[i].amp, local_phy.lane[i].preem,
+			local_phy_cfg.ch_ctrl[i].en);
 		break;
 	case PHY_DEBUG_LANE_PHASE:
 		if (local_phy_cfg.ch_ctrl[i].phase_sel == 0xff)
 			len = sprintf(buf, "for_tool:x\n");
 		else
 			len = sprintf(buf, "for_tool:%x\n", local_phy_cfg.ch_ctrl[i].phase_sel);
+		break;
+	case PHY_DEBUG_LANE_PN_SWAP:
+		if (local_phy_cfg.ch_ctrl[i].pn_swap == 0xff)
+			len = sprintf(buf, "for_tool:x\n");
+		else
+			len = sprintf(buf, "for_tool:%x\n", local_phy_cfg.ch_ctrl[i].pn_swap);
 		break;
 	case PHY_DEBUG_STATE:
 		len = sprintf(buf, "for_tool:%u\n", local_phy_cfg.state);
@@ -4435,6 +4466,20 @@ static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *
 			}
 			phy_cfg->flag |= PHY_BIT_LANE_PREEM;
 			pr_info("LCD PHY set: Lane[%u]: PreEm=0x%02x\n", op_lane, set_val);
+		} else if (strcmp(parm[2], "rterm") == 0) {
+			phy_debug_type = ((op_lane & 0xff) << 24) | PHY_DEBUG_LANE_RTERM;
+			if (!parm[3])
+				goto lcd_phy_debug_store_end;
+			if (kstrtou32(parm[3], 16, &set_val))
+				goto lcd_phy_debug_store_err;
+			if (op_lane == 0xff) { //write all lane
+				for (i = 0; i < phy_cfg->lane_num; i++)
+					phy->lane[i].rterm = set_val;
+			} else {
+				phy->lane[op_lane].rterm = set_val;
+			}
+			phy_cfg->flag |= PHY_BIT_LANE_RTERM;
+			pr_info("LCD PHY set: Lane[%u]: Rterm=0x%0x\n", op_lane, set_val);
 		} else if (strcmp(parm[2], "phase") == 0) {
 			phy_debug_type = ((op_lane & 0xff) << 24) | PHY_DEBUG_LANE_PHASE;
 			if (!parm[3])
@@ -4474,6 +4519,19 @@ static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *
 			//mlvds need set phy reg for ckdi update
 			if (pdrv->curr_dev->dev_cfg.basic.lcd_type != LCD_MLVDS)
 				goto lcd_phy_debug_store_end;
+		} else if (strcmp(parm[2], "pn_swap") == 0) {
+			phy_debug_type = ((op_lane & 0xff) << 24) | PHY_DEBUG_LANE_PN_SWAP;
+			if (!parm[3])
+				goto lcd_phy_debug_store_end;
+			if (kstrtou32(parm[3], 16, &set_val))
+				goto lcd_phy_debug_store_err;
+			if (op_lane == 0xff) { //write all lane
+				for (i = 0; i < phy_cfg->lane_num; i++)
+					phy_cfg->ch_ctrl[i].pn_swap = set_val;
+			} else {
+				phy_cfg->ch_ctrl[op_lane].pn_swap = set_val;
+			}
+			pr_info("LCD PHY set: Lane[%u]: pn_swap=0x%02x\n", op_lane, set_val);
 		} else {
 			if (!parm[3]) {
 				phy_debug_type = PHY_DEBUG_UNKNOWN;
@@ -5087,6 +5145,7 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 	case LCD_CHIP_T3:
 	case LCD_CHIP_T5M:
 	case LCD_CHIP_T6D:
+	case LCD_CHIP_T6W:
 		if (pdrv->index == 1)
 			lcd_debug_info = &lcd_debug_info_t3_1;
 		else
@@ -5097,6 +5156,9 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 			lcd_debug_info = &lcd_debug_info_t3x_1;
 		else
 			lcd_debug_info = &lcd_debug_info_t3x_0;
+		break;
+	case LCD_CHIP_T6X:
+		lcd_debug_info = &lcd_debug_info_t3x_0;
 		break;
 	case LCD_CHIP_G12A:
 	case LCD_CHIP_G12B:

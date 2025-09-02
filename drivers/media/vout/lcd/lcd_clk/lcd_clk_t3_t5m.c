@@ -845,6 +845,7 @@ static struct lcd_clk_data_s lcd_clk_data_t3_0 = {
 
 static struct lcd_pll_data_s lcd_pll_data_t3_1 = {
 	.pll_od_fb = 0,
+	.pll_0_5_div_en = 0,
 	.pll_m_max = 511,
 	.pll_m_min = 2,
 	.pll_n_max = 1,
@@ -939,11 +940,9 @@ struct lcd_clk_config_s *lcd_clk_config_chip_init_t3(struct aml_lcd_drv_s *pdrv)
 	cconf->clk_path_change = NULL;
 	if (pdrv->index == 0) {
 		cconf->data = &lcd_clk_data_t3_0;
-		cconf->pll_config[0].pll_od_fb = lcd_pll_data_t3_0.pll_od_fb;
 		cconf->pll_config[0].pll_id = 0;
 	} else { //pdrv->index == 1
 		cconf->data = &lcd_clk_data_t3_1;
-		cconf->pll_config[0].pll_od_fb = lcd_pll_data_t3_1.pll_od_fb;
 		cconf->pll_config[0].pll_id = 1;
 	}
 	return cconf;

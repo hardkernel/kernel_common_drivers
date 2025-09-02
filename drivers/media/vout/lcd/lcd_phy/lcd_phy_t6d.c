@@ -152,7 +152,7 @@ static int lcd_phy_param_get_from_reg(struct aml_lcd_drv_s *pdrv,
 				      struct phy_config_s *phy_cfg, struct phy_attr_s *phy)
 {
 	unsigned int data32, chreg, chdig, bit, i;
-	unsigned char phase_sel;
+	unsigned char phase_sel, pn_swap;
 
 	data32 = lcd_ana_read(ANACTRL_DIF_PHY_CNTL14);
 	phy->vswing = (data32 >> 26) & 0xf;
@@ -170,9 +170,11 @@ static int lcd_phy_param_get_from_reg(struct aml_lcd_drv_s *pdrv,
 		phy->lane[i].preem = (chreg >> 12) & 0xf;
 		phy->lane[i].amp = (chreg >> 8) & 0xf;
 		phase_sel = (chreg >> 1) & 0x3;
+		pn_swap = (chdig >> 2) & 0xf;
 		phy_cfg->ch_ctrl[i].phase_sel =
 			lcd_phy_get_phase(&pdrv->curr_dev->dev_cfg.phy_cfg,
 					  PHY_GET_PHASE_SEL_BY_REG, phase_sel);
+		phy_cfg->ch_ctrl[i].pn_swap = (pn_swap == 0xf) ? 1 : 0;
 	}
 
 	return 0;
@@ -238,16 +240,15 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status)
 		if ((phy_cfg->lane_valid & (1 << i)) == 0)
 			continue;
 		bit = i & 0x1 ? 16 : 0;
-		chreg = reg_data;
-		if (is_mlvds)
-			chdig = 0xf << 2;  //pn swap
-		else
-			chdig = 1 << 10;   //clk inv
-		if (status) {
-			chdig |= (phy_cfg->ch_ctrl[i].en ? 1 : 0) << 15;
+		chreg = 0;
+		chdig = 0;
+		if (status && phy_cfg->ch_ctrl[i].en) {
+			chreg |= 1 << 0;
+			chdig |= 1 << 15;
 			chreg |= (phy->lane[i].preem & 0xf) << 12;
 			chreg |= (phy->lane[i].amp & 0xf) << 8;
-
+			if (phy_cfg->ch_ctrl[i].pn_swap && phy_cfg->ch_ctrl[i].pn_swap != 0xff)
+				chdig |= 0xf << 2;
 			// check lane phase select
 			if (is_mlvds) {
 				sel = lcd_phy_get_phase(phy_cfg, PHY_GET_PHASE_REG_BY_SEL,
@@ -258,6 +259,8 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status)
 				} else {
 					chreg |= ((unsigned char)sel) << 1;
 				}
+			} else {
+				chdig |= 1 << 10;   //clk inv
 			}
 		}
 		lcd_ana_setb(chreg_reg[i >> 1], chreg, bit, 16);
@@ -351,6 +354,26 @@ static void phy_glb_param_dft_t6d(struct aml_lcd_drv_s *pdrv, struct aml_lcd_dev
 	}
 }
 
+static unsigned char lcd_phy_lane_pn_swap_def(struct aml_lcd_drv_s *pdrv,
+			struct aml_lcd_device_s *dev_p, unsigned int lane)
+{
+	unsigned char pn_swap = 0;
+
+	if (lane >= 10)
+		return 0xff;
+
+	switch (dev_p->dev_cfg.basic.lcd_type) {
+	case LCD_MLVDS:
+		pn_swap = 1;
+		break;
+	default:
+		pn_swap = 0;
+		break;
+	}
+
+	return pn_swap;
+}
+
 static struct lcd_phy_ctrl_s lcd_phy_ctrl_t6d = {
 	.lane_num = 10,
 	.lane_lock_total = 0,
@@ -360,6 +383,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_t6d = {
 	.phy_amp_dft_val = lcd_phy_amp_dft_t6d,
 	.phy_glb_param_dft_val = phy_glb_param_dft_t6d,
 	.phy_lane_phase_sel_def = lcd_phy_lane_phase_sel_def,
+	.phy_lane_pn_swap_dft = lcd_phy_lane_pn_swap_def,
 	.phy_param_get = lcd_phy_param_get_from_reg,
 	.phy_reg_dump = lcd_phy_reg_dump,
 

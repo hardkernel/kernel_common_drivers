@@ -148,6 +148,7 @@ enum lcd_chip_e {
 	LCD_CHIP_S6,	/* 16 */
 	LCD_CHIP_T6D,	/* 17 */
 	LCD_CHIP_T6W,	/* 18 */
+	LCD_CHIP_T6X,	/* 19 */
 	LCD_CHIP_MAX,
 };
 
@@ -436,6 +437,7 @@ enum p2p_type_e {
 	P2P_CHPI = 0x10, /* low common mode */
 	P2P_CSPI,
 	P2P_USIT,
+	P2P_CSPI_NEW,  /* CSPI New Coding */
 	P2P_MAX,
 };
 
@@ -448,6 +450,9 @@ struct p2p_config_s {
 	unsigned int bit_swap; /* MSB/LSB reverse */
 	unsigned int phy_vswing;
 	unsigned int phy_preem;
+
+	// cspi new coding: adjust phy bitrate using alpha value
+	unsigned int cspi_alpha;
 };
 
 union lcd_ctrl_config_u {
@@ -525,7 +530,8 @@ struct lcd_power_step_s {
 #define PHY_BIT_CV_MODE     BIT(4)
 #define PHY_BIT_LANE_PREEM  BIT(12)
 #define PHY_BIT_LANE_AMP    BIT(13)
-#define PHY_BIT_LANE_SEL    BIT(14)
+#define PHY_BIT_LANE_RTERM  BIT(14)
+#define PHY_BIT_LANE_SEL    BIT(15)
 
 #define PHY_PHASE_0 0
 #define PHY_PHASE_A 1
@@ -534,6 +540,7 @@ struct lcd_power_step_s {
 struct phy_lane_s {
 	unsigned int preem; //flag bit[12]
 	unsigned int amp;   //flag bit[13]
+	unsigned int rterm;
 };
 
 struct ss_config_s {
