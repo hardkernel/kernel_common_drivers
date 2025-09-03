@@ -2078,6 +2078,12 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	} else {
 		vrr_info.frac_mode = false;
 	}
+
+	if (meson_crtc_state->uboot_mode_init == 1 &&
+		meson_conn_state->update != 1)
+		vmode |= VMODE_INIT_BIT_MASK;
+
+	meson_conn_state->hcs.mode = vmode;
 	if (meson_crtc_state->seamless) {
 		if (meson_crtc_state->vrr_type == DRM_VRR_QMS) {
 			dst_vrefresh = meson_crtc_state->base.vrr_enabled ? mode_vrefresh : 0;
@@ -2092,13 +2098,10 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 		}
 
 		DRM_INFO("%s, set frame rate: %d\n", __func__, dst_vrefresh);
-		hdmitx_common_set_vframe_rate_hint(tx_comm, dst_vrefresh, &vrr_info);
+		hdmitx_common_set_vframe_rate_hint(tx_comm, &meson_conn_state->hcs,
+				dst_vrefresh, &vrr_info);
 		return;
 	}
-
-	if (meson_crtc_state->uboot_mode_init == 1 &&
-		meson_conn_state->update != 1)
-		vmode |= VMODE_INIT_BIT_MASK;
 
 	if (!meson_crtc_state->seamless) {
 		hdmitx_set_hdr_priority(tx_comm,
@@ -2108,7 +2111,6 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 
 		meson_vout_notify_mode_change(amcrtc->vout_index,
 					      vmode, EVENT_MODE_SET_START);
-		meson_conn_state->hcs.mode = vmode;
 		hdmitx_common_do_mode_setting(tx_comm,
 					      &meson_conn_state->hcs,
 					      &old_meson_conn_state->hcs);
@@ -2136,12 +2138,13 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 			vrr_info.type = T_VRR_NONE;
 		}
 
-		hdmitx_common_set_vframe_rate_hint(tx_comm, dst_vrefresh, &vrr_info);
+		hdmitx_common_set_vframe_rate_hint(tx_comm, &meson_conn_state->hcs,
+				dst_vrefresh, &vrr_info);
 		DRM_INFO("%s, vrr set rate hint, %d\n", __func__,
 			 dst_vrefresh);
 	} else {
 		vrr_info.type = T_VRR_NONE;
-		hdmitx_common_set_vframe_rate_hint(tx_comm, 0, &vrr_info);
+		hdmitx_common_set_vframe_rate_hint(tx_comm, &meson_conn_state->hcs, 0, &vrr_info);
 		DRM_INFO("%s, disable vrr\n", __func__);
 	}
 }

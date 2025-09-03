@@ -656,7 +656,8 @@ u32 hdmitx_common_get_vrr_cap(struct hdmitx_common *tx_comm);
 int hdmitx_common_get_vrr_mode_group(struct hdmitx_common *tx_comm,
 				     struct hdmitx_vrr_mode_group *group,
 				     int max_group);
-int hdmitx_common_set_vframe_rate_hint(struct hdmitx_common *tx_comm, int rate, void *data);
+int hdmitx_common_set_vframe_rate_hint(struct hdmitx_common *tx_comm,
+		struct hdmitx_common_state *new_state, int rate, void *data);
 /* hdmitx diagnostic system api */
 unsigned char *hdmitx_common_get_resolution(struct hdmitx_common *tx_comm);
 int hdmitx_common_get_rxsense(struct hdmitx_common *tx_comm);
