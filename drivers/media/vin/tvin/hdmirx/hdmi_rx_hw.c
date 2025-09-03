@@ -5637,7 +5637,7 @@ void hdmirx_config_video(u8 port)
 		rx_fmt_override(false, port);
 	/* for yuv422,bypass mode */
 	if (!(rx_info.chip_id > CHIP_ID_T6D && rx_info.chip_id != CHIP_ID_T3X) &&
-		rx[port].cur.colorspace == E_COLOR_YUV422 && rx[port].var.special_422_dev)
+		rx[port].cur.colorspace == E_COLOR_YUV422 && !rx[port].var.special_422_dev)
 		rx_cd_override(true, port);
 	else
 		rx_cd_override(false, port);

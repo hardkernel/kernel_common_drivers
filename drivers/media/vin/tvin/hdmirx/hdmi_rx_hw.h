@@ -49,7 +49,8 @@
 /* 2025.07.04 enable edid segment auto clr */
 /* 2025.08.05 update m and os_rate when vco error */
 /* 2025.08.15 auto override dc for 422 */
-#define RX_HW_VER "ver.2025/08/15"
+/* 2025.09.03 optimize dc override flow */
+#define RX_HW_VER "ver.2025/09/03"
 
 #define K_TEST_CHK_ERR_CNT
 
