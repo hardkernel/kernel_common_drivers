@@ -38,6 +38,7 @@
 #include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
+#include "hdmi_rx_frl.h"
 #include "hdmi_rx_hw_t5.h"
 #include "hdmi_rx_hw_t7.h"
 #include "hdmi_rx_hw_tl1.h"
@@ -47,6 +48,7 @@
 #include "hdmi_rx_hw_t3x.h"
 #include "hdmi_rx_hw_txhd2.h"
 #include "hdmi_rx_hw_t6w.h"
+#include "hdmi_rx_hw_t6x.h"
 
 static int pow5v_max_cnt = 2;
 static int pll_unlock_max;
@@ -162,6 +164,7 @@ module_param(enable_hdcp22_esm_log, bool, 0664);
 
 /*esm recovery mode for changing resolution & hdmi2.0*/
 int esm_recovery_mode = ESM_REC_MODE_TMDS;
+
 
 /* No need to judge  frame rate while checking timing stable,as there are
  * some out-spec sources whose framerate change a lot(e.g:59.7~60.16hz).
@@ -311,7 +314,7 @@ void hdmirx_phy_var_init(void)
 		rx_info.aml_phy.eye_height_min = 8;
 		rx_info.aml_phy.tap0_err_check_en = 0;
 		// for t3x 2.1 phy
-		if (rx_info.phy_ver == PHY_VER_T3X && !rx_info.aml_phy.phy_debug_en) {
+		if (rx_info.phy_ver >= PHY_VER_T3X && !rx_info.aml_phy.phy_debug_en) {
 			rx_info.aml_phy_21.phy_bwth = 1;
 			rx_info.aml_phy_21.vga_gain = 0x10000;
 			rx_info.aml_phy_21.eq_stg1 = 0x1f;
@@ -432,6 +435,7 @@ void hdmirx_fsm_var_init(void)
 		fps_unready_max = 3;
 		break;
 	case CHIP_ID_T3X:
+	case CHIP_ID_T6X:
 		hbr_force_8ch = 1; //use it to enable hdr2spdif
 		sig_stable_err_max = 5;
 		sig_stable_max = 20;
@@ -1752,7 +1756,7 @@ irqreturn_t irq3_handler(int irq, void *params)
 				htotal_cnt++;
 				if (htotal_cnt >= 10) {
 					if (rx[E_PORT3].var.dbg_ve)
-						rx_cor_reset_t3x(E_PORT3);
+						hdmi_rx_cor_reset(E_PORT3);
 					htotal_cnt = 0;
 				}
 			}
@@ -3127,9 +3131,6 @@ void rx_get_global_variable(const char *buf)
 	pr_var(en_4k_timing, i++);
 	pr_var(acr_mode, i++);
 	pr_var(force_clk_rate, i++);
-	pr_var(bist_delay, i++);
-	pr_var(hdcp22_auth_sts, i++);
-	pr_var(hdcp14_on, i++);
 	pr_var(rx_afifo_dbg_en, i++);
 	pr_var(auto_aclk_mute, i++);
 	pr_var(aud_avmute_en, i++);
@@ -3141,6 +3142,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(packet_fifo_cfg, i++);
 	pr_var(pd_fifo_start_cnt, i++);
 	pr_var(hdcp22_on, i++);
+	pr_var(delay_ms_cnt, i++);
 	pr_var(eq_max_setting, i++);
 	pr_var(eq_dbg_ch0, i++);
 	pr_var(eq_dbg_ch1, i++);
@@ -3206,7 +3208,6 @@ void rx_get_global_variable(const char *buf)
 	pr_var(vpp_mute_cnt, i++);
 	pr_var(gcp_mute_cnt, i++);
 	pr_var(fps_unready_max, i++);
-	pr_var(clk_msr_param, i++);
 	pr_var(frl_debug_en, i++);
 	pr_var(rx_emp_dbg_en, i++);
 	pr_var(fsm_debug, i++);
@@ -3322,6 +3323,10 @@ void rx_get_global_variable(const char *buf)
 	pr_var(edid_auto_debug, i++);
 	pr_var(rx_info.aml_phy.tap0_err_check_en, i++);
 	pr_var(rx_info.aml_phy.dacr_en, i++);
+	pr_var(debug_port, i++);
+	pr_var(bist_lvl, i++);
+	pr_var(bist_mode, i++);
+	pr_var(l_bist_en, i++);
 }
 
 bool str_cmp(unsigned char *buff, unsigned char *str)
@@ -3464,12 +3469,6 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(acr_mode, index);
 	if (set_pr_var(tmpbuf, var_to_str(force_clk_rate), &force_clk_rate, value))
 		return pr_var(force_clk_rate, index);
-	if (set_pr_var(tmpbuf, var_to_str(bist_delay), &bist_delay, value))
-		return pr_var(bist_delay, index);
-	if (set_pr_var(tmpbuf, var_to_str(hdcp22_auth_sts), &hdcp22_auth_sts, value))
-		return pr_var(hdcp22_auth_sts, index);
-	if (set_pr_var(tmpbuf, var_to_str(hdcp14_on), &hdcp14_on, value))
-		return pr_var(hdcp14_on, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx_afifo_dbg_en),
 					&rx_afifo_dbg_en, value))
 		return pr_var(rx_afifo_dbg_en, index);
@@ -3493,6 +3492,10 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(packet_fifo_cfg, index);
 	if (set_pr_var(tmpbuf, var_to_str(pd_fifo_start_cnt), &pd_fifo_start_cnt, value))
 		return pr_var(pd_fifo_start_cnt, index);
+	if (set_pr_var(tmpbuf, var_to_str(hdcp22_on), &hdcp22_on, value))
+		return pr_var(hdcp22_on, index);
+	if (set_pr_var(tmpbuf, var_to_str(delay_ms_cnt), &delay_ms_cnt, value))
+		return pr_var(delay_ms_cnt, index);
 	if (set_pr_var(tmpbuf, var_to_str(eq_max_setting), &eq_max_setting, value))
 		return pr_var(eq_max_setting, index);
 	if (set_pr_var(tmpbuf, var_to_str(eq_dbg_ch0), &eq_dbg_ch0, value))
@@ -3667,12 +3670,6 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(fps_unready_max),
 		&fps_unready_max, value))
 		return pr_var(fps_unready_max, index);
-	if (set_pr_var(tmpbuf, var_to_str(clk_msr_param),
-		&clk_msr_param, value))
-		return pr_var(clk_msr_param, index);
-	if (set_pr_var(tmpbuf, var_to_str(fpll_clk_sel),
-		&fpll_clk_sel, value))
-		return pr_var(fpll_clk_sel, index);
 	if (set_pr_var(tmpbuf, var_to_str(frl_debug_en),
 		&frl_debug_en, value))
 		return pr_var(frl_debug_en, index);
@@ -4010,6 +4007,18 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy.dacr_en),
 		&rx_info.aml_phy.dacr_en, value))
 		return pr_var(rx_info.aml_phy.dacr_en, index);
+	if (set_pr_var(tmpbuf, var_to_str(debug_port),
+		&debug_port, value))
+		return pr_var(debug_port, index);
+	if (set_pr_var(tmpbuf, var_to_str(bist_lvl),
+		&bist_lvl, value))
+		return pr_var(bist_lvl, index);
+	if (set_pr_var(tmpbuf, var_to_str(bist_mode),
+		&bist_mode, value))
+		return pr_var(bist_mode, index);
+	if (set_pr_var(tmpbuf, var_to_str(l_bist_en),
+		&l_bist_en, value))
+		return pr_var(l_bist_en, index);
 	return 0;
 }
 
@@ -4335,8 +4344,8 @@ void rx_5v_monitor(void)
 			if (rx[i].cur_5v_sts == ((pwr_sts >> i) & 1))
 				continue;
 			rx[i].cur_5v_sts = (pwr_sts >> i) & 1;
-			if (rx_info.chip_id == CHIP_ID_T3X) {
-				rx_cor_reset_t3x(i);
+			if (rx_info.chip_id >= CHIP_ID_T3X) {
+				hdmi_rx_cor_reset(i);
 				if (rx[i].cur_5v_sts == 0) {
 					set_fsm_state(FSM_5V_LOST, i);
 					rx[i].pre_5v_sts = 0;
@@ -5914,7 +5923,7 @@ void rx_port2_main_state_machine(void)
 		rx_irq_en(0, port);
 		if (!(is_earc_hpd_low() && rx_info.main_port == rx_info.arc_port))
 			rx_set_cur_hpd(0, 0, port);
-		rx_cor_reset_t3x(port);
+		hdmi_rx_cor_reset(port);
 		rx_set_cur_hpd(0, 0, port);
 		//set_scdc_cfg(1, 0, port);
 		rx[port].state = FSM_INIT;
@@ -5973,16 +5982,13 @@ void rx_port2_main_state_machine(void)
 		// sb sr not sync, set hpd low to retry
 		if (!rx_lts_p_syn_detect(rx[port].var.frl_rate, port))
 			rx[port].var.flt_update = 1;
-		RX_LTS_P_FRL_START(port);
+		rx_lts_p_frl_start(port);
 		rx[port].stable_timestamp = rx_info.timestamp;
 		rx[port].state = FSM_WAIT_FRL_TRN_DONE;
 		rx[port].var.fpll_stable_cnt = 0;
 		rx[port].var.fpll_ready_cnt = 0;
 		rx[port].var.frl_lock_det_cnt = 0;
-		if (s_tmds_transmission_detected(port))
-			rx[port].state = FSM_WAIT_CLK_STABLE;
-		else
-			rx[port].state = FSM_WAIT_FRL_TRN_DONE;
+		rx[port].state = FSM_WAIT_FRL_TRN_DONE;
 		break;
 	case FSM_WAIT_FRL_TRN_DONE:
 		//wait timing stable for debug;
@@ -6548,17 +6554,14 @@ void rx_port3_main_state_machine(void)
 		if (!rx_lts_p_syn_detect(rx[port].var.frl_rate, port))
 			rx[port].var.flt_update = 1;
 		rx[port].stable_timestamp = rx_info.timestamp;
-		RX_LTS_P_FRL_START(port);
+		rx_lts_p_frl_start(port);
 		if (rx_is_need_edid_reset(port))
 			rx_edid_module_reset();
 		rx[port].state = FSM_WAIT_FRL_TRN_DONE;
 		rx[port].var.fpll_stable_cnt = 0;
 		rx[port].var.fpll_ready_cnt = 0;
 		rx[port].var.frl_lock_det_cnt = 0;
-		if (s_tmds_transmission_detected(port))
-			rx[port].state = FSM_WAIT_CLK_STABLE;
-		else
-			rx[port].state = FSM_WAIT_FRL_TRN_DONE;
+		rx[port].state = FSM_WAIT_FRL_TRN_DONE;
 		break;
 	case FSM_WAIT_FRL_TRN_DONE:
 		if (rx[port].var.fpll_ready_cnt++ < fpll_ready_max)
@@ -7234,6 +7237,8 @@ void dump_phy_status(u8 port)
 		dump_aml_phy_sts_t6w();
 	else if (rx_info.phy_ver == PHY_VER_T3X)
 		dump_aml_phy_sts_t3x(port);
+	else if (rx_info.phy_ver == PHY_VER_T6X)
+		dump_aml_phy_sts_t6x(port);
 	else
 		dump_aml_phy_sts_tl1();
 }
@@ -7581,16 +7586,28 @@ int hdmirx_debug(const char *buf, int size)
 		rx_pr("rx edid version: %s\n", RX_EDID_H_VER);
 		rx_pr("------------------\n");
 	} else if (strncmp(input[0], "port0", 5) == 0) {
-		hdmirx_open_main_port(E_PORT0);
+		if (rx_info.chip_id >= CHIP_ID_T3X)
+			hdmirx_open_main_port_t3x(E_PORT0);
+		else
+			hdmirx_open_main_port(E_PORT0);
 		rx_info.main_port = E_PORT0;
 	} else if (strncmp(input[0], "port1", 5) == 0) {
-		hdmirx_open_main_port(E_PORT1);
+		if (rx_info.chip_id >= CHIP_ID_T3X)
+			hdmirx_open_main_port_t3x(E_PORT1);
+		else
+			hdmirx_open_main_port(E_PORT1);
 		rx_info.main_port = E_PORT1;
 	} else if (strncmp(input[0], "port2", 5) == 0) {
-		hdmirx_open_main_port(E_PORT2);
+		if (rx_info.chip_id >= CHIP_ID_T3X)
+			hdmirx_open_main_port_t3x(E_PORT2);
+		else
+			hdmirx_open_main_port(E_PORT2);
 		rx_info.main_port = E_PORT2;
 	} else if (strncmp(input[0], "port3", 5) == 0) {
-		hdmirx_open_main_port(E_PORT3);
+		if (rx_info.chip_id >= CHIP_ID_T3X)
+			hdmirx_open_main_port_t3x(E_PORT3);
+		else
+			hdmirx_open_main_port(E_PORT3);
 		rx_info.main_port = E_PORT3;
 	} else if (strncmp(input[0], "ports", 5) == 0) {
 		//hdmirx_open_port(E_PORT3, E_PORT1);
@@ -7653,9 +7670,9 @@ int hdmirx_debug(const char *buf, int size)
 			rx_phy_short_bist(port);
 		}
 	} else if (strncmp(tmpbuf, "eye", 3) == 0) {
-		sm_pause = 1;
+		//sm_pause = 1;
 		aml_eq_eye_monitor(port);
-		sm_pause = 0;
+		//sm_pause = 0;
 	} else if (strncmp(tmpbuf, "iq", 2) == 0) {
 		aml_phy_iq_skew_monitor();
 	} else if (strncmp(tmpbuf, "crc", 3) == 0) {
@@ -7681,7 +7698,10 @@ int hdmirx_debug(const char *buf, int size)
 	} else if (strncmp(tmpbuf, "prbs", 4) == 0) {
 		rx_long_bist_t3x();
 	} else if (strncmp(tmpbuf, "l_bist", 6) == 0) {
-		rx_long_bist_t3x();
+		if (rx_info.chip_id == CHIP_ID_T6X)
+			rx_long_bist_t6x();
+		else
+			rx_long_bist_t3x();
 	} else if (strncmp(tmpbuf, "aud21", 5) == 0) {
 		dump_aud21_param(E_PORT2);
 	} else if (strncmp(tmpbuf, "pllparam", 8) == 0) {
@@ -7961,7 +7981,7 @@ void rx_hpd_monitor(void)
 	if (!hdmi_cec_en || hdmi_cec_en == 0xff)
 		return;
 
-	if (rx_info.chip_id == CHIP_ID_T3X)
+	if (rx_info.chip_id >= CHIP_ID_T3X)
 		return;
 
 	if (rx_info.main_port_open)
@@ -7981,7 +8001,13 @@ void rx_hpd_monitor(void)
 	}
 }
 
-void hdmirx_timer_t3x(void)
+bool is_fsm_ready(void)
+{
+	return rx_info.chip_id >= CHIP_ID_T3X &&
+		(hdmi_cec_en != 0xff || rx_info.main_port_open);
+}
+
+void hdmirx_timer(void)
 {
 	u8 port = 0;
 
@@ -7989,7 +8015,7 @@ void hdmirx_timer_t3x(void)
 	rx_clkmsr_monitor();
 	rx_hpd_monitor();
 	rx_edid_monitor();
-	if (is_fsm_ready_t3x()) {
+	if (is_fsm_ready()) {
 		if (!sm_pause) {
 			for (port = E_PORT0; port < E_PORT_NUM; port++) {
 				if ((rx_info.edid_update_done & (1 << port)) != (1 << port))
@@ -8063,8 +8089,8 @@ void hdmirx_timer_handler(struct timer_list *t)
 
 	rx_info.timestamp++;
 	//rx_i2c_dbg_monitor();
-	if (rx_info.chip_id == CHIP_ID_T3X)
-		hdmirx_timer_t3x();
+	if (rx_info.chip_id >= CHIP_ID_T3X)
+		hdmirx_timer();
 	else
 		hdmirx_timer_t3x_pre();
 	devp->timer.expires = jiffies + TIMER_STATE_CHECK;

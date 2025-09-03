@@ -239,7 +239,7 @@ void t6d_4k30_pll_cfg(void)
 	usleep_range(10, 20);
 	hdmirx_wr_amlphy(T6D_RG_RX20PLL_0, 0x51290828);
 	usleep_range(10, 20);
-	hdmirx_wr_amlphy(T6D_RG_RX20PLL_0, 0x71290828);
+	hdmirx_wr_amlphy(T6D_RG_RX20PLL_0, 0x71490828);
 	rx[port].phy.aud_div = 0;
 }
 
@@ -1632,6 +1632,8 @@ void rx_dump_pll_param_t6d(void)
 	//u32 val0, val1;
 
 	rx_get_aud_info(&aud_info_a, port);
+	if (!n_value)
+		return;
 	m_n_val = m_value / n_value;
 	/* phy pll */
 	rx_pr("cable clock = %d\n", rx[port].clk.cable_clk);

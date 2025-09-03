@@ -88,6 +88,7 @@
 #define HHI_GCLK_MPEG2			(0x52 * 4)
 #define CLK_MUX_TXHD2			(0x81 * 4)
 #define TXHD2_PWR_CTL			(0x2a * 4)
+#define CLKCTRL_DSC_CLK_CTRL     0x10c
 
 /* T7 0xfe008280*/
 #define HHI_AUD_PLL_CNTL_T7		(0x20 * 4)
@@ -242,6 +243,7 @@
 #define TOP_METER_HDMI_CNTL              0x011
 #define TOP_METER_HDMI_STAT              0x012
 #define TOP_VID_CNTL2                    0x013
+#define TOP_DSC_HDMI_CNTL                0x0b0
 
 /* hdmi2.0 new start */
 #define TOP_MEM_PD  0x014
@@ -364,6 +366,10 @@
 /* COR */
 #define TOP_PHYIF_CNTL0					0x080
 
+#define TOP_ACR_CNTL2_T6X					0x0f
+#define	TOP_CHAN_SWITCH_1_T6X			0x29
+#define	TOP_METER_CABLE_CNTL_T6X		0x03c
+#define	TOP_METER_CABLE_STAT_T6X		0x03d
 /* for t3x */
 #define TOP_ACR_CNTL2_T3X					0x0f
 #define TOP_ACR_N_STST					0x10
@@ -397,6 +403,7 @@
 #define	TOP_AXI_STAT_0					0x083
 #define	TOP_MISC_STAT0					0x084
 #define	TOP_MISC_STAT0_T3X				0x083
+#define	TOP_MISC_STAT0_T6X				0x083
 #define HDMIRX_TOP_PXL_BIST				0x086
 #define TOP_OVID_OVERRIDE0				0x090
 #define TOP_OVID_OVERRIDE1				0x091
@@ -1641,6 +1648,7 @@
 #define   PWD_SW_CLMP_AUE_OIF_PWD_IVCRX        0x000010c4
 #define  AUD_MCLK_OUT_DIV_SEL_PWD_IVCRX        0x000010c5
 #define  EXT_MCLK_SEL_PWD_IVCRX        0x000010c6
+#define EXT_MCLK_SEL_PWD_IVCRX_T6X	0x0001701
 /* 1: select external mclk(analog pll), 0: select internal dacr mclk*/
 #define EXT_MCLK_SEL	_BIT(0)
 #define EXHAUST_CHK_EN_PWD_IVCRX        0x000010c7
@@ -3205,6 +3213,19 @@
 #define I2C_MONITOR_AXI_CMD_CNT		(rx_info.i2c_buff.addr_base + (0x012 << 2))
 #define I2C_MONITOR_ADDR_INTR		(rx_info.i2c_buff.addr_base + (0x013 << 2))
 
+//           5: 10G/4Lanes
+//           6: 12G/4Lanes
+//
+#define FRL_RATE_3G_3LANES 1
+#define FRL_RATE_6G_3LANES 2
+#define FRL_RATE_6G_4LANES 3
+#define FRL_RATE_8G_4LANES 4
+#define FRL_RATE_10G_4LANES 5
+#define FRL_RATE_12G_4LANES 6
+
+//t6x ee voltage,todo
+#define EE_VOL 0x0
+
 enum top_irq_mode_e {
 	IRQ_DISABLE = 0,
 	IRQ_EN_HDCP = 1,
@@ -3409,8 +3430,6 @@ extern u32 frl_sync_cnt;
 extern int force_clk_stable;
 extern int audio_dump;
 extern int edid_auto_debug;
-extern int clk_msr_param;
-extern int fpll_clk_sel;
 /* i2c monitor */
 extern int sda_filter;
 extern int scl_filter;
@@ -3419,6 +3438,32 @@ extern int clk_div;
 extern int secure_debug;
 extern int audio_dump_frame;
 extern int audio_dump_type;
+
+extern int pll_level_en;
+extern int pll_level;
+extern int vpcore_debug;
+extern int phy_rate;
+extern u32 odn_reg_n_mul;
+extern u32 ext_cnt;
+extern int tr_delay0;
+extern int tr_delay1;
+extern int fpll_sel;
+extern int fpll_chk_lvl;
+extern int dts_debug_flag_t3x_21;
+extern int rlevel_t3x_21;
+extern int rterm_trim_val_t3x_21;
+extern int rterm_trim_flag_t3x_21;
+extern int tuning_cnt;
+extern int vga_tuning_min;
+extern int vga_tuning_max;
+extern int cal_phy_time;
+extern int pll_band;
+extern int cdr_bw;
+extern int give_n;
+extern int valid_m_wait_max;
+extern enum frl_train_sts_e frl_train_sts;
+extern enum frl_train_sts_e frl_train_sts1;
+extern int vpcore1_select;
 
 void hdmirx_set_vp_mapping(enum colorspace_e cs, u8 port);
 void rx_get_best_eq_setting(u8 port);
@@ -3441,6 +3486,8 @@ void hdmirx_wr_top(unsigned int addr, unsigned int data, u8 port);
 unsigned int hdmirx_rd_top(unsigned int addr, u8 port);
 void hdmirx_wr_top_common(unsigned int addr, unsigned int data);
 unsigned int hdmirx_rd_top_common(unsigned int addr);
+void hdmirx_rd_check_top(u32 addr, u32 exp_data, u32 mask, u8 port);
+void hdmirx_poll_top(u32 addr, u32 exp_data, u32 mask, u8 port);
 void hdmirx_wr_edid(unsigned int addr, unsigned int data);
 unsigned int hdmirx_rd_edid(unsigned int addr);
 u32 hdmirx_rd_bits_top(u16 addr, u32 mask, u8 port);
@@ -3598,6 +3645,13 @@ void hdmirx_wr_amlphy(unsigned int addr, unsigned int data);
 void hdmirx_wr_amlphy_t3x(unsigned int addr, unsigned int data, u8 port);
 u32 hdmirx_rd_bits_amlphy(u16 addr, u32 mask);
 u32 hdmirx_rd_bits_amlphy_t3x(u16 addr, u32 mask, u8 port);
+void hdmirx_wr_bits_amlphy_t6x(unsigned int addr,
+			   unsigned int mask,
+			   unsigned int value,
+			   u8 port);
+void hdmirx_wr_amlphy_t6x(unsigned int addr, unsigned int data, u8 port);
+u32 hdmirx_rd_bits_amlphy_t6x(u16 addr, u32 mask, u8 port);
+u32 hdmirx_rd_amlphy_t6x(u32 addr, u8 port);
 void wr_reg_clk_ctl(unsigned int offset, unsigned int val);
 unsigned int rd_reg_clk_ctl(unsigned int offset);
 void hdmirx_wr_bits_clk_ctl(u32 addr, u32 mask, u32 value);
@@ -3683,6 +3737,7 @@ void wr_reg_ana_ctl(u32 offset, u32 val);
 void wr_bits_reg_ana_ctl(u32 addr, u32 mask, u32 value);
 bool is_emp_pkt_sent_out(void);
 void rx_dump_pll_param(void);
+void hdmi_rx_cor_reset(u8 port);
 /* i2c monitor */
 void rx_i2c_dbg_monitor(void);
 void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod);
@@ -3702,4 +3757,6 @@ void rx_internal_dacr_mclk_en(bool en, u8 port);
 bool hdmi_rx_frl_unnormal(u8 port);
 bool hdmi_rx_is_fifo_unnormal(u8 port);
 void hdmi_rx_frl_pix_chg(u8 port);
+u32 hdmirx_rd_ee_vol(u32 addr);
+void hdmirx_wr_ee_vol(u32 addr, u32 data);
 #endif

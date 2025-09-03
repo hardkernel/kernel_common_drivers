@@ -209,7 +209,6 @@ void rx_emp_data_capture(u8 port);
 void rx_tmds_data_capture(u8 port);
 void dump_state(int enable, u8 port);
 void hdmirx_init_params(u8 port);
-void rx_cor_reset(u8 port);
 void set_video_mute(u32 owner, bool on);
 u8 get_frame_interval_cnt(u8 cnt, u8 port);
 void rx_edid_update_handler(struct work_struct *dwork);

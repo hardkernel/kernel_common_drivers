@@ -68,6 +68,7 @@
 #include "hdmi_rx_drv.h"
 #include "hdmi_rx_wrapper.h"
 #include "hdmi_rx_hw.h"
+#include "hdmi_rx_frl.h"
 #include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_eq.h"
@@ -244,6 +245,11 @@ static struct notifier_block aml_hdcp22_pm_notifier = {
 	.notifier_call = aml_hdcp22_pm_notify,
 };
 
+static struct meson_hdmirx_data rx_t6x_data = {
+	.chip_id = CHIP_ID_T6X,
+	.phy_ver = PHY_VER_T6X,
+	.port_num = PORT_NUM_4,
+};
 static struct meson_hdmirx_data rx_t6w_data = {
 	.chip_id = CHIP_ID_T6W,
 	.phy_ver = PHY_VER_T6W,
@@ -349,6 +355,10 @@ static struct meson_hdmirx_data rx_gxtvbb_data = {
 #endif
 
 static const struct of_device_id hdmirx_dt_match[] = {
+	{
+		.compatible		= "amlogic, hdmirx_t6x",
+		.data			= &rx_t6x_data
+	},
 	{
 		.compatible		= "amlogic, hdmirx_t6w",
 		.data			= &rx_t6w_data
@@ -566,7 +576,7 @@ int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 
 	if (port_type == TVIN_PORT_MAIN &&
 		port_idx < rx_info.port_num) {
-		if (rx_info.chip_id == CHIP_ID_T3X)
+		if (rx_info.chip_id >= CHIP_ID_T3X)
 			hdmirx_open_main_port_t3x(port_idx);
 		else
 			hdmirx_open_main_port(port_idx);
@@ -636,7 +646,7 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe, enum tvin_port_type_e port_typ
 	parm->info.fmt = TVIN_SIG_FMT_NULL;
 	parm->info.status = TVIN_SIG_STATUS_NULL;
 
-	if (rx_info.chip_id == CHIP_ID_T3X)
+	if (rx_info.chip_id >= CHIP_ID_T3X)
 		hdmirx_close_port_t3x(port);
 	else
 		hdmirx_close_port(port);
@@ -1256,20 +1266,20 @@ int hdmirx_set_cec_cfg(u32 cfg)
 	switch (cfg) {
 	case 1:
 		hdmi_cec_en = 1;
-		if (rx_info.chip_id != CHIP_ID_T3X && rx_info.boot_flag)
+		if (rx_info.chip_id < CHIP_ID_T3X && rx_info.boot_flag)
 			rx_force_hpd_rxsense_cfg(1);
 		break;
 	case 2:
 		hdmi_cec_en = 1;
 		tv_auto_power_on = 1;
-		if (rx_info.chip_id != CHIP_ID_T3X && is_valid_edid_data(edid_cur))
+		if (rx_info.chip_id < CHIP_ID_T3X && is_valid_edid_data(edid_cur))
 			rx_force_hpd_rxsense_cfg(1);
 		break;
 	case 0:
 	default:
 		hdmi_cec_en = 0;
 		/* fix source can't get edid if cec off */
-		if (rx_info.chip_id != CHIP_ID_T3X && rx_info.boot_flag) {
+		if (rx_info.chip_id < CHIP_ID_T3X && rx_info.boot_flag) {
 			if (hpd_low_cec_off == 0)
 				rx_force_hpd_rxsense_cfg(1);
 		}
@@ -2274,7 +2284,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 				rx_set_cur_hpd(0, 4, rx_info.main_port);
 				rx[rx_info.main_port].var.edid_update_flag = 1;
 			}
-			if (rx_info.chip_id != CHIP_ID_T3X && hdmi_cec_en == 1)
+			if (rx_info.chip_id < CHIP_ID_T3X && hdmi_cec_en == 1)
 				port_hpd_rst_flag |= (1 << rx_info.main_port);
 		}
 		for (port_idx = E_PORT0; port_idx < rx_info.port_num; port_idx++)
@@ -2975,7 +2985,7 @@ static ssize_t hdcp22_onoff_store(struct device *dev,
 	else
 		hdcp22_on = 0;
 	if (rx_info.chip_id >= CHIP_ID_T7) {
-		if (rx_info.chip_id == CHIP_ID_T3X) {
+		if (rx_info.chip_id >= CHIP_ID_T3X) {
 			for (i = 0; i < rx_info.port_num; i++)
 				hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, hdcp22_on, i);
 		} else {
@@ -4043,7 +4053,7 @@ static void hdmirx_early_suspend(struct early_suspend *h)
 	early_suspend_flag = true;
 	rx_del_timer(rx_info.hdmirx_dev);
 	rx_irq_en(0, E_PORT0);
-	if (rx_info.chip_id == CHIP_ID_T3X) {
+	if (rx_info.chip_id >= CHIP_ID_T3X) {
 		rx_irq_en(0, E_PORT1);
 		rx_irq_en(0, E_PORT2);
 		rx_irq_en(0, E_PORT3);
@@ -4076,7 +4086,7 @@ static void hdmirx_late_resume(struct early_suspend *h)
 		return;
 	rx_dig_clk_en(1);
 	rx_phy_resume();
-	if (rx_info.chip_id == CHIP_ID_T3X)
+	if (rx_info.chip_id >= CHIP_ID_T3X)
 		sm_pause = 0;
 	for (i = 0; i < rx_info.port_num; i++)
 		rx[i].fsm_ext_state = FSM_HPD_LOW;
@@ -4126,6 +4136,7 @@ static int rx_get_top_irq_table(enum chip_id_e chip)
 		memcpy(top_irq_tab, top_irq_mask_t5m, IRQ_TYPE_CNT * sizeof(u32));
 		break;
 	case CHIP_ID_T3X:
+	case CHIP_ID_T6X://to do
 		memcpy(top_irq_tab, top_irq_mask_t3x, IRQ_TYPE_CNT * sizeof(u32));
 		break;
 	default:
@@ -4438,7 +4449,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (IS_ERR(hdevp->cfg_clk)) {
 		;//rx_sprintf(&boot_info_num, "get cfg_clk err");
 	} else {
-		if (rx_info.chip_id >= CHIP_ID_T7)
+		if (rx_info.chip_id == CHIP_ID_T6X)
+			ret = clk_set_rate(hdevp->cfg_clk, 200000000);
+		else if (rx_info.chip_id >= CHIP_ID_T7)
 			ret = clk_set_rate(hdevp->cfg_clk, 50000000);
 		else
 			ret = clk_set_rate(hdevp->cfg_clk, 133333333);

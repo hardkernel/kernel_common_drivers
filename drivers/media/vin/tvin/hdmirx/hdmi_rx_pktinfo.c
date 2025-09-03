@@ -1157,7 +1157,7 @@ void rx_pkt_get_drm_ex(void *pktinfo, u8 port)
 	}
 
 	drmpkt->pkttype = PKT_TYPE_INFOFRAME_DRM;
-	if (rx_info.chip_id >= CHIP_ID_T7 && rx_info.chip_id <= CHIP_ID_T3X) {
+	if (rx_info.chip_id >= CHIP_ID_T7) {
 		drmpkt->version = hdmirx_rd_cor(RX_UNREC_BYTE2_DP2_IVCRX, port);
 		drmpkt->length = hdmirx_rd_cor(RX_UNREC_BYTE3_DP2_IVCRX, port);
 		drmpkt->des_u.payload[0] =

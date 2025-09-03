@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef _HDMI_RX_T3X_H
@@ -151,28 +151,6 @@ enum frl_train_sts_e {
 #define PWRCTRL_MEM_PD20	((0x0024 << 2) + 0xfe00c000)
 #define PWRCTRL_MEM_PD21	((0x0025 << 2) + 0xfe00c000)
 
-extern int pll_level_en;
-extern int pll_level;
-extern int vpcore_debug;
-extern int phy_rate;
-extern u32 odn_reg_n_mul;
-extern u32 ext_cnt;
-extern int tr_delay0;
-extern int tr_delay1;
-extern int fpll_sel;
-extern int fpll_chk_lvl;
-extern int dts_debug_flag_t3x_21;
-extern int rlevel_t3x_21;
-extern int rterm_trim_val_t3x_21;
-extern int rterm_trim_flag_t3x_21;
-extern int tuning_cnt;
-extern int vga_tuning_min;
-extern int vga_tuning_max;
-extern int cal_phy_time;
-extern int pll_band;
-extern int cdr_bw;
-extern int give_n;
-
 /*--------------------------function declare------------------*/
 /* T3X */
 void aml_phy_init_t3x(u8 port);
@@ -197,51 +175,28 @@ void get_flag_val_t3x(char *temp, unsigned int val, int len);
 void aml_phy_offset_cal_t3x(void);
 void quick_sort2_t3x_20(int arr[], int l, int r);
 void rx_pwrcntl_mem_pd_cfg(void);
-void rx_frl_train(u8 port);
-void rx_frl_train_handler(struct kthread_work *work);
-void rx_frl_train_handler_1(struct kthread_work *work);
-enum frl_train_sts_e rx_get_frl_train_sts(u8 port);
-void rx_set_frl_train_sts(enum frl_train_sts_e sts, u8 port);
-enum frl_rate_e hdmirx_get_frl_rate(u8 port);
-bool is_frl_train_finished(u8 port);
 void rx_long_bist_t3x(void);
 void rx_t3x_prbs(void);
 void dump_aud21_param(u8 port);
-void rx_21_fpll_cfg(int f_rate, u8 port);
-bool is_fpll_err(u8 port);
 void audio_setting_for_aud21(int frl_rate, u8 port);
 void clk_init_cor_t3x(void);
 void rx_dig_clk_en_t3x(bool en);
 void rx_lts_2_flt_ready(u8 port);
-void RX_LTS_3_LTP_REQ_SEND_1111(u8 port);
-void RX_LTS_3_LTP_REQ_SEND_0000(u8 port);
-void hal_flt_update_set(u8 port);
 int rx_lts_p_syn_detect(u8 frl_rate, u8 port);
 void aml_phy_init_t3x_21(u8 port);
 void rx_lts_3_err_detect(u8 port);
-void RX_LTS_P_FRL_START(u8 port);
-bool s_tmds_transmission_detected(u8 port);
 bool hdmirx_flt_update_cleared_wait(u32 addr, u8 port);
 void hdmirx_vga_gain_tuning(u8 port);
 void rx_set_term_value_t3x(unsigned char port, bool value);
 void aml_phy_power_off_t3x_20(u8 port);
 void aml_phy_power_off_t3x_21(u8 port);
-void rx_cor_reset_t3x(u8 port);
-void cor_debug_t3x(u8 port);
-void clr_frl_fifo_status(u8 port);
-void rx_rcc_err_frl_config(u8 port);
-void rx_read_ecc_err(u8 port);
-bool is_fsm_ready_t3x(void);
-void rx_switch_to_self_hsync(u8 port, bool en);
-bool rx_is_switch_to_analog_clk(u8 port);
-void rx_switch_to_analog_clk(u8 port);
-void rx_clr_f_det(bool en, u8 port);
 void rx_mute_t3x(bool en, u8 port_type);
-
-bool rx_get_clkready_sts(u8 port);
-bool rx_get_valid_m_sts(u8 port);
 bool rx_is_power_off_t3x(u8 port);
 void rx_aud_pll_ctl_t3x(bool en, u8 port);
+void hdmirx_fpll_recovery_t3x(u8 port);
+void rx_21_dump_fpll_0_t3x(void);
+void rx_21_dump_fpll_1_t3x(void);
+
 //void reset_pcs(void);
 
 /*function declare end*/

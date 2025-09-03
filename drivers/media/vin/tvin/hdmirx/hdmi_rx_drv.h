@@ -184,6 +184,7 @@ enum chip_id_e {
 	CHIP_ID_T6D,
 	CHIP_ID_T6W,
 	CHIP_ID_T3X,
+	CHIP_ID_T6X,
 };
 
 enum phy_ver_e {
@@ -199,6 +200,7 @@ enum phy_ver_e {
 	PHY_VER_T6D,
 	PHY_VER_T6W,
 	PHY_VER_T3X,
+	PHY_VER_T6X,
 };
 
 enum port_num_e {
@@ -319,6 +321,7 @@ enum map_addr_module_e {
 	MAP_ADDR_MODULE_CLK_CTRL,
 	MAP_ADDR_MODULE_ANA_CTRL,
 	MAP_ADDR_MODULE_COR,
+	MAP_ADDR_MODULE_EE_VOLTAGE,
 	MAP_ADDR_MODULE_NUM
 };
 
