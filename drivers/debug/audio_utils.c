@@ -195,6 +195,11 @@ ssize_t audio_utils_read(struct file *file, char __user *buf,
 		return -EINVAL;
 	}
 
+	if (*ppos + size > write_size) {
+		pr_err("%s read size overflow, ppos:%lld, size:%zu\n", __func__, *ppos, size);
+		return -EINVAL;
+	}
+
 	while (off < *ppos) {
 		off += PAGE_SIZE;
 		page = list_next_entry(page, lru);
