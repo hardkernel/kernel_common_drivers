@@ -40,6 +40,7 @@
 #include <linux/swapops.h>
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_CODEC_MM
 #include <trace/events/meson_atrace.h>
+#include <linux/amlogic/aml_cma.h>
 
 #if IS_ENABLED(CONFIG_AMLOGIC_CPU_INFO)
 #include <linux/amlogic/media/registers/cpu_version.h>
@@ -50,9 +51,6 @@ unsigned char get_meson_cpu_version(int level)
 }
 #endif
 
-#if IS_BUILTIN(CONFIG_AMLOGIC_MEDIA_MODULE)
-#include <linux/amlogic/aml_cma.h>
-#endif
 #define CONFIG_CODEC_MM_EXT_POOL
 
 #include "codec_mm_priv.h"
@@ -99,6 +97,9 @@ u32 tee_sectbl_mem_map(phys_addr_t tbl0_sta, size_t tbl0_size, u32 tbl0_blk_size
 
 #include <linux/amlogic/cpu_version.h>
 
+static bool prealloc_more_tvp;
+module_param(prealloc_more_tvp, bool, 0644);
+
 static bool secure_mem_ctrl;
 static u32 secure_mem_align2n;
 
@@ -107,6 +108,15 @@ static u32 secure_mem_align2n;
 
 #define CONFIG_PATH "media.codec_mm"
 #define CONFIG_PREFIX "media"
+
+/*
+ * level 0: nice = -17, default value
+ * level 1: nice = -10
+ * level 2: nice = 0
+ */
+#define CMA_TASK_NICE_LEVEL_0 0
+#define CMA_TASK_NICE_LEVEL_1 1
+#define CMA_TASK_NICE_LEVEL_2 2
 
 #define MM_ALIGN_DOWN_2N(addr, alg2n)  ((addr) & (~((1 << (alg2n)) - 1)))
 
@@ -1988,7 +1998,9 @@ static int codec_mm_try_alloc_more_tvp(void *param)
 		mutex_lock(&tvp_pool->pool_lock);
 		if (tvp_pool->slot_num == 1) {
 			mutex_unlock(&tvp_pool->pool_lock);
+			set_cma_task_priority_level(CMA_TASK_NICE_LEVEL_2);
 			alloc_size = codec_mm_tvp_pool_alloc_by_slot(tvp_pool, 0, 2);
+			set_cma_task_priority_level(CMA_TASK_NICE_LEVEL_0);
 			if (alloc_size <= 0)
 				pr_err("Async alloc more tvp failed\n");
 		} else {
@@ -2138,6 +2150,13 @@ alloced_finished:
 	if (try_alloced_size && !tvp_dynamic_increase_disable && !flags) {
 		pr_info("Force enable tvp, please enable it by resource manager or secmem");
 		mgt->tvp_enable = 2;
+	}
+
+	if (prealloc_more_tvp && tvp_pool->slot_num == 1 && !tvp_pool->tvp_kthread) {
+		tvp_pool->tvp_kthread = kthread_run(codec_mm_try_alloc_more_tvp,
+			(void *)tvp_pool, "tvp_alloc_more");
+		if (!tvp_pool->tvp_kthread)
+			pr_info("Create thread enable second segment error");
 	}
 
 	if (alloc_more && try_alloced_size > 0 && !tvp_pool->tvp_kthread) {
