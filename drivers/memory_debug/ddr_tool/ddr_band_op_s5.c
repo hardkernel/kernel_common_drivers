@@ -164,7 +164,7 @@ static void s5_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 			io = db->ddr_reg4;
 			break;
 		default:
-			break;
+			return;
 		}
 
 		val = db->mode ? BIT(31) | DMC_QOS_IRQ : DMC_QOS_IRQ;
