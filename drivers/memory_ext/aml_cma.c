@@ -1955,10 +1955,65 @@ void __nocfi show_page(struct page *page)
 		rmap_walk_vma(page);
 }
 
+static int get_current_cma_task_nice(void)
+{
+	struct cma_pcp *work = NULL;
+
+	work = &per_cpu(cma_pcp_thread, 0);
+	if (work)
+		return task_nice(work->task);
+
+	pr_err("can not find cma task thread.\n");
+
+	return -EINVAL;
+}
+
+static int set_cma_task_nice(int nice)
+{
+	int cpu;
+	struct cma_pcp *work;
+	int cur_nice;
+
+	cur_nice = get_current_cma_task_nice();
+	if (cur_nice == -EINVAL || cur_nice == nice)
+		return 0;
+
+	for_each_possible_cpu(cpu) {
+		work = &per_cpu(cma_pcp_thread, cpu);
+		if (work && work->task)
+			set_user_nice(work->task, nice);
+	}
+	pr_info("renice cma task to %d\n", nice);
+
+	return 0;
+}
+
+/*
+ * level 0: nice = -17, default value
+ * level 1: nice = -10
+ * level 2: nice = 0
+ */
+int set_cma_task_priority_level(int level)
+{
+	int ret;
+	int cma_task_level[] = {-17, -10, 0};
+
+	if (level < 0 || level > 2) {
+		pr_err("out of level range: [0-2]");
+		return -EINVAL;
+	}
+	ret = set_cma_task_nice(cma_task_level[level]);
+
+	return ret;
+}
+EXPORT_SYMBOL(set_cma_task_priority_level);
+
 static int cma_debug_show(struct seq_file *m, void *arg)
 {
-	seq_printf(m, "level=%d, alloc trace:%d, allow task:%d\n",
-		   cma_debug_level, cma_alloc_trace, allow_cma_tasks);
+	int nice = get_current_cma_task_nice();
+
+	seq_printf(m, "level=%d, alloc trace:%d, allow task:%d, nice: %d\n",
+		   cma_debug_level, cma_alloc_trace, allow_cma_tasks, nice);
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
 	seq_printf(m, "driver used:%lu isolated:%d total:%lu\n",
 		   get_cma_allocated(), 0, totalcma_pages);

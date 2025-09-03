@@ -64,6 +64,8 @@ void aml_cma_free(unsigned long pfn, unsigned int nr_pages, int update);
 
 void show_page(struct page *page);
 
+int set_cma_task_priority_level(int level);
+
 struct page *compaction_cma_alloc(struct page *migratepage,
 				  unsigned long data,
 				  int **result);
