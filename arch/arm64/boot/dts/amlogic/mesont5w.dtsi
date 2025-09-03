@@ -2519,7 +2519,7 @@
 		};
 	};
 
-	chosen {
+	chosen: chosen {
 	};
 
 	unifykey{

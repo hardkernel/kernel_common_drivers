@@ -1570,3 +1570,8 @@
 	btwakeup-gpios = <&gpio    GPIOD_8 GPIO_ACTIVE_HIGH>;
 	power_down_disable = <1>;
 };
+
+&chosen {
+	bootargs = "usbcore.autosuspend=-1 swiotlb=noforce";
+};
+
