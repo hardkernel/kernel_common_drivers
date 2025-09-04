@@ -12,6 +12,14 @@ struct dmc_dev_access_data {
 	unsigned long size;
 };
 
+struct dmc_side_band {
+	unsigned char dmc;
+	unsigned char bus;
+	unsigned char rw;
+	unsigned char block_num;
+	unsigned char block_bus[32];
+};
+
 #if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
 int register_dmc_dev_access_notifier(char *dev_name, struct notifier_block *nb);
 int unregister_dmc_dev_access_notifier(char *dev_name, struct notifier_block *nb);
@@ -43,14 +51,6 @@ int set_bus_ots_by_value(int bus, int value);
 int set_bus_ots_by_level(int bus, unsigned int level);
 int get_ots_level(void);
 int set_all_ots_by_level(unsigned int level);
-
-struct dmc_side_band {
-	unsigned char dmc;
-	unsigned char bus;
-	unsigned char rw;
-	unsigned char block_num;
-	unsigned char block_bus[32];
-};
 
 int enable_side_band(struct dmc_side_band *sb);
 int disable_side_band(unsigned char dmc, unsigned char bus);
