@@ -83,7 +83,7 @@ unsigned int get_vpu_clk_level_from_venc(unsigned int venc_clk)
 			} else if (venc_clk > 680000000 && venc_clk < 800000000) {
 				if (vpu_conf.vpu_overclock) {
 					/*
-					 * if gpll_clk = 1536M switch vpu clk to 736M
+					 * if gpll_clk = 1536M switch vpu clk to 768M
 					 * else if gpll_clk = 1544.4M switch vpu clk to 772.2M
 					 */
 					if (gpll_clk < 1540000000)
@@ -484,9 +484,12 @@ void vpu_clktree_init_dft(struct device *dev)
 	    (IS_ERR_OR_NULL(vpu_conf.vpu_clk))) {
 		VPUERR("%s: vpu_clk\n", __func__);
 	} else {
+		// do not need to set clk_set_parent, already set in uboot
+		/*
 		ret = clk_set_parent(vpu_conf.vpu_clk, vpu_conf.vpu_clk0);
 		if (ret)
 			VPUERR("%s: %d clk_set_parent error\n", __func__, __LINE__);
+		*/
 
 		ret = clk_prepare_enable(vpu_conf.vpu_clk);
 		if (ret)

@@ -15,6 +15,7 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 
+#include <linux/amlogic/aml_ddr_tool.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include "vpu_reg.h"
 #include "vpu.h"
@@ -24,150 +25,7 @@ u32 vpu_sideband_en[5] = {0xff, 0xff, 0xff, 0xff, 0xff}; /* 1:enable, 0:disable,
 u32 vpu_sideband_level_up;
 u32 vpu_sideband_level_down;
 u32 vpu_sideband_block_device;
-
-struct vpu_sideband_ctrl_s vpu_dmc_axi_t3x[4] = {
-	/* 0, reg,                    val, bit, len */
-	{VPU_RW | (SIDEBAND_BLOCK_DEVICE << 8),   DMC_AXI2_CHAN_CTRL1,  0x41,   20,   9},
-	{VPU_RW | (SIDEBAND_RD_EN << 8),   DMC_AXI2_CHAN_CTRL1,  0x0,   16,   1},
-	{VPU_RW | (SIDEBAND_WR_EN << 8),   DMC_AXI2_CHAN_CTRL1,  0x0,   17,   1},
-	{VPU_RW | (SIDEBAND_DEFAULT << 8),   DMC_AXI2_CHAN_CTRL1,  0xcff,   8,   12},
-};
-
-struct vpu_sideband_ctrl_s vpu_dmc_axi_t7[4] = {
-	/* 0, reg,                    val, bit, len */
-	{VPU_RW | (SIDEBAND_BLOCK_DEVICE << 8),   DMC_AXI2_CHAN_CTRL1,   0xfb,   0,   8},
-	{VPU_RW | (SIDEBAND_RD_EN << 8),   DMC_AXI2_CHAN_CTRL1,  0x0,   16,   1},
-	{VPU_RW | (SIDEBAND_WR_EN << 8),   DMC_AXI2_CHAN_CTRL1,  0x0,   17,   1},
-	{VPU_RW | (SIDEBAND_DEFAULT << 8),   DMC_AXI2_CHAN_CTRL1,  0xfff,   8,   20},
-};
-
-struct vpu_sideband_ctrl_s vpu_dmc_axi_t6w[5][4] = {
-	/* 0, reg,                    val, bit, len */
-	{{VPU_RW0 | (SIDEBAND_BLOCK_DEVICE << 8),   T6W_DMC_AXI2_CHAN_CTRL1,   0x3,   16,   12},
-	 {VPU_RW0 | (SIDEBAND_RD_EN << 8),   T6W_DMC_AXI2_CHAN_CTRL1,  0x0,   8,   1},
-	 {VPU_RW0 | (SIDEBAND_WR_EN << 8),   T6W_DMC_AXI2_CHAN_CTRL1,  0x0,   9,   1},
-	 {VPU_RW0 | (SIDEBAND_DEFAULT << 8), T6W_DMC_AXI2_CHAN_CTRL1,  0xfff,   0,   12},
-	},
-	{{VPU_RW1 | (SIDEBAND_BLOCK_DEVICE << 8),   T6W_DMC_AXI3_CHAN_CTRL1,   0x3,   16,   12},
-	 {VPU_RW1 | (SIDEBAND_RD_EN << 8),   T6W_DMC_AXI3_CHAN_CTRL1,  0x0,   8,   1},
-	 {VPU_RW1 | (SIDEBAND_WR_EN << 8),   T6W_DMC_AXI3_CHAN_CTRL1,  0x0,   9,   1},
-	 {VPU_RW1 | (SIDEBAND_DEFAULT << 8), T6W_DMC_AXI3_CHAN_CTRL1,  0xfff,   0,   12},
-	},
-	{{VPU_WR2 | (SIDEBAND_BLOCK_DEVICE << 8),   T6W_DMC_AXI4_CHAN_CTRL1,   0x3,   16,   12},
-	 {VPU_WR2 | (SIDEBAND_RD_EN << 8),   T6W_DMC_AXI4_CHAN_CTRL1,  0x0,   8,   1},
-	 {VPU_WR2 | (SIDEBAND_WR_EN << 8),   T6W_DMC_AXI4_CHAN_CTRL1,  0x0,   9,   1},
-	 {VPU_WR2 | (SIDEBAND_DEFAULT << 8), T6W_DMC_AXI4_CHAN_CTRL1,  0xfff,   0,   12},
-	},
-	{{VPU_RD2 | (SIDEBAND_BLOCK_DEVICE << 8),   T6W_DMC_AXI6_CHAN_CTRL1,   0x3,   16,   12},
-	 {VPU_RD2 | (SIDEBAND_RD_EN << 8),   T6W_DMC_AXI6_CHAN_CTRL1,  0x0,   8,   1},
-	 {VPU_RD2 | (SIDEBAND_WR_EN << 8),   T6W_DMC_AXI6_CHAN_CTRL1,  0x0,   9,   1},
-	 {VPU_RD2 | (SIDEBAND_DEFAULT << 8), T6W_DMC_AXI6_CHAN_CTRL1,  0xfff,   0,   12},
-	},
-	{{VPU_RD3 | (SIDEBAND_BLOCK_DEVICE << 8),   T6W_DMC_AXI7_CHAN_CTRL1,   0x3,   16,   12},
-	 {VPU_RD3 | (SIDEBAND_RD_EN << 8),   T6W_DMC_AXI7_CHAN_CTRL1,  0x0,   8,   1},
-	 {VPU_RD3 | (SIDEBAND_WR_EN << 8),   T6W_DMC_AXI7_CHAN_CTRL1,  0x0,   9,   1},
-	 {VPU_RD3 | (SIDEBAND_DEFAULT << 8), T6W_DMC_AXI7_CHAN_CTRL1,  0xfff,   0,   12},
-	},
-};
-
-struct vpu_sideband_ctrl_s vpu_dmc_axi_txhd2[4][5] = {
-	/* 0, reg,                    val, bit, len */
-	{{VPU_RD0 | (SIDEBAND_BLOCK_DEVICE_RD << 8),   DMC_AM0_CHAN_CTRL1,   0xffff,   0,   24},
-	 {VPU_RD0 | (SIDEBAND_EN << 8),   DMC_AM0_CHAN_CTRL1,  0x0,   31,   1},
-	 {VPU_RD0 | (SIDEBAND_DEFAULT << 8),   DMC_AM0_CHAN_CTRL1,  0x0,   24,   8},
-	 {VPU_RD0 | (SIDEBAND_BLOCK_DEVICE_WR << 8),   DMC_AM0_CHAN_CTRL2,  0xffff,   0,   24},
-	 {VPU_RD0 | (SIDEBAND_DEFAULT << 8),   DMC_AM0_CHAN_CTRL2,  0x0,   24,   8},
-	},
-	{{VPU_RD1 | (SIDEBAND_BLOCK_DEVICE_RD << 8),   DMC_AM1_CHAN_CTRL1,   0xffff,   0,   24},
-	 {VPU_RD1 | (SIDEBAND_EN << 8),   DMC_AM1_CHAN_CTRL1,  0x0,   31,   1},
-	 {VPU_RD1 | (SIDEBAND_DEFAULT << 8),   DMC_AM1_CHAN_CTRL1,  0x0,   24,   8},
-	 {VPU_RD1 | (SIDEBAND_BLOCK_DEVICE_WR << 8),   DMC_AM1_CHAN_CTRL2,  0xffff,   0,   24},
-	 {VPU_RD1 | (SIDEBAND_DEFAULT << 8),   DMC_AM1_CHAN_CTRL2,  0x0,   24,   8},
-	},
-	{{VPU_WR0 | (SIDEBAND_BLOCK_DEVICE_RD << 8),   DMC_AM3_CHAN_CTRL1,   0xffff,   0,   24},
-	 {VPU_WR0 | (SIDEBAND_EN << 8),   DMC_AM3_CHAN_CTRL1,  0x0,   31,   1},
-	 {VPU_WR0 | (SIDEBAND_DEFAULT << 8),   DMC_AM3_CHAN_CTRL1,  0x0,   24,   8},
-	 {VPU_WR0 | (SIDEBAND_BLOCK_DEVICE_WR << 8),   DMC_AM3_CHAN_CTRL2,  0xffff,   0,   24},
-	 {VPU_WR0 | (SIDEBAND_DEFAULT << 8),   DMC_AM3_CHAN_CTRL2,  0x0,   24,   8},
-	},
-	{{VPU_WR1 | (SIDEBAND_BLOCK_DEVICE_RD << 8),   DMC_AM4_CHAN_CTRL1,   0xffff,   0,   24},
-	 {VPU_WR1 | (SIDEBAND_EN << 8),   DMC_AM4_CHAN_CTRL1,  0x0,   31,   1},
-	 {VPU_WR1 | (SIDEBAND_DEFAULT << 8),   DMC_AM4_CHAN_CTRL1,  0x0,   24,   8},
-	 {VPU_WR1 | (SIDEBAND_BLOCK_DEVICE_WR << 8),   DMC_AM4_CHAN_CTRL2,  0xffff,   0,   24},
-	 {VPU_WR1 | (SIDEBAND_DEFAULT << 8),   DMC_AM4_CHAN_CTRL2,  0x0,   24,   8},
-	},
-};
-
-struct vpu_sideband_ctrl_s vpu_dmc_axi_t5w[5][5] = {
-	/* 0, reg,                    val, bit, len */
-	{{VPU_RD0 | (SIDEBAND_BLOCK_DEVICE_RD << 8),   DMC_AM0_CHAN_CTRL1,   0xffff,   0,   24},
-	 {VPU_RD0 | (SIDEBAND_EN << 8),   DMC_AM0_CHAN_CTRL1,  0x0,   31,   1},
-	 {VPU_RD0 | (SIDEBAND_DEFAULT << 8),   DMC_AM0_CHAN_CTRL1,  0x0,   24,   8},
-	 {VPU_RD0 | (SIDEBAND_BLOCK_DEVICE_WR << 8),   DMC_AM0_CHAN_CTRL2,  0xffff,   0,   24},
-	 {VPU_RD0 | (SIDEBAND_DEFAULT << 8),   DMC_AM0_CHAN_CTRL2,  0x0,   24,   8},
-	},
-	{{VPU_RD1 | (SIDEBAND_BLOCK_DEVICE_RD << 8),   DMC_AM1_CHAN_CTRL1,   0xffff,   0,   24},
-	 {VPU_RD1 | (SIDEBAND_EN << 8),   DMC_AM1_CHAN_CTRL1,  0x0,   31,   1},
-	 {VPU_RD1 | (SIDEBAND_DEFAULT << 8),   DMC_AM1_CHAN_CTRL1,  0x0,   24,   8},
-	 {VPU_RD1 | (SIDEBAND_BLOCK_DEVICE_WR << 8),   DMC_AM1_CHAN_CTRL2,  0xffff,   0,   24},
-	 {VPU_RD1 | (SIDEBAND_DEFAULT << 8),   DMC_AM1_CHAN_CTRL2,  0x0,   24,   8},
-	},
-	{{VPU_RD2 | (SIDEBAND_BLOCK_DEVICE_RD << 8),   DMC_AM2_CHAN_CTRL1,   0xffff,   0,   24},
-	 {VPU_RD2 | (SIDEBAND_EN << 8),   DMC_AM2_CHAN_CTRL1,  0x0,   31,   1},
-	 {VPU_RD2 | (SIDEBAND_DEFAULT << 8),   DMC_AM2_CHAN_CTRL1,  0x0,   24,   8},
-	 {VPU_RD2 | (SIDEBAND_BLOCK_DEVICE_WR << 8),   DMC_AM2_CHAN_CTRL2,  0xffff,   0,   24},
-	 {VPU_RD2 | (SIDEBAND_DEFAULT << 8),   DMC_AM2_CHAN_CTRL2,  0x0,   24,   8},
-	},
-	{{VPU_WR0 | (SIDEBAND_BLOCK_DEVICE_RD << 8),   DMC_AM3_CHAN_CTRL1,   0xffff,   0,   24},
-	 {VPU_WR0 | (SIDEBAND_EN << 8),   DMC_AM3_CHAN_CTRL1,  0x0,   31,   1},
-	 {VPU_WR0 | (SIDEBAND_DEFAULT << 8),   DMC_AM3_CHAN_CTRL1,  0x0,   24,   8},
-	 {VPU_WR0 | (SIDEBAND_BLOCK_DEVICE_WR << 8),   DMC_AM3_CHAN_CTRL2,  0xffff,   0,   24},
-	 {VPU_WR0 | (SIDEBAND_DEFAULT << 8),   DMC_AM3_CHAN_CTRL2,  0x0,   24,   8},
-	},
-	{{VPU_WR1 | (SIDEBAND_BLOCK_DEVICE_RD << 8),   DMC_AM4_CHAN_CTRL1,   0xffff,   0,   24},
-	 {VPU_WR1 | (SIDEBAND_EN << 8),   DMC_AM4_CHAN_CTRL1,  0x0,   31,   1},
-	 {VPU_WR1 | (SIDEBAND_DEFAULT << 8),   DMC_AM4_CHAN_CTRL1,  0x0,   24,   8},
-	 {VPU_WR1 | (SIDEBAND_BLOCK_DEVICE_WR << 8),   DMC_AM4_CHAN_CTRL2,  0xffff,   0,   24},
-	 {VPU_WR1 | (SIDEBAND_DEFAULT << 8),   DMC_AM4_CHAN_CTRL2,  0x0,   24,   8},
-	},
-};
-
-struct vpu_sideband_ctrl_s vpu_dmc_axi_t3[4] = {
-	/* 0, reg,                    val, bit, len */
-	{VPU_RW | (SIDEBAND_BLOCK_DEVICE << 8),   DMC_AXI2_CHAN_CTRL1,   0x3,   0,   8},
-	{VPU_RW | (SIDEBAND_RD_EN << 8),   DMC_AXI2_CHAN_CTRL1,  0x0,   16,   1},
-	{VPU_RW | (SIDEBAND_WR_EN << 8),   DMC_AXI2_CHAN_CTRL1,  0x0,   17,   1},
-	{VPU_RW | (SIDEBAND_DEFAULT << 8),   DMC_AXI2_CHAN_CTRL1,  0x3cff,   8,   16},
-};
-
-struct vpu_sideband_ctrl_s vpu_dmc_axi_s7[5][4] = {
-	/* 0, reg,                    val, bit, len */
-	{{VPU_RD0 | (SIDEBAND_BLOCK_DEVICE << 8),   S7_DMC_AXI1_CHAN_CTRL1,   0x3fa1,   16,   14},
-	 {VPU_RD0 | (SIDEBAND_RD_EN << 8),   S7_DMC_AXI1_CHAN_CTRL1,  0x0,   8,   1},
-	 {VPU_RD0 | (SIDEBAND_WR_EN << 8),   S7_DMC_AXI1_CHAN_CTRL1,  0x0,   9,   1},
-	 {VPU_RD0 | (SIDEBAND_DEFAULT << 8),   S7_DMC_AXI1_CHAN_CTRL1,  0xcff,   0,   12},
-	},
-	{{VPU_RD1 | (SIDEBAND_BLOCK_DEVICE << 8),   S7_DMC_AXI2_CHAN_CTRL1,   0x3fa1,   16,   14},
-	 {VPU_RD1 | (SIDEBAND_RD_EN << 8),   S7_DMC_AXI2_CHAN_CTRL1,  0x0,   8,   1},
-	 {VPU_RD1 | (SIDEBAND_WR_EN << 8),   S7_DMC_AXI2_CHAN_CTRL1,  0x0,   9,   1},
-	 {VPU_RD1 | (SIDEBAND_DEFAULT << 8),   S7_DMC_AXI2_CHAN_CTRL1,  0xcff,   0,   12},
-	},
-	{{VPU_RD2 | (SIDEBAND_BLOCK_DEVICE << 8),   S7_DMC_AXI3_CHAN_CTRL1,   0x3fa1,   16,   14},
-	 {VPU_RD2 | (SIDEBAND_RD_EN << 8),   S7_DMC_AXI3_CHAN_CTRL1,  0x0,   8,   1},
-	 {VPU_RD2 | (SIDEBAND_WR_EN << 8),   S7_DMC_AXI3_CHAN_CTRL1,  0x0,   9,   1},
-	 {VPU_RD2 | (SIDEBAND_DEFAULT << 8),   S7_DMC_AXI3_CHAN_CTRL1,  0xcff,   0,   12},
-	},
-	{{VPU_WR0 | (SIDEBAND_BLOCK_DEVICE << 8),   S7_DMC_AXI4_CHAN_CTRL1,   0x3fa1,   16,   14},
-	 {VPU_WR0 | (SIDEBAND_RD_EN << 8),   S7_DMC_AXI4_CHAN_CTRL1,  0x0,   8,   1},
-	 {VPU_WR0 | (SIDEBAND_WR_EN << 8),   S7_DMC_AXI4_CHAN_CTRL1,  0x0,   9,   1},
-	 {VPU_WR0 | (SIDEBAND_DEFAULT << 8),   S7_DMC_AXI4_CHAN_CTRL1,  0xcff,   0,   12},
-	},
-	{{VPU_WR1 | (SIDEBAND_BLOCK_DEVICE << 8),   S7_DMC_AXI5_CHAN_CTRL1,   0x3fa1,   16,   14},
-	 {VPU_WR1 | (SIDEBAND_RD_EN << 8),   S7_DMC_AXI5_CHAN_CTRL1,  0x0,   8,   1},
-	 {VPU_WR1 | (SIDEBAND_WR_EN << 8),   S7_DMC_AXI5_CHAN_CTRL1,  0x0,   9,   1},
-	 {VPU_WR1 | (SIDEBAND_DEFAULT << 8),   S7_DMC_AXI5_CHAN_CTRL1,  0xcff,   0,   12},
-	},
-};
+struct dmc_side_band dmc_sb_setting;
 
 struct vpu_sideband_ctrl_s vpu_arb_urg_ctrl_t7[] = {
 	{RD0_ARB_VPP0,   VPU_ARB_URG_CTRL,  1,   0,   1},
@@ -191,6 +49,13 @@ struct vpu_sideband_ctrl_s vpu_arb_urg_ctrl_t6w[] = {
 	{RD3_ARB_VPP0,   VPU_ARB_URG_CTRL,  1,   12,  1},
 	{WR02_ARB_VDIN0, VPU_ARB_URG_CTRL,  1,   8,   1},
 	{WR02_ARB_VDIN1, VPU_ARB_URG_CTRL,  1,   9,   1},
+};
+
+struct vpu_sideband_ctrl_s vpu_arb_urg_ctrl_t6x[] = {
+	{RD0_ARB_VPP0,   VPU_ARB_URG_CTRL,  1,   0,  1},
+	{RD2_ARB_VPP0,   VPU_ARB_URG_CTRL,  1,   4,  1},
+	{WR02_ARB_VDIN0, VPU_ARB_URG_CTRL,  3,   8,  1},
+	{WR02_ARB_VDIN1, VPU_ARB_URG_CTRL,  3,   9,  1},
 };
 
 struct vpu_sideband_ctrl_s vpu_arb_urg_ctrl_txhd2[] = {
@@ -233,6 +98,10 @@ struct vpu_sideband_ctrl_s vpp_ofifo_urg_ctrl_t3x[] = {
 };
 
 struct vpu_sideband_ctrl_s vpp_ofifo_urg_ctrl_t6w[] = {
+	{0,   VPP_OFIFO_URG_CTRL,  0,   0,   32},
+};
+
+struct vpu_sideband_ctrl_s vpp_ofifo_urg_ctrl_t6x[] = {
 	{0,   VPP_OFIFO_URG_CTRL,  0,   0,   32},
 };
 
@@ -297,9 +166,6 @@ void set_vpu_sideband_init(void)
 	u32 sideband_level = 0;
 	struct vpu_sideband_ctrl_s *sideband_ctrl_table;
 	u32 vpp_ofifo_urg_ctrl = 0;
-	u32 dmc_axi2_chan_ctrl1 = 0;
-	u32 dmc_chan_cnt = 1;
-	int i = 0;
 
 	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
 		vpu_conf.data->chip_type == VPU_CHIP_T3) {
@@ -320,21 +186,6 @@ void set_vpu_sideband_init(void)
 		sideband_level |= (sideband_up << 6 | sideband_down);
 		//set vpu sideband level
 		vpu_vcbus_write(vpp_ofifo_urg_ctrl, sideband_level);
-
-		sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[0];
-		dmc_axi2_chan_ctrl1 = sideband_ctrl_table->reg;
-		//set default block device, block all device except vpu
-		vpu_dmc0_setb(dmc_axi2_chan_ctrl1, sideband_ctrl_table->val,
-			sideband_ctrl_table->bit, sideband_ctrl_table->len);
-		vpu_dmc1_setb(dmc_axi2_chan_ctrl1, sideband_ctrl_table->val,
-			sideband_ctrl_table->bit, sideband_ctrl_table->len);
-
-		//other default setting, read/write default sideband en
-		sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[3];
-		vpu_dmc0_setb(dmc_axi2_chan_ctrl1, sideband_ctrl_table->val,
-			sideband_ctrl_table->bit, sideband_ctrl_table->len);
-		vpu_dmc1_setb(dmc_axi2_chan_ctrl1, sideband_ctrl_table->val,
-			sideband_ctrl_table->bit, sideband_ctrl_table->len);
 	} else if (vpu_conf.data->chip_type == VPU_CHIP_T3X) {
 		sideband_ctrl_table = &vpu_conf.data->vpp_ofifo_urg_ctrl_table[0];
 		vpp_ofifo_urg_ctrl = sideband_ctrl_table->reg;
@@ -352,25 +203,9 @@ void set_vpu_sideband_init(void)
 		sideband_ctrl_table = &vpu_conf.data->vpp_ofifo_urg_ctrl_table[1];
 		vpp_ofifo_urg_ctrl = sideband_ctrl_table->reg;
 		vpu_vcbus_write(vpp_ofifo_urg_ctrl, sideband_level);
-
-		//write vpu chan dmc reg DMC_AXI2_CHAN_CTRL1
-		//enable vpu read, block cpu and gpu
-		sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[0];
-		dmc_axi2_chan_ctrl1 = sideband_ctrl_table->reg;
-		//set default block device, block all device except vpu
-		vpu_dmc0_setb(dmc_axi2_chan_ctrl1, sideband_ctrl_table->val,
-			sideband_ctrl_table->bit, sideband_ctrl_table->len);
-		vpu_dmc1_setb(dmc_axi2_chan_ctrl1, sideband_ctrl_table->val,
-			sideband_ctrl_table->bit, sideband_ctrl_table->len);
-
-		//other default setting, read/write default sideband en
-		sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[3];
-		vpu_dmc0_setb(dmc_axi2_chan_ctrl1, sideband_ctrl_table->val,
-			sideband_ctrl_table->bit, sideband_ctrl_table->len);
-		vpu_dmc1_setb(dmc_axi2_chan_ctrl1, sideband_ctrl_table->val,
-			sideband_ctrl_table->bit, sideband_ctrl_table->len);
 	} else if (vpu_conf.data->chip_type == VPU_CHIP_T6W ||
-		vpu_conf.data->chip_type == VPU_CHIP_S7) {
+		vpu_conf.data->chip_type == VPU_CHIP_S7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6X) {
 		sideband_ctrl_table = vpu_conf.data->vpp_ofifo_urg_ctrl_table;
 		vpp_ofifo_urg_ctrl = sideband_ctrl_table->reg;
 		//bit15； urgent_ctrl_en
@@ -378,7 +213,8 @@ void set_vpu_sideband_init(void)
 		//fifo cnt > 256xsideband_up pixel, sideband worked
 		sideband_level = vpu_vcbus_read(vpp_ofifo_urg_ctrl);
 		sideband_level |= 1 << 15;
-		if (vpu_conf.data->chip_type == VPU_CHIP_T6W) {
+		if (vpu_conf.data->chip_type == VPU_CHIP_T6W ||
+			vpu_conf.data->chip_type == VPU_CHIP_T6X) {
 			sideband_up = 16;
 			sideband_down = 5;
 		} else if (vpu_conf.data->chip_type == VPU_CHIP_S7) {
@@ -389,24 +225,8 @@ void set_vpu_sideband_init(void)
 		sideband_level |= (sideband_up << 6 | sideband_down);
 		//set vpu sideband level
 		vpu_vcbus_write(vpp_ofifo_urg_ctrl, sideband_level);
-
-		//t6w has 5 vpu axi chan
-		dmc_chan_cnt = 5;
-		//write vpu chan dmc reg DMC_AXI2_CHAN_CTRL1
-		//enable vpu read, block cpu and gpu
-		for (i = 0; i < dmc_chan_cnt; i++) {
-			sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[0] + i * 4;
-			dmc_axi2_chan_ctrl1 = sideband_ctrl_table->reg;
-			//set default block device, block all device except vpu
-			vpu_dmc0_setb(dmc_axi2_chan_ctrl1, sideband_ctrl_table->val,
-				sideband_ctrl_table->bit, sideband_ctrl_table->len);
-
-			//other default setting, read/write default sideband en
-			sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[3] + i * 4;
-			vpu_dmc0_setb(dmc_axi2_chan_ctrl1, sideband_ctrl_table->val,
-				sideband_ctrl_table->bit, sideband_ctrl_table->len);
-		}
-	} else if (vpu_conf.data->chip_type == VPU_CHIP_TXHD2) {
+	} else if (vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
+		vpu_conf.data->chip_type == VPU_CHIP_T5W) {
 		sideband_ctrl_table = vpu_conf.data->vpp_ofifo_urg_ctrl_table;
 		vpp_ofifo_urg_ctrl = sideband_ctrl_table->reg;
 		//bit15； urgent_ctrl_en
@@ -419,71 +239,6 @@ void set_vpu_sideband_init(void)
 		sideband_level |= (sideband_up << 6 | sideband_down);
 		//set vpu sideband level
 		vpu_vcbus_write(vpp_ofifo_urg_ctrl, sideband_level);
-
-		//txhd2 has 4 vpu am chan
-		dmc_chan_cnt = 4;
-		//write vpu chan dmc reg DMC_AXI2_CHAN_CTRL1
-		//enable vpu read, block cpu and gpu and vdec hevc
-		for (i = 0; i < dmc_chan_cnt; i++) {
-			sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[0] + i * 5;
-			//block cpu and gpu and vdec hevc read
-			vpu_dmc0_setb(sideband_ctrl_table->reg, sideband_ctrl_table->val,
-				sideband_ctrl_table->bit, sideband_ctrl_table->len);
-
-			//other default setting, read  default sideband en
-			sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[2] + i * 5;
-			vpu_dmc0_setb(sideband_ctrl_table->reg, sideband_ctrl_table->val,
-				sideband_ctrl_table->bit, sideband_ctrl_table->len);
-
-			//lock cpu and gpu and vdec hevc write
-			sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[3] + i * 5;
-			vpu_dmc0_setb(sideband_ctrl_table->reg, sideband_ctrl_table->val,
-				sideband_ctrl_table->bit, sideband_ctrl_table->len);
-
-			//other default setting, write default sideband en
-			sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[4] + i * 5;
-			vpu_dmc0_setb(sideband_ctrl_table->reg, sideband_ctrl_table->val,
-				sideband_ctrl_table->bit, sideband_ctrl_table->len);
-		}
-	} else if (vpu_conf.data->chip_type == VPU_CHIP_T5W) {
-		sideband_ctrl_table = vpu_conf.data->vpp_ofifo_urg_ctrl_table;
-		vpp_ofifo_urg_ctrl = sideband_ctrl_table->reg;
-		//bit15； urgent_ctrl_en
-		//fifo cnt < 256xsideband_down pixel
-		//fifo cnt > 256xsideband_up pixel, sideband worked
-		sideband_level = vpu_vcbus_read(vpp_ofifo_urg_ctrl);
-		sideband_level |= 1 << 15;
-		sideband_up = 8;
-		sideband_down = 5;
-		sideband_level |= (sideband_up << 6 | sideband_down);
-		//set vpu sideband level
-		vpu_vcbus_write(vpp_ofifo_urg_ctrl, sideband_level);
-
-		//t5w has 5 vpu am chan
-		dmc_chan_cnt = 5;
-		//write vpu chan dmc reg DMC_AXI2_CHAN_CTRL1
-		//enable vpu read, block cpu and gpu and vdec hevc
-		for (i = 0; i < dmc_chan_cnt; i++) {
-			sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[0] + i * 5;
-			//block cpu and gpu and vdec hevc read
-			vpu_dmc0_setb(sideband_ctrl_table->reg, sideband_ctrl_table->val,
-				sideband_ctrl_table->bit, sideband_ctrl_table->len);
-
-			//other default setting, read  default sideband en
-			sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[2] + i * 5;
-			vpu_dmc0_setb(sideband_ctrl_table->reg, sideband_ctrl_table->val,
-				sideband_ctrl_table->bit, sideband_ctrl_table->len);
-
-			//lock cpu and gpu and vdec hevc write
-			sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[3] + i * 5;
-			vpu_dmc0_setb(sideband_ctrl_table->reg, sideband_ctrl_table->val,
-				sideband_ctrl_table->bit, sideband_ctrl_table->len);
-
-			//other default setting, write default sideband en
-			sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[4] + i * 5;
-			vpu_dmc0_setb(sideband_ctrl_table->reg, sideband_ctrl_table->val,
-				sideband_ctrl_table->bit, sideband_ctrl_table->len);
-		}
 	}
 }
 
@@ -502,7 +257,8 @@ void set_vpu_sideband_enable(u32 arb_port, u32 port_enable)
 		vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
 		vpu_conf.data->chip_type == VPU_CHIP_T5W ||
 		vpu_conf.data->chip_type == VPU_CHIP_T3 ||
-		vpu_conf.data->chip_type == VPU_CHIP_S7) {
+		vpu_conf.data->chip_type == VPU_CHIP_S7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6X) {
 		if (vpu_sideband_en[arb_port] != 0xff)
 			port_enable = vpu_sideband_en[arb_port];
 		else if (port_enable == 0xff)
@@ -527,64 +283,11 @@ void set_vpu_sideband_enable(u32 arb_port, u32 port_enable)
 				vpu_vcbus_setb(sideband_ctrl_table->reg,
 					0, 28, 1);
 				dmc_enable = 0;
+				disable_side_band(dmc_sb_setting.dmc, dmc_sb_setting.bus);
 			} else {
 				vpu_vcbus_setb(sideband_ctrl_table->reg,
 					1, 28, 1);
 				dmc_enable = 1;
-			}
-
-			if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
-				vpu_conf.data->chip_type == VPU_CHIP_T3X ||
-				vpu_conf.data->chip_type == VPU_CHIP_T3) {
-				sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[1];
-				vpu_dmc0_setb(sideband_ctrl_table->reg, dmc_enable,
-					sideband_ctrl_table->bit, 1);
-				vpu_dmc1_setb(sideband_ctrl_table->reg, dmc_enable,
-					sideband_ctrl_table->bit, 1);
-
-				sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[2];
-				vpu_dmc0_setb(sideband_ctrl_table->reg, dmc_enable,
-					sideband_ctrl_table->bit, 1);
-				vpu_dmc1_setb(sideband_ctrl_table->reg, dmc_enable,
-					sideband_ctrl_table->bit, 1);
-			}
-
-			if (vpu_conf.data->chip_type == VPU_CHIP_T6W ||
-				vpu_conf.data->chip_type == VPU_CHIP_S7) {
-				u32 axi_port = arb_port;
-
-				if (vpu_conf.data->chip_type == VPU_CHIP_T6W) {
-					//vpu read0
-					if (arb_port == 0)
-						axi_port = VPU_RW0;
-					//vpu read2
-					if (arb_port == 1)
-						axi_port = VPU_RD2;
-					//vpu read3
-					if (arb_port == 2)
-						axi_port = VPU_RD3;
-					//vpu arb wr0 vdin0, karry not sure
-					if (arb_port == 3 || arb_port == 4)
-						axi_port = VPU_RW0;
-				}
-				sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[1] +
-					axi_port * 4;
-				vpu_dmc0_setb(sideband_ctrl_table->reg, dmc_enable,
-					sideband_ctrl_table->bit, 1);
-
-				sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[2] +
-					axi_port * 4;
-				vpu_dmc0_setb(sideband_ctrl_table->reg, dmc_enable,
-					sideband_ctrl_table->bit, 1);
-			}
-			if (vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
-				vpu_conf.data->chip_type == VPU_CHIP_T5W) {
-				u32 axi_port = arb_port;
-
-				sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[1] +
-					axi_port * 5;
-				vpu_dmc0_setb(sideband_ctrl_table->reg, dmc_enable,
-					sideband_ctrl_table->bit, 1);
 			}
 			VPUPR("%s:dmc_enable=0x%x\n",
 				__func__, dmc_enable);
@@ -688,6 +391,15 @@ ssize_t vpu_sideband_show(const struct class *class,
 		"echo 'port enable' > /sys/class/vpu/vpu_sideband_en\n"
 		};
 		len += sprintf(buf + len, "%s\n", vpu_arb_port_str);
+
+	} else if (vpu_conf.data->chip_type == VPU_CHIP_T6X) {
+		const char *vpu_arb_port_str = {
+		"Usage:(every time enable one bit)\n"
+		"bit0: 1 vpu write/read0 arb for vpp0 line fifo\n"
+		"bit1: 2 vpu write/read1 arb for vpp0 line fifo\n"
+		"echo 'port enable' > /sys/class/vpu/vpu_sideband_en\n"
+		};
+		len += sprintf(buf + len, "%s\n", vpu_arb_port_str);
 	}
 	len += sprintf(buf + len, "vpu_sideband_en[0]: 0x%x\n", vpu_sideband_en[0]);
 	len += sprintf(buf + len, "vpu_sideband_en[1]: 0x%x\n", vpu_sideband_en[1]);
@@ -707,18 +419,42 @@ ssize_t vpu_sideband_store(const struct class *class,
 		u32 arb_port = 0;
 
 		if (vpu_conf.data->chip_type == VPU_CHIP_T5W) {
-			if (parsed[0] & 1)
+			dmc_sb_setting.dmc = 0;
+			if (parsed[0] & 1) {
+				dmc_sb_setting.bus = 16;
 				arb_port = 0;
-			else if (parsed[0] & 2)
+			} else if (parsed[0] & 2) {
+				dmc_sb_setting.bus = 17;
 				arb_port = 1;
-			else if (parsed[0] & 4)
+			} else if (parsed[0] & 4) {
+				dmc_sb_setting.bus = 18;
 				arb_port = 2;
-			else if (parsed[0] & 8)
+			} else if (parsed[0] & 8) {
+				dmc_sb_setting.bus = 19;
 				arb_port = 3;
-			else if (parsed[0] & 0x10)
+			} else if (parsed[0] & 0x10) {
+				dmc_sb_setting.bus = 20;
 				arb_port = 4;
-		} else if (vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
-			vpu_conf.data->chip_type == VPU_CHIP_T3) {
+			}
+		} else if (vpu_conf.data->chip_type == VPU_CHIP_TXHD2) {
+			dmc_sb_setting.dmc = 0;
+			if (parsed[0] & 1) {
+				dmc_sb_setting.bus = 16;
+				arb_port = 0;
+			} else if (parsed[0] & 2) {
+				dmc_sb_setting.bus = 17;
+				arb_port = 1;
+			} else if (parsed[0] & 4) {
+				dmc_sb_setting.bus = 19;
+				arb_port = 2;
+			} else if (parsed[0] & 8) {
+				dmc_sb_setting.bus = 20;
+				arb_port = 3;
+			}
+		} else if (vpu_conf.data->chip_type == VPU_CHIP_T3) {
+			dmc_sb_setting.dmc = 0;
+			/*T3 only 1 port*/
+			dmc_sb_setting.bus = 2;
 			if (parsed[0] & 1)
 				arb_port = 0;
 			else if (parsed[0] & 2)
@@ -727,10 +463,29 @@ ssize_t vpu_sideband_store(const struct class *class,
 				arb_port = 2;
 			else if (parsed[0] & 8)
 				arb_port = 3;
+		} else if (vpu_conf.data->chip_type == VPU_CHIP_T6W) {
+			dmc_sb_setting.dmc = 0;
+			if (parsed[0] & 1) {
+				dmc_sb_setting.bus = 2;
+				arb_port = 0;
+			} else if (parsed[0] & 2) {
+				dmc_sb_setting.bus = 6;
+				arb_port = 1;
+			} else if (parsed[0] & 4) {
+				dmc_sb_setting.bus = 7;
+				arb_port = 2;
+			} else if (parsed[0] & 8) {
+				dmc_sb_setting.bus = 2;
+				arb_port = 3;
+			} else if (parsed[0] & 0x10) {
+				dmc_sb_setting.bus = 2;
+				arb_port = 4;
+			}
 		} else if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
-		vpu_conf.data->chip_type == VPU_CHIP_T3X ||
-		vpu_conf.data->chip_type == VPU_CHIP_T6W ||
-		vpu_conf.data->chip_type == VPU_CHIP_S7) {
+		vpu_conf.data->chip_type == VPU_CHIP_T3X) {
+			dmc_sb_setting.dmc = 0;
+			/*T7 only 1 port*/
+			dmc_sb_setting.bus = 2;
 			if (parsed[0] & 1)
 				arb_port = 0;
 			else if (parsed[0] & 2)
@@ -741,6 +496,32 @@ ssize_t vpu_sideband_store(const struct class *class,
 				arb_port = 3;
 			else if (parsed[0] & 0x10)
 				arb_port = 4;
+		} else if (vpu_conf.data->chip_type == VPU_CHIP_S7) {
+			dmc_sb_setting.dmc = 0;
+			if (parsed[0] & 1) {
+				dmc_sb_setting.bus = 1;
+				arb_port = 0;
+			} else if (parsed[0] & 2) {
+				dmc_sb_setting.bus = 2;
+				arb_port = 1;
+			} else if (parsed[0] & 4) {
+				arb_port = 2;
+			} else if (parsed[0] & 8) {
+				dmc_sb_setting.bus = 4;
+				arb_port = 3;
+			} else if (parsed[0] & 0x10) {
+				dmc_sb_setting.bus = 6;
+				arb_port = 4;
+			}
+		} else if (vpu_conf.data->chip_type == VPU_CHIP_T6X) {
+			dmc_sb_setting.dmc = 0;
+			if (parsed[0] & 1) {
+				dmc_sb_setting.bus = 1;
+				arb_port = 0;
+			} else if (parsed[0] & 2) {
+				dmc_sb_setting.bus = 2;
+				arb_port = 1;
+			}
 		}
 		vpu_sideband_en[arb_port] = parsed[1];
 
@@ -956,55 +737,53 @@ static ssize_t sideband_block_device_show_s7(char *buf)
 	return len;
 }
 
+static ssize_t sideband_block_device_show_t6x(char *buf)
+{
+	ssize_t len = 0;
+
+	const char *axi_device_usage_str = {
+	"Usage:\n"
+	"bit0: CPU/A55   async interface\n"
+	"bit1: VPU0 Async interface\n"
+	"bit2: VPU1 Async interface\n"
+	"bit3: Mali/SYS Async interface\n"
+	};
+	len += sprintf(buf + len, "%s\n", axi_device_usage_str);
+	len += sprintf(buf + len, "sideband_block_device: 0x%x\n", vpu_sideband_block_device);
+	return len;
+}
+
+void dmc_reg_setting(char rw, u32 block_device)
+{
+	char block_num = 0;
+	int i, j = 0;
+	int ret;
+
+	for (i = 0; i < 32; i++) {
+		if (block_device & 0x1) {
+			block_num++;
+			dmc_sb_setting.block_bus[j++] = (unsigned char)i;
+		}
+		block_device = block_device >> 1;
+		if (!block_device)
+			break;
+	}
+	dmc_sb_setting.rw = rw;
+	dmc_sb_setting.block_num = block_num;
+	ret = enable_side_band(&dmc_sb_setting);
+}
+
 static void set_vpu_sideband_block_device(u32 block_device)
 {
-	struct vpu_sideband_ctrl_s *sideband_ctrl_table = NULL;
-
-		if (vpu_conf.data->chip_type == VPU_CHIP_T6W ||
-			vpu_conf.data->chip_type == VPU_CHIP_S7) {
-			u32 dmc_chan_cnt = 5;
-			int i;
-
-			for (i = 0; i < dmc_chan_cnt; i++) {
-				sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[0] + i * 4;
-				vpu_dmc0_setb(sideband_ctrl_table->reg,
-					block_device, sideband_ctrl_table->bit,
-					sideband_ctrl_table->len);
-			}
-		} else if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
-			vpu_conf.data->chip_type == VPU_CHIP_T3X ||
-			vpu_conf.data->chip_type == VPU_CHIP_T3) {
-			sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[0];
-			vpu_dmc0_setb(sideband_ctrl_table->reg,
-				block_device, sideband_ctrl_table->bit,
-				sideband_ctrl_table->len);
-			vpu_dmc1_setb(sideband_ctrl_table->reg,
-				block_device, sideband_ctrl_table->bit,
-				sideband_ctrl_table->len);
-		} else if (vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
-			vpu_conf.data->chip_type == VPU_CHIP_T5W) {
-			u32 dmc_chan_cnt = 4;
-			int i;
-
-			if (vpu_conf.data->chip_type == VPU_CHIP_TXHD2)
-				dmc_chan_cnt = 4;
-			else if (vpu_conf.data->chip_type == VPU_CHIP_T5W)
-				dmc_chan_cnt = 5;
-
-			for (i = 0; i < dmc_chan_cnt; i++) {
-				//block read device
-				sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[0] + i * 5;
-				vpu_dmc0_setb(sideband_ctrl_table->reg,
-					block_device, sideband_ctrl_table->bit,
-					sideband_ctrl_table->len);
-
-				//block write device
-				sideband_ctrl_table = &vpu_conf.data->vpu_dmc_axi_table[3] + i * 5;
-				vpu_dmc0_setb(sideband_ctrl_table->reg,
-					block_device, sideband_ctrl_table->bit,
-					sideband_ctrl_table->len);
-			}
-		}
+	if (vpu_conf.data->chip_type == VPU_CHIP_T6W ||
+		vpu_conf.data->chip_type == VPU_CHIP_S7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
+		vpu_conf.data->chip_type == VPU_CHIP_T5W ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6X ||
+		vpu_conf.data->chip_type == VPU_CHIP_T7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_T3X ||
+		vpu_conf.data->chip_type == VPU_CHIP_T3)
+		dmc_reg_setting(3, block_device);
 }
 
 ssize_t vpu_sideband_block_device_show(const struct class *class,
@@ -1026,6 +805,8 @@ ssize_t vpu_sideband_block_device_show(const struct class *class,
 		len = sideband_block_device_show_t3(buf);
 	else if (vpu_conf.data->chip_type == VPU_CHIP_S7)
 		len = sideband_block_device_show_s7(buf);
+	else if (vpu_conf.data->chip_type == VPU_CHIP_T6X)
+		len = sideband_block_device_show_t6x(buf);
 	return len;
 }
 

@@ -42,7 +42,8 @@
 /* v20230209: add s5 support */
 /* v20231129: add s7d support */
 /* v20231129: add s6 support */
-#define VPU_VERSION        "v20240123"
+/* v20250410: add t6x support */
+#define VPU_VERSION        "v20250410"
 
 int vpu_debug_print_flag;
 unsigned int vpu_print_level;
@@ -2007,7 +2008,6 @@ static struct vpu_data_s vpu_data_tm2 = {
 	.mem_pd_table = vpu_mem_pd_tm2,
 	.clk_gate_table = vpu_clk_gate_g12a,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2055,7 +2055,6 @@ static struct vpu_data_s vpu_data_tm2b = {
 	.mem_pd_table = vpu_mem_pd_tm2b,
 	.clk_gate_table = vpu_clk_gate_g12a,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2103,7 +2102,6 @@ static struct vpu_data_s vpu_data_sc2 = {
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2151,7 +2149,6 @@ static struct vpu_data_s vpu_data_t5 = {
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2199,7 +2196,6 @@ static struct vpu_data_s vpu_data_t5d = {
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2247,7 +2243,6 @@ static struct vpu_data_s vpu_data_t5w = {
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = &vpu_dmc_axi_t5w[0][0],
 	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_t5w,
 	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_t5w,
 
@@ -2295,7 +2290,6 @@ static struct vpu_data_s vpu_data_t7 = {
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = vpu_dmc_axi_t7,
 	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_t7,
 	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_t7,
 
@@ -2343,7 +2337,6 @@ static struct vpu_data_s vpu_data_s4 = {
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2391,7 +2384,6 @@ static struct vpu_data_s vpu_data_t3 = {
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = vpu_dmc_axi_t3,
 	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_t3,
 	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_t3,
 
@@ -2441,7 +2433,6 @@ static struct vpu_data_s vpu_data_s4d = {
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2490,7 +2481,6 @@ static struct vpu_data_s vpu_data_s1a = {
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2540,7 +2530,6 @@ static struct vpu_data_s vpu_data_c3 = {
 	.mem_pd_table = NULL,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2589,7 +2578,6 @@ static struct vpu_data_s vpu_data_s5 = {
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2638,7 +2626,6 @@ static struct vpu_data_s vpu_data_t5m = {
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2686,7 +2673,6 @@ static struct vpu_data_s vpu_data_g12a = {
 	.mem_pd_table = vpu_mem_pd_g12b,
 	.clk_gate_table = vpu_clk_gate_g12a,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2734,7 +2720,6 @@ static struct vpu_data_s vpu_data_g12b = {
 	.mem_pd_table = vpu_mem_pd_g12b,
 	.clk_gate_table = vpu_clk_gate_g12a,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2782,7 +2767,6 @@ static struct vpu_data_s vpu_data_t3x = {
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = vpu_dmc_axi_t3x,
 	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_t3x,
 	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_t3x,
 
@@ -2830,7 +2814,6 @@ static struct vpu_data_s vpu_data_sm1 = {
 	.mem_pd_table = vpu_mem_pd_sm1,
 	.clk_gate_table = vpu_clk_gate_g12a,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -2878,7 +2861,6 @@ static struct vpu_data_s vpu_data_txhd2 = {
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = &vpu_dmc_axi_txhd2[0][0],
 	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_txhd2,
 	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_txhd2,
 
@@ -2926,7 +2908,6 @@ static struct vpu_data_s vpu_data_s7 = {
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = &vpu_dmc_axi_s7[0][0],
 	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_s7,
 	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_s7,
 
@@ -2974,7 +2955,6 @@ static struct vpu_data_s vpu_data_s7d = {
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -3021,7 +3001,6 @@ static struct vpu_data_s vpu_data_s6 = {
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -3070,7 +3049,6 @@ static struct vpu_data_s vpu_data_t6d = {
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = NULL,
 	.vpu_arb_urg_ctrl_table = NULL,
 	.vpp_ofifo_urg_ctrl_table = NULL,
 
@@ -3119,9 +3097,56 @@ static struct vpu_data_s vpu_data_t6w = {
 	.mem_pd_table = vpu_mem_pd_t5,
 	.clk_gate_table = NULL,
 
-	.vpu_dmc_axi_table = &vpu_dmc_axi_t6w[0][0],
 	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_t6w,
 	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_t6w,
+
+	.power_on = vpu_power_on_new,
+	.power_off = vpu_power_off_new,
+	.mem_pd_init_off = vpu_mem_pd_init_off,
+	.module_init_config = vpu_module_init_config,
+	.power_init_check = vpu_power_init_check_dft,
+	.mempd_switch = vpu_vmod_mem_pd_switch_new,
+	.mempd_get = vpu_vmod_mem_pd_get_new,
+	.clk_apply = vpu_clk_apply_dft,
+	.clktree_init = vpu_clktree_init_dft,
+};
+
+static struct vpu_data_s vpu_data_t6x = {
+	.chip_type = VPU_CHIP_T6X,
+	.chip_name = "t6x",
+
+	.clk_level_dft = CLK_LEVEL_DFT_T6W,
+	.clk_level_max = CLK_LEVEL_MAX_T6W,
+	.fclk_div_table = fclk_div_table_g12a,
+	.clk_table = vpu_t6w_clk_table,
+
+	.reg_map_table = vpu_reg_table_new,
+	.test_reg_table = vcbus_test_reg,
+
+	.vpu_clk_reg = CLKCTRL_VPU_CLK_CTRL,
+	.vapb_clk_reg = CLKCTRL_VAPBCLK_CTRL,
+
+	.gp_pll_valid = 1,
+	.mem_pd_reg[0] = PWRCTRL_MEM_PD5_SC2,
+	.mem_pd_reg[1] = PWRCTRL_MEM_PD6_SC2,
+	.mem_pd_reg[2] = PWRCTRL_MEM_PD7_SC2,
+	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
+	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
+	.mem_pd_reg_flag = 1,
+	.vpu_arb_type = ARB_3RD_2WR,
+
+	.pwrctrl_id_table = vpu_pwrctrl_id_table_t6x,
+
+	.power_table = NULL,
+	.iso_table = NULL,
+	.reset_table = NULL,
+	.module_init_table = NULL,
+
+	.mem_pd_table = vpu_mem_pd_t5,
+	.clk_gate_table = NULL,
+
+	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_t6x,
+	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_t6x,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,
@@ -3243,6 +3268,10 @@ static const struct of_device_id vpu_of_table[] = {
 	{
 		.compatible = "amlogic, vpu-t6w",
 		.data = &vpu_data_t6w,
+	},
+	{
+		.compatible = "amlogic, vpu-t6x",
+		.data = &vpu_data_t6x,
 	},
 
 #endif

@@ -546,6 +546,12 @@ static unsigned int vpu_pwrctrl_id_table_t3x[] = {
 	VPU_PWR_ID_END
 };
 
+static unsigned int vpu_pwrctrl_id_table_t6x[] = {
+	0, //PDID_MDC_VPU
+	7, //PDID_VPU_HDMI
+	VPU_PWR_ID_END
+};
+
 /* ******************************************************* */
 /*                 VPU clock gate table                    */
 /* ******************************************************* */

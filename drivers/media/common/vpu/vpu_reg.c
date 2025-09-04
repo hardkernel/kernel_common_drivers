@@ -113,9 +113,9 @@ int vpu_ioremap(struct platform_device *pdev, int *reg_map_table)
 		}
 		vpu_reg_map[table[i]].flag = 1;
 		if (vpu_debug_print_flag) {
-			VPUPR("%s: reg mapped: 0x%x -> 0x%px\n",
+			VPUPR("%s: reg mapped: 0x%x -> 0x%px, size:0x%x\n",
 			      __func__, vpu_reg_map[table[i]].base_addr,
-			      vpu_reg_map[table[i]].p);
+			      vpu_reg_map[table[i]].p, vpu_reg_map[table[i]].size);
 		}
 
 		i++;

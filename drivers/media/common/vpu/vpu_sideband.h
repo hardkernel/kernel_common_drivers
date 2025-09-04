@@ -55,16 +55,10 @@ struct vpu_sideband_ctrl_s {
 	u32 len;
 };
 
-extern struct vpu_sideband_ctrl_s vpu_dmc_axi_t3x[4];
-extern struct vpu_sideband_ctrl_s vpu_dmc_axi_t7[4];
-extern struct vpu_sideband_ctrl_s vpu_dmc_axi_t6w[5][4];
-extern struct vpu_sideband_ctrl_s vpu_dmc_axi_txhd2[4][5];
-extern struct vpu_sideband_ctrl_s vpu_dmc_axi_t5w[5][5];
-extern struct vpu_sideband_ctrl_s vpu_dmc_axi_t3[4];
-extern struct vpu_sideband_ctrl_s vpu_dmc_axi_s7[5][4];
 extern struct vpu_sideband_ctrl_s vpu_arb_urg_ctrl_t7[];
 extern struct vpu_sideband_ctrl_s vpu_arb_urg_ctrl_t3x[];
 extern struct vpu_sideband_ctrl_s vpu_arb_urg_ctrl_t6w[];
+extern struct vpu_sideband_ctrl_s vpu_arb_urg_ctrl_t6x[];
 extern struct vpu_sideband_ctrl_s vpu_arb_urg_ctrl_txhd2[];
 extern struct vpu_sideband_ctrl_s vpu_arb_urg_ctrl_t5w[];
 extern struct vpu_sideband_ctrl_s vpu_arb_urg_ctrl_t3[];
@@ -72,6 +66,7 @@ extern struct vpu_sideband_ctrl_s vpu_arb_urg_ctrl_s7[];
 extern struct vpu_sideband_ctrl_s vpp_ofifo_urg_ctrl_t7[];
 extern struct vpu_sideband_ctrl_s vpp_ofifo_urg_ctrl_t3x[];
 extern struct vpu_sideband_ctrl_s vpp_ofifo_urg_ctrl_t6w[];
+extern struct vpu_sideband_ctrl_s vpp_ofifo_urg_ctrl_t6x[];
 extern struct vpu_sideband_ctrl_s vpp_ofifo_urg_ctrl_txhd2[];
 extern struct vpu_sideband_ctrl_s vpp_ofifo_urg_ctrl_t5w[];
 extern struct vpu_sideband_ctrl_s vpp_ofifo_urg_ctrl_t3[];
