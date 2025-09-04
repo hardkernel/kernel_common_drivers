@@ -299,7 +299,31 @@ void ldim_abcon_set_channel(struct abcon_s *abcon)
 		temp += abcon->lane_ch[2];
 		//reg_abcon_lane3_chnl_num
 		abcon_wr_reg_bits(0x13, temp, 16, 13);
-		//temp += abcon->lane_ch[3];
+		temp += abcon->lane_ch[3];
+		//reg_abcon_lane4_chnl_num
+		abcon_wr_reg_bits(0x14, temp, 0, 13);
+		temp += abcon->lane_ch[4];
+		//reg_abcon_lane5_chnl_num
+		abcon_wr_reg_bits(0x14, temp, 16, 13);
+		temp += abcon->lane_ch[5];
+		//reg_abcon_lane6_chnl_num
+		abcon_wr_reg_bits(0x30, temp, 0, 13);
+		temp += abcon->lane_ch[6];
+		//reg_abcon_lane7_chnl_num
+		abcon_wr_reg_bits(0x30, temp, 16, 13);
+		temp += abcon->lane_ch[7];
+		//reg_abcon_lane8_chnl_num
+		abcon_wr_reg_bits(0x31, temp, 0, 13);
+		temp += abcon->lane_ch[8];
+		//reg_abcon_lane9_chnl_num
+		abcon_wr_reg_bits(0x31, temp, 16, 13);
+		temp += abcon->lane_ch[9];
+		//reg_abcon_lane10_chnl_num
+		abcon_wr_reg_bits(0x32, temp, 0, 13);
+		temp += abcon->lane_ch[10];
+		//reg_abcon_lane11_chnl_num
+		abcon_wr_reg_bits(0x32, temp, 16, 13);
+
 		//reg_abcon_max_lane_chnl_num
 		if (abcon->conf.dev_type == 3)
 			abcon_wr_reg_bits(0x05, abcon->conf.ch_num, 0, 13);//xianxin special
@@ -346,7 +370,7 @@ void ldim_abcon_init_common_registers(struct abcon_s *abcon)
 	abcon_wr_reg(0x28, abcon_mem.wseg_paddr >> 2);
 
 	//reg_abcon_act_lane_num
-	abcon_wr_reg_bits(0x03, abcon->act_lane, 10, 4);
+	abcon_wr_reg_bits(0x03, abcon->act_lane_num, 10, 4);
 
 	//set gpio
 	ldim_abcon_set_gpio(abcon);
@@ -468,6 +492,7 @@ int ldim_abcon_dev_probe(struct aml_ldim_driver_s *ldim_drv)
 
 	abcon->tot_ch_num = 0;
 	abcon->act_lane = 0;
+	abcon->act_lane_num = 0;
 	abcon->max_lane_ch = 0;
 	abcon->max_lane_dim = 0;
 	abcon->fb_val = 0;
@@ -475,20 +500,28 @@ int ldim_abcon_dev_probe(struct aml_ldim_driver_s *ldim_drv)
 	abcon->fb_pos_cnt = 0;
 	abcon->fb_neg_cnt = 0;
 	abcon->test_dc = 0xffff;
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 12; i++) {
 		abcon->lane_ch[i] = abcon->conf.ch_num * abcon->conf.chip_num[i];
 		abcon->tot_ch_num += abcon->lane_ch[i];
 		if (abcon->lane_ch[i] > abcon->max_lane_ch)
 			abcon->max_lane_ch = abcon->lane_ch[i];
-		if (abcon->lane_ch[i])
-			abcon->act_lane += 1;
+		if (abcon->lane_ch[i]) {
+			abcon->act_lane_num += 1;
+			abcon->act_lane |= 1 << i;
+		}
 	}
 	abcon->max_lane_dim = abcon->max_lane_ch / abcon->conf.ch_num;
 
-	ABCONPR("lane_ch:%d:%d:%d:%d, tot_ch_num:%d, act_lane:%d,max_lane_ch:%d, max_lane_dim:%d\n",
+	ABCONPR("lane_ch:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d\n"
+		"tot_ch_num:%d, act_lane:0x%x,act_lane_num:%d,max_lane_ch:%d,max_lane_dim=%d\n",
 		abcon->lane_ch[0], abcon->lane_ch[1],
 		abcon->lane_ch[2], abcon->lane_ch[3],
-		abcon->tot_ch_num, abcon->act_lane, abcon->max_lane_ch, abcon->max_lane_dim);
+		abcon->lane_ch[4], abcon->lane_ch[5],
+		abcon->lane_ch[6], abcon->lane_ch[7],
+		abcon->lane_ch[8], abcon->lane_ch[9],
+		abcon->lane_ch[10], abcon->lane_ch[11],
+		abcon->tot_ch_num, abcon->act_lane, abcon->act_lane_num,
+		abcon->max_lane_ch, abcon->max_lane_dim);
 
 	//set abcon clk ctrl
 	temp = (1 << 7) |	/*bcon clk_sel*/
