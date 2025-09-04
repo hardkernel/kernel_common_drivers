@@ -126,6 +126,7 @@ enum RESMAN_EVENT {
 typedef void (*debug_callback)(const char *module, const char *debug, int len);
 
 int resman_init(void);
+void resman_exit(void);
 int resman_register_debug_callback(const char *module, debug_callback callback);
 int resman_remove_debug_callback(const char *module);
 

@@ -2180,7 +2180,7 @@ static ssize_t res_sys_debug_store(const struct class *class,
  * File operations for the device
  * ------------------------------------------------------------------
  */
-int resman_open(struct inode *inode, struct file *filp)
+static int resman_open(struct inode *inode, struct file *filp)
 {
 	struct resman_session *sess;
 
@@ -2194,7 +2194,7 @@ int resman_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-ssize_t resman_read(struct file *filp, char *buf, size_t len, loff_t *off)
+static ssize_t resman_read(struct file *filp, char *buf, size_t len, loff_t *off)
 {
 	ssize_t ret = -EFAULT;
 	struct resman_session *sess;
@@ -2217,7 +2217,7 @@ ssize_t resman_read(struct file *filp, char *buf, size_t len, loff_t *off)
 	return ret;
 }
 
-unsigned int resman_poll(struct file *filp, struct poll_table_struct *wait)
+static unsigned int resman_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	unsigned int mask = 0;
 	struct resman_session *sess;
@@ -2250,7 +2250,7 @@ static long resman_get_sys_debug_level(struct resman_session *sess, unsigned lon
 	return len;
 }
 
-long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para)
+static long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para)
 {
 	long retval = 0;
 	struct resman_session *sess;
@@ -2305,7 +2305,7 @@ static long resman_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 }
 #endif
 
-int resman_close(struct inode *inode, struct file *filp)
+static int resman_close(struct inode *inode, struct file *filp)
 {
 	struct resman_session *sess;
 
