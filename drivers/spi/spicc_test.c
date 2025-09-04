@@ -33,9 +33,9 @@ int spicc_make_argv(char *s, int argvsz, char *argv[], char *delim)
 }
 
 int spicc_getopt(int argc, char *argv[], char *name,
-		 unsigned long *value, char **str, unsigned int base)
+		 long *value, char **str, unsigned int base)
 {
-	unsigned long v;
+	long v;
 	char *s;
 	int i, ret;
 
@@ -44,7 +44,8 @@ int spicc_getopt(int argc, char *argv[], char *name,
 		ret = memcmp(name, argv[i], strlen(name));
 		if (!ret && ((*s == ' ') || (*s == '\0'))) {
 			if (value) {
-				ret = kstrtoul(s + 1, base, &v);
+				strreplace(s + 1, 'n', '-');
+				ret = kstrtol(s + 1, base, &v);
 				if (!ret)
 					*value = v;
 			}
@@ -153,7 +154,9 @@ ssize_t testdev_dump(struct test_device *testdev, char *buf)
 	len = snprintf(buf, PAGE_SIZE, "hexdump: %d\n", testdev->hexdump);
 	len += snprintf(buf + len, PAGE_SIZE, "compare: %d\n", testdev->compare);
 	len += snprintf(buf + len, PAGE_SIZE, "pr_diff: %d\n", testdev->pr_diff);
-	len += snprintf(buf + len, PAGE_SIZE, "cs_gpio: %d\n", desc_to_gpio(spi->cs_gpiod[0]));
+	if (spi->cs_gpiod[0])
+		len += snprintf(buf + len, PAGE_SIZE, "cs_gpio: %d\n",
+				desc_to_gpio(spi->cs_gpiod[0]));
 	len += snprintf(buf + len, PAGE_SIZE, "cs: %d\n", spi->chip_select[0]);
 	len += snprintf(buf + len, PAGE_SIZE, "speed: %d\n", spi->max_speed_hz);
 	len += snprintf(buf + len, PAGE_SIZE, "mode: 0x%x\n", spi->mode);
@@ -164,7 +167,12 @@ ssize_t testdev_dump(struct test_device *testdev, char *buf)
 	len += snprintf(buf + len, PAGE_SIZE, "ss_trailing_gap: %d\n", cdata->ss_trailing_gap);
 	len += snprintf(buf + len, PAGE_SIZE, "tx_tuning: %d\n", cdata->tx_tuning);
 	len += snprintf(buf + len, PAGE_SIZE, "rx_tuning: %d\n", cdata->rx_tuning);
+	len += snprintf(buf + len, PAGE_SIZE, "miso_latency: %d, enable %d\n",
+			cdata->miso_latency, cdata->miso_latency_en);
 	len += snprintf(buf + len, PAGE_SIZE, "dummy: %d\n", cdata->dummy_ctl);
+	len += snprintf(buf + len, PAGE_SIZE, "word_gap: %d\n", cdata->word_gap);
+	len += snprintf(buf + len, PAGE_SIZE, "mosi_idle_level: %d\n", cdata->mosi_idle_level);
+	len += snprintf(buf + len, PAGE_SIZE, "pclk_rate: %d\n", cdata->pclk_rate);
 	len += snprintf(buf + len, PAGE_SIZE, "nxfers: %d\n", testdev->nxfers);
 
 	return len;
@@ -180,6 +188,45 @@ struct test_device *testdev_get(struct device *dev)
 			return testdev;
 	}
 	return NULL;
+}
+
+static int testdev_thread(void *data)
+{
+	struct test_device *testdev = (struct test_device *)data;
+	int count = 0, ret;
+
+	while (1) {
+		wait_for_completion_interruptible(&testdev->xfer_start);
+		if (!atomic_read(&testdev->status)) {
+			count++;
+			atomic_set(&testdev->status, 1);
+			ret = spi_sync(testdev->spi, &testdev->msg);
+			if (ret) {
+				dev_err(&testdev->spi->controller->dev,
+					"ret %d, count %d\n", ret, count);
+				count = 0;
+			}
+			atomic_set(&testdev->status, ret);
+		}
+		if (kthread_should_stop()) {
+			dev_info(&testdev->spi->controller->dev,
+				"exit thread, count %d\n", count);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static enum hrtimer_restart testdev_timer_handle(struct hrtimer *t)
+{
+	struct test_device *testdev;
+
+	testdev = container_of(t, struct test_device, timer);
+	complete(&testdev->xfer_start);
+	hrtimer_forward_now(&testdev->timer, ms_to_ktime(testdev->interval));
+
+	return HRTIMER_RESTART;
 }
 
 struct test_device *testdev_new(struct device *dev, int argc, char *argv[])
@@ -208,14 +255,18 @@ struct test_device *testdev_new(struct device *dev, int argc, char *argv[])
 	spi->controller_data = (void *)&testdev->cdata;
 	spi->controller_state = NULL;
 	memset(spi->controller_data, 0, sizeof(struct spicc_controller_data));
+
 	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
 		spi_set_chipselect(spi, idx, SPI_INVALID_CS);
-
 	spi->chip_select[0] = 0;
+	spi->cs_index_mask = BIT(0);
 	spi->max_speed_hz = 10000000;
 	spi->bits_per_word = 8;
 	spi->mode = 0;
+	spi->cs_setup.unit = -ENODEV;
+	spi->cs_hold.unit = -ENODEV;
 
+	spi_message_init(&testdev->msg);
 	if (testdev_setup(testdev, argc, argv)) {
 		spi_dev_put(spi);
 		kfree(testdev);
@@ -223,7 +274,6 @@ struct test_device *testdev_new(struct device *dev, int argc, char *argv[])
 		dev_err(dev, "testdev new failed\n");
 	} else {
 		spi_add_device(spi);
-		spi_message_init(&testdev->msg);
 		list_add_tail(&testdev->list, &testdev_list);
 		dev_info(dev, "testdev new success\n");
 	}
@@ -249,7 +299,7 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 {
 	struct spi_device *spi;
 	struct spicc_controller_data *cdata;
-	unsigned long v;
+	long v;
 	int ret;
 
 	spi = testdev->spi;
@@ -263,8 +313,13 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 		spi->cs_gpiod[0] = (v > 0) ? gpio_to_desc(v) : NULL;
 	if (!spicc_getopt(argc, argv, "cs", &v, NULL, 10))
 		spi->chip_select[0] = v;
-	if (!spicc_getopt(argc, argv, "speed", &v, NULL, 10))
+	if (!spicc_getopt(argc, argv, "speed", &v, NULL, 10)) {
+		struct spi_transfer *xfer;
 		spi->max_speed_hz = v;
+		list_for_each_entry(xfer, &testdev->msg.transfers, transfer_list) {
+			xfer->speed_hz = v;
+		}
+	}
 	if (!spicc_getopt(argc, argv, "mode", &v, NULL, 16))
 		spi->mode = v;
 	if (!spicc_getopt(argc, argv, "bw", &v, NULL, 10))
@@ -293,6 +348,26 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 		cdata->read_turn_around = v;
 	if (!spicc_getopt(argc, argv, "dma_trig_delay", &v, NULL, 10))
 		cdata->dma_trig_delay = v;
+	if (!spicc_getopt(argc, argv, "use_ctrl_cs", &v, NULL, 10))
+		cdata->use_ctrl_cs = v;
+	if (!spicc_getopt(argc, argv, "miso_latency", &v, NULL, 10))
+		cdata->miso_latency = v;
+	if (!spicc_getopt(argc, argv, "miso_latency_en", &v, NULL, 10))
+		cdata->miso_latency_en = v;
+	if (!spicc_getopt(argc, argv, "cs_setup", &v, NULL, 10))
+		spi->cs_setup.value = v;
+	if (!spicc_getopt(argc, argv, "cs_setup_unit", &v, NULL, 10))
+		spi->cs_setup.unit = v;
+	if (!spicc_getopt(argc, argv, "cs_hold", &v, NULL, 10))
+		spi->cs_hold.value = v;
+	if (!spicc_getopt(argc, argv, "cs_hold_unit", &v, NULL, 10))
+		spi->cs_hold.unit = v;
+	if (!spicc_getopt(argc, argv, "word_gap", &v, NULL, 10))
+		cdata->word_gap = v;
+	if (!spicc_getopt(argc, argv, "mosi_idle_level", &v, NULL, 10))
+		cdata->mosi_idle_level = v;
+	if (!spicc_getopt(argc, argv, "pclk_rate", &v, NULL, 10))
+		cdata->pclk_rate = v;
 
 	ret = spi_setup(spi);
 	dev_info(&spi->controller->dev,
@@ -306,7 +381,7 @@ int testdev_new_xfer(struct test_device *testdev, int argc, char *argv[])
 	struct device *dev;
 	struct spi_transfer *xfer;
 	char *data_str;
-	unsigned long v;
+	long v;
 	bool vm = false, coherent = false;
 
 	dev = testdev->spi->controller->dev.parent;
@@ -338,7 +413,6 @@ int testdev_new_xfer(struct test_device *testdev, int argc, char *argv[])
 		} else if (coherent) {
 			xfer->tx_buf = dma_alloc_coherent(dev, xfer->len,
 					&xfer->tx_dma, GFP_KERNEL | GFP_DMA);
-			xfer->tx_sg_mapped = true;
 		} else {
 			xfer->tx_buf = kzalloc(xfer->len, GFP_KERNEL | GFP_DMA);
 		}
@@ -357,7 +431,6 @@ int testdev_new_xfer(struct test_device *testdev, int argc, char *argv[])
 		} else if (coherent) {
 			xfer->rx_buf = dma_alloc_coherent(dev, xfer->len,
 					&xfer->rx_dma, GFP_KERNEL | GFP_DMA);
-			xfer->rx_sg_mapped = true;
 		} else {
 			xfer->rx_buf = kzalloc(xfer->len, GFP_KERNEL | GFP_DMA);
 		}
@@ -390,7 +463,7 @@ void testdev_free_xfer(struct test_device *testdev)
 		if (xfer->tx_buf) {
 			if (is_vmalloc_addr(xfer->tx_buf))
 				vfree(xfer->tx_buf);
-			else if (xfer->tx_sg_mapped)
+			else if (xfer->tx_dma)
 				dma_free_coherent(dev,
 						xfer->len,
 						(void *)xfer->tx_buf,
@@ -402,7 +475,7 @@ void testdev_free_xfer(struct test_device *testdev)
 		if (xfer->rx_buf) {
 			if (is_vmalloc_addr(xfer->rx_buf))
 				vfree(xfer->rx_buf);
-			else if (xfer->rx_sg_mapped)
+			else if (xfer->rx_dma)
 				dma_free_coherent(dev,
 						xfer->len,
 						xfer->rx_buf,
@@ -431,7 +504,7 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 	struct spicc_controller_data *cdata;
 	struct spi_transfer *xfer;
 	char *data_str;
-	unsigned long v;
+	long v;
 	unsigned long t1, t2;
 	DECLARE_COMPLETION_ONSTACK(done);
 	int ret = -EIO;
@@ -514,10 +587,6 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 
 	else if (cdata->dirspi_dma_trig &&
 		!spicc_getopt(argc, argv, "trig", &v, NULL, 0)) {
-		if (!v || v > DMA_TRIG_PWM_VS) {
-			dev_warn(dev, "unsupport trig mode!\n");
-			return 0;
-		}
 		xfer = testdev_get_current_xfer(testdev);
 		ret = cdata->dirspi_dma_trig(spi,
 					xfer->tx_dma,
@@ -557,6 +626,40 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 			spicc_strtohex(data_str, 0, (u8 *)xfer->tx_buf, xfer->len);
 			dev_info(&spi->controller->dev, "tx data updated\n");
 		}
+		return 0;
+	}
+
+	if (!spicc_getopt(argc, argv, "run_thread", &v, NULL, 0)) {
+		if (testdev->kthread) {
+			if (atomic_read(&testdev->status) < 0)
+				atomic_set(&testdev->status, 0);
+			dev_warn(dev, "thread exist already\n");
+			return 0;
+		}
+
+		init_completion(&testdev->xfer_start);
+		testdev->kthread = kthread_run(testdev_thread,
+					      (void *)testdev,
+					      "spi-test");
+		hrtimer_init(&testdev->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		testdev->timer.function = testdev_timer_handle;
+		testdev->interval = v;
+		atomic_set(&testdev->status, 0);
+		hrtimer_start(&testdev->timer, ms_to_ktime(v), HRTIMER_MODE_REL);
+		dev_info(dev, "run %lu ms timer thread\n", v);
+		return 0;
+	}
+
+	if (!spicc_getopt(argc, argv, "stop_thread", NULL, NULL, 0)) {
+		if (!testdev->kthread) {
+			dev_warn(dev, "no thread\n");
+			return 0;
+		}
+
+		kthread_stop(testdev->kthread);
+		testdev->kthread = NULL;
+		hrtimer_cancel(&testdev->timer);
+		dev_info(dev, "stop thread\n");
 		return 0;
 	}
 

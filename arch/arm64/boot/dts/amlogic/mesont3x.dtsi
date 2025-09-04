@@ -1535,7 +1535,7 @@
 			spicc0: spi@fe050000 {
 				compatible = "amlogic,meson-a4-spicc-v2";
 				reg = <0x0 0x50000 0x0 0x38>,
-				      <0x0 0x1059C 0x0 1>;
+				      <0x0 0x1059C 0x0 0x4>;
 				interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_CLK_SPICC0>,
 					 <&clkc CLKID_SPICC0>;
@@ -1552,7 +1552,7 @@
 			spicc1: spi@fe050100 {
 				compatible = "amlogic,meson-a4-spicc-v2";
 				reg = <0x0 0x50100 0x0 0x38>,
-				      <0x0 0x105a0 0x0 1>;
+				      <0x0 0x105a0 0x0 0x4>;
 				interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_CLK_SPICC1>,
 					 <&clkc CLKID_SPICC1>;
@@ -1568,7 +1568,8 @@
 
 			spicc2: spi@fe050200 {
 				compatible = "amlogic,meson-a4-spicc-v2";
-				reg = <0x0 0x50200 0x0 0x38>;
+				reg = <0x0 0x50200 0x0 0x38>,
+					  <0x0 0x105a4 0x0 0x4>;
 				interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_CLK_SPICC2>,
 					 <&clkc CLKID_SPICC2>;
@@ -1582,9 +1583,10 @@
 				status = "disabled";
 			};
 
-			spicc3: spi@fe050300 {
+			spicc3: spi@fe052000 {
 				compatible = "amlogic,meson-a4-spicc-v2";
-				reg = <0x0 0x50300 0x0 0x38>;
+				reg = <0x0 0x52000 0x0 0x38>,
+					  <0x0 0x105a8 0x0 0x4>;
 				interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SPICC3>;
 				clock-names = "spi";
@@ -1597,9 +1599,10 @@
 				status = "disabled";
 			};
 
-			spicc4: spi@fe050400 {
+			spicc4: spi@fe052100 {
 				compatible = "amlogic,meson-a4-spicc-v2";
-				reg = <0x0 0x50400 0x0 0x38>;
+				reg = <0x0 0x52100 0x0 0x38>,
+					  <0x0 0x105ac 0x0 0x4>;
 				interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SPICC4>;
 				clock-names = "spi";
@@ -1612,9 +1615,10 @@
 				status = "disabled";
 			};
 
-			spicc5: spi@fe050500 {
+			spicc5: spi@fe052200 {
 				compatible = "amlogic,meson-a4-spicc-v2";
-				reg = <0x0 0x50500 0x0 0x38>;
+				reg = <0x0 0x52200 0x0 0x38>,
+					  <0x0 0x105b0 0x0 0x4>;
 				interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SPICC5>;
 				clock-names = "spi";

@@ -12,18 +12,22 @@
 
 enum {
 	DMA_TRIG_NORMAL = 0,
+	DMA_TRIG_PWM,
+	DMA_TRIG_PWM_VS,
 	DMA_TRIG_VSYNC,
 	DMA_TRIG_LINE_N,
-	DMA_TRIG_PWM_VS,
+	DMA_TRIG_GPIO,
 };
 
 #define CONTROLLER_SPICC	1
 #define CONTROLLER_SPISG	2
 
-#define CAP_DMA_TRIG_VSYNC	BIT(0)
-#define CAP_DMA_TRIG_LINE_N	BIT(1)
-#define CAP_DMA_TRIG_PWM_VS	BIT(2)
-#define CAP_TRIG_DELAY		BIT(3)
+#define CAP_DMA_TRIG_PWM	BIT(0)
+#define CAP_DMA_TRIG_PWM_VS	BIT(1)
+#define CAP_DMA_TRIG_VSYNC	BIT(2)
+#define CAP_DMA_TRIG_LINE_N	BIT(3)
+#define CAP_DMA_TRIG_GPIO	BIT(4)
+#define CAP_TRIG_DELAY		BIT(5)
 
 #define DC_MODE_NONE		0
 #define DC_MODE_PIN		1
@@ -44,10 +48,15 @@ struct spicc_controller_data {
 	unsigned	tx_tuning:4;
 	unsigned	rx_tuning:4;
 	unsigned	dummy_ctl:1;
+	unsigned	word_gap:2;
+	unsigned	mosi_idle_level:2;
 	unsigned	dc_mode:2;
 	unsigned	dc_level:1;
-	unsigned int	read_turn_around:8;
+	unsigned	read_turn_around:8;
+	unsigned	miso_latency_en:1;
+	int		miso_latency; // in ns, signed
 	unsigned int	dma_trig_delay;
+	unsigned int	pclk_rate;
 	void *priv;
 	void (*dirspi_start)(struct spi_device *spi);
 	void (*dirspi_stop)(struct spi_device *spi);

@@ -330,15 +330,22 @@ struct meson_spicc_device {
 	struct meson_spicc_data	*data;
 	unsigned int			speed_hz;
 	unsigned int			bits_per_word;
+	unsigned int			wordmode;
+	unsigned int			endian;
 	struct				class cls;
 	bool				using_dma;
 	struct spi_device		*spi;
-	bool				is_dma_mapped;
+	bool				tx_dma_mapped;
+	bool				rx_dma_mapped;
 	void				(*complete)(void *context);
 	void				*context;
-	s32				latency;
-	unsigned int			cs2clk_ns;
-	unsigned int			clk2cs_ns;
+	s32				miso_latency_default;   // in pclk, signed
+	s32				miso_latency_applied;	// in ns, signed
+	unsigned int			cs_setup_default;	// in ns
+	unsigned int			cs_setup_applied;	// in ns
+	unsigned int			cs_hold_default;	// in ns
+	unsigned int			cs_hold_applied;	// in ns
+	unsigned int			pclk_rate;
 	bool				parent_clk_fixed;
 	bool				clk_div_none;
 	bool				toggle_cs_every_word;
@@ -360,6 +367,9 @@ struct meson_spicc_device {
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+static void meson_spicc_dma_unmap(struct meson_spicc_device *spicc,
+				  struct spi_transfer *t);
+static int meson_spi_delay_to_ns(struct spi_delay *_delay);
 static int meson_spicc_runtime_suspend(struct device *dev);
 static int meson_spicc_runtime_resume(struct device *dev);
 static void dirspi_set_cs(struct spi_device *spi, bool enable);
@@ -389,10 +399,11 @@ static int dirspi_dma_trig_stop(struct spi_device *spi);
 static int dirspi_dma_trig_release(struct spi_device *spi);
 static int dirspi_busy_proc(struct spi_device *spi);
 
-static unsigned int meson_spicc_flags;
+static unsigned int meson_spicc_flags = BIT(1);
 module_param(meson_spicc_flags, uint, 0644);
 MODULE_PARM_DESC(meson_spicc_flags, "meson spicc flags");
 #define is_busy_reset()	(meson_spicc_flags & BIT(0))
+#define pio_polling_en() (meson_spicc_flags & BIT(1))
 
 static int xLimitRange(int val, int min, int max)
 {
@@ -416,85 +427,105 @@ static void meson_spicc_main_clk_ao(struct meson_spicc_device *spicc, bool en)
 				    spicc->base + SPICC_ENH_CTL0);
 }
 
-static void meson_spicc_auto_io_delay(struct meson_spicc_device *spicc, struct spi_device *spi)
+static int ns_to_clk(unsigned long clk_rate, int ns)
 {
-	u32 div, latency;
-	int shift;
-	int mi_delay = 0;
-	int cap_delay = 0;
-	u32 conf = 0;
-	u32 cs2clk_conf, clk2cs_conf, period_ns;
-	struct platform_device *pdev;
-	struct  spicc_controller_data *cdata;
-	struct clk *clk;
+	unsigned long abs_ns = abs(ns);
+	int n_clk;
 
-	pdev = spicc->pdev;
-	cdata = (struct spicc_controller_data *)spi->controller_data;
-	/* get period of parent clk */
-	clk = spicc->data->has_async_clk ? spicc->async_clk : spicc->core;
-	period_ns = DIV_ROUND_UP_ULL((u64)1000000000, clk_get_rate(clk));
-	/* set cs-clk delay */
-	cs2clk_conf = readl_relaxed(spicc->base + SPICC_ENH_CTL0);
-	cs2clk_conf &= ~SPICC_ENH_CLK_CS_DELAY_MASK;
-	cs2clk_conf |= SPICC_ENH_CLK_CS_DELAY_EN;
-	/* set clk-cs delay */
-	clk2cs_conf = readl_relaxed(spicc->base + SPICC_ENH_CTL2);
-	clk2cs_conf &= ~SPICC_ENH_TT_DELAY_MASK;
-	clk2cs_conf |= SPICC_ENH_TT_DELAY_EN;
+	n_clk = DIV_ROUND_CLOSEST_ULL(clk_rate * abs_ns, 1000000000);
+	if (ns < 0)
+		n_clk = 0 - n_clk;
 
-	if (spicc->data->has_linear_div)
-		conf = readl_relaxed(spicc->base + SPICC_ENH_CTL0);
+	return n_clk;
+}
+
+static void meson_spicc_set_cs_setup(struct meson_spicc_device *spicc,
+				     int n_pclk)
+{
+	u32 conf;
+
+	conf = readl_relaxed(spicc->base + SPICC_ENH_CTL0);
+	conf &= ~(SPICC_ENH_CLK_CS_DELAY_MASK | SPICC_ENH_CLK_CS_DELAY_EN);
+	if (n_pclk) {
+		conf |= FIELD_PREP(SPICC_ENH_CLK_CS_DELAY_MASK, n_pclk);
+		conf |= SPICC_ENH_CLK_CS_DELAY_EN;
+	}
+	writel_relaxed(conf, spicc->base + SPICC_ENH_CTL0);
+}
+
+static void meson_spicc_set_cs_hold(struct meson_spicc_device *spicc,
+				    int n_pclk)
+{
+	u32 conf;
+
+	conf = readl_relaxed(spicc->base + SPICC_ENH_CTL2);
+	conf &= ~(SPICC_ENH_TT_DELAY_MASK | SPICC_ENH_TT_DELAY_EN);
+	if (n_pclk) {
+		conf |= FIELD_PREP(SPICC_ENH_TT_DELAY_MASK, n_pclk);
+		conf |= SPICC_ENH_TT_DELAY_EN;
+	}
+	writel_relaxed(conf, spicc->base + SPICC_ENH_CTL2);
+}
+
+static void meson_spicc_input_tune(struct meson_spicc_device *spicc,
+				   int n_pclk)
+{
+	u32 conf;
+	int div, shift;
+	int mi_delay = 0, cap_delay = 0;
+
+	conf = spicc->data->has_linear_div ?
+		readl_relaxed(spicc->base + SPICC_ENH_CTL0) : 0;
 	if (conf & SPICC_ENH_DATARATE_EN) {
 		div = conf & SPICC_ENH_DATARATE_MASK;
 		div >>= SPICC_ENH_DATARATE_SHIFT;
 		div++;
 		div <<= 1;
 	} else {
-		div = readl_relaxed(spicc->base + SPICC_CONREG);
-		div &= SPICC_DATARATE_MASK;
+		conf = readl_relaxed(spicc->base + SPICC_CONREG);
+		div = conf & SPICC_DATARATE_MASK;
 		div >>= SPICC_DATARATE_SHIFT;
 		div += 2;
 		div = 1 << div;
 	}
 
-	if (readl_relaxed(spicc->base + SPICC_TESTREG) & SPICC_LBC) {
-		of_property_read_s32(pdev->dev.of_node, "loopback_mi_delay", &mi_delay);
-		of_property_read_s32(pdev->dev.of_node, "loopback_cap_delay", &cap_delay);
+	conf = readl_relaxed(spicc->base + SPICC_TESTREG);
+	if (conf & SPICC_LBC) {
+		of_property_read_s32(spicc->pdev->dev.of_node,
+				     "loopback_mi_delay", &mi_delay);
+		of_property_read_s32(spicc->pdev->dev.of_node,
+				     "loopback_cap_delay", &cap_delay);
 	} else {
-		latency = spicc->latency;
-		shift = (div >> 1) - latency;
-		mi_delay = xLimitRange(shift, SPICC_MI_DELAY_MIN, SPICC_MI_DELAY_MAX);
-		cap_delay = xLimitRange(mi_delay - shift, SPICC_CAP_DELAY_MIN,
-				SPICC_CAP_DELAY_MAX);
+		shift = n_pclk - (div >> 1);
+		cap_delay = xLimitRange(shift, SPICC_CAP_DELAY_MIN,
+					SPICC_CAP_DELAY_MAX);
+		mi_delay = xLimitRange(cap_delay - shift, SPICC_MI_DELAY_MIN,
+					SPICC_MI_DELAY_MAX);
 		cap_delay += 2;
 	}
 
-	conf = readl_relaxed(spicc->base + SPICC_TESTREG);
 	conf &= ~(SPICC_MO_DELAY_MASK | SPICC_MI_DELAY_MASK
 		  | SPICC_MI_CAP_DELAY_MASK);
 	conf |= FIELD_PREP(SPICC_MI_DELAY_MASK, mi_delay);
 	conf |= FIELD_PREP(SPICC_MI_CAP_DELAY_MASK, cap_delay);
 	writel_relaxed(conf, spicc->base + SPICC_TESTREG);
 
-	if (cdata && cdata->use_ctrl_cs) {
-		if (cdata->ss_leading_gap || cdata->ss_trailing_gap) {
-			cs2clk_conf |= FIELD_PREP(SPICC_ENH_CLK_CS_DELAY_MASK,
-					DIV_ROUND_UP(cdata->ss_leading_gap * 1000, period_ns));
-			clk2cs_conf |= FIELD_PREP(SPICC_ENH_TT_DELAY_MASK,
-					DIV_ROUND_UP(cdata->ss_trailing_gap * 1000, period_ns));
-		}
-	} else if (spicc->cs2clk_ns || spicc->clk2cs_ns) {
-		cs2clk_conf |= FIELD_PREP(SPICC_ENH_CLK_CS_DELAY_MASK,
-				DIV_ROUND_UP(spicc->cs2clk_ns, period_ns));
-		clk2cs_conf |= FIELD_PREP(SPICC_ENH_TT_DELAY_MASK,
-				DIV_ROUND_UP(spicc->clk2cs_ns, period_ns));
-	} else {
-		cs2clk_conf &= ~SPICC_ENH_CLK_CS_DELAY_EN;
-		clk2cs_conf &= ~SPICC_ENH_TT_DELAY_EN;
-	}
+	dev_dbg(&spicc->pdev->dev,
+		"latency %d, div %d, mi_delay %d, cap_delay %d\n",
+		n_pclk, div, mi_delay, cap_delay - 2);
+}
 
-	writel_relaxed(cs2clk_conf, spicc->base + SPICC_ENH_CTL0);
-	writel_relaxed(clk2cs_conf, spicc->base + SPICC_ENH_CTL2);
+static inline void meson_spicc_reset_fifo(struct meson_spicc_device *spicc)
+{
+	/* disable/enable to clean the residue of last transfer */
+	writel_bits_relaxed(SPICC_ENABLE, 0,
+			    spicc->base + SPICC_CONREG);
+	writel_bits_relaxed(SPICC_ENABLE, 1,
+			    spicc->base + SPICC_CONREG);
+
+	writel_bits_relaxed(SPICC_FIFORST_MASK,
+			FIELD_PREP(SPICC_FIFORST_MASK, 3),
+			spicc->base + SPICC_TESTREG);
 }
 
 static void meson_spicc_set_width(struct meson_spicc_device *spicc, int width)
@@ -542,8 +573,11 @@ static void meson_spicc_set_endian(struct meson_spicc_device *spicc,
 			return;
 	}
 
-	writel_relaxed(endian, spicc->base + SPICC_ENH_CTL5);
-	writel_relaxed(endian, spicc->base + SPICC_ENH_CTL6);
+	if (spicc->endian != endian) {
+		writel_relaxed(endian, spicc->base + SPICC_ENH_CTL5);
+		writel_relaxed(endian, spicc->base + SPICC_ENH_CTL6);
+		spicc->endian = endian;
+	}
 }
 
 static void meson_spicc_set_word_mode(struct meson_spicc_device *spicc)
@@ -563,25 +597,112 @@ static void meson_spicc_set_word_mode(struct meson_spicc_device *spicc)
 	else
 		word_mode = WORD_MODE_8_BYTE;
 
-	val = FIELD_PREP(SPICC_ENH_WORD_MODE, word_mode);
-	val |= SPICC_ENH_SLAVE_MODE | SPICC_ENH_LAST_TRIG_BY_SS;
-	writel_relaxed(val, spicc->base + SPICC_ENH_CTL3);
+	if (spicc->wordmode != word_mode) {
+		val = FIELD_PREP(SPICC_ENH_WORD_MODE, word_mode);
+		val |= SPICC_ENH_SLAVE_MODE | SPICC_ENH_LAST_TRIG_BY_SS;
+		writel_relaxed(val, spicc->base + SPICC_ENH_CTL3);
+		spicc->wordmode = word_mode;
+	}
+}
+
+static int __meson_spicc_set_speed(struct meson_spicc_device *spicc, int hz)
+{
+	u32 div = 0, conf = 0;
+
+	conf = readl_relaxed(spicc->base + SPICC_ENH_CTL0);
+	conf &= ~SPICC_ENH_DATARATE_MASK;
+	conf |= SPICC_ENH_DATARATE_EN;
+
+	div = DIV_ROUND_UP(spicc->pclk_rate, hz);
+	if (div % 2)
+		div++;
+
+	if (div < 4)
+		div = 4;
+	else if (div > 512)
+		div = 512;
+
+	div = (div >> 1) - 1;
+	conf |= div << SPICC_ENH_DATARATE_SHIFT;
+
+	writel_relaxed(conf, spicc->base + SPICC_ENH_CTL0);
+
+	return 0;
 }
 
 static int meson_spicc_set_speed(struct meson_spicc_device *spicc, int hz, struct spi_device *spi)
 {
+	struct spicc_controller_data *cdata = spi->controller_data;
+	bool changed = false;
+	int ns, n_pclk;
 	int ret = 0;
 
 	/* Setup clock speed */
 	if (!spi_controller_is_target(spicc->controller) && hz &&
 	    spicc->speed_hz != hz) {
 		spicc->speed_hz = hz;
-		ret = clk_set_rate(spicc->clk, hz);
-		if (ret)
+		if (spicc->parent_clk_fixed && spicc->data->has_linear_div) {
+			ret = __meson_spicc_set_speed(spicc, hz);
+		} else {
+			unsigned int pclk_rate;
+
+			ret = clk_set_rate(spicc->clk, hz);
+			pclk_rate = clk_get_rate
+					(spicc->data->is_div_parent_async_clk ?
+					spicc->async_clk : spicc->core);
+			if (spicc->pclk_rate != pclk_rate) {
+				changed = true;
+				spicc->pclk_rate = pclk_rate;
+			}
+		}
+		if (ret) {
 			dev_err(&spicc->pdev->dev, "set clk rate failed\n");
-		else
-			meson_spicc_auto_io_delay(spicc, spi);
+			return ret;
+		}
 	}
+
+	if (cdata && cdata->use_ctrl_cs) {
+		ns = cdata->ss_leading_gap * NSEC_PER_USEC;
+	} else if (spi_is_csgpiod(spi)) {
+		ns = 0;
+	} else {
+		ns = meson_spi_delay_to_ns(&spi->cs_setup);
+		if (ns < 0)
+			ns = spicc->cs_setup_default;
+	}
+	if (changed || spicc->cs_setup_applied != ns) {
+		spicc->cs_setup_applied = ns;
+		n_pclk = ns_to_clk(spicc->pclk_rate, ns);
+		meson_spicc_set_cs_setup(spicc, n_pclk);
+	}
+
+	if (cdata && cdata->use_ctrl_cs) {
+		ns = cdata->ss_trailing_gap * NSEC_PER_USEC;
+	} else if (spi_is_csgpiod(spi)) {
+		ns = 0;
+	} else {
+		ns = meson_spi_delay_to_ns(&spi->cs_hold);
+		if (ns < 0)
+			ns = spicc->cs_hold_default;
+	}
+	if (changed || spicc->cs_hold_applied != ns) {
+		spicc->cs_hold_applied = ns;
+		n_pclk = ns_to_clk(spicc->pclk_rate, ns);
+		meson_spicc_set_cs_hold(spicc, n_pclk);
+	}
+
+	if (cdata && cdata->miso_latency_en) {
+		ns = cdata->miso_latency;
+		if (changed || spicc->miso_latency_applied != ns) {
+			spicc->miso_latency_applied = ns;
+			n_pclk = ns_to_clk(spicc->pclk_rate, ns);
+			meson_spicc_input_tune(spicc, n_pclk);
+		}
+	} else if (changed || spicc->miso_latency_applied != 0x7FFFFFFF) {
+		spicc->miso_latency_applied = 0x7FFFFFFF;
+		meson_spicc_input_tune(spicc, spicc->miso_latency_default);
+	}
+
 	return ret;
 }
 
@@ -591,29 +712,12 @@ static u8 meson_spicc_get_ctrl_cs_line(struct spi_device *spi)
 
 	for (idx = 0; idx < MESON_SPI_CS_CNT_MAX; idx++) {
 		if (spi->cs_index_mask & BIT(idx))
-			return idx;
+			return spi_get_chipselect(spi, idx);
 	}
 
 	ret = SPICC_DEFAULT_CS;
 
 	return ret;
-}
-
-static int meson_spicc_get_gpio_cs_num(struct spi_device *spi)
-{
-	struct spi_controller *ctlr = spi->controller;
-	struct device *dev = &ctlr->dev;
-	int nb;
-
-	nb = gpiod_count(dev, "cs");
-	if (nb < 0) {
-		/* No GPIOs at all is fine, else return the error */
-		if (nb == -ENOENT)
-			return 0;
-		return nb;
-	}
-
-	return nb;
 }
 
 static void _meson_spi_delay_exec(u32 ns)
@@ -637,9 +741,6 @@ static int meson_spi_delay_to_ns(struct spi_delay *_delay)
 {
 	u32 delay = _delay->value;
 	u32 unit = _delay->unit;
-
-	if (!delay)
-		return 0;
 
 	switch (unit) {
 	case SPI_DELAY_UNIT_USECS:
@@ -675,29 +776,37 @@ static int meson_spicc_dma_map(struct meson_spicc_device *spicc,
 			       struct spi_transfer *t)
 {
 	struct device *dev = spicc->controller->dev.parent;
+	int ret = 0;
 
-	if (t->tx_buf) {
+	spicc->tx_dma_mapped = false;
+	spicc->rx_dma_mapped = false;
+
+	if (t->tx_buf && !t->tx_dma) {
 		t->tx_dma = dma_map_single(dev, (void *)t->tx_buf, t->len,
 					   DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, t->tx_dma)) {
 			dev_err(dev, "tx_dma map failed\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+		} else {
+			spicc->tx_dma_mapped = true;
 		}
 	}
 
-	if (t->rx_buf) {
+	if (t->rx_buf && !t->rx_dma) {
 		t->rx_dma = dma_map_single(dev, t->rx_buf, t->len,
 					   DMA_FROM_DEVICE);
 		if (dma_mapping_error(dev, t->rx_dma)) {
-			if (t->tx_buf)
-				dma_unmap_single(dev, t->tx_dma, t->len,
-						 DMA_TO_DEVICE);
 			dev_err(dev, "rx_dma map failed\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+		} else {
+			spicc->rx_dma_mapped = true;
 		}
 	}
 
-	return 0;
+	if (ret)
+		meson_spicc_dma_unmap(spicc, t);
+
+	return ret;
 }
 
 static void meson_spicc_dma_unmap(struct meson_spicc_device *spicc,
@@ -705,10 +814,17 @@ static void meson_spicc_dma_unmap(struct meson_spicc_device *spicc,
 {
 	struct device *dev = spicc->controller->dev.parent;
 
-	if (t->tx_buf)
+	if (spicc->tx_dma_mapped) {
 		dma_unmap_single(dev, t->tx_dma, t->len, DMA_TO_DEVICE);
-	if (t->rx_buf)
+		t->tx_dma = 0;
+		spicc->tx_dma_mapped = false;
+	}
+
+	if (spicc->rx_dma_mapped) {
 		dma_unmap_single(dev, t->rx_dma, t->len, DMA_FROM_DEVICE);
+		t->rx_dma = 0;
+		spicc->rx_dma_mapped = false;
+	}
 }
 
 static u32 meson_spicc_calc_dma_len(struct meson_spicc_device *spicc, u32 *req)
@@ -821,9 +937,8 @@ static void meson_spicc_dma_irq(struct meson_spicc_device *spicc)
 			}
 		}
 
-		if (!spicc->is_dma_mapped)
-			meson_spicc_dma_unmap(spicc, spicc->xfer);
 		if (!spicc->complete) {
+			meson_spicc_dma_unmap(spicc, spicc->xfer);
 			spi_finalize_current_transfer(spicc->controller);
 		} else {
 			dirspi_set_cs(spicc->spi, false);
@@ -910,20 +1025,35 @@ static inline void meson_spicc_tx(struct meson_spicc_device *spicc)
 			       spicc->base + SPICC_TXDATA);
 }
 
+static int meson_spicc_pio_polling(struct meson_spicc_device *spicc)
+{
+	unsigned long timeout;
+
+	meson_spicc_tx(spicc);
+	if (spicc->tx_remain) {
+		dev_err(&spicc->pdev->dev, "fifo residue\n");
+		meson_spicc_reset_fifo(spicc);
+		return -EIO;
+	}
+
+	writel_bits_relaxed(SPICC_XCH, SPICC_XCH, spicc->base + SPICC_CONREG);
+
+	timeout = ktime_get_ns() + 100000000;
+	while (spicc->rx_remain &&
+	       time_before((unsigned long)ktime_get_ns(), timeout))
+		meson_spicc_rx(spicc);
+
+	writel_bits_relaxed(SPICC_TC, SPICC_TC, spicc->base + SPICC_STATREG);
+
+	return spicc->rx_remain ? -ETIMEDOUT : 0;
+}
+
 static void meson_spicc_hw_prepare(struct meson_spicc_device *spicc,
 				   u16 mode, u8 chip_select)
 {
 	u32 conf = 0;
 
-	/* disable/enable to clean the residue of last transfer */
-	writel_bits_relaxed(SPICC_ENABLE, 0,
-			    spicc->base + SPICC_CONREG);
-	writel_bits_relaxed(SPICC_ENABLE, 1,
-			    spicc->base + SPICC_CONREG);
-
-	writel_bits_relaxed(SPICC_FIFORST_MASK,
-			FIELD_PREP(SPICC_FIFORST_MASK, 3),
-			spicc->base + SPICC_TESTREG);
+	meson_spicc_reset_fifo(spicc);
 
 	/* Disable all IRQs */
 	writel_relaxed(0, spicc->base + SPICC_INTREG);
@@ -1060,7 +1190,7 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 	if (((xfer->len % 8) == 0) &&
 	    (spicc->data->support_dma_burst_len_1 || xfer->len >= 16) &&
 	    (spicc->word_mode_ctrl || xfer->bits_per_word == 64) &&
-	    (spicc->is_dma_mapped || !meson_spicc_dma_map(spicc, xfer))) {
+	    !meson_spicc_dma_map(spicc, xfer)) {
 		spicc->using_dma = 1;
 		spicc->tx_remain = xfer->len / SPICC_DMA_BYTES_PER_WORD;
 		spicc->rx_remain = spicc->tx_remain;
@@ -1091,17 +1221,20 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 		writel_relaxed(spicc->data->has_enh_intr ?
 					SPICC_DMA_DONE_EN : SPICC_TE_EN,
 			       spicc->base + SPICC_INTREG);
+		spicc->pending = true;
 		writel_bits_relaxed(SPICC_SMC, SPICC_SMC,
 				    spicc->base + SPICC_CONREG);
+	} else if (spicc->tx_remain <= SPICC_FIFO_SIZE && pio_polling_en()) {
+		return meson_spicc_pio_polling(spicc);
 	} else {
 		meson_spicc_tx(spicc);
 		writel_relaxed(spi_controller_is_target(spicc->controller) ?
 			SPICC_RR_EN : SPICC_TC_EN, spicc->base + SPICC_INTREG);
+		spicc->pending = true;
 		writel_bits_relaxed(SPICC_XCH, SPICC_XCH,
 				    spicc->base + SPICC_CONREG);
 	}
 
-	spicc->pending = true;
 	return 1;
 }
 
@@ -1138,7 +1271,7 @@ static int meson_spicc_setup(struct spi_device *spi)
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
 	struct  spicc_controller_data *cdata;
-	int cs_num, ret = 0;
+	int ret = 0;
 
 	cdata = (struct spicc_controller_data *)spi->controller_data;
 	meson_spicc_hw_prepare(spicc, spi->mode, meson_spicc_get_ctrl_cs_line(spi));
@@ -1173,10 +1306,6 @@ static int meson_spicc_setup(struct spi_device *spi)
 		cdata->dirspi_dma_trig_release = dirspi_dma_trig_release;
 		cdata->dirspi_busy_proc = dirspi_busy_proc;
 	}
-
-	cs_num = meson_spicc_get_gpio_cs_num(spi);
-	if (cs_num > 0)
-		spi->cs_index_mask = GENMASK(cs_num - 1, 0);
 
 #endif
 
@@ -1246,7 +1375,7 @@ static int meson_spicc_hw_init(struct meson_spicc_device *spicc)
 		spicc->bits_per_word = 0;
 	} else {
 		writel_relaxed(SPICC_ENABLE, spicc->base + SPICC_CONREG);
-		writel_relaxed((spicc->latency > 0) ? 0 :
+		writel_relaxed((spicc->miso_latency_default > 0) ? 0 :
 			SPICC_ENH_DELAY_EN | SPICC_ENH_SI_CAP_DELAY_EN,
 			spicc->base + SPICC_ENH_CTL1);
 	}
@@ -1312,7 +1441,7 @@ static void dirspi_set_cs(struct spi_device *spi, bool enable)
 			meson_spi_delay_exec(&spi->cs_hold);
 
 		if (spi->cs_gpiod[idx])
-			gpiod_set_value(spi->cs_gpiod[idx], !enable);
+			gpiod_set_value(spi->cs_gpiod[idx], enable);
 
 		if (spi->cs_gpiod[idx] && enable)
 			meson_spi_delay_exec(&spi->cs_setup);
@@ -1367,7 +1496,6 @@ static int dirspi_async(struct spi_device *spi,
 	spicc->spi = spi;
 	spicc->complete = complete;
 	spicc->context = context;
-	spicc->is_dma_mapped = true;
 	spicc->using_dma = 1;
 	spicc->bytes_per_word = DIV_ROUND_UP(spi->bits_per_word, 8);
 
@@ -1390,9 +1518,9 @@ static int dirspi_async(struct spi_device *spi,
 	writel_relaxed(spicc->data->has_enh_intr ?
 			SPICC_DMA_DONE_EN : SPICC_TE_EN,
 			spicc->base + SPICC_INTREG);
+	spicc->pending = true;
 	writel_bits_relaxed(SPICC_SMC, SPICC_SMC, spicc->base + SPICC_CONREG);
 
-	spicc->pending = true;
 	spin_unlock_irqrestore(&spicc->lock, flags);
 
 	return 1;
@@ -1921,25 +2049,25 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	rate = clk_get_rate(spicc->core);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-	spicc->latency = 0;
 	spicc->parent_clk_fixed = false;
 	spicc->toggle_cs_every_word = false;
 	spicc->word_mode_ctrl = false;
 	if (spicc->data->has_word_mode_ctrl &&
 	    of_property_read_bool(pdev->dev.of_node, "word_mode_ctrl"))
 		spicc->word_mode_ctrl = true;
-	of_property_read_s32(pdev->dev.of_node, "latency", &spicc->latency);
+	of_property_read_s32(pdev->dev.of_node, "latency",
+			     &spicc->miso_latency_default);
 	if (of_property_read_bool(pdev->dev.of_node, "parent_clk_fixed"))
 		spicc->parent_clk_fixed = true;
 	if (of_property_read_bool(pdev->dev.of_node, "toggle_cs_every_word"))
 		spicc->toggle_cs_every_word = true;
 
 	of_property_read_s32(pdev->dev.of_node, "cs2clk-us",
-			     &spicc->cs2clk_ns);
+			     &spicc->cs_setup_default);
 	of_property_read_s32(pdev->dev.of_node, "clk2cs-us",
-			     &spicc->clk2cs_ns);
-	spicc->cs2clk_ns *= 1000;
-	spicc->clk2cs_ns *= 1000;
+			     &spicc->cs_hold_default);
+	spicc->cs_setup_default *= NSEC_PER_USEC;
+	spicc->cs_hold_default *= NSEC_PER_USEC;
 
 	spicc->clk_div_none = false;
 	if (of_property_read_bool(pdev->dev.of_node, "clk_div_none"))
@@ -1963,6 +2091,12 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (spicc->parent_clk_fixed) {
+		spicc->pclk_rate = clk_get_rate
+				(spicc->data->is_div_parent_async_clk ?
+				 spicc->async_clk : spicc->core);
+		dev_info(&pdev->dev, "pclk_rate %d Hz\n", spicc->pclk_rate);
+	}
 	if (!spi_controller_is_target(spicc->controller)) {
 		spicc->clk = meson_spicc_clk_get(spicc);
 		if (IS_ERR_OR_NULL(spicc->clk)) {
