@@ -1237,6 +1237,7 @@ static int di_process_init(struct di_process_dev *dev)
 	dev->last_frame_bypass = false;
 	dev->cur_is_i = false;
 	dev->last_buf_mgr = NULL;
+	dev->last_file = NULL;
 
 	receive_q_init(dev);
 	di_input_free_q_init(dev);
