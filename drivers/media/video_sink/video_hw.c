@@ -14816,6 +14816,24 @@ void int_vpu_delay_work(void)
 	INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
 }
 
+int init_conflict_reg_table(u32 *conflict_item)
+{
+	int vd_reg_cnt = 0;
+	struct hw_vsr_safa_reg_s *vsr_reg;
+
+	vsr_reg = &vd_layer[0].vsr_safa_reg;
+	conflict_item[vd_reg_cnt++] = vsr_reg->safa_pps_dejaggy_ctrl;
+	conflict_item[vd_reg_cnt++] = vsr_reg->safa_pps_dir_en_mode;
+	conflict_item[vd_reg_cnt++] = vsr_reg->vpp_pi_en_mode;
+	conflict_item[vd_reg_cnt++] = vsr_reg->vpp_pi_dict_num;
+	conflict_item[vd_reg_cnt++] = vsr_reg->vpp_pi_win_ofst;
+	conflict_item[vd_reg_cnt++] = vsr_reg->safa_pps_sr_422_en;
+	//if (video_is_meson_t6w_cpu())
+		//conflict_item[vd_reg_cnt++] = VPU_AXIRD_PATH_CTRL;
+
+	return vd_reg_cnt;
+}
+
 int get_video_reg_table(u32 *check_item)
 {
 	int i;

@@ -112,6 +112,12 @@ struct rdma_op_s ex_vsync_rdma_op = {
 	NULL
 };
 
+inline int VSYNC_WR_TABLE_REG_SIMPLE(int tbl_idx, u32 adr, u32 val)
+{
+	return 0;
+}
+EXPORT_SYMBOL(VSYNC_WR_TABLE_REG_SIMPLE);
+
 static void mark_lowlatency_channel(int handle)
 {
 	lowlatency_reg.rdma_handle = handle;
@@ -478,7 +484,8 @@ int vsync_rdma_config(void)
 		 vsync_rdma_handle[cur_vsync_handle_id] > 0)
 		rdma_buffer_unlock(vsync_rdma_handle[cur_vsync_handle_id]);
 
-	if (!has_multi_vpp || read_rdma_en) {
+	if (!has_multi_vpp ||
+		(read_rdma_en && read_rdma_trigger == 1)) {
 		ret = _vsync_rdma_config(VSYNC_RDMA_READ);
 		if (second_rdma_feature &&
 		    is_meson_g12b_revb())
@@ -511,12 +518,12 @@ void _vsync_rdma_config_pre(int rdma_type)
 {
 	int enable_ = cur_enable[rdma_type] & 0xf;
 
-	if (vsync_rdma_handle[rdma_type] == 0)
+	if (vsync_rdma_handle[rdma_type] <= 0)
 		return;
 	if (enable_ == 3)/*manually in next vsync*/
 		rdma_config(vsync_rdma_handle[rdma_type], 0);
 	else if (enable_ == 6)
-		rdma_config(vsync_rdma_handle[rdma_type], 0x101); /*for debug*/
+		rdma_config(vsync_rdma_handle[rdma_type], RDMA_TRIGGER_DEBUG1); /*for debug*/
 }
 
 void vsync_rdma_config_pre(void)
@@ -941,25 +948,6 @@ int VSYNC_WR_TABLE_REG(int tbl_idx, u32 adr, u32 val)
 }
 EXPORT_SYMBOL(VSYNC_WR_TABLE_REG);
 
-inline int VSYNC_WR_TABLE_REG_SIMPLE(int tbl_idx, u32 adr, u32 val)
-{
-	int enable_ = cur_enable[cur_vsync_handle_id] & 0xf;
-
-	if (enable_ != 0 && vsync_rdma_handle[cur_vsync_handle_id] > 0) {
-		if (get_part_flag_status(RDMA_VPP0, tbl_idx))
-			rdma_part_write_reg_simple(tbl_idx,
-					vsync_rdma_handle[cur_vsync_handle_id], adr, val);
-		else
-			rdma_write_reg(vsync_rdma_handle[cur_vsync_handle_id], adr, val);
-	} else {
-		Wr(adr, val);
-		if (debug_flag[cur_vsync_handle_id] & 1)
-			pr_info("VSYNC_WR(%x)=%x\n", adr, val);
-	}
-	return 0;
-}
-EXPORT_SYMBOL(VSYNC_WR_TABLE_REG_SIMPLE);
-
 int VSYNC_WR_MPEG_REG_VPP1(u32 adr, u32 val)
 {
 	int enable_ = cur_enable[VSYNC_RDMA_VPP1] & 0xf;
@@ -1366,10 +1354,19 @@ void set_rdma_handle(int rdma_type, int handle)
 	}
 }
 
+void init_rdma_handle(void)
+{
+	int i;
+
+	for (i = 0; i < RDMA_NUM; i++)
+		vsync_rdma_handle[i] = -1;
+}
+
 int get_rdma_handle(int rdma_type)
 {
 	return vsync_rdma_handle[rdma_type];
 }
+EXPORT_SYMBOL(get_rdma_handle);
 
 int get_rdma_type(int handle)
 {

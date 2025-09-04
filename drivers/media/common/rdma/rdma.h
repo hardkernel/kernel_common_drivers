@@ -27,6 +27,8 @@ extern struct lowlatency_reg_s lowlatency_reg;
 struct video_module_reg_s {
 	u32 *reg_table;
 	u32 reg_count;
+	u32 *conflict_reg_table;
+	u32 conflict_reg_count;
 };
 
 extern int has_multi_vpp;
@@ -70,6 +72,7 @@ int rdma_watchdog_setting(int flag, int handle);
 int rdma_init2(void);
 struct rdma_op_s *get_rdma_ops(int rdma_type);
 void set_rdma_handle(int rdma_type, int handle);
+void init_rdma_handle(void);
 int get_rdma_handle(int rdma_type);
 int get_rdma_type(int handle);
 int set_vsync_rdma_id(u8 id);
@@ -103,7 +106,6 @@ unsigned int rdma_hw_done_bit(void);
 u32 rdma_part_read_reg(int tbl_index, int handle, u32 adr);
 int rdma_part_write_reg_bits(int tbl_index, int handle, u32 adr, u32 val, u32 start, u32 len);
 int rdma_part_write_reg(int tbl_index, int handle, u32 adr, u32 val);
-inline int rdma_part_write_reg_simple(int tbl_index, int handle, u32 adr, u32 val);
 //extern int vsync_rdma_handle[5];
 u32 VCBUS_RD_MPEG_REG(u32 adr);
 int VCBUS_WR_MPEG_REG(u32 adr, u32 val);

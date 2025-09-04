@@ -9136,6 +9136,11 @@ void int_vpu_delay_work(void)
 	INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
 }
 
+int init_conflict_reg_table(u32 *conflict_item)
+{
+	return 0;
+}
+
 int get_video_reg_table_cut(u32 *check_item)
 {
 	int i;

@@ -1441,10 +1441,6 @@
 		reset-names = "rdma";
 		resets = <&reset RESET_RDMA>;
 		rdma_table_page_count = <16>;
-		/* enable for RDMA read function, 0:disable 1:enable */
-		rdma_read_enable = <1>;
-		/* trigger source for RDMA read function, 1:vsync 2:vdin0 */
-		rdma_read_trigger = <2>;
 	};
 
 	codec_io: codec_io {

@@ -167,6 +167,14 @@ static struct codecio_device_data_s codecio_s6 = {
 static struct codecio_device_data_s codecio_t6d = {
 	.cpu_id = MESON_CPU_MAJOR_ID_T6D,
 };
+
+static struct codecio_device_data_s codecio_t6w = {
+	.cpu_id = MESON_CPU_MAJOR_ID_T6W,
+};
+
+static struct codecio_device_data_s codecio_t6x = {
+	.cpu_id = MESON_CPU_MAJOR_ID_T6X,
+};
 #endif
 #endif
 
@@ -321,6 +329,14 @@ static const struct of_device_id codec_io_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-t6d, codec-io",
 		.data = &codecio_t6d,
+	},
+	{
+		.compatible = "amlogic, meson-t6w, codec-io",
+		.data = &codecio_t6w,
+	},
+	{
+		.compatible = "amlogic, meson-t6x, codec-io",
+		.data = &codecio_t6x,
 	},
 #endif
 #endif
@@ -745,6 +761,42 @@ void aml_vcbus_update_bits(unsigned int reg,
 				     reg << 2, mask, val);
 }
 EXPORT_SYMBOL(aml_vcbus_update_bits);
+
+int aml_read_dpss(unsigned int reg)
+{
+	int ret, val;
+
+	ret = aml_reg_read(CODECIO_DPSS_BASE, reg << 2, &val);
+
+	if (ret)
+		return -1;
+	else
+		return val;
+}
+EXPORT_SYMBOL(aml_read_dpss);
+
+void aml_write_dpss(unsigned int reg, unsigned int val)
+{
+	/*
+	 * the error message has already been printed inside.
+	 */
+	// coverity[check_return:SUPPRESS]
+	aml_reg_write(CODECIO_DPSS_BASE, reg << 2, val);
+}
+EXPORT_SYMBOL(aml_write_dpss);
+
+void aml_dpss_update_bits(unsigned int reg,
+			   unsigned int mask,
+			   unsigned int val)
+{
+	/*
+	 * the error message has already been printed inside.
+	 */
+	// coverity[check_return:SUPPRESS]
+	aml_regmap_update_bits(CODECIO_DPSS_BASE,
+				     reg << 2, mask, val);
+}
+EXPORT_SYMBOL(aml_dpss_update_bits);
 
 int aml_read_hiubus(unsigned int reg)
 {

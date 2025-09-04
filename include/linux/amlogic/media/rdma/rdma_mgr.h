@@ -46,23 +46,38 @@ struct rdma_partition_ins_s {
 #define RDMA_TRIGGER_VPP2_VSYNC_INPUT BIT(19)
 #define RDMA_TRIGGER_PRE_VSYNC_INPUT  BIT(24)
 #define RDMA_TRIGGER_PRE_VSYNC_INPUT_T3X  BIT(10)
-#define RDMA_TRIGGER_MANUAL      BIT(28)
-#define RDMA_TRIGGER_DEBUG1      BIT(29)
-#define RDMA_TRIGGER_DEBUG2      BIT(30)
-#define RDMA_AUTO_START_MASK     0x80000000
-#define RDMA_TRIGGER_OMIT_LOCK   0x100000
 
-/* rdma write: bit[30] = 0
- * rdma read:  bit[30] = 1
+/* new for t6w */
+#define RDMA_TRIGGER_DOLDY_CORE1  BIT(4)
+#define RDMA_TRIGGER_DOLDY_CORE2  BIT(6)
+#define RDMA_TRIGGER_DPSS_DPE_FRM_0  BIT(22)
+#define RDMA_TRIGGER_DPSS_DPE_FRM_1  BIT(23)
+#define RDMA_TRIGGER_DPSS_DPE_FRM_2  BIT(24)
+#define RDMA_TRIGGER_DPSS_DPE_FRM_3  BIT(28)
+#define RDMA_TRIGGER_DPSS_DPE_FRM_4  BIT(29)
+#define RDMA_TRIGGER_DPSS_DPE_FRM_5  BIT(30)
+#define RDMA_TRIGGER_DPSS_PVSYNC     BIT(31)
+
+/* for t6w need expand to 64bit */
+#define RDMA_TRIGGER_MANUAL      ((u64)1 << 60)
+#define RDMA_TRIGGER_OMIT_LOCK   ((u64)1 << 61)
+/* rdma write: bit[62] = 0
+ * rdma read:  bit[62] = 1
  */
-#define RDMA_READ_MASK 0x40000000
+#define RDMA_READ_MASK           ((u64)1 << 62)
+#define RDMA_AUTO_START_MASK     ((u64)1 << 63)
+
+#define RDMA_TRIGGER_DEBUG1      0x81000000
+#define RDMA_TRIGGER_DEBUG2      0x82000000
+
 
 enum rdma_ver_e {
 	RDMA_VER_1,
 	RDMA_VER_2,
 	RDMA_VER_3,
 	RDMA_VER_4,
-	RDMA_VER_5
+	RDMA_VER_5,
+	RDMA_VER_6,
 };
 
 enum cpu_ver_e {
@@ -72,6 +87,7 @@ enum cpu_ver_e {
 	CPU_TL1,
 	CPU_SC2,
 	CPU_T7,
+	CPU_T6W,
 };
 
 enum rdma_vpp_e {
@@ -109,7 +125,7 @@ int rdma_register(struct rdma_op_s *rdma_op, void *op_arg, int table_size);
  */
 void rdma_unregister(int i);
 
-int rdma_config(int handle, u32 trigger_type);
+int rdma_config(int handle, u64 trigger_type);
 
 u32 rdma_read_reg(int handle, u32 adr);
 
@@ -126,8 +142,6 @@ void set_part_flag_status(int vpp_index, int tbl_index, bool set_flag);
 u32 VSYNC_RD_TABLE_REG(int tbl_idx, u32 adr);
 
 int VSYNC_WR_TABLE_REG(int tbl_idx, u32 adr, u32 val);
-
-inline int VSYNC_WR_TABLE_REG_SIMPLE(int tbl_idx, u32 adr, u32 val);
 
 int VSYNC_WR_TABLE_REG_BITS(int tbl_idx, u32 adr, u32 val, u32 start, u32 len);
 
@@ -164,4 +178,16 @@ int rdma_end_addr(int handle);
 
 int rdma_end_addr_msb(int handle);
 
+//rdma mbuf api
+int rdma_mbuf_register(struct rdma_op_s *rdma_op, void *op_arg,
+	int mbuf_num, int buf_step);
+void rdma_mbuf_unregister(int handle);
+
+int rdma_mbuf_write_reg(int handle, int mbuf_index, u32 adr, u32 val);
+int rdma_mbuf_write_reg_bits(int handle, int mbuf_index, u32 adr, u32 val, u32 start, u32 len);
+int rdma_mbuf_config(int handle, int mbuf_index, u64 trigger_type);
+int mbuf_get_current_index(int handle);
+void rdma_mbuf_idx_clr(int handle);
+void rdma_mbuf_reconfig_length(int handle);
+inline int VSYNC_WR_TABLE_REG_SIMPLE(int tbl_idx, u32 adr, u32 val);
 #endif
