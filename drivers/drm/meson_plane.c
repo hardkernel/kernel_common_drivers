@@ -2554,6 +2554,7 @@ void meson_video_plane_async_update(struct drm_plane *plane,
 	plane->state->crtc_y = new_state->crtc_y;
 	plane->state->crtc_w = new_state->crtc_w;
 	plane->state->crtc_h = new_state->crtc_h;
+	plane->state->zpos = new_state->zpos;
 	swap(plane->state->fb, new_state->fb);
 
 	for_each_oldnew_private_obj_in_state(state, obj, old_obj_state, new_obj_state, i) {
