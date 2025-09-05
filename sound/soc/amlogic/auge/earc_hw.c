@@ -1634,6 +1634,9 @@ void earctx_enable(struct regmap *top_map,
 	if (type == ATNDTYP_DISCNCT)
 		return;
 
+	if (chipinfo->tx_pll_new)
+		earctx_channel_sync_start(dmac_map, 1);
+
 	if (enable) {
 		int offset, mask, val;
 
