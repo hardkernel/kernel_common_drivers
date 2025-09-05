@@ -4707,19 +4707,19 @@ static long amvecm_ioctl(struct file *file,
 	int lut_order, lut_index, sdr_hdr_ctrl;
 	struct vpp_mtx_info_s *mtx_p = &mtx_info;
 	struct pre_gamma_table_s *pre_gma_tb = NULL;
-	struct hdr_tmo_sw pre_tmo_reg;
-	struct hdr_tmo_sw_ext pre_tmo_reg_ext;
-	struct db_cabc_param_s db_cabc_param;
-	struct db_aad_param_s db_aad_param;
 	struct eye_protect_s *eye_prot = NULL;
-	struct primary_s color_pr;
-	struct video_color_matrix gamut_mtx;
+	struct hdr_tmo_sw *pre_tmo_reg = NULL;
+	struct hdr_tmo_sw_ext *pre_tmo_reg_ext = NULL;
+	struct db_cabc_param_s *db_cabc_param = NULL;
+	struct db_aad_param_s *db_aad_param = NULL;
+	struct primary_s *color_pr = NULL;
+	struct ve_ble_whe_param_s *ble_whe = NULL;
+	struct color_param_s *ct_parm1 = NULL;
+	struct color_tune_parm_s *ct_param = NULL;
+	struct db_aicolor_param_s *db_aicolor_param = NULL;
 	int cm_color = 0;
-	struct ve_ble_whe_param_s ble_whe;
-	struct color_param_s ct_parm1;
-	struct color_tune_parm_s ct_param;
-	struct db_aicolor_param_s db_aicolor_param;
 	int lut3d_single_sz;
+	struct video_color_matrix gamut_mtx;
 	struct hdr_parameter_reg_s hdr_customer_reg_data;
 	struct hdr_mtrx_data_s hdr_mtrx_data;
 	struct hdr_gamut_data_s hdr_gamut_data;
@@ -5233,13 +5233,10 @@ static long amvecm_ioctl(struct file *file,
 			lut3d_single_sz * 3 * sizeof(unsigned int))) {
 			ret = -EFAULT;
 		} else {
-			/*vpp_lut3d_table_init(0, 0, 0);*/
+			vpp_lut3d_table_init(0, 0, 0);
 			vpp_set_lut3d(0, 0, p3dlut->data, 0);
-			/*vpp_lut3d_table_release();*/
-			if (ct_en) {
-				update_lut3d_base_data(p3dlut->data);
-				pr_amvecm_dbg("AMVECM_IOC_SET_3D_LUT update base data.\n");
-			}
+			vpp_lut3d_table_release();
+			pr_amvecm_dbg("AMVECM_IOC_SET_3D_LUT\n");
 		}
 
 		vfree(p3dlut);
@@ -5254,8 +5251,7 @@ static long amvecm_ioctl(struct file *file,
 
 		vpp_lut3d_table_init(0, 0, 0);
 		vpp_set_lut3d(lut3d_data_source, lut_index, 0, 0);
-		/*vpp_lut3d_table_release();*/
-		pr_amvecm_dbg("AMVECM_IOC_LOAD_3D_LUT done.\n");
+		vpp_lut3d_table_release();
 		break;
 	case AMVECM_IOC_SET_3D_LUT_ORDER:
 		if (copy_from_user(&lut_order,
@@ -5289,14 +5285,21 @@ static long amvecm_ioctl(struct file *file,
 		}
 		break;
 	case AMVECM_IOC_COLOR_PRIMARY:
-		if (copy_from_user(&color_pr,
-				   (void __user *)arg,
-				   sizeof(struct primary_s))) {
+		color_pr = kmalloc(sizeof(*color_pr), GFP_KERNEL);
+		if (!color_pr) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("color_pr kmalloc fail!!!\n");
+			break;
+		}
+
+		if (copy_from_user(color_pr,
+			(void __user *)arg,
+			sizeof(struct primary_s))) {
 			ret = -EFAULT;
 		} else {
-			memcpy(force_src_primary, color_pr.src,
+			memcpy(force_src_primary, color_pr->src,
 				8 * sizeof(u32));
-			memcpy(force_dst_primary, color_pr.dest,
+			memcpy(force_dst_primary, color_pr->dest,
 				8 * sizeof(u32));
 			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
 			force_toggle();
@@ -5569,7 +5572,8 @@ static long amvecm_ioctl(struct file *file,
 		break;
 	case AMVECM_IOC_G_MTX_COEF:
 		argp = (void __user *)arg;
-		vpp_mtx_get(mtx_p);
+		vecm_latch_flag2 |= VPP_MARTIX_GET;
+		vpp_mtx_update(mtx_p, 0);
 		if (copy_to_user(argp, mtx_p,
 				 sizeof(struct vpp_mtx_info_s))) {
 			ret = -EFAULT;
@@ -5626,20 +5630,34 @@ static long amvecm_ioctl(struct file *file,
 		}
 		break;
 	case AMVECM_IOC_S_HDR_TMO:
-		if (copy_from_user(&pre_tmo_reg,
+		pre_tmo_reg = kmalloc(sizeof(*pre_tmo_reg), GFP_KERNEL);
+		if (!pre_tmo_reg) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("pre_tmo_reg kmalloc fail!!!\n");
+			break;
+		}
+
+		if (copy_from_user(pre_tmo_reg,
 			(void __user *)arg,
 			sizeof(struct hdr_tmo_sw))) {
 			ret = -EFAULT;
 			pr_info("tmo_reg info cp from usr failed\n");
 		} else {
-			hdr10_tmo_reg_set(&pre_tmo_reg);
+			hdr10_tmo_reg_set(pre_tmo_reg);
 			pr_info("tmo_reg set success\n");
 		}
 		break;
 	case AMVECM_IOC_G_HDR_TMO:
+		pre_tmo_reg = kmalloc(sizeof(*pre_tmo_reg), GFP_KERNEL);
+		if (!pre_tmo_reg) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("pre_tmo_reg kmalloc fail!!!\n");
+			break;
+		}
+
 		argp = (void __user *)arg;
-		hdr10_tmo_reg_get(&pre_tmo_reg);
-		if (copy_to_user(argp, &pre_tmo_reg,
+		hdr10_tmo_reg_get(pre_tmo_reg);
+		if (copy_to_user(argp, pre_tmo_reg,
 			sizeof(struct hdr_tmo_sw))) {
 			ret = -EFAULT;
 			pr_info("tmo_reg copy to user fail\n");
@@ -5648,20 +5666,34 @@ static long amvecm_ioctl(struct file *file,
 		}
 		break;
 	case AMVECM_IOC_S_HDR_TMO_EXT:
-		if (copy_from_user(&pre_tmo_reg_ext,
+		pre_tmo_reg_ext = kmalloc(sizeof(*pre_tmo_reg_ext), GFP_KERNEL);
+		if (!pre_tmo_reg_ext) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("pre_tmo_reg_ext kmalloc fail!!!\n");
+			break;
+		}
+
+		if (copy_from_user(pre_tmo_reg_ext,
 			(void __user *)arg,
 			sizeof(struct hdr_tmo_sw_ext))) {
 			ret = -EFAULT;
 			pr_info("tmo_reg ext info cp from usr failed\n");
 		} else {
-			hdr10_tmo_reg_ext_set(&pre_tmo_reg_ext);
+			hdr10_tmo_reg_ext_set(pre_tmo_reg_ext);
 			pr_info("tmo_reg ext set success\n");
 		}
 		break;
 	case AMVECM_IOC_G_HDR_TMO_EXT:
+		pre_tmo_reg_ext = kmalloc(sizeof(*pre_tmo_reg_ext), GFP_KERNEL);
+		if (!pre_tmo_reg_ext) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("pre_tmo_reg_ext kmalloc fail!!!\n");
+			break;
+		}
+
 		argp = (void __user *)arg;
-		hdr10_tmo_reg_ext_get(&pre_tmo_reg_ext);
-		if (copy_to_user(argp, &pre_tmo_reg_ext,
+		hdr10_tmo_reg_ext_get(pre_tmo_reg_ext);
+		if (copy_to_user(argp, pre_tmo_reg_ext,
 			sizeof(struct hdr_tmo_sw_ext))) {
 			ret = -EFAULT;
 			pr_info("tmo_reg ext copy to user fail\n");
@@ -5670,7 +5702,14 @@ static long amvecm_ioctl(struct file *file,
 		}
 		break;
 	case AMVECM_IOC_S_CABC_PARAM:
-		if (copy_from_user(&db_cabc_param,
+		db_cabc_param = kmalloc(sizeof(*db_cabc_param), GFP_KERNEL);
+		if (!db_cabc_param) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("db_cabc_param kmalloc fail!!!\n");
+			break;
+		}
+
+		if (copy_from_user(db_cabc_param,
 			(void __user *)arg,
 			sizeof(struct db_cabc_param_s))) {
 			ret = -EFAULT;
@@ -5680,29 +5719,50 @@ static long amvecm_ioctl(struct file *file,
 			 * the same structure code db_aad_param_set is normal
 			 */
 			/* coverity[tainted_data:SUPPRESS] */
-			db_cabc_param_set(&db_cabc_param);
+			db_cabc_param_set(db_cabc_param);
 			pr_amvecm_dbg("db_cabc_param set success\n");
 		}
 		break;
 	case AMVECM_IOC_S_AAD_PARAM:
-		if (copy_from_user(&db_aad_param,
+		db_aad_param = kmalloc(sizeof(*db_aad_param), GFP_KERNEL);
+		if (!db_aad_param) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("db_aad_param kmalloc fail!!!\n");
+			break;
+		}
+
+		if (copy_from_user(db_aad_param,
 			(void __user *)arg,
 			sizeof(struct db_aad_param_s))) {
 			ret = -EFAULT;
 			pr_amvecm_dbg("db_aad_param copy from user fail\n");
 		} else {
-			db_aad_param_set(&db_aad_param);
+			db_aad_param_set(db_aad_param);
 			pr_amvecm_dbg("db_aad_param set success\n");
 		}
 		break;
 	case AMVECM_IOC_S_COLOR_TUNE:
-		if (copy_from_user(&ct_param, (void __user *)arg,
-				   sizeof(struct color_tune_parm_s))) {
+		ct_parm1 = kmalloc(sizeof(*ct_parm1), GFP_KERNEL);
+		if (!ct_parm1) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("ct_parm1 kmalloc fail!!!\n");
+			break;
+		}
+
+		ct_param = kmalloc(sizeof(*ct_param), GFP_KERNEL);
+		if (!ct_param) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("ct_param kmalloc fail!!!\n");
+			break;
+		}
+
+		if (copy_from_user(ct_param, (void __user *)arg,
+				sizeof(struct color_tune_parm_s))) {
 			pr_amvecm_dbg("AMVECM_IOC_S_COLOR_TUNE set color tune failed\n");
 			ret = -EFAULT;
 		} else {
-			memcpy(&ct_parm1, &ct_param, sizeof(struct color_tune_parm_s));
-			ct_parm_set(&ct_parm1);
+			memcpy(ct_parm1, ct_param, sizeof(struct color_tune_parm_s));
+			ct_parm_set(ct_parm1);
 			bs_ct_latch();
 			pr_amvecm_dbg("AMVECM_IOC_S_COLOR_TUNE set color tune success\n");
 		}
@@ -5778,13 +5838,20 @@ static long amvecm_ioctl(struct file *file,
 		}
 		break;
 	case AMVECM_IOC_S_BLE_WHE:
-		if (copy_from_user(&ble_whe,
+		ble_whe = kmalloc(sizeof(*ble_whe), GFP_KERNEL);
+		if (!ble_whe) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("ble_whe kmalloc fail!!!\n");
+			break;
+		}
+
+		if (copy_from_user(ble_whe,
 			(void __user *)arg,
 			sizeof(struct ve_ble_whe_param_s))) {
 			ret = -EFAULT;
 			pr_amvecm_dbg("ble whe copy from user fail\n");
 		} else {
-			memcpy(&ble_whe_param_load, &ble_whe,
+			memcpy(&ble_whe_param_load, ble_whe,
 				sizeof(struct ve_ble_whe_param_s));
 			vecm_latch_flag2 |= BLE_WHE_UPDATE;
 			pr_amvecm_dbg("ble whe set success\n");
@@ -5803,13 +5870,20 @@ static long amvecm_ioctl(struct file *file,
 		}
 		break;
 	case AMVECM_IOC_S_AI_COLOR_PARAM:
-		if (copy_from_user(&db_aicolor_param,
+		db_aicolor_param = kmalloc(sizeof(*db_aicolor_param), GFP_KERNEL);
+		if (!db_aicolor_param) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("db_aicolor_param kmalloc fail!!!\n");
+			break;
+		}
+
+		if (copy_from_user(db_aicolor_param,
 			(void __user *)arg,
 			sizeof(struct db_aicolor_param_s))) {
 			ret = -EFAULT;
 			pr_amvecm_dbg("db_aicolor_param copy from user fail\n");
 		} else {
-			db_aicolor_param_set(&db_aicolor_param);
+			db_aicolor_param_set(db_aicolor_param);
 			pr_amvecm_dbg("db_aicolor_param set success\n");
 		}
 		break;
@@ -5954,8 +6028,16 @@ static long amvecm_ioctl(struct file *file,
 	kfree(aipq_int_data_ptr);
 	kfree(pre_gma_tb);
 	kfree(eye_prot);
+	kfree(pre_tmo_reg);
+	kfree(pre_tmo_reg_ext);
+	kfree(db_cabc_param);
+	kfree(db_aad_param);
+	kfree(ct_parm1);
+	kfree(ct_param);
+	kfree(color_pr);
+	kfree(ble_whe);
+	kfree(db_aicolor_param);
 #endif
-	// kfree(pre_tmo_reg);
 	return ret;
 }
 
