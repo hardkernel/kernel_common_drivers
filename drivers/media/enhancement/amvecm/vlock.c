@@ -3714,6 +3714,9 @@ void vlock_lcd_param_work(struct work_struct *p_work)
 	unsigned int param[LCD_VLOCK_PARAM_NUM + 1] = {0};
 	int i = 0;
 
+	if (is_meson_t6w_cpu())
+		return;
+
 	param[LCD_VLOCK_PARAM_NUM] = 0; /* for lcd_index(venc index) */
 	while (i++ < VLOCK_LCD_RETRY_MAX) {
 		aml_lcd_notifier_call_chain(LCD_EVENT_VLOCK_PARAM, &param);

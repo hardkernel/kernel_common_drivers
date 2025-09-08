@@ -12,7 +12,11 @@
 /* ver:20220816: support fps policy */
 /* ver:20220927: support multi drv for t7 */
 /* ver:20230410: vrr bringup for t3x */
-#define VRR_DRV_VERSION  "20231218 fix vrr line delay issue"
+/* ver:20231218: fix vrr line delay issue */
+/* ver:20250409: t6w bringup */
+/* ver:20250513: dot by dot change delay line */
+/* ver:20250605: enable vrr not change delay line */
+#define VRR_DRV_VERSION  "enable vrr not change delay line"
 
 #define VRRPR(fmt, args...)      pr_info("vrr: " fmt "", ## args)
 #define VRRERR(fmt, args...)     pr_err("vrr error: " fmt "", ## args)
@@ -38,6 +42,7 @@ enum vrr_chip_e {
 	VRR_CHIP_T5W = 2,
 	VRR_CHIP_T5M = 3,
 	VRR_CHIP_T3X = 4,
+	VRR_CHIP_T6W = 5,
 	VRR_CHIP_MAX,
 };
 

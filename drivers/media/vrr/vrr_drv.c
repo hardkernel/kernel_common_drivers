@@ -1422,6 +1422,15 @@ static struct vrr_data_s vrr_data_t3x = {
 	.sw_vspin = vrr_set_venc_vspin,
 };
 
+static struct vrr_data_s vrr_data_t6w = {
+	.chip_type = VRR_CHIP_T6W,
+	.chip_name = "t6w",
+	.drv_max = 1,
+	.offset = {0x0},
+
+	.sw_vspin = vrr_set_venc_vspin,
+};
+
 static const struct of_device_id vrr_dt_match_table[] = {
 	{
 		.compatible = "amlogic, vrr-t7",
@@ -1442,6 +1451,10 @@ static const struct of_device_id vrr_dt_match_table[] = {
 	{
 		.compatible = "amlogic, vrr-t3x",
 		.data = &vrr_data_t3x,
+	},
+	{
+		.compatible = "amlogic, vrr-t6w",
+		.data = &vrr_data_t6w,
 	},
 	{}
 };
@@ -1496,6 +1509,11 @@ static int vrr_probe(struct platform_device *pdev)
 	VRRPR("[%d]: driver version: %s(%d-%s)\n",
 	      index, VRR_DRV_VERSION,
 	      vdata->chip_type, vdata->chip_name);
+
+	if (is_meson_t6w_cpu()) {
+		vrr_reg_write(VENC_VRR_CTRL1, (1 << 0));
+		VRRPR("[%d]: %s ctrl ok\n", index, vdata->chip_name);
+	}
 
 	/* set drvdata */
 	platform_set_drvdata(pdev, vdrv);

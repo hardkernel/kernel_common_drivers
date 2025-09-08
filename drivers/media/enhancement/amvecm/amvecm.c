@@ -14979,6 +14979,19 @@ static const struct vecm_match_data_s vecm_dt_t6d = {
 	.vrr_support_flag = 0,
 };
 
+static const struct vecm_match_data_s vecm_dt_t6w = {
+	.chip_id = chip_t6w,
+	.chip_cls = TV_CHIP,
+	.vlk_chip = vlock_chip_t3x,
+	.vlk_support = true,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = true,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
+	.vlk_ctl_for_frc = 0,
+	.vrr_support_flag = 1,
+};
+
 static const struct of_device_id aml_vecm_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 	{
@@ -15071,6 +15084,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm-t6d",
 		.data = &vecm_dt_t6d,
+	},
+	{
+		.compatible = "amlogic, vecm-t6w",
+		.data = &vecm_dt_t6w,
 	},
 	{},
 };
