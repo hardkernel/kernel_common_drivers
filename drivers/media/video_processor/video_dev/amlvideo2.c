@@ -6195,6 +6195,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		node->porttype == TVIN_PORT_VIU2_VD1)) {
 		pr_info("start screencap but no video\n");
 		is_black_frame = true;
+	} else {
+		is_black_frame = false;
 	}
 
 	if (node->r_type == AML_RECEIVER_NONE)
@@ -6934,6 +6936,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	} else {
 		node->vdin_port_ext = -1;
 		node->porttype = i & 0xffff;
+		node->screencap_type = -1;
 		if (amlvideo2_dbg_en)
 			pr_info("amlvideo2: porttype err)\n");
 	}
@@ -6946,7 +6949,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 				node->vdin_port_ext, node->start_vdin_flag);
 		pr_info("%s, vdin_device_num = %d\n",
 			__func__, node->vdin_device_num);
-		pr_info("%s, ge2d_multi_process_flag = %d\n",
+		pr_info("%s,ge2d_multi_process_flag = %d\n",
 			__func__, node->ge2d_multi_process_flag);
 	}
 	return 0;
