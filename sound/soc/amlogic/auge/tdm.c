@@ -3233,22 +3233,22 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 			return;
 	}
 
-	if (p_tdm->suspend_clk_off && !is_pm_s2idle_mode()) {
-		/*power off disable pll clk*/
-		if (!IS_ERR(p_tdm->clk)) {
-			/* default enable parent pll once to make cnt add 1 */
-			clk_prepare_enable(p_tdm->clk);
-			while (__clk_is_enabled(p_tdm->clk))
-				clk_disable_unprepare(p_tdm->clk);
-		}
-		if (!IS_ERR(p_tdm->clk_src_cd)) {
-			/* default enable parent pll once to make cnt add 1 */
-			clk_prepare_enable(p_tdm->clk_src_cd);
-			while (__clk_is_enabled(p_tdm->clk_src_cd))
-				clk_disable_unprepare(p_tdm->clk_src_cd);
+	if (!IS_ERR_OR_NULL(p_tdm->mclk)) {
+		int count = 0;
+
+		for (;;) {
+			if (__clk_is_enabled(p_tdm->mclk)) {
+				clk_disable_unprepare(p_tdm->mclk);
+				count++;
+			} else {
+				break;
+			}
+			if (count > 100) {
+				dev_info(&pdev->dev, "too many clk_tdm_dclk cnt\n");
+				break;
+			}
 		}
 	}
-	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 }
 
 static int aml_tdm_platform_restore(struct device *dev)

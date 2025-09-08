@@ -679,8 +679,22 @@ static void aml_spdif_platform_shutdown(struct platform_device *pdev)
 				return;
 		}
 	}
+	if (!IS_ERR_OR_NULL(p_spdif->clk_spdifout)) {
+		int count = 0;
 
-	pr_debug("%s is mute\n", __func__);
+		for (;;) {
+			if (__clk_is_enabled(p_spdif->clk_spdifout)) {
+				clk_disable_unprepare(p_spdif->clk_spdifout);
+				count++;
+			} else {
+				break;
+			}
+			if (count > 100) {
+				dev_info(&pdev->dev, "too many clk_spdifout cnt\n");
+				break;
+			}
+		}
+	}
 }
 
 static int spdif_format_get_enum(struct snd_kcontrol *kcontrol,
@@ -1446,6 +1460,9 @@ static void aml_dai_spdif_shutdown(struct snd_pcm_substream *substream,
 					clk_set_rate(p_spdif->sysclk, MPLL_HBR_FIXED_FREQ);
 			}
 		}
+		/* disable clock */
+		clk_disable_unprepare(p_spdif->sysclk);
+		clk_disable_unprepare(p_spdif->clk_spdifout);
 	}
 }
 

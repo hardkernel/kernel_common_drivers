@@ -1602,6 +1602,38 @@ static void pdm_platform_shutdown(struct platform_device *pdev)
 		if (ret)
 			return;
 	}
+	if (!IS_ERR_OR_NULL(p_pdm->clk_pdm_sysclk)) {
+		int count = 0;
+
+		for (;;) {
+			if (__clk_is_enabled(p_pdm->clk_pdm_sysclk)) {
+				clk_disable_unprepare(p_pdm->clk_pdm_sysclk);
+				count++;
+			} else {
+				break;
+			}
+			if (count > 100) {
+				dev_info(&pdev->dev, "too many clk_pdm_sysclk cnt\n");
+				break;
+			}
+		}
+	}
+	if (!IS_ERR_OR_NULL(p_pdm->clk_pdm_dclk)) {
+		int count = 0;
+
+		for (;;) {
+			if (__clk_is_enabled(p_pdm->clk_pdm_dclk)) {
+				clk_disable_unprepare(p_pdm->clk_pdm_dclk);
+				count++;
+			} else {
+				break;
+			}
+			if (count > 100) {
+				dev_info(&pdev->dev, "too many clk_pdm_dclk cnt\n");
+				break;
+			}
+		}
+	}
 }
 
 static int pdm_platform_restore(struct device *dev)

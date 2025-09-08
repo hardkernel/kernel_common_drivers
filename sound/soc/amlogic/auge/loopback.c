@@ -1913,6 +1913,39 @@ static void loopback_platform_shutdown(struct platform_device *pdev)
 		pr_debug("%s, Entry in freeze, p_loopback:%p\n",
 			__func__, p_loopback);
 	}
+
+	if (!IS_ERR_OR_NULL(p_loopback->pdm_sysclk)) {
+		int count = 0;
+
+		for (;;) {
+			if (__clk_is_enabled(p_loopback->pdm_sysclk)) {
+				clk_disable_unprepare(p_loopback->pdm_sysclk);
+				count++;
+			} else {
+				break;
+			}
+			if (count > 100) {
+				dev_info(&pdev->dev, "too many pdm_sysclk cnt\n");
+				break;
+			}
+		}
+	}
+	if (!IS_ERR_OR_NULL(p_loopback->pdm_dclk)) {
+		int count = 0;
+
+		for (;;) {
+			if (__clk_is_enabled(p_loopback->pdm_dclk)) {
+				clk_disable_unprepare(p_loopback->pdm_dclk);
+				count++;
+			} else {
+				break;
+			}
+			if (count > 100) {
+				dev_info(&pdev->dev, "too many pdm_dclk cnt\n");
+				break;
+			}
+		}
+	}
 }
 
 static struct platform_driver loopback_platform_driver = {

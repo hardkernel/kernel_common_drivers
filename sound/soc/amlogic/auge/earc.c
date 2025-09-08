@@ -1757,7 +1757,7 @@ static void earc_dai_shutdown(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		if (!IS_ERR_OR_NULL(p_earc->clk_rx_dmac)) {
 			unsigned long flags;
-
+			rx_parity_stop_timer(p_earc);
 			spin_lock_irqsave(&p_earc->rx_lock, flags);
 			p_earc->rx_dmac_clk_on = false;
 			spin_unlock_irqrestore(&p_earc->rx_lock, flags);
@@ -1765,8 +1765,6 @@ static void earc_dai_shutdown(struct snd_pcm_substream *substream,
 		}
 		if (!IS_ERR_OR_NULL(p_earc->clk_rx_dmac_srcpll))
 			clk_disable_unprepare(p_earc->clk_rx_dmac_srcpll);
-
-		rx_parity_stop_timer(p_earc);
 	}
 
 	p_earc->substreams[substream->stream] = NULL;
@@ -3825,6 +3823,43 @@ static void earc_platform_shutdown(struct platform_device *pdev)
 
 	if (p_earc->chipinfo->rx_enable)
 		devm_free_irq(p_earc->dev, p_earc->irq_earc_rx, p_earc);
+
+	if (p_earc->chipinfo->rx_enable)
+		rx_parity_stop_timer(p_earc);
+	if (!IS_ERR_OR_NULL(p_earc->clk_rx_cmdc)) {
+		int count = 0;
+
+		for (;;) {
+			if (__clk_is_enabled(p_earc->clk_rx_cmdc)) {
+				clk_disable_unprepare(p_earc->clk_rx_cmdc);
+				count++;
+			} else {
+				break;
+			}
+			if (count > 100) {
+				dev_info(&pdev->dev, "too many resample clk cnt\n");
+				break;
+			}
+		}
+	}
+	if (!IS_ERR_OR_NULL(p_earc->clk_rx_dmac)) {
+		int count = 0;
+
+		for (;;) {
+			if (__clk_is_enabled(p_earc->clk_rx_dmac)) {
+				clk_disable_unprepare(p_earc->clk_rx_dmac);
+				count++;
+			} else {
+				break;
+			}
+			if (count > 100) {
+				dev_info(&pdev->dev, "too many resample clk cnt\n");
+				break;
+			}
+		}
+	}
+
+	dev_info(&pdev->dev, "%s:\n", __func__);
 }
 
 struct platform_driver earc_driver = {

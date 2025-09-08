@@ -1171,6 +1171,23 @@ static void resample_platform_shutdown(struct platform_device *pdev)
 				return;
 		}
 	}
+
+	if (!IS_ERR_OR_NULL(p_resample->sclk)) {
+		int count = 0;
+
+		for (;;) {
+			if (__clk_is_enabled(p_resample->sclk)) {
+				clk_disable_unprepare(p_resample->sclk);
+				count++;
+			} else {
+				break;
+			}
+			if (count > 100) {
+				dev_info(&pdev->dev, "too many resample clk cnt\n");
+				break;
+			}
+		}
+	}
 }
 
 /*don't use devm_kzalloc, when use global pointer*/
