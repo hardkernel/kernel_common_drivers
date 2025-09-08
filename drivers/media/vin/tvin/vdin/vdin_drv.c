@@ -50,6 +50,9 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#ifdef CONFIG_AMLOGIC_LCD
+#include "../../../vout/lcd/lcd_common.h"
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
 #endif
@@ -2328,6 +2331,16 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	struct vdin_dev_s *devp = vdin_devp[no];
 	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
 	enum tvin_sig_fmt_e fmt;
+#ifdef CONFIG_AMLOGIC_LCD
+	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(0);
+
+	if (!pdrv)
+		devp->is_lcd_mute = 0;
+	else
+		devp->is_lcd_mute = lcd_mute_state_get(pdrv);
+#else
+	devp->is_lcd_mute = 0;
+#endif
 
 	if (IS_ERR_OR_NULL(devp)) {
 		pr_err("[vdin]%s vdin%d hasn't registered\n",
@@ -4361,7 +4374,11 @@ static struct vf_entry *check_vdin_read_list(struct vdin_dev_s *devp)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void vdin_set_vfe_type(struct vdin_dev_s *devp, struct vf_entry *vfe)
 {
-	if (devp->matrix_pattern_mode || devp->secure_video)
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_SECURE)
+		pr_info("%s() matrix=%d, secure=%d, lcd_mute=%d", __func__,
+			devp->matrix_pattern_mode, devp->secure_video, devp->is_lcd_mute);
+
+	if (devp->matrix_pattern_mode || devp->secure_video || devp->is_lcd_mute)
 		vfe->vf.type_ext |= VIDTYPE_EXT_VDIN_HDCP;
 	else
 		vfe->vf.type_ext &= ~VIDTYPE_EXT_VDIN_HDCP;
@@ -4493,7 +4510,8 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	/* Input validity check after write DDR is enabled */
 	if (!vdin_is_input_valid(devp) &&
 		!devp->debug.invalid_input_en &&
-		!devp->set_canvas_manual) {
+		!devp->set_canvas_manual &&
+		!devp->is_lcd_mute) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_FAKE_IRQ;
 		vdin_drop_frame_info(devp, "no data input");
 		goto irq_handled;
@@ -4513,7 +4531,8 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		devp->prop.loopback_axis_en = false;
 	}
 
-	if (devp->dts_config.chk_write_done_en && !devp->dbg_no_wr_check) {
+	if (devp->dts_config.chk_write_done_en && !devp->dbg_no_wr_check &&
+		!devp->is_lcd_mute) {
 		if (!vdin_write_done_check(devp)) {
 			devp->vdin_irq_flag = VDIN_IRQ_FLG_SKIP_FRAME;
 			vdin_drop_frame_info(devp, "write done check");

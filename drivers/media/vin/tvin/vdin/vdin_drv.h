@@ -1098,6 +1098,7 @@ struct vdin_dev_s {
 	int vpu_crash_irq;
 	int wr_done_irq;
 	int vdin2_meta_wr_done_irq;
+	int is_lcd_mute;
 	char irq_name[12];
 	char vpu_crash_irq_name[20];
 	char wr_done_irq_name[20];
