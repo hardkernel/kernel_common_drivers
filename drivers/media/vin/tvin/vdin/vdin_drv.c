@@ -300,13 +300,16 @@ void tvin_update_vdin_prop(u8 port_type, u8 pkt_type)
 	spin_lock_irqsave(&devp->isr_lock, flags);
 	switch (pkt_type) {
 	case PKT_TYPE_SPD:
-		sm_ops->get_spd_info(devp->frontend, &devp->prop, devp->port_type);
+		if (sm_ops->get_spd_info)
+			sm_ops->get_spd_info(devp->frontend, &devp->prop, devp->port_type);
 		break;
 	case PKT_TYPE_DRM:
-		sm_ops->get_hdr_info(devp->frontend, &devp->prop, devp->port_type);
+		if (sm_ops->get_hdr_info)
+			sm_ops->get_hdr_info(devp->frontend, &devp->prop, devp->port_type);
 		break;
 	default:
-		sm_ops->get_sig_property(devp->frontend, &devp->prop, devp->port_type);
+		if (sm_ops->get_sig_property)
+			sm_ops->get_sig_property(devp->frontend, &devp->prop, devp->port_type);
 		break;
 	}
 	if (vdin_package_done_check_state(devp)) {
