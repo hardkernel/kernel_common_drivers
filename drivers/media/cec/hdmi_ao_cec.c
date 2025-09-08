@@ -1571,6 +1571,11 @@ static ssize_t hdmitx_cec_read(struct file *f, char __user *buf,
 	}
 	store_msg_rd_idx = 0;
 
+	if (!new_msg) {
+		if (f->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+	}
+
 	/*CEC_ERR("read msg start\n");*/
 	ret = wait_for_completion_timeout(&cec_dev->rx_ok, CEC_FRAME_DELAY);
 	if (ret <= 0) {
