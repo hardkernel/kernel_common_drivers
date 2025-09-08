@@ -887,6 +887,7 @@ static bool vdx_test_pattern_on[MAX_VD_LAYER];
 static bool postblend_test_pattern_on;
 static u32 vdx_color[MAX_VD_LAYER];
 static u32 postblend_color;
+static u32 bypass_mute;
 
 u32 g_mosaic_mode;
 u32 pic_axis[4][4];
@@ -6736,6 +6737,8 @@ void set_video_mute(u32 owner, bool on)
 {
 	if (on && (get_video_debug_flags() & DEBUG_FLAG_HDMI_DV_CRC))
 		dump_stack();
+	if (bypass_mute)
+		return;
 
 	set_video_mute_info(owner, on);
 }
@@ -6832,7 +6835,7 @@ void rx_mute_vpp(u8 port_type)
 {
 	u32 black_val;
 
-	if (port_type)
+	if (port_type || bypass_mute)
 		return;
 	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
 	video_mute_rgb[HDMI_RX_MUTE_SET] = 0;
@@ -6861,6 +6864,8 @@ void rx_mute_videopip(void)
 {
 	u32 black_val;
 
+	if (bypass_mute)
+		return;
 	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
 
 	pr_info("call %s to mute videopip\n", __func__);
@@ -6876,6 +6881,8 @@ EXPORT_SYMBOL(rx_mute_videopip);
 
 int set_video_mute_info(u32 owner, bool on)
 {
+	if (bypass_mute)
+		return 0;
 	if (on) {
 		if (video_mute_array[owner])
 			return -EINVAL;
@@ -7016,6 +7023,8 @@ void rx_mute_dual_video_rdma(int vdin0_mute, int vdin1_mute)
 	static int vdin0_use_layer; /* bit0:VD1 bit1:VD2 */
 	static int vdin1_use_layer; /* bit0:VD1 bit1:VD2 */
 
+	if (bypass_mute)
+		return;
 	dispbuf0 = get_dispbuf(0);
 	dispbuf1 = get_dispbuf(1);
 
@@ -7072,6 +7081,8 @@ void rx_mute_dual_video_vcbus(int vdin0_mute, int vdin1_mute)
 	static int vdin0_use_layer; /* bit0:VD1 bit1:VD2 */
 	static int vdin1_use_layer; /* bit0:VD1 bit1:VD2 */
 
+	if (bypass_mute)
+		return;
 	dispbuf0 = get_dispbuf(0);
 	dispbuf1 = get_dispbuf(1);
 	if (vdin0_mute == E_RX_MUTE) {
@@ -15358,7 +15369,7 @@ int video_late_uninit(void)
 	return 0;
 }
 
-struct video_module_debug_s debug_video_hw[9] = {
+struct video_module_debug_s debug_video_hw[10] = {
 	{"g_mosaic_mode", &g_mosaic_mode, 1, 0},
 	{"vpp_hold_line", vpp_hold_line, VPP_MAX, 0},
 	{"bypass_cm", &bypass_cm, 1, 0},
@@ -15368,5 +15379,6 @@ struct video_module_debug_s debug_video_hw[9] = {
 	{"vd1_matrix", &vd1_matrix, 1, 0},
 	{"debug_common_flag", &debug_common_flag, 1, 0},
 	{"aisr_size_threshold", &aisr_size_threshold, 1, 0},
+	{"bypass_mute", &bypass_mute, 1, 0},
 };
 
