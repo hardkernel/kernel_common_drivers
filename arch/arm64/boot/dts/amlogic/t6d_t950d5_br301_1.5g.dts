@@ -111,8 +111,8 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1080p TV secure size 56M, 1 osd layer + 3 framebuffers */
-			size = <0x0>;
-			alignment = <0x400000>;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x400000>;
 		};
 
 		/*  vdin0 CMA pool */
