@@ -509,6 +509,8 @@ static void lcd_prbs_config_clk_t6x(struct aml_lcd_drv_s *pdrv, unsigned int lcd
 		bit_rate = 2970000000ULL;
 	} else if (lcd_prbs_mode == LCD_PRBS_MODE_LVDS) {
 		bit_rate = 550000000ULL;
+	} else if (lcd_prbs_mode == LCD_PRBS_MODE_FREQ) {
+		bit_rate = lcd_prbs_freq * 1000000ULL;
 	} else {
 		LCDERR("[%d]: %s: unsupport lcd_prbs_mode %d\n",
 		       pdrv->index, __func__, lcd_prbs_mode);
@@ -612,13 +614,13 @@ static void lcd_clk_prbs_test_t6x(struct aml_lcd_drv_s *pdrv,
 				clk_err_cnt = 0;
 			if (clk_err_cnt >= 10) {
 				LCD_ERR(pdrv, "prbs check error 1(clkmsr), cnt: %d", lcd_prbs_cnt);
-				goto lcd_prbs_test_err_t3;
+				goto lcd_prbs_test_err_t6x;
 			}
 
 			val = lcd_vx1_lvds_ctrl_getb(pdrv, reg_phy_tx_ctrl1, 0, 16);
 			if (val != 0xffff) {
 				LCD_ERR(pdrv, "prbs check error 2(prbs), val:%d", val);
-				goto lcd_prbs_test_err_t3;
+				goto lcd_prbs_test_err_t6x;
 			}
 		}
 
@@ -639,7 +641,7 @@ static void lcd_clk_prbs_test_t6x(struct aml_lcd_drv_s *pdrv,
 		}
 		continue;
 
-lcd_prbs_test_err_t3:
+lcd_prbs_test_err_t6x:
 		if (lcd_prbs_mode == LCD_PRBS_MODE_LVDS) {
 			lcd_prbs_performed |= LCD_PRBS_MODE_LVDS;
 			lcd_prbs_err |= LCD_PRBS_MODE_LVDS;
@@ -651,7 +653,7 @@ lcd_prbs_test_err_t3:
 			lcd_prbs_err |= LCD_PRBS_MODE_FREQ;
 		}
 	}
-	for (j = 0; j < 12; j++) {
+	for (j = 0; j < 16; j++) {
 		bit = j & 0x1 ? 16 : 0;
 		lcd_vx1_lvds_ctrl_setb(pdrv, chdig_reg[j >> 1], 0x8030, bit, 16);
 	}
