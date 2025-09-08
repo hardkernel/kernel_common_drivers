@@ -1749,7 +1749,6 @@
 		irq_trigger_type = "IRQF_TRIGGER_LOW";
 		//power_on-gpios = <&gpio       GPIOM_6       GPIO_ACTIVE_HIGH>;
 		//interrupt-gpios = <&gpio       GPIOM_7       GPIO_ACTIVE_HIGH>;
-		wifi_static_buf = <0>; //if use bcm wifi, config dhd_static_buf
 		pwm_config = <&wifi_pwm_conf>;
 	};
 
