@@ -2217,7 +2217,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 	/* unsigned int delay_cnt = 0; */
 	struct hdmirx_dev_s *devp = NULL;
 	void __user *argp = (void __user *)arg;
-	u32 param = 0, temp_val, temp;
+	u32 temp;
 	//unsigned int size = sizeof(struct pd_infoframe_s);
 	struct pd_infoframe_s pkt_info;
 	struct spd_infoframe_st *spd_pkt;
@@ -2348,72 +2348,13 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 	case HDMI_IOC_HDCP22_FORCE14:
 		break;
 	case HDMI_IOC_PD_FIFO_PKTTYPE_EN:
-		/*rx_pr("IOC_PD_FIFO_PKTTYPE_EN\n");*/
-		/*get input param*/
-		if (copy_from_user(&param, argp, sizeof(u32))) {
-			pr_err("get pd fifo param err\n");
-			ret = -EFAULT;
-			break;
-		}
-		rx_pr("en cmd:0x%x\n", param);
-		rx_pkt_buffclear((enum pkt_type_e)param, rx_info.main_port);
-		temp = rx_pkt_type_mapping((enum pkt_type_e)param);
-		packet_fifo_cfg |= temp;
-		/*enable pkt pd fifo*/
-		temp_val = hdmirx_rd_dwc(DWC_PDEC_CTRL);
-		temp_val |= temp;
-		hdmirx_wr_dwc(DWC_PDEC_CTRL, temp_val);
-		/*enable int*/
-		pdec_ists_en |= PD_FIFO_START_PASS | PD_FIFO_OVERFL;
-		/*open pd fifo interrupt source if signal stable*/
-		temp_val = hdmirx_rd_dwc(DWC_PDEC_IEN);
-		if ((temp_val & PD_FIFO_START_PASS) == 0 &&
-		    rx[rx_info.main_port].state >= FSM_SIG_UNSTABLE) {
-			temp_val |= pdec_ists_en;
-			hdmirx_wr_dwc(DWC_PDEC_IEN_SET, temp_val);
-			rx_pr("open pd fifo int:0x%x\n", pdec_ists_en);
-		}
+		rx_pr("unused ioctl\n");
 		break;
 	case HDMI_IOC_PD_FIFO_PKTTYPE_DIS:
-		/*rx_pr("IOC_PD_FIFO_PKTTYPE_DIS\n");*/
-		/*get input param*/
-		if (copy_from_user(&param, argp, sizeof(u32))) {
-			pr_err("get pd fifo param err\n");
-			ret = -EFAULT;
-			break;
-		}
-		rx_pr("dis cmd:0x%x\n", param);
-		temp = rx_pkt_type_mapping((enum pkt_type_e)param);
-		packet_fifo_cfg &= ~temp;
-		/*disable pkt pd fifo*/
-		temp_val = hdmirx_rd_dwc(DWC_PDEC_CTRL);
-		temp_val &= ~temp;
-		hdmirx_wr_dwc(DWC_PDEC_CTRL, temp_val);
+		rx_pr("unused ioctl\n");
 		break;
-
 	case HDMI_IOC_GET_PD_FIFO_PARAM:
-		/*mutex_lock(&pktbuff_lock);*/
-		/*rx_pr("IOC_GET_PD_FIFO_PARAM\n");*/
-		/*get input param*/
-		//if (copy_from_user(&param, argp, sizeof(u32))) {
-			//pr_err("get pd fifo param err\n");
-			//ret = -EFAULT;
-			/*mutex_unlock(&pktbuff_lock);*/
-			//break;
-	//	}
-		//memset(&pkt_info, 0, sizeof(pkt_info));
-		//src_buff = &pkt_info;
-		//size = sizeof(struct pd_infoframe_s);
-		//rx_get_pd_fifo_param(param, &pkt_info);
-
-		/*return pkt info*/
-		//if (size > 0 && !argp) {
-			//if (copy_to_user(argp, src_buff, size)) {
-				//pr_err("get pd fifo param err\n");
-				//ret = -EFAULT;
-			//}
-		//}
-		/*mutex_unlock(&pktbuff_lock);*/
+		rx_pr("unused ioctl\n");
 		break;
 	case HDMI_IOC_HDCP14_KEY_MODE:
 		if (copy_from_user(&hdcp14_key_mode, argp,
