@@ -59,7 +59,8 @@
 /* 2025.07.14 update 1440p 420 in freq_ref*/
 /* 2025.08.19 Configure video and audio after the signal is ready */
 /* 2025.08.26 add 1080i 420 fmt */
-#define RX_WRAPPER_VER "ver.2025/08/26"
+/* 2025.09.09 remove fsm cd judge */
+#define RX_WRAPPER_VER "ver.2025/09/09"
 
 struct freq_ref_s {
 	bool interlace;
