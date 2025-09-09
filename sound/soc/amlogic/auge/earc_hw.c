@@ -844,6 +844,9 @@ void earcrx_enable(struct regmap *cmdc_map,
 				 0x3 << 28, 0x0 << 28);
 	}
 
+	/* ext 0 sync check for papb */
+	mmio_update_bits(dmac_map, EARCRX_SPDIFIN_CTRL1, 0x1 << 8 | 0xff, 0x1 << 8 | 0xf);
+
 	if (type == ATNDTYP_EARC) {
 		/* mute block check */
 		earcrx_mute_block_enable(dmac_map, true);
