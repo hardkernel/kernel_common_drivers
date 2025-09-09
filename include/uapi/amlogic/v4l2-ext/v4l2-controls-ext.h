@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
@@ -6,12 +6,10 @@
 #ifndef _V4L2_CONTROLS_EXT_H
 #define _V4L2_CONTROLS_EXT_H
 
-#include <linux/amlogic/media/linuxtv-ext-ver.h>
+#include "../linuxtv-ext-ver.h"
 #include <linux/v4l2-controls.h>
 
-//
-// User-class control Bases
-//
+/* User-class control Bases */
 
 #define V4L2_CID_USER_EXT_VSC_BASE (V4L2_CID_USER_BASE + 0x2000)
 #define V4L2_CID_USER_EXT_CAPTURE_BASE (V4L2_CID_USER_BASE + 0x2100)
@@ -21,14 +19,12 @@
 #define V4L2_CID_USER_EXT_ADC_BASE (V4L2_CID_USER_BASE + 0x6000)
 #define V4L2_CID_USER_EXT_AVD_BASE (V4L2_CID_USER_BASE + 0x7000)
 #define V4L2_CID_USER_EXT_VDEC_BASE (V4L2_CID_USER_BASE + 0x8000)
-// 0x9000 is being used by FE: see v4l2-ext-frontend.h
+/* 0x9000 is being used by FE: see v4l2-ext-frontend.h */
 #define V4L2_CID_USER_EXT_GPSCALER_BASE (V4L2_CID_USER_BASE + 0xA000)
 #define V4L2_CID_USER_EXT_EARC_BASE (V4L2_CID_USER_BASE + 0xB000)
 #define V4L2_CID_USER_EXT_VBI_BASE (V4L2_CID_USER_BASE + 0xC000)
 
-//
-// Scaler class control IDs
-//
+/* Scaler class control IDs */
 
 #define V4L2_CID_EXT_VSC_WIN_REGION (V4L2_CID_USER_EXT_VSC_BASE + 0)
 
@@ -93,9 +89,8 @@ enum v4l2_ext_vsc_hdr_type {
 
 #define V4L2_CID_EXT_VSC_ORBIT_MOVE (V4L2_CID_USER_EXT_VSC_BASE + 18)
 
-//
-// VSC class subscription IDs
-//
+/* VSC class subscription IDs */
+
 #define V4L2_CID_EXT_VSC_SUBSCRIBE_MUTE_OFF (V4L2_CID_USER_EXT_VSC_BASE + 30)
 
 #define V4L2_CID_EXT_VSC_SUBSCRIBE_ACTIVE_WIN (V4L2_CID_USER_EXT_VSC_BASE + 32)
@@ -116,9 +111,7 @@ enum v4l2_ext_vsc_hdr_type {
 
 #define V4L2_CID_EXT_VSC_SUBSCRIBE_VIDEO_DELAY (V4L2_CID_USER_EXT_VSC_BASE + 37)
 
-//
-// VSC class subscription types
-//
+/* VSC class subscription types */
 
 #define V4L2_EVENT_PRIVATE_EXT_VSC_BASE (V4L2_EVENT_PRIVATE_START + 0x2000)
 #define V4L2_EVENT_PRIVATE_EXT_VSC_EVENT (V4L2_EVENT_PRIVATE_EXT_VSC_BASE + 1)
@@ -358,29 +351,23 @@ enum v4l2_ext_vsc_hdr_type {
 
 #define V4L2_CID_EXT_VBE_DISPLAYOUTPUT_5060HZ (V4L2_CID_EXT_VBE_BASE + 31)
 
-//
-// GSR_STRESS_COUNT control ID
-//
+/* GSR_STRESS_COUNT control ID */
+
 #define V4L2_CID_EXT_VBE_GSR_STRESS_COUNT (V4L2_CID_EXT_VBE_BASE + 32)
 
-//
-// SET GSR2 control ID
-//
+/* SET GSR2 control ID */
+
 #define V4L2_CID_EXT_VBE_GSR2 (V4L2_CID_EXT_VBE_BASE + 33)
 
-//
-// SET IRRAdaptedLum control ID
-//
+/* SET IRRAdaptedLum control ID */
+
 #define V4L2_CID_EXT_VBE_IRR_ADAPTEDLUM (V4L2_CID_EXT_VBE_BASE + 34)
 
-//
-// GET IRR RISK control ID
-//
+/* GET IRR RISK control ID */
+
 #define V4L2_CID_EXT_VBE_IRR_RESULT (V4L2_CID_EXT_VBE_BASE + 35)
 
-//
-// HDMI class control IDs
-//
+/* HDMI class control IDs */
 
 #define V4L2_CID_EXT_HDMI_TIMING_INFO (V4L2_CID_USER_EXT_HDMI_BASE + 0)
 
@@ -447,9 +434,7 @@ enum v4l2_ext_vsc_hdr_type {
 
 #define V4L2_CID_EXT_HDMI_EXPERT_SETTING (V4L2_CID_EXT_HDMI_DIAGNOSTICS_BASE + 8)
 
-//
-// ADC class control IDs
-//
+/* ADC class control IDs */
 
 #define V4L2_CID_EXT_ADC_TIMING_INFO (V4L2_CID_USER_EXT_ADC_BASE + 0)
 
@@ -469,9 +454,7 @@ enum v4l2_ext_adc_calibration_type {
 
 #define V4L2_CID_EXT_ADC_FAST_SWITCH (V4L2_CID_USER_EXT_ADC_BASE + 5)
 
-//
-// AVD class control IDs
-//
+/* AVD class control IDs */
 
 #define V4L2_CID_EXT_AVD_PORT (V4L2_CID_USER_EXT_AVD_BASE + 0)
 
@@ -483,9 +466,7 @@ enum v4l2_ext_adc_calibration_type {
 
 #define V4L2_CID_EXT_AVD_CHANNEL_CHANGE (V4L2_CID_USER_EXT_AVD_BASE + 4)
 
-//
-// VBI class control IDs
-//
+/* VBI class control IDs */
 
 #define V4L2_CID_EXT_VBI_COPY_PROTECTION_INFO (V4L2_CID_USER_EXT_VBI_BASE + 0)
 
@@ -496,10 +477,10 @@ enum v4l2_ext_adc_calibration_type {
 
 #define V4L2_CID_EXT_VDEC_CHANNEL (V4L2_CID_EXT_VDEC_BASE + 1)
 
-#define V4L2_CID_EXT_VDEC_VTP_PORT (V4L2_CID_EXT_VDEC_BASE + 2) // Deprecated, Not use
+#define V4L2_CID_EXT_VDEC_VTP_PORT (V4L2_CID_EXT_VDEC_BASE + 2) /* Deprecated, Not use */
 
 #define V4L2_CID_EXT_VDEC_RESETTING (V4L2_CID_EXT_VDEC_BASE + 3)
-// Deprecated, change to V4L2_CID_EXT_VDO_BASE cmd id
+/* Deprecated, change to V4L2_CID_EXT_VDO_BASE cmd id */
 #define V4L2_CID_EXT_VDEC_VDO_PORT (V4L2_CID_EXT_VDEC_BASE + 4)
 
 #define V4L2_CID_EXT_VDEC_AV_SYNC (V4L2_CID_EXT_VDEC_BASE + 5)
@@ -514,7 +495,7 @@ enum v4l2_ext_adc_calibration_type {
 
 #define V4L2_CID_EXT_VDEC_DECODER_VERSION (V4L2_CID_EXT_VDEC_BASE + 10)
 #define V4L2_CID_EXT_VDEC_KR_DUAL_3D_MODE                                      \
-	(V4L2_CID_EXT_VDEC_BASE + 11) // Deprecated
+	(V4L2_CID_EXT_VDEC_BASE + 11) /* Deprecated */
 
 #define V4L2_CID_EXT_VDEC_STC_MODE (V4L2_CID_EXT_VDEC_BASE + 12)
 
@@ -537,16 +518,16 @@ enum v4l2_ext_adc_calibration_type {
 #define V4L2_CID_EXT_VDEC_DIRECT_MODE (V4L2_CID_EXT_VDEC_BASE + 21)
 
 #define V4L2_CID_EXT_VDEC_DRIPDEC_MODE                                         \
-	(V4L2_CID_EXT_VDEC_BASE + 22) // To support MHEG certification
+	(V4L2_CID_EXT_VDEC_BASE + 22) /* To support MHEG certification */
 
 #define V4L2_CID_EXT_VDEC_ECP_INFO_NOTI                                        \
-	(V4L2_CID_EXT_VDEC_BASE + 23) // To support DVB - ECP set
+	(V4L2_CID_EXT_VDEC_BASE + 23) /* To support DVB - ECP set */
 
 #define V4L2_CID_EXT_VDEC_ECP_OFFSET                                           \
-	(V4L2_CID_EXT_VDEC_BASE + 24) // To support DVB - ECP get
+	(V4L2_CID_EXT_VDEC_BASE + 24) /* To support DVB - ECP get */
 
 #define V4L2_CID_EXT_VDEC_ECP_SIZE                                             \
-	(V4L2_CID_EXT_VDEC_BASE + 25) // To support DVB - ECP get
+	(V4L2_CID_EXT_VDEC_BASE + 25) /* To support DVB - ECP get */
 
 /* VDEC class EXT control IDs */
 
@@ -563,11 +544,11 @@ enum v4l2_ext_adc_calibration_type {
 #define V4L2_CID_EXT_VDEC_VIDEO_INFO (V4L2_CID_EXT_VDEC_BASE + 106)
 
 #define V4L2_CID_EXT_VDEC_PICINFO_EVENT_DATA_EXT                               \
-	(V4L2_CID_EXT_VDEC_BASE + 107) // To support HFR, frame rate fraction type
-	// structure is added. and useless member
-	// variable is deleted.
+	(V4L2_CID_EXT_VDEC_BASE + 107) /* To support HFR, frame rate fraction type */
+	/* structure is added. and useless member */
+	/* variable is deleted. */
 
-// To support MHEG certification, Pass I-frame buffer information
+/* To support MHEG certification, Pass I-frame buffer information */
 #define V4L2_CID_EXT_VDEC_DRIPDEC_PICTURE		 (V4L2_CID_EXT_VDEC_BASE + 108)
 #define V4L2_CID_EXT_VDEC_DECODED_PICTURE_BUFFER (V4L2_CID_EXT_VDEC_BASE + 109)
 /* VDEC class subscription types */
@@ -583,9 +564,7 @@ enum v4l2_ext_adc_calibration_type {
 #define V4L2_CID_EXT_VDO_VDEC_PORT (V4L2_CID_EXT_VDO_BASE + 1)
 #define V4L2_CID_EXT_VDO_VDEC_CONNECTING (V4L2_CID_EXT_VDO_BASE + 2)
 #define V4L2_CID_EXT_VDO_VDEC_DISCONNECTING (V4L2_CID_EXT_VDO_BASE + 3)
-//
-// videotexture class control IDs
-//
+/* videotexture class control IDs */
 
 #define V4L2_CID_EXT_CAPTURE_CAPABILITY_INFO                                   \
 	(V4L2_CID_USER_EXT_CAPTURE_BASE + 0)

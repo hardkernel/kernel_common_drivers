@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
@@ -6,7 +6,7 @@
 #ifndef _VIDEODEV2_EXT_H
 #define _VIDEODEV2_EXT_H
 
-#include <linux/amlogic/media/linuxtv-ext-ver.h>
+#include "../linuxtv-ext-ver.h"
 
 /* FIXME: gstreamer-good uses uapi/linux/videodev2.h,
  * so add to check _UAPI_XX to prevent redefinition error
@@ -60,29 +60,29 @@
 #define V4L2_EXT_DEV_PATH_VBI "/dev/vbi1"
 #define V4L2_EXT_DEV_PATH_EARC "/dev/earc0"
 
-#define V4L2_EXT_LED_SPI_LDIM_EN 0x01	// bit0 enable local dimming
-#define V4L2_EXT_LED_SPI_BPL_BIT1 0x02	// bit1 bpl strength
-#define V4L2_EXT_LED_SPI_STOREMODE_EN 0x04 // bit2 enable led store mode
-#define V4L2_EXT_LED_SPI_HALO_BIT1	0x08	// bit3 halo reduction strength
-#define V4L2_EXT_LED_SPI_MOTIONPRO_EN 0x10 // bit4 enable motion pro
-#define V4L2_EXT_LED_SPI_HALO_BIT2 0x20 // bit5	halo reduction strength
-#define V4L2_EXT_LED_SPI_BPL_BIT2 0x40 // bit6	bpl strength
-#define V4L2_EXT_LED_SPI_REVERSE 0x80  // bit7	screen reverse
+#define V4L2_EXT_LED_SPI_LDIM_EN 0x01	/* bit0 enable local dimming */
+#define V4L2_EXT_LED_SPI_BPL_BIT1 0x02	/* bit1 bpl strength */
+#define V4L2_EXT_LED_SPI_STOREMODE_EN 0x04 /* bit2 enable led store mode */
+#define V4L2_EXT_LED_SPI_HALO_BIT1	0x08	/* bit3 halo reduction strength */
+#define V4L2_EXT_LED_SPI_MOTIONPRO_EN 0x10 /* bit4 enable motion pro */
+#define V4L2_EXT_LED_SPI_HALO_BIT2 0x20 /* bit5	halo reduction strength */
+#define V4L2_EXT_LED_SPI_BPL_BIT2 0x40 /* bit6	bpl strength */
+#define V4L2_EXT_LED_SPI_REVERSE 0x80  /* bit7	screen reverse */
 
 #define V4L2_EXT_VPQ_BYPASS_MASK_NONE 0x00000000
 #define V4L2_EXT_VPQ_BYPASS_MASK_SHARP_ENHANCE \
-	0x00000001 // BIT0: //SharpnessEnhancer
+	0x00000001 /* BIT0: //SharpnessEnhancer */
 #define V4L2_EXT_VPQ_BYPASS_MASK_OBJECT_CONTRAST \
-	0x00000002 // BIT1: //ObjectContrast
+	0x00000002 /* BIT1: //ObjectContrast */
 #define V4L2_EXT_VPQ_BYPASS_MASK_CONTRAST_COLOR_ENHANCE \
-	0x00000004 // BIT2: //Contrast, Local Contrast, Color Enhancer
+	0x00000004 /* BIT2: //Contrast, Local Contrast, Color Enhancer */
 #define V4L2_EXT_VPQ_BYPASS_MASK_GAMMA_LOCALDIMMING \
-	0x00000008 // BIT3: //Localdimming, Gamma UI
+	0x00000008 /* BIT3: //Localdimming, Gamma UI */
 #define V4L2_EXT_VPQ_BYPASS_MASK_NEAR_BE \
-	0x00000010 // BIT4: //WB,DGA-4CH,POD,PCID,ODC
-#define V4L2_EXT_VPQ_BYPASS_MASK_HDR_ALL 0x00000020 // BIT5: HDR
+	0x00000010 /* BIT4: //WB,DGA-4CH,POD,PCID,ODC */
+#define V4L2_EXT_VPQ_BYPASS_MASK_HDR_ALL 0x00000020 /* BIT5: HDR */
  #define V4L2_EXT_VPQ_BYPASS_MASK_HDR_EXCEPT_PCC \
-	0x00000040 // BIT6: //HDR bypass,HDR-PCC enable
+	0x00000040 /* BIT6: //HDR bypass,HDR-PCC enable */
 
 /* Scaler */
 struct v4l2_ext_video_rect {
@@ -250,13 +250,13 @@ struct v4l2_ext_vsc_pixel_color_info {
 };
 
 /* PQ */
-// histogram bin, chroma bin num
+/* histogram bin, chroma bin num */
 #define V4L2_EXT_VPQ_BIN_NUM 64
 #define V4L2_EXT_VPQ_C_BIN_NUM 32
 #define V4L2_EXT_VPQ_H_BIN_NUM 32
 #define V4L2_EXT_LED_SMART_ADJ_ON (0x10)
 
-// PQ COMMON DATA TYPE
+/* PQ COMMON DATA TYPE */
 struct v4l2_ext_vpq_cmn_data {
 	unsigned int version;
 	unsigned int length;
@@ -268,7 +268,7 @@ struct v4l2_ext_vpq_cmn_data {
 	};
 };
 
-//  LED Type Definition
+/*  LED Type Definition */
 enum v4l2_ext_led_ui_adj_type {
 	V4L2_EXT_LED_UI_ADJ_OFF		= 0x00,
 	V4L2_EXT_LED_UI_ADJ_SDR_LOW	= 0x01,
@@ -281,13 +281,13 @@ enum v4l2_ext_led_ui_adj_type {
 };
 
 enum v4l2_ext_led_localdimming_demo_type {
-	V4L2_EXT_LED_ONOFF = 0,   // each led block flicker sequentially.
-	V4L2_EXT_LED_H_ONOFF_EXT, // led horizontal moving box pattern on for
-							  // external localdimming chip.
-	V4L2_EXT_LED_V_ONOFF_EXT, // led vertical moving box pattern on for external
-							  // localdimming chip.
-	V4L2_EXT_LED_SPLIT_SCREEN, // half of screen is made from white pattern, and
-							   // show local dimming effect.
+	V4L2_EXT_LED_ONOFF = 0,   /* each led block flicker sequentially. */
+	V4L2_EXT_LED_H_ONOFF_EXT, /* led horizontal moving box pattern on for */
+							  /* external localdimming chip. */
+	V4L2_EXT_LED_V_ONOFF_EXT, /* led vertical moving box pattern on for external */
+							  /* localdimming chip. */
+	V4L2_EXT_LED_SPLIT_SCREEN, /* half of screen is made from white pattern, and */
+							   /* show local dimming effect. */
 	V4L2_EXT_LED_DEMOTYPE_SIZE_MAX
 };
 
@@ -317,11 +317,11 @@ enum v4l2_ext_led_panel_inch_type {
 	V4L2_EXT_LED_INCH_79,
 	V4L2_EXT_LED_INCH_84,
 	V4L2_EXT_LED_INCH_98,
-	V4L2_EXT_LED_INCH_105, // TV model
+	V4L2_EXT_LED_INCH_105, /* TV model */
 	V4L2_EXT_LED_INCH_23,
 	V4L2_EXT_LED_INCH_24,
 	V4L2_EXT_LED_INCH_26,
-	V4L2_EXT_LED_INCH_27, // Smart Monitor TV
+	V4L2_EXT_LED_INCH_27, /* Smart Monitor TV */
 	V4L2_EXT_LED_INCH_22,
 	V4L2_EXT_LED_INCH_28,
 	V4L2_EXT_LED_INCH_40,
@@ -356,7 +356,7 @@ enum v4l2_ext_led_bar_type {
 	V4L2_EXT_LED_BAR_216,
 	V4L2_EXT_LED_BAR_180,
 	V4L2_EXT_LED_BAR_MAX,
-	V4L2_EXT_LED_BAR_DEFALT = V4L2_EXT_LED_BAR_MAX,
+	V4L2_EXT_LED_BAR_DEFAULT = V4L2_EXT_LED_BAR_MAX,
 };
 
 enum v4l2_ext_led_module_maker_type {
@@ -376,16 +376,16 @@ enum v4l2_ext_led_module_maker_type {
 };
 
 enum v4l2_ext_led_lut_number_type {
-	V4L2_EXT_LED_LUT_FRIST = 0,
+	V4L2_EXT_LED_LUT_FIRST = 0,
 	V4L2_EXT_LED_LUT_SECOND,
 	V4L2_EXT_LED_LUT_THIRD,
 	V4L2_EXT_LED_LUT_MAX
 };
 
 enum v4l2_ext_led_ldim_ic {
-	V4L2_EXT_LED_LDIM_NONE	 = 0, // Not support Local dimming.
-	V4L2_EXT_LED_LDIM_INTERNAL = 1, // Use internal Local dimming block.
-	V4L2_EXT_LED_LDIM_EXTERNAL = 2, // Use external Local dimming IC.
+	V4L2_EXT_LED_LDIM_NONE	 = 0, /* Not support Local dimming. */
+	V4L2_EXT_LED_LDIM_INTERNAL = 1, /* Use internal Local dimming block. */
+	V4L2_EXT_LED_LDIM_EXTERNAL = 2, /* Use external Local dimming IC. */
 };
 
 enum v4l2_ext_led_wcg_panel_type {
@@ -396,13 +396,13 @@ enum v4l2_ext_led_wcg_panel_type {
 };
 
 struct v4l2_ext_led_panel_info {
-	enum v4l2_ext_led_panel_inch_type panel_inch; // panel size   ex) 47, 55
-	enum v4l2_ext_led_backlight_type backlight_type; // led backlight type  ex) alef, edge
-	enum v4l2_ext_led_bar_type bar_type; // led bar type   ex) h6,h12, v12
-	enum v4l2_ext_led_module_maker_type module_maker; // panel maker   ex) lgd, auo
-	enum v4l2_ext_led_ldim_ic local_dim_ic_type; // localdimming control type
-	// ex) internal localdiming
-	// block
+	enum v4l2_ext_led_panel_inch_type panel_inch; /* panel size   ex) 47, 55 */
+	enum v4l2_ext_led_backlight_type backlight_type; /* led backlight type  ex) alef, edge */
+	enum v4l2_ext_led_bar_type bar_type; /* led bar type   ex) h6,h12, v12 */
+	enum v4l2_ext_led_module_maker_type module_maker; /* panel maker   ex) lgd, auo */
+	enum v4l2_ext_led_ldim_ic local_dim_ic_type; /* localdimming control type */
+	/* ex) internal localdiming */
+	/* block */
 	enum v4l2_ext_led_wcg_panel_type panel_type;
 };
 
@@ -424,7 +424,7 @@ struct v4l2_ext_led_apl_info {
 };
 
 struct v4l2_ext_led_spi_ctrl_info {
-	unsigned char bitMask; // see V4L2_EXT_LED_SPI_XXX for reference
+	unsigned char bitMask; /* see V4L2_EXT_LED_SPI_XXX for reference */
 	unsigned int ctrlValue;
 };
 
@@ -433,7 +433,7 @@ struct v4l2_ext_led_bpl_info {
 	unsigned short sensor_level;
 };
 
-// MEMC Type Definition
+/* MEMC Type Definition */
 enum v4l2_ext_memc_type_old {
 	V4L2_EXT_MEMC_TYPE_OFF = 0,
 	V4L2_EXT_MEMC_TYPE_LOW,
@@ -447,7 +447,7 @@ enum v4l2_ext_memc_type {
 	V4L2_EXT_MEMC_OFF		  = V4L2_EXT_MEMC_TYPE_OFF,
 	V4L2_EXT_MEMC_CINEMA_CLEAR = V4L2_EXT_MEMC_TYPE_MEDIUM,
 	V4L2_EXT_MEMC_NATURAL	  = V4L2_EXT_MEMC_TYPE_LOW,
-	V4L2_EXT_MEMC_SMOOTH	   = V4L2_EXT_MEMC_TYPE_HIGH, //
+	V4L2_EXT_MEMC_SMOOTH	   = V4L2_EXT_MEMC_TYPE_HIGH,
 	V4L2_EXT_MEMC_USER		 = V4L2_EXT_MEMC_TYPE_USER,
 	V4L2_EXT_MEMC_PULLDOWN_55  = V4L2_EXT_MEMC_TYPE_55_PULLDOWN
 };
@@ -458,7 +458,7 @@ struct v4l2_ext_memc_motion_comp_info {
 	enum v4l2_ext_memc_type memc_type;
 };
 
-// VPQ Type Definition
+/* VPQ Type Definition */
 enum v4l2_ext_vpq_rgb_index {
 	V4L2_EXT_VPQ_RED	 = 0,
 	V4L2_EXT_VPQ_GREEN   = 1,
@@ -468,16 +468,16 @@ enum v4l2_ext_vpq_rgb_index {
 
 #define V4L2_EXT_HDR_PICINFO_SIZE 128
 
-// HDR Type Definition
+/* HDR Type Definition */
 struct v4l2_ext_hdr_color_correction {
 	unsigned int hue_blend;
 	unsigned int sat_blend;
 
-	unsigned int l_gain_x[8]; // L gain LUT x point
-	unsigned int l_gain_y[8]; // L gain LUT y point
+	unsigned int l_gain_x[8]; /* L gain LUT x point */
+	unsigned int l_gain_y[8]; /* L gain LUT y point */
 
-	unsigned int s_gain_x[8]; // S gain LUT x point
-	unsigned int s_gain_y[8]; // S gain LUT y point
+	unsigned int s_gain_x[8]; /* S gain LUT x point */
+	unsigned int s_gain_y[8]; /* S gain LUT y point */
 };
 
 enum v4l2_ext_hdr_mode {
@@ -498,10 +498,10 @@ enum v4l2_ext_colorimetry_info {
 };
 
 struct v4l2_ext_pq_mode_info {
-	unsigned int hdrStatus;	 // see v4l2_ext_hdr_mode
-	unsigned int colorimetry;   // see v4l2_ext_colorimetry_info
-	unsigned int peakLuminance; // peakLuminance of panel
-	unsigned int supportPrime;  // support Prime
+	unsigned int hdrStatus;	 /* see v4l2_ext_hdr_mode */
+	unsigned int colorimetry;   /* see v4l2_ext_colorimetry_info */
+	unsigned int peakLuminance; /* peakLuminance of panel */
+	unsigned int supportPrime;  /* support Prime */
 	unsigned int reserved;
 };
 
@@ -599,7 +599,7 @@ struct v4l2_ext_dolby_ambient_light_param {
 	};
 };
 
-// VPQ Type Definition
+/* VPQ Type Definition */
 enum v4l2_ext_vpq_inner_pattern_ire {
 	V4L2_EXT_VPQ_INNER_PATTERN_IRE_0 = 0,
 	V4L2_EXT_VPQ_INNER_PATTERN_IRE_2DOT5,
@@ -698,7 +698,7 @@ struct v4l2_ext_oled_luminance_boost {
 };
 
 struct v4l2_ext_vpq_block_bypass {
-	unsigned int bypassMask; // see V4L2_EXT_VPQ_BYPASS_MASK_XXX
+	unsigned int bypassMask; /* see V4L2_EXT_VPQ_BYPASS_MASK_XXX */
 	unsigned char bOnOff;
 };
 
@@ -722,7 +722,7 @@ struct v4l2_ext_vpq_od_extension {
 };
 
 struct v4l2_ext_gamma_lut {
-	unsigned int table_num; // number of table elements
+	unsigned int table_num; /* number of table elements */
 	union {
 		unsigned int *table_red;
 		unsigned int compat_table_red;
@@ -777,7 +777,7 @@ enum v4l2_ext_cm_perferred_color_type {
 	V4L2_EXT_CM_PREFERRED_COLOR_MAX
 };
 
-enum v4l2_ext_cm_cms_color_type { // Color Management System
+enum v4l2_ext_cm_cms_color_type { /* Color Management System */
 	V4L2_EXT_CM_CMS_RED	 = 0,
 	V4L2_EXT_CM_CMS_GREEN   = 1,
 	V4L2_EXT_CM_CMS_BLUE	= 2,
@@ -788,24 +788,24 @@ enum v4l2_ext_cm_cms_color_type { // Color Management System
 };
 
 struct v4l2_ext_cm_dynamic_color_ui {
-	unsigned char enable; // 0: don't reference preferred_value(expert_control),
-	// 1: reference preferred_value(not_use_cm_db==1 &&
-	// advanced_control)
-	enum v4l2_ext_cm_dynamic_color_level value; // ui value
+	unsigned char enable; /* 0: don't reference preferred_value(expert_control), */
+	/* 1: reference preferred_value(not_use_cm_db==1 && */
+	/* advanced_control) */
+	enum v4l2_ext_cm_dynamic_color_level value; /* ui value */
 };
 
 struct v4l2_ext_cm_perferred_color_ui {
-	unsigned char enable; // 0: don't reference preferred_value(expert_control),
-						  // 1: reference preferred_value(advanced_control)
-	signed char value[V4L2_EXT_CM_PREFERRED_COLOR_MAX]; // ui value per each color_type
+	unsigned char enable; /* 0: don't reference preferred_value(expert_control), */
+						/* 1: reference preferred_value(advanced_control) */
+	signed char value[V4L2_EXT_CM_PREFERRED_COLOR_MAX]; /* ui value per each color_type */
 };
 
-struct v4l2_ext_cm_cms_ui { // Color Management System
-	unsigned char enable;   // 0: don't reference value(advanced_control),  1:
-	// reference value(not_use_cm_db==1 && expert_control)
-	signed char gain_saturation[V4L2_EXT_CM_CMS_MAX];  // ui value per each color_type
-	signed char gain_hue[V4L2_EXT_CM_CMS_MAX]; // ui value per each color_type
-	signed char gain_luminance[V4L2_EXT_CM_CMS_MAX]; // ui value per each color_type
+struct v4l2_ext_cm_cms_ui { /* Color Management System */
+	unsigned char enable;   /* 0: don't reference value(advanced_control),  1: */
+	/* reference value(not_use_cm_db==1 && expert_control) */
+	signed char gain_saturation[V4L2_EXT_CM_CMS_MAX];  /* ui value per each color_type */
+	signed char gain_hue[V4L2_EXT_CM_CMS_MAX]; /* ui value per each color_type */
+	signed char gain_luminance[V4L2_EXT_CM_CMS_MAX]; /* ui value per each color_type */
 };
 
 struct v4l2_ext_cm_ui_status {
@@ -816,7 +816,7 @@ struct v4l2_ext_cm_ui_status {
 
 struct v4l2_ext_cm_info {
 	unsigned char
-		use_internal_cm_db; // 0: use dbInfo, 1: use driver internal db
+		use_internal_cm_db; /* 0: use dbInfo, 1: use driver internal db */
 	struct v4l2_ext_cm_ui_status uiInfo;
 	union {
 		unsigned char *dbinfo;
@@ -929,19 +929,19 @@ struct v4l2_ext_vpq_noise_reduction_data {
 };
 
 /* V4L2_CID_EXT_VPQ_STEREO_FACE_CTRL */
-#define V4L2_VPQ_EXT_STEREO_FACE_OFF (0)  // off
-#define V4L2_VPQ_EXT_STEREO_FACE_ON (1)   // normal on
-#define V4L2_VPQ_EXT_STEREO_FACE_DEMO (2) // demo mode
+#define V4L2_VPQ_EXT_STEREO_FACE_OFF (0)  /* off */
+#define V4L2_VPQ_EXT_STEREO_FACE_ON (1)   /* normal on */
+#define V4L2_VPQ_EXT_STEREO_FACE_DEMO (2) /* demo mode */
 
 /* extra PQ inner pattern */
-#define MAX_EXT_PATTERN_GRADATION_LINE (4) // it may depends on chip limitation
-#define MAX_EXT_PATTERN_WINBOX (10)		// it may depends on chip limitation
-#define MAX_EXT_PATTERN_GRADATION_H_STRIDE_SIZE (254) // it may depends on chip limitation
-#define EXT_PATTERN_GRADATION_H_STRIDE_STEP (2) // it may depends on chip limitation
-#define MAX_EXT_PATTERN_GRADATION_V_STRIDE_SIZE (127) // it may depends on chip limitation
-#define EXT_PATTERN_GRADATION_V_STRIDE_STEP (1) // it may depends on chip limitation
-#define EXT_PATTERN_WIDTH (3840)  // it may depends on chip limitation
-#define EXT_PATTERN_HEIGHT (2160) // it may depends on chip limitation
+#define MAX_EXT_PATTERN_GRADATION_LINE (4) /* it may depends on chip limitation */
+#define MAX_EXT_PATTERN_WINBOX (10)		/* it may depends on chip limitation */
+#define MAX_EXT_PATTERN_GRADATION_H_STRIDE_SIZE (254) /* it may depends on chip limitation */
+#define EXT_PATTERN_GRADATION_H_STRIDE_STEP (2) /* it may depends on chip limitation */
+#define MAX_EXT_PATTERN_GRADATION_V_STRIDE_SIZE (127) /* it may depends on chip limitation */
+#define EXT_PATTERN_GRADATION_V_STRIDE_STEP (1) /* it may depends on chip limitation */
+#define EXT_PATTERN_WIDTH (3840)  /* it may depends on chip limitation */
+#define EXT_PATTERN_HEIGHT (2160) /* it may depends on chip limitation */
 
 enum V4L2_VPQ_EXT_PATTERN_MODE {
 	V4L2_VPQ_EXT_PATTERN_WINBOX,
@@ -956,44 +956,44 @@ enum V4L2_VPQ_EXT_PATTERN_GRADATION_DIRECTION {
 };
 
 struct v4l2_vpq_ext_pattern_gradation_line_attr {
-	unsigned char lineIdx; // gradation line index
-	unsigned short start_R; // 1st gradation block's red level as a 10bit resolution
-	unsigned short start_G; // 1st gradation block's green level as a 10bit resolution
-	unsigned short start_B; // 1st gradation block's blue level as a 10bit resolution
-	unsigned short step_R;	 // step size for next gradation block
-	unsigned short step_G;	 // step size for next gradation block
-	unsigned short step_B;	 // step size for next gradation block
-	unsigned short strideSize; // gradation block's width(horizontal
-							   // mode)/height(vertical mode)
+	unsigned char lineIdx; /* gradation line index */
+	unsigned short start_R; /* 1st gradation block's red level as a 10bit resolution */
+	unsigned short start_G; /* 1st gradation block's green level as a 10bit resolution */
+	unsigned short start_B; /* 1st gradation block's blue level as a 10bit resolution */
+	unsigned short step_R;	 /* step size for next gradation block */
+	unsigned short step_G;	 /* step size for next gradation block */
+	unsigned short step_B;	 /* step size for next gradation block */
+	unsigned short strideSize; /* gradation block's width(horizontal */
+							   /* mode)/height(vertical mode) */
 };
 
 struct v4l2_vpq_ext_pattern_gradation_info {
-	unsigned char numGrad; // number of gradation lines in a screen
+	unsigned char numGrad; /* number of gradation lines in a screen */
 	enum V4L2_VPQ_EXT_PATTERN_GRADATION_DIRECTION e_grad_mode;
 	struct v4l2_vpq_ext_pattern_gradation_line_attr
 		st_line_attr[MAX_EXT_PATTERN_GRADATION_LINE];
 };
 
 struct v4l2_vpq_ext_pattern_winbox_win_attr {
-	unsigned short winIdx; // window layer index. 0:background
+	unsigned short winIdx; /* window layer index. 0:background */
 	unsigned short x;
 	unsigned short y;
 	unsigned short w;
 	unsigned short h;
-	unsigned short fill_R; // 10 bit resolution
-	unsigned short fill_G; // 10 bit resolution
-	unsigned short fill_B; // 10 bit resolution
+	unsigned short fill_R; /* 10 bit resolution */
+	unsigned short fill_G; /* 10 bit resolution */
+	unsigned short fill_B; /* 10 bit resolution */
 };
 
 struct v4l2_vpq_ext_pattern_winbox_info {
 	unsigned char
-		u8_num_win; // number of windows in a screen(including background window)
+		u8_num_win; /* number of windows in a screen(including background window) */
 	struct v4l2_vpq_ext_pattern_winbox_win_attr
 		st_win_box_attr[MAX_EXT_PATTERN_WINBOX];
 };
 
 struct
-	v4l2_vpq_ext_pattern_info { // old version : this will be removed in near-time
+	v4l2_vpq_ext_pattern_info { /* old version : this will be removed in near-time */
 	unsigned char b_on_off;
 	enum V4L2_VPQ_EXT_PATTERN_MODE e_mode;
 	struct v4l2_vpq_ext_pattern_gradation_info *pst_grad_info;
@@ -1058,7 +1058,7 @@ enum v4l2_ext_vbe_panel_inch {
 	V4L2_EXT_VBE_PANEL_INCH_86,
 	V4L2_EXT_VBE_PANEL_INCH_98,
 	V4L2_EXT_VBE_PANEL_INCH_105,
-	V4L2_EXT_VBE_PANEL_INCH_48, // 17Y Added
+	V4L2_EXT_VBE_PANEL_INCH_48, /* 17Y Added */
 	V4L2_EXT_VBE_PANEL_INCH_MAX
 };
 
@@ -1159,8 +1159,8 @@ enum v4l2_ext_vbe_panel_bandwidth {
 enum v4l2_ext_vbe_frc_chip {
 	V4L2_EXT_VBE_FRC_CHIP_NONE = 0,
 	V4L2_EXT_VBE_FRC_CHIP_INTERNAL,
-	V4L2_EXT_VBE_FRC_CHIP_EXTERNAL1, // Reserved1
-	V4L2_EXT_VBE_FRC_CHIP_EXTERNAL2, // Reserved2
+	V4L2_EXT_VBE_FRC_CHIP_EXTERNAL1, /* Reserved1 */
+	V4L2_EXT_VBE_FRC_CHIP_EXTERNAL2, /* Reserved2 */
 	V4L2_EXT_VBE_FRC_CHIP_TYPE_MAX
 };
 
@@ -1178,36 +1178,36 @@ enum v4l2_ext_vbe_lvds_type {
 
 union v4l2_ext_vbe_user_option {
 	unsigned int all;
-//	struct _flags {
-//		unsigned int SocOptionBIT0 : 1, SocOptionBIT1 : 1, SocOptionBIT2 : 1,
-//			SocOptionBIT3 : 1, SocOptionBIT4 : 1, SocOptionBIT5 : 1,
-//			SocOptionBIT6 : 1, SocOptionBIT7 : 1, SocOptionBIT8 : 1,
-//			SocOptionBIT9 : 1, SocOptionBIT10 : 1, SocOptionBIT11 : 1,
-//			SocOptionBIT12 : 1, SocOptionBIT13 : 1, SocOptionBIT14 : 1,
-//			SocOptionBIT15 : 1, SocOptionBIT16 : 1, SocOptionBIT17 : 1,
-//			SocOptionBIT18 : 1, SocOptionBIT19 : 1, SocOptionBIT20 : 1,
-//			SocOptionBIT21 : 1, SocOptionBIT22 : 1, SocOptionBIT23 : 1,
-//			SocOptionBIT24 : 1, SocOptionBIT25 : 1, SocOptionBIT26 : 1,
-//			SocOptionBIT27 : 1, SocOptionBIT28 : 1, SocOptionBIT29 : 1,
-//			SocOptionBIT30 : 1, SocOptionBIT31 : 1;
-//	} flags;
+/*	struct _flags { */
+/*		unsigned int SocOptionBIT0 : 1, SocOptionBIT1 : 1, SocOptionBIT2 : 1, */
+/*			SocOptionBIT3 : 1, SocOptionBIT4 : 1, SocOptionBIT5 : 1, */
+/*			SocOptionBIT6 : 1, SocOptionBIT7 : 1, SocOptionBIT8 : 1, */
+/*			SocOptionBIT9 : 1, SocOptionBIT10 : 1, SocOptionBIT11 : 1, */
+/*			SocOptionBIT12 : 1, SocOptionBIT13 : 1, SocOptionBIT14 : 1, */
+/*			SocOptionBIT15 : 1, SocOptionBIT16 : 1, SocOptionBIT17 : 1, */
+/*			SocOptionBIT18 : 1, SocOptionBIT19 : 1, SocOptionBIT20 : 1, */
+/*			SocOptionBIT21 : 1, SocOptionBIT22 : 1, SocOptionBIT23 : 1, */
+/*			SocOptionBIT24 : 1, SocOptionBIT25 : 1, SocOptionBIT26 : 1, */
+/*			SocOptionBIT27 : 1, SocOptionBIT28 : 1, SocOptionBIT29 : 1, */
+/*			SocOptionBIT30 : 1, SocOptionBIT31 : 1; */
+/*	} flags; */
 };
 
 struct v4l2_ext_vbe_panel_info {
-	enum v4l2_ext_vbe_panel_inch panelInch;			   // Panel Inch
-	enum v4l2_ext_vbe_panel_maker panelMaker;			 // Panel maker
-	enum v4l2_ext_vbe_panel_interface panelInterface;	 // Panel Interface
-	enum v4l2_ext_vbe_panel_resolution panelResolution;   // Panel Resolution
-	enum v4l2_ext_vbe_panel_version panelVersion;		 // Panel Version
-	enum v4l2_ext_vbe_panel_framerate panelFrameRate;	 // Panel Frame Rate
-	enum v4l2_ext_vbe_panel_led_bar_type panelLedBarType; // LED bar type
-	enum v4l2_ext_vbe_panel_backlight_type panelBacklightType; // LED Backlight type
-	enum v4l2_ext_vbe_panel_cell_type panelCellType;   // Panel Cell type
-	enum v4l2_ext_vbe_panel_bandwidth dispOutLaneBW;   // Output lane bandwidth
-	enum v4l2_ext_vbe_frc_chip frcType;				// FRC type
-	enum v4l2_ext_vbe_lvds_colordepth lvdsColorDepth;  // LVDS Color depth
-	enum v4l2_ext_vbe_lvds_type lvdsType;			  // LVDS Type
-	union v4l2_ext_vbe_user_option userSpecificOption; // Reserved Options
+	enum v4l2_ext_vbe_panel_inch panelInch;			   /* Panel Inch */
+	enum v4l2_ext_vbe_panel_maker panelMaker;			 /* Panel maker */
+	enum v4l2_ext_vbe_panel_interface panelInterface;	 /* Panel Interface */
+	enum v4l2_ext_vbe_panel_resolution panelResolution;   /* Panel Resolution */
+	enum v4l2_ext_vbe_panel_version panelVersion;		 /* Panel Version */
+	enum v4l2_ext_vbe_panel_framerate panelFrameRate;	 /* Panel Frame Rate */
+	enum v4l2_ext_vbe_panel_led_bar_type panelLedBarType; /* LED bar type */
+	enum v4l2_ext_vbe_panel_backlight_type panelBacklightType; /* LED Backlight type */
+	enum v4l2_ext_vbe_panel_cell_type panelCellType;   /* Panel Cell type */
+	enum v4l2_ext_vbe_panel_bandwidth dispOutLaneBW;   /* Output lane bandwidth */
+	enum v4l2_ext_vbe_frc_chip frcType;				/* FRC type */
+	enum v4l2_ext_vbe_lvds_colordepth lvdsColorDepth;  /* LVDS Color depth */
+	enum v4l2_ext_vbe_lvds_type lvdsType;			  /* LVDS Type */
+	union v4l2_ext_vbe_user_option userSpecificOption; /* Reserved Options */
 };
 
 struct v4l2_ext_vbe_ssc {
@@ -1222,17 +1222,17 @@ struct v4l2_ext_vbe_mirror {
 };
 
 enum v4l2_ext_vbe_mplus_mode {
-	V4L2_EXT_VBE_MPLUS_MPLUS_MODE0 = 0,// V4L2_EXT_VBE_MPLUS_HIGH_LUM1_MSE_ON = 0,
-	V4L2_EXT_VBE_MPLUS_MPLUS_MODE1,  // V4L2_EXT_VBE_MPLUS_HIGH_LUM2,
-	V4L2_EXT_VBE_MPLUS_MPLUS_MODE2,  // V4L2_EXT_VBE_MPLUS_LOW_POWER1,
-	V4L2_EXT_VBE_MPLUS_MPLUS_MODE3,  // V4L2_EXT_VBE_MPLUS_MLE_MODE_OFF,
-	V4L2_EXT_VBE_MPLUS_MPLUS_MODE4,  // V4L2_EXT_VBE_MPLUS_HIGH_LUM1_MSE_OFF,
-	V4L2_EXT_VBE_MPLUS_MPLUS_MODE5,  // V4L2_EXT_VBE_MPLUS_LOW_POWER2,
-	V4L2_EXT_VBE_MPLUS_MPLUS_MODE6,  // V4L2_EXT_VBE_MPLUS_LOW_POWER2_SC_OFF,
-	V4L2_EXT_VBE_MPLUS_MPLUS_MODE7,  // MHE Mode1 09/20/2018
-	V4L2_EXT_VBE_MPLUS_MPLUS_MODE8,  // MHE Mode2 09/20/2018
-	V4L2_EXT_VBE_MPLUS_MPLUS_MODE9,  // MHE Mode3 09/20/2018
-	V4L2_EXT_VBE_MPLUS_MPLUS_MODE10, // MHE Mode4 09/20/2018
+	V4L2_EXT_VBE_MPLUS_MPLUS_MODE0 = 0,/* V4L2_EXT_VBE_MPLUS_HIGH_LUM1_MSE_ON = 0, */
+	V4L2_EXT_VBE_MPLUS_MPLUS_MODE1,  /* V4L2_EXT_VBE_MPLUS_HIGH_LUM2, */
+	V4L2_EXT_VBE_MPLUS_MPLUS_MODE2,  /* V4L2_EXT_VBE_MPLUS_LOW_POWER1, */
+	V4L2_EXT_VBE_MPLUS_MPLUS_MODE3,  /* V4L2_EXT_VBE_MPLUS_MLE_MODE_OFF, */
+	V4L2_EXT_VBE_MPLUS_MPLUS_MODE4,  /* V4L2_EXT_VBE_MPLUS_HIGH_LUM1_MSE_OFF, */
+	V4L2_EXT_VBE_MPLUS_MPLUS_MODE5,  /* V4L2_EXT_VBE_MPLUS_LOW_POWER2, */
+	V4L2_EXT_VBE_MPLUS_MPLUS_MODE6,  /* V4L2_EXT_VBE_MPLUS_LOW_POWER2_SC_OFF, */
+	V4L2_EXT_VBE_MPLUS_MPLUS_MODE7,  /* MHE Mode1 09/20/2018 */
+	V4L2_EXT_VBE_MPLUS_MPLUS_MODE8,  /* MHE Mode2 09/20/2018 */
+	V4L2_EXT_VBE_MPLUS_MPLUS_MODE9,  /* MHE Mode3 09/20/2018 */
+	V4L2_EXT_VBE_MPLUS_MPLUS_MODE10, /* MHE Mode4 09/20/2018 */
 	V4L2_EXT_VBE_MPLUS_MPLUS_MODEMAX
 };
 
@@ -1272,13 +1272,13 @@ struct v4l2_ext_vbe_inner_pattern {
 
 struct v4l2_ext_vbe_panel_tscic {
 	union {
-		unsigned char *u8p_control_tbl;//unsigned char *u8pControlTbl;
+		unsigned char *u8p_control_tbl;/*unsigned char *u8pControlTbl; */
 		unsigned int compat_data_ctrl;
 		unsigned long long sizer_ctrl;
 	};
 	unsigned int u32Ctrlsize;
 	union {
-		unsigned int *u32ptscictbl;//unsigned int *u32pTSCICTbl;
+		unsigned int *u32ptscictbl;/*unsigned int *u32pTSCICTbl; */
 		unsigned int compat_data_tscic;
 		unsigned long long sizer_tscic;
 	};
@@ -1306,21 +1306,21 @@ enum v4l2_ext_vbe_pwm_pin_sel {
 
 struct v4l2_ext_vbe_pwm_adapt_freq_param {
 	unsigned int pwm_adapt_freq_enable;
-	unsigned int pwmfreq_48nHz; // PWM frequency 48xN Hz from DB table
-	unsigned int pwmfreq_50nHz; // PWM frequency 50xN Hz from DB table
-	unsigned int pwmfreq_60nHz; // PWM frequency 60xN Hz from DB table
+	unsigned int pwmfreq_48nHz; /* PWM frequency 48xN Hz from DB table */
+	unsigned int pwmfreq_50nHz; /* PWM frequency 50xN Hz from DB table */
+	unsigned int pwmfreq_60nHz; /* PWM frequency 60xN Hz from DB table */
 };
 
 struct v4l2_ext_vbe_pwm_param_data {
 	unsigned int pwm_enable;
 	unsigned int pwm_duty;
-	unsigned int pwm_frequency; // If pwm_adapt_freq_enable == TRUE, ignored
+	unsigned int pwm_frequency; /* If pwm_adapt_freq_enable == TRUE, ignored */
 	struct v4l2_ext_vbe_pwm_adapt_freq_param pwm_adapt_freq_param;
 	unsigned int pwm_lock;
 	unsigned int pwm_pos_start;
 	unsigned int pwm_scanning_enable;
-	unsigned int pwm_low_power_enable; // It has been used to set low power mode
-	// for M16P only until now, 170210.
+	unsigned int pwm_low_power_enable; /* It has been used to set low power mode */
+	/* for M16P only until now, 170210. */
 };
 
 enum v4l2_ext_vbe_pwm_pin_sel_mask {
@@ -1375,26 +1375,26 @@ struct v4l2_ext_vbe_vcom_pat_draw {
 };
 
 enum v4l2_ext_vbe_vcom_pat_ctrl {
-	V4L2_EXT_VBE_VCOM_PAT_CTRL_OFF = 0,// Mandatory Implementation
-	V4L2_EXT_VBE_VCOM_PAT_CTRL_ON,	  // Mandatory Implementation
-	// Optional Implementation, PGEN_VCOM1 and CTRL_ON, for available SoC
+	V4L2_EXT_VBE_VCOM_PAT_CTRL_OFF = 0,/* Mandatory Implementation */
+	V4L2_EXT_VBE_VCOM_PAT_CTRL_ON,	  /* Mandatory Implementation */
+	/* Optional Implementation, PGEN_VCOM1 and CTRL_ON, for available SoC */
 	V4L2_EXT_VBE_VCOM_PAT_CTRL_VCOM1,
-	// Optional Implementation, PGEN_VCOM2 and CTRL_ON, for available SoC
+	/* Optional Implementation, PGEN_VCOM2 and CTRL_ON, for available SoC */
 	V4L2_EXT_VBE_VCOM_PAT_CTRL_VCOM2,
-	// Optional Implementation, PGEN_VCOM2 and CTRL_ON, for available SoC
+	/* Optional Implementation, PGEN_VCOM2 and CTRL_ON, for available SoC */
 	V4L2_EXT_VBE_VCOM_PAT_CTRL_VCOM3,
-	// Optional Implementation, PGEN_VCOM3 and CTRL_ON, for available SoC
+	/* Optional Implementation, PGEN_VCOM3 and CTRL_ON, for available SoC */
 	V4L2_EXT_VBE_VCOM_PAT_CTRL_VCOM4,
-	// Optional Implementation, PGEN_VCOM4 and CTRL_ON, for available SoC
+	/* Optional Implementation, PGEN_VCOM4 and CTRL_ON, for available SoC */
 	V4L2_EXT_VBE_VCOM_PAT_CTRL_VCOM5,
-	// Optional Implementation, PGEN_VCOM5 and CTRL_ON, for available SoC
+	/* Optional Implementation, PGEN_VCOM5 and CTRL_ON, for available SoC */
 	V4L2_EXT_VBE_VCOM_PAT_CTRL_VCOM6,
-	// Optional Implementation, PGEN_VCOM6 and CTRL_ON, for available SoC
+	/* Optional Implementation, PGEN_VCOM6 and CTRL_ON, for available SoC */
 	V4L2_EXT_VBE_VCOM_PAT_CTRL_VCOM7,
-	// Optional Implementation, PGEN_VCOM7 and CTRL_ON, for available SoC
+	/* Optional Implementation, PGEN_VCOM7 and CTRL_ON, for available SoC */
 	V4L2_EXT_VBE_VCOM_PAT_CTRL_VCOM8,
-	// Optional Implementation, PGEN_VCOM8 and CTRL_ON, for available SoC
-	V4L2_EXT_VBE_VCOM_PAT_CTRL_MAX	// Limit to control.
+	/* Optional Implementation, PGEN_VCOM8 and CTRL_ON, for available SoC */
+	V4L2_EXT_VBE_VCOM_PAT_CTRL_MAX	/* Limit to control. */
 };
 
 enum v4l2_ext_vbe_panel_orbit_mode {
@@ -1411,8 +1411,8 @@ struct v4l2_ext_vbe_panel_orbit_info {
 
 enum v4l2_ext_vbe_panel_lsr_mode {
 	V4L2_EXT_VBE_PANEL_LSR_OFF = 0,
-	V4L2_EXT_VBE_PANEL_LSR_LIGHT,  // vivid light
-	V4L2_EXT_VBE_PANEL_LSR_STRONG, // vivid strong
+	V4L2_EXT_VBE_PANEL_LSR_LIGHT,  /* vivid light */
+	V4L2_EXT_VBE_PANEL_LSR_STRONG, /* vivid strong */
 	V4L2_EXT_VBE_PANEL_LSR_STRONG_OTHERS,
 	V4L2_EXT_VBE_PANEL_LSR_LIGHT_OTHERS,
 	V4L2_EXT_VBE_PANEL_LSR_MAX
@@ -1420,7 +1420,7 @@ enum v4l2_ext_vbe_panel_lsr_mode {
 
 struct v4l2_ext_vbe_panel_lsr_info {
 	union {
-		unsigned int *plsrtable;//unsigned int *pLsrTable;
+		unsigned int *plsrtable;/*unsigned int *pLsrTable; */
 		unsigned int compat_data_lsrtable;
 		unsigned long long sizer_lsrtable;
 	};
@@ -1429,7 +1429,7 @@ struct v4l2_ext_vbe_panel_lsr_info {
 
 struct v4l2_ext_vbe_panel_gsr_info {
 	union {
-		unsigned int *pgsrtable;//unsigned int *pGsrTable;
+		unsigned int *pgsrtable;/*unsigned int *pGsrTable; */
 		unsigned int compat_data_gsrtable;
 		unsigned long long sizer_gsrtable;
 	};
@@ -1455,7 +1455,7 @@ struct v4l2_ext_vbe_panel_alpha_osd_info {
 };
 
 struct v4l2_ext_vbe_panel_demura {
-	unsigned int enable; // 0: disable, 1: enable
+	unsigned int enable; /* 0: disable, 1: enable */
 	union {
 		unsigned char *config;
 		unsigned int compat_data_ctrl;
@@ -1473,10 +1473,10 @@ struct v4l2_ext_vbe_panel_demura {
 };
 
 struct v4l2_ext_vbe_panel_pclrc {
-	unsigned int enable; // 0: disable, 1: enable
-	unsigned int positionAfterLineOD; // Signal Path 0 : PCLRC -> LOD, 1 : LOD -> PCLRC
+	unsigned int enable; /* 0: disable, 1: enable */
+	unsigned int positionAfterLineOD; /* Signal Path 0 : PCLRC -> LOD, 1 : LOD -> PCLRC */
 	union {
-		unsigned char *data; //It should write to 8192 to 12543 in SRAM LUT.
+		unsigned char *data; /*It should write to 8192 to 12543 in SRAM LUT. */
 		unsigned int compat_data_pclrc;
 		unsigned long long sizer_pclrc;
 		};
@@ -1493,7 +1493,7 @@ struct v4l2_ext_vbe_panel_second_gsr_info {
 
 struct v4l2_ext_vbe_panel_irr_info {
 	union {
-		unsigned int *pirrlum;//unsigned int *pIrrlum;
+		unsigned int *pirrlum;/*unsigned int *pIrrlum; */
 		unsigned int compat_data_irr;
 		unsigned long long sizer_irr;
 	};
@@ -1848,7 +1848,7 @@ struct v4l2_ext_hdmi_edid {
 	enum v4l2_ext_hdmi_input_port port;
 	enum v4l2_ext_hdmi_edid_size size;
 	union {
-		unsigned char *pdata;//unsigned char *pData;
+		unsigned char *pdata;/*unsigned char *pData; */
 		unsigned int compat_data;
 		unsigned long long sizer;
 	};
@@ -1916,14 +1916,14 @@ struct v4l2_ext_hdmi_hdcp_repeater {
 };
 
 struct v4l2_ext_hdmi_hdcp_repeater_topology {
-	enum v4l2_ext_hdmi_input_port port;	 // HDMI port number
-	unsigned char repeater_mode;			// 0 : receiver, 1 : repeater
-	unsigned char count;					// Number of devices
-	unsigned char depth;					// Depth of connected device
-	unsigned char receiver_id[32][5];	   // RX IO of connected device
-	unsigned char repeater_hpd;			 // HPD control
-	unsigned int msg_id;	// Increase by 1 when it changes
-	//any value(init value =0, default set value = 1)
+	enum v4l2_ext_hdmi_input_port port;	 /* HDMI port number */
+	unsigned char repeater_mode;			/* 0 : receiver, 1 : repeater */
+	unsigned char count;					/* Number of devices */
+	unsigned char depth;					/* Depth of connected device */
+	unsigned char receiver_id[32][5];	   /* RX IO of connected device */
+	unsigned char repeater_hpd;			 /* HPD control */
+	unsigned int msg_id;	/* Increase by 1 when it changes */
+	/*any value(init value =0, default set value = 1) */
 };
 
 enum v4l2_ext_hdmi_hdcp_repeater_stream_manage_transmit {
@@ -1934,77 +1934,77 @@ enum v4l2_ext_hdmi_hdcp_repeater_stream_manage_transmit {
 
 struct v4l2_ext_hdmi_hdcp_repeater_stream_manage {
 	enum v4l2_ext_hdmi_input_port port;
-	enum v4l2_ext_hdmi_hdcp_repeater_stream_manage_transmit value;	 // 0 or 1 or reserved
+	enum v4l2_ext_hdmi_hdcp_repeater_stream_manage_transmit value;	 /* 0 or 1 or reserved */
 };
 
-// HDMI Capabilities Flags
-// The HDMI device supports HDCP1.4 Key. So, need to write HDCP1.4 key to driver.
-#define V4L2_EXT_HDMI_HDCP14			(0x1 << 0) // 0x0000000000000001
-// HDCP1.4 Key is OTP on Soc. So, No need to download HDCP1.4 Key to secure storage.
-#define V4L2_EXT_HDMI_HDCP14_KEY_OTP	(0x1 << 1) // 0x0000000000000002
-// The HDMI device supports HDCP2.3 key. So, need to write HDCP2.3 key to driver.
-// HDCP2.2 key is include in HDCP2.3 key.
-#define V4L2_EXT_HDMI_HDCP23		(0x1 << 2) // 0x0000000000000004
-// HDCP2.3(HDCP2.2) Key is OTP on Soc. So,
-//No need to download HDCP2.3(HDCP2.2) Key to secure storage.
-#define V4L2_EXT_HDMI_HDCP23_KEY_OTP (0x1 << 3) // 0x0000000000000008
-// The HDMI device supports HDMI1.4 Specification
-#define V4L2_EXT_HDMI_HDMI14		(0x1 << 12) // 0x0000000000001000
-// The HDMI device supports HDMI2.0 Specification
-#define V4L2_EXT_HDMI_HDMI20		(0x1 << 13) // 0x0000000000002000
-// The HDMI device supports HDMI2.1 Specification.
-// Set this flag even if the device supports one feature in the HDMI2.1 specification.
-#define V4L2_EXT_HDMI_HDMI21		(0x1 << 14) // 0x0000000000004000
-// The HDMI device supports TMDS 3.4Gbps per Channel
-#define V4L2_EXT_HDMI_TMDS_3G		(0x1 << 20) // 0x0000000000100000
-// The HDMI device supports TMDS 6.0Gbps per Channel
-#define V4L2_EXT_HDMI_TMDS_6G		(0x1 << 21) // 0x0000000000200000
-// The HDMI device supports FRL 3Gbps per Lane on 3 Lanes(0,1, and 2)
-#define V4L2_EXT_HDMI_FRL_3L_3G		(0x1 << 22) // 0x0000000000400000
-// The HDMI device supports FRL 6Gbps per Lane on 3 Lanes(0,1, and 2)
-#define V4L2_EXT_HDMI_FRL_3L_6G		(0x1 << 23) // 0x0000000000800000
-// The HDMI device supports FRL 6Gbps per Lane on 4 Lanes(0,1, 2, and 3)
-#define V4L2_EXT_HDMI_FRL_4L_6G		(0x1 << 24) // 0x0000000001000000
-// The HDMI device supports FRL 8Gbps per Lane on 4 Lanes(0,1, 2, and 3)
-#define V4L2_EXT_HDMI_FRL_4L_8G		(0x1 << 25) // 0x0000000002000000
-// The HDMI device supports FRL 10Gbps per Lane on 4 Lanes(0,1, 2, and 3)
-#define V4L2_EXT_HDMI_FRL_4L_10G	(0x1 << 26) // 0x0000000004000000
-// The HDMI device supports FRL 12Gbps per Lane on 4 Lanes(0,1, 2, and 3)
-#define V4L2_EXT_HDMI_FRL_4L_12G	(0x1 << 27) // 0x0000000008000000
+/* HDMI Capabilities Flags */
+/* The HDMI device supports HDCP1.4 Key. So, need to write HDCP1.4 key to driver. */
+#define V4L2_EXT_HDMI_HDCP14			(0x1 << 0) /* 0x0000000000000001 */
+/* HDCP1.4 Key is OTP on Soc. So, No need to download HDCP1.4 Key to secure storage. */
+#define V4L2_EXT_HDMI_HDCP14_KEY_OTP	(0x1 << 1) /* 0x0000000000000002 */
+/* The HDMI device supports HDCP2.3 key. So, need to write HDCP2.3 key to driver. */
+/* HDCP2.2 key is include in HDCP2.3 key. */
+#define V4L2_EXT_HDMI_HDCP23		(0x1 << 2) /* 0x0000000000000004 */
+/* HDCP2.3(HDCP2.2) Key is OTP on Soc. So, */
+/*No need to download HDCP2.3(HDCP2.2) Key to secure storage. */
+#define V4L2_EXT_HDMI_HDCP23_KEY_OTP (0x1 << 3) /* 0x0000000000000008 */
+/* The HDMI device supports HDMI1.4 Specification */
+#define V4L2_EXT_HDMI_HDMI14		(0x1 << 12) /* 0x0000000000001000 */
+/* The HDMI device supports HDMI2.0 Specification */
+#define V4L2_EXT_HDMI_HDMI20		(0x1 << 13) /* 0x0000000000002000 */
+/* The HDMI device supports HDMI2.1 Specification. */
+/* Set this flag even if the device supports one feature in the HDMI2.1 specification. */
+#define V4L2_EXT_HDMI_HDMI21		(0x1 << 14) /* 0x0000000000004000 */
+/* The HDMI device supports TMDS 3.4Gbps per Channel */
+#define V4L2_EXT_HDMI_TMDS_3G		(0x1 << 20) /* 0x0000000000100000 */
+/* The HDMI device supports TMDS 6.0Gbps per Channel */
+#define V4L2_EXT_HDMI_TMDS_6G		(0x1 << 21) /* 0x0000000000200000 */
+/* The HDMI device supports FRL 3Gbps per Lane on 3 Lanes(0,1, and 2) */
+#define V4L2_EXT_HDMI_FRL_3L_3G		(0x1 << 22) /* 0x0000000000400000 */
+/* The HDMI device supports FRL 6Gbps per Lane on 3 Lanes(0,1, and 2) */
+#define V4L2_EXT_HDMI_FRL_3L_6G		(0x1 << 23) /* 0x0000000000800000 */
+/* The HDMI device supports FRL 6Gbps per Lane on 4 Lanes(0,1, 2, and 3) */
+#define V4L2_EXT_HDMI_FRL_4L_6G		(0x1 << 24) /* 0x0000000001000000 */
+/* The HDMI device supports FRL 8Gbps per Lane on 4 Lanes(0,1, 2, and 3) */
+#define V4L2_EXT_HDMI_FRL_4L_8G		(0x1 << 25) /* 0x0000000002000000 */
+/* The HDMI device supports FRL 10Gbps per Lane on 4 Lanes(0,1, 2, and 3) */
+#define V4L2_EXT_HDMI_FRL_4L_10G	(0x1 << 26) /* 0x0000000004000000 */
+/* The HDMI device supports FRL 12Gbps per Lane on 4 Lanes(0,1, 2, and 3) */
+#define V4L2_EXT_HDMI_FRL_4L_12G	(0x1 << 27) /* 0x0000000008000000 */
 
-// The HDMI device supports background timing detection.
-// It means that driver can get HDMI signal information(timing, SPD, AVI, etc...)
-// without watching HDMI port.
-// If the HDMI device supports background timing detection,
-// it also support fast switching between HDMI ports.
-#define V4L2_EXT_HDMI_BACKGROUND_TIMING_DETECT (0x1 << 28) // 0x0000000010000000
+/* The HDMI device supports background timing detection. */
+/* It means that driver can get HDMI signal information(timing, SPD, AVI, etc...) */
+/* without watching HDMI port. */
+/* If the HDMI device supports background timing detection, */
+/* it also support fast switching between HDMI ports. */
+#define V4L2_EXT_HDMI_BACKGROUND_TIMING_DETECT (0x1 << 28) /* 0x0000000010000000 */
 
-// The HDMI device supports FVA
-#define V4L2_EXT_HDMI_FVA (0x1 << 29) // 0x0000000020000000
-// The HDMI device supports VRR
-#define V4L2_EXT_HDMI_VRR (0x1 << 30) // 0x0000000040000000
-// The HDMI device supports CinemaVRR
-#define V4L2_EXT_HDMI_CINEMAVRR (0x1 << 31) // 0x0000000080000000
+/* The HDMI device supports FVA */
+#define V4L2_EXT_HDMI_FVA (0x1 << 29) /* 0x0000000020000000 */
+/* The HDMI device supports VRR */
+#define V4L2_EXT_HDMI_VRR (0x1 << 30) /* 0x0000000040000000 */
+/* The HDMI device supports CinemaVRR */
+#define V4L2_EXT_HDMI_CINEMAVRR (0x1 << 31) /* 0x0000000080000000 */
 
-// The HDMI device supports  Dolby vision
-#define V4L2_EXT_HDMI_DOLBY_VISION (0x1 << 32) // 0x0000000100000000
-// The HDMI device supports  Dolby vision low latency mode
-#define V4L2_EXT_HDMI_DOLBY_VISION_LL (0x1 << 33) // 0x0000000200000000
-// The HDMI device supports  Dolby vision on HDMI2.1
-#define V4L2_EXT_HDMI_DOLBY_VISION_HDMI21 (0x1 << 34) // 0x0000000400000000
-// The HDMI device supports 512bytes EDID
-#define V4L2_EXT_HDMI_512BYTE_EDID (0x1 << 35) // 0x0000000800000000
-// The HDMI device supports EMPACKET
-#define V4L2_EXT_HDMI_EMPACKET (0x1 << 36) // 0x0000001000000000
-// The HDMI device supports HDCP Repeater
-#define V4L2_EXT_HDMI_HDCP_REPEATER (0x1 << 37) // 0x0000002000000000
-// The HDMI device supports DSC
-#define V4L2_EXT_HDMI_DSC (0x1 << 38) // 0x0000004000000000
+/* The HDMI device supports  Dolby vision */
+#define V4L2_EXT_HDMI_DOLBY_VISION (0x1 << 32) /* 0x0000000100000000 */
+/* The HDMI device supports  Dolby vision low latency mode */
+#define V4L2_EXT_HDMI_DOLBY_VISION_LL (0x1 << 33) /* 0x0000000200000000 */
+/* The HDMI device supports  Dolby vision on HDMI2.1 */
+#define V4L2_EXT_HDMI_DOLBY_VISION_HDMI21 (0x1 << 34) /* 0x0000000400000000 */
+/* The HDMI device supports 512bytes EDID */
+#define V4L2_EXT_HDMI_512BYTE_EDID (0x1 << 35) /* 0x0000000800000000 */
+/* The HDMI device supports EMPACKET */
+#define V4L2_EXT_HDMI_EMPACKET (0x1 << 36) /* 0x0000001000000000 */
+/* The HDMI device supports HDCP Repeater */
+#define V4L2_EXT_HDMI_HDCP_REPEATER (0x1 << 37) /* 0x0000002000000000 */
+/* The HDMI device supports DSC */
+#define V4L2_EXT_HDMI_DSC (0x1 << 38) /* 0x0000004000000000 */
 
 struct v4l2_ext_hdmi_capability {
-	unsigned char chip[16];		  // chip name. for example "e60"
-	unsigned int version;			// linuxtv header version
-	unsigned long long capabilities; // HDMI Capabilities Flags
+	unsigned char chip[16];		  /* chip name. for example "e60" */
+	unsigned int version;			/* linuxtv header version */
+	unsigned long long capabilities; /* HDMI Capabilities Flags */
 	unsigned long long reserved[3];
 };
 
@@ -2193,7 +2193,7 @@ struct v4l2_ext_hdmi_scdc_status {
 	unsigned int ch2_ced;
 	unsigned int ch3_ced;
 	unsigned char rs_correction_valid;
-	unsigned int rs_correcton_count;
+	unsigned int rs_correction_count;
 };
 
 struct v4l2_ext_hdmi_diagnostics_status {
@@ -2415,45 +2415,45 @@ struct v4l2_ext_stream_info {
 /* VDEC class control values for V4L2_CID_EXT_VDEC_PICINFO_EVENT_DATA */
 
 struct v4l2_ext_picinfo_msg {
-	__u8 version; // picture info msg version
-	__u8 channel; // VDEC driver channel info
+	__u8 version; /* picture info msg version */
+	__u8 channel; /* VDEC driver channel info */
 
-	__u16 frame_rate;		// Frame rate numerator
-	__u16 aspect_ratio;	  // Aspect ratio
-	__u16 h_size;			// Luminance resolution h size
-	__u16 v_size;			// Luminance resolution v size
-	__u16 bitrate;		   // Input Bitrate
-	__u8 afd;				// Active_format
-	__u16 progressive_seq;   // GOP Scan type(Progressive/interlace)
-	__u16 progressive_frame; // Frame Scan type(Progressive/interlace)
-	__u16 active_x;		  // Active x stard point
-	__u16 active_y;		  // Active y stard point
-	__u16 active_w;		  // Active width
-	__u16 active_h;		  // Active height
-	__u16 display_h_size;	// Display H size
-	__u16 display_v_size;	// Display V size
-	__u8 aspect_ratio_idc;   // VUI info, aspect_ratio_idc
-	__u32 sar_width;		 // VUI info, sar_width
-	__u32 sar_height;		// VUI info, sar_height
+	__u16 frame_rate;		/* Frame rate numerator */
+	__u16 aspect_ratio;	  /* Aspect ratio */
+	__u16 h_size;			/* Luminance resolution h size */
+	__u16 v_size;			/* Luminance resolution v size */
+	__u16 bitrate;		   /* Input Bitrate */
+	__u8 afd;				/* Active_format */
+	__u16 progressive_seq;   /* GOP Scan type(Progressive/interlace) */
+	__u16 progressive_frame; /* Frame Scan type(Progressive/interlace) */
+	__u16 active_x;		  /* Active x stard point */
+	__u16 active_y;		  /* Active y stard point */
+	__u16 active_w;		  /* Active width */
+	__u16 active_h;		  /* Active height */
+	__u16 display_h_size;	/* Display H size */
+	__u16 display_v_size;	/* Display V size */
+	__u8 aspect_ratio_idc;   /* VUI info, aspect_ratio_idc */
+	__u32 sar_width;		 /* VUI info, sar_width */
+	__u32 sar_height;		/* VUI info, sar_height */
 
-	__u8 three_d_info; // 3D info
+	__u8 three_d_info; /* 3D info */
 
-	__u32 colour_primaries;	  // VUI info, colour_primaries
-	__u32 transfer_characteristics; // VUI info, transfer_characteristics
-	__u32 matrix_coeffs;		 // VUI info, matrix_coefficients
-	__u32 display_primaries_x0;  // SEI info, display_primaries_x0
-	__u32 display_primaries_y0;  // SEI info, display_primaries_y0
-	__u32 display_primaries_x1;  // SEI info, display_primaries_x1
-	__u32 display_primaries_y1;  // SEI info, display_primaries_y1
-	__u32 display_primaries_x2;  // SEI info, display_primaries_x2
-	__u32 display_primaries_y2;  // SEI info, display_primaries_y2
-	__u32 white_point_x;		 // SEI info, white_point_x
-	__u32 white_point_y;		 // SEI info, white_point_y
-	__u32 max_display_mastering_luminance; // SEI info, max_display_mastering_luminance
-	__u32 min_display_mastering_luminance; // SEI info, min_display_mastering_luminance
-	__u8 overscan_appropriate;		   // VUI info, overscan_appropriate_flag
-	__u32 video_full_range_flag;		 // VUI info, video_full_range_flag
-	__u32 hdr_transfer_characteristic_idc; // SEI info, preferred_transfer_characteristics
+	__u32 colour_primaries;	  /* VUI info, colour_primaries */
+	__u32 transfer_characteristics; /* VUI info, transfer_characteristics */
+	__u32 matrix_coeffs;		 /* VUI info, matrix_coefficients */
+	__u32 display_primaries_x0;  /* SEI info, display_primaries_x0 */
+	__u32 display_primaries_y0;  /* SEI info, display_primaries_y0 */
+	__u32 display_primaries_x1;  /* SEI info, display_primaries_x1 */
+	__u32 display_primaries_y1;  /* SEI info, display_primaries_y1 */
+	__u32 display_primaries_x2;  /* SEI info, display_primaries_x2 */
+	__u32 display_primaries_y2;  /* SEI info, display_primaries_y2 */
+	__u32 white_point_x;		 /* SEI info, white_point_x */
+	__u32 white_point_y;		 /* SEI info, white_point_y */
+	__u32 max_display_mastering_luminance; /* SEI info, max_display_mastering_luminance */
+	__u32 min_display_mastering_luminance; /* SEI info, min_display_mastering_luminance */
+	__u8 overscan_appropriate;		   /* VUI info, overscan_appropriate_flag */
+	__u32 video_full_range_flag;		 /* VUI info, video_full_range_flag */
+	__u32 hdr_transfer_characteristic_idc; /* SEI info, preferred_transfer_characteristics */
 };
 
 /* VDEC class control values for V4L2_CID_EXT_VDEC_PICINFO_EVENT_DATA_EXT */
@@ -2532,9 +2532,9 @@ enum v4l2_ext_capture_video_frame_buffer_pixel_format {
 
 enum v4l2_ext_capture_video_frame_buffer_plane_num {
 	V4L2_EXT_CAPTURE_VIDEO_FRAME_BUFFER_PLANE_INTERLEAVED =
-		1, // INTERLEAVED has one plane.
-	V4L2_EXT_CAPTURE_VIDEO_FRAME_BUFFER_PLANE_SEMI_PLANAR, // SEMI PLANAR has two plane.
-	V4L2_EXT_CAPTURE_VIDEO_FRAME_BUFFER_PLANE_PLANAR // PLANAR has three plane.
+		1, /* INTERLEAVED has one plane. */
+	V4L2_EXT_CAPTURE_VIDEO_FRAME_BUFFER_PLANE_SEMI_PLANAR, /* SEMI PLANAR has two plane. */
+	V4L2_EXT_CAPTURE_VIDEO_FRAME_BUFFER_PLANE_PLANAR /* PLANAR has three plane. */
 };
 
 struct v4l2_ext_capture_capability_info {
@@ -2575,17 +2575,17 @@ struct v4l2_ext_capture_video_win_info {
 	struct v4l2_ext_video_rect panel;
 };
 
-//V4L2_EXT_CAPTURE_SCALER_INPUT = 0,
-//AML:TVIN_PORT_VIU1_WB0_VD1
-//V4L2_EXT_CAPTURE_SCALER_OUTPUT,
-//AML:no match point,force to TVIN_PORT_VIU1_WB0_VD1
-//V4L2_EXT_CAPTURE_DISPLAY_OUTPUT,
-//AML:TVIN_PORT_VIU1_WB0_VPP
-//V4L2_EXT_CAPTURE_BLENDED_OUTPUT,
-//AML:TVIN_PORT_VIU1_WB0_OSD1or2
-//V4L2_EXT_CAPTURE_OSD_OUTPUT
+/* V4L2_EXT_CAPTURE_SCALER_INPUT = 0, */
+/* AML:TVIN_PORT_VIU1_WB0_VD1 */
+/* V4L2_EXT_CAPTURE_SCALER_OUTPUT, */
+/* AML:no match point,force to TVIN_PORT_VIU1_WB0_VD1 */
+/* V4L2_EXT_CAPTURE_DISPLAY_OUTPUT, */
+/* AML:TVIN_PORT_VIU1_WB0_VPP */
+/* V4L2_EXT_CAPTURE_BLENDED_OUTPUT, */
+/* AML:TVIN_PORT_VIU1_WB0_OSD1or2 */
+/* V4L2_EXT_CAPTURE_OSD_OUTPUT */
 enum v4l2_ext_capture_location {
-	V4L2_EXT_CAPTURE_SCALER_INPUT = 0, // for VTV - before de-interlace
+	V4L2_EXT_CAPTURE_SCALER_INPUT = 0, /* for VTV - before de-interlace */
 	V4L2_EXT_CAPTURE_SCALER_OUTPUT,
 	V4L2_EXT_CAPTURE_DISPLAY_OUTPUT,
 	V4L2_EXT_CAPTURE_BLENDED_OUTPUT,
@@ -2624,17 +2624,17 @@ struct v4l2_ext_capture_physical_memory_info {
 	enum v4l2_ext_capture_buf_location buf_location;
 };
 
-/*eARC*/
+/* eARC*/
 /* Number of eARC capability bytes*/
 #define V4L2_EXT_EARC_CAPABILITY_BYTES 256
 
-/*eARC ERX_LATENCY_REQ Type*/
+/* eARC ERX_LATENCY_REQ Type*/
 #define V4L2_EXT_EARC_ERX_LATENCY_REQ_MINIMIZE	\
-	0 // 0: request to minimize eARC RX latency
+	0 /* 0: request to minimize eARC RX latency */
 #define V4L2_EXT_EARC_ERX_LATENCY_REQ_NON_SYNC	\
-	254 // 254: No synchronization required
+	254 /* 254: No synchronization required */
 #define V4L2_EXT_EARC_ERX_LATENCY_REQ_UNKNOWN	\
-	255 // 255: unknown eARC TX latency
+	255 /* 255: unknown eARC TX latency */
 
 enum v4l2_ext_earc_output_port {
 	V4L2_EXT_EARC_OUTPUT_PORT_NONE = 0,
@@ -2666,10 +2666,10 @@ enum v4l2_ext_earc_status {
 struct v4l2_ext_earc_connection_info {
 	enum v4l2_ext_earc_output_port port;
 	enum v4l2_ext_earc_status status;
-	unsigned char capability[V4L2_EXT_EARC_CAPABILITY_BYTES];	// Short Audio
-	// Description Max
-	// 256 byte
-	unsigned char erx_latency_req;	// 0~255
-	unsigned char erx_latency;	// 0~255
+	unsigned char capability[V4L2_EXT_EARC_CAPABILITY_BYTES];	/* Short Audio */
+	/* Description Max */
+	/* 256 byte */
+	unsigned char erx_latency_req;	/* 0~255 */
+	unsigned char erx_latency;	/* 0~255 */
 };
 #endif

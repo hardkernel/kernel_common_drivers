@@ -35,9 +35,9 @@
 /* v4l2 header */
 #include <media/v4l2-common.h>
 #include <linux/videodev2.h>
-#include <linux/amlogic/media/v4l2-ext/videodev2-ext.h>
-#include <linux/amlogic/media/v4l2-ext/v4l2-controls-ext.h>
-#include <linux/amlogic/media/linuxtv-ext-ver.h>
+#include <uapi/amlogic/v4l2-ext/videodev2-ext.h>
+#include <uapi/amlogic/v4l2-ext/v4l2-controls-ext.h>
+#include <uapi/amlogic/linuxtv-ext-ver.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-dev.h>
