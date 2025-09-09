@@ -146,14 +146,21 @@ static inline void kp_info_show(const char *fname, struct file *file, u32 fd)
 static struct codec_mm_track_s *get_track_ctx(void)
 {
 	static struct codec_mm_track_s trk;
+
+	return &trk;
+}
+
+static struct codec_mm_track_s *get_track_ctx_with_init(void)
+{
 	static bool inited;
 	int ret;
+	struct codec_mm_track_s *trk = get_track_ctx();
 
 	if (!inited) {
-		spin_lock_init(&trk.trk_slock);
-		hash_init(trk.sample_table);
+		spin_lock_init(&trk->trk_slock);
+		hash_init(trk->sample_table);
 
-		ret = trace_pool_init(&trk.pool);
+		ret = trace_pool_init(&trk->pool);
 		if (ret < 0) {
 			pr_err("%s trace pool init fail.\n", __func__);
 			goto err;
@@ -162,10 +169,10 @@ static struct codec_mm_track_s *get_track_ctx(void)
 		inited = true;
 	}
 
-	return &trk;
+	return trk;
 err:
 	return NULL;
-};
+}
 
 static int trace_elems_alloc(struct trace_pool *pool)
 {
@@ -327,7 +334,7 @@ static bool find_match_file(struct task_struct *tsk,
 			   struct file *file,
 			   struct seq_file *m)
 {
-	struct codec_mm_track_s *trk = get_track_ctx();
+	struct codec_mm_track_s *trk = get_track_ctx_with_init();
 	struct trace_elem elem;
 	struct file *f;
 	u32 fd = 0;
@@ -871,7 +878,7 @@ void codec_mm_dbuf_dump_help(void)
 
 int codec_mm_sampling_open(void)
 {
-	struct codec_mm_track_s *trk = get_track_ctx();
+	struct codec_mm_track_s *trk = get_track_ctx_with_init();
 	int ret;
 
 	if (!trk)
@@ -905,7 +912,7 @@ err0:
 
 void codec_mm_sampling_close(void)
 {
-	struct codec_mm_track_s *trk = get_track_ctx();
+	struct codec_mm_track_s *trk = get_track_ctx_with_init();
 
 	if (!trk || !trk->kps_h)
 		return;
@@ -923,7 +930,7 @@ static int find_dma_buf_in_tsk(struct task_struct *tsk,
 			   struct seq_file *m,
 			   struct dma_buf_record_node *dma_buf_list)
 {
-	struct codec_mm_track_s *trk = get_track_ctx();
+	struct codec_mm_track_s *trk = get_track_ctx_with_init();
 	struct dma_buf *dmabuf;
 	struct dma_buf_record_node *entry;
 	struct file *f;
