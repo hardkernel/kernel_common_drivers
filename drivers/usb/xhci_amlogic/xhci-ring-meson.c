@@ -2466,6 +2466,36 @@ static int process_isoc_td(struct aml_xhci_hcd *xhci, struct aml_xhci_virt_ep *e
 	short_framestatus = td->urb->transfer_flags & URB_SHORT_NOT_OK ?
 		-EREMOTEIO : 0;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	/* The xfer length in event data completion event
+	 * is not remaining bytes.
+	 */
+	if (xhci->meson_quirks & XHCI_CRG_HOST_008 &&
+		le32_to_cpu(event->flags) & EVENT_DATA &&
+		trb_comp_code != COMP_STOPPED_SHORT_PACKET) {
+		union aml_xhci_trb *trb = ep_trb;
+		struct aml_xhci_segment *seg = ep->ring->deq_seg;
+		dma_addr_t event_data_trb_addr;
+		dma_addr_t last_trb_addr;
+
+		do {
+			next_trb(xhci, ep->ring, &seg, &trb);
+		} while (trb_is_link(trb));
+
+		if (trb != td->last_trb) {
+			event_data_trb_addr =
+				aml_xhci_trb_virt_to_dma(seg, trb);
+			last_trb_addr =
+				aml_xhci_trb_virt_to_dma(td->last_trb_seg, td->last_trb);
+			aml_xhci_warn(xhci, "ep%d event data trb not end isoc TD\n"
+						"event data trb %pad td end %pad\n",
+				ep->ep_index, &event_data_trb_addr, &last_trb_addr);
+		}
+
+		remaining = sum_trb_lengths(xhci, ep->ring, ep_trb) +
+			ep_trb_len - remaining;
+	}
+#endif
 	/* handle completion code */
 	switch (trb_comp_code) {
 	case COMP_SUCCESS:
