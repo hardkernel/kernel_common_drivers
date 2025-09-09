@@ -437,6 +437,7 @@ void gdc_finish_item(struct gdc_queue_item_s *pitem)
 	u32 block_mode = pitem->cmd.wait_done_flag;
 	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
 	struct gdc_context_s *current_wq = pitem->context;
+	bool do_complete = false;
 
 	pitem->start_process = 0;
 	if (!current_wq) {
@@ -465,10 +466,12 @@ void gdc_finish_item(struct gdc_queue_item_s *pitem)
 	mutex_lock(&current_wq->destroy_lock);
 	if (current_wq && list_empty(&current_wq->work_queue)) {
 		if (current_wq->gdc_request_exit)
-			complete(&current_wq->process_complete);
+			do_complete = true;
 		current_wq->wq_state = GDC_STATE_IDLE;
 	}
 	mutex_unlock(&current_wq->destroy_lock);
+	if (do_complete)
+		complete(&current_wq->process_complete);
 }
 
 u32 gdc_time_cost(struct gdc_queue_item_s *pitem)
