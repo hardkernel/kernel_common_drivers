@@ -181,7 +181,7 @@ int lcd_mode_vout_set_state(int index, void *data)
 
 	mutex_lock(&lcd_vout_mutex);
 	pdrv->vout_state |= (1 << index);
-	LCD_PR(pdrv, "%s: viu:[%d -> %d]", __func__, pdrv->viu_sel, index);
+	LCD_DBG(pdrv, "%s: viu:[%d -> %d]", __func__, pdrv->viu_sel, index);
 	pdrv->viu_sel = index;
 	mutex_unlock(&lcd_vout_mutex);
 
@@ -228,6 +228,90 @@ int lcd_vmode_remove_all(struct aml_lcd_drv_s *pdrv)
 	pdrv->vmode_mgr.cur_vmode_info = NULL;
 	pdrv->vmode_mgr.next_vmode_info = NULL;
 	pdrv->vmode_mgr.vmode_cnt = 0;
+
+	return 0;
+}
+
+int lcd_mode_timing_switch_update(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_detail_timing_s *ptiming;
+	unsigned int pre_pclk;
+	unsigned char switch_type, switch_type_pre;
+
+	if (!pdrv->curr_dev || !pdrv->curr_dev->dev_cfg.timing.base_timing)
+		return -1;
+	switch_type_pre = pdrv->curr_dev->dev_cfg.timing.act_timing.switch_type;
+	/* clear clk_change flag */
+	pdrv->curr_dev->dev_cfg.timing.clk_change &= ~(LCD_CLK_PLL_RESET);
+	if (pdrv->vmode_mgr.next_vmode_info) {
+		pre_pclk = pdrv->curr_dev->dev_cfg.timing.base_timing->pixel_clk;
+		pdrv->vmode_mgr.cur_vmode_info = pdrv->vmode_mgr.next_vmode_info;
+		pdrv->vmode_mgr.next_vmode_info = NULL;
+
+		pdrv->std_duration = pdrv->vmode_mgr.cur_vmode_info->duration;
+		ptiming = pdrv->vmode_mgr.cur_vmode_info->dft_timing;
+		pdrv->curr_dev->dev_cfg.timing.base_timing = ptiming;
+
+		lcd_base_to_act_timing_init_config(pdrv);
+		if (pdrv->curr_dev->dev_cfg.timing.base_timing->pixel_clk != pre_pclk) {
+			pdrv->curr_dev->dev_cfg.timing.clk_change |=
+				(LCD_CLK_PLL_RESET | LCD_CLK_PLL_CHANGE);
+			lcd_clk_generate_parameter(pdrv);
+		}
+		pdrv->vmode_switch = 1;
+	}
+
+	switch_type = pdrv->curr_dev->dev_cfg.timing.act_timing.switch_type;
+	switch (switch_type_pre) {
+	case LCD_VMODE_SWITCH_FULL:
+		pdrv->curr_dev->dev_cfg.timing.switch_type = switch_type_pre;
+		break;
+	case LCD_VMODE_SWITCH_LIMIT:
+		if (switch_type == LCD_VMODE_SWITCH_FULL)
+			pdrv->curr_dev->dev_cfg.timing.switch_type = LCD_VMODE_SWITCH_FULL;
+		else
+			pdrv->curr_dev->dev_cfg.timing.switch_type = switch_type_pre;
+		break;
+	case LCD_VMODE_SWITCH_MIN:
+	case LCD_VMODE_SWITCH_MIN_WO_TCON_RST:
+		if (switch_type == LCD_VMODE_SWITCH_FULL)
+			pdrv->curr_dev->dev_cfg.timing.switch_type = LCD_VMODE_SWITCH_FULL;
+		else if (switch_type == LCD_VMODE_SWITCH_LIMIT)
+			pdrv->curr_dev->dev_cfg.timing.switch_type = LCD_VMODE_SWITCH_LIMIT;
+		else
+			pdrv->curr_dev->dev_cfg.timing.switch_type = switch_type_pre;
+		break;
+	default:
+		pdrv->curr_dev->dev_cfg.timing.switch_type = switch_type;
+		break;
+	}
+	LCD_DBG(pdrv, "%s: switch_type: pre: %d, cur: %d, final: %d, lcd_status: 0x%x",
+		__func__, switch_type_pre, switch_type,
+		pdrv->curr_dev->dev_cfg.timing.switch_type, pdrv->status);
+
+	if (pdrv->curr_dev->dev_cfg.timing.switch_type_dbg) {
+		pdrv->curr_dev->dev_cfg.timing.switch_type =
+			pdrv->curr_dev->dev_cfg.timing.switch_type_dbg;
+		LCD_PR(pdrv, "%s: switch_type: force dbg to final: %d",
+			__func__, pdrv->curr_dev->dev_cfg.timing.switch_type);
+	}
+
+	switch (pdrv->curr_dev->dev_cfg.timing.switch_type) {
+	case LCD_VMODE_SWITCH_MIN:
+	case LCD_VMODE_SWITCH_MIN_WO_TCON_RST:
+		pdrv->switch_off_event = LCD_EVENT_MDSW_MIN_OFF;
+		pdrv->switch_on_event = LCD_EVENT_MDSW_MIN_ON;
+		break;
+	case LCD_VMODE_SWITCH_LIMIT:
+		pdrv->switch_off_event = LCD_EVENT_MDSW_LIMIT_OFF;
+		pdrv->switch_on_event = LCD_EVENT_MDSW_LIMIT_ON;
+		break;
+	case LCD_VMODE_SWITCH_FULL:
+	default:
+		pdrv->switch_off_event = LCD_EVENT_POWER_OFF;
+		pdrv->switch_on_event = LCD_EVENT_POWER_ON;
+		break;
+	}
 
 	return 0;
 }

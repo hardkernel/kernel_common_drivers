@@ -174,6 +174,44 @@ static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 	return 0;
 }
 
+static void lcd_venc_bist_change(struct aml_lcd_drv_s *pdrv, unsigned int level_r,
+				 unsigned int level_g, unsigned int level_b)
+{
+	struct lcd_enc_test_t *pcur_test = lcd_enc_tst;
+	unsigned int bist_num, data;
+
+	if (level_r > 0x3ff) {
+		bist_num = 0;
+		data = 0;
+	} else {
+		bist_num = 8;
+		data = ((level_r & 0x3ff) << 20) | ((level_g & 0x3ff) << 10) |
+			((level_b & 0x3ff) << 0);
+	}
+
+	lcd_vcbus_write(ENCL_TST_DATA_T6X, data);
+	lcd_vcbus_setb(ENCL_TST_EN_T6X, pcur_test[bist_num].mode, 0, 8);
+	lcd_vcbus_setb(ENCL_TST_EN_T6X, pcur_test[bist_num].en, 8, 1);
+	lcd_vcbus_setb(ENCL_VIDEO_MODE_T6X, pcur_test[bist_num].rgb_in, 16, 1);
+	lcd_vcbus_setb(ENCL_VIDEO_VSRC_CTRL_T6X, pcur_test[bist_num].vfifo_en, 4, 1);
+}
+
+/*
+ *static void lcd_venc_mute_set(struct aml_lcd_drv_s *pdrv, unsigned char flag)
+ *{
+ *	if (flag) {
+ *		lcd_vcbus_write(ENCL_TST_DATA_T6X, 0);
+ *		lcd_vcbus_setb(ENCL_TST_EN_T6X, 0, 0, 8);
+ *		lcd_vcbus_setb(ENCL_TST_EN_T6X, 1, 8, 1);
+ *		lcd_vcbus_setb(ENCL_VIDEO_MODE_T6X, 1, 16, 1);
+ *		lcd_vcbus_setb(ENCL_VIDEO_VSRC_CTRL_T6X, 0, 4, 1);
+ *	} else {
+ *		lcd_vcbus_setb(ENCL_VIDEO_VSRC_CTRL_T6X, 1, 4, 1);
+ *		lcd_vcbus_setb(ENCL_TST_EN_T6X, 0, 8, 1);
+ *	}
+ *}
+ */
+
 static void lcd_venc_gamma_init(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int data[2];
@@ -654,6 +692,8 @@ int lcd_venc_op_init_t6x(struct lcd_data_s *pdata, struct lcd_venc_op_s *venc_op
 	venc_op->venc_set_htotal = lcd_venc_set_htotal;
 	venc_op->venc_set_vtotal = lcd_venc_set_vtotal;
 	venc_op->venc_reg_dump = lcd_venc_reg_dump;
+	venc_op->venc_bist_change = lcd_venc_bist_change;
+	//venc_op->mute_set = lcd_venc_mute_set;
 
 	return 0;
 };

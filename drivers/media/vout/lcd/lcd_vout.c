@@ -958,16 +958,21 @@ void lcd_power_if_early_on(struct aml_lcd_drv_s *pdrv)
 		return;
 	LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
+	pdrv->status |= LCD_STATE_BL_PRE_ON;
 	if ((pdrv->resume_type & (1 << 0))) {
-		pdrv->status |= LCD_STATE_BL_PRE_ON;
 		lcd_queue_work(&pdrv->late_resume_work);
 	} else {
-		LCDPR("[%d]: directly if_early_on, status=0x%x\n", pdrv->index, pdrv->status);
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON | LCD_EVENT_ENCL_ACTIVE,
-				(void *)pdrv);
-		lcd_if_enable_retry(pdrv);
-		pdrv->status |= (LCD_STATE_POWER | LCD_STATE_BL_PRE_ON);
-		pdrv->status &= ~LCD_STATE_DUMMY;
+		LCD_PR(pdrv, "directly if_early_on, status=0x%x\n", pdrv->status);
+		/*if resource is not ready, call lcd_queue_work instead*/
+		if (lcd_resource_is_ready(pdrv)) {
+			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON | LCD_EVENT_ENCL_ACTIVE,
+					(void *)pdrv);
+			lcd_if_enable_retry(pdrv);
+			pdrv->status |= LCD_STATE_POWER;
+			pdrv->status &= ~LCD_STATE_DUMMY;
+		} else {
+			lcd_queue_work(&pdrv->late_resume_work);
+		}
 	}
 }
 
@@ -981,9 +986,9 @@ void lcd_power_screen_black(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	local_time[0] = sched_clock();
-	lcd_screen_black(pdrv);
 	reinit_completion(&pdrv->vsync_done);
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
+	pdrv->mute_flag = 1;
 	if (pdrv->mute_cnt_test)
 		pdrv->mute_wait_cnt = pdrv->mute_cnt_test;
 	else
@@ -1029,8 +1034,9 @@ void lcd_power_screen_restore(struct aml_lcd_drv_s *pdrv)
 	ret = wait_for_completion_timeout(&pdrv->vsync_done, msecs_to_jiffies(5000));
 	if (!ret)
 		LCD_ERR(pdrv, "%s: wait_completion timeout", __func__);
-
-	lcd_screen_restore(pdrv);
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
+	pdrv->mute_flag = 0;
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 	local_time[1] = sched_clock();
 	pdrv->proc_time.unmute_time = local_time[1] - local_time[0];
 }
@@ -1072,6 +1078,10 @@ static void lcd_mode_switch_on_work(struct work_struct *work)
 		mutex_unlock(&lcd_power_mutex);
 	}
 
+	mutex_lock(&lcd_vout_mutex);
+	pdrv->vmode_switch = 0;
+	mutex_unlock(&lcd_vout_mutex);
+
 	local_time[1] = sched_clock();
 	pdrv->proc_time.switch_on_time = local_time[1] - local_time[0];
 	pdrv->proc_time.switch_full_time = local_time[1] - pdrv->proc_time.switch_start_time;
@@ -1080,8 +1090,15 @@ static void lcd_mode_switch_on_work(struct work_struct *work)
 static void lcd_lata_resume_work(struct work_struct *work)
 {
 	struct aml_lcd_drv_s *pdrv;
+	int res_ready;
 
 	pdrv = container_of(work, struct aml_lcd_drv_s, late_resume_work);
+	res_ready = lcd_resource_is_ready(pdrv);
+	if (res_ready == 0) {
+		LCD_DBG_ADV2(pdrv, "%s: lcd resource is not ready\n", __func__);
+		lcd_queue_work(&pdrv->late_resume_work);
+		return;
+	}
 
 	mutex_lock(&lcd_power_mutex);
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON | LCD_EVENT_ENCL_ACTIVE, (void *)pdrv);
@@ -1230,9 +1247,11 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 		lcd_mute_set(pdrv, pdrv->mute_state);
 	}
 
-	if (pdrv->test_flag != pdrv->test_state) {
-		pdrv->test_state = pdrv->test_flag;
-		lcd_debug_test(pdrv, pdrv->test_state);
+	if (pdrv->vmode_switch == 0) {
+		if (pdrv->test_flag != pdrv->test_state) {
+			pdrv->test_state = pdrv->test_flag;
+			lcd_debug_test(pdrv, pdrv->test_state);
+		}
 	}
 
 	if (pdrv->vs_msr && pdrv->vs_msr_rt && pdrv->vs_msr_en) {
@@ -1786,6 +1805,7 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct aml_lcd_panel_info_s panel_info;
 	unsigned int temp, i = 0, lane_num;
 	int ret = 0;
+	unsigned long flags;
 
 	if (!pdrv || !pdrv->curr_dev)
 		return -EFAULT;
@@ -1872,10 +1892,12 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
+		spin_lock_irqsave(&pdrv->isr_lock, flags);
 		if (temp)
-			lcd_screen_black(pdrv);
+			pdrv->mute_flag = 1;
 		else
-			lcd_screen_restore(pdrv);
+			pdrv->mute_flag = 0;
+		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 		break;
 	case LCD_IOC_GET_PHY_PARAM:
 		phy_cfg = &pconf->phy_cfg;
@@ -2351,11 +2373,16 @@ __maybe_unused static void lcd_vout_server_remove(struct aml_lcd_drv_s *pdrv)
 static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int init_state;
+	unsigned long flags;
 
 	init_state = lcd_get_venc_init_config(pdrv);
 
 	pdrv->init_flag = 0;
-	pdrv->mute_flag = 0;
+	if (pdrv->boot_ctrl->mute_flag) {
+		spin_lock_irqsave(&pdrv->isr_lock, flags);
+		pdrv->mute_flag = 1;
+		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+	}
 	pdrv->mute_state = 0;
 	pdrv->mute_switch = 0;
 	pdrv->mute_wait_cnt = 0;

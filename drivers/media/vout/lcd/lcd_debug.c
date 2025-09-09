@@ -2448,6 +2448,7 @@ static ssize_t lcd_debug_mute_store(struct device *dev, struct device_attribute 
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	unsigned int temp = 0;
 	int ret = 0;
+	unsigned long flags;
 
 	ret = kstrtouint(buf, 10, &temp);
 	if (ret) {
@@ -2456,10 +2457,12 @@ static ssize_t lcd_debug_mute_store(struct device *dev, struct device_attribute 
 	}
 
 	temp = temp ? 1 : 0;
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
 	if (temp)
-		lcd_screen_black(pdrv);
+		pdrv->mute_flag = 1;
 	else
-		lcd_screen_restore(pdrv);
+		pdrv->mute_flag = 0;
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 
 	return count;
 }
@@ -2970,7 +2973,7 @@ static ssize_t lcd_debug_unmute_cnt_store(struct device *dev, struct device_attr
 		if (ret)
 			goto lcd_debug_unmute_cnt_store_err;
 		pdrv->unmute_cnt_test = (unsigned short)temp;
-		LCDPR("set unmute_cnt_test: 0x%x\n", pdrv->unmute_cnt_test);
+		LCDPR("set unmute_cnt_test: %d\n", pdrv->unmute_cnt_test);
 		break;
 	}
 

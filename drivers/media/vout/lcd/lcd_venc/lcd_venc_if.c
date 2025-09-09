@@ -106,42 +106,6 @@ void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
 		LCDPR("[%d]: disable test pattern\n", pdrv->index);
 }
 
-void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
-{
-	unsigned long flags = 0;
-
-	if (lcd_venc_op.mute_set) {
-		spin_lock_irqsave(&pdrv->isr_lock, flags);
-		pdrv->mute_flag = 0;
-		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
-		LCD_PR(pdrv, "%s", __func__);
-	} else if (pdrv->viu_sel == 1) {
-#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
-		set_output_mute(false);
-		pdrv->mute_flag = 0;
-		LCD_PR(pdrv, "%s", __func__);
-#endif
-	}
-}
-
-void lcd_screen_black(struct aml_lcd_drv_s *pdrv)
-{
-	unsigned long flags = 0;
-
-	if (lcd_venc_op.mute_set) {
-		spin_lock_irqsave(&pdrv->isr_lock, flags);
-		pdrv->mute_flag = 1;
-		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
-	} else if (pdrv->viu_sel == 1) {
-#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
-		set_output_mute(true);
-		pdrv->mute_flag = 1;
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
-#endif
-	}
-}
-
 //vsync isr stage
 void lcd_bist_change(struct aml_lcd_drv_s *pdrv, unsigned int level_r,
 		     unsigned int level_g, unsigned int level_b)
@@ -154,11 +118,45 @@ void lcd_bist_change(struct aml_lcd_drv_s *pdrv, unsigned int level_r,
 
 void lcd_mute_set(struct aml_lcd_drv_s *pdrv,  unsigned char flag)
 {
-	if (!lcd_venc_op.mute_set)
-		return;
-
-	lcd_venc_op.mute_set(pdrv, flag);
-	LCD_DBG(pdrv, "%s: %d", __func__, flag);
+	if (lcd_venc_op.mute_set) {
+		if (pdrv->vmode_switch) {
+			if (flag) {
+				pdrv->test_state = 0;
+				lcd_venc_op.mute_set(pdrv, flag);
+			} else {
+				if (pdrv->test_flag) {
+					pdrv->test_state = pdrv->test_flag;
+					lcd_debug_test(pdrv, pdrv->test_state);
+				} else {
+					lcd_venc_op.mute_set(pdrv, flag);
+				}
+			}
+		} else {
+			lcd_venc_op.mute_set(pdrv, flag);
+		}
+		LCD_PR(pdrv, "%s, venc mute %s\n", __func__, flag ? "ON" : "OFF");
+	} else if (pdrv->viu_sel == 1) {
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+		if (pdrv->vmode_switch) {
+			if (flag) {
+				set_output_mute(1);
+				if (pdrv->test_flag) {
+					pdrv->test_state = 0;
+					lcd_debug_test(pdrv, pdrv->test_state);
+				}
+			} else {
+				if (pdrv->test_flag) {
+					pdrv->test_state = pdrv->test_flag;
+					lcd_debug_test(pdrv, pdrv->test_state);
+				}
+				set_output_mute(flag);
+			}
+		} else {
+			set_output_mute(flag);
+		}
+		LCD_DBG(pdrv, "%s, vpp mute %s\n", __func__, flag ? "ON" : "OFF");
+#endif
+	}
 }
 
 int lcd_mute_state_get(struct aml_lcd_drv_s *pdrv)
@@ -252,7 +250,6 @@ int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv)
 	}
 
 	ret = lcd_venc_op.get_venc_init_config(pdrv);
-
 	if (ret & 0x2) {
 		LCD_DBG_ADV(pdrv, "%s: load boot_ctrl from regs:\n"
 			"\tlcd_type        : %d\n"

@@ -1793,7 +1793,7 @@ static int lcd_panel_parse_power(struct json_parse_s *jsp,
 			break;
 #endif
 		case LCD_POWER_TYPE_MUTE:
-			pdrv->unmute_cnt = step[i].value;
+			pdrv->unmute_cnt = step[i].delay;
 			break;
 		default:
 			break;
@@ -1860,7 +1860,7 @@ static int lcd_panel_parse_power(struct json_parse_s *jsp,
 			break;
 #endif
 		case LCD_POWER_TYPE_MUTE:
-			pdrv->mute_cnt = step[i].value;
+			pdrv->mute_cnt = step[i].delay;
 			break;
 		case LCD_POWER_TYPE_OFF_DELAY:
 			dev_p->dev_cfg.power.power_off_delay = step[i].delay;

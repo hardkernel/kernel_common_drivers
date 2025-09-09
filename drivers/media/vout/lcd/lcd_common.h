@@ -240,8 +240,6 @@ int lcd_mute_state_get(struct aml_lcd_drv_s *pdrv);
 int lcd_get_venc_state(struct aml_lcd_drv_s *pdrv);
 int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv);
 int lcd_venc_config_init(struct lcd_data_s *pdata);
-void lcd_screen_black(struct aml_lcd_drv_s *pdrv);
-void lcd_screen_restore(struct aml_lcd_drv_s *pdrv);
 void lcd_module_reset(struct aml_lcd_drv_s *pdrv);
 
 void lcd_venc_adj_htotal(struct aml_lcd_drv_s *pdrv, unsigned int htotal);
@@ -275,6 +273,7 @@ int lcd_mode_vout_set_state(int index, void *data);
 int lcd_mode_vout_clr_state(int index, void *data);
 int lcd_mode_vout_get_state(void *data);
 int lcd_vmode_remove_all(struct aml_lcd_drv_s *pdrv);
+int lcd_mode_timing_switch_update(struct aml_lcd_drv_s *pdrv);
 void lcd_mode_vmode_switch(struct aml_lcd_drv_s *pdrv);
 int lcd_mode_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv);
 

@@ -414,86 +414,11 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv)
 static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_detail_timing_s *ptiming;
-	unsigned int pre_pclk;
-	int dur_index;
-	unsigned char switch_type, switch_type_pre;
+	int dur_index, ret;
 
-	if (!pdrv->curr_dev || !pdrv->curr_dev->dev_cfg.timing.base_timing)
+	ret = lcd_mode_timing_switch_update(pdrv);
+	if (ret)
 		return;
-	switch_type_pre = pdrv->curr_dev->dev_cfg.timing.act_timing.switch_type;
-	/* clear clk_change flag */
-	pdrv->curr_dev->dev_cfg.timing.clk_change &= ~(LCD_CLK_PLL_RESET);
-	if (pdrv->vmode_mgr.next_vmode_info) {
-		pre_pclk = pdrv->curr_dev->dev_cfg.timing.base_timing->pixel_clk;
-		pdrv->vmode_mgr.cur_vmode_info = pdrv->vmode_mgr.next_vmode_info;
-		pdrv->vmode_mgr.next_vmode_info = NULL;
-
-		pdrv->std_duration = pdrv->vmode_mgr.cur_vmode_info->duration;
-		ptiming = pdrv->vmode_mgr.cur_vmode_info->dft_timing;
-		pdrv->curr_dev->dev_cfg.timing.base_timing = ptiming;
-
-		//update base_timing to act_timing
-		lcd_base_to_act_timing_init_config(pdrv);
-		if (pdrv->curr_dev->dev_cfg.timing.base_timing->pixel_clk != pre_pclk) {
-			pdrv->curr_dev->dev_cfg.timing.clk_change |=
-				(LCD_CLK_PLL_RESET | LCD_CLK_PLL_CHANGE);
-			lcd_clk_generate_parameter(pdrv);
-		}
-
-		pdrv->vmode_switch = 1; // more than (vfp, hfp, clk) changed
-	}
-
-	switch_type = pdrv->curr_dev->dev_cfg.timing.act_timing.switch_type;
-	switch (switch_type_pre) {
-	case LCD_VMODE_SWITCH_FULL:
-		pdrv->curr_dev->dev_cfg.timing.switch_type = LCD_VMODE_SWITCH_FULL;
-		break;
-	case LCD_VMODE_SWITCH_LIMIT:
-		if (switch_type == LCD_VMODE_SWITCH_FULL)
-			pdrv->curr_dev->dev_cfg.timing.switch_type = LCD_VMODE_SWITCH_FULL;
-		else
-			pdrv->curr_dev->dev_cfg.timing.switch_type = LCD_VMODE_SWITCH_LIMIT;
-		break;
-	case LCD_VMODE_SWITCH_MIN:
-	case LCD_VMODE_SWITCH_MIN_WO_TCON_RST:
-		if (switch_type == LCD_VMODE_SWITCH_FULL)
-			pdrv->curr_dev->dev_cfg.timing.switch_type = LCD_VMODE_SWITCH_FULL;
-		else if (switch_type == LCD_VMODE_SWITCH_LIMIT)
-			pdrv->curr_dev->dev_cfg.timing.switch_type = LCD_VMODE_SWITCH_LIMIT;
-		else
-			pdrv->curr_dev->dev_cfg.timing.switch_type = switch_type;
-		break;
-	default:
-		pdrv->curr_dev->dev_cfg.timing.switch_type = switch_type;
-		break;
-	}
-	LCD_DBG(pdrv, "%s: switch_type: pre: %d, cur: %d, final: %d, lcd_status: 0x%x",
-		__func__, switch_type_pre, switch_type,
-		pdrv->curr_dev->dev_cfg.timing.switch_type, pdrv->status);
-
-	if (pdrv->curr_dev->dev_cfg.timing.switch_type_dbg) {
-		pdrv->curr_dev->dev_cfg.timing.switch_type =
-			pdrv->curr_dev->dev_cfg.timing.switch_type_dbg;
-		LCD_PR(pdrv, "%s: force dbg to final: %d",
-		      __func__, pdrv->curr_dev->dev_cfg.timing.switch_type);
-	}
-
-	switch (pdrv->curr_dev->dev_cfg.timing.switch_type) {
-	case LCD_VMODE_SWITCH_MIN:
-	case LCD_VMODE_SWITCH_MIN_WO_TCON_RST:
-		pdrv->switch_off_event = LCD_EVENT_MDSW_MIN_OFF;
-		pdrv->switch_on_event = LCD_EVENT_MDSW_MIN_ON;
-		break;
-	case LCD_VMODE_SWITCH_LIMIT:
-		pdrv->switch_off_event = LCD_EVENT_MDSW_LIMIT_OFF;
-		pdrv->switch_on_event = LCD_EVENT_MDSW_LIMIT_ON;
-		break;
-	case LCD_VMODE_SWITCH_FULL:
-	default:
-		pdrv->switch_off_event = LCD_EVENT_POWER_OFF;
-		pdrv->switch_on_event = LCD_EVENT_POWER_ON;
-		break;
-	}
 
 	if (!pdrv->vmode_mgr.cur_vmode_info || !pdrv->std_duration) {
 		LCD_ERR(pdrv, "%s: cur_vmode_info or std_duration is null", __func__);
@@ -517,11 +442,8 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 	lcd_frame_rate_change(pdrv);
 
 	LCD_DBG(pdrv, "%s: %dx%dp%dhz, duration=%d:%d, dur_index=%d, clk_change=0x%x", __func__,
-		pdrv->curr_dev->dev_cfg.timing.act_timing.h_active,
-		pdrv->curr_dev->dev_cfg.timing.act_timing.v_active,
-		pdrv->curr_dev->dev_cfg.timing.act_timing.frame_rate,
-		pdrv->curr_dev->dev_cfg.timing.act_timing.sync_duration_num,
-		pdrv->curr_dev->dev_cfg.timing.act_timing.sync_duration_den,
+		ptiming->h_active, ptiming->v_active, ptiming->frame_rate,
+		ptiming->sync_duration_num, ptiming->sync_duration_den,
 		dur_index, pdrv->curr_dev->dev_cfg.timing.clk_change);
 }
 
@@ -584,7 +506,6 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	/* must update vrr dev after driver change for panel parameters update */
 	lcd_vrr_dev_update(pdrv);
 
-	pdrv->vmode_switch = 0;
 	pdrv->status |= LCD_STATE_VMODE_ACTIVE;
 
 	mutex_unlock(&lcd_power_mutex);
