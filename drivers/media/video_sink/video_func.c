@@ -305,6 +305,12 @@ static inline struct vframe_s *pip_vf_get(void)
 	vf = vf_get(RECEIVERPIP_NAME);
 
 	if (vf) {
+		if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+			pr_info("%s:vf=%p, vf->type=0x%x, vf->flag=0x%x,canvas adr:0x%lx, canvas0:%x, pnum:%d, afbc:0x%lx-0x%lx,\n",
+				__func__,
+				vf, vf->type, vf->flag,
+				vf->canvas0_config[0].phy_addr, vf->canvas0Addr, vf->plane_num,
+				vf->compHeadAddr, vf->compBodyAddr);
 		get_count_pip[path_index]++;
 		if (vf->type & VIDTYPE_V4L_EOS) {
 			vf_put(vf, RECEIVERPIP_NAME);
@@ -331,6 +337,12 @@ static inline int pip_vf_put(struct vframe_s *vf)
 	if (vfp && vf && atomic_dec_and_test(&vf->use_cnt_pip)) {
 		if (vf_put(vf, RECEIVERPIP_NAME) < 0)
 			return -EFAULT;
+		if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+			pr_info("%s:vf=%p, vf->type=0x%x, vf->flag=0x%x,canvas adr:0x%lx, canvas0:%x, pnum:%d, afbc:0x%lx-0x%lx,\n",
+				__func__,
+				vf, vf->type, vf->flag,
+				vf->canvas0_config[0].phy_addr, vf->canvas0Addr, vf->plane_num,
+				vf->compHeadAddr, vf->compBodyAddr);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if ((glayer_info[0].display_path_id
 			== VFM_PATH_PIP || is_multi_dv_mode()) &&
@@ -3000,13 +3012,32 @@ static void signal_present_fence(u32 layer_id)
 
 void put_buffer_proc(void)
 {
-	int i;
+	int i, layer_id, match = 0, vd_path_id = -1;
 
 	for (i = 0; i < 3; i++) {
 		signal_present_fence(i);
-		if (gvideo_recv[i])
+		vd_path_id = glayer_info[i].display_path_id;
+		if (gvideo_recv[i] && gvideo_recv[i]->path_id == vd_path_id) {
+			match = 1;
 			gvideo_recv[i]->func->early_proc(gvideo_recv[i], over_field ? 1 : 0);
+		}
 	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+	if (!match && !over_field) {
+		for (layer_id = 0; layer_id < MAX_VD_LAYERS; layer_id++) {
+			for (i = 0; i < DISPBUF_TO_PUT_MAX; i++) {
+				if (dispbuf_to_put[layer_id][i]) {
+					dispbuf_to_put[layer_id][i]->rendered = true;
+					if (!amvideo_vf_put(dispbuf_to_put[layer_id][i])) {
+						dispbuf_to_put[layer_id][i] = NULL;
+						dispbuf_to_put_num[layer_id]--;
+					}
+				}
+			}
+		}
+	}
+#endif
 }
 
 static inline int recvx_early_proc(u8 path_index)

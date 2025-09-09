@@ -913,6 +913,12 @@ inline struct vframe_s *amvideo_vf_get(void)
 
 	vf = vf_get(RECEIVER_NAME);
 	if (vf) {
+		if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+			pr_info("%s:vf=%p, vf->type=0x%x, vf->flag=0x%x,canvas adr:0x%lx, canvas0:%x, pnum:%d, afbc:0x%lx-0x%lx,\n",
+				__func__,
+				vf, vf->type, vf->flag,
+				vf->canvas0_config[0].phy_addr, vf->canvas0Addr, vf->plane_num,
+				vf->compHeadAddr, vf->compBodyAddr);
 		get_count_pip[0]++;
 		vpp_trace_vframe("amvideo_vf_peek",
 			(void *)vf, vf->type, vf->flag, 0, vsync_cnt[VPP0]);
@@ -983,6 +989,12 @@ inline int amvideo_vf_put(struct vframe_s *vf)
 			(void *)vf, vf->type, vf->flag, 0, vsync_cnt[VPP0]);
 		if (vf_put(vf, RECEIVER_NAME) < 0)
 			return -EFAULT;
+		if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+			pr_info("%s:vf=%p, vf->type=0x%x, vf->flag=0x%x,canvas adr:0x%lx, canvas0:%x, pnum:%d, afbc:0x%lx-0x%lx,\n",
+				__func__,
+				vf, vf->type, vf->flag,
+				vf->canvas0_config[0].phy_addr, vf->canvas0Addr, vf->plane_num,
+				vf->compHeadAddr, vf->compBodyAddr);
 		if (IS_DI_POSTWRTIE(vf->type))
 			put_di_count++;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
