@@ -1319,7 +1319,7 @@
 		status = "disabled";
 	};
 
-	cvbsout {
+	cvbsout: cvbsout{
 		compatible = "amlogic, cvbsout-sm1";
 		dev_name = "cvbsout";
 		status = "okay";
