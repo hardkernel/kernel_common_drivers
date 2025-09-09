@@ -346,6 +346,8 @@ struct hdmitx_common {
 	struct work_struct work_hdr_unmute;
 	/* hdr10plus flag */
 	unsigned int hdr10plus_feature;
+	/* cuva/hdr vivid reset flag */
+	bool cuva_dhdr_reset;
 	/* amdv info */
 	enum eotf_type hdmi_current_eotf_type;
 	enum mode_type hdmi_current_tunnel_mode;

@@ -1055,6 +1055,8 @@ void hdmitx_set_cuva_hdr_vsif(void *tx_instance, struct cuva_hdr_vsif_para *data
 			hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_VSIF1, NULL, NULL);
 			HDMITX_INFO("hdr: [%s]: clear vendor infoframe\n", __func__);
 		}
+		arg = CLR_AVI_BT2020;
+		hdmitx_hw_cntl(tx_hw, AUX_PKT_CONF_AVI_BT2020, (void *)&arg, NULL);
 		spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 		return;
 	}
@@ -1064,6 +1066,8 @@ void hdmitx_set_cuva_hdr_vsif(void *tx_instance, struct cuva_hdr_vsif_para *data
 	buffer[7] = data->system_start_code;
 	buffer[8] = (data->version_code & 0xf) << 4 | (data->monitor_mode_en & 0x1) << 3;
 	hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_VSIF1, buffer, NULL);
+	arg = SET_AVI_BT2020;
+	hdmitx_hw_cntl(tx_hw, AUX_PKT_CONF_AVI_BT2020, (void *)&arg, NULL);
 	if (hdmi_vic_4k_flag) {
 		arg = vic & 0xff;
 		hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_AVI_VIC, (void *)&arg, NULL);
@@ -1079,6 +1083,7 @@ void hdmitx_set_cuva_hdr_vs_emds(void *tx_instance, struct cuva_hdr_vs_emds_para
 	unsigned long flags;
 	struct hdmitx_common *tx_comm = (struct hdmitx_common *)tx_instance;
 	struct hdmitx_hw_common *tx_hw = NULL;
+	u32 arg = 0;
 
 	if (!tx_comm) {
 		HDMITX_ERROR("hdr: [%s]: null tx_instance param\n", __func__);
@@ -1094,9 +1099,15 @@ void hdmitx_set_cuva_hdr_vs_emds(void *tx_instance, struct cuva_hdr_vs_emds_para
 	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
 	if (!data) {
 		hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_EMP_CUVA, NULL, NULL);
+		arg = CLR_AVI_BT2020;
+		hdmitx_hw_cntl(tx_hw, AUX_PKT_CONF_AVI_BT2020, (void *)&arg, NULL);
+		tx_comm->cuva_dhdr_reset = false;
 		spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 		return;
 	}
+
+	/* only in cuva receiver mode, set to 1 when cuva signal needs to be output */
+	tx_comm->cuva_dhdr_reset = true;
 
 	vs_emds[0].hb[0] = 0x7f;
 	vs_emds[0].hb[1] = 1 << 7;
@@ -1193,6 +1204,8 @@ void hdmitx_set_cuva_hdr_vs_emds(void *tx_instance, struct cuva_hdr_vs_emds_para
 	vs_emds[2].pb[6] = data->max_display_mastering_lum & 0xff;
 
 	hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_EMP_CUVA, (u8 *)&vs_emds, NULL);
+	arg = SET_AVI_BT2020;
+	hdmitx_hw_cntl(tx_hw, AUX_PKT_CONF_AVI_BT2020, (void *)&arg, NULL);
 	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 }
 
@@ -1228,6 +1241,7 @@ void hdmitx_clear_all_infoframe_pkt(struct hdmitx_common *tx_comm)
 	hdmitx_hw_cntl(tx_hw, AUX_PKT_CONF_AVI_BT2020, (void *)&arg, NULL);
 	hdmitx_hw_cntl(tx_hw, AUX_PKT_CLR_AVI, NULL, NULL);
 	hdmitx_hw_cntl(tx_hw, AUX_PKT_CONF_EMP_VRR_QMS, NULL, NULL);
+	hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_EMP_CUVA, NULL, NULL);
 	/* step2 SW: reset para */
 	tx_comm->hdr_transfer_feature = T_UNKNOWN;
 	tx_comm->hdr_color_feature = C_UNKNOWN;
@@ -1236,6 +1250,7 @@ void hdmitx_clear_all_infoframe_pkt(struct hdmitx_common *tx_comm)
 	tx_comm->hdmi_last_hdr_mode = 0;
 	tx_comm->hdr10plus_feature = 0;
 	tx_comm->vrr_mode = T_VRR_NONE;
+	tx_comm->cuva_dhdr_reset = false;
 	/* reset hdmitx csc para */
 	tx_comm->in_colorimetry = 0xff;
 	tx_comm->out_colorimetry = 0xff;
