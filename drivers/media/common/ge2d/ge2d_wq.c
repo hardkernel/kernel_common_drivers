@@ -1231,6 +1231,8 @@ static inline int bpp(unsigned int format)
 		if ((GE2D_COLOR_MAP_NV21 == (format & GE2D_COLOR_MAP_NV21)) ||
 		    (GE2D_COLOR_MAP_NV12 == (format & GE2D_COLOR_MAP_NV12)))
 			return 8;
+		else if (GE2D_COLOR_MAP_P010 == (format & GE2D_COLOR_MAP_P010))
+			return 16;
 		return 24;
 	case GE2D_BPP_32BIT:
 	default:

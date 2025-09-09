@@ -396,6 +396,14 @@ void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg, unsigned int mask)
 	ge2d_reg_set_bits(m | GE2D_GEN_CTRL1, cfg->ddr_burst_size_cb, 18, 2);
 	ge2d_reg_set_bits(m | GE2D_GEN_CTRL1, cfg->ddr_burst_size_cr, 16, 2);
 
+	if (cfg->color_map == (GE2D_COLOR_MAP_P010 >> GE2D_COLOR_MAP_SHIFT)) {
+		ge2d_reg_set_bits(m | GE2D_GEN_CTRL1, 1, 27, 1);
+		/* p010 color map is same as NV12 */
+		cfg->color_map = (GE2D_COLOR_MAP_NV12 >> GE2D_COLOR_MAP_SHIFT);
+	} else {
+		ge2d_reg_set_bits(m | GE2D_GEN_CTRL1, 0, 27, 1);
+	}
+
 	if (ge2d_meson_dev.canvas_status) {
 #ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
 		/* if virtual canvas is used, get info from it */
@@ -1248,7 +1256,9 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg, u32 mask)
 
 		if (ge2d_meson_dev.chip_type < MESON_CPU_MAJOR_ID_G12B ||
 			ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_S1A ||
-			ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_T6D)
+			ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_T6D ||
+			ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_T6W ||
+			ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_T6X)
 			hsc_div_length = (120 << 24) / cfg->hsc_phase_step;
 		else
 			hsc_div_length = (124 << 24) / cfg->hsc_phase_step;
