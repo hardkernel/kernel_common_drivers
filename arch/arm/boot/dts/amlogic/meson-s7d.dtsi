@@ -1347,7 +1347,8 @@
 		status = "disabled";
 		reg =	<0xfe000000 0x100    /* clk */
 			 0xfe00c000 0x70     /* pwrctrl */
-			 0xff000000 0xf000>; /* vcbus */
+			 0xff000000 0xf000   /* vcbus */
+			 0xfe036000 0x2000>; /* dmc0 */
 		clocks = <&clkc CLKID_VAPB>,
 			<&clkc CLKID_SYS_VPU_INTR>,
 			<&clkc CLKID_VPU_0>,

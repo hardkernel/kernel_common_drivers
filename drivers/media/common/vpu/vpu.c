@@ -2955,8 +2955,8 @@ static struct vpu_data_s vpu_data_s7d = {
 	.mem_pd_table = vpu_mem_pd_sc2,
 	.clk_gate_table = NULL,
 
-	.vpu_arb_urg_ctrl_table = NULL,
-	.vpp_ofifo_urg_ctrl_table = NULL,
+	.vpu_arb_urg_ctrl_table = vpu_arb_urg_ctrl_s7,
+	.vpp_ofifo_urg_ctrl_table = vpp_ofifo_urg_ctrl_s7,
 
 	.power_on = vpu_power_on_new,
 	.power_off = vpu_power_off_new,

@@ -72,7 +72,8 @@ int vpu_ioremap(struct platform_device *pdev, int *reg_map_table)
 	else if (vpu_conf.data->chip_type == VPU_CHIP_T6W ||
 			vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
 			vpu_conf.data->chip_type == VPU_CHIP_T5W ||
-			vpu_conf.data->chip_type == VPU_CHIP_S7)
+			vpu_conf.data->chip_type == VPU_CHIP_S7 ||
+			vpu_conf.data->chip_type == VPU_CHIP_S7D)
 		vpu_io_max = VPU_MAP_MAX - 1;
 	else
 		vpu_io_max = VPU_MAP_MAX - 2;

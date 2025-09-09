@@ -477,6 +477,35 @@
 //bit 1  arb rd0  sideband ctrl by rdma
 //bit 0  arb rd0  sideband ctrl by vpp1 line fifo
 
+//same as s7
+//#define VPU_ARB_URG_CTRL_S7D                           0x2747
+//bit31:30	reserved
+//bit29	reg_super_urgent_enable
+//bit28	reg_sideband_enable
+//bit27:26	reg_di_axi_wr_super_urgent_offset
+//bit25:24	reg_axi0_wr_super_urgent_offset
+//bit23:22	reg_axi2_rd_super_urgent_offset
+//bit21:20	reg_di_axi_rd_super_urgent_offset
+//bit19:18	reg_axi0_rd_super_urgent_offset
+//bit17	reg_axi2_wr_super_urgent_enable
+//bit16	reg_di_axi_wr_super_urgent_enable
+//bit15	reg_axi0_wr_super_urgent_enable
+//bit14	reg_axi2_rd_super_urgent_enable
+//bit13	reg_di_axi_rd_super_urgent_enable
+//bit12	reg_axi0_rd_super_urgent_enable
+//bit11	reg_axi2_rd_vpp1_ofifo_urgent_enable
+//bit10	reg_axi0_rd_vpp1_ofifo_urgent_enable
+//bit9	reg_axi1_wr_vdin1_lfifo_urgent_enable
+//bit8	reg_axi1_wr_vdin0_lfifo_urgent_enable
+//bit7	reg_axi0_wr_vdin1_lfifo_urgent_enable
+//bit6	reg_axi0_wr_vdin0_lfifo_urgent_enable
+//bit5	reg_axi2_rd_rdma_urgent_enable
+//bit4	reg_axi2_rd_vpp0_ofifo_urgent_enable
+//bit3	reg_axi1_rd_rdma_urgent_enable
+//bit2	reg_axi1_rd_vpp0_ofifo_urgent_enable
+//bit1	reg_axi0_rd_rdma_urgent_enable
+//bit0	reg_axi0_rd_vpp0_ofifo_urgent_enable
+
 int vpu_ioremap(struct platform_device *pdev, int *reg_map_table);
 
 unsigned int vpu_clk_read(unsigned int _reg);
