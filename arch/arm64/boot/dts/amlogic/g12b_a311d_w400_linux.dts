@@ -528,6 +528,7 @@
 		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
 		sensor-name-sub = "imx290sub";
 		reset = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
+		reset-sub = <&gpio GPIOZ_9 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
