@@ -172,6 +172,7 @@ static int meson_m31_u3phy_host_init(struct amlogic_usb_m31 *phy)
 	return 0;
 }
 
+/* The drd port cannot be composited with pcie, no phy->portnum guard needed. */
 static void meson_m31_u3phy_device_init_v0(struct amlogic_usb_m31 *phy)
 {
 #define M31_SETTING 0x1E30CEB9
@@ -345,10 +346,9 @@ int meson_m31_u3phy_init(struct amlogic_usb_m31 *phy)
 	return 0;
 }
 
-static inline bool meson_m31_u3phy_muxed(void)
+static bool meson_m31_u3phy_muxed(void)
 {
-	return of_device_is_available(of_find_node_by_name(NULL, "pcie")) ||
-			of_device_is_available(of_find_node_by_type(NULL, "pci"));
+	return meson_uphy_of_device_pci_available();
 }
 
 int meson_m31_u3phy_parse(struct device *dev, struct meson_uphy_instance *instance)

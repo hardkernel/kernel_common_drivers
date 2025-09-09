@@ -1148,7 +1148,7 @@
 				m31ctl-reset-level-bit = <5>; /* u3drdx1_reset */
 				m31-utmi-reset-level-bit = <1>;
 				u3-combx0-reset-bit = <52>;
-				uncomposite = <1>;
+				uncomposite = <0>;
 				version = <1>;
 			};
 		};

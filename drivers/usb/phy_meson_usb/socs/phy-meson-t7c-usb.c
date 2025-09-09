@@ -329,10 +329,9 @@ static int meson_u3phy_t7c_init(void *phy)
 	return 0;
 }
 
-static inline bool meson_u3phy_t7c_muxed(void)
+static bool meson_u3phy_t7c_muxed(void)
 {
-	return of_device_is_available(of_find_node_by_name(NULL, "pcie")) ||
-			of_device_is_available(of_find_node_by_type(NULL, "pci"));
+	return meson_uphy_of_device_pci_available();
 }
 
 int meson_u3phy_t7c_parse(struct device *dev, struct meson_uphy_instance *instance)
