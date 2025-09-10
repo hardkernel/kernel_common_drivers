@@ -4621,7 +4621,7 @@ void get_vdx_real_axis(u32 index, int *buf)
 		return;
 	*(buf + 0) = _cur_frame_par->VPP_hsc_startp;
 	*(buf + 1) = _cur_frame_par->VPP_vsc_startp;
-	*(buf + 2) = _cur_frame_par->VPP_hsc_endp - 1;
+	*(buf + 2) = _cur_frame_par->VPP_hsc_endp;
 	if (is_interlaced(vinfo))
 		*(buf + 3) = (_cur_frame_par->VPP_vsc_endp << 1) + 1;
 	else
