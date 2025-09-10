@@ -2531,7 +2531,7 @@
 		compatible = "amlogic,unifykey";
 		status = "okay";
 
-		unifykey-num = <26>;
+		unifykey-num = <20>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -2552,12 +2552,6 @@
 		unifykey-index-17 = <&keysn_17>;
 		unifykey-index-18 = <&keysn_18>;
 		unifykey-index-19 = <&keysn_19>;
-		unifykey-index-20 = <&keysn_20>;
-		unifykey-index-21 = <&keysn_21>;
-		unifykey-index-22 = <&keysn_22>;
-		unifykey-index-23 = <&keysn_23>;
-		unifykey-index-24 = <&keysn_24>;
-		unifykey-index-25 = <&keysn_25>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -2645,52 +2639,22 @@
 			key-permit = "read","write","del";
 		};
 		keysn_16:key_16{
-			key-name = "lcd";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_17:key_17{
-			key-name = "lcd_extern";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_18:key_18{
-			key-name = "backlight";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_19:key_19{
-			key-name = "lcd_tcon";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_20:key_20{
 			key-name = "attestationkeybox";// attestation key
 			key-device = "secure";
 			key-permit = "read","write","del";
 		};
-		keysn_21:key_21{
+		keysn_17:key_17{
 			key-name = "lcd_tcon_spi";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
-		keysn_22:key_22{
+		keysn_18:key_18{
 			key-name = "attestationdevidbox";// attest dev id box
 			key-device = "secure";
 			key-permit = "read","write","del";
 		};
-		keysn_23:key_23{
+		keysn_19:key_19{
 			key-name = "oemkey";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_24:key_24{
-			key-name = "ldim_dev";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_25:key_25{
-			key-name = "lcd_optical";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};

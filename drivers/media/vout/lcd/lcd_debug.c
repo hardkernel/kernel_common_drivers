@@ -2652,174 +2652,152 @@ static ssize_t lcd_debug_reg_store(struct device *dev, struct device_attribute *
 				   const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	char *buf_orig;
+	char *parm[5];
 	unsigned int bus = LCD_REG_DBG_MAX_BUS;
-	unsigned int reg32 = 0, data32 = 0, cnt = 1, i;
+	unsigned int reg32 = 0, data32 = 0, cnt = 1;
 	int ret = 0;
+
+	if (!buf)
+		return count;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return count;
+
+	lcd_debug_parse_param(buf_orig, parm, 5);
 
 	switch (buf[0]) {
 	case 'w':
-		if (buf[1] == 'v') {
-			if (buf[2] == 'l') { /* vx1 lvds */
-				ret = sscanf(buf, "wvl %x %x", &reg32, &data32);
-				bus = LCD_REG_DBG_VX1_LVDS_CTRL_BUS;
-			} else { /* vcbus */
-				ret = sscanf(buf, "wv %x %x", &reg32, &data32);
-				bus = LCD_REG_DBG_VC_BUS;
-			}
-		} else if (buf[1] == 'a') { /* ana */
-			ret = sscanf(buf, "wa %x %x", &reg32, &data32);
+		if (strcmp(parm[0], "wv") == 0)
+			bus = LCD_REG_DBG_VC_BUS;
+		else if (strcmp(parm[0], "wa") == 0)
 			bus = LCD_REG_DBG_ANA_BUS;
-		} else if (buf[1] == 'h') { /* hiu */
-			ret = sscanf(buf, "wh %x %x", &reg32, &data32);
+		else if (strcmp(parm[0], "wh") == 0)
 			bus = LCD_REG_DBG_HHI_BUS;
-		} else if (buf[1] == 'c') { /* clk */
-			ret = sscanf(buf, "wc %x %x", &reg32, &data32);
+		else if (strcmp(parm[0], "wc") == 0)
 			bus = LCD_REG_DBG_CLK_BUS;
-		} else if (buf[1] == 'p') { /* periphs */
-			ret = sscanf(buf, "wp %x %x", &reg32, &data32);
+		else if (strcmp(parm[0], "wp") == 0)
 			bus = LCD_REG_DBG_PERIPHS_BUS;
 #ifdef CONFIG_AMLOGIC_LCD_TCON
-		} else if (buf[1] == 't') { /* tcon */
-			ret = sscanf(buf, "wt %x %x", &reg32, &data32);
+		else if (strcmp(parm[0], "wt") == 0)
 			bus = LCD_REG_DBG_TCON_BUS;
 #endif
 #ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
-		} else if (buf[1] == 'm') {
-			if (buf[2] == 'h') { /* mipi host */
-				ret = sscanf(buf, "wmh %x %x", &reg32, &data32);
-				bus = LCD_REG_DBG_MIPIHOST_BUS;
-			} else if (buf[2] == 'p') { /* mipi phy */
-				ret = sscanf(buf, "wmp %x %x", &reg32, &data32);
-				bus = LCD_REG_DBG_MIPIPHY_BUS;
-			}
+		else if (strcmp(parm[0], "wmh") == 0)
+			bus = LCD_REG_DBG_MIPIHOST_BUS;
+		else if (strcmp(parm[0], "wmp") == 0)
+			bus = LCD_REG_DBG_MIPIPHY_BUS;
 #endif
-		} else if (buf[1] == 'd') { /* combo dphy */
-			ret = sscanf(buf, "wd %x %x", &reg32, &data32);
+		else if (strcmp(parm[0], "wd") == 0)
 			bus = LCD_REG_DBG_COMBOPHY_BUS;
-		} else if (buf[1] == 'r') { /* rst */
-			ret = sscanf(buf, "wr %x %x", &reg32, &data32);
+		else if (strcmp(parm[0], "wr") == 0)
 			bus = LCD_REG_DBG_RST_BUS;
-		}
-		if (ret == 2) {
-			lcd_debug_reg_op(pdrv, reg32, data32, bus, 1);
-		} else {
-			pr_info("invalid data\n");
-			return -EINVAL;
-		}
+		else if (strcmp(parm[0], "wvl") == 0)
+			bus = LCD_REG_DBG_VX1_LVDS_CTRL_BUS;
+		else
+			goto lcd_debug_reg_store_err;
+
+		if (!parm[2])
+			goto lcd_debug_reg_store_err;
+		ret = kstrtouint(parm[1], 16, &reg32);
+		if (ret)
+			goto lcd_debug_reg_store_err;
+		ret = kstrtouint(parm[2], 16, &data32);
+		if (ret)
+			goto lcd_debug_reg_store_err;
+
+		lcd_debug_reg_op(pdrv, reg32, data32, bus, 1);
 		break;
 	case 'r':
-		if (buf[1] == 'v') {
-			if (buf[2] == 'l') { /* vx1 lvds */
-				ret = sscanf(buf, "rvl %x %x", &reg32, &data32);
-				bus = LCD_REG_DBG_VX1_LVDS_CTRL_BUS;
-			} else { /* vcbus */
-				ret = sscanf(buf, "rv %x %d", &reg32, &cnt);
-				bus = LCD_REG_DBG_VC_BUS;
-			}
-		} else if (buf[1] == 'a') { /* ana */
-			ret = sscanf(buf, "ra %x %d", &reg32, &cnt);
+		if (strcmp(parm[0], "rv") == 0)
+			bus = LCD_REG_DBG_VC_BUS;
+		else if (strcmp(parm[0], "ra") == 0)
 			bus = LCD_REG_DBG_ANA_BUS;
-		} else if (buf[1] == 'h') { /* hiu */
-			ret = sscanf(buf, "rh %x", &reg32);
+		else if (strcmp(parm[0], "rh") == 0)
 			bus = LCD_REG_DBG_HHI_BUS;
-		} else if (buf[1] == 'c') { /* clk */
-			ret = sscanf(buf, "rc %x %d", &reg32, &cnt);
+		else if (strcmp(parm[0], "rc") == 0)
 			bus = LCD_REG_DBG_CLK_BUS;
-		} else if (buf[1] == 'p') { /* periphs */
-			ret = sscanf(buf, "rp %x %d", &reg32, &cnt);
+		else if (strcmp(parm[0], "rp") == 0)
 			bus = LCD_REG_DBG_PERIPHS_BUS;
 #ifdef CONFIG_AMLOGIC_LCD_TCON
-		} else if (buf[1] == 't') { /* tcon */
-			ret = sscanf(buf, "rt %x, %d", &reg32, &cnt);
+		else if (strcmp(parm[0], "rt") == 0)
 			bus = LCD_REG_DBG_TCON_BUS;
 #endif
 #ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
-		} else if (buf[1] == 'm') {
-			if (buf[2] == 'h') { /* mipi host */
-				ret = sscanf(buf, "rmh %x %d", &reg32, &cnt);
-				bus = LCD_REG_DBG_MIPIHOST_BUS;
-			} else if (buf[2] == 'p') { /* mipi phy */
-				ret = sscanf(buf, "rmp %x %d", &reg32, &cnt);
-				bus = LCD_REG_DBG_MIPIPHY_BUS;
-			}
-		} else if (buf[1] == 'e') {
-			if (buf[2] == 'h') { /* edp host */
-				ret = sscanf(buf, "reh %x, %d", &reg32, &cnt);
-				bus = LCD_REG_DBG_EDPHOST_BUS;
-			} else if (buf[2] == 'd') { /* edp dpcd */
-				ret = sscanf(buf, "red %x %d", &reg32, &cnt);
-				bus = LCD_REG_DBG_EDPDPCD_BUS;
-			}
+		else if (strcmp(parm[0], "rmh") == 0)
+			bus = LCD_REG_DBG_MIPIHOST_BUS;
+		else if (strcmp(parm[0], "rmp") == 0)
+			bus = LCD_REG_DBG_MIPIPHY_BUS;
 #endif
-		} else if (buf[1] == 'd') { /* combo dphy */
-			ret = sscanf(buf, "rd %x %d", &reg32, &cnt);
+		else if (strcmp(parm[0], "rd") == 0)
 			bus = LCD_REG_DBG_COMBOPHY_BUS;
-		} else if (buf[1] == 'r') { /* rst */
-			ret = sscanf(buf, "rr %x %d", &reg32, &cnt);
+		else if (strcmp(parm[0], "rr") == 0)
 			bus = LCD_REG_DBG_RST_BUS;
-		}
+		else if (strcmp(parm[0], "rvl") == 0)
+			bus = LCD_REG_DBG_VX1_LVDS_CTRL_BUS;
+		else
+			goto lcd_debug_reg_store_err;
 
-		if (ret == 1) {
-			lcd_debug_reg_op(pdrv, reg32, 0, bus, 0);
-		} else if (ret == 2) {
-			for (i = 0; i < cnt; i++)
-				lcd_debug_reg_op(pdrv, reg32 + i, 0, bus, 0);
-		} else {
-			pr_info("invalid data\n");
-			return -EINVAL;
-		}
+		if (!parm[1])
+			goto lcd_debug_reg_store_err;
+		ret = kstrtouint(parm[1], 16, &reg32);
+		if (ret)
+			goto lcd_debug_reg_store_err;
+
+		lcd_debug_reg_op(pdrv, reg32, 0, bus, 0);
 		break;
 	case 'd':
-		if (buf[1] == 'v') { /* vcbus */
-			ret = sscanf(buf, "dv %x %d", &reg32, &data32);
+		if (strcmp(parm[0], "dv") == 0)
 			bus = LCD_REG_DBG_VC_BUS;
-		} else if (buf[1] == 'a') { /* ana */
-			ret = sscanf(buf, "da %x %d", &reg32, &data32);
+		else if (strcmp(parm[0], "da") == 0)
 			bus = LCD_REG_DBG_ANA_BUS;
-		} else if (buf[1] == 'h') { /* hiu */
-			ret = sscanf(buf, "dh %x %d", &reg32, &data32);
+		else if (strcmp(parm[0], "dh") == 0)
 			bus = LCD_REG_DBG_HHI_BUS;
-		} else if (buf[1] == 'c') { /* clk */
-			ret = sscanf(buf, "dc %x %d", &reg32, &data32);
+		else if (strcmp(parm[0], "dc") == 0)
 			bus = LCD_REG_DBG_CLK_BUS;
-		} else if (buf[1] == 'p') { /* periphs */
-			ret = sscanf(buf, "dp %x %d", &reg32, &data32);
+		else if (strcmp(parm[0], "dp") == 0)
 			bus = LCD_REG_DBG_PERIPHS_BUS;
 #ifdef CONFIG_AMLOGIC_LCD_TCON
-		} else if (buf[1] == 't') { /* tcon */
-			ret = sscanf(buf, "dt %x %d", &reg32, &data32);
+		else if (strcmp(parm[0], "dt") == 0)
 			bus = LCD_REG_DBG_TCON_BUS;
 #endif
 #ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
-		} else if (buf[1] == 'm') {
-			if (buf[2] == 'h') { /* mipi host */
-				ret = sscanf(buf, "dmh %x %d", &reg32, &data32);
-				bus = LCD_REG_DBG_MIPIHOST_BUS;
-			} else if (buf[2] == 'p') { /* mipi phy */
-				ret = sscanf(buf, "dmp %x %d", &reg32, &data32);
-				bus = LCD_REG_DBG_MIPIPHY_BUS;
-			}
+		else if (strcmp(parm[0], "dmh") == 0)
+			bus = LCD_REG_DBG_MIPIHOST_BUS;
+		else if (strcmp(parm[0], "dmp") == 0)
+			bus = LCD_REG_DBG_MIPIPHY_BUS;
 #endif
-		} else if (buf[1] == 'd') { /* combo dphy */
-			ret = sscanf(buf, "dd %x %x", &reg32, &data32);
+		else if (strcmp(parm[0], "dd") == 0)
 			bus = LCD_REG_DBG_COMBOPHY_BUS;
-		} else if (buf[1] == 'r') { /* rst */
-			ret = sscanf(buf, "dr %x %x", &reg32, &data32);
+		else if (strcmp(parm[0], "dr") == 0)
 			bus = LCD_REG_DBG_RST_BUS;
-		}
-		if (ret == 2) {
-			lcd_debug_reg_dump(pdrv, reg32, data32, bus);
-		} else {
-			pr_info("invalid data\n");
-			return -EINVAL;
-		}
+		else if (strcmp(parm[0], "dvl") == 0)
+			bus = LCD_REG_DBG_VX1_LVDS_CTRL_BUS;
+		else
+			goto lcd_debug_reg_store_err;
+
+		if (!parm[2])
+			goto lcd_debug_reg_store_err;
+		ret = kstrtouint(parm[1], 16, &reg32);
+		if (ret)
+			goto lcd_debug_reg_store_err;
+		ret = kstrtouint(parm[2], 16, &cnt);
+		if (ret)
+			goto lcd_debug_reg_store_err;
+
+		lcd_debug_reg_dump(pdrv, reg32, cnt, bus);
 		break;
 	default:
-		pr_info("wrong command\n");
-		break;
+		goto lcd_debug_reg_store_err;
 	}
 
+	kfree(buf_orig);
 	return count;
+
+lcd_debug_reg_store_err:
+	pr_info("wrong command\n");
+	kfree(buf_orig);
+	return -EINVAL;
 }
 
 static ssize_t lcd_debug_vlock_show(struct device *dev, struct device_attribute *attr, char *buf)

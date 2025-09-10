@@ -21,8 +21,8 @@ struct reg_name_set_s {
 #define LCD_REG_DBG_MIPIHOST_BUS          4
 #define LCD_REG_DBG_MIPIPHY_BUS           5
 #define LCD_REG_DBG_TCON_BUS              6
-#define LCD_REG_DBG_EDPHOST_BUS           7
-#define LCD_REG_DBG_EDPDPCD_BUS           8
+//#define LCD_REG_DBG_EDPHOST_BUS           7
+//#define LCD_REG_DBG_EDPDPCD_BUS           8
 #define LCD_REG_DBG_COMBOPHY_BUS          9
 #define LCD_REG_DBG_RST_BUS               10
 #define LCD_REG_DBG_HHI_BUS               11
