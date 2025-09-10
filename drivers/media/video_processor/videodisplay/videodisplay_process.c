@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/video_processor/video_composer/video_composer.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/amlogic/major.h>
@@ -3122,6 +3109,36 @@ static void vframe_display(struct videodisplay_dev *dev,
 	vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER | VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 	vf->pts_us64 = time_us64;
 	vf->disp_pts = 0;
+
+	vd_print(dev->index, PRINT_AXIS,
+		"org crop: %d %d %d %d\n", vf->crop[0], vf->crop[1], vf->crop[2], vf->crop[3]);
+	vd_print(dev->index, PRINT_AXIS,
+		"org w h: %d %d %d %d\n", vf->width, vf->height, vf->compWidth, vf->compHeight);
+	vd_print(dev->index, PRINT_AXIS,
+		"frame buffer: w:%d h:%d\n", frame_info->buffer_w, frame_info->buffer_h);
+	vd_print(dev->index, PRINT_AXIS,
+		"frame buffer: dst:%d %d %d %d\n", frame_info->dst_x, frame_info->dst_y,
+		frame_info->dst_w, frame_info->dst_h);
+
+	/*current all vf from non-tunnel, if vf from vt, should not reset vf->crop*/
+	if (is_src_crop_valid(vf->src_crop)) {
+		vd_print(dev->index, PRINT_AXIS,
+			"src_crop: %d %d %d %d\n",
+			vf->src_crop.top,
+			vf->src_crop.left,
+			vf->src_crop.bottom,
+			vf->src_crop.right);
+		if (vf->type & VIDTYPE_COMPRESS) {
+			vf->crop[2] -= vf->src_crop.bottom;
+			vf->crop[3] -= vf->src_crop.right;
+			if ((int)vf->crop[2] < 0)
+				vf->crop[2] = 0;
+			if ((int)vf->crop[3] < 0)
+				vf->crop[3] = 0;
+		}
+	}
+	vd_print(dev->index, PRINT_AXIS,
+		"final crop: %d %d %d %d\n", vf->crop[0], vf->crop[1], vf->crop[2], vf->crop[3]);
 
 	if (last_index[dev->index] > vf->frame_index) {
 		dev->received_new_count = vf->frame_index;
