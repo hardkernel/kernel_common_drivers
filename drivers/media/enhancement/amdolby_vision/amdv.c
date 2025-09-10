@@ -9213,6 +9213,12 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 				tv_dovi_setting->video_width = 0;
 				tv_dovi_setting->video_height = 0;
 				pr_dv_error("tv_control_path() failed\n");
+				check_format = FORMAT_SDR;
+				if (amdv_policy_process
+					(vf, &current_mode, check_format)) {
+					amdv_target_mode = current_mode;
+					dolby_vision_mode = current_mode;
+				}
 			}
 		} else { /*for cert: vf no change, not run cp*/
 			if (h > 1080)

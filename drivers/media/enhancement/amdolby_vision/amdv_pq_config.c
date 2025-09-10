@@ -2078,21 +2078,32 @@ release:
 	return ret;
 }
 
-/*cp bin data*/
 static int cp_bin_data(void)
 {
 	int ret = 0;
-	unsigned int bin_len = sizeof(struct pq_config) * MAX_DV_PICTUREMODES;
+	unsigned int bin_len = 0;
 	int i = 0;
 	unsigned int length = 0;
 
-	if (!bin_to_cfg)
-		bin_to_cfg = vmalloc(bin_len);
-	if (!bin_to_cfg)
-		return false;
+	if (is_aml_hw5()) {
+		bin_len = sizeof(struct pq_config_dvp) * MAX_DV_PICTUREMODES;
+		if (!bin_to_cfg_dvp)
+			bin_to_cfg_dvp = vmalloc(bin_len);
+		if (!bin_to_cfg_dvp)
+			return false;
+	} else {
+		bin_len = sizeof(struct pq_config) * MAX_DV_PICTUREMODES;
+		if (!bin_to_cfg)
+			bin_to_cfg = vmalloc(bin_len);
+		if (!bin_to_cfg)
+			return false;
+	}
 
 	length = (bin_size > bin_len) ? bin_len : bin_size;
-	num_picture_mode = length / sizeof(struct pq_config);
+	if (is_aml_hw5())
+		num_picture_mode = length / sizeof(struct pq_config_dvp);
+	else
+		num_picture_mode = length / sizeof(struct pq_config);
 
 	if (num_picture_mode >
 	    sizeof(cfg_info) / sizeof(struct dv_cfg_info_s)) {
@@ -2105,7 +2116,10 @@ static int cp_bin_data(void)
 	if (num_picture_mode == 1)
 		default_pic_mode = 0;
 
-	memcpy((char *)bin_to_cfg, bin_data, length);
+	if (is_aml_hw5())
+		memcpy((char *)bin_to_cfg_dvp, bin_data, length);
+	else
+		memcpy((char *)bin_to_cfg, bin_data, length);
 
 	for (i = 0; i < num_picture_mode; i++) {
 		cfg_info[i].id = i;
