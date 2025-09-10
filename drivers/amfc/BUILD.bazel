@@ -14,8 +14,17 @@ ddk_module(
                 "amfc.c",
             ],
         },
+        "CONFIG_AMLOGIC_F2FS": {
+            True: [
+                "amfc_f2fs_hook.c",
+            ],
+        },
     },
     hdrs = [
+        "//common:fs/f2fs/f2fs.h",
+    ],
+    linux_includes = [
+        "../../../common/fs/f2fs",
     ],
     local_defines = [
     ],
@@ -87,80 +96,6 @@ ddk_module(
     local_defines = [
     ],
     out = "amlogic-soc-erofs.ko",
-    kernel_build = kernel_select(),
-    visibility = ["//visibility:public"],
-    deps = [
-        "//common_drivers/drivers/cpu_info:amlogic-cpuinfo",
-        "//common_drivers/drivers/gki_tool:amlogic-gkitool",
-        "//common_drivers/drivers/debug:amlogic-debug-iotrace",
-        "//common_drivers/drivers/debug:amlogic-debug",
-        "//common_drivers/drivers/amfc:amlogic-soc-sym_helper",
-        "//common_drivers/drivers/amfc:amlogic-soc-amfc",
-    ],
-)
-
-ddk_module(
-    name = "amlogic-soc-f2fs",
-    srcs = glob([
-        "**/*.h",
-    ]),
-    conditional_srcs = {
-        "CONFIG_AMLOGIC_F2FS_FS": {
-            True: [
-                "aml_f2fs/dir.c",
-                "aml_f2fs/file.c",
-                "aml_f2fs/inode.c",
-                "aml_f2fs/namei.c",
-                "aml_f2fs/hash.c",
-                "aml_f2fs/super.c",
-                "aml_f2fs/inline.c",
-                "aml_f2fs/checkpoint.c",
-                "aml_f2fs/gc.c",
-                "aml_f2fs/data.c",
-                "aml_f2fs/node.c",
-                "aml_f2fs/segment.c",
-                "aml_f2fs/recovery.c",
-                "aml_f2fs/shrinker.c",
-                "aml_f2fs/extent_cache.c",
-                "aml_f2fs/sysfs.c",
-            ],
-        },
-        "CONFIG_AMLOGIC_F2FS_STAT_FS": {
-            True: [
-                "aml_f2fs/debug.c",
-            ],
-        },
-        "CONFIG_AMLOGIC_F2FS_FS_XATTR": {
-            True: [
-                "aml_f2fs/xattr.c",
-            ],
-        },
-        "CONFIG_AMLOGIC_F2FS_FS_POSIX_ACL": {
-            True: [
-                "aml_f2fs/acl.c",
-            ],
-        },
-        "CONFIG_FS_VERITY": {
-            True: [
-                "aml_f2fs/verity.c",
-            ],
-        },
-        "CONFIG_AMLOGIC_F2FS_FS_COMPRESSION": {
-            True: [
-                "aml_f2fs/compress.c",
-            ],
-        },
-        "CONFIG_AMLOGIC_F2FS_IOSTAT": {
-            True: [
-                "aml_f2fs/iostat.c",
-            ],
-        },
-    },
-    hdrs = [
-    ],
-    local_defines = [
-    ],
-    out = "amlogic-soc-f2fs.ko",
     kernel_build = kernel_select(),
     visibility = ["//visibility:public"],
     deps = [

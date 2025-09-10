@@ -1,5 +1,0 @@
-# ignore all functions
-fun:*
-
-# only keep target functions
-!fun:init_module

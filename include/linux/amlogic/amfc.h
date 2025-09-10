@@ -8,6 +8,7 @@
 #include <linux/amlogic/cpu_version.h>
 #define AMFC_S7D				0x37
 #define AMFC_T6D				0x49
+#define AMFC_T6X				0x4B
 
 #define ALGORITHM_ZSTD				1
 #define ALGORITHM_LZ4				2
@@ -179,6 +180,12 @@ struct amfc {
 	unsigned long long z_dtick, e_dtick;
 	unsigned long long cin, cout;		/* compressed size            */
 	unsigned long long din, z_dout, e_dout;
+#ifdef CONFIG_AMLOGIC_F2FS
+	unsigned long long f2fs_enc_in, f2fs_enc_out;
+	unsigned long long f2fs_dec_in, f2fs_dec_out;
+	unsigned long f2fs_enc_fail;
+	unsigned long f2fs_dec_fail;
+#endif
 	unsigned long c_count, d_count;
 	unsigned long c_congestion, d_congestion;
 
@@ -195,9 +202,14 @@ struct amfc {
 int amfc_init(void);
 int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, int stream);
 int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size);
+struct amfc *get_amfc_instance(void);
 
 #ifdef __UNCOMPRESS_IMAGE__
 void cache_clean_flush(unsigned long start, unsigned long end);
+#endif
+
+#ifdef CONFIG_AMLOGIC_F2FS
+int hook_f2fs(void);
 #endif
 
 static inline int amfc_supported(void)
@@ -209,6 +221,7 @@ static inline int amfc_supported(void)
 	case MESON_CPU_MAJOR_ID_S7D:
 	case MESON_CPU_MAJOR_ID_S6:
 	case MESON_CPU_MAJOR_ID_T6D:
+	case MESON_CPU_MAJOR_ID_T6X:
 		return 1;
 	}
 	return 0;

@@ -58,7 +58,12 @@ static struct page *garbage_page;
 static dev_t amfc_devno;
 static struct cdev *amfc_cdev;
 
-inline static int _vmalloc_or_module_addr(const void *x)
+struct amfc *get_amfc_instance(void)
+{
+	return amfc;
+}
+
+static inline int _vmalloc_or_module_addr(const void *x)
 {
 	/*
 	 * ARM, x86-64 and sparc64 put modules in a special place,
@@ -1215,6 +1220,14 @@ static ssize_t statistics_store(const struct class *cla,
 	amfc->d_count            = 0;
 	amfc->c_congestion       = 0;
 	amfc->d_congestion       = 0;
+#ifdef CONFIG_AMLOGIC_F2FS
+	amfc->f2fs_enc_in        = 0;
+	amfc->f2fs_enc_out       = 0;
+	amfc->f2fs_dec_in        = 0;
+	amfc->f2fs_dec_out       = 0;
+	amfc->f2fs_enc_fail      = 0;
+	amfc->f2fs_dec_fail      = 0;
+#endif
 	return count;
 }
 
@@ -1264,6 +1277,14 @@ static ssize_t statistics_show(const struct class *cla,
 	s += sprintf(buf + s, "Decompressed count:              %16ld\n",  amfc->d_count);
 	s += sprintf(buf + s, "Compress congestion count:       %16ld\n",  amfc->c_congestion);
 	s += sprintf(buf + s, "Decompress congestion count:     %16ld\n",  amfc->d_congestion);
+#ifdef CONFIG_AMLOGIC_F2FS
+	s += sprintf(buf + s, "f2fs_enc_in:                     %16lld\n",  amfc->f2fs_enc_in);
+	s += sprintf(buf + s, "f2fs_enc_out:                    %16lld\n",  amfc->f2fs_enc_out);
+	s += sprintf(buf + s, "f2fs_dec_in:                     %16lld\n",  amfc->f2fs_dec_in);
+	s += sprintf(buf + s, "f2fs_dec_out:                    %16lld\n",  amfc->f2fs_dec_out);
+	s += sprintf(buf + s, "f2fs_enc_fail:                   %16ld\n",  amfc->f2fs_enc_fail);
+	s += sprintf(buf + s, "f2fs_dec_fail:                   %16ld\n",  amfc->f2fs_dec_fail);
+#endif
 
 	return s;
 }
@@ -1584,6 +1605,7 @@ static struct syscore_ops amfc_syscore_ops = {
 	.shutdown = amfc_syscore_shutdown,
 };
 
+/* vendor hook to probe compression of f2fs */
 static int amfc_probe(struct platform_device *pdev)
 {
 	int r = 0, irq, num;
@@ -1591,6 +1613,14 @@ static int amfc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device_node *node;
 	struct device *dev;
+
+#ifdef CONFIG_AMLOGIC_F2FS
+	r = hook_f2fs();
+	if (r == -ENOMEM)
+		return r;
+	else if (r)
+		pr_emerg("f2fs may enabled compress but amfc hook failed\n");
+#endif
 
 	amfc = devm_kzalloc(&pdev->dev, sizeof(*amfc), GFP_KERNEL);
 	if (!amfc)
@@ -1786,6 +1816,10 @@ static const struct of_device_id amfc_match[] = {
 	{
 		.compatible = "amlogic,amfc-t6d",
 		.data = (void *)AMFC_T6D,
+	},
+	{
+		.compatible = "amlogic,amfc-t6x",
+		.data = (void *)AMFC_T6X,
 	},
 	{}
 };

@@ -46,8 +46,6 @@ AMLOGIC_COMMON_MODULES = [
     "//common_drivers/drivers/amfc:amlogic-soc-amfc",
     "common_drivers/drivers/amfc/aml_erofs/amlogic-soc-erofs.ko",
     "//common_drivers/drivers/amfc:amlogic-soc-erofs",
-    "common_drivers/drivers/amfc/aml_f2fs/amlogic-soc-f2fs.ko",
-    "//common_drivers/drivers/amfc:amlogic-soc-f2fs",
     "common_drivers/drivers/amfc/aml_zram/aml-zram.ko",
     "//common_drivers/drivers/amfc:aml-zram",
     "common_drivers/drivers/amfc/sym_helper/amlogic-soc-sym_helper.ko",
