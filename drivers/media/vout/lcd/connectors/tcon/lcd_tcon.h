@@ -51,6 +51,16 @@ struct lcd_tcon_reg_skip_s {
 	unsigned int end_reg;
 };
 
+#define TCON_BIN_VER_LEN    9
+struct tcon_core_reg_info_s {
+	char bin_ver[TCON_BIN_VER_LEN];
+	struct lcd_tcon_init_block_header_s *header;
+	struct lcd_tcon_init_block_ext_header_s ext_header;
+	unsigned int table_size;
+	unsigned char *table;
+	char *user_info;
+};
+
 struct lcd_tcon_config_s {
 	unsigned char tcon_valid;
 	unsigned int core_reg_ver;
@@ -77,7 +87,7 @@ struct lcd_tcon_config_s {
 
 	void (*tcon_axi_mem_config)(void);
 	void (*tcon_axi_mem_secure)(void);
-	void (*tcon_init_table_pre_proc)(unsigned char *table);
+	void (*tcon_init_table_pre_proc)(struct tcon_core_reg_info_s *core_reg_info);
 	void (*tcon_init_table_post_proc)(struct aml_lcd_drv_s *pdrv);
 	void (*tcon_lut_post_proc)(struct aml_lcd_drv_s *pdrv, unsigned int lut_type);
 	void (*tcon_global_reset)(struct aml_lcd_drv_s *pdrv);
@@ -85,7 +95,7 @@ struct lcd_tcon_config_s {
 	int (*tcon_enable)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_disable)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_check)(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
-			unsigned char *core_reg_table, char *ferr_str, char *warn_str);
+			struct tcon_core_reg_info_s *core_reg_info, char *ferr_str, char *warn_str);
 
 };
 
@@ -179,12 +189,6 @@ struct tcon_mem_map_table_s {
 
 	unsigned int lut_valid_flag;
 
-	unsigned int core_reg_table_size;
-	struct lcd_tcon_init_block_header_s *core_reg_header;
-	struct lcd_tcon_init_block_ext_header_s *core_reg_ext_header;
-	unsigned char *core_reg_table;
-	char *user_info;
-
 	unsigned int *data_size;
 	unsigned char **data_mem_vaddr;
 	dma_addr_t *data_mem_paddr;
@@ -200,16 +204,12 @@ struct tcon_mem_map_table_s {
 #endif
 };
 
-#define TCON_BIN_VER_LEN    9
 #define MEM_FLAG_MAX	    2
 
 struct lcd_tcon_local_cfg_s {
-	char bin_ver[TCON_BIN_VER_LEN];
 	spinlock_t multi_list_lock; /* for tcon multi lut list change */
-	char *cur_user_info;
-	struct lcd_tcon_init_block_header_s *cur_core_header;
-	struct lcd_tcon_init_block_ext_header_s *cur_core_ext_header;
-	unsigned char *cur_core_reg_table;
+	struct tcon_core_reg_info_s def_core_info;
+	struct tcon_core_reg_info_s cur_core_info;
 
 	struct list_head pdf_data_list;  //for struct lcd_tcon_pdf_data_s
 	unsigned char pdf_list_load_flag;
@@ -299,6 +299,11 @@ void tcon_lut_dma_init_t6w(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s
 void tcon_lut_dma_deinit(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
 void lcd_tcon_lut_dma_update(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
 
+void lcd_tcon_ext_header_check(struct lcd_tcon_init_block_ext_header_s *ext_header);
+int lcd_tcon_get_core_size(struct lcd_tcon_config_s *tcon_conf,
+	struct lcd_tcon_init_block_header_s *header,
+	struct lcd_tcon_init_block_ext_header_s *ext_header);
+
 int lcd_tcon_valid_check(void);
 struct tcon_rmem_s *get_lcd_tcon_rmem(void);
 struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
@@ -309,7 +314,7 @@ void lcd_tcon_lut_post_proc(struct aml_lcd_drv_s *pdrv, unsigned int lut_type);
 void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 			   struct lcd_tcon_config_s *tcon_conf,
 			   struct tcon_mem_map_table_s *mm_table,
-			   unsigned char *core_reg_table);
+			   struct tcon_core_reg_info_s *core_reg_info);
 int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_txhd2(struct aml_lcd_drv_s *pdrv);
@@ -317,11 +322,11 @@ int lcd_tcon_top_set_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_top_set_t6d(struct aml_lcd_drv_s *pdrv);
 
 int lcd_tcon_init_setting_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
-		unsigned char *core_reg_table);
+		struct tcon_core_reg_info_s *core_reg_info);
 int lcd_tcon_setting_check_t5(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
-		unsigned char *core_reg_table, char *ferr_str, char *warn_str);
+		struct tcon_core_reg_info_s *core_reg_info, char *ferr_str, char *warn_str);
 int lcd_tcon_setting_check_t5d(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
-		unsigned char *core_reg_table, char *ferr_str, char *warn_str);
+		struct tcon_core_reg_info_s *core_reg_info, char *ferr_str, char *warn_str);
 
 /* common */
 void lcd_tcon_mem_sync(struct aml_lcd_drv_s *pdrv, unsigned long paddr, unsigned int mem_size);
@@ -333,13 +338,16 @@ int lcd_tcon_data_multi_init_check(struct aml_lcd_drv_s *pdrv, unsigned short bl
 		unsigned int data_index);
 int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf,
 		phys_addr_t paddr, int init_flag, unsigned int data_index);
-void lcd_tcon_init_data_version_update(char *data_buf);
+void lcd_tcon_init_data_version_update(struct tcon_core_reg_info_s *core_info,
+		char *data_buf);
 void lcd_tcon_data_block_regen_crc(unsigned char *data);
 int lcd_tcon_init_data_update(char *data_buf, struct lcd_detail_timing_s *ptiming);
 int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int index);
 void lcd_tcon_complete_data_load(struct aml_lcd_drv_s *pdrv);
-void lcd_tcon_reg_table_print(void);
+void lcd_tcon_reg_table_print(struct tcon_core_reg_info_s *core_reg_info);
 void lcd_tcon_reg_readback_print(struct aml_lcd_drv_s *pdrv);
+void lcd_tcon_core_info_print(struct aml_lcd_drv_s *pdrv,
+		struct tcon_core_reg_info_s *core_reg_info);
 void lcd_tcon_axi_rmem_lut_load(struct aml_lcd_drv_s *pdrv, unsigned int index,
 				unsigned char *buf, unsigned int size);
 #ifdef TCON_DBG_TIME
@@ -354,5 +362,11 @@ void lcd_tcon_debug_file_remove(struct lcd_tcon_local_cfg_s *local_cfg);
 int lcd_tcon_mem_od_is_valid(void);
 int lcd_tcon_mem_demura_is_valid(void);
 unsigned char *lcd_tcon_demura_mem_get(struct aml_lcd_drv_s *pdrv, int *mem_len);
+int lcd_tcon_get_table32_reg(struct tcon_core_reg_info_s *core_reg_info,
+		unsigned int reg, unsigned int *val);
+int lcd_tcon_set_table32_reg(struct tcon_core_reg_info_s *core_reg_info,
+		unsigned int reg, unsigned int val);
+int lcd_tcon_setb_table32_reg(struct tcon_core_reg_info_s *core_reg_info,
+		unsigned int reg, unsigned int val, unsigned int start, unsigned int len);
 
 #endif

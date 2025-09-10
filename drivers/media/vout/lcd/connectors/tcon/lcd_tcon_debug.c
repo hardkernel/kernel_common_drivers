@@ -265,7 +265,7 @@ int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		return len;
 
 	lcd_tcon_init_setting_check(pdrv, &pdrv->curr_dev->dev_cfg.timing.act_timing,
-			local_cfg->cur_core_reg_table);
+			&local_cfg->cur_core_info);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
@@ -279,7 +279,7 @@ int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 			tcon_fw ? tcon_fw->fw_ready : 0,
 			tcon_conf->core_reg_width,
 			tcon_conf->reg_table_len,
-			local_cfg->bin_ver,
+			local_cfg->cur_core_info.bin_ver,
 			tcon_rmem->flag,
 			(unsigned long)tcon_rmem->rsv_mem_paddr,
 			tcon_rmem->rsv_mem_size);
@@ -554,20 +554,20 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 			}
 		}
 	} else if (strcmp(parm[0], "table") == 0) {
-		if (!mm_table || !local_cfg)
+		if (!local_cfg)
 			goto lcd_tcon_debug_store_end;
-		table = local_cfg->cur_core_reg_table;
-		size = mm_table->core_reg_table_size;
+		table = local_cfg->cur_core_info.table;
+		size = local_cfg->cur_core_info.table_size;
 		if (!table)
 			goto lcd_tcon_debug_store_end;
 		if (size == 0)
 			goto lcd_tcon_debug_store_end;
 		if (!parm[1]) {
-			lcd_tcon_reg_table_print();
+			lcd_tcon_reg_table_print(&local_cfg->cur_core_info);
 			goto lcd_tcon_debug_store_end;
 		}
 		if (strcmp(parm[1], "dump") == 0) {
-			lcd_tcon_reg_table_print();
+			lcd_tcon_reg_table_print(&local_cfg->cur_core_info);
 			goto lcd_tcon_debug_store_end;
 		} else if (strcmp(parm[1], "r") == 0) {
 			if (!parm[2])
@@ -607,6 +607,8 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 			}
 		} else if (strcmp(parm[1], "update") == 0) {
 			lcd_tcon_core_update(pdrv);
+		} else if (strcmp(parm[1], "info") == 0) {
+			lcd_tcon_core_info_print(pdrv, &local_cfg->cur_core_info);
 		} else {
 			goto lcd_tcon_debug_store_err;
 		}
@@ -1293,39 +1295,55 @@ __lcd_tcon_pdf_dbg_store_exit:
 ssize_t lcd_tcon_info_dbg_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
+	struct tcon_core_reg_info_s *core_info = NULL;
+	struct lcd_tcon_reg_block_info_s *reg_blk_info = NULL;
 	char user_version[TCON_BIN_VER_LEN];
 	ssize_t len = 0;
+	int i = 0;
 
 	if (!local_cfg)
 		return 0;
 
-	if (local_cfg->cur_core_header) {
-		memset(user_version, 0, sizeof(user_version));
-		memcpy(user_version, local_cfg->cur_core_header->version,
-			sizeof(local_cfg->cur_core_header->version));
-		len += sprintf((buf + len),
-			"current bin info:\n"
-			"basic:\n"
-			"userVersion=%s\n"
-			"userBinName=%s\n"
-			"h_active=%d\n"
-			"v_active=%d\n"
-			"block_ctrl=0x%x\n",
-			user_version,
-			local_cfg->cur_core_header->name,
-			local_cfg->cur_core_header->h_active,
-			local_cfg->cur_core_header->v_active,
-			local_cfg->cur_core_header->block_ctrl);
-	}
-	if (local_cfg->cur_core_ext_header) {
+	core_info = &local_cfg->cur_core_info;
+	if (!core_info->header)
+		return sprintf((buf + len), "invalid header\n");
+
+	memset(user_version, 0, sizeof(user_version));
+	memcpy(user_version, core_info->header->version,
+		sizeof(core_info->header->version));
+	len += sprintf((buf + len),
+		"current bin info:\n"
+		"basic:\n"
+		"userVersion=%s\n"
+		"userBinName=%s\n"
+		"h_active=%d\n"
+		"v_active=%d\n"
+		"block_ctrl=0x%x\n",
+		user_version,
+		core_info->header->name,
+		core_info->header->h_active,
+		core_info->header->v_active,
+		core_info->header->block_ctrl);
+
+	if (core_info->header->ext_header_size) {
 		len += sprintf((buf + len),
 			"framerate_min=%d\n"
-			"framerate_max=%d\n",
-			local_cfg->cur_core_ext_header->framerate_min,
-			local_cfg->cur_core_ext_header->framerate_max);
+			"framerate_max=%d\n"
+			"reg_block_num=%d\n",
+			core_info->ext_header.framerate_min,
+			core_info->ext_header.framerate_max,
+			core_info->ext_header.reg_blk_num);
+		for (i = 0; i < core_info->ext_header.reg_blk_num; i++) {
+			reg_blk_info = &core_info->ext_header.reg_blk_info[i];
+			len += sprintf((buf + len),
+				"  reg_block[%d]: start=%#x, len=%d(%#x)  (%#x~%#x)\n",
+					i, reg_blk_info->start, reg_blk_info->len,
+					reg_blk_info->len, reg_blk_info->start,
+					(reg_blk_info->start + reg_blk_info->len - 1));
+		}
 	}
-	if (local_cfg->cur_user_info && strlen(local_cfg->cur_user_info) > 0)
-		len += sprintf((buf + len), "\nuser:\n%s\n", local_cfg->cur_user_info);
+	if (core_info->user_info && strlen(core_info->user_info) > 0)
+		len += sprintf((buf + len), "\nuser:\n%s\n", core_info->user_info);
 
 	return len;
 }

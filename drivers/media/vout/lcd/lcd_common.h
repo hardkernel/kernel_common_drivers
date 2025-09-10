@@ -20,7 +20,8 @@
 /* 20250602: lcd multi-device support */
 /* 20250616: support sw vrr */
 /* 20250902: update ufr clk_change flow */
-#define LCD_DRV_VERSION    "20250902"
+/* 20250917: tcon support discontinued bin */
+#define LCD_DRV_VERSION    "20250917"
 
 #define CFMT_RGB565          0x05
 #define CFMT_RGB_6bit        0x06
