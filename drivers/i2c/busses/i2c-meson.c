@@ -22,6 +22,8 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/secure_pwm_i2c.h>
+#include <dt-bindings/i2c/i2c-meson.h>
+#include <linux/delay.h>
 #endif
 
 /* Meson I2C register map */
@@ -120,6 +122,7 @@ struct meson_i2c {
 	bool is_runtime_sleep;
 #endif
 	struct meson_i2c_data		*data;
+	int mode;
 };
 
 static void meson_i2c_writel(struct meson_i2c *i2c, u32 data, int reg)
@@ -425,6 +428,67 @@ static void meson_i2c_do_start(struct meson_i2c *i2c, struct i2c_msg *msg)
 	meson_i2c_add_token(i2c, token);
 }
 
+static int meson_i2c_xfer_polling_msg(struct meson_i2c *i2c,
+	struct i2c_msg *msg, int last)
+{
+	unsigned int cnt = 0;
+
+	dev_dbg(i2c->dev, "meson i2c: %s addr 0x%x len %u\n",
+		(msg->flags & I2C_M_RD) ? "read" : "write",
+		msg->addr, msg->len);
+
+	i2c->msg = msg;
+	i2c->last = last;
+	i2c->pos = 0;
+	i2c->count = 0;
+
+	if ((readl(i2c->regs + REG_CTRL) & REG_SCL_LEVEL) == 0 &&
+		(readl(i2c->regs + REG_CTRL) & REG_SDA_LEVEL) == 0) {
+		/*
+		 * I2C bus is error
+		 */
+		dev_dbg(i2c->dev, "I2C BUS is Error, No pull up register\n");
+		return -ENXIO;
+	}
+	meson_i2c_reset_tokens(i2c);
+	meson_i2c_do_start(i2c, msg);
+
+	do {
+		meson_i2c_prepare_xfer(i2c);
+		if (i2c->last && i2c->pos + i2c->count >= i2c->msg->len)
+			meson_i2c_add_token(i2c, TOKEN_STOP);
+
+		/* start the transfer */
+		meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_START,
+			REG_CTRL_START);
+		while (readl(i2c->regs + REG_CTRL) & REG_CTRL_STATUS) {
+			if (cnt > I2C_TIMEOUT_MS * 1000) {
+				meson_i2c_set_mask(i2c, REG_CTRL,
+					REG_CTRL_START, 0);
+				pr_debug("meson i2c: timeout\n");
+				return -ETIMEDOUT;
+			}
+			udelay(1);
+			cnt++;
+		}
+		meson_i2c_reset_tokens(i2c);
+		meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_START, 0);
+
+		if (readl(i2c->regs + REG_CTRL) & REG_CTRL_ERROR) {
+			pr_debug("meson i2c: error\n");
+			return -EREMOTEIO;
+		}
+
+		if ((msg->flags & I2C_M_RD) && i2c->count) {
+			meson_i2c_get_data(i2c, i2c->msg->buf + i2c->pos,
+					   i2c->count);
+		}
+		i2c->pos += i2c->count;
+	} while (i2c->pos < msg->len);
+
+	return 0;
+}
+
 static int meson_i2c_xfer_msg(struct meson_i2c *i2c, struct i2c_msg *msg,
 			      int last)
 {
@@ -500,10 +564,21 @@ static int meson_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		return -ENXIO;
 	}
 
-	for (i = 0; i < num; i++) {
-		ret = meson_i2c_xfer_msg(i2c, msgs + i, i == num - 1);
-		if (ret)
-			break;
+	/*Abort any active operation, avoid M3 uses this BUS*/
+	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_START, 0);
+	if (i2c->mode == I2C_POLLING_MODE) {
+		for (i = 0; i < num; i++) {
+			ret = meson_i2c_xfer_polling_msg(i2c, msgs + i,
+				i == num - 1);
+			if (ret)
+				break;
+		}
+	} else {
+		for (i = 0; i < num; i++) {
+			ret = meson_i2c_xfer_msg(i2c, msgs + i, i == num - 1);
+			if (ret)
+				break;
+		}
 	}
 
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -580,6 +655,9 @@ static int meson_i2c_probe(struct platform_device *pdev)
 
 	if (fwnode_property_present(&np->fwnode, "retain-fast-mode"))
 		i2c->retain_fastmode = 1;
+	if (of_property_read_u32(pdev->dev.of_node, "working_mode",
+				 &i2c->mode))
+		i2c->mode = I2C_IRQ_MODE;
 	i2c->data = (struct meson_i2c_data *)of_device_get_match_data(&pdev->dev);
 #endif
 	i2c->dev = &pdev->dev;
@@ -612,13 +690,13 @@ static int meson_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't find IRQ\n");
 		return irq;
 	}
-
-	ret = devm_request_irq(&pdev->dev, irq, meson_i2c_irq, 0, NULL, i2c);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "can't request IRQ\n");
-		return ret;
+	if (i2c->mode == I2C_IRQ_MODE) {
+		ret = devm_request_irq(&pdev->dev, irq, meson_i2c_irq, 0, NULL, i2c);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "can't request IRQ\n");
+			return ret;
+		}
 	}
-
 #ifndef CONFIG_AMLOGIC_MODIFY
 	ret = clk_prepare(i2c->clk);
 	if (ret < 0) {
@@ -638,7 +716,8 @@ static int meson_i2c_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_MODIFY
 	i2c->irq = irq;
 	/* Disable the interrupt so that the system can enter low-power mode */
-	disable_irq(i2c->irq);
+	if (i2c->mode == I2C_IRQ_MODE)
+		disable_irq(i2c->irq);
 	pm_runtime_enable(i2c->dev);
 	pm_runtime_set_autosuspend_delay(i2c->dev, MESON_I2C_PM_TIMEOUT);
 	pm_runtime_use_autosuspend(i2c->dev);
@@ -712,7 +791,8 @@ static void meson_i2c_remove(struct platform_device *pdev)
 
 static int meson_i2c_put(struct meson_i2c *i2c)
 {
-	disable_irq(i2c->irq);
+	if (i2c->mode == I2C_IRQ_MODE)
+		disable_irq(i2c->irq);
 	pinctrl_pm_select_sleep_state(i2c->dev);
 	clk_disable_unprepare(i2c->clk);
 
@@ -729,7 +809,8 @@ static int meson_i2c_regain(struct meson_i2c *i2c)
 		return ret;
 	}
 	pinctrl_pm_select_default_state(i2c->dev);
-	enable_irq(i2c->irq);
+	if (i2c->mode == I2C_IRQ_MODE)
+		enable_irq(i2c->irq);
 
 	return 0;
 }
