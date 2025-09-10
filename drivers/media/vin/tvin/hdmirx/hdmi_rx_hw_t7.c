@@ -2071,8 +2071,12 @@ void rx_sw_reset_t7(int level, u8 port)
 	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(4), 0, port);
 	//hdmirx_wr_bits_cor(DEC_AV_MUTE_DP2_IVCRX, _BIT(5), 0, port);
 	/* dacr reset release */
-	if (rx_info.aml_phy.dacr_en)
-		hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(4), 0, port);
+	if (rx_info.aml_phy.dacr_en) {
+		if (rx_info.chip_id == CHIP_ID_T6X)
+			hdmirx_wr_bits_cor(HDMIRX_FSW_SRST, _BIT(4), 0, port);
+		else
+			hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(4), 0, port);
+	}
 }
 
 void hdcp_init_t7(u8 port)

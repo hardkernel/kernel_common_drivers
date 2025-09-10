@@ -52,7 +52,8 @@
 /* 2025.09.03 optimize dc override flow */
 /* 2025.09.18 modify rterm enable bit for t6x/t3x */
 /* 2025.09.19 set cable clk limit to 370M */
-#define RX_HW_VER "ver.2025/09/19"
+/* 2025.09.24 optimize dacr reset flow */
+#define RX_HW_VER "ver.2025/09/24"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -1524,7 +1525,9 @@
 #define SYS_TMDS_CH_MAP_PWD_IVCRX        0x0000100e
 #define SYS_TMDS_D_IR_PWD_IVCRX        0x0000100f
 #define RX_RPT_RDY_CTRL_PWD_IVCRX        0x00001010
-#define  RX_PWD_SRST2_PWD_IVCRX        0x00001011
+#define RX_PWD_SRST2_PWD_IVCRX        0x00001011
+/* change from 0x1011 to 0x1704 on t6x */
+#define HDMIRX_FSW_SRST	0x1704
 #define RX_TMDS_CCTRL2_PWD_IVCRX        0x00001013
 #define RX_HDCP2x_CTRL_PWD_IVCRX        0x00001014
 #define VIDEO_MODE_CTRL_PWD_IVCRX        0x00001016

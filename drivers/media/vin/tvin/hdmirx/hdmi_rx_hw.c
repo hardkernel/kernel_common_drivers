@@ -4662,11 +4662,13 @@ void cor_init(u8 port)
 	hdmirx_wr_cor(RX_SW_HDMI_MODE_PWD_IVCRX, 0x04, port);//register address: 0x1022
 
 	//[0] reg_ext_mclk_en; 1 select external mclk; 0: select internal dacr mclk
-	if (rx_info.chip_id == CHIP_ID_T6X)
+	if (rx_info.chip_id == CHIP_ID_T6X) {
 		hdmirx_wr_cor(EXT_MCLK_SEL_PWD_IVCRX_T6X, 0x01, port);//register address: 0x1701
-	else
+		/* dacr reset */
+		hdmirx_wr_bits_cor(HDMIRX_FSW_SRST, _BIT(4), 1, port);
+	} else {
 		hdmirx_wr_cor(EXT_MCLK_SEL_PWD_IVCRX, 0x01, port);//register address: 0x10c6
-
+	}
 	//DEPACK
 	data8  = 0;
 	data8 |= (1 << 4);//[4] reg_wait4_two_avi_pkts  default is 1, but need two packet
@@ -5079,6 +5081,8 @@ bool is_aud_pll_error_21(void)
 	u32 aud_128fs;
 	u32 aud_512fs;
 
+	if (rx_info.aml_phy.dacr_en)
+		return false;
 	clk = rx[rx_info.main_port].aud_info.aud_clk;
 	aud_128fs = rx[rx_info.main_port].aud_info.real_sr * 128;
 	aud_512fs = rx[rx_info.main_port].aud_info.real_sr * 512;
@@ -5113,12 +5117,18 @@ void rx_internal_dacr_mclk_en(bool en, u8 port)
 void rx_aud_pll_ctl(bool en, u8 port)
 {
 	if (rx_info.aml_phy.dacr_en) {
-		if (en)
+		if (en) {
 			/* select internal dacr mclk from digital */
 			rx_internal_dacr_mclk_en(true, port);
-		else
+		} else {
 			/* dacr reset */
-			hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(4), 1, port);
+			if (rx_info.chip_id == CHIP_ID_T6X)
+				hdmirx_wr_bits_cor(HDMIRX_FSW_SRST, _BIT(4), 1, port);
+			else
+				hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(4), 1, port);
+			/* afifo reset mode */
+			hdmirx_audio_disabled(port);
+		}
 	} else {
 		/* select internal dacr mclk from analog pll */
 		rx_internal_dacr_mclk_en(false, port);
