@@ -20,7 +20,8 @@
 
 #define CACHE_QUEUE_LEN 16384
 
-#define PAGE_INDEX(page) ((page) >> PAGE_SHIFT)
+#define SCATTER_PAGE_SHIFT 12
+#define PAGE_INDEX(page) ((page) >> SCATTER_PAGE_SHIFT)
 
 struct codec_mm_cache_queue {
 	int head;
