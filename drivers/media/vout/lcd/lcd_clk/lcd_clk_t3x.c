@@ -330,14 +330,9 @@ static void _lcd_set_vid_pll_div_by_cconf(struct aml_lcd_drv_s *pdrv, int pll_se
 		return;
 	}
 
-	if (pll_sel) {
-		shift_val = lcd_clk_div_table[cconf->pll_config[pll_sel].div_sel].shift_val;
-		shift_sel = lcd_clk_div_table[cconf->pll_config[pll_sel].div_sel].shift_sel;
-	} else {
-		shift_val = lcd_clk_div_table[CLK_DIV_SEL_5].shift_val;
-		shift_sel = lcd_clk_div_table[CLK_DIV_SEL_5].shift_sel;
-	}
 
+	shift_val = lcd_clk_div_table[cconf->pll_config[pll_sel].div_sel].shift_val;
+	shift_sel = lcd_clk_div_table[cconf->pll_config[pll_sel].div_sel].shift_sel;
 	if (shift_val == 0xffff) { /* if divide by 1 */
 		lcd_combo_dphy_setb(pdrv, reg_vid_pll_div, 1, 18, 1);
 	} else {
