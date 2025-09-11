@@ -4207,6 +4207,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_info.sub_port = 0xff;
 	} else {
 		rx_info.chip_id = CHIP_ID_T3;
+		rx_info.port_num = PORT_NUM_3;
 	}
 	ret = rx_get_top_irq_table(rx_info.chip_id);
 	if (ret < 0)

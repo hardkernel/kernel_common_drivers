@@ -2730,6 +2730,10 @@ int cec_set_uevent(enum cec_event_type type, unsigned int val)
 	char *envp[2];
 	int ret = -1;
 
+	if (!cec_dev->dbg_dev) {
+		CEC_ERR("[%s] cec_dev->dbg_dev is NULL\n", __func__);
+		return ret;
+	}
 	/* hdmi_plug/cec_rx_msg uevent may concurrent, need mutex */
 	mutex_lock(&cec_dev->cec_uevent_mutex);
 	for (event = cec_events; event->type != CEC_NONE_EVENT; event++) {

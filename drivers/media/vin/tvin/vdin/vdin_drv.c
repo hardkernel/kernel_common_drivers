@@ -976,6 +976,8 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 
 	for (i = 0; i < p->size; ++i) {
 		master = vf_get_master(p, i);
+		if (!master)
+			return;
 		master->flag = VF_FLAG_NORMAL_FRAME;
 		vf = &master->vf;
 		memset(vf, 0, sizeof(struct vframe_s));
@@ -3645,7 +3647,8 @@ static void vdin_slt_test(struct vdin_dev_s *devp)
 	else
 		devp->debug.slt_test.vf_check_result = false;
 
-	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_INPUT)
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_INPUT &&
+		devp->vfp->last_last_vfe)
 		pr_info("vdin%d,crc=[%#x %#x],cnt=[%d %d]\n",
 			devp->index, devp->debug.slt_test.vf_ori_crc,
 			!devp->vfp->last_last_vfe ? 0xdeaddeaf : devp->vfp->last_last_vfe->vf.crc,
@@ -3817,6 +3820,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 #endif
 
 	sm_ops = devp->frontend->sm_ops;
+	if (!sm_ops)
+		return IRQ_HANDLED;
 
 	if (sm_ops && sm_ops->get_sig_property) {
 		if (devp->dts_config.vdin_get_prop_in_vs_en) {

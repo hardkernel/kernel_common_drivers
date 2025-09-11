@@ -3328,6 +3328,10 @@ static ssize_t attr_store(struct device *dev,
 		return len;
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	devp = dev_get_drvdata(dev);
+	if (!devp->vfp) {
+		pr_info("devp->vfp is NULL\n");
+		return ret;
+	}
 	vdin_parse_param(buf_orig, (char **)&parm);
 	offset = devp->addr_offset;
 	if (!strncmp(parm[0], "fps", 3)) {

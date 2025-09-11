@@ -3683,6 +3683,10 @@ void vdin_set_dv_tunnel(struct vdin_dev_s *devp)
 	unsigned int offset;
 	struct tvin_state_machine_ops_s *sm_ops;
 
+	/* avoid null pointer oops */
+	if (!devp || !(devp->frontend) || !(devp->frontend->sm_ops) ||
+	    !(devp->frontend->sm_ops->hdmi_dv_config))
+		return;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
 		return;
@@ -3691,11 +3695,6 @@ void vdin_set_dv_tunnel(struct vdin_dev_s *devp)
 		return;
 	}
 #endif
-
-	/* avoid null pointer oops */
-	if (!devp || !(devp->frontend) || !(devp->frontend->sm_ops) ||
-	    !(devp->frontend->sm_ops->hdmi_dv_config))
-		return;
 
 	if (!IS_HDMI_SRC(devp->parm.port))
 		return;

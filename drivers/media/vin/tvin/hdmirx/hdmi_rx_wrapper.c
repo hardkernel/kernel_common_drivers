@@ -3360,8 +3360,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return -1;
 
 	memset(tmpbuf, 0, sizeof(tmpbuf));
-	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ') &&
-	       (buf[i] != '\n') && (i < size)) {
+	while ((i < size) && (buf[i]) && (buf[i] != ',') && (buf[i] != ' ') &&
+	       (buf[i] != '\n')) {
 		tmpbuf[i] = buf[i];
 		i++;
 	}

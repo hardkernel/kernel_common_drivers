@@ -2930,6 +2930,11 @@ static int aml_cec_suspend_noirq(struct device *dev)
 	int ret = 0;
 	/*unsigned int tempaddr;*/
 
+	if (!cec_dev->dbg_dev) {
+		CEC_ERR("[%s] cec_dev->dbg_dev is NULL\n", __func__);
+		return ret;
+	}
+
 	cec_dev->cec_info.power_status = CEC_PW_TRANS_ON_TO_STANDBY;
 	cec_dev->cec_suspend = CEC_PW_TRANS_ON_TO_STANDBY;
 
@@ -3001,6 +3006,10 @@ static int aml_cec_resume_noirq(struct device *dev)
 
 	CEC_ERR("cec resume noirq!\n");
 
+	if (!cec_dev->dbg_dev) {
+		CEC_ERR("[%s] cec_dev->dbg_dev is NULL\n", __func__);
+		return ret;
+	}
 	cec_dev->cec_info.power_status = CEC_PW_TRANS_STANDBY_TO_ON;
 	cec_dev->cec_suspend = CEC_PW_TRANS_STANDBY_TO_ON;
 	/*initial msg buffer*/

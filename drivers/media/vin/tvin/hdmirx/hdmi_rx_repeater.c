@@ -145,6 +145,8 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 		ret = NOTIFY_OK;
 		break;
 	case HDMITX_HDR_PRIORITY:
+		if (!p)
+			break;
 		tx_hdr_priority = *((u32 *)p);
 		if (log_level & EDID_LOG)
 			rx_pr("tx_hdr_priority = %d\n", tx_hdr_priority);

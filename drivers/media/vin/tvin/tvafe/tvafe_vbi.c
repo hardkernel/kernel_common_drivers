@@ -2339,6 +2339,8 @@ static ssize_t debug_store(struct device *dev,
 		return len;
 
 	vbi_slicer = devp->slicer;
+	if (!vbi_slicer)
+		return ret;
 	vbi_buffer = &vbi_slicer->buffer;
 
 	buf_orig = kstrdup(buff, GFP_KERNEL);

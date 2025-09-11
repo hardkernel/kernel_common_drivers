@@ -904,6 +904,10 @@ void vdin_vf_freeze(struct vf_pool *p, unsigned int num)
 	struct list_head *rd_head, *wr_head, *fz_head;
 	unsigned long flags;
 
+	if (!p) {
+		pr_info("vf_pool is null\n");
+		return;
+	}
 	rd_head  = &p->rd_list;
 	wr_head = &p->wr_list;
 	fz_head  = &p->fz_list;
@@ -948,6 +952,10 @@ void vdin_vf_unfreeze(struct vf_pool *p)
 	struct vf_entry *vfe, *tmp;
 	unsigned long flags;
 
+	if (!p) {
+		pr_info("vf_pool is null\n");
+		return;
+	}
 	fz_head = &p->fz_list;
 	wr_head = &p->wr_list;
 	if (p->fz_list_size > 0) {
