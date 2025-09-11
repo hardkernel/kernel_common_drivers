@@ -265,7 +265,8 @@ static int property_access(struct ddr_bandwidth *db, u64 *val,
 
 #undef DMC_AXI0_CHAN_CTRL
 #define DMC_AXI0_CHAN_CTRL		((0x0080  << 2))
-#define AXI_REGISTER_COUNT		((4 << 2))
+#define AXI_REGISTER_COUNT_S7		((4 << 2))
+#define AXI_REGISTER_COUNT_S7D		((5 << 2))
 #define SIDE_BAND_REG			((2 << 2))
 #define SIDE_BAND_BLOCK_RW_OFFSET	8
 #define SIDE_BAND_BLOCK_OFFSET		16
@@ -277,12 +278,17 @@ static int side_band(struct ddr_bandwidth *db, unsigned char dmc, unsigned char 
 	unsigned int reg;
 	int bus_count;
 
-	if (db->cpu_type == DMC_TYPE_S7D)
+	if (db->cpu_type == DMC_TYPE_S7D) {
 		bus_count = 15;
-	else
+		if (bus % 3)
+			reg = DMC_AXI0_CHAN_CTRL + AXI_REGISTER_COUNT_S7D * bus + SIDE_BAND_REG;
+		else
+			reg = DMC_AXI0_CHAN_CTRL + (0x10 << 2) * (bus / 3) + SIDE_BAND_REG;
+	} else {
 		bus_count = BUS_COUNT;
+		reg = DMC_AXI0_CHAN_CTRL + AXI_REGISTER_COUNT_S7 * bus + SIDE_BAND_REG;
+	}
 
-	reg = DMC_AXI0_CHAN_CTRL + AXI_REGISTER_COUNT * bus + SIDE_BAND_REG;
 	if (db->dmc_bus[dmc].bus[bus].side_band.flags) {
 		for (i = 0, val = 0; i < db->dmc_bus[dmc].bus[bus].side_band.block_num; i++)
 			val |= 1 << db->dmc_bus[dmc].bus[bus].side_band.block_bus[i];
