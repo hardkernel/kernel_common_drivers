@@ -2088,7 +2088,7 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 			plane_info->dst_w != old_plane_info->dst_w ||
 			plane_info->dst_h != old_plane_info->dst_h ||
 			plane_info->zorder != old_plane_info->zorder ||
-			!plane_info->enable) {
+			plane_info->enable != old_plane_info->enable) {
 			DRM_DEBUG_DRIVER("old:src(%dx%d)dst(%d,%d)(%dx%d), zorder=%d\n",
 				old_plane_info->src_w, old_plane_info->src_h,
 				old_plane_info->dst_x, old_plane_info->dst_y,

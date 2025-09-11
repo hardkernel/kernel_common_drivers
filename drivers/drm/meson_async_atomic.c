@@ -127,14 +127,24 @@ bool is_am_osd_async_commit(struct drm_atomic_state *atomic_state)
 	return plane && !strncmp(plane->name, "osd", 3);
 }
 
-static void meson_atomic_bypass_vblank_wait(struct drm_atomic_state *state)
+static void meson_video_bypass_vblank_wait(struct drm_atomic_state *state)
 {
 	struct am_meson_crtc_state *meson_crtc_state;
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
 	int i;
+	struct drm_plane *plane = NULL;
+	struct drm_plane_state *new_plane_state = NULL;
+	int n_planes = 0;
 
-	if (is_am_osd_async_commit(state))
+	for_each_new_plane_in_state(state, plane,  new_plane_state, i)
+		n_planes++;
+
+	/* FIXME: we support only single plane updates for now */
+	if (n_planes != 1)
+		DRM_WARN("only single plane async updates are supported\n");
+
+	if (!plane || strncmp(plane->name, "vid", 3))
 		return;
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
@@ -617,7 +627,7 @@ retry:
 	if (ret)
 		goto out;
 
-	meson_atomic_bypass_vblank_wait(state);
+	meson_video_bypass_vblank_wait(state);
 
 	start2 = ktime_get();
 	ret = config->funcs->atomic_commit(state->dev, state, false);
