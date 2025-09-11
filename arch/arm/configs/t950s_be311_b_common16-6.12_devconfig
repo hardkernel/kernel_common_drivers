@@ -135,10 +135,6 @@ CONFIG_AMLOGIC_BLUETOOTH=n
 # amlogic-input.ko
 CONFIG_AMLOGIC_INPUT=m
 
-# amlogic-i2c.ko
-CONFIG_AMLOGIC_I2C_MESON=m
-CONFIG_I2C_CHARDEV=m
-
 # amlogic-spi.ko
 CONFIG_AMLOGIC_SPI=m
 
