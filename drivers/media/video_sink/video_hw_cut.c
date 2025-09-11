@@ -5837,7 +5837,11 @@ static inline void vdx_test_pattern_output(u32 index, u32 on, u32 color)
 		return;
 	}
 	if (on) {
-		if (!is_tv_panel()) {
+		if (/*!is_tv_panel() ||*/
+			((!cpu_after_eq(MESON_CPU_MAJOR_ID_T7) ||
+			cur_dev->display_module == OLD_DISPLAY_MODULE) &&
+			vd_layer[0].dispbuf &&
+			(vd_layer[0].dispbuf->type & VIDTYPE_RGB_444))) {
 			u32 R, G, B;
 
 			R = (color & 0xff0000) >> 16;
@@ -5944,7 +5948,7 @@ static inline void postblend_test_pattern_output(u32 on, u32 color)
 				291 * G / 1000 +
 				439 * B / 1000 + 128;
 			pr_info("Y=%x, U=%x, V=%x\n", Y, U, V);
-			color = (Y << 20) | (U << 10) | V << 2; /* YUV */
+			color = (Y << 22) | (U << 12) | V << 2; /* YUV */
 		}
 
 		if (cur_dev->display_module != C3_DISPLAY_MODULE) {
