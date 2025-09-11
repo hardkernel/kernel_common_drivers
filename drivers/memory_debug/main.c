@@ -14,9 +14,13 @@
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/kasan.h>
+#include <linux/kthread.h>
+#include <linux/time.h>
+#include <linux/delay.h>
 #include <linux/amlogic/module_merge.h>
 #include "main.h"
 #include <linux/amlogic/aml_free_reserved.h>
+#include <linux/amlogic/aml_cma.h>
 
 unsigned long aml_free_reserved_area(void *start, void *end, int poison, const char *s)
 {
@@ -93,6 +97,93 @@ void free_iotrace_reserved_memory(void)
 }
 #endif
 
+#define MAX_CMA_TASKS 8
+struct task_struct *matched_cmatasks[MAX_CMA_TASKS];
+
+static int get_current_cma_task_nice(void)
+{
+	if (matched_cmatasks[0])
+		return task_nice(matched_cmatasks[0]);
+
+	pr_err("can not find cma task thread.\n");
+
+	return -EINVAL;
+}
+
+static int set_cma_task_nice(int nice)
+{
+	int cur_nice;
+	int i = 0;
+
+	cur_nice = get_current_cma_task_nice();
+	if (cur_nice == -EINVAL || cur_nice == nice)
+		return 0;
+
+	for (i = 0; i < MAX_CMA_TASKS; i++) {
+		if (matched_cmatasks[i])
+			set_user_nice(matched_cmatasks[i], nice);
+	}
+	pr_info("renice cma task to %d\n", nice);
+
+	return 0;
+}
+
+/*
+ * level 0: nice = -17, default value
+ * level 1: nice = -10
+ * level 2: nice = 0
+ */
+int set_cma_task_priority_level(int level)
+{
+	int ret;
+	int cma_task_level[] = {-17, -10, 0};
+
+	if (level < 0 || level > 2) {
+		pr_err("out of level range: [0-2]");
+		return -EINVAL;
+	}
+	ret = set_cma_task_nice(cma_task_level[level]);
+
+	return ret;
+}
+EXPORT_SYMBOL(set_cma_task_priority_level);
+
+static int find_cma_task_hook(void *data)
+{
+	struct task_struct *tsk;
+	int i = 0;
+	char task_name[MAX_CMA_TASKS][20] = {0};
+
+	for (i = 0; i < MAX_CMA_TASKS; i++)
+		sprintf(task_name[i], "cma_task%d", i);
+
+	while (1) {
+		rcu_read_lock();
+		for_each_process(tsk) {
+			/* skip userspace task */
+			if (tsk->mm)
+				continue;
+
+			for (i = 0; i < MAX_CMA_TASKS; i++) {
+				if (matched_cmatasks[i])
+					continue;
+				if (!strncmp(tsk->comm, task_name[i], 9)) {
+					matched_cmatasks[i] = tsk;
+					break;
+				}
+			}
+		}
+		rcu_read_unlock();
+
+		if (matched_cmatasks[0])
+			break;
+
+		msleep_interruptible(500);
+	}
+
+	return 0;
+}
+
 static int __init memory_main_init(void)
 {
 	pr_debug("### %s() start\n", __func__);
@@ -105,6 +196,8 @@ static int __init memory_main_init(void)
 	free_iotrace_reserved_memory();
 #endif
 	pr_debug("### %s() end\n", __func__);
+
+	kthread_run(find_cma_task_hook, NULL, "find_cma_task");
 
 	return 0;
 }

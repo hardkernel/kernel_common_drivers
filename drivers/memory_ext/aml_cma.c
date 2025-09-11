@@ -1968,46 +1968,6 @@ static int get_current_cma_task_nice(void)
 	return -EINVAL;
 }
 
-static int set_cma_task_nice(int nice)
-{
-	int cpu;
-	struct cma_pcp *work;
-	int cur_nice;
-
-	cur_nice = get_current_cma_task_nice();
-	if (cur_nice == -EINVAL || cur_nice == nice)
-		return 0;
-
-	for_each_possible_cpu(cpu) {
-		work = &per_cpu(cma_pcp_thread, cpu);
-		if (work && work->task)
-			set_user_nice(work->task, nice);
-	}
-	pr_info("renice cma task to %d\n", nice);
-
-	return 0;
-}
-
-/*
- * level 0: nice = -17, default value
- * level 1: nice = -10
- * level 2: nice = 0
- */
-int set_cma_task_priority_level(int level)
-{
-	int ret;
-	int cma_task_level[] = {-17, -10, 0};
-
-	if (level < 0 || level > 2) {
-		pr_err("out of level range: [0-2]");
-		return -EINVAL;
-	}
-	ret = set_cma_task_nice(cma_task_level[level]);
-
-	return ret;
-}
-EXPORT_SYMBOL(set_cma_task_priority_level);
-
 static int cma_debug_show(struct seq_file *m, void *arg)
 {
 	int nice = get_current_cma_task_nice();
