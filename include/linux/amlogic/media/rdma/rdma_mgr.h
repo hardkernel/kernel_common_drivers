@@ -149,6 +149,8 @@ u32 PRE_VSYNC_RD_TABLE_REG(int tbl_idx, u32 adr);
 
 int PRE_VSYNC_WR_TABLE_REG(int tbl_idx, u32 adr, u32 val);
 
+inline int VSYNC_WR_TABLE_REG_SIMPLE(int tbl_idx, u32 adr, u32 val);
+
 int PRE_VSYNC_WR_TABLE_REG_BITS(int tbl_idx, u32 adr, u32 val, u32 start, u32 len);
 
 struct rdma_partition_ins_s *get_part_table_ins(int vpp_index, int tbl_index);

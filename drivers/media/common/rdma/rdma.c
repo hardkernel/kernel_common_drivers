@@ -114,6 +114,19 @@ struct rdma_op_s ex_vsync_rdma_op = {
 
 inline int VSYNC_WR_TABLE_REG_SIMPLE(int tbl_idx, u32 adr, u32 val)
 {
+	int enable_ = cur_enable[cur_vsync_handle_id] & 0xf;
+
+	if (enable_ != 0 && vsync_rdma_handle[cur_vsync_handle_id] > 0) {
+		if (get_part_flag_status(RDMA_VPP0, tbl_idx))
+			rdma_part_write_reg_simple(tbl_idx,
+					vsync_rdma_handle[cur_vsync_handle_id], adr, val);
+		else
+			rdma_write_reg(vsync_rdma_handle[cur_vsync_handle_id], adr, val);
+	} else {
+		Wr(adr, val);
+		if (debug_flag[cur_vsync_handle_id] & 1)
+			pr_info("VSYNC_WR(%x)=%x\n", adr, val);
+	}
 	return 0;
 }
 EXPORT_SYMBOL(VSYNC_WR_TABLE_REG_SIMPLE);
