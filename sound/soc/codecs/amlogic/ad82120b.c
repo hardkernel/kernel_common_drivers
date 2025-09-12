@@ -936,6 +936,8 @@ static void ad82120b_fault_check_work(struct work_struct *work)
 	// and now turn it on(I2S clock is out).
 	if (ad82120b->ASR_DET != 0 && ad82120b->ASR_DET_lock == 0) {
 		ret = regmap_write(ad82120b->regmap, AD82120B_CLK_DET_CTRL, ad82120b->ASR_DET);
+		if (ret < 0)
+			dev_err(dev, "failed to write AD82120B_CLK_DET_CTRL register: %d\n", ret);
 		ad82120b->ASR_DET_lock = 1;
 	}
 
@@ -1327,6 +1329,35 @@ static int ad82120b_mute(struct snd_soc_component *component, int mute)
 	return 0;
 }
 
+static inline int get_volume_index(int vol)
+{
+	int index;
+
+	index = vol;
+
+	if (index < AD82120B_VOLUME_MIN)
+		index = AD82120B_VOLUME_MIN;
+
+	if (index > AD82120B_VOLUME_MAX)
+		index = AD82120B_VOLUME_MAX;
+
+	return index;
+}
+
+static void ad82120b_set_volume(struct snd_soc_component *component, int vol)
+{
+	unsigned int index;
+	u32 volume_hex;
+	u8 byte;
+
+	index = get_volume_index(vol);
+	volume_hex = ad82120b_volume[index];
+
+	byte = (volume_hex & 0xFF);
+
+	snd_soc_component_write(component, AD82120B_VOLUME_CTRL_REG, byte);
+}
+
 #ifdef CONFIG_PM
 static int ad82120b_suspend(struct snd_soc_component *component)
 {
@@ -1373,31 +1404,35 @@ static int ad82120b_resume(struct snd_soc_component *component)
 
 	msleep(20);
 
-	memset(string, 0, AD82120B_PARAM_COUNT);
-	memcpy(string, ad82120b->m_ram1_tab, AD82120B_RAM1_TABLE_COUNT * 5);
+	if (ad82120b->eq_enable) {
+		memset(string, 0, AD82120B_PARAM_COUNT);
+		memcpy(string, ad82120b->m_ram1_tab, AD82120B_RAM1_TABLE_COUNT * 5);
 
-	for (i = 0; i < AD82120B_RAM1_TABLE_COUNT; i++) {
-		for (j = 0; j < 5; j++)
-			m_ram1_tab[i][j] = string[i * 5 + j];
+		for (i = 0; i < AD82120B_RAM1_TABLE_COUNT; i++) {
+			for (j = 0; j < 5; j++)
+				m_ram1_tab[i][j] = string[i * 5 + j];
+		}
 	}
 
-	memset(string, 0, AD82120B_PARAM_COUNT);
-	memcpy(string, ad82120b->m_ram2_tab, AD82120B_RAM2_TABLE_COUNT * 5);
+	if (ad82120b->drc_enable) {
+		memset(string, 0, AD82120B_PARAM_COUNT);
+		memcpy(string, ad82120b->m_ram2_tab, AD82120B_RAM2_TABLE_COUNT * 5);
 
-	for (i = 0; i < AD82120B_RAM2_TABLE_COUNT; i++) {
-		for (j = 0; j < 5; j++)
-			m_ram2_tab[i][j] = string[i * 5 + j];
+		for (i = 0; i < AD82120B_RAM2_TABLE_COUNT; i++) {
+			for (j = 0; j < 5; j++)
+				m_ram2_tab[i][j] = string[i * 5 + j];
+		}
 	}
-
 	ret = ad82120b_reg_ram_init(component);
 	if (ret < 0)
 		goto resume_error_snd_soc_component_update_bits;
-
-	for (i = 0; i < AD82120B_REGISTER_COUNT; i++) {
-		snd_soc_component_write(component, *p, *(p + 1));
-		p += 2;
+	ad82120b_set_volume(component, ad82120b->vol);
+	if (ad82120b->reg_setting) {
+		for (i = 0; i < AD82120B_REGISTER_COUNT; i++) {
+			snd_soc_component_write(component, *p, *(p + 1));
+			p += 2;
+		}
 	}
-
 	ad82120b_mute(component, ad82120b->mute);
 
 	return 0;
@@ -1524,35 +1559,6 @@ static int ad82120b_vol_info(struct snd_kcontrol *kcontrol,
 	uinfo->value.integer.step = 1;
 
 	return 0;
-}
-
-static inline int get_volume_index(int vol)
-{
-	int index;
-
-	index = vol;
-
-	if (index < AD82120B_VOLUME_MIN)
-		index = AD82120B_VOLUME_MIN;
-
-	if (index > AD82120B_VOLUME_MAX)
-		index = AD82120B_VOLUME_MAX;
-
-	return index;
-}
-
-static void ad82120b_set_volume(struct snd_soc_component *component, int vol)
-{
-	unsigned int index;
-	u32 volume_hex;
-	u8 byte;
-
-	index = get_volume_index(vol);
-	volume_hex = ad82120b_volume[index];
-
-	byte = (volume_hex & 0xFF);
-
-	snd_soc_component_write(component, AD82120B_VOLUME_CTRL_REG, byte);
 }
 
 static int ad82120b_vol_locked_get(struct snd_kcontrol *kcontrol,
@@ -1751,10 +1757,25 @@ static int ad82120b_get_register_value(struct snd_kcontrol *kcontrol,
 	struct ad82120b_data *ad82120b = snd_soc_component_get_drvdata(component);
 	struct snd_ctl_tlv *tlv;
 	char *val = (char *)bytes + sizeof(*tlv);
+	char tmp_string[AD82120B_PARAM_COUNT];
+	char *p_string = &tmp_string[0];
 	char *p = ad82120b->m_reg_tab;
-	int res = 0;
+	int i, res = 0;
+	unsigned int curr_fault;
 
-	res = copy_to_user(val, p, AD82120B_REGISTER_COUNT * 2);
+	for (i = 0; i < AD82120B_REGISTER_COUNT; i++) {
+		regmap_read(ad82120b->regmap, m_reg_tab[i][0], &curr_fault);
+		*p = m_reg_tab[i][0];
+		*(p + 1) = curr_fault;
+		p += 2;
+	}
+
+	p = ad82120b->m_reg_tab;
+	for (i = 0; i < AD82120B_REGISTER_COUNT * 2; i++) {
+		tmp_string[i] = *p;
+		p++;
+	}
+	res = copy_to_user(val, p_string, AD82120B_REGISTER_COUNT * 2);
 	if (res)
 		return -EFAULT;
 
@@ -1885,7 +1906,6 @@ static const struct snd_soc_component_driver soc_component_dev_ad82120b = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 /* PCM rates supported by the AD82120B driver */
@@ -1957,8 +1977,13 @@ static void ad82120b_power_on(struct device *dev)
 		gpiod_get_value(ad82120b->reset_pin_desc));
 }
 
-static int ad82120b_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static const struct i2c_device_id ad82120b_id[] = {
+	{ "ad82120b", AD82120B },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, ad82120b_id);
+
+static int ad82120b_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ad82120b_data *data;
@@ -1966,6 +1991,8 @@ static int ad82120b_probe(struct i2c_client *client,
 	int ret;
 	int i;
 	u32 dummy;
+	const struct i2c_device_id *id = i2c_match_id(ad82120b_id, client);
+
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -2073,12 +2100,6 @@ static void ad82120b_shutdown(struct i2c_client *client)
 		gpiod_put(ad82120b->reset_pin_desc);
 	}
 }
-
-static const struct i2c_device_id ad82120b_id[] = {
-	{ "ad82120b", AD82120B },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, ad82120b_id);
 
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id ad82120b_of_match[] = {
