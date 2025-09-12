@@ -1153,6 +1153,7 @@ static void receive_q_uninit(struct videodisplay_dev *dev)
 static void ready_q_uninit(struct videodisplay_dev *dev)
 {
 	struct vframe_s *vf = NULL;
+	struct vframe_s *dst_vf = NULL;
 	struct file *file_vf;
 	struct vd_prepare_s *vd_prepare;
 	struct mbp_buffer_info_t *mpb_buf = NULL;
@@ -1163,11 +1164,16 @@ static void ready_q_uninit(struct videodisplay_dev *dev)
 		kfifo_len(&dev->ready_q));
 
 	while (kfifo_len(&dev->ready_q) > 0) {
-		if (kfifo_get(&dev->ready_q, &vf)) {
-			if (!vf) {
+		if (kfifo_get(&dev->ready_q, &dst_vf)) {
+			if (!dst_vf) {
 				vd_print(dev->index, PRINT_ERROR, "%s: dis_vf is NULL\n", __func__);
 				break;
 			}
+
+			if (dst_vf->type_ext & VIDTYPE_EXT_LCEVC)
+				vf = dst_vf->enhance_vf;
+			else
+				vf = dst_vf;
 
 			vd_prepare = container_of(vf, struct vd_prepare_s, dst_frame);
 			if (IS_ERR_OR_NULL(vd_prepare)) {
@@ -1210,13 +1216,13 @@ static void ready_q_uninit(struct videodisplay_dev *dev)
 							"%s: vc_private is NULL.\n",
 							__func__);
 				} else {
-					dma_buf_put((struct dma_buf *)file_vf);
-					dma_fence_signal(vd_prepare->release_fence);
-					dma_fence_put(vd_prepare->release_fence);
 					vd_print(dev->index, PRINT_FENCE,
 						"%s: release_fence = %px\n",
 						__func__,
 						vd_prepare->release_fence);
+					dma_fence_put(vd_prepare->release_fence);
+					dma_fence_signal(vd_prepare->release_fence);
+					dma_buf_put((struct dma_buf *)file_vf);
 				}
 
 				dev->fput_count++;
