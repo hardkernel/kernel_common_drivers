@@ -417,10 +417,10 @@ void get_hdmirx_dolby_hdr_info(struct hdmirx_dolby_hdr_s *info)
 {
 	if (!info)
 		return;
-	if (rx[rx_info.main_port].vs_info_details.dolby_vision_flag) {
+	if (rx[rx_info.main_port].amdv_type) {
 		if (rx[rx_info.main_port].vs_info_details.dv_allm)
 			info->type = HDMIRX_DOLBY_HDR_TYPE_LOW_LATENCY;
-		else if (rx[rx_info.main_port].vs_info_details.dolby_vision_flag == DV_VSIF)
+		else if (rx[rx_info.main_port].amdv_type == DV_VSIF)
 			info->type = HDMIRX_DOLBY_HDR_TYPE_STANDARD_VSIF_2;
 	} else {
 		info->type = HDMIRX_DOLBY_HDR_TYPE_SDR;//need to check hdr,2022/08/01 start
@@ -1297,7 +1297,7 @@ unsigned int hdmirx_show_diagnostic_info(unsigned char *buf, int size)
 		pos += snprintf(buf + pos, size - pos,
 			"[HF VSIF]IEEE OUI=%02x%02x%02x DV10=%d;", vsi_info.regid[2],
 			vsi_info.regid[1], vsi_info.regid[0],
-			vs_info_details.dolby_vision_flag == DV_VSIF ? 1 : 0);
+			rx[rx_info.main_port].amdv_type == DV_VSIF ? 1 : 0);
 		break;
 
 	case IEEE_VSI21:

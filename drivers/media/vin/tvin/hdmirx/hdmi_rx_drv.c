@@ -1440,8 +1440,8 @@ void hdmirx_get_color_fmt(struct tvin_sig_property_s *prop, u8 port)
 		format = E_COLOR_RGB;
 	switch (format) {
 	case E_COLOR_YUV422:
-		if (rx_info.chip_id == CHIP_ID_T3X &&
-			!rx[port].vs_info_details.dolby_vision_flag &&
+		if (rx_info.chip_id >= CHIP_ID_T3X &&
+			!rx[port].amdv_type &&
 			!rx[port].dsc_flag)
 			prop->color_format = TVIN_YUV444;
 		else
@@ -1525,18 +1525,12 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop, u8 port)
 		else
 			rx[port].vs_info_details.pkt_status = HDMIRX_PACKET_STATUS_UPDATED;
 		prop->trans_fmt = TVIN_TFMT_2D;
-		prop->dolby_vision = DV_NULL;
 		prop->hdr10p_info.hdr10p_on = false;
 		prop->cuva_info.cuva_on = false;
 		prop->filmmaker.fmm_vsif_flag = false;
 		prop->imax_flag = false;
 		last_vsi_state = rx[port].vs_info_details.vsi_state;
 	}
-	//if (rx[port].pre.colorspace != E_COLOR_YUV420)
-	prop->dolby_vision = rx[port].vs_info_details.dolby_vision_flag |
-		rx[port].drm_dv_flag;
-	if (prop->dolby_vision)
-		rx[port].hdr_info.hdr_type = HDMIRX_HDR_MODE_AMDV;
 	if (log_level & PACKET_LOG && rx[port].new_emp_pkt)
 		rx_pr("vsi_state:0x%x\n", rx[port].vs_info_details.vsi_state);
 
@@ -1562,7 +1556,7 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop, u8 port)
 	case E_VSI_DV10:
 	case E_VSI_DV15:
 		prop->low_latency = rx[port].vs_info_details.low_latency;
-		if (rx[port].vs_info_details.dolby_vision_flag == DV_VSIF) {
+		if (rx[port].amdv_type == DV_VSIF) {
 			memcpy(&prop->dv_vsif_raw,
 			       &rx_pkt[port].multi_vs_info[DV15], 3);
 			memcpy((char *)(&prop->dv_vsif_raw) + 3,
@@ -1825,17 +1819,14 @@ void hdmirx_get_latency_info(struct tvin_sig_property_s *prop, u8 port)
 #endif
 }
 
-static u32 emp_irq_cnt;
-void hdmirx_get_emp_dv_info(struct tvin_sig_property_s *prop, u8 port)
+void hdmirx_get_dv_info(struct tvin_sig_property_s *prop, u8 port)
 {
 	u8 i;
 
-	//emp buffer not only stores DV_EMP packet, but also other packets.
-	//only DV_EMP is needed here
-	if (rx[port].vs_info_details.dolby_vision_flag != DV_EMP)
-		return;
-
-	if (rx[port].emp_dv_info.flag) {
+	prop->dolby_vision = DV_NULL;
+	if (rx[port].amdv_type)
+		prop->dolby_vision = rx[port].amdv_type;
+	if (rx[port].amdv_type & DV_EMP) {
 		prop->emp_data.size = rx[port].emp_dv_info.dv_pkt_cnt;
 		for (i = 0; i < rx[port].emp_dv_info.dv_pkt_cnt; i++) {
 			memcpy(prop->emp_data.empbuf + i * 31,
@@ -1845,13 +1836,6 @@ void hdmirx_get_emp_dv_info(struct tvin_sig_property_s *prop, u8 port)
 				rx[port].emp_dv_info.dv_addr + i * 32 + 4, 28);
 		}
 	}
-#ifndef HDMIRX_SEND_INFO_TO_VDIN
-	if (rx[port].emp_info) {
-		if (emp_irq_cnt == rx[port].emp_info->irq_cnt)
-			rx[port].vs_info_details.emp_pkt_cnt = 0;
-		emp_irq_cnt = rx[port].emp_info->irq_cnt;
-	}
-#endif
 }
 
 void hdmirx_get_vtem_info(struct tvin_sig_property_s *prop, u8 port)
@@ -1949,7 +1933,8 @@ void hdmirx_get_hdr_info(struct tvin_frontend_s *fe, struct tvin_sig_property_s 
 	if (rx_pkt_chk_attach_drm(port) && rx_chk_drm_valid(port)) {
 		if (rx_is_dv_unique_drm(drm_pkt)) {
 			prop->dv_unique_drm_flag = true;
-			rx[port].drm_dv_flag = DV_UNIQUE_DRM;
+			rx[port].amdv_type = DV_UNIQUE_DRM;
+			rx[port].hdr_info.hdr_type = HDMIRX_HDR_MODE_AMDV;
 			rx[port].rx_sig_type |= E_DRM_AMDV;
 			memcpy(prop->hdr_info.hdr_data.rawdata, (u8 *)drm_pkt, 3);
 			memcpy(prop->hdr_info.hdr_data.rawdata + 3, (u8 *)drm_pkt + 4, 28);
@@ -2076,7 +2061,7 @@ void hdmirx_get_sig_prop(struct tvin_frontend_s *fe,
 	hdmirx_get_vsi_info(prop, cur_port);
 	hdmirx_get_pps_info(prop, cur_port);
 	hdmirx_get_latency_info(prop, cur_port);
-	hdmirx_get_emp_dv_info(prop, cur_port);
+	hdmirx_get_dv_info(prop, cur_port);
 	hdmirx_get_vtem_info(prop, cur_port);
 	hdmirx_get_sbtm_info(prop, cur_port);
 	hdmirx_get_cuva_emds_info(prop, cur_port);
@@ -3474,7 +3459,7 @@ static ssize_t hdmi_hdr_status_show(struct device *dev,
 
 	drmpkt = (struct drm_infoframe_st *)&rx_pkt[port].drm_info;
 
-	if (rx[port].vs_info_details.dolby_vision_flag == 1) {
+	if (rx[port].amdv_type) {
 		if (rx[port].vs_info_details.low_latency)
 			len += snprintf(buf + len, PAGE_SIZE, "DolbyVision-Lowlatency");
 		else

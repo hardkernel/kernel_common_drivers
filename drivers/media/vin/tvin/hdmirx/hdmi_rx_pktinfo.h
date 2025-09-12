@@ -18,7 +18,8 @@
 /* 2025.06.24 support SSTM & HLG+ */
 /* 2025.07.07 fix gaming-vrr base framerate error,set vrr_en when gaming-vrr */
 /* 2025.07.22 dump_cvtem_packet optimize stack size */
-#define RX_PKT_VER "ver.2025/07/22"
+/* 2025.09.12 fix emp dolby vision parsing error */
+#define RX_PKT_VER "ver.2025/09/12"
 
 
 #define K_ONEPKT_BUFF_SIZE		8
@@ -126,11 +127,12 @@ enum rx_sig_type_e {
 	E_EMP_QMS	= 0x8000,
 	E_EMP_SBTM	= 0x10000,
 	E_EMP_AMDV	= 0x20000,
-	E_EMP_CUVA	= 0x40000,
-	E_EMP_CVTEM	= 0x80000,
-	E_EMP_QMS_PLUS	= 0x100000,
-	E_EMP_FVA	= 0x200000,
-	E_AVI_FILMMAKER	= 0x400000,
+	E_EMP_AMDV_ALLM	= 0x40000,
+	E_EMP_CUVA	= 0x80000,
+	E_EMP_CVTEM	= 0x100000,
+	E_EMP_QMS_PLUS	= 0x200000,
+	E_EMP_FVA	= 0x400000,
+	E_AVI_FILMMAKER	= 0x800000,
 };
 
 enum pkt_decode_type {

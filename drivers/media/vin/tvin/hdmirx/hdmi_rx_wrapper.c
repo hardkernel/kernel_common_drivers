@@ -1048,7 +1048,8 @@ static int rx_cor_irq_handler(u8 port)
 			rx[port].irq_flag |= IRQ_AVI_CHG_FLAG;
 		if (rx_get_bits(intr_2, INTR2_BIT4_UNREC)) {
 			rx[port].rx_sig_type &= ~(MSK(3, 0));
-			rx[port].drm_dv_flag = DV_NULL;
+			rx[port].hdr_info.hdr_type = HDMIRX_HDR_MODE_SDR;
+			rx[port].amdv_type &= (~DV_UNIQUE_DRM);
 			rx_pkt_clr_attach_drm(port);
 			memset(&rx_pkt[port].drm_info, 0, sizeof(struct pd_infoframe_s));
 			rx_pkt_handler(PKT_BUFF_SET_DRM, port);
@@ -7133,7 +7134,7 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size, u8 port)
 		"HDR EOTF: %s\n", "HLG");
 	pos += snprintf(buf + pos, size - pos,
 		"Dolby Vision: %d\n",
-		rx[port].vs_info_details.dolby_vision_flag);
+		rx[port].amdv_type);
 
 	pos += snprintf(buf + pos, size - pos,
 		"\n\nAudio info\n\n");

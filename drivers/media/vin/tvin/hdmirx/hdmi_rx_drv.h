@@ -644,7 +644,6 @@ struct vsi_info_s {
 	unsigned char vd_fmt;
 	unsigned char _3d_structure;
 	unsigned char _3d_ext_data;
-	u8 dolby_vision_flag;
 	bool low_latency;
 	bool backlt_md_bit;
 	unsigned int eff_tmax_pq;
@@ -709,7 +708,6 @@ struct cuva_emds_s {
 };
 
 struct dv_info_s {
-	bool flag;
 	u8 dv_addr[1024];
 	u8 dv_pkt_cnt;
 };
@@ -1051,8 +1049,8 @@ struct rx_s {
 	struct rx_dsc_pps_data_s dsc_pps_data;
 	bool vsif_fmm_flag;
 	bool avi_fmm_flag;
-	u8 drm_dv_flag;
 	u8 qms_plus_flag;
+	u8 amdv_type;
 	struct dv_info_s emp_dv_info;
 	struct cvtem_info_s cvtem_info;
 	u8 emp_vid_idx;

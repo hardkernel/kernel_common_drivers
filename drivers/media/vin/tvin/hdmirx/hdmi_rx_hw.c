@@ -5501,7 +5501,7 @@ void hdmirx_set_video_mute(bool mute, u8 port)
 		hdmirx_wr_bits_top_common(TOP_OVID_OVERRIDE0, _BIT(30), mute);
 	} else if (rx_info.chip_id >= CHIP_ID_T7 && rx_info.chip_id < CHIP_ID_T5M) {
 		if (mute && (rx_pkt_chk_attach_drm(port) ||
-			rx[port].vs_info_details.dolby_vision_flag != DV_NULL))
+			rx[port].amdv_type != DV_NULL))
 			return;
 		if (mute != pre_mute_flag) {
 			vdin_set_black_pattern(mute);
@@ -5540,7 +5540,7 @@ void set_dv_ll_mode(bool en, u8 port)
 void hdmirx_late_config_video(u8 port)
 {
 	if (rx[port].pre.colorspace == E_COLOR_YUV422 &&
-		!rx[port].vs_info_details.dolby_vision_flag &&
+		!rx[port].amdv_type &&
 		!rx[port].dsc_flag) {
 		hdmirx_wr_bits_top_common_1(TOP_VID_CNTL, _BIT(20), 1);
 		hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, _BIT(30), 0);
