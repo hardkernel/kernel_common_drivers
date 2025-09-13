@@ -16231,6 +16231,8 @@ static void fgrain_set_config(struct video_layer_s *layer,
 			       0, 10);
 	cur_dev->rdma_func[vpp_index].rdma_wr_bits(fg_reg->fgrain_ctrl,
 			       reg_last_in_mode, 14, 1);
+	if (cur_dev->display_module == T6W_DISPLAY_MODULE)
+		reg_fgrain_ext_imode = 0;
 	cur_dev->rdma_func[vpp_index].rdma_wr_bits(fg_reg->fgrain_ctrl,
 			       reg_fgrain_ext_imode, 16, 1);
 }
