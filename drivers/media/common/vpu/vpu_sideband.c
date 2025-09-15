@@ -242,6 +242,30 @@ void set_vpu_sideband_init(void)
 	}
 }
 
+void dmc_reg_setting(char rw, u32 block_device)
+{
+	char block_num = 0;
+	int i, j = 0;
+	int ret;
+
+	if (block_device == 0) {
+		dmc_sb_setting.block_bus[0] = (unsigned char)-1;
+	} else {
+		for (i = 0; i < 32; i++) {
+			if (block_device & 0x1) {
+				block_num++;
+				dmc_sb_setting.block_bus[j++] = (unsigned char)i;
+			}
+			block_device = block_device >> 1;
+			if (!block_device)
+				break;
+		}
+	}
+	dmc_sb_setting.rw = rw;
+	dmc_sb_setting.block_num = block_num;
+	ret = enable_side_band(&dmc_sb_setting);
+}
+
 void set_vpu_sideband_enable(u32 arb_port, u32 port_enable)
 {
 	static u32 enable_pre[5];
@@ -288,6 +312,7 @@ void set_vpu_sideband_enable(u32 arb_port, u32 port_enable)
 				vpu_vcbus_setb(sideband_ctrl_table->reg,
 					1, 28, 1);
 				dmc_enable = 1;
+				dmc_reg_setting(3, vpu_sideband_block_device);
 			}
 			VPUPR("%s:dmc_enable=0x%x\n",
 				__func__, dmc_enable);
@@ -751,26 +776,6 @@ static ssize_t sideband_block_device_show_t6x(char *buf)
 	len += sprintf(buf + len, "%s\n", axi_device_usage_str);
 	len += sprintf(buf + len, "sideband_block_device: 0x%x\n", vpu_sideband_block_device);
 	return len;
-}
-
-void dmc_reg_setting(char rw, u32 block_device)
-{
-	char block_num = 0;
-	int i, j = 0;
-	int ret;
-
-	for (i = 0; i < 32; i++) {
-		if (block_device & 0x1) {
-			block_num++;
-			dmc_sb_setting.block_bus[j++] = (unsigned char)i;
-		}
-		block_device = block_device >> 1;
-		if (!block_device)
-			break;
-	}
-	dmc_sb_setting.rw = rw;
-	dmc_sb_setting.block_num = block_num;
-	ret = enable_side_band(&dmc_sb_setting);
 }
 
 static void set_vpu_sideband_block_device(u32 block_device)
