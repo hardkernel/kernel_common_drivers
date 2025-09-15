@@ -129,11 +129,13 @@ static void amblt_data_avg_dump(struct amblt_drv_s *amblt_drv)
 ssize_t amblt_status_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct amblt_drv_s *amblt_drv = dev_get_drvdata(dev);
+	struct amblt_drv_data_s *amblt_data;
 	ssize_t len = 0;
 
 	if (!amblt_drv)
 		return sprintf(buf, "amblt_drv is NULL\n");
 
+	amblt_data = amblt_drv->drv_data;
 	len = sprintf(buf, "ambilight status:\n"
 		"en:          %d\n"
 		"state:       0x%x\n"
@@ -170,20 +172,36 @@ ssize_t amblt_status_show(struct device *dev, struct device_attribute *attr, cha
 
 	lcd_vcbus_write(VPU_DMA_WRMIF_SEL, (0xff0 + amblt_drv->lut_dma.wr_sel));
 	len += sprintf(buf + len, "ambilight regs:\n");
-	len += sprintf(buf + len, "LDC_REG_INPUT_STAT_NUM 0x%04x = 0x%08x\n",
-			LDC_REG_INPUT_STAT_NUM, lcd_vcbus_read(LDC_REG_INPUT_STAT_NUM));
-	len += sprintf(buf + len, "LCD_OLED_SIZE 0x%04x = 0x%08x\n",
-			LCD_OLED_SIZE, lcd_vcbus_read(LCD_OLED_SIZE));
+	if (amblt_data->chip_type == LCD_CHIP_T6W) {
+		len += sprintf(buf + len, "LDC_AMBIGHT_HSIZE 0x%04x = 0x%08x\n",
+				LDC_AMBIGHT_HSIZE, lcd_vcbus_read(LDC_AMBIGHT_HSIZE));
+		len += sprintf(buf + len, "LDC_AMBIGHT_VSIZE 0x%04x = 0x%08x\n",
+				LDC_AMBIGHT_VSIZE, lcd_vcbus_read(LDC_AMBIGHT_VSIZE));
+		len += sprintf(buf + len, "LDC_AMBIGHT_STAT_NUM 0x%04x = 0x%08x\n",
+				LDC_AMBIGHT_STAT_NUM, lcd_vcbus_read(LDC_AMBIGHT_STAT_NUM));
+		len += sprintf(buf + len, "VPU_DMA_WRMIF0_CTRL 0x%04x = 0x%08x\n",
+			VPU_DMA_WRMIF0_CTRL, lcd_vcbus_read(VPU_DMA_WRMIF0_CTRL));
+		len += sprintf(buf + len, "VPU_DMA_WRMIF0_BADR0 0x%04x = 0x%08x\n",
+				VPU_DMA_WRMIF0_BADR0, lcd_vcbus_read(VPU_DMA_WRMIF0_BADR0));
+		len += sprintf(buf + len, "VPU_DMA_WRMIF0_BADR1 0x%04x = 0x%08x\n",
+				VPU_DMA_WRMIF0_BADR1, lcd_vcbus_read(VPU_DMA_WRMIF0_BADR1));
+	} else {
+		len += sprintf(buf + len, "LDC_REG_INPUT_STAT_NUM 0x%04x = 0x%08x\n",
+				LDC_REG_INPUT_STAT_NUM, lcd_vcbus_read(LDC_REG_INPUT_STAT_NUM));
+		len += sprintf(buf + len, "LCD_OLED_SIZE 0x%04x = 0x%08x\n",
+				LCD_OLED_SIZE, lcd_vcbus_read(LCD_OLED_SIZE));
+		len += sprintf(buf + len, "VPU_DMA_WRMIF1_CTRL 0x%04x = 0x%08x\n",
+			VPU_DMA_WRMIF1_CTRL, lcd_vcbus_read(VPU_DMA_WRMIF1_CTRL));
+		len += sprintf(buf + len, "VPU_DMA_WRMIF1_BADR0 0x%04x = 0x%08x\n",
+				VPU_DMA_WRMIF1_BADR0, lcd_vcbus_read(VPU_DMA_WRMIF1_BADR0));
+		len += sprintf(buf + len, "VPU_DMA_WRMIF1_BADR1 0x%04x = 0x%08x\n",
+				VPU_DMA_WRMIF1_BADR1, lcd_vcbus_read(VPU_DMA_WRMIF1_BADR1));
+	}
+
 	len += sprintf(buf + len, "VPU_DMA_WRMIF_SEL 0x%04x = 0x%08x\n",
 			VPU_DMA_WRMIF_SEL, lcd_vcbus_read(VPU_DMA_WRMIF_SEL));
 	len += sprintf(buf + len, "VPU_DMA_WRMIF_CTRL 0x%04x = 0x%08x\n",
 			VPU_DMA_WRMIF_CTRL, lcd_vcbus_read(VPU_DMA_WRMIF_CTRL));
-	len += sprintf(buf + len, "VPU_DMA_WRMIF1_CTRL 0x%04x = 0x%08x\n",
-			VPU_DMA_WRMIF1_CTRL, lcd_vcbus_read(VPU_DMA_WRMIF1_CTRL));
-	len += sprintf(buf + len, "VPU_DMA_WRMIF1_BADR0 0x%04x = 0x%08x\n",
-			VPU_DMA_WRMIF1_BADR0, lcd_vcbus_read(VPU_DMA_WRMIF1_BADR0));
-	len += sprintf(buf + len, "VPU_DMA_WRMIF1_BADR1 0x%04x = 0x%08x\n",
-			VPU_DMA_WRMIF1_BADR1, lcd_vcbus_read(VPU_DMA_WRMIF1_BADR1));
 
 	return len;
 }
@@ -208,6 +226,7 @@ static ssize_t amblt_debug_store(struct device *dev, struct device_attribute *at
 				const char *buf, size_t count)
 {
 	struct amblt_drv_s *amblt_drv = dev_get_drvdata(dev);
+	struct amblt_drv_data_s *amblt_data;
 	unsigned int data[5];
 	int ret;
 
@@ -215,6 +234,8 @@ static ssize_t amblt_debug_store(struct device *dev, struct device_attribute *at
 		return count;
 	if (!amblt_drv)
 		return count;
+
+	amblt_data = amblt_drv->drv_data;
 
 	switch (buf[0]) {
 	case 'z': //zone
@@ -228,20 +249,37 @@ static ssize_t amblt_debug_store(struct device *dev, struct device_attribute *at
 			amblt_drv->zone_h, amblt_drv->zone_v);
 		break;
 	case 'r': //reg
-		pr_info("LDC_REG_INPUT_STAT_NUM 0x%04x = 0x%08x\n",
-			LDC_REG_INPUT_STAT_NUM, lcd_vcbus_read(LDC_REG_INPUT_STAT_NUM));
-		pr_info("LCD_OLED_SIZE          0x%04x = 0x%08x\n",
-			LCD_OLED_SIZE, lcd_vcbus_read(LCD_OLED_SIZE));
+		if (amblt_data->chip_type == LCD_CHIP_T6W) {
+			pr_info("LDC_AMBIGHT_HSIZE     0x%04x = 0x%08x\n",
+				LDC_AMBIGHT_HSIZE, lcd_vcbus_read(LDC_AMBIGHT_HSIZE));
+			pr_info("LDC_AMBIGHT_VSIZE     0x%04x = 0x%08x\n",
+				LDC_AMBIGHT_VSIZE, lcd_vcbus_read(LDC_AMBIGHT_VSIZE));
+			pr_info("LDC_AMBIGHT_STAT_NUM  0x%04x = 0x%08x\n",
+				LDC_AMBIGHT_STAT_NUM, lcd_vcbus_read(LDC_AMBIGHT_STAT_NUM));
+			pr_info("VPU_DMA_WRMIF0_CTRL    0x%04x = 0x%08x\n",
+				VPU_DMA_WRMIF0_CTRL, lcd_vcbus_read(VPU_DMA_WRMIF0_CTRL));
+			pr_info("VPU_DMA_WRMIF0_BADR0   0x%04x = 0x%08x\n",
+				VPU_DMA_WRMIF0_BADR0, lcd_vcbus_read(VPU_DMA_WRMIF0_BADR0));
+			pr_info("VPU_DMA_WRMIF0_BADR1   0x%04x = 0x%08x\n",
+				VPU_DMA_WRMIF0_BADR1, lcd_vcbus_read(VPU_DMA_WRMIF0_BADR1));
+		} else {
+			pr_info("LDC_REG_INPUT_STAT_NUM 0x%04x = 0x%08x\n",
+				LDC_REG_INPUT_STAT_NUM, lcd_vcbus_read(LDC_REG_INPUT_STAT_NUM));
+			pr_info("LCD_OLED_SIZE          0x%04x = 0x%08x\n",
+				LCD_OLED_SIZE, lcd_vcbus_read(LCD_OLED_SIZE));
+			pr_info("VPU_DMA_WRMIF1_CTRL    0x%04x = 0x%08x\n",
+				VPU_DMA_WRMIF1_CTRL, lcd_vcbus_read(VPU_DMA_WRMIF1_CTRL));
+			pr_info("VPU_DMA_WRMIF1_BADR0   0x%04x = 0x%08x\n",
+				VPU_DMA_WRMIF1_BADR0, lcd_vcbus_read(VPU_DMA_WRMIF1_BADR0));
+			pr_info("VPU_DMA_WRMIF1_BADR1   0x%04x = 0x%08x\n",
+				VPU_DMA_WRMIF1_BADR1, lcd_vcbus_read(VPU_DMA_WRMIF1_BADR1));
+		}
+
 		pr_info("VPU_DMA_WRMIF_CTRL     0x%04x = 0x%08x\n",
 			VPU_DMA_WRMIF_CTRL, lcd_vcbus_read(VPU_DMA_WRMIF_CTRL));
 		pr_info("VPU_DMA_WRMIF_SEL      0x%04x = 0x%08x\n",
 			VPU_DMA_WRMIF_SEL, lcd_vcbus_read(VPU_DMA_WRMIF_SEL));
-		pr_info("VPU_DMA_WRMIF1_CTRL    0x%04x = 0x%08x\n",
-			VPU_DMA_WRMIF1_CTRL, lcd_vcbus_read(VPU_DMA_WRMIF1_CTRL));
-		pr_info("VPU_DMA_WRMIF1_BADR0   0x%04x = 0x%08x\n",
-			VPU_DMA_WRMIF1_BADR0, lcd_vcbus_read(VPU_DMA_WRMIF1_BADR0));
-		pr_info("VPU_DMA_WRMIF1_BADR1   0x%04x = 0x%08x\n",
-			VPU_DMA_WRMIF1_BADR1, lcd_vcbus_read(VPU_DMA_WRMIF1_BADR1));
+
 		break;
 	case 'd': //dma
 		ret = sscanf(buf, "dma %d %d %d", &data[0], &data[1], &data[2]);

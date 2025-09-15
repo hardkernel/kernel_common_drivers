@@ -378,14 +378,8 @@ static int blmcu_power_on(struct aml_ldim_driver_s *ldim_drv)
 
 static int blmcu_power_off(struct aml_ldim_driver_s *ldim_drv)
 {
-	if (ldim_debug_print)
-		LDIMPR("ldim debug print: %s\n", __func__);
-
 	if (!bl_mcu)
 		return -1;
-
-	if (ldim_debug_print)
-		LDIMPR("ldim debug print: %s\n", __func__);
 
 	mutex_lock(&dev_mutex);
 	bl_mcu->dev_on_flag = 0;
@@ -744,7 +738,7 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 
 	bl_mcu->dev_on_flag = 1; /* default enable in uboot */
 
-	LDIMPR("%s ok\n", __func__);
+	ldim_pr("%s ok\n", __func__);
 	return 0;
 
 ldim_dev_blmcu_probe_err4:

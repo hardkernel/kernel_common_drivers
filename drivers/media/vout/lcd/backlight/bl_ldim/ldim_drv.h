@@ -29,8 +29,20 @@
 /*20241030: add boost function */
 /*20241217: multiple spi support */
 /*20250316: optimize ldim_fw_s */
+/*20250803: add bcon support */
 
-#define LDIM_DRV_VER    "20250316"
+#define LDIM_DRV_VER    "20250803"
+
+extern unsigned char ldim_print_en;
+#define LDIMPR(fmt, args...)     \
+	do {						\
+		if (ldim_print_en)	\
+			pr_info("ldim: " fmt "", ## args);	\
+	} while (0)
+
+#define LDIMERR(fmt, args...)    pr_err("ldim: error: " fmt "", ## args)
+#define LDIMWARN(fmt, args...)    pr_warn("ldim: warning: " fmt "", ## args)
+#define ldim_pr(fmt, args...)    pr_info("ldim: " fmt "", ## args)//always print
 
 enum spi_sync_type_e {
 	SPI_SYNC	= 0x00,
@@ -53,6 +65,7 @@ enum spiout_type_e {
 #define LDIM_DBG_PR_PWM			0x10
 #define LDIM_DBG_PR_SPI			0x08
 #define LDIM_DBG_PR_SWAP_64BIT		0x04
+#define LDIM_DBG_PR_BCON			0x02
 
 extern unsigned char ldim_debug_print;
 
@@ -81,5 +94,6 @@ void ldc_mem_write_profile(unsigned char *buf, unsigned long mem_paddr, unsigned
 void ldim_remap_ctrl(unsigned char status);
 int aml_ldim_debug_probe(struct class *ldim_class);
 void aml_ldim_debug_remove(struct class *ldim_class);
+void ldim_test_bl_run(void);
 
 #endif

@@ -43,7 +43,6 @@ static struct ldim_fw_param_s ldim_fw_param = {
 	.conf = &ldim_fw_conf,
 	.rmem = NULL,
 	.stts = &ldim_stts,
-	.profile = NULL,
 	.ext_boost = NULL,
 	.iparam = NULL,
 	.oparam = NULL,

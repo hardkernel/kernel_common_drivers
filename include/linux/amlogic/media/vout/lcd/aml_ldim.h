@@ -15,9 +15,6 @@
 #include <linux/spi/spi.h>
 
 /*#define LDIM_DEBUG_INFO*/
-#define LDIMPR(fmt, args...)     pr_info("ldim: " fmt "", ## args)
-#define LDIMERR(fmt, args...)    pr_err("ldim: error: " fmt "", ## args)
-#define LDIMWARN(fmt, args...)    pr_warn("ldim: warning: " fmt "", ## args)
 
 #define LD_DATA_DEPTH   12
 #define LD_DATA_MIN     10
@@ -27,6 +24,7 @@ enum ldim_dev_type_e {
 	LDIM_DEV_TYPE_NORMAL = 0,
 	LDIM_DEV_TYPE_SPI,
 	LDIM_DEV_TYPE_I2C,
+	LDIM_DEV_TYPE_ABCON,
 	LDIM_DEV_TYPE_MAX,
 };
 
@@ -53,6 +51,26 @@ struct spi_private_data {
 	int async_busy_cnt;
 	int trig_init;
 	int trig_data_ready;
+};
+
+struct abcon_conf_s {
+	unsigned int tx_clk;
+	unsigned int rx_clk;
+	unsigned char dev_type;
+	unsigned int chip_num[12];
+	unsigned char ch_num;
+	unsigned char dimming_mode;
+	unsigned int gpio_o[3];
+	unsigned int gpio_i[3];
+	unsigned int gpio_en;
+	unsigned int gpio_pu_en;
+	unsigned int gpio_pu_up;
+	unsigned char fb_en;
+	unsigned int fb_det_int;
+	unsigned char fb_adj_th;
+	unsigned char fb_pwm_dir;
+	unsigned char fb_pwm_step;
+	unsigned int ctrl;
 };
 
 #define LDIM_DEV_NAME_MAX    30
@@ -92,6 +110,7 @@ struct ldim_dev_driver_s {
 	unsigned int zone_num;
 	char bl_mapping_path[256];
 	unsigned short *bl_mapping;
+	char profile_path[256];
 
 	unsigned char init_loaded;
 	unsigned char cmd_size;
@@ -108,11 +127,13 @@ struct ldim_dev_driver_s {
 	struct bl_pwm_config_s analog_pwm_config;
 	struct ldim_boost_s boost_conf;
 
+	struct platform_device *pdev;
 	struct pinctrl *pin;
 	struct device *dev;
 	struct class *class;
 	struct spi_device *spi_dev[2];
 	struct spi_board_info spi_info[2];
+	struct abcon_conf_s abcon_conf;
 
 	void (*dim_range_update)(struct ldim_dev_driver_s *dev_drv);
 	int (*pinmux_ctrl)(struct ldim_dev_driver_s *dev_drv, int status);
@@ -175,6 +196,7 @@ struct aml_ldim_driver_s {
 	unsigned char dev_smr_bypass;
 	unsigned char brightness_bypass;
 	unsigned char test_bl_en;
+	unsigned char test_bl_cnt;
 	unsigned char load_db_en;
 	unsigned char level_update;
 	unsigned char resolution_update;
@@ -199,6 +221,10 @@ struct aml_ldim_driver_s {
 	unsigned int pq_size;
 
 	char *pqdata;
+	int ldim_vsync_irq;
+	int ldim_pwm_vs_irq;
+	int ldim_hist_irq;
+	int ldim_line_n_irq;
 	struct ldim_drv_data_s *data;
 	struct ldim_config_s *conf;
 	struct ldim_dev_driver_s *dev_drv;

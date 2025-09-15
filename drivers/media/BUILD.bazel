@@ -598,6 +598,16 @@ ddk_module(
         "CONFIG_AMLOGIC_BL_LDIM_IW7039": {
             True: ["vout/lcd/backlight/bl_ldim/iw7039_bl.c"],
         },
+        "CONFIG_AMLOGIC_BL_LDIM_ABCON": {
+            True: [
+				"vout/lcd/backlight/bl_ldim/abcon/ldim_abcon_debug.c",
+				"vout/lcd/backlight/bl_ldim/abcon/ldim_abcon_hy_ospb.c",
+				"vout/lcd/backlight/bl_ldim/abcon/ldim_abcon_hyasic.c",
+				"vout/lcd/backlight/bl_ldim/abcon/ldim_abcon_reg.c",
+				"vout/lcd/backlight/bl_ldim/abcon/ldim_abcon_xianxin.c",
+				"vout/lcd/backlight/bl_ldim/abcon/ldim_abcon.c",
+				],
+        },
         "CONFIG_AMLOGIC_BL_LDIM_BLMCU": {
             True: ["vout/lcd/backlight/bl_ldim/mcu_bl.c"],
         },

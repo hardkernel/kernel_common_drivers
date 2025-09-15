@@ -62,3 +62,13 @@ config AMLOGIC_BL_LDIM_OB3350
 		Once use the local dimming, add the spi driver for send data to mcu
 		Through the spi iw70xx to write data like brightness
 		values for the local dimming
+
+config AMLOGIC_BL_LDIM_ABCON
+        bool "Amlogic local Diming ABCON"
+        depends on AMLOGIC_BL_LDIM
+        default n
+        help
+                abcon controller support.
+		Once use the local dimming, add the bcon driver
+                Through the bcon to write data like brightness
+                values for the local dimming

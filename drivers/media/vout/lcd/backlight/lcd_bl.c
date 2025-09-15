@@ -3306,6 +3306,18 @@ static struct bl_data_s bl_data_t6d = {
 	.pwm_vs_flag = 1,
 };
 
+static struct bl_data_s bl_data_t6w = {
+	.chip_type = LCD_CHIP_T6W,
+	.chip_name = "t6w",
+	.pwm_vs_flag = 1,
+};
+
+static struct bl_data_s bl_data_t6x = {
+	.chip_type = LCD_CHIP_T6X,
+	.chip_name = "t6x",
+	.pwm_vs_flag = 1,
+};
+
 static const struct of_device_id bl_dt_match_table[] = {
 	{
 		.compatible = "amlogic, backlight-axg",
@@ -3380,6 +3392,14 @@ static const struct of_device_id bl_dt_match_table[] = {
 	{
 		.compatible = "amlogic, backlight-t6d",
 		.data = &bl_data_t6d,
+	},
+	{
+		.compatible = "amlogic, backlight-t6w",
+		.data = &bl_data_t6w,
+	},
+	{
+		.compatible = "amlogic, backlight-t6x",
+		.data = &bl_data_t6x,
 	},
 	{}
 };
@@ -3661,6 +3681,7 @@ static void aml_bl_remove(struct platform_device *pdev)
 	kfree(bdrv->bl_metrics_conf.brightness_buf);
 #endif
 	cancel_delayed_work_sync(&bdrv->delayed_on_work);
+	cancel_delayed_work(&bdrv->config_probe_dly_work);
 	backlight_device_unregister(bdrv->bldev);
 
 	bl_debug_file_remove(bdrv);

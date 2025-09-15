@@ -842,17 +842,24 @@ static unsigned int pwm_vs_reg_t7[] = {
 int bl_pwm_init_config_probe(struct bl_data_s *bdata)
 {
 	switch (bdata->chip_type) {
-	case LCD_CHIP_T7:
-	case LCD_CHIP_T3:
-	case LCD_CHIP_T5W:
-	case LCD_CHIP_T5M:
-	case LCD_CHIP_T3X:
-		pwm_init_cfg.pwm_vs_reg = pwm_vs_reg_t7;
-		pwm_init_cfg.pwm_vs_reg_cnt = ARRAY_SIZE(pwm_vs_reg_t7);
-		break;
-	default:
+	case LCD_CHIP_AXG:
+	case LCD_CHIP_G12A:
+	case LCD_CHIP_G12B:
+	case LCD_CHIP_TL1:
+	case LCD_CHIP_SM1:
+	case LCD_CHIP_TM2:
+	case LCD_CHIP_TM2B:
+	case LCD_CHIP_T5:
+	case LCD_CHIP_T5D:
+	case LCD_CHIP_C3:
+	case LCD_CHIP_TXHD2:
+	case LCD_CHIP_S6:
 		pwm_init_cfg.pwm_vs_reg = pwm_vs_reg;
 		pwm_init_cfg.pwm_vs_reg_cnt = ARRAY_SIZE(pwm_vs_reg);
+		break;
+	default:
+		pwm_init_cfg.pwm_vs_reg = pwm_vs_reg_t7;
+		pwm_init_cfg.pwm_vs_reg_cnt = ARRAY_SIZE(pwm_vs_reg_t7);
 		break;
 	}
 

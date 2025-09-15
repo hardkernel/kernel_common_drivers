@@ -10,8 +10,9 @@
 
 //20230613, init version
 //20240613, add uapi/amlogic/amblt.h
+//20241128, t6w bringup
 
-#define AMBLT_DRV_VER        "20240613"
+#define AMBLT_DRV_VER        "20241128"
 
 #define AMBLTPR(fmt, args...)     pr_info("ambilight: " fmt "", ## args)
 #define AMBLTERR(fmt, args...)     pr_err("error: ambilight: " fmt "", ## args)
@@ -19,22 +20,8 @@
 #define AMBLT_CLASS_NAME     "amblt"
 #define AMBLT_DEVICE_NAME    "amblt"
 
-enum LUT_DMA_WR_ID_e {
-	LC_STTS_0_DMA_ID      = 0,
-	LC_STTS_1_DMA_ID      = 1,
-	VI_HIST_SPL_0_DMA_ID  = 2,
-	VI_HIST_SPL_1_DMA_ID  = 3,
-	CM2_HIST_0_DMA_ID     = 4,
-	CM2_HIST_1_DMA_ID     = 5,
-	VD1_HDR_0_DMA_ID      = 6,
-	VD1_HDR_1_DMA_ID      = 7,
-	VD2_HDR_DMA_ID        = 8,
-	AMBLT_DMA_ID          = 9,
-	LUT_WR_MAX_ID         = 10
-};
-
 struct vpu_lut_dma_wr_s {
-	enum LUT_DMA_WR_ID_e dma_wr_id;
+	unsigned int dma_wr_id;
 	unsigned int wr_sel;
 	unsigned int offset;
 	unsigned int stride;
@@ -129,5 +116,7 @@ int VSYNC_WR_TABLE_REG_BITS(int tbl_idx, u32 adr, u32 val, u32 start, u32 len);
 #define VPU_DMA_WRMIF4_BADR0                       0x27e6
 #define VPU_DMA_WRMIF4_BADR1                       0x27e7
 #define VPU_DMA_WRMIF_SEL                          0x27ee
+
+#define LDC_REG_INPUT_STAT_NUM_T6X                 0x5d5c
 
 #endif

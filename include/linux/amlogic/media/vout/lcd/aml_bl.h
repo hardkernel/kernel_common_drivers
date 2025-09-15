@@ -133,6 +133,8 @@ struct bl_pwm_config_s {
 	unsigned int pwm_level; /* internal used for pwm control */
 	unsigned int pwm_mapping[8]; /* mapping curve for pwm control */
 	unsigned int pwm_phase;	/*pwm_vs phase base on vsync*/
+	unsigned int pwm_range_h; /* internal used for pwm control */
+	unsigned int pwm_range_l; /* internal used for pwm control */
 };
 
 #define BL_NAME_MAX    30
@@ -229,6 +231,7 @@ struct aml_bl_drv_s {
 	struct platform_device    *pdev;
 	struct device             *dev;
 	struct backlight_device   *bldev;
+	struct delayed_work       config_probe_dly_work;
 	struct delayed_work       delayed_on_work;
 	int res_ldim_vsync_irq;
 	int res_ldim_pwm_vs_irq;

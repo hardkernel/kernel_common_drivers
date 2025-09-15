@@ -99,8 +99,6 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 	const char *str;
 	unsigned int *temp, val, size;
 	struct bl_pwm_config_s *bl_pwm;
-	struct ldim_profile_s *profile;
-	struct ldim_fw_s *fw = aml_ldim_get_fw();
 	struct ldim_fw_custom_s *fw_cus = aml_ldim_get_fw_cus();
 	char dbg_str[256];
 	int i, dbg_str_len = 0, ret = 0;
@@ -448,42 +446,14 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 		dev_drv->bl_mapping[i] = (unsigned short)temp[i];
 
 ldim_dev_get_config_from_dts_profile:
-	ret = of_property_read_u32(child, "ldim_bl_profile_mode", &val);
-	if (ret)
-		goto ldim_dev_get_config_from_dts_next;
-
-	LDIMPR("find ldim_bl_profile_mode=%d\n", val);
-	profile = kzalloc(sizeof(*profile), GFP_KERNEL);
-	if (!profile) {
-		LDIMERR("ld_profile malloc failed\n");
-		goto ldim_dev_get_config_from_dts_next;
-	}
-	fw->param->profile = profile;
-	profile->mode = val;
-
-	if (profile->mode == 2) {
-		LDIMPR("load bl_profile\n");
-		ret = of_property_read_u32_array(child,
-			"ldim_bl_profile_k_bits", &temp[0], 2);
-		if (ret) {
-			LDIMERR("failed to get ldim_bl_profile_k_bits\n");
-			profile->profile_k = 24;
-			profile->profile_bits = 640;
-		} else {
-			profile->profile_k = temp[0];
-			profile->profile_bits = temp[1];
-		}
-
-		ret = of_property_read_string(child, "ldim_bl_profile_path", &str);
-		if (ret) {
-			LDIMERR("failed to get ldim_bl_profile_path\n");
-			strcpy(profile->file_path, "null");
-		} else {
-			strscpy(profile->file_path, str, sizeof(profile->file_path));
-		}
+	ret = of_property_read_string(child, "ldim_bl_profile_path", &str);
+	if (ret) {
+		LDIMERR("failed to get ldim_bl_profile_path\n");
+		strcpy(dev_drv->profile_path, "null");
+	} else {
+		strscpy(dev_drv->profile_path, str, sizeof(dev_drv->profile_path));
 	}
 
-ldim_dev_get_config_from_dts_next:
 	/* get cus_param , maximum = 32 x 4 bytes */
 	for (i = 0; i < 32; i++) {
 		ret = of_property_read_u32_index(child,
@@ -532,6 +502,7 @@ struct num_str_s ldim_dev_type_match[] = {
 	{LDIM_DEV_TYPE_NORMAL, "NORMAL"},
 	{LDIM_DEV_TYPE_SPI, "SPI"},
 	{LDIM_DEV_TYPE_I2C, "I2C"},
+	{LDIM_DEV_TYPE_ABCON, "ABCON"},
 	{LDIM_DEV_TYPE_MAX, "MAX"}
 };
 
@@ -552,15 +523,14 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 {
 	struct json_parse_s *jsp = get_panel_jsp(0);
 	struct json_s *parent, *child, *child2, *child3;
-	int cnt = 0, i = 0, cnt_max, data_cnt;
+	int cnt = 0, i = 0, j = 0, cnt_max, data_cnt;
 	const char *str = NULL;
 	//struct spi_board_info *spi_info;
 	struct bl_pwm_config_s *bl_pwm, *pwms[3];
-	struct ldim_profile_s *profile;
-	struct ldim_fw_s *fw = aml_ldim_get_fw();
 	struct ldim_fw_custom_s *fw_cus = aml_ldim_get_fw_cus();
 	unsigned int *nums = NULL;
 	unsigned char *table;
+	struct abcon_conf_s *abcon_conf;
 
 	if (!json_parse_ok(jsp)) {
 		LDIMERR("panel 0 json not ready\n");
@@ -641,6 +611,55 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 				dev_drv->spi_info[0].mode, dev_drv->dma_support);
 		}
 		break;
+
+	case LDIM_DEV_TYPE_ABCON:
+		abcon_conf = &dev_drv->abcon_conf;
+		abcon_conf->tx_clk = json_get_obj_u32(jsp, child, "tx_clk", 1000);
+		abcon_conf->rx_clk = json_get_obj_u32(jsp, child, "rx_clk", 1000);
+		child2 = json_get_object_child(jsp, child, "gpio_o");
+		if (child2) {
+			for (i = 0; i < 3; i++)
+				abcon_conf->gpio_o[i] = json_get_arr_u32(jsp, child2, i, 0);
+		}
+		child2 = json_get_object_child(jsp, child, "gpio_i");
+		if (child2) {
+			for (i = 0; i < 3; i++)
+				abcon_conf->gpio_i[i] = json_get_arr_u32(jsp, child2, i, 0);
+		}
+		abcon_conf->gpio_en = json_get_obj_u32(jsp, child, "gpio_en", 0);
+		abcon_conf->gpio_pu_en = json_get_obj_u32(jsp, child, "gpio_pu_en", 0);
+		abcon_conf->gpio_pu_up = json_get_obj_u32(jsp, child, "gpio_pu_up", 0);
+		abcon_conf->dev_type = json_get_obj_u32(jsp, child, "dev_type", 0);
+		child2 = json_get_object_child(jsp, child, "chip_num");
+		if (child2) {
+			for (i = 0; i < 12; i++)
+				abcon_conf->chip_num[i] = json_get_arr_u32(jsp, child2, i, 0);
+		}
+		abcon_conf->ch_num = json_get_obj_u32(jsp, child, "ch_num", 4);
+		abcon_conf->dimming_mode = json_get_obj_u32(jsp, child, "dimming_mode", 4);
+		abcon_conf->fb_en = json_get_obj_u32(jsp, child, "fb_en", 0);
+		abcon_conf->fb_det_int = json_get_obj_u32(jsp, child, "fb_det_int", 300);
+		abcon_conf->fb_adj_th = json_get_obj_u32(jsp, child, "fb_adj_th", 5);
+		abcon_conf->fb_pwm_dir = json_get_obj_u32(jsp, child, "fb_pwm_dir", 1);
+		abcon_conf->fb_pwm_step = json_get_obj_u32(jsp, child, "fb_pwm_step", 1);
+		abcon_conf->ctrl = json_get_obj_u32(jsp, child, "ctrl", 0x2);
+
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
+			LDIMPR("clk:%d:%d, gpio_o: 0x%x:0x%x, gpio_i:0x%x:0x%x\n"
+			"gpio_en:0x%x, gpio_pu_en:0x%x, gpio_pu_up:0x%x\n"
+			"dev_type:%d, chip_num:%d:%d:%d:%d, ch_num:%d\n"
+			"dimming_mode:%d, fb_en:%d\n"
+			"fb_det_int:%d, fb_adj_th:%d, fb_pwm_dir:%d, fb_pwm_step:%d, ctrl:0x%x\n",
+			abcon_conf->tx_clk, abcon_conf->rx_clk, abcon_conf->gpio_o[0],
+			abcon_conf->gpio_o[1], abcon_conf->gpio_i[0], abcon_conf->gpio_i[1],
+			abcon_conf->gpio_en, abcon_conf->gpio_pu_en, abcon_conf->gpio_pu_up,
+			abcon_conf->dev_type, abcon_conf->chip_num[0], abcon_conf->chip_num[1],
+			abcon_conf->chip_num[2], abcon_conf->chip_num[3],
+			abcon_conf->ch_num, abcon_conf->dimming_mode,
+			abcon_conf->fb_en, abcon_conf->fb_det_int, abcon_conf->fb_adj_th,
+			abcon_conf->fb_pwm_dir, abcon_conf->fb_pwm_step, abcon_conf->ctrl);
+		}
+		break;
 	default:
 		break;
 	}
@@ -677,16 +696,31 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 			if (child3) {
 				bl_pwm->pwm_duty_min = json_get_arr_u32(jsp, child3, 0, 0);
 				bl_pwm->pwm_duty_max = json_get_arr_u32(jsp, child3, 1, 4095);
+			} else {
+				bl_pwm->pwm_duty_min = 0;
+				bl_pwm->pwm_duty_max = 4095;
 			}
 			bl_pwm->pwm_duty = json_get_obj_u32(jsp, child2, "duty",
 							    bl_pwm->pwm_duty_min);
+			child3 = json_get_object_child(jsp, child2, "pwm_range");
+			if (child3) {
+				bl_pwm->pwm_range_l = json_get_arr_u32(jsp, child3,
+					0, bl_pwm->pwm_duty_min);
+				bl_pwm->pwm_range_h = json_get_arr_u32(jsp, child3,
+					1, bl_pwm->pwm_duty_max);
+			} else {
+				bl_pwm->pwm_range_l = bl_pwm->pwm_duty_min;
+				bl_pwm->pwm_range_h = bl_pwm->pwm_duty_max;
+			}
 
 			bl_pwm_config_init(bl_pwm);
 			if (bl_pwm->pwm_port < BL_PWM_VS)
 				bl_pwm_channel_register(dev_drv->dev, pwm_phandle, bl_pwm);
-			LDIMPR("get pwm[%d] pol = %d, freq = %d, phase = %d, duty:%d(%d ~ %d)\n",
+			LDIMPR("get pwm[%d] pol = %d, freq = %d, phase = %d\n"
+				"duty:%d(%d ~ %d), pwm_range:[%d: %d]\n",
 				i, bl_pwm->pwm_method, bl_pwm->pwm_freq, bl_pwm->pwm_phase,
-				bl_pwm->pwm_duty, bl_pwm->pwm_duty_min, bl_pwm->pwm_duty_max);
+				bl_pwm->pwm_duty, bl_pwm->pwm_duty_min, bl_pwm->pwm_duty_max,
+				bl_pwm->pwm_range_l, bl_pwm->pwm_range_h);
 		}
 	}
 
@@ -739,8 +773,20 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 //profile & zone map
 	str = json_get_obj_str(jsp, parent, "zone_mapping_path_k", NULL);
 	if (!str) {
-		for (i = 0; i < dev_drv->zone_num; i++)
-			dev_drv->bl_mapping[i] = (unsigned short)i;
+		if (dev_drv->type == LDIM_DEV_TYPE_ABCON) {
+			for (i = 0; i < dev_drv->zone_num; i = i + 4) {
+				dev_drv->bl_mapping[j] =
+				(i & 0xfff) | (((i + 1) & 0xf) << 12);
+				dev_drv->bl_mapping[j + 1] =
+				(((i + 1) >> 4) & 0xff) | (((i + 2) & 0xff) << 8);
+				dev_drv->bl_mapping[j + 2] =
+				(((i + 2) >> 8) & 0xf) | (((i + 3) & 0xfff) << 4);
+				j = j + 3;
+			}
+		} else {
+			for (i = 0; i < dev_drv->zone_num; i++)
+				dev_drv->bl_mapping[i] = (unsigned short)i;
+		}
 	} else {
 		LDIMPR("find custom zone_mapping: %s\n", str);
 		strscpy(dev_drv->bl_mapping_path, str, sizeof(dev_drv->bl_mapping_path));
@@ -748,9 +794,10 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 
 	str = json_get_obj_str(jsp, parent, "profile_path", NULL);
 	if (str) {
-		profile = kzalloc(sizeof(*profile), GFP_KERNEL);
-		strscpy(profile->file_path, str, sizeof(profile->file_path));
-		fw->param->profile = profile;
+		strscpy(dev_drv->profile_path, str, sizeof(dev_drv->profile_path));
+	} else {
+		LDIMERR("failed to get ldim_bl_profile_path\n");
+		strcpy(dev_drv->profile_path, "null");
 	}
 
 	str = json_get_obj_str(jsp, child, "boundary_x", NULL);
@@ -865,8 +912,6 @@ static int ldim_dev_get_config_from_ini(struct ldim_dev_driver_s *dev_drv, phand
 	void *inip, *psec;
 	const char *str = NULL;
 	struct bl_pwm_config_s *bl_pwm;
-	struct ldim_profile_s *profile;
-	struct ldim_fw_s *fw = aml_ldim_get_fw();
 	struct ldim_fw_custom_s *fw_cus = aml_ldim_get_fw_cus();
 	unsigned int val, *init_buf;
 	unsigned char *table;
@@ -945,6 +990,12 @@ static int ldim_dev_get_config_from_ini(struct ldim_dev_driver_s *dev_drv, phand
 			bl_pwm->pwm_phase = 0;
 		}
 		bl_pwm->pwm_duty = lcd_ini_get_val(inip, psec, "pwm_vs_duty", 0);
+		bl_pwm->pwm_duty_max = lcd_ini_get_val(inip, psec, "pwm_vs_attr_0", 4095);
+		bl_pwm->pwm_duty_min = lcd_ini_get_val(inip, psec, "pwm_vs_attr_1", 0);
+		bl_pwm->pwm_range_h = lcd_ini_get_val(inip, psec, "pwm_vs_range_h",
+				bl_pwm->pwm_duty_max);
+		bl_pwm->pwm_range_l = lcd_ini_get_val(inip, psec, "pwm_vs_range_l",
+				bl_pwm->pwm_duty_min);
 
 		if (bl_pwm->pwm_port == BL_PWM_VS) {
 			if (bl_pwm->pwm_freq > 4) {
@@ -980,6 +1031,10 @@ static int ldim_dev_get_config_from_ini(struct ldim_dev_driver_s *dev_drv, phand
 		bl_pwm->pwm_duty = lcd_ini_get_val(inip, psec, "pwm_adj_duty", 0);
 		bl_pwm->pwm_duty_max = lcd_ini_get_val(inip, psec, "pwm_adj_attr_0", 0);
 		bl_pwm->pwm_duty_min = lcd_ini_get_val(inip, psec, "pwm_adj_attr_1", 0);
+		bl_pwm->pwm_range_h = lcd_ini_get_val(inip, psec, "pwm_range_h",
+				bl_pwm->pwm_duty_max);
+		bl_pwm->pwm_range_l = lcd_ini_get_val(inip, psec, "pwm_range_l",
+				bl_pwm->pwm_duty_min);
 
 		if (bl_pwm->pwm_freq > XTAL_HALF_FREQ_HZ)
 			bl_pwm->pwm_freq = XTAL_HALF_FREQ_HZ;
@@ -1011,6 +1066,8 @@ static int ldim_dev_get_config_from_ini(struct ldim_dev_driver_s *dev_drv, phand
 		ldim_gpio_set(dev_drv, dev_drv->lamp_err_gpio, BL_GPIO_INPUT);
 	}
 
+	dev_drv->hw_on_delay = lcd_ini_get_val(inip, psec, "hw_on_delay", 500);
+	dev_drv->hw_off_delay = lcd_ini_get_val(inip, psec, "hw_off_delay", 0);
 	dev_drv->write_check = lcd_ini_get_val(inip, psec, "write_check", 0);
 
 	dev_drv->dim_max = lcd_ini_get_val(inip, psec, "dim_max", 0);
@@ -1052,19 +1109,14 @@ static int ldim_dev_get_config_from_ini(struct ldim_dev_driver_s *dev_drv, phand
 		strscpy(dev_drv->bl_mapping_path, str, sizeof(dev_drv->bl_mapping_path));
 	}
 
-	profile = kzalloc(sizeof(*profile), GFP_KERNEL);
-	if (!profile)
-		goto ldim_dev_get_config_from_ini_next;
-	fw->param->profile = profile;
-	profile->mode = lcd_ini_get_val(inip, psec, "profile_mode", 0);
 	str = lcd_ini_get_str(inip, psec, "profile_path", "null");
-	strscpy(profile->file_path, str, sizeof(profile->file_path));
-	if (profile->mode == 2) {
-		profile->profile_k = lcd_ini_get_val(inip, psec, "profile_attr_0", 0);
-		profile->profile_bits = lcd_ini_get_val(inip, psec, "profile_attr_1", 0);
+	if (str) {
+		strscpy(dev_drv->profile_path, str, sizeof(dev_drv->profile_path));
+	} else {
+		LDIMERR("failed to get ldim_bl_profile_path\n");
+		strcpy(dev_drv->profile_path, "null");
 	}
 
-ldim_dev_get_config_from_ini_next:
 	init_len = lcd_ini_get_array_cnt(inip, psec, "boundary_x");
 	if (init_len > 0) {
 		dev_drv->boundary_x = kcalloc(init_len, sizeof(unsigned int), GFP_KERNEL);

@@ -416,6 +416,17 @@ void lcd_resource_remove_all(struct aml_lcd_drv_s *pdrv)
 	pdrv->resource = NULL;
 }
 
+int get_lcd_config_load_ready(unsigned char index)
+{
+	struct aml_lcd_drv_s *pdrv;
+
+	pdrv = aml_lcd_get_driver(index);
+	if (pdrv)
+		return pdrv->probe_done;
+
+	return 0;
+}
+
 unsigned char get_vout_lcd_mode(unsigned char vout_index)
 {
 	unsigned char i;

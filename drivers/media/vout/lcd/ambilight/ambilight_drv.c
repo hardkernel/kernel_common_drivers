@@ -104,18 +104,37 @@ static void set_vpu_lut_dma_mif_wr(struct vpu_lut_dma_wr_s *lut_dma, int flag)
 
 static void amblt_hw_ctrl(struct amblt_drv_s *amblt_drv)
 {
+	struct amblt_drv_data_s *amblt_data;
+
+	amblt_data = amblt_drv->drv_data;
+
 	if (amblt_drv->en) {
 		set_vpu_lut_dma_mif_wr(&amblt_drv->lut_dma, 1);
 
-		lcd_vcbus_setb(LCD_OLED_SIZE, amblt_drv->hsize, 0, 13);  //hsize
-		lcd_vcbus_setb(LCD_OLED_SIZE, amblt_drv->vsize, 16, 13);  //vsize
-		lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, amblt_drv->zone_h, 0, 6);  //x num
-		lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, amblt_drv->zone_v, 8, 5);  //y num
-		lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, 1, 15, 1);  //reverse vs pol
-		lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, 1, 21, 1);  //reverse vs pol
-		amblt_wr_reg_bits(LDC_REG_INPUT_STAT_NUM, 1, 16, 1); //en
-		//AMBLTPR("LDC_REG_INPUT_STAT_NUM 0x%04x = 0x%08x\n",
-		//	LDC_REG_INPUT_STAT_NUM, lcd_vcbus_read(LDC_REG_INPUT_STAT_NUM));
+		if (amblt_data->chip_type == LCD_CHIP_T6W) {
+			lcd_vcbus_setb(LDC_AMBIGHT_HSIZE, amblt_drv->hsize, 0, 13);  //hsize
+			lcd_vcbus_setb(LDC_AMBIGHT_VSIZE, amblt_drv->vsize, 0, 13);  //vsize
+			lcd_vcbus_setb(LDC_AMBIGHT_STAT_NUM, amblt_drv->zone_h, 0, 6);  //x num
+			lcd_vcbus_setb(LDC_AMBIGHT_STAT_NUM, amblt_drv->zone_v, 6, 5);  //y num
+			lcd_vcbus_setb(LDC_AMBIGHT_STAT_NUM, 1, 11, 1);  //reverse vs pol
+			// lcd_vcbus_setb(LDC_AMBIGHT_STAT_NUM, 1, 21, 1);  //reverse vs pol
+			amblt_wr_reg_bits(LDC_AMBIGHT_VSIZE, 1, 13, 1); //en
+		} else if (amblt_data->chip_type == LCD_CHIP_T6X) {
+			lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM_T6X, amblt_drv->zone_h, 9, 6);
+			lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM_T6X, amblt_drv->zone_v, 16, 5);
+
+			amblt_wr_reg_bits(LDC_REG_INPUT_STAT_NUM_T6X, 1, 24, 1); //en
+		} else {
+			lcd_vcbus_setb(LCD_OLED_SIZE, amblt_drv->hsize, 0, 13);  //hsize
+			lcd_vcbus_setb(LCD_OLED_SIZE, amblt_drv->vsize, 16, 13);  //vsize
+			lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, amblt_drv->zone_h, 0, 6);  //x num
+			lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, amblt_drv->zone_v, 8, 5);  //y num
+			lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, 1, 15, 1);  //reverse vs pol
+			lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, 1, 21, 1);  //reverse vs pol
+			amblt_wr_reg_bits(LDC_REG_INPUT_STAT_NUM, 1, 16, 1); //en
+			//AMBLTPR("LDC_REG_INPUT_STAT_NUM 0x%04x = 0x%08x\n",
+			//	LDC_REG_INPUT_STAT_NUM, lcd_vcbus_read(LDC_REG_INPUT_STAT_NUM));
+		}
 		amblt_drv->state |= AMBLT_STATE_EN;
 		if (amblt_debug_print) {
 			AMBLTPR("ambilight enable: zone x:%d, y:%d\n",
@@ -123,7 +142,12 @@ static void amblt_hw_ctrl(struct amblt_drv_s *amblt_drv)
 		}
 	} else {
 		amblt_drv->state &= ~AMBLT_STATE_EN;
-		amblt_wr_reg_bits(LDC_REG_INPUT_STAT_NUM, 0, 16, 1);
+		if (amblt_data->chip_type == LCD_CHIP_T6W)
+			amblt_wr_reg_bits(LDC_AMBIGHT_VSIZE, 0, 13, 1);
+		else if (amblt_data->chip_type == LCD_CHIP_T6X)
+			amblt_wr_reg_bits(LDC_REG_INPUT_STAT_NUM_T6X, 0, 24, 1);
+		else
+			amblt_wr_reg_bits(LDC_REG_INPUT_STAT_NUM, 0, 16, 1);
 		set_vpu_lut_dma_mif_wr(&amblt_drv->lut_dma, 0);
 		if (amblt_debug_print)
 			AMBLTPR("ambilight disabled\n");
@@ -300,12 +324,21 @@ static void amblt_lut_dma_init(struct amblt_drv_s *amblt_drv)
 	struct vpu_lut_dma_wr_s *lut_dma = &amblt_drv->lut_dma;
 	unsigned int rpt_num;
 
-	rpt_num = (amblt_drv->zone_size + 3) / 4;
+	if (amblt_drv->drv_data->chip_type == LCD_CHIP_T6W ||
+		amblt_drv->drv_data->chip_type == LCD_CHIP_T6X) {
+		lut_dma->stride =  amblt_drv->zone_h;
+		rpt_num = amblt_drv->zone_v;
+		lut_dma->dma_wr_id = 0;
+		lut_dma->wr_sel = 0;
+		lut_dma->offset = 0;
+	} else {
+		rpt_num = (amblt_drv->zone_size + 3) / 4;
+		lut_dma->stride = 4; //0x280; //8;    //unit:128bit
+		lut_dma->dma_wr_id = 9;
+		lut_dma->wr_sel = 1;
+		lut_dma->offset = 1;
+	}
 
-	lut_dma->dma_wr_id = AMBLT_DMA_ID;
-	lut_dma->wr_sel = 1;
-	lut_dma->offset = AMBLT_DMA_ID - 8;
-	lut_dma->stride = 4;//0x280; //8;    //unit:128bit
 	lut_dma->baddr0 = amblt_drv->dma_mem.paddr >> 4;
 	lut_dma->baddr1 = amblt_drv->dma_mem.paddr >> 4;
 	lut_dma->addr_mode = 1;//0; //1;
@@ -346,10 +379,36 @@ static struct amblt_drv_data_s amblt_data_t3x = {
 	.zone_size_min = 4,
 };
 
+static struct amblt_drv_data_s amblt_data_t6w = {
+	.chip_type = LCD_CHIP_T6W,
+	.chip_name = "t6w",
+	.zone_h_max = 32,
+	.zone_v_max = 20,
+	.zone_size_max = 640,
+	.zone_size_min = 4,
+};
+
+static struct amblt_drv_data_s amblt_data_t6x = {
+	.chip_type = LCD_CHIP_T6X,
+	.chip_name = "t6x",
+	.zone_h_max = 32,
+	.zone_v_max = 20,
+	.zone_size_max = 640,
+	.zone_size_min = 4,
+};
+
 static const struct of_device_id amblt_dt_match_table[] = {
 	{
 		.compatible = "amlogic, ambilight-t3x",
 		.data = &amblt_data_t3x,
+	},
+	{
+		.compatible = "amlogic, ambilight-t6w",
+		.data = &amblt_data_t6w,
+	},
+	{
+		.compatible = "amlogic, ambilight-t6x",
+		.data = &amblt_data_t6x,
 	},
 	{}
 };
@@ -428,6 +487,8 @@ static void amblt_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	kfree(amblt_drv);
+
+	return;
 }
 
 static int amblt_resume(struct platform_device *pdev)

@@ -1024,7 +1024,7 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 
 	bl_iw7027->dev_on_flag = 1; /* default enable in uboot */
 
-	LDIMPR("%s ok\n", __func__);
+	ldim_pr("%s ok\n", __func__);
 	return 0;
 
 ldim_dev_iw7027_probe_err3:

@@ -36,6 +36,9 @@
 #define AML_LDIM_IOC_NR_GET_BL_PROFILE_PATH	0x57
 #define AML_LDIM_IOC_NR_SET_BL_PROFILE	0x58
 
+#define AML_LDIM_IOC_NR_GET_BLK_FRM_EN	0x59
+#define AML_LDIM_IOC_NR_SET_BLK_FRM_EN	0x60
+
 struct aml_ldim_bin_s {
 	unsigned int index;
 	unsigned int len;

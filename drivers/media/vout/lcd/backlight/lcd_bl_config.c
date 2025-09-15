@@ -812,8 +812,8 @@ static int bl_config_load_from_ini(struct aml_bl_drv_s *bdrv)
 	bconf->bl_hold_on = lcd_ini_get_val(inip, psec, "bl_custome_val_3", 0);
 	//val = lcd_ini_get_val(inip, psec, "bl_custome_val_4", 0);
 
-	if (lcd_ini_get_val(inip, psec, "bl_ldim_row", 0) &&
-	    lcd_ini_get_val(inip, psec, "bl_ldim_col", 0))
+	if (lcd_ini_get_val(inip, psec, "bl_ldim_row", 0) > 0 &&
+	    lcd_ini_get_val(inip, psec, "bl_ldim_col", 0) > 0)
 		bconf->ldim_flag = 1;
 
 	switch (bconf->method) {

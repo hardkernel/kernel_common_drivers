@@ -282,6 +282,12 @@
 #define LCD_GAMMA_ADDR_PORT0_T3X                       0x14eb
 #define LCD_OLED_SIZE                              0x14ec
 #define LDC_REG_INPUT_STAT_NUM                     0x14ef
+
+// T6W bringup
+//ambight
+#define LDC_AMBIGHT_HSIZE                          0x14c6
+#define LDC_AMBIGHT_VSIZE                          0x14c7
+#define LDC_AMBIGHT_STAT_NUM                       0x14c8
 //
 // Closing file:  ./vencl_lcd_reg.h
 //

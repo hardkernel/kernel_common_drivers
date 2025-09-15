@@ -693,7 +693,7 @@ static struct spi_driver ldim_spi_dev_driver = {
 
 int ldim_spi_driver_add(struct ldim_dev_driver_s *dev_drv)
 {
-//KV_TODO: modify
+	//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 	return -1;
 #else
@@ -708,7 +708,7 @@ int ldim_spi_driver_add(struct ldim_dev_driver_s *dev_drv)
 		cdata->ss_leading_gap = dev_drv->cs_hold_delay;
 		cdata->ss_trailing_gap = dev_drv->cs_clk_delay;
 
-		ctlr = spi_busnum_to_master(dev_drv->spi_info[i].bus_num);
+		ctlr = spi_find_controller(dev_drv->spi_info[i].bus_num);
 		if (!ctlr) {
 			LDIMERR("get busnum[%d] failed\n", i);
 			return -1;

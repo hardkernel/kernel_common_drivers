@@ -133,8 +133,25 @@ struct ldim_dev_driver_s ldim_dev_drv = {
 	.bl_mapping = NULL,
 
 	.pin = NULL,
-	//.spi_dev = NULL,
-	//.spi_info = NULL,
+	.abcon_conf = {
+		.tx_clk = 1000,
+		.rx_clk = 1000,
+		.dev_type = 0,
+		.chip_num = {3, 0, 0, 0},
+		.ch_num = 3,
+		.dimming_mode = 4,
+		.gpio_o = {0xf10, 0},
+		.gpio_i = {0x2, 0},
+		.gpio_en = 0,
+		.gpio_pu_en = 0,
+		.gpio_pu_up = 0,
+		.fb_en = 0,
+		.fb_det_int = 300,
+		.fb_adj_th = 5,
+		.fb_pwm_dir = 1,
+		.fb_pwm_step = 1,
+		.ctrl = 0x2,
+	},
 
 	.pinmux_ctrl = NULL,
 	.dim_range_update = NULL,
@@ -298,14 +315,20 @@ void ldim_set_duty_pwm(struct bl_pwm_config_s *bl_pwm)
 	if (bl_pwm->pwm_duty_max == 0)
 		return;
 
+	if (bl_pwm->pwm_duty > bl_pwm->pwm_range_h)
+		bl_pwm->pwm_duty = bl_pwm->pwm_range_h;
+	else if (bl_pwm->pwm_duty < bl_pwm->pwm_range_l)
+		bl_pwm->pwm_duty = bl_pwm->pwm_range_l;
+
 	temp = bl_pwm->pwm_cnt;
 	bl_pwm->pwm_level = bl_do_div(((temp * bl_pwm->pwm_duty) +
 		((bl_pwm->pwm_duty_max + 1) >> 1)), bl_pwm->pwm_duty_max);
 
 	if (ldim_debug_print & LDIM_DBG_PR_PWM) {
-		LDIMPR("pwm port %d: duty= %d / %d, pwm_max=%d, pwm_min=%d, pwm_level=%d\n",
-		       bl_pwm->pwm_port, bl_pwm->pwm_duty, bl_pwm->pwm_duty_max,
-		       bl_pwm->pwm_max, bl_pwm->pwm_min, bl_pwm->pwm_level);
+		LDIMPR("pwm port %d: duty= %d, pwm_range=[%d:%d]\n"
+			"pwm_max=%d, pwm_min=%d, pwm_level=%d\n",
+		    bl_pwm->pwm_port, bl_pwm->pwm_duty, bl_pwm->pwm_range_l, bl_pwm->pwm_range_h,
+		    bl_pwm->pwm_max, bl_pwm->pwm_min, bl_pwm->pwm_level);
 	}
 
 	bl_pwm_ctrl(bl_pwm, 1);
@@ -715,7 +738,7 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 }
 
 static ssize_t ldim_dev_show(const struct class *class,
-			const struct class_attribute *attr, char *buf)
+	const struct class_attribute *attr, char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int ret = 0;
@@ -726,7 +749,7 @@ static ssize_t ldim_dev_show(const struct class *class,
 }
 
 static ssize_t ldim_dev_pwm_ldim_show(const struct class *class,
-						const struct class_attribute *attr, char *buf)
+	const struct class_attribute *attr, char *buf)
 {
 	struct bl_pwm_config_s *bl_pwm;
 	ssize_t len = 0;
@@ -737,8 +760,8 @@ static ssize_t ldim_dev_pwm_ldim_show(const struct class *class,
 			"ldim_pwm: freq=%d, phase=%d, pol=%d, duty_max=%d, duty_min=%d,",
 			bl_pwm->pwm_freq, bl_pwm->pwm_phase, bl_pwm->pwm_method,
 			bl_pwm->pwm_duty_max, bl_pwm->pwm_duty_min);
-		len += sprintf(buf + len, " duty_value=%d\n",
-			       bl_pwm->pwm_duty);
+		len += sprintf(buf + len, " duty_value=%d, duty_range={%d, %d]\n",
+			       bl_pwm->pwm_duty, bl_pwm->pwm_range_l, bl_pwm->pwm_range_h);
 	}
 
 	return len;
@@ -803,6 +826,30 @@ static void ldim_dev_pwm_debug(struct bl_pwm_config_s *bl_pwm, const char *buf, 
 			} else {
 				LDIMERR("invalid parameters\n");
 			}
+		} else if (buf[10] == 'h') { /* pwm_range_h */
+			ret = sscanf(buf, "pwm_range_h %d", &val);
+			if (ret == 1) {
+				bl_pwm->pwm_range_h = val;
+				ldim_set_duty_pwm(bl_pwm);
+				if (ldim_debug_print) {
+					LDIMPR("set ldim_pwm (port 0x%x): pwm_range_h = %d\n",
+						bl_pwm->pwm_port, bl_pwm->pwm_range_h);
+				}
+			} else {
+				LDIMERR("invalid parameters\n");
+			}
+		} else if (buf[10] == 'l') { /* pwm_range_l */
+			ret = sscanf(buf, "pwm_range_l %d", &val);
+			if (ret == 1) {
+				bl_pwm->pwm_range_l = val;
+				ldim_set_duty_pwm(bl_pwm);
+				if (ldim_debug_print) {
+					LDIMPR("set ldim_pwm (port 0x%x): pwm_range_l = %d\n",
+						bl_pwm->pwm_port, bl_pwm->pwm_range_l);
+				}
+			} else {
+				LDIMERR("invalid parameters\n");
+			}
 		}
 		break;
 	case 'm':
@@ -862,8 +909,7 @@ static ssize_t ldim_dev_pwm_ldim_store(const struct class *class,
 }
 
 static ssize_t ldim_dev_pwm_analog_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr, char *buf)
 {
 	struct bl_pwm_config_s *bl_pwm;
 	ssize_t len = 0;
@@ -904,7 +950,7 @@ struct ldim_dev_dbg_reg_s {
 static struct ldim_dev_dbg_reg_s ldim_dev_dbg_reg;
 
 static ssize_t ldim_dev_reg_show(const struct class *class,
-						const struct class_attribute *attr, char *buf)
+	const struct class_attribute *attr, char *buf)
 {
 	unsigned char *data;
 	ssize_t len = 0;
@@ -942,8 +988,9 @@ static ssize_t ldim_dev_reg_show(const struct class *class,
 	return len;
 }
 
-static ssize_t ldim_dev_reg_store(const struct class *class, const struct class_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t ldim_dev_reg_store(const struct class *class,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	unsigned int reg = 0, val = 0, id = 0;
 	unsigned char data, *rbuf;
@@ -1040,8 +1087,9 @@ ldim_dev_reg_store_end:
 	return count;
 }
 
-static ssize_t ldim_dev_spi_store(const struct class *class, const struct class_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t ldim_dev_spi_store(const struct class *class,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	unsigned int val = 0;
 	unsigned int ret;
@@ -1115,13 +1163,16 @@ static void ldim_dev_class_create(struct ldim_dev_driver_s *dev_drv)
 static int ldim_dev_add_driver(struct aml_ldim_driver_s *ldim_drv)
 {
 	struct ldim_dev_driver_s *dev_drv = ldim_drv->dev_drv;
-	int ret = 0;
+	int ret = -1;
 
 	switch (dev_drv->type) {
 	case LDIM_DEV_TYPE_SPI:
 		ret = ldim_spi_driver_add(dev_drv);
 		break;
-	case LDIM_DEV_TYPE_I2C:
+	case LDIM_DEV_TYPE_ABCON:
+#ifdef CONFIG_AMLOGIC_BL_LDIM_ABCON
+	ret = ldim_abcon_dev_probe(ldim_drv);
+#endif
 		break;
 	case LDIM_DEV_TYPE_NORMAL:
 	default:
@@ -1146,6 +1197,18 @@ static int ldim_dev_add_driver(struct aml_ldim_driver_s *ldim_drv)
 	} else if (strcmp(dev_drv->name, "ob3350") == 0) {
 #ifdef CONFIG_AMLOGIC_BL_LDIM_OB3350
 		ret = ldim_dev_ob3350_probe(ldim_drv);
+#endif
+	} else if (strcmp(dev_drv->name, "abcon_hyasic") == 0) {
+#ifdef CONFIG_AMLOGIC_BL_LDIM_ABCON
+		ret = ldim_dev_abcon_hyasic_probe(ldim_drv);
+#endif
+	} else if (strcmp(dev_drv->name, "abcon_ospb") == 0) {
+#ifdef CONFIG_AMLOGIC_BL_LDIM_ABCON
+		ret = ldim_dev_abcon_hy_ospb_probe(ldim_drv);
+#endif
+	} else if (strcmp(dev_drv->name, "abcon_xianxin") == 0) {
+#ifdef CONFIG_AMLOGIC_BL_LDIM_ABCON
+		ret = ldim_dev_abcon_xianxin_probe(ldim_drv);
 #endif
 	} else if (strcmp(dev_drv->name, "global") == 0) {
 		ret = ldim_dev_global_probe(ldim_drv);
@@ -1186,6 +1249,18 @@ static int ldim_dev_remove_driver(struct aml_ldim_driver_s *ldim_drv)
 		} else if (strcmp(dev_drv->name, "ob3350") == 0) {
 #ifdef CONFIG_AMLOGIC_BL_LDIM_OB3350
 			ret = ldim_dev_ob3350_remove(ldim_drv);
+#endif
+		} else if (strcmp(dev_drv->name, "abcon_hyasic") == 0) {
+#ifdef CONFIG_AMLOGIC_BL_LDIM_ABCON
+			ret = ldim_dev_abcon_hyasic_remove(ldim_drv);
+#endif
+		} else if (strcmp(dev_drv->name, "abcon_ospb") == 0) {
+#ifdef CONFIG_AMLOGIC_BL_LDIM_ABCON
+			ret = ldim_dev_abcon_hy_ospb_remove(ldim_drv);
+#endif
+		} else if (strcmp(dev_drv->name, "abcon_xianxin") == 0) {
+#ifdef CONFIG_AMLOGIC_BL_LDIM_ABCON
+			ret = ldim_dev_abcon_xianxin_remove(ldim_drv);
 #endif
 		} else if (strcmp(dev_drv->name, "global") == 0) {
 			ret = ldim_dev_global_remove(ldim_drv);
@@ -1303,27 +1378,31 @@ static void ldim_dev_probe_func(struct work_struct *work)
 	ldim_set_duty_pwm(&ldim_dev_drv.ldim_pwm_config);
 
 	/*dma_alloc_coherent spi_tx_buf / spi_rx_buf*/
-	for (i = 0; i < ldim_dev_drv.spi_dev_num; i++) {
-		cdata = ldim_dev_drv.spi_dev[i]->controller_data;
-		priv = cdata->priv;
-		priv->tx_buf = dma_alloc_coherent(ldim_dev_drv.spi_dev[i]->controller->dev.parent,
-			priv->xlen, &priv->tx_dma, GFP_KERNEL | GFP_DMA);
-		if (!priv->tx_buf) {
-			LDIMERR("%s: priv->tx_buf %d is error\n", __func__, i);
-			goto ldim_dev_probe_func_fail2;
-		}
-		priv->rx_buf = dma_alloc_coherent(ldim_dev_drv.spi_dev[i]->controller->dev.parent,
-			priv->xlen, &priv->rx_dma, GFP_KERNEL | GFP_DMA);
-		if (!priv->rx_buf) {
-			LDIMERR("%s: priv->rx_buf %d is error\n", __func__, i);
-			goto ldim_dev_probe_func_fail3;
-		}
+	if (ldim_dev_drv.type == LDIM_DEV_TYPE_SPI) {
+		for (i = 0; i < ldim_dev_drv.spi_dev_num; i++) {
+			cdata = ldim_dev_drv.spi_dev[i]->controller_data;
+			priv = cdata->priv;
+			priv->tx_buf =
+			dma_alloc_coherent(ldim_dev_drv.spi_dev[i]->controller->dev.parent,
+				priv->xlen, &priv->tx_dma, GFP_KERNEL | GFP_DMA);
+			if (!priv->tx_buf) {
+				LDIMERR("%s: priv->tx_buf %d is error\n", __func__, i);
+				goto ldim_dev_probe_func_fail2;
+			}
+			priv->rx_buf =
+			dma_alloc_coherent(ldim_dev_drv.spi_dev[i]->controller->dev.parent,
+				priv->xlen, &priv->rx_dma, GFP_KERNEL | GFP_DMA);
+			if (!priv->rx_buf) {
+				LDIMERR("%s: priv->rx_buf %d is error\n", __func__, i);
+				goto ldim_dev_probe_func_fail3;
+			}
 
-		LDIMPR("%s spi_dev_idx:%d, tx_dma=0x%lx, rx_dma=0x%lx\n", __func__,
-		i, (ulong)priv->tx_dma, (ulong)priv->rx_dma);
+			LDIMPR("%s spi_dev_idx:%d, tx_dma=0x%lx, rx_dma=0x%lx\n", __func__,
+			i, (ulong)priv->tx_dma, (ulong)priv->rx_dma);
+		}
+		if (ldim_dev_drv.spi_sync == SPI_DMA_TRIG)
+			ldim_wr_vcbus(VPP_INT_LINE_NUM, ldim_dev_drv.spi_line_n);
 	}
-	if (ldim_dev_drv.spi_sync == SPI_DMA_TRIG)
-		ldim_wr_vcbus(VPP_INT_LINE_NUM, ldim_dev_drv.spi_line_n);
 
 	/* init ldim function */
 	ldim_drv->init();
@@ -1344,6 +1423,7 @@ ldim_dev_probe_func_fail0:
 static int ldim_dev_probe(struct platform_device *pdev)
 {
 	ldim_dev_probe_flag = 0;
+	ldim_dev_drv.pdev = pdev;
 	ldim_dev_drv.dev = &pdev->dev;
 	/* set drvdata */
 	platform_set_drvdata(pdev, &ldim_dev_drv);

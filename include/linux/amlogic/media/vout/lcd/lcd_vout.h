@@ -41,9 +41,9 @@ extern unsigned int lcd_debug_print_flag;
 #define LCD_DBG_PR_ADV2         BIT(2)
 #define LCD_DBG_PR_ISR          BIT(3)
 #define LCD_DBG_PR_BL_NORMAL    BIT(4) //basic info & flow
-#define LCD_DBG_PR_BL_ADV       BIT(5) //ext, ldim
+#define LCD_DBG_PR_BL_ADV       BIT(5) //ext
 #define LCD_DBG_PR_BL_PWM       BIT(6)
-#define LCD_DBG_PR_BL_ISR       BIT(7)
+#define LCD_DBG_PR_BL_LDIM		BIT(7)
 #define LCD_DBG_PR_CLK          BIT(8)
 #define LCD_DBG_PR_TCON         BIT(9)
 #define LCD_DBG_PR_MEM          BIT(13)

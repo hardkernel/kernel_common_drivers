@@ -37,13 +37,6 @@ struct ldim_stts_s {
 	struct ldim_seg_hist_s *seg_hist;
 };
 
-struct ldim_profile_s {
-	unsigned int mode;
-	unsigned int profile_k;
-	unsigned int profile_bits;
-	char file_path[256];
-};
-
 struct ldim_rmem_s {
 	unsigned char flag; //0:none, 1:ldc_cma, 2:sys_cma_pool, 3:kmalloc
 
@@ -92,7 +85,6 @@ struct ldim_fw_param_s {
 	struct ldim_fw_config_s *conf;
 	struct ldim_rmem_s *rmem;
 	struct ldim_stts_s *stts;
-	struct ldim_profile_s *profile;
 	struct ldim_boost_s *ext_boost;
 	int *iparam;
 	int *oparam;
@@ -104,16 +96,18 @@ struct ldim_fw_param_s {
  * bit29: bypass alg
  * bit28: bypass remap bl
  * bit27: resume
+ * bit5:  fw_print_en
  * bit4:  ld sel
  * bit3--0:  level_idx
  */
-#define FW_CTRL_PQBYPASS 0x80000000
-#define FW_CTRL_GET_HIST 0x40000000
-#define FW_CTRL_BYPASS_ALG 0x20000000
-#define FW_CTRL_BYPASS_REMAP_BL 0x10000000
-#define FW_CTRL_RESUME 0x08000000
-#define FW_CTRL_LD_SEL 0x00000010
-#define FW_CTRL_LEVEL_IDX 0x0000000F
+#define FW_CTRL_PQBYPASS		BIT(31)
+#define FW_CTRL_GET_HIST		BIT(30)
+#define FW_CTRL_BYPASS_ALG		BIT(29)
+#define FW_CTRL_BYPASS_REMAP_BL	BIT(28)
+#define FW_CTRL_RESUME			BIT(27)
+#define FW_CTRL_FW_PRINT_EN		BIT(5)
+#define FW_CTRL_LD_SEL			BIT(4)
+#define FW_CTRL_LEVEL_IDX		0x0000000F
 
 struct ldim_fw_s {
 	/* header */
