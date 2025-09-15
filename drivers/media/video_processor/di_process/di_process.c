@@ -1,19 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/video_processor/video_composer/video_composer.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/amlogic/major.h>
@@ -1524,6 +1511,12 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	}
 
 	if (!check_need_do_di(dev, vf)) {
+		if (!dev->last_frame_bypass && dev->last_vf.type) {
+			dp_print(dev->index, PRINT_OTHER, "no bypass to bypass.\n");
+			dev->last_vf.type = 0;
+			dp_put_file(dev, file_vf);
+			return 1;
+		}
 		frame_info->out_fd = -1;
 		frame_info->out_fence_fd = -1;
 		frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
