@@ -3,6 +3,7 @@
 config AMLOGIC_DDR_TOOL
 	bool "Meson cpu ddr tool"
 	depends on AMLOGIC_DRIVER
+	depends on AMLOGIC_MEMORY_DEBUG
 	default n
 	help
 		This config add some debug tools for DDR, including test ddr
