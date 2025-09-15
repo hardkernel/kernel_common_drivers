@@ -252,10 +252,16 @@ static int lcd_phy_param_get_from_reg(struct aml_lcd_drv_s *pdrv,
 		}
 
 		phase_sel = (chdig >> 0) & 0x3;
-		pn_swap = (chdig >> 3) & 0x1;
+		if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_LVDS) {
+			pn_swap = (chdig >> 3) & 0x1;
+			phy_cfg->ch_ctrl[i].pn_swap = pn_swap;
+		} else {
+			pn_swap = (chdig >> 8) & 0x3;
+			phy_cfg->ch_ctrl[i].pn_swap =
+				pn_swap == 0x2 ? 1 : 0;
+		}
 		phy_cfg->ch_ctrl[i].phase_sel =
 			lcd_phy_get_phase(phy_cfg, PHY_GET_PHASE_SEL_BY_REG, phase_sel);
-		phy_cfg->ch_ctrl[i].pn_swap = pn_swap;
 	}
 
 	return 0;
@@ -341,8 +347,12 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status)
 			if (phy->cv_mode == PHY_CMODE)
 				chdig |= 3 << 4;
 			chdig |= (phy_cfg->ch_ctrl[i].en ? 1 : 0) << 15;
-			if (phy_cfg->ch_ctrl[i].pn_swap && phy_cfg->ch_ctrl[i].pn_swap != 0xff)
-				chdig |= 1 << 3;
+			if (phy_cfg->ch_ctrl[i].pn_swap && phy_cfg->ch_ctrl[i].pn_swap != 0xff) {
+				if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_LVDS)
+					chdig |= 1 << 3;
+				else
+					chdig |= 0x2 << 8;
+			}
 			switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 			case LCD_LVDS:
 				chdig |= 1 << 10;   //clk inv
@@ -430,7 +440,6 @@ static void lcd_p2p_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 		switch (p2p_type) {
 		case P2P_CEDS:
 		case P2P_CMPI:
-		case P2P_ISP:
 		case P2P_EPI:
 			pdrv->curr_dev->dev_cfg.phy_cfg.low_common_mode = 0;
 			cntl14 |= (2 << 16); //div8
@@ -445,6 +454,7 @@ static void lcd_p2p_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 			cntl14 |= (3 << 16); //div10
 			break;
 		case P2P_CSPI:
+		case P2P_ISP:
 			pdrv->curr_dev->dev_cfg.phy_cfg.low_common_mode = 1;
 			cntl14 |= (2 << 16); //div8
 			break;
