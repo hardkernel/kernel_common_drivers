@@ -224,6 +224,8 @@ bool check_dewarp_status(struct vframe_s *input_vf, int count, int work_mode, in
 #ifdef CONFIG_AMLOGIC_MEDIA_GDC
 	if (!is_aml_gdc_supported())
 		return false;
+#else
+	return false;
 #endif
 
 	if (count > 1)

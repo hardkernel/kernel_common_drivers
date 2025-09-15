@@ -1832,6 +1832,7 @@ static int v2d_set_frames(struct v2d_dev *dev,
 		}
 
 		if (j == 0) {
+			dev->received_frames[i].frames_info.frame_count = frames_info->frame_count;
 			dev->received_frames[i].frames_info.input_buffer[0].transform =
 				frames_info->input_buffer[0].transform;
 			choose_v2d_device(dev, &dev->received_frames[i], src_vf);

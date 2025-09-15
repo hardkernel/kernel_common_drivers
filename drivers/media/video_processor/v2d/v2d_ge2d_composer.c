@@ -679,7 +679,6 @@ int v2d_config_ge2d_data(struct vframe_s *src_vf, unsigned long addr, int buf_w,
 		data->canvas1Addr = -1;
 		data->canvas0_config[0].phy_addr = addr;
 
-		VIDEOCOM_INFO("buffer_w(%d), data_w(%d)\n", buf_w, data_w);
 		if (buf_w > data_w) {
 			if (data->buf_format == V2D_SRC_YUV444)
 				data->canvas0_config[0].width = buf_w * 3;
@@ -691,7 +690,6 @@ int v2d_config_ge2d_data(struct vframe_s *src_vf, unsigned long addr, int buf_w,
 			else
 				data->canvas0_config[0].width = data_w;
 		}
-		VIDEOCOM_INFO("buffer_h(%d), data_h(%d)\n", buf_h, data_h);
 
 		if (buf_h > data_h)
 			data->canvas0_config[0].height = buf_h;
@@ -725,7 +723,11 @@ int v2d_config_ge2d_data(struct vframe_s *src_vf, unsigned long addr, int buf_w,
 			data->plane_num = 2;
 		}
 
-		VIDEOCOM_INFO("crop %d %d %d %d\n", crop_x, crop_y, crop_w, crop_h);
+		if (ge2d_com_debug & 1) {
+			VIDEOCOM_INFO("buffer_w(%d), data_w(%d)\n", buf_w, data_w);
+			VIDEOCOM_INFO("buffer_h(%d), data_h(%d)\n", buf_h, data_h);
+			VIDEOCOM_INFO("crop %d %d %d %d\n", crop_x, crop_y, crop_w, crop_h);
+		}
 		data->position_x = crop_x;
 		data->position_y = crop_y;
 		data->is_vframe = false;

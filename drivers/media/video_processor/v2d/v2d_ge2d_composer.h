@@ -12,13 +12,13 @@
 #include "v2d_util.h"
 
 #define VIDEOCOM_INFO(fmt, args...)	\
-	pr_info("video_composer: info:" fmt "", ## args)
+	pr_info("v2d_ge2d: info:" fmt "", ## args)
 #define VIDEOCOM_DBG(fmt, args...)	\
-	pr_debug("video_composer: dbg:" fmt "", ## args)
+	pr_debug("v2d_ge2d: dbg:" fmt "", ## args)
 #define VIDEOCOM_WARN(fmt, args...)	\
-	pr_warn("video_composer: warn:" fmt "", ## args)
+	pr_warn("v2d_ge2d: warn:" fmt "", ## args)
 #define VIDEOCOM_ERR(fmt, args...)	\
-	pr_err("video_composer: err:" fmt "", ## args)
+	pr_err("v2d_ge2d: err:" fmt "", ## args)
 
 enum ge2d_angle_type {
 	GE2D_ANGLE_TYPE_ROT_90 = 1,
