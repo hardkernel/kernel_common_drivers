@@ -1,4 +1,4 @@
-From 607187abd332a01220b8f4c893363adc70569d64 Mon Sep 17 00:00:00 2001
+From 2dbcee19984f15dfe96b13192d6b622a2c1d3fe5 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Thu, 2 Jan 2025 15:37:12 +0800
 Subject: [PATCH] mm: add vmap stack for arm. [1/1]
@@ -6,21 +6,21 @@ Subject: [PATCH] mm: add vmap stack for arm. [1/1]
 Change-Id: I88fe4fee188b86d47567aea8ac69d852c7c16538
 Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
 ---
- arch/arm/Kconfig                   |  4 +-
- arch/arm/include/asm/memory.h      | 13 +++++
- arch/arm/include/asm/thread_info.h | 11 ++++
- arch/arm/kernel/asm-offsets.c      |  9 +++
- arch/arm/kernel/entry-armv.S       | 94 ++++++++++++++++++++++++++++++
- arch/arm/kernel/entry-header.S     | 13 +++++
- arch/arm/kernel/ftrace.c           |  6 ++
- arch/arm/kernel/setup.c            |  6 ++
- arch/arm/kernel/suspend.c          |  8 +++
- arch/arm/kernel/unwind.c           | 53 +++++++++++++++++
- include/linux/sched/task_stack.h   |  8 +--
- 11 files changed, 219 insertions(+), 6 deletions(-)
+ arch/arm/Kconfig                   |   4 +-
+ arch/arm/include/asm/memory.h      |  13 ++++
+ arch/arm/include/asm/thread_info.h |  11 ++++
+ arch/arm/kernel/asm-offsets.c      |   9 +++
+ arch/arm/kernel/entry-armv.S       | 100 +++++++++++++++++++++++++++++
+ arch/arm/kernel/entry-header.S     |  13 ++++
+ arch/arm/kernel/ftrace.c           |   6 ++
+ arch/arm/kernel/setup.c            |   6 ++
+ arch/arm/kernel/suspend.c          |   8 +++
+ arch/arm/kernel/unwind.c           |  53 +++++++++++++++
+ include/linux/sched/task_stack.h   |   8 +--
+ 11 files changed, 225 insertions(+), 6 deletions(-)
 
 diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 2c5a06d7be74..981736bbe641 100644
+index 3eef6a0226ecc..1964ba828c01c 100644
 --- a/arch/arm/Kconfig
 +++ b/arch/arm/Kconfig
 @@ -151,7 +151,7 @@ config ARM
@@ -42,7 +42,7 @@ index 2c5a06d7be74..981736bbe641 100644
  	select GCC_PLUGIN_ARM_SSP_PER_TASK if !CC_HAVE_STACKPROTECTOR_TLS
  	default y
 diff --git a/arch/arm/include/asm/memory.h b/arch/arm/include/asm/memory.h
-index ef2aa79ece5a..c29ae31d315a 100644
+index 7c2fa7dcec6d4..f216baa50ee49 100644
 --- a/arch/arm/include/asm/memory.h
 +++ b/arch/arm/include/asm/memory.h
 @@ -23,6 +23,11 @@
@@ -87,7 +87,7 @@ index ef2aa79ece5a..c29ae31d315a 100644
  #if TASK_SIZE > MODULES_VADDR
  #error Top of user space clashes with start of module space
 diff --git a/arch/arm/include/asm/thread_info.h b/arch/arm/include/asm/thread_info.h
-index 943ffcf069d2..58a359c11f39 100644
+index 943ffcf069d29..58a359c11f394 100644
 --- a/arch/arm/include/asm/thread_info.h
 +++ b/arch/arm/include/asm/thread_info.h
 @@ -23,7 +23,18 @@
@@ -110,7 +110,7 @@ index 943ffcf069d2..58a359c11f39 100644
  #ifdef CONFIG_VMAP_STACK
  #define THREAD_ALIGN		(2 * THREAD_SIZE)
 diff --git a/arch/arm/kernel/asm-offsets.c b/arch/arm/kernel/asm-offsets.c
-index 4853875740d0..20cc8958bd1b 100644
+index 4853875740d0f..20cc8958bd1b1 100644
 --- a/arch/arm/kernel/asm-offsets.c
 +++ b/arch/arm/kernel/asm-offsets.c
 @@ -172,5 +172,14 @@ int main(void)
@@ -129,7 +129,7 @@ index 4853875740d0..20cc8958bd1b 100644
    return 0; 
  }
 diff --git a/arch/arm/kernel/entry-armv.S b/arch/arm/kernel/entry-armv.S
-index ef6a657c8d13..3dd3e4bd006c 100644
+index ef6a657c8d130..726718fc0f2f2 100644
 --- a/arch/arm/kernel/entry-armv.S
 +++ b/arch/arm/kernel/entry-armv.S
 @@ -158,9 +158,23 @@ ENDPROC(__und_invalid)
@@ -156,28 +156,34 @@ index ef6a657c8d13..3dd3e4bd006c 100644
   THUMB(	add	sp, r1		)	@ get SP in a GPR without
   THUMB(	sub	r1, sp, r1	)	@ using a temp register
  
-@@ -169,6 +183,8 @@ ENDPROC(__und_invalid)
+@@ -169,6 +183,18 @@ ENDPROC(__und_invalid)
  	do_overflow_check (SVC_REGS_SIZE + \stack_hole)
  	.endif
  
 +#ifdef CONFIG_AMLOGIC_VMAP
 +	.if !\vmap
++#ifdef CONFIG_THUMB2_KERNEL
++	tst	r1, #4			@ test stack pointer alignment
++	sub	r1, sp, r1		@ restore original R1
++	sub	sp, r1			@ restore original SP
++#else
++ SPFIX(	tst	sp, #4		)
++#endif
++ SPFIX(	subne	sp, sp, #4	)
++	.endif
++#else
  #ifdef CONFIG_THUMB2_KERNEL
  	tst	r1, #4			@ test stack pointer alignment
  	sub	r1, sp, r1		@ restore original R1
-@@ -177,6 +193,11 @@ ENDPROC(__und_invalid)
+@@ -177,6 +203,7 @@ ENDPROC(__und_invalid)
   SPFIX(	tst	sp, #4		)
  #endif
   SPFIX(	subne	sp, sp, #4	)
-+	.endif
-+#else
-+ SPFIX(	tst	sp, #4		)
-+ SPFIX(	subne	sp, sp, #4	)
 +#endif /* CONFIG_AMLOGIC_VMAP */
  
   ARM(	stmib	sp, {r1 - r12}	)
   THUMB(	stmia	sp, {r0 - r12}	)	@ No STMIB in Thumb-2
-@@ -184,8 +205,17 @@ ENDPROC(__und_invalid)
+@@ -184,8 +211,17 @@ ENDPROC(__und_invalid)
  	ldmia	r0, {r3 - r5}
  	add	r7, sp, #S_SP		@ here for interlock avoidance
  	mov	r6, #-1			@  ""  ""      ""       ""
@@ -195,7 +201,7 @@ index ef6a657c8d13..3dd3e4bd006c 100644
  	str	r3, [sp]		@ save the "real" r0 copied
  					@ from the exception stack
  
-@@ -202,6 +232,19 @@ ENDPROC(__und_invalid)
+@@ -202,6 +238,19 @@ ENDPROC(__und_invalid)
  	@
  	stmia	r7, {r2 - r6}
  
@@ -215,7 +221,7 @@ index ef6a657c8d13..3dd3e4bd006c 100644
  	get_thread_info tsk
  	uaccess_entry tsk, r0, r1, r2, \uaccess
  
-@@ -214,7 +257,34 @@ ENDPROC(__und_invalid)
+@@ -214,7 +263,34 @@ ENDPROC(__und_invalid)
  
  	.align	5
  __dabt_svc:
@@ -250,7 +256,7 @@ index ef6a657c8d13..3dd3e4bd006c 100644
  	mov	r2, sp
  	dabt_helper
   THUMB(	ldr	r5, [sp, #S_PSR]	)	@ potentially updated CPSR
-@@ -291,10 +361,30 @@ ENDPROC(__und_svc)
+@@ -291,10 +367,30 @@ ENDPROC(__und_svc)
  
  	.align	5
  __pabt_svc:
@@ -281,7 +287,7 @@ index ef6a657c8d13..3dd3e4bd006c 100644
   UNWIND(.fnend		)
  ENDPROC(__pabt_svc)
  
-@@ -525,6 +615,7 @@ ENTRY(__switch_to)
+@@ -525,6 +621,7 @@ ENTRY(__switch_to)
  	ldr	r6, [r2, #TI_CPU_DOMAIN]
  #endif
  	switch_tls r1, r4, r5, r3, r7
@@ -289,7 +295,7 @@ index ef6a657c8d13..3dd3e4bd006c 100644
  #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP) && \
      !defined(CONFIG_STACKPROTECTOR_PER_TASK)
  	ldr	r8, =__stack_chk_guard
-@@ -535,6 +626,7 @@ ENTRY(__switch_to)
+@@ -535,6 +632,7 @@ ENTRY(__switch_to)
  	ldr	r9, [r2, #TSK_STACK_CANARY & IMM12_MASK]
  	.endif
  #endif
@@ -297,7 +303,7 @@ index ef6a657c8d13..3dd3e4bd006c 100644
  	mov	r7, r2				@ Preserve 'next'
  #ifdef CONFIG_CPU_USE_DOMAINS
  	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
-@@ -544,10 +636,12 @@ ENTRY(__switch_to)
+@@ -544,10 +642,12 @@ ENTRY(__switch_to)
  	ldr	r0, =thread_notify_head
  	mov	r1, #THREAD_NOTIFY_SWITCH
  	bl	atomic_notifier_call_chain
@@ -311,7 +317,7 @@ index ef6a657c8d13..3dd3e4bd006c 100644
  #if !defined(CONFIG_THUMB2_KERNEL) && !defined(CONFIG_VMAP_STACK)
  	set_current r7, r8
 diff --git a/arch/arm/kernel/entry-header.S b/arch/arm/kernel/entry-header.S
-index 99411fa91350..202520376b24 100644
+index 99411fa913501..202520376b248 100644
 --- a/arch/arm/kernel/entry-header.S
 +++ b/arch/arm/kernel/entry-header.S
 @@ -199,7 +199,11 @@
@@ -344,7 +350,7 @@ index 99411fa91350..202520376b24 100644
  #endif
  	ldmia	sp, {r0 - pc}^			@ load r0 - pc, cpsr
 diff --git a/arch/arm/kernel/ftrace.c b/arch/arm/kernel/ftrace.c
-index e61591f33a6c..4968cf175ff5 100644
+index e61591f33a6cd..4968cf175ff5d 100644
 --- a/arch/arm/kernel/ftrace.c
 +++ b/arch/arm/kernel/ftrace.c
 @@ -231,6 +231,12 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
@@ -361,7 +367,7 @@ index e61591f33a6c..4968cf175ff5 100644
  err_out:
  		return;
 diff --git a/arch/arm/kernel/setup.c b/arch/arm/kernel/setup.c
-index e6a857bf0ce6..010ef117d291 100644
+index 56edc827fcace..44a203396cebf 100644
 --- a/arch/arm/kernel/setup.c
 +++ b/arch/arm/kernel/setup.c
 @@ -59,6 +59,9 @@
@@ -385,7 +391,7 @@ index e6a857bf0ce6..010ef117d291 100644
  }
  
 diff --git a/arch/arm/kernel/suspend.c b/arch/arm/kernel/suspend.c
-index 58a6441b58c4..fdbb28c92cf2 100644
+index 58a6441b58c49..fdbb28c92cf2e 100644
 --- a/arch/arm/kernel/suspend.c
 +++ b/arch/arm/kernel/suspend.c
 @@ -14,6 +14,10 @@
@@ -412,7 +418,7 @@ index 58a6441b58c4..fdbb28c92cf2 100644
  	/* This must correspond to the LDM in cpu_resume() assembly */
  	*ptr++ = virt_to_phys(idmap_pgd);
 diff --git a/arch/arm/kernel/unwind.c b/arch/arm/kernel/unwind.c
-index a879727077b3..42321e3e228a 100644
+index a879727077b34..42321e3e228ae 100644
 --- a/arch/arm/kernel/unwind.c
 +++ b/arch/arm/kernel/unwind.c
 @@ -29,6 +29,10 @@
@@ -493,7 +499,7 @@ index a879727077b3..42321e3e228a 100644
  }
  
 diff --git a/include/linux/sched/task_stack.h b/include/linux/sched/task_stack.h
-index 31898c056273..d0a85098ae7f 100644
+index 31898c0562731..d0a85098ae7f0 100644
 --- a/include/linux/sched/task_stack.h
 +++ b/include/linux/sched/task_stack.h
 @@ -27,15 +27,11 @@ static __always_inline void *task_stack_page(const struct task_struct *task)
@@ -529,5 +535,5 @@ index 31898c056273..d0a85098ae7f 100644
  
  #endif
 -- 
-2.42.0
+2.47.1
 
