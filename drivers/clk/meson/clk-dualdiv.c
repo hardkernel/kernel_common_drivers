@@ -40,7 +40,11 @@ __dualdiv_param_to_rate(unsigned long parent_rate,
 	if (!p->dual)
 		return DIV_ROUND_CLOSEST(parent_rate, p->n1);
 
-	return DIV_ROUND_CLOSEST(parent_rate * (p->m1 + p->m2),
+	/*
+	 * parent_rate * (p->m1 + p->m2) is easy to overflow when parent_rate is 1Ghz in ARM32.
+	 * use DIV_ROUND_CLOSEST_ULL instead
+	 */
+	return DIV_ROUND_CLOSEST_ULL((u64)parent_rate * (p->m1 + p->m2),
 				 p->n1 * p->m1 + p->n2 * p->m2);
 }
 
