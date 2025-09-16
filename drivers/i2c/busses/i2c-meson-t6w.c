@@ -160,7 +160,7 @@ static void meson_i2c_writel(struct meson_i2c *i2c, u32 data, int reg)
 }
 
 #ifdef I2C_DEBUG
-static inline void meson_i2c_dump_reg(struct meson_i2c *i2c, const char func[23], int line)
+static inline void meson_i2c_dump_reg(struct meson_i2c *i2c, const char *func, int line)
 {
 	u32 data;
 	int i;
