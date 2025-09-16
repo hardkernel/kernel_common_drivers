@@ -21,6 +21,7 @@ config AMLOGIC_PCIE_V3_HOST
 
 config AMLOGIC_PCIE_V3_EP
 	tristate "Meson PCIE_V3 endpoint controller"
+	depends on PCI
 	depends on OF
 	depends on AMLOGIC_PCIE
 	depends on PCI_ENDPOINT
