@@ -1356,7 +1356,7 @@ static int frc_probe(struct platform_device *pdev)
 	INIT_WORK(&frc_devp->frc_clk_work, frc_clock_workaround);
 	INIT_WORK(&frc_devp->frc_print_work, frc_debug_table_print);
 	INIT_WORK(&frc_devp->frc_secure_work, frc_secure_workaround);
-	frc_devp->clk_chg = FRC_CLOCK_DYNAMIC_0;
+	frc_devp->clk_chg = FRC_CLOCK_DYNAMIC_1;//FRC_CLOCK_DYNAMIC_0;
 	frc_set_enter_forcefilm(frc_devp, 0);
 
 	frc_devp->probe_ok = true;
