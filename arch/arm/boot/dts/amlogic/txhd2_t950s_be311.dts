@@ -6,9 +6,9 @@
 /dts-v1/;
 
 #include "mesontxhd2.dtsi"
-#include "hdr10plus.dtsi"
 #include "mesontxhd2_panel.dtsi"
-#include "partition_mbox_normal_txhd2_P_32.dtsi"
+#include "mesontxhd2_drm.dtsi"
+#include "partition_mbox_normal_dynamic.dtsi"
 #include "mesontxhd2_audio.dtsi"
 / {
 	amlogic-dt-id = "txhd2_t950s_be311";
@@ -237,6 +237,7 @@
 		};
 
 		/* global autoconfigured region for contiguous allocations */
+
 		ramoops@6700000 {
 			compatible = "ramoops";
 			reg = <0x06700000 0x00080000>;/* addr set in uboot */
@@ -290,8 +291,8 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 720p TV androidP size 12M */
-			size = <0xc00000>;
+			/* 720p TV androidU size 40M */
+			size = <0x2800000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x3f000000>;
 		};
@@ -299,7 +300,8 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0>;
+			/* 720p TV androidU size 12M */
+			size = <0xc00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x3f000000>;
 		};
@@ -438,6 +440,12 @@
 		regulator-always-on;
 	};
 
+	video_queue {
+		compatible = "amlogic, video_queue";
+		dev_name = "videoqueue";
+		status = "okay";
+	};
+
 	multi-di {
 		post-wr-support = <0>;
 		postlink_en = <1>;
@@ -544,13 +552,11 @@
 	clock-frequency = <300000>;
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
+};
 
-	aml_dvb_extern_i2c0: aml_dvb_extern_i2c@60 {
-		compatible = "aml_dvb_extern_i2c";
-		dev_name = "atbm253";
-		reg = <0x60>;
-		status = "okay";
-	};
+&aml_bt {
+	status = "okay";
+	power_down_disable = <1>;
 };
 
 &acodec {
@@ -642,6 +648,7 @@
 		};
 	};
 };
+
 &sd_emmc_c {
 	status = "okay";
 	run-low-mem;
@@ -665,12 +672,42 @@
 };
 
 &meson_fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1280 720 1280 2160 32>;
 	mem_size = <0x00400000 0xb00000 0x100000>;
 	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
+};
+
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x3f800000";
+
+	connectors_dev: port@1 {
+		drm_to_lcd0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&lcd0_to_drm>;
+		};
+	};
+};
+
+&lcd {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			lcd0_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd0>;
+			};
+		};
+	};
+};
+
+&aml_wifi{
+	status = "okay";
+	disable-wifi-32k;
 };
 
 &uart_AO {

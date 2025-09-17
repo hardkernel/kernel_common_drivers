@@ -6,9 +6,9 @@
 /dts-v1/;
 
 #include "mesontxhd2.dtsi"
-#include "hdr10plus.dtsi"
 #include "mesontxhd2_panel.dtsi"
-#include "partition_mbox_normal_txhd2_P_32.dtsi"
+#include "mesontxhd2_drm.dtsi"
+#include "partition_mbox_ab.dtsi"
 #include "mesontxhd2_audio.dtsi"
 
 / {
@@ -238,6 +238,7 @@
 		};
 
 		/* global autoconfigured region for contiguous allocations */
+
 		ramoops@6700000 {
 			compatible = "ramoops";
 			reg = <0x06700000 0x00080000>;/* addr set in uboot */
@@ -245,11 +246,6 @@
 			console-size = <0x40000>;
 			ftrace-size = <0x0>;
 			pmsg-size = <0x10000>;
-		};
-
-		dmc_reserved:linux,dmc_monitor {
-			compatible = "amlogic,dmc_monitor-reserved";
-			reg = <0x0 0x10000>;
 		};
 
 		debug_reserved:linux,iotrace {
@@ -260,6 +256,11 @@
 			irq-size = <0x1000>;
 			smc-size = <0x1000>;
 			misc-size = <0x1000>;
+		};
+
+		dmc_reserved:linux,dmc_monitor {
+			compatible = "amlogic,dmc_monitor-reserved";
+			reg = <0x0 0x10000>;
 		};
 
 		defendkey_reserved:linux,defendkey {
@@ -291,8 +292,8 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 720p TV androidP size 12M */
-			size = <0xc00000>;
+			/* 720p TV androidU size 40M */
+			size = <0x0>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x3f000000>;
 		};
@@ -300,7 +301,8 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0>;
+			/* 720p TV androidU size 12M */
+			size = <0xc00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x3f000000>;
 		};
@@ -469,6 +471,12 @@
 		regulator-max-microvolt = <1800000>;
 		regulator-boot-on;
 		//regulator-always-on;
+	};
+
+	video_queue {
+		compatible = "amlogic, video_queue";
+		dev_name = "videoqueue";
+		status = "okay";
 	};
 
 	multi-di {
@@ -689,12 +697,37 @@
 };
 
 &meson_fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1280 720 1280 2160 32>;
 	mem_size = <0x00400000 0xb00000 0x100000>;
 	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
+};
+
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x3f800000";
+
+	connectors_dev: port@1 {
+		drm_to_lcd0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&lcd0_to_drm>;
+		};
+	};
+};
+
+&lcd {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			lcd0_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd0>;
+			};
+		};
+	};
 };
 
 &uart_AO {

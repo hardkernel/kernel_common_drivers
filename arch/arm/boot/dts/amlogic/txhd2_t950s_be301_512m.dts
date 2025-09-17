@@ -6,14 +6,13 @@
 /dts-v1/;
 
 #include "mesontxhd2.dtsi"
-#include "hdr10plus.dtsi"
 #include "mesontxhd2_panel.dtsi"
 #include "mesontxhd2_drm.dtsi"
-#include "partition_mbox_normal_txhd2_P_32.dtsi"
+#include "partition_mbox_normal_dynamic.dtsi"
 #include "mesontxhd2_audio.dtsi"
 / {
-	amlogic-dt-id = "txhd2_t950s_be319-512m";
-	compatible = "txhd2_t950s_be319-512m";
+	amlogic-dt-id = "txhd2_t950s_be301-512m";
+	compatible = "txhd2_t950s_be301-512m";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -117,7 +116,7 @@
 			};
 			tdmbcodec: codec {
 				prefix-names = "AMP";
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&acodec>;
 			};
 		};
 
@@ -163,7 +162,7 @@
 
 		aml-audio-card,dai-link@4 {
 			mclk-fs = <128>;
-			//continuous-clock;
+			continuous-clock;
 			/* suffix-name, sync with android audio hal used for */
 			suffix-name = "alsaPORT-spdif";
 			cpu {
@@ -178,7 +177,7 @@
 		/* spdif_b to hdmi, only playback */
 		aml-audio-card,dai-link@5 {
 			mclk-fs = <128>;
-			//continuous-clock;
+			continuous-clock;
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
@@ -291,7 +290,7 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 720p TV androidT size 40M */
+			/* 720p TV androidU size 40M */
 			size = <0x0>;
 			alignment = <0x400000>;
 		};
@@ -299,7 +298,7 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 720p TV androidT size 12M */
+			/* 720p TV androidU size 12M */
 			size = <0xc00000>;
 			alignment = <0x400000>;
 		};
@@ -342,8 +341,8 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* ion_codec_mm max can alloc size 80M */
-			size = <0x7c00000>;
+			/* In DTV, H.264 interlace stream playback need 108MB at least */
+			size = <0x6c00000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 		};
@@ -373,42 +372,30 @@
 		};
 	};
 
-	usb_b5v_reg: fixed@usb_b5v_reg{
+	wifi5v_reg: fixed@wifi5v_reg{
 		vin-supply = <&vcc5v_reg>;
 		compatible = "regulator-fixed";
-		regulator-name = "USB_B_5V";
+		regulator-name = "WIFI_5V";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
-	usb_c5v_reg: fixed@usb_c5v_reg{
+	usb5v_reg: fixed@usb5v_reg{
 		vin-supply = <&vcc5v_reg>;
 		compatible = "regulator-fixed";
-		regulator-name = "USB_C_5V";
+		regulator-name = "USB_5V";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
-	ddr2v5_reg: fixed@ddr2v5_reg{
+	vddio3v3_reg: fixed@vddio3v3_reg{
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-fixed";
-		regulator-name = "DDR4_2V5";
-		regulator-min-microvolt = <2500000>;
-		regulator-max-microvolt = <2500000>;
-		gpio = <&gpio_test GPIO_TEST_N GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	vcc3v3_reg: fixed@vcc3v3_reg{
-		vin-supply = <&vddao3v3_reg>;
-		compatible = "regulator-fixed";
-		regulator-name = "VCC_3V3";
+		regulator-name = "VDDIO_3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
@@ -417,10 +404,10 @@
 		regulator-always-on;
 	};
 
-	vdd3v3_reg: fixed@vdd3v3_reg{
+	vddio3v3_sd_reg: fixed@vddio3v3_sd_reg{
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-fixed";
-		regulator-name = "VDD_3V3";
+		regulator-name = "VDDIO_3V3_SD";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio_test GPIO_TEST_N GPIO_ACTIVE_HIGH>;
@@ -429,49 +416,24 @@
 		regulator-always-on;
 	};
 
-	avdd0v9_reg: fixed@avdd0v9_reg{
-		vin-supply = <&vcc3v3_reg>;
+	afe1v8_reg: fixed@afe1v8_reg{
+		vin-supply = <&vddio3v3_sd_reg>;
 		compatible = "regulator-fixed";
-		regulator-name = "AVDD0V9";
-		regulator-min-microvolt = <900000>;
-		regulator-max-microvolt = <900000>;
+		regulator-name = "AFE_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
-	avdd1v8_reg: fixed@avdd1v8_reg{
-		vin-supply = <&vcc3v3_reg>;
+	wifi3v3_reg: fixed@wifi3v3_reg{
+		vin-supply = <&vddio3v3_sd_reg>;
 		compatible = "regulator-fixed";
-		regulator-name = "AVDD1V8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
+		regulator-name = "WIFI_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
-		//regulator-always-on;
-	};
-
-	vdd1v8_boot_reg: fixed@vdd1v8_boot_reg{
-		vin-supply = <&vcc3v3_reg>;
-		compatible = "regulator-fixed";
-		regulator-name = "VDD18_BOOT";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-boot-on;
-		//regulator-always-on;
-	};
-
-	vdd1v8_reg: fixed@vdd1v8_reg{
-		vin-supply = <&vdd3v3_reg>;
-		compatible = "regulator-fixed";
-		regulator-name = "VDD_1V8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-boot-on;
-		//regulator-always-on;
-	};
-
-	multi-di {
-		post-wr-support = <0>;
-		postlink_en = <1>;
+		regulator-always-on;
 	};
 
 	video_queue {
@@ -480,18 +442,25 @@
 		status = "okay";
 	};
 
+	multi-di {
+		post-wr-support = <0>;
+		postlink_en = <1>;
+	};
+
 	/* for external keypad */
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
-		key_name = "power", "vol-", "vol+", "ok";
-		key_num = <4>;
-		io-channels = <&saradc SARADC_CH2>;
-		io-channel-names = "key-chan-2";
-		key_chan = <SARADC_CH2 SARADC_CH2 SARADC_CH2 SARADC_CH2>;
-		key_code = <KEY_POWER KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_ENTER>;
-		key_val = <0 252 468 684>; // Unit: millivolt
-		key_tolerance = <70 70 70 70>; // Unit: millivolt
+		key_name = "power", "vol-", "vol+", "ok", "menu", "source", "exit";
+		key_num = <7>;
+		io-channels = <&saradc SARADC_CH2>, <&saradc SARADC_CH3>;
+		io-channel-names = "key-chan-2", "key-chan-3";
+		key_chan = <SARADC_CH2 SARADC_CH2 SARADC_CH2 SARADC_CH2 SARADC_CH2
+			    SARADC_CH3 SARADC_CH3>;
+		key_code = <KEY_POWER KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_ENTER KEY_MENU
+			    KEY_FN_F1 KEY_EXIT>;
+		key_val = <0 252 468 684 892 252 468>; // Unit: millivolt
+		key_tolerance = <70 70 70 70 70 70 70>; // Unit: millivolt
 	};
 
 	atv-demod {
@@ -532,12 +501,12 @@
 		fe0_demod = "internal";
 
 		tuner_num = <1>; // tuner number, multi tuner support
-		tuner0_name = "mxl661_tuner";
+		tuner0_name = "atbm253_tuner";
 		tuner0_i2c_adap = <&i2c1>;
-		tuner0_i2c_addr = <0x60>; // 8 bits
-		tuner0_xtal = <0>;       // 0: 16MHz, 1: 24MHz
-		tuner0_xtal_mode = <0>;
-		tuner0_xtal_cap = <25>;
+		tuner0_i2c_addr = <0xC0>; // 8 bits
+		tuner0_xtal = <1>;       // 0: 16MHz, 1: 24MHz
+		tuner0_xtal_mode = <0>;  // atbm253 fixed to 0.
+		tuner0_xtal_cap = <8>;
 	};
 
 	dvb-demux {
@@ -581,13 +550,6 @@
 	pinctrl-0=<&i2c1_pins1>;
 };
 
-&spdifa {
-	pinctrl-names = "spdif_pins",
-			"spdif_pins_mute";
-	pinctrl-0 = <&spdif_out_a_dv3_pins>;
-	pinctrl-1 = <&spdifout_a_mute_dv3_pins>;
-};
-
 &acodec {
 	diff_output = <1>;
 	/*0: 0dB; 1: 6dB; 2: 12dB; 3: 18dB;*/
@@ -596,19 +558,27 @@
 	adc_pga_gain = <0xe>;
 };
 
-&aed {
-	status = "disabled";
+&tdmb {
+	pinctrl-names = "tdm_pins","tdm_gpio";
+	pinctrl-0 =
+			<&mclk_1_pins
+			&tdm_b_pins
+			&tdm_d2_pins
+			&tdmb_clk_pins>;
+	pinctrl-1 = <&tdm_gpio>;
+
 };
 
-&spicc0 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc0_pins_c>;
-	cs-gpios = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-	assigned-clocks = <&clkc CLKID_SPICC0>;
-	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2>;
-	assigned-clock-rates = <200000000>;
-	parent_clk_fixed;
+&pdma {
+	pinctrl-names = "pdm_pins";
+	pinctrl-0 = <&pdmin>;
+};
+
+&spdifa {
+	pinctrl-names = "spdif_pins",
+			"spdif_pins_mute";
+	pinctrl-0 = <&spdif_out_a_dv3_pins>;
+	pinctrl-1 = <&spdifout_a_mute_dv3_pins>;
 };
 
 &pinctrl_periphs {
@@ -667,6 +637,22 @@
 			groups = "tdm_sclk1", "tdm_lrclk1";
 			function = "tdm_clk_outb";
 		};
+	};
+};
+
+&ddr_control {
+	nosip {
+		particle = <NOSIP_PARTICLE>;
+		particle-flag = <DDR_SIP_FLAG>;
+		condition-type = <DDR_THERMAL>;
+		zone-name = "soc_thermal";
+		refresh-constant-value;
+		caddr = <0xff6384b4>,
+			<0xff638224>;
+		caddr-mask = <0 16>,
+			     <0 32>;
+		cstep-val = <70000>;
+		caddr-val = <9616 0x28202820>;
 	};
 };
 
@@ -779,6 +765,17 @@
 	status = "okay";
 };
 
+&spicc0 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc0_pins_c>;
+	cs-gpios = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+	assigned-clocks = <&clkc CLKID_SPICC0>;
+	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2>;
+	assigned-clock-rates = <200000000>;
+	parent_clk_fixed;
+};
+
 &amlvecm {
 	status = "okay";
 	gamma_en = <1>;/*1:enable ;0:disable*/
@@ -825,3 +822,32 @@
 	memory-region = <&vdin1_cma_reserved>;
 	status = "okay";
 };
+
+&i2c3 {
+	status = "okay";
+	clock-frequency = <100000>;
+	pinctrl-names="default";
+	pinctrl-0=<&i2c3_pins2>;
+
+	lcd_extern_i2c0: lcd_extern_i2c@29 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_HV650LS";
+		reg = <0x29>;
+		status = "okay";
+	};
+
+	lcd_extern_i2c1: lcd_extern_i2c@33 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_CS602";
+		reg = <0x33>;
+		status = "okay";
+	};
+
+	lcd_extern_i2c2: lcd_extern_i2c@20 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_CS601";
+		reg = <0x20>;
+		status = "okay";
+	};
+};
+
