@@ -2575,9 +2575,11 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 	} else if (((struct pq_config_dvp *)pq_config_dvp_fake)->
 		tdc.ambient_config.ambient) {
 		if (((struct pq_config_dvp *)pq_config_dvp_fake)->
-			tdc.ambient_config.dark_detail)
+			tdc.ambient_config.dark_detail) {
+			dynamic_config_new.update_flag |= 0x10;
 			dynamic_config_new.dark_detail =
 				cfg_info[cur_pic_mode].dark_detail;
+		}
 		/*only if cfg enables ambient we allow use light sense feature*/
 		/*light sense: update rear and front*/
 		p_ambient = &dynamic_config_new;

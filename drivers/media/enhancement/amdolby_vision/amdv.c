@@ -9053,9 +9053,11 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 			} else if (((struct pq_config *)pq_config_fake)->
 				tdc.ambient_config.ambient) {
 				if (((struct pq_config *)pq_config_fake)->
-					tdc.ambient_config.dark_detail)
+					tdc.ambient_config.dark_detail) {
+					ambient_config_new.update_flag |= 0x10;
 					ambient_config_new.dark_detail =
 						cfg_info[cur_pic_mode].dark_detail;
+			}
 				/*only if cfg enables ambient we allow use light sense feature*/
 				/*light sense: update rear and front*/
 				p_ambient = &ambient_config_new;
@@ -16031,6 +16033,7 @@ static long amdolby_vision_ioctl(struct file *file,
 	struct dv_user_cfg_s user_cfg;
 	struct light_sensor_s light_sensor;
 	struct dv_cfg_support_s dv_cfg_support;
+	struct lux_value_s lux_value;
 	void __user *argp = (void __user *)arg;
 	unsigned char bin_name[MAX_BYTES] = "";
 	unsigned char cfg_name[MAX_BYTES] = "";
@@ -16376,6 +16379,28 @@ static long amdolby_vision_ioctl(struct file *file,
 			} else {
 				cfg_info[mode_id].light_sense = 0;
 			}
+		} else {
+			ret = -EFAULT;
+		}
+		break;
+	case DV_IOC_GET_DV_LUX_VALUE:
+		if (copy_from_user(&lux_value, argp,
+				   sizeof(struct lux_value_s)) == 0) {
+			if (is_aml_hw5() && tv_hw5_setting &&
+				tv_hw5_setting->input_info) {
+				lux_value.front_lux = tv_hw5_setting->input_info->debug_buf[0];
+				lux_value.rear_lum = tv_hw5_setting->input_info->debug_buf[1];
+			} else if (is_aml_tvmode() && tv_input_info) {
+				lux_value.front_lux = tv_input_info->debug_buf[0];
+				lux_value.rear_lum = tv_input_info->debug_buf[1];
+			}
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: get front_Lux %u, rear_Lum %u\n",
+			lux_value.front_lux, lux_value.rear_lum);
+			if (copy_to_user(argp,
+					 &lux_value,
+					 sizeof(struct lux_value_s)))
+				ret = -EFAULT;
 		} else {
 			ret = -EFAULT;
 		}

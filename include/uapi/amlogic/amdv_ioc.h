@@ -73,9 +73,9 @@ struct dv_user_cfg_s {
 };
 
 struct light_sensor_s {
-	int flag;
-	__u32 t_frontLux;
-	__u32 t_rearLum;
+	int flag;           /*ambient weight, on or off*/
+	__u32 t_frontLux;   /*front sensor value*/
+	__u32 t_rearLum;    /*rear sensor value*/
 };
 
 struct dv_cfg_support_s {
@@ -83,6 +83,11 @@ struct dv_cfg_support_s {
 	int precision_detail;
 	int dark_detail;
 	int light_sense;
+};
+
+struct lux_value_s {
+	__u32 front_lux;
+	__u32 rear_lum;
 };
 
 #define DV_M 'D'
@@ -164,6 +169,9 @@ struct dv_cfg_support_s {
 
 /* get dv status for current mode */
 #define DV_IOC_GET_DV_LL_POLICY _IOR((DV_M), 0x19, uint32_t)
+
+/*get lux value*/
+#define DV_IOC_GET_DV_LUX_VALUE _IOR((DV_M), 0x1a, struct lux_value_s)
 
 #endif
 

@@ -705,7 +705,7 @@ struct tv_input_info_s {
 	u8 L11_byte3;
 	int enable_debug;
 	int enable_hlg_src_max_set;
-	s32 debug_buf[494];
+	s32 debug_buf[494];   /*debug_buf[0] = front_lux, debug_buf[1] = rear_lum*/
 };
 
 /* top1 output L1/L4*/

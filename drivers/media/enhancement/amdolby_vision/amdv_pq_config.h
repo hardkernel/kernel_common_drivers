@@ -286,7 +286,7 @@ struct dv_cfg_info_s {
 	s32  saturation;        /*Saturation or color */
 	u8  vsvdb[7];
 	int dark_detail;        /*dark detail, on or off*/
-	int light_sense;        /*light sense, on or off*/
+	int light_sense;        /*ambient weight, on or off*/
 	int t_front_lux;
 	int t_rear_lum;
 	bool bypass_pd_from_user;

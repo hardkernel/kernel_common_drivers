@@ -1442,9 +1442,6 @@ void update_ambient_lightsense(struct ambient_cfg_s *p_ambient)
 	if (!p_ambient)
 		return;
 
-	if (cfg_info[cur_pic_mode].light_sense == 0)
-		return;
-
 	/*for idk 1.6.1.4*/
 	if (cur_pic_mode == 0 ||
 		cur_pic_mode == 2 ||
@@ -1452,11 +1449,14 @@ void update_ambient_lightsense(struct ambient_cfg_s *p_ambient)
 		if (debug_dolby & 0x200)
 			pr_dv_dbg("not support lightsense, cur_pic_mode %d, content_type %d\n",
 				cur_pic_mode, apo_value.content_type);
-		return;
+		cfg_info[cur_pic_mode].light_sense = 0;
 	}
 
-	p_ambient->update_flag |= 9;
-	p_ambient->ambient = (1 << 16);
+	if (cfg_info[cur_pic_mode].light_sense)
+		p_ambient->ambient = (1 << 16);
+	else
+		p_ambient->ambient = 0;
+	p_ambient->update_flag |= 0xb;
 	p_ambient->t_frontLux = cfg_info[cur_pic_mode].t_front_lux;
 	p_ambient->t_rearLum = cfg_info[cur_pic_mode].t_rear_lum;
 	print_flag = (p_ambient->t_frontLux - last_front_lux > 1000) ? 1 : 0;
@@ -1477,11 +1477,11 @@ void update_ambient_lightsense_hw5(struct dynamic_cfg_s *p_ambient)
 	if (!p_ambient)
 		return;
 
-	if (cfg_info[cur_pic_mode].light_sense == 0)
-		return;
-
-	p_ambient->update_flag |= 9;
-	p_ambient->ambient = (1 << 16);
+	if (cfg_info[cur_pic_mode].light_sense)
+		p_ambient->ambient = (1 << 16);
+	else
+		p_ambient->ambient = 0;
+	p_ambient->update_flag |= 0xb;
 	p_ambient->t_frontLux = cfg_info[cur_pic_mode].t_front_lux;
 	p_ambient->t_rearLum = cfg_info[cur_pic_mode].t_rear_lum;
 	print_flag = (p_ambient->t_frontLux - last_front_lux > 1000) ? 1 : 0;
