@@ -346,9 +346,21 @@ static struct dma_buf_ops ge2d_dmabuf_ops = {
 static struct dma_buf *get_dmabuf(struct aml_dma_buf_priv *buf_priv,
 				  unsigned long flags)
 {
-	struct aml_dma_buf *buf = buf_priv->aml_buf;
+	struct aml_dma_buf *buf;
 	struct dma_buf *dbuf;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+
+	if (!buf_priv || !buf_priv->aml_buf) {
+		pr_err("%s: buf_priv is NULL\n", __func__);
+		return NULL;
+	}
+
+	buf = buf_priv->aml_buf;
+	if (WARN_ON(!buf->vaddr) || buf->size == 0) {
+		pr_err("%s: invalid aml_buf (vaddr=%p, size=%u)\n",
+		       __func__, buf->vaddr, buf->size);
+		return NULL;
+	}
 
 	exp_info.ops = &ge2d_dmabuf_ops;
 	exp_info.size = buf->size;
