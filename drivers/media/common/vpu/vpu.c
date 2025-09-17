@@ -3334,6 +3334,16 @@ static void vpu_late_resume(struct early_suspend *h)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	set_vpu_sideband_init();
 #endif
+	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S6 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S7D ||
+		vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6D ||
+		vpu_conf.data->chip_type == VPU_CHIP_T5M ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6W)
+		ret = init_arb_urgent_table();
+
 	suspend_status = false;
 	VPUPR("late_resume clk: %uHz(0x%x) suspend_status = %d\n",
 	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)), suspend_status);
@@ -3544,6 +3554,16 @@ static int vpu_resume(struct device *dev)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	set_vpu_sideband_init();
 #endif
+	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S6 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S7D ||
+		vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6D ||
+		vpu_conf.data->chip_type == VPU_CHIP_T5M ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6W)
+		ret = init_arb_urgent_table();
+
 	suspend_status = false;
 	VPUPR("resume clk: %uHz(0x%x) suspend_status = %d\n",
 	      vpu_clk_get(), (vpu_clk_read(vpu_conf.data->vpu_clk_reg)), suspend_status);
@@ -3584,6 +3604,16 @@ static int vpu_restore(struct device *dev)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	set_vpu_sideband_init();
 #endif
+	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S6 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S7D ||
+		vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6D ||
+		vpu_conf.data->chip_type == VPU_CHIP_T5M ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6W)
+		ret = init_arb_urgent_table();
+
 	return 0;
 }
 
