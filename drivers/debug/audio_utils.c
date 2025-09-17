@@ -149,7 +149,12 @@ static int audio_utils_mmap(struct file *file, struct vm_area_struct *vma)
 		       __func__, vma->vm_pgoff, total_pages, write_size);
 		return -EINVAL;
 	}
-	page = list_first_entry(&code_list, struct page, lru);
+	page = list_first_entry_or_null(&code_list, struct page, lru);
+	if (!page) {
+		pr_err("%s list is empty\n", __func__);
+		return -EINVAL;
+	}
+
 	for (ret = 0; ret < vma->vm_pgoff; ret++) {	/* move to right page */
 		page = list_next_entry(page, lru);
 	}
