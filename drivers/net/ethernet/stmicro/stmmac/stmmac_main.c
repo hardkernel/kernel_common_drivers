@@ -7187,8 +7187,13 @@ static void stmmac_reset_subtask(struct stmmac_priv *priv)
 	while (test_and_set_bit(STMMAC_RESETING, &priv->state))
 		usleep_range(1000, 2000);
 
+#if !IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	set_bit(STMMAC_DOWN, &priv->state);
+#endif
 	dev_close(priv->dev);
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	set_bit(STMMAC_DOWN, &priv->state);
+#endif
 	dev_open(priv->dev, NULL);
 	clear_bit(STMMAC_DOWN, &priv->state);
 	clear_bit(STMMAC_RESETING, &priv->state);
