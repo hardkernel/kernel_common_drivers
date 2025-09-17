@@ -29,7 +29,24 @@
 #ifdef CONFIG_SPICC_TEST
 #include "spicc_test.h"
 #endif
-#define MESON_SPICC_HW_IF
+
+#define spicc_info(fmt, args...) \
+	pr_info("[info]%s: " fmt, __func__, ## args)
+
+#define spicc_err(fmt, args...) \
+	pr_info("[error]%s: " fmt, __func__, ## args)
+
+#define spicc_warn(fmt, args...) \
+	pr_info("[warn]%s: " fmt, __func__, ## args)
+
+//#define SPICC_DEBUG_EN
+#ifdef SPICC_DEBUG_EN
+#define spicc_dbg(fmt, args...) \
+	pr_info("[debug]%s: " fmt, __func__, ## args)
+#else
+#define spicc_dbg(fmt, args...)
+#define meson_spicc_dump(fmt, args...)
+#endif
 
 /* Register Map */
 #define SPICC_REG_CFG_READY		0x00
@@ -82,90 +99,6 @@
 		SPICC_DESC_DONE |		\
 		SPICC_DESC_CHAIN_DONE)
 
-union spicc_cfg_spi {
-	u32			d32;
-	struct  {
-		u32		bus64_en:1;
-		u32		slave_en:1;
-		u32		ss:2;
-		u32		flash_wp_pin_en:1;
-		u32		flash_hold_pin_en:1;
-		u32		hw_pos:1; /* start on vsync rising */
-		u32		hw_neg:1; /* start on vsync falling */
-		u32		word_gap:2;
-		u32		mosi_idle_level:2;
-		u32		cs_hold:15;
-		u32		cs_setup_extend:4;
-		u32		rsv:1;
-	} b;
-};
-
-union spicc_cfg_start {
-	u32			d32;
-	struct  {
-		u32		block_num:20;
-#define SPICC_BLOCK_MAX			0x100000
-
-		u32		block_size:3;
-		u32		dc_level:1;
-#define SPICC_DC_DATA0_CMD1		0
-#define SPICC_DC_DATA1_CMD0		1
-
-		u32		op_mode:2;
-#define SPICC_OP_MODE_WRITE_CMD		0
-#define SPICC_OP_MODE_READ_STS		1
-#define SPICC_OP_MODE_WRITE		2
-#define SPICC_OP_MODE_READ		3
-
-		u32		rx_data_mode:2;
-		u32		tx_data_mode:2;
-#define SPICC_DATA_MODE_NONE		0
-#define SPICC_DATA_MODE_PIO		1
-#define SPICC_DATA_MODE_MEM		2
-#define SPICC_DATA_MODE_SG		3
-
-		u32		eoc:1;
-		u32		pending:1;
-	} b;
-};
-
-union spicc_cfg_bus {
-	u32			d32;
-	struct  {
-		u32		clk_div:8;
-#define SPICC_CLK_DIV_SHIFT	0
-#define SPICC_CLK_DIV_WIDTH	8
-#define SPICC_CLK_DIV_MASK	GENMASK(7, 0)
-#define SPICC_CLK_DIV_MAX	256
-#define SPICC_CLK_DIV_MIN	4 /* recommended by specification */
-
-		/* signed, -8~-1 early, 1~7 later */
-		u32		rx_tuning:4;
-		u32		tx_tuning:4;
-
-		u32		cs_setup:4;
-		u32		lane:2;
-#define SPICC_SINGLE_SPI		0
-#define SPICC_DUAL_SPI			1
-#define SPICC_QUAD_SPI			2
-
-		u32		half_duplex_en:1;
-		u32		little_endian_en:1;
-		u32		dc_mode:1;
-#define SPICC_DC_MODE_PIN		0
-#define SPICC_DC_MODE_9BIT		1
-
-		u32		null_ctl:1;
-		u32		dummy_ctl:1;
-		u32		read_turn_around:2;
-#define SPICC_READ_TURN_AROUND_MAX	3
-
-		u32		keep_ss:1;
-		u32		cpha:1;
-		u32		cpol:1;
-	} b;
-};
-
 struct spicc_sg_link {
 	u32			valid:1;
 	u32			eoc:1;
@@ -186,87 +119,12 @@ struct spicc_sg_link {
 #endif
 };
 
-struct spicc_descriptor {
-	union spicc_cfg_start		cfg_start;
-	union spicc_cfg_bus		cfg_bus;
-	u64				tx_paddr;
-	u64				rx_paddr;
-};
-
 struct spicc_descriptor_extra {
 	struct spicc_sg_link		*tx_ccsg;
 	struct spicc_sg_link		*rx_ccsg;
 	int				tx_ccsg_len;
 	int				rx_ccsg_len;
 };
-
-struct meson_spicc_data {
-	bool				idle_ctrl;
-	bool				cs_hold_ctrl;
-	bool				cs_setup_extend_ctrl;
-	bool				clk_gate_ctrl;
-	bool				cs_hold_ctrl_conflict_with_keep_ss;
-};
-
-struct spicc_device {
-	struct spi_controller		*controller;
-	struct platform_device		*pdev;
-	void __iomem			*base;
-	struct pinctrl	*pinctrl;
-	struct pinctrl_state	*spi_pinmux;
-	struct clk			*sys_clk;
-	struct clk			*spi_clk;
-	struct clk			*sclk;
-	struct meson_spicc_data		*data;
-	struct completion		completion;
-	u32				status;
-	u32			speed_hz;
-	u32				actual_speed_hz;
-	u32				pclk_rate;
-	u32			bytes_per_word;
-	union spicc_cfg_spi		cfg_spi;
-	union spicc_cfg_start		cfg_start;
-	union spicc_cfg_bus		cfg_bus;
-	struct spi_delay		cs_setup;
-	struct spi_delay		cs_hold;
-	int				cs_hold_min_in_pclk;
-	bool				ready;
-	bool				keep_ready;
-	bool				pending;
-	spinlock_t			lock; /* for unexpect interrupt */
-#ifdef MESON_SPICC_HW_IF
-	void (*dirspi_complete)(void *context);
-	void *dirspi_context;
-	void __iomem			*trig_reg;
-	/* in select of pwm/pwm_vs/vsync/line_n/gpio */
-	unsigned int			trig_in_selects[5];
-	struct spicc_descriptor		*dirspi_desc;
-	dma_addr_t			dirspi_desc_paddr;
-	int				dirspi_desc_len;
-	int				dirspi_status;
-#define DIRSPI_STA_IDLE		0
-#define DIRSPI_STA_READY	1
-#define DIRSPI_STA_RUNNING	2
-#endif
-};
-
-#define spicc_info(fmt, args...) \
-	pr_info("[info]%s: " fmt, __func__, ## args)
-
-#define spicc_err(fmt, args...) \
-	pr_info("[error]%s: " fmt, __func__, ## args)
-
-#define spicc_warn(fmt, args...) \
-	pr_info("[warn]%s: " fmt, __func__, ## args)
-
-//#define SPICC_DEBUG_EN
-#ifdef SPICC_DEBUG_EN
-#define spicc_dbg(fmt, args...) \
-	pr_info("[debug]%s: " fmt, __func__, ## args)
-#else
-#define spicc_dbg(fmt, args...)
-#define meson_spicc_dump(fmt, args...)
-#endif
 
 #define spicc_writel(_spicc, _val, _offset) \
 	 writel(_val, (_spicc)->base + (_offset))
@@ -1543,7 +1401,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr;
 	struct spicc_device *spicc;
-	struct meson_spicc_data *match;
+	struct meson_spicc_v2_data *match;
 	int ret, irq;
 	/* default trig reg map for t3x */
 	unsigned int trig_in_selects[5] = {0, 10, 13, 16, 19};
@@ -1560,7 +1418,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	spicc->pdev = pdev;
 	platform_set_drvdata(pdev, spicc);
 
-	match = (struct meson_spicc_data *)of_device_get_match_data(&pdev->dev);
+	match = (struct meson_spicc_v2_data *)of_device_get_match_data(&pdev->dev);
 	spicc->data = devm_kzalloc(&pdev->dev, sizeof(*match), GFP_KERNEL);
 	spicc->data->idle_ctrl = match->idle_ctrl;
 	spicc->data->cs_hold_ctrl = match->cs_hold_ctrl;
@@ -1801,7 +1659,7 @@ static const struct dev_pm_ops meson_spicc_pm_ops = {
 #endif
 };
 
-static struct meson_spicc_data meson_spicc_a4_data __initdata = {
+static struct meson_spicc_v2_data meson_spicc_a4_data __initdata = {
 	.idle_ctrl = false,
 	.cs_hold_ctrl = false,
 	.cs_setup_extend_ctrl = false,
@@ -1809,7 +1667,7 @@ static struct meson_spicc_data meson_spicc_a4_data __initdata = {
 	.cs_hold_ctrl_conflict_with_keep_ss = true,
 };
 
-static struct meson_spicc_data meson_spicc_gxlx4_data __initdata = {
+static struct meson_spicc_v2_data meson_spicc_gxlx4_data __initdata = {
 	.idle_ctrl = true,
 	.cs_hold_ctrl = true,
 	.cs_setup_extend_ctrl = true,
@@ -1817,7 +1675,7 @@ static struct meson_spicc_data meson_spicc_gxlx4_data __initdata = {
 	.cs_hold_ctrl_conflict_with_keep_ss = true,
 };
 
-static struct meson_spicc_data meson_spicc_t6x_data __initdata = {
+static struct meson_spicc_v2_data meson_spicc_t6x_data __initdata = {
 	.idle_ctrl = true,
 	.cs_hold_ctrl = true,
 	.cs_setup_extend_ctrl = true,

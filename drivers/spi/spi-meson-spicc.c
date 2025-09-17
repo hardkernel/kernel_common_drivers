@@ -56,8 +56,6 @@
      requested, 64 indicates DMA mode while the others indicate PIO.
  */
 
-#define MESON_SPICC_HW_IF
-
 #ifndef CONFIG_AMLOGIC_MODIFY
 #define SPICC_MAX_FREQ	30000000
 #endif
@@ -315,57 +313,6 @@ struct meson_spicc_data {
 #define DIRSPI_STA_IDLE		0
 #define DIRSPI_STA_READY	1
 #define DIRSPI_STA_RUNNING	2
-struct meson_spicc_device {
-	struct spi_controller		*controller;
-	struct platform_device		*pdev;
-	void __iomem			*base;
-	struct pinctrl *pinctrl;
-	struct pinctrl_state *default_state;
-	struct pinctrl_state *ctrl_cs;
-	struct pinctrl_state *standby;
-	struct clk			*core;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	struct clk			*async_clk;
-	struct clk			*clk;
-	struct meson_spicc_data	*data;
-	unsigned int			speed_hz;
-	unsigned int			bits_per_word;
-	unsigned int			wordmode;
-	unsigned int			endian;
-	struct				class cls;
-	bool				using_dma;
-	struct spi_device		*spi;
-	bool				tx_dma_mapped;
-	bool				rx_dma_mapped;
-	void				(*complete)(void *context);
-	void				*context;
-	s32				miso_latency_default;   // in pclk, signed
-	s32				miso_latency_applied;	// in ns, signed
-	unsigned int			cs_setup_default;	// in ns
-	unsigned int			cs_setup_applied;	// in ns
-	unsigned int			cs_hold_default;	// in ns
-	unsigned int			cs_hold_applied;	// in ns
-	unsigned int			pclk_rate;
-	bool				parent_clk_fixed;
-	bool				clk_div_none;
-	bool				toggle_cs_every_word;
-	bool				word_mode_ctrl;
-	struct gpio_desc	**cs_gpiods;
-#endif
-	//struct spi_message		*message;
-	struct spi_transfer		*xfer;
-	u8				*tx_buf;
-	u8				*rx_buf;
-	unsigned int			bytes_per_word;
-	unsigned long			tx_remain;
-	unsigned long			rx_remain;
-	unsigned int			*store_buf;
-	spinlock_t			lock; /* dirspi_xfer in interrupt */
-	struct reset_control		*rst;
-	bool				pending;
-	int				dirspi_status;
-
-};
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 static void meson_spicc_dma_unmap(struct meson_spicc_device *spicc,
