@@ -137,6 +137,7 @@ dtb-y += s6_s905x5_bl201.dtb
 dtb-y += s6_s905x5_bl201_16g.dtb
 dtb-y += s6_s905x5_raman_ai.dtb
 dtb-y += s6_s905x5_raman_ai_p0.dtb
+dtb-y += s6_s905x5_raman_ai_2g.dtb
 dtb-y += s6_s905x5_bl201_linux.dtb
 dtb-y += s6_s905x5_bl204h1.dtb
 dtb-y += s6_s905x5_bl204h1_2g.dtb
