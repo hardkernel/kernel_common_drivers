@@ -1067,6 +1067,7 @@ static void iotm_proc_init(void)
 	struct proc_dir_entry *aml_iotm_trace;
 	unsigned int ddr_size = iotm.buf_end - iotm.buf_start + 1;
 	u32 saved_trace_size = 0;
+	int i;
 
 	if (iotm.monitor_mode == AXI_MODE)
 		saved_trace_size = ddr_size + NUM_OF_IOTM_REGISTERS * sizeof(int);
@@ -1085,8 +1086,10 @@ static void iotm_proc_init(void)
 		return;
 	}
 
-	memcpy_fromio(iotm.saved_trace, iotm.cssys_base + ADDR_RANGE0_BEGIN,
-					NUM_OF_IOTM_REGISTERS * sizeof(int));
+	for (i = 0; i < NUM_OF_IOTM_REGISTERS; i++)
+		((u32 *)iotm.saved_trace)[i] =
+			readl(iotm.cssys_base + ADDR_RANGE0_BEGIN + (i << 2));
+
 	if (iotm.monitor_mode == AXI_MODE) {
 		u32 iotm_axi_addr_val = readl(iotm.cssys_base + IOTM_AXI_ADDR);
 		u32 trace_buf_start = iotm.buf_start + SIZE_OF_TRACE_MAGIC;
