@@ -1251,6 +1251,7 @@ static ssize_t hdmitx_attr_show(struct file *filp, struct kobject *kobj,
 	struct drm_device *dev = minor->dev;
 	struct meson_drm *private = dev->dev_private;
 	int crtc_index = *(int *)attr->private;
+	bool found = false;
 
 	crtc = &private->crtcs[crtc_index]->base;
 	if (off > 0)
@@ -1264,10 +1265,17 @@ static ssize_t hdmitx_attr_show(struct file *filp, struct kobject *kobj,
 		if (!conn->state)
 			continue;
 
-		if (conn->state->crtc == crtc)
+		if (conn->state->crtc == crtc) {
+			found = true;
 			break;
+		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
+
+	if (!found) {
+		DRM_INFO("no hdmi connector or not connected!\n");
+		return pos;
+	}
 
 	am_conn_state = to_am_hdmitx_connector_state(conn->state);
 	cs = am_conn_state->color_attr_para.colorformat;
