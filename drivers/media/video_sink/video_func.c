@@ -6421,6 +6421,7 @@ static void pipx_vf_light_unreg_provider(u8 path_index, int need_keep_frame)
 	int i;
 #endif
 
+	pip_first_frame_toggled = 0;
 	atomic_inc(&video_unreg_flag);
 	while (atomic_read(&video_inirq_flag) > 0)
 		schedule();
