@@ -572,14 +572,15 @@ static void do_symbol_fix(struct work_struct *work)
 	}
 }
 
-static struct work_struct symbol_work;
+//static struct work_struct symbol_work;
 
 int __init sym_helper_init(void)
 {
-	int cpu = num_online_cpus() - 1;
+	//int cpu = num_online_cpus() - 1;
 
-	INIT_WORK(&symbol_work, do_symbol_fix);
-	queue_work_on(cpu, system_highpri_wq, &symbol_work);
+	//INIT_WORK(&symbol_work, do_symbol_fix);
+	//queue_work_on(cpu, system_highpri_wq, &symbol_work);
+	do_symbol_fix(NULL);
 	return 0;
 }
 

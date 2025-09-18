@@ -4957,7 +4957,7 @@ static int amlvideo2_thread(void *data)
 	bool video_enable;
 	int ret = 0;
 
-	sched_setscheduler(current, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
 
 	if (amlvideo2_dbg_en) {

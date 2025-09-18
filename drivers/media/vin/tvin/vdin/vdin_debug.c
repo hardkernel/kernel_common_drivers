@@ -3225,7 +3225,7 @@ static int vdin_task(void *data)
 		pr_info("devp == NULL\n");
 		return -1;
 	}
-	sched_setscheduler(current, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
 
 	while (1) {

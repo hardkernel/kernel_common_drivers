@@ -2765,7 +2765,7 @@ static int v2d_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&dev->info_output_yuv.dump_wq);
 	init_waitqueue_head(&dev->info_dewarp_src.dump_wq);
 
-	if (sched_setscheduler(dev->file_thread, SCHED_FIFO, &param))
+	if (sched_setscheduler_nocheck(dev->file_thread, SCHED_FIFO, &param))
 		pr_err("v2d_composer_thread :set realtime priority failed.\n");
 	wake_up_process(dev->file_thread);
 	v2d_timeline_create(dev);

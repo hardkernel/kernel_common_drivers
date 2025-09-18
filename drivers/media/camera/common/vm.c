@@ -1422,7 +1422,7 @@ static int vm_task(void *data)
 	unsigned long time_use = 0;
 #endif
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
-	sched_setscheduler(current, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
 	while (1) {
 		ret = wait_for_completion_interruptible(&devp->vb_start_sema);

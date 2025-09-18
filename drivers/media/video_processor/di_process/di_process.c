@@ -1980,7 +1980,7 @@ static int di_process_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
-	if (sched_setscheduler(dev->kthread, SCHED_FIFO, &param))
+	if (sched_setscheduler_nocheck(dev->kthread, SCHED_FIFO, &param))
 		dp_print(dev->index, PRINT_ERROR, "Could not set realtime priority.\n");
 
 	wake_up_process(dev->kthread);

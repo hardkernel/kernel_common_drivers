@@ -2282,7 +2282,7 @@ void video_lowlatency_init(struct platform_device *pdev)
 		video_thread = NULL;
 		return;
 	}
-	if (sched_setscheduler(video_thread, SCHED_FIFO, &param)) {
+	if (sched_setscheduler_nocheck(video_thread, SCHED_FIFO, &param)) {
 		pr_err("VID: could not set realtime priority.\n");
 		return;
 	}

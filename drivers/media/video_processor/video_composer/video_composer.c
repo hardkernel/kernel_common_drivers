@@ -4850,7 +4850,7 @@ static int video_composer_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 	init_waitqueue_head(&dev->wq);
-	if (sched_setscheduler(dev->kthread, SCHED_FIFO, &param))
+	if (sched_setscheduler_nocheck(dev->kthread, SCHED_FIFO, &param))
 		pr_err("vc:Could not set realtime priority.\n");
 
 	wake_up_process(dev->kthread);

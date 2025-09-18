@@ -3061,7 +3061,7 @@ static int out_fence_create(u32 output_index, int *release_fence_fd)
 				osd_log_err("create osd toggle kthread failed");
 				return -1;
 			}
-			sched_setscheduler(buffer_toggle_thread[output_index],
+			sched_setscheduler_nocheck(buffer_toggle_thread[output_index],
 					   SCHED_FIFO, &param);
 			if (output_index == VIU1)
 				kthread_init_work
@@ -14758,7 +14758,7 @@ static int affinity_set_task(void *data)
 	int ret;
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
 
-	sched_setscheduler(current, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
 
 	while (affinity_info.run_affinity_task) {

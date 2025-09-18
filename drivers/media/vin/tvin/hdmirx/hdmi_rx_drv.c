@@ -4598,19 +4598,19 @@ static int hdmirx_probe(struct platform_device *pdev)
 	frl_worker_task = kthread_run(kthread_worker_fn,
 					   &frl_worker, "frl kthread worker");
 	kthread_init_work(&frl_work, rx_frl_train_handler);
-	sched_setscheduler(frl_worker_task, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(frl_worker_task, SCHED_FIFO, &param);
 
 	kthread_init_worker(&frl1_worker);
 	frl1_worker_task = kthread_run(kthread_worker_fn,
 					   &frl1_worker, "frl1 kthread worker");
 	kthread_init_work(&frl1_work, rx_frl_train_handler_1);
-	sched_setscheduler(frl1_worker_task, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(frl1_worker_task, SCHED_FIFO, &param);
 
 	kthread_init_worker(&phy_ofset_worker);
 	phy_ofset_worker_task = kthread_run(kthread_worker_fn,
 					   &phy_ofset_worker, "phy ofset kthread worker");
 	kthread_init_work(&phy_ofset_work, aml_phy_offset_cal_handler);
-	sched_setscheduler(phy_ofset_worker_task, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(phy_ofset_worker_task, SCHED_FIFO, &param);
 
 	init_waitqueue_head(&tx_wait_queue);
 

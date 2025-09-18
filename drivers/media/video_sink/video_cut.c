@@ -795,7 +795,7 @@ static void video_start_monitor(void)
 		video_thread = NULL;
 		return;
 	}
-	if (sched_setscheduler(video_thread, SCHED_FIFO, &param))
+	if (sched_setscheduler_nocheck(video_thread, SCHED_FIFO, &param))
 		pr_err("VID: Could not set realtime priority.\n");
 	wake_up_process(video_thread);
 	video_thread_init_done = true;

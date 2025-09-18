@@ -314,7 +314,7 @@ static int meson_worker_thread_init(struct meson_drm *priv,
 			return -1;
 		}
 
-		ret = sched_setscheduler(drm_thread->thread, SCHED_FIFO, &param);
+		ret = sched_setscheduler_nocheck(drm_thread->thread, SCHED_FIFO, &param);
 		if (ret)
 			DRM_ERROR("failed to set priority\n");
 	}

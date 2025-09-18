@@ -1290,7 +1290,7 @@ static int picdec_task(void *data)
 
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
 	amlog_level(LOG_LEVEL_HIGH, "picdec task is running\n ");
-	sched_setscheduler(current, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
 	while (1) {
 		ret = down_interruptible(&pic_vb_start_sema);

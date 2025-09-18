@@ -4272,7 +4272,7 @@ static int video_display_open(int index)
 	}
 
 	init_waitqueue_head(&dev->wq);
-	if (sched_setscheduler(dev->kthread, SCHED_FIFO, &param))
+	if (sched_setscheduler_nocheck(dev->kthread, SCHED_FIFO, &param))
 		vd_print(index, PRINT_ERROR, "%s: Could not set realtime priority.\n", __func__);
 
 	wake_up_process(dev->kthread);

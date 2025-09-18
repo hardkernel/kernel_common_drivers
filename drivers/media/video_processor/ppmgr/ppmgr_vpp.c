@@ -2811,7 +2811,7 @@ static int ppmgr_task(void *data)
 #endif
 	unsigned int newvideoangle = 0;
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
-	sched_setscheduler(current, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
 
 	while (down_interruptible(&ppmgr_device.ppmgr_sem) == 0) {
@@ -3457,7 +3457,7 @@ static int tb_task(void *data)
 	static const char * const detect_type[] = {"NC", "TFF", "BFF", "TBF"};
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
 
-	sched_setscheduler(current, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 
 	inter_flag = 0;
 	tb_reg = kmalloc(sizeof(*tb_reg), GFP_KERNEL);

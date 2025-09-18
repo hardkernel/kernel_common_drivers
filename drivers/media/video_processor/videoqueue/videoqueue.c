@@ -1035,7 +1035,7 @@ static int vq_file_thread(void *data)
 	struct vframe_s *vf = NULL;
 	int ret = 0, tmp_pts = 0;
 
-	sched_setscheduler(current, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 	while (1) {
 		if (kthread_should_stop())
 			break;
@@ -1074,7 +1074,7 @@ static int vq_fence_thread(void *data)
 	struct video_queue_dev *dev = data;
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
 
-	sched_setscheduler(current, SCHED_FIFO, &param);
+	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 
 	while (1) {
 		if (kthread_should_stop())

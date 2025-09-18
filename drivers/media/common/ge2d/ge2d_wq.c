@@ -1171,7 +1171,7 @@ static int ge2d_monitor_thread(void *data)
 	struct ge2d_context_s *wq;
 	struct sched_param param = {.sched_priority = 2};
 
-	ret = sched_setscheduler(current, SCHED_FIFO, &param);
+	ret = sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 	if (ret) {
 		ge2d_log_err("could not set realtime priority (%d)\n", ret);
 		return -1;
