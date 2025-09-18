@@ -859,9 +859,14 @@ static struct vpu_sub vpu0_r_t6w[] __initdata = {
 
 static struct vpu_sub vpu0_w_t6w[] __initdata = {
 	{ .id = 0x00, .name = VPU_PORT_VDIN0_WR		},
+	{ .id = 0x10, .name = VPU_PORT_VDIN0_WR		},
 	{ .id = 0x01, .name = VPU_PORT_VDIN1_WR		},
+	{ .id = 0x11, .name = VPU_PORT_VDIN1_WR		},
 	{ .id = 0x02, .name = VPU_PORT_VDIN_DOLBY	},
 	{ .id = 0x03, .name = VPU_PORT_VDIN_AFBCE	},
+	{ .id = 0x13, .name = VPU_PORT_VDIN_AFBCE	},
+	{ .id = 0x23, .name = VPU_PORT_VDIN_AFBCE	},
+	{ .id = 0x33, .name = VPU_PORT_VDIN_AFBCE	},
 	{ .id = 0x05, .name = VPU_PORT_TCON_P1		},
 	{ .id = 0x06, .name = VPU_PORT_RDMA		},
 	{ .id = 0x08, .name = VPU_PORT_LDIM		},
