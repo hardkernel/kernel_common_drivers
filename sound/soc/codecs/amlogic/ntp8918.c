@@ -610,8 +610,6 @@ static int ntp8918_parse_dt(struct ntp8918_priv *ntp8918, struct device *dev)
 	NTP_DEBUG("IS_ERR: %d IS_ERR_OR_NULL: %d", IS_ERR(ntp8918->pdata->pd_gpio),
 				IS_ERR_OR_NULL(ntp8918->pdata->pd_gpio));
 	if (IS_ERR_OR_NULL(ntp8918->pdata->pd_gpio)) {
-		NTP_DEBUG("Failed to allocate reset gpio : %ld, try the legacy mode again",
-				PTR_ERR(ntp8918->pdata->pd_gpio));
 		pd_pin = of_get_named_gpio(dev->of_node, "pd_pin", 0);
 		if (pd_pin < 0) {
 			NTP_ERR("fail to get PD pin from dts!");
@@ -639,9 +637,6 @@ static int ntp8918_parse_dt(struct ntp8918_priv *ntp8918, struct device *dev)
 	NTP_DEBUG("IS_ERR: %d IS_ERR_OR_NULL: %d", IS_ERR(ntp8918->pdata->power_gpio),
 				IS_ERR_OR_NULL(ntp8918->pdata->power_gpio));
 	if (IS_ERR_OR_NULL(ntp8918->pdata->power_gpio)) {
-		NTP_DEBUG("Failed to allocate power gpio : %ld, try the legacy mode again",
-				PTR_ERR(ntp8918->pdata->power_gpio));
-		/* control ntp8918 module vcc power. */
 		power_pin = of_get_named_gpio(dev->of_node, "power_pin", 0);
 		if (power_pin < 0) {
 			NTP_ERR("fail to get power pin from dts!, no need power_pin");
@@ -669,8 +664,6 @@ static int ntp8918_parse_dt(struct ntp8918_priv *ntp8918, struct device *dev)
 	NTP_DEBUG("IS_ERR: %d IS_ERR_OR_NULL:%d", IS_ERR(ntp8918->pdata->reset_gpio),
 				IS_ERR_OR_NULL(ntp8918->pdata->reset_gpio));
 	if (IS_ERR_OR_NULL(ntp8918->pdata->reset_gpio)) {
-		NTP_DEBUG("Failed to allocate reset gpio : %ld, try the legacy mode again",
-				PTR_ERR(ntp8918->pdata->reset_gpio));
 		reset_pin = of_get_named_gpio(dev->of_node, "reset_pin", 0);
 		if (reset_pin < 0) {
 			NTP_ERR("fail to get reset pin from dts!");
