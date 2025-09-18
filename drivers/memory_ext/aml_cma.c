@@ -967,6 +967,7 @@ static int __nocfi cma_boost_work_func(void *cma_data)
 	unsigned long pfn, end;
 	int ret = -1;
 	int this_cpu;
+	int try_times = 0;
 	struct compact_control cc = {
 		.nr_migratepages = 0,
 		.order = -1,
@@ -991,6 +992,7 @@ static int __nocfi cma_boost_work_func(void *cma_data)
 			pr_err("%s, cpu %d is not work cpu:%d\n",
 			       __func__, this_cpu, c_work->cpu);
 		}
+		try_times = 0;
 again:
 		raw_spin_lock(&work_list_lock);
 		if (list_empty(&work_list)) {
@@ -1011,8 +1013,11 @@ again:
 							  1, job->host);
 		c_work->ret = ret;
 		if (!ret) {
+			try_times = 0;
 			goto again;
 		} else if (ret == -EBUSY) {
+			if (try_times++ > 5)
+				goto next;
 			raw_spin_lock(&work_list_lock);
 			list_add(&job->list, &work_list);
 			raw_spin_unlock(&work_list_lock);
