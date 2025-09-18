@@ -995,9 +995,9 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 		if (!safa_pps_top_en) {
 			safa_pps_top_en = 1;
 			if (vsr_safa->nonlinear_4region_en)
-				postsc_en = 1;
+				vsr_safa->postsc_en = 1;
 			else
-				postsc_en = 0;
+				vsr_safa->postsc_en = 0;
 		}
 		rdma_wr_bits(vsr_reg->safa_pps_dejaggy_ctrl,
 			vsr_safa->dejaggy_en, 31, 1);
@@ -1116,7 +1116,7 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 	rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
 		preh_en, 8, 1);
 	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-		postsc_en, 2, 1);
+		vsr_safa->postsc_en, 2, 1);
 	if (cur_dev->vsr_nonlinear_support &&
 		vsr_safa->nonlinear_4region_en) {
 		//Wr_reg_bits(SAFA_PPS_INTERP_EN_MODE,1,26,1);
