@@ -3133,11 +3133,11 @@ void rx_set_term_value_t3x_20(unsigned char port, bool value)
 
 	data32 = hdmirx_rd_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC2, port);
 	if (value) {
-		data32 |= (1 << (28 + port));
+		data32 |= (1 << 28);
 	} else {
 		/* rst cdr to clr tmds_valid */
 		//data32 &= ~(MSK(3, 7));
-		data32 &= ~(1 << (28 + port));
+		data32 &= ~(1 << 28);
 	}
 	hdmirx_wr_amlphy_t3x(T3X_HDMIRX20PHY_DCHA_MISC2, data32, port);
 }
@@ -3148,11 +3148,11 @@ void rx_set_term_value_t3x_21(unsigned char port, bool value)
 
 	data32 = hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PHY_MISC0, port);
 	if (value) {
-		data32 |= (1 << (22 + port));
+		data32 |= (1 << 22);
 	} else {
 		/* rst cdr to clr tmds_valid */
 		//data32 &= ~(MSK(3, 7));
-		data32 &= ~(1 << (22 + port));
+		data32 &= ~(1 << 22);
 	}
 	hdmirx_wr_amlphy_t3x(T3X_HDMIRX21PHY_MISC0, data32, port);
 }

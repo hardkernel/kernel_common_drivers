@@ -50,7 +50,8 @@
 /* 2025.08.05 update m and os_rate when vco error */
 /* 2025.08.15 auto override dc for 422 */
 /* 2025.09.03 optimize dc override flow */
-#define RX_HW_VER "ver.2025/09/03"
+/* 2025.09.18 modify rterm enable bit for t6x/t3x */
+#define RX_HW_VER "ver.2025/09/18"
 
 #define K_TEST_CHK_ERR_CNT
 

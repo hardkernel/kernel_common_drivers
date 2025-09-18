@@ -3604,11 +3604,11 @@ void rx_set_term_value_t6x_20(unsigned char port, bool value)
 
 	data32 = hdmirx_rd_amlphy_t6x(T6X_HDMIRX20PHY_DCHA_MISC2, port);
 	if (value) {
-		data32 |= (1 << (28 + port));
+		data32 |= (1 << 28);
 	} else {
 		/* rst cdr to clr tmds_valid */
 		//data32 &= ~(MSK(3, 7));
-		data32 &= ~(1 << (28 + port));
+		data32 &= ~(1 << 28);
 	}
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX20PHY_DCHA_MISC2, data32, port);
 }
