@@ -160,7 +160,6 @@
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x1c800000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -192,7 +191,6 @@
 			/* 4k STB android16 size 4M */
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
@@ -200,7 +198,6 @@
 			/* 4k STB android16 size 212M */
 			size = <0x0 0xd400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  vdin0 CMA pool */

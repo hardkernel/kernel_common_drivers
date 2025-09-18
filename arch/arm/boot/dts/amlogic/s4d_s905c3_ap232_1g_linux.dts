@@ -129,7 +129,6 @@
 			 */
 			size = <0x3000000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x30000000>;
 		};
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
@@ -160,6 +159,7 @@
 			size = <0x10400000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
+			alloc-ranges = <0x00000000 0x30000000>;
 		};
 
 		/* codec shared reserved */

@@ -50,7 +50,7 @@
 			reusable;
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
+			reg = <0x0 0x05000000 0x0 0x400000>;
 		};
 
 		dsp_fw_reserved0:linux,dsp_fw0 {
@@ -69,7 +69,7 @@
 			compatible = "amlogic, aml_autocap_memory";
 			status = "okay";
 			size = <0x0 0x25800000>;
-			alloc-ranges = <0x0 0x40000000 0x0 0x25800000>;
+			reg = <0x0 0x40000000 0x0 0x25800000>;
 		};
 
 		ramoops@7400000 {

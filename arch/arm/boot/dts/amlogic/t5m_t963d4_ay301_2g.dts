@@ -160,7 +160,6 @@
 			 */
 			size = <0x00c00000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x00000000 0x1d400000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -187,7 +186,6 @@
 			size = <0x000000>;
 			//size = <0x0>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x1d400000>;
 		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
@@ -202,7 +200,6 @@
 			no-map;
 			size = <0x1000000>;
 			alignment = <0x100000>;
-			alloc-ranges = <0x00000000 0x1d400000>;
 		};
 
 		frc_cma_reserved:linux,frc_cma {
@@ -218,7 +215,6 @@
 			size = <0x9C00000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
-			/*alloc-ranges = <0x0 0x3f800000>;*/
 		};
 
 		/* POST PROCESS MANAGER */
@@ -242,7 +238,6 @@
 		 *	reusable;
 		 *	size = <0x400000>;
 		 *	alignment = <0x400000>;
-		 *	alloc-ranges = <0x0 0x40000000>;
 		 *};
 		 */
 
@@ -252,7 +247,6 @@
 			reusable;
 			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x1d400000>;
 			linux,cma-default;
 		};
 
@@ -261,7 +255,6 @@
 			reusable;
 			size = <0x00000000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x40000000 0x80000000>;
 		};
 	};
 

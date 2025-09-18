@@ -97,7 +97,7 @@
 			no-map;
 			size = <0x0 0x3400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x05000000 0x0 0x3400000>;
+			reg = <0x0 0x05000000 0x0 0x3400000>;
 		};
 
 		dsp_fw_reserved0:linux,dsp_fw0 {
@@ -157,7 +157,6 @@
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "shared-dma-pool";
 			size = <0x0 0x0>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		isp_cma_reserved:linux,isp_cma {
@@ -166,7 +165,6 @@
 			status = "okay";
 			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		adapt_cma_reserved:linux,adapt_cma {
@@ -175,7 +173,6 @@
 			status = "okay";
 			size = <0x0 0x4000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -183,7 +180,6 @@
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x8000000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -191,14 +187,12 @@
 			no-map;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
@@ -227,14 +221,12 @@
 			 */
 			size = <0x0 0x3000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -264,6 +256,7 @@
 			reusable;
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/* global autoconfigured region for contiguous allocations */
@@ -273,6 +266,7 @@
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
 			linux,cma-default;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		pcie_dma_ops_mm:linux,pcie_dma_ops {

@@ -186,7 +186,6 @@
 			//size = <0x0 0x1000000>;
 			size = <0x0 0x0>;
 			//alignment = <0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x1d400000>;
 			status = "okay";
 		};
 		/* codec shared reserved */

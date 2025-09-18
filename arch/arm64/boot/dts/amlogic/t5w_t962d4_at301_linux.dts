@@ -107,7 +107,6 @@
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
 			linux,cma-default;
-			alloc-ranges = <0x0 0x00000000 0x0 0x30000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -195,7 +194,6 @@
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -203,7 +201,6 @@
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
 		};
 	};
 

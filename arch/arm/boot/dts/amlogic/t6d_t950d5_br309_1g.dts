@@ -111,7 +111,6 @@
 			/* 1080p TV android16 size 88M */
 			size = <0x0>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		dmaheap_fb_reserved:heap-fb {
@@ -120,7 +119,6 @@
 			/* 1080p TV android16 size 28M */
 			size = <0x1c00000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -139,7 +137,6 @@
 			reusable;
 			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -163,7 +160,6 @@
 			no-map;
 			size = <0x400000>;
 			alignment = <0x100000>;
-			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		/* global autoconfigured region for contiguous allocations */

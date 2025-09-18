@@ -167,7 +167,6 @@
 		/* demod_reserved:linux,demod {
 		 *	compatible = "amlogic, demod-mem";
 		 *	size = <0x6400000>; //8M //100m 0x6400000
-		 *	alloc-ranges = <0x0 0x30000000>;
 		 *	//multi-use;
 		 *	//no-map;
 		 * };
@@ -179,7 +178,6 @@
 		 *		//8M
 		 *		size = <0x0800000>;
 		 *		alignment = <0x400000>;
-		 *	alloc-ranges = <0x0 0x30000000>;
 		 *};
 		 */
 

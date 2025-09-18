@@ -96,7 +96,7 @@
 			no-map;
 			size = <0x0 0x3400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x05000000 0x0 0x3400000>;
+			reg = <0x0 0x05000000 0x0 0x3400000>;
 		};
 
 		dsp_fw_reserved0:linux,dsp_fw0 {
@@ -156,7 +156,6 @@
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "shared-dma-pool";
 			size = <0x0 0x0>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		camera_cma_reserved:linux,camera_cma {
@@ -165,14 +164,12 @@
 			status = "okay";
 			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x8000000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -180,14 +177,12 @@
 			no-map;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
@@ -212,7 +207,6 @@
 			/* 4k TV + 1080p STB android16 size 4M */
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
@@ -224,7 +218,6 @@
 			 */
 			size = <0x0 0x12400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  vdin0 CMA pool */

@@ -117,7 +117,6 @@
 			size = <0x800000>;
 			alignment = <0x400000>;
 			linux,cma-default;
-			alloc-ranges = <0x00000000 0x30000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -157,7 +156,6 @@
 		 *	// 40M
 		 *	size = <0x02800000>;
 		 *	alignment = <0x400000>;
-		 *	alloc-ranges = <0x0 0x3f000000>;
 		 *};
 		 */
 

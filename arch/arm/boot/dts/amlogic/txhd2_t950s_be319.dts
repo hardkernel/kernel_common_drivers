@@ -295,7 +295,6 @@
 			/* 720p TV androidU size 40M */
 			size = <0x0>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x3f000000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -304,7 +303,6 @@
 			/* 720p TV androidU size 12M */
 			size = <0xc00000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x3f000000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -339,7 +337,6 @@
 			 */
 			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x3f000000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {

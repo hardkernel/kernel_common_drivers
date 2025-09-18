@@ -169,7 +169,6 @@
 			reusable;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -178,7 +177,6 @@
 			/* 3840x2160x4x4 round up 4M align */
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x1c800000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -214,7 +212,6 @@
 			 */
 			size = <0x0 0x3800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		dmaheap_fb_reserved:heap-fb {
@@ -222,7 +219,6 @@
 			/* 1920x1080x4x6 round up 4M align */
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -244,7 +240,6 @@
 			 */
 			size = <0x0 0x03C00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  amlvideo2_1 CMA pool */
@@ -280,7 +275,6 @@
 			size = <0x0 0x13800000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 	};
 

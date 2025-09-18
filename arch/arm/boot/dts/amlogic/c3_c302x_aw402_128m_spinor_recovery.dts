@@ -63,12 +63,10 @@
 			no-map;
 			size = <0x100000>;
 			alignment = <0x100000>;
-			//alloc-ranges = <0x07C00000 0x8000000>;
 			reg = <0x07F00000 0x100000>;
 		};
 		nna_cma_reserved: linux,nna_cma {
 			compatible = "shared-dma-pool";
-			//alloc-ranges = <0x70000000 0x18000000>;
 			size = <0x2000000>;
 			alignment = <0x400000>;
 			reusable;
@@ -99,7 +97,7 @@
 			compatible = "amlogic, aml_autocap_memory";
 			status = "okay";
 			size = <0x1000000>;
-			alloc-ranges = <0x3000000 0x1000000>;
+			reg = <0x3000000 0x1000000>;
 		};
 
 		pmz_cma_a2_reserved:anonymous_ext{
@@ -109,7 +107,7 @@
 			size = <0x1000000>;
 			alignment = <0x400000>;
 			status = "okay";
-			alloc-ranges = <0x4000000 0x1000000>;
+			reg = <0x4000000 0x1000000>;
 		};
 
 		rtos_reserved:linux,rtos_reserved {
@@ -168,7 +166,7 @@
 			no-map;
 			size = <0x02400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x5000000 0x2400000>;
+			reg = <0x5000000 0x2400000>;
 			status = "disabled";
 		};
 

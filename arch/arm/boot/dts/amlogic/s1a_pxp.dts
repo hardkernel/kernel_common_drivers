@@ -66,7 +66,7 @@
 			no-map;
 			size = <0x200000>;
 			alignment = <0x100000>;
-			alloc-ranges = <0x05000000 0x200000>;
+			reg = <0x05000000 0x200000>;
 		};
 
 		logo_reserved:linux,meson-fb {

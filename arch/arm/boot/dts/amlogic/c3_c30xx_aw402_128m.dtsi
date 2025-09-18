@@ -61,12 +61,10 @@
 			no-map;
 			size = <0x100000>;
 			alignment = <0x100000>;
-			//alloc-ranges = <0x07C00000 0x8000000>;
 			reg = <0x07F00000 0x100000>;
 		};
 		nna_cma_reserved: linux,nna_cma {
 			compatible = "shared-dma-pool";
-			//alloc-ranges = <0x70000000 0x18000000>;
 			size = <0x2000000>;
 			alignment = <0x400000>;
 			reusable;
@@ -97,7 +95,7 @@
 			compatible = "amlogic, aml_autocap_memory";
 			status = "okay";
 			size = <0xB00000>;
-			alloc-ranges = <0x4700000 0xB00000>;
+			reg = <0x4700000 0xB00000>;
 			venc_bsb_addr = <0x5000000>;
 			venc_bsb_size = <0x200000>;
 		};
@@ -109,7 +107,7 @@
 			size = <0x1700000>;
 			alignment = <0x100000>;
 			status = "okay";
-			alloc-ranges = <0x3000000 0x1700000>;
+			reg = <0x3000000 0x1700000>;
 		};
 
 		rtos_reserved:linux,rtos_reserved {
@@ -168,7 +166,7 @@
 			no-map;
 			size = <0x02300000>;
 			alignment = <0x100000>;
-			alloc-ranges = <0x5200000 0x2300000>;
+			reg = <0x5200000 0x2300000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {

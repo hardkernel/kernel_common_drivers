@@ -63,12 +63,10 @@
 			no-map;
 			size = <0x900000>;
 			alignment = <0x100000>;
-			//alloc-ranges =  <0x05000000 0x8000000>;
 			reg = <0x07F00000 0x900000>;
 		};
 		nna_cma_reserved: linux,nna_cma {
 			compatible = "shared-dma-pool";
-			//alloc-ranges = <0x70000000 0x18000000>;
 			size = <0x2000000>;
 			alignment = <0x400000>;
 			reusable;
@@ -141,7 +139,6 @@
 			//reusable;
 			size = <0x8000000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x8000000 0x10000000>;
 			no-map;
 			status = "disabled";
 		};

@@ -99,7 +99,7 @@
 			reusable;
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x30000000 0x0 0x800000>;
+			reg = <0x0 0x30000000 0x0 0x800000>;
 		};
 
 		/*dsp_shm_reserved:linux,dsp_shm {      */
@@ -208,7 +208,6 @@
 			/* 4k TV android16 size 4M */
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		dmaheap_fb_reserved:heap-fb {
@@ -217,7 +216,6 @@
 			/* 4k TV android16 size 108M */
 			size = <0x0 0x6c00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -239,7 +237,6 @@
 			 */
 			size = <0x0 0x03C00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		pcie_dma_ops_mm:linux,pcie_dma_ops {
@@ -263,7 +260,6 @@
 			size = <0x0 0x13800000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/* ldc_mem_reserved:linux,ldc_mem {

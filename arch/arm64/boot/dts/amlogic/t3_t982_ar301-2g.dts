@@ -78,7 +78,7 @@
 			no-map;
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
+			reg = <0x0 0x05000000 0x0 0x400000>;
 		};
 
 		dsp_fw_reserved:linux,dsp_fw {
@@ -149,7 +149,6 @@
 			/* ion_codec_mm max can alloc size 80M*/
 			size = <0x0 0x1BC00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x30000000 0x0 0x50000000>;
 			linux,contiguous-region;
 		};
 
@@ -225,7 +224,6 @@
 			size = <0x0 0x0a400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
-			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
 		};
 
 		ldc_mem_reserved:linux,ldc_mem {
@@ -243,7 +241,6 @@
 			swiotlb-size = <0x0 0x4c00000>;
 			atomic-size = <0x0 0x40000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x80000000>;
 		};
 	};
 

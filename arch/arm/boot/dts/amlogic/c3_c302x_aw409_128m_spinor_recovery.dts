@@ -63,12 +63,10 @@
 			no-map;
 			size = <0x100000>;
 			alignment = <0x100000>;
-			//alloc-ranges = <0x07C00000 0x8000000>;
 			reg = <0x07F00000 0x100000>;
 		};
 		nna_cma_reserved: linux,nna_cma {
 			compatible = "shared-dma-pool";
-			//alloc-ranges = <0x70000000 0x18000000>;
 			size = <0x2000000>;
 			alignment = <0x400000>;
 			reusable;
@@ -150,7 +148,6 @@
 			no-map;
 			size = <0x4400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x3000000 0x7400000>;
 			status = "disabled";
 		};
 
@@ -161,7 +158,6 @@
 			size = <0x1000000>;
 			alignment = <0x400000>;
 			status = "disabled";
-			//alloc-ranges = <0x0 0x7B00000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {

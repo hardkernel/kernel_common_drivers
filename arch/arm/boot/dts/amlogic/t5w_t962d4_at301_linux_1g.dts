@@ -139,7 +139,7 @@
 			 */
 			size = <0x00c00000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x2b800000>;
+			alloc-ranges = <0x00000000 0x2ec00000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -182,6 +182,7 @@
 			no-map;
 			size = <0x1000000>;
 			alignment = <0x100000>;
+			alloc-ranges = <0x00000000 0x30000000>;
 		};
 
 		dmaheap_cma_reserved:heap-gfx {
@@ -194,6 +195,7 @@
 			 */
 			size = <0x3800000>;
 			alignment = <0x400000>;
+			alloc-ranges = <0x00000000 0x30000000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";

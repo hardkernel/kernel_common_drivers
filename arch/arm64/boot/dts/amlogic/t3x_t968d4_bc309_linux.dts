@@ -176,7 +176,6 @@
 			/* 3840x2160x4x4 round up 4M align */
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x1c800000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -233,7 +232,6 @@
 			 */
 			size = <0x0 0x03C00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		pcie_dma_ops_mm:linux,pcie_dma_ops {
@@ -257,7 +255,6 @@
 			size = <0x0 0xd400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 	};
 

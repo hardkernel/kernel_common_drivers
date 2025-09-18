@@ -128,7 +128,6 @@
 			 */
 			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x2ec00000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -138,7 +137,6 @@
 			size = <0x0 0x10000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0x30000000 0x0 0x10000000>;
 		};
 
 		/*di CMA pool */
@@ -191,7 +189,6 @@
 			/* 1080p TV androidR size 84M */
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x2ec00000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -200,7 +197,6 @@
 			/* 1080p TV androidR size 28M */
 			size = <0x0 0x1c00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x2ec00000>;
 		};
 	};
 

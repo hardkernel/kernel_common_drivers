@@ -119,7 +119,6 @@
 			 */
 			size = <0x2400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x10000000 0x10000000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
@@ -127,7 +126,6 @@
 			/* 720p STB androidU size 24M */
 			size = <0x0>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x10000000>;
 		};
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
@@ -158,7 +156,6 @@
 			size = <0xA800000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x10000000 0x10000000>;
 		};
 
 		/* codec shared reserved */
@@ -174,7 +171,6 @@
 			no-map;
 			size = <0x400000>;
 			alignment = <0x100000>;
-			alloc-ranges = <0x10000000 0x10000000>;
 		};
 		/*  vdin0 CMA pool */
 		//vdin0_cma_reserved:linux,vdin0_cma {
@@ -195,7 +191,6 @@
 			 */
 			size = <0x00000000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x10000000>;
 		};
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
@@ -204,7 +199,6 @@
 			size = <0x400000>;
 			alignment = <0x400000>;
 			linux,cma-default;
-			alloc-ranges = <0x10000000 0x10000000>;
 		};
 	};
 
