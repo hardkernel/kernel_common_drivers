@@ -1670,6 +1670,16 @@ static ssize_t attr_store(const struct class *cls, const struct class_attribute 
 		demod_id = val;
 	} else if (!strcmp(parm[0], "blind_stop")) {
 		devp->blind_scan_stop = val;
+	} else if (!strcmp(parm[0], "blind_scan")) {
+		if (!devp->blind_scan_stop) {
+			PR_INFO("blind_scan already started\n");
+		} else {
+			PR_INFO("DTV_START_BLIND_SCAN\n");
+			devp->blind_min_fre = 48000000;
+			devp->blind_max_fre = 859000000;
+			devp->blind_scan_stop = 0;
+			schedule_work(&devp->blind_scan_work);
+		}
 	} else if (!strcmp(parm[0], "cr_val")) {
 		devp->atsc_cr_step_size_dbg = val;
 		PR_INFO("set atsc cr val 0x%x\n", devp->atsc_cr_step_size_dbg);

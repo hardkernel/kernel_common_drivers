@@ -1503,7 +1503,7 @@ static void blind_scan_work(struct work_struct *work)
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
 	case SYS_DVBC_ANNEX_A:
 		//only s4d support the new dvbc_blind_scan mode now
-		if (demod_chip_eq(DTVDEMOD_HW_S4D))
+		if (demod_chip_eq(DTVDEMOD_HW_S4D) || demod_chip_after_eq(DTVDEMOD_HW_T6X))
 			dvbc_blind_scan_work(demod);
 		break;
 #endif

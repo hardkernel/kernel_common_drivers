@@ -10,12 +10,21 @@
 #include "demod_func.h"
 #include <linux/kthread.h>
 
-#define BLIND_SEARCH_POW_TH1_DVBC			70000
-#define BLIND_SEARCH_POW_TH2_DVBC			100000
-#define BLIND_SEARCH_AGC2BANDWIDTH1_DVBC	60//40tzx 0827
-#define BLIND_SEARCH_AGC2BANDWIDTH2_DVBC	80//40tzx 0827
-#define BLIND_SEARCH_BW_MIN_DVBC			6
-#define BLIND_SEARCH_OFT_BW_DVBC			1
+#define BLIND_SEARCH_POW_TH1_DVBC			60000
+#define BLIND_SEARCH_POW_TH2_DVBC			75000
+#define BLIND_SEARCH_AGC2BANDWIDTH2_DVBC	75//40tzx 0827
+#define BLIND_SEARCH_BW_MIN_DVBC			10
+#define BLIND_SEARCH_POW_TH3_DVBC			65000
+#define BLIND_SEARCH_POW_TH4_DVBC			120000
+#define BLIND_SEARCH_BW_DVBC				6000
+#define BLIND_SEARCH_AGC2BANDWIDTH3_DVBC	150
+#define BLIND_SEARCH_CENT_BW_DVBC			3
+#define BLIND_SEARCH_CENT_TH_DVBC			15//1.5 * 10
+#define BLIND_SEARCH_STR_DVBC				2
+#define BLIND_SEARCH_SR_MIN_TH				3600
+#define BLIND_SEARCH_SR_MAX_TH				7000
+#define BLIND_SEARCH_SR_DIF_TH				1000
+static unsigned char BLIND_SEARCH_AGC2BANDWIDTH1_DVBC = 60;//40tzx 0827
 
 unsigned char blind_spectrum_invert = 1;
 
@@ -58,12 +67,12 @@ static unsigned int fe_l2a_blind_check_agc2_bandwidth(struct aml_dtvdemod *demod
 	unsigned int acculevel = 0;
 	unsigned char div = 2;
 	unsigned int agc2leveltab[20] = {0};
-	int i, j = 0, k, l, m = 0, n = 0, nbsteps;
+	int i, j = 0, k, l, m = 0, n = 0, center_oft = 0, center_enb = 0, nbsteps;
 
 	if (devp->blind_scan_stop)
 		return 0;
 
-	if (pparams->state == 1)
+	if (pparams->state == 1 || pparams->state == 2)
 		waitforfall = 1;
 	else
 		waitforfall = 0;
@@ -138,26 +147,52 @@ static unsigned int fe_l2a_blind_check_agc2_bandwidth(struct aml_dtvdemod *demod
 			agc2level = 0x1fffff;//0x1ffff
 		//printf("clip agc2level is %d\n",agc2level);
 
-		if (i == 0) {
+		if (i < BLIND_SEARCH_STR_DVBC) {
+			PR_DVBC("i %d,m %d,agc2level %d,agc2level %d\n",
+				i, m, agc2level, waitforfall);
+
+			if (waitforfall == 1)
+				m += 1;
+		} else if (i == BLIND_SEARCH_STR_DVBC) {
+			PR_DVBC("i %d,m %d,agc2level %d,agc2level %d\n",
+				i, m, agc2level, waitforfall);
+
 			minagc2level = agc2level;
 			maxagc2level = agc2level;
 			midagc2level = agc2level;
 
 			for (l = 0; l < 20; l++)
 				agc2leveltab[l] = agc2level;
+
+			if (waitforfall == 1)
+				m += 1;
 		} else {
 			k = i % (20);
 
-			if (i == 44)
-				PR_DVBC("i %d,agc2level %d,maxagc2level %d\n",
-						i, agc2level, maxagc2level);
+			if ((((agc2level * BLIND_SEARCH_CENT_TH_DVBC / 10) < midagc2level) &&
+				(i == 43 || i == 44)) ||
+				(((center_oft + BLIND_SEARCH_CENT_BW_DVBC) > i) &&
+				center_oft <= i && i >= 43))
+				center_enb = 1;
+			else
+				center_enb = 0;
+
+			if (i == 43 || i == 44 || center_enb == 1)
+				PR_DVBC("i %d,agc2level %d,maxagc2level %d,oft %d,enb %d\n",
+						i, agc2level, maxagc2level, center_oft, center_enb);
+
 			PR_DVBC("minagc2level %d, midagc2level %d\n",
 					minagc2level, midagc2level);
 
-			if ((minagc2level > (agc2level * 2)) && i == 44)
+			if (((agc2level * BLIND_SEARCH_CENT_TH_DVBC / 10) < (midagc2level)) &&
+				(i == 43 || i == 44)) {
+				center_oft = i;
 				agc2leveltab[k] = midagc2level;
-			else
+			} else if (center_enb == 1) {
+				agc2leveltab[k] = midagc2level;
+			} else {
 				agc2leveltab[k] = agc2level;
+			}
 
 			minagc2level = 0x3fffff;//0x3ffff
 			maxagc2level = 0x0000;
@@ -207,11 +242,12 @@ static unsigned int fe_l2a_blind_check_agc2_bandwidth(struct aml_dtvdemod *demod
 				PR_DVBC("init_freq %d,agc2ratio %d\n", init_freq, agc2ratio);
 				for (l = 0; l < 20; l++)
 					agc2leveltab[l] = agc2level;
-			} else if ((agc2ratio > (BLIND_SEARCH_AGC2BANDWIDTH2_DVBC)) &&
-					(agc2level > BLIND_SEARCH_POW_TH2_DVBC) &&
-					(agc2level == maxagc2level) && (waitforfall == 1))
-			// Falling edge //
-			{
+			} else if ((((agc2ratio > (BLIND_SEARCH_AGC2BANDWIDTH2_DVBC)) &&
+			(agc2level > BLIND_SEARCH_POW_TH2_DVBC)) ||
+			((agc2ratio > (BLIND_SEARCH_AGC2BANDWIDTH3_DVBC)) &&
+			(agc2level > BLIND_SEARCH_POW_TH3_DVBC))) &&
+			(agc2level == maxagc2level) && (waitforfall == 1)) {
+				// Falling edge //
 				if (pparams->state == 0) {
 					if (m > BLIND_SEARCH_BW_MIN_DVBC)
 						n = m;
@@ -236,13 +272,14 @@ static unsigned int fe_l2a_blind_check_agc2_bandwidth(struct aml_dtvdemod *demod
 
 				for (l = 0; l < 20; l++)
 					agc2leveltab[l] = agc2level;
+			} else if (agc2level > BLIND_SEARCH_POW_TH4_DVBC && waitforfall == 1 &&
+					i < 84 && i > 3) {
+				waitforfall = 0;
+				m = 0;
+				pparams->state = 4;
+				PR_DVBC(" detect error --agc2level is %d\n",
+						agc2level);
 			}
-			/*else if(agc2level > (BLIND_SEARCH_POW_TH_DVBC) && (1 == waitforfall))
-			 *{
-			 *	waitforfall = 0;
-			 *	m = 0;
-			 *}
-			 */
 
 			if (waitforfall == 1)
 				m += 1;
@@ -276,11 +313,20 @@ static unsigned int fe_l2a_blind_check_agc2_bandwidth(struct aml_dtvdemod *demod
 			pparams->tuner_index_jump = 7200;
 			pparams->tuner_index_jump1 = (180 / div) * (m - 44);
 			pparams->state = 1;
-		} else if (waitforfall == 0 && pparams->state == 1) {
+		} else if ((waitforfall == 0) && ((pparams->state == 1) || (pparams->state == 2))) {
 			asperity = 0;
 			pparams->tuner_index_jump = 0;
 			pparams->tuner_index_jump1 = (180 / div) * (m - 44);
-			pparams->state = 2;
+			pparams->state = 3;
+		} else if ((waitforfall == 1) && (pparams->state == 1)) {
+			asperity = 0;
+			pparams->tuner_index_jump = 7200;
+			//if(BLIND_SEARCH_BW < pParams->tuner_index_jump1)
+			if (BLIND_SEARCH_BW_DVBC < ((44 * (180 / div)) +
+				pparams->tuner_index_jump1))
+				pparams->state = 0;
+			else
+				pparams->state = 2;
 		} else {
 			asperity = 0;
 			pparams->tuner_index_jump = 7200;
@@ -326,7 +372,7 @@ static unsigned int fe_l2a_blind_check_agc2_bandwidth(struct aml_dtvdemod *demod
 static void dvbc_blind_check_signal(struct aml_dtvdemod *demod,
 		unsigned int freq_khz, unsigned int *freq_add,
 		unsigned int *freq_add1, unsigned int *state, unsigned int *asperity,
-		unsigned int *sr_est, unsigned int spectrum_invert)
+		unsigned int *sr_est, unsigned int spectrum_invert, unsigned int *det_error)
 {
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	unsigned int i;
@@ -378,9 +424,10 @@ static void dvbc_blind_check_signal(struct aml_dtvdemod *demod,
 	PR_DVBC("agc1power %d,iqpower %d,state %d,asperity %d\n",
 			agc1power, iqpower, *state, *asperity);
 	pparams.state = *state;
+	pparams.det_error = *det_error;
 
 		//if (((agc1power != 0) || (iqpower >= powerThreshold))
-	if ((*state == 0 || *state == 1) && *asperity == 0 &&
+	if ((*state == 0 || *state == 1 || *state == 2) && *asperity == 0 &&
 			pparams.demod_search_algo == FE_SAT_BLIND_SEARCH &&
 			satellite_scan) { /* Perform edge detection */
 		PR_DVBC("satellite_scan TRUE satellite_scan %d\n", satellite_scan);
@@ -394,14 +441,15 @@ static void dvbc_blind_check_signal(struct aml_dtvdemod *demod,
 		*sr_est = pparams.sr;
 
 		*state = pparams.state;
-		PR_DVBC("asperity %d, freq_add %d, state %d\n",
-				*asperity, *freq_add, *state);
+		*det_error = pparams.det_error;
+		PR_DVBC("asperity %d, freq_add %d, state %d, det_error %d\n",
+				*asperity, *freq_add, *state, *det_error);
 		//io_printf("agc1power is %d,iqpower is %d\n",agc1power,iqpower);
-	} else if ((*state == 2) && (*asperity == 0)) {
+	} else if ((*state == 3) && (*asperity == 0)) {
 		*asperity = 2;
 	} else if ((*state == 1) && (*asperity == 1)) {
 		*asperity = 2;
-		*state = 2;
+		*state = 3;
 	}
 }
 
@@ -416,7 +464,7 @@ int dvbc_blind_scan_process(struct aml_dtvdemod *demod)
 	const unsigned int MAX_FREQ_KHZ = devp->blind_max_fre / 1000 + 4000; //44-863M
 	unsigned int found_tp_num = 0;
 
-	unsigned int f_min, f_max, sr_est;
+	unsigned int f_min, f_max, sr_est, s2_state = 0, det_error;
 	int freq_add, freq_add1, freq_add_next, freq_add_dly;
 	unsigned int state;
 	//unsigned int fld_value[2] = {0}, agcrfin;
@@ -442,6 +490,13 @@ int dvbc_blind_scan_process(struct aml_dtvdemod *demod)
 	c->bandwidth_hz = 8000000;
 
 	PR_INFO("spectrum %d\n", blind_spectrum_invert);
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6X)) {
+		blind_spectrum_invert = 0;
+		BLIND_SEARCH_AGC2BANDWIDTH1_DVBC = 100;
+	}
+
+	PR_INFO("%s start %d ...\n", __func__, blind_spectrum_invert);
+	PR_DVBC("start launch_spectrum\n");
 
 	f_min = MIN_FREQ_KHZ - 3600;
 	f_max = f_min + 3600;
@@ -456,20 +511,30 @@ int dvbc_blind_scan_process(struct aml_dtvdemod *demod)
 	while (f_max < MAX_FREQ_KHZ) {
 		if (devp->blind_scan_stop)
 			return -1;
-
-		PR_DVBC("f_max %d KHz,freq_add %d KHz,state %d,asperity %d,freq_add_dly %d\n",
-				f_max, freq_add, state, asperity, freq_add_dly);
+		det_error = 0;
+		PR_DVBC("f_max %d K,freq_add %d K,state %d,s2_state %d,asprt %d,freq_add_dly %d\n",
+				f_max, freq_add, state, s2_state, asperity, freq_add_dly);
 
 		if (state == 1 && asperity == 0) {
 			f_max = f_max + 7200;
 			freq_add_dly = freq_add1;
 		} else if (state == 2 && asperity == 0) {
-			freq_add_next = 7200 + 0 + (freq_add_dly + freq_add1) / 2;
-			f_max = f_max - 3600 + (freq_add1 - freq_add_dly) / 2;
-			sr_est = 7200 + 0 + (freq_add_dly + freq_add1);
+			f_max = f_max + 7200;
+			//freq_add_dly = freq_add1;
+			s2_state = 1;
+		} else if ((state == 3) && (asperity == 0)) {
+			if (s2_state == 1) {
+				freq_add_next = 7200 + 3600 + (freq_add_dly + freq_add1) / 2;
+				f_max = f_max - 7200 + (freq_add1 - freq_add_dly) / 2;
+				sr_est = 7200 + 7200 + (freq_add_dly + freq_add1);
+			} else {
+				freq_add_next = 7200 + 0 + (freq_add_dly + freq_add1) / 2;
+				f_max = f_max - 3600 + (freq_add1 - freq_add_dly) / 2;
+				sr_est = 7200 + 0 + (freq_add_dly + freq_add1);
+			}
 			PR_DVBC("f_max %d KHz,freq_add %d,freq_add1 %d,freq_add_dly %d\n",
 					f_max, freq_add, freq_add1, freq_add_dly);
-			PR_DVBC("freq_add_next %d\n", freq_add_next);
+			PR_DVBC("freq_add_next %d, s2_state %d\n", freq_add_next, s2_state);
 		} else if (state == 1 && asperity == 1) {
 			f_max = f_max + freq_add;
 			freq_add_next = freq_add1;
@@ -492,10 +557,14 @@ int dvbc_blind_scan_process(struct aml_dtvdemod *demod)
 		dvbs2_reg_initial(fe, 20000, 0);
 
 		dvbc_blind_check_signal(demod, f_max, &freq_add, &freq_add1, &state, &asperity,
-				&sr_est, blind_spectrum_invert);
+				&sr_est, blind_spectrum_invert, &det_error);
+
 		PR_DVBC("end launch_BlindCheckAGC2BandWidth2 f_max %d,freq_add %d\n",
 				f_max, freq_add);
 		PR_DVBC("state %d, asperity=%d\n", state, asperity);
+
+		if (det_error == 1 && s2_state == 1)
+			s2_state = 0;
 
 		//when a signal is detected, report blind scan result
 		if (asperity == 2 && f_max >= devp->blind_min_fre / 1000) {
@@ -505,18 +574,30 @@ int dvbc_blind_scan_process(struct aml_dtvdemod *demod)
 			demod->blind_result_frequency = f_max * 1000;
 			//demod->blind_result_symbol_rate = sr_est * 1000;
 			//demod->symbol_rate_manu = sr_est;
-			status = BLINDSCAN_UPDATERESULTFREQ | FE_HAS_LOCK;
-			dvb_frontend_add_event(fe, status);
 
-			found_tp_num++;
-			PR_INFO("check_signal_result: freq=%d Hz, sr_est=%d bd, %d\n",
+			if (((BLIND_SEARCH_SR_MIN_TH - BLIND_SEARCH_SR_DIF_TH) < sr_est) &&
+				((BLIND_SEARCH_SR_MAX_TH + BLIND_SEARCH_SR_DIF_TH) > sr_est)) {
+				status = BLINDSCAN_UPDATERESULTFREQ | FE_HAS_LOCK;
+				dvb_frontend_add_event(fe, status);
+				found_tp_num++;
+
+				PR_INFO("valid freq=%d Hz, sr_est=%d bd, %d\n",
 					f_max * 1000, sr_est * 1000, found_tp_num);
+			} else {
+				PR_INFO("invalid freq=%d Hz, sr_est=%d bd, %d\n",
+					f_max * 1000, sr_est * 1000, found_tp_num);
+			}
+
+			PR_INFO("check_signal_result: freq=%d Hz, sr_est=%d bd, %d\n",
+							f_max * 1000, sr_est * 1000, found_tp_num);
+
 		}
 
-		if (asperity == 2 && state == 2) {
+		if (asperity == 2 && state == 3) {
 			state = 0;
 			freq_add = freq_add_next;
 			asperity = 0;
+			s2_state = 0;
 		}
 
 		//report blind scan progress
@@ -539,6 +620,15 @@ int dvbc_blind_scan_process(struct aml_dtvdemod *demod)
 	//fld_value[1] = dvbs2_read_byte(0x91a);
 	//fld_value[0] = dvbs2_read_byte(0x91b);
 	//agcrfin = (fld_value[1] << 8) + fld_value[0];
+
+	if (!devp->blind_scan_stop) {
+		demod->blind_result_frequency = 100;
+		demod->blind_result_symbol_rate = 0;
+		status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
+		PR_INFO("force 100%% to upper layer\n");
+		dvb_frontend_add_event(fe, status);
+		devp->blind_scan_stop = 1;
+	}
 
 	return 0;
 }

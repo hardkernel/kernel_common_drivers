@@ -2490,7 +2490,13 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x10);
 				usleep_range(1000, 2000);
-				demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
+				/* enable dvbc and dvbs mode for new dvbc_blind_scan mode */
+				if (demod_chip_after_eq(DTVDEMOD_HW_T6X) && !devp->blind_scan_stop)
+					demod_top_write_reg(DEMOD_TOP_REGC,
+							demod->dvbc_sel == 1 ? 0xaa0011 : 0x660011);
+				else
+					demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
+
 				front_write_bits(AFIFO_ADC, nco_rate, AFIFO_NCO_RATE_BIT,
 						 AFIFO_NCO_RATE_WID);
 				/* set cfg_agc_sel bit[20+3]: dvbc */
@@ -4292,6 +4298,10 @@ void demod_enable_frontend_agc(struct aml_dtvdemod *demod,
 		front_write_bits(DEMOD_FRONT_AFIFO_ADC, 0x2, 17, 2);
 	else
 		front_write_bits(DEMOD_FRONT_AFIFO_ADC, 0x3, 17, 2);
+
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6X) && delsys == SYS_DVBC_ANNEX_A &&
+		!devp->blind_scan_stop)
+		front_write_reg(DEMOD_FRONT_AFIFO_ADC, 0x460100);
 
 	PR_DBGL("frontagc 0x20 %#x 0x21 %#x 0x22 %#x 0x23 %#x 0x26 %#x 0x28 %#x\n",
 			front_read_reg(0x20), front_read_reg(0x21), front_read_reg(0x22),

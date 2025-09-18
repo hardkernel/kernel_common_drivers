@@ -213,7 +213,13 @@ int gxtv_demod_dvbc_init(struct aml_dtvdemod *demod, int mode)
 			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501); //250M
 		}
 	} else if (demod_chip_after_eq(DTVDEMOD_HW_TL1)) {
-		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x502);
+		//for new dvbc_blind_scan mode
+		if (demod_chip_after_eq(DTVDEMOD_HW_T6X) && !devp->blind_scan_stop) {
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x713);
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x709);
+		} else {
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x502);
+		}
 	}
 
 	ret = demod_set_sys(demod, &sys);
@@ -783,8 +789,13 @@ int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	bool auto_qam = (c->modulation == QAM_AUTO);
+	struct amldtvdemod_device_s *devp =
+		(struct amldtvdemod_device_s *)demod->priv;
 
 	*delay = HZ / 4;
+
+	if (!devp->blind_scan_stop)
+		return ret;
 
 	if (re_tune) {
 		/*first*/
@@ -1229,8 +1240,13 @@ int dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 	unsigned int mode_flags, unsigned int *delay, enum fe_status *status)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp =
+		(struct amldtvdemod_device_s *)demod->priv;
 
 	*delay = HZ / 20;
+
+	if (!devp->blind_scan_stop)
+		return 0;
 
 	if (re_tune) {
 		demod->en_detect = 1;
@@ -1253,7 +1269,6 @@ void dvbc_blind_scan_work(struct aml_dtvdemod *demod)
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	struct dvb_frontend *fe = NULL;
 	struct dtv_frontend_properties *c = NULL;
-	enum fe_status status;
 	//char qam_name[20] = {0};
 
 	if (devp->blind_scan_stop) {
@@ -1293,21 +1308,9 @@ void dvbc_blind_scan_work(struct aml_dtvdemod *demod)
 	//disable dvbc_blind_scan mode to avoid hang when switch to other demod
 	demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 
-	if (!devp->blind_scan_stop) {
-		//5.init dvbc for stage 2
-		devp->blind_scan_stop = 1;
-		devp->dvbc_inited = false;
-		gxtv_demod_dvbc_init(demod, ADC_MODE);
-		devp->blind_scan_stop = 0;
-
-		//the time usage of first stage is 10% of the overall time usage.
-		demod->blind_result_frequency = 100;
-		demod->blind_result_symbol_rate = 0;
-		status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
-		PR_INFO("force 100%% to upper layer\n");
-		dvb_frontend_add_event(fe, status);
-		devp->blind_scan_stop = 1;
-	}
+	//5.init dvbc for stage 2
+	devp->dvbc_inited = false;
+	gxtv_demod_dvbc_init(demod, ADC_MODE);
 
 	PR_INFO("blind scan exit\n");
 }

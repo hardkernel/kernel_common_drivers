@@ -445,6 +445,7 @@ struct fe_l2a_internal_param {
 	unsigned int				master_clock; /* Master clock frequency (Hz) */
 	/* Temporary definition for LO frequency*/
 	unsigned int				lo_frequency;
+	unsigned int				det_error;
 
 	/* Global I,Q inversion I,Q connection from tuner to demod*/
 	enum fe_sat_iq_inversion	tuner_global_iqv_inv;
