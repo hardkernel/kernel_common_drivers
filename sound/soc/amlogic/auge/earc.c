@@ -227,6 +227,7 @@ struct earc {
 	int rx_cs_ready;
 	int rx_state;
 	int rx_pointer;
+	int tx_mute_late;
 
 	/* audio codec type for tx */
 	enum audio_coding_types tx_audio_coding_type;
@@ -400,6 +401,10 @@ static void tx_hold_bus_work_func(struct work_struct *p_work)
 	struct earc *p_earc = container_of(p_work, struct earc,
 					   tx_hold_bus_work);
 	unsigned long flags;
+	enum attend_type type = earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
+
+	if (type != ATNDTYP_EARC)
+		return;
 
 	p_earc->hold_bus_flag = true;
 	/* at lease 100ms by hdmi2.1 spec 9.5.2.5 */
@@ -1591,7 +1596,13 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				      p_earc->tx_audio_coding_type,
 				      true,
 				      p_earc->chipinfo);
-			earctx_dmac_mute(p_earc->tx_dmac_map, p_earc->tx_mute);
+			if (p_earc->tx_mute_late) {
+				schedule_delayed_work(&p_earc->tx_mute_work,
+						msecs_to_jiffies(p_earc->tx_mute_late));
+				p_earc->tx_mute_late = 0;
+			} else {
+				earctx_dmac_mute(p_earc->tx_dmac_map, p_earc->tx_mute);
+			}
 			if (!p_earc->hold_bus_flag)
 				schedule_work(&p_earc->tx_hold_bus_work);
 			p_earc->last_tx_audio_coding_type = p_earc->tx_audio_coding_type;
@@ -2344,7 +2355,7 @@ static int earctx_set_mute(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode)
+static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode, bool tinymix)
 {
 	unsigned long flags;
 
@@ -2361,7 +2372,10 @@ static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode)
 
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 	defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
+	/* eARC->ARC mode, unmute later 500ms for fix pop */
 	if (!p_earc->tx_earc_mode) {
+		if (tinymix)
+			p_earc->tx_mute_late = 600;
 		rx_earc_hpd_cntl(); /* reset hpd */
 		earctx_enable_d2a(p_earc->tx_top_map, false);
 	}
@@ -2417,7 +2431,7 @@ static void earc_resume(void)
 	/* earc port, need reset for earc discovery when earc mode is on */
 	if (!IS_ERR_OR_NULL(p_earc->tx_cmdc_map) && p_earc->tx_earc_mode) {
 		if (p_earc->earctx_5v) {
-			earctx_set_earc_mode(p_earc, p_earc->tx_earc_mode);
+			earctx_set_earc_mode(p_earc, p_earc->tx_earc_mode, false);
 		} else {
 			/* cable is plugout, but 5v is on, that means
 			 * the hdmirx callback is mistaked, so we neeed
@@ -2457,8 +2471,9 @@ static int earctx_earc_mode_put(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	p_earc->hold_bus_flag = false;
+	p_earc->tx_mute_late = 0;
 	p_earc->tx_earc_mode = earc_mode;
-	earctx_set_earc_mode(p_earc, earc_mode);
+	earctx_set_earc_mode(p_earc, earc_mode, true);
 	if (!earc_mode && earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC)
 		schedule_delayed_work(&p_earc->send_uevent_work, msecs_to_jiffies(700));
 
@@ -3326,6 +3341,7 @@ static void earc_hdmirx_hpdst(int earc_port, bool st)
 	p_earc->earctx_port = earc_port; /* get earc port id from hdmirx */
 	p_earc->earctx_5v = st;
 	p_earc->last_tx_audio_coding_type = AUDIO_CODING_TYPE_UNDEFINED;
+	p_earc->tx_mute_late = 0;
 	earctx_init(earc_port, st);
 }
 #endif
