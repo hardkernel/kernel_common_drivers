@@ -888,7 +888,7 @@ static bool dcntr_post(const struct reg_acc *op)
 		op_org->wr(REG_DCTR_GCLK_CTRL0 + off, 0xffffffff); //all
 		op_org->wr(REG_DCTR_GCLK_CTRL1 + off, 0xc0); //all
 	}
-	op->bwr(VIUB_GCLK_CTRL3, 0x3f, 16, 6);
+	op_org->bwr(VIUB_GCLK_CTRL3, 0x3f, 16, 6);
 	op->bwr(DI_PRE_CTRL, 1, 15, 1);// decontour enable
 
 	/* int */
