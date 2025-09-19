@@ -3270,8 +3270,11 @@ static void vd_afbc_setting_t6w(struct video_layer_s *layer,
 	hsize_in = setting->src_w;
 	vsize_in = setting->src_h;
 	horz_skip_y = setting->h_skip;
-	vert_skip_y = setting->v_skip;
 	horz_skip_uv = horz_skip_y;
+	vert_skip_y = setting->v_skip;
+	/* already vertical / 2 in config_vd_param_internal */
+	if (setting->interlace_field && vert_skip_y > 0)
+		vert_skip_y >>= 1;
 	vert_skip_uv  = vert_skip_y;
 	if (layer->afrcd_info.input_fmt_mode == 2)
 		//RAW_MODE :FMTNEED CFG 422
@@ -3328,7 +3331,7 @@ static void vd_afbc_setting_t6w(struct video_layer_s *layer,
 	out_end_dif_v = out_vert_end - out_vert_bgn;
 
 	dec_pixel_bgn_h = (out_horz_bgn & ((1 << cu_hdw) - 1));
-	dec_pixel_bgn_v = (out_vert_bgn & ((1 << cu_hdw) - 1));
+	dec_pixel_bgn_v = (out_vert_bgn & ((1 << cu_vdw) - 1));
 	dec_pixel_end_h = (dec_pixel_bgn_h + out_end_dif_h);
 	dec_pixel_end_v = (dec_pixel_bgn_v + out_end_dif_v);
 
@@ -3545,8 +3548,12 @@ static void vd_mif_setting_t6w(struct video_layer_s *layer,
 		vd_mif_reg = setting->vd_hw_mif_reg;
 		vd_vfcd_reg = setting->vd_hw_vfcd_reg;
 		h_skip = setting->h_skip + 1;
-		v_skip = setting->v_skip + 1;
 		hc_skip = setting->hc_skip;
+		v_skip = setting->v_skip;
+		/* already vertical / 2 in config_vd_param_internal */
+		if (setting->interlace_field && v_skip > 0)
+			v_skip >>= 1;
+		v_skip += 1;
 		vc_skip = setting->vc_skip;
 
 		//disable pad en
@@ -3712,7 +3719,7 @@ static void vd_mif_setting_t6w(struct video_layer_s *layer,
 			pr_info("%s: h_skip/v=%d, %d, h/vc_skip=%d %d\n",
 				__func__,
 				h_skip,
-				v_skip,
+				setting->v_skip,
 				hc_skip,
 				vc_skip);
 		}
@@ -8999,6 +9006,11 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 		setting->p_vd_afbc_reg = &layer->vd_afbc_reg;
 	}
 
+	if ((dispbuf->type & VIDTYPE_INTERLACE) &&
+		(dispbuf->type & VIDTYPE_VIU_FIELD))
+		setting->interlace_field = true;
+	else
+		setting->interlace_field = false;
 	setting->reverse = glayer_info[setting->id].reverse;
 	setting->src_w =
 		(dispbuf->type & VIDTYPE_COMPRESS) ?
@@ -9158,10 +9170,8 @@ static void config_vd_param_internal(struct video_layer_s *layer,
 	if ((dispbuf->type & VIDTYPE_INTERLACE) &&
 		(dispbuf->type & VIDTYPE_VIU_FIELD)) {
 		/* vdin interlace non afbc frame case height/2 */
-		if (cur_dev->display_module != T6W_DISPLAY_MODULE) {
-			zoom_start_y /= 2;
-			zoom_end_y = ((zoom_end_y + 1) >> 1) - 1;
-		}
+		zoom_start_y /= 2;
+		zoom_end_y = ((zoom_end_y + 1) >> 1) - 1;
 	} else if (dispbuf->type & VIDTYPE_MVC) {
 		/* mvc case, (height - blank)/2 */
 		if (framepacking_support)

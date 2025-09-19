@@ -362,6 +362,7 @@ struct mif_pos_s {
 	u32 vpp_3d_mode;
 	u8 block_mode;
 	u32 uv_swap;
+	bool interlace_field;
 };
 
 struct vsr_top_setting_s {

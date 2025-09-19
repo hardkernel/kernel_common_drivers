@@ -1392,6 +1392,11 @@ static int vpp_process_speed_check
 		if (smallwindow_link_enable) {
 			u32 smallwindow_link_h_temp = smallwindow_link_h;
 
+			/* for FHD output */
+			if (vinfo->height && vinfo->width &&
+			    vinfo->height < 2160 && vinfo->width < 3840)
+				smallwindow_link_h_temp =
+					(smallwindow_link_h_temp * vinfo->height) / 2160;
 			if (is_4k1k_dlg_mode(vinfo))
 				smallwindow_link_h_temp >>= 1;
 			if (smallwindow_link_h_temp >= height_out) {
