@@ -36,6 +36,8 @@
 #include "./connectors/lcd_connector.h"
 
 static struct lcd_duration_s lcd_std_fr[] = {
+	{360, 360,    1,    0},
+	{340, 340,    1,    0},
 	{330, 330,    1,    0},
 	{288, 288,    1,    0},
 	{240, 240,    1,    0},
@@ -43,6 +45,8 @@ static struct lcd_duration_s lcd_std_fr[] = {
 	{200, 200,    1,    0},
 	{192, 192,    1,    0},
 	{191, 192000, 1001, 1},
+	{180, 180,    1,    0},
+	{170, 170,    1,    0},
 	{165, 165,    1,    0},
 	{144, 144,    1,    0},
 	{120, 120,    1,    0},
@@ -623,6 +627,8 @@ struct lcd_vframe_match_s {
 };
 
 static struct lcd_vframe_match_s lcd_vframe_match_table[] = {
+	{36000, 360},
+	{34000, 340},
 	{33000, 330},
 	{28800, 288},
 	{24000, 240},
@@ -630,6 +636,8 @@ static struct lcd_vframe_match_s lcd_vframe_match_table[] = {
 	{20000, 200},
 	{19200, 192},
 	{19180, 191},
+	{18000, 180},
+	{17000, 170},
 	{16500, 165},
 	{14400, 144},
 	{12000, 120},

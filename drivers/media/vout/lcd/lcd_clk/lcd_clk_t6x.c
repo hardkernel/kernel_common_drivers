@@ -200,7 +200,7 @@ static void lcd_set_pll_t6x(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	tcon_div_sel = cconf->pll_tcon_div_sel;
-	pll_ctrl0 = 0x23000 | (cconf->pll_config[0].pll_m << 0);
+	pll_ctrl0 = 0x8023000 | (cconf->pll_config[0].pll_m << 0);
 	pll_ctrl1 = 0x1030600c;
 	pll_ctrl2 = 0x32000000 |
 		(tcon_div_t6x[tcon_div_sel][0] << 30) | /*div2_4_sel*/
@@ -748,7 +748,7 @@ static struct lcd_pll_data_s lcd_pll_data_tcon_t6x = {
 	.od_cnt = 3,
 	.have_tcon_div = 1,
 	.div_in_fmax = 4250000000ULL,
-	.div_out_fmax = 820000000,
+	.div_out_fmax = 840000000,
 	.div_sel_max = CLK_DIV_SEL_2p25,
 };
 
@@ -771,7 +771,7 @@ static struct lcd_pll_data_s lcd_pll_data_gp2_t6x = {
 	.od_cnt = 1,
 	.have_tcon_div = 1,
 	.div_in_fmax = 3200000000ULL,
-	.div_out_fmax = 820000000,
+	.div_out_fmax = 840000000,
 	.div_sel_max = CLK_DIV_SEL_1,
 };
 
