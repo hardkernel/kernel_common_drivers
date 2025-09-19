@@ -195,7 +195,7 @@ static unsigned int vs_adj_th_level03 = 0x20;
 /*-3.5hz*/
 static unsigned int vs_adj_th_level04 = 0x28;
 static unsigned int cvd_2e = 0x84;//0x8c;
-static unsigned int ntscm_cvd_2e = 0x7a;//0x82;
+unsigned int ntscm_cvd_2e = 0x7a;//0x82;
 static unsigned int cvd_2e_l1 = 0x5c;
 static unsigned int acd_128 = 0x14;
 static unsigned int acd_128_l1 = 0x1f;
@@ -223,7 +223,7 @@ static unsigned int noise1;
 static unsigned int noise2;
 static unsigned int noise3;
 /* test */
-#define NOSTD_DEBUG_PRINT_CNT     100
+#define NON_STD_DEBUG_PRINT_CNT     100
 
 unsigned long vbi_mem_start;
 
@@ -612,14 +612,14 @@ void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 		return;
 
 	if (cvd2->info.nonstd_print_cnt == 0) {
-		if (tvafe_dbg_print & TVAFE_DBG_NOSTD2) {
+		if (tvafe_dbg_print & TVAFE_DBG_NON_STD2) {
 			tvafe_pr_info("%s: force_nostd=%d, non_std_config=%d, non_std_enable=%d\n",
 			__func__, force_nostd,
 			cvd2->info.non_std_config,
 			cvd2->info.non_std_enable);
 		}
 	}
-	if (cvd2->info.nonstd_print_cnt++ >= NOSTD_DEBUG_PRINT_CNT)
+	if (cvd2->info.nonstd_print_cnt++ >= NON_STD_DEBUG_PRINT_CNT)
 		cvd2->info.nonstd_print_cnt = 0;
 
 	if (cvd2->info.non_std_config == cvd2->info.non_std_enable &&
@@ -627,7 +627,7 @@ void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 		return;
 	cvd2->info.non_std_config = cvd2->info.non_std_enable;
 	if (cvd2->info.non_std_config && force_nostd != FORCE_CONFIG_ALL) {
-		if (tvafe_dbg_print & TVAFE_DBG_NOSTD) {
+		if (tvafe_dbg_print & TVAFE_DBG_NON_STD) {
 			tvafe_pr_info("%s: config non-std signal reg, noise_strength=%d\n",
 				__func__, noise_strength);
 		}
@@ -716,7 +716,7 @@ void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 #endif
 
 	} else {
-		if (tvafe_dbg_print & TVAFE_DBG_NOSTD)
+		if (tvafe_dbg_print & TVAFE_DBG_NON_STD)
 			tvafe_pr_info("%s: out of non-std signal.\n", __func__);
 		W_APB_REG(CVD2_HSYNC_RISING_EDGE_START, 0x6d);
 		/*bit 15 dis/enabled by avin detect*/
@@ -730,7 +730,7 @@ void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 			    SYNC_SENSITIVITY) {
 				W_APB_REG(CVD2_VSYNC_SIGNAL_THRESHOLD, 0xf0);
 				W_APB_REG(CVD2_VSYNC_CNTL, 0x2);
-				if (tvafe_dbg_print & TVAFE_DBG_NOSTD) {
+				if (tvafe_dbg_print & TVAFE_DBG_NON_STD) {
 					tvafe_pr_info("%s: out of non-std signal.rssi=%d\n",
 					__func__, cvd_get_rf_strength());
 				}
@@ -750,7 +750,7 @@ void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 				SYNC_SENSITIVITY) {
 				W_APB_REG(CVD2_VSYNC_SIGNAL_THRESHOLD, 0xf0);
 				W_APB_REG(CVD2_VSYNC_CNTL, 0x2);
-				if (tvafe_dbg_print & TVAFE_DBG_NOSTD) {
+				if (tvafe_dbg_print & TVAFE_DBG_NON_STD) {
 					tvafe_pr_info("%s: use the cvd register to judge the rssi.rssi=%u\n",
 					__func__,
 					R_APB_REG(CVD2_SYNC_NOISE_STATUS));
@@ -1716,7 +1716,7 @@ static void tvafe_cvd2_non_std_signal_det(struct tvafe_cvd2_s *cvd2)
 	if (non_std_enable_tmp != nonstd_flag_adv) {
 		non_std_enable_tmp = nonstd_flag_adv;
 		cvd2->info.nonstd_stable_cnt = 0;
-		if (tvafe_dbg_print & TVAFE_DBG_NOSTD) {
+		if (tvafe_dbg_print & TVAFE_DBG_NON_STD) {
 			tvafe_pr_info("%s: scene_colorful = %d, chroma_sum_filt = %ld, hw_h_nonstd=%d, hw_v_nonstd=%d\n",
 				__func__, cvd2->info.scene_colorful,
 				chroma_sum_filt,
@@ -1737,7 +1737,7 @@ static void tvafe_cvd2_non_std_signal_det(struct tvafe_cvd2_s *cvd2)
 			user_param->nostd_stable_cnt) {
 			cvd2->info.non_std_enable = non_std_enable_tmp;
 			cvd2->info.nonstd_stable_cnt++;
-			if (tvafe_dbg_print & TVAFE_DBG_NOSTD) {
+			if (tvafe_dbg_print & TVAFE_DBG_NON_STD) {
 				tvafe_pr_info("%s: scene_colorful = %d, chroma_sum_filt = %ld, hw_h_nonstd=%d, hw_v_nonstd=%d\n",
 					__func__, cvd2->info.scene_colorful,
 					chroma_sum_filt,
@@ -3319,6 +3319,7 @@ inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 	unsigned int diff = 0, hcnt64_ave, i, hcnt64_standard = 0x30e0e;
 	unsigned int temp, delta;
 	unsigned int h_dynamic_val = 0;
+	unsigned int ref_avd_hstart = 0;
 
 	if ((user_param->auto_adj_en & TVAFE_AUTO_HS) == 0)
 		return;
@@ -3326,6 +3327,8 @@ inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 	/* only for ntsc-m adjustment */
 	if (cvd2->config_fmt != TVIN_SIG_FMT_CVBS_NTSC_M)
 		return;
+
+	ref_avd_hstart = (acd_ntscm_h_back >> 16) & 0xffff;
 
 	cvd2->info.hcnt64[0] = cvd2->info.hcnt64[1];
 	cvd2->info.hcnt64[1] = cvd2->info.hcnt64[2];
@@ -3355,6 +3358,13 @@ inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 			cvd2->info.hs_adj_dir = 1;
 		else
 			cvd2->info.hs_adj_dir = 0;
+
+		if (tvafe_dbg_print & TVAFE_DBG_AUTO_HS) {
+			tvafe_pr_info("%s:ref:%#x,diff:%#x,level:%#x %#x %#x %#x %#x\n",
+				__func__, ref_avd_hstart, diff,
+				hs_adj_th_level0, hs_adj_th_level1, hs_adj_th_level2,
+				hs_adj_th_level3, hs_adj_th_level4);
+		}
 
 		if (diff > hs_adj_th_level0) {
 			cvd2->info.hs_adj_en = 1;
@@ -3428,7 +3438,7 @@ inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 			/*@20170420 vlsi adjust new add,optimize for display*/
 			if (cvd2->info.hs_adj_dir == 1) {
 				/*0x12d, 0x94 is test result, 0x88 is default*/
-				temp = (acd_2d_adjust - 0x88) *
+				temp = (acd_2d_adjust - ref_avd_hstart) *
 					(cvd2->info.hs_adj_level + 1);
 				delta = temp / 4;
 				temp = delta << 16;
@@ -3436,34 +3446,27 @@ inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 				temp = acd_ntscm_h_back - temp;
 				W_APB_REG(ACD_REG_2D, temp);
 				W_APB_REG(ACD_REG_66, ntscm_acd_166);
-
-				if (tvafe_dbg_print & TVAFE_DBG_AUTO_HS) {
-					tvafe_pr_info("%s:hs_adj_dir:%d,lev:%x,h_dy:%x,0x2e:%x,0x12d:%x,0x166:%x\n",
-						__func__, cvd2->info.hs_adj_dir,
-						cvd2->info.hs_adj_level, h_dynamic_val,
-						R_APB_REG(CVD2_ACTIVE_VIDEO_HSTART),
-						R_APB_REG(ACD_REG_2D), R_APB_REG(ACD_REG_66));
-				}
 			} else {
 				/*0x12d, 0x94 is test result, 0x88 is default*/
-				temp = (acd_2d_adjust - 0x88) * (cvd2->info.hs_adj_level + 1);
+				temp = (acd_2d_adjust - ref_avd_hstart) *
+					(cvd2->info.hs_adj_level + 1);
 				delta = temp / 4;
 				temp = delta << 16;
 				temp = temp | delta;
 				temp = acd_ntscm_h_back + temp;
 				W_APB_REG(ACD_REG_2D, temp);
 				W_APB_REG(ACD_REG_66, 0x0);
-
-				if (tvafe_dbg_print & TVAFE_DBG_AUTO_HS) {
-					tvafe_pr_info("%s:hs_adj_dir:%d,level:%x,h_dy:%x,0x2e:%x,0x12d:%x,0x166:%x\n",
-						__func__, cvd2->info.hs_adj_dir,
-						cvd2->info.hs_adj_level, h_dynamic_val,
-						R_APB_REG(CVD2_ACTIVE_VIDEO_HSTART),
-						R_APB_REG(ACD_REG_2D), R_APB_REG(ACD_REG_66));
-				}
 			}
 			W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, ntscm_cvd_2e,
 				  HACTIVE_START_BIT, HACTIVE_START_WID);
+
+			if (tvafe_dbg_print & TVAFE_DBG_AUTO_HS) {
+				tvafe_pr_info("%s:dir:%d,level:%x,h_dy:%x,0x2e:%x,0x12d:%x,0x166:%x\n",
+					__func__, cvd2->info.hs_adj_dir,
+					cvd2->info.hs_adj_level, h_dynamic_val,
+					R_APB_REG(CVD2_ACTIVE_VIDEO_HSTART),
+					R_APB_REG(ACD_REG_2D), R_APB_REG(ACD_REG_66));
+			}
 		} else {
 			W_APB_REG(ACD_REG_66, ntscm_acd_166);
 			W_APB_REG(ACD_REG_2D, acd_ntscm_h_back);
@@ -4059,6 +4062,13 @@ int cvd_set_debug_parm(const char *buff, char **parm)
 			goto cvd_store_err;
 		try_fmt_max_atv = val;
 		tvafe_pr_info("try_fmt_max_atv:%d\n", try_fmt_max_atv);
+	} else if (!strncmp(parm[0], "ntscm_cvd_2e", strlen("ntscm_cvd_2e"))) {
+		if (!parm[1])
+			goto cvd_store_err;
+		if (kstrtouint(parm[1], 0, &val) < 0)
+			goto cvd_store_err;
+		ntscm_cvd_2e = val;
+		tvafe_pr_info("ntscm_cvd_2e:%d\n", ntscm_cvd_2e);
 	} else {
 		tvafe_pr_info("[%s]:invalid command.\n", __func__);
 		goto cvd_store_err;

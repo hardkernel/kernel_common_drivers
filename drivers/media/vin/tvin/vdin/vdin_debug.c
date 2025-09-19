@@ -3986,11 +3986,9 @@ start_chk:
 		if (!parm[1]) {
 			pr_err("miss parameters .\n");
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
-			devp->dbg_no_wr_check = (val & 0xf);
-			devp->dts_config.chk_write_done_en = (val >> 4);
-			pr_info("dbg_no_wr_check(%d):en:%d,chk:%d\n\n", devp->index,
-				devp->dts_config.chk_write_done_en,
-				devp->dbg_no_wr_check);
+			devp->dts_config.chk_write_done_en = val;
+			pr_info("dbg_no_wr_check(%d):en:%d\n\n", devp->index,
+				devp->dts_config.chk_write_done_en);
 		}
 	} else if (!strcmp(parm[0], "skip_isr")) {
 		if (!parm[1]) {

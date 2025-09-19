@@ -265,6 +265,8 @@ void tvafe_clr_visit_array(void);
 extern bool tvafe_snow_function_flag;
 extern bool reinit_scan;
 extern int force_fmt_flag;
+extern unsigned int acd_ntscm_h_back;
+extern unsigned int ntscm_cvd_2e;
 
 extern enum AUDIO_IF atv_aif;
 extern unsigned int try_fmt_max_atv;

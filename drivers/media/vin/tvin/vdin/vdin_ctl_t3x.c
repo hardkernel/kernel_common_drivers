@@ -446,6 +446,10 @@ static void vdin_set_meas_mux_t3x(struct vdin_dev_s *devp)
 	/* set VDIN_MEAS mux */
 	wr_bits(0, VDIN_INTF_MEAS_CTRL, meas_mux, 12, 4);
 	wr_bits(0, VDIN_INTF_MEAS_CTRL, 1, wide_en_bit, 1);
+	/* HS range0: Line #112 ~ Line #175 */
+	/* [28:16] meas.hs_range_start  = 112*/
+	/* [12: 0] meas.hs_range_end = 175 */
+	wr(0, VDIN_INTF_MEAS_FIRST_RANGE, 0x007000af);
 	/* manual reset VDIN_MEAS,
 	 * rst = 1 & 0
 	 */
@@ -1742,7 +1746,8 @@ void vdin_set_mif_on_off_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable)
 /***************************global function**********************************/
 unsigned int vdin_get_meas_h_cnt64_t3x(unsigned int offset)
 {
-	return 0;
+	/* measure clk 100Mhz */
+	return (rd(0, VDIN_INTF_MEAS_IND_FIRST_COUNT) & 0xffffff) / 2;
 }
 
 unsigned int vdin_get_meas_v_stamp_t3x(struct vdin_dev_s *devp)

@@ -4063,7 +4063,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	next_wr_vfe = provider_vf_peek(devp->vfp);
 
 	/* Check whether frame written done */
-	if (devp->dts_config.chk_write_done_en && !devp->dbg_no_wr_check) {
+	if (devp->dts_config.chk_write_done_en && IS_HDMI_SRC(devp->parm.port)) {
 		if (!vdin_write_done_check(devp)) {
 			devp->vdin_irq_flag = VDIN_IRQ_FLG_SKIP_FRAME;
 			vdin_drop_frame_info(devp, "write done check");
@@ -4531,7 +4531,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		devp->prop.loopback_axis_en = false;
 	}
 
-	if (devp->dts_config.chk_write_done_en && !devp->dbg_no_wr_check &&
+	if (devp->dts_config.chk_write_done_en &&
 		!devp->is_lcd_mute) {
 		if (!vdin_write_done_check(devp)) {
 			devp->vdin_irq_flag = VDIN_IRQ_FLG_SKIP_FRAME;
@@ -7083,9 +7083,6 @@ static void vdin_get_dts_config(struct vdin_dev_s *devp,
 				   &devp->vdin_function_sel);
 	if (ret)
 		devp->vdin_function_sel = 0;
-
-	devp->dbg_no_wr_check =
-		of_property_read_bool(pdev->dev.of_node, "dbg_no_wr_check");
 
 	ret = of_property_read_u32(pdev->dev.of_node, "lossy_mode",
 				   &devp->cr_lossy_param.lossy_mode);

@@ -624,6 +624,14 @@ static ssize_t debug_store(struct device *dev,
 				check_twice &= ~0x2;
 		}
 		pr_info("%s: check_twice = %d\n", __func__, check_twice);
+	} else if (!strcmp(parm[0], "def_ntsc_crop")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &val) == 0))
+			devp->def_ntsc_crop = val;
+		pr_info("[%s]def_ntsc_crop:%#x\n", __func__, devp->def_ntsc_crop);
+	} else if (!strcmp(parm[0], "def_pai_i_crop")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &val) == 0))
+			devp->def_pai_i_crop = val;
+		pr_info("[%s]def_pai_i_crop:%#x\n", __func__, devp->def_pai_i_crop);
 	} else {
 		tvafe_pr_info("[%s]:invalid command.\n", __func__);
 	}

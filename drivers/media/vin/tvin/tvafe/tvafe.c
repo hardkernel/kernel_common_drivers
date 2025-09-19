@@ -552,9 +552,10 @@ static void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt,
 	tvafe->parm.info.fmt = fmt;
 	tvafe->parm.info.status = TVIN_SIG_STATUS_STABLE;
 	devp->flags |= TVAFE_FLAG_DEV_STARTED;
-
-	tvafe_pr_info("%s start fmt:%s ok.\n",
-			__func__, tvin_sig_fmt_str(fmt));
+	acd_ntscm_h_back = R_APB_REG(ACD_REG_2D);
+	ntscm_cvd_2e = R_APB_REG(CVD2_ACTIVE_VIDEO_HSTART) & 0xff;
+	tvafe_pr_info("%s start fmt:%s ok.acd_ntscm_h_back=%#x,ntscm_cvd_2e:%#x\n",
+			__func__, tvin_sig_fmt_str(fmt), acd_ntscm_h_back, ntscm_cvd_2e);
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
 	tvafe_mode = 0;
 #endif
@@ -1050,10 +1051,13 @@ static void tvafe_set_image_position(struct tvafe_image_position_s *pos)
 static void tvafe_cutwindow_update(struct tvafe_info_s *tvafe,
 				   struct tvin_sig_property_s *prop)
 {
+	struct tvafe_dev_s *devp = container_of(tvafe, struct tvafe_dev_s,
+						tvafe);
 	struct tvafe_user_param_s *user_param = &tvafe_user_param;
 	unsigned int hs_adj_val = 0;
 	unsigned int vs_adj_val = 0;
 	unsigned int i;
+	unsigned int base_crop_val = 0;
 	enum tvin_sig_fmt_e fmt = get_tvafe_signal_fmt();
 
 	if (fmt < TVIN_SIG_FMT_CVBS_NTSC_M ||
@@ -1066,15 +1070,17 @@ static void tvafe_cutwindow_update(struct tvafe_info_s *tvafe,
 		fmt == TVIN_SIG_FMT_CVBS_NTSC_443 ||
 		fmt == TVIN_SIG_FMT_CVBS_PAL_60 ||
 		fmt == TVIN_SIG_FMT_CVBS_PAL_M) {
-		prop->hs = 5;
-		prop->he = 5;
+		prop->hs = devp->def_ntsc_crop;
+		prop->he = devp->def_ntsc_crop;
 		prop->vs = 0;
 		prop->ve = 0;
+		base_crop_val = devp->def_ntsc_crop;
 	} else {
-		prop->hs = 9;
-		prop->he = 9;
+		prop->hs = devp->def_pai_i_crop;
+		prop->he = devp->def_pai_i_crop;
 		prop->vs = 0;
 		prop->ve = 0;
+		base_crop_val = devp->def_pai_i_crop;
 	}
 
 	if ((user_param->auto_adj_en & (TVAFE_AUTO_VS | TVAFE_AUTO_HS)) == 0)
@@ -1122,16 +1128,8 @@ static void tvafe_cutwindow_update(struct tvafe_info_s *tvafe,
 			prop->ve = 0;
 		}
 	}
-	if (vs_adj_val != vs_adj_val_pre) {
-		if (tvafe_dbg_print & TVAFE_DBG_NOSTD) {
-			tvafe_pr_info("%s: vs_adj_en:%d, vs_adj_level:%d, vs_adj_val:%d\n",
-				      __func__,
-				      tvafe->cvd2.info.vs_adj_en,
-				      tvafe->cvd2.info.vs_adj_level,
-				      vs_adj_val);
-		}
+	if (vs_adj_val != vs_adj_val_pre)
 		vs_adj_val_pre = vs_adj_val;
-	}
 
 	if (user_param->cutwin_test_en & 0x4) {
 		hs_adj_val = user_param->cutwin_test_hcut;
@@ -1160,12 +1158,22 @@ static void tvafe_cutwindow_update(struct tvafe_info_s *tvafe,
 				prop->he = hs_adj_val;
 			} else {
 				prop->hs = hs_adj_val;
-				prop->he = hs_adj_val;
+				prop->he = 0;
 			}
 		} else {
 			prop->hs = 0;
 			prop->he = 0;
 		}
+	}
+	prop->hs += base_crop_val;
+	prop->he += base_crop_val;
+	if (tvafe_dbg_print & TVAFE_DBG_NON_STD) {
+		tvafe_pr_info("%s: dir:%d,hs,en:%d,level:%d,val:%d,hs/he:%d/%d,vs:%d,ve:%d;%d\n",
+			      __func__, tvafe->cvd2.info.hs_adj_dir,
+			      tvafe->cvd2.info.hs_adj_en,
+			      tvafe->cvd2.info.hs_adj_level,
+			      hs_adj_val, prop->hs, prop->he,
+			      prop->vs, prop->ve, base_crop_val);
 	}
 }
 
@@ -1378,6 +1386,9 @@ static long tvafe_ioctl(struct file *file,
 			tvafe_set_regmap(&tvafe_regs);
 			tvafe->cvd2.cvd_chroma_saturation =
 				R_APB_REG(CVD2_CHROMA_SATURATION_ADJUSTMENT);
+			acd_ntscm_h_back = R_APB_REG(ACD_REG_2D);
+			ntscm_cvd_2e = R_APB_REG(CVD2_ACTIVE_VIDEO_HSTART) & 0xff;
+			tvafe_pr_info("ioctl acd_ntscm_h_back=%#x\n", acd_ntscm_h_back);
 		}
 
 		break;
@@ -2122,7 +2133,8 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	tvafe_manual_fmt_save = TVIN_SIG_FMT_NULL;
 	tdevp->tvafe_ratio_cnt = TVAFE_RATIO_CNT;
 	tdevp->tvafe_ratio_effect_cnt = TVAFE_RATIO_EFFECT_CNT;
-
+	tdevp->def_ntsc_crop = 5;
+	tdevp->def_pai_i_crop = 9;
 	tvafe_pr_info("%s probe ok\n", __func__);
 
 	return 0;

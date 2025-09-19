@@ -1330,7 +1330,6 @@ struct vdin_dev_s {
 	/* 0:auto;1:force on;2:force off */
 	unsigned int dbg_force_one_buffer;
 	unsigned int dbg_afbce_monitor:8;
-	unsigned int dbg_no_wr_check:1;/* disable write done check */
 	unsigned int dbg_fr_ctl:7;/* disable write done check */
 	unsigned int vdin_drop_ctl_cnt;/* drop frames casued by dbg_drop_ctl */
 	unsigned int vdin_function_sel;

@@ -2770,8 +2770,11 @@ unsigned int vdin_get_meas_h_cnt64(unsigned int offset)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t3x_cpu())
 		return vdin_get_meas_h_cnt64_t3x(offset);
+	else if (is_meson_t6x_cpu()) /* measure clk 100Mhz */
+		return rd_bits(offset, VDIN_MEAS_HS_COUNT,
+			       MEAS_HS_CNT_BIT, MEAS_HS_CNT_WID) / 2;
 #endif
-
+	/* measure clk 50Mhz */
 	return rd_bits(offset, VDIN_MEAS_HS_COUNT,
 		       MEAS_HS_CNT_BIT, MEAS_HS_CNT_WID);
 }

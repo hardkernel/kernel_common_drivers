@@ -115,8 +115,8 @@ extern enum tvafe_no_std_config_e force_nostd;
 #define TVAFE_DBG_SMR2			BIT(9)
 #define TVAFE_DBG_SMR3			BIT(10)
 #define TVAFE_DBG_SMR4			BIT(11)
-#define TVAFE_DBG_NOSTD			BIT(12)
-#define TVAFE_DBG_NOSTD2		BIT(13)
+#define TVAFE_DBG_NON_STD		BIT(12)
+#define TVAFE_DBG_NON_STD2		BIT(13)
 #define TVAFE_DBG_AUTO_VS		BIT(14)
 #define TVAFE_DBG_AUTO_HS		BIT(15)
 #define TVAFE_DBG_WSS			BIT(16)
@@ -200,6 +200,8 @@ struct tvafe_dev_s {
 	unsigned int tvafe_function_sel;
 	unsigned int tvafe_ratio_cnt;
 	unsigned int tvafe_ratio_effect_cnt;
+	unsigned int def_ntsc_crop;
+	unsigned int def_pai_i_crop;
 	u8 tvafe_dbg;
 };
 
