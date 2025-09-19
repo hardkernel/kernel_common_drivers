@@ -153,14 +153,7 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/*
-			 * Scenario: DVB-T2 2K interlace HEVC
-			 * Total size: 106M
-			 * Note:
-			 *  setting to 108M if scatter_alloc_mode is 0.
-			 *  setting to 108M if scatter_alloc_mode is 1.
-			 */
-			size = <0x0 0x1d000000>;
+			size = <0x0 0x1ac00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0x80000000>;
 			linux,contiguous-region;
