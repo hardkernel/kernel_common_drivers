@@ -615,17 +615,6 @@ static void set_vsdb_dc_cap(struct rx_cap *prxcap)
 	prxcap->dc_48bit = !!(prxcap->ColorDeepSupport & (1 << 6));
 }
 
-static void set_vsdb_dc_420_cap(struct rx_cap *prxcap,
-				u8 *edid_offset)
-{
-	if (!prxcap || !edid_offset)
-		return;
-
-	prxcap->dc_30bit_420 = !!(edid_offset[6] & (1 << 0));
-	prxcap->dc_36bit_420 = !!(edid_offset[6] & (1 << 1));
-	prxcap->dc_48bit_420 = !!(edid_offset[6] & (1 << 2));
-}
-
 static void _edid_parsingvendspec(struct dv_info *dv,
 				  struct hdr10_plus_info *hdr10_plus,
 				  struct cuva_info *cuva,
@@ -1517,29 +1506,35 @@ static void tx_edid_parse_ifdb(struct rx_cap *prxcap, u8 *blockbuf)
 }
 
 static void tx_edid_parse_hf_scdb(struct rx_cap *prxcap,
-	u8 offset, u8 *blockbuf, u8 count)
+	u8 *blockbuf, u8 count)
 {
 	if (!prxcap || !blockbuf)
 		return;
 
-	prxcap->hf_ieeeoui = HDMI_FORUM_IEEE_OUI;
-	prxcap->Max_TMDS_Clock2 = blockbuf[offset + 4];
-	prxcap->scdc_present = !!(blockbuf[offset + 5] & (1 << 7));
-	prxcap->scdc_rr_capable = !!(blockbuf[offset + 5] & (1 << 6));
-	prxcap->lte_340mcsc_scramble = !!(blockbuf[offset + 5] & (1 << 3));
-	prxcap->max_frl_rate = (blockbuf[offset + 6] & 0xf0) >> 4;
-	set_vsdb_dc_420_cap(prxcap, &blockbuf[offset]);
-
-	if (count < 8)
+	/* the minimum length of the SCDS is 4, and the maximum length is 28 */
+	if (count < 4)
 		return;
-	prxcap->allm = !!(blockbuf[offset + 7] & (1 << 1));
-	prxcap->fva = !!(blockbuf[offset + 7] & (1 << 2));
-	prxcap->neg_mvrr = !!(blockbuf[offset + 7] & (1 << 3));
-	prxcap->mdelta = !!(blockbuf[offset + 7] & (1 << 5));
-	prxcap->qms = !!(blockbuf[offset + 7] & (1 << 6));
-	prxcap->fapa_end_extended = !!(blockbuf[offset + 7] & (1 << 7));
+	prxcap->hf_ieeeoui = HDMI_FORUM_IEEE_OUI;
+	prxcap->Max_TMDS_Clock2 = blockbuf[1];
+	prxcap->scdc_present = !!(blockbuf[2] & (1 << 7));
+	prxcap->scdc_rr_capable = !!(blockbuf[2] & (1 << 6));
+	prxcap->lte_340mcsc_scramble = !!(blockbuf[2] & (1 << 3));
+	prxcap->max_frl_rate = (blockbuf[3] & 0xf0) >> 4;
+	prxcap->dc_30bit_420 = !!(blockbuf[3] & (1 << 0));
+	prxcap->dc_36bit_420 = !!(blockbuf[3] & (1 << 1));
+	prxcap->dc_48bit_420 = !!(blockbuf[3] & (1 << 2));
 
-	if (count < 9)
+	if (count < 5)
+		return;
+	prxcap->fapa_start_loc = !!(blockbuf[4] & (1 << 0));
+	prxcap->allm = !!(blockbuf[4] & (1 << 1));
+	prxcap->fva = !!(blockbuf[4] & (1 << 2));
+	prxcap->neg_mvrr = !!(blockbuf[4] & (1 << 3));
+	prxcap->mdelta = !!(blockbuf[4] & (1 << 5));
+	prxcap->qms = !!(blockbuf[4] & (1 << 6));
+	prxcap->fapa_end_extended = !!(blockbuf[4] & (1 << 7));
+
+	if (count < 6)
 		return;
 	/*
 	 * HDMI_Spec_V2.1b. Chapter 6.5.1.4.5
@@ -1551,16 +1546,16 @@ static void tx_edid_parse_hf_scdb(struct rx_cap *prxcap,
 	 * BVRR50-60：Bad VRRMIN; VRR disabled.
 	 * The HDMI_Spec_V2.1b standard is used here
 	 */
-	prxcap->vrr_min = (blockbuf[offset + 8] & 0x3f);
+	prxcap->vrr_min = (blockbuf[5] & 0x3f);
 	if (prxcap->vrr_min > 48) {
 		pr_info("vrr_min is reserved value %d\n", prxcap->vrr_min);
 		prxcap->vrr_min = 48;
 	}
 
-	if (count < 10)
+	if (count < 7)
 		return;
-	prxcap->vrr_max = (((blockbuf[offset + 8] & 0xc0) >> 6) << 8) +
-				blockbuf[offset + 9];
+	prxcap->vrr_max = (((blockbuf[5] & 0xc0) >> 6) << 8) +
+				blockbuf[6];
 	/*
 	 * HDMI_Spec_V2.1b. Chapter 6.5.1.4.5
 	 * Values of 1~99 are reserved.
@@ -1575,18 +1570,17 @@ static void tx_edid_parse_hf_scdb(struct rx_cap *prxcap,
 		pr_info("vrr_max is reserved value %d\n", prxcap->vrr_max);
 		prxcap->vrr_max = 100;
 	}
-	prxcap->fapa_start_loc = !!(blockbuf[offset + 7] & (1 << 0));
 
-	if (count < 11)
+	if (count < 8)
 		return;
-	prxcap->dsc_10bpc = !!(blockbuf[offset + 10] & (1 << 0));
-	prxcap->dsc_12bpc = !!(blockbuf[offset + 10] & (1 << 1));
-	prxcap->dsc_16bpc = !!(blockbuf[offset + 10] & (1 << 2));
-	prxcap->dsc_all_bpp = !!(blockbuf[offset + 10] & (1 << 3));
-	prxcap->qms_tfr_min = !!(blockbuf[offset + 10] & (1 << 4));
-	prxcap->qms_tfr_max = !!(blockbuf[offset + 10] & (1 << 5));
-	prxcap->dsc_native_420 = !!(blockbuf[offset + 10] & (1 << 6));
-	prxcap->dsc_1p2 = !!(blockbuf[offset + 10] & (1 << 7));
+	prxcap->dsc_10bpc = !!(blockbuf[7] & (1 << 0));
+	prxcap->dsc_12bpc = !!(blockbuf[7] & (1 << 1));
+	prxcap->dsc_16bpc = !!(blockbuf[7] & (1 << 2));
+	prxcap->dsc_all_bpp = !!(blockbuf[7] & (1 << 3));
+	prxcap->qms_tfr_min = !!(blockbuf[7] & (1 << 4));
+	prxcap->qms_tfr_max = !!(blockbuf[7] & (1 << 5));
+	prxcap->dsc_native_420 = !!(blockbuf[7] & (1 << 6));
+	prxcap->dsc_1p2 = !!(blockbuf[7] & (1 << 7));
 	/*
 	 * dsc_1p2 shall be cleared (=0) for devices that
 	 * do not support FRL (i.e. Max_FRL_Rate=0).
@@ -1594,7 +1588,7 @@ static void tx_edid_parse_hf_scdb(struct rx_cap *prxcap,
 	if (prxcap->max_frl_rate == 0)
 		prxcap->dsc_1p2 = 0;
 	if (prxcap->dsc_1p2) {
-		if (count < 13) {
+		if (count < 10) {
 			pr_info("error: dsc_1p2 support, but dsc not complete\n");
 			prxcap->dsc_1p2 = 0;
 			return;
@@ -1605,18 +1599,18 @@ static void tx_edid_parse_hf_scdb(struct rx_cap *prxcap,
 		 * 4: up to 8 slices and up to (340 MHz/K SliceAdjust)
 		 * pixel clock per slice
 		 */
-		prxcap->dsc_max_slices = blockbuf[offset + 11] & 0xf;
+		prxcap->dsc_max_slices = blockbuf[8] & 0xf;
 		/*
 		 * This is value shall be the same or lower than
 		 * the physical maximum rate specified by the
 		 * Max_FRL_Rate field.
 		 */
-		prxcap->dsc_max_frl_rate = (blockbuf[offset + 11] >> 4) & 0xf;
+		prxcap->dsc_max_frl_rate = (blockbuf[8] >> 4) & 0xf;
 		/*
 		 * The number of bytes is computed as:
 		 * 1024 x (1+DSC_ TotalChunkKBytes)
 		 */
-		prxcap->dsc_total_chunk_bytes = blockbuf[offset + 12] & 0x3f;
+		prxcap->dsc_total_chunk_bytes = blockbuf[9] & 0x3f;
 	}
 }
 
@@ -1871,14 +1865,16 @@ static int tx_edid_cta_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 							 block_buf, count);
 			} else if ((block_buf[offset] == 0xd8) &&
 				(block_buf[offset + 1] == 0x5d) &&
-				(block_buf[offset + 2] == 0xc4))
-				tx_edid_parse_hf_scdb(prxcap, offset,
-							 block_buf, count);
-			if (prxcap->qms)
-				pr_info("qms: qms/tfr_min/max/vrr_min/max %d %d %d %d %d\n",
-					prxcap->qms,
-					prxcap->qms_tfr_min, prxcap->qms_tfr_max,
-					prxcap->vrr_min, prxcap->vrr_max);
+				(block_buf[offset + 2] == 0xc4)) {
+				if (count < 3)
+					break;
+				tx_edid_parse_hf_scdb(prxcap, &block_buf[offset + 3], count - 3);
+				if (prxcap->qms)
+					pr_info("qms: qms/tfr_min/max/vrr_min/max %d %d %d %d %d\n",
+						prxcap->qms,
+						prxcap->qms_tfr_min, prxcap->qms_tfr_max,
+						prxcap->vrr_min, prxcap->vrr_max);
+			}
 			/* ignore the remains. */
 			offset += count;
 			break;
@@ -1938,8 +1934,10 @@ static int tx_edid_cta_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 					edid_parsingy420cmdb(prxcap, &block_buf[offset]);
 					break;
 				case EXTENSION_SCDB_EXT_TAG:
-					tx_edid_parse_hf_scdb(prxcap, offset + 1,
-							 block_buf, count);
+					if (count < 3)
+						break;
+					tx_edid_parse_hf_scdb(prxcap, &block_buf[offset + 4],
+						count - 3);
 					break;
 				case EXTENSION_SBTM_EXT_TAG:
 					tx_edid_parse_sbtm_db(prxcap, offset + 1,
@@ -3400,20 +3398,13 @@ static int display_id_parse(struct display_id_cap *disp_id_cap, u8 *disp_id_raw)
 		return -1;
 
 	display_id_cap_clear(disp_id_cap);
-	while (disp_id_cap->section_idx < MAX_SECTION_COUNT &&
-		disp_id_cap->section_idx <= disp_id_cap->extension_count) {
+	while (disp_id_cap->section_idx <= disp_id_cap->extension_count) {
 		sec_len = display_id_section_parse(disp_id_cap,
 			&disp_id_raw[disp_id_cap->byte_idx]);
 		if (sec_len < 0) {
 			pr_err("exit parse section[%d] for error case: %d\n",
 				disp_id_cap->section_idx, sec_len);
 			ret = -2;
-			break;
-		}
-		if (disp_id_cap->extension_count > MAX_SECTION_COUNT - 1) {
-			pr_err("section number[%d] in displayID exceed maximum 256\n",
-				disp_id_cap->extension_count);
-			ret = -3;
 			break;
 		}
 		disp_id_cap->section_idx++;

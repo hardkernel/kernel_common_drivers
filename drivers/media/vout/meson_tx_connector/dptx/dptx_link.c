@@ -38,6 +38,7 @@ static void link_training_prepare(struct link_train_t *lt)
 {
 	struct dptx_link_param_s *param;
 	struct dptx_link_cfg_s *lc;
+	enum dp_lane_count_e max_lane_count = DPTX_LANE_COUNT_UNKNOWN;
 	u8 *dpcd;
 
 	if (!lt)
@@ -56,8 +57,22 @@ static void link_training_prepare(struct link_train_t *lt)
 	/* retrieve necessary / useful information from DPCD */
 	lc->version = dpcd[DP_DPCD_REV];
 	param->link_rate = min(param->link_rate, dpcd[DP_MAX_LINK_RATE]);
-	param->lane_count = min(param->lane_count,
-		dpcd[DP_MAX_LANE_COUNT] & DP_MAX_LANE_COUNT_MASK);
+	switch (dpcd[DP_MAX_LANE_COUNT] & DP_MAX_LANE_COUNT_MASK) {
+	case 0x1:
+		max_lane_count = DPTX_LANE_COUNT_1;
+		break;
+	case 0x2:
+		max_lane_count = DPTX_LANE_COUNT_2;
+		break;
+	case 0x4:
+		max_lane_count = DPTX_LANE_COUNT_4;
+		break;
+	default:
+		DPTX_ERROR("DPCD MAX_LANE_COUNT[0x%x] error\n", dpcd[DP_MAX_LANE_COUNT]);
+		max_lane_count = DPTX_LANE_COUNT_4;
+		break;
+	}
+	param->lane_count = min(param->lane_count, max_lane_count);
 	lc->aux_rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] & DP_TRAINING_AUX_RD_MASK;
 	lc->clk_rec_tmr = 1; /* should be 100us, but must be set to 1ms */
 	/* refer to Spec1.4 Table 2-158 */
