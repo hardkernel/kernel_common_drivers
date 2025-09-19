@@ -90,3 +90,5 @@
  regmap_test_bits
  rtc_read_alarm
 
+# amlogic-spi.ko
+ spi_delay_exec

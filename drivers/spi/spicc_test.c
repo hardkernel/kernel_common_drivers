@@ -58,7 +58,7 @@ int spicc_getopt(int argc, char *argv[], char *name,
 	return -EINVAL;
 }
 
-void spicc_strtohex(char *str, int pass, u8 *buf, int len)
+void spicc_strtohex(char *str, int pass, u8 *buf, int len, bool fill_next)
 {
 	char *token;
 	unsigned long v;
@@ -83,7 +83,7 @@ void spicc_strtohex(char *str, int pass, u8 *buf, int len)
 	}
 
 	/* fill next buffer incrementally */
-	for (; i < len; i++)
+	for (; i < len && fill_next; i++)
 		buf[i] = buf[i - 1] + 1;
 }
 
@@ -157,7 +157,7 @@ ssize_t testdev_dump(struct test_device *testdev, char *buf)
 	if (spi->cs_gpiod[0])
 		len += snprintf(buf + len, PAGE_SIZE, "cs_gpio: %d\n",
 				desc_to_gpio(spi->cs_gpiod[0]));
-	len += snprintf(buf + len, PAGE_SIZE, "cs: %d\n", spi->chip_select[0]);
+	len += snprintf(buf + len, PAGE_SIZE, "cs: %d\n", spi_get_chipselect(spi, 0));
 	len += snprintf(buf + len, PAGE_SIZE, "speed: %d\n", spi->max_speed_hz);
 	len += snprintf(buf + len, PAGE_SIZE, "mode: 0x%x\n", spi->mode);
 	len += snprintf(buf + len, PAGE_SIZE, "bw: %d\n", spi->bits_per_word);
@@ -258,7 +258,7 @@ struct test_device *testdev_new(struct device *dev, int argc, char *argv[])
 
 	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
 		spi_set_chipselect(spi, idx, SPI_INVALID_CS);
-	spi->chip_select[0] = 0;
+
 	spi->cs_index_mask = BIT(0);
 	spi->max_speed_hz = 10000000;
 	spi->bits_per_word = 8;
@@ -299,6 +299,7 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 {
 	struct spi_device *spi;
 	struct spicc_controller_data *cdata;
+	char *data_str;
 	long v;
 	int ret;
 
@@ -311,8 +312,8 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 		testdev->pr_diff = !!v;
 	if (!spicc_getopt(argc, argv, "cs_gpio", &v, NULL, 10))
 		spi->cs_gpiod[0] = (v > 0) ? gpio_to_desc(v) : NULL;
-	if (!spicc_getopt(argc, argv, "cs", &v, NULL, 10))
-		spi->chip_select[0] = v;
+	if (!spicc_getopt(argc, argv, "cs", NULL, &data_str, 0))
+		spicc_strtohex(data_str, 0, spi->chip_select, SPI_CS_CNT_MAX, false);
 	if (!spicc_getopt(argc, argv, "speed", &v, NULL, 10)) {
 		struct spi_transfer *xfer;
 		spi->max_speed_hz = v;
@@ -422,7 +423,7 @@ int testdev_new_xfer(struct test_device *testdev, int argc, char *argv[])
 		}
 
 		spicc_getopt(argc, argv, "data", NULL, &data_str, 0);
-		spicc_strtohex(data_str, 0, (u8 *)xfer->tx_buf, xfer->len);
+		spicc_strtohex(data_str, 0, (u8 *)xfer->tx_buf, xfer->len, true);
 	}
 
 	if (spicc_getopt(argc, argv, "norx", NULL, NULL, 0)) {
@@ -514,6 +515,11 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 
 	testdev_clean_rxbuf(testdev);
 	cdata = (struct spicc_controller_data *)spi->controller_data;
+	if (!spicc_getopt(argc, argv, "cs", &v, NULL, 0))
+		spi->cs_index_mask = BIT(v);
+	else
+		spi->cs_index_mask = BIT(0);
+
 	if (!spicc_getopt(argc, argv, "spi_sync", NULL, NULL, 0)) {
 		ret = spi_sync(spi, &testdev->msg);
 		if (!ret) {
@@ -623,7 +629,7 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 	if (!spicc_getopt(argc, argv, "update_tx_data", NULL, &data_str, 0)) {
 		xfer = testdev_get_current_xfer(testdev);
 		if (xfer) {
-			spicc_strtohex(data_str, 0, (u8 *)xfer->tx_buf, xfer->len);
+			spicc_strtohex(data_str, 0, (u8 *)xfer->tx_buf, xfer->len, true);
 			dev_info(&spi->controller->dev, "tx data updated\n");
 		}
 		return 0;
@@ -696,7 +702,7 @@ int test(struct device *dev, const char *buf)
 	}
 
 	/* pass over "cs_gpio speed mode bits_per_word num" */
-	spicc_strtohex(kstr, TEST_PARAM_NUM, tx_buf, num);
+	spicc_strtohex(kstr, TEST_PARAM_NUM, tx_buf, num, true);
 
 	spi_message_init(&m);
 	ctlr = container_of(dev, struct spi_controller, dev);

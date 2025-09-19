@@ -321,6 +321,27 @@ static inline void spicc_sem_up_write(struct spicc_device *spicc)
 	spicc->ready = false;
 }
 
+static void spicc_set_cs(struct spi_device *spi, bool enable)
+{
+	u8 idx;
+	bool activate = enable;
+
+	if (!spi || !spi_is_csgpiod(spi) || (spi->mode & SPI_NO_CS))
+		return;
+
+	if (!activate)
+		spi_delay_exec(&spi->cs_hold, NULL);
+
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
+		if (spi_get_csgpiod(spi, idx) && (spi->cs_index_mask & BIT(idx)))
+			gpiod_set_value(spi_get_csgpiod(spi, idx), activate);
+
+	if (activate)
+		spi_delay_exec(&spi->cs_setup, NULL);
+	else
+		spi_delay_exec(&spi->cs_inactive, NULL);
+}
+
 static int spicc_set_speed(struct spicc_device *spicc, uint speed_hz)
 {
 	u32 div;
@@ -990,6 +1011,7 @@ static int meson_spicc_transfer_one_message(struct spi_controller *ctlr,
 	reinit_completion(&spicc->completion);
 
 	spin_lock_irqsave(&spicc->lock, flags);
+	spicc_set_cs(msg->spi, true);
 	spicc->pending = true;
 	spicc_desc_pending(spicc, descs_paddr, desc_num, false, true);
 	spin_unlock_irqrestore(&spicc->lock, flags);
@@ -1000,6 +1022,7 @@ static int meson_spicc_transfer_one_message(struct spi_controller *ctlr,
 
 	spin_lock_irqsave(&spicc->lock, flags);
 	spicc->pending = false;
+	spicc_set_cs(msg->spi, false);
 	spin_unlock_irqrestore(&spicc->lock, flags);
 
 	if (ret) {
@@ -1625,8 +1648,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 
 	device_reset_optional(&pdev->dev);
 	ctlr->num_chipselect = MESON_SPI_CS_CNT_MAX;
-	/* TODO: fixme ctrl does't support gpio chipselect */
-	ctlr->use_gpio_descriptors = false;
+	ctlr->use_gpio_descriptors = true;
 	ctlr->dev.of_node = pdev->dev.of_node;
 	ctlr->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST |
 			  SPI_3WIRE | SPI_TX_QUAD | SPI_RX_QUAD;
