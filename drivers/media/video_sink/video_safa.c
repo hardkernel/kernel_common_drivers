@@ -661,12 +661,23 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 	u32 ratio = 2, ret = 0;
 	u32 hsc_ini_phase = 0, hsc_ini_integer = 0;
 
+	if (vsr->vsr_top.input_422_en)
+		hsize_in = hsize_in % 2 ? hsize_in + 1 : hsize_in;
+	if (!hsize_in)
+		hsize_in = 1;
+	if (!vsize_in)
+		vsize_in = 1;
+	if (!hsize_out)
+		hsize_out = 1;
+	if (!vsize_out)
+		vsize_out = 1;
 	if (vsr_pi->pi_en) {
-		ratio = MIN((vsr_pi->hsize_out / vsr_pi->hsize_in),
+		ratio = MIN((vsr_pi->hsize_out / hsize_in),
 			(vsr_pi->vsize_out / vsr_pi->vsize_in));
 		if (ratio > 4)
 			ratio = 4;
-		if (ratio < 2 && vsr->vsr_top.vsr_en) {
+		if ((ratio < 2 && vsr->vsr_top.vsr_en) ||
+			vsr_pi->hsize_in != vsr->vsr_top.hsize_in) {
 			vsr_pi->pi_en = 0;
 			if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
 				pr_info("%s: the ratio is too small, disable PI\n", __func__);
@@ -674,6 +685,8 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 	}
 
 	if (vsr_pi->pi_en) {
+		if (ratio < 2)
+			ratio = 2;
 		vsr_pi->pi_dict_num = pi_reg[ratio - 2].pi_dic_num;
 		vsr_pi->pi_out_scl_mode = pi_reg[ratio - 2].pi_out_scl_mode;
 		vsr_pi->pi_out_win = pi_reg[ratio - 2].pi_out_win;
@@ -685,8 +698,7 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 
 	pi_scl_rate = (vsr_pi->pi_out_scl_mode == 0) ?
 		2 : (vsr_pi->pi_out_scl_mode == 1) ? 3 : 4;
-	if (vsr->vsr_top.input_422_en)
-		hsize_in = hsize_in % 2 ? hsize_in + 1 : hsize_in;
+
 	out_pi_xsize = hsize_in * pi_scl_rate;
 	out_pi_ysize = vsize_in * pi_scl_rate;
 	vsr_pi->pi_hf_hsc_integer_part = out_pi_xsize / hsize_out;
