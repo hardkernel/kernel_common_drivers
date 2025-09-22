@@ -1,0 +1,147 @@
+From 72aa751728a96e29cb05f42bd7e661ee2beaf7fe Mon Sep 17 00:00:00 2001
+From: "biao.sun" <biao.sun@amlogic.com>
+Date: Thu, 18 Sep 2025 11:12:42 +0000
+Subject: [PATCH] mm: txhd2 memory opt [1/1]
+
+PD#SWPL-232127
+
+Problem:
+memory optimization.
+
+Solution:
+memory opt
+
+Verify:
+txhd2.
+
+Change-Id: Icb89d1ade0766e6cd3362d872c66d9e668de6c96
+Signed-off-by: biao.sun <biao.sun@amlogic.com>
+---
+ drivers/gpu/drm/Makefile | 4 ++++
+ drivers/mtd/Makefile     | 4 ++++
+ mm/slab.h                | 4 ++++
+ mm/slab_common.c         | 2 ++
+ mm/slub.c                | 5 ++++-
+ 5 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/Makefile b/drivers/gpu/drm/Makefile
+index 1ec44529447a..48fcc7dc5770 100644
+--- a/drivers/gpu/drm/Makefile
++++ b/drivers/gpu/drm/Makefile
+@@ -160,7 +160,9 @@ obj-y			+= tests/
+
+ obj-$(CONFIG_DRM_MIPI_DBI) += drm_mipi_dbi.o
+ obj-$(CONFIG_DRM_MIPI_DSI) += drm_mipi_dsi.o
++ifndef CONFIG_AMLOGIC_TXHD2_REMOVE
+ obj-y			+= arm/
++endif
+ obj-y			+= display/
+ obj-$(CONFIG_DRM_TTM)	+= ttm/
+ obj-$(CONFIG_DRM_SCHED)	+= scheduler/
+@@ -184,6 +186,7 @@ obj-$(CONFIG_DRM_UDL) += udl/
+ obj-$(CONFIG_DRM_AST) += ast/
+ obj-$(CONFIG_DRM_ARMADA) += armada/
+ obj-$(CONFIG_DRM_ATMEL_HLCDC)	+= atmel-hlcdc/
++ifndef CONFIG_AMLOGIC_TXHD2_REMOVE
+ obj-y			+= renesas/
+ obj-y			+= omapdrm/
+ obj-$(CONFIG_DRM_SUN4I) += sun4i/
+@@ -224,3 +227,4 @@ obj-y			+= solomon/
+ obj-$(CONFIG_DRM_SPRD) += sprd/
+ obj-$(CONFIG_DRM_LOONGSON) += loongson/
+ obj-$(CONFIG_DRM_POWERVR) += imagination/
++endif
+\ No newline at end of file
+diff --git a/drivers/mtd/Makefile b/drivers/mtd/Makefile
+index 593d0593a038..c43954c4042d 100644
+--- a/drivers/mtd/Makefile
++++ b/drivers/mtd/Makefile
+@@ -26,7 +26,11 @@ obj-$(CONFIG_MTD_SWAP)		+= mtdswap.o
+ nftl-objs		:= nftlcore.o nftlmount.o
+ inftl-objs		:= inftlcore.o inftlmount.o
+
++ifdef CONFIG_AMLOGIC_TXHD2_REMOVE
++obj-y		+= chips/ lpddr/ maps/ devices/
++else
+ obj-y		+= chips/ lpddr/ maps/ devices/ nand/ tests/
++endif
+
+ obj-$(CONFIG_MTD_SPI_NOR)	+= spi-nor/
+ obj-$(CONFIG_MTD_UBI)		+= ubi/
+diff --git a/mm/slab.h b/mm/slab.h
+index 7bb8b125dd4e..7bf1fee505c7 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -288,9 +288,11 @@ struct kmem_cache {
+ 	unsigned int red_left_pad;	/* Left redzone padding size */
+ 	const char *name;		/* Name (only for display!) */
+ 	struct list_head list;		/* List of slab caches */
++#ifndef CONFIG_AMLOGIC_TXHD2_REMOVE
+ #ifdef CONFIG_SYSFS
+ 	struct kobject kobj;		/* For sysfs */
+ #endif
++#endif
+ #ifdef CONFIG_SLAB_FREELIST_HARDENED
+ 	unsigned long random;
+ #endif
+@@ -320,7 +322,9 @@ struct kmem_cache {
+ };
+
+ #if defined(CONFIG_SYSFS) && !defined(CONFIG_SLUB_TINY)
++#ifndef CONFIG_AMLOGIC_TXHD2_REMOVE
+ #define SLAB_SUPPORTS_SYSFS 1
++#endif
+ void sysfs_slab_unlink(struct kmem_cache *s);
+ void sysfs_slab_release(struct kmem_cache *s);
+ #else
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 3d3dd6d9185f..4a5ec5fb52da 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -533,7 +533,9 @@ void kmem_cache_destroy(struct kmem_cache *s)
+ 	cpus_read_unlock();
+
+ 	if (slab_state >= FULL)
++#ifdef SLAB_SUPPORTS_SYSFS
+ 		sysfs_slab_unlink(s);
++#endif
+ 	debugfs_slab_release(s);
+
+ 	if (err)
+diff --git a/mm/slub.c b/mm/slub.c
+index 54cbde837e5d..c6aff00faa20 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3464,11 +3464,12 @@ static inline int node_match(struct slab *slab, int node)
+ }
+
+ #ifdef CONFIG_SLUB_DEBUG
++#ifndef CONFIG_AMLOGIC_TXHD2_REMOVE
+ static int count_free(struct slab *slab)
+ {
+ 	return slab->objects - slab->inuse;
+ }
+-
++#endif
+ static inline unsigned long node_nr_objs(struct kmem_cache_node *n)
+ {
+ 	return atomic_long_read(&n->total_objects);
+@@ -3534,6 +3535,7 @@ static inline bool free_debug_processing(struct kmem_cache *s,
+ #endif /* CONFIG_SLUB_DEBUG */
+
+ #if defined(CONFIG_SLUB_DEBUG) || defined(SLAB_SUPPORTS_SYSFS)
++#ifndef CONFIG_AMLOGIC_TXHD2_REMOVE
+ static unsigned long count_partial(struct kmem_cache_node *n,
+ 					int (*get_count)(struct slab *))
+ {
+@@ -3547,6 +3549,7 @@ static unsigned long count_partial(struct kmem_cache_node *n,
+ 	spin_unlock_irqrestore(&n->list_lock, flags);
+ 	return x;
+ }
++#endif
+ #endif /* CONFIG_SLUB_DEBUG || SLAB_SUPPORTS_SYSFS */
+
+ #ifdef CONFIG_SLUB_DEBUG
+--
+2.49.0
+

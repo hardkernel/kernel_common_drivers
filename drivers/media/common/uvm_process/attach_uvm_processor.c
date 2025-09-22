@@ -24,6 +24,7 @@ int attach_uvm_info(struct dma_buf *dmabuf, int fd, int type, char *buf)
 	info.acquire_fence = NULL;
 
 	switch (type) {
+#ifndef CONFIG_AMLOGIC_TXHD2_REMOVE
 	case PROCESS_AICOLOR:
 		ret = attach_aicolor_hook_mod_info(fd, buf, &info);
 		break;
@@ -39,6 +40,7 @@ int attach_uvm_info(struct dma_buf *dmabuf, int fd, int type, char *buf)
 	case PROCESS_NN:
 		ret = attach_nn_hook_mod_info(fd, buf, &info);
 		break;
+#endif
 	default:
 		pr_err("mod_type is not valid.\n");
 	}

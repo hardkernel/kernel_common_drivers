@@ -205,3 +205,9 @@ config AMLOGIC_DEBUG_BGKI_SCHED
 	help
 	  This option supports sched optimization for noGKI
 	  If in doubt, say "Y"
+
+config AMLOGIC_TXHD2_REMOVE
+	bool "txhd2 project cut"
+	default n
+	help
+	  remove more for txhd2 project
