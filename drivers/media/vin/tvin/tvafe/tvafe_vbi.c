@@ -103,9 +103,12 @@ static unsigned int vbi_data_tt_check;
 /* manual reset vbi */
 static inline void vbi_manual_reset(void)
 {
-	W_APB_REG(ACD_REG_22, 0x07080000);
-	W_APB_REG(ACD_REG_22, 0x87080000);
-	W_APB_REG(ACD_REG_22, 0x04080000);
+	//W_APB_REG(ACD_REG_22, 0x07080000);
+	//W_APB_REG(ACD_REG_22, 0x87080000);
+	//W_APB_REG(ACD_REG_22, 0x04080000);
+	W_APB_BIT(ACD_REG_22, 1, AML_VBI_RST_BIT, AML_VBI_RST_WID);
+	usleep_range(10, 12);
+	W_APB_BIT(ACD_REG_22, 0, AML_VBI_RST_BIT, AML_VBI_RST_WID);
 	usleep_range(10, 12);
 }
 
@@ -332,7 +335,6 @@ static void vbi_hw_init(struct vbi_dev_s *devp)
 	cvd_vbi_config();
 	/*enable vbi*/
 	W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL,   0x11);
-	tvafe_pr_info("%s: vbi hw init done.\n", __func__);
 }
 
 static inline void vbi_get_byte(unsigned char **rdptr_addr, unsigned char *ret_byte)
@@ -1882,6 +1884,21 @@ int vbi_alloc_memory(void)
 	vbi_dev->temp_addr_end = vbi_dev->temp_addr_start + VBI_BUFF3_SIZE - 1;
 
 	return 0;
+}
+
+void vbi_write_memory_en(bool is_enabled)
+{
+	if (is_enabled) {
+		/*enable vbi */
+		W_VBI_APB_BIT(CVD2_VBI_FRAME_CODE_CTL, 1, VBI_EN_BIT, VBI_EN_WID);
+		W_APB_BIT(ACD_REG_22, 0, AML_DISAGENT_CVD2_BIT, AML_DISAGENT_CVD2_WID);
+		W_APB_BIT(ACD_REG_22, 0, AML_DISAGENT_VBI_BIT, AML_DISAGENT_VBI_WID);
+	} else {
+		/*disable vbi */
+		W_VBI_APB_BIT(CVD2_VBI_FRAME_CODE_CTL, 0, VBI_EN_BIT, VBI_EN_WID);
+		W_APB_BIT(ACD_REG_22, 1, AML_DISAGENT_CVD2_BIT, AML_DISAGENT_CVD2_WID);
+		W_APB_BIT(ACD_REG_22, 1, AML_DISAGENT_VBI_BIT, AML_DISAGENT_VBI_WID);
+	}
 }
 
 int vbi_release_memory(void)

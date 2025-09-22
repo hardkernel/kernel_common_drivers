@@ -548,6 +548,7 @@ static void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt,
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_VBI
 	tvafe_vbi_set_wss();
+	vbi_write_memory_en(true);
 #endif
 	tvafe->parm.info.fmt = fmt;
 	tvafe->parm.info.status = TVIN_SIG_STATUS_STABLE;
@@ -650,7 +651,7 @@ static void tvafe_dec_close(struct tvin_frontend_s *fe, enum tvin_port_type_e po
 
 	if (IS_TVAFE_AVIN_SRC(tvafe->parm.port))
 		avport_opened = 0;
-
+	vbi_write_memory_en(false);
 #ifdef TVAFE_POWERDOWN_IN_IDLE
 	/**disable tvafe clock**/
 	devp->flags |= TVAFE_POWERDOWN_IN_IDLE;

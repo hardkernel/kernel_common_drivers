@@ -303,6 +303,7 @@ struct vbi_dev_s {
 
 int vbi_alloc_memory(void);
 int vbi_release_memory(void);
+void vbi_write_memory_en(bool is_enabled);
 
 /*1: tvafe clk enable;*/
 /*0: tvafe clk disable*/
