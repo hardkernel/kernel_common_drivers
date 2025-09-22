@@ -145,6 +145,7 @@ static struct tcon_fw_config_s lcd_tcon_fw_config = {
 	.lut_multi = 0,
 	.axi_cnt = 0,
 	.axi_rmem = NULL,
+	.core_reg_list = LIST_HEAD_INIT(lcd_tcon_fw_config.core_reg_list),
 };
 
 static struct tcon_fw_base_timing_s lcd_tcon_fw_base_timing;

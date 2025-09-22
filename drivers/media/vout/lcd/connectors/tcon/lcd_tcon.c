@@ -1957,7 +1957,7 @@ static int lcd_tcon_bin_path_update(unsigned int size)
 		err_num = 1;
 		goto lcd_tcon_bin_path_update_err;
 	}
-	if (header->block_cnt > 32) {
+	if (header->block_cnt > TCON_DATA_CNT_MAX) {
 		err_num = 2;
 		goto lcd_tcon_bin_path_update_err;
 	}
@@ -1991,7 +1991,7 @@ static int lcd_tcon_mm_table_config(void)
 	unsigned char *mem_vaddr;
 	unsigned int cnt, data_size, n, i;
 
-	if (tcon_mm_table.block_cnt > 32) {
+	if (tcon_mm_table.block_cnt > TCON_DATA_CNT_MAX) {
 		LCDERR("%s: tcon data block_cnt %d invalid\n",
 		       __func__, tcon_mm_table.block_cnt);
 		return -1;

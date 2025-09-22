@@ -101,6 +101,7 @@ struct lcd_tcon_init_block_ext_header_s {
 	unsigned short framerate_max;
 };
 
+#define TCON_DATA_CNT_MAX  32
 struct lcd_tcon_data_block_header_s {
 	unsigned int crc32;
 	unsigned int raw_data_check;/* crc */

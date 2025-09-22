@@ -1820,6 +1820,9 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	if (!pdrv || !pdrv->curr_dev)
 		return -EFAULT;
+	argp = (void __user *)arg;
+	if (IS_ERR_OR_NULL(argp))
+		return -EFAULT;
 
 	pconf = &pdrv->curr_dev->dev_cfg;
 	pctrl = &pdrv->curr_dev->dev_cfg.control;
@@ -1827,7 +1830,6 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	mcd_nr = _IOC_NR(cmd);
 	LCD_PR(pdrv, "%s: cmd_dir = 0x%x, cmd_nr = 0x%x", __func__, _IOC_DIR(cmd), mcd_nr);
 
-	argp = (void __user *)arg;
 
 	if (mcd_nr >= 0xf0 && mcd_nr <= 0xff) {
 		ret = lcd_test_ioctl_handler(pdrv, mcd_nr, arg);

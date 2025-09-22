@@ -1636,9 +1636,12 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 
 	if (!pdrv)
 		return -EFAULT;
+	argp = (void __user *)arg;
+	if (IS_ERR_OR_NULL(argp))
+		return -EFAULT;
 
 	memset(&dccd_config, 0, sizeof(dccd_config));
-	argp = (void __user *)arg;
+
 	switch (mcd_nr) {
 	case LCD_IOC_GET_TCON_BIN_MAX_CNT_INFO:
 		if (!mm_table) {
@@ -1651,8 +1654,10 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 			LCDPR("tcon: get bin max_cnt: %d\n", mm_table->block_cnt);
 		break;
 	case LCD_IOC_SET_TCON_DATA_INDEX_INFO:
-		if (copy_from_user(&lcd_tcon_bin_path_index, argp, sizeof(unsigned int)))
+		if (copy_from_user(&temp, argp, sizeof(unsigned int)))
 			ret = -EFAULT;
+		if (temp < TCON_DATA_CNT_MAX)
+			lcd_tcon_bin_path_index = temp;
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDPR("tcon: set bin index: %d\n", lcd_tcon_bin_path_index);
 		break;
@@ -1681,7 +1686,7 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 			ret = -EFAULT;
 		break;
 	case LCD_IOC_SET_TCON_BIN_DATA_INFO:
-		if (!mm_table || !tcon_rmem) {
+		if (!mm_table || !mm_table->data_mem_vaddr || !tcon_rmem) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1722,6 +1727,11 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 			memcpy(&block_header_old, vaddr_old, header_size);
 
 		argp = (void __user *)lcd_tcon_buff.ptr;
+		if (IS_ERR_OR_NULL(argp)) {
+			ret = -EFAULT;
+			break;
+		}
+
 		if (copy_from_user(&block_header, argp, header_size)) {
 			ret = -EFAULT;
 			break;
@@ -1787,6 +1797,10 @@ set_tcon_bin_error_break:
 			goto __dccd_set_exit;
 
 		argp = (void __user *)dccd_config.data.ptr;
+		if (IS_ERR_OR_NULL(argp)) {
+			ret = -EFAULT;
+			break;
+		}
 		buf = kzalloc(dccd_config.size, GFP_KERNEL);
 		if (unlikely(!buf)) {
 			LCDERR("Alloc dccd size=%d fail\n", dccd_config.size);
@@ -1842,6 +1856,9 @@ __dccd_set_exit:
 
 		m = 0;
 		temp = dccd_config.size;  //core reg index
+		if (list_empty(&tcon_fw->config->core_reg_list))
+			goto __tcon_get_calc_exit;
+
 		list_for_each_entry(temp_core, &tcon_fw->config->core_reg_list, list) {
 			if (temp == m++) {
 				core_info = temp_core;
