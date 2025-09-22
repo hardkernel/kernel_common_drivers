@@ -455,7 +455,8 @@ struct vf_ref_t *get_ref_from_list(struct dp_buf_mgr_t *buf_mgr, struct vframe_s
 	}
 
 	for (i = 0; i < VF_LIST_COUNT; i++) {
-		if (buf_mgr->ref_list[i].vf_p == vf)
+		if (buf_mgr->ref_list[i].vf_p == vf &&
+			buf_mgr->ref_list[i].frame_index == vf->frame_index)
 			break;
 	}
 	if (i == VF_LIST_COUNT) {
