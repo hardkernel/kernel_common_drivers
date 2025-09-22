@@ -26,7 +26,6 @@
 #include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
 #include <linux/amlogic/meson_uvm_allocator.h>
 #include <linux/amlogic/meson_uvm_core.h>
-
 static int uvm_debug_level = UVM_ERROR;
 module_param(uvm_debug_level, int, 0644);
 /* bit1: for skip realloc interface;bit0: for skip map */
@@ -85,6 +84,24 @@ static unsigned int get_sgt_size(struct sg_table *sgt)
 	return size;
 }
 
+static int validate_sgt(struct sg_table *sgt)
+{
+	struct scatterlist *sg;
+	int i;
+
+	if (!sgt || !sgt->sgl || sgt->nents <= 0)
+		return -EINVAL;
+
+	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
+		if (!sg_page(sg))
+			return -EINVAL;
+		if (sg->length <= 0)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static struct sg_table
 	*meson_uvm_map_dma_buf(struct dma_buf_attachment *attachment,
 			       enum dma_data_direction direction)
@@ -96,14 +113,21 @@ static struct sg_table
 	bool gpu_access = false;
 	bool skip_realloc = false;
 
+	if (!attachment || !attachment->dev)
+		goto err_out;
 	if (strstr(dev_name(attachment->dev), "bifrost") ||
 		strstr(dev_name(attachment->dev), "valhall")) {
 		gpu_access = true;
 	}
-
 	dmabuf = attachment->dmabuf;
+	if (!dmabuf)
+		goto err_out;
 	handle = dmabuf->priv;
+	if (!handle)
+		goto err_out;
 	ua = handle->ua;
+	if (!ua || !ua->flags)
+		goto err_out;
 
 	UVM_PRINTK(UVM_INFO, "%s called, %s. name=%s gpu_access:%d flag:0x%llx\n",
 		   __func__, current->comm, dev_name(attachment->dev),
@@ -137,12 +161,11 @@ static struct sg_table
 		sgt = ua->sgt[1];
 	}
 
-	if (!sgt) {
-		UVM_PRINTK(UVM_ERROR, "null sgt.\n");
-		return ERR_PTR(-ENOMEM);
-	}
-
+	if (!sgt)
+		goto err_out;
 	if (ua->flags & BIT(UVM_SECURE_ALLOC)) {
+		if (validate_sgt(sgt) != 0)
+			goto err_out;
 		if (dma_map_sgtable(attachment->dev, sgt, direction, DMA_ATTR_SKIP_CPU_SYNC)) {
 			UVM_PRINTK(UVM_ERROR, "map sgtable error.\n");
 			return ERR_PTR(-ENOMEM);
@@ -152,6 +175,8 @@ static struct sg_table
 			dma_map_page(attachment->dev, sg_page(sgt->sgl), 0,
 			     UVM_FAKE_SIZE, direction);
 		} else {
+			if (validate_sgt(sgt) != 0)
+				goto err_out;
 			UVM_PRINTK(UVM_DBG, "%s called %d,size[dmabuf:%zu,handle:%zu,sgt:%d].\n",
 				   __func__, __LINE__, dmabuf->size,
 				   handle->size, get_sgt_size(sgt));
@@ -190,6 +215,9 @@ static struct sg_table
 			   sg_dma_len(sgt->sgl), get_sgt_size(sgt));
 	}
 	return sgt;
+err_out:
+	UVM_PRINTK(UVM_ERROR, "%s null pointer!\n", __func__);
+	return ERR_PTR(-ENOMEM);
 }
 
 static void meson_uvm_unmap_dma_buf(struct dma_buf_attachment *attachment,
