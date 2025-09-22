@@ -3645,6 +3645,11 @@ static bool check_mosaic_22(struct composer_dev *dev, struct received_frames_t *
 			frame_info->dst_h);
 	}
 
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T6X && f->frame_count == 4 && dev->index == 0) {
+		vc_print(dev->index, PRINT_AXIS, "check mosaic ok.\n");
+		return true;
+	}
+
 	/*check all w h <= 1/2 vinfo*/
 	for (i = 0; i < 4; i++) {
 		if (f->frame_info[i].dst_w > half_w || f->frame_info[i].dst_h > half_h)
