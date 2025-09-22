@@ -2531,7 +2531,10 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 
 	vpu_pipeline_prepare_update(pipeline, new_state->crtc->mode.vdisplay,
 			drm_mode_vrefresh(&new_state->crtc->mode), crtc_index);
-	vpu_pipeline_osd_update(sub_pipe, state);
+
+	if (vpu_pipeline_osd_update(sub_pipe, state))
+		return;
+
 	vpu_pipeline_finish_update(pipeline, crtc_index);
 
 	meson_commit_reenter_dec(pipeline->priv, crtc_index, ASYNC_MODE);

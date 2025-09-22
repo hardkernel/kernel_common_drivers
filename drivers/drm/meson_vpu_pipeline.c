@@ -792,6 +792,11 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	}
 	amcrtc = pipeline->priv->crtcs[crtc_index];
 
+	if (!new_mvsps) {
+		DRM_DEBUG("NULL mvsps!\n");
+		return -EINVAL;
+	}
+
 	affected_blocks = new_mvsps->enable_blocks;
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
