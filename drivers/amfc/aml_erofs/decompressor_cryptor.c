@@ -15,6 +15,10 @@
 
 static int crypto_max_distance_pages;
 
+#ifndef LZ4_DECOMPRESS_INPLACE_MARGIN
+#define LZ4_DECOMPRESS_INPLACE_MARGIN(srcsize)  (((srcsize) >> 8) + 32)
+#endif
+
 int z_erofs_load_crypto_config(struct super_block *sb,
 			       struct erofs_super_block *dsb,
 			       void *data, int size)
@@ -61,12 +65,13 @@ static void *z_erofs_crypto_handle_inplace_io(struct z_erofs_decompress_req *rq,
 					    void *out,
 					    unsigned int *inputmargin,
 					    int *maptype,
-					    bool support_0padding)
+					    bool may_inplace)
 {
 	unsigned int nrpages_in, nrpages_out;
-	unsigned int ofull, oend, inputsize, total, i;
+	unsigned int ofull, oend, inputsize, total, i, j;
 	struct page **in;
 	void *src, *tmp;
+	unsigned int omargin;
 
 	inputsize = rq->inputsize;
 	nrpages_in = PAGE_ALIGN(inputsize) >> PAGE_SHIFT;
@@ -75,14 +80,16 @@ static void *z_erofs_crypto_handle_inplace_io(struct z_erofs_decompress_req *rq,
 	nrpages_out = ofull >> PAGE_SHIFT;
 
 	if (rq->inplace_io) {
-		if (rq->partial_decoding)
+		omargin = ofull - oend;
+		if (rq->partial_decoding || !may_inplace ||
+		    omargin < LZ4_DECOMPRESS_INPLACE_MARGIN(rq->inputsize))
 			goto docopy;
-		for (i = 0; i < nrpages_in; ++i)
-			if (rq->out[nrpages_out - nrpages_in + i] != rq->in[i])
-				goto docopy;
-		kunmap_local(inpage);
-		*maptype = 3;
-		return out + ((nrpages_out - nrpages_in) << PAGE_SHIFT);
+		for (i = 0; i < nrpages_in; ++i) {
+			for (j = 0; j < nrpages_out; ++j) {
+				if (rq->out[j] == rq->in[i])
+					goto docopy;
+			}
+		}
 	}
 
 	if (nrpages_in <= 1) {
@@ -90,7 +97,6 @@ static void *z_erofs_crypto_handle_inplace_io(struct z_erofs_decompress_req *rq,
 		return inpage;
 	}
 	kunmap_local(inpage);
-	might_sleep();
 	src = erofs_vm_map_ram(rq->in, nrpages_in);
 	if (!src)
 		return ERR_PTR(-ENOMEM);
@@ -133,7 +139,7 @@ static int z_erofs_crypto_decompress_mem(struct z_erofs_decompress_req *rq, u8 *
 	u8 *src, *headpage;
 	int ret;
 	int maptype;
-	bool support_0padding = true;
+	bool may_inplace = false, support_0padding = false;
 	struct erofs_sb_info *sbi;
 	int outsize;
 
@@ -143,49 +149,44 @@ static int z_erofs_crypto_decompress_mem(struct z_erofs_decompress_req *rq, u8 *
 
 	sbi = EROFS_SB(rq->sb);
 
-#if 0
-	/* AMFC hardware support skip leading 0 */
-	/* decompression inplace is only safe when 0padding is enabled */
-	if (erofs_sb_has_lz4_0padding(EROFS_SB(rq->sb))) {
+	/* LZ4 decompression inplace is only safe if zero_padding is enabled */
+	if (erofs_sb_has_zero_padding(EROFS_SB(rq->sb))) {
 		support_0padding = true;
-
-		/* skip zero padding at beginning of page */
-		while (!headpage[inputmargin & ~PAGE_MASK])
-			if (!(++inputmargin & ~PAGE_MASK))
-				break;
-
-		if (inputmargin >= rq->inputsize) {
-			kunmap_atomic(headpage);
-			return -EIO;
+		ret = z_erofs_fixup_insize(rq, headpage + rq->pageofs_in,
+				min_t(unsigned int, rq->inputsize,
+				      rq->sb->s_blocksize - rq->pageofs_in));
+		if (ret) {
+			kunmap_local(headpage);
+			return ret;
 		}
+		may_inplace = !((rq->pageofs_in + rq->inputsize) &
+				(rq->sb->s_blocksize - 1));
 	}
-#endif
 
-	rq->inputsize -= inputmargin;
+	inputmargin = rq->pageofs_in;
 	src = z_erofs_crypto_handle_inplace_io(rq, headpage, out, &inputmargin,
-					       &maptype, support_0padding);
+					       &maptype, may_inplace);
 	if (IS_ERR(src))
 		return PTR_ERR(src);
 
-	pr_debug("%s, type:%d, in:%px, out:%px, in page:%lx, out_page:%lx\n",
+	pr_debug("%s, type:%d, in:%px, out:%px, in page:%lx, out_page:%lx, margin:%d, src:%px, ssize:%d, dst:%px, dsize:%d, ret:%d\n",
 		 __func__, maptype, src, out,
-		 page_to_pfn(*rq->in), page_to_pfn(*rq->out));
-
+		 page_to_pfn(*rq->in), page_to_pfn(*rq->out), inputmargin, src + inputmargin,
+		 rq->inputsize, out + rq->pageofs_out, rq->outputsize, ret);
 	outsize = rq->outputsize;
+	out += rq->pageofs_out;
 	ret = crypto_comp_decompress(sbi->crypto, src + inputmargin,
 				     rq->inputsize, out, &rq->outputsize);
 	if ((ret < 0) || outsize != rq->outputsize) {
 		erofs_err(rq->sb, "failed to decompress %d in[%u, %u] out[%u]",
 			  ret, rq->inputsize, inputmargin, rq->outputsize);
-
 		print_hex_dump(KERN_ERR, "[ in]: ", DUMP_PREFIX_OFFSET,
-			       16, 1, src + inputmargin, rq->inputsize, true);
+			       16, 1, src, rq->inputsize + inputmargin, true);
 		print_hex_dump(KERN_ERR, "[out]: ", DUMP_PREFIX_OFFSET,
 			       16, 1, out, rq->outputsize, true);
-
 		if (ret >= 0)
 			memset(out + ret, 0, rq->outputsize - ret);
-		ret = -EIO;
+		ret = -EFSCORRUPTED;
 	} else {
 		ret = 0;
 	}
@@ -196,7 +197,7 @@ static int z_erofs_crypto_decompress_mem(struct z_erofs_decompress_req *rq, u8 *
 		vm_unmap_ram(src, PAGE_ALIGN(rq->inputsize) >> PAGE_SHIFT);
 	} else if (maptype == 2) {
 		z_erofs_put_gbuf(src);
-	} else {
+	} else if (maptype != 3) {
 		WARN_ON(1);
 		return -EFAULT;
 	}
@@ -281,13 +282,17 @@ int z_erofs_crypto_decompress(struct z_erofs_decompress_req *rq,
 	}
 
 	ret = z_erofs_crypto_prepare_dstpages(rq, pagepool);
-	if (ret < 0)
+	if (ret < 0) {
 		return ret;
-
-	dst = erofs_vm_map_ram(rq->out, nrpages_out);
-	if (!dst)
-		return -ENOMEM;
-	dst_maptype = 2;
+	} else if (ret > 0) {
+		dst = page_address(*rq->out);
+		dst_maptype = 1;
+	} else {
+		dst = erofs_vm_map_ram(rq->out, nrpages_out);
+		if (!dst)
+			return -ENOMEM;
+		dst_maptype = 2;
+	}
 
 dstmap_out:
 	pr_debug("%s, dst:%px, map:%d, pageofs_out:%d, outputsize:%d, inputsize:%d, inplace_io:%d, partial:%d\n",
@@ -295,7 +300,7 @@ dstmap_out:
 		 rq->pageofs_out, rq->outputsize, rq->inputsize,
 		 rq->inplace_io, rq->partial_decoding);
 
-	ret = z_erofs_crypto_decompress_mem(rq, dst + rq->pageofs_out);
+	ret = z_erofs_crypto_decompress_mem(rq, dst);
 
 	if (!dst_maptype)
 		kunmap_local(dst);
