@@ -2595,9 +2595,7 @@ static int aml_read_tuning_para(struct mmc_host *mmc)
 		return 0;
 
 	off = (get_reserve_partition_off_from_tbl() + MMC_TUNING_PARA_RESERVED) >> 9;
-	mmc_claim_host(mmc);
 	ret = single_read_scan(mmc, MMC_READ_SINGLE_BLOCK, host->blk_test, 512, blk, off);
-	mmc_release_host(mmc);
 	if (ret) {
 		pr_info("read tuning parameter failed\n");
 		return ret;
@@ -2646,10 +2644,9 @@ static void aml_set_tuning_para(struct mmc_host *mmc)
 		writel(intf3, host->regs + SD_EMMC_INTF3);
 	}
 	cmd_delay = (delay2 & DELAY2_CMD_MASK) >> __ffs(DELAY2_CMD_MASK);
-	pr_info("cmd-best-c:%d, ds_sht:%lu, intf3:0x%x, clock:0x%x\n",
+	pr_info("cmd-best-c:%d, ds_sht:%lu, intf3:0x%x, clock:0x%x, temp_index: %d\n",
 		cmd_delay, (intf3 & DS_SHT_M_MASK) >> __ffs(DS_SHT_M_MASK),
-		readl(host->regs + SD_EMMC_INTF3),
-		readl(host->regs + SD_EMMC_CLOCK));
+		readl(host->regs + SD_EMMC_INTF3), readl(host->regs + SD_EMMC_CLOCK), temp_index);
 }
 
 /*save parameter on mmc_host pdata*/
@@ -2695,9 +2692,7 @@ static int aml_save_tuning_para(struct mmc_host *mmc)
 
 	offset = (get_reserve_partition_off_from_tbl() + MMC_TUNING_PARA_RESERVED) >> 9;
 
-	mmc_claim_host(mmc);
 	ret = single_write(mmc, MMC_WRITE_BLOCK, host->blk_test, 512, 1, offset);
-	mmc_release_host(mmc);
 	if (!ret)
 		pr_info("write hs400 parameter success\n");
 
@@ -2740,18 +2735,18 @@ static int aml_para_is_exist(struct mmc_host *mmc)
 		}
 	}
 
-	checksum = _para_checksum_calc(para);
-	if (checksum != para->checksum) {
-		pr_info("warning: checksum is not match\n");
-		return 0;
-	}
-
 	temp_index = temperature / 10000;
 	para->temp_index = temp_index;
 
 	/* temperature range is 0 ~ 89 */
 	if (temp_index < 0 || temp_index > 9) {
 		pr_info("temperature %d is out of normal range\n", temp_index);
+		return 0;
+	}
+
+	checksum = _para_checksum_calc(para);
+	if (checksum != para->checksum) {
+		pr_info("warning: checksum is not match\n");
 		return 0;
 	}
 
