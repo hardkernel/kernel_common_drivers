@@ -1428,14 +1428,8 @@ static struct clk_regmap vout_venc_mclk = {
 };
 
 static const struct clk_parent_data audio_core_parent_data[] = {
-	{ .fw_name = "gp1_pll" },
-	{ .hw = &fclk_div3.hw },
-	{ .hw = &fclk_div4.hw },
-	{ .hw = &fclk_div5.hw },
-	{ .hw = &gp0_pll.hw },
-	{ .hw = &hifi_pll.hw },
 	{ .hw = &fclk_div2p5.hw },
-	{ .hw = &fclk_div7.hw }
+	{ .fw_name = "gp1_pll" }
 };
 
 static struct clk_regmap audio_core_mux = {
