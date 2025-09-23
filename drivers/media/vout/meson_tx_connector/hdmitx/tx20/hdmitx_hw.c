@@ -3738,7 +3738,7 @@ static int hdmitx_pkt_dump(char *buf, int len)
 		conf = "One Bit Audio";
 		break;
 	case CT_DD_P:
-		conf = "Dobly Digital+";
+		conf = "Dolby Digital+";
 		break;
 	case CT_DTS_HD:
 		conf = "DTS_HD";

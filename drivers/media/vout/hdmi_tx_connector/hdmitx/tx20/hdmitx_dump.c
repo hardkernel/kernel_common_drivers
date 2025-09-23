@@ -653,7 +653,7 @@ static void hdmitx_parsing_audpkt(struct seq_file *s)
 		conf = "One Bit Audio";
 		break;
 	case CT_DD_P:
-		conf = "Dobly Digital+";
+		conf = "Dolby Digital+";
 		break;
 	case CT_DTS_HD:
 		conf = "DTS_HD";
