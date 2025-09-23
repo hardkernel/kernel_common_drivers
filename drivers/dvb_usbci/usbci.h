@@ -1,9 +1,8 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * File    : usbci.h
- * Purpose : USB CAM driver
- *
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
+
 #ifndef _AMLOGIC_USBCAM_H
 #define _AMLOGIC_USBCAM_H
 

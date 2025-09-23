@@ -430,6 +430,7 @@ include/linux/amlogic/media/dvb-core/dvb_frontend.h
 include/linux/amlogic/media/dvb-core/dvb_vb2.h
 include/linux/amlogic/media/dvb-core/demux.h
 include/linux/amlogic/media/dvb-core/dmxdev.h
+include/uapi/amlogic/*
 include/uapi/amlogic/dvb/dmx.h
 include/uapi/amlogic/dvb/frontend.h
 include/uapi/amlogic/dvb/net.h
@@ -518,3 +519,11 @@ drivers/amlogic/input/touchscreen/gt738x/goodix_cfg_bin.h
 drivers/amlogic/input/touchscreen/gt738x/goodix_ts_core.c
 drivers/amlogic/input/touchscreen/gt738x/goodix_ts_gesture.c
 drivers/amlogic/input/touchscreen/elan/elants_hid.c
+drivers/char/hw_random/meson-rng.c
+drivers/clk/meson/meson-aoclk.c
+drivers/dvb_ci/cimcu/ci_dvb_ringbuffer.h
+drivers/dvb_ci/cimcu/ci_dvb_ringbuffer.c
+drivers/gpio/pinctrl/pinctrl-meson-axg-pmx.h
+drivers/gpio/pinctrl/pinctrl-meson-axg-pmx.c
+drivers/media/common/codec_mm/secport.c
+drivers/rtc/rtc-meson-vrtc.c

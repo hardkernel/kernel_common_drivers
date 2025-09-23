@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
-/* Copyright (c) 2025 Amlogic, Inc. All rights reserved. */
+/*
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
+ */
 
 #ifndef __AMLOGIC_WOL_H_
 #define __AMLOGIC_WOL_H_
