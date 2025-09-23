@@ -430,7 +430,7 @@ static struct clk_regmap t7_mclk_pll_div = {
 
 
 static const struct pll_params_table t7_hifi_pll_table[] = {
-	PLL_PARAMS_OD(163, 1, 1), /* DCO = 3932.16M */
+	PLL_PARAMS_OD(163, 1, 3), /* DCO = 3932.16M */
 	{ /* sentinel */  }
 };
 
@@ -475,9 +475,7 @@ static struct clk_regmap t7_hifi_pll = {
 		.od_max = 3,
 		.flags = CLK_MESON_PLL_ROUND_CLOSEST |
 			 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
-			 CLK_MESON_PLL_FIXED_N |
-			 /* HIFI PLL is 491.52M in U-boot, do not gate it in CCF */
-			 CLK_IGNORE_UNUSED,
+			 CLK_MESON_PLL_FIXED_N
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll",
@@ -486,6 +484,8 @@ static struct clk_regmap t7_hifi_pll = {
 			.fw_name = "xtal",
 		},
 		.num_parents = 1,
+		/* HIFI PLL is 491.52M in U-boot, do not gate it in CCF */
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
