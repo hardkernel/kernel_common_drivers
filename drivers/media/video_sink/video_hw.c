@@ -4384,8 +4384,12 @@ static void vd1_set_dcu_t6w(struct video_layer_s *layer,
 
 	uv_swap = is_rdmif_frame_need_swap(vf->type,
 		little_endian, mif_setting->mif_x_rev);
-	if (vf->type_ext & VIDTYPE_EXT_422_10_2P_DPSS)
-		uv_swap = 0;
+	if (vf->type_ext & VIDTYPE_EXT_422_10_2P_DPSS) {
+		if (mif_setting->mif_x_rev)
+			uv_swap = 1;
+		else
+			uv_swap = 0;
+	}
 	mif_setting->endian = little_endian;
 	mif_setting->swap_64 = swap_64;
 	mif_setting->uv_swap = uv_swap;
@@ -4783,8 +4787,12 @@ static void vdx_set_dcu_t6w(struct video_layer_s *layer,
 
 	uv_swap = is_rdmif_frame_need_swap(vf->type,
 		little_endian, mif_setting->mif_x_rev);
-	if (vf->type_ext & VIDTYPE_EXT_422_10_2P_DPSS)
-		uv_swap = 0;
+	if (vf->type_ext & VIDTYPE_EXT_422_10_2P_DPSS) {
+		if (mif_setting->mif_x_rev)
+			uv_swap = 1;
+		else
+			uv_swap = 0;
+	}
 	mif_setting->endian = little_endian;
 	mif_setting->swap_64 = swap_64;
 	mif_setting->uv_swap = uv_swap;
