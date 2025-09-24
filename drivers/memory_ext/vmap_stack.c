@@ -813,7 +813,6 @@ void *aml_stack_alloc(int node, struct task_struct *tsk)
 	raw_start = avmap->start_bit;
 	bitmap_no = find_next_zero_bit(avmap->bitmap, MAX_TASKS,
 				       avmap->start_bit);
-	avmap->start_bit = bitmap_no + 1; /* next idle address space */
 	if (bitmap_no >= MAX_TASKS) {
 		raw_spin_unlock_irqrestore(&avmap->vmap_lock, flags);
 		/*
@@ -824,6 +823,7 @@ void *aml_stack_alloc(int node, struct task_struct *tsk)
 		E("BITMAP FULL, kmalloc task stack:%lx\n", addr);
 		return (void *)addr;
 	}
+	avmap->start_bit = bitmap_no + 1; /* next idle address space */
 	bitmap_set(avmap->bitmap, bitmap_no, 1);
 	raw_spin_unlock_irqrestore(&avmap->vmap_lock, flags);
 
