@@ -1449,7 +1449,6 @@ int spdif_codec_to_earc_codec[][2] = {
 static int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
 {
 	struct frddr *fr;
-	enum attend_type type;
 	struct iec_cnsmr_cs cs_info;
 	int channels, rate;
 
@@ -1465,17 +1464,11 @@ static int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_t
 		channels = s_earc->ss_info.channels;
 		rate = s_earc->ss_info.rate;
 	}
-	if (channels > 0 && rate > 0)
-		earctx_update_clk(s_earc, channels, rate);
-	else
-		return 0;
 
 	if (!s_earc->tx_dmac_clk_on)
 		return 0;
 
 	dev_info(s_earc->dev, "tx audio coding type: 0x%02x\n", new_coding_type);
-
-	type = earctx_cmdc_get_attended_type(s_earc->tx_cmdc_map);
 
 	/* Update Channel Status in runtime */
 	iec_get_cnsmr_cs_info(&cs_info,
@@ -1498,6 +1491,7 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 	int bit_depth = snd_pcm_format_width(runtime->format);
 	int i;
 	unsigned int chmask = 0, swap_masks = 0;
+	int channels, rate;
 
 	if (!s_earc)
 		return -ENOTCONN;
@@ -1515,6 +1509,16 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 	s_earc->ss_info.channels =  2;
 	s_earc->ss_info.rate = runtime->rate;
 	s_earc->tx_audio_coding_type = spdif_codec_to_earc_codec[type][1];
+
+	if (s_earc->earctx_on) {
+		channels = s_earc->fddr->channels;
+		rate = s_earc->fddr->rate;
+	} else {
+		channels = s_earc->ss_info.channels;
+		rate = s_earc->ss_info.rate;
+	}
+	if (channels > 0 && rate > 0)
+		earctx_update_clk(s_earc, channels, rate);
 
 	for (i = 0; i < runtime->channels; i++)
 		chmask |= (1 << i);
