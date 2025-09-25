@@ -312,10 +312,16 @@ bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp)
 			devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT) {
 			devp->bypass_tunnel = true;
 		} else if (devp->prop.dv_unique_drm_flag) {
-			if ((devp->prop.color_format == TVIN_YUV420 ||
-				devp->prop.color_format == TVIN_YUV422) &&
-				devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT)
+			if (devp->prop.color_format == TVIN_YUV422 &&
+			    devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT)
 				devp->bypass_tunnel = false;
+			else if (devp->prop.color_format == TVIN_YUV420 &&
+			    devp->prop.colordepth == VDIN_COLOR_DEEPS_12BIT)
+				/* t6w no preproc, not support 420 12bit tunnel to 444 8 */
+				if (devp->dtdata->hw_ver == VDIN_HW_T6W)
+					devp->bypass_tunnel = true;
+				else
+					devp->bypass_tunnel = false;
 			else
 				devp->bypass_tunnel = true;
 		} else {

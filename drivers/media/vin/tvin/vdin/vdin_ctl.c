@@ -675,10 +675,15 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 			else
 				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
-		} else if (devp->prop.color_format == TVIN_YUV422 ||
-		    devp->prop.color_format == TVIN_YUV420) {
+		} else if (devp->prop.color_format == TVIN_YUV422) {
 			/*rx will tunneled to 444*/
 			format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
+		} else if (devp->prop.color_format == TVIN_YUV420) {
+			/* t6w not support 4k 444 10 and 420 12 input no tunnel */
+			if (devp->dtdata->hw_ver == VDIN_HW_T6W)
+				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
+			else
+				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 		} else if (devp->prop.color_format == TVIN_RGB444) {
 			if (devp->dv_is_not_std)
 				format_convert = VDIN_FORMAT_CONVERT_BRG_YUV422;
