@@ -33,6 +33,7 @@
 #include <dt-bindings/power/s7d-pd.h>
 #include <dt-bindings/power/t6d-pd.h>
 #include <dt-bindings/power/t6w-pd.h>
+#include <dt-bindings/power/t6x-pd.h>
 #include <linux/kallsyms.h>
 
 struct sec_pm_private_domain {
@@ -934,6 +935,38 @@ static struct sec_pm_domain_data t6w_pm_domain_data __initdata = {
 	.domains_count = ARRAY_SIZE(t6w_pm_domains),
 };
 
+static struct sec_pm_private_domain t6x_pm_domains[] __initdata = {
+	[PDID_T6X_MDC_VPU] = POWER_DOMAIN(mdc_vpu, PDID_T6X_MDC_VPU,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T6X_MDC_SYS] = POWER_DOMAIN(mdc_sys, PDID_T6X_MDC_SYS,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T6X_MDC_CPU] = POWER_DOMAIN(mdc_cpu, PDID_T6X_MDC_CPU,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T6X_DOS_HCODEC] = POWER_DOMAIN(hcodec, PDID_T6X_DOS_HCODEC,
+			DOMAIN_INIT_OFF, 0),
+	[PDID_T6X_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_T6X_DOS_HEVC,
+			DOMAIN_INIT_OFF, 0),
+	[PDID_T6X_GE2D] = POWER_DOMAIN(ge2d, PDID_T6X_GE2D,
+			DOMAIN_INIT_OFF, 0),
+	[PDID_T6X_HDMIRX] = POWER_DOMAIN(hdmirx, PDID_T6X_HDMIRX,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T6X_VPU_HDMI] = POWER_DOMAIN(vpu, PDID_T6X_VPU_HDMI,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T6X_AMFC] = POWER_DOMAIN(amfc, PDID_T6X_AMFC,
+			DOMAIN_INIT_ON, 0),
+	[PDID_T6X_DMC0] = POWER_DOMAIN(dmc0, PDID_T6X_DMC0,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T6X_DMC1] = POWER_DOMAIN(dmc1, PDID_T6X_DMC1,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T6X_DEMOD] = POWER_DOMAIN(demod, PDID_T6X_DEMOD,
+			DOMAIN_INIT_OFF, 0),
+};
+
+static struct sec_pm_domain_data t6x_pm_domain_data __initdata = {
+	.domains = t6x_pm_domains,
+	.domains_count = ARRAY_SIZE(t6x_pm_domains),
+};
+
 static int hib_enable;
 static struct genpd_onecell_data *sec_pd_onecell_data;
 
@@ -1201,6 +1234,10 @@ static const struct of_device_id pd_match_table[] = {
 		.data = &t6w_pm_domain_data,
 	},
 #endif
+	{
+		.compatible = "amlogic,t6x-power-domain",
+		.data = &t6x_pm_domain_data,
+	},
 	{
 		.compatible = "amlogic,s1a-power-domain",
 		.data = &s1a_pm_domain_data,

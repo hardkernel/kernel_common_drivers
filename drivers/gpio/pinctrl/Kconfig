@@ -227,4 +227,12 @@ config AMLOGIC_PINCTRL_MESON_T6W
 	  T6W pinctrl can work.
 	  otherwise T6W pinctrl can't work
 
+config AMLOGIC_PINCTRL_MESON_T6X
+	tristate "Meson T6X SoC pinctrl driver"
+	default n
+	help
+	  the chip of T6X will be built
+	  when enable this config.
+	  T6X pinctrl can work.
+	  otherwise T6X pinctrl can't work
 endif

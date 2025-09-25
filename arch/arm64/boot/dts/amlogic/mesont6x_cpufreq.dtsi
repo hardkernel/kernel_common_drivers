@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+/ {
+	opp_table0: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <779000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <779000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <779000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <666666666>;
+			opp-microvolt = <779000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <779000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <829000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1392000000>;
+			opp-microvolt = <839000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1512000000>;
+			opp-microvolt = <859000>;
+		};
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <889000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <929000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <959000>;
+		};
+		opp11 {
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <1009000>;
+		};
+	};
+
+	opp_table1: opp_table1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <779000>;
+		};
+	};
+
+	opp_table2: opp_table2 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <779000>;
+		};
+	};
+
+	opp_table3: opp_table3 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <779000>;
+		};
+	};
+
+	meson_cpufreq {
+		compatible = "amlogic, aml-cpufreq-v2";
+		cluster0-cpu-supply = <&vddcpu0>;
+		status = "okay";
+
+		cluster0 {
+			clocks = <&scmi_clk CLKID_SCMI_CPU_CLK>, <&scmi_clk CLKID_SCMI_DSU_CLK>;
+			clock-names = "cpuclk", "dsuclk";
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
+			//skip_volt_scaling;
+			cluster_cores = <0 1 2 3 4>;
+			//pdvfs_enabled;
+			dsu-opp-table = <1200000 1000000>,
+					 <1392000 1116000>,
+					 <1512000 1212000>,
+					 <1608000 1296000>,
+					 <1704000 1368000>,
+					 <1800000 1440000>,
+					 <1908000 1536000>;
+		};
+	};
+};/* end of / */
+
+&CPU0 {
+	operating-points-v2 = <&opp_table0>,
+				<&opp_table1>,
+				<&opp_table2>,
+				<&opp_table3>;
+};

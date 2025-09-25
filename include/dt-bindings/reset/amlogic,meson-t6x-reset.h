@@ -1,0 +1,165 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#ifndef _DT_BINDINGS_AMLOGIC_MESON_T6X_RESET_H
+#define _DT_BINDINGS_AMLOGIC_MESON_T6X_RESET_H
+
+/* RESET0 */
+#define RESET_USB0_COMB			0
+#define RESET_USB0			1
+#define RESET_USB1_COMB			2
+#define RESET_USB1			3
+#define RESET_USB2_COMB			4
+#define RESET_USB2			5
+#define RESET_U2PHY20			6
+#define RESET_U2PHY21			7
+#define RESET_U2PHY22			8
+#define RESET_U3PHY30			9
+#define RESET_I2C_MON			10
+#define RESET_HDMI20_AES		11
+#define RESET_HDMIRX			12
+#define RESET_HDMIRX_WRAP_APB		13
+#define RESET_I2C_MON_APB		14
+#define RESET_VPU_HDMI_AXI		15
+/*					16*/
+#define RESET_BRG_VCBUS_DEC		17
+#define RESET_VCBUS			18
+#define RESET_VID_PLL_DIV		19
+#define RESET_VDI6			20
+#define RESET_GE2D			21
+/*					22*/
+#define RESET_VID_LOCK			23
+#define RESET_VENC0			24
+#define RESET_VDAC			25
+/*					26*/
+#define RESET_DSC_DEC			27
+#define RESET_RDMA			28
+/*					29*/
+#define RESET_VIU			30
+#define RESET_VENC			31
+
+/* RESET1 */
+#define RESET_AUDIO			32
+#define RESET_MALI_CAPB3		33
+#define RESET_MALI			34
+#define RESET_DDRPLL			35
+/*					36*/
+#define RESET_DOS_CAPB3			37
+#define RESET_DOS			38
+#define RESET_MALI_MBIST		39
+#define RESET_APB_DECODE_DMC		40
+#define RESET_U3PHY30_APB		41
+/*					42-44*/
+#define RESET_AMFC_APB			45
+#define RESET_AMFC			46
+#define RESET_ETH_APB			47
+#define RESET_ETH			48
+#define RESET_U3DRD_USB2PHY_APB		49
+#define RESET_U2DRD_USB2PHY_APB		50
+#define RESET_VPU_TO_VX1_LVDS_PIPE	51
+/*					52-56*/
+#define RESET_DEMOD			57
+#define RESET_DDRTEST			58
+#define RESET_MDC_VPU_APB		59
+#define RESET_MDC_SYS_APB		60
+#define RESET_MDC_CPU_APB		61
+#define RESET_USB22PHY_APB		62
+/*					63*/
+
+/* RESET2 */
+#define RESET_IOTM			64
+#define RESET_IR_CTRL			65
+#define RESET_BRG_USB_WIFI_APB		66
+#define RESET_BRG_ETH_TOP_APB		67
+#define RESET_ETH_AXI			68
+#define RESET_TCON			69
+#define RESET_BCON			70
+/*					71*/
+#define RESET_SMART_CARD		72
+#define RESET_SPICC_0			73
+/*					74*/
+#define RESET_LED_CTRL			75
+#define RESET_BRG_USB3DRD_TO_NICSYS	76
+#define RESET_BRG_USB2H_0_TO_NICSYS	77
+#define RESET_BRG_USB3DRD_APB		78
+#define RESET_BRG_USB2H_0_APB		79
+#define RESET_MSR_CLK			80
+/*					81*/
+#define RESET_SAR_ADC			82
+/*					83-87*/
+#define RESET_ACODEC			88
+#define RESET_CEC			89
+/*					90*/
+#define RESET_WATCHDOG			91
+/*					92*/
+#define RESET_TVFE			93
+#define RESET_ATV_DMD			94
+#define RESET_ADEC			95
+
+/* RESET3 */
+/*					96-127*/
+#define RESET_A55_ACE			96
+#define RESET_BRG_HEVCF_DMC_PIPEL	97
+#define RESET_BRG_VPU_TOP_APB_PIPEL	98
+#define RESET_BRG_DPSS_APB_PIPEL	99
+#define RESET_BRG_SYS_APB_DEC		100
+#define RESET_BRG_NICCPUTODDR0_PIPEL	101
+#define RESET_BRG_HDMIRXTONICSYS_PIPEL	102
+#define RESET_BRG_VPU0TOMDCSYS_PIPEL	103
+/*					104*/
+#define RESET_BRG_VPU2TOMDCSYS_PIPEL	105
+#define RESET_BRG_HCODEC_DMC_PIPEL	106
+#define RESET_BRG_GE2DTOMDCSYS_PIPEL	107
+#define RESET_BRG_ETHTONICSYS_PIPEL	108
+#define RESET_BRG_MALITOMDCSYS_PIPEL	109
+#define RESET_BRG_VX1_LVDS_APB_PIPEL	110
+#define RESET_BRG_ACODEC_APB_PIPEL	111
+#define RESET_BRG_HDMIRX_WRAP_APB_PIPEL	112
+#define RESET_BRG_DOS_APB_PIPEL		113
+#define RESET_BRG_GE2D_APB_PIPEL	114
+#define RESET_BRG_USB2H_TONICSYS_PIPEL	115
+#define RESET_BRG_NICSYS_IOTM		116
+#define RESET_BRG_NICSYS_AMFC		117
+#define RESET_BRG_NICSYS_EMMCC		118
+#define RESET_BRG_NICSYS_MAIN		119
+#define RESET_BRG_NICSYS_VAPB		120
+#define RESET_BRG_NICSYS_SYS		121
+#define RESET_BRG_NICSYS_CPU		122
+#define RESET_BRG_NICSYS_ALL		123
+#define RESET_BRG_USB_WRAPPER_APB_PIPEL	124
+#define RESET_BRG_NICSYS_BCON		125
+#define RESET_BRG_AM2AXI1		126
+#define RESET_BRG_AM2AXI2		127
+
+/* RESET4 */
+#define RESET_PWM_A			128
+#define RESET_PWM_B			129
+#define RESET_PWM_C			130
+#define RESET_PWM_D			131
+#define RESET_PWM_E			132
+#define RESET_PWM_F			133
+#define RESET_PWM_G			134
+#define RESET_PWM_H			135
+#define RESET_PWM_I			136
+#define RESET_PWM_J			137
+#define RESET_UART_A			138
+#define RESET_UART_B			139
+#define RESET_UART_C			140
+#define RESET_UART_D			141
+/*					142*/
+#define RESET_CIPLUS			143
+#define RESET_I2C_M_A			144
+#define RESET_I2C_M_B			145
+#define RESET_I2C_M_C			146
+#define RESET_I2C_M_D			147
+#define RESET_I2C_M_E			148
+/*					149-153*/
+#define RESET_SD_EMMC_C			154
+/*					155*/
+#define RESET_TS_CPU			156
+#define RESET_BRG_PERIPH_SYNC		157
+#define RESET_TS_TOP			158
+/*					159*/
+#endif

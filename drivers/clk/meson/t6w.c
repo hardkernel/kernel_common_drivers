@@ -17,8 +17,6 @@
 #include "t6w.h"
 #include <dt-bindings/clock/t6w-clkc.h>
 
-static const struct clk_ops meson_pll_clk_no_ops = {};
-
 static const struct pll_params_table t6w_fix_pll_params_table[] = {
 	PLL_PARAMS_OD(500, 3, 1), /*DCO=400M OD=DCO/2=2000M*/
 	{ /* sentinel */ }

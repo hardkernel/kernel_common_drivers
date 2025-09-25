@@ -430,6 +430,25 @@ ddk_module(
 )
 
 ddk_module(
+    name = "amlogic-clk-soc-t6x",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_COMMON_CLK_T6X": {
+            True: ["t6x.c"],
+        },
+    },
+    hdrs = [
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[clk-soc-t6x]: \" fmt"],
+    out = "amlogic-clk-soc-t6x.ko",
+    kernel_build = kernel_select(),
+    visibility = ["//visibility:public"],
+    deps = amlogic_clk_soc_deps,
+)
+
+ddk_module(
     name = "amlogic-clk-soc-a5",
     srcs = glob([
         "**/*.h",

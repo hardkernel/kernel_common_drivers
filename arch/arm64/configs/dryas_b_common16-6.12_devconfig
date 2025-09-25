@@ -1,0 +1,8 @@
+# amlogic-soc-amfc.ko
+CONFIG_AMFC_T6X=y
+CONFIG_AMFC_BASE=0xFE092000
+
+# amlogic-soc-erofs.ko and amlogic-soc-f2fs.ko
+# already add them in amlogic_gki.fragment
+
+CONFIG_AMLOGIC_BL_LDIM_ABCON=y
