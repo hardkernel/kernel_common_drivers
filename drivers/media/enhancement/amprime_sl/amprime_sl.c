@@ -110,6 +110,7 @@ static u32 prime_sl_certification_mode; /* 0:off, 1:on */
 static u32 prime_sl_encode_type; /* 0:HEVC, 1:AVC */
 static bool is_prime_sl_frame;/* 0:no, 1:yes */
 static u32 ampsl_display_counts;
+static u32 ampsl_dpss_display_counts;
 
 static const int shadow_gain[201] = {
 	255, 255, 255, 253, 227, 208, 194, 182,
@@ -1241,6 +1242,42 @@ static int prime_sl_parser_metadata(struct vframe_s *vf)
 	}
 	return ret;
 }
+
+void prime_sl_pre_check(struct vframe_s *vf)
+{
+	if (prime_sl_running && (!get_video_enabled(0) || !vf)) {
+		prime_sl_close();
+		prime_sl_running = 0;
+		set_prime_sl_frame(0);
+		ampsl_dpss_display_counts = 0;
+		ampsl_display_counts = 0;
+		dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
+		return;
+	}
+	if (vf && vf->src_fmt.fmt == VFRAME_SIGNAL_FMT_HDR10PRIME) {
+		int size = 0;
+		char *aux_buf = (char *)get_sei_from_src_fmt(vf, &size);
+		int aux_size = size;
+
+		if (!aux_buf || !aux_size ||
+			!is_valid_prime_sl_metadata(aux_buf, aux_size)) {
+			set_prime_sl_frame(0);
+			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
+			pr_sl(1, "update ahdr fmt in advanced as %d\n",
+				vf->src_fmt.fmt);
+		} else {
+			if (!get_prime_sl_frame()) {
+				set_prime_sl_frame(1);
+				pr_sl(1, "ahdr fmt should update every vsync\n");
+			}
+		}
+	} else if (get_prime_sl_frame() && vf &&
+		vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_HDR10PRIME) {
+		set_prime_sl_frame(0);
+		pr_sl(1, "vd1 metadata loss frame\n");
+	}
+}
+EXPORT_SYMBOL(prime_sl_pre_check);
 
 void prime_sl_process(struct vframe_s *vf)
 {

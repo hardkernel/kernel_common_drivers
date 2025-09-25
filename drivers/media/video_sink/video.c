@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/version.h>
@@ -33,6 +33,7 @@
 #endif
 #include <linux/amlogic/media/vfm/vfm_ext.h>
 #include <linux/sched.h>
+#include <linux/suspend.h>
 #include <linux/sched/clock.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
@@ -43,7 +44,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-map-ops.h>
 #include <linux/sched.h>
-#include <linux/suspend.h>
 #include <linux/amlogic/media/video_sink/video_keeper.h>
 #include "video_priv.h"
 #include "video_reg.h"
@@ -114,7 +114,6 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #ifdef CONFIG_AMLOGIC_BUF_MANAGER
 #include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
 #endif
-
 #include <linux/math64.h>
 #include "video_receiver.h"
 #include "video_multi_vsync.h"
@@ -130,7 +129,9 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include "vpp_pq.h"
 #include "video_low_latency.h"
 #include "video_func.h"
-
+#ifdef AMLOGIC_MEDIA_DPSS
+#include <linux/amlogic/media/dpss/dpss_frc.h>
+#endif
 #define DEBUG_TMP 0
 #define DRIVER_NAME "amvideo"
 #define MODULE_NAME "amvideo"
@@ -434,6 +435,9 @@ static int enable_video_discontinue_report = 1;
 static struct amvideocap_req *capture_frame_req;
 #endif
 
+u32 smallwindow_link_enable = 1;
+u32 smallwindow_link_h = 1080;
+
 /*********************************************************/
 /* #define DUR2PTS(x) ((x) - ((x) >> 4)) */
 static inline int DUR2PTS(int x)
@@ -493,7 +497,7 @@ int vf_get_pts_rm(struct vframe_s *vf)
 /* frame rate calculate */
 u32 toggle_count;
 u32 timer_count;
-u32 vsync_count;
+u32 vsync_counts;
 
 /* extern var for video_func.h */
 /* default value 20 30 */
@@ -708,11 +712,18 @@ int toggle_3d_fa_frame = 1;
 
 /*debug info control for skip & repeate vframe case*/
 static unsigned int video_dbg_vf;
+
+//static int vd_cnt = MAX_VD_LAYER;
 unsigned int video_get_vf_cnt[MAX_VD_LAYER];
+
 unsigned int video_drop_vf_cnt[MAX_VD_LAYER];
+
 static unsigned int disable_dv_drop;
+
 static u32 vdin_frame_skip_cnt;
+
 static u32 vdin_err_crc_cnt;
+
 #define ERR_CRC_COUNT 6
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -740,6 +751,7 @@ static unsigned int tolrnc_cnt = 6;
 static unsigned int timer_filter_en;
 static unsigned int aipq_set_policy;
 static unsigned int color_th = 100;
+static unsigned int aipq_th = 2000;
 
 u32 get_stb_cnt(void)
 {
@@ -774,6 +786,11 @@ u32 get_aipq_set_policy(void)
 u32 get_color_th(void)
 {
 	return color_th;
+}
+
+u32 get_aipq_th(void)
+{
+	return aipq_th;
 }
 #endif
 
@@ -951,11 +968,6 @@ inline struct vframe_s *amvideo_vf_get(void)
 		/*tunnel mode, add dv_inst to vf*/
 		if (dv_inst >= 0)
 			vf->src_fmt.dv_id = dv_inst;
-		/*init dv info*/
-		vf->src_fmt.pr_done = false;
-		vf->src_fmt.py_level = PY_NO_LEVEL;
-		vf->src_fmt.downsamplers = 2;
-		vf->src_fmt.py_id = 0;
 #endif
 	}
 	return vf;
@@ -998,7 +1010,11 @@ inline int amvideo_vf_put(struct vframe_s *vf)
 		if (IS_DI_POSTWRTIE(vf->type))
 			put_di_count++;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#ifdef AMLOGIC_MEDIA_DPSS
+		if (is_amdv_enable() && !is_amdv_dpss_path())
+#else
 		if (is_amdv_enable())
+#endif
 			amdv_vf_put(vf);
 #endif
 		video_notify_flag |= VIDEO_NOTIFY_PROVIDER_PUT;
@@ -1166,7 +1182,12 @@ static void video_vf_unreg_provider(void)
 
 	if (cur_dispbuf2)
 		need_disable_vd[1] = true;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#ifdef AMLOGIC_MEDIA_DPSS
+	if (is_amdv_enable() && !is_amdv_dpss_path()) {
+#else
 	if (is_amdv_enable()) {
+#endif
 		if (cur_dispbuf2 == &vf_local2) {
 			cur_dispbuf2 = NULL;
 		} else if (cur_dispbuf2) {
@@ -1175,6 +1196,7 @@ static void video_vf_unreg_provider(void)
 		}
 		cur_dispbuf2 = NULL;
 	}
+#endif
 	if (trickmode_fffb) {
 		atomic_set(&trickmode_framedone, 0);
 		to_notify_trick_wait = false;
@@ -1468,7 +1490,11 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		mutex_unlock(&omx_mutex);
 		atomic_dec(&video_recv_cnt);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#ifdef AMLOGIC_MEDIA_DPSS
+		if (is_amdv_enable() && !is_amdv_dpss_path()) {
+#else
 		if (is_amdv_enable()) {
+#endif
 			dv_vf_light_unreg_provider();
 			if (dv_inst >= 0) {/*tunnel mode*/
 				dv_inst_unmap(dv_inst);
@@ -1526,7 +1552,11 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 #endif
 		video_vf_light_unreg_provider(0);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#ifdef AMLOGIC_MEDIA_DPSS
+		if (is_amdv_enable() && !is_amdv_dpss_path()) {
+#else
 		if (is_amdv_enable()) {
+#endif
 			dv_vf_light_reg_provider();
 			if (is_tunnel_mode(RECEIVER_NAME)) {
 				dv_inst_map(&dv_inst);
@@ -1685,26 +1715,26 @@ static void judge_3d_fa_out_mode(void)
 		/* toggle_3d_fa_frame  determine*/
 		/*the out frame is L or R or blank */
 		if ((process_3d_type & MODE_3D_OUT_FA_L_FIRST)) {
-			if ((vsync_count % 2) == 0)
+			if ((vsync_counts % 2) == 0)
 				toggle_3d_fa_frame = OUT_FA_A_FRAME;
 			else
 				toggle_3d_fa_frame = OUT_FA_B_FRAME;
 		} else if ((process_3d_type & MODE_3D_OUT_FA_R_FIRST)) {
-			if ((vsync_count % 2) == 0)
+			if ((vsync_counts % 2) == 0)
 				toggle_3d_fa_frame = OUT_FA_B_FRAME;
 			else
 				toggle_3d_fa_frame = OUT_FA_A_FRAME;
 		} else if ((process_3d_type & MODE_3D_OUT_FA_LB_FIRST)) {
-			if ((vsync_count % 4) == 0)
+			if ((vsync_counts % 4) == 0)
 				toggle_3d_fa_frame = OUT_FA_A_FRAME;
-			else if ((vsync_count % 4) == 2)
+			else if ((vsync_counts % 4) == 2)
 				toggle_3d_fa_frame = OUT_FA_B_FRAME;
 			else
 				toggle_3d_fa_frame = OUT_FA_BANK_FRAME;
 		} else if ((process_3d_type & MODE_3D_OUT_FA_RB_FIRST)) {
-			if ((vsync_count % 4) == 0)
+			if ((vsync_counts % 4) == 0)
 				toggle_3d_fa_frame = OUT_FA_B_FRAME;
-			else if ((vsync_count % 4) == 2)
+			else if ((vsync_counts % 4) == 2)
 				toggle_3d_fa_frame = OUT_FA_A_FRAME;
 			else
 				toggle_3d_fa_frame = OUT_FA_BANK_FRAME;
@@ -2473,7 +2503,7 @@ static void set_omx_pts(u32 *p)
 				dovi_drop_frame_num = frame_num;
 
 				if (disable_dv_drop) {
-					omx_run = true;
+					omx_run = 1;
 					dovi_drop_flag = false;
 					dovi_drop_frame_num = 0;
 					omx_drop_done = 1;
@@ -3006,7 +3036,11 @@ struct vframe_s *dv_toggle_frame(struct vframe_s *vf, enum vd_path_e vd_path, bo
 {
 	struct vframe_s *toggle_vf = NULL;
 
+#ifdef AMLOGIC_MEDIA_DPSS
+	if (!is_amdv_enable() || is_amdv_dpss_path()) {
+#else
 	if (!is_amdv_enable()) {
+#endif
 		cur_dispbuf2 = NULL;
 		dvel_size = 0;
 		dvel_changed = false;
@@ -3442,12 +3476,12 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 	ATRACE_COUNTER("vsync_toggle_frame_pts", vf->pts);
 
 	diff_pts = vf->pts - last_pts;
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
-	if (last_pts && diff_pts < 90000)
+	if (last_pts && diff_pts < 90000) {
 		ATRACE_COUNTER("vsync_toggle_frame_inc", diff_pts);
-	else
-		ATRACE_COUNTER("vsync_toggle_frame_inc", 0);  /* discontinue */
-#endif
+	} else {
+		ATRACE_COUNTER("vsync_toggle_frame_inc", 0);/* discontinue */
+	}
+
 	last_pts = vf->pts;
 
 	frame_count++;
@@ -3739,7 +3773,11 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 static struct vframe_s *save_toggle_frame(struct vframe_s *vf)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#ifdef AMLOGIC_MEDIA_DPSS
+	if (get_top1_onoff() == 3 && !is_amdv_dpss_path()) {
+#else
 	if (get_top1_onoff() == 3) {
+#endif
 		if (video_save.save_vf_en && video_save.save_vf) {
 			/* need toggle */
 			video_save.toggle_vf = video_save.save_vf;
@@ -3940,10 +3978,18 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 				      "skipped\n");
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			ret = dolby_vision_need_wait(0);
-			if (((vd_path_id[0] == VFM_PATH_AMVIDEO ||
+#ifdef AMLOGIC_MEDIA_DPSS
+			if (!is_amdv_dpss_path() &&
+				(((vd_path_id[0] == VFM_PATH_AMVIDEO ||
 			     vd_path_id[0] == VFM_PATH_DEF ||
 			     vd_path_id[0] == VFM_PATH_AUTO) && ret) ||
-			     force_top1_once) {
+			     force_top1_once)) {
+#else
+			if ((((vd_path_id[0] == VFM_PATH_AMVIDEO ||
+			     vd_path_id[0] == VFM_PATH_DEF ||
+			     vd_path_id[0] == VFM_PATH_AUTO) && ret) ||
+			     force_top1_once)) {
+#endif
 			     /*first frame, only proc top1*/
 				if (ret == 4 || force_top1_once) {
 					if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
@@ -4030,7 +4076,12 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 				break; // not render err crc frame
 			}
 			/*top1 enable, need check one more frame*/
-			if (is_amdv_enable() && get_top1_onoff() == 3) {/*todo*/
+#ifdef AMLOGIC_MEDIA_DPSS
+			if (is_amdv_enable() && get_top1_onoff() == 3 &&
+				!is_amdv_dpss_path()) {/*todo*/
+#else
+			if (is_amdv_enable() && get_top1_onoff() == 3) {
+#endif
 				vf_top1 = amvideo_vf_peek();
 				/*wait next new Fn+1 for top1, proc top2 Fn + top1 Fn+1*/
 				/*if no new frame, proc top2 Fn + repeat Top1 Fn cur vsync*/
@@ -4055,10 +4106,18 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 				do_gettimeofday(&cur_line_info->end3);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-			if (vd_path_id[0] == VFM_PATH_AMVIDEO ||
+#ifdef AMLOGIC_MEDIA_DPSS
+			if (!is_amdv_dpss_path() &&
+				(vd_path_id[0] == VFM_PATH_AMVIDEO ||
 			    vd_path_id[0] == VFM_PATH_DEF ||
-				vd_path_id[0] == VFM_PATH_AUTO) {
-				if (get_top1_onoff() == 0 || !vf_top1) {/*no top1*/
+				vd_path_id[0] == VFM_PATH_AUTO)) {
+				if (get_top1_onoff() == 0) {/*no top1*/
+#else
+			if ((vd_path_id[0] == VFM_PATH_AMVIDEO ||
+			    vd_path_id[0] == VFM_PATH_DEF ||
+				vd_path_id[0] == VFM_PATH_AUTO)) {
+				if (get_top1_onoff() == 0) {/*no top1*/
+#endif
 					dv_new_vf = dv_toggle_frame(vf, VD1_PATH, true);
 				} else if (get_top1_onoff() == 1) {
 				/*top1 enabled but no need get frame in advance*/
@@ -4389,6 +4448,7 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 	vdin_keep_count += get_vdin_add_delay_num();
 #endif
+
 #ifdef CONFIG_AMLOGIC_BUF_MANAGER
 	di_backend_en = get_di_proc_enable();
 #endif
@@ -4438,7 +4498,6 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	else
 		hdmin_delay_min = sync_count_pre * vdin_vsync +
 			display_path_count * vpp_vsync + ext_delay;
-
 	hdmin_delay_min_ms = div64_u64(hdmin_delay_min, 1000);
 	hdmin_delay_min_ms += memc_delay;
 
@@ -4521,6 +4580,7 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 	vdin_keep_count += get_vdin_add_delay_num();
 #endif
+
 #ifdef CONFIG_AMLOGIC_BUF_MANAGER
 	di_backend_en = get_di_proc_enable();
 #endif
@@ -5399,8 +5459,8 @@ static irqreturn_t vsync_bridge_isr(int irq, void *dev_id)
 int get_vsync_count(unsigned char reset)
 {
 	if (reset)
-		vsync_count = 0;
-	return vsync_count;
+		vsync_counts = 0;
+	return vsync_counts;
 }
 EXPORT_SYMBOL(get_vsync_count);
 
@@ -5443,6 +5503,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		check_video_mute();
 		return IRQ_HANDLED;
 	}
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+#ifdef AMLOGIC_MEDIA_DPSS
+	irq_display();
+#endif
+#endif
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
 	post_vsync_process();
@@ -5484,6 +5549,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	}
 
 	isr_last_clock = sched_clock();
+
 	if (get_lowlatency_mode() || get_low_latency_version() == 2)
 		put_buffer_proc();
 	lowlatency_vsync_count++;
@@ -6048,6 +6114,7 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 				set_prime_sl_frame(1);
 			}
 		}
+		prime_sl_pre_check(vf);
 #endif
 	}
 
@@ -7528,16 +7595,16 @@ static ssize_t video_axis_store(const struct class *cla,
 }
 
 static ssize_t move_base_zoom_show(const struct class *cla,
-					const struct class_attribute *attr,
-					char *buf)
+			       const struct class_attribute *attr,
+			       char *buf)
 {
 	return snprintf(buf, 40, "move zoom en: %d move size v:%d h:%d\n",
 		zoom_move_en, move_base_zoom[0], move_base_zoom[1]);
 }
 
 static ssize_t move_base_zoom_store(const struct class *cla,
-					 const struct class_attribute *attr,
-					 const char *buf, size_t count)
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	int parsed[3];
 
@@ -8956,14 +9023,14 @@ static ssize_t frame_addr_show(const struct class *cla, const struct class_attri
 	return sprintf(buf, "NA\n");
 }
 
-static ssize_t hdmin_delay_start_show(const struct class *class,
+static ssize_t hdmin_delay_start_show(const struct class *cla,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
 	return sprintf(buf, "%d\n", hdmin_delay_start);
 }
 
-static ssize_t hdmin_delay_start_store(const struct class *class,
+static ssize_t hdmin_delay_start_store(const struct class *cla,
 				       const struct class_attribute *attr,
 				       const char *buf,
 				       size_t count)
@@ -8985,14 +9052,14 @@ static ssize_t hdmin_delay_start_store(const struct class *class,
 	return count;
 }
 
-static ssize_t hdmin_delay_min_ms_show(const struct class *class,
+static ssize_t hdmin_delay_min_ms_show(const struct class *cla,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
 	return sprintf(buf, "%d\n", hdmin_delay_min_ms);
 }
 
-static ssize_t hdmin_delay_min_ms_store(const struct class *class,
+static ssize_t hdmin_delay_min_ms_store(const struct class *cla,
 				       const struct class_attribute *attr,
 				       const char *buf,
 				       size_t count)
@@ -9008,14 +9075,14 @@ static ssize_t hdmin_delay_min_ms_store(const struct class *class,
 	return count;
 }
 
-static ssize_t hdmin_delay_max_ms_show(const struct class *class,
+static ssize_t hdmin_delay_max_ms_show(const struct class *cla,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
 	return sprintf(buf, "%d\n", hdmin_delay_max_ms);
 }
 
-static ssize_t hdmin_delay_max_ms_store(const struct class *class,
+static ssize_t hdmin_delay_max_ms_store(const struct class *cla,
 				       const struct class_attribute *attr,
 				       const char *buf,
 				       size_t count)
@@ -9031,7 +9098,7 @@ static ssize_t hdmin_delay_max_ms_store(const struct class *class,
 	return count;
 }
 
-static ssize_t hdmin_delay_duration_show(const struct class *class,
+static ssize_t hdmin_delay_duration_show(const struct class *cla,
 					 const struct class_attribute *attr,
 					 char *buf)
 {
@@ -9039,7 +9106,7 @@ static ssize_t hdmin_delay_duration_show(const struct class *class,
 }
 
 /*set video total delay*/
-static ssize_t hdmin_delay_duration_store(const struct class *class,
+static ssize_t hdmin_delay_duration_store(const struct class *cla,
 					  const struct class_attribute *attr,
 					  const char *buf,
 					  size_t count)
@@ -9066,14 +9133,14 @@ static ssize_t hdmin_delay_duration_store(const struct class *class,
 	return count;
 }
 
-static ssize_t vframe_walk_delay_show(const struct class *class,
+static ssize_t vframe_walk_delay_show(const struct class *cla,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
 	return sprintf(buf, "%d\n", vframe_walk_delay);
 }
 
-static ssize_t last_required_total_delay_show(const struct class *class,
+static ssize_t last_required_total_delay_show(const struct class *cla,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
@@ -9269,7 +9336,7 @@ static ssize_t frame_rate_show(const struct class *cla, const struct class_attri
 	if (time == 0)
 		return 0;
 	rate = 100 * cnt * HZ / time;
-	vsync_rate = 100 * vsync_count * HZ / time;
+	vsync_rate = 100 * vsync_counts * HZ / time;
 	if (vinfo->sync_duration_den > 0) {
 		ret = sprintf
 			(buf,
@@ -9285,7 +9352,7 @@ static ssize_t frame_rate_show(const struct class *cla, const struct class_attri
 		if ((vsync_rate * vsync_pts_inc / 100) != 90000)
 			vsync_pts_inc = 90000 * 100 / (vsync_rate);
 	}
-	vsync_count = 0;
+	vsync_counts = 0;
 	return ret;
 }
 
@@ -10112,7 +10179,7 @@ static ssize_t video_inuse_show(const struct class *cla,
 	return r;
 }
 
-static ssize_t video_inuse_store(const struct class *class,
+static ssize_t video_inuse_store(const struct class *cla,
 				 const struct class_attribute *attr,
 				 const char *buf,
 				 size_t count)
@@ -11053,6 +11120,73 @@ static ssize_t aisr_state_show(char *buf)
 		       _cur_frame_par->VPP_vsc_endp);
 	return len;
 }
+
+static u32 parse_vframe_bit(struct vframe_s *vf,
+	struct vpp_frame_par_s *frame_par)
+{
+	u32 bit = 0, type = 0;
+
+	type = vf->type;
+	if (frame_par->nocomp)
+		type &= ~VIDTYPE_COMPRESS;
+	/* P010_MODE only worked when nv21 10bit */
+	if (!(type & VIDTYPE_COMPRESS) &&
+		(type & VIDTYPE_VIU_NV21 || type & VIDTYPE_VIU_NV12)) {
+		//10 bit in 16 bit
+		bit = (vf->canvas0_config[0].bit_depth & P010_MODE) ? PIX_10_IN_16BIT : 0;
+	}
+
+	if (bit != PIX_10_IN_16BIT) {
+		if (type & VIDTYPE_COMPRESS) {
+			if (BITDEPTH_HAS(vf->bitdepth, BITDEPTH_Y10))
+				bit = PIX_10BIT;
+			else if (BITDEPTH_HAS(vf->bitdepth, BITDEPTH_Y12))
+				bit = PIX_12BIT;
+			else
+				bit = PIX_8BIT;
+		} else {
+			if (frame_par->nocomp) {
+				if (BITDEPTH_HAS(vf->bitdepth_dw, BITDEPTH_Y10)) {
+					if ((type & VIDTYPE_VIU_444) ||
+						(type & VIDTYPE_RGB_444) ||
+						((type & VIDTYPE_VIU_422) &&
+						vf->bitdepth_dw & FULL_PACK_422_MODE) ||
+						(((type & VIDTYPE_VIU_NV12) ||
+						(type & VIDTYPE_VIU_NV21)) &&
+						(vf->bitdepth_dw & FULL_PACK_420_MODE)))
+						//10 bit full packet
+						bit = PIX_10BIT;
+					else
+						//10 bit in 12 bit
+						bit = PIX_10_IN_12BIT;
+				} else {
+					//8 bit
+					bit = PIX_8BIT;
+				}
+			} else {
+				if (BITDEPTH_HAS(vf->bitdepth, BITDEPTH_Y10)) {
+					if ((type & VIDTYPE_VIU_444) ||
+						(type & VIDTYPE_RGB_444) ||
+						((type & VIDTYPE_VIU_422) &&
+						vf->bitdepth & FULL_PACK_422_MODE) ||
+						(((type & VIDTYPE_VIU_NV12) ||
+						(type & VIDTYPE_VIU_NV21)) &&
+						(vf->bitdepth & FULL_PACK_420_MODE)))
+						//10 bit full packet
+						bit = PIX_10BIT;
+					else
+						//10 bit in 12 bit
+						bit = PIX_10_IN_12BIT;
+				} else {
+					//8 bit
+					bit = PIX_8BIT;
+				}
+			}
+		}
+	}
+	return bit;
+}
+
 static ssize_t vdx_state_show(u32 index, char *buf)
 {
 	ssize_t len = 0;
@@ -11060,7 +11194,7 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 	struct vpp_frame_par_s *_cur_frame_par = NULL;
 	struct video_layer_s *_vd_layer = NULL;
 	struct disp_info_s *layer_info = NULL;
-	int afbc = 0, dw = 0;
+	int afbc = 0, dw = 0, afrc = 0, compress = 0, rdmif = 0;
 	struct vframe_s *dispbuf = NULL;
 
 	if (index >= MAX_VD_LAYER)
@@ -11074,10 +11208,13 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 
 	dispbuf = get_dispbuf(index);
 	if (dispbuf) {
-		u32 format = 0;
-		char  *str = NULL;
+		u32 format = 0, bit = 0;
+		char  *str = NULL, *str1 = NULL;
 		const char *fmt_str[5] = {
 			"NV21", "NV12", "YUV422", "YUV444", "GRB444",
+		};
+		const char *bit_str[6] = {
+			"8BIT", "10BIT", "12BIT", "16BIT", "10_IN_12BIT", "10_IN_16BIT",
 		};
 
 		if (dispbuf->type & VIDTYPE_VIU_NV21)
@@ -11090,15 +11227,29 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 			format = 3;
 		else if (dispbuf->type & VIDTYPE_RGB_444)
 			format = 4;
+		bit = parse_vframe_bit(dispbuf, _cur_frame_par);
 		str = (char *)fmt_str[format];
-		len += sprintf(buf + len, "fmt:%s. bitdepth:0x%x\n",
-			       str, dispbuf->bitdepth);
-		afbc = dispbuf->type & VIDTYPE_COMPRESS ? 1 : 0;
-		dw = afbc && _cur_frame_par->nocomp;
-		len += sprintf(buf + len, "afbc:%d double_write:%d.\n",
-			       afbc, dw);
+		str1 = (char *)bit_str[bit];
+		len += sprintf(buf + len,
+			"fmt:%s. bit: %s, bitdepth:0x%x, bitdepth_dw:0x%x, plane_num=%d, type_dw=0x%x\n",
+			       str, str1, dispbuf->bitdepth,
+			       dispbuf->bitdepth_dw, dispbuf->plane_num,
+			       dispbuf->type_dw);
+		compress = dispbuf->type & VIDTYPE_COMPRESS ? 1 : 0;
+		dw = compress && _cur_frame_par->nocomp;
+		if (!compress)
+			rdmif = 1;
+		if (!dw && compress) {
+			afrc = (dispbuf->type_ext & VIDTYPE_EXT_AFRC_COMPRESS) ? 1 : 0;
+			afbc = afrc ? 0 : 1;
+		}
+		len += sprintf(buf + len, "afbc:%d afrc: %d rdmif: %d, double_write:%d.\n",
+			       afbc, afrc, rdmif, dw);
 		len += sprintf(buf + len, "di pre_link:%d post_link:%d.\n",
 			IS_DI_PRELINK(dispbuf->di_flag), IS_DI_PSTLINK(dispbuf->di_flag));
+		len += sprintf(buf + len, "dpss: frc link:%d, is_frc_link_on:%d\n",
+			IS_FRC_LINK(dispbuf->type_ext),
+			is_frc_link_on(_vd_layer));
 		len += sprintf(buf + len, "cur vf type:0x%x. flag: 0x%x\n",
 			dispbuf->type, dispbuf->flag);
 	}
@@ -11316,13 +11467,14 @@ static ssize_t over_field_state_store(const struct class *cla,
 }
 
 static ssize_t video_force_skip_cnt_show(const struct class *cla,
-			const struct class_attribute *attr,
+		const struct class_attribute *attr,
 			       char *buf)
 {
-	return sprintf(buf, "force_skip_cnt:0x%x, 0x%x, 0x%x(bit8: hskip, bit0-7: vskip)\n",
-		       force_skip_cnt[0],
-		       force_skip_cnt[1],
-		       force_skip_cnt[2]);
+	return sprintf(buf,
+		"force_skip_cnt:0x%x, 0x%x, 0x%x(bit8: hskip, bit0-7: vskip)\n",
+		force_skip_cnt[0],
+		force_skip_cnt[1],
+		force_skip_cnt[2]);
 }
 
 static ssize_t video_force_skip_cnt_store(const struct class *cla,
@@ -12529,7 +12681,6 @@ static void set_aisr_en(int en)
 			vd_layer[0].property_changed = true;
 	}
 }
-
 static ssize_t aisr_en_store(const struct class *cla,
 				 const struct class_attribute *attr,
 				 const char *buf, size_t count)
@@ -12790,6 +12941,28 @@ static ssize_t color_th_store(const struct class *cla,
 	return count;
 }
 
+static ssize_t aipq_th_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "aipq_th: %d\n", aipq_th);
+}
+
+static ssize_t aipq_th_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	long tmp;
+
+	int ret = kstrtol(buf, 0, &tmp);
+
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	aipq_th = tmp;
+	return count;
+}
+
 static ssize_t aisr_demo_type_show(const struct class *cla,
 			     const struct class_attribute *attr, char *buf)
 {
@@ -12956,7 +13129,7 @@ static ssize_t power_ctrl_store(const struct class *cla,
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
-static ssize_t frc_delay_show(const struct class *class,
+static ssize_t frc_delay_show(const struct class *cla,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
@@ -13039,7 +13212,7 @@ static const char vpu_module_urgent_help_t5m[] = "Usage:\n"
 "  TCON_P2: 6\n\n";
 #endif
 
-static ssize_t vpu_module_urgent_set(const struct class *class,
+static ssize_t vpu_module_urgent_set(const struct class *cla,
 			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
@@ -13373,7 +13546,8 @@ static ssize_t mosaic_axis_pic_show(const struct class *cla,
 		const struct class_attribute *attr,
 		char *buf)
 {
-	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+	if (cur_dev->display_module == S5_DISPLAY_MODULE ||
+	    cur_dev->display_module == T6W_DISPLAY_MODULE)
 		get_mosaic_axis();
 	return 0;
 }
@@ -13382,7 +13556,8 @@ static ssize_t mosaic_axis_pic_store(const struct class *cla,
 		const struct class_attribute *attr,
 		const char *buf, size_t count)
 {
-	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+	if (cur_dev->display_module == S5_DISPLAY_MODULE ||
+	    cur_dev->display_module == T6W_DISPLAY_MODULE) {
 		int parsed[5];
 		int pic_index  = 0;
 
@@ -13652,7 +13827,7 @@ static ssize_t lcevc_coef_demo_show(const struct class *cla,
 			const struct class_attribute *attr,
 			char *buf)
 {
-	return snprintf(buf, 80, "param:%d(0: default bicubic; 1:lcevc-stream coeff,2:manual)\n",
+	return snprintf(buf, 60, "param:%d(0: default bicubic; 1:lcevc-stream coeff,2:manual)\n",
 		lcevc_coef_demo);
 }
 
@@ -13753,9 +13928,8 @@ static void modify_line_n_num(u32 line_num)
 	WRITE_VCBUS_REG(VPP_INT_LINE_NUM, line_num);
 }
 
-static ssize_t line_n_num_show(const struct class *cla,
-			       const struct class_attribute *attr,
-			       char *buf)
+static ssize_t line_n_num_show(const struct class *cla, const struct class_attribute *attr,
+		    char *buf)
 {
 	ssize_t len = 0;
 
@@ -13765,9 +13939,8 @@ static ssize_t line_n_num_show(const struct class *cla,
 	return len;
 }
 
-static ssize_t line_n_num_store(const struct class *cla,
-				const struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t line_n_num_store(const struct class *cla, const struct class_attribute *attr,
+		     const char *buf, size_t count)
 {
 	int ret;
 	u32 val = 0, cur_line = 0, new_line = 0;
@@ -13785,9 +13958,8 @@ static ssize_t line_n_num_store(const struct class *cla,
 	return count;
 }
 
-static ssize_t lowlatency_en_show(const struct class *cla,
-				  const struct class_attribute *attr,
-				  char *buf)
+static ssize_t lowlatency_en_show(const struct class *cla, const struct class_attribute *attr,
+		    char *buf)
 {
 	ssize_t len = 0;
 	u32 enable = 0, version = 0;
@@ -13799,9 +13971,8 @@ static ssize_t lowlatency_en_show(const struct class *cla,
 	return len;
 }
 
-static ssize_t lowlatency_en_store(const struct class *cla,
-				   const struct class_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t lowlatency_en_store(const struct class *cla, const struct class_attribute *attr,
+		     const char *buf, size_t count)
 {
 	int parsed[2];
 
@@ -13817,9 +13988,8 @@ static ssize_t lowlatency_en_store(const struct class *cla,
 	return count;
 }
 
-static ssize_t lowlatency_debug_show(const struct class *cla,
-				     const struct class_attribute *attr,
-				     char *buf)
+static ssize_t lowlatency_debug_show(const struct class *cla, const struct class_attribute *attr,
+		    char *buf)
 {
 	ssize_t len = 0;
 	u32 p0 = 0, p1 = 0, p2 = 0, p3 = 0, p4 = 0, p5 = 0;
@@ -13842,9 +14012,8 @@ static ssize_t lowlatency_debug_show(const struct class *cla,
 	return len;
 }
 
-static ssize_t lowlatency_debug_store(const struct class *cla,
-				      const struct class_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t lowlatency_debug_store(const struct class *cla, const struct class_attribute *attr,
+		     const char *buf, size_t count)
 {
 	int p[6];
 
@@ -13857,6 +14026,60 @@ static ssize_t lowlatency_debug_store(const struct class *cla,
 	}
 
 	return count;
+}
+
+static ssize_t disable_frc_link_show(const struct class *cla,
+			const struct class_attribute *attr,
+			char *buf)
+{
+	return snprintf(buf, 40, "need_disable_frc_link=%d\n",
+		vd_layer[0].need_disable_frc_link);
+}
+
+static ssize_t disable_frc_link_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	if (res != vd_layer[0].need_disable_frc_link) {
+		vd_layer[0].need_disable_frc_link = res;
+		vd_layer[0].property_changed = true;
+		pr_info("%s:need_disable_frc_link=%d\n",
+			__func__, vd_layer[0].need_disable_frc_link);
+	}
+	return count;
+}
+
+static ssize_t smallwindow_frc_link_show(const struct class *cla,
+			const struct class_attribute *attr,
+			char *buf)
+{
+	return snprintf(buf, 60, "smallwindow_link_enable=%d, smallwindow_link_h=%d\n",
+		smallwindow_link_enable, smallwindow_link_h);
+}
+
+static ssize_t smallwindow_frc_link_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int p[2];
+
+	if (likely(parse_para(buf, 2, p) == 2)) {
+		smallwindow_link_enable = p[0];
+		smallwindow_link_h = p[1];
+		vd_layer[0].property_changed = true;
+	} else {
+		pr_info("%s: err\n", __func__);
+	}
+
+	return strnlen(buf, count);
 }
 
 static struct class_attribute amvideo_class_attrs[] = {
@@ -14362,6 +14585,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       color_th_show,
 	       color_th_store),
+	__ATTR(aipq_th,
+	       0664,
+	       aipq_th_show,
+	       aipq_th_store),
 	__ATTR(aisr_demo_en,
 	       0664,
 	       aisr_demo_en_show,
@@ -14505,6 +14732,15 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0664,
 		lowlatency_debug_show,
 		lowlatency_debug_store),
+	__ATTR(disable_frc_link,
+		0664,
+		disable_frc_link_show,
+		disable_frc_link_store),
+	__ATTR(smallwindow_frc_link,
+		0664,
+		smallwindow_frc_link_show,
+		smallwindow_frc_link_store),
+
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -14614,7 +14850,7 @@ static int vpp_axis_reverse(char *str)
 		video_mirror = 0;
 	}
 
-	return 1;
+	return 0;
 }
 
 __setup("video_reverse=", vpp_axis_reverse);
@@ -14834,7 +15070,7 @@ struct device *get_video_device(void)
 
 static struct mconfig video_configs[] = {
 	MC_PI32("pause_one_3d_fl_frame", &pause_one_3d_fl_frame),
-	MC_PI32("debug_flag", &debug_flag),
+	MC_PU32("debug_flag", &debug_flag),
 	MC_PU32("force_3d_scaler", &force_3d_scaler),
 	MC_PU32("video_3d_format", &video_3d_format),
 	MC_PI32("vsync_enter_line_max", &vsync_enter_line_max),
@@ -15805,6 +16041,7 @@ static struct amvideo_device_data_s amvideo_s7d = {
 	.dv_support = 1,
 	.sr0_support = 0,
 	.sr1_support = 0,
+	.inline_aisr_support = 1,
 	.core_v_disable_width_max[0] = 4096,
 	.core_v_disable_width_max[1] = 4096,
 	.core_v_enable_width_max[0] = 2048,
@@ -15856,6 +16093,7 @@ static struct amvideo_device_data_s amvideo_s6 = {
 	.dv_support = 1,
 	.sr0_support = 0,
 	.sr1_support = 0,
+	.inline_aisr_support = 1,
 	.core_v_disable_width_max[0] = 4096,
 	.core_v_disable_width_max[1] = 4096,
 	.core_v_enable_width_max[0] = 2048,
@@ -15940,6 +16178,116 @@ static struct amvideo_device_data_s amvideo_t6d = {
 	.has_vpp2 = 0,
 	.is_tv_panel = 1,
 	.share_afbc_with_di = 1,
+};
+
+static struct amvideo_device_data_s amvideo_t6w = {
+	.cpu_type = MESON_CPU_MAJOR_ID_T6W_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 1,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 1,
+	.alpha_support[1] = 1,
+	.alpha_support[2] = 0,
+	.dv_support = 1,
+	.sr0_support = 0,
+	.sr1_support = 0,
+	.inline_aisr_support = 1,
+	.core_v_disable_width_max[0] = 4096,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 2048,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = VSR_BEFORE_VE,
+	.fgrain_support[0] = 1,
+	.fgrain_support[1] = 1,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 1,
+	.has_hscaler_8tap[1] = 1,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 2,
+	.has_pre_hscaler_ntap[1] = 2,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 1,
+	.has_pre_vscaler_ntap[1] = 1,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 4096,
+	.src_width_max[1] = 2048,
+	.src_width_max[2] = 4096,
+	.src_height_max[0] = 2160,
+	.src_height_max[1] = 1088,
+	.src_height_max[2] = 2160,
+	.ofifo_size = 0x1000,
+	.afbc_conv_lbuf_len[0] = 0x100,
+	.afbc_conv_lbuf_len[1] = 0x80,
+	.mif_linear = 1,
+	.display_module = T6W_DISPLAY_MODULE,
+	.max_vd_layers = 2,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
+	.is_tv_panel = 1,
+};
+
+static struct amvideo_device_data_s amvideo_t6x = {
+	.cpu_type = MESON_CPU_MAJOR_ID_T6X_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 1,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 1,
+	.alpha_support[1] = 1,
+	.alpha_support[2] = 0,
+	.dv_support = 1,
+	.sr0_support = 0,
+	.sr1_support = 0,
+	.inline_aisr_support = 1,
+	.core_v_disable_width_max[0] = 4096,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 2048,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = VSR_BEFORE_VE,
+	.fgrain_support[0] = 1,
+	.fgrain_support[1] = 1,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 1,
+	.has_hscaler_8tap[1] = 1,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 2,
+	.has_pre_hscaler_ntap[1] = 2,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 1,
+	.has_pre_vscaler_ntap[1] = 1,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 4096,
+	.src_width_max[1] = 2048,
+	.src_width_max[2] = 4096,
+	.src_height_max[0] = 2160,
+	.src_height_max[1] = 1088,
+	.src_height_max[2] = 2160,
+	.ofifo_size = 0x1000,
+	.afbc_conv_lbuf_len[0] = 0x100,
+	.afbc_conv_lbuf_len[1] = 0x80,
+	.mif_linear = 1,
+	.display_module = T6W_DISPLAY_MODULE,
+	.max_vd_layers = 2,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
+	.is_tv_panel = 1,
+	.share_afbc_with_di = 1,
+	.has_2ppc_support = 1,
 };
 #endif
 
@@ -16049,6 +16397,33 @@ static struct video_device_hw_s t6d_dev_property = {
 	.vsr_nonlinear_support = 1,
 	.dejaggy_support = 1,
 };
+
+static struct video_device_hw_s t6w_dev_property = {
+	.vd2_independ_blend_ctrl = 1,
+	.aisr_support = 0,
+	.prevsync_support = 0,
+	.sr_in_size = 0,
+	.sr01_num = 0,
+	.vd1_vsr_safa_support = 1,
+	.frm2fld_support = 0,
+	.vsr_nonlinear_support = 1,
+	.dejaggy_support = 1,
+	.vsf_mode_support = 1,
+};
+
+static struct video_device_hw_s t6x_dev_property = {
+	.vd2_independ_blend_ctrl = 1,
+	.aisr_support = 0,
+	.prevsync_support = 0,
+	.sr_in_size = 0,
+	.mosaic_support = 1,
+	.sr01_num = 0,
+	.vd1_vsr_safa_support = 1,
+	.frm2fld_support = 0,
+	.vsr_nonlinear_support = 1,
+	.dejaggy_support = 1,
+	.vsf_mode_support = 1,
+};
 #endif
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
@@ -16134,6 +16509,14 @@ static const struct of_device_id amlogic_amvideom_dt_match[] = {
 	{
 		.compatible = "amlogic, amvideom-t6d",
 		.data = &amvideo_t6d,
+	},
+	{
+		.compatible = "amlogic, amvideom-t6w",
+		.data = &amvideo_t6w,
+	},
+	{
+		.compatible = "amlogic, amvideom-t6x",
+		.data = &amvideo_t6x,
 	},
 #endif
 	{}
@@ -16296,6 +16679,42 @@ bool video_is_meson_t6d_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_T6D_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_t6w_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_T6W_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_t6x_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_T6X_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_after_meson_t6w_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type >=
+		MESON_CPU_MAJOR_ID_T6W_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_after_meson_t6x_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type >=
+		MESON_CPU_MAJOR_ID_T6X_)
 		return true;
 	else
 		return false;
@@ -16608,6 +17027,14 @@ static int amvideom_probe(struct platform_device *pdev)
 		memcpy(&amvideo_meson_dev.dev_property, &t6d_dev_property,
 		       sizeof(struct video_device_hw_s));
 		cur_dev->power_ctrl = true;
+	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T6W_) {
+		memcpy(&amvideo_meson_dev.dev_property, &t6w_dev_property,
+		       sizeof(struct video_device_hw_s));
+		cur_dev->power_ctrl = false;
+	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T6X_) {
+		memcpy(&amvideo_meson_dev.dev_property, &t6x_dev_property,
+		       sizeof(struct video_device_hw_s));
+		cur_dev->power_ctrl = false;
 #endif
 	} else {
 		memcpy(&amvideo_meson_dev.dev_property, &legcy_dev_property,
@@ -16760,7 +17187,6 @@ static int amvideom_probe(struct platform_device *pdev)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	video_lowlatency_init(pdev);
 #endif
-
 	return ret;
 }
 
@@ -17104,6 +17530,7 @@ void __exit video_exit(void)
 struct video_module_debug_s debug_video[52] = {
 	{"new_frame_cnt", &new_frame_cnt, 1, 0},
 	{"vsync_count_start", &vsync_count_start, 1, 0},
+	{"lcevc_alpha", &lcevc_alpha, 1, 0},
 	{"pause_one_3d_fl_frame", &pause_one_3d_fl_frame, 1, 0},
 	{"video_dbg_vf", &video_dbg_vf, 1, 0},
 	{"video_get_vf_cnt", video_get_vf_cnt, MAX_VD_LAYER, 0},
@@ -17124,7 +17551,7 @@ struct video_module_debug_s debug_video[52] = {
 	{"step_flag", &step_flag, 1, 0},
 	{"smooth_sync_enable", &smooth_sync_enable, 1, 0},
 	{"hdmi_in_onvideo", &hdmi_in_onvideo, 1, 0},
-	{"vsync_count", &vsync_count, 1, 0},
+	{"vsync_counts", &vsync_counts, 1, 0},
 	{"new_frame_count", &new_frame_count, 1, 0},
 	{"first_frame_toggled", &first_frame_toggled, 1, 0},
 	{"omx_pts", &omx_pts, 1, 0},
@@ -17152,10 +17579,6 @@ struct video_module_debug_s debug_video[52] = {
 	{"toggle_count", &toggle_count, 1, 0},
 	{"osd_vpp1_bld_ctrl", &osd_vpp1_bld_ctrl, 1, 1},
 	{"osd_vpp2_bld_ctrl", &osd_vpp2_bld_ctrl, 1, 1},
-	{"debug_flag1", &debug_flag1, 1, 0},
 	{"lcevc_alpha", &lcevc_alpha, 1, 0},
 };
 
-//MODULE_DESCRIPTION("AMLOGIC video output driver");
-//MODULE_LICENSE("GPL");
-//MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");

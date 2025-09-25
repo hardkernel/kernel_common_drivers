@@ -33,6 +33,7 @@ struct vd_mif_reg_s vd_mif_reg_s5_array[MAX_VD_LAYER_S5] = {
 		S5_VD1_IF0_GEN_REG3,
 		VIU_S5_VD1_FMT_CTRL,
 		VIU_S5_VD1_FMT_W,
+		VPP_INTF_VD1_CTRL,
 	},
 	{
 		S5_VD2_IF0_GEN_REG,
@@ -58,6 +59,7 @@ struct vd_mif_reg_s vd_mif_reg_s5_array[MAX_VD_LAYER_S5] = {
 		S5_VD2_IF0_GEN_REG3,
 		VIU_S5_VD2_FMT_CTRL,
 		VIU_S5_VD2_FMT_W,
+		VPP_INTF_VD2_CTRL,
 	},
 	{
 		S5_VD3_IF0_GEN_REG,
@@ -83,6 +85,7 @@ struct vd_mif_reg_s vd_mif_reg_s5_array[MAX_VD_LAYER_S5] = {
 		S5_VD3_IF0_GEN_REG3,
 		VIU_S5_VD3_FMT_CTRL,
 		VIU_S5_VD3_FMT_W,
+		VPP_INTF_VD3_CTRL,
 	},
 	{
 		S5_VD4_IF0_GEN_REG,
@@ -108,6 +111,7 @@ struct vd_mif_reg_s vd_mif_reg_s5_array[MAX_VD_LAYER_S5] = {
 		S5_VD4_IF0_GEN_REG3,
 		VIU_S5_VD4_FMT_CTRL,
 		VIU_S5_VD4_FMT_W,
+		VPP_INTF_VD4_CTRL,
 	},
 	{
 		S5_VD5_IF0_GEN_REG,
@@ -133,6 +137,7 @@ struct vd_mif_reg_s vd_mif_reg_s5_array[MAX_VD_LAYER_S5] = {
 		S5_VD5_IF0_GEN_REG3,
 		VIU_S5_VD5_FMT_CTRL,
 		VIU_S5_VD5_FMT_W,
+		VPP_INTF_VD5_CTRL,
 	}
 };
 
@@ -227,6 +232,7 @@ struct vd_afbc_reg_s vd_afbc_reg_s5_array[MAX_VD_LAYER_S5] = {
 		S5_VD1_AFBCDM_VDTOP_CTRL0,
 		VD1_AFBCDM_BURST_CTRL,
 		VD1_AFBCDM_LOSS_CTRL,
+		VPP_INTF_VD1_CTRL,
 	},
 	{
 		S5_VD2_AFBCDM_ENABLE,
@@ -255,6 +261,7 @@ struct vd_afbc_reg_s vd_afbc_reg_s5_array[MAX_VD_LAYER_S5] = {
 		S5_VD2_AFBCDM_VDTOP_CTRL0,
 		VD2_AFBCDM_BURST_CTRL,
 		VD2_AFBCDM_LOSS_CTRL,
+		VPP_INTF_VD2_CTRL,
 	},
 	{
 		S5_VD3_AFBCDM_ENABLE,
@@ -283,6 +290,7 @@ struct vd_afbc_reg_s vd_afbc_reg_s5_array[MAX_VD_LAYER_S5] = {
 		S5_VD3_AFBCDM_VDTOP_CTRL0,
 		VD3_AFBCDM_BURST_CTRL,
 		VD3_AFBCDM_LOSS_CTRL,
+		VPP_INTF_VD3_CTRL,
 	},
 	{
 		S5_VD4_AFBCDM_ENABLE,
@@ -311,6 +319,7 @@ struct vd_afbc_reg_s vd_afbc_reg_s5_array[MAX_VD_LAYER_S5] = {
 		S5_VD4_AFBCDM_VDTOP_CTRL0,
 		VD4_AFBCDM_BURST_CTRL,
 		VD4_AFBCDM_LOSS_CTRL,
+		VPP_INTF_VD4_CTRL,
 	},
 	{
 		S5_VD5_AFBCDM_ENABLE,
@@ -339,6 +348,7 @@ struct vd_afbc_reg_s vd_afbc_reg_s5_array[MAX_VD_LAYER_S5] = {
 		S5_VD5_AFBCDM_VDTOP_CTRL0,
 		VD5_AFBCDM_BURST_CTRL,
 		VD5_AFBCDM_LOSS_CTRL,
+		VPP_INTF_VD5_CTRL,
 	}
 };
 

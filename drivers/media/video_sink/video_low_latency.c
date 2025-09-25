@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/spinlock.h>
@@ -693,6 +693,13 @@ static int lowlatency_vsync(u8 instance_id)
 				hscaler_8tap_enable[1] = false;
 			} else {
 				switch_from_lcevc_to_nonlcevc(false);
+				if (video_lcevc.lcevc_switch_normal) {
+					vd2_path_id = glayer_info[1].display_path_id;
+					if (debug_common_flag & DEBUG_FLAG_COMMON_LCEVC)
+						pr_info("%s, line=%d, lcevc_switch_normal vd2_path_id=%d, vd_layer[1].global_output=%d\n",
+							__func__, __LINE__,
+							vd2_path_id, vd_layer[1].global_output);
+				}
 			}
 		}
 		cur_blackout = 1;
@@ -942,7 +949,8 @@ static int lowlatency_vsync(u8 instance_id)
 			vsync_pts_inc_scale / vsync_pts_inc_scale_base;
 		vframe_walk_delay -= new_frame->duration / 96;
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
-		vframe_walk_delay += frc_get_video_latency();
+		if (!(new_frame->flag & VFRAME_FLAG_GAME_MODE))
+			vframe_walk_delay += frc_get_video_latency();
 #endif
 		primary_swap_frame(&vd_layer[0], new_frame, __LINE__);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -990,7 +998,6 @@ static int lowlatency_vsync(u8 instance_id)
 	}
 
 	refresh_on_vs(new_frame, vd_layer[0].dispbuf, VPP_TOP0);
-
 	amvecm_on_vs
 		(!is_local_vf(vd_layer[0].dispbuf)
 		? vd_layer[0].dispbuf : NULL,
@@ -1029,7 +1036,7 @@ static int lowlatency_vsync(u8 instance_id)
 		else
 #endif
 			new_src_fmt =
-				(int)get_cur_source_type(VD1_PATH, VPP_TOP0);
+				(int)get_cur_source_type(VD1_PATH, VPP_TOP0, vd_layer[0].dispbuf);
 #endif
 		if (new_src_fmt > 0 && new_src_fmt < MAX_SOURCE)
 			fmt = (enum vframe_signal_fmt_e)src_map[new_src_fmt];
@@ -2232,7 +2239,7 @@ void video_lowlatency_init(struct platform_device *pdev)
 {
 	int err, ret;
 	int video_line_n_int = -ENXIO;
-	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
+	struct sched_param param = {.sched_priority = 2};
 	const void *prop;
 	int low_latency_en = 0;
 

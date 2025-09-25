@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/version.h>
@@ -412,7 +412,7 @@ int vf_get_pts_rm(struct vframe_s *vf)
 /* frame rate calculate */
 u32 toggle_count;
 u32 timer_count;
-u32 vsync_count;
+u32 vsync_counts;
 
 /* extern var for video_func.h */
 /* default value 20 30 */
@@ -586,9 +586,10 @@ unsigned int process_3d_type;
 int toggle_3d_fa_frame = 1;
 /*the pause_one_3d_fl_frame is for close*/
 /*the A/B register switch in every sync at pause mode. */
-
 /*debug info control for skip & repeate vframe case*/
 static unsigned int video_dbg_vf;
+
+static int vd_cnt = MAX_VD_LAYER;
 unsigned int video_get_vf_cnt[MAX_VD_LAYER];
 unsigned int video_drop_vf_cnt[MAX_VD_LAYER];
 static unsigned int disable_dv_drop;
@@ -605,9 +606,7 @@ static void update_process_hdmi_avsync_flag(bool flag);
 static void hdmi_in_delay_maxmin_reset(void);
 
 static u32 lowlatency_enable = 1;
-
 static u32 thread_vsync_in;
-
 static int line_n_in;
 static struct task_struct *video_thread;
 static wait_queue_head_t frame_process_wq;
@@ -781,7 +780,7 @@ static int threadfunc(void *data)
 static void video_start_monitor(void)
 {
 	int err;
-	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
+	struct sched_param param = {.sched_priority = 2};
 
 	if (!lowlatency_enable)
 		return;
@@ -815,6 +814,7 @@ static unsigned int det_unstb_cnt = 20;
 static unsigned int tolrnc_cnt = 6;
 static unsigned int timer_filter_en;
 static unsigned int color_th = 100;
+static unsigned int aipq_th = 2000;
 
 u32 get_stb_cnt(void)
 {
@@ -840,6 +840,12 @@ u32 get_color_th(void)
 {
 	return color_th;
 }
+
+u32 get_aipq_th(void)
+{
+	return aipq_th;
+}
+
 #endif
 
 static u64 func_div(u64 number, u32 divid)
@@ -1575,26 +1581,26 @@ static void judge_3d_fa_out_mode(void)
 		/* toggle_3d_fa_frame  determine*/
 		/*the out frame is L or R or blank */
 		if ((process_3d_type & MODE_3D_OUT_FA_L_FIRST)) {
-			if ((vsync_count % 2) == 0)
+			if ((vsync_counts % 2) == 0)
 				toggle_3d_fa_frame = OUT_FA_A_FRAME;
 			else
 				toggle_3d_fa_frame = OUT_FA_B_FRAME;
 		} else if ((process_3d_type & MODE_3D_OUT_FA_R_FIRST)) {
-			if ((vsync_count % 2) == 0)
+			if ((vsync_counts % 2) == 0)
 				toggle_3d_fa_frame = OUT_FA_B_FRAME;
 			else
 				toggle_3d_fa_frame = OUT_FA_A_FRAME;
 		} else if ((process_3d_type & MODE_3D_OUT_FA_LB_FIRST)) {
-			if ((vsync_count % 4) == 0)
+			if ((vsync_counts % 4) == 0)
 				toggle_3d_fa_frame = OUT_FA_A_FRAME;
-			else if ((vsync_count % 4) == 2)
+			else if ((vsync_counts % 4) == 2)
 				toggle_3d_fa_frame = OUT_FA_B_FRAME;
 			else
 				toggle_3d_fa_frame = OUT_FA_BANK_FRAME;
 		} else if ((process_3d_type & MODE_3D_OUT_FA_RB_FIRST)) {
-			if ((vsync_count % 4) == 0)
+			if ((vsync_counts % 4) == 0)
 				toggle_3d_fa_frame = OUT_FA_B_FRAME;
-			else if ((vsync_count % 4) == 2)
+			else if ((vsync_counts % 4) == 2)
 				toggle_3d_fa_frame = OUT_FA_A_FRAME;
 			else
 				toggle_3d_fa_frame = OUT_FA_BANK_FRAME;
@@ -3100,8 +3106,8 @@ static irqreturn_t vsync_bridge_isr(int irq, void *dev_id)
 int get_vsync_count(unsigned char reset)
 {
 	if (reset)
-		vsync_count = 0;
-	return vsync_count;
+		vsync_counts = 0;
+	return vsync_counts;
 }
 EXPORT_SYMBOL(get_vsync_count);
 
@@ -3806,7 +3812,6 @@ u32 video_get_layer_capability(void)
 {
 	return layer_cap;
 }
-EXPORT_SYMBOL(video_get_layer_capability);
 
 int get_output_pcrscr_info(s32 *inc, u32 *base)
 {
@@ -5751,6 +5756,28 @@ static ssize_t video_disable_store(const struct class *cla,
 	return count;
 }
 
+static ssize_t video_global_output_show(const struct class *cla,
+					const struct class_attribute *attr,
+					char *buf)
+{
+	return sprintf(buf, "%d\n", vd_layer[0].global_output);
+}
+
+static ssize_t video_global_output_store(const struct class *cla,
+					 const struct class_attribute *attr,
+					 const char *buf,
+					 size_t count)
+{
+	int r;
+
+	r = kstrtouint(buf, 0, &vd_layer[0].global_output);
+	if (r < 0)
+		return -EINVAL;
+
+	pr_info("%s(%d)\n", __func__, vd_layer[0].global_output);
+	return count;
+}
+
 static struct video_module_debug_s *search_module_param(char *name)
 {
 	struct video_module_debug_s *find_param = NULL;
@@ -5955,28 +5982,6 @@ free2:
 		return ret;
 }
 
-static ssize_t video_global_output_show(const struct class *cla,
-					const struct class_attribute *attr,
-					char *buf)
-{
-	return sprintf(buf, "%d\n", vd_layer[0].global_output);
-}
-
-static ssize_t video_global_output_store(const struct class *cla,
-					 const struct class_attribute *attr,
-					 const char *buf,
-					 size_t count)
-{
-	int r;
-
-	r = kstrtouint(buf, 0, &vd_layer[0].global_output);
-	if (r < 0)
-		return -EINVAL;
-
-	pr_info("%s(%d)\n", __func__, vd_layer[0].global_output);
-	return count;
-}
-
 static ssize_t video_freerun_mode_show(const struct class *cla,
 				       const struct class_attribute *attr, char *buf)
 {
@@ -6062,14 +6067,14 @@ static ssize_t frame_addr_show(const struct class *cla, const struct class_attri
 	return sprintf(buf, "NA\n");
 }
 
-static ssize_t hdmin_delay_start_show(const struct class *class,
+static ssize_t hdmin_delay_start_show(struct class *class,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
 	return sprintf(buf, "%d\n", hdmin_delay_start);
 }
 
-static ssize_t hdmin_delay_start_store(const struct class *class,
+static ssize_t hdmin_delay_start_store(struct class *class,
 				       const struct class_attribute *attr,
 				       const char *buf,
 				       size_t count)
@@ -6091,14 +6096,14 @@ static ssize_t hdmin_delay_start_store(const struct class *class,
 	return count;
 }
 
-static ssize_t hdmin_delay_min_ms_show(const struct class *class,
+static ssize_t hdmin_delay_min_ms_show(struct class *class,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
 	return sprintf(buf, "%d\n", hdmin_delay_min_ms);
 }
 
-static ssize_t hdmin_delay_min_ms_store(const struct class *class,
+static ssize_t hdmin_delay_min_ms_store(struct class *class,
 				       const struct class_attribute *attr,
 				       const char *buf,
 				       size_t count)
@@ -6114,14 +6119,14 @@ static ssize_t hdmin_delay_min_ms_store(const struct class *class,
 	return count;
 }
 
-static ssize_t hdmin_delay_max_ms_show(const struct class *class,
+static ssize_t hdmin_delay_max_ms_show(struct class *class,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
 	return sprintf(buf, "%d\n", hdmin_delay_max_ms);
 }
 
-static ssize_t hdmin_delay_max_ms_store(const struct class *class,
+static ssize_t hdmin_delay_max_ms_store(struct class *class,
 				       const struct class_attribute *attr,
 				       const char *buf,
 				       size_t count)
@@ -6137,7 +6142,7 @@ static ssize_t hdmin_delay_max_ms_store(const struct class *class,
 	return count;
 }
 
-static ssize_t hdmin_delay_duration_show(const struct class *class,
+static ssize_t hdmin_delay_duration_show(struct class *class,
 					 const struct class_attribute *attr,
 					 char *buf)
 {
@@ -6145,7 +6150,7 @@ static ssize_t hdmin_delay_duration_show(const struct class *class,
 }
 
 /*set video total delay*/
-static ssize_t hdmin_delay_duration_store(const struct class *class,
+static ssize_t hdmin_delay_duration_store(struct class *class,
 					  const struct class_attribute *attr,
 					  const char *buf,
 					  size_t count)
@@ -6172,7 +6177,7 @@ static ssize_t hdmin_delay_duration_store(const struct class *class,
 	return count;
 }
 
-static ssize_t last_required_total_delay_show(const struct class *class,
+static ssize_t last_required_total_delay_show(struct class *class,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
@@ -6329,7 +6334,7 @@ static ssize_t frame_rate_show(const struct class *cla, const struct class_attri
 	if (time == 0)
 		return 0;
 	rate = 100 * cnt * HZ / time;
-	vsync_rate = 100 * vsync_count * HZ / time;
+	vsync_rate = 100 * vsync_counts * HZ / time;
 	if (vinfo->sync_duration_den > 0) {
 		ret = sprintf
 			(buf,
@@ -6345,7 +6350,7 @@ static ssize_t frame_rate_show(const struct class *cla, const struct class_attri
 		if ((vsync_rate * vsync_pts_inc / 100) != 90000)
 			vsync_pts_inc = 90000 * 100 / (vsync_rate);
 	}
-	vsync_count = 0;
+	vsync_counts = 0;
 	return ret;
 }
 
@@ -7094,7 +7099,7 @@ show_end:
 	return ret;
 }
 
-static ssize_t video_inuse_show(const struct class *class,
+static ssize_t video_inuse_show(struct class *class,
 				const struct class_attribute *attr,
 				char *buf)
 {
@@ -7113,7 +7118,7 @@ static ssize_t video_inuse_show(const struct class *class,
 	return r;
 }
 
-static ssize_t video_inuse_store(const struct class *class,
+static ssize_t video_inuse_store(struct class *class,
 				 const struct class_attribute *attr,
 				 const char *buf,
 				 size_t count)
@@ -8782,7 +8787,7 @@ static ssize_t vpu_module_urgent_show(const struct class *cla,
 	return 0;
 }
 
-static ssize_t vpu_module_urgent_set(const struct class *class,
+static ssize_t vpu_module_urgent_set(struct class *class,
 			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
@@ -8989,8 +8994,8 @@ static ssize_t line_n_num_store(const struct class *cla, const struct class_attr
 	return count;
 }
 
-static ssize_t crop_select_show(struct class *cla,
-		struct class_attribute *attr, char *buf)
+static ssize_t crop_select_show(const struct class *cla,
+		const struct class_attribute *attr, char *buf)
 {
 	static const char * const select_mode_str[] = {
 		"default", "source only"
@@ -9005,8 +9010,8 @@ static ssize_t crop_select_show(struct class *cla,
 	}
 }
 
-static ssize_t crop_select_store(struct class *cla,
-		struct class_attribute *attr,
+static ssize_t crop_select_store(const struct class *cla,
+		const struct class_attribute *attr,
 		const char *buf, size_t count)
 {
 	unsigned long mode;
@@ -9541,7 +9546,7 @@ static int vpp_axis_reverse(char *str)
 		video_mirror = 0;
 	}
 
-	return 1;
+	return 0;
 }
 
 __setup("video_reverse=", vpp_axis_reverse);
@@ -9772,7 +9777,7 @@ struct device *get_video_device(void)
 
 static struct mconfig video_configs[] = {
 	MC_PI32("pause_one_3d_fl_frame", &pause_one_3d_fl_frame),
-	MC_PI32("debug_flag", &debug_flag),
+	MC_PU32("debug_flag", &debug_flag),
 	MC_PU32("force_3d_scaler", &force_3d_scaler),
 	MC_PU32("video_3d_format", &video_3d_format),
 	MC_PI32("vsync_enter_line_max", &vsync_enter_line_max),
@@ -10032,7 +10037,6 @@ int get_video_src_max_buffer(u8 layer_id,
 	*src_height = amvideo_meson_dev.src_height_max[layer_id];
 	return 0;
 }
-EXPORT_SYMBOL(get_video_src_max_buffer);
 
 int get_video_src_min_buffer(u8 layer_id,
 	u32 *src_width, u32 *src_height)
@@ -10043,7 +10047,6 @@ int get_video_src_min_buffer(u8 layer_id,
 	*src_height = 64;
 	return 0;
 }
-EXPORT_SYMBOL(get_video_src_min_buffer);
 
 static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 {
@@ -10597,7 +10600,7 @@ struct video_module_debug_s debug_video[43] = {
 	{"step_flag", &step_flag, 1, 0},
 	{"smooth_sync_enable", &smooth_sync_enable, 1, 0},
 	{"hdmi_in_onvideo", &hdmi_in_onvideo, 1, 0},
-	{"vsync_count", &vsync_count, 1, 0},
+	{"vsync_counts", &vsync_counts, 1, 0},
 	{"new_frame_count", &new_frame_count, 1, 0},
 	{"first_frame_toggled", &first_frame_toggled, 1, 0},
 	{"drop_frame_count", &drop_frame_count, 1, 0},
@@ -10622,7 +10625,3 @@ struct video_module_debug_s debug_video[43] = {
 	{"lowlatency_enable", &lowlatency_enable, 1, 1},
 	{"debug_flag1", &debug_flag1, 1, 0},
 };
-
-//MODULE_DESCRIPTION("AMLOGIC video output driver");
-//MODULE_LICENSE("GPL");
-//MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");

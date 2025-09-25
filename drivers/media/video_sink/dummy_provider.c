@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 /* Linux Headers */
@@ -21,6 +21,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/cma.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/io.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/ion.h>
@@ -41,6 +42,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
+#include <linux/amlogic/tee.h>
 
 /* Local Headers */
 #include "video_priv.h"
@@ -61,8 +63,73 @@ static int vp_canvas_table_pip[VP_VFM_POOL_SIZE];
 static DEFINE_SPINLOCK(lock);
 static struct vp_cma_info cma_info;
 unsigned int dummy_video_log_level;
+static unsigned int video_mosaic_en;
+
+static int num = 4;
+static int axis_0[4] = {0, 0, 1919, 1079};
+module_param_array(axis_0, int, &num, 0664);
+MODULE_PARM_DESC(axis_0, "\n axis_0\n");
+
+static int axis_1[4] = {0, 1080, 1919, 2159};
+module_param_array(axis_1, int, &num, 0664);
+MODULE_PARM_DESC(axis_1, "\n axis_1\n");
+
+static int axis_2[4] = {1920, 0, 3839, 1079};
+module_param_array(axis_2, int, &num, 0664);
+MODULE_PARM_DESC(axis_2, "\n axis_2\n");
+
+static int axis_3[4] = {1920, 1080, 3839, 2159};
+module_param_array(axis_3, int, &num, 0664);
+MODULE_PARM_DESC(axis_3, "\n axis_3\n");
 
 #define INCPTR(p) ptr_wrap_inc(&(p))
+#define AFBC_ALLOC_SIZE 0x800000 /* 8MB for afbc test */
+
+/* Used for the 2x2 mosaic mode */
+static void *g_fg_vaddr;
+static dma_addr_t g_fg_paddr;
+
+static int parse_para(const char *para, int para_num, int *result)
+{
+	char *token = NULL;
+	char *params, *params_base;
+	int *out = result;
+	int len = 0, count = 0;
+	int res = 0;
+	int ret = 0;
+
+	if (!para)
+		return 0;
+
+	params = kstrdup(para, GFP_KERNEL);
+	params_base = params;
+	token = params;
+	if (token) {
+		len = strlen(token);
+		do {
+			token = strsep(&params, " ");
+			if (!token)
+				break;
+			while (token &&
+			       (isspace(*token) ||
+				!isgraph(*token)) && len) {
+				token++;
+				len--;
+			}
+			if (len == 0)
+				break;
+			ret = kstrtoint(token, 0, &res);
+			if (ret < 0)
+				break;
+			len = strlen(token);
+			*out++ = res;
+			count++;
+		} while ((count < para_num) && (len > 0));
+	}
+
+	kfree(params_base);
+	return count;
+}
 
 static inline void ptr_wrap_inc(u32 *ptr)
 {
@@ -124,10 +191,84 @@ static ssize_t log_level_store(const struct class *cla,
 	return count;
 }
 
+static ssize_t mosaic_en_show(const struct class *cla,
+			      const struct class_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 40, "%d\n", video_mosaic_en);
+}
+
+static ssize_t mosaic_en_store(const struct class *cla,
+			       const struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		vp_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+
+	vp_info("video_mosaic_en: %d->%d\n", video_mosaic_en, res);
+	video_mosaic_en = res;
+
+	return count;
+}
+
+static ssize_t mosaic_axis_show(const struct class *cla,
+			      const struct class_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 80, "mosaic axis: %d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+		axis_0[0], axis_0[1], axis_0[2], axis_0[3],
+		axis_1[0], axis_1[1], axis_1[2], axis_1[3],
+		axis_2[0], axis_2[1], axis_2[2], axis_2[3],
+		axis_3[0], axis_3[1], axis_3[2], axis_3[3]);
+}
+
+static ssize_t mosaic_axis_store(const struct class *cla,
+			       const struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int parsed[5];
+
+	if (likely(parse_para(buf, 5, parsed) == 5)) {
+		if (parsed[0] == 0) {
+			axis_0[0] = parsed[1];
+			axis_0[1] = parsed[2];
+			axis_0[2] = parsed[3];
+			axis_0[3] = parsed[4];
+		} else if (parsed[0] == 1) {
+			axis_1[0] = parsed[1];
+			axis_1[1] = parsed[2];
+			axis_1[2] = parsed[3];
+			axis_1[3] = parsed[4];
+
+		} else if (parsed[0] == 2) {
+			axis_2[0] = parsed[1];
+			axis_2[1] = parsed[2];
+			axis_2[2] = parsed[3];
+			axis_2[3] = parsed[4];
+		} else if (parsed[0] == 3) {
+			axis_3[0] = parsed[1];
+			axis_3[1] = parsed[2];
+			axis_3[2] = parsed[3];
+			axis_3[3] = parsed[4];
+		}
+	}
+	return count;
+}
+
 static CLASS_ATTR_RW(log_level);
+static CLASS_ATTR_RW(mosaic_en);
+static CLASS_ATTR_RW(mosaic_axis);
 
 static struct attribute *video_provider_class_attrs[] = {
 	&class_attr_log_level.attr,
+	&class_attr_mosaic_en.attr,
+	&class_attr_mosaic_axis.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(video_provider_class);
@@ -271,8 +412,6 @@ static int vp_vfm_states_pip(struct vframe_states *states, void *op_arg)
 {
 	int i;
 	unsigned long flags;
-
-	vp_dbg2("%s %d.\n", __func__, __LINE__);
 
 	if (!states) {
 		vp_err("vframe_states is NULL");
@@ -469,10 +608,27 @@ static void canvas_table_release_pip(void)
 	}
 }
 
+#define FGRAIN_TBL_SIZE  (498 * 16)
+#define FGRAIN_TBL_MOSAIC_SIZE  (FGRAIN_TBL_SIZE * 2)
+
+static struct video_composer_private vc_private;
+struct vframe_s mosaic_vf[4];
+
+#define ORDER 4  // 2^4 = 16 pages = 64KB aligned, for tee_protect_mem_by_type()
+
 static int video_provider_open(struct inode *inode, struct file *file)
 {
 	int ret = -1;
 
+	if (video_mosaic_en) {
+		g_fg_vaddr = (void *)__get_free_pages(GFP_KERNEL, ORDER);
+		if (!g_fg_vaddr) {
+			vp_err("%s, failed to allocate memory\n", __func__);
+			return -ENOMEM;
+		}
+		g_fg_paddr = virt_to_phys(g_fg_vaddr);
+		vp_dbg("%s, alloc paddr:0x%llx\n", __func__, (unsigned long long)g_fg_paddr);
+	}
 	_video_set_disable(VIDEO_DISABLE_FORNEXT);
 	video_set_global_output(0, 1);
 	_videopip_set_disable(1, VIDEO_DISABLE_FORNEXT);
@@ -555,9 +711,11 @@ attach_err:
 	return ret;
 }
 
-static int get_fram_phyaddr(struct vp_frame_s *frame_info, unsigned long *addr)
+static int get_fram_phyaddr(struct vp_frame_s *frame_info, unsigned long *addr, int fg_test)
 {
 	int ret = -1;
+	int share_fd;
+	int mem_type;
 	size_t len = 0;
 
 	if (!frame_info || !addr) {
@@ -565,10 +723,18 @@ static int get_fram_phyaddr(struct vp_frame_s *frame_info, unsigned long *addr)
 		return -EINVAL;
 	}
 
-	switch (frame_info->mem_type) {
+	if (fg_test) {
+		share_fd = frame_info->fg_data_shared_fd;
+		mem_type = frame_info->fg_mem_type;
+	} else {
+		share_fd = frame_info->shared_fd;
+		mem_type = frame_info->mem_type;
+	}
+
+	switch (mem_type) {
 	case VP_MEM_ION:
 #ifdef CONFIG_AMLOGIC_ION_DEV
-		ret = meson_ion_share_fd_to_phys(frame_info->shared_fd,
+		ret = meson_ion_share_fd_to_phys(share_fd,
 						 (phys_addr_t *)addr, &len);
 		if (ret != 0)
 			return ret;
@@ -576,7 +742,7 @@ static int get_fram_phyaddr(struct vp_frame_s *frame_info, unsigned long *addr)
 		vp_dbg("ion frame addr 0x%lx, len %zu\n", *addr, len);
 		break;
 	case VP_MEM_DMABUF:
-		ret = vp_dma_buf_get_phys(frame_info->shared_fd, addr);
+		ret = vp_dma_buf_get_phys(share_fd, addr);
 		if (ret != 0)
 			return ret;
 		vp_dbg("dma frame addr 0x%lx, len %zu\n", *addr, len);
@@ -602,6 +768,7 @@ static int set_vfm_type(struct vp_frame_s *frame_info,
 	case VP_FMT_NV21:
 		vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD |
 				VIDTYPE_VIU_NV21;
+		vf->type_ext |= VIDTYPE_EXT_SWAP_UV;
 		*bpp = 8;
 		break;
 	case VP_FMT_NV12:
@@ -706,6 +873,8 @@ static int set_vfm_type(struct vp_frame_s *frame_info,
 	}
 	if (frame_info->luma_only)
 		vf->type_ext |= VIDTYPE_EXT_LUMA_ONLY;
+	if (frame_info->secure)
+		vf->flag |= VFRAME_FLAG_VIDEO_SECURE;
 	switch (frame_info->endian) {
 	case VP_BIG_ENDIAN:
 		vf->flag &= ~VFRAME_FLAG_VIDEO_LINEAR;
@@ -751,6 +920,13 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info, int path_id)
 	int ret = -1;
 	int index;
 	unsigned long addr = 0;
+	unsigned long fg_data_addr = 0;
+	unsigned long protect_addr = 0;
+	unsigned long protect_size = 0;
+	unsigned long protect_fg_addr = 0;
+	unsigned long protect_fg_size = FGRAIN_TBL_SIZE;
+	u32 prot_ret;
+	u32 secure_handle = 1;
 	struct vframe_s *new_vf;
 	int bpp;
 	unsigned int canvas_width;
@@ -778,7 +954,16 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info, int path_id)
 			return -EINVAL;
 		addr = page_to_phys(cma_info.alloc_page);
 	} else {
-		ret = get_fram_phyaddr(frame_info, &addr);
+		ret = get_fram_phyaddr(frame_info, &addr, 0);
+		if (ret < 0)
+			return ret;
+	}
+	if (frame_info->secure)
+		protect_addr = addr;
+
+	if (frame_info->fg_test) {
+		ret = get_fram_phyaddr(frame_info, &fg_data_addr, frame_info->fg_test);
+		vp_info("get fg data phyaddr 0x%lx\n", fg_data_addr);
 		if (ret < 0)
 			return ret;
 	}
@@ -806,14 +991,24 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info, int path_id)
 				canvas_width, frame_info->height / 2,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 		new_vf->canvas0Addr = canvas_table[fill];
+		if (frame_info->secure)
+			protect_size = (frame_info->height * frame_info->width * 3) / 2;
 		break;
 	case VP_FMT_RGB888:
 	case VP_FMT_YUV444_PACKED:
-		canvas_config(canvas_table[fill] & 0xff,
-				addr,
-				canvas_width, frame_info->height,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		if (frame_info->luma_only)
+			canvas_config(canvas_table[fill] & 0xff,
+					addr,
+					frame_info->width, frame_info->height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		else
+			canvas_config(canvas_table[fill] & 0xff,
+					addr,
+					canvas_width, frame_info->height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 		new_vf->canvas0Addr = canvas_table[fill] & 0xff;
+		if (frame_info->secure)
+			protect_size = frame_info->height * frame_info->width * 3;
 		break;
 	case VP_FMT_AFBC:
 		new_vf->compWidth    = frame_info->width;
@@ -822,12 +1017,14 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info, int path_id)
 		new_vf->compBodyAddr = addr + frame_info->offset;
 		vp_dbg("afbc compHeadAddr:0x%lx compBodyAddr:0x%lx\n",
 		       new_vf->compHeadAddr, new_vf->compBodyAddr);
+		if (frame_info->secure)
+			protect_size = AFBC_ALLOC_SIZE;
 		break;
 	case VP_FMT_AFRC:
 		new_vf->compWidth    = frame_info->width;
 		new_vf->compHeight   = frame_info->height;
 
-		header_y_size = frame_info->width * frame_info->height * 8;
+		header_y_size = frame_info->width * (frame_info->height + 8) * 2;
 		header_y_size /= (16 * 4);
 		body_y_size = (frame_info->width * frame_info->height * target_byte);
 		body_y_size /= (16 * 4);
@@ -869,6 +1066,8 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info, int path_id)
 		new_vf->afrc_info.mmu_page_mode = 0;
 		new_vf->afrc_info.mmu_baddr0 = addr + header_size;
 		new_vf->afrc_info.mmu_baddr1 = addr + header_size + table_y_size;
+		if (frame_info->secure)
+			protect_size = header_size + table_size + body_size;
 		vp_dbg("afrc size info (header:%d %d)(table:%d %d)(body:%d %d)\n",
 		       header_y_size, header_c_size,
 		       table_y_size, table_c_size,
@@ -896,6 +1095,52 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info, int path_id)
 		vp_err("unsupported format to canvas_config\n");
 		return -EINVAL;
 	}
+	if (frame_info->secure) {
+		/*protect size need 64k aligned*/
+		protect_size = (((protect_size) + ((64 * 1024) - 1)) & ~((64 * 1024) - 1));
+		prot_ret = tee_protect_mem_by_type(TEE_MEM_TYPE_STREAM_OUTPUT,
+				protect_addr, protect_size, &secure_handle);
+		if (prot_ret)
+			vp_err("set memory secure error prot_ret = %x\n", prot_ret);
+	}
+	if (frame_info->fg_test) {
+		new_vf->fgs_valid = true;
+		new_vf->fgs_table_adr = fg_data_addr;
+		protect_fg_addr = fg_data_addr;
+		/* for the 2x2 mosaic mode, the lut_dma reads two fgrain tables each time.
+		 * so the two fgrain tables need to be copied and combined together.
+		 */
+		if (video_mosaic_en) {
+			void *src_ptr = NULL;
+			char *dst_ptr = (char *)g_fg_vaddr;
+
+			if (dst_ptr) {
+				src_ptr = memremap(fg_data_addr,
+						   FGRAIN_TBL_MOSAIC_SIZE, MEMREMAP_WB);
+				if (src_ptr && dst_ptr) {
+					memcpy(dst_ptr, src_ptr, FGRAIN_TBL_SIZE);
+					memcpy(dst_ptr + FGRAIN_TBL_SIZE, src_ptr, FGRAIN_TBL_SIZE);
+					memunmap(src_ptr);
+					protect_fg_size = FGRAIN_TBL_MOSAIC_SIZE;
+					new_vf->fgs_table_adr = g_fg_paddr;
+					protect_fg_addr = g_fg_paddr;
+				} else {
+					vp_err("wrong param, 0x%llx %p %p\n",
+					       (unsigned long long)fg_data_addr, src_ptr, dst_ptr);
+				}
+			}
+		}
+		/*protect size need 64k aligned*/
+		protect_fg_size = (((protect_fg_size) + ((64 * 1024) - 1)) & ~((64 * 1024) - 1));
+		vp_dbg("%s, secure addr:%lx size:%lx\n",
+			__func__, protect_fg_addr, protect_fg_size);
+		if (frame_info->fg_secure) {
+			prot_ret = tee_protect_mem_by_type(TEE_MEM_TYPE_STREAM_OUTPUT,
+					protect_fg_addr, protect_fg_size, &secure_handle);
+			if (prot_ret)
+				vp_err("set memory secure error prot_ret = %x\n", prot_ret);
+		}
+	}
 	new_vf->width  = frame_info->width;
 	new_vf->height = frame_info->height;
 	new_vf->index = fill;
@@ -903,6 +1148,32 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info, int path_id)
 	new_vf->pts = 0;
 	new_vf->pts_us64 = 0;
 	new_vf->ratio_control = 0;
+
+	if (video_mosaic_en) {
+		int i;
+
+		new_vf->type_ext |= VIDTYPE_EXT_MOSAIC_22;
+		memset(&vc_private, 0, sizeof(struct video_composer_private));
+		new_vf->vc_private = &vc_private;
+		for (i = 0; i < 4; i++) {
+			memcpy(&mosaic_vf[i], new_vf, sizeof(struct vframe_s));
+
+			if (i == 0)
+				memcpy(&mosaic_vf[i].axis[0], axis_0, sizeof(int) * 4);
+			else if (i == 1)
+				memcpy(&mosaic_vf[i].axis[0], axis_1, sizeof(int) * 4);
+			else if (i == 2)
+				memcpy(&mosaic_vf[i].axis[0], axis_2, sizeof(int) * 4);
+			else if (i == 3)
+				memcpy(&mosaic_vf[i].axis[0], axis_3, sizeof(int) * 4);
+			new_vf->vc_private->mosaic_vf[i] = &mosaic_vf[i];
+			pr_info("%s %d (%d %d %d %d)\n", __func__, i,
+				mosaic_vf[i].axis[0],
+				mosaic_vf[i].axis[1],
+				mosaic_vf[i].axis[2],
+				mosaic_vf[i].axis[3]);
+		}
+	}
 
 	return 0;
 }
@@ -978,6 +1249,10 @@ static long video_provider_ioctl(struct file *filp, unsigned int cmd,
 			vp_dbg("    afrc format: 0x%x\n", frame_info.afrc_format);
 			vp_dbg("      bit_depth: 0x%x\n", frame_info.bit_depth);
 			vp_dbg("      luma_only: 0x%x\n", frame_info.luma_only);
+			vp_dbg("         secure: 0x%x\n", frame_info.secure);
+			vp_dbg("        fg_test: 0x%x\n", frame_info.fg_test);
+			vp_dbg("    fg_mem_type: 0x%x\n", frame_info.fg_mem_type);
+			vp_dbg("      fg_secure: 0x%x\n", frame_info.fg_secure);
 			ret = set_vfm_info_from_frame(&frame_info, 0);
 		} else {
 			ret = -EINVAL;
@@ -1002,6 +1277,10 @@ static long video_provider_ioctl(struct file *filp, unsigned int cmd,
 			vp_dbg("    afrc format: 0x%x\n", frame_info.afrc_format);
 			vp_dbg("      bit_depth: 0x%x\n", frame_info.bit_depth);
 			vp_dbg("      luma_only: 0x%x\n", frame_info.luma_only);
+			vp_dbg("         secure: 0x%x\n", frame_info.secure);
+			vp_dbg("        fg_test: 0x%x\n", frame_info.fg_test);
+			vp_dbg("    fg_mem_type: 0x%x\n", frame_info.fg_mem_type);
+			vp_dbg("      fg_secure: 0x%x\n", frame_info.fg_secure);
 			ret = set_vfm_info_from_frame(&frame_info, 1);
 		} else {
 			ret = -EINVAL;
@@ -1124,6 +1403,11 @@ static int video_provider_release(struct inode *inode, struct file *file)
 	canvas_table_release_pip();
 	if (cma_info.alloc_page && cma_info.alloc_len)
 		memory_cma_release();
+
+	if (g_fg_vaddr)
+		free_pages((unsigned long)g_fg_vaddr, ORDER);
+	g_fg_vaddr = NULL;
+	g_fg_paddr = 0;
 
 	return 0;
 }

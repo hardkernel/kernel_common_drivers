@@ -48,6 +48,8 @@ enum IRQ_TYPE_e {
 	VDIN0_VSYNC,
 	DI_VSYNC,
 	REG_TRIGGER = 5,
+	FGRAIN0_DMA = 4,
+	FGRAIN1_DMA = 1,
 };
 
 struct lut_dma_set_t {

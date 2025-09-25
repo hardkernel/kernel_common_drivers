@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/spinlock.h>
@@ -101,13 +101,11 @@ static bool rdma_enable_vppx_pre[2];
 
 static char old_vmode_vpp[2][32];
 static char new_vmode_vpp[2][32];
-#if defined(CONFIG_AMLOGIC_VIDEOQUEUE) || \
-	defined(CONFIG_AMLOGIC_VOUT2_SERVE) || \
-	defined(CONFIG_AMLOGIC_VOUT3_SERVE)
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 static u32 vppx_vsync_pts_inc_scale[2];
 static u32 vppx_vsync_pts_inc_scale_base[2] = {1, 1};
 #endif
-unsigned int debug_flag1;
+static unsigned int debug_flag1;
 
 bool is_vpp0(u8 layer_id)
 {
@@ -562,13 +560,15 @@ int vout_notify_callback_viu2(struct notifier_block *block, unsigned long cmd,
 			strncpy(new_vmode_vpp[0], info->name,
 				sizeof(new_vmode_vpp[0]) - 1);
 		vd_layer_vpp[0].property_changed = true;
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 		vppx_vsync_pts_inc_scale[0] = info->sync_duration_den;
 		vppx_vsync_pts_inc_scale_base[0] = info->sync_duration_num;
+#endif
 		pr_info("new_vmode_vpp[0]: %s, %s\n",
 			new_vmode_vpp[0], old_vmode_vpp[0]);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-		set_vout2_change(1);
-		pr_info("VOUT_EVENT_MODE_CHANGE reset vout2_change_flag\n");
+				set_vout2_change(1);
+				pr_info("VOUT_EVENT_MODE_CHANGE reset vout2_change_flag\n");
 #endif
 		break;
 	case VOUT_EVENT_OSD_PREBLEND_ENABLE:
@@ -599,8 +599,10 @@ int vout_notify_callback_viu3(struct notifier_block *block, unsigned long cmd,
 			strncpy(new_vmode_vpp[1], info->name,
 				sizeof(new_vmode_vpp[1]) - 1);
 		vd_layer_vpp[1].property_changed = true;
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 		vppx_vsync_pts_inc_scale[1] = info->sync_duration_den;
 		vppx_vsync_pts_inc_scale_base[1] = info->sync_duration_num;
+#endif
 
 		pr_info("new_vmode_vpp[1]: %s: %s\n",
 			new_vmode_vpp[1], old_vmode_vpp[1]);

@@ -73,6 +73,7 @@
 #endif
 
 u32 g_post_overlap_size = 32;
+
 static struct vpp_post_input_s g_vpp_vd2_input;
 static struct vpp_post_input_s g_vpp_vd2_input_pre;
 static struct vpp_post_input_s g_vpp_input;
@@ -86,9 +87,8 @@ static struct vpp_post_in_padding_s g_vpp_in_padding;
 #define SIZE_ALIG4(frm_hsize)    ((((frm_hsize) + 3) >> 2) << 2)
 
 u32 g_post_slice_num = 0xff;
-static u32 g_vpp1_bypass_slice1_pre;
+u32 g_vpp1_bypass_slice1_pre;
 u32 g_vpp1_bypass_slice1 = 0xff;
-
 void (*get_vpp_din3_scope)(struct vpp_postblend_scope_s *scope);
 
 static u32 get_reg_slice_vpost(int reg_addr, int slice_idx)

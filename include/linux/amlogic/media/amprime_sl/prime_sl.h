@@ -15,6 +15,7 @@
 #define PRIME_SL_HDR_MODE_BYPASS_709 3
 
 void prime_sl_process(struct vframe_s *vf);
+void prime_sl_pre_check(struct vframe_s *vf);
 bool is_prime_sl_enable(void);
 bool is_prime_sl_on(void);
 int get_prime_sl_hdr_process_policy(struct vframe_s *vf);

@@ -378,7 +378,7 @@
 //Bit 12:10        reserved
 //Bit  9: 7     reg_type_index_luma       // unsigned ,    RW, default = 0 ,
 				//type of index, 00: vertical coef,
-				//01: vertical chroma coef: 10: horizontal coef, 11: reserved
+				//01: vertical chroma coef: 10: horizontal coef, 11: resevered
 //Bit  6: 0     reg_coef_index_luma       // unsigned ,    RW, default = 0 ,
 				//coef	index
 #define SAFA_PPS_CNTL_SCALE_COEF_LUMA              0x5198
@@ -404,7 +404,7 @@
 //Bit 12:10        reserved
 //Bit  9: 7     reg_type_index_chro       // unsigned ,    RW, default = 0,
 				//type of index, 00: vertical coef,
-				//01: vertical chroma coef: 10: horizontal coef, 11: reserved
+				//01: vertical chroma coef: 10: horizontal coef, 11: resevered
 //Bit  6: 0     reg_coef_index_chro       // unsigned ,    RW, default = 0 ,
 				//coef	index
 #define SAFA_PPS_CNTL_SCALE_COEF_CHRO              0x519a
@@ -530,7 +530,7 @@
 //Bit 14           reg_index_inc_luma        // unsigned ,    RW, default = 0  ,index increment, if bit9 == 1  then (0: index increase 1, 1: index increase 2) else (index increase 2)
 //Bit 13           reg_rd_cbus_coef_en_luma  // unsigned ,    RW, default = 0  ,1: read coef through cbus enable, just for debug purpose in case when we wanna check the coef in ram in correct or not
 //Bit 12:10        reserved
-//Bit  9: 7        reg_type_index_luma       // unsigned ,    RW, default = 0  ,type of index, 00: vertical coef, 01: vertical chroma coef: 10: horizontal coef, 11: reserved
+//Bit  9: 7        reg_type_index_luma       // unsigned ,    RW, default = 0  ,type of index, 00: vertical coef, 01: vertical chroma coef: 10: horizontal coef, 11: resevered
 //Bit  6: 0        reg_coef_index_luma       // unsigned ,    RW, default = 0  ,coef	index
 #define T6D_SAFA_PPS_CNTL_SCALE_COEF_LUMA              0x5193
 //Bit 31:24        reg_coef0_luma            // signed ,      RW, default = 0  ,	coefficients for vertical filter and horizontal	filter
@@ -542,7 +542,7 @@
 //Bit 14           reg_index_inc_chro        // unsigned ,    RW, default = 0  ,index increment, if bit9 == 1  then (0: index increase 1, 1: index increase 2) else (index increase 2)
 //Bit 13           reg_rd_cbus_coef_en_chro  // unsigned ,    RW, default = 0  ,1: read coef through cbus enable, just for debug purpose in case when we wanna check the coef in ram in correct or not
 //Bit 12:10        reserved
-//Bit  9: 7        reg_type_index_chro       // unsigned ,    RW, default = 0  ,type of index, 00: vertical coef, 01: vertical chroma coef: 10: horizontal coef, 11: reserved
+//Bit  9: 7        reg_type_index_chro       // unsigned ,    RW, default = 0  ,type of index, 00: vertical coef, 01: vertical chroma coef: 10: horizontal coef, 11: resevered
 //Bit  6: 0        reg_coef_index_chro       // unsigned ,    RW, default = 0  ,coef	index
 #define T6D_SAFA_PPS_CNTL_SCALE_COEF_CHRO              0x5195
 //Bit 31:24        reg_coef0_chro            // signed ,      RW, default = 0  ,	coefficients for vertical filter and horizontal	filter
@@ -619,6 +619,30 @@
 //Bit 15:12        reserved
 //Bit 11: 0        reg_debug_demo_wnd_0      // unsigned ,    RW,
 					//default = 960  control debug window col size
+#define T6W_SAFA_PPS_DEBUG_DEMO_EN                 0x5116
+//Bit 31: 9        reserved
+//Bit  8           reg_debug_demo_dir_interp_en // unsigned ,  RW,
+					//default = 0  the demo dir lpf enable
+//Bit  7: 5        reserved
+//Bit  4           reg_debug_demo_adp_tap_en // unsigned ,    RW,
+					//default = 0
+//Bit  3: 1        reserved
+//Bit  0           reg_debug_demo_inverse    // unsigned ,    RW,
+					//default = 0
+#define T6W_SAFA_PPS_DEBUG_DEMO_WND_COEF_1          0x511c
+//Bit 31:28        reserved
+//Bit 27:16        reg_debug_demo_wnd_3      // unsigned ,    RW,
+					//default = 2160  control debug window row size
+//Bit 15:12        reserved
+//Bit 11: 0        reg_debug_demo_wnd_2      // unsigned ,    RW,
+					//default = 1920  control debug window col size
+#define T6W_SAFA_PPS_DEBUG_DEMO_WND_COEF_0          0x511d
+//Bit 31:28        reserved
+//Bit 27:16        reg_debug_demo_wnd_1      // unsigned ,    RW,
+					//default = 0  control debug window row size
+//Bit 15:12        reserved
+//Bit 11: 0        reg_debug_demo_wnd_0      // unsigned ,    RW,
+					//default = 0  control debug window col size
 #define VPP_SR_DEBUG_DEMO_WND_EN                   0x52ed
 //Bit 31: 8        reserved
 //Bit  7: 5        reserved
@@ -976,4 +1000,216 @@
 #define S6_SAFA_PPS_CNTL_SCALE_COEF_IDX_CHRO          0x5192
 #define S6_SAFA_PPS_CNTL_SCALE_COEF_CHRO              0x5193
 #define S6_SAFA_PPS_HW_CTRL                           0x5194
+
+#define SAFA_PPS_HSC_INIT_PHASE                    0x510c
+//Bit 31:16        reg_hsc_ini_phase_1       // unsigned ,    RW, default = 0  = 0
+//Bit 15: 0        reg_hsc_ini_phase_0       // unsigned ,    RW, default = 0  = 0
+#define SAFA_PPS_HSC_INIT_INTERGET                 0x510d
+//Bit 31:21        reserved
+//Bit 20:16        reg_hsc_ini_integer_1     // signed ,    RW, default = -1  = 0
+//Bit 15: 5        reserved
+//Bit  4: 0        reg_hsc_ini_integer_0     // signed ,    RW, default = -1  = 0
+#define T6W_SAFA_PPS_HSC_REGION12_STARTP               0x510e
+//Bit 31:29        reserved
+//Bit 28:16        reg_hsc_region1_startp    // unsigned ,    RW, default = 0  default	=	0,region1	startp
+//Bit 15:13        reserved
+//Bit 12: 0        reg_hsc_region2_startp    // unsigned ,    RW, default = 0  default	=	0,region2	startp
+#define T6W_SAFA_PPS_HSC_REGION34_STARTP               0x510f
+//Bit 31:29        reserved
+//Bit 28:16        reg_hsc_region3_startp    // unsigned ,    RW, default = 13'h780  default	=	0x780,region3	startp
+//Bit 15:13        reserved
+//Bit 12: 0        reg_hsc_region4_startp    // unsigned ,    RW, default = 13'h780  default	=	0x780,region4	startp
+#define T6W_SAFA_PPS_HSC_REGION4_ENDP                  0x5110
+//Bit 31:13        reserved
+//Bit 12: 0        reg_hsc_region4_endp      // unsigned ,    RW, default = 1919  default	=	13'd1919,region4	startp
+#define T6W_SAFA_PPS_HSC_REGION0_PHASE_SLOPE           0x5111
+//Bit 31:25        reserved
+//Bit 24: 0        reg_hsc_region0_phase_slope // unsigned ,    RW, default = 0  default	=	0,region0	phase	slope
+#define T6W_SAFA_PPS_HSC_REGION1_PHASE_SLOPE           0x5112
+//Bit 31:25        reserved
+//Bit 24: 0        reg_hsc_region1_phase_slope // unsigned ,    RW, default = 0  default	=	0,region1	phase	slope
+#define T6W_SAFA_PPS_HSC_REGION3_PHASE_SLOPE           0x5113
+//Bit 31:25        reserved
+//Bit 24: 0        reg_hsc_region3_phase_slope // unsigned ,    RW, default = 0  default	=	0,region3	phase	slope
+#define T6W_SAFA_PPS_HSC_REGION4_PHASE_SLOPE           0x5114
+//Bit 31:25        reserved
+//Bit 24: 0        reg_hsc_region4_phase_slope // unsigned ,    RW, default = 0  default	=	0,region4	phase	slope
+#define T6W_SAFA_PPS_INTERP_EN_MODE                    0x5115
+
+#define T6W_SAFA_PPS_YUV_SHARPEN_EN                    0x511e
+//Bit 31: 5        reserved
+//Bit  4           reg_yuv_sharpen_en        // unsigned ,    RW, default = 0  0: disable, 1: enable, when >1920 in disable this feature.
+//Bit  3: 1        reserved
+//Bit  0           reg_yuv_sharpen_win_mode  // unsigned ,    RW, default = 0  0: 3x3, 1: 5x5
+#define T6W_SAFA_PPS_DIR_EN_MODE                       0x5126
+//Bit 31:25        reserved
+//Bit 24           reg_dir_x_ds_en           // unsigned ,    RW, default = 1
+//Bit 23:21        reserved
+//Bit 20           reg_dir_y_ds_en           // unsigned ,    RW, default = 0
+//Bit 19:17        reserved
+//Bit 16           reg_dir_xerr_mode         // unsigned ,    RW, default = 1
+//Bit 15:13        reserved
+//Bit 12           reg_dir_sad_flt_en        // unsigned ,    RW, default = 1
+//Bit 11: 9        reserved
+//Bit  8           reg_dir_sad_flt_mode      // unsigned ,    RW, default = 0  0: 3-tap, 1: 5-tap
+//Bit  7: 4        reserved
+//Bit  3: 2        reserved
+//Bit  1: 0        reg_dir_blend_range_en    // unsigned ,    RW, default = 1
+#define T6W_SAFA_PPS_HW_CTRL                           0x5199
+//Bit 31:29        reserved
+//Bit 28           reg_field                 // unsigned ,    RW, default = 0
+//Bit 27:26        reg_frm2fld_en            // unsigned ,    RW, default = 0  ,0bit: 0:p 1:i 1bit: 0:field 1:reg_field
+//Bit 25:21        reserved
+//Bit 20           reg_postvsc_rpt_en        // unsigned ,    RW, default = 1
+//Bit 19           reg_posthsc_nonlinear_en  // unsigned ,    RW, default = 0
+//Bit 18:11        reserved
+//Bit 10: 9        reg_pi_out_vofs           // unsigned ,    RW, default = 0
+//Bit  8           reg_safa_pps_top_en       // unsigned ,    RW, default = 0  ,reg_safa_pps_top_en
+//Bit  7: 6        reg_444to422_mode         // unsigned ,    RW, default = 0
+//Bit  5           reg_padding_mode          // unsigned ,    RW, default = 0
+//Bit  4           reg_analy_en              // unsigned ,    RW, default = 0  ,reg_postsc_en
+//Bit  3           reg_rdout_mode            // unsigned ,    RW, default = 0  ,post_vscaler_rd_mode
+//Bit  2           reg_postsc_en             // unsigned ,    RW, default = 0  ,reg_postsc_en
+//Bit  1           reg_size_mux              // unsigned ,    RW, default = 0  ,hsize sel
+//Bit  0           reg_prevsc_outside_en     // unsigned ,    RW, default = 1  ,video1 scale out enable
+#define T6W_SAFA_PPS_DEJAGGY_CTRL                      0x5192
+//Bit 31           reg_dejaggy_en            // unsigned ,    RW, default = 0
+//Bit 30           reg_dejaggy_dps_en_0      // unsigned ,    RW, default = 0
+//Bit 29           reg_dejaggy_dps_en_1      // unsigned ,    RW, default = 0
+//Bit 28           reg_dejaggy_sameside_mode // unsigned ,    RW, default = 0
+//Bit 27:25        reserved
+//Bit 24           reg_dejaggy_sameside_prtct // unsigned ,    RW, default = 0
+//Bit 23:16        reserved
+//Bit 15:12        reg_dejaggy_procluma_alpha_1 // unsigned ,    RW, default = 15
+//Bit 11: 8        reg_dejaggy_procluma_alpha_0 // unsigned ,    RW, default = 15
+//Bit  7: 4        reg_dejaggy_procchrm_alpha_1 // unsigned ,    RW, default = 15
+//Bit  3: 0        reg_dejaggy_procchrm_alpha_0 // unsigned ,    RW, default = 15
+#define T6W_SAFA_PPS_CNTL_SCALE_COEF_IDX_LUMA          0x5195
+//Bit 31:15        reserved
+//Bit 14           reg_index_inc_luma        // unsigned ,    RW, default = 0  ,index increment, if bit9 == 1  then (0: index increase 1, 1: index increase 2) else (index increase 2)
+//Bit 13           reg_rd_cbus_coef_en_luma  // unsigned ,    RW, default = 0  ,1: read coef through cbus enable, just for debug purpose in case when we wanna check the coef in ram in correct or not
+//Bit 12:10        reserved
+//Bit  9: 7        reg_type_index_luma       // unsigned ,    RW, default = 0  ,type of index, 00: vertical coef, 01: vertical chroma coef: 10: horizontal coef, 11: resevered
+//Bit  6: 0        reg_coef_index_luma       // unsigned ,    RW, default = 0  ,coef	index
+#define T6W_SAFA_PPS_CNTL_SCALE_COEF_LUMA              0x5196
+//Bit 31:24        reg_coef0_luma            // signed ,      RW, default = 0  ,	coefficients for vertical filter and horizontal	filter
+//Bit 23:16        reg_coef1_luma            // signed ,      RW, default = 0  ,	coefficients for vertical filter and horizontal	filter
+//Bit 15: 8        reg_coef2_luma            // signed ,      RW, default = 0  ,	coefficients for vertical filter and horizontal	filter
+//Bit  7: 0        reg_coef3_luma            // signed ,      RW, default = 0  ,	coefficients for vertical filter and horizontal	filter
+#define T6W_SAFA_PPS_CNTL_SCALE_COEF_IDX_CHRO          0x5197
+//Bit 31:15        reserved
+//Bit 14           reg_index_inc_chro        // unsigned ,    RW, default = 0  ,index increment, if bit9 == 1  then (0: index increase 1, 1: index increase 2) else (index increase 2)
+//Bit 13           reg_rd_cbus_coef_en_chro  // unsigned ,    RW, default = 0  ,1: read coef through cbus enable, just for debug purpose in case when we wanna check the coef in ram in correct or not
+//Bit 12:10        reserved
+//Bit  9: 7        reg_type_index_chro       // unsigned ,    RW, default = 0  ,type of index, 00: vertical coef, 01: vertical chroma coef: 10: horizontal coef, 11: resevered
+//Bit  6: 0        reg_coef_index_chro       // unsigned ,    RW, default = 0  ,coef	index
+#define T6W_SAFA_PPS_CNTL_SCALE_COEF_CHRO              0x5198
+//Bit 31:24        reg_coef0_chro            // signed ,      RW, default = 0  ,	coefficients for vertical filter and horizontal	filter
+//Bit 23:16        reg_coef1_chro            // signed ,      RW, default = 0  ,	coefficients for vertical filter and horizontal	filter
+//Bit 15: 8        reg_coef2_chro            // signed ,      RW, default = 0  ,	coefficients for vertical filter and horizontal	filter
+//Bit  7: 0        reg_coef3_chro            // signed ,      RW, default = 0  ,	coefficients for vertical filter and horizontal	filter
+#define T6W_SAFA_PPS_SR_ALP_INFO                       0x5163
+//Bit 31:26        reserved
+//Bit 25:24        reg_sr_delta_alp_mode     // unsigned ,    RW, default = 1
+//Bit 23:22        reserved
+//Bit 21:16        reg_sr_delta_value        // unsigned ,    RW, default = 0
+//Bit 15:10        reserved
+//Bit  9: 8        reg_sr_gamma_alp_mode     // unsigned ,    RW, default = 1
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_sr_gamma_value        // unsigned ,    RW, default = 0
+#define T6W_SAFA_PPS_PI_INFO                           0x5164
+//Bit 31:22        reserved
+//Bit 21:20        reg_pi_gamma_mode         // unsigned ,    RW, default = 1
+//Bit 19:18        reserved
+//Bit 17:12        reg_pi_gamma_value        // unsigned ,    RW, default = 0
+//Bit 11:10        reserved
+//Bit  9: 8        reg_pi_max_sad_mode       // unsigned ,    RW, default = 1
+//Bit  7: 0        reg_pi_max_sad_value      // unsigned ,    RW, default = 0
+#define T6W_SAFA_PPS_BOT_VSC_INIT                      0x519a
+//Bit 31:29        reserved
+//Bit 28:24        reg_vsc_bot_ini_integer   // signed ,      RW, default = -1
+//Bit 23: 0        reg_vsc_bot_ini_phase     // unsigned ,    RW, default = 0
+#define SAFA_PPS_HV_ADP_TAP_WIND                   0x5157
+//Bit 31:10        reserved
+//Bit  9: 8        reg_hor_adp_tap_wind      // unsigned ,    RW, default = 0
+//Bit  7: 6        reserved
+//Bit  5: 4        reg_ver_adp_tap_wind      // unsigned ,    RW, default = 0
+//Bit  3: 1        reserved
+//Bit  0           reg_adp_x_ds_en           // unsigned ,    RW, default = 0
+#define VPP_VSR_OFIFO                              0x5010
+//Bit 31:29       reserved
+//Bit 28          reg_ofifo_en               // unsigned ,    RW, default = 1
+//Bit 27:25       reserved
+//Bit 24:12       reg_ofifo_line_lenm1       // unsigned ,    RW, default = 2047
+//Bit 11          reserved
+//Bit 10: 0       reg_ofifo_buf_size         // unsigned ,    RW, default = 1024
+#define VPP_PI_GCLK_CTRL                           0x5041
+//Bit 31:0         reg_gclk_ctrl              // unsigned ,    RW, default = 0
+#define SAFA_PPS_GATE_CTRL                         0x5191
+//Bit 31:28        reserved
+//Bit 27:26        reg_upsap_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit 25:24        reg_analy_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit 23:22        reg_analy_post_gclk_ctrl  // unsigned ,    RW, default = 0
+//Bit 21:20        reg_drt_interp_gclk_ctrl  // unsigned ,    RW, default = 0
+//Bit 19:18        reg_drt_interp1_gclk_ctrl // unsigned ,    RW, default = 0
+//Bit 17:16        reg_drt_coef_gclk_ctrl    // unsigned ,    RW, default = 0
+//Bit 15:14        reg_drt_coef1_gclk_ctrl   // unsigned ,    RW, default = 0
+//Bit 13:12        reg_sharp_chrm_gclk_ctrl  // unsigned ,    RW, default = 0
+//Bit 11:10        reg_prevsc_gclk_ctrl      // unsigned ,    RW, default = 0
+//Bit  9: 8        reg_prehsc_gclk_ctrl      // unsigned ,    RW, default = 0
+//Bit  7: 6        reg_analy_pre_gclk_ctrl   // unsigned ,    RW, default = 0
+//Bit  5: 4        reg_dir_gclk_ctrl         // unsigned ,    RW, default = 0
+//Bit  3: 2        reg_hvalp_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit  1: 0        reg_postsc_gclk_ctrl      // unsigned ,    RW, default = 0
+#define S6_SAFA_PPS_GATE_CTRL                        0x5196
+//Bit 31:30        reserved
+//Bit 29:28        reg_dejag_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit 27:26        reg_upsap_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit 25:24        reg_analy_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit 23:22        reg_analy_post_gclk_ctrl  // unsigned ,    RW, default = 0
+//Bit 21:20        reg_drt_interp_gclk_ctrl  // unsigned ,    RW, default = 0
+//Bit 19:18        reg_drt_interp1_gclk_ctrl // unsigned ,    RW, default = 0
+//Bit 17:16        reg_drt_coef_gclk_ctrl    // unsigned ,    RW, default = 0
+//Bit 15:14        reg_drt_coef1_gclk_ctrl   // unsigned ,    RW, default = 0
+//Bit 13:12        reg_sharp_chrm_gclk_ctrl  // unsigned ,    RW, default = 0
+//Bit 11:10        reg_prevsc_gclk_ctrl      // unsigned ,    RW, default = 0
+//Bit  9: 8        reg_prehsc_gclk_ctrl      // unsigned ,    RW, default = 0
+//Bit  7: 6        reg_analy_pre_gclk_ctrl   // unsigned ,    RW, default = 0
+//Bit  5: 4        reg_dir_gclk_ctrl         // unsigned ,    RW, default = 0
+//Bit  3: 2        reg_hvalp_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit  1: 0        reg_postsc_gclk_ctrl      // unsigned ,    RW, default = 0
+#define T6D_SAFA_PPS_GATE_CTRL                      0x5198
+//Bit 31:30        reg_postsc_info_gclk_ctrl // unsigned ,    RW, default = 0
+//Bit 29:28        reg_dejag_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit 27:26        reg_upsap_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit 25:24        reg_analy_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit 23:22        reg_analy_post_gclk_ctrl  // unsigned ,    RW, default = 0
+//Bit 21:20        reg_drt_interp_gclk_ctrl  // unsigned ,    RW, default = 0
+//Bit 19:18        reg_drt_interp1_gclk_ctrl // unsigned ,    RW, default = 0
+//Bit 17:16        reg_drt_coef_gclk_ctrl    // unsigned ,    RW, default = 0
+//Bit 15:14        reg_drt_coef1_gclk_ctrl   // unsigned ,    RW, default = 0
+//Bit 13:12        reg_sharp_chrm_gclk_ctrl  // unsigned ,    RW, default = 0
+//Bit 11:10        reg_prevsc_gclk_ctrl      // unsigned ,    RW, default = 0
+//Bit  9: 8        reg_prehsc_gclk_ctrl      // unsigned ,    RW, default = 0
+//Bit  7: 6        reg_analy_pre_gclk_ctrl   // unsigned ,    RW, default = 0
+//Bit  5: 4        reg_dir_gclk_ctrl         // unsigned ,    RW, default = 0
+//Bit  3: 2        reg_hvalp_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit  1: 0        reg_postsc_gclk_ctrl      // unsigned ,    RW, default = 0
+#define T6W_SAFA_PPS_GATE_CTRL                     0x519b
+//Bit 31:30        reg_postsc_info_gclk_ctrl // unsigned ,    RW, default = 0
+//Bit 29:28        reg_dejag_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit 27:26        reg_upsap_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit 25:24        reg_analy_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit 23:22        reg_analy_post_gclk_ctrl  // unsigned ,    RW, default = 0
+//Bit 21:20        reg_drt_interp_gclk_ctrl  // unsigned ,    RW, default = 0
+//Bit 19:18        reg_drt_interp1_gclk_ctrl // unsigned ,    RW, default = 0
+//Bit 17:16        reg_drt_coef_gclk_ctrl    // unsigned ,    RW, default = 0
+//Bit 15:14        reg_drt_coef1_gclk_ctrl   // unsigned ,    RW, default = 0
+//Bit 13:12        reg_sharp_chrm_gclk_ctrl  // unsigned ,    RW, default = 0
+//Bit 11:10        reg_prevsc_gclk_ctrl      // unsigned ,    RW, default = 0
+//Bit  9: 8        reg_prehsc_gclk_ctrl      // unsigned ,    RW, default = 0
+//Bit  7: 6        reg_analy_pre_gclk_ctrl   // unsigned ,    RW, default = 0
+//Bit  5: 4        reg_dir_gclk_ctrl         // unsigned ,    RW, default = 0
+//Bit  3: 2        reg_hvalp_gclk_ctrl       // unsigned ,    RW, default = 0
+//Bit  1: 0        reg_postsc_gclk_ctrl      // unsigned ,    RW, default = 0
 #endif

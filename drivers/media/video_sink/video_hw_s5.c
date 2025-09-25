@@ -108,7 +108,6 @@ static struct vpp_post_s g_vpp_post;
 #define BYAPSS_DETUNNEL   BIT(2)
 
 static u32 g_slice_num = 0xff;
-
 u32 pi_enable = 0xff;
 u32 vd2_pi_enable = 0xff;
 u32 g_vd1s1_vd2_prebld_en = 0xff;
@@ -440,6 +439,18 @@ static void dump_afbc_reg(void)
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("[0x%x] = 0x%X [afbc_top_ctrl]\n",
 			reg_addr, reg_val);
+		reg_addr = vd_afbc_reg->afbcd_burst_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [afbcd_burst_ctrl]\n",
+			reg_addr, reg_val);
+		reg_addr = vd_afbc_reg->afbcd_loss_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [afbcd_loss_ctrl]\n",
+			reg_addr, reg_val);
+		reg_addr = vd_afbc_reg->vpp_intf_vd_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vpp_intf_vd_ctrl]\n",
+			reg_addr, reg_val);
 	}
 }
 
@@ -547,6 +558,10 @@ static void dump_mif_reg(void)
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("[0x%x] = 0x%X [viu_vd_fmt_w]\n",
 			   reg_addr, reg_val);
+		reg_addr = vd_mif_reg->vpp_intf_vd_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vpp_intf_vd_ctrl]\n",
+			reg_addr, reg_val);
 
 		pr_info("vd%d mif linear regs:\n", i);
 		reg_addr = vd_mif_linear_reg->vd_if0_baddr_y;
@@ -6016,8 +6031,19 @@ static void vd_proc_param_set(struct vd_proc_s *vd_proc, u32 frm_idx)
 void enable_mosaic_mode(u32 vpp_index, u8 enable)
 {
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
+	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 	u32 val = 0;
 
+	if (!cur_dev->mosaic_support)
+		return;
+
+	if (cur_dev->display_module == T6W_DISPLAY_MODULE) {
+		rdma_wr_bits(mosaic_misc_reg.player_2x2_ctrl, enable ? 0xf : 0, 28, 4);
+		rdma_wr_bits(mosaic_misc_reg.vfcd_top_ctrl4, enable ? 1 : 0, 1, 1);
+		rdma_wr_bits(mosaic_misc_reg.vfcd_top_ctrl4_1, enable ? 1 : 0, 1, 1);
+		rdma_wr_bits(mosaic_misc_reg.vpu_hdr2_top_ctrl, enable ? 1 : 0, 23, 1);
+		return;
+	}
 	if (enable)
 		val = 0x1000000 | g_viu0_hold_line;
 	else
@@ -6440,7 +6466,8 @@ static void vd1_set_dcu_s5(struct video_layer_s *layer,
 	bool di_post = false, di_pre_link = false;
 	u8 vpp_index = layer->vpp_index;
 	u8 layer_id = layer->layer_id;
-	u32 vscale_skip_count = 0;
+	u32 vscale_skip_count = 0, vpp_tunnel_en = 0;
+	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 
 	if (!vf) {
 		pr_info("%s vf NULL, return\n", __func__);
@@ -6472,8 +6499,18 @@ static void vd1_set_dcu_s5(struct video_layer_s *layer,
 #endif
 #endif
 
-	if (frame_par->nocomp)
+	//vdin detunnel, vd1 need tunnel, used for dv afbc case
+	if (vf->type_ext & VIDTYPE_EXT_DETUNNEL_ENABLED)
+		vpp_tunnel_en = 1;
+
+	if (frame_par->nocomp) {
 		type &= ~VIDTYPE_COMPRESS;
+		//for dw case need disable
+		vpp_tunnel_en = 0;
+	}
+
+	rdma_wr_bits(vd_afbc_reg->vpp_intf_vd_ctrl,
+		vpp_tunnel_en, 16, 1);
 
 	if (type & VIDTYPE_COMPRESS) {
 		if (conv_lbuf_len_s5[layer->layer_id] == VIDEO_USE_4K_RAM)
@@ -6626,6 +6663,11 @@ static void vd1_set_dcu_s5(struct video_layer_s *layer,
 			(vd_mif_reg->vd_if0_gen_reg, 0);
 		return;
 	}
+	if (frame_par->nocomp && vf->type_dw) {
+		/* for dw case, add type_dw for process dw type diff with */
+		/* org vframe type, if vf->type_dw == 0, same with vf->type */
+		type = vf->type_dw;
+	}
 
 	/* DI only output NV21 8bit DW buffer */
 	if (frame_par->nocomp &&
@@ -6652,7 +6694,7 @@ static void vd1_set_dcu_s5(struct video_layer_s *layer,
 		canvas_w = vf->canvas0_config[0].width;
 		/* 8bit yuv 0, p010 mode*/
 		/* P010_MODE only worked when nv21 10bit */
-		if (vf->type & VIDTYPE_VIU_NV21 || vf->type & VIDTYPE_VIU_NV12)
+		if (type & VIDTYPE_VIU_NV21 || type & VIDTYPE_VIU_NV12)
 			bit16_mode = vf->canvas0_config[0].bit_depth & P010_MODE;
 	}
 
@@ -6663,14 +6705,14 @@ static void vd1_set_dcu_s5(struct video_layer_s *layer,
 	if (layer->mif_setting.block_mode)
 		burst_len = layer->mif_setting.block_mode;
 	if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
-		pr_info("bitdepth %x %x, flag %x, type %x, nocomp %x\n",
-			vf->bitdepth, vf->bitdepth_dw, vf->flag, vf->type, frame_par->nocomp);
+		pr_info("bitdepth %x %x, flag %x, type %x, dw_type 0x%x, nocomp %x\n",
+			vf->bitdepth, vf->bitdepth_dw, vf->flag, vf->type, type, frame_par->nocomp);
 
 	if (!frame_par->nocomp) {/*use afbc data*/
-		if ((vf->bitdepth & BITDEPTH_Y10) &&
+		if ((BITDEPTH_HAS(vf->bitdepth, BITDEPTH_Y10)) &&
 		    !(vf->flag & VFRAME_FLAG_DI_DW)) {
-			if ((vf->type & VIDTYPE_VIU_444) ||
-			    (vf->type & VIDTYPE_RGB_444)) {
+			if ((type & VIDTYPE_VIU_444) ||
+			    (type & VIDTYPE_RGB_444)) {
 				bit_mode = 2;
 			} else {
 				if (vf->bitdepth & FULL_PACK_422_MODE)
@@ -6682,9 +6724,9 @@ static void vd1_set_dcu_s5(struct video_layer_s *layer,
 			bit_mode = 0;
 		}
 	} else {/*use dw data*/
-		if (vf->bitdepth_dw & BITDEPTH_Y10) {
-			if ((vf->type & VIDTYPE_VIU_444) ||
-				(vf->type & VIDTYPE_RGB_444)) {
+		if (BITDEPTH_HAS(vf->bitdepth_dw, BITDEPTH_Y10)) {
+			if ((type & VIDTYPE_VIU_444) ||
+				(type & VIDTYPE_RGB_444)) {
 				bit_mode = 2;
 			} else {
 				if (vf->bitdepth_dw & FULL_PACK_422_MODE)
@@ -6752,7 +6794,7 @@ static void vd1_set_dcu_s5(struct video_layer_s *layer,
 	}
 #endif
 	if (glayer_info[0].need_no_compress ||
-	    (vf->type & VIDTYPE_PRE_DI_AFBC)) {
+	    (type & VIDTYPE_PRE_DI_AFBC)) {
 		vd1_path_select_s5(layer, false, true, di_post, di_pre_link);
 	} else {
 		vd1_path_select_s5(layer, false, false, di_post, di_pre_link);
@@ -7023,7 +7065,8 @@ static void vd1_set_slice_dcu_s5(struct video_layer_s *layer,
 	bool di_post = false, di_pre_link = false;
 	u8 vpp_index = layer->vpp_index;
 	u8 layer_id = layer->layer_id;
-	u32 vscale_skip_count = 0;
+	u32 vscale_skip_count = 0, vpp_tunnel_en = 0;
+	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 
 	if (layer->mosaic_mode) {
 		struct mosaic_frame_s *mosaic_frame = NULL;
@@ -7065,8 +7108,18 @@ static void vd1_set_slice_dcu_s5(struct video_layer_s *layer,
 #endif
 #endif
 
-	if (frame_par->nocomp)
+	//vdin detunnel, vd1 need tunnel, used for dv afbc case
+	if (vf->type_ext & VIDTYPE_EXT_DETUNNEL_ENABLED)
+		vpp_tunnel_en = 1;
+
+	if (frame_par->nocomp) {
 		type &= ~VIDTYPE_COMPRESS;
+		//for dw case need disable
+		vpp_tunnel_en = 0;
+	}
+
+	rdma_wr_bits(vd_afbc_reg->vpp_intf_vd_ctrl,
+		vpp_tunnel_en, 16, 1);
 
 	if (type & VIDTYPE_COMPRESS) {
 		if (conv_lbuf_len_s5[layer->layer_id] == VIDEO_USE_4K_RAM)
@@ -7218,6 +7271,12 @@ static void vd1_set_slice_dcu_s5(struct video_layer_s *layer,
 		return;
 	}
 
+	if (frame_par->nocomp && vf->type_dw) {
+		/* for dw case, add type_dw for process dw type diff with */
+		/* org vframe type, if vf->type_dw == 0, same with vf->type */
+		type = vf->type_dw;
+	}
+
 	/* DI only output NV21 8bit DW buffer */
 	if (frame_par->nocomp &&
 	    vf->plane_num == 2 &&
@@ -7243,7 +7302,7 @@ static void vd1_set_slice_dcu_s5(struct video_layer_s *layer,
 		canvas_w = vf->canvas0_config[0].width;
 		/* 8bit yuv 0, p010 mode*/
 		/* P010_MODE only worked when nv21 10bit */
-		if (vf->type & VIDTYPE_VIU_NV21 || vf->type & VIDTYPE_VIU_NV12)
+		if (type & VIDTYPE_VIU_NV21 || type & VIDTYPE_VIU_NV12)
 			bit16_mode = vf->canvas0_config[0].bit_depth & P010_MODE;
 	}
 
@@ -7255,10 +7314,10 @@ static void vd1_set_slice_dcu_s5(struct video_layer_s *layer,
 		burst_len = layer->mif_setting.block_mode;
 
 	if (!frame_par->nocomp) {/*use afbc data*/
-		if ((vf->bitdepth & BITDEPTH_Y10) &&
+		if ((BITDEPTH_HAS(vf->bitdepth, BITDEPTH_Y10)) &&
 		    !(vf->flag & VFRAME_FLAG_DI_DW)) {
-			if ((vf->type & VIDTYPE_VIU_444) ||
-			    (vf->type & VIDTYPE_RGB_444)) {
+			if ((type & VIDTYPE_VIU_444) ||
+			    (type & VIDTYPE_RGB_444)) {
 				bit_mode = 2;
 			} else {
 				if (vf->bitdepth & FULL_PACK_422_MODE)
@@ -7270,9 +7329,9 @@ static void vd1_set_slice_dcu_s5(struct video_layer_s *layer,
 			bit_mode = 0;
 		}
 	} else {/*use dw or mif data*/
-		if (vf->bitdepth_dw & BITDEPTH_Y10) {
-			if ((vf->type & VIDTYPE_VIU_444) ||
-				(vf->type & VIDTYPE_RGB_444)) {
+		if (BITDEPTH_HAS(vf->bitdepth_dw, BITDEPTH_Y10)) {
+			if ((type & VIDTYPE_VIU_444) ||
+				(type & VIDTYPE_RGB_444)) {
 				bit_mode = 2;
 			} else {
 				if (vf->bitdepth_dw & FULL_PACK_422_MODE)
@@ -7324,7 +7383,7 @@ static void vd1_set_slice_dcu_s5(struct video_layer_s *layer,
 	}
 #endif
 	if (glayer_info[0].need_no_compress ||
-	    (vf->type & VIDTYPE_PRE_DI_AFBC)) {
+	    (type & VIDTYPE_PRE_DI_AFBC)) {
 		vd1_path_select_s5(layer, false, true, di_post, di_pre_link);
 	} else {
 		vd1_path_select_s5(layer, false, false, di_post, di_pre_link);
@@ -7745,7 +7804,7 @@ static void vdx_set_dcu_s5(struct video_layer_s *layer,
 		burst_len = layer->mif_setting.block_mode;
 
 	if (!frame_par->nocomp) {/*use afbc data*/
-		if ((vf->bitdepth & BITDEPTH_Y10) &&
+		if ((BITDEPTH_HAS(vf->bitdepth, BITDEPTH_Y10)) &&
 		    !(vf->flag & VFRAME_FLAG_DI_DW)) {
 			if ((vf->type & VIDTYPE_VIU_444) ||
 			    (vf->type & VIDTYPE_RGB_444)) {
@@ -7760,7 +7819,7 @@ static void vdx_set_dcu_s5(struct video_layer_s *layer,
 			bit_mode = 0;
 		}
 	} else {/*use dw or mif data*/
-		if (vf->bitdepth_dw & BITDEPTH_Y10) {
+		if (BITDEPTH_HAS(vf->bitdepth_dw, BITDEPTH_Y10)) {
 			if ((vf->type & VIDTYPE_VIU_444) ||
 				(vf->type & VIDTYPE_RGB_444)) {
 				bit_mode = 2;
@@ -12014,7 +12073,7 @@ void fgrain_config_s5(struct video_layer_s *layer,
 		/* afbc copress is always 420 */
 		setting->fmt_mode = 2;
 		setting->used = 1;
-		if (vf->bitdepth & BITDEPTH_Y10)
+		if (BITDEPTH_HAS(vf->bitdepth, BITDEPTH_Y10))
 			setting->bitdepth = 1;
 		else
 			setting->bitdepth = 0;
@@ -13022,24 +13081,6 @@ void set_vd_pi_input_size(void)
 	}
 }
 
-u32 get_vpu_venc_error_status(void)
-{
-	u32 status = 0;
-
-	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		status = (READ_VCBUS_REG(T3X_VPU_VENC_ERROR) & 0xff00) >> 8;
-	return status;
-}
-
-void clear_vpu_venc_error(void)
-{
-	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
-		WRITE_VCBUS_REG_BITS(T3X_VPU_VENC_ERROR, 0x1, 0, 1);
-		WRITE_VCBUS_REG_BITS(T3X_VPU_VENC_ERROR, 0x0, 0, 1);
-		pr_info("T3X_VPU_VENC_ERROR(0x1cea=0x%x)\n", READ_VCBUS_REG(T3X_VPU_VENC_ERROR));
-	}
-}
-
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 void vpu_set_frc_bypass(struct video_layer_s *layer)
 {
@@ -13746,4 +13787,3 @@ struct video_module_debug_s debug_video_hw_s5[7] = {
 	{"g_v_padding", &g_v_padding, 1, 0},
 	{"debug_flag_s5", &debug_flag_s5, 1, 0},
 };
-

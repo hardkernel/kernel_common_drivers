@@ -188,6 +188,7 @@ struct vpp_frame_par_s {
 
 	bool nocomp;
 	bool is_interlaced;
+	bool force_dw;
 	u8 sr0_position;
 	u8 sr1_position;
 	u8 sr_core_support;

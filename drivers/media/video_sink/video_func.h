@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef VIDEO_FUNC_HEADER_HH
@@ -54,7 +54,7 @@ extern bool over_field;
 extern int over_sync_count;
 extern u32 toggle_count;
 extern u32 timer_count;
-extern u32 vsync_count;
+extern u32 vsync_counts;
 extern bool to_notify_trick_wait;
 extern atomic_t trickmode_framedone;
 extern atomic_t video_prop_change;

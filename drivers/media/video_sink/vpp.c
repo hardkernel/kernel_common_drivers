@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -41,13 +41,12 @@
 #include "../common/uvm_process/meson_uvm_nn_processor.h"
 
 #include "video_priv.h"
+#include "vpp_pq.h"
+#include "vpp_post_s5.h"
 #include "video_hw_s5.h"
 #include "vpp_regs_s5.h"
 #include "video_common.h"
 #include "video_safa_reg.h"
-
-#include "vpp_pq.h"
-#include "vpp_post_s5.h"
 
 #define MAX_NONLINEAR_FACTOR    0x40
 #define MAX_NONLINEAR_T_FACTOR    100
@@ -96,6 +95,8 @@ struct filter_info_s {
 
 #define PPS_COEF_NUM       (66 + 2)
 #define PPS_COEF_8TAP_NUM  (132 + 2)
+//static unsigned int pps_coef = PPS_COEF_NUM;
+//static unsigned int pps_coef_8tap = PPS_COEF_8TAP_NUM;
 static uint test_pps_h_coef[PPS_COEF_NUM] = {2, 33};
 static uint test_pps_h_coef_8tap[PPS_COEF_8TAP_NUM] = {8, 33};
 static uint test_pps_v_coef[PPS_COEF_NUM] = {2, 33};
@@ -604,8 +605,6 @@ static uint cur_horz_filter;
 static uint cur_skip_line;
 static unsigned int super_scaler_v_ratio = 133;
 static u32 skip_policy = 0x81;
-static unsigned int scaler_filter_cnt_limit = 10;
-
 #ifdef TV_3D_FUNCTION_OPEN
 static int force_filter_mode = 1;
 #endif
@@ -630,6 +629,7 @@ static unsigned int force_vskip_cnt;
 #define DISABLE_ADAPTIVE_AR 1
 #define DISABLE_ADAPTIVE_ALIGN 2
 static unsigned int disable_adapted;
+
 static u32 cur_nnhf_input_w;
 static u32 cur_nnhf_input_h;
 
@@ -803,10 +803,15 @@ static unsigned int custom_ar;
 static unsigned int force_use_ext_ar;
 static unsigned int force_no_compress;
 static unsigned int hscaler_input_h_threshold = 60;
-static unsigned int force_reshape_vskip_cnt;
+static int force_reshape_vskip_cnt;
 static unsigned int screen_ar_threshold = 3;
 static unsigned int aisr_debug_flag;
-
+#ifdef ENABLE_DPSS_FRC
+#ifdef AMLOGIC_MEDIA_DPSS
+#define FRC_LINK_RATIO	1100
+static unsigned int frc_link_ratio = FRC_LINK_RATIO;
+#endif
+#endif
 static bool is_video_output_4k120hz(int freq_ratio,
 	const struct vinfo_s *vinfo,
 	u32 slice_num,
@@ -822,11 +827,76 @@ static bool is_video_output_4k120hz(int freq_ratio,
 		return false;
 }
 
-static bool is_4k2k144hz_out(const struct vinfo_s *vinfo)
+static bool is_4k1k120hz_out(const struct vinfo_s *vinfo)
+{
+	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
+		(((vinfo->sync_duration_num / vinfo->sync_duration_den) > 115) &&
+		((vinfo->sync_duration_num / vinfo->sync_duration_den) < 125)))
+		return true;
+	else
+		return false;
+}
+
+static bool is_4k1k144hz_out(const struct vinfo_s *vinfo)
 {
 	if ((vinfo->width >= 3840 && vinfo->height >= 1080 &&
-		(vinfo->sync_duration_num == 144 && vinfo->sync_duration_den == 1)) &&
+		((vinfo->sync_duration_num / vinfo->sync_duration_den) > 140) &&
+		((vinfo->sync_duration_num / vinfo->sync_duration_den) < 148)) &&
 		(vinfo->width < 7680 && vinfo->height < 2160))
+		return true;
+	else
+		return false;
+}
+
+static bool is_4k1k165hz_out(const struct vinfo_s *vinfo)
+{
+	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
+		((vinfo->sync_duration_num / vinfo->sync_duration_den) > 162 &&
+		(vinfo->sync_duration_num / vinfo->sync_duration_den) < 168))
+		return true;
+	else
+		return false;
+}
+
+static bool is_4k1k180hz_out(const struct vinfo_s *vinfo)
+{
+	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
+		((vinfo->sync_duration_num / vinfo->sync_duration_den) > 177 &&
+		(vinfo->sync_duration_num / vinfo->sync_duration_den) < 183))
+		return true;
+	else
+		return false;
+}
+
+#ifdef ENABLE_DPSS_FRC
+#ifdef AMLOGIC_MEDIA_DPSS
+static bool is_4k1k288hz_out(const struct vinfo_s *vinfo)
+{
+	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
+		((vinfo->sync_duration_num / vinfo->sync_duration_den) > 285 &&
+		(vinfo->sync_duration_num / vinfo->sync_duration_den) < 291))
+		return true;
+	else
+		return false;
+}
+
+static bool is_4k1k_dlg_mode(const struct vinfo_s *vinfo)
+{
+	if (vinfo->width == 3840 && vinfo->height == 1080 &&
+		((vinfo->sync_duration_num / vinfo->sync_duration_den) >= 100))
+		return true;
+	else
+		return false;
+}
+#endif
+#endif
+
+static bool is_4k144hz_out(const struct vinfo_s *vinfo)
+{
+	if ((vinfo->width >= 3840 && vinfo->height >= 2160 &&
+		((vinfo->sync_duration_num / vinfo->sync_duration_den) > 140) &&
+		((vinfo->sync_duration_num / vinfo->sync_duration_den) < 148)) &&
+		(vinfo->width < 7680 && vinfo->height < 4320))
 		return true;
 	else
 		return false;
@@ -971,6 +1041,72 @@ static bool is_video_ratio_adjust(u32 layer_id)
 #endif
 	return ret;
 }
+
+static inline int round_div(u32 a, u32 x, u32 div)
+{
+	return (a * x + div / 2) / div;
+}
+
+static void ratio_adjust_for_high_freq(const struct vinfo_s *vinfo,
+			int *min_ratio_1000, u64 *cur_vpp_speed_factor,
+			s32 height_in, s32 width_in)
+{
+	if (is_meson_t6w_cpu()) {
+		if (is_4k1k180hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1840, 1250);
+			/* 4k1k180hz and 1080p180hz need to set different speed_factor */
+			if (width_in > 1920 && height_in >= 1080)
+				*cur_vpp_speed_factor =
+					div_u64((u64)vpp_speed_factor * 0xd6, 0x110);
+			else
+				*cur_vpp_speed_factor = (u64)vpp_speed_factor;
+		} else if (is_4k1k165hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1663, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xd9, 0x110);
+		} else if (is_4k1k144hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1905, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xd9, 0x110);
+			/* 1440p input and 4k1k 144hz output need to set different min_ratio */
+			if (width_in >= 2560 && width_in < 3840 &&
+				height_in >= 1440 && height_in < 2160)
+				*min_ratio_1000 = round_div(min_skip_ratio, 2175, 1250);
+		} else if (is_4k1k120hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1440, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xe6, 0x110);
+		} else {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1500, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xde, 0x110);
+		}
+	}
+
+	if (is_meson_t5m_cpu()) {
+		if (is_4k1k144hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1705, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xdf, 0x110);
+		} else if (is_4k1k165hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1557, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xd6, 0x110);
+		} else {
+			*min_ratio_1000      = min_skip_ratio;
+			*cur_vpp_speed_factor = (u64)vpp_speed_factor;
+		}
+	}
+
+	if (is_meson_t3x_cpu()) {
+		if (is_4k144hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 2214, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xe4, 0x110);
+		}
+	}
+}
+
 /*
  *test on txlx:
  *Time_out = (V_out/V_screen_total)/FPS_out;
@@ -1010,9 +1146,9 @@ static int vpp_process_speed_check
 	u32 vpu_clk = 0, max_height = 2160;
 	u32 slice_num, max_proc_height_temp = max_proc_height;
 	u32 pi_enable, clk_calc = 0;
-	u32 frc_enable = 0, frc_ratio = 10;
+	u64 cur_vpp_speed_factor;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	u32 overlap_size = 0;
+	u32 overlap_size = 0, frc_enable = 0, frc_ratio = 10;
 #endif
 
 	if (!vf)
@@ -1037,9 +1173,12 @@ static int vpp_process_speed_check
 	/* brr_duration only for QMS case */
 	if (vinfo->brr_duration) {
 		sync_duration_num = vinfo->brr_duration * sync_duration_den;
-		if (frc_enable && layer_id == 0)
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if ((frc_enable || (slice_num == 2 &&
+			video_is_meson_t3x_cpu())) && layer_id == 0)
 			sync_duration_num =
 				sync_duration_num * 10 / frc_ratio;
+#endif
 	} else {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if ((frc_enable || (slice_num == 2 &&
@@ -1051,6 +1190,8 @@ static int vpp_process_speed_check
 		sync_duration_den = vinfo->sync_duration_den;
 	}
 
+	if (cur_dev->has_2ppc_support)
+		sync_duration_num /= 2;
 	if (IS_DI_POST(vf->type) &&
 	    !(op_flag & OP_HAS_DI_LOCAL)) {
 		if (is_meson_txlx_cpu())
@@ -1062,7 +1203,16 @@ static int vpp_process_speed_check
 			clk_in_pps = dim_get_vpuclkb_ext();
 #endif
 	} else {
-		clk_in_pps = vpu_clk_get();
+#ifdef ENABLE_DPSS_FRC
+#ifdef AMLOGIC_MEDIA_DPSS
+		if (is_frc_link_source(vf) &&
+			is_frc_link_available(vf) &&
+			!next_frame_par->vscale_skip_count)
+			clk_in_pps = 800000000;
+		else
+#endif
+#endif
+			clk_in_pps = vpu_clk_get();
 	}
 
 	next_frame_par->clk_in_pps = clk_in_pps;
@@ -1195,14 +1345,75 @@ static int vpp_process_speed_check
 			return SPEED_CHECK_VSKIP;
 	}
 
-	if ((sync_duration_num / sync_duration_den) > 60)
-		freq_ratio = (sync_duration_num /
-			sync_duration_den + 1) * 10 / 60;
+#ifdef ENABLE_DPSS_FRC
+#ifdef AMLOGIC_MEDIA_DPSS
+	if (is_frc_link_source(vf)  &&
+		is_frc_link_available(vf) &&
+		!next_frame_par->vscale_skip_count) {
+		u32 input_time_us_per_line10 = 0, display_time_us_per_line10 = 0;
+		u32 frc_ratio = frc_link_ratio;
 
-	if (freq_ratio < 1)
-		freq_ratio = 1;
-	freq_ratio = (freq_ratio + 9) / 10;
+		if (cur_dev->has_2ppc_support) {
+			// for t6x 4k60hz, 4k2k120hz: 1100
+			if (is_4k144hz_out(vinfo) || is_4k1k288hz_out(vinfo))
+				frc_ratio = frc_ratio * 11 / 10;  //1210
+		} else {
+			// for t6w 4k60hz, 4k1k120hz: 1100
+			if (is_4k1k144hz_out(vinfo))
+				frc_ratio = frc_ratio * 11 / 10;  //1210
+		}
 
+		clk_vpu = vpu_clk_get();
+		clk_temp = clk_in_pps / 1000000;
+		if (clk_temp) {
+			input_time_us = height_in * width_in / clk_temp;
+			input_time_us_per_line10 = (width_in * 10) / clk_temp;
+			input_time_us = input_time_us * frc_ratio  / 1000;
+		}
+		clk_temp = clk_vpu / 1000000;
+		display_time_us = 1000000 * sync_duration_den /
+			sync_duration_num;
+		display_time_us_per_line10 = (display_time_us * 10) / vtotal;
+
+		/* TODO: use htotal to replace width_out */
+		width_out = next_frame_par->VPP_hsc_endp -
+			next_frame_par->VPP_hsc_startp + 1;
+		display_time_us = height_out * display_time_us / vtotal;
+		if (super_debug)
+			pr_info("%s:frc link frc_ratio=%d, input_time_us=%d, display_time_us=%d:sync_duration_num/den:%d/%d\n",
+				__func__,
+				frc_ratio,
+				input_time_us,
+				display_time_us,
+				sync_duration_num,
+				sync_duration_den);
+		if (input_time_us > display_time_us)
+			return SPEED_CHECK_VSKIP;
+		if (smallwindow_link_enable) {
+			u32 smallwindow_link_h_temp = smallwindow_link_h;
+
+			if (is_4k1k_dlg_mode(vinfo))
+				smallwindow_link_h_temp >>= 1;
+			if (smallwindow_link_h_temp >= height_out) {
+				if (super_debug)
+					pr_info("%s:smallwindow_link_h=%d, height_out=%d\n",
+						__func__, smallwindow_link_h_temp, height_out);
+				return SPEED_CHECK_VSKIP;
+			}
+		}
+	}
+#endif
+#endif
+
+	if (!cur_dev->has_2ppc_support) {
+		if ((sync_duration_num / sync_duration_den) > 60)
+			freq_ratio = (sync_duration_num /
+				sync_duration_den + 1) * 10 / 60;
+
+		if (freq_ratio < 1)
+			freq_ratio = 1;
+		freq_ratio = (freq_ratio + 9) / 10;
+	}
 	if (layer_id == 0 && (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME))
 		cur_freq_ratio = freq_ratio;
 
@@ -1216,8 +1427,10 @@ static int vpp_process_speed_check
 		    ((vf->type & VIDTYPE_VIU_444) ||
 		     (vf->type & VIDTYPE_RGB_444)))
 			bpp = 2;
-		if (is_meson_t5m_cpu() && is_4k2k144hz_out(vinfo))
-			vpp_speed_factor = 0x104;
+		cur_vpp_speed_factor = vpp_speed_factor;
+		ratio_adjust_for_high_freq(vinfo, &min_ratio_1000,
+			&cur_vpp_speed_factor, height_in, width_in);
+
 		if (height_in * bpp * freq_ratio > height_out) {
 			/*
 			 *don't need do skip for under 5% scaler down
@@ -1227,7 +1440,7 @@ static int vpp_process_speed_check
 			if (height_in > height_out &&
 			    ((height_in - height_out) < height_in / 20) &&
 			    !is_video_output_4k120hz(freq_ratio,
-			    vinfo, slice_num, pi_enable))
+			    vinfo, slice_num, pi_enable) && !is_4k1k165hz_out(vinfo))
 				return SPEED_CHECK_DONE;
 			if (get_cpu_type() >=
 				MESON_CPU_MAJOR_ID_GXBB) {
@@ -1247,6 +1460,7 @@ static int vpp_process_speed_check
 				    !is_meson_t3_cpu() &&
 				    !is_meson_t5w_cpu() &&
 				    !is_meson_t3x_cpu() &&
+				    !is_meson_t6w_cpu() &&
 				    next_frame_par->vscale_skip_count > 0 &&
 				    ((vf->type & VIDTYPE_VIU_444) ||
 				     (vf->type & VIDTYPE_RGB_444)))
@@ -1281,17 +1495,12 @@ static int vpp_process_speed_check
 			}
 			if ((vf->type & VIDTYPE_VIU_422) &&
 				!video_lcevc.vd2_vd1_shared_vf) {
-				u64 cur_vpp_speed_factor;
-				u32 cur_bypass_ratio;
+				u32 cur_bypass_ratio = bypass_ratio;
 
 				if (IS_DI_POST(vf->type) &&
 				    IS_DI_PRELINK(vf->di_flag) &&
 				    !(op_flag & OP_HAS_DI_LOCAL)) {
 					cur_vpp_speed_factor = 0x100; //adjust factor for prelink
-					cur_bypass_ratio = bypass_ratio;
-				} else {
-					cur_vpp_speed_factor = vpp_speed_factor;
-					cur_bypass_ratio = bypass_ratio;
 				}
 				clk_calc = div_u64((u64)cur_vpp_speed_factor *
 					    (u64)width_in *
@@ -1321,7 +1530,7 @@ static int vpp_process_speed_check
 				if (cur_dev->display_module != S5_DISPLAY_MODULE)
 					max_proc_height_temp = 2048;
 				/*TODO vpu */
-				clk_calc = div_u64((u64)vpp_speed_factor *
+				clk_calc = div_u64((u64)cur_vpp_speed_factor *
 					    (u64)width_in *
 					    (u64)height_in *
 					    (u64)sync_duration_num *
@@ -1360,7 +1569,7 @@ static int vpp_process_speed_check
 			}
 		} else if (next_frame_par->hscale_skip_count == 0) {
 			/*TODO vpu */
-			clk_calc = div_u64((u64)vpp_speed_factor * width_in *
+			clk_calc = div_u64((u64)cur_vpp_speed_factor * width_in *
 				sync_duration_num * height_screen,
 				sync_duration_den * 256);
 			if (super_debug)
@@ -1602,6 +1811,66 @@ bool get_uvm_open_nn(void)
 }
 #endif
 
+static void format_support_adjust(struct video_layer_s *layer,
+	u32 src_width, u32 src_height,
+	u32 src_width_max, u32 src_height_max,
+	struct vpp_frame_par_s *next_frame_par)
+{
+	bool force_dw = false, hskip = false;
+
+	if (cur_dev->display_module != T6W_DISPLAY_MODULE) {
+		next_frame_par->force_dw = false;
+		return;
+	}
+	if (layer->compress_fmt == DDR_AFRC) {
+		if (layer->mif_info_setting.fmt == PIX_444) {
+			/* for yuv444 afrc max is 2k */
+			src_width_max >>= 1;
+			src_height_max >>= 1;
+		}
+		if (src_width > src_width_max ||
+			src_height > src_height_max)
+			force_dw = true;
+		/* only support 8/10 bit*/
+		if (layer->mif_info_setting.bit != PIX_8BIT &&
+			layer->mif_info_setting.bit != PIX_10BIT)
+			force_dw = true;
+
+	} else if (layer->compress_fmt == DDR_AFBC) {
+		//afbc 4k 444 12bit/10bit src max 2k, if 4k need hskip = 1
+		if (layer->mif_info_setting.fmt == PIX_444 &&
+			(layer->mif_info_setting.bit == PIX_10BIT ||
+			layer->mif_info_setting.bit == PIX_12BIT)) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			// t6x support afbc yuv444 10bit
+			if (!(layer->mif_info_setting.bit == PIX_10BIT &&
+				video_is_meson_t6x_cpu())) {
+				src_width_max >>= 1;
+				src_height_max >>= 1;
+			}
+#endif
+			if (src_width > src_width_max ||
+				src_height > src_height_max)
+				hskip = true;
+		}
+	}
+	next_frame_par->force_dw = force_dw;
+	if (hskip)
+		next_frame_par->hscale_skip_count++;
+	/* for mif and afbc no extra limit */
+	if ((force_dw || hskip) && super_debug)
+		pr_info("%s:vd%d, src w/h: %d x %d, max src w/h: %d x %d, compress_fmt:%d, yuv fmt:%d, bit=%d not support, force_dw=%d, hskip=%d\n",
+			__func__, layer->layer_id,
+			src_width, src_height,
+			src_width_max,
+			src_height_max,
+			layer->compress_fmt,
+			layer->mif_info_setting.fmt,
+			layer->mif_info_setting.bit,
+			next_frame_par->force_dw = force_dw,
+			next_frame_par->hscale_skip_count);
+}
+
 static int vpp_set_filters_internal
 	(struct disp_info_s *input,
 	struct ar_frac_s *ext_ar,
@@ -1818,8 +2087,11 @@ static int vpp_set_filters_internal
 		(!cur_dev->frm2fld_support || id != 0))
 		height_shift++;
 
-	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
+	if (vpp_flags & VPP_FLAG_INTERLACE_IN) {
 		vskip_step = 2;
+		video_source_crop_top &= ~1;
+		video_source_crop_bottom &= ~1;
+	}
 #ifdef TV_3D_FUNCTION_OPEN
 	else if ((next_frame_par->vpp_3d_mode
 		== VPP_3D_MODE_LA) &&
@@ -2016,6 +2288,29 @@ RESTART_ALL:
 	}
 
 	force_dw = false;
+	format_support_adjust(&vd_layer[id],
+		w_in, h_in, src_width_max, src_height_max,
+		next_frame_par);
+	force_dw = next_frame_par->force_dw;
+
+	if (!(vf->type & VIDTYPE_COMPRESS) &&
+		((vf->type  & VIDTYPE_VIU_422) ||
+		(vf->type  & VIDTYPE_VIU_444) ||
+		(vf->type  & VIDTYPE_RGB_444))) {
+		/* for rdmif 444, 422 max is 4k not 2k */
+		/* only rdmif 420, afbc has 2k limited */
+		if (src_width_max == 2048)
+			src_width_max = 4096;
+		if (src_height_max == 1088)
+			src_height_max = 2160;
+	}
+	if (cur_super_debug)
+		pr_info("layer_id=%d, type=0x%x, src_h/w_max=%d, %d, w/h_in:%d, %d\n",
+			input->layer_id, vf->type,
+			src_width_max,
+			src_height_max,
+			width_in, height_in);
+
 	if (is_comb_mode) {
 		next_frame_par->hscale_skip_count = 0;
 		/* over afbc ram size, need force no compress */
@@ -2031,7 +2326,8 @@ RESTART_ALL:
 	}
 
 	if (h_in > src_height_max &&
-		(w_in * h_in > src_width_max * src_height_max))
+		(w_in * h_in >> next_frame_par->hscale_skip_count >
+		src_width_max * src_height_max))
 		next_frame_par->vscale_skip_count++;
 
 RESTART:
@@ -2568,7 +2864,6 @@ RESTART:
 			pr_info("max_zoom_move_range: %d v_move: %d\n",
 				max_zoom_move_range, move_base_zoom[0]);
 	}
-
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
 		next_frame_par->VPP_vd_start_lines_ &= ~1;
 
@@ -2916,7 +3211,6 @@ RESTART:
 	if ((next_frame_par->vscale_skip_count < MAX_VSKIP_COUNT ||
 	     (!next_frame_par->hscale_skip_count && !is_comb_mode)) &&
 	    (!(vpp_flags & VPP_FLAG_VSCALE_DISABLE))) {
-	    /*coverity[INTEGER_OVERFLOW]*/
 		if (cur_dev->frm2fld_support && id == 0)
 			screen_h = vinfo_height;
 		else
@@ -3208,13 +3502,12 @@ RESTART:
 			filter_table[filter->vpp_horz_filter];
 	}
 
-	if (cur_dev->vd1_vsr_safa_support) {
+	if (input->vsr_safa_support) {
 		pre_scaler[input->layer_id].pre_vscaler_rate = 0;
 		filter->vpp_pre_vsc_ratio = 0;
 	}
 	/*pre hsc&vsc in pps for scaler down*/
-	if (cur_dev->vd1_vsr_safa_support &&
-		input->layer_id == 0 &&
+	if (input->vsr_safa_support &&
 		((filter->vpp_vsc_start_phase_step >= 0x2000000 &&
 		pre_scaler_en) ||
 		pre_scaler[input->layer_id].force_pre_scaler)) {
@@ -3254,12 +3547,11 @@ RESTART:
 		filter->vpp_pre_vsc_en = 0;
 	}
 
-	if (cur_dev->vd1_vsr_safa_support) {
+	if (input->vsr_safa_support) {
 		pre_scaler[input->layer_id].pre_hscaler_rate = 0;
 		filter->vpp_pre_hsc_ratio = 0;
 	}
-	if (cur_dev->vd1_vsr_safa_support &&
-		input->layer_id == 0 &&
+	if (input->vsr_safa_support &&
 		((filter->vpp_hsc_start_phase_step >= 0x2000000 &&
 		pre_scaler_en) ||
 		pre_scaler[input->layer_id].force_pre_scaler)) {
@@ -5923,7 +6215,8 @@ RERTY:
 	update_vd_src_info(input->layer_id,
 		src_width, src_height, vf->compWidth, vf->compHeight);
 	if (super_debug)
-		pr_info("vf->compWidth=%d, vf->compHeight=%d, vf->width=%d, vf->height=%d, dec_set_screen_mode=%d, op_flag=%x\n",
+		pr_info("layer%d:vf->compWidth=%d, vf->compHeight=%d, vf->width=%d, vf->height=%d, dec_set_screen_mode=%d, op_flag=%x\n",
+			input->layer_id,
 			vf->compWidth, vf->compHeight,
 			vf->width, vf->height, vf->dec_set_screen_mode,
 			input->op_flag);
@@ -6031,6 +6324,7 @@ RERTY:
 		wide_mode = VIDEO_WIDEOPTION_NORMAL;
 
 	if ((vf->flag & VFRAME_FLAG_COMPOSER_DONE) &&
+		!(vf->type_ext & VIDTYPE_EXT_SCALER) &&
 		(vf->flag & VFRAME_FLAG_FIX_TUNNEL)) {
 		wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
 		local_input.crop_top = vf->crop[0];
@@ -6259,7 +6553,9 @@ RERTY:
 			set_vsr_postion(&local_input, next_frame_par);
 		} else {
 			slice_num = get_slice_num(local_input.layer_id);
-			if (slice_num == SLICE_NUM)
+			if (slice_num == SLICE_NUM ||
+			    (cur_dev->display_module == T6W_DISPLAY_MODULE &&
+			     vd_layer[0].mosaic_mode))
 				disable_super_scaler(next_frame_par);
 			else
 				vpp_set_super_scaler
@@ -6358,7 +6654,7 @@ void vpp_bypass_ratio_config(void)
 	}
 }
 
-struct video_module_debug_s debug_vpp[55] = {
+struct video_module_debug_s debug_vpp[54] = {
 	{"vpp_speed_factor", &vpp_speed_factor, 1, 0},
 	{"force_pps_hcoef_update", &force_pps_hcoef_update, 1, 0},
 	{"force_pps_vcoef_update", &force_pps_vcoef_update, 1, 0},
@@ -6382,7 +6678,6 @@ struct video_module_debug_s debug_vpp[55] = {
 	{"cur_skip_line", &cur_skip_line, 1, 1},
 	{"super_scaler_v_ratio", &super_scaler_v_ratio, 1, 0},
 	{"skip_policy", &skip_policy, 1, 0},
-	{"scaler_filter_cnt_limit", &scaler_filter_cnt_limit, 1, 0},
 	{"force_filter_mode", &force_filter_mode, 1, 0},
 	{"super_debug", &super_debug, 1, 0},
 	{"scaler_path_sel", &scaler_path_sel, 1, 0},

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef VIDEO_REG_HEADER_HH
@@ -268,6 +268,21 @@ struct hw_vsr_safa_reg_s {
 	u32 safa_pps_cntl_scale_coef_chro;
 	u32 vpp_sr_en;
 	u32 safa_pps_dejaggy_ctrl;
+	u32 safa_pps_hsc_init_interget;
+	u32 safa_pps_hv_adp_tap_wind;
+	u32 vpp_vsr_ofifo;
+};
+
+struct hw_aisr_demo_reg_s {
+	u32 vpp_pi_debug_demo_wnd_en;
+	u32 vpp_pi_debug_demo_wnd_coef_1;
+	u32 vpp_pi_debug_demo_wnd_coef_0;
+	u32 safa_pps_debug_demo_en;
+	u32 safa_pps_debug_demo_wnd_coef_1;
+	u32 safa_pps_debug_demo_wnd_coef_0;
+	u32 vpp_sr_debug_demo_wnd_en;
+	u32 vpp_sr_debug_demo_wnd_coef_1;
+	u32 vpp_sr_debug_demo_wnd_coef_0;
 };
 
 struct hw_vsr_safa_nonlinear_reg_s {
@@ -278,6 +293,119 @@ struct hw_vsr_safa_nonlinear_reg_s {
 	u32 safa_pps_hsc_region1_phase_slop;
 	u32 safa_pps_hsc_region3_phase_slop;
 	u32 safa_pps_hsc_region4_phase_slop;
+};
+
+struct hw_mif_reg_s {
+	u32 vfcd_top_ctrl0;
+	u32 vfcd_top_ctrl2;
+	u32 rmif_top_ctrl;
+	u32 mif0_rmif_ctrl1;
+	u32 mif0_rmif_ctrl2;
+	u32 mif0_rmif_ctrl3;
+	u32 mif0_rmif_ctrl4;
+	u32 mif0_rmif_ctrl5;
+	u32 mif1_rmif_ctrl1;
+	u32 mif1_rmif_ctrl2;
+	u32 mif1_rmif_ctrl3;
+	u32 mif1_rmif_ctrl4;
+	u32 mif1_rmif_ctrl5;
+	u32 mif2_rmif_ctrl;
+	u32 mif2_rmif_baddr;
+	u32 mif2_rmif_stride;
+	u32 luma_rmif_scope_x;
+	u32 luma_rmif_scope_y;
+	u32 chrm_rmif_scope_x;
+	u32 chrm_rmif_scope_y;
+	u32 rmif_dummy_pixel;
+	u32 rmif_rpt_loop;
+	u32 rmif_f0_luma_rpt_pat;
+	u32 rmif_f0_chrm_rpt_pat;
+	u32 rmif_f1_luma_rpt_pat;
+	u32 rmif_f1_chrm_rpt_pat;
+	u32 rmif_f1_luma_ysize;
+	u32 rmif_f1_chrm_ysize;
+	u32 rmif_f1_mif0_baddr;
+	u32 rmif_f1_mif1_baddr;
+	u32 rmif_f1_mif2_baddr;
+	u32 rmif_f1_stride0;
+	u32 rmif_f1_stride1;
+	u32 rmif_fifo_size;
+	u32 rmif_chrm_psel;
+	u32 vfcd_afbc_conv_ctrl;
+	u32 vfcd_afbc_vd_cfmt_ctrl;
+	u32 vfcd_afbc_vd_cfmt_w;
+	u32 vfcd_afbc_vd_cfmt_h;
+	u32 vfcd_post_luma_size;
+	u32 vfcd_conv_buf_lens;
+	u32 vfcd_afbc_lbuf_depth;
+	u32 vfcd_luma_pic_xpos;
+	u32 vfcd_luma_pic_ypos;
+	u32 vfcd_chrm_pic_xpos;
+	u32 vfcd_chrm_pic_ypos;
+	u32 vfcd_mmu_ctrl;
+	u32 vfcd_mmu_baddr0;
+	u32 vfcd_mmu_baddr1;
+	u32 vfcd_mmu_baddr2;
+};
+
+struct hw_vfcd_reg_s {
+	/* common */
+	u32 vfcd_top_ctrl0;
+	u32 vfcd_top_ctrl2;
+	u32 vfcd_mmu_ctrl;
+	u32 vfcd_afrc1_param;
+	u32 vfcd_afbc_mode;
+	u32 vfcd_conv_buf_lens;
+	u32 vfcd_afbc_lbuf_depth;
+	u32 vfcd_afbc_conv_ctrl;
+	u32 vfcd_frm_pic_size;
+	u32 vfcd_luma_pic_xpos;
+	u32 vfcd_luma_pic_ypos;
+	u32 vfcd_afbc_vd_cfmt_ctrl;
+	u32 vfcd_afbc_vd_cfmt_w;
+	u32 vfcd_afbc_vd_cfmt_h;
+	/* afbc */
+	u32 vfcd_afbc_iquant_enable;
+	u32 vfcd_afbc_burst_ctrl;
+	u32 vfcd_afbc_dec_def_color;
+	u32 vfcd_afbc_head_baddr;
+	u32 vfcd_afbc_body_baddr;
+	u32 vfcd_afbc_enable;
+	/* afrc */
+	u32 vfcd_chrm_pic_xpos;
+	u32 vfcd_chrm_pic_ypos;
+	u32 vfcd_slc1_luma_pic_xpos;
+	u32 vfcd_slc1_chrm_pic_xpos;
+	u32 vfcd_slc2_luma_pic_xpos;
+	u32 vfcd_slc2_chrm_pic_xpos;
+	u32 vfcd_slc3_luma_pic_xpos;
+	u32 vfcd_slc3_chrm_pic_xpos;
+	u32 vfcd_post_luma_size;
+	u32 vfcd_post_luma_win_h;
+	u32 vfcd_post_chrm_win_h;
+	u32 vfcd_post_luma_win_v;
+	u32 vfcd_post_chrm_win_v;
+	u32 vfcd_luma_pad_size;
+	u32 vfcd_luma_pad_ofst;
+	u32 vfcd_chrm_pad_size;
+	u32 vfcd_chrm_pad_ofst;
+	u32 vfcd_pad_dumy_data;
+	u32 vfcd_mif1_urgent;
+	u32 vfcd_mmu_baddr0;
+	u32 vfcd_mmu_baddr1;
+	u32 vfcd_afrc_ctrl0;
+	u32 vfcd_afrc0_ctrl;
+	u32 vfcd_afrc_ctrl1;
+	u32 vfcd_afrc1_ctrl;
+	u32 vfcd_afrc_chrm_head_baddr;
+	u32 vfcd_afrc_chrm_body_baddr;
+};
+
+struct hw_mosaic_misc_reg_s {
+	u32 player_2x2_ctrl;
+	u32 vfcd_top_ctrl4;
+	u32 vfcd_top_ctrl4_1;
+	u32 vpu_hdr2_top_ctrl;
 };
 
 extern struct hw_vd_reg_s vd_mif_reg_legacy_array[MAX_VD_LAYER_G12];
@@ -296,8 +424,10 @@ extern struct hw_vd_linear_reg_s vd_mif_linear_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_afbc_reg_s vd_afbc_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_fg_reg_s fg_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_pps_reg_s pps_reg_t7_array[MAX_VD_LAYER_T7 + 1];
+extern struct hw_pps_reg_s pps_reg_t6x_array[MAX_VD_LAYER_T7 + 1];
 extern struct hw_vpp_blend_reg_s vpp_blend_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_vpp_path_size_s vpp_path_size_reg;
+extern struct hw_vpp_path_size_s vpp_path_size_reg_t6w;
 extern struct hw_viu_misc_reg_s viu_misc_reg;
 extern struct hw_vppx_blend_reg_s vppx_blend_reg_array[MAX_VPP_NUM - 1];
 
@@ -309,5 +439,18 @@ extern struct hw_vsr_safa_reg_s vsr_safa_reg;
 extern struct hw_vsr_safa_reg_s s6_vsr_safa_reg;
 extern struct hw_vsr_safa_reg_s vsr_safa_reg_t6d;
 extern struct hw_vsr_safa_nonlinear_reg_s vsr_safa_nonlinear_reg;
+extern struct hw_vsr_safa_nonlinear_reg_s vsr_safa_nonlinear_reg_t6w;
+extern struct hw_vsr_safa_reg_s vsr_safa_reg_t6w;
+extern struct hw_aisr_demo_reg_s s7d_aisr_demo_reg;
+extern struct hw_aisr_demo_reg_s t6w_aisr_demo_reg;
+extern struct hw_mif_reg_s vd_mif_reg_t6w_array[MAX_VD_LAYER_G12];
+extern struct hw_vfcd_reg_s vd_vfcd_reg_t6w_array[MAX_VD_LAYER_G12];
+extern struct hw_fg_reg_s fg_reg_t6w_array[MAX_VD_LAYER_G12];
+extern struct hw_mif_reg_s mosaic_vd_mif_reg_t6w_array[4];
+extern struct hw_vfcd_reg_s mosaic_vd_vfcd_reg_t6w_array[4];
+extern struct hw_pps_reg_s mosaic_pps_reg_t6x_array[4];
+extern struct hw_vpp_blend_reg_s mosaic_vpp_blend_reg_t6x_array[4];
+extern struct hw_mosaic_misc_reg_s mosaic_misc_reg;
+extern struct hw_fg_reg_s fg_reg_t6x_array[4];
 
 #endif

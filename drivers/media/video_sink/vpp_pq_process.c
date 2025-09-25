@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include "vpp_pq.h"
@@ -90,6 +90,7 @@ static unsigned int timer_filter_en;
  */
 static unsigned int aipq_set_policy;
 static unsigned int color_th = 100;
+static unsigned int aipq_th = 2000;
 #endif
 
 /*scene_prob[0]: scene, scene_prob[1]: prob*/
@@ -385,6 +386,7 @@ void aipq_scs_proc(int (*cfg)[SCENES_VALUE],
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 	color_th = get_color_th();
+	aipq_th = get_aipq_th();
 #endif
 
 	if (pre_top_one == top_one) {
@@ -393,8 +395,8 @@ void aipq_scs_proc(int (*cfg)[SCENES_VALUE],
 		scene_prob[1] = top_one_prob;
 		if (pq_debug[2] > 0x10)
 			pr_info("pre_top_one == top_one\n");
-	} else if (((pre_top_one == top_two) && (top_two_prob > 2000)) ||
-			((pre_top_one == top_three) && (top_three_prob > 2000))) {
+	} else if (((pre_top_one == top_two) && (top_two_prob > aipq_th)) ||
+			((pre_top_one == top_three) && (top_three_prob > aipq_th))) {
 		memcpy(out, cfg[pre_top_one], sizeof(int) * SCENES_VALUE);
 
 		if (pre_top_one == top_two) {
@@ -410,6 +412,8 @@ void aipq_scs_proc(int (*cfg)[SCENES_VALUE],
 				top_two, top_two_prob);
 			pr_info("top_three = %d, top_three_prob = %d\n",
 				top_three, top_three_prob);
+			pr_info("pre_top_one = %d, aipq_th = %d\n",
+				pre_top_one, aipq_th);
 		}
 	} else if ((diff_skin_pct + diff_green_pct + diff_blue_pct < color_th) &&
 			    (pre_top_one >= 0)) {

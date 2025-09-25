@@ -162,6 +162,7 @@ struct apo_value_s {
 
 void enable_amdv(int enable);
 bool is_amdv_enable(void);
+bool is_amdv_dpss_path(void);
 bool is_amdv_on(void);
 bool is_amdv_video_on(void);
 bool is_amdv_graphic_on(void);

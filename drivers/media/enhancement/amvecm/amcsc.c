@@ -7183,11 +7183,16 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path,
 #endif
 
 enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,
-	enum vpp_index_e vpp_index)
+	enum vpp_index_e vpp_index, struct vframe_s *vf)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef AMLOGIC_MEDIA_DPSS
+	if (dpss_mode)
+		return cur_dpss_src_format;
+#endif
 	if (vd_path >= VD_PATH_MAX)
 		return UNKNOWN_SOURCE;
+
 	return get_source_type(vd_path, vpp_index);
 #else
 	return HDRTYPE_SDR;

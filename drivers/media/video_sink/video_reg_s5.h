@@ -40,6 +40,7 @@ struct vd_mif_reg_s {
 	u32 vd_if0_gen_reg3;/* VD1_IF0_GEN_REG3 */
 	u32 viu_vd_fmt_ctrl;/* VIU_VD1_FMT_CTRL */
 	u32 viu_vd_fmt_w;/* VIU_VD1_FMT_W */
+	u32 vpp_intf_vd_ctrl;
 };
 
 struct vd_mif_linear_reg_s {
@@ -82,6 +83,7 @@ struct vd_afbc_reg_s {
 	u32 afbc_top_ctrl;
 	u32 afbcd_burst_ctrl;
 	u32 afbcd_loss_ctrl;
+	u32 vpp_intf_vd_ctrl;
 };
 
 struct vd_fg_reg_s {

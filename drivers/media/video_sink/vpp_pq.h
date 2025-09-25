@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef VPP_PQ_H
@@ -14,7 +14,7 @@
 
 #define AI_SCENES_CUR_USE_MAX 7
 #define SCENES_CUR_USE_VALUE 6
-
+extern u32 vpp_pq_dbg;
 enum ai_scenes {
 	AI_SCENES_FACESKIN = 0,
 	AI_SCENES_BLUESKY,
@@ -93,9 +93,12 @@ u32 get_tolrnc_cnt(void);
 u32 get_timer_filter_en(void);
 u32 get_aipq_set_policy(void);
 u32 get_color_th(void);
+u32 get_aipq_th(void);
+
 #endif
 u32 get_aipq_sc_flag(void);
 void clear_aipq_sc_flag(void);
+
 extern u32 vpp_pq_dbg;
 extern int vpp_pq_data[AI_SCENES_MAX][SCENES_VALUE];
 extern int scene_prob[2];

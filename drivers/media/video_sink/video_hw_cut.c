@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/version.h>
@@ -82,6 +82,10 @@
 #include <linux/amlogic/media/video_sink/video_signal_notify.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 #include <linux/amlogic/media/di/di_interface.h>
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_RESMANAGE
+#include <linux/amlogic/media/resource_mgr/resourcemanage.h>
 #endif
 
 struct video_layer_s vd_layer[MAX_VD_LAYER];
@@ -602,7 +606,6 @@ static u32 vdx_color[MAX_VD_LAYER];
 static u32 postblend_color;
 
 u32 g_mosaic_mode;
-
 u32 pic_axis[4][4];
 /*********************************************************
  * Utils APIs
@@ -688,7 +691,9 @@ bool is_dovi_tv_on(void)
 		is_meson_t7_cpu() ||
 		is_meson_t3_cpu() ||
 		is_meson_t5w_cpu() ||
-		is_meson_t5m_cpu()) &&
+		is_meson_t5m_cpu() ||
+		is_meson_t6w_cpu() ||
+		is_meson_t6x_cpu()) &&
 		!is_amdv_stb_mode() && is_amdv_on());
 #endif
 }
@@ -1727,7 +1732,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		burst_len = 1;
 	if (layer->mif_setting.block_mode)
 		burst_len = layer->mif_setting.block_mode;
-	if ((vf->bitdepth & BITDEPTH_Y10) &&
+	if ((BITDEPTH_HAS(vf->bitdepth, BITDEPTH_Y10)) &&
 	    !(vf->flag & VFRAME_FLAG_DI_DW) &&
 	    !frame_par->nocomp) {
 		if ((vf->type & VIDTYPE_VIU_444) ||
@@ -2286,7 +2291,7 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 	if (layer->mif_setting.block_mode)
 		burst_len = layer->mif_setting.block_mode;
 
-	if ((vf->bitdepth & BITDEPTH_Y10) &&
+	if ((BITDEPTH_HAS(vf->bitdepth, BITDEPTH_Y10)) &&
 	    !(vf->flag & VFRAME_FLAG_DI_DW) &&
 	    !frame_par->nocomp) {
 		if ((vf->type & VIDTYPE_VIU_444) ||
@@ -5646,7 +5651,7 @@ static inline bool is_tv_panel(void)
 		return tv_panel;
 
 	/*panel*/
-	if (!(vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
+	if (!(vinfo->mode == VMODE_LCD ||
 		vinfo->mode == VMODE_DUMMY_ENCP))
 		//yuv
 		tv_panel = false;
@@ -7523,7 +7528,17 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		pr_info("first swap picture {%d,%d} pts:%x, switch:%d\n",
 			vf->width, vf->height, vf->pts,
 			layer->switch_vf ? 1 : 0);
-
+#ifdef CONFIG_AMLOGIC_MEDIA_RESMANAGE
+	if (first_picture)
+		PR_PIPE_KPI_INFO("TP_VPP_Capbuf_First_Ready_To_DISP",
+				vf->decoder_instid, MAIN_INFO,
+				"#%d TP_VPP_Capbuf_First_Ready_To_DISP, layer_id %d, {%d,%d} pts:%x, switch:%d, time %llu",
+				vf->decoder_instid,
+				layer->layer_id,
+				vf->width, vf->height, vf->pts,
+				layer->switch_vf ? 1 : 0,
+				ktime_get_ns());
+#endif
 	set_layer_display_canvas
 		(layer,
 		(layer->switch_vf && vf_ext) ? vf_ext : vf,
@@ -9387,4 +9402,3 @@ struct video_module_debug_s debug_video_hw[9] = {
 	{"debug_common_flag", &debug_common_flag, 1, 0},
 	{"aisr_size_threshold", &aisr_size_threshold, 1, 0},
 };
-

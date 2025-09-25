@@ -14,6 +14,9 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 #define ENABLE_PLINK
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+#define ENABLE_DPSS_FRC
+#endif
 
 #define VIDEO_ENABLE_STATE_IDLE       0
 #define VIDEO_ENABLE_STATE_ON_REQ     1
@@ -118,6 +121,8 @@
 /* new post link */
 #define IS_DI_PSTLINK(di_flag) ((di_flag) & DI_FLAG_DI_PSTVPPLINK)
 #define HAS_DI_LOCAL_BUF(di_flag) ((di_flag) & DI_FLAG_DI_LOCAL_BUF)
+
+#define IS_FRC_LINK(vftype_ext) ((vftype_ext) & VIDTYPE_EXT_FRC_LINK)
 
 #define MAX_PIP_WINDOW    16
 #define VPP_FILER_COEFS_NUM   33
@@ -234,6 +239,7 @@ enum display_module_e {
 	T7_DISPLAY_MODULE,
 	S5_DISPLAY_MODULE,
 	C3_DISPLAY_MODULE,
+	T6W_DISPLAY_MODULE,
 };
 
 enum matrix_type_e {
@@ -277,12 +283,14 @@ struct video_dev_s {
 	u32 aisr_demo_yend;
 	bool power_ctrl;
 	struct hw_pps_reg_s aisr_pps_reg;
+	struct hw_aisr_demo_reg_s aisr_demo_mode_reg;
 	struct vpp_frame_par_s aisr_frame_parms;
 	struct rdma_fun_s rdma_func[RDMA_INTERFACE_NUM];
 	u32 sr_in_size;
 	u8 share_afbc_with_di;
 	u8 sr0_support;
 	u8 sr1_support;
+	u8 inline_aisr_support;
 	u8 is_tv_panel;
 	u8 prevsync_support;
 	u8 pre_vsync_enable;
@@ -300,6 +308,8 @@ struct video_dev_s {
 	u8 display_device_cnt;
 	u8 dejaggy_support;
 	u8 vsr_nonlinear_support;
+	u8 vsf_mode_support;
+	u8 has_2ppc_support;
 };
 
 struct video_layer_s;
@@ -308,6 +318,8 @@ struct mif_pos_s {
 	u32 id;
 	struct hw_vd_reg_s *p_vd_mif_reg;
 	struct hw_afbc_reg_s *p_vd_afbc_reg;
+	struct hw_mif_reg_s *vd_hw_mif_reg;
+	struct hw_vfcd_reg_s *vd_hw_vfcd_reg;
 
 	/* frame original size */
 	u32 src_w;
@@ -346,13 +358,16 @@ struct mif_pos_s {
 	bool reverse;
 
 	bool skip_afbc;
+	bool lbuf_en;
 	u32 vpp_3d_mode;
 	u8 block_mode;
+	u32 uv_swap;
 };
 
 struct vsr_top_setting_s {
 	bool is_interlaced;
 	bool sharpness_en;
+	bool asf_mode_en;
 	u32 vskip_cnt;
 	u32 hsize_in; //13 bits source pic hsize
 	u32 vsize_in; //13 bits source pic vsize
@@ -365,10 +380,21 @@ struct vsr_top_setting_s {
 	u32 pi_safa_hsc_ini_integer;
 	u32 pi_safa_hsc_integer_part;
 	u32 pi_safa_hsc_fraction_part;
+	/* add after t6w */
+	u32 pi_safa_hsc_ini_phase_luma;
+	u32 pi_safa_hsc_ini_integer_luma;
+	u32 pi_safa_hsc_ini_phase_chrm;
+	u32 pi_safa_hsc_ini_integer_chrm;
 	u32 pi_safa_vsc_ini_phase;
 	u32 pi_safa_vsc_ini_integer;
 	u32 pi_safa_vsc_integer_part;
 	u32 pi_safa_vsc_fraction_part;
+	u32 safa_vsc_ini_phase;
+	u32 safa_vsc_ini_integer;
+	u32 safa_bot_vsc_ini_phase;
+	u32 safa_bot_vsc_ini_integer;
+	u32 safa_vsc_integer_part;
+	u32 safa_vsc_fraction_part;
 };
 
 struct vsr_safa_setting_s {
@@ -574,6 +600,98 @@ struct vd_func_s {
 	u32 fake_func_id;
 };
 
+enum pix_fmt_e {
+	PIX_444,
+	PIX_422,
+	PIX_420
+};
+
+enum pix_bit_e {
+	PIX_8BIT,
+	//10bit packet
+	PIX_10BIT,
+	PIX_12BIT,
+	PIX_16BIT,
+	//10bit in 12bit
+	PIX_10_IN_12BIT,
+	//10bit in 16bit
+	PIX_10_IN_16BIT,
+};
+
+enum compress_fmt_e {
+	DDR_MIF,
+	DDR_AFBC,
+	DDR_AFRC,
+	DDR_DISABLE,
+};
+
+struct combine_fmt_mode_s {
+	u32 y_pack_mode;//0:1x 1:2x  2:4x  3:8x  4:16x  5:32x 6:64x
+	u32 y_bits_mode;//1:8b 2:16b 3:32b 4:64b 5:128b 9:24b a:40b d:48b
+	u32 cb_pack_mode;//0:1x 1:2x  2:4x  3:8x  4:16x  5:32x 6:64x
+	u32 cb_bits_mode;//1:8b 2:16b 3:32b 4:64b 5:128b 9:24b a:40b d:48b
+};
+
+struct mif_info_s {
+	/* common for mif and vfcd */
+	u32 id;
+	bool is_mvc;
+	bool mmu_en;
+	u32 mif_x_rev;
+	u32 mif_y_rev;
+	u32 planes;
+	enum pix_fmt_e fmt;
+	enum pix_bit_e bit;
+	/* only mif */
+	u32 endian;
+	u32 swap_64;
+	u32 uv_swap;
+	u32 reg_hz_avg;
+	bool hfmt_en;
+	bool vfmt_en;
+	u32 hformatter;
+	u32 vformatter;
+	u32 vformatter_mvc;
+	u32 burst_len;
+	u32 pat;
+	u32 pat_mvc;
+	u32 loop;
+	u32 psel_mode;
+	u32 psel_pattern;
+	u32 psel_loop;
+	u32 luma_only;
+};
+
+struct afrcd_info_t {
+	u32 input_fmt_mode;//0:rgb 1:yuv 2:bayer
+	u32 input_bayer_mode;//0:mono 1: bayer_2x2
+	u32 yc_plane_sel;//0:y_plane_en 1:c_plane_en
+	u32 raw_8x16_en;//when_raw : 1:8x16 for npu  0:2x32
+
+	u64 luma_head_addr;
+	u64 luma_body_addr;
+	u32 luma_dict_en;
+	u32 luma_comp_target;//12,16,20...48,step =4
+	u32 compbits_luma;//0:8 1:9 2:10 3:12
+	u32 luma_header_en;
+	u32 luma_cu_bits;
+	u32 luma_pixel_bits;
+
+	u64 chrm_head_addr;
+	u64 chrm_body_addr;
+	u32 chrm_dict_en;
+	u32 chrm_comp_target;
+	u32 compbits_chrm;
+	u32 chrm_header_en;
+	u32 chrm_cu_bits;
+	u32 chrm_pixel_bits;
+
+	u32 mmu_mode_en;
+	u32 mmu_page_mode;
+	u32 mmu_baddr0;
+	u32 mmu_baddr1;
+};
+
 struct video_layer_s {
 	u8 layer_id;
 	u8 layer_support;
@@ -582,6 +700,8 @@ struct video_layer_s {
 	struct hw_vd_reg_s vd_mif_reg;
 	struct hw_vd_linear_reg_s vd_mif_linear_reg;
 	struct hw_afbc_reg_s vd_afbc_reg;
+	struct hw_mif_reg_s vd_hw_mif_reg;
+	struct hw_vfcd_reg_s vd_hw_vfcd_reg;
 	struct hw_fg_reg_s fg_reg;
 	struct hw_pps_reg_s pps_reg;
 	struct hw_vsr_safa_reg_s vsr_safa_reg;
@@ -615,6 +735,7 @@ struct video_layer_s {
 
 	/* struct disp_info_s disp_info; */
 	struct mif_pos_s mif_setting;
+	struct mif_info_s mif_info_setting;
 	struct mif_pos_s slice_mif_setting[SLICE_NUM];
 	struct scaler_setting_s sc_setting;
 	struct blend_setting_s bld_setting;
@@ -624,6 +745,7 @@ struct video_layer_s {
 	struct aisr_setting_s aisr_mif_setting;
 	struct scaler_setting_s aisr_sc_setting;
 	struct pip_alpha_scpxn_s alpha_win_setting;
+	struct afrcd_info_t afrcd_info;
 	struct vd_func_s vd_func;
 	struct vd_func_s pre_vd_func[2];
 	struct vd_func_s *cur_pre_func;
@@ -695,6 +817,14 @@ struct video_layer_s {
 	u32 frc_v_size_pre;
 	u32 cur_vf_type;
 	bool switch_vd2_vf;
+	enum compress_fmt_e compress_fmt;
+	bool frc_link_en;
+	bool need_disable_frc_link;
+	bool frc_link_bypass_check;
+	u8 cur_frc_link_mode;
+	u8 frc_link_skip_cnt;
+	atomic_t disable_frc_link_done;
+
 };
 
 struct video_lcevc_s {
@@ -747,6 +877,8 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_S7D_,
 	MESON_CPU_MAJOR_ID_S6_,
 	MESON_CPU_MAJOR_ID_T6D_,
+	MESON_CPU_MAJOR_ID_T6W_,
+	MESON_CPU_MAJOR_ID_T6X_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -765,6 +897,7 @@ struct video_device_hw_s {
 	u8 frm2fld_support;
 	u8 dejaggy_support;
 	u8 vsr_nonlinear_support;
+	u8 vsf_mode_support;
 };
 
 struct amvideo_device_data_s {
@@ -778,6 +911,7 @@ struct amvideo_device_data_s {
 	u8 dv_support;
 	u8 sr0_support;
 	u8 sr1_support;
+	u8 inline_aisr_support;
 	u32 core_v_disable_width_max[MAX_SR_NUM];
 	u32 core_v_enable_width_max[MAX_SR_NUM];
 	u8 supscl_path;
@@ -799,6 +933,7 @@ struct amvideo_device_data_s {
 	u8 is_tv_panel;
 	u8 display_device_cnt;
 	u8 share_afbc_with_di;
+	u8 has_2ppc_support;
 };
 
 struct pre_scaler_info {
@@ -884,8 +1019,12 @@ extern uint int_hv_phase;
 extern uint int_hv_rpt_num;
 extern bool force_vpp_blend_update;
 extern bool video_mute_on;
-
+extern u32 vsync_counts;
+extern u32 smallwindow_link_enable, smallwindow_link_h;
 bool is_amdv_enable(void);
+#ifdef AMLOGIC_MEDIA_DPSS
+bool is_amdv_dpss_path(void);
+#endif
 bool is_amdv_on(void);
 bool is_amdv_stb_mode(void);
 bool is_dovi_tv_on(void);
@@ -1050,6 +1189,7 @@ void set_slice_out_hsize_debug(int debug, int slice0_hsize,
 			       int slice1_hsize, int slice_w_max);
 void video_resume_hw_recovery(bool restore_vpu_sec);
 void vd2_postblend_update(const struct vinfo_s *vinfo, u8 vpp_index);
+bool is_frc_link_available(struct vframe_s *vf);
 
 /* from video.c */
 extern u32 osd_vpp_misc;
@@ -1154,6 +1294,10 @@ bool video_is_meson_s7_cpu(void);
 bool video_is_meson_s7d_cpu(void);
 bool video_is_meson_s6_cpu(void);
 bool video_is_meson_t6d_cpu(void);
+bool video_is_meson_t6w_cpu(void);
+bool video_is_meson_t6x_cpu(void);
+bool video_is_after_meson_t6w_cpu(void);
+bool video_is_after_meson_t6x_cpu(void);
 void alpha_win_set(struct video_layer_s *layer);
 void fgrain_config(struct video_layer_s *layer,
 		   struct vpp_frame_par_s *frame_par,
@@ -1221,6 +1365,7 @@ bool get_force_skip_cnt(u8 layer_id,
 	u32 *vskip_cnt, u32 *hskip_cnt);
 bool is_plink_source(struct vframe_s *vf);
 bool is_plink_on(struct video_layer_s *layer);
+bool is_frc_link_on(struct video_layer_s *layer);
 void vpp_trace_axis(int left, int top, int right, int bottom);
 void vpp_trace_timeinfo(unsigned long time1,
 	unsigned long time2, unsigned long time3,
@@ -1234,7 +1379,9 @@ void vpp_trace_vframe(const char *name, void *vf, int arg1, int arg2, int id, in
 #ifdef ENABLE_PLINK
 bool is_plink_available(struct vframe_s *vf);
 #endif
-
+#ifdef ENABLE_DPSS_FRC
+bool is_frc_link_source(struct vframe_s *vf);
+#endif
 #ifdef TV_REVERSE
 int screen_orientation(void);
 #endif

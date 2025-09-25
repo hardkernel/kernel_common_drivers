@@ -276,7 +276,28 @@ static void dump_mif_reg(void)
 {
 	int i;
 	u32 reg_addr, reg_val = 0;
+	bool skip = false;
 
+	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (!video_is_meson_t6d_cpu())
+#endif
+			skip = true;
+	}
+	if (!skip) {
+		reg_addr = VD1_AFBCD0_MISC_CTRL;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = VD2_AFBCD1_MISC_CTRL;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = VIU_MISC_CTRL0;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+	}
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
 		pr_info("vd%d mif regs:\n", i);
 		reg_addr = vd_layer[i].vd_mif_reg.vd_if0_gen_reg;
@@ -505,10 +526,103 @@ static void dump_afbc_reg(void)
 	}
 }
 
+static void _dump_pps_reg(struct video_layer_s *layer)
+{
+	u32 reg_addr, reg_val = 0;
+
+	reg_addr = layer->pps_reg.vd_vsc_region12_startp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_vsc_region34_startp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_vsc_region4_endp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_vsc_start_phase_step;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_vsc_region1_phase_slope;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_vsc_region3_phase_slope;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_vsc_phase_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_vsc_init_phase;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_hsc_region12_startp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_hsc_region34_startp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_hsc_region4_endp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_hsc_start_phase_step;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_hsc_region1_phase_slope;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_hsc_region3_phase_slope;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_hsc_phase_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_sc_misc;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_hsc_phase_ctrl1;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_prehsc_coef;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_pre_scale_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->pps_reg.vd_prevsc_coef;
+	if (reg_addr) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+	}
+	reg_addr = layer->pps_reg.vd_prehsc_coef1;
+	if (reg_addr) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+	}
+}
+
 static void dump_pps_reg(void)
 {
 	int i;
-	u32 reg_addr, reg_val = 0;
 
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -519,94 +633,7 @@ static void dump_pps_reg(void)
 		}
 #endif
 		pr_info("vd%d pps regs:\n", i);
-		reg_addr = vd_layer[i].pps_reg.vd_vsc_region12_startp;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_vsc_region34_startp;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_vsc_region4_endp;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_vsc_start_phase_step;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_vsc_region1_phase_slope;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_vsc_region3_phase_slope;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_vsc_phase_ctrl;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_vsc_init_phase;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_hsc_region12_startp;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_hsc_region34_startp;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_hsc_region4_endp;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_hsc_start_phase_step;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_hsc_region1_phase_slope;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_hsc_region3_phase_slope;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_hsc_phase_ctrl;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_sc_misc;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_hsc_phase_ctrl1;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_prehsc_coef;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_pre_scale_ctrl;
-		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr = vd_layer[i].pps_reg.vd_prevsc_coef;
-		if (reg_addr) {
-			reg_val = READ_VCBUS_REG(reg_addr);
-			pr_info("[0x%x] = 0x%X\n",
-				   reg_addr, reg_val);
-		}
-		reg_addr = vd_layer[i].pps_reg.vd_prehsc_coef1;
-		if (reg_addr) {
-			reg_val = READ_VCBUS_REG(reg_addr);
-			pr_info("[0x%x] = 0x%X\n",
-				   reg_addr, reg_val);
-		}
+		_dump_pps_reg(&vd_layer[i]);
 	}
 }
 
@@ -641,6 +668,667 @@ static void dump_vpp_blend_reg(void)
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static void _dump_mif_reg_t6w(struct video_layer_s *layer)
+{
+	u32 reg_addr, reg_val = 0;
+
+	reg_addr = layer->vd_hw_mif_reg.vfcd_top_ctrl0;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_top_ctrl0]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_top_ctrl2;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_top_ctrl2]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.rmif_top_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_top_ctrl]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif0_rmif_ctrl1;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif0_rmif_ctrl1]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif0_rmif_ctrl2;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif0_rmif_ctrl2]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif0_rmif_ctrl3;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif0_rmif_ctrl3]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif0_rmif_ctrl4;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif0_rmif_ctrl4]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif0_rmif_ctrl5;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif0_rmif_ctrl5]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif1_rmif_ctrl1;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif1_rmif_ctrl1]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif1_rmif_ctrl2;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif1_rmif_ctrl2]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif1_rmif_ctrl3;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif1_rmif_ctrl3]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif1_rmif_ctrl4;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif1_rmif_ctrl4]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif1_rmif_ctrl5;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif1_rmif_ctrl5]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif2_rmif_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif2_rmif_ctrl]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif2_rmif_baddr;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif2_rmif_baddr]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.mif2_rmif_stride;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [mif2_rmif_stride]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.luma_rmif_scope_x;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [luma_rmif_scope_x]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.luma_rmif_scope_y;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [luma_rmif_scope_y]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.chrm_rmif_scope_x;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [chrm_rmif_scope_x]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.chrm_rmif_scope_y;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [chrm_rmif_scope_y]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.rmif_dummy_pixel;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_dummy_pixel]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.rmif_rpt_loop;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_rpt_loop]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.rmif_f0_luma_rpt_pat;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_f0_luma_rpt_pat]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.rmif_f0_chrm_rpt_pat;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_f0_chrm_rpt_pat]\n",
+		   reg_addr, reg_val);
+
+	reg_addr = layer->vd_hw_mif_reg.rmif_f1_luma_rpt_pat;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_f1_luma_rpt_pat]\n",
+		   reg_addr, reg_val);
+
+	reg_addr = layer->vd_hw_mif_reg.rmif_f1_chrm_rpt_pat;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_f1_chrm_rpt_pat]\n",
+		   reg_addr, reg_val);
+
+	reg_addr = layer->vd_hw_mif_reg.rmif_f1_luma_ysize;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_f1_luma_ysize]\n",
+		   reg_addr, reg_val);
+
+	reg_addr = layer->vd_hw_mif_reg.rmif_f1_chrm_ysize;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_f1_chrm_ysize]\n",
+		   reg_addr, reg_val);
+
+	reg_addr = layer->vd_hw_mif_reg.rmif_f1_mif0_baddr;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_f1_mif0_baddr]\n",
+		   reg_addr, reg_val);
+
+	reg_addr = layer->vd_hw_mif_reg.rmif_f1_mif1_baddr;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_f1_mif1_baddr]\n",
+		   reg_addr, reg_val);
+
+	reg_addr = layer->vd_hw_mif_reg.rmif_f1_mif2_baddr;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_f1_mif2_baddr]\n",
+		   reg_addr, reg_val);
+
+	reg_addr = layer->vd_hw_mif_reg.rmif_f1_stride0;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_f1_stride0]\n",
+		   reg_addr, reg_val);
+
+	reg_addr = layer->vd_hw_mif_reg.rmif_f1_stride1;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_f1_stride1]\n",
+		   reg_addr, reg_val);
+
+	reg_addr = layer->vd_hw_mif_reg.rmif_fifo_size;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_fifo_size]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.rmif_chrm_psel;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_chrm_psel]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_afbc_conv_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_conv_ctrl]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_afbc_vd_cfmt_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [rmif_f1_mif2_baddr]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_afbc_vd_cfmt_w;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_vd_cfmt_w]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_afbc_vd_cfmt_h;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_vd_cfmt_h]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_post_luma_size;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_post_luma_size]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_conv_buf_lens;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_conv_buf_lens]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_afbc_lbuf_depth;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_lbuf_depth]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_luma_pic_xpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_luma_pic_xpos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_luma_pic_ypos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_luma_pic_ypos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_chrm_pic_xpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_chrm_pic_xpos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_chrm_pic_ypos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_chrm_pic_ypos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_mmu_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_mmu_ctrl]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_mmu_baddr0;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_mmu_baddr0]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_mmu_baddr1;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_mmu_baddr1]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_mif_reg.vfcd_mmu_baddr2;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_mmu_baddr2]\n",
+		   reg_addr, reg_val);
+}
+
+static void dump_mif_reg_t6w(void)
+{
+	int i;
+	u32 reg_addr, reg_val = 0;
+
+	reg_addr = VPU_AXIRD_PATH_CTRL;
+	reg_val = READ_VCBUS_REG(VPU_AXIRD_PATH_CTRL);
+	pr_info("[0x%x] = 0x%X [VPU_AXIRD_PATH_CTRL]\n",
+		   reg_addr, reg_val);
+	reg_addr = VPU_AXIRD_TUNNEL_CTRL1;
+	reg_val = READ_VCBUS_REG(VPU_AXIRD_TUNNEL_CTRL1);
+	pr_info("[0x%x] = 0x%X [VPU_AXIRD_TUNNEL_CTRL1]\n",
+		   reg_addr, reg_val);
+	for (i = 0; i < cur_dev->max_vd_layers; i++) {
+		pr_info("vd%d mif regs:\n", i);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_top_ctrl0;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_top_ctrl0]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_top_ctrl2;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_top_ctrl2]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_top_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_top_ctrl]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif0_rmif_ctrl1;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif0_rmif_ctrl1]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif0_rmif_ctrl2;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif0_rmif_ctrl2]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif0_rmif_ctrl3;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif0_rmif_ctrl3]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif0_rmif_ctrl4;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif0_rmif_ctrl4]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif0_rmif_ctrl5;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif0_rmif_ctrl5]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif1_rmif_ctrl1;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif1_rmif_ctrl1]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif1_rmif_ctrl2;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif1_rmif_ctrl2]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif1_rmif_ctrl3;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif1_rmif_ctrl3]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif1_rmif_ctrl4;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif1_rmif_ctrl4]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif1_rmif_ctrl5;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif1_rmif_ctrl5]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif2_rmif_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif2_rmif_ctrl]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif2_rmif_baddr;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif2_rmif_baddr]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.mif2_rmif_stride;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [mif2_rmif_stride]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.luma_rmif_scope_x;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [luma_rmif_scope_x]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.luma_rmif_scope_y;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [luma_rmif_scope_y]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.chrm_rmif_scope_x;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [chrm_rmif_scope_x]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.chrm_rmif_scope_y;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [chrm_rmif_scope_y]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_dummy_pixel;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_dummy_pixel]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_rpt_loop;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_rpt_loop]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_f0_luma_rpt_pat;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_f0_luma_rpt_pat]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_f0_chrm_rpt_pat;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_f0_chrm_rpt_pat]\n",
+			   reg_addr, reg_val);
+
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_f1_luma_rpt_pat;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_f1_luma_rpt_pat]\n",
+			   reg_addr, reg_val);
+
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_f1_chrm_rpt_pat;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_f1_chrm_rpt_pat]\n",
+			   reg_addr, reg_val);
+
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_f1_luma_ysize;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_f1_luma_ysize]\n",
+			   reg_addr, reg_val);
+
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_f1_chrm_ysize;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_f1_chrm_ysize]\n",
+			   reg_addr, reg_val);
+
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_f1_mif0_baddr;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_f1_mif0_baddr]\n",
+			   reg_addr, reg_val);
+
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_f1_mif1_baddr;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_f1_mif1_baddr]\n",
+			   reg_addr, reg_val);
+
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_f1_mif2_baddr;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_f1_mif2_baddr]\n",
+			   reg_addr, reg_val);
+
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_f1_stride0;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_f1_stride0]\n",
+			   reg_addr, reg_val);
+
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_f1_stride1;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_f1_stride1]\n",
+			   reg_addr, reg_val);
+
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_fifo_size;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_fifo_size]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.rmif_chrm_psel;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [rmif_chrm_psel]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_afbc_conv_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_afbc_conv_ctrl]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_afbc_vd_cfmt_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_afbc_vd_cfmt_ctrl]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_afbc_vd_cfmt_w;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_afbc_vd_cfmt_w]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_afbc_vd_cfmt_h;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_afbc_vd_cfmt_h]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_post_luma_size;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_post_luma_size]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_conv_buf_lens;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_conv_buf_lens]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_afbc_lbuf_depth;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_afbc_lbuf_depth]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_luma_pic_xpos;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_luma_pic_xpos]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_luma_pic_ypos;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_luma_pic_ypos]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_chrm_pic_xpos;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_chrm_pic_xpos]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_chrm_pic_ypos;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_chrm_pic_ypos]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_mmu_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_mmu_ctrl]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_mmu_baddr0;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_mmu_baddr0]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_mmu_baddr1;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_mmu_baddr1]\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].vd_hw_mif_reg.vfcd_mmu_baddr2;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X [vfcd_mmu_baddr2]\n",
+			   reg_addr, reg_val);
+		_dump_mif_reg_t6w(&vd_layer[i]);
+	}
+}
+
+static void _dump_vfcd_reg_t6w(struct video_layer_s *layer)
+{
+	u32 reg_addr, reg_val = 0;
+
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_top_ctrl0;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_top_ctrl0]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_top_ctrl2;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_top_ctrl2]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_mmu_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_mmu_ctrl]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afrc1_param;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afrc1_param]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_mode;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_mode]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_lbuf_depth;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_lbuf_depth]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_conv_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_conv_ctrl]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_frm_pic_size;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_frm_pic_size]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_luma_pic_xpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_luma_pic_xpos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_luma_pic_ypos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_luma_pic_ypos]\n",
+		   reg_addr, reg_val);
+
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_vd_cfmt_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_vd_cfmt_ctrl]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_vd_cfmt_w;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_vd_cfmt_w]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_vd_cfmt_h;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_vd_cfmt_h]\n",
+		   reg_addr, reg_val);
+
+	pr_info("afbcd regs:\n");
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_iquant_enable;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_iquant_enable]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_burst_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_burst_ctrl]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_dec_def_color;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_dec_def_color]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_head_baddr;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_head_baddr]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_body_baddr;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_body_baddr]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_enable;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_enable]\n",
+		   reg_addr, reg_val);
+
+	pr_info("vfbcd regs:\n");
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_chrm_pic_xpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_chrm_pic_xpos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_chrm_pic_ypos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_chrm_pic_ypos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_slc1_luma_pic_xpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_slc1_luma_pic_xpos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_slc1_chrm_pic_xpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_slc1_chrm_pic_xpos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_slc2_luma_pic_xpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_slc2_luma_pic_xpos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_slc2_chrm_pic_xpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_slc2_chrm_pic_xpos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_slc3_luma_pic_xpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_slc3_luma_pic_xpos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_slc3_chrm_pic_xpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_slc3_chrm_pic_xpos]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_post_luma_size;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_post_luma_size]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_post_luma_win_h;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_post_luma_win_h]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_post_chrm_win_h;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_post_chrm_win_h]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_post_luma_win_v;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_post_luma_win_v]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_post_chrm_win_v;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_post_chrm_win_v]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_luma_pad_size;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_luma_pad_size]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_luma_pad_ofst;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_luma_pad_ofst]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_chrm_pad_size;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_chrm_pad_size]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_chrm_pad_ofst;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_chrm_pad_ofst]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_pad_dumy_data;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_pad_dumy_data]\n",
+		   reg_addr, reg_val);
+
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_mif1_urgent;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_mif1_urgent]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_mmu_baddr0;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_mmu_baddr0]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_mmu_baddr1;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_mmu_baddr1]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afrc_ctrl0;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afrc_ctrl0]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afrc0_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afrc0_ctrl]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afrc_ctrl1;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afrc_ctrl1]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afrc1_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afrc1_ctrl]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_head_baddr;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_head_baddr]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afbc_body_baddr;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afbc_body_baddr]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afrc_chrm_head_baddr;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afrc_chrm_head_baddr]\n",
+		   reg_addr, reg_val);
+	reg_addr = layer->vd_hw_vfcd_reg.vfcd_afrc_chrm_body_baddr;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X [vfcd_afrc_chrm_body_baddr]\n",
+		   reg_addr, reg_val);
+}
+
+static void dump_vfcd_reg_t6w(void)
+{
+	int i;
+
+	for (i = 0; i < cur_dev->max_vd_layers; i++) {
+		if (!glayer_info[i].afbc_support)
+			continue;
+		pr_info("vd%d vfcd common regs:\n", i);
+		_dump_vfcd_reg_t6w(&vd_layer[i]);
+	}
+}
+
 static void dump_vout_blend_reg(void)
 {
 	u32 reg_addr, reg_val = 0;
@@ -924,183 +1612,188 @@ static void dump_aisr_reg(void)
 static void dump_vpp_path_size_reg(void)
 {
 	u32 reg_addr, reg_val = 0;
+	struct hw_vpp_path_size_s *p_vpp_path_size_reg = NULL;
 
 	if (legacy_vpp)
 		return;
+	if (cur_dev->display_module == T6W_DISPLAY_MODULE)
+		p_vpp_path_size_reg = &vpp_path_size_reg_t6w;
+	else
+		p_vpp_path_size_reg = &vpp_path_size_reg;
 	pr_info("vpp path size reg:\n");
 	if (glayer_info[0].layer_support) {
-		reg_addr = vpp_path_size_reg.vd1_hdr_in_size;
+		reg_addr = p_vpp_path_size_reg->vd1_hdr_in_size;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd1_hdr_in_size[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vpp_line_in_length;
+		reg_addr = p_vpp_path_size_reg->vpp_line_in_length;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vpp_line_in_length[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vpp_pic_in_height;
+		reg_addr = p_vpp_path_size_reg->vpp_pic_in_height;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vpp_pic_in_height[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd1_sc_h_startp;
+		reg_addr = p_vpp_path_size_reg->vd1_sc_h_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd1_sc_h_startp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd1_sc_h_endp;
+		reg_addr = p_vpp_path_size_reg->vd1_sc_h_endp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd1_sc_h_endp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd1_sc_v_startp;
+		reg_addr = p_vpp_path_size_reg->vd1_sc_v_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd1_sc_v_startp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd1_sc_v_endp;
+		reg_addr = p_vpp_path_size_reg->vd1_sc_v_endp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd1_sc_v_endp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vpp_line_in_length;
+		reg_addr = p_vpp_path_size_reg->vpp_line_in_length;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vpp_line_in_length[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vpp_pic_in_height;
+		reg_addr = p_vpp_path_size_reg->vpp_pic_in_height;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vpp_pic_in_height[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd1_sc_h_startp;
+		reg_addr = p_vpp_path_size_reg->vd1_sc_h_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd1_sc_h_startp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd1_sc_h_endp;
+		reg_addr = p_vpp_path_size_reg->vd1_sc_h_endp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd1_sc_h_endp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd1_sc_v_startp;
+		reg_addr = p_vpp_path_size_reg->vd1_sc_v_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd1_sc_v_startp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd1_sc_v_endp;
+		reg_addr = p_vpp_path_size_reg->vd1_sc_v_endp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd1_sc_v_endp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-			reg_addr = vpp_path_size_reg.schn_sc_h_startp;
+			reg_addr = p_vpp_path_size_reg->schn_sc_h_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("schn_sc_h_startp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.schn_sc_h_endp;
+		reg_addr = p_vpp_path_size_reg->schn_sc_h_endp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("schn_sc_h_endp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.schn_sc_v_startp;
+		reg_addr = p_vpp_path_size_reg->schn_sc_v_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("schn_sc_v_startp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.schn_sc_v_endp;
+		reg_addr = p_vpp_path_size_reg->schn_sc_v_endp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("schn_sc_v_endp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vpp_preblend_h_size;
+		reg_addr = p_vpp_path_size_reg->vpp_preblend_h_size;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vpp_preblend_h_size[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.preblend_vd1_h_start_end;
+		reg_addr = p_vpp_path_size_reg->preblend_vd1_h_start_end;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("preblend_vd1_h_start_end[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.preblend_vd1_v_start_end;
+		reg_addr = p_vpp_path_size_reg->preblend_vd1_v_start_end;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("preblend_vd1_v_start_end[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vpp_ve_h_v_size;
+		reg_addr = p_vpp_path_size_reg->vpp_ve_h_v_size;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vpp_ve_h_v_size[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vpp_postblend_h_size;
+		reg_addr = p_vpp_path_size_reg->vpp_postblend_h_size;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vpp_postblend_h_size[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vpp_out_h_v_size;
+		reg_addr = p_vpp_path_size_reg->vpp_out_h_v_size;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vpp_out_h_v_size[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.postblend_vd1_h_start_end;
+		reg_addr = p_vpp_path_size_reg->postblend_vd1_h_start_end;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("postblend_vd1_h_start_end[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.postlend_vd1_v_start_end;
+		reg_addr = p_vpp_path_size_reg->postlend_vd1_v_start_end;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("postlend_vd1_v_start_end[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
 	} else if (glayer_info[1].layer_support) {
-		reg_addr = vpp_path_size_reg.vd2_hdr_in_size;
+		reg_addr = p_vpp_path_size_reg->vd2_hdr_in_size;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd2_hdr_in_size[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd2_sc_h_startp;
+		reg_addr = p_vpp_path_size_reg->vd2_sc_h_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd2_sc_h_startp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd2_sc_h_endp;
+		reg_addr = p_vpp_path_size_reg->vd2_sc_h_endp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd2_sc_h_endp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd2_sc_v_startp;
+		reg_addr = p_vpp_path_size_reg->vd2_sc_v_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd2_sc_v_startp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd2_sc_v_endp;
+		reg_addr = p_vpp_path_size_reg->vd2_sc_v_endp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd2_sc_v_endp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.blend_vd2_h_start_end;
+		reg_addr = p_vpp_path_size_reg->blend_vd2_h_start_end;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("blend_vd2_h_start_end[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.blend_vd2_v_start_end;
+		reg_addr = p_vpp_path_size_reg->blend_vd2_v_start_end;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("blend_vd2_v_start_end[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
 	} else if (glayer_info[2].layer_support) {
-		reg_addr = vpp_path_size_reg.vd3_hdr_in_size;
+		reg_addr = p_vpp_path_size_reg->vd3_hdr_in_size;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd3_hdr_in_size[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd3_sc_h_startp;
+		reg_addr = p_vpp_path_size_reg->vd3_sc_h_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd3_sc_h_startp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd3_sc_h_endp;
+		reg_addr = p_vpp_path_size_reg->vd3_sc_h_endp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd3_sc_h_endp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd3_sc_v_startp;
+		reg_addr = p_vpp_path_size_reg->vd3_sc_v_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd3_sc_v_startp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.vd3_sc_v_endp;
+		reg_addr = p_vpp_path_size_reg->vd3_sc_v_endp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("vd3_sc_v_endp[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.blend_vd3_h_start_end;
+		reg_addr = p_vpp_path_size_reg->blend_vd3_h_start_end;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("blend_vd3_h_start_end[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		reg_addr = vpp_path_size_reg.blend_vd3_v_start_end;
+		reg_addr = p_vpp_path_size_reg->blend_vd3_v_start_end;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("blend_vd3_v_start_end[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
 	}
 	if (cur_dev->sr0_support) {
-		reg_addr = vpp_path_size_reg.sr0_in_size;
+		reg_addr = p_vpp_path_size_reg->sr0_in_size;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("sr0_in_size[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
 	} else if (cur_dev->sr1_support) {
-		reg_addr = vpp_path_size_reg.sr1_in_size;
+		reg_addr = p_vpp_path_size_reg->sr1_in_size;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("sr1_in_size[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
 	}
 	if (cur_dev->aisr_support) {
-		reg_addr = vpp_path_size_reg.aisr_post_size;
+		reg_addr = p_vpp_path_size_reg->aisr_post_size;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("aisr_post_size[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
@@ -1263,6 +1956,71 @@ static void dump_vppx_blend_reg(void)
 	}
 }
 
+static void dump_mosaic_reg(void)
+{
+	int i;
+	u32 reg_addr, reg_val = 0;
+
+	if (cur_dev->display_module == T6W_DISPLAY_MODULE &&
+	    cur_dev->mosaic_support &&
+	    vd_layer[0].mosaic_mode) {
+		pr_info("--- mosaic reg dump start ---\n");
+		reg_addr = PLAYER_2X2_CTRL;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("PLAYER_2X2_CTRL[0x%x] = 0x%X (2x2 enable:bit28 0xff)\n",
+			   reg_addr, reg_val);
+		reg_addr = viu_misc_reg.vpp_misc;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_misc[0x%x] = 0x%X (preblend en:bit6 1)\n",
+			   reg_addr, reg_val);
+		for (i = 0; i < SLICE_NUM; i++) {
+			pr_info("mosaic slice%d mif regs:\n", i);
+			_dump_mif_reg_t6w(&g_mosaic_frame[i].virtual_layer);
+		}
+		for (i = 0; i < SLICE_NUM; i++) {
+			struct disp_info_s *virtual_layer_info =
+				&g_mosaic_frame[i].virtual_layer_info;
+
+			if (virtual_layer_info->afbc_support) {
+				pr_info("mosaic slice%d vfcd common regs:\n", i);
+				_dump_vfcd_reg_t6w(&g_mosaic_frame[i].virtual_layer);
+			}
+		}
+		for (i = 0; i < SLICE_NUM; i++) {
+			pr_info("mosaic slice%d pps regs:\n", i);
+			_dump_pps_reg(&g_mosaic_frame[i].virtual_layer);
+		}
+
+		for (i = 0; i < SLICE_NUM; i++) {
+			pr_info("window%d axis reg:\n", i);
+			reg_addr = g_mosaic_frame[i].reg.vpp_blend_reg.preblend_h_start_end;
+			reg_val = READ_VCBUS_REG(reg_addr);
+			pr_info("preblend_h_start_end[0x%x] = 0x%X\n", reg_addr, reg_val);
+			reg_addr = g_mosaic_frame[i].reg.vpp_blend_reg.preblend_v_start_end;
+			reg_val = READ_VCBUS_REG(reg_addr);
+			pr_info("preblend_v_start_end[0x%x] = 0x%X\n", reg_addr, reg_val);
+		}
+		reg_addr = vd_layer[0].vpp_blend_reg.preblend_h_size;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("preblend_h_size[0x%x] = 0x%X\n", reg_addr, reg_val);
+		reg_addr = vpp_path_size_reg.vpp_postblend_h_size;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("postblend_h_size[0x%x] = 0x%X\n", reg_addr, reg_val);
+		reg_addr = vd_layer[0].vpp_blend_reg.postblend_h_start_end;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("postblend_h_start_end[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_layer[0].vpp_blend_reg.postblend_v_start_end;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("postblend_v_start_end[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vpp_path_size_reg.vpp_out_h_v_size;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_out_h_v_size[0x%x] = 0x%X\n", reg_addr, reg_val);
+		pr_info("--- mosaic reg dump end ---\n");
+	}
+}
+
 ssize_t reg_dump_store(const struct class *cla,
 				 const struct class_attribute *attr,
 				const char *buf, size_t count)
@@ -1284,8 +2042,13 @@ ssize_t reg_dump_store(const struct class *cla,
 			dump_mif_reg();
 			dump_vout_blend_reg();
 		} else {
-			dump_mif_reg();
-			dump_afbc_reg();
+			if (cur_dev->display_module == T6W_DISPLAY_MODULE) {
+				dump_mif_reg_t6w();
+				dump_vfcd_reg_t6w();
+			} else {
+				dump_mif_reg();
+				dump_afbc_reg();
+			}
 			dump_pps_reg();
 			dump_vpp_blend_reg();
 			dump_vppx_blend_reg();
@@ -1295,14 +2058,15 @@ ssize_t reg_dump_store(const struct class *cla,
 			dump_fgrain_reg();
 			if (cur_dev->aisr_support)
 				dump_aisr_reg();
+			dump_mosaic_reg();
 		}
 	}
 	return count;
 }
 
 #else
-ssize_t reg_dump_store(struct class *cla,
-				 struct class_attribute *attr,
+ssize_t reg_dump_store(const struct class *cla,
+				 const struct class_attribute *attr,
 				const char *buf, size_t count)
 {
 	int res = 0;

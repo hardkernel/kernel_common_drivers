@@ -58,18 +58,13 @@
 #include "video_safa_reg.h"
 
 static unsigned int skip_safa_speed_up;
-
 static unsigned int g_postsc_en = 0xff;
-
 static unsigned int g_preh_en = 0xff;
-
 static unsigned int g_preh_rate  = 0xff;
-
 static unsigned int g_prev_en = 0xff;
-
 static unsigned int g_prev_rate  = 0xff;
-
 static unsigned int g_axi_rps_ratio  = 0xff;
+static unsigned int asf_enable = 0x1;
 
 u8 safa_dir_interp_en = 1;
 
@@ -274,7 +269,7 @@ void dump_vd_vsr_safa_nonlinear_reg(void)
 
 	if (!cur_dev->vsr_nonlinear_support)
 		return;
-	vsr_non_linear_reg = &vsr_safa_nonlinear_reg;
+	vsr_non_linear_reg = &vd_layer[0].vsr_safa_nonlinear_reg;
 
 	pr_info("vsr safa nonlinear regs:\n");
 	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region12_startp;
@@ -416,7 +411,8 @@ static int pps_lut_tap8_s11_default[33][8] = {
 };
 
 static void safa_pps_scale_set_coef(u32 SAFA_PPS_CNTL_SCALE_COEF_IDX,
-	u32 SAFA_PPS_CNTL_SCALE_COEF)
+	u32 SAFA_PPS_CNTL_SCALE_COEF,
+	u32 cpnt_idx)
 {
 	int i;
 
@@ -437,36 +433,52 @@ static void safa_pps_scale_set_coef(u32 SAFA_PPS_CNTL_SCALE_COEF_IDX,
 			((pps_lut_tap4_s11_default[i][3]  & 0xff) << 0));
 	}
 
-	/* hor 8tap */
-	WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0080);
-	for (i = 0; i < 33; i++) {
-		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
-			(((pps_lut_tap8_s11_default[i][0] >> 8) & 0xff) << 24) |
-			((pps_lut_tap8_s11_default[i][0]  & 0xff) << 16) |
-			(((pps_lut_tap8_s11_default[i][1] >> 8) & 0xff) << 8) |
-			((pps_lut_tap8_s11_default[i][1] & 0xff) << 0));
+	if (cpnt_idx ==  1) {
+		/* hor 8tap */
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0080);
+		for (i = 0; i < 33; i++) {
+			WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
+				(((pps_lut_tap8_s11_default[i][0] >> 8) & 0xff) << 24) |
+				((pps_lut_tap8_s11_default[i][0]  & 0xff) << 16) |
+				(((pps_lut_tap8_s11_default[i][1] >> 8) & 0xff) << 8) |
+				((pps_lut_tap8_s11_default[i][1] & 0xff) << 0));
 
-		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
-			(((pps_lut_tap8_s11_default[i][2] >> 8) & 0xff) << 24) |
-			((pps_lut_tap8_s11_default[i][2] & 0xff) << 16) |
-			(((pps_lut_tap8_s11_default[i][3] >> 8) & 0xff) << 8) |
-			((pps_lut_tap8_s11_default[i][3] & 0xff) << 0));
+			WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
+				(((pps_lut_tap8_s11_default[i][2] >> 8) & 0xff) << 24) |
+				((pps_lut_tap8_s11_default[i][2] & 0xff) << 16) |
+				(((pps_lut_tap8_s11_default[i][3] >> 8) & 0xff) << 8) |
+				((pps_lut_tap8_s11_default[i][3] & 0xff) << 0));
+		}
+
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0100);
+		for (i = 0; i < 33; i++) {
+			WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
+				(((pps_lut_tap8_s11_default[i][4] >> 8) & 0xff) << 24) |
+				((pps_lut_tap8_s11_default[i][4] & 0xff) << 16) |
+				(((pps_lut_tap8_s11_default[i][5] >> 8) & 0xff) << 8) |
+				((pps_lut_tap8_s11_default[i][5] & 0xff) << 0));
+			WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
+				(((pps_lut_tap8_s11_default[i][6] >> 8) & 0xff) << 24) |
+				((pps_lut_tap8_s11_default[i][6] & 0xff) << 16) |
+				(((pps_lut_tap8_s11_default[i][7] >> 8) & 0xff) << 8) |
+				((pps_lut_tap8_s11_default[i][7] & 0xff) << 0));
+		}
+	} else if (cpnt_idx ==  2) {
+		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0080);
+		for (i = 0; i < 33; i++) {
+			WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
+				(((pps_lut_tap4_s11_default[i][0] >> 8) & 0xff) << 24) |
+				((pps_lut_tap4_s11_default[i][0] & 0xff) << 16) |
+				(((pps_lut_tap4_s11_default[i][1] >> 8) & 0xff) << 8) |
+				((pps_lut_tap4_s11_default[i][1] & 0xff) << 0));
+			WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
+				(((pps_lut_tap4_s11_default[i][2] >> 8) & 0xff) << 24) |
+				((pps_lut_tap4_s11_default[i][2] & 0xff) << 16) |
+				(((pps_lut_tap4_s11_default[i][3] >> 8) & 0xff) << 8) |
+				((pps_lut_tap4_s11_default[i][3] & 0xff) << 0));
+		}
+
 	}
-
-	WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0100);
-	for (i = 0; i < 33; i++) {
-		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
-			(((pps_lut_tap8_s11_default[i][4] >> 8) & 0xff) << 24) |
-			((pps_lut_tap8_s11_default[i][4] & 0xff) << 16) |
-			(((pps_lut_tap8_s11_default[i][5] >> 8) & 0xff) << 8) |
-			((pps_lut_tap8_s11_default[i][5] & 0xff) << 0));
-		WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF,
-			(((pps_lut_tap8_s11_default[i][6] >> 8) & 0xff) << 24) |
-			((pps_lut_tap8_s11_default[i][6] & 0xff) << 16) |
-			(((pps_lut_tap8_s11_default[i][7] >> 8) & 0xff) << 8) |
-			((pps_lut_tap8_s11_default[i][7] & 0xff) << 0));
-	}
-
 	/* hor 4tap */
 	WRITE_VCBUS_REG(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0180);
 	for (i = 0; i < 33; i++) {
@@ -534,11 +546,20 @@ void safa_postsc_coef_lut_config(void)
 	struct hw_vsr_safa_reg_s *vsr_reg;
 
 	vsr_reg = &vd_layer[0].vsr_safa_reg;
-	safa_pps_scale_set_coef(vsr_reg->safa_pps_cntl_scale_coef_idx_luma,
-		vsr_reg->safa_pps_cntl_scale_coef_luma);
-	safa_pps_scale_set_coef(vsr_reg->safa_pps_cntl_scale_coef_idx_chro,
-		vsr_reg->safa_pps_cntl_scale_coef_chro);
+	//postsc coef lut config
+	if (video_is_after_meson_t6w_cpu()) {
+		safa_pps_scale_set_coef(vsr_reg->safa_pps_cntl_scale_coef_idx_luma,
+			vsr_reg->safa_pps_cntl_scale_coef_luma, 1);
+		safa_pps_scale_set_coef(vsr_reg->safa_pps_cntl_scale_coef_idx_chro,
+			vsr_reg->safa_pps_cntl_scale_coef_chro, 2);
+	} else {
+		safa_pps_scale_set_coef(vsr_reg->safa_pps_cntl_scale_coef_idx_luma,
+			vsr_reg->safa_pps_cntl_scale_coef_luma, 1);
+		safa_pps_scale_set_coef(vsr_reg->safa_pps_cntl_scale_coef_idx_chro,
+			vsr_reg->safa_pps_cntl_scale_coef_chro, 1);
+	}
 }
+
 static u32 safa_speed_up_handle(struct vsr_setting_s *vsr)
 {
 	struct vsr_safa_setting_s *vsr_safa = &vsr->vsr_safa;
@@ -638,6 +659,7 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 	u32 pre_hsize = 0, pre_vsize = 0;
 	u32 pi_scl_rate;
 	u32 ratio = 2, ret = 0;
+	u32 hsc_ini_phase = 0, hsc_ini_integer = 0;
 
 	if (vsr_pi->pi_en) {
 		ratio = MIN((vsr_pi->hsize_out / vsr_pi->hsize_in),
@@ -694,7 +716,9 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 		ret = safa_speed_up_handle(vsr);
 	if (ret)
 		pre_hsize = ret;
-
+	/*asf need safa enable postsc */
+	if (vsr->vsr_top.asf_mode_en)
+		vsr_safa->postsc_en = 1;
 	if (g_postsc_en != 0xff)
 		vsr_safa->postsc_en = g_postsc_en;
 	if (g_preh_rate != 0xff)
@@ -735,7 +759,10 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 	if (cur_dev->dejaggy_support &&
 		(hsize_out >= hsize_in || vsize_out >= vsize_in) &&
 		!vsr_safa->prev_en) {
-		if (video_is_meson_s6_cpu() && hsize_in <= 2048)
+		if ((video_is_meson_s6_cpu() ||
+			video_is_meson_t6w_cpu() ||
+			video_is_meson_t6x_cpu()) &&
+			hsize_in <= 2048)
 			vsr_safa->dejaggy_en = true;
 		else if (video_is_meson_t6d_cpu() &&
 				(hsize_in <= 1024 ||
@@ -752,16 +779,53 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 	else
 		vsr_top->sharpness_en = true;
 
-	if (pre_hsize < hsize_out) {
-		vsr_top->pi_safa_hsc_ini_integer = 0x1f;
-		vsr_top->pi_safa_hsc_ini_phase = (div_u64((u64)pre_hsize << 16,
-			hsize_out) + (1 << 16)) / 2;
+	if (video_is_after_meson_t6w_cpu()) {
+		if (pre_hsize < hsize_out) {
+			vsr_top->pi_safa_hsc_ini_integer = 0x1f;
+			hsc_ini_phase = (div_u64((u64)pre_hsize << 16,
+				hsize_out) + (1 << 16)) / 2;
+			if (vsr_top->input_422_en) {
+				vsr_top->pi_safa_hsc_ini_integer_luma = 0x1f;
+				vsr_top->pi_safa_hsc_ini_phase_luma = (hsc_ini_phase / 2) * 2;
+				vsr_top->pi_safa_hsc_ini_integer_chrm = 0x1f;
+				vsr_top->pi_safa_hsc_ini_phase_chrm  = hsc_ini_phase;
+			} else {
+				vsr_top->pi_safa_hsc_ini_integer_luma = 0x1f;
+				vsr_top->pi_safa_hsc_ini_phase_luma = hsc_ini_phase;
+				vsr_top->pi_safa_hsc_ini_integer_chrm = 0x1f;
+				vsr_top->pi_safa_hsc_ini_phase_chrm = hsc_ini_phase;
+			}
+		} else {
+			hsc_ini_integer = ((div_u64((u64)pre_hsize << 16,
+				hsize_out) - (1 << 16)) / 2) >> 16;
+			hsc_ini_phase = (div_u64((u64)pre_hsize << 16,
+				hsize_out) - (1 << 16)) / 2 -
+				(vsr_top->pi_safa_hsc_ini_integer << 16);
+
+			if (vsr_top->input_422_en) {
+				vsr_top->pi_safa_hsc_ini_integer_luma = hsc_ini_integer;
+				vsr_top->pi_safa_hsc_ini_phase_luma = (hsc_ini_phase / 2) * 2;
+				vsr_top->pi_safa_hsc_ini_integer_chrm = hsc_ini_integer / 2;
+				vsr_top->pi_safa_hsc_ini_phase_chrm = hsc_ini_phase / 2;
+			} else {
+				vsr_top->pi_safa_hsc_ini_integer_luma = hsc_ini_integer;
+				vsr_top->pi_safa_hsc_ini_phase_luma = hsc_ini_phase;
+				vsr_top->pi_safa_hsc_ini_integer_chrm = hsc_ini_integer;
+				vsr_top->pi_safa_hsc_ini_phase_chrm = hsc_ini_phase;
+			}
+		}
 	} else {
-		vsr_top->pi_safa_hsc_ini_integer = ((div_u64((u64)pre_hsize << 16,
-			hsize_out) - (1 << 16)) / 2) >> 16;
-		vsr_top->pi_safa_hsc_ini_phase = (div_u64((u64)pre_hsize << 16,
-			hsize_out) - (1 << 16)) / 2 -
-			(vsr_top->pi_safa_hsc_ini_integer << 16);
+		if (pre_hsize < hsize_out) {
+			vsr_top->pi_safa_hsc_ini_integer = 0x1f;
+			vsr_top->pi_safa_hsc_ini_phase = (div_u64((u64)pre_hsize << 16,
+				hsize_out) + (1 << 16)) / 2;
+		} else {
+			vsr_top->pi_safa_hsc_ini_integer = ((div_u64((u64)pre_hsize << 16,
+				hsize_out) - (1 << 16)) / 2) >> 16;
+			vsr_top->pi_safa_hsc_ini_phase = (div_u64((u64)pre_hsize << 16,
+				hsize_out) - (1 << 16)) / 2 -
+				(vsr_top->pi_safa_hsc_ini_integer << 16);
+		}
 	}
 	if (pre_vsize < vsize_out) {
 		vsr_top->pi_safa_vsc_ini_integer = 0x1f;
@@ -773,6 +837,32 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 		vsr_top->pi_safa_vsc_ini_phase = (div_u64((u64)pre_vsize << 16,
 			vsize_out) - (1 << 16)) / 2 -
 			(vsr_top->pi_safa_vsc_ini_integer << 16);
+	}
+	if (vsr_top->asf_mode_en) {
+		u32 interlace_safa_vsc_integer_part;
+		u32 interlace_safa_vsc_fraction_part;
+
+		vsr_top->safa_vsc_ini_phase = 0;
+		vsr_top->safa_vsc_ini_integer = 0;
+		interlace_safa_vsc_integer_part = pre_vsize / (vsize_out * 2);
+		interlace_safa_vsc_fraction_part = div_u64((u64)pre_vsize << 24,
+			vsize_out * 2) - (interlace_safa_vsc_integer_part << 24);
+		vsr_top->safa_bot_vsc_ini_phase =
+			interlace_safa_vsc_fraction_part & 0xffffff;
+		vsr_top->safa_bot_vsc_ini_integer = interlace_safa_vsc_integer_part & 0x1f;
+		vsr_top->safa_vsc_integer_part = ((((u64)interlace_safa_vsc_integer_part << 24) +
+			 interlace_safa_vsc_fraction_part) * 2) >> 24;
+		vsr_top->safa_vsc_fraction_part = ((((u64)interlace_safa_vsc_integer_part << 24) +
+			 interlace_safa_vsc_fraction_part) * 2) & 0xffffff;
+		if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
+			pr_info("%s: interlace integer/fraction:%d, %d, bot_vsc_ini_phase/integer:%d,%d,vsc_integer/fraction:%d,%d\n",
+				__func__,
+				interlace_safa_vsc_integer_part,
+				interlace_safa_vsc_fraction_part,
+				vsr_top->safa_bot_vsc_ini_phase,
+				vsr_top->safa_bot_vsc_ini_integer,
+				vsr_top->safa_vsc_integer_part,
+				vsr_top->safa_vsc_fraction_part);
 	}
 	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA) {
 		pr_info("%s:vsr top: h/vsize_in:%d,%d, h/vsize_out:%d, %d, dejaggy_en=%d, is_interlaced=%d, sharpness_en=%d\n",
@@ -865,9 +955,14 @@ static void set_vsr_pi(struct vsr_setting_s *vsr)
 		rdma_wr(vsr_reg->vpp_pi_in_hsc_part,
 			(vsr_top->pi_safa_hsc_fraction_part << 4) |
 			(vsr_top->pi_safa_hsc_integer_part << 0));
-		rdma_wr(vsr_reg->vpp_pi_in_hsc_ini,
-			(vsr_top->pi_safa_hsc_ini_integer << 16) |
-			(vsr_top->pi_safa_hsc_ini_phase << 0));
+		if (video_is_after_meson_t6w_cpu())
+			rdma_wr(vsr_reg->vpp_pi_in_hsc_ini,
+				(vsr_top->pi_safa_hsc_ini_integer_luma << 16) |
+				(vsr_top->pi_safa_hsc_ini_phase_luma << 0));
+		else
+			rdma_wr(vsr_reg->vpp_pi_in_hsc_ini,
+				(vsr_top->pi_safa_hsc_ini_integer << 16) |
+				(vsr_top->pi_safa_hsc_ini_phase << 0));
 		rdma_wr(vsr_reg->vpp_pi_in_vsc_part,
 			(vsr_top->pi_safa_vsc_fraction_part << 4) |
 			(vsr_top->pi_safa_vsc_integer_part << 0));
@@ -899,7 +994,7 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 	u32 postsc_size_mux = 0, dir_info_ds_x_en = 0;
 	u32 drt_intp_en = 0, drt_intp_chrm_en = 0, sharp_en = 0;
 	u32 pi_vofst = 0, adp_tap_alp_mode = 0;
-	u32 beta_mode = 0;
+	u32 beta_mode = 0, adp_ds_x_en = 0;
 	u32 sr_delta_alp_mode = 0, sr_gamma_alp_mode = 0;
 	u32 pi_gamma_mode = 0, pi_max_sad_mode = 0;
 	u32 analy_en = vsr_safa->postsc_en;
@@ -922,10 +1017,16 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 	struct hw_vsr_safa_reg_s *vsr_reg;
 	struct hw_vsr_safa_nonlinear_reg_s *vsr_nonlinear_reg;
 	u32 filt_num_c = 0, step = 0;
+	u32 safa_vsc_ini_phase;
+	u32 safa_vsc_ini_integer;
+	u32 safa_bot_vsc_ini_phase;
+	u32 safa_bot_vsc_ini_integer;
+	u32 safa_vsc_integer_part;
+	u32 safa_vsc_fraction_part;
 
 	vsr_reg = &vd_layer[0].vsr_safa_reg;
 	if (cur_dev->vsr_nonlinear_support)
-		vsr_nonlinear_reg = &vsr_safa_nonlinear_reg;
+		vsr_nonlinear_reg = &vd_layer[0].vsr_safa_nonlinear_reg;
 	adp_tap_alp_mode = 1;
 	beta_mode        = 1;
 	sr_delta_alp_mode = 1;
@@ -936,6 +1037,8 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 	if (vsr_safa->mode == 0 || vsr_safa->mode == 1) {
 		step = vsr_safa->pre_hsize <= 1024 ? 1 :
 			(vsr_safa->pre_hsize <= 2048 ? 2 : 3);
+		if (vsr_safa->mode == 1)
+			adp_tap_alp_mode = 3;
 	} else {
 		step = vsr_safa->pre_hsize <= 512  ? 1 :
 			(vsr_safa->pre_hsize <= 1024 ? 2 : 3);
@@ -950,10 +1053,12 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			postsc_size_mux = 0;
 			dir_info_ds_x_en = 0;
 			drt_intp_en = 1;
+			adp_ds_x_en = 0;
 		} else if (step == 2) {
 			postsc_size_mux = 0;
 			dir_info_ds_x_en = 1;
 			drt_intp_en = 1;
+			adp_ds_x_en = 1;
 		} else {
 			postsc_size_mux = 1;
 			dir_info_ds_x_en = 1;
@@ -964,6 +1069,7 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			sr_gamma_alp_mode = 3;
 			pi_gamma_mode = 3;
 			pi_max_sad_mode = 3;
+			adp_ds_x_en = 0;
 		}
 	} else {
 		analy_en = 0;
@@ -1068,7 +1174,7 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			adp_tap_alp_mode, 8, 2);
 		rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
 			beta_mode, 12, 2);
-		if (video_is_meson_t6d_cpu()) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T6D)) {
 			/* changed since t6d, s7d bit24, t6d bit25 */
 			rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
 				drt_intp_en, 25, 1);
@@ -1079,8 +1185,38 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
 				drt_intp_en, 24, 1);
 		}
-		rdma_wr_bits(vsr_reg->safa_pps_yuv_sharpen_en,
-			sharp_en, 4, 1);
+		if (video_is_after_meson_t6w_cpu())
+			rdma_wr_bits(vsr_reg->safa_pps_hv_adp_tap_wind,
+				adp_ds_x_en, 0, 1);
+		if (vsr_top->asf_mode_en) {
+			safa_vsc_ini_phase = vsr_top->safa_vsc_ini_phase;
+			safa_vsc_ini_integer = vsr_top->safa_vsc_ini_integer;
+			safa_bot_vsc_ini_phase = vsr_top->safa_bot_vsc_ini_phase;
+			safa_bot_vsc_ini_integer = vsr_top->safa_bot_vsc_ini_integer;
+			safa_vsc_integer_part = vsr_top->safa_vsc_integer_part;
+			safa_vsc_fraction_part = vsr_top->safa_vsc_fraction_part;
+
+		} else {
+			safa_vsc_ini_phase = vsr_top->pi_safa_vsc_ini_phase;
+			safa_vsc_ini_integer = vsr_top->pi_safa_vsc_ini_integer;
+			safa_bot_vsc_ini_phase = vsr_top->pi_safa_vsc_ini_phase << 8;
+			safa_bot_vsc_ini_integer = vsr_top->pi_safa_vsc_ini_integer;
+			safa_vsc_integer_part = vsr_top->pi_safa_vsc_integer_part;
+			safa_vsc_fraction_part = vsr_top->pi_safa_vsc_fraction_part;
+		}
+		if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
+			pr_info("%s: vsc_ini_integer/integer:%d,%d, bot_vsc_ini_phase/integer:%d,%d,vsc_integer/fraction:%d,%d\n",
+				__func__,
+				safa_vsc_ini_phase,
+				safa_vsc_ini_integer,
+				safa_bot_vsc_ini_phase,
+				safa_bot_vsc_ini_integer,
+				vsr_top->safa_vsc_integer_part,
+				vsr_top->safa_vsc_fraction_part);
+
+		if (!video_is_after_meson_t6w_cpu())
+			rdma_wr_bits(vsr_reg->safa_pps_yuv_sharpen_en,
+				sharp_en, 4, 1);
 		rdma_wr_bits(vsr_reg->safa_pps_dir_en_mode,
 			dir_info_ds_x_en, 24, 1);
 		rdma_wr_bits(vsr_reg->safa_pps_sr_alp_info,
@@ -1095,19 +1231,40 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			((vsr_top->pi_safa_hsc_integer_part & 0xf) << 24) |
 			((vsr_top->pi_safa_hsc_fraction_part & 0xffffff) << 0));
 		rdma_wr(vsr_reg->safa_pps_vsc_start_phase_step,
-			((vsr_top->pi_safa_vsc_integer_part & 0xf) << 24) |
-			((vsr_top->pi_safa_vsc_fraction_part & 0xffffff) << 0));
+			((safa_vsc_integer_part & 0xf) << 24) |
+			((safa_vsc_fraction_part & 0xffffff) << 0));
 		rdma_wr_bits(vsr_reg->safa_pps_vsc_init,
-			vsr_top->pi_safa_vsc_ini_phase, 0, 16);
-		rdma_wr_bits(vsr_reg->safa_pps_hsc_init,
-			vsr_top->pi_safa_hsc_ini_phase, 0, 16);
+			safa_vsc_ini_phase, 0, 16);
 		rdma_wr_bits(vsr_reg->safa_pps_vsc_init,
-			vsr_top->pi_safa_vsc_ini_integer, 16, 5);
-		rdma_wr_bits(vsr_reg->safa_pps_hsc_init,
-			vsr_top->pi_safa_hsc_ini_integer, 16, 5);
-		if (!video_is_meson_s7d_cpu())
+			safa_vsc_ini_integer, 16, 5);
+
+		if (video_is_after_meson_t6w_cpu()) {
+			/* safa_pps_hsc_init_phase, bit0-15 init phase 0 */
+			/* bit16-31 init phase 1*/
+			rdma_wr_bits(vsr_reg->safa_pps_hsc_init,
+				vsr_top->pi_safa_hsc_ini_phase_luma, 0, 16);
+			rdma_wr_bits(vsr_reg->safa_pps_hsc_init,
+				vsr_top->pi_safa_hsc_ini_phase_chrm, 16, 16);
+			/* safa_pps_hsc_init_interget */
+			rdma_wr_bits(vsr_reg->safa_pps_hsc_init_interget,
+				vsr_top->pi_safa_hsc_ini_integer_luma, 0, 16);
+			rdma_wr_bits(vsr_reg->safa_pps_hsc_init_interget,
+				vsr_top->pi_safa_hsc_ini_integer_chrm, 16, 5);
 			rdma_wr_bits(vsr_reg->safa_pps_bot_vsc_init,
-				vsr_top->pi_safa_vsc_ini_phase, 0, 16);
+				safa_bot_vsc_ini_phase, 0, 24);
+			rdma_wr_bits(vsr_reg->safa_pps_bot_vsc_init,
+				safa_bot_vsc_ini_integer, 24, 5);
+			rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+				vsr_top->asf_mode_en & 3, 26, 2);
+		} else {
+			rdma_wr_bits(vsr_reg->safa_pps_hsc_init,
+				vsr_top->pi_safa_hsc_ini_phase, 0, 16);
+			rdma_wr_bits(vsr_reg->safa_pps_hsc_init,
+				vsr_top->pi_safa_hsc_ini_integer, 16, 5);
+			if (!video_is_meson_s7d_cpu())
+				rdma_wr_bits(vsr_reg->safa_pps_bot_vsc_init,
+					vsr_top->pi_safa_vsc_ini_phase, 0, 16);
+		}
 	}
 	rdma_wr_bits(vsr_reg->safa_pps_sr_422_en,
 		input_422_en, 0, 1);
@@ -1154,6 +1311,10 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 		safa_pps_top_en, 8, 1);
 	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 		postsc_size_mux, 1, 1);
+
+	if (video_is_after_meson_t6w_cpu())
+		rdma_wr_bits(vsr_reg->vpp_vsr_ofifo,
+			(vsr_top->hsize_out - 1), 12, 13);
 }
 
 static void set_vsr_input_format(struct vsr_setting_s *vsr)
@@ -1211,6 +1372,15 @@ static void set_vsr_input_size(struct vsr_setting_s *vsr)
 	u32 hsize_in = vsr->vsr_top.hsize_in;
 	u32 vsize_in = vsr->vsr_top.vsize_in;
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
+	unsigned int hdr_size_dpss_mode = 0;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef AMLOGIC_MEDIA_DPSS
+	hdr_size_dpss_mode = dpss_mode;
+#endif
+#endif
+#endif
 
 	rdma_wr(VPP_IN_H_V_SIZE,
 		((hsize_in & 0x1fff) << 16)
@@ -1224,6 +1394,17 @@ static void set_vsr_input_size(struct vsr_setting_s *vsr)
 		rdma_wr(VD1_HDR_IN_SIZE,
 			(vsize_in << 16)
 			| hsize_in);
+	else if (cur_dev->display_module == T6W_DISPLAY_MODULE &&
+		!hdr_size_dpss_mode) {
+		if (video_is_after_meson_t6x_cpu())
+			rdma_wr(VPU_HDR2_SIZE_IN + 1,
+				(vsize_in << 16)
+				| hsize_in);
+		else
+			rdma_wr(VPU_HDR2_SIZE_IN,
+				(vsize_in << 16)
+				| hsize_in);
+	}
 }
 
 static void set_vd1_frm2fld_en(struct vsr_setting_s *vsr)
@@ -1236,6 +1417,13 @@ static void set_vd1_frm2fld_en(struct vsr_setting_s *vsr)
 	vsr_reg = &vd_layer[0].vsr_safa_reg;
 	if (vinfo->field_height != vinfo->height && cur_dev->frm2fld_support)
 		frm2fld_en = 1;
+	if (vinfo->asf_mode && asf_enable)
+		vsr->vsr_top.asf_mode_en = 1;
+	else
+		vsr->vsr_top.asf_mode_en = 0;
+	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
+		pr_info("%s: asf_mode_en=%d\n",
+			__func__, vsr->vsr_top.asf_mode_en);
 	if (frm2fld_en) {
 		/* VPP_MISC have been moved to vpp_blend_update()
 		 * bit4:reg_frm2fld_en bit5:reg_bgn_bot_top
@@ -1248,6 +1436,10 @@ static void set_vd1_frm2fld_en(struct vsr_setting_s *vsr)
 		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_P2I_H_V_SIZE,
 			vsr->vsr_top.hsize_out << 16 | vsr->vsr_top.vsize_out);
 	}
+	/*  frm2fld can use VPP_MISC bit4 and bit5 to set or safa_pps_hw_ctrl bit26
+	 *	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+	 *	frm2fld_en, 26, 1);
+	 */
 }
 
 static void sharpness_and_dir_interp_enable(struct vsr_setting_s *vsr)
@@ -1274,6 +1466,10 @@ static void sharpness_and_dir_interp_enable(struct vsr_setting_s *vsr)
 
 void set_vsr_scaler(struct vsr_setting_s *vsr)
 {
+	vpu_module_clk_enable(vsr->vpp_index, SAFA_PI, 0);
+	vpu_module_clk_enable(vsr->vpp_index, SAFA_POSTSC, 0);
+	vpu_module_clk_enable(vsr->vpp_index, SAFA_PREH, 0);
+	vpu_module_clk_enable(vsr->vpp_index, SAFA_PREV, 0);
 	set_vsr_input_size(vsr);
 	set_vsr_input_format(vsr);
 	set_vd1_frm2fld_en(vsr);
@@ -1283,6 +1479,14 @@ void set_vsr_scaler(struct vsr_setting_s *vsr)
 		set_safa_pps(vsr);
 	}
 	sharpness_and_dir_interp_enable(vsr);
+	if (!vsr->vsr_pi.pi_en)
+		vpu_module_clk_disable(vsr->vpp_index, SAFA_PI, 0);
+	if (!vsr->vsr_safa.postsc_en)
+		vpu_module_clk_disable(vsr->vpp_index, SAFA_POSTSC, 0);
+	if (!vsr->vsr_safa.preh_en)
+		vpu_module_clk_disable(vsr->vpp_index, SAFA_PREH, 0);
+	if (!vsr->vsr_safa.prev_en)
+		vpu_module_clk_disable(vsr->vpp_index, SAFA_PREV, 0);
 }
 
 void set_dither_mode(int dither_mode)
@@ -1457,7 +1661,7 @@ void vsr_debug_mode_update(u32 debug_mode, struct vsr_setting_s *vsr)
 	}
 }
 
-struct video_module_debug_s debug_video_safa[7] = {
+struct video_module_debug_s debug_video_safa[8] = {
 	{"skip_safa_speed_up", &skip_safa_speed_up, 1, 0},
 	{"g_postsc_en", &g_postsc_en, 1, 0},
 	{"g_preh_en", &g_preh_en, 1, 0},
@@ -1465,5 +1669,6 @@ struct video_module_debug_s debug_video_safa[7] = {
 	{"g_prev_en", &g_prev_en, 1, 0},
 	{"g_prev_rate", &g_prev_rate, 1, 0},
 	{"g_axi_rps_ratio", &g_axi_rps_ratio, 1, 0},
+	{"asf_enable", &asf_enable, 1, 0},
 };
 

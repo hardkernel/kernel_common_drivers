@@ -98,13 +98,6 @@ static inline struct vframe_s *common_vf_get(struct video_recv_s *ins)
 			(vf->type & VIDTYPE_MVC))
 			vf->type &= ~VIDTYPE_MVC;
 		pre_process_for_3d(vf);
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		/*init dv info*/
-		vf->src_fmt.pr_done = false;
-		vf->src_fmt.py_level = PY_NO_LEVEL;
-		vf->src_fmt.downsamplers = 2;
-		vf->src_fmt.py_id = 0;
-#endif
 	}
 	return vf;
 }
@@ -147,8 +140,13 @@ static inline void common_vf_put(struct video_recv_s *ins,
 				vf->canvas0_config[0].phy_addr, vf->canvas0Addr, vf->plane_num,
 				vf->compHeadAddr, vf->compBodyAddr);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#ifdef AMLOGIC_MEDIA_DPSS
 		if ((glayer_info[0].display_path_id == ins->path_id || is_multi_dv_mode()) &&
-		    is_amdv_enable())
+		    is_amdv_enable() && !is_amdv_dpss_path())
+#else
+		if ((glayer_info[0].display_path_id == ins->path_id || is_multi_dv_mode()) &&
+					is_amdv_enable())
+#endif
 			amdv_vf_put(vf);
 #endif
 		ins->notify_flag |= VIDEO_NOTIFY_PROVIDER_PUT;
@@ -476,8 +474,11 @@ static int dolby_vision_need_wait_common(struct video_recv_s *ins)
 	enum vd_path_e vd_path;
 	int layer_info_id = 0;
 	int ret = 0;
-
-	if (!is_amdv_enable() || !ins)
+#ifdef AMLOGIC_MEDIA_DPSS
+	if (!is_amdv_enable() || !ins || is_amdv_dpss_path())
+#else
+	if (!is_amdv_enable())
+#endif
 		return 0;
 
 	vf = common_vf_peek(ins);
@@ -514,17 +515,20 @@ static bool is_vsync_vppx_rdma_enable(u8 vpp_index)
 	return enable;
 }
 
-static void common_toggle_frame(struct video_recv_s *ins,
+static int  common_toggle_frame(struct video_recv_s *ins,
 				struct vframe_s *vf)
 {
 	if (!ins || !vf)
-		return;
+		return -1;
 
 	if (vf->width == 0 || vf->height == 0) {
-		pr_err("%s %s: invalid frame dimension\n",
+		pr_err("%s %s: frame_index=%d, width=%d, height=%d invalid frame dimension\n",
 		       __func__,
-		       ins->recv_name);
-		return;
+		       ins->recv_name,
+		       vf->frame_index,
+		       vf->width, vf->height);
+		common_vf_put(ins, vf);
+		return -1;
 	}
 	if (ins->cur_buf &&
 	    ins->cur_buf != &ins->local_buf &&
@@ -566,6 +570,7 @@ static void common_toggle_frame(struct video_recv_s *ins,
 		vf->type_backup = vf->type;
 	ins->cur_buf = vf;
 	ins->original_vf = vf;
+	return 0;
 }
 
 /*********************************************************
@@ -604,11 +609,11 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 	struct vframe_s *vf = NULL;
 	struct vframe_s *toggle_vf = NULL;
 	s32 drop_count = -1;
+	int ret = -1;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	enum vframe_signal_fmt_e fmt;
 	enum vd_path_e vd_path;
 	int layer_info_id = 0;
-	int ret;
 	struct vframe_s *vf_top1 = NULL;
 #endif
 	struct cur_line_info_t *cur_line_info = NULL;
@@ -626,8 +631,13 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 	cur_line_info = ins->cur_line_info;
 	vf = common_vf_peek(ins);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#ifdef AMLOGIC_MEDIA_DPSS
+	if ((glayer_info[0].display_path_id == ins->path_id || is_multi_dv_mode()) &&
+	    is_amdv_enable() && !is_amdv_dpss_path()) {
+#else
 	if ((glayer_info[0].display_path_id == ins->path_id || is_multi_dv_mode()) &&
 	    is_amdv_enable()) {
+#endif
 		struct provider_aux_req_s req;
 		u32 i, bl_cnt = 0xffffffff;
 
@@ -675,8 +685,14 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 		if (!vf->frame_dirty) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			ret = dolby_vision_need_wait_common(ins);
+#ifdef AMLOGIC_MEDIA_DPSS
+			if (!is_amdv_dpss_path() &&
+				(glayer_info[0].display_path_id == ins->path_id ||
+				is_multi_dv_mode()) && ret) {
+#else
 			if ((glayer_info[0].display_path_id == ins->path_id ||
 				is_multi_dv_mode()) && ret) {
+#endif
 				if (debug_flag & DEBUG_FLAG_RECEIVER_DEBUG)
 					pr_info("ins->path_id %d,%s, wait\n",
 						ins->path_id, ins->recv_name);
@@ -692,7 +708,11 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 #endif
 			vf = common_vf_get(ins);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#ifdef AMLOGIC_MEDIA_DPSS
+			if (get_top1_onoff() == 3 && !is_amdv_dpss_path()) {
+#else
 			if (get_top1_onoff() == 3) {
+#endif
 				if (ins->save_vf_en && ins->save_vf) {
 					/* need toggle */
 					ins->toggle_vf = ins->save_vf;
@@ -739,7 +759,11 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 					do_gettimeofday(&cur_line_info->end2);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 				/*top1 enable, need check one more frame*/
-				if (get_top1_onoff() ==  3) {/*todo*/
+#ifdef AMLOGIC_MEDIA_DPSS
+				if (get_top1_onoff() ==  3 && !is_amdv_dpss_path()) {/*todo*/
+#else
+				if (get_top1_onoff() ==  3) {
+#endif
 					vf_top1 = ins->save_vf;//common_vf_peek(ins);
 					/*wait next new Fn+1 for top1, proc top2 Fn + top1 Fn+1*/
 					/*if no new frame, proc top2 Fn + repeat Top1 Fn*/
@@ -752,27 +776,37 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 					}
 				}
 #endif
-				common_toggle_frame(ins, vf);
+				ret = common_toggle_frame(ins, vf);
+				if (ret < 0)
+					return NULL;
 				toggle_vf = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#ifdef AMLOGIC_MEDIA_DPSS
+				if (!is_amdv_dpss_path()) {
+#endif
+					if (ins->path_id == VFM_PATH_VIDEO_RENDER0)
+						layer_info_id = 0;
+					else if (ins->path_id == VFM_PATH_VIDEO_RENDER1)
+						layer_info_id = 1;
+					if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
+						do_gettimeofday(&cur_line_info->end3);
+					if (debug_flag & DEBUG_FLAG_RECEIVER_DEBUG) {
+						pr_info("ins->path_id %d,%s, display_path_id %d\n",
+							ins->path_id, ins->recv_name,
+							glayer_info[layer_info_id].display_path_id);
+					}
 
-				if (ins->path_id == VFM_PATH_VIDEO_RENDER0)
-					layer_info_id = 0;
-				else if (ins->path_id == VFM_PATH_VIDEO_RENDER1)
-					layer_info_id = 1;
-				if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
-					do_gettimeofday(&cur_line_info->end3);
-
-				if (debug_flag & DEBUG_FLAG_RECEIVER_DEBUG)
-					pr_info("ins->path_id %d,%s, display_path_id %d\n",
-						ins->path_id, ins->recv_name,
-						glayer_info[layer_info_id].display_path_id);
-
-				vd_path = glayer_info[layer_info_id].display_path_id ==
-					VFM_PATH_VIDEO_RENDER0 ? VD1_PATH : VD2_PATH;
-
-				if (glayer_info[0].display_path_id ==
-				    ins->path_id || is_multi_dv_mode()) {
+					vd_path = glayer_info[layer_info_id].display_path_id ==
+						VFM_PATH_VIDEO_RENDER0 ? VD1_PATH : VD2_PATH;
+#ifdef AMLOGIC_MEDIA_DPSS
+				}
+				if (!is_amdv_dpss_path() &&
+					(glayer_info[0].display_path_id ==
+				    ins->path_id || is_multi_dv_mode())) {
+#else
+				if ((glayer_info[0].display_path_id ==
+				    ins->path_id || is_multi_dv_mode())) {
+#endif
 					if (get_top1_onoff() == 0) {/*no top1*/
 						dv_toggle_frame(vf, vd_path, true);
 					} else if (get_top1_onoff() == 1) {
@@ -787,11 +821,14 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 				}
 				if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
 					do_gettimeofday(&cur_line_info->end4);
-				vd_layer[0].vf_top1 = vf_top1;
-				/*not drop frame or drop 3 in frame2-3*/
-				/*currently drop 2 in frame2-3,frame 2 pyramid missed*/
-				/*if (is_amdv_enable() && get_top1_onoff())*/
-					/*break;*/
+#ifdef AMLOGIC_MEDIA_DPSS
+				if (!is_amdv_dpss_path())
+#endif
+					vd_layer[0].vf_top1 = vf_top1;
+					/*not drop frame or drop 3 in frame2-3*/
+					/*currently drop 2 in frame2-3,frame 2 pyramid missed*/
+					/*if (is_amdv_enable() && get_top1_onoff())*/
+						/*break;*/
 #endif
 			}
 		} else {

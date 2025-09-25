@@ -22,4 +22,6 @@ int get_video_reg_table(u32 *check_item);
 #ifdef CONFIG_AMLOGIC_ZAPPER_CUT
 int get_video_reg_table_cut(u32 *check_item);
 #endif
+void clear_vpu_venc_error(void);
+u32 get_vpu_venc_error_status(void);
 #endif

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef VIDEO_PROVIDER_HEADER_HH
@@ -74,6 +74,8 @@ struct video_provider_device_s {
 struct vp_frame_s {
 	int shared_fd;
 	int mem_type;
+	int fg_mem_type;
+	int fg_data_shared_fd;
 	int width;  /* frame width */
 	int height; /* frame height */
 	int format;
@@ -83,6 +85,9 @@ struct vp_frame_s {
 	int afrc_format;
 	int bit_depth;
 	int luma_only; /* only use the luma data from YUV */
+	int secure;
+	int fg_test;
+	int fg_secure;
 };
 
 struct vp_lcevc_frame_s {

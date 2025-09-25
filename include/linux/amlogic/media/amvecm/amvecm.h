@@ -567,7 +567,7 @@ void set_vout2_change(unsigned int flag);
 bool di_api_mov_sel(unsigned int mode,
 		    unsigned int *pdate);
 enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,
-	enum vpp_index_e vpp_index);
+	enum vpp_index_e vpp_index, struct vframe_s *vf);
 
 int amvecm_set_saturation_hue(int mab, enum wr_md_e mode, int vpp_index);
 void amvecm_saturation_hue_update(int offset_val);

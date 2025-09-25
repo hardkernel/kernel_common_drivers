@@ -344,6 +344,20 @@ struct vd_pps_val_s {
 	u32 vd_prehsc_coef1_val;
 };
 
+struct mosaic_reg_s {
+	u32 misc_reg_offt;
+	struct hw_vd_reg_s vd_mif_reg;
+	struct hw_vd_linear_reg_s vd_mif_linear_reg;
+	struct hw_afbc_reg_s vd_afbc_reg;
+	struct hw_mif_reg_s vd_hw_mif_reg;
+	struct hw_vfcd_reg_s vd_hw_vfcd_reg;
+	struct hw_fg_reg_s fg_reg;
+	struct hw_pps_reg_s pps_reg;
+	struct hw_vsr_safa_reg_s vsr_safa_reg;
+	struct hw_vsr_safa_nonlinear_reg_s vsr_safa_nonlinear_reg;
+	struct hw_vpp_blend_reg_s vpp_blend_reg;
+};
+
 struct mosaic_frame_s {
 	u8 slice_id;
 	u32 canvas_tbl[CANVAS_TABLE_CNT][3];
@@ -351,6 +365,7 @@ struct mosaic_frame_s {
 	struct vframe_s *vf;
 	struct disp_info_s virtual_layer_info;
 	struct video_layer_s virtual_layer;
+	struct mosaic_reg_s reg;
 };
 
 struct slice_nonlinear_s {
@@ -438,9 +453,6 @@ void dump_mosaic_pps(void);
 void set_frm_idx(u32 vpp_index, u32 frm_idx);
 void save_pps_data(int slice, u32 vd_vsc_phase_ctrl_val);
 u32 get_pps_data(int slice);
-u32 get_vpu_venc_error_status(void);
-void clear_vpu_venc_error(void);
-
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 void vpu_set_frc_bypass(struct video_layer_s *layer);
 void update_frc_in_size_s5(struct video_layer_s *layer);

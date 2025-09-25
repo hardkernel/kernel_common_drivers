@@ -318,7 +318,15 @@ enum vpu_module_e {
 	OSD1_HDR_CORE,
 	OSD2_HDR_CORE,
 	OSD3_HDR_CORE,
+	SAFA_PI,
+	SAFA_POSTSC,
+	SAFA_PREH,
+	SAFA_PREV,
 	DV_TVCORE,
+	DPSS,
+	VDIN,
+	VPU_INTF,
+	DPSS_APB
 };
 
 enum mediasync_parameter_e {
@@ -332,6 +340,7 @@ enum mediasync_parameter_e {
 #define AML_DOLBY_MUTE_SET     3
 #define DRM_MUTE_SET           4
 #define VPP_INTERNAL           5
+#define VD_MUTE_SET            6
 
 struct video_module_debug_s {
 	char parm_name[32];
@@ -347,9 +356,9 @@ extern struct video_module_debug_s debug_video[43];
 #endif
 extern struct video_module_debug_s debug_video_hw[10];
 extern struct video_module_debug_s debug_video_func[5];
-extern struct video_module_debug_s debug_vpp[55];
+extern struct video_module_debug_s debug_vpp[54];
 extern struct video_module_debug_s debug_video_hw_s5[7];
-extern struct video_module_debug_s debug_video_safa[7];
+extern struct video_module_debug_s debug_video_safa[8];
 
 enum rx_mute_type_e {
 	E_RX_MUTE,
@@ -370,7 +379,7 @@ struct mediasync_ptr {
 	int (*reserved2)(void);
 };
 
-#define MAX_VIDEO_MUTE_OWNER 6
+#define MAX_VIDEO_MUTE_OWNER 7
 #define AMVIDEO_UPDATE_OSD_MODE	0x00000001
 #define AMVIDEO_UPDATE_PREBLEND_MODE	0x00000002
 #define AMVIDEO_UPDATE_SIGNAL_MODE      0x00000003
@@ -442,6 +451,7 @@ struct vd_proc_info_t {
 	u32 vd2_crop_top;
 	u32 vd2_crop_bottom;
 	struct slice_info slice[VD_SLICE_NUM];
+	u32 mosaic_mode;
 };
 
 struct vd_proc_amvecm_info_t {
@@ -545,11 +555,6 @@ void vsync_notify_videoqueue(u8 layer_id,
 void videoqueue_pcrscr_update(u8 vpp_index, s32 inc, u32 base);
 #endif
 
-#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
-void vsync_notify_videodisplay(u8 layer_id,
-	u32 vsync_pts_inc_scale, u32 vsync_pts_inc_scale_base);
-#endif
-
 #ifdef CONFIG_AMLOGIC_VDETECT
 int vdetect_get_frame_nn_info(struct vframe_s *vframe);
 #endif
@@ -609,9 +614,6 @@ int register_vpp_postblend_info_func(void (*get_vpp_osd1_scope)
 int get_amdv_mode(void);
 #endif
 u32 get_vpp_vsync_index(u32 layerid);
-u32 video_get_layer_capability(void);
-int get_video_src_min_buffer(u8 layer_id,
-			u32 *src_width, u32 *src_height);
-int get_video_src_max_buffer(u8 layer_id,
-			u32 *src_width, u32 *src_height);
+void update_dd_axi_path_mode(u32 mode);
+void update_hdr_axi_path_mode(u32 mode);
 #endif /* VIDEO_H */
