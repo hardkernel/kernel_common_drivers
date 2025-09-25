@@ -1259,6 +1259,20 @@ static void xhci_kill_endpoint_urbs(struct aml_xhci_hcd *xhci,
 	}
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+void aml_xhci_clean_urb(struct aml_xhci_hcd *xhci)
+{
+	int i, j;
+	/* return any pending urbs, remove may be waiting for them */
+	for (i = 0; i <= HCS_MAX_SLOTS(xhci->hcs_params1); i++) {
+		if (!xhci->devs[i])
+			continue;
+		for (j = 0; j < 31; j++)
+			xhci_kill_endpoint_urbs(xhci, i, j);
+	}
+}
+#endif
+
 /*
  * host controller died, register read returns 0xffffffff
  * Complete pending commands, mark them ABORTED.

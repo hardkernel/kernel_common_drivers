@@ -160,7 +160,9 @@ int aml_xhci_halt(struct aml_xhci_hcd *xhci)
 
 	xhci->xhc_state |= XHCI_STATE_HALTED;
 	xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
-
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	aml_xhci_clean_urb(xhci);
+#endif
 	return ret;
 }
 

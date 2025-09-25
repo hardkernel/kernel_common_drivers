@@ -2590,6 +2590,7 @@ static inline const char *xhci_decode_ep_context(char *str, u32 info,
 
 #if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 extern unsigned int db_wait;
+void aml_xhci_clean_urb(struct aml_xhci_hcd *xhci);
 void xhci_start_stop_endpoint_work(struct aml_xhci_hcd *xhci,
 	int slot_id, unsigned int ep_index);
 int aml_xhci_stop_device(struct aml_xhci_hcd *xhci, int slot_id, int suspend);
