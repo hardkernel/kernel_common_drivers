@@ -637,8 +637,6 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	input_dev->id.version = 0x0100;
 	input_dev->rep[REP_DELAY] = 0xffffffff;
 	input_dev->rep[REP_PERIOD] = 0xffffffff;
-	input_dev->keycodesize = sizeof(unsigned short);
-	input_dev->keycodemax = 0x1ff;
 	ret = input_register_device(input_dev);
 	if (ret < 0) {
 		pr_err("[abner test]input_register_device failed: %d\n", ret);

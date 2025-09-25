@@ -388,8 +388,6 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 	input_dev->id.version = 0x0100;
 	input_dev->rep[REP_DELAY] = 0xffffffff;
 	input_dev->rep[REP_PERIOD] = 0xffffffff;
-	input_dev->keycodesize = sizeof(unsigned short);
-	input_dev->keycodemax = 0x1ff;
 	keypad->input_dev = input_dev;
 	ret = input_register_device(keypad->input_dev);
 	if (ret < 0) {
