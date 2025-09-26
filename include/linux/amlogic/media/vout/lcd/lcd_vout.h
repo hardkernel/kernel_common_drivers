@@ -183,6 +183,9 @@ struct lcd_timing_s {
 	unsigned char ss_level;
 	unsigned char ss_freq;
 	unsigned char ss_mode;
+	unsigned short vfreq_panel_min; //min of all timings
+	unsigned short vfreq_panel_max; //max of all timings
+
 
 	unsigned int enc_clk;
 	unsigned long long bit_rate; /* Hz */

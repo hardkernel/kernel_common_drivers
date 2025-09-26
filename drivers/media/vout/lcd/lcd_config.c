@@ -182,6 +182,24 @@ static void lcd_ss_config_fix(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_
 	}
 }
 
+static void lcd_freq_vrr_min_max_update(struct aml_lcd_drv_s *pdrv)
+{
+	int i = 0;
+	struct lcd_timing_s *timing = &pdrv->curr_dev->dev_cfg.timing;
+
+	timing->vfreq_panel_min = timing->timings[0]->vfreq_vrr_min;
+	timing->vfreq_panel_max = timing->timings[0]->vfreq_vrr_max;
+	for (i = 0; i < timing->num_timings && timing->timings[i]; i++) {
+		if (timing->vfreq_panel_min > timing->timings[i]->vfreq_vrr_min)
+			timing->vfreq_panel_min = timing->timings[i]->vfreq_vrr_min;
+		if (timing->vfreq_panel_max < timing->timings[i]->vfreq_vrr_max)
+			timing->vfreq_panel_max = timing->timings[i]->vfreq_vrr_max;
+	}
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("%s min:%d-max:%d\n", __func__,
+		      timing->vfreq_panel_min, timing->vfreq_panel_max);
+}
+
 /* ************************************************** *
  * lcd config
  * **************************************************
@@ -2699,6 +2717,7 @@ int lcd_load_device_config(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *
 
 void lcd_config_load_probe(struct aml_lcd_drv_s *pdrv)
 {
+	lcd_freq_vrr_min_max_update(pdrv);
 	lcd_lane_map_update(pdrv);
 
 	lcd_config_load_init(pdrv, pdrv->curr_dev);

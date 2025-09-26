@@ -29,6 +29,8 @@ struct vrr_device_s {
 	unsigned int vline_min;
 	unsigned int vfreq_max;
 	unsigned int vfreq_min;
+	unsigned int vfreq_panel_max;
+	unsigned int vfreq_panel_min;
 
 	void *dev_data;
 	unsigned int (*lfc_switch)(void *dev_data, int fps);

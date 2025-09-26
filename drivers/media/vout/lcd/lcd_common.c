@@ -1997,6 +1997,8 @@ void lcd_vrr_dev_update(struct aml_lcd_drv_s *pdrv)
 	pdrv->vrr_dev->vline_min = pdrv->curr_dev->dev_cfg.timing.act_timing.v_period_min;
 	pdrv->vrr_dev->vfreq_max = pdrv->curr_dev->dev_cfg.timing.act_timing.vfreq_vrr_max;
 	pdrv->vrr_dev->vfreq_min = pdrv->curr_dev->dev_cfg.timing.act_timing.vfreq_vrr_min;
+	pdrv->vrr_dev->vfreq_panel_max = pdrv->curr_dev->dev_cfg.timing.vfreq_panel_max;
+	pdrv->vrr_dev->vfreq_panel_min = pdrv->curr_dev->dev_cfg.timing.vfreq_panel_min;
 }
 
 void lcd_vrr_dev_register(struct aml_lcd_drv_s *pdrv)
