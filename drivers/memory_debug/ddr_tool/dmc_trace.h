@@ -21,9 +21,10 @@ unsigned long read_violation_mem(unsigned long addr, char rw);
 TRACE_EVENT(dmc_violation,
 
 	TP_PROTO(char *title, unsigned long addr, unsigned long status, char *port, char *sub,
-		 char rw, unsigned long pagetrace, unsigned int order, unsigned long flags, unsigned long long time),
+		 char rw, unsigned long pagetrace, unsigned int order, unsigned long flags,
+		 unsigned long long time, unsigned int same, unsigned int total),
 
-	TP_ARGS(title, addr, status, port, sub, rw, pagetrace, order, flags, time),
+	TP_ARGS(title, addr, status, port, sub, rw, pagetrace, order, flags, time, same, total),
 
 	TP_STRUCT__entry(
 		__string(title, title)
@@ -36,6 +37,8 @@ TRACE_EVENT(dmc_violation,
 		__field(unsigned int, order)
 		__field(unsigned long, flags)
 		__field(unsigned long long, time)
+		__field(unsigned int, same)
+		__field(unsigned int, total)
 	),
 
 	TP_fast_assign(
@@ -49,9 +52,11 @@ TRACE_EVENT(dmc_violation,
 		__entry->order = order;
 		__entry->flags = flags;
 		__entry->time = time;
+		__entry->total = same;
+		__entry->same = total;
 	),
 
-	TP_printk("addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx lru:%d a:%ps(%d) t:%lld rw:%c%s",
+	TP_printk("addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx lru:%d a:%ps(%d) t:%lld rw:%c%s(%d/%d)",
 		  __entry->addr,
 		  read_violation_mem(__entry->addr, __entry->rw),
 		  __entry->status,
@@ -63,7 +68,9 @@ TRACE_EVENT(dmc_violation,
 		  __entry->order,
 		  __entry->time,
 		  __entry->rw,
-		  __get_str(title))
+		  __get_str(title),
+		  __entry->same,
+		  __entry->total)
 );
 
 #endif /*  _TRACE_DMC_MONITOR_H */

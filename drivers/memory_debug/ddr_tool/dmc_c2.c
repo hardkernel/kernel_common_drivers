@@ -78,6 +78,18 @@ static size_t c2_dmc_dump_reg(char *buf)
 	return sz;
 }
 
+static int get_c2_port(unsigned int awuser)
+{
+	awuser >>= 2;
+	if (awuser >= 128)
+		return ((awuser >> 4) & 0x7) + 16;
+	if (awuser <= 5)
+		return awuser - 1;
+	if (awuser <= 10)
+		return awuser - 3;
+	return awuser - 4;
+}
+
 static int check_violation(struct dmc_monitor *mon, void *data)
 {
 	int ret = -1;
@@ -100,8 +112,11 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 		ret = 0;
 	}
 
-	if (!ret)
+	if (!ret) {
+		mon_comm->port.number = get_c2_port((mon_comm->status >> 16) & 0x3ff);
+		mon_comm->sub.number = (mon_comm->status >> 6) & 0xf;
 		dmc_vio_check_page(data);
+	}
 
 	return ret;
 }
@@ -123,28 +138,12 @@ static int c2_dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
 	return 0;
 }
 
-static int get_c2_port(unsigned int awuser)
-{
-	awuser >>= 2;
-	if (awuser >= 128)
-		return ((awuser >> 4) & 0x7) + 16;
-	if (awuser <= 5)
-		return awuser - 1;
-	if (awuser <= 10)
-		return awuser - 3;
-	return awuser - 4;
-}
-
 static void c2_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 {
-	int port = 0, subport = 0;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
 	*vio_bit = BIT(31) | BIT(30);
-	port = get_c2_port((mon_comm->status >> 16) & 0x3ff);
-	subport = (mon_comm->status >> 6) & 0xf;
-
-	set_port_to_mon_comm(data, port, subport);
+	set_port_to_mon_comm(data, mon_comm->port.number, mon_comm->sub.number);
 }
 
 static int c2_dmc_mon_set(struct dmc_monitor *mon)

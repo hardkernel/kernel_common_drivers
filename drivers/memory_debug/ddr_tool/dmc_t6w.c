@@ -108,10 +108,44 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 		ret = 0;
 	}
 
-	if (!ret)
+	if (!ret) {
+		mon_comm->port.number = (mon_comm->status >> 19) & 0xf;
+		mon_comm->sub.number = (mon_comm->status >> 9) & 0x3ff;
 		dmc_vio_check_page(data);
+	}
 
 	return ret;
+}
+
+static void t6w_recheck_violation(void *data)
+{
+	unsigned int i, count = 0, same = 0, reg0, reg1, port, subport;
+	unsigned long addr;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+	void *io = mon_comm->io_mem;
+	unsigned long long t;
+
+	count = dmc_prot_rw(io, DMC_PROT_VIO_1, 0, DMC_READ);
+	count = (count >> 25) & 0x7f;
+	mon_comm->prot_buf.total = count;
+
+	t = sched_clock();
+	for (i = 0; i < count; i++) {
+		reg0 = dmc_prot_rw(io, DMC_PROT_STS0 + ((2 * i) << 2), 0, DMC_READ);
+		reg1 = dmc_prot_rw(io, DMC_PROT_STS1 + ((2 * i) << 2), 0, DMC_READ);
+		addr = ((reg1 & 0x7fff) << 18) | ((reg0 >> 14) & 0x3ffff);
+		port = (reg0 >> 10) & 0xf;
+		subport = reg0 & 0x3ff;
+		if (port == mon_comm->port.number &&
+		    subport == mon_comm->port.number &&
+		    (PHYS_PFN(addr) <= PHYS_PFN(mon_comm->addr) + 2) &&
+		    (PHYS_PFN(addr) >= PHYS_PFN(mon_comm->addr) - 1))
+			same++;
+
+		if (sched_clock() - t >= get_recheck_ns())
+			break;
+	}
+	mon_comm->prot_buf.same = same;
 }
 
 static int dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
@@ -133,20 +167,10 @@ static int dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
 
 static void dmc_vio_to_port(void *data, unsigned long *vio_bit)
 {
-	int port = 0, subport = 0;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
 	*vio_bit = DMC_VIO_PROT1 | DMC_VIO_PROT0;
-	port = (mon_comm->status >> 19) & 0xf;
-	subport = (mon_comm->status >> 9) & 0x3ff;
-
-	mon_comm->port.name = to_ports(port);
-	if (!mon_comm->port.name)
-		sprintf(mon_comm->port.id, "%d", port);
-
-	mon_comm->sub.name = to_sub_ports_name(port, subport, mon_comm->rw);
-	if (!mon_comm->sub.name)
-		sprintf(mon_comm->sub.id, "%d", subport);
+	set_port_to_mon_comm(data, mon_comm->port.number, mon_comm->sub.number);
 }
 
 static int dmc_mon_set(struct dmc_monitor *mon)
@@ -267,4 +291,5 @@ struct dmc_mon_ops t6w_dmc_mon_ops = {
 	.disable     = dmc_mon_disable,
 	.dump_reg    = dmc_dump_reg,
 	.reg_control = dmc_reg_control,
+	.recheck_violation = t6w_recheck_violation,
 };

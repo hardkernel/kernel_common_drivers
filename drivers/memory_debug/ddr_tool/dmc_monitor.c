@@ -47,17 +47,17 @@
 #include "dmc_trace.h"
 
 // #define DEBUG
-#define DMC_VERSION		"1.10.5"
+#define DMC_VERSION		"1.11"
 
 #define IRQ_CHECK		0
 #define IRQ_CLEAR		1
 
 #define DMC_SEC_RATELIMIT_BURST	15
 #define DMC_RATELIMIT_BURST	30
-#define dmc_pr_crit(fmt, addr, val, status, port, subport, page_flags, lru, trace, order, time, rw, title, rs)	\
-({														\
-	if (__ratelimit(rs))											\
-		pr_crit(fmt, addr, val, status, port, subport, page_flags, lru, trace, order, time, rw, title);	\
+#define dmc_pr_crit(fmt, addr, val, status, port, subport, page_flags, lru, trace, order, time, rw, title, same, total, rs)	\
+({																\
+	if (__ratelimit(rs))													\
+		pr_crit(fmt, addr, val, status, port, subport, page_flags, lru, trace, order, time, rw, title, same, total);	\
 })
 
 struct dmc_monitor *dmc_mon;
@@ -84,7 +84,12 @@ static unsigned char init_dmc_irq_ratio = 32;
 /* sleep time(us) when irq too much */
 static unsigned long init_dmc_irq_usleep = 500;
 /* thread irq recheck time */
-static unsigned long init_thread_recheck_ns;
+static unsigned long init_thread_recheck_ns = 5000;
+
+unsigned long get_recheck_ns(void)
+{
+	return init_thread_recheck_ns;
+}
 
 static int early_dmc_param(char *buf)
 {
@@ -475,7 +480,7 @@ void show_violation_mem_printk(char *title, void *data)
 
 	static DEFINE_RATELIMIT_STATE(dmc_rs, HZ, DMC_RATELIMIT_BURST);
 
-	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx lru:%d a:%psi(%d) t:%lld rw:%c%s\n",
+	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx lru:%d a:%ps(%d), t:%lld rw:%c%s(%d/%d)\n",
 		mon_comm->addr, read_violation_mem(mon_comm->addr, mon_comm->rw),
 		mon_comm->status,
 		mon_comm->port.name ? mon_comm->port.name : mon_comm->port.id,
@@ -484,7 +489,8 @@ void show_violation_mem_printk(char *title, void *data)
 		test_bit(PG_lru, &mon_comm->page_flags),
 		(void *)dmc_unpack_ip(&mon_comm->trace),
 		(&mon_comm->trace)->order,
-		mon_comm->time, mon_comm->rw, title, &dmc_rs);
+		mon_comm->time, mon_comm->rw, title,
+		mon_comm->prot_buf.same, mon_comm->prot_buf.total, &dmc_rs);
 }
 
 void show_violation_mem_trace_event(char *title, void *data)
@@ -499,7 +505,9 @@ void show_violation_mem_trace_event(char *title, void *data)
 				dmc_unpack_ip(&mon_comm->trace),
 				(&mon_comm->trace)->order,
 				mon_comm->page_flags,
-				mon_comm->time);
+				mon_comm->time,
+				mon_comm->prot_buf.same,
+				mon_comm->prot_buf.total);
 }
 
 unsigned long dmc_prot_rw(void  __iomem *base,
@@ -681,6 +689,7 @@ static void output_violation(struct dmc_monitor *mon, void *data, char *title)
 		goto irq_finish;
 	}
 #endif
+
 	show_violation_mem_printk(title, data);
 
 	/* sleep if the irq too much */
@@ -689,42 +698,42 @@ irq_finish:
 		dmc_irq_sleep(data);
 }
 
+void dmc_common_recheck(struct dmc_monitor *mon, void *data)
+{
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+	struct dmc_mon_comm tmp = *mon_comm;
+	unsigned long long t;
+	unsigned int count = 0, same = 0;
+
+	if (dmc_mon->ops && dmc_mon->ops->handle_irq) {
+		dmc_mon->ops->handle_irq(mon, data, IRQ_CLEAR);
+		t = sched_clock();
+		do {
+			if (!dmc_mon->ops->handle_irq(mon, &tmp, IRQ_CHECK)) {
+				dmc_mon->ops->handle_irq(mon, data, IRQ_CLEAR);
+				count++;
+				if (mon_comm->port.number == tmp.port.number &&
+				    mon_comm->sub.number == tmp.sub.number &&
+				    (PHYS_PFN(tmp.addr) <= PHYS_PFN(mon_comm->addr) + 2) &&
+				    (PHYS_PFN(tmp.addr) >= PHYS_PFN(mon_comm->addr) - 1))
+					same++;
+			}
+		} while (sched_clock() - t < init_thread_recheck_ns);
+	}
+	mon_comm->prot_buf.total = count;
+	mon_comm->prot_buf.same = same;
+}
+
 void dmc_output_violation(struct dmc_monitor *mon, void *data)
 {
 	char title[10];
-	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
-	struct dmc_mon_comm mon_comm_tmp = *mon_comm;
-	unsigned long long t;
 
-	if (dmc_mon->ops && dmc_mon->ops->handle_irq) {
+	/* if not new violation, print old info, otherwise new info*/
+	output_violation(mon, data, title);
+
+	if (dmc_mon->ops && dmc_mon->ops->handle_irq)
 		/* clear violation and flush */
 		dmc_mon->ops->handle_irq(mon, data, IRQ_CLEAR);
-
-		t = sched_clock();
-		do {
-			/* check new violation happened */
-			if (!dmc_mon->ops->handle_irq(mon, &mon_comm_tmp, IRQ_CHECK)) {
-				/* print old violation info */
-				output_violation(mon, data, title);
-				mon_comm->time = mon_comm_tmp.time;
-				mon_comm->addr = mon_comm_tmp.addr;
-				mon_comm->status = mon_comm_tmp.status;
-				mon_comm->trace = mon_comm_tmp.trace;
-				mon_comm->mapping = mon_comm_tmp.mapping;
-				mon_comm->migratetype = mon_comm_tmp.migratetype;
-				mon_comm->page_flags = mon_comm_tmp.page_flags;
-				mon_comm->rw = mon_comm_tmp.rw;
-				sprintf(title, "%s", "_isr");
-				break;
-			}
-		} while (sched_clock() - t < init_thread_recheck_ns);
-
-		/* if not new violation, print old info, otherwise new info*/
-		output_violation(mon, data, title);
-
-		/* clear violation and flush */
-		dmc_mon->ops->handle_irq(mon, data, IRQ_CLEAR);
-	}
 }
 
 int dmc_violation_ignore(char *title, void *data, unsigned long vio_bit)
@@ -985,6 +994,11 @@ static irqreturn_t __nocfi dmc_prot_irq_handler(int irq, void *dev_instance)
 {
 	if (dmc_mon->ops && dmc_mon->ops->handle_irq)
 		dmc_mon->ops->handle_irq(dmc_mon, dev_instance, IRQ_CHECK);
+
+	if (dmc_mon->ops && dmc_mon->ops->recheck_violation)
+		dmc_mon->ops->recheck_violation(dev_instance);
+	else
+		dmc_common_recheck(dmc_mon, dev_instance);
 
 	if (dmc_mon->debug & DMC_DEBUG_IRQ_THREAD)
 		return IRQ_WAKE_THREAD;

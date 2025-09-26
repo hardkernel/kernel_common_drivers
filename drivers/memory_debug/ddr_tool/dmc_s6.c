@@ -119,8 +119,23 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 		ret = 0;
 	}
 
-	if (!ret)
+	if (!ret) {
+		mon_comm->port.number = (mon_comm->status >> 10) & 0x1f;
+		mon_comm->sub.number = mon_comm->status & 0x3ff;
+		if (mon_comm->port.number == 0x01 ||
+		    mon_comm->port.number == 0x02 ||
+		    mon_comm->port.number == 0x03)		//vpu
+			mon_comm->sub.number = mon_comm->status & 0xff;
+
+		if (mon_comm->port.number == 0x0e) {		//device
+			mon_comm->sub.number = (((mon_comm->status >> 9) & 0x01) << 5);
+			mon_comm->sub.number |= (mon_comm->status & 0x1f);
+		}
+
+		if (mon_comm->port.number == 0x0d)		//vge
+			mon_comm->sub.number = mon_comm->status & 0x3;
 		dmc_vio_check_page(data);
+	}
 
 	return ret;
 }
@@ -144,20 +159,10 @@ static int s6_dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
 
 static void s6_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 {
-	int port = 0, subport = 0;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
 	*vio_bit = DMC_VIO_PROT1 | DMC_VIO_PROT0;
-	port = (mon_comm->status >> 10) & 0x1f;
-	subport = mon_comm->status & 0x3ff;
-	if (port == 0x01 || port == 0x02 || port == 0x03)		//vpu
-		subport = mon_comm->status & 0xff;
-	if (port == 0x0e)						//device
-		subport = (((mon_comm->status >> 9) & 0x01) << 5) | (mon_comm->status & 0x1f);
-	if (port == 0x0d)						//vge
-		subport = mon_comm->status & 0x3;
-
-	set_port_to_mon_comm(data, port, subport);
+	set_port_to_mon_comm(data, mon_comm->port.number, mon_comm->sub.number);
 }
 
 static int s6_dmc_mon_set(struct dmc_monitor *mon)

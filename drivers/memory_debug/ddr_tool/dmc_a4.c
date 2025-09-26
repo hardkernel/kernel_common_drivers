@@ -75,8 +75,6 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 {
 	int ret = -1;
 	unsigned long irqreg;
-	struct page *page;
-	struct page_trace *trace;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
 	irqreg = dmc_prot_rw(mon_comm->io_mem, DMC_PROT_IRQ_CTRL_STS, 0, DMC_READ);
@@ -86,27 +84,19 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 		/* combine address */
 		mon_comm->addr = dmc_prot_rw(mon_comm->io_mem, DMC_PROT_VIO_0, 0, DMC_READ);
 		mon_comm->rw = 'w';
-		page = phys_to_page(mon_comm->addr);
-		trace = dmc_find_page_base(page);
-		if (trace)
-			mon_comm->trace = *trace;
-		else
-			mon_comm->trace.ip_data = IP_INVALID;
-		mon_comm->page_flags = page->flags & PAGEFLAGS_MASK;
 		ret = 0;
 	} else if (irqreg & DMC_READ_VIOLATION) {
 		mon_comm->time = sched_clock();
 		mon_comm->status = dmc_prot_rw(mon_comm->io_mem, DMC_PROT_VIO_3, 0, DMC_READ);
 		mon_comm->addr = dmc_prot_rw(mon_comm->io_mem, DMC_PROT_VIO_2, 0, DMC_READ);
 		mon_comm->rw = 'r';
-		page = phys_to_page(mon_comm->addr);
-		trace = dmc_find_page_base(page);
-		if (trace)
-			mon_comm->trace = *trace;
-		else
-			mon_comm->trace.ip_data = IP_INVALID;
-		mon_comm->page_flags = page->flags & PAGEFLAGS_MASK;
 		ret = 0;
+	}
+
+	if (!ret) {
+		mon_comm->port.number = mon_comm->status & 0xff;
+		mon_comm->sub.number = (mon_comm->status >> 8) & 0x7f;
+		dmc_vio_check_page(data);
 	}
 
 	return ret;
@@ -131,14 +121,10 @@ static int a4_dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
 
 static void a4_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 {
-	int port = 0, subport = 0;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
 	*vio_bit = DMC_VIO_PROT1 | DMC_VIO_PROT0;
-	port = mon_comm->status & 0xff;
-	subport = (mon_comm->status >> 8) & 0x7f;
-
-	set_port_to_mon_comm(data, port, subport);
+	set_port_to_mon_comm(data, mon_comm->port.number, mon_comm->sub.number);
 }
 
 static int a4_dmc_mon_set(struct dmc_monitor *mon)

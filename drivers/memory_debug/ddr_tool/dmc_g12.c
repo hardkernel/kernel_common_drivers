@@ -84,8 +84,27 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 		ret = 0;
 	}
 
-	if (!ret)
+	if (!ret) {
+		switch (dmc_mon->chip) {
+		case DMC_TYPE_G12A:
+			mon_comm->port.number = (mon_comm->status >> 10) & 0x1f;
+			mon_comm->sub.number = (mon_comm->status >> 6) & 0xf;
+			break;
+		case DMC_TYPE_G12B:
+			mon_comm->port.number = (mon_comm->status >> 13) & 0x1f;
+			mon_comm->sub.number = (mon_comm->status >> 6) & 0xf;
+			break;
+		case DMC_TYPE_SM1:
+		case DMC_TYPE_TL1:
+		case DMC_TYPE_TM2:
+			mon_comm->port.number = (mon_comm->status >> 11) & 0x1f;
+			mon_comm->sub.number = (mon_comm->status >> 6) & 0xf;
+			break;
+		default:
+			break;
+		}
 		dmc_vio_check_page(data);
+	}
 
 	return ret;
 }
@@ -103,32 +122,24 @@ static int g12_dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
 
 static void g12_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 {
-	int port = 0, subport = 0;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
 	switch (dmc_mon->chip) {
 	case DMC_TYPE_G12A:
 		*vio_bit = BIT(22) | BIT(21);
-		port = (mon_comm->status >> 10) & 0x1f;
-		subport = (mon_comm->status >> 6) & 0xf;
 		break;
 	case DMC_TYPE_G12B:
 		*vio_bit = BIT(25) | BIT(24);
-		port = (mon_comm->status >> 13) & 0x1f;
-		subport = (mon_comm->status >> 6) & 0xf;
 		break;
 	case DMC_TYPE_SM1:
 	case DMC_TYPE_TL1:
 	case DMC_TYPE_TM2:
 		*vio_bit = BIT(23) | BIT(22);
-		port = (mon_comm->status >> 11) & 0x1f;
-		subport = (mon_comm->status >> 6) & 0xf;
 		break;
 	default:
 		break;
 	}
-
-	set_port_to_mon_comm(data, port, subport);
+	set_port_to_mon_comm(data, mon_comm->port.number, mon_comm->sub.number);
 }
 
 static int g12_dmc_mon_set(struct dmc_monitor *mon)

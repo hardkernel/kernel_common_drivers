@@ -94,6 +94,7 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 	void *io = mon_comm->io_mem;
 
 	irqreg = dmc_prot_rw(io, DMC_IRQ_STS, 0, DMC_READ);
+
 	if (irqreg & DMC_WRITE_VIOLATION) {
 		mon_comm->time = sched_clock();
 		mon_comm->status = dmc_prot_rw(io, DMC_PROT_VIO_1, 0, DMC_READ);
@@ -108,8 +109,11 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 		ret = 0;
 	}
 
-	if (!ret)
+	if (!ret) {
+		mon_comm->port.number = (mon_comm->status >> 11) & 0x1f;
+		mon_comm->sub.number = (mon_comm->status >> 6) & 0xf;
 		dmc_vio_check_page(data);
+	}
 
 	return ret;
 }
@@ -133,14 +137,10 @@ static int tm2_dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
 
 static void tm2_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 {
-	int port = 0, subport = 0;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
 	*vio_bit = DMC_VIO_PROT1 | DMC_VIO_PROT0;
-	port = (mon_comm->status >> 11) & 0x1f;
-	subport = (mon_comm->status >> 6) & 0xf;
-
-	set_port_to_mon_comm(data, port, subport);
+	set_port_to_mon_comm(data, mon_comm->port.number, mon_comm->sub.number);
 }
 
 static int tm2_dmc_mon_set(struct dmc_monitor *mon)

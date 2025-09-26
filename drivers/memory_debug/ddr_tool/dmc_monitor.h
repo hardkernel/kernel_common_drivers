@@ -57,6 +57,7 @@ struct dmc_mon_ops {
 	size_t (*dump_reg)(char *buf);
 	int (*reg_control)(char *input, char control, char *output);
 	void (*vio_to_port)(void *data, unsigned long *vio_bit);
+	void (*recheck_violation)(void *data);
 };
 
 struct dmc_filter_dev {
@@ -73,6 +74,12 @@ struct dmc_filter {
 struct port_type {
 	char *name;
 	char id[4];
+	int number;
+};
+
+struct dmc_port_buf {
+	unsigned int total;
+	unsigned int same;
 };
 
 struct dmc_mon_comm {
@@ -83,6 +90,7 @@ struct dmc_mon_comm {
 	int irq;
 	int irq_sec;
 	char rw;
+	struct dmc_port_buf prot_buf;
 	struct port_type port;
 	struct port_type sub;
 	unsigned long addr;
@@ -159,6 +167,7 @@ void show_violation_mem_trace_event(char *title, void *data);
 void dmc_irq_sleep(void *data);
 void dmc_output_violation(struct dmc_monitor *mon, void *data);
 void set_port_to_mon_comm(void *data, int port, int subport);
+unsigned long get_recheck_ns(void);
 
 extern struct dmc_monitor *dmc_mon;
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_GX

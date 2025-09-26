@@ -76,3 +76,6 @@
 
 #amlogic-gkitool.ko
   class_compat_register
+
+#amlogic-memory-debug.ko
+ bpf_trace_run12
