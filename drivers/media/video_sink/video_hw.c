@@ -10409,7 +10409,6 @@ void mute_output_vcbus(void)
 		black_val);
 	WRITE_VCBUS_REG(VPP_CLIP_MISC1,
 		black_val);
-
 	output_mute_status = VIDEO_MUTE_ON_VPP;
 }
 EXPORT_SYMBOL(mute_output_vcbus);
@@ -19494,6 +19493,8 @@ void video_resume_hw_recovery(bool restore_vpu_sec)
 	vd_layer[2].property_changed = true;
 	vd_layer_vpp[0].property_changed = true;
 	vd_layer_vpp[1].property_changed = true;
+	if (output_mute_status == VIDEO_MUTE_ON_VPP)
+		mute_output_vcbus();
 	force_vpp_blend_update = true;
 }
 
