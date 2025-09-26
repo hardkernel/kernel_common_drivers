@@ -446,11 +446,12 @@ static void update_cma_page_trace(struct page *page, unsigned long cnt)
 {
 	long i;
 	unsigned long fun;
+	int vflag = 0;
 
 	if (!page)
 		return;
 
-	fun = find_back_trace();
+	fun = find_back_trace(&vflag);
 	if (cma_alloc_trace)
 		pr_info("c a p:%lx, c:%ld, f:%ps\n",
 			page_to_pfn(page), cnt, (void *)fun);
@@ -1853,6 +1854,7 @@ void aml_cma_free(unsigned long pfn, unsigned int nr_pages, int update)
 #if (IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE) && IS_MODULE(CONFIG_AMLOGIC_CMA)) || \
 	(IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE) && IS_BUILTIN(CONFIG_AMLOGIC_CMA))
 	unsigned long orig_pfn = pfn;
+	int vflag = 0;
 #endif
 
 	while (nr_pages) {
@@ -1883,7 +1885,7 @@ void aml_cma_free(unsigned long pfn, unsigned int nr_pages, int update)
 		(IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE) && IS_BUILTIN(CONFIG_AMLOGIC_CMA))
 		if (cma_alloc_trace)
 			pr_info("c f p:%lx, c:%d, f:%ps\n",
-				orig_pfn, orig_nr_pages, (void *)find_back_trace());
+				orig_pfn, orig_nr_pages, (void *)find_back_trace(&vflag));
 	#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
 		atomic_long_sub(orig_nr_pages, &nr_cma_allocated);
 	}

@@ -46,7 +46,8 @@ struct page;
 struct page_trace {
 	union {
 		struct {
-			unsigned long ret_ip       :56;
+			unsigned long ret_ip       :55;
+			unsigned long filter_flag  : 1;
 			unsigned long migrate_type : 3;
 			unsigned long module_flag  : 1;
 			unsigned long order        : 4;
@@ -59,7 +60,8 @@ struct page_trace {
 struct page_trace {
 	union {
 		struct {
-			unsigned long ret_ip       :24;
+			unsigned long ret_ip       :23;
+			unsigned long filter_flag  : 1;
 			unsigned long migrate_type : 3;
 			unsigned long module_flag  : 1;
 			unsigned long order        : 4;
@@ -77,14 +79,14 @@ extern unsigned int trace_step;
 #if IS_ENABLED(CONFIG_AMLOGIC_PAGE_TRACE)
 u64 get_iow_time(u64 *cpu);
 unsigned long unpack_ip(struct page_trace *trace);
-unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag);
+unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag, int vflag);
 void set_page_trace(struct page *page, unsigned int order,
 		    gfp_t gfp_flags, void *func);
 void replace_page_trace(struct page *new, struct page *old);
 void reset_page_trace(struct page *page, unsigned int order);
 void page_trace_mem_init(void);
 struct page_trace *find_page_base(struct page *page);
-unsigned long find_back_trace(void);
+unsigned long find_back_trace(void *arg);
 unsigned long get_page_trace(struct page *page);
 #else
 static inline u64 get_iow_time(u64 *cpu)
