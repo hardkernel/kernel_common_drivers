@@ -548,6 +548,8 @@ static int am_meson_drm_set_config(struct drm_mode_set *set,
 
 	meson_fb = to_am_meson_fb(set->fb);
 	meson_crtc_state = to_am_meson_crtc_state(crtc_state);
+	/*logo init without waiting for VBlank.*/
+	meson_crtc_state->nonblock_by_vblank = true;
 	if (meson_fb->logo->vpp_index == VPP0) {
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 		meson_crtc_state->uboot_mode_init = get_vout_mode_uboot_state();
