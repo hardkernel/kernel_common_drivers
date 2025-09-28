@@ -894,8 +894,6 @@ static int meson8b_resume(struct device *dev)
 				if (phydev)
 					phydev->irq_suspended = 0;
 				ret = stmmac_resume(dev);
-				if (phydev)
-					gxl_resume_internal_registers(phydev);
 			} else {
 				if (dwmac->data->resume)
 					dwmac->data->resume(dwmac);
@@ -903,6 +901,13 @@ static int meson8b_resume(struct device *dev)
 				if (phydev)
 					phydev->irq_suspended = 0;
 				ret = stmmac_resume(dev);
+			}
+			/* only for eth reset or txhd2.
+			 * txhd2: restore register due to PHY must poweroff
+			 */
+			if (ee_reset_base || phy_mode == 2) {
+				if (phydev)
+					gxl_resume_internal_registers(phydev);
 			}
 		}
 		/*RTC wait linkup*/
