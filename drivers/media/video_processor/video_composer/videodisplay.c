@@ -445,16 +445,13 @@ static void vsync_video_pattern(struct composer_dev *dev, struct vframe_s *vf)
 	vd_vsync_video_pattern(dev, PATTERN_44, vf);
 	vd_vsync_video_pattern(dev, PATTERN_55, vf);
 	if (dev->pattern_detected != PATTERN_11 ||
-		(dev->pattern_detected == PATTERN_11 &&
-			dev->pattern[PATTERN_11] != PATTERN_11_DETECT_RANGE))
+		(dev->pattern[PATTERN_11] != PATTERN_11_DETECT_RANGE))
 		vd_vsync_video_pattern_11120(dev, vf);
 	if (dev->pattern_detected != PATTERN_22 ||
-		(dev->pattern_detected == PATTERN_22 &&
-			dev->pattern[PATTERN_22] != PATTERN_22_DETECT_RANGE))
+		(dev->pattern[PATTERN_22] != PATTERN_22_DETECT_RANGE))
 		vd_vsync_video_pattern_13213(dev, vf);
 	if (dev->pattern_detected != PATTERN_44 ||
-		(dev->pattern_detected == PATTERN_44 &&
-			dev->pattern[PATTERN_44] != PATTERN_44_DETECT_RANGE))
+		(dev->pattern[PATTERN_44] != PATTERN_44_DETECT_RANGE))
 		vd_vsync_video_pattern_53(dev, vf);
 	/*vd_vsync_video_pattern(dev, PTS_41_PATTERN);*/
 }
@@ -1068,7 +1065,8 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 					"%s: mpb_buf is NULL.\n",
 					__func__);
 			}
-			vf->vc_private->unlock_buffer_cb(mpb_buf);
+			if (vf->vc_private)
+				vf->vc_private->unlock_buffer_cb(mpb_buf);
 		} else {
 			dma_buf_put((struct dma_buf *)file_vf);
 			dma_fence_signal(vd_prepare_tmp->release_fence);

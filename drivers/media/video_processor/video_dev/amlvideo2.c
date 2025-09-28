@@ -5304,8 +5304,6 @@ static int amlvideo2_event_cb(int type, void *data, void *private_data)
 	} else if (type & VFRAME_EVENT_RECEIVER_FRAME_WAIT) {
 		/* up(&thread_sem); */
 		pr_err("receiver is waiting\n");
-	} else if (type & VFRAME_EVENT_RECEIVER_FRAME_WAIT) {
-		pr_err("frame wait\n");
 	}
 	return 0;
 }

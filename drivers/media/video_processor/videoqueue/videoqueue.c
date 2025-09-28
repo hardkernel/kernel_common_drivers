@@ -333,13 +333,14 @@ static void file_pop_display_q(struct video_queue_dev *dev,
 static void file_pop_out2vt_q(struct video_queue_dev *dev, struct file *recycle_file)
 {
 	struct file *file_tmp = NULL;
-	int i = kfifo_len(&dev->out2vt_q);
+	int i = 0;
 
 	if (!dev || !recycle_file) {
 		pr_err("%s: NULL param.\n", __func__);
 		return;
 	}
 
+	i = kfifo_len(&dev->out2vt_q);
 	while (kfifo_len(&dev->out2vt_q) > 0) {
 		if (kfifo_get(&dev->out2vt_q, &file_tmp)) {
 			if (recycle_file == file_tmp)
@@ -802,6 +803,8 @@ static int do_file_thread(struct video_queue_dev *dev)
 		return -1;
 	}
 	private_data = v4lvideo_get_file_private_data(ready_file, true);
+	if (!private_data)
+		return -1;
 	vf = vf_get(dev->vf_receiver_name);
 	if (!vf)
 		return -1;

@@ -89,7 +89,6 @@ struct vframe_s *nn_get_vframe(int shared_fd)
 			    (vframe->flag & VFRAME_FLAG_CONTAIN_POST_FRAME))
 				vframe = vframe->vf_ext;
 		}
-		nn_print(PRINT_OTHER, "vframe type: %d\n", vframe->type);
 		dmabuf_put_vframe(dmabuf);
 	} else {
 		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
@@ -112,6 +111,7 @@ struct vframe_s *nn_get_vframe(int shared_fd)
 		nn_print(PRINT_ERROR, "%s: get vf failed.\n", __func__);
 		return NULL;
 	}
+	nn_print(PRINT_OTHER, "vframe type: %d\n", vframe->type);
 
 	return vframe;
 }
@@ -146,9 +146,8 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr, int *di_flag)
 
 	if (is_dec_vf) {
 		vf = dmabuf_get_vframe(dmabuf);
-		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME))
+		if (vf && vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME))
 			vf = vf->vf_ext;
-		nn_print(PRINT_OTHER, "vframe type: %d\n", vf->type);
 		dmabuf_put_vframe(dmabuf);
 	} else {
 		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
@@ -165,6 +164,7 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr, int *di_flag)
 			vf = &file_private_data->vf;
 	}
 	if (vf) {
+		nn_print(PRINT_OTHER, "vframe type: %d\n", vf->type);
 		hf_info = vf->hf_info;
 		if (hf_info) {
 			nn_sr->hf_phy_addr = hf_info->phy_addr;

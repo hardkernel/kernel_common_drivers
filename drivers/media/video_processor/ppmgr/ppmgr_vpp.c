@@ -1845,13 +1845,14 @@ static int process_vf_tb_detect(struct vframe_s *vf,
 	int interlace_mode;
 	u32 canvas_id;
 	u32 format = GE2D_FORMAT_M24_YUV420;
-	u32 h_scale_coef_type =
-		context->config.h_scale_coef_type;
-	u32 v_scale_coef_type =
-		context->config.v_scale_coef_type;
+	u32 h_scale_coef_type = 0;
+	u32 v_scale_coef_type = 0;
 
 	if (unlikely(!vf) || !context)
 		return -1;
+
+	h_scale_coef_type = context->config.h_scale_coef_type;
+	v_scale_coef_type = context->config.v_scale_coef_type;
 
 	interlace_mode = vf->type & VIDTYPE_TYPEMASK;
 	if (!interlace_mode)

@@ -1168,6 +1168,11 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 
 	if (is_dec_vf) {
 		vf = dmabuf_get_vframe(dmabuf);
+		if (!vf) {
+			pr_err("vf is NULL\n");
+			dmabuf_put_vframe(dmabuf);
+			return;
+		}
 		pr_debug("vf=%p vf->vf_ext:%p vf->flags:%d\n",
 				vf, vf->vf_ext, vf->flag);
 		if (vf->vf_ext &&
@@ -1206,7 +1211,6 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 
 		v4l_data->file_private_data = file_private_data;
 	}
-
 
 	if (!vf) {
 		pr_err("vf is NULL\n");

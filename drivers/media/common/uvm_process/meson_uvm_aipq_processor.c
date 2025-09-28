@@ -150,7 +150,7 @@ int aipq_vf_set_value(struct uvm_aipq_info *aipq_info, bool enable_aipq)
 		/*check end, next need put uvm*/
 
 		if (vf->vf_ext) {
-			if (!is_dec_vf || (is_dec_vf && di_flag)) {
+			if (!is_dec_vf || di_flag) {
 				aipq_print(PRINT_OTHER, "set di vf\n");
 				tmp_vf = vf;
 				vf = vf->vf_ext;

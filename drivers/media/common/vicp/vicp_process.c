@@ -1842,7 +1842,7 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 		set_rdmif_enable(0);
 		set_input_path(VICP_INPUT_PATH_AFBCD);
 		memset(&vid_cmpr_afbcd, 0, sizeof(struct vid_cmpr_afbcd_s));
-		if (vid_cmpr_top->src_vf->bitdepth & BITDEPTH_SAVING_MODE)
+		if (vid_cmpr_top->src_vf && vid_cmpr_top->src_vf->bitdepth & BITDEPTH_SAVING_MODE)
 			vid_cmpr_afbcd.blk_mem_mode = 1;
 		else
 			vid_cmpr_afbcd.blk_mem_mode = 0;
@@ -1854,17 +1854,18 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 		vid_cmpr_afbcd.compbits_u = vid_cmpr_top->src_compbits - 8;
 		vid_cmpr_afbcd.compbits_v = vid_cmpr_top->src_compbits - 8;
 		vid_cmpr_afbcd.fmt_mode  = vid_cmpr_top->src_fmt_mode;
-		if (vid_cmpr_top->src_vf->type & VIDTYPE_SCATTER)
+		if (vid_cmpr_top->src_vf && vid_cmpr_top->src_vf->type & VIDTYPE_SCATTER)
 			vid_cmpr_afbcd.ddr_sz_mode = 1;
 		else
 			vid_cmpr_afbcd.ddr_sz_mode = 0;
 
-		if (vid_cmpr_top->src_vf->type & VIDTYPE_COMB_MODE)
+		if (vid_cmpr_top->src_vf && vid_cmpr_top->src_vf->type & VIDTYPE_COMB_MODE)
 			vid_cmpr_afbcd.fmt444_comb = 1;
 		else
 			vid_cmpr_afbcd.fmt444_comb = 0;
 
-		if (vid_cmpr_top->src_vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+		if (vid_cmpr_top->src_vf &&
+			vid_cmpr_top->src_vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
 			!(vid_cmpr_top->src_vf->type & VIDTYPE_DI_PW))
 			vid_cmpr_afbcd.dos_uncomp = 1;
 		else
