@@ -7,6 +7,15 @@
 #define __EFFECTS_V2_H__
 
 #define AED_REG_NUM	13
+
+enum {
+	VERSION1 = 0,
+	VERSION2,
+	VERSION3,
+	VERSION4,
+	VERSION5
+};
+
 struct audioeffect {
 	struct device *dev;
 
@@ -31,6 +40,7 @@ struct audioeffect {
 };
 
 struct audioeffect *get_audioeffects(void);
+int check_aed_version(void);
 int str2int(char *str, unsigned int *data, int size);
 int mixer_aed_read(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);

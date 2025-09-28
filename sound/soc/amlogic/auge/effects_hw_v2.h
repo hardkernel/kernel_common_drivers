@@ -8,14 +8,6 @@
 #include <linux/types.h>
 #include "ddr_mngr.h"
 
-enum {
-	VERSION1 = 0,
-	VERSION2,
-	VERSION3,
-	VERSION4,
-	VERSION5
-};
-
 void aed_init_ram_coeff(int version, int add, int len, unsigned int *params);
 void aed_set_ram_coeff(int version, int add, int len, unsigned int *params);
 void aed_get_ram_coeff(int add, int len, unsigned int *params);

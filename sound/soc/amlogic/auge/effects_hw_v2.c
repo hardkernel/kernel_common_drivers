@@ -10,6 +10,7 @@
 #include "iomap.h"
 #include "tdm_hw.h"
 #include "spdif_hw.h"
+#include "effects_common.h"
 
 void aed_init_ram_coeff(int version, int add, int len, unsigned int *params)
 {

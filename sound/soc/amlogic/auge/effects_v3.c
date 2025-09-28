@@ -127,6 +127,12 @@ static int mixer_set_EQ_params(struct snd_kcontrol *kcontrol,
 	unsigned int *p = &AED_EQ_COEFF[0];
 	int num, band_id;
 	char *val = (char *)ucontrol->value.bytes.data;
+	int version = check_aed_version();
+
+	if (version < 0) {
+		pr_err("Failed to obtain version: %d\n", version);
+		return 0;
+	}
 
 	if (!val)
 		return -ENOMEM;
@@ -139,7 +145,8 @@ static int mixer_set_EQ_params(struct snd_kcontrol *kcontrol,
 			num, tmp_data[0]);
 		return 0;
 	}
-
+	if (band_id > 13 && version == VERSION5)
+		return 0;
 	p_data = &tmp_data[1];
 	p = &AED_EQ_COEFF[band_id * (AED_FILTER_PARAM_SIZE + 1)];
 	memcpy(p, p_data, AED_FILTER_PARAM_SIZE * UNSIGNED_INT_SIZE);
