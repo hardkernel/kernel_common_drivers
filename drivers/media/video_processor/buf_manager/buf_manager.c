@@ -685,7 +685,7 @@ void free_di_mgr_data(void *arg)
 
 		buf_mgr_put(uvm_di_mgr->buf_mgr);
 
-		vfree((u8 *)arg);
+		kfree((u8 *)arg);
 	} else {
 		pr_err("%s: arg is NULL\n", __func__);
 	}
@@ -730,7 +730,7 @@ int buf_mgr_to_file(struct dp_buf_mgr_t *buf_mgr, struct file *file)
 
 	uhmod = uvm_get_hook_mod(dmabuf, PROCESS_DI_MGR);
 	if (IS_ERR_OR_NULL(uhmod)) {
-		uvm_di_mgr = vmalloc(sizeof(*uvm_di_mgr));
+		uvm_di_mgr = kmalloc(sizeof(*uvm_di_mgr), GFP_KERNEL);
 		buf_mgr_print(buf_mgr, PRINT_OTHER, "attach:PROCESS_DI_MGR\n");
 		if (!uvm_di_mgr) {
 			dma_buf_put(dmabuf);

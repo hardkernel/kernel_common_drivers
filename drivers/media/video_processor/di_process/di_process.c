@@ -319,7 +319,7 @@ static int init_dummy_vf_param(struct di_process_dev *dev, struct vframe_s *src_
 	if (src_vf->hdr10p_data_size > 0 &&
 		src_vf->hdr10p_data_size <= 128 &&
 		src_vf->hdr10p_data_buf) {
-		temp = vmalloc(src_vf->hdr10p_data_size);
+		temp = kmalloc(src_vf->hdr10p_data_size, GFP_KERNEL);
 		if (temp) {
 			memset(temp, 0, src_vf->hdr10p_data_size);
 			memcpy(temp, src_vf->hdr10p_data_buf, src_vf->hdr10p_data_size);
@@ -340,7 +340,7 @@ static int init_dummy_vf_param(struct di_process_dev *dev, struct vframe_s *src_
 	if (src_vf->src_fmt.sei_magic_code == SEI_MAGIC_CODE) {
 		sei_ptr = (char *)get_sei_from_src_fmt(src_vf, &sei_size);
 		if (sei_ptr && sei_size) {
-			temp = vmalloc(sei_size);
+			temp = kmalloc(sei_size, GFP_KERNEL);
 			if (temp) {
 				memset(temp, 0, sei_size);
 				memcpy(temp, sei_ptr, sei_size);
@@ -372,7 +372,7 @@ static int init_dummy_vf_param(struct di_process_dev *dev, struct vframe_s *src_
 		if (userdata->pbuf_addr &&
 			userdata->buf_len > 0 &&
 			userdata->buf_len <= VF_UD_MAX_SIZE) {
-			temp = vmalloc(userdata->buf_len);
+			temp = kmalloc(userdata->buf_len, GFP_KERNEL);
 			if (temp) {
 				memset(temp, 0, userdata->buf_len);
 				memcpy(temp, userdata->pbuf_addr, userdata->buf_len);
@@ -404,26 +404,14 @@ static int uninit_dummy_vf_param(struct di_process_dev *dev)
 	}
 
 	dp_print(dev->index, PRINT_OTHER, "free dummy frame alloc buf.\n");
-	if (dev->dummy_vf.hdr10p_data_buf) {
-		vfree(dev->dummy_vf.hdr10p_data_buf);
-		dev->dummy_vf.hdr10p_data_buf = NULL;
-	} else {
-		dp_print(dev->index, PRINT_OTHER, "no hdr10 data.\n");
-	}
+	kfree(dev->dummy_vf.hdr10p_data_buf);
+	dev->dummy_vf.hdr10p_data_buf = NULL;
 
-	if (dev->dummy_vf.src_fmt.sei_ptr) {
-		vfree(dev->dummy_vf.src_fmt.sei_ptr);
-		dev->dummy_vf.src_fmt.sei_ptr = NULL;
-	} else {
-		dp_print(dev->index, PRINT_OTHER, "no sei data.\n");
-	}
+	kfree(dev->dummy_vf.src_fmt.sei_ptr);
+	dev->dummy_vf.src_fmt.sei_ptr = NULL;
 
-	if (dev->dummy_vf.vf_ud_param.ud_param.pbuf_addr) {
-		vfree(dev->dummy_vf.vf_ud_param.ud_param.pbuf_addr);
-		dev->dummy_vf.vf_ud_param.ud_param.pbuf_addr = NULL;
-	} else {
-		dp_print(dev->index, PRINT_OTHER, "no ud data.\n");
-	}
+	kfree(dev->dummy_vf.vf_ud_param.ud_param.pbuf_addr);
+	dev->dummy_vf.vf_ud_param.ud_param.pbuf_addr = NULL;
 
 	return 0;
 }
