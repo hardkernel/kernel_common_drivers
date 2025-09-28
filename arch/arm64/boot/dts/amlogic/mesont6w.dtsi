@@ -1011,36 +1011,6 @@
 			resets = <&reset RESET_SD_EMMC_C>;
 		};
 
-		video_composer {
-			compatible = "amlogic, video_composer";
-			dev_name = "video_composer";
-			status = "okay";
-		};
-
-		video_dump {
-			compatible = "amlogic, video_dump";
-			dev_name = "video_dump";
-			status = "okay";
-		};
-
-		ionvideo {
-			compatible = "amlogic, ionvideo";
-			dev_name = "ionvideo";
-			status = "okay";
-		};
-
-		di_process {
-			compatible = "amlogic, di_process";
-			dev_name = "di_process";
-			status = "disabled";
-		};
-
-		dpss_process {
-			compatible = "amlogic, dpss_process";
-			dev_name = "di_process";
-			status = "okay";
-		};
-
 		vpu: vpu {
 			compatible = "amlogic, vpu-t6w";
 			status = "okay";
@@ -1173,6 +1143,36 @@
 				0x0000a008>; /* WB0_POST_BLEND */
 			/* vdin v4l2 end */
 		};
+	};
+
+	v2d {
+		compatible = "amlogic, v2d";
+		dev_name = "v2d";
+		status = "okay";
+	};
+
+	videodisplay {
+		compatible = "amlogic, videodisplay";
+		dev_name = "videodisplay";
+		status = "okay";
+	};
+
+	video_composer {
+		compatible = "amlogic, video_composer";
+		dev_name = "video_composer";
+		status = "okay";
+	};
+
+	di_process {
+		compatible = "amlogic, di_process";
+		dev_name = "di_process";
+		status = "disabled";
+	};
+
+	dpss_process {
+		compatible = "amlogic, dpss_process";
+		dev_name = "di_process";
+		status = "disabled";
 	};
 
 	aml_bt: aml_bt {
