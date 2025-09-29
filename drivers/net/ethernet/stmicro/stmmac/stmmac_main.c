@@ -8027,8 +8027,13 @@ int stmmac_suspend(struct device *dev)
 				dev_err(priv->device, "phylink_speed_down(): auto-negotiation is incomplete\n");
 		}
 #endif
-#endif
+		if (wol_switch_from_user)
+			phylink_suspend(priv->phylink, true);
+		else
+			phylink_suspend(priv->phylink, false);
+#else
 		phylink_suspend(priv->phylink, true);
+#endif
 	} else {
 		if (device_may_wakeup(priv->device))
 			phylink_speed_down(priv->phylink, false);
