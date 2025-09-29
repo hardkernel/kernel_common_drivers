@@ -620,7 +620,6 @@ static int tvafe_avin_release(struct inode *inode, struct file *file)
 	tvafe_avin_set_detect_en(avin_data, false);
 	del_timer_sync(&avin_detect_timer);
 	cancel_work_sync(&avin_read_reg_work);
-	flush_workqueue(avin_read_reg_wq);
 	avin_detect_flag &= ~AVIN_DETECT_OPEN;
 	file->private_data = NULL;
 	tvafe_pr_info("%s: avin release.\n", __func__);
@@ -1258,9 +1257,8 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 		wake_up_interruptible(&tvafe_avin_waitq);
 
 TIMER:
-	avin_detect_timer->expires = jiffies +
-				(TVAFE_AVIN_INTERVAL * avin_timer_time);
-	add_timer(avin_detect_timer);
+	mod_timer(avin_detect_timer, jiffies +
+		(TVAFE_AVIN_INTERVAL * avin_timer_time));
 }
 
 int tvafe_avin_init_resource(void)
