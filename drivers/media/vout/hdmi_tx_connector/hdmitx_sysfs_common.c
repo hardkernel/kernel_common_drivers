@@ -507,10 +507,10 @@ static ssize_t _hdr_cap_show(struct device *dev,
 			hdr->dynamic_info[i].support_flags);
 		pos += snprintf(buf + pos, size - pos,
 			"        optional_fields:");
-		for (j = 0; j <
-			(hdr->dynamic_info[i].of_len - 3); j++)
-			pos += snprintf(buf + pos, size - pos, " %x",
-				hdr->dynamic_info[i].optional_fields[j]);
+		if (hdr->dynamic_info[i].of_len >= 3)
+			for (j = 0; j < (hdr->dynamic_info[i].of_len - 3); j++)
+				pos += snprintf(buf + pos, size - pos, " %x",
+					hdr->dynamic_info[i].optional_fields[j]);
 	}
 
 	pos += snprintf(buf + pos, size - pos, "\n\ncolorimetry_data: %x\n",

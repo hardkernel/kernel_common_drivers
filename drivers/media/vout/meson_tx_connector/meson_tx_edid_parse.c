@@ -1015,7 +1015,10 @@ static int _edid_parsedrmdb(struct hdr_info *info, u8 *buf)
 			buf[pos];
 			pos++;
 		}
-		data_end = data_end - (type_length + 1);
+		if (data_end >= (type_length + 1))
+			data_end = data_end - (type_length + 1);
+		else
+			data_end = 0;
 	}
 
 	return 0;

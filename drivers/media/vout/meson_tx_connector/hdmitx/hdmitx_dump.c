@@ -663,9 +663,9 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 		seq_printf(s, "        support_flags: %x\n",
 			hdr->dynamic_info[i].support_flags);
 		seq_puts(s, "        optional_fields:");
-		for (j = 0; j <
-			(hdr->dynamic_info[i].of_len - 3); j++)
-			seq_printf(s, " %x", hdr->dynamic_info[i].optional_fields[j]);
+		if (hdr->dynamic_info[i].of_len >= 3)
+			for (j = 0; j < (hdr->dynamic_info[i].of_len - 3); j++)
+				seq_printf(s, " %x", hdr->dynamic_info[i].optional_fields[j]);
 	}
 
 	seq_printf(s, "\n\ncolorimetry_data: %x\n",
