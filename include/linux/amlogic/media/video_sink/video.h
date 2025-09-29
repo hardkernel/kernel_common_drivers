@@ -555,6 +555,11 @@ void vsync_notify_videoqueue(u8 layer_id,
 void videoqueue_pcrscr_update(u8 vpp_index, s32 inc, u32 base);
 #endif
 
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+void vsync_notify_videodisplay(u8 layer_id,
+	u32 vsync_pts_inc_scale, u32 vsync_pts_inc_scale_base);
+#endif
+
 #ifdef CONFIG_AMLOGIC_VDETECT
 int vdetect_get_frame_nn_info(struct vframe_s *vframe);
 #endif

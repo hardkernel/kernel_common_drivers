@@ -17,6 +17,7 @@ extern unsigned int debug_common_flag;
 #define DEBUG_FLAG_COMMON_PER_PREVSYNC     BIT(6)
 #define DEBUG_FLAG_COMMON_LCEVC    BIT(7)
 #define DEBUG_FLAG_COMMON_VFCD     BIT(8)
+#define DEBUG_FLAG_COMMON_FENCE    BIT(9)
 
 extern struct vd_proc_info_t vd_proc_amdv;
 extern struct vd_proc_amvecm_info_t vd_proc_amvecm;
