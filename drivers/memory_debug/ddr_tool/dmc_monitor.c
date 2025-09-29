@@ -47,7 +47,7 @@
 #include "dmc_trace.h"
 
 // #define DEBUG
-#define DMC_VERSION		"1.10.4"
+#define DMC_VERSION		"1.10.5"
 
 #define IRQ_CHECK		0
 #define IRQ_CLEAR		1
@@ -64,7 +64,7 @@ struct dmc_monitor *dmc_mon;
 
 /*if it not be filter, use tvp secure soc will be serror due dmc read addr value*/
 char exception_filter_sym[] = "alloc_from_cma";
-char default_filter_dev[] = "USB,ETH,EMMC,TCON1";
+char default_filter_dev[] = "USB,ETH,EMMC,TCON";
 char default_filter_sym[] = "__dma_direct_alloc_pages,alloc_page_boost_work_func,dma_direct_alloc";
 
 static enum dmc_mode_type init_dmc_mode = DMC_MODE_RESERVED;
