@@ -93,7 +93,7 @@ void lcd_act_timing_dbg_print(struct aml_lcd_drv_s *pdrv);
 unsigned int lcd_config_timing_check(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
 				     struct lcd_detail_timing_s *ptiming);
 int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv);
-void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv);
+void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p);
 unsigned char lcd_panel_config_load_detect(int index, int key_valid, const char *func_name);
 int lcd_check_config_load(struct aml_lcd_drv_s *drv);
 // int lcd_config_load(struct aml_lcd_drv_s *pdrv);
@@ -165,7 +165,7 @@ int lcd_phy_probe(struct aml_lcd_drv_s *pdrv);
 int lcd_phy_config_init(struct lcd_data_s *pdata);
 
 /* lcd dphy */
-void lcd_lane_map_preset(struct aml_lcd_drv_s *pdrv);
+void lcd_lane_map_preset(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p);
 void lcd_lane_map_update(struct aml_lcd_drv_s *pdrv);
 void lcd_lane_map_set(struct aml_lcd_drv_s *pdrv);
 int lcd_lane_sel_get(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy_cfg);

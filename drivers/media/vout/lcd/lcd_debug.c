@@ -1692,7 +1692,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 							(pctrl->mlvds_cfg.clk_phase >> 12) & 1;
 				pdrv->curr_dev->dev_cfg.phy_cfg.act_phy->clk_phase =
 							pctrl->mlvds_cfg.clk_phase & 0xfff;
-				lcd_mlvds_phy_ckdi_config(pdrv);
+				lcd_mlvds_phy_ckdi_config(pdrv, pdrv->curr_dev);
 				ptiming = &pconf->timing.act_timing;
 				lcd_debug_change_clk_change(pdrv, ptiming->pixel_clk);
 
@@ -3599,6 +3599,7 @@ static ssize_t lcd_lvds_debug_store(struct device *dev, struct device_attribute 
 			lvds_conf->lvds_repack, lvds_conf->dual_port,
 			lvds_conf->pn_swap, lvds_conf->port_swap,
 			lvds_conf->lane_reverse);
+		lcd_lane_map_update(pdrv);
 		lcd_debug_config_update(pdrv);
 	} else {
 		pr_info("invalid data\n");
@@ -3827,7 +3828,7 @@ static ssize_t lcd_mlvds_debug_store(struct device *dev, struct device_attribute
 			mlvds_conf->pn_swap, mlvds_conf->bit_swap);
 		pdrv->curr_dev->dev_cfg.phy_cfg.bypass_resample = (mlvds_conf->clk_phase >> 12) & 1;
 		pdrv->curr_dev->dev_cfg.phy_cfg.act_phy->clk_phase = mlvds_conf->clk_phase & 0xfff;
-		lcd_mlvds_phy_ckdi_config(pdrv);
+		lcd_mlvds_phy_ckdi_config(pdrv, pdrv->curr_dev);
 		lcd_debug_config_update(pdrv);
 	}
 

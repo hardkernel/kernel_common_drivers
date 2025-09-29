@@ -55,7 +55,8 @@ static void lcd_lane_map_chip_init(struct aml_lcd_drv_s *pdrv, struct phy_config
 	}
 }
 
-static int lcd_lane_vbyone_ch_data_map(struct aml_lcd_drv_s *pdrv, unsigned char *data_map)
+static int lcd_lane_vbyone_ch_data_map(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
+			unsigned char *data_map)
 {
 	unsigned char ch_slice[][8] = {
 		{0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7},
@@ -65,8 +66,8 @@ static int lcd_lane_vbyone_ch_data_map(struct aml_lcd_drv_s *pdrv, unsigned char
 	int ch_idx, slice_idx, i;
 
 	//generate ch slice data map table
-	lane_cnt = pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count;
-	slice_cnt = pdrv->curr_dev->dev_cfg.control.vbyone_cfg.slice;
+	lane_cnt = dev_p->dev_cfg.control.vbyone_cfg.lane_count;
+	slice_cnt = dev_p->dev_cfg.control.vbyone_cfg.slice;
 	lane_pre_slice = (lane_cnt + slice_cnt - 1) / slice_cnt;
 	if (lane_cnt >= CH_LANE_MAX) {
 		LCD_ERR(pdrv, "%s: vbyone lane_cnt %d err", __func__, lane_cnt);
@@ -90,17 +91,18 @@ static int lcd_lane_vbyone_ch_data_map(struct aml_lcd_drv_s *pdrv, unsigned char
 }
 
 //ch_swap for reg
-static void lcd_lane_sel_to_ch_swap(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy_cfg)
+static void lcd_lane_sel_to_ch_swap(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
 {
+	struct phy_config_s *phy_cfg = &dev_p->dev_cfg.phy_cfg;
 	unsigned char data_map[CH_LANE_MAX];
 	unsigned int data_sel, valid_flag = 0, i, bit;
 	int ret;
 
 	phy_cfg->ch_swap0 = 0xffffffff;
 	phy_cfg->ch_swap1 = 0xffffffff;
-	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
+	switch (dev_p->dev_cfg.basic.lcd_type) {
 	case LCD_VBYONE:
-		ret = lcd_lane_vbyone_ch_data_map(pdrv, data_map);
+		ret = lcd_lane_vbyone_ch_data_map(pdrv, dev_p, data_map);
 		if (ret)
 			return;
 		for (i = 0; i < phy_cfg->lane_num; i++) {
@@ -148,16 +150,17 @@ static void lcd_lane_sel_to_ch_swap(struct aml_lcd_drv_s *pdrv, struct phy_confi
 		phy_cfg->lane_num, phy_cfg->ch_swap0, phy_cfg->ch_swap1, phy_cfg->lane_valid);
 }
 
-static void lcd_ch_swap_to_lane_sel(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy_cfg)
+static void lcd_ch_swap_to_lane_sel(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
+		struct phy_config_s *phy_cfg)
 {
 	unsigned char data_map[CH_LANE_MAX];
 	unsigned int sel = 0xff, valid_flag = 0;
 	unsigned int i, j, bit;
 	int ret;
 
-	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
+	switch (dev_p->dev_cfg.basic.lcd_type) {
 	case LCD_VBYONE:
-		ret = lcd_lane_vbyone_ch_data_map(pdrv, data_map);
+		ret = lcd_lane_vbyone_ch_data_map(pdrv, dev_p, data_map);
 		if (ret)
 			return;
 		for (i = 0; i < phy_cfg->lane_num; i++) {
@@ -204,12 +207,73 @@ static void lcd_ch_swap_to_lane_sel(struct aml_lcd_drv_s *pdrv, struct phy_confi
 		phy_cfg->lane_num, phy_cfg->ch_swap0, phy_cfg->ch_swap1, phy_cfg->lane_valid);
 }
 
-static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, unsigned int *map1)
+struct lvds_valid_port_s {
+	unsigned char s0;
+	unsigned char e0;
+	unsigned char s1;
+	unsigned char e1;
+};
+
+static int lcd_lvds_get_valid_port_num(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
+				       struct lvds_valid_port_s *valid_port)
 {
-	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
-	unsigned char ch_reg_idx = 0, lcd_bits, temp, i, n;
-	unsigned char valid_port0_s = 0xf, valid_port0_e = 0xf;
-	unsigned char valid_port1_s = 0xf, valid_port1_e = 0xf;
+	unsigned char lcd_bits;
+
+	if (!valid_port)
+		return -1;
+	lcd_bits = dev_p->dev_cfg.timing.base_timing->lcd_bits;
+
+	/* lvds swap */
+	switch (pdrv->data->chip_type) {
+	case LCD_CHIP_T3X:
+	case LCD_CHIP_T6X:
+		if (lcd_bits == 30) {
+			valid_port->s0 = 0;
+			valid_port->e0 = 5;
+			valid_port->s1 = 8;
+			valid_port->e1 = 0xd;
+		} else if (lcd_bits == 18) {
+			valid_port->s0 = 0;
+			valid_port->e0 = 3;
+			valid_port->s1 = 8;
+			valid_port->e1 = 0xb;
+		} else { //24bit
+			valid_port->s0 = 0;
+			valid_port->e0 = 4;
+			valid_port->s1 = 8;
+			valid_port->e1 = 0xc;
+		}
+		break;
+	default:
+		if (lcd_bits == 30) {
+			valid_port->s0 = 0;
+			valid_port->e0 = 5;
+			valid_port->s1 = 6;
+			valid_port->e1 = 0xb;
+		} else if (lcd_bits == 18) {
+			valid_port->s0 = 0;
+			valid_port->e0 = 3;
+			valid_port->s1 = 6;
+			valid_port->e1 = 9;
+		} else { //24bit
+			valid_port->s0 = 0;
+			valid_port->e0 = 4;
+			valid_port->s1 = 6;
+			valid_port->e1 = 0xa;
+		}
+		break;
+	}
+
+	return 0;
+}
+
+static void lcd_lvds_lane_init(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
+			unsigned int *map0, unsigned int *map1)
+{
+	struct phy_config_s *phy_cfg = &dev_p->dev_cfg.phy_cfg;
+	struct lvds_valid_port_s valid_port;
+	unsigned char temp, i, n;
+	int ret;
 
 	LCD_DBG(pdrv, "%s", __func__);
 
@@ -218,30 +282,21 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 	// DIF_CH0:d0_a DIF_CH1:d1_a DIF_CH2:d2_a DIF_CH3:clk_a DIF_CH4:d3_a DIF_CH5:d4_a
 	// DIF_CH6:d0_b DIF_CH7:d1_b DIF_CH8:d2_b DIF_CH9:clk_b DIF_CH10:d3_b DIF_CH11:d4_b
 						// port_swap, lane_reverse
-	unsigned int ch_map_6lane[8] = {0x456789ab, 0x0123,  // 1, 1
-					0x10ba9876, 0x5432,  // 1, 0
-					0xab012345, 0x6789,  // 0, 1
-					0x76543210, 0xba98}; // 0, 0
+	unsigned int ch_map_6lane[2] = {0x76543210, 0xba98}; // 0, 0
 
 	// 12-12 channel:
 	// d0_a:0 d1_a:1 d2_a:2 clk_a:3 d3_a:4 d4_a:5 d0_b:6 d1_b:7 d2_b:8 clk_b:9 d3_b:a d4_b:b
 	// DIF_CH0:d0_a DIF_CH1:d1_a DIF_CH2:d2_a DIF_CH3:clk_a DIF_CH4:d3_a
 	// DIF_CH5:d0_b DIF_CH6:d1_b DIF_CH7:d2_b DIF_CH8:clk_b DIF_CH9:d3_b
 	// DIF_CH10:d4_a/invalid  DIF_CH11:d4_b/invalid
-	unsigned int ch_map_6_to_5lane[8] = {0x345789ab, 0x0612,  // 1, 1
-					     0x210a9876, 0x5b43,  // 1, 0
-					     0x9ab12345, 0x6078,  // 0, 1
-					     0x87643210, 0xb5a9}; // 0, 0
+	unsigned int ch_map_6_to_5lane[2] = {0x87643210, 0xb5a9}; // 0, 0
 
 	// 10-12 channel: //2k chips
 	// d0_a:0 d1_a:1 d2_a:2 clk_a:3 d3_a:4 d0_b:6 d1_b:7 d2_b:8 clk_b:9 d3_b:a
 	// 5 & b: null
 	// DIF_CH0:d0_a DIF_CH1:d1_a DIF_CH2:d2_a DIF_CH3:clk_a DIF_CH4:d3_a
 	// DIF_CH5:d0_b DIF_CH6:d1_b DIF_CH7:d2_b DIF_CH8:clk_b DIF_CH9:d3_b
-	unsigned int ch_map_5lane[8] = {0x2346789a, 0x5b01,  // 1, 1
-					0x210a9876, 0x5b43,  // 1, 0
-					0x89a01234, 0xb567,  // 0, 1
-					0x87643210, 0xb5a9}; // 0, 0
+	unsigned int ch_map_5lane[2] = {0x87643210, 0xb5a9}; // 0, 0
 
 	// 12-16 channel:
 	// d0_a:0 d1_a:1 d2_a:2 clk_a:3 d3_a:4 d4_a:5 d0_b:8 d1_b:9 d2_b:a clk_b:b d3_b:c d4_b:d
@@ -249,30 +304,11 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 	// DIF_CH6:invalid DIF_CH7:invalid
 	// DIF_CH8:d0_b DIF_CH9:d1_b DIF_CH10:d2_b DIF_CH11:clk_b DIF_CH12:d3_b DIF_CH13:d4_b
 	// DIF_CH14:invalid DIF_CH15:invalid
-	unsigned int ch_map_8_to_6lane[8] = {0x89abcdef, 0x01234567,   // 1, 1
-					     0xfedcba98, 0x76543210,   // 1, 0
-					     0x01234567, 0x89abcdef,   // 0, 1
-					     0x76543210, 0xfedcba98};  // 0, 0
+	unsigned int ch_map_8_to_6lane[2] = {0x76543210, 0xfedcba98};  // 0, 0
 
-	ch_reg_idx  = pdrv->curr_dev->dev_cfg.control.lvds_cfg.port_swap ? 0 : 4;
-	ch_reg_idx += pdrv->curr_dev->dev_cfg.control.lvds_cfg.lane_reverse ? 0 : 2;
-	lcd_bits = pdrv->curr_dev->dev_cfg.timing.base_timing->lcd_bits;
-	if (lcd_bits == 30) {
-		valid_port0_s = 0;
-		valid_port0_e = 5;
-		valid_port1_s = 6;
-		valid_port1_e = 0xb;
-	} else if (lcd_bits == 18) {
-		valid_port0_s = 0;
-		valid_port0_e = 3;
-		valid_port1_s = 6;
-		valid_port1_e = 9;
-	} else { //24bit
-		valid_port0_s = 0;
-		valid_port0_e = 4;
-		valid_port1_s = 6;
-		valid_port1_e = 0xa;
-	}
+	ret = lcd_lvds_get_valid_port_num(pdrv, dev_p, &valid_port);
+	if (ret)
+		return;
 
 	/* lvds swap */
 	switch (pdrv->data->chip_type) {
@@ -281,20 +317,20 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 	case LCD_CHIP_T5M:
 	case LCD_CHIP_T3:
 	case LCD_CHIP_T6W:
-		*map0 = ch_map_6lane[ch_reg_idx];
-		*map1 = ch_map_6lane[ch_reg_idx + 1];
+		*map0 = ch_map_6lane[0];
+		*map1 = ch_map_6lane[1];
 		break;
 	case LCD_CHIP_T5D:
 	case LCD_CHIP_TXHD2:
 	case LCD_CHIP_T6D:
-		*map0 = ch_map_5lane[ch_reg_idx];
-		*map1 = ch_map_5lane[ch_reg_idx + 1];
+		*map0 = ch_map_5lane[0];
+		*map1 = ch_map_5lane[1];
 		break;
 	case LCD_CHIP_T7:
 		//don't support port_swap and lane_reverse when single port
-		if (pdrv->index == 2 && pdrv->curr_dev->dev_cfg.control.lvds_cfg.dual_port) {
-			*map0 = ch_map_6_to_5lane[ch_reg_idx];
-			*map1 = ch_map_6_to_5lane[ch_reg_idx + 1];
+		if (pdrv->index == 2 && dev_p->dev_cfg.control.lvds_cfg.dual_port) {
+			*map0 = ch_map_6_to_5lane[0];
+			*map1 = ch_map_6_to_5lane[1];
 		} else if (pdrv->index == 1) {
 			*map0 = 0xf43210ff;
 			*map1 = 0xffff;
@@ -305,37 +341,24 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 		break;
 	case LCD_CHIP_T3X:
 	case LCD_CHIP_T6X:
-		if (lcd_bits == 30) {
-			valid_port0_s = 0;
-			valid_port0_e = 5;
-			valid_port1_s = 8;
-			valid_port1_e = 0xd;
-		} else if (lcd_bits == 18) {
-			valid_port0_s = 0;
-			valid_port0_e = 3;
-			valid_port1_s = 8;
-			valid_port1_e = 0xb;
-		} else { //24bit
-			valid_port0_s = 0;
-			valid_port0_e = 4;
-			valid_port1_s = 8;
-			valid_port1_e = 0xc;
-		}
-		*map0 = ch_map_8_to_6lane[ch_reg_idx];
-		*map1 = ch_map_8_to_6lane[ch_reg_idx + 1];
+		*map0 = ch_map_8_to_6lane[0];
+		*map1 = ch_map_8_to_6lane[1];
 		break;
 	default:
 		return;
 	}
 
+	LCD_DBG(pdrv, "%s: dual_port=%d, valid_port s0=0x%x, e0=0x%x, s1=0x%x, e1=0x%x\n",
+		__func__, dev_p->dev_cfg.control.lvds_cfg.dual_port,
+		valid_port.s0, valid_port.e0, valid_port.s1, valid_port.e1);
 	for (i = 0; i < phy_cfg->lane_num; i++) {
 		if (i < 8) {
 			n = i * 4;
 			temp = (*map0 >> n) & 0xf;
-			if (temp >= valid_port0_s && temp <= valid_port0_e)
+			if (temp >= valid_port.s0 && temp <= valid_port.e0)
 				continue; //port0 valid lane
-			if (pdrv->curr_dev->dev_cfg.control.lvds_cfg.dual_port &&
-			    (temp >= valid_port1_s && temp <= valid_port1_e)) {
+			if (dev_p->dev_cfg.control.lvds_cfg.dual_port &&
+			    (temp >= valid_port.s1 && temp <= valid_port.e1)) {
 				continue; //port1 valid lane
 			}
 			*map0 |= (0xf << n);
@@ -344,10 +367,10 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 		if (i < 16) {
 			n = (i - 8) * 4;
 			temp = (*map1 >> n) & 0xf;
-			if (temp >= valid_port0_s && temp <= valid_port0_e)
+			if (temp >= valid_port.s0 && temp <= valid_port.e0)
 				continue; //port0 valid lane
-			if (pdrv->curr_dev->dev_cfg.control.lvds_cfg.dual_port &&
-			    (temp >= valid_port1_s && temp <= valid_port1_e)) {
+			if (dev_p->dev_cfg.control.lvds_cfg.dual_port &&
+			    (temp >= valid_port.s1 && temp <= valid_port.e1)) {
 				continue; //port1 valid lane
 			}
 			*map1 |= (0xf << n);
@@ -355,9 +378,71 @@ static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, unsigned int *map0, u
 	}
 }
 
-void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv)
+static void lcd_lvds_lane_swap(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
 {
-	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
+	struct lvds_valid_port_s valid_port;
+	struct phy_config_s *phy_cfg = &dev_p->dev_cfg.phy_cfg;
+	unsigned char port_a[CH_LANE_MAX], port_b[CH_LANE_MAX], temp_port[CH_LANE_MAX];
+	unsigned char temp, i, n;
+	int ret;
+
+	LCD_DBG(pdrv, "%s\n", __func__);
+
+	ret = lcd_lvds_get_valid_port_num(pdrv, dev_p, &valid_port);
+	if (ret)
+		return;
+
+	memset(port_a, 0xff, CH_LANE_MAX);
+	memset(port_b, 0xff, CH_LANE_MAX);
+	memset(temp_port, 0xff, CH_LANE_MAX);
+	for (i = 0; i < phy_cfg->lane_num; i++) {
+		if (phy_cfg->ch_ctrl[i].sel_dft >= valid_port.s0 &&
+		    phy_cfg->ch_ctrl[i].sel_dft <= valid_port.e0) {
+			n = phy_cfg->ch_ctrl[i].sel_dft - valid_port.s0;
+			port_a[n] = i;
+		} else if (phy_cfg->ch_ctrl[i].sel_dft >= valid_port.s1 &&
+			   phy_cfg->ch_ctrl[i].sel_dft <= valid_port.e1) {
+			n = phy_cfg->ch_ctrl[i].sel_dft - valid_port.s1;
+			port_b[n] = i;
+		}
+	}
+
+	if (dev_p->dev_cfg.control.lvds_cfg.port_swap) {
+		for (i = 0; i < phy_cfg->lane_num; i++) {
+			temp = port_a[i];
+			port_a[i] = port_b[i];
+			port_b[i] = temp;
+		}
+	}
+	if (dev_p->dev_cfg.control.lvds_cfg.lane_reverse) {
+		for (i = valid_port.s0; i <= valid_port.e0; i++)
+			temp_port[valid_port.e0 - i] = port_a[i - valid_port.s0];
+		for (i = valid_port.s0; i <= valid_port.e0; i++)
+			port_a[i - valid_port.s0] = temp_port[i - valid_port.s0];
+
+		for (i = valid_port.s1; i <= valid_port.e1; i++)
+			temp_port[valid_port.e1 - i] = port_b[i - valid_port.s1];
+		for (i = valid_port.s1; i <= valid_port.e1; i++)
+			port_b[i - valid_port.s1] = temp_port[i - valid_port.s1];
+	}
+
+	for (i = valid_port.s0; i <= valid_port.e0; i++) {
+		n = port_a[i - valid_port.s0];
+		if (n >= CH_LANE_MAX)
+			continue;
+		phy_cfg->ch_ctrl[n].sel = i;
+	}
+	for (i = valid_port.s1; i <= valid_port.e1; i++) {
+		n = port_b[i - valid_port.s1];
+		if (n >= CH_LANE_MAX)
+			continue;
+		phy_cfg->ch_ctrl[n].sel = i;
+	}
+}
+
+void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
+{
+	struct phy_config_s *phy_cfg = &dev_p->dev_cfg.phy_cfg;
 	unsigned int clk_a_sel, clk_b_sel, pi_clk_sel = 0;
 	int i;
 
@@ -407,30 +492,34 @@ void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv)
 	LCD_DBG(pdrv, "mlvds ckdi=0x%03x", phy_cfg->ckdi);
 }
 
-void lcd_lane_map_preset(struct aml_lcd_drv_s *pdrv)
+void lcd_lane_map_preset(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
 {
-	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
+	struct phy_config_s *phy_cfg;
 	unsigned int lane_map0 = 0xffffffff, lane_map1 = 0xffffffff;
 	unsigned int bit, sel;
 	int i;
 
+	if (!pdrv || !dev_p)
+		return;
+	phy_cfg = &dev_p->dev_cfg.phy_cfg;
+
 	lcd_lane_map_chip_init(pdrv, phy_cfg);
 
-	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
+	switch (dev_p->dev_cfg.basic.lcd_type) {
 	case LCD_LVDS:
-		lcd_lvds_lane_swap(pdrv, &lane_map0, &lane_map1);
+		lcd_lvds_lane_init(pdrv, dev_p, &lane_map0, &lane_map1);
 		break;
 	case LCD_VBYONE:
-		if (pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count == 1) {
+		if (dev_p->dev_cfg.control.vbyone_cfg.lane_count == 1) {
 			lane_map0 = 0xfffffff0;
 			lane_map1 = 0xffffffff;
-		} else if (pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count == 2) {
+		} else if (dev_p->dev_cfg.control.vbyone_cfg.lane_count == 2) {
 			lane_map0 = 0xffffff10;
 			lane_map1 = 0xffffffff;
-		} else if (pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count == 4) {
+		} else if (dev_p->dev_cfg.control.vbyone_cfg.lane_count == 4) {
 			lane_map0 = 0xffff3210;
 			lane_map1 = 0xffffffff;
-		} else if (pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count == 16) {
+		} else if (dev_p->dev_cfg.control.vbyone_cfg.lane_count == 16) {
 			lane_map0 = 0x76543210;
 			lane_map1 = 0xfedcba98;
 		} else { //8lane
@@ -439,28 +528,28 @@ void lcd_lane_map_preset(struct aml_lcd_drv_s *pdrv)
 		}
 		break;
 	case LCD_MLVDS:
-		lane_map0 = pdrv->curr_dev->dev_cfg.control.mlvds_cfg.channel_sel0;
-		lane_map1 = pdrv->curr_dev->dev_cfg.control.mlvds_cfg.channel_sel1;
+		lane_map0 = dev_p->dev_cfg.control.mlvds_cfg.channel_sel0;
+		lane_map1 = dev_p->dev_cfg.control.mlvds_cfg.channel_sel1;
 		break;
 	case LCD_P2P:
-		lane_map0 = pdrv->curr_dev->dev_cfg.control.p2p_cfg.channel_sel0;
-		lane_map1 = pdrv->curr_dev->dev_cfg.control.p2p_cfg.channel_sel1;
+		lane_map0 = dev_p->dev_cfg.control.p2p_cfg.channel_sel0;
+		lane_map1 = dev_p->dev_cfg.control.p2p_cfg.channel_sel1;
 		break;
 	case LCD_MIPI:
-		if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.lane_num == 1) {
+		if (dev_p->dev_cfg.control.mipi_cfg.lane_num == 1) {
 			lane_map0 = 0xfffff2f0;
 			lane_map1 = 0xffffffff;
-		} else if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.lane_num == 2) {
+		} else if (dev_p->dev_cfg.control.mipi_cfg.lane_num == 2) {
 			lane_map0 = 0xfffff210;
 			lane_map1 = 0xffffffff;
-		} else if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.lane_num == 3) {
+		} else if (dev_p->dev_cfg.control.mipi_cfg.lane_num == 3) {
 			lane_map0 = 0xffff3210;
 			lane_map1 = 0xffffffff;
 		} else {
 			lane_map0 = 0xfff43210;
 			lane_map1 = 0xffffffff;
 		}
-		if (pdrv->curr_dev->dev_cfg.control.mipi_cfg.multi_port_cfg & BIT(0))
+		if (dev_p->dev_cfg.control.mipi_cfg.multi_port_cfg & BIT(0))
 			lane_map1 = lane_map0;
 		break;
 	default:
@@ -476,36 +565,45 @@ void lcd_lane_map_preset(struct aml_lcd_drv_s *pdrv)
 			sel = (lane_map1 >> bit) & 0xf;
 		}
 
-		if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_VBYONE &&
-		    pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count == 16) {
+		if (dev_p->dev_cfg.basic.lcd_type == LCD_VBYONE &&
+		    dev_p->dev_cfg.control.vbyone_cfg.lane_count == 16) {
 			phy_cfg->ch_ctrl[i].sel = sel;
+			phy_cfg->ch_ctrl[i].sel_dft = sel;
 		} else {
-			if (sel == 0xf)
+			if (sel == 0xf) {
 				phy_cfg->ch_ctrl[i].sel = 0xff;
-			else
+				phy_cfg->ch_ctrl[i].sel_dft = 0xff;
+			} else {
 				phy_cfg->ch_ctrl[i].sel = sel;
+				phy_cfg->ch_ctrl[i].sel_dft = sel;
+			}
 		}
 	}
 
-	lcd_lane_sel_to_ch_swap(pdrv, phy_cfg);
-	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MLVDS)
-		lcd_mlvds_phy_ckdi_config(pdrv);
+	lcd_lane_sel_to_ch_swap(pdrv, dev_p);
+	if (dev_p->dev_cfg.basic.lcd_type == LCD_MLVDS)
+		lcd_mlvds_phy_ckdi_config(pdrv, dev_p);
 }
 
 void lcd_lane_map_update(struct aml_lcd_drv_s *pdrv)
 {
-	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
+	if (!pdrv->curr_dev)
+		return;
 
-	lcd_lane_sel_to_ch_swap(pdrv, phy_cfg);
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_LVDS)
+		lcd_lvds_lane_swap(pdrv, pdrv->curr_dev);
+
+	lcd_lane_sel_to_ch_swap(pdrv, pdrv->curr_dev);
+
 	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MLVDS)
-		lcd_mlvds_phy_ckdi_config(pdrv);
+		lcd_mlvds_phy_ckdi_config(pdrv, pdrv->curr_dev);
 }
 
 int lcd_lane_sel_get(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy_cfg)
 {
 	unsigned int offset;
 
-	if (!pdrv || !phy_cfg)
+	if (!pdrv || !pdrv->curr_dev || !phy_cfg)
 		return -1;
 
 	offset = pdrv->data->offset_venc_if[pdrv->index];
@@ -533,7 +631,7 @@ int lcd_lane_sel_get(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy_cfg)
 	default:
 		break;
 	}
-	lcd_ch_swap_to_lane_sel(pdrv, phy_cfg);
+	lcd_ch_swap_to_lane_sel(pdrv, pdrv->curr_dev, phy_cfg);
 
 	return 0;
 }

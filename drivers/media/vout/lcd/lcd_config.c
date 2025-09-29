@@ -1135,7 +1135,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv, struct aml_lcd_d
 	memset(phy, 0, sizeof(*phy));
 	phy_cfg->act_phy = phy_cfg->phys[0];
 	lcd_phy_param_preset(pdrv, dev_p);
-	// lcd_lane_map_preset(pdrv, dev_p);
+	lcd_lane_map_preset(pdrv, dev_p);
 	phy->ss.freq = 255;
 	phy->ss.level = 255;
 	phy->ss.mode = 255;
@@ -1438,15 +1438,17 @@ static int lcd_panel_parse_phy(struct json_parse_s *jsp,
 	memset(phy, 0, sizeof(*phy));
 	phy_cfg->act_phy = phy_cfg->phys[0];
 	lcd_phy_param_preset(pdrv, dev_p);
-	// lcd_lane_map_preset(pdrv, dev_p);
+	lcd_lane_map_preset(pdrv, dev_p);
 
 	phy_cfg->lane_num = json_get_obj_u32(jsp, parent, "lane_num", phy_cfg->lane_num);
 	child = json_get_object_child(jsp, parent, "ch_sel");
 	if (child) {
 		cnt = json_get_array_size(jsp, child);
 		cnt = lcd_s32_constraint(cnt, 0, phy_cfg->lane_num);
-		for (i = 0; i < cnt; i++)
+		for (i = 0; i < cnt; i++) {
 			phy_cfg->ch_ctrl[i].sel = json_get_arr_u32(jsp, child, i, i);
+			phy_cfg->ch_ctrl[i].sel_dft = phy_cfg->ch_ctrl[i].sel;
+		}
 	}
 	phy_cfg->bypass_resample = json_get_obj_u32(jsp, child, "bypass_resample", 1);
 	child = json_get_object_child(jsp, parent, "pn_swap");
@@ -2602,7 +2604,7 @@ static int lcd_config_load_from_ini(struct aml_lcd_drv_s *pdrv, struct aml_lcd_d
 	memset(phy, 0, sizeof(*phy));
 	phy_cfg->act_phy = phy_cfg->phys[0];
 	lcd_phy_param_preset(pdrv, dev_p);
-	// lcd_lane_map_preset(pdrv, dev_p);
+	lcd_lane_map_preset(pdrv, dev_p);
 	phy->ss.freq = ptiming->ss_freq;
 	phy->ss.level = ptiming->ss_level;
 	phy->ss.mode = ptiming->ss_mode;
@@ -2746,9 +2748,6 @@ int lcd_load_device_config(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *
 
 void lcd_config_load_probe(struct aml_lcd_drv_s *pdrv)
 {
-	// lcd_phy_param_preset(pdrv, pdrv->curr_dev);
-	// lcd_lane_map_preset(pdrv);
-
 	lcd_lane_map_update(pdrv);
 
 	lcd_config_load_init(pdrv, pdrv->curr_dev);
