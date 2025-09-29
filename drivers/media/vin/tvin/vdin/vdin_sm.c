@@ -326,7 +326,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 					devp->pre_prop.fps, devp->prop.fps);
 				devp->pre_prop.fps = devp->prop.fps;
 				//devp->parm.info.fps = devp->prop.fps;
-				devp->parm.info.fps = vdin_get_base_fr(devp);
+				vdin_get_base_fr(devp);
 			}
 		} else {
 			devp->sg_chg_fps_cnt = 0;
