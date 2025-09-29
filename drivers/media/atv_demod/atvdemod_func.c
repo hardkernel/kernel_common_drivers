@@ -1707,7 +1707,8 @@ int atvdemod_clk_init(void)
 
 	/* bit[25-16]: tvafe, bit[9-0]: atv demod. */
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-		if (is_meson_t3_cpu() || is_meson_t5m_cpu() || is_meson_t6d_cpu())
+		if (is_meson_t3_cpu() || is_meson_t5m_cpu() || is_meson_t6d_cpu() ||
+			is_meson_t6w_cpu() || is_meson_t6x_cpu())
 			W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL_T3, 0x1800080);
 		else if (is_meson_t3x_cpu())
 			W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL_T3X, 0x1800080);

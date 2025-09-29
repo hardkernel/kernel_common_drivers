@@ -83,7 +83,8 @@
 /* 2025/04/21 --- V4.06 --- fix IO V4L2_READ_STATUS call and sync. */
 /* 2025/08/01 --- V4.07 --- add event for mts input change */
 /* 2025/08/08 --- V4.08 --- fix access reg crash when resumed and tuned but not be inited. */
-#define AMLATVDEMOD_VER "V4.08"
+/* 2025/90/29 --- V6.00 --- t6w and t6x bringup */
+#define AMLATVDEMOD_VER "V6.00"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -690,7 +691,8 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 	} else
 #endif
 	if (is_meson_t3_cpu() || is_meson_t5m_cpu() ||
-		is_meson_t3x_cpu() || is_meson_t6d_cpu()) {
+		is_meson_t3x_cpu() || is_meson_t6d_cpu() ||
+		is_meson_t6w_cpu() || is_meson_t6x_cpu()) {
 		dev->audio_reg_base = ioremap(round_down(0xfe33074c, 0x3), 4);
 
 		//pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
