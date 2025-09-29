@@ -67,11 +67,13 @@
 			console-size = <0x40000>;
 			ftrace-size = <0x0>;
 			pmsg-size = <0x10000>;
+			status = "disabled"; /* disabled as default */
 		};
 
 		dmc_reserved:linux,dmc_monitor {
 			compatible = "amlogic,dmc_monitor-reserved";
 			reg = <0x0 0x10000>;
+			status = "disabled"; /* disabled as default */
 		};
 
 		debug_reserved:linux,iotrace {
@@ -82,11 +84,13 @@
 			irq-size = <0x1000>;
 			smc-size = <0x1000>;
 			misc-size = <0x1000>;
+			status = "disabled"; /* disabled as default */
 		};
 
 		defendkey_reserved:linux,defendkey {
 			compatible = "amlogic, defendkey";
 			reg = <0x04e00000 0x100000>;
+			status = "disabled"; /* disabled as default */
 		};
 
 		secmon_reserved: linux,secmon {
@@ -171,7 +175,7 @@
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
-			size = <0x0>;
+			size = <0x800000>;
 			alignment = <0x100000>;
 			alloc-ranges = <0x00000000 0x30000000>;
 			//no-map;
