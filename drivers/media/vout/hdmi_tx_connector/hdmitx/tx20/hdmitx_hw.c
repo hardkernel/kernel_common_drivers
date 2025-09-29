@@ -2875,8 +2875,10 @@ static enum hdmi_tf_type hdmitx_get_cur_dv_st(void)
 
 	ieee_code = GET_IEEEOUI();
 
-	if ((ieee_code == HDMI_IEEE_OUI && size == 0x18) ||
-	    (ieee_code == DOVI_IEEEOUI && size == 0x1b)) {
+	if (ieee_code == HDMI_IEEE_OUI && size == 0x18) {
+		if (cs == 0x0)
+			type = HDMI_DV_VSIF_STD;
+	} else if (ieee_code == DOVI_IEEEOUI && size == 0x1b) {
 		/* When outputting DV_LL, cs needs to be 422,
 		 * Dolby_Vision_Signal (bit1) is 1,
 		 * and Low_Latency (bit0) is 1
