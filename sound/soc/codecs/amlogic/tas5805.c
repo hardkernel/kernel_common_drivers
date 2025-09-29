@@ -1219,8 +1219,11 @@ static int tas5805m_i2c_probe(struct i2c_client *i2c,
 
 	tas5805m_parse_dt(tas5805m, i2c->dev.of_node);
 	tas5805m->regmap = regmap;
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+	tas5805m->vol = 100;
+#else
 	tas5805m->vol = 400;	//10dB
-
+#endif
 	dev_set_drvdata(&i2c->dev, tas5805m);
 
 	ret = devm_snd_soc_register_component(&i2c->dev, &soc_codec_tas5805m,

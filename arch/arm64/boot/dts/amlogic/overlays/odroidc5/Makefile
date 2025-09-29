@@ -20,6 +20,7 @@ dtb-y += dht11.dtbo \
          pwm_f.dtbo \
          spdif_a.dtbo \
          spi0.dtbo \
+         tas5805_codec.dtbo \
          uart1.dtbo \
          uart1-with-ctsrts.dtbo \
          uart2.dtbo \

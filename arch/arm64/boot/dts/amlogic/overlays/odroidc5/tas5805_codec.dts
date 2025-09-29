@@ -1,0 +1,55 @@
+/*
+ * arch/arm64/boot/dts/amlogic/overlays/odroidc5/display_vu7c.dts
+ *
+ * Copyright (C) 2025 Hardkernel, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/meson-s7d-gpio.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	fragment@0 {
+		target-path = "/auge_sound";
+
+		__overlay__ {
+			aml-audio-card,dai-link@0 {
+				status = "okay";
+				codec {
+					sound-dai = <&tas5805>;
+				};
+			};
+		};
+	};
+	fragment@1 {
+		target = <&i2c1>;
+
+		__overlay__ {
+			status = "okay";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			tas5805: tas5805@2c {
+				compatible = "ti,tas5805";
+				#sound-dai-cells = <0>;
+				status = "okay";
+				reg = <0x2c>;
+				reset_pin = <&gpio GPIOX_15 GPIO_ACTIVE_LOW>;
+			};
+		};
+	};
+};
