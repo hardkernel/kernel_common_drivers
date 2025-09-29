@@ -2396,6 +2396,20 @@ static void vframe_do_mosaic_22(struct composer_dev *dev)
 		vc_private->mosaic_vf[i] = &vc_private->mosaic_dst_vf[i];
 		mosaic_vf = vc_private->mosaic_vf[i];
 
+		vc_print(dev->index, PRINT_AXIS,
+			"mosaic %d frame_info crop: x y w h %d %d %d %d\n", i,
+			frame_info->crop_x,
+			frame_info->crop_y,
+			frame_info->crop_w,
+			frame_info->crop_h);
+		if (is_src_crop_valid(mosaic_vf->src_crop))
+			vc_print(dev->index, PRINT_AXIS,
+				"mosaic %d src_crop: %d %d %d %d\n", i,
+				mosaic_vf->src_crop.top,
+				mosaic_vf->src_crop.left,
+				mosaic_vf->src_crop.bottom,
+				mosaic_vf->src_crop.right);
+
 		mosaic_vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER
 			| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 		mosaic_vf->axis[0] = frame_info->dst_x;
@@ -2411,8 +2425,44 @@ static void vframe_do_mosaic_22(struct composer_dev *dev)
 			pic_w = mosaic_vf->width;
 			pic_h = mosaic_vf->height;
 		}
-		mosaic_vf->crop[2] = pic_h - frame_info->crop_h - frame_info->crop_y;
-		mosaic_vf->crop[3] = pic_w - frame_info->crop_w - frame_info->crop_x;
+		if (frame_info->source_type == SOURCE_DTV_FIX_TUNNEL) {
+			mosaic_vf->flag |= VFRAME_FLAG_FIX_TUNNEL;
+			mosaic_vf->crop[2] = frame_info->crop_y +
+				frame_info->crop_h;
+			mosaic_vf->crop[3] = frame_info->crop_x +
+				frame_info->crop_w;
+			vc_print(dev->index, PRINT_AXIS,
+				"mosaic %d tunnel set vf crop:%d %d %d %d\n", i,
+				mosaic_vf->crop[0],
+				mosaic_vf->crop[1],
+				mosaic_vf->crop[2],
+				mosaic_vf->crop[3]);
+		} else {
+			mosaic_vf->crop[2] = pic_h - frame_info->crop_h - frame_info->crop_y;
+			mosaic_vf->crop[3] = pic_w - frame_info->crop_w - frame_info->crop_x;
+			vc_print(dev->index, PRINT_AXIS,
+				"mosaic %d non-tunnel set vf org crop:%d %d %d %d\n", i,
+				mosaic_vf->crop[0],
+				mosaic_vf->crop[1],
+				mosaic_vf->crop[2],
+				mosaic_vf->crop[3]);
+			if (is_src_crop_valid(mosaic_vf->src_crop)) {
+				if (mosaic_vf->type & VIDTYPE_COMPRESS) {
+					mosaic_vf->crop[2] -= mosaic_vf->src_crop.bottom;
+					mosaic_vf->crop[3] -= mosaic_vf->src_crop.right;
+					if ((int)mosaic_vf->crop[2] < 0)
+						mosaic_vf->crop[2] = 0;
+					if ((int)mosaic_vf->crop[3] < 0)
+						mosaic_vf->crop[3] = 0;
+				}
+				vc_print(dev->index, PRINT_AXIS,
+					"mosaic %d none-tunnel set final vf crop:%d %d %d %d\n", i,
+					mosaic_vf->crop[0],
+					mosaic_vf->crop[1],
+					mosaic_vf->crop[2],
+					mosaic_vf->crop[3]);
+			}
+		}
 
 		mosaic_vf->zorder = frame_info->zorder;
 		mosaic_vf->file_vf = file_vf;
