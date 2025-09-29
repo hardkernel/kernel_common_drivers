@@ -2831,13 +2831,13 @@ void rx_get_em_info(u8 port)
 			rx[port].emp_dv_info.dv_pkt_cnt = rx[port].emp_dsf_info[i].pkt_cnt;
 			tmp = pkt->cnt.md[3]; //data_version:0-form1,1-form2
 			if (tmp) { //form2 same as visf
-				tmp = pkt->cnt.md[4];
+				tmp = pkt->cnt.md[6];
 				if ((tmp & _BIT(1)) == 0)
 					break;
-				dv_allm = pkt->cnt.md[4] & _BIT(0);
+				dv_allm = tmp & _BIT(0);
 				rx[port].vs_info_details.low_latency = dv_allm ? true : false;
-				l11_md_present = pkt->cnt.md[5] & _BIT(5);
-				cn_type = pkt->cnt.md[10] & 0xf;
+				l11_md_present = pkt->cnt.md[7] & _BIT(5);
+				cn_type = pkt->cnt.md[12] & 0xf;
 				if (l11_md_present && cn_type == 2) {
 					rx[port].vs_info_details.dv_allm = true;
 					rx[port].rx_sig_type |= E_EMP_AMDV_ALLM;

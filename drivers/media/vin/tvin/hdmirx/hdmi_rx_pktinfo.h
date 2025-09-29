@@ -19,7 +19,8 @@
 /* 2025.07.07 fix gaming-vrr base framerate error,set vrr_en when gaming-vrr */
 /* 2025.07.22 dump_cvtem_packet optimize stack size */
 /* 2025.09.12 fix emp dolby vision parsing error */
-#define RX_PKT_VER "ver.2025/09/12"
+/* 2025.09.30 fix emp form2 dolby vision issue */
+#define RX_PKT_VER "ver.2025/09/30"
 
 
 #define K_ONEPKT_BUFF_SIZE		8
