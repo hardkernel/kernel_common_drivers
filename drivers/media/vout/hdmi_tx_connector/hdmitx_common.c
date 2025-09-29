@@ -2058,6 +2058,18 @@ u32 hdmitx_common_get_vrr_cap(struct hdmitx_common *tx_comm)
 }
 EXPORT_SYMBOL(hdmitx_common_get_vrr_cap);
 
+bool hdmitx_common_get_sink_device_type(struct hdmitx_common *tx_comm)
+{
+	struct rx_cap *prxcap;
+
+	if (!tx_comm)
+		return 0;
+
+	prxcap = &tx_comm->rxcap;
+	return prxcap->ieeeoui ? 0 : 1;
+}
+EXPORT_SYMBOL(hdmitx_common_get_sink_device_type);
+
 static bool check_hpd_hw_id(struct hdmitx_common *tx_comm)
 {
 	if (tx_comm->qms_log_id == hdmitx_get_hpd_hw_sequence_id(tx_comm))

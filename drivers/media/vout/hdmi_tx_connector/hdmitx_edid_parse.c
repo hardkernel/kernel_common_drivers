@@ -2533,13 +2533,13 @@ static int update_edid_chksum(struct rx_cap *prxcap, u8 *edid_buf)
 	return 0;
 }
 
-static int hdmitx_edid_parse_ieeeoui(u8 *edid_buf)
+static int hdmitx_edid_parse_ieeeoui(struct rx_cap *prxcap, u8 *edid_buf)
 {
 	u32 ieeeoui;
 
 	/* strictly DVI device judgement */
 	/* valid EDID & no audio tag & no IEEEOUI */
-	if (hdmitx_edid_check_data_valid(0, &edid_buf[0]) &&
+	if (hdmitx_edid_check_data_valid(prxcap, &edid_buf[0]) &&
 		!hdmitx_edid_search_IEEEOUI(&edid_buf[128])) {
 		ieeeoui = 0x0;
 		HDMITX_INFO(EDID "sink is DVI device\n");
@@ -2631,7 +2631,7 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 		}
 	}
 
-	prxcap->ieeeoui = hdmitx_edid_parse_ieeeoui(edid_buf);
+	prxcap->ieeeoui = hdmitx_edid_parse_ieeeoui(prxcap, edid_buf);
 	update_edid_chksum(prxcap, edid_buf);
 
 	/* EDID parsing complete - check if 4k60/50 DV can be truly supported */

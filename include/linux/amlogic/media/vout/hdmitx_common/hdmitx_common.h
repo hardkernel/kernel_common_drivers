@@ -655,6 +655,8 @@ enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);
 void hdmitx_get_qms_init_state(struct hdmitx_common *tx_common, u32 *brr, u32 *qms_en);
 enum hdmi_hdr_status hdmitx_common_get_hdr_status(struct hdmitx_common *tx_comm);
 u32 hdmitx_common_get_vrr_cap(struct hdmitx_common *tx_comm);
+bool hdmitx_common_get_sink_device_type(struct hdmitx_common *tx_comm);
+
 int hdmitx_common_get_vrr_mode_group(struct hdmitx_common *tx_comm,
 				     struct hdmitx_vrr_mode_group *group,
 				     int max_group);

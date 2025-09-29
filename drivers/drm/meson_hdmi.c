@@ -1096,6 +1096,9 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->vrr_capable_type_prop) {
 		*val = hdmitx_common_get_vrr_cap(tx_comm);
 		return 0;
+	} else if (property == am_hdmi->sink_device_type_prop) {
+		*val = hdmitx_common_get_sink_device_type(tx_comm);
+		return 0;
 	} else {
 		DRM_ERROR("[CONNECTOR:%d:%s] unknown property [PROP:%d:%s]\n",
 				connector->base.id, connector->name,
@@ -1310,6 +1313,7 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\t allm_cap:[%d]\n", get_allm_cap(tx_comm));
 	drm_printf(p, "\t\t dc_cap:[%d]\n", get_dc_cap(tx_comm));
 	drm_printf(p, "\t\t scan_info:[%d]\n", hdmitx_common_get_scan_info(tx_comm));
+	drm_printf(p, "\t\t sink_device_type:[%d]\n", hdmitx_common_get_sink_device_type(tx_comm));
 
 	drm_printf(p, "\t\t drm to hdmitx timing state:\n");
 	drm_printf(p, "\t\t\t vic:[%d], cs:[%d], cd:[%d], name:[%s]\n",
@@ -2417,6 +2421,7 @@ static struct meson_range_prop_info range_props[] = {
 	{0, 0, 8, 0, "sink_type"},
 	{0, 0, 1, 0, "edid_valid"},
 	{0, 0, 3, 0, "vrr_capable_type"},
+	{0, 0, 1, 0, "sink_device_type"},
 };
 
 static void meson_hdmitx_create_range_property(struct drm_device *drm_dev,

@@ -134,6 +134,11 @@ struct am_hdmi_tx {
 	 * Linux uses vrr_capable_type
 	 */
 	struct drm_property *vrr_capable_type_prop;
+	/*
+	 * 0:HDMI
+	 * 1:DVI
+	 */
+	struct drm_property *sink_device_type_prop;
 
 	struct drm_property *color_space_prop;
 	struct drm_property *color_depth_prop;
