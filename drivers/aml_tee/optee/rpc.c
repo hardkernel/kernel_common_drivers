@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/atomic.h>
 #include <linux/workqueue.h>
 #include <linux/amlogic/tee_drv.h>
 #include "optee_private.h"
@@ -264,6 +265,7 @@ struct optee_timer_data {
 	u32 handle;
 	u32 flags;
 	u32 timeout;
+	atomic_t work_canceled;
 	struct delayed_work work;
 	struct list_head list_node;
 };
@@ -277,18 +279,14 @@ static void timer_work_task(struct work_struct *work)
 	struct tee_context *ctx = timer_data->ctx;
 	struct tee_device *teedev = ctx->teedev;
 	struct optee *optee = NULL;
-	struct optee_timer *timer = NULL;
 	struct workqueue_struct *wq = NULL;
 	int ret = 0;
 
-	optee = tee_get_drvdata(teedev);
-	if (!optee) {
-		pr_err("Can't find teedev!\n");
+	if (atomic_read(&timer_data->work_canceled)) {
+		list_del(&timer_data->list_node);
+		kfree(timer_data);
 		return;
 	}
-
-	timer = &optee->timer;
-	wq = timer->wq;
 
 	params[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
 	params[1].attr = TEE_IOCTL_PARAM_ATTR_TYPE_NONE;
@@ -304,11 +302,20 @@ static void timer_work_task(struct work_struct *work)
 	if (ret != 0)
 		pr_err("%s: invoke cmd failed ret = 0x%x\n", __func__, ret);
 
-	if (!(timer_data->flags & TEE_SECURE_TIMER_FLAG_PERIOD)) {
+	if (!(timer_data->flags & TEE_SECURE_TIMER_FLAG_PERIOD) ||
+			atomic_read(&timer_data->work_canceled)) {
 		list_del(&timer_data->list_node);
 		kfree(timer_data);
 		return;
 	} else {
+		optee = tee_get_drvdata(teedev);
+		if (!optee) {
+			pr_err("Can't find teedev!\n");
+			return;
+		}
+
+		wq = optee->timer.wq;
+
 		queue_delayed_work(wq, &timer_data->work,
 				msecs_to_jiffies(timer_data->timeout));
 	}
@@ -392,6 +399,7 @@ static void handle_rpc_func_cmd_timer_create(struct tee_context *ctx,
 	timer_data->handle = arg->params[0].u.value.b;
 	timer_data->timeout = arg->params[1].u.value.a;
 	timer_data->flags = arg->params[1].u.value.b;
+	atomic_set(&timer_data->work_canceled, 0);
 	INIT_DELAYED_WORK(&timer_data->work, timer_work_task);
 
 	mutex_lock(&timer->mutex);
@@ -410,7 +418,8 @@ static void handle_rpc_func_cmd_timer_destroy(struct tee_context *ctx,
 	struct tee_device *teedev = ctx->teedev;
 	struct optee *optee = tee_get_drvdata(teedev);
 	struct optee_timer *timer = &optee->timer;
-	struct optee_timer_data *timer_data;
+	struct optee_timer_data *timer_data = NULL;
+	struct optee_timer_data *temp = NULL;
 
 	if (arg->num_params != 1 ||
 	    arg->params[0].attr != OPTEE_MSG_ATTR_TYPE_VALUE_INPUT) {
@@ -421,11 +430,14 @@ static void handle_rpc_func_cmd_timer_destroy(struct tee_context *ctx,
 	handle = arg->params[0].u.value.b;
 
 	mutex_lock(&timer->mutex);
-	list_for_each_entry(timer_data, &timer->timer_list, list_node) {
+	list_for_each_entry_safe(timer_data, temp, &timer->timer_list, list_node) {
 		if (timer_data->handle == handle) {
-			cancel_delayed_work_sync(&timer_data->work);
-			list_del(&timer_data->list_node);
-			kfree(timer_data);
+			if (cancel_delayed_work(&timer_data->work)) {
+				list_del(&timer_data->list_node);
+				kfree(timer_data);
+			} else {
+				atomic_set(&timer_data->work_canceled, 1);
+			}
 
 			arg->ret = TEEC_SUCCESS;
 			goto out;
