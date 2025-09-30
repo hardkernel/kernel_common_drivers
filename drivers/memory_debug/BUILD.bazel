@@ -158,9 +158,11 @@ ddk_module(
     hdrs = [
         "ddr_tool/dmc_monitor.h",
         "ddr_tool/ddr_port.h",
+        "//common:drivers/base/base.h",
     ],
     linux_includes = [
         "ddr_tool",
+        "../../../common/drivers/base",
     ],
     local_defines = [
         "pr_fmt(fmt)=\"[memory-debug]: \" fmt",

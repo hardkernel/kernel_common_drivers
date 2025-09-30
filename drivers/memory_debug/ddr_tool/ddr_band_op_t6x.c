@@ -465,6 +465,147 @@ static int side_band(struct ddr_bandwidth *db, unsigned char dmc, unsigned char 
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DDR_SSR)
+#define DMC0_DDR_PLL_CNTL1	(0xfe340000 + (0x301 << 2))
+#define DMC0_DDR_PLL_CNTL2	(0xfe340000 + (0x302 << 2))
+#define DMC0_DDR_PLL_CNTL6	(0xfe340000 + (0x306 << 2))
+#define DMC1_DDR_PLL_CNTL1	(0xfe300000 + (0x301 << 2))
+#define DMC1_DDR_PLL_CNTL2	(0xfe300000 + (0x302 << 2))
+#define DMC1_DDR_PLL_CNTL6	(0xfe300000 + (0x306 << 2))
+
+static int t6x_ddr_ssr_enable_set(unsigned char value)
+{
+	unsigned int dmc0_cnt1, dmc1_cnt1;
+
+	dmc0_cnt1 = ddr_ssr_access_sec(DMC0_DDR_PLL_CNTL1, 0x0, DMC_READ);
+	dmc1_cnt1 = ddr_ssr_access_sec(DMC1_DDR_PLL_CNTL1, 0x0, DMC_READ);
+
+	if (value) {
+		dmc0_cnt1 |= BIT(23);
+		dmc1_cnt1 |= BIT(23);
+	} else {
+		dmc0_cnt1 &= ~BIT(23);
+		dmc1_cnt1 &= ~BIT(23);
+	}
+
+	ddr_ssr_access_sec(DMC0_DDR_PLL_CNTL1, dmc0_cnt1, DMC_WRITE);
+	ddr_ssr_access_sec(DMC1_DDR_PLL_CNTL1, dmc1_cnt1, DMC_WRITE);
+
+	return 0;
+}
+
+static int t6x_ddr_ssr_enable_get(void)
+{
+	unsigned int dmc0_cnt1, dmc1_cnt1;
+
+	dmc0_cnt1 = ddr_ssr_access_sec(DMC0_DDR_PLL_CNTL1, 0x0, DMC_READ);
+	dmc1_cnt1 = ddr_ssr_access_sec(DMC1_DDR_PLL_CNTL1, 0x0, DMC_READ);
+
+	if (dmc0_cnt1 & dmc1_cnt1 & BIT(23))
+		return 1;
+
+	return 0;
+}
+
+static int t6x_ddr_ssr_fmod_set(unsigned char value)
+{
+	return 0;
+}
+
+static int t6x_ddr_ssr_fmod_get(void)
+{
+	return 0;
+}
+
+static int t6x_ddr_ssr_amplitude_set(unsigned char value)
+{
+	unsigned int dmc0_cnt2, dmc1_cnt2, status;
+
+	if (value < 1 || value > 10) {
+		pr_err("amplitude set %d is invalid\n", value);
+		return -EINVAL;
+	}
+
+	status = t6x_ddr_ssr_enable_get();
+	if (status)
+		t6x_ddr_ssr_enable_set(0);
+
+	dmc0_cnt2 = ddr_ssr_access_sec(DMC0_DDR_PLL_CNTL2, 0x0, DMC_READ);
+	dmc1_cnt2 = ddr_ssr_access_sec(DMC1_DDR_PLL_CNTL2, 0x0, DMC_READ);
+
+	dmc0_cnt2 &= ~(0xf << 4);
+	dmc1_cnt2 &= ~(0xf << 4);
+
+	dmc0_cnt2 |= (0x2 << 4);
+	dmc1_cnt2 |= (0x2 << 4);
+
+	dmc0_cnt2 &= ~(0xf << 8);
+	dmc1_cnt2 &= ~(0xf << 8);
+
+	dmc0_cnt2 |= (value << 8);
+	dmc1_cnt2 |= (value << 8);
+
+	ddr_ssr_access_sec(DMC0_DDR_PLL_CNTL2, dmc0_cnt2, DMC_WRITE);
+	ddr_ssr_access_sec(DMC1_DDR_PLL_CNTL2, dmc1_cnt2, DMC_WRITE);
+
+	if (status)
+		t6x_ddr_ssr_enable_set(1);
+
+	return 0;
+}
+
+static int t6x_ddr_ssr_amplitude_get(void)
+{
+	unsigned int dmc0_cnt2, dmc1_cnt2, val0, val1;
+
+	dmc0_cnt2 = ddr_ssr_access_sec(DMC0_DDR_PLL_CNTL2, 0x0, DMC_READ);
+	dmc1_cnt2 = ddr_ssr_access_sec(DMC1_DDR_PLL_CNTL2, 0x0, DMC_READ);
+
+	val0 = ((dmc0_cnt2 >> 4) & 0xf) * 500;
+	val1 = ((dmc1_cnt2 >> 4) & 0xf) * 500;
+
+	val0 = val0 * (dmc0_cnt2 >> 8 & 0xf) / 1000;
+	val1 = val1 * (dmc1_cnt2 >> 8 & 0xf) / 1000;
+
+	if (val0 != val1)
+		pr_err("amplitude is not same, dmc0:%d, dmc1:%d\n", val0, val1);
+
+	return val0;
+}
+
+static int t6x_ddr_ssr_control(unsigned char value, enum ddr_ssr_type type)
+{
+	int ret = 0;
+
+	switch (type) {
+	case ENABLE_SET:
+		ret = t6x_ddr_ssr_enable_set(value);
+		break;
+	case FMOD_SET:
+		ret = t6x_ddr_ssr_fmod_set(value);
+		break;
+	case AMPLITUDE_SET:
+		ret = t6x_ddr_ssr_amplitude_set(value);
+		break;
+	case ENABLE_GET:
+		ret = t6x_ddr_ssr_enable_get();
+		break;
+	case FMOD_GET:
+		ret = t6x_ddr_ssr_fmod_get();
+		break;
+	case AMPLITUDE_GET:
+		ret = t6x_ddr_ssr_amplitude_get();
+		break;
+	default:
+		pr_err("invalid ssr handle\n");
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+#endif
+
 struct ddr_bandwidth_ops t6x_ddr_bw_ops = {
 	.init             = t6x_bandwidth_init,
 	.config_port      = t6x_port_config,
@@ -480,4 +621,8 @@ struct ddr_bandwidth_ops t6x_ddr_bw_ops = {
 #endif
 	.property_access  = property_access,
 	.side_band	  = side_band,
+#if IS_ENABLED(CONFIG_AMLOGIC_DDR_SSR)
+	.ddr_ssr_control  = t6x_ddr_ssr_control,
+#endif
+
 };

@@ -24,6 +24,7 @@
 #include <linux/ctype.h>
 #include <linux/sort.h>
 
+#include <base.h>
 #include <linux/amlogic/gki_module.h>
 #include <linux/amlogic/aml_ddr_tool.h>
 #include "ddr_bandwidth.h"
@@ -1551,36 +1552,6 @@ static ssize_t increase_tool_show(const struct class *class,
 }
 static CLASS_ATTR_RW(increase_tool);
 
-static unsigned long tmp_smc_reg;
-static ssize_t smc_rw_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
-{
-	unsigned long addr, value;
-
-	if (sscanf(buf, "%lx %lx", &addr, &value) != 2) {
-		if (kstrtoul(buf, 0, &addr)) {
-			pr_info("invalid input:%s\n", buf);
-			return -EINVAL;
-		}
-		tmp_smc_reg = addr;
-		pr_info("set addr:%08lx\n", tmp_smc_reg);
-		return count;
-	}
-	tmp_smc_reg = addr;
-	dmc_rw(tmp_smc_reg, value, 1);
-	pr_info("write addr:%08lx, value:%08lx\n", tmp_smc_reg, value);
-	return count;
-}
-
-static ssize_t smc_rw_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
-{
-	return sprintf(buf, "[%lx]:%lx\n", tmp_smc_reg, dmc_rw(tmp_smc_reg, 0, 0));
-}
-static CLASS_ATTR_RW(smc_rw);
-
 static struct attribute *aml_ddr_tool_attrs[] = {
 	&class_attr_port.attr,
 	&class_attr_irq_clock.attr,
@@ -1598,7 +1569,6 @@ static struct attribute *aml_ddr_tool_attrs[] = {
 	&class_attr_ots_level.attr,
 #if DDR_BANDWIDTH_DEBUG
 	&class_attr_dump_reg.attr,
-	&class_attr_smc_rw.attr,
 #endif
 	NULL
 };
@@ -1608,6 +1578,153 @@ static struct class aml_ddr_class = {
 	.name = "aml_ddr",
 	.class_groups = aml_ddr_tool_groups,
 };
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DDR_SSR)
+unsigned long ddr_ssr_access(unsigned long addr, unsigned long value, int rw, int is_sec)
+{
+	void __iomem *vaddr;
+	unsigned int ret = 0;
+
+	if (is_sec)
+		return dmc_rw(addr, value, rw);
+
+	addr = round_down(addr, 0x3);
+	vaddr = ioremap(addr, 0x4);
+	if (!vaddr) {
+		pr_err("%s reg map failed\n", __func__);
+		return 0;
+	}
+
+	if (rw == DMC_READ)
+		ret = readl_relaxed(vaddr);
+	else if (rw == DMC_WRITE)
+		writel_relaxed(value, vaddr);
+
+	iounmap(vaddr);
+
+	return ret;
+}
+
+static ssize_t ddr_ssr_enable_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	int value;
+
+	if (aml_db->ops && aml_db->ops->ddr_ssr_control) {
+		value = aml_db->ops->ddr_ssr_control(0, ENABLE_GET);
+		if (value < 0)
+			return -EINVAL;
+	} else {
+		pr_err("current soc not support ddr ssr set\n");
+		return -EINVAL;
+	}
+
+	return sprintf(buf, "%d\n", value);
+}
+
+static ssize_t ddr_ssr_enable_store(struct kobject *kobj, struct kobj_attribute *attr,
+				    const char *buf, size_t count)
+{
+	unsigned long value;
+
+	if (kstrtoul(buf, 0, &value)) {
+		pr_info("invalid input:%s\n", buf);
+		return -EINVAL;
+	}
+
+	if (aml_db->ops && aml_db->ops->ddr_ssr_control)
+		aml_db->ops->ddr_ssr_control(value, ENABLE_SET);
+	else
+		pr_err("current soc not support ddr ssr set\n");
+
+	return count;
+}
+
+static ssize_t ddr_ssr_fmod_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	int value;
+
+	if (aml_db->ops && aml_db->ops->ddr_ssr_control) {
+		value = aml_db->ops->ddr_ssr_control(0, FMOD_GET);
+		if (value < 0)
+			return -EINVAL;
+	} else {
+		pr_err("current soc not support ddr ssr set\n");
+		return -EINVAL;
+	}
+
+		return sprintf(buf, "%d\n", value);
+}
+
+static ssize_t ddr_ssr_fmod_store(struct kobject *kobj, struct kobj_attribute *attr,
+				  const char *buf, size_t count)
+{
+	unsigned long value;
+
+	if (kstrtoul(buf, 0, &value)) {
+		pr_info("invalid input:%s\n", buf);
+		return -EINVAL;
+	}
+
+	if (aml_db->ops && aml_db->ops->ddr_ssr_control)
+		aml_db->ops->ddr_ssr_control(value, FMOD_SET);
+	else
+		pr_err("current soc not support ddr ssr set\n");
+
+	return count;
+}
+
+static ssize_t ddr_ssr_amplitude_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	int value;
+
+	if (aml_db->ops && aml_db->ops->ddr_ssr_control) {
+		value = aml_db->ops->ddr_ssr_control(0, AMPLITUDE_GET);
+		if (value < 0)
+			return -EINVAL;
+	} else {
+		pr_err("current soc not support ddr ssr set\n");
+		return -EINVAL;
+	}
+
+	return sprintf(buf, "%d\n", value);
+}
+
+static ssize_t ddr_ssr_amplitude_store(struct kobject *kobj, struct kobj_attribute *attr,
+				       const char *buf, size_t count)
+{
+	unsigned long value;
+
+	if (kstrtoul(buf, 0, &value)) {
+		pr_info("invalid input:%s\n", buf);
+		return -EINVAL;
+	}
+
+	if (aml_db->ops && aml_db->ops->ddr_ssr_control)
+		aml_db->ops->ddr_ssr_control(value, AMPLITUDE_SET);
+	else
+		pr_err("current soc not support ddr ssr set\n");
+
+	return count;
+}
+
+static struct kobj_attribute enable_attr = __ATTR(enable, 0664, ddr_ssr_enable_show,
+						  ddr_ssr_enable_store);
+static struct kobj_attribute fmod_attr = __ATTR(fmod, 0664, ddr_ssr_fmod_show,
+						ddr_ssr_fmod_store);
+static struct kobj_attribute amplitude_attr = __ATTR(amplitude, 0664, ddr_ssr_amplitude_show,
+						     ddr_ssr_amplitude_store);
+
+static struct attribute *ddr_ssr_attrs[] = {
+	&enable_attr.attr,
+	&fmod_attr.attr,
+	&amplitude_attr.attr,
+	NULL,
+};
+
+static struct attribute_group ddr_ssr_attr_group = {
+	.attrs = ddr_ssr_attrs,
+};
+#endif
 
 static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 {
@@ -2655,6 +2772,50 @@ int get_side_band(struct dmc_side_band *sb, unsigned char num)
 }
 EXPORT_SYMBOL(get_side_band);
 
+static unsigned long tmp_smc_reg;
+static ssize_t smc_rw_read(struct file *file, char __user *user_buf,
+			   size_t count, loff_t *ppos)
+{
+	int len = 0;
+	char buf[128];
+
+	len += snprintf(buf + len, sizeof(buf), "[0x%lx]:0x%lx\n",
+			tmp_smc_reg, dmc_rw(tmp_smc_reg, 0, 0));
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t smc_rw_write(struct file *file, const char __user *user_buf,
+			size_t count, loff_t *ppos)
+{
+	char buf[256];
+	unsigned long addr, value;
+
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+
+	if (sscanf(buf, "%lx %lx", &addr, &value) != 2) {
+		if (kstrtoul(buf, 0, &addr)) {
+			pr_info("invalid input:%s\n", buf);
+			return -EINVAL;
+		}
+		tmp_smc_reg = addr;
+		pr_info("set addr:%08lx\n", tmp_smc_reg);
+		return count;
+	}
+	tmp_smc_reg = addr;
+	dmc_rw(tmp_smc_reg, value, 1);
+
+	return count;
+}
+
+static const struct file_operations smc_rw_fops = {
+	.open = simple_open,
+	.read = smc_rw_read,
+	.write = smc_rw_write,
+	.llseek = default_llseek,
+};
+
 #if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
 static ssize_t wbuf_mid_level_store(struct kobject *kobj, struct kobj_attribute *attr,
 				const char *buf, size_t count)
@@ -2732,10 +2893,38 @@ static ssize_t side_band_show(struct kobject *kobj, struct kobj_attribute *attr,
 
 static struct kobj_attribute side_band_attr = __ATTR_RW(side_band);
 
+static ssize_t smc_rw_store(struct kobject *kobj, struct kobj_attribute *attr,
+			    const char *buf, size_t count)
+{
+	unsigned long addr, value;
+
+	if (sscanf(buf, "%lx %lx", &addr, &value) != 2) {
+		if (kstrtoul(buf, 0, &addr)) {
+			pr_info("invalid input:%s\n", buf);
+			return -EINVAL;
+		}
+		tmp_smc_reg = addr;
+		pr_info("set addr:%08lx\n", tmp_smc_reg);
+		return count;
+	}
+	tmp_smc_reg = addr;
+	dmc_rw(tmp_smc_reg, value, 1);
+	pr_info("write addr:%08lx, value:%08lx\n", tmp_smc_reg, value);
+	return count;
+}
+
+static ssize_t smc_rw_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "[%lx]:%lx\n", tmp_smc_reg, dmc_rw(tmp_smc_reg, 0, 0));
+}
+
+static struct kobj_attribute smc_rw_attr = __ATTR_RW(smc_rw);
+
 static struct attribute *aml_ddr_attrs[] = {
 	&wbuf_mid_level_attr.attr,
 	&bus_device_attr.attr,
 	&side_band_attr.attr,
+	&smc_rw_attr.attr,
 	NULL,
 };
 
@@ -2751,6 +2940,7 @@ static void debugfs_init(void)
 	debugfs_create_file("wbuf_mid_level", 0660, aml_db->debugfs, aml_db, &wbuf_mid_level_fops);
 	debugfs_create_file("bus_device", 0660, aml_db->debugfs, aml_db, &bus_devices_fops);
 	debugfs_create_file("side_band", 0660, aml_db->debugfs, aml_db, &side_band_fops);
+	debugfs_create_file("smc_rw", 0660, aml_db->debugfs, aml_db, &smc_rw_fops);
 #if IS_ENABLED(CONFIG_AMLOGIC_CLASS_DEBUG)
 	amlogic_class_debug_create_dir(&aml_ddr_group, 2);
 #endif
@@ -2763,6 +2953,11 @@ static void debugfs_init(void)
  */
 static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 {
+#if IS_ENABLED(CONFIG_AMLOGIC_DDR_SSR)
+	struct class_dev_iter iter;
+	struct subsys_private *sp;
+	struct kobject *ssr_kobj;
+#endif
 	int r = 0, i, count;
 #ifdef CONFIG_OF
 	struct device_node *node = pdev->dev.of_node;
@@ -2932,7 +3127,19 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 
 	ddr_hrtimer_init();
 	ddr_poll_init();
+#if IS_ENABLED(CONFIG_AMLOGIC_DDR_SSR)
+	class_dev_iter_init(&iter, &aml_ddr_class, NULL, NULL);
+	sp = iter.sp;
+	class_dev_iter_exit(&iter);
+	ssr_kobj = kobject_create_and_add("ddr_ssr", &sp->subsys.kobj);
 
+	r = sysfs_create_group(ssr_kobj, &ddr_ssr_attr_group);
+	if (r) {
+		pr_info("ddr_ssr test creat failed %d\n", r);
+		return r;
+	}
+	pr_emerg("NOTICE: ddr_ssr node created, registers can be modify\n");
+#endif
 	return 0;
 }
 

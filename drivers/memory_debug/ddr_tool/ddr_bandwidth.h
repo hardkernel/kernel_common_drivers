@@ -116,6 +116,17 @@
 #define DDR_PRIORITY_DEBUG		BIT(31)
 #define DDR_PRIORITY_POWER		BIT(30)
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DDR_SSR)
+enum ddr_ssr_type {
+	ENABLE_SET = 1,
+	FMOD_SET,
+	AMPLITUDE_SET,
+	ENABLE_GET,
+	FMOD_GET,
+	AMPLITUDE_GET,
+};
+#endif
+
 enum ddr_type {
 	DDR3 = 0,
 	DDR4,
@@ -169,6 +180,9 @@ struct ddr_bandwidth_ops {
 	int (*property_access)(struct ddr_bandwidth *db, u64 *val,
 			       enum property_type type, int rw);
 	int (*side_band)(struct ddr_bandwidth *db, unsigned char dmc, unsigned char bus);
+#if IS_ENABLED(CONFIG_AMLOGIC_DDR_SSR)
+	int (*ddr_ssr_control)(unsigned char value, enum ddr_ssr_type type);
+#endif
 };
 
 struct ddr_bandwidth_sample {
@@ -369,6 +383,14 @@ extern struct ddr_bandwidth_ops t6w_ddr_bw_ops;
 #endif
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T6X
 extern struct ddr_bandwidth_ops t6x_ddr_bw_ops;
+#endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DDR_SSR)
+unsigned long ddr_ssr_access(unsigned long addr, unsigned long value, int rw, int is_sec);
+static inline unsigned long ddr_ssr_access_sec(unsigned long addr, unsigned long value, int rw)
+{
+	return ddr_ssr_access(addr, value, rw, 1);
+}
 #endif
 
 int ddr_poll_start(void);

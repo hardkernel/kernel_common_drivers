@@ -21,6 +21,15 @@ config AMLOGIC_DDR_BANDWIDTH
 		to get ddr total bandwidth, it can be used for
 		ddr DVFS/devfreq system.
 
+config AMLOGIC_DDR_SSR
+	bool "Meson ddr ssr"
+	default n
+	depends on AMLOGIC_DDR_TOOL
+	help
+		This config enables ddr ssr measure.
+		If open it, this driver will export interface
+		to set ddr ssr.
+
 config AMLOGIC_DDR_BANDWIDTH_GXL
 	bool "Meson ddr bandwidth for GXL"
 	default n

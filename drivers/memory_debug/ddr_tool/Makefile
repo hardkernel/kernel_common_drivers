@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 
 KASAN_SANITIZE_dmc_monitor.o := n
+ccflags-y += -I$(srctree)/drivers/base
 
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DDR_TOOL)		+= ddr_tool/ddr_tool.o ddr_tool/ddr_port_desc.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DDR_BANDWIDTH)		+= ddr_tool/ddr_bandwidth.o ddr_tool/ddr_priority.o
