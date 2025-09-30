@@ -682,8 +682,10 @@ static void lcd_vbyone_enable_t3x(struct aml_lcd_drv_s *pdrv)
 	lcd_vbyone_interrupt_enable(pdrv, 0);
 
 	lcd_vcbus_setb(VBO_CTRL_T3X + offset, 1, 0, 1);
-	if (pdrv->data->chip_type == LCD_CHIP_T6X)
+	if (pdrv->data->chip_type == LCD_CHIP_T6X) {
 		lcd_vcbus_setb(VBO_CTRL_T3X + offset, 0, 22, 1);
+		lcd_vcbus_setb(VBO_LANE_OUTPUT_T3X + offset, 0xffff, 0, 16);
+	}
 	lcd_vbyone_wait_timing_stable(pdrv);
 	lcd_vbyone_sw_reset(pdrv);
 
