@@ -3851,7 +3851,7 @@ void __exit earc_exit(void)
 }
 
 #ifndef MODULE
-arch_initcall_sync(earc_init);
+module_init(earc_init);
 module_exit(earc_exit);
 MODULE_AUTHOR("Amlogic, Inc.");
 MODULE_DESCRIPTION("Amlogic eARC/ARC TX/RX ASoc driver");
