@@ -1064,8 +1064,8 @@ static void output_axis_adjust(int src_w, int src_h, int *dst_w, int *dst_h,
 		if (output->info.mode == AML_SCREEN_MODE_RATIO) {
 			if (angle % 180 == 0) {
 				if (src_w < disp_w && src_h < disp_h) {
-					w = src_w;
-					h = src_h;
+					w = disp_w;
+					h = disp_h;
 				} else if ((src_w * disp_h) >
 					(disp_w * src_h)) {
 					w = disp_w;
@@ -1099,8 +1099,8 @@ static void output_axis_adjust(int src_w, int src_h, int *dst_w, int *dst_h,
 	} else {
 		if (angle % 180 == 0) {
 			if (src_w < disp_w && src_h < disp_h) {
-				w = src_w;
-				h = src_h;
+				w = disp_w;
+				h = disp_h;
 			} else if ((src_w * disp_h) >
 				(disp_w * src_h)) {
 				w = disp_w;
@@ -3536,10 +3536,6 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	int cur_angle = 0;
 	int output_canvas = output->canvas_id;
 
-	src_top = 0;
-	src_left = 0;
-	src_width = vf->width;
-	src_height = vf->height;
 	if (amlvideo2_dbg_en & 4) {
 		pr_info("vf->width = %d, vf->height = %d\n",
 			vf->width, vf->height);
@@ -3555,50 +3551,11 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 			node->crop_info.source_height_crop);
 		pr_info("output->angle=%d\n", output->angle);
 	}
-	if (node->crop_info.capture_crop_enable == 1) {
-		if (node->vid == 0) {
-			/*
-			 * amlvideo2.0 screencap, don't know data width and height
-			 * due to no crop requirement, default full video.
-			 */
-			src_top = 0;
-			src_left = 0;
-			src_width = vf->width;
-			src_height = vf->height;
-		} else {
-			if (node->crop_info.source_top_crop > 0 &&
-			    node->crop_info.source_top_crop < vf->height)
-				src_top = node->crop_info.source_top_crop;
-			else
-				src_top = 0;
 
-			if (node->crop_info.source_left_crop > 0 &&
-			    node->crop_info.source_left_crop < vf->width)
-				src_left = node->crop_info.source_left_crop;
-			else
-				src_left = 0;
-
-			if (node->crop_info.source_width_crop > 0 &&
-			    (node->crop_info.source_width_crop <
-			     (vf->width - src_left)))
-				src_width = node->crop_info.source_width_crop;
-			else
-				src_width = vf->width - src_left;
-
-			if (node->crop_info.source_height_crop > 0 &&
-			    (node->crop_info.source_height_crop <
-			     (vf->height - src_top)))
-				src_height = node->crop_info.source_height_crop;
-			else
-				src_height = vf->height - src_top;
-		}
-	} else {
-		src_top = 0;
-		src_left = 0;
-		src_width = vf->width;
-		src_height = vf->height;
-	}
-
+	src_top = 0;
+	src_left = 0;
+	src_width = vf->width;
+	src_height = vf->height;
 	if (amlvideo2_dbg_en & 4)
 		pr_info("src_top=%d, src_left=%d, src_width=%d, src_height=%d, crop_enable=%d\n",
 			src_top, src_left, src_width, src_height,
