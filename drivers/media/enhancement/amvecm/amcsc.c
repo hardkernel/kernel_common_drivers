@@ -81,6 +81,13 @@ static bool cur_hdmi_out_fmt;
 bool limit_8bit_hdr10 = true;
 struct hdr_cap_info_s hdr_cap_info;
 static unsigned int pre_flag_lc_evc;
+unsigned int muxio_ready_flag;
+unsigned int muxio_de_link_mode;
+unsigned int muxio_de_link_status = 1;
+
+unsigned int pre_dpss_mode;
+unsigned int dpss_mode;
+enum hdr_type_e cur_dpss_src_format;
 
 /*hdr------------------------------------*/
 
@@ -9516,6 +9523,885 @@ void force_toggle(void)
 	}
 }
 
+void get_source_csc_info(int vpp_index, int *source_type, int *csc_type)
+{
+	if (!source_type || !csc_type)
+		return;
+
+	*source_type = get_source_type(VD1_PATH, vpp_index);
+	*csc_type = get_csc_type();
+}
+
+static unsigned int pre_osd_gamut_conv_type;
+void amvecm_osd_matrix_process(enum vd_path_e vd_path,
+	enum vpp_index_e vpp_index)
+{
+	enum hdr_process_sel cur_hdr_process;
+	unsigned int tmp_fp, tmp_pp;
+	struct vinfo_s *vinfo;
+	enum hdr_type_e type[VD_PATH_MAX];
+	struct matrix_s m = {
+		{0, 0, 0},
+		{
+			{0x0800, 0x0, 0x0},
+			{0x0, 0x0800, 0x0},
+			{0x0, 0x0, 0x0800},
+		},
+		{0, 0, 0},
+		1,
+	};
+
+	if (vd_path == VD1_PATH &&
+		pre_osd_gamut_conv_type != osd_gamut_conv_type) {
+		pre_osd_gamut_conv_type = osd_gamut_conv_type;
+		tmp_fp = force_primary;
+		tmp_pp = primary_policy;
+		vinfo = get_current_vinfo();
+
+		switch (osd_gamut_conv_type) {
+		case 1:
+			force_primary = 0;
+			type[0] = HDRTYPE_SDR;
+			break;
+		case 2:
+			force_primary = 0;
+			primary_policy = 1;
+			type[0] = HDRTYPE_HDR10;
+			break;
+		case 3:
+			force_primary = 0;
+			type[0] = HDRTYPE_SDR2020;
+			break;
+		case 0:
+		default:
+			force_primary = tmp_fp;
+			primary_policy = tmp_pp;
+			cur_hdr_process = hdr_func(OSD1_HDR, HDR_BYPASS | RGB_OSD,
+				vinfo, NULL, vpp_index);
+			cur_hdr_process = hdr_func(OSD3_HDR, HDR_BYPASS | RGB_OSD,
+				vinfo, NULL, vpp_index);
+			return;
+		}
+
+		gamut_convert_process(vinfo, type, vd_path,
+			&m, 11, DEST_NONE);
+		force_primary = tmp_fp;
+		primary_policy = tmp_pp;
+		cur_hdr_process = hdr_func(OSD1_HDR, HDR_BYPASS | RGB_OSD,
+			vinfo, &m, vpp_index);
+		cur_hdr_process = hdr_func(OSD3_HDR, HDR_BYPASS | RGB_OSD,
+			vinfo, &m, vpp_index);
+	}
+}
+
+unsigned int cur_signal_type_dpss = 0xffffffff;
+unsigned int cur_ext_signal_type_dpss;
+unsigned int pre_src_type_dpss = VFRAME_SOURCE_TYPE_COMP;
+unsigned int cur_csc_type_dpss = 0xffff;
+enum hdr_type_e cur_source_format_dpss;
+/* 0: sdr->sdr, 1:sdr->hdr, 2:sdr->hlg, 3:sdr->cuva, 4:sdr->cuva_hlg*/
+unsigned int sdr_process_mode_dpss;
+unsigned int cur_sdr_process_mode_dpss = PROC_OFF;
+/* 0:hdr->hdr, 1:hdr->sdr, 2:hdr->hlg, 3:hdr->cuva */
+/* 4:hdr->cuva_hlg*/
+unsigned int hdr_process_mode_dpss;
+unsigned int cur_hdr_process_mode_dpss = PROC_OFF;
+/* 0:bypass, 1:hdr10p->hdr, 2:hdr10p->sdr, 3:hdr10p->hlg */
+/* 4:hdr10p->cuva, 5:hdr10p->cuva_hlg*/
+unsigned int hdr10_plus_process_mode_dpss;
+unsigned int cur_hdr10_plus_process_mode_dpss = PROC_OFF;
+/* 0:hlg->hlg, 1:hlg->sdr 2:hlg->hdr, 3:hlg->cuva*/
+/* 4:hdr->cuva_hlg*/
+unsigned int hlg_process_mode_dpss;
+unsigned int cur_hlg_process_mode_dpss = PROC_OFF;
+/* 0:bypass, 1:cuva->sdr, 2:cuva->hdr, 3:cuva->hlg */
+/* 4:cuva->hdr10p, 5:cuva->cuva_hlg*/
+unsigned int cuva_hdr_process_mode_dpss;
+unsigned int cur_cuva_hdr_process_mode_dpss = PROC_OFF;
+/* 0:bypass, 1:cuva_hlg->sdr, 2:cuva_hlg->hdr, 3:cuva_hlg->hlg */
+/* 4:cuva_hlg->hdr, 5:cuva_hlg->cuva*/
+unsigned int cuva_hlg_process_mode_dpss;
+unsigned int cur_cuva_hlg_process_mode_dpss = PROC_OFF;
+
+unsigned int sdr_ext_mode_dpss;
+
+static int force_vpp_index = VPP_VCBUS;//VPP_DPSS;
+module_param(force_vpp_index, int, 0664);
+MODULE_PARM_DESC(force_vpp_index, "\n force_vpp_index\n");
+
+static uint force_source_format;
+module_param(force_source_format, uint, 0664);
+MODULE_PARM_DESC(force_source_format, "\n force_source_format\n");
+
+static uint dpss_tmo = 1;
+module_param(dpss_tmo, uint, 0664);
+MODULE_PARM_DESC(dpss_tmo, "\n dpss_tmo\n");
+
+void matrix_setting_for_dpss(enum vpp_matrix_e mtx_sel,
+	enum mtx_csc_e mtx_csc, int mtx_on, int vpp_sel)
+{
+	unsigned int matrix_coef00_01 = 0;
+	unsigned int matrix_coef02_10 = 0;
+	unsigned int matrix_coef11_12 = 0;
+	unsigned int matrix_coef20_21 = 0;
+	unsigned int matrix_coef22 = 0;
+	unsigned int matrix_coef13_14 = 0;
+	unsigned int matrix_coef23_24 = 0;
+	unsigned int matrix_coef15_25 = 0;
+	unsigned int matrix_clip = 0;
+	unsigned int matrix_offset0_1 = 0;
+	unsigned int matrix_offset2 = 0;
+	unsigned int matrix_pre_offset0_1 = 0;
+	unsigned int matrix_pre_offset2 = 0;
+	unsigned int matrix_en_ctrl = 0;
+
+	pr_csc(128, "%s: mtx_sel/mtx_csc = 0x%x/%x, mtx_on/vpp_sel = %d/%d\n",
+		__func__, mtx_sel, mtx_csc, mtx_on, vpp_sel);
+
+	if (mtx_sel == POST2_MTX) {
+		matrix_coef00_01 = VPP_POST2_MATRIX_COEF00_01;
+		matrix_coef02_10 = VPP_POST2_MATRIX_COEF02_10;
+		matrix_coef11_12 = VPP_POST2_MATRIX_COEF11_12;
+		matrix_coef20_21 = VPP_POST2_MATRIX_COEF20_21;
+		matrix_coef22 = VPP_POST2_MATRIX_COEF22;
+		matrix_coef13_14 = VPP_POST2_MATRIX_COEF13_14;
+		matrix_coef23_24 = VPP_POST2_MATRIX_COEF23_24;
+		matrix_coef15_25 = VPP_POST2_MATRIX_COEF15_25;
+		matrix_clip = VPP_POST2_MATRIX_CLIP;
+		matrix_offset0_1 = VPP_POST2_MATRIX_OFFSET0_1;
+		matrix_offset2 = VPP_POST2_MATRIX_OFFSET2;
+		matrix_pre_offset0_1 = VPP_POST2_MATRIX_PRE_OFFSET0_1;
+		matrix_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2;
+		matrix_en_ctrl = VPP_POST2_MATRIX_EN_CTRL;
+	} else if (mtx_sel == POST_MTX) {
+		matrix_coef00_01 = VPP_POST_MATRIX_COEF00_01;
+		matrix_coef02_10 = VPP_POST_MATRIX_COEF02_10;
+		matrix_coef11_12 = VPP_POST_MATRIX_COEF11_12;
+		matrix_coef20_21 = VPP_POST_MATRIX_COEF20_21;
+		matrix_coef22 = VPP_POST_MATRIX_COEF22;
+		matrix_coef13_14 = VPP_POST_MATRIX_COEF13_14;
+		matrix_coef23_24 = VPP_POST_MATRIX_COEF23_24;
+		matrix_coef15_25 = VPP_POST_MATRIX_COEF15_25;
+		matrix_clip = VPP_POST_MATRIX_CLIP;
+		matrix_offset0_1 = VPP_POST_MATRIX_OFFSET0_1;
+		matrix_offset2 = VPP_POST_MATRIX_OFFSET2;
+		matrix_pre_offset0_1 = VPP_POST_MATRIX_PRE_OFFSET0_1;
+		matrix_pre_offset2 = VPP_POST_MATRIX_PRE_OFFSET2;
+		matrix_en_ctrl = VPP_POST_MATRIX_EN_CTRL;
+	} else {
+		return;
+	}
+
+	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_en_ctrl,
+		mtx_on, 0, 1, vpp_sel);
+
+	if (!mtx_on)
+		return;
+
+	switch (mtx_csc) {
+	case MATRIX_YUV709_RGB:
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01, 0x04ac0000, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef02_10, 0x073104ac, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12, 0x1f251ddd, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef20_21, 0x04ac0879, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset0_1, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset2, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset0_1, 0x7c00600, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset2, 0x00000600, vpp_sel);
+		break;
+	case MATRIX_YUV709F_RGB:
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01, 0x04000000, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef02_10, 0x064d0400, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12, 0x1f411e21, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef20_21, 0x0400076d, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset0_1, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset2, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset0_1, 0x0000600, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset2, 0x00000600, vpp_sel);
+		break;
+	default:
+		break;
+	}
+}
+
+int hdr_policy_for_dpss(enum hdr_type_e source_format, struct vframe_s *vf)
+{
+	int change_flag = 0;
+
+	switch (source_format) {
+	case HDRTYPE_SDR:
+	case HDRTYPE_SDR2020:
+	default:
+		if (!sdr_ext_mode_dpss)
+			sdr_process_mode_dpss = PROC_BYPASS;
+		else
+			sdr_process_mode_dpss = PROC_SDR_TO_HDR;
+		hdr_process_mode_dpss = PROC_BYPASS;
+		hdr10_plus_process_mode_dpss = PROC_BYPASS;
+		hlg_process_mode_dpss = PROC_BYPASS;
+		cuva_hdr_process_mode_dpss = PROC_BYPASS;
+		cuva_hlg_process_mode_dpss = PROC_BYPASS;
+		break;
+	case HDRTYPE_PRIMESL:
+		/* primesl process */
+		if (get_prime_sl_hdr_process_policy(vf) == PRIME_SL_HDR_MODE_2020_TO_709) {
+			/* same as hdr ->sdr */
+			sdr_process_mode_dpss = PROC_BYPASS;
+			hdr_process_mode_dpss = PROC_HDR_TO_SDR;
+		} else {
+			/* bypass */
+			sdr_process_mode_dpss = PROC_BYPASS;
+			hdr_process_mode_dpss = PROC_BYPASS;
+		}
+		hdr10_plus_process_mode_dpss = PROC_BYPASS;
+		hlg_process_mode_dpss = PROC_BYPASS;
+		cuva_hdr_process_mode_dpss = PROC_BYPASS;
+		cuva_hlg_process_mode_dpss = PROC_BYPASS;
+		break;
+	case HDRTYPE_HDR10:
+	case HDRTYPE_HDR10_709:
+		sdr_process_mode_dpss = PROC_BYPASS;
+		hdr_process_mode_dpss = PROC_HDR_TO_SDR;
+		hdr10_plus_process_mode_dpss = PROC_BYPASS;
+		hlg_process_mode_dpss = PROC_BYPASS;
+		cuva_hdr_process_mode_dpss = PROC_BYPASS;
+		cuva_hlg_process_mode_dpss = PROC_BYPASS;
+		break;
+	case HDRTYPE_HDR10PLUS:
+		sdr_process_mode_dpss = PROC_BYPASS;
+		hdr_process_mode_dpss = PROC_BYPASS;
+		hdr10_plus_process_mode_dpss = PROC_HDRP_TO_SDR;
+		hlg_process_mode_dpss = PROC_BYPASS;
+		cuva_hdr_process_mode_dpss = PROC_BYPASS;
+		cuva_hlg_process_mode_dpss = PROC_BYPASS;
+		break;
+	case HDRTYPE_HLG:
+		sdr_process_mode_dpss = PROC_BYPASS;
+		hdr_process_mode_dpss = PROC_BYPASS;
+		hdr10_plus_process_mode_dpss = PROC_BYPASS;
+		hlg_process_mode_dpss = PROC_HLG_TO_SDR;
+		cuva_hdr_process_mode_dpss = PROC_BYPASS;
+		cuva_hlg_process_mode_dpss = PROC_BYPASS;
+		break;
+	case HDRTYPE_CUVA_HDR:
+		sdr_process_mode_dpss = PROC_BYPASS;
+		hdr_process_mode_dpss = PROC_BYPASS;
+		hdr10_plus_process_mode_dpss = PROC_BYPASS;
+		hlg_process_mode_dpss = PROC_BYPASS;
+		cuva_hdr_process_mode_dpss = PROC_CUVA_TO_SDR;
+		cuva_hlg_process_mode_dpss = PROC_BYPASS;
+		break;
+	case HDRTYPE_CUVA_HLG:
+		sdr_process_mode_dpss = PROC_BYPASS;
+		hdr_process_mode_dpss = PROC_BYPASS;
+		hdr10_plus_process_mode_dpss = PROC_BYPASS;
+		hlg_process_mode_dpss = PROC_BYPASS;
+		cuva_hdr_process_mode_dpss = PROC_BYPASS;
+		cuva_hlg_process_mode_dpss = PROC_CUVAHLG_TO_SDR;
+		break;
+	}
+
+	if (cur_sdr_process_mode_dpss
+		!= sdr_process_mode_dpss)
+		change_flag |= SIG_HDR_MODE;
+
+	if (cur_hdr_process_mode_dpss
+		!= hdr_process_mode_dpss)
+		change_flag |= SIG_HDR_MODE;
+
+	if (cur_hlg_process_mode_dpss
+		!= hlg_process_mode_dpss)
+		change_flag |= SIG_HLG_MODE;
+
+	if (cur_hdr10_plus_process_mode_dpss
+		!= hdr10_plus_process_mode_dpss)
+		change_flag |= SIG_HDR10_PLUS_MODE;
+
+	if (cur_cuva_hdr_process_mode_dpss
+		!= cuva_hdr_process_mode_dpss)
+		change_flag |= SIG_CUVA_HDR_MODE;
+
+	if (cur_cuva_hlg_process_mode_dpss
+		!= cuva_hlg_process_mode_dpss)
+		change_flag |= SIG_CUVA_HLG_MODE;
+
+	if (cur_source_format_dpss
+		!= source_format)
+		change_flag |= SIG_SRC_CHG;
+
+	cur_source_format_dpss = source_format;
+
+	return change_flag;
+}
+
+int signal_type_detect_for_dpss(struct vframe_s *vf)
+{
+	int ret;
+	int i, j;
+	int change_flag = 0;
+	u32 limit_full = 0;
+	u32 src_height = 0;
+	u32 signal_type = 0;
+	u32 ext_signal_type = 0;
+	u32 default_signal_type;
+	struct vframe_master_display_colour_s *p_cur = NULL;
+	struct vframe_master_display_colour_s *p_new = NULL;
+	struct vframe_master_display_colour_s cus;
+	enum vd_path_e vd_path = VD1_PATH;
+
+	if (!vf)
+		return 0;
+
+	ext_signal_type = vf->ext_signal_type;
+	limit_full = (vf->signal_type >> 25) & 0x01;
+
+	if (vf->source_type == VFRAME_SOURCE_TYPE_TUNER ||
+		vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		vf->source_type == VFRAME_SOURCE_TYPE_COMP ||
+		vf->source_type == VFRAME_SOURCE_TYPE_HDMI) {
+		default_signal_type =
+			/* default 709 limit */
+			(1 << 29) /* video available */
+			| (5 << 26) /* unspecified */
+			| (limit_full << 25) /* limit */
+			| (1 << 24) /* color available */
+			| (1 << 16) /* bt709 */
+			| (1 << 8) /* bt709 */
+			| (1 << 0); /* bt709 */
+	} else { /* for local play */
+		if (vf->type & VIDTYPE_COMPRESS)
+			src_height = vf->compHeight;
+		else
+			src_height = vf->height;
+
+		if (src_height >= 720)
+			default_signal_type =
+				/* HD default 709 limit */
+				(1 << 29)
+				| (5 << 26)
+				| (0 << 25)
+				| (1 << 24)
+				| (1 << 16)
+				| (1 << 8)
+				| (1 << 0);
+		else
+			default_signal_type =
+				/* SD default 601 limited */
+				(1 << 29)
+				| (5 << 26)
+				| (0 << 25)
+				| (1 << 24)
+				| (3 << 16) /* bt601 */
+				| (3 << 8) /* bt601 */
+				| (3 << 0); /* bt601 */
+	}
+
+	if (vf->signal_type & (1 << 29))
+		signal_type = vf->signal_type;
+	else
+		signal_type = default_signal_type;
+
+	p_new = &vf->prop.master_display_colour;
+	p_cur = &cur_master_display_colour[vd_path];
+
+	/* customer overwrite */
+	if (customer_master_display_en &&
+		(p_new->present_flag & 0x80000000) == 0) {
+		signal_type =
+			(1 << 29)
+			| (5 << 26)
+			| (0 << 25)
+			| (1 << 24)
+			| (9 << 16) /* 2020 */
+			| (16 << 8) /* 2084 */
+			| (9 << 0); /* 2020 */
+
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++)
+				cus.primaries[i][j] =
+				customer_master_display_param[i * 2 + j];
+
+		for (i = 0; i < 2; i++) {
+			cus.white_point[i] =
+				customer_master_display_param[6 + i];
+			cus.luminance[i] =
+				customer_master_display_param[8 + i];
+		}
+
+		cus.present_flag = 1;
+		p_new = &cus;
+	}
+
+	/* only check primary for new = bt2020 or cur = bt2020 */
+	if (p_new && p_cur &&
+		(((signal_type >> 16) & 0xff) == 9 || p_cur->present_flag)) {
+		ret = hdr10_primaries_changed(p_new, p_cur);
+		if (ret)
+			change_flag |= SIG_PRI_INFO;
+	}
+
+	if (change_flag & SIG_PRI_INFO) {
+		pr_csc(128, "dpss vd%d Master_display_colour changed %x flag %x.\n",
+			vd_path + 1, ret, p_cur->present_flag);
+		print_primaries_info(p_cur);
+	}
+
+	if (signal_type != cur_signal_type_dpss) {
+		pr_csc(128, "dpss vd%d Signal type changed from 0x%x to 0x%x.\n",
+			vd_path + 1, cur_signal_type_dpss, signal_type);
+		change_flag |= SIG_CS_CHG;
+		cur_signal_type_dpss = signal_type;
+	}
+
+	if (ext_signal_type != cur_ext_signal_type_dpss) {
+		pr_csc(128, "dpss vd%d ext_Signal type changed from 0x%x to 0x%x.\n",
+			vd_path + 1, cur_ext_signal_type_dpss, ext_signal_type);
+		change_flag |= SIG_CS_CHG;
+		cur_ext_signal_type_dpss = ext_signal_type;
+	}
+
+	if (pre_src_type_dpss != vf->source_type) {
+		pr_csc(128, "dpss vd%d Signal source changed from 0x%x to 0x%x.\n",
+			vd_path + 1, pre_src_type_dpss, vf->source_type);
+		change_flag |= SIG_SRC_CHG;
+		pre_src_type_dpss = vf->source_type;
+	}
+
+	if (vecm_latch_flag & FLAG_HDR_OOTF_LATCH) {
+		change_flag |= SIG_HDR_OOTF_CHG;
+		vecm_latch_flag &= ~FLAG_HDR_OOTF_LATCH;
+		pr_csc(128, "dpss ootf curve changed.\n");
+	}
+
+	if (vecm_latch_flag & FLAG_COLORPRI_LATCH) {
+		change_flag |= SIG_PRI_INFO;
+		vecm_latch_flag &= ~FLAG_COLORPRI_LATCH;
+		pr_csc(128, "dpss color primary changed.\n");
+	}
+
+	if (gamut_conv_enable != pre_gamut_conv_en) {
+		change_flag |= SIG_CS_CHG;
+		pre_gamut_conv_en = gamut_conv_enable;
+		pr_csc(128, "dpss gamut convert changed = 0x%x\n",
+			gamut_conv_enable);
+	}
+
+	if (vf->type & VIDTYPE_RGB_444) {
+		if (cur_rgb_type[vd_path] !=
+			(vf->type & VIDTYPE_RGB_444)) {
+			change_flag |= SIG_SRC_CHG;
+			cur_rgb_type[vd_path] = vf->type & VIDTYPE_RGB_444;
+			pr_csc(128, "dpss VIDTYPE RGB changed. vf->type = 0x%x\n",
+				vf->type);
+		}
+	} else {
+		if (cur_rgb_type[vd_path] != 0) {
+			change_flag |= SIG_SRC_CHG;
+			cur_rgb_type[vd_path] = 0;
+			pr_csc(128, "dpss VIDTYPE YUV changed. vf->type = 0x%x\n",
+				vf->type);
+		}
+	}
+
+	return change_flag;
+}
+
+void calculate_dynamic_curve_for_dpss(struct vframe_s *vf)
+{
+	enum vd_path_e vd_path = VD1_PATH;
+	int vpp_index = force_vpp_index;
+	struct vframe_master_display_colour_s *master_info =
+		&cur_master_display_colour[VD1_PATH];
+	enum hdr_hist_sel hist_select = HIST_E_RGBMAX;
+	struct aml_tmo_reg_sw *pre_tmo_reg = NULL;
+
+	if (hdr_process_mode_dpss == PROC_HDR_TO_SDR &&
+		cur_csc_type_dpss == VPP_MATRIX_BT2020YUV_BT2020RGB &&
+		(cur_dpss_src_format == HDRTYPE_HDR10 ||
+		cur_dpss_src_format == HDRTYPE_HDR10_709)) {
+		if (dpss_tmo) {
+			if (hdr_hist_select) {
+				hist_select = HIST_E_LUMA;
+				pre_tmo_reg = tmo_fw_param_get();
+				pre_tmo_reg->hdr_hist_sel = HIST_E_LUMA;
+			}
+			get_hist(vd_path, hist_select);
+			hdr10_tm_process_update(master_info, vd_path, vpp_index);
+		}
+	}
+
+	if (hdr10_plus_process_mode_dpss == PROC_HDRP_TO_SDR &&
+		cur_csc_type_dpss == VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC &&
+		cur_dpss_src_format == HDRTYPE_HDR10PLUS)
+		hdr10_plus_process_update(0, vd_path, vpp_index);
+
+	if (cur_csc_type_dpss == VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA) {
+		if (cur_dpss_src_format == HDRTYPE_CUVA_HLG)
+			cuva_hdr_process_update(cur_source_format_dpss,
+				cuva_hlg_process_mode_dpss,
+				vd_path, master_info, vpp_index);
+		else
+			cuva_hdr_process_update(cur_source_format_dpss,
+				cuva_hdr_process_mode_dpss,
+				vd_path, master_info, vpp_index);
+	}
+}
+
+enum vpp_matrix_csc_e get_csc_type_for_dpss(unsigned int signal_type)
+{
+	enum vpp_matrix_csc_e csc_type = VPP_MATRIX_NULL;
+	unsigned int cuva_flag = (signal_type >> 31) & 1;
+	unsigned int format = (signal_type >> 26) & 7;
+	unsigned int range = (signal_type >> 25) & 1;
+	unsigned int color_primaries = (signal_type >> 16) & 0xff;
+	unsigned int transfer_characteristic = (signal_type >> 8) & 0xff;
+
+	if (color_primaries == 0x1 &&
+		transfer_characteristic < 0xe) {
+		if (range == 0)
+			csc_type = VPP_MATRIX_YUV709_RGB;
+		else
+			csc_type = VPP_MATRIX_YUV709F_RGB;
+	} else if (color_primaries == 0x3 &&
+		transfer_characteristic < 0xe) {
+		if (range == 0)
+			csc_type = VPP_MATRIX_YUV601_RGB;
+		else
+			csc_type = VPP_MATRIX_YUV601F_RGB;
+	} else if (color_primaries == 0x9 ||
+		transfer_characteristic >= 0xe) {
+		if (transfer_characteristic == 0x10) {
+			if (cuva_flag) {
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA;
+			/* smpte st-2084 */
+			} else {
+				if (color_primaries != 0x9)
+					pr_csc(1, "\tWARNING: non-standard HDR!!!\n");
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
+			}
+		} else if (transfer_characteristic == 0x12) {
+			/* bt2020-10 */
+			if (cuva_flag)
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA;
+			else
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
+		} else if (transfer_characteristic == 0xf) {
+			/* bt2020-12 */
+			pr_csc(1, "\tWARNING: bt2020-12 HDR!!!\n");
+			if (range == 0)
+				csc_type = VPP_MATRIX_YUV709_RGB;
+			else
+				csc_type = VPP_MATRIX_YUV709F_RGB;
+		} else if (transfer_characteristic == 0x30) {
+			if (color_primaries == 0x9) {
+				csc_type =
+					VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC;
+				if (!is_hdr10plus_enable()) {
+					csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
+					pr_csc(1,
+						"[%s] system not support hdr10+, treat as hdr10\n",
+						__func__);
+				}
+			} else {
+				pr_csc(1,
+					"\tWARNING: non-standard HDR10+!!!\n");
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
+			}
+		} else if (transfer_characteristic == 0xe) {
+			if (color_primaries == 0x9) {
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB_SDR;
+			} else {
+				if (range == 0)
+					csc_type = VPP_MATRIX_YUV709_RGB;
+				else
+					csc_type = VPP_MATRIX_YUV709F_RGB;
+			}
+		} else if (color_primaries == 0x9 &&
+			transfer_characteristic == 0x1) {
+			csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB_SDR;
+			pr_csc(1, "\tWARNING: SDR2020!!!\n");
+		} else {
+			pr_csc(1, "\tWARNING: unknown HDR!!!\n");
+			if (range == 0)
+				csc_type = VPP_MATRIX_YUV709_RGB;
+			else
+				csc_type = VPP_MATRIX_YUV709F_RGB;
+		}
+	} else {
+		if (format == 0)
+			pr_csc(1, "\tWARNING: unknown colour space!!!\n");
+
+		if (range == 0)
+			csc_type = VPP_MATRIX_YUV601_RGB;
+		else
+			csc_type = VPP_MATRIX_YUV601F_RGB;
+	}
+
+	return csc_type;
+}
+
+enum hdr_type_e get_source_type_for_dpss(unsigned int signal_type)
+{
+	enum hdr_type_e hdr_type = HDRTYPE_SDR;
+	unsigned int cuva_flag = (signal_type >> 31) & 1;
+	unsigned int color_primaries = (signal_type >> 16) & 0xff;
+	unsigned int transfer_characteristic = (signal_type >> 8) & 0xff;
+
+	if (transfer_characteristic == 0x12 &&
+		color_primaries == 0x9) {
+		if (cuva_flag)
+			hdr_type = HDRTYPE_CUVA_HLG;
+		else
+			hdr_type = HDRTYPE_HLG;
+	} else if (transfer_characteristic == 0x30 &&
+		color_primaries == 0x9) {
+		if (is_hdr10plus_enable())
+			hdr_type = HDRTYPE_HDR10PLUS;
+		else
+			hdr_type = HDRTYPE_HDR10;
+	} else if (transfer_characteristic == 0x10) {
+		if (cuva_flag) {
+			hdr_type = HDRTYPE_CUVA_HDR;
+		} else {
+			if (color_primaries == 0x9)
+				hdr_type = HDRTYPE_HDR10;
+			else
+				hdr_type = HDRTYPE_HDR10_709;
+		}
+	} else if (transfer_characteristic == 0xe ||
+		transfer_characteristic == 0x1) {
+		if (color_primaries == 0x9)
+			hdr_type = HDRTYPE_SDR2020;
+		else
+			hdr_type = HDRTYPE_SDR;
+	} else {
+		hdr_type = HDRTYPE_SDR;
+	}
+
+	pr_csc(32, "%s: signal_/source_type=0x%x/0x%x\n",
+		__func__, signal_type, hdr_type);
+
+	return hdr_type;
+}
+
+void hdr_process_for_dpss(struct vframe_s *vf)
+{
+}
+
+void update_hdr_path_for_dpss(struct vframe_s *vf)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_amdv_enable() && vf && is_amdv_frame(vf))
+		return;
+#endif
+
+	if (!vf)
+		return;
+
+	set_muxio_link_mode(1, vf, VPP_VCBUS);
+}
+
+void hdr_init_for_dpss(struct vframe_s *vf)
+{
+}
+
+void set_dpss_mode(unsigned int val)
+{
+	if (force_source_format == 0xff ||
+		chip_type_id != chip_t6w)
+		return;
+
+	if (dpss_mode != val) {
+		pr_csc(128, "%s: dpss_mode %d -> %d\n",
+			__func__, dpss_mode, val);
+
+		dpss_mode = val;
+
+		if (dpss_mode && muxio_de_link_status) {
+			if (pre_dpss_mode != dpss_mode) {
+				pr_csc(128, "%s: pre_dpss_mode %d -> %d\n",
+					__func__, pre_dpss_mode, dpss_mode);
+				pre_dpss_mode = dpss_mode;
+			}
+
+			muxio_ready_flag = 1;
+			pr_csc(128, "%s: muxio_ready_flag 0 -> 1\n",
+				__func__);
+		} else {
+			muxio_de_link_mode = 1;
+		}
+
+		if (!dpss_mode) {
+			pr_csc(128, "%s: pre_dpss_mode %d -> %d\n",
+				__func__, pre_dpss_mode, dpss_mode);
+			pre_dpss_mode = 0;
+			cur_signal_type_dpss = 0xffffffff;
+			cur_ext_signal_type_dpss = 0;
+			cur_csc_type_dpss = 0xffff;
+			muxio_ready_flag = 0;
+
+//			hdr_proc_multi_slices(NULL,
+//				VD1_HDR, HDR_BYPASS,
+//				NULL, NULL, 1, VPP_VCBUS);
+		}
+	}
+}
+
+void set_sdr_ext_mode_for_dpss(unsigned int val)
+{
+	if (sdr_ext_mode_dpss != val) {
+		pr_csc(128, "%s: sdr_ext_mode_dpss %d -> %d\n",
+			__func__, sdr_ext_mode_dpss, val);
+
+		sdr_ext_mode_dpss = val;
+	}
+}
+
+unsigned int get_muxio_link_status(void)
+{
+	int i = 0;
+	unsigned int ret = 0;
+	unsigned int reg_val[3] = {
+		0x0, 0x0, 0x0
+	};
+	unsigned int reg_mask[3] = {
+		0xfff, 0xffffff, 0x3
+	};
+	unsigned int reg_addr[3] = {
+		MUXIO_IPATH_SEL,
+		MUXIO_OPATH_SEL,
+		AXIRD_PATH_CTRL
+	};
+	unsigned int start[3] = {
+		0, 0, 8
+	};
+
+	if (chip_type_id != chip_t6w)
+		return 0;
+
+	for (i = 0; i < 3; i++) {
+		reg_val[i] = READ_VPP_REG(reg_addr[i]);
+		reg_val[i] = (reg_val[i] >> start[i]) & reg_mask[i];
+	}
+
+	if (reg_val[0] == 0xfff && reg_val[1] == 0xffffff) {
+		ret = 0;
+	} else {
+		pr_csc(128, "%s: 0x%x/0x%x/0x%x=0x%x/0x%x/0x%x\n",
+			__func__, reg_addr[0], reg_addr[1], reg_addr[2],
+			reg_val[0], reg_val[1], reg_val[2]);
+		ret = 1;
+	}
+
+	return ret;
+}
+
+void set_muxio_link_mode(unsigned int link_flag,
+	struct vframe_s *vf, enum vpp_index_e vpp_index)
+{
+	int rdma_mode = 0;
+	enum vpp_muxio_sel_e cfg_sel = VPP_MUXIO_SEL_DE_LINK;
+	unsigned int is_dd_frame = 0;
+	unsigned int mute_flag = 0;
+
+	if (force_source_format == 0xff ||
+		chip_type_id != chip_t6w)
+		return;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_amdv_enable() && vf && is_amdv_frame(vf))
+		is_dd_frame = 1;
+#endif
+
+	if (flag_lc_evc_src)
+		return;
+
+	if (vf && (vf->source_type == VFRAME_SOURCE_TYPE_HWC ||
+		(vf->width == 384 && vf->height == 180)))
+		mute_flag = 1;
+
+	if (mute_flag || flag_lc_evc_src)
+		return;
+
+	if (link_flag) {
+		if (get_muxio_link_status()) {
+			pr_csc(128, "%s: muxio_link_status true now, skip set.\n",
+				__func__);
+			return;
+		}
+
+		if (dpss_mode) {
+			if (!is_dd_frame)
+				cfg_sel = VPP_MUXIO_SEL_DPSS_HDR;
+			else
+				cfg_sel = VPP_MUXIO_SEL_DPSS_DD;
+		} else {
+			if (!is_dd_frame)
+				cfg_sel = VPP_MUXIO_SEL_VD1_HDR;
+			else
+				cfg_sel = VPP_MUXIO_SEL_VD1_DD;
+		}
+
+		muxio_de_link_status = 0;
+	} else {
+		muxio_de_link_status = 1;
+	}
+
+	pr_csc(128, "%s: link_flag/is_dd_frame=%d/%d, muxio_de_link_status=%d\n",
+		__func__, link_flag, is_dd_frame, muxio_de_link_status);
+
+	if (vf)
+		pr_csc(128, "%s: vf/index=%px/%d, dpss_mode=%d\n",
+			__func__, vf, vf->frame_index, dpss_mode);
+
+	muxio_config(cfg_sel, rdma_mode, vpp_index);
+}
+
+void update_muxio_mode(struct vframe_s *vf,
+	enum vpp_index_e vpp_index)
+{
+	if (force_source_format == 0xff ||
+		chip_type_id != chip_t6w)
+		return;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_amdv_enable() && vf && is_amdv_frame(vf))
+		return;
+#endif
+
+	if (!vf && !dpss_mode) {
+		if (!muxio_de_link_status)
+			muxio_de_link_mode = 1;
+	}
+
+	if (muxio_de_link_mode) {
+		set_muxio_link_mode(0, NULL, vpp_index);
+		muxio_de_link_mode = 0;
+		return;
+	}
+
+	if (dpss_mode) {
+		if (pre_dpss_mode != dpss_mode) {
+			pr_csc(128, "%s: pre_dpss_mode %d -> %d\n",
+				__func__, pre_dpss_mode, dpss_mode);
+			pre_dpss_mode = dpss_mode;
+		} else {
+			if (!muxio_ready_flag) {
+				muxio_ready_flag = 1;
+				pr_csc(128, "%s: muxio_ready_flag 0 -> 1\n",
+					__func__);
+			}
+		}
+	}
+}
+
+unsigned int get_muxio_ready_for_dpss(void)
+{
+	return muxio_ready_flag;
+}
+
 int amvecm_hdr_dbg(u32 sel)
 {
 	int i, j, k;
@@ -9570,7 +10456,6 @@ int amvecm_hdr_dbg(u32 sel)
 		}
 	}
 
-	pr_info(HDR_VERSION);
 hdr_dump:
 	for (i = 0; i < VD_PATH_MAX; i++) {
 		pr_info("----VD%d : HDR process info----\n", i + 1);
@@ -9585,6 +10470,8 @@ hdr_dump:
 		pr_info("cur_ext_signal_type:0x%x\n", cur_ext_signal_type[i]);
 		pr_info("hdr10_plus_process_mode = 0x%x\n",
 			hdr10_plus_process_mode[i]);
+		pr_info("cuva_hdr_process_mode = 0x%x, cuva_hlg_process_mode = 0x%x\n",
+			cuva_hdr_process_mode[i], cuva_hlg_process_mode[i]);
 	}
 
 	pr_info("----HDR other info----\n");
@@ -9849,80 +10736,126 @@ reg_dump:
 	pr_info("----dump regs VPP_LUT_OETF----\n");
 	print_vpp_lut(VPP_LUT_OETF, READ_VPP_REG(XVYCC_LUT_CTL) & 0x70);
 	/*********************dump reg end*********************/
+
 dbg_end:
+	pr_info(HDR_VERSION);
+
+	if (chip_type_id == chip_t6w) {
+		pr_info("----hdr with dpss info----\n");
+		pr_info("dpss_mode/pre_: %d/%d\n",
+			dpss_mode, pre_dpss_mode);
+		pr_info("force_source_format: %d\n",
+			force_source_format);
+		pr_info("cur_signal_type_dpss: 0x%x\n",
+			cur_signal_type_dpss);
+		pr_info("cur_dpss_src_format: 0x%x\n",
+			cur_dpss_src_format);
+		pr_info("cur_csc_type_dpss: 0x%x\n",
+			cur_csc_type_dpss);
+		pr_info("sdr_ext_mode_dpss: %d\n",
+			sdr_ext_mode_dpss);
+		pr_info("sdr_process_mode_dpss: 0x%x\n",
+			sdr_process_mode_dpss);
+		pr_info("hdr_process_mode_dpss: 0x%x\n",
+			hdr_process_mode_dpss);
+		pr_info("hdr10_plus_process_mode_dpss: 0x%x\n",
+			hdr10_plus_process_mode_dpss);
+		pr_info("hlg_process_mode_dpss: 0x%x\n",
+			hlg_process_mode_dpss);
+		pr_info("cuva_hdr_process_mode_dpss: 0x%x\n",
+			cuva_hdr_process_mode_dpss);
+		pr_info("cuva_hlg_process_mode_dpss: 0x%x\n",
+			cuva_hlg_process_mode_dpss);
+	}
 
 	return 0;
 }
 
-void get_source_csc_info(int vpp_index, int *source_type, int *csc_type)
+int gamut0_eotf_143[143] = {
+	0, 14, 28, 42, 56, 71, 85, 99, 113, 128, 142, 156, 170, 184, 199, 213, 227,
+	341, 455, 568, 682, 796, 910, 1024, 1137, 1248, 1369, 1495, 1628, 1766, 1911,
+	2063, 2221, 2385, 2555, 2732, 2916, 3106, 3303, 3507, 3717, 3934, 4158, 4388,
+	4626, 4870, 5121, 5380, 5645, 5917, 6197, 6483, 6777, 7078, 7386, 7701, 8023,
+	8353, 8690, 9035, 9387, 9746, 10113, 10487, 10868, 11257, 11654, 12058, 12470,
+	12890, 13317, 13752, 14194, 14644, 15102, 15568, 16041, 16523, 17012, 17509,
+	18014, 18527, 19047, 19576, 20113, 20657, 21210, 21771, 22339, 22916, 23501,
+	24094, 24695, 25305, 25922, 26548, 27182, 27824, 28475, 29133, 29800, 30476,
+	31159, 31851, 32552, 33260, 33977, 34703, 35437, 36180, 36930, 37690, 38458,
+	39234, 40019, 40813, 41615, 42426, 43245, 44073, 44910, 45755, 46609, 47472,
+	48343, 49224, 50112, 51010, 51916, 52832, 53756, 54688, 55630, 56580, 57540,
+	58508, 59485, 60471, 61466, 62470, 63483, 64505, 65535}; //u13
+
+int gamut0_oetf_144[144] = {
+	0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 6, 6, 6, 7, 8,
+	9, 9, 10, 12, 12, 13, 15, 16, 18, 19, 21, 24, 25, 27,  29, 30, 32, 33, 35, 36,
+	37, 39, 41, 43, 45, 48, 49, 51, 53, 55, 58, 61, 64, 67, 70, 73, 75, 78, 83, 87,
+	91, 96, 99, 103, 107, 110, 117, 123, 129, 135, 141, 146, 151, 156, 166, 175,
+	183, 192, 199, 207, 214, 221, 235, 247, 259, 271, 282, 293, 303, 313, 332,
+	350, 367, 384, 399, 414, 429, 443, 470, 495, 519, 541, 560, 578, 594, 609,
+	635, 658, 678, 697, 713, 729, 743, 756, 779, 800, 819, 836, 852, 866, 880,
+	892, 904, 915, 925, 935, 944, 953, 961, 969, 977, 984, 992, 998, 1005, 1011,
+	1018, 1023};//u10
+
+int gamut0_ootf_144[144] = {
+	65535, 58385, 52015, 46340, 44649, 43312, 42214, 41285, 39777, 38587, 37608,
+	36780, 35438, 34377, 33505, 32767, 31571, 30626, 29849, 29192, 28127, 27285,
+	26593, 26007, 25058, 24308, 23691, 23170, 22324, 21656, 21107, 20642, 19888,
+	19293, 18804, 18390, 17719, 17188, 16752, 16383, 16065, 15785, 15537, 15313,
+	15110, 14924, 14754, 14596, 14312, 14063, 13841, 13642, 13461, 13296, 13144,
+	13003, 12751, 12529, 12331, 12154, 11993, 11845, 11710, 11585, 11360, 11162,
+	10986, 10828, 10684, 10553, 10432, 10321, 10120, 9944, 9787, 9646, 9518, 9402,
+	9294, 9195, 9016, 8859, 8719, 8594, 8480, 8376, 8280, 8191, 8032, 7892, 7768,
+	7656, 7555, 7462, 7377, 7298, 7156, 7031, 6920, 6821, 6730, 6648, 6572, 6501,
+	6375, 6264, 6165, 6077, 5996, 5922, 5855, 5792, 5680, 5581, 5493, 5414, 5342,
+	5276, 5216, 5160, 5060, 4972, 4893, 4823, 4759, 4701, 4647, 4597, 4551, 4508,
+	4467, 4429, 4393, 4359, 4327, 4297, 4268, 4240, 4213, 4188, 4163, 4140, 4117,
+	4096
+};
+
+int gamut1_eotf_143[143] = {
+	0, 14, 28, 42, 56, 71, 85, 99, 113, 128, 142, 156, 170, 184, 199, 213, 227,
+	341, 455, 568, 682, 796, 910, 1024, 1137, 1248, 1369, 1495, 1628, 1766, 1911,
+	2063, 2221, 2385, 2555, 2732, 2916, 3106, 3303, 3507, 3717, 3934, 4158, 4388,
+	4626, 4870, 5121, 5380, 5645, 5917, 6197, 6483, 6777, 7078, 7386, 7701, 8023,
+	8353, 8690, 9035, 9387, 9746, 10113, 10487, 10868, 11257, 11654, 12058, 12470,
+	12890, 13317, 13752, 14194, 14644, 15102, 15568, 16041, 16523, 17012, 17509,
+	18014, 18527, 19047, 19576, 20113, 20657, 21210, 21771, 22339, 22916, 23501,
+	24094, 24695, 25305, 25922, 26548, 27182, 27824, 28475, 29133, 29800, 30476,
+	31159, 31851, 32552, 33260, 33977, 34703, 35437, 36180, 36930, 37690, 38458,
+	39234, 40019, 40813, 41615, 42426, 43245, 44073, 44910, 45755, 46609, 47472,
+	48343, 49224, 50112, 51010, 51916, 52832, 53756, 54688, 55630, 56580, 57540,
+	58508, 59485, 60471, 61466, 62470, 63483, 64505, 65535}; //u16
+
+int gamut1_oetf_144[144] = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3,
+	3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22,
+	24, 27, 29, 31, 33, 36, 40, 45, 49, 54, 58, 63, 67, 72, 81, 90, 98, 106, 114,
+	121, 128, 135, 148, 160, 171, 182, 192, 202, 212, 221, 239, 255, 271, 286, 300,
+	314, 327, 340, 364, 386, 408, 428, 447, 466, 484, 501, 534, 565, 594, 622, 648,
+	674, 698, 722, 745, 767, 788, 809, 829, 849, 868, 887, 905, 923, 941, 958, 975,
+	991, 1008, 1023};//u12
+
+struct gamut_mapping_s gamut_mapping0;
+struct gamut_mapping_s gamut_mapping1;
+
+void gamut_wrapper_init(void)
 {
-	if (!source_type || !csc_type)
-		return;
+	int i = 0;
 
-	*source_type = get_source_type(VD1_PATH, vpp_index);
-	*csc_type = get_csc_type();
-}
-
-static unsigned int pre_osd_gamut_conv_type;
-void amvecm_osd_matrix_process(enum vd_path_e vd_path,
-	enum vpp_index_e vpp_index)
-{
-	enum hdr_process_sel cur_hdr_process;
-	unsigned int tmp_fp, tmp_pp;
-	struct vinfo_s *vinfo;
-	enum hdr_type_e type[VD_PATH_MAX];
-	struct matrix_s m = {
-		{0, 0, 0},
-		{
-			{0x0800, 0x0, 0x0},
-			{0x0, 0x0800, 0x0},
-			{0x0, 0x0, 0x0800},
-		},
-		{0, 0, 0},
-		1,
-	};
-
-	if (vd_path == VD1_PATH &&
-		pre_osd_gamut_conv_type != osd_gamut_conv_type) {
-		pre_osd_gamut_conv_type = osd_gamut_conv_type;
-		tmp_fp = force_primary;
-		tmp_pp = primary_policy;
-		vinfo = get_current_vinfo();
-
-		switch (osd_gamut_conv_type) {
-		case 1:
-			force_primary = 0;
-			type[0] = HDRTYPE_SDR;
-			break;
-		case 2:
-			force_primary = 0;
-			primary_policy = 1;
-			type[0] = HDRTYPE_HDR10;
-			break;
-		case 3:
-			force_primary = 0;
-			type[0] = HDRTYPE_SDR2020;
-			break;
-		case 0:
-		default:
-			force_primary = tmp_fp;
-			primary_policy = tmp_pp;
-			cur_hdr_process = hdr_func(OSD1_HDR, HDR_BYPASS | RGB_OSD,
-				vinfo, NULL, vpp_index);
-			cur_hdr_process = hdr_func(OSD3_HDR, HDR_BYPASS | RGB_OSD,
-				vinfo, NULL, vpp_index);
-			return;
+	for (i = 0; i < 144; i++) {
+		if (i < 143) {
+			gamut_mapping0.eotf_lut[i] = gamut0_eotf_143[i];
+			gamut_mapping1.eotf_lut[i] = gamut1_eotf_143[i];
 		}
-
-		gamut_convert_process(vinfo, type, vd_path,
-			&m, 11, DEST_NONE);
-		force_primary = tmp_fp;
-		primary_policy = tmp_pp;
-		cur_hdr_process = hdr_func(OSD1_HDR, HDR_BYPASS | RGB_OSD,
-			vinfo, &m, vpp_index);
-		cur_hdr_process = hdr_func(OSD3_HDR, HDR_BYPASS | RGB_OSD,
-			vinfo, &m, vpp_index);
+		gamut_mapping0.oetf_lut[i] = gamut0_oetf_144[i];
+		gamut_mapping0.ootf_lut[i] = gamut0_ootf_144[i];
+		gamut_mapping1.oetf_lut[i] = gamut1_oetf_144[i];
 	}
+	gamut_mapping0.flag_update_lut = 1;
+	gamut_mapping1.flag_update_lut = 1;
 }
+
+extern int hist_dma_case;
 
 #endif

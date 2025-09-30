@@ -353,5 +353,56 @@ void pkt_delay_flag_init(void);
 void get_source_csc_info(int vpp_index, int *source_type, int *csc_type);
 void amvecm_osd_matrix_process(enum vd_path_e vd_path,
 	enum vpp_index_e vpp_index);
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+extern unsigned int pre_dpss_mode;
+
+int signal_type_detect_for_dpss(struct vframe_s *vf);
+void hdr_process_for_dpss(struct vframe_s *vf);
+void calculate_dynamic_curve_for_dpss(struct vframe_s *vf);
+void update_hdr_path_for_dpss(struct vframe_s *vf);
+void hdr_init_for_dpss(struct vframe_s *vf);
+void set_dpss_mode(unsigned int val);
+void set_sdr_ext_mode_for_dpss(unsigned int val);
+void set_muxio_link_mode(unsigned int link_flag,
+	struct vframe_s *vf, enum vpp_index_e vpp_index);
+void update_muxio_mode(struct vframe_s *vf,
+	enum vpp_index_e vpp_index);
+unsigned int get_muxio_ready_for_dpss(void);
+
+struct gamut_mapping_s {
+	unsigned int enable;
+	unsigned int eotf_en;
+	unsigned int oetf_en;
+	unsigned int ootf_en;
+	unsigned int mtx_en;
+	unsigned int gmt0_after_osd; // 0: after VADJ1, 1: after OSD
+	unsigned int gmt1_3dlut_inside ; // 1: lut3d inside gmt
+	unsigned int flag_update_lut;
+	int eotf_lut[143];
+	int oetf_lut[144];
+	int ootf_lut[144];
+	unsigned int flag_update_mtx;
+	int mtx[9];
+	int mtx_pre_offset[3];
+	int mtx_pos_offset[3];
+	//debug
+	int mtx_select;
+	int read;
+	int position;
+};
+
+extern struct gamut_mapping_s gamut_mapping0;
+extern struct gamut_mapping_s gamut_mapping1;
+
+void gamut_wrapper_init(void);
+
+void set_muxio_link_mode(unsigned int link_flag,
+	struct vframe_s *vf, enum vpp_index_e vpp_index);
+void update_muxio_mode(struct vframe_s *vf,
+	enum vpp_index_e vpp_index);
+unsigned int get_muxio_ready_for_dpss(void);
+#endif
+
 #endif /* AM_CSC_H */
 

@@ -32,6 +32,7 @@
 #endif
 #include "amve.h"
 #include "reg_helper.h"
+#include "arch/vpp_s7d_sr_regs.h"
 
 #define pr_amcm_dbg(fmt, args...)\
 	do {\
@@ -257,7 +258,8 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 	unsigned int sr_addr_offset = 0x2500;
 	unsigned int reg_sr = SRSHARP1_LC_TOP_CTRL;
 
-	if (chip_type_id == chip_t6d)
+	if (chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w)
 		reg_sr = VPP_LC_MODE;
 
 	dejaggy_reg = sr0_dej_setting[DEJAGGY_LEVEL - 1].am_reg;
@@ -425,6 +427,19 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 #endif
 
 			if (mask == 0xffffffff) {
+				if (flag_lc_evc_src &&
+					chip_type_id == chip_t6w &&
+					addr == VPP_PK_FINAL_GAIN) {
+					temp = (val & 0xff) >> 1;
+					val = (val & 0xffffff00) | (temp & 0xff);
+
+					temp = (val & 0xff00) >> 9;
+					val = (val & 0xffff00ff) | ((temp & 0xff) << 8);
+
+					pr_amcm_dbg("%s %s [0x%x]=0x%x",
+						__func__, "REG_TYPE_VCBUS", addr, val);
+				}
+
 				if (pq_reg_wr_rdma)
 					VSYNC_WRITE_VPP_REG_EX_VPP_SEL(addr, val, 0, vpp_index);
 				else
@@ -448,7 +463,8 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 				}
 
 				if (chip_type_id == chip_s6 ||
-					chip_type_id == chip_s7d)
+					chip_type_id == chip_s7d ||
+					chip_type_id == chip_t6w)
 					aipq_base_peaking_param(addr, mask, val);
 #endif
 			} else {

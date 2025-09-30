@@ -29,5 +29,7 @@ void set_blue_str_parm(struct blue_str_parm_s *parm);
 extern int bs_proc_en;
 void bls_set(void);
 void bs_reg_set(void);
+void ycbcr2rgbpc_nb(int *r, int *g, int *b, int y, int u, int v, int bitdepth);
+
 #endif
 #endif

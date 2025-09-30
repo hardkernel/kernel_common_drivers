@@ -13,6 +13,8 @@
 
 int am_dma_ctrl_dbg;
 
+#define LUT_DMA_AUTO_ADDR_STEP_WR_0  0x2808
+
 #define pr_am_dma(fmt, args...)\
 	do {\
 		if (am_dma_ctrl_dbg == 0x1) {\
@@ -51,6 +53,8 @@ struct vpu_lut_dma_wr_s {
 	u64 baddr1;
 	u32 addr_mode;
 	u32 rpt_num;
+	u32 step;
+	int auto_addr_en;
 };
 
 struct _dma_reg_cfg_s {
@@ -105,6 +109,8 @@ static void _set_vpu_lut_dma_mif_wr_unit(int enable,
 	unsigned int val;
 	int wr_sel;
 	int offset;
+	unsigned int addr_offset = 0;
+	unsigned int start_offset = 0;
 
 	if (!cfg_data) {
 		pr_info("%s: cfg data is NULL.\n", __func__);
@@ -174,46 +180,64 @@ static void _set_vpu_lut_dma_mif_wr_unit(int enable,
 	addr = ADDR_PARAM(dma_reg_cfg.page,
 		dma_reg_cfg.reg_wrmif0_badr1) + (offset << 1);
 	WRITE_VPP_REG_S5(addr, cfg_data->baddr1);
+
+	if (chip_type_id == chip_t6w) {
+		addr_offset = cfg_data->dma_wr_id >> 1;
+		start_offset = 16 * (cfg_data->dma_wr_id & 0x1);
+		addr = LUT_DMA_AUTO_ADDR_STEP_WR_0 + addr_offset;
+		WRITE_VPP_REG_BITS_S5(addr, cfg_data->step, start_offset, 15);
+		WRITE_VPP_REG_BITS_S5(addr, cfg_data->auto_addr_en, 31, 1);
+	}
 }
 
 void am_dma_init(void)
 {
-	/*lut_dma_wr initial*/
-	lut_dma_wr[EN_DMA_WR_ID_LC_STTS_0].stride = 12;/*24;*/
-	lut_dma_wr[EN_DMA_WR_ID_LC_STTS_0].addr_mode = 1;
-	lut_dma_wr[EN_DMA_WR_ID_LC_STTS_0].rpt_num = 32;/*16;*/
+	if (chip_type_id == chip_t6w) {
+		/*dma packet: vd1 hdr_hist*/
+		dma_count[EN_DMA_WR_ID_VD1_HDR_HIST] = 26;
+		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_HIST].stride = 26;
+		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_HIST].addr_mode = 0;
+		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_HIST].rpt_num = 0;
+		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_HIST].step = 26;
+		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_HIST].auto_addr_en = 0;
+	} else if (chip_type_id == chip_t3x) {
+		/*lut_dma_wr initial*/
+		lut_dma_wr[EN_DMA_WR_ID_LC_STTS_0].stride = 12;/*24;*/
+		lut_dma_wr[EN_DMA_WR_ID_LC_STTS_0].addr_mode = 1;
+		lut_dma_wr[EN_DMA_WR_ID_LC_STTS_0].rpt_num = 32;/*16;*/
 
-	lut_dma_wr[EN_DMA_WR_ID_LC_STTS_1].stride = 12;
-	lut_dma_wr[EN_DMA_WR_ID_LC_STTS_1].addr_mode = 1;
-	lut_dma_wr[EN_DMA_WR_ID_LC_STTS_1].rpt_num = 32;
+		lut_dma_wr[EN_DMA_WR_ID_LC_STTS_1].stride = 12;
+		lut_dma_wr[EN_DMA_WR_ID_LC_STTS_1].addr_mode = 1;
+		lut_dma_wr[EN_DMA_WR_ID_LC_STTS_1].rpt_num = 32;
 
-	lut_dma_wr[EN_DMA_WR_ID_VI_HIST_SPL_0].stride = 22;/*2;*/
-	lut_dma_wr[EN_DMA_WR_ID_VI_HIST_SPL_0].addr_mode = 3;/*1;*/
-	lut_dma_wr[EN_DMA_WR_ID_VI_HIST_SPL_0].rpt_num = 0;/*11;*/
+		lut_dma_wr[EN_DMA_WR_ID_VI_HIST_SPL_0].stride = 22;/*2;*/
+		lut_dma_wr[EN_DMA_WR_ID_VI_HIST_SPL_0].addr_mode = 3;/*1;*/
+		lut_dma_wr[EN_DMA_WR_ID_VI_HIST_SPL_0].rpt_num = 0;/*11;*/
 
-	lut_dma_wr[EN_DMA_WR_ID_VI_HIST_SPL_1].stride = 22;
-	lut_dma_wr[EN_DMA_WR_ID_VI_HIST_SPL_1].addr_mode = 3;
-	lut_dma_wr[EN_DMA_WR_ID_VI_HIST_SPL_1].rpt_num = 0;
+		lut_dma_wr[EN_DMA_WR_ID_VI_HIST_SPL_1].stride = 22;
+		lut_dma_wr[EN_DMA_WR_ID_VI_HIST_SPL_1].addr_mode = 3;
+		lut_dma_wr[EN_DMA_WR_ID_VI_HIST_SPL_1].rpt_num = 0;
 
-	lut_dma_wr[EN_DMA_WR_ID_CM2_HIST_0].stride = 12;
-	lut_dma_wr[EN_DMA_WR_ID_CM2_HIST_0].addr_mode = 3;
-	lut_dma_wr[EN_DMA_WR_ID_CM2_HIST_0].rpt_num = 0;
+		lut_dma_wr[EN_DMA_WR_ID_CM2_HIST_0].stride = 12;
+		lut_dma_wr[EN_DMA_WR_ID_CM2_HIST_0].addr_mode = 3;
+		lut_dma_wr[EN_DMA_WR_ID_CM2_HIST_0].rpt_num = 0;
 
-	lut_dma_wr[EN_DMA_WR_ID_CM2_HIST_1].stride = 12;
-	lut_dma_wr[EN_DMA_WR_ID_CM2_HIST_1].addr_mode = 3;
-	lut_dma_wr[EN_DMA_WR_ID_CM2_HIST_1].rpt_num = 0;
+		lut_dma_wr[EN_DMA_WR_ID_CM2_HIST_1].stride = 12;
+		lut_dma_wr[EN_DMA_WR_ID_CM2_HIST_1].addr_mode = 3;
+		lut_dma_wr[EN_DMA_WR_ID_CM2_HIST_1].rpt_num = 0;
 
-	lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_0].stride = 26;/*2;*/
-	lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_0].addr_mode = 3;/*1;*/
-	lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_0].rpt_num = 0;/*13;*/
+		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_0].stride = 26;/*2;*/
+		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_0].addr_mode = 3;/*1;*/
+		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_0].rpt_num = 0;/*13;*/
 
-	lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_1].stride = 26;
-	lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_1].addr_mode = 3;
-	lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_1].rpt_num = 0;
+		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_1].stride = 26;
+		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_1].addr_mode = 3;
+		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_1].rpt_num = 0;
 
-	lut_dma_wr[EN_DMA_WR_ID_VD2_HDR].stride = 26;
-	lut_dma_wr[EN_DMA_WR_ID_VD2_HDR].addr_mode = 3;
-	lut_dma_wr[EN_DMA_WR_ID_VD2_HDR].rpt_num = 0;
+		lut_dma_wr[EN_DMA_WR_ID_VD2_HDR].stride = 26;
+		lut_dma_wr[EN_DMA_WR_ID_VD2_HDR].addr_mode = 3;
+		lut_dma_wr[EN_DMA_WR_ID_VD2_HDR].rpt_num = 0;
+	}
 }
 
 void am_dma_reset_lc(int enable, int rdma_mode, int vpp_index)
@@ -561,6 +585,7 @@ void am_dma_get_mif_data_hdr2_hist(int index,
 	unsigned int tmp = 0;
 	unsigned int size = length;
 	unsigned char *val;
+	unsigned int dma_id = EN_DMA_WR_ID_VD1_HDR_HIST;
 
 	if (!data || length == 0) {
 		pr_am_dma("%s: data or length not fit.\n",
@@ -573,6 +598,13 @@ void am_dma_get_mif_data_hdr2_hist(int index,
 
 	if (size > 128)
 		size = 128;
+
+	if (chip_type_id == chip_t6w)
+		dma_id = EN_DMA_WR_ID_VD1_HDR_HIST;
+	else if (chip_type_id == chip_t3x)
+		dma_id = EN_DMA_WR_ID_CM2_HIST_0 + index;
+	else
+		return;
 
 	if (!dma_vaddr[EN_DMA_WR_ID_VD1_HDR_0 + index]) {
 		pr_am_dma("%s: dma_vaddr %d is NULL.\n",

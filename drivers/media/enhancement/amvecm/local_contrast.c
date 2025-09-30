@@ -196,7 +196,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 
 	switch (mtx_sel) {
 	case INP_MTX:
-		if (chip_type_id == chip_t6d) {
+		if (chip_type_id == chip_t6d ||
+			chip_type_id == chip_t6w) {
 			matrix_coef00_01 = VPP_YUV2RGB_MAT_0;
 			matrix_coef02_10 = VPP_YUV2RGB_MAT_1;
 			matrix_coef11_12 = VPP_YUV2RGB_MAT_2;
@@ -215,7 +216,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 		}
 		break;
 	case OUTP_MTX:
-		if (chip_type_id == chip_t6d) {
+		if (chip_type_id == chip_t6d ||
+			chip_type_id == chip_t6w) {
 			matrix_coef00_01 = VPP_RGB2YUV_MAT_0;
 			matrix_coef02_10 = VPP_RGB2YUV_MAT_1;
 			matrix_coef11_12 = VPP_RGB2YUV_MAT_2;
@@ -258,7 +260,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 	switch (mtx_csc) {
 	case LC_MTX_RGB_YUV601L:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
-			if (chip_type_id == chip_t6d) {
+			if (chip_type_id == chip_t6d ||
+				chip_type_id == chip_t6w) {
 				WRITE_VPP_REG(matrix_coef00_01, 0x02040107);
 				WRITE_VPP_REG(matrix_coef02_10, 0x1f680064);
 				WRITE_VPP_REG(matrix_coef11_12, 0x01c21ed6);
@@ -316,7 +319,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 						      0x04a80812);
 					WRITE_VPP_REG(matrix_coef22, 0x0);
 				} else {
-					if (chip_type_id == chip_t6d) {
+					if (chip_type_id == chip_t6d ||
+						chip_type_id == chip_t6w) {
 						WRITE_VPP_REG(matrix_coef00_01,
 						      0x000004A8);
 						WRITE_VPP_REG(matrix_coef02_10,
@@ -339,7 +343,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 					}
 				}
 
-				if (chip_type_id == chip_t6d) {
+				if (chip_type_id == chip_t6d ||
+					chip_type_id == chip_t6w) {
 					WRITE_VPP_REG(matrix_pre_offset0_1, 0x0200040);
 					WRITE_VPP_REG(matrix_clip, 0x3ff000);
 				} else {
@@ -395,7 +400,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 		break;
 	case LC_MTX_RGB_YUV709L:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
-			if (chip_type_id == chip_t6d) {
+			if (chip_type_id == chip_t6d ||
+				chip_type_id == chip_t6w) {
 				WRITE_VPP_REG(matrix_coef00_01, 0x027500bb);
 				WRITE_VPP_REG(matrix_coef02_10, 0x1f99003f);
 				WRITE_VPP_REG(matrix_coef11_12, 0x01c21ea6);
@@ -453,7 +459,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 						      0x04A80876);
 					WRITE_VPP_REG(matrix_coef22, 0x0);
 				} else {
-					if (chip_type_id == chip_t6d) {
+					if (chip_type_id == chip_t6d ||
+						chip_type_id == chip_t6w) {
 						WRITE_VPP_REG(matrix_coef00_01,
 						      0x000004A8);
 						WRITE_VPP_REG(matrix_coef02_10,
@@ -475,7 +482,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 						WRITE_VPP_REG(matrix_coef22, 0x0);
 					}
 				}
-				if (chip_type_id == chip_t6d) {
+				if (chip_type_id == chip_t6d ||
+					chip_type_id == chip_t6w) {
 					WRITE_VPP_REG(matrix_pre_offset0_1, 0x200040);
 					WRITE_VPP_REG(matrix_clip, 0x3ff000);
 				} else {
@@ -510,7 +518,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 		break;
 	case LC_MTX_RGB_YUV709:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
-			if (chip_type_id == chip_t6d) {
+			if (chip_type_id == chip_t6d ||
+				chip_type_id == chip_t6w) {
 				WRITE_VPP_REG(matrix_coef00_01, 0x02dc00da);
 				WRITE_VPP_REG(matrix_coef02_10, 0x1f8a004a);
 				WRITE_VPP_REG(matrix_coef11_12, 0x02001e76);
@@ -568,7 +577,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 						      0x0400076d);
 					WRITE_VPP_REG(matrix_coef22, 0x0);
 				} else {
-					if (chip_type_id == chip_t6d) {
+					if (chip_type_id == chip_t6d ||
+						chip_type_id == chip_t6w) {
 						WRITE_VPP_REG(matrix_coef00_01,
 						      0x00000400);
 						WRITE_VPP_REG(matrix_coef02_10,
@@ -590,7 +600,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 						WRITE_VPP_REG(matrix_coef22, 0x0);
 					}
 				}
-				if (chip_type_id == chip_t6d) {
+				if (chip_type_id == chip_t6d ||
+					chip_type_id == chip_t6w) {
 					WRITE_VPP_REG(matrix_pre_offset0_1, 0x200000);
 					WRITE_VPP_REG(matrix_clip, 0x3ff000);
 				} else {
@@ -828,7 +839,8 @@ static void lc_blk_bdry_config(unsigned int height, unsigned int width)
 	unsigned int reg_vid3 = SRSHARP1_LC_CURVE_BLK_VIDX_6_7;
 	unsigned int reg_vid4 = SRSHARP1_LC_CURVE_BLK_VIDX_8;
 
-	if (chip_type_id == chip_t6d) {
+	if (chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w) {
 		reg_hid0 = VPP_LC_BLK_HIDX_0;
 		reg_hid1 = VPP_LC_BLK_HIDX_1;
 		reg_hid2 = VPP_LC_BLK_HIDX_2;
@@ -847,7 +859,8 @@ static void lc_blk_bdry_config(unsigned int height, unsigned int width)
 	width /= 12;
 	height /= 8;
 
-	if (chip_type_id == chip_t6d) {
+	if (chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w) {
 		value = (0 << 16) & GET_BITS(0, 14);
 		value |= (width << 16) & GET_BITS(16, 14);
 		WRITE_VPP_REG(reg_hid0, value);
@@ -933,7 +946,8 @@ static void lc_top_config(int enable, int h_num, int v_num,
 		bitdepth, flag, flag_full);
 
 	if (chip_type_id != chip_t3x) {
-		if (chip_type_id == chip_t6d) {
+		if (chip_type_id == chip_t6d ||
+			chip_type_id == chip_t6w) {
 			/*lcinput_ysel*/
 			WRITE_VPP_REG_BITS(VPP_LC_INPUT_SEL, 5, 4, 3);
 			/*lcinput_csel*/
@@ -1020,7 +1034,8 @@ void lc_disable(int rdma_mode, int vpp_index)
 {
 	unsigned int reg_ctrl = SRSHARP1_LC_TOP_CTRL;
 
-	if (chip_type_id == chip_t6d)
+	if (chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w)
 		reg_ctrl = VPP_LC_MODE;
 
 	if (chip_type_id != chip_t3x) {
@@ -1127,7 +1142,8 @@ void lc_config(int enable,
 		flag_full = detect_signal_range_en;
 	}
 
-	if (chip_type_id == chip_t6d && lc_vd_info) {
+	if ((chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w) && lc_vd_info) {
 		sps_h_in = lc_vd_info->vd1_in_vsize;
 		sps_w_in = lc_vd_info->vd1_in_hsize;
 	}
@@ -1322,7 +1338,8 @@ static int set_lc_curve(int binit, int bcheck, int vpp_index)
 	unsigned int reg_data = SRSHARP1_LC_MAP_RAM_DATA;
 	unsigned int reg_num = SRSHARP1_LC_HV_NUM;
 
-	if (chip_type_id == chip_t6d) {
+	if (chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w) {
 		reg_ctrl = VPP_LC_MAP_RAM_CTRL;
 		reg_addr = VPP_LC_MAP_RAM_ADDR;
 		reg_data = VPP_LC_MAP_RAM_DATA;
@@ -1658,7 +1675,8 @@ void lc_init(int bitdepth)
 	unsigned int reg_sat = SRSHARP1_LC_SAT_LUT_62;
 	unsigned int adr = 16;
 
-	if (chip_type_id == chip_t6d) {
+	if (chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w) {
 		reg_sat0 = VPP_LC_SATUR_LUT_0;
 		reg_sat = VPP_LC_SATUR_LUT_F;
 		adr = 12;
@@ -1752,12 +1770,14 @@ void lc_init(int bitdepth)
 		/*default LC low parameters*/
 		WRITE_VPP_REG(LC_CURVE_CONTRAST_LH, 0x000b000b);
 		WRITE_VPP_REG(LC_CURVE_CONTRAST_SCL_LH, 0x00000b0b);
-		if (chip_type_id == chip_t6d)
+		if (chip_type_id == chip_t6d ||
+			chip_type_id == chip_t6w)
 			WRITE_VPP_REG(LC_CURVE_MISC0, 0x13038);
 		else
 			WRITE_VPP_REG(LC_CURVE_MISC0, 0x00023028);
 		WRITE_VPP_REG(LC_CURVE_YPKBV_RAT, 0x8cc0c060);
-		if (chip_type_id == chip_t6d)
+		if (chip_type_id == chip_t6d ||
+			chip_type_id == chip_t6w)
 			WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, 0x0c60);
 		else
 			WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, 0x00000b3a);
@@ -2231,7 +2251,14 @@ void lc_process(struct vframe_s *vf,
 
 	lc_vd_info = get_vd_proc_amvecm_info();
 
-	if (chip_type_id == chip_t6d && lc_vd_info) {
+	if (chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w) {
+		sps_h_in = 1080;
+		sps_w_in = 1920;
+	}
+
+	if ((chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w) && lc_vd_info) {
 		height = lc_vd_info->vd1_dout_vsize;
 		width = lc_vd_info->vd1_dout_hsize;
 
@@ -2397,7 +2424,8 @@ void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type, char *buf)
 	unsigned int reg_sat = SRSHARP1_LC_SAT_LUT_62;
 	unsigned int adr = 16;
 
-	if (chip_type_id == chip_t6d) {
+	if (chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w) {
 		reg_sat0 = VPP_LC_SATUR_LUT_0;
 		reg_sat = VPP_LC_SATUR_LUT_F;
 		adr = 12;
@@ -2415,7 +2443,8 @@ void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type, char *buf)
 	case SATUR_LUT:
 		for (i = 0; i < 31 ; i++) {
 			tmp = READ_VPP_REG(reg_sat0 + i);
-			if (chip_type_id == chip_t6d) {
+			if (chip_type_id == chip_t6d ||
+				chip_type_id == chip_t6w) {
 				tmp2 = (tmp >> adr) & 0xfff;
 				tmp1 = tmp & 0xfff;
 			} else {
@@ -2552,7 +2581,8 @@ dump_as_string:
 	case SATUR_LUT:
 		for (i = 0; i < 31 ; i++) {
 			tmp = READ_VPP_REG(reg_sat0 + i);
-			if (chip_type_id == chip_t6d) {
+			if (chip_type_id == chip_t6d ||
+				chip_type_id == chip_t6w) {
 				tmp2 = (tmp >> adr) & 0xfff;
 				tmp1 = tmp & 0xfff;
 			} else {
@@ -2676,7 +2706,8 @@ void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 	unsigned int reg_sat = SRSHARP1_LC_SAT_LUT_62;
 	unsigned int adr = 16;
 
-	if (chip_type_id == chip_t6d) {
+	if (chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w) {
 		reg_sat0 = VPP_LC_SATUR_LUT_0;
 		reg_sat = VPP_LC_SATUR_LUT_F;
 		adr = 12;
@@ -2688,7 +2719,8 @@ void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 			for (i = 0; i < 31; i++) {
 				tmp1 = *(p + 2 * i);
 				tmp2 = *(p + 2 * i + 1);
-				if (chip_type_id == chip_t6d)
+				if (chip_type_id == chip_t6d ||
+					chip_type_id == chip_t6w)
 					tmp = ((tmp2 & 0xfff) << adr) | (tmp1 & 0xfff);
 				else
 					tmp = ((tmp1 & 0xfff) << adr) | (tmp2 & 0xfff);

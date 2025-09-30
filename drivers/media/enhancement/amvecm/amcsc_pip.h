@@ -6,7 +6,7 @@
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifndef AM_CSC_PIP_H
 #define AM_CSC_PIP_H
-
+#include <linux/amlogic/media/amvecm/hdr2_ext.h>
 extern uint slice_set;
 
 int hdr_policy_process(struct vinfo_s *vinfo,
@@ -30,5 +30,18 @@ void video_post_process(struct vframe_s *vf,
 	struct vframe_master_display_colour_s *master_info,
 	enum hdr_type_e *source_type, enum vpp_index_e vpp_index);
 void output_color_fmt_convert(int vpp_index);
+void hdr_proc_multi_slices(struct vframe_s *vf,
+	      enum hdr_module_sel module_sel,
+	      u32 hdr_process_select,
+	      struct vinfo_s *vinfo,
+	      struct matrix_s *gmt_mtx,
+	      s32 slice_mode,
+	      enum vpp_index_e vpp_index);
+void hdr_proc(struct vframe_s *vf,
+	      enum hdr_module_sel module_sel,
+	      u32 hdr_process_select,
+	      struct vinfo_s *vinfo,
+	      struct matrix_s *gmt_mtx,
+	      enum vpp_index_e vpp_index);
 #endif
 #endif

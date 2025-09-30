@@ -438,6 +438,9 @@ static int index_rdma_part_ins(u32 reg)
 		(reg == 0x5126 || reg == 0x5192))
 		table_index = 0;
 
+	if (reg == 0x1d26)
+		table_index = 0;
+
 	return table_index;
 }
 

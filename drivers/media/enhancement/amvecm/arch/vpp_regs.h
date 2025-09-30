@@ -1617,5 +1617,55 @@
 #define VPP2_GAMMA_BIN_ADDR          0x1ed3
 #define VPP2_GAMMA_BIN_DATA          0x1ed4
 
+#define GAMUT_MAP0_RP_CTRL                         0x6400
+#define GAMUT_MAP0_MATRIX_COEF0                    0x6401
+#define GAMUT_MAP0_MATRIX_COEF1                    0x6402
+#define GAMUT_MAP0_MATRIX_COEF2                    0x6403
+#define GAMUT_MAP0_MATRIX_COEF3                    0x6404
+#define GAMUT_MAP0_MATRIX_COEF4                    0x6405
+#define GAMUT_MAP0_MATRIX_OFST_0                   0x6406
+#define GAMUT_MAP0_MATRIX_OFST_1                   0x6407
+#define GAMUT_MAP0_MATRIX_OFST_2                   0x6408
+#define GAMUT_MAP0_EOTF_OFST                       0x6409
+#define GAMUT_MAP0_OETF_OFST                       0x640a
+#define GAMUT_OOTF_COEF_0                          0x640b
+#define GAMUT_OOTF_COEF_1                          0x640c
+#define GAMUT_OOTF_CTRL                            0x640d
+#define GAMUT_OOTF_FINAL_ALPHA_0                   0x640e
+#define GAMUT_OOTF_FINAL_ALPHA_1                   0x640f
+#define GAMUT_OOTF_BETA_OFST_0                     0x6410
+#define GAMUT_OOTF_BETA_OFST_1                     0x6411
+#define GAMUT_OOTF_BETA_OFST_2                     0x6412
+
+#define GAMUT_MAP1_RP_CTRL                         0x6420
+#define GAMUT_MAP1_MATRIX_COEF0                    0x6421
+#define GAMUT_MAP1_MATRIX_COEF1                    0x6422
+#define GAMUT_MAP1_MATRIX_COEF2                    0x6423
+#define GAMUT_MAP1_MATRIX_COEF3                    0x6424
+#define GAMUT_MAP1_MATRIX_COEF4                    0x6425
+#define GAMUT_MAP1_MATRIX_OFST_0                   0x6426
+#define GAMUT_MAP1_MATRIX_OFST_1                   0x6427
+#define GAMUT_MAP1_MATRIX_OFST_2                   0x6428
+#define GAMUT_MAP1_EOTF_OFST                       0x6429
+#define GAMUT_MAP1_OETF_OFST                       0x642a
+#define GAMUT_MAP1_3DLUT_EN                        0x642b
+
+#define GAMUT_EOTF_LUT_ADDR_PORT                   0x6480
+//Bit 31:0  reg_eotf_lut_addr          //unsigned ,RW, default = 0
+#define GAMUT_EOTF_LUT_DATA_PORT                   0x6481
+//Bit 31:0  reg_eotf_lut_data          //unsigned ,RW, default = 0
+#define GAMUT_OETF_LUT_ADDR_PORT                   0x6482
+//Bit 31:0  reg_oetf_lut_addr          //unsigned ,RW, default = 0
+#define GAMUT_OETF_LUT_DATA_PORT                   0x6483
+//Bit 31:0  reg_oetf_lut_data          //unsigned ,RW, default = 0
+#define GAMUT_OOTF_LUT_ADDR_PORT                   0x6484
+//Bit 31:0  reg_ootf_lut_addr          //unsigned ,RW, default = 0
+#define GAMUT_OOTF_LUT_DATA_PORT                   0x6485
+//Bit 31:0  reg_ootf_lut_data          //unsigned ,RW, default = 0
+#define MAP1_GAMUT_EOTF_LUT_ADDR_PORT              0X6490
+#define MAP1_GAMUT_EOTF_LUT_DATA_PORT              0X6491
+#define MAP1_GAMUT_OETF_LUT_ADDR_PORT              0X6492
+#define MAP1_GAMUT_OETF_LUT_DATA_PORT              0X6493
+
 #endif
 

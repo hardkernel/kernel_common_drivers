@@ -202,7 +202,6 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VD2_HDR2_ADPSCL1_COEF1             0x38a1
 #define VD2_HDR2_RGB_GM_CTRL               0x38a2
 
-
 // vd3 to do, use correct register address
 #define VD3_HDR2_CTRL                      0x5930
 #define VD3_HDR2_CLK_GATE                  0x5931

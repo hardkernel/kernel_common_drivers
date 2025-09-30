@@ -88,6 +88,10 @@
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
+#define FLAG_HDR_ON					BIT(25)
+#define FLAG_GAMUT_MAPPING1_UPDATE   BIT(24)
+#define FLAG_GAMUT_MAPPING0_UPDATE   BIT(23)
+#define FLAG_PRE_SAT_UPDATE         BIT(22)
 #define FLAG_RESUME_RECOVERY        BIT(21)
 #define SHARPNESS_GAIN_UPDATE       BIT(20)
 #define FLAG_GAMMA_TABLE_EN_SUB     BIT(19)
@@ -415,7 +419,9 @@ enum vpp_index_e {
 	VPP_TOP1 = 1,
 	VPP_TOP2 = 2,
 	VPP_PRE_VS = 3,
-	VPP_TOP_MAX_S = 4
+	VPP_DPSS = 4,
+	VPP_TOP_MAX_S = 5,
+	VPP_VCBUS = 0xff,
 };
 
 enum vpp_slice_e {
@@ -689,6 +695,22 @@ void d_convert_str(int num,
 			  int num_num, char cur_s[],
 			  int char_bit, int bit_chose);
 void str_sapr_to_d(char *s, int *d, int n);
+extern unsigned int dpss_mode;
+extern unsigned int watermark_support;
+
+extern unsigned int muxio_ready_flag;
+void amvecm_muxio_on_vs(struct vframe_s *vf,
+	enum vpp_index_e vpp_index);
+void amvecm_set_dpss_mode(unsigned int val);
+void amvecm_hdr_init_for_dpss(struct vframe_s *vf);
+void amvecm_update_hdr_path_for_dpss(struct vframe_s *vf);
+unsigned int amvecm_get_muxio_ready_for_dpss(void);
+void amvecm_set_muxio_link_for_dpss(unsigned int link_flag,
+	struct vframe_s *vf, enum vpp_index_e vpp_index);
+int amvecm_signal_type_for_dpss(struct vframe_s *vf);
+void amvecm_hdr_process_for_dpss(struct vframe_s *vf);
+void amvecm_hdr_calculate_for_dpss(struct vframe_s *vf);
+unsigned int amvecm_get_dpss_mode(void);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 bool is_amdv_enable(void);

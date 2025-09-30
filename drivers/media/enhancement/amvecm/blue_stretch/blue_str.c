@@ -130,7 +130,7 @@ void set_blue_str_parm(struct blue_str_parm_s *parm)
  *}
  */
 
-static void ycbcr2rgbpc_nb(int *r, int *g, int *b, int y, int u, int v, int bitdepth)
+void ycbcr2rgbpc_nb(int *r, int *g, int *b, int y, int u, int v, int bitdepth)
 {
 	int ny = 0;
 	int cb = 0;

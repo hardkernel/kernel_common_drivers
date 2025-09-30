@@ -107,7 +107,7 @@ struct hdr_proc_mtx_param_s {
 };
 
 struct hdr_proc_lut_param_s {
-	s64 eotf_lut[HDR2_EOTF_LUT_SIZE];
+	s64 eotf_lut[HDR2_EOTF_LUT_SIZE_NEW];
 	s64 oetf_lut[HDR2_OETF_LUT_SIZE];
 	s64 cgain_lut[HDR2_CGAIN_LUT_SIZE];
 	s32 ogain_lut[HDR2_OOTF_LUT_SIZE];
@@ -120,6 +120,11 @@ struct hdr_proc_lut_param_s {
 	unsigned int bitdepth;
 	unsigned int cgain_en;
 	unsigned int hist_en;
+	unsigned int cgain_mode;
+	unsigned int omax_sync_gain_sft;
+	unsigned int omax_sync_gain;
+	unsigned int cgain_pos;
+	unsigned int ogain_inser;
 };
 
 struct hdr_proc_clip_param_s {

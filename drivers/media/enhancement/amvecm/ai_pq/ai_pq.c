@@ -327,7 +327,8 @@ int peaking_scene_process(int offset, int enable)
 
 	/*sr0 hp,bp gain*/
 	if (chip_type_id == chip_s6 ||
-		chip_type_id == chip_s7d) {
+		chip_type_id == chip_s7d ||
+		chip_type_id == chip_t6w) {
 		base_val[0] = adap_param->peaking_param.sr0_final_pgains;
 		base_val[1] = adap_param->peaking_param.sr0_final_ngains;
 	} else {
@@ -337,7 +338,8 @@ int peaking_scene_process(int offset, int enable)
 
 	/*sr1 hp,bp gain ,s6/s7d sr0 dgain,cgian*/
 	if (chip_type_id == chip_s6 ||
-		chip_type_id == chip_s7d) {
+		chip_type_id == chip_s7d ||
+		chip_type_id == chip_t6w) {
 		base_val[2] = adap_param->peaking_param.sr0_final_dgains;
 		base_val[3] = adap_param->peaking_param.sr0_final_cgains;
 	} else {
@@ -359,7 +361,8 @@ int peaking_scene_process(int offset, int enable)
 		}
 
 		if (chip_type_id == chip_s6 ||
-		chip_type_id == chip_s7d)
+		chip_type_id == chip_s7d ||
+		chip_type_id == chip_t6w)
 			set_sharpness_gain(base_val[0] << 8 | base_val[1] |
 				base_val[2] << 24 | base_val[3] << 16, 0);
 		else
@@ -435,7 +438,8 @@ int peaking_scene_process(int offset, int enable)
 	}
 
 	if (chip_type_id == chip_s6 ||
-		chip_type_id == chip_s7d)
+		chip_type_id == chip_s7d ||
+		chip_type_id == chip_t6w)
 		set_sharpness_gain(reg_val[0] << 8 | reg_val[1] |
 				reg_val[2] << 24 | reg_val[3] << 16, 0);
 	else
