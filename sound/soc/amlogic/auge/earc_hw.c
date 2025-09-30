@@ -1625,6 +1625,21 @@ static void earctx_channel_sync_start(struct regmap *dmac_map, bool statrt)
 	}
 }
 
+void earctx_dmac_force_mode(struct regmap *dmac_map, bool is_earc, bool enable)
+{
+	pr_info("set earc tx force mode is_earc %d, enable %d\n", is_earc, enable);
+
+	/* 0xe for arc mode, 0x3 for earc mode */
+	if (enable) {
+		if (is_earc)
+			mmio_write(dmac_map, EARCTX_DMAC_TOP_CTRL0, 0x3);
+		else
+			mmio_write(dmac_map, EARCTX_DMAC_TOP_CTRL0, 0xe);
+	} else {
+		mmio_write(dmac_map, EARCTX_DMAC_TOP_CTRL0, 0);
+	}
+}
+
 void earctx_enable(struct regmap *top_map,
 		   struct regmap *cmdc_map,
 		   struct regmap *dmac_map,
@@ -1667,6 +1682,8 @@ void earctx_enable(struct regmap *top_map,
 					 mask << offset,
 					 val << offset);
 		}
+
+		earctx_dmac_force_mode(dmac_map, false, false);
 
 		/* first biphase work clear, and then start
 		 * only for earc
@@ -2206,16 +2223,6 @@ void earctx_dmac_mute_and_hold_bus(struct regmap *dmac_map, bool enable)
 			0x1 << 31 | 0x1 << 27, 0x1 << 31 | 0x1 << 27);
 	}
 
-}
-
-void earctx_dmac_force_mode(struct regmap *dmac_map, bool enable)
-{
-	pr_info("set earc tx force mode %d\n", enable);
-	/* force arc mode as earc mode will consume data faster */
-	if (enable)
-		mmio_write(dmac_map, EARCTX_DMAC_TOP_CTRL0, 0xe);
-	else
-		mmio_write(dmac_map, EARCTX_DMAC_TOP_CTRL0, 0);
 }
 
 int earcrx_get_sample_rate(struct regmap *dmac_map)

@@ -931,10 +931,8 @@ static void earctx_update_attend_event(struct earc *p_earc,
 		}
 	}
 
-	if (p_earc->tx_dmac_clk_on &&
-	    p_earc->tx_arc_status != ATNDTYP_DISCNCT &&
-	    !p_earc->tx_reset_hpd)
-		earctx_dmac_force_mode(p_earc->tx_dmac_map, false);
+	if (p_earc->tx_dmac_clk_on)
+		earctx_dmac_force_mode(p_earc->tx_dmac_map, is_earc, true);
 	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
 
 	if (send) {
@@ -2371,7 +2369,7 @@ static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode, bool tinym
 	/* switch to force mode for consume data when switch earc mode */
 	spin_lock_irqsave(&p_earc->tx_lock, flags);
 	if (p_earc->tx_dmac_clk_on)
-		earctx_dmac_force_mode(p_earc->tx_dmac_map, true);
+		earctx_dmac_force_mode(p_earc->tx_dmac_map, false, true);
 	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
 
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
