@@ -814,9 +814,16 @@ function modules_install() {
 		BAZEL_OUT=bazel-out/
 		while read module
 		do
+			local match=
+			for ext_module in ${EXT_MODULES_ANDROID_AUTO_LOAD}; do
+				if [[ "${module}" =~ "${ext_module}" ]]; then
+					match=1
+					break
+				fi
+			done
 			module_name=${module##*/}
 			if [[ -f ${DIST_DIR}/${module_name} ]]; then
-				if [[ "${module}" == "kernel/"* || "${module}" == *"/common_drivers/"* || *"${module_name}"* == "${EXT_MODULES_ANDROID_AUTO_LOAD}" ]]; then
+				if [[ "${module}" == "kernel/"* || "${module}" == *"/common_drivers/"* || ${match} == 1 ]]; then
 					cp ${DIST_DIR}/${module_name} ${OUT_AMLOGIC_DIR}/modules
 				else
 					cp ${DIST_DIR}/${module_name} ${OUT_AMLOGIC_DIR}/ext_modules
