@@ -968,6 +968,70 @@ static struct vpu_sub vpu3_r_t6w[] __initdata = {
 	{ .id = 0x34, .name = VPU_PORT_MC_RD3		},
 	{ .id = 0x05, .name = VPU_PORT_MMU		},
 };
+
+static struct vpu_sub vpu0_r_t6x[] __initdata = {
+	{ .id = 0x00, .name = "OSD1"			},
+	{ .id = 0x01, .name = "OSD2"			},
+	{ .id = 0x02, .name = "NR_SUB"			},
+	{ .id = 0x03, .name = "MC_SUB"			},
+	{ .id = 0x04, .name = "OSD3"			},
+	{ .id = 0x05, .name = "MC_VFCD0"		},
+	{ .id = 0x06, .name = "MC_VFCD1"		},
+	{ .id = 0x07, .name = "MALI_AFBCD"		},
+	{ .id = 0x08, .name = "MC_VFCD2"		},
+	{ .id = 0x09, .name = "TCON_P1"			},
+	{ .id = 0x0A, .name = "RDMA"			},
+	{ .id = 0x0B, .name = "LOCAL_DIMMING"		},
+	{ .id = 0x0D, .name = "LUT_DMA_RD"		},
+	{ .id = 0x0E, .name = "MC_MMU"			},
+	{ .id = 0x0F, .name = "DOLBY_TV"		},
+};
+
+static struct vpu_sub vpu0_w_t6x[] __initdata = {
+	{ .id = 0x00, .name = "VDIN0"			},
+	{ .id = 0x01, .name = "VDIN1"			},
+	{ .id = 0x02, .name = "VDIN_DOLBY"		},
+	{ .id = 0x03, .name = "VDIN_AFBCE"		},
+	{ .id = 0x05, .name = "TCON_P1"			},
+	{ .id = 0x06, .name = "LDIM_WR"			},
+	{ .id = 0x16, .name = "LDIM_WR"			},
+	{ .id = 0x26, .name = "LDIM_WR"			},
+	{ .id = 0x36, .name = "rdma_wr"			},
+	{ .id = 0x46, .name = "LUT_DMA_WR"		},
+	{ .id = 0x56, .name = "DOLBY_TV"		},
+	{ .id = 0x66, .name = "DOLBY_TV"		},
+	{ .id = 0x76, .name = "DOLBY_TV"		},
+	{ .id = 0x0E, .name = "DPE_WR"			},
+};
+
+static struct vpu_sub vpu2_r_t6x[] __initdata = {
+	{ .id = 0x00, .name = "NR_VFCD0"		},
+	{ .id = 0x01, .name = "NR_VFCD1"		},
+	{ .id = 0x02, .name = "NR_VFCD2"		},
+	{ .id = 0x03, .name = "NR_VFCD3"		},
+	{ .id = 0x04, .name = "DAE_RD0"			},
+	{ .id = 0x05, .name = "INP_RD"			},
+	{ .id = 0x36, .name = "RDMA_RD"			},
+};
+
+static struct vpu_sub vpu2_w_t6x[] __initdata = {
+	{ .id = 0x00, .name = "VFCE_WRMIF2"		},
+	{ .id = 0x01, .name = "VFCE_WRMIF2"		},
+	{ .id = 0x02, .name = "VFCE_WRMIF2"		},
+	{ .id = 0x03, .name = "VFCE_WRMIF2"		},
+	{ .id = 0x04, .name = "DS_WRMIF"		},
+	{ .id = 0x05, .name = "WRMIF"			},
+	{ .id = 0x06, .name = "WRMIF0"			},
+	{ .id = 0x07, .name = "WRMIF0"			},
+	{ .id = 0x08, .name = "WRMIF1"			},
+	{ .id = 0x09, .name = "WRMIF1"			},
+	{ .id = 0x0A, .name = "DMSQ_WR"			},
+	{ .id = 0x0B, .name = "NR_WR0"			},
+	{ .id = 0x0C, .name = "NR_WR1"			},
+	{ .id = 0x0D, .name = "DAE_WR"			},
+	{ .id = 0x0E, .name = "INP_WR"			},
+	{ .id = 0x4F, .name = "RDMA_WR"			},
+};
 #endif
 
 int __init dmc_find_port_sub(struct dmc_monitor *mon, int cpu_type)
@@ -1111,6 +1175,10 @@ int __init dmc_find_port_sub(struct dmc_monitor *mon, int cpu_type)
 		VPU_DATA_RW_CHIP_INIT(1, t6w);
 		VPU_DATA_RW_CHIP_INIT(2, t6w);
 		VPU_DATA_R_CHIP_INIT(3, t6w);
+		break;
+	case DMC_TYPE_T6X:
+		VPU_DATA_RW_CHIP_INIT(0, t6x);
+		VPU_DATA_RW_CHIP_INIT(2, t6x);
 		break;
 #endif
 	default:

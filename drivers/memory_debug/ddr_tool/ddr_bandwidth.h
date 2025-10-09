@@ -25,6 +25,8 @@
 #define MAX_DMC_NUM			4
 
 /* for soc_feature */
+#define DEV_IS_MDC		BIT(7)
+#define DDR_IS_POLL		BIT(6)
 #define DMC_ASYMMETRY		BIT(5)
 #define DDR_WIDTH_IS_64BIT	BIT(4)
 #define DDR_WIDTH_IS_16BIT	BIT(3)
@@ -250,6 +252,12 @@ struct dmc_bus {
 	struct bus_devices *bus;
 };
 
+struct mdc_device {
+	unsigned int number;
+	int port_num;
+	void __iomem *reg_base[4];
+};
+
 struct bus_width_reg {
 	unsigned long addr;
 	void __iomem *io_addr;
@@ -264,10 +272,10 @@ struct ddr_bandwidth {
 	char soc_feature;		/* some special feature of it */
 	int mali_port[2];
 	int stat_flag;
-	int bus_num;
 	int vpu_bus_num;
 	int async_dmc_num;
 	struct dmc_bus dmc_bus[4];
+	int bus_num;
 	unsigned int ddr_priority_num;
 	unsigned int threshold;
 	unsigned int irq_num;
@@ -279,7 +287,9 @@ struct ddr_bandwidth {
 	enum ddr_type ddr_type;
 	unsigned long ddr_freq;
 	unsigned long dmc_freq;
+	unsigned long ddr_poll_ns;
 	raw_spinlock_t lock;		/* lock for usage statistics */
+	struct hrtimer ddr_poll_timer;
 	struct ddr_bandwidth_sample cur_sample;
 	struct ddr_bandwidth_sample max_sample;
 	struct ddr_bandwidth_sample prev_sample;
@@ -302,6 +312,7 @@ struct ddr_bandwidth {
 	struct ddr_increase_tool increase_tool;
 	struct ddr_outstanding ost;
 	struct dentry *debugfs;
+	struct mdc_device mdc;
 };
 
 extern struct ddr_bandwidth *aml_db;
@@ -356,7 +367,11 @@ extern struct ddr_bandwidth_ops t6d_ddr_bw_ops;
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T6W
 extern struct ddr_bandwidth_ops t6w_ddr_bw_ops;
 #endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T6X
+extern struct ddr_bandwidth_ops t6x_ddr_bw_ops;
+#endif
 
+int ddr_poll_start(void);
 unsigned int aml_get_ddr_usage(void);
 
 int one_dmc_reg_field_access(struct ddr_bandwidth *db, unsigned char dmc, u32 *val, int rw,

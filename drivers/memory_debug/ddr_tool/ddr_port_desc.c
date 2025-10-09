@@ -1225,6 +1225,38 @@ static struct ddr_port_desc ddr_port_desc_t6w[] __initdata = {
 	{ .port_id = 50, .bus = 10, .port_name = "DAP"          },
 	{ .port_id = 51, .bus = 10, .port_name = "BCON"         },
 };
+
+static struct ddr_port_desc ddr_port_desc_t6x[] __initdata = {
+	{ .port_id =  0, .bus = 0, .mdc_port_id = 0, .port_name = "ARM"           },
+	{ .port_id =  8, .bus = 1, .mdc_port_id = 0, .port_name = "VPU0"          },
+	{ .port_id = 16, .bus = 2, .mdc_port_id = 0, .port_name = "VPU1"          },
+	{ .port_id = 24, .bus = 3, .mdc_port_id = 0, .port_name = "MALI"          },
+	{ .port_id = 25, .bus = 3, .mdc_port_id = 1, .port_name = "HEVC"          },
+	{ .port_id = 26, .bus = 3, .mdc_port_id = 2, .port_name = "GE2D"          },
+	{ .port_id = 27, .bus = 3, .mdc_port_id = 3, .port_name = "DEVICE"        },
+	{ .port_id = 28, .bus = 3, .mdc_port_id = 4, .port_name = "AMFC"          },
+	{ .port_id = 29, .bus = 3, .mdc_port_id = 5, .port_name = "HCODEC"        },
+	{ .port_id = 30, .bus = 3, .mdc_port_id = 6, .port_name = "TEST"          },
+	/* start of each device */
+	{ .port_id = 32, .bus = 3, .mdc_port_id = 3, .port_name = "EMMC"          },
+	{ .port_id = 34, .bus = 3, .mdc_port_id = 3, .port_name = "DMA"           },
+	{ .port_id = 35, .bus = 3, .mdc_port_id = 3, .port_name = "AUDIO"         },
+	{ .port_id = 36, .bus = 3, .mdc_port_id = 3, .port_name = "DEMUX"         },
+	{ .port_id = 37, .bus = 3, .mdc_port_id = 3, .port_name = "CSS/IOTM"      },
+	{ .port_id = 38, .bus = 3, .mdc_port_id = 3, .port_name = "TVFE"          },
+	{ .port_id = 39, .bus = 3, .mdc_port_id = 3, .port_name = "ETH"           },
+	{ .port_id = 40, .bus = 3, .mdc_port_id = 3, .port_name = "HDMIRX"        },
+	{ .port_id = 41, .bus = 3, .mdc_port_id = 3, .port_name = "AOCPU"         },
+	{ .port_id = 42, .bus = 3, .mdc_port_id = 3, .port_name = "USB3_0"        },
+	{ .port_id = 43, .bus = 3, .mdc_port_id = 3, .port_name = "USB2_1"        },
+	{ .port_id = 44, .bus = 3, .mdc_port_id = 3, .port_name = "USB2_2"        },
+	{ .port_id = 45, .bus = 3, .mdc_port_id = 3, .port_name = "I2CMON"        },
+	{ .port_id = 46, .bus = 3, .mdc_port_id = 3, .port_name = "DEMOD"         },
+	{ .port_id = 47, .bus = 3, .mdc_port_id = 3, .port_name = "AUCPU"         },
+	{ .port_id = 48, .bus = 3, .mdc_port_id = 3, .port_name = "SPISG"         },
+	{ .port_id = 51, .bus = 3, .mdc_port_id = 3, .port_name = "BCON"          },
+	{ .port_id = 53, .bus  = 3, .mdc_port_id = 3, .port_name = "DAP"           },
+};
 #endif
 static struct ddr_port_desc ddr_port_desc_s1a[] __initdata = {
 	{ .port_id =  0, .bus =  0, .port_name = "ARM_A35"       },
@@ -1508,6 +1540,10 @@ int __init ddr_find_port_desc_type(int cpu_type, struct ddr_port_desc **desc, in
 	case DMC_TYPE_T6W:
 		*desc = ddr_port_desc_t6w;
 		desc_size = ARRAY_SIZE(ddr_port_desc_t6w);
+		break;
+	case DMC_TYPE_T6X:
+		*desc = ddr_port_desc_t6x;
+		desc_size = ARRAY_SIZE(ddr_port_desc_t6x);
 		break;
 #endif
 	case DMC_TYPE_S1A:

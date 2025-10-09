@@ -55,7 +55,8 @@
 #define DMC_TYPE_S7D			0x47
 #define DMC_TYPE_S6			0x48
 #define DMC_TYPE_T6D			0x49
-#define DMC_TYPE_T6W			0x4a
+#define DMC_TYPE_T6W			0x4A
+#define DMC_TYPE_T6X			0x4B
 
 #define DMC_READ			0
 #define DMC_WRITE			1
@@ -63,7 +64,11 @@
 struct ddr_port_desc {
 	char port_name[MAX_NAME];
 	unsigned char port_id;
-	unsigned int bus;
+	union {
+		unsigned int bus;
+		unsigned int mdc_id;
+	};
+	unsigned int mdc_port_id;
 };
 
 struct vpu_sub_desc {
