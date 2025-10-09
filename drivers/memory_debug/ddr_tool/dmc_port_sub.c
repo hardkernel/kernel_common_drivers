@@ -846,6 +846,106 @@ static struct vpu_sub_desc vpu_sub_desc_t6d[] __initdata = {
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
 };
 
+static struct vpu_sub vpu0_r_t5m[] __initdata = {
+	{ .id = 0x00, .name = "OSD1"			},
+	{ .id = 0x01, .name = "OSD2"			},
+	{ .id = 0x02, .name = "VD1"			},
+	{ .id = 0x03, .name = "VD2"			},
+	{ .id = 0x04, .name = "OSD3"			},
+	{ .id = 0x05, .name = "OSD4"			},
+	{ .id = 0x06, .name = "DOLBY0"			},
+	{ .id = 0x07, .name = "MALI_AFBCD"		},
+	{ .id = 0x08, .name = "NPU_READ"		},
+	{ .id = 0x09, .name = "TCON_P1"			},
+	{ .id = 0x0A, .name = "RDMA_READ"		},
+	{ .id = 0x0B, .name = "DCNTR_GRID_RD"		},
+	{ .id = 0x0C, .name = "TCON_P2"			},
+	{ .id = 0x0F, .name = "VPU_DMA_RD"		},
+	{ .id = 0x1F, .name = "DOBLY_TV_RD"		},
+	{ .id = 0x2F, .name = "LDIM_RD"			},
+	{ .id = 0x3F, .name = "AFBCE_RD"		},
+};
+
+static struct vpu_sub vpu1_r_t5m[] __initdata = {
+	{ .id = 0x00, .name = "DI_IF1"			},
+	{ .id = 0x01, .name = "DI_MEM"			},
+	{ .id = 0x02, .name = "DIVR"			},
+	{ .id = 0x12, .name = "YDS"			},
+	{ .id = 0x22, .name = "CDS"			},
+	{ .id = 0x32, .name = "GRID"			},
+	{ .id = 0x42, .name = "DI_INP"			},
+	{ .id = 0x03, .name = "DI_CHAN2"		},
+	{ .id = 0x04, .name = "CONTP_RD"		},
+	{ .id = 0x14, .name = "CONTP2_RD"		},
+	{ .id = 0x24, .name = "MTN_RD"			},
+	{ .id = 0x34, .name = "MCVEC_RD"		},
+	{ .id = 0x44, .name = "MCINF_RD"		},
+	{ .id = 0x05, .name = "DI_IF2"			},
+	{ .id = 0x06, .name = "DI_IF0"			},
+	{ .id = 0x07, .name = "DI_AFBCD"		},
+};
+
+static struct vpu_sub vpu2_r_t5m[] __initdata = {
+	{ .id = 0x00, .name = "OSD1"			},
+	{ .id = 0x01, .name = "OSD2"			},
+	{ .id = 0x02, .name = "VD1"			},
+	{ .id = 0x03, .name = "VD2"			},
+	{ .id = 0x04, .name = "OSD3"			},
+	{ .id = 0x05, .name = "OSD4"			},
+	{ .id = 0x06, .name = "DOLBY0"			},
+	{ .id = 0x07, .name = "MALI_AFBCD"		},
+	{ .id = 0x08, .name = "NPU_READ"		},
+	{ .id = 0x09, .name = "TCON_P1"			},
+	{ .id = 0x0A, .name = "RDMA_READ"		},
+	{ .id = 0x0B, .name = "DCNTR_GRID_RD"		},
+	{ .id = 0x0C, .name = "TCON_P2"			},
+	{ .id = 0x0F, .name = "VPU_DMA_RD"		},
+	{ .id = 0x1F, .name = "DOBLY_TV_RD"		},
+	{ .id = 0x2F, .name = "LDIM_RD"			},
+	{ .id = 0x3F, .name = "AFBCE_RD"		},
+};
+
+static struct vpu_sub vpu0_w_t5m[] __initdata = {
+	{ .id = 0x00, .name = "VDIN0_WR"		},
+	{ .id = 0x01, .name = "VDIN1_WR"		},
+	{ .id = 0x02, .name = "VDIN_DOLBY"		},
+	{ .id = 0x03, .name = "VDIN_AFBCE"		},
+	{ .id = 0x04, .name = "DCNTR_GRID_WR"		},
+	{ .id = 0x05, .name = "TCON1_WR"		},
+	{ .id = 0x06, .name = "RDMA_WR"			},
+	{ .id = 0x07, .name = "TCON2_WR"		},
+	{ .id = 0x08, .name = "LDIM_WR"			},
+	{ .id = 0x09, .name = "VDIN2_WR"		},
+	{ .id = 0x0A, .name = "VPU_DMA_WR"		},
+};
+
+static struct vpu_sub vpu1_w_t5m[] __initdata = {
+	{ .id = 0x00, .name = "NR_WR"			},
+	{ .id = 0x01, .name = "DI_WR"			},
+	{ .id = 0x02, .name = "CONT_WR"			},
+	{ .id = 0x12, .name = "MTN_WR"			},
+	{ .id = 0x22, .name = "MCVEC_WR"		},
+	{ .id = 0x32, .name = "MCINF_WR"		},
+	{ .id = 0x42, .name = "NRDS_WR"			},
+	{ .id = 0x03, .name = "DI_AFBCE0"		},
+	{ .id = 0x04, .name = "DI_AFBCE1"		},
+	{ .id = 0x05, .name = "AISR_HPF_WR"		},
+};
+
+static struct vpu_sub vpu2_w_t5m[] __initdata = {
+	{ .id = 0x00, .name = "VDIN0_WR"		},
+	{ .id = 0x01, .name = "VDIN1_WR"		},
+	{ .id = 0x02, .name = "VDIN_DOLBY"		},
+	{ .id = 0x03, .name = "VDIN_AFBCE"		},
+	{ .id = 0x04, .name = "DCNTR_GRID_WR"		},
+	{ .id = 0x05, .name = "TCON1_WR"		},
+	{ .id = 0x06, .name = "RDMA_WR"			},
+	{ .id = 0x07, .name = "TCON2_WR"		},
+	{ .id = 0x08, .name = "LDIM_WR"			},
+	{ .id = 0x09, .name = "VDIN2_WR"		},
+	{ .id = 0x0A, .name = "VPU_DMA_WR"		},
+};
+
 static struct vpu_sub vpu0_r_t6w[] __initdata = {
 	{ .id = 0x00, .name = VPU_PORT_OSD1		},
 	{ .id = 0x01, .name = VPU_PORT_OSD2		},
@@ -1150,7 +1250,6 @@ int __init dmc_find_port_sub(struct dmc_monitor *mon, int cpu_type)
 		desc_size = ARRAY_SIZE(vpu_sub_desc_sc2);
 		break;
 	case DMC_TYPE_T5W:
-	case DMC_TYPE_T5M:
 		desc = vpu_sub_desc_t5w;
 		desc_size = ARRAY_SIZE(vpu_sub_desc_t5w);
 		break;
@@ -1169,6 +1268,11 @@ int __init dmc_find_port_sub(struct dmc_monitor *mon, int cpu_type)
 	case DMC_TYPE_T6D:
 		desc = vpu_sub_desc_t6d;
 		desc_size = ARRAY_SIZE(vpu_sub_desc_t6d);
+		break;
+	case DMC_TYPE_T5M:
+		VPU_DATA_RW_CHIP_INIT(0, t5m);
+		VPU_DATA_RW_CHIP_INIT(1, t5m);
+		VPU_DATA_RW_CHIP_INIT(2, t5m);
 		break;
 	case DMC_TYPE_T6W:
 		VPU_DATA_RW_CHIP_INIT(0, t6w);
