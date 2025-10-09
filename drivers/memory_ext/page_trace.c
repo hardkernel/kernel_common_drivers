@@ -89,6 +89,7 @@ static bool merge_function = 1;
 static int page_trace_filter = 64; /* not print size < page_trace_filter */
 static int page_trace_filter_slab;
 static int page_trace_filter_vmalloc;
+static int page_trace_filter_large_slab;
 static struct proc_dir_entry *d_pagetrace;
 struct page_trace *trace_buffer;
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
@@ -145,9 +146,9 @@ static struct fun_symbol common_func[] = {
 	{"__kmalloc_node_track_caller_noprof",	0},
 	{"__kmalloc_noprof",			0},
 	{"__kmalloc_node_noprof",		0},
-	{"__kmalloc_large_node_noprof",		1},
-	{"___kmalloc_large_node",		1},
-	{"__kmalloc_large_noprof",		1},
+	{"__kmalloc_large_node_noprof",		2},
+	{"___kmalloc_large_node",		2},
+	{"__kmalloc_large_noprof",		2},
 	{"kmem_cache_alloc_node_noprof",	0},
 	{"kmem_cache_alloc_lru_noprof",		0},
 	{"kmem_cache_alloc_noprof",		0},
@@ -186,7 +187,7 @@ static struct fun_symbol common_func[] = {
 	{"aml_cma_alloc_post_hook",		0},
 	{"system_heap_allocate",		0},
 	{"update_cma_page_trace",		0},
-	{"aml_slub_alloc_large",		1},
+	{"aml_slub_alloc_large",		2},
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 	{"alloc_pages_ret_handler",		0},
 	{"page_alloc_callback",			0},
@@ -291,7 +292,11 @@ static inline bool range_ok(struct page_trace *trace)
 {
 	unsigned long offset;
 
+#ifdef CONFIG_ARM
+	offset = (trace->ret_ip << 3);
+#else
 	offset = (trace->ret_ip << 2);
+#endif
 	if (trace->module_flag) {
 		if (offset >= MODULES_END)
 			return false;
@@ -442,7 +447,7 @@ static int is_common_caller(struct alloc_caller *caller, unsigned long pc, void 
 		add_h = caller[mid].func_start_addr + caller[mid].size;
 		if (pc >= add_l && pc < add_h) {
 			if (caller[mid].flag)
-				*(int *)arg = 1;
+				*(int *)arg = caller[mid].flag;
 			ret = 1;
 			break;
 		}
@@ -474,9 +479,11 @@ unsigned long unpack_ip(struct page_trace *trace)
 #ifdef CONFIG_ARM
 	if (trace->module_flag)
 		text = MODULES_VADDR;
-#endif
 
+	return text + ((trace->ret_ip) << 3);
+#else
 	return text + ((trace->ret_ip) << 2);
+#endif
 }
 
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
@@ -1051,7 +1058,11 @@ static void __init set_init_page_trace(struct page *page, unsigned int order, gf
 		ip = (unsigned long)before_pagetrace_memory;
 		text = PAGE_TRACE_OFFSET;
 
+#ifdef CONFIG_ARM
+		trace.ret_ip = (ip - text) >> 3;
+#else
 		trace.ret_ip = (ip - text) >> 2;
+#endif
 		trace.migrate_type = aml_gfp_migratetype(flag);
 		trace.order = order;
 		base = find_page_base(page);
@@ -1078,9 +1089,11 @@ unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag, int vfla
 		text = MODULES_VADDR;
 		trace.module_flag = 1;
 	}
-#endif
 
+	trace.ret_ip = (ip - text) >> 3;
+#else
 	trace.ret_ip = (ip - text) >> 2;
+#endif
 	if (flag == __GFP_NO_CMA)
 		trace.migrate_type = MIGRATE_CMA;
 	else
@@ -1260,6 +1273,7 @@ struct pagetrace_summary {
 	int mt_cnt[MIGRATE_TYPES];
 	int filter_slab[MIGRATE_TYPES];
 	int filter_vmalloc[MIGRATE_TYPES];
+	int filter_large_slab[MIGRATE_TYPES];
 };
 
 static unsigned long __nocfi find_ip_base(unsigned long ip)
@@ -1366,6 +1380,9 @@ static void show_page_trace(struct seq_file *m, struct zone *zone,
 		if (page_trace_filter_vmalloc)
 			seq_printf(m, "filter_vmalloc pages:%6d, %9ld kB\n",
 				pt_sum->filter_vmalloc[j], K(pt_sum->filter_vmalloc[j]));
+		if (page_trace_filter_large_slab)
+			seq_printf(m, "filter_large_slab pages:%6d, %9ld kB\n",
+				pt_sum->filter_large_slab[j], K(pt_sum->filter_large_slab[j]));
 		seq_puts(m, "------------------------------\n");
 		total_used += total_mt;
 	}
@@ -1455,8 +1472,13 @@ static int update_page_trace(struct seq_file *m, struct zone *zone,
 			continue;
 		}
 
-		if (page_trace_filter_vmalloc && trace->filter_flag) {
+		if (page_trace_filter_vmalloc && trace->filter_flag == 1) {
 			pt_sum->filter_vmalloc[mt]++;
+			continue;
+		}
+
+		if (page_trace_filter_large_slab && trace->filter_flag == 2) {
+			pt_sum->filter_large_slab[mt]++;
 			continue;
 		}
 
@@ -1561,13 +1583,22 @@ static ssize_t pagetrace_write(struct file *file, const char __user *buffer,
 		pr_info("set filter_slab to %d\n", page_trace_filter_slab);
 	}
 
-	if (!strncmp(buf, "filter_vmalloc=", 15)) {	/* option for 'filter_slab=' */
+	if (!strncmp(buf, "filter_vmalloc=", 15)) {	/* option for 'filter_vmalloc=' */
 		if (sscanf(buf, "filter_vmalloc=%ld", &arg) < 0) {
 			kfree(buf);
 			return -EINVAL;
 		}
 		page_trace_filter_vmalloc = arg;
 		pr_info("set filter_vmalloc to %d\n", page_trace_filter_vmalloc);
+	}
+
+	if (!strncmp(buf, "filter_large_slab=", 18)) {	/* option for 'filter_large_slab=' */
+		if (sscanf(buf, "filter_large_slab=%ld", &arg) < 0) {
+			kfree(buf);
+			return -EINVAL;
+		}
+		page_trace_filter_large_slab = arg;
+		pr_info("set filter_large_slab to %d\n", page_trace_filter_large_slab);
 	}
 
 	if (!strncmp(buf, "filter=", 7)) {	/* option for 'filter=' */
@@ -1686,6 +1717,7 @@ static int hardware_show(struct seq_file *m, void *arg)
 	struct pagetrace_summary *sum;
 	int old_slab_filter = page_trace_filter_slab;
 	int old_vmalloc_filter = page_trace_filter_vmalloc;
+	int old_large_slab_filter = page_trace_filter_large_slab;
 
 	if (!trace_buffer) {
 		seq_puts(m, "page trace not enabled\n");
@@ -1705,6 +1737,7 @@ static int hardware_show(struct seq_file *m, void *arg)
 
 	page_trace_filter_slab = 1;
 	page_trace_filter_vmalloc = 1;
+	page_trace_filter_large_slab = 1;
 	/* update only once */
 	seq_puts(m, "==============================\n");
 	sum->ticks = sched_clock();
@@ -1729,6 +1762,7 @@ static int hardware_show(struct seq_file *m, void *arg)
 	kfree(sum);
 	page_trace_filter_slab = old_slab_filter;
 	page_trace_filter_vmalloc = old_vmalloc_filter;
+	page_trace_filter_large_slab = old_large_slab_filter;
 
 	return 0;
 }
@@ -1740,6 +1774,121 @@ static int hardware_open(struct inode *inode, struct file *file)
 
 static const struct proc_ops hardware_proc_ops = {
 	.proc_open	= hardware_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+};
+
+static int update_large_slab(struct seq_file *m, struct zone *zone,
+			     struct pagetrace_summary *pt_sum)
+{
+	unsigned long pfn;
+	unsigned long start_pfn = zone->zone_start_pfn;
+	unsigned long end_pfn = start_pfn + zone->present_pages;
+	int    ret = 0, mt = 0;
+	struct page_trace *trace;
+	struct page_summary *p;
+	struct rb_root root[MIGRATE_TYPES];
+	struct page_summary *sum = pt_sum->sum;
+	int *mt_cnt = pt_sum->mt_cnt;
+
+	memset(root, 0, sizeof(root));
+	/* loop whole zone */
+	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+		struct page *page;
+
+#ifdef CONFIG_ARM64
+		if (!pfn_is_map_memory(pfn))
+#else
+		if (!pfn_valid(pfn))
+#endif
+			continue;
+
+		page = pfn_to_page(pfn);
+
+		trace = find_page_base(page);
+	#if DEBUG_PAGE_TRACE
+		check_trace_valid(trace);
+	#endif
+		if (page_trace_invalid(trace)) /* free pages */
+			continue;
+
+		if (!(*(unsigned int *)trace)) /* empty */
+			continue;
+
+		if (trace->filter_flag != 2)
+			continue;
+
+		mt = trace->migrate_type;
+		p  = sum + mt_offset[mt];
+		ret = find_page_ip(trace, p, mt_offset[mt + 1] - mt_offset[mt],
+				   mt_cnt, &root[mt]);
+		if (ret) {
+			pr_err("mt type:%d, out of range:%d\n",
+			       mt, mt_offset[mt + 1] - mt_offset[mt]);
+			break;
+		}
+	}
+	if (merge_function)
+		merge_same_function(sum, mt_cnt);
+	return ret;
+}
+
+static int large_slab_show(struct seq_file *m, void *arg)
+{
+	struct zone *zone;
+	int ret, size = sizeof(struct page_summary) * SHOW_CNT;
+	struct pagetrace_summary *sum;
+
+	if (!trace_buffer) {
+		seq_puts(m, "page trace not enabled\n");
+		return 0;
+	}
+	sum = kzalloc(sizeof(*sum), GFP_KERNEL);
+	if (!sum)
+		return -ENOMEM;
+
+	m->private = sum;
+	sum->sum = vzalloc(size);
+	if (!sum->sum) {
+		kfree(sum);
+		m->private = NULL;
+		return -ENOMEM;
+	}
+
+	/* update only once */
+	seq_puts(m, "==============================\n");
+	sum->ticks = sched_clock();
+	aml_for_each_populated_zone(zone) {
+		memset(sum->sum, 0, size);
+		memset(sum->mt_cnt, 0, sizeof(int) * MIGRATE_TYPES);
+		ret = update_large_slab(m, zone, sum);
+		if (ret) {
+			seq_printf(m, "Error %d in zone %8s\n",
+				   ret, zone->name);
+			continue;
+		}
+		show_page_trace(m, zone, sum);
+	}
+	sum->ticks = sched_clock() - sum->ticks;
+
+	seq_printf(m, "SHOW_CNT:%d, buffer size:%d, tick:%ld ns\n",
+		   SHOW_CNT, size, sum->ticks);
+	seq_puts(m, "==============================\n");
+
+	vfree(sum->sum);
+	kfree(sum);
+
+	return 0;
+}
+
+static int large_slab_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, large_slab_show, NULL);
+}
+
+static const struct proc_ops large_slab_proc_ops = {
+	.proc_open	= large_slab_open,
 	.proc_read	= seq_read,
 	.proc_lseek	= seq_lseek,
 	.proc_release	= single_release,
@@ -1796,6 +1945,9 @@ static void show_page_trace2(struct zone *zone,
 		if (page_trace_filter_vmalloc)
 			pr_info("filter_vmalloc pages:%6d, %9ld kB\n",
 					pt_sum->filter_vmalloc[j], K(pt_sum->filter_vmalloc[j]));
+		if (page_trace_filter_large_slab)
+			pr_info("filter_large_slab pages:%6d, %9ld kB\n",
+				pt_sum->filter_large_slab[j], K(pt_sum->filter_large_slab[j]));
 		pr_info("------------------------------\n");
 		total_used += total_mt;
 	}
@@ -1897,6 +2049,9 @@ static int __init page_trace_module_init(void)
 	}
 	d_pagetrace = proc_create("mem_hardware", 0444,
 				NULL, &hardware_proc_ops);
+
+	d_pagetrace = proc_create("mem_large_slab", 0444,
+				NULL, &large_slab_proc_ops);
 
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 	ret = register_kprobe(&kp_lookup_off);

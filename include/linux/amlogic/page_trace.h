@@ -46,8 +46,8 @@ struct page;
 struct page_trace {
 	union {
 		struct {
-			unsigned long ret_ip       :55;
-			unsigned long filter_flag  : 1;
+			unsigned long ret_ip       :54;
+			unsigned long filter_flag  : 2;
 			unsigned long migrate_type : 3;
 			unsigned long module_flag  : 1;
 			unsigned long order        : 4;
@@ -61,8 +61,8 @@ struct page_trace {
 	union {
 		struct {
 			unsigned long ret_ip       :23;
-			unsigned long filter_flag  : 1;
-			unsigned long migrate_type : 3;
+			unsigned long filter_flag  : 2;
+			unsigned long migrate_type : 2;
 			unsigned long module_flag  : 1;
 			unsigned long order        : 4;
 		};
