@@ -7959,6 +7959,16 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 				(frame_par->VPP_pic_in_height_ << 16)
 				| frame_par->VPP_line_in_length_);
 		}
+		if (video_is_after_meson_t6x_cpu()) {
+			u32 vd2_pps_ofifo_hsize, hsize_in;
+
+			hsize_in = frame_par->VPP_pic_in_height_;
+			vd2_pps_ofifo_hsize = (hsize_in & 0x1) == 1 ?
+				hsize_in : (hsize_in - 1);
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(T6X_VD2_SCO_FIFO_CTRL,
+				vd2_pps_ofifo_hsize, 16, 13);
+		}
 	} else if (layer_id == 2) {
 		if (cur_dev->display_module == T7_DISPLAY_MODULE)
 			cur_dev->rdma_func[vpp_index].rdma_wr

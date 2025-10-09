@@ -197,6 +197,8 @@ struct hw_vpp_path_size_s {
 	u32 blend_vd2_v_start_end;
 	u32 blend_vd3_h_start_end;
 	u32 blend_vd3_v_start_end;
+	u32 vd1_sco_fifo_ctrl;
+	u32 vd2_sco_fifo_ctrl;
 };
 
 struct hw_aisr_reshape_reg_s {

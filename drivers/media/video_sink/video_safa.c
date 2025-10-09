@@ -1384,6 +1384,7 @@ static void set_vsr_input_size(struct vsr_setting_s *vsr)
 	u32 hsize_in = vsr->vsr_top.hsize_in;
 	u32 vsize_in = vsr->vsr_top.vsize_in;
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
+	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 	unsigned int hdr_size_dpss_mode = 0;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
@@ -1416,6 +1417,13 @@ static void set_vsr_input_size(struct vsr_setting_s *vsr)
 			rdma_wr(VPU_HDR2_SIZE_IN,
 				(vsize_in << 16)
 				| hsize_in);
+	}
+	if (video_is_after_meson_t6x_cpu()) {
+		u32 vd1_pps_ofifo_hsize;
+
+		vd1_pps_ofifo_hsize = (hsize_in & 0x1) == 1 ? hsize_in : (hsize_in - 1);
+		rdma_wr_bits(VD1_SCO_FIFO_CTRL,
+			vd1_pps_ofifo_hsize, 16, 13);
 	}
 }
 

@@ -1099,6 +1099,8 @@ struct hw_vpp_path_size_s vpp_path_size_reg_t6w = {
 	VPP_BLEND_VD2_V_START_END,
 	VPP_BLEND_VD3_H_START_END,
 	VPP_BLEND_VD3_V_START_END,
+	VD1_SCO_FIFO_CTRL,
+	T6X_VD2_SCO_FIFO_CTRL,
 };
 
 #endif
