@@ -843,6 +843,7 @@ static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)
 	mutex_lock(&lcd_vout_mutex);
 	if (vmode == VMODE_LCD)
 		lcd_vmode_update(pdrv);
+	pdrv->vmode_switch = 0;
 	lcd_vmode_vinfo_update(pdrv);
 	mutex_unlock(&lcd_vout_mutex);
 
