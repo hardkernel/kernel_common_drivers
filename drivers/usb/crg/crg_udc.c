@@ -390,6 +390,7 @@ struct crg_gadget_dev {
 	int controller_type;
 	u32 phy_id;
 	int recovery;
+	int reinit_count;
 	struct delayed_work	reset_udc;
 };
 
@@ -1438,10 +1439,8 @@ void build_ep0_status(struct crg_udc_ep *udc_ep_ptr,
 		enq_pt = udc_ep_ptr->first_trb;
 	}
 	udc_ep_ptr->enq_pt = enq_pt;
-
-	knock_doorbell(crg_udc, 0);
-
 	list_add_tail(&udc_req_ptr->queue, &udc_ep_ptr->queue);
+	knock_doorbell(crg_udc, 0);
 }
 
 void ep0_req_complete(struct crg_udc_ep *udc_ep_ptr)
@@ -1489,6 +1488,10 @@ void handle_cmpl_code_success(struct crg_gadget_dev *crg_udc,
 		 */
 		udc_req_ptr = list_entry(udc_ep_ptr->queue.next,
 					struct crg_udc_request, queue);
+		if (!atomic_read(&udc_req_ptr->used)) {
+			pr_err("req queue is empty, use=%d\n", atomic_read(&udc_req_ptr->used));
+			return;
+		}
 
 		CRG_DEBUG("udc_req_ptr = 0x%p\n", udc_req_ptr);
 
@@ -3812,7 +3815,7 @@ void crg_handle_setup_pkt(struct crg_gadget_dev *crg_udc,
 				crg_udc->setup_status = WAIT_FOR_SETUP;
 				return;
 			}
-
+			crg_udc->recovery++;
 			setaddressrequest(crg_udc, wValue, wIndex, wLength);
 			return;
 		case USB_REQ_SET_SEL:
@@ -3861,7 +3864,7 @@ void crg_handle_setup_pkt(struct crg_gadget_dev *crg_udc,
 				 */
 			CRG_DEBUG("USB_REQ_SET_CONFIGURATION\n");
 			CRG_DEBUG("CONFIGURATION wValue=%d\n", wValue);
-
+			crg_udc->recovery = 0;
 			if (setconfigurationrequest(crg_udc, wValue)) {
 				/* Get here if request has been processed.
 				 * Or error happens
@@ -4127,25 +4130,24 @@ int g_dnl_board_usb_cable_connected(void)
 		mdelay(100);
 		tmp = reg_read(&uccr->portsc);
 		if (tmp & CRG_U3DC_PORTSC_PP) {
-			if (crg_udc->device_state < USB_STATE_POWERED) {
-				u32 tmp_cfg0;
+			u32 tmp_cfg0;
 
-				CRG_DEBUG("%s powered, portsc[0x%p]=0x%x\n", __func__,
-					&uccr->portsc, tmp);
+			CRG_DEBUG("%s powered, portsc[0x%p]=0x%x\n", __func__,
+				&uccr->portsc, tmp);
 
-				/*set usb 3 disable count to 15*/
-				tmp_cfg0 = reg_read(&uccr->config0);
-				tmp_cfg0 &= (~0xf0);
-				tmp_cfg0 |= 0xf0;
-				reg_write(&uccr->config0, tmp_cfg0);
-				/**/
+			/*set usb 3 disable count to 15*/
+			tmp_cfg0 = reg_read(&uccr->config0);
+			tmp_cfg0 &= (~0xf0);
+			tmp_cfg0 |= 0xf0;
+			reg_write(&uccr->config0, tmp_cfg0);
+			/**/
 
-				mdelay(3);
-				crg_udc_start(crg_udc);
+			mdelay(3);
+			crg_udc_start(crg_udc);
 
-				CRG_DEBUG("%s device state powered\n", __func__);
+			CRG_DEBUG("%s device state powered\n", __func__);
+			if (crg_udc->device_state < USB_STATE_POWERED)
 				crg_udc->device_state = USB_STATE_POWERED;
-			}
 		}
 		return 1;
 	}
@@ -4213,8 +4215,11 @@ int crg_handle_port_status(struct crg_gadget_dev *crg_udc, unsigned long flags)
 				return 0;
 			}
 
-			if (crg_udc->device_state >= USB_STATE_DEFAULT)
+			if (crg_udc->device_state >= USB_STATE_DEFAULT &&
+				crg_udc->reinit_count == 0) {
 				crg_udc_reinit(crg_udc, flags);
+				crg_udc->reinit_count++;
+			}
 
 			crg_udc->gadget.speed = speed;
 			pdebug("gadget speed = 0x%x\n", crg_udc->gadget.speed);
@@ -4359,10 +4364,30 @@ int crg_handle_port_status(struct crg_gadget_dev *crg_udc, unsigned long flags)
 					if (crg_udc->crg_gadget_lock.wakesrc)
 						crg_gadget_drop(&crg_udc->crg_gadget_lock);
 					crg_udc->gadget_driver->disconnect(&crg_udc->gadget);
+					crg_udc->reinit_count = 0;
+					//crg_udc->device_state = USB_STATE_NOTATTACHED;
 				}
 				spin_lock_irqsave(&crg_udc->udc_lock, flags);
 			}
 		}
+	}
+
+	if ((portsc_val & CRG_U3DC_PORTSC_PEC) && !(portsc_val & CRG_U3DC_PORTSC_PED)) {
+		if (crg_udc->recovery) {
+			mdelay(3);
+			pr_err("---1---MEET ERROR----set address count=%d\n", crg_udc->recovery);
+			crg_udc->recovery = 0;
+			if (!delayed_work_pending(&crg_udc->reset_udc))
+				queue_delayed_work(system_long_wq,
+									&crg_udc->reset_udc, 100);
+		}
+	} else if (crg_udc->recovery >= 4) {
+		mdelay(3);
+		pr_err("--2----MEET ERROR----set address count=%d\n", crg_udc->recovery);
+		crg_udc->recovery = 0;
+		if (!delayed_work_pending(&crg_udc->reset_udc))
+			queue_delayed_work(system_long_wq,
+								&crg_udc->reset_udc, 100);
 	}
 
 	return 0;
@@ -4753,6 +4778,7 @@ static void crg_udc_cleanup(struct crg_gadget_dev *crg_udc)
 	/* Optional. */
 	crg_udc->controller_type = 0;
 	crg_udc->phy_id = 0;
+	crg_udc->recovery = 0;
 }
 
 static int crg_udc_probe(struct platform_device *pdev)
@@ -5002,6 +5028,7 @@ static int crg_udc_probe(struct platform_device *pdev)
 	/*	GFP_KERNEL);*/
 	//g_device_phy_id = phy_id;
 	crg_udc_probe_state = 1;
+	crg_udc->recovery = 0;
 	INIT_DELAYED_WORK(&crg_udc->reset_udc, crg_rewrite_udc_for_error);
 	return ret;
 
@@ -5103,7 +5130,7 @@ static void crg_udc_shutdown(struct platform_device *pdev)
 	crg_udc->device_state = USB_STATE_ATTACHED;
 	crg_vbus_detect(crg_udc, 0);
 
-	//usb_del_gadget_udc(&crg_udc->gadget);
+	usb_del_gadget_udc(&crg_udc->gadget);
 
 	if (crg_udc->irq)
 		free_irq(crg_udc->irq, crg_udc);
