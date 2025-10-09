@@ -14339,7 +14339,7 @@ static bool update_frc_link_state(struct video_layer_s *layer,
 					layer->next_frame_par->nocomp,
 					layer->frc_link_bypass_check,
 					iret);
-			if (iret >= 0) {
+			if (iret == 0) {
 				iret = pvpp_sw_frc(false);
 				if (layer->global_debug & DEBUG_FLAG_PLINK)
 					pr_info("%s: Bypass frc link mode ret %d\n",
@@ -18484,24 +18484,24 @@ static int _video_hw_init(void)
 		video_hw_init_c3();
 		return 0;
 	}
+
 	if (!legacy_vpp) {
 		if (vpp_ofifo_size == 0xff)
 			ofifo_size = 0x1000;
 		else
 			ofifo_size = vpp_ofifo_size;
-		WRITE_VCBUS_REG_BITS
-			(VPP_OFIFO_SIZE, ofifo_size,
-			VPP_OFIFO_SIZE_BIT, VPP_OFIFO_SIZE_WID);
+		if (cur_dev->display_module != T6W_DISPLAY_MODULE)
+			WRITE_VCBUS_REG_BITS
+				(VPP_OFIFO_SIZE, ofifo_size,
+				VPP_OFIFO_SIZE_BIT, VPP_OFIFO_SIZE_WID);
 		WRITE_VCBUS_REG_BITS
 			(VPP_MATRIX_CTRL, 0, 10, 5);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
 		WRITE_VCBUS_REG_BITS
 			(VPP_OFIFO_SIZE, 0xfff,
 			VPP_OFIFO_SIZE_BIT, VPP_OFIFO_SIZE_WID);
-
 	WRITE_VCBUS_REG(VPP_PREBLEND_VD1_H_START_END, 4096);
 	WRITE_VCBUS_REG(VPP_BLEND_VD2_H_START_END, 4096);
-
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 		/* fifo max size on txl :128*3=384[0x180]  */
@@ -18566,7 +18566,6 @@ static int _video_hw_init(void)
 		vd_layer[0].vd1_vd2_mux = false;
 		di_used_vd1_afbc(false);
 	}
-
 	/*disable sr default when power up*/
 	if (cur_dev->sr0_support)
 		WRITE_VCBUS_REG(VPP_SRSHARP0_CTRL, 0);
@@ -18578,7 +18577,6 @@ static int _video_hw_init(void)
 	/* set postsc coef lut*/
 	if (cur_dev->vd1_vsr_safa_support)
 		safa_postsc_coef_lut_config();
-
 	/* Temp force set dmc */
 	if (!legacy_vpp) {
 		if (cur_dev->display_module == OLD_DISPLAY_MODULE ||
@@ -18595,7 +18593,6 @@ static int _video_hw_init(void)
 		WRITE_VCBUS_REG_BITS
 			(VPP_MISC1, 0x100, 0, 9);
 	}
-
 	if (sr_info.sr_support) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			/* disable latch for sr core0/1 scaler */
@@ -19481,11 +19478,21 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 
 void video_resume_hw_recovery(bool restore_vpu_sec)
 {
-	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
 		_video_hw_init_s5();
-	else
-		_video_hw_init();
+	} else {
+		u32 ofifo_size;
 
+		if (vpp_ofifo_size == 0xff)
+			ofifo_size = 0x1000;
+		else
+			ofifo_size = vpp_ofifo_size;
+		if (cur_dev->display_module != T6W_DISPLAY_MODULE)
+			WRITE_VCBUS_REG_BITS
+				(VPP_OFIFO_SIZE, ofifo_size,
+				VPP_OFIFO_SIZE_BIT, VPP_OFIFO_SIZE_WID);
+		_video_hw_init();
+	}
 	if (restore_vpu_sec)
 		vpp_probe_en_set(1);
 	vd_layer[0].property_changed = true;
