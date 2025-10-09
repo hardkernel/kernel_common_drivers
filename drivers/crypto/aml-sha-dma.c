@@ -517,7 +517,7 @@ static int aml_sha_update_dma_stop(struct aml_sha_dev *dd)
 				 ctx->buflen, DMA_TO_DEVICE);
 
 	if (ctx->hash_addr)
-		dma_unmap_single(dd->dev, ctx->hash_addr,
+		dma_unmap_single(dd->parent, ctx->hash_addr,
 				 dd->hw_ctx_sz, DMA_FROM_DEVICE);
 	return 0;
 }
