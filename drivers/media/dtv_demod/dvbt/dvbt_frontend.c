@@ -535,7 +535,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 		modu = (dvbt_t2_rdb(0x8c3) >> 4) & 0x7;
 		ldpc = dvbt_t2_rdb(0xa50);
 		l1post = (dvbt_t2_rdb(0x839) >> 3) & 0x1;
-		fft_size = dvbt_t2_rdb(0x2745) & 0x3;
+		fft_size = dvbt_t2_rdb(0x2745) & 0x7;
 		r_0x2a1c = dvbt_t2_rdb(0x2a1c);
 		r_0x839 = dvbt_t2_rdb(0x839);
 	}
@@ -1081,8 +1081,13 @@ unsigned int dvbt_init(struct aml_dtvdemod *demod)
 	demod->last_status = 0;
 
 	if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
-		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
-		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+		if (demod_chip_eq(DTVDEMOD_HW_T6X)) {
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x704);
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+		} else {
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+		}
 	} else {
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x704);
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
@@ -1115,8 +1120,13 @@ unsigned int dtvdemod_dvbt2_init(struct aml_dtvdemod *demod)
 	demod->last_status = 0;
 
 	if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
-		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
-		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+		if (demod_chip_eq(DTVDEMOD_HW_T6X)) {
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x704);
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+		} else {
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+		}
 	} else {
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x704);
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);

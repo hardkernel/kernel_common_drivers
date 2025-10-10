@@ -458,8 +458,8 @@ int dvbt_isdbt_init(struct aml_dtvdemod *demod)
 
 	if (demod_chip_after_eq(DTVDEMOD_HW_T5D)) {
 		if (demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
-			if (demod_chip_after_eq(DTVDEMOD_HW_T6W) && isdbt_reuse_sfec) {
-				/* 180M */
+			if (demod_chip_eq(DTVDEMOD_HW_T6W) && isdbt_reuse_sfec) {
+				/* only t6w needs to config 180M */
 				dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
 				dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x700);
 			} else {

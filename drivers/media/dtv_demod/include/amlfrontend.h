@@ -222,6 +222,7 @@
 /*  V4.0.005 fix isdb-t search fail issue */
 /*  V4.0.006 implement module debug parameter */
 /*  V4.0.007 optimize loading method of t2 firmware */
+/*  V4.1.000 T6X bringup for kernel 6.12 */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -238,8 +239,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V4.0.007"
-#define DTVDEMOD_VER	"2025/09/05 optimize loading method of t2 firmware"
+#define AMLDTVDEMOD_VER "V4.1.000"
+#define DTVDEMOD_VER	"2025/10/10 T6X bringup for kernel 6.12"
 #define AMLDTVDEMOD_T2_FW_VER "v1059.20250521"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -378,7 +379,8 @@ enum dtv_demod_hw_ver_e {
 	DTVDEMOD_HW_TXHD2,
 	DTVDEMOD_HW_S1A,
 	DTVDEMOD_HW_T6D,
-	DTVDEMOD_HW_T6W
+	DTVDEMOD_HW_T6W,
+	DTVDEMOD_HW_T6X
 };
 
 struct ddemod_dig_clk_addr {

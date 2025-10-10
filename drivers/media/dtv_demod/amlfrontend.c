@@ -386,7 +386,8 @@ static void demod_32k_ctrl(unsigned int onoff)
 		!demod_chip_eq(DTVDEMOD_HW_T5W) &&
 		!demod_chip_eq(DTVDEMOD_HW_T3X) &&
 		!demod_chip_eq(DTVDEMOD_HW_T6D) &&
-		!demod_chip_eq(DTVDEMOD_HW_T6W))
+		!demod_chip_eq(DTVDEMOD_HW_T6W) &&
+		!demod_chip_eq(DTVDEMOD_HW_T6X))
 		return;
 
 	if (onoff) {
@@ -1090,6 +1091,25 @@ const struct meson_ddemod_data  data_t6w = {
 	.hw_ver = DTVDEMOD_HW_T6W,
 };
 
+const struct meson_ddemod_data  data_t6x = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x82,
+		.demod_clk_ctl_1 = 0x83,
+	},
+	.regoff = {
+		.off_demod_top = 0xf000,
+		.off_dvbc = 0x1000,
+		.off_dtmb = 0x0000,
+		.off_atsc = 0x0c00,
+		.off_isdbt = 0x800,
+		.off_front = 0x3800,
+		.off_dvbs = 0x2000,
+		.off_dvbt_isdbt = 0x800,
+		.off_dvbt_t2 = 0x0000,
+	},
+	.hw_ver = DTVDEMOD_HW_T6X,
+};
+
 #endif
 
 static const struct of_device_id meson_ddemod_match[] = {
@@ -1161,6 +1181,9 @@ static const struct of_device_id meson_ddemod_match[] = {
 	}, {
 		.compatible = "amlogic, ddemod-t6w",
 		.data		= &data_t6w,
+	}, {
+		.compatible = "amlogic, ddemod-t6x",
+		.data		= &data_t6x,
 	},
 #endif
 	/* DO NOT remove, to avoid scan err of KASAN */
@@ -1216,6 +1239,7 @@ static int dds_init_reg_map(struct platform_device *pdev)
 	case DTVDEMOD_HW_T3X:
 	case DTVDEMOD_HW_T6D:
 	case DTVDEMOD_HW_T6W:
+	case DTVDEMOD_HW_T6X:
 		devp->ddr_phy_addr = 0xfe000000;
 		devp->ddr_v_addr = devm_ioremap(&pdev->dev, 0xfe000000, 0x2000);
 		break;
@@ -3389,6 +3413,21 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 			aml_dtvdm_ops.delsys[9] = SYS_ANALOG_DVB_V512;
 			strcpy(aml_dtvdm_ops.info.name,
 					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT/DTMB ddemod t6w");
+			break;
+		case DTVDEMOD_HW_T6X:
+			/* max delsys is 8, index: 0~7 */
+			aml_dtvdm_ops.delsys[0] = SYS_DVBC_ANNEX_A;
+			aml_dtvdm_ops.delsys[1] = SYS_ATSC;
+			aml_dtvdm_ops.delsys[2] = SYS_DVBS2;
+			aml_dtvdm_ops.delsys[3] = SYS_ISDBT;
+			aml_dtvdm_ops.delsys[4] = SYS_DVBS;
+			aml_dtvdm_ops.delsys[5] = SYS_DVBT2;
+			aml_dtvdm_ops.delsys[6] = SYS_DVBT;
+			aml_dtvdm_ops.delsys[7] = SYS_DVBC_ANNEX_B;
+			aml_dtvdm_ops.delsys[8] = SYS_DTMB;
+			aml_dtvdm_ops.delsys[9] = SYS_ANALOG_DVB_V512;
+			strcpy(aml_dtvdm_ops.info.name,
+					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT/DTMB ddemod t6x");
 			break;
 #endif //end of CONFIG_AMLOGIC_ZAPPER_CUT
 

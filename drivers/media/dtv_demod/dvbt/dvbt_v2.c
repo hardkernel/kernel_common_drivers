@@ -18,6 +18,7 @@
 
 unsigned char dvbt2_agc_target1 = 0x60;
 unsigned char dvbt2_agc_target2 = 0x11;
+static bool t2_top_agc_enable = true;
 
 static void setsrcgain(unsigned int val)
 {
@@ -172,6 +173,10 @@ void dvbt2_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	/* wr num < half-full threshood */
 	dvbt_t2_wrb(0x3614, 0x80);
 	dvbt_t2_wrb(0x3615, 0x0);
+	/* set bit[28:29] to 0: time/cell deint nra = 5, default 15 */
+	/* Set the read size to 5 because RAM was reduced*/
+	if (demod_chip_eq(DTVDEMOD_HW_T6X))
+		dvbt_t2_wrb(0x3617, 0x4);
 
 	dvbt_t2_wrb(0x1c, 0x8);
 	dvbt_t2_wrb(0x19, 0x03);
@@ -495,6 +500,20 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	else
 		front_write_reg(TEST_BUS, 0xc0002000);
 
+	/* should be configed when DEMOD_TOP_CFG_REG_4 is 0x0 */
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6X) && t2_top_agc_enable) {
+		/* t and t2 use top agc */
+		front_write_reg(DEMOD_FRONT_AFIFO_ADC, 0xc0080);
+		front_write_reg(DEMOD_FRONT_AGC_CFG1, 0x3f3f92);
+		front_write_reg(DEMOD_FRONT_AGC_CFG2, 0x7200a06);
+		front_write_reg(DEMOD_FRONT_AGC_CFG3, 0x42190190);
+		front_write_reg(DEMOD_FRONT_AGC_CFG6, 0x1a000f0f);
+
+		PR_INFO("frontagc 0x20 %#x 0x21 %#x 0x22 %#x 0x23 %#x 0x26 %#x 0x28 %#x\n",
+				front_read_reg(0x20), front_read_reg(0x21), front_read_reg(0x22),
+				front_read_reg(0x23), front_read_reg(0x26), front_read_reg(0x28));
+	}
+
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
 	riscv_ctl_write_reg(0x30, 5);
 	riscv_ctl_write_reg(0x30, 4);
@@ -543,6 +562,15 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	/* fix DTG161 */
 	if (demod_chip_eq(DTVDEMOD_HW_T3X) || demod_chip_after_eq(DTVDEMOD_HW_T6D))
 		dvbt_t2_wrb(0x2a04, 0xaa);
+	/* fix vv710 */
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6X)) {
+		dvbt_t2_wrb(0x321, 0x00);
+		dvbt_t2_wrb(0x323, 0x1f);
+		dvbt_t2_wrb(0x521, 0x09);
+		dvbt_t2_wrb(0x523, 0x17);
+		dvbt_t2_wrb(0x351, 0x1);
+		dvbt_t2_wrb(0x551, 0x1);
+	}
 
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
 	riscv_ctl_write_reg(0x30, 0);
@@ -567,6 +595,7 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		break;
 	case DTVDEMOD_HW_T6D:
 	case DTVDEMOD_HW_T6W:
+	case DTVDEMOD_HW_T6X:
 		dtvdemod_ddr_reg_write(0x44, dtvdemod_ddr_reg_read(0x44) & 0xffffffdf);
 		usleep_range(8000, 9000);
 		dtvdemod_ddr_reg_write(0x44, dtvdemod_ddr_reg_read(0x44) | 0x00000020);
@@ -611,6 +640,21 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 	front_write_reg(0x22, 0x7200a06);
 	front_write_reg(0x2f, 0x0);
 	front_write_reg(TEST_BUS, 0x40001000);
+
+	/* should be configed when DEMOD_TOP_CFG_REG_4 is 0x0 */
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6X) && t2_top_agc_enable) {
+		/* t and t2 use top agc */
+		front_write_reg(DEMOD_FRONT_AFIFO_ADC, 0xc0080);
+		front_write_reg(DEMOD_FRONT_AGC_CFG1, 0x10122);
+		front_write_reg(DEMOD_FRONT_AGC_CFG2, 0x7200a06);
+		front_write_reg(DEMOD_FRONT_AGC_CFG3, 0x42190190);
+		front_write_reg(DEMOD_FRONT_AGC_CFG6, 0x1a000f0f);
+
+		PR_INFO("frontagc 0x20 %#x 0x21 %#x 0x22 %#x 0x23 %#x 0x26 %#x 0x28 %#x\n",
+				front_read_reg(0x20), front_read_reg(0x21), front_read_reg(0x22),
+				front_read_reg(0x23), front_read_reg(0x26), front_read_reg(0x28));
+	}
+
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 
 	switch (bw) {

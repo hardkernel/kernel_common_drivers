@@ -20,6 +20,7 @@ bool cci_enable = true;
 int cfo_count;
 int field_test_version;
 int cfo_times = 30;
+static bool atsc_cci_v1;
 
 static int dagc_switch;
 static int ar_flag;
@@ -710,103 +711,6 @@ int check_snr_ser(int ser_threshholds)
 		return 0;
 }
 
-int peak[2048];
-int cci_run(void)
-{
-	int tmp0[4], tmp1[4], tmp2[4], tmp3[4];
-	int result[4], bin[4], power[4];
-	int max_p[2], max_b[2], ck0;
-	int cci_cnt = 0;
-	int avg_len   = 4;
-	int threshold;
-	int time[10];
-
-	threshold = avg_len * 200;
-	time[0] = jiffies_to_msecs(jiffies);
-	for (ck0 = 0; ck0 < 2048; ck0++)
-		peak[ck0] = 0;
-	for (ck0 = 0; ck0 < 2; ck0++) {
-		max_p[ck0] = 0;
-		max_b[ck0] = 0;
-	}
-	time[1] = jiffies_to_msecs(jiffies);
-	PR_ATSC("[cci_run1,%d ms]\n", (time[1] - time[0]));
-	for (ck0 = 0; ck0 < avg_len; ck0++) {
-		/* step1: set 0x918[0] = 1;*/
-		atsc_write_reg(0x918, 0x3);
-		tmp0[1] = atsc_read_reg(0x981);
-		tmp0[2] = atsc_read_reg(0x982);
-		tmp0[3] = atsc_read_reg(0x983);
-		tmp1[1] = atsc_read_reg(0x984);
-		tmp1[2] = atsc_read_reg(0x985);
-		tmp1[3] = atsc_read_reg(0x986);
-		tmp2[1] = atsc_read_reg(0x987);
-		tmp2[2] = atsc_read_reg(0x988);
-		tmp2[3] = atsc_read_reg(0x989);
-		tmp3[1] = atsc_read_reg(0x98a);
-		tmp3[2] = atsc_read_reg(0x98b);
-		tmp3[3] = atsc_read_reg(0x98c);
-		result[0] = (tmp0[3] << 16) +
-			(tmp0[2] << 8) + tmp0[1];
-		power[0] = result[0] >> 11;
-		bin[0] = result[0] & 0x7ff;
-		result[1] = (tmp1[3] << 16) +
-			(tmp1[2] << 8) + tmp1[1];
-		power[1] = result[1] >> 11;
-		bin[1] = result[1] & 0x7ff;
-		result[2] = (tmp2[3] << 16)
-			+ (tmp2[2] << 8) + tmp2[1];
-		power[2] = result[2] >> 11;
-		bin[2] = result[2] & 0x7ff;
-		result[3] = (tmp3[3] << 16) +
-			(tmp3[2] << 8) + tmp3[1];
-		power[3] = result[3] >> 11;
-		bin[3] = result[3] & 0x7ff;
-
-		peak[bin[0]] = peak[bin[0]] + power[0];
-		peak[bin[1]] = peak[bin[1]] + power[1];
-		peak[bin[2]] = peak[bin[2]] + power[2];
-		peak[bin[3]] = peak[bin[3]] + power[3];
-		PR_ATSC("[%x]%x,[%x]%x,[%x]%x,[%x]%x\n",
-			bin[0], peak[bin[0]], bin[1],
-			peak[bin[1]], bin[2], peak[bin[2]],
-			bin[3], peak[bin[3]]);
-	}
-	time[2] = jiffies_to_msecs(jiffies);
-	PR_ATSC("[cci_run2,%d ms]\n", (time[2] - time[1]));
-	cci_cnt = 0;
-	for (ck0 = 0; ck0 < 2048; ck0++) {
-		if (peak[ck0] > threshold) {
-			if (peak[ck0] > max_p[0]) {
-				max_p[1] = max_p[0];/*Shift Max*/
-				max_b[1] = max_b[0];
-				max_p[0] = peak[ck0];
-				max_b[0] = ck0;
-			} else if (peak[ck0] > max_p[1]) {
-				max_p[1] = peak[ck0];
-				max_b[1] = ck0;
-				}
-			cci_cnt = cci_cnt + 1;
-		}
-	}
-	time[3] = jiffies_to_msecs(jiffies);
-	PR_ATSC("[cci_run3,%d ms]\n", (time[3] - time[2]));
-	atsc_write_reg(0x736, ((max_b[0] >> 8) & 0x7) + 0x40);
-	atsc_write_reg(0x737, max_b[0] & 0xff);
-	atsc_write_reg(0x738, (max_b[1] >> 8) & 0x7);
-	atsc_write_reg(0x739, max_b[1] & 0xff);
-	atsc_write_reg(0x735, 0x80);
-	for (ck0 = 0; ck0 < 2; ck0++) {
-		PR_ATSC("cci_cnt %d ck0 %d CCI: pos %x power %x\n",
-			cci_cnt, ck0, max_b[ck0], max_p[ck0]);
-	}
-	time[4] = jiffies_to_msecs(jiffies);
-	PR_ATSC("[cci_run4,%d ms]\n", (time[4] - time[3]));
-	PR_ATSC("[total cost %d ms]\n", time[4] - time[0]);
-
-	return 0;
-}
-
 void atsc_reset_new(void)
 {
 	union atsc_cntl_reg_0x20 val_0x20;
@@ -822,12 +726,20 @@ void atsc_reset_new(void)
 void cci_run_new(struct aml_dtvdemod *demod)
 {
 	unsigned int result[4] = { 0 }, bin[4] = { 0 }, power[4] = { 0 };
-	unsigned int max_p[8] = { 0 }, max_b[8] = { 0 }, ck0 = 0, offset = 0;
+	unsigned int max_p[8] = { 0 }, max_b[8] = { 0 }, ck0 = 0;
+	unsigned int multiplier = 0;
 	unsigned int position[4] = { 0 }, cci_cnt = 0, dist = 15;
 	unsigned int avg_len = 200, threshold = 0;
 	union ATSC_EQ_REG_0X92_BITS val_0x92 = { 0 };
 	unsigned int time[3] = { 0 };
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	unsigned int cr_offset = 0;
+	int if_freq = 0, i = 0;
+	/* normal(1), inverse(-1) */
+	int if_spec = 0, offset = 0;
+	const unsigned int reg[2] = {0x33, 0x34};
+	struct dvb_frontend *fe = &demod->frontend;
+	unsigned int tuner_freq[2] = {0};
 
 	time[0] = jiffies_to_msecs(jiffies);
 	PR_ATSC("cci_run start\n");
@@ -966,11 +878,10 @@ void cci_run_new(struct aml_dtvdemod *demod)
 	if (cci_cnt > 0) {
 		position[0] = max_b[0];
 		ck0 = 1;
-		cci_cnt = 1;
 
-		while (cci_cnt < 4 && ck0 < 8) {
+		while (cci_cnt < 4 && ck0 < 4) {
 			if (abs(max_b[ck0] - max_b[ck0 - 1]) > dist)
-				position[cci_cnt++] = max_b[ck0];
+				position[ck0] = max_b[ck0];
 
 			++ck0;
 		}
@@ -990,58 +901,90 @@ void cci_run_new(struct aml_dtvdemod *demod)
 				atsc_read_reg_v4(ATSC_DEMOD_REG_0X60),
 				atsc_read_reg_v4(ATSC_DEMOD_REG_0X61));
 
-		atsc_write_reg_bits_v4(ATSC_DEMOD_REG_0X61,
-				position[0], 0, 16);
+		if (fe->ops.tuner_ops.get_if_frequency)
+			fe->ops.tuner_ops.get_if_frequency(fe, tuner_freq);
 
-		if (cci_cnt > 1)
+		/* invert spectrum */
+		if (tuner_freq[0] == 1)
+			if_spec = -1;
+		else
+			if_spec = 1;
+		if (atsc_cci_v1 || !demod_chip_after_eq(DTVDEMOD_HW_T6X))
+			/* 4570*10 or 5000*10 */
+			if_freq = tuner_freq[1] * 10;
+		else
+			/* -457 or -500 */
+			if_freq = (-1) * (tuner_freq[1] / 10000);
+		PR_ATSC("%s if_freq %d, if_spec %d\n", __func__, if_freq, if_spec);
+
+		if (!demod_chip_after_eq(DTVDEMOD_HW_T6X)) {
 			atsc_write_reg_bits_v4(ATSC_DEMOD_REG_0X61,
-					position[1], 16, 16);
+					position[0], 0, 16);
 
-		/* 2048: fft points.
-		 * 10762: fft symbol rate(bps).
-		 * 24: sampling rate.
-		 * 1 << 28: 2^28.
-		 */
-		if (cci_cnt > 2) {
-			if (position[2] > 512) {
-				offset = (position[2] - 512) * 107620 / 2048;
-				offset = (50 + offset) * (1 << 28) / 240;
+			if (cci_cnt > 1)
+				atsc_write_reg_bits_v4(ATSC_DEMOD_REG_0X61,
+						position[1], 16, 16);
+
+			if (devp->atsc_cr_step_size_dbg) {
+				atsc_write_reg_v4(ATSC_DEMOD_REG_0X60,
+					devp->atsc_cr_step_size_dbg);
+				PR_ATSC("set cr reg(0x60) 0x%x\n",
+					devp->atsc_cr_step_size_dbg);
 			} else {
-				offset = (512 - position[2]) * 107620 / 2048;
-				offset = (50 - offset) * (1 << 28) / 240;
+				atsc_write_reg_v4(ATSC_DEMOD_REG_0X60, 0x143);
+				PR_ATSC("set cr reg(0x60) 0x143\n");
 			}
 
-			/* cci config2
-			 * bit[31]: 0 - enable cci, 1 - bypass.
-			 * bit[0-28]: offset.
-			 */
-			front_write_reg(0x33, offset & 0xfffffff);
+			/*shift pos to use frontend cci*/
+			position[0] = position[2];
+			position[1] = position[3];
 		}
 
-		if (cci_cnt > 3) {
-			if (position[3] > 512) {
-				offset = (position[3] - 512) * 107620 / 2048;
-				offset = (50 + offset) * (1 << 28) / 240;
-			} else {
-				offset = (512 - position[3]) * 107620 / 2048;
-				offset = (50 - offset) * (1 << 28) / 240;
+		if (demod_chip_after_eq(DTVDEMOD_HW_T6X) || cci_cnt > 2) {
+			atsc_write_reg_v4(ATSC_DEMOD_REG_0X60, 0x43);
+			front_write_reg(0x33, 0x0);
+			front_write_reg(0x34, 0x0);
+
+			cr_offset = atsc_read_reg_v4(ATSC_DEMOD_REG_0X73);
+			/* 8388608: 2^23, 16777216: 2^24 */
+			cr_offset = (cr_offset > 8388608) ? cr_offset - 16777216 : cr_offset;
+			PR_ATSC("%s cr_offset %d\n", __func__, cr_offset);
+
+			for (i = 0; i < 2; i++) {
+				if (!position[i])
+					break;
+				if (atsc_cci_v1) {
+					if (position[i] > 512 && position[i] < 2048) {
+						offset = (position[i] - 512) * 10762 * 10 / 2048;
+						multiplier = (if_spec == 1) ? (if_freq + offset)
+							: ((24 * 1000 * 10 - if_freq) + offset);
+						offset = multiplier * ((1 << 28) / 24 / 10000);
+					} else if (position[i] <= 512) {
+						offset = (512 - position[i]) * 10762 * 10 / 2048;
+						multiplier = (if_spec == 1) ? (if_freq - offset)
+							: ((24 * 1000 * 10 - if_freq) - offset);
+						offset = multiplier * ((1 << 28) / 24 / 10000);
+					}
+				} else {
+					if (position[i] > 512 && position[i] < 2048) {
+						offset = (position[i] - 512) * (1 + 107622 / 3 / 25)
+							* (1 << 10) / 25;
+						offset = if_freq * ((1 << 23) / 3 / 25)
+							- (cr_offset + offset) * if_spec;
+					} else if (position[i] <= 512) {
+						offset = (512 - position[i]) * (1 + 107622 / 3 / 25)
+							* (1 << 10) / 25;
+						offset = if_freq * ((1 << 23) / 3 / 25)
+							+ (offset - cr_offset) * if_spec;
+					}
+					if (offset < 0)
+						offset = 0xfffffff + offset + 1;
+				}
+				PR_ATSC("%s: pos%d offset %d\n", __func__, i, offset);
+				if (offset != 0)
+					front_write_reg(reg[i], offset & 0xfffffff);
+				offset = 0;
 			}
-
-			/* cci config2
-			 * bit31: 0 - enable cci, 1 - bypass.
-			 * bit[0-28]: offset.
-			 */
-			front_write_reg(0x34, offset & 0xfffffff);
-		}
-
-		if (devp->atsc_cr_step_size_dbg) {
-			atsc_write_reg_v4(ATSC_DEMOD_REG_0X60,
-					devp->atsc_cr_step_size_dbg);
-			PR_ATSC("set cr reg(0x60) 0x%x\n",
-					devp->atsc_cr_step_size_dbg);
-		} else {
-			atsc_write_reg_v4(ATSC_DEMOD_REG_0X60, 0x143);
-			PR_ATSC("set cr reg(0x60) 0x143\n");
 		}
 
 		PR_ATSC("read2 0x33: 0x%x, 0x34: 0x%x\n",
@@ -1486,6 +1429,8 @@ void atsc_thread(void)
 	static int register_set_flag;
 	static int fsm_status;
 	int snr_now;
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
 
 	fsm_status = IDLE;
 	ser_thresholds = 200;
@@ -1534,8 +1479,16 @@ void atsc_thread(void)
 			read_atsc_fsm(), time_table[1]);
 		if (ret == CFO_FAIL)
 			return;
-		if (cci_enable)
-			ret = cci_run();
+		if (cci_enable) {
+			list_for_each_entry(tmp, &devp->demod_list, list) {
+				if (tmp->id == 0) {
+					demod = tmp;
+					break;
+				}
+			}
+			if (demod)
+				cci_run_new(demod);
+		}
 		for (i = 0; i < 80; i++) {
 			fsm_status = read_atsc_fsm();
 			if (fsm_status >= ATSC_LOCK) {

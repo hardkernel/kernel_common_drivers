@@ -275,7 +275,7 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 				atsc_write_reg_v4(0x8a, 0x94000008);
 				//static echo
 				atsc_write_reg_v4(ATSC_EQ_REG_0X93, 0x90f0310);
-			} else if (demod_chip_eq(DTVDEMOD_HW_T6W)) {
+			} else if (demod_chip_after_eq(DTVDEMOD_HW_T6W)) {
 				//improve C/N
 				atsc_write_reg_v4(0xde, 0x94a5a9ac);
 				atsc_write_reg_v4(0xdf, 0x446459);
@@ -302,10 +302,18 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 					//4.57M IF, 2^23 * IF / Fs.
 					atsc_write_reg_v4(ATSC_DEMOD_REG_0X54,
 							0x185F92);
+					/* Int ( intermediate_freq / sampling_freq * 2^28 ) */
+					/* bit[0:27]: 4.57M / 24M * 2^28 */
+					if (demod_chip_after_eq(DTVDEMOD_HW_T6X))
+						front_write_reg(0x27, 0x830bf258);
 				} else {
 					//5M IF, 2^23 * IF / Fs.
 					atsc_write_reg_v4(ATSC_DEMOD_REG_0X54,
 							0x1aaaaa);
+					/* Int ( intermediate_freq / sampling_freq * 2^28 ) */
+					/* bit[0:27]: 5M / 24M * 2^28 */
+					if (demod_chip_after_eq(DTVDEMOD_HW_T6X))
+						front_write_reg(0x27, 0x8caaaaab);
 				}
 
 				atsc_write_reg_v4(ATSC_DEMOD_REG_0X55,
@@ -334,6 +342,13 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 			else
 				atsc_write_reg(0x716, atsc_read_reg(0x716) & ~0x4);
 		}
+	}
+
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6X)) {
+		//ATSC use top frontend
+		atsc_write_reg_v4(ATSC_DEMOD_REG_0X56, 0x1000); //bypass top frontend
+		atsc_write_reg_v4(ATSC_DEMOD_REG_0X71, 0x701);
+		demod_set_top_frontend(SYS_ATSC);
 	}
 
 	PR_DBG("atsc_mode %d\n", demod->atsc_mode);

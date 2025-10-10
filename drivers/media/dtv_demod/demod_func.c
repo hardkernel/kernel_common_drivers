@@ -2403,7 +2403,10 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 				/* bit[25]: sfec reuse en isdbt */
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x02000011);
 				/* clk div: default 2 div, set 1 div here */
-				demod_top_write_reg(DEMOD_TOP_CFG_REG_7, 0x00111010);
+				if (demod_chip_eq(DTVDEMOD_HW_T6W))
+					demod_top_write_reg(DEMOD_TOP_CFG_REG_7, 0x00111010);
+				else
+					demod_top_write_reg(DEMOD_TOP_CFG_REG_7, 0x80111010);
 			}
 			front_write_bits(AFIFO_ADC, nco_rate, AFIFO_NCO_RATE_BIT,
 					 AFIFO_NCO_RATE_WID);
@@ -2562,8 +2565,10 @@ void demod_set_top_frontend(enum fe_delivery_system delsys)
 			front_write_reg(0x36, 0x0);
 			front_write_reg(0x37, 0x0);
 
-			if (demod_chip_after_eq(DTVDEMOD_HW_T6W) && isdbt_reuse_sfec)
+			if (demod_chip_eq(DTVDEMOD_HW_T6W) && isdbt_reuse_sfec)
 				front_write_reg(0x20, 0x60124);
+			else if (demod_chip_after_eq(DTVDEMOD_HW_T6X) && isdbt_reuse_sfec)
+				front_write_reg(0x20, 0x6011a);//0xe20=6011a
 			else
 				front_write_reg(0x20, 0x6011b);//0xe20=6011b
 			front_write_reg(0x21, 0x10122);
@@ -2618,7 +2623,79 @@ void demod_set_top_frontend(enum fe_delivery_system delsys)
 			front_write_reg(0x61, 0x7fe);
 		}
 		break;
-#endif //CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
+#endif
+	case SYS_ATSC:
+	case SYS_ATSCMH:
+		if (demod_chip_after_eq(DTVDEMOD_HW_T6X)) {
+			front_write_reg(0x36, 0x0);
+			front_write_reg(0x37, 0x0);
+
+			front_write_reg(0x20, front_read_reg(0x20) | (1 << 17));
+			front_write_reg(0x20, front_read_reg(0x20) | (1 << 18));//0xe20=6011b
+			front_write_reg(0x21, 0x10122);
+			front_write_reg(0x22, 0x7200a06);
+			front_write_reg(0x23, 0x42190190);
+			/* atsc agc target */
+			front_write_reg(0x26, 0x1d000f0f);
+
+			front_write_reg(0x28, 0x80003530);
+			front_write_reg(0x29, 0x16081410);
+
+			front_write_reg(0x2a, 0x4404181a);
+			front_write_reg(0x2c, 0x8c042214);//31bit:disable src search
+			front_write_reg(0x2d, 0x00007011);
+			front_write_reg(0x2b, 0x3011d714);
+			//front_write_reg(0x27, 0x8caaaaab);//config tuner if 4.57M or 5M
+
+			front_write_reg(0x2e, 0x80400000);
+			front_write_reg(0x2f, 0x00000004);
+
+			front_write_reg(0x32, 0x00003aa1);
+			front_write_reg(0x40, 0x06274217);
+			front_write_reg(0x74, 0x80000610);
+
+			front_write_reg(0x36, 0x3fffffff);
+			front_write_reg(0x37, 0x3fffffff);
+
+			/* acf coef */
+			front_write_reg(0x40, 0x061c91a5);
+			front_write_reg(0x41, 0x1410ba);
+			front_write_reg(0x42, 0x0357d2);
+			front_write_reg(0x43, 0x7a27a6);
+			front_write_reg(0x44, 0x7cf002);
+			front_write_reg(0x45, 0x02a038);
+			front_write_reg(0x46, 0x02b00e);
+			front_write_reg(0x47, 0x7f07dd);
+			front_write_reg(0x48, 0x7dc7eb);
+			front_write_reg(0x49, 0x002014);
+			front_write_reg(0x4a, 0x01b016);
+			front_write_reg(0x4b, 0x0077f7);
+			front_write_reg(0x4c, 0x7ed7ec);
+			front_write_reg(0x4d, 0x7f5001);
+			front_write_reg(0x4e, 0x00b010);
+			front_write_reg(0x4f, 0x00c004);
+
+			front_write_reg(0x50, 0x7fb7f5);
+			front_write_reg(0x51, 0x7f57f9);
+			front_write_reg(0x52, 0x000006);
+			front_write_reg(0x53, 0x009007);
+			front_write_reg(0x54, 0x0037fe);
+			front_write_reg(0x55, 0x7fa7f9);
+			front_write_reg(0x56, 0x7fc000);
+			front_write_reg(0x57, 0x003005);
+			front_write_reg(0x58, 0x004002);
+			front_write_reg(0x59, 0x7ff7fd);
+			front_write_reg(0x5a, 0x7fc7fd);
+			front_write_reg(0x5b, 0x7ff001);
+			front_write_reg(0x5c, 0x002003);
+			front_write_reg(0x5d, 0x002001);
+			front_write_reg(0x5e, 0x0007ff);
+			front_write_reg(0x5f, 0x7ff7ff);
+
+			front_write_reg(0x60, 0x7ff000);
+			front_write_reg(0x61, 0x0);
+		}
+		break;
 	default:
 		break;
 	}
@@ -3529,22 +3606,31 @@ void isdbt_dvbt_comb_super_fec(void)
 int isdbt_super_fec_layer_mode(int mode)
 {
 	int layer = isdbt_sfec_mode ? isdbt_sfec_mode : mode;
+	unsigned int val;
 
 	switch (layer) {
 	case DTV_ISDBT_LAYERA_FEC:
-		dvbt_isdbt_wr_reg(0x79 << 2, 0x00000015);
+		val = 0x0;
 		break;
 	case DTV_ISDBT_LAYERB_FEC:
-		dvbt_isdbt_wr_reg(0x79 << 2, 0x00040015);
+		val = 0x40000;
 		break;
 	case DTV_ISDBT_LAYERC_FEC:
-		dvbt_isdbt_wr_reg(0x79 << 2, 0x00080015);
+		val = 0x80000;
 		break;
 	default:
 		/* auto: works on layer that has most segments. */
-		dvbt_isdbt_wr_reg(0x79 << 2, 0x00100015);
+		val = 0x100000;
 		break;
 	}
+
+	if (demod_chip_eq(DTVDEMOD_HW_T6W))
+		val = val | 0x15;
+	else if (demod_chip_after_eq(DTVDEMOD_HW_T6X))
+		val = val | 0x26;
+
+	dvbt_isdbt_wr_reg(0x79 << 2, val);
+
 	isdbt_sfec_layer = layer;
 	PR_ISDBT("%s mode %d.\n", __func__, layer);
 	return 0;

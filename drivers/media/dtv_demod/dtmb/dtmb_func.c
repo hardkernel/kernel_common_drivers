@@ -738,7 +738,7 @@ int dtmb_set_ch(struct aml_dtvdemod *demod,
 	dtmb_initial(demod);
 
 	//use top frontend
-	if (demod_chip_eq(DTVDEMOD_HW_T6W)) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6W)) {
 		dtmb_write_reg(0xa, 0x00000011); //bypass local frontend
 
 		front_write_reg(0x36, 0x0);//fsm config
@@ -877,7 +877,7 @@ int dtmb_set_ch(struct aml_dtvdemod *demod,
 		dtmb_write_reg(0x60, 0x07570347); //(0x60)
 	}
 
-	if (demod_chip_eq(DTVDEMOD_HW_T6W)) {
+	if (demod_chip_after_eq(DTVDEMOD_HW_T6W)) {
 		front_write_reg(0x36, 0x3fffffff);//fsm config enable
 		front_write_reg(0x37, 0x3fffffff);
 	}

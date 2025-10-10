@@ -247,6 +247,9 @@ static void get_chip_name(struct amldtvdemod_device_s *devp, char *str)
 	case DTVDEMOD_HW_T6W:
 		strscpy(str, "T6W", 4);
 		break;
+	case DTVDEMOD_HW_T6X:
+		strscpy(str, "T6X", 4);
+		break;
 	default:
 		strscpy(str, "UNKNOWN", 8);
 		break;
@@ -810,6 +813,10 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 			/* sample bit width */
 			width = 19;
 			vld = 0x100000;
+		} else if (demod_chip_after_eq(DTVDEMOD_HW_T6X)) {
+			addr = 0x1000;
+			width = 11;
+			vld = 0x100000;
 		} else {
 			addr = 0x1000;
 			//tb_depth = 10;
@@ -838,7 +845,8 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	case 5: /* S/S2 */
 		if (demod_chip_eq(DTVDEMOD_HW_S4D) ||
 			demod_chip_eq(DTVDEMOD_HW_S4) ||
-			demod_chip_eq(DTVDEMOD_HW_S1A)) {
+			demod_chip_eq(DTVDEMOD_HW_S1A) ||
+			demod_chip_after_eq(DTVDEMOD_HW_T6X)) {
 			addr = 0x101b;
 			//tb_depth = 10;
 			/* sample bit width */

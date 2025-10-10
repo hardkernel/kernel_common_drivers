@@ -1315,8 +1315,13 @@ int dtvdemod_dvbs2_init(struct aml_dtvdemod *demod)
 	demod->last_status = 0;
 
 	if (demod_chip_eq(DTVDEMOD_HW_S1A) || demod_chip_after_eq(DTVDEMOD_HW_T6D)) {
-		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
-		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+		if (demod_chip_eq(DTVDEMOD_HW_T6X)) {
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x702);
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+		} else {
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+		}
 	} else {
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x702);
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
