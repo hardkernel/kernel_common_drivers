@@ -843,6 +843,7 @@ unsigned int hdr10_clip_margin = 2;
 #define X_SHFT 10
 uint adp_scal_x_shift = X_SHFT; /* 1.0 = 1024 */
 uint adp_scal_y_shift = 10; /* 1.0 =1024 */
+uint fw_alg_ctl_en;
 uint clip_func = 0xff;
 u32 cuva_static_hlg_en;
 
@@ -1366,6 +1367,246 @@ void eo_clip_proc(struct vframe_master_display_colour_s *master_info,
 			eo_y_lut_hdr[clip_index], hdr10_clip_margin);
 		if (hdr10_clip_luma)
 			pr_info("clip_luma = %d\n", hdr10_clip_luma);
+	}
+}
+
+//register overwrite by hdr ko
+void set_gmt_regs(enum hdr_module_sel module_sel,
+		    enum vpp_index_e vpp_index)
+{
+	unsigned int CGAIN_OFFT = 0;
+	unsigned int CGAIN_COEF0 = 0;
+	unsigned int CGAIN_COEF1 = 0;
+	unsigned int ADPS_CTRL = 0;
+	unsigned int ADPS_ALPHA0 = 0;
+	unsigned int ADPS_ALPHA1 = 0;
+	unsigned int ADPS_BETA0 = 0;
+	unsigned int ADPS_BETA1 = 0;
+	unsigned int ADPS_BETA2 = 0;
+	unsigned int ADPS_COEF0 = 0;
+	unsigned int ADPS_COEF1 = 0;
+	unsigned int GMUT_CTRL = 0;
+	unsigned int HIST_CTRL = 0;
+	unsigned int CGAIN_VIVID = 0;
+	unsigned int GMUT_COMP0 = 0;
+	unsigned int GMUT_COMP1 = 0;
+	unsigned int GMUT_COMP2 = 0;
+	unsigned int GMUT_COMP3 = 0;
+	unsigned int GMUT_COMP4 = 0;
+	unsigned int GMUT_COMP5 = 0;
+	unsigned int GMUT_COMP6 = 0;
+	unsigned int GMUT_COMP7 = 0;
+	unsigned int GMUT_COMP8 = 0;
+	//unsigned int ADPSCL1_COEF0 = 0;
+	//unsigned int ADPSCL1_COEF1 = 0;
+	//unsigned int RGB_GM_CTRL = 0;
+
+	unsigned int addr_offset_vd1 = 0;
+	unsigned int addr_offset_vd2 = 0;
+
+	struct aml_tmo_reg_sw *pre_tmo_reg = NULL;
+	struct aml_hw_reg_s *p = NULL;
+	struct adpt_regs_s *ap = NULL;
+	int i;
+
+	unsigned int val;
+
+	if (chip_type_id == chip_t6w) {
+		addr_offset_vd1 = 0x1400;
+		addr_offset_vd2 = 0x2a30;
+	//} else if (chip_type_id == chip_t6x) {
+	//	addr_offset_vd1 = 0x1400;
+	//	addr_offset_vd2 = 0x2ab0;
+	} else {
+		return;
+	}
+
+	pre_tmo_reg = tmo_fw_param_get();
+	p = pre_tmo_reg->hw_regs;
+	ap = pre_tmo_reg->adpt_regs;
+
+	pr_csc(512, "%s: ko hw reg update enable: %d,  fw_alg_ctl_en = %d\n",
+		__func__, p->hw_ctl_enable, fw_alg_ctl_en);
+
+	if (!p->hw_ctl_enable || !(fw_alg_ctl_en & 0x1))
+		return;
+
+	if (module_sel == VD1_HDR) {
+		CGAIN_OFFT = VD1_HDR2_CGAIN_OFFT + addr_offset_vd1;
+		CGAIN_COEF0 = VD1_HDR2_CGAIN_COEF0 + addr_offset_vd1;
+		CGAIN_COEF1 = VD1_HDR2_CGAIN_COEF1 + addr_offset_vd1;
+		ADPS_CTRL = VD1_HDR2_ADPS_CTRL + addr_offset_vd1;
+		ADPS_ALPHA0 = VD1_HDR2_ADPS_ALPHA0 + addr_offset_vd1;
+		ADPS_ALPHA1 = VD1_HDR2_ADPS_ALPHA1 + addr_offset_vd1;
+		ADPS_BETA0 = VD1_HDR2_ADPS_BETA0 + addr_offset_vd1;
+		ADPS_BETA1 = VD1_HDR2_ADPS_BETA1 + addr_offset_vd1;
+		ADPS_BETA2 = VD1_HDR2_ADPS_BETA2 + addr_offset_vd1;
+		ADPS_COEF0 = VD1_HDR2_ADPS_COEF0 + addr_offset_vd1;
+		ADPS_COEF1 = VD1_HDR2_ADPS_COEF1 + addr_offset_vd1;
+		GMUT_CTRL = VD1_HDR2_GMUT_CTRL + addr_offset_vd1;
+		HIST_CTRL = VD1_HDR2_HIST_CTRL + addr_offset_vd1;
+		CGAIN_VIVID = VD1_HDR2_CGAIN_VIVID + addr_offset_vd1;
+
+		GMUT_COMP0 = VD1_HDR2_GMUT_COMP0 + addr_offset_vd1;
+		GMUT_COMP1 = VD1_HDR2_GMUT_COMP1 + addr_offset_vd1;
+		GMUT_COMP2 = VD1_HDR2_GMUT_COMP2 + addr_offset_vd1;
+		GMUT_COMP3 = VD1_HDR2_GMUT_COMP3 + addr_offset_vd1;
+		GMUT_COMP4 = VD1_HDR2_GMUT_COMP4 + addr_offset_vd1;
+		GMUT_COMP5 = VD1_HDR2_GMUT_COMP5 + addr_offset_vd1;
+		GMUT_COMP6 = VD1_HDR2_GMUT_COMP6 + addr_offset_vd1;
+		GMUT_COMP7 = VD1_HDR2_GMUT_COMP7 + addr_offset_vd1;
+		GMUT_COMP8 = VD1_HDR2_GMUT_COMP8 + addr_offset_vd1;
+
+		//if (chip_type_id == chip_t6x) {
+		//	ADPSCL1_COEF0 = VD1_HDR2_ADPSCL1_COEF0 + addr_offset_vd1;
+		//	ADPSCL1_COEF1 = VD1_HDR2_ADPSCL1_COEF1 + addr_offset_vd1;
+		//	RGB_GM_CTRL = VD1_HDR2_RGB_GM_CTRL + addr_offset_vd1;
+		//}
+	} else if (module_sel == VD2_HDR) {
+		CGAIN_OFFT = VD2_HDR2_CGAIN_OFFT + addr_offset_vd2;
+		CGAIN_COEF0 = VD2_HDR2_CGAIN_COEF0 + addr_offset_vd2;
+		CGAIN_COEF1 = VD2_HDR2_CGAIN_COEF1 + addr_offset_vd2;
+		ADPS_CTRL = VD2_HDR2_ADPS_CTRL + addr_offset_vd2;
+		ADPS_ALPHA0 = VD2_HDR2_ADPS_ALPHA0 + addr_offset_vd2;
+		ADPS_ALPHA1 = VD2_HDR2_ADPS_ALPHA1 + addr_offset_vd2;
+		ADPS_BETA0 = VD2_HDR2_ADPS_BETA0 + addr_offset_vd2;
+		ADPS_BETA1 = VD2_HDR2_ADPS_BETA1 + addr_offset_vd2;
+		ADPS_BETA2 = VD2_HDR2_ADPS_BETA2 + addr_offset_vd2;
+		ADPS_COEF0 = VD2_HDR2_ADPS_COEF0 + addr_offset_vd2;
+		ADPS_COEF1 = VD2_HDR2_ADPS_COEF1 + addr_offset_vd2;
+		GMUT_CTRL = VD2_HDR2_GMUT_CTRL + addr_offset_vd2;
+		HIST_CTRL = VD2_HDR2_HIST_CTRL + addr_offset_vd2;
+		CGAIN_VIVID = VD2_HDR2_CGAIN_VIVID + addr_offset_vd2;
+
+		GMUT_COMP0 = VD2_HDR2_GMUT_COMP0 + addr_offset_vd2;
+		GMUT_COMP1 = VD2_HDR2_GMUT_COMP1 + addr_offset_vd2;
+		GMUT_COMP2 = VD2_HDR2_GMUT_COMP2 + addr_offset_vd2;
+		GMUT_COMP3 = VD2_HDR2_GMUT_COMP3 + addr_offset_vd2;
+		GMUT_COMP4 = VD2_HDR2_GMUT_COMP4 + addr_offset_vd2;
+		GMUT_COMP5 = VD2_HDR2_GMUT_COMP5 + addr_offset_vd2;
+		GMUT_COMP6 = VD2_HDR2_GMUT_COMP6 + addr_offset_vd2;
+		GMUT_COMP7 = VD2_HDR2_GMUT_COMP7 + addr_offset_vd2;
+		GMUT_COMP8 = VD2_HDR2_GMUT_COMP8 + addr_offset_vd2;
+
+		//if (chip_type_id == chip_t6x) {
+		//	ADPSCL1_COEF0 = VD2_HDR2_ADPSCL1_COEF0 + addr_offset_vd2;
+		//	ADPSCL1_COEF1 = VD2_HDR2_ADPSCL1_COEF1 + addr_offset_vd2;
+		//	RGB_GM_CTRL = VD2_HDR2_RGB_GM_CTRL + addr_offset_vd2;
+		//}
+	} else {
+		return;
+	}
+
+	val = ((p->reg_cgain_oft2 & 0x7ff) << 16) |
+		(p->reg_coef1 & 0x7ff);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(CGAIN_OFFT, val, vpp_index);
+
+	val = ((p->reg_coef1 & 0xfff) << 16) |
+		(p->reg_coef0 & 0xfff);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(CGAIN_COEF0, val, vpp_index);
+
+	val = ((p->sel_opt & 0x1) << 31) |
+		((p->reg_maxrgb & 0xfff) << 16) |
+		(p->reg_c_gain_lim_coef_2 & 0xfff);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(CGAIN_COEF1, val, vpp_index);
+
+	val = ((p->reg_adpscl1_sft & 0xf) << 20) |
+		((p->reg_ogain_blend_mode & 0x1) << 17) |
+		((p->reg_adpscl_sel_opt & 0x1) << 16) |
+		((p->reg_adpscl_max & 0x3f) << 8) |
+		((p->reg_adpscl_clip_en & 0x1) << 7) |
+		((p->reg_adpscl_bypass2 & 0x1) << 6) |
+		((p->reg_adpscl_bypass1 & 0x1) << 5) |
+		((p->reg_adpscl_bypass0 & 0x1) << 4) |
+		((p->reg_adpscl1_mode & 0x3) << 2) |
+		(p->reg_adpscl_mode & 0x3);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_CTRL, val, vpp_index);
+
+	val = ((p->reg_adpscl_alpha1 & 0x3fff) << 16) |
+		(p->reg_adpscl_alpha0 & 0x3fff);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_ALPHA0, val, vpp_index);
+
+	val = ((p->reg_adpscl_shift0 & 0xf) << 28) |
+		((p->reg_adpscl_shift1 & 0x1f) << 20) |
+		((p->reg_adpscl_shift2 & 0xf) << 16) |
+		(p->reg_adpscl_alpha2 & 0x3fff);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_ALPHA1, val, vpp_index);
+
+	val = p->reg_adpscl_beta0 & 0x1fffff;
+	VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_BETA0, val, vpp_index);
+
+	val = p->reg_adpscl_beta1 & 0x1fffff;
+	VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_BETA1, val, vpp_index);
+
+	val = p->reg_adpscl_beta2 & 0x1fffff;
+	VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_BETA2, val, vpp_index);
+
+	val = ((p->reg_adpscl_ys_coef1 & 0xfff) << 16) |
+		(p->reg_adpscl_ys_coef0 & 0xfff);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_COEF0, val, vpp_index);
+
+	val = p->reg_adpscl_ys_coef2 & 0xfff;
+	VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_COEF1, val, vpp_index);
+
+	val = ((p->reg_new_mode & 0x1) << 4) |
+		(p->reg_gmut_shift & 0xf);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_CTRL, val, vpp_index);
+
+	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(HIST_CTRL,
+		p->reg_hist_enable & 0x1, 16, 1, vpp_index);
+	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(HIST_CTRL,
+		p->reg_maxrgb_rshift & 0x1, 3, 1, vpp_index);
+	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(HIST_CTRL,
+		p->reg_maxrgb_sel & 0x7, 0, 3, vpp_index);
+
+	val = ((p->reg_omax_sync_gain_sft & 0xf) << 26) |
+		((p->reg_omax_sync_gain & 0x3ff) << 16) |
+		((p->reg_cgain_pos & 0x3) << 2) |
+		((p->reg_ogain_inser & 0x1) << 1);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(CGAIN_VIVID, val, vpp_index);
+
+	val = ((p->reg_hdr2_gm_comp_en & 0x1) << 31) |
+		((p->reg_hdr_comp_ofst_r & 0xfffff) << 8);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COMP0, val, vpp_index);
+	val = (p->reg_hdr_comp_ofst_g & 0xfffff) << 8;
+	VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COMP1, val, vpp_index);
+	val = (p->reg_hdr_comp_ofst_b & 0xfffff) << 8;
+	VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COMP2, val, vpp_index);
+	val = (p->reg_hdr_comp_min_r & 0xfffff) << 8;
+	VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COMP3, val, vpp_index);
+	val = (p->reg_hdr_comp_min_g & 0xfffff) << 8;
+	VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COMP4, val, vpp_index);
+	val = (p->reg_hdr_comp_min_b & 0xfffff) << 8;
+	VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COMP5, val, vpp_index);
+	val = (p->reg_hdr_comp_rat_r & 0x3fffff) << 8;
+	VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COMP6, val, vpp_index);
+	val = (p->reg_hdr_comp_rat_g & 0x3fffff) << 8;
+	VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COMP7, val, vpp_index);
+	val = (p->reg_hdr_comp_rat_b & 0x3fffff) << 8;
+	VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COMP8, val, vpp_index);
+
+	//if (chip_type_id == chip_t6x) {
+	//	val = ((p->reg_adpscl_ys_coef1_1 & 0xfff) << 16) |
+	//		(p->reg_adpscl_ys_coef1_0 & 0xfff);
+	//	VSYNC_WRITE_VPP_REG_VPP_SEL(ADPSCL1_COEF0, val, vpp_index);
+	//	val = ((p->reg_bypass_ootf2_gain & 0xffff) << 16) |
+	//		(p->reg_adpscl_ys_coef1_2 & 0xfff);
+	//	VSYNC_WRITE_VPP_REG_VPP_SEL(ADPSCL1_COEF1, val, vpp_index);
+	//	val = ((p->reg_adpscl_mode_gm & 0x1) << 2) |
+	//		((p->reg_rgb_gm_mode & 0x1) << 1) |
+	//		(p->reg_rgb_gm_en & 0x1);
+	//	VSYNC_WRITE_VPP_REG_VPP_SEL(RGB_GM_CTRL, val, vpp_index);
+	//}
+
+	if (ap->en == 1 && ap->num > 0 && ap->num <= 10) {
+		for (i = 0; i < ap->num; i++) {
+			if (ap->addr[i] == 0)
+				break;
+
+			VSYNC_WRITE_VPP_REG_VPP_SEL(ap->addr[i], ap->val[i], vpp_index);
+			pr_csc(512, "%s: addr= 0x%x, val = 0x%x\n",
+				__func__, ap->addr[i], ap->val[i]);
+		}
 	}
 }
 
@@ -5476,6 +5717,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 					&hdr_mtx_param, NULL, NULL, vpp_index);
 			set_gmut_comp(module_sel, gmt_comp_para, vpp_index);
 			set_ootf_lut_1(module_sel, &hdr_lut_param, &hdr_lut1_param, vpp_index);
+			// register set by hdr ko for t6w/t6x
+			if (hdr_process_select & HDR_SDR)
+				set_gmt_regs(module_sel, vpp_index);
 		} else {
 			set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
 		}
@@ -5682,6 +5926,11 @@ int hdr10_tm_update(enum hdr_module_sel module_sel,
 	int bit_depth;
 	unsigned int i = 0;
 	struct hdr_proc_mtx_param_s hdr_mtx_param;
+	struct aml_tmo_reg_sw *pre_tmo_reg = NULL;
+	struct aml_hw_reg_s *p = NULL;
+
+	pre_tmo_reg = tmo_fw_param_get();
+	p = pre_tmo_reg->hw_regs;
 
 	if (disable_flush_flag)
 		return hdr_process_select;
@@ -5765,6 +6014,11 @@ int hdr10_tm_update(enum hdr_module_sel module_sel,
 				vpp_index);
 		else
 			set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
+
+		if (p->force_reg_update && (fw_alg_ctl_en & 0x2)) {
+			set_gmt_regs(module_sel, vpp_index);
+			pr_csc(512, "%s: KO hw reg force update\n", __func__);
+		}
 	}
 	return 0;
 }

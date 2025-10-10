@@ -19,4 +19,7 @@ void hdr10_tmo_reg_get(struct hdr_tmo_sw *pre_tmo_reg_s);
 void hdr10_tmo_reg_ext_set(struct hdr_tmo_sw_ext *pre_tmo_reg_ext);
 void hdr10_tmo_reg_ext_get(struct hdr_tmo_sw_ext *pre_tmo_reg_ext_s);
 int hdr_tmo_adb_show(char *str);
+extern struct aml_hw_reg_s pq_hw_regs;
+int hdr_tmo_alg_dbg(char **parm);
+int hdr_tmo_alg_dbg_show(char *str);
 #endif

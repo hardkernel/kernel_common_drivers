@@ -82,6 +82,90 @@ int clip_val[10][4] = {
 	{1000, 650, 500, 300,},  //1000nit
 };
 
+struct aml_hw_reg_s pq_hw_regs = {
+	.hw_ctl_enable = 0,
+	.force_reg_update = 0,
+
+	.reg_cgain_oft2 = 0x200,
+	.reg_cgain_oft1 = 0x200,
+	.reg_coef0 = 0x948,
+	.reg_coef1 = 0x398,
+
+	.sel_opt = 1,
+	.reg_maxrgb = 0x3ff,
+	.reg_c_gain_lim_coef_2 = 0xd0,
+
+	.reg_adpscl1_sft = 0xc,
+	.reg_ogain_blend_mode = 0,
+	.reg_adpscl_sel_opt = 1,
+	.reg_adpscl_max = 0x20,
+	.reg_adpscl_clip_en = 1,
+	.reg_adpscl_bypass2 = 0,
+	.reg_adpscl_bypass1 = 0,
+	.reg_adpscl_bypass0 = 0,
+	.reg_adpscl1_mode = 1,
+	.reg_adpscl_mode = 1,
+
+	.reg_adpscl_alpha1 = 0x400,
+	.reg_adpscl_alpha0 = 0x400,
+
+	.reg_adpscl_shift0 = 0xa,
+	.reg_adpscl_shift1 = 0x6,
+	.reg_adpscl_shift2 = 0xa,
+	.reg_adpscl_alpha2 = 0x400,
+
+	.reg_adpscl_beta0 = 0x0,
+	.reg_adpscl_beta1 = 0x0,
+	.reg_adpscl_beta2 = 0x0,
+
+	.reg_adpscl_ys_coef1 = 0x400,
+	.reg_adpscl_ys_coef0 = 0x400,
+	.reg_adpscl_ys_coef2 = 0x400,
+
+	.reg_new_mode = 0x1,
+	.reg_gmut_shift = 0x8,
+
+	.reg_hist_enable = 0x1,
+	.reg_maxrgb_rshift = 0x0,
+	.reg_maxrgb_sel = 0x1,
+
+	.reg_omax_sync_gain_sft = 0x0,
+	.reg_omax_sync_gain = 0x0,
+	.reg_cgain_pos = 0x0,
+	.reg_ogain_inser = 0x0,
+
+	.reg_hdr2_gm_comp_en = 0x0,
+	.reg_hdr_comp_ofst_r = 0x14f8c,
+	.reg_hdr_comp_ofst_g = 0x14f8c,
+	.reg_hdr_comp_ofst_b = 0x14f8c,
+	.reg_hdr_comp_min_r = 0x7c849,
+	.reg_hdr_comp_min_g = 0x73785,
+	.reg_hdr_comp_min_b = 0x7204b,
+	.reg_hdr_comp_rat_r = 0x2522c,
+	.reg_hdr_comp_rat_g = 0x73785,
+	.reg_hdr_comp_rat_b = 0x7204b,
+
+	.reg_adpscl_ys_coef1_1 = 0x0,
+	.reg_adpscl_ys_coef1_0 = 0x0,
+
+	.reg_bypass_ootf2_gain = 0x0,
+	.reg_adpscl_ys_coef1_2 = 0x0,
+
+	.reg_adpscl_mode_gm = 0x0,
+	.reg_rgb_gm_mode = 0x0,
+	.reg_rgb_gm_en = 0x0,
+};
+
+unsigned int adpt_addr[10] = {0};
+unsigned int adpt_val[10] = {0};
+
+struct adpt_regs_s _adpt_regs = {
+	.en = 0,
+	.num = 0,
+	.addr = adpt_addr,
+	.val = adpt_val,
+};
+
 struct aml_tmo_reg_sw tmo_reg = {
 	.tmo_en = 1,
 	.tmo_display_e = 625,
@@ -177,12 +261,16 @@ struct aml_tmo_reg_sw tmo_reg = {
 	.tmo_special_pat2_th = 600,
 	.tmo_force_ootf1_mode = &tmo_force_ootf1_mode,
 	.tmo_force_ootf1_val = &tmo_force_ootf1_val,
+	.hw_regs = &pq_hw_regs,
+	.adpt_regs = &_adpt_regs,
 	/*param for alg func*/
 	.w = 3840,
 	.h = 2160,
 	.hdr_ogain_shift = 6,
 	.hdr_hist_sel = 0,
 	.pre_hdr10_tmo_alg = NULL,
+	.fw_tmo_dbg = NULL,
+	.fw_tmo_dbg_show = NULL,
 };
 
 void change_param(int val)
@@ -1794,4 +1882,29 @@ int hdr10_tmo_dbg(char **parm)
 error:
 	return -1;
 }
+
+int hdr_tmo_alg_dbg(char **parm)
+{
+	int ret = 0;
+
+	if (tmo_reg.fw_tmo_dbg)
+		ret = tmo_reg.fw_tmo_dbg(parm);
+	else
+		pr_info("%s: No hdr ko, Null Func\n", __func__);
+
+	return ret;
+}
+
+int hdr_tmo_alg_dbg_show(char *str)
+{
+	int len = 0;
+
+	if (tmo_reg.fw_tmo_dbg_show)
+		len = tmo_reg.fw_tmo_dbg_show(str);
+	else
+		pr_info("%s: No hdr ko, Null Func\n", __func__);
+
+	return len;
+}
+
 #endif

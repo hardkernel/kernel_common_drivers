@@ -95,15 +95,25 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VD1_HDR2_HIST_V_START_END          0x383f
 #define VD1_OGAIN_LUT1_ADDR_PORT           0x3840
 #define VD1_OGAIN_LUT1_DATA_PORT           0x3841
-#define VD1_HDR2_GMUT_COMP0                0x3844
-#define VD1_HDR2_GMUT_COMP1                0x3845
-#define VD1_HDR2_GMUT_COMP2                0x3846
-#define VD1_HDR2_GMUT_COMP3                0x3847
-#define VD1_HDR2_GMUT_COMP4                0x3848
-#define VD1_HDR2_GMUT_COMP5                0x3849
-#define VD1_HDR2_GMUT_COMP6                0x384a
-#define VD1_HDR2_GMUT_COMP7                0x384b
-#define VD1_HDR2_GMUT_COMP8                0x384c
+#define VD1_HDR2_CGAIN_VIVID               0x3842
+#define VD1_HDR2_GMUT_COMP0                0x3843
+#define VD1_HDR2_GMUT_COMP1                0x3844
+#define VD1_HDR2_GMUT_COMP2                0x3845
+#define VD1_HDR2_GMUT_COMP3                0x3846
+#define VD1_HDR2_GMUT_COMP4                0x3847
+#define VD1_HDR2_GMUT_COMP5                0x3848
+#define VD1_HDR2_GMUT_COMP6                0x3849
+#define VD1_HDR2_GMUT_COMP7                0x384a
+#define VD1_HDR2_GMUT_COMP8                0x384b
+//T6W add
+#define VD1_HDR2_HIST_SLC_X_ST_ED_0        0x384c
+#define VD1_HDR2_HIST_SLC_X_ST_ED_1        0x384d
+#define VD1_HDR2_HIST_SLC_X_ST_ED_2        0x384e
+#define VD1_HDR2_HIST_SLC_X_ST_ED_3        0x384f
+//T6X add
+#define VD1_HDR2_ADPSCL1_COEF0             0x3850
+#define VD1_HDR2_ADPSCL1_COEF1             0x3851
+#define VD1_HDR2_RGB_GM_CTRL               0x3852
 
 #define VD2_HDR2_CTRL                      0x3850
 #define VD2_HDR2_CLK_GATE                  0x3851
@@ -172,15 +182,26 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VD2_HDR2_HIST_V_START_END          0x388f
 #define VD2_OGAIN_LUT1_ADDR_PORT           0x3890
 #define VD2_OGAIN_LUT1_DATA_PORT           0x3891
-#define VD2_HDR2_GMUT_COMP0                0x3894
-#define VD2_HDR2_GMUT_COMP1                0x3895
-#define VD2_HDR2_GMUT_COMP2                0x3896
-#define VD2_HDR2_GMUT_COMP3                0x3897
-#define VD2_HDR2_GMUT_COMP4                0x3898
-#define VD2_HDR2_GMUT_COMP5                0x3899
-#define VD2_HDR2_GMUT_COMP6                0x389a
-#define VD2_HDR2_GMUT_COMP7                0x389b
-#define VD2_HDR2_GMUT_COMP8                0x389c
+#define VD2_HDR2_CGAIN_VIVID               0x3892
+#define VD2_HDR2_GMUT_COMP0                0x3893
+#define VD2_HDR2_GMUT_COMP1                0x3894
+#define VD2_HDR2_GMUT_COMP2                0x3895
+#define VD2_HDR2_GMUT_COMP3                0x3896
+#define VD2_HDR2_GMUT_COMP4                0x3897
+#define VD2_HDR2_GMUT_COMP5                0x3898
+#define VD2_HDR2_GMUT_COMP6                0x3899
+#define VD2_HDR2_GMUT_COMP7                0x389a
+#define VD2_HDR2_GMUT_COMP8                0x389b
+//T6W add
+#define VD2_HDR2_HIST_SLC_X_ST_ED_0        0x389c
+#define VD2_HDR2_HIST_SLC_X_ST_ED_1        0x389d
+#define VD2_HDR2_HIST_SLC_X_ST_ED_2        0x389e
+#define VD2_HDR2_HIST_SLC_X_ST_ED_3        0x389f
+//T6X add
+#define VD2_HDR2_ADPSCL1_COEF0             0x38a0
+#define VD2_HDR2_ADPSCL1_COEF1             0x38a1
+#define VD2_HDR2_RGB_GM_CTRL               0x38a2
+
 
 // vd3 to do, use correct register address
 #define VD3_HDR2_CTRL                      0x5930
@@ -685,5 +706,263 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define VPP_OSD2_MATRIX_PRE_OFFSET0_1              0x392b
 #define VPP_OSD2_MATRIX_PRE_OFFSET2                0x392c
 #define VPP_OSD2_MATRIX_EN_CTRL                    0x392d
+
+/*t6x hdr*/
+#define VPU_HDR2_SIZE_IN                           0x4515
+#define VPU_HDR2_FRM2_SIZE                         0x4518
+//Bit 31:29         reserved
+//Bit 28:16         reg_hdr2_vsize1_in
+//Bit 15:13         reserved
+//Bit 12:0          reg_hdr2_hsize1_in
+#define VPU_HDR2_TOP_CTRL                          0x4519
+//Bit 31            pls_hdr2_frm_start
+//Bit 30:24         reserved
+//Bit 23            reg_hdr2_sel_en
+//Bit 22:21         reg_hdr2_gclk_ctrl
+//Bit 20            reg_hdr2_dma_mode
+//Bit 19:17         reserved
+//Bit 16:4          reg_hdr2_hold_line_num
+//Bit 3:2           reserved
+//Bit 1             reg_hdr2_go_line_sel
+//Bit 0             reg_hdr2_frm_start_sel
+#define VD1_HDR_IN_SIZE                            0x1a57
+#define VD2_HDR_IN_SIZE                            0x1a58
+#define VD2_1_HDR_IN_SIZE                          0x1aa6
+//Bit   31:29     reserved
+//Bit   28:16     vd2_1_hdr_in_vsize     unsigned,default = 1920
+//Bit   15:13     reserved
+//Bit   12:0      vd2_1_hdr_in_hsize     unsigned,default = 1080
+#define PLAYER_2X2_CTRL                            0x1aa7
+//Bit 31:0      player_2x2_ctrl          unsigned,default = 0
+
+#define DOLBY_HDR2_CTRL                            0x4c00
+#define DOLBY_HDR2_CLK_GATE                        0x4c01
+#define DOLBY_HDR2_MATRIXI_COEF00_01               0x4c02
+#define DOLBY_HDR2_MATRIXI_COEF02_10               0x4c03
+#define DOLBY_HDR2_MATRIXI_COEF11_12               0x4c04
+#define DOLBY_HDR2_MATRIXI_COEF20_21               0x4c05
+#define DOLBY_HDR2_MATRIXI_COEF22                  0x4c06
+#define DOLBY_HDR2_MATRIXI_COEF30_31               0x4c07
+#define DOLBY_HDR2_MATRIXI_COEF32_40               0x4c08
+#define DOLBY_HDR2_MATRIXI_COEF41_42               0x4c09
+#define DOLBY_HDR2_MATRIXI_OFFSET0_1               0x4c0a
+#define DOLBY_HDR2_MATRIXI_OFFSET2               0x4c0b
+#define DOLBY_HDR2_MATRIXI_PRE_OFFSET0_1           0x4c0c
+//Bit 31:27        reserved
+//Bit 26:16        reg_mtrxi_offst_inp0     // signed ,    RW, default = 0
+//Bit 15:11        reserved
+//Bit 10: 0        reg_mtrxi_offst_inp1     // signed ,    RW, default = -512
+#define DOLBY_HDR2_MATRIXI_PRE_OFFSET2             0x4c0d
+//Bit 31:11        reserved
+//Bit 10: 0        reg_mtrxi_offst_inp2     // signed ,    RW, default = -512
+#define DOLBY_HDR2_MATRIXO_COEF00_01               0x4c0e
+//Bit 31:29        reserved
+//Bit 28:16        reg_mtrxo_coef00        // signed ,    RW, default = 218
+//Bit 15:13        reserved
+//Bit 12: 0        reg_mtrxo_coef01        // signed ,    RW, default = 732
+#define DOLBY_HDR2_MATRIXO_COEF02_10               0x4c0f
+//Bit 31:29        reserved
+//Bit 28:16        reg_mtrxo_coef02        // signed ,    RW, default = 74
+//Bit 15:13        reserved
+//Bit 12: 0        reg_mtrxo_coef10        // signed ,    RW, default = -117
+#define DOLBY_HDR2_MATRIXO_COEF11_12               0x4c10
+//Bit 31:29        reserved
+//Bit 28:16        reg_mtrxo_coef11        // signed ,    RW, default = -395
+//Bit 15:13        reserved
+//Bit 12: 0        reg_mtrxo_coef12        // signed ,    RW, default = 512
+#define DOLBY_HDR2_MATRIXO_COEF20_21               0x4c11
+//Bit 31:29        reserved
+//Bit 28:16        reg_mtrxo_coef20        // signed ,    RW, default = 512
+//Bit 15:13        reserved
+//Bit 12: 0        reg_mtrxo_coef21        // signed ,    RW, default = -465
+#define DOLBY_HDR2_MATRIXO_COEF22                  0x4c12
+//Bit 31:13        reserved
+//Bit 12: 0        reg_mtrxo_coef22        // signed ,    RW, default = -47
+#define DOLBY_HDR2_MATRIXO_COEF30_31               0x4c13
+//Bit 31:29        reserved
+//Bit 28:16        reg_mtrxo_coef30        // signed ,    RW, default = 0
+//Bit 15:13        reserved
+//Bit 12: 0        reg_mtrxo_coef31        // signed ,    RW, default = 0
+#define DOLBY_HDR2_MATRIXO_COEF32_40               0x4c14
+//Bit 31:29        reserved
+//Bit 28:16        reg_mtrxo_coef32        // signed ,    RW, default = 0
+//Bit 15:13        reserved
+//Bit 12: 0        reg_mtrxo_coef40        // signed ,    RW, default = 0
+#define DOLBY_HDR2_MATRIXO_COEF41_42               0x4c15
+//Bit 31:29        reserved
+//Bit 28:16        reg_mtrxo_coef41        // signed ,    RW, default = 0
+//Bit 15:13        reserved
+//Bit 12: 0        reg_mtrxo_coef42        // signed ,    RW, default = 0
+#define DOLBY_HDR2_MATRIXO_OFFSET0_1               0x4c16
+#define DOLBY_HDR2_MATRIXO_OFFSET2                 0x4c17
+#define DOLBY_HDR2_MATRIXO_PRE_OFFSET0_1           0x4c18
+#define DOLBY_HDR2_MATRIXO_PRE_OFFSET2             0x4c19
+#define DOLBY_HDR2_MATRIXI_CLIP                    0x4c1a
+#define DOLBY_HDR2_MATRIXO_CLIP                    0x4c1b
+#define DOLBY_HDR2_CGAIN_OFFT                      0x4c1c
+#define DOLBY_HDR2_HIST_RD                         0x4c1d
+#define DOLBY_HDR2_EOTF_LUT_ADDR_PORT              0x4c1e
+#define DOLBY_HDR2_EOTF_LUT_DATA_PORT              0x4c1f
+#define DOLBY_HDR2_OETF_LUT_ADDR_PORT              0x4c20
+#define DOLBY_HDR2_OETF_LUT_DATA_PORT              0x4c21
+#define DOLBY_HDR2_CGAIN_LUT_ADDR_PORT             0x4c22
+#define DOLBY_HDR2_CGAIN_LUT_DATA_PORT             0x4c23
+#define DOLBY_HDR2_CGAIN_COEF0                     0x4c24
+#define DOLBY_HDR2_CGAIN_COEF1                     0x4c25
+#define DOLBY_HDR2_OGAIN_LUT_ADDR_PORT             0x4c26
+#define DOLBY_HDR2_OGAIN_LUT_DATA_PORT             0x4c27
+#define DOLBY_HDR2_ADPS_CTRL                       0x4c28
+#define DOLBY_HDR2_ADPS_ALPHA0                     0x4c29
+#define DOLBY_HDR2_ADPS_ALPHA1                     0x4c2a
+#define DOLBY_HDR2_ADPS_BETA0                      0x4c2b
+#define DOLBY_HDR2_ADPS_BETA1                      0x4c2c
+#define DOLBY_HDR2_ADPS_BETA2                      0x4c2d
+#define DOLBY_HDR2_ADPS_COEF0                      0x4c2e
+#define DOLBY_HDR2_ADPS_COEF1                      0x4c2f
+#define DOLBY_HDR2_GMUT_CTRL                       0x4c30
+#define DOLBY_HDR2_GMUT_COEF0                      0x4c31
+//Bit 31:16        reg_gmut_coef01         // signed ,    RW, default = -150
+//Bit 15: 0        reg_gmut_coef00         // signed ,    RW, default = 425
+#define DOLBY_HDR2_GMUT_COEF1                      0x4c32
+//Bit 31:16        reg_gmut_coef10         // signed ,    RW, default = -31
+//Bit 15: 0        reg_gmut_coef02         // signed ,    RW, default = -18
+#define DOLBY_HDR2_GMUT_COEF2                      0x4c33
+//Bit 31:16        reg_gmut_coef12         // signed ,    RW, default = -2
+//Bit 15: 0        reg_gmut_coef11         // signed ,    RW, default = 290
+#define DOLBY_HDR2_GMUT_COEF3                      0x4c34
+//Bit 31:16        reg_gmut_coef21         // signed ,    RW, default = -25
+//Bit 15: 0        reg_gmut_coef20         // signed ,    RW, default = -5
+#define DOLBY_HDR2_GMUT_COEF4                      0x4c35
+//Bit 31:16        reserved
+//Bit 15: 0        reg_gmut_coef_2_2         // signed ,    RW, default = 286
+#define DOLBY_HDR2_PIPE_CTRL1                      0x4c36
+//Bit 31:24        reg_vblank_num_oetf       // unsigned ,    RW, default = 4
+//Bit 23:16        reg_hblank_num_oetf       // unsigned ,    RW, default = 4
+//Bit 15: 8        reg_vblank_num_eotf       // unsigned ,    RW, default = 10
+//Bit  7: 0        reg_hblank_num_eotf       // unsigned ,    RW, default = 10
+#define DOLBY_HDR2_PIPE_CTRL2                      0x4c37
+//Bit 31:24        reg_vblank_num_cgain      // unsigned ,    RW, default = 10
+//Bit 23:16        reg_hblank_num_cgain      // unsigned ,    RW, default = 10
+//Bit 15: 8        reg_vblank_num_gmut       // unsigned ,    RW, default = 17
+//Bit  7: 0        reg_hblank_num_gmut       // unsigned ,    RW, default = 17
+#define DOLBY_HDR2_PIPE_CTRL3                      0x4c38
+//Bit 31:24        reg_vblank_num_adps       // unsigned ,    RW, default = 22
+//Bit 23:16        reg_hblank_num_adps       // unsigned ,    RW, default = 22
+//Bit 15: 8        reg_vblank_num_uv         // unsigned ,    RW, default = 4
+//Bit  7: 0        reg_hblank_num_uv         // unsigned ,    RW, default = 4
+#define DOLBY_HDR2_PROC_WIN1                       0x4c39
+//Bit 31           reg_proc_win_gmut_en      // unsigned ,    RW, default = 0
+//Bit 30           reg_proc_win_adps_en      // unsigned ,    RW, default = 0
+//Bit 29           reg_proc_win_cgain_en     // unsigned ,    RW, default = 0
+//Bit 28:16        reg_proc_x_ed             // unsigned ,    RW, default = 99
+//Bit 15:13        reserved
+//Bit 12: 0        reg_proc_x_st             // unsigned ,    RW, default = 0
+#define DOLBY_HDR2_PROC_WIN2                       0x4c3a
+//Bit 31:30        reserved
+//Bit 29           reg_proc_win_aicr_en      // unsigned ,    RW, default = 1
+//Bit 28:16        reg_proc_y_ed             // unsigned ,    RW, default = 99
+//Bit 15:13        reserved
+//Bit 12: 0        reg_proc_y_st             // unsigned ,    RW, default = 0
+#define DOLBY_HDR2_MATRIXI_EN_CTRL                 0x4c3b
+//Bit 31: 8        reserved
+//Bit  7: 0        reg_matrixi_en_ctrl       // unsigned ,    RW, default = 0
+#define DOLBY_HDR2_MATRIXO_EN_CTRL                 0x4c3c
+//Bit 31: 8        reserved
+//Bit  7: 0        reg_matrixo_en_ctrl       // unsigned ,    RW, default = 0
+#define DOLBY_HDR2_HIST_CTRL                       0x4c3d
+#define DOLBY_HDR2_HIST_H_START_END                0x4c3e
+#define DOLBY_HDR2_HIST_V_START_END                0x4c3f
+#define DOLBY_HDR2_OGAIN_LUT1_ADDR_PORT            0x4c40
+#define DOLBY_HDR2_OGAIN_LUT1_DATA_PORT            0x4c41
+#define DOLBY_HDR2_CGAIN_VIVID                     0x4c42
+//Bit 31:30        reserved
+//Bit 29:26        reg_omax_sync_gain_sft    // unsigned , RW, default = 0
+//Bit 25:16        reg_omax_sync_gain        // unsigned , RW, default = 1
+//Bit 15: 4        reserved
+//Bit 3:2          reg_cgain_pos             // unsigned , RW, default = 0
+//Bit 1            reg_ogain_inser           // unsigned , RW, default = 0
+//Bit 0            reserved
+#define DOLBY_HDR2_GMUT_COMP0                      0x4c43
+//Bit 31           reg_hdr2_gm_comp_en       // unsigned ,RW, default = 1
+//Bit 30:28        reserved
+//Bit 27: 8        reg_hdr_comp_ofst_r       // unsigned ,RW, default = 85900
+//Bit  7: 0        reserved
+#define DOLBY_HDR2_GMUT_COMP1                      0x4c44
+//Bit 31:28        reserved
+//Bit 27: 8        reg_hdr_comp_ofst_g       // unsigned ,RW, default = 85900
+//Bit  7: 0        reserved
+#define DOLBY_HDR2_GMUT_COMP2                      0x4c45
+//Bit 31:28        reserved
+//Bit 27: 8        reg_hdr_comp_ofst_b       // unsigned ,RW, default = 85900
+//Bit  7: 0        reserved
+#define DOLBY_HDR2_GMUT_COMP3                      0x4c46
+//Bit 31:28        reserved
+//Bit 27: 8        reg_hdr_comp_min_r        // unsigned ,RW, default = 510025
+//Bit  7: 0        reserved
+#define DOLBY_HDR2_GMUT_COMP4                      0x4c47
+//Bit 31:28        reserved
+//Bit 27: 8        reg_hdr_comp_min_g        // unsigned ,RW, default = 472965
+//Bit  7: 0        reserved
+#define DOLBY_HDR2_GMUT_COMP5                      0x4c48
+//Bit 31:28        reserved
+//Bit 27: 8        reg_hdr_comp_min_b        // unsigned ,RW, default = 467019
+//Bit  7: 0        reserved
+#define DOLBY_HDR2_GMUT_COMP6                      0x4c49
+//Bit 31:30        reserved
+//Bit 29: 8        reg_hdr_comp_rat_r        // unsigned ,RW, default = 152108
+//Bit  7: 0        reserved
+#define DOLBY_HDR2_GMUT_COMP7                      0x4c4a
+//Bit 31:30        reserved
+//Bit 29: 8        reg_hdr_comp_rat_g        // unsigned ,RW, default = 472965
+//Bit  7: 0        reserved
+#define DOLBY_HDR2_GMUT_COMP8                      0x4c4b
+//Bit 31:30        reserved
+//Bit 29: 8        reg_hdr_comp_rat_b        // unsigned , RW, default = 467019
+//Bit  7: 0        reserved
+#define DOLBY_HDR2_HIST_SLC_X_ST_ED_0              0x4c4c
+//Bit 31:29        reg_hist_slc_num          // unsigned ,    RW, default = 1
+//Bit 28:16        reg_hist_slc0_x_st        // unsigned ,    RW, default = 0
+//Bit 15:13        reserved
+//Bit 12 :0        reg_hist_slc0_x_ed        // unsigned ,    RW, default = 239
+#define DOLBY_HDR2_HIST_SLC_X_ST_ED_1              0x4c4d
+//Bit 31:29        reserved
+//Bit 28:16        reg_hist_slc1_x_st        // unsigned ,    RW, default = 0
+//Bit 15:13        reserved
+//Bit 12 :0        reg_hist_slc1_x_ed        // unsigned ,    RW, default = 239
+#define DOLBY_HDR2_HIST_SLC_X_ST_ED_2              0x4c4e
+//Bit 31:29        reserved
+//Bit 28:16        reg_hist_slc2_x_st        // unsigned ,    RW, default = 0
+//Bit 15:13        reserved
+//Bit 12 :0        reg_hist_slc2_x_ed        // unsigned ,    RW, default = 239
+#define DOLBY_HDR2_HIST_SLC_X_ST_ED_3              0x4c4f
+//Bit 31:29        reserved
+//Bit 28:16        reg_hist_slc3_x_st        // unsigned ,    RW, default = 0
+//Bit 15:13        reserved
+//Bit 12 :0        reg_hist_slc3_x_ed        // unsigned ,    RW, default = 239
+#define DOLBY_HDR2_ADPSCL1_COEF0                   0x4c50
+//Bit 31:28        reserved
+//Bit 27:16        reg_adpscl_ys_coef1_1
+// unsigned ,    RW, default = 1024
+//coef to calculate the Ys, normalized to 2048 as "1", leave one bit margin;
+//Bit 15:12        reserved
+//Bit 11: 0        reg_adpscl_ys_coef1_0
+// unsigned ,    RW, default = 1024
+//coef to calculate the Ys, normalized to 2048 as "1", leave one bit margin;
+#define DOLBY_HDR2_ADPSCL1_COEF1                   0x4c51
+//Bit 31:16        reg_bypass_ootf2_gain
+// unsigned ,    RW, default = 51200  reg_bypass_ootf2_gain
+//Bit 15:12        reserved
+//Bit 11: 0        reg_adpscl_ys_coef1_2
+// unsigned ,    RW, default = 1024  coef to calculate the Ys,
+//normalized to 2048 as "1", leave one bit margin;
+#define DOLBY_HDR2_RGB_GM_CTRL                     0x4c52
+//Bit 31: 3        reserved
+//Bit  2           reg_adpscl_mode_gm        // unsigned ,    RW, default = 1
+//Bit  1           reg_rgb_gm_mode           // unsigned ,    RW, default = 0
+//Bit  0           reg_rgb_gm_en             // unsigned ,    RW, default = 0
+
+//#define VD2_HDR2_ADPSCL1_COEF0                     0x6350
+//#define VD2_HDR2_ADPSCL1_COEF1                     0x6351
+//#define VD2_HDR2_RGB_GM_CTRL                       0x6352
 
 #endif

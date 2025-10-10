@@ -7680,6 +7680,39 @@ static ssize_t amvecm_hdr_tmo_store(const struct class *cla,
 	return 0;
 }
 
+static ssize_t amvecm_hdr_fw_dbg_show(const struct class *cla,
+	const struct class_attribute *attr, char *buf)
+{
+	int len = 0;
+
+	// hdr10_tmo_parm_show();
+	len = hdr_tmo_alg_dbg_show(buf);
+	return len;
+}
+
+static ssize_t amvecm_hdr_fw_dbg_store(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	char *buf_orig, *parm[5] = {NULL};
+	int ret;
+
+	if (!buf)
+		return count;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return -ENOMEM;
+
+	parse_param_amvecm(buf_orig, (char **)&parm);
+	ret = hdr_tmo_alg_dbg(parm);
+	kfree(buf_orig);
+
+	if (ret < 0)
+		pr_info("set parameters failed\n");
+
+	return count;
+}
 static ssize_t amvecm_hdr_param_show(const struct class *cla,
 	const struct class_attribute *attr, char *buf)
 {
@@ -13875,6 +13908,7 @@ struct param_parse_cmd_s param_cut_cmd[] = {
 	{"hdr_adp_scal_x_shift", &adp_scal_x_shift},
 	{"hdr_adp_scal_y_shift", &adp_scal_y_shift},
 	{"hdr_clip_func", &clip_func},
+	{"fw_alg_ctl_en", &fw_alg_ctl_en},
 	{"hdr_vd1_bp_force", &vd1_bp_force},
 	{"hdr_mode", &hdr_mode},
 	{"sdr_mode", &sdr_mode},
@@ -14633,6 +14667,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(hdr_tmo, 0644,
 		amvecm_hdr_tmo_show,
 		amvecm_hdr_tmo_store),
+	__ATTR(hdr_fw_dbg, 0644,
+		amvecm_hdr_fw_dbg_show,
+		amvecm_hdr_fw_dbg_store),
 	__ATTR(gamma_pattern, 0644,
 		set_gamma_pattern_show,
 		set_gamma_pattern_store),
