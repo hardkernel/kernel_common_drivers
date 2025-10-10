@@ -40,6 +40,7 @@
 #define PRG_ETH0_RGMII_MODE		BIT(0)
 
 #define PRG_ETH0_EXT_PHY_MODE_MASK	GENMASK(2, 0)
+#define PRG_ETH0_EXT_MII_MODE		0
 #define PRG_ETH0_EXT_RGMII_MODE		1
 #define PRG_ETH0_EXT_RMII_MODE		4
 
@@ -96,6 +97,8 @@
  * of "rx data valid".
  */
 #define PRG_ETH1_CFG_RXCLK_DLY		GENMASK(19, 16)
+
+#define PRG_ETH_TX_GLITCH_FIX		0x28
 
 struct meson8b_dwmac;
 
@@ -288,6 +291,12 @@ static int meson_axg_set_phy_mode(struct meson8b_dwmac *dwmac)
 					PRG_ETH0_EXT_PHY_MODE_MASK,
 					PRG_ETH0_EXT_RMII_MODE);
 		break;
+	case PHY_INTERFACE_MODE_MII:
+		/* enables MII mode */
+		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
+					PRG_ETH0_EXT_PHY_MODE_MASK,
+					PRG_ETH0_EXT_MII_MODE);
+		break;
 	default:
 		dev_err(dwmac->dev, "fail to set phy-mode %s\n",
 			phy_modes(dwmac->phy_mode));
@@ -344,6 +353,7 @@ static int meson8b_init_rgmii_delays(struct meson8b_dwmac *dwmac)
 		break;
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RMII:
+	case PHY_INTERFACE_MODE_MII:
 		delay_config = 0;
 		cfg_rxclk_dly = 0;
 		break;
@@ -447,6 +457,7 @@ static void set_wol_notify_bl30(struct meson8b_dwmac *dwmac, u32 enable_bl30)
 void __iomem *ee_reset_base;
 int eth_reset_bit;
 unsigned int mc_val;
+unsigned int phy_mii_clk_sel;
 static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac *dwmac)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -477,6 +488,15 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 		pr_debug("cover mc_val as 0x%x\n", mc_val);
 		writel(mc_val, dwmac->regs + PRG_ETH0);
 	}
+
+	if (of_property_read_u32(np, "phy-mii-clk-sel", &phy_mii_clk_sel) == 0) {
+		pr_info("config phy-mii-clk-sel as 0x%x\n", phy_mii_clk_sel);
+		/* mii_clk_sel switch to RMII interface */
+		writel(phy_mii_clk_sel, dwmac->regs + PRG_ETH_TX_GLITCH_FIX);
+	}
+
+	if (of_property_read_u32(np, "eee-enable", &inphy_eee_enable) != 0)
+		inphy_eee_enable = 0; // not found, default eee disable
 
 	if (of_property_read_u32(np, "internal_phy", &internal_phy) != 0)
 		pr_debug("use default internal_phy as 0\n");
@@ -747,6 +767,18 @@ static void dwmac_resume(struct meson8b_dwmac *dwmac)
 		usleep_range(800, 1000);
 
 		writel(0x12804008, phy_analog_config_addr + 0x8);
+	} else if (phy_pll_mode == 4) {/*t6x*/
+		writel(0x07d21003, phy_analog_config_addr + 0x44);
+		writel(0x000008c0, phy_analog_config_addr + 0x48);
+		usleep_range(100, 200);
+		writel(0x07d21007, phy_analog_config_addr + 0x44);
+		usleep_range(100, 200);
+		writel(0x07d21006, phy_analog_config_addr + 0x44);
+		usleep_range(100, 200);
+		writel(0x07d21004, phy_analog_config_addr + 0x44);
+
+		usleep_range(800, 1000);
+		writel(0x12804008, phy_analog_config_addr + 0x8);
 	} else {
 		writel(0x19c0040a, phy_analog_config_addr + 0x44);
 	}
@@ -974,6 +1006,10 @@ static int meson8b_restore(struct device *dev)
 		writel(mc_val, dwmac->regs + PRG_ETH0);
 	else
 		writel(0x4be04, dwmac->regs + PRG_ETH0);
+
+	if (phy_mii_clk_sel)
+		writel(phy_mii_clk_sel, dwmac->regs + PRG_ETH_TX_GLITCH_FIX);
+
 	g12a_resume_enable_internal_mdio();
 	/*our phy not support wol by now*/
 	phydev->irq_suspended = 0;

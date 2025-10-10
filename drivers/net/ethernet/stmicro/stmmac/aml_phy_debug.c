@@ -741,6 +741,10 @@ static ssize_t linkspeed_show(const struct class *class,
 
 unsigned int internal_phy;
 EXPORT_SYMBOL_GPL(internal_phy);
+unsigned int ephy_eee_support;
+EXPORT_SYMBOL_GPL(ephy_eee_support);
+unsigned int inphy_eee_enable;
+EXPORT_SYMBOL_GPL(inphy_eee_enable);
 #ifdef CONFIG_PM_SLEEP
 unsigned int wol_switch_from_user;
 EXPORT_SYMBOL_GPL(wol_switch_from_user);

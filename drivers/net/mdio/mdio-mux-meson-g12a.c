@@ -23,6 +23,8 @@ unsigned int phy_pll_mode;
 EXPORT_SYMBOL_GPL(phy_pll_mode);
 unsigned int phy_mode;
 EXPORT_SYMBOL_GPL(phy_mode);
+unsigned int ephy_clk_gate;
+EXPORT_SYMBOL_GPL(ephy_clk_gate);
 #endif
 
 #define ETH_PHY_DBG_CFG0	0x08
@@ -57,6 +59,7 @@ EXPORT_SYMBOL_GPL(phy_mode);
 #define  PHY_CNTL1_AUTOMDIX_EN	BIT(8)
 #endif
 #define  PHY_CNTL1_MII_MODE	GENMASK(15, 14)
+#define   EPHY_MODE_MII		0x0
 #define   EPHY_MODE_RMII	0x1
 #define  PHY_CNTL1_CLK_EN	BIT(16)
 #define  PHY_CNTL1_CLKFREQ	BIT(17)
@@ -64,7 +67,10 @@ EXPORT_SYMBOL_GPL(phy_mode);
 #define ETH_PHY_CNTL2		0x88
 #define  PHY_CNTL2_USE_INTERNAL	BIT(5)
 #define  PHY_CNTL2_SMI_SRC_MAC	BIT(6)
+#define  PHY_CNTL2_RX_DV_COL	BIT(7)
 #define  PHY_CNTL2_RX_CLK_EPHY	BIT(9)
+
+#define ETH_PHY_CLK_GATE	0x144
 
 #define MESON_G12A_MDIO_EXTERNAL_ID 0
 #define MESON_G12A_MDIO_INTERNAL_ID 1
@@ -126,7 +132,7 @@ static int g12a_ephy_pll_enable(struct clk_hw *hw)
 	 */
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 
-	if (phy_pll_mode == 1) {
+	if (phy_pll_mode == 1 || phy_pll_mode == 4) {
 		return readl_poll_timeout(pll->base + ETH_PLL_CTL0, val,
 				  val & PLL_CTL0_LOCK_FLAG, 0, PLL_LOCK_TIMEOUT);
 	}
@@ -209,6 +215,17 @@ static int g12a_ephy_pll_init(struct clk_hw *hw)
 		writel(0x00e091a2, pll->base + ETH_PLL_CTL0);
 		usleep_range(100, 200);
 		writel(0x00007423, pll->base + ETH_PLL_CTL7);
+	}
+	/*t6x-24m*/
+	if (phy_pll_mode == 4) {
+		writel(0x07d21003, pll->base + ETH_PLL_CTL0);
+		writel(0x000008c0, pll->base + ETH_PLL_CTL1);
+		usleep_range(100, 200);
+		writel(0x07d21007, pll->base + ETH_PLL_CTL0);
+		usleep_range(100, 200);
+		writel(0x07d21006, pll->base + ETH_PLL_CTL0);
+		usleep_range(100, 200);
+		writel(0x07d21004, pll->base + ETH_PLL_CTL0);
 	}
 #else
 
@@ -376,12 +393,40 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 				writel(0x20000000, priv->regs + ETH_PLL_CTL5);
 				writel(0x00003623, priv->regs + ETH_PLL_CTL7);
 			}
+			/*t6x*/
+			if (phy_mode == 8) {
+				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
+				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
+					rx_R = (efuse_get_tmp & 0xf00000) >> 20;
+					tx_R = (efuse_get_tmp & 0x0f0000) >> 16;
+					writel(((tx_R << 28) | (rx_R << 20))
+						| (0x09060000),
+						priv->regs + ETH_PLL_CTL3);
+				} else {
+					pr_info("no efuse setting use default\n");
+					writel(0xa9860000, priv->regs + ETH_PLL_CTL3);
+				}
+				writel(0x4001, priv->regs + ETH_PLL_CTL6);
+				writel(0x10800000, priv->regs + ETH_PLL_CTL5);
+				writel(0x00003623, priv->regs + ETH_PLL_CTL7);
+			}
 		}
 	}
 
 	if (of_property_read_u32(np, "st_mode", &st_mode) != 0) {
 		pr_info("use default st_mode\n");
 		st_mode = 7;
+	}
+	if (of_property_read_u32(np, "ephy_clk_gate", &ephy_clk_gate) == 0) {
+		pr_info("config ephy_clk_gate as 0x%x\n", ephy_clk_gate);
+		/* ephy_clk_gate for internal phy */
+		writel(ephy_clk_gate, priv->regs + ETH_PHY_CLK_GATE);
+	}
+	if (of_property_read_u32(np, "ephy_eee_support", &ephy_eee_support) == 0) {
+		if (ephy_eee_support)
+			pr_info("inphy EEE Feature supported\n");
+	} else {
+		ephy_eee_support = 0;
 	}
 	if (of_property_read_u32(np, "led_setting", &led_setting) == 0) {
 		/*led setting 10bit ETH_PHY_CNTL0 bit[31:23] and ETH_PLL_CTL4 bit0*/
@@ -422,6 +467,12 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	       PHY_CNTL2_SMI_SRC_MAC |
 	       PHY_CNTL2_RX_CLK_EPHY,
 	       priv->regs + ETH_PHY_CNTL2);
+	if (ephy_eee_support && inphy_eee_enable) {
+		writel(readl(priv->regs + ETH_PHY_CNTL2) |
+			PHY_CNTL2_RX_DV_COL,
+			priv->regs + ETH_PHY_CNTL2); // cover for mii
+		value &= ~PHY_CNTL1_MII_MODE; // cover for mii
+	}
 	value |= PHY_CNTL1_PHY_ENB;
 	value |= led_setting;
 	if (phy_mode == 5)

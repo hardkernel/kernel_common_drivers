@@ -97,6 +97,8 @@ extern unsigned int internal_phy;
 
 extern unsigned int tx_amp_bl2;
 extern unsigned int voltage_phy;
+extern unsigned int ephy_eee_support;
+extern unsigned int inphy_eee_enable;
 //#endif
 int gmac_create_sysfs(struct phy_device *phydev, void __iomem *ioaddr);
 int gmac_remove_sysfs(struct phy_device *phydev);

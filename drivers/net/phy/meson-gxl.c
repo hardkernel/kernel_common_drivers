@@ -4,6 +4,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
@@ -13,6 +14,11 @@
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 #include <linux/amlogic/aml_phy_debug.h>
 #endif
+
+#define SPEC_MODE	18
+#define  SPEC_MII_MODE	GENMASK(15, 14)
+#define  SPEC_CLKSELFREQ	BIT(13)
+#define  SPEC_PHYADDR	GENMASK(4, 0)
 
 #define TSTCNTL		20
 #define  TSTCNTL_READ		BIT(15)
@@ -31,6 +37,12 @@
 #define  INTSRC_REMOTE_FAULT	BIT(5)
 #define  INTSRC_ANEG_COMPLETE	BIT(6)
 #define INTSRC_MASK	30
+#define SPEC_CTRL_STATUS	31
+#define  SPEC_STATUS_SPEED	GENMASK(4, 2)
+#define  SPEC_SPEED_10M_HALF	0x1
+#define  SPEC_SPEED_10M_FULL	0x5
+#define  SPEC_SPEED_100M_HALF	0x2
+#define  SPEC_SPEED_100M_FULL	0x6
 
 #define BANK_ANALOG_DSP		0
 #define BANK_WOL		1
@@ -191,6 +203,155 @@ read_status_continue:
 	return genphy_read_status(phydev);
 }
 
+static int restore_lpa_for_eee = -1;
+static bool actual_lpa;
+/* use restore_lpa_for_eee instead of MII_LPA for EEE, Compatible with non-EEE */
+static int meson_genphy_read_lpa(struct phy_device *phydev)
+{
+	if (phydev->autoneg == AUTONEG_ENABLE) {
+		if (!phydev->autoneg_complete) {
+			mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising,
+							0);
+			mii_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, 0);
+			return 0;
+		}
+
+		if (restore_lpa_for_eee < 0)
+			return restore_lpa_for_eee;
+
+		mii_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, restore_lpa_for_eee);
+	} else {
+		linkmode_zero(phydev->lp_advertising);
+	}
+
+	return 0;
+}
+
+static void phy_resolve_aneg_linkmode_meson(struct phy_device *phydev)
+{
+	int	val = phy_read(phydev, SPEC_CTRL_STATUS);
+
+	switch ((val & SPEC_STATUS_SPEED) >> 2) {
+	case SPEC_SPEED_10M_HALF:
+		phydev->speed = SPEED_10;
+		phydev->duplex = DUPLEX_HALF;
+		break;
+	case SPEC_SPEED_10M_FULL:
+		phydev->speed = SPEED_10;
+		phydev->duplex = DUPLEX_FULL;
+		break;
+	case SPEC_SPEED_100M_HALF:
+		phydev->speed = SPEED_100;
+		phydev->duplex = DUPLEX_HALF;
+		break;
+	case SPEC_SPEED_100M_FULL:
+		phydev->speed = SPEED_100;
+		phydev->duplex = DUPLEX_FULL;
+		break;
+	}
+
+	if (phydev->duplex == DUPLEX_FULL) {
+		phydev->pause = (restore_lpa_for_eee & LPA_PAUSE_CAP) ? 1 : 0;
+		phydev->asym_pause = (restore_lpa_for_eee & LPA_PAUSE_ASYM) ? 1 : 0;
+	}
+}
+
+/* reference genphy_read_status() */
+static int meson_g12a_read_status_for_eee(struct phy_device *phydev)
+{
+	int err, old_link = phydev->link;
+
+	err = genphy_update_link(phydev);
+	if (err)
+		return err;
+
+	if (phydev->autoneg == AUTONEG_ENABLE && old_link && phydev->link)
+		return 0;
+
+	phydev->master_slave_get = MASTER_SLAVE_CFG_UNSUPPORTED;
+	phydev->master_slave_state = MASTER_SLAVE_STATE_UNSUPPORTED;
+	phydev->speed = SPEED_UNKNOWN;
+	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->pause = 0;
+	phydev->asym_pause = 0;
+
+	err = meson_genphy_read_lpa(phydev);
+	if (err < 0)
+		return err;
+
+	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
+		phy_resolve_aneg_linkmode_meson(phydev);
+	} else if (phydev->autoneg == AUTONEG_DISABLE) {
+		int bmcr = phy_read(phydev, MII_BMCR);
+
+		if (bmcr < 0)
+			return bmcr;
+
+		if (bmcr & BMCR_FULLDPLX)
+			phydev->duplex = DUPLEX_FULL;
+		else
+			phydev->duplex = DUPLEX_HALF;
+
+		if (bmcr & BMCR_SPEED1000)
+			phydev->speed = SPEED_1000;
+		else if (bmcr & BMCR_SPEED100)
+			phydev->speed = SPEED_100;
+		else
+			phydev->speed = SPEED_10;
+	}
+
+	return 0;
+}
+
+static int meson_g12a_read_status(struct phy_device *phydev)
+{
+	if (ephy_eee_support && inphy_eee_enable)
+		return meson_g12a_read_status_for_eee(phydev);
+	else
+		return genphy_read_status(phydev);
+}
+
+/* Check if the EEE settings are compatible
+ * with the device tree and the PHY capabilities.
+ */
+static int meson_check_eee_feature(struct phy_device *phydev)
+{
+	/* only check 100baseT_Full EEE feature */
+	if (ephy_eee_support !=
+			linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+					phydev->supported_eee))
+		phydev_warn(phydev, "EEE support setting conflict\n");
+
+	/* PHY not support EEE, do nothing */
+	if (!ephy_eee_support)
+		return 0;
+
+	/* To avoid conflicts with the phy eee advertisement
+	 * obtained by calling phy_probe, here we forcibly
+	 * modify to maintain consistency.
+	 */
+	if (inphy_eee_enable != phydev->eee_enabled) {
+		phydev_warn(phydev, "EEE enable setting conflict, fix to %s\n",
+				inphy_eee_enable ? "Enable" : "Disable");
+		phydev->eee_enabled = (bool)inphy_eee_enable;
+	}
+
+	return 0;
+}
+
+static int meson_g12a_config_aneg(struct phy_device *phydev)
+{
+	int ret;
+
+	meson_check_eee_feature(phydev);
+
+	ret = genphy_config_aneg(phydev);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int meson_gxl_ack_interrupt(struct phy_device *phydev)
 {
 	int ret = phy_read(phydev, INTSRC_FLAG);
@@ -240,6 +401,22 @@ static irqreturn_t meson_gxl_handle_interrupt(struct phy_device *phydev)
 	if (irq_status == 0)
 		return IRQ_NONE;
 
+	if (ephy_eee_support && inphy_eee_enable) {
+		if (irq_status & INTSRC_LINK_DOWN)
+			actual_lpa = 0;
+
+		if (irq_status & INTSRC_ANEG_PR) {
+			if (!actual_lpa) {
+				/* LINK_DOWN -> ANEG restored first LPA REGISTER */
+				restore_lpa_for_eee = phy_read(phydev, MII_LPA);
+				if (restore_lpa_for_eee < 0) {
+					phy_error(phydev);
+					return IRQ_NONE;
+				}
+				actual_lpa = 1;
+			}
+		}
+	}
 	phy_trigger_machine(phydev);
 
 	return IRQ_HANDLED;
@@ -393,6 +570,20 @@ static int custom_internal_config(struct phy_device *phydev)
 		usleep_range(800, 1000);
 		phy_tst_write(phydev, 0x1b, 0x00a0);
 	}
+	/*t6x*/
+	if (voltage_phy == 8) {
+		phy_tst_write(phydev, 0x16, 0x8406);
+		phy_tst_write(phydev, 0x15, 0x2408);
+		pr_info("setup voltage phy reg16 %x reg15 %x\n",
+				phy_tst_read(phydev, 0x16),
+				phy_tst_read(phydev, 0x15));
+	}
+
+	if (ephy_eee_support && inphy_eee_enable)
+		phy_write(phydev, SPEC_MODE, SPEC_CLKSELFREQ
+				| FIELD_PREP(SPEC_MII_MODE, 0x0)
+				| FIELD_PREP(SPEC_PHYADDR, 0x8)); // cover for mii
+
 	return 0;
 }
 
@@ -456,6 +647,8 @@ static struct phy_driver meson_gxl_phy[] = {
 		.handle_interrupt = meson_gxl_handle_interrupt,
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 		.config_init	= custom_internal_config,
+		.read_status	= meson_g12a_read_status,
+		.config_aneg	= meson_g12a_config_aneg,
 #ifdef CONFIG_PM_SLEEP
 		.suspend        = gxl_suspend,
 		.resume         = gxl_resume,
