@@ -88,6 +88,9 @@ static int show_kernel_data_valid(unsigned long reg)
 {
 	struct page *page;
 
+#ifdef CONFIG_ARM64
+	reg = reg | MTE_TAG_MASK;
+#endif
 	if (reg < (unsigned long)PAGE_OFFSET)
 		return 0;
 	else if (reg <= (unsigned long)high_memory)
@@ -115,7 +118,11 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 #ifdef CONFIG_RISCV
 	if (addr < VMALLOC_START || addr > -256UL)
 #else
+#ifdef CONFIG_ARM64
+	if ((addr | MTE_TAG_MASK) < PAGE_OFFSET || (addr | MTE_TAG_MASK) > -256UL)
+#else
 	if (addr < PAGE_OFFSET || addr > -256UL)
+#endif
 #endif
 		return;
 	/*
@@ -224,9 +231,9 @@ static void show_pfn(unsigned long reg, char *s)
 {
 	struct page *page;
 
-	if (reg < (unsigned long)PAGE_OFFSET) {
+	if ((reg | MTE_TAG_MASK) < (unsigned long)PAGE_OFFSET) {
 		pr_info("%s : %016lx  U\n", s, reg);
-	} else if (reg <= (unsigned long)high_memory) {
+	} else if ((reg | MTE_TAG_MASK) <= (unsigned long)high_memory) {
 		pr_info("%s : %016lx, PFN:%5lx L\n", s, reg, virt_to_pfn((void *)reg));
 	} else {
 		page = vmalloc_to_page((const void *)reg);
@@ -243,9 +250,9 @@ static void show_regs_pfn(struct pt_regs *regs)
 	struct page *page;
 
 	for (i = 0; i < 31; i++) {
-		if (regs->regs[i] < (unsigned long)PAGE_OFFSET) {
+		if ((regs->regs[i] | MTE_TAG_MASK) < (unsigned long)PAGE_OFFSET) {
 			continue;
-		} else if (regs->regs[i] <= (unsigned long)high_memory) {
+		} else if ((regs->regs[i] | MTE_TAG_MASK) <= (unsigned long)high_memory) {
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 			page = virt_to_page((void *)regs->regs[i]);
 			if (page)
