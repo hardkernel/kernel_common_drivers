@@ -95,6 +95,16 @@
 		.vdac_cntl_0 = 0x1b0,\
 		.vdac_cntl_1 = 0x1b1,\
 	}
+#define ADC_ADDR_T6X	.adc_addr = {\
+		.dadc_cntl = 0x190,\
+		.dadc_cntl_2 = 0x191,\
+		.dadc_cntl_3 = 0x192,\
+		.dadc_cntl_4 = 0x193,\
+		.s2_dadc_cntl = 0x194,\
+		.s2_dadc_cntl_2 = 0x195,\
+		.vdac_cntl_0 = 0x1b0,\
+		.vdac_cntl_1 = 0x1b1,\
+	}
 #define ADC_ADDR_BOX	.adc_addr = {\
 		.dadc_cntl = 0x90,\
 		.dadc_cntl_2 = 0x91,\
@@ -128,6 +138,16 @@
 		.adc_pll_cntl_7 = 0x9e,\
 	}
 #define ADC_PLL_ADDR_T6W	.pll_addr = {\
+		.adc_pll_cntl_0 = 0x70,\
+		.adc_pll_cntl_1 = 0x71,\
+		.adc_pll_cntl_2 = 0x72,\
+		.adc_pll_cntl_3 = 0x73,\
+		.adc_pll_cntl_4 = 0x74,\
+		.adc_pll_cntl_5 = 0x75,\
+		.adc_pll_cntl_6 = 0x76,\
+		.adc_pll_cntl_7 = 0x77,\
+	}
+#define ADC_PLL_ADDR_T6X	.pll_addr = {\
 		.adc_pll_cntl_0 = 0x70,\
 		.adc_pll_cntl_1 = 0x71,\
 		.adc_pll_cntl_2 = 0x72,\
@@ -179,6 +199,7 @@ enum adc_chip_ver {
 	ADC_CHIP_S1A,
 	ADC_CHIP_T6D,
 	ADC_CHIP_T6W,
+	ADC_CHIP_T6X,
 };
 
 struct adc_reg_phy {

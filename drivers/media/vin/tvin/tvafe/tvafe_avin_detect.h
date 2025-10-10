@@ -23,6 +23,7 @@
 #define AVIN_DETECT_STATUS_DBG		BIT(2)
 #define AVIN_DETECT_T3X_DBG			BIT(3)
 /* avin debug control end */
+#define T6X_OFFSET				0x100
 
 #define ANACTRL_CVBS_DETECT_CNTL 0x9f
 #define ANACTRL_CVBS_DETECT_CNTL_T6W 0x19f
@@ -198,6 +199,7 @@ enum avin_cpu_type {
 	AVIN_CPU_TYPE_TXHD2   = 11,
 	AVIN_CPU_TYPE_T6D   = 12,
 	AVIN_CPU_TYPE_T6W   = 13,
+	AVIN_CPU_TYPE_T6X   = 14,
 	AVIN_CPU_TYPE_MAX,
 };
 

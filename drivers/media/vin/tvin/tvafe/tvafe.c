@@ -1841,6 +1841,14 @@ static struct meson_tvafe_data meson_t6w_tvafe_data = {
 	.rf_pq_conf = NULL,
 	.atv_dmd_sys_clk = ATV_DMD_SYS_CLK_CNTL,
 };
+
+static struct meson_tvafe_data meson_t6x_tvafe_data = {
+	.cpu_id = TVAFE_CPU_TYPE_T6X,
+	.name = "meson-t6x-tvafe",
+	.cvbs_pq_conf = NULL,
+	.rf_pq_conf = NULL,
+	.atv_dmd_sys_clk = ATV_DMD_SYS_CLK_CNTL,
+};
 static const struct of_device_id meson_tvafe_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -1883,6 +1891,10 @@ static const struct of_device_id meson_tvafe_dt_match[] = {
 	{
 		.compatible = "amlogic, tvafe-t6w",
 		.data		= &meson_t6w_tvafe_data,
+	},
+	{
+		.compatible = "amlogic, tvafe-t6x",
+		.data		= &meson_t6x_tvafe_data,
 	},
 	{}
 };
