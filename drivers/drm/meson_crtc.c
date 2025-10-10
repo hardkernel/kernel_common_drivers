@@ -308,6 +308,9 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->game_rate_property) {
 		*val = crtc_state->game_rate;
 		return 0;
+	} else if (property == meson_crtc->vpu_clk_property) {
+		*val = vpu_clk_get();
+		return 0;
 	}
 
 	return ret;
@@ -1085,6 +1088,21 @@ static void meson_crtc_init_video_pixelformat_property(struct drm_device *drm_de
 	}
 }
 
+static void meson_crtc_init_vpu_clk_property(struct drm_device *drm_dev,
+						struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0, "vpu_clk",
+					0, 65535);
+	if (prop) {
+		amcrtc->vpu_clk_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to vpu_clk property\n");
+	}
+}
+
 static void meson_crtc_init_osd_pixelformat_property(struct drm_device *drm_dev,
 						struct am_meson_crtc *amcrtc)
 {
@@ -1320,6 +1338,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_crtc_add_bgcolor_property(priv->drm, amcrtc);
 	meson_crtc_init_osd_pixelformat_property(priv->drm, amcrtc);
 	meson_crtc_init_video_pixelformat_property(priv->drm, amcrtc);
+	meson_crtc_init_vpu_clk_property(priv->drm, amcrtc);
 	meson_crtc_init_hdr_conversion_cap_property(priv->drm, amcrtc);
 	meson_crtc_init_hdr_conversion_ctrl_property(priv->drm, amcrtc);
 	meson_crtc_init_force_output_property(priv->drm, amcrtc);

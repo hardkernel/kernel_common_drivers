@@ -750,14 +750,14 @@ meson_plane_check_size_range(struct meson_vpu_osd_layer_info *plane_info)
 		ratio_y = (src_h + dst_h - 1) / dst_h;
 	if (ratio_x > MESON_OSD_SCALE_DOWN_LIMIT ||
 	    ratio_y > MESON_OSD_SCALE_DOWN_LIMIT)
-		ret = -EDOM;
+		DRM_DEBUG_DRIVER("may exceed the limit of magnification\n");
 	if (src_w < dst_w)
 		ratio_x = (dst_w + src_w - 1) / src_w;
 	if (src_h < dst_h)
 		ratio_y = (dst_h + src_h - 1) / src_h;
 	if (ratio_x > MESON_OSD_SCALE_UP_LIMIT ||
 	    ratio_y > MESON_OSD_SCALE_UP_LIMIT)
-		ret = -EDOM;
+		DRM_DEBUG_DRIVER("may exceed the limit of the reduction factor\n");
 	return ret;
 }
 
@@ -1398,6 +1398,9 @@ static int meson_plane_atomic_get_property(struct drm_plane *plane,
 		ret = 0;
 	} else if (property == osd_plane->dimm_ctrl_property) {
 		*val = osd_plane->osd_dimm.dimm_value;
+		ret = 0;
+	} else if (property == osd_plane->osd_capability_property) {
+		*val = drv->pipeline->osd_capability[osd_plane->plane_index];
 		ret = 0;
 	}
 
@@ -2948,6 +2951,21 @@ static void meson_plane_add_max_fb_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_plane_add_osd_capability_property(struct drm_device *drm_dev,
+					    struct am_osd_plane *osd_plane)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+					"osd_capability", 0, UINT_MAX);
+	if (prop) {
+		osd_plane->osd_capability_property = prop;
+		drm_object_attach_property(&osd_plane->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to create osd_capability property\n");
+	}
+}
+
 static const struct drm_prop_enum_list osd_rotation_reflect_list[] = {
 	{ DRM_MODE_ROTATE_0, "reflect-0" },
 	{ DRM_MODE_REFLECT_X, "reflect-x" },
@@ -3277,6 +3295,7 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
 				BIT(DRM_SCALING_FILTER_REPEATE));
 	meson_plane_add_occupied_property(priv->drm, osd_plane);
 	meson_plane_add_max_fb_property(priv->drm, osd_plane);
+	meson_plane_add_osd_capability_property(priv->drm, osd_plane);
 	meson_plane_add_rotation_reflect_property(priv->drm, osd_plane);
 	DRM_INFO("osd plane %d create done,occupied-%d crtc_mask-%d type-%d reverse-%d zpos-%d\n",
 		i, osd_plane->osd_occupied, crtc_mask, type, osd_reverse, zpos);

@@ -111,6 +111,7 @@ struct am_meson_crtc {
 	struct drm_property *dv_mode_property;
 	struct drm_property *bgcolor_property;
 	struct drm_property *video_pixelformat_property;
+	struct drm_property *vpu_clk_property;
 	struct drm_property *osd_pixelformat_property;
 	struct drm_property *hdr_conversion_ctrl_property;
 	struct drm_property *hdr_conversion_cap_property;
