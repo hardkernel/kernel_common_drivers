@@ -1799,7 +1799,7 @@ static struct meson_spicc_data meson_spicc_t6x_data __initdata = {
 	.idle_ctrl = true,
 	.cs_hold_ctrl = true,
 	.cs_setup_extend_ctrl = true,
-	.clk_gate_ctrl = true,
+	.clk_gate_ctrl = false,
 	.cs_hold_ctrl_conflict_with_keep_ss = false,
 };
 
