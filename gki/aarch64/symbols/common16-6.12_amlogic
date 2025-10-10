@@ -82,3 +82,6 @@
 
 #amlogic-usb.ko
  of_add_property
+
+#aml_media.ko
+ __vmalloc_array_noprof

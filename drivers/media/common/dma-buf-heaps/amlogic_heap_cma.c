@@ -329,7 +329,7 @@ static void meson_cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 	meson_cma_heap_zero_buffer(buffer);
 	sg_free_table(&buffer->sg_table);
 	/* free page list */
-	kfree(buffer->pages);
+	kvfree(buffer->pages);
 	/* release memory */
 	cma_release(meson_cma_heap->cma, buffer->cma_pages, buffer->pagecount);
 	kfree(buffer);
@@ -415,7 +415,7 @@ static struct dma_buf *meson_cma_heap_allocate(struct dma_heap *heap,
 		memset(page_address(cma_pages), 0, size);
 	}
 
-	buffer->pages = kmalloc_array(pagecount, sizeof(*buffer->pages), GFP_KERNEL);
+	buffer->pages = __vmalloc_array_noprof(pagecount, sizeof(*buffer->pages), GFP_KERNEL);
 	if (!buffer->pages) {
 		ret = -ENOMEM;
 		goto free_cma;
@@ -512,7 +512,7 @@ static struct dma_buf *meson_cma_heap_allocate(struct dma_heap *heap,
 free_pages:
 	sg_free_table(table);
 free_cma:
-	kfree(buffer->pages);
+	kvfree(buffer->pages);
 	cma_release(meson_cma_heap->cma, cma_pages, pagecount);
 free_buffer:
 	kfree(buffer);
