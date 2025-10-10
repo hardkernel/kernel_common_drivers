@@ -16,6 +16,7 @@
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/netlink.h>
+#include <linux/amlogic/aml_phy_debug.h>
 #include "amlogic-wol.h"
 
 #undef pr_fmt
@@ -386,6 +387,29 @@ bool amlogic_wol_wakeup_src_not_empty(void)
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_wakeup_src_not_empty);
 
+void amlogic_wol_wakeup_src_clr_all(void)
+{
+	wakeup_src = 0;
+
+	/* Synchronize to BL30 */
+	__mbox_data_write(DATA_TYPE_WKUP_SRC, &wakeup_src, 4);
+}
+EXPORT_SYMBOL_GPL(amlogic_wol_wakeup_src_clr_all);
+
+void amlogic_wol_wakeup_src_set_all(void)
+{
+	int index;
+
+	wakeup_src = 0;
+
+	for (index = 1; index < ARRAY_SIZE(wakeup_names); index++)
+		wakeup_src |= BIT(index);
+
+	/* Synchronize to BL30 */
+	__mbox_data_write(DATA_TYPE_WKUP_SRC, &wakeup_src, 4);
+}
+EXPORT_SYMBOL_GPL(amlogic_wol_wakeup_src_set_all);
+
 void amlogic_wol_enter(void)
 {
 	__set_ipv4_address();
@@ -424,11 +448,17 @@ void amlogic_wol_setup(struct device *device, struct mbox_chan *mbox_chan)
 	mbox = mbox_chan;
 	mutex_init(&lock);
 	WARN_ON(class_register(&wol_class) < 0);
+
+	/* Bridging up to the old sysfs control node */
+	wol_sysfs_hook.not_empty = amlogic_wol_wakeup_src_not_empty;
+	wol_sysfs_hook.clr_all = amlogic_wol_wakeup_src_clr_all;
+	wol_sysfs_hook.set_all = amlogic_wol_wakeup_src_set_all;
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_setup);
 
 void amlogic_wol_remove(void)
 {
+	memset(&wol_sysfs_hook, 0, sizeof(wol_sysfs_hook));
 	class_unregister(&wol_class);
 	dev = NULL;
 	mbox = NULL;

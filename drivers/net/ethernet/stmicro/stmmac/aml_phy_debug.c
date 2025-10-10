@@ -750,12 +750,22 @@ unsigned int support_gpio_wol;
 EXPORT_SYMBOL_GPL(support_gpio_wol);
 unsigned int exphy_mdns_wkup;
 EXPORT_SYMBOL_GPL(exphy_mdns_wkup);
+struct wol_sysfs_hook wol_sysfs_hook;
+EXPORT_SYMBOL_GPL(wol_sysfs_hook);
 
 static ssize_t wol_show(const struct class *class,
 	const struct class_attribute *attr, char *buf)
 {
 	if (!c_phy_dev)
 		return 0;
+
+#if IS_ENABLED(CONFIG_AMLOGIC_WOL)
+	if (wol_sysfs_hook.not_empty) {
+		return sysfs_emit(buf, "%s wol 0x%x\n",
+				  internal_phy != 2 ? "inphy" : "exphy",
+				  (int)wol_sysfs_hook.not_empty());
+	}
+#endif
 
 	if (internal_phy != 2)
 		return sprintf(buf, "inphy wol 0x%x\n", wol_switch_from_user);
@@ -773,6 +783,18 @@ static ssize_t wol_store(const struct class *class,
 		return 0;
 
 	r = kstrtoint(buf, 16, &tmp);
+
+#if IS_ENABLED(CONFIG_AMLOGIC_WOL)
+	if (wol_sysfs_hook.set_all && wol_sysfs_hook.clr_all) {
+		if (tmp)
+			wol_sysfs_hook.set_all();
+		else
+			wol_sysfs_hook.clr_all();
+
+		return count;
+	}
+#endif
+
 	if (internal_phy != 2)
 		wol_switch_from_user = tmp;
 	else

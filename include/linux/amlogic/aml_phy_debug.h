@@ -80,11 +80,18 @@ struct phylink {
 	u8 sfp_port;
 };
 
+struct wol_sysfs_hook {
+	bool (*not_empty)(void);
+	void (*clr_all)(void);
+	void (*set_all)(void);
+};
+
 #ifdef CONFIG_PM_SLEEP
 extern unsigned int wol_switch_from_user;
 extern unsigned int mdns_switch_from_user;
 extern unsigned int support_gpio_wol;
 extern unsigned int exphy_mdns_wkup;
+extern struct wol_sysfs_hook wol_sysfs_hook;
 #endif
 extern unsigned int internal_phy;
 
