@@ -71,16 +71,6 @@
 
 #define LDC_DUTY_SIZE_T6X 0x4000 //t6x 16k
 
-struct bcon_gpio_s {
-	unsigned char idx;
-	unsigned int pmx_reg;
-	unsigned char pmx_sbit;
-	unsigned char fun;
-	unsigned int pu_en;
-	unsigned int pu_up;
-	unsigned char pu_idx;
-};
-
 struct abcon_mem_s {
 	unsigned int *base_vaddr;
 	phys_addr_t base_paddr;
@@ -117,7 +107,6 @@ struct abcon_s {
 
 extern struct abcon_mem_s abcon_mem;
 extern struct abcon_s *abcon;
-extern struct bcon_gpio_s bgpio[12];
 
 void ldim_abcon_swrst(void);
 void ldim_abcon_init_common_registers(struct abcon_s *abcon);

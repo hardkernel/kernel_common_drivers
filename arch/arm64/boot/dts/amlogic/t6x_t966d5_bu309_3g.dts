@@ -760,6 +760,54 @@
 			output-low;
 		};
 	};
+	bcon_up_pins:bcon_up_pin {
+		mux {
+			groups = "bcon_0",
+				"bcon_1",
+				"bcon_2",
+				"bcon_3",
+				"bcon_4",
+				"bcon_5",
+				"bcon_6",
+				"bcon_7",
+				"bcon_8_p",
+				"bcon_9",
+				"bcon_10",
+				"bcon_11",
+				"bcon_12",
+				"bcon_13",
+				"bcon_14",
+				"bcon_15",
+				"bcon_16",
+				"bcon_17";
+			function = "bcon";
+			bias-pull-up;
+		};
+	};
+	bcon_dn_pins:bcon_dn_pin {
+		mux {
+			groups = "bcon_0",
+				"bcon_1",
+				"bcon_2",
+				"bcon_3",
+				"bcon_4",
+				"bcon_5",
+				"bcon_6",
+				"bcon_7",
+				"bcon_8_p",
+				"bcon_9",
+				"bcon_10",
+				"bcon_11",
+				"bcon_12",
+				"bcon_13",
+				"bcon_14",
+				"bcon_15",
+				"bcon_16",
+				"bcon_17";
+			function = "bcon";
+			bias-pull-down;
+		};
+	};
 };
 
 &i2c4 {

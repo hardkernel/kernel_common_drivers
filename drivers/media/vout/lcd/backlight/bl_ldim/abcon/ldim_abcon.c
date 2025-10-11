@@ -26,45 +26,6 @@
 struct abcon_mem_s abcon_mem;
 struct abcon_s *abcon;
 
-struct bcon_gpio_s t6w_bgpio[12] = {
-	/*idx, pmx_reg, pmx_sbit, fun, pu_en, pu_up, pu_idx*/
-	{0, 0x09, 24, 7, 0x4b, 0x4c, 22},
-	{1, 0x09, 28, 7, 0x4b, 0x4c, 23},
-	{2, 0x0a, 0, 7, 0x4b, 0x4c, 24},
-	{3, 0x0a, 4, 7, 0x4b, 0x4c, 25},
-	{4, 0x0a, 8, 7, 0x4b, 0x4c, 26},
-	{5, 0x0a, 12, 7, 0x4b, 0x4c, 27},
-	{6, 0x0a, 16, 7, 0x4b, 0x4c, 28},
-	{7, 0x0a, 20, 7, 0x4b, 0x4c, 29},
-	{8, 0x08, 20, 7, 0x4b, 0x4c, 13},
-	{9, 0x04, 4, 6, 0x43, 0x44, 1},
-	{10, 0x06, 12, 5, 0x43, 0x44, 19},
-	{11, 0x06, 8, 6, 0x43, 0x44, 18},
-};
-
-struct bcon_gpio_s t6x_bgpio[18] = {
-	/*idx, pmx_reg, pmx_sbit, fun, pu_en, pu_up, pu_idx*/
-	{0, 0x09, 24, 7, 0x4b, 0x4c, 22},//gpioh_22
-	{1, 0x09, 28, 7, 0x4b, 0x4c, 23},
-	{2, 0x0a, 0, 7, 0x4b, 0x4c, 24},
-	{3, 0x0a, 4, 7, 0x4b, 0x4c, 25},
-	{4, 0x0a, 8, 7, 0x4b, 0x4c, 26},
-	{5, 0x0a, 12, 7, 0x4b, 0x4c, 27},
-	{6, 0x0a, 16, 7, 0x4b, 0x4c, 28},
-	{7, 0x0a, 20, 7, 0x4b, 0x4c, 29},
-	//{8, 0x08, 20, 7, 0x4b, 0x4c, 13},//gpioh_13
-	{8, 0x14, 12, 4, 0x6b, 0x6c, 0},//gpiop_0
-	{9, 0x14, 16, 4, 0x6b, 0x6c, 1},//gpiop_1
-	{10, 0x14, 20, 4, 0x6b, 0x6c, 2},//gpiop_2
-	{11, 0x14, 24, 4, 0x6b, 0x6c, 3},//gpiop_3
-	{12, 0x14, 28, 4, 0x6b, 0x6c, 4},//gpiop_4
-	{13, 0x15, 0, 4, 0x6b, 0x6c, 5},//gpiop_5
-	{14, 0x15, 4, 4, 0x6b, 0x6c, 6},//gpiop_6
-	{15, 0x15, 8, 4, 0x6b, 0x6c, 7},//gpiop_7
-	{16, 0x15, 12, 4, 0x6b, 0x6c, 8},//gpiop_8
-	{17, 0x15, 16, 4, 0x6b, 0x6c, 9},//gpiop_9
-};
-
 void ldim_abcon_swrst(void)
 {
 	//sw reset
@@ -276,14 +237,7 @@ void ldim_abcon_set_txrx_clk(unsigned int txclk, unsigned int rxclk)
 
 void ldim_abcon_set_gpio(struct abcon_s *abcon)
 {
-	unsigned int val = 0;
-	unsigned int i = 0;
-	struct bcon_gpio_s *bgpio;
-	unsigned char gpio_num = 0;
-
 	if (abcon->chip_type == ABCON_CHIP_T6W) {
-		gpio_num = 12;
-		bgpio = &t6w_bgpio[0];
 		//reg_abcon_gpio_o_sel0
 		abcon_wr_reg_bits(0x25, abcon->conf.gpio_o[0], 0, 32);
 		//reg_abcon_gpio_o_sel1
@@ -294,8 +248,6 @@ void ldim_abcon_set_gpio(struct abcon_s *abcon)
 		//reg_abcon_gpio_i_sel1
 		abcon_wr_reg_bits(0x24, abcon->conf.gpio_i[1], 0, 16);
 	} else {
-		gpio_num = 18;
-		bgpio = &t6x_bgpio[0];
 		//reg_abcon_gpio_o_sel0
 		abcon_wr_reg_bits(0x25, abcon->conf.gpio_o[0], 0, 29);
 		//reg_abcon_gpio_o_sel1
@@ -309,19 +261,6 @@ void ldim_abcon_set_gpio(struct abcon_s *abcon)
 		abcon_wr_reg_bits(0x49, abcon->conf.gpio_i[1], 0, 29);
 		//reg_abcon_gpio_i_sel2
 		abcon_wr_reg_bits(0x4b, abcon->conf.gpio_i[2], 0, 29);
-	}
-
-	for (i = 0; i < gpio_num; i++) {
-		if (abcon->conf.gpio_en & (1 << i)) {
-			abcon_wr_gpio_bits(bgpio[i].pmx_reg, bgpio[i].fun,
-			bgpio[i].pmx_sbit, 4);
-
-			if (abcon->conf.gpio_pu_en & (1 << i)) {
-				abcon_wr_gpio_bits(bgpio[i].pu_en, 1, bgpio[i].pu_idx, 1);
-				val = (abcon->conf.gpio_pu_up & (1 << i)) ? 1 : 0;
-				abcon_wr_gpio_bits(bgpio[i].pu_up, val, bgpio[i].pu_idx, 1);
-			}
-		}
 	}
 }
 

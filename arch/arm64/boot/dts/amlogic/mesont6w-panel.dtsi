@@ -285,10 +285,16 @@
 		key_valid = <0>;
 		pinctrl-names = "ldim_pwm",
 			"ldim_pwm_vs",
-			"ldim_pwm_off";
+			"ldim_pwm_off",
+			"ldim_bcon_up",
+			"ldim_bcon_dn",
+			"ldim_bcon_off";
 		pinctrl-0 = <&pwm_d_pins6>;
 		pinctrl-1 = <&bl_pwm_vs_on_pins>;
 		pinctrl-2 = <&bl_pwm_off_pins>;
+		pinctrl-3 = <&pwm_d_pins6 &bcon_up_pins>;
+		pinctrl-4 = <&pwm_d_pins6 &bcon_dn_pins>;
+		pinctrl-5 = <&bl_pwm_off_pins &bcon_dn_pins>;
 		pinctrl_version = <2>; /* for uboot */
 		ldim_pwm_config = <&bl_pwm_conf>;
 		reg = <0x0 0xfe000220 0x0 0x4		/* bcon clk */

@@ -142,9 +142,7 @@ struct ldim_dev_driver_s ldim_dev_drv = {
 		.dimming_mode = 4,
 		.gpio_o = {0xf10, 0},
 		.gpio_i = {0x2, 0},
-		.gpio_en = 0,
-		.gpio_pu_en = 0,
-		.gpio_pu_up = 0,
+		.idle_level = 0,
 		.fb_en = 0,
 		.fb_det_int = 300,
 		.fb_adj_th = 5,
@@ -350,6 +348,9 @@ static char *ldim_pinmux_str[] = {
 	"ldim_pwm_vs_combo",      /* 3 */
 	"ldim_pwm_off",           /* 4 */
 	"ldim_pwm_combo_off",     /* 5 */
+	"ldim_bcon_up",				/* 6 */
+	"ldim_bcon_dn",				/* 7 */
+	"ldim_bcon_off",			/* 8 */
 	"custom",
 };
 
@@ -363,20 +364,31 @@ static int ldim_pwm_pinmux_ctrl(struct ldim_dev_driver_s *dev_drv, int status)
 		return 0;
 
 	if (status) {
-		bl_pwm = &dev_drv->ldim_pwm_config;
-		if (bl_pwm->pwm_port == BL_PWM_VS)
-			index = 1;
-		else
-			index = 0;
-		bl_pwm = &dev_drv->analog_pwm_config;
-		if (bl_pwm->pwm_port < BL_PWM_VS)
-			index += 2;
+		if (dev_drv->type == LDIM_DEV_TYPE_ABCON) {
+			if (dev_drv->abcon_conf.idle_level)
+				index = 6;
+			else
+				index = 7;
+		} else {
+			bl_pwm = &dev_drv->ldim_pwm_config;
+			if (bl_pwm->pwm_port == BL_PWM_VS)
+				index = 1;
+			else
+				index = 0;
+			bl_pwm = &dev_drv->analog_pwm_config;
+			if (bl_pwm->pwm_port < BL_PWM_VS)
+				index += 2;
+		}
 	} else {
-		bl_pwm = &dev_drv->analog_pwm_config;
-		if (bl_pwm->pwm_port < BL_PWM_VS)
-			index = 5;
-		else
-			index = 4;
+		if (dev_drv->type == LDIM_DEV_TYPE_ABCON) {
+			index = 8;
+		} else {
+			bl_pwm = &dev_drv->analog_pwm_config;
+			if (bl_pwm->pwm_port < BL_PWM_VS)
+				index = 5;
+			else
+				index = 4;
+		}
 	}
 
 	str = ldim_pinmux_str[index];

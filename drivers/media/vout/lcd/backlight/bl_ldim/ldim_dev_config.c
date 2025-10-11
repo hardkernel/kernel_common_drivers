@@ -626,15 +626,13 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 			for (i = 0; i < 3; i++)
 				abcon_conf->gpio_i[i] = json_get_arr_u32(jsp, child2, i, 0);
 		}
-		abcon_conf->gpio_en = json_get_obj_u32(jsp, child, "gpio_en", 0);
-		abcon_conf->gpio_pu_en = json_get_obj_u32(jsp, child, "gpio_pu_en", 0);
-		abcon_conf->gpio_pu_up = json_get_obj_u32(jsp, child, "gpio_pu_up", 0);
 		abcon_conf->dev_type = json_get_obj_u32(jsp, child, "dev_type", 0);
 		child2 = json_get_object_child(jsp, child, "chip_num");
 		if (child2) {
 			for (i = 0; i < 12; i++)
 				abcon_conf->chip_num[i] = json_get_arr_u32(jsp, child2, i, 0);
 		}
+		abcon_conf->idle_level = json_get_obj_u32(jsp, child, "idle_level", 0);
 		abcon_conf->ch_num = json_get_obj_u32(jsp, child, "ch_num", 4);
 		abcon_conf->dimming_mode = json_get_obj_u32(jsp, child, "dimming_mode", 4);
 		abcon_conf->fb_en = json_get_obj_u32(jsp, child, "fb_en", 0);
@@ -646,16 +644,14 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 
 		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
 			LDIMPR("clk:%d:%d, gpio_o: 0x%x:0x%x, gpio_i:0x%x:0x%x\n"
-			"gpio_en:0x%x, gpio_pu_en:0x%x, gpio_pu_up:0x%x\n"
-			"dev_type:%d, chip_num:%d:%d:%d:%d, ch_num:%d\n"
+			"dev_type:%d, chip_num:%d:%d:%d:%d, idle_level:%d, ch_num:%d\n"
 			"dimming_mode:%d, fb_en:%d\n"
 			"fb_det_int:%d, fb_adj_th:%d, fb_pwm_dir:%d, fb_pwm_step:%d, ctrl:0x%x\n",
 			abcon_conf->tx_clk, abcon_conf->rx_clk, abcon_conf->gpio_o[0],
 			abcon_conf->gpio_o[1], abcon_conf->gpio_i[0], abcon_conf->gpio_i[1],
-			abcon_conf->gpio_en, abcon_conf->gpio_pu_en, abcon_conf->gpio_pu_up,
 			abcon_conf->dev_type, abcon_conf->chip_num[0], abcon_conf->chip_num[1],
 			abcon_conf->chip_num[2], abcon_conf->chip_num[3],
-			abcon_conf->ch_num, abcon_conf->dimming_mode,
+			abcon_conf->idle_level, abcon_conf->ch_num, abcon_conf->dimming_mode,
 			abcon_conf->fb_en, abcon_conf->fb_det_int, abcon_conf->fb_adj_th,
 			abcon_conf->fb_pwm_dir, abcon_conf->fb_pwm_step, abcon_conf->ctrl);
 		}
