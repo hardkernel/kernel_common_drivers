@@ -707,7 +707,7 @@ static void tvafe_get_aspect_ratio_value(struct tvafe_dev_s *devp)
 	//bool has_interference_value = false;
 	struct tvafe_info_s *tvafe = &devp->tvafe;
 	u8 maybe_ratio = 0;
-	u8 aspect_ratio = 0;
+	u8 ar_value = 0;/* active ratio */
 	static u8 count[TVIN_AR_NOT_VALUE + 1] = {0};
 
 	if (!(devp->tvafe_function_sel & TVAFE_WSS_FUNCTION))
@@ -717,15 +717,11 @@ static void tvafe_get_aspect_ratio_value(struct tvafe_dev_s *devp)
 	    tvafe->cvd2.hw.no_sig)
 		return;
 
-	//if (tvafe->cvd2.config_fmt != TVIN_SIG_FMT_CVBS_PAL_I &&
-	    //tvafe->cvd2.config_fmt != TVIN_SIG_FMT_CVBS_SECAM)
-		//return;
-
-	aspect_ratio = tvafe_cvd2_get_wss(tvafe->cvd2.config_fmt);
-	if (aspect_ratio > TVIN_AR_NOT_VALUE)
+	ar_value = tvafe_cvd2_get_wss(tvafe->cvd2.config_fmt);
+	if (ar_value > TVIN_AR_NOT_VALUE)
 		return;
 
-	count[aspect_ratio]++;
+	count[ar_value]++;
 
 	/* over 3/22 times,ratio is effective*/
 	if (++tvafe->aspect_ratio_cnt > devp->tvafe_ratio_cnt) {
@@ -739,11 +735,12 @@ static void tvafe_get_aspect_ratio_value(struct tvafe_dev_s *devp)
 			}
 		}
 
+		if (tvafe_dbg_print & TVAFE_DBG_WSS)
+			pr_info("wss active_ratio:%d->%d,ar_value:%d\n",
+				tvafe->aspect_ratio, maybe_ratio, ar_value);
+
 		if (maybe_ratio) {
-			if (tvafe_dbg_print & TVAFE_DBG_WSS1)
-				pr_info("wss aspect_ratio:%d->%d,%d\n",
-					tvafe->aspect_ratio, maybe_ratio, aspect_ratio);
-			tvafe->aspect_ratio = TVIN_ASPECT_4x3_FULL;
+			tvafe->aspect_ratio = tvafe_cvd2_get_aspect_ratio(maybe_ratio);
 			tvafe->active_ratio = maybe_ratio;
 		} else {
 			tvafe->aspect_ratio = TVIN_ASPECT_4x3_FULL;

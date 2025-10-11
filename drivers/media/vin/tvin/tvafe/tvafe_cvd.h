@@ -252,6 +252,7 @@ void tvafe_snow_config_clamp(unsigned int onoff);
 void tvafe_snow_config_acd(void);
 void tvafe_snow_config_acd_resume(void);
 u8 tvafe_cvd2_get_wss(enum tvin_sig_fmt_e fmt);
+enum tvin_aspect_ratio_e tvafe_cvd2_get_aspect_ratio(u8 ar_value);
 void cvd_vbi_mem_set(unsigned int offset, unsigned int size);
 void cvd_vbi_config(void);
 void tvafe_cvd2_rf_ntsc50_en(bool v);

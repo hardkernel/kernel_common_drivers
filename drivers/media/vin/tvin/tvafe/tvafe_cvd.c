@@ -3831,6 +3831,36 @@ u8 tvafe_rd_wss(enum tvin_sig_fmt_e fmt)
 	return ar_value;
 }
 
+enum tvin_aspect_ratio_e tvafe_cvd2_get_aspect_ratio(u8 ar_value)
+{
+	enum tvin_aspect_ratio_e aspect_ratio = TVIN_ASPECT_NULL;
+
+	if (ar_value == TVIN_AR_14x9_LB_CENTER_VAL)
+		aspect_ratio = TVIN_ASPECT_14x9_LB_CENTER;
+	else if (ar_value == TVIN_AR_14x9_LB_TOP_VAL)
+		aspect_ratio = TVIN_ASPECT_14x9_LB_TOP;
+	else if (ar_value == TVIN_AR_16x9_LB_TOP_VAL)
+		aspect_ratio = TVIN_ASPECT_16x9_LB_TOP;
+	else if (ar_value == TVIN_AR_16x9_FULL_VAL)
+		aspect_ratio = TVIN_ASPECT_16x9_FULL;
+	else if (ar_value == TVIN_AR_4x3_FULL_VAL)
+		aspect_ratio = TVIN_ASPECT_4x3_FULL;
+	else if (ar_value == TVIN_AR_16x9_LB_CENTER_VAL)
+		aspect_ratio = TVIN_ASPECT_16x9_LB_CENTER;
+	else if (ar_value == TVIN_AR_16x9_LB_CENTER1_VAL)
+		aspect_ratio = TVIN_ASPECT_16x9_LB_CENTER;
+	else if (ar_value == TVIN_AR_14x9_FULL_VAL)
+		aspect_ratio = TVIN_ASPECT_14x9_FULL;
+	else
+		aspect_ratio = TVIN_ASPECT_4x3_FULL;//TVIN_ASPECT_NULL;
+
+	if (tvafe_dbg_print & TVAFE_DBG_WSS)
+		tvafe_pr_info("%s ar_value:%#x aspect_ratio:%#x\n",
+				__func__, ar_value, aspect_ratio);
+
+	return aspect_ratio;
+}
+
 u8 tvafe_cvd2_get_wss(enum tvin_sig_fmt_e fmt)
 {
 	u8 ar_value = TVIN_AR_NOT_VALUE;

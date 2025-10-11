@@ -7798,41 +7798,37 @@ void vdin_set_display_ratio(struct vdin_dev_s *devp,
 	    vf->width == 0 || vf->height == 0)
 		return;
 
-	if (IS_HDMI_SRC(devp->parm.port) || IS_TVAFE_SRC(devp->parm.port)) {
-		if (devp->vdin_function_sel & VDIN_AFD_DISABLE)
-			vf->afd_info = devp->prop.pic_aspect_ratio << 4;
-		else
-			vf->afd_info = (devp->prop.pic_aspect_ratio << 4) | devp->prop.active_ratio;
-		vf->ratio_control |= DISP_RATIO_PARSE_BY_AFD;
-		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_RATIO)
-			pr_info("vdin%d,afd:%#x\n", devp->index, vf->afd_info);
-		return;
-	} else {
-		if (devp->vdin_function_sel & VDIN_SET_DISPLAY_RATIO) {
-			if (IS_HDMI_SRC(devp->parm.port))
-				vf->ratio_control = 0x3ff << DISP_RATIO_ASPECT_RATIO_BIT;
-			else if (IS_TVAFE_SRC(devp->parm.port))
-				vf->ratio_control = 0xc0 << DISP_RATIO_ASPECT_RATIO_BIT;
-			else
-				vf->ratio_control = 0x0 << DISP_RATIO_ASPECT_RATIO_BIT;
+	if (devp->vdin_function_sel & VDIN_AFD_DISABLE)
+		vf->afd_info = devp->prop.pic_aspect_ratio << 4;
+	else
+		vf->afd_info = (devp->prop.pic_aspect_ratio << 4) | devp->prop.active_ratio;
+	vf->ratio_control = DISP_RATIO_PARSE_BY_AFD;
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_RATIO)
+		pr_info("vdin%d,afd:%#x,AR:%#x\n", devp->index, vf->afd_info, aspect_ratio);
 
-			if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
-				calculate_v_active = devp->v_active << 1;
-			else
-				calculate_v_active = devp->v_active;
-			if (!devp->common_divisor)
-				devp->common_divisor =
-				vdin_calculate_common_divisor(devp->h_active, calculate_v_active);
-		} else {
-			re = (vf->width * 36) / vf->height;
-			if ((re > 36 && re <= 56) || re == 90 || re == 108)
-				vf->ratio_control = 0xc0 << DISP_RATIO_ASPECT_RATIO_BIT;
-			else if (re > 56)
-				vf->ratio_control = 0x90 << DISP_RATIO_ASPECT_RATIO_BIT;
-			else
-				vf->ratio_control = 0x0 << DISP_RATIO_ASPECT_RATIO_BIT;
-		}
+	if (devp->vdin_function_sel & VDIN_SET_DISPLAY_RATIO) {
+		if (IS_HDMI_SRC(devp->parm.port) || IS_TVAFE_SRC(devp->parm.port))
+			vf->ratio_control |= (0x3ff << DISP_RATIO_ASPECT_RATIO_BIT);
+		else
+			vf->ratio_control |= (0x0 << DISP_RATIO_ASPECT_RATIO_BIT);
+
+		if (devp->fmt_info_p && devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+			calculate_v_active = devp->v_active << 1;
+		else
+			calculate_v_active = devp->v_active;
+		if (!devp->common_divisor)
+			devp->common_divisor =
+			vdin_calculate_common_divisor(devp->h_active, calculate_v_active);
+	} else {
+		re = (vf->width * 36) / vf->height;
+		if ((re > 36 && re <= 56) || re == 90 || re == 108)
+			vf->ratio_control |= (0xc0 << DISP_RATIO_ASPECT_RATIO_BIT);
+		else if (re > 56)
+			vf->ratio_control |= (0x90 << DISP_RATIO_ASPECT_RATIO_BIT);
+		else
+			vf->ratio_control |= (0x0 << DISP_RATIO_ASPECT_RATIO_BIT);
 	}
+
 	if ((devp->vdin_function_sel & VDIN_ONLY_SEND_WSS_VALUE) &&
 	    IS_TVAFE_SRC(devp->parm.port))
 		aspect_ratio = TVIN_ASPECT_NULL;
@@ -7945,14 +7941,13 @@ void vdin_set_display_ratio(struct vdin_dev_s *devp,
 		vf->sar_height = devp->debug.sar_height;
 		vf->ratio_control = devp->debug.ratio_control;
 	}
-	if (devp->vdin_function_sel & VDIN_SET_DISPLAY_RATIO &&
-	    devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_RATIO)
-		pr_info("aspect:%x ratio_cntl:%u div:%u sar:%u %u debug_sar:%u,%u,%u\n",
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_RATIO)
+		pr_info("aspect:%x ratio_cntl:%u div:%u sar:%u %u debug_sar:%u,%u,%u,afd:%#x\n",
 			aspect_ratio, vf->ratio_control,
 			devp->common_divisor,
 			vf->sar_width, vf->sar_height,
 			devp->debug.sar_width, devp->debug.sar_height,
-			devp->debug.ratio_control);
+			devp->debug.ratio_control, vf->afd_info);
 }
 
 /*function:set source bitdepth
