@@ -212,6 +212,8 @@ struct spicc_device {
 	struct spi_controller		*controller;
 	struct platform_device		*pdev;
 	void __iomem			*base;
+	struct pinctrl	*pinctrl;
+	struct pinctrl_state	*spi_pinmux;
 	struct clk			*sys_clk;
 	struct clk			*spi_clk;
 	struct clk			*sclk;
@@ -1053,10 +1055,21 @@ static int meson_spicc_setup(struct spi_device *spi)
 #ifdef MESON_SPICC_HW_IF
 	struct spicc_device *spicc;
 	struct  spicc_controller_data *cdata;
+	int ret = 0;
 
 	spicc = spi_controller_get_devdata(spi->controller);
 	cdata = (struct spicc_controller_data *)spi->controller_data;
 	if (cdata) {
+		spicc->spi_pinmux = pinctrl_lookup_state(spicc->pinctrl, "spi_pinmux");
+		if (IS_ERR_OR_NULL(spicc->spi_pinmux)) {
+			dev_warn(&spicc->pdev->dev, "no spi_pinmux pinctrl(Maybe not error)\n");
+		} else {
+			ret = pinctrl_select_state(spicc->pinctrl, spicc->spi_pinmux);
+			if (ret) {
+				dev_err(&spicc->pdev->dev, "failed to activate spi_pinmux pinctrl state\n");
+				return ret;
+			}
+		}
 		cdata->controller_version = CONTROLLER_SPISG;
 		cdata->controller_capabilities = CAP_DMA_TRIG_VSYNC |
 			CAP_DMA_TRIG_PWM_VS | CAP_TRIG_DELAY;
@@ -1550,6 +1563,12 @@ static int meson_spicc_probe(struct platform_device *pdev)
 			memcpy(spicc->trig_in_selects, trig_in_selects,
 				sizeof(spicc->trig_in_selects));
 		dev_info(&pdev->dev, "trig resource %ps\n", spicc->trig_reg);
+	}
+
+	spicc->pinctrl = devm_pinctrl_get(&pdev->dev);
+	if (IS_ERR_OR_NULL(spicc->pinctrl)) {
+		dev_err(&pdev->dev, "get pinctrl fail\n");
+		return PTR_ERR(spicc->pinctrl);
 	}
 
 	irq = platform_get_irq(pdev, 0);

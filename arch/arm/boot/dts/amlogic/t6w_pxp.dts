@@ -1047,7 +1047,7 @@
 
 &spicc1 {	//for UWB/LocalDimm
 	status = "disabled";/* disabled as default */
-	pinctrl-names = "default";
+	pinctrl-names = "spi_pinmux"; //Compatible with BCON
 	pinctrl-0 = <&spicc1_pins_z>;
 };
 
