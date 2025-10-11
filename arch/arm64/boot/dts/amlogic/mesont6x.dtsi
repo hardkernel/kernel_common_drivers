@@ -656,7 +656,10 @@
 
 			spicc0: spi@50000 {
 				compatible = "amlogic,meson-t6x-spicc-v2";
-				reg = <0x0 0x50000 0x0 0x100>;
+				reg = <0x0 0x50000 0x0 0x100>,
+				      <0x0 0x10500 0x0 0x4>;
+				/* in select of pwm/pwm_vs/vsync/line_n/gpio */
+				trig_in_selects = <0 10 13 16 19>;
 				interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_SPISG>,
 					 <&clkc CLKID_SPICC0>;
@@ -668,7 +671,9 @@
 
 			spicc1: spi@50100 {
 				compatible = "amlogic,meson-t6x-spicc-v2";
-				reg = <0x0 0x50100 0x0 0x100>;
+				reg = <0x0 0x50100 0x0 0x100>,
+				      <0x0 0x10504 0x0 0x4>;
+				trig_in_selects = <0 10 13 16 19>;
 				interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_SPISG>,
 					 <&clkc CLKID_SPICC1>;
@@ -680,7 +685,9 @@
 
 			spicc2: spi@50200 {
 				compatible = "amlogic,meson-t6x-spicc-v2";
-				reg = <0x0 0x50200 0x0 0x100>;
+				reg = <0x0 0x50200 0x0 0x100>,
+				      <0x0 0x10508 0x0 0x4>;
+				trig_in_selects = <0 10 13 16 19>;
 				interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_SPISG>,
 					 <&clkc CLKID_SPICC2>;
@@ -692,7 +699,9 @@
 
 			spicc3: spi@50300 {
 				compatible = "amlogic,meson-t6x-spicc-v2";
-				reg = <0x0 0x50300 0x0 0x100>;
+				reg = <0x0 0x50300 0x0 0x100>,
+				      <0x0 0x1050c 0x0 0x4>;
+				trig_in_selects = <0 10 13 16 19>;
 				interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_SPISG>,
 					 <&clkc CLKID_SPICC3>;
@@ -704,7 +713,9 @@
 
 			spicc4: spi@50400 {
 				compatible = "amlogic,meson-t6x-spicc-v2";
-				reg = <0x0 0x50400 0x0 0x100>;
+				reg = <0x0 0x50400 0x0 0x100>,
+				      <0x0 0x10510 0x0 0x4>;
+				trig_in_selects = <0 10 13 16 19>;
 				interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_SPISG>,
 					 <&clkc CLKID_SPICC4>;
@@ -716,7 +727,9 @@
 
 			spicc5: spi@50500 {
 				compatible = "amlogic,meson-t6x-spicc-v2";
-				reg = <0x0 0x50500 0x0 0x100>;
+				reg = <0x0 0x50500 0x0 0x100>,
+				      <0x0 0x10514 0x0 0x4>;
+				trig_in_selects = <0 10 13 16 19>;
 				interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_SPISG>,
 					 <&clkc CLKID_SPICC5>;
