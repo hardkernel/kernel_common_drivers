@@ -442,6 +442,7 @@ static int walk_dbuf_callback(const struct dma_buf *dbuf, void *private)
 		file_count(f));
 
 	find_ref_process(dbuf, m);
+	dma_buf_put((struct dma_buf *)((ulong)dbuf));
 
 	return 0;
 }
@@ -967,6 +968,7 @@ static int find_dma_buf_in_tsk(struct task_struct *tsk,
 					if (!entry->buf) {
 						entry->buf = dmabuf;
 						found = true;
+						get_dma_buf(dmabuf);
 						break;
 					}
 				}
@@ -977,6 +979,7 @@ static int find_dma_buf_in_tsk(struct task_struct *tsk,
 					if (node) {
 						node->buf = dmabuf;
 						list_add(&node->list, &dma_buf_list->list);
+						get_dma_buf(dmabuf);
 					} else {
 						pr_err("Failed to allocate dma_buf_record_node\n");
 					}
