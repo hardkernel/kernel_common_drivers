@@ -57,6 +57,7 @@ static struct reboot_reason_str reboot_reason_name[MESON_MAX_REBOOT] = {
 	[MESON_FFV_REBOOT] = { .name = "ffv reboot" },
 	[MESON_FACTORY_MODE_REBOOT] = { .name = "factory mode reboot" },
 	[MESON_BIST_MODE_REBOOT] = { .name = "bist mode reboot" },
+	[MESON_AOCPU_WATCHDOG_REBOOT] = { .name = "aocpu watchdog reboot" },
 };
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
