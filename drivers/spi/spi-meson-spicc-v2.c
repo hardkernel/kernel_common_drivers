@@ -1609,6 +1609,9 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		goto out_controller;
 	}
 
+	spin_lock_init(&spicc->lock);
+	init_completion(&spicc->completion);
+
 	spicc->cfg_spi.d32 = 0;
 	spicc->cfg_start.d32 = 0;
 	spicc->cfg_bus.d32 = 0;
@@ -1643,9 +1646,6 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "spi controller registration failed\n");
 		goto out_clk;
 	}
-
-	spin_lock_init(&spicc->lock);
-	init_completion(&spicc->completion);
 
 #ifdef MESON_SPICC_HW_IF
 	/* additional descriptor to achieve the cs_hold */
