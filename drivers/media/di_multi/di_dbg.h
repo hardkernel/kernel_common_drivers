@@ -19,6 +19,7 @@ extern int invert_top_bot;
 extern int frame_count;
 extern unsigned int dbg_dct;
 extern unsigned int tst_pre_vpp;
+extern unsigned int tst_plink_vpp;
 extern u32 afbc_cfg;
 extern unsigned int dim_afbc_skip_en;
 extern unsigned int afbc_skip_pps_w, afbc_skip_pps_h;

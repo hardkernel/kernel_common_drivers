@@ -3242,6 +3242,7 @@ static struct di_class_debug_s di_debugfs_class_files[] = {
 	{"dbg_dct", &dbg_dct, 1, 0},
 	{"afbc_cfg", &afbc_cfg, 1, 0},
 	{"tst_pre_vpp", &tst_pre_vpp, 1, 0},
+	{"tst_plink_vpp", &tst_plink_vpp, 1, 0},
 	{"dim_cfg", &dim_cfg, 1, 0},
 	{"dim_afbc_skip_en", &dim_afbc_skip_en, 1, 0},
 	{"dim_post_num", &dim_post_num, 1, 0},
@@ -3538,11 +3539,258 @@ free2:
 	return ret;
 }
 
+static ssize_t dim_mw_mtn_show(const struct class *device,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	int i;
+
+	for (i = EDI_MP_SUB_MTN_B; i < EDI_MP_SUB_MTN_E; i++) {
+		pr_info("%d %s %d\n",
+			   i - EDI_MP_SUB_MTN_B,
+			   di_mp_uit_get_name(i),
+			   di_mp_uit_get(i));
+	}
+
+	return 0;
+}
+
+static ssize_t dim_mw_mtn_store(const struct class *class,
+			     const struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	unsigned int item, rid;
+	int ret, val;
+
+	count = min_t(size_t, count, (sizeof(buf) - 1));
+
+	ret = sscanf(buf, "%i %i", &item, &val);
+
+	switch (ret) {
+	case 2:
+		/*check []*/
+		if (item >= (EDI_MP_SUB_DI_E - EDI_MP_SUB_DI_B)) {
+			PR_WARN("index is overflow[%d,%d]:%d\n",
+				0,
+				EDI_MP_SUB_DI_E - EDI_MP_SUB_DI_B,
+				item);
+			break;
+		}
+		rid = item + EDI_MP_SUB_DI_B;
+		pr_info("change mp :%s\n",
+			di_mp_uit_get_name(rid));
+		pr_info("\t%d -> %d\n", di_mp_uit_get(rid), val);
+		di_mp_uit_set(rid, val);
+		break;
+	default:
+		PR_ERR("please enter: id, value(int)\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t dim_mw_di_show(const struct class *device,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	int i;
+
+	for (i = EDI_MP_SUB_DI_B; i < EDI_MP_SUB_DI_E; i++) {
+		pr_info("%d %s %d\n",
+			   i - EDI_MP_SUB_DI_B,
+			   di_mp_uit_get_name(i),
+			   di_mp_uit_get(i));
+	}
+
+	return 0;
+}
+
+static ssize_t dim_mw_di_store(const struct class *class,
+			     const struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	unsigned int item, rid;
+	int ret, val;
+
+	count = min_t(size_t, count, (sizeof(buf) - 1));
+	ret = sscanf(buf, "%i %i", &item, &val);
+
+	switch (ret) {
+	case 2:
+		/*check []*/
+		if (item >= (EDI_MP_SUB_DI_E - EDI_MP_SUB_DI_B)) {
+			PR_WARN("index is overflow[%d,%d]:%d\n",
+				0,
+				EDI_MP_SUB_DI_E - EDI_MP_SUB_DI_B,
+				item);
+			break;
+		}
+		rid = item + EDI_MP_SUB_DI_B;
+		pr_info("change mp :%s\n",
+			di_mp_uit_get_name(rid));
+		pr_info("\t%d -> %d\n", di_mp_uit_get(rid), val);
+		di_mp_uit_set(rid, val);
+		break;
+	default:
+		PR_ERR("please enter: id, value(int)\n");
+		return -EINVAL;
+	}
+
+		return count;
+}
+
+static ssize_t dim_mw_nr_show(const struct class *device,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	int i;
+
+	for (i = EDI_MP_SUB_NR_B; i < EDI_MP_SUB_NR_E; i++) {
+		pr_info("\tidx[%2d]:%-15s:%d\n",
+			   i - EDI_MP_SUB_NR_B,
+			   di_mp_uit_get_name(i),
+			   di_mp_uit_get(i));
+	}
+
+	return 0;
+}
+
+static ssize_t dim_mw_nr_store(const struct class *class,
+			     const struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	unsigned int item, rid;
+	int ret, val;
+
+	count = min_t(size_t, count, (sizeof(buf) - 1));
+	ret = sscanf(buf, "%i %i", &item, &val);
+
+	switch (ret) {
+	case 2:
+		/*check []*/
+		if (item >= (EDI_MP_SUB_NR_E - EDI_MP_SUB_NR_B)) {
+			PR_WARN("index is overflow[%d,%d]:%d\n",
+				0,
+				EDI_MP_SUB_NR_E - EDI_MP_SUB_NR_B,
+				item);
+			break;
+		}
+		rid = item + EDI_MP_SUB_NR_B;
+		pr_info("change mp:%s\n",
+			di_mp_uit_get_name(rid));
+		pr_info("\t%d -> %d\n", di_mp_uit_get(rid), val);
+		di_mp_uit_set(rid, val);
+		break;
+	default:
+		PR_ERR("please enter: id, value(int)\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t dim_mw_pd_show(const struct class *device,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	int i;
+
+	for (i = EDI_MP_SUB_PD_B; i < EDI_MP_SUB_PD_E; i++) {
+		pr_info("\tidx[%2d]:%-15s:%d\n",
+			   i - EDI_MP_SUB_PD_B,
+			   di_mp_uit_get_name(i),
+			   di_mp_uit_get(i));
+	}
+
+	return 0;
+}
+
+static ssize_t dim_mw_pd_store(const struct class *class,
+			     const struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	unsigned int item, rid;
+	int ret, val;
+
+	count = min_t(size_t, count, (sizeof(buf) - 1));
+	ret = sscanf(buf, "%i %i", &item, &val);
+
+	switch (ret) {
+	case 2:
+		/*check []*/
+		if (item >= (EDI_MP_SUB_PD_E - EDI_MP_SUB_PD_B)) {
+			PR_WARN("index is overflow[%d,%d]:%d\n",
+				0,
+				EDI_MP_SUB_PD_E - EDI_MP_SUB_PD_B,
+				item);
+			break;
+		}
+		rid = item + EDI_MP_SUB_PD_B;
+		pr_info("change mp:%s\n",
+			di_mp_uit_get_name(rid));
+		pr_info("\t%d -> %d\n", di_mp_uit_get(rid), val);
+		di_mp_uit_set(rid, val);
+		break;
+	default:
+		PR_ERR("please enter: id, value(int)\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t dim_cfgw_id_store(const struct class *class,
+			     const struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	unsigned int index, val;
+	int ret;
+
+	ret = sscanf(buf, "%i %i", &index, &val);
+	switch (ret) {
+	case 2:
+		if (!di_cfg_top_check(index))
+			break;
+		/*coverity[tainted_data] Misjudged buf not tainted*/
+		pr_info("%s:%d->%d\n",
+			di_cfg_top_get_name(index),
+			di_cfg_top_get(index),
+			val);
+		di_cfg_top_set(index, val);
+		break;
+	default:
+		pr_info("err:please enter: cfg_item, index\n");
+		return -EINVAL;
+	}
+	return count;
+}
+
 static struct class_attribute di[] = {
 	__ATTR(dim_class_debug,
 	       0644,
 	       dim_class_debug_show,
 	       dim_class_debug_store),
+	__ATTR(mw_mtn,
+	       0644,
+	       dim_mw_mtn_show,
+	       dim_mw_mtn_store),
+	__ATTR(mw_di,
+	       0644,
+	       dim_mw_di_show,
+	       dim_mw_di_store),
+	__ATTR(nr,
+	       0644,
+	       dim_mw_nr_show,
+	       dim_mw_nr_store),
+	__ATTR(pd,
+	       0644,
+	       dim_mw_pd_show,
+	       dim_mw_pd_store),
+	__ATTR(cfgw_id,
+	       0644,
+	       NULL,
+	       dim_cfgw_id_store),
 };
 
 void di_attr_create(struct class *di_class)
