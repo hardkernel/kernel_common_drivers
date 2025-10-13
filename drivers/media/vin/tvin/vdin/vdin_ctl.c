@@ -8305,34 +8305,6 @@ void vdin_sw_reset(struct vdin_dev_s *devp)
 #endif
 }
 
-/* set base frame when vrr or freesync
- * base on parameter:
- * fps:	50/60/120/144/200/240/288
- */
-static inline unsigned int vdin_set_vin_base_fr(unsigned int fps)
-{
-	//(fps <= 60) ? (fps = 60) : (fps = 120);
-	if (fps <= 50)
-		fps = 50;
-	else if (fps <= 60)
-		fps = 60;
-	else if (fps <= 100)
-		fps = 100;
-	else if (fps <= 120)
-		fps = 120;
-	else if (fps <= 144)
-		fps = 144;
-	else if (fps <= 165)
-		fps = 165;
-	else if (fps <= 200)
-		fps = 200;
-	else if (fps <= 240)
-		fps = 240;
-	else if (fps <= 288)
-		fps = 288;
-	return fps;
-}
-
 /* get base or maxmun value when vrr or freesync
  * return:
  * = 0:get correct base framerate from vrr/freesync
@@ -8357,8 +8329,6 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 			fps = devp->parm.info.fps;
 		}
 
-		fps = vdin_set_vin_base_fr(fps);
-
 		devp->vin_base_fps = fps;
 	} else if (vdin_check_is_spd_data(devp) &&
 		(devp->prop.spd_data.data[5] >> 1 & 0x7)) { /* FreeSync */
@@ -8372,8 +8342,6 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 		} else {
 			fps = devp->parm.info.fps;
 		}
-
-		fps = vdin_set_vin_base_fr(fps);
 
 		devp->vin_base_fps = fps;
 	} else {
