@@ -381,6 +381,7 @@ struct crg_gadget_dev {
 #define SUSPEND_SCHEME_POWER_OFF_ONLY 0
 #define SUSPEND_SCHEME_REINIT 1
 	bool resume_recovery;
+	bool system_suspend;
 
 	unsigned u2_RWE:1;
 	unsigned feature_u1_enable:1;
@@ -514,13 +515,14 @@ static void crg_rewrite_udc_for_error(struct work_struct *work)
 {
 	struct crg_gadget_dev *crg_udc = container_of(work,
 			struct crg_gadget_dev, reset_udc.work);
+	int ret;
 
-	if (!crg_udc->resume_recovery)
-		CRG_ERROR("--------------%s---\n", __func__);
-	else
-		crg_udc->resume_recovery = 0;
+	CRG_ERROR("%s:%s\n", __func__, crg_udc->resume_recovery ? "resume" : "error");
+	crg_udc->resume_recovery = 0;
 
-	crg_rewrite_otg_write_UDC();
+	ret = crg_rewrite_otg_write_UDC();
+	if (ret)
+		CRG_ERROR("crg_rewrite_otg_write_UDC err ret：%d\n", ret);
 }
 
 static int  crg_udc_reset_line_assert(struct crg_gadget_dev *crg_udc, bool on)
@@ -4773,6 +4775,7 @@ static void crg_udc_cleanup(struct crg_gadget_dev *crg_udc)
 
 	crg_udc->suspend_scheme = 0;
 	crg_udc->resume_recovery = 0;
+	crg_udc->system_suspend = 0;
 	crg_udc->u2_RWE = 0;
 
 	/* Cleared in crg_udc_clear_portpm. */
@@ -5262,8 +5265,8 @@ int crg_rewrite_otg_write_UDC(void)
 	char *name;
 	size_t len;
 	int ret;
-	/* 3 seconds. */
-	int timeout = 12;
+	/* 1 second. */
+	int timeout = 1000;
 
 	crg_udc = &crg_udc_dev;
 	cdev = get_gadget_data(&crg_udc->gadget);
@@ -5313,8 +5316,21 @@ int crg_rewrite_otg_write_UDC(void)
 	while (timeout--) {
 		if (READ_ONCE(gi->composite.gadget_driver.udc_name))
 			break;
-		msleep(250);
+		if (unlikely(READ_ONCE(crg_udc->system_suspend))) {
+			pr_info("rewrite UDC exits waiting during freezing tasks.\n");
+			/* If we rely on userspace process to rebind gadget driver
+			 * (e.g. f_fs needs descriptors written from the userspace),
+			 * the following usb_gadget_probe_driver will fail. The daemon
+			 * should trigger rebind when the system is resumed.
+			 */
+			break;
+		}
+		ret = msleep_interruptible(1);
+		if (ret)
+			timeout += ret;
 	}
+
+	ret = 0;
 
 	if (READ_ONCE(gi->composite.gadget_driver.udc_name)) {
 		CRG_ERROR("UDC already written. skip.\n");
@@ -5455,8 +5471,10 @@ static int crg_udc_pm_cb(struct notifier_block *notifier,
 		 * Don't do it or the pm_wakeup_pending() will just fail.
 		 * Now we delay the de-init codes until the system is resumed.
 		 */
+		WRITE_ONCE(crg_udc->system_suspend, 1);
 		break;
 	case PM_POST_SUSPEND:
+		WRITE_ONCE(crg_udc->system_suspend, 0);
 		if (crg_udc_suspend_reinit(crg_udc)) {
 			crg_udc_remove(pdev);
 			crg_udc_probe(pdev);
