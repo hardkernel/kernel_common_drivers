@@ -1,0 +1,71 @@
+From 02e07277d3347d9bdc70a8dd872b2df1cf57452e Mon Sep 17 00:00:00 2001
+From: Jianxiong Pan <jianxiong.pan@amlogic.com>
+Date: Mon, 13 Oct 2025 17:20:27 +0800
+Subject: [PATCH] mm: reduce vmap stack size to allow more ko in module area.
+ [1/1]
+
+PD#SWPL-235140
+
+Problem:
+ko is loaded into the vmalloc area,
+causing pagetrace to not record the backtrace.
+
+Solution:
+reduce vmap stack size to expand module area.
+
+Verify:
+txhd2.
+
+Change-Id: Ia2b8517310695312ea3262a2d95a0933855aa964
+Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
+---
+ arch/arm/include/asm/memory.h | 4 ++--
+ arch/arm/kernel/traps.c       | 6 ++++++
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/include/asm/memory.h b/arch/arm/include/asm/memory.h
+index f216baa50ee4..06e15aee9ae4 100644
+--- a/arch/arm/include/asm/memory.h
++++ b/arch/arm/include/asm/memory.h
+@@ -25,7 +25,7 @@
+ #endif
+ 
+ #ifdef CONFIG_AMLOGIC_VMAP
+-#define SIZE_VSTACK             (48 * 1024 * 1024)
++#define SIZE_VSTACK             (36 * 1024 * 1024)
+ #endif
+ 
+ #include <asm/kasan_def.h>
+@@ -47,7 +47,7 @@
+  */
+ #ifndef CONFIG_KASAN
+ #ifdef CONFIG_AMLOGIC_VMAP
+-#define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_16M) - SIZE_VSTACK)
++#define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_16M) - UL(0xc00000) - SIZE_VSTACK)
+ #else
+ #define TASK_SIZE		(UL(CONFIG_PAGE_OFFSET) - UL(SZ_16M))
+ #endif
+diff --git a/arch/arm/kernel/traps.c b/arch/arm/kernel/traps.c
+index 1aa09701801f..4e2220d89cdc 100644
+--- a/arch/arm/kernel/traps.c
++++ b/arch/arm/kernel/traps.c
+@@ -138,10 +138,16 @@ void dump_backtrace_stm(u32 *stack, u32 instruction, const char *loglvl)
+  */
+ static int verify_stack(unsigned long sp)
+ {
++#ifdef CONFIG_AMLOGIC_VMAP
++	if (!IS_ENABLED(CONFIG_VMAP_STACK) &&
++	     sp > (unsigned long)high_memory && high_memory != NULL)
++		return -EFAULT;
++#else
+ 	if (sp < PAGE_OFFSET ||
+ 	    (!IS_ENABLED(CONFIG_VMAP_STACK) &&
+ 	     sp > (unsigned long)high_memory && high_memory != NULL))
+ 		return -EFAULT;
++#endif
+ 
+ 	return 0;
+ }
+-- 
+2.50.1
+

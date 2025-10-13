@@ -16,8 +16,8 @@
 #define VMAP_ADDR_END			VMALLOC_END
 #define VMAP_ALIGN			VM_STACK_AREA_SIZE
 #else
-/* currently support max 6144 tasks on 32bit */
-#define VM_STACK_AREA_SIZE		(SZ_64M - SZ_16M)
+/* currently support max 4608 tasks on 32bit */
+#define VM_STACK_AREA_SIZE		(SZ_64M - SZ_16M - 0xc00000)
 #ifdef CONFIG_KASAN		/* change place if open kasan */
 #define VMAP_ADDR_START			VMALLOC_START
 #define VMAP_ADDR_END			(VMALLOC_START + VM_STACK_AREA_SIZE)

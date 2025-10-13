@@ -337,9 +337,11 @@ static unsigned long dmc_unpack_ip(struct page_trace *trace)
 #ifdef CONFIG_ARM
 	if (trace->module_flag)
 		text = MODULES_VADDR;
-#endif
 
+	return text + ((trace->ret_ip) << 3);
+#else
 	return text + ((trace->ret_ip) << 2);
+#endif
 }
 
 unsigned long dmc_get_page_trace(struct page *page)
