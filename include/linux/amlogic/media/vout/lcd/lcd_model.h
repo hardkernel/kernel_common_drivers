@@ -56,7 +56,7 @@ int lcd_panel_file_pre_proc(void);
 /*lcd_json*/
 struct json_parse_s *get_panel_jsp(int index);
 int lcd_panel_json_init_try_mem(int index, void *mem);
-int lcd_panel_json_init_try_file(int index, void *mem);
+int lcd_panel_json_init_try_file(int index, void *mem, unsigned int fsize);
 void panel_json_mem_free(void *mem);
 void panel_json_mem_dump(void *mem);
 

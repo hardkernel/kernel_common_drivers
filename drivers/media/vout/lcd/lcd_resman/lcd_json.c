@@ -92,7 +92,7 @@ int lcd_panel_json_init_try_mem(int index, void *mem)
 	return 0;
 }
 
-int lcd_panel_json_init_try_file(int index, void *mem)
+int lcd_panel_json_init_try_file(int index, void *mem, unsigned int fsize)
 {
 	struct json_parse_s *jsp;
 
@@ -109,7 +109,7 @@ int lcd_panel_json_init_try_file(int index, void *mem)
 		kfree(jsp);
 		return -1;
 	}
-	if (!json_parse(jsp, (char *)mem, 32 * 1024)) {
+	if (!json_parse(jsp, (char *)mem, fsize)) {
 		json_deinit(jsp);
 		kfree(jsp);
 		return -1;

@@ -432,7 +432,7 @@ int lcd_panel_file_pre_proc(void)
 		snprintf(name, 31, "panel%d_json", i);
 		mem = panel_param_mem_get(name, &size);
 		if (mem) {
-			ret = lcd_panel_json_init_try_file(i, mem);
+			ret = lcd_panel_json_init_try_file(i, mem, size);
 			goto lcd_panel_file_pre_loop_next;
 		}
 
