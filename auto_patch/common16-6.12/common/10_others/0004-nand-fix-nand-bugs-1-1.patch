@@ -1,33 +1,38 @@
-From 8450f41e1bf1b00ae7a7313f59f066ee1db7f678 Mon Sep 17 00:00:00 2001
+From 4672b7d84de0d0ec4d314638105d00472bbb6062 Mon Sep 17 00:00:00 2001
 From: Bichao Zheng <bichao.zheng@amlogic.com>
 Date: Thu, 20 Apr 2023 16:23:24 +0800
-Subject: [PATCH 04/11] nand: fix nand bugs [1/1]
+Subject: [PATCH] nand: fix nand bugs [1/1]
 
 PD#SWPL-120491
 PD#SWPL-129754
+PD#SWPL-155674
 
 Problem:
 1.wrong select onfi mode
 2.erase flash error during OTA upgrade
+3.strncmp can't match full id 01h,DCh,00h,05h,04h(S34ML04G300BHI00)
+and 01h,DCh,00h,1Ah,00h(S34ML04G300TFI000)
 
 Solution:
 1.get onfi mode from id table
 2.change the check way of badblock
+3.use memcmp to compare ID memory instead strncmp
 
 Verify:
 1-2:s4
 
 Change-Id: Ie747ceb95f1045c2acaaf2afb6862c9b05d36d8b
 Signed-off-by: Bichao Zheng <bichao.zheng@amlogic.com>
+Signed-off-by: zhikui.cui <zhikui.cui@amlogic.com>
 ---
- drivers/mtd/nand/raw/nand_base.c    |  8 +++++++-
+ drivers/mtd/nand/raw/nand_base.c    | 12 +++++++++++-
  drivers/mtd/nand/raw/nand_bbt.c     | 11 +++++++++++
  drivers/mtd/nand/raw/nand_timings.c |  4 ++++
  include/linux/mtd/rawnand.h         | 17 +++++++++++++++++
- 4 files changed, 39 insertions(+), 1 deletion(-)
+ 4 files changed, 43 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/mtd/nand/raw/nand_base.c b/drivers/mtd/nand/raw/nand_base.c
-index 53e16d39af4b..0de39035c01c 100644
+index 53e16d39af4b..b935de20e0c9 100644
 --- a/drivers/mtd/nand/raw/nand_base.c
 +++ b/drivers/mtd/nand/raw/nand_base.c
 @@ -967,6 +967,10 @@ int nand_choose_best_sdr_timings(struct nand_chip *chip,
@@ -41,7 +46,19 @@ index 53e16d39af4b..0de39035c01c 100644
  /**
   * nand_choose_best_nvddr_timings - Pick up the best NVDDR timings that both the
   *                                  NAND controller and the NAND chip support
-@@ -5409,7 +5413,9 @@ static int nand_detect(struct nand_chip *chip, struct nand_flash_dev *type)
+@@ -5086,7 +5090,11 @@ static bool find_full_id_nand(struct nand_chip *chip,
+
+ 	memorg = nanddev_get_memorg(&chip->base);
+
++#if IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND)
++	if (!memcmp(type->id, id_data, type->id_len)) {
++#else
+ 	if (!strncmp(type->id, id_data, type->id_len)) {
++#endif
+ 		memorg->pagesize = type->pagesize;
+ 		mtd->writesize = memorg->pagesize;
+ 		memorg->pages_per_eraseblock = type->erasesize /
+@@ -5409,7 +5417,9 @@ static int nand_detect(struct nand_chip *chip, struct nand_flash_dev *type)
  		chip->options |= NAND_ROW_ADDR_3;
  
  	chip->badblockbits = 8;
@@ -146,5 +163,5 @@ index e84522e31301..2dcbb18de6b5 100644
  {
  	return nand_scan_with_ids(chip, max_chips, NULL);
 -- 
-2.42.0
+2.47.1
 
