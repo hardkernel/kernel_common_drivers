@@ -59,6 +59,12 @@ static struct edid_venddat_t vendor_audio_ddp_pop_tv[] = {
 	/* Add new vendor data here */
 };
 
+static struct edid_venddat_t vendor_audio_delay[] = {
+	/* TCL: 32L8H */
+	{ {0x50, 0x6c, 0x20, 0x09, 0x01, 0x00, 0x00, 0x00, 0x14, 0x1c} }
+	/* Add new vendor data here */
+};
+
 static struct edid_venddat_t vendor_hdcp_delay[] = {
 	/* Mi L55M5-EC */
 	{ {0x61, 0xa4, 0x4a, 0x00, 0x01, 0x00, 0x00, 0x00, 0x06, 0x1c} }
@@ -197,6 +203,22 @@ bool hdmitx_find_vendor_hdcp_delay(unsigned char *edid_buf)
 	for (i = 0; i < ARRAY_SIZE(vendor_hdcp_delay); i++) {
 		if (memcmp(&edid_buf[8], vendor_hdcp_delay[i].data,
 		    sizeof(vendor_hdcp_delay[i].data)) == 0)
+			return true;
+	}
+	return false;
+}
+
+/* On TCL-32L8H, need more time switch dd to pcm */
+bool hdmitx_find_vendor_audio_delay(unsigned char *edid_buf)
+{
+	int i;
+
+	if (!edid_buf)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(vendor_audio_delay); i++) {
+		if (memcmp(&edid_buf[8], vendor_audio_delay[i].data,
+		    sizeof(vendor_audio_delay[i].data)) == 0)
 			return true;
 	}
 	return false;

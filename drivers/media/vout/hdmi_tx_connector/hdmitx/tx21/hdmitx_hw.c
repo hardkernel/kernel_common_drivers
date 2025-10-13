@@ -2889,6 +2889,10 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw, struct aud_para *a
 		hdmitx21_hw_cntl(tx_hw, AUDIO_RESET, NULL, NULL);
 	hdmitx21_set_reg_bits(AIP_RST_IVCTX, 0, 0, 1);
 	mutex_unlock(&aud_mutex);
+	if (hdmitx_find_vendor_audio_delay(hdev->tx_comm.edid_buf)) {
+		HDMITX_INFO("special tv need more time when set audio mode\n");
+		msleep_interruptible(10);
+	}
 	audio_mute_op(audio_param->aud_output_en);
 	return 0;
 }
