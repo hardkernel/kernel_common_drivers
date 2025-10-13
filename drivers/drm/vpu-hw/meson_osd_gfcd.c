@@ -115,6 +115,9 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 			/*div alpha*/
 			reg_ops->rdma_write_reg_bits(VPP_OSD_HDR_DIV_ALPHA, alpha_div_en,
 				i * 5, 1);
+			/*8 bit alpha, set 0 9bit alpha, set 3 default*/
+			reg_ops->rdma_write_reg_bits(VPP_OSD_HDR_DIV_ALPHA, 3,
+				i * 5 + 3, 2);
 
 			/* set header addr */
 			reg_ops->rdma_write_reg(reg->gfcd_mif_head_baddr, header_addr >> 4);

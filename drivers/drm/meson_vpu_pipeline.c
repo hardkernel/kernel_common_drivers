@@ -871,10 +871,8 @@ int video_pipeline_block_update(struct meson_video_sub_pipeline *sub_pipeline,
 int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			struct drm_atomic_state *old_state)
 {
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_AMLOGIC_ZAPPER_CUT)
 	int i;
 	struct rdma_reg_ops *reg_ops;
-#endif
 
 	int crtc_index, j;
 	unsigned long id;
@@ -933,7 +931,6 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 		}
 	}
 
-#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_AMLOGIC_ZAPPER_CUT)
 	if (overwrite_enable) {
 		for (i = 0; i < reg_num; i++) {
 			if (overwrite_crtc_idx[i] < MESON_MAX_CRTC) {
@@ -942,7 +939,6 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			}
 		}
 	}
-#endif
 
 	vpu_pipeline_append_finish_reg(crtc_index, sub_pipeline->reg_ops);
 

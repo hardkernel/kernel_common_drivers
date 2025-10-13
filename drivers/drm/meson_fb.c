@@ -383,7 +383,7 @@ meson_internal_framebuffer_create(struct drm_device *dev,
 	}
 
 	if (r->flags & DRM_MODE_FB_MODIFIERS &&
-	    !dev->mode_config.fb_modifiers_not_supported) {
+	    dev->mode_config.fb_modifiers_not_supported) {
 		drm_dbg_kms(dev, "driver does not support fb modifiers\n");
 		return ERR_PTR(-EINVAL);
 	}
