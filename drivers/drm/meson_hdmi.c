@@ -2875,7 +2875,7 @@ int am_meson_hdmi_get_vrr_range(struct drm_device *dev,
 			void *data, struct drm_file *file_priv)
 {
 	int i, num_group = 0;
-	char *mode_name;
+	char *mode_name, *mode_qms_name;
 	struct drm_connector *connector;
 	struct drm_mode_object *mo;
 	struct hdmitx_common *tx_comm;
@@ -2915,6 +2915,10 @@ int am_meson_hdmi_get_vrr_range(struct drm_device *dev,
 		mode_name = groups->groups[i].modename;
 		strncpy(mode_name, hdmi_groups[i].modename, DRM_DISPLAY_MODE_LEN);
 		mode_name[DRM_DISPLAY_MODE_LEN - 1] = '\0';
+
+		mode_qms_name = groups->groups[i].qms_modename;
+		strncpy(mode_qms_name, hdmi_groups[i].qms_modename, DRM_DISPLAY_MODE_LEN);
+		mode_qms_name[DRM_DISPLAY_MODE_LEN - 1] = '\0';
 	}
 	groups->num = num_group;
 

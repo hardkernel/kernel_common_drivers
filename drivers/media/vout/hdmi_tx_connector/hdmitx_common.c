@@ -2279,6 +2279,7 @@ static void add_brr_vic_lists(struct hdmitx_vrr_mode_group *group)
 	const struct hdmi_timing *brr_timing;
 	const struct hdmi_timing *vic_timing;
 	int vsync;
+	char *brr_modename;
 
 	if (!group)
 		return;
@@ -2286,6 +2287,10 @@ static void add_brr_vic_lists(struct hdmitx_vrr_mode_group *group)
 	brr_timing = hdmitx_mode_vic_to_hdmi_timing(group->brr_vic);
 	if (!brr_timing)
 		return;
+
+	brr_modename = brr_timing->sname ? brr_timing->sname : brr_timing->name;
+	strncpy(group->qms_modename, brr_modename, DRM_DISPLAY_MODE_LEN);
+	group->qms_modename[DRM_DISPLAY_MODE_LEN - 1] = '\0';
 
 	for (vic = HDMI_1_640x480p60_4x3; vic <= HDMI_219_4096x2160p120_256x135; vic++) {
 		/* there is no VIC in 128 ~ 192 */
@@ -2347,8 +2352,8 @@ static void add_qms_vic_to_group(struct hdmitx_common *tx_comm, enum hdmi_vic vi
 	calc_vrr_range(prxcap, group, timing->v_freq / 10);
 	add_brr_vic_lists(group);
 	if (log_en)
-		HDMITX_DEBUG("qms: qms brr %d W/H %d %d min/max %d %d game brr %d min/max %d %d\n",
-			group->brr_vic, group->width, group->height,
+		HDMITX_DEBUG("qms: brr %d %s W/H %d %d min/max %d %d game brr %d min/max %d %d\n",
+			group->brr_vic, group->qms_modename, group->width, group->height,
 			group->vrr_min, group->vrr_max, group->game_brr_vic,
 			group->game_vrr_min, group->game_vrr_max);
 	memset(str_vics, 0, sizeof(str_vics));

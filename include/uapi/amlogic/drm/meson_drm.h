@@ -86,6 +86,7 @@ struct drm_vrr_mode_group {
 	__u32 game_brr_vic;
 	__u32 brr;
 	char modename[DRM_DISPLAY_MODE_LEN];
+	char qms_modename[DRM_DISPLAY_MODE_LEN];
 };
 
 struct drm_vrr_mode_groups {
@@ -112,6 +113,7 @@ struct hdmitx_vrr_mode_group {
 	char modename[DRM_DISPLAY_MODE_LEN];
 	__u32 reserv[16];
 	__u32 game_brr_vic; /* for hdmitx GAME-VRR */
+	char qms_modename[DRM_DISPLAY_MODE_LEN];
 };
 
 /**
