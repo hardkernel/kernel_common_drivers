@@ -34,4 +34,18 @@ static inline void i2c_meson_t6w_exit(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_I2C_MESON_V2)
+int i2c_meson_v2_init(void);
+void i2c_meson_v2_exit(void);
+#else
+static inline int i2c_meson_v2_init(void)
+{
+	return 0;
+}
+
+static inline void i2c_meson_v2_exit(void)
+{
+}
+#endif
+
 #endif /* _I2C_MAIN_H__ */

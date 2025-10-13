@@ -24,6 +24,11 @@ ddk_module(
                 "i2c-meson-t6w.c",
             ],
         },
+        "CONFIG_AMLOGIC_I2C_MESON_V2": {
+            True: [
+                "i2c-meson-v2.c",
+            ],
+        },
     },
     hdrs = [
     ],

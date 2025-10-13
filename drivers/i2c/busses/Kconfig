@@ -23,4 +23,11 @@ config AMLOGIC_I2C_MESON_T6W
 	  If you say yes to this option, support will be included for the
 	  I2C interface on the Amlogic Meson family of SoCs.
 
+config AMLOGIC_I2C_MESON_V2
+	bool "Amlogic Meson I2C V2 controller"
+	depends on AMLOGIC_I2C
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C interface on the Amlogic Meson family of SoCs after t6x.
+
 endmenu

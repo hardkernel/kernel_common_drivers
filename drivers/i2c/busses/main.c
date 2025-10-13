@@ -17,6 +17,7 @@ static int __init i2c_main_init(void)
 	pr_debug("### %s() start\n", __func__);
 	call_sub_init(i2c_meson_init);
 	call_sub_init(i2c_meson_t6w_init);
+	call_sub_init(i2c_meson_v2_init);
 	pr_debug("### %s() end\n", __func__);
 
 	return 0;
@@ -26,6 +27,7 @@ static void __exit i2c_main_exit(void)
 {
 	i2c_meson_exit();
 	i2c_meson_t6w_exit();
+	i2c_meson_v2_exit();
 }
 
 module_init(i2c_main_init);
