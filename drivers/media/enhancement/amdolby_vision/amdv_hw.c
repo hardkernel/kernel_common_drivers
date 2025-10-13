@@ -29,6 +29,8 @@
 #include "amdv.h"
 #include "amdv_regs_s5.h"
 #include "amdv_regs_hw5.h"
+#include "amdv_regs_hw5_t6w.h"
+#include "amdv_regs_hw5_t6x.h"
 #include "md_config.h"
 
 #include <linux/of.h>
@@ -98,7 +100,7 @@ static u32 stb_core_setting_update_flag = CP_FLAG_CHANGE_ALL;
 unsigned int bypass_core1a_composer;
 unsigned int bypass_core1b_composer;
 static int operate_mode;
-bool force_bypass_from_prebld_to_vadj1;/* t3/t5w, 1d93 bit0 -> 1d26 bit8*/
+bool force_bypass_from_prebld_to_vadj1;/* t3/t5w/t6w, 1d93 bit0 -> 1d26 bit8*/
 
 #define MAX_CORE3_METADATA 204 /*0x3324~0x33f0 = 204*/
 static int is_muted;
@@ -452,6 +454,10 @@ void amdv_core_reset(enum core_type type)
 			/* bit17 need always=1 for detunnel*/
 			VSYNC_WR_DV_REG(VPU_DOLBY_WRAP_GCLK, 1 << 16 | 1 << 17 | 1 << 19);
 			VSYNC_WR_DV_REG(VPU_DOLBY_WRAP_GCLK, 1 << 17 | 1 << 19);
+		} else if (is_aml_t6w() || is_aml_t6x()) {
+			/*VPU_DOLBY_WRAP_GCLK bit16 reset core*/
+			//VSYNC_WR_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 1 << 16);//todo
+			//VSYNC_WR_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 0);//todo
 		}
 		break;
 	default:
@@ -586,11 +592,17 @@ int tv_dv_core1_set(u64 *dma_data,
 	VSYNC_WR_DV_REG_BITS(AMDV_TV_SWAP_CTRL5, 0x2c2d0, 14, 18);
 	VSYNC_WR_DV_REG_BITS(AMDV_TV_SWAP_CTRL5, 0xa, 0, 4);
 
-	if (hdmi && !hdr10 && !disable_detunnel && !bypass_detunnel) {
-		/*hdmi STD, LL and Unique_422/420_12bit DV: need detunnel*/
+	if (bypass_detunnel_debug == 1) {
+		VSYNC_WR_DV_REG_BITS(AMDV_TV_SWAP_CTRL5, 0, 4, 1);
+	} else if (bypass_detunnel_debug == 2) {
 		VSYNC_WR_DV_REG_BITS(AMDV_TV_SWAP_CTRL5, 1, 4, 1);
 	} else {
-		VSYNC_WR_DV_REG_BITS(AMDV_TV_SWAP_CTRL5, 0, 4, 1);
+		if (hdmi && !hdr10 && !disable_detunnel) {
+			/*hdmi STD, LL and Unique_422/420_12bit DV: need detunnel*/
+			VSYNC_WR_DV_REG_BITS(AMDV_TV_SWAP_CTRL5, 1, 4, 1);
+		} else {
+			VSYNC_WR_DV_REG_BITS(AMDV_TV_SWAP_CTRL5, 0, 4, 1);
+		}
 	}
 
 	/*set diag reg to 0xb can bypass dither, not need set swap ctrl6 */
@@ -746,7 +758,7 @@ int tv_dv_core1_set(u64 *dma_data,
 
 	handle_aoi(hsize, vsize);
 	set_dovi_setting_update_flag(true);
-	amdv_update_setting();
+	amdv_update_setting(false, false);
 
 	if (reset)
 		VSYNC_WR_DV_REG(AMDV_TV_REG_START + 1, run_mode);
@@ -1009,9 +1021,8 @@ static int dv_core1_set(u32 dm_count,
 			}
 		}
 	}
-
 	set_dovi_setting_update_flag(true);
-	amdv_update_setting();
+	amdv_update_setting(false, false);
 
 	if (dolby_vision_on &&
 	    (dolby_vision_flags & FLAG_DISABE_CORE_SETTING))
@@ -1598,9 +1609,8 @@ static int dv_core1a_set(u32 dm_count,
 				VSYNC_RD_DV_REG(AMDV_PATH_CTRL));
 		}
 	}
-
 	set_dovi_setting_update_flag(true);
-	amdv_update_setting();
+	amdv_update_setting(false, false);
 
 	if (dolby_vision_on &&
 	    (dolby_vision_flags & FLAG_DISABE_CORE_SETTING))
@@ -4079,6 +4089,12 @@ void bypass_pps_sr_gamma_gainoff(int flag)
 			VSYNC_WR_DV_REG_BITS(T3X_VD_PROC_BYPASS_CTRL, 1, 1, 1);
 		if (flag & 4)
 			VSYNC_WR_DV_REG_BITS(T3X_VPP_DOLBY_CTRL, 1, 2, 1);
+	} else if (is_aml_t6w() || is_aml_t6x()) {
+		if (flag & 1) {
+			/*t6w, 1d93 bit0 change to 1d26 bit8*/
+			VSYNC_WR_DV_REG_BITS(VPP_MISC, 1, 8, 1);
+			force_bypass_from_prebld_to_vadj1 = true;
+		}
 	} else {
 		if (flag & 1) {
 			if (is_aml_t3() || is_aml_t5w() || is_aml_t5m()) {

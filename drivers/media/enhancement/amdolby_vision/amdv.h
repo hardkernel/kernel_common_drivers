@@ -93,6 +93,8 @@
 #define PYRAMID_SW_RST 1 /*NO need set pylevel before vsync*/
 
 #define PYRAMID_BUF_CNT 3
+#define TOP_BUF_CNT 5
+#define TOP_BUF_CNT_VD1 2
 
 #define DEBUG_HW5_RESET_EACH_VSYNC  0x1
 #define DEBUG_HW5_TOGGLE_EACH_VSYNC 0x2
@@ -111,6 +113,13 @@
 #define FORCE_ONE_SLICE 0x4000 /*case5011b 5055a 5055b*/
 #define DEBUG_IGNORE_IOCTL 0x8000
 #define DEBUG_HW5_SIX_LEVEL 0x10000
+/*in dpss auto mode, top2 pyramid rdmif and dpe rdmif use different start signal,*/
+/*should reg control top2 frm_rst*/
+#define DEBUG_VSYNC_TRIGGER_TOP2_RST 0x20000
+#define MANUAL_DPE_START 0x40000
+#define DEBUG_FORCE_VCBUS_REG 0x80000
+#define DEBUG_VSYNC_TRIGGER_TOP1_RST 0x100000
+#define DEBUG_FORCE_NO_L1L4 0x100000
 
 #define MAX_CFG_SIZE (1024 * 10)
 #define MAX_BIN_SIZE (1024 * 150)
@@ -140,6 +149,8 @@
 #define USE_OLD_RDMA_TABLE_VPP 0x2
 #define PRINT_RDMA_TABLE_REG_BASIC 0x4
 #define PRINT_RDMA_TABLE_REG_MORE 0x8
+
+#define ENABLE_DPSS 1
 
 enum core1_switch_type {
 	NO_SWITCH = 0,
@@ -686,7 +697,8 @@ struct dv_core1_inst_s {
 struct core_inst_s {
 	bool core_on;
 	bool amdv_setting_video_flag;
-	u32 core_on_cnt;
+	u32 core_on_cnt;/*toggle new frame cnt*/
+	u32 core_run_cnt;/*core run cnt*/
 	u32 run_mode_count;
 	u32 core_disp_hsize;
 	u32 core_disp_vsize;
@@ -788,6 +800,8 @@ enum cpu_id_e {
 	_CPU_MAJOR_ID_T3X,
 	_CPU_MAJOR_ID_S7D,
 	_CPU_MAJOR_ID_S6,
+	_CPU_MAJOR_ID_T6W,
+	_CPU_MAJOR_ID_T6X,
 	_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -799,9 +813,32 @@ enum top2_source {
 };
 
 struct pyramid_info {
-	void *py_vaddr[7];
-	dma_addr_t top1_py_paddr[7];
-	u32 top1_py_size[7];
+	void *py_vaddr[7];/*7 level pyramid data, virtual address*/
+	dma_addr_t top1_py_paddr[7];/*7 level pyramid data*/
+	u32 top1_py_size[7];/*7 level pyramid data size*/
+	ulong dma_handle[7];
+};
+
+struct up_scale_buf {
+	void *pyup_vaddr;/*corep output pyup data, virtual address*/
+	dma_addr_t pyup_paddr;/*corep output pyup data*/
+	u32 pyup_size;/*corep output pyup data size*/
+	ulong dma_handle;
+};
+
+struct vf_info_s {
+	struct vframe_s *vf;
+	bool top1_start;
+	bool top1_done;
+	bool top2_start;
+	bool top2_done;
+};
+
+struct top_info_s {
+	struct up_scale_buf up_buf[TOP_BUF_CNT];
+	struct vf_info_s vf_info[TOP_BUF_CNT];
+	u32 isr_cnt;
+	u32 isr_top1_cnt;
 };
 
 struct ovlp_win_para {
@@ -827,6 +864,7 @@ struct amdolby_vision_port_t {
 
 struct lut_dma_info_s {
 	u32 dma_total_size;
+	u32 dma_top1_size;
 	u32 dma_top2_size;
 	dma_addr_t dma_paddr;
 	dma_addr_t dma_paddr_top2;
@@ -858,6 +896,8 @@ extern struct m_dovi_setting_s new_m_dovi_setting;
 extern struct m_dovi_setting_s invalid_m_dovi_setting;
 extern bool multi_dv_mode;
 extern u32 dolby_vision_mode;
+extern u32 force_mode;
+extern u32 last_force_mode;
 extern u32 dolby_vision_status;
 extern u32 amdv_reset;
 extern u32 amdv_target_mode;
@@ -923,6 +963,8 @@ extern u32 sdr_ref_mode;
 extern bool need_update_cfg;
 extern u32 debug_ko;
 extern int debug_cp_res;
+extern int debug_h_aoi;
+extern int debug_v_aoi;
 extern u32 force_update_reg;
 extern const char *input_str[11];
 extern bool module_installed;
@@ -952,6 +994,7 @@ extern u32 test_dv;
 extern struct video_inst_s top1_v_info;/*video info*/
 extern struct video_inst_s top2_v_info;/*video info*/
 extern struct pyramid_info py_addr[PYRAMID_BUF_CNT];
+extern struct top_info_s top_info;
 extern u8 py_id;
 extern struct dolby5_top1_md_hist dv5_md_hist;
 extern int force_top1_enable;
@@ -1006,21 +1049,41 @@ extern u32 last_top1_ro1;
 extern u32 last_top1_ro0;
 extern u32 enable_ro_check;
 extern bool force_core2c_on;
-extern bool bypass_detunnel;
+extern bool vdin_vd1_detunnel_tunnel_mode;
+extern u32 bypass_detunnel_debug;
 extern u32 lightsense_test_mode;
 extern u32 hlg_max;
 extern u32 hlg_min;
 extern u64 *core1_reg_lut;
-extern bool efuse_mode;
+extern u32 efuse_mode;
 extern bool efuse_checked;
 extern unsigned int bypass_core1a_composer;
 extern unsigned int bypass_core1b_composer;
 extern unsigned int core1_bypass;
 extern unsigned int vtotal_add;
 extern unsigned int g_vtiming;
-extern uint debug_rdmif;
 extern u32 force_update_top2;
-
+extern enum signal_format_enum g_dst_format;
+extern bool lut_trigger_by_reg;
+extern u32 l1l4_wr_index;
+extern u32 l1l4_rd_index;
+extern uint debug_rdmif;
+extern ulong fixed_y_buf_paddr;
+extern u32 path_sel;
+extern u32 slice_num;
+extern u32 pad_mode;
+extern bool bypass_shadow;
+extern struct prm_dolby_top prm_dolby;
+extern enum dolby_work_mode top_dd_work_mode;
+extern bool ignore_top_path_change;
+extern u32 delay_update_path;
+extern struct vframe_s *dpss_cur_vf;
+extern u32 debug_val;
+extern u32 test_hold_line;
+extern bool enable_2ppc;
+extern u32 force_level;
+extern bool prl_mode;
+extern bool force_corep_max_level6;
 /************/
 extern enum signal_format_enum g_dst_format;
 
@@ -1156,6 +1219,7 @@ struct dv5_top1_vd_info {
 	u32 blk_mode;
 	u32 linear_mode;
 	u32 burst_len;
+	u32 endian;
 	ulong canvasaddr[3];
 	ulong compHeadAddr;
 	ulong compBodyAddr;
@@ -1263,11 +1327,20 @@ bool is_aml_t3x(void);
 bool is_aml_hw5(void);
 bool is_aml_s7d(void);
 bool is_aml_s6(void);
+bool is_aml_t6w(void);
+bool is_aml_t6x(void);
 
 u32 VSYNC_RD_DV_REG(u32 adr);
 int VSYNC_WR_DV_REG(u32 adr, u32 val);
 int VSYNC_WR_DV_REG_LUT(u32 adr, u32 val);
 int VSYNC_WR_DV_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+u32 VSYNC_RD_TOP1_REG(u32 adr);
+int VSYNC_WR_TOP1_REG(u32 adr, u32 val);
+int VSYNC_WR_TOP1_BITS(u32 adr, u32 val, u32 start, u32 len);
+u32 VSYNC_RD_TOP2_REG(u32 adr);
+int VSYNC_WR_TOP2_REG(u32 adr, u32 val);
+int VSYNC_WR_TOP2_BITS(u32 adr, u32 val, u32 start, u32 len);
+
 u32 READ_VPP_DV_REG(u32 adr);
 int WRITE_VPP_DV_REG(u32 adr, const u32 val);
 int WRITE_VPP_DV_REG_BITS(u32 adr, const u32 val, u32 start, u32 len);
@@ -1393,14 +1466,17 @@ int dma_lut_init(void);
 void dma_lut_uninit(void);
 int dma_lut_write(void);
 irqreturn_t amdv_isr(int irq, void *dev_id);
+irqreturn_t amdv_t6w_isr(int irq, void *dev_id);
+irqreturn_t amdv_t6w_top1_isr(int irq, void *dev_id);
+void amdv_sw_reset(u64 *top2_reg);
+irqreturn_t amdv_t6x_isr(int irq, void *dev_id);
+irqreturn_t amdv_t6x_top1_isr(int irq, void *dev_id);
 void get_l1l4_hist(void);
 void update_src_format_hw5(enum signal_format_enum src_format, struct vframe_s *vf);
 int amdv_update_src_format_hw5(struct vframe_s *vf, u8 toggle_mode);
 int amdv_wait_metadata_hw5(struct vframe_s *vf);
 int amdv_parse_metadata_hw5(struct vframe_s *vf,
-					      u8 toggle_mode,
-					      bool bypass_release,
-					      bool drop_flag);
+					      u8 toggle_mode);
 int parse_sei_and_meta_ext_hw5(struct vframe_s *vf,
 					 char *aux_buf,
 					 int aux_size,
@@ -1412,7 +1488,6 @@ int parse_sei_and_meta_ext_hw5(struct vframe_s *vf,
 					 char *comp_buf,
 					 int id);
 void update_top1_onoff(struct vframe_s *vf);
-u32 get_top1_onoff(void);
 void fixed_buf_config(void);
 bool is_dv_unique_drm(struct vframe_s *vf);
 void dump_top1_frame(int force_w, int force_h);
@@ -1422,4 +1497,8 @@ bool is_av1_amdv(char *p);
 int frc_get_video_latency_for_gd1(void);
 #endif
 int is_video_process_in_thread(void);
+void check_pr_enabled_in_setting(void);
+void check_pr_enabled_in_reg(u32 *p_reg_top1, u32 *p_reg_top1b);
+int get_support_max_level(void);
+bool vf_is_fel(struct vframe_s *vf);
 #endif

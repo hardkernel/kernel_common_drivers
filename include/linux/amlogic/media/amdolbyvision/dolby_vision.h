@@ -56,6 +56,22 @@ enum py_level {
 	PY_LEVEL_INVALID = 3
 };
 
+/*copy from dpss_intf.h*/
+enum dolby_work_mode {
+	DOLBY5_WRAP_BYPS          = 0,
+	DOLBY5_CORE_BYPS          = 1,
+	DOLBY5_VD1_MODE           = 2,
+	DOLBY5_VD1_MODE_2PPC      = 3,//vd1 2ppc
+	DOLBY5_VDIN_MODE          = 4,
+	DOLBY5_VDIN_MODE_2PPC     = 5,//vdin 2ppc
+	DOLBY5_DPSS_MODE          = 6,//serial mode
+	DOLBY5_DPSS_MODE_2PPC     = 7,//serial mode 2ppc
+	DOLBY5_DPSS_PRL_MODE      = 8,//parallel mode
+	DOLBY5_DPSS_PRL_MODE_2PPC = 9,//parallel mode 2ppc
+	DOLBY5_DPSS_DI_MODE       = 10,//serial mode
+	DOLBY5_DPSS_DI_MODE_2PPC  = 11 //serial mode 2ppc
+};
+
 extern unsigned int debug_dolby;
 extern struct apo_value_s apo_value;
 
@@ -160,6 +176,16 @@ struct apo_value_s {
 	u8 L11_byte3;
 };
 
+struct dpss_info_s {
+	u32 slice_num;
+	u32 pad_mode;//*0:nonr+noaa;1:no_nr+aa;2:nr+no_aa;3:nr+aa*/
+	u32 frm_hsize_sel;
+	u32 vds_4k1k_en;
+	bool tbc_mode;
+	bool direct_mode;
+	bool dct_ahead_dv_mode;//dct+dv mode
+};
+
 void enable_amdv(int enable);
 bool is_amdv_enable(void);
 bool is_amdv_dpss_path(void);
@@ -170,6 +196,7 @@ bool is_amdv_graphic_on_osd3(void);
 bool for_amdv_certification(void);
 void set_amdv_mode(int mode);
 int get_amdv_mode(void);
+int get_amdv_force_mode(void);
 int get_amdv_target_mode(void);
 void amdv_set_toggle_flag(int flag);
 int amdv_wait_metadata(struct vframe_s *vf, enum vd_path_e vd_path);
@@ -188,8 +215,8 @@ void enable_osd_path(int on, int shadow_mode);
 void tv_amdv_config(int config);
 void amdv_update_pq_config
 	(char *pq_config_buf);
-int amdv_update_setting(void);
 int amdv_update_last_setting(void);
+int amdv_update_setting(bool update_top1, bool update_top2);
 bool is_amdv_stb_mode(void);
 bool is_aml_tvmode(void);
 void amdv_crc_clear(int flag);
@@ -259,6 +286,14 @@ int get_amdv_apo_enable(void);
 void set_amdv_apo_enable(bool enable);
 
 u32 *get_core2_lut(void);
+void init_prm_dolby(struct dpss_info_s *dpss_info);
+void update_dd_dpss_info(struct dpss_info_s *dpss_info);
+void force_top1_done(void);
+
+void update_dd_mode(enum dolby_work_mode mode);
+bool get_dd_mode_update_status(void);
+u32 get_hw5_status(struct vframe_s *vf);
+u8 get_dd_align_count(void);
 #define AMDV_UPDATE_OSD_MODE 0x00000001
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 int amdv_notifier_call_chain(unsigned long val, void *v);

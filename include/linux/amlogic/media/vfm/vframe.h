@@ -355,6 +355,7 @@ enum vframe_signal_fmt_e {
 };
 
 #define SEI_MAGIC_CODE 0x53656920 /* SEI */
+#define HDMI_SEI_MAGIC_CODE  0x5f3759df
 
 /* signal format and sei data */
 struct vframe_src_fmt_s {
@@ -375,6 +376,10 @@ struct vframe_src_fmt_s {
 	u32 py_level;
 	u32 downsamplers;
 	u8 py_id;
+	unsigned char bot_flag;
+	int low_latency;
+	struct tvin_dv_vsif_s dv_vsif;
+	unsigned int is_dv_unique_drm;
 };
 
 enum pic_mode_provider_e {

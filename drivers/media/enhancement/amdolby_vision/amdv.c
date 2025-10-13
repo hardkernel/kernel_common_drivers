@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/video_sink/video_signal_notify.h>
@@ -51,6 +52,9 @@
 #include "amdv_regs_hw5.h"
 #include "md_config.h"
 #include "amdv_hw5.h"
+#include "amdv_hw5_t6w.h"
+#include "amdv_regs_hw5_t6w.h"
+#include "amdv_regs_hw5_t6x.h"
 #include <linux/device.h>
 #include <linux/cdev.h>
 #include <linux/of.h>
@@ -70,6 +74,9 @@
 #include "../../common/vfm/vfm.h"
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
+#if ENABLE_DPSS
+#include <linux/amlogic/media/di/dpss_interface.h>
+#endif
 
 DEFINE_SPINLOCK(amdv_lock);
 
@@ -92,6 +99,7 @@ struct amdolby_vision_dev_s {
 static struct amdolby_vision_dev_s amdolby_vision_dev;
 struct dv_device_data_s dv_meson_dev;
 int int_viu1_dolby = -ENXIO;
+int int_dolby_top1 = -ENXIO;
 
 u32 dolby_vision_request_mode = 0xff;
 
@@ -148,6 +156,8 @@ module_param(dolby_vision_hdr10_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_hdr10_policy, "\n dolby_vision_hdr10_policy\n");
 static unsigned int last_dolby_vision_hdr10_policy;
 
+static bool ignore_ext_policy;
+
 static bool enable_amvs12_for_tv;
 
 /* enable hdmi dv std to stb core */
@@ -161,7 +171,7 @@ MODULE_PARM_DESC(dolby_vision_enable, "\n dolby_vision_enable\n");
 
 bool efuse_checked;
 static bool amdv_efuse_bypass;
-bool efuse_mode;
+u32 efuse_mode;/*for hw5: bit0->top2,bit1->top1*/
 
 uint amdv_mask = 7;
 
@@ -216,6 +226,7 @@ unsigned int force_mel;
 u32 force_best_pq;
 
 u32 force_yuv_range;/*0x11:full,0x10:limit*/
+u32 force_level = PY_LEVEL_INVALID;/*SIX_LEVEL=0;SEVEN_LEVEL=1;NO_LEVEL=2;LEVEL_INVALID=3*/
 
 /*bit0: 0->efuse, 1->no efuse;*/
 /*bit1: 1->ko loaded success*/
@@ -302,11 +313,15 @@ u32 top1_lut_num = TOP1_LUT_NUM;/*read file from vlsi*/
 u32 top2_lut_num = TOP2_LUT_NUM;/*read file from vlsi*/
 /*one lut 128bit, 16byte*/
 #define LUT_SIZE 16
+#define PY_UP_SIZE_7 (1024 * 576 * 3)
+#define PY_UP_SIZE_6 (512 * 288 * 3)
+
 struct lut_dma_info_s lut_dma_info[DMA_BUF_CNT];
 bool lut_dma_support;
 int cur_dmabuf_id;
 struct pyramid_info py_addr[PYRAMID_BUF_CNT];/*read, write, invalid*/
-u8 py_id;
+struct top_info_s top_info;
+u8 py_id;/*t3x: pyramid buf id; t6w: upscale_buf id*/
 
 /*1024*576*10/8 = 737280 64byte align*/
 /*512*288*10/8 = 184320 64byte align*/
@@ -318,6 +333,7 @@ u8 py_id;
 u32 py_size[7] = {737280, 184320, 46080, 13824, 4608, 1152, 576};
 
 struct dolby5_top1_md_hist dv5_md_hist;
+bool prl_mode = true;/*driver can only write one set of regs in core2_prl mode*/
 
 u32 vpp_vsync_id;
 
@@ -392,7 +408,9 @@ int force_priority;
 
 /*1:HDR10, 2:HLG, 3: DV LL*/
 int force_hdmin_fmt;
-bool bypass_detunnel;
+bool vdin_vd1_detunnel_tunnel_mode;/*vdin detunnel before afbc write, vd1 tunnel after afbc read*/
+/*1:force bypass;2:force enable*/
+u32 bypass_detunnel_debug;
 
 u32 force_sdr10;
 
@@ -522,7 +540,8 @@ static bool vfm_path_on;
 bool dv_unique_drm;
 
 static bool debug_force_mode;
-static int force_mode;
+unsigned int force_mode = AMDV_OUTPUT_MODE_BYPASS;
+unsigned int last_force_mode = AMDV_OUTPUT_MODE_BYPASS;
 static bool tv_mode;
 static bool mel_mode;
 static bool osd_update;
@@ -551,6 +570,9 @@ bool enable_frc_delay = true;
 #define MAX_DELAY 0xFFFFFFFF
 
 int debug_cp_res;
+int debug_h_aoi = 0xFFFFFFFF;/*t6w/t6x:val = right << 16 | left based on frame*/
+int debug_v_aoi = 0xFFFFFFFF;/*t6w/t6x:val = bottom << 16 | top based on frame*/
+
 s16 brightness_off[8][2] = {
 	{0, 150}, /* DV OTT DM3, DV OTT DM4  */
 	{0, 150}, /* DV Sink-led DM3, DV Sink-led DM4 */
@@ -640,6 +662,10 @@ u32 other_reg[MAX_REG_CNT];
 u32 amdv_debug;
 static char meta_buf[1024];
 
+/*bit0-3:work mode;bit4-5:disable dv path;bit6-7:dv path;bit 8-11:in path;bit 12-27:out path;*/
+u32 path_sel;
+u32 slice_num;
+u32 pad_mode;
 bool is_aml_gxm(void)
 {
 	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_GXM)
@@ -810,9 +836,25 @@ bool is_aml_t3x(void)
 		return false;
 }
 
+bool is_aml_t6w(void)
+{
+	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_T6W)
+		return true;
+	else
+		return false;
+}
+
+bool is_aml_t6x(void)
+{
+	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_T6X)
+		return true;
+	else
+		return false;
+}
+
 bool is_aml_hw5(void)
 {
-	if (is_aml_t3x())
+	if (is_aml_t3x() || is_aml_t6w() || is_aml_t6x())
 		return true;
 	else
 		return false;
@@ -851,7 +893,9 @@ bool is_aml_tvmode(void)
 	    is_aml_t3_tvmode() ||
 	    is_aml_t5w() ||
 	    is_aml_t5m() ||
-	    is_aml_t3x())
+	    is_aml_t3x() ||
+	    is_aml_t6w() ||
+	    is_aml_t6x())
 		return true;
 	else
 		return false;
@@ -930,6 +974,9 @@ void init_amdv_rdma_part_ins(void)
 	int i;
 
 	if (amdv_rdma_init)
+		return;
+
+	if (is_aml_t6w() || is_aml_t6x())
 		return;
 
 	for (i = 0; i < MAX_RDMA_TABLE_CNT; i++)
@@ -1185,7 +1232,9 @@ int map_reg_to_rdma_table_index(u32 reg)
 
 	if (dv_meson_dev.cpu_id < _CPU_MAJOR_ID_G12 ||
 		dv_meson_dev.cpu_id > _CPU_MAJOR_ID_S6 ||
-		dv_meson_dev.cpu_id == _CPU_MAJOR_ID_T3X)
+		dv_meson_dev.cpu_id == _CPU_MAJOR_ID_T3X ||
+		dv_meson_dev.cpu_id == _CPU_MAJOR_ID_T6W ||
+		dv_meson_dev.cpu_id == _CPU_MAJOR_ID_T6X)
 		return -1;
 
 	for (i = 0; i < MAX_RDMA_TABLE_CNT; i++) {
@@ -1308,6 +1357,10 @@ static void amdv_addr(void)
 		TOP1A_BASE = 0x0b00;
 		TOP1B_BASE = 0x0bd1;
 		TOP2_BASE = 0x0d00;
+	} else if (is_aml_t6w() || is_aml_t6x()) {
+		TOP1A_BASE = 0x4700;
+		TOP1B_BASE = 0x47d1;
+		TOP2_BASE = 0x4900;
 	}
 }
 
@@ -1340,7 +1393,9 @@ u32 VSYNC_RD_DV_REG(u32 adr)
 {
 	int table_index = -1;
 
-	adr = addr_map(adr);
+	if (!is_aml_hw5())
+		adr = addr_map(adr);
+
 	table_index = map_reg_to_rdma_table_index(adr);
 
 	/*new rdma api is prior to old api*/
@@ -1371,7 +1426,9 @@ int VSYNC_WR_DV_REG(u32 adr, u32 val)
 	struct timeval begin;
 	struct timeval end;
 
-	adr = addr_map(adr);
+	if (!is_aml_hw5())
+		adr = addr_map(adr);
+
 	table_index = map_reg_to_rdma_table_index(adr);
 
 	if (debug_dolby & 0x400)
@@ -1453,7 +1510,9 @@ int VSYNC_WR_DV_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 	struct timeval begin;
 	struct timeval end;
 
-	adr = addr_map(adr);
+	if (!is_aml_hw5())
+		adr = addr_map(adr);
+
 	table_index = map_reg_to_rdma_table_index(adr);
 
 	if (debug_dolby & 0x400)
@@ -1486,6 +1545,127 @@ int VSYNC_WR_DV_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 	return 0;
 }
 
+/*true: not use rdma*/
+static inline bool enable_rdma(void)
+{
+	bool flag = true;
+
+	if (test_dv & DEBUG_FORCE_VCBUS_REG)
+		flag = false;
+
+	if (is_amdv_dpss_path()) {
+		if (!prm_dolby.dpss_tbc_mode)/*dpss auto mode*/
+			flag = false;
+	}
+	return flag;
+}
+
+u32 VSYNC_RD_TOP1_REG(u32 adr)
+{
+	if (!enable_rdma())
+		return READ_VPP_REG(adr);
+
+	if (prm_dolby.dolby5_mode == DOLBY5_DPSS_MODE ||
+		prm_dolby.dolby5_mode == DOLBY5_DPSS_MODE_2PPC)
+#if ENABLE_DPSS
+		return DPSS_A_RD_MPEG_REG(adr);
+#else
+		return 0;
+#endif
+	else
+		return VSYNC_RD_DV_REG(adr);
+
+	pr_dv_error("error vpp_vsync_id %d\n", vpp_vsync_id);
+	return 0;
+}
+
+int VSYNC_WR_TOP1_REG(u32 adr, u32 val)
+{
+	if (!enable_rdma())
+		return WRITE_VPP_DV_REG(adr, val);
+
+	if (prm_dolby.dolby5_mode == DOLBY5_DPSS_MODE ||
+		prm_dolby.dolby5_mode == DOLBY5_DPSS_MODE_2PPC)
+#if ENABLE_DPSS
+		return DPSS_A_WR_MPEG_REG(adr, val);
+#else
+		return 0;
+#endif
+	else
+		VSYNC_WR_DV_REG(adr, val);
+	return 0;
+}
+
+int VSYNC_WR_TOP1_BITS(u32 adr, u32 val, u32 start, u32 len)
+{
+	if (!enable_rdma())
+		return WRITE_VPP_DV_REG_BITS(adr, val, start, len);
+
+	if (prm_dolby.dolby5_mode == DOLBY5_DPSS_MODE ||
+		prm_dolby.dolby5_mode == DOLBY5_DPSS_MODE_2PPC)
+#if ENABLE_DPSS
+		return DPSS_A_WR_MPEG_REG_BITS(adr, val, start, len);
+#else
+		return 0;
+#endif
+	else
+		VSYNC_WR_DV_REG_BITS(adr, val, start, len);
+	return 0;
+}
+
+u32 VSYNC_RD_TOP2_REG(u32 adr)
+{
+	if (!enable_rdma())
+		return READ_VPP_REG(adr);
+
+	if (prm_dolby.dolby5_mode == DOLBY5_DPSS_MODE ||
+		prm_dolby.dolby5_mode == DOLBY5_DPSS_MODE_2PPC)
+#if ENABLE_DPSS
+		return DPSS_B_RD_MPEG_REG(adr);
+#else
+		return 0;
+#endif
+	else
+		return VSYNC_RD_DV_REG(adr);
+
+	pr_dv_error("error vpp_vsync_id %d\n", vpp_vsync_id);
+	return 0;
+}
+
+int VSYNC_WR_TOP2_REG(u32 adr, u32 val)
+{
+	if (!enable_rdma())
+		return WRITE_VPP_DV_REG(adr, val);
+
+	if (prm_dolby.dolby5_mode == DOLBY5_DPSS_MODE ||
+		prm_dolby.dolby5_mode == DOLBY5_DPSS_MODE_2PPC)
+#if ENABLE_DPSS
+		return DPSS_B_WR_MPEG_REG(adr, val);
+#else
+		return 0;
+#endif
+	else
+		VSYNC_WR_DV_REG(adr, val);
+	return 0;
+}
+
+int VSYNC_WR_TOP2_BITS(u32 adr, u32 val, u32 start, u32 len)
+{
+	if (!enable_rdma())
+		return WRITE_VPP_DV_REG_BITS(adr, val, start, len);
+
+	if (prm_dolby.dolby5_mode == DOLBY5_DPSS_MODE ||
+		prm_dolby.dolby5_mode == DOLBY5_DPSS_MODE_2PPC)
+#if ENABLE_DPSS
+		return DPSS_B_WR_MPEG_REG_BITS(adr, val, start, len);
+#else
+		return 0;
+#endif
+	else
+		VSYNC_WR_DV_REG_BITS(adr, val, start, len);
+	return 0;
+}
+
 u32 READ_VPP_DV_REG(u32 adr)
 {
 	adr = addr_map(adr);
@@ -1501,7 +1681,8 @@ int WRITE_VPP_DV_REG(u32 adr, const u32 val)
 
 int WRITE_VPP_DV_REG_BITS(u32 adr, const u32 val, u32 start, u32 len)
 {
-	adr = addr_map(adr);
+	if (!is_aml_hw5())
+		adr = addr_map(adr);
 	WRITE_VCBUS_REG_BITS(adr, val, start, len);
 	return 0;
 }
@@ -1584,8 +1765,9 @@ void dump_tv_setting(void *p_setting,
 	u64 *p;
 	struct tv_dovi_setting_s *setting = (struct tv_dovi_setting_s *)p_setting;
 	struct tv_hw5_setting_s *hw5_setting = (struct tv_hw5_setting_s *)p_setting;
+	u32 slc_ofst = T6X_CORE2_SLICE_OFF;
 
-	if ((debug_flag & 0x10) && dump_enable) {
+	if ((debug_flag & 0x10) && dump_enable_f(0)) {
 		if (is_aml_txlx_tvmode()) {
 			pr_info("txlx tv core1 reg: 0x1a07 val = 0x%x\n",
 				READ_VPP_DV_REG(VIU_MISC_CTRL1));
@@ -1624,6 +1806,26 @@ void dump_tv_setting(void *p_setting,
 				READ_VPP_DV_REG(DOLBY5_CORE1_REG_BASE),
 				READ_VPP_DV_REG(DOLBY5_CORE1B_REG_BASE),
 				READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0));
+		} else if (is_aml_t6w() || is_aml_t6x()) {
+			if (is_aml_t6w())
+				pr_info("t6w: 6d02(bit8-9,0:disable,1:dv_nr,2:vd1_dv,3:di_dv)=0x%x\n",
+					READ_VPP_DV_REG(T6W_VPU_AXIRD_PATH_CTRL));
+			else if (is_aml_t6x())
+				pr_info("t6x: 6d30(bit0-1,0:disable,1:dv_nr,2:vd1_dv,3:di_dv)=0x%x\n",
+					READ_VPP_DV_REG(T6X_VPU_AXIRD_DOLBY_PATH_CTRL));
+			pr_info("t6w/x: dv wrap ctrl 4501(bit31=1=>top2 bypass)=0x%x\n",
+				READ_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_CTRL));
+			pr_info("t6w/x: dv core1 base 0x%x,core1b base 0x%x,core2 base 0x%x\n",
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE1_REG_BASE),
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE1B_REG_BASE),
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0));
+			pr_info("t6w/x: lut dma 0x%x %x %x %x %x %x\n",
+				READ_VPP_DV_REG(VPU_DMA_RDMIF4_BADR0),
+				READ_VPP_DV_REG(VPU_DMA_RDMIF4_BADR1),
+				READ_VPP_DV_REG(VPU_DMA_RDMIF4_BADR2),
+				READ_VPP_DV_REG(VPU_DMA_RDMIF4_BADR3),
+				READ_VPP_DV_REG(VPU_DMA_RDMIF4_CTRL),
+				READ_VPP_DV_REG(VPU_LUT_DMA_INTR_SEL));
 		}
 		if (is_aml_hw5() && hw5_setting) {
 			if (enable_top1) {
@@ -1647,7 +1849,7 @@ void dump_tv_setting(void *p_setting,
 				pr_info("%016llx, %016llx,\n", p[i], p[i + 1]);
 		}
 	}
-	if ((debug_flag & 0x20) && dump_enable) {
+	if ((debug_flag & 0x20) && dump_enable_f(0)) {
 		if (is_aml_hw5() && hw5_setting && enable_top1) {
 			pr_info("\n top1 LUT\n");
 			p = (u64 *)&hw5_setting->top1_lut[0];
@@ -1660,7 +1862,7 @@ void dump_tv_setting(void *p_setting,
 				pr_info("%016llx, %016llx,\n", p[i], p[i + 1]);
 		}
 	}
-	if ((debug_flag & 0x40) && dump_enable) {
+	if ((debug_flag & 0x40) && dump_enable_f(0)) {
 		if (is_aml_hw5() && hw5_setting) {
 			pr_info("\n top2 LUT\n");
 			p = (u64 *)&hw5_setting->top2_lut[0];
@@ -1674,7 +1876,7 @@ void dump_tv_setting(void *p_setting,
 		}
 		pr_info("\n");
 	}
-	if ((debug_flag & 0x10) && dump_enable) {
+	if ((debug_flag & 0x10) && dump_enable_f(0)) {
 		if (is_aml_t3x()) {
 			if (enable_top1) {
 				pr_info("\n===top1 real reg===\n");
@@ -1713,6 +1915,63 @@ void dump_tv_setting(void *p_setting,
 				pr_info("[%04x]%08x\n", DOLBY_TOP2_PYRMIF_MMU_DATA,
 					READ_VPP_DV_REG(DOLBY_TOP2_PYRMIF_MMU_DATA));
 
+			pr_info("\n");
+		} else if (is_aml_t6w() || is_aml_t6x()) {
+			if (enable_top1) {
+				pr_info("\n===top1 real reg===\n");
+				for (i = 0; i < TOP1_REG_NUM - 2; i++)
+					pr_info("[%04x]%08x\n", T6W_DOLBY5_CORE1_REG_BASE + i,
+						READ_VPP_DV_REG(T6W_DOLBY5_CORE1_REG_BASE + i));
+				pr_info("\n===top1b real reg===\n");
+				for (i = 0; i < TOP1B_REG_NUM - 1; i++)
+					pr_info("[%04x]%08x\n", T6W_DOLBY5_CORE1B_REG_BASE + i,
+						READ_VPP_DV_REG(T6W_DOLBY5_CORE1B_REG_BASE + i));
+
+				pr_info("\n===top1 and corep config===\n");
+				for (i = 0; i < 100; i++)
+					pr_info("[%04x]%08x\n", T6W_DOLBY_TOP1_PIC_SIZE + i,
+						READ_VPP_DV_REG(T6W_DOLBY_TOP1_PIC_SIZE + i));
+			}
+			pr_info("\n===top2 real reg===\n");
+			for (i = 0; i < TOP2_REG_NUM; i++)
+				pr_info("[%04x]%08x\n", T6W_DOLBY5_CORE2_REG_BASE0 + i,
+					READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0 + i));
+
+			pr_info("[%04x]%08x\n", T6W_DOLBY5_CORE2_REG_BASE0 + 0x268,
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0 + 0x268));
+			pr_info("[%04x]%08x\n", T6W_DOLBY5_CORE2_REG_BASE0 + 0x269,
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0 + 0x269));
+			pr_info("[%04x]%08x\n", T6W_DOLBY5_CORE2_REG_BASE0 + 0x26a,
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0 + 0x26a));
+			pr_info("[%04x]%08x\n", T6W_DOLBY5_CORE2_REG_BASE0 + 0x26b,
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0 + 0x26b));
+
+			pr_info("\n=== wrap reg===\n");
+			for (i = 0; i < 57; i++)
+				pr_info("[%04x]%08x\n", T6W_VPU_DOLBY_WRAP_GCLK + i,
+					READ_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK + i));
+
+			pr_info("\n===top2 config===\n");
+			for (i = 0; i < 36; i++)
+				pr_info("[%04x]%08x\n", T6W_DOLBY_TOP2_PIC_SIZE + i,
+					READ_VPP_DV_REG(T6W_DOLBY_TOP2_PIC_SIZE + i));
+
+			if (is_aml_t6x()) {
+				pr_info("\n===top2_2 real reg===\n");
+				for (i = 0; i < TOP2_REG_NUM; i++)
+					pr_info("[%04x]%08x\n", T6W_DOLBY5_CORE2_REG_BASE0 +
+						slc_ofst + i,
+						READ_VPP_DV_REG
+						(T6W_DOLBY5_CORE2_REG_BASE0 + slc_ofst + i));
+			}
+
+			if (enable_top1) {
+				pr_info("\n===pyramid mmu===\n");
+				WRITE_VPP_DV_REG(T6W_DOLBY_TOP2_PYRMIF_MMU_ADDR, 0);
+				for (i = 0; i < 214; i = i + 1)
+					pr_info("[%04x]%08x\n", T6W_DOLBY_TOP2_PYRMIF_MMU_DATA,
+						READ_VPP_DV_REG(T6W_DOLBY_TOP2_PYRMIF_MMU_DATA));
+			}
 			pr_info("\n");
 		}
 	}
@@ -2213,7 +2472,7 @@ int amdv_update_last_setting(void)
 }
 EXPORT_SYMBOL(amdv_update_last_setting);
 
-int amdv_update_setting(void)
+int amdv_update_setting(bool update_top1, bool update_top2)
 {
 	u64 *dma_data;
 	u32 size = 0;
@@ -2246,8 +2505,10 @@ int amdv_update_setting(void)
 		setting_update_count++;
 		return -1;
 	}
-	if (!dma_vaddr)
-		return -1;
+	if ((is_aml_tvmode() || is_aml_txlx_stbmode()) && !is_aml_hw5()) {
+		if (!dma_vaddr)
+			return -1;
+	}
 	if (efuse_mode == 1) {
 		dovi_setting_update_flag = false;
 		setting_update_count++;
@@ -2315,10 +2576,50 @@ int amdv_update_setting(void)
 				if (dma_data)
 					memcpy(lut_dma_info[cur_dmabuf_id].dma_vaddr_top2,
 					dma_data, size);
+				//p = (uint64_t *)lut_dma_info[cur_dmabuf_id].dma_vaddr_top2;
+				//pr_info("%016llx%016llx, %016llx%016llx\n",
+				//	p[1], p[0], p[3], p[2]);
 			} else {
 				dma_data = top2_lut_buf;
 				size = TOP2_LUT_NUM * LUT_SIZE;
 				memcpy(lut_dma_info[cur_dmabuf_id].dma_vaddr, dma_data, size);
+			}
+		}
+	} else if (is_aml_t6w() || is_aml_t6x()) {//todo
+		if (lut_dma_info[cur_dmabuf_id].dma_vaddr && tv_hw5_setting &&
+			!hw5_reg_from_file) {
+			if (enable_top1 && update_top1) {
+				dma_data = tv_hw5_setting->top1_lut;
+				if (test_dv & DEBUG_FIXED_LUT) /*fixed lut*/
+					dma_data = top1_lut_buf;
+				size = TOP1_LUT_NUM * LUT_SIZE;
+				if (dma_data)
+					memcpy(lut_dma_info[cur_dmabuf_id].dma_vaddr,
+					dma_data, size);
+			}
+			if (update_top2) {
+				dma_data = tv_hw5_setting->top2_lut;
+				if (test_dv & DEBUG_FIXED_LUT) /*fixed lut*/
+					dma_data = top2_lut_buf;
+				size = TOP2_LUT_NUM * LUT_SIZE;
+				if (dma_data)
+					memcpy(lut_dma_info[cur_dmabuf_id].dma_vaddr_top2,
+					dma_data, size);
+			}
+		} else if (lut_dma_info[cur_dmabuf_id].dma_vaddr && hw5_reg_from_file) {
+			if (enable_top1 && update_top1) {
+				dma_data = top1_lut_buf;
+				size = TOP1_LUT_NUM * LUT_SIZE;
+				if (dma_data)
+					memcpy(lut_dma_info[cur_dmabuf_id].dma_vaddr,
+					dma_data, size);
+			}
+			if (update_top2) {
+				dma_data = top2_lut_buf;
+				size = TOP2_LUT_NUM * LUT_SIZE;
+				if (dma_data)
+					memcpy(lut_dma_info[cur_dmabuf_id].dma_vaddr_top2,
+					dma_data, size);
 			}
 		}
 	}
@@ -2502,6 +2803,7 @@ void reset_dv_param(void)
 		top1_info.core_on = false;
 		top1_info.amdv_setting_video_flag = false;
 		top1_info.core_on_cnt = 0;
+		top1_info.core_run_cnt = 0;
 		top1_info.run_mode_count = 0;
 		top1_info.core_disp_hsize = 0;
 		top1_info.core_disp_vsize = 0;
@@ -2510,6 +2812,7 @@ void reset_dv_param(void)
 		top2_info.core_on = false;
 		top2_info.amdv_setting_video_flag = false;
 		top2_info.core_on_cnt = 0;
+		top2_info.core_run_cnt = 0;
 		top2_info.run_mode_count = 0;
 		top2_info.core_disp_hsize = 0;
 		top2_info.core_disp_vsize = 0;
@@ -2530,6 +2833,8 @@ void reset_dv_param(void)
 		l1l4_distance = 0;
 		force_bypass_precision = false;
 		force_bypass_pd_level0 = false;
+		top_info.isr_cnt = 0;
+		top_info.isr_top1_cnt = 0;
 		memset(&dv5_md_hist.hist[0], 0, sizeof(dv5_md_hist.hist));
 		memset(&dv5_md_hist.l1l4_md[0], 0, sizeof(dv5_md_hist.l1l4_md));
 		memset(dv5_md_hist.hist_vaddr[0], 0, dv5_md_hist.hist_size);
@@ -2547,6 +2852,12 @@ void reset_dv_param(void)
 				sizeof(last_tv_hw5_setting->top1b_reg));
 			memset(&last_tv_hw5_setting->top2_reg[0], 0,
 				sizeof(last_tv_hw5_setting->top2_reg));
+		}
+		if (is_aml_t6w() || is_aml_t6x()) {
+			init_prm_dolby(NULL);
+			fake_top1_on = false;
+			pre_set_done = false;
+			hw5_clk_on = false;
 		}
 	} else {
 		core1_disp_hsize = 0;
@@ -2575,6 +2886,17 @@ void update_dma_buf(void)
 					size = lut_dma_info[i].dma_total_size;
 					if (lut_dma_info[i].dma_vaddr)
 						memset(lut_dma_info[i].dma_vaddr,
+						0x0, size);
+				}
+			} else if (is_aml_t6w() || is_aml_t6x()) {
+				for (i = 0; i < DMA_BUF_CNT; i++) {
+					size = lut_dma_info[i].dma_top1_size;
+					if (lut_dma_info[i].dma_vaddr)
+						memset(lut_dma_info[i].dma_vaddr,
+						0x0, size);
+					size = lut_dma_info[i].dma_top2_size;
+					if (lut_dma_info[i].dma_vaddr_top2)
+						memset(lut_dma_info[i].dma_vaddr_top2,
 						0x0, size);
 				}
 			} else {
@@ -2749,6 +3071,7 @@ void amdv_init_receiver(void *pdev)
 	u32 alloc_size;
 	int i;
 	int j;
+	u32 py_buf_cnt = 2;
 
 	pr_info("%s(%s)\n", __func__, DVEL_RECV_NAME);
 	vf_receiver_init(&dvel_vf_recv, DVEL_RECV_NAME,
@@ -2756,47 +3079,68 @@ void amdv_init_receiver(void *pdev)
 	vf_reg_receiver(&dvel_vf_recv);
 	pr_info("%s: %s\n", __func__, dvel_vf_recv.name);
 	amdv_pdev = (struct platform_device *)pdev;
-	alloc_size = dma_size;
-	if (is_aml_t7())
-		alloc_size = dma_size * 16; /*t7 need dma addr align to 128bit*/
-	alloc_size = (alloc_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-	last_dma_data = vmalloc(alloc_size);
-	if (last_dma_data)
-		memset(last_dma_data, 0, alloc_size);
-	dma_vaddr = dma_alloc_coherent(&amdv_pdev->dev,
-		alloc_size, &dma_paddr, GFP_KERNEL);
-	pr_info("get dma_vaddr %px 0x%x\n", dma_vaddr, (u32)dma_paddr);
+
+	if ((is_aml_tvmode() || is_aml_txlx_stbmode()) && !is_aml_hw5()) {
+		alloc_size = dma_size;
+		if (is_aml_t7())
+			alloc_size = dma_size * 16; /*t7 need dma addr align to 128bit*/
+		alloc_size = (alloc_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+		last_dma_data = vmalloc(alloc_size);
+		if (last_dma_data)
+			memset(last_dma_data, 0, alloc_size);
+		dma_vaddr = dma_alloc_coherent(&amdv_pdev->dev,
+			alloc_size, &dma_paddr, GFP_KERNEL);
+		//pr_info("get dma_vaddr %px 0x%x\n", dma_vaddr, dma_paddr);
+	}
 
 	if (is_aml_hw5()) {
-		for (i = 0; i < DMA_BUF_CNT; i++) {
-			lut_dma_info[i].dma_total_size = (top1_lut_num + top2_lut_num) * LUT_SIZE;
-			lut_dma_info[i].dma_top2_size = top2_lut_num * LUT_SIZE;
-			alloc_size =
+		if (is_aml_t3x()) {
+			for (i = 0; i < DMA_BUF_CNT; i++) {
+				lut_dma_info[i].dma_total_size =
+					(top1_lut_num + top2_lut_num) * LUT_SIZE;
+				lut_dma_info[i].dma_top2_size = top2_lut_num * LUT_SIZE;
+				alloc_size =
 				(lut_dma_info[i].dma_total_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-			lut_dma_info[i].dma_vaddr = dma_alloc_coherent(&amdv_pdev->dev,
-				alloc_size, &lut_dma_info[i].dma_paddr, GFP_KERNEL);
+				lut_dma_info[i].dma_vaddr = dma_alloc_coherent(&amdv_pdev->dev,
+					alloc_size, &lut_dma_info[i].dma_paddr, GFP_KERNEL);
 
-			lut_dma_info[i].dma_paddr_top2 =
-				lut_dma_info[i].dma_paddr + top1_lut_num * LUT_SIZE;
-			lut_dma_info[i].dma_vaddr_top2 =
-				lut_dma_info[i].dma_vaddr + top1_lut_num * LUT_SIZE;
-			//pr_dv_dbg("dma_vaddr %px %llx,total %d,alloc size %d,top2 %px %llx\n",
-					//lut_dma_info[i].dma_vaddr,
-					//lut_dma_info[i].dma_paddr,
-					//lut_dma_info[i].dma_total_size,
-					//alloc_size,
-					//lut_dma_info[i].dma_vaddr_top2,
-					//lut_dma_info[i].dma_paddr_top2);
-		}
-		for (i = 0; i < PYRAMID_BUF_CNT; i++) {
-			for (j = 0; j < 7; j++) {
-				py_addr[i].top1_py_size[j] = py_size[j];
-				alloc_size = (py_addr[i].top1_py_size[j] +
-							((1 << 6) - 1)) & ~((1 << 6) - 1);
-				py_addr[i].py_vaddr[j] = dma_alloc_coherent(&amdv_pdev->dev,
-						alloc_size, &py_addr[i].top1_py_paddr[j],
-						GFP_KERNEL);
-				memset(py_addr[i].py_vaddr[j], 0, alloc_size);
+				lut_dma_info[i].dma_paddr_top2 =
+					lut_dma_info[i].dma_paddr + top1_lut_num * LUT_SIZE;
+				lut_dma_info[i].dma_vaddr_top2 =
+					lut_dma_info[i].dma_vaddr + top1_lut_num * LUT_SIZE;
+				//pr_info("dma_vaddr %px %x,total %d,alloc size %d,top2 %px %x\n",
+				//		lut_dma_info[i].dma_vaddr,
+				//		lut_dma_info[i].dma_paddr,
+				//		lut_dma_info[i].dma_total_size,
+				//		alloc_size,
+				//		lut_dma_info[i].dma_vaddr_top2,
+				//		lut_dma_info[i].dma_paddr_top2);
+			}
+		} else if (is_aml_t6w() || is_aml_t6x()) {/*top1 and top2 lut dma are separated*/
+			for (i = 0; i < DMA_BUF_CNT; i++) {
+				lut_dma_info[i].dma_top1_size = top1_lut_num * LUT_SIZE;
+				alloc_size =
+				(lut_dma_info[i].dma_top1_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+				lut_dma_info[i].dma_vaddr = dma_alloc_coherent(&amdv_pdev->dev,
+					alloc_size, &lut_dma_info[i].dma_paddr, GFP_KERNEL);
+
+				//pr_info("top1 dma_vaddr %px %x,size %d,alloc size %d\n",
+				//		lut_dma_info[i].dma_vaddr,
+				//		lut_dma_info[i].dma_paddr,
+				//		lut_dma_info[i].dma_top1_size,
+				//		alloc_size);
+
+				lut_dma_info[i].dma_top2_size = top2_lut_num * LUT_SIZE;
+				alloc_size =
+				(lut_dma_info[i].dma_top2_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+				lut_dma_info[i].dma_vaddr_top2 = dma_alloc_coherent(&amdv_pdev->dev,
+					alloc_size, &lut_dma_info[i].dma_paddr_top2, GFP_KERNEL);
+
+				//pr_info("dma_vaddr %px %x,size %d,alloc size %d\n",
+				//		lut_dma_info[i].dma_vaddr_top2,
+				//		lut_dma_info[i].dma_paddr_top2,
+				//		lut_dma_info[i].dma_top2_size,
+				//		alloc_size);
 			}
 		}
 
@@ -2808,6 +3152,47 @@ void amdv_init_receiver(void *pdev)
 		dv5_md_hist.hist_vaddr[1] = dma_alloc_coherent(&amdv_pdev->dev,
 						alloc_size, &dv5_md_hist.hist_paddr[1], GFP_KERNEL);
 
+		if (is_aml_t3x())
+			py_buf_cnt = PYRAMID_BUF_CNT;
+		else if (is_aml_t6w() || is_aml_t6x())
+			py_buf_cnt = 2;
+		for (i = 0; i < py_buf_cnt; i++) {/*read,write,reserved*/
+			for (j = 0; j < 7; j++) {
+				py_addr[i].top1_py_size[j] = py_size[j];
+				alloc_size = (py_addr[i].top1_py_size[j] +
+							((1 << 6) - 1)) & ~((1 << 6) - 1);
+				py_addr[i].py_vaddr[j] = dma_alloc_coherent(&amdv_pdev->dev,
+					alloc_size, &py_addr[i].top1_py_paddr[j], GFP_KERNEL);
+				if (py_addr[i].py_vaddr[j]) {
+					memset(py_addr[i].py_vaddr[j], 0, alloc_size);
+					//pr_info("pyup_vaddr %px %x, alloc size %d\n",
+					//		py_addr[i].py_vaddr[j],
+					//		py_addr[i].top1_py_paddr[j],
+					//		alloc_size);
+				} else {
+					pr_err("dma alloc top1_py error\n");
+				}
+			}
+		}
+		if (is_aml_t6w() || is_aml_t6x()) {
+			for (i = 0; i < TOP_BUF_CNT; i++) {
+				/*corep pyup max size 512x288*/
+				top_info.up_buf[i].pyup_size =
+				is_aml_t6w() ? PY_UP_SIZE_6 : PY_UP_SIZE_7;
+				alloc_size = top_info.up_buf[i].pyup_size;
+				top_info.up_buf[i].pyup_vaddr = dma_alloc_coherent(&amdv_pdev->dev,
+					alloc_size, &top_info.up_buf[i].pyup_paddr, GFP_KERNEL);
+				if (top_info.up_buf[i].pyup_vaddr) {
+					memset(top_info.up_buf[i].pyup_vaddr, 0, alloc_size);
+					//pr_info("pyup_vaddr %px %x, alloc size %d\n",
+					//		top_info.up_buf[i].pyup_vaddr,
+					//		top_info.up_buf[i].pyup_paddr,
+					//		alloc_size);
+				} else {
+					pr_err("dma alloc pyup error\n");
+				}
+			}
+		}
 		/*debug fix data, alloc memory, default disable*/
 		if (fix_data)
 			fixed_buf_config();
@@ -3843,7 +4228,9 @@ bool is_hlg_frame(struct vframe_s *vf)
 		signal_color_primaries == 9) ||
 		(signal_transfer_characteristic == 14 &&
 		signal_color_primaries == 9 &&
-		(test_dv & DEBUG_SDR2020_FORCE_HLG))) && !signal_cuva)
+		(test_dv & DEBUG_SDR2020_FORCE_HLG)) ||
+		force_hdmin_fmt == 2) &&
+		!signal_cuva)
 		return true;
 
 	return false;
@@ -4181,6 +4568,10 @@ int layer_id_to_dv_id(enum vd_path_e vd_path)
 int get_amdv_src_format(enum vd_path_e vd_path, struct vframe_s *vf)
 {
 	int dv_id = 0;
+	int fmt;
+
+	if (!is_amdv_enable())
+		return UNKNOWN_SOURCE;
 
 	if (multi_dv_mode) {
 		if (vf)
@@ -4189,18 +4580,27 @@ int get_amdv_src_format(enum vd_path_e vd_path, struct vframe_s *vf)
 			dv_id = layer_id_to_dv_id(vd_path);
 
 		if (vd_path >= VD_PATH_MAX || !dv_inst_valid(dv_id))
-
 			return UNKNOWN_SOURCE;
 
 		if (!enable_multi_core1 && vd_path > VD1_PATH)
 			return UNKNOWN_SOURCE;
 		else
-			return dv_inst[dv_id].amdv_src_format;
+			fmt = dv_inst[dv_id].amdv_src_format;
 	} else if (is_aml_hw5()) {
-		return top2_v_info.amdv_src_format;
+		fmt = top2_v_info.amdv_src_format;
 	} else {
-		return amdv_src_format;
+		fmt = amdv_src_format;
 	}
+
+	/*when switch from dpss to vd1, dv core off, fmt become sdr */
+	/*need further check fmt,to keep dv source and avoid signal change*/
+	if (fmt != DOVI_SOURCE) {
+		if (is_amdv_frame(vf))
+			fmt = DOVI_SOURCE;
+		if (debug_dolby & 2)
+			pr_dv_dbg("amdv get vf %px fmt %d\n", vf, fmt);
+	}
+	return fmt;
 }
 EXPORT_SYMBOL(get_amdv_src_format);
 
@@ -5171,7 +5571,7 @@ int amdv_policy_process(struct vframe_s *vf, int *mode,
 	if (hw5_reg_from_file && is_aml_hw5()) {/*only for debug hw5*/
 		if (debug_dolby & 0x2000)
 			pr_dv_dbg("policy process %d %d\n", dolby_vision_mode, *mode);
-		if (efuse_mode)
+		if (efuse_mode == 1)
 			return 0;
 		if (!top2_lut_buf || !top2_reg_buf)
 			return 0;
@@ -5181,7 +5581,7 @@ int amdv_policy_process(struct vframe_s *vf, int *mode,
 		if (debug_dolby & 8)
 			pr_dv_dbg("policy process %d %d,%d,%px\n",
 			dolby_vision_mode, *mode, efuse_mode, core1_reg_lut);
-		if (efuse_mode)
+		if (efuse_mode == 1)
 			return 0;
 		if (is_aml_tvmode() && !core1_reg_lut)
 			return 0;
@@ -5217,7 +5617,7 @@ void amdv_set_provider(char *prov_name, enum vd_path_e vd_layer)
 }
 EXPORT_SYMBOL(amdv_set_provider);
 
-/* 0: no dv, 1: dv std, 2: dv ll */
+/* 0: no dv, 1: dv std, 2: dv ll, 3:unique drm */
 int is_amdv_frame(struct vframe_s *vf)
 {
 	struct provider_aux_req_s req;
@@ -5225,22 +5625,35 @@ int is_amdv_frame(struct vframe_s *vf)
 	unsigned int size = 0;
 	unsigned int type = 0;
 	enum vframe_signal_fmt_e fmt;
-	int dv_id;
+	int dv_id = 0;
 	int layer_id = VD1_PATH;
 
 	if (!vf)
 		return 0;
 
-	dv_id = vf->src_fmt.dv_id;
-	if (!dv_inst_valid(dv_id))
-		dv_id = 0;
+	if (!is_amdv_enable())
+		return 0;
 
-	if (dv_inst[dv_id].layer_id >= 0 && dv_inst[dv_id].layer_id < VD3_PATH)
-		layer_id = dv_inst[dv_id].layer_id;
+	if (is_aml_hw5() && hw5_reg_from_file && vf)
+		return 1;
+
+	if (is_amdv_stb_mode()) {
+		dv_id = vf->src_fmt.dv_id;
+		if (!dv_inst_valid(dv_id))
+			dv_id = 0;
+
+		if (dv_inst[dv_id].layer_id >= 0 && dv_inst[dv_id].layer_id < VD3_PATH)
+			layer_id = dv_inst[dv_id].layer_id;
+	}
 
 	fmt = get_vframe_src_fmt(vf);
+
+	if (debug_dolby & 0x80000)
+		pr_dv_dbg("%s:vf %px(index %d),fmt %d, magic 0x%x\n",
+				 __func__, vf, vf->frame_index, fmt, vf->src_fmt.sei_magic_code);
+
 	if (fmt == VFRAME_SIGNAL_FMT_DOVI)
-		return true;
+		return vf_is_fel(vf) ? false : true;
 
 	/*hdmi case, magic_code is not set but fmt is updated to sdr/hdr,*/
 	/*need to further to confirm if it is dv*/
@@ -5254,23 +5667,48 @@ int is_amdv_frame(struct vframe_s *vf)
 	req.aux_size = 0;
 	req.dv_enhance_exist = 0;
 	req.low_latency = 0;
+	req.is_dv_unique_drm = 0;
 
 	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI &&
 	    (is_aml_tvmode() ||
 	    ((is_aml_tm2_stbmode() || is_aml_t7_stbmode()) &&
 	    hdmi_to_stb_policy))) {
-		vf_notify_provider_by_name("dv_vdin",
-			VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-			(void *)&req);
-		if (debug_dolby & 2)
-			pr_dv_dbg("is_dovi: vf %p, emp.size %d, aux_size %d\n",
-				     vf, vf->emp.size,
-				     req.aux_size);
-		if ((req.aux_buf && req.aux_size) ||
-			(dolby_vision_flags & FLAG_FORCE_DV_LL))
-			return 1;
-		if (req.low_latency)
-			return 2;
+		if (vf->src_fmt.sei_magic_code != HDMI_SEI_MAGIC_CODE) {
+			vf_notify_provider_by_name("dv_vdin",
+							VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+							(void *)&req);
+			if (debug_dolby & 2)
+				pr_dv_dbg("is_dovi:vf %px(index %d),emp.size %d,aux %px,%d,LL %d,unique_drm %d\n",
+						vf, vf->frame_index,
+						vf->emp.size,
+						req.aux_buf,
+						req.aux_size,
+						req.low_latency,
+						req.is_dv_unique_drm);
+			if (is_dv_unique_drm(vf))
+				return 3;
+			if ((req.aux_buf && req.aux_size) ||
+				(dolby_vision_flags & FLAG_FORCE_DV_LL))
+				return 1;
+			if (req.low_latency)
+				return 2;
+		} else {
+			if (debug_dolby & 2)
+				pr_dv_dbg("is_dovi:vf %px(index %d),emp.size %d,aux %px,%d,LL %d,unique_drm %d\n",
+						vf, vf->frame_index,
+						vf->emp.size,
+						vf->src_fmt.md_buf,
+						vf->src_fmt.md_size,
+						vf->src_fmt.low_latency,
+						vf->src_fmt.is_dv_unique_drm);
+			if (is_dv_unique_drm(vf))
+				return 3;
+			if ((vf->src_fmt.md_buf && vf->src_fmt.md_size) ||
+				(dolby_vision_flags & FLAG_FORCE_DV_LL))
+				return 1;
+			if (vf->src_fmt.low_latency)
+				return 2;
+		}
 		p = vf->emp.addr;
 		if (p && vf->emp.size > 0 &&
 		    p[0] == 0x7f &&
@@ -5640,6 +6078,9 @@ int amdv_vf_check(struct vframe_s *vf)
 {
 	int i;
 	int dv_id = 0;
+
+	if (is_amdv_dpss_path())
+		return 1;
 
 	if (multi_dv_mode) {
 		if (vf && dv_inst_valid(vf->src_fmt.dv_id))
@@ -8102,16 +8543,25 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 
 	if (is_aml_tvmode() && vf &&
 	    vf->source_type == VFRAME_SOURCE_TYPE_HDMI) {
-		req.vf = vf;
-		req.bot_flag = 0;
-		req.aux_buf = NULL;
-		req.aux_size = 0;
-		req.dv_enhance_exist = 0;
-		req.low_latency = 0;
-		req.is_dv_unique_drm = 0;
-		vf_notify_provider_by_name("dv_vdin",
-					   VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-					   (void *)&req);
+		if (vf->src_fmt.sei_magic_code != HDMI_SEI_MAGIC_CODE) {
+			req.vf = vf;
+			req.bot_flag = 0;
+			req.aux_buf = NULL;
+			req.aux_size = 0;
+			req.dv_enhance_exist = 0;
+			req.low_latency = 0;
+			req.is_dv_unique_drm = 0;
+			vf_notify_provider_by_name("dv_vdin",
+						VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+						(void *)&req);
+		} else {
+			req.vf = vf;
+			req.bot_flag = vf->src_fmt.bot_flag;
+			req.aux_buf = vf->src_fmt.md_buf;
+			req.aux_size = vf->src_fmt.md_size;
+			req.low_latency = vf->src_fmt.low_latency;
+			req.is_dv_unique_drm = vf->src_fmt.is_dv_unique_drm;
+		}
 		input_mode = IN_MODE_HDMI;
 
 		if ((dolby_vision_flags & FLAG_CERTIFICATION) && enable_vf_check)
@@ -8269,13 +8719,19 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 			}
 			src_format = FORMAT_DOVI;
 		} else if (dv_unique_drm) {
-			if (vf->type & VIDTYPE_VIU_444) {
-				if (vf->type_ext & VIDTYPE_EXT_BYPASS_DETUNNEL)
-					src_chroma_format = 3;
-				else
-					src_chroma_format = 1;
-			}
-			src_bdp = 12;
+			if ((vf->type & VIDTYPE_VIU_444) ||
+				(vf->type & VIDTYPE_RGB_444))
+				src_chroma_format = 3;
+			else if (vf->type & VIDTYPE_VIU_422)
+				src_chroma_format = 1;
+			else
+				src_chroma_format = 0;
+			if (vf->bitdepth & BITDEPTH_Y12)
+				src_bdp = 12;
+			else if (vf->bitdepth & BITDEPTH_Y10)
+				src_bdp = 10;
+			else
+				src_bdp = 8;
 			src_format = FORMAT_DOVI_LL;
 			req.aux_size = 0;
 			req.aux_buf = NULL;
@@ -8678,16 +9134,26 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 		}
 	} else if (vf && vf->source_type == VFRAME_SOURCE_TYPE_HDMI &&
 	(is_aml_tm2_stbmode() || is_aml_t7_stbmode())  && hdmi_to_stb_policy) {
-		req.vf = vf;
-		req.bot_flag = 0;
-		req.aux_buf = NULL;
-		req.aux_size = 0;
-		req.dv_enhance_exist = 0;
-		req.low_latency = 0;
+		if (vf->src_fmt.sei_magic_code != HDMI_SEI_MAGIC_CODE) {
+			req.vf = vf;
+			req.bot_flag = 0;
+			req.aux_buf = NULL;
+			req.aux_size = 0;
+			req.dv_enhance_exist = 0;
+			req.low_latency = 0;
+			req.is_dv_unique_drm = 0;
+			vf_notify_provider_by_name("dv_vdin",
+						VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+						(void *)&req);
+		} else {
+			req.vf = vf;
+			req.bot_flag = vf->src_fmt.bot_flag;
+			req.aux_buf = vf->src_fmt.md_buf;
+			req.aux_size = vf->src_fmt.md_size;
+			req.low_latency = vf->src_fmt.low_latency;
+			req.is_dv_unique_drm = vf->src_fmt.is_dv_unique_drm;
+		}
 
-		vf_notify_provider_by_name("dv_vdin",
-			VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-			(void *)&req);
 		if (req.low_latency == 1) {
 			src_format = FORMAT_HDR10;
 			if (!vf_is_hdr10(vf)) {
@@ -9778,7 +10244,7 @@ bool check_drm(u8 *drm_pkt)
 		bt2020 = 1;
 
 	if (debug_dolby & 1)
-		pr_dv_dbg("bt2020 %d\n", bt2020);
+		pr_dv_dbg("check unique drm %d\n", bt2020);
 
 	return bt2020;
 }
@@ -10314,17 +10780,25 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		else
 			hdmi_in_allm = false;
 
-		req.vf = vf;
-		req.bot_flag = 0;
-		req.aux_buf = NULL;
-		req.aux_size = 0;
-		req.dv_enhance_exist = 0;
-		req.low_latency = 0;
-		req.is_dv_unique_drm = 0;
-
-		vf_notify_provider_by_name("dv_vdin",
-			VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-			(void *)&req);
+		if (vf->src_fmt.sei_magic_code != HDMI_SEI_MAGIC_CODE) {
+			req.vf = vf;
+			req.bot_flag = 0;
+			req.aux_buf = NULL;
+			req.aux_size = 0;
+			req.dv_enhance_exist = 0;
+			req.low_latency = 0;
+			req.is_dv_unique_drm = 0;
+			vf_notify_provider_by_name("dv_vdin",
+						VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+						(void *)&req);
+		} else {
+			req.vf = vf;
+			req.bot_flag = vf->src_fmt.bot_flag;
+			req.aux_buf = vf->src_fmt.md_buf;
+			req.aux_size = vf->src_fmt.md_size;
+			req.low_latency = vf->src_fmt.low_latency;
+			req.is_dv_unique_drm = vf->src_fmt.is_dv_unique_drm;
+		}
 
 		/* meta */
 		if ((dolby_vision_flags & FLAG_RX_EMP_VSEM) &&
@@ -11499,15 +11973,19 @@ int amdv_parse_metadata(struct vframe_s *vf,
 	int ret = -1;
 
 	if (is_aml_hw5() && hw5_reg_from_file) { /*for debug hw5, return ok*/
-		if (vf) {
-			top2_info.amdv_setting_video_flag = true;
-			if (enable_top1)
-				top1_info.amdv_setting_video_flag = true;
-		} else {
-			top1_info.amdv_setting_video_flag = false;
-			top2_info.amdv_setting_video_flag = false;
+		if (force_top1_enable != 3) {
+			if (vf) {
+				top2_info.amdv_setting_video_flag = true;
+				if (enable_top1)
+					top1_info.amdv_setting_video_flag = true;
+			} else {
+				top1_info.amdv_setting_video_flag = false;
+				top2_info.amdv_setting_video_flag = false;
+			}
+			top2_v_info.tv_dovi_setting_change_flag = true;
 		}
-		top2_v_info.tv_dovi_setting_change_flag = true;
+		if (debug_dolby & 0x2)
+			pr_dv_dbg("hw5 parse metadata fix setting\n");
 		return 0;
 	} else if (load_fixed_setting) {
 		if (is_aml_tvmode()) {/*continue parser_metadata for stb*/
@@ -11525,9 +12003,7 @@ int amdv_parse_metadata(struct vframe_s *vf,
 	if (multi_dv_mode) {
 		if (is_aml_tvmode()) {
 			if (is_aml_hw5())
-				ret = amdv_parse_metadata_hw5(vf, toggle_mode,
-								bypass_release,
-								drop_flag);
+				ret = amdv_parse_metadata_hw5(vf, toggle_mode);
 			else
 				ret = amdv_parse_metadata_v1(vf, toggle_mode,
 								bypass_release,
@@ -11547,9 +12023,7 @@ int amdv_parse_metadata(struct vframe_s *vf,
 		}
 	} else {
 		if (is_aml_hw5()) {
-			ret = amdv_parse_metadata_hw5(vf, toggle_mode,
-							bypass_release,
-							drop_flag);
+			ret = amdv_parse_metadata_hw5(vf, toggle_mode);
 			if (ret == 0)
 				update_top2_control_path_flag = true;
 			else
@@ -11915,7 +12389,7 @@ int amdv_wait_metadata_v2(struct vframe_s *vf, enum vd_path_e vd_path)
 				if (READ_VPP_DV_REG(VD2_BLEND_SRC_CTRL) & (1 << 0))
 					vd_on = true;
 			}
-		} else if (is_aml_s5() || is_aml_t3x()) {
+		} else if (is_aml_s5()) {
 			if (vd_path == VD1_PATH) {
 				if (READ_VPP_DV_REG(S5_VD1_BLEND_SRC_CTRL) & (1 << 0))
 					vd_on = true;
@@ -12354,7 +12828,7 @@ void calculate_crc(void)
 					}
 					crc_count++;
 					crc_read_delay = 0;
-				} else if (is_aml_tvmode() && tv_hw5_setting) {
+				} else if (is_aml_t3x()) {
 					//todo
 					/* hdmi mode*/
 					//if (READ_VPP_DV_REG(AMDV_TV_DIAG_CTRL) == 0xb) {
@@ -12371,22 +12845,44 @@ void calculate_crc(void)
 					//}
 					crc_count++;
 					crc_read_delay = 0;
+				} else if ((is_aml_t6w() || is_aml_t6x())) {
+					u32 crc = READ_VPP_DV_REG
+						(T6W_DOLBY5_CORE2_CRC_OUT_FRM);//todo
+					if (prm_dolby.dolby5_mode == DOLBY5_VD1_MODE_2PPC &&
+						is_aml_t6x())/*2ppc read wrap crc*/
+						crc = READ_VPP_DV_REG(T6X_VPU_DOLBY_WRAP_RO_CRC);
+					snprintf(cur_crc, sizeof(cur_crc), "0x%08x", crc);
+					if (debug_dolby & 0x2000)
+						pr_info("CRC input 0x%x,output 0x%x,write %x\n",
+						READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_IN_FRM),
+						READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_OUT_FRM),
+							crc);
+					crc_count++;
+					crc_read_delay = 0;
 				}
 			} else {
-				if ((debug_dolby & 0x2000) && is_aml_hw5())
+				if ((debug_dolby & 0x2000) && is_aml_t3x())
 					pr_info("CRC input 0x%x, output 0x%x, venc crc %x\n",
-							READ_VPP_DV_REG(DOLBY5_CORE2_CRC_IN_FRM),
-							READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM),
-							venc_crc_enable ?
-							READ_VPP_DV_REG(T3X_VENC_CRC) : 0);
+						READ_VPP_DV_REG(DOLBY5_CORE2_CRC_IN_FRM),
+						READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM),
+						venc_crc_enable ?
+						READ_VPP_DV_REG(T3X_VENC_CRC) : 0);
+				if ((debug_dolby & 0x2000) && (is_aml_t6w() || is_aml_t6x()))
+					pr_info("CRC input 0x%x, output 0x%x\n",
+						READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_IN_FRM),
+						READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_OUT_FRM));
 			}
 		}
-	} else if ((dolby_vision_flags & FLAG_CERTIFICATION) && is_aml_hw5()) {
-		if (debug_dolby & 0x2000)
+	} else if ((dolby_vision_flags & FLAG_CERTIFICATION)) {
+		if ((debug_dolby & 0x2000) && is_aml_t3x())
 			pr_info("CRC input 0x%x, output 0x%x, venc crc %x\n",
 					READ_VPP_DV_REG(DOLBY5_CORE2_CRC_IN_FRM),
 					READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM),
 					venc_crc_enable ? READ_VPP_DV_REG(T3X_VENC_CRC) : 0);
+		if ((debug_dolby & 0x2000) && (is_aml_t6w() || is_aml_t6x()))
+			pr_info("CRC input 0x%x, output 0x%x\n",
+					READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_IN_FRM),
+					READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_OUT_FRM));
 	}
 }
 
@@ -12799,11 +13295,11 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 			else
 				efuse_mode = 1;
 			WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, reg_clk);
-			if (efuse_mode)
+			if (efuse_mode == 1)
 				WRITE_VCBUS_REG_BITS(VPU_CLK_GATE, 0, 4, 1);
 			efuse_checked = true;
 		}
-		if (efuse_mode) {
+		if (efuse_mode == 1) {
 			pr_info("dv efuse!\n");
 			return 0;
 		}
@@ -13602,7 +14098,7 @@ static int amdolby_vision_process_v2_stb
 				efuse_mode = 1;
 			efuse_checked = true;
 		}
-		if (efuse_mode) {
+		if (efuse_mode == 1) {
 			pr_info("dv efuse!\n");
 			return 0;
 		}
@@ -14413,7 +14909,7 @@ EXPORT_SYMBOL(amdolby_vision_process);
  */
 bool is_amdv_on(void)
 {
-	if (debug_dolby & 0x400000)
+	if (debug_dolby & 0x1000)
 		pr_dv_dbg("is_amdv_on %d %d\n", amdv_wait_on, dolby_vision_on);
 	return dolby_vision_on ||
 		amdv_wait_on ||
@@ -14515,6 +15011,15 @@ int get_amdv_mode(void)
 }
 EXPORT_SYMBOL(get_amdv_mode);
 
+int get_amdv_force_mode(void)
+{
+	if (dolby_vision_policy == AMDV_FORCE_OUTPUT_MODE)
+		return force_mode;
+	else
+		return -1;
+}
+EXPORT_SYMBOL(get_amdv_force_mode);
+
 int get_amdv_target_mode(void)
 {
 	return amdv_target_mode;
@@ -14526,6 +15031,43 @@ bool is_amdv_enable(void)
 	return dolby_vision_enable;
 }
 EXPORT_SYMBOL(is_amdv_enable);
+
+bool is_amdv_dpss_path(void)
+{
+	if (!is_aml_t6w() && !is_aml_t6x())
+		return false;
+
+	if (top_dd_work_mode) {
+		if (top_dd_work_mode == DOLBY5_DPSS_MODE ||
+			top_dd_work_mode == DOLBY5_DPSS_MODE_2PPC)
+			return true;
+		else
+			return false;
+	} else {
+		if ((path_sel & 0xf) == DOLBY5_DPSS_MODE ||
+			(path_sel & 0xf) == DOLBY5_DPSS_MODE_2PPC)
+			return true;
+		else
+			return false;
+	}
+}
+EXPORT_SYMBOL(is_amdv_dpss_path);
+
+/*dd core need 4align in 2slice mode or 2ppc mode*/
+u8 get_dd_align_count(void)
+{
+	struct vd_proc_info_t *vd_proc_info;
+
+	if (is_aml_t6x() && enable_2ppc) {
+		return 4;
+	} else if (is_aml_t3x()) {
+		vd_proc_info = get_vd_proc_amdv_info();
+		if (vd_proc_info->slice_num == 2)
+			return 4;
+	}
+	return 2;
+}
+EXPORT_SYMBOL(get_dd_align_count);
 
 bool is_hdmi_ll_as_hdr10(void)
 {
@@ -14558,7 +15100,7 @@ EXPORT_SYMBOL(support_multi_core1);
 bool get_idk_need_pps(void)
 {
 	/*some idk2.6 pip cert cases need pps scaler*/
-	/*idk5.1 6364 need pps*/
+	/*idk5.1 5364 need pps*/
 	return need_pps || is_multi_dv_mode();
 }
 EXPORT_SYMBOL(get_idk_need_pps);
@@ -14569,7 +15111,7 @@ bool is_amdv_el_disable(void)
 }
 EXPORT_SYMBOL(is_amdv_el_disable);
 
-void set_amdv_ll_policy(int policy)
+void set_amdv_ll_policy(u32 policy)
 {
 	if (debug_dolby & 1)
 		pr_info("set ll policy %d\n", policy);
@@ -14585,10 +15127,11 @@ EXPORT_SYMBOL(get_amdv_ll_policy);
 
 void set_amdv_policy(int policy)
 {
-	if (debug_dolby & 1)
-		pr_info("set policy %d\n", policy);
-	if (!load_fixed_setting)
+	if (!load_fixed_setting && !ignore_ext_policy)
 		dolby_vision_policy = policy;
+
+	if (debug_dolby & 1)
+		pr_info("set policy %d, %d\n", policy, dolby_vision_policy);
 }
 EXPORT_SYMBOL(set_amdv_policy);
 
@@ -14984,6 +15527,10 @@ static ssize_t amdolby_vision_load_reg_file_store
 
 	if (!buf)
 		return count;
+	if (is_aml_t6w() || is_aml_t6x()) {
+		prm_dolby.fst_frm_ini = true;
+		prm_dolby.fst_frm_ini_top2 = true;
+	}
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	parse_param_amdv(buf_orig, (char **)&parm);
 	pr_info("%s: cmd: %s, %s\n", __func__, buf, parm[1]);
@@ -15265,6 +15812,10 @@ static int get_chip_name(void)
 		snprintf(chip_name, sizeof("s7d"), "%s", "s7d");
 	else if (is_aml_s6())
 		snprintf(chip_name, sizeof("s6"), "%s", "s6");
+	else if (is_aml_t6w())
+		snprintf(chip_name, sizeof("t6w"), "%s", "t6w");
+	else if (is_aml_t6x())
+		snprintf(chip_name, sizeof("t6x"), "%s", "t6x");
 	else
 		snprintf(chip_name, sizeof("null"), "%s", "null");
 
@@ -15290,8 +15841,9 @@ bool chip_support_dv(void)
 	    is_aml_sc2() || is_aml_t7() ||
 	    is_aml_t3() || is_aml_s4d() ||
 	    is_aml_t5w() || is_aml_t5m() ||
-		is_aml_s5() || is_aml_t3x()  ||
-		is_aml_s7d() || is_aml_s6())
+		is_aml_s5() || is_aml_t3x() ||
+		is_aml_s7d() || is_aml_s6() ||
+		is_aml_t6w() || is_aml_t6x())
 		return true;
 	else
 		return false;
@@ -15301,7 +15853,8 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 {
 	int ret = -1;
 	unsigned int reg_clk;
-	unsigned int reg_value;
+	unsigned int reg_value = 0;
+	unsigned int reg_value_1 = 0;
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	unsigned int ko_info_len = 0;
 	int i;
@@ -15339,7 +15892,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 	}
 	if (is_aml_t7() || is_aml_t3() || is_aml_s4d() || is_aml_t5w() ||
 		is_aml_t5m() || is_aml_s5() || is_aml_t3x() || is_aml_s7d() ||
-		is_aml_s6()) {
+		is_aml_s6() || is_aml_t6w() || is_aml_t6x()) {
 		total_name_len = get_chip_name();
 		if (func) {
 			get_ko = strstr(func->version_info, total_chip_name);
@@ -15367,19 +15920,41 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		else
 			efuse_mode = 1;
 		WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, reg_clk);
-		if (efuse_mode)
+		if (efuse_mode == 1)
 			WRITE_VCBUS_REG_BITS(VPU_CLK_GATE, 0, 4, 1);
 		efuse_checked = true;
 	} else if (is_aml_t3x()) {
-		//todo
-		//reg_clk = READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL);
-		//WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, 0x2800);
+		vpu_module_clk_enable(0, DV_TVCORE, 1);
+		reg_clk = READ_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK);
+		WRITE_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK, 0xA0000);
 		reg_value = READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0 + 1);
-		if ((reg_value & 0x10000) == 0)
-			efuse_mode = 0;
-		else
-			efuse_mode = 1;
-		//WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, reg_clk);
+		pr_info("top2 0x%x\n", reg_value);
+		reg_value = READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0 + 1);
+		pr_info("top2 reg_value = 0x%x\n", reg_value);
+		if (reg_value & 0x10000)/*top2*/
+			efuse_mode |= 1 << 0;
+
+		reg_value_1 = READ_VPP_DV_REG(DOLBY5_CORE1_REG_BASE + 1);
+		if (reg_value_1 & 0x80)/*top1*/
+			efuse_mode |= 1 << 1;
+		WRITE_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK, reg_clk);
+		vpu_module_clk_disable(0, DV_TVCORE, 1);
+	} else if (is_aml_t6w() || is_aml_t6x()) {
+		//todo
+		reg_clk = READ_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK);
+		WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 1);
+		pr_info("dolby warp clk: 0x%x => 0x%x\n", reg_clk,
+			READ_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK));
+		reg_value = READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0 + 1);
+		pr_info("top2 reg_value = 0x%x\n", reg_value);
+		reg_value = READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0 + 1);
+		if (reg_value & 0x10000)/*top2*/
+			efuse_mode |= 1 << 0;
+
+		reg_value_1 = READ_VPP_DV_REG(T6W_DOLBY5_CORE1_REG_BASE + 1);
+		if (reg_value_1 & 0x80)/*top1*/
+			efuse_mode |= 1 << 1;
+		WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, reg_clk);
 	} else {
 		reg_value = READ_VPP_DV_REG(AMDV_CORE1A_REG_START + 1);
 		if ((reg_value & 0x100) == 0)
@@ -15387,13 +15962,18 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		else
 			efuse_mode = 1;
 	}
-	pr_info("efuse_mode=%d reg_value = 0x%x\n", efuse_mode, reg_value);
-	support_info = efuse_mode ? 0 : 1;/*bit0=1 => no efuse*/
+	if (is_aml_hw5())
+		pr_info("efuse_mode=%d,reg_value top1=0x%x,top2=0x%x\n",
+			efuse_mode, reg_value_1, reg_value);
+	else
+		pr_info("efuse_mode=%d,reg_value=0x%x\n", efuse_mode, reg_value);
+
+	support_info = (efuse_mode & 1) ? 0 : 1;/*bit0=1 => no efuse*/
 	support_info = support_info | (1 << 2); /*bit2=1 => value updated*/
 	if (tv_mode)
 		support_info |= 1 << 3; /*bit3=1 => tv*/
 
-	if (efuse_mode)
+	if (efuse_mode & 1)/*for hw5, support info only depends top2*/
 		return ret;
 	support_info = support_info | (1 << 1); /*bit1=1 => ko loaded success*/
 	pr_info("dv capability %d\n", support_info);
@@ -15578,9 +16158,15 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			tv_hw5_setting->num_input = 1;
 			tv_hw5_setting->num_video = 1;
 			tv_hw5_setting->pri_input = 0;
+			tv_hw5_setting->bt2020_container = 0;
+			tv_hw5_setting->enable_debug = 0;
+			tv_hw5_setting->use_primaries_for_dv = 0;
+			tv_hw5_setting->hdr_ui = 0;
+			tv_hw5_setting->pq_config = NULL;
 			invalid_hw5_setting->top1.src_format = FORMAT_INVALID;
 			invalid_hw5_setting->top2.src_format = FORMAT_INVALID;
 			invalid_hw5_setting->num_input = 0;
+			invalid_hw5_setting->enable_debug = 0;
 
 			tv_input_info = vmalloc(sizeof(*tv_input_info));
 			if (!tv_input_info) {
@@ -15826,6 +16412,12 @@ void amdv_insert_crc(bool print)
 				crc = READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM);
 			else
 				crc = READ_VPP_DV_REG(T3X_VENC_CRC);
+		} else if (is_aml_t6w() || is_aml_t6x()) {
+			crc_enable = true;//todo
+			crc = READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_OUT_FRM);/*1ppc read dolby crc*/
+			if (prm_dolby.dolby5_mode == DOLBY5_VD1_MODE_2PPC &&
+				is_aml_t6x())/*2ppc read wrap crc*/
+				crc = READ_VPP_DV_REG(T6X_VPU_DOLBY_WRAP_RO_CRC);
 		} else {
 			crc_enable = (READ_VPP_DV_REG(AMDV_TV_DIAG_CTRL) == 0xb);
 			crc = READ_VPP_DV_REG(AMDV_TV_OUTPUT_DM_CRC);
@@ -15861,6 +16453,18 @@ void amdv_insert_crc(bool print)
 				READ_VPP_DV_REG(DOLBY5_CORE2_CRC_IN_FRM),
 				READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM),
 				READ_VPP_DV_REG(DOLBY5_CORE2_CRC_CNTRL));
+		else if (is_aml_t6w())
+			pr_info("tvcore crc 0x%x, 0x%x, ctrl 0x%x, wrap %x\n",
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_IN_FRM),
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_OUT_FRM),
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_CNTRL),
+				READ_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_RO_CRC));
+		else if (is_aml_t6x())
+			pr_info("tvcore crc 0x%x, 0x%x, ctrl 0x%x, wrap %x\n",
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_IN_FRM),
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_OUT_FRM),
+				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CRC_CNTRL),
+				READ_VPP_DV_REG(T6X_VPU_DOLBY_WRAP_RO_CRC));
 		else
 			pr_info("tvcore crc 0x%x, diag ctrl 0x%x\n",
 				READ_VPP_DV_REG(AMDV_TV_OUTPUT_DM_CRC),
@@ -16554,6 +17158,9 @@ static const char *amdolby_vision_debug_usage_str = {
 	"echo force_update_reg value > /sys/class/amdolby_vision/debug;\n"
 	"echo panel_max_lumin value > /sys/class/amdolby_vision/debug;\n"
 	"echo force_update_top2 value > /sys/class/amdolby_vision/debug;\n"
+	"echo path_sel value > /sys/class/amdolby_vision/debug;\n"
+	"echo dump_pyr_up > /sys/class/amdolby_vision/debug;\n"
+	"echo bypass_shadow > /sys/class/amdolby_vision/debug;\n"
 };
 
 static ssize_t  amdolby_vision_debug_show
@@ -16648,10 +17255,9 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		enable_tunnel = val;
 		pr_info("enable_tunnel %d\n", enable_tunnel);
-		if (is_aml_sc2() || is_aml_t7() || is_aml_t3() ||
-		    is_aml_s4d() || is_aml_t5w() || is_aml_t5m() ||
-		    is_aml_s5() || is_aml_t3x() || is_aml_s7d() ||
-		    is_aml_s6()) {/*not include tm2*/
+		if (is_aml_sc2() || is_aml_t7() ||
+		    is_aml_s4d() || is_aml_s5() ||
+		    is_aml_s7d() || is_aml_s6()) {/*not include tm2*/
 			/*for vdin1 loop back, 444,12bit->422,12bit->444,8bit*/
 			if (enable_tunnel) {
 				if (vpp_data_422T0444_backup == 0) {
@@ -16688,11 +17294,11 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		force_hdmin_fmt = val;
 		pr_info("set force_hdmin_fmt %d\n", force_hdmin_fmt);
-	} else if (!strcmp(parm[0], "bypass_detunnel")) {
+	} else if (!strcmp(parm[0], "bypass_detunnel_debug")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
-		bypass_detunnel = val;
-		pr_info("set bypass_detunnel %d\n", bypass_detunnel);
+		bypass_detunnel_debug = val;
+		pr_info("set bypass_detunnel_debug %d\n", bypass_detunnel_debug);
 	} else if (!strcmp(parm[0], "force_bypass_pps_sr_cm")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
@@ -16724,6 +17330,16 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		debug_cp_res = val;
 		pr_info("set debug_cp_res 0x%x\n", debug_cp_res);
+	} else if (!strcmp(parm[0], "debug_h_aoi")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		debug_h_aoi = val;
+		pr_info("set debug_h_aoi 0x%x\n", debug_h_aoi);
+	} else if (!strcmp(parm[0], "debug_v_aoi")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		debug_v_aoi = val;
+		pr_info("set debug_v_aoi 0x%x\n", debug_v_aoi);
 	} else if (!strcmp(parm[0], "debug_dma_start_line")) {
 		if (kstrtoul(parm[1], 16, &val) < 0)
 			return -EINVAL;
@@ -16760,6 +17376,9 @@ static ssize_t amdolby_vision_debug_store
 		pr_info("set dump_pyramid %d\n", dump_pyramid);
 		dump_pyramid_buf(dump_pyramid);
 		dump_pyramid = 0;
+	} else if (!strcmp(parm[0], "dump_pyr_up")) {
+		pr_info("dump pyr_up\n");
+		dump_pyr_up();
 	} else if (!strcmp(parm[0], "top1_crc_ro")) {
 		top1_crc_rd = 1;
 		pr_info("set top1_crc_rd %d\n", top1_crc_rd);
@@ -17042,11 +17661,69 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		force_update_top2 = val;
 		pr_info("set force_update_top2 %d\n", force_update_top2);
+
+	} else if (!strcmp(parm[0], "force_level")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		force_level = val;
+		pr_info("force_level %d\n", force_level);
+	} else if (!strcmp(parm[0], "path_sel")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		path_sel = val;
+		pr_info("set path_sel %d\n", path_sel);
+	} else if (!strcmp(parm[0], "slice_num")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		slice_num = val;
+		pr_info("set slice_num 0x%x\n", slice_num);
+	} else if (!strcmp(parm[0], "pad_mode")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		pad_mode = val;
+		pr_info("set pad_mode 0x%x\n", pad_mode);
+	} else if (!strcmp(parm[0], "bypass_shadow")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		bypass_shadow = val;
+		pr_info("set bypass_shadow %d\n", bypass_shadow);
+	} else if (!strcmp(parm[0], "ignore_top_path_change")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		ignore_top_path_change = val;
+		pr_info("set ignore_top_path_change %d\n", ignore_top_path_change);
+		if (ignore_top_path_change)
+			top_dd_work_mode = 0;
+	} else if (!strcmp(parm[0], "debug_val")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		debug_val = val;
+		pr_info("debug_val 0x%x\n", debug_val);
+	} else if (!strcmp(parm[0], "test_hold_line")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		test_hold_line = val;
+		pr_info("test_hold_line 0x%x\n", test_hold_line);
+	} else if (!strcmp(parm[0], "ignore_ext_policy")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		ignore_ext_policy = val;
+		pr_info("set ignore_ext_policy %d\n", ignore_ext_policy);
 	} else if (!strcmp(parm[0], "clear_hdr10plus_pkt")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
 		clear_hdr10plus_pkt = val;
 		pr_info("set clear_hdr10plus_pkt %d\n", clear_hdr10plus_pkt);
+	} else if (!strcmp(parm[0], "enable_2ppc")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		enable_2ppc = val;
+		pr_info("set enable_2ppc %d\n", enable_2ppc);
+	} else if (!strcmp(parm[0], "prl_mode")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		prl_mode = val;
+		pr_info("set prl_mode %d\n", prl_mode);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
@@ -17376,6 +18053,9 @@ static ssize_t amdv_probe_en_store
 	if (is_aml_t3x()) {
 		WRITE_VPP_DV_REG_BITS(VPU_DOLBY_WRAP_PROB_CTRL, probe_en, 0, 1);
 		pr_info("amdv_probe_en 0x%x\n", probe_en);
+	} else if (is_aml_t6w() || is_aml_t6x()) {
+		WRITE_VPP_DV_REG_BITS(T6W_VPU_DOLBY_WRAP_PROB_CTRL, probe_en, 0, 1);
+		pr_info("amdv_probe_en 0x%x\n", probe_en);
 	}
 	return count;
 }
@@ -17396,9 +18076,22 @@ static ssize_t amdv_probe_sel_show(const struct class *cla,
 		pr_info("cur probe mode:%d, sel:%d\n", probe_mode,
 			(READ_VPP_DV_REG(VPU_DOLBY_WRAP_PROB_CTRL) >> 2) & 0xf);
 	}
+	if (is_aml_t6w() || is_aml_t6x()) {
+		pr_info("Usage:\n");
+		pr_info("echo port > /sys/class/amdolby_vision/probe_sel\n");
+		pr_info("0 : primesl out\n");
+		pr_info("1 : hdr2 out\n");
+		pr_info("2 : dolby out\n");
+		pr_info("3 : primesl in\n");
+		pr_info("4 : hdr2 in\n");
+		pr_info("5 : dolby in\n");
+		pr_info("cur probe mode:%d, sel:%d\n", probe_mode,
+			(READ_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_PROB_CTRL) >> 2) & 0xf);
+	}
 	return 0;
 }
 
+/*bit0-3 sel; bit4-7 mode*/
 static ssize_t amdv_probe_sel_store(const struct class *cla,
 					    const struct class_attribute *attr,
 					    const char *buf, size_t count)
@@ -17416,6 +18109,14 @@ static ssize_t amdv_probe_sel_store(const struct class *cla,
 	if (is_aml_t3x()) {
 		if (sel < 6) {
 			WRITE_VPP_DV_REG_BITS(VPU_DOLBY_WRAP_PROB_CTRL, sel, 2, 6);
+		} else {
+			pr_info("error! please cat /sys/class/amdolby_vision/probe_sel\n");
+			return 0;
+		}
+		pr_info("amdv_probe_sel 0x%x\n", (u32)val);
+	} else if (is_aml_t6w() || is_aml_t6x()) {
+		if (sel < 6) {
+			WRITE_VPP_DV_REG_BITS(T6W_VPU_DOLBY_WRAP_PROB_CTRL, sel, 2, 6);
 		} else {
 			pr_info("error! please cat /sys/class/amdolby_vision/probe_sel\n");
 			return 0;
@@ -17451,6 +18152,8 @@ static ssize_t amdv_probe_size_store(const struct class *cla,
 
 	if (is_aml_t3x())
 		WRITE_VPP_DV_REG(VPU_DOLBY_WRAP_PROB_SIZE, (h << 16) | w);
+	else if (is_aml_t6w() || is_aml_t6x())
+		WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_PROB_SIZE, (h << 16) | w);
 
 	return strnlen(buf, count);
 }
@@ -17481,6 +18184,8 @@ static ssize_t amdv_probe_pos_store(const struct class *cla,
 
 	if (is_aml_t3x())
 		WRITE_VPP_DV_REG(VPU_DOLBY_WRAP_PROB_WIN, (val_y << 16) | val_x);
+	else if (is_aml_t6w() || is_aml_t6x())
+		WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_PROB_WIN, (val_y << 16) | val_x);
 
 	return strnlen(buf, count);
 }
@@ -17490,32 +18195,38 @@ static ssize_t amdv_probe_data_show(const struct class *cla,
 					    char *buf)
 {
 	ssize_t len = 0;
-	u32 probe_data0;
-	u32 probe_data1;
+	u32 probe_data0 = 0;
+	u32 probe_data1 = 0;
 
-	if (is_aml_t3x()) {
-		probe_data0 = READ_VPP_DV_REG(VPU_DOLBY_WRAP_RO_DAT0);
-		probe_data1 = READ_VPP_DV_REG(VPU_DOLBY_WRAP_RO_DAT1);
+	if (is_aml_hw5()) {
+		if (is_aml_t3x()) {
+			probe_data0 = READ_VPP_DV_REG(VPU_DOLBY_WRAP_RO_DAT0);
+			probe_data1 = READ_VPP_DV_REG(VPU_DOLBY_WRAP_RO_DAT1);
+		} else if (is_aml_t6w()) {
+			probe_data0 = READ_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_RO_DAT0);
+		} else if (is_aml_t6x()) {
+			probe_data0 = READ_VPP_DV_REG(T6X_VPU_DOLBY_WRAP_RO_DAT0);
+		}
 		if (probe_mode == 0) /*10bit*/
 			len += sprintf(buf + len,
-			"amdv_probe_data %x, %x, %x\n",
+			"amdv_probe_data Y:%x, U:%x, V:%x\n",
 			(probe_data0 >> 20) & 0x3ff,
 			(probe_data0 >> 10) & 0x3ff,
 			(probe_data0 >> 0) & 0x3ff);
 		else if (probe_mode == 1)  /*12bit*/
 			len += sprintf(buf + len,
-			"amdv_probe_data %x, %x, %x\n",
+			"amdv_probe_data Y:%x, U:%x, V:%x\n",
 			((probe_data1 & 0xf) << 8) | ((probe_data0 >> 24) & 0xff),
 			(probe_data0 >> 12) & 0xfff, probe_data0 & 0xfff);
 		else if (probe_mode == 2) /*8bit*/
 			len += sprintf(buf + len,
-			"amdv_probe_data %x, %x, %x\n",
+			"amdv_probe_data Y:%x, U:%x, V:%x\n",
 			(probe_data0 >> 16) & 0xff,
 			(probe_data0 >> 8) & 0xff,
 			(probe_data0 >> 0) & 0xff);
 		else if (probe_mode == 3) /*every 10bit >> 2, for dolby tunnel data*/
 			len += sprintf(buf + len,
-			"amdv_probe_data %x, %x, %x\n",
+			"amdv_probe_data Y:%x, U:%x, V:%x\n",
 			((probe_data0 >> 20) & 0x3ff) >> 2,
 			((probe_data0 >> 10) & 0x3ff) >> 2,
 			((probe_data0 >> 0) & 0x3ff) >> 2);
@@ -17622,7 +18333,8 @@ unsigned int amdv_check_enable(void)
 
 	/*first step: check tv mode, dv is disabled by default */
 	if (is_aml_tm2_tvmode() || is_aml_t7_tvmode() ||
-	    is_aml_t3() || is_aml_t5w() || is_aml_t5m() || is_aml_t3x()) {
+	    is_aml_t3() || is_aml_t5w() || is_aml_t5m() ||
+	    is_aml_t3x() || is_aml_t6w() || is_aml_t6x()) {
 		if (!amdv_on_in_uboot) {
 			/* tm2/t7 also has stb core, should power off stb core*/
 			if (is_aml_tm2_tvmode() || is_aml_t7_tvmode()) {
@@ -17650,7 +18362,11 @@ unsigned int amdv_check_enable(void)
 			}
 			dv_mem_power_off(VPU_DOLBY0);
 			/* tv core */
-			if (!is_aml_t3x()) {
+			if (is_aml_t3x()) {
+				WRITE_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK, 0x55);
+			} else if (is_aml_t6w() || is_aml_t6x()) {
+				//WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 0x55);
+			} else {
 				WRITE_VPP_DV_REG(AMDV_TV_AXI2DMA_CTRL0,
 					0x01000042);
 				WRITE_VPP_DV_REG_BITS
@@ -17659,12 +18375,10 @@ unsigned int amdv_check_enable(void)
 				WRITE_VPP_DV_REG
 					(AMDV_TV_CLKGATE_CTRL,
 					0x55555555);
-			} else {
-				WRITE_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK, 0x55);
 			}
 			if (is_aml_t3() || is_aml_t5w() || is_aml_t5m())
 				vpu_module_clk_disable(0, DV_TVCORE, 1);
-			else if (is_aml_t3x())//todo
+			else if (is_aml_t3x() || is_aml_t6w() || is_aml_t6x())//todo
 				vpu_module_clk_disable(0, DV_TVCORE, 1);
 			pr_info("dovi disable in uboot\n");
 		}
@@ -18352,6 +19066,7 @@ static ssize_t amdolby_vision_inst_status_show
 	char *str1 = {"dv inst status:"};
 	char *str2 = {"dv core status:"};
 	u32 cfg_enable_top1;
+	u32 buf_cnt = TOP_BUF_CNT_VD1;
 
 	if (!multi_dv_mode && is_aml_hw5()) {
 		len += sprintf(buf + len, "enable: %d, on: %d\n",
@@ -18368,7 +19083,8 @@ static ssize_t amdolby_vision_inst_status_show
 			tv_hw5_setting->pq_config->tdc.pr_config.supports_precision_rendering,
 			tv_hw5_setting->pq_config->tdc.pr_config.precision_rendering_strength,
 			tv_hw5_setting->pq_config->tdc.ana_config.enalbe_l1l4_gen);
-		len += sprintf(buf + len, "pd:[%d]wr=%d rd=%d level_%s,pr_en=%d,l1l4=%d %d\n",
+
+		len += sprintf(buf + len, "py_id:%d %d %d,top2 level_%s,pr_en=%d,l1l4=%d %d\n",
 			py_id, top1_info.py_id, top2_info.py_id,
 			top2_info.py_level == 0 ? "6" : (top2_info.py_level == 1 ? "7" : "0"),
 			py_enabled, l1l4_enabled, l1l4_distance);
@@ -18377,6 +19093,9 @@ static ssize_t amdolby_vision_inst_status_show
 		if (is_aml_t3x())
 			len += sprintf(buf + len, "top1 enable:%d, cntrl_reg:0x%x\n", enable_top1,
 						READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0 + 1));
+		else if (is_aml_t6w() || is_aml_t6x())
+			len += sprintf(buf + len, "top1 enable:%d, cntrl_reg:0x%x\n", enable_top1,
+						READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0 + 1));
 		len += sprintf(buf + len, "num_downsamplers:%d, scale:%d\n",
 			num_downsamplers, top1_scale);
 		len += sprintf(buf + len, "force_bypass_precision:%d\n", force_bypass_precision);
@@ -18385,14 +19104,45 @@ static ssize_t amdolby_vision_inst_status_show
 		len += sprintf(buf + len, "miss_top1_and_bypass_pr_once:%d\n",
 			miss_top1_and_bypass_pr_once);
 		len += sprintf(buf + len, "top1 on: %d\n", top1_info.core_on);
+		len += sprintf(buf + len, "top1 run cnt: %d\n", top1_info.core_run_cnt);
 		len += sprintf(buf + len, "top1 on cnt: %d\n", top1_info.core_on_cnt);
+		len += sprintf(buf + len, "top1 isr cnt: %d\n", top_info.isr_top1_cnt);
 		len += sprintf(buf + len, "top1 video: %d\n",
 			top1_info.amdv_setting_video_flag);
 		len += sprintf(buf + len, "================TOP2===============\n");
 		len += sprintf(buf + len, "top2 on: %d\n", top2_info.core_on);
+		len += sprintf(buf + len, "top2 run cnt: %d\n", top2_info.core_run_cnt);
 		len += sprintf(buf + len, "top2 on cnt: %d\n", top2_info.core_on_cnt);
+		len += sprintf(buf + len, "top2 isr cnt: %d\n", top_info.isr_cnt);
 		len += sprintf(buf + len, "top2 video: %d\n",
 			top2_info.amdv_setting_video_flag);
+
+		if (is_aml_t6w() || is_aml_t6x()) {
+			len += sprintf(buf + len, "================vf info===============\n");
+			if (is_amdv_dpss_path())
+				buf_cnt = TOP_BUF_CNT;
+			for (i = 0; i < buf_cnt; i++) {
+				len += sprintf(buf + len, "vf: %px, %d-%d-%d-%d\n",
+					top_info.vf_info[i].vf,
+					top_info.vf_info[i].top1_start,
+					top_info.vf_info[i].top1_done,
+					top_info.vf_info[i].top2_start,
+					top_info.vf_info[i].top2_done);
+			}
+			len += sprintf(buf + len, "======================================\n");
+		}
+		if (is_aml_t6w() || is_aml_t6x()) {
+			len += sprintf(buf + len, "work_mode: top(%d) intenal(%d) final(%d)\n",
+				top_dd_work_mode, path_sel, prm_dolby.dolby5_mode);
+			if (is_amdv_dpss_path())
+				len += sprintf(buf + len, "tbc:%d, direct %d, slice %d, pad %d\n",
+				prm_dolby.dpss_tbc_mode,
+				prm_dolby.dpss_direct_mode,
+				prm_dolby.core2_slice_num,
+				prm_dolby.core2_pad_mode);
+		} else if (is_aml_t3x()) {
+			len += sprintf(buf + len, "vpp_vsync_id: %d\n", vpp_vsync_id);
+		}
 
 		return len;
 	}
@@ -19091,6 +19841,14 @@ static struct dv_device_data_s dolby_vision_s6 = {
 	.cpu_id = _CPU_MAJOR_ID_S6,
 };
 
+static struct dv_device_data_s dolby_vision_t6w = {
+	.cpu_id = _CPU_MAJOR_ID_T6W,
+};
+
+static struct dv_device_data_s dolby_vision_t6x = {
+	.cpu_id = _CPU_MAJOR_ID_T6X,
+};
+
 static const struct of_device_id amlogic_dolby_vision_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -19161,6 +19919,14 @@ static const struct of_device_id amlogic_dolby_vision_match[] = {
 	{
 		.compatible = "amlogic, dolby_vision_s6",
 		.data = &dolby_vision_s6,
+	},
+	{
+		.compatible = "amlogic, dolby_vision_t6w",
+		.data = &dolby_vision_t6w,
+	},
+	{
+		.compatible = "amlogic, dolby_vision_t6x",
+		.data = &dolby_vision_t6x,
 	},
 	{},
 };
@@ -19263,6 +20029,31 @@ static int amdolby_vision_probe(struct platform_device *pdev)
 				goto fail_add_cdev;
 			}
 		}
+	} else if (is_aml_t6w() || is_aml_t6x()) {
+		int_viu1_dolby = platform_get_irq_byname(pdev, "dcntr_grid_int");
+		if (int_viu1_dolby <= 0) {
+			pr_dv_dbg("cannot get viu1_dolby_int resource\n");
+		} else {
+			pr_info("viu dolby irq: %d\n", int_viu1_dolby);
+			ret = request_irq(int_viu1_dolby, amdv_t6w_isr, IRQF_SHARED,
+					  "dcntr_grid_int", (void *)"amdolby_vision");
+			if (ret) {
+				pr_info("request in irq fail\n");
+				goto fail_add_cdev;
+			}
+		}
+		int_dolby_top1 = platform_get_irq_byname(pdev, "viu1_dolby_int");
+		if (int_dolby_top1 <= 0) {
+			pr_dv_dbg("cannot get dcntr_grid_int resource\n");
+		} else {
+			pr_info("viu dolby top1 irq: %d\n", int_dolby_top1);
+			ret = request_irq(int_dolby_top1, amdv_t6w_top1_isr, IRQF_SHARED,
+					  "viu1_dolby_int", (void *)"amdolby_vision");
+			if (ret) {
+				pr_info("request in top1 irq fail\n");
+				goto fail_add_cdev;
+			}
+		}
 	}
 	amdv_addr();
 	amdv_init_receiver(pdev);
@@ -19274,6 +20065,8 @@ static int amdolby_vision_probe(struct platform_device *pdev)
 	dolby_vision_probe_ok = 1;
 	if (is_aml_hw5())
 		dma_lut_init();
+	if (is_aml_t6w() || is_aml_t6x())
+		init_prm_dolby(NULL);
 	return 0;
 
 fail_create_device:
@@ -19302,6 +20095,8 @@ static void amdolby_vision_remove(struct platform_device *pdev)
 {
 	struct amdolby_vision_dev_s *devp = &amdolby_vision_dev;
 	int i;
+	int j;
+	u32 py_buf_cnt = 0;
 
 	if (pq_config_buf) {
 		vfree(pq_config_buf);
@@ -19367,6 +20162,47 @@ static void amdolby_vision_remove(struct platform_device *pdev)
 		if (pq_config_dvp_fake_top1) {
 			vfree((pq_config_dvp_fake_top1));
 			pq_config_dvp_fake_top1 = NULL;
+		}
+
+		if (is_aml_t3x()) {
+			for (i = 0; i < DMA_BUF_CNT; i++)
+				dma_free_coherent(&pdev->dev, lut_dma_info[i].dma_total_size,
+					lut_dma_info[i].dma_vaddr, lut_dma_info[i].dma_paddr);
+		} else if (is_aml_t6w()) {
+			for (i = 0; i < DMA_BUF_CNT; i++) {
+				dma_free_coherent(&pdev->dev, lut_dma_info[i].dma_top1_size,
+					lut_dma_info[i].dma_vaddr, lut_dma_info[i].dma_paddr);
+				dma_free_coherent(&pdev->dev, lut_dma_info[i].dma_top2_size,
+					lut_dma_info[i].dma_vaddr_top2,
+					lut_dma_info[i].dma_paddr_top2);
+			}
+		}
+
+		dma_free_coherent(&pdev->dev, dv5_md_hist.hist_size,
+				dv5_md_hist.hist_vaddr[0], dv5_md_hist.hist_paddr[0]);
+		dma_free_coherent(&pdev->dev, dv5_md_hist.hist_size,
+				dv5_md_hist.hist_vaddr[1], dv5_md_hist.hist_paddr[1]);
+
+		if (is_aml_t3x())
+			py_buf_cnt = PYRAMID_BUF_CNT;
+		else if (is_aml_t6w() || is_aml_t6x())
+			py_buf_cnt = 2;
+
+		for (i = 0; i < py_buf_cnt; i++) {
+			for (j = 0; j < 7; j++) {
+				if (py_addr[i].py_vaddr[j])
+					dma_free_coherent(&pdev->dev, py_addr[i].top1_py_size[j],
+						py_addr[i].py_vaddr[j],
+						py_addr[i].top1_py_paddr[j]);
+			}
+		}
+		if (is_aml_t6w() || is_aml_t6x()) {
+			for (i = 0; i < TOP_BUF_CNT; i++) {
+				if (top_info.up_buf[i].pyup_vaddr)
+					dma_free_coherent(&pdev->dev, top_info.up_buf[i].pyup_size,
+						top_info.up_buf[i].pyup_vaddr,
+						top_info.up_buf[i].pyup_paddr);
+			}
 		}
 	} else {
 		if (multi_dv_mode) {

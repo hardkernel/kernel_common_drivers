@@ -3398,10 +3398,12 @@ static void vd_afbc_setting_t6w(struct video_layer_s *layer,
 			vfmt_en);
 	}
 	if (layer_id == 0) {
-		if (is_dovi_tv_on()) {
+		if (is_dovi_tv_on()) {/*dv tv case*/
 			hfmt_mode = 1;
 			vt_ini_phase = 0;
-			vfmt_mode = 1;
+			/*repeat only in cert mode*/
+			if (for_amdv_certification())
+				vfmt_mode = 1;
 		} else {
 			vt_ini_phase = 0xc;
 			vt_rpt_fst0_en = 1;
@@ -3410,11 +3412,12 @@ static void vd_afbc_setting_t6w(struct video_layer_s *layer,
 		if (video_lcevc.vd2_vd1_shared_vf) {
 			vt_ini_phase = 0;
 		} else {
-			if (is_dovi_tv_on()) {
-				vfmt_mode = 1;
+			if (is_dovi_tv_on()) {/*dv tv case */
+				if (for_amdv_certification())
+					vfmt_mode = 1;/*v repeat only in cert mode*/
 				hfmt_mode = 1;
 				vt_ini_phase = 0;
-			} else if (is_amdv_on()) {/* stb case */
+			} else if (is_amdv_on()) {/*dv stb case */
 				hfmt_mode = 1;
 				vt_ini_phase = 0x0c;
 				vt_rpt_fst0_en = 1;
@@ -4459,8 +4462,10 @@ static void vd1_set_dcu_t6w(struct video_layer_s *layer,
 			/* TODO: check the vrepeat */
 			if (type & VIDTYPE_VIU_422)
 				vrepeat = VFORMATTER_RPTLINE0_EN;
-			else
+			else if (for_amdv_certification())/*v-repeat only for cert*/
 				vrepeat = VFORMATTER_ALWAYS_RPT;
+			else
+				vrepeat = 0;
 		} else if (is_mvc) {
 			/* mvc source */
 			vini_phase = (0xe << VFORMATTER_INIPHASE_BIT);
@@ -4866,8 +4871,10 @@ static void vdx_set_dcu_t6w(struct video_layer_s *layer,
 			/* TODO: check the vrepeat */
 			if (type & VIDTYPE_VIU_422)
 				vrepeat = VFORMATTER_RPTLINE0_EN;
-			else
+			else if (for_amdv_certification())/*v-repeat only for cert*/
 				vrepeat = VFORMATTER_ALWAYS_RPT;
+			else
+				vrepeat = 0;
 		} else if (is_mvc) {
 			/* mvc source */
 			vini_phase = (0xe << VFORMATTER_INIPHASE_BIT);
