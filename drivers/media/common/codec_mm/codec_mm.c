@@ -1292,13 +1292,12 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	if (codec_dbg_level(CODEC_DBG_DUMP_INFO))
 		dump_stack();
 
-	if (secure_mem_ctrl && (memflags & CODEC_MM_FLAGS_TVP) &&
-		(memflags & CODEC_MM_FLAGS_FOR_TRY_PREALLOC)) {
+	if (secure_mem_ctrl && (memflags & CODEC_MM_FLAGS_FOR_TRY_PREALLOC)) {
 		bool no_check_inst_id = false;
 
 		if (strcmp(owner, DMA_BUF_CODEC_MM) == 0 || strcmp(owner, SCATTER_MEM) == 0)
 			no_check_inst_id = true;
-		mem = get_mms_from_hashtable(size, align2n, inst_id, no_check_inst_id);
+		mem = get_mms_from_hashtable(size, align2n, inst_id, memflags, no_check_inst_id);
 		if (mem) {
 			if (debug_mode & 0x20)
 				pr_err("mem_id [%d] %s [%s] alloc size %d used %d at 0x%lx from %d,2n:%d,flags:%d tvp_flag %d alloc time %llu us tee alloc %llu us\n",

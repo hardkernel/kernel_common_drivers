@@ -196,6 +196,34 @@ void release_prealloc_job(int inst_identify)
 }
 EXPORT_SYMBOL(release_prealloc_job);
 
+void release_prealloc_job_with_type(int inst_identify, u32 type)
+{
+	int key;
+	struct codec_mm_pre_mgt_s *pre_mgt = get_mem_pre_mgt();
+	struct prealloc_job *job, *tmp;
+	struct hlist_node *hnode_tmp;
+
+	spin_lock(&pre_mgt->job_list_lock);
+	list_for_each_entry_safe(job, tmp, &pre_mgt->prealloc_job_list, list) {
+		if (job->inst_id == inst_identify && job->type == type) {
+			list_del_init(&job->list);
+			complete(&job->done);
+		}
+	}
+	spin_unlock(&pre_mgt->job_list_lock);
+
+	mutex_lock(&pre_mgt->ht_list_mutex);
+	for (key = 0; key < HASH_SIZE(ht); key++) {
+		hash_for_each_possible_safe(ht, job, hnode_tmp, hnode, key) {
+			if (job->inst_id == inst_identify && job->type == type)
+				job->inst_id = INVALID_INST_ID;
+		}
+	}
+	mutex_unlock(&pre_mgt->ht_list_mutex);
+	schedule_work(&pre_mgt->release_wrk);
+}
+EXPORT_SYMBOL(release_prealloc_job_with_type);
+
 static int prealloc_boost_work_func(void *prealloc_data)
 {
 	struct prealloc_pcp *c_work = (struct prealloc_pcp *)prealloc_data;
@@ -253,7 +281,16 @@ next:
 	return 0;
 }
 
-struct codec_mm_s *get_mms_from_hashtable(u32 key, int align_2n, int inst_id, bool no_check_inst_id)
+static inline bool tvp_flag_equal(int mem_flags, int pre_mem_flags)
+{
+	bool mem_has_tvp = (mem_flags & CODEC_MM_FLAGS_TVP);
+	bool pre_mem_has_tvp = (pre_mem_flags & CODEC_MM_FLAGS_TVP);
+
+	return (mem_has_tvp == pre_mem_has_tvp);
+}
+
+struct codec_mm_s *get_mms_from_hashtable(u32 key, int align_2n, int inst_id,
+	int memflags, bool no_check_inst_id)
 {
 	struct prealloc_job *job = NULL;
 	struct prealloc_job *pre_select_job = NULL;
@@ -267,7 +304,7 @@ struct codec_mm_s *get_mms_from_hashtable(u32 key, int align_2n, int inst_id, bo
 	mutex_lock(&pre_mgt->ht_list_mutex);
 	hash_for_each_possible_safe(ht, job, tmp, hnode, MB_ALIGN(key)) {
 		if (job->size == key &&
-			job->align_2n >= align_2n &&
+			job->align_2n >= align_2n && tvp_flag_equal(memflags, job->memflags) &&
 			(job->inst_id == inst_id || no_check_inst_id)) {
 			pre_select_job = job;
 			if (job->mem && completion_done(&job->done)) {

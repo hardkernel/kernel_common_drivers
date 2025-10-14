@@ -12,9 +12,12 @@ enum prealloc_mem_type {
 	PREALLOC_WK_TYPE = 2,
 	PREALLOC_MV_TYPE = 3,
 	PREALLOC_SC_TYPE = 4,
+	PREALLOC_DPSS_SML_TYPE = 5,
+	PREALLOC_DPSS_YUV_TYPE = 6,
 };
 
 void release_prealloc_job(int inst_identify);
+void release_prealloc_job_with_type(int inst_identify, u32 type);
 void submit_prealloc_job(u32 type, u32 num, u32 size, int align_2n, int memflags, int inst_id);
 
 #endif //_CODEC_MM_PREALLOC_H

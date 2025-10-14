@@ -7,7 +7,7 @@
 #define _CODEC_MM_PREALLOC_PRIV_H
 
 struct codec_mm_s *get_mms_from_hashtable(u32 key, int align_2n, int inst_id,
-	bool no_check_inst_id);
+	int memflags, bool no_check_inst_id);
 int init_prealloc_boost_task(void);
 #endif //_CODEC_MM_PREALLOC_PRIV_H
 
