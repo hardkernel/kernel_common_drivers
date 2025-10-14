@@ -508,8 +508,26 @@ EXPORT_SYMBOL(lcd_set_sw_vrr_target_fr);
 unsigned int lcd_get_sw_vrr_target_fr(int index)
 {
 	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(index);
+	struct lcd_detail_timing_s *pt;
+	unsigned int i, n, tmp_fr;
 
-	return (pdrv->sw_vrr.tg_fr <= 3000) ? (pdrv->sw_vrr.tg_fr * 2) : pdrv->sw_vrr.tg_fr;
+	if (!pdrv || !pdrv->curr_dev)
+		return 0;
+
+	pt = &pdrv->curr_dev->dev_cfg.timing.act_timing;
+	if (pdrv->sw_vrr.tg_fr == 0)
+		goto lcd_get_sw_vrr_target_fr_exit;
+	n = pt->vfreq_vrr_max * 100 / pdrv->sw_vrr.tg_fr;
+	for (i = 1; i <= n; i++) {
+		tmp_fr = pdrv->sw_vrr.tg_fr * i;
+		if (tmp_fr >= (pt->vfreq_vrr_min * 100))
+			return tmp_fr;
+	}
+
+lcd_get_sw_vrr_target_fr_exit:
+	if (lcd_debug_print_flag & LCD_DBG_PR_ISR)
+		LCDERR("[%d]: sw_vrr tg_fr:%d, exit\n", index, pdrv->sw_vrr.tg_fr);
+	return 0;
 }
 EXPORT_SYMBOL(lcd_get_sw_vrr_target_fr);
 
@@ -576,9 +594,9 @@ void lcd_sw_vrr_proc(struct aml_lcd_drv_s *pdrv)
 		}
 
 		pdrv->sw_vrr.sta = 1;
-		fr = lcd_get_sw_vrr_target_fr(0);
-		if (fr == pt->sync_duration_num * 100 / pt->sync_duration_den) {
-			//same frame rate
+		fr = lcd_get_sw_vrr_target_fr(pdrv->index);
+		if (fr == 0 || fr == pt->sync_duration_num * 100 / pt->sync_duration_den) {
+			//invalid or same frame rate
 			spin_unlock_irqrestore(&pdrv->sw_vrr.set_lock, flags);
 			return;
 		}

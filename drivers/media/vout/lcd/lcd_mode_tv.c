@@ -738,7 +738,7 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 	} else {
 		find = lcd_framerate_auto_std_duration_index(pdrv, vtable, n, duration);
 		if (find >= LCD_DURATION_MAX) {
-			LCDERR("[%d]: %s: can't support duration %d\n, exit\n",
+			LCDERR("[%d]: %s: can't support duration %d, exit\n",
 			       pdrv->index, __func__, duration);
 			mutex_unlock(&lcd_vout_mutex);
 			return -1;

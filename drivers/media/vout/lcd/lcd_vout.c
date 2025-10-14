@@ -1172,14 +1172,15 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned long long local_time[2];
 	unsigned long flags = 0;
-	unsigned int temp, duration;
+	unsigned int temp;
+	unsigned long long duration;
 	unsigned int fr;
 
 	if (!pdrv)
 		return;
 
-	local_time[0] = sched_clock();
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
+	local_time[0] = sched_clock();
 
 	lcd_fr_lock(pdrv);
 	lcd_sw_vrr_proc(pdrv);
@@ -1205,10 +1206,9 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 	}
 
 	if (pdrv->fr_show) {
-		fr = vout_frame_rate_measure(1);
-		duration = lcd_do_div(local_time[0] - pdrv->vs_time, 100000);
-		pr_info("fr=%d.%03d, duration=%d.%d\n",
-			fr / 1000, fr % 1000, duration / 10, duration % 10);
+		fr = vout_frame_rate_measure(pdrv->viu_sel);
+		duration = local_time[0] - pdrv->vs_time;
+		pr_info("fr=%d.%03d, duration=%llu\n", fr / 1000, fr % 1000, duration);
 	}
 	if (pdrv->vsync_test[0] == LCD_VSYNC_TEST_HTOTAL) {
 		if ((pdrv->vsync_cnt % pdrv->vsync_test[1]) == 0) {

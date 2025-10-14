@@ -667,7 +667,7 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 		}
 	} else {
 		if (!lcd_framerate_support_check(pdrv, duration)) {
-			LCDERR("[%d]: %s: can't support duration %d\n, exit\n",
+			LCDERR("[%d]: %s: can't support duration %d, exit\n",
 			       pdrv->index, __func__, duration);
 			mutex_unlock(&lcd_vout_mutex);
 			return -1;

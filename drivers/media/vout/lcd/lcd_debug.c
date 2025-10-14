@@ -23,8 +23,8 @@
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
-
 #include <linux/amlogic/media/vout/lcd/lcd_model.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
 #include "./lcd_clk/lcd_clk_config.h"
 #include "lcd_reg.h"
 #include "lcd_common.h"
@@ -443,7 +443,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 {
 	struct lcd_config_s *pconf;
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
-	unsigned int sync_duration, mute_state = 0;
+	unsigned int sync_duration, mute_state = 0, vs_val;
 	int n, len = 0, i, pr_len = 4 * 1024, base_id = 0, tag_id = 0, tag_id2 = 0;
 	char *pr_buf = NULL;
 	struct lcd_detail_timing_s *dt;
@@ -453,27 +453,32 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 	sync_duration = pconf->timing.act_timing.sync_duration_num * 100;
 	sync_duration = sync_duration / pconf->timing.act_timing.sync_duration_den;
 	mute_state = lcd_mute_state_get(pdrv);
+	vs_val = vout_frame_rate_measure(pdrv->viu_sel);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"[%d]: driver version: %s\n"
-		"config_check_glb: %d, config_check_para: 0x%x, config_check_en: %d\n"
+		"[%d]: drv_ver: %s\n"
+		"cfg_chk_glb: %d, cfg_chk_para: 0x%x, cfg_chk_en: %d\n"
 		"panel_type: %s, chip: %d, mode: %s, status: 0x%x\n"
 		"viu_sel: %d, isr_cnt: %d, resume_type: 0x%x\n"
-		"fr_auto_flag: 0x%x, fr_mode: %d, fr_duration: %d, frame_rate: %d\n"
-		"fr_auto_policy(global): %d, fr_auto_cus: 0x%x, custom_pinmux: %d\n"
+		"fr_auto: flag: 0x%x, policy(glb): %d, cus: 0x%x\n"
+		"sw_vrr: en: %d, sta: %d, tg_fr: %d(to %d), range: %d~%d\n"
+		"fr_mode: %d, fr_duration: %d, frame_rate: %d(msr: %d.%03d)\n"
 		"mute_state: %d(real %d), test_flag: 0x%x\n"
-		"key_valid: %d, config_load: %d\n\n",
+		"config_load: %d, cus_pinmux: %d\n\n",
 		pdrv->index, LCD_DRV_VERSION,
 		pdrv->config_check_glb, pconf->basic.config_check, pdrv->config_check_en,
 		pdrv->curr_dev->dev_propname, pdrv->data->chip_type,
 		lcd_mode_mode_to_str(pdrv->mode), pdrv->status,
 		pdrv->viu_sel, pdrv->vsync_cnt, pdrv->resume_type,
-		pconf->fr_auto_flag, pdrv->fr_mode, pdrv->fr_duration,
-		pconf->timing.act_timing.frame_rate,
-		pdrv->fr_auto_policy, pconf->fr_auto_cus, pconf->custom_pinmux,
+		pconf->fr_auto_flag, pdrv->fr_auto_policy, pconf->fr_auto_cus,
+		pdrv->sw_vrr.en, pdrv->sw_vrr.sta, pdrv->sw_vrr.tg_fr,
+		lcd_get_sw_vrr_target_fr(pdrv->index),
+		pconf->timing.act_timing.vfreq_vrr_min, pconf->timing.act_timing.vfreq_vrr_max,
+		pdrv->fr_mode, pdrv->fr_duration, pconf->timing.act_timing.frame_rate,
+		vs_val / 1000, vs_val % 1000,
 		pdrv->mute_flag, mute_state, pdrv->test_flag,
-		pdrv->key_valid, pdrv->config_load);
+		pdrv->config_load, pconf->custom_pinmux);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
@@ -3347,18 +3352,21 @@ static ssize_t lcd_debug_sw_vrr_show(struct device *dev, struct device_attribute
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct aml_sw_vrr_s *sw_vrr = NULL;
+	struct lcd_detail_timing_s *pt;
+	unsigned int vs_val;
 	ssize_t len = 0;
 
-	if (!pdrv)
+	if (!pdrv || !pdrv->curr_dev)
 		return sprintf(buf, "null\n");
 
+	pt = &pdrv->curr_dev->dev_cfg.timing.act_timing;
+	vs_val = vout_frame_rate_measure(pdrv->viu_sel);
 	sw_vrr = &pdrv->sw_vrr;
-	if (!sw_vrr) {
-		len = sprintf(buf, "not support sw_vlock\n");
-		return len;
-	}
-
-	len = sprintf(buf, "en:%d, fr=%d\n", sw_vrr->en, sw_vrr->tg_fr);
+	len = sprintf(buf, "en:%d, sta:%d, fr=%d(to:%d, msr:%d.%03d), range[%d~%d]\n",
+		sw_vrr->en, pdrv->sw_vrr.sta, sw_vrr->tg_fr,
+		lcd_get_sw_vrr_target_fr(pdrv->index),
+		vs_val / 1000, vs_val % 1000,
+		pt->vfreq_vrr_min, pt->vfreq_vrr_max);
 
 	return len;
 }
