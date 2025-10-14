@@ -1111,7 +1111,7 @@ fail_alloc_region:
 	return ret;
 }
 
-static void aml_vdac_remove(struct platform_device *pdev)
+static __maybe_unused void aml_vdac_remove(struct platform_device *pdev)
 {
 	struct amvdac_dev_s *devp = &amvdac_dev;
 

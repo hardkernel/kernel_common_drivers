@@ -11,14 +11,14 @@
  * out is null-terminated encode string.
  * return values is out length, exclusive terminating `\0'
  */
-unsigned long base64_encode(unsigned char *in,
+unsigned long aml_base64_encode(unsigned char *in,
 			    unsigned int inlen,
 			    char *out);
 
 /*
  * return values is out length
  */
-unsigned long base64_decode(char *in, unsigned int inlen,
+unsigned long aml_base64_decode(char *in, unsigned int inlen,
 			    unsigned char *out);
 
 #endif /* BASE64_H */

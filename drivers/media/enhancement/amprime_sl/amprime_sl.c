@@ -1769,7 +1769,7 @@ fail_alloc_region:
 	return ret;
 }
 
-static void amprime_sl_remove(struct platform_device *pdev)
+static __maybe_unused void amprime_sl_remove(struct platform_device *pdev)
 {
 	struct amprime_sl_dev_s *devp = &amprime_sl_dev;
 

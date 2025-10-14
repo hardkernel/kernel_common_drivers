@@ -64,7 +64,7 @@ unsigned long huff64_encode(unsigned int *in, unsigned int inlen, char *out)
 		kfree(testout);
 		return 0;
 	}
-	base64len = base64_encode(testout, hufflen, enbase64array);
+	base64len = aml_base64_encode(testout, hufflen, enbase64array);
 	for (i = 0; i < base64len; i += 1)
 		out[i] = enbase64array[i];
 	kfree(testin);
@@ -91,7 +91,7 @@ unsigned long huff64_decode(char *in, unsigned int inlen,
 	if (!decodebase64array)
 		return 0;
 
-	hufflen = base64_decode(inptr, inlen, decodebase64array);
+	hufflen = aml_base64_decode(inptr, inlen, decodebase64array);
 	testver = kmalloc(DECHUFF_MAXLEN, GFP_KERNEL);
 	if (!testver) {
 		kfree(decodebase64array);

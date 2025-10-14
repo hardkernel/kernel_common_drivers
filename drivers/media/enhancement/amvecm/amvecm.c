@@ -16795,7 +16795,7 @@ fail_create_wq:
 #endif
 }
 
-static void aml_vecm_remove(struct platform_device *pdev)
+static __maybe_unused void aml_vecm_remove(struct platform_device *pdev)
 {
 	struct amvecm_dev_s *devp = &amvecm_dev;
 

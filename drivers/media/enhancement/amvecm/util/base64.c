@@ -69,7 +69,7 @@ static unsigned char base64de[] = {
 		49,  50,  51, 255, 255, 255, 255, 255
 };
 
-unsigned long base64_encode(unsigned char *in, unsigned int inlen,
+unsigned long aml_base64_encode(unsigned char *in, unsigned int inlen,
 			    char *out)
 {
 	unsigned char *inptr = in;
@@ -117,7 +117,7 @@ unsigned long base64_encode(unsigned char *in, unsigned int inlen,
 	return counter;
 }
 
-unsigned long base64_decode(char *in, unsigned int inlen,
+unsigned long aml_base64_decode(char *in, unsigned int inlen,
 			    unsigned char *out)
 {
 	char *inptr = in;

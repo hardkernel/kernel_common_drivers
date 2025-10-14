@@ -40,6 +40,7 @@ static int drm_get_dv_support_info(void)
 #endif
 }
 
+#ifndef CONFIG_AMLOGIC_TXHD2_REMOVE
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 bool get_amdv_mode(void)
 {
@@ -66,6 +67,7 @@ void set_amdv_enable(bool enable)
 void set_amdv_mode(int mode)
 {
 }
+#endif
 #endif
 
 static int gamma_boot_ctl(char *str)

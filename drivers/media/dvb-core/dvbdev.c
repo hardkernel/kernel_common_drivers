@@ -24,8 +24,9 @@
 
 /* Due to enum tuner_pad_index */
 #include <linux/amlogic/media/dvb-core/tuner.h>
-
+#ifndef CONFIG_AMLOGIC_I2C
 #define CONFIG_AMLOGIC_I2C
+#endif
 
 static DEFINE_MUTEX(dvbdev_mutex);
 static LIST_HEAD(dvbdevfops_list);
