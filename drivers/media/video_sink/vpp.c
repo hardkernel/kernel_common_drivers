@@ -1172,7 +1172,7 @@ static int vpp_process_speed_check
 #endif
 	/* brr_duration only for QMS case */
 	if (vinfo->brr_duration) {
-		sync_duration_num = vinfo->brr_duration * sync_duration_den;
+		sync_duration_num = vinfo->std_duration * sync_duration_den;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if ((frc_enable || (slice_num == 2 &&
 			video_is_meson_t3x_cpu())) && layer_id == 0)
