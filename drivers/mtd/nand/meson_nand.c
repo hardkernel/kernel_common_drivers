@@ -733,7 +733,7 @@ static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
 				  NFC_CMD_SHORTMODE_DISABLE,
 				  nand->ecc.size >> 3,
 				  nand->ecc.steps);
-	if (nfc->data->bl2ex_mode) {
+	if (meson_nand_get_bootloader_mode() == NAND_FIPMODE_ADVANCE) {
 		p_nand_page0_sc2 = (struct _nand_page0_sc2 *)page0_buf;
 		p_nand_setup_sc2 = &p_nand_page0_sc2->nand_setup;
 		p_ext_info = &p_nand_page0_sc2->ext_info;
@@ -1150,7 +1150,7 @@ static int meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 		nand->options &= ~NAND_NEED_SCRAMBLING;
 
 		/*check page 0 info here*/
-		if (nfc->data->bl2ex_mode) {
+		if (meson_nand_get_bootloader_mode() == NAND_FIPMODE_ADVANCE) {
 			p_nand_page0_sc2 = (struct _nand_page0_sc2 *)buf;
 			p_nand_setup_sc2 = &p_nand_page0_sc2->nand_setup;
 			p_ext_info = &p_nand_page0_sc2->ext_info;
@@ -1175,7 +1175,8 @@ static int meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 		}
 		meson_chip->bch_mode = bch_mode;
 		nand->ecc.size = ecc_size;
-	} else if (page_info_is_page(mtd, page)) {
+	} else if (nfc->param_from_dts.common_pageinfo &&
+		    page_info_is_page(mtd, page)) {
 		ret = meson_nfc_read_page_hwecc(nand, buf, 1, page);
 		if (ret)
 			pr_err("read page info failed\n");
