@@ -185,7 +185,7 @@ static int crg_get_num_ports(struct crg_drd *crg)
 static int crg_core_get_phy(struct crg_drd *crg)
 {
 	struct device *dev = crg->dev;
-	int i, ret;
+	int i, ret = 0;
 	char phy_name[9];
 
 	crg->usb2_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
@@ -199,7 +199,7 @@ static int crg_core_get_phy(struct crg_drd *crg)
 		crg->super_speed_support = true;
 
 	if (crg->usb2_phy)
-		return 0;
+		return ret;
 
 	for (i = 0; i < crg->num_usb2_ports; i++) {
 		if (crg->num_usb2_ports == 1)
@@ -210,13 +210,10 @@ static int crg_core_get_phy(struct crg_drd *crg)
 		crg->usb2_generic_phy[i] = phy_get(dev, phy_name);
 		if (IS_ERR(crg->usb2_generic_phy[i])) {
 			ret = PTR_ERR(crg->usb2_generic_phy[i]);
-			if (ret == -ENODEV) {
-				crg->usb2_generic_phy[i] = NULL;
-				dev_err(dev, "no u2phy%d.\n", i);
-			} else {
-				return dev_err_probe(dev, ret, "failed to lookup phy %s\n",
-							phy_name);
-			}
+			crg->usb2_generic_phy[i] = NULL;
+			dev_err_probe(dev, ret, "failed to lookup phy %s\n",
+						phy_name);
+			goto err_phy_get;
 		}
 	}
 
@@ -229,19 +226,27 @@ static int crg_core_get_phy(struct crg_drd *crg)
 		crg->usb3_generic_phy[i] = phy_get(dev, phy_name);
 		if (IS_ERR(crg->usb3_generic_phy[i])) {
 			ret = PTR_ERR(crg->usb3_generic_phy[i]);
-			if (ret == -ENODEV) {
-				crg->usb3_generic_phy[i] = NULL;
-				dev_err(dev, "no u3phy%d.\n", i);
-			} else {
-				return dev_err_probe(dev, ret, "failed to lookup phy %s\n",
-							phy_name);
-			}
+			crg->usb3_generic_phy[i] = NULL;
+			dev_err_probe(dev, ret, "failed to lookup phy %s\n",
+						phy_name);
+			goto err_phy_get;
 		}
-		if (crg->usb3_generic_phy[i])
-			crg->super_speed_support = true;
 	}
 
-	return 0;
+	return ret;
+
+err_phy_get:
+	for (i = 0; i < crg->num_usb2_ports; i++) {
+		if (crg->usb2_generic_phy[i])
+			phy_put(crg->dev, crg->usb2_generic_phy[i]);
+	}
+
+	for (i = 0; i < crg->num_usb3_ports; i++) {
+		if (crg->usb3_generic_phy[i])
+			phy_put(crg->dev, crg->usb3_generic_phy[i]);
+	}
+
+	return ret;
 }
 
 static int crg_phy_init(struct crg_drd *crg)
@@ -408,8 +413,10 @@ static int crg_core_init(struct crg_drd *crg)
 	case USB_DR_MODE_HOST:
 		for (i = 0; i < crg->num_usb2_ports; i++)
 			phy_set_mode(crg->usb2_generic_phy[i], PHY_MODE_USB_HOST);
-		for (i = 0; i < crg->num_usb3_ports; i++)
-			phy_set_mode(crg->usb3_generic_phy[i], PHY_MODE_USB_HOST);
+		for (i = 0; i < crg->num_usb3_ports; i++) {
+			if (phy_set_mode(crg->usb3_generic_phy[i], PHY_MODE_USB_HOST) >= 0)
+				crg->super_speed_support = true;
+		}
 		crg_set_mode(crg, CRG_GCTL_PRTCAP_HOST);
 		break;
 	case USB_DR_MODE_OTG:

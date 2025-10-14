@@ -1647,10 +1647,6 @@ static int dwc3_core_get_phy(struct aml_dwc3 *dwc)
 				return dev_err_probe(dev, ret, "failed to lookup phy %s\n",
 							phy_name);
 		}
-#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
-		if (dwc->usb3_generic_phy[i])
-			dwc->super_speed_support = true;
-#endif
 	}
 
 	return 0;
@@ -1682,8 +1678,15 @@ static int dwc3_core_init_mode(struct aml_dwc3 *dwc)
 			otg_set_vbus(dwc->usb2_phy->otg, true);
 		for (i = 0; i < dwc->num_usb2_ports; i++)
 			phy_set_mode(dwc->usb2_generic_phy[i], PHY_MODE_USB_HOST);
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		for (i = 0; i < dwc->num_usb3_ports; i++) {
+			if (phy_set_mode(dwc->usb3_generic_phy[i], PHY_MODE_USB_HOST) >= 0)
+				dwc->super_speed_support = true;
+		}
+#else
 		for (i = 0; i < dwc->num_usb3_ports; i++)
 			phy_set_mode(dwc->usb3_generic_phy[i], PHY_MODE_USB_HOST);
+#endif
 
 		ret = aml_dwc3_host_init(dwc);
 		if (ret)

@@ -325,6 +325,10 @@ int meson_m31_u3phy_set_mode(struct amlogic_usb_m31 *phy, enum meson_uphy_mode m
 
 	dev_dbg(phy->dev, "%s: set mode %d.\n", __func__, mode);
 
+	/* Support controller super_speed_support config. */
+	if (!phy->portnum)
+		return -EINVAL;
+
 	switch (mode) {
 	case MESON_USB_MODE_HOST:
 		meson_m31_u3phy_host_init(phy);

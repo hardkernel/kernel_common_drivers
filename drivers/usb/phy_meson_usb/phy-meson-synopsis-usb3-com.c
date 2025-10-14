@@ -273,6 +273,15 @@ int meson_synopsis_u3phy_exit(struct amlogic_usb_v2 *phy)
 	return 0;
 }
 
+int meson_synopsis_u3phy_set_mode(struct amlogic_usb_v2 *phy, enum meson_uphy_mode mode)
+{
+	/* Support controller super_speed_support config. */
+	if (!phy->portnum)
+		return -EINVAL;
+
+	return 0;
+}
+
 static bool meson_synopsis_u3phy_muxed(void)
 {
 	return meson_uphy_of_device_pci_available();

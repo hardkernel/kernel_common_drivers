@@ -90,6 +90,11 @@ static int meson_u3phy_sc2_exit(void *phy)
 	return meson_synopsis_u3phy_exit((struct amlogic_usb_v2 *)phy);
 }
 
+static int  meson_u3phy_sc2_set_mode(void *phy, enum meson_uphy_mode mode)
+{
+	return meson_synopsis_u3phy_set_mode((struct amlogic_usb_v2 *)phy, mode);
+}
+
 static struct meson_uphy_ops meson_u2phy_sc2_ops = {
 	.init = meson_u2phy_sc2_init,
 	.exit = meson_u2phy_sc2_exit,
@@ -103,6 +108,7 @@ static struct meson_uphy_ops meson_u2phy_sc2_ops = {
 static struct meson_uphy_ops meson_u3phy_sc2_ops = {
 	.init = meson_u3phy_sc2_init,
 	.exit = meson_u3phy_sc2_exit,
+	.set_mode = meson_u3phy_sc2_set_mode,
 };
 
 struct meson_uphy_pdata meson_uphy_sc2_pdata = {

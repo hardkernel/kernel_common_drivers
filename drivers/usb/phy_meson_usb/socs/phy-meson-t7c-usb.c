@@ -329,6 +329,15 @@ static int meson_u3phy_t7c_init(void *phy)
 	return 0;
 }
 
+int meson_u3phy_t7c_set_mode(void *phy, enum meson_uphy_mode mode)
+{
+	/* Support controller super_speed_support config. */
+	if (!(((struct amlogic_usb_v2 *)phy)->portnum))
+		return -EINVAL;
+
+	return 0;
+}
+
 static bool meson_u3phy_t7c_muxed(void)
 {
 	return meson_uphy_of_device_pci_available();
@@ -531,6 +540,7 @@ static struct meson_uphy_ops meson_u2phy_t7c_ops = {
 static struct meson_uphy_ops meson_u3phy_t7c_ops = {
 	.init = meson_u3phy_t7c_init,
 	.exit = meson_u3phy_t7c_exit,
+	.set_mode = meson_u3phy_t7c_set_mode,
 };
 
 struct meson_uphy_pdata meson_uphy_t7c_pdata = {

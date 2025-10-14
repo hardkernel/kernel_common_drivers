@@ -158,6 +158,7 @@ int meson_u2phy_aml_2t_init(struct amlogic_usb_v2 *phy, struct meson_u2phy_priv 
 int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instance);
 int meson_synopsis_u3phy_init(struct amlogic_usb_v2 *phy);
 int meson_synopsis_u3phy_exit(struct amlogic_usb_v2 *phy);
+int meson_synopsis_u3phy_set_mode(struct amlogic_usb_v2 *phy, enum meson_uphy_mode mode);
 int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *instance);
 int meson_aml_u3phy_init(struct aml_usb3_phy *phy);
 int meson_aml_u3phy_exit(struct aml_usb3_phy *phy);
