@@ -830,7 +830,8 @@ struct video_layer_s {
 	u8 cur_frc_link_mode;
 	u8 frc_link_skip_cnt;
 	atomic_t disable_frc_link_done;
-
+	u8 nr_pps_h_scaler_rate;
+	u8 nr_pps_v_scaler_rate;
 };
 
 struct video_lcevc_s {

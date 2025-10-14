@@ -6585,6 +6585,282 @@ SKIP_VD1_AFBC:
 	return;
 }
 
+static void vd1_postscaler_setting(struct video_layer_s *layer, struct scaler_setting_s *setting)
+{
+	u32 misc_off, i;
+	u32 r1, r2, r3;
+	struct vpp_frame_par_s *frame_par;
+	struct hw_pps_reg_s *vd_pps_reg;
+	u8 vpp_index = layer->vpp_index;
+	u32 vpp_vert_coeff;
+	u32 vpp_horz_coeff;
+	u32 hsize_in = 0, vsize_in = 0, dst_w = 0, dst_h = 0;
+	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
+	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
+	bool sc_top_enable = false;
+	u32 vpp_pre_hsc_en = 0, vpp_pre_vsc_en = 0;
+	int ds_ratio = 1;
+	int flt_num = 2;
+	int pre_hscaler_table[4] = {0x100, 0x0, 0x0, 0x0};
+	int pre_vscaler_table[2] = {0x100, 0x0};
+	u32 hsc_rpt_p0_num0 = 1, hsc_init_rev_num0 = 4;
+	u32 VPP_hf_ini_phase_ = 0, VPP_vf_init_phase = 0;
+	u32 reg_prehsc_mode = 2, vsc_double_line_mode = 0;
+	u32 vpp_vf_rpt_num = 1, vpp_vf_rcv_num = 4;
+	u32 vpp_hf_start_phase_step, vpp_vsc_start_phase_step;
+	u32 hdr_size_dpss_mode = 1, post_en_h = 1, post_en_v = 1;
+
+	if (!setting || !setting->frame_par)
+		return;
+	if (!video_is_meson_t6x_cpu())
+		return;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	hdr_size_dpss_mode = dpss_mode;
+#endif
+#endif
+	vd_pps_reg = &layer->pps_reg;
+	frame_par = setting->frame_par;
+	misc_off = setting->misc_reg_offt;
+
+	hsize_in = frame_par->VPP_line_in_length_;
+	vsize_in = frame_par->VPP_pic_in_height_;
+
+	dst_w = hsize_in;
+	dst_h = vsize_in;
+
+	if (layer->nr_pps_h_scaler_rate || layer->nr_pps_v_scaler_rate) {
+		sc_top_enable = true;
+		vpp_pre_hsc_en = 0;
+		vpp_pre_vsc_en = 0;
+		if (layer->nr_pps_h_scaler_rate)
+			dst_w = hsize_in / (layer->nr_pps_h_scaler_rate + 1);
+		if (layer->nr_pps_v_scaler_rate)
+			dst_h = vsize_in / (layer->nr_pps_v_scaler_rate + 1);
+	}
+
+	r1 = 0;
+	r2 = dst_w;
+	r3 = dst_w - 1;
+	vpp_hf_start_phase_step = ((hsize_in << 20) / dst_w) << 4;
+	vpp_vsc_start_phase_step = ((vsize_in << 20) / dst_h) << 4;
+	#ifdef check_later
+	if (vpp_pre_hsc_en)
+		vpp_hf_start_phase_step >>= 1;
+	if (vpp_pre_vsc_en)
+		vpp_vsc_start_phase_step >>= 1;
+	#endif
+	VPP_vf_init_phase = 0;
+	VPP_hf_ini_phase_ = 0;
+	vpp_horz_coeff = 0x00800000;
+	vpp_vert_coeff = 0x00800000;
+
+	if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+		pr_info("%s:vpp_pre_h/vsc_en=%d, %d, h/vsize_in=%d, %d,dst_w/h=%d, %d, h/v phase_step:0x%x, 0x%x\n",
+			__func__,
+			vpp_pre_hsc_en,
+			vpp_pre_vsc_en,
+			hsize_in, vsize_in,
+			dst_w, dst_h,
+			vpp_hf_start_phase_step,
+			vpp_vsc_start_phase_step);
+
+	if (sc_top_enable) {
+		u32 sc_misc_val;
+
+		sc_misc_val = VPP_SC_TOP_EN | VPP_SC_V1OUT_EN;
+		/* enable seprate luma chroma coef */
+		if (cur_dev->scaler_sep_coef_en)
+			sc_misc_val |= VPP_HF_SEP_COEF_4SRNET_EN;
+		if (setting->sc_h_enable) {
+			sc_misc_val |=
+				((vpp_pre_hsc_en & 1)
+				<< VPP_SC_PREHORZ_EN_BIT);
+			sc_misc_val |=
+				(4 << VPP_SC_HBANK_LENGTH_BIT);
+			if (post_en_h)
+				sc_misc_val |= VPP_SC_HORZ_EN;
+		}
+
+		if (setting->sc_v_enable) {
+			sc_misc_val |= ((vpp_pre_vsc_en & 1)
+				<< VPP_SC_PREVERT_EN_BIT);
+			sc_misc_val |= ((vpp_pre_vsc_en & 1)
+				<< VPP_LINE_BUFFER_EN_BIT);
+			sc_misc_val |= (4 << VPP_SC_VBANK_LENGTH_BIT);
+			if (post_en_v)
+				sc_misc_val |= VPP_SC_VERT_EN;
+		}
+
+		if (setting->last_line_fix)
+			sc_misc_val |= VPP_PPS_LAST_LINE_FIX;
+
+		rdma_wr(vd_pps_reg->vd_sc_misc,
+			sc_misc_val);
+		vpu_module_clk_enable(vpp_index, VD1_SCALER, 0);
+	} else {
+		setting->sc_v_enable = false;
+		setting->sc_h_enable = false;
+		rdma_wr_bits(vd_pps_reg->vd_sc_misc,
+			0, VPP_SC_TOP_EN_BIT,
+			VPP_SC_TOP_EN_WID);
+		vpu_module_clk_disable(vpp_index, VD1_SCALER, 0);
+	}
+
+	/* horizontal filter settings */
+	if (setting->sc_h_enable) {
+		rdma_wr_bits(vd_pps_reg->vd_pre_scale_ctrl,
+			0x77, 12, 9);
+		rdma_wr(vd_pps_reg->vd_scale_coef_idx,
+			VPP_COEF_HORZ);
+		for (i = 0; i < 33; i++)
+			rdma_wr(vd_pps_reg->vd_scale_coef, vpp_horz_coeff);
+
+		//pre scaler setting
+		rdma_wr_bits(vd_pps_reg->vd_hsc_phase_ctrl1,
+			VPP_hf_ini_phase_,
+			VPP_HSC_TOP_INI_PHASE_BIT,
+			VPP_HSC_TOP_INI_PHASE_WID);
+		rdma_wr_bits(vd_pps_reg->vd_hsc_phase_ctrl,
+			hsc_init_rev_num0,
+			VPP_HSC_INIRCV_NUM_BIT,
+			VPP_HSC_INIRCV_NUM_WID);
+		rdma_wr_bits(vd_pps_reg->vd_hsc_phase_ctrl,
+			hsc_rpt_p0_num0,
+			VPP_HSC_INIRPT_NUM_BIT_8TAP,
+			VPP_HSC_INIRPT_NUM_WID_8TAP);
+		rdma_wr_bits(vd_pps_reg->vd_hsc_phase_ctrl1,
+			hsc_init_rev_num0,
+			VPP_HSC_INIRCV_NUM_BIT,
+			VPP_HSC_INIRCV_NUM_WID);
+		rdma_wr_bits(vd_pps_reg->vd_hsc_phase_ctrl1,
+			hsc_rpt_p0_num0,
+			VPP_HSC_INIRPT_NUM_BIT_8TAP,
+			VPP_HSC_INIRPT_NUM_WID_8TAP);
+		rdma_wr_bits(vd_pps_reg->vd_hsc_phase_ctrl1,
+			reg_prehsc_mode,
+			24, 4);
+
+		//get_pre_hscaler_para(0, &ds_ratio, &flt_num);
+		//get_pre_hscaler_coef(0, pre_hscaler_table);
+		rdma_wr_bits(vd_pps_reg->vd_prehsc_coef,
+			pre_hscaler_table[0],
+			VPP_PREHSC_8TAP_COEF0_BIT,
+			VPP_PREHSC_8TAP_COEF0_WID);
+		rdma_wr_bits(vd_pps_reg->vd_prehsc_coef,
+			pre_hscaler_table[1],
+			VPP_PREHSC_8TAP_COEF1_BIT,
+			VPP_PREHSC_8TAP_COEF1_WID);
+		rdma_wr_bits(vd_pps_reg->vd_prehsc_coef1,
+			pre_hscaler_table[2],
+			VPP_PREHSC_8TAP_COEF2_BIT,
+			VPP_PREHSC_8TAP_COEF2_WID);
+		rdma_wr_bits(vd_pps_reg->vd_prehsc_coef1,
+			pre_hscaler_table[3],
+			VPP_PREHSC_8TAP_COEF3_BIT,
+			VPP_PREHSC_8TAP_COEF3_WID);
+		rdma_wr_bits(vd_pps_reg->vd_pre_scale_ctrl,
+			flt_num,
+			VPP_PREHSC_FLT_NUM_BIT_T7,
+			VPP_PREHSC_FLT_NUM_WID_T7);
+		rdma_wr_bits(vd_pps_reg->vd_pre_scale_ctrl,
+			ds_ratio,
+			VPP_PREHSC_DS_RATIO_BIT_T7,
+			VPP_PREHSC_DS_RATIO_WID_T7);
+
+		//get_pre_vscaler_para(0, &ds_ratio, &flt_num);
+		//get_pre_vscaler_coef(0, pre_vscaler_table);
+		rdma_wr_bits(vd_pps_reg->vd_prevsc_coef,
+			pre_vscaler_table[0],
+			VPP_PREVSC_COEF0_BIT_T7,
+			VPP_PREVSC_COEF0_WID_T7);
+		rdma_wr_bits(vd_pps_reg->vd_prevsc_coef,
+			pre_vscaler_table[1],
+			VPP_PREVSC_COEF1_BIT_T7,
+			VPP_PREVSC_COEF1_WID_T7);
+
+		rdma_wr_bits(vd_pps_reg->vd_pre_scale_ctrl,
+			flt_num,
+			VPP_PREVSC_FLT_NUM_BIT_T7,
+			VPP_PREVSC_FLT_NUM_WID_T7);
+		rdma_wr_bits(vd_pps_reg->vd_pre_scale_ctrl,
+			ds_ratio,
+			VPP_PREVSC_DS_RATIO_BIT_T7,
+			VPP_PREVSC_DS_RATIO_WID_T7);
+
+		rdma_wr_bits(vd_pps_reg->vd_hsc_phase_ctrl,
+			VPP_hf_ini_phase_,
+			VPP_HSC_TOP_INI_PHASE_BIT,
+			VPP_HSC_TOP_INI_PHASE_WID);
+		rdma_wr(vd_pps_reg->vd_hsc_region12_startp,
+			(0 << VPP_REGION1_BIT) |
+			((r1 & VPP_REGION_MASK)
+			<< VPP_REGION2_BIT));
+		rdma_wr(vd_pps_reg->vd_hsc_region34_startp,
+			((r2 & VPP_REGION_MASK)
+			<< VPP_REGION3_BIT) |
+			((r3 & VPP_REGION_MASK)
+			<< VPP_REGION4_BIT));
+		rdma_wr(vd_pps_reg->vd_hsc_region4_endp, r3);
+		rdma_wr(vd_pps_reg->vd_hsc_start_phase_step,
+			vpp_hf_start_phase_step);
+		rdma_wr(vd_pps_reg->vd_hsc_region1_phase_slope, 0);
+		rdma_wr(vd_pps_reg->vd_hsc_region3_phase_slope, 0);
+	}
+
+	/* vertical filter settings */
+	if (setting->sc_v_enable) {
+		rdma_wr_bits(vd_pps_reg->vd_vsc_phase_ctrl,
+			vsc_double_line_mode,
+			VPP_PHASECTL_DOUBLELINE_BIT,
+			VPP_PHASECTL_DOUBLELINE_WID);
+		rdma_wr_bits(vd_pps_reg->vd_vsc_phase_ctrl,
+			vpp_vf_rpt_num,
+			VPP_PHASECTL_INIRPTNUMT_BIT,
+			VPP_PHASECTL_INIRPTNUM_WID);
+		rdma_wr_bits(vd_pps_reg->vd_vsc_phase_ctrl,
+			vpp_vf_rcv_num,
+			VPP_PHASECTL_INIRCVNUMT_BIT,
+			VPP_PHASECTL_INIRCVNUM_WID);
+
+		rdma_wr(vd_pps_reg->vd_vsc_init_phase,
+			VPP_vf_init_phase | (VPP_vf_init_phase << 16));
+
+		rdma_wr(vd_pps_reg->vd_scale_coef_idx,
+			VPP_COEF_VERT);
+		for (i = 0; i < 33; i++)
+			rdma_wr(vd_pps_reg->vd_scale_coef,
+					vpp_vert_coeff);
+
+		r1 = dst_h - 1;
+		rdma_wr(vd_pps_reg->vd_vsc_region12_startp, 0);
+		rdma_wr(vd_pps_reg->vd_vsc_region34_startp,
+			((r1 & VPP_REGION_MASK)
+			<< VPP_REGION3_BIT) |
+			((r1 & VPP_REGION_MASK)
+			<< VPP_REGION4_BIT));
+		rdma_wr(vd_pps_reg->vd_vsc_region4_endp, r1);
+		rdma_wr(vd_pps_reg->vd_vsc_start_phase_step,
+			vpp_vsc_start_phase_step);
+	}
+
+	/*vpp input size setting*/
+	rdma_wr(VD1_HDR_IN_SIZE + misc_off,
+		(vsize_in << 16) | hsize_in);
+
+	if (cur_dev->display_module == T6W_DISPLAY_MODULE &&
+		!hdr_size_dpss_mode) {
+		u32 hdr2_size_offset = 0;
+
+		if (video_is_after_meson_t6x_cpu())
+			hdr2_size_offset = 1;
+		rdma_wr(VPU_HDR2_SIZE_IN + hdr2_size_offset,
+			(vsize_in << 16) | hsize_in);
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("%s VPU_HDR2_SIZE_IN updated\n", __func__);
+	}
+}
+
 /* mosaic_slice_num:
  * if mosaic mode is enabled, set the corresponding slice number; otherwise, set it to 0.
  */
@@ -6596,7 +6872,7 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 	struct vpp_frame_par_s *frame_par;
 	struct vppfilter_mode_s *vpp_filter;
 	struct vppfilter_mode_s *aisr_vpp_filter = NULL;
-	u32 hsc_init_rev_num0 = 4;
+	u32 hsc_init_rev_num0 = 4, reg_prehsc_mode = 0;
 	struct hw_pps_reg_s *vd_pps_reg;
 	u32 bit9_mode = 0, s11_mode = 0;
 	u8 vpp_index;
@@ -6927,6 +7203,11 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 				hsc_init_rev_num0 = 8;
 			else
 				hsc_init_rev_num0 = 4;
+			//recovery default value 0, vd1_pre_scaler_setting will modify it
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(vd_pps_reg->vd_hsc_phase_ctrl1,
+				reg_prehsc_mode,
+				24, 4);
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(vd_pps_reg->vd_hsc_phase_ctrl1,
 				frame_par->VPP_hf_ini_phase_,
@@ -9282,10 +9563,10 @@ s32 config_vd_pps_internal(struct video_layer_s *layer,
 		bool postsc_en;
 
 		/* nr_pps_scaler, pps will do force postscaler, input size /2 */
-		//if (layer->nr_pps_h_scaler_rate)
-		//	src_w = src_w / (layer->nr_pps_h_scaler_rate + 1);
-		//if (layer->nr_pps_v_scaler_rate)
-		//	src_h = src_h / (layer->nr_pps_v_scaler_rate + 1);
+		if (layer->nr_pps_h_scaler_rate)
+			src_w = src_w / (layer->nr_pps_h_scaler_rate + 1);
+		if (layer->nr_pps_v_scaler_rate)
+			src_h = src_h / (layer->nr_pps_v_scaler_rate + 1);
 		if ((vpp_filter->vpp_hsc_start_phase_step == 0x1000000 &&
 			vpp_filter->vpp_vsc_start_phase_step == 0x1000000 &&
 			src_w == dst_w &&
@@ -9338,7 +9619,15 @@ s32 config_vd_pps_internal(struct video_layer_s *layer,
 		setting->vsr.vsr_safa.postsc_en = postsc_en;
 		setting->vsr.vsr_safa.preh_ratio = vpp_filter->vpp_pre_hsc_ratio;
 		setting->vsr.vsr_safa.prev_ratio = vpp_filter->vpp_pre_vsc_ratio;
-
+		/* nr_pps_scaler, pps will do force postcaler, vsr precaler force disable */
+		if (layer->nr_pps_h_scaler_rate) {
+			setting->vsr.vsr_safa.preh_en = 0;
+			setting->sc_h_enable = true;
+		}
+		if (layer->nr_pps_v_scaler_rate) {
+			setting->vsr.vsr_safa.prev_en = 0;
+			setting->sc_v_enable = true;
+		}
 		/* vsr safa non-linear */
 		setting->vsr.vsr_safa.nonlinear_4region_en =
 			vpp_filter->vpp_hsc_nonlinear_4region_en;
@@ -9478,6 +9767,7 @@ s32 config_vd_blend(struct video_layer_s *layer,
 #ifdef CHECK_LATER
 	u32 type = 0;
 #endif
+	u32 preblend_hsize = 0, preblend_vsize = 0;
 
 	if (!layer || !layer->cur_frame_par || !setting)
 		return -1;
@@ -9513,13 +9803,25 @@ s32 config_vd_blend(struct video_layer_s *layer,
 		return 0;
 	}
 
+	// nr_pps_scaler, pps will do force postscaler
+	//pps before preblend, preblend input size /2
+	if (layer->nr_pps_h_scaler_rate)
+		preblend_hsize = cur_frame_par->video_input_w /
+		(layer->nr_pps_h_scaler_rate + 1);
+	else
+		preblend_hsize = cur_frame_par->video_input_w;
+	if (layer->nr_pps_v_scaler_rate)
+		preblend_vsize = cur_frame_par->video_input_h /
+		(layer->nr_pps_v_scaler_rate + 1);
+	else
+		preblend_vsize = cur_frame_par->video_input_h;
+
 	if (legacy_vpp) {
 		setting->preblend_h_start = 0;
 		setting->preblend_h_end = 4096;
 	} else {
 		setting->preblend_h_start = 0;
-		setting->preblend_h_end =
-			cur_frame_par->video_input_w - 1;
+		setting->preblend_h_end = preblend_hsize - 1;
 	}
 	if (dispbuf && (dispbuf->type & VIDTYPE_MVC)) {
 		setting->preblend_v_start =
@@ -9546,12 +9848,10 @@ s32 config_vd_blend(struct video_layer_s *layer,
 		}
 	} else {
 		setting->preblend_v_start = 0;
-		setting->preblend_v_end =
-			cur_frame_par->video_input_h - 1;
+		setting->preblend_v_end = preblend_vsize - 1;
 	}
 
-	setting->preblend_h_size =
-		cur_frame_par->video_input_w;
+	setting->preblend_h_size = preblend_hsize;
 	setting->postblend_h_size =
 		cur_frame_par->VPP_post_blend_h_size_;
 
@@ -9594,7 +9894,7 @@ s32 config_vd_blend(struct video_layer_s *layer,
 	}
 
 	if (!legacy_vpp) {
-		u32 temp_h = cur_frame_par->video_input_h;
+		u32 temp_h = preblend_vsize;
 
 		temp_h <<= 16;
 		setting->preblend_h_size |= temp_h;
@@ -9817,10 +10117,12 @@ void vd_scaler_setting(struct video_layer_s *layer,
 		return;
 
 	if (layer_id == 0) {
-		if  (setting->vsr_safa_support)
+		if  (setting->vsr_safa_support) {
 			set_vsr_scaler(&setting->vsr);
-		else
+			vd1_postscaler_setting(layer, setting);
+		} else {
 			vd1_scaler_setting(layer, setting, 0);
+		}
 	} else {
 		vdx_scaler_setting(layer, setting, 0);
 	}
@@ -9844,7 +10146,8 @@ void vd_scaler_setting(struct video_layer_s *layer,
 							   &virtual_layer->sc_setting, i);
 			}
 		} else {
-			if (cur_dev->vd1_vsr_safa_support)
+			if (cur_dev->vd1_vsr_safa_support &&
+				!(layer->nr_pps_h_scaler_rate || layer->nr_pps_v_scaler_rate))
 				disable_pps();
 		}
 	}
@@ -13180,6 +13483,17 @@ void vppx_blend_update(const struct vinfo_s *vinfo, u32 vpp_index)
 /*********************************************************
  * frame canvas APIs
  *********************************************************/
+static void update_nr_pps_scaler(struct video_layer_s *layer, struct vframe_s *vf)
+{
+	if (vf) {
+		layer->nr_pps_h_scaler_rate = vf->dpss_pps_dsx;
+		layer->nr_pps_v_scaler_rate = vf->dpss_pps_dsy;
+	} else {
+		layer->nr_pps_h_scaler_rate = 0;
+		layer->nr_pps_v_scaler_rate = 0;
+	}
+}
+
 static bool is_vframe_changed
 	(u8 layer_id,
 	struct vframe_s *cur_vf,
@@ -13239,7 +13553,9 @@ static bool is_vframe_changed
 	     (is_src_crop_valid(cur_vf->src_crop) &&
 	     !is_src_crop_valid(new_vf->src_crop)) ||
 	     (!is_src_crop_valid(cur_vf->src_crop) &&
-	     is_src_crop_valid(new_vf->src_crop)))))
+	     is_src_crop_valid(new_vf->src_crop)) ||
+	     cur_vf->dpss_pps_dsx != new_vf->dpss_pps_dsx ||
+	     cur_vf->dpss_pps_dsy != new_vf->dpss_pps_dsy)))
 		return true;
 
 	if (cur_vf && new_vf) {
@@ -15112,6 +15428,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		layer->dispbuf, vf);
 	sr_phase_changed = is_sr_phase_changed();
 	frc_changed = is_frc_changed();
+	update_nr_pps_scaler(layer, vf);
 	if (layer->mosaic_mode) {
 		int i;
 		struct mosaic_frame_s *mosaic_frame;
@@ -18178,6 +18495,13 @@ void update_vd_amvecm_info(struct video_layer_s *layer)
 		dst_h = cur_frame_par->VPP_vsc_endp - cur_frame_par->VPP_vsc_startp + 1;
 	}
 	if (layer->layer_id == 0) {
+		u8 nr_pps_h_scaler_rate = vd_layer[0].nr_pps_h_scaler_rate;
+		u8 nr_pps_v_scaler_rate = vd_layer[0].nr_pps_v_scaler_rate;
+
+		if (nr_pps_h_scaler_rate)
+			src_w = src_w / (nr_pps_h_scaler_rate + 1);
+		if (nr_pps_v_scaler_rate)
+			src_h = src_h / (nr_pps_v_scaler_rate + 1);
 		vd_proc_amvecm.vd1_in_hsize = src_w;
 		vd_proc_amvecm.vd1_in_vsize = src_h;
 		vd_proc_amvecm.vd1_dout_hsize = dst_w;

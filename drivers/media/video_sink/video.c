@@ -9217,9 +9217,9 @@ static ssize_t frame_width_show(const struct class *cla,
 				char *buf)
 {
 	struct vframe_s *dispbuf = NULL;
+	u8 nr_pps_h_scaler_rate = vd_layer[0].nr_pps_h_scaler_rate;
 
 	dispbuf = get_dispbuf(0);
-
 	if (hold_video == 1 &&
 	    (glayer_info[0].display_path_id ==
 	     VFM_PATH_AMVIDEO ||
@@ -9228,9 +9228,11 @@ static ssize_t frame_width_show(const struct class *cla,
 		return sprintf(buf, "%d\n", cur_width);
 	if (dispbuf) {
 		if (dispbuf->type & VIDTYPE_COMPRESS)
-			return sprintf(buf, "%d\n", dispbuf->compWidth);
+			return sprintf(buf, "%d\n",
+				dispbuf->compWidth / (nr_pps_h_scaler_rate + 1));
 		else
-			return sprintf(buf, "%d\n", dispbuf->width);
+			return sprintf(buf, "%d\n",
+			dispbuf->width / (nr_pps_h_scaler_rate + 1));
 	}
 
 	return sprintf(buf, "NA\n");
@@ -9240,6 +9242,7 @@ static ssize_t frame_height_show(const struct class *cla,
 				 const struct class_attribute *attr, char *buf)
 {
 	struct vframe_s *dispbuf = NULL;
+	u8 nr_pps_v_scaler_rate = vd_layer[0].nr_pps_v_scaler_rate;
 
 	if (hold_video == 1 &&
 	    (glayer_info[0].display_path_id ==
@@ -9251,9 +9254,12 @@ static ssize_t frame_height_show(const struct class *cla,
 	dispbuf = get_dispbuf(0);
 	if (dispbuf) {
 		if (dispbuf->type & VIDTYPE_COMPRESS)
-			return sprintf(buf, "%d\n", dispbuf->compHeight);
+			return sprintf(buf, "%d\n",
+				dispbuf->compHeight / (nr_pps_v_scaler_rate + 1));
 		else
-			return sprintf(buf, "%d\n", dispbuf->height);
+			return sprintf(buf, "%d\n",
+				dispbuf->height / (nr_pps_v_scaler_rate + 1));
+
 	}
 
 	return sprintf(buf, "NA\n");
@@ -11429,6 +11435,9 @@ static ssize_t vdx_state_show(u32 index, char *buf, bool mosaic_mode, ssize_t po
 				vsr->vsr_pi.vsize_in,
 				vsr->vsr_pi.hsize_out,
 				vsr->vsr_pi.vsize_out);
+		len += sprintf(buf + len, "nr_pps_scaler down h/v:%d, %d\n",
+			_vd_layer->nr_pps_h_scaler_rate,
+			_vd_layer->nr_pps_v_scaler_rate);
 		}
 	}
 	return len;
@@ -14808,7 +14817,6 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0664,
 		frc_delay_enable_show,
 		frc_delay_enable_store),
-
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {

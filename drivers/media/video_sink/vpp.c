@@ -2045,7 +2045,7 @@ static int vpp_set_filters_internal
 	u32 crop_left, crop_right, crop_top, crop_bottom;
 	u32 sar_width = 0, sar_height = 0;
 	bool use_sar = false;
-	bool no_compress = false;
+	bool no_compress = false, switch_dw = false;
 	u32 min_aspect_ratio_out, max_aspect_ratio_out;
 	u32 cur_super_debug = 0;
 	int is_larger_4k50hz = 0;
@@ -2071,7 +2071,7 @@ static int vpp_set_filters_internal
 	bool new_ar = false, new_aspect_ratio = false;
 	u32 gcd_val;
 	s64 r0;
-	u32 r1 = 0;
+	u32 r1 = 0, nr_pps_h_scaler_rate = 0, nr_pps_v_scaler_rate = 0;
 
 	if (!input)
 		return vppfilter_fail;
@@ -2085,6 +2085,8 @@ static int vpp_set_filters_internal
 		new_aspect_ratio = true;
 	id = input->layer_id;
 	vpp_index = vd_layer[id].vpp_index;
+	nr_pps_h_scaler_rate = vd_layer[id].nr_pps_h_scaler_rate;
+	nr_pps_v_scaler_rate = vd_layer[id].nr_pps_v_scaler_rate;
 	if (id == 1 && video_lcevc.preblend_en) {
 		vinfo_width = wid_out;
 		vinfo_height = height_out;
@@ -2181,6 +2183,18 @@ static int vpp_set_filters_internal
 			video_source_crop_left += src_crop_left;
 			video_source_crop_bottom += src_crop_bottom;
 			video_source_crop_right += src_crop_right;
+		}
+		if (nr_pps_h_scaler_rate) {
+			video_source_crop_left =
+				video_source_crop_left * (nr_pps_h_scaler_rate + 1);
+			video_source_crop_right =
+				video_source_crop_right * (nr_pps_h_scaler_rate + 1);
+		}
+		if (nr_pps_v_scaler_rate) {
+			video_source_crop_top =
+				video_source_crop_top * (nr_pps_v_scaler_rate + 1);
+			video_source_crop_bottom =
+				video_source_crop_bottom * (nr_pps_v_scaler_rate + 1);
 		}
 		if (cur_super_debug)
 			pr_info("%s:line=%d, video_source_crop(%d/%d/%d/%d)\n",
@@ -2286,8 +2300,15 @@ static int vpp_set_filters_internal
 		new_ar = true;
 		use_sar = false;
 	} else if (use_sar) {
-		orig_ar.numerator = sar_width * width_in;
-		orig_ar.denominator = sar_height * height_in;
+		u32 width_in_temp = width_in;
+		u32 height_in_temp = height_in;
+
+		if (nr_pps_h_scaler_rate)
+			width_in_temp = width_in / (nr_pps_h_scaler_rate + 1);
+		if (nr_pps_v_scaler_rate)
+			height_in_temp = height_in / (nr_pps_v_scaler_rate + 1);
+		orig_ar.numerator = sar_width * width_in_temp;
+		orig_ar.denominator = sar_height * height_in_temp;
 		new_ar = true;
 	}
 
@@ -3343,17 +3364,29 @@ RESTART:
 	next_frame_par->vpp_filter.nonlinear_factor = nonlinear_factor;
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR &&
 	    end > start) {
+		u32 ratio_x_adj = ratio_x;
+
+		if (vd_layer[input->layer_id].nr_pps_h_scaler_rate)
+			ratio_x_adj = ratio_x /
+				(vd_layer[input->layer_id].nr_pps_h_scaler_rate + 1);
+
 		calculate_non_linear_ratio_V
 			(nonlinear_factor,
-			ratio_x, end - start + 1,
+			ratio_x_adj, end - start + 1,
 			next_frame_par);
 		next_frame_par->VPP_hsc_linear_startp =
 		next_frame_par->VPP_hsc_linear_endp = (start + end) / 2;
 	}
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T &&
 	    end > start) {
+		u32 w_in_adj = w_in;
+
+		if (vd_layer[input->layer_id].nr_pps_h_scaler_rate)
+			w_in_adj = w_in /
+				(vd_layer[input->layer_id].nr_pps_h_scaler_rate + 1);
+
 		calculate_non_linear_ratio_T(nonlinear_t_factor,
-			w_in, end - start + 1,
+			w_in_adj, end - start + 1,
 			next_frame_par);
 	}
 	/* special mode did not use aisr */
@@ -3458,10 +3491,12 @@ RESTART:
 
 		pi_enable_pre = get_pi_enabled(input->layer_id);
 		if ((vpp_flags & VPP_FLAG_MORE_LOG) &&
-		    input->afbc_support && cur_super_debug)
+		    input->afbc_support && cur_super_debug) {
 			pr_info
 			("layer%d: Try DW buffer for compress frame.\n",
 			input->layer_id);
+			switch_dw = true;
+		}
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		adjust_video_slice_policy(input->layer_id, vf, no_compress);
 #endif
@@ -3669,6 +3704,33 @@ RESTART:
 		pre_scaler[input->layer_id].pre_vscaler_rate = 0;
 		filter->vpp_pre_vsc_ratio = 0;
 	}
+	if (switch_dw &&
+		(vd_layer[input->layer_id].nr_pps_h_scaler_rate ||
+		vd_layer[input->layer_id].nr_pps_v_scaler_rate)) {
+		//double write, no nr pps scaler, set rate to 0
+		//vd_layer[input->layer_id].nr_pps_h_scaler_rate = 0;
+		//vd_layer[input->layer_id].nr_pps_v_scaler_rate = 0;
+		if (cur_super_debug)
+			pr_info("%s, switch_dw=%d, set nr_pps_rate to 0\n",
+				__func__, switch_dw);
+	}
+	if (vd_layer[input->layer_id].nr_pps_h_scaler_rate) {
+		if (!(wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
+			wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T))
+			filter->vpp_hf_start_phase_step =
+				filter->vpp_hf_start_phase_step /
+					(vd_layer[input->layer_id].nr_pps_h_scaler_rate + 1);
+		filter->vpp_hsc_start_phase_step =
+			filter->vpp_hsc_start_phase_step /
+				(vd_layer[input->layer_id].nr_pps_h_scaler_rate + 1);
+	}
+	if (vd_layer[input->layer_id].nr_pps_v_scaler_rate) {
+		filter->vpp_vsc_start_phase_step =
+			filter->vpp_vsc_start_phase_step /
+			(vd_layer[input->layer_id].nr_pps_v_scaler_rate + 1);
+		ratio_y = ratio_y / (vd_layer[input->layer_id].nr_pps_v_scaler_rate + 1);
+	}
+
 	/*pre hsc&vsc in pps for scaler down*/
 	if (input->vsr_safa_support &&
 		((filter->vpp_vsc_start_phase_step >= 0x2000000 &&
