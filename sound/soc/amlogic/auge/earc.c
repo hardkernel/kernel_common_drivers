@@ -425,20 +425,6 @@ static void tx_hold_bus_work_func(struct work_struct *p_work)
 	pr_info("earc tx hold bus and mute finish\n");
 }
 
-bool aml_get_earctx_enable(void)
-{
-	unsigned long flags;
-	bool ret = false;
-
-	if (!s_earc)
-		return false;
-	spin_lock_irqsave(&s_earc->tx_lock, flags);
-	if (s_earc->tx_dmac_clk_on)
-		ret = get_earctx_enable(s_earc->tx_cmdc_map, s_earc->tx_dmac_map);
-	spin_unlock_irqrestore(&s_earc->tx_lock, flags);
-	return ret;
-}
-
 enum attend_type aml_get_earctx_connected_device_type(void)
 {
 	if (!s_earc)
@@ -945,23 +931,9 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 {
 	struct earc *p_earc = (struct earc *)data;
 	unsigned int status0 = earctx_cdmc_get_irqs(p_earc->tx_top_map);
-	struct snd_pcm_substream *substream =
-		p_earc->substreams[SNDRV_PCM_STREAM_PLAYBACK];
-	unsigned long flags;
 
 	if (status0)
 		earctx_cdmc_clr_irqs(p_earc->tx_top_map, status0);
-
-	if (substream) {
-		snd_pcm_stream_lock_irqsave(substream, flags);
-		if (snd_pcm_running(substream) &&
-		    (earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map)
-			== ATNDTYP_DISCNCT)) {
-			snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
-			dev_info(p_earc->dev, "snd_pcm_stop, eARC disconnect\n");
-		}
-		snd_pcm_stream_unlock_irqrestore(substream, flags);
-	}
 
 	if (status0 & INT_EARCTX_CMDC_EARC) {
 		schedule_delayed_work(&p_earc->send_uevent_work, msecs_to_jiffies(200));
@@ -1245,12 +1217,6 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 		unsigned int fifo_id;
 		enum attend_type type = earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
 
-		if (type == ATNDTYP_DISCNCT) {
-			dev_err(p_earc->dev,
-				"Neither eARC_TX or ARC_TX is attended!\n");
-			return -ENOTCONN;
-		}
-
 		dev_info(p_earc->dev,
 			"%s connected, Expected frddr dst:%s\n",
 			(type == ATNDTYP_ARC) ? "ARC" : "eARC",
@@ -1484,7 +1450,6 @@ static int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_t
 int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 	struct frddr *fr, enum aud_codec_types type, int lane_i2s)
 {
-	enum attend_type earc_type;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int bit_depth = snd_pcm_format_width(runtime->format);
 	int i;
@@ -1493,12 +1458,6 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 
 	if (!s_earc)
 		return -ENOTCONN;
-
-	earc_type = earctx_cmdc_get_attended_type(s_earc->tx_cmdc_map);
-	if (earc_type == ATNDTYP_DISCNCT) {
-		dev_dbg(s_earc->dev, "%s: Neither eARC_TX or ARC_TX is attended!\n", __func__);
-		return -ENOTCONN;
-	}
 
 	if (IS_ERR_OR_NULL(s_earc->clk_tx_dmac) || IS_ERR_OR_NULL(s_earc->clk_tx_dmac_srcpll))
 		return -ENOTCONN;
@@ -1542,8 +1501,7 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 
 void aml_earctx_enable(bool enable)
 {
-	if (!s_earc ||
-	    earctx_cmdc_get_attended_type(s_earc->tx_cmdc_map) == ATNDTYP_DISCNCT)
+	if (!s_earc)
 		return;
 
 	if (s_earc->tx_dmac_clk_on) {
@@ -2357,18 +2315,10 @@ static int earctx_set_mute(struct snd_kcontrol *kcontrol,
 
 static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode, bool tinymix)
 {
-	unsigned long flags;
-
 	if (!p_earc->earctx_5v) {
 		dev_info(p_earc->dev, "cable is disconnect, no need set\n");
 		return;
 	}
-
-	/* switch to force mode for consume data when switch earc mode */
-	spin_lock_irqsave(&p_earc->tx_lock, flags);
-	if (p_earc->tx_dmac_clk_on)
-		earctx_dmac_force_mode(p_earc->tx_dmac_map, false, true);
-	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
 
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 	defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
@@ -3372,6 +3322,8 @@ static int earctx_cmdc_setup(struct earc *p_earc)
 			return ret;
 		}
 		p_earc->tx_dmac_clk_on = true;
+		/* switch to force mode for consume data even if the status is idle */
+		earctx_dmac_force_mode(p_earc->tx_dmac_map, false, true);
 	}
 	/* Default: no time out to connect RX */
 	earctx_cmdc_set_timeout(p_earc->tx_cmdc_map, 1);

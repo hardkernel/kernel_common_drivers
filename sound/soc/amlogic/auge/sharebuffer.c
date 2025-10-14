@@ -145,8 +145,6 @@ int sharebuffer_prepare(struct snd_pcm_substream *substream,
 	} else if (samesource_sel == SHAREBUFFER_EARCTX) {
 #ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		sharebuffer_earctx_prepare(substream, fr, type, lane_i2s);
-		if (!aml_get_earctx_enable())
-			return 0;
 #endif
 	}
 

@@ -1591,19 +1591,6 @@ void earctx_compressed_enable(struct regmap *dmac_map,
 			 0x1 << 30);
 }
 
-bool get_earctx_enable(struct regmap *cmdc_map, struct regmap *dmac_map)
-{
-	enum attend_type type = earctx_cmdc_get_attended_type(cmdc_map);
-
-	if (type == ATNDTYP_DISCNCT)
-		return false;
-
-	if (mmio_read(dmac_map, EARCTX_SPDIFOUT_CTRL0) & 0x1 << 28)
-		return true;
-
-	return false;
-}
-
 static void earctx_channel_sync_start(struct regmap *dmac_map, bool statrt)
 {
 	/*
@@ -1649,9 +1636,6 @@ void earctx_enable(struct regmap *top_map,
 {
 	enum attend_type type = earctx_cmdc_get_attended_type(cmdc_map);
 
-	if (type == ATNDTYP_DISCNCT)
-		return;
-
 	if (chipinfo->tx_pll_new)
 		earctx_channel_sync_start(dmac_map, 1);
 
@@ -1671,19 +1655,11 @@ void earctx_enable(struct regmap *top_map,
 			mask = 0xf;
 			val = 0x8;
 		}
-		if (type == ATNDTYP_ARC) {
-			mmio_update_bits(top_map,
-					 EARCTX_ANA_CTRL0,
-					 mask << offset,
-					 (val + 1) << offset);
-		} else if (type == ATNDTYP_EARC) {
-			mmio_update_bits(top_map,
-					 EARCTX_ANA_CTRL0,
-					 mask << offset,
-					 val << offset);
-		}
-
-		earctx_dmac_force_mode(dmac_map, false, false);
+		if (type == ATNDTYP_EARC)
+			mmio_update_bits(top_map, EARCTX_ANA_CTRL0, mask << offset, val << offset);
+		else
+			mmio_update_bits(top_map, EARCTX_ANA_CTRL0, mask << offset,
+									(val + 1) << offset);
 
 		/* first biphase work clear, and then start
 		 * only for earc
