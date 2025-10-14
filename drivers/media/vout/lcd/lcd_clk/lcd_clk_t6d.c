@@ -631,6 +631,7 @@ static struct lcd_clk_data_s lcd_clk_data_t6d = {
 	.pll_frac_generate = lcd_pll_frac_generate_dft,
 	.set_ss = lcd_set_pll_ss_t6d,
 	.clk_ss_enable = lcd_pll_ss_enable_t6d,
+	.clk_ss_init = lcd_pll_ss_init_dft,
 	.pll_frac_set = lcd_pll_frac_set_t6d,
 	.clk_set = lcd_clk_set_t6d,
 	.vclk_crt_set = lcd_set_vclk_crt,

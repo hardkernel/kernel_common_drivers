@@ -758,7 +758,6 @@ void lcd_clk_ss_param_init(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 	unsigned int ss_level, ss_freq, ss_mode;
-	int ret = 0;
 
 	if (!cconf || !cconf->data)
 		return;
@@ -781,9 +780,8 @@ void lcd_clk_ss_param_init(struct aml_lcd_drv_s *pdrv)
 	if (cconf->data->clk_ss_init)
 		cconf->data->clk_ss_init(cconf);
 
-	ret = lcd_pll_ss_level_generate(cconf);
-	LCD_DBG(pdrv, "%s: ss_level=%d, ss_freq=%d, ss_mode=%d, ret=%d",
-		__func__, cconf->ss_level, cconf->ss_freq, cconf->ss_mode, ret);
+	LCD_DBG(pdrv, "%s: ss_level=%d, ss_freq=%d, ss_mode=%d",
+		__func__, cconf->ss_level, cconf->ss_freq, cconf->ss_mode);
 }
 
 void lcd_clk_config_parameter_init(struct aml_lcd_drv_s *pdrv)

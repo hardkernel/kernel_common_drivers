@@ -23,22 +23,6 @@
 #include "lcd_clk_utils.h"
 #include "../connectors/lcd_connector.h"
 
-static void lcd_pll_ss_init(struct lcd_clk_config_s *cconf)
-{
-	int ret;
-
-	if (!cconf)
-		return;
-
-	if (cconf->ss_level > 0) {
-		ret = lcd_pll_ss_level_generate(cconf);
-		if (ret == 0)
-			cconf->ss_en = 1;
-	} else {
-		cconf->ss_en = 0;
-	}
-}
-
 static void lcd_pll_ss_enable(struct aml_lcd_drv_s *pdrv, int status)
 {
 	struct lcd_clk_config_s *cconf;
@@ -899,7 +883,7 @@ static struct lcd_clk_data_s lcd_clk_data_t3x_0 = {
 	.pll_frac_generate = lcd_pll_frac_generate_dft,
 	.set_ss = lcd_set_pll_ss,
 	.clk_ss_enable = lcd_pll_ss_enable,
-	.clk_ss_init = lcd_pll_ss_init,
+	.clk_ss_init = lcd_pll_ss_init_dft,
 	.pll_frac_set = lcd_pll_frac_set,
 	.pll_m_set = lcd_pll_m_set,
 	.pll_reset = lcd_pll_reset,
@@ -944,7 +928,7 @@ static struct lcd_clk_data_s lcd_clk_data_t3x_1 = {
 	.pll_frac_generate = lcd_pll_frac_generate_dft,
 	.set_ss = lcd_set_pll_ss,
 	.clk_ss_enable = lcd_pll_ss_enable,
-	.clk_ss_init = lcd_pll_ss_init,
+	.clk_ss_init = lcd_pll_ss_init_dft,
 	.pll_frac_set = lcd_pll_frac_set,
 	.pll_m_set = lcd_pll_m_set,
 	.pll_reset = lcd_pll_reset,
