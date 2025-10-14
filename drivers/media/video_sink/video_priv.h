@@ -826,6 +826,7 @@ struct video_layer_s {
 	bool frc_link_en;
 	bool need_disable_frc_link;
 	bool frc_link_bypass_check;
+	bool frc_bypass_done;
 	u8 cur_frc_link_mode;
 	u8 frc_link_skip_cnt;
 	atomic_t disable_frc_link_done;

@@ -2111,6 +2111,7 @@ static void vd1_path_select_t6w(struct video_layer_s *layer,
 	u32 value = 0;
 	static u32 last_value;
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
+	struct hw_vfcd_reg_s *vd_vfcd_reg = &layer->vd_hw_vfcd_reg;
 
 	if (frc_link) {
 		value = 0x0;
@@ -2139,8 +2140,20 @@ static void vd1_path_select_t6w(struct video_layer_s *layer,
 			rdma_wr_bits(VPU_AXIRD_PATH_CTRL, (dd_path_mode & 3), 8, 2);
 		}
 	}
-
 	last_value = value;
+
+	//bit29, 30 reg_soft_rst for frc phase0
+	if (layer->frc_bypass_done) {
+		rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
+		u32 vfcd_top_value;
+
+		vfcd_top_value = cur_dev->rdma_func[0].rdma_rd(vd_vfcd_reg->vfcd_top_ctrl0);
+		vfcd_top_value |= 0x60000000;
+		rdma_wr(vd_vfcd_reg->vfcd_top_ctrl0, vfcd_top_value);
+		vfcd_top_value &= ~0x60000000;
+		rdma_wr(vd_vfcd_reg->vfcd_top_ctrl0, vfcd_top_value);
+		layer->frc_bypass_done = false;
+	}
 }
 
 static void vd1_path_select(struct video_layer_s *layer,
@@ -13851,20 +13864,6 @@ static int set_layer_display_canvas_t6w(struct video_layer_s *layer,
 		}
 	}
 
-	/* karry not sure maybe todo for frc link */
-
-	if (layer_id == 0) {
-#ifdef ENABLE_DPSS_FRC
-#ifdef AMLOGIC_MEDIA_DPSS
-		if (is_frc_link_on(layer) &&
-		    !layer->need_disable_frc_link &&
-		    !layer->frc_link_bypass_check &&
-		    IS_FRC_LINK(vf->type_ext))
-			update_mif = false;
-#endif
-#endif
-	}
-
 	if (vf->canvas0Addr == 0)
 		update_mif = false;
 
@@ -14382,7 +14381,8 @@ static bool update_frc_link_state(struct video_layer_s *layer,
 			iret = pvpp_display_frc(vf, &frc_in_p, NULL);
 			if (layer->global_debug & DEBUG_FLAG_PLINK)
 				pr_info("%s:Bypass frc link mode ret %d\n", __func__, iret);
-
+			if (!iret)
+				layer->frc_bypass_done = true;
 			iret = pvpp_sw_frc(false);
 			layer->frc_link_en = false;
 			layer->frc_link_bypass_check = false;
@@ -14438,6 +14438,7 @@ static bool update_frc_link_state(struct video_layer_s *layer,
 				layer->frc_link_bypass_check = false;
 				layer->frc_link_skip_cnt = 0;
 				layer->cur_frc_link_mode = EPVPP_API_MODE_FRC_NONE;
+				layer->frc_bypass_done = true;
 			} else {
 				if (layer->global_debug & DEBUG_FLAG_PLINK_MORE)
 					pr_info("%s: Bypass frc link fail %d\n",
