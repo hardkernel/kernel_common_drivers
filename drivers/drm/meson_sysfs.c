@@ -680,7 +680,7 @@ static ssize_t osd_resize_src_show(struct file *filp, struct kobject *kobj,
 		"echo src_x src_y src_w src_h > resize_source to enable osd-%d resize src\n",
 		osd_index);
 	pos += snprintf(buf + pos, PAGE_SIZE - pos,
-		"echo 0 0 0 0 > resize_source to disable osd-%d resize src\n", osd_index);
+		"echo -1 -1 -1 -1 > resize_source to disable osd-%d resize src\n", osd_index);
 
 	return pos;
 }
@@ -720,13 +720,13 @@ static ssize_t osd_resize_src_store(struct file *filp, struct kobject *kobj,
 		DRM_INFO("%s, parameters is incorrect.\n", __func__);
 		return -EINVAL;
 	}
-	if (kstrtouint(parm[0], 10, &src_x) < 0)
+	if (kstrtoint(parm[0], 10, &src_x) < 0)
 		return -EINVAL;
-	if (kstrtouint(parm[1], 10, &src_y) < 0)
+	if (kstrtoint(parm[1], 10, &src_y) < 0)
 		return -EINVAL;
-	if (kstrtouint(parm[2], 10, &src_w) < 0)
+	if (kstrtoint(parm[2], 10, &src_w) < 0)
 		return -EINVAL;
-	if (kstrtouint(parm[3], 10, &src_h) < 0)
+	if (kstrtoint(parm[3], 10, &src_h) < 0)
 		return -EINVAL;
 
 	priv->osd_planes[osd_index]->adjust_src.x1 = src_x;
@@ -743,6 +743,267 @@ static ssize_t osd_resize_src_store(struct file *filp, struct kobject *kobj,
 	if (IS_ERR(state))
 		return -EFAULT;
 	drm_atomic_state_put(state);
+
+	return count;
+}
+
+static ssize_t osd_zorder_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct meson_drm *priv;
+	int crtc_index;
+	u32 index;
+	int pos = 0;
+	struct meson_vpu_osd_layer_info *info;
+	struct meson_vpu_sub_pipeline_state *mvps;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (off > 0)
+		return 0;
+
+	index = *(int *)attr->private;
+	priv = minor->dev->dev_private;
+	crtc_index = priv->pipeline->osd_crtc_index[index];
+	if (crtc_index == -1) {
+		DRM_INFO("osd is disabled\n");
+		return 0;
+	}
+
+	mvps = priv_to_sub_pipeline_state(priv->pipeline->subs[crtc_index]->obj.state);
+	info = &mvps->plane_info[index];
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"osd-%d zorder is %d\n", *(int *)attr->private, info->zorder);
+
+	return pos;
+}
+
+static ssize_t osd_zorder_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	int osd_index = *(int *)attr->private;
+	struct meson_drm *priv;
+	int new_zorder;
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_atomic_state *state;
+	char dst_buf[64];
+	char *bufp, *parm[8] = {NULL};
+	int err;
+	int lens = strlen(buf);
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (lens > sizeof(dst_buf) - 1)
+		return -EINVAL;
+
+	memcpy(dst_buf, buf, lens);
+
+	dst_buf[lens] = '\0';
+	bufp = dst_buf;
+	parse_param(bufp, (char **)&parm);
+
+	priv = minor->dev->dev_private;
+	state = ERR_PTR(-EINVAL);
+
+	if (!parm[0]) {
+		DRM_INFO("%s, parameters is incorrect.\n", __func__);
+		return -EINVAL;
+	}
+	if (kstrtouint(parm[0], 10, &new_zorder) < 0)
+		return -EINVAL;
+
+	priv->osd_planes[osd_index]->zorder = new_zorder;
+
+	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
+	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
+	if (IS_ERR(state))
+		return -EFAULT;
+	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
+	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
+	if (IS_ERR(state))
+		return -EFAULT;
+	drm_atomic_state_put(state);
+
+	return count;
+}
+
+static ssize_t osd_gfcd_hskip_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct meson_drm *priv;
+	int osd_index = *(int *)attr->private;
+	int pos = 0;
+	struct meson_vpu_osd_layer_info *info;
+	struct meson_vpu_sub_pipeline_state *mvps;
+	int crtc_index;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (off > 0)
+		return 0;
+
+	priv = minor->dev->dev_private;
+	crtc_index = priv->pipeline->osd_crtc_index[osd_index];
+	if (crtc_index == -1) {
+		DRM_INFO("osd is disabled\n");
+		return 0;
+	}
+
+	mvps = priv_to_sub_pipeline_state(priv->pipeline->subs[crtc_index]->obj.state);
+	info = &mvps->plane_info[osd_index];
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 1 > gfcd_hskip to enable osd-%d gfcd hskip\n",
+		osd_index);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0 > gfcd_hskip to disable osd-%d gfcd hskip\n", osd_index);
+	if (info->process_unit == GFCD_AFBC || info->process_unit == GFCD_AFRC)
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"osd-%d gfcd enabled\n", osd_index);
+	else
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"osd-%d gfcd disabled\n", osd_index);
+
+	return pos;
+}
+
+static ssize_t osd_gfcd_hskip_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	int osd_index = *(int *)attr->private;
+	struct meson_drm *priv;
+	struct meson_vpu_osd_layer_info *info;
+	struct meson_vpu_sub_pipeline_state *mvps;
+	int crtc_index;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (buf[0] != '0' && buf[0] != '1')
+		return -EINVAL;
+
+	priv = minor->dev->dev_private;
+	crtc_index = priv->pipeline->osd_crtc_index[osd_index];
+	if (crtc_index == -1) {
+		DRM_INFO("osd-%d: crtc is disconnected, cannot set gfcd skip\n",
+			osd_index);
+		return -ENODEV;
+	}
+
+	mvps = priv_to_sub_pipeline_state(priv->pipeline->subs[crtc_index]->obj.state);
+	info = &mvps->plane_info[osd_index];
+
+	if (buf[0] == '1') {
+		info->gfcd_hskip = 1;
+		DRM_INFO("osd-%d enable gfcd hskip\n", osd_index);
+	} else if (buf[0] == '0') {
+		info->gfcd_hskip = 0;
+		DRM_INFO("osd-%d disable gfcd hskip\n", osd_index);
+	} else {
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t osd_gfcd_vskip_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct meson_drm *priv;
+	int osd_index = *(int *)attr->private;
+	int pos = 0;
+	struct meson_vpu_osd_layer_info *info;
+	struct meson_vpu_sub_pipeline_state *mvps;
+	int crtc_index;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (off > 0)
+		return 0;
+
+	priv = minor->dev->dev_private;
+	crtc_index = priv->pipeline->osd_crtc_index[osd_index];
+	if (crtc_index == -1) {
+		DRM_INFO("osd is disabled\n");
+		return 0;
+	}
+
+	mvps = priv_to_sub_pipeline_state(priv->pipeline->subs[crtc_index]->obj.state);
+	info = &mvps->plane_info[osd_index];
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 1 > gfcd_vskip to enable osd-%d gfcd vskip\n",
+		osd_index);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0 > gfcd_vskip to disable osd-%d gfcd vskip\n", osd_index);
+	if (info->process_unit == GFCD_AFBC || info->process_unit == GFCD_AFRC)
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"osd-%d gfcd enabled\n", osd_index);
+	else
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"osd-%d gfcd disabled\n", osd_index);
+
+	return pos;
+}
+
+static ssize_t osd_gfcd_vskip_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	int osd_index = *(int *)attr->private;
+	struct meson_drm *priv;
+	struct meson_vpu_osd_layer_info *info;
+	struct meson_vpu_sub_pipeline_state *mvps;
+	int crtc_index;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (buf[0] != '0' && buf[0] != '1')
+		return -EINVAL;
+
+	priv = minor->dev->dev_private;
+	crtc_index = priv->pipeline->osd_crtc_index[osd_index];
+	if (crtc_index == -1) {
+		DRM_INFO("osd-%d: crtc is disconnected, cannot set gfcd skip\n",
+			osd_index);
+		return -ENODEV;
+	}
+
+	mvps = priv_to_sub_pipeline_state(priv->pipeline->subs[crtc_index]->obj.state);
+	info = &mvps->plane_info[osd_index];
+
+	if (buf[0] == '1') {
+		info->gfcd_vskip = 1;
+		DRM_INFO("osd-%d enable gfcd vskip\n", osd_index);
+	} else if (buf[0] == '0') {
+		info->gfcd_vskip = 0;
+		DRM_INFO("osd-%d disable gfcd vskip\n", osd_index);
+	} else {
+		return -EINVAL;
+	}
 
 	return count;
 }
@@ -768,7 +1029,7 @@ static ssize_t osd_resize_dst_show(struct file *filp, struct kobject *kobj,
 		"echo dst_x dst_y dst_w dst_h > resize_destination to enable osd-%d resize dst\n",
 		osd_index);
 	pos += snprintf(buf + pos, PAGE_SIZE - pos,
-		"echo 0 0 0 0 > resize_destination to disable osd-%d resize dst\n", osd_index);
+		"echo -1 -1 -1 -1 > resize_destination to disable osd-%d resize dst\n", osd_index);
 
 	return pos;
 }
@@ -808,13 +1069,13 @@ static ssize_t osd_resize_dst_store(struct file *filp, struct kobject *kobj,
 		DRM_INFO("%s, parameters is incorrect.\n", __func__);
 		return -EINVAL;
 	}
-	if (kstrtouint(parm[0], 10, &dst_x) < 0)
+	if (kstrtoint(parm[0], 10, &dst_x) < 0)
 		return -EINVAL;
-	if (kstrtouint(parm[1], 10, &dst_y) < 0)
+	if (kstrtoint(parm[1], 10, &dst_y) < 0)
 		return -EINVAL;
-	if (kstrtouint(parm[2], 10, &dst_w) < 0)
+	if (kstrtoint(parm[2], 10, &dst_w) < 0)
 		return -EINVAL;
-	if (kstrtouint(parm[3], 10, &dst_h) < 0)
+	if (kstrtoint(parm[3], 10, &dst_h) < 0)
 		return -EINVAL;
 
 	priv->osd_planes[osd_index]->adjust_dst.x1 = dst_x;
@@ -1392,7 +1653,7 @@ static ssize_t video_resize_src_show(struct file *filp, struct kobject *kobj,
 		"echo src_x src_y src_w src_h > resize_source to enable video-%d resize src\n",
 		video_index);
 	pos += snprintf(buf + pos, PAGE_SIZE - pos,
-		"echo 0 0 0 0 > resize_source to disable video-%d resize src\n", video_index);
+		"echo -1 -1 -1 -1 > resize_source to disable video-%d resize src\n", video_index);
 
 	return pos;
 }
@@ -1432,13 +1693,13 @@ static ssize_t video_resize_src_store(struct file *filp, struct kobject *kobj,
 		DRM_INFO("%s, parameters is incorrect.\n", __func__);
 		return -EINVAL;
 	}
-	if (kstrtouint(parm[0], 10, &src_x) < 0)
+	if (kstrtoint(parm[0], 10, &src_x) < 0)
 		return -EINVAL;
-	if (kstrtouint(parm[1], 10, &src_y) < 0)
+	if (kstrtoint(parm[1], 10, &src_y) < 0)
 		return -EINVAL;
-	if (kstrtouint(parm[2], 10, &src_w) < 0)
+	if (kstrtoint(parm[2], 10, &src_w) < 0)
 		return -EINVAL;
-	if (kstrtouint(parm[3], 10, &src_h) < 0)
+	if (kstrtoint(parm[3], 10, &src_h) < 0)
 		return -EINVAL;
 
 	priv->video_planes[video_index]->adjust_src.x1 = src_x;
@@ -1480,7 +1741,8 @@ static ssize_t video_resize_dst_show(struct file *filp, struct kobject *kobj,
 		"echo dst_x dst_y dst_w dst_h > resize_destination to enable video-%d resize dst\n",
 		video_index);
 	pos += snprintf(buf + pos, PAGE_SIZE - pos,
-		"echo 0 0 0 0 > resize_destination to disable video-%d resize dst\n", video_index);
+		"echo -1 -1 -1 -1 > resize_destination to disable video-%d resize dst\n",
+		video_index);
 
 	return pos;
 }
@@ -1520,13 +1782,13 @@ static ssize_t video_resize_dst_store(struct file *filp, struct kobject *kobj,
 		DRM_INFO("%s, parameters is incorrect.\n", __func__);
 		return -EINVAL;
 	}
-	if (kstrtouint(parm[0], 10, &dst_x) < 0)
+	if (kstrtoint(parm[0], 10, &dst_x) < 0)
 		return -EINVAL;
-	if (kstrtouint(parm[1], 10, &dst_y) < 0)
+	if (kstrtoint(parm[1], 10, &dst_y) < 0)
 		return -EINVAL;
-	if (kstrtouint(parm[2], 10, &dst_w) < 0)
+	if (kstrtoint(parm[2], 10, &dst_w) < 0)
 		return -EINVAL;
-	if (kstrtouint(parm[3], 10, &dst_h) < 0)
+	if (kstrtoint(parm[3], 10, &dst_h) < 0)
 		return -EINVAL;
 
 	priv->video_planes[video_index]->adjust_dst.x1 = dst_x;
@@ -1605,6 +1867,27 @@ static struct bin_attribute osd0_attr[] = {
 		.read = osd_resize_dst_show,
 		.write = osd_resize_dst_store,
 	},
+	{
+		.attr.name = "gfcd_hskip",
+		.attr.mode = 0664,
+		.private = &osd_index[0],
+		.read = osd_gfcd_hskip_show,
+		.write = osd_gfcd_hskip_store,
+	},
+	{
+		.attr.name = "gfcd_vskip",
+		.attr.mode = 0664,
+		.private = &osd_index[0],
+		.read = osd_gfcd_vskip_show,
+		.write = osd_gfcd_vskip_store,
+	},
+	{
+		.attr.name = "osd_zorder",
+		.attr.mode = 0664,
+		.private = &osd_index[0],
+		.read = osd_zorder_show,
+		.write = osd_zorder_store,
+	},
 };
 
 static struct bin_attribute *osd0_bin_attrs[] = {
@@ -1616,6 +1899,9 @@ static struct bin_attribute *osd0_bin_attrs[] = {
 	&osd0_attr[5],
 	&osd0_attr[6],
 	&osd0_attr[7],
+	&osd0_attr[8],
+	&osd0_attr[9],
+	&osd0_attr[10],
 	NULL,
 };
 
@@ -1677,6 +1963,27 @@ static struct bin_attribute osd1_attr[] = {
 		.read = osd_resize_dst_show,
 		.write = osd_resize_dst_store,
 	},
+	{
+		.attr.name = "gfcd_hskip",
+		.attr.mode = 0664,
+		.private = &osd_index[1],
+		.read = osd_gfcd_hskip_show,
+		.write = osd_gfcd_hskip_store,
+	},
+	{
+		.attr.name = "gfcd_vskip",
+		.attr.mode = 0664,
+		.private = &osd_index[1],
+		.read = osd_gfcd_vskip_show,
+		.write = osd_gfcd_vskip_store,
+	},
+	{
+		.attr.name = "osd_zorder",
+		.attr.mode = 0664,
+		.private = &osd_index[1],
+		.read = osd_zorder_show,
+		.write = osd_zorder_store,
+	},
 };
 
 static struct bin_attribute *osd1_bin_attrs[] = {
@@ -1688,6 +1995,9 @@ static struct bin_attribute *osd1_bin_attrs[] = {
 	&osd1_attr[5],
 	&osd1_attr[6],
 	&osd1_attr[7],
+	&osd1_attr[8],
+	&osd1_attr[9],
+	&osd1_attr[10],
 	NULL,
 };
 
@@ -1749,6 +2059,27 @@ static struct bin_attribute osd2_attr[] = {
 		.read = osd_resize_dst_show,
 		.write = osd_resize_dst_store,
 	},
+	{
+		.attr.name = "gfcd_hskip",
+		.attr.mode = 0664,
+		.private = &osd_index[2],
+		.read = osd_gfcd_hskip_show,
+		.write = osd_gfcd_hskip_store,
+	},
+	{
+		.attr.name = "gfcd_vskip",
+		.attr.mode = 0664,
+		.private = &osd_index[2],
+		.read = osd_gfcd_vskip_show,
+		.write = osd_gfcd_vskip_store,
+	},
+	{
+		.attr.name = "osd_zorder",
+		.attr.mode = 0664,
+		.private = &osd_index[2],
+		.read = osd_zorder_show,
+		.write = osd_zorder_store,
+	},
 };
 
 static struct bin_attribute *osd2_bin_attrs[] = {
@@ -1760,6 +2091,9 @@ static struct bin_attribute *osd2_bin_attrs[] = {
 	&osd2_attr[5],
 	&osd2_attr[6],
 	&osd2_attr[7],
+	&osd2_attr[8],
+	&osd2_attr[9],
+	&osd2_attr[10],
 	NULL,
 };
 
@@ -1821,6 +2155,27 @@ static struct bin_attribute osd3_attr[] = {
 		.read = osd_resize_dst_show,
 		.write = osd_resize_dst_store,
 	},
+	{
+		.attr.name = "gfcd_hskip",
+		.attr.mode = 0664,
+		.private = &osd_index[3],
+		.read = osd_gfcd_hskip_show,
+		.write = osd_gfcd_hskip_store,
+	},
+	{
+		.attr.name = "gfcd_vskip",
+		.attr.mode = 0664,
+		.private = &osd_index[3],
+		.read = osd_gfcd_vskip_show,
+		.write = osd_gfcd_vskip_store,
+	},
+	{
+		.attr.name = "osd_zorder",
+		.attr.mode = 0664,
+		.private = &osd_index[3],
+		.read = osd_zorder_show,
+		.write = osd_zorder_store,
+	},
 };
 
 static struct bin_attribute *osd3_bin_attrs[] = {
@@ -1832,6 +2187,9 @@ static struct bin_attribute *osd3_bin_attrs[] = {
 	&osd3_attr[5],
 	&osd3_attr[6],
 	&osd3_attr[7],
+	&osd3_attr[8],
+	&osd3_attr[9],
+	&osd3_attr[10],
 	NULL,
 };
 

@@ -163,6 +163,16 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 				/*yuv_trans android should be enable*/
 				reg_ops->rdma_write_reg_bits(reg->gfcd_afbc_ctrl, 1, 4, 1);
 			}
+			/*2: even skip(line 0 begin)*/
+			if (plane_info->gfcd_vskip)
+				reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 1, 16, 2);
+			else
+				reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 0, 16, 2);
+
+			if (plane_info->gfcd_hskip)
+				reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 1, 18, 2);
+			else
+				reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 0, 18, 2);
 
 			reg_ops->rdma_write_reg_bits(reg->gfcd_frm_size, plane_info->fb_h, 0, 13);
 			reg_ops->rdma_write_reg_bits(reg->gfcd_frm_size, plane_info->fb_w, 16, 13);
@@ -179,8 +189,9 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 			reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 0, 4, 1);
 			reg_ops->rdma_write_reg_bits(VPP_OSD_HDR_DIV_ALPHA, 0, i * 5, 1);
 		}
-		MESON_DRM_BLOCK("osd%d, enable=%d, gfcd_en=%d.\n", plane_info->plane_index,
-			plane_info->enable, gfcd_en);
+		MESON_DRM_BLOCK("osd%d, enable=%d, gfcd_en=%d, gfcd vskip is %d, hskip is %d.\n",
+			plane_info->plane_index, plane_info->enable, gfcd_en,
+			plane_info->gfcd_vskip, plane_info->gfcd_hskip);
 	}
 
 	MESON_DRM_BLOCK("%s set_state called.\n", vblk->name);

@@ -433,33 +433,27 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	if (state->plane) {
 		amp = to_am_osd_plane(state->plane);
 
-		if (amp->adjust_src.x1)
+		if (amp->adjust_src.x1 > -1 && amp->adjust_src.y1 > -1 &&
+			amp->adjust_src.x2 > -1 && amp->adjust_src.y2 > -1) {
 			plane_info->src_x = amp->adjust_src.x1;
-		if (amp->adjust_src.y1)
 			plane_info->src_y = amp->adjust_src.y1;
-		if (amp->adjust_src.x2)
 			plane_info->src_w = amp->adjust_src.x2;
-		if (amp->adjust_src.y2)
 			plane_info->src_h = amp->adjust_src.y2;
-		if (amp->adjust_src.x1 || amp->adjust_src.y1 || amp->adjust_src.x2 ||
-			amp->adjust_src.y2)
 			DRM_DEBUG_DRIVER("resize original src [(%d %d), %dx%d]\n",
 			amp->adjust_src.x1, amp->adjust_src.y1, amp->adjust_src.x2,
 			amp->adjust_src.y2);
+		}
 
-		if (amp->adjust_dst.x1)
+		if (amp->adjust_dst.x1 > -1 && amp->adjust_dst.y1 > -1 &&
+			amp->adjust_dst.x2 > -1 && amp->adjust_dst.y2 > -1) {
 			plane_info->dst_x = amp->adjust_dst.x1;
-		if (amp->adjust_dst.y1)
 			plane_info->dst_y = amp->adjust_dst.y1;
-		if (amp->adjust_dst.x2)
 			plane_info->dst_w = amp->adjust_dst.x2;
-		if (amp->adjust_dst.y2)
 			plane_info->dst_h = amp->adjust_dst.y2;
-		if (amp->adjust_dst.x1 || amp->adjust_dst.y1 || amp->adjust_dst.x2 ||
-			amp->adjust_dst.y2)
 			DRM_DEBUG_DRIVER("resize original dst [(%d %d), %dx%d]\n",
 			amp->adjust_dst.x1, amp->adjust_dst.y1, amp->adjust_dst.x2,
 			amp->adjust_dst.y2);
+		}
 
 		if (plane_info->rotation != amp->osd_reverse)
 			plane_info->rotation = amp->osd_reverse;
@@ -469,16 +463,19 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 			plane_info->read_ports = amp->osd_read_ports;
 		else
 			plane_info->read_ports = 2;
+
+		if (amp->zorder)
+			plane_info->zorder = amp->zorder;
 	}
 	if (scan_mode_out) {
 		plane_info->dst_y >>= 1;
 		plane_info->dst_h >>= 1;
 	}
 	/*negative position process*/
-	if (state->crtc_x < 0) {
-		dst_w = state->crtc_w + state->crtc_x;
+	if (plane_info->dst_x < 0) {
+		dst_w = plane_info->dst_w + plane_info->dst_x;
 		if (dst_w > 0) {
-			src_w = plane_info->src_w * dst_w / state->crtc_w;
+			src_w = plane_info->src_w * dst_w / plane_info->dst_w;
 			plane_info->src_x += plane_info->src_w - src_w;
 			plane_info->src_w = src_w;
 			plane_info->dst_w = dst_w;
@@ -488,10 +485,10 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 		}
 		DRM_DEBUG_DRIVER("state->crtc_x < 0\n");
 	}
-	if (state->crtc_y < 0) {
-		dst_h = state->crtc_h + state->crtc_y;
+	if (plane_info->dst_y < 0) {
+		dst_h = plane_info->dst_h + plane_info->dst_y;
 		if (dst_h > 0) {
-			src_h = plane_info->src_h * dst_h / state->crtc_h;
+			src_h = plane_info->src_h * dst_h / plane_info->dst_h;
 			plane_info->src_y += plane_info->src_h - src_h;
 			plane_info->src_h = src_h;
 			plane_info->dst_h = dst_h;
@@ -597,33 +594,28 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 
 	if (state->plane) {
 		avp = to_am_video_plane(state->plane);
-		if (avp->adjust_src.x1)
+
+		if (avp->adjust_src.x1 > -1 && avp->adjust_src.y1 > -1 &&
+			avp->adjust_src.x2 > -1 && avp->adjust_src.y2 > -1) {
 			plane_info->src_x = avp->adjust_src.x1;
-		if (avp->adjust_src.y1)
 			plane_info->src_y = avp->adjust_src.y1;
-		if (avp->adjust_src.x2)
 			plane_info->src_w = avp->adjust_src.x2;
-		if (avp->adjust_src.y2)
 			plane_info->src_h = avp->adjust_src.y2;
-		if (avp->adjust_src.x1 || avp->adjust_src.y1 || avp->adjust_src.x2 ||
-			avp->adjust_src.y2)
 			DRM_DEBUG_DRIVER("resize original src [(%d %d), %dx%d]\n",
 			avp->adjust_src.x1, avp->adjust_src.y1, avp->adjust_src.x2,
 			avp->adjust_src.y2);
+		}
 
-		if (avp->adjust_dst.x1)
+		if (avp->adjust_dst.x1 > -1 && avp->adjust_dst.y1 > -1 &&
+			avp->adjust_dst.x2 > -1 && avp->adjust_dst.y2 > -1) {
 			plane_info->dst_x = avp->adjust_dst.x1;
-		if (avp->adjust_dst.y1)
 			plane_info->dst_y = avp->adjust_dst.y1;
-		if (avp->adjust_dst.x2)
 			plane_info->dst_w = avp->adjust_dst.x2;
-		if (avp->adjust_dst.y2)
 			plane_info->dst_h = avp->adjust_dst.y2;
-		if (avp->adjust_dst.x1 || avp->adjust_dst.y1 || avp->adjust_dst.x2 ||
-			avp->adjust_dst.y2)
 			DRM_DEBUG_DRIVER("resize original dst [(%d %d), %dx%d]\n",
 			avp->adjust_dst.x1, avp->adjust_dst.y1, avp->adjust_dst.x2,
 			avp->adjust_dst.y2);
+		}
 	}
 
 	if (plane_info->is_uvm && plane_info->vf) {
@@ -2990,6 +2982,7 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
 	const u32 *formats_group;
 	int num_formats;
 	const char *const_plane_name;
+	struct drm_rect adjust_rect = {-1, -1, -1, -1};
 
 	osd_plane = devm_kzalloc(priv->drm->dev, sizeof(*osd_plane),
 				 GFP_KERNEL);
@@ -3002,6 +2995,8 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
 	osd_plane->drv = priv;
 	osd_plane->plane_index = i;
 	osd_plane->plane_type = OSD_PLANE;
+	osd_plane->adjust_src = adjust_rect;
+	osd_plane->adjust_dst = adjust_rect;
 	conf = &priv->of_conf;
 	osd_reverse = DRM_MODE_ROTATE_0;
 	index = 0;
@@ -3109,6 +3104,7 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 	char plane_name[8];
 	u32 zpos, min_zpos, max_zpos;
 	const char *const_plane_name;
+	struct drm_rect adjust_rect = {-1, -1, -1, -1};
 
 	video_plane = devm_kzalloc(priv->drm->dev, sizeof(*video_plane),
 				   GFP_KERNEL);
@@ -3131,6 +3127,8 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 
 	video_plane->plane_type = VIDEO_PLANE;
 	video_plane->pipeline = priv->pipeline;
+	video_plane->adjust_src = adjust_rect;
+	video_plane->adjust_dst = adjust_rect;
 	zpos = video_plane->plane_index + min_zpos;
 
 	plane = &video_plane->base;

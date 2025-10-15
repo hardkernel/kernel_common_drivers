@@ -172,6 +172,40 @@ static u8 find_in_port(struct meson_vpu_block *in, struct meson_vpu_block *out)
 	return 0;
 }
 
+void vpu_pipeline_gfcd_skip_recalc_scaler(u8 i, u8 osd_index,
+					 struct meson_vpu_sub_pipeline_state *mvps)
+{
+	u8 m;
+	struct meson_vpu_scaler_param *scaler_param;
+
+	if (mvps->scaler_cnt[i] == 1) {
+		m = mvps->scale_blk[i][0]->index;
+		scaler_param = &mvps->scaler_param[m];
+		if (scaler_param->before_osdblend &&
+			(mvps->plane_info[osd_index].process_unit == GFCD_AFBC ||
+			mvps->plane_info[osd_index].process_unit == GFCD_AFRC)) {
+			if (mvps->plane_info[osd_index].gfcd_hskip) {
+				scaler_param->input_width =
+					mvps->plane_info[osd_index].src_w / 2;
+				MESON_DRM_TRAVERSE("scaler input w h is %d %d after gfcd_hskip.\n",
+					scaler_param->input_width, scaler_param->input_height);
+			} else {
+				scaler_param->input_width =
+					mvps->plane_info[osd_index].src_w;
+			}
+
+			if (mvps->plane_info[osd_index].gfcd_vskip) {
+				scaler_param->input_height =
+					mvps->plane_info[osd_index].src_h / 2;
+				MESON_DRM_TRAVERSE("scaler input w h is %d %d after gfcd_vskip.\n",
+					scaler_param->input_width, scaler_param->input_height);
+			} else {
+				scaler_param->input_height =
+					mvps->plane_info[osd_index].src_h;
+			}
+		}
+	}
+}
 void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 					 struct meson_vpu_sub_pipeline_state *mvps)
 {
@@ -400,6 +434,7 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 			scaler_param_1->input_width, scaler_param_1->output_width,
 			scaler_param_1->input_height, scaler_param_1->output_height);
 	}
+	vpu_pipeline_gfcd_skip_recalc_scaler(index, osd_index, mvps);
 }
 
 /* only effect on vpp0, which include the osdblend block*/

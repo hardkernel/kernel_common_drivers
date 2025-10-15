@@ -275,6 +275,8 @@ struct meson_vpu_osd_layer_info {
 	u32 status_changed;
 	int sec_en;
 	u32 *palette_arry;
+	int gfcd_vskip;
+	int gfcd_hskip;
 };
 
 enum osd_mif_acc_mode {
