@@ -60,6 +60,8 @@ struct {
 	{RESMAN_ID_HWC, "hwc"},
 	{RESMAN_ID_DMX, "dmx"},
 	{RESMAN_ID_DI, "di"},
+	{RESMAN_ID_VDPLANE, "videoplane"},
+	{RESMAN_ID_AUDIO_DECODER, "audiodecoder"},
 };
 
 enum RESMAN_STATUS {
@@ -76,6 +78,17 @@ enum RESMAN_STATUS {
 struct resman_event {
 	struct list_head list;
 	__u32 type;
+};
+
+struct counter_res_state {
+	int index;
+	int ssid;
+	int state;
+};
+
+struct counter_res_state_list {
+	struct counter_res_state *items;
+	int size;
 };
 
 /**
@@ -182,6 +195,7 @@ struct resman_resource {
 		 */
 		struct {
 			__u32 avail;
+			struct counter_res_state_list *counter_list;
 		} counter;
 		/**
 		 * @total: total score
@@ -212,14 +226,21 @@ struct module_debug_node {
 	debug_callback callback;
 };
 
+struct error_info_node {
+	struct list_head list;
+	char *info;
+};
+
 static int resman_debug = 1;
 static int preempt_timeout_ms = 2500;
 static struct list_head sessions_head;
 static struct list_head resources_head;
 static struct list_head debug_head;
+static struct list_head error_info_head;
 static DEFINE_MUTEX(sessions_lock);
 static DEFINE_MUTEX(resource_lock);
 static DEFINE_MUTEX(debug_lock);
+static DEFINE_MUTEX(error_info_lock);
 static dev_t resman_devno;
 static int sess_id = 1;
 static struct cdev *resman_cdev;
@@ -261,7 +282,7 @@ static inline bool resman_parser_kv(char *str, const char *k, __u32 *v)
 	if (k && v && sk && sv && !strcmp(sk, k) && !kstrtou32(sv, 0, v))
 		ret = true;
 	if (!ret)
-		dprintk(2, "parse %s failed %s\n", k, str);
+		dprintk(2, "parse %s  %s\n", k, str);
 	return ret;
 }
 
@@ -350,6 +371,72 @@ static int resman_count_codec_mm_session(bool secure)
 	return count;
 }
 
+static struct counter_res_state_list *resman_counter_res_list_init(struct resman_resource *resource,
+								int size)
+{
+	int i = 0;
+
+	struct counter_res_state_list *counter_list =
+		kcalloc(1, sizeof(struct counter_res_state_list), GFP_KERNEL);
+	if (!counter_list)
+		return NULL;
+
+	counter_list->items =
+		kcalloc(size, sizeof(struct counter_res_state), GFP_KERNEL);
+	if (!counter_list->items) {
+		kfree(counter_list);
+		return NULL;
+	}
+	counter_list->size = size;
+	dprintk(3, "%s list size %d res id %d\n", __func__, size, resource->id);
+
+	for (i = 0; i < size; i++) {
+		counter_list->items[i].index = i;
+		counter_list->items[i].state = 0;
+		counter_list->items[i].ssid = -1;
+	}
+	return counter_list;
+}
+
+static int resman_counter_res_list_acquire_item(struct counter_res_state_list *counter_list,
+			int ssid)
+{
+	int i = 0;
+	int index = -1;
+
+	if (!counter_list)
+		return -1;
+	for (i = 0; i < counter_list->size; i++) {
+		if (counter_list->items[i].state == 0) {
+			counter_list->items[i].state = 1;
+			counter_list->items[i].ssid = ssid;
+			dprintk(3, "i %d and id %d\n", i,
+				 counter_list->items[i].ssid);
+			index = counter_list->items[i].index;
+			break;
+		}
+	}
+	return index;
+}
+
+static void resman_counter_res_list_release_item(struct counter_res_state_list *counter_list,
+			int index, int ssid)
+{
+	int i = 0;
+
+	if (!counter_list || ssid <= 0)
+		return;
+	for (i = 0; i < counter_list->size; i++) {
+		if (counter_list->items[i].ssid == ssid) {
+			counter_list->items[i].state = 0;
+			dprintk(3, "release i %d and id %d\n", i,
+				 counter_list->items[i].ssid);
+			counter_list->items[i].ssid = -1;
+			break;
+		}
+	}
+}
+
 static bool resman_acquire_resource(struct resman_session *sess,
 				    struct resman_resource *resource,
 				    bool preempt,
@@ -357,7 +444,7 @@ static bool resman_acquire_resource(struct resman_session *sess,
 				    const char *arg_ro)
 {
 	bool ret = false;
-	struct resman_node *node;
+	struct resman_node *node = NULL;
 	char *arg_rw = NULL;
 
 	if (arg_ro)
@@ -374,7 +461,7 @@ static bool resman_acquire_resource(struct resman_session *sess,
 		sess->id,
 		resource->name,
 		preempt ? "yes" : "no");
-	if (resource->acquire(sess, resource, node, preempt, timeout, arg_rw)) {
+	if (node && resource->acquire(sess, resource, node, preempt, timeout, arg_rw)) {
 		list_add_tail(&node->rlist, &sess->resources);
 		list_add_tail(&node->slist, &resource->sessions);
 		init_completion(&node->pending_release);
@@ -449,6 +536,7 @@ static void resman_close_session(struct resman_session *sess)
 	wake_up_interruptible_all(&sess->wq_event);
 	list_for_each_safe(pos, tmp, &sess->resources) {
 		node = list_entry(pos, struct resman_node, rlist);
+		dprintk(3, "%d release\n", sess->id);
 		resman_release_resource(node);
 	}
 	list_for_each_safe(pos, tmp, &sess->events) {
@@ -465,7 +553,7 @@ static void resman_close_session(struct resman_session *sess)
 
 static void resman_send_event(struct resman_session *sess, __u32 type)
 {
-	struct resman_event *event;
+	struct resman_event *event = NULL;
 
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
 	if (!event)
@@ -616,6 +704,7 @@ static bool resman_counter_acquire(struct resman_session *sess,
 	}
 	if (resource->value < resource->d.counter.avail) {
 		resource->value++;
+		resman_counter_res_list_acquire_item(resource->d.counter.counter_list, sess->id);
 		ret = true;
 	}
 	return ret;
@@ -632,8 +721,11 @@ static void resman_counter_release(struct resman_session *sess,
 				   struct resman_resource *resource,
 				   struct resman_node *node)
 {
-	if (resource->value > 0)
+	if (resource->value > 0) {
 		resource->value--;
+		resman_counter_res_list_release_item(resource->d.counter.counter_list,
+		resource->value, sess->id);
+	}
 }
 
 /**
@@ -907,11 +999,11 @@ static bool resman_codec_mm_preempt(struct resman_session *curr,
 				}
 			}
 		}
-		if (!selected)
+		if (!selected) {
 			dprintk(2, "fail to find node to preempt\n");
-		else
-			dprintk(2, "preempt node prio:%d\n", lowestprio);
-
+			break;
+		}
+		dprintk(2, "preempt node prio:%d\n", lowestprio);
 		if (resman_preempt_session(curr, selected)) {
 			new_score -= selected->s.codec_mm.score;
 			lowestprio = curr->prio;
@@ -933,11 +1025,15 @@ static bool resman_codec_mm_enough(struct resman_resource *resource,
 	if (!secure && (codec_mm_get_free_size() >> 20 < score)) {
 		enough = false;
 		dprintk(2, "free size 0x%x\n", codec_mm_get_free_size());
+		if (resman_debug)
+			dump_mem_infos_external();
 	} else if (secure && ((codec_mm_get_tvp_free_size() + codec_mm_get_free_size()) >> 20)
 			< score) {
 		enough = false;
 		dprintk(2, "free size 0x%x\n", codec_mm_get_tvp_free_size() +
 			+ codec_mm_get_free_size());
+		if (resman_debug)
+			dump_mem_infos_external();
 	}
 	return enough;
 }
@@ -970,7 +1066,7 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 	while ((opt = strsep(&arg, ","))) {
 		if (!strncmp(opt, "size", 4)) {
 			if (!resman_parser_kv(opt, "size", &score))
-				dprintk(1, "parser size error\n");
+				dprintk(1, "default fhd size\n");
 		}
 		else if (!strcmp(opt, "single"))
 		/*single mode, 64M codec mm size is enough*/
@@ -1065,8 +1161,7 @@ static void resman_codec_mm_release(struct resman_session *sess,
  */
 static void resman_codec_mm_probe(struct resman_resource *resource)
 {
-	int total_bytes;
-	int tvp_fhd, tvp_uhd;
+	int total_bytes = 0, tvp_fhd = 0, tvp_uhd = 0;
 
 	codec_mm_get_default_tvp_size(&tvp_fhd, &tvp_uhd);
 	total_bytes = codec_mm_get_total_size();
@@ -1147,11 +1242,11 @@ static bool resman_capacity_preempt(struct resman_session *curr,
 				}
 			}
 		}
-		if (!selected)
+		if (!selected) {
 			dprintk(2, "fail to find node to preempt\n");
-		else
-			dprintk(2, "preempt node prio:%d\n", lowestprio);
-
+			break;
+		}
+		dprintk(2, "preempt node prio:%d\n", lowestprio);
 		if (resman_preempt_session(curr, selected)) {
 			used_size -= selected->s.capacity.use;
 			lowestprio = curr->prio;
@@ -1262,6 +1357,7 @@ static bool resman_create_resource(const char *name,
 	resource->id = -1;
 	for (i = 0; i < ARRAY_SIZE(resources_map) && resources_map[i].name;
 			i++) {
+		dprintk(3, "map: [%s]\n", resources_map[i].name);
 		if (!strcmp(resources_map[i].name, name)) {
 			restmp = resman_find_resource_by_id(resources_map[i].id);
 			if (restmp) {
@@ -1316,6 +1412,8 @@ static bool resman_create_resource(const char *name,
 				      &resource->d.counter.avail)) {
 			goto error;
 		}
+		resource->d.counter.counter_list =
+			resman_counter_res_list_init(resource, resource->d.counter.avail);
 		break;
 	case RESMAN_TYPE_TOGGLE:
 		resource->acquire = resman_toggle_acquire;
@@ -1664,7 +1762,7 @@ static void all_resource_init(void)
  */
 	char *default_configs = NULL;
 	int len = 0, i = 0;
-	char c[8][100] = {
+	char c[10][100] = {
 	"{\"resman_config\":[{\"name\":\"vfm_default\",\"type\":1,\"args\":\"avail:1\"},",
 	"{\"name\": \"amvideo\",\"type\": 1,\"args\": \"avail:1\"},",
 	"{\"name\": \"videopip\",\"type\": 1,\"args\": \"avail:1\"},",
@@ -1672,14 +1770,17 @@ static void all_resource_init(void)
 	"{\"name\": \"tsparser\",\"type\": 1,\"args\": \"avail:1\"},",
 	"{\"name\": \"codec_mm\",\"type\": 4,\"args\": \"total:0\"},",
 	"{\"name\": \"adc_pll\",\"type\": 1,\"args\": \"avail:1\"},",
-	"{\"name\": \"decoder\",\"type\": 1,\"args\": \"avail:9\"}]}"};
+	"{\"name\": \"decoder\",\"type\": 1,\"args\": \"avail:9\"},",
+	"{\"name\": \"videoplane\",\"type\": 1,\"args\": \"avail:1\"},",
+	"{\"name\": \"audiodecoder\",\"type\": 1,\"args\": \"avail:2\"}]}"};
 
 	len = strlen(c[0]) + strlen(c[1]) + strlen(c[2]) + strlen(c[3]) +
-			strlen(c[4]) + strlen(c[5]) + strlen(c[6]) + strlen(c[7]);
+			strlen(c[4]) + strlen(c[5]) + strlen(c[6]) + strlen(c[7]) +
+			strlen(c[8]) + strlen(c[9]);
 	default_configs = kzalloc(len + 1, GFP_KERNEL);
 	len = 0;
 	if (default_configs) {
-		for (i = 0; i < 8; i++) {
+		for (i = 0; i < 10; i++) {
 			memcpy(default_configs + len, c[i], strlen(c[i]));
 			len +=  strlen(c[i]);
 		}
@@ -1701,8 +1802,10 @@ static void all_resource_init(void)
 	INIT_LIST_HEAD(&sessions_head);
 	INIT_LIST_HEAD(&resources_head);
 	INIT_LIST_HEAD(&debug_head);
+	INIT_LIST_HEAD(&error_info_head);
 #ifdef RESMAM_ENABLE_JSON
-	resman_config_from_json(default_configs);
+	if (default_configs && len && default_configs[len] == '\0')
+		resman_config_from_json(default_configs);
 	kfree(default_configs);
 #else
 	resman_parser_config(default_configs);
@@ -1751,8 +1854,7 @@ beach:
 static int resman_estimate_tvp_available(int size)
 {
 	int free_size = codec_mm_get_free_size();
-	int tvp_fhd, tvp_uhd;
-	int mode = 0;
+	int tvp_fhd = 0, tvp_uhd = 0, mode = 0;
 
 	free_size += codec_mm_get_tvp_free_size();
 	if (size <= 0) {
@@ -1780,6 +1882,8 @@ static int resman_codec_mm_available(int issecure)
 			codec_mm_get_tvp_free_size()) >> 20;
 	}
 	dprintk(2, "avail %d\n", avail);
+	if (resman_debug > 1)
+		dump_mem_infos_external();
 
 	return avail;
 }
@@ -1852,7 +1956,7 @@ static long resman_ioctl_release(struct resman_session *sess,
 	int select_res = (int)para;
 	struct resman_resource *resource;
 	struct resman_node  *node;
-	dprintk(2, "%d appname:%s, type=%d\n",
+	dprintk(2, "%d appname:%s release, type=%d\n",
 			sess->id,
 			sess->app_name,
 			sess->app_type);
@@ -2250,7 +2354,98 @@ static long resman_get_sys_debug_level(struct resman_session *sess, unsigned lon
 	return len;
 }
 
-static long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para)
+static long resman_get_counter_index(struct resman_session *sess, unsigned long para)
+{
+	long r = -1;
+	int select_res = 0, i = 0;
+	__u32 id = 0;
+	struct resman_resource *resource;
+
+	if (copy_from_user((void *)&id, (void *)para, sizeof(id))) {
+		dprintk(0, "getcount index para error\n");
+		return -EINVAL;
+	}
+
+	select_res = id;
+	resource = resman_find_resource_by_id(select_res);
+	if (!resource)
+		return r;
+	for (i = 0; i < resource->d.counter.counter_list->size; i++) {
+		dprintk(3, "items[i].state %d\n", resource->d.counter.counter_list->items[i].state);
+		if (resource->d.counter.counter_list->items[i].state == 1 &&
+			resource->d.counter.counter_list->items[i].ssid == sess->id) {
+			dprintk(3, "find i %d and id %d\n", i, id);
+			r = i;
+			break;
+		}
+	}
+	return r;
+}
+
+static long resman_set_sys_debug_level(struct resman_session *sess, unsigned long para)
+{
+	long r = 0;
+	ssize_t size = 0;
+	struct debug_level __user *argp = (void __user *)para;
+	struct debug_level *debuglevel_ptr = NULL;
+
+	if (!argp)  {
+		r = -EFAULT;
+		goto error;
+	}
+
+	debuglevel_ptr = kzalloc(sizeof(*debuglevel_ptr), GFP_KERNEL);
+	if (!debuglevel_ptr) {
+		r = -ENOMEM;
+		goto error;
+	}
+
+	if (copy_from_user((void *)debuglevel_ptr, argp, sizeof(*debuglevel_ptr))) {
+		r = -EFAULT;
+		goto error;
+	}
+
+	if (debuglevel_ptr->len == 0 || debuglevel_ptr->len > PAGE_SIZE ||
+		debuglevel_ptr->debug_info[0] == '\0') {
+		r = -EINVAL;
+		goto error;
+	}
+
+	dprintk(3, "[%s] info =%s\n", __func__, debuglevel_ptr->debug_info);
+	size = res_sys_debug_store(NULL, NULL, debuglevel_ptr->debug_info,
+		debuglevel_ptr->len);
+	if (size <= 0) {
+		r = -EINVAL;
+		goto error;
+	}
+	r = 0;
+error:
+	kfree(debuglevel_ptr);
+	return r;
+}
+
+static long resman_get_error_info(struct resman_session *sess, unsigned long para)
+{
+	int len = 0;
+	struct error_info_node *node = NULL;
+	struct list_head *pos = NULL, *tmp = NULL;
+
+	list_for_each_safe(pos, tmp, &error_info_head) {
+		node = list_entry(pos, struct error_info_node, list);
+		len = strlen(node->info);
+		if (len > PAGE_SIZE)
+			len = PAGE_SIZE;
+		if (copy_to_user((void __user *)para, node->info, len)) {
+			len = 0;
+			dprintk(0, "error copy to use space");
+		}
+		list_del(&node->list);
+		break;
+	}
+	return len;
+}
+
+long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para)
 {
 	long retval = 0;
 	struct resman_session *sess;
@@ -2287,6 +2482,15 @@ static long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para
 		break;
 	case RESMAN_IOC_GET_SYS_DEBUG_LEVEL:
 		retval = resman_get_sys_debug_level(sess, para);
+		break;
+	case RESMAN_IOC_SET_SYS_DEBUG_LEVEL:
+		retval = resman_set_sys_debug_level(sess, para);
+		break;
+	case RESMAN_IOC_GET_ERROR_INFO:
+		retval = resman_get_error_info(sess, para);
+		break;
+	case RESMAN_IOC_GET_COUNTER_INDEX:
+		retval = resman_get_counter_index(sess, para);
 		break;
 	default:
 		retval = -EINVAL;
@@ -2404,7 +2608,7 @@ int resman_register_debug_callback(const char *module, debug_callback callback)
 		}
 
 		node->module = kzalloc(strlen(module) + 1, GFP_KERNEL);
-		if (!node) {
+		if (!node->module) {
 			dprintk(0, "failed allocate module for %s\n", module);
 			res = -ENOMEM;
 			goto error;
@@ -2444,6 +2648,51 @@ int resman_remove_debug_callback(const char *module)
 	return 0;
 }
 EXPORT_SYMBOL(resman_remove_debug_callback);
+
+int resman_notify_error_info(const char *info)
+{
+	int res = 0;
+	struct error_info_node *node = NULL;
+	struct list_head *pos = NULL, *tmp = NULL;
+	struct resman_session *sess = NULL;
+
+	if (!info)
+		return -EINVAL;
+	dprintk(1, "notify error info = %s\n", info);
+	mutex_lock(&error_info_lock);
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node) {
+		dprintk(0, "failed allocate error info node for %s\n", info);
+		res = -ENOMEM;
+		goto error1;
+	}
+	node->info = kzalloc(strlen(info) + 1, GFP_KERNEL);
+	if (!node->info) {
+		dprintk(0, "failed allocate info for %s\n", info);
+		res = -ENOMEM;
+		goto error;
+	}
+	memcpy(node->info, info, strlen(info));
+	list_add_tail(&node->list, &error_info_head);
+	mutex_unlock(&error_info_lock);
+
+	mutex_lock(&sessions_lock);
+	list_for_each_safe(pos, tmp, &sessions_head) {
+		sess = list_entry(pos, struct resman_session, list);
+		if (sess) {
+			resman_send_event(sess, RESMAN_EVENT_ERRORINFO);
+			wake_up_interruptible(&sess->wq_event);
+		}
+	}
+	mutex_unlock(&sessions_lock);
+	return 0;
+error:
+	kfree(node);
+error1:
+	mutex_unlock(&error_info_lock);
+	return res;
+}
+EXPORT_SYMBOL(resman_notify_error_info);
 
 int __init resman_init(void)
 {

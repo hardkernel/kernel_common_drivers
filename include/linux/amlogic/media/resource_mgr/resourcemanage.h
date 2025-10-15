@@ -20,6 +20,9 @@
 #define RESMAN_IOC_RELEASE_ALL					_IOR(RESMAN_IOC_MAGIC, 0x06, int)
 #define RESMAN_IOC_LOAD_RES					_IOR(RESMAN_IOC_MAGIC, 0x07, int)
 #define RESMAN_IOC_GET_SYS_DEBUG_LEVEL				_IOR(RESMAN_IOC_MAGIC, 0x08, int)
+#define RESMAN_IOC_SET_SYS_DEBUG_LEVEL				 _IOR(RESMAN_IOC_MAGIC, 0x09, int)
+#define RESMAN_IOC_GET_ERROR_INFO				_IOR(RESMAN_IOC_MAGIC, 0x0A, int)
+#define RESMAN_IOC_GET_COUNTER_INDEX				_IOR(RESMAN_IOC_MAGIC, 0x0B, int)
 
 #define RESMAN_SUPPORT_PREEMPT		1
 
@@ -79,6 +82,11 @@ struct res_item {
 	char arg[32];
 };
 
+struct debug_level {
+	char debug_info[2048];
+	__u32 len;
+};
+
 enum RESMAN_ID {
 	RESMAN_ID_VFM_DEFAULT,
 	RESMAN_ID_AMVIDEO,
@@ -91,6 +99,9 @@ enum RESMAN_ID {
 	RESMAN_ID_DMX,
 	RESMAN_ID_DI,
 	RESMAN_ID_HWC,
+	RESMAN_ID_VDETE,
+	RESMAN_ID_VDPLANE,
+	RESMAN_ID_AUDIO_DECODER,
 	RESMAN_ID_MAX,
 };
 
@@ -111,7 +122,11 @@ enum RESMAN_APP {
 	RESMAN_APP_DVBKIT,
 	RESMAN_APP_TSPLAYER,
 	RESMAN_APP_CODEC2,
-	RESMAN_APP_OTHER	= 10,
+	RESMAN_APP_DEBUG_SERVER,
+	RESMAN_APP_OTHER    = 10,
+	RESMAN_APP_SYSTEM_RESERVED = 100,
+	RESMAN_APP_DIAGNOSTICS = 101,
+	RESMAN_APP_GST = 200,
 };
 
 enum RESMAN_EVENT {
@@ -120,7 +135,8 @@ enum RESMAN_EVENT {
 	RESMAN_EVENT_PREEMPT		= 0x1002,
 	RESMAN_EVENT_STOP		= 0x1003,
 	RESMAN_EVENT_RESREPORT		= 0x1004,
-	RESMAN_EVENT_DEBUGEVENT		= 0x1005
+	RESMAN_EVENT_DEBUGEVENT		= 0x1005,
+	RESMAN_EVENT_ERRORINFO		= 0x1007
 };
 
 typedef void (*debug_callback)(const char *module, const char *debug, int len);
@@ -129,5 +145,6 @@ int resman_init(void);
 void resman_exit(void);
 int resman_register_debug_callback(const char *module, debug_callback callback);
 int resman_remove_debug_callback(const char *module);
+int resman_notify_error_info(const char *info);
 
 #endif/*_RESOURCE_MANAGE_H_*/
