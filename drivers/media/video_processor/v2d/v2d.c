@@ -42,6 +42,9 @@
 #define BUFFER_720_WIDTH    1280
 #define BUFFER_720_HEIGHT    720
 
+#define MIN_DEWARP_WIDTH   960
+#define MIN_DEWARP_HEIGHT    540
+
 static u32 v2d_instance_num;
 static enum composer_dev v2d_dev_choice; /*0:default 1:ge2d 2:dewarp 3:vicp*/
 static int use_full_axis_scaling = 1;
@@ -321,8 +324,15 @@ static void v2d_timeline_increase(struct v2d_dev *dev,
 
 static void v2d_free_fd_private(void *arg)
 {
+	struct vframe_s *vf;
+
 	if (arg) {
 		v2d_print(0, PRINT_OTHER, "free_fd_private\n");
+		vf = &((struct file_private_data *)arg)->vf;
+		if (vf->composer_info) {
+			v2d_print(0, PRINT_OTHER, "composer_info need free\n");
+			kfree(vf->composer_info);
+		}
 		vfree((u8 *)arg);
 	} else {
 		v2d_print(0, PRINT_ERROR, "free: arg is NULL\n");
@@ -631,6 +641,10 @@ static void choose_v2d_device(struct v2d_dev *dev,
 		else
 			dev->dev_choice = COMPOSER_WITH_GE2D;
 	}
+
+	if (dev->dev_choice != dev->last_dev_choice && dev->buffer_status != UNINITIAL)
+		dev->buffer_status = STATUS_SIZE_CHANGED;
+	dev->last_dev_choice = dev->dev_choice;
 }
 
 static void init_output_buffer_size(struct v2d_dev *dev,
@@ -641,6 +655,7 @@ static void init_output_buffer_size(struct v2d_dev *dev,
 
 	switch (dev->buffer_status) {
 	case UNINITIAL:
+	case STATUS_SIZE_CHANGED:
 		break;
 	case INIT_SIZE_SUCCESS:
 	case INIT_BUFFER_SUCCESS:
@@ -698,6 +713,72 @@ static void init_output_buffer_size(struct v2d_dev *dev,
 		__func__, dev->buf_width, dev->buf_height);
 }
 
+static bool is_window_changed(struct v2d_dev *dev,
+				struct frames_info_t *cur_frame_info)
+{
+	int last_width, last_height, current_width, current_height;
+	int cur_pos_x, cur_pos_y, cur_pos_w, cur_pos_h;
+	int last_pos_x, last_pos_y, last_pos_w, last_pos_h;
+	struct frames_info_t *last_frame_info;
+	int last_zorder, cur_zorder;
+	bool window_changed = false;
+	int i;
+
+	last_frame_info = &dev->last_frames.frames_info;
+	if (cur_frame_info->frame_count != last_frame_info->frame_count) {
+		window_changed = true;
+		v2d_print(dev->index, PRINT_OTHER,
+			 "last count=%d, current count=%d\n",
+			 last_frame_info->frame_count,
+			 cur_frame_info->frame_count);
+	} else {
+		for (i = 0; i < cur_frame_info->frame_count; i++) {
+			current_width = cur_frame_info->input_buffer[i].crop_w;
+			current_height = cur_frame_info->input_buffer[i].crop_h;
+			last_width = last_frame_info->input_buffer[i].crop_w;
+			last_height = last_frame_info->input_buffer[i].crop_h;
+
+			if (current_width * last_height !=
+				current_height * last_width) {
+				v2d_print(dev->index, PRINT_OTHER,
+					 "frame width or height changed!");
+				window_changed = true;
+				break;
+			}
+
+			cur_pos_x = cur_frame_info->input_buffer[i].dst_x;
+			cur_pos_y = cur_frame_info->input_buffer[i].dst_y;
+			cur_pos_w = cur_frame_info->input_buffer[i].dst_w;
+			cur_pos_h = cur_frame_info->input_buffer[i].dst_h;
+			last_pos_x = last_frame_info->input_buffer[i].dst_x;
+			last_pos_y = last_frame_info->input_buffer[i].dst_y;
+			last_pos_w = last_frame_info->input_buffer[i].dst_w;
+			last_pos_h = last_frame_info->input_buffer[i].dst_h;
+
+			if (cur_pos_x != last_pos_x ||
+			    cur_pos_y != last_pos_y ||
+			    cur_pos_w != last_pos_w ||
+			    cur_pos_h != last_pos_h) {
+				v2d_print(dev->index, PRINT_OTHER,
+					 "frame axis changed!");
+				window_changed = true;
+				break;
+			}
+
+			cur_zorder = cur_frame_info->input_buffer[i].zorder;
+			last_zorder = last_frame_info->input_buffer[i].zorder;
+			if (cur_zorder != last_zorder) {
+				v2d_print(dev->index, PRINT_OTHER,
+					 "frame zorder changed!");
+				window_changed = true;
+				break;
+			}
+		}
+	}
+
+	return window_changed;
+}
+
 static void get_output_axis_crop(struct v2d_dev *dev, struct vframe_s *src_vf,
 		struct received_frames_t *received_frame,
 		struct frame_info_t *vframe_info_cur, int j)
@@ -735,10 +816,10 @@ static void get_output_axis_crop(struct v2d_dev *dev, struct vframe_s *src_vf,
 	}
 
 	dst_axis = adjust_output_axis(dev, vframe_info_cur);
-	display_axis.left = dst_axis.left * dev->buf_width / dev->vinfo_w;
-	display_axis.top = dst_axis.top * dev->buf_height / dev->vinfo_h;
-	display_axis.width = dst_axis.width * dev->buf_width / dev->vinfo_w;
-	display_axis.height = dst_axis.height * dev->buf_height / dev->vinfo_h;
+	display_axis.left = dst_axis.left * (int)dev->buf_width / (int)dev->vinfo_w;
+	display_axis.top = dst_axis.top * (int)dev->buf_height / (int)dev->vinfo_h;
+	display_axis.width = dst_axis.width * (int)dev->buf_width / (int)dev->vinfo_w;
+	display_axis.height = dst_axis.height * (int)dev->buf_height / (int)dev->vinfo_h;
 
 	memcpy(&received_frame->crop_info[j], &crop_info, sizeof(struct input_crop_s));
 	memcpy(&received_frame->axis_info[j], &display_axis, sizeof(struct input_axis_s));
@@ -768,6 +849,20 @@ static void set_output_buffer_area(struct v2d_dev *dev, struct frames_info_t *fr
 
 	memcpy(&area_bound, &received_frame->output_axis, sizeof(struct output_axis));
 	if (dev->dev_choice != COMPOSER_WITH_DEWARP) {
+		v2d_print(dev->index, PRINT_OTHER,
+			"%s: min_top:%d min_left:%d, max_bottom:%d, max_right:%d.\n",
+			__func__, area_bound.min_top, area_bound.min_left,
+			area_bound.max_bottom, area_bound.max_right);
+
+		if (area_bound.min_top < 0)
+			area_bound.min_top = 0;
+		if (area_bound.min_left < 0)
+			area_bound.min_left = 0;
+		if (area_bound.max_bottom > dev->vinfo_h)
+			area_bound.max_bottom = dev->vinfo_h;
+		if (area_bound.max_right > dev->vinfo_w)
+			area_bound.max_right = dev->vinfo_w;
+
 		out_crop[0] = area_bound.min_top * dev->buf_width / dev->vinfo_w;
 		out_crop[1] = area_bound.min_left * dev->buf_height / dev->vinfo_h;
 		out_crop[2] = dev->buf_height - area_bound.max_bottom *
@@ -990,14 +1085,26 @@ static int v2d_init_ge2d_buffer(struct v2d_dev *dev, bool is_tvp)
 		flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
 
 	for (i = 0; i < BUFFER_LEN; i++) {
-		if (dev->dst_buf[i].phy_addr == 0)
+		if (dev->dst_buf[i].phy_addr == 0) {
 			dev->dst_buf[i].phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
 				buf_size / PAGE_SIZE, 0, flags);
-		v2d_print(dev->index, PRINT_ERROR,
-			 "%s: cma memory is %x , size is  %x\n",
-			 ports[dev->index].name,
-			 (unsigned int)dev->dst_buf[i].phy_addr,
-			 (unsigned int)buf_size);
+			if (!kfifo_put(&dev->free_q, &dev->dst_buf[i]))
+				v2d_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
+			dev->dst_buf[i].buf_status = BUFFER_STATUS_NORMAL;
+
+			v2d_print(dev->index, PRINT_ERROR,
+				 "%s: cma memory is %x , size is  %x\n",
+				 ports[dev->index].name,
+				 (unsigned int)dev->dst_buf[i].phy_addr,
+				 (unsigned int)buf_size);
+		} else if (dev->dst_buf[i].buf_used == BUFFER_MODE_VICP) {
+			v2d_print(dev->index, PRINT_ERROR,
+				 "%s: composer device changed, last: %d, current:%d\n",
+				 __func__,
+				 dev->dst_buf[i].buf_used,
+				 BUFFER_MODE_GE2D);
+			dev->dst_buf[i].buf_status = BUFFER_STATUS_CHANGE;
+		}
 
 		if (dev->dst_buf[i].phy_addr == 0) {
 			dev->buffer_status = INIT_BUFFER_ERROR;
@@ -1012,8 +1119,6 @@ static int v2d_init_ge2d_buffer(struct v2d_dev *dev, bool is_tvp)
 		dev->dst_buf[i].is_tvp = is_tvp;
 		dev->dst_buf[i].buf_used = BUFFER_MODE_GE2D;
 
-		if (!kfifo_put(&dev->free_q, &dev->dst_buf[i]))
-			v2d_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
 	}
 	return 0;
 }
@@ -1039,15 +1144,26 @@ static int v2d_init_dewarp_buffer(struct v2d_dev *dev, bool is_tvp)
 		flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
 
 	for (i = 0; i < BUFFER_LEN; i++) {
-		if (dev->dst_buf[i].phy_addr == 0)
+		if (dev->dst_buf[i].phy_addr == 0) {
 			dev->dst_buf[i].phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
 				buf_size / PAGE_SIZE, 0, flags);
-		v2d_print(dev->index, PRINT_ERROR,
-			 "%s: cma memory is %lx , size is  %x\n",
-			 ports[dev->index].name,
-			 (unsigned long)dev->dst_buf[i].phy_addr,
-			 (unsigned int)buf_size);
+			if (!kfifo_put(&dev->free_q, &dev->dst_buf[i]))
+				v2d_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
+			dev->dst_buf[i].buf_status = BUFFER_STATUS_NORMAL;
 
+			v2d_print(dev->index, PRINT_ERROR,
+				 "%s: cma memory is %lx , size is  %x\n",
+				 ports[dev->index].name,
+				 (unsigned long)dev->dst_buf[i].phy_addr,
+				 (unsigned int)buf_size);
+		} else {
+			v2d_print(dev->index, PRINT_ERROR,
+				 "%s: composer device changed, last: %d, current:%d\n",
+				 __func__,
+				 dev->dst_buf[i].buf_used,
+				 BUFFER_MODE_DEWARP);
+			dev->dst_buf[i].buf_status = BUFFER_STATUS_CHANGE;
+		}
 		if (dev->dst_buf[i].phy_addr == 0) {
 			dev->buffer_status = INIT_BUFFER_ERROR;
 			v2d_print(dev->index, PRINT_ERROR, "cma memory config fail\n");
@@ -1061,8 +1177,6 @@ static int v2d_init_dewarp_buffer(struct v2d_dev *dev, bool is_tvp)
 		dev->dst_buf[i].is_tvp = is_tvp;
 		dev->dst_buf[i].buf_used = BUFFER_MODE_DEWARP;
 
-		if (!kfifo_put(&dev->free_q, &dev->dst_buf[i]))
-			v2d_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
 	}
 	return 0;
 }
@@ -1070,7 +1184,6 @@ static int v2d_init_dewarp_buffer(struct v2d_dev *dev, bool is_tvp)
 static int v2d_init_vicp_buffer(struct v2d_dev *dev, bool is_tvp)
 {
 	int i, j, flags;
-	u32 buf_addr = 0;
 	u32 buf_width, buf_height, buf_size;
 	int dw_size = 0, afbc_body_size = 0, afbc_head_size = 0, afbc_table_size = 0;
 	u32 *virt_addr = NULL, *temp_addr = NULL;
@@ -1110,20 +1223,31 @@ static int v2d_init_vicp_buffer(struct v2d_dev *dev, bool is_tvp)
 		flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
 
 	for (i = 0; i < BUFFER_LEN; i++) {
-		if (dev->dst_buf[i].phy_addr == 0)
-			buf_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
+		if (dev->dst_buf[i].phy_addr == 0) {
+			dev->dst_buf[i].phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
 				buf_size / PAGE_SIZE, 0, flags);
+			if (!kfifo_put(&dev->free_q, &dev->dst_buf[i]))
+				v2d_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
 
-		if (buf_addr == 0) {
+			dev->dst_buf[i].buf_status = BUFFER_STATUS_NORMAL;
+
+			v2d_print(dev->index, PRINT_ERROR,
+				"%s: cma memory is 0x%lx , size is 0x%x.\n",
+				ports[dev->index].name, dev->dst_buf[i].phy_addr, buf_size);
+		} else {
+			v2d_print(dev->index, PRINT_ERROR,
+				 "%s: composer device changed, last: %d, current:%d\n",
+				 __func__,
+				 dev->dst_buf[i].buf_used,
+				 BUFFER_MODE_VICP);
+			dev->dst_buf[i].buf_status = BUFFER_STATUS_CHANGE;
+		}
+
+		if (dev->dst_buf[i].phy_addr == 0) {
 			dev->buffer_status = INIT_BUFFER_ERROR;
 			v2d_print(dev->index, PRINT_ERROR, "cma memory config fail\n");
 			return -1;
 		}
-
-		dev->dst_buf[i].phy_addr = buf_addr;
-		v2d_print(dev->index, PRINT_ERROR,
-			"%s: cma memory is 0x%lx , size is 0x%x.\n",
-			ports[dev->index].name, dev->dst_buf[i].phy_addr, buf_size);
 
 		dev->dst_buf[i].index = i;
 		dev->dst_buf[i].dirty = true;
@@ -1159,9 +1283,6 @@ static int v2d_init_vicp_buffer(struct v2d_dev *dev, bool is_tvp)
 				virt_addr++;
 			}
 		}
-
-		if (!kfifo_put(&dev->free_q, &dev->dst_buf[i]))
-			v2d_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
 	}
 
 	return 0;
@@ -1253,6 +1374,7 @@ static int config_dewarp_param(struct v2d_dev *dev,
 	struct dewarp_vf_para_s *dewarp_data = NULL;
 	struct dst_buf_t *dst_buf = NULL;
 	struct dewarp_common_para common_para;
+	int out_align_width, out_align_height;
 
 	if (!dev || !vframe_info_cur || !v2d_composer_param) {
 		pr_info("%s:input param err\n", __func__);
@@ -1275,10 +1397,13 @@ static int config_dewarp_param(struct v2d_dev *dev,
 	common_para.input_para.pic_info.align_w = vframe_info_cur->align_w;
 	common_para.input_para.pic_info.align_h = vframe_info_cur->align_h;
 
-	common_para.output_para.pic_info.align_w =
-		(vframe_info_cur->dst_w * dst_buf->buf_w / dev->vinfo_w + 0xf) & ~0xf;
-	common_para.output_para.pic_info.align_h =
-		(vframe_info_cur->dst_h * dst_buf->buf_h / dev->vinfo_h + 0xf) & ~0xf;
+	out_align_width = (vframe_info_cur->dst_w * dst_buf->buf_w / dev->vinfo_w + 0xf) & ~0xf;
+	out_align_height = (vframe_info_cur->dst_h * dst_buf->buf_h / dev->vinfo_h + 0xf) & ~0xf;
+
+	common_para.output_para.pic_info.align_w = out_align_width > MIN_DEWARP_WIDTH ?
+		out_align_width : MIN_DEWARP_WIDTH;
+	common_para.output_para.pic_info.align_h = out_align_height > MIN_DEWARP_HEIGHT ?
+		out_align_height : MIN_DEWARP_HEIGHT;
 	common_para.output_para.pic_info.addr[0] = dst_buf->phy_addr;
 	common_para.input_para.pic_info.is_tvp = v2d_composer_param->is_tvp;
 
@@ -1450,6 +1575,7 @@ static void v2d_fence_signal_cb(struct dma_fence *fence, struct dma_fence_cb *cb
 	if (i == len) {
 		v2d_print(dev->index, PRINT_OTHER,
 			"recycle failed, may be at uninit process?\n");
+		dev->buffer_release_count++;
 		return;
 	}
 
@@ -1488,8 +1614,7 @@ static void set_v2d_mediaproxy_info(struct v2d_dev *dev, struct vframe_s *src_vf
 #endif
 
 static void config_output_vf_param(struct v2d_dev *dev, struct vframe_s *output_vf,
-		bool is_tvp, struct dst_buf_t *output_buffer, struct composer_info_t *composer_info,
-		struct frame_info_t *vframe_info)
+		bool is_tvp, struct dst_buf_t *output_buffer, struct frame_info_t *vframe_info)
 {
 	if (!dev || !output_vf) {
 		pr_info("%s:input param err\n", __func__);
@@ -1542,7 +1667,6 @@ static void config_output_vf_param(struct v2d_dev *dev, struct vframe_s *output_
 	}
 
 	output_vf->repeat_count = 0;
-	output_vf->composer_info = composer_info;
 }
 
 static int v2d_init_buffer(struct v2d_dev *dev, bool is_tvp)
@@ -1629,6 +1753,7 @@ static void v2d_uninit_buffer(struct v2d_dev *dev)
 	}
 
 	dev->dev_choice = COMPOSER_WITH_UNINITIAL;
+	dev->last_dev_choice = COMPOSER_WITH_UNINITIAL;
 
 	INIT_KFIFO(dev->free_q);
 	kfifo_reset(&dev->free_q);
@@ -1670,7 +1795,10 @@ static void v2d_config_init(struct v2d_dev *dev)
 	dev->fence_creat_count = 0;
 	dev->fence_signal_count = 0;
 	dev->buffer_release_count = 0;
+	dev->set_frame_count = 0;
+	dev->set_fence_count = 0;
 	dev->dev_choice = COMPOSER_WITH_UNINITIAL;
+	dev->last_dev_choice = COMPOSER_WITH_UNINITIAL;
 	init_completion(&dev->file_task_done);
 	dev_get_vinfo(dev);
 }
@@ -1770,6 +1898,8 @@ static int v2d_set_frames(struct v2d_dev *dev,
  *	}
  *	private_data = v2d_get_file_private_data(dmabuf->file, true);
  */
+	dev->set_frame_count++;
+
 	v2d_get_file_private_data(dmabuf->file, true);
 
 	for (j = 0; j < frames_info->frame_count; j++) {
@@ -1966,6 +2096,11 @@ static int v2d_set_fence(struct v2d_dev *dev, struct release_info_t *release_inf
 	}
 	if (ret)
 		v2d_print(dev->index, PRINT_ERROR, "dma_fence_add_callback failed: %d\n", ret);
+	dev->set_fence_count++;
+	if (dev->set_fence_count != dev->set_frame_count)
+		v2d_print(dev->index, PRINT_FENCE,
+			"%s: warning, fence may leak, set_frame:%d, set_fence:%d!\n",
+			__func__, dev->set_frame_count, dev->set_fence_count);
 	return ret;
 }
 
@@ -2306,6 +2441,14 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 		v2d_print(dev->index, PRINT_OTHER, "%s:bypass consider later\n", __func__);
 	start_time = ktime_to_ns(ktime_get());
 	output_vf = &private_data->vf;
+
+	if (!output_vf->composer_info) {
+		output_vf->composer_info = kmalloc(sizeof(*output_vf->composer_info), GFP_KERNEL);
+		v2d_print(dev->index, PRINT_OTHER, "%s:alloc composer_info for new vf\n", __func__);
+	}
+	composer_info = output_vf->composer_info;
+	memset(composer_info, 0, sizeof(struct composer_info_t));
+
 	is_tvp = received_frames->is_tvp;
 	count = received_frames->frames_info.frame_count;
 	memcpy(&output_axis, &received_frames->output_axis, sizeof(struct output_axis));
@@ -2321,11 +2464,14 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 		usleep_range(2000, 4000);
 	}
 
-	composer_info = &output_buffer->composer_info;
-	memset(composer_info, 0, sizeof(struct composer_info_t));
+	if (is_window_changed(dev, &received_frames->frames_info)) {
+		for (i = 0; i < BUFFER_LEN; i++)
+			dev->dst_buf[i].dirty = true;
+	}
 
-	if (is_tvp != output_buffer->is_tvp) {
+	if (is_tvp != output_buffer->is_tvp || output_buffer->buf_status == BUFFER_STATUS_CHANGE) {
 		ret = v2d_switch_buffer(output_buffer, is_tvp, dev);
+		output_buffer->buf_status = BUFFER_STATUS_NORMAL;
 		if (ret == 0) {
 			v2d_print(dev->index, PRINT_ERROR,
 				 "switch buffer from %s to %s failed\n",
@@ -2453,6 +2599,7 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 		v2d_print(dev->index, PRINT_OTHER, "%s:src dump end\n", __func__);
 	}
 
+	dev->last_frames = *received_frames;
 	frames_put_file(dev, received_frames);
 	end_time = ktime_to_ns(ktime_get());
 	cost_time = end_time - start_time;
@@ -2479,8 +2626,7 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 			 composer_info->axis[i][3]);
 	}
 
-	config_output_vf_param(dev, output_vf, is_tvp, output_buffer,
-		composer_info, vframe_info_cur);
+	config_output_vf_param(dev, output_vf, is_tvp, output_buffer, vframe_info_cur);
 
 	if (count == 1 && input_vf)
 		output_vf->duration = input_vf->duration;
@@ -2517,6 +2663,7 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 	v2d_print(dev->index, PRINT_PERFORMANCE,
 		 "display_q len=%d\n", kfifo_len(&dev->display_q));
 
+	memset(received_frames, 0, sizeof(*received_frames));
 	atomic_set(&received_frames->on_use, false);
 }
 
@@ -3100,6 +3247,25 @@ static int v2d_probe(struct platform_device *pdev)
 			ret = PTR_ERR(st->class_dev);
 			pr_err("device_create failed, ret=%d, i=%d\n", ret, i);
 			goto error_device;
+		}
+
+		ret = of_property_read_u32(pdev->dev.of_node,
+					   "vpu_dma_mask", &st->vpu_dma_mask);
+		if (ret) {
+			pr_debug("video_composer don't find vpu_dma_mask\n");
+			st->vpu_dma_mask = 0;
+		}
+		if (st->vpu_dma_mask) {
+			ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(36));
+			if (ret < 0) {
+				pr_err("dma_set_coherent_mask fail\n");
+				goto error_device;
+			}
+			ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
+			if (ret < 0) {
+				pr_err("dma_set_mask fail\n");
+				goto error_device;
+			}
 		}
 
 		ret = sysfs_create_group(&pdev->dev.kobj, &v2d_attr_group[i]);

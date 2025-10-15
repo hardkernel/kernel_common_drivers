@@ -13,6 +13,8 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
+
 #include <linux/videodev2.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
@@ -95,6 +97,7 @@ enum v2d_buffer_status {
 	INIT_SIZE_SUCCESS,
 	INIT_BUFFER_SUCCESS,
 	INIT_BUFFER_ERROR,
+	STATUS_SIZE_CHANGED,
 };
 
 struct input_crop_s {
@@ -112,10 +115,10 @@ struct input_axis_s {
 };
 
 struct output_axis {
-	u32 min_left;
-	u32 min_top;
-	u32 max_right;
-	u32 max_bottom;
+	int min_left;
+	int min_top;
+	int max_right;
+	int max_bottom;
 };
 
 enum v2d_transform_t {
@@ -140,6 +143,11 @@ enum output_buf_mode_t {
 	BUFFER_MODE_GE2D,
 	BUFFER_MODE_DEWARP,
 	BUFFER_MODE_VICP,
+};
+
+enum output_buf_status_t {
+	BUFFER_STATUS_NORMAL = 0,
+	BUFFER_STATUS_CHANGE,
 };
 
 struct received_frames_t {
@@ -173,8 +181,9 @@ struct v2d_dump_info_s {
 
 struct dst_buf_t {
 	int index;
-	struct composer_info_t composer_info;
 	enum output_buf_mode_t buf_used;
+	enum output_buf_mode_t last_buf_used;
+	enum output_buf_status_t buf_status;
 	bool dirty;
 	ulong phy_addr;
 	u32 buf_w;
@@ -243,6 +252,7 @@ struct v2d_dev {
 	u32 index;
 	struct v2d_port_s *port;
 	enum composer_dev dev_choice;
+	enum composer_dev last_dev_choice;
 	enum v2d_work_mode work_mode;
 	bool status_enabled;
 	DECLARE_KFIFO(receive_q, struct received_frames_t *, V2D_POOL_SIZE);
@@ -270,6 +280,7 @@ struct v2d_dev {
 	enum v2d_buffer_status buffer_status;
 	struct ge2d_composer_para ge2d_para;
 	struct dewarp_composer_para dewarp_para;
+	struct received_frames_t last_frames;
 	u32 vinfo_w;
 	u32 vinfo_h;
 	u32 output_duration;
@@ -285,6 +296,8 @@ struct v2d_dev {
 	u32 buffer_release_count;
 	u32 fence_wait_count;
 	u32 fence_wait_time_total;
+	u32 set_frame_count;
+	u32 set_fence_count;
 	struct v2d_dump_info_s info_output_yuv;
 	struct v2d_dump_info_s info_dewarp_src;
 };
@@ -296,6 +309,7 @@ struct v2d_port_s {
 	struct device *class_dev;
 	struct device *pdev;
 	struct v2d_dev *dev;
+	int vpu_dma_mask;
 };
 
 #endif
