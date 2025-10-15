@@ -141,6 +141,7 @@ struct aml_lcd_tcon_ctrl_s {
 #define LCD_IOC_SET_TCON_BIN_DATA_FINISH  0xe
 #define LCD_IOC_GET_CONFIG_READY          0xf
 #define LCD_IOC_GET_PANEL_INFO            0x10
+#define LCD_IOC_GET_TCON_PMU_PATH         0x11
 
 /*
  * tcon dccd: use 0x20~0x2f
@@ -190,6 +191,8 @@ struct aml_lcd_tcon_ctrl_s {
 	_IOW(LCD_IOC_TYPE, LCD_IOC_GET_CONFIG_READY, unsigned int)
 #define LCD_IOC_CMD_GET_PANEL_INFO   \
 	_IOW(LCD_IOC_TYPE, LCD_IOC_GET_PANEL_INFO, struct aml_lcd_panel_info_s)
+#define LCD_IOC_CMD_GET_TCON_PMU_PATH   \
+	_IOW(LCD_IOC_TYPE, LCD_IOC_GET_TCON_PMU_PATH, unsigned long long)
 
 #define TCON_IOC_CMD_SET_DCCD \
 	_IOW(LCD_IOC_TYPE, TCON_IOC_SET_DCCD, struct aml_lcd_dccd_config_s)

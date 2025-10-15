@@ -21,6 +21,7 @@
 
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_fw.h>
 #include <linux/amlogic/media/vout/lcd/lcd_resman.h>
+#include <linux/amlogic/media/vout/lcd/lcd_model.h>
 #include "../../lcd_reg.h"
 #include "../../lcd_common.h"
 #include "lcd_tcon.h"
@@ -92,6 +93,151 @@ static struct lcd_tcon_demura_reg_s demura_reg = {
 	.mem = NULL,
 };
 
+static char *get_tcon_pmu_data_path_ini(struct aml_lcd_drv_s *pdrv)
+{
+	void *inip, *psec;
+	const char *str;
+	int len, i, k, cnt = 0;
+	char  *mem = NULL, *p, tag_name[64];
+#define MAX_DATA_PATH_CNT 32
+
+	inip = get_lcd_ini_parse_mem(pdrv->index);
+	if (!inip) {
+		LCDERR("[%d]: %s: parse_mem not ready\n", pdrv->index, __func__);
+		return NULL;
+	}
+
+	psec = lcd_ini_get_section(inip, "tcon_Path");
+	if (!psec) {
+		LCDERR("[%d]: %s: not find lcd_Attr\n", pdrv->index, __func__);
+		return NULL;
+	}
+
+	mem = kzalloc(256 * MAX_DATA_PATH_CNT + 4, GFP_KERNEL);
+	if (!mem)
+		return NULL;
+
+	p = mem + 4;
+	for (i = 0; i < 4; i++) {
+		snprintf(tag_name, 64, "TCON_EXT_B%d_BIN_PATH", i);
+		str = lcd_ini_get_str(inip, psec, tag_name, NULL);
+		if (str) {
+			len = snprintf(p, 255, "%s:%s", tag_name, str);
+			p += 256;
+			cnt++;
+			if (cnt >= MAX_DATA_PATH_CNT)
+				goto get_tcon_pmu_data_path_ini_done;
+		} else {
+			for (k = 0; k < 10; k++) {
+				snprintf(tag_name, 64, "TCON_EXT_B%d_%d_BIN_PATH", i, k);
+				str = lcd_ini_get_str(inip, psec, tag_name, NULL);
+				if (!str)
+					continue;
+				len = snprintf(p, 255, "%s:%s", tag_name, str);
+				p += 256;
+				cnt++;
+				if (cnt >= MAX_DATA_PATH_CNT)
+					goto get_tcon_pmu_data_path_ini_done;
+			}
+		}
+
+		snprintf(tag_name, 64, "TCON_EXT_B%d_SPI_BIN_PATH", i);
+		str = lcd_ini_get_str(inip, psec, tag_name, NULL);
+		if (str) {
+			len = snprintf(p, 155, "%s:%s", tag_name, str);
+			p += 256;
+			cnt++;
+			if (cnt >= MAX_DATA_PATH_CNT)
+				goto get_tcon_pmu_data_path_ini_done;
+		} else {
+			for (k = 0; k < 10; k++) {
+				snprintf(tag_name, 64, "TCON_EXT_B%d_%d_SPI_BIN_PATH", i, k);
+				str = lcd_ini_get_str(inip, psec, tag_name, NULL);
+				if (!str)
+					continue;
+				len = snprintf(p, 255, "%s:%s", tag_name, str);
+				p += 256;
+				cnt++;
+				if (cnt >= MAX_DATA_PATH_CNT)
+					goto get_tcon_pmu_data_path_ini_done;
+			}
+		}
+	}
+
+get_tcon_pmu_data_path_ini_done:
+
+	*(unsigned int *)mem = cnt;
+	return mem;
+}
+
+static char *get_tcon_pmu_data_path_json(struct aml_lcd_drv_s *pdrv)
+{
+	struct json_parse_s *jsp;
+	struct json_s *parent, *node;
+	char  *mem, *p;
+	const char *base_path = NULL, *val = NULL, *key;
+	char path[256];
+	int i = 0, cnt = 0, len = 0;
+
+	jsp = get_panel_jsp(pdrv->index);
+	if (!json_parse_ok(jsp)) {
+		LCDERR("panel%d json not ready\n", pdrv->index);
+		return NULL;
+	}
+
+	parent = json_path_to_node(jsp, jsp->root, "tcon");
+	if (!parent) {
+		LCDERR("find /interface\n");
+		return NULL;
+	}
+	base_path = json_get_obj_str(jsp, parent, "panel_dir_kernel", NULL);
+
+	parent = json_path_to_node(jsp, jsp->root, "tcon/pmu_data");
+	if (!parent) {
+		LCDERR("find /tcon/pmu_data\n");
+		return NULL;
+	}
+
+	cnt = json_get_object_size(jsp, parent);
+	if (cnt <= 0)
+		return NULL;
+	if (cnt > 32)
+		cnt = 32;
+	mem = kzalloc(256 * 32 + 4, GFP_KERNEL);
+	if (!mem)
+		return NULL;
+
+	p = mem + 4;
+	for (i = 0; i < cnt; i++, p += 256) {
+		node = json_get_object_child_by_id(jsp, parent, i);
+
+		key = json_get_key(jsp, node);
+		val = json_get_str(jsp, node);
+		path_name_compose(base_path, val, path);
+
+		len = snprintf(p, 255, "%s:%s", key, path);
+	}
+	*(unsigned int *)mem = cnt;
+
+	return mem;
+}
+
+static char *get_tcon_pmu_data_path(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned char file_type = PANEL_FILE_INVALID;
+	char *mem = NULL;
+
+	if (!pdrv)
+		return NULL;
+	if (pdrv->config_load == LCD_CONFIG_FILE) {
+		file_type = get_lcd_panel_file_type(pdrv->index);
+		if (file_type == PANEL_FILE_JSON)
+			mem = get_tcon_pmu_data_path_json(pdrv);
+		else if (file_type == PANEL_FILE_INI)
+			mem = get_tcon_pmu_data_path_ini(pdrv);
+	}
+	return mem;
+}
 static void lcd_tcon_multi_lut_print(void)
 {
 	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
@@ -326,6 +472,21 @@ int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 				n = lcd_debug_info_len(len + offset);
 				len += snprintf((buf + len), n,
 					"bin[%d]: size: 0x%x, %s\n", i, file_size, str);
+			}
+			mem_vaddr = get_tcon_pmu_data_path(pdrv);
+			if (mem_vaddr) {
+				cnt = *(unsigned int *)mem_vaddr;//path numbers
+				if (cnt) {
+					n = lcd_debug_info_len(len + offset);
+					len += snprintf((buf + len), n, "pmu_data cnt=%d :\n", cnt);
+					for (i = 0; i < cnt; i++) {
+						n = lcd_debug_info_len(len + offset);
+						len += snprintf((buf + len), n, "%s\n",
+							mem_vaddr + 4 + 256 * i);
+					}
+				}
+				kfree(mem_vaddr);
+				mem_vaddr = NULL;
 			}
 		}
 
@@ -1702,6 +1863,18 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 
 		if (copy_to_user(argp, str, 256))
 			ret = -EFAULT;
+		break;
+	case LCD_IOC_GET_TCON_PMU_PATH:
+		mem_vaddr = get_tcon_pmu_data_path(pdrv);
+		if (!mem_vaddr) {
+			ret = -EFAULT;
+			break;
+		}
+		temp = *(unsigned int *)mem_vaddr;//path numbers
+		if (copy_to_user(argp, mem_vaddr, temp * 256 + 4))
+			ret = -EFAULT;
+		kfree(mem_vaddr);
+		mem_vaddr = NULL;
 		break;
 	case LCD_IOC_SET_TCON_BIN_DATA_INFO:
 		if (!mm_table || !mm_table->data_mem_vaddr || !tcon_rmem) {
