@@ -434,6 +434,9 @@ static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 	if ((is_meson_t6w_cpu() || is_meson_t6x_cpu()) && (vf_width > 1920 || vf_height > 1088))
 		disp_delay_count += 1;
 
+	if ((is_meson_t6w_cpu() || is_meson_t6x_cpu()) && (vf_width > 1920 || vf_height > 1088))
+		disp_delay_count += 1;
+
 	time_ns = sched_clock();
 	vdin_vsync = vf->duration / 96;
 	vframe_delay = div_u64(time_ns - vf->ready_clock[0], 1000000);

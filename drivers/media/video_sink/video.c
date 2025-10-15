@@ -4488,6 +4488,11 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	if ((is_meson_t6w_cpu() || is_meson_t6x_cpu()) && (vf_width > 1920 || vf_height > 1088))
 		display_path_count += 1;
 
+	vf_width = (vf->type & VIDTYPE_COMPRESS) ? vf->compWidth : vf->width;
+	vf_height = (vf->type & VIDTYPE_COMPRESS) ? vf->compHeight : vf->height;
+	if ((is_meson_t6w_cpu() || is_meson_t6x_cpu()) && (vf_width > 1920 || vf_height > 1088))
+		display_path_count += 1;
+
 	vdin_vsync = vf->duration;
 	vdin_vsync = vdin_vsync * 1000;
 	vdin_vsync = div64_u64(vdin_vsync, 96);
