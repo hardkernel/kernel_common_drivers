@@ -18,6 +18,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include "../../../lcd_reg.h"
+#include "../ldim_reg.h"
 #include "../ldim_drv.h"
 #include "../ldim_dev_drv.h"
 #include "ldim_abcon.h"
@@ -34,6 +35,61 @@ void ldim_abcon_swrst(void)
 	//clr done flag
 	abcon_wr_reg_bits(0x00, 1, 4, 1);
 	abcon_wr_reg_bits(0x00, 0, 4, 1);
+}
+
+int ldim_abcon_autotrans_start(void)
+{
+	if (abcon->autotrans_ready == 0) {
+		ABCONPR("bcon autotrans_ready=0 !!\n");
+		return 1;
+	}
+
+	if (abcon->chip_type == ABCON_CHIP_T6W) {
+		//reg_abcon_hw_latch_en
+		abcon_wr_reg_bits(0x40, 1, 16, 1);
+	}
+
+	//reg_abcon_pkt_header_en
+	abcon_wr_reg_bits(0x00, 1, 6, 1);
+
+	//reg_abcon_pkt_header_mode
+	abcon_wr_reg_bits(0x06, 0, 20, 2);//packet header len = 1
+
+	//reg_abcon_ldc_intr_on
+	abcon_wr_reg_bits(0x02, 1, 16, 1);
+
+	//reg_abcon_auto_trans_num
+	abcon_wr_reg_bits(0x2a, 1, 10, 1);
+
+	//reg_abcon_dc_dat_src_sel
+	abcon_wr_reg_bits(0x2c, 0, 28, 1);//sw control id
+
+	//reg_abcon_duty_zone_src_sel
+	abcon_wr_reg_bits(0x2c, 0, 29, 1);//sw control id
+
+	if (abcon->chip_type == ABCON_CHIP_T6W) {
+		//reg_abcon_hw_latch_en
+		abcon_wr_reg_bits(0x40, 0, 16, 1);
+	}
+
+	//reg_abcon_auto_trans_en
+	abcon_wr_reg_bits(0x2b, 1, 20, 1);
+
+	ABCONPR("bcon autotrans start!!\n");
+
+	return 0;
+}
+
+int ldim_abcon_autotrans_stop(void)
+{
+	//reg_abcon_pkt_header_en
+	abcon_wr_reg_bits(0x00, 0, 6, 1);
+
+	//reg_abcon_auto_trans_en
+	abcon_wr_reg_bits(0x2b, 0, 20, 1);
+
+	ABCONPR("bcon autotrans stop!!\n");
+	return 0;
 }
 
 //todo: consider boost mode, glb cur or local cur
@@ -216,6 +272,7 @@ void ldim_abcon_set_txrx_clk(unsigned int txclk, unsigned int rxclk)
 		rxclk = 1000; //default 1Mhz
 	txscale = 1000000 / (abcon->conf.tx_clk * enc_bit_num * 6);
 	rxscale = 1000000 / (abcon->conf.rx_clk * enc_bit_num * 6);
+	abcon->tx_scale = txscale;
 
 	abcon_wr_reg_bits(0x05, bmc_enc, 31, 1);//reg_abcon_bmc_enc
 	abcon_wr_reg_bits(0x05, bmc_enc, 13, 1);//reg_abcon_bmc_dec
@@ -367,7 +424,7 @@ void ldim_abcon_init_common_registers(struct abcon_s *abcon)
 	abcon_wr_reg(0x15, abcon_mem.rseg_paddr >> 2);
 
 	//reg_abcon_auto_trans_baddr
-	abcon_wr_reg(0x28, abcon_mem.wseg_paddr >> 2);
+	abcon_wr_reg(0x28, abcon_mem.ldc_seg_paddr >> 2);
 
 	//reg_abcon_act_lane_num
 	abcon_wr_reg_bits(0x03, abcon->act_lane_num, 10, 4);
@@ -500,6 +557,8 @@ int ldim_abcon_dev_probe(struct aml_ldim_driver_s *ldim_drv)
 	abcon->fb_pos_cnt = 0;
 	abcon->fb_neg_cnt = 0;
 	abcon->test_dc = 0xffff;
+	abcon->autotrans_ready = 0;
+
 	for (i = 0; i < 12; i++) {
 		abcon->lane_ch[i] = abcon->conf.ch_num * abcon->conf.chip_num[i];
 		abcon->tot_ch_num += abcon->lane_ch[i];
@@ -541,6 +600,15 @@ int ldim_abcon_dev_probe(struct aml_ldim_driver_s *ldim_drv)
 	ldim_abcon_init_common_registers(abcon);
 
 	ldim_abcon_debug_probe(dev_drv);
+
+	//for auto trans, need positive vs
+	if (abcon->chip_type == ABCON_CHIP_T6W) {
+		//reg_ambilight_vs_pol
+		ldim_wr_reg_bits(LDC_AMBIGHT_STAT_NUM, 1, 11, 1);
+	}
+
+	dev_drv->dev_transmit_start = ldim_abcon_autotrans_start;
+	dev_drv->dev_transmit_stop = ldim_abcon_autotrans_stop;
 
 	return ret;
 }

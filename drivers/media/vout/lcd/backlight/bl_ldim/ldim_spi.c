@@ -258,6 +258,9 @@ int ldim_spi_dma_trig_start_all(void)
 	if (!dev_drv)
 		return -EIO;
 
+	if (dev_drv->spi_sync != SPI_DMA_TRIG)
+		return 0;
+
 	for (i = 0; i < dev_drv->spi_dev_num; i++)
 		ret |= ldim_spi_dma_trig_start(dev_drv->spi_dev[i]);
 
@@ -288,6 +291,9 @@ int ldim_spi_dma_trig_stop_all(void)
 
 	if (!dev_drv)
 		return -EIO;
+
+	if (dev_drv->spi_sync != SPI_DMA_TRIG)
+		return 0;
 
 	for (i = 0; i < dev_drv->spi_dev_num; i++)
 		ret |= ldim_spi_dma_trig_stop(dev_drv->spi_dev[i]);
@@ -728,6 +734,9 @@ int ldim_spi_driver_add(struct ldim_dev_driver_s *dev_drv)
 		LDIMERR("%s spi_dev failed\n", __func__);
 		return -1;
 	}
+
+	dev_drv->dev_transmit_start = ldim_spi_dma_trig_start_all;
+	dev_drv->dev_transmit_stop = ldim_spi_dma_trig_stop_all;
 
 	LDIMPR("%s ok\n", __func__);
 	return 0;

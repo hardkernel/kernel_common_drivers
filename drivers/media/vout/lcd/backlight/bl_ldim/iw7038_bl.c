@@ -594,7 +594,7 @@ static inline unsigned int iw7038_get_value(unsigned int level)
 	return val;
 }
 
-static int iw7038_smr(unsigned short *buf, unsigned char len)
+static int iw7038_transmit(unsigned short *buf, unsigned char len)
 {
 	int i;
 	unsigned int value_flag = 0, temp;
@@ -876,7 +876,7 @@ static int iw7038_ldim_driver_update(struct aml_ldim_driver_s *ldim_drv)
 {
 	ldim_drv->device_power_on = iw7038_power_on;
 	ldim_drv->device_power_off = iw7038_power_off;
-	ldim_drv->device_bri_update = iw7038_smr;
+	ldim_drv->device_bri_update = iw7038_transmit;
 	ldim_drv->device_bri_check = iw7038_check;
 
 	ldim_drv->ldev_conf->dev_reg_write = iw7038_reg_write;

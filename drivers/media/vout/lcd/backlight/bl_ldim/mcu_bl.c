@@ -275,7 +275,7 @@ static inline void ldim_data_mapping(struct aml_ldim_driver_s *ldim_drv,
 		memcpy(bl_mcu->tbuf1, bl_mcu->tbuf, bl_mcu->tbuf_size);
 }
 
-static int blmcu_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
+static int blmcu_transmit(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
 		      unsigned int len)
 {
 	struct ldim_dev_driver_s *dev_drv = ldim_drv->dev_drv;
@@ -338,12 +338,12 @@ static int blmcu_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
 	return ret;
 }
 
-static int blmcu_smr_dummy(struct aml_ldim_driver_s *ldim_drv)
+static int blmcu_transmit_dummy(struct aml_ldim_driver_s *ldim_drv)
 {
 	return 0;
 }
 
-static int blmcu_fault_handler(struct aml_ldim_driver_s *ldim_drv)
+static int blmcu_fb_handle(struct aml_ldim_driver_s *ldim_drv)
 {
 	int ret = 0;
 	return ret;
@@ -547,9 +547,9 @@ static int blmcu_ldim_dev_update(struct ldim_dev_driver_s *dev_drv)
 {
 	dev_drv->power_on = blmcu_power_on;
 	dev_drv->power_off = blmcu_power_off;
-	dev_drv->dev_smr = blmcu_smr;
-	dev_drv->dev_smr_dummy = blmcu_smr_dummy;
-	dev_drv->dev_err_handler = blmcu_fault_handler;
+	dev_drv->dev_transmit = blmcu_transmit;
+	dev_drv->dev_transmit_dummy = blmcu_transmit_dummy;
+	dev_drv->dev_fb_handle = blmcu_fb_handle;
 	dev_drv->config_update = blmcu_config_update;
 
 	dev_drv->reg_write = NULL;

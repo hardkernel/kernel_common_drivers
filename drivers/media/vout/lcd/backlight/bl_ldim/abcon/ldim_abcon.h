@@ -104,6 +104,8 @@ struct abcon_s {
 	unsigned int fb_pos_cnt;
 	unsigned int fb_neg_cnt;
 	unsigned int test_dc;
+	unsigned int tx_scale;
+	unsigned char autotrans_ready;
 };
 
 extern struct abcon_mem_s abcon_mem;

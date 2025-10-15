@@ -158,9 +158,11 @@ struct ldim_dev_driver_s ldim_dev_drv = {
 
 	.power_on = NULL,
 	.power_off = NULL,
-	.dev_smr = NULL,
-	.dev_smr_dummy = NULL,
+	.dev_transmit = NULL,
+	.dev_transmit_dummy = NULL,
 	.config_print = NULL,
+	.dev_transmit_start = NULL,
+	.dev_transmit_stop = NULL,
 };
 
 void ldim_gpio_probe(struct ldim_dev_driver_s *dev_drv, int index)
@@ -1342,7 +1344,7 @@ static void ldim_dev_probe_func(struct work_struct *work)
 	ldim_dev_drv.analog_pwm_config.pwm_duty_max = 4095;
 	val = ldim_dev_drv.bl_row * ldim_dev_drv.bl_col;
 	ldim_dev_drv.zone_num = val;
-	ldim_dev_drv.bl_mapping = kcalloc(val, sizeof(unsigned short), GFP_KERNEL);
+	ldim_dev_drv.bl_mapping = kcalloc(val * 2, sizeof(unsigned short), GFP_KERNEL);
 	if (!ldim_dev_drv.bl_mapping)
 		goto ldim_dev_probe_func_fail0;
 

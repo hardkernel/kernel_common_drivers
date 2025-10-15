@@ -447,7 +447,7 @@ static inline void ldim_data_mapping(struct aml_ldim_driver_s *ldim_drv, unsigne
 	}
 }
 
-static int iw7039_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
+static int iw7039_transmit(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
 		      unsigned int len)
 {
 	struct ldim_dev_driver_s *dev_drv = ldim_drv->dev_drv;
@@ -484,7 +484,7 @@ static int iw7039_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
 	return 0;
 }
 
-static int iw7039_smr_dummy(struct aml_ldim_driver_s *ldim_drv)
+static int iw7039_transmit_dummy(struct aml_ldim_driver_s *ldim_drv)
 {
 	if (!bl_iw7039)
 		return -1;
@@ -495,7 +495,7 @@ static int iw7039_smr_dummy(struct aml_ldim_driver_s *ldim_drv)
 	return 0;
 }
 
-static int iw7039_fault_handler(struct aml_ldim_driver_s *ldim_drv)
+static int iw7039_fb_handle(struct aml_ldim_driver_s *ldim_drv)
 {
 	struct ldim_dev_driver_s *dev_drv = ldim_drv->dev_drv;
 	int ret = 0;
@@ -659,9 +659,9 @@ static int iw7039_ldim_dev_update(struct ldim_dev_driver_s *dev_drv)
 {
 	dev_drv->power_on = iw7039_power_on;
 	dev_drv->power_off = iw7039_power_off;
-	dev_drv->dev_smr = iw7039_smr;
-	dev_drv->dev_smr_dummy = iw7039_smr_dummy;
-	dev_drv->dev_err_handler = iw7039_fault_handler;
+	dev_drv->dev_transmit = iw7039_transmit;
+	dev_drv->dev_transmit_dummy = iw7039_transmit_dummy;
+	dev_drv->dev_fb_handle = iw7039_fb_handle;
 	dev_drv->config_update = iw7039_config_update;
 
 	dev_drv->reg_write = NULL;

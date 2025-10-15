@@ -1271,7 +1271,7 @@ static ssize_t ldim_debug_store(const struct class *class, const struct class_at
 		if (!strcmp(parm[1], "dev")) {
 			if (kstrtouint(parm[2], 0, &temp) < 0)
 				goto ldim_debug_store_err;
-			ldim_drv->dev_smr_bypass = temp;
+			ldim_drv->dev_transmit_bypass = temp;
 		}
 		if (!strcmp(parm[1], "brightness")) {
 			if (kstrtouint(parm[2], 0, &temp) < 0)

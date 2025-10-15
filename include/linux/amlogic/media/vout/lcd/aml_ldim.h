@@ -143,13 +143,15 @@ struct ldim_dev_driver_s {
 	/*device api*/
 	int (*power_on)(struct aml_ldim_driver_s *ldim_drv);
 	int (*power_off)(struct aml_ldim_driver_s *ldim_drv);
-	int (*dev_smr)(struct aml_ldim_driver_s *ldim_drv,
+	int (*dev_transmit)(struct aml_ldim_driver_s *ldim_drv,
 		       unsigned int *buf, unsigned int len);
-	int (*dev_smr_dummy)(struct aml_ldim_driver_s *ldim_drv);
-	int (*dev_err_handler)(struct aml_ldim_driver_s *ldim_drv);
+	int (*dev_transmit_dummy)(struct aml_ldim_driver_s *ldim_drv);
+	int (*dev_fb_handle)(struct aml_ldim_driver_s *ldim_drv);
 	int (*pwm_vs_update)(struct aml_ldim_driver_s *ldim_drv);
 	void (*config_print)(struct aml_ldim_driver_s *ldim_drv);
 	int (*config_update)(struct aml_ldim_driver_s *ldim_drv);
+	int (*dev_transmit_start)(void);
+	int (*dev_transmit_stop)(void);
 };
 
 struct ldim_drv_data_s {
@@ -173,7 +175,7 @@ struct ldim_drv_data_s {
 #define LDIM_STATE_REMAP_EN             BIT(2)
 #define LDIM_STATE_REMAP_FORCE_UPDATE   BIT(3)
 #define LDIM_STATE_LD_EN                BIT(4)
-#define LDIM_STATE_SPI_SMR_EN           BIT(5)
+#define LDIM_STATE_TRANSMIT_EN           BIT(5)
 #define LDIM_STATE_PQ_INIT              BIT(6)
 
 struct aml_ldim_driver_s {
@@ -191,7 +193,7 @@ struct aml_ldim_driver_s {
 	unsigned char black_frm_en;
 	unsigned char ld_sel;  /* for gd bypass */
 	unsigned char func_bypass;  /* for lcd bist pattern */
-	unsigned char dev_smr_bypass;
+	unsigned char dev_transmit_bypass;
 	unsigned char brightness_bypass;
 	unsigned char test_bl_en;
 	unsigned char test_bl_cnt;

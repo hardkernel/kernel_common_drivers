@@ -103,7 +103,7 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 	char dbg_str[256];
 	int i, dbg_str_len = 0, ret = 0;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_LDIM)
 		LDIMPR("load ldim_dev config from dts\n");
 
 	size = (dev_drv->zone_num >= 10) ? dev_drv->zone_num : 10;
@@ -602,7 +602,7 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 			dev_drv->use_ctrl_cs = 1;
 		}
 
-		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_LDIM) {
 			LDIMPR("spi dev_num:%d, bus:%d:%d, cs:%d:%d, freq:%dhz, mode:%d, dma:%d\n",
 				dev_drv->spi_dev_num,
 				dev_drv->spi_info[0].bus_num, dev_drv->spi_info[1].bus_num,
@@ -642,7 +642,7 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 		abcon_conf->fb_pwm_step = json_get_obj_u32(jsp, child, "fb_pwm_step", 1);
 		abcon_conf->ctrl = json_get_obj_u32(jsp, child, "ctrl", 0x2);
 
-		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_LDIM) {
 			LDIMPR("clk:%d:%d, gpio_o: 0x%x:0x%x:0x%x, gpio_i:0x%x:0x%x:0x%x,\n"
 			"dev_type:%d, chip_num:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d,\n"
 			"idle_level:%d, ch_num:%d, dimming_mode:%d, fb_en:%d\n"
@@ -960,7 +960,7 @@ static int ldim_dev_get_config_from_ini(struct ldim_dev_driver_s *dev_drv, phand
 		dev_drv->dma_support = lcd_ini_get_val(inip, psec, "if_attr_3", 0);
 		dev_drv->cs_hold_delay = lcd_ini_get_val(inip, psec, "if_attr_4", 0);
 		dev_drv->cs_clk_delay = lcd_ini_get_val(inip, psec, "if_attr_5", 0);
-		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_LDIM) {
 			LDIMPR("spi dev_num:%d, bus:%d:%d, cs:%d:%d, freq:%dhz, mode:%d, dma:%d\n",
 				dev_drv->spi_dev_num,
 				dev_drv->spi_info[0].bus_num, dev_drv->spi_info[1].bus_num,
@@ -1144,7 +1144,7 @@ static int ldim_dev_get_config_from_ini(struct ldim_dev_driver_s *dev_drv, phand
 	}
 
 	dev_drv->cmd_size = lcd_ini_get_val(inip, psec, "cmd_size", 0);
-	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_LDIM)
 		LDIMPR("%s: cmd_size = %d\n", dev_drv->name, dev_drv->cmd_size);
 	if (dev_drv->cmd_size != LCD_EXT_CMD_SIZE_DYNAMIC)
 		return 0;

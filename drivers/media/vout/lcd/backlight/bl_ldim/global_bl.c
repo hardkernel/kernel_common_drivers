@@ -46,7 +46,7 @@ static int global_hw_init_off(struct ldim_dev_driver_s *dev_drv)
 	return 0;
 }
 
-static int global_smr(struct aml_ldim_driver_s *ldim_drv,
+static int global_transmit(struct aml_ldim_driver_s *ldim_drv,
 		      unsigned int *buf, unsigned int len)
 {
 	unsigned int dim_max, dim_min;
@@ -146,7 +146,7 @@ static int global_ldim_driver_update(struct ldim_dev_driver_s *dev_drv)
 	dev_drv->dim_range_update = global_dim_range_update;
 	dev_drv->power_on = global_power_on;
 	dev_drv->power_off = global_power_off;
-	dev_drv->dev_smr = global_smr;
+	dev_drv->dev_transmit = global_transmit;
 
 	return 0;
 }

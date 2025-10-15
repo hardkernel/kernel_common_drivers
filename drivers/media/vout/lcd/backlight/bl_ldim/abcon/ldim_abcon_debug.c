@@ -72,12 +72,18 @@ static ssize_t abcon_show(const struct class *class, const struct class_attribut
 			"ldc_seg_paddr=0x%llx, ldc_seg=0x%px\n"
 			"swduty_paddr=0x%llx, swduty=0x%px\n"
 			"wseg_paddr=0x%llx, wseg=0x%px\n"
-			"rseg_paddr=0x%llx, rseg=0x%px\n",
+			"rseg_paddr=0x%llx, rseg=0x%px\n"
+			"act_lane=%d\n"
+			"max_lane_dim=%d\n"
+			"autotrans_ready=%d\n",
 			abcon_mem.ch_mapping_paddr, abcon_mem.ch_mapping,
 			abcon_mem.ldc_seg_paddr, abcon_mem.ldc_seg,
 			abcon_mem.swduty_paddr, abcon_mem.swduty,
 			abcon_mem.wseg_paddr, abcon_mem.wseg,
-			abcon_mem.rseg_paddr, abcon_mem.rseg);
+			abcon_mem.rseg_paddr, abcon_mem.rseg,
+			abcon->act_lane,
+			abcon->max_lane_dim,
+			abcon->autotrans_ready);
 	} else {
 		return sprintf(buf, "invalid node\n");
 	}

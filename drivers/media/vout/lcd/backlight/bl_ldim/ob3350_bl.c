@@ -56,7 +56,7 @@ static int ob3350_hw_init_off(void)
 	return 0;
 }
 
-static int ob3350_smr(unsigned int *buf, unsigned int len)
+static int ob3350_transmit(unsigned int *buf, unsigned int len)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	unsigned int dim_max, dim_min;
@@ -158,7 +158,7 @@ static int ob3350_ldim_driver_update(struct aml_ldim_driver_s *ldim_drv)
 
 	ldim_drv->device_power_on = ob3350_power_on;
 	ldim_drv->device_power_off = ob3350_power_off;
-	ldim_drv->device_bri_update = ob3350_smr;
+	ldim_drv->device_bri_update = ob3350_transmit;
 
 	return 0;
 }

@@ -97,6 +97,24 @@ void ldim_abcon_spb_write_packet(void)
 	if (!buf)
 		return;
 
+	//for autotrans dimming
+	if (bl_spb->sop_type == sop_dimming) {
+		if (abcon->chip_type == ABCON_CHIP_T6W) {
+			buf[len++] = 0xc0 |
+				(abcon->tx_scale << 9) |
+				(bl_spb->dual_wire << 8) |
+				abcon->act_lane;
+		} else {
+			buf[len++] = 0xffffc000;
+			buf[len++] = 0xffff0000 | abcon->act_lane;
+			buf[len++] = 0x30000 |
+				(abcon->tx_scale << 19) |
+				(bl_spb->dual_wire << 18) |
+				abcon->max_lane_ch;
+		}
+		abcon->autotrans_ready = 1;
+	}
+
 	for (i = 0; i < act_lane_num; i++)
 		buf[len++] = spb_packet.preamble_header;
 
@@ -138,9 +156,12 @@ void ldim_abcon_spb_write_packet(void)
 		buf[len++] = spb_packet.eop_data;
 
 	if (bl_spb->sop_type == sop_dimming) {
+		if (abcon->chip_type == ABCON_CHIP_T6W)
+			buf[0] |= (len - 1) << 19;
+
 		abcon_wr_reg_bits(0x04, len, 16, 13);//reg_abcon_ldc_seg_max_num
-		abcon_wr_reg_bits(0x00, 1, 1, 1);//reg_abcon_ldc_mod_start
-		abcon_wr_reg_bits(0x00, 0, 1, 1);//reg_abcon_ldc_mod_start
+		//abcon_wr_reg_bits(0x00, 1, 1, 1);//reg_abcon_ldc_mod_start
+		//abcon_wr_reg_bits(0x00, 0, 1, 1);//reg_abcon_ldc_mod_start
 	} else {
 		abcon_wr_reg_bits(0x04, len, 0, 13);//reg_abcon_sw_wseg_max_num
 		abcon_wr_reg_bits(0x00, 1, 0, 1);//reg_abcon_sw_mod_start
@@ -185,12 +206,7 @@ void ldim_abcon_spb_broadcast(unsigned int regaddr, unsigned int value)
 	bl_spb->sop_type = sop_broadcast;
 
 	//sw reset
-	//abcon_wr_reg_bits(0x00, 1, 5, 1);
-	//abcon_wr_reg_bits(0x00, 0, 5, 1);
-
-	//clr done flag
-	abcon_wr_reg_bits(0x00, 1, 4, 1);
-	abcon_wr_reg_bits(0x00, 0, 4, 1);
+	ldim_abcon_swrst();
 
 	//reg_abcon_dix_mode
 	abcon_wr_reg_bits(0x03, 1, 5, 1);/*0:dis, 1:dip*/
@@ -225,7 +241,7 @@ void ldim_abcon_spb_broadcast(unsigned int regaddr, unsigned int value)
 	spb_packet.eop_data = 0x0000000d;
 
 	ldim_abcon_spb_write_packet();
-	usleep_range(500, 1000);
+	usleep_range(1500, 2000);
 }
 
 void ldim_abcon_spb_address(void)
@@ -233,11 +249,7 @@ void ldim_abcon_spb_address(void)
 	bl_spb->sop_type = sop_address;
 
 	//sw reset
-	//abcon_wr_reg_bits(0x00, 1, 5, 1);
-	//abcon_wr_reg_bits(0x00, 0, 5, 1);
-	//clr done flag
-	abcon_wr_reg_bits(0x00, 1, 4, 1);
-	abcon_wr_reg_bits(0x00, 0, 4, 1);
+	ldim_abcon_swrst();
 
 	//reg_abcon_dix_mode
 	abcon_wr_reg_bits(0x03, 0, 5, 1);/*0:dis, 1:dip*/
@@ -272,7 +284,7 @@ void ldim_abcon_spb_address(void)
 	spb_packet.eop_data = 0x0000000d;
 
 	ldim_abcon_spb_write_packet();
-	usleep_range(500, 1000);
+	usleep_range(1500, 2000);
 }
 
 void ldim_abcon_spb_dimming(void)
@@ -553,24 +565,15 @@ static int abcon_spb_hw_init_on(struct ldim_dev_driver_s *dev_drv)
 
 static int abcon_spb_hw_init_off(struct ldim_dev_driver_s *dev_drv)
 {
-	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
-
 	ldim_gpio_set(dev_drv, dev_drv->en_gpio, dev_drv->en_gpio_off);
 	dev_drv->pinmux_ctrl(dev_drv, 0);
 	ldim_pwm_off(&dev_drv->ldim_pwm_config);
 	ldim_pwm_off(&dev_drv->analog_pwm_config);
 
-	ldim_abcon_swduty_set(ldim_drv);
-	abcon_wr_reg_bits(0x2c, 0, 29, 1);//sw control id
-	//reg_abcon_crc_value
-	abcon_wr_reg_bits(0x10, 0x999f, 16, 16);
-	ldim_abcon_spb_dimming();
-	lcd_delay_ms(5);
-
 	return 0;
 }
 
-static int abcon_spb_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
+static int abcon_spb_transmit(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
 		      unsigned int len)
 {
 	int ret = 0;
@@ -589,30 +592,18 @@ static int abcon_spb_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
 
 	ldim_abcon_swduty_set(ldim_drv);
 
-	if (ldim_drv->state & LDIM_STATE_SPI_SMR_EN &&
-		ldim_drv->init_on_flag == 1) {
-		//reg_abcon_duty_zone_src_sel
-		abcon_wr_reg_bits(0x2c, 0, 29, 1);//sw control id
-		//set auto trans paddr
-		//abcon_wr_reg(0x28, auto_trans_paddr);
-		//reg_abcon_auto_trans_en
-		//abcon_wr_reg_bits(0x2b, 1, 20, 1);
-
-		//reg_abcon_crc_value
-		abcon_wr_reg_bits(0x10, 0x999f, 16, 16);
-
+	if (abcon->autotrans_ready == 0)
 		ldim_abcon_spb_dimming();
-	}
 
 	return ret;
 }
 
-static int abcon_spb_smr_dummy(struct aml_ldim_driver_s *ldim_drv)
+static int abcon_spb_transmit_dummy(struct aml_ldim_driver_s *ldim_drv)
 {
 	return 0;
 }
 
-static int abcon_spb_fault_handler(struct aml_ldim_driver_s *ldim_drv)
+static int abcon_spb_fb_handle(struct aml_ldim_driver_s *ldim_drv)
 {
 	int ret = 0;
 
@@ -663,6 +654,7 @@ static int abcon_spb_power_off(struct aml_ldim_driver_s *ldim_drv)
 
 	mutex_lock(&dev_mutex);
 	bl_spb->dev_on_flag = 0;
+	abcon->autotrans_ready = 0;
 	abcon_spb_hw_init_off(ldim_drv->dev_drv);
 	mutex_unlock(&dev_mutex);
 
@@ -792,9 +784,9 @@ static int abcon_spb_dev_update(struct ldim_dev_driver_s *dev_drv)
 {
 	dev_drv->power_on = abcon_spb_power_on;
 	dev_drv->power_off = abcon_spb_power_off;
-	dev_drv->dev_smr = abcon_spb_smr;
-	dev_drv->dev_smr_dummy = abcon_spb_smr_dummy;
-	dev_drv->dev_err_handler = abcon_spb_fault_handler;
+	dev_drv->dev_transmit = abcon_spb_transmit;
+	dev_drv->dev_transmit_dummy = abcon_spb_transmit_dummy;
+	dev_drv->dev_fb_handle = abcon_spb_fb_handle;
 	dev_drv->config_update = abcon_spb_config_update;
 
 	dev_drv->reg_write = NULL;
