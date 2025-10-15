@@ -393,6 +393,12 @@ meson_atomic_helper_check_planes(struct drm_device *dev,
 
 		funcs = plane->helper_private;
 
+		if (!old_plane_state->crtc && !new_plane_state->crtc) {
+			drm_dbg_atomic(plane->dev, "[PLANE:%d:%s] already disabled\n",
+					plane->base.id, plane->name);
+			return -EINVAL;
+		}
+
 		meson_atomic_helper_plane_changed(state, old_plane_state, new_plane_state, plane);
 
 		meson_atomic_helper_check_plane_damage(state, new_plane_state);
