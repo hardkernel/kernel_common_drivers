@@ -546,7 +546,7 @@ static struct clk_regmap t6x_gp2_pll = {
 		.init_regs = t6x_gp2_init_regs,
 		.init_count = ARRAY_SIZE(t6x_gp2_init_regs),
 		.flags = CLK_MESON_PLL_FIXED_EN0P5 | CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
-			CLK_MESON_PLL_L_RSTN | CLK_MESON_PLL_NOINIT_ENABLED | CLK_IGNORE_UNUSED,
+			CLK_MESON_PLL_L_RSTN | CLK_MESON_PLL_NOINIT_ENABLED,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp2_pll",
@@ -555,6 +555,12 @@ static struct clk_regmap t6x_gp2_pll = {
 			.fw_name = "xtal",
 		},
 		.num_parents = 1,
+		/*
+		 * The TCON driver writes the GP2 register directly.
+		 * remove CLK_IGNORE_UNUSED if the tcon driver use clock API to
+		 * control gp2 pll.
+		 */
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
