@@ -342,6 +342,12 @@ struct reg_name_set_s {
 #define ANACTRL_GP2PLL_CTRL3                       0x0043
 #define ANACTRL_GP2PLL_STS                         0x0047
 
+#define ANACTRL_PIXPLL_CTRL0                       0x00b0
+#define ANACTRL_PIXPLL_CTRL1                       0x00b1
+#define ANACTRL_PIXPLL_CTRL2                       0x00b2
+#define ANACTRL_PIXPLL_CTRL3                       0x00b3
+#define ANACTRL_PIXPLL_STS                         0x00b4
+
 #define CLKCTRL_VOUTENC_CLK_CTRL                   0x0046
 
 #define COMBO_DPHY_CNTL0                           0x0000
