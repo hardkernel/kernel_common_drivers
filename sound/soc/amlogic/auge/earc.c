@@ -3595,9 +3595,6 @@ static int earc_platform_probe(struct platform_device *pdev)
 		p_earc->tx_ui_flag = 1;
 		p_earc->last_tx_audio_coding_type = AUDIO_CODING_TYPE_UNDEFINED;
 		earctx_cmdc_setup(p_earc);
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
-		register_earctx_callback(earc_hdmirx_hpdst);
-#endif
 		earctx_ss_ops.private = p_earc;
 		register_samesrc_ops(SHAREBUFFER_EARCTX, &earctx_ss_ops);
 		INIT_DELAYED_WORK(&p_earc->tx_resume_work, tx_resume_work_func);
@@ -3606,6 +3603,10 @@ static int earc_platform_probe(struct platform_device *pdev)
 		INIT_WORK(&p_earc->earctx_reg_init_work, earctx_reg_init_work_func);
 		INIT_DELAYED_WORK(&p_earc->gain_disable_work, gain_disable_work_func);
 		INIT_DELAYED_WORK(&p_earc->tx_mute_work, tx_mute_work_func);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+		register_earctx_callback(earc_hdmirx_hpdst);
+#endif
 
 		ret = devm_request_threaded_irq(p_earc->dev,
 					p_earc->irq_earc_tx,
