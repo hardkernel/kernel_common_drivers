@@ -542,11 +542,12 @@ static char vdin_name[6];
 /* combined canvas and afbce memory */
 unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 {
-	unsigned int mem_size, h_size, v_size, frame_size, temp, afrc_body_size = 0;
+	unsigned int mem_size, h_size, v_size, frame_size, temp, afrc_body_y_size = 0;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST | CODEC_MM_FLAGS_CMA_CLEAR |
 		CODEC_MM_FLAGS_DMA;
 	unsigned int max_buffer_num = devp->dts_config.min_buf_num;
 	unsigned int i, j;
+	unsigned int h_tmp, v_tmp, blk_num;
 #if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 	unsigned int res = 0;
 #endif
@@ -771,32 +772,41 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				PAGE_ALIGN((devp->vf_mem_size * 4) / PAGE_SIZE);
 			devp->afbce_info->frame_body_size = devp->vf_mem_size;
 			if (devp->is_vfce_en) {
+				h_tmp = roundup(devp->h_active, 64);
+				v_tmp = roundup(devp->v_active, 8);
+				blk_num = h_tmp * v_tmp / (16 * 4);
+
+				devp->afbce_info->frame_head_size_y = blk_num * 2;
 				devp->afbce_info->frame_head_size_y =
-					(devp->h_active * (devp->v_active + 8)) * 2 / (16 * 4);
-				afrc_body_size = roundup((devp->h_active * devp->v_active) *
-					devp->cr_lossy_param.cr_lossy_target_byte / (16 * 4),
-					4 * 4096);
-				devp->afbce_info->frame_table_size_y =
-					roundup((afrc_body_size * 4) / 4096, 16);/* ddr:128bit */
+					PAGE_ALIGN(devp->afbce_info->frame_head_size_y);
+
+				afrc_body_y_size = blk_num *
+					devp->cr_lossy_param.cr_lossy_target_byte;
+				afrc_body_y_size += VDIN_AFRC_EXT_MEM;
+				afrc_body_y_size = roundup(afrc_body_y_size, 16 * 4096);
+				devp->afbce_info->frame_body_size_y = afrc_body_y_size;
+
+				devp->afbce_info->frame_table_size_y = afrc_body_y_size * 4 / 4096;
+
 				if (vdin_is_convert_to_444(devp->format_convert)) {
 					devp->afbce_info->frame_head_size =
 						devp->afbce_info->frame_head_size_y * 3;
-					devp->afbce_info->frame_body_size = afrc_body_size * 3;
-					//devp->afbce_info->frame_table_size =
-					//	devp->afbce_info->frame_table_size_y * 3;
+					devp->afbce_info->frame_body_size = afrc_body_y_size * 3;
+					devp->afbce_info->frame_table_size =
+						devp->afbce_info->frame_table_size_y * 3;
 				} else if (vdin_is_convert_to_422(devp->format_convert)) {
 					devp->afbce_info->frame_head_size =
 						devp->afbce_info->frame_head_size_y * 2;
-					devp->afbce_info->frame_body_size = afrc_body_size * 2;
-					//devp->afbce_info->frame_table_size =
-					//	devp->afbce_info->frame_table_size_y * 2;
+					devp->afbce_info->frame_body_size = afrc_body_y_size * 2;
+					devp->afbce_info->frame_table_size =
+						devp->afbce_info->frame_table_size_y * 2;
 				} else {
 					devp->afbce_info->frame_head_size =
 						(devp->afbce_info->frame_head_size_y * 3) / 2;
 					devp->afbce_info->frame_body_size =
-						(afrc_body_size * 3) / 2;
-					//devp->afbce_info->frame_table_size =
-					//	(devp->afbce_info->frame_table_size_y * 3) / 2;
+						(afrc_body_y_size * 3) / 2;
+					devp->afbce_info->frame_table_size =
+						(devp->afbce_info->frame_table_size_y * 3) / 2;
 				}
 			}
 			if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
@@ -823,6 +833,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		frame_size = devp->vf_mem_size_small + devp->vf_mem_size;
 	}
 
+	frame_size = PAGE_ALIGN(frame_size);
 	devp->frame_size = frame_size;
 
 	/*total frames bytes*/
@@ -999,9 +1010,6 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	devp->cma_mem_alloc = 1;
 
 	if (devp->afbce_info && devp->afbce_valid) {
-		if (devp->is_vfce_en) {
-			devp->afbce_info->frame_body_size_y = afrc_body_size;
-		}
 		for (i = 0; i < max_buffer_num; i++) {
 			if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
 				devp->afbce_info->fm_body_paddr[i] = 0;

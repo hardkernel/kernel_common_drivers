@@ -975,7 +975,7 @@ struct vdin_lossy_comp_param_s {
 	u32 ofset_burst4_en;
 	u32 cr_lossy_ratio;
 	u32 cr_lossy_fixed_ratio;//Byte
-	u32 cr_lossy_target_byte;
+	u32 cr_lossy_target_byte;//24~48
 	u32 mmu_en;
 };
 

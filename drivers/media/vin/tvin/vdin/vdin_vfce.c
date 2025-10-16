@@ -280,6 +280,8 @@ void vdin_vfce_chnl(struct vdin_dev_s *devp)
 	enc_win_bgn_v = 0;
 	enc_win_end_v = devp->v_active - 1;
 
+	comp_target_byte = devp->cr_lossy_param.cr_lossy_target_byte;
+
 	if (vdin_is_convert_to_rgb(devp->format_convert)) { //rgb
 		reg_pixel_format	= 2;
 		reg_pixel_type_0	= 0;
@@ -834,10 +836,10 @@ void vdin_vfce_set_next_frame(struct vdin_dev_s *devp,
 		if (devp->is_vfce_en) {
 			rdma_write_reg(devp->rdma_handle, VFCE_CHNL0_HEAD1_BADDR,
 				(compHeadAddr + devp->afbce_info->frame_head_size_y) >> 4);
-			rdma_write_reg(devp->rdma_handle, VFCE_CHNL0_BODY1_BADDR,
-				(compTableAddr + devp->afbce_info->frame_table_size_y) >> 4);
 			rdma_write_reg(devp->rdma_handle, VFCE_CHNL1_HEAD1_BADDR,
 				(compHeadAddr + devp->afbce_info->frame_head_size_y) >> 4);
+			rdma_write_reg(devp->rdma_handle, VFCE_CHNL0_BODY1_BADDR,
+				(compTableAddr + devp->afbce_info->frame_table_size_y) >> 4);
 			rdma_write_reg(devp->rdma_handle, VFCE_CHNL1_BODY1_BADDR,
 				(compTableAddr + devp->afbce_info->frame_table_size_y) >> 4);
 		}

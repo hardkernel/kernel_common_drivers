@@ -22,6 +22,8 @@
 #define VDIN_YUV444_MAX_CMA_WIDTH        4096
 #define VDIN_YUV444_MAX_CMA_HEIGHT       2160
 
+#define VDIN_AFRC_EXT_MEM	(131072) /* 128KB */
+
 extern const unsigned int vdin_canvas_ids[VDIN_MAX_DEVS][VDIN_CANVAS_MAX_CNT];
 
 void vdin_canvas_init(struct vdin_dev_s *devp);
