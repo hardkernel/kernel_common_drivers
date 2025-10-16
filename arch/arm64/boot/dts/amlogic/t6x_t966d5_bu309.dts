@@ -850,59 +850,61 @@
 	amlogic,wol-enable;
 };
 
-&usb2_phya{
-	gpio-vbus-power = "GPIOP_0";
-	gpios = <&gpio GPIOP_0 GPIO_ACTIVE_HIGH>;
-	portnum = <1>;
-	status = "okay";
-};
-
-&usb3_phya{
-	status = "okay";
-	portnum = /bits/ 8 <1>;
-};
-
-&usb2_phyb{
-	gpio-vbus-power = "GPIOP_10";
-	gpios = <&gpio GPIOP_10 GPIO_ACTIVE_HIGH>;
-	portnum = <1>;
-	status = "okay";
-};
-
-&usb3_phyb{
-	status = "okay";
-};
-
-&usb2_phyc{
-	gpio-vbus-power = "GPIOP_11";
-	gpios = <&gpio GPIOP_11 GPIO_ACTIVE_HIGH>;
-	portnum = <1>;
-	/* Set portspeed to 1 & cfg clks to enable HSP mode. */
-	portspeed = <0x0>; /* 0: HS mode. 1: HSP mode */
-	/* clk src mux.
-	 * [0]: HS: normal comb clk. HSP: normal comb clk + 48m soc-digital clk.
-	 * [1~2]: 48m clk src selector for HSP mode:
-	 * phyclk/usb2_48m_clk_pre.
-	 */
-	clk-mux = <0x0>;
-	status = "okay";
-};
-
-&usb3_phyc{
-	status = "okay";
-};
-
 &crg_drd_glue{
 	status = "okay";
-	crgotg20@fe358000{
-		controller-type = <1>; /* 0~3: normal, host, device, otg */
+	usbphya@fe358000 {
+		status = "okay";
+		u2p@0 {
+			gpio-vbus-power = "GPIOP_0";
+			gpios = <&gpio GPIOP_0 GPIO_ACTIVE_HIGH>;
+			controller-type = <1>; /* 0~3: normal, host, device, otg */
+		};
 	};
-	crgotg21@fe368000{
-		controller-type = <1>; /* 0~3: normal, host, device, otg */
+
+	crgdrd20@fe350000 {
+		status = "okay";
+	};
+
+	crgudc20@fe350000 {
+		status = "okay";
+	};
+
+	usbphyb@fe368000 {
+		status = "okay";
+		u2p@0 {
+			gpio-vbus-power = "GPIOP_10";
+			gpios = <&gpio GPIOP_10 GPIO_ACTIVE_HIGH>;
+			controller-type = <1>; /* 0~3: normal, host, device, otg */
+		};
+	};
+
+	crgdrd21@fe360000 {
+		status = "okay";
+	};
+
+	crgudc21@fe360000 {
+		status = "okay";
 	};
 };
 
-&crg_host_c{
+&usbphyc {
+	status = "okay";
+	u2p@0 {
+		gpio-vbus-power = "GPIOP_11";
+		gpios = <&gpio GPIOP_11 GPIO_ACTIVE_HIGH>;
+		/* Set portspeed to 1 & cfg clks to enable HSP mode. */
+		portspeed = <0x0>; /* 0: HS mode. 1: HSP mode */
+		/*
+		 * clk src mux.
+		 * [0]: HS: normal comb clk. HSP: normal comb clk + 48m soc-digital clk.
+		 * [1~2]: 48m clk src selector for HSP mode:
+		 * phyclk/usb2_48m_clk_pre.
+		 */
+		clk-mux = <0x0>;
+	};
+};
+
+&crg_host_c {
 	status = "okay";
 };
 
