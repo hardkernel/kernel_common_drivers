@@ -1095,10 +1095,17 @@
 			status = "okay";
 		};
 
-		video_dump {
-			compatible = "amlogic, video_dump";
-			dev_name = "video_dump";
-			status = "disabled";
+		v2d {
+			compatible = "amlogic, v2d";
+			dev_name = "v2d";
+			status = "okay";
+		};
+
+		videodisplay {
+			compatible = "amlogic, videodisplay";
+			dev_name = "videodisplay";
+			vpu_dma_mask = <1>;  /* 0: <= 4G, 1: > 4G*/
+			status = "okay";
 		};
 
 		di_process {
@@ -1110,7 +1117,29 @@
 		dpss_process {
 			compatible = "amlogic, dpss_process";
 			dev_name = "di_process";
+			status = "disabled";
+		};
+
+		video_queue {
+			compatible = "amlogic, video_queue";
+			dev_name = "videoqueue";
 			status = "okay";
+		};
+
+		amlvideo2_0 {
+			compatible = "amlogic, amlvideo2";
+			dev_name = "amlvideo2";
+			status = "okay";
+			amlvideo2_id = <0>;
+			cma_mode = <1>;
+		};
+
+		amlvideo2_1 {
+			compatible = "amlogic, amlvideo2";
+			dev_name = "amlvideo2";
+			status = "okay";
+			amlvideo2_id = <1>;
+			cma_mode = <1>;
 		};
 
 		amvenc_avc{
@@ -2293,28 +2322,6 @@
 		scatter_alloc_mode = <1>;
 		/* secure memory controller para <switch  align_2n> */
 		secure_ctrl_para = <1 16>;
-	};
-
-	video_queue {
-		compatible = "amlogic, video_queue";
-		dev_name = "videoqueue";
-		status = "okay";
-	};
-
-	amlvideo2_0 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <0>;
-		cma_mode = <1>;
-	};
-
-	amlvideo2_1 {
-		compatible = "amlogic, amlvideo2";
-		dev_name = "amlvideo2";
-		status = "okay";
-		amlvideo2_id = <1>;
-		cma_mode = <1>;
 	};
 
 	tvafe_avin_detect {
