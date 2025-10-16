@@ -152,6 +152,7 @@ struct tee_sys_info {
 			0x87, 0x94, 0x10, 0x02, 0xa5, 0xd5, 0xc6, 0x1c)
 
 static struct class *tee_sys_class;
+static DEFINE_MUTEX(tee_config_mutex);
 
 /* TEE Sub-modules ID */
 enum module_id_e {
@@ -662,7 +663,13 @@ EXPORT_SYMBOL(tee_enabled);
 /* This function will be deprecated */
 u32 tee_protect_tvp_mem(phys_addr_t start, size_t size, u32 *handle)
 {
-	return tee_protect_mem(TEE_MEM_TYPE_STREAM_OUTPUT, 0, start, size, handle);
+	int ret = 0;
+
+	mutex_lock(&tee_config_mutex);
+	ret = tee_protect_mem(TEE_MEM_TYPE_STREAM_OUTPUT, 0, start, size, handle);
+	mutex_unlock(&tee_config_mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL(tee_protect_tvp_mem);
 
@@ -834,6 +841,19 @@ int tee_config_device_state(int dev_id, int secure)
 	return res.a0;
 }
 EXPORT_SYMBOL(tee_config_device_state);
+
+int tee_config_device_state_lock(int dev_id, int secure)
+{
+	struct arm_smccc_res res;
+
+	mutex_lock(&tee_config_mutex);
+	arm_smccc_smc(TEE_SMC_CONFIG_DEVICE_SECURE,
+		dev_id, secure, 0, 0, 0, 0, 0, &res);
+	mutex_unlock(&tee_config_mutex);
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_config_device_state_lock);
 
 void tee_demux_config_pipeline(int tsn_in, int tsn_out)
 {

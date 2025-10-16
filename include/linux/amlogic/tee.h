@@ -64,6 +64,8 @@ int tee_load_video_fw_swap(u32 index, u32 vdec, bool is_swap);
 
 int tee_config_device_state(int dev_id, int secure);
 
+int tee_config_device_state_lock(int dev_id, int secure);
+
 void tee_demux_config_pipeline(int tsn_in, int tsn_out);
 
 int tee_demux_config_pad(int reg, int val);
