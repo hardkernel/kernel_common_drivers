@@ -359,7 +359,8 @@ enum chip_type {
 	chip_s7d,
 	chip_s6,
 	chip_t6d,
-	chip_t6w
+	chip_t6w,
+	chip_t6x
 };
 
 enum chip_cls_e {
@@ -777,6 +778,8 @@ extern unsigned int pq_bypass_debug_flag;
 extern int cur_contrast_v;
 extern int cur_contrast_u;
 extern int cur_vpp_index;
+extern unsigned int hdr_core_fix_mode;
+extern int set_dummy_flag;
 
 #endif /* AMVECM_H */
 

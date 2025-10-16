@@ -4253,9 +4253,9 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 		cfg.sharpness1_en = pq_cfg.sharpness1_en;
 		cfg.dnlp_en = dv_cfg_bypass.dnlp_en;
 		cfg.cm_en = dv_cfg_bypass.cm_en;
-		cfg.vadj1_en = dv_cfg_bypass.vadj1_en;
+		cfg.vadj1_en = pq_cfg.vadj1_en;
 		cfg.vd1_ctrst_en = dv_cfg_bypass.vd1_ctrst_en;
-		cfg.vadj2_en = dv_cfg_bypass.vadj2_en;
+		cfg.vadj2_en = pq_cfg.vadj2_en;
 		cfg.post_ctrst_en = dv_cfg_bypass.post_ctrst_en;
 		cfg.wb_en = dv_cfg_bypass.wb_en;
 		cfg.gamma_en = dv_cfg_bypass.gamma_en;
@@ -4636,7 +4636,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 	enum wr_md_e mode, int vpp_index)
 {
 	unsigned int data32 = 0;
-	if (chip_type_id == chip_t6d)
+	if (chip_type_id >= chip_t6d)
 		return;
 
 	switch (vsr_cfg) {

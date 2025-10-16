@@ -23,6 +23,7 @@
 #include "hdr/gamut_convert.h"
 #include "amve_v2.h"
 #include "hdr/am_hdr_sbtm.h"
+#include <linux/amlogic/media/di/dpss_interface.h>
 
 static enum vd_format_e last_signal_type = SIGNAL_INVALID;
 static enum output_format_e target_format[VD_PATH_MAX];
@@ -148,6 +149,12 @@ static void hdr_proc(struct vframe_s *vf,
 	enum hdr_process_sel cur_hdr_process;
 	int limit_full = 0;
 	int i, index;
+	unsigned int is_dd_frame = 0;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		if (is_amdv_enable() && vf && is_amdv_frame(vf))
+			is_dd_frame = 1;
+#endif
 
 	if (vf)
 		limit_full = (vf->signal_type >> 25) & 0x01;
@@ -163,8 +170,16 @@ static void hdr_proc(struct vframe_s *vf,
 		hdr_process_select |= FULL_VDIN;
 	/* RGB / YUV input handling */
 
-	pr_csc(128, "%s: hdr_process_select = 0x%08x\n",
-		__func__, hdr_process_select);
+	pr_csc(128, "%s: hdr_process_select = 0x%08x, pre_/dpss_mode = %d/%d\n",
+		__func__, hdr_process_select, pre_dpss_mode, dpss_mode);
+
+	if (vf)
+		pr_csc(128, "%s: dpss_flg = 0x%x\n", __func__, vf->dpss_flg);
+
+	if (vf && !dpss_mode &&
+		!is_dd_frame && module_sel == VD1_HDR &&
+		!(hdr_process_select & HDR_BYPASS))
+		set_muxio_link_mode(1, vf, vpp_index);
 
 	if (hdr_process_select & HDR10P_SDR)
 		cur_hdr_process =
@@ -206,7 +221,7 @@ int get_max_slice(void)
 	return slice_max;
 }
 
-static void hdr_proc_multi_slices(struct vframe_s *vf,
+void hdr_proc_multi_slices(struct vframe_s *vf,
 	      enum hdr_module_sel module_sel,
 	      u32 hdr_process_select,
 	      struct vinfo_s *vinfo,
@@ -3758,6 +3773,9 @@ void video_post_process(struct vframe_s *vf,
 		break;
 	}
 
+	if (dpss_mode)
+		goto mode_change;
+
 	if (chip_type_id == chip_a4) {
 		if (!(vinfo->mode == VMODE_LCD || vinfo->mode == VMODE_eDP ||
 			vinfo->mode == VMODE_DUMMY_ENCP))
@@ -3808,15 +3826,22 @@ void video_post_process(struct vframe_s *vf,
 					0, 1, 1, vpp_index);
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ2_MISC,
 					0, 1, 1, vpp_index);
-				if (vpp_index == VPP_TOP1)
-					mtx_setting(VPP1_POST2_MTX,
-						MATRIX_YUV709F_RGB, MTX_ON);
-				else if (vpp_index == VPP_TOP2)
-					mtx_setting(VPP2_POST2_MTX,
-						MATRIX_YUV709F_RGB, MTX_ON);
-				else
+				if (!watermark_support) {
+					if (vpp_index == VPP_TOP1)
+						mtx_setting(VPP1_POST2_MTX,
+							MATRIX_YUV709F_RGB, MTX_ON);
+					else if (vpp_index == VPP_TOP2)
+						mtx_setting(VPP2_POST2_MTX,
+							MATRIX_YUV709F_RGB, MTX_ON);
+					else
+						mtx_setting(POST2_MTX,
+							MATRIX_YUV709F_RGB, MTX_ON);
+				} else {
 					mtx_setting(POST2_MTX,
-						MATRIX_YUV709F_RGB, MTX_ON);
+							MATRIX_YUV709F_RGB, MTX_OFF);
+					mtx_setting(POST_MTX,
+							MATRIX_YUV709F_RGB, MTX_ON);
+				}
 			} else {
 				pr_csc(12, "%s: type[vd%d]=%d\n",
 					__func__,
@@ -3837,19 +3862,27 @@ void video_post_process(struct vframe_s *vf,
 				else
 					mtx_csc = MATRIX_YUV709_RGB;
 
-				if (vpp_index == VPP_TOP1)
-					mtx_setting(VPP1_POST2_MTX,
-						mtx_csc, MTX_ON);
-				else if (vpp_index == VPP_TOP2)
-					mtx_setting(VPP2_POST2_MTX,
-						mtx_csc, MTX_ON);
-				else
+				if (!watermark_support) {
+					if (vpp_index == VPP_TOP1)
+						mtx_setting(VPP1_POST2_MTX,
+							mtx_csc, MTX_ON);
+					else if (vpp_index == VPP_TOP2)
+						mtx_setting(VPP2_POST2_MTX,
+							mtx_csc, MTX_ON);
+					else
+						mtx_setting(POST2_MTX,
+							mtx_csc, MTX_ON);
+				} else {
 					mtx_setting(POST2_MTX,
-					    mtx_csc, MTX_ON);
+						mtx_csc, MTX_OFF);
+					mtx_setting(POST_MTX,
+						mtx_csc, MTX_ON);
+				}
 			}
 		}
 	}
 
+mode_change:
 	if (cur_sdr_process_mode[vd_path] !=
 		sdr_process_mode[vd_path]) {
 		if (cur_source_format[vd_path] == HDRTYPE_SDR)

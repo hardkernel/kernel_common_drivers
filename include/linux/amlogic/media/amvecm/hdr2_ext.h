@@ -61,6 +61,11 @@ enum hdr_process_sel {
 	FULL_VDIN = BIT(31)
 };
 
+enum hdr_process_sel_ext {
+	HLGP_SDR = BIT(0),
+	HDR_PROC_MAX = BIT(31)
+};
+
 enum hdr_matrix_sel {
 	HDR_IN_MTX = 1,
 	HDR_GAMUT_MTX = 2,
@@ -104,6 +109,7 @@ struct hdr_proc_mtx_param_s {
 	enum hdr_process_sel p_sel;
 	unsigned int gmt_bit_mode;
 	int gmut_shift;
+	enum hdr_process_sel_ext p_sel_ext;
 };
 
 struct hdr_proc_lut_param_s {
@@ -187,5 +193,6 @@ enum vpp_muxio_sel_e {
 
 void muxio_config(enum vpp_muxio_sel_e sel,
 	int rdma_mode, int vpp_index);
+unsigned int get_muxio_link_status(void);
 
 #endif

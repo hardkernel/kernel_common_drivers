@@ -32,6 +32,7 @@
 #endif
 #include "amve.h"
 #include "reg_helper.h"
+
 #include "arch/vpp_s7d_sr_regs.h"
 
 #define pr_amcm_dbg(fmt, args...)\

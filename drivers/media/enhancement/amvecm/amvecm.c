@@ -4060,6 +4060,11 @@ int amvecm_on_vs(struct vframe_s *vf,
 	if (probe_ok == 0)
 		return 0;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (vd_path == VD1_PATH)
+			update_muxio_mode(toggle_vf ? toggle_vf : vf, vpp_index);
+#endif
+
 	if (vd_path == VD1_PATH)
 		set_vpp_enh_clk(toggle_vf, vf, vpp_index);
 
@@ -4249,7 +4254,8 @@ int amvecm_on_vs(struct vframe_s *vf,
 
 	if ((chip_type_id == chip_s7d ||
 		chip_type_id == chip_s6 ||
-		chip_type_id == chip_t6d) && vsr_update_flag)
+		chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w) && vsr_update_flag)
 		amve_vsr_config_update(vf, vpp_index);
 
 	set_hdr_test_case(vpp_index);
@@ -11616,6 +11622,7 @@ void resume_recovery_process(int vpp_index)
 			get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
 			get_cpu_type() == MESON_CPU_MAJOR_ID_T5W ||
 			get_cpu_type() == MESON_CPU_MAJOR_ID_T6D ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T6W ||
 			get_cpu_type() == MESON_CPU_MAJOR_ID_T5M) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				/*frequency meter init*/
@@ -14902,7 +14909,7 @@ void hdr_hist_config_int(void)
 	}
 
 	if (chip_type_id != chip_t3x) {
-		WRITE_VPP_REG(VD1_HDR2_HIST_CTRL + addr_offset_vd1, 0x5510);
+		WRITE_VPP_REG(VD1_HDR2_HIST_CTRL + addr_offset_vd1, default_val);
 		WRITE_VPP_REG(VD1_HDR2_HIST_H_START_END + addr_offset_vd1, 0x10000);
 		WRITE_VPP_REG(VD1_HDR2_HIST_V_START_END + addr_offset_vd1, 0x0);
 

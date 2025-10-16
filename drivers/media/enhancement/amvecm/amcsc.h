@@ -402,6 +402,8 @@ void set_muxio_link_mode(unsigned int link_flag,
 void update_muxio_mode(struct vframe_s *vf,
 	enum vpp_index_e vpp_index);
 unsigned int get_muxio_ready_for_dpss(void);
+void update_hdr_settings_dpss(struct vframe_s *vf,
+	enum vd_path_e vd_path, enum vpp_index_e vpp_index);
 #endif
 
 #endif /* AM_CSC_H */

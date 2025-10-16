@@ -338,10 +338,17 @@ int VSYNC_WR_MPEG_REG_VPP_SEL(u32 adr, u32 val, int vpp_sel);
 
 #endif
 
+#define DPSS_RMDA (1)
+
+#if DPSS_RMDA
+int DPSS_B_WR_MPEG_REG(u32 adr, u32 val);
+int DPSS_B_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+u32 DPSS_B_RD_MPEG_REG(u32 adr);
+#endif
 /* table1:hdr; table2:sr dnlp lc;table3:other modules*/
 static int index_rdma_part_ins(u32 reg)
 {
-	int table_index = 1;
+	int table_index = 3;
 
 	if ((reg >= 0x3800 && reg <= 0x384c) ||
 		(reg >= 0x3850 && reg <= 0x389c) ||
@@ -435,7 +442,8 @@ static int index_rdma_part_ins(u32 reg)
 		table_index = 0;
 
 	if (chip_type_id == chip_t6w &&
-		(reg == 0x5126 || reg == 0x5192))
+		(reg == 0x5126 || reg == 0x5192 ||
+		reg == 0x6d02))
 		table_index = 0;
 
 	if (reg == 0x1d26)
@@ -658,6 +666,12 @@ static inline void VSYNC_WRITE_VPP_REG_VPP_SEL(u32 reg,
 		VSYNC_WR_MPEG_REG_VPP2(reg1, value);
 	} else if (vpp_sel == 1) {
 		VSYNC_WR_MPEG_REG_VPP1(reg1, value);
+#if DPSS_RMDA
+	} else if (vpp_sel == 4) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		DPSS_B_WR_MPEG_REG(offset_addr(reg), value);
+#endif
+#endif
 	} else {
 		if (pq_rdma_init)
 			VSYNC_WR_TABLE_REG(index, reg1, value);
@@ -688,6 +702,12 @@ static inline void VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(u32 reg,
 		VSYNC_WR_MPEG_REG_VPP2(reg1, value);
 	} else if (vpp_sel == 1) {
 		VSYNC_WR_MPEG_REG_VPP1(reg1, value);
+#if DPSS_RMDA
+	} else if (vpp_sel == 4) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		DPSS_B_RD_MPEG_REG(offset_addr(reg));
+#endif
+#endif
 	} else {
 		if (pq_rdma_init)
 			VSYNC_WR_TABLE_REG_SIMPLE(index, reg1, value);
@@ -718,6 +738,12 @@ static inline u32 VSYNC_READ_VPP_REG_VPP_SEL(u32 reg, int vpp_sel)
 		ret = VSYNC_RD_MPEG_REG_VPP2(reg1);
 	} else if (vpp_sel == 1) {
 		ret = VSYNC_RD_MPEG_REG_VPP1(reg1);
+#if DPSS_RMDA
+	} else if (vpp_sel == 4) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		ret = DPSS_B_RD_MPEG_REG(offset_addr(reg));
+#endif
+#endif
 	} else {
 		if (pq_rdma_init)
 			ret = VSYNC_RD_TABLE_REG(index, reg1);
@@ -752,6 +778,12 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(u32 reg,
 		VSYNC_WR_MPEG_REG_BITS_VPP2(reg1, value, start, len);
 	} else if (vpp_sel == 1) {
 		VSYNC_WR_MPEG_REG_BITS_VPP1(reg1, value, start, len);
+#if DPSS_RMDA
+	} else if (vpp_sel == 4) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		DPSS_B_WR_MPEG_REG_BITS(offset_addr(reg), value, start, len);
+#endif
+#endif
 	} else {
 		if (pq_rdma_init)
 			VSYNC_WR_TABLE_REG_BITS(index, reg1, value, start, len);
@@ -780,6 +812,12 @@ static inline void VSYNC_WRITE_VPP_REG_EX_VPP_SEL(u32 reg,
 		VSYNC_WR_MPEG_REG_VPP2(reg, value);
 	} else if (vpp_sel == 1) {
 		VSYNC_WR_MPEG_REG_VPP1(reg, value);
+#if DPSS_RMDA
+	} else if (vpp_sel == 4) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		DPSS_B_WR_MPEG_REG(reg, value);
+#endif
+#endif
 	} else {
 		if (pq_rdma_init)
 			VSYNC_WR_TABLE_REG(index, reg, value);
@@ -808,6 +846,12 @@ static inline u32 VSYNC_READ_VPP_REG_EX_VPP_SEL(u32 reg,
 		ret = VSYNC_RD_MPEG_REG_VPP2(reg);
 	} else if (vpp_sel == 1) {
 		ret = VSYNC_RD_MPEG_REG_VPP1(reg);
+#if DPSS_RMDA
+	} else if (vpp_sel == 4) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		ret = DPSS_B_RD_MPEG_REG(reg);
+#endif
+#endif
 	} else {
 		if (pq_rdma_init)
 			ret = VSYNC_RD_TABLE_REG(index, reg);
@@ -840,6 +884,12 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_EX_VPP_SEL(u32 reg,
 		VSYNC_WR_MPEG_REG_BITS_VPP2(reg, value, start, len);
 	} else if (vpp_sel == 1) {
 		VSYNC_WR_MPEG_REG_BITS_VPP1(reg, value, start, len);
+#if DPSS_RMDA
+	} else if (vpp_sel == 4) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		DPSS_B_WR_MPEG_REG_BITS(reg, value, start, len);
+#endif
+#endif
 	} else {
 		if (pq_rdma_init)
 			VSYNC_WR_TABLE_REG_BITS(index, reg, value, start, len);
