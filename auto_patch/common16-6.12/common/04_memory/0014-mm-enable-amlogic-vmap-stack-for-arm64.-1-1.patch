@@ -1,4 +1,4 @@
-From 83274dc098291c15ecc1e3a310131eb6f44b33ea Mon Sep 17 00:00:00 2001
+From 003f34ec2f64e579540ea732590f498c1307eac6 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Thu, 28 Nov 2024 15:15:07 +0800
 Subject: [PATCH] mm: add amlogic vmap stack for arm64. [1/1]
@@ -24,7 +24,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  arch/arm64/include/asm/stacktrace.h        |   4 +
  arch/arm64/include/asm/stacktrace/common.h |  12 ++
  arch/arm64/kernel/Makefile                 |   3 +
- arch/arm64/kernel/entry-common.c           |  15 +++
+ arch/arm64/kernel/entry-common.c           |  16 +++
  arch/arm64/kernel/entry.S                  | 124 +++++++++++++++++++++
  arch/arm64/kernel/hibernate.c              |   6 +
  arch/arm64/kernel/hw_breakpoint.c          |   7 ++
@@ -40,10 +40,10 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  kernel/fork.c                              |  25 +++++
  lib/Kconfig.debug                          |   1 +
  mm/kmemleak.c                              |  25 +++++
- 23 files changed, 349 insertions(+), 1 deletion(-)
+ 23 files changed, 350 insertions(+), 1 deletion(-)
 
 diff --git a/Makefile b/Makefile
-index c7078040490e8..97f7362038c2c 100644
+index 3eb815a2d566..c4465e47bcd3 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -886,9 +886,11 @@ ifdef CONFIG_READABLE_ASM
@@ -71,7 +71,7 @@ index c7078040490e8..97f7362038c2c 100644
  # Some targets (ARM with Thumb2, for example), can't be built with frame
  # pointers.  For those, we don't have FUNCTION_TRACER automatically
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index d1e92189a96e0..52ff599c25e1b 100644
+index 50905691d426..b7d8ee2fe34e 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
 @@ -189,7 +189,7 @@ config ARM64
@@ -84,7 +84,7 @@ index d1e92189a96e0..52ff599c25e1b 100644
  	select HAVE_ASM_MODVERSIONS
  	select HAVE_EBPF_JIT
 diff --git a/arch/arm64/include/asm/hw_breakpoint.h b/arch/arm64/include/asm/hw_breakpoint.h
-index bd81cf17744af..f23c11d1ad833 100644
+index bd81cf17744a..f23c11d1ad83 100644
 --- a/arch/arm64/include/asm/hw_breakpoint.h
 +++ b/arch/arm64/include/asm/hw_breakpoint.h
 @@ -148,9 +148,15 @@ static inline int get_num_brps(void)
@@ -104,7 +104,7 @@ index bd81cf17744af..f23c11d1ad833 100644
  
  #ifdef CONFIG_CPU_PM
 diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-index f9aa4255be9e1..1088e72ea823e 100644
+index f9aa4255be9e..1088e72ea823 100644
 --- a/arch/arm64/include/asm/memory.h
 +++ b/arch/arm64/include/asm/memory.h
 @@ -129,6 +129,9 @@
@@ -118,7 +118,7 @@ index f9aa4255be9e1..1088e72ea823e 100644
  /*
   * By aligning VMAP'd stacks to 2 * THREAD_SIZE, we can detect overflow by
 diff --git a/arch/arm64/include/asm/stacktrace.h b/arch/arm64/include/asm/stacktrace.h
-index 66ec8caa6ac07..c100255ec93c5 100644
+index 66ec8caa6ac0..c100255ec93c 100644
 --- a/arch/arm64/include/asm/stacktrace.h
 +++ b/arch/arm64/include/asm/stacktrace.h
 @@ -20,6 +20,10 @@
@@ -133,7 +133,7 @@ index 66ec8caa6ac07..c100255ec93c5 100644
  
  static inline struct stack_info stackinfo_get_irq(void)
 diff --git a/arch/arm64/include/asm/stacktrace/common.h b/arch/arm64/include/asm/stacktrace/common.h
-index f63dc654e545f..696056f7b713a 100644
+index f63dc654e545..696056f7b713 100644
 --- a/arch/arm64/include/asm/stacktrace/common.h
 +++ b/arch/arm64/include/asm/stacktrace/common.h
 @@ -11,6 +11,10 @@
@@ -163,7 +163,7 @@ index f63dc654e545f..696056f7b713a 100644
  	if (!next)
  		return -EINVAL;
 diff --git a/arch/arm64/kernel/Makefile b/arch/arm64/kernel/Makefile
-index 2b112f3b75109..b198b261a7cb9 100644
+index 2b112f3b7510..b198b261a7cb 100644
 --- a/arch/arm64/kernel/Makefile
 +++ b/arch/arm64/kernel/Makefile
 @@ -13,6 +13,9 @@ CFLAGS_REMOVE_return_address.o = $(CC_FLAGS_FTRACE)
@@ -177,20 +177,21 @@ index 2b112f3b75109..b198b261a7cb9 100644
  # When KASAN is enabled, a stack trace is recorded for every alloc/free, which
  # can significantly impact performance. Avoid instrumenting the stack trace
 diff --git a/arch/arm64/kernel/entry-common.c b/arch/arm64/kernel/entry-common.c
-index 41f12f5a4fcdb..973c6d2841f2d 100644
+index be4661b6c959..7486d955817c 100644
 --- a/arch/arm64/kernel/entry-common.c
 +++ b/arch/arm64/kernel/entry-common.c
-@@ -27,6 +27,9 @@
- #include <asm/stacktrace.h>
- #include <asm/sysreg.h>
- #include <asm/system_misc.h>
+@@ -31,6 +31,10 @@
+ #include <trace/hooks/traps.h>
+ #include <trace/hooks/gic.h>
+ 
 +#ifdef CONFIG_AMLOGIC_VMAP
 +#include <linux/amlogic/vmap_stack.h>
 +#endif
- 
- #include <trace/hooks/traps.h>
- 
-@@ -515,6 +518,9 @@ asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
++
+ /*
+  * Handle IRQ/context state management when entering from kernel mode.
+  * Before this function is called it is not safe to call regular kernel code,
+@@ -516,6 +520,9 @@ asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
  	switch (ESR_ELx_EC(esr)) {
  	case ESR_ELx_EC_DABT_CUR:
  	case ESR_ELx_EC_IABT_CUR:
@@ -200,7 +201,7 @@ index 41f12f5a4fcdb..973c6d2841f2d 100644
  		el1_abort(regs, esr);
  		break;
  	/*
-@@ -526,6 +532,9 @@ asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
+@@ -527,6 +534,9 @@ asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
  		break;
  	case ESR_ELx_EC_SYS64:
  	case ESR_ELx_EC_UNKNOWN:
@@ -210,7 +211,7 @@ index 41f12f5a4fcdb..973c6d2841f2d 100644
  		el1_undef(regs, esr);
  		break;
  	case ESR_ELx_EC_BTI:
-@@ -535,6 +544,9 @@ asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
+@@ -536,6 +546,9 @@ asmlinkage void noinstr el1h_64_sync_handler(struct pt_regs *regs)
  	case ESR_ELx_EC_SOFTSTP_CUR:
  	case ESR_ELx_EC_WATCHPT_CUR:
  	case ESR_ELx_EC_BRK64:
@@ -220,7 +221,7 @@ index 41f12f5a4fcdb..973c6d2841f2d 100644
  		el1_dbg(regs, esr);
  		break;
  	case ESR_ELx_EC_FPAC:
-@@ -579,6 +591,9 @@ static void noinstr el1_interrupt(struct pt_regs *regs,
+@@ -580,6 +593,9 @@ static void noinstr el1_interrupt(struct pt_regs *regs,
  
  asmlinkage void noinstr el1h_64_irq_handler(struct pt_regs *regs)
  {
@@ -231,7 +232,7 @@ index 41f12f5a4fcdb..973c6d2841f2d 100644
  }
  
 diff --git a/arch/arm64/kernel/entry.S b/arch/arm64/kernel/entry.S
-index 7ef0e127b149f..ed2f30ee876ab 100644
+index 7ef0e127b149..ed2f30ee876a 100644
 --- a/arch/arm64/kernel/entry.S
 +++ b/arch/arm64/kernel/entry.S
 @@ -332,7 +332,11 @@ alternative_else_nop_endif
@@ -396,7 +397,7 @@ index 7ef0e127b149f..ed2f30ee876ab 100644
 +SYM_CODE_END(switch_vmap_context)
 +#endif /* CONFIG_AMLOGIC_VMAP */
 diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.c
-index 7e7fd28464b6a..3c21b0a58d7a1 100644
+index 7e7fd28464b6..3c21b0a58d7a 100644
 --- a/arch/arm64/kernel/hibernate.c
 +++ b/arch/arm64/kernel/hibernate.c
 @@ -34,6 +34,9 @@
@@ -420,7 +421,7 @@ index 7e7fd28464b6a..3c21b0a58d7a1 100644
  		dcache_clean_inval_poc((unsigned long)__mmuoff_data_start,
  				    (unsigned long)__mmuoff_data_end);
 diff --git a/arch/arm64/kernel/hw_breakpoint.c b/arch/arm64/kernel/hw_breakpoint.c
-index 722ac45f9f7b1..8d3768906afd6 100644
+index 722ac45f9f7b..8d3768906afd 100644
 --- a/arch/arm64/kernel/hw_breakpoint.c
 +++ b/arch/arm64/kernel/hw_breakpoint.c
 @@ -122,6 +122,13 @@ NOKPROBE_SYMBOL(read_wb_reg);
@@ -438,7 +439,7 @@ index 722ac45f9f7b1..8d3768906afd6 100644
  	GEN_WRITE_WB_REG_CASES(AARCH64_DBG_REG_BVR, AARCH64_DBG_REG_NAME_BVR, val);
  	GEN_WRITE_WB_REG_CASES(AARCH64_DBG_REG_BCR, AARCH64_DBG_REG_NAME_BCR, val);
 diff --git a/arch/arm64/kernel/irq.c b/arch/arm64/kernel/irq.c
-index 85087e2df5649..149296788e78a 100644
+index 85087e2df564..149296788e78 100644
 --- a/arch/arm64/kernel/irq.c
 +++ b/arch/arm64/kernel/irq.c
 @@ -64,7 +64,12 @@ static void __init init_irq_stacks(void)
@@ -455,7 +456,7 @@ index 85087e2df5649..149296788e78a 100644
  static void init_irq_stacks(void)
  {
 diff --git a/arch/arm64/kernel/smp.c b/arch/arm64/kernel/smp.c
-index 1f9755ed55327..15ad0056aa903 100644
+index 1f9755ed5532..15ad0056aa90 100644
 --- a/arch/arm64/kernel/smp.c
 +++ b/arch/arm64/kernel/smp.c
 @@ -57,6 +57,10 @@
@@ -490,7 +491,7 @@ index 1f9755ed55327..15ad0056aa903 100644
  	setup_boot_cpu_features();
  
 diff --git a/arch/arm64/kernel/stacktrace.c b/arch/arm64/kernel/stacktrace.c
-index e9cfb39f21610..b49ba36e14b01 100644
+index e9cfb39f2161..b49ba36e14b0 100644
 --- a/arch/arm64/kernel/stacktrace.c
 +++ b/arch/arm64/kernel/stacktrace.c
 @@ -20,6 +20,10 @@
@@ -577,7 +578,7 @@ index e9cfb39f21610..b49ba36e14b01 100644
  	put_task_stack(tsk);
  }
 diff --git a/arch/arm64/kernel/suspend.c b/arch/arm64/kernel/suspend.c
-index eaaff94329cdd..14e36d0f0cf17 100644
+index eaaff94329cd..14e36d0f0cf1 100644
 --- a/arch/arm64/kernel/suspend.c
 +++ b/arch/arm64/kernel/suspend.c
 @@ -18,6 +18,9 @@
@@ -609,7 +610,7 @@ index eaaff94329cdd..14e36d0f0cf17 100644
  		__cpu_suspend_exit();
  	}
 diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c
-index b65a29440a0c9..86ab780cff809 100644
+index b65a29440a0c..86ab780cff80 100644
 --- a/arch/arm64/mm/kasan_init.c
 +++ b/arch/arm64/mm/kasan_init.c
 @@ -286,7 +286,11 @@ static void __init clear_next_level(int pgd_idx, int start, int end)
@@ -625,7 +626,7 @@ index b65a29440a0c9..86ab780cff809 100644
  	int l = root_level_idx(start), m = root_level_idx(end);
  
 diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index d1627b5308491..607d260d707a0 100644
+index d1627b530849..607d260d707a 100644
 --- a/fs/proc/meminfo.c
 +++ b/fs/proc/meminfo.c
 @@ -23,6 +23,10 @@
@@ -654,10 +655,10 @@ index d1627b5308491..607d260d707a0 100644
  	seq_printf(m, "ShadowCallStack:%8lu kB\n",
  		   global_node_page_state(NR_KERNEL_SCS_KB));
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 7e383c82b4742..a8d811399a4dc 100644
+index e48638e6f39b..db2c0feb0c72 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -2002,7 +2002,13 @@ extern unsigned long init_stack[THREAD_SIZE / sizeof(unsigned long)];
+@@ -2006,7 +2006,13 @@ extern unsigned long init_stack[THREAD_SIZE / sizeof(unsigned long)];
  #ifdef CONFIG_THREAD_INFO_IN_TASK
  # define task_thread_info(task)	(&(task)->thread_info)
  #elif !defined(__HAVE_THREAD_FUNCTIONS)
@@ -672,7 +673,7 @@ index 7e383c82b4742..a8d811399a4dc 100644
  
  /*
 diff --git a/include/linux/sched/task_stack.h b/include/linux/sched/task_stack.h
-index 6c2fef89a4fdb..31898c0562731 100644
+index 6c2fef89a4fd..31898c056273 100644
 --- a/include/linux/sched/task_stack.h
 +++ b/include/linux/sched/task_stack.h
 @@ -27,11 +27,15 @@ static __always_inline void *task_stack_page(const struct task_struct *task)
@@ -705,7 +706,7 @@ index 6c2fef89a4fdb..31898c0562731 100644
  static inline int object_is_on_stack(const void *obj)
  {
 diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 9a2710df972c4..c41c132507988 100644
+index 9a2710df972c..c41c13250798 100644
 --- a/include/linux/vmalloc.h
 +++ b/include/linux/vmalloc.h
 @@ -337,5 +337,11 @@ bool vmalloc_dump_obj(void *object);
@@ -721,7 +722,7 @@ index 9a2710df972c4..c41c132507988 100644
  
  #endif /* _LINUX_VMALLOC_H */
 diff --git a/kernel/fork.c b/kernel/fork.c
-index eef95d80361ed..b065de864345b 100644
+index 3798764cb326..0135d8c0cd16 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
 @@ -114,6 +114,10 @@
@@ -779,7 +780,7 @@ index eef95d80361ed..b065de864345b 100644
  	tsk->stack = NULL;
  }
  
-@@ -526,6 +545,9 @@ void vm_area_free(struct vm_area_struct *vma)
+@@ -522,6 +541,9 @@ void vm_area_free(struct vm_area_struct *vma)
  
  static void account_kernel_stack(struct task_struct *tsk, int account)
  {
@@ -789,7 +790,7 @@ index eef95d80361ed..b065de864345b 100644
  	if (IS_ENABLED(CONFIG_VMAP_STACK)) {
  		struct vm_struct *vm = task_stack_vm_area(tsk);
  		int i;
-@@ -540,6 +562,7 @@ static void account_kernel_stack(struct task_struct *tsk, int account)
+@@ -536,6 +558,7 @@ static void account_kernel_stack(struct task_struct *tsk, int account)
  		mod_lruvec_kmem_state(stack, NR_KERNEL_STACK_KB,
  				      account * (THREAD_SIZE / 1024));
  	}
@@ -797,7 +798,7 @@ index eef95d80361ed..b065de864345b 100644
  }
  
  void exit_task_stack_account(struct task_struct *tsk)
-@@ -1085,7 +1108,9 @@ void set_task_stack_end_magic(struct task_struct *tsk)
+@@ -1086,7 +1109,9 @@ void set_task_stack_end_magic(struct task_struct *tsk)
  	unsigned long *stackend;
  
  	stackend = end_of_stack(tsk);
@@ -808,7 +809,7 @@ index eef95d80361ed..b065de864345b 100644
  
  static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 0478b3c75de50..e06f8399857cf 100644
+index 35a3bfe5f005..16d1f7a5b2cb 100644
 --- a/lib/Kconfig.debug
 +++ b/lib/Kconfig.debug
 @@ -788,6 +788,7 @@ config SHRINKER_DEBUG
@@ -820,7 +821,7 @@ index 0478b3c75de50..e06f8399857cf 100644
  	  Enables the display of the minimum amount of free stack which each
  	  task has ever had available in the sysrq-T and sysrq-P debug output.
 diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 44bb798423dd3..afbe7f4413088 100644
+index 44bb798423dd..afbe7f441308 100644
 --- a/mm/kmemleak.c
 +++ b/mm/kmemleak.c
 @@ -102,6 +102,9 @@
