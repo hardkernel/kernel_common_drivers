@@ -72,6 +72,29 @@ ddk_module(
 )
 
 ddk_module(
+    name = "amlogic-maxio",
+    srcs = glob([
+        "**/*.h",
+    ]),
+    conditional_srcs = {
+        "CONFIG_AMLOGIC_MAXIO": {
+            True: [
+                "phy/maxio.c",
+            ],
+        },
+    },
+    hdrs = [
+    ],
+    local_defines = ["pr_fmt(fmt)=\"[amlogic-maxio]: \" fmt"],
+    out = "amlogic-maxio.ko",
+    kernel_build = kernel_select(),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//common_drivers/drivers/net:amlogic-phy-debug",
+    ],
+)
+
+ddk_module(
     name = "amlogic-mdio-g12a",
     srcs = glob([
         "**/*.h",
