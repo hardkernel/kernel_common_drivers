@@ -654,7 +654,8 @@ static int abcon_owc_power_off(struct aml_ldim_driver_s *ldim_drv)
 	return 0;
 }
 
-static ssize_t abcon_owc_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t abcon_owc_show(const struct class *class,
+	const struct class_attribute *attr, char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_dev_driver_s *dev_drv;
@@ -679,7 +680,7 @@ static ssize_t abcon_owc_show(struct class *class, struct class_attribute *attr,
 	return len;
 }
 
-static ssize_t abcon_owc_store(struct class *class, struct class_attribute *attr,
+static ssize_t abcon_owc_store(const struct class *class, const struct class_attribute *attr,
 			    const char *buf, size_t count)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
