@@ -141,8 +141,10 @@ struct amlogic_usb_v2 {
 	u32 phy_reg_reset_bit;
 	u32 usb_reset_bit;
 	u32 usb_comb_reset_bit;
+	u32 phy_apb_reset_bit;
 	u32 pm_controller:1;
 	u32 sw_hsp:1;
+	u32 u3_companinon:1;
 	u32 otg_phy_index;
 	u32 reset_level;
 	struct clk_bulk_data clks[AML_USB_PHY_MAX_CLK_NUMBER];
@@ -181,6 +183,14 @@ struct aml_usb3_phy {
 	void __iomem	*ctrl_reg;
 	void __iomem	*reset_reg;
 	void __iomem	*trim_reg;
+	struct meson_aml_u3phy_priv {
+		void (*set_power)(struct aml_usb3_phy *phy, bool on);
+		void (*trim)(struct aml_usb3_phy *phy);
+		void (*txrx_cali)(struct aml_usb3_phy *phy);
+		int (*pll_init)(struct aml_usb3_phy *phy);
+		bool (*wait_pll_locked)(struct aml_usb3_phy *phy);
+		void (*ssc_set)(struct aml_usb3_phy *phy, bool on);
+	} *priv;
 	u64 cfg_reg_phy;
 	u64 ctrl_reg_phy;
 	u64 reset_reg_phy;
@@ -190,6 +200,7 @@ struct aml_usb3_phy {
 	u64 reset_reg_size;
 	u64 trim_reg_size;
 	u32 reset_level_shift;
+	u32 apb_reset_offset;
 	u8 phy_id;
 	/* Reset static regs to default.
 	 * Edge trigger/level reset.

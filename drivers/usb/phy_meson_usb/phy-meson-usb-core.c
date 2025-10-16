@@ -449,6 +449,7 @@ static const struct of_device_id meson_uphy_id_table[] = {
 	{ .compatible = "amlogic,uphy-s6", .data = &meson_uphy_s6_pdata },
 	{ .compatible = "amlogic,u2phy-t6d", .data = &meson_uphy_t6d_pdata },
 	{ .compatible = "amlogic,u2phy-t6w", .data = &meson_uphy_t6w_pdata },
+	{ .compatible = "amlogic,uphy-t6x", .data = &meson_uphy_t6x_pdata },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, meson_uphy_id_table);

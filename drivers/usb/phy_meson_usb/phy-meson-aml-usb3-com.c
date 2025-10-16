@@ -46,7 +46,7 @@ static inline phys_addr_t  meson_aml_u3phy_virt_to_phy(struct aml_usb3_phy *phy,
 	return (phys_addr_t)(-1);
 }
 
-static inline unsigned int  meson_aml_u3phy_read_reg32(struct aml_usb3_phy *phy, void __iomem *reg)
+inline unsigned int  meson_aml_u3phy_read_reg32(struct aml_usb3_phy *phy, void __iomem *reg)
 {
 	phys_addr_t pa = meson_aml_u3phy_virt_to_phy(phy, reg);
 	u32 val = readl(reg);
@@ -57,7 +57,7 @@ static inline unsigned int  meson_aml_u3phy_read_reg32(struct aml_usb3_phy *phy,
 	return val;
 }
 
-static inline void  meson_aml_u3phy_modify_reg32(struct aml_usb3_phy *phy,
+inline void  meson_aml_u3phy_modify_reg32(struct aml_usb3_phy *phy,
 			void __iomem *reg, u32 clear_mask, u32 set_mask)
 {
 	phys_addr_t pa = meson_aml_u3phy_virt_to_phy(phy, reg);
@@ -68,7 +68,7 @@ static inline void  meson_aml_u3phy_modify_reg32(struct aml_usb3_phy *phy,
 	pa = 0;
 }
 
-static inline void  meson_aml_u3phy_write_reg32(struct aml_usb3_phy *phy,
+inline void  meson_aml_u3phy_write_reg32(struct aml_usb3_phy *phy,
 								u32 val, void __iomem *reg)
 {
 	phys_addr_t pa = meson_aml_u3phy_virt_to_phy(phy, reg);
@@ -97,23 +97,32 @@ static int  meson_aml_u3phy_set_clk(struct aml_usb3_phy *phy, bool on)
 	return ret;
 }
 
-static void  meson_aml_u3phy_set_power_off_quirks(struct aml_usb3_phy *phy)
+static bool meson_aml_u3phy_wait_pll_locked(struct aml_usb3_phy *phy)
 {
-	switch (phy->ic_ver) {
-	case MESON_CPU_MAJOR_ID_S6:
-		meson_aml_u3phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift,
-							BIT(phy->usb3_apb_reset_bit),
-							BIT(phy->usb3_apb_reset_bit));
-		dev_dbg(phy->dev, "ic_ver:0x%x, set power quirks entered.", phy->ic_ver);
-		/*  The ctrl reg default value is power consuming. */
-		meson_aml_u3phy_write_reg32(phy, 0x71, phy->ctrl_reg + 0x4);
-		meson_aml_u3phy_write_reg32(phy, 0x0, phy->ctrl_reg + 0x8);
-		meson_aml_u3phy_write_reg32(phy, 0x0, phy->ctrl_reg + 0x10);
-		meson_aml_u3phy_write_reg32(phy, 0x0, phy->ctrl_reg + 0x14);
-		break;
-	default:
-		break;
+	bool ret = false;
+	int plldone_i;
+	u32 pll_locked_mask = 0;
+
+#define U3P2PLL1_PLL_LOCK_FLAG	24
+#define U3P2PLL0_PLL_DONE 25
+#define PLL_STAT_REG_OFF	0X154
+
+	pll_locked_mask = BIT(U3P2PLL1_PLL_LOCK_FLAG);
+	for (plldone_i = 10; plldone_i > 0; plldone_i--) {
+		usleep_range(100, 200);
+		if ((readl(phy->ctrl_reg + PLL_STAT_REG_OFF) & pll_locked_mask)
+			== pll_locked_mask)
+			ret = true;
 	}
+
+	if (!ret)
+		dev_warn(phy->dev, "0x%x PLL init failed. Checkout timeout val?\n",
+				readl(phy->ctrl_reg + PLL_STAT_REG_OFF));
+	else
+		dev_dbg(phy->dev, "0x%x PLL init done.\n",
+			readl(phy->ctrl_reg + PLL_STAT_REG_OFF));
+
+	return ret;
 }
 
 /* RESET_reg, write each bit to 1 can reset related module, the reset will auto-cover to 0 by HW.
@@ -121,11 +130,19 @@ static void  meson_aml_u3phy_set_power_off_quirks(struct aml_usb3_phy *phy)
  */
 static inline void  meson_aml_u3phy_pre_reset(struct aml_usb3_phy *phy)
 {
-	meson_aml_u3phy_write_reg32(phy, BIT(phy->usb3_apb_reset_bit), phy->reset_reg);
-	meson_aml_u3phy_write_reg32(phy, BIT(phy->usb3_phy_reset_bit), phy->reset_reg);
+	meson_aml_u3phy_write_reg32(phy, BIT(phy->usb3_apb_reset_bit),
+			phy->reset_reg + phy->apb_reset_offset);
+	meson_aml_u3phy_write_reg32(phy, BIT(phy->usb3_phy_reset_bit),
+			phy->reset_reg);
 
-	/* Reset usb3_phy_reset_bit triggers pll cfg. Wait for it. */
-	usleep_range(320, 400);
+	/* Reset usb3_phy_reset_bit trigger HWs pll cfg. Wait for it. */
+	if (phy->priv->wait_pll_locked) {
+		if (!phy->priv->wait_pll_locked(phy))
+			dev_err(phy->dev, "Pre Wait HW PLL init failed.\n");
+	} else {
+		if (!meson_aml_u3phy_wait_pll_locked(phy))
+			dev_err(phy->dev, "Pre Wait HW PLL init failed.\n");
+	}
 }
 
 static void  meson_aml_u3phy_set_power(struct aml_usb3_phy *phy, bool on)
@@ -134,8 +151,10 @@ static void  meson_aml_u3phy_set_power(struct aml_usb3_phy *phy, bool on)
 	if (on) {
 		/* Make sure reset is not held. */
 		meson_aml_u3phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift,
-				BIT(phy->usb3_apb_reset_bit) | BIT(phy->usb3_phy_reset_bit),
-				BIT(phy->usb3_apb_reset_bit) | BIT(phy->usb3_phy_reset_bit));
+				BIT(phy->usb3_phy_reset_bit), BIT(phy->usb3_phy_reset_bit));
+		meson_aml_u3phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift +
+				phy->apb_reset_offset, BIT(phy->usb3_apb_reset_bit),
+				BIT(phy->usb3_apb_reset_bit));
 		/* The u3phy power is comprised of dynamic part & static part
 		 * and controlled by the reg values. Reset phy to default.
 		 * Make sure reset is done here even if previous step have already
@@ -145,8 +164,9 @@ static void  meson_aml_u3phy_set_power(struct aml_usb3_phy *phy, bool on)
 	} else {
 		/* Hold reset to power off. */
 		meson_aml_u3phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift,
-				BIT(phy->usb3_apb_reset_bit) | BIT(phy->usb3_phy_reset_bit), 0);
-		meson_aml_u3phy_set_power_off_quirks(phy);
+				BIT(phy->usb3_phy_reset_bit), 0);
+		meson_aml_u3phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift +
+				phy->apb_reset_offset, BIT(phy->usb3_apb_reset_bit), 0);
 		usleep_range(100, 200);
 	}
 }
@@ -154,172 +174,92 @@ static void  meson_aml_u3phy_set_power(struct aml_usb3_phy *phy, bool on)
 static inline void  meson_aml_u3phy_post_reset(struct aml_usb3_phy *phy)
 {
 	/* The usb3_phy_reset_bit triggers HW pll cfg. */
-	if (phy->pll_sw_cfg) {
-		meson_aml_u3phy_write_reg32(phy, BIT(phy->usb3_controller_reset_bit),
-					phy->reset_reg);
-		usleep_range(100, 200);
-	} else {
-		meson_aml_u3phy_write_reg32(phy, BIT(phy->usb3_phy_reset_bit),
-					phy->reset_reg);
-		/* HW do the rest pll settings. */
-		usleep_range(320, 400);
-		meson_aml_u3phy_write_reg32(phy, BIT(phy->usb3_controller_reset_bit),
-			phy->reset_reg);
-	}
+	meson_aml_u3phy_write_reg32(phy, BIT(phy->usb3_controller_reset_bit),
+				phy->reset_reg);
+	usleep_range(100, 200);
 }
 
 static int meson_aml_u3phy_pll_init(struct aml_usb3_phy *phy)
 {
-	int plldone_i;
+	int ret = 0;
 
-	switch (phy->ic_ver) {
-	case MESON_CPU_MAJOR_ID_S6:
-#define U3P2PLL0_BIAS_EN 9
-#define U3P2PLL0_RSTN 10
-#define	U3P2PLL0_LOCK_EN 11
-#define U3P2PLL_HCSL_LDO_EN_TM 16
-#define U3P2PLL_HCSL_DREN0_TM 17
-#define	U3P2PLL1_BIAS_EN 20
-#define	U3P2PLL1_RSTN 21
-#define	U3P2PLL1_RSTN_LOCK 22
-#define	U3P2PLL1_LOCK_START 23
-#define	U3P2PLL1_PLL_LOCK_FLAG  24
-#define U3P2PLL0_PLL_DONE 25
-#define PLL_LOCKED_MASK (BIT(U3P2PLL1_PLL_LOCK_FLAG) | BIT(U3P2PLL0_PLL_DONE))
-#define IS_PLL_LOCKED(x) (((x) & PLL_LOCKED_MASK) == PLL_LOCKED_MASK)
-		if (phy->pll_sw_cfg) {
-			/* The speed-drop usb devices TX maybe unstable at insertion,
-			 * leading to CDR KI overload. Delay freq tracking start point
-			 * by modifying fr_en delay 1us->300us.
-			 * Training timer change fr_en delay 1us->300us (unit: 41.668ns).
-			 */
-			meson_aml_u3phy_write_reg32(phy, 0x1C20, phy->ctrl_reg + 0x9C);
-			/* Enable sw configure upcrx_igen_en & upcrx_ldo_en. */
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x20,
-									0x3 << 14, 0x3 << 14);
-			/* Enable upcrx_igen_en & upcrx_ldo_en. */
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x28, 0x3, 0x3);
-			/* Enable sw configure pll. */
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x50, 0x7f << 25,
-										0x7f << 25);
-			/* Configure pll_cfg 0~5. */
-			meson_aml_u3phy_write_reg32(phy, 0x00FA114D, phy->ctrl_reg + 0x2C);
-			meson_aml_u3phy_write_reg32(phy, 0x72007820, phy->ctrl_reg + 0x30);
-			meson_aml_u3phy_write_reg32(phy, 0xA0900000, phy->ctrl_reg + 0x34);
-			meson_aml_u3phy_write_reg32(phy, 0x081C1C23, phy->ctrl_reg + 0x38);
-			meson_aml_u3phy_write_reg32(phy, 0x1435DC92, phy->ctrl_reg + 0x3C);
-			meson_aml_u3phy_write_reg32(phy, 0x00000000, phy->ctrl_reg + 0x40);
+	ret = phy->priv->pll_init(phy);
+	if (ret)
+		return ret;
 
-			/* Configure pll_cfg 6. */
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-							BIT(U3P2PLL0_BIAS_EN),
-							BIT(U3P2PLL0_BIAS_EN));
-			udelay(5);
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-							BIT(U3P2PLL0_RSTN), BIT(U3P2PLL0_RSTN));
-			usleep_range(40, 140);
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-							BIT(U3P2PLL0_LOCK_EN),
-							BIT(U3P2PLL0_LOCK_EN));
-			usleep_range(160, 260);
-			/* Off unused usb3phy digital 100M clk: U3P2PLL_HCSL_LDO_EN_TM -> 0. */
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-						BIT(U3P2PLL_HCSL_LDO_EN_TM) |
-						BIT(U3P2PLL_HCSL_DREN0_TM),
-						0);
-			usleep_range(20, 120);
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-							BIT(U3P2PLL1_BIAS_EN),
-							BIT(U3P2PLL1_BIAS_EN));
-			usleep_range(50, 150);
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-							BIT(U3P2PLL1_RSTN),
-							BIT(U3P2PLL1_RSTN));
-			usleep_range(40, 140);
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-							BIT(U3P2PLL1_RSTN_LOCK),
-							BIT(U3P2PLL1_RSTN_LOCK));
-			udelay(1);
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-							BIT(U3P2PLL1_LOCK_START),
-							BIT(U3P2PLL1_LOCK_START));
-		} else {
-			/* Training timer change fr_en delay 1us->300us (unit: 41.668ns). */
-			meson_aml_u3phy_write_reg32(phy, 0x1C20, phy->ctrl_reg + 0x9C);
-			/* Enable sw configure upcrx_igen_en & upcrx_ldo_en. */
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x20, 0x3 << 14,
-									0x3 << 14);
-			/* Enable upcrx_igen_en & upcrx_ldo_en. */
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x28, 0x3, 0x3);
-			/* Configure pll_cfg 0~5. */
-			meson_aml_u3phy_write_reg32(phy, 0x00FA114D, phy->ctrl_reg + 0x2C);
-			meson_aml_u3phy_write_reg32(phy, 0x72007820, phy->ctrl_reg + 0x30);
-			meson_aml_u3phy_write_reg32(phy, 0xA0900000, phy->ctrl_reg + 0x34);
-			meson_aml_u3phy_write_reg32(phy, 0x081C1C23, phy->ctrl_reg + 0x38);
-			meson_aml_u3phy_write_reg32(phy, 0x1435DC92, phy->ctrl_reg + 0x3C);
-			meson_aml_u3phy_write_reg32(phy, 0x00000000, phy->ctrl_reg + 0x40);
-			/* Off unused usb3phy digital 100M clk: U3P2PLL_HCSL_LDO_EN_TM -> 0. */
-			meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
-						BIT(U3P2PLL_HCSL_LDO_EN_TM) |
-						BIT(U3P2PLL_HCSL_DREN0_TM),
-						0);
-		}
-		break;
-	default:
-		break;
+	if (phy->priv->wait_pll_locked) {
+		if (!phy->priv->wait_pll_locked(phy))
+			ret = -ETIMEDOUT;
+	} else {
+		if (!meson_aml_u3phy_wait_pll_locked(phy))
+			ret = -ETIMEDOUT;
 	}
-
-	for (plldone_i = 5; plldone_i > 0; plldone_i--) {
-		usleep_range(20, 120);
-		if (IS_PLL_LOCKED(readl(phy->ctrl_reg + 0x154)))
-			goto done;
-	}
-
-	dev_err(phy->dev, "usb3 pll not locked. val: 0x%08x\n",
-						readl(phy->ctrl_reg + 0x154));
-	return -1;
-
-done:
-	return 0;
+	return ret;
 }
 
-static void  meson_aml_u3phy_trim(struct aml_usb3_phy *phy)
+static void meson_aml_u3phy_trim(struct aml_usb3_phy *phy)
 {
 	u32 raw = meson_aml_u3phy_read_reg32(phy, phy->trim_reg);
 	u32 val = 0;
 
-	/* tx termination impedance. */
-	if (raw & BIT(5))
-		val = raw & 0x1f;
-	else
-		val = 0x10;
+	if (!(raw & BIT(6))) {
+		dev_err(phy->dev, "No TX termination impedance trim? Skip.\n");
+	} else {
+		/* software force value, need to set upctx_pdio_main en in tx_cfg0. */
+		meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0xbc,
+				BIT(14), BIT(14));
+		/* TX termination impedance trim: upctx_pdio_main. */
+		val = raw & (u32)GENMASK(2, 0) >> 0;
+		meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0xc0,
+			(u32)GENMASK(28, 26), val << 26);
 
-	meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x16c, 0xff << 24, val << 24);
+		/* software force value, need to set upctx_puio_main en in tx_cfg0. */
+		meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0xbc,
+			BIT(17), BIT(17));
+		/* TX termination impedance trim: upctx_puio_main */
+		val = (raw & (u32)GENMASK(5, 3)) >> 3;
+		meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0xc0,
+			(u32)GENMASK(25, 23), val << 23);
+	}
 
-	/* rx termination impedance. */
-	if (raw & BIT(10))
-		val = (raw & 0x3c0) >> 6;
-	else
-		val = 0x7;
+	if (!(raw & BIT(11))) {
+		dev_err(phy->dev, "No TX amplitude trim? Skip.\n");
+	} else {
+		/* software force analog value, need to set upctx_boost_en en in tx_cfg0. */
+		meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0xbc,
+				BIT(0), BIT(0));
+		/* TX amplitude trim: upctx_boost_en. */
+		meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0xc0,
+			BIT(0), BIT(0));
 
-	meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x4, 0xf << 4, val << 4);
+		/* software force value, need to set upctx_boost_ctrl en in tx_cfg0. */
+		meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0xbc,
+			BIT(1), BIT(1));
+		/* TX amplitude trim: upctx_boost_ctrl. */
+		val = (raw & (u32)GENMASK(10, 7)) >> 7;
+		meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0xc0,
+			(u32)GENMASK(4, 1), val << 1);
+	}
+
+	if (!(raw & BIT(16))) {
+		dev_err(phy->dev, "No RX termination impedance trim? Skip.\n");
+	} else {
+		/* RX impedance trim: rterm_cal_cn field of reg_dcha_afe   */
+		val = (raw & (u32)GENMASK(15, 12)) >> 12;
+		meson_aml_u3phy_modify_reg32(phy, phy->ctrl_reg + 0x4,
+			(u32)GENMASK(7, 4), val << 4);
+	}
 }
 
-static void  meson_aml_u3phy_txrx_cali(struct aml_usb3_phy *phy)
-{
-	/* rx cali.*/
-	meson_aml_u3phy_write_reg32(phy, 0x240014A4, phy->ctrl_reg + 0x10);
-
-	/* tx cali.*/
-	meson_aml_u3phy_write_reg32(phy, 0x003154DA, phy->ctrl_reg + 0xcc);
-	meson_aml_u3phy_write_reg32(phy, 0x003154DA, phy->ctrl_reg + 0xf0);
-	meson_aml_u3phy_write_reg32(phy, 0x00F154DA, phy->ctrl_reg + 0xfc);
-}
 
 static void  meson_aml_u3phy_cali(struct aml_usb3_phy *phy)
 {
-	meson_aml_u3phy_trim(phy);
-	meson_aml_u3phy_txrx_cali(phy);
+	if (phy->priv->trim)
+		phy->priv->trim(phy);
+	else
+		meson_aml_u3phy_trim(phy);
+
+	phy->priv->txrx_cali(phy);
 }
 
 int meson_aml_u3phy_init(struct aml_usb3_phy *phy)
@@ -336,11 +276,17 @@ int meson_aml_u3phy_init(struct aml_usb3_phy *phy)
 	if (ret)
 		goto exit;
 
-	meson_aml_u3phy_set_power(phy, true);
+	if (phy->priv->set_power)
+		phy->priv->set_power(phy, true);
+	else
+		meson_aml_u3phy_set_power(phy, true);
 
 	ret = meson_aml_u3phy_pll_init(phy);
 	if (ret)
 		goto cleanup;
+
+	if (phy->priv->ssc_set)
+		phy->priv->ssc_set(phy, true);
 
 	meson_aml_u3phy_cali(phy);
 	meson_aml_u3phy_post_reset(phy);
@@ -350,7 +296,10 @@ int meson_aml_u3phy_init(struct aml_usb3_phy *phy)
 	return ret;
 
 cleanup:
-	meson_aml_u3phy_set_power(phy, false);
+	if (phy->priv->set_power)
+		phy->priv->set_power(phy, false);
+	else
+		meson_aml_u3phy_set_power(phy, false);
 	meson_aml_u3phy_set_clk(phy, false);
 
 exit:
@@ -362,7 +311,10 @@ int meson_aml_u3phy_exit(struct aml_usb3_phy *phy)
 	if (!meson_aml_u3phy_is_hw_on(phy))
 		return -ENODEV;
 
-	meson_aml_u3phy_set_power(phy, false);
+	if (phy->priv->set_power)
+		phy->priv->set_power(phy, false);
+	else
+		meson_aml_u3phy_set_power(phy, false);
 	meson_aml_u3phy_set_clk(phy, false);
 	meson_aml_u3phy_set_hw_on(phy, false);
 
@@ -372,7 +324,8 @@ int meson_aml_u3phy_exit(struct aml_usb3_phy *phy)
 	return 0;
 }
 
-int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instance)
+int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instance,
+				struct meson_aml_u3phy_priv *priv)
 {
 	struct aml_usb3_phy *phy;
 	int i, cnt, addr_i = 0, ret = 0;
@@ -383,6 +336,7 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	void __iomem *ctrl_reg = NULL;
 	void __iomem *trim_reg = NULL;
 	u32 reset_level_shift = 0;
+	u32 apb_reset_offset = 0;
 	u8 usb3_apb_reset_bit = 0;
 	u8 usb3_phy_reset_bit = 0;
 	u8 usb3_controller_reset_bit = 0;
@@ -397,6 +351,12 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	dev_dbg(dev, "phy_id %d.\n", phy->phy_id);
 	instance->meson_uphy = phy;
 	get_device(dev);
+
+	phy->priv = priv;
+	if (!phy->priv || !phy->priv->pll_init || !phy->priv->txrx_cali) {
+		dev_err(phy->dev, "No necessary callback(s).\n");
+		return -EINVAL;
+	}
 
 	ret = of_property_read_reg(dev->of_node, addr_i++, &phy->cfg_reg_phy, &phy->cfg_reg_size);
 	if (ret) {
@@ -466,6 +426,10 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	if (ret)
 		return ret;
 
+	ret = of_property_read_u32(dev->of_node, "apb-reset-offset", &apb_reset_offset);
+	if (ret)
+		apb_reset_offset = 0;
+
 	ret = of_property_read_u8(dev->of_node, "usb3-apb-reset-bit", &usb3_apb_reset_bit);
 	if (ret)
 		return ret;
@@ -520,6 +484,7 @@ int meson_aml_u3phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	phy->reset_reg = reset_reg;
 	phy->reset_level_shift = reset_level_shift;
 	phy->usb3_apb_reset_bit = usb3_apb_reset_bit;
+	phy->apb_reset_offset = apb_reset_offset;
 	phy->usb3_phy_reset_bit = usb3_phy_reset_bit;
 	phy->usb3_controller_reset_bit = usb3_controller_reset_bit;
 	phy->off = phy_off;

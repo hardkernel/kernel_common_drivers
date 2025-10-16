@@ -12,3 +12,4 @@ $(MODULE_NAME)-$(CONFIG_MESON_USBPHY) += phy_meson_usb/socs/phy-meson-s7d-usb.o
 $(MODULE_NAME)-$(CONFIG_MESON_USBPHY) += phy_meson_usb/socs/phy-meson-s6-usb.o
 $(MODULE_NAME)-$(CONFIG_MESON_USBPHY) += phy_meson_usb/socs/phy-meson-t6d-usb.o
 $(MODULE_NAME)-$(CONFIG_MESON_USBPHY) += phy_meson_usb/socs/phy-meson-t6w-usb.o
+$(MODULE_NAME)-$(CONFIG_MESON_USBPHY) += phy_meson_usb/socs/phy-meson-t6x-usb.o
