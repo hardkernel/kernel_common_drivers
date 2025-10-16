@@ -1808,7 +1808,7 @@ void lcd_tcon_pdf_clean_data(struct list_head *head)
 static void lcd_tcon_update_ufr_cur_info(struct aml_lcd_drv_s *pdrv,
 		struct lcd_tcon_config_s *tcon_conf, unsigned char *data_buf)
 {
-	struct lcd_detail_timing_s *act_timing = NULL;
+	struct lcd_detail_timing_s *timing = NULL;
 	struct lcd_tcon_init_block_header_s *init_header = NULL;
 	struct lcd_tcon_init_block_ext_header_s *ext_header = NULL;
 	unsigned char *core_reg_table;
@@ -1818,7 +1818,10 @@ static void lcd_tcon_update_ufr_cur_info(struct aml_lcd_drv_s *pdrv,
 	if (!pdrv || !tcon_conf || !data_buf || !local_cfg)
 		return;
 
-	act_timing = &pdrv->curr_dev->dev_cfg.timing.act_timing;
+	timing = pdrv->curr_dev->dev_cfg.timing.base_timing;
+	if (!timing)
+		return;
+
 	init_header = (struct lcd_tcon_init_block_header_s *)data_buf;
 	if (init_header->ext_header_size) {
 		ext_header = (struct lcd_tcon_init_block_ext_header_s *)
@@ -1828,12 +1831,12 @@ static void lcd_tcon_update_ufr_cur_info(struct aml_lcd_drv_s *pdrv,
 	data_len = tcon_conf->reg_table_len + init_header->header_size
 			+ init_header->ext_header_size;
 
-	if (act_timing->h_active == init_header->h_active &&
-		act_timing->v_active == init_header->v_active) {
+	if (timing->h_active == init_header->h_active &&
+		timing->v_active == init_header->v_active) {
 		is_match = 1;
 		if (ext_header &&
-			(act_timing->frame_rate < ext_header->framerate_min ||
-			act_timing->frame_rate > ext_header->framerate_max)) {
+			(timing->frame_rate < ext_header->framerate_min ||
+			timing->frame_rate > ext_header->framerate_max)) {
 			is_match = 0;
 		}
 	}
