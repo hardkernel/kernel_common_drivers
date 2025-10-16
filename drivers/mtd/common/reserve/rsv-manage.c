@@ -14,6 +14,7 @@
 //#include <linux/mtd/nand_ecc.h>
 #include <linux/amlogic/aml_rsv.h>
 #include <linux/amlogic/aml_mtd_nand.h>
+#include <linux/amlogic/aml_pageinfo.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
@@ -894,6 +895,7 @@ int meson_rsv_init(struct mtd_info *mtd,
 	int i, bbt_index, ret = 0;
 	struct meson_rsv_info_t *info;
 	s8 *block_status = handler->bbt_buf;
+	int pages_per_blk = 1 << (mtd->erasesize_shift - mtd->writesize_shift);
 
 	ret = meson_rsv_info_init(mtd, handler);
 	if (ret)
@@ -919,6 +921,8 @@ int meson_rsv_init(struct mtd_info *mtd,
 	    !block_status)
 		goto error_rsv_bbt;
 	meson_rsv_read(&rsv_handler->rsv_info[bbt_index], block_status);
+	/* bl2 does not handle bad blocks, treats them as good blocks. */
+	memset(block_status, 0, get_bl2_total_pages(mtd) / pages_per_blk);
 
 	for (i = 0 ; i < handler->entries; i++) {
 		info = &handler->rsv_info[i];

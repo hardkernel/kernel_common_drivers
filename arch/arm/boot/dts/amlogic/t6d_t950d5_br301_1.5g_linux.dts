@@ -771,17 +771,7 @@
 	fip_size = <0x200000>;
 	ship_bad_block = <1>;
 	disa_irq_flag = <1>;
-	nand@bootloader {
-		reg = <0>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		nand-ecc-maximize;
-		partition@0 {
-			label = "bl2";
-			reg = <0x0 0x00000000>;
-		};
-	};
-	nand@normal {
+	nand@0 {
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;

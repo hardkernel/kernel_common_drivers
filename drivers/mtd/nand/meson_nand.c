@@ -26,9 +26,6 @@
 #include <linux/amlogic/key_manage.h>
 #include <linux/amlogic/aml_pageinfo.h>
 
-struct mtd_info *aml_mtd_info[NAND_MAX_DEVICE];
-u8 aml_mtd_devnum;
-
 enum {
 	NFC_ECC_NONE		= 0,
 	NFC_ECC_BCH8_512,
@@ -689,6 +686,9 @@ static int meson_nfc_write_page_raw(struct nand_chip *nand, const u8 *buf,
 	struct mtd_info *mtd = nand_to_mtd(nand);
 	int len = mtd->writesize + mtd->oobsize;
 
+	if (unlikely(page < get_bl2_total_pages(mtd)))
+		return -EOPNOTSUPP;
+
 	meson_nfc_set_data_oob(nand, buf, oob_buf);
 
 	return meson_nfc_write_page_sub(nand, page, 0, len, 1);
@@ -698,8 +698,7 @@ static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
 {
 	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
-	struct meson_nfc *nfc =
-		nand_get_controller_data(mtd_to_nand(aml_mtd_info[1]));
+	struct meson_nfc *nfc = nand_get_controller_data(nand);
 	u32 pages_per_blk_shift, bbt_size;
 	int each_boot_pages, boot_num, bbt_pages;
 	u32 configure_data;
@@ -781,7 +780,7 @@ static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
 		boot_num, each_boot_pages);
 }
 
-static int meson_nfc_write_page_hwecc(struct nand_chip *nand,
+static int _meson_nfc_write_page_hwecc(struct nand_chip *nand,
 				      const u8 *buf, int oob_required, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(nand);
@@ -796,7 +795,7 @@ static int meson_nfc_write_page_hwecc(struct nand_chip *nand,
 	return meson_nfc_write_page_sub(nand, page, 0, len, 0);
 }
 
-static int meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
+static int _meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
 					   const u8 *buf,
 					   int oob_required,
 					   int page)
@@ -817,10 +816,7 @@ static int meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
 		boot_num = 8;
 	else
 		boot_num = 1;
-	each_boot_pages = BOOT_TOTAL_PAGES / boot_num;
-
-	if (page >= BOOT_TOTAL_PAGES)
-		return 0;
+	each_boot_pages = get_bl2_total_pages(mtd) / boot_num;
 
 	ecc_size = nand->ecc.size;
 	bch_mode = meson_chip->bch_mode;
@@ -835,12 +831,13 @@ static int meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
 
 	if (nfc->param_from_dts.common_pageinfo &&
 	    page_info_is_page(mtd, page)) {
-		info = page_info_post_init(aml_mtd_info[1], 0, 0, 0);
+		info = page_info_post_init(mtd, 0, 0, 0);
 		memset(meson_chip->data_buf, 0x00, mtd->writesize + mtd->oobsize);
 		memcpy(meson_chip->data_buf, info, get_page_info_size());
 		meson_nfc_write_page_sub(nand, page, 0, len, 0);
 	} else {
-		if (page % each_boot_pages == 0) {
+		if (!nfc->param_from_dts.common_pageinfo &&
+		    page % each_boot_pages == 0) {
 			meson_info_page0_prepare(nand, nand->data_buf);
 			nand->options |= NAND_NEED_SCRAMBLING; //setting randomizer
 
@@ -877,6 +874,15 @@ WRITE_BAD_BLOCK:
 	memcpy(meson_chip->data_buf, buf, mtd->writesize);
 	meson_nfc_write_page_sub(nand, page, 0, len, 0);//fixed it
 	return 0;
+}
+
+static int meson_nfc_write_page_hwecc(struct nand_chip *nand,
+				      const u8 *buf, int oob_required, int page)
+{
+	if (likely(page >= get_bl2_total_pages(nand_to_mtd(nand))))
+		return _meson_nfc_write_page_hwecc(nand, buf, oob_required, page);
+
+	return _meson_nfc_boot_write_page_hwecc(nand, buf, oob_required, page);
 }
 
 static int meson_nfc_write_subpage_hwecc_tc58nvg2s0(struct nand_chip *nand,
@@ -1005,13 +1011,13 @@ static int meson_nfc_read_page_raw(struct nand_chip *nand, u8 *buf,
 }
 
 /**
- * meson_nfc_read_page_hwecc -read page data and ecc check
+ * _meson_nfc_read_page_hwecc -read page data and ecc check
  *
  * return a negative nuumber -ENODATA or bitflips
  * -ENODATA: read failed
  * bitflips: read success
  */
-static int meson_nfc_read_page_hwecc(struct nand_chip *nand, u8 *buf,
+static int _meson_nfc_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 				     int oob_required, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(nand);
@@ -1055,6 +1061,9 @@ static int meson_nfc_read_subpage_hwecc(struct nand_chip *nand, u32 offset,
 	int ret, pages_per_blk_shift, start_step, end_step, num_steps;
 	int data_ecc_alsize = nand->ecc.size + nand->ecc.bytes + 2;
 
+	if (unlikely(page < get_bl2_total_pages(mtd)))
+		return -EOPNOTSUPP;
+
 	start_step = offset / nand->ecc.size;
 	end_step = (offset + len - 1) / nand->ecc.size;
 	num_steps = end_step - start_step + 1;
@@ -1082,7 +1091,7 @@ static int meson_nfc_read_subpage_hwecc(struct nand_chip *nand, u32 offset,
 	return bitflips;
 }
 
-static int meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
+static int _meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 					  int oob_required,
 					  int page)
 {
@@ -1107,13 +1116,7 @@ static int meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 	else
 		boot_num = 1;
 
-	each_boot_pages = BOOT_TOTAL_PAGES / boot_num;
-	if (page >= BOOT_TOTAL_PAGES) {
-		memset(buf, 0, (1 << nand->page_shift));
-		pr_info("nand read out of bootloader, failed page: %d\n",
-			page);
-		return ret;
-	}
+	each_boot_pages = get_bl2_total_pages(mtd) / boot_num;
 
 	ecc_size = nand->ecc.size;
 	bch_mode = meson_chip->bch_mode;
@@ -1143,7 +1146,7 @@ static int meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 		}
 		memset(buf, 0xff, (1 << nand->page_shift));
 		nand->options |= NAND_NEED_SCRAMBLING;
-		ret = meson_nfc_read_page_hwecc(nand, buf, 1, page);
+		ret = _meson_nfc_read_page_hwecc(nand, buf, 1, page);
 		if (ret < 0)
 			return ret; /*read failed*/
 
@@ -1177,7 +1180,7 @@ static int meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 		nand->ecc.size = ecc_size;
 	} else if (nfc->param_from_dts.common_pageinfo &&
 		    page_info_is_page(mtd, page)) {
-		ret = meson_nfc_read_page_hwecc(nand, buf, 1, page);
+		ret = _meson_nfc_read_page_hwecc(nand, buf, 1, page);
 		if (ret)
 			pr_err("read page info failed\n");
 	}
@@ -1201,8 +1204,24 @@ READ_BAD_BLOCK:
 	}
 
 	memset(buf, 0xff, (1 << nand->page_shift));
-	ret = meson_nfc_read_page_hwecc(nand, buf, 1, real_page);
+	ret = _meson_nfc_read_page_hwecc(nand, buf, 1, real_page);
 	return ret;
+}
+
+/**
+ * meson_nfc_read_page_hwecc -read page data and ecc check
+ *
+ * return a negative nuumber -ENODATA or bitflips
+ * -ENODATA: read failed
+ * bitflips: read success
+ */
+static int meson_nfc_read_page_hwecc(struct nand_chip *nand, u8 *buf,
+				     int oob_required, int page)
+{
+	if (likely(page >= get_bl2_total_pages(nand_to_mtd(nand))))
+		return _meson_nfc_read_page_hwecc(nand, buf, oob_required, page);
+
+	return _meson_nfc_boot_read_page_hwecc(nand, buf, oob_required, page);
 }
 
 static int meson_nfc_read_oob_raw(struct nand_chip *nand, int page)
@@ -1212,16 +1231,10 @@ static int meson_nfc_read_oob_raw(struct nand_chip *nand, int page)
 
 static int meson_nfc_read_oob(struct nand_chip *nand, int page)
 {
-	return meson_nfc_read_page_hwecc(nand, NULL, 1, page);
-}
+	if (likely(page >= get_bl2_total_pages(nand_to_mtd(nand))))
+		return _meson_nfc_read_page_hwecc(nand, NULL, 1, page);
 
-static int meson_nfc_boot_read_oob(struct nand_chip *nand, int page)
-{
-	int ret = 0;
-
-	ret = meson_nfc_boot_read_page_hwecc(nand, nand->data_buf,
-					     1, page);
-	return ret;
+	return _meson_nfc_boot_read_page_hwecc(nand, nand->data_buf, 1, page);
 }
 
 static bool meson_nfc_is_buffer_dma_safe(const void *buffer)
@@ -1763,10 +1776,7 @@ meson_nfc_nand_chip_init(struct device *dev,
 	mtd = nand_to_mtd(nand);
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = dev;
-	if (aml_mtd_devnum == 0)
-		mtd->name = NAND_BOOT_NAME;
-	else
-		mtd->name = NAND_NORMAL_NAME;
+	mtd->name = AML_MTD_NAME;
 
 	ret = nand_scan_with_ids(nand, nsels, aml_nand_flash_ids);
 	if (ret)
@@ -1800,34 +1810,31 @@ meson_nfc_nand_chip_init(struct device *dev,
 
 	mtd->_block_isbad =  meson_nand_block_isbad;
 	mtd->_block_markbad = meson_nand_block_markbad;
-	if (aml_mtd_devnum != 0) {
-		nfc->block_status = kzalloc((mtd->size >> mtd->erasesize_shift),
-					    GFP_KERNEL);
-		if (!nfc->block_status) {
-			ret = -ENOMEM;
-			pr_info("Allocated memory for block status failed\n");
-			goto exit_err2;
-		}
 
-		if (nand->options & NAND_SKIP_BBTSCAN) {
-			nand->bbt = nfc->block_status;
-			mtd_to_nand(aml_mtd_info[0])->bbt = nfc->block_status;
-		}
+	nfc->block_status = kzalloc((mtd->size >> mtd->erasesize_shift),
+			GFP_KERNEL);
+	if (!nfc->block_status) {
+		ret = -ENOMEM;
+		pr_info("Allocated memory for block status failed\n");
+		goto exit_err2;
+	}
 
-		nfc->rsv->mtd = mtd;
-		nfc->rsv->bbt_buf = nfc->block_status;
-		nfc->rsv->rsv_ops._erase = meson_nand_rsv_erase;
-		nfc->rsv->rsv_ops._write_oob = meson_nand_rsv_write_oob;
-		nfc->rsv->rsv_ops._read_oob = meson_nand_rsv_read_oob;
-		nfc->rsv->rsv_ops._block_markbad = NULL;
-		nfc->rsv->rsv_ops._block_isbad = meson_nand_rsv_isbad;
-		nfc->rsv->rsv_ops._get_device = meson_nand_rsv_get_device;
-		nfc->rsv->rsv_ops._release_device = meson_nand_rsv_release_device;
-		meson_rsv_init(mtd, nfc->rsv);
-		if (ret) {
-			pr_info("meson_rsv_init failed\n");
-			goto exit_err2;
-		}
+	if (nand->options & NAND_SKIP_BBTSCAN)
+		nand->bbt = nfc->block_status;
+
+	nfc->rsv->mtd = mtd;
+	nfc->rsv->bbt_buf = nfc->block_status;
+	nfc->rsv->rsv_ops._erase = meson_nand_rsv_erase;
+	nfc->rsv->rsv_ops._write_oob = meson_nand_rsv_write_oob;
+	nfc->rsv->rsv_ops._read_oob = meson_nand_rsv_read_oob;
+	nfc->rsv->rsv_ops._block_markbad = NULL;
+	nfc->rsv->rsv_ops._block_isbad = meson_nand_rsv_isbad;
+	nfc->rsv->rsv_ops._get_device = meson_nand_rsv_get_device;
+	nfc->rsv->rsv_ops._release_device = meson_nand_rsv_release_device;
+	meson_rsv_init(mtd, nfc->rsv);
+	if (ret) {
+		pr_info("meson_rsv_init failed\n");
+		goto exit_err2;
 	}
 
 	if (meson_add_mtd_partitions(mtd)) {
@@ -1835,17 +1842,6 @@ meson_nfc_nand_chip_init(struct device *dev,
 		nand_cleanup(nand);
 		return ret;
 	}
-
-	if (aml_mtd_devnum == 0) {
-		mtd->size = BOOT_TOTAL_PAGES * mtd->writesize;
-		nand->ecc.write_page = meson_nfc_boot_write_page_hwecc;
-		nand->ecc.read_page = meson_nfc_boot_read_page_hwecc;
-		nand->ecc.read_oob = meson_nfc_boot_read_oob;
-	}
-	pr_info("%s %d meson_nfc_devnum: %d, name: %s",
-		__func__, __LINE__, aml_mtd_devnum, mtd->name);
-	aml_mtd_info[aml_mtd_devnum] = mtd;
-	aml_mtd_devnum++;
 
 	list_add_tail(&meson_chip->node, &nfc->chips);
 	return 0;
