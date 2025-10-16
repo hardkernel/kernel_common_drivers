@@ -296,6 +296,25 @@ static const struct attribute_group vpu_attr_group = {
 	.attrs	= vpu_attrs,
 };
 
+static int meson_drm_trigger_atomic_commit(struct drm_minor *minor)
+{
+	struct drm_modeset_acquire_ctx ctx;
+	int err;
+	struct drm_atomic_state *state = ERR_PTR(-EINVAL);
+
+	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
+	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
+	if (IS_ERR(state))
+		return -EFAULT;
+	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
+	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
+	if (IS_ERR(state))
+		return -EFAULT;
+	drm_atomic_state_put(state);
+
+	return err;
+}
+
 static ssize_t osd_pixel_blend_show(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *attr, char *buf, loff_t off,
 			 size_t count)
@@ -623,9 +642,7 @@ static ssize_t osd_blank_store(struct file *filp, struct kobject *kobj,
 	struct drm_minor *minor = dev_get_drvdata(dev);
 	int osd_index = *(int *)attr->private;
 	struct meson_drm *priv;
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
-	int err;
+	int ret;
 
 	if (!minor || !minor->dev)
 		return -EINVAL;
@@ -634,7 +651,6 @@ static ssize_t osd_blank_store(struct file *filp, struct kobject *kobj,
 		return -EINVAL;
 
 	priv = minor->dev->dev_private;
-	state = ERR_PTR(-EINVAL);
 
 	if (buf[0] == '1') {
 		priv->osd_planes[osd_index]->osd_permanent_blank = 1;
@@ -646,15 +662,9 @@ static ssize_t osd_blank_store(struct file *filp, struct kobject *kobj,
 		return -EINVAL;
 	}
 
-	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
-	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
-	if (IS_ERR(state))
-		return -EFAULT;
-	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
-	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
-	if (IS_ERR(state))
-		return -EFAULT;
-	drm_atomic_state_put(state);
+	ret = meson_drm_trigger_atomic_commit(minor);
+	if (ret)
+		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
 
 	return count;
 }
@@ -694,11 +704,9 @@ static ssize_t osd_resize_src_store(struct file *filp, struct kobject *kobj,
 	int osd_index = *(int *)attr->private;
 	struct meson_drm *priv;
 	unsigned int src_x, src_y, src_w, src_h;
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
 	char dst_buf[64];
 	char *bufp, *parm[8] = {NULL};
-	int err;
+	int ret;
 	int lens = strlen(buf);
 
 	if (!minor || !minor->dev)
@@ -714,7 +722,6 @@ static ssize_t osd_resize_src_store(struct file *filp, struct kobject *kobj,
 	parse_param(bufp, (char **)&parm);
 
 	priv = minor->dev->dev_private;
-	state = ERR_PTR(-EINVAL);
 
 	if (!(parm[0] && parm[1] && parm[2] && parm[3])) {
 		DRM_INFO("%s, parameters is incorrect.\n", __func__);
@@ -734,15 +741,9 @@ static ssize_t osd_resize_src_store(struct file *filp, struct kobject *kobj,
 	priv->osd_planes[osd_index]->adjust_src.x2 = src_w;
 	priv->osd_planes[osd_index]->adjust_src.y2 = src_h;
 
-	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
-	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
-	if (IS_ERR(state))
-		return -EFAULT;
-	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
-	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
-	if (IS_ERR(state))
-		return -EFAULT;
-	drm_atomic_state_put(state);
+	ret = meson_drm_trigger_atomic_commit(minor);
+	if (ret)
+		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
 
 	return count;
 }
@@ -792,11 +793,9 @@ static ssize_t osd_zorder_store(struct file *filp, struct kobject *kobj,
 	int osd_index = *(int *)attr->private;
 	struct meson_drm *priv;
 	int new_zorder;
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
 	char dst_buf[64];
 	char *bufp, *parm[8] = {NULL};
-	int err;
+	int ret;
 	int lens = strlen(buf);
 
 	if (!minor || !minor->dev)
@@ -812,7 +811,6 @@ static ssize_t osd_zorder_store(struct file *filp, struct kobject *kobj,
 	parse_param(bufp, (char **)&parm);
 
 	priv = minor->dev->dev_private;
-	state = ERR_PTR(-EINVAL);
 
 	if (!parm[0]) {
 		DRM_INFO("%s, parameters is incorrect.\n", __func__);
@@ -823,15 +821,9 @@ static ssize_t osd_zorder_store(struct file *filp, struct kobject *kobj,
 
 	priv->osd_planes[osd_index]->zorder = new_zorder;
 
-	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
-	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
-	if (IS_ERR(state))
-		return -EFAULT;
-	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
-	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
-	if (IS_ERR(state))
-		return -EFAULT;
-	drm_atomic_state_put(state);
+	ret = meson_drm_trigger_atomic_commit(minor);
+	if (ret)
+		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
 
 	return count;
 }
@@ -1043,11 +1035,9 @@ static ssize_t osd_resize_dst_store(struct file *filp, struct kobject *kobj,
 	int osd_index = *(int *)attr->private;
 	struct meson_drm *priv;
 	unsigned int dst_x, dst_y, dst_w, dst_h;
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
 	char dst_buf[64];
 	char *bufp, *parm[8] = {NULL};
-	int err;
+	int ret;
 	int lens = strlen(buf);
 
 	if (!minor || !minor->dev)
@@ -1063,7 +1053,6 @@ static ssize_t osd_resize_dst_store(struct file *filp, struct kobject *kobj,
 	parse_param(bufp, (char **)&parm);
 
 	priv = minor->dev->dev_private;
-	state = ERR_PTR(-EINVAL);
 
 	if (!(parm[0] && parm[1] && parm[2] && parm[3])) {
 		DRM_INFO("%s, parameters is incorrect.\n", __func__);
@@ -1083,15 +1072,98 @@ static ssize_t osd_resize_dst_store(struct file *filp, struct kobject *kobj,
 	priv->osd_planes[osd_index]->adjust_dst.x2 = dst_w;
 	priv->osd_planes[osd_index]->adjust_dst.y2 = dst_h;
 
-	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
-	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
-	if (IS_ERR(state))
-		return -EFAULT;
-	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
-	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
-	if (IS_ERR(state))
-		return -EFAULT;
-	drm_atomic_state_put(state);
+	ret = meson_drm_trigger_atomic_commit(minor);
+	if (ret)
+		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
+
+	return count;
+}
+
+static ssize_t osd_dimm_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct meson_drm *priv;
+	int crtc_index;
+	u32 index;
+	int pos = 0;
+	struct meson_vpu_osd_layer_info *info;
+	struct meson_vpu_sub_pipeline_state *mvps;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (off > 0)
+		return 0;
+
+	index = *(int *)attr->private;
+	priv = minor->dev->dev_private;
+	crtc_index = priv->pipeline->osd_crtc_index[index];
+	if (crtc_index == -1) {
+		DRM_INFO("osd is disabled\n");
+		return 0;
+	}
+
+	mvps = priv_to_sub_pipeline_state(priv->pipeline->subs[crtc_index]->obj.state);
+	info = &mvps->plane_info[index];
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0x7ff00000 > osd_dimm to set osd-%d red dimm\n",
+		*(int *)attr->private);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0x400ffc00 > osd_dimm to set osd-%d green dimm\n",
+		*(int *)attr->private);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0x400003ff > osd_dimm to set osd-%d blue dimm\n",
+		*(int *)attr->private);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0x0 > osd_dimm to clear osd-%d dimm\n",
+		*(int *)attr->private);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"osd-%d current dimm flag %d value 0x%x\n",
+		*(int *)attr->private, info->osd_dimm.dimm_ctrl, info->osd_dimm.dimm_value);
+
+	return pos;
+}
+
+static ssize_t osd_dimm_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	int osd_index = *(int *)attr->private;
+	struct meson_drm *priv;
+	long osd_dimm;
+	int ret;
+
+	DRM_INFO("dimm IN!\n");
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (!buf[0]) {
+		DRM_ERROR("%s, parameters is incorrect.\n", __func__);
+		return -EINVAL;
+	}
+	if (kstrtoul(buf, 16, &osd_dimm) < 0) {
+		DRM_ERROR("osd-%d: invalid value\n", osd_index);
+		return -EINVAL;
+	}
+
+	priv = minor->dev->dev_private;
+	if (!priv) {
+		DRM_ERROR("%s, priv is null\n", __func__);
+		return -EINVAL;
+	}
+	priv->osd_planes[osd_index]->osd_dimm.dimm_value = osd_dimm;
+	priv->osd_planes[osd_index]->osd_dimm.dimm_ctrl = 2;
+
+	ret = meson_drm_trigger_atomic_commit(minor);
+	if (ret)
+		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
 
 	return count;
 }
@@ -1201,9 +1273,7 @@ static ssize_t crtc_blank_store(struct file *filp, struct kobject *kobj,
 	struct drm_crtc *crtc;
 	struct am_meson_crtc *amc;
 	int crtc_index = *(int *)attr->private;
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
-	int err;
+	int ret;
 
 	if (!minor || !minor->dev)
 		return -EINVAL;
@@ -1213,7 +1283,6 @@ static ssize_t crtc_blank_store(struct file *filp, struct kobject *kobj,
 		return -EINVAL;
 
 	amc = to_am_meson_crtc(crtc);
-	state = ERR_PTR(-EINVAL);
 
 	if (buf[0] != '0' && buf[0] != '1')
 		return -EINVAL;
@@ -1228,15 +1297,9 @@ static ssize_t crtc_blank_store(struct file *filp, struct kobject *kobj,
 		return -EINVAL;
 	}
 
-	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
-	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
-	if (IS_ERR(state))
-		return -EFAULT;
-	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
-	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
-	if (IS_ERR(state))
-		return -EFAULT;
-	drm_atomic_state_put(state);
+	ret = meson_drm_trigger_atomic_commit(minor);
+	if (ret)
+		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
 
 	return count;
 }
@@ -1667,11 +1730,9 @@ static ssize_t video_resize_src_store(struct file *filp, struct kobject *kobj,
 	int video_index = *(int *)attr->private;
 	struct meson_drm *priv;
 	unsigned int src_x, src_y, src_w, src_h;
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
 	char dst_buf[64];
 	char *bufp, *parm[8] = {NULL};
-	int err;
+	int ret;
 	int lens = strlen(buf);
 
 	if (!minor || !minor->dev)
@@ -1687,7 +1748,6 @@ static ssize_t video_resize_src_store(struct file *filp, struct kobject *kobj,
 	parse_param(bufp, (char **)&parm);
 
 	priv = minor->dev->dev_private;
-	state = ERR_PTR(-EINVAL);
 
 	if (!(parm[0] && parm[1] && parm[2] && parm[3])) {
 		DRM_INFO("%s, parameters is incorrect.\n", __func__);
@@ -1707,15 +1767,9 @@ static ssize_t video_resize_src_store(struct file *filp, struct kobject *kobj,
 	priv->video_planes[video_index]->adjust_src.x2 = src_w;
 	priv->video_planes[video_index]->adjust_src.y2 = src_h;
 
-	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
-	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
-	if (IS_ERR(state))
-		return -EFAULT;
-	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
-	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
-	if (IS_ERR(state))
-		return -EFAULT;
-	drm_atomic_state_put(state);
+	ret = meson_drm_trigger_atomic_commit(minor);
+	if (ret)
+		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
 
 	return count;
 }
@@ -1756,11 +1810,9 @@ static ssize_t video_resize_dst_store(struct file *filp, struct kobject *kobj,
 	int video_index = *(int *)attr->private;
 	struct meson_drm *priv;
 	unsigned int dst_x, dst_y, dst_w, dst_h;
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
 	char dst_buf[64];
 	char *bufp, *parm[8] = {NULL};
-	int err;
+	int ret;
 	int lens = strlen(buf);
 
 	if (!minor || !minor->dev)
@@ -1776,7 +1828,6 @@ static ssize_t video_resize_dst_store(struct file *filp, struct kobject *kobj,
 	parse_param(bufp, (char **)&parm);
 
 	priv = minor->dev->dev_private;
-	state = ERR_PTR(-EINVAL);
 
 	if (!(parm[0] && parm[1] && parm[2] && parm[3])) {
 		DRM_INFO("%s, parameters is incorrect.\n", __func__);
@@ -1796,15 +1847,9 @@ static ssize_t video_resize_dst_store(struct file *filp, struct kobject *kobj,
 	priv->video_planes[video_index]->adjust_dst.x2 = dst_w;
 	priv->video_planes[video_index]->adjust_dst.y2 = dst_h;
 
-	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
-	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
-	if (IS_ERR(state))
-		return -EFAULT;
-	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
-	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
-	if (IS_ERR(state))
-		return -EFAULT;
-	drm_atomic_state_put(state);
+	ret = meson_drm_trigger_atomic_commit(minor);
+	if (ret)
+		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
 
 	return count;
 }
@@ -1888,6 +1933,13 @@ static struct bin_attribute osd0_attr[] = {
 		.read = osd_zorder_show,
 		.write = osd_zorder_store,
 	},
+	{
+		.attr.name = "osd_dimm",
+		.attr.mode = 0664,
+		.private = &osd_index[0],
+		.read = osd_dimm_show,
+		.write = osd_dimm_store,
+	},
 };
 
 static struct bin_attribute *osd0_bin_attrs[] = {
@@ -1902,6 +1954,7 @@ static struct bin_attribute *osd0_bin_attrs[] = {
 	&osd0_attr[8],
 	&osd0_attr[9],
 	&osd0_attr[10],
+	&osd0_attr[11],
 	NULL,
 };
 
@@ -1984,6 +2037,13 @@ static struct bin_attribute osd1_attr[] = {
 		.read = osd_zorder_show,
 		.write = osd_zorder_store,
 	},
+	{
+		.attr.name = "osd_dimm",
+		.attr.mode = 0664,
+		.private = &osd_index[1],
+		.read = osd_dimm_show,
+		.write = osd_dimm_store,
+	},
 };
 
 static struct bin_attribute *osd1_bin_attrs[] = {
@@ -1998,6 +2058,7 @@ static struct bin_attribute *osd1_bin_attrs[] = {
 	&osd1_attr[8],
 	&osd1_attr[9],
 	&osd1_attr[10],
+	&osd1_attr[11],
 	NULL,
 };
 
@@ -2080,6 +2141,13 @@ static struct bin_attribute osd2_attr[] = {
 		.read = osd_zorder_show,
 		.write = osd_zorder_store,
 	},
+	{
+		.attr.name = "osd_dimm",
+		.attr.mode = 0664,
+		.private = &osd_index[2],
+		.read = osd_dimm_show,
+		.write = osd_dimm_store,
+	},
 };
 
 static struct bin_attribute *osd2_bin_attrs[] = {
@@ -2094,6 +2162,7 @@ static struct bin_attribute *osd2_bin_attrs[] = {
 	&osd2_attr[8],
 	&osd2_attr[9],
 	&osd2_attr[10],
+	&osd2_attr[11],
 	NULL,
 };
 
@@ -2176,6 +2245,13 @@ static struct bin_attribute osd3_attr[] = {
 		.read = osd_zorder_show,
 		.write = osd_zorder_store,
 	},
+	{
+		.attr.name = "osd_dimm",
+		.attr.mode = 0664,
+		.private = &osd_index[3],
+		.read = osd_dimm_show,
+		.write = osd_dimm_store,
+	},
 };
 
 static struct bin_attribute *osd3_bin_attrs[] = {
@@ -2190,6 +2266,7 @@ static struct bin_attribute *osd3_bin_attrs[] = {
 	&osd3_attr[8],
 	&osd3_attr[9],
 	&osd3_attr[10],
+	&osd3_attr[11],
 	NULL,
 };
 

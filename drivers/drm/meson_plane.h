@@ -60,6 +60,12 @@ enum meson_video_signal_fmt_e {
 	SIGNAL_FMT_CUVA_HDR = 3,
 };
 
+struct osd_dimm_info   {
+	u32 dimm_value;
+	/* 0:dimm not update, 1:dimm update from property, 2:dimm update from debug node */
+	int dimm_ctrl;
+};
+
 struct am_osd_plane {
 	/*base struct, same as am_video_plane*/
 	struct drm_plane base; //must be first element.
@@ -77,6 +83,7 @@ struct am_osd_plane {
 	/*max fb property*/
 	struct drm_property *max_fb_property;
 	struct drm_property *rotation_reflect_property;
+	struct drm_property *dimm_ctrl_property;
 
 	/*osd extend*/
 	u32 osd_reverse;
@@ -88,6 +95,7 @@ struct am_osd_plane {
 	u32 *receive_palette;
 	int osd_permanent_blank;
 	int zorder;
+	struct osd_dimm_info osd_dimm;
 
 	/* sysfs debug*/
 	u16 pixel_blend_debug;

@@ -1277,6 +1277,9 @@ static int meson_plane_atomic_get_property(struct drm_plane *plane,
 		}
 		*val = drv->pipeline->osd_axi_sel;
 		ret = 0;
+	} else if (property == osd_plane->dimm_ctrl_property) {
+		*val = osd_plane->osd_dimm.dimm_value;
+		ret = 0;
 	}
 
 	return ret;
@@ -1310,6 +1313,10 @@ static int meson_plane_atomic_set_property(struct drm_plane *plane,
 		ret = 0;
 	} else if (property == osd_plane->rotation_reflect_property) {
 		osd_plane->osd_reverse = val;
+		ret = 0;
+	} else if (property == osd_plane->dimm_ctrl_property) {
+		osd_plane->osd_dimm.dimm_value = val;
+		osd_plane->osd_dimm.dimm_ctrl = 1;
 		ret = 0;
 	}
 
@@ -2044,6 +2051,8 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 	}
 	plane_info = &mvps->plane_info[osd_plane->plane_index];
 	plane_info->plane_index = osd_plane->plane_index;
+	plane_info->osd_dimm.dimm_value = osd_plane->osd_dimm.dimm_value;
+	plane_info->osd_dimm.dimm_ctrl = osd_plane->osd_dimm.dimm_ctrl;
 	/*get plane prop value*/
 	plane_info->zorder = state->zpos;
 
@@ -2128,10 +2137,11 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 		  plane_info->plane_index, plane_info->zorder,
 		  state->pixel_blend_mode, plane_info->global_alpha,
 		  plane_info->phy_addr);
-	DRM_DEBUG_DRIVER("w/h = %d/%d, src_x/y/w/h=%d/%d/%d/%d\n",
+	DRM_DEBUG_DRIVER("w/h = %d/%d, src_x/y/w/h=%d/%d/%d/%d, dimm=[0x%x,%d]\n",
 		  plane_info->fb_w, plane_info->fb_h,
 		  plane_info->src_x, plane_info->src_y,
-		plane_info->src_w, plane_info->src_h);
+		plane_info->src_w, plane_info->src_h,
+		plane_info->osd_dimm.dimm_value, plane_info->osd_dimm.dimm_ctrl);
 	DRM_DEBUG_DRIVER("status_changed = %d, dst_x/y/w/h=%d/%d/%d/%d\n",
 		  plane_info->status_changed, plane_info->dst_x, plane_info->dst_y,
 		plane_info->dst_w, plane_info->dst_h);
@@ -2950,6 +2960,23 @@ static void meson_video_create_video_present_fence_property(struct drm_device *d
 	}
 }
 
+static int meson_plane_create_dimm_ctrl_property(struct am_osd_plane *osd_plane,
+				   unsigned int bgcolor,
+				   unsigned int min, unsigned int max)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(osd_plane->base.dev, 0, "OSD_DIMMING_CTRL", min, max);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&osd_plane->base.base, prop, bgcolor);
+
+	osd_plane->dimm_ctrl_property = prop;
+
+	return 0;
+}
+
 static void meson_plane_get_primary_plane(struct meson_drm *priv,
 			enum drm_plane_type *type)
 {
@@ -3091,6 +3118,7 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
 	meson_plane_create_security_en_property(priv->drm, osd_plane);
 	meson_plane_add_palette_property(priv->drm, osd_plane);
 	meson_plane_add_unsupport_nonafbc_property(priv->drm, osd_plane);
+	meson_plane_create_dimm_ctrl_property(osd_plane, 0, 0, 0xffffffff);
 	return osd_plane;
 }
 

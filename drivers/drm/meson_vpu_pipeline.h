@@ -277,6 +277,7 @@ struct meson_vpu_osd_layer_info {
 	u32 *palette_arry;
 	int gfcd_vskip;
 	int gfcd_hskip;
+	struct osd_dimm_info osd_dimm;
 };
 
 enum osd_mif_acc_mode {
@@ -344,6 +345,7 @@ struct meson_vpu_osd_state {
 	u32 read_ports;
 	int sec_en;
 	u32 *palette_arry;
+	struct osd_dimm_info osd_dimm;
 };
 
 struct meson_vpu_video_layer_info {

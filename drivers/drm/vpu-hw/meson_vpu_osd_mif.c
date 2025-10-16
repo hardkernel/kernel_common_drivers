@@ -1071,7 +1071,20 @@ static void osd_set_dimm_ctrl(struct meson_vpu_block *vblk,
 			       struct osd_mif_reg_s *reg,
 			       u32 val)
 {
-	reg_ops->rdma_write_reg(reg->viu_osd_dimm_ctrl, val);
+	u32 dimm_rgb = 0;
+
+	if (val) { /* set dimm */
+		dimm_rgb = (val & 0x3ff00000);  /* get [29:20] bit for red channel */
+		dimm_rgb |= (val & 0x000ffc00); /* get [19:10] bit for green channel */
+		dimm_rgb |= (val & 0x000003ff); /* get [9:0] bit for blue channel */
+
+		reg_ops->rdma_write_reg(reg->viu_osd_dimm_ctrl, 0x40000000 | dimm_rgb);
+
+		reg_ops->rdma_write_reg_bits(reg->viu_osd_ctrl_stat2, 0x1, 14, 1);
+		reg_ops->rdma_write_reg_bits(reg->viu_osd_ctrl_stat2, 0xff, 6, 8);
+	} else { /* clear dimm */
+		reg_ops->rdma_write_reg(reg->viu_osd_dimm_ctrl, val);
+	}
 }
 
 /* set osd, video two port */
@@ -1204,6 +1217,8 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 	mvos->sec_en = plane_info->sec_en;
 	mvos->palette_arry = plane_info->palette_arry;
 	mvos->process_unit = plane_info->process_unit;
+	mvos->osd_dimm.dimm_value = plane_info->osd_dimm.dimm_value;
+	mvos->osd_dimm.dimm_ctrl = plane_info->osd_dimm.dimm_ctrl;
 
 	return 0;
 }
@@ -1483,7 +1498,10 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 
 	osd_scan_mode_config(vblk, reg_ops, reg, pipe->subs[crtc_index]->mode.flags &
 				 DRM_MODE_FLAG_INTERLACE);
-	osd_set_dimm_ctrl(vblk, reg_ops, reg, 0);
+
+	if (mvos->osd_dimm.dimm_ctrl)
+		osd_set_dimm_ctrl(vblk, reg_ops, reg, mvos->osd_dimm.dimm_value);
+
 	ods_hold_line_config(vblk, reg_ops, reg, hold_line);
 	osd_set_two_ports(mvos->read_ports, reg_ops);
 	if (mvos->palette_arry)
@@ -1491,8 +1509,9 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 
 	frame_seq[vblk->index]++;
 	reg_ops->rdma_write_reg(reg->viu_osd_tcolor_ag3, frame_seq[vblk->index]);
-	MESON_DRM_BLOCK("plane_index=%d,HW-OSD=%d\n",
-		  mvos->plane_index, vblk->index);
+	MESON_DRM_BLOCK("plane_index=%d,HW-OSD=%d,dimm=[0x%x,%d]\n",
+		  mvos->plane_index, vblk->index,
+		  mvos->osd_dimm.dimm_value, mvos->osd_dimm.dimm_ctrl);
 	MESON_DRM_BLOCK("scope h/v start/end:[%d/%d/%d/%d]\n",
 		  scope_src.h_start, scope_src.h_end,
 		scope_src.v_start, scope_src.v_end);
@@ -1684,6 +1703,7 @@ static void osd_register_init(struct meson_vpu_block *vblk,
 		(0 << 30) | /*urgent_wr*/
 		(dn_th << 16) | /*4bits*/
 		(up_th << 20)/*4bits*/);
+	reg_ops->rdma_write_reg(reg->viu_osd_dimm_ctrl, 0);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/*The fifo_crtl bits need to be configured with a maximum value of 0x2, otherwise it
