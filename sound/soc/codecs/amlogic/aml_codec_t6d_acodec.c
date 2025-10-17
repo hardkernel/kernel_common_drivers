@@ -122,7 +122,7 @@ enum charge_cap_level {
 static const struct reg_default t6d_acodec_init_list[] = {
 	{ACODEC_0, 0x3400bff0},
 	{ACODEC_1, 0x46460b0b},
-	{ACODEC_2, 0xf8f87400},
+	{ACODEC_2, 0xf8f87000},
 	/*default LP/RP(headphone)	 LN/RN(lineout->spk)*/
 	/*dual output*/
 	{ACODEC_3, 0x00034422},
