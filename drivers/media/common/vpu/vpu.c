@@ -34,6 +34,7 @@
 #include "vpu_module.h"
 #include "vpu_arb.h"
 #include "vpu_sideband.h"
+#include "linux/amlogic/efuse.h"
 
 /* v20200530: initial version */
 /* v20220607: add c3 support */
@@ -289,6 +290,60 @@ static int vpu_vmod_clk_release(unsigned int vmod)
 {
 	return 0;
 }
+
+unsigned int rx_switch_vpu_clk(int over_clock_flag)
+{
+	int ret = 0;
+#ifdef CONFIG_AMLOGIC_VPU_DYNAMIC_ADJ
+	unsigned int clk_level = 0;
+	struct vpu_clk_info_s vpu_clk_info;
+	int vdin_status;
+	unsigned long new_freq;
+
+	if (vpu_conf.data->chip_type == VPU_CHIP_T6X) {
+		VPUPR("%s %d over_clock_flag:%d\n", __func__, __LINE__, over_clock_flag);
+		if (vpu_conf.overclock_sel == 0) {
+			clk_level = 10;
+		} else if (vpu_conf.overclock_sel == 1) {
+			clk_level = 13;
+		} else if (vpu_conf.overclock_sel == 2) {
+			if (!over_clock_flag) {
+				clk_level = 10;
+			} else {
+				if (vpu_conf.vpu_overclock) {
+					clk_level = 13;
+				} else {
+					clk_level = 10;
+					VPUPR("do not support vpu overclock\n");
+				}
+			}
+		} else {
+			VPUERR("%s unknown overclock_sel:%d\n", __func__, vpu_conf.overclock_sel);
+		}
+
+		if (clk_level != vpu_conf.clk_level) {
+			new_freq = get_vpu_clk_freq(clk_level);
+			vpu_clk_info.new_freq = new_freq;
+			if (new_freq == 892000000) {
+				vd_signal_notifier_call_chain(VIDEO_VPU_CLK_CHANGED,
+								  &vpu_clk_info);
+				/* vdin_status 0:idle 1:vdin 0 worked 2:vdin1 worked */
+				vdin_status = get_vdin_status(1);
+				if (vdin_status || vpu_debug_print_flag)
+					VPUPR("%s, vdin_status:%d\n",
+						  __func__, vdin_status);
+				set_vpu_clk(clk_level);
+			} else if (new_freq == 840000000) {
+				set_vpu_clk(clk_level);
+				vd_signal_notifier_call_chain(VIDEO_VPU_CLK_CHANGED,
+								  &vpu_clk_info);
+			}
+		}
+	}
+#endif
+	return ret;
+}
+EXPORT_SYMBOL(rx_switch_vpu_clk);
 
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -788,6 +843,19 @@ EXPORT_SYMBOL(vpu_dev_clk_release);
  *      ret = vpu_support_overclk();
  *
  */
+#define EFUSE_CALI_SUBITEM_VPU_MAXFREQ   0x12C
+
+static void set_vpu_overclk(void)
+{
+	int vpu_max_freq = -1;
+
+	if (vpu_conf.data->chip_type == VPU_CHIP_T6X) {
+		vpu_max_freq = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_VPU_MAXFREQ);
+		VPUPR("%s vpu support max freq: %d\n", __func__, vpu_max_freq);
+		vpu_conf.vpu_overclock = (vpu_max_freq == 180) ? 1 : 0;
+	}
+}
+
 int vpu_support_overclk(void)
 {
 	return vpu_conf.vpu_overclock;
@@ -3108,8 +3176,8 @@ static struct vpu_data_s vpu_data_t6x = {
 	.chip_type = VPU_CHIP_T6X,
 	.chip_name = "t6x",
 
-	.clk_level_dft = CLK_LEVEL_DFT_T6W,
-	.clk_level_max = CLK_LEVEL_MAX_T6W,
+	.clk_level_dft = CLK_LEVEL_DFT_T6X,
+	.clk_level_max = CLK_LEVEL_MAX_T6X,
 	.fclk_div_table = fclk_div_table_g12a,
 	.clk_table = vpu_t6w_clk_table,
 
@@ -3413,6 +3481,7 @@ static int vpu_probe(struct platform_device *pdev)
 	spin_lock_init(&vpu_mem_lock);
 	spin_lock_init(&vpu_clk_gate_lock);
 
+	set_vpu_overclk();
 	get_vpu_config(pdev);
 
 	ret = vpu_power_init_check();

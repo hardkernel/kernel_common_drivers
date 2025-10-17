@@ -65,8 +65,10 @@ unsigned int get_vpu_clk_level_from_venc(unsigned int venc_clk)
 	unsigned int clk_level = 0;
 	unsigned int gpll_clk = 0;
 
-	gpll_clk = clk_get_rate(vpu_conf.gp_pll);
-	VPUPR("get gp_pll clk: %uHz\n", gpll_clk);
+	if (!IS_ERR_OR_NULL(vpu_conf.gp_pll)) {
+		gpll_clk = clk_get_rate(vpu_conf.gp_pll);
+		VPUPR("get gp_pll clk: %uHz\n", gpll_clk);
+	}
 	/*
 	 * vpu_overclock means whether hardware support vpu overclock
 	 * overclock_sel means whether software enable vpu overclock
