@@ -574,8 +574,11 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 	int ret = -1;
 	struct lcd_tcon_vrr_data_s *vrr_data;
 	unsigned int fr_levels[20];
+	unsigned long flags = 0;
+	unsigned int slave_addr, speed;
+	struct lcd_tcon_ip27_s *ip27;
 
-	if (!buf)
+	if (!pdrv || !buf)
 		return count;
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	if (!buf_orig)
@@ -929,6 +932,79 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 		if (lcd_debug_print_flag & LCD_DBG_PR_TEST)
 			lcd_tcon_dbg_trace_print();
 #endif
+	} else if (strcmp(parm[0], "ip27") == 0) {
+		if (!local_cfg)
+			goto lcd_tcon_debug_store_err;
+
+		ip27 = &local_cfg->ip27;
+
+		if (strcmp(parm[1], "init") == 0) {
+			if (!parm[2] || !parm[3] || !parm[4] || !parm[5])
+				goto lcd_tcon_debug_store_err;
+			ret = kstrtouint(parm[2], 10, &temp);// trig mode
+			ret |= kstrtouint(parm[3], 10, &val);//trig line
+			ret |= kstrtouint(parm[4], 10, &size);//data_mode
+			ret |= kstrtouint(parm[5], 10, &back_val);//vcom_order
+			if (ret)
+				goto lcd_tcon_debug_store_err;
+			ip27->trig_mode = temp;
+			ip27->trig_line_dbg = val;
+			ip27->trig_line = val;
+			ip27->data_mode = size;
+			ip27->vcom_order = back_val;
+			ip27->valid = 1;
+			ip27->debug = 1;
+			ip27->i2c_bytes = ip27->data_mode == 0 ? 24 + 1 : 3 + 1;
+			tcon_ip27_init(pdrv, ip27);
+			tcon_i2c_init(pdrv, ip27->i2c_addr, ip27->i2c_bytes, ip27->i2c_speed);
+		} else if (strcmp(parm[1], "i2c") == 0) {
+			if (!parm[2] || !parm[3] || !parm[4])
+				goto lcd_tcon_debug_store_err;
+			ret = kstrtouint(parm[2], 10, &speed);//
+			ret |= kstrtouint(parm[3], 16, &slave_addr);
+			ret |= kstrtouint(parm[4], 16, &temp);//reg offset
+			if (ret)
+				goto lcd_tcon_debug_store_err;
+
+			LCDPR("speed:%d, addr:0x%x, reg_offset:0x%x\n", speed, slave_addr, temp);
+			ip27->i2c_addr = slave_addr;
+			ip27->i2c_speed = speed;
+			ip27->i2c_reg_offset = temp;
+			tcon_i2c_init(pdrv, ip27->i2c_addr, ip27->i2c_bytes, ip27->i2c_speed);
+		} else if (strcmp(parm[1], "enable") == 0) {
+			if (!ip27->valid)
+				goto lcd_tcon_debug_store_err;
+
+			spin_lock_irqsave(&pdrv->isr_lock, flags);
+			if (ip27->en) {
+				spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+				goto lcd_tcon_debug_store_end;
+			}
+			if (ip27->init) {
+				//tcon_ip27_en_match(pdrv, ip27);
+				if (!ip27->i2c_ready)
+					tcon_i2c_init(pdrv, ip27->i2c_addr, ip27->i2c_bytes,
+							ip27->i2c_speed);
+				ip27->i2c_ready = 1;
+				ip27->step = 11;
+			}
+			ip27->en = 1;
+			spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+		} else if (strcmp(parm[1], "disable") == 0) {
+			if (!ip27->valid)
+				goto lcd_tcon_debug_store_err;
+			spin_lock_irqsave(&pdrv->isr_lock, flags);
+			ip27->en = 0;
+			ip27->step = 10; // will be disable in vsync isr
+			spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+		} else if (strcmp(parm[1], "status") == 0) {
+			LCDPR("ip27:valid:%d, en:%d, init:%d, mode:%d, line:%d, step:%d\n"
+				"i2c:addr:0x%x, speed:%d, bytes:%d, reg_offset:0x%x\n",
+				ip27->valid, ip27->en, ip27->init,
+				ip27->trig_mode, ip27->trig_line, ip27->step,
+				ip27->i2c_addr, ip27->i2c_speed, ip27->i2c_bytes,
+				ip27->i2c_reg_offset);
+		}
 	} else if (strcmp(parm[0], "fr_det") == 0) {
 		if (!parm[1])
 			goto lcd_tcon_debug_store_err;

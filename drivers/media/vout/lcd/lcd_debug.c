@@ -2571,6 +2571,14 @@ static void lcd_debug_reg_op(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 			lcd_vx1_lvds_ctrl_write(pdrv, reg, data);
 		wr_rd_out = lcd_vx1_lvds_ctrl_read(pdrv, reg);
 		break;
+		break;
+	case LCD_REG_DBG_TCON_I2C_BUS:
+		sprintf(reg_bus_name, "TCON_I2C");
+		if (reg_write)
+			lcd_tcon_i2c_write(pdrv, reg, data);
+		wr_rd_out = lcd_tcon_i2c_read(pdrv, reg);
+		break;
+
 	default:
 		LCDERR("[%d]: unknown bus %d\n", pdrv->index, bus);
 		kfree(reg_log);
@@ -2668,6 +2676,14 @@ static void lcd_debug_reg_dump(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 				(reg + i), lcd_hiu_read(reg + i));
 		}
 		break;
+	case LCD_REG_DBG_TCON_I2C_BUS:
+		pr_info("dump tcon_i2c regs:\n");
+		for (i = 0; i < num; i++) {
+			pr_info("[0x%04x] = 0x%08x\n",
+				(reg + i * 4), lcd_tcon_i2c_read(pdrv, reg + i * 4));
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -2719,6 +2735,8 @@ static ssize_t lcd_debug_reg_store(struct device *dev, struct device_attribute *
 			bus = LCD_REG_DBG_RST_BUS;
 		else if (strcmp(parm[0], "wvl") == 0)
 			bus = LCD_REG_DBG_VX1_LVDS_CTRL_BUS;
+		else if (strcmp(parm[0], "wti2c") == 0)
+			bus = LCD_REG_DBG_TCON_I2C_BUS;
 		else
 			goto lcd_debug_reg_store_err;
 
@@ -2760,6 +2778,9 @@ static ssize_t lcd_debug_reg_store(struct device *dev, struct device_attribute *
 			bus = LCD_REG_DBG_RST_BUS;
 		else if (strcmp(parm[0], "rvl") == 0)
 			bus = LCD_REG_DBG_VX1_LVDS_CTRL_BUS;
+		else if (strcmp(parm[0], "rti2c") == 0)
+			bus = LCD_REG_DBG_TCON_I2C_BUS;
+
 		else
 			goto lcd_debug_reg_store_err;
 
@@ -2798,6 +2819,8 @@ static ssize_t lcd_debug_reg_store(struct device *dev, struct device_attribute *
 			bus = LCD_REG_DBG_RST_BUS;
 		else if (strcmp(parm[0], "dvl") == 0)
 			bus = LCD_REG_DBG_VX1_LVDS_CTRL_BUS;
+		else if (strcmp(parm[0], "dti2c") == 0)
+			bus = LCD_REG_DBG_TCON_I2C_BUS;
 		else
 			goto lcd_debug_reg_store_err;
 

@@ -22,7 +22,8 @@
 /* 20250902: update ufr clk_change flow */
 /* 20250917: tcon support discontinued bin */
 /* 20251028: support vrr vdf */
-#define LCD_DRV_VERSION    "20251028"
+/* 20251113: support ip27 */
+#define LCD_DRV_VERSION    "20251113"
 
 #define CTYPE_MASK           0xf0
 #define CTYPE_RGB            0x00

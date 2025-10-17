@@ -26,7 +26,8 @@
 #define LCD_MAP_COMBO_DPHY  7
 #define LCD_MAP_RST         8
 #define LCD_MAP_VX1_LVDS_CTRL 9
-#define LCD_MAP_MAX         10
+#define LCD_MAP_TCON_I2C 10
+#define LCD_MAP_MAX         11
 
 int lcd_reg_g12a[] = {
 	LCD_MAP_DSI_A_HOST,
@@ -96,6 +97,15 @@ int lcd_reg_t6w[] = {
 	LCD_MAP_PERIPHS,
 	LCD_MAP_RST,
 	LCD_MAP_VX1_LVDS_CTRL,
+	LCD_MAP_MAX,
+};
+
+int lcd_reg_t6x[] = {
+	LCD_MAP_TCON,
+	LCD_MAP_PERIPHS,
+	LCD_MAP_RST,
+	LCD_MAP_VX1_LVDS_CTRL,
+	LCD_MAP_TCON_I2C,
 	LCD_MAP_MAX,
 };
 
@@ -175,6 +185,27 @@ static int check_lcd_ioremap(struct aml_lcd_drv_s *pdrv, unsigned int n)
 	return 0;
 }
 
+static inline void __iomem *check_lcd_tcon_i2c_reg(struct aml_lcd_drv_s *pdrv,
+						  unsigned int reg)
+{
+	void __iomem *p;
+	int reg_bus;
+	unsigned int reg_offset;
+
+	reg_bus = LCD_MAP_TCON_I2C;
+	if (check_lcd_ioremap(pdrv, reg_bus))
+		return NULL;
+
+	reg_offset = LCD_REG_OFFSET_BYTE(reg);
+
+	if (reg_offset >= pdrv->drv_res.reg_map[reg_bus].size) {
+		LCDERR("[%d]: invalid i2c reg offset: 0x%04x\n",
+		       pdrv->index, reg);
+		return NULL;
+	}
+	p = pdrv->drv_res.reg_map[reg_bus].p + reg_offset;
+	return p;
+}
 static inline void __iomem *check_lcd_periphs_reg(struct aml_lcd_drv_s *pdrv,
 						  unsigned int reg)
 {
@@ -358,7 +389,8 @@ unsigned int lcd_vcbus_read(unsigned int reg)
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 	return temp;
 #endif
-};
+	return 0;
+}
 
 void lcd_vcbus_write(unsigned int reg, unsigned int value)
 {
@@ -369,7 +401,7 @@ void lcd_vcbus_write(unsigned int reg, unsigned int value)
 	aml_write_vcbus(reg, value);
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 #endif
-};
+}
 
 void lcd_vcbus_setb(unsigned int reg, unsigned int value,
 		    unsigned int start, unsigned int len)
@@ -1250,3 +1282,101 @@ void lcd_vx1_lvds_ctrl_clr_mask(struct aml_lcd_drv_s *pdrv,
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 }
 
+unsigned int lcd_tcon_i2c_read(struct aml_lcd_drv_s *pdrv, unsigned int reg)
+{
+	void __iomem *p;
+	unsigned int temp = 0;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_reg_spinlock, flags);
+	p = check_lcd_tcon_i2c_reg(pdrv, reg);
+	if (p)
+		temp = readl(p);
+	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
+
+	return temp;
+};
+
+void lcd_tcon_i2c_write(struct aml_lcd_drv_s *pdrv,
+		     unsigned int reg, unsigned int val)
+{
+	void __iomem *p;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_reg_spinlock, flags);
+	p = check_lcd_tcon_i2c_reg(pdrv, reg);
+	if (p)
+		writel(val, p);
+	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
+};
+
+void lcd_tcon_i2c_setb(struct aml_lcd_drv_s *pdrv,
+		    unsigned int reg, unsigned int value,
+		    unsigned int start, unsigned int len)
+{
+	void __iomem *p;
+	unsigned int temp = 0;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_reg_spinlock, flags);
+	p = check_lcd_tcon_i2c_reg(pdrv, reg);
+	if (p) {
+		temp = readl(p);
+		temp = (temp & (~(((1L << len) - 1) << start))) |
+			((value & ((1L << len) - 1)) << start);
+		writel(temp, p);
+	}
+	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
+}
+
+unsigned int lcd_tcon_i2c_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
+			    unsigned int start, unsigned int len)
+{
+	void __iomem *p;
+	unsigned int temp = 0;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_reg_spinlock, flags);
+	p = check_lcd_tcon_i2c_reg(pdrv, reg);
+	if (p) {
+		temp = readl(p);
+		temp = (temp >> start) & ((1L << len) - 1);
+	}
+	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
+
+	return temp;
+}
+
+void lcd_tcon_i2c_set_mask(struct aml_lcd_drv_s *pdrv,
+			unsigned int reg, unsigned int mask)
+{
+	void __iomem *p;
+	unsigned int temp = 0;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_reg_spinlock, flags);
+	p = check_lcd_tcon_i2c_reg(pdrv, reg);
+	if (p) {
+		temp = readl(p);
+		temp |= (mask);
+		writel(temp, p);
+	}
+	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
+}
+
+void lcd_tcon_i2c_clr_mask(struct aml_lcd_drv_s *pdrv,
+			unsigned int reg, unsigned int mask)
+{
+	void __iomem *p;
+	unsigned int temp = 0;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_reg_spinlock, flags);
+	p = check_lcd_tcon_i2c_reg(pdrv, reg);
+	if (p) {
+		temp = readl(p);
+		temp &= ~(mask);
+		writel(temp, p);
+	}
+	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
+}

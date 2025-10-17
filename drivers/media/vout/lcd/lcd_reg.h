@@ -29,6 +29,8 @@ struct reg_name_set_s {
 #define LCD_REG_DBG_MIPIHOST_BUS_SUB_PORT 12
 #define LCD_REG_DBG_MIPIPHY_BUS_SUB_PORT  13
 #define LCD_REG_DBG_VX1_LVDS_CTRL_BUS     14
+#define LCD_REG_DBG_TCON_I2C_BUS          15
+
 #define LCD_REG_DBG_MAX_BUS               0xff
 
 /* register offset address define */
@@ -1840,6 +1842,7 @@ extern int lcd_reg_t3x[];
 extern int lcd_reg_txhd2[];
 extern int lcd_reg_t6d[];
 extern int lcd_reg_t6w[];
+extern int lcd_reg_t6x[];
 
 int lcd_ioremap(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev);
 unsigned int lcd_vcbus_read(unsigned int reg);
@@ -1959,5 +1962,17 @@ void lcd_vx1_lvds_ctrl_set_mask(struct aml_lcd_drv_s *pdrv,
 void lcd_vx1_lvds_ctrl_clr_mask(struct aml_lcd_drv_s *pdrv,
 			unsigned int reg, unsigned int mask);
 
+unsigned int lcd_tcon_i2c_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
+void lcd_tcon_i2c_write(struct aml_lcd_drv_s *pdrv,
+		     unsigned int reg, unsigned int val);
+void lcd_tcon_i2c_setb(struct aml_lcd_drv_s *pdrv,
+		    unsigned int reg, unsigned int value,
+		    unsigned int start, unsigned int len);
+unsigned int lcd_tcon_i2c_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
+			    unsigned int start, unsigned int len);
+void lcd_tcon_i2c_set_mask(struct aml_lcd_drv_s *pdrv,
+			unsigned int reg, unsigned int mask);
+void lcd_tcon_i2c_clr_mask(struct aml_lcd_drv_s *pdrv,
+			unsigned int reg, unsigned int mask);
 #endif
 

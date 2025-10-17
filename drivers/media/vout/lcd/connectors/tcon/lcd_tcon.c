@@ -1703,6 +1703,9 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 
 	spin_lock_irqsave(&pdrv->sw_vrr.set_lock, flags2);
 
+	if (tcon_local_cfg.ip27.valid)
+		tcon_ip27_vsync_proc(pdrv, &tcon_local_cfg.ip27);
+
 	if (tcon_mm_table.version < 0xff) {
 		if (tcon_mm_table.multi_lut_update) {
 			spin_lock_irqsave(&tcon_local_cfg.multi_list_lock, flags);
@@ -3045,6 +3048,44 @@ static int lcd_tcon_dccd_flow_check(struct aml_lcd_drv_s *pdrv)
 	return 0;
 }
 
+static int lcd_panel_parse_tcon_from_json(struct aml_lcd_drv_s *pdrv)
+{
+	struct json_parse_s *jsp = get_panel_jsp(pdrv->index);
+	struct json_s *parent, *child;
+	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
+	struct lcd_tcon_ip27_s *ip27;
+
+	if (!json_parse_ok(jsp)) {
+		LCDERR("panel%d jsp not ok\n", pdrv->index);
+		return -1;
+	}
+
+	parent = json_path_to_node(jsp, jsp->root, "/tcon");
+	if (!parent) {
+		LCDERR("find /lcd_extern\n");
+		return -1;
+	}
+	/*ip27*/
+	child = json_get_object_child(jsp, parent, "csot_ip27");
+	if (child) {
+		ip27 = &local_cfg->ip27;
+		ip27->cfg_valid = json_get_obj_u32(jsp, child, "valid", 0);
+		ip27->trig_mode = json_get_obj_u32(jsp, child, "trig_mode", 0);
+		ip27->trig_line = json_get_obj_u32(jsp, child, "trig_line", 0);
+		ip27->i2c_addr  = json_get_obj_u32(jsp, child, "i2c_addr", 0x33);
+		ip27->i2c_speed = json_get_obj_u32(jsp, child, "i2c_speed", 400000);//400k
+		//ip27->i2c_bytes = json_get_obj_u32(jsp, child, "i2c_byte", 4);//3byte mode
+		ip27->data_mode = json_get_obj_u32(jsp, child, "data_mode", 0);//
+		ip27->debug     = json_get_obj_u32(jsp, child, "debug", 0);//
+		ip27->vcom_order = json_get_obj_u32(jsp, child, "vcom_order", 0);//
+		ip27->i2c_reg_offset = json_get_obj_u32(jsp, child, "i2c_reg_offset", 0x25);//
+		ip27->trig_line_dbg = ip27->trig_line;
+		ip27->i2c_bytes = ip27->data_mode == 0 ? 24 + 1 : 3 + 1;
+	}
+
+	return 0;
+}
+
 static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 {
 	tcon_mm_table.data_init = NULL;
@@ -3052,6 +3093,10 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 	INIT_LIST_HEAD(&tcon_local_cfg.pdf_data_list);
 
 	lcd_tcon_load_init_data(pdrv);
+	if (pdrv->config_load == LCD_CONFIG_FILE) {
+		if (get_lcd_panel_file_type(pdrv->index) == PANEL_FILE_JSON)
+			lcd_panel_parse_tcon_from_json(pdrv);
+	}
 
 	lcd_tcon_pdf_init(pdrv);
 	//lcd_swpdf_init(pdrv);
@@ -3074,6 +3119,7 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 	if (lcd_tcon_conf->lut_dma_ops && lcd_tcon_conf->lut_dma_ops->init)
 		lcd_tcon_conf->lut_dma_ops->init(pdrv, lcd_tcon_conf->lut_dma_ops);
 
+	tcon_ip27_probe_init(pdrv, &tcon_local_cfg.ip27);
 	lrm_resource_device_finish("lcd_tcon");
 
 	return 0;
@@ -3475,7 +3521,7 @@ static struct lcd_tcon_config_s tcon_data_t6x = {
 	.bin_path_size   = 0x00002800,
 	.secure_cfg_size = 0x00000040,
 
-	.init_pre_setting = lcd_tcon_init_pre_setting_uhd,
+	.init_pre_setting = lcd_tcon_init_pre_setting_t6x,
 	.init_post_setting = lcd_tcon_init_post_setting,
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_t3x),
 	.axi_mem_cfg_tbl = (axi_mem_cfg_tbl_t3x),

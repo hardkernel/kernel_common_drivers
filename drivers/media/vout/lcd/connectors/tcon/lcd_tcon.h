@@ -221,6 +221,28 @@ struct lcd_tcon_vrr_data_s {
 	unsigned int ready;
 };
 
+#define IP27_TRIG_APTU 1
+#define IP27_TRIG_SELF 0
+struct lcd_tcon_ip27_s {
+	unsigned char trig_mode;
+	unsigned char en;
+	unsigned char valid;
+	unsigned char cfg_valid;
+	unsigned char step;
+	unsigned char init;
+	unsigned char init_en;
+	unsigned char vcom_order;
+	unsigned char data_mode;
+	unsigned char debug;
+	unsigned char i2c_ready;
+	unsigned char i2c_addr;
+	unsigned char i2c_bytes;
+	unsigned char i2c_reg_offset;
+	unsigned int i2c_speed;
+	unsigned int trig_line;//for mode 1 aptu intr trig
+	unsigned int trig_line_dbg;
+};
+
 #define MEM_FLAG_MAX	    2
 struct lcd_tcon_local_cfg_s {
 	spinlock_t multi_list_lock; /* for tcon multi lut list change */
@@ -230,6 +252,7 @@ struct lcd_tcon_local_cfg_s {
 	struct list_head pdf_data_list;  //for struct lcd_tcon_pdf_data_s
 	unsigned char pdf_list_load_flag;
 	struct lcd_tcon_vrr_data_s vrr_data;
+	struct lcd_tcon_ip27_s ip27;
 
 	struct cdev   cdev;
 	struct device *dev;
@@ -397,5 +420,15 @@ void tcon_fr_detect_enable(struct aml_lcd_drv_s *pdrv, int enable);
 void lcd_tcon_data_parse_vrr(struct lcd_tcon_vrr_data_s *vrr,
 				unsigned char *p, unsigned int data_cnt, unsigned int data_width);
 int lcd_tcon_vrr_fr_sw_match(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_vrr_data_s *vrr);
+
+void tcon_i2c_init(struct aml_lcd_drv_s *pdrv, u32 slave_addr, u32 bytes, u32 speed);
+unsigned char tcon_ip27_valid(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_ip27_s *ip27);
+unsigned int tcon_ip27_calc_trig_line(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_ip27_s *ip27);
+void tcon_ip27_init(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_ip27_s *ip27);
+void tcon_ip27_probe_init(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_ip27_s *ip27);
+void tcon_ip27_setup(struct aml_lcd_drv_s *pdrv);
+void tcon_ip27_release(struct aml_lcd_drv_s *pdrv);
+/* use rdma, only can be called in vsync isr */
+void tcon_ip27_vsync_proc(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_ip27_s *ip27);
 
 #endif

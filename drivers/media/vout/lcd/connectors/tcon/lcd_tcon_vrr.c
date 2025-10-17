@@ -22,6 +22,8 @@
 #if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 #include <linux/amlogic/tee.h>
 #endif
+#include "lcd_tcon_rdma.h"
+#include <linux/amlogic/media/vout/lcd/lcd_math.h>
 
 /*
  * mode: 0-normal mode, 1-fix mode
@@ -142,3 +144,264 @@ int lcd_tcon_vrr_fr_sw_match(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_vrr_dat
 	return (i >= vrr->part ? 0 : i);
 }
 
+/*===============================================================================================*/
+/* slave_addr: must be 8bit addr (7bit addr << 1)
+ * bytes: data bytes + 1byte reg offset
+ * speed: i2c speed
+ */
+void tcon_i2c_init(struct aml_lcd_drv_s *pdrv, u32 slave_addr, u32 bytes, u32 speed)
+{
+	const unsigned int base_clk = 167000000;//168Mhz
+	unsigned int i2c_clk_div = 1670;
+	//unsigned int val = 0;
+
+	if (!pdrv)
+		return;
+
+	speed = lcd_s32_constraint(speed, 50000, 1000000);//50k~1M
+	i2c_clk_div = base_clk / speed;
+
+/**
+ *	val = lcd_periphs_read(pdrv, PADCTRL_PIN_MUX_REG9);
+ *	val &= ~0x00ff0000;
+ *	val |= 0x00110000;
+ *	lcd_periphs_write(pdrv, PADCTRL_PIN_MUX_REG9, val);//gpioh20/21 t0 tcon i2c
+ */
+	/* i2c controller set */
+	lcd_tcon_i2c_write(pdrv, 0, 0);
+
+	lcd_tcon_i2c_write(pdrv, 0xc, 0x21000 | (i2c_clk_div & 0xfff));
+
+	//irq enable, bit0:rd trans err, bit1;wr trans err, bit2: nack err, bit3:trans done
+	lcd_tcon_i2c_write(pdrv, 0x34, 0x0);// disable all irq
+	lcd_tcon_i2c_write(pdrv, 0x04, 0x14);//bit4:1=dma 0=normal, bit3:1=negative edge
+	lcd_tcon_i2c_write(pdrv, 0x10, 0x0);
+	lcd_tcon_i2c_write(pdrv, 0x14, 0x0);
+	lcd_tcon_i2c_write(pdrv, 0x18, 0x0);
+	lcd_tcon_i2c_write(pdrv, 0x1c, 0x0);
+	lcd_tcon_i2c_write(pdrv, 0x08, (bytes << 12) | (slave_addr << 1));
+}
+
+unsigned char tcon_ip27_valid(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_ip27_s *ip27)
+{
+	unsigned int temp;//, temp2;
+
+	if (!pdrv->data || pdrv->data->chip_type != LCD_CHIP_T6X || !ip27->cfg_valid)
+		return 0;
+
+	temp = lcd_tcon_read(pdrv, 0x1425);//cfcom must exist
+	if (temp || ip27->debug)
+		return 1;
+
+	return 0;
+}
+
+unsigned int tcon_ip27_calc_trig_line(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_ip27_s *ip27)
+{
+	unsigned int trig_line = 0;
+	unsigned int trans_time_us, trans_bits, line_us, trans_line, bk_line;
+
+	/* calculate best trigger line */
+	trans_bits = (ip27->i2c_bytes + 1) * 9; //1 slave addr, ignore start/stop
+
+	trans_time_us = 1000000 * trans_bits / ip27->i2c_speed;
+
+	line_us = 1000000 / (pdrv->curr_dev->dev_cfg.timing.base_timing->vfreq_vrr_max *
+			     pdrv->curr_dev->dev_cfg.timing.base_timing->v_period_min);
+	trans_line = trans_time_us / line_us + 1;
+
+	bk_line = pdrv->curr_dev->dev_cfg.timing.base_timing->v_period_min -
+		  pdrv->curr_dev->dev_cfg.timing.base_timing->v_active - 16; // for pre_de
+
+	if (bk_line >= trans_line)
+		trig_line = pdrv->curr_dev->dev_cfg.timing.vend;
+	else
+		trig_line = pdrv->curr_dev->dev_cfg.timing.vend - (trans_line - bk_line + 1);
+
+	LCDPR("ip27 trig line:%d\n", trig_line);
+
+	return trig_line;
+}
+
+// trig_mode: 0-ip27-self, 1-aptu-int
+void tcon_ip27_init(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_ip27_s *ip27)
+{
+	// disable ip27 fifo clk
+	lcd_tcon_setb(pdrv, 0x207, 0, 3, 1);// reg_pre_gam_clk
+
+	lcd_tcon_setb(pdrv, 0x14f1, ip27->vcom_order, 6, 1); //reg_ip27_vcom_data_order
+	lcd_tcon_setb(pdrv, 0x14f1, ip27->i2c_bytes - 1, 1, 5);//reg_ip27_i2c_data_num
+	lcd_tcon_setb(pdrv, 0x14f1, 0x7f801 | (ip27->i2c_reg_offset << 1), 12, 20);
+
+	switch (ip27->data_mode) {
+	case 0: //gamma + acom + cfcom 24 byte mode
+		lcd_tcon_write(pdrv, 0x14f2, 0x07654321);//reg_ip27_i2c_dout_order31_0
+		lcd_tcon_setb(pdrv, 0x14f1, 0x0, 7, 4);//reg_ip27_i2c_dout_order35_32
+		break;
+	case 1://acom+cfcom mode use data1/2 3byte mode
+		lcd_tcon_write(pdrv, 0x14f2, 0x0);//reg_ip27_i2c_dout_order31_0
+		lcd_tcon_setb(pdrv, 0x14f1, 0x0, 7, 4);//reg_ip27_i2c_dout_order35_32
+		break;
+	case 2://acom+cfcom mode use data17/18 3byte mode
+		lcd_tcon_write(pdrv, 0x14f2, 0x8);//reg_ip27_i2c_dout_order31_0
+		lcd_tcon_setb(pdrv, 0x14f1, 0x0, 7, 4);//reg_ip27_i2c_dout_order35_32
+		break;
+	default:
+		break;
+	}
+
+	lcd_tcon_setb(pdrv, 0x1400, 1, 31, 1); // ip27_bypass
+	lcd_tcon_setb(pdrv, 0x367, 0, 16, 1); // aptu trig en
+	lcd_tcon_setb(pdrv, 0x200e, 1, 7, 1); //bit7:apb_clk_gate_ctrl to clear ip27 fifo
+	if (ip27->trig_mode == IP27_TRIG_APTU) {
+		lcd_tcon_setb(pdrv, 0x367, ip27->trig_line, 0, 14); // trigger delay
+		lcd_tcon_setb(pdrv, 0x2000, 1, 23, 1); // use aptu int trigger
+	} else {
+		lcd_tcon_setb(pdrv, 0x2000, 0, 23, 1); // use ip27 trigger
+	}
+	lcd_tcon_setb(pdrv, 0x207, 1, 29, 1); // reg_pre_ip27_clk_en
+}
+
+void tcon_ip27_probe_init(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_ip27_s *ip27)
+{
+	if (!pdrv || !ip27)
+		return;
+
+	ip27->valid = tcon_ip27_valid(pdrv, ip27);
+	if (!ip27->valid)
+		return;
+
+	// valid means ip27 has been init under uboot
+	tcon_i2c_init(pdrv, ip27->i2c_addr, ip27->i2c_bytes, ip27->i2c_speed);
+	ip27->i2c_ready = 1;
+	ip27->init = 1;
+	ip27->step = 3;
+	ip27->init_en = 0;
+	ip27->en = 0; // can not en at probe stage, vpu rdma has not ready
+}
+
+void tcon_ip27_setup(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
+	struct lcd_tcon_ip27_s *ip27;
+	int init_dma_sync_timeout = 10;//acc od lod ...
+
+	if (!pdrv || !tcon_conf || !local_cfg)
+		return;
+
+	ip27 = &local_cfg->ip27;
+	ip27->valid = tcon_ip27_valid(pdrv, ip27);
+	if (ip27->valid) {
+		if (tcon_conf->lut_dma_ops) {
+			while (tcon_conf->lut_dma_ops->addr_list && init_dma_sync_timeout > 0) {
+				msleep(30);
+				init_dma_sync_timeout--;
+			}
+			if (init_dma_sync_timeout <= 0)
+				LCDPR("%s ip27 init dma sync timeout!\n", __func__);
+		}
+		LCDPR("ip27 valid\n");
+		if (ip27->trig_line_dbg)
+			ip27->trig_line = ip27->trig_line_dbg;
+		else
+			ip27->trig_line = tcon_ip27_calc_trig_line(pdrv, ip27);
+		tcon_ip27_init(pdrv, ip27);
+		tcon_i2c_init(pdrv, ip27->i2c_addr, ip27->i2c_bytes,
+			      ip27->i2c_speed);
+		ip27->i2c_ready = 1;
+		ip27->step = 1;
+		ip27->init = 0;
+		ip27->init_en = 0;
+	}
+}
+
+void tcon_ip27_release(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
+	struct lcd_tcon_ip27_s *ip27;
+
+	if (!pdrv || !local_cfg)
+		return;
+
+	ip27 = &local_cfg->ip27;
+	if (ip27->valid) {
+		lcd_tcon_setb(pdrv, 0x1400, 1, 31, 1); //ip27_bypass_en
+		lcd_tcon_setb(pdrv, 0x367, 0, 16, 1); //aptu_lut_dma_irq_en
+		lcd_tcon_setb(pdrv, 0x2000, 0, 23, 1); // use ip27 trigger
+
+		ip27->step = 0;
+		ip27->init = 0;
+		ip27->valid = 0;
+		ip27->init_en = 0;
+		ip27->i2c_ready = 0;
+	}
+}
+
+/* use rdma, only can be called in vsync isr */
+static inline void tcon_ip27_enable(struct aml_lcd_drv_s *pdrv, int en)
+{
+	lcd_tcon_rdma_wr_bits(pdrv, 0x1400, !en, 31, 1);//ip27_bypass
+}
+
+/* use rdma, only can be called in vsync isr */
+static inline void tcon_ip27_aptu_trig_enable(struct aml_lcd_drv_s *pdrv, int en)
+{
+	lcd_tcon_rdma_wr_bits(pdrv, 0x367, en, 16, 1); //lut_dma_irq_en
+}
+
+/* use rdma, only can be called in vsync isr */
+void tcon_ip27_vsync_proc(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_ip27_s *ip27)
+{
+	switch (ip27->step) {
+	case 1:
+		/* let ip27 run, release the first init data
+		 * no fifo clock, so first data will not to fifo
+		 */
+		tcon_ip27_enable(pdrv, 1);
+		ip27->step = 2;
+		break;
+	case 2:
+		/* must open pre_gam_clk, because it effect acc
+		 * pre_gam_clk is also the fifo clock
+		 */
+		ip27->step = 3;
+		if (ip27->en) {
+			tcon_ip27_enable(pdrv, 1);
+			if (ip27->trig_mode == IP27_TRIG_APTU)
+				ip27->step = 12; //aptu trig en next frame
+		} else {
+			tcon_ip27_enable(pdrv, 0);
+			if (ip27->trig_mode == IP27_TRIG_APTU)
+				tcon_ip27_aptu_trig_enable(pdrv, 0);
+		}
+		lcd_tcon_rdma_wr_bits(pdrv, 0x207, 1, 3, 1);// reg_pre_gam_clk en
+		ip27->init = 1;
+		break;
+	case 10:
+		/*disable ip27 after init*/
+		tcon_ip27_enable(pdrv, 0);
+		if (ip27->trig_mode == IP27_TRIG_APTU)
+			tcon_ip27_aptu_trig_enable(pdrv, 0);
+		ip27->step = 3;
+		break;
+	case 11:
+		/*enable ip27 after init*/
+		ip27->step = 3;
+		tcon_ip27_enable(pdrv, 1);
+		if (ip27->trig_mode == IP27_TRIG_APTU) {
+			if (ip27->init_en)
+				tcon_ip27_aptu_trig_enable(pdrv, 1);
+			else
+				ip27->step = 12;//aptu trig en next frame
+		}
+		break;
+	case 12:
+		tcon_ip27_aptu_trig_enable(pdrv, 1);
+		ip27->step = 3;
+		ip27->init_en = 1;
+		break;
+	default:
+		break;
+	}
+}

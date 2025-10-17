@@ -640,6 +640,7 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv, unsigned char *da
 		exe_in_isr = p[LCD_TCON_DATA_PART_NAME_SIZE + 2];
 		exe_ignore = (exe_in_isr & LCD_TCON_DATA_PART_FLAG_CMD_IGNORE_ISR) &&
 					(init_flag == 0);
+
 		if (((lcd_debug_print_flag & LCD_DBG_PR_ADV) && init_flag == 1) ||
 			((lcd_debug_print_flag & LCD_DBG_PR_ADV) &&
 			(lcd_debug_print_flag & LCD_DBG_PR_ISR) && init_flag == 0)) {
@@ -1315,7 +1316,7 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	ret = lcd_tcon_valid_check();
 	if (ret)
 		return -1;
-	if (!tcon_conf || !mm_table || !local_cfg)
+	if (!pdrv || !tcon_conf || !mm_table || !local_cfg)
 		return -1;
 
 	//don't disable encl for system continuous vsync,
@@ -1355,6 +1356,8 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	//lcd_venc_enable(pdrv, 1);
 	//lcd_tcon_setb(pdrv, 0x207, 1, 4, 1);//enable pre_proc_clk, move to init_post_proc
 
+	tcon_ip27_setup(pdrv);
+
 	pdrv->proc_time.tcon_reg_time = local_time[1] - local_time[0];
 	pdrv->proc_time.tcon_data_time = local_time[2] - local_time[1];
 
@@ -1369,13 +1372,14 @@ int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv)
 
 	local_time[0] = sched_clock();
 
-	if (!tcon_conf || !tcon_local)
+	if (!pdrv || !tcon_conf || !tcon_local)
 		return 0;
 
 	if (tcon_conf->lut_dma_ops && tcon_conf->lut_dma_ops->deinit)
 		tcon_conf->lut_dma_ops->deinit(pdrv, tcon_conf->lut_dma_ops);
 
 	memset(&tcon_local->vrr_data, 0, sizeof(tcon_local->vrr_data));
+	tcon_ip27_release(pdrv);
 
 	/* demo od */
 	lcd_tcon_setb(pdrv, 0x240, 1, 1, 1);

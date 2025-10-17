@@ -7,6 +7,22 @@
 #define _AML_LCD_TCON_INIT_H
 #include "lcd_tcon.h"
 
+static struct lcd_tcon_init_setting_s lcd_tcon_init_pre_setting_t6x[] = {
+	//addr, val, bit, len
+	{0x207, 0,    4,   1},  //pre_proc_clk disable
+	{0x263, 0,   31,   1},  //od ddrif disable
+	{0x1a3, 0,   31,   1},  //demura ddrif disable
+	{0x222, 1,   14,   1},   //demo acc
+	{0x222, 1,   15,   1},   //demo dither
+	{0x240, 1,    1,   1},   //demo od
+	{0x150, 1,    1,   1},   //demo lod
+	{0x190, 1,   30,   1},   //demo demura
+	{0x2a1, 1,   23,   1},   //demo vac
+	{0x1400, 1,  31,  1},   //ip27 bypass
+	{0x207,  0,   29,   1},     //reg_pre_ip27_clk_en
+	{REG_LCD_TCON_MAX, 0, 0, 0}
+};
+
 static struct lcd_tcon_init_setting_s lcd_tcon_init_pre_setting_uhd[] = {
 	//addr, val, bit, len
 	{0x207, 0,    4,   1},  //pre_proc_clk disable
