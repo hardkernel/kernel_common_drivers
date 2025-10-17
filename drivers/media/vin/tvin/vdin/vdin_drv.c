@@ -5523,7 +5523,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct tvin_video_buf_s tv_buf;
 		struct vf_entry *vfe;
 
-		if (!devp->vfp->wr_next) {
+		if (!devp || !devp->vfp || !devp->vfp->wr_next || !devp->vfp->wr_next->next) {
 			pr_info("not TVIN_IOC_START_GET_BUF wr_next is null\n");
 			ret = -EFAULT;
 			break;

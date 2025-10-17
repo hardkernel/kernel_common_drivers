@@ -383,7 +383,7 @@ static int vdin_vidioc_querycap(struct file *file, void *priv,
 {
 	struct vdin_dev_s *devp = video_drvdata(file);
 
-	if (IS_ERR_OR_NULL(devp))
+	if (IS_ERR_OR_NULL(devp) || !cap)
 		return -EFAULT;
 
 	cap->version	  = g_vdin_v4l2_cap[devp->index].version;
@@ -529,12 +529,17 @@ static int vdin_vidioc_querybuf(struct file *file, void *priv,
 	unsigned int ret = 0;
 	struct vb2_buffer *vb2buf = NULL;
 
-	if (IS_ERR_OR_NULL(devp))
+	if (IS_ERR_OR_NULL(devp) || IS_ERR_OR_NULL(v4lbuf))
 		return -EFAULT;
 
 	dprintk(1, "%s idx:%d\n", __func__, v4lbuf->index);
 
 	vb_que = &devp->vb_queue;
+	if (v4lbuf->index >= devp->vb_queue.max_num_buffers) {
+		dprintk(0, "%s: index %d out of range (max %d)\n",
+			__func__, v4lbuf->index, devp->vb_queue.max_num_buffers - 1);
+		return -EINVAL;
+	}
 	vb2buf = vb_que->bufs[v4lbuf->index];
 
 	ret = vb2_ioctl_querybuf(file, priv, v4lbuf);
@@ -556,12 +561,23 @@ static int vdin_vidioc_qbuf(struct file *file, void *priv,
 	int i;
 	unsigned int num_planes;
 
-	if (IS_ERR_OR_NULL(devp))
+	if (IS_ERR_OR_NULL(devp) || IS_ERR_OR_NULL(p))
 		return -EFAULT;
+
+	if (p->index >= devp->vb_queue.max_num_buffers) {
+		dprintk(0, "%s index:%d,vb_queue.max_num_buffers = %d,end\n",
+			__func__, p->index, devp->vb_queue.max_num_buffers);
+		return -EINVAL;
+	}
 
 	vb = to_vb2_v4l2_buffer(devp->vb_queue.bufs[p->index]);
 	vdin_buf = to_vdin_vb_buf(vb);
+
 	num_planes = vb->vb2_buf.num_planes;
+	if (num_planes > 3 || num_planes == 0) {
+		dprintk(0, "%s: invalid num_planes %u\n", __func__, num_planes);
+		return -EINVAL;
+	}
 	dprintk(3, "%s idx:%d planes:%d,streaming:%d\n", __func__,
 		p->index, num_planes, devp->vb_queue.streaming);
 
@@ -572,7 +588,11 @@ static int vdin_vidioc_qbuf(struct file *file, void *priv,
 	/* recycle buffer */
 	if (devp->vb_queue.streaming) {
 		devp->vdin_v4l2.stats.que_cnt++;
-		if (!IS_ERR(vdin_buf->v4l2_vframe_s)) {
+		if (vdin_buf->v4l2_vframe_s && !IS_ERR(vdin_buf->v4l2_vframe_s)) {
+			if (!devp->vfp) {
+				dprintk(0, "devp->vfp is NULL\n");
+				return -EINVAL;
+			}
 			receiver_vf_put(vdin_buf->v4l2_vframe_s, devp->vfp);
 			dprintk(3, "[%s]vf idx:%d (0x%p) put back to pool,fd=%d\n",
 				__func__,
@@ -609,6 +629,11 @@ static int vdin_vidioc_dqbuf(struct file *file, void *priv,
 		dprintk(0, "DQ error,ret=%d,%#x,status:%d\n", ret, file->f_flags,
 			devp->parm.info.status);
 		return ret;
+	}
+	if (p->index >= devp->vb_queue.max_num_buffers) {
+		dprintk(0, "%s index:%d,vb_queue.max_num_buffers = %d,end\n",
+			__func__, p->index, devp->vb_queue.max_num_buffers);
+		return -EINVAL;
 	}
 
 	for (i = 0; i < devp->v4l2_fmt.fmt.pix_mp.num_planes; i++)
@@ -666,10 +691,15 @@ static int vdin_vidioc_streamon(struct file *file, void *priv,
 	}
 
 	ret = vb2_ioctl_streamon(file, priv, i);
+	if (ret < 0) {
+		dprintk(0, "%s vb2_ioctl_streamon failed with %d\n", __func__, ret);
+		return ret;
+	}
+
 	vdin_v4l2_start_tvin(devp);
 	memset(&devp->vdin_v4l2.stats, 0, sizeof(devp->vdin_v4l2.stats));
 	dprintk(2, "%s\n", __func__);
-	return 0;
+	return ret;
 }
 
 static int vdin_vidioc_streamoff(struct file *file, void *priv,
@@ -789,7 +819,6 @@ static int vdin_vidioc_s_fmt_vid_cap_mplane(struct file *file,
 {
 	int i;
 	struct vdin_dev_s *devp = video_drvdata(file);
-
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
@@ -885,6 +914,8 @@ static int vdin_vidioc_s_ctrl(struct file *file, void *priv,
 {
 	int ret = 0;
 	struct vdin_dev_s *devp = video_drvdata(file);
+	if (IS_ERR_OR_NULL(devp))
+		return -EFAULT;
 
 	if (ctrl->id == V4L2_CID_EXT_CAPTURE_DIVIDE_FRAMERATE)
 		ret = vdin_vidioc_s_divide_fr(devp, ctrl);
@@ -934,6 +965,8 @@ static int vdin_vidioc_g_ctrl(struct file *file, void *priv,
 {
 	int ret = 0;
 	struct vdin_dev_s *devp = video_drvdata(file);
+	if (IS_ERR_OR_NULL(devp))
+		return -EFAULT;
 
 	if (ctrl->id == V4L2_CID_EXT_CAPTURE_DIVIDE_FRAMERATE)
 		ret = vdin_vidioc_g_divide_fr(devp, ctrl);
@@ -942,7 +975,7 @@ static int vdin_vidioc_g_ctrl(struct file *file, void *priv,
 	else if (ctrl->id == V4L2_CID_MIN_BUFFERS_FOR_CAPTURE)
 		ret = vdin_vidioc_g_min_buffers(devp, ctrl);
 
-	return 0;
+	return ret;
 }
 
 /* V4L2_CID_EXT_CAPTURE_CAPABILITY_INFO */
@@ -1076,6 +1109,8 @@ static int vdin_vidioc_g_ext_ctrls(struct file *file, void *fh,
 	int i, ret = 0;
 	struct v4l2_ext_control *ctrl = a->controls;
 	struct vdin_dev_s *devp = video_drvdata(file);
+	if (IS_ERR_OR_NULL(devp))
+		return -EFAULT;
 
 	/* all controls in the control array must belong
 	 * to the same control class
@@ -1199,6 +1234,9 @@ static int vdin_vidioc_s_ext_ctrls(struct file *file, void *fh,
 	struct v4l2_ext_control *ctrl = a->controls;
 	struct vdin_dev_s *devp = video_drvdata(file);
 
+	if (IS_ERR_OR_NULL(devp))
+		return -EFAULT;
+
 	/* all controls in the control array must belong
 	 * to the same control class
 	 */
@@ -1234,6 +1272,9 @@ static int vdin_vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 	int idx;
 	struct vdin_dev_s *devp = video_drvdata(file);
 
+	if (IS_ERR_OR_NULL(devp))
+		return -EFAULT;
+
 	for (idx = 0; idx < devp->v4l2_port_num; idx++) {
 		if (devp->v4l2_port_cur == devp->v4l2_port[idx]) {
 			*i = idx;
@@ -1249,6 +1290,9 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
 	int ret;
 	struct vdin_dev_s *devp = video_drvdata(file);
+
+	if (IS_ERR_OR_NULL(devp))
+		return -EFAULT;
 
 	if (i >= devp->v4l2_port_num) {
 		dprintk(0, "%s  index(%d) is out of bounds.v4l2_port_num=%d\n",
@@ -1321,7 +1365,7 @@ static int vdin_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct vdin_v4l2_pix_fmt *fmt;
 
-	if (f->index >= ARRAY_SIZE(pix_formats))
+	if (!f || f->index >= ARRAY_SIZE(pix_formats))
 		return -EINVAL;
 
 	fmt = &pix_formats[f->index];
@@ -1339,6 +1383,9 @@ static int vidioc_try_fmt_vid_cap_mplane(struct file *file, void *priv,
 {
 	int i = 0;
 	struct vdin_dev_s *devp = video_drvdata(file);
+
+	if (IS_ERR_OR_NULL(devp))
+		return -EFAULT;
 
 	dprintk(1, "%s width[%d] height[%d] num_planes[%ds]\n", __func__,
 		f->fmt.pix_mp.width, f->fmt.pix_mp.height, f->fmt.pix_mp.num_planes);
