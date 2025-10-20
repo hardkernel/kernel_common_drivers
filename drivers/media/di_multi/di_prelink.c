@@ -2609,7 +2609,10 @@ static bool dpvpp_parser_bypass(struct dimn_itf_s *itf,
 		dvfm = (struct dimn_dvfm_s *)vf->private_data;
 		if (itf->etype == EDIM_NIN_TYPE_VFM) {
 			vf_ori = (struct vframe_s *)dvfm->c.ori_in;
-			ds_ratio = vtype_fill_bypass(vf_ori);
+			if (IS_IC_SUPPORT(DECONTOUR))
+				ds_ratio = vtype_fill_bypass(vf_ori);
+			else
+				ds_ratio = DI_FLAG_DCT_DS_RATIO_MAX;
 			vf_ori->di_flag |= DI_FLAG_DI_PVPPLINK_BYPASS | DI_FLAG_DI_BYPASS;
 			ds_ratio = ds_ratio << DI_FLAG_DCT_DS_RATIO_BIT;
 			ds_ratio &= DI_FLAG_DCT_DS_RATIO_MASK;
@@ -2628,7 +2631,10 @@ static bool dpvpp_parser_bypass(struct dimn_itf_s *itf,
 			buffer_ori = (struct di_buffer *)dvfm->c.ori_in;
 			buffer_ori->flag |= DI_FLAG_BUF_BY_PASS;
 			if (buffer_ori->vf) {
-				ds_ratio = vtype_fill_bypass(buffer_ori->vf);
+				if (IS_IC_SUPPORT(DECONTOUR))
+					ds_ratio = vtype_fill_bypass(buffer_ori->vf);
+				else
+					ds_ratio = DI_FLAG_DCT_DS_RATIO_MAX;
 				buffer_ori->vf->di_flag |= DI_FLAG_DI_PVPPLINK_BYPASS;
 				ds_ratio = ds_ratio << DI_FLAG_DCT_DS_RATIO_BIT;
 				ds_ratio &= DI_FLAG_DCT_DS_RATIO_MASK;
@@ -5333,6 +5339,8 @@ static bool vtype_fill_d(struct dimn_itf_s *itf,
 					__func__, pch->dct_pre);
 				ds_ratio = itf->c.last_ds_ratio;
 			}
+			if (!IS_IC_SUPPORT(DECONTOUR))
+				ds_ratio = DI_FLAG_DCT_DS_RATIO_MAX;
 			ds_ratio = ds_ratio << DI_FLAG_DCT_DS_RATIO_BIT;
 			ds_ratio &= DI_FLAG_DCT_DS_RATIO_MASK;
 			vfmt->di_flag &= ~DI_FLAG_DCT_DS_RATIO_MASK;
