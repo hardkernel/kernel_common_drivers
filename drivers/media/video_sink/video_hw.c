@@ -10423,6 +10423,23 @@ void mute_output_vcbus(void)
 }
 EXPORT_SYMBOL(mute_output_vcbus);
 
+static void mute_video_vcbus(void)
+{
+	u32 black_val;
+
+	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T7) ||
+		cur_dev->display_module == OLD_DISPLAY_MODULE) {
+		/* vd1 hdr core after vd1 clip */
+		if (vd_layer[0].dispbuf)
+			if (vd_layer[0].dispbuf->type & VIDTYPE_RGB_444)
+				black_val = (0x0 << 20) | (0x0 << 10) | 0x0; /* RGB */
+	}
+	WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, black_val);
+	WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, black_val);
+	video_mute_status = VIDEO_MUTE_ON_VPP;
+}
+
 static inline void mute_output(void)
 {
 	u32 black_val;
@@ -19512,6 +19529,8 @@ void video_resume_hw_recovery(bool restore_vpu_sec)
 	vd_layer_vpp[1].property_changed = true;
 	if (output_mute_status == VIDEO_MUTE_ON_VPP)
 		mute_output_vcbus();
+	if (video_mute_status == VIDEO_MUTE_ON_VPP)
+		mute_video_vcbus();
 	force_vpp_blend_update = true;
 }
 
