@@ -4,7 +4,7 @@ ccflags-y += -I$(srctree)/drivers/thermal
 
 MODULE_NAME = amlogic-thermal
 obj-$(CONFIG_AMLOGIC_AMLOGIC_THERMAL) = $(MODULE_NAME).o
-$(MODULE_NAME)-y += meson_tsensor.o
+$(MODULE_NAME)-y += meson_tsensor.o  vir_tsens.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_COOLDEV) += meson_cooldev.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_GPU_THERMAL) += gpu_cooling.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DDR_THERMAL) += ddr_params.o ddr_control.o

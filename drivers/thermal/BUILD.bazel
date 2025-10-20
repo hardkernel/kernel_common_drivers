@@ -12,6 +12,7 @@ ddk_module(
         "CONFIG_AMLOGIC_AMLOGIC_THERMAL": {
             True: [
                 "meson_tsensor.c",
+                "vir_tsens.c",
             ],
         },
         "CONFIG_AMLOGIC_COOLDEV": {
