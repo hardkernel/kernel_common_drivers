@@ -1196,30 +1196,35 @@ s32 init_Aucpu_device(void)
 	s_aucpu_major = r;
 
 	r = class_register(&aucpu_class);
-	s_register_flag = 1;
-	aucpu_dev = device_create(&aucpu_class, NULL, MKDEV(s_aucpu_major, 0),
-				  NULL, AUCPU_DEV_NAME);
-
-	if (IS_ERR(aucpu_dev)) {
-		aucpu_pr(LOG_ERROR, "create aucpu device error.\n");
-		class_unregister(&aucpu_class);
+	if (r < 0) {
+		aucpu_pr(LOG_ERROR, "register aucpu class error.\n");
 		return -1;
 	}
+	s_register_flag = 1;
+
+	aucpu_dev = device_create(&aucpu_class, NULL, MKDEV(s_aucpu_major, 0),
+				  NULL, AUCPU_DEV_NAME);
+	if (IS_ERR(aucpu_dev)) {
+		aucpu_pr(LOG_ERROR, "create aucpu device error.\n");
+		return -1;
+	}
+
 	return 0;
 }
 
 s32 uninit_Aucpu_device(void)
 {
-	if (aucpu_dev)
+	if (!IS_ERR_OR_NULL(aucpu_dev))
 		device_destroy(&aucpu_class, MKDEV(s_aucpu_major, 0));
 
 	if (s_register_flag)
-		class_destroy(&aucpu_class);
+		class_unregister(&aucpu_class);
 	s_register_flag = 0;
 
 	if (s_aucpu_major)
 		unregister_chrdev(s_aucpu_major, AUCPU_DEV_NAME);
 	s_aucpu_major = 0;
+
 	return 0;
 }
 
