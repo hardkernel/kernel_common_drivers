@@ -850,6 +850,51 @@ void rx_edid_update_hdr_dv_info(unsigned char *p_edid)
 #endif
 }
 
+void rx_edid_update_freesync_info(unsigned char *p_edid)
+{
+	u_int vsdb_start = 0;
+	u8 tag_len, block;
+	u32 start, end, i;
+	int free_size;
+	struct data_block_location_s ret;
+
+	if (!p_edid)
+		return;
+	ret = rx_get_cea_tag_offset(p_edid, VSDB_FREESYNC_TAG);
+	if (ret.num < 1)
+		return;
+	vsdb_start = ret.pos[ret.num - 1];
+	tag_len = (p_edid[vsdb_start] & 0x1f) + 1;
+	block = vsdb_start / EDID_BLK_SIZE;
+	if (rx_info.vrr_min == 0)
+		return;
+	p_edid[vsdb_start + 6] = rx_info.vrr_min;
+	if (rx_info.vrr_max <= 255) {
+		p_edid[vsdb_start + 7] = rx_info.vrr_max;
+	} else {
+		start = block * EDID_BLK_SIZE;
+		end = (block + 1) * EDID_BLK_SIZE - 1;
+		i = start + p_edid[start + 2];
+		while (i < end) {
+			if (p_edid[i] == 0)
+				break;
+			i += DETAILED_TIMING_LEN;
+		}
+		free_size = end - i;
+		if (free_size < 2) {
+			rx_pr("no enough space to update freesync block\n");
+			return;
+		}
+		for (i = 0; i < end - vsdb_start - tag_len; ++i)
+			p_edid[end - i - 1] = p_edid[end - i - 1 - 2];
+		p_edid[vsdb_start] += 2;
+		p_edid[vsdb_start + 4] = 0x03;
+		p_edid[vsdb_start + 7] = 0xf0;
+		p_edid[vsdb_start + 14] = rx_info.vrr_max & 0xff;
+		p_edid[vsdb_start + 15] = (rx_info.vrr_max & 0x300) >> 8;
+	}
+}
+
 void rx_edid_update_vrr_info(unsigned char *p_edid)
 {
 	u_int hf_vsdb_start = 0;
@@ -873,9 +918,15 @@ void rx_edid_update_vrr_info(unsigned char *p_edid)
 	if (vrr_func_en) {
 		if (rx_info.vrr_min == 0)
 			return;
-		p_edid[hf_vsdb_start + 9] = rx_info.vrr_min;
-		p_edid[hf_vsdb_start + 10] =
-			rx_info.vrr_max >= 100 ? rx_info.vrr_max : 0;
+		p_edid[hf_vsdb_start + 9] = rx_info.vrr_min & 0x3f;
+		if (rx_info.vrr_max < 100) {
+			p_edid[hf_vsdb_start + 10] = 0;
+		} else if (rx_info.vrr_max < 256) {
+			p_edid[hf_vsdb_start + 10] = rx_info.vrr_max;
+		} else {
+			p_edid[hf_vsdb_start + 10] = rx_info.vrr_max & 0xff;
+			p_edid[hf_vsdb_start + 9] |= (rx_info.vrr_max & 0x300) >> 2;
+		}
 		if (log_level & EDID_LOG)
 			rx_pr("modify vrr min = %d, vrr_max = %d\n",
 				  rx_info.vrr_min, rx_info.vrr_max);
@@ -1123,8 +1174,7 @@ struct data_block_location_s rx_get_cea_tag_offset(u8 *cur_edid, u16 tag_code)
 			i += (1 + (*(cur_edid + i) & 0x1f));
 		}
 	}
-	if (log_level & EDID_LOG)
-		rx_pr("no tag: %#x\n", tag_code);
+
 	return ret;
 }
 
@@ -7431,6 +7481,24 @@ void rpt_edid_extraction(unsigned char *p_edid)
 }
 #endif
 
+u8 rx_get_dtd_offset(u_char *pedid, u8 blk_num)
+{
+	u32 start = blk_num * EDID_BLK_SIZE + 4;
+	u32 end = END_OF_BLK(blk_num);
+	u8 offset = 4, length = 0;
+
+	if (!pedid)
+		return 0;
+	while (start < end) {
+		if (pedid[start] == 0)
+			break;
+		length = (pedid[start] & 0x1f) + 1;
+		offset += length;
+		start += length;
+	}
+	return offset;
+}
+
 u_char rx_edid_calc_cksum(u_char *pedid, u8 blk_num)
 {
 	u_int i;
@@ -7565,7 +7633,7 @@ bool hdmi_rx_top_edid_update(void)
 		memset(&rx[i].edid_cap, 0, sizeof(struct edid_capacity));
 		rx[i].edid_size = rx_get_edid_size(pedid);
 		rx[i].sup_frl = is_support_frl(pedid, i);
-		ext_blk_num = rx[i].edid_size / EDID_BLK_SIZE - 1;
+		ext_blk_num = rx[i].edid_size / EDID_BLK_SIZE;
 		if (log_level & EDID_LOG)
 			rx_pr("ext block = %d\n", ext_blk_num);
 		rx_edid_update_hdr_dv_info(pedid);
@@ -7574,13 +7642,17 @@ bool hdmi_rx_top_edid_update(void)
 		rx_edid_update_vrr_info(pedid);
 		rx_edid_update_allm_info(pedid);
 		rx_edid_update_qms_info(pedid);
+		rx_edid_update_freesync_info(pedid);
 		if (log_level & EDID_DATA_LOG)
 			rx_pr("update port:%d\n", i);
 #ifdef CONFIG_AMLOGIC_HDMITX
 		rpt_edid_extraction(pedid);
 #endif
-		for (j = 0; j <= ext_blk_num; ++j)
+		for (j = 0; j < ext_blk_num; ++j) {
+			if (pedid[j * EDID_BLK_SIZE] == 0x2)
+				pedid[j * EDID_BLK_SIZE + 2] = rx_get_dtd_offset(pedid, j);
 			pedid[END_OF_BLK(j)] = rx_edid_calc_cksum(pedid, j);
+		}
 		for (j = 0; j < EDID_SIZE; j++) {
 			hdmirx_wr_top(edid_addr[i] + j, pedid[j], i);
 			edid_cur[i * EDID_SIZE + j] = pedid[j];

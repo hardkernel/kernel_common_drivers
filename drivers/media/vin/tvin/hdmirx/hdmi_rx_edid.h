@@ -19,7 +19,8 @@
 //2025.05.14 add edid size check before data copy
 //2025.06.18 add edid protect
 //2025.07.23 update qms length
-#define RX_EDID_H_VER "ver.2025/06/18"
+//2025.11.04 fix VRR range, update Freesync range
+#define RX_EDID_H_VER "ver.2025/11/04"
 
 #define EDID_EXT_BLK_OFF	128
 #define EDID_BLK_SIZE		128

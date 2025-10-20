@@ -993,7 +993,7 @@ struct rx_info_s {
 	bool pip_on;
 	bool hdr10p_en;
 	u8 vrr_min;
-	u8 vrr_max;
+	u32 vrr_max;
 	u32 arc_port;
 	bool arc_5vsts;
 	unsigned long timestamp;
