@@ -4879,7 +4879,7 @@ unlock:
 
 static void amlvideo2_sleep(struct amlvideo2_fh *fh)
 {
-	/* struct amlvideo2_node *node = fh->node; */
+	struct amlvideo2_node *node = fh->node;
 	/* struct amlvideo2_node_dmaqueue *dma_q = &node->vidq; */
 
 	/* DECLARE_WAITQUEUE(wait, current); */
@@ -4894,7 +4894,7 @@ static void amlvideo2_sleep(struct amlvideo2_fh *fh)
 	/* Calculate time to wake up */
 	/* timeout = msecs_to_jiffies(frames_to_ms(1)); */
 
-	if (is_black_frame && fh->is_streamed_on) {
+	if (is_black_frame && fh->is_streamed_on && node->screencap_type == 0) {
 		if (amlvideo2_thread_tick_black(fh) < 0)
 			schedule_timeout_interruptible(1);
 	} else {
