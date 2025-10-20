@@ -2395,6 +2395,17 @@ static const struct cec_platform_data_s cec_t6w_data = {
 	.reg_tab_group = cec_reg_group_a1,
 };
 
+static const struct cec_platform_data_s cec_t6x_data = {
+	.chip_id = CEC_CHIP_T6X,
+	.line_reg = 0xff,
+	.line_bit = 17,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
 #endif
 
 static const struct of_device_id aml_cec_dt_match[] = {
@@ -2506,6 +2517,10 @@ static const struct of_device_id aml_cec_dt_match[] = {
 	{
 		.compatible = "amlogic, aocec-t6w",
 		.data = &cec_t6w_data,
+	},
+	{
+		.compatible = "amlogic, aocec-t6x",
+		.data = &cec_t6x_data,
 	},
 #endif
 	{}
