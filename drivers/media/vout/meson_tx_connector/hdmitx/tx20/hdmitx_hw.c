@@ -5272,31 +5272,6 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, 2, 0, 2);
 		}
 		break;
-	case AUX_PKT_CONF_EMP_NUMBER:
-		ret = hdmitx20_check_input_argv(cmd, input_argv);
-		if (ret < 0)
-			break;
-		arg = *((u32 *)input_argv);
-		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0, arg, 16, 16);
-		/*enable*/
-		if (arg > 0)
-			hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0, 1, 0, 1);
-		else
-			hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0, 0, 0, 1);
-		break;
-	case AUX_PKT_CONF_EMP_PHY_ADDR:
-		ret = hdmitx20_check_input_argv(cmd, input_argv);
-		if (ret < 0)
-			break;
-		arg = *((u32 *)input_argv);
-		if (hdmitx_rd_check_reg(HDMITX_TOP_EMP_STAT0, 0, 0x7fffffff))
-			hdmitx_set_reg_bits(HDMITX_TOP_EMP_STAT0, 1, 31, 1);
-		if (hdmitx_rd_check_reg(HDMITX_TOP_EMP_STAT0, 0, 0xbfffffff))
-			hdmitx_set_reg_bits(HDMITX_TOP_EMP_STAT0, 1, 30, 1);
-		hdmitx_wr_reg(HDMITX_TOP_EMP_MEMADDR_START, arg);/*phys_ptr*/
-		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL1, 1, 17, 1); /*little*/
-		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL1, 120, 0, 16);
-		break;
 	case AUX_PKT_SET_SPD_INFO:
 		if (tx_comm->config_data.vend_data) {
 			vend_data = tx_comm->config_data.vend_data;
@@ -5406,7 +5381,7 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 6, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 7, 1);
 		break;
-	case AUX_PKT_SET_EMP:
+	case AUX_PKT_SET_EMP_CUVA:
 		if (!input_argv) {
 			hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0, 0, 0, 1);
 			break;
@@ -5420,9 +5395,8 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		}
 		memcpy(virt_ptr_align32bit, buffer, sizeof(struct hdmi_packet_t) * 3);
 		phys_ptr = virt_to_phys(virt_ptr_align32bit);
-		HDMITX_INFO("hdr: emp_pkt phys_ptr: %lx\n", phys_ptr);
-		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0,
-				sizeof(buffer) / (sizeof(struct hdmi_packet_t)), 16, 16);
+		/* cuva needs to send 3 emp packets */
+		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0, 3, 16, 16);
 		/* enable */
 		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0, 1, 0, 1);
 

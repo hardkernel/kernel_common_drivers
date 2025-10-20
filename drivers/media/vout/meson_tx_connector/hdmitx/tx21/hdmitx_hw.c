@@ -3634,6 +3634,7 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	u8 *pkt_byte = NULL;
 	struct emp_packet_st sbtm_emp;
 	struct vtem_sbtm_st *sbtm_para;
+	int md_data_length = 0;
 
 	if ((cmd & CMD_TYPE_MASK) != CMD_AUX_PKT_OFFSET) {
 		HDMITX_ERROR("%s cmd[0x%x] wrong cmd type\n", __func__, cmd);
@@ -3748,12 +3749,19 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		/* TODO: memcpy(&drm_db[1], DB, 26); */
 		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_DRM, pkt_byte);
 		break;
-	case AUX_PKT_SET_EMP:
-		ret = hdmitx21_check_input_argv(cmd, input_argv);
-		if (ret < 0)
+	case AUX_PKT_SET_EMP_CUVA:
+		if (!input_argv) {
+			hdmitx_dhdr_send(NULL, 0);
 			break;
+		}
 		pkt_byte = (u8 *)input_argv;
-		hdmitx_dhdr_send(pkt_byte, sizeof(struct hdmi_packet_t) * 3);
+		/* Data_Set_Length_MSB and Data_Set_Length_LSB */
+		md_data_length = pkt_byte[8] << 8 | pkt_byte[9];
+		/*
+		 * PB0 PB1 PB2 of vs_emds[1] and vs_emds[2] also need to be counted into
+		 * the length for data alignment
+		 */
+		hdmitx_dhdr_send(pkt_byte, md_data_length + 6);
 		break;
 	case AUX_PKT_SET_EMP_SBTM:
 		if (!input_argv) {
@@ -3805,8 +3813,6 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		return hdmitx21_get_cur_hdr10p_st();
 	case AUX_PKT_GET_CUVA_ST:
 		return hdmitx21_get_cur_cuva_st();
-	case AUX_PKT_CONF_EMP_NUMBER:
-	case AUX_PKT_CONF_EMP_PHY_ADDR:
 	default:
 		break;
 	}
@@ -4715,14 +4721,85 @@ void hdmitx21_dither_config(struct hdmitx21_dev *hdev)
 	hd21_write_reg(VPU_HDMI_DITH_CNTL, data32);
 }
 
-/* for emds pkt cuva */
-void hdmitx_dhdr_send(u8 *body, int max_size)
+/* for emds pkt cuva receiver mode */
+void hdmitx_cuva_dhdr_reset(struct hdmitx_common *tx_comm)
+{
+	struct meson_tx_hdr *tx_hdr = NULL;
+
+	if (!tx_comm)
+		return;
+
+	tx_hdr = tx_comm->hdr_state;
+
+	switch (tx_comm->tx_hw->chip_data->chip_type) {
+	case MESON_CPU_ID_T7:
+	case MESON_CPU_ID_S5:
+	case MESON_CPU_ID_S7:
+	case MESON_CPU_ID_S7D:
+	case MESON_CPU_ID_S6:
+		/* only in cuva receiver mode, reset d_hdr when cuva signal needs to be output */
+		if (tx_hdr->cuva_dhdr_reset) {
+			/* reset d_hdr */
+			hdmitx21_set_reg_bits(D_HDR_GEN_CTL_IVCTX, 1, 3, 1);
+			hdmitx21_set_reg_bits(D_HDR_GEN_CTL_IVCTX, 0, 3, 1);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+/* for emds pkt cuva receiver mode */
+void hdmitx_cuva_dhdr_init(struct hdmitx_common *tx_comm)
+{
+	int i;
+	struct meson_tx_hdr *tx_hdr = NULL;
+
+	if (!tx_comm)
+		return;
+
+	tx_hdr = tx_comm->hdr_state;
+	/* in cuva receiver mode, set to 1 when cuva signal needs to be output */
+	tx_hdr->cuva_dhdr_reset = false;
+
+	switch (tx_comm->tx_hw->chip_data->chip_type) {
+	case MESON_CPU_ID_T7:
+	case MESON_CPU_ID_S5:
+	case MESON_CPU_ID_S7:
+	case MESON_CPU_ID_S7D:
+	case MESON_CPU_ID_S6:
+		/* when booting, write all zero data to cuva dhdr buffer, just once */
+		pr_info("cuva d_hdr_init\n");
+		/* [0]reg_pkt_gen; [1]reg_pkt_gen_en */
+		hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 0x1);
+		/* step3: prepare packet data */
+		/* payload[15:8] pb5 msb */
+		hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_1_IVCTX, 0);
+		/* payload[7:0] pb6 lsb */
+		hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_0_IVCTX, 84 & 0xff);
+
+		/* write zero data */
+		for (i = 0; i < 84; i++)
+			hdmitx21_wr_reg(D_HDR_MEM_WDATA_IVCTX, 0);
+
+		/* reset d_hdr */
+		hdmitx21_set_reg_bits(D_HDR_GEN_CTL_IVCTX, 1, 3, 1);
+		hdmitx21_set_reg_bits(D_HDR_GEN_CTL_IVCTX, 0, 3, 1);
+
+		/* [0]reg_pkt_gen; [1]reg_pkt_gen_en */
+		hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 0x0);
+		break;
+	default:
+		break;
+	}
+}
+
+void hdmitx_dhdr_send(u8 *body, int size)
 {
 	u32 data;
 	int i;
 	int active_lines;
 	int blank_lines;
-	int hdr_emp_num;
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 	struct meson_tx_format_para *para = &hdev->tx_comm.fmt_para;
 
@@ -4736,14 +4813,9 @@ void hdmitx_dhdr_send(u8 *body, int max_size)
 	active_lines = para->timing.v_active;
 	blank_lines = para->timing.v_blank;
 
-	hdr_emp_num = (3 - 1) * 28 + 21;	//emds total send 3 packet as one d_hdr
 	//  step1: hdr timing
 	hdmitx21_wr_reg(D_HDR_VB_LE_IVCTX, (blank_lines & 0xff)); //reg_vb_le default 0x20
 	hdmitx21_wr_reg(D_HDR_SPARE_3_IVCTX, 0x2); //[1] reg_fapa_fsm_proper_move
-
-	//  step2: prepare packet data
-	hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_1_IVCTX, hdr_emp_num >> 8); //payload[15:8] pb5 msb
-	hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_0_IVCTX, hdr_emp_num & 0xff); //payload[7:0] pb6 lsb
 
 	//setting send mlds data  payload =0
 	hdmitx21_wr_reg(D_HDR_GEN_CTL_IVCTX, 0xb1); //[0] reg_source_en [6:5] fapa ctrl
@@ -4762,21 +4834,43 @@ void hdmitx_dhdr_send(u8 *body, int max_size)
 	hdmitx21_wr_reg(D_HDR_ACT_DE_LO_IVCTX, (active_lines & 0xff)); //reg_act_de_lsb
 	hdmitx21_wr_reg(D_HDR_ACT_DE_HI_IVCTX, (active_lines >> 8)); //reg_act_de_msb
 
-	//  step3: packet header and content
-	hdmitx21_wr_reg(D_HDR_EM_HB0_IVCTX, 0x7f); // HB0 header
+	/* step2: packet header and content */
+	/* HB0 header */
+	hdmitx21_wr_reg(D_HDR_EM_HB0_IVCTX, *body++);
+	/* HB1 and HB2 */
+	body += 2;
+	/* PB0 [7] new; [6] end */
+	hdmitx21_wr_reg(D_HDR_EM_PB0_IVCTX, *body++);
+	/* PB1 */
+	body++;
+	/* PB2 ID */
+	hdmitx21_wr_reg(D_HDR_EM_PB2_IVCTX, *body++);
+	hdmitx21_wr_reg(D_HDR_EM_PB3_IVCTX, *body++);
+	hdmitx21_wr_reg(D_HDR_EM_PB4_IVCTX, *body++);
+	/* set length 0x38 */
+	/* payload[15:8] pb5 msb */
+	hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_1_IVCTX, *body++);
+	/* payload[7:0] pb6 lsb */
+	hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_0_IVCTX, *body++);
 
-	hdmitx21_wr_reg(D_HDR_EM_PB0_IVCTX, 0x00); // pb0 [7] new; [6] end
-	hdmitx21_wr_reg(D_HDR_EM_PB2_IVCTX, 0x02); // pb2 ID
-	hdmitx21_wr_reg(D_HDR_EM_PB3_IVCTX, 0x00); // pb3
-	hdmitx21_wr_reg(D_HDR_EM_PB4_IVCTX, 0x00); // pb4
-
-	hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 0x1);	//[0]reg_pkt_gen; [1]reg_pkt_gen_en
-	hdmitx21_wr_reg(D_HDR_MEM_WADDR_RST_IVCTX, 0x1);
+	/*
+	 * If set to 1'b1; d_hdr memory address is reset. Before setting of reg_pkt_gen;
+	 * need to toggle from 0->1 and 1->0
+	 */
+	hdmitx21_wr_reg(D_HDR_MEM_WADDR_RST_IVCTX, 0x0);
 	hdmitx21_wr_reg(D_HDR_MEM_WADDR_RST_IVCTX, 0x1);
 	hdmitx21_wr_reg(D_HDR_MEM_WADDR_RST_IVCTX, 0x0);
-	hdmitx21_wr_reg(D_HDR_MEM_WADDR_RST_IVCTX, 0x0);
-	for (i = 0; i < hdr_emp_num && i < max_size; i++) {
+	/* [0]reg_pkt_gen; [1]reg_pkt_gen_en */
+	hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 0x1);
+
+	for (i = 0; i < size; i++) {
 		data = *body++;
+		/*
+		 * PB0, PB1, and PB2 of vs_emds[1] and vs_emds[2] are written by hardware and
+		 * do not require software operation
+		 */
+		if ((i <= 23 && i >= 21) || (i <= 54 && i >= 52))
+			continue;
 		hdmitx21_wr_reg(D_HDR_MEM_WDATA_IVCTX, data);
 	}
 	hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 0x3);

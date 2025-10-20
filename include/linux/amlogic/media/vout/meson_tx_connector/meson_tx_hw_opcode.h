@@ -100,10 +100,8 @@ enum cmd_aux_pkt {
 	AUX_PKT_SET_VSIF2,
 	AUX_PKT_DIS_VSIF,
 	AUX_PKT_SET_DRM,
-	AUX_PKT_SET_EMP,
+	AUX_PKT_SET_EMP_CUVA,
 	AUX_PKT_SET_EMP_SBTM,
-	AUX_PKT_CONF_EMP_NUMBER,
-	AUX_PKT_CONF_EMP_PHY_ADDR,
 	AUX_PKT_SET_SDP, /* used for setting the Secondary Data Packet */
 	AUX_PKT_GET_SDP, /* used for getting the Secondary Data Packet */
 };

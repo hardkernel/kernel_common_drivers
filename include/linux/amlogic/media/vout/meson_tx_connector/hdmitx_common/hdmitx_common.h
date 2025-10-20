@@ -266,6 +266,8 @@ struct meson_tx_hdr {
 	 */
 	bool all_zero_hdr10plus_pkt;
 
+	/* cuva/hdr vivid reset flag */
+	bool cuva_dhdr_reset;
 	/* amdv info */
 	enum eotf_type hdmi_current_eotf_type;
 	enum mode_type hdmi_current_tunnel_mode;

@@ -5569,7 +5569,6 @@ void hdmitx_cuva_dhdr_reset(struct hdmitx_common *tx_comm)
 
 	switch (tx_comm->tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_T7:
-	case MESON_CPU_ID_S1A:
 	case MESON_CPU_ID_S5:
 	case MESON_CPU_ID_S7:
 	case MESON_CPU_ID_S7D:
@@ -5599,7 +5598,6 @@ void hdmitx_cuva_dhdr_init(struct hdmitx_common *tx_comm)
 
 	switch (tx_comm->tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_T7:
-	case MESON_CPU_ID_S1A:
 	case MESON_CPU_ID_S5:
 	case MESON_CPU_ID_S7:
 	case MESON_CPU_ID_S7D:

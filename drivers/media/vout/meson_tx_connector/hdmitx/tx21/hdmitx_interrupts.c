@@ -29,6 +29,7 @@
 #include "hdmitx_hw_core.h"
 #include "hdmitx_hdcp.h"
 #include "meson_tx_hw_task.h"
+#include "hdmitx_packet.h"
 
 static void intr2_sw_handler(struct intr_t *, void *intr_para);
 static void intr5_sw_handler(struct intr_t *, void *intr_para);
@@ -515,6 +516,12 @@ static irqreturn_t vsync_intr_handler(int irq, void *dev)
 {
 	struct hdmitx21_dev *hdev = (struct hdmitx21_dev *)dev;
 	u32 arg;
+
+	/*
+	 * Only in cuva receiver mode, when you need to output cuva signals, you
+	 * need to reset cuva d_hdr every frame
+	 */
+	hdmitx_cuva_dhdr_reset(&hdev->tx_comm);
 
 	if (hdev->tx_comm.hdr_state->vid_mute_op != VIDEO_NONE_OP) {
 		arg = hdev->tx_comm.hdr_state->vid_mute_op;

@@ -155,7 +155,9 @@ void hdmi_drm_infoframe_set(struct hdmi_drm_infoframe *info);
 void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb);
 
 /* dhdr set */
-void hdmitx_dhdr_send(u8 *body, int max_size);
+void hdmitx_cuva_dhdr_reset(struct hdmitx_common *tx_comm);
+void hdmitx_cuva_dhdr_init(struct hdmitx_common *tx_comm);
+void hdmitx_dhdr_send(u8 *body, int size);
 /* dhdr test api */
 void hdmitx21_write_dhdr_sram(void);
 void hdmitx21_read_dhdr_sram(void);
