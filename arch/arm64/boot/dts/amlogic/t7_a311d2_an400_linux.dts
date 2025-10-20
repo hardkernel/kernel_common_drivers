@@ -125,6 +125,12 @@
 			reg = <0x0 0x3f800000 0x0 0x800000>;
 		};
 
+		lcd_cma_reserved:linux,lcd-reserved {
+			compatible = "amlogic, lcd_rsvd";
+			reg = <0x0 0x3f780000 0x0 0x00080000>;
+			tcon-size = <0x0 0x0>;
+		};
+
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;

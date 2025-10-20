@@ -4,6 +4,13 @@
  */
 
 / {
+	lcd_resman {
+		compatible = "amlogic, lcd-resman";
+		status = "okay";
+		memory-region = <&lcd_cma_reserved>;
+		memory-region-names = "lcd_cma_reserved";
+	};
+
 	lcd:lcd {
 		compatible = "amlogic, lcd-t7";
 		status = "disabled";
