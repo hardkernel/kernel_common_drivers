@@ -336,6 +336,20 @@ static struct vpu_arb_table_s vpu_rdarb_2_t6w[] = {
 		{}
 };
 
+static struct vpu_arb_table_s vpu_rdarb_2_t6x[] = {
+	/* vpu module,        reg,                    bit, len, bind_port,  name */
+	{VPU_ARB_NR_VFCD_RD,  VPU_ARB_UNBINDABLE_REG,  0,  0,   VPU_READ2,  "nr_vfcd0-3",
+		/*slv_reg,                 bit,        len*/
+		VPU_ARB_UNBINDABLE_REG,   0,           0},
+	{VPU_ARB_DAE_RD,	  VPU_ARB_UNBINDABLE_REG,  0,  0,   VPU_READ2,  "dae_rd0-11",
+		VPU_ARB_UNBINDABLE_REG,   0,           0},
+	{VPU_ARB_INP_RD,	  VPU_ARB_UNBINDABLE_REG,  0,  0,   VPU_READ2,  "inp_rd0-1",
+		VPU_ARB_UNBINDABLE_REG,   0,           0},
+	{VPU_ARB_RDMA_RD,	  VPU_ARB_UNBINDABLE_REG,  0,  0,	VPU_READ2,	"rdma_rd",
+		VPU_ARB_UNBINDABLE_REG,   0,		   0},
+		{}
+};
+
 /*
  *READ3 ARB
  */
@@ -444,26 +458,28 @@ static struct vpu_arb_table_s vpu_wrarb_1_txhd2[] = {
 
 static struct vpu_arb_table_s vpu_wrarb_1_t6w[] = {
 	/* vpu module,        reg,                    bit, len, bind_port,  name */
-	{VPU_ARB_DAE_WR,  VPU_ARB_UNBINDABLE_REG,  0,  0,   VPU_WRITE1,  "dae0-8",
+	{VPU_ARB_DAE_WR,  VPU_ARB_UNBINDABLE_REG,  0,  0,   VPU_WRITE1,  "dae0-8/inp_wr/rdma_wr",
 		/*slv_reg,                 bit,        len*/
 		VPU_ARB_UNBINDABLE_REG,   0,           0},
-	{VPU_ARB_INP_WR,  VPU_ARB_UNBINDABLE_REG,  0,  0,   VPU_WRITE1,  "inp_wr",
-		VPU_ARB_UNBINDABLE_REG,   0,           0},
-	{VPU_ARB_RDMA_WR,  VPU_ARB_UNBINDABLE_REG,  0,  0,	VPU_WRITE1,  "rdma_wr",
-		VPU_ARB_UNBINDABLE_REG,   0,		   0},
 		{}
 };
 
 /*
  *WRITE2 ARB
  */
-
 static struct vpu_arb_table_s vpu_wrarb_2_t6w[] = {
 	/* vpu module,        reg,                    bit, len, bind_port,  name */
 	{VPU_ARB_VFCE_WR,  VPU_ARB_UNBINDABLE_REG,  0,  0,   VPU_WRITE2,  "vfce/wrmif/ds_wrmif...",
 		/*slv_reg,                 bit,        len*/
 		VPU_ARB_UNBINDABLE_REG,   0,           0},
 		{}
+};
+
+static struct vpu_arb_table_s vpu_wrarb_2_t6x[] = {
+	/* vpu module,        reg,                    bit, len, bind_port,  name */
+	{VPU_ARB_VFCE_WR, VPU_ARB_UNBINDABLE_REG, 0,  0, VPU_WRITE2,  "vfce/wrmif/dae_wr/rdma...",
+		/*slv_reg,                 bit,        len*/
+		VPU_ARB_UNBINDABLE_REG,   0,           0},
 };
 
 /*
@@ -511,7 +527,6 @@ static struct vpu_urgent_table_s vpu_urgent_table_rd_vpu0_t6w[] = {
 	{VPU_ARB_AMDOLBY,       VPU_RDARB_UGT_L2C1, VPU_READ0, 3,   10,   2,  "amdolby0"},
 	{VPU_ARB_TCON_P2,       VPU_RDARB_UGT_L2C1, VPU_READ0, 3,   12,   2,  "tcon_p2"},
 	{VPU_ARB_VPU_DMA,       VPU_RDARB_UGT_L2C1, VPU_READ0, 3,   14,   2,  "vpu dma"},
-	{VPU_ARB_MC_SUB,        VPU_RDARB_UGT_L2C1, VPU_READ0, 3,   16,   2,  "mc_sub"},
 		{}
 };
 
@@ -604,14 +619,23 @@ static struct vpu_urgent_table_s vpu_urgent_table_wr_1_txhd2[] = {
 };
 
 static struct vpu_super_urgent_ctl_s vpu_super_urgent_t6w[] = {
-	/*port       reg            en_val en_bit en_len  ofst_val ofst_bit ofst_len name*/
-	{VPU_READ0,  VPU_ARB_URG_CTRL1, 1,   0,   1,      3,       16,       2,   "vpu_read0"},
-	{VPU_READ1,  VPU_ARB_URG_CTRL1, 0,   1,   1,      0,       18,       2,   "vpu_read1"},
-	{VPU_READ2,  VPU_ARB_URG_CTRL1, 0,   2,   1,      0,       20,       2,   "vpu_read2"},
-	{VPU_READ3,  VPU_ARB_URG_CTRL1, 1,   3,   1,      3,       22,       2,   "vpu_read3"},
-	{VPU_WRITE0, VPU_ARB_URG_CTRL1, 0,   4,   1,      0,       24,       2,   "vpu_write0"},
-	{VPU_WRITE1, VPU_ARB_URG_CTRL1, 0,   5,   1,      0,       26,       2,   "vpu_write1"},
-	{VPU_WRITE2, VPU_ARB_URG_CTRL1, 0,   6,   1,      0,       28,       2,   "vpu_write2"},
+	/*port       reg          en_val en_bit en_len val bit ofst_len name*/
+	{VPU_READ0,  VPU_ARB_URG_CTRL1, 1,   0,   1,   3,  16,  2,   "vpu_read0(port_idx:0)"},
+	{VPU_READ1,  VPU_ARB_URG_CTRL1, 0,   1,   1,   0,  18,  2,   "vpu_read1(port_idx:1)"},
+	{VPU_READ2,  VPU_ARB_URG_CTRL1, 0,   2,   1,   0,  20,  2,   "vpu_read2(port_idx:2)"},
+	{VPU_READ3,  VPU_ARB_URG_CTRL1, 1,   3,   1,   3,  22,  2,   "vpu_read3(port_idx:3)"},
+	{VPU_WRITE0, VPU_ARB_URG_CTRL1, 0,   4,   1,   0,  24,  2,   "vpu_write0(port_idx:4)"},
+	{VPU_WRITE1, VPU_ARB_URG_CTRL1, 0,   5,   1,   0,  26,  2,   "vpu_write1(port_idx:5)"},
+	{VPU_WRITE2, VPU_ARB_URG_CTRL1, 0,   6,   1,   0,  28,  2,   "vpu_write2(port_idx:6)"},
+	{}
+};
+
+static struct vpu_super_urgent_ctl_s vpu_super_urgent_t6x[] = {
+	/*port       reg           en_val en_bit en_len val bit len name*/
+	{VPU_READ0,  VPU_ARB_URG_CTRL1, 1,   0,   1,    3,  16,  2,  "vpu_read0(port_idx:0)"},
+	{VPU_READ2,  VPU_ARB_URG_CTRL1, 0,   2,   1,    0,  20,  2,  "vpu_read2(port_idx:2)"},
+	{VPU_WRITE0, VPU_ARB_URG_CTRL1, 0,   4,   1,    0,  24,  2,  "vpu_write0(port_idx:4)"},
+	{VPU_WRITE2, VPU_ARB_URG_CTRL1, 0,   6,   1,    0,  28,  2,  "vpu_write2(port_idx:6)"},
 	{}
 };
 
@@ -682,7 +706,7 @@ int vpu_rdarb0_2_bind_l2(enum vpu_arb_mod_e level2_module, u32 vpu_read_port)
 	if (!vpu0_2_rdarb_level2_module ||
 		vpu_read_port > VPU_WRITE1)
 		return -1;
-	if (vpu_conf.data->vpu_arb_type == ARB_4RD_3WR &&
+	if (vpu_conf.data->vpu_arb_type == ARB_RD0123_WR012 &&
 		vpu_read_port == VPU_READ2) {
 		VPUERR("vpu read0 and read2 separate can not mux\n");
 		return -1;
@@ -855,7 +879,8 @@ void get_module_info_by_port(int port)
 	case VPU_READ0:
 	case VPU_READ2:
 		if (port == VPU_READ0 ||
-			(vpu_conf.data->vpu_arb_type != ARB_4RD_3WR &&
+			(vpu_conf.data->vpu_arb_type != ARB_RD0123_WR012 &&
+			vpu_conf.data->vpu_arb_type != ARB_RD02_WR02 &&
 			port == VPU_READ2)) {
 			vpu_arb_table = vpu_rdarb_0_2_level1_tables;
 			dump_module_info(port, vpu_arb_table);
@@ -924,34 +949,14 @@ struct vpu_urgent_ctrl_s {
 
 void super_urgent_set(int port, u32 enable, u32 urgent_value)
 {
-	struct vpu_super_urgent_ctl_s *super_urgent_table = NULL;
+	struct vpu_super_urgent_ctl_s *super_urgent_table = vpu_super_urgent_table;
 
-	switch (port) {
-	case VPU_READ0:
-		super_urgent_table = vpu_super_urgent_table;
-		break;
-	case VPU_READ1:
-		super_urgent_table = vpu_super_urgent_table + 1;
-		break;
-	case VPU_READ2:
-		super_urgent_table = vpu_super_urgent_table + 2;
-		break;
-	case VPU_READ3:
-		super_urgent_table = vpu_super_urgent_table + 3;
-		break;
-	case VPU_WRITE0:
-		super_urgent_table = vpu_super_urgent_table + 4;
-		break;
-	case VPU_WRITE1:
-		super_urgent_table = vpu_super_urgent_table + 5;
-		break;
-	case VPU_WRITE2:
-		super_urgent_table = vpu_super_urgent_table + 6;
-		break;
-	default:
-		break;
+	while (super_urgent_table->name) {
+		if (super_urgent_table->port == port)
+			break;
+		super_urgent_table++;
 	}
-	if (!super_urgent_table) {
+	if (!super_urgent_table->name) {
 		VPUERR("vpu port error\n");
 		return;
 	}
@@ -1260,7 +1265,8 @@ void get_module_bind_info_by_port(int port)
 	case VPU_READ0:
 	case VPU_READ2:
 		if (port == VPU_READ0 ||
-			(vpu_conf.data->vpu_arb_type != ARB_4RD_3WR &&
+			(vpu_conf.data->vpu_arb_type != ARB_RD0123_WR012 &&
+			vpu_conf.data->vpu_arb_type != ARB_RD02_WR02 &&
 			port == VPU_READ2)) {
 			dump_vpu_rdarb_0_2_bind_table();
 		} else {
@@ -1353,7 +1359,7 @@ void get_urgent_info_by_port(int port)
 	case VPU_READ0:
 	case VPU_READ2:
 		if (port == VPU_READ0 ||
-			(vpu_conf.data->vpu_arb_type != ARB_4RD_3WR &&
+			(vpu_conf.data->vpu_arb_type != ARB_RD0123_WR012 &&
 			port == VPU_READ2)) {
 			vpu_urgent_table = vpu_urgent_rd_0_2_level2_tbl;
 			dump_vpu_arb_urgent_info(port, vpu_urgent_table);
@@ -1616,7 +1622,7 @@ int init_arb_urgent_table(void)
 		vpu_urgent_rd_1_tbl = vpu_urgent_table_rd_1_t7;
 		vpu_urgent_wr_0_tbl = vpu_urgent_table_wr_0_t7;
 		vpu_urgent_wr_1_tbl = vpu_urgent_table_wr_1_t7;
-	} else if (vpu_conf.data->vpu_arb_type == ARB_2RD_2WR) {
+	} else if (vpu_conf.data->vpu_arb_type == ARB_RD01_WR01) {
 		vpu_rdarb_0_2_level1_tables = vpu_rdarb_0_2_level1_txhd2;
 		vpu_rdarb_0_2_level2_tables = vpu_rdarb_0_2_level2_txhd2;
 		vpu_rdarb_1_tables = vpu_rdarb_1_txhd2;
@@ -1627,7 +1633,7 @@ int init_arb_urgent_table(void)
 		vpu_urgent_rd_1_tbl = vpu_urgent_table_rd_1_txhd2;
 		vpu_urgent_wr_0_tbl = vpu_urgent_table_wr_0_txhd2;
 		vpu_urgent_wr_1_tbl = vpu_urgent_table_wr_1_txhd2;
-	} else if (vpu_conf.data->vpu_arb_type == ARB_4RD_3WR) {
+	} else if (vpu_conf.data->vpu_arb_type == ARB_RD0123_WR012) {
 		/*read0 and read2 separate*/
 		vpu_rdarb_0_2_level1_tables = vpu_rdarb_0_level1_t6w;
 		vpu_rdarb_0_2_level2_tables = vpu_rdarb_0_level2_t6w;
@@ -1641,6 +1647,16 @@ int init_arb_urgent_table(void)
 		vpu_urgent_rd_0_2_level2_tbl = vpu_urgent_table_rd_vpu0_t6w;
 		vpu_urgent_wr_0_tbl = vpu_urgent_table_wr_vpu0_t6w;
 		vpu_super_urgent_table = vpu_super_urgent_t6w;
+	} else if (vpu_conf.data->vpu_arb_type == ARB_RD02_WR02) {
+		vpu_rdarb_0_2_level1_tables = vpu_rdarb_0_level1_t6w;
+		vpu_rdarb_0_2_level2_tables = vpu_rdarb_0_level2_t6w;
+		vpu_rdarb_2_tables = vpu_rdarb_2_t6x;
+		vpu_wrarb_0_tables = vpu_wrarb_vpu0_t6w;
+		vpu_wrarb_2_tables = vpu_wrarb_2_t6x;
+
+		vpu_urgent_rd_0_2_level2_tbl = vpu_urgent_table_rd_vpu0_t6w;
+		vpu_urgent_wr_0_tbl = vpu_urgent_table_wr_vpu0_t6w;
+		vpu_super_urgent_table = vpu_super_urgent_t6x;
 	}
 
 	for (i = 1; i < ARB_MODULE_MAX; i++)
@@ -1649,7 +1665,8 @@ int init_arb_urgent_table(void)
 	init_write0_bind();
 	init_read0_2_write0_urgent();
 	/*t6w unbindable need control vd at read3 urgent control need by top super urgent*/
-	if (vpu_conf.data->vpu_arb_type == ARB_4RD_3WR)
+	if (vpu_conf.data->vpu_arb_type == ARB_RD0123_WR012 ||
+		vpu_conf.data->vpu_arb_type == ARB_RD02_WR02)
 		init_super_urgent();
 	return 0;
 }

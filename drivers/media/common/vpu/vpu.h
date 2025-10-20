@@ -83,9 +83,10 @@ enum vpu_mux_e {
 };
 
 enum vpu_read_type_e {
-	ARB_3RD_2WR,
-	ARB_2RD_2WR,
-	ARB_4RD_3WR,
+	ARB_RD012_WR01,
+	ARB_RD01_WR01,
+	ARB_RD0123_WR012,
+	ARB_RD02_WR02,
 };
 
 struct fclk_div_s {

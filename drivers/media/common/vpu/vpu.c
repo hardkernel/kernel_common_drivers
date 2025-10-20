@@ -1357,28 +1357,21 @@ static ssize_t vpu_dev_debug(const struct class *class, const struct class_attri
 		VPUERR("invalid command\n");
 		break;
 	}
-
 	return count;
 }
 
 static ssize_t vpu_arb_info_show(const struct class *class,
 				    const struct class_attribute *attr, char *buf)
 {
-	int rd_port_cnt = 3;
-	int wr_port_cnt = 2;
-
-	if (vpu_conf.data->vpu_arb_type == ARB_3RD_2WR) {
-		rd_port_cnt = 3;
-		wr_port_cnt = 2;
-	} else if (vpu_conf.data->vpu_arb_type == ARB_2RD_2WR) {
-		rd_port_cnt = 2;
-		wr_port_cnt = 2;
-	} else if (vpu_conf.data->vpu_arb_type == ARB_4RD_3WR) {
-		rd_port_cnt = 4;
-		wr_port_cnt = 3;
-	}
-	return sprintf(buf, "%d READ PORT %d WRITE PORT\n",
-		rd_port_cnt, wr_port_cnt);
+	if (vpu_conf.data->vpu_arb_type == ARB_RD012_WR01)
+		return sprintf(buf, "3 READ PORT(0/1/2) 2 WRITE PORT(0/1)\n");
+	else if (vpu_conf.data->vpu_arb_type == ARB_RD01_WR01)
+		return sprintf(buf, "2 READ PORT(0/1) 2 WRITE PORT(0/1)\n");
+	else if (vpu_conf.data->vpu_arb_type == ARB_RD0123_WR012)
+		return sprintf(buf, "4 READ PORT(0/1/2/3) 3 WRITE PORT(0/1/2)\n");
+	else if (vpu_conf.data->vpu_arb_type == ARB_RD02_WR02)
+		return sprintf(buf, "2 READ PORT(0/2) 2 WRITE PORT(0/2)\n");
+	return sprintf(buf, "chip don't support arb driver\n");
 }
 
 static ssize_t vpu_arb_info_debug(const struct class *class, const struct class_attribute *attr,
@@ -1996,7 +1989,7 @@ static struct vpu_data_s vpu_data_tm2 = {
 	.mem_pd_reg[3] = HHI_VPU_MEM_PD_REG3,
 	.mem_pd_reg[4] = HHI_VPU_MEM_PD_REG4,
 	.mem_pd_reg_flag = 0,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2043,7 +2036,7 @@ static struct vpu_data_s vpu_data_tm2b = {
 	.mem_pd_reg[3] = HHI_VPU_MEM_PD_REG3,
 	.mem_pd_reg[4] = HHI_VPU_MEM_PD_REG4,
 	.mem_pd_reg_flag = 0,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2090,7 +2083,7 @@ static struct vpu_data_s vpu_data_sc2 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2137,7 +2130,7 @@ static struct vpu_data_s vpu_data_t5 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2184,7 +2177,7 @@ static struct vpu_data_s vpu_data_t5d = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2231,7 +2224,7 @@ static struct vpu_data_s vpu_data_t5w = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2278,7 +2271,7 @@ static struct vpu_data_s vpu_data_t7 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t7,
 
@@ -2325,7 +2318,7 @@ static struct vpu_data_s vpu_data_s4 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2372,7 +2365,7 @@ static struct vpu_data_s vpu_data_t3 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t3,
 
@@ -2421,7 +2414,7 @@ static struct vpu_data_s vpu_data_s4d = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2469,7 +2462,7 @@ static struct vpu_data_s vpu_data_s1a = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2518,7 +2511,7 @@ static struct vpu_data_s vpu_data_c3 = {
 	.mem_pd_reg[3] = VPU_REG_END,
 	.mem_pd_reg[4] = VPU_REG_END,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2566,7 +2559,7 @@ static struct vpu_data_s vpu_data_s5 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t7,
 
@@ -2614,7 +2607,7 @@ static struct vpu_data_s vpu_data_t5m = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2661,7 +2654,7 @@ static struct vpu_data_s vpu_data_g12a = {
 	.mem_pd_reg[3] = VPU_REG_END,
 	.mem_pd_reg[4] = VPU_REG_END,
 	.mem_pd_reg_flag = 0,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2708,7 +2701,7 @@ static struct vpu_data_s vpu_data_g12b = {
 	.mem_pd_reg[3] = VPU_REG_END,
 	.mem_pd_reg[4] = VPU_REG_END,
 	.mem_pd_reg_flag = 0,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2755,7 +2748,7 @@ static struct vpu_data_s vpu_data_t3x = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t3x,
 
@@ -2802,7 +2795,7 @@ static struct vpu_data_s vpu_data_sm1 = {
 	.mem_pd_reg[3] = HHI_VPU_MEM_PD_REG3_SM1,
 	.mem_pd_reg[4] = HHI_VPU_MEM_PD_REG4_SM1,
 	.mem_pd_reg_flag = 0,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD012_WR01,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2849,7 +2842,7 @@ static struct vpu_data_s vpu_data_txhd2 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_2RD_2WR,
+	.vpu_arb_type = ARB_RD01_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2896,7 +2889,7 @@ static struct vpu_data_s vpu_data_s7 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_2RD_2WR,
+	.vpu_arb_type = ARB_RD01_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2943,7 +2936,7 @@ static struct vpu_data_s vpu_data_s7d = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_2RD_2WR,
+	.vpu_arb_type = ARB_RD01_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -3037,7 +3030,7 @@ static struct vpu_data_s vpu_data_t6d = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_2RD_2WR,
+	.vpu_arb_type = ARB_RD01_WR01,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -3085,7 +3078,7 @@ static struct vpu_data_s vpu_data_t6w = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_4RD_3WR,
+	.vpu_arb_type = ARB_RD0123_WR012,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -3133,7 +3126,7 @@ static struct vpu_data_s vpu_data_t6x = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
-	.vpu_arb_type = ARB_3RD_2WR,
+	.vpu_arb_type = ARB_RD02_WR02,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t6x,
 
@@ -3341,7 +3334,8 @@ static void vpu_late_resume(struct early_suspend *h)
 		vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
 		vpu_conf.data->chip_type == VPU_CHIP_T6D ||
 		vpu_conf.data->chip_type == VPU_CHIP_T5M ||
-		vpu_conf.data->chip_type == VPU_CHIP_T6W)
+		vpu_conf.data->chip_type == VPU_CHIP_T6W ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6X)
 		ret = init_arb_urgent_table();
 
 	suspend_status = false;
@@ -3436,7 +3430,8 @@ static int vpu_probe(struct platform_device *pdev)
 		vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
 		vpu_conf.data->chip_type == VPU_CHIP_T6D ||
 		vpu_conf.data->chip_type == VPU_CHIP_T5M ||
-		vpu_conf.data->chip_type == VPU_CHIP_T6W)
+		vpu_conf.data->chip_type == VPU_CHIP_T6W ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6X)
 		ret = init_arb_urgent_table();
 	if (ret)
 		vpu_power_init();
@@ -3561,7 +3556,8 @@ static int vpu_resume(struct device *dev)
 		vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
 		vpu_conf.data->chip_type == VPU_CHIP_T6D ||
 		vpu_conf.data->chip_type == VPU_CHIP_T5M ||
-		vpu_conf.data->chip_type == VPU_CHIP_T6W)
+		vpu_conf.data->chip_type == VPU_CHIP_T6W ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6X)
 		ret = init_arb_urgent_table();
 
 	suspend_status = false;
@@ -3611,7 +3607,8 @@ static int vpu_restore(struct device *dev)
 		vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
 		vpu_conf.data->chip_type == VPU_CHIP_T6D ||
 		vpu_conf.data->chip_type == VPU_CHIP_T5M ||
-		vpu_conf.data->chip_type == VPU_CHIP_T6W)
+		vpu_conf.data->chip_type == VPU_CHIP_T6W ||
+		vpu_conf.data->chip_type == VPU_CHIP_T6X)
 		ret = init_arb_urgent_table();
 
 	return 0;
