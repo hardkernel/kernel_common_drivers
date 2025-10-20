@@ -3795,6 +3795,17 @@ static long di_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			PR_INF("dnr_en received from user: %d\n", dnr_en);
 		}
 		break;
+	case AMDI_IOC_SET_DM_EN:
+		if (copy_from_user(&tmp,
+				   (void __user *)arg,
+				   sizeof(unsigned char))) {
+			ret = -EFAULT;
+		} else {
+			if (tmp != dnr_dm_en)
+				dnr_dm_en = tmp;
+			PR_INF("dnr_dm_en received from user: %d\n", dnr_dm_en);
+		}
+		break;
 
 	default:
 		break;
