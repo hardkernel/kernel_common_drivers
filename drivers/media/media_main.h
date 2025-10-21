@@ -592,6 +592,10 @@ static inline int ambilight_init(void)
 int dil_init(void);
 int di_module_init(void);
 int dim_module_init(void);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+int dpss_module_init(void);
+#endif
+
 #else
 static inline int dil_init(void)
 {
@@ -607,6 +611,14 @@ static inline int dim_module_init(void)
 {
 	return 0;
 }
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static inline int dpss_module_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif
 
 #ifdef CONFIG_AMLOGIC_AO_CEC

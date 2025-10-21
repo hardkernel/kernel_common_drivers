@@ -1397,6 +1397,41 @@
 		interrupt-names = "vpu_security";
 	};
 
+	multi-dpss {
+	       compatible = "amlogic, dpss-t6w";
+	       status = "disabled";
+	       flag_cma = <4>; //<1>;
+			clocks = <&clkc CLKID_DAE>,
+				<&clkc CLKID_DPE>;
+			clock-names = "clk_dae",
+					"clk_dpe";
+			/*dae/dpe clk default 800M */
+	       interrupts =    <0 279 1>,
+						<0 278 1>,
+						<0 277 1>,
+						<0 276 1>,
+						<0 275 1>,
+						<0 274 1>,
+						<0 273 1>,
+						<0 272 1>,
+						<0 271 1>,
+						<0 270 1>,
+						<0 269 1>,
+						<0 268 1>;
+	       interrupt-names = "irq_pre_vs",
+						"irq_buf_rls1",
+						"irq_buf_rls0",
+						"irq_inp",
+						"irq_dae2",
+						"irq_dae1",
+						"irq_dae0",
+						"irq_dpe2",
+						"irq_dpe1",
+						"irq_dpe0",
+						"irq_rdma",
+						"irq_dbg";
+	};
+
 	multi-di {
 		compatible = "amlogic, dim-t6d";
 		status = "disabled";

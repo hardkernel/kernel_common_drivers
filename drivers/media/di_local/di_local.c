@@ -34,6 +34,7 @@
 #include <linux/amlogic/media/di/di_interface.h>
 #include <linux/amlogic/media/di/di.h>
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 
 /*for di_ext_ops*/
 /*#include <linux/amlogic/media/video_sink/video.h> */
@@ -284,6 +285,8 @@ EXPORT_SYMBOL(pvpp_display);
 
 int pvpp_check_vf(struct vframe_s *vfm)
 {
+	if (is_meson_t6w_cpu() || is_meson_t6x_cpu())
+		return -1;
 	if (dil_api && dil_api->pvpp_link_check_vf)
 		return dil_api->pvpp_link_check_vf(vfm);
 	PR_ERR("%s:not attach\n", __func__);

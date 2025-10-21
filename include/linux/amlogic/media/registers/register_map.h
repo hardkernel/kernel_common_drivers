@@ -81,6 +81,15 @@ void aml_vcbus_update_bits(unsigned int reg,
 			   unsigned int mask,
 			   unsigned int val);
 /*
+ ** DPSS REG Read Write and Update some bits
+ */
+int aml_read_dpss(unsigned int reg);
+void aml_write_dpss(unsigned int reg, unsigned int val);
+void aml_dpss_update_bits(unsigned int reg,
+			   unsigned int mask,
+			   unsigned int val);
+
+/*
  ** DOS BUS Bus REG Read Write and Update some bits
  */
 int aml_read_dosbus(unsigned int reg);

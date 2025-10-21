@@ -64,4 +64,11 @@ struct v4l2_ext_memc_motion_comp_info {
 #define PQ_MEMC_IOC_LGE_SET_MEMC_INIT	_IOW(FRC_IOC_MAGIC, 0x10, unsigned int)
 #define FRC_IOC_SET_MEMC_N2M        _IOW(FRC_IOC_MAGIC, 0x11, unsigned int)
 
+/* DPSS_FRC IOCTRL */
+#define DPSS_FRC_IOC_MAGIC    'M'
+#define DPSS_FRC_IOC_SET_DEBLUR_LEVEL    _IOW(DPSS_FRC_IOC_MAGIC, 0x05,	unsigned int)
+#define DPSS_FRC_IOC_SET_MEMC_ON_OFF     _IOW(DPSS_FRC_IOC_MAGIC, 0x06,	unsigned int)
+#define DPSS_FRC_IOC_SET_MEMC_LEVEL      _IOW(DPSS_FRC_IOC_MAGIC, 0x07, unsigned int)
+#define DPSS_FRC_IOC_SET_MEMC_DMEO_MODE  _IOW(DPSS_FRC_IOC_MAGIC, 0x08, unsigned int)
+
 #endif

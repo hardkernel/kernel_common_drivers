@@ -10,6 +10,7 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vrr/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/deinterlace/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/di_multi/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/di_local/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/dpss/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/enhancement/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/frame_sync/Makefile

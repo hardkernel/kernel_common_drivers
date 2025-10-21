@@ -104,6 +104,9 @@ static int __init media_main_init(void)
 	call_sub_init(dil_init);
 	call_sub_init(di_module_init);
 	call_sub_init(dim_module_init);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	call_sub_init(dpss_module_init);
+#endif
 	call_sub_init(cec_init);
 	call_sub_init(gdc_driver_init);
 	call_sub_init(adc_init);

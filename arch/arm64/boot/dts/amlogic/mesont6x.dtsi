@@ -1679,7 +1679,7 @@
 
 	multi-dpss {
 	       compatible = "amlogic, dpss-t6x";
-	       status = "okay";
+	       status = "disabled";
 	       flag_cma = <4>; //<1>;
 			clocks = <&clkc CLKID_DAE>,
 				<&clkc CLKID_DPE>;

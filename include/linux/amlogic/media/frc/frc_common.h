@@ -131,6 +131,14 @@ enum efrc_memc_dbg_type {
 	MEMC_DBG_GLB_CTRL         = 0x0D,
 	MEMC_DBG_BAD_EDIT_CTRL    = 0x0E,
 	MEMC_DBG_REGION_FB_CTRL   = 0x0F,
+	MEMC_DBG_ME_PATCH         = 0x10,
+	MEMC_DBG_VP_RULE          = 0x11,
+	MEMC_DBG_VP_PATCH         = 0x12,
+	MEMC_DBG_LOGO_RULE        = 0x13,
+	MEMC_DBG_LOGO_PATCH       = 0x14,
+	MEMC_DBG_BBD_RULE         = 0x15,
+	MEMC_DBG_MC_RULE          = 0x16,
+	MEMC_DBG_FILM_OUT_CTRL    = 0x17,
 };
 
 //-----------------------------------------------------------frc top cfg
