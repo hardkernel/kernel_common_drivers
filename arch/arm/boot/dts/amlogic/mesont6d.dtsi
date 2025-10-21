@@ -1480,7 +1480,7 @@
 		reg = <0xfe022000 0x50>;
 		tsensor_id = <1>;
 		cal_type = <0x11>;
-		cal_coeff = <296 396 2757 8526>;
+		cal_coeff = <296 396 2907 8739>;
 		rtemp = <120000>;
 		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK>;
@@ -1497,7 +1497,7 @@
 		reg = <0xfe01c000 0x50>;
 		tsensor_id = <2>;
 		cal_type = <0x11>;
-		cal_coeff = <296 396 2757 8526>;
+		cal_coeff = <296 396 2907 8739>;
 		rtemp = <120000>;
 		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK>;
@@ -1523,7 +1523,7 @@
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
-			sustainable-power = <2244>;
+			sustainable-power = <900>;
 			thermal-sensors = <&cpu_tsensor 0>;
 			trips {
 				cpu_switch_on: trip-point@0 {
@@ -1559,7 +1559,7 @@
 		top_thermal: top_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
-			sustainable-power = <2244>;
+			sustainable-power = <900>;
 			thermal-sensors = <&top_tsensor 1>;
 			trips {
 				top_switch_on: trip-point@0 {
