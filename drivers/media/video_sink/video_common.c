@@ -1722,7 +1722,8 @@ static void dump_vpp_path_size_reg(void)
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("postlend_vd1_v_start_end[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		if (cur_dev->display_module == T6W_DISPLAY_MODULE) {
+		if (cur_dev->display_module == T6W_DISPLAY_MODULE &&
+			video_is_after_meson_t6x_cpu()) {
 			reg_addr = p_vpp_path_size_reg->vd1_sco_fifo_ctrl;
 			reg_val = READ_VCBUS_REG(reg_addr);
 			pr_info("vd1_sco_fifo_ctrl[0x%x] = 0x%X\n",
@@ -1757,7 +1758,8 @@ static void dump_vpp_path_size_reg(void)
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("blend_vd2_v_start_end[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
-		if (cur_dev->display_module == T6W_DISPLAY_MODULE) {
+		if (cur_dev->display_module == T6W_DISPLAY_MODULE &&
+			video_is_after_meson_t6x_cpu()) {
 			reg_addr = p_vpp_path_size_reg->vd2_sco_fifo_ctrl;
 			reg_val = READ_VCBUS_REG(reg_addr);
 			pr_info("vd2_sco_fifo_ctrl[0x%x] = 0x%X\n",
