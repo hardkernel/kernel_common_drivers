@@ -134,7 +134,8 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* camera+recording need 524M */
-			size = <0x0 0x20c00000>;
+			/* encoder needs an additional 152MB,total=524+152=676M */
+			size = <0x0 0x2a400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
