@@ -2443,7 +2443,7 @@ static int emmc_test_bus(struct mmc_host *mmc)
 	if (err)
 		goto _out;
 
-	if (device_property_read_u32(dev, "cali_blk_cnt", &cali_blk_cnt) <= 0)
+	if (device_property_read_u32(dev, "cali_blk_cnt", &cali_blk_cnt) < 0)
 		cali_blk_cnt = CALI_BLK_CNT;
 	err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
 				  host->blk_test, blksz, cali_blk_cnt, MMC_RANDOM_NAME);
@@ -4287,7 +4287,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 				mmc, &mmc_rw_info_end_fops);
 	}
 #endif
-	if (device_property_read_u32(host->dev, "cali_blk_cnt", &cali_blk_cnt) <= 0)
+	if (device_property_read_u32(host->dev, "cali_blk_cnt", &cali_blk_cnt) < 0)
 		cali_blk_cnt = CALI_BLK_CNT;
 	host->blk_test = devm_kzalloc(host->dev,
 				      512 * cali_blk_cnt, GFP_KERNEL);
