@@ -1413,7 +1413,7 @@ static const char * const tdm_groups[] = {
 	"tdm_d5_x3", "tdm_d4_z", "tdm_d5_z", "tdm_d6_z", "tdm_d7_z",
 	"tdm_fs2_z", "tdm_sclk2_z", "tdm_sclk1_z", "tdm_fs1_z", "tdm_d8_z",
 	"tdm_d9_z", "tdm_d10_z", "tdm_d11_z", "tdm_d2_a",
-	"tdm_d3_a", "tdm_d5_a", "tdm_d6_a", "tdm_d7_a", "tdm_fs2_a",
+	"tdm_d3_a", "tdm_d4_a", "tdm_d5_a", "tdm_d6_a", "tdm_d7_a", "tdm_fs2_a",
 	"tdm_sclk2_a", "tdm_sclk1_a", "tdm_fs1_a", "tdm_d8_a", "tdm_d9_a",
 	"tdm_d10_a14", "tdm_d11_a15", "tdm_d10_a7", "tdm_d11_a8",
 	"tdm_d3_c"
