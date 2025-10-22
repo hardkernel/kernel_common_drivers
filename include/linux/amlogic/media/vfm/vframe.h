@@ -145,6 +145,8 @@
 #define AIPQ_FLAG_VERSION_1	      0x1   /*1 or 0, is old mode, t3/t3x/s5 HARDWARE do AIPQ*/
 #define AIPQ_FLAG_VERSION_2	      0x2   /*new mode, GPU do AIPQ*/
 
+#define VDIN_GAME_FRC_FLAG_EN			0x1
+
 /* need check folllowing bits when toggle frame, to trigger property change */
 /* add more bits which indicates display attr change in vf->flag */
 #define VFRAME_FLAG_DISP_ATTR_MASK VFRAME_FLAG_VIDEO_LINEAR
@@ -720,6 +722,7 @@ struct vframe_s {
 	u64 disp_pts_us64;
 	u64 timestamp;
 	u32 flag;
+	u32 flag_ext;
 	u32 priority;
 
 	unsigned int fmeter0_hcnt[4];

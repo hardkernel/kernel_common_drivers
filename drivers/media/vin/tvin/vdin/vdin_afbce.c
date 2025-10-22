@@ -822,14 +822,24 @@ void vdin_afbce_mode_init(struct vdin_dev_s *devp)
 		(devp->vdin_function_sel & VDIN_AFBCE_DOLBY))
 		devp->afbce_flag &= ~(VDIN_AFBCE_EN_LOSSY);
 
+	if (devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) {
+		if (devp->afbce_valid && devp->vdin_game_frc)
+			devp->afbce_flag |= VDIN_AFBCE_EN_LOSSY;
+		if (devp->afbce_flag & VDIN_AFBCE_EN_LOSSY)
+			devp->is_vfce_en = true;
+		else
+			devp->is_vfce_en = false;
+	}
+
 	/* default non-afbce mode
 	 * switch to afbce_mode if need by vpp notify
 	 */
 	devp->afbce_mode = 0;
 	devp->afbce_mode_pre = devp->afbce_mode;
+
 	if (devp->debug.vdin_dbg_en)
-		pr_info("vdin%d init afbce_mode: %d,afbce_flag:%#x %#x\n",
-			devp->index, devp->afbce_mode,
+		pr_info("vdin%d init afbce_mode: %d,vfce:%d,afbce_flag:%#x %#x\n",
+			devp->index, devp->afbce_mode, devp->is_vfce_en,
 			devp->dts_config.afbce_flag_cfg, devp->afbce_flag);
 }
 

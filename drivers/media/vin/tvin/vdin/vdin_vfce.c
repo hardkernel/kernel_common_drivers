@@ -671,7 +671,7 @@ void vdin_vfce_afbce_config(struct vdin_dev_s *devp)
 	if (devp->afbce_flag & VDIN_AFBCE_EN_LOSSY) {
 		lossy_luma_en = TRUE;
 		lossy_chrm_en = TRUE;
-		pr_info("afbce use lossy compression mode\n");
+		pr_info("afrc afbce use lossy compression mode\n");
 	}
 	W_VCBUS(VFCE_AFBCE_QUANT_ENABLE, (0x3 << 10) | //chrm & luma quant expand en
 		(lossy_chrm_en << 4) | (lossy_luma_en << 1));//lossy enable

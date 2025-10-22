@@ -1392,9 +1392,9 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 	else
 		highmem_flag = PageHighMem(phys_to_page(devp->mem_start));
 
-	if ((vdin_is_convert_to_422(devp->format_convert) &&
+	if (vdin_is_convert_to_422(devp->format_convert) &&
 		(devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) &&
-		devp->debug.yuv422_2plane_en))
+		devp->yuv422_2plane_en)
 		count = devp->canvas_h * 2;
 	else if (vdin_is_convert_to_nv21(devp->format_convert))
 		count = (devp->canvas_h * 3) / 2;
@@ -2071,8 +2071,9 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	vdin_dump_vf_state(devp->vfp);
 	if (vf) {
 		pr_info("current vframe index(%u):\n", vf->index);
-		pr_info("\t buf(w%u, h%u),type(0x%x 0x%x 0x%x),flag(0x%x), duration(%d),",
-		vf->width, vf->height, vf->type, vf->type_ext, vf->type_dw, vf->flag, vf->duration);
+		pr_info("\t buf(w%u, h%u),type(0x%x 0x%x 0x%x),flag(0x%x), flag_ext(0x%x), duration(%d),",
+		vf->width, vf->height, vf->type, vf->type_ext, vf->type_dw, vf->flag,
+		vf->flag_ext, vf->duration);
 		pr_info("\t ratio_control(0x%x), signal_type:0x%x, ext_signal_type:0x%x\n",
 			vf->ratio_control, vf->signal_type, vf->ext_signal_type);
 		pr_info("\t bitdepth(0x%x), bitdepth_dw(0x%x)\n", vf->bitdepth, vf->bitdepth_dw);
@@ -2130,6 +2131,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->prop.vdin_vrr_flag);
 	pr_info("vdin_pc_mode:%d vdin_cur_mode:%d bypass_pc_mode:%d\n", vdin_pc_mode,
 		devp->vdin_pc_mode, devp->debug.bypass_pc_mode);
+	pr_info("vdin_game_frc:%d bypass_game_frc:%d\n",
+		devp->vdin_game_frc, devp->debug.bypass_game_frc);
 
 	pr_info("afbce_flag: %#x %#x\n", devp->dts_config.afbce_flag_cfg, devp->afbce_flag);
 	pr_info("afbce_mode: %d, afbce_valid: %d\n", devp->afbce_mode,
@@ -4532,6 +4535,29 @@ start_chk:
 		}
 		pr_info("bypass_pc_mode:%d pc_mode:%d\n",
 			devp->debug.bypass_pc_mode, vdin_pc_mode);
+	} else if (!strcmp(parm[0], "game_frc")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (temp) {
+				devp->debug.bypass_game_frc = false;
+				devp->vdin_game_frc = 1;
+
+				if (devp->flags & VDIN_FLAG_DEC_STARTED &&
+				   (devp->vdin_function_sel & VDIN_SELF_STOP_START)) {
+					//_video_set_disable(1);
+					devp->self_stop_start = 1;
+					vdin_self_stop_dec(devp);
+					vdin_self_start_dec(devp);
+					devp->self_stop_start = 0;
+				}
+			} else {
+				devp->debug.bypass_game_frc = true;
+				devp->vdin_game_frc = 0;
+			}
+			pr_info("bypass_pc_mode:%d vdin_game_frc:%d\n",
+			devp->debug.bypass_game_frc, devp->vdin_game_frc);
+		}
+		pr_info("bypass_game_frc:%d game_frc:%d\n",
+			devp->debug.bypass_game_frc, devp->vdin_game_frc);
 	} else if (!strcmp(parm[0], "invalid_input_en")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp)
@@ -4944,11 +4970,12 @@ start_chk:
 		}
 	} else if (!strcmp(parm[0], "yuv422_2plane")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
-			if (temp)
-				devp->debug.yuv422_2plane_en = true;
+			if (temp == 0)
+				devp->yuv422_2plane_en = 0;
 			else
-				devp->debug.yuv422_2plane_en = false;
-			pr_info("yuv422_2plane_en:%d\n", devp->debug.yuv422_2plane_en);
+				devp->yuv422_2plane_en =
+					temp | YUV422_2PLANE_MANUAL;
+			pr_info("yuv422_2plane_en:%d\n", devp->yuv422_2plane_en);
 		}
 	} else if (!strcmp(parm[0], "force_afbce_422_12bit")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {

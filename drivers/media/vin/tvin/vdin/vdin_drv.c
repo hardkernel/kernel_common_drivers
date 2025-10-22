@@ -619,7 +619,8 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 	devp->vrr_frame_rate_min = vrr_check_frame_rate_min_hz();
 	if (game_mode == 1 && vdin_need_game_mode(devp)) {
 		vdin_get_in_out_fps(devp);
-		if (devp->vinfo_std_duration > (devp->vdin_std_duration + 2)) {
+		if ((devp->vinfo_std_duration > (devp->vdin_std_duration + 2)) &&
+			!devp->vdin_game_frc) {
 			/* if vout fps greater than vin fps use mode0 */
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0) {
 				devp->game_mode = (VDIN_GAME_MODE_0 |
@@ -637,8 +638,9 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 				devp->game_mode = (VDIN_GAME_MODE_0 |
 					VDIN_GAME_MODE_1);
 			}
-		} else if (devp->parm.info.fps >= VDIN_VRR_MIN_FRAME_RATE &&
-			   devp->parm.info.fps < devp->vrr_frame_rate_min) {
+		} else if ((devp->parm.info.fps >= VDIN_VRR_MIN_FRAME_RATE &&
+			   devp->parm.info.fps < devp->vrr_frame_rate_min) &&
+			   !devp->vdin_game_frc) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0) {
 				devp->game_mode = (VDIN_GAME_MODE_0 |
 					VDIN_GAME_MODE_SWITCH_EN);
@@ -709,10 +711,10 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 			devp->game_mode &= ~VDIN_GAME_MODE_1;
 			devp->game_mode &= ~VDIN_GAME_MODE_2;
 		}
-	} else if ((devp->vdin_std_duration >= VDIN_VRR_MIN_FRAME_RATE &&
+	} else if (((devp->vdin_std_duration >= VDIN_VRR_MIN_FRAME_RATE &&
 		    devp->vdin_std_duration < devp->vrr_frame_rate_min) ||
 		   (devp->vinfo_std_duration >
-		    (devp->vdin_std_duration + 2))) {
+		    (devp->vdin_std_duration + 2))) && !devp->vdin_game_frc) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0)
 			devp->game_mode = (VDIN_GAME_MODE_0 |
 					VDIN_GAME_MODE_SWITCH_EN);
@@ -1045,6 +1047,8 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		if (devp->is_422_12bit_enabled &&
 			devp->afbce_valid && vdin_is_dolby_signal_in(devp))
 			vf->type_ext |= VIDTYPE_EXT_DETUNNEL_ENABLED;
+		if (devp->vdin_game_frc)
+			vf->flag_ext |= VDIN_GAME_FRC_FLAG_EN;
 		scan_mode = devp->fmt_info_p->scan_mode;
 #ifndef VDIN_DYNAMIC_DURATION
 		vf->duration = devp->fmt_info_p->duration;
@@ -1064,7 +1068,7 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		} else if (vdin_is_convert_to_422(devp->format_convert) &&
 			(devp->dtdata->hw_ver == VDIN_HW_T6W ||
 			devp->dtdata->hw_ver == VDIN_HW_T6X) &&
-			devp->debug.yuv422_2plane_en) {
+			devp->yuv422_2plane_en) {
 			chroma_size = devp->canvas_w * devp->canvas_h;
 			luma_size = devp->canvas_w * devp->canvas_h;
 			if (!devp->baddr_en) {
@@ -1621,11 +1625,6 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 	memset(&devp->stats, 0, sizeof(devp->stats));
 	devp->afbce_flag = devp->dts_config.afbce_flag_cfg;
 	//todo:more parameter initializations will be move here
-	if ((devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) &&
-		(devp->afbce_flag & VDIN_AFBCE_EN_LOSSY))
-		devp->is_vfce_en = true;
-	else
-		devp->is_vfce_en = false;
 	//TBC
 	devp->debug.dv_dbg_log_du = 60;
 	devp->debug.dv_dbg_mask = (DV_BUF_START_RESET);
@@ -1885,6 +1884,12 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 
 	vdin_double_write_confirm(devp);
 	vdin_set_double_write_regs(devp);
+
+	//only mif config game_frc need 422_2plane,afrc default 422_2plane
+	if (devp->vdin_game_frc && !devp->afbce_valid && !devp->double_wr)
+		devp->yuv422_2plane_en |= (YUV422_2PLANE_EN << 0);
+	else
+		devp->yuv422_2plane_en &= ~(YUV422_2PLANE_EN << 0);
 
 	if (de_fmt_flag == 1 &&
 	    (devp->prop.vs != 0 ||
@@ -2246,7 +2251,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 
 	if ((devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
 		devp->self_stop_start) {
-		pr_info("linux system switch pc/game not need stop\n");
+		pr_info("frc_game or linux system switch pc/game not need stop\n");
 	} else {
 		if (!(devp->flags & VDIN_FLAG_SUSPEND_STOP) &&
 			!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
@@ -3711,10 +3716,16 @@ static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 		vfe->flag &= ~VF_FLAG_NEED_UPDATE;
 	}
 
+	if (devp->vdin_game_frc)
+		vfe->vf.flag_ext |= VDIN_GAME_FRC_FLAG_EN;
+	else
+		vfe->vf.flag_ext &= ~VDIN_GAME_FRC_FLAG_EN;
+
 	vfe->vf.frame_irq_cnt = devp->irq_cnt;
 	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-		pr_info("vdin%d,vf:%d,frame_irq:%d,cnt:%d\n", devp->index,
-			vfe->vf.index, vfe->vf.frame_irq_cnt, devp->frame_cnt);
+		pr_info("vdin%d,vf:%d,frame_irq:%d,cnt:%d, , type_ext:0x%x\n", devp->index,
+			vfe->vf.index, vfe->vf.frame_irq_cnt, devp->frame_cnt,
+			vfe->vf.type_ext);
 }
 
 static bool vdin_is_input_valid(struct vdin_dev_s *devp)
@@ -6265,6 +6276,37 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (devp->debug.vdin_dbg_en)
 			pr_info("TVIN_IOC_G_VDIN_STATUS(%#x)\n", devp->flags);
 		mutex_unlock(&devp->fe_lock);
+		break;
+	case TVIN_IOC_S_GAME_FRC_ON_OFF:
+		if (copy_from_user(&tmp, argp, sizeof(unsigned int))) {
+			ret = -EFAULT;
+			break;
+		}
+		if (devp->debug.vdin_dbg_en)
+			pr_info("TVIN_IOC_S_GAME_FRC_ON_OFF(cur:%d->%d)\n",
+				devp->vdin_game_frc, tmp);
+
+		if (devp->debug.bypass_game_frc)
+			break;
+		if (devp->vdin_game_frc != tmp) {
+			mutex_lock(&devp->fe_lock);
+			if ((devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
+				devp->flags & VDIN_FLAG_DEC_STARTED) {
+				devp->vdin_game_frc = tmp;
+				//for support VRR will default to enabling VRR,
+				//VRR and Game FRC are mutually exclusive and will stop/start vdin.
+				devp->self_stop_start = 1;
+				vdin_self_stop_dec(devp);
+				vdin_self_start_dec(devp);
+				devp->self_stop_start = 0;
+			} else {
+				devp->vdin_game_frc = tmp;
+			}
+			if (devp->debug.vdin_dbg_en)
+				pr_info("(update_game_frc:%d->%d)\n",
+					devp->vdin_game_frc, tmp);
+			mutex_unlock(&devp->fe_lock);
+		}
 		break;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case TVIN_IOC_DUMP_BUF:

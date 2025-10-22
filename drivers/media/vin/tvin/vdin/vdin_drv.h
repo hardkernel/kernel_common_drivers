@@ -155,6 +155,8 @@
 #define VDIN_RESET_PCS_CNT     5
 
 #define VDIN_MAX_INSTANCE 1
+#define YUV422_2PLANE_EN	0x1 //422_2plane_enable
+#define YUV422_2PLANE_MANUAL	0x10 //for 422_2plane_enable debug
 
 enum vdin_work_mode_e {
 	VDIN_WORK_MD_NORMAL = 0,
@@ -721,13 +723,13 @@ struct vdin_debug_s {
 	bool bypass_pc_mode;//bypass pc mode set
 	bool bypass_game_mode;//bypass game mode set
 	bool invert_secure;
+	bool bypass_game_frc;//bypass game_frc set
 	bool pause_mif_dec;
 	bool pause_afbce_dec;
 	bool bypass_filter_vsync;
 	bool force_bypass_tunnel;
 	bool conversion;
 	bool ip_pat_en;
-	bool yuv422_2plane_en;
 	bool invalid_input_en;
 	bool rgb_info_enable;
 	bool vdin_time_en;
@@ -1395,6 +1397,8 @@ struct vdin_dev_s {
 	bool vdin_get_prop_in_fe_en;
 	bool work_mode_simple;
 	struct reg_handle reg_hnd;
+	unsigned int vdin_game_frc;
+	unsigned int yuv422_2plane_en;
 };
 
 extern unsigned int max_ignore_frame_cnt;

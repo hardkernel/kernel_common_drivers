@@ -592,7 +592,8 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		case TVIN_YUV444:
 			if (IS_HDMI_SRC(port) &&
 			    scan_mod == TVIN_SCAN_MODE_PROGRESSIVE && !manual_md) {
-				if (devp->vdin_pc_mode || devp->game_mode ||
+				if (devp->vdin_pc_mode ||
+				    (devp->game_mode && !devp->vdin_game_frc) ||
 				    devp->vdin_function_sel & VDIN_FORCE_444_NOT_CONVERT)
 					format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 				else
@@ -623,7 +624,8 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		case TVIN_RGB444:
 			if (IS_HDMI_SRC(port) &&
 			    scan_mod == TVIN_SCAN_MODE_PROGRESSIVE && !manual_md) {
-				if (devp->vdin_pc_mode || devp->game_mode ||
+				if (devp->vdin_pc_mode ||
+				    (devp->game_mode && !devp->vdin_game_frc) ||
 				    devp->vdin_function_sel & VDIN_FORCE_444_NOT_CONVERT)
 					format_convert = VDIN_FORMAT_CONVERT_RGB_YUV444;
 				else
@@ -742,6 +744,7 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
 		}
 	}
+
 	if (devp->debug.dbg_force_convert)
 		format_convert = devp->debug.dbg_force_convert;
 
@@ -2637,7 +2640,7 @@ void vdin_set_wr_ctrl_vsync(struct vdin_dev_s *devp,
 		vconv_mode = 3;
 	} else {
 		swap_cbcr = 0;
-		if (devp->debug.yuv422_2plane_en)
+		if (devp->yuv422_2plane_en)
 			reg_pix_separate = 1;
 	}
 	if (devp->dtdata->hw_ver == VDIN_HW_T6D)
