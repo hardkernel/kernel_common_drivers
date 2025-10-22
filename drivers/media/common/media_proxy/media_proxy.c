@@ -200,7 +200,7 @@ static int session_creat(void **sess, char *name)
 {
 	struct mediaproxy_session *session;
 
-	pr_info("Mediaproxy is opened name[%s]\\n", name);
+	pr_dbg(1, "Mediaproxy is opened name[%s]\\n", name);
 	session = kzalloc(sizeof(*session), GFP_KERNEL);
 	if (!session) {
 		pr_info("kzalloc session error\n");
@@ -362,7 +362,7 @@ int mediaproxy_open(struct inode *inode, struct file *filp)
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
 
-	pr_info("mediaproxy open\n");
+	pr_dbg(1, "mediaproxy open\n");
 	ret = session_creat((void **)&filp->private_data, "app");
 	if (ret) {
 		pr_err("Failed to creat session\n");
@@ -375,7 +375,7 @@ int mediaproxy_release(struct inode *inode, struct file *filp)
 {
 	struct mediaproxy_session *session = filp->private_data;
 
-	pr_info("release session\n");
+	pr_dbg(1, "release session\n");
 	if (session->session_id >= 0) {
 		//not disconnect, get lock
 		struct mutex *lock = session->lock;
@@ -507,14 +507,16 @@ static int mediaproxy_disconnect(struct mediaproxy_session *session)
 	if (session->role == MP_ROLE_CONSUMER)
 		mediaproxy->has_consumer--;
 
-	pr_info("Session %s-%d is disconnected\n",
+	pr_dbg(1, "Session %s-%d is disconnected\n",
 		MP_ROLE_STRING(session->role), session->session_id);
 	session->session_id = -1;
 	session->subscribe_msg_type = 0x0;
 	session->session_entry = NULL;
 	if (session->role == MP_ROLE_CONSUMER) {
 		mediaproxy->c_fifo[session->fifo_idx]->state = MP_FIFO_UNUSING;
-		mediaproxy->c_fifo[session->fifo_idx]->subscribe_msg_type = 0x0;
+		if (mediaproxy->c_fifo[session->fifo_idx]->subscribe_msg_type
+			!= MEDIA_VIDEO_CC_INFO)
+			mediaproxy->c_fifo[session->fifo_idx]->subscribe_msg_type = 0x0;
 		update_subscribe_msg_type();
 	} else {
 		kfifo_free(&session->msg_kfifo);
@@ -700,12 +702,17 @@ int mediaproxy_inject_buf(struct mediaproxy_session *session, unsigned long arg,
 	}
 	msg.data.buf_info.ptr = ptr;
 	if (session->fifo_idx >= 0) {
-		if (kfifo_is_full(&mediaproxy->p_fifo[session->fifo_idx]->msg_kfifo))
-			pr_err("session p_fifo[%d],inject buf error\n", session->fifo_idx);
-		kfifo_in(&mediaproxy->p_fifo[session->fifo_idx]->msg_kfifo, &msg, 1);
-		mediaproxy->all_producer_fifo_empty =
-		    kfifo_is_empty(&mediaproxy->p_fifo[session->fifo_idx]->msg_kfifo);
-		wake_up_interruptible(&mediaproxy->transfer_queue);
+		if (kfifo_is_full(&mediaproxy->p_fifo[session->fifo_idx]->msg_kfifo)) {
+			pr_dbg(1, "session p_fifo[%d],inject buf error,fifo is full\n",
+				session->fifo_idx);
+			vfree(ptr);
+			result = -EINVAL;
+		} else {
+			kfifo_in(&mediaproxy->p_fifo[session->fifo_idx]->msg_kfifo, &msg, 1);
+			mediaproxy->all_producer_fifo_empty =
+			kfifo_is_empty(&mediaproxy->p_fifo[session->fifo_idx]->msg_kfifo);
+			wake_up_interruptible(&mediaproxy->transfer_queue);
+		}
 	} else {
 		vfree(ptr);
 		result = -EINVAL;
@@ -799,11 +806,11 @@ static long mediaproxy_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 
 	switch (cmd) {
 	case MEDIAPROXY_CONNECT:
-		pr_info("MEDIAPROXY_CONNECT\n");
+		pr_dbg(1, "MEDIAPROXY_CONNECT\n");
 		result = mediaproxy_connect(args.role, session->fifo_len, session);
 		break;
 	case MEDIAPROXY_DISCONNECT:
-		pr_info("MEDIAPROXY_DISCONNECT\n");
+		pr_dbg(1, "MEDIAPROXY_DISCONNECT\n");
 		result = mediaproxy_disconnect(session);
 		break;
 	case MEDIAPROXY_GET_CONSUMER_COUNT:
@@ -841,7 +848,7 @@ static long mediaproxy_ioctl(struct file *filp, unsigned int cmd, unsigned long 
 		}
 		break;
 	case MEDIAPROXY_SET_VDEC_ID:
-		pr_info("MEDIAPROXY_SET_VDEC_ID vdec_id [%d]\n",
+		pr_dbg(1, "MEDIAPROXY_SET_VDEC_ID vdec_id [%d]\n",
 				args.vdec_id);
 		session->vdec_id = args.vdec_id;
 		if (session->fifo_idx >= 0) {
@@ -991,6 +998,7 @@ static int copy_data_between_kfifo(void)
 			mediaproxy->p_fifo[i]->state == MP_FIFO_UNUSING &&
 			kfifo_is_empty(&mediaproxy->p_fifo[i]->msg_kfifo)) {
 			mediaproxy->p_fifo[i]->state = MP_FIFO_UNUSED;
+			mediaproxy->p_fifo[i]->subscribe_msg_type = 0;
 			mediaproxy->has_unusing_fifo--;
 			pr_dbg(1, "p_fifo[%d] name[%s] state[%d] to  MP_FIFO_UNUSED\n",
 				i,
@@ -1013,6 +1021,8 @@ static int copy_data_between_kfifo(void)
 			}
 			kfifo_reset_out(&mediaproxy->c_fifo[i]->msg_kfifo);
 			mediaproxy->c_fifo[i]->state = MP_FIFO_UNUSED;
+			mediaproxy->c_fifo[i]->subscribe_msg_type = 0;
+			update_subscribe_msg_type();
 			mediaproxy->has_unusing_fifo--;
 		}
 	}
@@ -1095,7 +1105,7 @@ int media_proxy_produce_deinit(void *handle)
 		return 0;
 
 	session = handle;
-	pr_info("deinit session\n");
+	pr_dbg(1, "deinit session\n");
 	if (session->session_id >= 0) {
 		//not disconnect, get lock
 		struct mutex *lock = session->lock;
@@ -1108,7 +1118,9 @@ int media_proxy_produce_deinit(void *handle)
 			mediaproxy->has_consumer--;
 		if (session->role == MP_ROLE_CONSUMER) {
 			mediaproxy->c_fifo[session->fifo_idx]->state = MP_FIFO_UNUSING;
-			mediaproxy->c_fifo[session->fifo_idx]->subscribe_msg_type = 0x0;
+			if (mediaproxy->c_fifo[session->fifo_idx]->subscribe_msg_type
+				!= MEDIA_VIDEO_CC_INFO)
+				mediaproxy->c_fifo[session->fifo_idx]->subscribe_msg_type = 0x0;
 			update_subscribe_msg_type();
 		} else {
 			mediaproxy->p_fifo[session->fifo_idx]->state = MP_FIFO_UNUSING;
@@ -1134,7 +1146,7 @@ int media_proxy_consumer_init(void **handle, char *module_name, u32 msg_type)
 	int c_ret = 0;
 	int ret = 0;
 
-	pr_info("mediaproxy consumer init [%s]\n", module_name);
+	pr_dbg(1, "mediaproxy consumer init [%s]\n", module_name);
 	ret = session_creat(handle, module_name);
 
 	if (*handle) {
