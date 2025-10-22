@@ -138,6 +138,7 @@ extern u32 new_frame_count;
 extern atomic_t vt_disable_video_done;
 extern atomic_t vt_unreg_flag;
 extern u32 pip_first_frame_toggled;
+extern u32 frc_delay_enable;
 
 void vsync_notify(void);
 int dolby_vision_need_wait(u8 path_index);

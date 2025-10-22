@@ -440,6 +440,7 @@ static struct amvideocap_req *capture_frame_req;
 u32 smallwindow_link_enable = 1;
 u32 smallwindow_link_h = 1080;
 
+u32 frc_delay_enable = 1;
 /*********************************************************/
 /* #define DUR2PTS(x) ((x) - ((x) >> 4)) */
 static inline int DUR2PTS(int x)
@@ -14121,6 +14122,30 @@ static ssize_t smallwindow_frc_link_store(const struct class *cla,
 	return strnlen(buf, count);
 }
 
+static ssize_t frc_delay_enable_show(const struct class *cla,
+			const struct class_attribute *attr,
+			char *buf)
+{
+	return snprintf(buf, 40, "frc_delay_enable=%d.\n", frc_delay_enable);
+}
+
+static ssize_t frc_delay_enable_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+
+	frc_delay_enable = res;
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -14779,6 +14804,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0664,
 		smallwindow_frc_link_show,
 		smallwindow_frc_link_store),
+	__ATTR(frc_delay_enable,
+		0664,
+		frc_delay_enable_show,
+		frc_delay_enable_store),
 
 };
 

@@ -7054,6 +7054,13 @@ u32 get_playback_delay_duration(void)
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	memc_delay = frc_get_video_latency();
 #endif
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+	if (frc_delay_enable)
+		memc_delay = dpss_frc_get_video_latency();
+#endif
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: frc delay %d ms\n", __func__, memc_delay);
+
 	return memc_delay;
 }
 EXPORT_SYMBOL(get_playback_delay_duration);
