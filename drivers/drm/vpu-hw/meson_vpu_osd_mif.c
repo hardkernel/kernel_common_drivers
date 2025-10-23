@@ -1496,9 +1496,6 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	if (!osd->gfcd_global_alpha_policy)
 		osd_global_alpha_set(vblk, reg_ops, reg, global_alpha);
 
-	osd_scan_mode_config(vblk, reg_ops, reg, pipe->subs[crtc_index]->mode.flags &
-				 DRM_MODE_FLAG_INTERLACE);
-
 	if (mvos->osd_dimm.dimm_ctrl)
 		osd_set_dimm_ctrl(vblk, reg_ops, reg, mvos->osd_dimm.dimm_value);
 
@@ -1674,6 +1671,11 @@ static void osd_register_init(struct meson_vpu_block *vblk,
 		MESON_DRM_BLOCK("set_state break for NULL OSD mixer reg.\n");
 		return;
 	}
+
+	/*
+	 * force turning off deprecated mif interlace config
+	 */
+	osd_scan_mode_config(vblk, reg_ops, reg, 1);
 
 	reg_ops->rdma_write_reg(reg->viu_osd_fifo_ctrl_stat,
 			    (1 << 31) | /*BURST_LEN_SEL[2]*/
