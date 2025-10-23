@@ -1296,7 +1296,7 @@ void vdin_set_decimation(struct vdin_dev_s *devp)
 	if (is_meson_s5_cpu()) {
 		vdin_set_decimation_s5(devp);
 		return;
-	} else if (is_meson_t3x_cpu()) {
+	} else if (is_meson_t3x_cpu() || is_meson_t6x_cpu()) {
 		vdin_set_decimation_t3x(devp);
 		return;
 	}
