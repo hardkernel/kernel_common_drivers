@@ -130,7 +130,8 @@ static void amlogic_pdd_irq_clr(struct device *dev)
 	u32 byte_offs = priv->digital[IRQ_CLR].byte_offs;
 	u32 bit_offs = priv->digital[IRQ_CLR].bit_offs;
 
-	regmap_update_bits(priv->regmap, byte_offs, BIT(bit_offs), BIT(bit_offs));
+	regmap_update_bits_base(priv->regmap, byte_offs, BIT(bit_offs),
+				BIT(bit_offs), NULL, false, true);
 }
 
 static void amlogic_pdd_hw_enable(struct device *dev)

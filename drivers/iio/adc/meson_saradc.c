@@ -321,9 +321,9 @@ static void meson_sar_adc_start_sample_engine(struct iio_dev *indio_dev)
 			   MESON_SAR_ADC_REG0_SAMPLE_ENGINE_ENABLE,
 			   MESON_SAR_ADC_REG0_SAMPLE_ENGINE_ENABLE);
 
-	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG0,
-			   MESON_SAR_ADC_REG0_SAMPLING_START,
-			   MESON_SAR_ADC_REG0_SAMPLING_START);
+	regmap_update_bits_base(priv->regmap, MESON_SAR_ADC_REG0,
+				MESON_SAR_ADC_REG0_SAMPLING_START,
+				MESON_SAR_ADC_REG0_SAMPLING_START, NULL, false, true);
 }
 
 static void meson_sar_adc_stop_sample_engine(struct iio_dev *indio_dev)

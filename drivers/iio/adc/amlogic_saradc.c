@@ -227,9 +227,8 @@ static void amlogic_saradc_start_sample(struct amlogic_saradc_priv *priv)
 
 	usleep_range(20, 30);
 
-	regmap_update_bits(priv->regmap, SARADC_REG0,
-			   SARADC_REG0_SAMPLE_START,
-			   SARADC_REG0_SAMPLE_START);
+	regmap_update_bits_base(priv->regmap, SARADC_REG0, SARADC_REG0_SAMPLE_START,
+				SARADC_REG0_SAMPLE_START, NULL, false, true);
 }
 
 static void amlogic_saradc_stop_sample(struct amlogic_saradc_priv *priv)
