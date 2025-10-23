@@ -4175,8 +4175,9 @@ CODEC_STATE_RO(codec_mm);
 #ifdef CONFIG_ARM64
 #include <linux/proc_fs.h>
 
-//static struct mm_struct *init_mm_t;
-struct mm_struct *aml_init_mm;
+static struct mm_struct *aml_init_mm;
+static pgd_t *faked_pgd;
+
 void (*aml_mte_sync_tags)(pte_t old_pte, pte_t pte);
 pte_t * (*aml__pte_offset_map)(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp);
 
@@ -4198,24 +4199,26 @@ static void *get_symbol_addr(const char *symbol_name)
 	return kp.addr;
 }
 
-static struct mm_struct *get_faked_init_mm(void)
+static int get_faked_init_mm(void)
 {
-	static pgd_t *faked_pgd;
-
 	unsigned long long ttbr1_el1;
 	unsigned long long swapper_pg_dir_pa;
-
-	if (faked_pgd)
-		return container_of(&faked_pgd, struct mm_struct, pgd);
+	struct task_struct *task = NULL;
 
 	ttbr1_el1 = read_sysreg(ttbr1_el1);
 	swapper_pg_dir_pa = ttbr1_el1 & 0xfffffffff000ULL;
 	faked_pgd = phys_to_virt(swapper_pg_dir_pa);
 
-	pr_info("ttbr1=%llx faked_init_mm=%px\n", ttbr1_el1,
-		container_of(&faked_pgd, struct mm_struct, pgd));
+	rcu_read_lock();
+	for_each_process(task) {
+		if (task->active_mm)
+			aml_init_mm = task->active_mm;
+	}
+	rcu_read_unlock();
 
-	return container_of(&faked_pgd, struct mm_struct, pgd);
+	pr_info("ttbr1=%llx faked_init_mm=%px\n", ttbr1_el1, aml_init_mm);
+
+	return 0;
 }
 
 static int tvp_clear_cma_pagemap(unsigned long pfn, unsigned long count)
@@ -4225,13 +4228,11 @@ static int tvp_clear_cma_pagemap(unsigned long pfn, unsigned long count)
 	pud_t *pud;
 	pmd_t *pmd;
 	unsigned long addr, end;
-	struct mm_struct *mm;
 
 	addr = (unsigned long)pfn_to_kaddr(pfn);
 	end  = addr + count * PAGE_SIZE;
-	mm = aml_init_mm;
 	for (; addr < end; addr += PMD_SIZE) {
-		pgd = pgd_offset(mm, addr);
+		pgd = pgd_offset_pgd(faked_pgd, addr);
 		if (pgd_none(*pgd) || pgd_bad(*pgd))
 			break;
 
@@ -4469,7 +4470,7 @@ int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 	struct cma *cma = NULL;
 	struct page *page = NULL;
 #if defined(CONFIG_ARM64)
-	aml_init_mm = get_faked_init_mm();
+	get_faked_init_mm();
 	aml_mte_sync_tags = (void (*)(pte_t old_pte, pte_t pte))get_symbol_addr("mte_sync_tags");
 	aml__pte_offset_map = (pte_t * (*)(pmd_t *pmd, unsigned long addr,
 			pmd_t *pmdvalp))get_symbol_addr("__pte_offset_map");
