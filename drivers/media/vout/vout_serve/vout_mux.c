@@ -610,11 +610,11 @@ static int vout_mux_probe(struct platform_device *pdev)
 	}
 	vout_mux_data = (struct vout_mux_data_s *)match->data;
 
+	if (is_meson_t3x_cpu() || is_meson_t6x_cpu())
+		vdin_meas_clk_val = VDIN_MEAS_CLK_FREQ_T3X;
+
 	if (vout_mux_data->msr_ctrl_init)
 		vout_mux_data->msr_ctrl_init(pdev, vout_mux_data);
-
-	if (is_meson_t3x_cpu())
-		vdin_meas_clk_val = VDIN_MEAS_CLK_FREQ_T3X;
 
 	VOUTPR("%s OK\n", __func__);
 
