@@ -606,7 +606,7 @@ u32 osd_vpp2_bld_ctrl_mask;
 u32 osd_vpp_bld_ctrl_update_mask;
 u32 osd2_blend_path_sel;
 u32 osd_preblend_en;
-u32 vpp_loopback_en;
+u32 vpp_loopback_en = 0xff;
 /* omx related */
 u32 omx_cur_session = 0xffffffff;
 bool omx_secret_mode;
@@ -15032,6 +15032,8 @@ static int amvideo_notify_callback(struct notifier_block *block,
 	case AMVIDEO_UPDATE_VOUT:
 		p = (u32 *)para;
 		vpp_loopback_en = p[0];
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("%s vpp_loopback_en:%d\n", __func__, vpp_loopback_en);
 		break;
 	default:
 		break;

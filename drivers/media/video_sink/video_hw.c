@@ -11379,10 +11379,14 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			VPP_PREBLEND_EN |
 			VPP_POSTBLEND_EN |
 			0xf);
-		if (vpp_loopback_en)
-			vpp_misc_set |= (0x1 << 27);
-		else
-			vpp_misc_set &= ~(0x1 << 27);
+		if (vpp_loopback_en != 0xff) {
+			if (vpp_loopback_en)
+				vpp_misc_set |= (0x1 << 27);
+			else
+				vpp_misc_set &= ~(0x1 << 27);
+		} else {
+			vpp_misc_set |= READ_VCBUS_REG(VPP_MISC) & (1 << 27);
+		}
 		if (vpp_misc_set != vpp_misc_set_save || force_flush) {
 			u32 port_val[4] = {0, 0, 0, 0};
 			u32 vd1_port, vd2_port, vd3_port;
@@ -12305,10 +12309,14 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 			VPP_PREBLEND_EN |
 			VPP_POSTBLEND_EN |
 			0xf);
-		if (vpp_loopback_en)
-			vpp_misc_set |= (0x1 << 27);
-		else
-			vpp_misc_set &= ~(0x1 << 27);
+		if (vpp_loopback_en != 0xff) {
+			if (vpp_loopback_en)
+				vpp_misc_set |= (0x1 << 27);
+			else
+				vpp_misc_set &= ~(0x1 << 27);
+		} else {
+			vpp_misc_set |= READ_VCBUS_REG(VPP_MISC) & (1 << 27);
+		}
 		if (vpp_misc_set != vpp_misc_set_save || force_flush) {
 			u32 port_val[3] = {0, 0, 0};
 			u32 vd1_port, vd2_port, icnt;
