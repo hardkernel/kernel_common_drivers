@@ -10,9 +10,7 @@
 		index = <0>;
 		pxp = <1>;
 		mode = "tablet";
-		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
-		key_valid = <0>;
-
+		fr_auto_policy = <0>; /* 0=disable, 1=enable */
 		reg = <0xff64c000 0x400   /* mipi_dsi_a host */
 			0xff64800 0x200>;   /* mipi_dsi_a phy */
 		interrupts = <0 57 1>;

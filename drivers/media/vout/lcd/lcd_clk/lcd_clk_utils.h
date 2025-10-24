@@ -41,18 +41,6 @@ void lcd_clk_generate_prbs_clk(struct aml_lcd_drv_s *pdrv,
 		unsigned int enc_clk, unsigned long long bit_rate);
 void lcd_set_vid_pll_div_dft(struct aml_lcd_drv_s *pdrv);
 
-#define MAX_CLKTREE_GATE 6
-enum clktree_type {
-	CLKTREE_GP0_PLL = 1,
-	CLKTREE_ENCL_TOP_GATE,
-	CLKTREE_ENCL_INT_GATE,
-	CLKTREE_DSI_A_HOST_GATE,
-	CLKTREE_DSI_A_PHY_GATE,
-	CLKTREE_DSI_A_MEAS,
-	CLKTREE_TCON_GATE,
-	CLKTREE_TCON,
-};
-
 void lcd_clktree_bind(struct aml_lcd_drv_s *pdrv, unsigned char status);
 void lcd_clktree_gate_switch(struct aml_lcd_drv_s *pdrv, unsigned char status);
 #ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI

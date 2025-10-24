@@ -1750,27 +1750,76 @@ lcd_prbs_clk_check_next:
 }
 
 struct lcd_clktree_list_s {
+	int type;
 	const char *name;
 	size_t offset;
 };
 
-static struct lcd_clktree_list_s clktree_list[11] = {
-	{.name = "invalid",           .offset = 0},
-	{.name = "gp0_pll",           .offset = offsetof(struct lcd_clktree_s, gp0_pll)},
-	{.name = "encl_top_gate",     .offset = offsetof(struct lcd_clktree_s, encl_top_gate)},
-	{.name = "encl_int_gate",     .offset = offsetof(struct lcd_clktree_s, encl_int_gate)},
-	{.name = "dsi_host_gate",     .offset = offsetof(struct lcd_clktree_s, dsi_host_gate)},
-	{.name = "dsi_phy_gate",      .offset = offsetof(struct lcd_clktree_s, dsi_phy_gate)},
-	{.name = "dsi_meas",          .offset = offsetof(struct lcd_clktree_s, dsi_meas)},
-	{.name = "mipi_enable_gate",  .offset = offsetof(struct lcd_clktree_s, mipi_enable_gate)},
-	{.name = "mipi_bandgap_gate", .offset = offsetof(struct lcd_clktree_s, mipi_bandgap_gate)},
-	{.name = "tcon_gate",         .offset = offsetof(struct lcd_clktree_s, tcon_gate)},
-	{.name = "clk_tcon",          .offset = offsetof(struct lcd_clktree_s, tcon_clk)},
+static struct lcd_clktree_list_s clktree_list_table[] = {
+	{
+		.type = CLKTREE_GP0_PLL,
+		.name = "gp0_pll",
+		.offset = offsetof(struct lcd_clktree_s, gp0_pll)
+	},
+	{
+		.type = CLKTREE_ENCL_TOP_GATE,
+		.name = "encl_top_gate",
+		.offset = offsetof(struct lcd_clktree_s, encl_top_gate)
+	},
+	{
+		.type = CLKTREE_ENCL_INT_GATE,
+		.name = "encl_int_gate",
+		.offset = offsetof(struct lcd_clktree_s, encl_int_gate)
+	},
+	{
+		.type = CLKTREE_DSI_A_HOST_GATE,
+		.name = "dsi_host_gate",
+		.offset = offsetof(struct lcd_clktree_s, dsi_host_gate)
+	},
+	{
+		.type = CLKTREE_DSI_A_PHY_GATE,
+		.name = "dsi_phy_gate",
+		.offset = offsetof(struct lcd_clktree_s, dsi_phy_gate)
+	},
+	{
+		.type = CLKTREE_DSI_A_MEAS,
+		.name = "dsi_meas",
+		.offset = offsetof(struct lcd_clktree_s, dsi_meas)
+	},
+	{
+		.type = CLKTREE_TCON_GATE,
+		.name = "tcon_gate",
+		.offset = offsetof(struct lcd_clktree_s, tcon_gate)
+	},
+	{
+		.type = CLKTREE_TCON,
+		.name = "clk_tcon",
+		.offset = offsetof(struct lcd_clktree_s, tcon_clk)
+	},
 };
+
+static struct lcd_clktree_list_s *lcd_clktree_get(struct aml_lcd_drv_s *pdrv, int type)
+{
+	struct lcd_clktree_list_s *find = NULL;
+	int list_size = ARRAY_SIZE(clktree_list_table);
+	int i;
+
+	for (i = 0; i < list_size; i++) {
+		if (clktree_list_table[i].type == type) {
+			find = &clktree_list_table[i];
+			break;
+		}
+	}
+	if (!find)
+		LCD_ERR(pdrv, "%s: clktree_type %d failed", __func__, type);
+
+	return find;
+}
 
 void lcd_clktree_bind(struct aml_lcd_drv_s *pdrv, unsigned char status)
 {
 	struct lcd_clk_config_s *cconf;
+	struct lcd_clktree_list_s *clk_list;
 	unsigned char i, clk_type, cnt = 0, clk_use;
 	void *clktree_base;
 	struct clk **clk_temp;
@@ -1815,20 +1864,23 @@ void lcd_clktree_bind(struct aml_lcd_drv_s *pdrv, unsigned char status)
 			break;
 		}
 
-		if (!clk_use || !clk_type)
+		if (!clk_use)
+			continue;
+		clk_list = lcd_clktree_get(pdrv, clk_type);
+		if (!clk_list)
 			continue;
 
-		clk_temp = (struct clk **)(clktree_base + clktree_list[clk_type].offset);
+		clk_temp = (struct clk **)(clktree_base + clk_list->offset);
 		if (status)
-			*clk_temp = devm_clk_get(pdrv->dev, clktree_list[clk_type].name);
+			*clk_temp = devm_clk_get(pdrv->dev, clk_list->name);
 		else
 			devm_clk_put(pdrv->dev, *clk_temp);
 
 		if (IS_ERR_OR_NULL(*clk_temp) && status) {
-			LCDERR("[%d]: %s failed\n", pdrv->index, clktree_list[clk_type].name);
+			LCD_ERR(pdrv, "%s failed", clk_list->name);
 			continue;
 		}
-		cnt += snprintf(clk_names + cnt, 120 - cnt, " %s", clktree_list[clk_type].name);
+		cnt += snprintf(clk_names + cnt, 120 - cnt, " %s", clk_list->name);
 	}
 	LCD_DBG(pdrv, "clktree %s:%s done", status ? "probe" : "remove", clk_names);
 }
@@ -1836,6 +1888,7 @@ void lcd_clktree_bind(struct aml_lcd_drv_s *pdrv, unsigned char status)
 void lcd_clktree_gate_switch(struct aml_lcd_drv_s *pdrv, unsigned char status)
 {
 	struct lcd_clk_config_s *cconf;
+	struct lcd_clktree_list_s *clk_list;
 	unsigned char i, clk_type, cnt = 0;
 	void *clktree_base;
 	struct clk **clk_temp;
@@ -1850,12 +1903,14 @@ void lcd_clktree_gate_switch(struct aml_lcd_drv_s *pdrv, unsigned char status)
 	clktree_base = (void *)&cconf->clktree;
 
 	for (i = 0; i < MAX_CLKTREE_GATE; i++) {
-		// reverse order for clktree switch off
-		clk_type = cconf->data->clktree_index[status ? i : MAX_CLKTREE_GATE - 1 - i];
+		clk_type = cconf->data->clktree_index[i];
 		if (!clk_type)
+			break;
+		clk_list = lcd_clktree_get(pdrv, clk_type);
+		if (!clk_list)
 			continue;
 
-		clk_temp = (struct clk **)(clktree_base + clktree_list[clk_type].offset);
+		clk_temp = (struct clk **)(clktree_base + clk_list->offset);
 		if (IS_ERR_OR_NULL(*clk_temp))
 			continue;
 
@@ -1864,7 +1919,7 @@ void lcd_clktree_gate_switch(struct aml_lcd_drv_s *pdrv, unsigned char status)
 		else
 			clk_disable_unprepare(*clk_temp);
 
-		cnt += snprintf(clk_names + cnt, 120 - cnt, " %s", clktree_list[clk_type].name);
+		cnt += snprintf(clk_names + cnt, 120 - cnt, " %s", clk_list->name);
 	}
 	LCD_DBG(pdrv, "%s %s:%s done", __func__, status ? "on" : "off", clk_names);
 }

@@ -16,8 +16,7 @@
 		status = "okay";
 		index = <0>;
 		mode = "tablet";
-		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
-		key_valid = <0>;
+		fr_auto_policy = <0>; /* 0=disable, 1=enable */
 		clocks = <&clkc CLKID_MIPI_DSI_A>, <&clkc CLKID_DSI0_PHY_GATE>,
 			 <&clkc CLKID_DSI_A_MEAS_GATE>;
 		clock-names = "dsi_host_gate", "dsi_phy_gate", "dsi_meas";

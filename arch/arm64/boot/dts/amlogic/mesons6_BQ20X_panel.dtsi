@@ -9,8 +9,7 @@
 		status = "okay";
 		index = <0>;
 		mode = "tablet";
-		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
-		key_valid = <0>;
+		fr_auto_policy = <0>; /* 0=disable, 1=enable */
 		clocks = <&clkc CLKID_MIPI_DSI_MEAS>;
 		clock-names = "dsi_meas";
 		reg = <0x0 0xfe01e000 0x0 0x400>, <0x0 0xfe01c000 0x0 0x60>; /*dsi host, dsi dphy*/

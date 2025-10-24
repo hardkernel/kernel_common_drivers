@@ -17,7 +17,11 @@
 		index = <0>;
 		mode = "tv";
 		fr_auto_policy = <1>; /* 0=disable, 1=enable */
-		key_valid = <1>;
+		assigned-clocks = <&clkc CLKID_CTS_TCON_PLL_CLK_SEL>;
+		assigned-clock-parents = <&clkc CLKID_FCLK_DIV5>;
+		assigned-clock-rates = <0>;
+		clocks = <&clkc CLKID_SYS_TCON>, <&clkc CLKID_CTS_TCON_PLL_CLK>;
+		clock-names = "tcon_gate", "clk_tcon";
 		reg = <0xfe3b0000 0xd000   /* tcon */
 			0xfe004000 0x70        /* periphs */
 			0xfe002000 0xa0>;      /* reset */

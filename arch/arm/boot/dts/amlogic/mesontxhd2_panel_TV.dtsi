@@ -17,8 +17,7 @@
 		index = <0>;
 		pxp = <0>;
 		mode = "tv";
-		fr_auto_policy = <2>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
-		key_valid = <1>;
+		fr_auto_policy = <2>; /* 0=disable, 1=enable */
 		assigned-clocks = <&clkc CLKID_CTS_TCON_PLL_CLK_SEL>;
 		assigned-clock-parents = <&clkc CLKID_FCLK_DIV5>;
 		assigned-clock-rates = <0>;

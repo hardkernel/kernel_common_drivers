@@ -15,7 +15,7 @@
 		compatible = "amlogic, lcd-t5d";
 		status = "okay";
 		mode = "tv";
-		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
+		fr_auto_policy = <1>; /* 0=disable, 1=enable */
 		key_valid = <1>;
 		assigned-clocks = <&clkc CLKID_TCON_PLL_CLK_MUX>;
 		assigned-clock-parents = <&clkc CLKID_FCLK_DIV5>;

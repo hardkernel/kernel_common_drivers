@@ -62,6 +62,18 @@ struct lcd_clktree_s {
 	struct clk *tcon_clk;
 };
 
+#define MAX_CLKTREE_GATE 6
+enum clktree_type {
+	CLKTREE_GP0_PLL = 1,
+	CLKTREE_ENCL_TOP_GATE,
+	CLKTREE_ENCL_INT_GATE,
+	CLKTREE_DSI_A_HOST_GATE,
+	CLKTREE_DSI_A_PHY_GATE,
+	CLKTREE_DSI_A_MEAS,
+	CLKTREE_TCON_GATE,
+	CLKTREE_TCON,
+};
+
 struct lcd_clk_config_s;
 // reference to: https://confluence.amlogic.com/display/SW/LCD+CLK+porting+note
 struct lcd_pll_data_s {
@@ -121,7 +133,7 @@ struct lcd_clk_data_s {
 	unsigned int tcon_clk_msr_id;
 
 	void (*clktree_set)(struct aml_lcd_drv_s *pdrv);
-	unsigned char clktree_index[6];
+	unsigned char clktree_index[MAX_CLKTREE_GATE];
 
 	//for some parameter changed to different lcd interface
 	void (*clk_parameter_init)(struct aml_lcd_drv_s *pdrv);
