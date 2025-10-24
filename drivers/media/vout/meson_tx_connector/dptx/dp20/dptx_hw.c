@@ -2348,6 +2348,293 @@ static int dptx20_hw_cntl_core_misc(struct meson_tx_hw *tx_hw, u32 cmd,
 	return 0;
 }
 
+static void dptx_update_dpcd_payload_id_table(struct dptx_hw_common *hw_comm,
+	u8 payload_id, u8 start_location, u8 size)
+{
+	u8 dpcd_status[1];
+	u8 dpcd_buf[3] = {payload_id, start_location, size};
+
+	dpcd_status[0] = 0x1;
+
+	/* update id table */
+	dptx_aux_write_dpcd(hw_comm->tx_aux, DP_PAYLOAD_ALLOCATE_SET, dpcd_buf, 3);
+
+	/* check status */
+	usleep_range(100, 110);
+	dpcd_status[0] = 0x0;
+	dptx_aux_read_dpcd(hw_comm->tx_aux, DP_PAYLOAD_TABLE_UPDATE_STATUS, dpcd_status, 1);
+	DPTX_INFO("Update DPCD VC PayloadID Table status %x\n", dpcd_status[0]);
+}
+
+static void dptx_read_dpcd_payload_id_table(struct dptx_hw_common *hw_comm)
+{
+	u8 dpcd_status[64] = {0};
+	u8 len = 63;
+	u8 idx;
+#define PR_SIZE 512
+	u8 print_buf[PR_SIZE] = {0};
+	int pos = 0;
+
+	for (idx = 0; idx < 63 / 16; idx++)
+		dptx_aux_read_dpcd(hw_comm->tx_aux, DP_VC_PAYLOAD_ID_SLOT_1 + 16 * idx,
+			&dpcd_status[0 + 16 * idx], 16);
+	if (len % 16 > 0)
+		dptx_aux_read_dpcd(hw_comm->tx_aux, DP_VC_PAYLOAD_ID_SLOT_1 + ((len / 16)) * 16,
+			&dpcd_status[0 + (len / 16 * 16)], len % 16);
+
+	DPTX_INFO("DPCD Payload ID Table:\n");
+	for (idx = 0; idx < 63; idx++) {
+		if (((idx + 1) % 16 == 0) || idx == 62)
+			pos += snprintf(print_buf + pos, PR_SIZE - pos, " %x\n", dpcd_status[idx]);
+		else
+			pos += snprintf(print_buf + pos, PR_SIZE - pos, " %x", dpcd_status[idx]);
+	}
+	DPTX_INFO("%s\n", print_buf);
+}
+
+static void dptx_mst_allocate_payload(struct dptx_hw_common *hw_comm, u32 payload_id,
+	u32 number_of_slots)
+{
+	u32 payload_setting;
+	u8  nx;
+
+	payload_setting = (payload_id == 0) ? 0x0 : 0x1 << (payload_id - 1);
+
+	for (nx = 0; nx < number_of_slots; nx++)
+		dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_MST_PID_TABLE_ENTRY, payload_setting);
+}
+
+static int dptx_mst_hw_init(struct dptx_hw_common *hw_comm)
+{
+	int i;
+	u8 dpcd_buff[3] = {0x0};
+	u32 active_table;
+
+	if (!hw_comm)
+		return -1;
+
+	dptx_aux_read_dpcd(hw_comm->tx_aux, DP_MSTM_CAP, dpcd_buff, 1);
+	if ((dpcd_buff[0] & DP_MST_CAP) == 0x0) {
+		DPTX_INFO("DPRX not support MST\n");
+		return -1;
+	}
+
+	/* Enable DPRx MST via aux dpcd */
+	dpcd_buff[0] = 1;
+	dptx_aux_write_dpcd(hw_comm->tx_aux, DP_MSTM_CTRL, dpcd_buff, 1);
+	/* Clear VC Payload ID table */
+	dptx_update_dpcd_payload_id_table(hw_comm, 0x0, 0x0, 64 - 1);
+	/* Read back Payload ID table */
+	dptx_read_dpcd_payload_id_table(hw_comm);
+	/* Initial Tx Payload Table, enable Tx MST */
+	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_MST_ENABLE, 1);
+	/* Determine the active table */
+	active_table = dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_MST_ACTIVE_PAYLOAD_TABLE);
+	DPTX_INFO("%s Active MST payload table is %d\n", __func__, active_table);
+	active_table = active_table ^ 1;
+	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_MST_PID_TABLE_SELECT, active_table);
+	/* Clear ID table */
+	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_MST_PID_TABLE_INDEX, 0); /* reset the index */
+	for (i = 0; i < 64; i++) /* reset table */
+		dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_MST_PID_TABLE_ENTRY, 0);
+	/* required to autoincrement the payload ID table */
+	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_MST_PID_TABLE_INDEX, 0);
+	dptx_mst_allocate_payload(hw_comm, 0, 1); /* id table header to 0 */
+	return 0;
+}
+
+static void dptx_mst_trigger_act(struct dptx_hw_common *hw_comm)
+{
+	u32 act_pending = 1;
+	u32 timeout = 100;
+	u8 dpcd_status[1];
+
+	/* Trigger ACT */
+	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_MST_ALLOCATION_TRIGGER, 0x1);
+
+	/* Wait for ACT */
+	udelay(1);
+	DPTX_INFO("Waiting for the ACT event to update the sink device\n");
+	while (timeout != 0) {
+		act_pending = dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_MST_ALLOCATION_TRIGGER);
+		if (act_pending == 0)
+			break;
+		udelay(1);
+		timeout--;
+	}
+
+	udelay(1);
+	if (timeout != 0) {
+		timeout = 20;
+		/* check dpcd status */
+		while (dpcd_status[0] != 3 && timeout != 0) {
+			dptx_aux_read_dpcd(hw_comm->tx_aux, DP_PAYLOAD_TABLE_UPDATE_STATUS,
+				dpcd_status, 0x1);
+			DPTX_INFO("Payload Table update status is %x\n", dpcd_status[0]);
+			usleep_range(11, 15);
+			timeout--;
+		}
+		if (timeout != 0)
+			DPTX_INFO("MST DPCD table update status polling done\n");
+		else
+			DPTX_INFO("Error: MST DPCD Table update status polling timeout\n");
+	} else {
+		DPTX_INFO("Error : MST ACT Trigger timeout\n");
+	}
+}
+
+static u32 dptx_mst_calculate_vcps(struct dptx_hw_common *hw_comm,
+	u32 pixel_clock, u32 bits_per_pixel)
+{
+	u32 bw = 0;
+	u32 data_per_tu = 0;
+	u32 frac_tu = 0;
+	u32 number_of_slots = 0;
+
+	bw = dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_LANE_COUNT_SET) *
+		dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_LINK_BW_SET) * 27; //Mb
+	/* ((pixel*bpp/8)/bw)*64 = pixel*bpp*8/bw */
+	data_per_tu = (pixel_clock * 8 * bits_per_pixel) / bw;
+
+	frac_tu = ((data_per_tu % 1000) * 2) / 1000;
+
+	number_of_slots = data_per_tu / 1000 + frac_tu;
+
+	DPTX_INFO("Number of slots of current source = %d\n", number_of_slots);
+
+	return number_of_slots;
+}
+
+static void dptx_mst_allocate_payload_tu_config(struct dptx_hw_common *hw_comm,
+	struct mst_conf_vcps_param *param)
+{
+	u32 number_of_slots = 0;
+
+	dptx_set_tu_config(hw_comm, param->vc_id, param->pixel_clock, param->cs, param->cd);
+	number_of_slots = dptx_mst_calculate_vcps(hw_comm, param->pixel_clock, 24); // Fixed 24bpc
+	dptx_mst_allocate_payload(hw_comm, param->vc_id + 1, number_of_slots);
+	dptx20_reg_write(hw_comm, CORE_LEVEL,
+		dptx20_hw_calc_mst_reg(param->vc_id, DPTX20_SRCX_TU_CONFIG),
+		(number_of_slots << 16) | 0x0040);
+	DPTX_INFO("src0/1 tu_config: 0x%x 0x%x\n",
+		dptx20_reg_read(hw_comm, CORE_LEVEL,
+				dptx20_hw_calc_mst_reg(0, DPTX20_SRCX_TU_CONFIG)),
+		dptx20_reg_read(hw_comm, CORE_LEVEL,
+				dptx20_hw_calc_mst_reg(1, DPTX20_SRCX_TU_CONFIG)));
+}
+
+static void dptx_mst_update_dpcd_payload_id_table(struct dptx_hw_common *hw_comm)
+{
+	u8 src_i;
+	u8 start_location  = 1;
+	u32 number_of_slots = 0;
+	u8 dpcd_status[1] = {1};
+
+	dptx_aux_write_dpcd(hw_comm->tx_aux, DP_PAYLOAD_TABLE_UPDATE_STATUS, dpcd_status, 1);
+	for (src_i = 0; src_i < 2; src_i++) {
+		number_of_slots = dptx20_reg_read(hw_comm, CORE_LEVEL,
+			dptx20_hw_calc_mst_reg(src_i, DPTX20_SRCX_TU_CONFIG));
+		number_of_slots = (number_of_slots >> 16) & 0xff;
+		dptx_update_dpcd_payload_id_table(hw_comm, 0x1 << src_i, start_location,
+			number_of_slots);
+		DPTX_INFO("src %d number_of_slots %d\n", src_i, number_of_slots);
+		start_location += number_of_slots;
+		/* Trigger and Polling status TODO,need verify with VIP */
+		dptx_mst_trigger_act(hw_comm);
+	}
+
+	/* read back Payload ID table */
+	dptx_read_dpcd_payload_id_table(hw_comm);
+}
+
+static void dptx_mst_configure_copy(struct dptx_hw_common *hw_comm, u8 des_id, u8 src_id)
+{
+	int i;
+	u32 src_reg;
+	u32 des_reg;
+	u32 src_val;
+
+	DPTX_INFO("Copy MST %d regs to %d\n", src_id, des_id);
+	for (i = 0; i < 0x200; i += 4) {
+		src_reg = dptx20_hw_calc_mst_reg(src_id, DPTX20_SRCX_VIDEO_STREAM_ENABLE + i);
+		des_reg = dptx20_hw_calc_mst_reg(des_id, DPTX20_SRCX_VIDEO_STREAM_ENABLE + i);
+		src_val = dptx20_reg_read(hw_comm, CORE_LEVEL, src_reg);
+		dptx20_reg_write(hw_comm, CORE_LEVEL, des_reg, src_val);
+	}
+}
+
+static void dptx_mst_configure_cmp(struct dptx_hw_common *hw_comm, char c)
+{
+	int i;
+	u32 src_reg;
+	u32 des_reg;
+	u32 src_val;
+	u32 des_val;
+
+	DPTX_INFO("Compare MST 0/1 regs\n");
+	for (i = 0; i < 0x200; i += 4) {
+		src_reg = dptx20_hw_calc_mst_reg(0, DPTX20_SRCX_VIDEO_STREAM_ENABLE + i);
+		des_reg = dptx20_hw_calc_mst_reg(1, DPTX20_SRCX_VIDEO_STREAM_ENABLE + i);
+		src_val = dptx20_reg_read(hw_comm, CORE_LEVEL, src_reg);
+		des_val = dptx20_reg_read(hw_comm, CORE_LEVEL, des_reg);
+		if (c == 'a')
+			DPTX_INFO("MST0[0x%03x] 0x%08x %s MST1[0x%03x] 0x%08x\n", src_reg, src_val,
+				src_val == des_val ? " =" : "!=", des_reg, des_val);
+		if (c == 'd' && src_val != des_val)
+			DPTX_INFO("MST0[0x%03x] 0x%08x %s MST1[0x%03x] 0x%08x\n", src_reg, src_val,
+				src_val == des_val ? " =" : "!=", des_reg, des_val);
+		if (c == 's' && src_val == des_val)
+			DPTX_INFO("MST0[0x%03x] 0x%08x %s MST1[0x%03x] 0x%08x\n", src_reg, src_val,
+				src_val == des_val ? " =" : "!=", des_reg, des_val);
+	}
+}
+
+static int dptx20_hw_cntl_mst(struct meson_tx_hw *tx_hw, u32 cmd,
+				  void *input_argv, void *output_struct)
+{
+	struct dptx_hw_common *hw_comm = to_dptx_hw_common(tx_hw);
+	struct mst_conf_vcps_param *vcps_param;
+	char *c;
+
+	if (!hw_comm)
+		return -1;
+
+	if ((cmd & CMD_TYPE_MASK) != CMD_MST_OFFSET) {
+		DPTX_ERROR("%s cmd[0x%x] wrong cmd type\n", __func__, cmd);
+		return -1;
+	}
+
+	switch (cmd) {
+	case DP_MST_INIT:
+		dptx_mst_hw_init(hw_comm);
+		break;
+	case DP_MST_ALLOC_PAYLOAD:
+		if (!input_argv)
+			return -1;
+		vcps_param = (struct mst_conf_vcps_param *)input_argv;
+		dptx_mst_allocate_payload_tu_config(hw_comm, vcps_param);
+		break;
+	case DP_MST_UPDATE_TABLE:
+		dptx_mst_update_dpcd_payload_id_table(hw_comm);
+		break;
+	case DP_MST_0_TO_1:
+		dptx_mst_configure_copy(hw_comm, 1, 0);
+		break;
+	case DP_MST_1_TO_0:
+		dptx_mst_configure_copy(hw_comm, 0, 1);
+		break;
+	case DP_MST_COMPARE_0_1:
+		if (!input_argv)
+			return -1;
+		c = (char *)input_argv;
+		dptx_mst_configure_cmp(hw_comm, *c);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static int dptx20_hw_cntl(struct meson_tx_hw *tx_hw, u32 cmd,
 	void *input_argv, void *output_struct)
 {
@@ -2380,6 +2667,9 @@ static int dptx20_hw_cntl(struct meson_tx_hw *tx_hw, u32 cmd,
 		break;
 	case CMD_CORE_MISC_OFFSET:
 		ret = dptx20_hw_cntl_core_misc(tx_hw, cmd, input_argv, output_struct);
+		break;
+	case CMD_MST_OFFSET:
+		ret = dptx20_hw_cntl_mst(tx_hw, cmd, input_argv, output_struct);
 		break;
 	default:
 		break;

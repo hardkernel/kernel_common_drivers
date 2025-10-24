@@ -21,6 +21,7 @@
 #define CMD_VPU_CNTL_OFFSET			(0x1a << 24)
 #define CMD_MODE_FLOW_MISC_OFFSET		(0x1b << 24)
 #define CMD_LINK_TRAINING_OFFSET		(0x1c << 24)
+#define CMD_MST_OFFSET				(0x1d << 24)
 
 /* 0x10 DDC */
 enum cmd_ddc_aux {

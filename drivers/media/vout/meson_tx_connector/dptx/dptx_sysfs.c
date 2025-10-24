@@ -519,6 +519,53 @@ static ssize_t dptx_debug_store(struct device *dev, struct device_attribute *att
 						cnt, tx_comm->base.edid_buf[cnt]);
 			}
 		}
+	} else if (token && strncmp(token, "mst", 3) == 0) {
+		token = strsep(&cur, delim);
+		if (token && strncmp(token, "init", 4) == 0) {
+			dptx_hw_cntl(&tx_comm->hw_comm->hw_base, DP_MST_INIT, NULL, NULL);
+		} else if (token && strncmp(token, "alloc", 5) == 0) {
+			struct mst_conf_vcps_param param = {0};
+			u32 temp;
+
+			token = strsep(&cur, delim);
+			if (!token || kstrtouint(token, 10, &temp) < 0)
+				return count;
+			param.vc_id = temp > 1 ? 0 : temp;
+
+			token = strsep(&cur, delim);
+			if (!token || kstrtouint(token, 10, &temp) < 0)
+				return count;
+			param.pixel_clock = temp;
+
+			token = strsep(&cur, delim);
+			if (!token || kstrtouint(token, 10, &temp) < 0)
+				return count;
+			param.cs = temp;
+
+			token = strsep(&cur, delim);
+			if (!token || kstrtouint(token, 10, &temp) < 0)
+				return count;
+			param.cd = temp;
+
+			DPTX_INFO("mst param: %d %d %d %d\n", param.vc_id, param.pixel_clock,
+				param.cs, param.cd);
+			dptx_hw_cntl(&tx_comm->hw_comm->hw_base, DP_MST_ALLOC_PAYLOAD, &param,
+				NULL);
+		} else if (token && strncmp(token, "update", 6) == 0) {
+			dptx_hw_cntl(&tx_comm->hw_comm->hw_base, DP_MST_UPDATE_TABLE, NULL, NULL);
+		} else if (token && strncmp(token, "0to1", 4) == 0) {
+			dptx_hw_cntl(&tx_comm->hw_comm->hw_base, DP_MST_0_TO_1, NULL, NULL);
+		} else if (token && strncmp(token, "1to0", 4) == 0) {
+			dptx_hw_cntl(&tx_comm->hw_comm->hw_base, DP_MST_1_TO_0, NULL, NULL);
+		} else if (token && strncmp(token, "comp", 4) == 0) {
+			char c;
+
+			token = strsep(&cur, delim);
+			c = *token;
+			if (c != 'd' || c != 's' || c != 'a')
+				c = 'a';
+			dptx_hw_cntl(&tx_comm->hw_comm->hw_base, DP_MST_COMPARE_0_1, &c, NULL);
+		}
 	} else if (token && strncmp(token, "sdp_dump", 8) == 0) {
 		dptx_hw_cntl(tx_dev->tx_hw_base, AUX_PKT_SDP_INFO_DUMP,
 			&tx_dev->sw_fmt_para.vc_id, NULL);

@@ -7,6 +7,7 @@
 #define __DPTX_HW_OPCODE_H
 
 #include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_hw_opcode.h>
+#include "cea861.h"
 
 /* special offset for DPTX */
 #define CMD_DPTX_OFFSET				(0x1 << 20)
@@ -93,6 +94,24 @@ enum cmd_link_training {
 	LINKCONF_SET_VSWING_PREEMP,
 	LINKCONF_SAVE_LINK_RATE,
 	LINKCONF_SAVE_LANE_COUNT
+};
+
+struct mst_conf_vcps_param {
+	u32 vc_id;
+	u32 pixel_clock;
+	enum colorimetry_format cs;
+	color_depth_t cd;
+};
+
+enum cmd_dptx_mst_ctrl {
+	/* MST control */
+	DP_MST_CMD = CMD_MST_OFFSET + CMD_DPTX_OFFSET,
+	DP_MST_INIT,
+	DP_MST_ALLOC_PAYLOAD,
+	DP_MST_UPDATE_TABLE,
+	DP_MST_0_TO_1,
+	DP_MST_1_TO_0,
+	DP_MST_COMPARE_0_1,
 };
 
 enum map_addr_idx_e {
