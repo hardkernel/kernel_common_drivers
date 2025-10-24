@@ -3926,7 +3926,7 @@ static void vfcd_common_compress_info(struct video_layer_s *layer,
 	u32 bc_4k_444_10bit = 0;
 	u32 input_width = 0;
 
-	input_width = cur_frame_par[0]->video_input_w;
+	input_width = frame_par->video_input_w;
 	bit = layer->mif_info_setting.bit;
 	fmt = layer->mif_info_setting.fmt;
 	//only afrc ,for mc path open
@@ -4173,7 +4173,7 @@ static void vd1_set_dcu_t6w(struct video_layer_s *layer,
 	else
 		luma_only_10bit = 0;
 
-	input_width = cur_frame_par[0]->video_input_w;
+	input_width = frame_par->video_input_w;
 	// t6x support 4k afbc yuv444 10bit
 	if (type & VIDTYPE_COMPRESS &&
 		is_compress_afbcd(layer) &&
