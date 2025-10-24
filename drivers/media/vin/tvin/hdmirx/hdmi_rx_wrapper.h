@@ -60,7 +60,9 @@
 /* 2025.08.19 Configure video and audio after the signal is ready */
 /* 2025.08.26 add 1080i 420 fmt */
 /* 2025.09.09 remove fsm cd judge */
-#define RX_WRAPPER_VER "ver.2025/09/09"
+/* 2025.10.11 reduce signal time when avi range change */
+/* 2025.10.15 fix green screen issue for case78 */
+#define RX_WRAPPER_VER "ver.2025/10/15"
 
 struct freq_ref_s {
 	bool interlace;
@@ -93,6 +95,7 @@ enum fsm_states_e {
 	FSM_SIG_FRL_CHECK,
 	FSM_SIG_FRL_DOUBLE_CHECK,
 	FSM_SIG_FDET_CHECK,
+	FSM_SIG_PRE_READY,
 	FSM_SIG_READY,
 	FSM_NULL,
 };

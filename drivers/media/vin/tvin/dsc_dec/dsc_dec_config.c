@@ -9,6 +9,13 @@
 #include "dsc_dec_reg.h"
 
 #define MHz	1000000
+#define PIX_BAND0 (333 * MHz)
+#define PIX_BAND1 (370 * MHz)
+#define PIX_BAND2 (408 * MHz)
+
+#define VPU_CLK_DIV_2 1
+#define FPLL_DIV3 2
+#define DSC_PIX_PLL 3
 
 unsigned int calculate_tmg_havon_begin(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 {
@@ -940,32 +947,55 @@ void dsc_clk_config(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 {
 	struct hdmi_dsc_pps_data_s *pps_data = &dsc_dec_drv->pps_data;
 
-	dsc_dec_config_fix_pll_clk(DSC_CLK_BAND0);
-	if ((pps_data->pic_width == 3840 && pps_data->pic_height == 2160) ||
-		(pps_data->pic_width == 4096 && pps_data->pic_height == 2160)) {
-		if (pps_data->pixel_clk <= 318 * MHz) {
-			dsc_dec_drv->pix_per_clk = 1;
-			if (pps_data->hw_vic == 97)
-				dsc_dec_config_fix_pll_clk(DSC_CLK_BAND0);
-			else
-				dsc_dec_config_fix_pll_clk(DSC_CLK_BAND3);
-		} else {
-			dsc_dec_drv->pix_per_clk = 2;
-			if (pps_data->pixel_clk <= 380 * MHz)
-				dsc_dec_config_fix_pll_clk(DSC_CLK_BAND1);
-			else
-				dsc_dec_config_fix_pll_clk(DSC_CLK_BAND2);
-		}
-	} else if (pps_data->pic_width == 7680 && pps_data->pic_height == 4320) {
-		dsc_dec_config_fix_pll_clk(DSC_CLK_BAND3);
-		if (pps_data->pixel_clk <= 320 * MHz) {
-			//yuv420 ppc setting is different from others.
-			if (dsc_dec_drv->pps_data.native_420)
-				dsc_dec_drv->pix_per_clk = 2;
-			else
+	if (dsc_dec_drv->data->chip_type == DSC_DEC_CHIP_T3X) {
+		dsc_dec_config_fix_pll_clk(DSC_CLK_BAND0);
+		if ((pps_data->pic_width == 3840 && pps_data->pic_height == 2160) ||
+			(pps_data->pic_width == 4096 && pps_data->pic_height == 2160)) {
+			if (pps_data->pixel_clk <= PIX_BAND0) {
 				dsc_dec_drv->pix_per_clk = 1;
+				if (pps_data->hw_vic == 97)
+					dsc_dec_config_fix_pll_clk(DSC_CLK_BAND0);
+				else
+					dsc_dec_config_fix_pll_clk(DSC_CLK_BAND3);
+			} else {
+				dsc_dec_drv->pix_per_clk = 2;
+				if (pps_data->pixel_clk <= PIX_BAND2)
+					dsc_dec_config_fix_pll_clk(DSC_CLK_BAND2);
+				else
+					dsc_dec_config_fix_pll_clk(DSC_CLK_BAND4);
+			}
+		} else if (pps_data->pic_width == 7680 && pps_data->pic_height == 4320) {
+			dsc_dec_config_fix_pll_clk(DSC_CLK_BAND3);
+			if (pps_data->pixel_clk <= PIX_BAND0) {
+				//yuv420 ppc setting is different from others.
+				if (dsc_dec_drv->pps_data.native_420)
+					dsc_dec_drv->pix_per_clk = 2;
+				else
+					dsc_dec_drv->pix_per_clk = 1;
+			} else {
+				dsc_dec_drv->pix_per_clk = 2;
+			}
+		}
+	} else {
+		if (pps_data->pic_width == 7680 && pps_data->pic_height == 4320) {
+			set_dsc_clk_cntl(FPLL_DIV3);
+			if (pps_data->pixel_clk <= PIX_BAND0) {
+				//yuv420 ppc setting is different from others.
+				if (dsc_dec_drv->pps_data.native_420)
+					dsc_dec_drv->pix_per_clk = 2;
+				else
+					dsc_dec_drv->pix_per_clk = 1;
+			} else {
+				dsc_dec_drv->pix_per_clk = 2;
+			}
 		} else {
-			dsc_dec_drv->pix_per_clk = 2;
+			if (pps_data->pixel_clk <= PIX_BAND0) {
+				dsc_dec_drv->pix_per_clk = 1;
+				set_dsc_clk_cntl(FPLL_DIV3);
+			} else {
+				dsc_dec_drv->pix_per_clk = 2;
+				set_dsc_clk_cntl(VPU_CLK_DIV_2);
+			}
 		}
 	}
 }
@@ -1080,53 +1110,7 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 	}
 	dsc_dec_drv->s1_de_dly = 0x21;
 
-	/* config timing register */
-	if (pps_data->pic_width == 3840 && pps_data->pic_height == 2160) {
-		if (pps_data->pixel_clk <= 318 * MHz) {
-			dsc_dec_drv->tmg_ctrl.tmg_havon_begin = 1260;
-			dsc_dec_drv->tmg_ctrl.tmg_hso_begin = 1068;
-			dsc_dec_drv->tmg_ctrl.tmg_hso_end = 1112;
-			dsc_dec_drv->tmg_ctrl.tmg_vso_begin = 0;
-			dsc_dec_drv->tmg_ctrl.tmg_vso_end = 0;
-			dsc_dec_drv->tmg_ctrl.tmg_vso_bline = 3;
-			dsc_dec_drv->tmg_ctrl.tmg_vso_eline = 13;
-			//if (pps_data->htotal == 4000 && pps_data->hactive == 1852) {
-				//dsc_dec_drv->tmg_cb_von_bline = 153;
-				//dsc_dec_drv->tmg_cb_von_eline = 2313;
-			//} else if (pps_data->htotal == 3920 && pps_data->hactive == 1852) {
-				//dsc_dec_drv->tmg_cb_von_bline = 15;
-				//dsc_dec_drv->tmg_cb_von_eline = 2175;
-			//} else {
-				//dsc_dec_drv->tmg_cb_von_bline = dsc_dec_drv->pps_data.vbegin + 1;
-				//dsc_dec_drv->tmg_cb_von_eline = dsc_dec_drv->pps_data.vend + 1;
-			//}
-			dsc_dec_drv->tmg_cb_von_bline = dsc_dec_drv->pps_data.vbegin + 1;
-			dsc_dec_drv->tmg_cb_von_eline = dsc_dec_drv->pps_data.vend + 1;
-		} else {
-			dsc_dec_drv->tmg_ctrl.tmg_havon_begin = 900;
-			dsc_dec_drv->tmg_ctrl.tmg_hso_begin = 804;
-			dsc_dec_drv->tmg_ctrl.tmg_hso_end = 826;
-			dsc_dec_drv->tmg_ctrl.tmg_vso_begin = 0;
-			dsc_dec_drv->tmg_ctrl.tmg_vso_end = 0;
-			dsc_dec_drv->tmg_ctrl.tmg_vso_bline = 3;
-			dsc_dec_drv->tmg_ctrl.tmg_vso_eline = 13;
-			//if (pps_data->htotal == 4000 && pps_data->hactive == 1852) {
-				//dsc_dec_drv->tmg_cb_von_bline = 153;
-				//dsc_dec_drv->tmg_cb_von_eline = 2313;
-			//} else if (pps_data->htotal == 3920 && pps_data->hactive == 1852) {
-				//dsc_dec_drv->tmg_cb_von_bline = 15;
-				//dsc_dec_drv->tmg_cb_von_eline = 2175;
-			//} else if (pps_data->htotal == 1964 && pps_data->hactive == 1900) {
-				//dsc_dec_drv->tmg_cb_von_bline = 15;
-				//dsc_dec_drv->tmg_cb_von_eline = 2175;
-			//} else {
-				//dsc_dec_drv->tmg_cb_von_bline = dsc_dec_drv->pps_data.vbegin + 1;
-				//dsc_dec_drv->tmg_cb_von_eline = dsc_dec_drv->pps_data.vend + 1;
-			//}
-			dsc_dec_drv->tmg_cb_von_bline = dsc_dec_drv->pps_data.vbegin + 1;
-			dsc_dec_drv->tmg_cb_von_eline = dsc_dec_drv->pps_data.vend + 1;
-		}
-	} else if (pps_data->pic_width == 7680 && pps_data->pic_height == 4320) {
+	if (pps_data->pic_width == 7680 && pps_data->pic_height == 4320) {
 		dsc_dec_drv->tmg_ctrl.tmg_havon_begin = 1260;
 		if (dsc_dec_drv->pps_data.native_420)
 			dsc_dec_drv->tmg_ctrl.tmg_hso_begin = 1068;
@@ -1137,7 +1121,7 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 		dsc_dec_drv->tmg_ctrl.tmg_vso_end = 0;
 		dsc_dec_drv->tmg_ctrl.tmg_vso_bline = 2;
 		dsc_dec_drv->tmg_ctrl.tmg_vso_eline = 22;
-		if (pps_data->pixel_clk >= 320 * MHz &&
+		if (pps_data->pixel_clk >= PIX_BAND0 &&
 			!dsc_dec_drv->pps_data.native_420 &&
 			!dsc_dec_drv->pps_data.native_422) {
 			dsc_dec_drv->tmg_ctrl.tmg_havon_begin = 386;
@@ -1160,10 +1144,21 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 			dsc_dec_drv->tmg_cb_von_bline = dsc_dec_drv->pps_data.vbegin + 1;
 			dsc_dec_drv->tmg_cb_von_eline = dsc_dec_drv->pps_data.vend + 1;
 		}
+	} else {
+		dsc_dec_drv->tmg_ctrl.tmg_havon_begin = 827;
+		dsc_dec_drv->tmg_ctrl.tmg_hso_begin = 804;
+		dsc_dec_drv->tmg_ctrl.tmg_hso_end = 826;
+		dsc_dec_drv->tmg_ctrl.tmg_vso_begin = 0;
+		dsc_dec_drv->tmg_ctrl.tmg_vso_end = 0;
+		dsc_dec_drv->tmg_ctrl.tmg_vso_bline = 3;
+		dsc_dec_drv->tmg_ctrl.tmg_vso_eline = 13;
+		dsc_dec_drv->tmg_cb_von_bline = dsc_dec_drv->pps_data.vbegin + 1;
+		dsc_dec_drv->tmg_cb_von_eline = dsc_dec_drv->pps_data.vend + 1;
 	}
 	//now some chip flash,hc_total_m1 + 1 to work around.
-	if (pps_data->pic_width == 3840 && pps_data->pic_height == 2160 &&
-		!dsc_dec_drv->pps_data.native_422)
+	if (pps_data->pic_width == 7680 && pps_data->pic_height == 4320)
+		;
+	else
 		dsc_dec_drv->hc_htotal_m1 += 1;
 	dsc_dec_config_register(dsc_dec_drv);
 	dsc_dec_config_vpu_mux(dsc_dec_drv);

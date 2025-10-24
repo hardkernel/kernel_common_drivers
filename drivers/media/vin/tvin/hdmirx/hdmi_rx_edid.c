@@ -815,7 +815,7 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 		rx_pr("port %d: 1.4 edid error\n", port_num);
 	if (!is_valid_edid_data(edid_buf + 256))
 		rx_pr("port %d: 2.1 edid error\n", port_num);
-	if (!is_valid_edid_data(edid_buf + 768))
+	if (!is_valid_edid_data(edid_buf + 768) && edid_type > EDID_TYPE_256_PLUS_512)
 		rx_pr("port %d: 2.0 edid error\n", port_num);
 	get_edid_phy_addr(edid_buf, port_num);
 	if (port_num == rx_info.port_num - 1 && !update_edid_type) {

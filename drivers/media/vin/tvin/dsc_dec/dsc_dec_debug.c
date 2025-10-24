@@ -400,8 +400,13 @@ static inline void dsc_dec_clk_dump_regs(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 	unsigned int reg;
 
 	DSC_DEC_PR("dsc_dec clk start----\n");
-	for (reg = CLKCTRL_PIX_PLL_CTRL0; reg <= CLKCTRL_PIX_PLL_STS; reg++)
-		DSC_DEC_PR("0x%04x = 0x%08x\n", reg, R_DSC_DEC_CLKCTRL_REG(reg));
+	if (dsc_dec_drv->data->chip_type == DSC_DEC_CHIP_T6X) {
+		for (reg = ANACTRL_PIX_PLL_CTRL0; reg <= ANACTRL_PIX_PLL_STS; reg++)
+			DSC_DEC_PR("0x%04x = 0x%08x\n", reg, R_DSC_DEC_CLKCTRL_REG(reg));
+	} else {
+		for (reg = CLKCTRL_PIX_PLL_CTRL0; reg <= CLKCTRL_PIX_PLL_STS; reg++)
+			DSC_DEC_PR("0x%04x = 0x%08x\n", reg, R_DSC_DEC_CLKCTRL_REG(reg));
+	}
 	DSC_DEC_PR("dsc_dec clk regs end----\n\n");
 }
 

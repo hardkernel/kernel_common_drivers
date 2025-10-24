@@ -8,6 +8,8 @@
 
 //pll clk register
 #define CLKCTRL_DSC_CLK_CTRL			0x0040
+#define CLKCTRL_DSC_CLK_CTRL_T6X		0x0043
+
 // BIT 6 gate = 1
 // BIT 16 N = 0 : cts_dsc_pix_clk_sel
 // BIT 7:9 = 3:dsc_pix_pll 5:hifi1
@@ -17,8 +19,18 @@
 #define CLKCTRL_PIX_PLL_CTRL3			0x02f3
 #define CLKCTRL_PIX_PLL_STS			0x02f4
 
+#define ANACTRL_PIX_PLL_CTRL0			(0xb0)
+#define ANACTRL_PIX_PLL_CTRL1			(0xb1)
+#define ANACTRL_PIX_PLL_CTRL2			(0xb2)
+#define ANACTRL_PIX_PLL_CTRL3			(0xb3)
+#define ANACTRL_PIX_PLL_STS			(0xb4)
+
 #define VPU_VDIN_HDMI0_CTRL0			0x272c
 #define VPU_VDIN_HDMI0_CTRL1			0x272d
+
+#define VPU_VDIN_HDMI0_CTRL0_T6X		0x2738
+#define VPU_VDIN_HDMI0_CTRL1_T6X		0x274c
+
 // Bit0:reg_hdmi_en Bit1:reg_dsc_en
 #define HDMI_OR_DSC_EN_BIT		0
 #define HDMI_OR_DSC_EN_WID		2

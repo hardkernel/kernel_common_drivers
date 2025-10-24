@@ -2996,3 +2996,39 @@ void rx_get_freesync_info(u8 port)
 	}
 }
 
+void get_hdmirx_qms_plus_info(char *buf, u32 max_len)
+{
+	u32 i = 0;
+	u32 j = 0;
+	u8 port = rx_info.main_port;
+	struct emp_info_s *emp_p = NULL;
+
+	i += snprintf(buf + i, max_len - i, "timing:%dx%d,",
+		rx[port].cur.hactive, rx[port].cur.vactive);
+	i += snprintf(buf + i, max_len - i, " fr:%d\n", rx[port].cur.frame_rate);
+
+	i += snprintf(buf + i, max_len - i, "QMS:%d, QMS+:%d\n",
+		rx[port].vtem_info.qms_en, rx[port].vtem_info.qms_plus_en);
+	if (rx[port].vtem_info.qms_en || rx[port].qms_plus_flag == QMS_PLUS_VTEM) {
+		emp_p = rx[port].emp_vid_idx ? &rx_info.emp_buff_b : &rx_info.emp_buff_a;
+		for (j = 0; j < 31; j++) {
+			i += snprintf(buf + i, max_len - i, "0x%02x ",
+				emp_buf[rx[port].emp_vid_idx][j]);
+		}
+		i += snprintf(buf + i, max_len - i, "\n");
+	}
+
+	if (rx[port].vtem_info.qms_en) {
+		i += snprintf(buf + i, max_len - i, "tfr:%d,", rx[port].vtem_info.next_tfr);
+		i += snprintf(buf + i, max_len - i, " base fr:%d\n",
+			rx[port].vtem_info.base_framerate);
+	}
+	if (rx[port].vtem_info.qms_plus_en) {
+		i += snprintf(buf + i, max_len - i, "ieee:%d,", rx[port].vtem_info.ieee);
+		i += snprintf(buf + i, max_len - i, " type:%d(1:VSIF,2:EMP,3:SCDC,4:VTEM),",
+			rx[port].qms_plus_flag);
+		i += snprintf(buf + i, max_len - i, " base fr:%d\n",
+			rx[port].vtem_info.base_framerate);
+	}
+	snprintf(buf + i, max_len - i, "\n");
+}

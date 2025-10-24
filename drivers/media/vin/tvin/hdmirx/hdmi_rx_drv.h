@@ -86,7 +86,6 @@
 //2024.10.09 t3x/t7c hdmirx support std hibernate
 //2024.11.15 add protect for fsm
 //2024.11.29 optimize early suspend flow
-//2024.12.26 clean module params
 //2025.01.02 optimize timer execution logic
 //2025.01.16 t3 hdmirx support std hibernate
 //2025.02.20 add 4k144 165 dsc timing support
@@ -485,6 +484,8 @@ struct rx_aml_phy {
 	int eq_sslms_en;
 	/* audio pll source: 0: analog pll,1: digital */
 	bool dacr_en;
+	/* for t6x 2.1 pll */
+	u8 pll_bw_21;
 };
 
 struct rx_aml_phy_21 {
@@ -1298,6 +1299,8 @@ extern int audio_dump_frame;
 extern struct edid_timer_data edid_timer;
 extern ktime_t interval;
 extern bool update_edid_type;
+extern int ee_voltage_val;
+extern bool ee_voltage_en;
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 extern struct notifier_block vrr_notify;
 #endif

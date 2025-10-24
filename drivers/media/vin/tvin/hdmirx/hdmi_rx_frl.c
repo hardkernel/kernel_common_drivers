@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/mm.h>
 #include <linux/major.h>
+#include <linux/math64.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/cdev.h>
@@ -27,7 +28,7 @@
 #include <linux/highmem.h>
 #include <linux/amlogic/clk_measure.h>
 #include <linux/amlogic/media/video_sink/video.h>
-
+#include <uapi/amlogic/hdmi_rx.h>
 /* Local Include */
 #include "hdmi_rx_repeater.h"
 #include "hdmi_rx_drv.h"
@@ -45,6 +46,10 @@ const u32 fpll[] = {
 	0x10200035,
 	0x0b0da201, //0x0b0da201
 };
+
+#define VPU_CLK_DIV_2 1
+#define FPLL_DIV3 2
+#define DSC_PIX_PLL 3
 
 enum frl_rate_e hdmirx_get_frl_rate(u8 port)
 {
@@ -70,7 +75,7 @@ void rx_lts_2_flt_ready(u8 port)
 	data8  = 0;
 	data8 |= (1 << 4); //reg_dual_pipe_en
 	data8 |= (1 << 2); //reg_acr_div2mode
-	data8 |= (0 << 1); //reg_acr_clk_sel
+	data8 |= (1 << 1); //reg_acr_clk_sel
 	data8 |= (1 << 0); //reg_tmds_clk_sel  0:tmds_clk ;1: hdmi21_tmds_clk
 
 	//inv_hal_rx_h21_ctrl_write(port,0x00);
@@ -379,6 +384,7 @@ void rx_lts_p_frl_start(u8 port)
 
 	data8 = hdmirx_rd_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, port);
 	hdmirx_wr_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, (data8 | 0x10), port);//frl_start
+	hdmirx_wr_bits_cor(H21RXSB_INTR2_M42H_IVCRX, _BIT(4), 1, port);
 	force_clk_stable = 1;
 	rx_set_frl_train_sts(E_FRL_TRAIN_FINISH, port);
 }
@@ -532,7 +538,7 @@ void hdmirx_frl_config(u8 port)
 	data8  = 0;
 	data8 |= (1 << 4); //reg_dual_pipe_en
 	/* for dacr */
-	data8 |= (0 << 2); //reg_acr_div2mode
+	data8 |= (1 << 2); //reg_acr_div2mode
 	data8 |= (1 << 1); //reg_acr_clk_sel
 	data8 |= (1 << 0); //reg_tmds_clk_sel  0:tmds_clk ;1: hdmi21_tmds_clk
 	hdmirx_wr_cor(RX_H21_CTRL_PWD_IVCRX, data8, port);
@@ -562,6 +568,8 @@ void hdmirx_frl_config(u8 port)
 	data8 |= (0 << 0);  //[1:0]  ri_rserr_chk_mod2_ctrl
 	hdmirx_wr_cor(H21RXSB_CTRL4_M42H_IVCRX, data8, port);
 
+	//for cts test
+	hdmirx_wr_bits_cor(H21RXSB_GCC_M42H_IVCRX, _BIT(6), 1, port);
 	//=============H21RXSB_RS_ACC_ERR_TSH_LSB_M42H_IVCRX=================
 	data8  = 0;
 	data8 |= (0xf0 << 0);  //[7:0] ri_accm_err_thr_lsb
@@ -716,18 +724,30 @@ void hdmirx_frl_config(u8 port)
 
 bool is_fpll0_locked(void)
 {
-	if (rx_info.chip_id == CHIP_ID_T3X)
-		return hdmirx_rd_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL0, _BIT(31));
-	else
-		return (rd_reg_ana_ctl(T6X_ANACTRL_HDMI_PLL0_CTRL0) >> 31) & 0x1;
+	bool lock_flg;
+
+	if (rx_info.chip_id == CHIP_ID_T3X) {
+		lock_flg = hdmirx_rd_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL0, _BIT(31));
+	} else {
+		lock_flg = (rd_reg_ana_ctl(T6X_ANACTRL_HDMI_PLL0_CTRL0) >> 31) & 0x1;
+		if (log_level & FRL_LOG)
+			rx_pr("lock bit = %d\n", lock_flg);
+	}
+	return lock_flg;
 }
 
 bool is_fpll1_locked(void)
 {
-	if (rx_info.chip_id == CHIP_ID_T3X)
-		return hdmirx_rd_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL0, _BIT(31));
-	else
-		return (rd_reg_ana_ctl(T6X_ANACTRL_HDMI_PLL1_CTRL0) >> 31) & 0x1;
+	bool lock_flg;
+
+	if (rx_info.chip_id == CHIP_ID_T3X) {
+		lock_flg = hdmirx_rd_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL0, _BIT(31));
+	} else {
+		lock_flg = (rd_reg_ana_ctl(T6X_ANACTRL_HDMI_PLL1_CTRL0) >> 31) & 0x1;
+		if (log_level & FRL_LOG)
+			rx_pr("lock bit = %d\n", lock_flg);
+	}
+	return lock_flg;
 }
 
 int is_fpll_locked(u8 port)
@@ -743,6 +763,8 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 	u8 reg_valid_m;
 	unsigned long o_req_m, flclk, tclk, temp;
 	u8 pre_div;
+	u64 temp1;
+	u64 temp2;
 	int cnt = 0;
 	unsigned long data = 0;
 	u32 pll_ctrl0, pll_ctrl1, pll_ctrl2, pll_ctrl3;
@@ -850,7 +872,11 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 		return;
 	}
 	/* tclk = flclk * o_req_m / give_n / post_div */
-	tclk = flclk * o_req_m / give_n / 2;
+	temp1 = (u64)flclk * (u64)o_req_m;
+	do_div(temp1, give_n);
+	do_div(temp1, 2);
+	tclk = (u32)temp1;
+	//tclk = flclk * o_req_m / give_n / 2;
 	//rx_pr("flclk * o_req_m=%ld\n", flclk * o_req_m);
 	//rx_pr("flclk * o_req_m / 8192=%ld\n", flclk * o_req_m / 8192);
 	//rx_pr("flclk * o_req_m / 8192 / 2=%ld\n", flclk * o_req_m / 8192 / 2);
@@ -870,12 +896,12 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 	if (log_level & FRL_LOG)
 		rx_pr("temp=%lu,pre_div=0x%x\n", temp, pre_div);
 	/* check vco */
-	if (tclk * pre_div * 2 / KHz < 1600 * KHz) {
+	if (tclk / KHz * pre_div * 2 < 1600 * KHz) {
 		pre_div += 1;
 		if (log_level & FRL_LOG)
 			rx_pr("error,vco<1.6G!\n");
 	}
-	if (tclk * pre_div * 2 / KHz > 3200 * KHz) {
+	if (tclk / KHz * pre_div * 2 > 3200 * KHz) {
 		pre_div -= 1;
 		if (log_level & FRL_LOG)
 			rx_pr("error,vco>3.2G!\n");
@@ -891,8 +917,9 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 	}
 
 	data = hdmirx_rd_cor(H21RXSB_NMUL_M42H_IVCRX, port);
-	data = data * tclk * pre_div * 2;
-	data = data / flclk;
+	temp2 = (u64)data * (u64)tclk * (u64)pre_div * 2;
+	do_div(temp2, (u32)flclk);
+	data = (u32)temp2;
 	data = data & 0x1ff;
 	if (log_level & FRL_LOG)
 		rx_pr("data:%lu\n", data);
@@ -931,11 +958,11 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 			(odn_reg_n_mul << 16) | (pre_div == 64 ? (4 << 10) : 0));
 		wr_reg_ana_ctl(pll_ctrl3, fpll[6] | (1 << 7) | (1 << 19));
 	}
-	//udelay(10);
+	udelay(10);
 	hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(7), 1, port);
 	udelay(1);
 	hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(7), 0, port);
-	//udelay(100);
+	udelay(100);
 	//wait valid_m
 	while (cnt < valid_m_wait_max) {
 		cnt++;
@@ -991,7 +1018,7 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 				(odn_reg_n_mul << 16) | (pre_div == 64 ? (6 << 10) : 0));
 			wr_reg_ana_ctl(pll_ctrl3, fpll[6]);
 		}
-		//udelay(10);
+		udelay(10);
 		if (cnt++ > 5) {
 			rx_pr("fpll cfg err!\n");
 			break;
@@ -1066,8 +1093,11 @@ void rx_dump_reg_d_f_sts(u8 port)
 
 bool rx_get_overlap_sts(u8 port)
 {
+	bool ret;
+
+	ret = hdmirx_rd_bits_cor(H21RXSB_INTR2_M42H_IVCRX, _BIT(4), port);
 	hdmirx_wr_bits_cor(H21RXSB_INTR2_M42H_IVCRX, _BIT(4), 1, port);
-	return hdmirx_rd_bits_cor(H21RXSB_INTR2_M42H_IVCRX, _BIT(4), port);
+	return ret;
 }
 
 bool rx_get_clkready_sts(u8 port)
@@ -1130,17 +1160,19 @@ void rx_switch_to_self_hsync(u8 port, bool en)
 	hdmirx_wr_bits_cor(RX_PWD_CTRL_PWD_IVCRX, _BIT(3), en, port);
 	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL1_PWD_IVCRX, _BIT(5), en, port);
 	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL1_PWD_IVCRX, _BIT(7), en, port);
-	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL2_PWD_IVCRX, _BIT(2), en, port);
+	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL2_PWD_IVCRX, _BIT(1), en, port);
 	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL1_PWD_IVCRX, _BIT(5), en, port);
 	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL1_PWD_IVCRX, _BIT(7), en, port);
-	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL2_PWD_IVCRX, _BIT(2), en, port);
+	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL2_PWD_IVCRX, _BIT(1), en, port);
+	hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, _BIT(31), en);
 	//hdmirx_wr_bits_cor(VP_FDET_CLEAR_VID_IVCRX, _BIT(0), 0, port);
+	//when dsc vsync polarity negative, we need us vid if func to reverse;
 }
 
 bool rx_is_switch_to_analog_clk(u8 port)
 {
 	//to do, now only 4k120 100 yuv 420 has this problem.
-	if (rx[port].pre.colorspace == E_COLOR_YUV420 && rx[port].var.frl_rate)
+	if (rx[port].var.frl_rate)
 		return true;
 	else
 		return false;
@@ -1149,32 +1181,90 @@ bool rx_is_switch_to_analog_clk(u8 port)
 void rx_switch_to_analog_clk(u8 port)
 {
 	hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(0), 1, port);
-	if (port == E_PORT2)
-		if (rx[port].pre.colordepth == E_COLORDEPTH_12) {
-			hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL0,
-			MSK(3, 13), 0x2);
+	if (port == E_PORT2) {
+		if (rx[port].pre.colorspace == E_COLOR_YUV422 ||
+			rx[port].dsc_flag) {
+			if (rx_info.chip_id == CHIP_ID_T3X)
+				hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL0,
+				MSK(3, 13), 0x0);
+			else
+				wr_bits_reg_ana_ctl(T6X_ANACTRL_HDMI_PLL0_CTRL0,
+				MSK(3, 13), 0x0);
+		} else if (rx[port].pre.colordepth == E_COLORDEPTH_12) {
+			if (rx_info.chip_id == CHIP_ID_T3X)
+				hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL0,
+				MSK(3, 13), 0x2);
+			else
+				wr_bits_reg_ana_ctl(T6X_ANACTRL_HDMI_PLL0_CTRL0,
+				MSK(3, 13), 0x2);
 		} else if (rx[port].pre.colordepth == E_COLORDEPTH_10) {
-			hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL0,
-			MSK(3, 13), 0x1);
+			if (rx_info.chip_id == CHIP_ID_T3X)
+				hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL0,
+				MSK(3, 13), 0x1);
+			else
+				wr_bits_reg_ana_ctl(T6X_ANACTRL_HDMI_PLL0_CTRL0,
+				MSK(3, 13), 0x1);
 		} else {
-			hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL0,
-			MSK(3, 13), 0x0);
+			if (rx_info.chip_id == CHIP_ID_T3X)
+				hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL0_CTRL0,
+				MSK(3, 13), 0x0);
+			else
+				wr_bits_reg_ana_ctl(T6X_ANACTRL_HDMI_PLL0_CTRL0,
+				MSK(3, 13), 0x0);
 		}
-	else
-		if (rx[port].pre.colordepth == E_COLORDEPTH_12) {
-			hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL0,
-			MSK(3, 13), 0x2);
+	} else {
+		if (rx[port].pre.colorspace == E_COLOR_YUV422 ||
+			rx[port].dsc_flag) {
+			if (rx_info.chip_id == CHIP_ID_T3X)
+				hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL0,
+				MSK(3, 13), 0x0);
+			else
+				wr_bits_reg_ana_ctl(T6X_ANACTRL_HDMI_PLL1_CTRL0,
+				MSK(3, 13), 0x0);
+		} else if (rx[port].pre.colordepth == E_COLORDEPTH_12) {
+			if (rx_info.chip_id == CHIP_ID_T3X)
+				hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL0,
+				MSK(3, 13), 0x2);
+			else
+				wr_bits_reg_ana_ctl(T6X_ANACTRL_HDMI_PLL1_CTRL0,
+				MSK(3, 13), 0x2);
 		} else if (rx[port].pre.colordepth == E_COLORDEPTH_10) {
-			hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL0,
-			MSK(3, 13), 0x1);
+			if (rx_info.chip_id == CHIP_ID_T3X)
+				hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL0,
+				MSK(3, 13), 0x1);
+			else
+				wr_bits_reg_ana_ctl(T6X_ANACTRL_HDMI_PLL1_CTRL0,
+				MSK(3, 13), 0x1);
 		} else {
-			hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL0,
-			MSK(3, 13), 0x0);
+			if (rx_info.chip_id == CHIP_ID_T3X)
+				hdmirx_wr_bits_clk_ctl(T3X_CLKCTRL_HDMI_PLL1_CTRL0,
+				MSK(3, 13), 0x0);
+			else
+				wr_bits_reg_ana_ctl(T6X_ANACTRL_HDMI_PLL1_CTRL0,
+				MSK(3, 13), 0x0);
 		}
+	}
 }
 
 void rx_clr_f_det(bool en, u8 port)
 {
 	hdmirx_wr_bits_cor(VP_FDET_CLEAR_VID_IVCRX, _BIT(0), en, port);
+}
+
+void rx_set_dsc_hdmi_cntl(unsigned int val)
+{
+	hdmirx_wr_top_common(TOP_DSC_HDMI_CNTL, val);
+}
+
+void set_dsc_clk_cntl(int clk_select)
+{
+	if (rx_info.chip_id != CHIP_ID_T6X)
+		return;
+	if (clk_select == VPU_CLK_DIV_2)
+		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x343);
+	else if (clk_select == FPLL_DIV3)
+		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x140);
+	else
+		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x1c0);
 }
 

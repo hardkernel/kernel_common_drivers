@@ -165,6 +165,7 @@ struct tasklet_struct rx_tasklet;
 u32 *pd_fifo_buf_a;
 u32 *pd_fifo_buf_b;
 u32 top_irq_tab[IRQ_TYPE_CNT];
+bool ee_voltage_en;
 static DEFINE_SPINLOCK(rx_pr_lock);
 DECLARE_WAIT_QUEUE_HEAD(query_wait);
 
@@ -213,6 +214,8 @@ u32 rx_5v_wake_up_en;
 int vpp_mute_cnt = 6;
 int gcp_mute_cnt = 25;
 int gcp_mute_flag[4];
+int ee_voltage_val = 0xe0004;
+int ee_voltage_def = 0x20010;
 //auto edid white list rule:
 //1.spd packet first, cec vendor id/osd name second
 //2.cec driver can't cover tx type which found by spd packet
@@ -574,6 +577,8 @@ int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	devp->param[port_type].port = port;
 
+	if (rx_info.chip_id == CHIP_ID_T6X && ee_voltage_en)
+		hdmirx_wr_ee_vol(EE_VOL, ee_voltage_val);
 	if (port_type == TVIN_PORT_MAIN &&
 		port_idx < rx_info.port_num) {
 		if (rx_info.chip_id >= CHIP_ID_T3X)
@@ -650,6 +655,8 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe, enum tvin_port_type_e port_typ
 		hdmirx_close_port_t3x(port);
 	else
 		hdmirx_close_port(port);
+	if (rx_info.chip_id == CHIP_ID_T6X && ee_voltage_en)
+		hdmirx_wr_ee_vol(EE_VOL, ee_voltage_def);
 	rx_pr("%s port:%d, port_type:%d ok\n", __func__, port, port_type);
 }
 
@@ -2715,10 +2722,10 @@ int rx_pr(const char *fmt, ...)
 	} else {
 		strncpy(buf, fmt, strlen(fmt) + 1);
 	}
-	if (fmt[strlen(fmt) - 1] == '\n')
-		last_break = 1;
-	else
-		last_break = 0;
+	//if (fmt[strlen(fmt) - 1] == '\n')
+		//last_break = 1;
+	//else
+	//	last_break = 0;
 	if (log_level & LOG_EN) {
 		va_start(args, fmt);
 		vprintk(buf, args);

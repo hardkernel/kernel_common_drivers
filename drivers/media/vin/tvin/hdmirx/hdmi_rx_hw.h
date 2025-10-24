@@ -47,13 +47,19 @@
 /* 2025.06.10 Fix audio fifo keeps resetting after fastswitch */
 /* 2025.06.06 fix 74M input unstable issue */
 /* 2025.07.04 enable edid segment auto clr */
+/* 2025.07.24 enable dacr defalut */
+/* 2025.08.01 check clkrate by port for t3x */
+/* 2025.08.05 auto override dc for 422 */
 /* 2025.08.05 update m and os_rate when vco error */
-/* 2025.08.15 auto override dc for 422 */
-/* 2025.09.03 optimize dc override flow */
+/* 2025.08.05 modify dacr mclk selection reg */
+/* 2025.08.19 optimize t6x power consumption flow */
+/* 2025.09.03 optimize cd override flow */
 /* 2025.09.18 modify rterm enable bit for t6x/t3x */
 /* 2025.09.19 set cable clk limit to 370M */
 /* 2025.09.24 optimize dacr reset flow */
-#define RX_HW_VER "ver.2025/09/24"
+/* 2025.10.11 optimize pll setting for t6x */
+/* 2025.10.21 add dsc timing */
+#define RX_HW_VER "ver.2025/10/21"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -242,6 +248,7 @@
 #define TOP_ACR_CNTL_STAT                0x00E
 #define TOP_ACR_AUDFIFO                  0x00F
 #define TOP_EDID_GEN_CNTL1               0x00F
+#define TOP_EDID_GEN_CNTL1_T6X           0x006
 #define TOP_ARCTX_CNTL                   0x010
 #define TOP_METER_HDMI_CNTL              0x011
 #define TOP_METER_HDMI_STAT              0x012
@@ -369,10 +376,12 @@
 /* COR */
 #define TOP_PHYIF_CNTL0					0x080
 
+/* for t6x */
 #define TOP_ACR_CNTL2_T6X					0x0f
 #define	TOP_CHAN_SWITCH_1_T6X			0x29
 #define	TOP_METER_CABLE_CNTL_T6X		0x03c
 #define	TOP_METER_CABLE_STAT_T6X		0x03d
+
 /* for t3x */
 #define TOP_ACR_CNTL2_T3X					0x0f
 #define TOP_ACR_N_STST					0x10
@@ -1553,6 +1562,8 @@
 #define      RX_INTR2_PWD_IVCRX        0x00001041
 #define      RX_INTR3_PWD_IVCRX        0x00001042
 #define      RX_INTR4_PWD_IVCRX        0x00001043
+/* change from 0x1043 to 0x1707 on t6x */
+#define HDMIRX_FSW_INTR0	0x1707
 #define      RX_INTR5_PWD_IVCRX        0x00001044
 #define      RX_INTR6_PWD_IVCRX        0x00001045
 #define      RX_INTR7_PWD_IVCRX        0x00001046
@@ -1653,13 +1664,14 @@
 #define   PWD_SW_CLMP_AUE_OIF_PWD_IVCRX        0x000010c4
 #define  AUD_MCLK_OUT_DIV_SEL_PWD_IVCRX        0x000010c5
 #define  EXT_MCLK_SEL_PWD_IVCRX        0x000010c6
+/* modified from 0x10c6 to 0x1701 on T6X */
 #define EXT_MCLK_SEL_PWD_IVCRX_T6X	0x0001701
 /* 1: select external mclk(analog pll), 0: select internal dacr mclk*/
 #define EXT_MCLK_SEL	_BIT(0)
 #define EXHAUST_CHK_EN_PWD_IVCRX        0x000010c7
 #define GCP_WINDOW_CHK_1_PWD_IVCRX        0x000010c8
 #define GCP_WINDOW_CHK_2_PWD_IVCRX        0x000010c9
-
+#define RX_H21_SW_RST                     0x000010f8
 //==================== DEPACK 02===============
 #define   RX_ECC_CTRL_DP2_IVCRX        0x00001100
 #define  RX_BCH_THRES_DP2_IVCRX        0x00001101
@@ -3218,6 +3230,18 @@
 #define I2C_MONITOR_AXI_CMD_CNT		(rx_info.i2c_buff.addr_base + (0x012 << 2))
 #define I2C_MONITOR_ADDR_INTR		(rx_info.i2c_buff.addr_base + (0x013 << 2))
 
+/* Add from t6w,for 422 hw override */
+#define RX_PHASE_PKT_MASK 0x1125
+#define RX_AUTO_DC_MODE 0x1126
+
+/* FRL training */
+//scdc:
+//0x31: [7:4] FFE_LEVELS; [3:0] FRL_rate
+//FRL_Rate = 0: disable FRL
+//           1: 3G/3Lanes
+//           2: 6G/3Lanes
+//           3: 6G/4Lanes
+//           4: 8G/4Lanes
 //           5: 10G/4Lanes
 //           6: 12G/4Lanes
 //
@@ -3464,7 +3488,7 @@ extern int vga_tuning_max;
 extern int cal_phy_time;
 extern int pll_band;
 extern int cdr_bw;
-extern int give_n;
+extern u32 give_n;
 extern int valid_m_wait_max;
 extern enum frl_train_sts_e frl_train_sts;
 extern enum frl_train_sts_e frl_train_sts1;
@@ -3493,6 +3517,7 @@ void hdmirx_wr_top_common(unsigned int addr, unsigned int data);
 unsigned int hdmirx_rd_top_common(unsigned int addr);
 void hdmirx_rd_check_top(u32 addr, u32 exp_data, u32 mask, u8 port);
 void hdmirx_poll_top(u32 addr, u32 exp_data, u32 mask, u8 port);
+
 void hdmirx_wr_edid(unsigned int addr, unsigned int data);
 unsigned int hdmirx_rd_edid(unsigned int addr);
 u32 hdmirx_rd_bits_top(u16 addr, u32 mask, u8 port);

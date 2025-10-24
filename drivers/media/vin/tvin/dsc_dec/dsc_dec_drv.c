@@ -208,12 +208,21 @@ static void dsc_dec_global_remove_once(void)
 
 #ifdef CONFIG_OF
 
+static struct dsc_dec_data_s dsc_dec_data_t6x = {
+	.chip_type = DSC_DEC_CHIP_T6X,
+	.chip_name = "t6x",
+};
+
 static struct dsc_dec_data_s dsc_dec_data_t3x = {
 	.chip_type = DSC_DEC_CHIP_T3X,
 	.chip_name = "t3x",
 };
 
 static const struct of_device_id dsc_dec_dt_match_table[] = {
+	{
+		.compatible = "amlogic, dsc_dec-t6x",
+		.data = &dsc_dec_data_t6x,
+	},
 	{
 		.compatible = "amlogic, dsc_dec-t3x",
 		.data = &dsc_dec_data_t3x,

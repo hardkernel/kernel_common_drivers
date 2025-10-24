@@ -19,6 +19,7 @@ struct dsc_dec_cdev_s {
 
 enum dsc_dec_chip_e {
 	DSC_DEC_CHIP_T3X = 0,
+	DSC_DEC_CHIP_T6X = 1,
 	DSC_DEC_CHIP_MAX,
 };
 
@@ -106,5 +107,4 @@ struct aml_dsc_dec_drv_s {
 #define DSC_DEC_ENC_INDEX                              0
 
 struct aml_dsc_dec_drv_s *dsc_dec_drv_get(void);
-
 #endif

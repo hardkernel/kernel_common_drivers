@@ -116,7 +116,7 @@ int color_bar_lvl;
 int reset_pcs_flag;
 int reset_pcs_cnt = 10;
 int port_debug_en;
-int fpll_ready_max = 100;
+int fpll_ready_max = 3;
 int rx_emp_dbg_en;
 int frl_lock_det_max = 10;
 //for rs err test
@@ -322,7 +322,10 @@ void hdmirx_phy_var_init(void)
 			rx_info.aml_phy_21.eq_pole = 0x8;
 			rx_info.aml_phy_21.buf_gain = 0x8;
 			rx_info.aml_phy_21.cdr_fr_en = 0;//0x1f4
-			rx_info.aml_phy_21.eq_hold = 0x3;
+			if (rx_info.phy_ver == PHY_VER_T6X)
+				rx_info.aml_phy_21.eq_hold = 0x3;
+			else
+				rx_info.aml_phy_21.eq_hold = 0x0;
 			rx_info.aml_phy_21.eq_retry = 0x1;
 			rx_info.aml_phy_21.dfe_en = 0x1;
 			rx_info.aml_phy_21.dfe_hold = 0;//0x3
@@ -331,6 +334,9 @@ void hdmirx_phy_var_init(void)
 			rx_info.aml_phy_21.pre_int = 0x1;
 			rx_info.aml_phy_21.pre_int_en = 0x0;
 		}
+		/* t6x new added */
+		if (rx_info.phy_ver == PHY_VER_T6X)
+			rx_info.aml_phy_21.pll_bw_21 = 0x51;
 	}
 	rx_info.aml_phy.force_bw = 0x0;
 }
@@ -435,12 +441,40 @@ void hdmirx_fsm_var_init(void)
 		fps_unready_max = 3;
 		break;
 	case CHIP_ID_T3X:
-	case CHIP_ID_T6X:
 		hbr_force_8ch = 1; //use it to enable hdr2spdif
 		sig_stable_err_max = 5;
 		sig_stable_max = 20;
 		fps_unready_max = 3;
 		dwc_rst_wait_cnt_max = 110;
+		spec_dev_wait_cnt_max = 200;
+		clk_unstable_max = 50;
+		esd_phy_rst_max = 4;
+		pll_unlock_max = 30;
+		//do not to check colorspace changes
+		//Vdin can adapt it automatically
+		stable_check_lvl = 0x2c3;
+		pll_lock_max = 2;
+		err_cnt_sum_max = 10;
+		sig_unstable_max = 20;
+		sig_unready_max = 0;
+		/* decreased to 2 */
+		/* decreased to 2 */
+		diff_pixel_th = 2;
+		/* decreased to 2 */
+		diff_line_th = 1;
+		/* (25hz-24hz)/2 = 50/100 */
+		diff_frame_th = 40;
+		aud_sr_stb_max = 10;
+		clk_stable_max = 3;
+		rx_phy_level = 5;
+		detect_time_min = 20;
+		break;
+	case CHIP_ID_T6X:
+		hbr_force_8ch = 1; //use it to enable hdr2spdif
+		sig_stable_err_max = 5;
+		sig_stable_max = 20;
+		fps_unready_max = 3;
+		dwc_rst_wait_cnt_max = 5;
 		spec_dev_wait_cnt_max = 200;
 		clk_unstable_max = 50;
 		esd_phy_rst_max = 4;
@@ -611,25 +645,6 @@ static bool video_mute_enabled(u8 port)
 		return false;
 }
 
-bool rx_chk_avi_chg(u8 port)
-{
-	bool ret = false;
-	u8 data8;
-
-	if (!rx_chk_avi_valid(port))
-		return ret;
-	data8 = hdmirx_rd_cor(AVIRX_DBYTE1_DP2_IVCRX, port);
-	if (rx[port].cur.colorspace != ((data8 >> 5) & 0x07))
-		ret = true;
-	data8 = hdmirx_rd_cor(AVIRX_DBYTE3_DP2_IVCRX, port);
-	if (rx[port].cur.rgb_quant_range != ((data8 >> 2) & 0x3))
-		ret = true;
-	data8 = hdmirx_rd_cor(AVIRX_DBYTE5_DP2_IVCRX, port);
-	if (rx[port].cur.yuv_quant_range != ((data8 >> 6) & 0x3))
-		ret = true;
-	return ret;
-}
-
 /*
  *func: irq tasklet
  *param: flag:
@@ -644,11 +659,9 @@ void rx_tasklet_handler(unsigned long arg)
 		return;
 
 	if (rx[port].irq_flag & IRQ_AVI_CHG_FLAG) {
-		if (video_mute_enabled(port)) {
-			if (rx_chk_avi_chg(port)) {
-				hdmirx_mute_vpp(true, port);
-				rx[port].vpp_mute_cnt = vpp_mute_cnt;
-			}
+		if (video_mute_enabled(port) && rx_chk_avi_valid(port)) {
+			hdmirx_mute_vpp(true, port);
+			rx[port].vpp_mute_cnt = vpp_mute_cnt;
 		} else {
 			skip_frame(skip_frame_cnt, port, "avi-");
 		}
@@ -940,8 +953,11 @@ static int rx_cor_irq_handler(u8 port)
 	}
 
 	rx_depack2_intr0 = hdmirx_rd_cor(RX_DEPACK2_INTR0_DP0B_IVCRX, port);
-	if (rx_depack2_intr0 != 0)
+	if (rx_depack2_intr0 != 0) {
 		hdmirx_wr_cor(RX_DEPACK2_INTR0_DP0B_IVCRX, rx_depack2_intr0, port);
+		if (rx_depack2_intr0 & _BIT(0))
+			rx[port].dsc_flag = true;
+	}
 
 	rx_depack2_intr2 = hdmirx_rd_cor(RX_DEPACK2_INTR2_DP0B_IVCRX, port);
 	if (rx_depack2_intr2 != 0)
@@ -1550,11 +1566,10 @@ irqreturn_t irq2_handler(int irq, void *params)
 			rx_pr("[isr] phy dig\n");
 	if (hdmirx_top_intr_stat & top_irq_tab[IRQ_PWD_CTL]) {
 		tmp = hdmirx_rd_cor(H21RXSB_INTR2_M42H_IVCRX, E_PORT2);
-		if (tmp & 0x10) {
+		if (tmp & 0x10)
 			hdmirx_wr_cor(H21RXSB_INTR2_M42H_IVCRX, 0xff, E_PORT2);
 			//rx_pr("overlap!!! 0x152f:0x%x, 0x1563:0x%x\n", tmp,
 				//hdmirx_rd_cor(H21RXSB_INTR3_M42H_IVCRX, E_PORT2));
-		}
 		if (rx[E_PORT2].var.frl_rate && rx[E_PORT2].state >= FSM_SIG_STABLE) {
 			status = hdmirx_rd_bits_cor(VP_FDET_IRQ_STATUS_VID_IVCRX,
 				MSK(4, 7), E_PORT2);
@@ -1763,11 +1778,10 @@ irqreturn_t irq3_handler(int irq, void *params)
 		}
 	}
 	tmp = hdmirx_rd_cor(RX_INTR9_AON_AON_IVCRX, E_PORT3);
-	if (tmp & 0x4) {
+	if (tmp & 0x4)
 		hdmirx_wr_cor(RX_INTR9_AON_AON_IVCRX, 0xff, E_PORT3);
-		rx_pr("ced update!!! 0x0084:0x%x\n", tmp);
-		rx_pr("ced flag 0x%x\n", hdmirx_rd_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, E_PORT3));
-	}
+		//rx_pr("ced update!!! 0x0084:0x%x\n", tmp);
+		//rx_pr("ced flag 0x%x\n", hdmirx_rd_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, E_PORT3));
 	if (hdmirx_top_intr_stat & top_irq_tab[IRQ_AON_CTL]) {
 		tmp = hdmirx_rd_cor(RX_INTR10_AON_AON_IVCRX, E_PORT3);
 		if (tmp & 0x10) {
@@ -1865,7 +1879,6 @@ static const struct freq_ref_s freq_ref[] = {
 
 	{1,	0,	0,	1920,	1080,	HDMI_1920_1080_INTERLACED},
 	{0,	0,	0,	1920,	1080,	HDMI_1080p50},
-	{0,	4,	0,	1920,	2160,	HDMI_2160p24_16x9},
 	{0,	0,	0,	1920,	2160,	HDMI_1080p_ALTERNATIVE},
 	{0,	0,	0,	1920,	2205,	HDMI_1080p_FRAMEPACKING},
 
@@ -1905,21 +1918,8 @@ static const struct freq_ref_s freq_ref[] = {
 	{0, 0,	0,	2688,	1520,	HDMI_2688_1520},
 	/* 4k2k and 4k2k dsc mode*/
 	{0,	0,	0,	3840,	2160,	HDMI_2160p24_16x9},
-	{0,	4,	0,	1370,	2160,	HDMI_2160p24_16x9},
-	{0,	4,	0,	1130,	2160,	HDMI_2160p24_16x9},
-	{0,	4,	0,	1850,	2160,	HDMI_2160p24_16x9},
-	{0,	4,	0,	1851,	2160,	HDMI_2160p24_16x9},
-	{0,	4,	0,	1852,	2160,	HDMI_2160p24_16x9},
-	{0,	4,	0,	1900,	2160,	HDMI_2160p24_16x9},
 	/* 8k and 8k dsc mode */
 	{0,	0,	0,	7680,	4320,	HDMI_7680x4320p60_16x9},
-	{0,	4,	0,	3840,	4320,	HDMI_7680x4320p60_16x9},
-	{0,	4,	0,	3182,	4320,	HDMI_7680x4320p60_16x9},
-	{0,	4,	0,	3142,	4320,	HDMI_7680x4320p60_16x9},
-	{0,	4,	0,	2460,	4320,	HDMI_7680x4320p60_16x9},
-	{0,	4,	0,	2360,	4320,	HDMI_7680x4320p60_16x9},
-	{0,	4,	0,	2380,	4320,	HDMI_7680x4320p60_16x9},
-	{0,	4,	0,	2600,	4320,	HDMI_7680x4320p60_16x9},
 	{0,	3,	0,	3840,	4320,	HDMI_7680x4320p60_16x9},
 
 	{0,	0,	0,	5120,	2880,	HDMI_5120x2880},
@@ -1927,8 +1927,6 @@ static const struct freq_ref_s freq_ref[] = {
 	/*{0,	0,	0,	1920,	2160,	HDMI_2160p25_16x9},*/
 	/*4k(4096) and dsc mode */
 	{0,	0,	0,	4096,	2160,	HDMI_4096p24_256x135},
-	{0,	4,	0,	2048,	2160,	HDMI_4096p24_256x135},
-
 	{0,	0,	0,	2560,	1440,	HDMI_2560_1440},
 	{0,	3,	0,	1280,	1440,	HDMI_2560_1440},
 	{0,	0,	0,	2560,	3488,	HDMI_2560_1440},
@@ -1938,6 +1936,48 @@ static const struct freq_ref_s freq_ref[] = {
 	/* for NUC8BEK */
 	{0,	0,	0,	1920,	2160,	HDMI_1920x2160p60_16x9},
 	{0,	0,	0,	960,	540,	HDMI_960x540},
+	/* for dsc */
+	{0,	4,	0,	2560,	1080,	HDMI_2560x1080p24_64x27},
+	{0, 4,	0,	3840,	1080,	HDMI_3840x1080p60},
+	{0,	4,	0,	1920,	1080,	HDMI_1080p50},
+	{0,	4,	0,	1920,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1280,	1024,	HDMI_1280_1024},
+	{0,	4,	0,	1400,	1050,	HDMI_1400_1050},
+	{0,	4,	0,	1600,	1200,	HDMI_1600_1200},
+	{0,	4,	0,	1680,	1050,	HDMI_1680_1050},
+	{0,	4,	0,	1792,	1344,	HDMI_1792_1344},
+	{0,	4,	0,	1856,	1392,	HDMI_1856_1392},
+	{0,	4,	0,	1920,	1200,	HDMI_1920_1200},
+	{0,	4,	0,	1920,	1440,	HDMI_1920_1440},
+	{0,	4,	0,	2048,	1152,	HDMI_2048_1152},
+	{0,	4,	0,	2560,	1600,	HDMI_2560_1600},
+	{0,	4,	0,	3840,	600,	HDMI_3840_600},
+	{0, 4,	0,	2688,	1520,	HDMI_2688_1520},
+	{0,	4,	0,	3840,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1366,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1370,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1280,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1130,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1850,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1851,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1852,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1900,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	1692,	2160,	HDMI_2160p24_16x9},
+	{0,	4,	0,	7680,	4320,	HDMI_7680x4320p60_16x9},
+	{0,	4,	0,	3840,	4320,	HDMI_7680x4320p60_16x9},
+	{0,	4,	0,	3182,	4320,	HDMI_7680x4320p60_16x9},
+	{0,	4,	0,	3142,	4320,	HDMI_7680x4320p60_16x9},
+	{0,	4,	0,	2460,	4320,	HDMI_7680x4320p60_16x9},
+	{0,	4,	0,	2360,	4320,	HDMI_7680x4320p60_16x9},
+	{0,	4,	0,	2380,	4320,	HDMI_7680x4320p60_16x9},
+	{0,	4,	0,	2600,	4320,	HDMI_7680x4320p60_16x9},
+	{0,	4,	0,	5120,	2880,	HDMI_5120x2880},
+	{0,	4,	0,	2560,	2880,	HDMI_2560x2880},
+	{0,	4,	0,	4096,	2160,	HDMI_4096p24_256x135},
+	{0,	4,	0,	2048,	2160,	HDMI_4096p24_256x135},
+	{0,	4,	0,	2560,	1440,	HDMI_2560_1440},
+	{0,	4,	0,	2560,	3488,	HDMI_2560_1440},
+	{0,	4,	0,	2560,	2986,	HDMI_2560_1440},
 };
 
 bool de_active_check(u8 port)
@@ -1974,6 +2014,7 @@ bool fmt_vic_abnormal(u8 port)
 	if (rx[port].pre.hw_vic != HDMI_UNKNOWN &&
 	    rx[port].pre.sw_vic == HDMI_UNSUPPORT) {
 		rx_pr("hw_vic: is not matched!\n");
+		dump_state(RX_DUMP_VIDEO, port);
 		return true;
 	} else if (rx[port].pre.sw_vic >= HDMI_VESA_OFFSET &&
 		rx[port].pre.sw_vic < HDMI_UNSUPPORT &&
@@ -2407,9 +2448,7 @@ static bool rx_is_avi_and_cd_stable(u8 port)
 	if (force_avi_stable)
 		return ret;
 
-	if ((rx[port].pre.colorspace != rx[port].cur.colorspace ||
-		rx[port].pre.yuv_quant_range != rx[port].cur.yuv_quant_range ||
-		rx[port].pre.rgb_quant_range != rx[port].cur.rgb_quant_range) &&
+	if (rx[port].pre.colorspace != rx[port].cur.colorspace &&
 		rx_chk_avi_valid(port)) {
 		ret = false;
 		if (log_level & VIDEO_LOG) {
@@ -2424,7 +2463,6 @@ static bool rx_is_avi_and_cd_stable(u8 port)
 				rx[port].cur.rgb_quant_range);
 		}
 	}
-
 	if (rx[port].pre.colordepth != rx[port].cur.colordepth) {
 		ret = false;
 		if (log_level & VIDEO_LOG)
@@ -2623,11 +2661,23 @@ static bool rx_fps_is_changed(u8 port)
 	return ret;
 }
 
+static int hdmirx_get_dsc_hactive(u8 port)
+{
+	return (hdmirx_rd_cor(RX_CVT_EMP_DBYTE8_DP0B_IVCRX, port) << 8) |
+		(hdmirx_rd_cor(RX_CVT_EMP_DBYTE9_DP0B_IVCRX, port));
+}
+
 static int get_fmt_with_colordepth(u8 port, u8 colordepth)
 {
 	int i, size, tmp_hactive;
 
-	tmp_hactive = rx[port].pre.hactive * 8 / colordepth;
+	if (rx[port].dsc_flag && hdmirx_get_dsc_hactive(port)) {
+		tmp_hactive = hdmirx_get_dsc_hactive(port);
+		if (log_level & VIDEO_LOG)
+			rx_pr("tmp_hactive %d\n", tmp_hactive);
+	} else {
+		tmp_hactive = rx[port].pre.hactive * 8 / colordepth;
+	}
 	size = sizeof(freq_ref) / sizeof(struct freq_ref_s);
 	for (i = 0; i < size; i++) {
 		if (abs(tmp_hactive - freq_ref[i].hactive) > diff_pixel_th)
@@ -2831,6 +2881,7 @@ void rx_cor_reset(u8 port)
 	rx_esm_reset(3);
 	rx_cd_override(false, port);
 	if (rx_info.chip_id >= CHIP_ID_T3X) {
+		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(0), 0, port);
 		if (port >= E_PORT2) {
 			if (rx[port].var.frl_rate) {
 				hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x0, port);
@@ -3241,6 +3292,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(pll_band, i++);
 	pr_var(cdr_bw, i++);
 	pr_var(force_avi_stable, i++);
+	pr_var(ee_voltage_en, i++);
 	pr_var(rx[E_PORT0].var.clk_stable_cnt, i++);
 	pr_var(rx[E_PORT1].var.clk_stable_cnt, i++);
 	pr_var(rx[E_PORT2].var.clk_stable_cnt, i++);
@@ -3336,6 +3388,8 @@ void rx_get_global_variable(const char *buf)
 	pr_var(bist_lvl, i++);
 	pr_var(bist_mode, i++);
 	pr_var(l_bist_en, i++);
+	pr_var(ee_voltage_val, i++);
+	pr_var(frl_rate_id, i++);
 }
 
 bool str_cmp(unsigned char *buff, unsigned char *str)
@@ -3730,6 +3784,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(sig_frl_stable_max),
 		&sig_frl_stable_max, value))
 		return pr_var(sig_frl_stable_max, index);
+	if (set_pr_var(tmpbuf, var_to_str(ee_voltage_en),
+		&ee_voltage_en, value))
+		return pr_var(ee_voltage_en, index);
 	//fsm var
 	if (set_pr_var(tmpbuf, var_to_str(rx[E_PORT0].var.dbg_ve),
 		&rx[E_PORT0].var.dbg_ve, value))
@@ -4028,6 +4085,12 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(l_bist_en),
 		&l_bist_en, value))
 		return pr_var(l_bist_en, index);
+	if (set_pr_var(tmpbuf, var_to_str(ee_voltage_val),
+		&ee_voltage_val, value))
+		return pr_var(ee_voltage_val, index);
+	if (set_pr_var(tmpbuf, var_to_str(frl_rate_id),
+		&frl_rate_id, value))
+		return pr_var(frl_rate_id, index);
 	return 0;
 }
 
@@ -4517,6 +4580,7 @@ char *fsm_st[] = {
 	"FSM_SIG_FRL_CHECK",
 	"FSM_SIG_FRL_DOUBLE_CHECK",
 	"FSM_SIG_FDET_CHECK",
+	"FSM_SIG_PRE_READY",
 	"FSM_SIG_READY",
 	"FSM_NULL",
 };
@@ -4554,8 +4618,7 @@ void rx_fsm_print_handler(struct work_struct *work)
 	struct work_data *dd = container_of(work, struct work_data, work_wq);
 	if (rx[dd->port].state == FSM_SIG_READY)
 		dump_state(RX_DUMP_VIDEO, dd->port);
-	if (log_level & VIDEO_LOG)
-		rx_pr("%s\n", fsm_pr_buff[dd->port]);
+	rx_pr("%s\n", fsm_pr_buff[dd->port]);
 }
 
 /*
@@ -5144,7 +5207,8 @@ void rx_port0_main_state_machine(void)
 			rx[port].state = FSM_EQ_START;
 			rx[port].var.clk_stable_cnt = 0;
 			rx[port].var.clk_unstable_cnt = 0;
-			rx_pr("port%d clk stable=%d\n", port, rx[port].clk.cable_clk);
+			if (log_level & DBG_LOG)
+				rx_pr("port%d clk stable=%d\n", port, rx[port].clk.cable_clk);
 			rx_irq_en(IRQ_EN_HDCP, port);//todo
 		} else {
 			rx[port].var.clk_stable_cnt = 0;
@@ -5244,7 +5308,8 @@ void rx_port0_main_state_machine(void)
 		rx_get_video_info(port);
 		if (rx_is_timing_stable(port)) {
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
-				rx_irq_en(IRQ_EN_ALL, port);
+				if (rx_info.chip_id == CHIP_ID_T6X && rx_info.main_port == port)
+					rx_irq_en(IRQ_EN_ALL, port);
 				get_timing_fmt(port);
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -5263,7 +5328,7 @@ void rx_port0_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
-				rx[port].state = FSM_SIG_STABLE_TO_READY;
+				rx[port].state = FSM_SIG_PRE_READY;
 				rx[port].var.sig_stable_cnt = 0;
 				rx[port].var.sig_unstable_cnt = 0;
 			}
@@ -5285,6 +5350,12 @@ void rx_port0_main_state_machine(void)
 			}
 			rx[port].state = FSM_WAIT_CLK_STABLE;
 		}
+		break;
+	case FSM_SIG_PRE_READY:
+		if (rx_info.main_port != port)
+			break;
+		rx_irq_en(IRQ_EN_ALL, port);
+		rx[port].state = FSM_SIG_STABLE_TO_READY;
 		break;
 	case FSM_SIG_STABLE_TO_READY:
 		if (!rx[port].cableclk_stb_flg) {
@@ -5487,7 +5558,8 @@ void rx_port0_main_state_machine(void)
 				fsm_st[rx[port].pre_state],
 				fsm_st[rx[port].state]);
 		}
-		rx_fsm_print(port);
+		if (log_level & VIDEO_LOG)
+			rx_fsm_print(port);
 		rx[port].pre_state = rx[port].state;
 	}
 }
@@ -5660,7 +5732,8 @@ void rx_port1_main_state_machine(void)
 		rx_get_video_info(port);
 		if (rx_is_timing_stable(port)) {
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
-				rx_irq_en(IRQ_EN_ALL, port);
+				if (rx_info.chip_id == CHIP_ID_T6X && rx_info.main_port == port)
+					rx_irq_en(IRQ_EN_ALL, port);
 				get_timing_fmt(port);
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -5679,7 +5752,7 @@ void rx_port1_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
-				rx[port].state = FSM_SIG_STABLE_TO_READY;
+				rx[port].state = FSM_SIG_PRE_READY;
 				rx[port].var.sig_stable_cnt = 0;
 				rx[port].var.sig_unstable_cnt = 0;
 			}
@@ -5701,6 +5774,12 @@ void rx_port1_main_state_machine(void)
 			}
 			rx[port].state = FSM_WAIT_CLK_STABLE;
 		}
+		break;
+	case FSM_SIG_PRE_READY:
+		if (rx_info.main_port != port)
+			break;
+		rx_irq_en(IRQ_EN_ALL, port);
+		rx[port].state = FSM_SIG_STABLE_TO_READY;
 		break;
 	case FSM_SIG_STABLE_TO_READY:
 		if (!rx[port].cableclk_stb_flg) {
@@ -5903,7 +5982,8 @@ void rx_port1_main_state_machine(void)
 				fsm_st[rx[port].pre_state],
 				fsm_st[rx[port].state]);
 		}
-		rx_fsm_print(port);
+		if (log_level & VIDEO_LOG)
+			rx_fsm_print(port);
 		rx[port].pre_state = rx[port].state;
 	}
 }
@@ -6138,7 +6218,8 @@ void rx_port2_main_state_machine(void)
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max +
 				frl_extra_stable_cnt[rx[port].var.frl_rate]) {
 				get_timing_fmt(port);
-				rx_irq_en(IRQ_EN_ALL, port);
+				if (rx_info.chip_id == CHIP_ID_T6X && rx_info.main_port == port)
+					rx_irq_en(IRQ_EN_ALL, port);
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;
@@ -6171,7 +6252,7 @@ void rx_port2_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
-				rx[port].state = FSM_SIG_STABLE_TO_READY;
+				rx[port].state = FSM_SIG_PRE_READY;
 				rx[port].frl_check = 0;
 				rx[port].var.sig_stable_cnt = 0;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -6199,6 +6280,12 @@ void rx_port2_main_state_machine(void)
 			else
 				rx[port].state = FSM_FRL_FLT_READY;
 		}
+		break;
+	case FSM_SIG_PRE_READY:
+		if (rx_info.main_port != port)
+			break;
+		rx_irq_en(IRQ_EN_ALL, port);
+		rx[port].state = FSM_SIG_STABLE_TO_READY;
 		break;
 	case FSM_SIG_STABLE_TO_READY:
 		if (!rx[port].cableclk_stb_flg) {
@@ -6579,8 +6666,6 @@ void rx_port3_main_state_machine(void)
 		if (is_fpll_err(port)) {
 			if (rx[port].var.fpll_stable_cnt++ < fpll_stable_max)
 				break;
-			rx[port].state = FSM_HPD_LOW;
-			break;
 		}
 		if (cts_ced_err_test)
 			rx_rcc_err_frl_config(port);
@@ -6709,7 +6794,8 @@ void rx_port3_main_state_machine(void)
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max +
 				frl_extra_stable_cnt[rx[port].var.frl_rate]) {
 				get_timing_fmt(port);
-				rx_irq_en(IRQ_EN_ALL, port);
+				if (rx_info.chip_id == CHIP_ID_T6X && rx_info.main_port == port)
+					rx_irq_en(IRQ_EN_ALL, port);
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;
@@ -6743,7 +6829,7 @@ void rx_port3_main_state_machine(void)
 				else
 					rx[port].min_time_en = false;
 				rx[port].frl_check = 0;
-				rx[port].state = FSM_SIG_STABLE_TO_READY;
+				rx[port].state = FSM_SIG_PRE_READY;
 				rx[port].var.sig_stable_cnt = 0;
 				rx[port].var.sig_unstable_cnt = 0;
 			}
@@ -6770,6 +6856,12 @@ void rx_port3_main_state_machine(void)
 			else
 				rx[port].state = FSM_FRL_FLT_READY;
 		}
+		break;
+	case FSM_SIG_PRE_READY:
+		if (rx_info.main_port != port)
+			break;
+		rx_irq_en(IRQ_EN_ALL, port);
+		rx[port].state = FSM_SIG_STABLE_TO_READY;
 		break;
 	case FSM_SIG_STABLE_TO_READY:
 		if (!rx[port].cableclk_stb_flg) {
@@ -7110,11 +7202,17 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size, u8 port)
 	pos += snprintf(buf + pos, size - pos,
 		"Interlace: %d\n", rx[port].cur.interlaced);
 	pos += snprintf(buf + pos, size - pos,
+		"frl rate: %d\n", rx[port].var.frl_rate);
+	pos += snprintf(buf + pos, size - pos,
+		"dsc flag: %d\n", rx[port].dsc_flag);
+	pos += snprintf(buf + pos, size - pos,
 		"Htotal: %d\n", rx[port].cur.htotal);
 	pos += snprintf(buf + pos, size - pos,
 		"Hactive: %d\n", rx[port].cur.hactive);
 	pos += snprintf(buf + pos, size - pos,
 		"Vtotal: %d\n", rx[port].cur.vtotal);
+	pos += snprintf(buf + pos, size - pos,
+		"Vbegin: %d\n", rx[port].cur.vbegin);
 	pos += snprintf(buf + pos, size - pos,
 		"Vactive: %d\n", rx[port].cur.vactive);
 	pos += snprintf(buf + pos, size - pos,
@@ -7754,6 +7852,8 @@ int hdmirx_debug(const char *buf, int size)
 			aml_phy_exbist(port, E_CH1);
 		else if (tmpbuf[6] == '2')
 			aml_phy_exbist(port, E_CH2);
+		else if (tmpbuf[6] == '3')
+			aml_phy_exbist(port, E_CH3);
 		else if (tmpbuf[6] == 'f')
 			aml_phy_exbist(port, E_ALL_CH);
 	} else if (strncmp(tmpbuf, "dacr", 4) == 0) {
