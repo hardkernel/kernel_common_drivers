@@ -1249,6 +1249,7 @@ void rx_switch_to_analog_clk(u8 port)
 void rx_clr_f_det(bool en, u8 port)
 {
 	hdmirx_wr_bits_cor(VP_FDET_CLEAR_VID_IVCRX, _BIT(0), en, port);
+	hdmirx_wr_cor(RX_DEPACK2_INTR0_DP0B_IVCRX, 0xff, port);
 }
 
 void rx_set_dsc_hdmi_cntl(unsigned int val)

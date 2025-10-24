@@ -2012,10 +2012,7 @@ void hdmirx_get_avi_ext_colorimetry(struct tvin_sig_property_s *prop, u8 port)
 
 bool hdmirx_is_need_4ppc(u8 port)
 {
-	if (hdmirx_hw_get_fmt(port) == TVIN_SIG_FMT_HDMI_3840_2160_00HZ &&
-		rx[port].cur.frame_rate / 100 >= 140 &&
-		rx[port].dsc_flag &&
-		rx[port].dsc_pps_data.bits_per_component >= 10)
+	if (rx[port].dsc_flag && rx[port].clk.pixel_clk >= 333 * MHz)
 		return true;
 	else
 		return false;
