@@ -160,7 +160,9 @@ void vdin_cal_canvas_w(struct vdin_dev_s *devp)
 	case VDIN_FORMAT_CONVERT_GBR_YUV422:
 	case VDIN_FORMAT_CONVERT_BRG_YUV422:
 		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
-			if (devp->dtdata->hw_ver == VDIN_HW_T6W && devp->debug.yuv422_2plane_en)
+			if ((devp->dtdata->hw_ver == VDIN_HW_T6W ||
+				devp->dtdata->hw_ver == VDIN_HW_T6X) &&
+				devp->debug.yuv422_2plane_en)
 				devp->canvas_w = (h_active * 10) / 8;
 			else if (devp->full_pack == VDIN_422_FULL_PK_EN)
 				devp->canvas_w = (h_active * 5) / 2;
@@ -192,7 +194,8 @@ void vdin_cal_canvas_w(struct vdin_dev_s *devp)
 	if (vdin_is_convert_to_nv21(devp->format_convert))
 		devp->chroma_size = devp->canvas_w * devp->canvas_h / 2;
 	else if (vdin_is_convert_to_422(devp->format_convert) &&
-		devp->dtdata->hw_ver == VDIN_HW_T6W && devp->debug.yuv422_2plane_en)
+		(devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) &&
+			devp->debug.yuv422_2plane_en)
 		devp->chroma_size = devp->canvas_w * devp->canvas_h;
 
 	devp->canvas_max_size =
@@ -634,7 +637,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		/* nv21/nv12 only t3x have 8/10/12 bit mode */
 		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
 			if (devp->dtdata->hw_ver == VDIN_HW_T6D ||
-			    devp->dtdata->hw_ver == VDIN_HW_T6W)
+			    devp->dtdata->hw_ver == VDIN_HW_T6W ||
+			    devp->dtdata->hw_ver == VDIN_HW_T6X)
 				h_size = roundup((h_size * 10) / 8, devp->canvas_align);
 			else
 				h_size = roundup((h_size * 3) / 2, devp->canvas_align);

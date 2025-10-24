@@ -826,6 +826,7 @@ struct vdin_parm_s {
 
 	/*for reserved */
 	uintptr_t reserved;
+	bool over_pixel_clock;
 };
 
 struct fe_arg_s {

@@ -192,6 +192,7 @@ void vdin_vfce_update(struct vdin_dev_s *devp)
 	unsigned int reg_inp_format = 0, reg_enc_format;
 	unsigned int reg_comp_yc_map;
 	unsigned int uncmp_size, uncmp_bits, cmp_bits;
+	unsigned int ram_ram_size_mode = 1;
 
 	if (vdin_is_convert_to_nv21(devp->format_convert)) {
 		reg_enc_format = 2;/*420*/
@@ -212,6 +213,13 @@ void vdin_vfce_update(struct vdin_dev_s *devp)
 		reg_inp_format = 0;/* always 444 input */
 		reg_fmt444_comb = 0;
 	}
+	/* t6x:Should NOT set the comb and the ram 4k 444 10-bit simultaneously */
+	if (reg_fmt444_comb)
+		ram_ram_size_mode = 0;
+
+	rdma_write_reg_bits(devp->rdma_handle,
+		VFCE_TOP0_CTRL_2, ram_ram_size_mode, 4, 1);//ram_ram_size_mode
+
 	//bit size of uncompressed mode
 	uncmp_size = (((((16 * cmp_bits * uncmp_bits) + 7) >> 3) + 31)
 		      / 32) << 1;
@@ -586,6 +594,7 @@ void vdin_vfce_afbce_config(struct vdin_dev_s *devp)
 	enum vdin_format_convert_e vdin_out_fmt;
 	unsigned int bit_mode_shift = 0;
 	unsigned int ram_offset_mode = 0;
+	int ram_ram_size_mode = 1;
 
 	if (!devp->afbce_info)
 		return;
@@ -623,7 +632,8 @@ void vdin_vfce_afbce_config(struct vdin_dev_s *devp)
 		reg_format_mode = 0;/*444*/
 	    bits_num = 24;
 	}
-
+	if (reg_fmt444_comb) /* t6x */
+		ram_ram_size_mode = 0;
 	uncompress_bits = devp->source_bitdepth;
 	if (devp->is_422_12bit_enabled) {
 		uncompress_bits = 12;
@@ -756,19 +766,18 @@ void vdin_vfce_afbce_config(struct vdin_dev_s *devp)
 //			AFBCE_MMU_RMIF_CTRL4, rd(0, AFBCE_MMU_RMIF_CTRL4),
 //			devp->afbce_info->table_paddr);
 	W_VCBUS(VFCE_TOP0_CTRL_2,
-		((0x0 & 0x7) << 1) |  // ram arb rst
-		((ram_offset_mode & 0x1) << 0) // ram offset mode
+		(ram_ram_size_mode	 << 4) | // 1:for afbce 4k 444 10bit
+		((0x0 & 0x7)		 << 1) | // ram arb rst
+		((ram_offset_mode & 0x1) << 0)   // ram offset mode
 		);
 }
 
 void vdin_vfce_config(struct vdin_dev_s *devp)
 {
-	pr_info("vdin%d,%s enter\n", devp->index, __func__);
 	vdin_vfce_afbce_config(devp);
 	vdin_vfce_afrce_config(devp);
 	vdin_vfce_chnl(devp);
 	vdin_vfce_mif(devp);
-	pr_info("vdin%d,%s exit\n", devp->index, __func__);
 }
 
 void vdin_vfce_set_next_frame(struct vdin_dev_s *devp,

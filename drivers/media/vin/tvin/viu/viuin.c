@@ -88,6 +88,10 @@ static struct class *viu_class;
 #define VDIN_LITE_CORE_MAX_PIXEL_CLOCK	(4096 * 2160 * 60UL)
 /* txhd2 for keystone dump vdin1 */
 #define VPP_MISC									0x1d26
+/* t6x new add*/
+#define VPU_VIU2VDIN0_BUF_SIZE	0x2737
+#define VPP_WRBAK_HOLD_CTRL	0x1df4 /* reduction speed */
+#define VPU_VIU2VDIN0_HALF_CTRL	0x272d /* vpp >4k2k 60 cutwin */
 
 static unsigned int vsync_enter_line_curr;
 static unsigned int vsync_enter_line_max;
@@ -95,6 +99,7 @@ static unsigned int vsync_enter_line_max_threshold = 10000;
 static unsigned int vsync_enter_line_min_threshold = 10000;
 static unsigned int vsync_enter_line_threshold_overflow_count;
 static unsigned short open_cnt;
+static unsigned int viu_dbg_en;
 
 struct viuin_s {
 	unsigned int flag;
@@ -173,11 +178,35 @@ void viuin_check_venc_line(struct viuin_s *devp_local)
 
 void viuin_select_loopback_path(void)
 {
+	const struct vinfo_s *vinfo = NULL;
+
+	vinfo = get_current_vinfo();
+	unsigned long vinfo_total_size;
+
 	/* set VPU_VIU_VDIN_IF_MUX_CTRL */
 	wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL_T3X, 0x8080808);
 	/* sel TVIN_PORT_VIU1_WB0_VPP */
 	wr_bits_viu(VPP_WR_BAK_CTRL, 6, 0, 4);
 	wr_bits_viu(VPP_WR_BAK_CTRL, 0xff, 16, 8);
+	if (is_meson_t6x_cpu()) {
+		wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
+		if (vinfo) {
+			vinfo_total_size = (unsigned long)vinfo->width
+						* vinfo->height
+						* vinfo->std_duration;
+			if (vinfo_total_size > VDIN_LITE_CORE_MAX_PIXEL_CLOCK) {
+				wr_viu(VPU_VIU2VDIN0_BUF_SIZE,
+					(vinfo->height << 16) | ((vinfo->width / 2) << 0));
+				wr_viu(VPU_VIU2VDIN_HDN_CTRL,
+					(0x4420 << 16) | ((vinfo->width / 2) << 0));
+			} else {
+				wr_viu(VPU_VIU2VDIN0_BUF_SIZE,
+					(vinfo->height << 16) | (vinfo->width << 0));
+			}
+		} else {
+			pr_err("%s() vinfo is null!!", __func__);
+		}
+	}
 	wr_bits_viu(WR_BACK_MISC_CTRL, 1, 0, 1);/*vd0 hsync*/
 	wr_bits_viu(WR_BACK_MISC_CTRL, 0, 1, 1);/*vd1 hsync*/
 	/* enable write back hsync */
@@ -188,7 +217,16 @@ EXPORT_SYMBOL(viuin_select_loopback_path);
 void viuin_clear_loopback_path(void)
 {
 	wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0);
-	wr_viu(VPP_WR_BAK_CTRL, 0);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (is_meson_t6x_cpu()) {
+		wr_bits_viu(VPP_WR_BAK_CTRL, 0, 0, 23);
+		wr_bits_viu(VPP_WR_BAK_CTRL, 0, 30, 1);
+	} else {
+		wr_viu(VPP_WR_BAK_CTRL, 0);
+	}
+#else
+	 wr_viu(VPP_WR_BAK_CTRL, 0);
+#endif
 }
 EXPORT_SYMBOL(viuin_clear_loopback_path);
 
@@ -428,6 +466,10 @@ static void viuin_set_wr_bak_ctrl_t3x(enum tvin_port_e port)
 		wr_viu(VPU_VIU2VDIN_HDN_CTRL, vinfo->width);
 	}
 
+	unsigned long vinfo_total_size = (unsigned long)vinfo->width
+						* vinfo->height
+						* vinfo->std_duration;
+
 	switch (port) {
 	/* wr_bak_chan1_sel wb_chan_sel*/
 	//wr_bak_chan0_sel : 0:vd1 1:vd2 2:vd3 3:osd1 4:osd2 5:post_blend_out;
@@ -491,8 +533,7 @@ static void viuin_set_wr_bak_ctrl_t3x(enum tvin_port_e port)
 		break;
 	}
 
-	if (vinfo->width * vinfo->height * vinfo->std_duration >
-		VDIN_LITE_CORE_MAX_PIXEL_CLOCK) { //need skip
+	if (vinfo && vinfo_total_size > VDIN_LITE_CORE_MAX_PIXEL_CLOCK) { //need skip
 		/* din_mode,2ppc */
 		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 30, 2);
 		/* vskip:1 */
@@ -541,10 +582,17 @@ static void viuin_set_wr_bak_ctrl(enum tvin_port_e port)
 		if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu() || is_meson_t6w_cpu()) &&
 			rd_bits_viu(VPP_MISC, 27, 1))
 			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
+		if (is_meson_t6x_cpu()) {/* enable wrbak */
+			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 9, 1);
+			if (rd_bits_viu(VPP_MISC, 27, 1))
+				wr_bits_viu(VPP_WR_BAK_CTRL, 0, 28, 1);
+		}
 #endif
 		break;
 	case TVIN_PORT_VIU1_WB0_OSD2:
 		wr_bits_viu(VPP_WR_BAK_CTRL, 4, 0, 4);
+		if (is_meson_t6x_cpu())
+			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 10, 1);
 		break;
 	case TVIN_PORT_VIU1_WB0_POST_BLEND:
 		wr_bits_viu(VPP_WR_BAK_CTRL, 5, 0, 4);
@@ -552,17 +600,26 @@ static void viuin_set_wr_bak_ctrl(enum tvin_port_e port)
 		if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu() || is_meson_t6w_cpu()) &&
 			rd_bits_viu(VPP_MISC, 27, 1))
 			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
+		if (is_meson_t6x_cpu()) {/* enable wrbak */
+			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 30, 1);
+			if (rd_bits_viu(VPP_MISC, 27, 1))
+				wr_bits_viu(VPP_WR_BAK_CTRL, 0, 28, 1);
+		}
 #endif
 		break;
 	case TVIN_PORT_VIU1_WB0_VPP:
 		wr_bits_viu(VPP_WR_BAK_CTRL, 6, 0, 4);
-
 		/* increase h banking in case vdin afifo overflow
 		 * pre chip has 8bits
 		 * tm2_revb increased 4bits, all 12bit
 		 */
 		wr_bits_viu(VPP_WR_BAK_CTRL, 0xff, 16, 8);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (is_meson_t6x_cpu()) {/* enable wrbak */
+			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
+			if (rd_bits_viu(VPP_MISC, 27, 1))
+				wr_bits_viu(VPP_WR_BAK_CTRL, 0, 28, 1);
+		}
 		if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu() || is_meson_t6w_cpu()) &&
 			rd_bits_viu(VPP_MISC, 27, 1))
 			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
@@ -570,6 +627,8 @@ static void viuin_set_wr_bak_ctrl(enum tvin_port_e port)
 		break;
 	case TVIN_PORT_VIU1_VIDEO:
 		wr_bits_viu(VPP_WR_BAK_CTRL, 7, 0, 4);
+		if (is_meson_t6x_cpu())
+			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 12, 1);
 		break;
 	/* wr_bak_chan1_sel wb_chan_sel*/
 	case TVIN_PORT_VIU1_WB1_VD1:
@@ -663,6 +722,25 @@ static void viu_delete_device(int minor)
 	device_destroy(viu_class, devno);
 }
 
+void viu_parse_param(char *buf_orig, char **parm)
+{
+	char *ps, *token;
+	char delim1[3] = " ";
+	char delim2[2] = "\n";
+	unsigned int n = 0;
+
+	ps = buf_orig;
+	strcat(delim1, delim2);
+	while (1) {
+		token = strsep(&ps, delim1);
+		if (!token)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
+	}
+}
+
 static ssize_t viu_param_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
@@ -686,51 +764,59 @@ static ssize_t viu_param_show(struct device *dev,
 
 static ssize_t viu_param_store(struct device *dev,
 				struct device_attribute *attr,
-				const char *bu, size_t count)
+				const char *buf, size_t len)
 {
-	const char *delim = " ";
-	char *token;
-	char *cur = (char *)bu;
-	unsigned int val;
+	char *buf_orig, *parm[47] = {NULL};
+	long val = 0;
 	struct viuin_s *devp;
 
 	devp = dev_get_drvdata(dev);
 
-	token = strsep(&cur, delim);
-	if (token && strncmp(token, "vsync_enter_line_curr", 21) == 0) {
-		/*get the next param*/
-		token = strsep(&cur, delim);
-		/*string to int*/
-		if (!token || kstrtouint(token, 10, &val) < 0)
-			return count;
-		vsync_enter_line_curr = val;
-		pr_info("vsync_enter_line_curr: %d\n", vsync_enter_line_curr);
-	} else if (token && strncmp(token, "vsync_enter_line_max_threshold", 30) == 0) {
-		token = strsep(&cur, delim);
-		if (!token || kstrtouint(token, 10, &val) < 0)
-			return count;
-		vsync_enter_line_max_threshold = val;
-		pr_info("vsync_enter_line_max_threshold: %d\n", vsync_enter_line_max_threshold);
-	} else if (token && strncmp(token, "vsync_enter_line_min_threshold", 30) == 0) {
-		token = strsep(&cur, delim);
-		if (!token || kstrtouint(token, 10, &val) < 0)
-			return count;
-		vsync_enter_line_min_threshold = val;
-		pr_info("vsync_enter_line_min_threshold: %d\n", vsync_enter_line_min_threshold);
-	} else if (token && strncmp(token, "vsync_enter_line_max", 19) == 0) {
-		token = strsep(&cur, delim);
-		if (!token || kstrtouint(token, 10, &val) < 0)
-			return count;
-		vsync_enter_line_max = val;
-		pr_info("vsync_enter_line_max: %d\n", vsync_enter_line_max);
-	} else {
-		pr_info("----cmd list----\n");
-		pr_info("vsync_enter_line_curr\n");
-		pr_info("vsync_enter_line_max\n");
-		pr_info("vsync_enter_line_max_threshold: default 10000\n");
-		pr_info("vsync_enter_line_min_threshold: default 10000\n");
+	if (!buf)
+		return len;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	viu_parse_param(buf_orig, (char **)&parm);
+
+	if (!strcmp(parm[0], "vsync_enter_line_curr")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			vsync_enter_line_curr = val;
+			pr_info("vsync_enter_line_curr: %d\n", vsync_enter_line_curr);
+		}
+	} else if (!strcmp(parm[0], "vsync_enter_line_max_threshold")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			vsync_enter_line_max_threshold = val;
+			pr_info("vsync_enter_line_max_threshold: %d\n",
+				vsync_enter_line_max_threshold);
+		}
+	} else if (!strcmp(parm[0], "vsync_enter_line_min_threshold")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			vsync_enter_line_min_threshold = val;
+			pr_info("vsync_enter_line_min_threshold: %d\n",
+				vsync_enter_line_min_threshold);
+		}
+	} else if (!strcmp(parm[0], "vsync_enter_line_max")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			vsync_enter_line_max = val;
+			pr_info("vsync_enter_line_max: %d\n", vsync_enter_line_max);
+		}
+	} else if (!strcmp(parm[0], "viu_dbg_en")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			viu_dbg_en = val;
+			pr_info("viu_dbg_en: %d\n", viu_dbg_en);
+		}
 	}
-	return count;
+
+	return len;
 }
 static DEVICE_ATTR_RW(viu_param);
 
@@ -752,6 +838,15 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 {
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
 	unsigned int viu_mux = 0;
+	unsigned long vinfo_total_size;
+	const struct vinfo_s *vinfo = NULL;
+
+	vinfo = get_current_vinfo();
+
+	if (vinfo)
+		vinfo_total_size = (unsigned long)vinfo->width
+					* vinfo->height
+					* vinfo->std_duration;
 
 	if (!memcpy(&devp->parm, fe->private_data,
 		    sizeof(struct vdin_parm_s))) {
@@ -811,6 +906,23 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	} else if (is_meson_t3x_cpu()) {
 		wr_viu(VPU_VIU2VDIN0_BUF_SIZE_T3X,
 			(devp->parm.v_active << 16) | (devp->parm.h_active << 0));
+	} else if (is_meson_t6x_cpu()) {
+		/* wrbak config change */
+		wr_viu(VPU_VIU2VDIN0_BUF_SIZE,
+			(devp->parm.v_active << 16) | (devp->parm.h_active << 0));
+
+		if (vinfo && vinfo_total_size > VDIN_LITE_CORE_MAX_PIXEL_CLOCK) {
+			wr_viu(VPP_WRBAK_HOLD_CTRL, 0);
+		} else {
+			wr_bits_viu(VPP_WRBAK_HOLD_CTRL, 1, 0, 1);
+			wr_bits_viu(VPP_WRBAK_HOLD_CTRL, 1, 8, 1);
+			wr_bits_viu(VPP_WRBAK_HOLD_CTRL, 1, 16, 1); //reduction of speed
+		}
+
+		if (devp->parm.over_pixel_clock)
+			wr_viu(VPU_VIU2VDIN_HDN_CTRL, (0x4420 << 16) | (devp->parm.h_active << 0));
+		else
+			wr_viu(VPU_VIU2VDIN_HDN_CTRL, (0x4020 << 16) | (devp->parm.h_active << 0));
 	} else
 #endif
 	{
@@ -858,7 +970,19 @@ static void viuin_close(struct tvin_frontend_s *fe, enum tvin_port_type_e port_t
 	if (open_cnt == 0) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 			wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			if (is_meson_t6x_cpu()) {
+				wr_bits_viu(VPP_WR_BAK_CTRL, 0, 0, 23);
+				wr_bits_viu(VPP_WR_BAK_CTRL, 0, 30, 1);
+				if (!rd_bits_viu(VPP_WR_BAK_CTRL, 28, 1))
+					wr_bits_viu(VPP_WR_BAK_CTRL, 1, 28, 1);
+				wr_viu(VPU_VIU2VDIN0_HALF_CTRL, 0);
+			} else {
+				wr_viu(VPP_WR_BAK_CTRL, 0);
+			}
+#else
 			wr_viu(VPP_WR_BAK_CTRL, 0);
+#endif
 		} else {
 			wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, 0, 8, 4);
 			wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, 0, 4, 4);
@@ -894,10 +1018,12 @@ static void viuin_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		pr_info("[viuin..]%s viu in dec isn't start.\n", __func__);
 	//pr_info("%s %d Disable VIU to VDIN\n", __func__, __LINE__);
 	wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0);
+	wr_viu(VPU_VIU2VDIN0_BUF_SIZE, 0);
+	wr_viu(VPP_WRBAK_HOLD_CTRL, 0);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* txhd2 keystone path close */
-	if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu() || is_meson_t6w_cpu()) &&
-		rd_bits_viu(VPP_WR_BAK_CTRL, 11, 1))
+	if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu() || is_meson_t6w_cpu() ||
+		is_meson_t6x_cpu()) && rd_bits_viu(VPP_WR_BAK_CTRL, 11, 1))
 		wr_bits_viu(VPP_WR_BAK_CTRL, 0, 11, 1);
 #endif
 }
@@ -926,6 +1052,7 @@ static int viuin_isr(struct tvin_frontend_s *fe, unsigned int hcnt64,
 }
 
 static struct tvin_decoder_ops_s viu_dec_ops = {
+	.owner = THIS_MODULE,
 	.support            = viuin_support,
 	.open               = viuin_open,
 	.start              = viuin_start,
@@ -1052,16 +1179,6 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 
 	prop->dest_cfmt = devp->parm.dfmt;
 	prop->decimation_ratio = 0;
-
-	if (!prop->loopback_crop_en) {
-		prop->scaling4w = devp->parm.dest_h_active;
-		prop->scaling4h = devp->parm.dest_v_active;
-
-		prop->vs = 0;
-		prop->ve = 0;
-		prop->hs = 0;
-		prop->he = 0;
-	}
 }
 
 static bool viu_check_frame_skip(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)

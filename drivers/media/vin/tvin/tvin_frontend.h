@@ -23,6 +23,7 @@ struct tvin_decoder_ops_s {
 	 * check whether the port is supported.
 	 * return 0 if not supported, return other if supported.
 	 */
+	struct module *owner;
 	int (*support)(struct tvin_frontend_s *fe, enum tvin_port_e port);
 	int (*open)(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		enum tvin_port_type_e port_type);

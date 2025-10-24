@@ -1855,6 +1855,14 @@ void vdin_pause_mif_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable,
 			VDIN0_CORE_CTRL + devp->addr_offset, !pause_en, 6, 1);
 		rdma_write_reg_bits(devp->rdma_handle, VDIN0_WRMIF_CTRL + devp->addr_offset,
 			!pause_en, WR_REQ_EN_BIT, WR_REQ_EN_WID);
+	} else {
+#endif
+		if (devp->hw_core == VDIN_HW_CORE_LITE) {
+			wr_bits(devp->addr_offset, VDIN0_CORE_CTRL, !pause_en, 6, 1);
+			wr_bits(devp->addr_offset, VDIN0_WRMIF_CTRL, !pause_en,
+				WR_REQ_EN_BIT, WR_REQ_EN_WID);
+		}
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	}
 #endif
 }
@@ -2972,6 +2980,16 @@ void vdin_dolby_config_t3x(struct vdin_dev_s *devp)
 
 	if (devp->debug.vdin_dbg_en)
 		pr_info("%s %d\n", __func__, __LINE__);
+}
+
+void vdin_dolby_mdata_write_en_t6x(unsigned int offset, unsigned int en)
+{
+	if (en) {
+		/* enable meta axi */
+		wr_bits(0, VDIN0_META_AXI_CTRL0_T6X, 1, 30, 1);
+	} else {
+		wr_bits(0, VDIN0_META_AXI_CTRL0_T6X, 0, 30, 1);
+	}
 }
 
 void vdin_dolby_mdata_write_en_t3x(unsigned int offset, unsigned int en)

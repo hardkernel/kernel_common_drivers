@@ -34,6 +34,8 @@
 #include "vdin_afbce.h"
 #include "vdin_canvas.h"
 #include <asm/div64.h>
+#include <linux/amlogic/media/video_sink/video.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
 /*2018-07-18 add debugfs*/
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
@@ -52,7 +54,7 @@ void vdin_parse_param(char *buf_orig, char **parm)
 	unsigned int n = 0;
 
 	ps = buf_orig;
-	strcat(delim1, delim2);
+	strncat(delim1, delim2, 1);
 	while (1) {
 		token = strsep(&ps, delim1);
 		if (!token)
@@ -61,6 +63,126 @@ void vdin_parse_param(char *buf_orig, char **parm)
 			continue;
 		parm[n++] = token;
 	}
+}
+
+enum tvin_port_e vdin_parse_port(char *parm)
+{
+	enum tvin_port_e port;
+	/*parse the port*/
+	if (!strcmp(parm, "bt656"))
+		port = TVIN_PORT_CAMERA;
+	else if (!strcmp(parm, "viu_in"))
+		port = TVIN_PORT_VIU1;
+	else if (!strcmp(parm, "video"))
+		port = TVIN_PORT_VIU1_VIDEO;
+	else if (!strcmp(parm, "viu_wb0_vpp") ||
+		!strcmp(parm, "vpp"))
+		port = TVIN_PORT_VIU1_WB0_VPP;
+	else if (!strcmp(parm, "viu_wb0_vd1") ||
+		!strcmp(parm, "vd1"))
+		port = TVIN_PORT_VIU1_WB0_VD1;
+	else if (!strcmp(parm, "viu_wb0_vd2") ||
+		!strcmp(parm, "vd2"))
+		port = TVIN_PORT_VIU1_WB0_VD2;
+	else if (!strcmp(parm, "viu_wb0_osd1") ||
+		!strcmp(parm, "osd1"))
+		port = TVIN_PORT_VIU1_WB0_OSD1;
+	else if (!strcmp(parm, "viu_wb0_osd2") ||
+		!strcmp(parm, "osd2"))
+		port = TVIN_PORT_VIU1_WB0_OSD2;
+	else if (!strcmp(parm, "viu_wb0_post_blend") ||
+		!strcmp(parm, "post_blend"))
+		port = TVIN_PORT_VIU1_WB0_POST_BLEND;
+	else if (!strcmp(parm, "viu_wb1_vpp"))
+		port = TVIN_PORT_VIU1_WB1_VPP;
+	else if (!strcmp(parm, "viu_wb1_vd1"))
+		port = TVIN_PORT_VIU1_WB1_VD1;
+	else if (!strcmp(parm, "viu_wb1_vd2"))
+		port = TVIN_PORT_VIU1_WB1_VD2;
+	else if (!strcmp(parm, "viu_wb1_osd1"))
+		port = TVIN_PORT_VIU1_WB1_OSD1;
+	else if (!strcmp(parm, "viu_wb0_osd2"))
+		port = TVIN_PORT_VIU1_WB1_OSD2;
+	else if (!strcmp(parm, "viu_wb1_post_blend"))
+		port = TVIN_PORT_VIU1_WB1_POST_BLEND;
+	else if (!strcmp(parm, "viu_wb1_vdin_bist"))
+		port = TVIN_PORT_VIU1_WB1_VDIN_BIST;
+	else if (!strcmp(parm, "viu_in2"))
+		port = TVIN_PORT_VIU2;
+	else if (!strcmp(parm, "viu2_encl"))
+		port = TVIN_PORT_VIU2_ENCL;
+	else if (!strcmp(parm, "viu2_enci"))
+		port = TVIN_PORT_VIU2_ENCI;
+	else if (!strcmp(parm, "viu2_encp"))
+		port = TVIN_PORT_VIU2_ENCP;
+	else if (!strcmp(parm, "viu2_vd1"))
+		port = TVIN_PORT_VIU2_VD1;
+	else if (!strcmp(parm, "viu2_osd1"))
+		port = TVIN_PORT_VIU2_OSD1;
+	else if (!strcmp(parm, "viu2_vpp"))
+		port = TVIN_PORT_VIU2_VPP;
+	else if (!strcmp(parm, "viu3_vd1"))
+		port = TVIN_PORT_VIU3_VD1;
+	else if (!strcmp(parm, "viu3_osd1"))
+		port = TVIN_PORT_VIU3_OSD1;
+	else if (!strcmp(parm, "viu3_vpp"))
+		port = TVIN_PORT_VIU3_VPP;
+	else if (!strcmp(parm, "venc0"))
+		port = TVIN_PORT_VENC0;
+	else if (!strcmp(parm, "venc1"))
+		port = TVIN_PORT_VENC1;
+	else if (!strcmp(parm, "venc2"))
+		port = TVIN_PORT_VENC2;
+	else if (!strcmp(parm, "isp"))
+		port = TVIN_PORT_ISP;
+	else
+		port = TVIN_PORT_NULL;
+
+	return port;
+}
+
+void vdin_get_input_size(struct vdin_dev_s *devp, struct vdin_parm_s *parm)
+{
+	if (devp->hw_core != VDIN_HW_CORE_LITE)
+		return;
+
+	const struct vinfo_s *vinfo;
+
+	vinfo = get_current_vinfo();
+	parm->frame_rate = vinfo->std_duration;
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	int cur_axis[4];
+	struct video_input_info video_input_parms;
+
+	memset(&cur_axis, 0, sizeof(cur_axis));
+	memset(&video_input_parms, 0, sizeof(struct video_input_info));
+
+	if (vdin_get_video_ready_state(parm->port)) {
+		if (parm->port == TVIN_PORT_VIU1_WB0_VD1) {
+			get_vdx_real_axis(0, cur_axis);
+			parm->h_active = cur_axis[2] - cur_axis[0] + 1;
+			parm->v_active = cur_axis[3] - cur_axis[1] + 1;
+		} else if (parm->port == TVIN_PORT_VIU2_VD1) {
+			get_vdx_real_axis(1, cur_axis);
+			parm->h_active = cur_axis[2] - cur_axis[0] + 1;
+			parm->v_active = cur_axis[3] - cur_axis[1] + 1;
+		} else if (parm->port == TVIN_PORT_VIU1_VIDEO) {
+			get_video_input_info(&video_input_parms);
+			parm->h_active = video_input_parms.width;
+			parm->v_active = video_input_parms.height;
+		}
+		pr_info("[%s] hv active: %dx%d (video only)\n",
+			__func__, parm->h_active, parm->v_active);
+	} else {
+#endif
+		parm->h_active = vinfo->width;
+		parm->v_active = vinfo->height;
+		pr_info("[%s] hv active: %dx%d (vinfo)\n",
+			__func__, vinfo->width, vinfo->height);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	}
+#endif
 }
 
 ssize_t sig_det_show(struct device *dev,
@@ -1265,7 +1387,7 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 		highmem_flag = PageHighMem(phys_to_page(devp->mem_start));
 
 	if ((vdin_is_convert_to_422(devp->format_convert) &&
-		devp->dtdata->hw_ver == VDIN_HW_T6W &&
+		(devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) &&
 		devp->debug.yuv422_2plane_en))
 		count = devp->canvas_h * 2;
 	else if (vdin_is_convert_to_nv21(devp->format_convert))
@@ -2734,6 +2856,10 @@ static void vdin_dump_histgram_ldim(struct vdin_dev_s *devp,
 static void vdin_write_back_reg(struct vdin_dev_s *devp)
 {
 	pr_info("VPU_VIU_VENC_MUX_CTRL(0x%x):0x%x\n", 0x271a, R_VCBUS(0x271a));
+	if (devp->dtdata->hw_ver == VDIN_HW_T6X) {
+		pr_info("VPU_VIU2VDIN0_HALF_CTRL(0x%x):0x%x\n", 0x272d, R_VCBUS(0x272d));
+		pr_info("VPU_VIU2VDIN0_BUF_SIZE(0x%x):0x%x\n", 0x2737, R_VCBUS(0x2737));
+	}
 	pr_info("VPU_VIU2VDIN_HDN_CTRL(0x%x):0x%x\n", 0x2780, R_VCBUS(0x2780));
 	pr_info("VPU_VDIN_MISC_CTRL(0x%x):0x%x\n", 0x2782, R_VCBUS(0x2782));
 	pr_info("VPU_VIU_VDIN_IF_MUX_CTRL(0x%x):0x%x\n", 0x2783, R_VCBUS(0x2783));
@@ -2744,6 +2870,8 @@ static void vdin_write_back_reg(struct vdin_dev_s *devp)
 	pr_info("VIU2_FRM_CTRL(0x%x):0x%x\n", 0x1a8e, R_VCBUS(0x1a8e));
 	pr_info("VPP_VE_H_V_SIZE(0x%x):0x%x\n", 0x1da4, R_VCBUS(0x1da4));
 	pr_info("VPP_OUT_H_V_SIZE(0x%x):0x%x\n", 0x1da5, R_VCBUS(0x1da5));
+	if (devp->dtdata->hw_ver == VDIN_HW_T6X)
+		pr_info("VPP_WRBAK_HOLD_CTRL(0x%x):0x%x\n", 0x1df4, R_VCBUS(0x1df4));
 	pr_info("VPP_WR_BAK_CTRL(0x%x):0x%x\n", 0x1df9, R_VCBUS(0x1df9));
 	if (R_VCBUS_BIT(0x2783, 0, 6) == 0x20)
 		pr_info("VPP1_WR_BAK_CTRL(0x%x):0x%x\n", 0x5981, R_VCBUS(0x5981));
@@ -2902,7 +3030,29 @@ static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 		pr_info("vdin%d DV regs end----\n", devp->index);
 	}
 #endif
-	if (devp->dtdata->hw_ver == VDIN_HW_T6W) {
+	if (devp->dtdata->hw_ver == VDIN_HW_T6X) {
+		if (!devp->index) {
+			pr_info("t6x aa ds regs begin\n");
+			for (reg = VDIN0_AA_DS_CTRL + VDIN0_WRMIF_REG_OFFSET_T6X;
+			     reg <= VDIN0_AA_DS_RO_DBG + VDIN0_WRMIF_REG_OFFSET_T6X; reg++) {
+				pr_info("0x%04x = 0x%08x\n",
+					(reg + offset), rd(offset, reg));
+			}
+			pr_info("t6x aa ds regs end\n");
+		}
+		pr_info("t6x wrmif regs begin\n");
+		for (reg = VDIN0_WRMIF_FRM_EN_CTRL + VDIN0_WRMIF_REG_OFFSET_T6X;
+		     reg <= VDIN0_WRMIF_MMU_CTRL + VDIN0_WRMIF_REG_OFFSET_T6X; reg++) {
+			pr_info("0x%04x = 0x%08x\n",
+				(reg + offset), rd(offset, reg));
+		}
+		pr_info("t6x wrmif regs end\n");
+		pr_info("t6x hist regs begin\n");
+		pr_info("0x%04x = 0x%08x\n", 0x1292, R_VCBUS(VDIN_HIST_H_START_END_T6X));
+		pr_info("0x%04x = 0x%08x\n", 0x1293, R_VCBUS(VDIN_HIST_V_START_END_T6X));
+		pr_info("0x%04x = 0x%08x\n", 0x1297, R_VCBUS(VDIN_HIST_SPL_VAL_T6X));
+		pr_info("t6x hist regs end\n");
+	} else if (devp->dtdata->hw_ver == VDIN_HW_T6W) {
 		if (!devp->index) {
 			pr_info("t6w aa ds regs begin\n");
 			for (reg = VDIN0_AA_DS_CTRL;
@@ -2971,7 +3121,8 @@ static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 
 	if (devp->afbce_flag & VDIN_AFBCE_EN) {
 		pr_info("vdin%d afbce regs start----\n", devp->index);
-		if (devp->dtdata->hw_ver == VDIN_HW_T6W) {
+		if (devp->dtdata->hw_ver == VDIN_HW_T6W ||
+			devp->dtdata->hw_ver == VDIN_HW_T6X) {
 			for (reg = VFCE_CHNL0_ENABLE; reg <= VFCE_TOP1_STA_0;
 				reg++) {
 				pr_info("0x%04x = 0x%08x\n", (reg), R_VCBUS(reg));
@@ -2984,7 +3135,8 @@ static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 		}
 		pr_info("vdin%d afbce regs end----\n\n", devp->index);
 	}
-	if (devp->dtdata->hw_ver == VDIN_HW_T6W) {
+	if (devp->dtdata->hw_ver == VDIN_HW_T6W ||
+		devp->dtdata->hw_ver == VDIN_HW_T6X) {
 		pr_info("t6w ip pattern regs begin\n");
 		for (reg = VDIN0_IP_PAT_CTRL; reg <= VDIN0_IP_PAT_GCLK_CTRL;
 			reg++) {
@@ -3589,141 +3741,74 @@ start_chk:
 		devp->flags &= (~VDIN_FLAG_V4L2_DEBUG);
 	} else if (!strcmp(parm[0], "v4l2start")) {
 		struct vdin_parm_s param;
+		memset(&param, 0, sizeof(struct vdin_parm_s));
 
-		if (!parm[4]) {
-			pr_err("usage: echo v4l2start port width height");
-			pr_err("fps cfmt > /sys/class/vdin/vdinx/attr.\n");
-			pr_err("port maybe bt656 or viu_in,");
-			pr_err("fps the frame rate of input.\n");
+		if (!parm[1]) {
+			pr_err("Usage:");
+			pr_err("echo v4l2start <port> > /sys/class/vdin/vdin1/attr\n");
+			pr_err("<port>: loopback port (Mandatory parameter)\n");
+			pr_err("	video     -- video (no pq)\n");
+			pr_err("	vd1       -- video only\n");
+			pr_err("	osd1      -- osd1 only\n");
+			pr_err("	osd2      -- osd2 only\n");
+			pr_err("	postblend -- video+osd (no pq)\n");
+			pr_err("	vpp       -- video+osd\n");
+			pr_err("Usage Examples:\n");
+			pr_err("echo v4l2start vpp > /sys/class/vdin/vdin1/attr\n");
 			kfree(buf_orig);
 			return len;
-		}
-		memset(&param, 0, sizeof(struct vdin_parm_s));
-		/*parse the port*/
-		if (!strcmp(parm[1], "bt656")) {
-			param.port = TVIN_PORT_CAMERA;
-			pr_info(" port is TVIN_PORT_CAMERA\n");
-		} else if (!strcmp(parm[1], "viu_in")) {
-			param.port = TVIN_PORT_VIU1;
-			pr_info(" port is TVIN_PORT_VIU\n");
-		} else if (!strcmp(parm[1], "video")) {
-			param.port = TVIN_PORT_VIU1_VIDEO;
-			pr_info(" port is TVIN_PORT_VIU1_VIDEO\n");
-		} else if (!strcmp(parm[1], "viu_wb0_vpp")) {
-			param.port = TVIN_PORT_VIU1_WB0_VPP;
-			pr_info(" port is TVIN_PORT_VIU1_WB0_VPP\n");
-		} else if (!strcmp(parm[1], "viu_wb0_vd1")) {
-			param.port = TVIN_PORT_VIU1_WB0_VD1;
-			pr_info(" port is TVIN_PORT_VIU_WB0_VD1\n");
-		} else if (!strcmp(parm[1], "viu_wb0_vd2")) {
-			param.port = TVIN_PORT_VIU1_WB0_VD2;
-			pr_info(" port is TVIN_PORT_VIU_WB0_VD2\n");
-		} else if (!strcmp(parm[1], "viu_wb0_osd1")) {
-			param.port = TVIN_PORT_VIU1_WB0_OSD1;
-			pr_info(" port is TVIN_PORT_VIU_WB0_OSD1\n");
-		} else if (!strcmp(parm[1], "viu_wb0_osd2")) {
-			param.port = TVIN_PORT_VIU1_WB0_OSD2;
-			pr_info(" port is TVIN_PORT_VIU_WB0_OSD2\n");
-		} else if (!strcmp(parm[1], "viu_wb0_post_blend")) {
-			param.port = TVIN_PORT_VIU1_WB0_POST_BLEND;
-			pr_info(" port is TVIN_PORT_VIU_WB0_POST_BLEND\n");
-		} else if (!strcmp(parm[1], "viu_wb1_vpp")) {
-			param.port = TVIN_PORT_VIU1_WB1_VPP;
-			pr_info(" port is TVIN_PORT_VIU1_WB1_VPP\n");
-		} else if (!strcmp(parm[1], "viu_wb1_vd1")) {
-			param.port = TVIN_PORT_VIU1_WB1_VD1;
-			pr_info(" port is TVIN_PORT_VIU_WB1_VD1\n");
-		} else if (!strcmp(parm[1], "viu_wb1_vd2")) {
-			param.port = TVIN_PORT_VIU1_WB1_VD2;
-			pr_info(" port is TVIN_PORT_VIU_WB1_VD2\n");
-		} else if (!strcmp(parm[1], "viu_wb1_osd1")) {
-			param.port = TVIN_PORT_VIU1_WB1_OSD1;
-			pr_info(" port is TVIN_PORT_VIU_WB1_OSD1\n");
-		} else if (!strcmp(parm[1], "viu_wb0_osd2")) {
-			param.port = TVIN_PORT_VIU1_WB1_OSD2;
-			pr_info(" port is TVIN_PORT_VIU_WB1_OSD2\n");
-		} else if (!strcmp(parm[1], "viu_wb1_post_blend")) {
-			param.port = TVIN_PORT_VIU1_WB1_POST_BLEND;
-			pr_info(" port is TVIN_PORT_VIU_WB1_POST_BLEND\n");
-		} else if (!strcmp(parm[1], "viu_wb1_vdin_bist")) {
-			param.port = TVIN_PORT_VIU1_WB1_VDIN_BIST;
-			pr_info(" port is TVIN_PORT_VIU1_WB1_VDIN_BIST\n");
-		} else if (!strcmp(parm[1], "viu_in2")) {
-			param.port = TVIN_PORT_VIU2;
-			pr_info(" port is TVIN_PORT_VIU\n");
-		} else if (!strcmp(parm[1], "viu2_encl")) {
-			param.port = TVIN_PORT_VIU2_ENCL;
-			pr_info(" port is TVIN_PORT_VIU2_ENCL\n");
-		} else if (!strcmp(parm[1], "viu2_enci")) {
-			param.port = TVIN_PORT_VIU2_ENCI;
-			pr_info(" port is TVIN_PORT_VIU2_ENCI\n");
-		} else if (!strcmp(parm[1], "viu2_encp")) {
-			param.port = TVIN_PORT_VIU2_ENCP;
-			pr_info(" port is TVIN_PORT_VIU2_ENCP\n");
-		} else if (!strcmp(parm[1], "viu2_vd1")) {
-			param.port = TVIN_PORT_VIU2_VD1;
-			pr_info(" port is TVIN_PORT_VIU2_VD1\n");
-		} else if (!strcmp(parm[1], "viu2_osd1")) {
-			param.port = TVIN_PORT_VIU2_OSD1;
-			pr_info(" port is TVIN_PORT_VIU2_OSD\n");
-		} else if (!strcmp(parm[1], "viu2_vpp")) {
-			param.port = TVIN_PORT_VIU2_VPP;
-			pr_info(" port is TVIN_PORT_VIU2_VPP\n");
-		} else if (!strcmp(parm[1], "viu3_vd1")) {
-			param.port = TVIN_PORT_VIU3_VD1;
-			pr_info(" port is TVIN_PORT_VIU3_VD1\n");
-		} else if (!strcmp(parm[1], "viu3_osd1")) {
-			param.port = TVIN_PORT_VIU3_OSD1;
-			pr_info(" port is TVIN_PORT_VIU3_OSD\n");
-		} else if (!strcmp(parm[1], "viu3_vpp")) {
-			param.port = TVIN_PORT_VIU3_VPP;
-			pr_info(" port is TVIN_PORT_VIU3_VPP\n");
-		} else if (!strcmp(parm[1], "venc0")) {
-			param.port = TVIN_PORT_VENC0;
-			pr_info(" port is TVIN_PORT_VENC0\n");
-		} else if (!strcmp(parm[1], "venc1")) {
-			param.port = TVIN_PORT_VENC1;
-			pr_info(" port is TVIN_PORT_VENC1\n");
-		} else if (!strcmp(parm[1], "venc2")) {
-			param.port = TVIN_PORT_VENC2;
-			pr_info(" port is TVIN_PORT_VENC2\n");
-		} else if (!strcmp(parm[1], "isp")) {
-			param.port = TVIN_PORT_ISP;
-			pr_info(" port is TVIN_PORT_ISP\n");
+		} else {
+			/*parse the port*/
+			param.port = vdin_parse_port(parm[1]);
 		}
 
-		/*parse the resolution*/
-		if (kstrtol(parm[2], 10, &val) == 0)
-			param.h_active = val;
-		if (kstrtol(parm[3], 10, &val) == 0)
-			param.v_active = val;
-		if (kstrtol(parm[4], 10, &val) == 0)
-			param.frame_rate = val;
-		pr_info(" h_active:%d,v_active:%d, rate:%d\n",
-			param.h_active,
-			param.v_active,
-			param.frame_rate);
+		if (!parm[2] && !parm[3] && !parm[4] &&
+			devp->hw_core == VDIN_HW_CORE_LITE) {
+			vdin_get_input_size(devp, &param);
+		} else {
+			/*parse the resolution*/
+			if (kstrtol(parm[2], 10, &val) == 0)
+				param.h_active = val;
+			if (kstrtol(parm[3], 10, &val) == 0)
+				param.v_active = val;
+			if (kstrtol(parm[4], 10, &val) == 0)
+				param.frame_rate = val;
+		}
+
 		if (!parm[5])
 			param.cfmt = TVIN_YUV422;
 		else if (kstrtol(parm[5], 10, &val) == 0)
 			param.cfmt = val;
-		pr_info(" cfmt:%d\n", param.cfmt);
+
 		if (!parm[6])
-			param.dfmt = TVIN_YUV422;
+			param.dfmt = TVIN_NV21;
 		else if (kstrtol(parm[6], 10, &val) == 0)
 			param.dfmt = val;
-		pr_info(" dfmt:%d\n", param.dfmt);
+
 		if (!parm[7])
 			param.scan_mode = TVIN_SCAN_MODE_PROGRESSIVE;
 		else if (kstrtol(parm[7], 10, &val) == 0)
 			param.scan_mode = val;
-		pr_info(" scan_mode:%d\n", param.scan_mode);
 
+		if ((devp->flags & VDIN_FLAG_MANUAL_CONVERSION) &&
+			devp->debug.scaling4w && devp->debug.scaling4h) {
+			param.dest_h_active = devp->debug.scaling4w;
+			param.dest_v_active = devp->debug.scaling4h;
+		} else {
+			param.dest_h_active = param.h_active;
+			param.dest_v_active = param.v_active;
+		}
 		param.fmt = TVIN_SIG_FMT_MAX;
 		devp->flags |= VDIN_FLAG_V4L2_DEBUG;
 		param.reserved |= PARAM_STATE_HISTGRAM;
 		/* param.scan_mode = TVIN_SCAN_MODE_PROGRESSIVE; */
 		/*start the vdin hardware*/
+
+		pr_info("v4l2start %dx%d %dHz -> %dx%d fmt:%d %d %d mode:%d\n",
+			param.h_active, param.v_active, param.frame_rate,
+			param.dest_h_active, param.dest_v_active,
+			param.cfmt, param.dfmt, param.fmt,
+			param.scan_mode);
 		start_tvin_service(devp->index, &param);
 	} else if (!strcmp(parm[0], "disable_sm")) {
 		del_timer_sync(&devp->timer);

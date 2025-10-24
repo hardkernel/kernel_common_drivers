@@ -9,6 +9,7 @@
 #include "vdin_regs_s5.h"
 #include "vdin_regs_t3x.h"
 #include "vdin_regs_t6w.h"
+#include "vdin_regs_t6x.h"
 
 //VPU QoS
 #define VPU_WRARB_UGT_L2C1 0x27c3
@@ -243,11 +244,17 @@
 #define VDIN_MATRIX_COEF22          ((0x1215))/* + 0xd0100000) */
 /* Bit 26:16 offset0 */
 /* Bit 10:0  offset1 */
+/* t6x */
+/* Bit 26:14 offset0 */
+/* Bit 12:0  offset1 */
 #define VDIN_MATRIX_OFFSET0_1       ((0x1216))/* + 0xd0100000) */
 /* Bit 10:0  offset2 */
 #define VDIN_MATRIX_OFFSET2         ((0x1217))/* + 0xd0100000) */
 /* Bit 26:16 pre_offset0 */
 /* Bit 10:0  pre_offset1 */
+/* t6x */
+/* Bit 26:14 pre_offset0 */
+/* Bit 12:0  pre_offset1 */
 #define VDIN_MATRIX_PRE_OFFSET0_1   ((0x1218))/* + 0xd0100000) */
 /* Bit 10:0  pre_offset2 */
 #define VDIN_MATRIX_PRE_OFFSET2     ((0x1219))/* + 0xd0100000) */
@@ -425,6 +432,11 @@
 #define WR_HSTART_WID                   13
 #define WR_HEND_BIT                     0
 #define WR_HEND_WID                     13
+/* regs of t6w only begin */
+#define VDIN_HSC_MISC_CTRL                  ((0x121f))
+#define VDIN_HSC_REGION12_STARTP            ((0x1220))
+#define VDIN_HSC_REGION34_STARTP            ((0x1221))
+/* regs of t6w only end */
 
 #define VDIN_WR_V_START_END            ((0x1222))/* + 0xd0100000) */
 /* if true vertical reverse */
@@ -930,6 +942,7 @@
 #define VDIN_DSC_TUNNEL_SEL	0x12d7
 
 #define VDIN_DSC2_HSIZE		0x12da
+#define VDIN_IN_SIZE		0x12dd
 
 /*tm2 new add begin*/
 #define VDIN_VSHRK_SIZE_M1	0x12d9
@@ -1472,6 +1485,8 @@
 #define FRACTION_PORTION_WID           20
 
 /* #define VDIN_VSC_INI_CTRL                             0x1224 */
+#define OUTSIDE_PIC_PAD_EN_BIT                        24
+#define OUTSIDE_PIC_PAD_EN_WID                        1
 #define VSC_EN_BIT                                  23
 #define VSC_EN_WID                                 1
 #define VSC_PHASE0_ALWAYS_EN_BIT      21/* to be 1 when scale up */

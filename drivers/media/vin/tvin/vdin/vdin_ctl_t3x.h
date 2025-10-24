@@ -124,6 +124,7 @@ void vdin_clk_on_off_t3x(struct vdin_dev_s *devp, bool on_off);
 //			  enum vframe_source_type_e source_type);
 void vdin_set_dv_tunnel_t3x(struct vdin_dev_s *devp);
 void vdin_dolby_mdata_write_en_t3x(unsigned int offset, unsigned int en);
+void vdin_dolby_mdata_write_en_t6x(unsigned int offset, unsigned int en);
 void vdin_prob_set_xy_t3x(unsigned int offset,
 		      unsigned int x, unsigned int y, struct vdin_dev_s *devp);
 void vdin_prob_get_yuv_t3x(unsigned int offset,

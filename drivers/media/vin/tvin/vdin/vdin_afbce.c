@@ -113,7 +113,7 @@ void vdin_write_mif_or_afbce_init(struct vdin_dev_s *devp)
 		sel = VDIN_OUTPUT_TO_AFBCE;
 
 	if (sel == VDIN_OUTPUT_TO_MIF) {
-		if (devp->dtdata->hw_ver == VDIN_HW_T6W) {
+		if (devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) {
 			W_VCBUS_BIT(VFCE_CHNL0_ENABLE, 0x0, 0, 1);
 			W_VCBUS_BIT(VFCE_CHNL1_ENABLE, 0x0, 0, 1);
 		} else {
@@ -156,7 +156,7 @@ void vdin_write_mif_or_afbce_init(struct vdin_dev_s *devp)
 			W_VCBUS_BIT(VDIN_MISC_CTRL, 0, VDIN0_OUT_MIF_BIT, 1);
 			W_VCBUS_BIT(VDIN_MISC_CTRL, 1, VDIN0_OUT_AFBCE_BIT, 1);
 		}
-		if (devp->dtdata->hw_ver == VDIN_HW_T6W) {
+		if (devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) {
 			W_VCBUS_BIT(VFCE_CHNL0_ENABLE, 0x0, 0, 1);
 			W_VCBUS_BIT(VFCE_CHNL1_ENABLE, 0x0, 0, 1);
 		} else {
@@ -263,7 +263,7 @@ void vdin_afbce_update(struct vdin_dev_s *devp)
 	if (is_meson_t3x_cpu()) {
 		vdin_afbce_update_t3x(devp);
 		return;
-	} else if (is_meson_t6w_cpu()) {
+	} else if (is_meson_t6w_cpu() || is_meson_t6x_cpu()) {
 		vdin_vfce_update(devp);
 		return;
 	}
@@ -348,7 +348,7 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 	if (is_meson_t3x_cpu()) {
 		vdin_afbce_config_t3x(devp);
 		return;
-	} else if (is_meson_t6w_cpu()) {
+	} else if (is_meson_t6w_cpu() || is_meson_t6x_cpu()) {
 		vdin_vfce_config(devp);
 		return;
 	}
@@ -640,7 +640,7 @@ void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 	if (is_meson_t3x_cpu()) {
 		vdin_afbce_set_next_frame_t3x(devp, rdma_enable, vfe);
 		return;
-	} else if (is_meson_t6w_cpu()) {
+	} else if (is_meson_t6w_cpu() || is_meson_t6x_cpu()) {
 		vdin_vfce_set_next_frame(devp, rdma_enable, vfe);
 		return;
 	}
@@ -733,7 +733,7 @@ void vdin_afbce_clear_write_down_flag(struct vdin_dev_s *devp)
 	if (is_meson_t3x_cpu()) {
 		vdin_afbce_clear_write_down_flag_t3x(devp);
 		return;
-	} else if (is_meson_t6w_cpu()) {
+	} else if (is_meson_t6w_cpu() || is_meson_t6x_cpu()) {
 		vdin_vfce_clear_write_down_flag(devp);
 		return;
 	}
@@ -751,7 +751,7 @@ int vdin_afbce_read_write_down_flag(struct vdin_dev_s *devp)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t3x_cpu())
 		return vdin_afbce_read_write_down_flag_t3x(devp);
-	else if (is_meson_t6w_cpu())
+	else if (is_meson_t6w_cpu() || is_meson_t6x_cpu())
 		return vdin_vfce_read_write_down_flag(devp);
 #endif
 
@@ -836,7 +836,7 @@ void vdin_afbce_mode_update(struct vdin_dev_s *devp)
 	if (is_meson_t3x_cpu()) {
 		vdin_afbce_mode_update_t3x(devp);
 		return;
-	} else if (is_meson_t6w_cpu()) {
+	} else if (is_meson_t6w_cpu() || is_meson_t6x_cpu()) {
 		/* no needed anymore */
 		return;
 	}

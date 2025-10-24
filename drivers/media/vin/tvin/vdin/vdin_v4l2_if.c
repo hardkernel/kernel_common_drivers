@@ -2086,8 +2086,7 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 
 	if (devp->hw_core == VDIN_HW_CORE_LITE) {
 		if (vdin_get_video_ready_state(devp->v4l2_port_cur)) {
-			if (devp->v4l2_port_cur == TVIN_PORT_VIU1_VIDEO ||
-				devp->v4l2_port_cur == TVIN_PORT_VIU1_WB0_VD1)
+			if (devp->v4l2_port_cur == TVIN_PORT_VIU1_WB0_VD1)
 				get_vdx_real_axis(0, cur_axis);
 			else if (devp->v4l2_port_cur == TVIN_PORT_VIU2_VD1)
 				get_vdx_real_axis(1, cur_axis);

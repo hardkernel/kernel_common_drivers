@@ -359,7 +359,9 @@ bool vdin_dv_is_source_led(struct vdin_dev_s *devp)
 
 bool vdin_dv_is_hw2(struct vdin_dev_s *devp)
 {
-	if (devp->dtdata->hw_ver != VDIN_HW_T3X && devp->prop.dv_unique_drm_flag)
+	if (devp->dtdata->hw_ver != VDIN_HW_T3X &&
+	    devp->dtdata->hw_ver != VDIN_HW_T6W &&
+	    devp->dtdata->hw_ver != VDIN_HW_T6X && devp->prop.dv_unique_drm_flag)
 		return true;
 	else
 		return false;
@@ -367,7 +369,9 @@ bool vdin_dv_is_hw2(struct vdin_dev_s *devp)
 
 bool vdin_dv_is_hw5(struct vdin_dev_s *devp)
 {
-	if (devp->dtdata->hw_ver == VDIN_HW_T3X && devp->prop.dv_unique_drm_flag)
+	if ((devp->dtdata->hw_ver == VDIN_HW_T3X ||
+	     devp->dtdata->hw_ver == VDIN_HW_T6W ||
+	     devp->dtdata->hw_ver == VDIN_HW_T6X) && devp->prop.dv_unique_drm_flag)
 		return true;
 	else
 		return false;

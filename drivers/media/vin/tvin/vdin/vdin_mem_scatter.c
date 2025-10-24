@@ -106,7 +106,7 @@ void vdin_sct_read_mmu_num(struct vdin_dev_s *devp, struct vf_entry *vfe)
 	unsigned int *paddr = NULL;
 
 	if (devp->mem_type == VDIN_MEM_TYPE_SCT && vfe) {
-		if (devp->dtdata->hw_ver == VDIN_HW_T6W) {
+		if (devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) {
 			paddr = rdma_get_read_back_addr(devp->rdma_read_handle, &devp->reg_hnd);
 			if (paddr) {
 				vfe->vf.afbce_num = *paddr;

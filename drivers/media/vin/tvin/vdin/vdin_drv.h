@@ -137,9 +137,10 @@
 /* 20230608: vdin not clear ratio_control value */
 /* 20230720: set vdin urgent for txhd2 */
 /* 20240730: Change the vdin address access range to greater than 4GB, starting from s6 */
-/* 20230529: bringup for t6d */
+/* 20240529: bringup for t6d */
+/* 20250417: bringup for t6x */
 
-#define VDIN_VER "2024/08/05"
+#define VDIN_VER "2025/05/08 t6x bringup"
 
 //#define T3X_PXP_BRINGUP
 //#define VDIN_BRINGUP_NO_VF
@@ -200,6 +201,7 @@ enum vdin_hw_ver_e {
 	VDIN_HW_S6,
 	VDIN_HW_T6D,
 	VDIN_HW_T6W,
+	VDIN_HW_T6X,
 };
 
 /* 20230607: game mode optimize and add debug */
@@ -602,7 +604,9 @@ struct vdin_vf_info {
 #define DBG_SCT_CTL_DIS			(BIT(0)) /* disable sct memory */
 #define DBG_SCT_CTL_NO_FREE_TAIL	(BIT(1)) /* do not free tail */
 #define DBG_SCT_CTL_NO_FREE_WR_LIST	(BIT(2)) /* do not free vf mem in wr list */
+
 #define DBG_REG_LENGTH			10
+
 #define DBG_REG_START_READ		(BIT(0))
 #define DBG_REG_START_WRITE		(BIT(1))
 #define DBG_REG_START_SET_BIT		(BIT(2))
@@ -693,6 +697,7 @@ struct vdin_debug_s {
 	unsigned int sleep_time;
 	unsigned int sm_debug_enable;
 	unsigned int vdin_isr_monitor;
+	unsigned int vdin_isr_flag; /* flag which affect the skip field */
 	unsigned short scaling4h;/* for vertical scaling */
 	unsigned short scaling4w;/* for horizontal scaling */
 	unsigned short dest_cfmt;/* for color fmt conversion */
@@ -1244,6 +1249,8 @@ struct vdin_dev_s {
 	bool is_vfce_en;
 	bool is_422_12bit_enabled;
 	bool force_unlock;
+	bool vinfo_over_pixel_clk;
+	bool input_over_pixel_clk;
 	unsigned int ignore_frames;
 	/*use frame rate to cal duration*/
 	unsigned int use_frame_rate;

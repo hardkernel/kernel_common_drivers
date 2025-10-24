@@ -789,7 +789,9 @@
 //Bit  1: 0       reg_gclk_ctrl_top               // unsigned ,   RW,  default = 0
 //2'b11:always open, 2'b00:gating clock
 #define VFCE_TOP0_CTRL_2                           0x4272
-//Bit 31: 4       reserved
+//Bit 31: 5       reserved
+//Bit  4          reg_ram_size_mode               // unsigned ,   RW,  default = 0
+//0:ram 4k 422 12bit, 1:ram 4k 444 10bit
 //Bit  3: 1       pls_ram_sw_rst                  // unsigned ,   W1T, default = 0
 //active high sync reset afrce by write a pulse
 //Bit  0          reg_ram_offset_mode             // unsigned ,   RW,  default = 0
