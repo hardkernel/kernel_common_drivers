@@ -7036,6 +7036,32 @@ void aml_phy_init(u8 port)
 	eq_sts[port] = E_EQ_START;
 }
 
+void aml_phy_init_no_delay(u8 port)
+{
+	eq_sts[port] = E_EQ_START;
+	if (rx_info.phy_ver == PHY_VER_TL1)
+		aml_phy_init_tl1();
+	else if (rx_info.phy_ver == PHY_VER_TM2)
+		aml_phy_init_tm2();
+	else if (rx_info.phy_ver == PHY_VER_T5)
+		aml_phy_init_t5();
+	else if (rx_info.phy_ver >= PHY_VER_T7 && rx_info.phy_ver <= PHY_VER_T5W)
+		aml_phy_init_t7();
+	else if (rx_info.phy_ver == PHY_VER_T5M)
+		aml_phy_init_t5m();
+	else if (rx_info.phy_ver == PHY_VER_T6D)
+		aml_phy_init_t6d();
+	else if (rx_info.phy_ver == PHY_VER_T6W)
+		aml_phy_init_t6w();
+	else if (rx_info.phy_ver == PHY_VER_T3X)
+		aml_phy_init_t3x(port);
+	else if (rx_info.phy_ver == PHY_VER_T6X)
+		aml_phy_init_t6x(port);
+	else if (rx_info.phy_ver == PHY_VER_TXHD2)
+		aml_phy_init_txhd2();
+	eq_sts[port] = E_EQ_FINISH;
+}
+
 /*
  * hdmirx_phy_init - hdmirx phy initialization
  */

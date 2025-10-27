@@ -3628,7 +3628,8 @@ static void rx_phy_resume(void)
 			 * rxsense pulse and phy_int shottern than
 			 * 50ms, SDA may be pulled low 800ms on MTK box
 			 */
-			rx_phy_rxsense_pulse(10, 50, 1);
+			if (rx_info.chip_id < CHIP_ID_T3X)
+				rx_phy_rxsense_pulse(10, 50, 1);
 		}
 	}
 	if (rx_info.phy_ver >= PHY_VER_TM2)
@@ -3636,12 +3637,12 @@ static void rx_phy_resume(void)
 	if (rx_info.chip_id < CHIP_ID_T3X) {
 		hdmirx_phy_init(E_PORT0);
 	} else {
-		hdmirx_phy_init(E_PORT0);
-		hdmirx_phy_init(E_PORT1);
+		aml_phy_init_no_delay(E_PORT0);
+		aml_phy_init_no_delay(E_PORT1);
 		rx_info.aml_phy_21.pre_int_21[E_PORT2] = 1;
 		rx_info.aml_phy_21.pre_int_21[E_PORT3] = 1;
-		hdmirx_phy_init(E_PORT2);
-		hdmirx_phy_init(E_PORT3);
+		aml_phy_init_no_delay(E_PORT2);
+		aml_phy_init_no_delay(E_PORT3);
 	}
 	pre_port = 0xff;
 	rx_info.boot_flag = true;
@@ -5038,7 +5039,6 @@ static int hdmirx_resume(struct platform_device *pdev)
 	int i;
 
 	hdevp = platform_get_drvdata(pdev);
-	rx_add_timer(hdevp);
 	rx_emp_hw_enable(true);
 	rx_dig_clk_en(1);
 //#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -5051,6 +5051,7 @@ static int hdmirx_resume(struct platform_device *pdev)
 	rx_hdcp_access_on_ddc_en(true);
 	for (i = 0; i < rx_info.port_num; i++)
 		rx[i].fsm_ext_state = FSM_HPD_LOW;
+	rx_add_timer(hdevp);
 	rx_pr("hdmirx pm: resume\n");
 	/* for wakeup by pwr5v pin, only available on T7 for now */
 	if (get_resume_method() == HDMI_RX_WAKEUP &&

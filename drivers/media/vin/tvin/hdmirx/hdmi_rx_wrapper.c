@@ -6592,6 +6592,7 @@ void rx_port3_main_state_machine(void)
 		rx_irq_en(0, port);
 		if (!(is_earc_hpd_low() && rx_info.main_port == rx_info.arc_port))
 			rx_set_cur_hpd(0, 0, port);
+		hdmi_rx_cor_reset(port);
 		//set_scdc_cfg(1, 0, port);
 		rx[port].state = FSM_INIT;
 		break;

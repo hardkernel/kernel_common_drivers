@@ -59,7 +59,8 @@
 /* 2025.09.24 optimize dacr reset flow */
 /* 2025.10.11 optimize pll setting for t6x */
 /* 2025.10.21 add dsc timing */
-#define RX_HW_VER "ver.2025/10/21"
+/* 2025.10.28 fix timing change when resume */
+#define RX_HW_VER "ver.2025/10/28"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -3648,6 +3649,7 @@ void aml_phy_init_handler_port0(struct work_struct *work);
 void aml_phy_init_handler_port1(struct work_struct *work);
 void aml_phy_init_handler_port2(struct work_struct *work);
 void aml_phy_init_handler_port3(struct work_struct *work);
+void aml_phy_init_no_delay(u8 port);
 bool is_tmds_clk_stable(u8 port);
 int rx_phy_short_bist(u8 port);
 void aml_phy_iq_skew_monitor(void);
