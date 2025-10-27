@@ -385,6 +385,21 @@ u32 force_dst_primary[8] = {
 
 int gamut_mode;//0:auto 1:force
 
+u32 panel_primary[8] = {
+	0.64 * NORM + 0.5, 0.33 * NORM + 0.5,	/* R */
+	0.30 * NORM + 0.5, 0.60 * NORM + 0.5,	/* G */
+	0.15 * NORM + 0.5, 0.06 * NORM + 0.5,	/* B */
+	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
+};
+
+struct hdr_gamut_data_s force_gamut_mtx = {
+	{
+		0x800, 0x0, 0x0,
+		0x0, 0x800, 0x0,
+		0x0, 0x0, 0x800,
+	}
+};
+
 int gamut_convert_process(struct vinfo_s *vinfo,
 			  enum hdr_type_e *source_type,
 			  enum vd_path_e vd_path,
@@ -396,7 +411,6 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 	s64 out[3][3];
 	s64 src_prmy[4][2];
 	s64 dest_prmy[4][2];
-	struct master_display_info_s *p = NULL;
 
 	/*default 11bit*/
 	if (mtx_depth == 0)
@@ -460,14 +474,10 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 			}
 	}
 
-	if (vinfo->master_display_info.present_flag &&
-		(get_primary_policy() == PRIMARIES_SOURCE)) {
-		p = &vinfo->master_display_info;
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 2; j++) {
-				dest_prmy[i][j] = p->primaries[(i + 2) % 3][j];
-				dest_prmy[3][j] = p->white_point[j];
-			}
+	if (get_primary_policy() == PRIMARIES_SOURCE) {
+		for (i = 0; i < 4; i++)
+			for (j = 0; j < 2; j++)
+				dest_prmy[i][j] = panel_primary[i * 2 + j];
 	} else {
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 2; j++) {
@@ -475,6 +485,15 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 					std_bt709_prmy[(i + 2) % 3][j];
 				dest_prmy[3][j] = std_bt709_white_point[j];
 			}
+	}
+
+	if (chip_type_id == chip_t6x && gamut_mapping1_en) {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				dest_prmy[i][j] =
+					std_bt709_prmy[(i + 2) % 3][j];
+				dest_prmy[3][j] = std_bt709_white_point[j];
+		}
 	}
 
 	if (dest_type == DEST_HDR10) {
@@ -551,7 +570,7 @@ int gamut_convert(s64 *s_prmy,
 	return 0;
 }
 
-int gamut_mode;//0:auto 1:force
+int gamut_mode;//0:auto 1:force pri, 2: force mtx
 module_param(gamut_mode, int, 0664);
 MODULE_PARM_DESC(gamut_mode, "\n gamut_mode\n");
 
@@ -565,11 +584,11 @@ int gamut_mode_process(struct vinfo_s *vinfo,
 	s64 out[3][3];
 	s64 src_prmy[4][2];
 	s64 dest_prmy[4][2];
-	struct master_display_info_s *p = NULL;
 
 	if (mtx_depth == 0)
 		mtx_depth = 11;
 
+	pr_gmt("%s:gamut_mode = %d\n", __func__, gamut_mode);
 	if (source_type == HDRTYPE_SDR) {
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 2; j++) {
@@ -628,59 +647,24 @@ int gamut_mode_process(struct vinfo_s *vinfo,
 			}
 	}
 
-	if (vinfo->master_display_info.present_flag &&
-		(get_primary_policy() == PRIMARIES_SOURCE)) {
-		p = &vinfo->master_display_info;
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 2; j++) {
-				dest_prmy[i][j] = p->primaries[(i + 2) % 3][j];
-				dest_prmy[3][j] = p->white_point[j];
-			}
-	} else {
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 2; j++) {
-				dest_prmy[i][j] =
-					std_bt709_prmy[(i + 2) % 3][j];
-				dest_prmy[3][j] = std_bt709_white_point[j];
-			}
-	}
-
-	if (dest_type == DEST_HDR10) {
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 2; j++) {
-				dest_prmy[i][j] =
-					std_bt2020_prmy[(i + 2) % 3][j];
-				dest_prmy[3][j] = std_bt2020_white_point[j];
-			}
-	}
-
-	if (gamut_mode) {
-		pr_gmt("use force primary\n");
-		/* because of blue x,y too close to zero,
-		 * and usually have difference
-		 * force blue dest primary >= src primary to avoid blue clip
-		 */
-		if (source_type == HDRTYPE_SDR) {
-			if (force_dst_primary[5] > force_src_primary[5])
-				force_dst_primary[5] = force_src_primary[5];
-			if (force_dst_primary[4] > force_src_primary[4])
-				force_dst_primary[4] = force_src_primary[4];
-		}
-
-		for (i = 0; i < 4; i++)
-			for (j = 0; j < 2; j++) {
-				src_prmy[i][j] =
-					force_src_primary[i * 2 + j];
-			}
-		for (i = 0; i < 4; i++)
-			for (j = 0; j < 2; j++) {
-				dest_prmy[i][j] =
-					force_dst_primary[i * 2 + j];
-			}
-	}
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 2; j++)
+			dest_prmy[i][j] = panel_primary[i * 2 + j];
 
 	gamut_proc(src_prmy, dest_prmy, out, NORM, BL);
 	cal_mtx_seting(out, BL, BL, mtx, mtx_depth);
+
+	if (gamut_mode == 2) {
+		for (i = 0; i < 3; i++) {
+			for (j = 0; j < 3; j++)
+				mtx->matrix[i][j] = force_gamut_mtx.coef[i * 3 + j];
+		}
+	} else {
+		for (i = 0; i < 3; i++) {
+			for (j = 0; j < 3; j++)
+				force_gamut_mtx.coef[i * 3 + j]  = mtx->matrix[i][j];
+		}
+	}
 	return 0;
 }
 

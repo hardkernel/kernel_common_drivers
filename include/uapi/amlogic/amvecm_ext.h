@@ -646,6 +646,10 @@ struct primary_s {
 	__u32 dest[8];
 };
 
+struct panel_primary_s {
+	__u32 primary[8];
+};
+
 enum gamut_conv_enable_e {
 	gamut_conv_off,
 	gamut_conv_on,
@@ -874,4 +878,10 @@ struct hdr_parameter_reg_s {
 #define AMVECM_IOC_G_FORCE_OUT   _IOR(_VE_CM, 0xa9, int)
 #define AMDI_IOC_SET_DM_EN     _IOW(_DI_, 0xaa, unsigned char)
 #define AMVECM_IOC_S_HDR10P_ON   _IOW(_VE_CM, 0xab, int)
+#define AMVECM_IOC_G_SUPPORT_GMT_WRAPPER _IOR(_VE_CM, 0xab, int)
+#define AMVECM_IOC_S_GMT_WRAPPER_EN   _IOW(_VE_CM, 0xac, enum gamut_conv_enable_e)
+#define AMVECM_IOC_S_GMT_WRAPPER_MODE _IOW(_VE_CM, 0xad, int)
+#define AMVECM_IOC_S_GMT_WRAPPER_COEF _IOW(_VE_CM, 0xae, struct hdr_gamut_data_s)
+#define AMVECM_IOC_S_PANEL_PRIMARY    _IOW(_VE_CM, 0xaf, struct panel_primary_s)
+
 #endif

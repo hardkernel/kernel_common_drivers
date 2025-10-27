@@ -572,6 +572,32 @@ void d_convert_str(int num,
 			cur_s[i] = buf[i];
 	}
 }
+
+void int_convert_str(int num,
+	int num_num, char cur_s[],
+	int char_bit, int bit_chose)
+{
+	char buf[9] = {0};
+	int i, count;
+
+	if (bit_chose == 10)
+		snprintf(buf, sizeof(buf), "%d", num);
+	else if (bit_chose == 16)
+		snprintf(buf, sizeof(buf), "%08x", num);
+	count = strlen(buf);
+	if (char_bit > count)
+		char_bit = count;
+	for (i = 0; i < char_bit; i++)
+		buf[i] = buf[count - char_bit + i];
+	if (num_num > 0) {
+		for (i = 0; i < char_bit; i++)
+			cur_s[i + num_num * char_bit] =
+				buf[i];
+	} else {
+		for (i = 0; i < char_bit; i++)
+			cur_s[i] = buf[i];
+	}
+}
 #endif
 
 bool enable_hdr10plus;/* enable hdr10+ or not */
@@ -1416,7 +1442,7 @@ void get_cm_hist(struct vpp_hist_param_s *vp)
 
 	if (enable_pattern_detect == 1) {
 		if (chip_type_id != chip_t3x) {
-			if (chip_type_id == chip_t6x && flag_cm_lc_dma_en & 0x1) {
+			if (chip_type_id == chip_t6x && (flag_cm_lc_dma_en & 0x1)) {
 				am_dma_get_mif_data_cm2_hist_hue(0, vp->vpp_hue_gamma, 32);
 				am_dma_get_mif_data_cm2_hist_sat(0, vp->vpp_sat_gamma, 32);
 				return;
@@ -4817,6 +4843,7 @@ static long amvecm_ioctl(struct file *file,
 	struct hdr_parameter_reg_s hdr_customer_reg_data;
 	struct hdr_mtrx_data_s hdr_mtrx_data;
 	struct hdr_gamut_data_s hdr_gamut_data;
+	struct panel_primary_s *panel_pri = NULL;
 #endif
 
 	if (debug_amvecm & 2)
@@ -5378,11 +5405,7 @@ static long amvecm_ioctl(struct file *file,
 			ret = -EFAULT;
 		} else {
 			pr_amvecm_dbg("AMVECM_IOC_COLOR_PRI_EN val = %d\n", tmp);
-			if (chip_type_id == chip_t6x)
-				gamut_mode = tmp;
-			else
-				force_primary = tmp;
-
+			force_primary = tmp;
 			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
 			force_toggle();
 		}
@@ -5891,26 +5914,13 @@ static long amvecm_ioctl(struct file *file,
 		}
 		break;
 	case AMVECM_IOC_S_GAMUT_CONV_EN:
-		if (chip_type_id == chip_t6x) {
-			if (copy_from_user(&gamut_mapping1_en,
-				(void __user *)arg,
-				sizeof(enum gamut_conv_enable_e))) {
-				ret = -EFAULT;
-				pr_amvecm_dbg("gamut_mapping1_en cp from usr failed\n");
-			} else {
-				pr_amvecm_dbg("gamut_mapping1_en cp from usr success status:%d\n",
-					gamut_mapping1_en);
-			}
+		if (copy_from_user(&gamut_conv_enable,
+			(void __user *)arg,
+			sizeof(enum gamut_conv_enable_e))) {
+			ret = -EFAULT;
 		} else {
-			if (copy_from_user(&gamut_conv_enable,
-				(void __user *)arg,
-				sizeof(enum gamut_conv_enable_e))) {
-				ret = -EFAULT;
-				pr_amvecm_dbg("gamut conv enable cp from usr failed\n");
-			} else {
-				pr_amvecm_dbg("gamut conv enable cp from usr success status:%d\n",
-					gamut_conv_enable);
-			}
+			pr_amvecm_dbg("gamut conv enable cp from usr = %d\n",
+				gamut_conv_enable);
 		}
 
 		break;
@@ -6056,8 +6066,9 @@ static long amvecm_ioctl(struct file *file,
 			(void __user *)arg, sizeof(int))) {
 			ret = -EFAULT;
 		} else {
-			set_hdr_top_ctrl_mode(tmp);
+			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
 			force_toggle();
+			pr_amvecm_dbg("hdr_top_ctrl_mode cp from user = %d\n", tmp);
 		}
 		break;
 	case AMVECM_IOC_S_HDR_PARAM_REG:
@@ -6076,8 +6087,8 @@ static long amvecm_ioctl(struct file *file,
 			(void __user *)arg,
 			sizeof(struct hdr_gamut_data_s))) {
 			ret = -EFAULT;
-			pr_amvecm_dbg("hdr_gamut_data cp from usr failed\n");
 		} else {
+			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
 			set_hdr_gamut_coef(&hdr_gamut_data);
 			force_toggle();
 		}
@@ -6130,6 +6141,58 @@ static long amvecm_ioctl(struct file *file,
 				 &osd_vdj_mod_s, sizeof(struct am_osd_vdj_mode_s)))
 			ret = -EFAULT;
 		break;
+	case AMVECM_IOC_G_SUPPORT_GMT_WRAPPER:
+		argp = (void __user *)arg;
+		if (copy_to_user(argp, &support_gmt_wrapper, sizeof(int)))
+			ret = -EFAULT;
+		break;
+	case AMVECM_IOC_S_GMT_WRAPPER_EN:
+		if (copy_from_user(&gamut_mapping1_en,
+			(void __user *)arg,
+			sizeof(enum gamut_conv_enable_e))) {
+			ret = -EFAULT;
+		} else {
+			force_toggle();
+		}
+		break;
+	case AMVECM_IOC_S_GMT_WRAPPER_MODE:
+		if (copy_from_user(&tmp,
+			(void __user *)arg, sizeof(int))) {
+			ret = -EFAULT;
+		} else {
+			gamut_mode = tmp;
+			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
+			force_toggle();
+		}
+		break;
+	case AMVECM_IOC_S_GMT_WRAPPER_COEF:
+		if (copy_from_user(&hdr_gamut_data,
+			(void __user *)arg,
+			sizeof(struct hdr_gamut_data_s))) {
+			ret = -EFAULT;
+		} else {
+			memcpy(&force_gamut_mtx, &hdr_gamut_data,
+				sizeof(struct hdr_gamut_data_s));
+			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
+			force_toggle();
+		}
+		break;
+	case AMVECM_IOC_S_PANEL_PRIMARY:
+		panel_pri = kmalloc(sizeof(*panel_pri), GFP_KERNEL);
+		if (!panel_pri) {
+			ret = -EFAULT;
+			break;
+		}
+
+		if (copy_from_user(panel_pri,
+			(void __user *)arg,
+			sizeof(struct panel_primary_s))) {
+			ret = -EFAULT;
+		} else {
+			memcpy(panel_primary, panel_pri->primary,
+				8 * sizeof(u32));
+		}
+		break;
 #endif
 	default:
 		ret = -EINVAL;
@@ -6153,6 +6216,7 @@ static long amvecm_ioctl(struct file *file,
 	kfree(color_pr);
 	kfree(ble_whe);
 	kfree(db_aicolor_param);
+	kfree(panel_pri);
 #endif
 	return ret;
 }
@@ -10974,7 +11038,7 @@ static void pr_cm_hist(enum cm_hist_e hist_sel)
 				hist[i] = READ_VPP_REG(data_port);
 				pr_info("hue_hist[%d] = 0x%8x\n", i, hist[i]);
 			}
-			if (chip_type_id == chip_t6x && flag_cm_lc_dma_en & 0x1) {
+			if (chip_type_id == chip_t6x && (flag_cm_lc_dma_en & 0x1)) {
 				for (i = 0; i < 32; i++) {
 					pr_info("dma hue_hist[%d] = 0x%8x\n", i,
 						vpp_hist_param.vpp_hue_gamma[i]);
@@ -10998,7 +11062,7 @@ static void pr_cm_hist(enum cm_hist_e hist_sel)
 				hist[i] = READ_VPP_REG(data_port);
 				pr_info("sat_hist[%d] = 0x%8x\n", i, hist[i]);
 			}
-			if (chip_type_id == chip_t6x && flag_cm_lc_dma_en & 0x1) {
+			if (chip_type_id == chip_t6x && (flag_cm_lc_dma_en & 0x1)) {
 				for (i = 0; i < 32; i++) {
 					pr_info("dma sat_hist[%d] = 0x%8x\n", i,
 						vpp_hist_param.vpp_sat_gamma[i]);
@@ -12062,7 +12126,7 @@ void resume_recovery_process(int vpp_index)
 		resume_lut3d(vpp_index);
 
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
-			chip_cls_id == TV_CHIP)
+			chip_cls_id == TV_CHIP || get_cpu_type() == MESON_CPU_MAJOR_ID_G12B)
 			resume_lcd_gamma(vpp_index);
 
 		suspend_drv_status_set(false);
@@ -12374,6 +12438,13 @@ static ssize_t amvecm_debug_store(const struct class *cla,
 			vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
 			vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
 			vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
+		} else if (!strncmp(parm[1], "dump", 4)) {
+			for (i = 0; i < 256; i++) {
+				pr_info("[%d] (%d, %d, %d)\n", i,
+					video_gamma_table_r.data[i],
+					video_gamma_table_g.data[i],
+					video_gamma_table_b.data[i]);
+			}
 		}
 	} else if (!strncmp(parm[0], "gamma_sub", 9)) {
 		if (!strncmp(parm[1], "enable", 6)) {
@@ -13842,9 +13913,14 @@ static ssize_t amvecm_debug_store(const struct class *cla,
 			get_hdr_gamut_coef(&hdr_gamut_data);
 
 			for (i = 0; i < 9; i++)
-				d_convert_str(hdr_gamut_data.coef[i],
+				int_convert_str(hdr_gamut_data.coef[i],
 					i, stemp, 4, 16);
 
+			for (i = 0; i < 3; i++)
+				pr_info("%04x %04x %04x\n",
+				       (hdr_gamut_data.coef[i * 3] & 0xffff),
+				       (hdr_gamut_data.coef[i * 3 + 1] & 0xffff),
+				       (hdr_gamut_data.coef[i * 3 + 2] & 0xffff));
 			pr_info("hdr_gamut coef_str: %s\n", stemp);
 			kfree(stemp);
 		}
@@ -15203,6 +15279,12 @@ static ssize_t amvecm_gamut_mapping_store(const struct class *cla,
 {
 	char *buf_orig, *parm[2] = {NULL};
 	int val;
+	long val2;
+	int i = 0;
+	int char_count = 0;
+	char char_val[5] = {0};
+	char *stemp = NULL;
+	unsigned int string_len = 0;
 
 	if (!buf ||  chip_type_id != chip_t6x)
 		return count;
@@ -15240,11 +15322,110 @@ static ssize_t amvecm_gamut_mapping_store(const struct class *cla,
 		gamut_mode = val;
 		vecm_latch_flag |= FLAG_COLORPRI_LATCH;
 		force_toggle();
+	} else if (!strcmp(parm[0], "coef")) {
+		/*parm[2] coef data (9 * 4 Bytes)*/
+		string_len = strlen(parm[1]);
+		if (string_len != 9 * 4) {
+			pr_info("data length %d is not 36 Bytes.\n",
+				string_len);
+			goto free_buf;
+		}
+
+		/*data should be hex character*/
+		for (i = 0; i < string_len; i++) {
+			if ((parm[1][i] - '0') < 10 ||
+				(parm[1][i] | 0x20) - 'a' < 6)
+				continue;
+
+			pr_info("error char, not hex.\n");
+			goto free_buf;
+		}
+
+		char_count = (strlen(parm[1]) + 2) / 4;
+		if (char_count < 9) {
+			pr_info("coef_count = %d, not enough\n", char_count);
+			goto free_buf;
+		} else {
+			char_count = 9;
+		}
+
+		memset(&force_gamut_mtx,
+			0, sizeof(struct hdr_gamut_data_s));
+
+		for (i = 0; i < char_count; i++) {
+			char_val[0] = parm[1][4 * i + 0];
+			char_val[1] = parm[1][4 * i + 1];
+			char_val[2] = parm[1][4 * i + 2];
+			char_val[3] = parm[1][4 * i + 3];
+			char_val[4] = '\0';
+			if (kstrtol(char_val, 16, &val2) < 0) {
+				pr_info("error parsing data.\n");
+				goto free_buf;
+			}
+			force_gamut_mtx.coef[i] = val2;
+		}
+		force_toggle();
+		pr_info("set gamut coef data success.\n");
+	} else if (!strcmp(parm[0], "get_coef_str")) {
+		stemp = kmalloc(20, GFP_KERNEL);
+		if (!stemp)
+			goto free_buf;
+
+		for (i = 0; i < 9; i++)
+			int_convert_str(force_gamut_mtx.coef[i],
+				i, stemp, 4, 16);
+		for (i = 0; i < 3; i++)
+			pr_info("%04x %04x %04x\n",
+			       (force_gamut_mtx.coef[i * 3] & 0xffff),
+			       (force_gamut_mtx.coef[i * 3 + 1] & 0xffff),
+			       (force_gamut_mtx.coef[i * 3 + 2] & 0xffff));
+
+		pr_info("hdr_gamut coef_str: %s\n", stemp);
+		kfree(stemp);
 	}
 
 free_buf:
 		kfree(buf_orig);
 		return count;
+}
+
+static ssize_t amvecm_gamut_mtrx_show(const struct class *cla,
+	const struct class_attribute *attr, char *buf)
+{
+	int i = 0;
+	char stemp[37];
+	struct hdr_gamut_data_s hdr_gamut_data;
+
+	memset(&hdr_gamut_data,
+		0, sizeof(struct hdr_gamut_data_s));
+	get_hdr_gamut_coef(&hdr_gamut_data);
+
+	memset(stemp, 0, sizeof(stemp));
+	for (i = 0; i < 9; i++)
+		int_convert_str(hdr_gamut_data.coef[i],
+			i, stemp, 4, 16);
+	stemp[36] = '\0';
+	sprintf(buf, "hdr_gamut coef_str: %s\n", stemp);
+
+	if (chip_type_id == chip_t6x) {
+		memcpy(&hdr_gamut_data, &force_gamut_mtx,
+			sizeof(struct hdr_gamut_data_s));
+		memset(stemp, 0, sizeof(stemp));
+		for (i = 0; i < 9; i++)
+			int_convert_str(hdr_gamut_data.coef[i],
+				i, stemp, 4, 16);
+		stemp[36] = '\0';
+		sprintf(buf + strlen(buf), "gamut_coef_str: %s\n", stemp);
+	}
+
+	return strlen(buf);
+}
+
+static ssize_t amvecm_gamut_mtrx_store(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	return 0;
 }
 
 static ssize_t amvecm_lc_show(const struct class *cla,
@@ -16310,6 +16491,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(amvecm_dump_output, 0644,
 		amvecm_dump_output_show,
 		amvecm_dump_output_store),
+	__ATTR(gamut_mtrx, 0644,
+		amvecm_gamut_mtrx_show,
+		amvecm_gamut_mtrx_store),
 #endif
 	__ATTR_NULL
 };
@@ -17471,7 +17655,8 @@ static int amvecm_drv_suspend(struct device *dev)
 		chip_type_id == chip_s6 ||
 		chip_type_id == chip_t3 ||
 		chip_type_id == chip_t6w ||
-		chip_type_id == chip_t6x) {
+		chip_type_id == chip_t6x ||
+		is_meson_g12b_cpu()) {
 		if (!suspend_drv_status_get()) {
 			suspend_drv_status_set(true);
 			suspend_cm();
@@ -17516,7 +17701,8 @@ static int amvecm_drv_resume(struct device *dev)
 		chip_type_id == chip_s6 ||
 		chip_type_id == chip_t3 ||
 		chip_type_id == chip_t6w ||
-		chip_type_id == chip_t6x) {
+		chip_type_id == chip_t6x ||
+		is_meson_g12b_cpu()) {
 		if (suspend_drv_status_get()) {
 			vecm_latch_flag2 |= FLAG_RESUME_RECOVERY;
 			resume_mtx_flag_set(true);

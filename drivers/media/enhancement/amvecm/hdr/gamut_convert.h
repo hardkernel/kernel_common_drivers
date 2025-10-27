@@ -15,7 +15,9 @@ extern uint force_matrix;
 extern u32 force_matrix_primary[3][3];
 extern u32 force_src_primary[8];
 extern u32 force_dst_primary[8];
+extern u32 panel_primary[8];
 extern int gamut_mode;
+extern struct hdr_gamut_data_s force_gamut_mtx;
 int gamut_convert_process(struct vinfo_s *vinfo,
 	enum hdr_type_e *source_type,
 	enum vd_path_e vd_path,

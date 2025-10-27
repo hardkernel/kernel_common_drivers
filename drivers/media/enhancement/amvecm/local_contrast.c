@@ -1688,7 +1688,7 @@ static void _read_region(int blk_vnum, int blk_hnum)
 	lc_tune_curve.lc_reg_black_count =
 		lc_tune_curve.lc_reg_black_count / 96;
 
-	if (flag_cm_lc_dma_en & 0x2 && chip_type_id == chip_t6x) {
+	if ((flag_cm_lc_dma_en & 0x2) && chip_type_id == chip_t6x) {
 		am_dma_get_mif_data_lc_stts(0, lc_hist, 12 * 8 * 17);
 		am_dma_get_mif_data_lc_curve(lc_szcurve, 12, 8);
 		/*part3: add tune curve node patch--by vlsi-guopan*/

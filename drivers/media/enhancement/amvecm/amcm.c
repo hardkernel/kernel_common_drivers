@@ -573,7 +573,7 @@ void amcm_disable(enum wr_md_e md, int vpp_index)
 	int i;
 	int slice_max;
 
-	if (chip_type_id == chip_t6x  && (flag_cm_lc_dma_en & 0x1)) {
+	if (chip_type_id == chip_t6x && (flag_cm_lc_dma_en & 0x1)) {
 		dma_cm_en = 0;
 		if (md)
 			VSYNC_WRITE_VPP_REG_BITS(VIU_MISC_CTRL0, dma_cm_en, 2, 1);
@@ -786,7 +786,7 @@ void amcm_enable(enum wr_md_e md, int vpp_index)
 		if (!(READ_VPP_REG(VPP_MISC) & (0x1 << 28)))
 			WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
 
-		if (chip_type_id == chip_t6x  && (flag_cm_lc_dma_en & 0x1)) {
+		if (chip_type_id == chip_t6x && (flag_cm_lc_dma_en & 0x1)) {
 			dma_cm_en = 1;
 			if (md)
 				VSYNC_WRITE_VPP_REG_BITS(VIU_MISC_CTRL0, dma_cm_en, 2, 1);

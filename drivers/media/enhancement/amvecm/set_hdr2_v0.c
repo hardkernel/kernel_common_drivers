@@ -1951,6 +1951,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	int clip_conv_rs[2] = {0, 0};
 	int clip_clmod[2] = {0, 0};
 	unsigned int tmp = 0;
+	unsigned int db_gamut_bitdepth = 11;
 
 	struct aml_tmo_reg_sw *pre_tmo_reg = NULL;
 
@@ -2943,14 +2944,29 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			hdr_top_ctrl_mode == 4 ||
 			hdr_top_ctrl_mode == 5) {
 			for (i = 0; i < 9; i++) {
-				if (hdr_tool_matrix_mode)
+				if (hdr_tool_matrix_mode) {
 					gmut_coef[i / 3][i % 3] = hdr_gamut_tool[i];
-				else
-					gmut_coef[i / 3][i % 3] = gamut_mtrx_data.coef[i];
+				} else {
+					if ((gmut_shift & 0xf) > db_gamut_bitdepth)
+						gmut_coef[i / 3][i % 3] =
+							gamut_mtrx_data.coef[i] <<
+							((gmut_shift & 0xf) - db_gamut_bitdepth);
+					else
+						gmut_coef[i / 3][i % 3] =
+							gamut_mtrx_data.coef[i] >>
+							(db_gamut_bitdepth - (gmut_shift & 0xf));
+				}
 			}
 		} else {
-			for (i = 0; i < 9; i++)
-				gamut_mtrx_data.coef[i] = gmut_coef[i / 3][i % 3];
+			if ((gmut_shift & 0xf) > db_gamut_bitdepth)
+				for (i = 0; i < 9; i++)
+					gamut_mtrx_data.coef[i] = gmut_coef[i / 3][i % 3] >>
+					((gmut_shift & 0xf) - db_gamut_bitdepth);
+			else
+				for (i = 0; i < 9; i++)
+					gamut_mtrx_data.coef[i] = gmut_coef[i / 3][i % 3] <<
+					(db_gamut_bitdepth - (gmut_shift & 0xf));
+
 		}
 
 		if (hdr_top_ctrl_mode == 1 ||

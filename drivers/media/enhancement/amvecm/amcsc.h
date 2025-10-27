@@ -420,6 +420,7 @@ extern struct gamut_mapping_s gamut_mapping0_param;
 extern struct gamut_mapping_s gamut_mapping1_param;
 extern uint gamut_mapping0_en;
 extern uint gamut_mapping1_en;
+extern int support_gmt_wrapper;
 
 void gamut_mapping_wrapper_init(void);
 void set_gamut_mapping_wrapper(int module, int vpp_index);
