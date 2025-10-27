@@ -541,14 +541,14 @@ int vpu_pipeline_osd_check(struct meson_vpu_sub_pipeline *sub_pipeline,
 }
 
 int video_pipeline_block_check(struct meson_video_sub_pipeline *video_pipe,
-		       struct drm_atomic_state *state)
+		       struct drm_atomic_state *state, int plane_index)
 {
 	struct meson_video_sub_pipeline_state *mvps;
 
 	mvps = meson_video_pipeline_get_state(video_pipe, state);
 
 	video_pipeline_planes_calc(video_pipe->pipe, mvps);
-	video_pipeline_check_block(mvps, state);
+	video_pipeline_check_block(mvps, state, plane_index);
 	DRM_DEBUG("check done--num_video=%d.\n", mvps->num_plane_video);
 
 	return 0;

@@ -779,31 +779,31 @@ int g12a_check_pipeline_path(int *combination, int num_planes,
 }
 
 int video_pipeline_check_block(struct meson_video_sub_pipeline_state *mvps,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_state *state, int plane_index)
 {
-	int i, ret = 0;
+	int ret = 0;
 	struct meson_vpu_block *block;
 	struct meson_vpu_block_state *mvbs;
 
 	MESON_DRM_TRAVERSE("mvps (%p), atomic-state(%p)\n", mvps, state);
 
-	for (i = 0; i < MESON_MAX_VIDEO; i++) {
-		if (!(mvps->video_plane_info[i].enable &&
-			mvps->index == mvps->video_plane_info[i].crtc_index))
-			continue;
-		block = &mvps->pipe->video[i]->base;
-		if (block->ops && block->ops->check_video_state) {
-			mvbs = meson_vpu_block_get_state(block, state);
-			ret = block->ops->check_video_state(block,
-					mvbs, mvps);
+	if (!(mvps->video_plane_info[plane_index].enable &&
+		mvps->index == mvps->video_plane_info[plane_index].crtc_index))
+		return -EINVAL;
 
-			if (ret) {
-				DRM_ERROR("%s block check error.\n",
-					  block->name);
-				return ret;
-			}
+	block = &mvps->pipe->video[plane_index]->base;
+	if (block->ops && block->ops->check_video_state) {
+		mvbs = meson_vpu_block_get_state(block, state);
+		ret = block->ops->check_video_state(block,
+				mvbs, mvps);
+
+		if (ret) {
+			DRM_ERROR("%s block check error.\n",
+					block->name);
+			return ret;
 		}
 	}
+
 	return ret;
 }
 

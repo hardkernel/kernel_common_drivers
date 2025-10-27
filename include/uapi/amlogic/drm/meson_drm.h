@@ -26,6 +26,8 @@
 #define MESON_USE_VD2			(1ull << 21)
 #define MESON_RDONLY O_RDONLY
 
+#define MESON_MODE_MULTI_ATOMIC 0x1000
+
 #define FBIOPUT_OSD_WINDOW_AXIS          0x4513
 #define FBIOGET_DISPLAY_MODE             0x4580
 

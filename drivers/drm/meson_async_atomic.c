@@ -112,19 +112,17 @@ bool is_am_osd_async_commit(struct drm_atomic_state *atomic_state)
 {
 	struct drm_plane *plane = NULL;
 	struct drm_plane_state *new_plane_state = NULL;
-	int i, n_planes = 0;
+	int i;
 
 	if (!atomic_state->async_update)
 		return false;
 
-	for_each_new_plane_in_state(atomic_state, plane,  new_plane_state, i)
-		n_planes++;
+	for_each_new_plane_in_state(atomic_state, plane, new_plane_state, i) {
+		if (!plane || strncmp(plane->name, "osd", 3))
+			return false;
+	}
 
-	/* FIXME: we support only single plane updates for now */
-	if (n_planes != 1)
-		DRM_WARN("only single plane async updates are supported\n");
-
-	return plane && !strncmp(plane->name, "osd", 3);
+	return true;
 }
 
 static void meson_video_bypass_vblank_wait(struct drm_atomic_state *state)
@@ -135,17 +133,11 @@ static void meson_video_bypass_vblank_wait(struct drm_atomic_state *state)
 	int i;
 	struct drm_plane *plane = NULL;
 	struct drm_plane_state *new_plane_state = NULL;
-	int n_planes = 0;
 
-	for_each_new_plane_in_state(state, plane,  new_plane_state, i)
-		n_planes++;
-
-	/* FIXME: we support only single plane updates for now */
-	if (n_planes != 1)
-		DRM_WARN("only single plane async updates are supported\n");
-
-	if (!plane || strncmp(plane->name, "vid", 3))
-		return;
+	for_each_new_plane_in_state(state, plane,  new_plane_state, i) {
+		if (!plane || strncmp(plane->name, "vid", 3))
+			return;
+	}
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		meson_crtc_state = to_am_meson_crtc_state(crtc_state);
@@ -492,6 +484,70 @@ static int meson_atomic_helper_async_check(struct drm_device *dev,
 	return ret;
 }
 
+static int meson_atomic_helper_multi_async_check(struct drm_device *dev,
+				   struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_plane *plane = NULL;
+	struct drm_plane_state *old_plane_state = NULL;
+	struct drm_plane_state *new_plane_state = NULL;
+	const struct drm_plane_helper_funcs *funcs;
+	int i, ret = 0;
+
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		if (drm_atomic_crtc_needs_modeset(crtc_state))
+			return -EINVAL;
+	}
+
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+		if (!new_plane_state->crtc ||
+			old_plane_state->crtc != new_plane_state->crtc) {
+			drm_dbg_atomic(dev,
+					"[PLANE:%d:%s] async update cannot change CRTC\n",
+					plane->base.id, plane->name);
+			return -EINVAL;
+		}
+
+		funcs = plane->helper_private;
+		if (!funcs->atomic_async_update) {
+			drm_dbg_atomic(dev,
+					"[PLANE:%d:%s] driver does not support async updates\n",
+					plane->base.id, plane->name);
+			return -EINVAL;
+		}
+
+		if (new_plane_state->fence) {
+			drm_dbg_atomic(dev,
+					"[PLANE:%d:%s] missing fence for async update\n",
+					plane->base.id, plane->name);
+			return -EINVAL;
+		}
+
+		/*
+		 * Don't do an async update if there is an outstanding commit modifying
+		 * the plane.  This prevents our async update's changes from getting
+		 * overridden by a previous synchronous update's state.
+		 */
+
+		if (old_plane_state->commit &&
+			!try_wait_for_completion(&old_plane_state->commit->hw_done)) {
+			drm_dbg_atomic(dev,
+					"[PLANE:%d:%s] inflight previous commit preventing async commit\n",
+					plane->base.id, plane->name);
+			return -EBUSY;
+		}
+
+		ret = funcs->atomic_async_check(plane, state);
+		if (ret != 0)
+			drm_dbg_atomic(dev,
+					"[PLANE:%d:%s] driver async check failed\n",
+					plane->base.id, plane->name);
+	}
+
+	return ret;
+}
+
 /*modified from drm_mode_atomic_ioctl() */
 int meson_async_atomic_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv)
@@ -535,7 +591,7 @@ retry:
 	fence_state = NULL;
 	num_fences = 0;
 
-	if (arg->count_objs > 1) {
+	if (arg->count_objs > 1 && !(arg->flags & MESON_MODE_MULTI_ATOMIC)) {
 		DRM_ERROR("only accept plane object update(%d).\n", arg->count_objs);
 		ret = -EINVAL;
 		goto out;
@@ -628,7 +684,11 @@ retry:
 	if (ret)
 		goto out;
 
-	state->async_update = !meson_atomic_helper_async_check(dev, state);
+	if (arg->flags & MESON_MODE_MULTI_ATOMIC)
+		state->async_update = !meson_atomic_helper_multi_async_check(dev, state);
+	else
+		state->async_update = !meson_atomic_helper_async_check(dev, state);
+
 	ret = meson_atomic_helper_check_crtcs(dev, state);
 	if (ret)
 		goto out;

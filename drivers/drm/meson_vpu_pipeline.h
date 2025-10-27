@@ -864,7 +864,7 @@ struct meson_video_sub_pipeline_state {
 		struct meson_video_sub_pipeline_state, obj)
 
 int video_pipeline_block_check(struct meson_video_sub_pipeline *pipeline,
-		       struct drm_atomic_state *state);
+		       struct drm_atomic_state *state, int plane_index);
 int video_pipeline_block_update(struct meson_video_sub_pipeline *pipeline,
 			struct drm_atomic_state *old_state, int plane_index);
 int vpu_pipeline_osd_check(struct meson_vpu_sub_pipeline *sub_pipeline,
@@ -925,7 +925,7 @@ int vpu_pipeline_check_osdblend(u32 *out_port, int num_planes,
 				struct meson_vpu_sub_pipeline_state *mvps,
 					struct drm_atomic_state *state);
 int video_pipeline_check_block(struct meson_video_sub_pipeline_state *mvps,
-				   struct drm_atomic_state *state);
+				   struct drm_atomic_state *state, int plane_index);
 void vpu_pipeline_check_finish_reg(int crtc_index);
 void vpu_pipeline_detect_reset(struct meson_vpu_sub_pipeline *sub_pipeline);
 void vpu_pipeline_detect_status(struct meson_vpu_sub_pipeline *sub_pipeline);
