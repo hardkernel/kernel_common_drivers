@@ -259,7 +259,7 @@ void new_resampleA_set_format(enum resample_idx id, int channel, int bits)
 	new_resample_update_bits(id, AUDIO_RSAMP_CTRL1,
 				 0x1 << 11, 1 << 11);
 
-	pr_info("%s(), channel = %d, bits = %d", __func__, channel, bits);
+	pr_debug("%s(), channel = %d, bits = %d", __func__, channel, bits);
 }
 
 void new_resampleB_set_format(enum resample_idx id, int output_sr, int channel)
@@ -365,7 +365,7 @@ void new_resample_set_ratio(enum resample_idx id, int input_sr, int output_sr)
 	new_resample_update_bits(id, AUDIO_RSAMP_CTRL1,
 				 0x1 << 11, 1 << 11);
 
-	pr_info("%s(), id = %d, phase_step = 0x%x, input_sr = %d, output_sr = %d",
+	pr_debug("%s(), id = %d, phase_step = 0x%x, input_sr = %d, output_sr = %d",
 		__func__, id, (u32)phase_step, input_sr, output_sr);
 }
 

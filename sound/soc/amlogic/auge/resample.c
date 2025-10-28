@@ -108,7 +108,7 @@ struct audioresample *get_audioresample(enum resample_idx id)
 		p_resample = s_resample_c;
 		break;
 	default:
-		pr_info("unknown resample id:%d\n", id);
+		pr_debug("unknown resample id:%d\n", id);
 		break;
 	}
 
@@ -254,7 +254,7 @@ static int resample_clk_set(struct audioresample *p_resample, int output_sr)
 	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
 		if ((aml_return_chip_id() != CLK_NOTIFY_CHIP_ID)  &&
 			(aml_return_chip_id() != CLK_NOTIFY_CHIP_ID_T3X)) {
-			pr_info("%s:set hifi pll\n", __func__);
+			pr_debug("%s:set hifi pll\n", __func__);
 			if (p_resample->syssrc_clk_rate)
 				clk_set_rate(p_resample->pll,
 					p_resample->syssrc_clk_rate);
@@ -278,7 +278,7 @@ static int resample_clk_set(struct audioresample *p_resample, int output_sr)
 	clk_set_rate(p_resample->sclk, output_sr * CLK_RATIO);
 	clk_set_rate(p_resample->clk, output_sr * CLK_RATIO);
 
-	pr_info("%s, resample_pll:%lu, sclk:%lu, clk:%lu\n",
+	pr_debug("%s, resample_pll:%lu, sclk:%lu, clk:%lu\n",
 		__func__,
 		clk_get_rate(p_resample->pll),
 		clk_get_rate(p_resample->sclk),
@@ -675,7 +675,7 @@ static int new_resample_init(struct audioresample *p_resample)
 	if (!p_resample)
 		return -ENOMEM;
 
-	pr_info("%s: Start init new resample %d parameters!\n",
+	pr_debug("%s: Start init new resample %d parameters!\n",
 		__func__, p_resample->id);
 
 	p_resample->enable = 1;
@@ -961,7 +961,7 @@ static int aml_resample_clock_notifier(struct notifier_block *nb,
 		/* resample always use 48k domain */
 		if (abs(ndata->old_rate - ndata->new_rate) < THRESHOLD_HIFI1)
 			break;
-		pr_info("%s() PRE_RATE_CHANGE clk rate %lu->%lu\n",
+		pr_debug("%s() PRE_RATE_CHANGE clk rate %lu->%lu\n",
 			__func__, ndata->old_rate, ndata->new_rate);
 		if (!IS_ERR(p_resample->pll) && !IS_ERR(p_resample->clk_src_cd)) {
 			if ((abs(ndata->old_rate - MPLL_CD_FIXED_FREQ) < THRESHOLD_HIFI1) &&
@@ -1054,7 +1054,7 @@ static int resample_platform_probe(struct platform_device *pdev)
 	if (ret < 0)
 		p_resample->src_sel = 0;
 	else
-		pr_info("%s resample src_sel from dts:%d\n",
+		pr_debug("%s resample src_sel from dts:%d\n",
 			__func__, p_resample->src_sel);
 
 	ret = of_property_read_u32(dev->of_node, "ch-sync-reg",
@@ -1062,7 +1062,7 @@ static int resample_platform_probe(struct platform_device *pdev)
 	if (ret < 0)
 		p_resample->ch_sync_reg = 0;
 	else
-		pr_info("%s ch_sync_reg from dts:%d\n",
+		pr_debug("%s ch_sync_reg from dts:%d\n",
 			__func__, p_resample->ch_sync_reg);
 	/* config from dts */
 	p_resample->resample_module = resample_module;
@@ -1139,7 +1139,7 @@ static int resample_platform_probe(struct platform_device *pdev)
 	aml_set_resample(p_resample->id, p_resample->enable,
 			 p_resample->resample_module);
 
-	pr_info("resample id = %d, new resample = %d, resample_module = %d\n",
+	pr_debug("resample id = %d, new resample = %d, resample_module = %d\n",
 		p_chipinfo->id, p_chipinfo->resample_version,
 		p_resample->resample_module);
 	return 0;
