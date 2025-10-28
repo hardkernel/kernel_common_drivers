@@ -26,6 +26,7 @@
 #define HDR_HIST_BIN_NUM 128
 #define HUE_HIST_BIN_NUM 32
 #define SAT_HIST_BIN_NUM 32
+#define VPP_HIST_MINMAX_BIN_NUM 6
 
 #define UNKNOWN_SOURCE		0
 #define HDR10_SOURCE		1
@@ -97,6 +98,8 @@ struct vpp_hist_param_s {
 	unsigned short vpp_gamma[DNLP_VPP_HIST_BIN_NUM];
 	unsigned int vpp_hue_gamma[HUE_HIST_BIN_NUM];
 	unsigned int vpp_sat_gamma[SAT_HIST_BIN_NUM];
+	unsigned int vpp_6binhist_min[VPP_HIST_MINMAX_BIN_NUM];
+	unsigned int vpp_6binhist_max[VPP_HIST_MINMAX_BIN_NUM];
 };
 
 struct vframe_content_light_level_ss {

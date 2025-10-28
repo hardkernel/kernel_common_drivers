@@ -507,4 +507,6 @@
 #define VPP_DNLP_SATPRT_MODE                       0x5327
 #define VPP_DNLP_SATPRT_SAT_RATE_CORE              0x5328
 #define VPP_DNLP_COLOR_PRT_GAIN                    0x5329
+#define VPP_OS_EN_SEL_MODE                         0x7a06
+
 #endif

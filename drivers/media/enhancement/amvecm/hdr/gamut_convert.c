@@ -383,6 +383,8 @@ u32 force_dst_primary[8] = {
 	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
 };
 
+int gamut_mode;//0:auto 1:force
+
 int gamut_convert_process(struct vinfo_s *vinfo,
 			  enum hdr_type_e *source_type,
 			  enum vd_path_e vd_path,

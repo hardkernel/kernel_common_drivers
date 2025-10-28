@@ -1617,6 +1617,61 @@
 #define VPP2_GAMMA_BIN_ADDR          0x1ed3
 #define VPP2_GAMMA_BIN_DATA          0x1ed4
 
+#define DNLP_MAX_RGB_EN                            0x2e90
+//Bit 31: 1        reserved
+//Bit  0           reg_max_rgb_en            // unsigned ,    RW, default = 0
+#define DNLP_HIST_MINMAX_8B                        0x2e91
+//Bit 31:16        reserved
+//Bit 15: 8        reg_vpp_hist_min_8b       // unsigned ,    RW, default = 0
+//Bit  7: 0        reg_vpp_hist_max_8b       // unsigned ,    RW, default = 0
+#define DNLP_STA_CSC_OFST                          0x2e92
+//Bit 31           reserved
+//Bit 30:29        reg_lcsta_csc_rs      // norm= (1<<(10+rs))
+//Bit 28:16        reg_lcsta_csc_ofset_1 // signed default = -512
+//Bit 15:13        reserved
+//Bit 12: 0        reg_lcsta_csc_ofset_0 //signed default = -64
+#define DNLP_STA_CSC_MAT_0_1                       0x2e94
+//Bit 31:29        reserved
+//Bit 28:16        reg_lcsta_csc_mat3x3_1    // signed ,    RW, default = 0
+//Bit 15:13        reserved
+//Bit 12: 0        reg_lcsta_csc_mat3x3_0    // signed ,    RW, default = 119
+#define DNLP_STA_CSC_MAT_2_3                       0x2e95
+//Bit 31:29        reserved
+//Bit 28:16        reg_lcsta_csc_mat3x3_3    // signed ,    RW, default = 1192
+//Bit 15:13        reserved
+//Bit 12: 0        reg_lcsta_csc_mat3x3_2    // signed ,    RW, default = 183
+#define DNLP_STA_CSC_MAT_4_5                       0x2e96
+//Bit 31:29        reserved
+//Bit 28:16        reg_lcsta_csc_mat3x3_5    // signed ,    RW, default = -54
+//Bit 15:13        reserved
+//Bit 12: 0        reg_lcsta_csc_mat3x3_4    // signed ,    RW, default = -21
+#define DNLP_STA_CSC_MAT_6_7                       0x2e97
+//Bit 31:29        reserved
+//Bit 28:16        reg_lcsta_csc_mat3x3_7    // signed ,    RW, default = 2166
+//Bit 15:13        reserved
+//Bit 12: 0        reg_lcsta_csc_mat3x3_6    // signed ,    RW, default = 1192
+#define DNLP_STA_CSC_MAT_8                         0x2e98
+//Bit 31:13        reserved
+//Bit 12: 0        reg_lcsta_csc_mat3x3_8    // signed ,    RW, default = 0
+#define DNLP_HIST_6BIN_MIN_0_1                     0x2e99
+//Bit 31:16        reg_vpp_hist_min_1        // unsigned ,    RO, default = 0
+//Bit 15: 0        reg_vpp_hist_min_0        // unsigned ,    RO, default = 0
+#define DNLP_HIST_6BIN_MIN_2_3                     0x2e9a
+//Bit 31:16        reg_vpp_hist_min_3        // unsigned ,    RO, default = 0
+//Bit 15: 0        reg_vpp_hist_min_2        // unsigned ,    RO, default = 0
+#define DNLP_HIST_6BIN_MIN_4_5                     0x2e9b
+//Bit 31:16        reg_vpp_hist_min_5        // unsigned ,    RO, default = 0
+//Bit 15: 0        reg_vpp_hist_min_4        // unsigned ,    RO, default = 0
+#define DNLP_HIST_6BIN_MAX_0_1                     0x2e9c
+//Bit 31:16        reg_vpp_hist_max_1        // unsigned ,    RO, default = 0
+//Bit 15: 0        reg_vpp_hist_max_0        // unsigned ,    RO, default = 0
+#define DNLP_HIST_6BIN_MAX_2_3                     0x2e9d
+//Bit 31:16        reg_vpp_hist_max_3        // unsigned ,    RO, default = 0
+//Bit 15: 0        reg_vpp_hist_max_2        // unsigned ,    RO, default = 0
+#define DNLP_HIST_6BIN_MAX_4_5                     0x2e9e
+//Bit 31:16        reg_vpp_hist_max_5        // unsigned ,    RO, default = 0
+//Bit 15: 0        reg_vpp_hist_max_4        // unsigned ,    RO, default = 0
+
 #define GAMUT_MAP0_RP_CTRL                         0x6400
 #define GAMUT_MAP0_MATRIX_COEF0                    0x6401
 #define GAMUT_MAP0_MATRIX_COEF1                    0x6402
@@ -1666,6 +1721,7 @@
 #define MAP1_GAMUT_EOTF_LUT_DATA_PORT              0X6491
 #define MAP1_GAMUT_OETF_LUT_ADDR_PORT              0X6492
 #define MAP1_GAMUT_OETF_LUT_DATA_PORT              0X6493
+#define VPP_MISC2                                  0x1d7a
 
 #endif
 

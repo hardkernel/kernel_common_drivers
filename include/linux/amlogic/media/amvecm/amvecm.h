@@ -485,6 +485,11 @@ struct vdj_parm_s {
 	int sat_hue;
 };
 
+struct pre_sat_data_s {
+	unsigned int enable;
+	unsigned int gain;
+};
+
 extern signed int vd1_brightness, vd1_contrast;
 extern int gamma_en;
 extern unsigned int atv_source_flg;
@@ -698,6 +703,7 @@ void d_convert_str(int num,
 void str_sapr_to_d(char *s, int *d, int n);
 extern unsigned int dpss_mode;
 extern unsigned int watermark_support;
+extern int gamut_mode;
 
 extern unsigned int muxio_ready_flag;
 void amvecm_muxio_on_vs(struct vframe_s *vf,
@@ -780,6 +786,9 @@ extern int cur_contrast_u;
 extern int cur_vpp_index;
 extern unsigned int hdr_core_fix_mode;
 extern int set_dummy_flag;
+
+extern unsigned int flag_cm_lc_dma_en;
+extern unsigned int pc_mode;
 
 #endif /* AMVECM_H */
 

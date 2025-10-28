@@ -394,6 +394,8 @@ struct gamut_mapping_s {
 
 extern struct gamut_mapping_s gamut_mapping0;
 extern struct gamut_mapping_s gamut_mapping1;
+extern uint gamut_mapping0_en;
+extern uint gamut_mapping1_en;
 
 void gamut_wrapper_init(void);
 

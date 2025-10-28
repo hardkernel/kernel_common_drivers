@@ -155,6 +155,7 @@ int lc_dbg_flag;
 enum lc_reg_lut_e reg_sel;
 int lc_temp;
 char lc_dbg_curve[100];
+int debug_update_dma;
 
 struct aml_lc_drv_param_s lc_drv_param;
 
@@ -180,7 +181,7 @@ void lc_curve_get_blk_num(int *h_num, int *v_num)
 static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 	enum lc_mtx_csc_e mtx_csc,
 	int mtx_en,
-	int bitdepth)
+	int bitdepth, int rdma_mode, int vpp_index)
 {
 	unsigned int matrix_coef00_01 = 0;
 	unsigned int matrix_coef02_10 = 0;
@@ -194,10 +195,22 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 	unsigned int matrix_pre_offset2 = 0;
 	unsigned int matrix_en_ctrl = 0;
 
+	int coef00_01 = 0;
+	int coef02_10 = 0;
+	int coef11_12 = 0;
+	int coef20_21 = 0;
+	int coef22 = 0;
+	int clip = 0;
+	int offset0_1 = 0;
+	int offset2 = 0;
+	int pre_offset0_1 = 0;
+	int pre_offset2 = 0;
+
 	switch (mtx_sel) {
 	case INP_MTX:
 		if (chip_type_id == chip_t6d ||
-			chip_type_id == chip_t6w) {
+			chip_type_id == chip_t6w ||
+			chip_type_id == chip_t6x) {
 			matrix_coef00_01 = VPP_YUV2RGB_MAT_0;
 			matrix_coef02_10 = VPP_YUV2RGB_MAT_1;
 			matrix_coef11_12 = VPP_YUV2RGB_MAT_2;
@@ -217,7 +230,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 		break;
 	case OUTP_MTX:
 		if (chip_type_id == chip_t6d ||
-			chip_type_id == chip_t6w) {
+			chip_type_id == chip_t6w ||
+			chip_type_id == chip_t6x) {
 			matrix_coef00_01 = VPP_RGB2YUV_MAT_0;
 			matrix_coef02_10 = VPP_RGB2YUV_MAT_1;
 			matrix_coef11_12 = VPP_RGB2YUV_MAT_2;
@@ -248,11 +262,16 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 		matrix_en_ctrl = LC_STTS_CTRL0;
 		break;
 	default:
-		break;
+		return;
 	}
 
-	if (mtx_sel & STAT_MTX)
-		WRITE_VPP_REG_BITS(matrix_en_ctrl, mtx_en, 2, 1);
+	if (mtx_sel & STAT_MTX) {
+		if (rdma_mode)
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_en_ctrl, mtx_en, 2, 1,
+			vpp_index);
+		else
+			WRITE_VPP_REG_BITS(matrix_en_ctrl, mtx_en, 2, 1);
+	}
 
 	if (!mtx_en)
 		return;
@@ -261,43 +280,44 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 	case LC_MTX_RGB_YUV601L:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
 			if (chip_type_id == chip_t6d ||
-				chip_type_id == chip_t6w) {
-				WRITE_VPP_REG(matrix_coef00_01, 0x02040107);
-				WRITE_VPP_REG(matrix_coef02_10, 0x1f680064);
-				WRITE_VPP_REG(matrix_coef11_12, 0x01c21ed6);
-				WRITE_VPP_REG(matrix_coef20_21, 0x1e8701c2);
-				WRITE_VPP_REG(matrix_coef22, 0x1fb7);
+				chip_type_id == chip_t6w ||
+				chip_type_id == chip_t6x) {
+				coef00_01 = 0x02040107;
+				coef02_10 = 0x1f680064;
+				coef11_12 = 0x01c21ed6;
+				coef20_21 = 0x1e8701c2;
+				coef22 = 0x00001fb7;
 				if (bitdepth == 10) {
-					WRITE_VPP_REG(matrix_offset0_1, 0x0200040);
-					WRITE_VPP_REG(matrix_clip, 0x3ff000);
+					offset0_1 = 0x0200040;
+					clip = 0x3ff000;
 				} else {
-					WRITE_VPP_REG(matrix_offset0_1, 0x01000800);
-					WRITE_VPP_REG(matrix_clip, 0xfff);
+					offset0_1 = 0x01000800;
+					clip = 0xfff;
 				}
 			} else {
-				WRITE_VPP_REG(matrix_coef00_01, 0x01070204);
-				WRITE_VPP_REG(matrix_coef02_10, 0x00641f68);
-				WRITE_VPP_REG(matrix_coef11_12, 0x1ed601c2);
-				WRITE_VPP_REG(matrix_coef20_21, 0x01c21e87);
-				WRITE_VPP_REG(matrix_coef22, 0x00001fb7);
+				coef00_01 =  0x01070204;
+				coef02_10 = 0x00641f68;
+				coef11_12 = 0x1ed601c2;
+				coef20_21 = 0x01c21e87;
+				coef22 =  0x00001fb7;
 				if (bitdepth == 10) {
-					WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
-					WRITE_VPP_REG(matrix_clip, 0x3ff);
+					offset0_1 = 0x00400200;
+					clip = 0x3ff;
 				} else {
-					WRITE_VPP_REG(matrix_offset0_1, 0x01000800);
-					WRITE_VPP_REG(matrix_clip, 0xfff);
+					offset0_1 =  0x01000800;
+					clip = 0xfff;
 				}
 			}
 		} else if (mtx_sel & STAT_MTX) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x00bb0275);
-			WRITE_VPP_REG(matrix_coef02_10, 0x003f1f99);
-			WRITE_VPP_REG(matrix_coef11_12, 0x1ea601c2);
-			WRITE_VPP_REG(matrix_coef20_21, 0x01c21e67);
-			WRITE_VPP_REG(matrix_coef22, 0x00001fd7);
-			WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
-			WRITE_VPP_REG(matrix_offset2, 0x00000200);
-			WRITE_VPP_REG(matrix_pre_offset0_1, 0x0);
-			WRITE_VPP_REG(matrix_pre_offset2, 0x0);
+			coef00_01 = 0x00bb0275;
+			coef02_10 = 0x003f1f99;
+			coef11_12 = 0x1ea601c2;
+			coef20_21 = 0x01c21e67;
+			coef22 = 0x00001fd7;
+			offset0_1 =  0x00400200;
+			offset2 = 0x00000200;
+			pre_offset0_1 = 0x0;
+			pre_offset2 = 0x0;
 		}
 		break;
 	case LC_MTX_YUV601L_RGB:
@@ -309,135 +329,114 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 					get_cpu_type() == MESON_CPU_MAJOR_ID_T5W ||
 					chip_type_id == chip_t5m ||
 					chip_type_id == chip_txhd2) {
-					WRITE_VPP_REG(matrix_coef00_01,
-						      0x04A80000);
-					WRITE_VPP_REG(matrix_coef02_10,
-						      0x066204a8);
-					WRITE_VPP_REG(matrix_coef11_12,
-						      0x1e701cbf);
-					WRITE_VPP_REG(matrix_coef20_21,
-						      0x04a80812);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
+					coef00_01 = 0x04A80000;
+					coef02_10 = 0x066204a8;
+					coef11_12 = 0x1e701cbf;
+					coef20_21 = 0x04a80812;
+					coef22 = 0x0;
 				} else {
 					if (chip_type_id == chip_t6d ||
-						chip_type_id == chip_t6w) {
-						WRITE_VPP_REG(matrix_coef00_01,
-						      0x000004A8);
-						WRITE_VPP_REG(matrix_coef02_10,
-						      0x04a80662);
-						WRITE_VPP_REG(matrix_coef11_12,
-						      0x1cbf1e70);
-						WRITE_VPP_REG(matrix_coef20_21,
-						      0x081204a8);
-						WRITE_VPP_REG(matrix_coef22, 0x0);
+						chip_type_id == chip_t6w ||
+						chip_type_id == chip_t6x) {
+						coef00_01 = 0x000004A8;
+						coef02_10 = 0x04a80662;
+						coef11_12 = 0x1cbf1e70;
+						coef20_21 = 0x081204a8;
+						coef22 = 0x0;
 					} else {
-						WRITE_VPP_REG(matrix_coef00_01,
-						      0x012a0000);
-						WRITE_VPP_REG(matrix_coef02_10,
-						      0x198012a);
-						WRITE_VPP_REG(matrix_coef11_12,
-						      0xf9c0f30);
-						WRITE_VPP_REG(matrix_coef20_21,
-						      0x12a0204);
-						WRITE_VPP_REG(matrix_coef22, 0x0);
+						coef00_01 = 0x12a0000;
+						coef02_10 = 0x198012a;
+						coef11_12 = 0xf9c0f30;
+						coef20_21 = 0x12a0204;
+						coef22 = 0x0;
 					}
 				}
 
 				if (chip_type_id == chip_t6d ||
-					chip_type_id == chip_t6w) {
-					WRITE_VPP_REG(matrix_pre_offset0_1, 0x0200040);
-					WRITE_VPP_REG(matrix_clip, 0x3ff000);
+					chip_type_id == chip_t6w ||
+					chip_type_id == chip_t6x) {
+					pre_offset0_1 = 0x0200040;
+					clip = 0x3ff000;
 				} else {
-					WRITE_VPP_REG(matrix_pre_offset0_1, 0x00400200);
-					WRITE_VPP_REG(matrix_clip, 0x3ff);
+					pre_offset0_1 = 0x00400200;
+					clip = 0x3ff;
 				}
 			} else {
 				if (cpu_after_eq_t7()) {
-					WRITE_VPP_REG(matrix_coef00_01,
-						      0x04A80000);
-					WRITE_VPP_REG(matrix_coef02_10,
-						      0x066204a8);
-					WRITE_VPP_REG(matrix_coef11_12,
-						      0x1e701cbf);
-					WRITE_VPP_REG(matrix_coef20_21,
-						      0x04a80812);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
+					coef00_01 = 0x04A80000;
+					coef02_10 = 0x066204a8;
+					coef11_12 = 0x1e701cbf;
+					coef20_21 = 0x04a80812;
+					coef22 = 0x0;
 				} else if (is_meson_tm2_cpu()) {
-					WRITE_VPP_REG(matrix_coef00_01,
-						      0x012a0000);
-					WRITE_VPP_REG(matrix_coef02_10,
-						      0x198012a);
-					WRITE_VPP_REG(matrix_coef11_12,
-						      0xf9c0f30);
-					WRITE_VPP_REG(matrix_coef20_21,
-						      0x12a0204);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
+					coef00_01 = 0x012a0000;
+					coef02_10 = 0x198012a;
+					coef11_12 = 0xf9c0f30;
+					coef20_21 = 0x12a0204;
+					coef22 = 0x0;
 				} else {
-					WRITE_VPP_REG(matrix_coef00_01,
-						      0x04A80000);
-					WRITE_VPP_REG(matrix_coef02_10,
-						      0x066204a8);
-					WRITE_VPP_REG(matrix_coef11_12,
-						      0x1e701cbf);
-					WRITE_VPP_REG(matrix_coef20_21,
-						      0x04a80812);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
+					coef00_01 = 0x04A80000;
+					coef02_10 = 0x066204a8;
+					coef11_12 = 0x1e701cbf;
+					coef20_21 = 0x04a80812;
+					coef22 = 0x0;
 				}
-				WRITE_VPP_REG(matrix_pre_offset0_1, 0x01000800);
-				WRITE_VPP_REG(matrix_clip, 0xfff);
+				pre_offset0_1 = 0x01000800;
+				clip = 0xfff;
 			}
 		} else if (mtx_sel & STAT_MTX) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x04A80000);
-			WRITE_VPP_REG(matrix_coef02_10, 0x072C04A8);
-			WRITE_VPP_REG(matrix_coef11_12, 0x1F261DDD);
-			WRITE_VPP_REG(matrix_coef20_21, 0x04A80876);
-			WRITE_VPP_REG(matrix_coef22, 0x0);
-			WRITE_VPP_REG(matrix_offset0_1, 0x0);
-			WRITE_VPP_REG(matrix_offset2, 0x0);
-			WRITE_VPP_REG(matrix_pre_offset0_1, 0x7c00600);
-			WRITE_VPP_REG(matrix_pre_offset2, 0x00000600);
+			coef00_01 = 0x04A80000;
+			coef02_10 = 0x072C04A8;
+			coef11_12 = 0x1F261DDD;
+			coef20_21 = 0x04A80876;
+			coef22 = 0x0;
+			offset0_1 = 0x0;
+			offset2 = 0x0;
+			pre_offset0_1 = 0x7c00600;
+			pre_offset2 = 0x00000600;
 		}
 		break;
 	case LC_MTX_RGB_YUV709L:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
 			if (chip_type_id == chip_t6d ||
-				chip_type_id == chip_t6w) {
-				WRITE_VPP_REG(matrix_coef00_01, 0x027500bb);
-				WRITE_VPP_REG(matrix_coef02_10, 0x1f99003f);
-				WRITE_VPP_REG(matrix_coef11_12, 0x01c21ea6);
-				WRITE_VPP_REG(matrix_coef20_21, 0x1e6701c2);
-				WRITE_VPP_REG(matrix_coef22, 0x1fd7);
+				chip_type_id == chip_t6w ||
+				chip_type_id == chip_t6x) {
+				coef00_01 = 0x027500bb;
+				coef02_10 = 0x1f99003f;
+				coef11_12 = 0x01c21ea6;
+				coef20_21 = 0x1e6701c2;
+				coef22 = 0x00001fd7;
 				if (bitdepth == 10) {
-					WRITE_VPP_REG(matrix_offset0_1, 0x200040);
-					WRITE_VPP_REG(matrix_clip, 0x3ff000);
+					offset0_1 = 0x200040;
+					clip = 0x3ff000;
 				} else {
-					WRITE_VPP_REG(matrix_offset0_1, 0x01000800);
-					WRITE_VPP_REG(matrix_clip, 0xfff);
+					offset0_1 = 0x01000800;
+					clip = 0xfff;
 				}
 			} else {
-				WRITE_VPP_REG(matrix_coef00_01, 0x00bb0275);
-				WRITE_VPP_REG(matrix_coef02_10, 0x003f1f99);
-				WRITE_VPP_REG(matrix_coef11_12, 0x1ea601c2);
-				WRITE_VPP_REG(matrix_coef20_21, 0x01c21e67);
-				WRITE_VPP_REG(matrix_coef22, 0x00001fd7);
+				coef00_01 = 0x00bb0275;
+				coef02_10 = 0x003f1f99;
+				coef11_12 = 0x1ea601c2;
+				coef20_21 = 0x01c21e67;
+				coef22 = 0x00001fd7;
 				if (bitdepth == 10) {
-					WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
-					WRITE_VPP_REG(matrix_clip, 0x3ff);
+					offset0_1 = 0x00400200;
+					clip = 0x3ff;
 				} else {
-					WRITE_VPP_REG(matrix_offset0_1, 0x01000800);
-					WRITE_VPP_REG(matrix_clip, 0xfff);
+					offset0_1 = 0x01000800;
+					clip = 0xfff;
 				}
 			}
 		} else if (mtx_sel & STAT_MTX) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x00bb0275);
-			WRITE_VPP_REG(matrix_coef02_10, 0x003f1f99);
-			WRITE_VPP_REG(matrix_coef11_12, 0x1ea601c2);
-			WRITE_VPP_REG(matrix_coef20_21, 0x01c21e67);
-			WRITE_VPP_REG(matrix_coef22, 0x00001fd7);
-			WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
-			WRITE_VPP_REG(matrix_offset2, 0x00000200);
-			WRITE_VPP_REG(matrix_pre_offset0_1, 0x0);
-			WRITE_VPP_REG(matrix_pre_offset2, 0x0);
+			coef00_01 = 0x00bb0275;
+			coef02_10 = 0x003f1f99;
+			coef11_12 = 0x1ea601c2;
+			coef20_21 = 0x01c21e67;
+			coef22 = 0x00001fd7;
+			offset0_1 = 0x00400200;
+			offset2 = 0x00000200;
+			pre_offset0_1 = 0x0;
+			pre_offset2 = 0x0;
 		}
 		break;
 	case LC_MTX_YUV709L_RGB:
@@ -449,113 +448,100 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 					get_cpu_type() == MESON_CPU_MAJOR_ID_T5W ||
 					chip_type_id == chip_t5m ||
 					chip_type_id == chip_txhd2) {
-					WRITE_VPP_REG(matrix_coef00_01,
-						      0x04A80000);
-					WRITE_VPP_REG(matrix_coef02_10,
-						      0x072C04A8);
-					WRITE_VPP_REG(matrix_coef11_12,
-						      0x1F261DDD);
-					WRITE_VPP_REG(matrix_coef20_21,
-						      0x04A80876);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
+					coef00_01 = 0x04A80000;
+					coef02_10 = 0x072C04A8;
+					coef11_12 = 0x1F261DDD;
+					coef20_21 = 0x04A80876;
+					coef22 = 0x0;
 				} else {
 					if (chip_type_id == chip_t6d ||
-						chip_type_id == chip_t6w) {
-						WRITE_VPP_REG(matrix_coef00_01,
-						      0x000004A8);
-						WRITE_VPP_REG(matrix_coef02_10,
-						      0x04A8072C);
-						WRITE_VPP_REG(matrix_coef11_12,
-						      0x1DDD1F26);
-						WRITE_VPP_REG(matrix_coef20_21,
-						      0x087604A8);
-						WRITE_VPP_REG(matrix_coef22, 0x0);
+						chip_type_id == chip_t6w ||
+						chip_type_id == chip_t6x) {
+						coef00_01 = 0x000004A8;
+						coef02_10 = 0x04A8072C;
+						coef11_12 = 0x1DDD1F26;
+						coef20_21 = 0x087604A8;
+						coef22 = 0x0;
 					} else {
-						WRITE_VPP_REG(matrix_coef00_01,
-						      0x012a0000);
-						WRITE_VPP_REG(matrix_coef02_10,
-						      0x01cb012a);
-						WRITE_VPP_REG(matrix_coef11_12,
-						      0x1fc90f77);
-						WRITE_VPP_REG(matrix_coef20_21,
-						      0x012a021d);
-						WRITE_VPP_REG(matrix_coef22, 0x0);
+						coef00_01 = 0x012a0000;
+						coef02_10 = 0x01cb012a;
+						coef11_12 = 0x1fc90f77;
+						coef20_21 = 0x012a021d;
+						coef22 = 0x0;
 					}
 				}
 				if (chip_type_id == chip_t6d ||
-					chip_type_id == chip_t6w) {
-					WRITE_VPP_REG(matrix_pre_offset0_1, 0x200040);
-					WRITE_VPP_REG(matrix_clip, 0x3ff000);
+					chip_type_id == chip_t6w ||
+					chip_type_id == chip_t6x) {
+					pre_offset0_1 = 0x200040;
+					clip = 0x3ff000;
 				} else {
-					WRITE_VPP_REG(matrix_pre_offset0_1, 0x400200);
-					WRITE_VPP_REG(matrix_clip, 0x3ff);
+					pre_offset0_1 = 0x400200;
+					clip = 0x3ff;
 				}
 			} else {
-				WRITE_VPP_REG(matrix_coef00_01,
-						     0x04A80000);
-				WRITE_VPP_REG(matrix_coef02_10,
-						     0x072C04A8);
-				WRITE_VPP_REG(matrix_coef11_12,
-						     0x1F261DDD);
-				WRITE_VPP_REG(matrix_coef20_21,
-						     0x04A80876);
-				WRITE_VPP_REG(matrix_coef22, 0x0);
+				coef00_01 = 0x04A80000;
+				coef02_10 = 0x072C04A8;
+				coef11_12 = 0x1F261DDD;
+				coef20_21 = 0x04A80876;
+				coef22 = 0x0;
 
-				WRITE_VPP_REG(matrix_pre_offset0_1, 0x01000800);
-				WRITE_VPP_REG(matrix_clip, 0xfff);
+				pre_offset0_1 = 0x01000800;
+				clip = 0xfff;
 			}
 		} else if (mtx_sel & STAT_MTX) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x04A80000);
-			WRITE_VPP_REG(matrix_coef02_10, 0x072C04A8);
-			WRITE_VPP_REG(matrix_coef11_12, 0x1F261DDD);
-			WRITE_VPP_REG(matrix_coef20_21, 0x04A80876);
-			WRITE_VPP_REG(matrix_coef22, 0x0);
-			WRITE_VPP_REG(matrix_offset0_1, 0x0);
-			WRITE_VPP_REG(matrix_offset2, 0x0);
-			WRITE_VPP_REG(matrix_pre_offset0_1, 0x7c00600);
-			WRITE_VPP_REG(matrix_pre_offset2, 0x00000600);
+			coef00_01 = 0x04A80000;
+			coef02_10 = 0x072C04A8;
+			coef11_12 = 0x1F261DDD;
+			coef20_21 = 0x04A80876;
+			coef22 = 0x0;
+			offset0_1 = 0x0;
+			offset2 = 0x0;
+			pre_offset0_1 = 0x7c00600;
+			pre_offset2 = 0x00000600;
 		}
 		break;
 	case LC_MTX_RGB_YUV709:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
 			if (chip_type_id == chip_t6d ||
-				chip_type_id == chip_t6w) {
-				WRITE_VPP_REG(matrix_coef00_01, 0x02dc00da);
-				WRITE_VPP_REG(matrix_coef02_10, 0x1f8a004a);
-				WRITE_VPP_REG(matrix_coef11_12, 0x02001e76);
-				WRITE_VPP_REG(matrix_coef20_21, 0x1e2f0200);
-				WRITE_VPP_REG(matrix_coef22, 0x1fd1);
+				chip_type_id == chip_t6w ||
+				chip_type_id == chip_t6x) {
+				coef00_01 = 0x02dc00da;
+				coef02_10 = 0x1f8a004a;
+				coef11_12 = 0x02001e76;
+				coef20_21 = 0x1e2f0200;
+				coef22 = 0x00001fd1;
 				if (bitdepth == 10) {
-					WRITE_VPP_REG(matrix_offset0_1, 0x200000);
-					WRITE_VPP_REG(matrix_clip, 0x3ff000);
+					offset0_1 = 0x200000;
+					clip = 0x3ff000;
 				} else {
-					WRITE_VPP_REG(matrix_offset0_1, 0x800);
-					WRITE_VPP_REG(matrix_clip, 0xfff);
+					offset0_1 = 0x800;
+					clip = 0xfff;
 				}
 			} else {
-				WRITE_VPP_REG(matrix_coef00_01, 0x00da02dc);
-				WRITE_VPP_REG(matrix_coef02_10, 0x004a1f8a);
-				WRITE_VPP_REG(matrix_coef11_12, 0x1e760200);
-				WRITE_VPP_REG(matrix_coef20_21, 0x02001e2f);
-				WRITE_VPP_REG(matrix_coef22, 0x00001fd1);
+				coef00_01 = 0x00da02dc;
+				coef02_10 = 0x004a1f8a;
+				coef11_12 = 0x1e760200;
+				coef20_21 = 0x02001e2f;
+				coef22 = 0x00001fd1;
 				if (bitdepth == 10) {
-					WRITE_VPP_REG(matrix_offset0_1, 0x200);
-					WRITE_VPP_REG(matrix_clip, 0x3ff);
+					offset0_1 = 0x200;
+					clip = 0x3ff;
 				} else {
-					WRITE_VPP_REG(matrix_offset0_1, 0x800);
-					WRITE_VPP_REG(matrix_clip, 0xfff);
+					offset0_1 = 0x800;
+					clip = 0xfff;
 				}
 			}
 		} else if (mtx_sel & STAT_MTX) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x00bb0275);
-			WRITE_VPP_REG(matrix_coef02_10, 0x003f1f99);
-			WRITE_VPP_REG(matrix_coef11_12, 0x1ea601c2);
-			WRITE_VPP_REG(matrix_coef20_21, 0x01c21e67);
-			WRITE_VPP_REG(matrix_coef22, 0x00001fd7);
-			WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
-			WRITE_VPP_REG(matrix_offset2, 0x00000200);
-			WRITE_VPP_REG(matrix_pre_offset0_1, 0x0);
-			WRITE_VPP_REG(matrix_pre_offset2, 0x0);
+			coef00_01 = 0x00bb0275;
+			coef02_10 = 0x003f1f99;
+			coef11_12 = 0x1ea601c2;
+			coef20_21 = 0x01c21e67;
+			coef22 = 0x00001fd7;
+			offset0_1 = 0x00400200;
+			offset2 = 0x00000200;
+			pre_offset0_1 = 0x0;
+			pre_offset2 = 0x0;
 		}
 		break;
 	case LC_MTX_YUV709_RGB:
@@ -567,121 +553,148 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 					get_cpu_type() == MESON_CPU_MAJOR_ID_T5W ||
 					chip_type_id == chip_t5m ||
 					chip_type_id == chip_txhd2) {
-					WRITE_VPP_REG(matrix_coef00_01,
-						      0x04000000);
-					WRITE_VPP_REG(matrix_coef02_10,
-						      0x064d0400);
-					WRITE_VPP_REG(matrix_coef11_12,
-						      0x1f411e21);
-					WRITE_VPP_REG(matrix_coef20_21,
-						      0x0400076d);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
+					coef00_01 = 0x04000000;
+					coef02_10 = 0x064d0400;
+					coef11_12 = 0x1f411e21;
+					coef20_21 = 0x0400076d;
+					coef22 = 0x0;
 				} else {
 					if (chip_type_id == chip_t6d ||
-						chip_type_id == chip_t6w) {
-						WRITE_VPP_REG(matrix_coef00_01,
-						      0x00000400);
-						WRITE_VPP_REG(matrix_coef02_10,
-						      0x0400064d);
-						WRITE_VPP_REG(matrix_coef11_12,
-						      0x1e211f41);
-						WRITE_VPP_REG(matrix_coef20_21,
-						      0x076d0400);
-						WRITE_VPP_REG(matrix_coef22, 0x0);
+						chip_type_id == chip_t6w ||
+						chip_type_id == chip_t6x) {
+						coef00_01 = 0x00000400;
+						coef02_10 = 0x0400064d;
+						coef11_12 = 0x1e211f41;
+						coef20_21 = 0x076d0400;
+						coef22 =  0x0;
 					} else {
-						WRITE_VPP_REG(matrix_coef00_01,
-						      0x01000000);
-						WRITE_VPP_REG(matrix_coef02_10,
-						      0x01930100);
-						WRITE_VPP_REG(matrix_coef11_12,
-						      0x1fd01f88);
-						WRITE_VPP_REG(matrix_coef20_21,
-						      0x010001db);
-						WRITE_VPP_REG(matrix_coef22, 0x0);
+						coef00_01 = 0x01000000;
+						coef02_10 = 0x01930100;
+						coef11_12 = 0x1fd01f88;
+						coef20_21 = 0x010001db;
+						coef22 = 0x0;
 					}
 				}
 				if (chip_type_id == chip_t6d ||
-					chip_type_id == chip_t6w) {
-					WRITE_VPP_REG(matrix_pre_offset0_1, 0x200000);
-					WRITE_VPP_REG(matrix_clip, 0x3ff000);
+					chip_type_id == chip_t6w || chip_type_id == chip_t6x) {
+					pre_offset0_1 = 0x200000;
+					clip = 0x3ff000;
 				} else {
-					WRITE_VPP_REG(matrix_pre_offset0_1, 0x200);
-					WRITE_VPP_REG(matrix_clip, 0x3ff);
+					pre_offset0_1 = 0x200;
+					clip = 0x3ff;
 				}
 			} else {
 				if (cpu_after_eq_t7()) {
-					WRITE_VPP_REG(matrix_coef00_01,
-						      0x04000000);
-					WRITE_VPP_REG(matrix_coef02_10,
-						      0x064d0400);
-					WRITE_VPP_REG(matrix_coef11_12,
-						      0x1f411e21);
-					WRITE_VPP_REG(matrix_coef20_21,
-						      0x0400076d);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
+					coef00_01 = 0x04000000;
+					coef02_10 = 0x064d0400;
+					coef11_12 = 0x1f411e21;
+					coef20_21 = 0x0400076d;
+					coef22 = 0x0;
 				} else if (is_meson_tm2_cpu()) {
-					WRITE_VPP_REG(matrix_coef00_01,
-						      0x01000000);
-					WRITE_VPP_REG(matrix_coef02_10,
-						      0x01930100);
-					WRITE_VPP_REG(matrix_coef11_12,
-						      0x1fd01f88);
-					WRITE_VPP_REG(matrix_coef20_21,
-						      0x010001db);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
+					coef00_01 = 0x01000000;
+					coef02_10 = 0x01930100;
+					coef11_12 = 0x1fd01f88;
+					coef20_21 = 0x010001db;
+					coef22 = 0x0;
 				} else {
-					WRITE_VPP_REG(matrix_coef00_01,
-						      0x04000000);
-					WRITE_VPP_REG(matrix_coef02_10,
-						      0x064d0400);
-					WRITE_VPP_REG(matrix_coef11_12,
-						      0x1f411e21);
-					WRITE_VPP_REG(matrix_coef20_21,
-						      0x0400076d);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
+					coef00_01 = 0x04000000;
+					coef02_10 = 0x064d0400;
+					coef11_12 = 0x1f411e21;
+					coef20_21 = 0x0400076d;
+					coef22 = 0x0;
 				}
-				WRITE_VPP_REG(matrix_pre_offset0_1, 0x800);
-				WRITE_VPP_REG(matrix_clip, 0xfff);
+				pre_offset0_1 = 0x800;
+				clip = 0xfff;
 			}
 		} else if (mtx_sel & STAT_MTX) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x04000000);
-			WRITE_VPP_REG(matrix_coef02_10, 0x064d0400);
-			WRITE_VPP_REG(matrix_coef11_12, 0x1f411e21);
-			WRITE_VPP_REG(matrix_coef20_21, 0x0400076d);
-			WRITE_VPP_REG(matrix_coef22, 0x0);
-			WRITE_VPP_REG(matrix_offset0_1, 0x0);
-			WRITE_VPP_REG(matrix_offset2, 0x0);
-			WRITE_VPP_REG(matrix_pre_offset0_1, 0x00000600);
-			WRITE_VPP_REG(matrix_pre_offset2, 0x00000600);
+			coef00_01 = 0x04000000;
+			coef02_10 = 0x064d0400;
+			coef11_12 = 0x1f411e21;
+			coef20_21 = 0x0400076d;
+			coef22 = 0x0;
+			offset0_1 = 0x0;
+			offset2 = 0x0;
+			pre_offset0_1 = 0x00000600;
+			pre_offset2 =  0x00000600;
 		}
 		break;
 	case LC_MTX_NULL:
-		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x04000000);
-			WRITE_VPP_REG(matrix_coef02_10, 0x0);
-			WRITE_VPP_REG(matrix_coef11_12, 0x04000000);
-			WRITE_VPP_REG(matrix_coef20_21, 0x0);
-			WRITE_VPP_REG(matrix_coef22, 0x400);
-			WRITE_VPP_REG(matrix_offset0_1, 0x0);
-		} else if (mtx_sel & STAT_MTX) {
-			WRITE_VPP_REG(matrix_coef00_01, 0x04000000);
-			WRITE_VPP_REG(matrix_coef02_10, 0x0);
-			WRITE_VPP_REG(matrix_coef11_12, 0x04000000);
-			WRITE_VPP_REG(matrix_coef20_21, 0x0);
-			WRITE_VPP_REG(matrix_coef22, 0x400);
-			WRITE_VPP_REG(matrix_offset0_1, 0x0);
-			WRITE_VPP_REG(matrix_offset2, 0x0);
-			WRITE_VPP_REG(matrix_pre_offset0_1, 0x0);
-			WRITE_VPP_REG(matrix_pre_offset2, 0x0);
+		if (chip_type_id == chip_t6d ||
+			chip_type_id == chip_t6w || chip_type_id == chip_t6x) {
+			coef00_01 = 0x00000400;
+			coef02_10 = 0x0;
+			coef11_12 = 0x00000400;
+			coef20_21 = 0x0;
+			coef22 = 0x400;
+			offset0_1 = 0x0;
+		} else {
+			coef00_01 = 0x04000000;
+			coef02_10 = 0x0;
+			coef11_12 = 0x04000000;
+			coef20_21 = 0x0;
+			coef22 = 0x400;
+			offset0_1 = 0x0;
+		}
+		if (mtx_sel & STAT_MTX) {
+			offset2 = 0x0;
+			pre_offset0_1 = 0x0;
+			pre_offset2 = 0x0;
 		}
 		break;
 	default:
 		break;
 	}
+
+	if (rdma_mode) {
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01, coef00_01, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef02_10, coef02_10, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12, coef11_12, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef20_21, coef20_21, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22, coef22, vpp_index);
+
+		if (mtx_sel == INP_MTX) {
+			VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset0_1, pre_offset0_1,
+			vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_clip, clip, vpp_index);
+		} else if (mtx_sel == OUTP_MTX) {
+			VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset0_1, offset0_1,
+				vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_clip, clip, vpp_index);
+		} else if (mtx_sel == STAT_MTX) {
+			VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset0_1, offset0_1,
+				vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset2, offset2,
+				vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset0_1, pre_offset0_1,
+				vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset2, pre_offset2,
+				vpp_index);
+		}
+	} else {
+		WRITE_VPP_REG(matrix_coef00_01, coef00_01);
+		WRITE_VPP_REG(matrix_coef02_10, coef02_10);
+		WRITE_VPP_REG(matrix_coef11_12, coef11_12);
+		WRITE_VPP_REG(matrix_coef20_21, coef20_21);
+		WRITE_VPP_REG(matrix_coef22, coef22);
+
+		if (mtx_sel == INP_MTX) {
+			WRITE_VPP_REG(matrix_pre_offset0_1, pre_offset0_1);
+			WRITE_VPP_REG(matrix_clip, clip);
+		} else if (mtx_sel == OUTP_MTX) {
+			WRITE_VPP_REG(matrix_offset0_1, offset0_1);
+			WRITE_VPP_REG(matrix_clip, clip);
+		} else if (mtx_sel == STAT_MTX) {
+			WRITE_VPP_REG(matrix_offset0_1, offset0_1);
+			WRITE_VPP_REG(matrix_offset2, offset2);
+			WRITE_VPP_REG(matrix_pre_offset0_1, pre_offset0_1);
+			WRITE_VPP_REG(matrix_pre_offset2, pre_offset2);
+		}
+	}
 }
 
 static void lc_stts_blk_config(int enable,
-			       unsigned int height, unsigned int width)
+			       unsigned int height, unsigned int width,
+			       int rdma_mode, int vpp_index)
 {
 	int h_num, v_num;
 	int blk_height,  blk_width;
@@ -720,33 +733,63 @@ static void lc_stts_blk_config(int enable,
 	vend6 = vend5 + blk_height;
 	vend7 = height - 1;
 
-	data32 = READ_VPP_REG(LC_STTS_HIST_REGION_IDX);
-	WRITE_VPP_REG(LC_STTS_HIST_REGION_IDX, 0xffe0ffff & data32);
-	WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
-		((((row_start & 0x1fff) << 16) & 0xffff0000) |
-		(col_start & 0x1fff)));
-	WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
-		((hend1 & 0x1fff) << 16) | (hend0 & 0x1fff));
-	WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
-		((vend1 & 0x1fff) << 16) | (vend0 & 0x1fff));
-	WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
-		((hend3 & 0x1fff) << 16) | (hend2 & 0x1fff));
-	WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
-		((vend3 & 0x1fff) << 16) | (vend2 & 0x1fff));
-	WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
-		      ((hend5 & 0x1fff) << 16) | (hend4 & 0x1fff));
-	WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
-		((vend5 & 0x1fff) << 16) | (vend4 & 0x1fff));
+	if (rdma_mode) {
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(LC_STTS_HIST_REGION_IDX,
+			0, 16, 5, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_HIST_SET_REGION,
+			((((row_start & 0x1fff) << 16) & 0xffff0000) |
+			(col_start & 0x1fff)), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_HIST_SET_REGION,
+			((hend1 & 0x1fff) << 16) | (hend0 & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_HIST_SET_REGION,
+			((vend1 & 0x1fff) << 16) | (vend0 & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_HIST_SET_REGION,
+			((hend3 & 0x1fff) << 16) | (hend2 & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_HIST_SET_REGION,
+			((vend3 & 0x1fff) << 16) | (vend2 & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_HIST_SET_REGION,
+			      ((hend5 & 0x1fff) << 16) | (hend4 & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_HIST_SET_REGION,
+			((vend5 & 0x1fff) << 16) | (vend4 & 0x1fff), vpp_index);
 
-	WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
-		      ((hend7 & 0x1fff) << 16) | (hend6 & 0x1fff));
-	WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
-		((vend7 & 0x1fff) << 16) | (vend6 & 0x1fff));
-	WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
-		((hend9 & 0x1fff) << 16) | (hend8 & 0x1fff));
-	WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
-		((hend11 & 0x1fff) << 16) | (hend10 & 0x1fff));
-	WRITE_VPP_REG(LC_STTS_HIST_SET_REGION, h_num);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_HIST_SET_REGION,
+			      ((hend7 & 0x1fff) << 16) | (hend6 & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_HIST_SET_REGION,
+			((vend7 & 0x1fff) << 16) | (vend6 & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_HIST_SET_REGION,
+			((hend9 & 0x1fff) << 16) | (hend8 & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_HIST_SET_REGION,
+			((hend11 & 0x1fff) << 16) | (hend10 & 0x1fff), vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_HIST_SET_REGION, h_num, vpp_index);
+	} else {
+		data32 = READ_VPP_REG(LC_STTS_HIST_REGION_IDX);
+		WRITE_VPP_REG(LC_STTS_HIST_REGION_IDX, 0xffe0ffff & data32);
+		WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
+			((((row_start & 0x1fff) << 16) & 0xffff0000) |
+			(col_start & 0x1fff)));
+		WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
+			((hend1 & 0x1fff) << 16) | (hend0 & 0x1fff));
+		WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
+			((vend1 & 0x1fff) << 16) | (vend0 & 0x1fff));
+		WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
+			((hend3 & 0x1fff) << 16) | (hend2 & 0x1fff));
+		WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
+			((vend3 & 0x1fff) << 16) | (vend2 & 0x1fff));
+		WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
+				  ((hend5 & 0x1fff) << 16) | (hend4 & 0x1fff));
+		WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
+			((vend5 & 0x1fff) << 16) | (vend4 & 0x1fff));
+
+		WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
+				  ((hend7 & 0x1fff) << 16) | (hend6 & 0x1fff));
+		WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
+			((vend7 & 0x1fff) << 16) | (vend6 & 0x1fff));
+		WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
+			((hend9 & 0x1fff) << 16) | (hend8 & 0x1fff));
+		WRITE_VPP_REG(LC_STTS_HIST_SET_REGION,
+			((hend11 & 0x1fff) << 16) | (hend10 & 0x1fff));
+		WRITE_VPP_REG(LC_STTS_HIST_SET_REGION, h_num);
+	}
 }
 
 static void lc_stts_en(int enable,
@@ -759,43 +802,65 @@ static void lc_stts_en(int enable,
 	int din_sel,
 	int bitdepth,
 	int flag,
-	int flag_full)
+	int flag_full,
+	int rdma_mode, int vpp_index)
 {
 	int data32;
 
-	WRITE_VPP_REG(LC_STTS_GCLK_CTRL0, 0x0);
-	WRITE_VPP_REG(LC_STTS_WIDTHM1_HEIGHTM1,
-		((width - 1) << 16) | (height - 1));
-	data32 = 0x80000000 |  ((pix_drop_mode & 0x3) << 29);
-	data32 = data32 | ((eol_en & 0x1) << 28);
-	data32 = data32 | ((hist_mode & 0x3) << 22);
-	data32 = data32 | ((lpf_en & 0x1) << 21);
-	WRITE_VPP_REG(LC_STTS_HIST_REGION_IDX, data32);
-
 	if (flag == 0x3) {
 		lc_mtx_set(STAT_MTX, LC_MTX_YUV601L_RGB,
-			enable, bitdepth);
+			enable, bitdepth, rdma_mode, vpp_index);
 	} else {
 		if (flag_full == 1)
 			lc_mtx_set(STAT_MTX, LC_MTX_YUV709_RGB,
-				enable, bitdepth);
+				enable, bitdepth, rdma_mode, vpp_index);
 		else
 			lc_mtx_set(STAT_MTX, LC_MTX_YUV709L_RGB,
-				enable, bitdepth);
+				enable, bitdepth, rdma_mode, vpp_index);
 	}
 
-	WRITE_VPP_REG_BITS(LC_STTS_CTRL0, din_sel, 3, 3);
-	/*lc input probe enable*/
-	WRITE_VPP_REG_BITS(LC_STTS_CTRL0, 1, 10, 1);
-	/*lc hist stts enable*/
-	WRITE_VPP_REG_BITS(LC_STTS_HIST_REGION_IDX, enable, 31, 1);
-	WRITE_VPP_REG_BITS(LC_STTS_BLACK_INFO,
-		lc_tune_curve.lc_reg_thd_black,
-		0, 8);
+	if (rdma_mode) {
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_GCLK_CTRL0, 0x0, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(LC_STTS_WIDTHM1_HEIGHTM1,
+			((width - 1) << 16) | (height - 1), vpp_index);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(LC_STTS_HIST_REGION_IDX,
+			(pix_drop_mode & 0x3) << 1 | (eol_en & 0x1), 28, 3, vpp_index);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(LC_STTS_HIST_REGION_IDX,
+			(hist_mode & 0x3) << 1 | (lpf_en & 0x1), 21, 3, vpp_index);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(LC_STTS_CTRL0, din_sel, 3, 3,
+			vpp_index);
+		/*lc input probe enable*/
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(LC_STTS_CTRL0, 1, 10, 1, vpp_index);
+		/*lc hist stts enable*/
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(LC_STTS_HIST_REGION_IDX, enable, 31, 1,
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(LC_STTS_BLACK_INFO,
+			lc_tune_curve.lc_reg_thd_black,
+			0, 8, vpp_index);
+	} else {
+		WRITE_VPP_REG(LC_STTS_GCLK_CTRL0, 0x0);
+		WRITE_VPP_REG(LC_STTS_WIDTHM1_HEIGHTM1,
+			((width - 1) << 16) | (height - 1));
+		data32 = 0x80000000 |  ((pix_drop_mode & 0x3) << 29);
+		data32 = data32 | ((eol_en & 0x1) << 28);
+		data32 = data32 | ((hist_mode & 0x3) << 22);
+		data32 = data32 | ((lpf_en & 0x1) << 21);
+		WRITE_VPP_REG(LC_STTS_HIST_REGION_IDX, data32);
+
+		WRITE_VPP_REG_BITS(LC_STTS_CTRL0, din_sel, 3, 3);
+		/*lc input probe enable*/
+		WRITE_VPP_REG_BITS(LC_STTS_CTRL0, 1, 10, 1);
+
+		/*lc hist stts enable*/
+		WRITE_VPP_REG_BITS(LC_STTS_HIST_REGION_IDX, enable, 31, 1);
+		WRITE_VPP_REG_BITS(LC_STTS_BLACK_INFO,
+			lc_tune_curve.lc_reg_thd_black,
+			0, 8);
+	}
 }
 
 static void lc_curve_ctrl_config(int enable,
-	unsigned int height, unsigned int width)
+	unsigned int height, unsigned int width, int rdma_mode, int vpp_index)
 {
 	unsigned int lc_histvld_thrd;
 	unsigned int lc_blackbar_mute_thrd;
@@ -810,19 +875,39 @@ static void lc_curve_ctrl_config(int enable,
 		(h_num * v_num) * lmtrat_minmax) >> 10;
 	lc_blackbar_mute_thrd = ((height * width) / (h_num * v_num)) >> 3;
 
-	if (!enable) {
-		WRITE_VPP_REG_BITS(LC_CURVE_CTRL, enable, 0, 1);
-	} else {
-		WRITE_VPP_REG(LC_CURVE_HV_NUM, (h_num << 8) | v_num);
-		WRITE_VPP_REG(LC_CURVE_HISTVLD_THRD, lc_histvld_thrd);
-		WRITE_VPP_REG(LC_CURVE_BB_MUTE_THRD, lc_blackbar_mute_thrd);
+	if (rdma_mode) {
+		if (!enable) {
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(LC_CURVE_CTRL, enable, 0, 1,
+				vpp_index);
+		} else {
+			VSYNC_WRITE_VPP_REG_VPP_SEL(LC_CURVE_HV_NUM,
+				(h_num << 8) | v_num, vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(LC_CURVE_HISTVLD_THRD,
+				lc_histvld_thrd, vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(LC_CURVE_BB_MUTE_THRD,
+				lc_blackbar_mute_thrd, vpp_index);
 
-		WRITE_VPP_REG_BITS(LC_CURVE_CTRL, enable, 0, 1);
-		WRITE_VPP_REG_BITS(LC_CURVE_CTRL, enable, 31, 1);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(LC_CURVE_CTRL, enable, 0, 1,
+				vpp_index);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(LC_CURVE_CTRL, enable, 31, 1,
+				vpp_index);
+		}
+	} else {
+		if (!enable) {
+			WRITE_VPP_REG_BITS(LC_CURVE_CTRL, enable, 0, 1);
+		} else {
+			WRITE_VPP_REG(LC_CURVE_HV_NUM, (h_num << 8) | v_num);
+			WRITE_VPP_REG(LC_CURVE_HISTVLD_THRD, lc_histvld_thrd);
+			WRITE_VPP_REG(LC_CURVE_BB_MUTE_THRD, lc_blackbar_mute_thrd);
+
+			WRITE_VPP_REG_BITS(LC_CURVE_CTRL, enable, 0, 1);
+			WRITE_VPP_REG_BITS(LC_CURVE_CTRL, enable, 31, 1);
+		}
 	}
 }
 
-static void lc_blk_bdry_config(unsigned int height, unsigned int width)
+static void lc_blk_bdry_config(unsigned int height, unsigned int width,
+	int rdma_mode, int vpp_index)
 {
 	unsigned int value;
 	unsigned int reg_hid0 = SRSHARP1_LC_CURVE_BLK_HIDX_0_1;
@@ -840,7 +925,7 @@ static void lc_blk_bdry_config(unsigned int height, unsigned int width)
 	unsigned int reg_vid4 = SRSHARP1_LC_CURVE_BLK_VIDX_8;
 
 	if (chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w) {
+		chip_type_id == chip_t6w || chip_type_id == chip_t6x) {
 		reg_hid0 = VPP_LC_BLK_HIDX_0;
 		reg_hid1 = VPP_LC_BLK_HIDX_1;
 		reg_hid2 = VPP_LC_BLK_HIDX_2;
@@ -859,80 +944,157 @@ static void lc_blk_bdry_config(unsigned int height, unsigned int width)
 	width /= 12;
 	height /= 8;
 
-	if (chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w) {
-		value = (0 << 16) & GET_BITS(0, 14);
-		value |= (width << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_hid0, value);
-		value = (width * 2) & GET_BITS(0, 14);
-		value |= ((width * 3) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_hid1, value);
-		value = (width * 4) & GET_BITS(0, 14);
-		value |= ((width * 5) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_hid2, value);
-		value = (width * 6) & GET_BITS(0, 14);
-		value |= ((width * 7) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_hid3, value);
-		value = (width * 8) & GET_BITS(0, 14);
-		value |= ((width * 9) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_hid4, value);
-		value = (width * 10) & GET_BITS(0, 14);
-		value |= ((width * 11) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_hid5, value);
-		value = (width * 12) & GET_BITS(0, 14);
-		WRITE_VPP_REG(reg_hid6, value);
+	if (rdma_mode) {
+		if (chip_type_id == chip_t6d ||
+			chip_type_id == chip_t6w || chip_type_id == chip_t6x) {
+			value = (0 << 16) & GET_BITS(0, 14);
+			value |= (width << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid0, value, vpp_index);
+			value = (width * 2) & GET_BITS(0, 14);
+			value |= ((width * 3) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid1, value, vpp_index);
+			value = (width * 4) & GET_BITS(0, 14);
+			value |= ((width * 5) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid2, value, vpp_index);
+			value = (width * 6) & GET_BITS(0, 14);
+			value |= ((width * 7) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid3, value, vpp_index);
+			value = (width * 8) & GET_BITS(0, 14);
+			value |= ((width * 9) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid4, value, vpp_index);
+			value = (width * 10) & GET_BITS(0, 14);
+			value |= ((width * 11) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid5, value, vpp_index);
+			value = (width * 12) & GET_BITS(0, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid6, value, vpp_index);
 
-		value = (0 << 16) & GET_BITS(0, 14);
-		value |= (height << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_vid0, value);
-		value = (height * 2) & GET_BITS(0, 14);
-		value |= ((height * 3) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_vid1, value);
-		value = (height * 4) & GET_BITS(0, 14);
-		value |= ((height * 5) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_vid2, value);
-		value = (height * 6) & GET_BITS(0, 14);
-		value |= ((height * 7) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_vid3, value);
-		value = (height * 8) & GET_BITS(0, 14);
-		WRITE_VPP_REG(reg_vid4, value);
+			value = (0 << 16) & GET_BITS(0, 14);
+			value |= (height << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_vid0, value, vpp_index);
+			value = (height * 2) & GET_BITS(0, 14);
+			value |= ((height * 3) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_vid1, value, vpp_index);
+			value = (height * 4) & GET_BITS(0, 14);
+			value |= ((height * 5) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_vid2, value, vpp_index);
+			value = (height * 6) & GET_BITS(0, 14);
+			value |= ((height * 7) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_vid3, value, vpp_index);
+			value = (height * 8) & GET_BITS(0, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_vid4, value, vpp_index);
+		} else {
+				/*lc curve mapping block IDX default 4k panel*/
+			value = width & GET_BITS(0, 14);
+			value |= (0 << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid0, value, vpp_index);
+			value = (width * 3) & GET_BITS(0, 14);
+			value |= ((width * 2) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid1, value, vpp_index);
+			value = (width * 5) & GET_BITS(0, 14);
+			value |= ((width * 4) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid2, value, vpp_index);
+			value = (width * 7) & GET_BITS(0, 14);
+			value |= ((width * 6) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid3, value, vpp_index);
+			value = (width * 9) & GET_BITS(0, 14);
+			value |= ((width * 8) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid4, value, vpp_index);
+			value = (width * 11) & GET_BITS(0, 14);
+			value |= ((width * 10) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid5, value, vpp_index);
+			value = width & GET_BITS(0, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_hid6, value, vpp_index);
+
+			value = height & GET_BITS(0, 14);
+			value |= (0 << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_vid0, value, vpp_index);
+			value = (height * 3) & GET_BITS(0, 14);
+			value |= ((height * 2) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_vid1, value, vpp_index);
+			value = (height * 5) & GET_BITS(0, 14);
+			value |= ((height * 4) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_vid2, value, vpp_index);
+			value = (height * 7) & GET_BITS(0, 14);
+			value |= ((height * 6) << 16) & GET_BITS(16, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_vid3, value, vpp_index);
+			value = height & GET_BITS(0, 14);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_vid4, value, vpp_index);
+		}
 	} else {
-			/*lc curve mapping block IDX default 4k panel*/
-		value = width & GET_BITS(0, 14);
-		value |= (0 << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_hid0, value);
-		value = (width * 3) & GET_BITS(0, 14);
-		value |= ((width * 2) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_hid1, value);
-		value = (width * 5) & GET_BITS(0, 14);
-		value |= ((width * 4) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_hid2, value);
-		value = (width * 7) & GET_BITS(0, 14);
-		value |= ((width * 6) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_hid3, value);
-		value = (width * 9) & GET_BITS(0, 14);
-		value |= ((width * 8) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_hid4, value);
-		value = (width * 11) & GET_BITS(0, 14);
-		value |= ((width * 10) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_hid5, value);
-		value = width & GET_BITS(0, 14);
-		WRITE_VPP_REG(reg_hid6, value);
+		if (chip_type_id == chip_t6d ||
+			chip_type_id == chip_t6w || chip_type_id == chip_t6x) {
+			value = (0 << 16) & GET_BITS(0, 14);
+			value |= (width << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_hid0, value);
+			value = (width * 2) & GET_BITS(0, 14);
+			value |= ((width * 3) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_hid1, value);
+			value = (width * 4) & GET_BITS(0, 14);
+			value |= ((width * 5) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_hid2, value);
+			value = (width * 6) & GET_BITS(0, 14);
+			value |= ((width * 7) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_hid3, value);
+			value = (width * 8) & GET_BITS(0, 14);
+			value |= ((width * 9) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_hid4, value);
+			value = (width * 10) & GET_BITS(0, 14);
+			value |= ((width * 11) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_hid5, value);
+			value = (width * 12) & GET_BITS(0, 14);
+			WRITE_VPP_REG(reg_hid6, value);
 
-		value = height & GET_BITS(0, 14);
-		value |= (0 << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_vid0, value);
-		value = (height * 3) & GET_BITS(0, 14);
-		value |= ((height * 2) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_vid1, value);
-		value = (height * 5) & GET_BITS(0, 14);
-		value |= ((height * 4) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_vid2, value);
-		value = (height * 7) & GET_BITS(0, 14);
-		value |= ((height * 6) << 16) & GET_BITS(16, 14);
-		WRITE_VPP_REG(reg_vid3, value);
-		value = height & GET_BITS(0, 14);
-		WRITE_VPP_REG(reg_vid4, value);
+			value = (0 << 16) & GET_BITS(0, 14);
+			value |= (height << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_vid0, value);
+			value = (height * 2) & GET_BITS(0, 14);
+			value |= ((height * 3) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_vid1, value);
+			value = (height * 4) & GET_BITS(0, 14);
+			value |= ((height * 5) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_vid2, value);
+			value = (height * 6) & GET_BITS(0, 14);
+			value |= ((height * 7) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_vid3, value);
+			value = (height * 8) & GET_BITS(0, 14);
+			WRITE_VPP_REG(reg_vid4, value);
+		} else {
+			value = width & GET_BITS(0, 14);
+			value |= (0 << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_hid0, value);
+			value = (width * 3) & GET_BITS(0, 14);
+			value |= ((width * 2) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_hid1, value);
+			value = (width * 5) & GET_BITS(0, 14);
+			value |= ((width * 4) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_hid2, value);
+			value = (width * 7) & GET_BITS(0, 14);
+			value |= ((width * 6) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_hid3, value);
+			value = (width * 9) & GET_BITS(0, 14);
+			value |= ((width * 8) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_hid4, value);
+			value = (width * 11) & GET_BITS(0, 14);
+			value |= ((width * 10) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_hid5, value);
+			value = width & GET_BITS(0, 14);
+			WRITE_VPP_REG(reg_hid6, value);
+
+			value = height & GET_BITS(0, 14);
+			value |= (0 << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_vid0, value);
+			value = (height * 3) & GET_BITS(0, 14);
+			value |= ((height * 2) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_vid1, value);
+			value = (height * 5) & GET_BITS(0, 14);
+			value |= ((height * 4) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_vid2, value);
+			value = (height * 7) & GET_BITS(0, 14);
+			value |= ((height * 6) << 16) & GET_BITS(16, 14);
+			WRITE_VPP_REG(reg_vid3, value);
+			value = height & GET_BITS(0, 14);
+			WRITE_VPP_REG(reg_vid4, value);
+		}
 	}
 }
 
@@ -940,88 +1102,125 @@ static void lc_top_config(int enable, int h_num, int v_num,
 	unsigned int height, unsigned int width, int bitdepth,
 	int flag, int flag_full, int rdma_mode, int vpp_index)
 {
-	pr_amlc_dbg("enable/h_num/v_num/height/width: %d/%d/%d/%d/%d\n",
-		enable, h_num, v_num, height, width);
-	pr_amlc_dbg("bitdepth/flag/flag_full: %d/%d/%d\n",
-		bitdepth, flag, flag_full);
+	pr_amlc_dbg("[%s]:enable/h_num/v_num/height/width: %d/%d/%d/%d/%d\n",
+		__func__, enable, h_num, v_num, height, width);
+	pr_amlc_dbg("[%s]:bitdepth/flag/flag_full: %d/%d/%d\n",
+		__func__, bitdepth, flag, flag_full);
 
 	if (chip_type_id != chip_t3x) {
-		if (chip_type_id == chip_t6d ||
-			chip_type_id == chip_t6w) {
-			/*lcinput_ysel*/
-			WRITE_VPP_REG_BITS(VPP_LC_INPUT_SEL, 5, 4, 3);
-			/*lcinput_csel*/
-			WRITE_VPP_REG_BITS(VPP_LC_INPUT_SEL, 5, 0, 3);
-
-			/*lc ram write h num*/
-			WRITE_VPP_REG_BITS(VPP_LC_BLK_HV_NUM, h_num, 8, 8);
-			/*lc ram write v num*/
-			WRITE_VPP_REG_BITS(VPP_LC_BLK_HV_NUM, v_num, 0, 8);
-
-			/*lc hblank*/
-//			WRITE_VPP_REG_BITS(VPP_LC_MODE, 8, 8, 8);
-			/*lc blend mode,default 1*/
-			WRITE_VPP_REG_BITS(VPP_LC_MODE, 1, 0, 1);
-			/*lc curve mapping  config*/
-			lc_blk_bdry_config(height, width);
-			/*LC sync ctl*/
-			WRITE_VPP_REG_BITS(VPP_LC_MODE, 0, 8, 1);
-			/*lc enable need set at last*/
-			WRITE_VPP_REG_BITS(VPP_LC_MODE, enable, 4, 1);
-
-			if (flag == 0x3) {
-				/* bt601 use 601 matrix */
-				lc_mtx_set(INP_MTX, LC_MTX_YUV601L_RGB, 1, bitdepth);
-				lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV601L, 1, bitdepth);
+		/*lc curve mapping  config*/
+		lc_blk_bdry_config(height, width, rdma_mode, vpp_index);
+		if (flag == 0x3) {
+			/* bt601 use 601 matrix */
+			lc_mtx_set(INP_MTX, LC_MTX_YUV601L_RGB, 1, bitdepth,
+				rdma_mode, vpp_index);
+			lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV601L, 1, bitdepth,
+				rdma_mode, vpp_index);
+		} else {
+			/* all other cases use 709 by default */
+			/* to do, should we handle bg2020 separately? */
+			/* for special signal, keep full range to avoid clipping */
+			if (flag_full == 1) {
+				lc_mtx_set(INP_MTX, LC_MTX_YUV709_RGB, 1, bitdepth,
+					rdma_mode, vpp_index);
+				lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709, 1, bitdepth,
+					rdma_mode, vpp_index);
 			} else {
-				/* all other cases use 709 by default */
-				/* to do, should we handle bg2020 separately? */
-				/* for special signal, keep full range to avoid clipping */
-				if (flag_full == 1) {
-					lc_mtx_set(INP_MTX, LC_MTX_YUV709_RGB, 1, bitdepth);
-					lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709, 1, bitdepth);
-				} else {
-					lc_mtx_set(INP_MTX, LC_MTX_YUV709L_RGB, 1, bitdepth);
-					lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709L, 1, bitdepth);
-				}
+				lc_mtx_set(INP_MTX, LC_MTX_YUV709L_RGB, 1, bitdepth,
+					rdma_mode, vpp_index);
+				lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709L, 1, bitdepth,
+					rdma_mode, vpp_index);
+			}
+		}
+
+		if (rdma_mode) {
+			if (chip_type_id == chip_t6d ||
+				chip_type_id == chip_t6w ||
+				chip_type_id == chip_t6x) {
+					/*lcinput_ysel*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_INPUT_SEL, 5, 4, 3,
+					vpp_index);
+				/*lcinput_csel*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_INPUT_SEL, 5, 0, 3,
+					vpp_index);
+				/*lc ram write h num*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_BLK_HV_NUM, h_num,
+					8, 8, vpp_index);
+				/*lc ram write v num*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_BLK_HV_NUM, v_num,
+					0, 8, vpp_index);
+				/*lc blend mode,default 1*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_MODE, 1, 0, 1,
+					vpp_index);
+				/*LC sync ctl*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_MODE, 0, 8, 1,
+					vpp_index);
+				/*lc enable need set at last*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_MODE, enable, 4, 1,
+					vpp_index);
+			} else {
+				/*lcinput_ysel*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_LC_INPUT_MUX,
+					5, 4, 3, vpp_index);
+				/*lcinput_csel*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_LC_INPUT_MUX,
+					5, 0, 3, vpp_index);
+				/*lc ram write h num*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_LC_HV_NUM,
+					h_num, 8, 5, vpp_index);
+				/*lc ram write v num*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_LC_HV_NUM,
+					v_num, 0, 5, vpp_index);
+				/*lc hblank*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_LC_TOP_CTRL,
+					8, 8, 8, vpp_index);
+				/*lc blend mode,default 1*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_LC_TOP_CTRL,
+					1, 0, 1, vpp_index);
+				/*LC sync ctl*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_LC_TOP_CTRL,
+					0, 16, 1, vpp_index);
+				/*lc enable need set at last*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_LC_TOP_CTRL,
+					enable, 4, 1, vpp_index);
 			}
 		} else {
-			/*lcinput_ysel*/
-			WRITE_VPP_REG_BITS(SRSHARP1_LC_INPUT_MUX, 5, 4, 3);
-			/*lcinput_csel*/
-			WRITE_VPP_REG_BITS(SRSHARP1_LC_INPUT_MUX, 5, 0, 3);
-
-			/*lc ram write h num*/
-			WRITE_VPP_REG_BITS(SRSHARP1_LC_HV_NUM, h_num, 8, 5);
-			/*lc ram write v num*/
-			WRITE_VPP_REG_BITS(SRSHARP1_LC_HV_NUM, v_num, 0, 5);
-
-			/*lc hblank*/
-			WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 8, 8, 8);
-			/*lc blend mode,default 1*/
-			WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 1, 0, 1);
-			/*lc curve mapping  config*/
-			lc_blk_bdry_config(height, width);
-			/*LC sync ctl*/
-			WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 0, 16, 1);
-			/*lc enable need set at last*/
-			WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, enable, 4, 1);
-
-			if (flag == 0x3) {
-				/* bt601 use 601 matrix */
-				lc_mtx_set(INP_MTX, LC_MTX_YUV601L_RGB, 1, bitdepth);
-				lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV601L, 1, bitdepth);
+			if (chip_type_id == chip_t6d ||
+				chip_type_id == chip_t6w ||
+				chip_type_id == chip_t6x) {
+				/*lcinput_ysel*/
+				WRITE_VPP_REG_BITS(VPP_LC_INPUT_SEL, 5, 4, 3);
+				/*lcinput_csel*/
+				WRITE_VPP_REG_BITS(VPP_LC_INPUT_SEL, 5, 0, 3);
+				/*lc ram write h num*/
+				WRITE_VPP_REG_BITS(VPP_LC_BLK_HV_NUM, h_num, 8, 8);
+				/*lc ram write v num*/
+				WRITE_VPP_REG_BITS(VPP_LC_BLK_HV_NUM, v_num, 0, 8);
+				/*lc hblank*/
+	//			WRITE_VPP_REG_BITS(VPP_LC_MODE, 8, 8, 8);
+				/*lc blend mode,default 1*/
+				WRITE_VPP_REG_BITS(VPP_LC_MODE, 1, 0, 1);
+				/*LC sync ctl*/
+				WRITE_VPP_REG_BITS(VPP_LC_MODE, 0, 8, 1);
+				/*lc enable need set at last*/
+				WRITE_VPP_REG_BITS(VPP_LC_MODE, enable, 4, 1);
 			} else {
-				/* all other cases use 709 by default */
-				/* to do, should we handle bg2020 separately? */
-				/* for special signal, keep full range to avoid clipping */
-				if (flag_full == 1) {
-					lc_mtx_set(INP_MTX, LC_MTX_YUV709_RGB, 1, bitdepth);
-					lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709, 1, bitdepth);
-				} else {
-					lc_mtx_set(INP_MTX, LC_MTX_YUV709L_RGB, 1, bitdepth);
-					lc_mtx_set(OUTP_MTX, LC_MTX_RGB_YUV709L, 1, bitdepth);
-				}
+				/*lcinput_ysel*/
+				WRITE_VPP_REG_BITS(SRSHARP1_LC_INPUT_MUX, 5, 4, 3);
+				/*lcinput_csel*/
+				WRITE_VPP_REG_BITS(SRSHARP1_LC_INPUT_MUX, 5, 0, 3);
+				/*lc ram write h num*/
+				WRITE_VPP_REG_BITS(SRSHARP1_LC_HV_NUM, h_num, 8, 5);
+				/*lc ram write v num*/
+				WRITE_VPP_REG_BITS(SRSHARP1_LC_HV_NUM, v_num, 0, 5);
+				/*lc hblank*/
+				WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 8, 8, 8);
+				/*lc blend mode,default 1*/
+				WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 1, 0, 1);
+				/*LC sync ctl*/
+				WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, 0, 16, 1);
+				/*lc enable need set at last*/
+				WRITE_VPP_REG_BITS(SRSHARP1_LC_TOP_CTRL, enable, 4, 1);
 			}
 		}
 	} else {
@@ -1030,21 +1229,57 @@ static void lc_top_config(int enable, int h_num, int v_num,
 	}
 }
 
+static void lc_dma_config(int enable, int rdma_mode, int vpp_index)
+{
+	unsigned int reg_val = 0;
+
+	if (chip_type_id != chip_t6x)
+		return;
+
+	if (flag_cm_lc_dma_en & 0x2) {
+		dma_lc_en = enable;
+		reg_val = enable ? 0x3 : 0;
+		if (rdma_mode) {
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(LC_STTS_CTRL0, reg_val, 22, 2,
+				vpp_index);//lc_dma_en
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(LC_CURVE_CTRL, reg_val, 16, 2,
+				vpp_index);//curve dma en
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VIU_MISC_CTRL0, reg_val, 3, 2,
+				vpp_index);
+		} else {
+			WRITE_VPP_REG_BITS(LC_STTS_CTRL0, reg_val, 22, 2);//lc_dma_en
+			WRITE_VPP_REG_BITS(LC_CURVE_CTRL, reg_val, 16, 2);//curve dma en
+			WRITE_VPP_REG_BITS(VIU_MISC_CTRL0, reg_val, 3, 2);
+		}
+		am_dma_update_mif_wr_cm_lc(rdma_mode);
+	}
+}
+
 void lc_disable(int rdma_mode, int vpp_index)
 {
 	unsigned int reg_ctrl = SRSHARP1_LC_TOP_CTRL;
 
 	if (chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w)
+		chip_type_id == chip_t6w ||
+		chip_type_id == chip_t6x)
 		reg_ctrl = VPP_LC_MODE;
 
 	if (chip_type_id != chip_t3x) {
-		/*lc enable need set at last*/
-		WRITE_VPP_REG_BITS(reg_ctrl, 0, 4, 1);
-		WRITE_VPP_REG_BITS(LC_CURVE_CTRL, 0, 0, 1);
-		WRITE_VPP_REG_BITS(LC_CURVE_RAM_CTRL, 0, 0, 1);
-		/*lc hist stts enable*/
-		WRITE_VPP_REG_BITS(LC_STTS_HIST_REGION_IDX, 0, 31, 1);
+		lc_dma_config(0, rdma_mode, vpp_index);
+		if (rdma_mode) {
+			/*lc enable need set at last*/
+			VSYNC_WRITE_VPP_REG_BITS(reg_ctrl, 0, 4, 1);
+			VSYNC_WRITE_VPP_REG_BITS(LC_CURVE_CTRL, 0, 0, 1);
+			VSYNC_WRITE_VPP_REG_BITS(LC_CURVE_RAM_CTRL, 0, 0, 1);
+			/*lc hist stts enable*/
+			VSYNC_WRITE_VPP_REG_BITS(LC_STTS_HIST_REGION_IDX, 0, 31, 1);
+		} else {
+			WRITE_VPP_REG_BITS(reg_ctrl, 0, 4, 1);
+			WRITE_VPP_REG_BITS(LC_CURVE_CTRL, 0, 0, 1);
+			WRITE_VPP_REG_BITS(LC_CURVE_RAM_CTRL, 0, 0, 1);
+			/*lc hist stts enable*/
+			WRITE_VPP_REG_BITS(LC_STTS_HIST_REGION_IDX, 0, 31, 1);
+		}
 	} else {
 		ve_lc_disable(rdma_mode, vpp_index);
 		lc_reset_done = 0;
@@ -1176,7 +1411,8 @@ void lc_config(int enable,
 
 	flag_full_pre = flag_full;
 
-	if (chip_type_id == chip_t6d && lc_vd_info) {
+	if ((chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6x) && lc_vd_info) {
 		height = lc_vd_info->vd1_dout_vsize;
 		width = lc_vd_info->vd1_dout_hsize;
 	} else {
@@ -1229,11 +1465,14 @@ void lc_config(int enable,
 		in_sel = 4;
 
 	if (chip_type_id != chip_t3x) {
-		lc_curve_ctrl_config(lc_en_ctrl, height, width);
-		lc_stts_blk_config(lc_en_ctrl, height, width);
+		lc_curve_ctrl_config(lc_en_ctrl, height, width,
+			lc_rdma_mode, vpp_index);
+		lc_stts_blk_config(lc_en_ctrl, height, width,
+			lc_rdma_mode, vpp_index);
 		lc_stts_en(lc_en_ctrl, height, width,
 			0, 0, 1, 1, in_sel,
-			bitdepth, flag, flag_full);
+			bitdepth, flag, flag_full, lc_rdma_mode, vpp_index);
+		lc_dma_config(enable, lc_rdma_mode, vpp_index);
 	} else {
 		ve_lc_curve_ctrl_cfg(lc_en_ctrl, lc_rdma_mode, vpp_index);
 		ve_lc_stts_en(lc_en_ctrl,
@@ -1339,7 +1578,8 @@ static int set_lc_curve(int binit, int bcheck, int vpp_index)
 	unsigned int reg_num = SRSHARP1_LC_HV_NUM;
 
 	if (chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w) {
+		chip_type_id == chip_t6w ||
+		chip_type_id == chip_t6x) {
 		reg_ctrl = VPP_LC_MAP_RAM_CTRL;
 		reg_addr = VPP_LC_MAP_RAM_ADDR;
 		reg_data = VPP_LC_MAP_RAM_DATA;
@@ -1447,6 +1687,30 @@ static void _read_region(int blk_vnum, int blk_hnum)
 		READ_VPP_REG_BITS(LC_STTS_BLACK_INFO, 8, 24);
 	lc_tune_curve.lc_reg_black_count =
 		lc_tune_curve.lc_reg_black_count / 96;
+
+	if (flag_cm_lc_dma_en & 0x2 && chip_type_id == chip_t6x) {
+		am_dma_get_mif_data_lc_stts(0, lc_hist, 12 * 8 * 17);
+		am_dma_get_mif_data_lc_curve(lc_szcurve, 12, 8);
+		/*part3: add tune curve node patch--by vlsi-guopan*/
+		if (tune_curve_en == 2 && lc_drv_param.tune_nodes_patch) {
+			for (i = 0; i < blk_vnum; i++) {
+				for (j = 0; j < blk_hnum; j++) {
+					cur_block = i * blk_hnum + j;
+					lc_drv_param.tune_nodes_patch(&lc_szcurve[cur_block * 6],
+						&lc_hist[cur_block * 17],
+						i, j);
+				}
+			}
+		} else if (tune_curve_en == 1) {
+			for (i = 0; i < blk_vnum; i++) {
+				for (j = 0; j < blk_hnum; j++) {
+					cur_block = i * blk_hnum + j;
+					linear_nodes_patch(&lc_szcurve[cur_block * 6]);
+				}
+			}
+		}
+		return;
+	}
 
 	WRITE_VPP_REG_BITS(LC_STTS_HIST_REGION_IDX, 1, 14, 1);
 	data32 = READ_VPP_REG(LC_STTS_HIST_START_RD_REGION);
@@ -1676,7 +1940,8 @@ void lc_init(int bitdepth)
 	unsigned int adr = 16;
 
 	if (chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w) {
+		chip_type_id == chip_t6w ||
+		chip_type_id == chip_t6x) {
 		reg_sat0 = VPP_LC_SATUR_LUT_0;
 		reg_sat = VPP_LC_SATUR_LUT_F;
 		adr = 12;
@@ -1771,13 +2036,15 @@ void lc_init(int bitdepth)
 		WRITE_VPP_REG(LC_CURVE_CONTRAST_LH, 0x000b000b);
 		WRITE_VPP_REG(LC_CURVE_CONTRAST_SCL_LH, 0x00000b0b);
 		if (chip_type_id == chip_t6d ||
-			chip_type_id == chip_t6w)
+			chip_type_id == chip_t6w ||
+			chip_type_id == chip_t6x)
 			WRITE_VPP_REG(LC_CURVE_MISC0, 0x13038);
 		else
 			WRITE_VPP_REG(LC_CURVE_MISC0, 0x00023028);
 		WRITE_VPP_REG(LC_CURVE_YPKBV_RAT, 0x8cc0c060);
 		if (chip_type_id == chip_t6d ||
-			chip_type_id == chip_t6w)
+			chip_type_id == chip_t6w ||
+			chip_type_id == chip_t6x)
 			WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, 0x0c60);
 		else
 			WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, 0x00000b3a);
@@ -2252,13 +2519,15 @@ void lc_process(struct vframe_s *vf,
 	lc_vd_info = get_vd_proc_amvecm_info();
 
 	if (chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w) {
+		chip_type_id == chip_t6w ||
+		chip_type_id == chip_t6x) {
 		sps_h_in = 1080;
 		sps_w_in = 1920;
 	}
 
 	if ((chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w) && lc_vd_info) {
+		chip_type_id == chip_t6w ||
+		chip_type_id == chip_t6x) && lc_vd_info) {
 		height = lc_vd_info->vd1_dout_vsize;
 		width = lc_vd_info->vd1_dout_hsize;
 
@@ -2373,6 +2642,18 @@ void lc_process(struct vframe_s *vf,
 		ve_lc_curve_set(0, lc_demo_mode, lc_szcurve, 0, vpp_index);
 	}
 
+	if (debug_update_dma) {
+		VSYNC_WRITE_VPP_REG_BITS(VIU_MISC_CTRL0, dma_cm_en, 2, 1);
+		VSYNC_WRITE_VPP_REG_BITS(LC_STTS_CTRL0, dma_lc_en == 1 ? 3 : 0,
+			22, 2);//lc_dma_en
+		VSYNC_WRITE_VPP_REG_BITS(LC_CURVE_CTRL, dma_lc_en == 1 ? 3 : 0,
+			16, 2);//curve dma en
+		VSYNC_WRITE_VPP_REG_BITS(VIU_MISC_CTRL0, dma_lc_en == 1 ? 3 : 0,
+			3, 2);
+		am_dma_update_mif_wr_cm_lc(WR_DMA);
+		debug_update_dma = 0;
+	}
+
 	if (amlc_debug == 0xc &&
 		lc_node_prcnt > 0) {
 		lc_node_prcnt--;
@@ -2425,7 +2706,8 @@ void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type, char *buf)
 	unsigned int adr = 16;
 
 	if (chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w) {
+		chip_type_id == chip_t6w ||
+		chip_type_id == chip_t6x) {
 		reg_sat0 = VPP_LC_SATUR_LUT_0;
 		reg_sat = VPP_LC_SATUR_LUT_F;
 		adr = 12;
@@ -2444,7 +2726,8 @@ void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type, char *buf)
 		for (i = 0; i < 31 ; i++) {
 			tmp = READ_VPP_REG(reg_sat0 + i);
 			if (chip_type_id == chip_t6d ||
-				chip_type_id == chip_t6w) {
+				chip_type_id == chip_t6w ||
+				chip_type_id == chip_t6x) {
 				tmp2 = (tmp >> adr) & 0xfff;
 				tmp1 = tmp & 0xfff;
 			} else {
@@ -2582,7 +2865,8 @@ dump_as_string:
 		for (i = 0; i < 31 ; i++) {
 			tmp = READ_VPP_REG(reg_sat0 + i);
 			if (chip_type_id == chip_t6d ||
-				chip_type_id == chip_t6w) {
+				chip_type_id == chip_t6w ||
+				chip_type_id == chip_t6x) {
 				tmp2 = (tmp >> adr) & 0xfff;
 				tmp1 = tmp & 0xfff;
 			} else {
@@ -2707,7 +2991,8 @@ void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 	unsigned int adr = 16;
 
 	if (chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w) {
+		chip_type_id == chip_t6w ||
+		chip_type_id == chip_t6x) {
 		reg_sat0 = VPP_LC_SATUR_LUT_0;
 		reg_sat = VPP_LC_SATUR_LUT_F;
 		adr = 12;
@@ -2720,7 +3005,8 @@ void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 				tmp1 = *(p + 2 * i);
 				tmp2 = *(p + 2 * i + 1);
 				if (chip_type_id == chip_t6d ||
-					chip_type_id == chip_t6w)
+					chip_type_id == chip_t6w ||
+					chip_type_id == chip_t6x)
 					tmp = ((tmp2 & 0xfff) << adr) | (tmp1 & 0xfff);
 				else
 					tmp = ((tmp1 & 0xfff) << adr) | (tmp2 & 0xfff);
@@ -3229,6 +3515,23 @@ int lc_debug_store(char **parm)
 			am_dma_reset_lc(0, 1, 3);
 		else
 			pr_info("unsupport cmd!\n");
+	} else if (!strcmp(parm[0], "dma_rdma")) {
+		if (!parm[1])
+			goto free_buf;
+		if (!parm[2])
+			goto free_buf;
+
+		if (!strcmp(parm[1], "lc")) {
+			if (kstrtoul(parm[2], 10, &val) < 0)
+				goto free_buf;
+			dma_lc_en = val;
+			debug_update_dma = 1;
+		} else if (!strcmp(parm[1], "cm")) {
+			if (kstrtoul(parm[2], 10, &val) < 0)
+				goto free_buf;
+			dma_cm_en = val;
+			debug_update_dma = 1;
+		}
 	} else {
 		pr_info("unsupport cmd!\n");
 	}

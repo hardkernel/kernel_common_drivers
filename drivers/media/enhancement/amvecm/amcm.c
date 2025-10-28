@@ -32,7 +32,7 @@
 #endif
 #include "amve.h"
 #include "reg_helper.h"
-
+#include "am_dma_ctrl.h"
 #include "arch/vpp_s7d_sr_regs.h"
 
 #define pr_amcm_dbg(fmt, args...)\
@@ -260,7 +260,8 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 	unsigned int reg_sr = SRSHARP1_LC_TOP_CTRL;
 
 	if (chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w)
+		chip_type_id == chip_t6w ||
+		chip_type_id == chip_t6x)
 		reg_sr = VPP_LC_MODE;
 
 	dejaggy_reg = sr0_dej_setting[DEJAGGY_LEVEL - 1].am_reg;
@@ -465,7 +466,8 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 
 				if (chip_type_id == chip_s6 ||
 					chip_type_id == chip_s7d ||
-					chip_type_id == chip_t6w)
+					chip_type_id == chip_t6w ||
+					chip_type_id == chip_t6x)
 					aipq_base_peaking_param(addr, mask, val);
 #endif
 			} else {
@@ -570,6 +572,15 @@ void amcm_disable(enum wr_md_e md, int vpp_index)
 	struct cm_port_s cm_port;
 	int i;
 	int slice_max;
+
+	if (chip_type_id == chip_t6x  && (flag_cm_lc_dma_en & 0x1)) {
+		dma_cm_en = 0;
+		if (md)
+			VSYNC_WRITE_VPP_REG_BITS(VIU_MISC_CTRL0, dma_cm_en, 2, 1);
+		else
+			WRITE_VPP_REG_BITS(VIU_MISC_CTRL0, dma_cm_en, 2, 1);
+		am_dma_update_mif_wr_cm_lc(md);
+	}
 
 	if (chip_type_id == chip_s7)
 		return;
@@ -774,6 +785,15 @@ void amcm_enable(enum wr_md_e md, int vpp_index)
 	{
 		if (!(READ_VPP_REG(VPP_MISC) & (0x1 << 28)))
 			WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
+
+		if (chip_type_id == chip_t6x  && (flag_cm_lc_dma_en & 0x1)) {
+			dma_cm_en = 1;
+			if (md)
+				VSYNC_WRITE_VPP_REG_BITS(VIU_MISC_CTRL0, dma_cm_en, 2, 1);
+			else
+				WRITE_VPP_REG_BITS(VIU_MISC_CTRL0, dma_cm_en, 2, 1);
+			am_dma_update_mif_wr_cm_lc(md);
+		}
 
 		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
 		temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
@@ -1177,12 +1197,16 @@ void cm_regmap_latch(struct am_regs_s *am_regs, unsigned int reg_map, int vpp_in
 
 void cm_latch_process(int vpp_index)
 {
-	/*if ((vecm_latch_flag & FLAG_REG_MAP0) ||*/
-	/*(vecm_latch_flag & FLAG_REG_MAP1) ||*/
-	/*(vecm_latch_flag & FLAG_REG_MAP2) ||*/
-	/*(vecm_latch_flag & FLAG_REG_MAP3) ||*/
-	/*(vecm_latch_flag & FLAG_REG_MAP4) ||*/
-	/* (vecm_latch_flag & FLAG_REG_MAP5)){*/
+	int update_pc_mode = 0;
+
+	if (((vecm_latch_flag & FLAG_REG_MAP0) ||
+	(vecm_latch_flag & FLAG_REG_MAP1) ||
+	(vecm_latch_flag & FLAG_REG_MAP2) ||
+	(vecm_latch_flag & FLAG_REG_MAP3) ||
+	(vecm_latch_flag & FLAG_REG_MAP4) ||
+	(vecm_latch_flag & FLAG_REG_MAP5)) && pc_mode == 0)
+		update_pc_mode = 1;
+
 	do {
 		if (vecm_latch_flag & FLAG_REG_MAP0)
 			cm_regmap_latch(&amregs0, FLAG_REG_MAP0, vpp_index);
@@ -1201,6 +1225,14 @@ void cm_latch_process(int vpp_index)
 			cm2_frame_switch_patch();
 #endif
 	} while (0);
+
+	if (update_pc_mode) {
+		if (chip_type_id >= chip_s7d) {
+			amve_sharpness_sub_vsync_ctrl(0, vpp_index);
+		} else {
+			amve_old_sharpness_sub_vsync_ctrl(0, vpp_index);
+		}
+	}
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (cm_en && cm_level_last != cm_level) {

@@ -10,6 +10,7 @@
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include "arch/ve_regs.h"
 #include "arch/cm_regs.h"
+#include "arch/vpp_s7d_sr_regs.h"
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 
 #define CLR_BIT(x) (~(0x01 << (x)))
@@ -153,6 +154,50 @@ static u32 offset_addr(u32 addr)
 
 	if (chip_type_id == chip_txhd2)
 		lc_offset = 0x200;
+
+	if (chip_type_id == chip_t6x) {
+		if (addr >= VPP_SR_DIR_MIN2SAD_GAMMA_THD &&
+			addr <= VPP_HLTI_OS_ADP_LUT_F)
+			return addr + 0x1b;
+		else if (addr >= VPP_HTI_OS_UP_DN_GAIN &&
+			addr <= VPP_HCTI_OS_ADP_LUT_F)
+			return addr + 0x1e;
+		else if (addr >= VPP_HTI_FINAL_GAIN &&
+			addr <= VPP_VLTI_OS_ADP_LUT_F)
+			return addr + 0x21;
+		else if (addr >= VPP_VTI_OS_UP_DN_GAIN &&
+			addr <= VPP_VCTI_BST_GAIN_CORE)
+			return addr + 0x24;
+		else if (addr >= VPP_HVTI_BLEND_ALPHA_0 &&
+			addr <= VPP_PK_DIR_HBP_BLD_ALP_LUT_F)
+			return addr + 0x27;
+		else if (addr >= VPP_PK_CIR_HBP_BLD_ALP_LUT_0 &&
+			addr <= VPP_PK_CIR_HBP_BLD_ALP_LUT_F)
+			return addr + 0x2a;
+		else if (addr >= VPP_PK_DIR_GAIN_LUT_0 &&
+			addr <= VPP_PK_DIR_CIR_BLD_ALP_GAIN)
+			return addr + 0x2d;
+		else if (addr >= VPP_PK_GAIN_VSLUMA_LUT_0 &&
+			addr <= VPP_PK_COLOR_PRCT_LUT_30)
+			return addr + 0x2e;
+		else if (addr >= VPP_PK_COLOR_PRCT_LUT_31 &&
+			addr <= VPP_PK_COLOR_PRCT_GAIN)
+			return addr + 0x272e;
+		else if (addr == VPP_PK_OS_EN_SEL_MODE)
+			return VPP_OS_EN_SEL_MODE;
+		else if (addr >= VPP_PK_OS_ADP_LUT_0 &&
+			addr <= VPP_PK_OS_EDGE_GAIN_THD)
+			return addr + 0x2738;
+		else if (addr >= VPP_PK_OS_GAIN_VSLUMA_LUT_0 &&
+			addr <= VPP_PK_OS_UP_DN)
+			return addr + 0x272e;
+		else if (addr >= VPP_PKTI_EDGE_STR_GAIN_0 &&
+			addr <= VPP_PKTI_EDGE_STR_GAIN_F)
+			return addr + 0x2724;
+		else if (addr >= VPP_SR_CC_EN &&
+			addr <= VPP_SR_DEBUG_DEMO_WND_COEF_0)
+			return addr + 0x2765;
+	}
 
 	if (is_sr0_reg(addr))
 		return addr + get_sr0_offset();
@@ -413,14 +458,30 @@ static int index_rdma_part_ins(u32 reg)
 		(reg >= 0x14e9 && reg <= 0x14eb) ||
 		(reg >= 0x1400 && reg <= 0x1402) ||
 		(reg >= 0x14b4 && reg <= 0x14b6) ||
+		(reg >= 0x1da0 && reg <= 0x1da3) ||
 		reg == 0x2e63 || reg == 0x2863 ||
 		reg == 0x2763 || reg == 0x2663 ||
-		reg == 0x1da1 || reg == 0x1d70 ||
+		reg == 0x1d70 ||
 		reg == 0x1d71 || reg == 0x20f ||
 		(reg >= 0x200 && reg <= 0x20a) ||
 		reg == 0x39d0 || reg == 0x39d1 ||
 		reg == 0x39d2 || reg == 0x39d3)
 		table_index = 3;
+
+	if (chip_type_id == chip_t6x) {
+		if ((reg >= 0x4c00 && reg <= 0x4cd2) || //vd1 && vd1_1 hdr
+			(reg >= 0x6300 && reg <= 0x63d2) || //vd2 && vd2_2 hdr
+			(reg >= 0x38a0 && reg <= 0x38ef) || //osd1
+			(reg >= 0x5b00 && reg <= 0x5b4f) || //osd2
+			(reg >= 0x5b50 && reg <= 0x5b9f)) //osd3
+			table_index = 1;
+		else if ((reg >= 0x5040 && reg <= 0x5382) ||//pi,safa,sr,dnlp,lc
+			(reg >= 0x7a00 && reg <= 0x7a54) || //os,cc
+			(reg >= 0x4000 && reg <= 0x403c))//lc_curve&&stts
+			table_index = 2;
+		else
+			table_index = 3;
+	}
 
 	/*use VIDEO_PARTITION_TABLE*/
 	if (chip_type_id >= chip_s7d &&
@@ -441,8 +502,9 @@ static int index_rdma_part_ins(u32 reg)
 		reg == 0x5125)
 		table_index = 0;
 
-	if (chip_type_id == chip_t6w &&
-		(reg == 0x5126 || reg == 0x5192 ||
+	if ((chip_type_id == chip_t6w || chip_type_id == chip_t6x) &&
+		(reg == 0x5126 ||
+		reg == 0x5192 ||
 		reg == 0x6d02))
 		table_index = 0;
 

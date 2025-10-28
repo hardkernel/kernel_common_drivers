@@ -27,23 +27,47 @@ enum lut_dma_wr_id_e {
 	EN_DMA_WR_ID_MAX,
 };
 
+enum lut_dma_rd_id_e {
+	EN_DMA_RD_ID_GAMUT0 = 0,
+	EN_DMA_RD_ID_GAMUT1 = 7,
+	EN_DMA_RD_ID_3DLUT = 8,
+	EN_DMA_RD_ID_MAX,
+};
+
+enum hdr_dma_id_e {
+	EN_HDR_DMA_ID_VD1 = 0,
+	EN_HDR_DMA_ID_VD2 = 1,
+	EN_HDR_DMA_ID_VD1_1 = 3,
+	EN_HDR_DMA_ID_VD2_1 = 4,
+};
+
 extern int am_dma_ctrl_dbg;
+extern unsigned int dma_cm_en;
+extern unsigned int dma_lc_en;
 
 void am_dma_init(void);
 void am_dma_reset_lc(int enable, int rdma_mode, int vpp_index);
+void am_dma_update_mif_wr_cm_lc(enum wr_md_e md);
 void am_dma_set_wr_cfg(enum lut_dma_wr_id_e dma_wr_id, int enable,
 	unsigned int stride, unsigned int addr_mode, unsigned int rpt_num);
 
 void am_dma_buffer_malloc(struct platform_device *pdev,
 	enum lut_dma_wr_id_e dma_wr_id);
+void am_dma_rd_buffer_malloc(struct platform_device *pdev,
+	enum lut_dma_rd_id_e dma_rd_id);
+
 void am_dma_buffer_free(struct platform_device *pdev,
 	enum lut_dma_wr_id_e dma_wr_id);
 
 void am_dma_set_mif_wr_status(int enable);
 void am_dma_set_mif_wr(enum lut_dma_wr_id_e dma_wr_id,
 	int enable);
+void am_dma_set_mif_rd(enum lut_dma_rd_id_e dma_wr_id,
+	int enable);
+int am_dma_get_mif_data_lc_curve(unsigned int *data,
+	unsigned int h_num, unsigned int v_num);
 
-void am_dma_get_mif_data_lc_stts(int index,
+int am_dma_get_mif_data_lc_stts(int index,
 	unsigned int *data, unsigned int length);
 void am_dma_get_mif_data_vi_hist(int index,
 	unsigned short *data, unsigned int length);
@@ -71,4 +95,5 @@ void am_dma_lut3d_buffer_malloc(struct platform_device *pdev);
 void am_dma_lut3d_buffer_free(struct platform_device *pdev);
 void am_dma_lut3d_set_data(int *data, int length);
 void am_dma_lut3d_get_data(int *data, int length);
+int am_dma_set_mif_data_3dlut(int *plut3d);
 #endif

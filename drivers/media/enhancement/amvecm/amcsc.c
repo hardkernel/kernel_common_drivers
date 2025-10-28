@@ -93,13 +93,13 @@ unsigned int muxio_link_delay_cnt;
 unsigned int pre_dpss_mode;
 unsigned int dpss_mode;
 enum hdr_type_e cur_dpss_src_format;
-int set_dummy_flag;
 
+int set_dummy_flag;
 module_param(muxio_link_delay_num, uint, 0664);
 MODULE_PARM_DESC(muxio_link_delay_num, "\n muxio_link_delay_num\n");
 
+uint gamut_mapping1_en;
 /*hdr------------------------------------*/
-
 void hdr_osd_off(enum vpp_index_e vpp_index)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -11115,7 +11115,7 @@ reg_dump:
 dbg_end:
 	pr_info(HDR_VERSION);
 
-	if (chip_type_id == chip_t6w) {
+	if (chip_type_id == chip_t6w || chip_type_id == chip_t6x) {
 		pr_info("----hdr with dpss info----\n");
 		pr_info("dpss_mode/pre_: %d/%d\n",
 			dpss_mode, pre_dpss_mode);
