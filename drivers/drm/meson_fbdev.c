@@ -386,6 +386,28 @@ static int am_meson_drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	return 0;
 }
 
+static void am_meson_drm_wait_one_vblank(struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct meson_drm_fbdev *fbdev = container_of(fb_helper, struct meson_drm_fbdev, base);
+	int crtc_index;
+	struct drm_vblank_crtc *vblank;
+
+	if (fbdev->plane->crtc)
+		crtc_index = fbdev->plane->crtc->index;
+	else if (fbdev->modeset.crtc)
+		crtc_index = fbdev->modeset.crtc->index;
+	else
+		crtc_index = 0;
+
+	vblank = &fb_helper->dev->vblank[crtc_index];
+	if (vblank->enabled)
+		drm_wait_one_vblank(fb_helper->dev, crtc_index);
+	else
+		MESON_DRM_FBDEV("%s, crtc-%d is disabled, can not wait vblank.\n",
+			__func__, crtc_index);
+}
+
 /**
  * drm_fb_helper_set_par - implementation for ->fb_set_par
  * @info: fbdev registered by the helper
@@ -405,13 +427,12 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 	struct drm_fb_helper_surface_size sizes;
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
-	unsigned int bytes_per_pixel;
+	unsigned int bytes_per_pixel, pitches;
 	u32 xres_set = var->xres;
 	u32 yres_set = var->yres;
 	int depth;
-
-	DRM_INFO("%s IN, pid[%s %d], plane_id[%d]\n",
-		__func__, current->comm, current->pid, plane->index);
+	unsigned long screen_size;
+	unsigned long old_screen_size = info->screen_size;
 
 	if (oops_in_progress)
 		return -EBUSY;
@@ -421,13 +442,17 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	DRM_INFO("bpp[%d %d], fb[%d %d], res[%d %d], res_virtual[%d %d]\n",
+	DRM_INFO("pid[%s %d], plane_id[%d], fb_gem[%px]\n"
+		"bpp[%d %d], fb[%d %d], res[%d %d], res_virtual[%d %d]\n",
+		current->comm, current->pid, plane->index, fb_gem,
 		var->bits_per_pixel, fb->format->depth,
 		fb->width, fb->height, var->xres, var->yres,
 		var->xres_virtual, var->yres_virtual);
+
 	if (var->bits_per_pixel != fb->format->depth ||
 		var->xres_virtual != fb->width ||
-		var->yres_virtual != fb->height) {
+		var->yres_virtual != fb->height ||
+		!fb_gem) {
 		fbdev->vscreen_info_changed = true;
 		/*realloc framebuffer, free old then alloc new gem*/
 		sizes.fb_height = var->yres_virtual;
@@ -449,6 +474,7 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 			break;
 		}
 
+		bytes_per_pixel = DIV_ROUND_UP(sizes.surface_bpp, 8);
 		mode_cmd.width = sizes.surface_width;
 		mode_cmd.height = sizes.surface_height;
 		mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes.surface_bpp, depth);
@@ -463,9 +489,28 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 			((mode_cmd.pixel_format >> 16) & 0xFF),
 			((mode_cmd.pixel_format >> 24) & 0xFF));
 
+		pitches = ALIGN(sizes.fb_width * bytes_per_pixel, 64);
+		screen_size = pitches * sizes.fb_height;
+
+		if (fb_gem && fb_gem->size < info->screen_size) {
+			DRM_INFO("%s, GEM SIZE is not enough: %ld < %ld\n",
+				__func__, (unsigned long)fb_gem->size, screen_size);
+			am_meson_fbdev_free_fb_gem(info);
+			fb_gem = NULL;
+		}
+
+		if (!fb_gem) {
+			info->screen_size = screen_size;
+			if (am_meson_fbdev_alloc_fb_gem(info)) {
+				DRM_ERROR("%s realloc fb fail, screen_size[%ld->%ld]\n",
+					__func__, screen_size, old_screen_size);
+				info->screen_size = old_screen_size;
+				return -ENOMEM;
+			}
+		}
+
 		fb->width = sizes.fb_width;
 		fb->height = sizes.fb_height;
-		bytes_per_pixel = DIV_ROUND_UP(sizes.surface_bpp, 8);
 		fb->pitches[0] =  ALIGN(fb->width * bytes_per_pixel, 64);
 		fb->format = drm_get_format_info(dev, &mode_cmd);
 
@@ -476,24 +521,9 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 		/* fix some bug in drm_fb_helper_full_info */
 		var->xres = xres_set;
 		var->yres = yres_set;
-
-		if (fb_gem && fb_gem->size < info->screen_size) {
-			MESON_DRM_FBDEV("GEM SIZE is not enough, re-allocate(%ld < %ld)\n",
-				(unsigned long)fb_gem->size, info->screen_size);
-			am_meson_fbdev_free_fb_gem(info);
-			fb_gem = NULL;
-		}
-
-		if (!fb_gem) {
-			if (am_meson_fbdev_alloc_fb_gem(info)) {
-				DRM_ERROR("%s realloc fb fail\n", __func__);
-				return -ENOMEM;
-			}
-			MESON_DRM_FBDEV("%s reallocate success.\n", __func__);
-		}
 	}
-	drm_wait_one_vblank(fb_helper->dev, 0);
-	DRM_INFO("%s OUT\n", __func__);
+
+	am_meson_drm_wait_one_vblank(info);
 
 	return 0;
 }
@@ -694,7 +724,7 @@ int am_meson_drm_fb_blank(int blank, struct fb_info *info)
 	struct meson_drm_fbdev *fbdev = container_of(helper, struct meson_drm_fbdev, base);
 	struct drm_device *dev = helper->dev;
 	struct meson_drm *priv = dev->dev_private;
-	struct drm_crtc *crtc = fbdev->modeset.crtc;
+	struct drm_crtc *crtc = NULL;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
@@ -704,12 +734,18 @@ int am_meson_drm_fb_blank(int blank, struct fb_info *info)
 			fbdev->plane->name, fbdev->plane->fb);
 		fbdev->blank = false;
 		ret = am_meson_drm_fb_pan_display(&info->var, info);
-		drm_wait_one_vblank(dev, 0);
+
+		am_meson_drm_wait_one_vblank(info);
 	} else {
 		MESON_DRM_FBDEV("%s IN, pid[%s %d] meson_fbdev[%s]fb[%p] goto blank.\n",
 			__func__, current->comm, current->pid,
 			fbdev->plane->name, fbdev->plane->fb);
 
+		if (fbdev->plane->crtc) {
+			crtc = fbdev->plane->crtc;
+		} else if (fbdev->modeset.crtc) {
+			crtc = fbdev->modeset.crtc;
+		}
 		if (!crtc) {
 			DRM_ERROR("%s crtc is null, skip %s blank\n",
 				__func__, fbdev->plane->name);
@@ -719,7 +755,7 @@ int am_meson_drm_fb_blank(int blank, struct fb_info *info)
 		meson_drm_modeset_lock_crtc(crtc, fbdev->plane, &ctx);
 		if (priv->pan_async_commit_ran) {
 			DRM_INFO("Force to wait one vblank!\n");
-			drm_wait_one_vblank(dev, 0);
+			am_meson_drm_wait_one_vblank(info);
 		}
 		drm_atomic_helper_disable_plane(fbdev->plane, &ctx);
 		meson_drm_modeset_unlock_crtc(crtc, &ctx);
@@ -735,7 +771,7 @@ int am_meson_drm_fb_blank(int blank, struct fb_info *info)
 static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
 				    unsigned int cmd, unsigned long arg)
 {
-	int ret = 0, crtc_index = 0, i = 0;
+	int ret = 0, i = 0;
 	u32 val;
 	void __user *argp = (void __user *)arg;
 	struct fb_dmabuf_export fbdma;
@@ -757,14 +793,8 @@ static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
 		dma_buf_get(fbdma.fd);
 		ret = copy_to_user(argp, &fbdma, sizeof(fbdma)) ? -EFAULT : 0;
 	} else if (cmd == FBIO_WAITFORVSYNC) {
-		if (plane->crtc)
-			crtc_index = plane->crtc->index;
-		else if (fbdev->modeset.crtc)
-			crtc_index = fbdev->modeset.crtc->index;
-		else
-			crtc_index = 0;
+		am_meson_drm_wait_one_vblank(info);
 
-		drm_wait_one_vblank(helper->dev, crtc_index);
 		val = meson_drm_read_reg(rdma_chk_addr[plane->index]);
 
 		while (i < MAX_RETRY_CNT && val != frame_seq[plane->index]) {
