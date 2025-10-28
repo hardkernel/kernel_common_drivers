@@ -526,7 +526,7 @@ static void cfg_dolby_path(struct prm_dolby_top *prm_dolby)
 		prm_dolby->core2_prl_mode = false;
 
 	if (debug_dolby & 0x80000)
-		pr_dv_dbg("[%s]:path_mode %d,vd1_mode %d,ppc mode %d,vfcd_dv_path %d,prl %d,byps %d\n",
+		pr_dv_dbg("[%s]:path_mode %d,vd1_mode %d,2ppc mode %d,vfcd_dv_path %d,prl %d,byps %d\n",
 				__func__, path_mode, dolby_vd1_mode, core2_slc_mode,
 				vfcd_dv_path, prm_dolby->core2_prl_mode, core2_byps);
 
@@ -674,7 +674,7 @@ static inline void cfg_dolby_axi_path(enum dolby_work_mode path_mode, bool dpss_
 		} else if (dolby_vd1_mode) {
 			WRITE_VPP_DV_REG_BITS(T6W_VPU_DOLBY_OPATH_SEL, 0xf, 0, 4);
 			WRITE_VPP_DV_REG_BITS(T6W_VPU_DOLBY_OPATH_SEL, dv_sel_out, 8, 4);
-			WRITE_VPP_DV_REG_BITS(T6W_VPU_DOLBY_OPATH_SEL, 0xf, 12, 4);
+			WRITE_VPP_DV_REG_BITS(T6W_VPU_DOLBY_OPATH_SEL, 0xff, 12, 8);
 		} else if (dolby_dpss_mode) {
 			WRITE_VPP_DV_REG_BITS(T6W_VPU_DOLBY_OPATH_SEL, 0xf, 0, 4);
 			WRITE_VPP_DV_REG_BITS(T6W_VPU_DOLBY_OPATH_SEL, 0xf, 8, 4);
@@ -710,7 +710,7 @@ static inline void cfg_dolby_axi_path(enum dolby_work_mode path_mode, bool dpss_
 		} else if (dolby_vd1_mode) {
 			WRITE_VPP_DV_REG_BITS(T6X_VPU_DOLBY_OPATH_SEL, 0xf, 0, 4);
 			WRITE_VPP_DV_REG_BITS(T6X_VPU_DOLBY_OPATH_SEL, dv_sel_out, 8, 4);
-			WRITE_VPP_DV_REG_BITS(T6X_VPU_DOLBY_OPATH_SEL, 0xf, 12, 4);
+			WRITE_VPP_DV_REG_BITS(T6X_VPU_DOLBY_OPATH_SEL, 0xff, 12, 8);
 		} else if (dolby_dpss_mode) {
 			WRITE_VPP_DV_REG_BITS(T6X_VPU_DOLBY_OPATH_SEL, 0xf, 0, 4);
 			WRITE_VPP_DV_REG_BITS(T6X_VPU_DOLBY_OPATH_SEL, 0xf, 8, 4);
@@ -753,7 +753,7 @@ void cfg_dd_path_off(void)
 		} else {
 			VSYNC_WR_DV_REG_BITS(T6W_VPU_AXIRD_PATH_CTRL, 0, 8, 2);
 			VSYNC_WR_DV_REG_BITS(T6W_VPU_DOLBY_IPATH_SEL, 0xf, 0, 4);/*bit0-3*/
-			VSYNC_WR_DV_REG_BITS(T6W_VPU_DOLBY_OPATH_SEL, 0xff, 8, 8);/*bit8-15*/
+			VSYNC_WR_DV_REG_BITS(T6W_VPU_DOLBY_OPATH_SEL, 0xfff, 8, 12);/*bit8-19*/
 		}
 		if (debug_dolby & 0x80000)
 			pr_dv_dbg("[%s]:path off 0x%x, 0x%x, 0x%x\n", __func__,
@@ -769,8 +769,8 @@ void cfg_dd_path_off(void)
 			WRITE_VPP_DV_REG_BITS(T6X_VPU_DOLBY_OPATH_SEL, 0xff, 8, 8);
 		} else {
 			VSYNC_WR_DV_REG_BITS(T6X_VPU_AXIRD_DOLBY_PATH_CTRL, 0, 0, 4);
-			VSYNC_WR_DV_REG_BITS(T6X_VPU_DOLBY_IPATH_SEL, 0xf, 0, 4);
-			VSYNC_WR_DV_REG_BITS(T6X_VPU_DOLBY_OPATH_SEL, 0xff, 8, 8);
+			VSYNC_WR_DV_REG_BITS(T6X_VPU_DOLBY_IPATH_SEL, 0xf, 0, 4);/*bit0-3*/
+			VSYNC_WR_DV_REG_BITS(T6X_VPU_DOLBY_OPATH_SEL, 0xfff, 8, 12);/*bit8-19*/
 		}
 		if (debug_dolby & 0x80000)
 			pr_dv_dbg("[%s]:path off 0x%x, 0x%x, 0x%x\n", __func__,

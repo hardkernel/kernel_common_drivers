@@ -5,6 +5,7 @@
 
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "amdv_uevent.h"
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 
 static struct amdv_uevent amdv_events[] = {
 	{
@@ -56,7 +57,8 @@ int amdv_send_uevent(enum amdv_event type, struct apo_value_s *apo_value)
 		event->env[3], apo_value->L11_byte3);
 
 	ret = kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
-	pr_info("%s: %s, ret=%d\n", __func__, env, ret);
+	if (debug_dolby & 0x1)
+		pr_info("%s: %s, ret=%d\n", __func__, env, ret);
 	return ret;
 }
 

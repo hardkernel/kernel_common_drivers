@@ -1398,12 +1398,12 @@ void enable_amdv_hw5(int enable)
 				if (enable_top1 && (amdv_mask & 1) &&
 					top1_info.amdv_setting_video_flag) {
 					top1_info.core_on = true;
-					pr_info("TV top1 turn on\n");
+					pr_dv_dbg("TV top1 turn on\n");
 				}
 				if ((amdv_mask & 1) &&
 					top2_info.amdv_setting_video_flag) {
 					top2_info.core_on = true;
-					pr_info("TV top2 turn on\n");
+					pr_dv_dbg("TV top2 turn on\n");
 				}
 				if (!(amdv_mask & 1) ||
 					(!top2_info.amdv_setting_video_flag &&

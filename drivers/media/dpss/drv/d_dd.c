@@ -58,6 +58,8 @@ unsigned int dpss_sub_chg_ddd(struct dpss_ch_s *pch, struct vframe_s *vfm)
 	if (pch->c.ch)
 		return 0;
 	if (vfm) {
+		dbg_h2("%s, dpss path %d, dv frame %d\n",
+		__func__, is_amdv_dpss_path(), is_amdv_frame(vfm));
 		if (is_amdv_dpss_path() && is_amdv_enable() && is_amdv_frame(vfm) &&
 			get_amdv_force_mode() != AMDV_OUTPUT_MODE_BYPASS)
 			support = true;
