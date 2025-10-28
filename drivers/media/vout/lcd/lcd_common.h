@@ -21,7 +21,8 @@
 /* 20250616: support sw vrr */
 /* 20250902: update ufr clk_change flow */
 /* 20250917: tcon support discontinued bin */
-#define LCD_DRV_VERSION    "20250917"
+/* 20251028: support vrr vdf */
+#define LCD_DRV_VERSION    "20251028"
 
 #define CTYPE_MASK           0xf0
 #define CTYPE_RGB            0x00

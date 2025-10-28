@@ -572,6 +572,8 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 	unsigned char data;
 	unsigned char *table = NULL;
 	int ret = -1;
+	struct lcd_tcon_vrr_data_s *vrr_data;
+	unsigned int fr_levels[20];
 
 	if (!buf)
 		return count;
@@ -927,6 +929,45 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 		if (lcd_debug_print_flag & LCD_DBG_PR_TEST)
 			lcd_tcon_dbg_trace_print();
 #endif
+	} else if (strcmp(parm[0], "fr_det") == 0) {
+		if (!parm[1])
+			goto lcd_tcon_debug_store_err;
+		if (strcmp(parm[1], "enable") == 0) {
+			tcon_fr_detect_enable(pdrv, 1);
+		} else if (strcmp(parm[1], "disable") == 0) {
+			tcon_fr_detect_enable(pdrv, 0);
+		} else if (strcmp(parm[1], "init") == 0) {
+			for (i = 0; i < 20; i++)
+				fr_levels[i] = 0x1fff;
+			ret = 0;
+			for (i = 0; i < 20; i++) {
+				if (parm[2 + i])
+					ret = kstrtouint(parm[2 + i], 10, &val);
+				else
+					break;
+				if (ret)
+					break;
+
+				fr_levels[i] = val;
+			}
+			LCDPR("fr:\n");
+			for (i = 0; i < 20; i++)
+				LCDPR("%d\n", fr_levels[i]);
+
+			tcon_fr_detect_config(pdrv, 0, fr_levels, 20, 1);
+		}
+	} else if (strcmp(parm[0], "vrr_data") == 0) {
+		if (!local_cfg)
+			goto lcd_tcon_debug_store_err;
+		vrr_data = &local_cfg->vrr_data;
+		LCDPR("vrr_vdf:en:%d, base_mdoe:%dx%dp[%d~%d]hz\n",
+			vrr_data->en, vrr_data->disp_h_active, vrr_data->disp_v_active,
+			vrr_data->disp_frame_rate_min, vrr_data->disp_frame_rate_max);
+		LCDPR("size:0x%x, part_size:0x%x, part:%d\n",
+			vrr_data->size, vrr_data->part_size, vrr_data->part);
+		LCDPR("fr count:%d\n", vrr_data->fr_count);
+		for (i = 0; i < vrr_data->fr_count; i++)
+			LCDPR("fr[%d]:%d\n", i, vrr_data->fr_level[i]);
 	} else if (strcmp(parm[0], "reset") == 0) {
 		lcd_tcon_global_reset(pdrv);
 	} else {

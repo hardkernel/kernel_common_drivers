@@ -1059,7 +1059,7 @@ static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
 		struct lcd_tcon_data_part_ctrl_s *ctrl_part, unsigned char *p)
 {
 	unsigned int data_byte, data_cnt, frame_rate;
-	struct lcd_detail_timing_s *act_timing;
+	struct lcd_detail_timing_s *pt;
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
 	struct aml_bl_drv_s *bldrv;
 	struct bl_pwm_config_s *bl_pwm = NULL;
@@ -1138,7 +1138,8 @@ static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
 		}
 		break;
 	case LCD_TCON_DATA_CTRL_MULTI_RESOLUTION:
-		if (data_cnt != 2)
+		// for more possibility like resolution && fr_range
+		if (data_cnt < 2)
 			goto lcd_tcon_data_multi_match_init_err_data_cnt;
 
 		data_list->ctrl_method = ctrl_part->ctrl_method;
@@ -1148,12 +1149,45 @@ static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
 		for (j = 0; j < data_byte; j++)
 			data_list->multi.resolution.vsize |= (p[k + j] << (j * 8));
 
-		act_timing = &pdrv->curr_dev->dev_cfg.timing.act_timing;
-		if (act_timing->h_active != data_list->multi.resolution.hsize ||
-		    act_timing->v_active != data_list->multi.resolution.vsize)
+		pt = pdrv->curr_dev->dev_cfg.timing.base_timing;
+		if (pt->h_active != data_list->multi.resolution.hsize ||
+		    pt->v_active != data_list->multi.resolution.vsize)
 			goto lcd_tcon_data_multi_match_init_not_match;
-		LCD_DBG(pdrv, "%s: resolution %dx%d hit", __func__,
-			act_timing->h_active, act_timing->v_active);
+		if (data_cnt == 2) {//matched over only resolution
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("%s: resolution %dx%d hit\n",
+					__func__, pt->h_active, pt->v_active);
+			break;
+		}
+		k += data_byte;
+		for (j = 0; j < data_byte; j++)
+			data_list->multi.range.min |= (p[k + j] << (j * 8));
+		if (data_cnt == 3) { // display mode(base base_timing), eg:3840x2160p120hz
+			data_list->multi.range.max = data_list->multi.range.min;
+			if (pt->frame_rate != data_list->multi.range.max)
+				goto lcd_tcon_data_multi_match_init_not_match;
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("%s: disp_mode %dx%dp%dhz hit\n",
+					__func__, pt->h_active, pt->v_active, pt->frame_rate);
+			break;
+		}
+		// next regard as frame rate range, and carry other information
+		if (data_cnt < 4)
+			goto lcd_tcon_data_multi_match_init_not_match;
+
+		k += data_byte;
+		for (j = 0; j < data_byte; j++)
+			data_list->multi.range.max |= (p[k + j] << (j * 8));
+
+		frame_rate = pt->frame_rate;
+		if (frame_rate < data_list->multi.range.min ||
+		    frame_rate > data_list->multi.range.max)
+			goto lcd_tcon_data_multi_match_init_not_match;
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("%s: disp_mode %dx%dp[%d~%d]hz hit\n",
+				__func__, pt->h_active, pt->v_active,
+				data_list->multi.range.min, data_list->multi.range.max);
+
 		break;
 	case LCD_TCON_DATA_CTRL_MULTI_BL_LEVEL:
 		if (data_cnt != 2)
@@ -1290,7 +1324,7 @@ int lcd_tcon_data_multi_init_check(struct aml_lcd_drv_s *pdrv, unsigned short bl
 			LCDPR("%s: vfreq %d-%d hit: %d\n", __func__, min, max, frame_rate);
 		break;
 	case LCD_TCON_DATA_CTRL_MULTI_RESOLUTION:
-		if (data_cnt != 2)
+		if (data_cnt < 2)
 			goto lcd_tcon_data_multi_init_check_err_data_cnt;
 
 		for (j = 0; j < data_byte; j++)
@@ -1299,11 +1333,37 @@ int lcd_tcon_data_multi_init_check(struct aml_lcd_drv_s *pdrv, unsigned short bl
 		for (j = 0; j < data_byte; j++)
 			vsize |= (p[k + j] << (j * 8));
 
-		if (pdrv->curr_dev->dev_cfg.timing.act_timing.h_active != hsize ||
-		    pdrv->curr_dev->dev_cfg.timing.act_timing.v_active != vsize)
+		if (pdrv->curr_dev->dev_cfg.timing.base_timing->h_active != hsize ||
+		    pdrv->curr_dev->dev_cfg.timing.base_timing->v_active != vsize)
+			goto lcd_tcon_data_multi_init_check_exit;
+
+		if (data_cnt == 2) {
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("%s: resolution %dx%d hit\n", __func__, hsize, vsize);
+			break;
+		}
+		k += data_byte;
+		for (j = 0; j < data_byte; j++)
+			min |= (p[k + j] << (j * 8));
+		if (data_cnt == 3) { //display mode (base bas_timing) eg:3840x2160p120hz
+			if (min != pdrv->curr_dev->dev_cfg.timing.base_timing->frame_rate)
+				goto lcd_tcon_data_multi_init_check_exit;
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("%s: disp_mode %dx%dp%dhz hit\n",
+					__func__, hsize, vsize, min);
+			break;
+		}
+
+		k += data_byte;
+		for (j = 0; j < data_byte; j++)
+			max |= (p[k + j] << (j * 8));
+
+		frame_rate = pdrv->curr_dev->dev_cfg.timing.base_timing->frame_rate;
+		if (frame_rate < min || frame_rate > max)
 			goto lcd_tcon_data_multi_init_check_exit;
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("%s: resolution %dx%d hit\n", __func__, hsize, vsize);
+			LCDPR("%s: disp_mode %dx%dp[%d~%d]hz hit\n",
+					__func__, hsize, vsize, min, max);
 		break;
 	case LCD_TCON_DATA_CTRL_MULTI_BL_LEVEL:
 #ifdef CONFIG_AMLOGIC_BACKLIGHT

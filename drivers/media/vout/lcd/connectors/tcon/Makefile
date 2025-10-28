@@ -7,3 +7,4 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_TCON) += vout/lcd/connectors/tcon/lcd_
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_TCON) += vout/lcd/connectors/tcon/lcd_tcon_pdf.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_TCON) += vout/lcd/connectors/tcon/lcd_tcon_rdma.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_TCON) += vout/lcd/connectors/tcon/lcd_tcon_swpdf.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_TCON) += vout/lcd/connectors/tcon/lcd_tcon_vrr.o

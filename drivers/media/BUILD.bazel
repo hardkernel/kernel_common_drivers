@@ -518,6 +518,7 @@ ddk_module(
                 "vout/lcd/connectors/tcon/lcd_tcon_pdf.c",
                 "vout/lcd/connectors/tcon/lcd_tcon_rdma.c",
                 "vout/lcd/connectors/tcon/lcd_tcon_swpdf.c",
+                "vout/lcd/connectors/tcon/lcd_tcon_vrr.c",
             ],
         },
         "CONFIG_AMLOGIC_LCD_VBYONE": {

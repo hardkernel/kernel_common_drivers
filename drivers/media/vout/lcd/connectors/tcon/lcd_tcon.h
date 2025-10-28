@@ -142,7 +142,7 @@ struct tcon_multi_resolution_s {
 	unsigned int vsize;
 };
 
-union tcon_multi_val_u {
+struct tcon_multi_val_s {
 	struct tcon_multi_range_s range;
 	struct tcon_multi_resolution_s resolution;
 };
@@ -150,7 +150,7 @@ union tcon_multi_val_u {
 struct tcon_data_list_s {
 	unsigned int id;
 	unsigned int ctrl_method;
-	union tcon_multi_val_u multi;
+	struct tcon_multi_val_s multi;
 	unsigned int ctrl_data_cnt;
 	unsigned int *ctrl_data;
 	char *block_name;
@@ -204,8 +204,24 @@ struct tcon_mem_map_table_s {
 #endif
 };
 
-#define MEM_FLAG_MAX	    2
+#define FR_DETECT_LEVEL_MAX 20
+struct lcd_tcon_vrr_data_s {
+	unsigned short disp_h_active;
+	unsigned short disp_v_active;
+	unsigned short disp_frame_rate_min;
+	unsigned short disp_frame_rate_max;
+	unsigned int fr_level[FR_DETECT_LEVEL_MAX];
+	unsigned short fr_count;
+	phys_addr_t paddr;
+	unsigned int size;
+	unsigned int part_size;
+	unsigned int part;
+	unsigned int en;
+	unsigned int support;
+	unsigned int ready;
+};
 
+#define MEM_FLAG_MAX	    2
 struct lcd_tcon_local_cfg_s {
 	spinlock_t multi_list_lock; /* for tcon multi lut list change */
 	struct tcon_core_reg_info_s def_core_info;
@@ -213,6 +229,7 @@ struct lcd_tcon_local_cfg_s {
 
 	struct list_head pdf_data_list;  //for struct lcd_tcon_pdf_data_s
 	unsigned char pdf_list_load_flag;
+	struct lcd_tcon_vrr_data_s vrr_data;
 
 	struct cdev   cdev;
 	struct device *dev;
@@ -298,6 +315,7 @@ void tcon_lut_dma_init_t3x(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s
 void tcon_lut_dma_init_t6w(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
 void tcon_lut_dma_deinit(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
 void lcd_tcon_lut_dma_update(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
+void tcon_vrr_dma_mif_set(struct aml_lcd_drv_s *pdrv, phys_addr_t paddr, unsigned int size);
 
 void lcd_tcon_ext_header_check(struct lcd_tcon_init_block_ext_header_s *ext_header);
 int lcd_tcon_get_core_size(struct lcd_tcon_config_s *tcon_conf,
@@ -368,5 +386,16 @@ int lcd_tcon_set_table32_reg(struct tcon_core_reg_info_s *core_reg_info,
 		unsigned int reg, unsigned int val);
 int lcd_tcon_setb_table32_reg(struct tcon_core_reg_info_s *core_reg_info,
 		unsigned int reg, unsigned int val, unsigned int start, unsigned int len);
+
+/*
+ * mode: 0-normal mode, 1-fix mode
+ */
+void tcon_fr_detect_config(struct aml_lcd_drv_s *pdrv, unsigned int mode,
+			unsigned int fr_levels[], unsigned int num_level,
+			unsigned int step_counter);
+void tcon_fr_detect_enable(struct aml_lcd_drv_s *pdrv, int enable);
+void lcd_tcon_data_parse_vrr(struct lcd_tcon_vrr_data_s *vrr,
+				unsigned char *p, unsigned int data_cnt, unsigned int data_width);
+int lcd_tcon_vrr_fr_sw_match(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_vrr_data_s *vrr);
 
 #endif

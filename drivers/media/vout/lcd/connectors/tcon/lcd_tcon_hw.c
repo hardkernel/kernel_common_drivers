@@ -165,6 +165,46 @@ void tcon_lut_dma_mif_set_t6w(struct aml_lcd_drv_s *pdrv, phys_addr_t paddr, uns
 	lcd_tcon_setb(pdrv, 0x5dc, (stride - 1), 16, 13);
 }
 
+void tcon_vrr_dma_mif_set(struct aml_lcd_drv_s *pdrv, phys_addr_t paddr, unsigned int size)
+{
+	unsigned int stride;
+
+	if (paddr % 16 || size % 16) {
+		LCDERR("%s: paddr or size should be 16 byte aligned\n", __func__);
+		return;
+	}
+	stride = size >> 4;
+	lcd_tcon_write(pdrv, 0x5d0, 0x00000040);// bit7: reg_rdmif_swap_64bit
+	lcd_tcon_write(pdrv, 0x5d5, paddr);// reg_lut_dma_vrr_baddr
+	lcd_tcon_setb(pdrv, 0x5d8, stride, 16, 13); //reg_lut_dma_vrr_stride
+	lcd_tcon_setb(pdrv, 0x5db, 0, 0, 13); //reg_lut_dma_vrr_x_start fix 0
+	lcd_tcon_setb(pdrv, 0x5db, (stride - 1), 16, 13); //reg_lut_dma_vrr_x_end
+}
+
+void tcon_sw_dma_mif_set(struct aml_lcd_drv_s *pdrv, phys_addr_t paddr, unsigned int size)
+{
+	unsigned int stride;
+
+	if (paddr % 16 || size % 16) {
+		LCDERR("%s: paddr or size should be 16 byte aligned\n", __func__);
+		return;
+	}
+	stride = size >> 4;
+	lcd_tcon_write(pdrv, 0x5d0, 0x00000040);// bit7: reg_rdmif_swap_64bit
+	lcd_tcon_write(pdrv, 0x5d7, paddr);// reg_lut_dma_vrr_baddr
+	lcd_tcon_setb(pdrv, 0x5d9, stride, 16, 13); //reg_lut_dma_vrr_stride
+	lcd_tcon_setb(pdrv, 0x5dd, 0, 0, 13); //reg_lut_dma_vrr_x_start fix 0
+	lcd_tcon_setb(pdrv, 0x5dd, (stride - 1), 16, 13); //reg_lut_dma_vrr_x_end
+}
+
+void tcon_sw_dma_trig(struct aml_lcd_drv_s *pdrv)
+{
+	//falling edge trig
+	lcd_tcon_setb(pdrv, 0x5dd, 0, 31, 1); //reg_lut_dma_sw_start
+	lcd_tcon_setb(pdrv, 0x5dd, 1, 31, 1); //reg_lut_dma_sw_start
+	lcd_tcon_setb(pdrv, 0x5dd, 0, 31, 1); //reg_lut_dma_sw_start
+}
+
 static void lcd_tcon_dma_addr_add(struct lcd_tcon_dma_ops_s *ops,
 		phys_addr_t paddr, unsigned int size)
 {
@@ -572,6 +612,8 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv, unsigned char *da
 	unsigned int part_start_offset, part_offset;
 	struct lcd_tcon_dma_ops_s *dma_ops = NULL;
 	int ret;
+	int vrr_data_valid = 0;
+	struct lcd_tcon_vrr_data_s *vrr_data = NULL;
 
 	if (!tcon_local || !tcon_conf)
 		return -1;
@@ -635,6 +677,14 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv, unsigned char *da
 						data_part.ctrl, (p + offset), data_index);
 				if (ret) //not match, exit
 					return 1;
+			}
+			//only set once
+			if (block_header->block_type == LCD_TCON_DATA_BLOCK_TYPE_VRR_LUT) {
+				vrr_data = &tcon_local->vrr_data;
+				lcd_tcon_data_parse_vrr(vrr_data, p + offset,
+					data_part.ctrl->data_cnt, data_part.ctrl->data_byte_width);
+				if (vrr_data->support)
+					vrr_data_valid = 1;
 			}
 			break;
 		case LCD_TCON_DATA_PART_TYPE_WR_N:
@@ -949,6 +999,28 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv, unsigned char *da
 			paddr += offset;
 			if (!paddr || paddr & 0xf || data_part.dma->dma_data_size & 0xf)
 				break;
+
+			if (vrr_data_valid) {
+				vrr_data = &tcon_local->vrr_data;
+				if (!vrr_data->support || !vrr_data->part)
+					break;
+				vrr_data->en = 1;
+				vrr_data->paddr = paddr;
+				vrr_data->size = data_part.dma->dma_data_size;
+				vrr_data->part_size = vrr_data->size / vrr_data->part;
+				tcon_fr_detect_config(pdrv, 0, vrr_data->fr_level,
+							vrr_data->fr_count, 1);
+				tcon_vrr_dma_mif_set(pdrv, vrr_data->paddr, vrr_data->part_size);
+				/* fr_det will not work at power on, need use sw_dma trig manually*/
+				ret = lcd_tcon_vrr_fr_sw_match(pdrv, vrr_data);
+				tcon_sw_dma_mif_set(pdrv,
+						vrr_data->paddr + ret * vrr_data->part_size,
+						vrr_data->part_size);
+				tcon_sw_dma_trig(pdrv);
+				tcon_lut_dma_start(pdrv);
+				tcon_fr_detect_enable(pdrv, 1);
+				break;
+			}
 
 			dma_ops = tcon_conf->lut_dma_ops;
 			if (!dma_ops)
@@ -1293,14 +1365,17 @@ int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned long long local_time[2];
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+	struct lcd_tcon_local_cfg_s *tcon_local = get_lcd_tcon_local_cfg();
 
 	local_time[0] = sched_clock();
 
-	if (!tcon_conf)
+	if (!tcon_conf || !tcon_local)
 		return 0;
 
 	if (tcon_conf->lut_dma_ops && tcon_conf->lut_dma_ops->deinit)
 		tcon_conf->lut_dma_ops->deinit(pdrv, tcon_conf->lut_dma_ops);
+
+	memset(&tcon_local->vrr_data, 0, sizeof(tcon_local->vrr_data));
 
 	/* demo od */
 	lcd_tcon_setb(pdrv, 0x240, 1, 1, 1);
