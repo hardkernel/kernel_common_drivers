@@ -806,6 +806,15 @@ static inline int di_process_module_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+int dpss_process_module_init(void);
+#else
+static inline int dpss_process_module_init(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_V2D
 int v2d_module_init(void);
 #else
@@ -814,5 +823,4 @@ static inline int v2d_module_init(void)
 	return 0;
 }
 #endif
-
 #endif

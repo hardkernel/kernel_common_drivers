@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+#
+# Amlogic dpss_process device configuration
+#
+
+menu "Amlogic dpss_process support"
+
+config AMLOGIC_DPSS_PROCESS
+	tristate "Amlogic dpss_process device support"
+	default n
+
+	help
+		Select to enable "Amlogic dpss_process device support.
+
+endmenu

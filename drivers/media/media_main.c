@@ -127,6 +127,7 @@ static int __init media_main_init(void)
 	call_sub_init(amlogic_codec_mm_dma_buf_init);
 	call_sub_init(amprime_sl_init);
 	call_sub_init(di_process_module_init);
+	call_sub_init(dpss_process_module_init);
 	call_sub_init(v2d_module_init);
 	pr_debug("### %s() end\n", __func__);
 	return 0;

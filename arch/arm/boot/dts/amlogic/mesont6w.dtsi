@@ -1089,7 +1089,7 @@
 	dpss_process {
 		compatible = "amlogic, dpss_process";
 		dev_name = "di_process";
-		status = "disabled";
+		status = "okay";
 	};
 
 	aml_bt: aml_bt {

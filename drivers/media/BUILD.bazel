@@ -820,6 +820,12 @@ ddk_module(
                 "video_processor/di_process/di_process.c",
             ],
         },
+        "CONFIG_AMLOGIC_DPSS_PROCESS": {
+            True: [
+                "video_processor/dpss_process/dpss_proc_file.c",
+                "video_processor/dpss_process/dpss_process.c",
+            ],
+        },
         "CONFIG_AMLOGIC_BUF_MANAGER": {
             True: ["video_processor/buf_manager/buf_manager.c"],
         },
