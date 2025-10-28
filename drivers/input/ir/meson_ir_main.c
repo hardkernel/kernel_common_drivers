@@ -623,8 +623,8 @@ static int meson_ir_get_wakeup_tables(struct device_node *node,
 	const phandle *phandle;
 	struct device_node *wakeup_maps;
 	unsigned int key_num;
-	int i = 0, ret = -1;
-	u32 data[MAX_WAKEUP_KEY + 3] = {IR_MBOX_CMD_SET_WAKEUP_LIST};
+	int cnt, i, ret = -1;
+	u32 data[IR_MBOX_BUF_MAX_KEY + 3] = {IR_MBOX_CMD_SET_WAKEUP_LIST};
 
 	phandle = of_get_property(node, "wakeup_map", NULL);
 	if (!phandle) {
@@ -647,8 +647,8 @@ static int meson_ir_get_wakeup_tables(struct device_node *node,
 	if (key_num > MAX_WAKEUP_KEY)
 		key_num = MAX_WAKEUP_KEY;
 
-	chip->wakeup_tab = kcalloc((key_num + 1), sizeof(*chip->wakeup_tab),
-				   GFP_KERNEL);
+	chip->wakeup_tab = kcalloc((MAX_WAKEUP_KEY + 1),
+				   sizeof(*chip->wakeup_tab), GFP_KERNEL);
 	if (!chip->wakeup_tab)
 		return -ENOMEM;
 
@@ -662,11 +662,20 @@ static int meson_ir_get_wakeup_tables(struct device_node *node,
 	}
 
 	/* 3 items for cmd id, key num, ir wakeup reason */
-	data[1] = key_num;
-	for (i = 0; i < key_num; i++) {
-		data[2] |= (chip->wakeup_tab[i].ir_reason & 0x1) << i;
-		data[i + 3] = chip->wakeup_tab[i].frame_code;
+	for (i = 0, cnt = 0; i < key_num; i++) {
+		data[2] |= (chip->wakeup_tab[i].ir_reason & 0x1) << cnt;
+		data[cnt + 3] = chip->wakeup_tab[i].frame_code;
+		cnt++;
+
+		if (cnt != IR_MBOX_BUF_MAX_KEY)
+			continue;
+
+		cnt = 0;
+		data[1] = 16;
+		meson_ir_mbox_transfer(chip, data, sizeof(data));
+		data[2] = 0;
 	}
+	data[1] = cnt;
 	meson_ir_mbox_transfer(chip, data, sizeof(data));
 
 	return 0;

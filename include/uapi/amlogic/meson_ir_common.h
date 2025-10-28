@@ -11,8 +11,8 @@
 
 #define MAX_KEYMAP_SIZE 256
 #define CUSTOM_NAME_LEN 64
-#define MAX_WAKEUP_KEY 16
-#define IR_MBOX_BUF_SIZE (MAX_WAKEUP_KEY * 2 + 2)
+#define MAX_WAKEUP_KEY 32
+#define IR_MBOX_BUF_MAX_KEY 16
 
 /*to ensure kernel and user spase use the same header file*/
 #define SHARE_DATA_VERSION "v1.1.2"

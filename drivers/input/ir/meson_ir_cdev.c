@@ -15,6 +15,33 @@
 #include "meson_ir_main.h"
 #include "meson_ir_sysfs.h"
 
+static int meson_ir_set_wakeup_tab(struct meson_ir_chip *chip,
+				   struct ir_wakeup_tab *new_wt, int size)
+{
+	int old_size = 0, new_size = size;
+	int i, j;
+
+	while (chip->wakeup_tab[old_size].frame_code)
+		old_size++;
+
+	if (new_size + old_size >= MAX_WAKEUP_KEY)
+		return -ENOMEM;
+
+	for (i = 0; i < new_size; i++) {
+		for (j = 0; j < old_size; j++)
+			if (new_wt[i].frame_code ==
+			    chip->wakeup_tab[j].frame_code)
+				break;
+
+		if (j == old_size) {
+			memcpy(&chip->wakeup_tab[old_size], &new_wt[i],
+			       sizeof(*chip->wakeup_tab));
+			old_size++;
+		}
+	}
+	return old_size;
+}
+
 static int meson_ir_open(struct inode *inode, struct file *file)
 {
 	struct meson_ir_chip *chip;
@@ -37,10 +64,10 @@ static long meson_ir_ioctl(struct file *file, unsigned int cmd,
 	void __user *parg = (void __user *)arg;
 	unsigned long flags;
 	u32 value;
-	int retval = 0, i;
-	u32 tmp[MAX_WAKEUP_KEY + 3];
+	int retval = 0, i, cnt;
+	u32 tmp[IR_MBOX_BUF_MAX_KEY + 3];
 	struct ir_wakeup_tab *wt;
-	static u32 wakeup_size;
+	static int wakeup_size;
 
 	if (!parg) {
 		dev_err(chip->dev, "%s invalid user space pointer\n", __func__);
@@ -195,16 +222,30 @@ static long meson_ir_ioctl(struct file *file, unsigned int cmd,
 			goto err;
 		}
 
-		kfree(chip->wakeup_tab);
-		chip->wakeup_tab = wt;
+		wakeup_size = meson_ir_set_wakeup_tab(chip, wt, wakeup_size);
+		if (wakeup_size <= 0) {
+			kfree(wt);
+			goto err;
+		}
 
 		tmp[0] = IR_MBOX_CMD_SET_WAKEUP_LIST;
-		tmp[1] = wakeup_size;
-		for (i = 0; i < wakeup_size; i++) {
-			tmp[2] |= (chip->wakeup_tab[i].ir_reason & 0x1) << i;
-			tmp[i + 3] = chip->wakeup_tab[i].frame_code;
+		for (i = 0, cnt = 0; i < wakeup_size; i++) {
+			tmp[2] |= (chip->wakeup_tab[i].ir_reason & 0x1) << cnt;
+			tmp[cnt + 3] = chip->wakeup_tab[i].frame_code;
+			cnt++;
+
+			if (cnt != IR_MBOX_BUF_MAX_KEY)
+				continue;
+
+			cnt = 0;
+			tmp[1] = 16;
+			meson_ir_mbox_transfer(chip, tmp, sizeof(tmp));
+			tmp[2] = 0;
 		}
+		tmp[1] = cnt;
 		meson_ir_mbox_transfer(chip, tmp, sizeof(tmp));
+
+		kfree(wt);
 		break;
 
 	case IR_IOC_GET_WAKEUP_KEY:
