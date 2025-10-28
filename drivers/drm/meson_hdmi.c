@@ -2269,7 +2269,7 @@ static bool meson_hdmitx_is_alter_mode(struct drm_display_mode *mode)
 	vic = drm_match_cea_mode(mode);
 	if (vic) {
 		meson_hdmitx_convert_timing_para(vic, &vic_mode, false);
-		DRM_INFO("vic-%d, name-%s, %s\n", vic, mode->name, vic_mode.name);
+		DRM_DEBUG_KMS("vic-%d, name-%s, %s\n", vic, mode->name, vic_mode.name);
 
 		if (drm_mode_vrefresh(mode) % 6 == 0 &&
 		    cea_mode_alternate_clock(&vic_mode) == mode->clock) {
