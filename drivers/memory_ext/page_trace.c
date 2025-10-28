@@ -1179,6 +1179,8 @@ void replace_page_trace(struct page *new, struct page *old)
 
 	if (!new || !old)
 		return;
+	if (!trace_buffer)
+		return;
 
 	old_trace  = find_page_base(old);
 	new_trace  = find_page_base(new);
@@ -2134,7 +2136,7 @@ static void __exit page_trace_module_exit(void)
 		vfree(dump_sum);
 #endif
 
-	if (!trace_buffer)
+	if (trace_buffer)
 		vfree(trace_buffer);
 
 }
