@@ -3104,6 +3104,68 @@ static void hdmitx21_vid_pll_clk_check(struct hdmitx_hw_common *tx_hw)
 	}
 }
 
+#define READ2REG(reg) ({ \
+	typeof(reg) _reg = (reg); \
+	(hdmitx21_rd_reg(_reg) & 0xff) + \
+	((hdmitx21_rd_reg(_reg + 1) & 0xff) << 8); })
+
+static void pix_capture_dump(struct hdmitx21_dev *hdev)
+{
+	u32 reg;
+	u32 val;
+	int avi_packet = hdmitx21_rd_reg(TPI_AVI_BYTE1_IVCTX);
+	/*
+	 * bit 6:5
+	 * 00 rgb
+	 * 01 yuv422
+	 * 10 yuv444
+	 * 11 yuv420
+	 */
+	int avi_index = ((avi_packet & 0x60) ? 1 : 0);
+
+	if (hdev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_S7)
+		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 1, 1, 1);/* enable fdet gate */
+	hdmitx21_wr_reg(VP_FDET_CLEAR_IVCTX, 0);
+	hdmitx21_wr_reg(VP_FDET_STATUS_IVCTX, 0);
+	mdelay(100);/* For 23.976hz, at least 2 frames */
+
+	/* read pixcap value */
+	reg = VP_CMS_CSC0_PIXCAP_IN_Y_IVCTX;
+	val = READ2REG(reg);
+	if (val) {
+		if (avi_index)
+			HDMITX_INFO("pixcap_in_y [%x] 0x%x %d\n", reg, val, val);
+		else
+			HDMITX_INFO("pixcap_in_r [%x] 0x%x %d\n", reg, val, val);
+	}
+
+	reg = VP_CMS_CSC0_PIXCAP_IN_CB_IVCTX;
+	val = READ2REG(reg);
+	if (val) {
+		if (avi_index)
+			HDMITX_INFO("pixcap_in_CB [%x] 0x%x %d\n", reg, val, val);
+		else
+			HDMITX_INFO("pixcap_in_g [%x] 0x%x %d\n", reg, val, val);
+	}
+
+	reg = VP_CMS_CSC0_PIXCAP_IN_CR_IVCTX;
+	val = READ2REG(reg);
+	if (val) {
+		if (avi_index)
+			HDMITX_INFO("pixcap_in_CR [%x] 0x%x %d\n", reg, val, val);
+		else
+			HDMITX_INFO("pixcap_in_b [%x] 0x%x %d\n", reg, val, val);
+	}
+
+	reg = VP_OUTPUT_MAPPING_IVCTX;
+	val = READ2REG(reg);
+	if (val)
+		HDMITX_INFO("vp__output_mapping [%x] 0x%x %d\n", reg, val, val);
+
+	if (hdev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_S7)
+		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 0, 1, 1);/* disable fdet gate */
+}
+
 static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 {
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
@@ -3405,6 +3467,27 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		if (kstrtoul(buf + 6, 10, &rate) == 0)
 			hdmitx_set_vrr_rate(tx_hw, (int)rate, &data);
 #endif
+	} else if (strncmp(tmpbuf, "pix_capture", 11) == 0) {
+		int pixel_ivctx, line_ivctx, ret;
+		int pixel_height, pixel_low, line_high, line_low;
+
+		ret = sscanf(tmpbuf, "pix_capture.%d.%d", &pixel_ivctx, &line_ivctx);
+		if (ret)
+			HDMITX_INFO("pix_capture x:%d y:%d\n", pixel_ivctx, line_ivctx);
+		else
+			HDMITX_INFO("Failed to parse input correctly.\n");
+		pixel_height = (pixel_ivctx >> 8) & 0xFF;
+		pixel_low = pixel_ivctx & 0xFF;
+		line_high = (line_ivctx >> 8) & 0xFF;
+		line_low = line_ivctx & 0xFF;
+
+		hdmitx21_wr_reg(VP_CMS_CSC0_PIXCAP_IN_CONFIG_IVCTX, 1);
+		hdmitx21_wr_reg(VP_CMS_CSC0_PIXCAP_IN_CONTROL_IVCTX, 1);
+		hdmitx21_wr_reg(VP_CMS_CSC0_PIXCAP_IN_PIXEL_IVCTX, pixel_low);
+		hdmitx21_wr_reg(VP_CMS_CSC0_PIXCAP_IN_PIXEL_IVCTX + 1, pixel_height);
+		hdmitx21_wr_reg(VP_CMS_CSC0_PIXCAP_IN__LINE__IVCTX, line_low);
+		hdmitx21_wr_reg(VP_CMS_CSC0_PIXCAP_IN__LINE__IVCTX + 1, line_high);
+		pix_capture_dump(hdev);
 	}
 }
 

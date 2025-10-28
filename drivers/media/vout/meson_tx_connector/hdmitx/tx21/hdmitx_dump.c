@@ -507,6 +507,27 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 		seq_printf(s, "vsync_hsync_offset_odd [%x] 0x%x %d\n",
 			reg, val, val);
 
+	/* read pixcap value */
+	reg = VP_CMS_CSC0_PIXCAP_IN_Y_IVCTX;
+	val = CONNECT2REG(reg);
+	if (val)
+		seq_printf(s, "pixcap_in_y [%x] 0x%x %d\n", reg, val, val);
+
+	reg = VP_CMS_CSC0_PIXCAP_IN_CB_IVCTX;
+	val = CONNECT2REG(reg);
+	if (val)
+		seq_printf(s, "pixcap_in_CB [%x] 0x%x %d\n", reg, val, val);
+
+	reg = VP_CMS_CSC0_PIXCAP_IN_CR_IVCTX;
+	val = CONNECT2REG(reg);
+	if (val)
+		seq_printf(s, "pixcap_in_CR [%x] 0x%x %d\n", reg, val, val);
+
+	reg = VP_OUTPUT_MAPPING_IVCTX;
+	val = CONNECT2REG(reg);
+	if (val)
+		seq_printf(s, "vp__output_mapping [%x] 0x%x %d\n", reg, val, val);
+
 #define PR_DETAIL(n, str) \
 	do { \
 		if ((val >> (n)) & 1) \
