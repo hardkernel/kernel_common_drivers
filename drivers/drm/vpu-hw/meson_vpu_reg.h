@@ -1180,6 +1180,11 @@
 
 #define OSD_DOLBY_BYPASS_EN            0x6077
 
+/* viu top-level register */
+#define VIU_OSD1_PATH_CTRL                     0x1a76
+#define VIU_OSD2_PATH_CTRL                     0x1a77
+#define VIU_OSD3_PATH_CTRL                     0x1a78
+
 /* reg definition */
 
 #endif

@@ -1425,7 +1425,7 @@
 	};
 
 	vout_mux: vout_mux {
-		compatible = "amlogic, vout_mux-t6x";
+		compatible = "amlogic, vout_mux-t6d";//use t6d
 		status = "okay";
 		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
 		clock-names = "fclk_div5", "vdin_meas_clk";
