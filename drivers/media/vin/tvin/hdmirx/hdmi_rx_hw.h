@@ -60,7 +60,8 @@
 /* 2025.10.11 optimize pll setting for t6x */
 /* 2025.10.21 add dsc timing */
 /* 2025.10.28 fix timing change when resume */
-#define RX_HW_VER "ver.2025/10/28"
+/* 2025.10.30 fix vid if problem */
+#define RX_HW_VER "ver.2025/10/30"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -244,6 +245,7 @@
 #define TOP_VID_CNTL                     0x00C
 	#define VID_FMT_OVERRIDE	_BIT(11)
 	#define VID_FMT_VAL		MSK(3, 8)
+#define TOP_VID_CNTL3                     0x014
 #define TOP_VID_STAT                     0x00D
 	#define TOP_VID_FMT		MSK(4, 20)
 #define TOP_ACR_CNTL_STAT                0x00E

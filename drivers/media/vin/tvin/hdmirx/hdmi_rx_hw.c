@@ -5029,14 +5029,16 @@ void hdmirx_hw_probe(void)
 	else
 		hdmirx_wr_top_common(TOP_PORT_SEL, 0x10);
 	if (rx_info.chip_id == CHIP_ID_T6X) {
+		hdmirx_wr_bits_top_common(TOP_VID_CNTL, MSK(2, 12), 0x2);
 		hdmirx_wr_top_common(TOP_DSC_HDMI_CNTL, 0x1);
 		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x2c0);
 	}
+
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0, port);//to do
 	if (rx_info.chip_id >= CHIP_ID_T6D && rx_info.chip_id != CHIP_ID_T3X &&
 		rx_info.chip_id != CHIP_ID_T6X)
 		hdmirx_wr_bits_top(TOP_EDID_GEN_CNTL1, MSK(4, 20), 0xf, port);
-	else
+	else if (rx_info.chip_id == CHIP_ID_T6X)
 		hdmirx_wr_bits_top_common(TOP_EDID_GEN_CNTL1_T6X, MSK(4, 20), 0xf);
 }
 
@@ -5833,8 +5835,13 @@ void hdmirx_late_config_video(u8 port)
 		hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, _BIT(30), 1);
 		hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, MSK(3, 27), 2);
 	} else {
-		if (rx[port].dsc_flag)
+		if (rx[port].dsc_flag) {
 			rx_switch_to_self_hsync(port, true);
+			if (hdmirx_rd_bits_cor(VP_FDET_STATUS_VID_IVCRX, _BIT(1), port) == 0)
+				hdmirx_wr_bits_top_common(TOP_VID_CNTL3, MSK(4, 0), 0xf);
+			else
+				hdmirx_wr_bits_top_common(TOP_VID_CNTL3, MSK(4, 0), 0x0);
+		}
 		hdmirx_wr_bits_top_common_1(TOP_VID_CNTL, _BIT(20), 0);
 		if (rx_info.chip_id == CHIP_ID_T6X) {
 			hdmirx_wr_bits_top_common_1(TOP_VID_CNTL, _BIT(16), 0);
