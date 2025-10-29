@@ -101,8 +101,9 @@
 //2025.8.22 clean hdmirx log
 //2025.09.01 optimize hdmirx class create flow
 //2025.09.29 remove unused ioctl cmd
-//2025.11.11 set VESA 640*480 aspect ratio to 4/3
-#define RX_DRV_VER "ver.2025/11/11"
+//2025.11.11 add vsync polarity support and cal for neg vstart
+//2025.11.12 set VESA 640*480 aspect ratio to 4/3
+#define RX_DRV_VER "ver.2025/11/12"
 
 /*print type*/
 #define COR1_LOG	0x10000
@@ -532,6 +533,7 @@ struct rx_video_info {
 	u32 frame_rate;
 	/** Interlaced */
 	bool interlaced;
+	u32 vsync_polarity;
 	/** Vertical begin */
 	u32 vbegin;
 	/** Vertical end */

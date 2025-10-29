@@ -758,6 +758,14 @@ int is_fpll_locked(u8 port)
 		return is_fpll1_locked();
 }
 
+void rx_write_fpll(u32 pll_ctrl, u32 value)
+{
+	if (rx_info.chip_id == CHIP_ID_T3X)
+		wr_reg_clk_ctl(pll_ctrl, value);
+	else
+		wr_reg_ana_ctl(pll_ctrl, value);
+}
+
 void rx_21_fpll_calculation(int f_rate, u8 port)
 {
 	u8 reg_valid_m;
@@ -913,6 +921,8 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 	} else {
 		if (pre_div == 33)
 			pre_div = 31;
+		if (pre_div == 3)
+			pre_div = pre_div - 1;
 		hdmirx_wr_cor(H21RXSB_PREDIV_M42H_IVCRX, pre_div, port);
 	}
 
@@ -923,41 +933,43 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 	data = data & 0x1ff;
 	if (log_level & FRL_LOG)
 		rx_pr("data:%lu\n", data);
-	if (rx_info.chip_id == CHIP_ID_T3X) {
-		wr_reg_clk_ctl(pll_ctrl0, (fpll[0] & 0xfffffe00) | data |
-			(odn_reg_n_mul << 16) | (pre_div == 64 ? (4 << 10) : 0));
-		wr_reg_clk_ctl(pll_ctrl0, (fpll[1] & 0xfffffe00) | data |
-			(odn_reg_n_mul << 16) | (pre_div == 64 ? (4 << 10) : 0));
-		wr_reg_clk_ctl(pll_ctrl1, (fpll[2] & 0xfff00000) | 0xb9000);
-		if (pre_div < 64) {
-			wr_reg_clk_ctl(pll_ctrl2, fpll[3] |
-				((pre_div & 0x1f) << 4));
-		} else {
-			wr_reg_clk_ctl(pll_ctrl2, fpll[3] |
-				(4 << 4));
-		}
-		wr_reg_clk_ctl(pll_ctrl3, fpll[4] | (1 << 7));
-		wr_reg_clk_ctl(pll_ctrl0, (fpll[5] & 0xfffffe00) | data |
-			(odn_reg_n_mul << 16) | (pre_div == 64 ? (4 << 10) : 0));
-		wr_reg_clk_ctl(pll_ctrl3, fpll[6] | (1 << 7) | (1 << 19));
+	if (pre_div == 64) {
+		rx_write_fpll(pll_ctrl0, (fpll[0] & 0xfffffe00) | data |
+			(odn_reg_n_mul << 16) | (4 << 10));
+	} else if (pre_div == 2) {
+		rx_write_fpll(pll_ctrl0, (fpll[0] & 0xfffffe00) | data |
+			(odn_reg_n_mul << 16) | (1 << 10));
 	} else {
-		wr_reg_ana_ctl(pll_ctrl0, (fpll[0] & 0xfffffe00) | data |
-			(odn_reg_n_mul << 16) | (pre_div == 64 ? (4 << 10) : 0));
-		wr_reg_ana_ctl(pll_ctrl0, (fpll[1] & 0xfffffe00) | data |
-			(odn_reg_n_mul << 16) | (pre_div == 64 ? (4 << 10) : 0));
-		wr_reg_ana_ctl(pll_ctrl1, (fpll[2] & 0xfff00000) | 0xb9000);
-		if (pre_div < 64) {
-			wr_reg_ana_ctl(pll_ctrl2, fpll[3] |
-				((pre_div & 0x1f) << 4));
-		} else {
-			wr_reg_ana_ctl(pll_ctrl2, fpll[3] |
-				(4 << 4));
-		}
-		wr_reg_ana_ctl(pll_ctrl3, fpll[4] | (1 << 7));
-		wr_reg_ana_ctl(pll_ctrl0, (fpll[5] & 0xfffffe00) | data |
-			(odn_reg_n_mul << 16) | (pre_div == 64 ? (4 << 10) : 0));
-		wr_reg_ana_ctl(pll_ctrl3, fpll[6] | (1 << 7) | (1 << 19));
+		rx_write_fpll(pll_ctrl0, (fpll[0] & 0xfffffe00) | data |
+			(odn_reg_n_mul << 16));
 	}
+	if (pre_div == 64) {
+		rx_write_fpll(pll_ctrl0, (fpll[1] & 0xfffffe00) | data |
+			(odn_reg_n_mul << 16) | (4 << 10));
+	} else if (pre_div == 2) {
+		rx_write_fpll(pll_ctrl0, (fpll[1] & 0xfffffe00) | data |
+			(odn_reg_n_mul << 16) | (1 << 10));
+	} else {
+		rx_write_fpll(pll_ctrl0, (fpll[1] & 0xfffffe00) | data |
+			(odn_reg_n_mul << 16));
+	}
+	rx_write_fpll(pll_ctrl1, (fpll[2] & 0xfff00000) | 0xb9000);
+	if (pre_div < 64) {
+		if (pre_div == 2)
+			rx_write_fpll(pll_ctrl2, fpll[3] |
+			(1 << 4));
+		else
+			rx_write_fpll(pll_ctrl2, fpll[3] |
+				((pre_div & 0x1f) << 4));
+	} else {
+		rx_write_fpll(pll_ctrl2, fpll[3] |
+			(4 << 4));
+	}
+	rx_write_fpll(pll_ctrl3, fpll[4] | (1 << 7));
+	rx_write_fpll(pll_ctrl0, (fpll[5] & 0xfffffe00) | data |
+	(odn_reg_n_mul << 16) |
+	((pre_div == 64) ? (4 << 10) : ((pre_div == 2) ? (1 << 10) : 0)));
+	rx_write_fpll(pll_ctrl3, fpll[6] | (1 << 7) | (1 << 19));
 	udelay(10);
 	hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(7), 1, port);
 	udelay(1);
@@ -983,41 +995,43 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 	 * 4. fpll config
 	 */
 	do {
-		if (rx_info.chip_id == CHIP_ID_T3X) {
-			wr_reg_clk_ctl(pll_ctrl0, fpll[0] |
-				(odn_reg_n_mul << 16) | (pre_div == 64 ? (4 << 10) : 0));
-			wr_reg_clk_ctl(pll_ctrl0, fpll[1] |
-				(odn_reg_n_mul << 16) | (pre_div == 64 ? (4 << 10) : 0));
-			wr_reg_clk_ctl(pll_ctrl1, fpll[2]);
-			if (pre_div < 64) {
-				wr_reg_clk_ctl(pll_ctrl2, fpll[3] |
-					((pre_div & 0x1f) << 4));
-			} else {
-				wr_reg_clk_ctl(pll_ctrl2, fpll[3] |
-					(4 << 4));
-			}
-			wr_reg_clk_ctl(pll_ctrl3, fpll[4]);
-			wr_reg_clk_ctl(pll_ctrl0, fpll[5] |
-				(odn_reg_n_mul << 16) | (pre_div == 64 ? (6 << 10) : 0));
-			wr_reg_clk_ctl(pll_ctrl3, fpll[6]);
+		if (pre_div == 64) {
+			rx_write_fpll(pll_ctrl0, (fpll[0] & 0xfffffe00) | data |
+				(odn_reg_n_mul << 16) | (4 << 10));
+		} else if (pre_div == 2) {
+			rx_write_fpll(pll_ctrl0, (fpll[0] & 0xfffffe00) | data |
+				(odn_reg_n_mul << 16) | (1 << 10));
 		} else {
-			wr_reg_ana_ctl(pll_ctrl0, fpll[0] |
-				(odn_reg_n_mul << 16) | (pre_div == 64 ? (4 << 10) : 0));
-			wr_reg_ana_ctl(pll_ctrl0, fpll[1] |
-				(odn_reg_n_mul << 16) | (pre_div == 64 ? (4 << 10) : 0));
-			wr_reg_ana_ctl(pll_ctrl1, fpll[2]);
-			if (pre_div < 64) {
-				wr_reg_ana_ctl(pll_ctrl2, fpll[3] |
-					((pre_div & 0x1f) << 4));
-			} else {
-				wr_reg_ana_ctl(pll_ctrl2, fpll[3] |
-					(4 << 4));
-			}
-			wr_reg_ana_ctl(pll_ctrl3, fpll[4]);
-			wr_reg_ana_ctl(pll_ctrl0, fpll[5] |
-				(odn_reg_n_mul << 16) | (pre_div == 64 ? (6 << 10) : 0));
-			wr_reg_ana_ctl(pll_ctrl3, fpll[6]);
+			rx_write_fpll(pll_ctrl0, (fpll[0] & 0xfffffe00) | data |
+				(odn_reg_n_mul << 16));
 		}
+		if (pre_div == 64) {
+			rx_write_fpll(pll_ctrl0, (fpll[1] & 0xfffffe00) | data |
+				(odn_reg_n_mul << 16) | (4 << 10));
+		} else if (pre_div == 2) {
+			rx_write_fpll(pll_ctrl0, (fpll[1] & 0xfffffe00) | data |
+				(odn_reg_n_mul << 16) | (1 << 10));
+		} else {
+			rx_write_fpll(pll_ctrl0, (fpll[1] & 0xfffffe00) | data |
+				(odn_reg_n_mul << 16));
+		}
+		rx_write_fpll(pll_ctrl1, fpll[2]);
+		if (pre_div < 64) {
+			if (pre_div == 2)
+				rx_write_fpll(pll_ctrl2, fpll[3] |
+				(1 << 4));
+			else
+				rx_write_fpll(pll_ctrl2, fpll[3] |
+					((pre_div & 0x1f) << 4));
+		} else {
+			rx_write_fpll(pll_ctrl2, fpll[3] |
+				(4 << 4));
+		}
+
+		rx_write_fpll(pll_ctrl3, fpll[4]);
+		rx_write_fpll(pll_ctrl0, fpll[5] | ((odn_reg_n_mul << 16)) |
+			((pre_div == 64) ? (6 << 10) : ((pre_div == 2) ? (1 << 10) : 0)));
+		rx_write_fpll(pll_ctrl3, fpll[6]);
 		udelay(10);
 		if (cnt++ > 5) {
 			rx_pr("fpll cfg err!\n");
