@@ -18,7 +18,8 @@ enum media_message_type {
 	MEDIA_VIDEO_METRICS_FRAME_DECODED_INFO    = (1 << 6),	// 1000000
 	MEDIA_VIDEO_METRICS_FRAME_TOGGLE_INFO     = (1 << 7),	// 10000000
 	MEDIA_VIDEO_METRICS_FRAME_SIGNAFENCE_INFO = (1 << 8),	// 1 0000 0000
-	MEDIA_VIDEO_CC_INFO = (1 << 9)	// 10 0000 0000
+	MEDIA_VIDEO_CC_INFO = (1 << 9),	// 10 0000 0000
+	MEDIA_VIDEO_FRAME_QOS_INFO = (1 << 10)	// 100 0000 0000
 };
 
 enum video_block_type {
@@ -113,6 +114,23 @@ struct buffer_info {
 	void *ptr;
 };
 
+struct vframe_qos_info {
+	u32 num;
+	u32 type;
+	u32 size;
+	u32 pts;
+	s32 max_qp;
+	s32 avg_qp;
+	s32 min_qp;
+	s32 max_skip;
+	s32 avg_skip;
+	s32 min_skip;
+	s32 max_mv;
+	s32 min_mv;
+	s32 avg_mv;
+	s32 decode_buffer;//For padding currently
+};
+
 struct aml_video_user_data {
 	u32 message_type;
 	u32 data_size;
@@ -125,6 +143,7 @@ struct aml_video_user_data {
 	struct video_error_info  error_info;
 	struct frame_msg_info frame_info;
 	struct buffer_info buf_info;
+	struct vframe_qos_info qos_info;
 	} data;
 };
 
