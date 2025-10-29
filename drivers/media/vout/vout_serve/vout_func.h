@@ -15,6 +15,7 @@
 
 #define CONNECTOR_TYPE_NAME_LEN_MAX    32
 #define MAX_CONNECTOR_TYPE_NUM    20
+#define VIU_MUX_INVALID UINT_MAX
 
 struct vout_cdev_s {
 	dev_t         devno;

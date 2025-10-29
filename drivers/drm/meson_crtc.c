@@ -126,7 +126,7 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	strncpy(new_state->brr_mode, cur_state->brr_mode, DRM_DISPLAY_MODE_LEN);
 	new_state->crtc_bgcolor_flag = cur_state->crtc_bgcolor_flag;
 	new_state->crtc_bgcolor = cur_state->crtc_bgcolor;
-
+	new_state->viu_mux = VIU_MUX_INVALID;
 	/*reset dynamic info.*/
 
 	new_state->uboot_mode_init = 0;
@@ -681,7 +681,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	}
 
 	vout_func_set_state(amcrtc->vout_index, mode);
-	vout_func_update_viu(amcrtc->vout_index, amcrtc->viu_mux);
+	vout_func_update_viu(amcrtc->vout_index, meson_crtc_state->viu_mux);
 
 	meson_crtc_state->vmode = mode;
 	pipeline->subs[amcrtc->crtc_index]->vmode = mode;

@@ -283,7 +283,7 @@ void vout_func_update_viu(int index, int viu_mux)
 	if (!vinfo)
 		vinfo = get_invalid_vinfo(index, flag);
 
-	if (viu_mux & BIT(VIU_MUX_CONFIG_MASK))
+	if (viu_mux != VIU_MUX_INVALID)
 		mux_sel = viu_mux;
 	else
 		mux_sel = vinfo->viu_mux;

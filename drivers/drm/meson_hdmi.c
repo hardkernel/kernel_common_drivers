@@ -1919,7 +1919,7 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	DRM_DEBUG_KMS("%s[%d]: enter\n", __func__, __LINE__);
 
 	update_curr_vout_server(amcrtc->vout_index, hdmitx_dev->vout_serv);
-	amcrtc->viu_mux = vout_func_get_viu_mux(amcrtc->vout_index,
+	meson_crtc_state->viu_mux = vout_func_get_viu_mux(amcrtc->vout_index,
 		hdmitx_dev->vout_serv, modename);
 
 	if (am_hdmi->android_path)

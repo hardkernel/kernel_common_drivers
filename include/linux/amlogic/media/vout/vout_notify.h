@@ -14,8 +14,6 @@
 /* Local Headers */
 #include "vinfo.h"
 
-#define VIU_MUX_CONFIG_MASK 8
-
 enum viu_index {
 	VOUT_VIU0 = 0,
 	VOUT_VIU1,

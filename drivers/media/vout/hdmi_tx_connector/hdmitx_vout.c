@@ -253,7 +253,6 @@ static unsigned int hdmitx_get_viu_mux(char *_mode, void *data)
 		if (timing->name && strstr(timing->name, "1080i"))
 			viu_mux = VIU_MUX_ENCP;
 		viu_mux |= tx_comm->enc_idx << 4;
-		viu_mux |= 1 << VIU_MUX_CONFIG_MASK;
 		return viu_mux;
 	}
 
