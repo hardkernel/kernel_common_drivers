@@ -8602,12 +8602,12 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 		} else if (devp->prop.vtem_data.base_framerate) {
 			fps = devp->prop.vtem_data.base_framerate;
 		} else {
-			fps = devp->parm.info.fps;
+			fps = devp->prop.fps;
 		}
 
 		devp->vin_base_fps = fps;
 	} else if (vdin_check_is_spd_data(devp) &&
-		(devp->prop.spd_data.data[5] >> 1 & 0x7)) { /* FreeSync */
+		(devp->prop.spd_data.data[5] & 0x7)) { /* FreeSync */
 		/* FreeSync Maximum refresh rate (Hz) */
 		if (devp->prop.spd_data.data[7]) {
 			fps = devp->prop.spd_data.data[7];
@@ -8616,7 +8616,7 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
 		#endif
 		} else {
-			fps = devp->parm.info.fps;
+			fps = devp->prop.fps;
 		}
 
 		devp->vin_base_fps = fps;
@@ -8632,7 +8632,6 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 		/* upper get this value prevent frequent changes */
 		if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
 			devp->parm.info.fps = fps;
-		devp->prop.fps = fps;
 		ret = 0;
 	}
 
