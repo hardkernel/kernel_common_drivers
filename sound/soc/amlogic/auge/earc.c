@@ -1329,7 +1329,7 @@ static void earctx_set_dmac_freq_normal_2(struct earc *p_earc, unsigned int freq
 		clk_set_rate(p_earc->clk_tx_dmac_srcpll, freq * ratio);
 		if (p_earc->chipinfo->tx_pll_new) {
 			earc_tx_clk_ana_sel(0);  /* use normal earctx_dmac_clk */
-			new_searctx_hifi1_auto_cal(p_earc->tx_top_map, 0, 0);
+			new_earctx_hifi1_auto_cal(p_earc->tx_top_map, 0, 0);
 		}
 	} else if (p_earc->standard_tx_freq % 11025 == 0) {
 		ret = clk_set_parent(p_earc->clk_tx_dmac, p_earc->clk_src_cd);
@@ -1339,7 +1339,7 @@ static void earctx_set_dmac_freq_normal_2(struct earc *p_earc, unsigned int freq
 		clk_set_rate(p_earc->clk_src_cd, freq * ratio);
 		if (p_earc->chipinfo->tx_pll_new) {
 			earc_tx_clk_ana_sel(1);  /* use earctx_dmac_ana_clk */
-			new_searctx_hifi1_auto_cal(p_earc->tx_top_map, ratio, 1);
+			new_earctx_hifi1_auto_cal(p_earc->tx_top_map, ratio, 1);
 		}
 	} else {
 		dev_warn(p_earc->dev, "unsupport clock rate %d\n",
@@ -3311,15 +3311,42 @@ static int earctx_cmdc_setup(struct earc *p_earc)
 		}
 		/* new earc ip need enable hifi1 for all audio modules */
 		if (p_earc->chipinfo->tx_pll_new)
-			new_searctx_hifi1_control(p_earc->tx_top_map, 1);
-		/* dmac default 48k clock */
-		clk_set_rate(p_earc->clk_tx_dmac_srcpll, MPLL_HBR_FIXED_FREQ);
-		clk_set_rate(p_earc->clk_tx_dmac, 30720000);
+			new_earctx_hifi1_control(p_earc->tx_top_map, 1);
 
-		ret = clk_prepare_enable(p_earc->clk_tx_dmac);
-		if (ret) {
-			dev_err(p_earc->dev, "Can't enable earc clk_tx_dmac\n");
-			return ret;
+		/* enable hifi1 clock for 44.1k */
+		if (!IS_ERR_OR_NULL(p_earc->clk_tx_dmac) &&
+		    !IS_ERR_OR_NULL(p_earc->clk_src_cd)) {
+			ret = clk_set_parent(p_earc->clk_tx_dmac, p_earc->clk_src_cd);
+			if (ret) {
+				dev_err(p_earc->dev, "Can't set clk_tx_dmac parent clk_src_cd\n");
+				return ret;
+			}
+			clk_set_rate(p_earc->clk_src_cd, MPLL_CD_FIXED_FREQ);
+			clk_set_rate(p_earc->clk_tx_dmac, 28224000);
+
+			ret = clk_prepare_enable(p_earc->clk_tx_dmac);
+			if (ret) {
+				dev_err(p_earc->dev, "Can't enable earc clk_tx_dmac 44.1k\n");
+				return ret;
+			}
+		}
+
+		/* dmac default 48k clock */
+		if (!IS_ERR_OR_NULL(p_earc->clk_tx_dmac) &&
+		    !IS_ERR_OR_NULL(p_earc->clk_tx_dmac_srcpll)) {
+			ret = clk_set_parent(p_earc->clk_tx_dmac, p_earc->clk_tx_dmac_srcpll);
+			if (ret) {
+				dev_err(p_earc->dev, "Can't set clk_tx_dmac parent clk_tx_dmac_srcpll\n");
+				return ret;
+			}
+			clk_set_rate(p_earc->clk_tx_dmac_srcpll, MPLL_HBR_FIXED_FREQ);
+			clk_set_rate(p_earc->clk_tx_dmac, 30720000);
+
+			ret = clk_prepare_enable(p_earc->clk_tx_dmac);
+			if (ret) {
+				dev_err(p_earc->dev, "Can't enable earc clk_tx_dmac 48k\n");
+				return ret;
+			}
 		}
 		p_earc->tx_dmac_clk_on = true;
 		/* switch to force mode for consume data even if the status is idle */
@@ -3549,14 +3576,6 @@ static int earc_platform_probe(struct platform_device *pdev)
 			ret = clk_set_parent(p_earc->clk_tx_cmdc, p_earc->clk_tx_cmdc_srcpll);
 			if (ret) {
 				dev_err(dev, "Can't set clk_tx_cmdc parent clock\n");
-				return ret;
-			}
-		}
-		if (!IS_ERR_OR_NULL(p_earc->clk_tx_dmac) &&
-		    !IS_ERR_OR_NULL(p_earc->clk_tx_dmac_srcpll)) {
-			ret = clk_set_parent(p_earc->clk_tx_dmac, p_earc->clk_tx_dmac_srcpll);
-			if (ret) {
-				dev_err(dev, "Can't set clk_tx_dmac parent clock\n");
 				return ret;
 			}
 		}

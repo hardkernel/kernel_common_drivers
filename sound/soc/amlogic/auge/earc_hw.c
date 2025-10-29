@@ -1000,17 +1000,6 @@ void earctx_cmdc_init(struct regmap *top_map, bool en, struct earc_chipinfo *chi
 			   0x4 << 8	|
 			   0x4 << 5   |
 			   0x10 << 0);
-		mmio_update_bits(top_map,
-			   EARCTX_ANA_CTRL2,
-			   0x1 << 3 |  /* earctx_resampl_mode_sel */
-			   0x1 << 2 |  /* earctx_resamp_resetn_d2a */
-			   0x1 << 1 |  /* earctx_resamp_clk_en_d2a */
-			   0x1 << 0,  /* earctx_ldo_en_d2a */
-			   0x0 << 3 |  /* for hifi0 */
-			   //0x1 << 3 | /* for hifi1 */
-			   0x1 << 2    |
-			   0x1 << 1  |
-			   0x1 << 0);
 	}
 }
 
@@ -2264,17 +2253,17 @@ void earc_tx_clk_ana_sel(int is_enable)
 				0x1 << 16, is_enable << 16);
 }
 
-void new_searctx_hifi1_auto_cal(struct regmap *top_map, int clk_div, int reample_mode_hifi1)
+void new_earctx_hifi1_auto_cal(struct regmap *top_map, int clk_div, int resample_mode_hifi1)
 {
 	mmio_update_bits(top_map,
 				EARCTX_ANA_CTRL2,
 				0x3ff << 16 |
 				0x1 << 3,
 				(clk_div - 1) << 16 |
-				reample_mode_hifi1 << 3);
+				resample_mode_hifi1 << 3);
 }
 
-void new_searctx_hifi1_control(struct regmap *top_map, int enable)
+void new_earctx_hifi1_control(struct regmap *top_map, int enable)
 {
 	mmio_update_bits(top_map,
 				EARCTX_ANA_CTRL1,
@@ -2282,8 +2271,15 @@ void new_searctx_hifi1_control(struct regmap *top_map, int enable)
 				enable << 19);
 	mmio_update_bits(top_map,
 				EARCTX_ANA_CTRL2,
-				0x1 << 0,
-				enable << 0);
+				0x1 << 3 |  /* earctx_resampl_mode_sel */
+				0x1 << 2 |  /* earctx_resamp_resetn_d2a */
+				0x1 << 1 |  /* earctx_resamp_clk_en_d2a */
+				0x1 << 0,   /* earctx_ldo_en_d2a */
+				0x0 << 3 |  /* for hifi0 */
+				//0x1 << 3 | /* for hifi1 */
+				0x1 << 2    |
+				0x1 << 1  |
+				0x1 << 0);
 }
 
 void earc_mixer_source_enable(struct regmap *dmac_map, int enable)

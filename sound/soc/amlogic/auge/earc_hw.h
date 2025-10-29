@@ -365,8 +365,8 @@ int earcrx_get_sample_rate(struct regmap *dmac_map);
 void earcrx_err_correction_force_mode(struct regmap *dmac_map, bool enable);
 void earcrx_efuse_trim_set(struct regmap *rx_top_map);
 void earc_tx_clk_ana_sel(int is_enable);
-void new_searctx_hifi1_auto_cal(struct regmap *top_map, int clk_div, int reample_mode_hifi1);
-void new_searctx_hifi1_control(struct regmap *top_map, int enable);
+void new_earctx_hifi1_auto_cal(struct regmap *top_map, int clk_div, int resample_mode_hifi1);
+void new_earctx_hifi1_control(struct regmap *top_map, int enable);
 void earc_mixer_source_enable(struct regmap *dmac_map, int enable);
 void earc_mixer_fifo_rst(struct regmap *dmac_map);
 
