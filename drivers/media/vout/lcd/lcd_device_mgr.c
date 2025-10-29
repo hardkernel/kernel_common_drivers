@@ -27,7 +27,7 @@
 #endif
 #include "./lcd_common.h"
 
-static struct aml_lcd_device_s *lcd_device_alloc_new(struct aml_lcd_drv_s *pdrv)
+static int lcd_device_add_new(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
 {
 	u8 i = 0;
 
@@ -36,37 +36,34 @@ static struct aml_lcd_device_s *lcd_device_alloc_new(struct aml_lcd_drv_s *pdrv)
 			continue;
 
 		LCD_DEV_PR(pdrv, i, "create new lcd device");
-		pdrv->device_mgr.dev_list[i] =
-			kzalloc(sizeof(struct aml_lcd_device_s), GFP_KERNEL);
-		if (pdrv->device_mgr.dev_list[i]) {
-			pdrv->device_mgr.dev_list[i]->idx = i;
-			pdrv->device_mgr.dev_cnt++;
-			return pdrv->device_mgr.dev_list[i];
-		}
-		LCD_DEV_ERR(pdrv, i, "malloc device failed");
-		return NULL;
+		pdrv->device_mgr.dev_list[i] = dev_p;
+		pdrv->device_mgr.dev_list[i]->idx = i;
+		pdrv->device_mgr.dev_cnt++;
+		return 0;
 	}
 	LCD_DEV_ERR(pdrv, i, "MAX supported device count (%u) reached", LCD_MULTI_DEV_MAX_CNT);
-	return NULL;
+	return -1;
 }
 
 struct aml_lcd_device_s *lcd_device_append_new(struct aml_lcd_drv_s *pdrv, char *device_cfg_name)
 {
 	int ret = -1;
 
-	struct aml_lcd_device_s *dev_p = lcd_device_alloc_new(pdrv);
+	struct aml_lcd_device_s *dev_p = kzalloc(sizeof(*dev_p), GFP_KERNEL);
 
 	if (!dev_p)
 		return NULL;
 
 	strscpy(dev_p->dev_propname, device_cfg_name, 24);
 	ret = lcd_load_device_config(pdrv, dev_p, device_cfg_name);
-	if (ret) {
-		LCD_DEV_PR(pdrv, dev_p->idx, "device config load failed");
-		return NULL;
+	if (!ret) {
+		ret = lcd_device_add_new(pdrv, dev_p);
+		if (!ret)
+			return dev_p;
 	}
 
-	return dev_p;
+	kfree(dev_p);
+	return NULL;
 }
 
 void lcd_device_pop_last(struct aml_lcd_drv_s *pdrv)

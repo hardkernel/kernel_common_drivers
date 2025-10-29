@@ -2723,6 +2723,8 @@ int lcd_load_device_config(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *
 	switch (pdrv->config_load) {
 	case LCD_CONFIG_DTS:
 		ret = lcd_config_load_from_dts(pdrv, dev_p, device_cfg_name);
+		if (ret)
+			return -1;
 		break;
 	case LCD_CONFIG_FILE:
 		file_type = get_lcd_panel_file_type(pdrv->index);
