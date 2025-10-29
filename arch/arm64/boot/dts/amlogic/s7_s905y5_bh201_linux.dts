@@ -987,7 +987,7 @@
 };
 
 &drm_subsystem {
-	dummyl_from_hdmitx = /bits/ 8  <1>;
+	dummyl_from_hdmitx = /bits/ 8  <0>;
 };
 
 &drm_vpu {
