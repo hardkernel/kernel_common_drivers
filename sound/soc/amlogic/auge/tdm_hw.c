@@ -390,6 +390,10 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 		/*hdmi rx b use slv_sclk_i*/
 		aml_clk_set_tdmin_by_id(actrl, id, SLAVE_HDMIRXB,
 			SLAVE_HDMIRXB, p_config->use_vadtop);
+	} else if  (p_config->tdmin_src_hdmirx == ACODEC && is_meson_t6x_cpu()) {
+		/*t6x acodec adc set slave mode*/
+		aml_clk_set_tdmin_by_id(actrl, id, SLAVE_ACODEC,
+			SLAVE_ACODEC, p_config->use_vadtop);
 	} else {
 		aml_clk_set_tdmin_by_id(actrl, id, valb, valb, p_config->use_vadtop);
 	}

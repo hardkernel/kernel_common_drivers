@@ -27,6 +27,7 @@
 #include <linux/amlogic/pm.h>
 #include <linux/amlogic/clk_measure.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/jiffies.h>
 
 #include "mixer_hw.h"
 
@@ -41,12 +42,16 @@ struct mixer {
 	struct mixer_chipinfo *chipinfo;
 	struct device *dev;
 	struct aml_audio_controller *actrl;
-	struct regmap *reg_map;
+	struct regmap *mixer_reg_map;
+	struct regmap *coef_reg_map;
 	struct frddr *fddr;
 	unsigned int mixer_vol;
 	int mixer_output_src;
+	int mixer_lane_status[4];
+	unsigned int unstable;
 };
 
+static struct snd_pcm_substream *mixer_substream;
 #define SPDIF_BUFFER_BYTES (512 * 1024 * 2)
 static const struct snd_pcm_hardware aml_mixer_hardware = {
 	.info =
@@ -129,7 +134,8 @@ static int aml_dai_mixer_prepare(struct snd_pcm_substream *substream,
 		bit_depth = snd_pcm_format_width(runtime->format);
 		fifo_id = fddr->fifo_id;
 		fddr_type = aml_get_mixer_frddr_type(bit_depth);
-		mic_mixer_format_set(bit_depth, fddr_type);
+		mic_mixer_ch_set(runtime->channels);
+		mic_mixer_format_set(bit_depth, fddr_type, runtime->channels);
 		mixer_fddr_rate(fddr, 1);
 		mic_mixer_source(fifo_id);
 		aml_frddr_select_dst(fddr, mixer_p->mixer_output_src);
@@ -147,7 +153,6 @@ static int aml_dai_mixer_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		mixer_clip_top_en(true);
-		mixer_en(true);
 		aml_frddr_enable(mixer_p->fddr, true);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -155,7 +160,6 @@ static int aml_dai_mixer_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		aml_frddr_enable(mixer_p->fddr, false);
 		mixer_clip_top_en(false);
-		mixer_en(false);
 		break;
 	default:
 		return -EINVAL;
@@ -219,6 +223,7 @@ static int aml_mixer_open(struct snd_soc_component *component,
 	}
 	aml_frddr_mixer_set(mixer_p->fddr, 1);
 	runtime->private_data = mixer_p;
+	mixer_substream = substream;
 	return 0;
 err_ddr:
 	snd_pcm_lib_free_pages(substream);
@@ -235,6 +240,7 @@ static int aml_mixer_close(struct snd_soc_component *component,
 		aml_audio_unregister_frddr(mixer_p->dev, substream);
 
 	runtime->private_data = NULL;
+	mixer_substream = NULL;
 	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
@@ -283,7 +289,6 @@ static int aml_mixer_prepare(struct snd_soc_component *component,
 		period   = frames_to_bytes(runtime, runtime->period_size);
 		int_addr = period / FIFO_BURST;
 
-		mixer_fifo_reset();
 		mic_mixer_fifo_reset();
 		/*
 		 * Contrast minimum of period and fifo depth,
@@ -348,7 +353,63 @@ static int mixer_vol_set(struct snd_kcontrol *kcontrol,
 		return 0;
 	}
 	mixer_p->mixer_vol = value;
-	mixer_mic_coef_set(value);
+	mixer_mic_coef_set(mixer_p->coef_reg_map, value);
+	return 0;
+}
+
+static int mixer_get_lane_enum(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct mixer *mixer_p  = snd_soc_component_get_drvdata(component);
+	struct soc_mixer_control *mc =
+			(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int reg = mc->reg;
+
+	ucontrol->value.enumerated.item[0] = mixer_p->mixer_lane_status[reg];
+
+	return 0;
+}
+
+static int mixer_set_lane_enum(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct mixer *mixer_p  = snd_soc_component_get_drvdata(component);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+	struct soc_mixer_control *mc =
+			(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int reg = mc->reg;
+
+	mixer_lane_source(mixer_p->coef_reg_map, reg, value);
+	mixer_p->mixer_lane_status[reg] = value;
+
+	return 0;
+}
+
+static int mixer_stable_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct mixer *mixer_p  = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.enumerated.item[0] = mixer_p->unstable;
+	return 0;
+}
+
+static int mixer_stable_set(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct mixer *mixer_p  = snd_soc_component_get_drvdata(component);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value > 0) {
+		pr_err("mixer stable not support %d\n",
+				value);
+		return 0;
+	}
+	mixer_p->unstable = value;
 	return 0;
 }
 
@@ -356,6 +417,26 @@ static const struct snd_kcontrol_new snd_mixer_controls[] = {
 	SOC_SINGLE_EXT("mixer vol",
 			0, 0, 0x7fffffff, 0,
 			mixer_vol_get, mixer_vol_set),
+	SOC_SINGLE_EXT("Main mixer lane0 Source Select",
+				0, 0, 3, 0,
+				mixer_get_lane_enum,
+				mixer_set_lane_enum),
+	SOC_SINGLE_EXT("Main mixer lane1 Source Select",
+				1, 0, 3, 0,
+				mixer_get_lane_enum,
+				mixer_set_lane_enum),
+	SOC_SINGLE_EXT("Main mixer lane2 Source Select",
+				2, 0, 3, 0,
+				mixer_get_lane_enum,
+				mixer_set_lane_enum),
+
+	SOC_SINGLE_EXT("Main mixer lane3 Source Select",
+				3, 0, 3, 0,
+				mixer_get_lane_enum,
+				mixer_set_lane_enum),
+	SOC_SINGLE_EXT("Mixer Xrun",
+			0, 0, 1, 0,
+			mixer_stable_get, mixer_stable_set),
 };
 
 static const struct snd_soc_component_driver aml_mixer_component[] = {
@@ -417,6 +498,27 @@ const struct of_device_id aml_mixer_device_id[] = {
 	{},
 };
 
+static int mixer_notify_callback(struct notifier_block *block,
+				    unsigned long cmd, void *para)
+{
+	if (mixer_substream) {
+		struct snd_soc_pcm_runtime *rtd = mixer_substream->private_data;
+		struct mixer *mixer_p = (struct mixer *)
+			snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
+		if (cmd == BACKGROUND_RESET_CMD) {
+			mixer_p->unstable = 1;
+			snd_pcm_stop_xrun(mixer_substream);
+			mixer_substream->wait_time = msecs_to_jiffies(20);
+			pr_debug("notify mic mixer xun\n");
+		}
+	}
+	return 0;
+}
+
+static struct notifier_block mixer_notifier_audio = {
+	.notifier_call	= mixer_notify_callback,
+};
+
 static int aml_mixer_platform_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -452,6 +554,17 @@ static int aml_mixer_platform_probe(struct platform_device *pdev)
 	if (ret < 0)
 		mixer_p->mixer_output_src = TDMOUT_B;
 
+	mixer_p->mixer_reg_map = regmap_resource(&pdev->dev, "mixer_reg");
+	if (IS_ERR_OR_NULL(mixer_p->mixer_reg_map)) {
+		dev_err(dev, "Can't mixer regmap!!\n");
+		return -ENXIO;
+	}
+	set_mixer_regmap(mixer_p->mixer_reg_map);
+	mixer_p->coef_reg_map = regmap_resource(&pdev->dev, "coef_reg");
+	if (IS_ERR_OR_NULL(mixer_p->coef_reg_map)) {
+		dev_err(dev, "Can't coef_reg_map regmap!!\n");
+		return -ENXIO;
+	}
 	ret = devm_snd_soc_register_component(dev,
 			&aml_mixer_component[mixer_p->id],
 			&aml_mixer_dai[mixer_p->id], 1);
@@ -459,8 +572,9 @@ static int aml_mixer_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "devm_snd_soc_register_component failed\n");
 		return ret;
 	}
+	mixer_register_client(&mixer_notifier_audio);
 	mixer_p->mixer_vol = 0x800000;
-	mixer_coef_set(mixer_p->mixer_vol);
+	mixer_coef_set(mixer_p->coef_reg_map, mixer_p->mixer_vol);
 
 	return ret;
 }

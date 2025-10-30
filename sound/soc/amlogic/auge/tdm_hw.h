@@ -23,7 +23,7 @@
 
 #define HDMIRX_A	1
 #define HDMIRX_B	2
-
+#define ACODEC      3
 /* TODO: fix me, now based by tl1 */
 enum tdmin_src {
 	PAD_TDMINA_DIN = 0,

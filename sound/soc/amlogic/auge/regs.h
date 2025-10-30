@@ -31,7 +31,7 @@ enum clk_sel {
 	SLAVE_H  = 13,
 	SLAVE_I  = 14,
 	SLAVE_HDMIRXB = 14,
-	SLAVE_J  = 15
+	SLAVE_ACODEC  = 15
 };
 
 struct register_table {

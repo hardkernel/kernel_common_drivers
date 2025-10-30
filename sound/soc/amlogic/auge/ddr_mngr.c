@@ -1565,7 +1565,7 @@ static void frddr_set_sharebuffer_enable(struct frddr *fr,  int dst, int lvl, bo
 			aml_audiobus_update_bits(actrl, reg, 1 << 12, 0 << 12);
 		else if (lvl == 2)
 			aml_audiobus_update_bits(actrl, reg, 1 << 20, 0 << 20);
-		aml_audiobus_update_bits(actrl, EE_AUDIO_MIXER_CTRL4, s_m, s_v);
+		mixer_samesource_ctrl_write(s_m, s_v);
 		mixer_demux_sel(dst, enable);
 	}
 #endif
@@ -1756,8 +1756,10 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 	struct aml_audio_controller *actrl = fr->actrl;
 	unsigned int reg_base = fr->reg_base;
 	unsigned int reg, value;
-	unsigned int reg1, value1, value2 = 0;
-
+	unsigned int reg1, value1;
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
+	unsigned int value2 = 0;
+#endif
 	reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL0, reg_base);
 
 	value = aml_audiobus_read(actrl, reg);
@@ -1766,26 +1768,29 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 	    !enable &&
 	    (value & 0x80000000))
 		aml_frddr_burst_finished(fr);
-
 	if (enable) {
 		/* before enable frddr, must disable src_sel_en */
 		reg1 = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2, reg_base);
 		value1 = aml_audiobus_read(actrl, reg1);
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		if (aml_get_mixer_is_exist(fr))
-			value2 =  aml_audiobus_read(actrl, EE_AUDIO_MIXER_CTRL4);
+			value2 =  mixer_samesource_ctrl_read();
+#endif
 		aml_audiobus_update_bits(actrl,	reg1,
 			0x1 << 20 | 0x1 << 12 | 0x1 << 4,
 			0 << 20 | 0 << 12 | 0 << 4);
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		if (aml_get_mixer_is_exist(fr))
-			aml_audiobus_update_bits(actrl, EE_AUDIO_MIXER_CTRL4,
-			0x1 << 20 | 0x1 << 12 | 0x1 << 4,
-			0 << 20 | 0 << 12 | 0 << 4);
+			mixer_samesource_ctrl_write(0x1 << 20 | 0x1 << 12 | 0x1 << 4,
+				0 << 20 | 0 << 12 | 0 << 4);
+#endif
 	}
 #ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	if (aml_get_mixer_is_exist(fr) && !aml_check_aed_module(fr->dest))
 		mixer_demux_sel(fr->dest, enable);
 	if (aml_get_mixer_is_exist(fr) && enable)
-		aml_audiobus_write(actrl, EE_AUDIO_MIXER_CTRL4, value2);
+		mixer_samesource_ctrl_write(0xffffffff, value2);
+
 #endif
 
 	/* ensure disable before enable frddr */
@@ -1819,13 +1824,10 @@ void aml_frddr_select_dst(struct frddr *fr, enum frddr_dest dst)
 		/*update frddr channel*/
 		aml_audiobus_update_bits(actrl, reg,
 			0xff << 24, (fr->channels - 1) << 24);
-		if (aml_get_mixer_is_exist(fr)) {
+		if (aml_get_mixer_is_exist(fr))
 			/*fddr ctrl2 src 0*/
 			aml_audiobus_update_bits(actrl, reg,
 				1 << 5, 1 << 5);
-			aml_audiobus_update_bits(actrl, EE_AUDIO_MIXER_CTRL1,
-				0xff << 16, (fr->channels - 1) << 16);
-		}
 	} else {
 		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL0, reg_base);
 		src_sel_en = 3;
@@ -1837,14 +1839,17 @@ void aml_frddr_select_dst(struct frddr *fr, enum frddr_dest dst)
 
 	aml_audiobus_update_bits(actrl, reg, 0x7, dst & 0x7);
 
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	if (aml_get_mixer_is_exist(fr))
-		aml_audiobus_update_bits(actrl, EE_AUDIO_MIXER_CTRL4, 0x7, dst & 0x7);
+		mixer_samesource_ctrl_write(0x7, dst & 0x7);
+#endif
 	/* same source en */
 	if (fr->chipinfo && fr->chipinfo->same_src_fn) {
 		aml_audiobus_update_bits(actrl, reg, 1 << src_sel_en, 1 << src_sel_en);
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		if (aml_get_mixer_is_exist(fr))
-			aml_audiobus_update_bits(actrl, EE_AUDIO_MIXER_CTRL4,
-				1 << src_sel_en, 1 << src_sel_en);
+			mixer_samesource_ctrl_write(1 << src_sel_en, 1 << src_sel_en);
+#endif
 	}
 }
 

@@ -612,11 +612,22 @@ static int aml_get_acodec_skew(void)
 	/*defulat skew for adc*/
 	int skew = 4;
 
-	//if (get_cpu_type() == MESON_CPU_MAJOR_ID_T6W)
-	/* use MESON_CPU_MAJOR_ID_T6W instead in feature */
-	if (get_cpu_type() == 0x43)
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T6W)
 		skew = 5;
+	else if (get_cpu_type() == MESON_CPU_MAJOR_ID_T6X)
+		skew = 3;
+
 	return skew;
+}
+
+static int aml_get_acodec_tdmin_invert(void)
+{
+	/*defulat ws invert for adc*/
+	int invert = 0;
+
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T6X)
+		invert = 1;
+	return invert;
 }
 
 int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture_active)
@@ -657,7 +668,8 @@ int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture_active
 		p_tdm->setting.tdmin_src_hdmirx = HDMIRX_A;
 	else if (!strcmp(p_tdm->tdmin_src_name, SRC_HDMIRXB))
 		p_tdm->setting.tdmin_src_hdmirx = HDMIRX_B;
-
+	else if (!strcmp(p_tdm->tdmin_src_name, SRC_ACODEC))
+		p_tdm->setting.tdmin_src_hdmirx = ACODEC;
 	aml_tdm_set_format(p_tdm->actrl, &p_tdm->setting,
 			   p_tdm->clk_sel, p_tdm->id);
 	if (p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
@@ -677,7 +689,7 @@ int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture_active
 		    strlen(SRC_ACODEC)) == 0) {
 		aml_update_tdmin_skew(p_tdm->actrl, p_tdm->id, aml_get_acodec_skew(),
 			p_tdm->chipinfo->use_vadtop);
-		aml_update_tdmin_rev_ws(p_tdm->actrl, p_tdm->id, 0,
+		aml_update_tdmin_rev_ws(p_tdm->actrl, p_tdm->id, aml_get_acodec_tdmin_invert(),
 					p_tdm->chipinfo->use_vadtop);
 	}
 
@@ -1175,7 +1187,7 @@ static int tdm_set_function_pins(struct aml_tdm *p_tdm, bool on)
 	return 0;
 }
 
-static const char *const mixer_src_texts[] = {"Lane0", "Lane1", "Lane2", "Lane3"};
+static const char *const mixer_src_texts[] = {"Lane0", "Lane1", "Lane2", "Lane3", "ALL"};
 
 static const struct soc_enum mixer_source_sel_enum =
 	SOC_ENUM_SINGLE
@@ -1202,7 +1214,7 @@ static int aml_mixer_lane_source_sel_set_enum
 
 	int val = ucontrol->value.enumerated.item[0];
 
-	if (val < 0 || val > 3) {
+	if (val < 0 || val > 4) {
 		pr_info("Warning: tdmout_index = %d, val = 0x%x\n", p_tdm->id, val);
 		return 0;
 	}
