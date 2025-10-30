@@ -8057,7 +8057,8 @@ void frate_monitor(void)
 			}
 			hdmirx_frl_config(port);
 			rx_lts_2_flt_ready(port);
-			rx[port].state = FLT_RX_LTS_3;
+			if (rx[port].state >= FLT_RX_LTS_3)
+				rx[port].state = FLT_RX_LTS_3;
 		} else {
 			if (rx[port].state == FSM_SIG_READY) {
 				//hdmirx_top_irq_en(0, 0, port);
@@ -8128,7 +8129,8 @@ void frate_monitor1(void)
 			}
 			hdmirx_frl_config(port);
 			rx_lts_2_flt_ready(port);
-			rx[port].state = FLT_RX_LTS_3;
+			if (rx[port].state >= FLT_RX_LTS_3)
+				rx[port].state = FLT_RX_LTS_3;
 		} else {
 			if (rx[port].state == FSM_SIG_READY) {
 				//hdmirx_top_irq_en(0, 0, port);
