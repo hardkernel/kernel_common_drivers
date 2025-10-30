@@ -40,7 +40,7 @@ static unsigned int lcd_phy_get_dft_odt_cm(void)
 	efuse_odt = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_P2P_VINLP);
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("efuse odt_cm=%#x\n", efuse_odt);
-	if (efuse_odt < 0) {
+	if (efuse_odt <= 0) {
 		efuse_odt = PHY_DFT_ODT_CM;
 		LCDERR("odt_cm uncalibrated, use odt=%#x\n", efuse_odt);
 	}
@@ -54,7 +54,7 @@ static unsigned int lcd_phy_get_dft_odt_vm(void)
 	efuse_odt = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_P2P_VINLPVML);
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("efuse odt_vm=%#x\n", efuse_odt);
-	if (efuse_odt < 0) {
+	if (efuse_odt <= 0) {
 		efuse_odt = PHY_DFT_ODT_VM;
 		LCDERR("odt_vm uncalibrated, use odt=%#x\n", efuse_odt);
 	}
@@ -69,7 +69,7 @@ static unsigned int lcd_phy_get_dft_bias(void)
 	efuse_bias = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_P2P_COMMON);
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("efuse bias=%#x\n", efuse_bias);
-	if (efuse_bias < 0) {
+	if (efuse_bias <= 0) {
 		efuse_bias = PHY_DFT_BIAS;
 		LCDERR("bias uncalibrated, use bias=%#x\n", efuse_bias);
 	}
