@@ -3219,7 +3219,10 @@ int  destroy_ge2d_work_queue(struct ge2d_context_s *ge2d_work_queue)
 		/* first detach it from the process queue,then delete it . */
 		/* maybe process queue is changing .so we lock it. */
 		spin_lock(&ge2d_manager.event.sem_lock);
-		list_del(&ge2d_work_queue->list);
+		if (!list_empty(&ge2d_work_queue->list))
+			list_del_init(&ge2d_work_queue->list);
+		else
+			ge2d_log_err("%p not in any list\n", ge2d_work_queue);
 		empty = list_empty(&ge2d_manager.process_queue);
 		spin_unlock(&ge2d_manager.event.sem_lock);
 
