@@ -2194,8 +2194,10 @@ u64 dmabuf_manage_secure_block_alloc(u32 id_high, u32 id_low, u32 size,
 	if (pool) {
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
 		res = dmabuf_manage_secmem_block_alloc(pool, size, &addr, &phyaddr, &allocsize);
-		if (res)
+		if (res) {
+			mutex_unlock(&g_secure_pool_mutex);
 			return 0;
+		}
 #endif
 		if (addr) {
 			block = kzalloc(sizeof(*block), GFP_KERNEL);
