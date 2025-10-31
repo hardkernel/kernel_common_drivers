@@ -3998,7 +3998,7 @@ static struct clk_regmap t6x_cts_tcon_pll_clk = {
 			&t6x_cts_tcon_pll_clk_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
