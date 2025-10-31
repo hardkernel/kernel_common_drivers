@@ -3836,13 +3836,6 @@ void vdin_set_dv_tunnel(struct vdin_dev_s *devp)
 
 static void vdin_delay_line(unsigned short num, unsigned int offset)
 {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_s5_cpu()) {
-		vdin_delay_line(num, offset);
-		return;
-	}
-#endif
-
 	wr_bits(offset, VDIN_COM_CTRL0, num,
 		DLY_GO_FLD_LN_NUM_BIT, DLY_GO_FLD_LN_NUM_WID);
 	if (num)
@@ -4351,7 +4344,6 @@ void vdin_hw_disable(struct vdin_dev_s *devp)
 	/* [ 3: 0]  top.mux  = 0/(null, mpeg, 656, tvfe, cvd2, hdmi, dvin) */
 	wr_bits(offset, VDIN_COM_CTRL0, 0, VDIN_SEL_BIT, VDIN_SEL_WID);
 	wr(offset, VDIN_COM_CTRL0, 0x00000910);
-	vdin_delay_line(devp->delay_line_num, offset);
 	if (devp->dtdata->hw_ver != VDIN_HW_T6D) {
 		if (devp->enable_reset)
 			wr(offset, VDIN_WR_CTRL, 0x0b401000 | def_canvas);
@@ -4647,7 +4639,7 @@ void vdin_hw_close(struct vdin_dev_s *devp)
 	/* [ 3: 0]  top.mux  = 0/(null, mpeg, 656, tvfe, cvd2, hdmi, dvin) */
 	wr_bits(offset, VDIN_COM_CTRL0, 0, VDIN_SEL_BIT, VDIN_SEL_WID);
 	wr(offset, VDIN_COM_CTRL0, 0x00000910);
-	vdin_delay_line(devp->delay_line_num, offset);
+
 	if (!(devp->dtdata->hw_ver >= VDIN_HW_T6D && devp->dtdata->hw_ver <= VDIN_HW_T6X)) {
 		if (devp->enable_reset)
 			wr(offset, VDIN_WR_CTRL, 0x0b401000 | def_canvas);
