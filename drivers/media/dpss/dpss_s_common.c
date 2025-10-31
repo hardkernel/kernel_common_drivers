@@ -15,6 +15,7 @@
 #include <linux/sched/clock.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
 
 #include <linux/amlogic/media/di/dpss_interface.h>
 #include <linux/dma-map-ops.h>
