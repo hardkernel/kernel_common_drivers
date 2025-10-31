@@ -180,7 +180,7 @@ static ssize_t abcon_debug_store(const struct class *class, const struct class_a
 				goto abcon_debug_store_err;
 
 			abcon->conf.gpio_o[0] = val;
-			abcon->conf.gpio_o[0] = val1;
+			abcon->conf.gpio_o[1] = val1;
 			ldim_abcon_set_gpio(abcon);
 		}
 		ABCONPR("gpio_o = 0x%08x 0x%08x\n", abcon->conf.gpio_o[0], abcon->conf.gpio_o[1]);
@@ -193,7 +193,7 @@ static ssize_t abcon_debug_store(const struct class *class, const struct class_a
 				goto abcon_debug_store_err;
 
 			abcon->conf.gpio_i[0] = val;
-			abcon->conf.gpio_i[0] = val1;
+			abcon->conf.gpio_i[1] = val1;
 			ldim_abcon_set_gpio(abcon);
 		}
 		ABCONPR("gpio_i = 0x%08x 0x%08x\n", abcon->conf.gpio_i[0], abcon->conf.gpio_i[1]);
