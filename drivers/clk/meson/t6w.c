@@ -438,8 +438,7 @@ static struct clk_regmap t6w_gp2_pll = {
 		.table = t6w_gp2_pll_table,
 		.init_regs = t6w_gp2_init_regs,
 		.init_count = ARRAY_SIZE(t6w_gp2_init_regs),
-		.flags = CLK_MESON_PLL_FIXED_EN0P5 |
-			CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION | CLK_MESON_PLL_NOINIT_ENABLED,
+		.flags = CLK_MESON_PLL_FIXED_EN0P5 | CLK_MESON_PLL_NOINIT_ENABLED,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp2_pll",

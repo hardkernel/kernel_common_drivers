@@ -367,7 +367,7 @@ static const struct pll_params_table t6x_gp1_pll_table[] = {
 };
 
 static const struct pll_params_table t6x_gp2_pll_table[] = {
-	PLL_PARAMS_OD(134, 1, 1), /* DCO = 1608M OD = 1 PLL = 804M */
+	PLL_PARAMS(148, 1), /* DCO = 1776M OD = 0 PLL = 888M */
 	{ /* sentinel */  }
 };
 
@@ -545,8 +545,7 @@ static struct clk_regmap t6x_gp2_pll = {
 		.table = t6x_gp2_pll_table,
 		.init_regs = t6x_gp2_init_regs,
 		.init_count = ARRAY_SIZE(t6x_gp2_init_regs),
-		.flags = CLK_MESON_PLL_FIXED_EN0P5 | CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
-			CLK_MESON_PLL_L_RSTN | CLK_MESON_PLL_NOINIT_ENABLED,
+		.flags = CLK_MESON_PLL_FIXED_EN0P5 | CLK_MESON_PLL_NOINIT_ENABLED,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp2_pll",
@@ -2353,6 +2352,11 @@ static struct clk_regmap t6x_vpu_0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t6x_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(t6x_vpu_parent_hws),
+		/* In most case, the flag is not added for mux clock, in T6X, vpu need gp1 840M and
+		 * gp2 892M, it makes vpu can switch 840M and 892M.
+		 * If not, remove this flag
+		 */
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2397,6 +2401,11 @@ static struct clk_regmap t6x_vpu_1_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t6x_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(t6x_vpu_parent_hws),
+		/* In most case, the flag is not added for mux clock, in T6X, vpu need gp1 840M and
+		 * gp2 892M, it makes vpu can switch 840M and 892M.
+		 * If not, remove this flag
+		 */
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
