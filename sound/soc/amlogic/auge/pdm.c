@@ -601,7 +601,20 @@ static int aml_pdm_close(struct snd_soc_component *component, struct snd_pcm_sub
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_pdm *p_pdm = runtime->private_data;
 
-	pr_debug("enter %s type: %d\n", __func__, substream->stream);
+	pr_debug("%s, trigger state is %d\n", __func__, p_pdm->pdm_trigger_state);
+	if (p_pdm->pdm_trigger_state == TRIGGER_START_VAD_BUF) {
+		bool toddr_stopped = false;
+
+		/* VAD switch to alsa buffer */
+		vad_update_buffer(false);
+		toddr_stopped = aml_toddr_burst_finished(p_pdm->tddr);
+		if (toddr_stopped)
+			aml_toddr_enable(p_pdm->tddr, false);
+		else
+			pr_err("%s(), toddr may be stuck\n", __func__);
+		p_pdm->pdm_trigger_state = TRIGGER_STOP;
+	}
+
 	aml_audio_unregister_toddr(p_pdm->dev, substream, p_pdm->use_vad_toddr);
 	snd_pcm_lib_free_pages(substream);
 
