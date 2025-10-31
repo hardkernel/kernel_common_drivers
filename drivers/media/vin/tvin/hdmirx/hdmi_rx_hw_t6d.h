@@ -132,6 +132,7 @@ void rx_aud_pll_ctl_t6d(bool en, u8 port);
 void aml_phy_exbist_t6d(u8 port, u8 ch);
 void rx_i2c_mux_cfg_t6d(u8 port);
 void rx_dump_pll_param_t6d(void);
+bool rx_check_tap0_t6d(void);
 /*function declare end*/
 
 #endif /*_HDMI_RX_T6D_H*/

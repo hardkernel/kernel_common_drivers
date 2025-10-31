@@ -1951,7 +1951,7 @@ int aml_phy_short_bist_t5m(void)
 	return ret;
 	}
 
-bool rx_check_tap0(void)
+bool rx_check_tap0_t5m(void)
 {
 	u32 dfe0_tap0, dfe1_tap0, dfe2_tap0, dfe3_tap0;
 	u32 data32;

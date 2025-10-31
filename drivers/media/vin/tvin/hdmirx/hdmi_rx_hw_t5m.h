@@ -103,6 +103,7 @@ void aml_phy_get_trim_val_t5m(void);
 void aml_phy_offset_cal_t5m(void);
 bool rx_check_tap0(void);
 void rx_aud_pll_ctl_t5m(bool en, u8 port);
+bool rx_check_tap0_t5m(void);
 /*function declare end*/
 
 #endif /*_HDMI_RX_T5M_H*/

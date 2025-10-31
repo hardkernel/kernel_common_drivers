@@ -198,6 +198,7 @@ void rx_21_dump_fpll_0_t3x(void);
 void rx_21_dump_fpll_1_t3x(void);
 void aml_phy_exbist_t6x_21_tmds(u8 port, u8 ch);
 void aml_phy_exbist_t6x_21_frl(u8 port, u8 ch);
+bool rx_check_tap0_t3x(void);
 //void reset_pcs(void);
 
 /*function declare end*/

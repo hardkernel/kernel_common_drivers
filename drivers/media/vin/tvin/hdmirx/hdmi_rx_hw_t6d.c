@@ -1094,6 +1094,33 @@ int aml_phy_short_bist_t6d(void)
 	return ret;
 }
 
+bool rx_check_tap0_t6d(void)
+{
+	u32 dfe0_tap0, dfe1_tap0, dfe2_tap0, dfe3_tap0;
+	u32 data32;
+	bool ret = true;
+
+	if (rx[rx_info.main_port].state != FSM_SIG_READY) {
+		rx_pr("sig unready\n");
+		return false;
+	}
+	hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_CDR, T6D_EHM_DBG_SEL, 0x0);
+	hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_EQ, T6D_STATUS_MUX_SEL, 0x0);
+	hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_CDR, T6D_DFE_OFST_DBG_SEL, 0x0);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy(T6D_HDMIRX20PHY_DCHD_STAT);
+	dfe0_tap0 = data32 & 0x7f;
+	dfe1_tap0 = (data32 >> 8) & 0x7f;
+	dfe2_tap0 = (data32 >> 16) & 0x7f;
+	dfe3_tap0 = (data32 >> 24) & 0x7f;
+
+	if (dfe0_tap0 < 25 || dfe1_tap0 < 25 || dfe2_tap0 < 25) {
+		ret = false;
+		rx_pr("tap0 error\n");
+	}
+	return ret;
+}
+
 void aml_phy_exbist_t6d(u8 port, u8 ch)
 {
 	u32 data32, tmp;

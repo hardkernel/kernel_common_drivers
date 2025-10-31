@@ -3112,6 +3112,68 @@ void aml_phy_short_bist_t3x(u8 port)
 		aml_phy_short_bist_t3x_21();
 }
 
+bool rx_check_tap0_t3x_20(u8 port)
+{
+	u32 dfe0_tap0, dfe1_tap0, dfe2_tap0, dfe3_tap0;
+	u32 data32;
+	bool ret = true;
+
+	if (rx[port].state != FSM_SIG_READY) {
+		rx_pr("sig unready\n");
+		return false;
+	}
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, T3X_20_EHM_DBG_SEL, 0x0, port);
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_EQ, T3X_20_STATUS_MUX_SEL, 0x0, port);
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, T3X_20_DFE_OFST_DBG_SEL, 0x0, port);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_STAT, port);
+	dfe0_tap0 = data32 & 0x7f;
+	dfe1_tap0 = (data32 >> 8) & 0x7f;
+	dfe2_tap0 = (data32 >> 16) & 0x7f;
+	dfe3_tap0 = (data32 >> 24) & 0x7f;
+
+	if (dfe0_tap0 < 25 || dfe1_tap0 < 25 || dfe2_tap0 < 25) {
+		ret = false;
+		rx_pr("tap0 error\n");
+	}
+	return ret;
+}
+
+bool rx_check_tap0_t3x_21(u8 port)
+{
+	u32 dfe0_tap0, dfe1_tap0, dfe2_tap0, dfe3_tap0;
+	u32 data32;
+	bool ret = true;
+
+	if (rx[port].state != FSM_SIG_READY) {
+		rx_pr("sig unready\n");
+		return false;
+	}
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, MUX_EYE_EN, 0x0, port);
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_EQ, MUX_BLOCK_SEL, 0x0, port);
+	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX21PHY_DCHD_CDR, MUX_DFE_OFST_EYE, 0x0, port);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy_t3x(T3X_HDMIRX21PHY_DCH_STAT, port);
+	dfe0_tap0 = data32 & 0x7f;
+	dfe1_tap0 = (data32 >> 8) & 0x7f;
+	dfe2_tap0 = (data32 >> 16) & 0x7f;
+	dfe3_tap0 = (data32 >> 24) & 0x7f;
+
+	if (dfe0_tap0 < 15 || dfe1_tap0 < 15 || dfe2_tap0 < 15) {
+		ret = false;
+		rx_pr("port%d tap0 error\n", port);
+	}
+	return ret;
+}
+
+bool rx_check_tap0_t3x(void)
+{
+	if (rx_info.main_port <= E_PORT1)
+		return rx_check_tap0_t3x_20(rx_info.main_port);
+	else
+		return rx_check_tap0_t3x_21(rx_info.main_port);
+}
+
 void aml_phy_exbist_t6x_21_tmds(u8 port, u8 ch)
 {
 	u32 data32, tmp;

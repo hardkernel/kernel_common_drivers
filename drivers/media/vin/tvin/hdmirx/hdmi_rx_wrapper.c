@@ -323,9 +323,9 @@ void hdmirx_phy_var_init(void)
 			rx_info.aml_phy_21.buf_gain = 0x8;
 			rx_info.aml_phy_21.cdr_fr_en = 0;//0x1f4
 			if (rx_info.phy_ver == PHY_VER_T6X)
-				rx_info.aml_phy_21.eq_hold = 0x3;
-			else
 				rx_info.aml_phy_21.eq_hold = 0x0;
+			else
+				rx_info.aml_phy_21.eq_hold = 0x3;
 			rx_info.aml_phy_21.eq_retry = 0x1;
 			rx_info.aml_phy_21.dfe_en = 0x1;
 			rx_info.aml_phy_21.dfe_hold = 0;//0x3
@@ -335,8 +335,11 @@ void hdmirx_phy_var_init(void)
 			rx_info.aml_phy_21.pre_int_en = 0x0;
 		}
 		/* t6x new added */
-		if (rx_info.phy_ver == PHY_VER_T6X)
+		if (rx_info.phy_ver == PHY_VER_T6X) {
 			rx_info.aml_phy_21.pll_bw_21 = 0x51;
+			rx_info.aml_phy_21.cdr_ph_div = 0x8;
+			rx_info.aml_phy_21.cdr_pi_ofst = 0x3f;
+		}
 	}
 	rx_info.aml_phy.force_bw = 0x0;
 }
@@ -3376,6 +3379,8 @@ void rx_get_global_variable(const char *buf)
 	pr_var(rx_info.aml_phy_21.pre_int, i++);
 	pr_var(rx_info.aml_phy_21.pre_int_en, i++);
 	pr_var(rx_info.aml_phy_21.rterm_dbg_lvl, i++);
+	pr_var(rx_info.aml_phy_21.cdr_pi_ofst, i++);
+	pr_var(rx_info.aml_phy_21.cdr_ph_div, i++);
 	pr_var(rx_info.aml_phy.force_bw, i++);
 	pr_var(rx_info.pre_load.cfg, i++);
 	pr_var(tuning_cnt, i++);
@@ -4051,6 +4056,12 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy_21.rterm_dbg_lvl),
 		&rx_info.aml_phy_21.rterm_dbg_lvl, value))
 		return pr_var(rx_info.aml_phy_21.rterm_dbg_lvl, index);
+	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy_21.cdr_ph_div),
+		&rx_info.aml_phy_21.cdr_ph_div, value))
+		return pr_var(rx_info.aml_phy_21.cdr_ph_div, index);
+	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy_21.cdr_pi_ofst),
+		&rx_info.aml_phy_21.cdr_pi_ofst, value))
+		return pr_var(rx_info.aml_phy_21.cdr_pi_ofst, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy.force_bw),
 		&rx_info.aml_phy.force_bw, value))
 		return pr_var(rx_info.aml_phy.force_bw, index);

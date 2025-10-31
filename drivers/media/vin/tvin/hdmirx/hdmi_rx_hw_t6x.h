@@ -97,6 +97,7 @@
 #define T6X_HDMIRX21PHY_DCHA_PI         (0x4a << 2)
 #define T6X_HDMIRX21PHY_DCHA_CTRL       (0x4b << 2)
 #define T6X_HDMIRX21PHY_DCHD_CDR        (0x4c << 2)
+	#define CDR_PH_DIV	MSK(2, 0)
 	#define CDR_FR_EN	_BIT(6)
 	#define CDR_OS_RATE	MSK(2, 8)
 	#define CDR_PI_DIV	MSK(2, 10)
@@ -104,6 +105,7 @@
 	#define CDR_LKDET_EN	_BIT(14)
 	#define OFST_CAL_STAGE	MSK(2, 16)
 	#define MUX_CDR_DBG_SEL	_BIT(19)
+	#define CDR_PI_OFST	MSK(6, 20)
 	#define OFST_CAL_START _BIT(27)
 	#define MUX_DFE_OFST_EYE	MSK(3, 28)
 	#define MUX_EYE_EN		_BIT(31)
@@ -201,6 +203,7 @@ void rx_21_dump_fpll_0_t6x(void);
 void rx_21_dump_fpll_1_t6x(void);
 void aml_phy_exbist_t6x_20(u8 port, u8 ch);
 void aml_phy_exbist_t6x_21(u8 port, u8 ch);
+bool rx_check_tap0_t6x(void);
 //void reset_pcs(void);
 
 /*function declare end*/

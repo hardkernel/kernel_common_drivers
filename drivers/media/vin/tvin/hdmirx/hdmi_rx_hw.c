@@ -8357,6 +8357,30 @@ void rx_i2c_mux_cfg(u8 port)
 	}
 }
 
+bool rx_check_tap0(void)
+{
+	bool ret = false;
+
+	switch (rx_info.chip_id) {
+	case CHIP_ID_T5M:
+		ret = rx_check_tap0_t5m();
+		break;
+	case CHIP_ID_T3X:
+		ret = rx_check_tap0_t3x();
+		break;
+	case CHIP_ID_T6D:
+		ret = rx_check_tap0_t6d();
+		break;
+	case CHIP_ID_T6X:
+		ret = rx_check_tap0_t6x();
+		break;
+	default:
+		ret = false;
+		break;
+	}
+	return ret;
+}
+
 void rx_i2c_dbg_monitor(void)
 {
 	u32 data32;

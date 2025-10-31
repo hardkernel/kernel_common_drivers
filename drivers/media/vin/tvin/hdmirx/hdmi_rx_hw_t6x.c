@@ -1489,10 +1489,10 @@ static const u32 phy_dcha_t6x_21[][4] = {
 		0x2340ffff, 0x04ff1a05, 0x41102008, 0x03f06555,
 	},
 	{	 /* FRL 10G */
-		0x2320ffff, 0x04ff1a05, 0x41102008, 0x03f06555,
+		0x1340ffff, 0x04ff1a05, 0x41102008, 0x03f06555,
 	},
 	{	 /* FRL 12G */
-		0x2310ffff, 0x04ff1a05, 0x41102008, 0x03f06555,
+		0x1340ffff, 0x04ff1a05, 0x41102008, 0x03f06555,
 	},
 };
 
@@ -1500,13 +1500,13 @@ static const u32 phy_dchd_t6x_21[][2] = {
 		/* dchd_cdr	 dchd_eq */
 		/*  0x130	 0x134 */
 	{	 /* 24~35M */
-		0x06407e82, 0x300b3060,
+		0x06407e83, 0x300b3060,
 	},
 	{	 /* 35~75M */
-		0x06407d82, 0x300b3060,
+		0x06407d83, 0x300b3060,
 	},
 	{	 /* 75~150M */
-		0x06407c82, 0x30033069,
+		0x06407c83, 0x30033069,
 	},
 	{	 /* 140~340M */
 		0x06407882, 0x30033049,
@@ -1672,13 +1672,13 @@ void rx_21_frl_phy_cfg_t6x(u8 port)
 void t6x_480p_pll_cfg_21(u8 port)
 {
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x0530a000, port);
-	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL1, 0x01481286, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL1, 0x014812a6, port);
 	usleep_range(20, 30);
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x0530a001, port);
 	usleep_range(20, 30);
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x0530a003, port);
 	usleep_range(20, 30);
-	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL1, 0x41401286, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL1, 0x414012a6, port);
 	usleep_range(20, 30);
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x0530a007, port);
 	usleep_range(20, 30);
@@ -1690,13 +1690,13 @@ void t6x_480p_pll_cfg_21(u8 port)
 void t6x_720p_pll_cfg_21(u8 port)
 {
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x0530a010, port);
-	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL1, 0x01481286, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL1, 0x014812a6, port);
 	usleep_range(20, 30);
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x0530a011, port);
 	usleep_range(20, 30);
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x0530a013, port);
 	usleep_range(20, 30);
-	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL1, 0x21401286, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL1, 0x214012a6, port);
 	usleep_range(20, 30);
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x0530a017, port);
 	usleep_range(20, 30);
@@ -1708,7 +1708,7 @@ void t6x_720p_pll_cfg_21(u8 port)
 void t6x_1080p_pll_cfg_21(u8 port)
 {
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x05302800, port);
-	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL1, 0x01445286, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL1, 0x014452a6, port);
 	usleep_range(20, 30);
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x05302801, port);
 	usleep_range(20, 30);
@@ -1856,7 +1856,7 @@ void aml_pll_bw_cfg_t6x_21(int f_rate, u8 port)
 	//for debug
 	if (rx_info.aml_phy_21.vga_gain <= 0xffff)
 		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_AFE, VGA_GAIN,
-			rx_info.aml_phy_21.vga_gain, port);
+			decimaltogray_t6x(rx_info.aml_phy_21.vga_gain), port);
 	if (rx_info.aml_phy_21.eq_stg1 < 0x1f) {
 		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, EQ_BYP_VAL1,
 			rx_info.aml_phy_21.eq_stg1, port);
@@ -1872,6 +1872,12 @@ void aml_pll_bw_cfg_t6x_21(int f_rate, u8 port)
 	if (rx_info.aml_phy_21.buf_gain <= 0x7)
 		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_AFE, BUF_GAIN,
 			rx_info.aml_phy_21.buf_gain, port);
+	if (rx_info.aml_phy_21.cdr_ph_div <= 0x7)
+		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, CDR_PH_DIV,
+			rx_info.aml_phy_21.cdr_ph_div, port);
+	if (rx_info.aml_phy_21.cdr_pi_ofst <= 0x1f)
+		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, CDR_PI_OFST,
+			rx_info.aml_phy_21.cdr_pi_ofst, port);
 }
 
 void rx_21_frl_pll_cfg_t6x(int f_rate, u8 port)
@@ -3194,6 +3200,68 @@ void aml_phy_short_bist_t6x(u8 port)
 		aml_phy_short_bist_t6x_20();
 	else
 		aml_phy_short_bist_t6x_21();
+}
+
+bool rx_check_tap0_t6x_20(u8 port)
+{
+	u32 dfe0_tap0, dfe1_tap0, dfe2_tap0, dfe3_tap0;
+	u32 data32;
+	bool ret = true;
+
+	if (rx[port].state != FSM_SIG_READY) {
+		rx_pr("sig unready\n");
+		return false;
+	}
+	hdmirx_wr_bits_amlphy_t3x(T6X_HDMIRX20PHY_DCHD_CDR, T6X_20_EHM_DBG_SEL, 0x0, port);
+	hdmirx_wr_bits_amlphy_t3x(T6X_HDMIRX20PHY_DCHD_EQ, T6X_20_STATUS_MUX_SEL, 0x0, port);
+	hdmirx_wr_bits_amlphy_t3x(T6X_HDMIRX20PHY_DCHD_CDR, T6X_20_DFE_OFST_DBG_SEL, 0x0, port);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy_t3x(T6X_HDMIRX20PHY_DCHD_STAT, port);
+	dfe0_tap0 = data32 & 0x7f;
+	dfe1_tap0 = (data32 >> 8) & 0x7f;
+	dfe2_tap0 = (data32 >> 16) & 0x7f;
+	dfe3_tap0 = (data32 >> 24) & 0x7f;
+
+	if (dfe0_tap0 < 25 || dfe1_tap0 < 25 || dfe2_tap0 < 25) {
+		ret = false;
+		rx_pr("tap0 error\n");
+	}
+	return ret;
+}
+
+bool rx_check_tap0_t6x_21(u8 port)
+{
+	u32 dfe0_tap0, dfe1_tap0, dfe2_tap0, dfe3_tap0;
+	u32 data32;
+	bool ret = true;
+
+	if (rx[port].state != FSM_SIG_READY) {
+		rx_pr("sig unready\n");
+		return false;
+	}
+	hdmirx_wr_bits_amlphy_t3x(T6X_HDMIRX21PHY_DCHD_CDR, MUX_EYE_EN, 0x0, port);
+	hdmirx_wr_bits_amlphy_t3x(T6X_HDMIRX21PHY_DCHD_EQ, MUX_BLOCK_SEL, 0x0, port);
+	hdmirx_wr_bits_amlphy_t3x(T6X_HDMIRX21PHY_DCHD_CDR, MUX_DFE_OFST_EYE, 0x0, port);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy_t3x(T6X_HDMIRX21PHY_DCH_STAT, port);
+	dfe0_tap0 = data32 & 0x7f;
+	dfe1_tap0 = (data32 >> 8) & 0x7f;
+	dfe2_tap0 = (data32 >> 16) & 0x7f;
+	dfe3_tap0 = (data32 >> 24) & 0x7f;
+
+	if (dfe0_tap0 < 15 || dfe1_tap0 < 15 || dfe2_tap0 < 15) {
+		ret = false;
+		rx_pr("port%d tap0 error\n", port);
+	}
+	return ret;
+}
+
+bool rx_check_tap0_t6x(void)
+{
+	if (rx_info.main_port <= E_PORT1)
+		return rx_check_tap0_t6x_20(rx_info.main_port);
+	else
+		return rx_check_tap0_t6x_21(rx_info.main_port);
 }
 
 void aml_phy_exbist_t6x_20(u8 port, u8 ch)

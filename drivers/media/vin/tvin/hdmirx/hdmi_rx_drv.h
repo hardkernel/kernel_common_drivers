@@ -486,6 +486,8 @@ struct rx_aml_phy {
 	bool dacr_en;
 	/* for t6x 2.1 pll */
 	u8 pll_bw_21;
+	u8 cdr_ph_div;
+	u8 cdr_pi_ofst;
 };
 
 struct rx_aml_phy_21 {
