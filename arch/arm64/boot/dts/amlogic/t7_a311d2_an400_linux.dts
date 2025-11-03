@@ -127,7 +127,7 @@
 
 		lcd_cma_reserved:linux,lcd-reserved {
 			compatible = "amlogic, lcd_rsvd";
-			reg = <0x0 0x3f780000 0x0 0x00080000>;
+			reg = <0x0 0x41000000 0x0 0x00080000>;
 			tcon-size = <0x0 0x0>;
 		};
 
