@@ -1399,7 +1399,7 @@
 
 	multi-dpss {
 	       compatible = "amlogic, dpss-t6w";
-	       status = "disabled";
+	       status = "okay";
 	       flag_cma = <4>; //<1>;
 			clocks = <&clkc CLKID_DAE>,
 				<&clkc CLKID_DPE>;
