@@ -260,6 +260,8 @@ AMLOGIC_COMMON_MODULES = [
     "//common_drivers/sound/soc:amlogic-snd-codec-ad82120b",
     "common_drivers/sound/soc/amlogic/amlogic-snd-soc.ko",
     "//common_drivers/sound/soc:amlogic-snd-soc",
+    "common_drivers/sound/soc/amlogic/auge/vad/amlogic-snd-vad.ko",
+    "//common_drivers/sound/soc:amlogic-snd-vad",
     "sound/drivers/snd-aloop.ko",
 ]
 

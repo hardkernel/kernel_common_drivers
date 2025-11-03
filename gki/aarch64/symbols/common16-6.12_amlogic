@@ -95,3 +95,6 @@
 
 #amlogic-pm.ko
  pm_suspend_target_state
+
+#amlogic-snd-vad.ko
+ pm_suspend

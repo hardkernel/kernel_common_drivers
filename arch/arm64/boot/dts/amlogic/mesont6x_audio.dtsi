@@ -62,6 +62,37 @@
 			reg-names = "hdmirx-arc";
 		};
 
+		vad_open {
+			compatible = "amlogic, vad-open";
+
+			clocks = <&clkc CLKID_FCLK_DIV5
+					&clkc CLKID_FCLK_DIV3
+					&clkc CLKID_HIFI_PLL>;
+			clock-names = "vad_srcpll", "sysclk_srcpll", "dclk_srcpll";
+
+			interrupts = <GIC_SPI 39 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 44 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "irq_wakeup", "irq_frame_sync";
+
+			pinctrl-names = "pdm_pins";
+			pinctrl-0 = <&pdmin>;
+
+			#address-cells=<2>;
+			#size-cells=<2>;
+			ranges;
+			pdm_bus {
+				reg = <0x0 0xFE332000 0x0 0x400>;
+			};
+
+			audiobus_base {
+				reg = <0x0 0xFE330000 0x0 0x1000>;
+			};
+
+			vad_base {
+				reg = <0x0 0xFE331800 0x0 0x400>;
+			};
+		};
+
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";

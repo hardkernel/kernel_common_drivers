@@ -117,3 +117,5 @@ $(MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += common/debug.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_AUDIO_DSP) += common/audiodsp/audiodsp_module.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_AMAUDIO) += common/amaudio/amaudio.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_AUDIO_INFO) += common/audioinfo/audio_data.o
+
+obj-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/vad/
