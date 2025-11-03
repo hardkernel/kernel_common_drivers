@@ -92,6 +92,19 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_t6d[] = {
 	{VDAC_REG_MAX, 0, 0, 0},
 };
 
+static struct meson_vdac_ctrl_s vdac_ctrl_enable_t6w[] = {
+	{ANACTRL_VDAC_CTRL1 + T6W_OFFSET, 1, 7, 1}, /* cdac_en */
+	{ANACTRL_VDAC_CTRL1 + T6W_OFFSET, 1, 18, 1}, /* cdac_data_reg_en */
+	{ANACTRL_VDAC_CTRL1 + T6W_OFFSET, 0x230, 8, 10}, /* cdac_data_reg */
+	{VDAC_REG_MAX, 0, 0, 0},
+};
+
+static struct meson_vdac_ctrl_s vdac_ctrl_enable_t6x[] = {
+	{ANACTRL_VDAC_CTRL1 + T6X_OFFSET, 1, 7, 1}, /* cdac_en */
+	{ANACTRL_VDAC_CTRL1 + T6X_OFFSET, 1, 18, 1}, /* cdac_data_reg_en */
+	{ANACTRL_VDAC_CTRL1 + T6X_OFFSET, 0x230, 8, 10}, /* cdac_data_reg */
+	{VDAC_REG_MAX, 0, 0, 0},
+};
 /* ********************************************************* */
 static struct meson_vdac_data meson_g12ab_vdac_data = {
 	.cpu_id = VDAC_CPU_G12AB,
@@ -323,6 +336,31 @@ static struct meson_vdac_data meson_t6d_vdac_data = {
 	.cvbsout_cfg_cntl0 = 0x00419a82, //vlsi suggestion value
 };
 
+static struct meson_vdac_data meson_t6w_vdac_data = {
+	.cpu_id = VDAC_CPU_T6W,
+	.name = "meson-t6w-vdac",
+	.reg_cntl0 = ANACTRL_VDAC_CTRL0 + T6W_OFFSET,
+	.reg_cntl1 = ANACTRL_VDAC_CTRL1 + T6W_OFFSET,
+	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
+	.reg_vid2_clk_div = CLKCTRL_VIID_CLK_DIV,
+	.ctrl_table = vdac_ctrl_enable_t6w,
+	.cdac_disable = 1,
+	.bypass_cfg_cntl0 = 0x00409982, //vlsi suggestion value
+	.cvbsout_cfg_cntl0 = 0x00419a82, //vlsi suggestion value
+};
+
+static struct meson_vdac_data meson_t6x_vdac_data = {
+	.cpu_id = VDAC_CPU_T6X,
+	.name = "meson-t6x-vdac",
+	.reg_cntl0 = ANACTRL_VDAC_CTRL0 + T6X_OFFSET,
+	.reg_cntl1 = ANACTRL_VDAC_CTRL1 + T6X_OFFSET,
+	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
+	.reg_vid2_clk_div = CLKCTRL_VIID_CLK_DIV,
+	.ctrl_table = vdac_ctrl_enable_t6x,
+	.cdac_disable = 1,
+	.bypass_cfg_cntl0 = 0x00409982, //vlsi suggestion value
+	.cvbsout_cfg_cntl0 = 0x00419a82, //vlsi suggestion value
+};
 #endif
 
 const struct of_device_id meson_vdac_dt_match[] = {
@@ -400,6 +438,14 @@ const struct of_device_id meson_vdac_dt_match[] = {
 	{
 		.compatible = "amlogic, vdac-t6d",
 		.data		= &meson_t6d_vdac_data,
+	},
+	{
+		.compatible = "amlogic, vdac-t6w",
+		.data		= &meson_t6w_vdac_data,
+	},
+	{
+		.compatible = "amlogic, vdac-t6x",
+		.data		= &meson_t6x_vdac_data,
 	},
 #endif
 	{}

@@ -12,7 +12,8 @@
 #define HHI_VDAC_CNTL1        0xbe
 #define HHI_VDAC_CNTL0_G12A   0xbb
 #define HHI_VDAC_CNTL1_G12A   0xbc
-
+#define T6W_OFFSET			  0x100
+#define T6X_OFFSET			  0x100
 #define ANACTRL_VDAC_CTRL0    0xb0
 #define ANACTRL_VDAC_CTRL1    0xb1
 #define HHI_VIID_CLK_DIV      0x4a
@@ -55,6 +56,8 @@ enum vdac_cpu_type {
 	VDAC_CPU_S7,
 	VDAC_CPU_S7D,
 	VDAC_CPU_T6D,
+	VDAC_CPU_T6W,
+	VDAC_CPU_T6X,
 	VDAC_CPU_MAX,
 };
 
@@ -84,5 +87,9 @@ struct meson_vdac_ctrl_s {
 
 extern const struct of_device_id meson_vdac_dt_match[];
 struct meson_vdac_data *aml_vdac_config_probe(struct platform_device *pdev);
+void adc_config_cvbsout(u8 sel);
+void __weak adc_config_cvbsout(u8 sel)
+{
+}
 
 #endif
