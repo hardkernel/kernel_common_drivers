@@ -163,6 +163,7 @@
 			status = "okay";
 			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
