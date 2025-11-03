@@ -571,6 +571,9 @@ static int tcon_reg_is_skip(unsigned int reg)
 	struct lcd_tcon_reg_skip_s *reg_skip = NULL;
 	int i, is_skip = 0;
 
+	if (!tcon_conf)
+		return 0;
+
 	for (i = 0; i < tcon_conf->reg_skip_tbl_len; i++) {
 		reg_skip = &tcon_conf->reg_skip_tbl[i];
 		if (reg >= reg_skip->start_reg &&
@@ -675,7 +678,11 @@ unsigned int lcd_tcon_table_read(unsigned int addr)
 
 	if (core_reg_info->header->ext_header_size &&
 			core_reg_info->ext_header.reg_blk_num) {
-		lcd_tcon_get_table32_reg(core_reg_info, addr, &val);
+		ret = lcd_tcon_get_table32_reg(core_reg_info, addr, &val);
+		if (ret < 0) {
+			LCDERR("invalid tcon reg_table addr: 0x%04x\n", addr);
+			return 0;
+		}
 	} else {
 		if (lcd_tcon_conf->core_reg_width == 8)
 			size = core_reg_info->table_size;

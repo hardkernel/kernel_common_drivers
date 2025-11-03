@@ -335,7 +335,7 @@ void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 	if (ret)
 		return;
 
-	if (!mm_table || !mm_table || !core_reg_info) {
+	if (!tcon_conf || !mm_table || !core_reg_info) {
 		LCDERR("%s: table is NULL\n", __func__);
 		return;
 	}
