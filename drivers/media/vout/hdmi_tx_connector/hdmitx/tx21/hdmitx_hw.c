@@ -2742,7 +2742,7 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw, struct aud_para *a
 	/* audio asynchronous sample clock, for spdif */
 	hdmitx21_set_audioclk(true);
 
-	HDMITX_INFO("audio: audio_param->chs = %d\n", audio_param->chs);
+	HDMITX_DEBUG_AUDIO("audio: audio_param->chs = %d\n", audio_param->chs);
 	hdmitx21_set_reg_bits(SPDIF_SSMPL2_IVCTX, 0, 5, 1);
 
 	/*
@@ -2752,7 +2752,7 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw, struct aud_para *a
 	 */
 	hdmitx21_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1 - audio_param->aud_src_if, 13, 1);
 
-	HDMITX_INFO("audio: aud_src_if = %d\n", audio_param->aud_src_if);
+	HDMITX_DEBUG_AUDIO("audio: aud_src_if = %d\n", audio_param->aud_src_if);
 
 	/*
 	 * config I2S

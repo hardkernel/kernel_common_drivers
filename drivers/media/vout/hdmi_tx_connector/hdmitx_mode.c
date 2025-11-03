@@ -455,7 +455,7 @@ const struct hdmi_timing *hdmitx_mode_vic_to_hdmi_timing(enum hdmi_vic vic)
 		}
 	}
 
-	HDMITX_ERROR("unknown vic [%d] in timing table\n", vic);
+	HDMITX_DEBUG_EDID("unknown vic [%d] in timing table\n", vic);
 	return NULL;
 }
 EXPORT_SYMBOL(hdmitx_mode_vic_to_hdmi_timing);
