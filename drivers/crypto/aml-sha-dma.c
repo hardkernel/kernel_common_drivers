@@ -106,6 +106,7 @@ struct aml_sha_dev {
 	void	*descriptor;
 	dma_addr_t	dma_descript_tab;
 	u32		hw_ctx_sz;
+	u32		support_sha1_zero_len;
 };
 
 struct aml_sha_drv {
@@ -1542,8 +1543,12 @@ static void aml_sha_unregister_algs(struct aml_sha_dev *dd)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(sha_algs); i++)
+	for (i = 0; i < ARRAY_SIZE(sha_algs); i++) {
+		if (!dd->support_sha1_zero_len &&
+		    !strcmp(sha_algs[i].halg.base.cra_name, "hmac(sha1-kl)"))
+			continue;
 		crypto_unregister_ahash(&sha_algs[i]);
+	}
 }
 
 static int aml_sha_register_algs(struct aml_sha_dev *dd)
@@ -1551,6 +1556,9 @@ static int aml_sha_register_algs(struct aml_sha_dev *dd)
 	int err, i, j;
 
 	for (i = 0; i < ARRAY_SIZE(sha_algs); i++) {
+		if (!dd->support_sha1_zero_len &&
+		    !strcmp(sha_algs[i].halg.base.cra_name, "hmac(sha1-kl)"))
+			continue;
 		err = crypto_register_ahash(&sha_algs[i]);
 		if (err)
 			goto err_sha_algs;
@@ -1574,11 +1582,20 @@ static int aml_sha_probe(struct platform_device *pdev)
 	 */
 	u32 hw_ctx_sz = SHA256_DIGEST_SIZE + 16;
 
+	/* Support sha1 with 0 length for most chips.
+	 * For those without this support, it should be specified in dts
+	 */
+	u32 support_sha1_zero_len = 1;
+
 	sha_dd = devm_kzalloc(dev, sizeof(struct aml_sha_dev), GFP_KERNEL);
 	if (!sha_dd) {
 		err = -ENOMEM;
 		goto sha_dd_err;
 	}
+
+	if (of_find_property(pdev->dev.of_node,
+		"not_support_sha1_zero_len", NULL))
+		support_sha1_zero_len = 0;
 
 	of_property_read_u32(pdev->dev.of_node, "hw_ctx_sz", &hw_ctx_sz);
 
@@ -1588,6 +1605,7 @@ static int aml_sha_probe(struct platform_device *pdev)
 	sha_dd->thread = sha_dd->dma->thread;
 	sha_dd->status = sha_dd->dma->status;
 	sha_dd->hw_ctx_sz = hw_ctx_sz;
+	sha_dd->support_sha1_zero_len = support_sha1_zero_len;
 	platform_set_drvdata(pdev, sha_dd);
 
 	INIT_LIST_HEAD(&sha_dd->list);

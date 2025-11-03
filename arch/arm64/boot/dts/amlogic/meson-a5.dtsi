@@ -1173,6 +1173,7 @@
 		aml_sha {
 			compatible = "amlogic,sha_dma";
 			dev_name = "aml_sha_dma";
+			not_support_sha1_zero_len;
 			status = "okay";
 		};
 
