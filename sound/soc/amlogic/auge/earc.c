@@ -3763,7 +3763,11 @@ static int earc_platform_suspend(struct device *dev)
 
 static int aml_earc_platform_restore(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
+
 	earc_platform_resume(dev);
+	earctx_cmdc_setup(p_earc);
 
 	return 0;
 }
