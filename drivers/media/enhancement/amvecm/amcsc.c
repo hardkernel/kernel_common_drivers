@@ -9334,7 +9334,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		vinfo = get_current_vinfo();
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
-	if (!dpss_mode)
+	if (!dpss_mode && vd_path == VD1_PATH)
 		prime_sl_pre_check(vf);
 #endif
 
@@ -10622,7 +10622,7 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 		return;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
-		prime_sl_pre_check(vf);
+	prime_sl_pre_check(vf);
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -10650,11 +10650,11 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 			cur_primesl_type[vd_path] = 0;
 		}
 	}
-/*
- *#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
- *	prime_sl_process_for_dpss(vf);
- *#endif
- */
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
+	prime_sl_process_for_dpss(vf);
+#endif
+
 	/*update dynamic metadata*/
 	if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC ||
 		csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA)
@@ -10718,23 +10718,22 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 			break;
 		case HDRTYPE_PRIMESL:
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
-			if (get_prime_sl_hdr_process_policy(vf) == PRIME_SL_HDR_MODE_2020_TO_709) {
+		if (get_prime_sl_hdr_process_policy(vf) == PRIME_SL_HDR_MODE_2020_TO_709) {
+			gamut_convert_process(vinfo, &source_format,
+				vd_path, &m, 8, DEST_NONE);
+			eo_clip_proc(master_info, eo_sel);
+			hdr_proc_multi_slices(vf, VD1_HDR, SDR_GMT_CONVERT,
+				vinfo, &m, s5_silce_mode, vpp_index);
+		} else {
+			gamut_src_format = source_format;
+			if (gamut_conv_enable) {
 				gamut_convert_process(vinfo, &source_format,
-					vd_path, &m, 8, DEST_NONE);
+					vd_path, &m, 11, DEST_NONE);
 				bypass_gamut_wrapper = 1;
-				eo_clip_proc(master_info, eo_sel);
-				hdr_proc_multi_slices(vf, VD1_HDR, SDR_GMT_CONVERT,
-					vinfo, &m, s5_silce_mode, vpp_index);
-			} else {
-				gamut_src_format = source_format;
-				if (gamut_conv_enable) {
-					gamut_convert_process(vinfo, &source_format,
-						vd_path, &m, 11, DEST_NONE);
-					bypass_gamut_wrapper = 1;
-				}
-				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
-						vinfo, NULL, s5_silce_mode, vpp_index);
 			}
+			hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
+					vinfo, NULL, s5_silce_mode, vpp_index);
+		}
 #endif
 			break;
 		case HDRTYPE_HDR10:

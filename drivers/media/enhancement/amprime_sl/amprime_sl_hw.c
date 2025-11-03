@@ -9,6 +9,8 @@
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 
 #include "amprime_sl.h"
+#include "amprime_sl_regs_t6w.h"
+#include "amprime_sl_regs_t6x.h"
 
 /*======================================*/
 /*#define USE_TASKLET	1*/
@@ -26,7 +28,12 @@ static inline void wbits_PRIMESL_CTRL0(unsigned int primesl_en,
 	v.b.inv_chroma_ratio = inv_chroma_ratio;
 	v.b.clip_en = clip_en;
 	v.b.legacy_mode_en = legacy_mode_en;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL0, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL0, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL0, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL0, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL1(unsigned int footroom,
@@ -36,7 +43,12 @@ static inline void wbits_PRIMESL_CTRL1(unsigned int footroom,
 
 	v.b.footroom = footroom;
 	v.b.l_headroom = l_headroom;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL1, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL1, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL1, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL1, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL2(unsigned int c_headroom)
@@ -44,7 +56,12 @@ static inline void wbits_PRIMESL_CTRL2(unsigned int c_headroom)
 	union PRIMESL_CTRL2_BITS v;
 
 	v.b.c_headroom = c_headroom;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL2, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL2, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL2, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL2, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL3(unsigned int mua,
@@ -54,7 +71,12 @@ static inline void wbits_PRIMESL_CTRL3(unsigned int mua,
 
 	v.b.mua = mua;
 	v.b.mub = mub;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL3, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL3, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL3, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL3, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL4(unsigned int oct_7_0,
@@ -64,7 +86,12 @@ static inline void wbits_PRIMESL_CTRL4(unsigned int oct_7_0,
 
 	v.b.oct_7_0 = oct_7_0;
 	v.b.oct_7_1 = oct_7_1;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL4, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL4, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL4, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL4, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL5(unsigned int oct_7_2,
@@ -74,7 +101,12 @@ static inline void wbits_PRIMESL_CTRL5(unsigned int oct_7_2,
 
 	v.b.oct_7_2 = oct_7_2;
 	v.b.oct_7_3 = oct_7_3;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL5, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL5, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL5, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL5, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL6(unsigned int oct_7_4,
@@ -84,7 +116,12 @@ static inline void wbits_PRIMESL_CTRL6(unsigned int oct_7_4,
 
 	v.b.oct_7_4 = oct_7_4;
 	v.b.oct_7_5 = oct_7_5;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL6, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL6, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL6, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL6, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL7(unsigned int oct_7_6)
@@ -92,7 +129,12 @@ static inline void wbits_PRIMESL_CTRL7(unsigned int oct_7_6)
 	union PRIMESL_CTRL7_BITS v;
 
 	v.b.oct_7_6 = oct_7_6;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL7, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL7, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL7, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL7, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL8(unsigned int d_lut_threshold_3_0,
@@ -102,7 +144,12 @@ static inline void wbits_PRIMESL_CTRL8(unsigned int d_lut_threshold_3_0,
 
 	v.b.d_lut_threshold_3_0 = d_lut_threshold_3_0;
 	v.b.d_lut_threshold_3_1 = d_lut_threshold_3_1;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL8, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL8, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL8, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL8, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL9(unsigned int d_lut_threshold_3_2)
@@ -110,7 +157,12 @@ static inline void wbits_PRIMESL_CTRL9(unsigned int d_lut_threshold_3_2)
 	union PRIMESL_CTRL9_BITS v;
 
 	v.b.d_lut_threshold_3_2 = d_lut_threshold_3_2;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL9, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL9, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL9, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL9, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL10(unsigned int d_lut_step_4_0,
@@ -124,7 +176,12 @@ static inline void wbits_PRIMESL_CTRL10(unsigned int d_lut_step_4_0,
 	v.b.d_lut_step_4_1 = d_lut_step_4_1;
 	v.b.d_lut_step_4_2 = d_lut_step_4_2;
 	v.b.d_lut_step_4_3 = d_lut_step_4_3;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL10, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL10, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL10, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL10, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL11(unsigned int rgb2yuv_9_1,
@@ -134,7 +191,12 @@ static inline void wbits_PRIMESL_CTRL11(unsigned int rgb2yuv_9_1,
 
 	v.b.rgb2yuv_9_1 = rgb2yuv_9_1;
 	v.b.rgb2yuv_9_0 = rgb2yuv_9_0;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL11, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL11, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL11, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL11, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL12(unsigned int rgb2yuv_9_3,
@@ -144,7 +206,12 @@ static inline void wbits_PRIMESL_CTRL12(unsigned int rgb2yuv_9_3,
 
 	v.b.rgb2yuv_9_3 = rgb2yuv_9_3;
 	v.b.rgb2yuv_9_2 = rgb2yuv_9_2;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL12, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL12, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL12, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL12, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL13(unsigned int rgb2yuv_9_5,
@@ -154,7 +221,12 @@ static inline void wbits_PRIMESL_CTRL13(unsigned int rgb2yuv_9_5,
 
 	v.b.rgb2yuv_9_5 = rgb2yuv_9_5;
 	v.b.rgb2yuv_9_4 = rgb2yuv_9_4;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL13, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL13, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL13, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL13, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL14(unsigned int rgb2yuv_9_7,
@@ -164,7 +236,12 @@ static inline void wbits_PRIMESL_CTRL14(unsigned int rgb2yuv_9_7,
 
 	v.b.rgb2yuv_9_7 = rgb2yuv_9_7;
 	v.b.rgb2yuv_9_6 = rgb2yuv_9_6;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL14, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL14, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL14, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL14, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL15(unsigned int rgb2yuv_9_8)
@@ -172,7 +249,12 @@ static inline void wbits_PRIMESL_CTRL15(unsigned int rgb2yuv_9_8)
 	union PRIMESL_CTRL15_BITS v;
 
 	v.b.rgb2yuv_9_8 = rgb2yuv_9_8;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL15, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL15, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL15, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL15, v.d32);
 }
 
 static inline void wbits_PRIMESL_CTRL16(unsigned int reg_s,
@@ -191,7 +273,12 @@ static inline void wbits_PRIMESL_CTRL16(unsigned int reg_s,
 	v.b.byp_mat = byp_mat;
 	v.b.byp_d_lut = byp_d_lut;
 	v.b.byp_s_lut = byp_s_lut;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL16, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_CTRL16, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_CTRL16, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_CTRL16, v.d32);
 }
 
 static inline void wbits_PRIMESL_OMAT_OFFSET0(unsigned int pre_offset1,
@@ -201,7 +288,12 @@ static inline void wbits_PRIMESL_OMAT_OFFSET0(unsigned int pre_offset1,
 
 	v.b.pre_offset1 = pre_offset1;
 	v.b.pre_offset0 = pre_offset0;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_OMAT_OFFSET0, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_OMAT_OFFSET0, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_OMAT_OFFSET0, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_OMAT_OFFSET0, v.d32);
 }
 
 static inline void wbits_PRIMESL_OMAT_OFFSET1(unsigned int offset0,
@@ -211,7 +303,12 @@ static inline void wbits_PRIMESL_OMAT_OFFSET1(unsigned int offset0,
 
 	v.b.offset0 = offset0;
 	v.b.pre_offset2 = pre_offset2;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_OMAT_OFFSET1, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_OMAT_OFFSET1, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_OMAT_OFFSET1, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_OMAT_OFFSET1, v.d32);
 }
 
 static inline void wbits_PRIMESL_OMAT_OFFSET2(unsigned int offset2,
@@ -221,7 +318,12 @@ static inline void wbits_PRIMESL_OMAT_OFFSET2(unsigned int offset2,
 
 	v.b.offset2 = offset2;
 	v.b.offset1 = offset1;
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_OMAT_OFFSET2, v.d32);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w())
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_OMAT_OFFSET2, v.d32);
+	else if (is_meson_t6w())
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_OMAT_OFFSET2, v.d32);
+	else if (is_meson_t6x())
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_OMAT_OFFSET2, v.d32);
 }
 
 #define NOT_USR_WR_T	1
@@ -291,9 +393,19 @@ static void slctr_set_lut_c(const int *ptab)
 {
 	int i;
 
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTC_ADDR_PORT, 0);
-	for (i = 0; i < 65; i++)
-		SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTC_DATA_PORT, ptab[i]);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w()) {
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTC_ADDR_PORT, 0);
+		for (i = 0; i < 65; i++)
+			SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTC_DATA_PORT, ptab[i]);
+	} else if (is_meson_t6w()) {
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_LUTC_ADDR_PORT, 0);
+		for (i = 0; i < 65; i++)
+			SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_LUTC_DATA_PORT, ptab[i]);
+	} else if (is_meson_t6x()) {
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_LUTC_ADDR_PORT, 0);
+		for (i = 0; i < 65; i++)
+			SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_LUTC_DATA_PORT, ptab[i]);
+	}
 }
 
 /* 7byte */
@@ -301,9 +413,19 @@ static void slctr_set_lut_p(const int *ptab)
 {
 	int i;
 
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTP_ADDR_PORT, 0);
-	for (i = 0; i < 65; i++)
-		SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTP_DATA_PORT, ptab[i]);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w()) {
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTP_ADDR_PORT, 0);
+		for (i = 0; i < 65; i++)
+			SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTP_DATA_PORT, ptab[i]);
+	} else if (is_meson_t6w()) {
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_LUTP_ADDR_PORT, 0);
+		for (i = 0; i < 65; i++)
+			SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_LUTP_DATA_PORT, ptab[i]);
+	} else if (is_meson_t6x()) {
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_LUTP_ADDR_PORT, 0);
+		for (i = 0; i < 65; i++)
+			SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_LUTP_DATA_PORT, ptab[i]);
+	}
 }
 
 /* 7byte */
@@ -311,14 +433,19 @@ static void slctr_set_lut_d(const int *ptab)
 {
 	int i;
 
-	SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTD_ADDR_PORT, 0);
-	for (i = 0; i < 65; i++)
-		SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTD_DATA_PORT, ptab[i]);
-}
-
-void prime_sl_module_enable(void)
-{
-	SL_VSYNC_WR_MPEG_REG_BITS(PRIMESL_CTRL0, 1, 0, 1);
+	if (is_prime_sl_stb_mode() || is_meson_t5m() || is_meson_t5w()) {
+		SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTD_ADDR_PORT, 0);
+		for (i = 0; i < 65; i++)
+			SL_VSYNC_WR_MPEG_REG(PRIMESL_LUTD_DATA_PORT, ptab[i]);
+	} else if (is_meson_t6w()) {
+		SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_LUTD_ADDR_PORT, 0);
+		for (i = 0; i < 65; i++)
+			SL_VSYNC_WR_MPEG_REG(T6W_PRIMESL_LUTD_DATA_PORT, ptab[i]);
+	} else if (is_meson_t6x()) {
+		SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_LUTD_ADDR_PORT, 0);
+		for (i = 0; i < 65; i++)
+			SL_VSYNC_WR_MPEG_REG(T6X_PRIMESL_LUTD_DATA_PORT, ptab[i]);
+	}
 }
 
 void prime_sl_set_reg(const struct prime_sl_t *ps)
@@ -336,8 +463,8 @@ void prime_sl_set_reg(const struct prime_sl_t *ps)
 	wbits_PRIMESL_CTRL16(1024, 0, 3,
 			0, 0, 0,
 			0, 0, 0);
-	SL_VSYNC_WR_MPEG_REG_BITS(PRIMESL_CTRL0, ps->inv_y_ratio, 4, 11);
-	SL_VSYNC_WR_MPEG_REG_BITS(PRIMESL_CTRL0, ps->inv_chroma_ratio, 16, 11);
+	wbits_PRIMESL_CTRL0(1, 0, 0, ps->inv_y_ratio,
+			ps->inv_chroma_ratio, 0, 0);
 	if (is_meson_tm2() || is_meson_sc2() || is_meson_s7d() || is_meson_s6()) {
 		wbits_PRIMESL_OMAT_OFFSET0(512, 512);
 		wbits_PRIMESL_OMAT_OFFSET1(256, 512);
@@ -355,7 +482,7 @@ void prime_sl_set_reg(const struct prime_sl_t *ps)
 		data32 |= 2 << 24;
 		data32 |= 2 << 8;
 		WRITE_VCBUS_REG(AMDV_PATH_CTRL, data32);
-		pr_sl(1, "[test],run into stb prime path reg set\n");
+		pr_sl(1, "stb prime path reg set\n");
 	} else if (is_meson_t5m()) {
 		wbits_PRIMESL_OMAT_OFFSET0(2048, 2048);
 		wbits_PRIMESL_OMAT_OFFSET1(64, 2048);
@@ -363,13 +490,23 @@ void prime_sl_set_reg(const struct prime_sl_t *ps)
 		SL_VSYNC_WR_MPEG_REG(AMDV_PATH_SWAP_CTRL1, 0x2002);
 		SL_VSYNC_WR_MPEG_REG(AMDV_PATH_SWAP_CTRL2, 0x0);
 		SL_VSYNC_WR_MPEG_REG(VIU_VD1_PATH_CTRL, 0x0);
-		pr_sl(1, "[test],run into tv prime path reg set\n");
+		pr_sl(1, "t5m prime path reg set\n");
+	} else if (is_meson_t6w()) {
+		wbits_PRIMESL_OMAT_OFFSET0(2048, 2048);
+		wbits_PRIMESL_OMAT_OFFSET1(64, 2048);
+		wbits_PRIMESL_OMAT_OFFSET2(512, 512);
+		pr_sl(1, "t6w prime path reg set\n");
+	} else if (is_meson_t6x()) {
+		wbits_PRIMESL_OMAT_OFFSET0(2048, 2048);
+		wbits_PRIMESL_OMAT_OFFSET1(64, 2048);
+		wbits_PRIMESL_OMAT_OFFSET2(512, 512);
+		pr_sl(1, "t6x prime path reg set\n");
 	}
 }
 
 void prime_sl_close(void)
 {
-	SL_VSYNC_WR_MPEG_REG_BITS(PRIMESL_CTRL0, 0, 0, 1);
+	wbits_PRIMESL_CTRL0(0, 0, 0, 0, 0, 0, 0);
 	if (is_meson_tm2() || is_meson_sc2() || is_meson_s7d() || is_meson_s6()) {
 		u32 data32;
 
@@ -379,11 +516,15 @@ void prime_sl_close(void)
 		data32 &= ~(3 << 8);
 		data32 |= 1 << 0;
 		VSYNC_WR_TABLE_REG(VIDEO_PARTITION_TABLE, AMDV_PATH_CTRL, data32);
-		pr_sl(1, "[test],run into stb prime reg close\n");
+		pr_sl(1, "stb prime reg close\n");
 	} else if (is_meson_t5m()) {
 		SL_VSYNC_WR_MPEG_REG(AMDV_PATH_SWAP_CTRL1, 0x0);
 		SL_VSYNC_WR_MPEG_REG(AMDV_PATH_SWAP_CTRL2, 0x0);
 		SL_VSYNC_WR_MPEG_REG(VIU_VD1_PATH_CTRL, 0x10000);
-		pr_sl(1, "[test],run into tv prime reg close\n");
+		pr_sl(1, "t5m prime reg close\n");
+	} else if (is_meson_t6w()) {
+		pr_sl(1, "t6w prime reg close\n");
+	} else if (is_meson_t6x()) {
+		pr_sl(1, "t6x prime reg close\n");
 	}
 }

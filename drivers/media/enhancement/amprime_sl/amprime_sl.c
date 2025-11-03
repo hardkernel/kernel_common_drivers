@@ -36,9 +36,11 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
+#include <linux/firmware.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include "../amvecm/amcsc.h"
 #include "../amvecm/reg_helper.h"
+#include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
@@ -49,6 +51,8 @@
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 
 #include "amprime_sl.h"
+#include "amprime_sl_regs_t6w.h"
+#include "amprime_sl_regs_t6x.h"
 
 /*======================================*/
 #define AMPRIME_SL_NAME               "amprime_sl"
@@ -79,8 +83,6 @@ struct amprime_sl_dev_s {
 static struct amprime_sl_dev_s amprime_sl_dev;
 static struct prime_t prime_sl_setting;
 
-static u32 AMPSL_DISPLAY_DELAY_COUNTS = 1;
-
 static u32 prime_sl_enable = ENABLE;
 module_param(prime_sl_enable, uint, 0664);
 MODULE_PARM_DESC(prime_sl_enable, "\n prime_sl_enable\n");
@@ -104,13 +106,20 @@ module_param(prime_sl_display_adaptation_tuning, uint, 0664);
 MODULE_PARM_DESC(prime_sl_display_adaptation_tuning, "\n prime_sl_display_adaptation_tuning\n");
 
 u32 prime_sl_debug;
-static u32 prime_sl_debug_run_mode; /* use prime_sl_debug_run_mode for test */
+/* use prime_sl_debug_run_mode for test */
+/* 1:load fix setting mode; 2:test metadata mode; 3:skip mode*/
+static u32 prime_sl_debug_run_mode;
 static u32 prime_sl_hdr_mode = PRIME_SL_HDR_MODE_BYPASS_2020;
 static u32 prime_sl_certification_mode; /* 0:off, 1:on */
 static u32 prime_sl_encode_type; /* 0:HEVC, 1:AVC */
 static bool is_prime_sl_frame;/* 0:no, 1:yes */
 static u32 ampsl_display_counts;
 static u32 ampsl_dpss_display_counts;
+
+void *prime_sl_reg_setting_buf;
+u32 prime_sl_reg_setting_num = 225;
+static struct prime_sl_t psl;
+static u32 prime_sl_dpss_mode;
 
 static const int shadow_gain[201] = {
 	255, 255, 255, 253, 227, 208, 194, 182,
@@ -144,6 +153,48 @@ static const int shadow_gain[201] = {
 static void dbg_setting(struct prime_sl_t *prime_sl);
 static void dbg_config(struct prime_cfg_t *cfg);
 static void dbg_metadata(struct sl_hdr_metadata *pmetadata);
+
+int SL_VSYNC_WR_MPEG_REG(u32 adr, u32 val)
+{
+	if (prime_sl_dpss_mode) {
+		WRITE_VPP_REG(adr, val);
+	} else {
+#ifndef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+		WRITE_VPP_REG(adr, val);
+#else
+		VSYNC_WR_MPEG_REG(adr, val);
+#endif
+	}
+	return 0;
+}
+
+int SL_VSYNC_RD_MPEG_REG(u32 adr)
+{
+	if (prime_sl_dpss_mode) {
+		READ_VPP_REG(adr);
+	} else {
+#ifndef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+		READ_VPP_REG(adr);
+#else
+		VSYNC_RD_MPEG_REG(adr);
+#endif
+	}
+	return 0;
+}
+
+int SL_VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
+{
+	if (prime_sl_dpss_mode) {
+		WRITE_VPP_REG_BITS(adr, val, start, len);
+	} else {
+#ifndef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+		WRITE_VPP_REG_BITS(adr, val, start, len);
+#else
+		VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+#endif
+	}
+	return 0;
+}
 
 bool is_meson_g12(void)
 {
@@ -225,6 +276,33 @@ bool is_meson_s6(void)
 		return false;
 }
 
+bool is_meson_t6w(void)
+{
+	if (prime_sl_meson_dev.cpu_id == _CPU_MAJOR_ID_T6W)
+		return true;
+	else
+		return false;
+}
+
+bool is_meson_t6x(void)
+{
+	if (prime_sl_meson_dev.cpu_id == _CPU_MAJOR_ID_T6X)
+		return true;
+	else
+		return false;
+}
+
+bool is_prime_sl_stb_mode(void)
+{
+	if (is_meson_g12() || is_meson_tl1() ||
+		is_meson_tm2() || is_meson_sc2() ||
+		is_meson_t7() || is_meson_s4d() ||
+		is_meson_s7d() || is_meson_s6())
+		return true;
+	else
+		return false;
+}
+
 bool is_prime_sl_enable(void)
 {
 	return prime_sl_enable &&
@@ -252,6 +330,11 @@ void set_prime_sl_frame(bool val)
 	is_prime_sl_frame = val;
 }
 EXPORT_SYMBOL(set_prime_sl_frame);
+
+struct device *get_ampsl_device(void)
+{
+	return amprime_sl_dev.dev;
+}
 
 static int sink_support_hdr(const struct vinfo_s *vinfo)
 {
@@ -314,7 +397,7 @@ int get_prime_sl_display_brightness(void)
 	vinfo = get_current_vinfo();
 	if (prime_sl_certification_mode)
 		return prime_sl_display_brightness;
-	if (vinfo && vinfo->hdr_info.lumi_max) {
+	if (vinfo && vinfo->hdr_info.lumi_max && is_prime_sl_stb_mode()) {
 		prime_sl_display_brightness = vinfo->hdr_info.lumi_max;
 	} else {
 		if (sink_support_hdr(vinfo))
@@ -957,7 +1040,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 			metadata->u.tables.luminance_mapping_y[i] = readU(p, 16);
 			if (metadata->u.tables.luminance_mapping_y[i] > 8191) {
 				pr_sl(1, "Invalid luminance_mapping_y[%d]:%d\n",
-					i, metadata->u.tables.luminance_mapping_x[i]);
+					i, metadata->u.tables.luminance_mapping_y[i]);
 				return -22;
 			}
 			pr_sl(0x20, "luminance_mapping x[%d]:%d, y[%d]:%d\n",
@@ -993,7 +1076,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 			metadata->u.tables.colour_correction_y[i] = readU(p, 16);
 			if (metadata->u.tables.colour_correction_y[i] > 2047) {
 				pr_sl(1, "Invalid colour_correction_y[%d]:%d\n",
-					i, metadata->u.tables.colour_correction_x[i]);
+					i, metadata->u.tables.colour_correction_y[i]);
 				return -25;
 			}
 			pr_sl(0x20, "colour_correction x[%d]:%d, y[%d]:%d\n",
@@ -1245,15 +1328,6 @@ static int prime_sl_parser_metadata(struct vframe_s *vf)
 
 void prime_sl_pre_check(struct vframe_s *vf)
 {
-	if (prime_sl_running && (!get_video_enabled(0) || !vf)) {
-		prime_sl_close();
-		prime_sl_running = 0;
-		set_prime_sl_frame(0);
-		ampsl_dpss_display_counts = 0;
-		ampsl_display_counts = 0;
-		dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
-		return;
-	}
 	if (vf && vf->src_fmt.fmt == VFRAME_SIGNAL_FMT_HDR10PRIME) {
 		int size = 0;
 		char *aux_buf = (char *)get_sei_from_src_fmt(vf, &size);
@@ -1284,75 +1358,210 @@ void prime_sl_process(struct vframe_s *vf)
 	static struct vframe_s *last_vf;
 	bool new_vf = false;
 
+	/* skip mode */
+	if (prime_sl_debug_run_mode == 3)
+		return;
+
+	if (is_meson_t6w() || is_meson_t6x()) {
+		prime_sl_dpss_mode = dpss_mode;
+		pr_sl(0x200, "%s:dpss_mode from vecm =%d\n", __func__, dpss_mode);
+	} else {
+		prime_sl_dpss_mode = 0;
+	}
+
+	/* load fixed txt setting mode */
+	if (prime_sl_debug_run_mode == 1) {
+		pr_sl(1, "use fixed txt setting mode\n");
+		if (vf) {
+			if (!prime_sl_running)
+				dv_mem_power_on(VPU_PRIME_DOLBY_RAM);
+			prime_sl_set_reg(&psl);
+			prime_sl_running = 1;
+		} else {
+			prime_sl_close();
+			prime_sl_running = 0;
+			set_prime_sl_frame(0);
+			dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
+		}
+		return;
+	}
+
 	if (!prime_sl_probe || !prime_sl_enable || !p_funcs)
 		return;
 
+	if (!prime_sl_dpss_mode) {
+		if (vf && vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_HDR10PRIME) {
+			if (prime_sl_running) {
+				prime_sl_close();
+				prime_sl_running = 0;
+				ampsl_display_counts = 0;
+			}
+			return;
+		}
+
+		if (is_amdv_on())
+			return;
+
+		if (vf)
+			pr_sl
+			(1, "[%s]frame_index:%d,magic_code:%x,src_fmt:%d,sei_ptr:%p,sei_size:%d\n",
+				__func__, vf->frame_index, vf->src_fmt.sei_magic_code,
+				vf->src_fmt.fmt, vf->src_fmt.sei_ptr, vf->src_fmt.sei_size);
+
+		if (last_vf != vf && vf) {
+			new_vf = true;
+			ampsl_display_counts++;
+		}
+		last_vf = vf;
+
+		if (prime_sl_enable && p_funcs && new_vf) {
+			if (!prime_sl_parser_metadata(vf)) {
+				p_funcs->prime_metadata_parser_process(&prime_sl_setting);
+				if (!prime_sl_running)
+					dv_mem_power_on(VPU_PRIME_DOLBY_RAM);
+				if (prime_sl_debug & 0x200) {
+					dbg_metadata(&prime_sl_setting.prime_metadata);
+					dbg_config(&prime_sl_setting.cfg);
+					dbg_setting(&prime_sl_setting.prime_sl);
+				}
+				prime_sl_set_reg(&prime_sl_setting.prime_sl);
+				prime_sl_running = 1;
+				pr_sl(1, "cur counts:%d\n", ampsl_display_counts);
+			} else {
+				if (prime_sl_running) {
+					prime_sl_close();
+					prime_sl_running = 0;
+				}
+			}
+		} else if (prime_sl_running &&
+		(!get_video_enabled(0) || !vf)) {
+			/* exit play primesl need close */
+			prime_sl_close();
+			prime_sl_running = 0;
+			set_prime_sl_frame(0);
+			ampsl_display_counts = 0;
+			dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
+		}
+	}
+}
+EXPORT_SYMBOL(prime_sl_process);
+
+void prime_sl_process_for_dpss(struct vframe_s *vf)
+{
+	static struct vframe_s *last_vf;
+	bool new_vf = false;
+
 	/* skip mode */
 	if (prime_sl_debug_run_mode == 3)
+		return;
+
+	if (is_meson_t6w() || is_meson_t6x()) {
+		prime_sl_dpss_mode = dpss_mode;
+		pr_sl(0x200, "%s:dpss_mode from vecm =%d\n", __func__, dpss_mode);
+	} else {
+		prime_sl_dpss_mode = 0;
+	}
+	/* load fixed txt setting mode */
+	if (prime_sl_debug_run_mode == 1) {
+		pr_sl(1, "use fixed txt setting mode\n");
+		if (vf) {
+			if (!prime_sl_running)
+				dv_mem_power_on(VPU_PRIME_DOLBY_RAM);
+			prime_sl_set_reg(&psl);
+			prime_sl_running = 1;
+		} else {
+			prime_sl_close();
+			prime_sl_running = 0;
+			set_prime_sl_frame(0);
+			dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
+		}
+		return;
+	}
+
+	if (!prime_sl_probe || !prime_sl_enable || !p_funcs)
 		return;
 
 	if (vf && vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_HDR10PRIME) {
 		if (prime_sl_running) {
 			prime_sl_close();
 			prime_sl_running = 0;
-			ampsl_display_counts = 0;
 		}
 		return;
 	}
 
-	if (is_amdv_on())
-		return;
-
-	if (last_vf != vf && vf) {
-		new_vf = true;
-		ampsl_display_counts++;
-	}
-
-	last_vf = vf;
-
-	if (prime_sl_enable && prime_sl_debug_run_mode && new_vf) {
-		if (!prime_sl_parser_metadata(vf))
-			pr_sl(2, "parser meta success in debug mode\n");
-		else
-			pr_sl(1, "parser meta fail in debug mode\n");
-		if (prime_sl_debug_run_mode == 2 && p_funcs) {
-			p_funcs->prime_metadata_parser_process(&prime_sl_setting);
-			if (prime_sl_debug & 0x10) {
-				dbg_metadata(&prime_sl_setting.prime_metadata);
-				dbg_config(&prime_sl_setting.cfg);
-				dbg_setting(&prime_sl_setting.prime_sl);
-			}
-		}
-		return;
-	}
-
-	if (prime_sl_enable && p_funcs && new_vf) {
-		if (!prime_sl_parser_metadata(vf)) {
-			p_funcs->prime_metadata_parser_process(&prime_sl_setting);
+	/* load fixed txt setting mode */
+	if (prime_sl_debug_run_mode == 1) {
+		pr_sl(1, "use fixed txt setting mode\n");
+		if (vf) {
 			if (!prime_sl_running)
 				dv_mem_power_on(VPU_PRIME_DOLBY_RAM);
-			prime_sl_set_reg(&prime_sl_setting.prime_sl);
+			prime_sl_set_reg(&psl);
 			prime_sl_running = 1;
-			pr_sl(1, "cur counts:%d\n", ampsl_display_counts);
-			if (ampsl_display_counts == AMPSL_DISPLAY_DELAY_COUNTS)
-				prime_sl_module_enable();
 		} else {
+			prime_sl_close();
+			prime_sl_running = 0;
+			set_prime_sl_frame(0);
+			dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
+		}
+		return;
+	}
+
+	if (!prime_sl_probe || !prime_sl_enable || !p_funcs)
+		return;
+
+	if (prime_sl_dpss_mode) {
+		if (vf && vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_HDR10PRIME) {
 			if (prime_sl_running) {
 				prime_sl_close();
 				prime_sl_running = 0;
+				ampsl_dpss_display_counts = 0;
 			}
+			return;
 		}
-	} else if (prime_sl_running &&
-			(!get_video_enabled(0) || !vf)) {
-		/* exit play primesl need close */
-		prime_sl_close();
-		prime_sl_running = 0;
-		set_prime_sl_frame(0);
-		ampsl_display_counts = 0;
-		dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
+
+		if (vf)
+			pr_sl
+			(1, "[%s]frame_index:%d,magic_code:%x,src_fmt:%d,sei_ptr:%p,sei_size:%d\n",
+				__func__, vf->frame_index, vf->src_fmt.sei_magic_code,
+				vf->src_fmt.fmt, vf->src_fmt.sei_ptr, vf->src_fmt.sei_size);
+
+		if (last_vf != vf && vf) {
+			new_vf = true;
+			ampsl_dpss_display_counts++;
+		}
+		last_vf = vf;
+
+		if (prime_sl_enable && p_funcs && new_vf) {
+			if (!prime_sl_parser_metadata(vf)) {
+				p_funcs->prime_metadata_parser_process(&prime_sl_setting);
+				if (!prime_sl_running)
+					dv_mem_power_on(VPU_PRIME_DOLBY_RAM);
+				if (prime_sl_debug & 0x200) {
+					dbg_metadata(&prime_sl_setting.prime_metadata);
+					dbg_config(&prime_sl_setting.cfg);
+					dbg_setting(&prime_sl_setting.prime_sl);
+				}
+				prime_sl_set_reg(&prime_sl_setting.prime_sl);
+				prime_sl_running = 1;
+				pr_sl(1, "cur counts:%d\n", ampsl_dpss_display_counts);
+			} else {
+				if (prime_sl_running) {
+					prime_sl_close();
+					prime_sl_running = 0;
+				}
+			}
+		} else if (prime_sl_running &&
+		(!get_video_enabled(0) || !vf)) {
+			/* exit play primesl need close */
+			prime_sl_close();
+			prime_sl_running = 0;
+			set_prime_sl_frame(0);
+			ampsl_dpss_display_counts = 0;
+			dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
+		}
 	}
 }
-EXPORT_SYMBOL(prime_sl_process);
+EXPORT_SYMBOL(prime_sl_process_for_dpss);
 
 static void dbg_setting(struct prime_sl_t *prime_sl)
 {
@@ -1557,8 +1766,221 @@ static ssize_t amprime_sl_debug_store(const struct class *cla,
 	return count;
 }
 
+#define MAX_PATH_LEN 256
+/* path: "/vendor/lib/firmware/ampsl/" */
+#define FIRMWARE_DIR "ampsl"
+int ampsl_load_file(char *fw_name, void **dst_buf)
+{
+	int ret = 0;
+	const struct firmware *fw = NULL;
+	char name[MAX_PATH_LEN] = {0};
+	char ampsl_name[MAX_PATH_LEN] = {0};
+	char *tmp = NULL;
+	struct device *dev = NULL;
+
+	dev = get_ampsl_device();
+
+	if (!fw_name || !dev) {
+		pr_sl(1, "NULL param, %s (%d)\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	/*remove directory, only need file name*/
+	tmp = strrchr(fw_name, '/');
+	if (tmp)
+		strncpy(name, tmp + 1, MAX_PATH_LEN - 1);
+	else
+		strncpy(name, fw_name, MAX_PATH_LEN - 1);
+
+	snprintf(ampsl_name, (MAX_PATH_LEN - 1), "%s/%s",
+		 FIRMWARE_DIR, name);
+	pr_sl(200, "Try to load %s, filename: %s\n", fw_name, ampsl_name);
+
+	ret = request_firmware(&fw, ampsl_name, dev);
+	if (ret < 0) {
+		pr_sl(1, "Error : %d can't load the %s.\n", ret, ampsl_name);
+		return -ENOENT;
+	}
+
+	if (fw->size <= 0) {
+		pr_sl(1, "size error, wrong firmware or no enough mem.\n");
+		ret = -ENOMEM;
+		goto release;
+	}
+
+	*dst_buf = vmalloc(fw->size + 2);
+	if (!(*dst_buf)) {
+		ret = -ENOMEM;
+		goto release;
+	}
+	memset(*dst_buf, 0, fw->size + 2);
+	memcpy(*dst_buf, (char *)fw->data, fw->size);
+
+	pr_info("load file size: %zd, name: %s.\n",
+		fw->size, name);
+
+release:
+	release_firmware(fw);
+	return ret;
+}
+
+#define MAX_READ_SIZE 256
+static char cur_line[MAX_READ_SIZE];
+static bool ampsl_read_one_line(char **text_buf, char *line_buf)
+{
+	char *line_end;
+	size_t line_len = 0;
+	bool eof_flag = false;
+
+	if (!text_buf || !(*text_buf) || !line_buf) {
+		pr_info("line_buf %p, text_buf %p\n", line_buf, text_buf);
+		return true;
+	}
+
+	line_buf[0] = '\0';
+	while (*line_buf == '\0') {
+		pr_sl(0x20, "*text_buf: %s\n", *text_buf);
+		line_end = strnchr(*text_buf, 128, '\n');
+		pr_sl(0x20, "line_end: %s\n", line_end);
+		if (!line_end) {
+			line_len = strlen(*text_buf);
+			eof_flag = true;
+		} else {
+			line_len = (size_t)(line_end - *text_buf);
+		}
+		memcpy(line_buf, *text_buf, line_len);
+		line_buf[line_len] = '\0';
+		if (line_len > 0 && line_buf[line_len - 1] == '\r')
+			line_buf[line_len - 1] = '\0';
+
+		*text_buf = *text_buf + line_len + 1;
+		while (isspace(*line_buf))
+			line_buf++;
+
+		if (**text_buf == '\0')
+			eof_flag = true;
+
+		if (eof_flag)
+			break;
+	}
+
+	return eof_flag;
+}
+
+/*is_reg: true: reg; false: lut*/
+int ampsl_read_txt_to_buf(char *reg_txt, void *reg_buf, int reg_num)
+{
+	char *ptr_line;
+	char *last_space;
+	int count = 0;
+	int ret = 0;
+	bool eof_flag = false;
+	u32 *p_buf = (u32 *)reg_buf;
+	u32 num;
+
+	if (!reg_txt || !reg_buf)
+		return count;
+
+	while (!eof_flag) {
+		eof_flag = ampsl_read_one_line(&reg_txt, (char *)&cur_line);
+		ptr_line = cur_line;
+		pr_sl(200, "eof_flag %d, ptr_line: %s\n", eof_flag, ptr_line);
+		if (eof_flag && (strlen(cur_line) == 0))
+			break;
+		last_space = strrchr(ptr_line, ' ');
+		if (!last_space) {
+			pr_sl(1, "error line format\n");
+			return -1;
+		}
+		ret = sscanf(last_space + 1, "%d", &num);
+		if (ret == 1)
+			p_buf[count++] = num;
+		else
+			pr_sl(1, "fail to extract num\n");
+	}
+	if (reg_num == count)
+		pr_info("successfully load all setting regs!\n");
+	pr_info("read file, count: %d\n", count);
+	return count;
+}
+
+void ampsl_assign_to_struct(struct prime_sl_t *psl, const unsigned int *data)
+{
+	int idx = 0;
+	int i = 0;
+
+	psl->inv_chroma_ratio = data[idx++];
+	psl->inv_y_ratio = data[idx++];
+	psl->l_headroom = data[idx++];
+	psl->footroom = data[idx++];
+	psl->c_headroom = data[idx++];
+	psl->mub = data[idx++];
+	psl->mua = data[idx++];
+	for (i = 0; i < 7; i++)
+		psl->oct[i] = data[idx++];
+	for (i = 0; i < 3; i++)
+		psl->d_lut_threshold[i] = data[idx++];
+	for (i = 0; i < 4; i++)
+		psl->d_lut_step[i] = data[idx++];
+	for (i = 0; i < 9; i++)
+		psl->rgb2yuv[i] = data[idx++];
+	for (i = 0; i < 65; i++)
+		psl->lut_c[i] = data[idx++];
+	for (i = 0; i < 65; i++)
+		psl->lut_p[i] = data[idx++];
+	for (i = 0; i < 65; i++)
+		psl->lut_d[i] = data[idx++];
+}
+
+static ssize_t amprime_sl_load_reg_file_show
+	(const struct class *cla,
+	 const struct class_attribute *attr,
+	 char *buf)
+{
+	return 0;
+}
+
+/*para1:file type, para2: reg_file_name*/
+static ssize_t amprime_sl_load_reg_file_store
+		(const struct class *cla,
+		 const struct class_attribute *attr,
+		 const char *buf, size_t count)
+{
+	char *buf_orig, *parm[MAX_PARAM] = {NULL};
+	void *prime_sl_setting_txt = NULL;
+	int txt_line = 0;
+
+	if (!buf)
+		return count;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	parse_param_amprime_sl(buf_orig, (char **)&parm);
+	pr_info("%s: cmd: %s, %s\n", __func__, buf, parm[1]);
+
+	if (!strcmp(parm[0], "prime_sl_setting")) {
+		ampsl_load_file(parm[1], &prime_sl_setting_txt);
+		if (!prime_sl_reg_setting_buf) {
+			prime_sl_reg_setting_buf = vmalloc(prime_sl_reg_setting_num * sizeof(u32));
+			if (!prime_sl_reg_setting_buf) {
+				if (prime_sl_setting_txt)
+					vfree(prime_sl_setting_txt);
+				return count;
+			}
+		}
+		txt_line = ampsl_read_txt_to_buf(prime_sl_setting_txt,
+			prime_sl_reg_setting_buf, prime_sl_reg_setting_num);
+	}
+	if (txt_line == prime_sl_reg_setting_num)
+		ampsl_assign_to_struct(&psl, (unsigned int *)prime_sl_reg_setting_buf);
+	if (prime_sl_setting_txt)
+		vfree(prime_sl_setting_txt);
+	return count;
+}
+
 static struct class_attribute amprime_sl_class_attrs[] = {
 	__ATTR(debug, 0644, amprime_sl_debug_show, amprime_sl_debug_store),
+	__ATTR(load_primesl_reg_file, 0644,
+	       amprime_sl_load_reg_file_show,
+	       amprime_sl_load_reg_file_store),
 	__ATTR_NULL
 };
 
@@ -1635,6 +2057,14 @@ static struct prime_sl_device_data_s prime_sl_s6 = {
 	.cpu_id = _CPU_MAJOR_ID_S6,
 };
 
+static struct prime_sl_device_data_s prime_sl_t6w = {
+	.cpu_id = _CPU_MAJOR_ID_T6W,
+};
+
+static struct prime_sl_device_data_s prime_sl_t6x = {
+	.cpu_id = _CPU_MAJOR_ID_T6X,
+};
+
 static const struct of_device_id amprime_sl_match[] = {
 	{
 		.compatible = "amlogic, prime_sl_g12",
@@ -1679,6 +2109,14 @@ static const struct of_device_id amprime_sl_match[] = {
 	{
 		.compatible = "amlogic, prime_sl_s6",
 		.data = &prime_sl_s6,
+	},
+	{
+		.compatible = "amlogic, prime_sl_t6w",
+		.data = &prime_sl_t6w,
+	},
+	{
+		.compatible = "amlogic, prime_sl_t6x",
+		.data = &prime_sl_t6x,
 	},
 	{},
 };
@@ -1734,26 +2172,24 @@ static int amprime_sl_probe(struct platform_device *pdev)
  *	ret = cdev_add(&devp->cdev, devp->devno, 1);
  *	if (ret)
  *		goto fail_add_cdev;
- *
- *	devp->dev = device_create(devp->clsp, NULL, devp->devno,
- *			NULL, AMPRIME_SL_NAME);
- *	if (IS_ERR(devp->dev)) {
- *		ret = PTR_ERR(devp->dev);
- *		goto fail_create_device;
- *	}
  */
+	devp->dev = device_create(devp->clsp, NULL, devp->devno,
+		NULL, AMPRIME_SL_NAME);
+	if (IS_ERR(devp->dev)) {
+		ret = PTR_ERR(devp->dev);
+		goto fail_create_device;
+	}
 	prime_sl_probe = 1;
 	pr_info("%s: probe ok\n", __func__);
 	return 0;
-/*
- *
- *fail_create_device:
- *	pr_info("[amprime_sl.] : amprime_sl device create error.\n");
- *	cdev_del(&devp->cdev);
- *
- *fail_add_cdev:
- *	pr_info("[amprime_sl.] : amprime_sl add device error.\n");
- */
+
+fail_create_device:
+	pr_info("[amprime_sl.] : amprime_sl device create error.\n");
+ /*	cdev_del(&devp->cdev);
+  *
+  *fail_add_cdev:
+  *	pr_info("[amprime_sl.] : amprime_sl add device error.\n");
+  */
 fail_class_create_file:
 	pr_info("[amprime_sl.] : amprime_sl class create file error.\n");
 	for (i = 0; amprime_sl_class_attrs[i].attr.name; i++)

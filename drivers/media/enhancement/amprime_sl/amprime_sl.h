@@ -26,18 +26,6 @@
 #define PRIME_SL_DISPLAY_OETF_LINERA	2
 #define PRIME_SL_DISPLAY_BYPASS			3
 
-#ifndef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-#define SL_VSYNC_WR_MPEG_REG(adr, val) WRITE_VPP_REG(adr, val)
-#define SL_VSYNC_RD_MPEG_REG(adr) READ_VPP_REG(adr)
-#define SL_VSYNC_WR_MPEG_REG_BITS(adr, val, start, len) \
-	WRITE_VPP_REG_BITS(adr, val, start, len)
-#else
-#define SL_VSYNC_RD_MPEG_REG(adr) VSYNC_RD_MPEG_REG(adr)
-#define SL_VSYNC_WR_MPEG_REG(adr, val) VSYNC_WR_MPEG_REG(adr, val)
-#define SL_VSYNC_WR_MPEG_REG_BITS(adr, val, start, len) \
-	VSYNC_WR_MPEG_REG_BITS(adr, val, start, len)
-#endif
-
 enum cpu_id_e {
 	_CPU_MAJOR_ID_G12,
 	_CPU_MAJOR_ID_TL1,
@@ -50,6 +38,8 @@ enum cpu_id_e {
 	_CPU_MAJOR_ID_T5M,
 	_CPU_MAJOR_ID_S7D,
 	_CPU_MAJOR_ID_S6,
+	_CPU_MAJOR_ID_T6W,
+	_CPU_MAJOR_ID_T6X,
 	_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -446,6 +436,10 @@ struct prime_t {
 	struct timeval tv[4][2];
 };
 
+int SL_VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+int SL_VSYNC_RD_MPEG_REG(u32 adr);
+int SL_VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+
 bool is_meson_g12(void);
 bool is_meson_tl1(void);
 bool is_meson_tm2(void);
@@ -456,6 +450,9 @@ bool is_meson_t5w(void);
 bool is_meson_t5m(void);
 bool is_meson_s7d(void);
 bool is_meson_s6(void);
+bool is_meson_t6w(void);
+bool is_meson_t6x(void);
+bool is_prime_sl_stb_mode(void);
 
 void prime_api_init(void);
 void prime_api_exit(void);
@@ -480,7 +477,6 @@ int register_prime_functions(const struct hdr_prime_sl_func_s *func);
 int unregister_prime_functions(void);
 
 void prime_sl_set_reg(const struct prime_sl_t *pS);
-void prime_sl_module_enable(void);
 void prime_sl_close(void);
 
 void dv_mem_power_on(enum vpu_mod_e mode);
