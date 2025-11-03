@@ -428,7 +428,11 @@
 					 <&scmi_clk CLKID_SCMI_SYS_CLK>,
 					 <&scmi_clk CLKID_SCMI_AXI_CLK>,
 					 <&scmi_clk CLKID_SCMI_FIXED_PLL>,
-					 <&scmi_clk CLKID_SCMI_GP1_PLL>;
+					 <&scmi_clk CLKID_SCMI_GP1_PLL>,
+					 <&scmi_clk CLKID_SCMI_CPU_CLK>,
+					 <&scmi_clk CLKID_SCMI_DSU_CLK>,
+					 <&scmi_clk CLKID_SCMI_PWM_G>,
+					 <&scmi_clk CLKID_SCMI_PWM_I>;
 				clock-names = "xtal",
 					      "gp0_pll_src",
 					      "hifi0_pll_src",
@@ -436,7 +440,11 @@
 					      "sys_clk",
 					      "axi_clk",
 					      "fixed_pll",
-					      "gp1_pll";
+					      "gp1_pll",
+					      "cpu_clk",
+					      "dsu_clk",
+					      "pwm_g",
+					      "pwm_i";
 				status = "okay";
 			};
 
