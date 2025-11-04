@@ -520,11 +520,16 @@
 		src-clk-freq = <491520000>;
 		status = "disabled";
 	};
-	mixer: mixer@0 {
+
+	mixer: mixer@fe330614 {
 		compatible = "amlogic, t6d-mixer";
 		#sound-dai-cells = <0>;
+		reg = <0x0 0x614 0x0 0x10>,
+			<0x0 0x624 0x0 0x1c>;
+		reg-names = "coef_reg", "mixer_reg";
 		status = "okay";
 	};
+
 }; /* end of audiobus */
 
 &periphs_pinctrl {
