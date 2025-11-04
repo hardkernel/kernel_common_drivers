@@ -1187,6 +1187,8 @@ enum hdmi_vic_e {
 	HDMI_360x480p,
 	HDMI_360x576p,
 	HDMI_3840x1080p60,
+	HDMI_2560x2160,
+	HDMI_3072x2160,
 
 	/* the following VICs are for y420 mode,
 	 * they are fake VICs that used to diff
