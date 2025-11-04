@@ -989,12 +989,13 @@ void dsc_clk_config(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 				dsc_dec_drv->pix_per_clk = 2;
 			}
 		} else {
-			if (pps_data->pixel_clk <= PIX_BAND0) {
-				dsc_dec_drv->pix_per_clk = 1;
-				set_dsc_clk_cntl(FPLL_DIV3);
-			} else {
+			if ((pps_data->pixel_clk / pps_data->bits_per_pixel * 192 > PIX_BAND0) ||
+				pps_data->dsc_force_4ppc) {
 				dsc_dec_drv->pix_per_clk = 2;
 				set_dsc_clk_cntl(VPU_CLK_DIV_2);
+			} else {
+				dsc_dec_drv->pix_per_clk = 1;
+				set_dsc_clk_cntl(FPLL_DIV3);
 			}
 		}
 	}
@@ -1145,9 +1146,15 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 			dsc_dec_drv->tmg_cb_von_eline = dsc_dec_drv->pps_data.vend + 1;
 		}
 	} else {
-		dsc_dec_drv->tmg_ctrl.tmg_havon_begin = 827;
-		dsc_dec_drv->tmg_ctrl.tmg_hso_begin = 804;
-		dsc_dec_drv->tmg_ctrl.tmg_hso_end = 826;
+		if (pps_data->pic_width == 2560 && pps_data->pic_height == 1440) {
+			dsc_dec_drv->tmg_ctrl.tmg_havon_begin = 414;
+			dsc_dec_drv->tmg_ctrl.tmg_hso_begin = 402;
+			dsc_dec_drv->tmg_ctrl.tmg_hso_end = 413;
+		} else {
+			dsc_dec_drv->tmg_ctrl.tmg_havon_begin = 827;
+			dsc_dec_drv->tmg_ctrl.tmg_hso_begin = 804;
+			dsc_dec_drv->tmg_ctrl.tmg_hso_end = 826;
+		}
 		dsc_dec_drv->tmg_ctrl.tmg_vso_begin = 0;
 		dsc_dec_drv->tmg_ctrl.tmg_vso_end = 0;
 		dsc_dec_drv->tmg_ctrl.tmg_vso_bline = 3;

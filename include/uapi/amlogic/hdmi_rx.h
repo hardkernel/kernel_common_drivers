@@ -223,6 +223,7 @@ struct hdmi_dsc_pps_data_s {
 	int vend;
 	unsigned int pixel_clk;
 	int hw_vic;
+	int dsc_force_4ppc;
 };
 
 struct hdmirx_scdc_info {

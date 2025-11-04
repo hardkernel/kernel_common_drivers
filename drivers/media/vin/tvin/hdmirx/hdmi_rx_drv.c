@@ -166,6 +166,7 @@ u32 *pd_fifo_buf_a;
 u32 *pd_fifo_buf_b;
 u32 top_irq_tab[IRQ_TYPE_CNT];
 bool ee_voltage_en;
+int force_dsc_4ppc;
 static DEFINE_SPINLOCK(rx_pr_lock);
 DECLARE_WAIT_QUEUE_HEAD(query_wait);
 
@@ -1803,6 +1804,7 @@ void hdmirx_get_pps_info(struct tvin_sig_property_s *prop, u8 port)//todo)
 	prop->pps_data.color_fmt = rx[port].cur.colorspace;
 	prop->pps_data.pixel_clk = rx[port].clk.pixel_clk;
 	prop->pps_data.hw_vic = rx[port].cur.hw_vic;
+	prop->pps_data.dsc_force_4ppc = force_dsc_4ppc;
 }
 
 /*
@@ -2016,7 +2018,8 @@ void hdmirx_get_avi_ext_colorimetry(struct tvin_sig_property_s *prop, u8 port)
 
 bool hdmirx_is_need_4ppc(u8 port)
 {
-	if (rx[port].dsc_flag && rx[port].clk.pixel_clk >= 333 * MHz)
+	if ((rx[port].dsc_flag && ((rx[port].clk.pixel_clk * 192 /
+		rx[port].dsc_pps_data.bits_per_pixel) >= 333 * MHz)) || force_dsc_4ppc)
 		return true;
 	else
 		return false;

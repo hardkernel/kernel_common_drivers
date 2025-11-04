@@ -3311,6 +3311,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(cdr_bw, i++);
 	pr_var(force_avi_stable, i++);
 	pr_var(ee_voltage_en, i++);
+	pr_var(force_dsc_4ppc, i++);
 	pr_var(rx[E_PORT0].var.clk_stable_cnt, i++);
 	pr_var(rx[E_PORT1].var.clk_stable_cnt, i++);
 	pr_var(rx[E_PORT2].var.clk_stable_cnt, i++);
@@ -3807,6 +3808,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(ee_voltage_en),
 		&ee_voltage_en, value))
 		return pr_var(ee_voltage_en, index);
+	if (set_pr_var(tmpbuf, var_to_str(force_dsc_4ppc),
+		&force_dsc_4ppc, value))
+		return pr_var(force_dsc_4ppc, index);
 	//fsm var
 	if (set_pr_var(tmpbuf, var_to_str(rx[E_PORT0].var.dbg_ve),
 		&rx[E_PORT0].var.dbg_ve, value))
