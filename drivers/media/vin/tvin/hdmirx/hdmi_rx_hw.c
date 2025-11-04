@@ -5293,7 +5293,8 @@ u8 rx_get_hdcp_type(u8 port)
 		data_dec = hdmirx_rd_cor(RX_HDCP_STATUS_PWD_IVCRX, port);
 		rx[port].cur.hdcp14_state =
 			(hdmirx_rd_cor(RX_HDCP_STAT_HDCP1X_IVCRX, port) >> 4) & 3;
-		if (hdmirx_rd_bits_cor(CP2PA_GEN_STATUS_HDCP2X_IVCRX, MSK(2, 4), port))
+		if (rx[port].hdcp.hdcp_version == HDCP_VER_22 &&
+			hdmirx_rd_bits_cor(CP2PA_GEN_STATUS_HDCP2X_IVCRX, MSK(2, 4), port))
 			rx[port].cur.hdcp22_state = 3;
 		else
 			rx[port].cur.hdcp22_state = 0;
