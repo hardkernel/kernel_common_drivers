@@ -55,7 +55,7 @@
 #define AD82120B_FAULT_CHECK_INTERVAL		500
 
 // you can read out the register and ram data, and check them.
-#define AD82120B_REG_RAM_CHECK
+//#define AD82120B_REG_RAM_CHECK
 #define AD82120B_VOLUME_MAX  (230)
 #define AD82120B_VOLUME_MIN  (0)
 #define AD82120B_PARAM_COUNT 1220
