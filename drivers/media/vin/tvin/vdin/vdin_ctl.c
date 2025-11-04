@@ -8565,10 +8565,12 @@ void vdin_sw_reset(struct vdin_dev_s *devp)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* reset vfce hw in t6w */
 	if (devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) {
-		wr(0, VFCE_TOP0_CTRL_0, 0x1fff);
-		wr(0, VFCE_TOP1_CTRL_0, 0x1fff);
-		wr(0, VFCE_TOP0_CTRL_0, 0x0);
-		wr(0, VFCE_TOP1_CTRL_0, 0x0);
+		if (devp->hw_core == VDIN_HW_CORE_NORMAL) {
+			wr(0, VFCE_TOP0_CTRL_0, 0x1fff);
+			wr(0, VFCE_TOP1_CTRL_0, 0x1fff);
+			wr(0, VFCE_TOP0_CTRL_0, 0x0);
+			wr(0, VFCE_TOP1_CTRL_0, 0x0);
+		}
 	}
 #endif
 }

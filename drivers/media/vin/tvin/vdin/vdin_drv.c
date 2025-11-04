@@ -2314,6 +2314,8 @@ int vdin_loopback_parm_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para
 		!(devp->dtdata->hw_ver == VDIN_HW_T6X)) || !para)
 		return 0;
 
+	devp->vinfo_over_pixel_clk = false;
+	devp->input_over_pixel_clk = false;
 	para->over_pixel_clock = false;
 
 	vinfo = get_current_vinfo();
