@@ -20,7 +20,8 @@
 /* 2025.07.22 dump_cvtem_packet optimize stack size */
 /* 2025.09.12 fix emp dolby vision parsing error */
 /* 2025.09.30 fix emp form2 dolby vision issue */
-#define RX_PKT_VER "ver.2025/09/30"
+/* 2025.11.05 fix unpack AVI packet when no EMP isr */
+#define RX_PKT_VER "ver.2025/11/05"
 
 #define K_ONEPKT_BUFF_SIZE		8
 #define K_PKT_REREAD_SIZE		2

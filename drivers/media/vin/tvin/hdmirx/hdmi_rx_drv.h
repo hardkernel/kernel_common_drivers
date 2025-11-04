@@ -1337,7 +1337,6 @@ void rx_debug_loadkey(u8 port);
 void rx_debug_load22key(u8 port);
 int rx_debug_wr_reg(const char *buf, char *tmpbuf, int i, u8 port);
 int rx_debug_rd_reg(const char *buf, char *tmpbuf, u8 port);
-void rx_update_sig_info(u8 port);
 int aml_vrr_atomic_notifier_register(struct notifier_block *nb);
 /* repeater */
 bool hdmirx_repeat_support(void);

@@ -1916,27 +1916,6 @@ void hdmirx_get_qms_plus_info(struct tvin_sig_property_s *prop, u8 port)
 //		prop->vtem_data.vrr_en = 1;
 }
 
-void rx_set_sig_info(void)
-{
-	//return;
-	//struct tvin_frontend_s *fe = tvin_get_frontend(TVIN_PORT_HDMI0,
-		//VDIN_FRONTEND_IDX);
-	//if (fe->sm_ops && fe->sm_ops->vdin_set_property)
-		//fe->sm_ops->vdin_set_property(fe);
-	//else
-		//rx_pr("hdmi notify err\n");
-}
-
-void rx_update_sig_info(u8 port)
-{
-	//rx_check_pkt_flag(port);
-	rx_get_vsi_info(port);
-	rx_get_em_info(port);
-	rx_get_avi_info(port);
-	//rx_get_aif_info(port);
-	rx_set_sig_info();
-}
-
 /*
  * hdmirx_get_hdr_info - get hdr info
  */

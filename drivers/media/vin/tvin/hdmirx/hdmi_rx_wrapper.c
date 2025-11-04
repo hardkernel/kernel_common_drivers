@@ -1214,10 +1214,12 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT, port);
 					} else {
 						rx_emp_field_done_irq(port);
 						rx_pkt_handler(PKT_BUFF_SET_EMP, port);
-						rx_update_sig_info(port);
+						rx_get_em_info(port);
+						rx_get_vsi_info(port);
 					}
 					emp_rcvd = false;
 				}
+				rx_get_avi_info(port);
 				tvin_update_vdin_prop(rx_get_port_type(port),
 					PKT_TYPE_UNKNOWN);
 			}
@@ -1369,10 +1371,12 @@ irqreturn_t irq1_handler(int irq, void *params)
 				} else {
 					rx_emp_field_done_irq(E_PORT1);
 					rx_pkt_handler(PKT_BUFF_SET_EMP, E_PORT1);
-					rx_update_sig_info(E_PORT1);
+					rx_get_em_info(E_PORT1);
+					rx_get_vsi_info(E_PORT1);
 				}
 				emp_rcvd = false;
 			}
+			rx_get_avi_info(E_PORT1);
 			tvin_update_vdin_prop(rx_get_port_type(E_PORT1),
 				PKT_TYPE_UNKNOWN);
 		}
@@ -1527,10 +1531,12 @@ irqreturn_t irq2_handler(int irq, void *params)
 				} else {
 					rx_emp_field_done_irq(E_PORT2);
 					rx_pkt_handler(PKT_BUFF_SET_EMP, E_PORT2);
-					rx_update_sig_info(E_PORT2);
+					rx_get_em_info(E_PORT2);
+					rx_get_vsi_info(E_PORT2);
 				}
 				emp_rcvd = false;
 			}
+			rx_get_avi_info(E_PORT2);
 			tvin_update_vdin_prop(rx_get_port_type(E_PORT2),
 				PKT_TYPE_UNKNOWN);
 		}
@@ -1718,11 +1724,12 @@ irqreturn_t irq3_handler(int irq, void *params)
 				} else {
 					rx_emp_field_done_irq(E_PORT3);
 					rx_pkt_handler(PKT_BUFF_SET_EMP, E_PORT3);
-					rx_update_sig_info(E_PORT3);
+					rx_get_em_info(E_PORT3);
+					rx_get_vsi_info(E_PORT3);
 				}
 				emp_rcvd = false;
 			}
-
+			rx_get_avi_info(E_PORT3);
 			tvin_update_vdin_prop(rx_get_port_type(E_PORT3),
 				PKT_TYPE_UNKNOWN);
 		}
