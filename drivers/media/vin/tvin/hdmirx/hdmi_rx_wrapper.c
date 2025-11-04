@@ -4420,10 +4420,9 @@ void rx_5v_monitor(void)
 	if (tmp_5v != pwr_sts)
 		check_cnt++;
 
-	rx_power_consumption_cntl(tmp_5v);
-
 	if (check_cnt >= pow5v_max_cnt) {
 		check_cnt = 0;
+		rx_power_consumption_cntl(tmp_5v);
 		pwr_sts = tmp_5v;
 		rx_pr("Hotplug-0x%x\n", pwr_sts);
 		hotplug_wait_query();
