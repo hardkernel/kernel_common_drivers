@@ -202,11 +202,13 @@ static void fix_amfc_clock(struct platform_device *pdev)
 		}
 	}
 }
-static unsigned long vmalloc_to_phys(void *va)
+
+static unsigned long vmalloc_to_phys(void *va, int check)
 {
 	unsigned long pfn = vmalloc_to_pfn(va);
 
-	WARN_ON(!pfn_valid(pfn));
+	if (check)
+		WARN_ON(!pfn_valid(pfn));
 	return __pa(pfn_to_kaddr(pfn)) + offset_in_page(va);
 }
 
@@ -339,7 +341,7 @@ static int show_regs(char *buf)
 	unsigned int *p;
 	unsigned int phy_base, i, size  = 0;
 
-	phy_base = vmalloc_to_phys(amfc->io_base);
+	phy_base = vmalloc_to_phys(amfc->io_base, 0);
 	p = (unsigned int *)amfc->io_base;
 	if (buf) {
 		size += sprintf(buf + size, "AMFC_REGS:");
@@ -352,6 +354,8 @@ static int show_regs(char *buf)
 		size += sprintf(buf + size, "\n");
 		size += sprintf(buf + size, "CLKCTRL_AMFC_CLK_CTRL:%08x\n",
 				amfc_clk_read(CLKCTRL_AMFC_CLK_CTRL));
+		size += sprintf(buf + size, "AMFC_SECURE_TOP_REG:%08x\n",
+				amfc_hw_read(AMFC_SECURE_TOP_REG));
 	} else {
 		pr_info("AMFC_REGS:\n");
 		for (i = 0; i < 0x48; i++) {
@@ -362,6 +366,8 @@ static int show_regs(char *buf)
 		pr_info("\n");
 		pr_info("CLKCTRL_AMFC_CLK_CTRL:%08x\n",
 			amfc_clk_read(CLKCTRL_AMFC_CLK_CTRL));
+		pr_info("AMFC_SECURE_TOP_REG:%08x\n",
+			amfc_hw_read(AMFC_SECURE_TOP_REG));
 	}
 	return size;
 }
@@ -592,7 +598,7 @@ static void *create_map(struct amfc_cmd_list *acl, void *addr,
 			acl->dst_scatter = 1;
 		return page_table;
 	}
-	set_up_addr(acl, vmalloc_to_phys(addr), PAGE_OFF(addr), addr_type, 1);
+	set_up_addr(acl, vmalloc_to_phys(addr, 1), PAGE_OFF(addr), addr_type, 1);
 	return NULL;
 }
 
@@ -761,7 +767,10 @@ again:
 				pr_emerg("%s timeout:%lld -> %lld, %lld\n",
 					 __func__, tick, cur, timeout);
 				show_regs(NULL);
+				amfc_unmap_addr((long)acl, sizeof(*acl), DMA_FROM_DEVICE);
 				show_acl(acl);
+				pr_info("src:%px, dst:%px, src_size:%d, dst_size:%d\n", src, dst, (int)src_size, (int)dst_size);
+				dump_addr(src, src_size);
 				if (cur - tick >= timeout * 50000UL)
 					break;
 				// init again and retry;
@@ -974,7 +983,10 @@ again:
 				pr_emerg("%s timeout:%lld -> %lld, %lld, tick:%d\n",
 					 __func__, tick, cur, timeout, amfc_hw_read(AMFC_CMD0_TIME_MEASURE));
 				show_regs(NULL);
+				amfc_unmap_addr((long)acl, sizeof(*acl), DMA_FROM_DEVICE);
 				show_acl(acl);
+				pr_info("src:%px, dst:%px, src_size:%d, dst_size:%d\n", src, dst, (int)src_size, (int)dst_size);
+				dump_addr(src, src_size);
 				if (cur - tick >= timeout * 50000UL)
 					break;
 

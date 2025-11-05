@@ -181,4 +181,6 @@
 //Bit   1      reg_cmd0_awugt
 //Bit   0      reg_cmd0_awqos
 
+#define AMFC_SECURE_TOP_REG			((0x0060  << 2))
+
 #endif
