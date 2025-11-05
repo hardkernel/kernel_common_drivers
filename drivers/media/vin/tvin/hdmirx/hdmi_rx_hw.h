@@ -61,7 +61,8 @@
 /* 2025.10.21 add dsc timing */
 /* 2025.10.28 fix timing change when resume */
 /* 2025.10.30 fix vid if problem */
-#define RX_HW_VER "ver.2025/10/30"
+/* 2025.11.18 do not suspend when digital clk is off */
+#define RX_HW_VER "ver.2025/11/18"
 
 #define K_TEST_CHK_ERR_CNT
 
