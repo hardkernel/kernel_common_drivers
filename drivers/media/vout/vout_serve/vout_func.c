@@ -356,7 +356,7 @@ EXPORT_SYMBOL(vout_func_set_vmode);
 int vout_func_set_current_vmode(int index, enum vmode_e mode)
 {
 	vout_func_set_state(index, mode);
-	vout_func_update_viu(index, 0);
+	vout_func_update_viu(index, VIU_MUX_INVALID);
 
 	return vout_func_set_vmode(index, mode);
 }
