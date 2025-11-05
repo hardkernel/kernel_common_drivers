@@ -843,7 +843,9 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 				} else if ((devp->vdin_std_duration >= VDIN_VRR_MIN_FRAME_RATE &&
 					    devp->vdin_std_duration < devp->vrr_frame_rate_min) ||
 					   (devp->vinfo_std_duration >
-					    (devp->vdin_std_duration + 2))) {
+					    (devp->vdin_std_duration + 2) &&
+					    !(devp->dtdata->hw_ver == VDIN_HW_T6X ||
+					    devp->dtdata->hw_ver == VDIN_HW_T3X))) {
 					devp->game_mode = (VDIN_GAME_MODE_0 |
 						VDIN_GAME_MODE_1);
 				} else {
