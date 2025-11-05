@@ -14392,8 +14392,9 @@ static bool update_frc_link_state(struct video_layer_s *layer,
 				layer->frc_link_skip_cnt = 0;
 				layer->cur_frc_link_mode = EPVPP_API_MODE_FRC_NONE;
 			} else {
-				pr_info("%s: Bypass frc link fail %d\n",
-					__func__, iret);
+				if (layer->global_debug & DEBUG_FLAG_PLINK_MORE)
+					pr_info("%s: Bypass frc link fail %d\n",
+						__func__, iret);
 			}
 		} else if (!is_frc_link_on(layer) &&
 			!is_local_vf(vf) &&
