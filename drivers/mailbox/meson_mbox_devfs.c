@@ -21,13 +21,21 @@
 #include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
-#include <linux/list.h>
+#include <linux/sched/signal.h>
 #include <linux/amlogic/aml_mbox.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
 #include "meson_mbox_devfs.h"
-#include <asm/siginfo.h>
 
 #define DRIVER_NAME		"mbox-devfs"
+#define MBOX_DEV_RX_BUF_LEN_DEFAULT (10)
+
+struct aml_mbox_dev_rx_msg {
+	unsigned int msg_cnt;
+	unsigned int msg_free;
+	struct aml_mbox_rx_data *rx_buf;
+	unsigned int rx_buf_len;
+	struct mutex lock; //mutex lock for RX ring buffer
+};
 
 struct aml_mbox_dev {
 	struct list_head list;
@@ -36,12 +44,13 @@ struct aml_mbox_dev {
 	struct device *dev;
 	struct device *p_dev;
 	struct mbox_chan *mbox_chan;
-	struct fasync_struct *async_queue;
 	struct class *class;
+	struct fasync_struct *async_queue;
+	struct aml_mbox_dev_rx_msg *rx_msg;
+	wait_queue_head_t waitq;
 	const char *name;
 	u32 dest;
 	u32 mbox_nums;
-	void *priv_data;
 };
 
 struct aml_mbox_priv_data {
@@ -52,10 +61,36 @@ struct aml_mbox_priv_data {
 struct aml_mbox_priv {
 	struct aml_mbox_dev *aml_dev;
 	struct aml_mbox_data *aml_ree2remote_data;
-	struct aml_mbox_data *aml_ao2ree_data;
-	struct aml_mbox_data *aml_dspa2ree_data;
-	struct aml_mbox_data *aml_dspb2ree_data;
 };
+
+static int mbox_try_to_read_rxdata(struct aml_mbox_dev_rx_msg *rx_msg,
+		struct aml_mbox_rx_data *rx_data)
+{
+	struct aml_mbox_rx_data *rx_packet;
+	unsigned int msg_cnt;
+	unsigned int idx;
+	u32 rx_buf_len;
+
+	mutex_lock(&rx_msg->lock);
+	msg_cnt = rx_msg->msg_cnt;
+	if (!msg_cnt) {
+		mutex_unlock(&rx_msg->lock);
+		return 1;
+	}
+
+	rx_buf_len = rx_msg->rx_buf_len;
+	idx = rx_msg->msg_free;
+	if (idx >= msg_cnt)
+		idx -= msg_cnt;
+	else
+		idx += rx_buf_len - msg_cnt;
+
+	rx_packet = &rx_msg->rx_buf[idx];
+	memcpy(rx_data, rx_packet, sizeof(*rx_data));
+	rx_msg->msg_cnt--;
+	mutex_unlock(&rx_msg->lock);
+	return 0;
+}
 
 static ssize_t mbox_message_write(struct file *filp,
 				  const char __user *userbuf,
@@ -122,13 +157,13 @@ static ssize_t mbox_message_read(struct file *filp, char __user *userbuf,
 	struct aml_mbox_priv *aml_priv = filp->private_data;
 	struct aml_mbox_dev *aml_dev = aml_priv->aml_dev;
 	struct aml_mbox_data *ree2remote_data = aml_priv->aml_ree2remote_data;
-	struct aml_mbox_data *ao2ree_data = aml_priv->aml_ao2ree_data;
-	struct aml_mbox_data *dspa2ree_data = aml_priv->aml_dspa2ree_data;
-	struct aml_mbox_data *dspb2ree_data = aml_priv->aml_dspb2ree_data;
+	struct aml_mbox_rx_data aml_rx_data;
 	struct device *dev = aml_dev->p_dev;
+	struct aml_mbox_dev_rx_msg *rx_msg;
 	int ret = 0;
-	int rxsize;
-	void *rxbuf;
+	int rxsize = 0;
+	void *rx_data_buf = NULL;
+	DECLARE_WAITQUEUE(mbox_wq, current);
 
 	if (aml_dev->dest != MAILBOX_ARM) {
 		ret = wait_for_completion_killable(&ree2remote_data->complete);
@@ -145,35 +180,60 @@ static ssize_t mbox_message_read(struct file *filp, char __user *userbuf,
 
 	switch (aml_dev->dest) {
 	case MAILBOX_ARM:
-		if (!strcmp(aml_dev->name, "aocpu2ree")) {
-			rxbuf = ao2ree_data->rxbuf;
-			rxsize = ao2ree_data->rxsize;
-		} else if (!strcmp(aml_dev->name, "dspa2ree")) {
-			rxbuf = dspa2ree_data->rxbuf;
-			rxsize = dspa2ree_data->rxsize;
-		} else if (!strcmp(aml_dev->name, "dspb2ree")) {
-			rxbuf = dspb2ree_data->rxbuf;
-			rxsize = dspb2ree_data->rxsize;
-		} else {
-			dev_err(dev, "Error: Unrecognized device source\n");
-			return -ENXIO;
+		rx_msg = aml_dev->rx_msg;
+		if (IS_ERR_OR_NULL(rx_msg)) {
+			dev_err(dev, "Err: Mbox rx_msg is NULL\n");
+			return -EINVAL;
 		}
+
+		dev_dbg(dev, "%s: add current task to wait queue\n",
+				__func__);
+		add_wait_queue(&aml_dev->waitq, &mbox_wq);
+
+		do {
+			__set_current_state(TASK_INTERRUPTIBLE);
+
+			ret = mbox_try_to_read_rxdata(rx_msg, &aml_rx_data);
+			if (!ret)
+				break;
+
+			if (filp->f_flags & O_NONBLOCK) {
+				ret = -EAGAIN;
+				goto waitq_err;
+			}
+
+			if (signal_pending(current)) {
+				ret = -ERESTARTSYS;
+				goto waitq_err;
+			}
+			schedule();
+		} while (1);
+
+		rx_data_buf = aml_rx_data.buf;
+		rxsize = aml_rx_data.size;
 		break;
 	default:
-		rxbuf = ree2remote_data->rxbuf;
+		rx_data_buf = ree2remote_data->rxbuf;
 		rxsize = ree2remote_data->rxsize;
 		break;
 	}
 
-	if (!rxbuf) {
-		dev_err(dev, "Error: rxbuf is NULL!\n");
-		return -ENXIO;
+	if (!rx_data_buf) {
+		dev_err(dev, "Error: RX data buf is NULL!\n");
+		ret = -ENXIO;
+		goto waitq_err;
 	}
 
 	rxsize = count > rxsize ? rxsize : count;
 	dev_dbg(dev, "%s: rxsize = %d\n", __func__, rxsize);
 	ret = simple_read_from_buffer(userbuf, rxsize, ppos,
-			rxbuf, MBOX_USER_SIZE);
+			rx_data_buf, MBOX_USER_SIZE);
+
+waitq_err:
+	if (aml_dev->dest == MAILBOX_ARM) {
+		__set_current_state(TASK_RUNNING);
+		remove_wait_queue(&aml_dev->waitq, &mbox_wq);
+	}
 
 	return ret;
 }
@@ -190,12 +250,9 @@ static int mbox_message_open(struct inode *inode, struct file *filp)
 	struct device *dev = aml_dev->p_dev;
 	struct aml_mbox_priv *aml_priv;
 	struct aml_mbox_data *ree2remote_data;
-	struct aml_mbox_data *ao2ree_data;
-	struct aml_mbox_data *dspa2ree_data;
-	struct aml_mbox_data *dspb2ree_data;
 
-	aml_priv = devm_kzalloc(aml_dev->p_dev, sizeof(*aml_priv), GFP_KERNEL);
-	if (IS_ERR(aml_priv))
+	aml_priv = devm_kzalloc(dev, sizeof(*aml_priv), GFP_KERNEL);
+	if (IS_ERR_OR_NULL(aml_priv))
 		return -ENOMEM;
 
 	dev_dbg(dev, "Open dev name: %s\n", aml_dev->name);
@@ -204,85 +261,29 @@ static int mbox_message_open(struct inode *inode, struct file *filp)
 	case MAILBOX_AOCPU:
 	case MAILBOX_DSP:
 	case MAILBOX_SECPU:
-		ree2remote_data = devm_kzalloc(aml_dev->p_dev, sizeof(*ree2remote_data),
+		ree2remote_data = devm_kzalloc(dev, sizeof(*ree2remote_data),
 					       GFP_KERNEL);
-		if (IS_ERR(ree2remote_data)) {
-			devm_kfree(aml_dev->p_dev, aml_priv);
+		if (IS_ERR_OR_NULL(ree2remote_data)) {
+			devm_kfree(dev, aml_priv);
 			return -ENOMEM;
 		}
 
-		ree2remote_data->rxbuf = devm_kzalloc(aml_dev->p_dev, MBOX_USER_SIZE,
+		ree2remote_data->rxbuf = devm_kzalloc(dev, MBOX_USER_SIZE,
 						      GFP_KERNEL);
-		if (IS_ERR(ree2remote_data->rxbuf)) {
-			devm_kfree(aml_dev->p_dev, aml_priv);
-			devm_kfree(aml_dev->p_dev, ree2remote_data);
+		if (IS_ERR_OR_NULL(ree2remote_data->rxbuf)) {
+			devm_kfree(dev, aml_priv);
+			devm_kfree(dev, ree2remote_data);
 			return -ENOMEM;
 		}
 
 		init_completion(&ree2remote_data->complete);
 		aml_priv->aml_ree2remote_data = ree2remote_data;
 		break;
-	case MAILBOX_ARM:
-		if (!strcmp(aml_dev->name, "aocpu2ree")) {
-			ao2ree_data = devm_kzalloc(aml_dev->p_dev,
-					sizeof(*ao2ree_data), GFP_KERNEL);
-			if (IS_ERR(ao2ree_data)) {
-				devm_kfree(aml_dev->p_dev, aml_priv);
-				return -ENOMEM;
-			}
-
-			ao2ree_data->rxbuf = devm_kzalloc(aml_dev->p_dev,
-					MBOX_DATA_SIZE, GFP_KERNEL);
-			if (IS_ERR(ao2ree_data->rxbuf)) {
-				devm_kfree(aml_dev->p_dev, aml_priv);
-				devm_kfree(aml_dev->p_dev, ao2ree_data);
-				return -ENOMEM;
-			}
-			aml_priv->aml_ao2ree_data = ao2ree_data;
-		}
-
-		if (!strcmp(aml_dev->name, "dspa2ree")) {
-			dspa2ree_data = devm_kzalloc(aml_dev->p_dev,
-					sizeof(*dspa2ree_data), GFP_KERNEL);
-			if (IS_ERR(dspa2ree_data)) {
-				devm_kfree(aml_dev->p_dev, aml_priv);
-				return -ENOMEM;
-			}
-
-			dspa2ree_data->rxbuf = devm_kzalloc(aml_dev->p_dev,
-					MBOX_DATA_SIZE, GFP_KERNEL);
-			if (IS_ERR(dspa2ree_data->rxbuf)) {
-				devm_kfree(aml_dev->p_dev, aml_priv);
-				devm_kfree(aml_dev->p_dev, dspa2ree_data);
-				return -ENOMEM;
-			}
-			aml_priv->aml_dspa2ree_data = dspa2ree_data;
-		}
-
-		if (!strcmp(aml_dev->name, "dspb2ree")) {
-			dspb2ree_data = devm_kzalloc(aml_dev->p_dev,
-					sizeof(*dspb2ree_data), GFP_KERNEL);
-			if (IS_ERR(dspb2ree_data)) {
-				devm_kfree(aml_dev->p_dev, aml_priv);
-				return -ENOMEM;
-			}
-
-			dspb2ree_data->rxbuf = devm_kzalloc(aml_dev->p_dev,
-					MBOX_DATA_SIZE, GFP_KERNEL);
-			if (IS_ERR(dspb2ree_data->rxbuf)) {
-				devm_kfree(aml_dev->p_dev, aml_priv);
-				devm_kfree(aml_dev->p_dev, dspb2ree_data);
-				return -ENOMEM;
-			}
-			aml_priv->aml_dspb2ree_data = dspb2ree_data;
-		}
-		break;
 	default:
 		break;
 	};
 
 	aml_priv->aml_dev = aml_dev;
-	aml_dev->priv_data = aml_priv;
 	filp->private_data = aml_priv;
 	return 0;
 }
@@ -291,35 +292,16 @@ static int mbox_message_release(struct inode *inode, struct file *filp)
 {
 	struct aml_mbox_priv *aml_priv = filp->private_data;
 	struct aml_mbox_dev *aml_dev = aml_priv->aml_dev;
+	struct device *dev = aml_dev->p_dev;
 
-	switch (aml_dev->dest) {
-	case MAILBOX_AOCPU:
-	case MAILBOX_DSP:
-	case MAILBOX_SECPU:
-		devm_kfree(aml_dev->p_dev, aml_priv->aml_ree2remote_data->rxbuf);
-		devm_kfree(aml_dev->p_dev, aml_priv->aml_ree2remote_data);
-		break;
-	case MAILBOX_ARM:
-		if (!strcmp(aml_dev->name, "aocpu2ree")) {
-			devm_kfree(aml_dev->p_dev, aml_priv->aml_ao2ree_data->rxbuf);
-			devm_kfree(aml_dev->p_dev, aml_priv->aml_ao2ree_data);
-		}
+	if (aml_dev->async_queue) {
+		fasync_helper(-1, filp, 0, &aml_dev->async_queue);
+		dev_dbg(dev, "%s SIGIO removed from async queue\n",
+				aml_dev->name);
+	}
 
-		if (!strcmp(aml_dev->name, "dspa2ree")) {
-			devm_kfree(aml_dev->p_dev, aml_priv->aml_dspa2ree_data->rxbuf);
-			devm_kfree(aml_dev->p_dev, aml_priv->aml_dspa2ree_data);
-		}
+	filp->private_data = NULL;
 
-		if (!strcmp(aml_dev->name, "dspb2ree")) {
-			devm_kfree(aml_dev->p_dev, aml_priv->aml_dspb2ree_data->rxbuf);
-			devm_kfree(aml_dev->p_dev, aml_priv->aml_dspb2ree_data);
-		}
-		break;
-	default:
-		break;
-	};
-
-	devm_kfree(aml_dev->p_dev, aml_priv);
 	return 0;
 }
 
@@ -331,7 +313,8 @@ static int mbox_message_fasync(int fd, struct file *filp, int on)
 	struct device *dev = aml_dev->p_dev;
 
 	if (aml_dev->dest == MAILBOX_ARM) {
-		dev_dbg(dev, "register mbox message fasync signal\n");
+		dev_dbg(dev, "%s register mbox message fasync signal\n",
+				aml_dev->name);
 		ret = fasync_helper(fd, filp, on, &aml_dev->async_queue);
 	}
 
@@ -350,21 +333,58 @@ static const struct file_operations mbox_message_ops = {
 	.fasync		= mbox_message_fasync,
 };
 
-static void mbox_ao2ree_rx_callback(struct mbox_client *cl, void *mssg)
+static int mbox_remote2ree_notify(struct aml_mbox_dev *aml_dev, void *mssg)
 {
-	struct device *dev = cl->dev;
-	struct aml_mbox_priv *aml_priv;
+	struct device *dev = aml_dev->p_dev;
 	struct aml_mbox_rx_data *aml_rx_data;
-	struct aml_mbox_data *ao2ree_data;
-	struct aml_mbox_dev *aml_devs;
-	struct aml_mbox_dev *aml_dev;
+	struct aml_mbox_rx_data *rx_packet;
+	struct aml_mbox_dev_rx_msg *rx_msg;
 	u32 cmd;
-	u32 mbox_nums;
-	int idx;
+	u32 rx_buf_len;
+	unsigned int idx;
 
 	aml_rx_data = mssg;
 	cmd = aml_rx_data->cmd;
 	dev_dbg(dev, "%s: cmd = 0x%x\n", __func__, (unsigned int)cmd);
+
+	rx_msg = aml_dev->rx_msg;
+	mutex_lock(&rx_msg->lock);
+	rx_buf_len = rx_msg->rx_buf_len;
+	if (rx_msg->msg_cnt < rx_buf_len) {
+		idx = rx_msg->msg_free;
+		rx_packet = &rx_msg->rx_buf[idx];
+		memset(rx_packet, 0, sizeof(*rx_packet));
+		memcpy(rx_packet, aml_rx_data, sizeof(*rx_packet));
+		rx_msg->msg_cnt++;
+		if (idx == rx_buf_len - 1)
+			rx_msg->msg_free = 0;
+		else
+			rx_msg->msg_free++;
+
+		dev_dbg(dev, "Data copied to RX buffer(count: %d/%d)\n",
+				rx_msg->msg_cnt, rx_buf_len);
+		mutex_unlock(&rx_msg->lock);
+
+		wake_up_interruptible(&aml_dev->waitq);
+		kill_fasync(&aml_dev->async_queue, SIGIO, POLL_IN);
+		dev_dbg(dev, "%s: %s wake up task or notify it to read data\n",
+				__func__, aml_dev->name);
+	} else {
+		mutex_unlock(&rx_msg->lock);
+		dev_err(dev, "Err: dev %s RX buffer full, msg dropped\n",
+				aml_dev->name);
+	}
+
+	return 0;
+}
+
+static void mbox_ao2ree_rx_callback(struct mbox_client *cl, void *mssg)
+{
+	struct device *dev = cl->dev;
+	struct aml_mbox_dev *aml_devs;
+	struct aml_mbox_dev *aml_dev;
+	u32 mbox_nums;
+	int idx;
 
 	aml_devs = dev_get_drvdata(dev);
 	mbox_nums = aml_devs->mbox_nums;
@@ -379,60 +399,7 @@ static void mbox_ao2ree_rx_callback(struct mbox_client *cl, void *mssg)
 		return;
 	}
 
-	aml_priv = aml_dev->priv_data;
-	if (IS_ERR_OR_NULL(aml_priv)) {
-		dev_err(dev, "Err: Device %s has not been opened yet\n",
-			aml_dev->name);
-		return;
-	}
-
-	ao2ree_data = aml_priv->aml_ao2ree_data;
-	if (!ao2ree_data || !ao2ree_data->rxbuf) {
-		dev_err(dev, "Err: ao2ree RX pointer is NULL\n");
-	} else {
-		memcpy(ao2ree_data->rxbuf, aml_rx_data->buf, aml_rx_data->size);
-		ao2ree_data->rxsize = aml_rx_data->size;
-		dev_dbg(dev, "ao2ree: notify userspace to read data\n");
-		kill_fasync(&aml_dev->async_queue, SIGIO, POLL_IN);
-	}
-}
-
-static int mbox_dsp2ree_notify(struct aml_mbox_dev *aml_dev, void *mssg)
-{
-	struct device *dev = aml_dev->p_dev;
-	struct aml_mbox_priv *aml_priv;
-	struct aml_mbox_rx_data *aml_rx_data;
-	struct aml_mbox_data *dsp2ree_data = NULL;
-	u32 cmd;
-	int ret = 0;
-
-	aml_rx_data = mssg;
-	cmd = aml_rx_data->cmd;
-	dev_dbg(dev, "%s: cmd = 0x%x\n", __func__, (unsigned int)cmd);
-
-	aml_priv = aml_dev->priv_data;
-	if (IS_ERR_OR_NULL(aml_priv)) {
-		dev_err(dev, "Err: Device %s has not been opened yet\n",
-			aml_dev->name);
-		return PTR_ERR(aml_priv);
-	}
-
-	if (!strcmp(aml_dev->name, "dspa2ree"))
-		dsp2ree_data = aml_priv->aml_dspa2ree_data;
-	else if (!strcmp(aml_dev->name, "dspb2ree"))
-		dsp2ree_data = aml_priv->aml_dspb2ree_data;
-
-	if (!dsp2ree_data || !dsp2ree_data->rxbuf) {
-		dev_err(dev, "Err: dsp2ree RX pointer is NULL\n");
-		ret = -EINVAL;
-	} else {
-		memcpy(dsp2ree_data->rxbuf, aml_rx_data->buf, aml_rx_data->size);
-		dsp2ree_data->rxsize = aml_rx_data->size;
-		dev_dbg(dev, "dsp2ree: notify userspace to read data\n");
-		kill_fasync(&aml_dev->async_queue, SIGIO, POLL_IN);
-	}
-
-	return ret;
+	mbox_remote2ree_notify(aml_dev, mssg);
 }
 
 static void mbox_dspa2ree_rx_callback(struct mbox_client *cl, void *mssg)
@@ -456,7 +423,7 @@ static void mbox_dspa2ree_rx_callback(struct mbox_client *cl, void *mssg)
 		return;
 	}
 
-	mbox_dsp2ree_notify(aml_dev, mssg);
+	mbox_remote2ree_notify(aml_dev, mssg);
 }
 
 static void mbox_dspb2ree_rx_callback(struct mbox_client *cl, void *mssg)
@@ -480,7 +447,7 @@ static void mbox_dspb2ree_rx_callback(struct mbox_client *cl, void *mssg)
 		return;
 	}
 
-	mbox_dsp2ree_notify(aml_dev, mssg);
+	mbox_remote2ree_notify(aml_dev, mssg);
 }
 
 static void mbox_cdev_cleanup(struct class *mbox_class, dev_t devt,
@@ -512,10 +479,12 @@ static int mbox_cdev_init(struct device *dev)
 	struct class *mbox_class = NULL;
 	struct aml_mbox_dev *mbox_devs = NULL;
 	struct aml_mbox_dev *mbox_dev = NULL;
+	struct aml_mbox_rx_data *mbox_rx_buf = NULL;
 	dev_t dev_t = 0;
 	u32 idx = 0;
 	int ret = 0;
 	int mbox_nums = 0;
+	unsigned int rx_buf_len = 0;
 
 	dev_dbg(dev, "mbox devfs init start\n");
 	ret = of_property_read_u32(dev->of_node,
@@ -526,7 +495,7 @@ static int mbox_cdev_init(struct device *dev)
 	}
 
 	mbox_class = class_create("mbox_devfs");
-	if (IS_ERR(mbox_class)) {
+	if (IS_ERR_OR_NULL(mbox_class)) {
 		dev_err(dev, "Failed to create class: %ld\n", PTR_ERR(mbox_class));
 		ret = PTR_ERR(mbox_class);
 		goto cleanup;
@@ -539,7 +508,7 @@ static int mbox_cdev_init(struct device *dev)
 	}
 
 	mbox_devs = devm_kzalloc(dev, sizeof(*mbox_dev) * mbox_nums, GFP_KERNEL);
-	if (IS_ERR(mbox_devs)) {
+	if (IS_ERR_OR_NULL(mbox_devs)) {
 		dev_err(dev, "Failed to alloc mbox_devs\n");
 		ret = -ENOMEM;
 		goto cleanup;
@@ -575,13 +544,13 @@ static int mbox_cdev_init(struct device *dev)
 
 		mbox_dev->dev = device_create(mbox_class, NULL, mbox_dev->dev_t,
 					mbox_dev, "%s", mbox_dev->name);
-		if (IS_ERR(mbox_dev->dev)) {
+		if (IS_ERR_OR_NULL(mbox_dev->dev)) {
 			ret = PTR_ERR(mbox_dev->dev);
 			dev_err(dev, "Failed to create device: %d\n", ret);
 			goto cleanup;
 		}
 		mbox_dev->mbox_chan = aml_mbox_request_channel_byidx(dev, idx);
-		if (IS_ERR(mbox_dev->mbox_chan)) {
+		if (IS_ERR_OR_NULL(mbox_dev->mbox_chan)) {
 			ret = PTR_ERR(mbox_dev->dev);
 			dev_err(dev, "Failed to request mbox chan: %d\n", ret);
 			goto cleanup;
@@ -594,6 +563,50 @@ static int mbox_cdev_init(struct device *dev)
 			mbox_dev->mbox_chan->cl->rx_callback = mbox_dspa2ree_rx_callback;
 		else if (!strcmp(mbox_dev->name, "dspb2ree"))
 			mbox_dev->mbox_chan->cl->rx_callback = mbox_dspb2ree_rx_callback;
+
+		if (mbox_dev->dest == MAILBOX_ARM) {
+			mbox_dev->rx_msg = devm_kzalloc(dev,
+					sizeof(*mbox_dev->rx_msg), GFP_KERNEL);
+			if (IS_ERR_OR_NULL(mbox_dev->rx_msg)) {
+				dev_err(dev, "%s failed to alloc mbox rx_msg\n",
+						mbox_dev->name);
+				ret = -ENOMEM;
+				goto cleanup;
+			}
+
+			ret = of_property_read_u32(dev->of_node,
+					"mbox-rx-queue-length", &rx_buf_len);
+			if (ret) {
+				dev_err(dev, "parse error, %s set RX buf length to default\n",
+						mbox_dev->name);
+				rx_buf_len = MBOX_DEV_RX_BUF_LEN_DEFAULT;
+			} else {
+				if (rx_buf_len < 1 || rx_buf_len > 100) {
+					dev_err(dev, "RX buf len should be: 1 <= len <= 100\n");
+					dev_err(dev, "invalid para, %s set length to default\n",
+							mbox_dev->name);
+					rx_buf_len = MBOX_DEV_RX_BUF_LEN_DEFAULT;
+				}
+			}
+			dev_dbg(dev, "%s RX buf length: %d\n", mbox_dev->name,
+					rx_buf_len);
+
+			mbox_rx_buf = devm_kzalloc(dev,
+					sizeof(*mbox_rx_buf) * rx_buf_len,
+					GFP_KERNEL);
+			if (IS_ERR_OR_NULL(mbox_rx_buf)) {
+				dev_err(dev, "%s failed to alloc mbox_rx_buf\n",
+						mbox_dev->name);
+				ret = -ENOMEM;
+				goto cleanup;
+			}
+			mbox_dev->rx_msg->rx_buf = mbox_rx_buf;
+			mbox_dev->rx_msg->msg_cnt = 0;
+			mbox_dev->rx_msg->msg_free = 0;
+			mbox_dev->rx_msg->rx_buf_len = rx_buf_len;
+			mutex_init(&mbox_dev->rx_msg->lock);
+			init_waitqueue_head(&mbox_dev->waitq);
+		}
 	}
 	dev_set_drvdata(dev, mbox_devs);
 	dev_dbg(dev, "mbox devfs init done\n");
