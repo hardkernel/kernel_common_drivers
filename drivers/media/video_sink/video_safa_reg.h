@@ -663,6 +663,26 @@
 //Bit 15:12        reserved
 //Bit 11: 0        reg_debug_demo_wnd_0      // unsigned ,    RW,
 					//default = 960  control debug window col size
+#define T6X_VPP_SR_DEBUG_DEMO_WND_EN                   0x7a52
+//Bit 31: 8        reserved
+//Bit  7: 5        reserved
+//Bit  4           reg_sr_debug_demo_en      // unsigned ,    RW, default = 0
+//Bit  3: 1        reserved
+//Bit  0           reg_sr_debug_demo_inverse // unsigned ,    RW, default = 0
+#define T6X_VPP_SR_DEBUG_DEMO_WND_COEF_1               0x7a53
+//Bit 31:28        reserved
+//Bit 27:16        reg_debug_demo_wnd_3      // unsigned ,    RW,
+					//default = 2160  control debug window row size
+//Bit 15:12        reserved
+//Bit 11: 0        reg_debug_demo_wnd_2      // unsigned ,    RW,
+					//default = 1920  ontrol debug window col size
+#define T6X_VPP_SR_DEBUG_DEMO_WND_COEF_0               0x7a54
+//Bit 31:28        reserved
+//Bit 27:16        reg_debug_demo_wnd_1      // unsigned ,    RW, default = 0
+					//control debug window row size
+//Bit 15:12        reserved
+//Bit 11: 0        reg_debug_demo_wnd_0      // unsigned ,    RW, default = 0
+					//control debug window col size
 #define SAFA_PPS_EDGE_AVGSTD_LUT2D_0_0             0x5142
 //Bit 31:30        reserved
 //Bit 29:24        reg_edge_avgstd_lut2d_0_6 // unsigned ,    RW, default = 0

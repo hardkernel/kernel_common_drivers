@@ -445,6 +445,7 @@ extern struct hw_vsr_safa_nonlinear_reg_s vsr_safa_nonlinear_reg_t6w;
 extern struct hw_vsr_safa_reg_s vsr_safa_reg_t6w;
 extern struct hw_aisr_demo_reg_s s7d_aisr_demo_reg;
 extern struct hw_aisr_demo_reg_s t6w_aisr_demo_reg;
+extern struct hw_aisr_demo_reg_s t6x_aisr_demo_reg;
 extern struct hw_mif_reg_s vd_mif_reg_t6w_array[MAX_VD_LAYER_G12];
 extern struct hw_vfcd_reg_s vd_vfcd_reg_t6w_array[MAX_VD_LAYER_G12];
 extern struct hw_fg_reg_s fg_reg_t6w_array[MAX_VD_LAYER_G12];

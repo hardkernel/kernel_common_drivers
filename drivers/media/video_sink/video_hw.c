@@ -18996,9 +18996,15 @@ int get_video_reg_table(u32 *check_item)
 			}
 		}
 		if (cur_dev->inline_aisr_support) {
-			memcpy(check_item,
-					&t6w_aisr_demo_reg,
-					sizeof(struct hw_aisr_demo_reg_s));
+			if (video_is_meson_t6w_cpu()) {
+				memcpy(check_item,
+						&t6w_aisr_demo_reg,
+						sizeof(struct hw_aisr_demo_reg_s));
+			} else if (video_is_meson_t6x_cpu()) {
+				memcpy(check_item,
+						&t6x_aisr_demo_reg,
+						sizeof(struct hw_aisr_demo_reg_s));
+			}
 			vd_reg_cnt += sizeof(struct hw_aisr_demo_reg_s) / sizeof(u32);
 			check_item += sizeof(struct hw_aisr_demo_reg_s) / sizeof(u32);
 		}
@@ -19309,10 +19315,17 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 					sizeof(struct hw_vsr_safa_nonlinear_reg_s));
 			}
 		}
-		if (cur_dev->inline_aisr_support)
-			memcpy(&cur_dev->aisr_demo_mode_reg,
-					&t6w_aisr_demo_reg,
-					sizeof(struct hw_aisr_demo_reg_s));
+		if (cur_dev->inline_aisr_support) {
+			if (video_is_meson_t6w_cpu()) {
+				memcpy(&cur_dev->aisr_demo_mode_reg,
+						&t6w_aisr_demo_reg,
+						sizeof(struct hw_aisr_demo_reg_s));
+			} else if (video_is_meson_t6x_cpu()) {
+				memcpy(&cur_dev->aisr_demo_mode_reg,
+						&t6x_aisr_demo_reg,
+						sizeof(struct hw_aisr_demo_reg_s));
+			}
+		}
 		if (cur_dev->mosaic_support) {
 			for (i = 0; i < SLICE_NUM; i++) {
 				memcpy(&g_mosaic_frame[i].reg.vd_hw_vfcd_reg,

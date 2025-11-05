@@ -1287,6 +1287,18 @@ struct hw_aisr_demo_reg_s t6w_aisr_demo_reg = {
 	VPP_SR_DEBUG_DEMO_WND_COEF_0,
 };
 
+struct hw_aisr_demo_reg_s t6x_aisr_demo_reg = {
+	VPP_PI_DEBUG_DEMO_WND_EN,
+	VPP_PI_DEBUG_DEMO_WND_COEF_1,
+	VPP_PI_DEBUG_DEMO_WND_COEF_0,
+	T6W_SAFA_PPS_DEBUG_DEMO_EN,
+	T6W_SAFA_PPS_DEBUG_DEMO_WND_COEF_1,
+	T6W_SAFA_PPS_DEBUG_DEMO_WND_COEF_0,
+	T6X_VPP_SR_DEBUG_DEMO_WND_EN,
+	T6X_VPP_SR_DEBUG_DEMO_WND_COEF_1,
+	T6X_VPP_SR_DEBUG_DEMO_WND_COEF_0,
+};
+
 struct hw_vsr_safa_nonlinear_reg_s vsr_safa_nonlinear_reg = {
 	T6D_SAFA_PPS_HSC_REGION12_STARTP,
 	T6D_SAFA_PPS_HSC_REGION34_STARTP,
