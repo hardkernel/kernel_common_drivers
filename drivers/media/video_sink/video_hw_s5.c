@@ -12430,6 +12430,7 @@ void set_video_slice_policy(struct video_layer_s *layer,
 	static bool amdv_status;
 #endif
 	bool sideband = false;
+	u32 sync_duration_num = 60;
 
 	if (cur_dev->display_module != S5_DISPLAY_MODULE)
 		return;
@@ -12447,6 +12448,13 @@ void set_video_slice_policy(struct video_layer_s *layer,
 	n2m_setting = frc_get_n2m_setting();
 	frc_switch_flag = frc_ready_to_switch();
 #endif
+
+	if (vinfo) {
+		if (vinfo->brr_duration)
+			sync_duration_num = vinfo->brr_duration * vinfo->sync_duration_den;
+		else
+			sync_duration_num = vinfo->sync_duration_den;
+	}
 	if (layer->layer_id == 0 && vinfo) {
 		if ((src_width > 4096 && src_height >= 2160) ||
 			(src_width >= 4096 && src_height > 2160)) {
@@ -12462,14 +12470,14 @@ void set_video_slice_policy(struct video_layer_s *layer,
 			pi_en = 1;
 		/* 4k 120hz || 4k1k240hz */
 		} else if ((vinfo->width > 1920 && vinfo->height > 1080 &&
-			(vinfo->sync_duration_num /
+			(sync_duration_num /
 			vinfo->sync_duration_den > 60)) ||
 			(vinfo->width > 1920 && vinfo->height >= 1080 &&
-			(vinfo->sync_duration_num /
+			(sync_duration_num /
 			vinfo->sync_duration_den > 120))) {
 			if (vf->duration < 1500 ||
-				vinfo->sync_duration_num / vinfo->sync_duration_den == 144 ||
-				vinfo->sync_duration_num / vinfo->sync_duration_den == 288 ||
+				sync_duration_num / vinfo->sync_duration_den == 144 ||
+				sync_duration_num / vinfo->sync_duration_den == 288 ||
 				(vf->flag & VFRAME_FLAG_GAME_MODE) ||
 				(vf->flag & VFRAME_FLAG_PC_MODE)) {
 				/* input frame rate > 60(ref vf_rate_table) frc always disable */
@@ -12530,7 +12538,7 @@ void set_video_slice_policy(struct video_layer_s *layer,
 			last_vd1s1_vd2_prebld_en = vd1s1_vd2_prebld_en;
 		} else if (vinfo->width > 1920 &&
 			vinfo->height >= 1080 &&
-			(vinfo->sync_duration_num /
+			(sync_duration_num /
 			vinfo->sync_duration_den > 144)) {
 			/* 4k1k 288hz */
 			slice_num = 2;
@@ -12580,7 +12588,7 @@ slice_calc_exit:
 			if (video_is_meson_s5_cpu()) {
 				if ((vinfo->width > 4096 && vinfo->height > 2160) ||
 					(vinfo->width > 1920 && vinfo->height > 1080 &&
-					(vinfo->sync_duration_num /
+					(sync_duration_num /
 				    vinfo->sync_duration_den > 60)))
 					pi_en = 1;
 			}
@@ -12612,7 +12620,7 @@ slice_calc_exit:
 	//duration = 1600 60hz, duration = 800 120hz
 	if ((vf->flag & VFRAME_FLAG_GAME_MODE) &&
 		(vinfo->width > 1920 && vinfo->height >= 1080 &&
-		(vinfo->sync_duration_num /
+		(sync_duration_num /
 		vinfo->sync_duration_den >= 120)) &&
 		(src_width >= 3840 && src_height >= 2160) &&
 		vf->duration < 1500)
@@ -12631,6 +12639,7 @@ void adjust_video_slice_policy(u32 layer_id,
 	u32 vd1s1_vd2_prebld_en = 0;
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	struct video_layer_s *layer = get_vd_layer(layer_id);
+	u32 sync_duration_num = 60;
 
 	if (cur_dev->display_module != S5_DISPLAY_MODULE)
 		return;
@@ -12645,6 +12654,12 @@ void adjust_video_slice_policy(u32 layer_id,
 		src_width = vf->width;
 		src_height = vf->height;
 	}
+	if (vinfo) {
+		if (vinfo->brr_duration)
+			sync_duration_num = vinfo->brr_duration * vinfo->sync_duration_den;
+		else
+			sync_duration_num = vinfo->sync_duration_den;
+	}
 	if (layer->layer_id == 0) {
 		/* check output */
 		if (vinfo) {
@@ -12654,7 +12669,7 @@ void adjust_video_slice_policy(u32 layer_id,
 				pi_en = 1;
 			/* 4k 120hz */
 			} else if (vinfo->width > 1920 && vinfo->height > 1080 &&
-				(vinfo->sync_duration_num /
+				(sync_duration_num /
 			    vinfo->sync_duration_den > 60)) {
 				slice_num = 2;
 				if (video_is_meson_s5_cpu() && is_amdv_enable())
@@ -12677,7 +12692,7 @@ void adjust_video_slice_policy(u32 layer_id,
 				/* output: (4k-8k], 4k120, input <= 4k */
 				if ((vinfo->width > 4096 && vinfo->height > 2160) ||
 					(vinfo->width > 1920 && vinfo->height > 1080 &&
-					(vinfo->sync_duration_num /
+					(sync_duration_num /
 				    vinfo->sync_duration_den > 60)))
 					pi_en = 1;
 			}

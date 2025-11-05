@@ -1139,7 +1139,7 @@ static int vpp_process_speed_check
 	u32 cur_ratio, bpp = 1;
 	int min_ratio_1000 = 0;
 	int freq_ratio = 1;
-	u32 sync_duration_den = 1, sync_duration_num = 60;
+	u32 sync_duration_den = 1, sync_duration_num = 60, duration_num = 60;
 	u32 vtotal, htotal = 0, clk_in_pps = 0, clk_vpu = 0, clk_temp;
 	u32 input_time_us = 0, display_time_us = 0, dummy_time_us = 0;
 	u32 width_out = 0;
@@ -1172,7 +1172,8 @@ static int vpp_process_speed_check
 #endif
 	/* brr_duration only for QMS case */
 	if (vinfo->brr_duration) {
-		sync_duration_num = vinfo->std_duration * sync_duration_den;
+		duration_num = vinfo->std_duration ? vinfo->std_duration : vinfo->brr_duration;
+		sync_duration_num = duration_num * sync_duration_den;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if ((frc_enable || (slice_num == 2 &&
 			video_is_meson_t3x_cpu())) && layer_id == 0)
