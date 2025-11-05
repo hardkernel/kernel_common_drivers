@@ -42,7 +42,13 @@ void meson_tx_info(struct meson_tx_log *log, const char *format, ...)
 	va_list args;
 	struct meson_tx_log tx_log;
 
-	memcpy(&tx_log, log, sizeof(*log));
+	if (!log) {
+		memset(&tx_log, 0, sizeof(tx_log));
+		tx_log.driver_tag = TX_NAME;
+	} else {
+		memcpy(&tx_log, log, sizeof(*log));
+	}
+
 	tx_log.print_level = INFO_LEVEL;
 
 	va_start(args, format);

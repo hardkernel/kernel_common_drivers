@@ -606,7 +606,7 @@ int meson_tx_attch_platform_data(struct meson_tx_dev *tx_dev,
 	enum TX_PLATFORM_API_TYPE type, void *plt_data)
 {
 	if (!tx_dev || !plt_data) {
-		TX_ERROR(&tx_dev->tx_log, "[%s]: invalid input param\n", __func__);
+		TX_ERROR(NULL, "[%s]: invalid input param\n", __func__);
 		return -EINVAL;
 	}
 	switch (type) {
@@ -627,7 +627,7 @@ int meson_tx_attch_platform_data(struct meson_tx_dev *tx_dev,
 int meson_tx_notify_hpd_status(struct meson_tx_dev *tx_dev, bool force_uevent)
 {
 	if (!tx_dev) {
-		TX_ERROR(&tx_dev->tx_log, "%s fail\n", __func__);
+		TX_ERROR(NULL, "%s fail\n", __func__);
 		return -EINVAL;
 	}
 	if (!tx_dev->suspend_flag) {

@@ -6,6 +6,8 @@
 #ifndef __MESON_TX_LOG_H
 #define __MESON_TX_LOG_H
 
+#define TX_NAME "meson_tx"
+
 enum tx_debug_category {
 	CORE_LOG = 0x01,
 	VIDEO_LOG = 0x02,
