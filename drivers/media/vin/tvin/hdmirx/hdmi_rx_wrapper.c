@@ -94,6 +94,7 @@ u32 vrr_func_en = 0xff;
 u32 allm_func_en = 0xff;
 u32 qms_func_en = 0xff;
 u32 htotal_cnt;
+int htotal_threshold = 3;
 static int frate_flg = 0xf;
 static int frate_flg1 = 0xf;
 char fsm_pr_buff[E_PORT_NUM][100];
@@ -485,7 +486,7 @@ void hdmirx_fsm_var_init(void)
 		pll_unlock_max = 30;
 		//do not to check colorspace changes
 		//Vdin can adapt it automatically
-		stable_check_lvl = 0x2c3;
+		stable_check_lvl = 0x2c7;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
 		sig_unstable_max = 20;
@@ -923,6 +924,7 @@ static int rx_cor_irq_handler(u8 port)
 	u8 rx_hdcp2x_intr0;
 	u8 rx_hdcp2x_intr1;
 	u8 hdcp_2x_ecc_intr;
+	u32 htotal;
 
 	/* clear interrupt quickly */
 	hdcp_2x_ecc_intr = hdmirx_rd_cor(HDCP2X_RX_ECC_INTR, port);
@@ -932,6 +934,37 @@ static int rx_cor_irq_handler(u8 port)
 	intr_2 = hdmirx_rd_cor(RX_DEPACK_INTR2_DP2_IVCRX, port);
 	if (intr_2 != 0)
 		hdmirx_wr_cor(RX_DEPACK_INTR2_DP2_IVCRX, intr_2, port);
+
+	intr_2 = hdmirx_rd_cor(RX_INTR2_PWD_IVCRX, port);
+	if (intr_2 != 0) {
+		hdmirx_wr_cor(RX_INTR2_PWD_IVCRX, intr_2, port);
+		if (intr_2 & _BIT(6)) {
+			if (rx[port].dsc_flag && rx[port].is_htotal_odd) {
+				htotal = (hdmirx_rd_cor(COR_HSYNC_LOW_COUNT_LO, port) |
+				(hdmirx_rd_cor(COR_HSYNC_LOW_COUNT_HI, port) << 8)) +
+				(hdmirx_rd_cor(COR_HSYNC_HIGH_COUNT_LO, port) |
+				(hdmirx_rd_cor(COR_HSYNC_HIGH_COUNT_HI, port) << 8));
+				if (htotal == rx[port].odd_htotal_max)
+					rx[port].odd_cnt++;
+				else
+					rx[port].odd_cnt = 0;
+				if (rx[port].odd_cnt >= htotal_threshold) {
+					rx[port].need_add_one = true;
+					rx[port].odd_cnt = 0;
+				}
+
+				if (htotal == rx[port].odd_htotal_min)
+					rx[port].odd1_cnt++;
+				else
+					rx[port].odd1_cnt = 0;
+
+				if (rx[port].odd1_cnt >= htotal_threshold) {
+					rx[port].need_add_one = false;
+					rx[port].odd1_cnt = 0;
+				}
+			}
+		}
+	}
 
 	intr_3 = hdmirx_rd_cor(RX_DEPACK_INTR3_DP2_IVCRX, port);
 	if (intr_3 != 0)
@@ -2573,6 +2606,20 @@ static bool rx_is_timing_stable(u8 port)
 		}
 	}
 	if (stable_check_lvl & HTOTAL_EN) {
+		if (rx_info.chip_id == CHIP_ID_T6X && rx[port].dsc_flag) {
+			if (abs(rx[port].cur.htotal -
+			rx[port].pre.htotal) == 2) {
+				rx[port].is_htotal_odd = true;
+				rx[port].odd_htotal_max =
+					rx[port].cur.htotal > rx[port].pre.htotal ?
+					rx[port].cur.htotal : rx[port].pre.htotal;
+				rx[port].odd_htotal_min =
+					rx[port].cur.htotal > rx[port].pre.htotal ?
+					rx[port].pre.htotal : rx[port].cur.htotal;
+			}
+			rx[port].pre.htotal = rx[port].cur.htotal;
+		}
+
 		if (abs(rx[port].cur.htotal -
 			rx[port].pre.htotal) > diff_pixel_th) {
 			ret = false;
@@ -3326,6 +3373,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(force_avi_stable, i++);
 	pr_var(ee_voltage_en, i++);
 	pr_var(force_dsc_4ppc, i++);
+	pr_var(htotal_threshold, i++);
 	pr_var(rx[E_PORT0].var.clk_stable_cnt, i++);
 	pr_var(rx[E_PORT1].var.clk_stable_cnt, i++);
 	pr_var(rx[E_PORT2].var.clk_stable_cnt, i++);
@@ -3827,6 +3875,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(force_dsc_4ppc),
 		&force_dsc_4ppc, value))
 		return pr_var(force_dsc_4ppc, index);
+	if (set_pr_var(tmpbuf, var_to_str(htotal_threshold),
+		&htotal_threshold, value))
+		return pr_var(htotal_threshold, index);
 	//fsm var
 	if (set_pr_var(tmpbuf, var_to_str(rx[E_PORT0].var.dbg_ve),
 		&rx[E_PORT0].var.dbg_ve, value))
@@ -6277,6 +6328,8 @@ void rx_port2_main_state_machine(void)
 			(port == rx_info.main_port && !rx_info.main_port_open))
 			break;
 		rx[port].dsc_flag = false;
+		rx[port].is_htotal_odd = false;
+		rx[port].need_add_one = false;
 		rx_switch_to_self_hsync(port, false);
 		rx_clr_f_det(true, port);
 		rx[port].state = FSM_SIG_STABLE;
@@ -6855,6 +6908,8 @@ void rx_port3_main_state_machine(void)
 			(port == rx_info.main_port && !rx_info.main_port_open))
 			break;
 		rx[port].dsc_flag = false;
+		rx[port].is_htotal_odd = false;
+		rx[port].need_add_one = false;
 		rx_switch_to_self_hsync(port, false);
 		rx_clr_f_det(true, port);
 		rx[port].state = FSM_SIG_STABLE;
@@ -7283,6 +7338,10 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size, u8 port)
 		"frl rate: %d\n", rx[port].var.frl_rate);
 	pos += snprintf(buf + pos, size - pos,
 		"dsc flag: %d\n", rx[port].dsc_flag);
+	pos += snprintf(buf + pos, size - pos,
+		"dsc odd: %d\n", rx[port].is_htotal_odd);
+	pos += snprintf(buf + pos, size - pos,
+		"need_add_one: %d\n", rx[port].need_add_one);
 	pos += snprintf(buf + pos, size - pos,
 		"Htotal: %d\n", rx[port].cur.htotal);
 	pos += snprintf(buf + pos, size - pos,

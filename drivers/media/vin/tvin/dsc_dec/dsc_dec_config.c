@@ -1021,9 +1021,9 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 		dsc_dec_drv->mux_word_size = 64;
 	else
 		dsc_dec_drv->mux_word_size = 48;
-	dsc_dec_drv->very_flat_qp = 1;
+	dsc_dec_drv->very_flat_qp = 1 + 2 * (pps_data->bits_per_component - 8);
 	dsc_dec_drv->somewhat_flat_qp_delta = 4;
-	dsc_dec_drv->somewhat_flat_qp_thresh = 15;
+	dsc_dec_drv->somewhat_flat_qp_thresh = 7 + 2 * (pps_data->bits_per_component - 8);
 	/* config pps register end */
 	int slice_num;
 
@@ -1146,15 +1146,9 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 			dsc_dec_drv->tmg_cb_von_eline = dsc_dec_drv->pps_data.vend + 1;
 		}
 	} else {
-		if (pps_data->pic_width == 2560 && pps_data->pic_height == 1440) {
-			dsc_dec_drv->tmg_ctrl.tmg_havon_begin = 414;
-			dsc_dec_drv->tmg_ctrl.tmg_hso_begin = 402;
-			dsc_dec_drv->tmg_ctrl.tmg_hso_end = 413;
-		} else {
-			dsc_dec_drv->tmg_ctrl.tmg_havon_begin = 827;
-			dsc_dec_drv->tmg_ctrl.tmg_hso_begin = 804;
-			dsc_dec_drv->tmg_ctrl.tmg_hso_end = 826;
-		}
+		dsc_dec_drv->tmg_ctrl.tmg_havon_begin = calculate_tmg_havon_begin(dsc_dec_drv);
+		dsc_dec_drv->tmg_ctrl.tmg_hso_begin = dsc_dec_drv->tmg_ctrl.tmg_havon_begin - 10;
+		dsc_dec_drv->tmg_ctrl.tmg_hso_end = dsc_dec_drv->tmg_ctrl.tmg_havon_begin - 20;
 		dsc_dec_drv->tmg_ctrl.tmg_vso_begin = 0;
 		dsc_dec_drv->tmg_ctrl.tmg_vso_end = 0;
 		dsc_dec_drv->tmg_ctrl.tmg_vso_bline = 3;
@@ -1172,3 +1166,33 @@ void dsc_dec_config_init(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 	set_dsc_dec_en(1);
 }
 
+void dsc_update_vstart(int vstart, int vend, int odd)
+{
+	int vcnt;
+
+	vcnt = R_DSC_DEC_BIT(DSC_ASIC_CTRL15,
+		DBG_DE_BEGIN_VCNT, DBG_DE_BEGIN_VCNT_WID);
+	if ((vstart - vcnt) == 1) {
+		W_DSC_DEC_BIT(DSC_ASIC_CTRL10, vstart + 1,
+				TMG_CB_VON_BLINE, TMG_CB_VON_BLINE_WID);
+		W_DSC_DEC_BIT(DSC_ASIC_CTRL10, vend + 1,
+				TMG_CB_VON_ELINE, TMG_CB_VON_ELINE_WID);
+	} else if (odd) {
+		W_DSC_DEC_BIT(DSC_ASIC_CTRL10, vcnt + 2,
+				TMG_CB_VON_BLINE, TMG_CB_VON_BLINE_WID);
+		W_DSC_DEC_BIT(DSC_ASIC_CTRL10, vcnt + vend - vstart + 2,
+				TMG_CB_VON_ELINE, TMG_CB_VON_ELINE_WID);
+	} else {
+		if ((vcnt - vstart) >= 5) {
+			W_DSC_DEC_BIT(DSC_ASIC_CTRL10, vcnt + 2,
+				TMG_CB_VON_BLINE, TMG_CB_VON_BLINE_WID);
+			W_DSC_DEC_BIT(DSC_ASIC_CTRL10, vcnt + vend - vstart + 2,
+				TMG_CB_VON_ELINE, TMG_CB_VON_ELINE_WID);
+		} else {
+			W_DSC_DEC_BIT(DSC_ASIC_CTRL10, vstart + 1,
+					TMG_CB_VON_BLINE, TMG_CB_VON_BLINE_WID);
+			W_DSC_DEC_BIT(DSC_ASIC_CTRL10, vend + 1,
+				TMG_CB_VON_ELINE, TMG_CB_VON_ELINE_WID);
+		}
+	}
+}

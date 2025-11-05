@@ -47,9 +47,9 @@ const u32 fpll[] = {
 	0x0b0da201, //0x0b0da201
 };
 
-#define VPU_CLK_DIV_2 1
-#define FPLL_DIV3 2
-#define DSC_PIX_PLL 3
+#define H_VPU_CLK_DIV_2 1
+#define H_FPLL_DIV3 2
+#define H_DSC_PIX_PLL 3
 
 enum frl_rate_e hdmirx_get_frl_rate(u8 port)
 {
@@ -1170,17 +1170,16 @@ void rx_rcc_err_frl_config(u8 port)
 
 void rx_switch_to_self_hsync(u8 port, bool en)
 {
-	//hdmirx_wr_bits_cor(VP_FDET_CLEAR_VID_IVCRX, _BIT(0), 1, port);
 	hdmirx_wr_bits_cor(RX_PWD_CTRL_PWD_IVCRX, _BIT(3), en, port);
 	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL1_PWD_IVCRX, _BIT(5), en, port);
 	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL1_PWD_IVCRX, _BIT(7), en, port);
-	hdmirx_wr_bits_cor(HSYNC_GEN_EVEN_CTRL2_PWD_IVCRX, _BIT(1), en, port);
+	hdmirx_wr_cor(HSYNC_GEN_EVEN_CTRL2_PWD_IVCRX, 2, port);
 	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL1_PWD_IVCRX, _BIT(5), en, port);
 	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL1_PWD_IVCRX, _BIT(7), en, port);
-	hdmirx_wr_bits_cor(HSYNC_GEN_ODD_CTRL2_PWD_IVCRX, _BIT(1), en, port);
+	hdmirx_wr_cor(HSYNC_GEN_ODD_CTRL2_PWD_IVCRX, 2, port);
+	hdmirx_wr_cor(HSYNC_GEN_CTRL0, 0x0, port);
+	hdmirx_wr_cor(HSYNC_GEN_CTRL0, 0x1, port);
 	hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, _BIT(31), en);
-	//hdmirx_wr_bits_cor(VP_FDET_CLEAR_VID_IVCRX, _BIT(0), 0, port);
-	//when dsc vsync polarity negative, we need us vid if func to reverse;
 }
 
 bool rx_is_switch_to_analog_clk(u8 port)
@@ -1275,9 +1274,9 @@ void set_dsc_clk_cntl(int clk_select)
 {
 	if (rx_info.chip_id != CHIP_ID_T6X)
 		return;
-	if (clk_select == VPU_CLK_DIV_2)
+	if (clk_select == H_VPU_CLK_DIV_2)
 		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x343);
-	else if (clk_select == FPLL_DIV3)
+	else if (clk_select == H_FPLL_DIV3)
 		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x140);
 	else
 		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x1c0);

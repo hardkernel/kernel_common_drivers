@@ -1789,6 +1789,8 @@ void rx_set_irq_21(u8 enable, u8 port)
 	hdmirx_wr_cor(RX_DEPACK_INTR6_MASK_DP2_IVCRX, data8, port);
 
 	data8 = 0;
+	if (rx_info.chip_id == CHIP_ID_T6X)
+		data8 |= 1 << 0;
 	hdmirx_wr_cor(RX_DEPACK2_INTR0_MASK_DP0B_IVCRX, data8, port);//emp
 
 	data8 = 0;
@@ -1798,7 +1800,10 @@ void rx_set_irq_21(u8 enable, u8 port)
 	data8 |= val_all << 0; //depac group en
 	hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, data8, port);
 
-	hdmirx_wr_cor(RX_INTR2_MASK_PWD_IVCRX, 0x00, port);
+	data8 = 0;
+	data8 |= val_all << 6;
+	hdmirx_wr_cor(RX_INTR2_MASK_PWD_IVCRX, data8, port);
+
 	hdmirx_wr_cor(RX_INTR3_MASK_PWD_IVCRX, 0x00, port);
 	hdmirx_wr_cor(RX_INTR4_MASK_PWD_IVCRX, 0x00, port);
 	hdmirx_wr_cor(RX_INTR5_MASK_PWD_IVCRX, 0x00, port);
@@ -5569,6 +5574,7 @@ void rx_get_de_sts(u8 port)
 			(hdmirx_rd_cor(COR_HSYNC_HIGH_COUNT_HI, port) << 8));
 		rx[port].cur.vsync_polarity =
 			hdmirx_rd_bits_cor(VP_FDET_STATUS_VID_IVCRX, _BIT(1), port);
+		rx[port].cur.hblank = rx[port].cur.htotal - rx[port].cur.hactive;
 		rx[port].cur.vtotal = (hdmirx_rd_cor(COR_VSYNC_LOW_COUNT_LO, port) |
 			(hdmirx_rd_cor(COR_VSYNC_LOW_COUNT_HI, port) << 8)) +
 			(hdmirx_rd_cor(COR_VSYNC_HIGH_COUNT_LO, port) |
@@ -5584,7 +5590,12 @@ void rx_get_de_sts(u8 port)
 				hdmirx_rd_cor(COR_VSYNC_VBACK_COUNT_EVEN, port) +
 				(hdmirx_rd_cor(COR_VSYNC_VBACK_COUNT_EVEN + 1, port) << 8);
 		}
+		rx[port].cur.vfront = hdmirx_rd_cor(COR_VFRONT_HIGH_COUNT_LO, port) +
+			(hdmirx_rd_cor(COR_VFRONT_HIGH_COUNT_HI, port) << 8);
+		rx[port].cur.vback = hdmirx_rd_cor(COR_VSYNC_VBACK_COUNT_EVEN, port) +
+			(hdmirx_rd_cor(COR_VSYNC_VBACK_COUNT_EVEN + 1, port) << 8);
 		rx[port].cur.vend = rx[port].cur.vactive + rx[port].cur.vbegin;
+		rx[port].cur.vblank = rx[port].cur.vtotal - rx[port].cur.vactive;
 		if (rx[port].cur.repeat) {
 			rx[port].cur.hactive =
 				rx[port].cur.hactive /

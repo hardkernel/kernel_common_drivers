@@ -1239,6 +1239,8 @@ void hdmirx_set_timing_info(struct tvin_sig_property_s *prop, u8 port)
 		     sig_fmt == TVIN_SIG_FMT_HDMI_3840_2160_00HZ))
 			prop->ve = 1;
 	}
+	if (rx[port].dsc_flag && rx[port].cur.vfront < 4)
+		prop->ve = 1;
 	if (rx[port].var.dbg_ve)
 		prop->ve = rx[port].var.dbg_ve;
 	prop->polarity_vs = rx[port].cur.vsync_polarity;
@@ -1796,10 +1798,15 @@ void hdmirx_get_pps_info(struct tvin_sig_property_s *prop, u8 port)//todo)
 	prop->pps_data.second_line_bpg_offset = rx[port].dsc_pps_data.second_line_bpg_offset;
 	prop->pps_data.nsl_bpg_offset = rx[port].dsc_pps_data.nsl_bpg_offset;
 	prop->pps_data.second_line_offset_adj = rx[port].dsc_pps_data.second_line_offset_adj;
-	prop->pps_data.htotal = rx[port].cur.htotal;
+	if (rx[port].is_htotal_odd)
+		prop->pps_data.htotal = rx[port].odd_htotal_min;
+	else
+		prop->pps_data.htotal = rx[port].cur.htotal;
 	prop->pps_data.hactive = rx[port].cur.hactive;
+
 	prop->pps_data.vbegin = rx[port].cur.vbegin;
 	prop->pps_data.vend =  rx[port].cur.vend;
+	dsc_update_vstart(prop->pps_data.vbegin, prop->pps_data.vend, rx[port].is_htotal_odd);
 	prop->pps_data.fps = (rx[port].cur.frame_rate + 99) / 100;
 	prop->pps_data.color_depth = rx[port].cur.colordepth;
 	prop->pps_data.color_fmt = rx[port].cur.colorspace;

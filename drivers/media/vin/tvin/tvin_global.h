@@ -616,5 +616,9 @@ struct tvin_sig_property_s {
 
 #define BT656IN_ANCI_DATA_SIZE		0x4000 /* save anci data from bt656in */
 #define CAMERA_IN_ANCI_DATA_SIZE	0x4000 /* save anci data from bt656in */
+void dsc_update_vstart(int vstart, int vend, int odd);
+void __weak dsc_update_vstart(int vstart, int vend, int odd)
+{
+}
 
 #endif /* __TVIN_GLOBAL_H */

@@ -542,6 +542,9 @@ struct rx_video_info {
 	u32 vactive;
 	/** Vertical total */
 	u32 vtotal;
+	u32 vblank;
+	u32 vfront;
+	u32 vback;
 	/** Horizontal offset */
 	u32 hoffset;
 	/** Horizontal active */
@@ -550,6 +553,7 @@ struct rx_video_info {
 	u32 htotal;
 	u32 hfront;
 	u32 hback;
+	u32 hblank;
 	/** AVI Y1-0, video format */
 	u8 colorspace;
 	/** AVI VIC6-0, video identification code */
@@ -1113,6 +1117,12 @@ struct rx_s {
 	u8 frl_fdet_check_step;
 	u32 rx_sig_type;
 	u32 rx_sig_type_pre;
+	bool is_htotal_odd;
+	u32 odd_htotal_max;
+	u32 odd_htotal_min;
+	u32 odd_cnt;
+	u32 odd1_cnt;
+	bool need_add_one;
 };
 
 struct reg_map {

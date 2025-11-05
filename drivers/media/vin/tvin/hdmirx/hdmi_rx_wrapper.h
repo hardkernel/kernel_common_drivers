@@ -22,7 +22,7 @@
 #define TMDS_VALID_EN		0x1000
 #define ECC_ERR_CNT_EN      0x2000
 #define HDMIRX_PORT_MAX		4
-
+#define HTOTAL_THRESHOLD    5
 /* aud sample rate stable range */
 /* #define AUD_SR_RANGE 2000 */
 #define PHY_REQUEST_CLK_MIN	170000000
@@ -184,7 +184,7 @@ extern int rs_err_chk;
 extern int err_cnt;
 extern int edid_seg_flag[4];
 extern int dump_aud_max;
-
+extern int htotal_threshold;
 enum tvin_sig_fmt_e hdmirx_hw_get_fmt(u8 port);
 void rx_mute_vpp(u8 port_type);
 void hdmirx_mute_vpp(bool en, u8 port);
