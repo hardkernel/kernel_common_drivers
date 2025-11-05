@@ -64,7 +64,9 @@
 /* 2025.10.15 fix green screen issue for case78 */
 /*2025.11.4 add edid switch protect*/
 /* 2025.11.11 enable EMP until signal stable */
-#define RX_WRAPPER_VER "ver.2025/11/11"
+/*2025.11.4 add edid switch protect*/
+/* 2025.11.14 optimize t6x signal time */
+#define RX_WRAPPER_VER "ver.2025/11/14"
 
 struct freq_ref_s {
 	bool interlace;

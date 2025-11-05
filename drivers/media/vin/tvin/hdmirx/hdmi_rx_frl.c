@@ -1179,7 +1179,8 @@ void rx_switch_to_self_hsync(u8 port, bool en)
 	hdmirx_wr_cor(HSYNC_GEN_ODD_CTRL2_PWD_IVCRX, 2, port);
 	hdmirx_wr_cor(HSYNC_GEN_CTRL0, 0x0, port);
 	hdmirx_wr_cor(HSYNC_GEN_CTRL0, 0x1, port);
-	hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, _BIT(31), en);
+	if (port == rx_info.main_port)
+		hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, _BIT(31), en);
 }
 
 bool rx_is_switch_to_analog_clk(u8 port)

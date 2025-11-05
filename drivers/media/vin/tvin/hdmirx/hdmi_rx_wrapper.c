@@ -477,7 +477,7 @@ void hdmirx_fsm_var_init(void)
 	case CHIP_ID_T6X:
 		hbr_force_8ch = 1; //use it to enable hdr2spdif
 		sig_stable_err_max = 5;
-		sig_stable_max = 20;
+		sig_stable_max = 4;
 		fps_unready_max = 3;
 		dwc_rst_wait_cnt_max = 5;
 		spec_dev_wait_cnt_max = 200;
@@ -5433,8 +5433,7 @@ void rx_port0_main_state_machine(void)
 		if (rx_is_timing_stable(port)) {
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
 				rx_emp_hw_enable(true);
-				if (rx_info.chip_id == CHIP_ID_T6X && rx_info.main_port == port)
-					rx_irq_en(IRQ_EN_ALL, port);
+				rx_irq_en(IRQ_EN_ALL, port);
 				get_timing_fmt(port);
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -5858,8 +5857,7 @@ void rx_port1_main_state_machine(void)
 		if (rx_is_timing_stable(port)) {
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
 				rx_emp_hw_enable(true);
-				if (rx_info.chip_id == CHIP_ID_T6X && rx_info.main_port == port)
-					rx_irq_en(IRQ_EN_ALL, port);
+				rx_irq_en(IRQ_EN_ALL, port);
 				get_timing_fmt(port);
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -6343,12 +6341,10 @@ void rx_port2_main_state_machine(void)
 		memcpy(&rx[port].pre, &rx[port].cur, sizeof(struct rx_video_info));
 		rx_get_video_info(port);
 		if (rx_is_timing_stable(port)) {
-			if (++rx[port].var.sig_stable_cnt >= sig_stable_max +
-				frl_extra_stable_cnt[rx[port].var.frl_rate]) {
+			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
 				get_timing_fmt(port);
 				rx_emp_hw_enable(true);
-				if (rx_info.chip_id == CHIP_ID_T6X && rx_info.main_port == port)
-					rx_irq_en(IRQ_EN_ALL, port);
+				rx_irq_en(IRQ_EN_ALL, port);
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;
@@ -6923,12 +6919,10 @@ void rx_port3_main_state_machine(void)
 		memcpy(&rx[port].pre, &rx[port].cur, sizeof(struct rx_video_info));
 		rx_get_video_info(port);
 		if (rx_is_timing_stable(port)) {
-			if (++rx[port].var.sig_stable_cnt >= sig_stable_max +
-				frl_extra_stable_cnt[rx[port].var.frl_rate]) {
+			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
 				get_timing_fmt(port);
 				rx_emp_hw_enable(true);
-				if (rx_info.chip_id == CHIP_ID_T6X && rx_info.main_port == port)
-					rx_irq_en(IRQ_EN_ALL, port);
+				rx_irq_en(IRQ_EN_ALL, port);
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;

@@ -5907,7 +5907,6 @@ void hdmirx_config_video(u8 port)
 	hdmirx_set_video_mute(0, port);
 	set_dv_ll_mode(false, port);
 	hdmirx_output_en(true);
-	rx_irq_en(IRQ_EN_ALL, port);//pcs rst needed
 
 	if (rx_info.chip_id < CHIP_ID_T7)
 		return;
