@@ -603,7 +603,11 @@ static void aml_rtc_shutdown(struct platform_device *pdev)
 		return;
 
 	/* only aie timer can wakeup system when poweroff */
-	rtc_read_alarm(rtc->rtc_dev, &aie_timer);
+	ret = rtc_read_alarm(rtc->rtc_dev, &aie_timer);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to read rtc alarm\n");
+		return;
+	}
 	alarm_sec = rtc_tm_to_time64(&aie_timer.time);
 	if (alarm_sec > rtc_time && aie_timer.enabled) {
 		alarm_sec -= rtc_time;
