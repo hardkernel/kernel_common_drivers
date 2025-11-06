@@ -367,7 +367,9 @@ static const struct pll_params_table t6x_gp1_pll_table[] = {
 };
 
 static const struct pll_params_table t6x_gp2_pll_table[] = {
-	PLL_PARAMS(148, 1), /* DCO = 1776M OD = 0 PLL = 888M */
+	PLL_PARAMS_OD(148, 1, 1), /* DCO = 1776M OD = 1 PLL = 888M */
+	PLL_PARAMS_OD(134, 1, 1), /* DCO = 1608M OD = 1 PLL = 804M */
+	PLL_PARAMS_OD(136, 1, 1), /* DCO = 1640M OD = 1 PLL = 820M */
 	{ /* sentinel */  }
 };
 
