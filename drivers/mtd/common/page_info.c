@@ -218,21 +218,6 @@ static void page_info_set_boot_layout(u8 boot_layout)
 	page_info->version |= ((boot_layout & 0x0F) << 4);
 }
 
-static int get_boot_layout_type(u32 boot_layout)
-{
-	return (boot_layout & 0x0F);
-}
-
-static int get_bl2_copy_number(u32 boot_layout)
-{
-	return ((boot_layout >> 8) & 0x0F);
-}
-
-static int get_bl2_pages_per_copy(u32 boot_layout)
-{
-	return ((boot_layout >> 12) & 0xFFFF);
-}
-
 static u32 get_boot_layout_info(struct mtd_info *mtd)
 {
 	static bool read;
@@ -252,19 +237,56 @@ static u32 get_boot_layout_info(struct mtd_info *mtd)
 	return boot_layout;
 }
 
+int get_boot_layout_type(struct mtd_info *mtd)
+{
+	u32 boot_layout = get_boot_layout_info(mtd);
+
+	return (boot_layout & 0x0F);
+}
+EXPORT_SYMBOL_GPL(get_boot_layout_type);
+
+int get_bl2_copy_number(struct mtd_info *mtd)
+{
+	u32 boot_layout = get_boot_layout_info(mtd);
+	int bl2_copy_number = ((boot_layout >> 8) & 0x0F);
+
+	/* default 8 copies if bl2_copy_number not in boot_layout (specified via
+	 * cmdline in U-boot configure, cmdline is configured it in v2019
+	 * and beyond)
+	 */
+	if (!bl2_copy_number)
+		bl2_copy_number = 8;
+
+	return bl2_copy_number;
+}
+EXPORT_SYMBOL_GPL(get_bl2_copy_number);
+
+int get_bl2_pages_per_copy(struct mtd_info *mtd)
+{
+	u32 boot_layout = get_boot_layout_info(mtd);
+	int bl2_pages_per_copy = ((boot_layout >> 12) & 0xFFFF);
+
+	/* if bl2_pages_per_copy not in boot_layout (specified via
+	 * cmdline in U-boot configure, cmdline is configured it in v2019
+	 * and beyond), get bl2_pages_per_copy by DEFAULT_ECC_MODE
+	 */
+	if (!bl2_pages_per_copy)
+		bl2_pages_per_copy = get_bl2_total_pages(mtd) / get_bl2_copy_number(mtd);
+
+	return bl2_pages_per_copy;
+}
+EXPORT_SYMBOL_GPL(get_bl2_pages_per_copy);
+
 unsigned int get_bl2_total_pages(struct mtd_info *mtd)
 {
 	static u32 bl2_total_pages;
-	u32 boot_layout, bl2_copy_number;
+	u32 bl2_copy_number = get_bl2_copy_number(mtd);
 
 	if (bl2_total_pages)
 		return bl2_total_pages;
 
-	boot_layout = get_boot_layout_info(mtd);
-	bl2_copy_number = get_bl2_copy_number(boot_layout);
-
 	if (bl2_copy_number)
-		bl2_total_pages = bl2_copy_number * get_bl2_pages_per_copy(boot_layout);
+		bl2_total_pages = bl2_copy_number * get_bl2_pages_per_copy(mtd);
 	else
 		bl2_total_pages = NAND_BOOT_MAX_PAGES;
 
@@ -288,10 +310,8 @@ static void page_info_init_from_mtd(struct mtd_info *mtd, u8 cmd, u32 fip_size, 
 	unsigned char ecc_steps;
 	unsigned int check_len = sizeof(struct boot_info), i;
 	enum PAGE_INFO_V page_info_ver;
-	u32 boot_layout;
 
-	boot_layout = get_boot_layout_info(mtd);
-	page_info_set_boot_layout(boot_layout);
+	page_info_set_boot_layout((u8)get_boot_layout_type(mtd));
 
 	page_info_ver = get_page_info_version();
 	memcpy(page_info->magic, BOOTINFO_MAGIC, strlen(BOOTINFO_MAGIC));
@@ -339,8 +359,8 @@ static void page_info_init_from_mtd(struct mtd_info *mtd, u8 cmd, u32 fip_size, 
 	page_info->dev_cfg1.block_num_in_chip = mtd->size >> mtd->erasesize_shift;
 
 _do_final:
-	if (get_boot_layout_type(boot_layout) == BOOT_DISCRETE_BL2 ||
-	    get_bl2_copy_number(boot_layout) > 2)
+	if (get_boot_layout_type(mtd) == BOOT_DISCRETE_BL2 ||
+	    get_bl2_copy_number(mtd) > 2)
 		page_info->dev_cfg1.enable_bbt = 1;
 
 	page_info->checksum = 0;
@@ -425,9 +445,8 @@ bool page_info_is_page(struct mtd_info *mtd, int page)
 {
 	enum PAGE_INFO_V page_info_ver;
 	bool is_info_page = 0;
-	u32 boot_layout = get_boot_layout_info(mtd);
-	int pages_per_copy = get_bl2_pages_per_copy(boot_layout);
-	int bl2_copy_number = get_bl2_copy_number(boot_layout);
+	int pages_per_copy = get_bl2_pages_per_copy(mtd);
+	int bl2_copy_number = get_bl2_copy_number(mtd);
 
 	if (!pages_per_copy) {
 		page_info_ver = get_page_info_version();

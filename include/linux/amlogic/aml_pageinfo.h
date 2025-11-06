@@ -85,6 +85,9 @@ enum PAGE_INFO_STATE {
 int get_page_info_version(void);
 int get_page_info_size(void);
 unsigned int get_bl2_total_pages(struct mtd_info *mtd);
+int get_boot_layout_type(struct mtd_info *mtd);
+int get_bl2_copy_number(struct mtd_info *mtd);
+int get_bl2_pages_per_copy(struct mtd_info *mtd);
 unsigned char page_info_get_work_mode(void);
 unsigned char page_info_get_addr_lanes_mode(void);
 unsigned char page_info_get_cmd_lanes_mode(void);

@@ -698,9 +698,8 @@ static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
 {
 	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
-	struct meson_nfc *nfc = nand_get_controller_data(nand);
 	u32 pages_per_blk_shift, bbt_size;
-	int each_boot_pages, boot_num, bbt_pages;
+	int bbt_pages;
 	u32 configure_data;
 	u32 rsv_blocks_num = meson_rsv_get_block_cnt();
 	struct _nand_page0 *p_nand_page0 = NULL;
@@ -713,14 +712,6 @@ static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
 
 	pages_per_blk_shift = nand->phys_erase_shift - nand->page_shift;
 	bbt_size = meson_rsv_get_bbt_size();
-
-	if (nfc->param_from_dts.bl_mode) {
-		boot_num = nfc->param_from_dts.fip_copies;
-		each_boot_pages = nfc->param_from_dts.fip_size / mtd->writesize;
-	} else {
-		boot_num = 1;
-		each_boot_pages = BOOT_TOTAL_PAGES / boot_num;
-	}
 
 	memset(page0_buf, 0x0, mtd->writesize);
 	/* must be 1, rom will do security check */
@@ -759,13 +750,13 @@ static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
 				    mtd->writesize;
 	p_ext_info->ce_mask = 0x01;//only ce0 is enabled
 	p_ext_info->xlc = 1;
-	p_ext_info->boot_num = boot_num;
-	p_ext_info->each_boot_pages = each_boot_pages;
+	p_ext_info->boot_num = get_bl2_copy_number(mtd);
+	p_ext_info->each_boot_pages = get_bl2_pages_per_copy(mtd);
 	bbt_pages = (bbt_size + mtd->writesize - 1) /
 		    mtd->writesize;
 	p_ext_info->bbt_occupy_pages = bbt_pages;
 	p_ext_info->bbt_start_block = BBT_START_BLOCK;
-	if (nfc->param_from_dts.bl_mode) {
+	if (meson_nand_get_bootloader_mode() == NAND_FIPMODE_DISCRETE) {
 		p_fip_info->version = 1;
 		p_fip_info->mode = NAND_FIPMODE_DISCRETE;
 		p_fip_info->fip_start = BOOT_TOTAL_PAGES +
@@ -776,8 +767,6 @@ static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
 	}
 	pr_info("pages_per_blk: 0x%x, bbt_pages: 0x%x\n",
 		p_ext_info->pages_per_blk, bbt_pages);
-	pr_info("boot_num: %d each_boot_pages: %d\n",
-		boot_num, each_boot_pages);
 }
 
 static int _meson_nfc_write_page_hwecc(struct nand_chip *nand,
@@ -804,19 +793,14 @@ static int _meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
 	int len = mtd->writesize + mtd->oobsize;
-	u8 boot_num;
-	int each_boot_pages, ecc_size, bch_mode;
+	int bl2_pages_per_copy, ecc_size, bch_mode;
 	u8 *oob_buf = nand->oob_poi;
 	u8 *info;
 	int i;
 	u64 ofs, tmp;
 	u32 remainder;
 
-	if (nfc->param_from_dts.bl_mode)
-		boot_num = 8;
-	else
-		boot_num = 1;
-	each_boot_pages = get_bl2_total_pages(mtd) / boot_num;
+	bl2_pages_per_copy = get_bl2_pages_per_copy(mtd);
 
 	ecc_size = nand->ecc.size;
 	bch_mode = meson_chip->bch_mode;
@@ -837,7 +821,7 @@ static int _meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
 		meson_nfc_write_page_sub(nand, page, 0, len, 0);
 	} else {
 		if (!nfc->param_from_dts.common_pageinfo &&
-		    page % each_boot_pages == 0) {
+		    page % bl2_pages_per_copy == 0) {
 			meson_info_page0_prepare(nand, nand->data_buf);
 			nand->options |= NAND_NEED_SCRAMBLING; //setting randomizer
 
@@ -1104,28 +1088,22 @@ static int _meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 	struct _nand_setup *p_nand_setup = NULL;
 	struct _nand_setup_sc2 *p_nand_setup_sc2 = NULL;
 
-	u8 boot_num, dir;
-	u32 each_boot_pages, remainder;
+	u32 bl2_pages_per_copy, remainder;
 	int ret = 0, configure_data_w, pages_per_blk_w, configure_data;
 	//u32 nand_page_size = nand->ecc.size * nand->ecc.steps;
 	u64 ofs, tmp;
 	int ecc_size, bch_mode, pages_per_blk, real_page;
 
-	if (nfc->param_from_dts.bl_mode)
-		boot_num = 8;
-	else
-		boot_num = 1;
-
-	each_boot_pages = get_bl2_total_pages(mtd) / boot_num;
+	bl2_pages_per_copy = get_bl2_pages_per_copy(mtd);
 
 	ecc_size = nand->ecc.size;
 	bch_mode = meson_chip->bch_mode;
-	dir = 1;
 
-	if (!nfc->param_from_dts.common_pageinfo && page % each_boot_pages == 0) {
+	if (!nfc->param_from_dts.common_pageinfo &&
+	    page % bl2_pages_per_copy == 0) {
 		if (meson_chip->bch_mode == NFC_ECC_BCH_SHORT)
 			configure_data_w =
-			CMDRWGEN(DMA_DIR(dir),
+			CMDRWGEN(DMA_DIR(1),
 				 nand->options & NAND_NEED_SCRAMBLING,
 				 NFC_ECC_BCH60_1K,
 				 NFC_CMD_SHORTMODE_ENABLE,
@@ -1133,7 +1111,7 @@ static int _meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 				 nand->ecc.steps);
 		else
 			configure_data_w =
-			CMDRWGEN(DMA_DIR(dir),
+			CMDRWGEN(DMA_DIR(1),
 				 nand->options & NAND_NEED_SCRAMBLING,
 				 meson_chip->bch_mode,
 				 NFC_CMD_SHORTMODE_DISABLE,
