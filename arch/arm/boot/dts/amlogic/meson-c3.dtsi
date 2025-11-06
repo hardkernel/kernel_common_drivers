@@ -559,7 +559,7 @@
 
 			uart_A: serial@78000 {
 				compatible = "amlogic,meson-uart";
-				reg = <0x1c00 0x18>;
+				reg = <0x78000 0x18>;
 				interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 				clocks = <&xtal
