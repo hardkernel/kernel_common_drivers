@@ -8,6 +8,7 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_modes.h>
 #include <uapi/amlogic/drm/meson_drm.h>
+#include <uapi/amlogic/vout_ioc.h>
 
 #define MESON_CONNECTOR_TYPE_PROP_NAME "meson.connector_type"
 
@@ -63,6 +64,8 @@ struct meson_panel_dev {
 	struct meson_connector_dev base;
 	int (*get_modes)(struct meson_panel_dev *panel, struct drm_display_mode **modes, int *num);
 	int (*get_modes_vrr_range)(struct meson_panel_dev *panel, void *range, int max, int *num);
+	void (*set_mode_timing)(struct meson_panel_dev *panel, struct drm_display_mode *mode,
+							enum vmode_e vmode);
 };
 
 /*dummy_l specified type*/

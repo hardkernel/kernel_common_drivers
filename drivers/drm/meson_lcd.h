@@ -24,6 +24,7 @@ struct meson_panel {
 	/* vrr related */
 	int num_vrr_group;
 	struct drm_vrr_mode_group groups[MAX_VRR_MODE_GROUP];
+	struct meson_connector_dev *con_dev;
 };
 
 #define connector_to_meson_panel(x) \

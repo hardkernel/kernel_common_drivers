@@ -38,6 +38,12 @@ struct drm_lcd_wrapper {
 
 static struct drm_lcd_wrapper drm_lcd_wrappers[LCD_MAX_DRV];
 
+static void lcd_drm_set_mode_timing(struct meson_panel_dev *panel, struct drm_display_mode *mode,
+		enum vmode_e vmode)
+{
+	/*@lizhi convert drm timing to lcd timing, assign drm vmode to the vmode of the lcd struct*/
+}
+
 static void lcd_drm_vmode_update(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
 		struct drm_display_mode *pmode, unsigned int frame_rate)
 {
@@ -326,6 +332,7 @@ static int meson_lcd_bind(struct device *dev, struct device *master, void *data)
 		drm_lcd_wrappers[index].drm_lcd_instance.get_modes = get_lcd_tablet_modes;
 
 	drm_lcd_wrappers[index].drm_lcd_instance.get_modes_vrr_range = get_lcd_modes_vrr_range;
+	drm_lcd_wrappers[index].drm_lcd_instance.set_mode_timing = lcd_drm_set_mode_timing;
 
 	/*set lcd type.*/
 	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {

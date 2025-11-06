@@ -227,6 +227,17 @@ static const struct drm_connector_funcs meson_panel_funcs = {
 	.atomic_print_state = meson_panel_atomic_print_state,
 };
 
+static void meson_panel_encoder_atomic_mode_set(struct drm_encoder *encoder,
+	struct drm_crtc_state *crtc_state,
+	struct drm_connector_state *conn_state)
+{
+	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc_state->crtc);
+	struct meson_panel *am_lcd = encoder_to_meson_panel(encoder);
+	struct meson_connector_dev *con_dev = am_lcd->con_dev;
+
+	update_curr_vout_server(amcrtc->vout_index, con_dev->vout_serv);
+}
+
 static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
@@ -241,6 +252,8 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 	enum vmode_e vmode = meson_crtc_state->vmode;
 	unsigned int vrefresh = drm_mode_vrefresh(mode);
 	struct meson_panel *panel = encoder_to_meson_panel(encoder);
+	struct meson_panel_dev *panel_dev = panel->panel_dev;
+
 	crtc = encoder->crtc;
 
 	if ((vmode & VMODE_MODE_BIT_MASK) != VMODE_LCD) {
@@ -268,7 +281,8 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 			encoder->crtc->state->active_changed) {
 			meson_vout_notify_mode_change(amcrtc->vout_index,
 				vmode, EVENT_MODE_SET_START);
-			vout_func_set_vmode(amcrtc->vout_index, vmode);
+			/*set mode timing*/
+			panel_dev->set_mode_timing(panel_dev, mode, vmode);
 			meson_vout_notify_mode_change(amcrtc->vout_index,
 				vmode, EVENT_MODE_SET_FINISH);
 			meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "lcd");
@@ -297,7 +311,8 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 	meson_crtc_state->prev_height = mode->vdisplay;
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_START);
-	vout_func_set_vmode(amcrtc->vout_index, vmode);
+	/*set mode timing*/
+	panel_dev->set_mode_timing(panel_dev, mode, vmode);
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_FINISH);
 	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "lcd");
@@ -409,11 +424,16 @@ static int meson_panel_encoder_atomic_check(struct drm_encoder *encoder,
 		meson_panel_cal_brr(am_lcd, meson_crtc_state, adj_mode);
 
 	meson_encoder_vrr_change(encoder, conn_state->state);
+
+	/*drm not find connector by vout_validate_vmode*/
+	meson_crtc_state->preset_vmode = VMODE_LCD;
+
 	DRM_DEBUG_KMS("[%s]-[%d] called\n", __func__, __LINE__);
 	return 0;
 }
 
 static const struct drm_encoder_helper_funcs meson_panel_encoder_helper_funcs = {
+	.atomic_mode_set = meson_panel_encoder_atomic_mode_set,
 	.atomic_enable = meson_panel_encoder_atomic_enable,
 	.atomic_disable = meson_panel_encoder_atomic_disable,
 	.atomic_check = meson_panel_encoder_atomic_check,
@@ -465,6 +485,7 @@ int meson_panel_dev_bind(struct drm_device *drm,
 	panel_instance->panel_dev = to_meson_panel_dev(intf);
 	panel_instance->base.connector_type = type;
 	panel_instance->base.drm_priv = priv;
+	panel_instance->con_dev = intf;
 	encoder = &panel_instance->encoder;
 	if (!encoder)
 		return -EINVAL;

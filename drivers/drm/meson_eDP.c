@@ -266,6 +266,17 @@ static const struct drm_connector_funcs meson_eDP_funcs = {
 	.atomic_print_state = meson_eDP_atomic_print_state,
 };
 
+static void meson_eDP_encoder_atomic_mode_set(struct drm_encoder *encoder,
+	struct drm_crtc_state *crtc_state,
+	struct drm_connector_state *conn_state)
+{
+	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc_state->crtc);
+	struct meson_eDP *am_eDP = encoder_to_meson_eDP(encoder);
+	struct meson_connector_dev *con_dev = am_eDP->con_dev;
+
+	update_curr_vout_server(amcrtc->vout_index, con_dev->vout_serv);
+}
+
 static void meson_eDP_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
@@ -279,6 +290,8 @@ static void meson_eDP_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct am_meson_crtc_state *meson_old_crtc_state;
 	enum vmode_e vmode = meson_crtc_state->vmode;
 	unsigned int vrefresh = drm_mode_vrefresh(mode);
+	struct meson_eDP *am_eDP = encoder_to_meson_eDP(encoder);
+	struct meson_panel_dev *eDP_dev = am_eDP->eDP_dev;
 
 	crtc = encoder->crtc;
 
@@ -307,7 +320,8 @@ static void meson_eDP_encoder_atomic_enable(struct drm_encoder *encoder,
 			encoder->crtc->state->active_changed) {
 			meson_vout_notify_mode_change(amcrtc->vout_index,
 				vmode, EVENT_MODE_SET_START);
-			vout_func_set_vmode(amcrtc->vout_index, vmode);
+			/*set mode timing*/
+			eDP_dev->set_mode_timing(eDP_dev, mode, vmode);
 			meson_vout_notify_mode_change(amcrtc->vout_index,
 				vmode, EVENT_MODE_SET_FINISH);
 			meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "eDP");
@@ -335,7 +349,8 @@ static void meson_eDP_encoder_atomic_enable(struct drm_encoder *encoder,
 	meson_crtc_state->prev_height = mode->vdisplay;
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_START);
-	vout_func_set_vmode(amcrtc->vout_index, vmode);
+	/*set mode timing*/
+	eDP_dev->set_mode_timing(eDP_dev, mode, vmode);
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_FINISH);
 	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "eDP");
@@ -448,10 +463,25 @@ static int meson_eDP_encoder_atomic_check(struct drm_encoder *encoder,
 }
 #endif
 
+static int meson_eDP_encoder_atomic_check(struct drm_encoder *encoder,
+				       struct drm_crtc_state *crtc_state,
+				struct drm_connector_state *conn_state)
+{
+	struct am_meson_crtc_state *meson_crtc_state =
+		to_am_meson_crtc_state(crtc_state);
+
+	/*drm not find connector by vout_validate_vmode*/
+	meson_crtc_state->preset_vmode = VMODE_LCD;
+
+	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs meson_eDP_encoder_helper_funcs = {
+	.atomic_mode_set = meson_eDP_encoder_atomic_mode_set,
 	.atomic_enable = meson_eDP_encoder_atomic_enable,
 	.atomic_disable = meson_eDP_encoder_atomic_disable,
-	// .atomic_check = meson_eDP_encoder_atomic_check,
+	.atomic_check = meson_eDP_encoder_atomic_check,
 };
 
 static const struct drm_encoder_funcs meson_eDP_encoder_funcs = {
@@ -576,6 +606,7 @@ int meson_eDP_dev_bind(struct drm_device *drm,
 	am_eDP->eDP_dev = to_meson_panel_dev(intf);
 	am_eDP->base.connector_type = type;
 	am_eDP->base.drm_priv = priv;
+	am_eDP->con_dev = intf;
 	encoder = &am_eDP->encoder;
 	if (!encoder)
 		return -EINVAL;
