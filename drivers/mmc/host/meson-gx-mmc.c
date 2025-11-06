@@ -3505,7 +3505,8 @@ static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 	host->is_tuning = 0;
 
-	mmc_pattern_check(mmc);
+	if (aml_card_type_mmc(host))
+		mmc_pattern_check(mmc);
 
 	return err;
 }
