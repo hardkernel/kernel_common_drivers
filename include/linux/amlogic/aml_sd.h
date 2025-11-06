@@ -198,6 +198,11 @@ struct meson_host {
 	unsigned int vendor_id;
 	struct mmc_stat_t mmc_stat;
 	bool mmc_stat_debug;
+	unsigned int cmd_dly;
+	unsigned int dat0_dly;
+	unsigned int dat1_dly;
+	unsigned int dat2_dly;
+	unsigned int dat3_dly;
 	unsigned int req_size;
 	int run_low_mem;
 	int reserved_out;
@@ -239,6 +244,8 @@ int sdio_get_vendor(void)
 #endif
 void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 extern struct mmc_host *sdio_host;
+int mmc_io_rw_direct(struct mmc_card *card, int write, unsigned int fn,
+	unsigned int addr, u8 in, u8 *out);
 
 #define   DRIVER_NAME "meson-gx-mmc"
 
