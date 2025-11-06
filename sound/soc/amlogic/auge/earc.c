@@ -1516,7 +1516,14 @@ void aml_earctx_enable(bool enable)
 			enable,
 			s_earc->chipinfo);
 		if (enable) {
-			earctx_dmac_mute(s_earc->tx_dmac_map, s_earc->tx_mute);
+			if (s_earc->tx_mute_late) {
+				schedule_delayed_work(&s_earc->tx_mute_work,
+						msecs_to_jiffies(s_earc->tx_mute_late));
+				s_earc->tx_mute_late = 0;
+			} else {
+				earctx_dmac_mute(s_earc->tx_dmac_map, s_earc->tx_mute);
+			}
+
 			if (!s_earc->hold_bus_flag)
 				schedule_work(&s_earc->tx_hold_bus_work);
 			s_earc->tx_stream_state = SNDRV_PCM_STATE_RUNNING;
@@ -2315,17 +2322,25 @@ static int earctx_set_mute(struct snd_kcontrol *kcontrol,
 
 static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode, bool tinymix)
 {
+	unsigned long flags;
+
 	if (!p_earc->earctx_5v) {
 		dev_info(p_earc->dev, "cable is disconnect, no need set\n");
 		return;
 	}
 
+	/* first mute date before reset hpd */
+	spin_lock_irqsave(&p_earc->tx_lock, flags);
+	if (p_earc->tx_dmac_clk_on)
+		earctx_dmac_mute(p_earc->tx_dmac_map, true);
+	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
+
+	/* eARC<->ARC mode, unmute later 600ms for fix pop */
+	if (tinymix)
+		p_earc->tx_mute_late = 600;
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 	defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
-	/* eARC->ARC mode, unmute later 500ms for fix pop */
 	if (!p_earc->tx_earc_mode) {
-		if (tinymix)
-			p_earc->tx_mute_late = 600;
 		rx_earc_hpd_cntl(); /* reset hpd */
 		earctx_enable_d2a(p_earc->tx_top_map, false);
 	}
