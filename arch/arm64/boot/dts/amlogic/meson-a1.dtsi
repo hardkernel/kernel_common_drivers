@@ -543,6 +543,15 @@
 			#size-cells = <2>;
 			status = "okay";
 		};
+
+		amaudio: amaudio {
+			compatible = "amlogic, amaudio";
+			reg = <0x0 0xfe005020 0x0 0x4>;
+			enable_reg_old = <0>;
+			reg-names = "otp_tee_base";
+			status = "okay";
+		};
+
 		audiobus: audiobus@FE050000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			status = "okay";
