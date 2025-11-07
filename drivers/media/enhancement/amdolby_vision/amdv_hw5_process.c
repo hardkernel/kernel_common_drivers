@@ -3264,6 +3264,8 @@ void get_py_weight(struct prm_dolby_top *prm_dolby, bool update_from_controlpath
 	u32 weight1[7];
 	u64 *pbuf;
 	static u32 last_weight[7];
+	u64 tmp_weight[7];
+	u64 *temp;
 	u32 i;
 	struct pq_config_dvp *p_config;
 
@@ -3273,84 +3275,42 @@ void get_py_weight(struct prm_dolby_top *prm_dolby, bool update_from_controlpath
 	for (i = 0; i < 7; i++)
 		last_weight[i] = prm_dolby->py_weight[i];
 
+	for (i = 0; i < 6; i++)/*default value*/
+		tmp_weight[i] = (1024 << 16) | 256;//weight1<<16|weight0
+	tmp_weight[6] = (1024 << 16) | 64;
+
 	if (hw5_reg_from_file && top2_reg_buf) {
-		pbuf = (u64 *)top2_reg_buf;
-		prm_dolby->py_weight[0] = pbuf[273] & 0xFFFFFFFF;/*PYR1_EDGE_WT01*/
-		prm_dolby->py_weight[1] = pbuf[274] & 0xFFFFFFFF;/*PYR2_EDGE_WT01*/
-		prm_dolby->py_weight[2] = pbuf[275] & 0xFFFFFFFF;/*PYR3_EDGE_WT01*/
-		prm_dolby->py_weight[3] = pbuf[276] & 0xFFFFFFFF;/*PYR4_EDGE_WT01*/
-		prm_dolby->py_weight[4] = pbuf[277] & 0xFFFFFFFF;/*PYR5_EDGE_WT01*/
-		prm_dolby->py_weight[5] = pbuf[278] & 0xFFFFFFFF;/*PYR6_EDGE_WT01*/
-		prm_dolby->py_weight[6] = pbuf[279] & 0xFFFFFFFF;/*PYR7_EDGE_WT01*/
+		temp = (u64 *)top2_reg_buf;
+		pbuf = &temp[273];
 	} else {
 		if (update_from_controlpath) {/*update from core2 setting*/
 			if (tv_hw5_setting) {
-				prm_dolby->py_weight[0] =
-					tv_hw5_setting->top2_reg[273] & 0xFFFFFFFF;
-				prm_dolby->py_weight[1] =
-					tv_hw5_setting->top2_reg[274] & 0xFFFFFFFF;
-				prm_dolby->py_weight[2] =
-					tv_hw5_setting->top2_reg[275] & 0xFFFFFFFF;
-				prm_dolby->py_weight[3] =
-					tv_hw5_setting->top2_reg[276] & 0xFFFFFFFF;
-				prm_dolby->py_weight[4] =
-					tv_hw5_setting->top2_reg[277] & 0xFFFFFFFF;
-				prm_dolby->py_weight[5] =
-					tv_hw5_setting->top2_reg[278] & 0xFFFFFFFF;
-				prm_dolby->py_weight[6] =
-					tv_hw5_setting->top2_reg[279] & 0xFFFFFFFF;
+				pbuf = (u64 *)(&tv_hw5_setting->top2_reg[273]);
 			} else {/*default*/
-				prm_dolby->py_weight[0] = (1024 << 16) | 256;//weight1<<16|weight0
-				prm_dolby->py_weight[1] = (1024 << 16) | 256;
-				prm_dolby->py_weight[2] = (1024 << 16) | 256;
-				prm_dolby->py_weight[3] = (1024 << 16) | 256;
-				prm_dolby->py_weight[4] = (1024 << 16) | 256;
-				prm_dolby->py_weight[5] = (1024 << 16) | 256;
-				prm_dolby->py_weight[6] = (1024 << 16) | 64;
+				pbuf = tmp_weight;
 			}
 		} else {/*update from cfg config*/
 			if (tv_hw5_setting && tv_hw5_setting->pq_config) {
 				p_config = tv_hw5_setting->pq_config;
-				weight0[0] = p_config->tdc.pr_config.pyramid_weights[0] >> 2;
-				weight0[1] = p_config->tdc.pr_config.pyramid_weights[1] >> 2;
-				weight0[2] = p_config->tdc.pr_config.pyramid_weights[2] >> 2;
-				weight0[3] = p_config->tdc.pr_config.pyramid_weights[3] >> 2;
-				weight0[4] = p_config->tdc.pr_config.pyramid_weights[4] >> 2;
-				weight0[5] = p_config->tdc.pr_config.pyramid_weights[5] >> 2;
-				weight0[6] = p_config->tdc.pr_config.pyramid_weights[6] >> 2;
-				weight1[0] = p_config->tdc.pr_config.pyramid_alpha[0];
-				weight1[1] = p_config->tdc.pr_config.pyramid_alpha[1];
-				weight1[2] = p_config->tdc.pr_config.pyramid_alpha[2];
-				weight1[3] = p_config->tdc.pr_config.pyramid_alpha[3];
-				weight1[4] = p_config->tdc.pr_config.pyramid_alpha[4];
-				weight1[5] = p_config->tdc.pr_config.pyramid_alpha[5];
-				weight1[6] = p_config->tdc.pr_config.pyramid_alpha[6];
-				prm_dolby->py_weight[0] = (weight1[0] << 16) | weight0[0];
-				prm_dolby->py_weight[1] = (weight1[1] << 16) | weight0[1];
-				prm_dolby->py_weight[2] = (weight1[2] << 16) | weight0[2];
-				prm_dolby->py_weight[3] = (weight1[3] << 16) | weight0[3];
-				prm_dolby->py_weight[4] = (weight1[4] << 16) | weight0[4];
-				prm_dolby->py_weight[5] = (weight1[5] << 16) | weight0[5];
-				prm_dolby->py_weight[6] = (weight1[6] << 16) | weight0[6];
+				for (i = 0; i < 7; i++) {/*PYR1_EDGE_WT01 ~ PYR7_EDGE_WT01*/
+					weight0[i] =
+						p_config->tdc.pr_config.pyramid_weights[i] >> 2;
+					weight1[i] = p_config->tdc.pr_config.pyramid_alpha[i];
+					tmp_weight[i] = (weight1[i] << 16) | weight0[i];
+				}
+				pbuf = tmp_weight;
 			} else {/*default*/
-				prm_dolby->py_weight[0] = (1024 << 16) | 256;//weight1<<16|weight0
-				prm_dolby->py_weight[1] = (1024 << 16) | 256;
-				prm_dolby->py_weight[2] = (1024 << 16) | 256;
-				prm_dolby->py_weight[3] = (1024 << 16) | 256;
-				prm_dolby->py_weight[4] = (1024 << 16) | 256;
-				prm_dolby->py_weight[5] = (1024 << 16) | 256;
-				prm_dolby->py_weight[6] = (1024 << 16) | 64;
+				pbuf = tmp_weight;
 			}
 		}
 	}
+	if (pbuf) {
+		for (i = 0; i < 7; i++)/*PYR1_EDGE_WT01 ~ PYR7_EDGE_WT01*/
+			prm_dolby->py_weight[i] = pbuf[i] & 0xFFFFFFFF;
+	}
+
 	if (debug_dolby & 1)
-		if (last_weight[0] != prm_dolby->py_weight[0] ||
-			last_weight[1] != prm_dolby->py_weight[1] ||
-			last_weight[2] != prm_dolby->py_weight[2] ||
-			last_weight[3] != prm_dolby->py_weight[3] ||
-			last_weight[4] != prm_dolby->py_weight[4] ||
-			last_weight[5] != prm_dolby->py_weight[5] ||
-			last_weight[6] != prm_dolby->py_weight[6])
+		if (memcmp(last_weight, prm_dolby->py_weight, 7 * sizeof(u32)) != 0)
 			pr_info("weight change %x %x %x %x %x %x %x-%x %x %x %x %x %x %x\n",
 				last_weight[0], last_weight[1], last_weight[2], last_weight[3],
 				last_weight[4], last_weight[5], last_weight[6],

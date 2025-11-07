@@ -12053,7 +12053,7 @@ bool vf_is_fel(struct vframe_s *vf)
 	fmt = get_vframe_src_fmt(vf);
 
 	if (fmt == VFRAME_SIGNAL_FMT_DOVI) {
-		if (debug_dolby & 0x1)
+		if (debug_dolby & 0x80000)
 			pr_dv_dbg("dual layer %d, parse ret flags %d\n",
 				     vf->src_fmt.dual_layer,
 				     vf->src_fmt.parse_ret_flags);
