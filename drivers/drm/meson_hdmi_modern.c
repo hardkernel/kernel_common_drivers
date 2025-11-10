@@ -330,7 +330,7 @@ static int meson_hdmitx_mode_probed_add(int count, int *vics,
 		meson_hdmitx_convert_timing_para(vics[i], mode, edid_vic);
 
 		/*for recovery ui*/
-		if (hdmitx_set_smaller_pref) {
+		if (edid_vic && hdmitx_set_smaller_pref) {
 			/*
 			 * select 1080P mode with hightest refresh rate first,
 			 * if not find then select 720p mode as pref mode
@@ -366,7 +366,7 @@ static int meson_hdmitx_mode_probed_add(int count, int *vics,
 		DRM_DEBUG("add mode [%s] [%d]\n", mode->name, mode->hskew);
 	}
 
-	if (pref_mode)
+	if (edid_vic && pref_mode)
 		pref_mode->type |= DRM_MODE_TYPE_PREFERRED;
 
 	return 0;
