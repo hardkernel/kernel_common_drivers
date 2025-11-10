@@ -5327,10 +5327,14 @@ static long amvecm_ioctl(struct file *file,
 			lut3d_single_sz * 3 * sizeof(unsigned int))) {
 			ret = -EFAULT;
 		} else {
-			vpp_lut3d_table_init(0, 0, 0);
+			/*vpp_lut3d_table_init(0, 0, 0);*/
 			vpp_set_lut3d(0, 0, p3dlut->data, 0);
-			vpp_lut3d_table_release();
-			pr_amvecm_dbg("AMVECM_IOC_SET_3D_LUT\n");
+			pr_amvecm_dbg("AMVECM_IOC_SET_3D_LUT update data.\n");
+			/*vpp_lut3d_table_release();*/
+			if (ct_en) {
+				update_lut3d_base_data(p3dlut->data);
+				pr_amvecm_dbg("AMVECM_IOC_SET_3D_LUT update base data.\n");
+			}
 		}
 
 		vfree(p3dlut);
@@ -5343,9 +5347,9 @@ static long amvecm_ioctl(struct file *file,
 			break;
 		}
 
-		vpp_lut3d_table_init(0, 0, 0);
+		vpp_lut3d_table_init(-1, -1, -1);
 		vpp_set_lut3d(lut3d_data_source, lut_index, 0, 0);
-		vpp_lut3d_table_release();
+		/*vpp_lut3d_table_release();*/
 		break;
 	case AMVECM_IOC_SET_3D_LUT_ORDER:
 		if (copy_from_user(&lut_order,
@@ -11960,6 +11964,27 @@ void resume_hdr_clk_gate(void)
 	pr_amvecm_dbg("amvecm: resume vd1 hdr clk gate\n");
 }
 
+static void resume_dma(void)
+{
+	if (chip_type_id == chip_t6x) {
+		am_dma_set_mif_wr_status(1);
+		am_dma_set_mif_wr(EN_DMA_WR_ID_CM2_LC, 0);
+		am_dma_set_mif_wr(EN_DMA_WR_ID_VD1_HDR_HIST, 1);
+		am_dma_set_mif_wr(EN_DMA_WR_ID_VD2_HDR_HIST, 1);
+		am_dma_set_mif_rd(EN_DMA_RD_ID_GAMUT0, 1);
+		am_dma_set_mif_rd(EN_DMA_RD_ID_GAMUT1, 1);
+		am_dma_set_mif_rd(EN_DMA_RD_ID_3DLUT, 1);
+	}
+}
+
+static void resume_gamut_wrapper(void)
+{
+	if (chip_type_id == chip_t6x) {
+		gamut_mapping0_param.flag_update_lut = 1;
+		gamut_mapping1_param.flag_update_lut = 1;
+	}
+}
+
 void resume_recovery_process(int vpp_index)
 {
 	struct vinfo_s *vinfo = get_current_vinfo();
@@ -17480,6 +17505,8 @@ static int amvecm_drv_resume(struct device *dev)
 	if (chip_type_id == chip_t7)
 		resume_mtx_t7();
 
+	resume_dma();
+	resume_gamut_wrapper();
 	if (chip_type_id == chip_t5w ||
 		chip_type_id == chip_t7 ||
 		chip_type_id == chip_s7 ||
