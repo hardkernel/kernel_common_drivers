@@ -205,6 +205,34 @@ static const struct _hdmi_clkmsr hdmiclkmsr_s7[] = {
 	{87, "audio__tohdmitx_spdif_clk"},
 };
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+/* force_hpd param */
+static bool force_hpd;
+module_param(force_hpd, bool, 0644);
+MODULE_PARM_DESC(force_hpd, "force hot plug detect on/off");
+
+void _force_hpd(struct hdmitx_common *tx_comm)
+{
+	hdmitx_process_plugout(tx_comm);
+	mutex_lock(&tx_comm->hdmimode_mutex);
+	hdmitx_process_plugin(tx_comm, true, false);
+	mutex_unlock(&tx_comm->hdmimode_mutex);
+
+	/* notify to drm hdmi */
+	hdmitx_fire_drm_hpd_cb_unlocked(tx_comm);
+}
+EXPORT_SYMBOL(_force_hpd);
+
+void do_force_hpd(void)
+{
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
+
+	if (force_hpd)
+		_force_hpd(&hdev->tx_comm);
+}
+EXPORT_SYMBOL(do_force_hpd);
+#endif
+
 /* only for hpd level */
 int hdmitx21_hpd_hw_op(enum hpd_op cmd)
 {

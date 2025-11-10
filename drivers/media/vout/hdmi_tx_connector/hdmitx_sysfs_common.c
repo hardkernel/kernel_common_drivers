@@ -19,6 +19,24 @@
 
 /************************common sysfs*************************/
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+extern void _force_hpd(struct hdmitx_common *tx_comm);
+/* force_hpd attr */
+static ssize_t force_hpd_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
+
+	if (strncmp(buf, "1", 1) == 0 || strncmp(buf, "true", 4) == 0)
+		_force_hpd(tx_comm);
+
+	return count;
+}
+
+static DEVICE_ATTR_WO(force_hpd);
+#endif
+
 static ssize_t hpd_state_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -2320,6 +2338,10 @@ int hdmitx_sysfs_common_create(struct device *dev,
 {
 	int ret = 0;
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	ret = device_create_file(dev, &dev_attr_force_hpd);
+#endif
+
 	ret = device_create_file(dev, &dev_attr_hpd_state);
 
 	ret = device_create_file(dev, &dev_attr_rawedid);
@@ -2380,6 +2402,10 @@ int hdmitx_sysfs_common_create(struct device *dev,
 int hdmitx_sysfs_common_destroy(struct device *dev)
 {
 	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
+
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	device_remove_file(dev, &dev_attr_force_hpd);
+#endif
 
 	device_remove_file(dev, &dev_attr_hpd_state);
 

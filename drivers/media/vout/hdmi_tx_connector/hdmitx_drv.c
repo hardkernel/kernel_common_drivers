@@ -52,6 +52,10 @@
 #define HDMI_TX_COUNT 32
 static struct class *hdmitx_class;
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+extern void do_force_hpd(void);
+#endif
+
 #ifdef CONFIG_OF
 #ifdef CONFIG_AMLOGIC_HDMITX
 static struct hdmitx_ops hdmitx20_ops = {
@@ -627,6 +631,10 @@ static int meson_hdmitx_bind(struct device *dev,
 	int drm_hdmitx_id;
 	struct hdmitx_common *tx_common = dev_get_drvdata(dev);
 	struct meson_drm_bound_data *bound_data = data;
+
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	do_force_hpd();
+#endif
 
 	if (bound_data->connector_component_bind) {
 		drm_hdmitx_id = bound_data->connector_component_bind
