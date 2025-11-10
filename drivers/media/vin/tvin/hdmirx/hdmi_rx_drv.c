@@ -1054,6 +1054,7 @@ struct rid_aspect_ratio_s rid_aspect_ratio[] = {
 };
 
 static enum hdmi_vic_e vesa_4x3[] = {
+	HDMI_640x480p60,
 	HDMI_800_600,
 	HDMI_1024_768,
 	HDMI_1280_960,
@@ -1162,11 +1163,11 @@ void hdmirx_get_aspect_ratio(struct tvin_sig_property_s *prop, u8 port)
 			break;
 		}
 	} else {
-		prop->pic_aspect_ratio = TVIN_ASPECT_16x9_FULL;
+		if (is_vesa_aspect_ratio_4x3(rx[port].pre.sw_vic))
+			prop->pic_aspect_ratio = TVIN_ASPECT_4x3_FULL;
+		else
+			prop->pic_aspect_ratio = TVIN_ASPECT_16x9_FULL;
 	}
-	if (prop->pic_aspect_ratio == TVIN_ASPECT_16x9_FULL &&
-		is_vesa_aspect_ratio_4x3(rx[port].pre.sw_vic))
-		prop->pic_aspect_ratio = TVIN_ASPECT_4x3_FULL;
 	if (rx[port].cur.active_valid) {
 		switch (rx[port].cur.active_ratio) {
 		case ACTIVE_ASPECT_RATIO_4X3:
