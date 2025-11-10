@@ -373,4 +373,5 @@ extern unsigned int dpss_t6x_direct;
 extern unsigned int dpss_en_dct;
 extern bool dpss_dbg_en_logo;
 extern unsigned int dpss_light_chg;
+extern unsigned int dpss_ei_sel;
 #endif //__SYS_DEF_H__

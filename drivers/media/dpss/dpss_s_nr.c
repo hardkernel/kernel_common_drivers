@@ -85,7 +85,7 @@ module_param_named(dpss_dbg_en_logo, dpss_dbg_en_logo, bool, 0664);
 unsigned int dpss_dv_en;	//bit 0 for dae
 module_param_named(dpss_dv_en, dpss_dv_en, uint, 0664);
 
-unsigned int dpss_en_dct;
+unsigned int dpss_en_dct = 1;
 module_param_named(dpss_en_dct, dpss_en_dct, uint, 0664);
 unsigned int dpss_en_afbc;
 module_param_named(dpss_en_afbc, dpss_en_afbc, uint, 0664);
@@ -564,6 +564,7 @@ static void _prm_top_init_light(struct dpss_ch_s *pch, struct PRM_DPSS_TOP *prm_
 	prm_top->nr_aapps_on = 0;
 	prm_top->nr_aapps_mode = 0;
 	prm_top->di_interlace = 0;	//yu.zong 2024-12-06
+	prm_top->sw_dct_frame_cnt = 0;
 	if ((pch->d->is_i || pch->d->proc_as_i) &&
 	    !pch->d->is_field && !dpss_en_filed)
 		prm_top->di_interlace = 1;	//yu.zong 2024-12-06

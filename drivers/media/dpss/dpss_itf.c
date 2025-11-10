@@ -38,6 +38,19 @@ static void _ch_releas_data_fifo(struct dpss_ch_d_s1 *pch_d)
 	}
 }
 
+static void read_back_reg_d410(struct dpss_ch_s *pch)
+{
+	if (!pch) {
+		DBG_ERR("%s:no pch\n", __func__);
+		return;
+	}
+
+	if (pch->c.in_cnt > 2)
+		dpss_ei_sel = rd(VPU_DI_BLEND_EI_POST_EN_MODE);
+	else
+		dpss_ei_sel = 0;
+}
+
 bool dpss_api_unreg(struct dpss_ch_s *pch)
 {
 	bool ret = false;
@@ -52,6 +65,8 @@ bool dpss_api_unreg(struct dpss_ch_s *pch)
 			__func__, pch->d, pch->c.reg_s1);
 		return true;
 	}
+
+	read_back_reg_d410(pch);
 	if (!pch->c.reg_s2) {
 		dbg_i0("%s:trig0\n", __func__);
 //		atomic_set(&pch->c.trig_reg, 0);

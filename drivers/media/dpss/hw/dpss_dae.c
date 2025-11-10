@@ -649,7 +649,7 @@ void hw_cfg_dpss_dae(enum DPSS_WORK_MODE  dae_mode,
 		dbg_h0("sw dct %d\n", prm_top->sw_dct_frame_cnt);
 	}
 		if (prm_top->frame_count > prm_top->sw_dct_frame_cnt && sw_dct) {
-			dpss_tnr_en = 1;
+			w_reg_bit(VPU_NR_SCENCE_CHANGE_FLAG, 0x0, 0, 1);//dpss_tnr_en = 1;
 			sw_dct = 0;
 			prm_top->sw_dct_frame_cnt = 0;
 			dbg_h0("sw tnr on\n");

@@ -900,7 +900,6 @@ void hw_process_dpe1_nrdi_frm_rst(int cfg_slc,
 				dpss_vbe_proc_byp(1);
 			} else {
 	//07-10			hw_cfg_dpss_dpe(dpe_di_mode, prm_top, prm_dpe, &g_nr_pps_cfg);
-				dpss_ei_sel = rd(VPU_DI_BLEND_EI_POST_EN_MODE);
 				w_reg_bit(VPU_DI_BLEND_EI_POST_EN_MODE, 1, 4, 4);
 				dbg_h1("%s i src second frame ei\n", __func__);
 			}
@@ -1019,7 +1018,6 @@ void hw_process_dpe2_frm_rst(int cfg_slc,
 				dpss_vbe_proc_byp(2);//
 				dpss_last_dpe_src = 3;
 			} else {
-				dpss_ei_sel = rd(VPU_DI_BLEND_EI_POST_EN_MODE);
 				w_reg_bit(VPU_DI_BLEND_EI_POST_EN_MODE, 1, 4, 4);
 				dbg_h1("%s second frame set ei mode\n", __func__);
 			}
@@ -1041,7 +1039,6 @@ void hw_process_dpe2_frm_rst(int cfg_slc,
 				} else {
 	//0710				hw_cfg_dpss_dpe(dpe_di_mode, prm_top, prm_dpe,
 	//0710					&g_nr_pps_cfg);
-					dpss_ei_sel = rd(VPU_DI_BLEND_EI_POST_EN_MODE);
 					w_reg_bit(VPU_DI_BLEND_EI_POST_EN_MODE, 1, 4, 4);
 					dbg_h1("%s second frame set ei mode\n", __func__);
 				}

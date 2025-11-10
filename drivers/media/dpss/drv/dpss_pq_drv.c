@@ -559,7 +559,7 @@ int di_set_dct_reg(struct di_dct_param_s *pdata)
 	page.page_idx = 0;
 	page.preg_list = &di_dct_param[0];
 
-	dpss_tnr_en = 0;
+	w_reg_bit(VPU_NR_SCENCE_CHANGE_FLAG, 0x1, 0, 1);//dpss_tnr_en = 0;
 	sw_dct = 1;
 	di_update_data_page_reg(&page);
 	return 0;
