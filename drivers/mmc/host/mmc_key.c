@@ -63,7 +63,6 @@ EXPORT_SYMBOL_GPL(uk_mmc);
  *
  */
 static struct mmc_card *mmc_card_key;
-static struct aml_emmckey_info_t *emmckey_info;
 #ifdef KEY_BACKUP
 static struct aml_key_info key_infos[2] = { {0, 0, 0}, {0, 0, 0} };
 
@@ -404,52 +403,6 @@ static int _key_init(struct mmc_card *mmc)
 	return ret;
 }
 
-static int aml_emmc_key_check(void)
-{
-	u8 keypart_cnt;
-	u64 part_size;
-	struct emmckey_valid_node_t *emmckey_valid_node, *temp_valid_node;
-
-	emmckey_info->key_part_count =
-		emmckey_info->keyarea_phy_size / EMMC_KEYAREA_SIZE;
-
-	if (emmckey_info->key_part_count
-			> EMMC_KEYAREA_COUNT) {
-		emmckey_info->key_part_count = EMMC_KEYAREA_COUNT;
-	}
-	keypart_cnt = 0;
-	part_size = EMMC_KEYAREA_SIZE;
-	do {
-		emmckey_valid_node = kmalloc(sizeof(*emmckey_valid_node),
-				GFP_KERNEL);
-
-		if (!emmckey_valid_node) {
-			pr_info("%s:%d,kmalloc memory fail\n",
-				__func__, __LINE__);
-			return -ENOMEM;
-		}
-		emmckey_valid_node->phy_addr = emmckey_info->keyarea_phy_addr
-						+ part_size * keypart_cnt;
-		emmckey_valid_node->phy_size = EMMC_KEYAREA_SIZE;
-		emmckey_valid_node->next = NULL;
-		emmckey_info->key_valid = 0;
-		if (!emmckey_info->key_valid_node) {
-			emmckey_info->key_valid_node = emmckey_valid_node;
-
-		} else {
-			temp_valid_node = emmckey_info->key_valid_node;
-
-			while (temp_valid_node->next)
-				temp_valid_node = temp_valid_node->next;
-
-			temp_valid_node->next = emmckey_valid_node;
-		}
-	} while (++keypart_cnt < emmckey_info->key_part_count);
-
-	emmckey_info->key_valid = 1;
-	return 0;
-}
-
 struct unifykey_storage_ops mmc_ops = {
 	.read = emmc_key_read,
 	.write = emmc_key_write
@@ -464,15 +417,7 @@ void emmc_key_init(struct mmc_card *card, int *retp)
 
 	bit = card->csd.read_blkbits;
 	pr_debug("card key: card_blk_probe.\n");
-	emmckey_info = kmalloc(sizeof(*emmckey_info), GFP_KERNEL);
-	if (!emmckey_info) {
-		pr_info("%s:%d,kmalloc memory fail\n", __func__, __LINE__);
-		*retp = -ENOMEM;
-		goto exit;
-	}
 
-	memset(emmckey_info, 0, sizeof(*emmckey_info));
-	emmckey_info->key_init = 0;
 #ifdef KEY_BACKUP
 	size = EMMCKEY_AREA_PHY_SIZE + (512 * 2);
 #else
@@ -480,35 +425,19 @@ void emmc_key_init(struct mmc_card *card, int *retp)
 #endif
 	if (get_reserve_partition_off_from_tbl() < 0) {
 		*retp = -EINVAL;
-		goto exit_err;
+		goto exit;
 	}
 	addr = get_reserve_partition_off_from_tbl() + EMMCKEY_RESERVE_OFFSET;
 	lba_start = addr >> bit;
 	lba_end = (addr + size) >> bit;
-	emmckey_info->key_init = 1;
 
 	pr_debug("%s:%d emmc key lba_start:0x%llx,lba_end:0x%llx\n",
 			__func__, __LINE__, lba_start, lba_end);
 
-	if (!emmckey_info->key_init) {
-		*retp = -EINVAL;
-
-		pr_info("%s:%d,emmc key init fail\n", __func__, __LINE__);
-		goto exit_err;
-	}
-	emmckey_info->keyarea_phy_addr = addr;
-	emmckey_info->keyarea_phy_size = size;
-	emmckey_info->lba_start = lba_start;
-	emmckey_info->lba_end   = lba_end;
 	mmc_card_key = card;
 #ifdef KEY_BACKUP
 	_key_init(card);
 #endif
-	*retp = aml_emmc_key_check();
-	if (*retp) {
-		pr_info("%s:%d,emmc key check fail\n", __func__, __LINE__);
-		goto exit_err;
-	}
 
 	mutex_lock(&uk_mmc.unifykey_mutex);
 	uk_mmc.ops = &mmc_ops;
@@ -519,8 +448,6 @@ void emmc_key_init(struct mmc_card *card, int *retp)
 
 	pr_info("emmc key: %s:%d ok.\n", __func__, __LINE__);
 
-exit_err:
-		kfree(emmckey_info);
 exit:
 		return;
 }
