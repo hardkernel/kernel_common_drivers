@@ -183,6 +183,9 @@ struct link_train_t {
 	/* force link rate and lane count for debug */
 	enum dp_link_rate_e force_lr;
 	enum dp_lane_count_e force_lc;
+
+	/* link training retry times if training fail */
+	u8 lt_retry_cnt;
 };
 
 /*

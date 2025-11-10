@@ -91,6 +91,12 @@ struct meson_tx_dev {
 	void *tx_cap;
 	struct meson_tx_helper_ops *ops;
 
+	/* set to true if hpd become low or sequence_id not match
+	 * during video mode set; still set venc clk for vsync,
+	 * skip phy(and core) setting
+	 */
+	bool skip_phy_setting;
+
 	bool pxp_mode;
 };
 

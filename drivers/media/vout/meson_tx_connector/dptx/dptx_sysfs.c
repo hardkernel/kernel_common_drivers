@@ -237,6 +237,7 @@ static ssize_t dptx_debug_store(struct device *dev, struct device_attribute *att
 			return count;
 		}
 		tx_comm->hw_comm->hpd_in_filter_ms = val;
+		DPTX_INFO("hpd_in_filter_ms %d\n", val);
 	} else if (token && strncmp(token, "fake_plug", 9) == 0) {
 		int hw_hpd_st = 0;
 
@@ -362,7 +363,7 @@ static ssize_t dptx_debug_store(struct device *dev, struct device_attribute *att
 			kfree(tmp_timing);
 			return count;
 		}
-		if (dptx_calc_hw_fmt_para(tx_dev->tx_hw_base, sw_para, hw_para)) {
+		if (dptx_calc_hw_fmt_para(tx_dev, sw_para, hw_para)) {
 			DPTX_ERROR("%s build HW para failed\n", __func__);
 			kfree(tmp_timing);
 			return count;
@@ -425,6 +426,13 @@ static ssize_t dptx_debug_store(struct device *dev, struct device_attribute *att
 
 		tx_comm->link_train->force_lc = val;
 		DPTX_INFO("%s force lane count: %d\n", __func__, val);
+	} else if (token && strncmp(token, "lt_retry_cnt", 12) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 16, &val) < 0)
+			return count;
+
+		tx_comm->link_train->lt_retry_cnt = val;
+		DPTX_INFO("%s link training retry times: %d\n", __func__, val);
 	} else if (token && strncmp(token, "vid_clk_sync", 12) == 0) {
 		token = strsep(&cur, delim);
 		if (!token || kstrtouint(token, 16, &val) < 0)
@@ -478,6 +486,39 @@ static ssize_t dptx_debug_store(struct device *dev, struct device_attribute *att
 				DPTX_INFO("read dpcd ret length: %d\n", ret);
 				for (cnt = 0; cnt < ret; cnt++)
 					DPTX_INFO("aux[%d] = 0x%x\n", cnt, tx_dev->dpcd_buf[cnt]);
+			}
+		}  else if (token && strncmp(token, "wr", 2) == 0) {
+			/*
+			 * write two bytes 0x14 0x4 to AUX address 00100h
+			 * echo aux wr 0x110 2 0x14 0x4 > debug
+			 */
+			int i;
+			u32 len;
+			u32 data[16] = {0};
+			u8  aux_data[16] = {0};
+
+			token = strsep(&cur, delim);
+			if (!token || kstrtouint(token, 16, &addr) < 0)
+				return count;
+
+			token = strsep(&cur, delim);
+			if (!token || kstrtouint(token, 10, &len) < 0)
+				return count;
+			DPTX_INFO("aux write offset: 0x%x, length: 0x%x\n", addr, len);
+			len = len < 16 ? len : 16; /* max write length is 16 */
+			for (i = 0; i < len; i++) {
+				token = strsep(&cur, delim);
+				if (!token || kstrtouint(token, 16, &data[i]) < 0)
+					break;
+				aux_data[i] = data[i] & 0xff;
+			}
+			ret = dptx_aux_write_dpcd(tx_comm->tx_aux, addr, aux_data, len);
+			if (ret < 0) {
+				DPTX_INFO("write dpcd cap failed, ret: %d\n", ret);
+			} else {
+				for (i = 0; i < len; i++)
+					DPTX_INFO("  write 0x%02x to aux[0x%05x]\n",
+						aux_data[i], addr + i);
 			}
 		} else if (token && strncmp(token, "block_mode", 10) == 0) {
 			token = strsep(&cur, delim);

@@ -205,15 +205,16 @@ static u32 calc_video_fmt_bw(u32 pixel_clk, enum colorimetry_format cs, color_de
 }
 
 /* calculate HW format para from sw para, such as tmds_clk, lane_count/link_rate */
-int dptx_calc_hw_fmt_para(struct meson_tx_hw *tx_hw, struct meson_tx_format_para *sw_para,
+int dptx_calc_hw_fmt_para(struct meson_tx_dev *tx_base, struct meson_tx_format_para *sw_para,
 	struct dptx_hw_fmt_para *hw_para)
 {
 	u32 bandwidth;
 	struct tx_timing *t;
 	enum dp_link_rate_e rate = DPTX_LINK_RATE_1P62GHZ;
 	enum dp_lane_count_e count = DPTX_LANE_COUNT_1;
+	struct dptx_common *tx_comm = to_dptx_common(tx_base);
 
-	if (!tx_hw || !sw_para || !hw_para) {
+	if (!tx_comm || !sw_para || !hw_para) {
 		DPTX_ERROR("[%s]: invalid input param\n", __func__);
 		return -EINVAL;
 	}
@@ -258,11 +259,20 @@ int dptx_calc_hw_fmt_para(struct meson_tx_hw *tx_hw, struct meson_tx_format_para
 		return -1;
 	}
 
-	hw_para->link_rate = rate;
-	hw_para->lane_count = count;
+	DPTX_INFO("bandwidth: %s cs %d cd %d bandwidth %dkHz Rate %d Count %d\n",
+		sw_para->name, sw_para->cs, sw_para->cd, bandwidth, rate, count);
+	/* use force link rate and lane count if it's enabled */
+	if (tx_comm->link_train->force_lr >= DPTX_LINK_RATE_1P62GHZ &&
+		tx_comm->link_train->force_lr < DPTX_LINK_RATE_MAX)
+		hw_para->link_rate = tx_comm->link_train->force_lr;
+	else
+		hw_para->link_rate = rate;
+	if (tx_comm->link_train->force_lc >= DPTX_LANE_COUNT_1 &&
+		tx_comm->link_train->force_lc < DPTX_LANE_COUNT_MAX)
+		hw_para->lane_count = tx_comm->link_train->force_lc;
+	else
+		hw_para->lane_count = count;
 
-	DPTX_INFO("bandwidth: %s cs %d cd %d bandwidth %dkHz Rate %d Count %d\n", sw_para->name,
-		sw_para->cs, sw_para->cd, bandwidth, rate, count);
 	return 0;
 }
 
@@ -274,18 +284,30 @@ static int dptx_pre_mode_enable(struct meson_tx_dev *tx_dev, struct meson_tx_for
 static int dptx_mode_enable(struct meson_tx_dev *tx_dev, struct meson_tx_format_para *para)
 {
 	struct dptx_common *tx_comm = NULL;
-	int ret = 0;
 	struct meson_tx_clk *tx_clk = NULL;
+	int ret = -EINVAL;
+	u8 i = 0;
 
 	if (!tx_dev || !para)
-		return -EINVAL;
+		return ret;
+	/* skip core & phy setting */
+	if (tx_dev->skip_phy_setting)
+		return ret;
+
 	tx_comm = to_dptx_common(tx_dev);
 	tx_clk = tx_dev->tx_hw_base->tx_clk;
 
-	ret = dptx_link_training(tx_comm->link_train);
+	for (i = 0; i <= tx_comm->link_train->lt_retry_cnt; i++) {
+		ret = dptx_link_training(tx_comm->link_train);
+		if (ret == 0)
+			break;
+	}
 	if (ret != 0) {
-		DPTX_ERROR("%s link training failed, abort mode set\n", __func__);
-		return ret;
+		/* ignore link training fail under pxp mode */
+		if (!tx_comm->base.pxp_mode) {
+			DPTX_ERROR("%s link training failed, abort mode set\n", __func__);
+			return ret;
+		}
 	} else {
 		/* update the link rate/lane count as they may be
 		 * changed after link training

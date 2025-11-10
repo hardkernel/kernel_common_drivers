@@ -84,7 +84,7 @@ static bool dptx_check_bandwidth_cap(enum number_of_links lane_cnt, enum dp_link
 	disp_cap = &rx_cap->disp_id_cap;
 	/* when displayID cap and DPCD */
 	if (lane_cnt > disp_cap->display_interface.link.links) {
-		DPTX_ERROR("[%s]: lane count(%d) exceed rx cap(%d)\n",
+		DPTX_DEBUG_EDID("[%s]: lane count(%d) exceed rx cap(%d)\n",
 			__func__, lane_cnt, disp_cap->display_interface.link.links);
 		/* return false */
 	}
@@ -109,16 +109,17 @@ static bool dptx_validate_fmt_para(struct meson_tx_dev *tx_base,
 
 	timing = &sw_para->timing;
 
+	if (tx_base->pxp_mode) {
+		DPTX_INFO("[%s]: treat mode valid in PXP\n", __func__);
+		return true;
+	}
+
 	/* step1: validate timing + cs/cd in rx_cap */
 	if (!dptx_check_rx_cap(timing, sw_para->cs, sw_para->cd, &tx_base->rxcap))
 		return false;
 
 	/* step2: validate timing + cs/cd in tx_cap. */
 	if (!dptx_check_tx_cap(timing, sw_para->cs, sw_para->cd, tx_base->tx_cap))
-		return false;
-
-	/* build HW format param */
-	if (dptx_calc_hw_fmt_para(tx_base->tx_hw_base, sw_para, hw_para))
 		return false;
 
 	/* step3: validate bandwidth in tx/rx cap */
@@ -144,6 +145,9 @@ int dptx_validate_tx_state_fmt_para(struct meson_tx_dev *tx_base,
 	}
 
 	hw_para = &base_state->para.tx_hw_para.dptx_hw_para;
+	/* build HW format param */
+	if (dptx_calc_hw_fmt_para(tx_base, &base_state->para, hw_para))
+		return -EINVAL;
 	is_valid = dptx_validate_fmt_para(tx_base, &base_state->para, hw_para);
 	if (is_valid)
 		return 0;
@@ -181,7 +185,7 @@ bool dptx_validate_timing_with_basic_cs(struct meson_tx_dev *tx_base, struct tx_
 	/* build SW/HW format param */
 	if (meson_tx_format_para_init(tx_base, timing, 0, cs, cd, cr, &sw_para))
 		return false;
-	if (dptx_calc_hw_fmt_para(tx_base->tx_hw_base, &sw_para, &hw_para))
+	if (dptx_calc_hw_fmt_para(tx_base, &sw_para, &hw_para))
 		return false;
 
 	/* step3: validate bandwidth in tx/rx cap */

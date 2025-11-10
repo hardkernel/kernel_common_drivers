@@ -987,18 +987,21 @@ int dptx_link_training(struct link_train_t *link_train)
 	else
 		DPTX_INFO("training %s\n", st == LINK_ST_EQ_PASS ? "pass" : "fail");
 
-	if (st == LINK_ST_EQ_PASS) {
-		/* forcely save link rate and lane count */
-		if (link_train->force_lr > 0)
-			dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_SAVE_LINK_RATE,
-				&link_train->force_lr, NULL);
-		if (link_train->force_lc > 0)
-			dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_SAVE_LANE_COUNT,
-				&link_train->force_lc, NULL);
+	/*
+	 * save link rate and lane count if force mode enabled,
+	 * no matter link training fail(special for PXP) or pass
+	 */
+	if (link_train->force_lr > 0)
+		dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_SAVE_LINK_RATE,
+			&link_train->force_lr, NULL);
+	if (link_train->force_lc > 0)
+		dptx_hw_cntl(&tx_comm->hw_comm->hw_base, LINKCONF_SAVE_LANE_COUNT,
+			&link_train->force_lc, NULL);
+
+	if (st == LINK_ST_EQ_PASS)
 		return 0;
-	} else {
+	else
 		return -EAGAIN;
-	}
 }
 
 int dptx_update_link_fmt_para(struct dptx_common *tx_comm, struct meson_tx_format_para *para)
@@ -1009,8 +1012,29 @@ int dptx_update_link_fmt_para(struct dptx_common *tx_comm, struct meson_tx_forma
 		return -EINVAL;
 
 	tx_clk = tx_comm->base.tx_hw_base->tx_clk;
-	para->tx_hw_para.dptx_hw_para.link_rate = tx_comm->link_train->link_cfg->curr.link_rate;
-	para->tx_hw_para.dptx_hw_para.lane_count = tx_comm->link_train->link_cfg->curr.lane_count;
+	/*
+	 * update link rate and lane count if force mode is enabled,
+	 * otherwise update with the link rate and lane count which passed link training
+	 */
+	if (tx_comm->link_train->force_lr >= DPTX_LINK_RATE_1P62GHZ &&
+		tx_comm->link_train->force_lr < DPTX_LINK_RATE_MAX)
+		para->tx_hw_para.dptx_hw_para.link_rate = tx_comm->link_train->force_lr;
+	else
+		para->tx_hw_para.dptx_hw_para.link_rate =
+			tx_comm->link_train->link_cfg->curr.link_rate;
+
+	if (tx_comm->link_train->force_lc >= DPTX_LANE_COUNT_1 &&
+		tx_comm->link_train->force_lc < DPTX_LANE_COUNT_MAX)
+		para->tx_hw_para.dptx_hw_para.lane_count = tx_comm->link_train->force_lc;
+	else
+		para->tx_hw_para.dptx_hw_para.lane_count =
+			tx_comm->link_train->link_cfg->curr.lane_count;
+
+	/* update fromat param of dptx instance */
+	tx_comm->base.sw_fmt_para.tx_hw_para.dptx_hw_para.link_rate =
+		para->tx_hw_para.dptx_hw_para.link_rate;
+	tx_comm->base.sw_fmt_para.tx_hw_para.dptx_hw_para.lane_count =
+		para->tx_hw_para.dptx_hw_para.lane_count;
 
 	switch (para->tx_hw_para.dptx_hw_para.link_rate) {
 	case DPTX_LINK_RATE_1P62GHZ:

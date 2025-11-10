@@ -59,8 +59,7 @@ struct hdmitx_hw_fmt_para {
 
 struct meson_tx_format_para {
 	/* below members for both dptx/hdmitx */
-	unsigned char *name;
-	unsigned char *sname;
+	unsigned char name[32];
 	struct tx_timing timing;
 
 	enum hdmi_color_depth cd; /* cd8, cd10 or cd12 */

@@ -104,8 +104,7 @@ int hdmitx_format_para_init(struct meson_tx_format_para *para,
 
 	para->timing = *timing;
 	para->tx_hw_para.hdmitx_hw_para.vic = timing->vic;
-	para->name = timing->name;
-	para->sname = timing->sname;
+	memcpy(para->name, timing->name, sizeof(para->name));
 	para->tx_hw_para.hdmitx_hw_para.tmds_clk = timing->pixel_freq;
 	para->cs = cs;
 	para->cd = cd;
@@ -125,8 +124,7 @@ int hdmitx_format_para_reset(struct meson_tx_format_para *para)
 {
 	memset(para, 0, sizeof(struct meson_tx_format_para));
 	para->tx_hw_para.hdmitx_hw_para.vic = HDMI_0_UNKNOWN;
-	para->name = "invalid";
-	para->sname = "invalid";
+	memcpy(para->name, "invalid", sizeof("invalid"));
 	para->cs = HDMI_COLORSPACE_RESERVED4;
 	para->cd = COLORDEPTH_RESERVED;
 	para->cr = HDMI_QUANTIZATION_RANGE_RESERVED;
@@ -154,7 +152,7 @@ int hdmitx_format_para_print(struct meson_tx_format_para *para, char *log_buf)
 		pos += snprintf(buf + pos, len - pos, "format_para: %px vic [%d]\n",
 					para, para->tx_hw_para.hdmitx_hw_para.vic);
 		pos += snprintf(buf + pos, len - pos, "format_para: name %s frac %d\n",
-			para->sname ? para->sname : para->name, para->frac_mode);
+			para->name, para->frac_mode);
 
 		conf = NULL;
 		for (i = 0; i < sizeof(parse_cs_) / sizeof(struct parse_cs); i++) {

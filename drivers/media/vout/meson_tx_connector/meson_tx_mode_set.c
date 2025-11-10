@@ -12,44 +12,45 @@
 static int meson_tx_pre_enable_mode(struct meson_tx_dev *tx_dev, struct meson_tx_format_para *para)
 {
 	struct meson_tx_log *tx_log = meson_get_tx_log(tx_dev);
+	int ret = -EINVAL;
 
 	if (!tx_dev || !para) {
 		TX_ERROR(tx_log, "[%s]: invalid input\n", __func__);
-		return -EINVAL;
+		return ret;
 	}
 
 	if (tx_dev->ready)
 		TX_ERROR(tx_log, "Should run disable_mode before enable new mode.\n");
 
 	if (tx_dev->hpd_state == 0 || tx_dev->suspend_flag) {
-		TX_ERROR(tx_log, "%s current hpd_state/suspend (%d,%d), exit\n",
+		TX_ERROR(tx_log, "%s current hpd_state/suspend (%d,%d), skip phy set\n",
 			__func__, tx_dev->hpd_state, tx_dev->suspend_flag);
-		return -1;
+		tx_dev->skip_phy_setting = true;
 	}
 
-	/* to replace sw_fmt_para with meson_tx_format_para */
 	memcpy(&tx_dev->sw_fmt_para, para, sizeof(struct meson_tx_format_para));
 
 	if (tx_dev->ops->pre_mode_enable)
-		tx_dev->ops->pre_mode_enable(tx_dev, para);
+		ret = tx_dev->ops->pre_mode_enable(tx_dev, para);
 
-	return 0;
+	return ret;
 }
 
 static int meson_tx_enable_mode(struct meson_tx_dev *tx_dev,
 				     struct meson_tx_format_para *para)
 {
 	struct meson_tx_log *tx_log = meson_get_tx_log(tx_dev);
+	int ret = -EINVAL;
 
 	if (!tx_dev || !tx_dev->tx_hw_base) {
 		TX_ERROR(tx_log, "[%s]: invalid input\n", __func__);
-		return -EINVAL;
+		return ret;
 	}
 
 	if (tx_dev->ops->mode_enable)
-		tx_dev->ops->mode_enable(tx_dev, para);
+		ret = tx_dev->ops->mode_enable(tx_dev, para);
 
-	return 0;
+	return ret;
 }
 
 static int meson_tx_post_enable_mode(struct meson_tx_dev *tx_dev,
@@ -105,13 +106,13 @@ int meson_tx_do_mode_setting(struct meson_tx_dev *tx_dev,
 	mutex_lock(&tx_dev->set_mode_mutex);
 	if (new_state->sequence_id != tx_dev->hw_sequence_id) {
 		TX_ERROR(tx_log, "sequence_id failed %lld\n", new_state->sequence_id);
-		goto fail;
+		tx_dev->skip_phy_setting = true;
 	}
 
 	ret = meson_tx_pre_enable_mode(tx_dev, new_para);
 	if (ret < 0) {
 		TX_ERROR(tx_log, "pre mode enable fail\n");
-		goto fail;
+		tx_dev->skip_phy_setting = true;
 	}
 
 	ret = meson_tx_enable_mode(tx_dev, new_para);
@@ -127,6 +128,8 @@ int meson_tx_do_mode_setting(struct meson_tx_dev *tx_dev,
 	}
 
 fail:
+	/* reset param anyway */
+	tx_dev->skip_phy_setting = false;
 	mutex_unlock(&tx_dev->set_mode_mutex);
 	return ret;
 }

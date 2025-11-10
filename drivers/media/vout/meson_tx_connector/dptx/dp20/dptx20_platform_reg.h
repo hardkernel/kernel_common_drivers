@@ -60,6 +60,18 @@
 //Bit 0     viu1_force_go_field
 #define VPU_DISP_VIU1_CTRL VPUCTRL_REG_ADDR(0x2787)
 
+/* bit0: 0: disp_if_unit0 data from venc0
+ * bit0: 1: disp_if_unit0 data from venc0->split0 decoup
+ * bit1: 0: disp_if_unit1 data from venc1
+ * bit1: 1: disp_if_unit1 data from venc0->split1 decoup
+ */
+#define VPU_DISP_WRAP_CTRL VPUCTRL_REG_ADDR(0x278b)
+
+/* bit[1:0], 2'b00 mux to disp_if_unit0->edp0
+ * 2'b11 mux to disp_if_unit1->edp1
+ */
+#define VPU_DSI_EDP_INFO VPUCTRL_REG_ADDR(0x27fe)
+
 /*
  * there are two VPU_HDMI_IF modules, so there are also
  * two groups of below registers

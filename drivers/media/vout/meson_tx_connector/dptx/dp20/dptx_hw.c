@@ -1923,6 +1923,10 @@ static int dptx20_vpu_fmt_config(struct dptx_hw_common *hw_comm,
 
 static int dptx20_pre_enable_mode(struct dptx_hw_common *hw_comm, struct meson_tx_format_para *para)
 {
+	/* enable VENC clk for sync even mode set failed */
+	u32 clk_mask = PIXEL_PLL_MASK | VENC_CLK_MASK;
+
+	meson_tx_clk_set(hw_comm->hw_base.tx_clk, clk_mask);
 	hw_comm->vid_enable = true;
 	/* fec init should before link training initial, dp2.1 3.5.1.5.5 P933 */
 	dptx_fec_init(hw_comm);
@@ -1936,8 +1940,8 @@ static int dptx20_enable_mode(struct dptx_hw_common *hw_comm, struct meson_tx_fo
 {
 	u8 hdmi_if_idx = 0;
 	u8 venc_idx = 0;
-	/* enable all related CLK by default */
-	u32 clk_mask = PIXEL_PLL_MASK | PIXEL_CLK_MASK | VENC_CLK_MASK | PHY_CLK_MASK;
+	/* enable pixel clk & phy clk */
+	u32 clk_mask = PIXEL_CLK_MASK | PHY_CLK_MASK;
 	struct meson_tx_clk *tx_clk = hw_comm->hw_base.tx_clk;
 
 	if (!para) {
@@ -1949,12 +1953,27 @@ static int dptx20_enable_mode(struct dptx_hw_common *hw_comm, struct meson_tx_fo
 		return -EINVAL;
 	}
 	meson_tx_clk_set(tx_clk, clk_mask);
+	hdmi_if_idx = (tx_clk->tx_clk_cfg.clk_div_path >> 4) & 0x1;
+	venc_idx = tx_clk->tx_clk_cfg.clk_div_path & 0x1;
+	if (venc_idx >= 2) {
+		DPTX_ERROR("%s invalid venc_idx: %d\n", __func__, venc_idx);
+		/* set default venc path */
+		venc_idx = 0;
+	}
 	/* venc config, skip here as it will be done in drm side */
 	if (hw_comm->is_edp) {
-		dptx20_set_plt_reg_bits(hw_comm, VPU_DISP_VIU0_CTRL, 1, 28, 1);
+		if (venc_idx == 0) {
+			/* disp_if_unit0 dsi_edp output enable */
+			dptx20_set_plt_reg_bits(hw_comm, VPU_DISP_VIU0_CTRL, 1, 28, 1);
+			/* mux to disp_if_unit0 edp0 */
+			dptx20_set_plt_reg_bits(hw_comm, VPU_DSI_EDP_INFO, 0, 0, 2);
+		} else {
+			/* disp_if_unit1 dsi_edp output enable */
+			dptx20_set_plt_reg_bits(hw_comm, VPU_DISP_VIU1_CTRL, 1, 28, 1);
+			/* mux to disp_if_unit1 edp1 */
+			dptx20_set_plt_reg_bits(hw_comm, VPU_DSI_EDP_INFO, 3, 0, 2);
+		}
 	} else {
-		hdmi_if_idx = (tx_clk->tx_clk_cfg.clk_div_path >> 4) & 0x1;
-		venc_idx = tx_clk->tx_clk_cfg.clk_div_path & 0x1;
 		dptx20_vpu_fmt_config(hw_comm, para, venc_idx, hdmi_if_idx);
 	}
 	dptx20_hw_core_config(hw_comm, para);
