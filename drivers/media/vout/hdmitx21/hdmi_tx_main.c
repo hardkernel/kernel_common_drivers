@@ -106,6 +106,8 @@ const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 static void hdmitx21_vid_pll_clk_check(struct hdmitx_dev *hdev);
 const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic);
 static void drm_hdmitx_start_hdcp_handler(struct work_struct *work);
+static void hdmitx_process_plugout(struct hdmitx_dev *hdev);
+static void hdmitx_process_plugin(struct hdmitx_dev *hdev, bool set_audio);
 /*
  * Normally, after the HPD in or late resume, there will reading EDID, and
  * notify application to select a hdmi mode output. But during the mode
@@ -613,6 +615,46 @@ static void hdmitx_start_hdcp_handler(struct work_struct *work)
 	/* clear after start hdcp */
 	is_passthrough_switch = 0;
 }
+
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+/* force_hpd param */
+static bool force_hpd;
+module_param(force_hpd, bool, 0644);
+MODULE_PARM_DESC(force_hpd, "force hot plug detect on/off");
+
+static void _force_hpd(struct hdmitx_dev *hdev)
+{
+	hdmitx_process_plugout(hdev);
+	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
+	hdmitx_process_plugin(hdev, false);
+	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+
+	/* notify to drm hdmi */
+	hdmitx_fire_drm_hpd_cb_unlocked(&hdev->tx_comm);
+}
+
+void do_force_hpd(void)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (force_hpd)
+		_force_hpd(hdev);
+}
+EXPORT_SYMBOL(do_force_hpd);
+
+/* force_hpd attr */
+static ssize_t force_hpd_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
+
+	if (strncmp(buf, "1", 1) == 0 || strncmp(buf, "true", 4) == 0)
+		_force_hpd(hdev);
+
+	return count;
+}
+#endif
 
 /* disp_mode attr */
 static ssize_t disp_mode_show(struct device *dev,
@@ -3726,6 +3768,7 @@ static ssize_t not_restart_hdcp_store(struct device *dev,
 	return count;
 }
 
+static DEVICE_ATTR_WO(force_hpd);
 static DEVICE_ATTR_RW(disp_mode);
 static DEVICE_ATTR_RW(vid_mute);
 static DEVICE_ATTR_WO(config);
@@ -4871,6 +4914,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		return r;
 	}
 	hdev->hdtx_dev = dev;
+	ret = device_create_file(dev, &dev_attr_force_hpd);
 	ret = device_create_file(dev, &dev_attr_disp_mode);
 	ret = device_create_file(dev, &dev_attr_vid_mute);
 	ret = device_create_file(dev, &dev_attr_config);
@@ -5089,6 +5133,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 #endif
 
 	/* Remove the cdev */
+	device_remove_file(dev, &dev_attr_force_hpd);
 	device_remove_file(dev, &dev_attr_disp_mode);
 	device_remove_file(dev, &dev_attr_vid_mute);
 	device_remove_file(dev, &dev_attr_config);

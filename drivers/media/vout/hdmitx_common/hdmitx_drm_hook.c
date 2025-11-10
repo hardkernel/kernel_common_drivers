@@ -16,6 +16,9 @@ static struct hdmitx_common *global_tx_base;
 static struct hdmitx_hw_common *global_tx_hw;
 static struct meson_hdmitx_dev hdmitx_drm_instance;
 static int drm_hdmitx_id;
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+extern void do_force_hpd(void);
+#endif
 
 unsigned int hdmitx_common_get_contenttypes(void)
 {
@@ -299,6 +302,10 @@ static int meson_hdmitx_bind(struct device *dev,
 			      struct device *master, void *data)
 {
 	struct meson_drm_bound_data *bound_data = data;
+
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	do_force_hpd();
+#endif
 
 	if (bound_data->connector_component_bind) {
 		hdmitx_drm_instance.base.crtc_sel = global_tx_base->viu_sel;
