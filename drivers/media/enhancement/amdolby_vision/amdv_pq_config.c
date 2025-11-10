@@ -1225,6 +1225,8 @@ void calculate_user_pq_config(void)
 	u32 tmin = 0;
 	u32 min_pq = 0;
 
+	if (cur_pic_mode >= MAX_DV_PICTUREMODES)
+		return;
 	tmax = user_cfg_info[cur_pic_mode].tmax;
 	if (tmax < 500) {
 		tmax = tmax - 100 + 5;
@@ -1266,6 +1268,8 @@ void calculate_user_pq_config(void)
 /*to do*/
 static void update_vsvdb_to_rx(void)
 {
+	if (cur_pic_mode >= MAX_DV_PICTUREMODES)
+		return;
 	u8 *p = cfg_info[cur_pic_mode].vsvdb;
 
 	if (memcmp(&current_vsvdb[0], p, sizeof(current_vsvdb))) {
@@ -1399,6 +1403,8 @@ void update_cp_cfg(void)
 	}
 
 	if (!pq_config_fake)
+		return;
+	if (cur_pic_mode >= MAX_DV_PICTUREMODES)
 		return;
 	memcpy(pq_config_fake,
 	       &bin_to_cfg[cur_pic_mode],

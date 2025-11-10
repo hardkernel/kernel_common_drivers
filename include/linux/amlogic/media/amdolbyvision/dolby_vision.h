@@ -284,6 +284,11 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf);
 bool get_idk_need_pps(void);
 int get_amdv_apo_enable(void);
 void set_amdv_apo_enable(bool enable);
+void amdv_set_pic_mode_id(int mode);
+void amdv_set_dark_detail(int dark_detail);
+void amdv_set_light_sense(struct light_sensor_s light_sensor);
+void amdv_get_cfg_support(struct dv_cfg_support_s *dv_cfg_support);
+void amdv_set_precision_detail_bypass(int bypass_pd);
 
 u32 *get_core2_lut(void);
 void init_prm_dolby(struct dpss_info_s *dpss_info);

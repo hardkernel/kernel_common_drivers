@@ -16600,6 +16600,70 @@ static int amdolby_vision_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+void amdv_set_pic_mode_id(int mode_id)
+{
+	set_pic_mode(mode_id);
+}
+EXPORT_SYMBOL(amdv_set_pic_mode_id);
+
+void amdv_set_dark_detail(int dark_detail)
+{
+	int mode_id = 0;
+
+	mode_id = get_pic_mode();
+	dark_detail = dark_detail > 0 ? 1 : 0;
+	if (mode_id >= MAX_DV_PICTUREMODES)
+		return;
+	if (dark_detail != cfg_info[mode_id].dark_detail) {
+		need_update_cfg = true;
+		cfg_info[mode_id].dark_detail = dark_detail;
+	}
+}
+EXPORT_SYMBOL(amdv_set_dark_detail);
+
+void amdv_set_light_sense(struct light_sensor_s light_sensor)
+{
+	int mode_id = 0;
+
+	mode_id = get_pic_mode();
+	if (mode_id >= MAX_DV_PICTUREMODES)
+		return;
+	if (light_sensor.flag) {
+		if (light_sensor.t_frontLux != cfg_info[mode_id].t_front_lux ||
+			light_sensor.t_rearLum != cfg_info[mode_id].t_rear_lum) {
+			cfg_info[mode_id].light_sense = light_sensor.flag;
+			cfg_info[mode_id].t_front_lux = light_sensor.t_frontLux;
+			cfg_info[mode_id].t_rear_lum = light_sensor.t_rearLum;
+			need_update_cfg = true;
+		}
+	} else {
+		cfg_info[mode_id].light_sense = 0;
+	}
+}
+EXPORT_SYMBOL(amdv_set_light_sense);
+
+void amdv_get_cfg_support(struct dv_cfg_support_s *dv_cfg_support)
+{
+	int mode_id = 0;
+
+	mode_id = dv_cfg_support->pic_mode_id;
+	*dv_cfg_support = get_cfg_support(mode_id);
+}
+EXPORT_SYMBOL(amdv_get_cfg_support);
+
+void amdv_set_precision_detail_bypass(int bypass_pd)
+{
+	int mode_id = 0;
+
+	mode_id = get_pic_mode();
+	bypass_pd = bypass_pd > 0 ? 1 : 0;
+	if (mode_id >= MAX_DV_PICTUREMODES)
+		return;
+	if (bypass_pd != cfg_info[mode_id].bypass_pd_from_user)
+		cfg_info[mode_id].bypass_pd_from_user = bypass_pd;
+}
+EXPORT_SYMBOL(amdv_set_precision_detail_bypass);
+
 static long amdolby_vision_ioctl(struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
