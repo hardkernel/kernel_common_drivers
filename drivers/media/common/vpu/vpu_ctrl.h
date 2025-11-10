@@ -45,8 +45,8 @@
 #define CLK_LEVEL_DFT_T6W    10
 #define CLK_LEVEL_MAX_T6W    12
 
-#define CLK_LEVEL_DFT_T6X    10
-#define CLK_LEVEL_MAX_T6X    14
+#define CLK_LEVEL_DFT_T6X    9
+#define CLK_LEVEL_MAX_T6X    15
 
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
 /* vpu clk setting */
@@ -124,7 +124,7 @@ static struct vpu_clk_s vpu_t6w_clk_table[] = {
 	{840000000,    GPLL_CLK1,    1}, /* 10 */ /* for t6w gp1 div gp1 1680 to 840M*/
 	{808000000,    GPLL_CLK2,    0}, /* 11 */ /* for t6w gp2 808M*/
 	{744000000,    GPLL_CLK,     0}, /* 12 */
-	{892000000,    GPLL_CLK2,    0}, /* 13 */ /* for t6x gp2 892M*/
+	{888000000,    GPLL_CLK1,    1}, /* 13 */ /* for t6x gp1 888M*/
 };
 #endif
 #endif

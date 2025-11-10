@@ -359,6 +359,69 @@ int vpu_clk_apply_dft(unsigned int clk_level)
 	return ret;
 }
 
+int vpu_clk_apply_t6x(unsigned int clk_level)
+{
+	unsigned int clk;
+	int ret = 0;
+
+	ret = vpu_chip_valid_check();
+	if (ret) {
+		ret = 1;
+		goto error_out;
+	}
+
+	if (vpu_conf.data->clk_table[clk_level].mux == FCLK_DIV_MAX) {
+		ret = 2;
+		goto error_out;
+	}
+
+	if (IS_ERR_OR_NULL(vpu_conf.vpu_clk)) {
+		ret = 3;
+		goto error_out;
+	}
+
+	if (vpu_conf.data->chip_type == VPU_CHIP_T6X) {
+		if (IS_ERR_OR_NULL(vpu_conf.gp_pll)) {
+			ret = 4;
+			goto error_out;
+		}
+		/* step 1:  set vpu clk 800M */
+		if (clk_level == 10 || clk_level == 13) {
+			clk = vpu_conf.data->clk_table[vpu_conf.data->clk_level_dft].freq;
+			ret = clk_set_rate(vpu_conf.vpu_clk, clk);
+			if (ret) {
+				ret = 5;
+				goto error_out;
+			}
+		}
+
+		/* step 2:  set gpl pll clk */
+		if (clk_level == 10)
+			ret = clk_set_rate(vpu_conf.gp_pll, 1680000000);
+		else if (clk_level == 13)
+			ret = clk_set_rate(vpu_conf.gp_pll, 1776000000);
+		if (ret) {
+			ret = 6;
+			goto error_out;
+		}
+	}
+	clk = vpu_conf.data->clk_table[clk_level].freq;
+	ret = clk_set_rate(vpu_conf.vpu_clk, clk);
+	if (ret) {
+		ret = 7;
+		goto error_out;
+	}
+	clk = clk_get_rate(vpu_conf.vpu_clk);
+	VPUPR("set vpu clk: %uHz(%d), readback: %uHz(0x%x)\n",
+	      vpu_conf.data->clk_table[clk_level].freq, clk_level,
+	      clk, (vpu_clk_read(vpu_conf.data->vpu_clk_reg)));
+
+	return 0;
+error_out:
+	VPUERR("change vpu clk fail, ret = %d\n", ret);
+	return ret;
+}
+
 int vpu_clk_apply_c3(unsigned int clk_level)
 {
 	unsigned int clk;

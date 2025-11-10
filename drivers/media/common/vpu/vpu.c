@@ -300,8 +300,8 @@ unsigned int rx_switch_vpu_clk(int over_clock_flag)
 	int vdin_status;
 	unsigned long new_freq;
 
-	if (vpu_conf.data->chip_type == VPU_CHIP_T6X) {
-		VPUPR("%s %d over_clock_flag:%d\n", __func__, __LINE__, over_clock_flag);
+	if (vpu_conf.data->chip_type == VPU_CHIP_T6X && vpu_conf.vpu_overclock == 2) {
+		VPUPR("over_clock_flag:%d\n", over_clock_flag);
 		if (vpu_conf.overclock_sel == 0) {
 			clk_level = 10;
 		} else if (vpu_conf.overclock_sel == 1) {
@@ -318,20 +318,19 @@ unsigned int rx_switch_vpu_clk(int over_clock_flag)
 				}
 			}
 		} else {
-			VPUERR("%s unknown overclock_sel:%d\n", __func__, vpu_conf.overclock_sel);
+			VPUERR("unknown overclock_sel:%d\n", vpu_conf.overclock_sel);
 		}
 
 		if (clk_level != vpu_conf.clk_level) {
 			new_freq = get_vpu_clk_freq(clk_level);
 			vpu_clk_info.new_freq = new_freq;
-			if (new_freq == 892000000) {
+			if (new_freq == 888000000) {
 				vd_signal_notifier_call_chain(VIDEO_VPU_CLK_CHANGED,
 								  &vpu_clk_info);
 				/* vdin_status 0:idle 1:vdin 0 worked 2:vdin1 worked */
 				vdin_status = get_vdin_status(1);
 				if (vdin_status || vpu_debug_print_flag)
-					VPUPR("%s, vdin_status:%d\n",
-						  __func__, vdin_status);
+					VPUPR("vdin_status:%d\n", vdin_status);
 				set_vpu_clk(clk_level);
 			} else if (new_freq == 840000000) {
 				set_vpu_clk(clk_level);
@@ -852,7 +851,12 @@ static void set_vpu_overclk(void)
 	if (vpu_conf.data->chip_type == VPU_CHIP_T6X) {
 		vpu_max_freq = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_VPU_MAXFREQ);
 		VPUPR("%s vpu support max freq: %d\n", __func__, vpu_max_freq);
-		vpu_conf.vpu_overclock = (vpu_max_freq == 180) ? 1 : 0;
+		if (vpu_max_freq == 170)
+			vpu_conf.vpu_overclock = 1;
+		else if (vpu_max_freq == 180)
+			vpu_conf.vpu_overclock = 2;
+		else
+			vpu_conf.vpu_overclock = 0;
 	}
 }
 
@@ -1643,6 +1647,13 @@ static ssize_t vpu_debug_print_store(const struct class *class,
 	return count;
 }
 
+static ssize_t vpu_overclock_show(const struct class *class,
+				  const struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "vpu overclock: %d\n",
+		vpu_conf.vpu_overclock);
+}
+
 static ssize_t vpu_arb_bind_store(const struct class *class,
 				     const struct class_attribute *attr,
 				     const char *buf, size_t count)
@@ -1917,6 +1928,7 @@ static struct class_attribute vpu_debug_class_attrs[] = {
 	__ATTR(sideband_level, 0644, vpu_sideband_level_show, vpu_sideband_level_store),
 	__ATTR(sideband_block_device, 0644, vpu_sideband_block_device_show,
 		vpu_sideband_block_device_store),
+	__ATTR(overclock,   0444, vpu_overclock_show, NULL),
 	__ATTR(help,        0444, vpu_debug_help, NULL),
 };
 
@@ -1976,6 +1988,9 @@ static int get_vpu_config(struct platform_device *pdev)
 			val = vpu_conf.data->clk_level_dft;
 		}
 
+		if (vpu_conf.data->chip_type == VPU_CHIP_T6X &&
+			vpu_conf.vpu_overclock)
+			val = 10;
 		vpu_conf.clk_level = val;
 	}
 	VPUPR("load vpu_clk: %uHz(%u)\n",
@@ -3216,7 +3231,7 @@ static struct vpu_data_s vpu_data_t6x = {
 	.power_init_check = vpu_power_init_check_dft,
 	.mempd_switch = vpu_vmod_mem_pd_switch_new,
 	.mempd_get = vpu_vmod_mem_pd_get_new,
-	.clk_apply = vpu_clk_apply_dft,
+	.clk_apply = vpu_clk_apply_t6x,
 	.clktree_init = vpu_clktree_init_dft,
 };
 
