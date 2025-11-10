@@ -7537,7 +7537,7 @@ void rx_emp_to_ddr_init(u8 port)
 
 		data32 = 0;
 		data32 |= 0 << 1; /*ddr_mode[1] 0: emp 1: tmds*/
-		data32 |= 1 << 0; /*ddr_en[0] 1:enable*/
+		//data32 |= 1 << 0; /*ddr_en[0] 1:enable*/
 		hdmirx_wr_top_common(TOP_EMP_CNTL_1, data32);
 		/* emp int enable TOP_INTR_MASKN*/
 		/* emp field end done at DE rist bit[25]*/
@@ -7603,7 +7603,7 @@ void rx_emp1_to_ddr_init(u8 port)
 
 		data32 = 0;
 		data32 |= 0 << 1; /*ddr_mode[1] 0: emp 1: tmds*/
-		data32 |= 1 << 0; /*ddr_en[0] 1:enable*/
+		//data32 |= 1 << 0; /*ddr_en[0] 1:enable*/
 		hdmirx_wr_top_common(TOP_EMP1_CNTL_1, data32);
 		/* emp int enable TOP_INTR_MASKN*/
 		/* emp field end done at DE rist bit[25]*/

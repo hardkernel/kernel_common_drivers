@@ -4298,6 +4298,7 @@ void hdmirx_close_port_t3x(u8 port)
 				hdmirx_mute_vpp(false, port);
 		}
 	}
+	rx_emp_hw_enable(false);
 	rx_irq_en(0, port);
 }
 
@@ -4328,6 +4329,7 @@ void hdmirx_close_port(u8 port)
 		if (get_video_mute_val(HDMI_RX_MUTE_SET))
 			hdmirx_mute_vpp(false, port);
 	}
+	rx_emp_hw_enable(false);
 	rx_irq_en(0, port);
 	if (hdmirx_repeat_support())
 		hdmitx_reauth_request(UPSTREAM_INACTIVE);
@@ -4864,6 +4866,7 @@ void rx_main_state_machine(void)
 		rx_get_video_info(port);
 		if (rx_is_timing_stable(port)) {
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
+				rx_emp_hw_enable(true);
 				rx_irq_en(IRQ_EN_ALL, port);
 				get_timing_fmt(port);
 				if (rx_info.pre_load.cfg && !rx_info.main_port_open)
@@ -5333,6 +5336,7 @@ void rx_port0_main_state_machine(void)
 		rx_get_video_info(port);
 		if (rx_is_timing_stable(port)) {
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
+				rx_emp_hw_enable(true);
 				if (rx_info.chip_id == CHIP_ID_T6X && rx_info.main_port == port)
 					rx_irq_en(IRQ_EN_ALL, port);
 				get_timing_fmt(port);
@@ -5757,6 +5761,7 @@ void rx_port1_main_state_machine(void)
 		rx_get_video_info(port);
 		if (rx_is_timing_stable(port)) {
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
+				rx_emp_hw_enable(true);
 				if (rx_info.chip_id == CHIP_ID_T6X && rx_info.main_port == port)
 					rx_irq_en(IRQ_EN_ALL, port);
 				get_timing_fmt(port);
@@ -6243,6 +6248,7 @@ void rx_port2_main_state_machine(void)
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max +
 				frl_extra_stable_cnt[rx[port].var.frl_rate]) {
 				get_timing_fmt(port);
+				rx_emp_hw_enable(true);
 				if (rx_info.chip_id == CHIP_ID_T6X && rx_info.main_port == port)
 					rx_irq_en(IRQ_EN_ALL, port);
 				rx[port].var.de_stable = true;
@@ -6820,6 +6826,7 @@ void rx_port3_main_state_machine(void)
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max +
 				frl_extra_stable_cnt[rx[port].var.frl_rate]) {
 				get_timing_fmt(port);
+				rx_emp_hw_enable(true);
 				if (rx_info.chip_id == CHIP_ID_T6X && rx_info.main_port == port)
 					rx_irq_en(IRQ_EN_ALL, port);
 				rx[port].var.de_stable = true;

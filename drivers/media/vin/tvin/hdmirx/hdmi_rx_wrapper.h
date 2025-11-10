@@ -62,7 +62,8 @@
 /* 2025.09.09 remove fsm cd judge */
 /* 2025.10.11 reduce signal time when avi range change */
 /* 2025.10.15 fix green screen issue for case78 */
-#define RX_WRAPPER_VER "ver.2025/10/15"
+/* 2025.11.11 enable EMP until signal stable */
+#define RX_WRAPPER_VER "ver.2025/11/11"
 
 struct freq_ref_s {
 	bool interlace;
