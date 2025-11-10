@@ -587,8 +587,7 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		case TVIN_YUV444:
 			if (IS_HDMI_SRC(port) &&
 			    scan_mod == TVIN_SCAN_MODE_PROGRESSIVE && !manual_md) {
-				if (devp->vdin_pc_mode || (devp->game_mode &&
-					(devp->vdin_function_sel & VDIN_AUTO_DST_FMT)) ||
+				if (devp->vdin_pc_mode || devp->game_mode ||
 				    devp->vdin_function_sel & VDIN_FORCE_444_NOT_CONVERT)
 					format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 				else
@@ -619,8 +618,7 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		case TVIN_RGB444:
 			if (IS_HDMI_SRC(port) &&
 			    scan_mod == TVIN_SCAN_MODE_PROGRESSIVE && !manual_md) {
-				if (devp->vdin_pc_mode || (devp->game_mode &&
-					(devp->vdin_function_sel & VDIN_AUTO_DST_FMT)) ||
+				if (devp->vdin_pc_mode || devp->game_mode ||
 				    devp->vdin_function_sel & VDIN_FORCE_444_NOT_CONVERT)
 					format_convert = VDIN_FORMAT_CONVERT_RGB_YUV444;
 				else

@@ -353,7 +353,6 @@ struct match_data_s {
 #define VDIN_MEM_MEMSET_EN		BIT(23)
 #define VDIN_CROP_SEL			BIT(24) //0-vdin cut win;1-vdin set src_crop in vf
 #define VDIN_AFD_DISABLE		BIT(25) //0-enable AFD;1-disable AFD
-#define VDIN_AUTO_DST_FMT		BIT(26)
 
 /* vdin_function_sel control bits end */
 
@@ -739,6 +738,7 @@ struct vdin_debug_s {
 	unsigned int ignore_vdin_ioctl;
 	unsigned int force_disp_mode;
 	unsigned int reg_addr;
+	bool bypass_game_dyn_fmt;
 };
 
 struct vdin_dv_s {

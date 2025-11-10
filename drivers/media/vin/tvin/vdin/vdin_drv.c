@@ -717,7 +717,7 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 
 void vdin_game_mode_reconfig(struct vdin_dev_s *devp)
 {
-	if (!(devp->vdin_function_sel & VDIN_AUTO_DST_FMT))
+	if (devp->debug.bypass_game_dyn_fmt)
 		return;
 
 	/* 444 in:game on,output 444,game off,output 422 */
@@ -741,7 +741,7 @@ void vdin_game_mode_reconfig(struct vdin_dev_s *devp)
 
 void vdin_dyn_fmt(struct vdin_dev_s *devp)
 {
-	if (!(devp->vdin_function_sel & VDIN_AUTO_DST_FMT))
+	if (devp->debug.bypass_game_dyn_fmt)
 		return;
 
 	if (!vdin_is_444_input(devp->prop.color_format)) {

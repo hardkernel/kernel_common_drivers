@@ -5017,6 +5017,14 @@ start_chk:
 			devp->debug.reg_addr = temp;
 		pr_info("vdin%d,reg_addr = %#x\n",
 			devp->index, devp->debug.reg_addr);
+	} else if (!strcmp(parm[0], "bypass_game_dyn_fmt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				devp->debug.bypass_game_dyn_fmt = true;
+			else
+				devp->debug.bypass_game_dyn_fmt = false;
+			pr_info("bypass_game_dyn_fmt:%d\n", devp->debug.bypass_game_dyn_fmt);
+		}
 	}
 #endif
 	else if (!strcmp(parm[0], "state")) {
