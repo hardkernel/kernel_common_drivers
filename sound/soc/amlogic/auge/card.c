@@ -72,6 +72,8 @@ static const char * const audio_format[] = {
 	"DTSX",
 	"MPEGH",
 	"MPEGH_ASI_UPDATE",
+	"MPEGH_CLOSE",
+	"NOT_SUPPORT",
 };
 
 #ifdef CONFIG_AMLOGIC_AUDIO_CUT
@@ -118,6 +120,8 @@ enum audio_hal_format {
 	TYPE_DTSX = 23,
 	TYPE_MPEGH = 24,
 	TYPE_MPEGH_ASI_UPDATE = 25,
+	TYPE_MPEGH_CLOSE = 26,
+	TYPE_NOT_SUPPORT = 27,
 };
 
 #ifdef CONFIG_AMLOGIC_AUDIO_CUT
