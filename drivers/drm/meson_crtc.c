@@ -904,9 +904,9 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 	ATRACE_BEGIN("crtc_flush");
 #endif
 	meson_commit_reenter_inc(pipeline->priv, crtc_index, NONBLOCK_MODE);
-	vpu_pipeline_prepare_update(amcrtc->pipeline,
-		crtc->mode.vdisplay, drm_mode_vrefresh(&crtc->mode), crtc_index);
 	if (!meson_crtc_state->uboot_mode_init) {
+		vpu_pipeline_prepare_update(amcrtc->pipeline,
+			crtc->mode.vdisplay, drm_mode_vrefresh(&crtc->mode), crtc_index);
 		vpu_osd_pipeline_update(sub_pipe, old_atomic_state);
 		spin_lock_irqsave(&crtc->dev->event_lock, flags);
 		vpu_pipeline_finish_update(pipeline, crtc_index);
