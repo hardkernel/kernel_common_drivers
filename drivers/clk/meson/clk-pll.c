@@ -569,7 +569,7 @@ static int meson_clk_pll_enable(struct clk_hw *hw)
 
 			return 0;
 		}
-	} while (retry > PLL_LOCK_RETRY_CNT_MAX);
+	} while (++retry < PLL_LOCK_RETRY_CNT_MAX);
 
 	pr_warn("%s: PLL lock failed!!!\n", clk_hw_get_name(hw));
 
