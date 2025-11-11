@@ -2743,6 +2743,12 @@ void dump_mem_infos_external(void)
 	spin_unlock_irqrestore(&mgt->lock, flags);
 }
 
+void codec_mm_dbuf_walk_external(void)
+{
+	codec_mm_dbuf_walk(NULL);
+}
+EXPORT_SYMBOL(codec_mm_dbuf_walk_external);
+
 static int dump_mem_infos(struct seq_file *m, char *buf)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
