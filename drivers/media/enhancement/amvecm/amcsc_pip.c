@@ -223,8 +223,8 @@ void hdr_proc(struct vframe_s *vf,
 			hdr_process_select, vinfo, gmt_mtx, vpp_index);
 
 	index = 0;
-	for (i = 0; i < 29; i++) {
-		if (BIT(i) == (hdr_process_select & 0x1fffffff)) {
+	for (i = 0; i < 32; i++) {
+		if (BIT(i) == (hdr_process_select & 0xffffffff)) {
 			index = i + 1;
 			break;
 		}
@@ -3121,29 +3121,8 @@ void hdmi_packet_process(int signal_change_flag,
 		pr_csc(4, "am_vecm: vd%d hdmi clean hdr10+ pkt\n",
 		       vd_path + 1);
 	}
-	/* clean cuva packet when switch to others */
-	if (target_format[vd_path] != BT2020YUV_BT2020RGB_CUVA &&
-		cur_output_format == BT2020YUV_BT2020RGB_CUVA) {
-		if (get_cuva_pkt_delay()) {
-			update_cuva_pkt(false,
-				(void *)NULL,
-				(void *)NULL,
-				(void *)NULL,
-				vpp_index);
-		} else {
-			if (get_tx_cuva_mode(vinfo) == CUVA_MONITOR) {
-				if (vdev->fresh_tx_cuva_hdr_vsif)
-					vdev->fresh_tx_cuva_hdr_vsif(vdev->tx_instance, NULL);
-			} else if (get_tx_cuva_mode(vinfo) == CUVA_RECEIVER ||
-				get_tx_cuva_mode(vinfo) == CUVA_AUTO) {
-				if (vdev->fresh_tx_cuva_hdr_vs_emds)
-					vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance, NULL);
-			}
-		}
-		pr_csc(4, "am_vecm: vd%d hdmi clean cuva pkt\n",
-			vd_path + 1);
-	}
 
+	/* clean cuva packet when switch to others */
 	if (target_format[vd_path] != BT2020_PQ &&
 		target_format[vd_path] != BT2020YUV_BT2020RGB_CUVA &&
 		cur_output_format == BT2020_PQ &&
@@ -3165,7 +3144,7 @@ void hdmi_packet_process(int signal_change_flag,
 					vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance, NULL);
 			}
 		}
-		pr_csc(4, "am_vecm: vd%d hdmi clean cuva vsif pkt\n",
+		pr_csc(4, "am_vecm: vd%d hdmi clean cuva vsif/emds pkt\n",
 			vd_path + 1);
 	}
 
@@ -3304,7 +3283,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (16 << 8)
 			| (10 << 0);	/* bt2020c */
 		vd_signal.signal_type = SIGNAL_CUVA;
-		pr_csc(16, "%s:SIGNAL_CUVA BT2020YUV_BT2020RGB_CUVA vpp_index = %d\n",
+		pr_csc(16, "%s:SIGNAL_CUVA vpp_index = %d\n",
 			__func__, vpp_index);
 		break;
 	case UNKNOWN_FMT:
@@ -3367,9 +3346,12 @@ void hdmi_packet_process(int signal_change_flag,
 						f_h(vdev->tx_instance, NULL);
 					cuva_drm_pkt_null = 1;
 				}
-				if (vdev->fresh_tx_cuva_hdr_vs_emds)
+				if (vdev->fresh_tx_cuva_hdr_vs_emds) {
 					vdev->fresh_tx_cuva_hdr_vs_emds(vdev->tx_instance,
 						hdmitx_edms_param);
+					pr_csc(2, "vd%d fresh_tx_cuva_hdr_vs_emds pkt ma(%d)\n",
+						vd_path + 1, hdmitx_edms_param->base_param_m_a);
+				}
 			} else {
 				if (vdev->fresh_tx_hdr_pkt)
 					vdev->fresh_tx_hdr_pkt(vdev->tx_instance, &send_info);
@@ -3381,8 +3363,8 @@ void hdmi_packet_process(int signal_change_flag,
 	}
 	/* none hdr+ and cuva*/
 	if (f_h) {
-		if (src_type[vd_path] == CUVA_HDR_SOURCE ||
-			src_type[vd_path] == CUVA_HLG_SOURCE) {
+		if ((src_type[vd_path] == CUVA_HDR_SOURCE ||
+			src_type[vd_path] == CUVA_HLG_SOURCE)) {
 			return;
 		}
 		f_h(vdev->tx_instance, &send_info);

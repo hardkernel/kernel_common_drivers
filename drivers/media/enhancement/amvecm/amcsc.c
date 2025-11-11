@@ -694,7 +694,7 @@ EXPORT_SYMBOL(set_force_output);
  * 2: receiver, set 2 when cuva tv support receiver
  * 3: auto, default mode, means depend on sink support
  */
-static uint cuva_mode = 3;
+uint cuva_mode = 3;
 module_param(cuva_mode, uint, 0664);
 MODULE_PARM_DESC(cuva_mode, "\n set cuva_mode\n");
 
@@ -5508,7 +5508,6 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 				       RGB709_to_YUV709l_coeff,
 				       CSC_ON);
 	}
-//	pr_csc(1, "\tcsc_type=0x%x.\n", csc_type);
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
 		/* turn vd1 matrix on */
@@ -5832,7 +5831,6 @@ static int hlg_process(enum vpp_matrix_csc_e csc_type,
 				       RGB709_to_YUV709l_coeff,
 				       CSC_ON);
 	}
-//	pr_csc(1, "\tcsc_type=0x%x.\n", csc_type);
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
 		/* turn vd1 matrix on */
@@ -7390,11 +7388,13 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path,
 			else
 				hdr_type = HDRTYPE_HDR10_709;
 		}
-	} else {
+	} else if (signal_transfer_characteristic == 1) {
 		if (signal_color_primaries == 9)
 			hdr_type = HDRTYPE_SDR2020;
 		else
 			hdr_type = HDRTYPE_SDR;
+	} else {
+		hdr_type = HDRTYPE_SDR;
 	}
 
 	ext_signal_type = get_cur_vd_ext_signal_type(vd_path);
@@ -8532,6 +8532,17 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 			(csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA)) {
 			/* source is cuva, send cuva packet as well*/
 			/* source is cuva, send cuva info */
+			send_info.features =
+				(1 << 31)	/*cuva*/
+				| (0 << 30) /*sdr output 709*/
+				| (1 << 29)	/*video available*/
+				| (5 << 26)	/* unspecified */
+				| (0 << 25)	/* limit */
+				| (1 << 24)	/* color available */
+				| (9 << 16)	/* bt2020 */
+				| (16 << 8)	/* bt2020-10 */
+				| (10 << 0);	/* bt2020c */
+			amvecm_cp_hdr_info(&send_info, p);
 			if (get_cuva_pkt_delay() && vdev) {
 				update_cuva_pkt(true,
 					hdmitx_vsif_param,
@@ -9049,7 +9060,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	bool cuva_meta_updated = false;
 	enum hdr_type_e source_format[VD_PATH_MAX];
 	static struct hdr10plus_para *para;
-	static int signal_change_latch;
+	static int signal_change_latch[VD_PATH_MAX];
 	int i, k;
 	struct aml_tmo_reg_sw *pre_tmo_reg = NULL;
 	enum hdr_hist_sel hist_select = HIST_E_RGBMAX;
@@ -9110,12 +9121,12 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	if ((flags & CSC_FLAG_CHECK_OUTPUT) &&
 	    (signal_change_flag & (SIG_PRI_INFO | SIG_CS_CHG))) {
 		if (signal_change_flag & SIG_PRI_INFO)
-			signal_change_latch |= SIG_PRI_INFO;
+			signal_change_latch[vd_path] |= SIG_PRI_INFO;
 		if (signal_change_flag & SIG_CS_CHG)
-			signal_change_latch |= SIG_CS_CHG;
+			signal_change_latch[vd_path] |= SIG_CS_CHG;
 	} else if (flags & CSC_FLAG_TOGGLE_FRAME) {
-		signal_change_flag |= signal_change_latch;
-		signal_change_latch = 0;
+		signal_change_flag |= signal_change_latch[vd_path];
+		signal_change_latch[vd_path] = 0;
 	}
 
 	if (flags & CSC_FLAG_FORCE_SIGNAL)
@@ -9138,7 +9149,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	}
 
 	if (video_process_status[vd_path] == HDR_MODULE_BYPASS &&
-	    !(video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS)) {
+	    !(video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS) &&
+	    !(flags & CSC_FLAG_FORCE_PACKET)) {
 		if ((is_video_layer_on(vd_path) ||
 		     video_layer_wait_on[vd_path]) && // TODO  should we add vd3 here
 		    (!is_amdv_on() || vd_path == VD2_PATH || vd_path == VD3_PATH)) {
@@ -9327,9 +9339,11 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		return 1;
 
 	if ((!signal_change_flag && force_csc_type == 0xff) &&
-	    ((flags & CSC_FLAG_TOGGLE_FRAME) == 0))
+		((flags & CSC_FLAG_TOGGLE_FRAME) == 0)) {
+		if (flags & CSC_FLAG_FORCE_PACKET)
+			pr_csc(2, "vd%d: rpt frame only send pkt\n", vd_path + 1);
 		return 0;
-
+	}
 	if (cur_csc_type[vd_path] != csc_type ||
 	    (signal_change_flag &
 	     (SIG_CS_CHG | SIG_PRI_INFO | SIG_KNEE_FACTOR | SIG_HDR_MODE |
@@ -9360,7 +9374,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		cur_hdr_policy = get_hdr_policy();
 		cur_primary_policy = get_primary_policy();
 		if (mosaic_mode)
-			signal_change_latch = 0;
+			signal_change_latch[vd_path] = 0;
 	}
 
 	if (force_customer_panel_lumin &&
@@ -9519,7 +9533,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	if (!vf && !vf_rpt &&
 		vd_path == VD1_PATH &&
 		!is_amdv_enable()) {
-		pr_csc(258, "amvecm_process hdr_support=%d, hdr_policy=%d\n",
+		pr_csc(1, "amvecm_process hdr_support=%d, hdr_policy=%d\n",
 			receiver_hdr_info.hdr_support, hdr_policy);
 
 		if (cur_vinfo_out_range != vinfo->vpp_post_out_range ||
@@ -9541,12 +9555,12 @@ int amvecm_matrix_process(struct vframe_s *vf,
  *			if (vinfo->vout_device) {
  *				if (vinfo->vout_device->fresh_hdmitx_input_vpp_info) {
  *					vinfo->vout_device->fresh_hdmitx_input_vpp_info();
- *					pr_csc(258, "2 vinfo out device changed\n");
+ *					pr_csc(1, "2 vinfo out device changed\n");
  *				}
  *			}
  */
 		} else {
-			pr_csc(258, "pri_hdr = %d hdr_policy = %d\n",
+			pr_csc(1, "pri_hdr = %d hdr_policy = %d\n",
 				pri_hdr, hdr_policy);
 			if (pri_hdr != hdr_policy) {
 				if (hdr_policy == 1) {
@@ -9574,7 +9588,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
  *				if (vinfo->vout_device) {
  *					if (vinfo->vout_device->fresh_hdmitx_input_vpp_info) {
  *						vinfo->vout_device->fresh_hdmitx_input_vpp_info();
- *						pr_csc(258, "3 vinfo out device changed\n");
+ *						pr_csc(1, "3 vinfo out device changed\n");
  *					}
  *				}
  */
@@ -9759,8 +9773,15 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			pre_flag_lc_evc = flag_lc_evc;
 		}
 
+		if (chip_type_id == chip_s5 ||
+			chip_type_id == chip_s6 ||
+			chip_type_id == chip_s7 ||
+			chip_type_id == chip_s7d)
+			flags |= CSC_FLAG_FORCE_PACKET;
+
 		if ((video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS) ||
-		    cap_changed) {
+			(flags & CSC_FLAG_FORCE_PACKET) ||
+			cap_changed) {
 			if (video_process_status[vd_path] != HDR_MODULE_ON) {
 				video_process_status[vd_path] = HDR_MODULE_ON;
 				pr_csc(4,
@@ -9769,7 +9790,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			}
 			vpp_matrix_update(vf_rpt, vinfo, flags, vd_path, vpp_index);
 			video_process_flags[vd_path] &= ~PROC_FLAG_FORCE_PROCESS;
-			pr_csc(4, "vd%d: rpt and process frame(%p)\n",
+			pr_csc(2, "vd%d: rpt and process frame(%p)\n",
 			       vd_path + 1, vf_rpt);
 		} else {
 			pr_csc(2, "vd%d: rpt frame(%p)\n", vd_path + 1, vf_rpt);

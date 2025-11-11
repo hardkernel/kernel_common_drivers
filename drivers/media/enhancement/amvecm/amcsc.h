@@ -383,6 +383,7 @@ extern int customer_panel_lumin;
 extern int customer_hdr_clipping;
 extern int video_lut_switch;
 extern unsigned int reload_lut;
+extern uint cuva_mode;
 #endif
 
 void force_toggle(void);

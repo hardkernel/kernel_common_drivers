@@ -16221,6 +16221,7 @@ struct param_parse_cmd_s param_cut_cmd[] = {
 	{"lc_pattern_detect_log1", &lc_pattern_detect_log1},
 	{"lc_read_curve_nodes_changed_en", &lc_read_curve_nodes_changed_en},
 	{"lc_change_curve_nodes_en", &lc_change_curve_nodes_en},
+	{"cuva_mode", &cuva_mode},
 	{"end", NULL},
 };
 #endif

@@ -1059,7 +1059,7 @@ void parser_dynamic_metadata(struct vframe_s *vf)
 			(debug_csc & 0x10)) {
 			meta_buf = req.aux_buf;
 			pr_csc(0x10,
-				"%s: vf(%p)index(%d, %d) source_type = %d src_fmt = %d metadata(%d):\n",
+				"%s: vf(%p)index(%d, %d) src_fmt = %d src_type = %d metadata(%d):\n",
 				__func__, vf, vf->index, vf->frame_index,
 				get_vframe_src_fmt(vf),
 				vf->source_type, req.aux_size);
@@ -1321,7 +1321,7 @@ void cuva_hdr_emds_pkt_update(struct cuva_hdr_vs_emds_para *edms_para,
 	edms_para->max_maxrgb_pq = (u16)cuva_metadata.max_maxrgb_pq;
 	edms_para->targeted_max_lum_pq = (u16)cuva_metadata.tgt_system_dsp_max_luma_pq[idx];
 	if (source_format == CUVA_HLG_SOURCE)
-		edms_para->transfer_character = 1; /* 0 means HLG EOTF */
+		edms_para->transfer_character = 1; /* 1 means HLG EOTF */
 	else
 		edms_para->transfer_character = 0; /* 0 means ST2084 EOTF */
 	edms_para->base_enable_flag = (u8)cuva_metadata.base_en_flag[idx];
