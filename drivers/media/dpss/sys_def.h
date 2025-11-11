@@ -352,6 +352,7 @@ extern unsigned int dpss_pps_check;
 extern unsigned int pps_out_w;
 extern unsigned int pps_out_h;
 extern bool is_di2pps;
+extern bool dpss_en_hdr;
 
 void dbg_dpss_prm_top_setting(struct PRM_DPSS_TOP *prm_top);
 extern unsigned int dpss_w_mode;

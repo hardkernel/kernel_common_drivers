@@ -1332,6 +1332,7 @@ int hdr10_tmo_dbg(char **parm)
 	long val = 0;
 	int idx = 0;
 	int idx1 = 0;
+	int tmp = 0;
 
 	if (!strcmp(parm[0], "tmo_en"))  {
 		if (kstrtoul(parm[1], 10, &val) < 0)
@@ -1366,10 +1367,10 @@ int hdr10_tmo_dbg(char **parm)
 		pr_tmo_dbg("tmo_max_th2 = %d\n", (int)val);
 		pr_info("\n");
 	} else if (!strcmp(parm[0], "max_th3")) {
-		if (kstrtoul(parm[1], 10, &val) < 0)
+		if (kstrtoint(parm[1], 10, &tmp) < 0)
 			goto error;
-		tmo_reg.tmo_max_th3 = (int)val;
-		pr_tmo_dbg("tmo_max_th3 = %d\n", (int)val);
+		tmo_reg.tmo_max_th3 = tmp;
+		pr_tmo_dbg("tmo_max_th3 = %d\n", tmp);
 		pr_info("\n");
 	} else if (!strcmp(parm[0], "max_th4")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)

@@ -432,8 +432,10 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 
 			if (mask == 0xffffffff) {
 				if (flag_lc_evc_src &&
-					chip_type_id == chip_t6w &&
-					addr == VPP_PK_FINAL_GAIN) {
+					((chip_type_id == chip_t6w &&
+					addr == VPP_PK_FINAL_GAIN) ||
+					(chip_type_id == chip_t6x &&
+					addr == VPP_PK_FINAL_GAIN + 0x2d))) {
 					temp = (val & 0xff) >> 1;
 					val = (val & 0xffffff00) | (temp & 0xff);
 

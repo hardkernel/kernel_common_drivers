@@ -492,6 +492,9 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 void update_link_state(struct vframe_s *vf,
 	struct vframe_s *rpt_vf,
 	enum vpp_index_e vpp_index);
+
+void set_dct_status_for_dpss(unsigned int val);
+void set_lc_evc_ctrl_for_dpss(unsigned int enable, unsigned int lc_evc_src);
 #endif
 #endif /* AM_CSC_H */
 

@@ -268,5 +268,6 @@ void amve_old_sharpness_sub_vsync_ctrl(unsigned int enable, int vpp_index);
 int vpp_check_lut3d(void);
 int lut3d_test(int test_case, int enable);
 
+void lc_evc_pq_settings(unsigned int lc_evc_src, int vpp_index);
 #endif
 

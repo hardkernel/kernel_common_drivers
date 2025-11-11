@@ -34,6 +34,7 @@
 #include "amcsc_pip.h"
 #include "set_hdr2_v0.h"
 #include "s5_set_hdr2_v0.h"
+#include "amve.h"
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
@@ -4074,8 +4075,6 @@ int signal_type_changed(struct vframe_s *vf,
 
 	csc_type = get_csc_type();
 	limit_full = (vf->signal_type >> 25) & 0x01;
-//	pr_csc(128, "vd%d Signal type 0x%x .\n",
-//		  vd_path + 1, vf->signal_type);
 
 	/*hdr_policy 1:match content; 0:force conversion*/
 	if (hdr_policy == 1 && !is_amdv_enable()) {
@@ -10031,6 +10030,7 @@ unsigned int sdr_ext_mode_dpss_changed;
 unsigned int sdr_ext_mode_dpss;
 unsigned int hdr_core_fix_mode;
 unsigned int update_by_vsync;
+unsigned int dct_status_dpss;
 
 static int force_vpp_index = VPP_VCBUS;//VPP_DPSS;
 static uint force_source_format;
@@ -10053,6 +10053,9 @@ void matrix_setting_for_dpss(enum vpp_matrix_e mtx_sel,
 	unsigned int matrix_pre_offset0_1 = 0;
 	unsigned int matrix_pre_offset2 = 0;
 	unsigned int matrix_en_ctrl = 0;
+
+	if (disable_flush_flag)
+		return;
 
 	pr_csc(128, "%s: mtx_sel/mtx_csc = 0x%x/%x, mtx_on/vpp_sel = %d/%d\n",
 		__func__, mtx_sel, mtx_csc, mtx_on, vpp_sel);
@@ -10411,6 +10414,14 @@ int signal_type_detect_for_dpss(struct vframe_s *vf)
 			pr_csc(128, "dpss VIDTYPE YUV changed. vf->type = 0x%x\n",
 				vf->type);
 		}
+	}
+
+	if (flag_lc_evc != pre_flag_lc_evc &&
+		vd_path == VD1_PATH) {
+		change_flag |= SIG_SRC_CHG;
+		pr_csc(128, "dpss flag_lc_evc changed from 0x%x to 0x%x\n",
+			pre_flag_lc_evc, flag_lc_evc);
+		pre_flag_lc_evc = flag_lc_evc;
 	}
 
 	return change_flag;
@@ -11018,16 +11029,13 @@ void set_muxio_link_mode(unsigned int link_flag,
 		is_dd_frame = 1;
 #endif
 
-	if (flag_lc_evc_src)
-		return;
-
 	if (vf && (vf->source_type == VFRAME_SOURCE_TYPE_HWC ||
 		(vf->width == 384 && vf->height == 180))) {
 		mute_flag = 1;
 		pr_csc(128, "%s: mute frame.\n", __func__);
 	}
 
-	if (mute_flag || flag_lc_evc_src)
+	if (mute_flag)
 		return;
 
 	if (link_flag) {
@@ -11038,10 +11046,16 @@ void set_muxio_link_mode(unsigned int link_flag,
 		}
 
 		if (dpss_mode) {
-			if (!is_dd_frame)
-				cfg_sel = VPP_MUXIO_SEL_DPSS_DCT_HDR;
-			else
+			if (!is_dd_frame) {
+				if (dct_status_dpss == 1)
+					cfg_sel = VPP_MUXIO_SEL_DPSS_DCT_HDR;
+				else if (dct_status_dpss == 2)
+					cfg_sel = VPP_MUXIO_SEL_DPSS_HDR_DPE;
+				else
+					cfg_sel = VPP_MUXIO_SEL_DPSS_HDR;
+			} else {
 				cfg_sel = VPP_MUXIO_SEL_DPSS_DD;
+			}
 		} else {
 			if (!is_dd_frame)
 				cfg_sel = VPP_MUXIO_SEL_VD1_HDR;
@@ -11111,7 +11125,8 @@ void update_muxio_mode(struct vframe_s *vf,
 
 unsigned int get_muxio_ready_for_dpss(void)
 {
-	if (hdr_core_fix_mode)
+	if (hdr_core_fix_mode ||
+		force_source_format == 0xff)
 		return 1;
 	else
 		return muxio_ready_flag;
@@ -11502,6 +11517,23 @@ void update_link_state(struct vframe_s *vf,
 	update_muxio_mode(pvf, vpp_index);
 }
 
+void set_dct_status_for_dpss(unsigned int val)
+{
+	dct_status_dpss = val;
+}
+
+void set_lc_evc_ctrl_for_dpss(unsigned int enable, unsigned int lc_evc_src)
+{
+	if (force_source_format == 0xff ||
+		(flag_lc_evc == enable && flag_lc_evc_src == lc_evc_src))
+		return;
+
+	flag_lc_evc = enable;
+	flag_lc_evc_src = lc_evc_src;
+
+	lc_evc_pq_settings(lc_evc_src, VPP_VCBUS);
+}
+
 int amvecm_hdr_dbg(u32 sel)
 {
 	int i, j, k;
@@ -11843,11 +11875,15 @@ reg_dump:
 
 dbg_end:
 	pr_info(HDR_VERSION);
+	pr_info("flag_lc_evc/flag_lc_evc_src: %d/%d\n",
+		flag_lc_evc, flag_lc_evc_src);
 
 	if (chip_type_id == chip_t6w || chip_type_id == chip_t6x) {
 		pr_info("----hdr with dpss info----\n");
 		pr_info("dpss_mode/pre_: %d/%d\n",
 			dpss_mode, pre_dpss_mode);
+		pr_info("dct_status_dpss: %d\n",
+			dct_status_dpss);
 		pr_info("force_source_format: %d\n",
 			force_source_format);
 		pr_info("cur_signal_type_dpss: 0x%x\n",

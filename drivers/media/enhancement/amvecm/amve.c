@@ -2718,13 +2718,16 @@ int vpp_set_lut3d(int bfromkey,
 		/* allocate a little bit more buffer than required for safety */
 		key_len = ((lut3d_single_sz + 1) * 5 * max_3dlut_count);
 		pkeylutall = kmalloc(key_len, GFP_KERNEL);
-		if (!pkeylutall)
+		if (!pkeylutall) {
+			mutex_unlock(&vpp_lut3d_lock);
 			return 1;
+		}
 
 		pkeylut = kmalloc((lut3d_single_sz + 1) * sizeof(int) * 3,
 				  GFP_KERNEL);
 		if (!pkeylut) {
 			kfree(pkeylutall);
+			mutex_unlock(&vpp_lut3d_lock);
 			return 1;
 		}
 
@@ -2734,6 +2737,7 @@ int vpp_set_lut3d(int bfromkey,
 			//if (ret < 0) {
 				kfree(pkeylutall);
 				kfree(pkeylut);
+				mutex_unlock(&vpp_lut3d_lock);
 				return 1;
 			//}
 			//ret = -1;
@@ -2743,15 +2747,22 @@ int vpp_set_lut3d(int bfromkey,
 			//if (ret < 0) {
 			//	kfree(pkeylutall);
 			//	kfree(pkeylut);
+			//	mutex_unlock(&vpp_lut3d_lock);
 			//	return 1;
 			//}
+#else
+			kfree(pkeylutall);
+			kfree(pkeylut);
+			mutex_unlock(&vpp_lut3d_lock);
+			return 1;
 #endif
 		} else if (bfromkey == 2) {
-			#ifdef CONFIG_SET_FS
+#ifdef CONFIG_SET_FS
 			fp = filp_open(LUT3DBIN_PATH, O_RDONLY, 0);
 			if (IS_ERR(fp)) {
 				kfree(pkeylutall);
 				kfree(pkeylut);
+				mutex_unlock(&vpp_lut3d_lock);
 				return 1;
 			}
 			//fs = get_fs();
@@ -2762,11 +2773,17 @@ int vpp_set_lut3d(int bfromkey,
 			if (key_len == 0) {
 				kfree(pkeylutall);
 				kfree(pkeylut);
+				mutex_unlock(&vpp_lut3d_lock);
 				return 1;
 			}
 			filp_close(fp, NULL);
 			//set_fs(fs);
-			#endif
+#else
+			kfree(pkeylutall);
+			kfree(pkeylut);
+			mutex_unlock(&vpp_lut3d_lock);
+			return 1;
+#endif
 		}
 
 		size = ((lut3d_single_sz + 1) * 9) / 2;
@@ -2775,6 +2792,7 @@ int vpp_set_lut3d(int bfromkey,
 			pr_info("warn: key index out of range");
 			kfree(pkeylutall);
 			kfree(pkeylut);
+			mutex_unlock(&vpp_lut3d_lock);
 			return 1;
 		}
 
@@ -6701,33 +6719,60 @@ void osd_sharpness_demo_ctrl(void)
 	WRITE_VPP_REG_BITS(OSD_PK_FINAL_GAIN - addr_offset, reg_pk_final_ngain, 0, 8);
 }
 
+static unsigned int pre_vsr_pk_final_gain;
+
+void lc_evc_pq_settings(unsigned int lc_evc_src, int vpp_index)
+{
+	unsigned int reg_addr = VPP_PK_FINAL_GAIN;
+	unsigned int val = 0;
+
+	if (lc_evc_src) {
+		pre_vsr_pk_final_gain = READ_VPP_REG(reg_addr) & 0xffff;
+		val |= (pre_vsr_pk_final_gain & 0xff) >> 1;
+		val |= ((pre_vsr_pk_final_gain & 0xff00) >> 9) << 8;
+	} else {
+		val = pre_vsr_pk_final_gain;
+	}
+
+	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg_addr, val, 0, 16, vpp_index);
+}
+
 void amve_lc_evc_ctrl(unsigned int enable, unsigned int lc_evc_src)
 {
+	enum vpp_muxio_sel_e sel = VPP_MUXIO_SEL_VD1_HDR;
+	unsigned int val = 0;
+
 	if (flag_lc_evc == enable &&
 		flag_lc_evc_src == lc_evc_src)
 		return;
 
+	pr_amve_dbg("[lc_evc_ctrl] set flag_lc_evc %d-->%d, flag_lc_evc_src %d-->%d\n",
+		flag_lc_evc, enable, flag_lc_evc_src, lc_evc_src);
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (chip_type_id == chip_t6w || chip_type_id == chip_t6x) {
+		if (dpss_mode)
+			return;
+
 		if (lc_evc_src) {
-			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(0x1a73, 1, 25, 1, 0);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-			muxio_config(VPP_MUXIO_SEL_LC_EVC_HDR, 1, 0);
-#endif
+			val = 1;
+			sel = VPP_MUXIO_SEL_LC_EVC_HDR;
 		} else {
-			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(0x1a73, 0, 25, 1, 0);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-			muxio_config(VPP_MUXIO_SEL_VD1_HDR, 1, 0);
-#endif
+			val = 0;
+			sel = VPP_MUXIO_SEL_VD1_HDR;
 		}
 
-		pr_amve_dbg("[%s] set flag_lc_evc %d-->%d, flag_lc_evc_src %d --> %d\n",
-			__func__, flag_lc_evc, enable, flag_lc_evc_src, lc_evc_src);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(0x1a73, val, 25, 1, 0);
+		muxio_config(sel, 1, 0);
 
 		flag_lc_evc = enable;
 		flag_lc_evc_src = lc_evc_src;
 
+		lc_evc_pq_settings(lc_evc_src, VPP_TOP0);
+
 		return;
 	}
+#endif
 
 	if (enable) {
 		flag_lc_evc = 1;
@@ -6772,7 +6817,7 @@ void init_pq_rdma_part_ins(void)
 	pq_rdma_part_ins[0].check_end_addr = 0x5b8f;
 	rdma_part_table_register(&pq_rdma_part_ins[0]);
 
-	/*sr lc table1*/
+	/*sr safa pi table1*/
 	pq_rdma_part_ins[1].vpp_index = RDMA_VPP0;
 	pq_rdma_part_ins[1].table_index = AMVECM_PARTITION_TABLE_1;
 	pq_rdma_part_ins[1].flag = use_rdma_part_tables;
@@ -6782,7 +6827,7 @@ void init_pq_rdma_part_ins(void)
 	pq_rdma_part_ins[1].check_end_addr = 0x5b8f;
 	rdma_part_table_register(&pq_rdma_part_ins[1]);
 
-	/* vdaj2 gainoff...*/
+	/*vadj2 gainoff...*/
 	pq_rdma_part_ins[2].vpp_index = RDMA_VPP0;
 	pq_rdma_part_ins[2].table_index = AMVECM_PARTITION_TABLE_2;
 	pq_rdma_part_ins[2].flag = use_rdma_part_tables;
@@ -6791,6 +6836,16 @@ void init_pq_rdma_part_ins(void)
 	pq_rdma_part_ins[2].check_start_addr = 0x3800;
 	pq_rdma_part_ins[2].check_end_addr = 0x5b8f;
 	rdma_part_table_register(&pq_rdma_part_ins[2]);
+
+	/*lc dnlp*/
+	pq_rdma_part_ins[3].vpp_index = RDMA_VPP0;
+	pq_rdma_part_ins[3].table_index = AMVECM_PARTITION_TABLE_3;
+	pq_rdma_part_ins[3].flag = use_rdma_part_tables;
+	pq_rdma_part_ins[3].max_reg_cnt = 2048;
+	pq_rdma_part_ins[3].reg_range_check = false;
+	pq_rdma_part_ins[3].check_start_addr = 0x3800;
+	pq_rdma_part_ins[3].check_end_addr = 0x5b8f;
+	rdma_part_table_register(&pq_rdma_part_ins[3]);
 
 	pq_rdma_init = true;
 }

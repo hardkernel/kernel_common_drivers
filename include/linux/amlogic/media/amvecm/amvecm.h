@@ -729,6 +729,8 @@ void amvecm_vd1_dpss_switch_proc(struct vframe_s *vf,
 void amvecm_update_link_state(struct vframe_s *vf,
 	struct vframe_s *rpt_vf,
 	enum vpp_index_e vpp_index);
+void amvecm_set_ext_status_for_dpss(unsigned int val);
+void amvecm_set_lc_evc_ctrl_for_dpss(unsigned int enable, unsigned int lc_evc_src);
 
 enum vpp_matrix_ext_csc_e {
 	VPP_MATRIX_EXT_NULL = 0,

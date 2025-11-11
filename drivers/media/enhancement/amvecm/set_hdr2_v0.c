@@ -5578,7 +5578,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		hdr_lut_param.lut_on = LUT_ON;
 		hdr_lut_param.bitdepth = bit_depth;
 		hdr_lut_param.cgain_en = LUT_ON;
-	} else if (hdr_process_select == IPT_SDR) {
+	} else if (hdr_process_select & IPT_SDR) {
 		for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
 			hdr_lut_param.oetf_lut[i]  = oe_y_lut_sdr[i];
 			hdr_lut_param.ogain_lut[i] = oo_y_lut_ipt_sdr[i];
@@ -5598,7 +5598,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		hdr_lut_param.bitdepth = bit_depth;
 		hdr_lut_param.cgain_en = LUT_ON;
 		hdr_lut_param.hist_en = LUT_ON;
-	} else if (hdr_process_select == SDR_AC_ENH) {
+	} else if (hdr_process_select & SDR_AC_ENH) {
 		for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
 			hdr_lut_param.oetf_lut[i] = oe_y_lut_bypass[i];
 			hdr_lut_param.ogain_lut[i] = oo_y_lut_bypass[i];
@@ -6494,7 +6494,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		hdr_mtx_param.p_sel = SDR_GMT_CONVERT;
 		if (eo_gmt_bit_mode)
 			hdr_mtx_param.gmt_bit_mode = 1;
-	} else if (hdr_process_select == IPT_SDR) {
+	} else if (hdr_process_select & IPT_SDR) {
 		hdr_mtx_param.mtx_only = HDR_ONLY;
 		hdr_mtx_param.mtx_gamut_mode = 1;
 		for (i = 0; i < MTX_NUM_PARAM; i++) {
@@ -6509,7 +6509,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		}
 		hdr_mtx_param.mtx_on = MTX_ON;
 		hdr_mtx_param.p_sel = hdr_process_select;
-	} else if (hdr_process_select == SDR_AC_ENH) {
+	} else if (hdr_process_select & SDR_AC_ENH) {
 		hdr_mtx_param.mtx_only = HDR_ONLY;
 		hdr_mtx_param.mtx_gamut_mode = 1;
 		for (i = 0; i < MTX_NUM_PARAM; i++) {

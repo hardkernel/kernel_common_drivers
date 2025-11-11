@@ -4748,8 +4748,7 @@ static void parse_overscan_table(unsigned int length,
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void hdr_tone_mapping_get(enum lut_type_e lut_type,
-				 unsigned int length,
-				 unsigned int *hdr_tm)
+	unsigned int length, unsigned int *hdr_tm)
 {
 	int i;
 
@@ -4758,7 +4757,8 @@ static void hdr_tone_mapping_get(enum lut_type_e lut_type,
 			for (i = 0; i < length; i++)
 				oo_y_lut_hlg_sdr[i] = hdr_tm[i];
 
-			cuva_static_hlg_en = 0;
+			if (chip_cls_id != STB_CHIP)
+				cuva_static_hlg_en = 0;
 
 			if (debug_amvecm & 4) {
 				for (i = 0; i < length; i++) {
@@ -4774,7 +4774,7 @@ static void hdr_tone_mapping_get(enum lut_type_e lut_type,
 			for (i = 0; i < length; i++)
 				oo_y_lut_hdr_sdr_def[i] = hdr_tm[i];
 
-	vecm_latch_flag |= FLAG_HDR_OOTF_LATCH;
+			vecm_latch_flag |= FLAG_HDR_OOTF_LATCH;
 
 			if (debug_amvecm & 4) {
 				for (i = 0; i < length; i++) {
@@ -5774,6 +5774,7 @@ static long amvecm_ioctl(struct file *file,
 			pr_info("tmo_reg info cp from usr failed\n");
 		} else {
 			hdr10_tmo_reg_set(pre_tmo_reg);
+			force_toggle();
 			pr_info("tmo_reg set success\n");
 		}
 		break;
@@ -17512,6 +17513,19 @@ void amvecm_update_link_state(struct vframe_s *vf,
 	update_link_state(vf, rpt_vf, vpp_index);
 }
 EXPORT_SYMBOL(amvecm_update_link_state);
+
+void amvecm_set_ext_status_for_dpss(unsigned int val)
+{
+	set_dct_status_for_dpss(val);
+}
+EXPORT_SYMBOL(amvecm_set_ext_status_for_dpss);
+
+void amvecm_set_lc_evc_ctrl_for_dpss(unsigned int enable,
+	unsigned int lc_evc_src)
+{
+	set_lc_evc_ctrl_for_dpss(enable, lc_evc_src);
+}
+EXPORT_SYMBOL(amvecm_set_lc_evc_ctrl_for_dpss);
 #endif
 
 bool is_hdr10plus_enable(void)

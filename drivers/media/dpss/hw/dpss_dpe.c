@@ -14,6 +14,10 @@
 #endif
 #include <linux/amlogic/media/registers/cpu_version.h>
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+#include <linux/amlogic/media/amvecm/amvecm.h>
+#endif
+
 struct AA_PPS_TOP_TYPE nr_pps_cfg; //ary move from local
 static void cfg_dpe_secure(unsigned int dpe_mode,
 		struct PRM_DPSS_TOP  *prm_top,
@@ -359,12 +363,30 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 	//VPU_VBE_TOP_HDR_CTRL[1:0] - reg_vbe_hdr_path_sel
 	//0:dcntr2hdr; 1:nr; 2:di; 3:before dpe
 	u32 vbe_hdr_path_sel = 3;
+	u32 dct_status = 0;
 
 	if (!prm_top->src_mode && dcntr_en &&
-		prm_top->dct_ahead_dv_mode)
+		prm_top->dct_ahead_dv_mode) {
 		vbe_hdr_path_sel = 0;
+		dct_status = 1;
+	} else {
+		if (dpss_lcevc_en) {
+			vbe_hdr_path_sel = 1;
+			dct_status = 1;
+		}
+	}
+
+	if (!dpss_en_hdr) {
+		vbe_hdr_path_sel = 3;
+		dct_status = 0;
+	}
 
 	w_reg_bit(VPU_VBE_TOP_HDR_CTRL, vbe_hdr_path_sel, 0, 2);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	amvecm_set_ext_status_for_dpss(dct_status);
+#endif
+//	dbg_h2("vbe_hdr_path_sel=%d, dct_status=%d\n",
+//		vbe_hdr_path_sel, dct_status);
 
 	//reg_mode
 	bool top_reg_mode  = prm_dpe->dpe_reg_mode.top_reg_mode;
@@ -2979,6 +3001,28 @@ void hw_cfg_dpe_size(enum DPSS_WORK_MODE dpe_mode,
 	u32 hdr_slc_hsize[4];
 	u32 remove_pad[4];
 	u32 hdr_reg_offset = 0;
+	u32 cur_alig_mif_luma_slc_xbgn[4];
+	u32 cur_alig_mif_luma_slc_xend[4];
+
+	cur_alig_mif_luma_slc_xbgn[0] = 0;
+	cur_alig_mif_luma_slc_xend[0] = slc_num == 4 ?
+		frm_hsize_t0 + cur_rgt_pad[0] - 1 > frm_hsize_m1 ?
+		frm_hsize_m1 : frm_hsize_t0 + cur_rgt_pad[0] - 1 : slc_num == 2 ?
+		frm_hsize_t1 + cur_rgt_pad[0] - 1 > frm_hsize_m1 ?
+		frm_hsize_m1 : frm_hsize_t1 + cur_rgt_pad[0] - 1 : frm_hsize_m1;
+	cur_alig_mif_luma_slc_xbgn[1] = slc_num == 4 ?
+		frm_hsize_t0 < cur_lft_pad[1] ? 0 : frm_hsize_t0 - cur_lft_pad[1] :
+		frm_hsize_t1 < cur_lft_pad[1] ? 0 : frm_hsize_t1 - cur_lft_pad[1];
+	cur_alig_mif_luma_slc_xend[1] = slc_num == 4 ?
+		frm_hsize_t1 + cur_rgt_pad[1] - 1 > frm_hsize_m1 ?
+		frm_hsize_m1 : frm_hsize_t1 + cur_rgt_pad[1] - 1 : frm_hsize_m1;
+	cur_alig_mif_luma_slc_xbgn[2] = frm_hsize_t1 < cur_lft_pad[2] ?
+		0 : frm_hsize_t1 - cur_lft_pad[2];
+	cur_alig_mif_luma_slc_xend[2] = frm_hsize_t2 + cur_rgt_pad[2] - 1 > frm_hsize_m1 ?
+				frm_hsize_m1 : frm_hsize_t2 + cur_rgt_pad[2] - 1;
+	cur_alig_mif_luma_slc_xbgn[3] = frm_hsize_t2 < cur_lft_pad[3] ?
+		0 : frm_hsize_t2 - cur_lft_pad[3];
+	cur_alig_mif_luma_slc_xend[3] = frm_hsize_m1;
 
 	dbg_h2("[dpe.c]:vbe_hdr_sel=%d\n", vbe_hdr_sel);
 
@@ -3005,8 +3049,8 @@ void hw_cfg_dpe_size(enum DPSS_WORK_MODE dpe_mode,
 	}
 
 	for (i = 0; i < 4; i++) {
-		hdr_slc_hsize[i] = cur_mif_luma_slc_xend[i] -
-			cur_mif_luma_slc_xbgn[i] + 1 - remove_pad[i];
+		hdr_slc_hsize[i] = cur_alig_mif_luma_slc_xend[i] -
+			cur_alig_mif_luma_slc_xbgn[i] + 1 - remove_pad[i];
 		dbg_h2("[dpe.c]:hdr_slc_hsize/remove_pad[%d]=%d/%d\n",
 			i, hdr_slc_hsize[i], remove_pad[i]);
 	}

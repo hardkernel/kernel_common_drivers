@@ -2103,6 +2103,8 @@ void update_hdr_axi_path_mode(u32 mode)
 	/*vd_layer[0].property_changed = true;*/
 }
 
+static u32 pre_dd_path_mode = 0xff;
+
 static void vd1_path_select_t6w(struct video_layer_s *layer,
 			    bool vd1_link,
 			    bool frc_link, bool di_link)
@@ -2132,14 +2134,19 @@ static void vd1_path_select_t6w(struct video_layer_s *layer,
 		if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 			pr_info("%s:axipath bit0-3 %d\n",  __func__, value);
 		rdma_wr_bits(VPU_AXIRD_PATH_CTRL, value, 0, 3);
+	}
+	last_value = value;
 
-		/*dd path and vpu path share reg.only for t6w, not t6x*/
-		if (is_meson_t6w_cpu()) {
+	/*dd path and vpu path share reg.only for t6w, not t6x*/
+	if (is_meson_t6w_cpu()) {
+		if (pre_dd_path_mode != dd_path_mode) {
 			if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 				pr_info("%s:axipath bit8-9 %d\n",  __func__, dd_path_mode);
-			rdma_wr_bits(VPU_AXIRD_PATH_CTRL, (dd_path_mode & 3), 8, 2);
+			rdma_wr_bits(VPU_AXIRD_PATH_CTRL, dd_path_mode & 0x3, 8, 2);
+			pre_dd_path_mode = dd_path_mode;
 		}
 	}
+
 	last_value = value;
 
 	//bit29, 30 reg_soft_rst for frc phase0

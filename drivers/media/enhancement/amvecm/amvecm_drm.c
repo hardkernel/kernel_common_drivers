@@ -127,6 +127,7 @@ EXPORT_SYMBOL(am_meson_ctm_set);
 
 int am_meson_ctm_disable(void)
 {
+	mtx_info.mtx_sel = POST_MTX;
 	mtx_info.mtx_coef.en = 0;
 	vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
 

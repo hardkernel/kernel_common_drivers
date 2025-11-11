@@ -475,12 +475,12 @@ static int index_rdma_part_ins(u32 reg)
 			(reg >= 0x5b00 && reg <= 0x5b4f) || //osd2
 			(reg >= 0x5b50 && reg <= 0x5b9f)) //osd3
 			table_index = 1;
-		else if ((reg >= 0x5040 && reg <= 0x5382) ||//pi,safa,sr,dnlp,lc
-			(reg >= 0x7a00 && reg <= 0x7a54) || //os,cc
-			(reg >= 0x4000 && reg <= 0x403c))//lc_curve&&stts
+		else if ((reg >= 0x5040 && reg <= 0x5302) ||//pi,safa,sr
+			(reg >= 0x7a00 && reg <= 0x7a54))//os,cc
 			table_index = 2;
-		else
-			table_index = 3;
+		else if ((reg >= 0x5303 && reg <= 0x5382) ||//dnlp,lc
+			(reg >= 0x4000 && reg <= 0x403c))//lc_curve&&stts
+			table_index = 4;
 	}
 
 	/*use VIDEO_PARTITION_TABLE*/
