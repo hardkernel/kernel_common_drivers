@@ -886,7 +886,7 @@
 
 &crg_otg {
 	status = "okay";
-	controller-type = <1>; /* 0~3: normal, host, device, otg */
+	controller-type = <3>; /* 0~3: normal, host, device, otg */
 };
 
 &crg_drd {
