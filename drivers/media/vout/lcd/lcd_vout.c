@@ -1080,18 +1080,18 @@ static void lcd_mode_switch_on_work(struct work_struct *work)
 	local_time[0] = sched_clock();
 	pdrv = container_of(work, struct aml_lcd_drv_s, mode_switch_on_work);
 
+	mutex_lock(&lcd_power_mutex);
 	if (pdrv->status & LCD_STATE_POWER) {
-		mutex_lock(&lcd_power_mutex);
 		aml_lcd_notifier_call_chain(pdrv->switch_on_event, (void *)pdrv);
 		if ((pdrv->switch_on_event & LCD_EVENT_MDSW_POWER_ON) ||
 		    (pdrv->switch_on_event & LCD_EVENT_POWER_ON))
 			lcd_if_enable_retry(pdrv);
-		mutex_unlock(&lcd_power_mutex);
 	}
 
 	mutex_lock(&lcd_vout_mutex);
 	pdrv->vmode_switch = 0;
 	mutex_unlock(&lcd_vout_mutex);
+	mutex_unlock(&lcd_power_mutex);
 
 	local_time[1] = sched_clock();
 	pdrv->proc_time.switch_on_time = local_time[1] - local_time[0];
