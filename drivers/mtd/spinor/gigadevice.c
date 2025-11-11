@@ -33,6 +33,79 @@ static const struct spi_nor_fixups gd25q256_fixups = {
 	.post_bfpt = gd25q256_post_bfpt,
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+int spi_nor_giga_spi_cfg(struct spi_nor *nor, u8 cfg_addr, u8 cfg_value)
+{
+	struct spi_mem_op op;
+	int ret;
+	u8 buf = 0;
+
+	op = (struct spi_mem_op)SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_RD_CFG_REG, 0),
+				SPI_MEM_OP_ADDR(nor->addr_nbytes, cfg_addr, 0),
+				SPI_MEM_OP_DUMMY(1, 0),
+				SPI_MEM_OP_DATA_IN(1, &buf, 0));
+	spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+
+	ret = meson_spi_mem_exec_op(nor->spimem, &op);
+	if (ret)
+		return ret;
+
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret)
+		return ret;
+
+	if (buf == cfg_value)
+		return 0;
+
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
+
+	buf = cfg_value;
+	op = (struct spi_mem_op)SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WR_CFG_REG, 0),
+				SPI_MEM_OP_ADDR(nor->addr_nbytes, cfg_addr, 0),
+				SPI_MEM_OP_NO_DUMMY,
+				SPI_MEM_OP_DATA_OUT(1, &buf, 0));
+	spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+
+	ret = meson_spi_mem_exec_op(nor->spimem, &op);
+	if (ret)
+		return ret;
+
+	buf = 0;
+	op = (struct spi_mem_op)SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_RD_CFG_REG, 0),
+				SPI_MEM_OP_ADDR(nor->addr_nbytes, cfg_addr, 0),
+				SPI_MEM_OP_DUMMY(1, 0),
+				SPI_MEM_OP_DATA_IN(1, &buf, 0));
+	spi_nor_spimem_setup_op(nor, &op, nor->reg_proto);
+
+	ret = meson_spi_mem_exec_op(nor->spimem, &op);
+	if (ret)
+		return ret;
+
+	ret = spi_nor_wait_till_ready(nor);
+	if (ret)
+		return ret;
+
+	pr_debug("%s-%d CFG_ADDR:0x%x CFG:0x%x\n", __func__, __LINE__, cfg_addr, buf);
+
+	return 0;
+}
+
+static void gd25lx256e_default_init(struct spi_nor *nor)
+{
+	struct spi_nor_flash_parameter *params = nor->params;
+
+	nor->flags |= SNOR_F_SPI_WO_DQS;
+	/* Enable 4-bytes mode to access higher density (larger than 128Mb)*/
+	params->set_4byte_addr_mode = spi_nor_set_4byte_addr_mode_en4b_ex4b;
+}
+
+static struct spi_nor_fixups gd25lx256e_fixups = {
+	.default_init = gd25lx256e_default_init,
+};
+#endif
+
 static const struct flash_info gigadevice_nor_parts[] = {
 	{
 		.id = SNOR_ID(0xc8, 0x40, 0x15),
@@ -83,6 +156,17 @@ static const struct flash_info gigadevice_nor_parts[] = {
 		.flags = SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB,
 		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ,
 	},
+#ifdef CONFIG_AMLOGIC_MODIFY
+	{
+		.id = SNOR_ID(0xc8, 0x68, 0x19),
+		.name = "gd25lx256e",
+		.size = SZ_32M,
+		.no_sfdp_flags = SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+						SPI_NOR_OCTAL_READ,
+		.fixups = &gd25lx256e_fixups,
+		.fixup_flags = SPI_NOR_4B_OPCODES,
+	},
+#endif
 };
 
 const struct spi_nor_manufacturer spi_nor_gigadevice = {

@@ -21,8 +21,6 @@
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/spi/flash.h>
-#include <linux/amlogic/aml_storage.h>
-#include <linux/amlogic/aml_spi_mem.h>
 
 #include "core.h"
 
@@ -2720,6 +2718,15 @@ static void spi_nor_no_sfdp_init_params(struct spi_nor *nor)
 					  SNOR_PROTO_8_8_8_DTR);
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (no_sfdp_flags & SPI_NOR_OCTAL_READ) {
+		params->hwcaps.mask |= SNOR_HWCAPS_PP_1_1_8;
+
+		spi_nor_set_pp_settings(&params->page_programs[SNOR_CMD_PP_1_1_8],
+					SPINOR_OP_PP_1_1_8, SNOR_PROTO_1_1_8);
+	}
+#endif
+
 	if (no_sfdp_flags & SPI_NOR_OCTAL_DTR_PP) {
 		params->hwcaps.mask |= SNOR_HWCAPS_PP_8_8_8_DTR;
 		/*
@@ -3140,10 +3147,27 @@ static int spi_nor_init(struct spi_nor *nor)
 	     nor->flags & SNOR_F_SWP_IS_VOLATILE))
 		spi_nor_try_unlock_all(nor);
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	if (nor->addr_nbytes == 4 &&
 	    nor->read_proto != SNOR_PROTO_8_8_8_DTR &&
 	    !(nor->flags & SNOR_F_4B_OPCODES))
 		return spi_nor_set_4byte_addr_mode(nor, true);
+#else
+	if (nor->addr_nbytes == 4 &&
+			(nor->flags & SNOR_F_4B_OPCODES) &&
+			!strncmp(nor->manufacturer->name, "gigadevice",
+				strlen(nor->manufacturer->name)))
+		nor->params->set_4byte_addr_mode(nor, true);
+	else if (nor->addr_nbytes == 4 &&
+	    nor->read_proto != SNOR_PROTO_8_8_8_DTR &&
+	    !(nor->flags & SNOR_F_4B_OPCODES))
+		return spi_nor_set_4byte_addr_mode(nor, true);
+
+	if (!strncmp(nor->manufacturer->name, "gigadevice",
+		strlen(nor->manufacturer->name)) &&
+		(nor->flags & SNOR_F_SPI_WO_DQS))
+		spi_nor_giga_spi_cfg(nor, 0, SPINOR_MODE_WO_DQS);
+#endif
 
 	return 0;
 }
@@ -3271,6 +3295,13 @@ static void spi_nor_restore(struct spi_nor *nor)
 			 */
 			dev_err(nor->dev, "Failed to exit 4-byte address mode, err = %d\n", ret);
 	}
+#ifdef CONFIG_AMLOGIC_MODIFY
+	else if (nor->addr_nbytes == 4 &&
+			(nor->flags & SNOR_F_4B_OPCODES) &&
+			!strncmp(nor->manufacturer->name, "gigadevice",
+				strlen(nor->manufacturer->name)))
+		nor->params->set_4byte_addr_mode(nor, false);
+#endif
 
 	if (nor->flags & SNOR_F_SOFT_RESET)
 		spi_nor_soft_reset(nor);

@@ -9,6 +9,20 @@
 
 #include "sfdp.h"
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/amlogic/aml_storage.h>
+#include <linux/amlogic/aml_spi_mem.h>
+
+/* For Gigadevice flashes only */
+#define SPINOR_OP_RD_NV_CFG_REG	0xb5	/* Read non-volatile register */
+#define SPINOR_OP_WR_NV_CFG_REG	0xb1	/* Write non-volatile register */
+#define SPINOR_OP_RD_CFG_REG	0x85	/* Read volatile register */
+#define SPINOR_OP_WR_CFG_REG	0x81	/* Write volatile register */
+#define SPINOR_MODE_WO_DQS		0xdf	/* SPI WO DQS Mode */
+
+int spi_nor_giga_spi_cfg(struct spi_nor *nor, u8 cfg_addr, u8 cfg_value);
+#endif
+
 #define SPI_NOR_MAX_ID_LEN	6
 /*
  * 256 bytes is a sane default for most older flashes. Newer flashes will
@@ -140,6 +154,9 @@ enum spi_nor_option_flags {
 	SNOR_F_RWW		= BIT(14),
 	SNOR_F_ECC		= BIT(15),
 	SNOR_F_NO_WP		= BIT(16),
+#ifdef CONFIG_AMLOGIC_MODIFY
+	SNOR_F_SPI_WO_DQS	= BIT(17),
+#endif
 };
 
 struct spi_nor_read_command {
