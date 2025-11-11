@@ -1150,6 +1150,8 @@ struct vdin_dev_s {
 	bool csc_cfg;
 	/* duration of current timing */
 	unsigned int duration;
+	/* duration of current frame */
+	unsigned int cur_duration;
 	/* color-depth for vdin write */
 	/*vdin write mem color depth support:
 	 *bit0:support 8bit

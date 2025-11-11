@@ -52,6 +52,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #ifdef CONFIG_AMLOGIC_LCD
 #include "../../../vout/lcd/lcd_common.h"
+#include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
@@ -3259,6 +3260,8 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 	if (vfe)
 		vdin_vf_disp_mode_update(vfe, devp->vfp);
 
+	if (vfe)
+		vfe->vf.duration = devp->cur_duration;
 	/*force recycle one frame*/
 	if (devp->frame_cnt < devp->vdin_drop_num || devp->vdin_irq_flag) {
 		if (vfe)
@@ -3332,18 +3335,20 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				 1000));
 
 		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-			pr_info("vdin%d cnt:%d vf(%px):%d sg_type:%#x %#x flag:%#x %#x dur:%u\n",
+			pr_info("vdin%d cnt:%d vf(%px):%d sg_type:%#x %#x flag:%#x %#x\n",
 				devp->index, devp->irq_cnt,
 				&devp->vfp->last_last_vfe->vf,
 				devp->vfp->last_last_vfe->vf.index,
 				devp->vfp->last_last_vfe->vf.signal_type,
 				devp->vfp->last_last_vfe->vf.type,
 				devp->vfp->last_last_vfe->flag,
-				devp->vfp->last_last_vfe->vf.flag,
-				devp->vfp->last_last_vfe->vf.duration);
+				devp->vfp->last_last_vfe->vf.flag);
 
 		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-			pr_info("disp:%d,wxh:[%d %d],canvas0_w:%d\n",
+			pr_info("frm_irq:%d,fps:%d,dur:%u,disp:%d,wxh:[%d %d],canvas0_w:%d\n",
+				devp->vfp->last_last_vfe->vf.frame_irq_cnt,
+				devp->vfp->last_last_vfe->vf.fps,
+				devp->vfp->last_last_vfe->vf.duration,
 				devp->vfp->last_last_vfe->vf.index_disp,
 				devp->vfp->last_last_vfe->vf.width,
 				devp->vfp->last_last_vfe->vf.height,
@@ -4013,13 +4018,15 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_resume_hw_write(devp, 0);
 	}
 
+	vdin_calculate_duration(devp);
 	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-		pr_info("vdin%d,[%d %d],WL:%d WR:%d RL:%d RM:%d,last_vf:%d,cur_vf:%d\n",
+		pr_info("vdin%d,[%d %d],WL:%d WR:%d RL:%d RM:%d,last_vf:%d,cur_vf:%d,dur:%d\n",
 			devp->index, devp->irq_cnt, devp->frame_cnt,
 			devp->vfp->wr_list_size, devp->vfp->wr_mode_size,
 			devp->vfp->rd_list_size, devp->vfp->rd_mode_size,
 			!devp->last_wr_vfe ? -1 : devp->last_wr_vfe->vf.index,
-			!devp->curr_wr_vfe ? -1 : devp->curr_wr_vfe->vf.index);
+			!devp->curr_wr_vfe ? -1 : devp->curr_wr_vfe->vf.index,
+			devp->cur_duration);
 
 	/* use RDMA and not game mode */
 	if (devp->last_wr_vfe && (devp->flags & VDIN_FLAG_RDMA_ENABLE) &&
@@ -4101,6 +4108,16 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	curr_wr_vfe = devp->curr_wr_vfe;
 	curr_wr_vf  = &curr_wr_vfe->vf;
 	vdin_calculate_duration(devp);
+
+#ifdef CONFIG_AMLOGIC_LCD
+	if (devp->debug.vdin_isr_monitor)
+		pr_info("vdin%d,[%d %d],qms_en:%d,qms_plus:%d,cur_vf fps:%d\n",
+			devp->index, devp->irq_cnt, devp->frame_cnt,
+			devp->prop.vtem_data.qms_en,
+			devp->prop.qms_plus_flag, curr_wr_vf->fps);
+	if (devp->prop.vtem_data.qms_en)
+		lcd_set_sw_vrr_target_fr(0, curr_wr_vf->fps);
+#endif
 
 	next_wr_vfe = provider_vf_peek(devp->vfp);
 

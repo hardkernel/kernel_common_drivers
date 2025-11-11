@@ -1566,10 +1566,6 @@ void primary_swap_frame(struct video_layer_s *layer,
 		return;
 
 	vf = vf1;
-#ifdef CONFIG_AMLOGIC_LCD
-	if (vf->vf_vrr_param.qms_en || vf->vf_vrr_param.qms_plus_en)
-		lcd_set_sw_vrr_target_fr(layer->vpp_index, vf->fps);
-#endif
 	layer_info = &glayer_info[0];
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	if (layer->need_switch_vf && IS_DI_POST(vf->type) &&

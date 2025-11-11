@@ -5090,6 +5090,7 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 		}
 #endif
 	}
+	devp->cur_duration = curr_wr_vf->duration;
 }
 
 /* just for horizontal down scale src_w is origin width,
@@ -8654,7 +8655,7 @@ unsigned int vdin_get_base_fr(struct vdin_dev_s *devp)
 		devp->parm.info.fps = fps;
 
 	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_RATIO)
-		pr_info("%s vrr_en:%d,vic=%d;%d,%d,base_fr=%d,spd[5]:%#x,[7]:%#x,fps:%d,%d,%d,%d\n",
+		pr_info("%s vrr_en:%d vic=%d;%d,%d;base_fr=%d,spd[5]:%#x,[7]:%#x,fps:%d,%d,%d,%d\n",
 			__func__, devp->prop.vtem_data.vrr_en, devp->prop.hw_vic,
 			devp->prop.vtem_data.qms_en, devp->prop.qms_plus_flag,
 			devp->prop.vtem_data.base_framerate, devp->prop.spd_data.data[5],

@@ -912,6 +912,14 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			vf->width,
 			vf->height);
 
+		vc_print(dev->index, PRINT_FENCE,
+			"%s: frame_index=%d, frm_irq:%d,magic_code=0x%x, ud_addr=%p, ud_len=%d.\n",
+			__func__,
+			vf->frame_index, vf->frame_irq_cnt,
+			vf->vf_ud_param.magic_code,
+			vf->vf_ud_param.ud_param.pbuf_addr,
+			vf->vf_ud_param.ud_param.buf_len);
+
 		vc_print(dev->index, PRINT_AXIS,
 			 "get:crop: %d %d %d %d, axis: %d %d %d %d.\n",
 			 vf->crop[0], vf->crop[1], vf->crop[2], vf->crop[3],

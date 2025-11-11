@@ -637,7 +637,8 @@ static int do_file_thread(struct video_queue_dev *dev)
 	}
 
 	//used to point 29.97 23.976 59.94 119.88 fps
-	vq_print(dev->inst, P_SYNC, "vf->duration is %d.\n", vf->duration);
+	vq_print(dev->inst, P_SYNC, "%s: frm_irq:%d,fps:%d, vf->duration is %d.\n",
+		__func__, vf->frame_irq_cnt, vf->fps, vf->duration);
 	if (vf->duration == 1601 ||
 	    vf->duration == 3203 ||
 	    vf->duration == 4004 ||
@@ -830,8 +831,11 @@ static int do_file_thread(struct video_queue_dev *dev)
 		dump_vf(dev->inst, vf);
 		dump_hf(dev->inst, vf);
 	}
-	vq_print(dev->inst, P_OTHER, "get: frame_index=%d, buf_avail_num=%d,delay=%lld",
-		vf->frame_index, states.buf_avail_num, dev->vframe_get_delay);
+	vq_print(dev->inst, P_OTHER,
+		"get: frame_index=%d,frm_irq:%d,fps:%d,dur:%d,buf_avail_num=%d,delay=%lld",
+		vf->frame_index, vf->frame_irq_cnt, vf->fps, vf->duration,
+		states.buf_avail_num,
+		dev->vframe_get_delay);
 	private_data->vf = *vf;
 	private_data->vf_p = vf;
 	if (dev->game_mode) {

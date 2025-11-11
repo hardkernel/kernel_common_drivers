@@ -847,8 +847,8 @@ struct vframe_s *vdin_vf_get(void *op_arg)
 		return NULL;
 	atomic_inc(&p->buffer_cnt);
 	if (vf_list_dbg & VDIN_VF_MOVE_EN)
-		pr_info("%s,index:%d,index_disp:%d,disp_mode:%d\n", __func__,
-			vfe->vf.index, vfe->vf.index_disp,
+		pr_info("%s,index:%d,buf_cnt:%d,index_disp:%d,disp_mode:%d\n", __func__,
+			vfe->vf.index, atomic_read(&p->buffer_cnt), vfe->vf.index_disp,
 			p->disp_mode[vfe->vf.index_disp % VFRAME_DISP_MAX_NUM]);
 	return &vfe->vf;
 }
@@ -875,8 +875,8 @@ void vdin_vf_put(struct vframe_s *vf, void *op_arg)
 	}
 	atomic_dec(&p->buffer_cnt);
 	if (vf_list_dbg & VDIN_VF_MOVE_EN)
-		pr_info("%s,index:%d,index_disp:%d,disp_mode:%d\n", __func__,
-			vf->index, vf->index_disp,
+		pr_info("%s,index:%d,buf_cnt:%d,index_disp:%d,disp_mode:%d\n", __func__,
+			vf->index, atomic_read(&p->buffer_cnt), vf->index_disp,
 			p->disp_mode[vf->index_disp % VFRAME_DISP_MAX_NUM]);
 }
 
