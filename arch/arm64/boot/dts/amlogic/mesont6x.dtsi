@@ -1617,6 +1617,11 @@
 		compatible = "amlogic, vdec-pm-pd";
 		dev_name = "vdec.0";
 		status = "okay";
+		/*
+		 * scatter input function is not ready and viff_empty(201)
+		 * is too frequent for startcode searching. so use
+		 * assist_mbox_irq_ee(253) replace it.
+		 */
 		interrupts = <0 3 1
 			0 155 1
 			0 32 1
@@ -1624,7 +1629,7 @@
 			0 92 1
 			0 93 1
 			0 252 1
-			0 201 1
+			0 253 1
 			0 113 1>;
 		interrupt-names = "vsync",
 			"demux",
