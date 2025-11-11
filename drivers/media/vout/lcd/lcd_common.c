@@ -1185,6 +1185,23 @@ void lcd_mlvds_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 		channel_num, bit_rate, pconf->timing.act_timing.pixel_clk);
 }
 
+void lcd_lvds_bit_rate_config(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;
+	unsigned long long bit_rate, band_width;
+	unsigned int port_div;
+
+	band_width = (unsigned long long)pconf->timing.act_timing.pixel_clk * 7;
+	port_div = pconf->control.lvds_cfg.dual_port ? 2 : 1;
+	bit_rate = lcd_do_div(band_width, port_div);
+	pconf->timing.bit_rate = bit_rate;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: port_div:%d bit_rate=%lluHz, pclk=%uhz\n",
+		      pdrv->index, port_div, bit_rate, pconf->timing.act_timing.pixel_clk);
+	}
+}
+
 void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->curr_dev->dev_cfg;

@@ -99,6 +99,9 @@ void lcd_clk_frac_generate(struct aml_lcd_drv_s *pdrv)
 	case LCD_MIPI:
 		lcd_mipi_dsi_bit_rate_config(pdrv);
 		break;
+	case LCD_LVDS:
+		lcd_lvds_bit_rate_config(pdrv);
+		break;
 	default:
 		break;
 	}
@@ -180,6 +183,9 @@ void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_MIPI:
 		lcd_mipi_dsi_bit_rate_config(pdrv);
+		break;
+	case LCD_LVDS:
+		lcd_lvds_bit_rate_config(pdrv);
 		break;
 	default:
 		break;

@@ -115,6 +115,7 @@ void lcd_optical_vinfo_update(struct aml_lcd_drv_s *pdrv);
 
 void lcd_vbyone_bit_rate_config(struct aml_lcd_drv_s *pdrv);
 void lcd_mlvds_bit_rate_config(struct aml_lcd_drv_s *pdrv);
+void lcd_lvds_bit_rate_config(struct aml_lcd_drv_s *pdrv);
 void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv);
 void lcd_mipi_dsi_bit_rate_config(struct aml_lcd_drv_s *pdrv);
 void lcd_clk_frame_rate_init(struct lcd_detail_timing_s *ptiming);

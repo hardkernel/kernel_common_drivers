@@ -1237,6 +1237,7 @@ void lcd_clk_generate_dft(struct aml_lcd_drv_s *pdrv)
 		} else {
 			cconf->phy_clk = cconf->pll_config[0].pll_fout;
 		}
+		pconf->timing.bit_rate = cconf->phy_clk;
 		break;
 #ifdef CONFIG_AMLOGIC_LCD_VBYONE
 	case LCD_VBYONE:
