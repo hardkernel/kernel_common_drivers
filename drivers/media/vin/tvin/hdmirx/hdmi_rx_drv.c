@@ -3630,10 +3630,8 @@ static void rx_phy_resume(void)
 	}
 	if (rx_info.phy_ver >= PHY_VER_TM2)
 		rx_info.aml_phy.pre_int = 1;
-	if (rx_info.chip_id < CHIP_ID_T3X) {
-		hdmirx_phy_init(E_PORT0);
-	} else {
-		aml_phy_init_no_delay(E_PORT0);
+	aml_phy_init_no_delay(E_PORT0);
+	if (rx_info.chip_id >= CHIP_ID_T3X) {
 		aml_phy_init_no_delay(E_PORT1);
 		rx_info.aml_phy_21.pre_int_21[E_PORT2] = 1;
 		rx_info.aml_phy_21.pre_int_21[E_PORT3] = 1;

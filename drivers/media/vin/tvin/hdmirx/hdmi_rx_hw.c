@@ -2178,6 +2178,14 @@ u32 rx_get_hdmi5v_sts(void)
 EXPORT_SYMBOL(rx_get_hdmi5v_sts);
 
 /*
+ * rx_get_hdmi5v_sts_by_port - get pwr5v status of specific port
+ */
+bool rx_get_hdmi5v_sts_by_port(u8 port)
+{
+	return ((rx_get_hdmi5v_sts() >> port) & 1);
+}
+
+/*
  * rx_get_hpd_sts - get current hpd status on all ports
  */
 u32 rx_get_hpd_sts(u8 port)
@@ -4204,6 +4212,7 @@ void aml_phy_offset_cal_handler(struct kthread_work *work)
 	default:
 		break;
 	}
+	rx_power_consumption_cntl(rx_get_hdmi5v_sts());
 }
 
 /*
@@ -7071,8 +7080,12 @@ void aml_phy_init(u8 port)
 
 void aml_phy_init_no_delay(u8 port)
 {
+	if (!rx_get_hdmi5v_sts_by_port(port))
+		return;
 	eq_sts[port] = E_EQ_START;
-	if (rx_info.phy_ver == PHY_VER_TL1)
+	if (rx_info.phy_ver == PHY_VER_ORG)
+		snps_phyg3_init();
+	else if (rx_info.phy_ver == PHY_VER_TL1)
 		aml_phy_init_tl1();
 	else if (rx_info.phy_ver == PHY_VER_TM2)
 		aml_phy_init_tm2();
