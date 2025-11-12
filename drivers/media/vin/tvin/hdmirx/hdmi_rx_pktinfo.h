@@ -21,7 +21,8 @@
 /* 2025.09.12 fix emp dolby vision parsing error */
 /* 2025.09.30 fix emp form2 dolby vision issue */
 /* 2025.11.05 fix unpack AVI packet when no EMP isr */
-#define RX_PKT_VER "ver.2025/11/05"
+/* 2025.11.12 clear unique drm flag before parsing DRM packet */
+#define RX_PKT_VER "ver.2025/11/12"
 
 #define K_ONEPKT_BUFF_SIZE		8
 #define K_PKT_REREAD_SIZE		2

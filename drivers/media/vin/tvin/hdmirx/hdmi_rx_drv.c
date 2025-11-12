@@ -1935,6 +1935,8 @@ void hdmirx_get_hdr_info(struct tvin_frontend_s *fe, struct tvin_sig_property_s 
 			memcpy(prop->hdr_info.hdr_data.rawdata, (u8 *)drm_pkt, 3);
 			memcpy(prop->hdr_info.hdr_data.rawdata + 3, (u8 *)drm_pkt + 4, 28);
 			return;
+		} else {
+			prop->dv_unique_drm_flag = false;
 		}
 		rx_reset_pkt_cnt(PKT_TYPE_INFOFRAME_DRM, port);
 		prop->hdr_info.hdr_data.length = drm_pkt->length;
@@ -1983,6 +1985,7 @@ void hdmirx_get_hdr_info(struct tvin_frontend_s *fe, struct tvin_sig_property_s 
 			   &drm_pkt->des_u.payload, 28);
 		prop->hdr_info.hdr_state = HDR_STATE_GET;
 	} else {
+		prop->dv_unique_drm_flag = false;
 		if (--rx[port].pkt_mini_interval[PKT_TYPE_INFOFRAME_DRM] <= 0)
 			prop->hdr_info.hdr_state = HDR_STATE_NULL;
 	}
