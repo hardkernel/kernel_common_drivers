@@ -146,8 +146,9 @@ static void lcd_lane_sel_to_ch_swap(struct aml_lcd_drv_s *pdrv, struct aml_lcd_d
 	}
 
 	phy_cfg->lane_valid = (valid_flag & phy_cfg->lane_mask) << phy_cfg->lane_offset;
-	LCD_DBG(pdrv, "%s: lane_num:%d, ch_swap:0x%08x,0x%08x, lane_valid:0x%x", __func__,
-		phy_cfg->lane_num, phy_cfg->ch_swap0, phy_cfg->ch_swap1, phy_cfg->lane_valid);
+	LCD_DEV_DBG(pdrv, dev_p->idx, "%s: lane_num:%d, ch_swap:0x%08x,0x%08x, lane_valid:0x%x",
+		__func__, phy_cfg->lane_num,
+		phy_cfg->ch_swap0, phy_cfg->ch_swap1, phy_cfg->lane_valid);
 }
 
 static void lcd_ch_swap_to_lane_sel(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,

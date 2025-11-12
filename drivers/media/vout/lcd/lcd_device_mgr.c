@@ -27,43 +27,41 @@
 #endif
 #include "./lcd_common.h"
 
-static int lcd_device_add_new(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
-{
-	u8 i = 0;
-
-	for (i = 0; i < LCD_MULTI_DEV_MAX_CNT; i++) {
-		if (pdrv->device_mgr.dev_list[i])
-			continue;
-
-		LCD_DEV_PR(pdrv, i, "create new lcd device");
-		pdrv->device_mgr.dev_list[i] = dev_p;
-		pdrv->device_mgr.dev_list[i]->idx = i;
-		pdrv->device_mgr.dev_cnt++;
-		return 0;
-	}
-	LCD_DEV_ERR(pdrv, i, "MAX supported device count (%u) reached", LCD_MULTI_DEV_MAX_CNT);
-	return -1;
-}
-
 struct aml_lcd_device_s *lcd_device_append_new(struct aml_lcd_drv_s *pdrv, char *device_cfg_name)
 {
 	int ret = -1;
+	struct aml_lcd_device_s *dev_p;
+	u8 i = 0;
 
-	struct aml_lcd_device_s *dev_p = kzalloc(sizeof(*dev_p), GFP_KERNEL);
-
-	if (!dev_p)
+	for (i = 0; i < LCD_MULTI_DEV_MAX_CNT; i++) {
+		if (!pdrv->device_mgr.dev_list[i])
+			break;
+	}
+	if (i == LCD_MULTI_DEV_MAX_CNT) {
+		LCD_ERR(pdrv, "MAX supported device count (%u) reached", LCD_MULTI_DEV_MAX_CNT);
 		return NULL;
+	}
+
+	LCD_DEV_DBG(pdrv, i, "create new lcd device");
+	dev_p = kzalloc(sizeof(*dev_p), GFP_KERNEL);
+	if (!dev_p) {
+		kfree(dev_p);
+		return NULL;
+	}
 
 	strscpy(dev_p->dev_propname, device_cfg_name, 24);
 	ret = lcd_load_device_config(pdrv, dev_p, device_cfg_name);
-	if (!ret) {
-		ret = lcd_device_add_new(pdrv, dev_p);
-		if (!ret)
-			return dev_p;
+	if (ret) {
+		LCD_DEV_ERR(pdrv, i, "device load config[%s] failed", device_cfg_name);
+		kfree(dev_p);
+		return NULL;
 	}
 
-	kfree(dev_p);
-	return NULL;
+	pdrv->device_mgr.dev_list[i] = dev_p;
+	pdrv->device_mgr.dev_list[i]->idx = i;
+	pdrv->device_mgr.dev_cnt++;
+
+	return dev_p;
 }
 
 void lcd_device_pop_last(struct aml_lcd_drv_s *pdrv)
@@ -92,8 +90,8 @@ struct aml_lcd_device_s *lcd_device_assign(struct aml_lcd_drv_s *pdrv, unsigned 
 
 	if (pdrv->device_mgr.dev_list[dev_idx]) {
 		pdrv->curr_dev = pdrv->device_mgr.dev_list[dev_idx];
-		LCD_DEV_DBG(pdrv, dev_idx, "assign to (%s)",
-			pdrv->device_mgr.dev_list[dev_idx]->dev_propname);
+		LCD_DEV_PR(pdrv, dev_idx, "driver assign to (%s)",
+			pdrv->curr_dev->dev_propname);
 		return pdrv->device_mgr.dev_list[dev_idx];
 	}
 

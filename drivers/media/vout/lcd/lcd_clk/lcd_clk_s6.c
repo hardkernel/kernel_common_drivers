@@ -52,12 +52,12 @@ unsigned char lcd_dsi_generate_DSI_PLL_s6_model(struct aml_lcd_drv_s *pdrv)
 	unsigned long long bitrate_min, bitrate_max;
 
 	bitrate_min = lcd_dsi_get_min_bitrate(pdrv);
-	bitrate_max = dconf->bit_rate_max;
+	bitrate_max = dconf->bit_rate_target;
 	bitrate_max = bitrate_max * 1000000;
 
 	clk_div_tb = kcalloc(32, sizeof(struct dsi_clk_tb_s), GFP_KERNEL);
 	if (!clk_div_tb) {
-		LCDERR("[%d]: %s: kcalloc failed\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: kcalloc failed", __func__);
 		return 0;
 	}
 	memset(clk_div_tb, 0, 32 * sizeof(struct dsi_clk_tb_s));
@@ -89,7 +89,7 @@ unsigned char lcd_dsi_generate_DSI_PLL_s6_model(struct aml_lcd_drv_s *pdrv)
 					continue;
 
 				if (tb_idx == 32) {
-					LCDERR("[%d]: dsi clk table full!\n", pdrv->index);
+					LCD_ERR(pdrv, "dsi clk table full!");
 					goto dsi_clk_tabel_buffer_full;
 				}
 
@@ -104,9 +104,10 @@ unsigned char lcd_dsi_generate_DSI_PLL_s6_model(struct aml_lcd_drv_s *pdrv)
 	}
 
 	if (!tb_idx) {
-		LCDERR("[%d]: %s: no div for pll_out:(%lluHz~%lluHz), bit_rate:(%lluHz~%uMHz)\n",
-			pdrv->index, __func__, cconf->data->pll_data[0]->pll_out_fmin,
-			cconf->data->pll_data[0]->pll_out_fmax, bitrate_min, dconf->bit_rate_max);
+		LCD_ERR(pdrv, "%s: no div for pll_out:(%lluHz~%lluHz), bit_rate:(%lluHz~%uMHz)",
+			__func__, cconf->data->pll_data[0]->pll_out_fmin,
+			cconf->data->pll_data[0]->pll_out_fmax, bitrate_min,
+			dconf->bit_rate_target);
 		kfree(clk_div_tb);
 		return 0;
 	}
@@ -114,9 +115,9 @@ unsigned char lcd_dsi_generate_DSI_PLL_s6_model(struct aml_lcd_drv_s *pdrv)
 dsi_clk_tabel_buffer_full:
 	x = tb_idx - 1;
 
-	LCDPR("[%d]: DSI_PLL: pll_out:%lluHz: xd[%hu]*frac[%s]->fout=%uhz, div[%hu]->phy=%lluhz\n",
-		pdrv->index, clk_div_tb[x].pll_out,
-		clk_div_tb[x].enc_xd, lcd_clk_div_table[clk_div_tb[x].frac_div_sel].name,
+	LCD_PR(pdrv, "DSI_PLL: pll_out:%lluHz: xd[%hu]*frac[%s]->fout=%uhz, div[%hu]->phy=%lluhz",
+		clk_div_tb[x].pll_out, clk_div_tb[x].enc_xd,
+		lcd_clk_div_table[clk_div_tb[x].frac_div_sel].name,
 		cconf->fout, clk_div_tb[x].phy_div, clk_div_tb[x].phy_clk);
 
 	cconf->pll_config[0].pll_fout = clk_div_tb[x].pll_out;

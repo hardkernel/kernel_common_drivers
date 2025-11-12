@@ -14,8 +14,11 @@
 #include "./dsi_common.h"
 #include "./dsi_ctrl/dsi_ctrl.h"
 #include "../lcd_connector.h"
+#include <linux/amlogic/media/vout/lcd/lcd_model.h>
+#ifdef TRY_TO_REMOVE_DSI_EXTERN
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 #include <linux/amlogic/media/vout/lcd/lcd_extern.h>
+#endif
 #endif
 
 char *dsi_op_mode_table[] = {"Video", "Command"};
@@ -47,18 +50,16 @@ void dsi_config_print_helper(struct lcd_config_s *pconf, u8 pr_flag)
 	struct dsi_config_s *dconf = &pconf->control.mipi_cfg;
 	u32 esc_clk;
 
-	if (pr_flag & DSI_HOST_CFG_PR_VID_TIMING) {
+	if (pr_flag & DSI_HOST_CFG_PR_BASIC) {
 		pr_info("MIPI DSI Config:\n"
 			"  %u-port, %u-lane\n"
 			"  bit rate = %lluHz (limit < %uMHz)\n"
-			"  lane_byte_clk:    %uhz\n"
 			"  operation mode:   init:%s(%u), display:%s(%u)\n"
 			"  video mode type:  %s(%d)\n"
 			"  clk always hs:    %u\n"
 			"  data format:      %s\n",
 			dconf->multi_port_cfg ? 2 : 1, dconf->lane_num,
-			pconf->timing.bit_rate, dconf->bit_rate_max,
-			dconf->lane_byte_clk,
+			pconf->timing.bit_rate, dconf->bit_rate_target,
 			dsi_op_mode_table[dconf->operation_mode_init],
 			dconf->operation_mode_init,
 			dsi_op_mode_table[dconf->operation_mode_display],
@@ -89,7 +90,7 @@ void dsi_config_print_helper(struct lcd_config_s *pconf, u8 pr_flag)
 		pr_info("MIPI DSI clk:\n"
 		      "  Pixel CLK   = %10uHz\n"
 		      "  bit_rate    = %10lluHz\n"
-		      "  lanebyteclk = %10uHz\n"
+		      "  LaneByteClk = %10uHz\n"
 		      "  PCLK_period/lanebyteclk_period = (num=%u/den=%u)\n",
 		      pconf->timing.act_timing.pixel_clk,
 		      pconf->timing.bit_rate,
@@ -158,120 +159,136 @@ void dsi_config_print_helper(struct lcd_config_s *pconf, u8 pr_flag)
 	}
 }
 
-static u16 dsi_table_load_dts(struct device_node *m_node, char *n_name, u8 *table, u16 max_len)
+void lcd_mipi_dsi_init_table_load_dts(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
+					struct device_node *child)
 {
-	u32 cmd_size = 0, type = 0, val = 0;
-	u16 i = 0, j;
-	int ret;
+	int table_cnt;
+	struct dsi_config_s *dconf = &dev_p->dev_cfg.control.mipi_cfg;
+	u8 i;
+	u16 j;
+	unsigned int *_temp_table_addr;
+	struct dsi_table_s {
+		unsigned char **table_addr_addr; char *name; uint16_t size_limit;
+	} dsi_table[4] = {
+		{&dconf->dsi_init_on,  "dsi_init_on", DSI_INIT_ON_MAX},
+		{&dconf->dsi_init_off, "dsi_init_off", DSI_INIT_OFF_MAX},
+		{&dconf->dsi_suspend,  "dsi_suspend", DSI_SUSPEND_MAX},
+		{&dconf->dsi_resume,   "dsi_resume", DSI_RESUME_MAX},
+	};
 
-	table[0] = LCD_EXT_CMD_TYPE_END;
-	table[1] = 0;
+	for (i = 0; i < 4; i++) {
+		kfree(*dsi_table[i].table_addr_addr);
+		*dsi_table[i].table_addr_addr = NULL;
 
-	while ((i + 1) < max_len) {
-		ret = of_property_read_u32_index(m_node, n_name, i, &type);
-		if (ret) {
-			LCDERR("%s get [%hu] error\n", n_name, i);
-			goto dsi_table_load_error;
-		}
-		ret = of_property_read_u32_index(m_node, n_name, i + 1, &cmd_size);
-		if (ret) {
-			LCDERR("%s get [%hu] error\n", n_name, i + 1);
-			goto dsi_table_load_error;
-		}
+		table_cnt = of_property_count_elems_of_size(child, dsi_table[i].name, sizeof(u32));
 
-		table[i] = (u8)type;
-		table[i + 1] = (u8)cmd_size;
-
-		if (type == LCD_EXT_CMD_TYPE_END) {
-			if (cmd_size == 0xff || cmd_size == 0) {
-				i += 2;
-				return i;
-			}
-			cmd_size = 0;
-		}
-		if ((i + 2 + cmd_size) > max_len) {
-			LCDERR("%s: cmd_size [%hu] out of limit[%hu]\n", n_name, i, max_len);
-			goto dsi_table_load_error;
+		// table_cnt = table_cnt / sizeof(unsigned int);
+		if (table_cnt <= 0 || table_cnt >= dsi_table[i].size_limit) {
+			LCD_DEV_PR(pdrv, dev_p->idx, "%s: get %s size [%d] (limit:%u) invalid",
+				__func__, dsi_table[i].name, table_cnt, dsi_table[i].size_limit);
+			continue;
 		}
 
-		for (j = 0; j < cmd_size; j++) {
-			ret = of_property_read_u32_index(m_node, n_name, i + 2 + j, &val);
-			if (ret) {
-				LCDERR("%s: cmd [%hu] get error\n", n_name, i + 2 + j);
-				goto dsi_table_load_error;
-			}
-			table[i + 2 + j] = val;
+		_temp_table_addr = kcalloc(table_cnt + 2, sizeof(u32), GFP_KERNEL);
+		*dsi_table[i].table_addr_addr = kcalloc(table_cnt + 2, sizeof(u8), GFP_KERNEL);
+		if (!(*dsi_table[i].table_addr_addr) || !_temp_table_addr) {
+			kfree(*dsi_table[i].table_addr_addr);
+			kfree(_temp_table_addr);
+			*dsi_table[i].table_addr_addr = NULL;
+			_temp_table_addr = NULL;
+			continue;
 		}
-		i += (cmd_size + 2);
+		LCD_DEV_PR(pdrv, dev_p->idx, "%s: get %s [%d]",
+			__func__, dsi_table[i].name, table_cnt);
+		of_property_read_u32_array(child, dsi_table[i].name, _temp_table_addr, table_cnt);
+
+		for (j = 0; j < table_cnt; j++)
+			(*dsi_table[i].table_addr_addr)[j] = _temp_table_addr[j];
+
+		(*dsi_table[i].table_addr_addr)[table_cnt]     = 0xff;
+		(*dsi_table[i].table_addr_addr)[table_cnt + 1] = 0xff;
+		kfree(_temp_table_addr);
 	}
-	return i;
 
-dsi_table_load_error:
-	table[i] = 0xff;
-	table[i + 1] = 0;
-	i += 2;
-	return i;
 }
 
-void lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv)
+void lcd_mipi_dsi_init_table_load_json(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
+					struct json_parse_s *jsp, struct json_s *parent)
 {
-	int ret;
-	u32 table;
-	struct device_node *m_node;
-	struct dsi_config_s *dconf = &pdrv->curr_dev->dev_cfg.control.mipi_cfg;
+	u8 i;
+	const char *str = NULL;
+	int cnt = 0, cnt_max;
+	unsigned int *nums = NULL, nums_size = 0;
+	struct dsi_config_s *dconf = &dev_p->dev_cfg.control.mipi_cfg;
 
-	kfree(dconf->dsi_init_on);
-	kfree(dconf->dsi_init_off);
-	dconf->dsi_init_on = NULL;
-	dconf->dsi_init_off = NULL;
+	struct dsi_table_s {
+		unsigned char **table_addr_addr; char *name; uint16_t size_limit;
+	} dsi_table[4] = {
+		{&dconf->dsi_init_on,  "dsi_init_on", DSI_INIT_ON_MAX},
+		{&dconf->dsi_init_off, "dsi_init_off", DSI_INIT_OFF_MAX},
+		{&dconf->dsi_suspend,  "dsi_suspend", DSI_SUSPEND_MAX},
+		{&dconf->dsi_resume,   "dsi_resume", DSI_RESUME_MAX},
+	};
 
-	dconf->dsi_init_on = kcalloc(DSI_INIT_ON_MAX, sizeof(char), GFP_KERNEL);
-	dconf->dsi_init_off = kcalloc(DSI_INIT_OFF_MAX, sizeof(char), GFP_KERNEL);
-	if (!dconf->dsi_init_on || !dconf->dsi_init_off) {
-		LCDERR("[*]: %s: table kcalloc failed\n", __func__);
-		kfree(dconf->dsi_init_on);
-		kfree(dconf->dsi_init_off);
-		dconf->dsi_init_on = NULL;
-		dconf->dsi_init_off = NULL;
-		return;
+	for (i = 0; i < 4; i++) {
+		kfree(*dsi_table[i].table_addr_addr);
+		*dsi_table[i].table_addr_addr = NULL;
+
+		str = json_get_obj_str(jsp, parent, dsi_table[i].name, NULL);
+		if (!str) {
+			LCD_DEV_ERR(pdrv, dev_p->idx, "not find mipi %s", dsi_table[i].name);
+			return;
+		}
+		cnt_max = lcd_get_str_array_cnt(str);
+		if (cnt_max <= 0) {
+			LCD_DEV_ERR(pdrv, dev_p->idx, "mipi %s error", dsi_table[i].name);
+			return;
+		}
+		nums_size = cnt_max * sizeof(unsigned int);
+		nums = kzalloc(nums_size, GFP_KERNEL);
+		if (!nums)
+			return;
+
+		cnt = lcd_trans_str_array(str, nums, cnt_max);
+		if (cnt <= 0) {
+			LCD_DEV_ERR(pdrv, dev_p->idx, "mipi %s error", dsi_table[i].name);
+			kfree(nums);
+			return;
+		}
+		*dsi_table[i].table_addr_addr = kcalloc(cnt, sizeof(unsigned char), GFP_KERNEL);
+		if (!(*dsi_table[i].table_addr_addr)) {
+			kfree(nums);
+			return;
+		}
+		LCD_DEV_PR(pdrv, dev_p->idx, "%s: get %s [%d]", __func__, dsi_table[i].name, cnt);
+		for (i = 0; i < cnt; i++)
+			(*dsi_table[i].table_addr_addr)[i] = nums[i];
+
+		(*dsi_table[i].table_addr_addr)[cnt]     = 0xff;
+		(*dsi_table[i].table_addr_addr)[cnt + 1] = 0xff;
+
+		kfree(nums);
+		nums = NULL;
 	}
-
-	m_node = of_get_child_by_name(pdrv->dev->of_node, pdrv->curr_dev->dev_propname);
-	if (!m_node) {
-		LCDERR("[%d]: failed to get %s\n", pdrv->index, pdrv->curr_dev->dev_propname);
-		return;
-	}
-
-	ret = of_property_read_u32_index(m_node, "dsi_init_on", 0, &table);
-	if (ret) {
-		LCDERR("[%d]: %s: failed to get dsi_init_on\n", pdrv->index, __func__);
-		dconf->dsi_init_on[0] = 0xff;
-		dconf->dsi_init_on[1] = 0;
-	} else {
-		dsi_table_load_dts(m_node, "dsi_init_on", dconf->dsi_init_on, DSI_INIT_ON_MAX);
-	}
-
-	ret = of_property_read_u32_index(m_node, "dsi_init_off", 0, &table);
-	if (ret) {
-		LCDERR("[*]: %s: fdt get dsi_init_off failed\n", __func__);
-		dconf->dsi_init_off[0] = 0xff;
-		dconf->dsi_init_off[1] = 0;
-	} else {
-		dsi_table_load_dts(m_node, "dsi_init_off", dconf->dsi_init_off, DSI_INIT_OFF_MAX);
-	}
-
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		dsi_init_table_print(dconf);
 }
 
-void lcd_mipi_dsi_init_table_free(struct dsi_config_s *dconf)
+void lcd_mipi_dsi_init_table_free(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
 {
-	if (!dconf)
+	struct dsi_config_s *dsi_cfg;
+
+	if (!dev_p)
 		return;
-	kfree(dconf->dsi_init_on);
-	kfree(dconf->dsi_init_off);
-	dconf->dsi_init_on = NULL;
-	dconf->dsi_init_off = NULL;
+
+	dsi_cfg = &dev_p->dev_cfg.control.mipi_cfg;
+
+	kfree(dsi_cfg->dsi_init_on);
+	kfree(dsi_cfg->dsi_init_off);
+	kfree(dsi_cfg->dsi_suspend);
+	kfree(dsi_cfg->dsi_resume);
+	dsi_cfg->dsi_init_on = NULL;
+	dsi_cfg->dsi_init_off = NULL;
+	dsi_cfg->dsi_suspend = NULL;
+	dsi_cfg->dsi_resume = NULL;
 }
 
 static void dsi_req_print(int ret, struct dsi_cmd_req_s *req)
@@ -354,8 +371,8 @@ static u32 cmd_pld_cnt_check(struct aml_lcd_drv_s *pdrv, struct dsi_cmd_req_s *r
 	}
 
 	if (req->pld_count < pld_req) {
-		LCDERR("[%d]: payload count %d insufficient for 0x%02x (req:%d)\n",
-			pdrv->index, req->pld_count, req->data_type, pld_req);
+		LCD_ERR(pdrv, "payload count %d insufficient for 0x%02x (req:%d)",
+			req->pld_count, req->data_type, pld_req);
 		return -1;
 	}
 	return 0;
@@ -607,7 +624,7 @@ int dsi_read(struct aml_lcd_drv_s *pdrv, u8 *payload, u8 *rd_data, u8 len)
 		ret = dsi_DT_DCS_read(pdrv, 0, &dsi_cmd_req);
 		break;
 	default:
-		LCDPR("[%d]: unsupported data_type: 0x%02x\n", pdrv->index, dsi_cmd_req.data_type);
+		LCD_ERR(pdrv, "unsupported data_type: 0x%02x", dsi_cmd_req.data_type);
 		break;
 	}
 
@@ -622,6 +639,7 @@ static void dsi_panel_init(struct aml_lcd_drv_s *pdrv)
 {
 	struct dsi_config_s *dconf = &pdrv->curr_dev->dev_cfg.control.mipi_cfg;
 
+#ifdef TRY_TO_REMOVE_DSI_EXTERN
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 	struct lcd_extern_driver_s *edrv;
 	struct lcd_extern_dev_s *edev;
@@ -643,9 +661,10 @@ static void dsi_panel_init(struct aml_lcd_drv_s *pdrv)
 	}
 dsi_panel_init_main:
 #endif
+#endif
 	if (dconf->dsi_init_on) {
 		dsi_exec_init_table(pdrv, dconf->dsi_init_on, DSI_INIT_ON_MAX, NULL, 0);
-		LCDPR("[%d]: %s table\n", pdrv->index, __func__);
+		LCD_PR(pdrv, "%s table", __func__);
 	}
 }
 
@@ -655,9 +674,10 @@ static void dsi_panel_deinit(struct aml_lcd_drv_s *pdrv)
 
 	if (dconf->dsi_init_off) {
 		dsi_exec_init_table(pdrv, dconf->dsi_init_off, DSI_INIT_OFF_MAX, NULL, 0);
-		LCDPR("[%d]: %s table\n", pdrv->index, __func__);
+		LCD_PR(pdrv, "%s table", __func__);
 	}
 
+#ifdef TRY_TO_REMOVE_DSI_EXTERN
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 	struct lcd_extern_driver_s *edrv;
 	struct lcd_extern_dev_s *edev;
@@ -676,6 +696,7 @@ static void dsi_panel_deinit(struct aml_lcd_drv_s *pdrv)
 		edev->power_off(edrv, edev);
 		LCDPR("[%d]: [extern]%s dsi init off\n", pdrv->index, edev->config.name);
 	}
+#endif
 #endif
 }
 
@@ -711,7 +732,7 @@ u64 lcd_dsi_get_min_bitrate(struct aml_lcd_drv_s *pdrv)
 				band_width * pdrv->curr_dev->dev_cfg.timing.act_timing.lcd_bits;
 		}
 	} else {
-		LCDERR("[%d]: %s: Only VIDEO mode need HS bitrate\n", pdrv->index, __func__);
+		LCD_DBG(pdrv, "%s: Only VIDEO mode need HS bitrate", __func__);
 		return 0;
 	}
 

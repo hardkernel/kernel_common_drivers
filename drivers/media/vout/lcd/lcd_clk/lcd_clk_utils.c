@@ -702,7 +702,7 @@ static unsigned char lcd_clk_generate_DSI_1PLL(struct aml_lcd_drv_s *pdrv)
 	u8 port_cnt = dconf->multi_port_cfg & BIT(0) ? 2 : 1;
 
 	bitrate_min = lcd_dsi_get_min_bitrate(pdrv);
-	bitrate_max = dconf->bit_rate_max;
+	bitrate_max = dconf->bit_rate_target;
 	bitrate_max = bitrate_max * 1000000;
 
 	clk_div_tb = kcalloc(DSI_CLK_TB_SIZE, sizeof(struct dsi_clk_tb_s), GFP_KERNEL);
@@ -759,7 +759,8 @@ static unsigned char lcd_clk_generate_DSI_1PLL(struct aml_lcd_drv_s *pdrv)
 	if (!tb_idx) {
 		LCD_ERR(pdrv, "%s: no div for pll_out:(%lluHz~%lluHz), bit_rate:(%lluHz~%uMHz)",
 			__func__, cconf->data->pll_data[0]->pll_out_fmin,
-			cconf->data->pll_data[0]->pll_out_fmax, bitrate_min, dconf->bit_rate_max);
+			cconf->data->pll_data[0]->pll_out_fmax, bitrate_min,
+			dconf->bit_rate_target);
 		kfree(clk_div_tb);
 		return 0;
 	}

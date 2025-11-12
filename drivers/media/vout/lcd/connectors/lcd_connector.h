@@ -89,8 +89,11 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 void mipi_dsi_link_off(struct aml_lcd_drv_s *pdrv);
 void mipi_dsi_tx_ctrl(struct aml_lcd_drv_s *pdrv, int status);
 /* @lcd_common.c */
-void lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv);
-void lcd_mipi_dsi_init_table_free(struct dsi_config_s *dconf);
+void lcd_mipi_dsi_init_table_load_json(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
+					struct json_parse_s *jsp, struct json_s *parent);
+void lcd_mipi_dsi_init_table_load_dts(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p,
+					struct device_node *child);
+void lcd_mipi_dsi_init_table_free(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p);
 void lcd_dsi_tx_ctrl(struct aml_lcd_drv_s *pdrv, unsigned char en);
 unsigned long long lcd_dsi_get_min_bitrate(struct aml_lcd_drv_s *pdrv);
 /* @lcd_debug.c */

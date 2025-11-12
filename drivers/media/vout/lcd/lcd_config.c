@@ -314,12 +314,15 @@ void lcd_config_load_print(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *
 			LCDPR("check_cnt = %d\n", pctrl->mipi_cfg.check_cnt);
 		}
 		LCDPR("lane_num = %d\n", pctrl->mipi_cfg.lane_num);
-		LCDPR("bit_rate_max = %d\n", pctrl->mipi_cfg.bit_rate_max);
-		LCDPR("operation_mode_init = %d\n", pctrl->mipi_cfg.operation_mode_init);
-		LCDPR("operation_mode_disp = %d\n", pctrl->mipi_cfg.operation_mode_display);
+		LCDPR("bit_rate_target = %d\n", pctrl->mipi_cfg.bit_rate_target);
+		LCDPR("operation_mode: init=%d, disp=%d\n",
+			pctrl->mipi_cfg.operation_mode_init,
+			pctrl->mipi_cfg.operation_mode_display);
 		LCDPR("video_mode_type = %d\n", pctrl->mipi_cfg.video_mode_type);
 		LCDPR("clk_always_hs = %d\n", pctrl->mipi_cfg.clk_always_hs);
+#ifdef TRY_TO_REMOVE_DSI_EXTERN
 		LCDPR("extern_init = %d\n", pctrl->mipi_cfg.extern_init);
+#endif
 		break;
 #endif
 	default:
@@ -1148,7 +1151,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv, struct aml_lcd_d
 			return -1;
 		}
 		pctrl->mipi_cfg.lane_num = para[0];
-		pctrl->mipi_cfg.bit_rate_max = para[1];
+		pctrl->mipi_cfg.bit_rate_target = para[1];
 		pctrl->mipi_cfg.multi_port_cfg = para[2];
 		pctrl->mipi_cfg.operation_mode_init = para[3];
 		pctrl->mipi_cfg.operation_mode_display = para[4];
@@ -1156,7 +1159,8 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv, struct aml_lcd_d
 		pctrl->mipi_cfg.clk_always_hs = para[6];
 		pctrl->mipi_cfg.user_pkt_size = para[7];
 
-		// lcd_mipi_dsi_init_table_detect(pdrv, child);
+		lcd_mipi_dsi_init_table_load_dts(pdrv, dev_p, child);
+#ifdef TRY_TO_REMOVE_DSI_EXTERN
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		ret = of_property_read_u32_array(child, "extern_init", &para[0], 1);
 		if (ret) {
@@ -1166,6 +1170,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv, struct aml_lcd_d
 			lcd_resource_add(pdrv, LCD_RES_EXTERN, para[0]);
 			lcd_extern_dev_index_add(pdrv->index, para[0]);
 		}
+#endif
 #endif
 		phy_cfg->vswing_level = 0;
 		phy_cfg->preem_level = 0;
@@ -1233,8 +1238,8 @@ config_phy_adv_attr_done:
 	lcd_ss_config_fix(pdrv, dev_p);
 
 	ret = of_property_read_u32(child, "backlight_index", &para[0]);
-	if (ret) {
-		LCD_DEV_ERR(pdrv, dev_p->idx, "failed to get backlight_index");
+	if (ret || para[0] == 0xff) {
+		LCD_DEV_ERR(pdrv, dev_p->idx, "no backlight");
 		pconf->backlight_index = 0xff;
 	} else {
 		pconf->backlight_index = para[0];
@@ -1574,9 +1579,7 @@ static int lcd_panel_parse_interface(struct json_parse_s *jsp,
 	struct vbyone_config_s *vx1;
 #endif
 #ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
-	struct dsi_config_s    *mipi;
-	int cnt = 0, cnt_max, i = 0;
-	unsigned int *nums = NULL, nums_size = 0;
+	struct dsi_config_s *mipi;
 #endif
 #ifdef CONFIG_AMLOGIC_LCD_TCON
 	struct mlvds_config_s  *mlvds;
@@ -1636,7 +1639,7 @@ static int lcd_panel_parse_interface(struct json_parse_s *jsp,
 	case LCD_MIPI:
 		mipi = &cfg->mipi_cfg;
 		mipi->lane_num = json_get_obj_u32(jsp, parent, "data_lane", 0);
-		mipi->bit_rate_max = json_get_obj_u32(jsp, parent, "bit_rate_max", 0);
+		mipi->bit_rate_target = json_get_obj_u32(jsp, parent, "bit_rate", 0);
 		mipi->operation_mode_init =
 				json_get_obj_u32(jsp, parent, "operation_mode_init", 0);
 		mipi->operation_mode_display =
@@ -1646,78 +1649,8 @@ static int lcd_panel_parse_interface(struct json_parse_s *jsp,
 		mipi->check_en = 0;
 		mipi->check_reg = 0xff;
 		mipi->check_cnt = 0;
-		kfree(mipi->dsi_init_on);
-		kfree(mipi->dsi_init_off);
-		mipi->dsi_init_on = NULL;
-		mipi->dsi_init_off = NULL;
 
-		str = json_get_obj_str(jsp, parent, "init_on", NULL);
-		if (!str) {
-			LCD_DEV_ERR(pdrv, dev_p->idx, "not find mipi init_on");
-			return -1;
-		}
-		cnt_max = lcd_get_str_array_cnt(str);
-		if (cnt_max <= 0) {
-			LCD_DEV_ERR(pdrv, dev_p->idx, "mipi init_on error");
-			return -1;
-		}
-		nums_size = cnt_max * sizeof(unsigned int);
-		nums = kzalloc(nums_size, GFP_KERNEL);
-		if (!nums)
-			return -1;
-
-		cnt = lcd_trans_str_array(str, nums, cnt_max);
-		if (cnt <= 0) {
-			LCD_DEV_ERR(pdrv, dev_p->idx, "mipi init_on error");
-			kfree(nums);
-			return -1;
-		}
-		mipi->dsi_init_on = kcalloc(cnt, sizeof(unsigned char), GFP_KERNEL);
-		if (!mipi->dsi_init_on) {
-			LCD_DEV_ERR(pdrv, dev_p->idx, "no memory to save init_on data");
-			kfree(nums);
-			return -1;
-		}
-		for (i = 0; i < cnt; i++)
-			mipi->dsi_init_on[i] = nums[i];
-
-		kfree(nums);
-		nums = NULL;
-
-		str = json_get_obj_str(jsp, parent, "init_off", NULL);
-		if (!str) {
-			LCD_DEV_ERR(pdrv, dev_p->idx, "not find mipi init_off");
-			kfree(mipi->dsi_init_on);
-			mipi->dsi_init_on = NULL;
-			return -1;
-		}
-		cnt_max = lcd_get_str_array_cnt(str);
-		if (cnt_max <= 0) {
-			LCD_DEV_ERR(pdrv, dev_p->idx, "mipi init_on error");
-			return -1;
-		}
-		nums_size = cnt_max * sizeof(unsigned int);
-		nums = kzalloc(nums_size, GFP_KERNEL);
-		if (!nums)
-			return -1;
-
-		cnt = lcd_trans_str_array(str, nums, cnt_max);
-		if (cnt <= 0) {
-			LCD_DEV_ERR(pdrv, dev_p->idx, "mipi init_off error");
-			kfree(nums);
-			return -1;
-		}
-		mipi->dsi_init_off = kcalloc(cnt, sizeof(unsigned char), GFP_KERNEL);
-		if (!mipi->dsi_init_off) {
-			LCD_DEV_ERR(pdrv, dev_p->idx, "no memory to save init_off data");
-			kfree(nums);
-			return -1;
-		}
-		for (i = 0; i < cnt; i++)
-			mipi->dsi_init_off[i] = nums[i];
-
-		kfree(nums);
-		nums = NULL;
+		lcd_mipi_dsi_init_table_load_json(pdrv, dev_p, jsp, parent);
 
 		break;
 #endif
@@ -2773,8 +2706,6 @@ void lcd_config_load_probe(struct aml_lcd_drv_s *pdrv)
 
 	/*interface probe*/
 	lcd_connector_config_probe(pdrv);
-
-	// return 0;
 }
 
 void lcd_config_load_remove(struct aml_lcd_drv_s *pdrv)

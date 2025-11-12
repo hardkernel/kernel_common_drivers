@@ -51,15 +51,11 @@ static int lcd_type_supported(struct aml_lcd_drv_s *pdrv)
 #ifdef CONFIG_AMLOGIC_LCD_TCON
 	case LCD_MLVDS:
 	case LCD_P2P:
-		if (pdrv->mode == LCD_MODE_TV)
-			return 0;
-		break;
+		return 0;
 #endif
 #ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
 	case LCD_MIPI:
-		if (pdrv->mode == LCD_MODE_TABLET)
-			return 0;
-		break;
+		return 0;
 #endif
 	default:
 		LCDERR("invalid lcd type: %s(%d)\n",
@@ -346,7 +342,8 @@ void lcd_connector_config_probe(struct aml_lcd_drv_s *pdrv)
 	case LCD_MIPI:
 		// although config should in lcd_config.c by device,
 		// dsi init table is too large and keep symmetrical with connector_config_remove
-		lcd_mipi_dsi_init_table_detect(pdrv);
+		// it is acceptable to contain a few kB fot each dsi lcd-device;
+		//lcd_mipi_dsi_init_table_detect(pdrv);
 		break;
 #endif
 	default:
@@ -366,7 +363,7 @@ void lcd_connector_config_remove(struct aml_lcd_drv_s *pdrv)
 #endif
 #ifdef CONFIG_AMLOGIC_LCD_MIPI_DSI
 	case LCD_MIPI:
-		lcd_mipi_dsi_init_table_free(&pdrv->curr_dev->dev_cfg.control.mipi_cfg);
+		lcd_mipi_dsi_init_table_free(pdrv, pdrv->curr_dev);
 		break;
 #endif
 	default:

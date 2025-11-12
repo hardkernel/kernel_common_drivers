@@ -1660,17 +1660,17 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 				     &val[4], &val[5], &val[6], &val[7]);
 			if (ret == 8) {
 				pctrl->mipi_cfg.lane_num = (unsigned char)val[0];
-				pctrl->mipi_cfg.bit_rate_max = val[1];
+				pctrl->mipi_cfg.bit_rate_target = val[1];
 				pctrl->mipi_cfg.operation_mode_init = (unsigned char)val[3];
 				pctrl->mipi_cfg.operation_mode_display = (unsigned char)val[4];
 				pctrl->mipi_cfg.video_mode_type = (unsigned char)val[5];
 				pctrl->mipi_cfg.clk_always_hs = (unsigned char)val[6];
 				pr_info("change mipi_dsi config:\n"
-					"lane_num=%d, bit_rate_max=%dMhz\n"
+					"lane_num=%d, bit_rate_target=%dMhz\n"
 					"operation_mode_init=%d, operation_mode_display=%d\n"
 					"video_mode_type=%d, clk_always_hs=%d\n",
 					pctrl->mipi_cfg.lane_num,
-					pctrl->mipi_cfg.bit_rate_max,
+					pctrl->mipi_cfg.bit_rate_target,
 					pctrl->mipi_cfg.operation_mode_init,
 					pctrl->mipi_cfg.operation_mode_display,
 					pctrl->mipi_cfg.video_mode_type,
@@ -4059,20 +4059,20 @@ static ssize_t lcd_mipi_debug_store(struct device *dev, struct device_attribute 
 		     &val[4], &val[5], &val[6], &val[7]);
 	if (ret >= 2) {
 		dsi_conf->lane_num = (unsigned char)val[0];
-		dsi_conf->bit_rate_max = val[1];
+		dsi_conf->bit_rate_target = val[1];
 		dsi_conf->operation_mode_init = (unsigned char)val[3];
 		dsi_conf->operation_mode_display = (unsigned char)val[4];
 		dsi_conf->video_mode_type = (unsigned char)val[5];
 		dsi_conf->clk_always_hs = (unsigned char)val[6];
 		pr_info("set mipi_dsi config:\n"
 			"  lane_num=%d,\n"
-			"  bit_rate_max=%dMhz,\n"
+			"  bit_rate_target=%dMhz,\n"
 			"  operation_mode_init=%d,\n"
 			"  operation_mode_display=%d\n"
 			"  video_mode_type=%d\n"
 			"  clk_always_hs=%d\n\n",
 			dsi_conf->lane_num,
-			dsi_conf->bit_rate_max,
+			dsi_conf->bit_rate_target,
 			dsi_conf->operation_mode_init,
 			dsi_conf->operation_mode_display,
 			dsi_conf->video_mode_type,
