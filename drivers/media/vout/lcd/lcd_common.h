@@ -148,6 +148,9 @@ void lcd_timing_free_all(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *de
 struct phy_attr_s *lcd_phy_alloc(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p);
 void lcd_phy_free_last(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p);
 void lcd_phy_free_all(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p);
+#ifdef CONFIG_AMLOGIC_LCD_TCON
+void lcd_tcon_global_reset(struct aml_lcd_drv_s *pdrv);
+#endif
 
 /* lcd phy */
 unsigned int lcd_phy_vswing_level_to_value(struct aml_lcd_drv_s *pdrv,

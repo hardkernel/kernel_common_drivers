@@ -927,6 +927,8 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 		if (lcd_debug_print_flag & LCD_DBG_PR_TEST)
 			lcd_tcon_dbg_trace_print();
 #endif
+	} else if (strcmp(parm[0], "reset") == 0) {
+		lcd_tcon_global_reset(pdrv);
 	} else {
 		goto lcd_tcon_debug_store_err;
 	}
