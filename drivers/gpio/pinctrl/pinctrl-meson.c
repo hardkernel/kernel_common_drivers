@@ -62,6 +62,8 @@
 #include <linux/kprobes.h>
 #include <linux/highmem.h>
 #include <linux/amlogic/gpiolib.h>
+#include <linux/proc_fs.h>
+#include <gpiolib.h>
 #include "pinctrl-meson.h"
 #include "pinctrl-meson-axg-pmx.h"
 
@@ -999,7 +1001,7 @@ int meson_a1_parse_dt_extra(struct meson_pinctrl *pc)
 }
 EXPORT_SYMBOL(meson_a1_parse_dt_extra);
 
-#ifdef CONFIG_AMLOGIC_GPIO_DEBUG
+#if IS_ENABLED(CONFIG_AMLOGIC_GPIO_DEBUG)
 
 static LIST_HEAD(pc_list);
 static DEFINE_MUTEX(list_lock);
@@ -1384,6 +1386,160 @@ static struct class pinctrl_class = {
 	.class_groups = pinctrl_class_groups,
 };
 
+static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
+{
+	unsigned int             i;
+	struct gpio_chip        *gc = gdev->chip;
+	unsigned int            gpio = gdev->base;
+	struct gpio_desc        *gdesc = &gdev->descs[0];
+	bool                    is_out;
+	bool                    is_irq;
+	bool                    active_low;
+
+	for (i = 0; i < gdev->ngpio; i++, gpio++, gdesc++) {
+		if (!test_bit(FLAG_REQUESTED, &gdesc->flags)) {
+			if (gdesc->name) {
+				seq_printf(s, " gpio-%-3d (%-20.20s)\n",
+					 gpio, gdesc->name);
+			}
+			continue;
+		}
+
+		gpiod_get_direction(gdesc);
+		is_out = test_bit(FLAG_IS_OUT, &gdesc->flags);
+		is_irq = test_bit(FLAG_USED_AS_IRQ, &gdesc->flags);
+		active_low = test_bit(FLAG_ACTIVE_LOW, &gdesc->flags);
+		seq_printf(s, " gpio-%-3d (%-20.20s|%-20.20s) %s %s %s%s",
+			 gpio, gdesc->name ? gdesc->name : "", gdesc->label->str,
+			 is_out ? "out" : "in ",
+			 gc->get ? (gc->get(gc, i) ? "hi" : "lo") : "?  ",
+			 is_irq ? "IRQ " : "",
+			 active_low ? "ACTIVE LOW" : "");
+		seq_puts(s, "\n");
+	}
+}
+
+static int proc_gpio_show(struct seq_file *m, void *v)
+{
+	struct meson_pinctrl *pc = NULL;
+	struct gpio_device *gdev;
+	struct gpio_chip *gc;
+	struct device *parent;
+
+	list_for_each_entry(pc, &pc_list, node) {
+		gc = &pc->chip;
+		if (!gc) {
+			seq_printf(m, "%s%s: (dangling chip)", "",
+				   dev_name(&gdev->dev));
+			return 0;
+		}
+		gdev = gc->gpiodev;
+
+		seq_printf(m, "%s%s: GPIOs %d-%d", "",
+			 dev_name(&gdev->dev),
+			 gdev->base, gdev->base + gdev->ngpio - 1);
+
+		parent = gc->parent;
+		if (parent)
+			seq_printf(m, ", parent: %s/%s",
+				 parent->bus ? parent->bus->name : "no-bus",
+				 dev_name(parent));
+		if (gc->label)
+			seq_printf(m, ", %s", gc->label);
+		if (gc->can_sleep)
+			seq_puts(m, ", can sleep");
+		seq_puts(m, ":\n");
+
+		if (gc->dbg_show)
+			gc->dbg_show(m, gc);
+		else
+			gpiolib_dbg_show(m, gdev);
+		seq_puts(m, "\n");
+	}
+	return 0;
+}
+
+static void pinmux_dbg_show(struct seq_file *s, struct pinctrl_dev *pctldev)
+{
+	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
+	const struct pinmux_ops *pmxops = pctldev->desc->pmxops;
+	unsigned int i, pin;
+
+	if (!pmxops)
+		return;
+
+	seq_puts(s, "Pinmux settings per pin\n");
+	if (pmxops->strict) {
+		seq_puts(s,
+			 "Format: pin (name): mux_owner|gpio_owner (strict) hog?\n");
+	} else {
+		seq_puts(s,
+			"Format: pin (name): mux_owner gpio_owner hog?\n");
+	}
+
+	mutex_lock(&pctldev->mutex);
+	/* The pin number can be retrieved from the pin controller descriptor */
+	for (i = 0; i < pctldev->desc->npins; i++) {
+		struct pin_desc *desc;
+		bool is_hog = false;
+
+		pin = pctldev->desc->pins[i].number;
+		desc = pin_desc_get(pctldev, pin);
+		/* Skip if we cannot search the pin */
+		if (!desc)
+			continue;
+
+		if (desc->mux_owner &&
+			!strcmp(desc->mux_owner, pctldev->desc->name))
+			is_hog = true;
+
+		if (pmxops->strict) {
+			if (desc->mux_owner)
+				seq_printf(s, "pin %d (%s): device %s%s",
+					   pin, desc->name, desc->mux_owner,
+					   is_hog ? " (HOG)" : "");
+			else if (desc->gpio_owner)
+				seq_printf(s, "pin %d (%s): GPIO %s",
+					   pin, desc->name, desc->gpio_owner);
+			else
+				seq_printf(s, "pin %d (%s): UNCLAIMED",
+					   pin, desc->name);
+		} else {
+			/* For non-strict controllers */
+			seq_printf(s, "pin %d (%s): %s %s%s", pin, desc->name,
+				   desc->mux_owner ? desc->mux_owner
+				   : "(MUX UNCLAIMED)",
+				   desc->gpio_owner ? desc->gpio_owner
+				   : "(GPIO UNCLAIMED)",
+				   is_hog ? " (HOG)" : "");
+		}
+
+		/* If mux: print function+group claiming the pin */
+		if (desc->mux_setting)
+			seq_printf(s, " function %s group %s\n",
+			pmxops->get_function_name(pctldev,
+				desc->mux_setting->func),
+			pctlops->get_group_name(pctldev,
+				desc->mux_setting->group));
+		else
+			seq_putc(s, '\n');
+	}
+	mutex_unlock(&pctldev->mutex);
+}
+
+static int proc_pinmux_show(struct seq_file *s, void *v)
+{
+	struct meson_pinctrl *pc = NULL;
+	struct pinctrl_dev *pctldev;
+
+	list_for_each_entry(pc, &pc_list, node) {
+		pctldev = pc->pcdev;
+		pinmux_dbg_show(s, pctldev);
+		seq_putc(s, '\n');
+	}
+	return 0;
+}
+
 #endif
 
 int meson_pinctrl_probe(struct platform_device *pdev)
@@ -1391,6 +1547,10 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct meson_pinctrl *pc;
 	int ret;
+#if IS_ENABLED(CONFIG_AMLOGIC_GPIO_DEBUG)
+	struct proc_dir_entry *gpio_proc;
+	struct proc_dir_entry *pinmux_proc;
+#endif
 
 	pc = devm_kzalloc(dev, sizeof(struct meson_pinctrl), GFP_KERNEL);
 	if (!pc)
@@ -1430,13 +1590,24 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 		dev_err(pc->dev, "can't register pinctrl device");
 		return PTR_ERR(pc->pcdev);
 	}
-#ifdef CONFIG_AMLOGIC_GPIO_DEBUG
+#if IS_ENABLED(CONFIG_AMLOGIC_GPIO_DEBUG)
 	mutex_lock(&list_lock);
-	if (!class_is_registered(&pinctrl_class))
+	/* make pinctrl/gpio debug only one node */
+	if (!class_is_registered(&pinctrl_class)) {
 		ret = class_register(&pinctrl_class);
+		if (ret) {
+			dev_err(pc->dev, "register pinctrl class failed\n");
+		} else {
+			gpio_proc = proc_create_single_data("gpio", 0400, NULL,
+							    proc_gpio_show, NULL);
+			pinmux_proc = proc_create_single_data("pinmux-pins", 0400, NULL,
+							      proc_pinmux_show, NULL);
+			if (!gpio_proc || !pinmux_proc)
+				pr_info("can't not create debug proc\n");
+		}
+	}
 	list_add_tail(&pc->node, &pc_list);
 	mutex_unlock(&list_lock);
-
 #endif
 	return meson_gpiolib_register(pc);
 }
