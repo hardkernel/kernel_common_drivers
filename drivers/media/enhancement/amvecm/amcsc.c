@@ -7362,6 +7362,9 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path,
 }
 #endif
 
+#ifndef AMLOGIC_MEDIA_DPSS
+#define AMLOGIC_MEDIA_DPSS
+#endif
 enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,
 	enum vpp_index_e vpp_index, struct vframe_s *vf)
 {

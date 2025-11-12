@@ -17,6 +17,9 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 #define ENABLE_DPSS_FRC
 #endif
+#ifndef AMLOGIC_MEDIA_DPSS
+#define AMLOGIC_MEDIA_DPSS
+#endif
 
 #define VIDEO_ENABLE_STATE_IDLE       0
 #define VIDEO_ENABLE_STATE_ON_REQ     1
