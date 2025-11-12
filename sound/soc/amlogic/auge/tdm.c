@@ -475,6 +475,21 @@ static int aml_set_tdm_mclk_1(struct aml_tdm *p_tdm,
 		mpll_freq = freq * ratio;
 	}
 	pr_debug("%s:set mpll_freq: %d\n", __func__, mpll_freq);
+	/*need update pll freq for tune*/
+	if (tune) {
+		if (p_tdm->setting.standard_sysclk == 0)
+			p_tdm->setting.standard_sysclk = 12288000;
+		if (p_tdm->setting.standard_sysclk % 8000 == 0) {
+			ratio = MPLL_HBR_FIXED_FREQ / p_tdm->setting.standard_sysclk;
+			clk_set_rate(p_tdm->clk, freq * ratio);
+		} else if (p_tdm->setting.standard_sysclk % 11025 == 0) {
+			ratio = MPLL_CD_FIXED_FREQ / p_tdm->setting.standard_sysclk;
+			clk_set_rate(p_tdm->clk, freq * ratio);
+		} else {
+			dev_warn(p_tdm->dev, "unsupport clock rate %d\n",
+				p_tdm->setting.standard_sysclk);
+		}
+	}
 	if (mpll_freq != p_tdm->last_mpll_freq) {
 		clk_set_rate(p_tdm->clk, mpll_freq);
 		p_tdm->last_mpll_freq = mpll_freq;
