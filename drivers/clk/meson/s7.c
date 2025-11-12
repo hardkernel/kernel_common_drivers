@@ -12,6 +12,9 @@
 #endif
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/pm.h>
+#include <linux/syscore_ops.h>
+#include <linux/suspend.h>
 
 #include "meson-clkc-utils.h"
 #include "clk-pll.h"
@@ -4502,6 +4505,111 @@ static const struct meson_clk_hw_data s7_clks = {
 	.num = ARRAY_SIZE(s7_hw_clks),
 };
 
+static const char * const scmi_clk_name[] = {"cpu_clk", "dsu_clk", "gp1_pll",
+					     "pwm_g", "pwm_i"};
+static unsigned long scmi_clk_saved_rate[ARRAY_SIZE(scmi_clk_name)];
+/* Distinguish between std and str, syscore_ops is no need called when str */
+static int hib_enable;
+
+static int meson_s7_syscore_suspend(void)
+{
+	int ret = 0;
+
+	if (hib_enable) {
+		ret = clk_save_context();
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static void meson_s7_syscore_resume(void)
+{
+	if (hib_enable)
+		clk_restore_context();
+}
+
+static struct syscore_ops meson_s7_syscore_ops = {
+	.suspend	= meson_s7_syscore_suspend,
+	.resume		= meson_s7_syscore_resume,
+};
+
+static int meson_s7_pm_notify(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused)
+{
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		hib_enable = 1;
+		break;
+	case PM_POST_HIBERNATION:
+		hib_enable = 0;
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block meson_s7_pm_nb = {
+	.notifier_call = meson_s7_pm_notify,
+};
+
+static int meson_s7_freeze(struct device *dev)
+{
+	struct clk *scmi_clk;
+	int i;
+
+	/*
+	 * scmi clk does not provide save_context/restore_context ops,
+	 * so saved scmi clk rate at freeze and set it back at restore.
+	 */
+	for (i = 0; i < ARRAY_SIZE(scmi_clk_name); ++i) {
+		scmi_clk = devm_clk_get(dev, scmi_clk_name[i]);
+		if (IS_ERR(scmi_clk))
+			return PTR_ERR(scmi_clk);
+		scmi_clk_saved_rate[i] = clk_get_rate(scmi_clk);
+		devm_clk_put(dev, scmi_clk);
+	}
+
+	return 0;
+}
+
+static int meson_s7_restore(struct device *dev)
+{
+	struct clk *scmi_clk;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(scmi_clk_name); ++i) {
+		scmi_clk = devm_clk_get(dev, scmi_clk_name[i]);
+		if (IS_ERR(scmi_clk))
+			return PTR_ERR(scmi_clk);
+		/*
+		 * CLK_SET_RATE_NOCACHE flag does not take effect when clk_set_rate,
+		 * setting rate will be compared with the cached rate,  actual rate cannot
+		 * be setted. before setting rate, using clk_get_rate to recalculate
+		 * the scmi clk rate and update the cache.
+		 */
+		clk_get_rate(scmi_clk);
+		clk_set_rate(scmi_clk, scmi_clk_saved_rate[i]);
+		devm_clk_put(dev, scmi_clk);
+	}
+
+	return 0;
+}
+
+/*
+ * scmi clk rate needs to be saved using clk_get_rate(), but interrupts are
+ * enabled when the scmi clk rate is fetched, and syscore_suspend() is called
+ * when interrupts are turned off, so scmi clk needs to be placed in freeze_noirq
+ * to save state.
+ */
+const struct dev_pm_ops meson_s7_pm_ops = {
+	.freeze_noirq	= meson_s7_freeze,
+	.restore_noirq	= meson_s7_restore,
+};
+
 static int meson_s7_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -4571,8 +4679,20 @@ static int meson_s7_probe(struct platform_device *pdev)
 #endif
 	}
 
-	return devm_of_clk_add_hw_provider(dev, meson_clk_hw_get,
+	ret = devm_of_clk_add_hw_provider(dev, meson_clk_hw_get,
 					   (void *)data);
+	if (ret)
+		return ret;
+
+	/* register syscore ops to save clk status at std */
+	register_syscore_ops(&meson_s7_syscore_ops);
+	/*
+	 * register pm notify, distinguish between std and str, and ensure
+	 * that syscore_ops is called only when std is used.
+	 */
+	register_pm_notifier(&meson_s7_pm_nb);
+
+	return ret;
 }
 
 static const struct of_device_id clkc_match_table[] = {
@@ -4588,6 +4708,7 @@ static struct platform_driver s7_driver = {
 	.driver			= {
 		.name		= "s7-clkc",
 		.of_match_table	= clkc_match_table,
+		.pm		= &meson_s7_pm_ops,
 	},
 };
 

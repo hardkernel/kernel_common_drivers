@@ -4612,6 +4612,7 @@ static struct platform_driver s7d_driver = {
 	.driver			= {
 		.name		= "s7d-clkc",
 		.of_match_table	= clkc_match_table,
+		.pm		= &meson_s7d_pm_ops,
 	},
 };
 
