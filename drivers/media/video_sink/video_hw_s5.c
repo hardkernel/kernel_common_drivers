@@ -11882,12 +11882,14 @@ static int fgrain_write_s5(u32 layer_id, ulong fgs_table_addr)
 		channel = FILM_GRAIN1_VD1S0_CHAN_S5;
 		lut_dma_write_phy_addr(channel,
 			fgs_table_addr,
-			table_size);
+			table_size,
+			vd_layer[layer_id].vpp_index);
 	} else if (layer_id == 1) {
 		channel = FILM_GRAIN2_CHAN_S5;
 		lut_dma_write_phy_addr(channel,
 			fgs_table_addr,
-			table_size);
+			table_size,
+			vd_layer[layer_id].vpp_index);
 	}
 	return 0;
 }
@@ -11902,7 +11904,8 @@ static int fgrain_slice_write_s5(u32 layer_id,
 		channel = FILM_GRAIN1_VD1S0_CHAN_S5 + slice;
 		lut_dma_write_phy_addr(channel,
 			fgs_table_addr,
-			table_size);
+			table_size,
+			vd_layer[layer_id].vpp_index);
 	}
 	return 0;
 }
@@ -11924,7 +11927,7 @@ static void fgrain_slice_update_irq_source_s5(u8 layer_id,
 
 	if (layer_id == 0)
 		channel = FILM_GRAIN1_VD1S0_CHAN_S5 + slice;
-	lut_dma_update_irq_source(channel, irq_source);
+	lut_dma_update_irq_source(channel, irq_source, vpp_index);
 }
 
 static void fgrain_update_irq_source_s5(u8 layer_id, u8 vpp_index)
@@ -11939,7 +11942,7 @@ static void fgrain_update_irq_source_s5(u8 layer_id, u8 vpp_index)
 		channel = FILM_GRAIN1_VD1S0_CHAN_S5;
 	else if (layer_id == 1)
 		channel = FILM_GRAIN2_CHAN_S5;
-	lut_dma_update_irq_source(channel, irq_source);
+	lut_dma_update_irq_source(channel, irq_source, vpp_index);
 }
 
 static void fgrain_slice_setting_s5(struct video_layer_s *layer,

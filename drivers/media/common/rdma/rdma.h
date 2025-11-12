@@ -116,4 +116,16 @@ bool get_part_flag_status(int vpp_index, int tbl_index);
 s32 VSYNC_ADD_RD_REG(struct reg_handle *reg_hnd);
 s32 VSYNC_REMOVE_RD_REG(struct reg_handle *reg_hnd, u32 count);
 u32 *VSYNC_GET_RD_BACK_ADDR(struct reg_handle *reg_hnd);
+
+u32 VSYNC_RD_MPEG_REG_VPP1(u32 adr);
+u32 VSYNC_RD_MPEG_REG_VPP2(u32 adr);
+u32 PRE_VSYNC_RD_MPEG_REG(u32 adr);
+//int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+int VSYNC_WR_MPEG_REG_VPP1(u32 adr, u32 val);
+int VSYNC_WR_MPEG_REG_VPP2(u32 adr, u32 val);
+int PRE_VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+
+int VSYNC_WR_MPEG_REG_BITS_VPP1(u32 adr, u32 val, u32 start, u32 len);
+int VSYNC_WR_MPEG_REG_BITS_VPP2(u32 adr, u32 val, u32 start, u32 len);
+int PRE_VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 #endif

@@ -185,6 +185,10 @@ static bool force_axi_path_update;
 static u32 dd_path_mode;
 static u32 hdr_path_mode;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
+static void fgrain_stop(struct video_layer_s *layer, u8 vpp_index);
+#endif
+
 #define VPU_VD1_CLK_SWITCH(level) \
 	do { \
 		unsigned long flags; \
@@ -2105,7 +2109,6 @@ void safe_switch_videolayer(u8 layer_id, bool on, bool async)
 			if (debug_flag & DEBUG_FLAG_PLINK)
 				pr_info("%s: start:need_disable_frc_link %d\n",
 					__func__, vd_layer[0].need_disable_frc_link);
-
 			if (cur_dev->display_module == S5_DISPLAY_MODULE)
 				disable_video_layer_s5(layer_id, async);
 			else
@@ -11004,6 +11007,9 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			vpu_delay_work_flag |=
 				VPU_VIDEO_LAYER1_CHANGED;
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
+			fgrain_stop(&vd_layer[0], vd_layer[0].vpp_index);
+#endif
 			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
 				pr_info("VIDEO: VsyncDisableVideoLayer\n");
 			video1_off_req = 1;
@@ -11076,6 +11082,9 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 #ifdef CONFIG_AMLOGIC_VPU
 				vpu_delay_work_flag |=
 					VPU_VIDEO_LAYER2_CHANGED;
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
+				fgrain_stop(&vd_layer[1], vd_layer[1].vpp_index);
 #endif
 				if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info("VIDEO: VsyncDisableVideoLayer2\n");
@@ -16316,7 +16325,7 @@ void dump_pps_coefs_info(u8 layer_id, u8 bit9_mode, u8 coef_type)
 /*********************************************************
  * Film Grain APIs
  *********************************************************/
-#define FGRAIN_TBL_SIZE  (498 * 16)
+//#define FGRAIN_TBL_SIZE  (498 * 16)
 /* for the 2x2 mosaic mode, the lut_dma reads two fgrain tables each time */
 #define FGRAIN_TBL_MOSAIC_SIZE  (FGRAIN_TBL_SIZE * 2)
 
@@ -16455,6 +16464,7 @@ static void fgrain_stop(struct video_layer_s *layer, u8 vpp_index)
 	u32 reg_fgrain_loc_en = 0 << 1;
 	struct hw_fg_reg_s *fg_reg;
 	u8 layer_id = layer->layer_id;
+	u32 channel = FILM_GRAIN0_CHAN;
 
 	if (!glayer_info[layer_id].fgrain_support)
 		return;
@@ -16479,6 +16489,16 @@ static void fgrain_stop(struct video_layer_s *layer, u8 vpp_index)
 							   0, 2);
 	}
 	glayer_info[layer_id].fgrain_start = false;
+	//disable lut_dma
+
+	if (layer_id == 0)
+		channel = FILM_GRAIN0_CHAN;
+	else if (layer_id == 1)
+		channel = FILM_GRAIN1_CHAN;
+	else if (layer_id == 2)
+		channel = FILM_GRAIN2_CHAN;
+
+	lut_dma_disable(LUT_DMA_WR, channel, layer->vpp_index);
 	if (debug_common_flag & DEBUG_FLAG_COMMON_FG)
 		pr_info("%s:vd=%d, mosaic_mode:%d\n",
 			__func__, layer->layer_id, layer->mosaic_mode);
@@ -16566,7 +16586,8 @@ static int fgrain_write(u32 layer_id, ulong fgs_table_addr)
 		table_size = FGRAIN_TBL_MOSAIC_SIZE;
 	lut_dma_write_phy_addr(channel,
 			       fgs_table_addr,
-			       table_size);
+			       table_size,
+			       vd_layer[layer_id].vpp_index);
 	return 0;
 }
 
@@ -16643,7 +16664,7 @@ static void fgrain_update_irq_source(u8 layer_id, u8 vpp_index)
 		channel = FILM_GRAIN1_CHAN;
 	else if (layer_id == 2)
 		channel = FILM_GRAIN2_CHAN;
-	lut_dma_update_irq_source(channel, irq_source);
+	lut_dma_update_irq_source(channel, irq_source, vpp_index);
 }
 
 static void _fgrain_config(struct video_layer_s *layer,

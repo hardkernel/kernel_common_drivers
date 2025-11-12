@@ -2592,6 +2592,7 @@ int dma_lut_write(void)
 	int dma_size;
 	ulong phy_addr;
 	u32 channel = DV_CHAN;
+#define	VPP_INVALID 0xff
 
 	if (!lut_dma_support)
 		return 0;
@@ -2618,7 +2619,8 @@ int dma_lut_write(void)
 	cur_dmabuf_id = cur_dmabuf_id ^ 1;
 	lut_dma_write_phy_addr(channel,
 			       phy_addr,
-			       dma_size);
+			       dma_size,
+			       VPP_INVALID);
 	return 1;
 }
 
