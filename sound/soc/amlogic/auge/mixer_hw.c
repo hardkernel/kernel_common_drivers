@@ -79,7 +79,7 @@ int mixer_fifo_reset(void)
 
 	mmio_update_bits(mixer_reg_map, AUDIO_MIXER_CTRL2, 0x1 << 30, 0x1 << 30);
 	mmio_update_bits(mixer_reg_map, AUDIO_MIXER_CTRL2, 0x1 << 29, 0x1 << 29);
-	mixer_notifier_audioclient(BACKGROUND_RESET_CMD, NULL);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mixer_fifo_reset);
@@ -208,6 +208,23 @@ int mixer_coef_set(struct regmap *coef_reg, unsigned int vol)
 		mmio_write(coef_reg, AUDIO_MIXER_COEF2_A, vol);
 		mmio_write(coef_reg, AUDIO_MIXER_COEF3_A, vol);
 	}
+	mmio_write(coef_reg, AUDIO_MIXER_COEF0_A, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF1_A, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF2_A, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF3_A, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF4_A, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF5_A, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF6_A, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF7_A, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF0_B, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF1_B, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF2_B, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF3_B, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF4_B, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF5_B, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF6_B, vol);
+	mmio_write(coef_reg, AUDIO_MIXER_COEF7_B, vol);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mixer_coef_set);
@@ -245,6 +262,9 @@ int mixer_en(int enable)
 	pr_debug("%s:en:%d, mixer status:%x, aed status:%0x\n", __func__, enable,
 		audiobus_read(EE_AUDIO_MIXER_STATUS1), eqdrc_read(AED_AED_TOP_ST));
 	mmio_update_bits(mixer_reg_map, AUDIO_MIXER_CTRL0, 0x1 << 31, enable << 31);
+
+	if (enable)
+		mixer_notifier_audioclient(BACKGROUND_RESET_CMD, NULL);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mixer_en);

@@ -508,7 +508,6 @@ static int mixer_notify_callback(struct notifier_block *block,
 		if (cmd == BACKGROUND_RESET_CMD) {
 			mixer_p->unstable = 1;
 			snd_pcm_stop_xrun(mixer_substream);
-			mixer_substream->wait_time = msecs_to_jiffies(20);
 			pr_debug("notify mic mixer xun\n");
 		}
 	}

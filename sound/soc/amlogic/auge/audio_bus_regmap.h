@@ -25,14 +25,14 @@
 #define AUDIO_MIXER_COEF6_A               0x6
 #define AUDIO_MIXER_COEF7_A               0x7
 
-#define AUDIO_MIXER_COEF0_B               0x0
-#define AUDIO_MIXER_COEF1_B               0x1
-#define AUDIO_MIXER_COEF2_B               0x2
-#define AUDIO_MIXER_COEF3_B               0x3
-#define AUDIO_MIXER_COEF4_B               0x4
-#define AUDIO_MIXER_COEF5_B               0x5
-#define AUDIO_MIXER_COEF6_B               0x6
-#define AUDIO_MIXER_COEF7_B               0x7
+#define AUDIO_MIXER_COEF0_B               0x8
+#define AUDIO_MIXER_COEF1_B               0x9
+#define AUDIO_MIXER_COEF2_B               0xa
+#define AUDIO_MIXER_COEF3_B               0xb
+#define AUDIO_MIXER_COEF4_B               0xc
+#define AUDIO_MIXER_COEF5_B               0xd
+#define AUDIO_MIXER_COEF6_B               0xe
+#define AUDIO_MIXER_COEF7_B               0xf
 
 #define AUDIO_MIXER_THD                   0x0
 #define AUDIO_MIXER_CTRL0                 0x1
