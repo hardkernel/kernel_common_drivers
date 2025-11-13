@@ -1516,13 +1516,15 @@ void aml_earctx_enable(bool enable)
 			enable,
 			s_earc->chipinfo);
 		if (enable) {
-			if (s_earc->tx_mute_late) {
-				schedule_delayed_work(&s_earc->tx_mute_work,
+			/* same source case unmute later 200ms as
+			 * raw date may open later.
+			 */
+			if (s_earc->tx_mute_late)
+				mod_delayed_work(system_wq, &s_earc->tx_mute_work,
 						msecs_to_jiffies(s_earc->tx_mute_late));
-				s_earc->tx_mute_late = 0;
-			} else {
-				earctx_dmac_mute(s_earc->tx_dmac_map, s_earc->tx_mute);
-			}
+			else
+				mod_delayed_work(system_wq, &s_earc->tx_mute_work,
+						msecs_to_jiffies(200));
 
 			if (!s_earc->hold_bus_flag)
 				schedule_work(&s_earc->tx_hold_bus_work);
@@ -1564,9 +1566,8 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				      true,
 				      p_earc->chipinfo);
 			if (p_earc->tx_mute_late) {
-				schedule_delayed_work(&p_earc->tx_mute_work,
+				mod_delayed_work(system_wq, &p_earc->tx_mute_work,
 						msecs_to_jiffies(p_earc->tx_mute_late));
-				p_earc->tx_mute_late = 0;
 			} else {
 				earctx_dmac_mute(p_earc->tx_dmac_map, p_earc->tx_mute);
 			}
@@ -2335,6 +2336,9 @@ static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode, bool tinym
 		earctx_dmac_mute(p_earc->tx_dmac_map, true);
 	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
 
+	/* make sure unmute dmac after reset hpd */
+	mod_delayed_work(system_wq, &s_earc->tx_mute_work, msecs_to_jiffies(3000));
+
 	/* eARC<->ARC mode, unmute later 600ms for fix pop */
 	if (tinymix)
 		p_earc->tx_mute_late = 600;
@@ -2838,6 +2842,7 @@ static void tx_mute_work_func(struct work_struct *p_work)
 	if (p_earc->tx_dmac_clk_on && p_earc->tx_stream_state == SNDRV_PCM_STATE_RUNNING)
 		earctx_dmac_mute(p_earc->tx_dmac_map, p_earc->tx_mute);
 	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
+	p_earc->tx_mute_late = 0;
 }
 
 static int arc_spdifout_reg_mute_put(struct snd_kcontrol *kcontrol,
