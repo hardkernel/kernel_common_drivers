@@ -199,11 +199,20 @@ static int _ts_clone_add_input(struct list_head  *head,
 
 static int _ts_clone_demod_wait_writing_done(struct demod_ts_clone_child *demod_input)
 {
+	s64 start_time;
+	s64 spent_time;
+
 	if (demod_input->state == STATE_WRITING) {
+		start_time = ktime_to_ms(ktime_get());
 		while (1) {
-			if (ts_input_non_block_write_status(demod_input->input) == 1) {
+			spent_time = ktime_to_ms(ktime_get()) - start_time;
+			if (ts_input_non_block_write_status(demod_input->input) == 1 ||
+				spent_time > 500) {
 				ts_input_non_block_write_free(demod_input->input);
 				demod_input->state = STATE_WRITE_IDLE;
+				pr_dbg("%s spent_time:%lld\n", __func__, spent_time);
+				if (spent_time > 500)
+					dprint("%s timeout:%lld\n", __func__, spent_time);
 				break;
 			}
 		}
@@ -447,7 +456,7 @@ static int _ts_clone_dvr_write(int source, char *pdata,
 
 		/*handle timeout*/
 		if (use_time > 500) {
-			pr_dbg("%s timeout:%d\n", __func__, use_time);
+			dprint("%s timeout:%d\n", __func__, use_time);
 			list_for_each_entry(child_node, &node->child_head, node) {
 				if (child_node->state == STATE_WRITING) {
 					ts_input_non_block_write_free(child_node->input);
