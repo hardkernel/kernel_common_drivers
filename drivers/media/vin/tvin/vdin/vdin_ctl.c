@@ -3834,15 +3834,18 @@ void vdin_set_dv_tunnel(struct vdin_dev_s *devp)
 	}
 }
 
-static void vdin_delay_line(unsigned short num, unsigned int offset)
+static void vdin_delay_line(struct vdin_dev_s *devp, unsigned int num)
 {
-	wr_bits(offset, VDIN_COM_CTRL0, num,
+	if (devp->hw_core == VDIN_HW_CORE_LITE)
+		return;
+
+	wr_bits(devp->addr_offset, VDIN_COM_CTRL0, num,
 		DLY_GO_FLD_LN_NUM_BIT, DLY_GO_FLD_LN_NUM_WID);
 	if (num)
-		wr_bits(offset, VDIN_COM_CTRL0, 1,
+		wr_bits(devp->addr_offset, VDIN_COM_CTRL0, 1,
 			DLY_GO_FLD_EN_BIT, DLY_GO_FLD_EN_WID);
 	else
-		wr_bits(offset, VDIN_COM_CTRL0, 0,
+		wr_bits(devp->addr_offset, VDIN_COM_CTRL0, 0,
 			DLY_GO_FLD_EN_BIT, DLY_GO_FLD_EN_WID);
 }
 
@@ -3901,7 +3904,7 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 	/* [    4]         top.datapath_en      = 1 */
 	/* [ 3: 0] top.mux = 0/(null, mpeg, 656, tvfe, cvd2, hdmi, dvin) */
 	wr(offset, VDIN_COM_CTRL0, 0x00000910);
-	vdin_delay_line(devp->delay_line_num, offset);
+	vdin_delay_line(devp, devp->delay_line_num);
 	/* [   23] asfifo_hdmi.de_en            = 1 */
 	/* [   22] asfifo_hdmi.vs_en            = 1 */
 	/* [   21] asfifo_hdmi.hs_en            = 1 */
@@ -6068,7 +6071,7 @@ void vdin_set_mpegin(struct vdin_dev_s *devp)
 	/* aml_write_cbus(HHI_VDIN_MEAS_CLK_CNTL, 0x00000100); */
 
 	wr(offset, VDIN_COM_CTRL0, 0x80000911);
-	vdin_delay_line(devp->delay_line_num, offset);
+	vdin_delay_line(devp, devp->delay_line_num);
 	wr(offset, VDIN_COM_GCLK_CTRL, 0x0);
 
 	wr(offset, VDIN_INTF_WIDTHM1, devp->h_active - 1);
