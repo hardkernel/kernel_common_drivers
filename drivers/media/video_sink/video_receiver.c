@@ -33,6 +33,11 @@
 #include <linux/amlogic/media/di/di.h>
 #include <linux/amlogic/media/di/di_interface.h>
 #endif
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+#include <linux/amlogic/media/amvecm/amvecm.h>
+#endif
+#endif
 #include "video_receiver.h"
 
 /* #define ENABLE_DV */
@@ -683,6 +688,14 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 #endif
 	while (vf) {
 		if (!vf->frame_dirty) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+			if (path_id->vd1_path_id == ins->path_id)
+				amvecm_vd1_dpss_switch_proc(vf,
+					(ins->cur_buf != &ins->local_buf) ?
+					ins->cur_buf : NULL, ins->path_id);
+#endif
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			ret = dolby_vision_need_wait_common(ins);
 #ifdef AMLOGIC_MEDIA_DPSS

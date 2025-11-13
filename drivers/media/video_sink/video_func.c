@@ -4671,6 +4671,11 @@ static void do_vd1_swap_frame(u8 layer_id,
 		vpp_new_frame = 1;
 	else
 		vpp_new_frame = 0;
+
+	//amvecm_vd1_dpss_switch_proc(new_frame,
+	//	vd_layer[0].dispbuf, vd_layer[0].vpp_index);
+	amvecm_update_link_state(new_frame,
+		vd_layer[0].dispbuf, vd_layer[0].vpp_index);
 #endif
 #endif
 	if (frame_par) {

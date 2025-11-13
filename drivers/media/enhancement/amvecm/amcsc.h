@@ -17,6 +17,18 @@ extern uint debug_csc;
 			pr_info("[%s](%d):" fmt, __func__, __LINE__, ## args);\
 	} while (0)
 
+#define ENABLE_PRINT 0
+#if ENABLE_PRINT
+#define pr_log(lvl, fmt, args...)\
+	do {\
+		if (debug_csc & (lvl))\
+			pr_info("[%s](%d):" fmt, __func__, __LINE__, ## args);\
+	} while (0)
+#else
+#define pr_log(lvl, fmt, args...)\
+	do {} while (0)
+#endif
+
 /* white balance value */
 void ve_ogo_param_update(void);
 extern struct tcon_rgb_ogo_s video_rgb_ogo;
@@ -434,6 +446,45 @@ unsigned int get_muxio_ready_for_dpss(void);
 void update_hdr_settings_dpss(struct vframe_s *vf,
 	enum vd_path_e vd_path, enum vpp_index_e vpp_index);
 enum hdr_module_sel get_hdr_module(enum vd_path_e vd_path);
+
+enum path_mux_e {
+	PATH_DELINK = 0,
+	PATH_VD1 = 1,
+	PATH_DPSS,
+};
+
+enum frm_src_e {
+	NULL_FRM = 0,
+	VD1_FRM,
+	DPSS_FRM
+};
+
+enum dh_proc_e {
+	NO_PROC = 0,
+	D_DD,
+	D_HDR
+};
+
+struct hdr_path_mux_sel_s {
+	enum path_mux_e path_mux;
+	enum path_mux_e pre_path_mux;
+	unsigned int delink_status;
+	unsigned int mute_cnt;
+	unsigned int min_mc;
+
+	enum frm_src_e frm_src;
+	enum dh_proc_e dh_p;
+
+	unsigned int fst_frame;
+};
+
+extern const char *pm_str[3];
+extern struct hdr_path_mux_sel_s h_p_s;
+void vd1_dpss_switch_proc(struct vframe_s *vf,
+	struct vframe_s *rpt_vf, enum vpp_index_e vpp_index);
+void update_link_state(struct vframe_s *vf,
+	struct vframe_s *rpt_vf,
+	enum vpp_index_e vpp_index);
 #endif
 #endif /* AM_CSC_H */
 

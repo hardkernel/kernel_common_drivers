@@ -4174,8 +4174,8 @@ int amvecm_on_vs(struct vframe_s *vf,
 		return 0;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (vd_path == VD1_PATH)
-			update_muxio_mode(toggle_vf ? toggle_vf : vf, vpp_index);
+	//if (vd_path == VD1_PATH)
+	//	update_muxio_mode(toggle_vf ? toggle_vf : vf, vpp_index);
 #endif
 
 	if (vd_path == VD1_PATH)
@@ -14038,6 +14038,17 @@ static ssize_t amvecm_debug_store(const struct class *cla,
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto free_buf;
 		amvecm_set_osd_mtx_enable(val);
+	} else if (!strcmp(parm[0], "min_mc")) {
+		struct hdr_path_mux_sel_s *p = &h_p_s;
+
+		if (!parm[1]) {
+			pr_info("miss param1\n");
+			goto free_buf;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		p->min_mc = val;
+		pr_info("min_mc = %d\n", p->min_mc);
 #endif
 	} else {
 		pr_info("unsupport cmd\n");
@@ -17418,6 +17429,67 @@ unsigned int amvecm_get_dpss_mode(void)
 }
 EXPORT_SYMBOL(amvecm_get_dpss_mode);
 
+void hdr_path_switch_to_dpss(unsigned int val)
+{
+	struct hdr_path_mux_sel_s *p = &h_p_s;
+
+	if (val > 3) {
+		pr_csc(0x400, "sw dpss: set mode = %d, val error\n", val);
+		return;
+	}
+
+	pr_csc(0x400, "sw dpss: pre_path_mux = %s, set mode = %d\n",
+		pm_str[p->pre_path_mux], val);
+
+	if (p->pre_path_mux != PATH_DPSS) {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		if (is_amdv_enable()) {
+			if (val == 1 || val == 3)
+				update_dd_mode(DOLBY5_DPSS_MODE); //dv_dpss_mode
+			else if (val == 2)
+				update_dd_mode(DOLBY5_VD1_MODE);//dv_vpp_mode
+			else
+				update_dd_mode(DOLBY5_WRAP_BYPS);//dv off
+		}
+#endif
+		if (val == 1 || val == 3)
+			set_dpss_mode(1);
+		else
+			set_dpss_mode(0);
+
+		if (val == 3)
+			p->fst_frame = 1;
+		p->path_mux = PATH_DPSS;
+		if (p->pre_path_mux == PATH_DELINK)
+			p->pre_path_mux = PATH_DPSS;
+		pr_csc(0x400, "sw dpss: hdr path switch to %s\n", val ? "dpss" : "vd1");
+	}
+}
+EXPORT_SYMBOL(hdr_path_switch_to_dpss);
+
+int hdr_path_delink_status(void)
+{
+	struct hdr_path_mux_sel_s *p = &h_p_s;
+
+	return p->delink_status;
+}
+EXPORT_SYMBOL(hdr_path_delink_status);
+
+void amvecm_vd1_dpss_switch_proc(struct vframe_s *vf,
+	struct vframe_s *rpt_vf,
+	enum vpp_index_e vpp_index)
+{
+	vd1_dpss_switch_proc(vf, rpt_vf, vpp_index);
+}
+EXPORT_SYMBOL(amvecm_vd1_dpss_switch_proc);
+
+void amvecm_update_link_state(struct vframe_s *vf,
+	struct vframe_s *rpt_vf,
+	enum vpp_index_e vpp_index)
+{
+	update_link_state(vf, rpt_vf, vpp_index);
+}
+EXPORT_SYMBOL(amvecm_update_link_state);
 #endif
 
 bool is_hdr10plus_enable(void)

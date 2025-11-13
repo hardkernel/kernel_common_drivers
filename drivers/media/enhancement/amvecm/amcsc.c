@@ -11077,6 +11077,9 @@ void update_muxio_mode(struct vframe_s *vf,
 	if (!vf && !dpss_mode) {
 		if (!muxio_de_link_status)
 			muxio_de_link_mode = 1;
+
+		if (muxio_de_link_status)
+			muxio_ready_flag = 1;
 	}
 
 	if (muxio_de_link_mode) {
@@ -11156,6 +11159,333 @@ void update_hdr_settings_dpss(struct vframe_s *vf,
 		update_by_vsync = 0;
 		sdr_ext_mode_dpss_changed = 0;
 	}
+}
+
+struct hdr_path_mux_sel_s h_p_s = {
+	.path_mux = PATH_DELINK,
+	.pre_path_mux = PATH_DELINK,
+	.delink_status = 0,
+	.mute_cnt = 0,
+	.min_mc = 0,
+
+	.frm_src = NULL_FRM,
+	.dh_p = NO_PROC,
+	.fst_frame = 0,
+};
+
+const char *pm_str[3] = {
+	"PATH_DELINK",
+	"PATH_VD1",
+	"PATH_DPSS"
+};
+
+const char *fs_str[3] = {
+	"NULL_FRM",
+	"VD1_FRM",
+	"DPSS_FRM"
+};
+
+const char *dh_proc_str[3] = {
+	"NO_PROC",
+	"D_DD",
+	"D_HDR"
+};
+
+void vd1_dpss_switch_proc(struct vframe_s *vf,
+	struct vframe_s *rpt_vf,
+	enum vpp_index_e vpp_index)
+{
+	enum frm_src_e nfs = NULL_FRM;
+	enum dh_proc_e ndp = NO_PROC;
+	unsigned int is_dd_frame = 0;
+	struct hdr_path_mux_sel_s *p = &h_p_s;
+	struct vframe_s *pvf = NULL;
+	//unsigned int delink_rdy;
+	unsigned int dp_mod_byps = 0;
+
+	pvf  = vf ? vf : (rpt_vf ? rpt_vf : NULL);
+	pr_log(0x1000, "%s: vf： %p, rpt_vf: %p\n", __func__, vf, rpt_vf);
+
+	if (!pvf) {
+		//p->path_mux = PATH_DELINK;
+		p->pre_path_mux = PATH_DELINK;
+		p->frm_src = NULL_FRM;
+		p->dh_p = NO_PROC;
+
+		if (p->mute_cnt) {
+			set_video_mute(PATH_SW_MUTE_SET, false);
+			p->mute_cnt = 0;
+		}
+
+		if (muxio_ready_flag)
+			p->delink_status = 1;
+		else
+			p->delink_status = 0;
+
+		pr_log(0x1000, "%s: no frame, clear status : frm_src:%s,\n"
+				"pre_path_mux:%s, ndp:%s, delink=%d\n",
+				__func__, fs_str[p->frm_src], pm_str[p->pre_path_mux],
+				dh_proc_str[p->dh_p], p->delink_status);
+
+		update_muxio_mode(pvf, vpp_index);
+		return;
+	}
+
+	if (pvf->dpss_flg & DPSS_FLG_OUT_DONE)
+		nfs = DPSS_FRM;
+	else if (pvf->dpss_flg & DPSS_FLG_OUT_BYPASS)
+		nfs = VD1_FRM;
+
+	if (pvf->dpss_flg & DPSS_FLG_MODULE_BYPASS)
+		dp_mod_byps = 1;
+
+	if (pvf->dpss_flg & DPSS_FLG_DDD)
+		ndp = D_DD;
+	else if (pvf->dpss_flg & DPSS_FLG_HDR)
+		ndp = D_HDR;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_amdv_enable() && pvf && is_amdv_frame(pvf))
+		is_dd_frame = 1;
+#endif
+
+	pr_log(0x800, "%s:frm_src:%s,nfs;%s,pre_pm:%s,pm:%s,ndp:%s,dp_bps=%d,frm_idx=%d\n",
+			__func__, fs_str[p->frm_src], fs_str[nfs],
+			pm_str[p->pre_path_mux], pm_str[p->path_mux],
+			dh_proc_str[p->dh_p], dp_mod_byps, pvf->frame_index);
+
+	if (pvf->source_type == VFRAME_SOURCE_TYPE_HWC &&
+		nfs == VD1_FRM) {
+		pr_csc(0x400, "vd1 sw dpss:hwc mute frame. don't need switch path\n");
+		return;
+	}
+
+	if (p->frm_src != nfs) {
+		if (nfs == VD1_FRM && ndp == NO_PROC && p->pre_path_mux != PATH_VD1) {
+			//set vd1 hdr/vd setting
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			update_dd_mode(DOLBY5_VD1_MODE);
+#endif
+			amvecm_set_dpss_mode(0);
+			pr_csc(0x400, "sw01: path sw from dpss to vd1: frm_src:%s, nfs:%s,\n"
+				"pre_path_mux:%s, ndp:%s, frame_index=%d\n",
+				fs_str[p->frm_src], fs_str[nfs],
+				pm_str[p->pre_path_mux], dh_proc_str[ndp], pvf->frame_index);
+			p->frm_src = nfs;
+			p->path_mux = PATH_VD1;
+			p->pre_path_mux = PATH_VD1;
+			p->delink_status = 0;
+			//avoid dpss flag error or special case mute video
+			if (p->mute_cnt) {
+				pr_log(0x400, "%s: vd1 unmute: mute_cnt:%d, frm_idx=%d\n",
+					__func__, p->mute_cnt, pvf->frame_index);
+				set_video_mute(PATH_SW_MUTE_SET, false);
+				p->mute_cnt = 0;
+			}
+		} else if (p->frm_src == VD1_FRM && nfs == DPSS_FRM &&
+			p->path_mux == PATH_DPSS && p->path_mux != p->pre_path_mux &&
+			p->delink_status) {
+			if (!p->min_mc ||
+				p->fst_frame ||
+				(p->min_mc && p->mute_cnt >= p->min_mc && !p->fst_frame)) {
+				set_video_mute(PATH_SW_MUTE_SET, false);
+				p->mute_cnt = 0;
+				p->delink_status = 0;
+				pr_csc(0x400, "sw01:path sw dpss done,vd mute off:is_dd_frame:%d\n"
+				"frm_src:%s,nfs:%s,pre_pm:%s,ndp:%s,fst_frm=%d,mc=%d,frm_idx=%d\n",
+					is_dd_frame, fs_str[p->frm_src], fs_str[nfs],
+					pm_str[p->pre_path_mux], dh_proc_str[ndp],
+					p->fst_frame, p->mute_cnt, pvf->frame_index);
+				p->frm_src = nfs;
+				p->pre_path_mux = p->path_mux;
+				if (p->fst_frame)
+					p->fst_frame = 0;
+			} else {
+				if (p->mute_cnt)
+					p->mute_cnt++;
+				pr_csc(0x400, "sw01:sw dpss,force mute:is_dd_frame:%d,min_mc：%d\n"
+				"frm_src:%s,nfs:%s,pre_pm:%s,ndp:%s,fst_frm=%d,mc=%d,frm_idx=%d\n",
+					is_dd_frame, p->min_mc,
+					fs_str[p->frm_src], fs_str[nfs],
+					pm_str[p->pre_path_mux], dh_proc_str[ndp],
+					p->fst_frame, p->mute_cnt, pvf->frame_index);
+			}
+		} else if (nfs == DPSS_FRM && p->pre_path_mux != PATH_DPSS) {
+			p->delink_status = 0;
+			pr_csc(0x400, "sw01: path on dpss: frm_src:%s, nfs:%s,\n"
+				"pre_path_mux:%s, ndp:%s, fst_frm=%d, frm_idx=%d\n",
+				fs_str[p->frm_src], fs_str[nfs],
+				pm_str[p->pre_path_mux], dh_proc_str[ndp],
+				p->fst_frame, pvf->frame_index);
+			p->frm_src = DPSS_FRM;
+			p->path_mux = PATH_DPSS;
+			p->pre_path_mux = PATH_DPSS;
+			//avoid dpss flag error or special case mute video
+			if (p->mute_cnt) {
+				pr_log(0x400, "%s:dpss unmute:mute_cnt:%d,frm_idx=%d,fst_frm=%d\n",
+					__func__, p->mute_cnt, pvf->frame_index, p->fst_frame);
+				set_video_mute(PATH_SW_MUTE_SET, false);
+				p->mute_cnt = 0;
+			}
+			if (p->fst_frame)
+				p->fst_frame = 0;
+		}
+	}
+
+	if (p->frm_src == VD1_FRM && nfs == VD1_FRM &&
+		p->path_mux == PATH_DPSS && p->path_mux != p->pre_path_mux) {
+		if (dp_mod_byps) {
+			pr_csc(0x400, "sw01:new vd1 frame, mute off,dp_mod_byps=%d\n"
+				"frm_src:%s,nfs:%s,pre_pm:%s,pm:%s,ndp:%s,mute_cnt=%d,frm_idx=%d\n",
+				dp_mod_byps, fs_str[p->frm_src], fs_str[nfs],
+				pm_str[p->pre_path_mux], pm_str[p->path_mux], dh_proc_str[ndp],
+				p->mute_cnt, pvf->frame_index);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			update_dd_mode(DOLBY5_VD1_MODE);
+#endif
+			amvecm_set_dpss_mode(0);
+			p->path_mux = PATH_VD1;
+			if (p->mute_cnt) {
+				set_video_mute(PATH_SW_MUTE_SET, false);
+				p->mute_cnt = 0;
+			}
+			return;
+		}
+
+		if (p->mute_cnt == 0) {
+			if (p->fst_frame == 0) {
+				p->mute_cnt++;
+				set_video_mute(PATH_SW_MUTE_SET, true);
+			}
+			if (is_dd_frame) {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+				update_dd_mode(DOLBY5_DPSS_MODE);
+#endif
+			} else {
+				amvecm_set_dpss_mode(1);
+			}
+			pr_csc(0x400, "sw01: path sw to dpss, video %s: is_dd_frame:%d,\n"
+				"frm_src:%s,nfs:%s,pre_pm:%s,pm:%s,ndp:%s,mute_cnt=%d,frm_idx=%d\n"
+				"first_frame=%d\n",
+				p->fst_frame ? "first frame not mute" : "mute on",
+				is_dd_frame, fs_str[p->frm_src],
+				fs_str[nfs], pm_str[p->pre_path_mux],
+				pm_str[p->path_mux], dh_proc_str[ndp],
+				p->mute_cnt, pvf->frame_index, p->fst_frame);
+		}
+
+		if (p->mute_cnt)
+			pr_csc(0x400, "sw01:delink not rdy, keep video mute on: is_dd_frame:%d,\n"
+				"frm_src:%s,nfs:%s,pre_pm:%s,pm:%s,ndp:%s,mute_cnt=%d,frm_idx=%d\n",
+				is_dd_frame, fs_str[p->frm_src], fs_str[nfs],
+				pm_str[p->pre_path_mux], pm_str[p->path_mux], dh_proc_str[ndp],
+				p->mute_cnt, pvf->frame_index);
+		//p->mute_cnt++;
+//		}
+	}
+
+//	update_muxio_mode(pvf, vpp_index);
+}
+
+void update_link_state(struct vframe_s *vf,
+	struct vframe_s *rpt_vf,
+	enum vpp_index_e vpp_index)
+{
+	enum frm_src_e nfs = NULL_FRM;
+	struct hdr_path_mux_sel_s *p = &h_p_s;
+	struct vframe_s *pvf = NULL;
+	unsigned int is_dd_frame = 0;
+	unsigned int delink_rdy;
+
+	pvf  = vf ? vf : (rpt_vf ? rpt_vf : NULL);
+	pr_log(0x1000, "%s: vf： %p, rpt_vf: %p\n", __func__, vf, rpt_vf);
+
+	if (!pvf) {
+		//p->path_mux = PATH_DELINK;
+		p->pre_path_mux = PATH_DELINK;
+		p->frm_src = NULL_FRM;
+		p->dh_p = NO_PROC;
+		p->fst_frame = 0;
+
+		if (p->mute_cnt) {
+			set_video_mute(PATH_SW_MUTE_SET, false);
+			p->mute_cnt = 0;
+		}
+
+		if (muxio_ready_flag)
+			p->delink_status = 1;
+		else
+			p->delink_status = 0;
+
+		pr_log(0x1000, "%s: no frame, clear status : frm_src:%s,\n"
+				"pre_path_mux:%s, ndp:%s, delink=%d\n",
+				__func__, fs_str[p->frm_src], pm_str[p->pre_path_mux],
+				dh_proc_str[p->dh_p], p->delink_status);
+
+		update_muxio_mode(pvf, vpp_index);
+		return;
+	}
+
+	if (pvf->dpss_flg & DPSS_FLG_OUT_DONE)
+		nfs = DPSS_FRM;
+	else if (pvf->dpss_flg & DPSS_FLG_OUT_BYPASS)
+		nfs = VD1_FRM;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_amdv_enable() && pvf && is_amdv_frame(pvf))
+		is_dd_frame = 1;
+#endif
+
+	if (pvf->source_type == VFRAME_SOURCE_TYPE_HWC &&
+		nfs == VD1_FRM) {
+		pr_log(0x400, "%s: hwc mute frame. don't need switch path\n", __func__);
+		return;
+	}
+
+	if (p->frm_src == VD1_FRM && nfs == VD1_FRM &&
+		p->path_mux == PATH_DPSS && p->path_mux != p->pre_path_mux) {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		if (is_dd_frame)
+			delink_rdy = get_dd_mode_update_status();
+		else
+#endif
+			delink_rdy = muxio_ready_flag;
+		if (delink_rdy) {
+			p->delink_status = 1;
+			//p->mute_cnt++;
+			pr_csc(0x400, "sw02: delink rdy, waiting for unmute,\n"
+				"mute_cnt=%d, frame_index=%d\n",
+				p->mute_cnt, pvf->frame_index);
+		}
+
+		//for repeat frame mute
+		if (p->mute_cnt == 0) {
+			if (p->fst_frame == 0) {
+				p->mute_cnt++;
+				set_video_mute(PATH_SW_MUTE_SET, true);
+			}
+			if (is_dd_frame) {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+				update_dd_mode(DOLBY5_DPSS_MODE);
+#endif
+			} else {
+				amvecm_set_dpss_mode(1);
+			}
+			pr_csc(0x400, "sw02: path sw to dpss, video %s: is_dd_frame:%d,\n"
+				"frm_src:%s,nfs:%s,pre_pm:%s,pm:%s,mute_cnt=%d,frame_index=%d\n"
+				"first_frame=%d\n",
+				p->fst_frame ? "first frame not mute" : "mute on",
+				is_dd_frame, fs_str[p->frm_src],
+				fs_str[nfs], pm_str[p->pre_path_mux],
+				pm_str[p->path_mux], p->mute_cnt,
+				pvf->frame_index, p->fst_frame);
+		}
+
+		if (p->mute_cnt)
+			p->mute_cnt++;
+	}
+
+	update_muxio_mode(pvf, vpp_index);
 }
 
 int amvecm_hdr_dbg(u32 sel)
@@ -11526,6 +11856,16 @@ dbg_end:
 			cuva_hdr_process_mode_dpss);
 		pr_info("cuva_hlg_process_mode_dpss: 0x%x\n",
 			cuva_hlg_process_mode_dpss);
+
+		//path switch parameters print
+		pr_info("------hdr switch info-------");
+		pr_info("path_mux:%s, pre_path_mux:%s\n",
+			pm_str[h_p_s.path_mux], pm_str[h_p_s.pre_path_mux]);
+		pr_info("delink_status:%d, mute_cnt:%d\n",
+			h_p_s.delink_status, h_p_s.mute_cnt);
+		pr_info("frm_src:%s, dh_p:%s\n",
+			fs_str[h_p_s.frm_src], dh_proc_str[h_p_s.dh_p]);
+		pr_info("fist_frame:%d\n", h_p_s.fst_frame);
 	}
 
 	return 0;

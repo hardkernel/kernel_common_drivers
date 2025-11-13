@@ -335,13 +335,17 @@ enum mediasync_parameter_e {
 	GET_VSYNC_PARAMETER
 };
 
-#define VIDEO_MUTE_SET         0
-#define HDMI_RX_MUTE_SET       1
-#define USER_MUTE_SET          2
-#define AML_DOLBY_MUTE_SET     3
-#define DRM_MUTE_SET           4
-#define VPP_INTERNAL           5
-#define VD_MUTE_SET            6
+enum video_mute_owner {
+	VIDEO_MUTE_SET     = 0,
+	HDMI_RX_MUTE_SET   = 1,
+	USER_MUTE_SET      = 2,
+	AML_DOLBY_MUTE_SET = 3,
+	DRM_MUTE_SET       = 4,
+	VPP_INTERNAL       = 5,
+	VD_MUTE_SET        = 6,
+	PATH_SW_MUTE_SET    = 7,
+	MAX_VIDEO_MUTE_OWNER,
+};
 
 struct video_module_debug_s {
 	char parm_name[32];
@@ -380,7 +384,6 @@ struct mediasync_ptr {
 	int (*reserved2)(void);
 };
 
-#define MAX_VIDEO_MUTE_OWNER 7
 #define AMVIDEO_UPDATE_OSD_MODE	0x00000001
 #define AMVIDEO_UPDATE_PREBLEND_MODE	0x00000002
 #define AMVIDEO_UPDATE_SIGNAL_MODE      0x00000003

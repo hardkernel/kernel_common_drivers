@@ -3976,6 +3976,14 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 			}
 			amlog_mask_if(toggle_cnt > 0, LOG_MASK_FRAMESKIP,
 				      "skipped\n");
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+			if (vd_path_id[0] == VFM_PATH_AMVIDEO ||
+				vd_path_id[0] == VFM_PATH_DEF)
+				amvecm_vd1_dpss_switch_proc(vf,
+					(cur_dispbuf[0] != &vf_local[0]) ?
+					cur_dispbuf[0] : NULL, vd_layer[0].vpp_index);
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			ret = dolby_vision_need_wait(0);
 #ifdef AMLOGIC_MEDIA_DPSS
