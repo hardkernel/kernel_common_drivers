@@ -770,6 +770,10 @@ void vdin_vfce_afbce_config(struct vdin_dev_s *devp)
 		((0x0 & 0x7)		 << 1) | // ram arb rst
 		((ram_offset_mode & 0x1) << 0)   // ram offset mode
 		);
+	if (devp->prop.polarity_vs == 1) /* positive */
+		W_VCBUS(VFCE_TRIGGER, 0x8);//hold line,default value
+	else
+		W_VCBUS(VFCE_TRIGGER, 0x2);//hold line
 }
 
 void vdin_vfce_config(struct vdin_dev_s *devp)

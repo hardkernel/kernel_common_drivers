@@ -1241,6 +1241,7 @@ void hdmirx_set_timing_info(struct tvin_sig_property_s *prop, u8 port)
 	}
 	if (rx[port].var.dbg_ve)
 		prop->ve = rx[port].var.dbg_ve;
+	prop->polarity_vs = rx[port].cur.vsync_polarity;
 }
 
 /*
