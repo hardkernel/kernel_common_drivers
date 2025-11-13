@@ -3281,16 +3281,16 @@ void vdin_set_dsc_config_t3x(struct vdin_dev_s *devp, bool on_off)
 {
 	struct aml_dsc_dec_drv_s dsc_dec_drv;
 
-	if (!is_meson_t3x_cpu())
+	if (devp->hw_core == VDIN_HW_CORE_LITE)
 		return;
-	dsc_dec_drv.pps_data = devp->prop.pps_data;
-	if (devp->prop.dsc_flag && on_off) {
+
+	if (is_meson_t3x_cpu() || is_meson_t6x_cpu()) {
+		dsc_dec_drv.pps_data = devp->prop.pps_data;
 		if (devp->debug.vdin_dbg_en)
-			pr_info("dsc_en\n");
-		dsc_dec_en(true, &dsc_dec_drv.pps_data);
-	} else {
-		if (devp->debug.vdin_dbg_en)
-			pr_info("dsc_off\n");
-		dsc_dec_en(false, &dsc_dec_drv.pps_data);
+			pr_info("[vdin] dsc_flag=%d on_off:%d\n", devp->prop.dsc_flag, on_off);
+		if (devp->prop.dsc_flag && on_off)
+			dsc_dec_en(true, &dsc_dec_drv.pps_data);
+		else
+			dsc_dec_en(false, &dsc_dec_drv.pps_data);
 	}
 }
