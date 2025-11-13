@@ -1,0 +1,55 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+
+#ifndef __VPP_VF_PROC_H__
+#define __VPP_VF_PROC_H__
+
+enum vpp_pw_state_e {
+	EN_PW_ON = 0,
+	EN_PW_OFF,
+	EN_PW_MAX,
+};
+
+enum vpp_dump_data_type_e {
+	EN_DUMP_DATA_OVERSCAN = 0,
+	EN_DUMP_DATA_MAX,
+};
+
+struct vpp_vf_signal_info_s {
+	unsigned int format;
+	unsigned int range;
+	unsigned int color_primaries;
+	unsigned int transfer_characteristic;
+};
+
+int vpp_vf_init(struct vpp_dev_s *dev);
+void vpp_vf_set_pc_mode(int val);
+void vpp_vf_set_overscan_mode(int val);
+void vpp_vf_set_overscan_reset(int val);
+void vpp_vf_set_overscan_table(unsigned int length,
+	struct vpp_overscan_table_s *load_table);
+
+void vpp_vf_get_signal_info(enum vpp_vd_path_e vd_path,
+	struct vpp_vf_signal_info_s *info);
+unsigned int vpp_vf_get_signal_type(enum vpp_vd_path_e vd_path);
+enum vpp_hdr_type_e vpp_vf_get_hdr_type(void);
+enum vpp_color_primary_e vpp_vf_get_color_primary(void);
+struct vpp_hdr_metadata_s *vpp_vf_get_hdr_metadata(void);
+enum vpp_csc_type_e vpp_vf_get_csc_type(enum vpp_vd_path_e vd_path);
+int vpp_vf_get_vinfo_lcd_support(void);
+void vpp_vf_dump_data(enum vpp_dump_data_type_e type);
+
+void vpp_vf_refresh(struct vframe_s *vf, struct vframe_s *rpt_vf);
+void vpp_vf_proc(struct vframe_s *vf,
+	struct vframe_s *toggle_vf,
+	struct vpp_vf_param_s *vf_param,
+	int flags,
+	enum vpp_vd_path_e vd_path,
+	enum vpp_vf_top_e vpp_top);
+
+#endif
+#endif
+
