@@ -95,7 +95,6 @@ static struct meson_avin_data *meson_data;
 struct avin_detect_state_s *detect_state;
 struct work_struct     avin_read_reg_work;
 struct workqueue_struct *avin_read_reg_wq;
-bool tvafe_start_flag;
 #define AVIN_DETECT_CHARGE_TIME_MS	5
 
 static DECLARE_WAIT_QUEUE_HEAD(tvafe_avin_waitq);

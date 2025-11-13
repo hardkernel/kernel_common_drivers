@@ -77,7 +77,9 @@ static struct meson_tvafe_data *s_tvafe_data;
 static struct tvafe_clkgate_type tvafe_clkgate;
 static struct tvafe_dev_s *tvafe_dev_local;
 
-bool enable_db_reg = true;
+static bool enable_db_reg = true;
+module_param(enable_db_reg, bool, 0644);
+MODULE_PARM_DESC(enable_db_reg, "enable/disable tvafe load reg");
 
 /*tvconfig snow config*/
 static bool snow_cfg;
@@ -94,6 +96,7 @@ bool tvafe_clk_status;
 /*opened port,1:av1, 2:av2, 0:none av*/
 unsigned int avport_opened;
 #endif
+bool tvafe_start_flag;
 
 /*tvafe_dbg_print:
  *bit[0]:normal flow debug print

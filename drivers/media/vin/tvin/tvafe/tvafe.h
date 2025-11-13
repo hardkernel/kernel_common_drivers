@@ -105,7 +105,7 @@ extern bool tvafe_signal_stable;
 extern bool tvafe_mode;
 extern bool demod_is_pal;
 extern struct tvafe_avin_det_s *av_dev;
-extern bool enable_db_reg;
+extern bool tvafe_start_flag;
 
 extern enum tvafe_no_std_config_e force_nostd;
 

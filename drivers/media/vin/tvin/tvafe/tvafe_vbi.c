@@ -38,6 +38,7 @@
 #include "tvafe_cvd.h"
 #include "tvafe_vbi.h"
 #include "tvafe_debug.h"
+#include "tvafe.h"
 #include "../tvin_global.h"
 #include "../tvin_frontend.h"
 
@@ -1108,7 +1109,7 @@ static void vbi_slicer_work(struct work_struct *p_work)
 
 	if (!devp)
 		return;
-	if (!tvafe_clk_status) {
+	if (!tvafe_start_flag) {
 		vbi_ringbuffer_flush(&devp->slicer->buffer);
 		return;
 	}

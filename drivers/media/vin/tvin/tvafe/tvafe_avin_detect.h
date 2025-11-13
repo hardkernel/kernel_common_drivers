@@ -233,7 +233,6 @@ int tvafe_avin_init_resource(void);
 extern unsigned int avport_opened;
 /*0:in, 1:out*/
 extern bool tvafe_clk_status;
-extern bool tvafe_start_flag;
 extern struct avin_detect_state_s *detect_state;
 extern unsigned int avin_detect_delay;
 extern unsigned int avin_detect_debug_val;
