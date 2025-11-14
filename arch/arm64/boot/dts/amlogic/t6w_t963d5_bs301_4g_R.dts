@@ -537,8 +537,8 @@
 		interrupt-names = "audio_exception64";
 
 		aml-audio-card,dai-link@0 {
-			format = "i2s";
-			mclk-fs = <256>;
+			format = "dsp_b";
+			mclk-fs = <512>;
 			//continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
@@ -559,8 +559,8 @@
 				dai-tdm-slot-rx-mask =
 							<1 1>;
 				dai-tdm-slot-num = <2>;
-				dai-tdm-slot-width = <32>;
-				system-clock-frequency = <12288000>;
+				dai-tdm-slot-width = <16>;
+				system-clock-frequency = <256000>;
 			};
 			tdmacodec: codec {
 				sound-dai = <&dummy_codec>;

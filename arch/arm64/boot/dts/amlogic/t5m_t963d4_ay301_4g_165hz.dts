@@ -430,8 +430,8 @@
 		interrupt-names = "audio_exception64";
 
 		aml-audio-card,dai-link@0 {
-			format = "i2s";
-			mclk-fs = <256>;
+			format = "dsp_b";
+			mclk-fs = <512>;
 			//continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
@@ -452,8 +452,8 @@
 				dai-tdm-slot-rx-mask =
 							<1 1>;
 				dai-tdm-slot-num = <2>;
-				dai-tdm-slot-width = <32>;
-				system-clock-frequency = <12288000>;
+				dai-tdm-slot-width = <16>;
+				system-clock-frequency = <256000>;
 			};
 			tdmacodec: codec {
 				sound-dai = <&dummy_codec>;
@@ -783,6 +783,13 @@
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
 		src-clk-freq = <491520000>;
 		suspend-clk-off = <1>;
+		pinctrl-names = "tdm_pins";
+
+		/* Disable pinctrl-0 for NSK2 smartcard */
+		pinctrl-0 = <&tdm_a
+			&tdm_d3_pins
+			&tdm_d4_pins
+			&tdm_clk2_pins>;
 		status = "okay";
 	};
 
@@ -1430,6 +1437,19 @@
 };
 
 &periphs_pinctrl {
+	tdm_a: tdm_a {
+		mux {
+			groups = "tdm_sclk2_p",
+				"tdm_fs2_p",
+				"tdm_d3_p",
+
+				/* Disable for NSK2 Smartcard */
+				"tdm_d4_p";
+
+			function = "tdm";
+		};
+	};
+
 	pdmin: pdmin {
 		mux { /* GPIOH_19, GPIOH_18 */
 			groups = "pdm_dclk_h19",
@@ -1459,6 +1479,27 @@
 };
 
 &pinctrl_audio {
+	tdm_d4_pins: tdm_d4_pin {
+		mux {
+			groups = "tdm_d4";
+			function = "tdmina_lane0";
+		};
+	};
+
+	tdm_d3_pins: tdm_d3_pin {
+		mux {
+			groups = "tdm_d3";
+			function = "tdmouta_lane0";
+		};
+	};
+
+	tdm_clk2_pins: tdm_clk2_pin {
+		mux {
+			groups = "tdm_sclk2", "tdm_lrclk2";
+			function = "tdm_clk_outa";
+		};
+	};
+
 	tdm_d0_pins: tdm_d0_pin {
 		mux {
 			groups = "tdm_d0";
