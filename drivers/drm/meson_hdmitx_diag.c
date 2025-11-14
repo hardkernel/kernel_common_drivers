@@ -719,12 +719,12 @@ static void hdmitx_spd_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 		if (vend_data->vendor_name)
 			strncpy(diagnosis_info->spd_infoframe_info.vendor_name,
 				vend_data->vendor_name,
-				sizeof(diagnosis_info->spd_infoframe_info.vendor_name));
+				sizeof(diagnosis_info->spd_infoframe_info.vendor_name) - 1);
 
 		if (vend_data->product_desc)
 			strncpy(diagnosis_info->spd_infoframe_info.product_description,
 				vend_data->product_desc,
-				sizeof(diagnosis_info->spd_infoframe_info.product_description));
+				sizeof(diagnosis_info->spd_infoframe_info.product_description) - 1);
 	}
 	sdi = hdmitx_common_get_spd_sdi(tx_comm);
 	strncpy(diagnosis_info->spd_infoframe_info.source_info, hdmi_spd_sdi_get_name(sdi),
