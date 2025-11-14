@@ -20,7 +20,6 @@ dtb-y += dht11.dtbo \
          pwm_f.dtbo \
          spdif_a.dtbo \
          spi0.dtbo \
-         spi0-with-hw-cs.dtbo \
          uart1.dtbo \
          uart1-with-ctsrts.dtbo \
          uart2.dtbo \
