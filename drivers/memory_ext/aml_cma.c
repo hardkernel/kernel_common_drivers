@@ -35,9 +35,9 @@
 #include <linux/page_pinner.h>
 #endif
 #include <trace/events/page_isolation.h>
+#include <linux/delay.h>
 #if IS_MODULE(CONFIG_AMLOGIC_CMA)
 #include <linux/debugfs.h>
-#include <linux/delay.h>
 #include <linux/jump_label.h>
 #include <linux/types.h>
 #endif
@@ -1066,26 +1066,27 @@ static int cma_enabled_swap_ratio_setup(char *str)
 }
 __setup("cma_enabled_swap_ratio=", cma_enabled_swap_ratio_setup);
 
-static struct delayed_work cma_enabled_work;
-
-static void cma_enabled_work_fn(struct work_struct *work)
+static int cma_enabled_work_fn(void *data)
 {
 	struct sysinfo i;
 
-	if (cma_enabled)
-		return;
+	while (1) {
+		if (!cma_enabled) {
+			si_swapinfo(&i);
 
-	si_swapinfo(&i);
-
-	if (i.totalswap && i.freeswap * 100 < i.totalswap * cma_enabled_swap_ratio) {
-		pr_info("swap free low(MB):%lu/%lu, ratio=%d, enable cma now!\n",
-				i.freeswap * 4 / 1024,
-				i.totalswap * 4 / 1024,
-				cma_enabled_swap_ratio);
-		cma_enabled = 1;
-	} else {
-		schedule_delayed_work(&cma_enabled_work, HZ / 10);
+			if (i.totalswap && i.freeswap * 100 <
+					i.totalswap * cma_enabled_swap_ratio) {
+				pr_info("swap free low(MB):%lu/%lu, ratio=%d, enable cma now!\n",
+						i.freeswap * 4 / 1024,
+						i.totalswap * 4 / 1024,
+						cma_enabled_swap_ratio);
+				cma_enabled = 1;
+			}
+		}
+		msleep_interruptible(500);
 	}
+
+	return 0;
 }
 
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
@@ -1113,8 +1114,7 @@ static void delay_enable_cma_init(void)
 	register_trace_android_vh_alloc_flags_cma_adjust(delay_enable_cma_hook, NULL);
 #endif
 
-	INIT_DELAYED_WORK(&cma_enabled_work, cma_enabled_work_fn);
-	schedule_delayed_work(&cma_enabled_work, HZ);
+	kthread_run(cma_enabled_work_fn, NULL, "cma_monitor");
 }
 #endif
 
