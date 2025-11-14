@@ -305,6 +305,7 @@ struct match_data_s {
 #define VDIN_FLAG_HIST_STARTED		0x00200000
 #define VDIN_FLAG_DYN_RECONFIG		0x00400000
 #define VDIN_FLAG_RDMA_READ_DONE	0x00800000
+#define VDIN_FLAG_SUSPEND_STOP		0x01000000
 
 /*values of vdin isr bypass check flag */
 #define VDIN_BYPASS_STOP_CHECK          0x00000001

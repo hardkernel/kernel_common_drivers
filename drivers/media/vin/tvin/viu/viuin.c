@@ -1013,7 +1013,7 @@ static void viuin_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
 
 	if (devp->flag && AMVIUIN_DEC_START)
-		devp->flag |= AMVIUIN_DEC_STOP;
+		devp->flag = AMVIUIN_DEC_STOP;
 	else
 		pr_info("[viuin..]%s viu in dec isn't start.\n", __func__);
 	//pr_info("%s %d Disable VIU to VDIN\n", __func__, __LINE__);

@@ -2179,12 +2179,13 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		devp->self_stop_start) {
 		pr_info("linux system switch pc/game not need stop\n");
 	} else {
-		if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
-		    devp->frontend &&
-		    devp->frontend->dec_ops &&
-		    devp->frontend->dec_ops->stop &&
-		    ((!IS_TVAFE_ATV_SRC(devp->parm.port)) ||
-		     ((devp->flags & VDIN_FLAG_SNOW_FLAG) == 0)))
+		if (!(devp->flags & VDIN_FLAG_SUSPEND_STOP) &&
+			!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
+			devp->frontend &&
+			devp->frontend->dec_ops &&
+			devp->frontend->dec_ops->stop &&
+			((!IS_TVAFE_ATV_SRC(devp->parm.port)) ||
+			((devp->flags & VDIN_FLAG_SNOW_FLAG) == 0)))
 			devp->frontend->dec_ops->stop(devp->frontend,
 				devp->parm.port, devp->port_type);
 	}
@@ -2295,6 +2296,9 @@ void vdin_self_stop_dec(struct vdin_dev_s *devp)
 
 	devp->flags |= VDIN_FLAG_DEC_STOP_ISR;
 
+	if (devp->flags & VDIN_FLAG_SUSPEND &&
+		devp->set_canvas_manual)
+		devp->flags |= VDIN_FLAG_SUSPEND_STOP;
 	vdin_stop_dec(devp);
 
 	/* init flag */
@@ -7653,8 +7657,8 @@ static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 #endif
 	//cpumask_copy(&vdin_irq_mask, mask);
 	//}
-	vdin_self_stop_dec(devp);
 	devp->flags |= VDIN_FLAG_SUSPEND;
+	vdin_self_stop_dec(devp);
 	/*no need setting any regs*/
 	/*vdin_enable_module(devp, false);*/
 
@@ -7710,7 +7714,12 @@ static int vdin_drv_resume(struct platform_device *pdev)
 	 *? VPU_VIU_VDIN0 : VPU_VIU_VDIN1,
 	 *VPU_CLK_GATE_ON);
 	 */
+	devp->flags &= (~VDIN_FLAG_SUSPEND);
 
+	if (devp->flags & VDIN_FLAG_SUSPEND_STOP) {
+		vdin_self_start_dec(devp);
+		devp->flags &= (~VDIN_FLAG_SUSPEND_STOP);
+	}
 	if (devp->index && devp->set_canvas_manual == 1 &&
 	    is_meson_t5d_cpu()) {
 		wr_bits(devp->addr_offset, VDIN_COM_CTRL0, 7,
@@ -7721,7 +7730,6 @@ static int vdin_drv_resume(struct platform_device *pdev)
 	vdin_clk_on_off(devp, true);
 	vdin_measure_clk_ctl(devp, true);
 
-	devp->flags &= (~VDIN_FLAG_SUSPEND);
 	pr_info("%s id:%d ok.\n", __func__, devp->index);
 	return 0;
 }
