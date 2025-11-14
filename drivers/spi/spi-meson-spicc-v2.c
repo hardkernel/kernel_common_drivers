@@ -411,7 +411,9 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 	desc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_NONE;
 	desc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_NONE;
 	desc->cfg_start.b.eoc = 0;
+#ifndef CONFIG_ARCH_MESON_ODROID_COMMON
 	desc->cfg_bus.b.keep_ss = !xfer->cs_change;
+#endif
 	desc->cfg_bus.b.null_ctl = 0;
 	if (cdata && cdata->dc_mode) {
 		desc->cfg_start.b.dc_level = cdata->dc_level;
@@ -562,7 +564,9 @@ static void spicc_configure_last_desc(struct spicc_device *spicc,
 		desc->cfg_bus.b.null_ctl = 1;
 	}
 
+#ifndef CONFIG_ARCH_MESON_ODROID_COMMON
 	desc->cfg_bus.b.keep_ss = 0;
+#endif
 	desc->cfg_start.b.eoc = 1;
 }
 
@@ -626,6 +630,7 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#ifndef CONFIG_ARCH_MESON_ODROID_COMMON
 /*
  * spi_transfer_one_message - Default implementation of transfer_one_message()
  *
@@ -717,6 +722,81 @@ end:
 
 	return ret;
 }
+
+#else
+
+static int meson_spicc_transfer_one(struct spi_controller *ctlr,
+				    struct spi_device *spi,
+				    struct spi_transfer *xfer)
+{
+	struct spicc_device *spicc = spi_controller_get_devdata(ctlr);
+	struct device *dev = &spicc->pdev->dev;
+	struct spicc_controller_data *cdata = spi->controller_data;
+	unsigned long ms = spicc_xfer_time_max(spicc, xfer->len);
+	struct spicc_descriptor *desc;
+	struct spicc_descriptor_extra exdesc;
+	dma_addr_t desc_paddr;
+	int desc_len;
+	int ret = -EIO;
+
+	if (!spicc_sem_down_read(spicc)) {
+		dev_err(dev, "controller busy\n");
+		return -EBUSY;
+	}
+
+	/* additional descriptor to achieve a ss trailing gap */
+	desc_len = sizeof(*desc);
+	if (spicc->config_ss_trailing_gap && xfer->cs_change &&
+	    !list_is_last(&xfer->transfer_list, &spi->master->cur_msg->transfers))
+		desc_len += sizeof(*desc);
+
+	desc = kzalloc(desc_len, GFP_KERNEL | GFP_DMA);
+	if (!desc) {
+		spicc_sem_up_write(spicc);
+		return -ENOMEM;
+	}
+
+	ret = spicc_config_desc_one_transfer(spicc, xfer, desc, &exdesc, cdata);
+	if (ret) {
+		dev_err(dev, "config descriptor failed\n");
+		goto end;
+	}
+
+	/* Only apply trailing gap if cs_change is set for this transfer */
+	if (desc_len > sizeof(*desc))
+		spicc_configure_last_desc(spicc, desc);
+	else
+		desc->cfg_start.b.eoc = 1;
+
+
+	desc_paddr = dma_map_single(dev, (void *)desc,
+				     desc_len, DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, desc_paddr);
+	if (ret) {
+		dev_err(dev, "desc table map failed\n");
+		goto end;
+	}
+
+	reinit_completion(&spicc->completion);
+	spicc_desc_pending(spicc, desc_paddr, false, true);
+
+	if (wait_for_completion_timeout(&spicc->completion,
+			spi_controller_is_slave(ctlr) ?
+			MAX_SCHEDULE_TIMEOUT : msecs_to_jiffies(ms)))
+		ret = spicc->status ? -EIO : 0;
+	else
+		ret = -ETIMEDOUT;
+
+	dma_unmap_single(dev, desc_paddr, desc_len, DMA_TO_DEVICE);
+
+	end:
+		spicc_deconfig_desc_one_transfer(spicc, xfer, desc, &exdesc);
+	kfree(desc);
+	spicc_sem_up_write(spicc);
+
+	return ret;
+}
+#endif
 
 static int meson_spicc_prepare_message(struct spi_controller *ctlr,
 				       struct spi_message *message)
@@ -1231,6 +1311,9 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	spicc->cfg_start.b.pending = 1;
 
 	device_reset_optional(&pdev->dev);
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	ctlr->use_gpio_descriptors = true;
+#endif
 	ctlr->num_chipselect = 4;
 	ctlr->dev.of_node = pdev->dev.of_node;
 	ctlr->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST |
@@ -1241,7 +1324,11 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	ctlr->cleanup = meson_spicc_cleanup;
 	ctlr->prepare_message = meson_spicc_prepare_message;
 	ctlr->unprepare_transfer_hardware = meson_spicc_unprepare_transfer;
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	ctlr->transfer_one = meson_spicc_transfer_one;
+#else
 	ctlr->transfer_one_message = meson_spicc_transfer_one_message;
+#endif
 	ctlr->slave_abort = meson_spicc_slave_abort;
 	ctlr->can_dma = meson_spicc_can_dma;
 	ctlr->max_dma_len = SPICC_BLOCK_MAX;
