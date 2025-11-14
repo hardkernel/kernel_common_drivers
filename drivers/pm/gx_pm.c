@@ -656,6 +656,8 @@ static int meson_pm_probe(struct platform_device *pdev)
 	if (!exit_reg)
 		return -ENOMEM;
 
+	set_resume_method(get_resume_reason());
+
 	err = class_register(&meson_pm_class);
 	if (unlikely(err))
 		return err;
