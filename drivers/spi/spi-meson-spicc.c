@@ -350,6 +350,7 @@ struct meson_spicc_device {
 	bool				clk_div_none;
 	bool				toggle_cs_every_word;
 	bool				word_mode_ctrl;
+	struct gpio_desc	**cs_gpiods;
 #endif
 	//struct spi_message		*message;
 	struct spi_transfer		*xfer;
@@ -1271,7 +1272,11 @@ static int meson_spicc_setup(struct spi_device *spi)
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
 	struct  spicc_controller_data *cdata;
-	int ret = 0;
+	int ret = 0, i;
+
+	for (i = 0; i < SPI_CS_CNT_MAX; i++)
+		if (spi->chip_select[i] != SPI_INVALID_CS)
+			spicc->cs_gpiods[spi->chip_select[i]] = spi->cs_gpiod[i];
 
 	cdata = (struct spicc_controller_data *)spi->controller_data;
 	meson_spicc_hw_prepare(spicc, spi->mode, meson_spicc_get_ctrl_cs_line(spi));
@@ -1961,6 +1966,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	struct spi_controller *ctlr;
 	struct meson_spicc_data *match;
 	struct meson_spicc_device *spicc;
+	struct gpio_desc **cs;
 	int ret, irq, rate;
 
 	ctlr = __spi_alloc_controller(&pdev->dev, sizeof(*spicc),
@@ -1981,6 +1987,12 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(spicc->base);
 		goto out_controller;
 	}
+
+	cs = devm_kcalloc(&pdev->dev, SPI_CS_CNT_MAX, sizeof(*cs),
+			GFP_KERNEL);
+	if (!cs)
+		return -ENOMEM;
+	spicc->cs_gpiods = cs;
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 	match = (struct meson_spicc_data *)
@@ -2190,6 +2202,13 @@ static void meson_spicc_remove(struct platform_device *pdev)
 static int meson_spicc_suspend(struct device *dev)
 {
 	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
+	int i;
+
+	pinctrl_pm_select_sleep_state(dev);
+	/* gpio cs pins Not in default pinmux */
+	for (i = 0; i < SPI_CS_CNT_MAX; i++)
+		if (spicc->cs_gpiods[i])
+			gpiod_set_value_cansleep(spicc->cs_gpiods[i], 1);
 
 	meson_spicc_store(spicc);
 	meson_spicc_clk_disable(spicc);
@@ -2200,6 +2219,13 @@ static int meson_spicc_suspend(struct device *dev)
 static int meson_spicc_resume(struct device *dev)
 {
 	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
+	int i;
+
+	pinctrl_pm_select_default_state(dev);
+	/* gpio cs pins Not in default pinmux */
+	for (i = 0; i < SPI_CS_CNT_MAX; i++)
+		if (spicc->cs_gpiods[i])
+			gpiod_set_value_cansleep(spicc->cs_gpiods[i], 0);
 
 	meson_spicc_restore(spicc);
 	meson_spicc_clk_enable(spicc);
