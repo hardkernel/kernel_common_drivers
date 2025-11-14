@@ -2672,21 +2672,21 @@ int am_meson_hdmi_get_vrr_range(struct drm_device *dev,
 
 	mo = drm_mode_object_find(dev, file_priv, groups->conn_id, DRM_MODE_OBJECT_CONNECTOR);
 	if (!mo)
-		return -ENOENT;
+		return 0;
 
 	connector = obj_to_connector(mo);
 	tx_comm = meson_get_hdmitx_common(connector);
 
 	hdmi_groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*hdmi_groups), GFP_KERNEL);
 	if (!hdmi_groups)
-		return -ENOMEM;
+		return 0;
 
 	num_group = hdmitx_common_get_vrr_mode_group(tx_comm, hdmi_groups, MAX_VRR_MODE_GROUP);
 
 	if (!num_group) {
 		DRM_ERROR("get vrr error or not support qms\n");
 		kfree(hdmi_groups);
-		return -EINVAL;
+		return 0;
 	}
 
 	for (i = 0; i < num_group; i++) {
