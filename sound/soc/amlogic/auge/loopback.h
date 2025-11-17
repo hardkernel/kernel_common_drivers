@@ -59,6 +59,11 @@ enum datalb_src {
 	TDMINLB_SRC_MAX
 };
 
+enum datalb_lane {
+	LB_LANE_SPK = 0,
+	LB_LANE_SPDIF
+};
+
 unsigned int loopback_get_lb_channel(int id);
 
 #endif

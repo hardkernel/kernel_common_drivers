@@ -132,9 +132,12 @@ struct loopback {
 
 	/* datalb info */
 	enum datalb_src datalb_src;
+	enum datalb_lane datalb_lane;
 	unsigned int datalb_chnum;
 	unsigned int datalb_chmask;
 	unsigned int datalb_lane_mask; /* related with data lane */
+	unsigned int datalb_lane_mask_spk; /* related with data lane for spk */
+	unsigned int datalb_lane_mask_spdif; /* related with data lane for spdif */
 	unsigned int lb_format;
 	unsigned int lb_lane_chmask;
 	unsigned int sysclk_freq;
@@ -159,6 +162,7 @@ struct loopback {
 	int data_lb_rate;
 	int asrc_sel;
 	int data_in_rate;
+	bool trigger_xrun;
 };
 
 static struct loopback *loopback_priv[2];
@@ -213,10 +217,10 @@ static irqreturn_t loopback_ddr_isr(int irq, void *data)
 	if (!snd_pcm_running(ss))
 		return IRQ_NONE;
 
-	if (p_loopback->vad_running != vad_running) {
-		if (p_loopback->vad_running)
+	if (p_loopback->vad_running != vad_running || p_loopback->trigger_xrun) {
+		if (p_loopback->vad_running || p_loopback->trigger_xrun)
 			snd_pcm_stop_xrun(ss);
-
+		p_loopback->trigger_xrun = false;
 		p_loopback->vad_running = vad_running;
 	}
 
@@ -436,6 +440,7 @@ static int loopback_dai_startup(struct snd_pcm_substream *ss,
 			break;
 		}
 	}
+	p_loopback->trigger_xrun = false;
 	return ret;
 err:
 	pr_err("Failed to enable datain clock\n");
@@ -1247,8 +1252,16 @@ static const char *const datain_src_texts[] = {
 };
 
 static const struct soc_enum datain_src_enum =
-	SOC_ENUM_SINGLE(EE_AUDIO_LB_CTRL0, 0, ARRAY_SIZE(datain_src_texts),
+	SOC_ENUM_SINGLE_VIRT(ARRAY_SIZE(datain_src_texts),
 	datain_src_texts);
+
+static const char *const datalb_lane_texts[] = {
+	"SPK",
+	"SPDIF",
+};
+
+static const struct soc_enum datalb_lane_enum =
+	SOC_ENUM_SINGLE_VIRT(ARRAY_SIZE(datalb_lane_texts), datalb_lane_texts);
 
 static int datain_src_get_enum(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
@@ -1293,10 +1306,7 @@ static const char *const datalb_tdminlb_texts[] = {
 };
 
 static const struct soc_enum datalb_tdminlb_enum =
-	SOC_ENUM_SINGLE(EE_AUDIO_TDMIN_LB_CTRL,
-		20,
-		ARRAY_SIZE(datalb_tdminlb_texts),
-		datalb_tdminlb_texts);
+	SOC_ENUM_SINGLE_VIRT(ARRAY_SIZE(datalb_tdminlb_texts), datalb_tdminlb_texts);
 
 static int datalb_tdminlb_get_enum(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
@@ -1328,6 +1338,39 @@ static int datalb_tdminlb_set_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int datalb_tdminlb_lane_get_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct loopback *p_loopback = dev_get_drvdata(component->dev);
+
+	if (!p_loopback)
+		return 0;
+
+	ucontrol->value.enumerated.item[0] = p_loopback->datalb_lane;
+
+	return 0;
+}
+
+static int datalb_tdminlb_lane_set_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct loopback *p_loopback = dev_get_drvdata(component->dev);
+
+	p_loopback->datalb_lane = ucontrol->value.enumerated.item[0];
+
+	if (p_loopback->datalb_lane == LB_LANE_SPK)
+		p_loopback->datalb_lane_mask = p_loopback->datalb_lane_mask_spk;
+	else
+		p_loopback->datalb_lane_mask = p_loopback->datalb_lane_mask_spdif;
+
+	pr_info("%s lb lane %d\n", __func__, p_loopback->datalb_lane_mask);
+	p_loopback->trigger_xrun = true;
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new snd_loopback_controls[] = {
 	/* loopback data in source */
 	SOC_ENUM_EXT("Loopback datain source",
@@ -1340,6 +1383,12 @@ static const struct snd_kcontrol_new snd_loopback_controls[] = {
 		datalb_tdminlb_enum,
 		datalb_tdminlb_get_enum,
 		datalb_tdminlb_set_enum),
+
+	/* loopback data lb lane select */
+	SOC_ENUM_EXT("Loopback tdmin lb lane select",
+		datalb_lane_enum,
+		datalb_tdminlb_lane_get_enum,
+		datalb_tdminlb_lane_set_enum),
 };
 
 static const struct snd_kcontrol_new snd_loopbackb_controls[] = {
@@ -1354,6 +1403,12 @@ static const struct snd_kcontrol_new snd_loopbackb_controls[] = {
 		datalb_tdminlb_enum,
 		datalb_tdminlb_get_enum,
 		datalb_tdminlb_set_enum),
+
+	/* loopback data lb lane select */
+	SOC_ENUM_EXT("Loopbackb tdmin lb lane select",
+		datalb_lane_enum,
+		datalb_tdminlb_lane_get_enum,
+		datalb_tdminlb_lane_set_enum),
 };
 
 static const struct snd_soc_component_driver loopback_component[] = {
@@ -1669,7 +1724,7 @@ static int loopback_parse_of(struct device_node *node,
 	}
 	ret = snd_soc_of_get_slot_mask(node, "datain-lane-mask-in",
 		&p_loopback->datain_lane_mask);
-	if (ret < 0) {
+	if (!ret) {
 		ret = -EINVAL;
 		dev_err(&pdev->dev, "datain lane-slot-mask should be set\n");
 		goto fail;
@@ -1705,10 +1760,19 @@ static int loopback_parse_of(struct device_node *node,
 			__func__, p_loopback->asrc_sel);
 	ret = snd_soc_of_get_slot_mask(node, "datalb-lane-mask-in",
 		&p_loopback->datalb_lane_mask);
-	if (ret < 0) {
+	/* datalb-lane-mask-in default is for spk */
+	p_loopback->datalb_lane_mask_spk = p_loopback->datalb_lane_mask;
+	if (!ret) {
 		ret = -EINVAL;
 		pr_err("datalb lane-slot-mask should be set\n");
 		goto fail;
+	}
+
+	ret = snd_soc_of_get_slot_mask(node, "datalb-lane-mask-in-spdif",
+		&p_loopback->datalb_lane_mask_spdif);
+	if (!ret) {
+		/* spdif default is lane 1(3, 4 channels), 0x2 */
+		p_loopback->datalb_lane_mask_spdif = 0x2;
 	}
 
 	p_loopback->lb_format = loopback_parse_format(node);

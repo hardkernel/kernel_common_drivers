@@ -1420,26 +1420,6 @@ static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-static int of_parse_tdm_lane_slot_in(struct device_node *np,
-			      unsigned int *lane_mask)
-{
-	if (lane_mask)
-		return snd_soc_of_get_slot_mask(np,
-			"dai-tdm-lane-slot-mask-in", lane_mask);
-
-	return -EINVAL;
-}
-
-static int of_parse_tdm_lane_slot_out(struct device_node *np,
-			      unsigned int *lane_mask)
-{
-	if (lane_mask)
-		return snd_soc_of_get_slot_mask(np,
-			"dai-tdm-lane-slot-mask-out", lane_mask);
-
-	return -EINVAL;
-}
-
 static void tdm_sharebuffer_prepare(struct snd_pcm_substream *substream,
 	struct aml_tdm *p_tdm)
 {
@@ -2962,12 +2942,14 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	}
 
 	/* get tdm lanes info. if not, set to default 0 */
-	ret = of_parse_tdm_lane_slot_in(node, &p_tdm->setting.lane_mask_in);
-	if (ret < 0)
+	ret = snd_soc_of_get_slot_mask(node, "dai-tdm-lane-slot-mask-in",
+				&p_tdm->setting.lane_mask_in);
+	if (!ret)
 		p_tdm->setting.lane_mask_in = 0x0;
 
-	ret = of_parse_tdm_lane_slot_out(node, &p_tdm->setting.lane_mask_out);
-	if (ret < 0)
+	ret = snd_soc_of_get_slot_mask(node, "dai-tdm-lane-slot-mask-out",
+				&p_tdm->setting.lane_mask_out);
+	if (!ret)
 		p_tdm->setting.lane_mask_out = 0x1;
 
 	pr_debug("lane_mask_out = %x\n", p_tdm->setting.lane_mask_out);
