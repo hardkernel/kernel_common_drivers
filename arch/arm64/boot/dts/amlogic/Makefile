@@ -152,6 +152,7 @@ dtb-y += s6_s905x5_bl204h1.dtb
 dtb-y += s6_s905x5_bl204h1_2g.dtb
 dtb-y += s6_s905x5_bl207.dtb
 dtb-y += s6_s905x5_bl207_2g.dtb
+dtb-y += s6_s905x5_bl201h1_8g_linux.dtb
 dtb-y += s6_s905x5_bl204.dtb
 dtb-y += s6_s905x5_bl208.dtb
 dtb-y += s6_s905x5_bl209.dtb
