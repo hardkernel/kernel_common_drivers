@@ -53,9 +53,9 @@
 		};
 
 		/* global autoconfigured region for contiguous allocations */
-		ramoops@8400000 {
+		ramoops@7300000 {
 			compatible = "ramoops";
-			reg = <0x0 0x08400000 0x0 0x00080000>;/* addr set in uboot */
+			reg = <0x0 0x07300000 0x0 0x00080000>;/* addr set in uboot */
 			record-size = <0x30000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x0>;
@@ -81,8 +81,8 @@
 			compatible = "shared-dma-pool";
 			/*reusable;*/
 			no-map;
-			alignment = <0x0 0x400000>;
-			reg = <0x0 0x05000000 0x0 0x3400000>;
+			alignment = <0x0 0x100000>;
+			reg = <0x0 0x05000000 0x0 0x2300000>;
 		};
 
 		logo_reserved:linux,meson-fb {
