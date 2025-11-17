@@ -88,6 +88,7 @@ struct am_acodec_priv {
 	int early_suspend;
 	int headphone_depop;
 	struct work_struct mute_work;
+	int headphone_power_on;
 };
 
 enum meson_acodec_version {
@@ -406,7 +407,15 @@ static void aml_headphone_mute_work(struct work_struct *acodec)
 	struct am_acodec_priv *aml_acodec;
 
 	aml_acodec = container_of(acodec, struct am_acodec_priv, mute_work);
-	aml_headphone_mute(aml_acodec->component, aml_acodec->headphone_mute);
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W ||
+		aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6X) {
+		if (aml_acodec->headphone_power_on == 1) {
+			aml_headphone_mute(aml_acodec->component, 0);
+			aml_acodec->headphone_power_on = 0;
+		}
+	} else {
+		aml_headphone_mute(aml_acodec->component, aml_acodec->headphone_mute);
+	}
 }
 
 static void headphone_mute(struct snd_soc_component *component, bool enable)
@@ -1158,7 +1167,9 @@ static int am_acodec_power_on(struct am_acodec_priv *aml_acodec)
 	}
 	/*don't restore power reg*/
 	snd_soc_component_write(aml_acodec->component, ACODEC_0, 0x34003ffc);
-	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W) {
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W ||
+		aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6X) {
+		aml_acodec->headphone_power_on = 1;
 		if (work_pending(&aml_acodec->mute_work))
 			flush_work(&aml_acodec->mute_work);
 		else
@@ -1247,7 +1258,8 @@ static int am_acodec_resume(struct snd_soc_component *component)
 	if (aml_acodec && !aml_acodec->resume_ref)
 		aml_acodec->resume_ref = 1;
 
-	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W) {
+	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6W ||
+		aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6X) {
 		am_acodec_power_on(aml_acodec);
 		return 0;
 	}
