@@ -110,6 +110,54 @@ char *lcd_mode_mode_to_str(int mode)
 	return lcd_mode_table[mode];
 }
 
+struct color_fmt_info_s color_fmt_info[] = {
+	{CFMT_RGB565,         16, "RGB565"},
+	{CFMT_RGB_6bit,       18, "RGB_6bit"},
+	{CFMT_RGB_8bit,       24, "RGB_8bit"},
+	{CFMT_RGB_10bit,      30, "RGB_10bit"},
+	{CFMT_RGB_12bit,      36, "RGB_12bit"},
+	{CFMT_YCbCr422_8bit,  16, "YCbCr422_8bit"},
+	{CFMT_YCbCr422_10bit, 20, "YCbCr422_10bit"},
+	{CFMT_YCbCr422_12bit, 24, "YCbCr422_12bit"},
+	{CFMT_YCbCr444_8bit,  24, "YCbCr444_8bit"},
+	{CFMT_YCbCr444_10bit, 30, "YCbCr444_10bit"},
+	{CFMT_YCbCr444_12bit, 36, "YCbCr444_12bit"},
+	{CFMT_YCbCr420_8bit,  12, "YCbCr420_8bit"},
+	{CFMT_YCbCr420_10bit, 15, "YCbCr420_10bit"},
+	{CFMT_YCbCr420_12bit, 18, "YCbCr420_12bit"},
+};
+
+static int panel_str2fmt(const char *str, unsigned char *cfmt, unsigned char *bits)
+{
+	unsigned int i = 0;
+
+	if (!str)
+		return -1;
+	for (i = 0; i < ARRAY_SIZE(color_fmt_info); i++) {
+		if (strcmp(str, color_fmt_info[i].name) == 0) {
+			*cfmt = color_fmt_info[i].cfmt;
+			*bits = color_fmt_info[i].bits;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+static int panel_bit2fmt(unsigned int bits, unsigned char ctype)
+{
+	unsigned int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(color_fmt_info); i++) {
+		if (bits == color_fmt_info[i].bits) {
+			if (ctype == (color_fmt_info[i].cfmt & CTYPE_MASK))
+				return color_fmt_info[i].cfmt;
+		}
+	}
+
+	return CFMT_INVALID;
+}
+
 static void lcd_ss_config_fix(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
 {
 	int i = 0;
@@ -780,6 +828,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv, struct aml_lcd_d
 	ptiming->h_period = para[2];
 	ptiming->v_period = para[3];
 	ptiming->lcd_bits = para[4] * 3;
+	ptiming->cfmt = panel_bit2fmt(ptiming->lcd_bits, CTYPE_RGB);
 	pconf->basic.screen_width = para[5];
 	pconf->basic.screen_height = para[6];
 
@@ -1219,40 +1268,6 @@ static struct num_str_s vmode_switch_name[] = {
 	{LCD_VMODE_SWITCH_LIMIT, "LIMIT"},
 	{LCD_VMODE_SWITCH_MIN,   "MIN"},
 };
-
-struct color_fmt_info_s color_fmt_info[] = {
-	{CFMT_RGB565,         16, "RGB565"},
-	{CFMT_RGB_6bit,       18, "RGB_6bit"},
-	{CFMT_RGB_8bit,       24, "RGB_8bit"},
-	{CFMT_RGB_10bit,      30, "RGB_10bit"},
-	{CFMT_RGB_12bit,      36, "RGB_12bit"},
-	{CFMT_YCbCr422_8bit,  16, "YCbCr422_8bit"},
-	{CFMT_YCbCr422_10bit, 20, "YCbCr422_10bit"},
-	{CFMT_YCbCr422_12bit, 24, "YCbCr422_12bit"},
-	{CFMT_YCbCr444_8bit,  24, "YCbCr444_8bit"},
-	{CFMT_YCbCr444_10bit, 30, "YCbCr444_10bit"},
-	{CFMT_YCbCr444_12bit, 36, "YCbCr444_12bit"},
-	{CFMT_YCbCr420_8bit,  12, "YCbCr420_8bit"},
-	{CFMT_YCbCr420_10bit, 15, "YCbCr420_10bit"},
-	{CFMT_YCbCr420_12bit, 18, "YCbCr420_12bit"},
-};
-
-static int panel_str2fmt(const char *str, unsigned char *cfmt, unsigned char *bits)
-{
-	unsigned int i = 0;
-
-	if (!str)
-		return -1;
-	for (i = 0; i < ARRAY_SIZE(color_fmt_info); i++) {
-		if (strcmp(str, color_fmt_info[i].name) == 0) {
-			*cfmt = color_fmt_info[i].cfmt;
-			*bits = color_fmt_info[i].bits;
-			return 0;
-		}
-	}
-
-	return -1;
-}
 
 static int lcd_panel_parse_basic(struct json_parse_s *jsp,
 				struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p)
@@ -2492,6 +2507,7 @@ static int lcd_config_load_from_ini(struct aml_lcd_drv_s *pdrv, struct aml_lcd_d
 	pconf->fr_auto_cus = lcd_ini_get_val(inip, psec, "fr_auto_custom", 0);
 	ptiming->switch_type = LCD_VMODE_SWITCH_NONE;
 	ptiming->lcd_bits = lcd_bits * 3;
+	ptiming->cfmt = panel_bit2fmt(ptiming->lcd_bits, CTYPE_RGB);
 	ptiming->ss_force = 0;
 	ptiming->ss_freq = 255;
 	ptiming->ss_level = pconf->timing.ss_level;

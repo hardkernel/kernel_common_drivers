@@ -444,10 +444,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 	struct lcd_config_s *pconf;
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 	unsigned int sync_duration, mute_state = 0, vs_val;
-	int n, len = 0, i, pr_len = 4 * 1024, base_id = 0, tag_id = 0, tag_id2 = 0;
-	char *pr_buf = NULL;
-	struct lcd_detail_timing_s *dt;
-	const char * const tags[] = {"", "(default)", "(base)"};
+	int n, len = 0;
 
 	pconf = &pdrv->curr_dev->dev_cfg;
 	sync_duration = pconf->timing.act_timing.sync_duration_num * 100;
@@ -505,30 +502,6 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		pconf->timing.ss_level, pconf->timing.ss_freq, pconf->timing.ss_mode,
 		pconf->timing.pll_flag);
 
-	pr_buf = kzalloc(pr_len, GFP_KERNEL);
-	if (!pr_buf)
-		return len;
-
-	for (i = 0; i < pdrv->curr_dev->dev_cfg.timing.num_timings; i++) {
-		dt = pdrv->curr_dev->dev_cfg.timing.timings[i];
-		if (!dt)
-			continue;
-		lcd_detail_timing_print(dt, pr_buf, 0, pr_len);
-		n = lcd_debug_info_len(len + offset);
-		tag_id = dt == pdrv->curr_dev->dev_cfg.timing.dft_timing ? 1 : 0;
-		tag_id2 = dt == pdrv->curr_dev->dev_cfg.timing.base_timing ? 2 : 0;
-		len += snprintf(buf + len, n, "\ntiming[%d]%s%s:\n%s",
-				i, tags[tag_id], tags[tag_id2], pr_buf);
-		if (dt == pdrv->curr_dev->dev_cfg.timing.base_timing)
-			base_id = i;
-	}
-
-	lcd_config_timing_check(pdrv, pdrv->curr_dev, &pconf->timing.act_timing);
-	dt = &pconf->timing.act_timing;
-	lcd_detail_timing_print(dt, pr_buf, 0, pr_len);
-	n = lcd_debug_info_len(len + offset);
-	len += snprintf(buf + len, n, "\nact_timing: based timing[%d]:\n%s\n", base_id, pr_buf);
-
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
 		"pre_de_h %d, pre_de_v %d\n"
@@ -553,6 +526,44 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 			pconf->timing.pll_ctrl2, pconf->timing.div_ctrl2,
 			pconf->timing.clk_ctrl2);
 	}
+
+	return len;
+}
+
+static int lcd_info_timing_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	struct lcd_config_s *pconf;
+	int n, len = 0, i, pr_len = 4 * 1024, base_id = 0, tag_id = 0, tag_id2 = 0;
+	char *pr_buf = NULL;
+	struct lcd_detail_timing_s *dt;
+	const char * const tags[] = {"", "(default)", "(base)"};
+
+	pconf = &pdrv->curr_dev->dev_cfg;
+
+	pr_buf = kzalloc(pr_len, GFP_KERNEL);
+	if (!pr_buf)
+		return len;
+
+	for (i = 0; i < pconf->timing.num_timings; i++) {
+		dt = pconf->timing.timings[i];
+		if (!dt)
+			continue;
+		lcd_detail_timing_print(dt, pr_buf, 0, pr_len);
+		n = lcd_debug_info_len(len + offset);
+		tag_id = dt == pconf->timing.dft_timing ? 1 : 0;
+		tag_id2 = dt == pconf->timing.base_timing ? 2 : 0;
+		len += snprintf(buf + len, n, "\ntiming[%d]%s%s:\n%s",
+				i, tags[tag_id], tags[tag_id2], pr_buf);
+		if (dt == pconf->timing.base_timing)
+			base_id = i;
+	}
+
+	lcd_config_timing_check(pdrv, pdrv->curr_dev, &pconf->timing.act_timing);
+	dt = &pconf->timing.act_timing;
+	lcd_detail_timing_print(dt, pr_buf, 0, pr_len);
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf(buf + len, n, "\nact_timing: based timing[%d]:\n%s\n", base_id, pr_buf);
+
 	kfree(pr_buf);
 	return len;
 }
@@ -1270,6 +1281,9 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 		lcd_info_basic_print(pdrv, print_buf, 0);
 		lcd_debug_info_print(print_buf);
 		memset(print_buf, 0, PR_BUF_MAX);
+		lcd_info_timing_print(pdrv, print_buf, 0);
+		lcd_debug_info_print(print_buf);
+		memset(print_buf, 0, PR_BUF_MAX);
 		lcd_info_adv_print(pdrv, print_buf, 0);
 		lcd_debug_info_print(print_buf);
 		memset(print_buf, 0, PR_BUF_MAX);
@@ -1339,6 +1353,9 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 			return -EINVAL;
 		}
 		lcd_info_basic_print(pdrv, print_buf, 0);
+		lcd_debug_info_print(print_buf);
+		memset(print_buf, 0, PR_BUF_MAX);
+		lcd_info_timing_print(pdrv, print_buf, 0);
 		lcd_debug_info_print(print_buf);
 		memset(print_buf, 0, PR_BUF_MAX);
 		lcd_info_adv_print(pdrv, print_buf, 0);
@@ -2829,12 +2846,13 @@ static ssize_t lcd_debug_vlock_show(struct device *dev, struct device_attribute 
 }
 
 #define LCD_DEBUG_DUMP_INFO_BASIC     0
-#define LCD_DEBUG_DUMP_INFO_CUS_CTRL  2
+#define LCD_DEBUG_DUMP_INFO_TIMMING   2
 #define LCD_DEBUG_DUMP_INFO_TCON      3
 #define LCD_DEBUG_DUMP_INFO_POWER     4
 #define LCD_DEBUG_DUMP_REG            5
 #define LCD_DEBUG_DUMP_OPTICAL        10
 #define LCD_DEBUG_DUMP_CLK_PARA       11
+#define LCD_DEBUG_DUMP_INFO_PHY       12
 static int lcd_debug_dump_state;
 static ssize_t lcd_debug_dump_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -2850,6 +2868,9 @@ static ssize_t lcd_debug_dump_show(struct device *dev, struct device_attribute *
 	case LCD_DEBUG_DUMP_INFO_BASIC:
 		len = lcd_info_basic_print(pdrv, print_buf, 0);
 		lcd_info_adv_print(pdrv, print_buf + len, len);
+		break;
+	case LCD_DEBUG_DUMP_INFO_TIMMING:
+		lcd_info_timing_print(pdrv, print_buf, 0);
 		break;
 #ifdef CONFIG_AMLOGIC_LCD_TCON
 	case LCD_DEBUG_DUMP_INFO_TCON:
@@ -2872,6 +2893,9 @@ static ssize_t lcd_debug_dump_show(struct device *dev, struct device_attribute *
 	case LCD_DEBUG_DUMP_CLK_PARA:
 		len = lcd_clk_config_print(pdrv, print_buf, 0);
 		lcd_clk_clkmsr_print(pdrv, print_buf + len, len);
+		break;
+	case LCD_DEBUG_DUMP_INFO_PHY:
+		lcd_reg_phy_print(pdrv, print_buf, 0);
 		break;
 	default:
 		sprintf(print_buf, "%s: invalid command\n", __func__);
@@ -2903,6 +2927,8 @@ static ssize_t lcd_debug_dump_store(struct device *dev, struct device_attribute 
 		lcd_debug_dump_state = LCD_DEBUG_DUMP_INFO_BASIC;
 	} else if (strcmp(parm[0], "basic") == 0) {
 		lcd_debug_dump_state = LCD_DEBUG_DUMP_INFO_BASIC;
+	} else if (strcmp(parm[0], "timing") == 0) {
+		lcd_debug_dump_state = LCD_DEBUG_DUMP_INFO_TIMMING;
 	} else if (strcmp(parm[0], "tcon") == 0) {
 		lcd_debug_dump_state = LCD_DEBUG_DUMP_INFO_TCON;
 	} else if (strcmp(parm[0], "power") == 0) {
@@ -2915,6 +2941,8 @@ static ssize_t lcd_debug_dump_store(struct device *dev, struct device_attribute 
 		lcd_debug_dump_state = LCD_DEBUG_DUMP_OPTICAL;
 	} else if (strcmp(parm[0], "clk") == 0) {
 		lcd_debug_dump_state = LCD_DEBUG_DUMP_CLK_PARA;
+	} else if (strcmp(parm[0], "phy") == 0) {
+		lcd_debug_dump_state = LCD_DEBUG_DUMP_INFO_PHY;
 	} else {
 		LCDERR("invalid command\n");
 		kfree(buf_orig);
