@@ -13,6 +13,8 @@
 #include <linux/math64.h>
 #endif
 #include <linux/amlogic/media/registers/cpu_version.h>
+#include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include <linux/amlogic/media/amvecm/amvecm.h>
@@ -1843,6 +1845,13 @@ void hw_cfg_dpss_dpe_intf(struct PRM_DPSS_TOP *prm_top,
 	vfcd1->compbits_c = vfcd1_fs_fmt.src_cmpr == CMPR_UN ?
 		10 : vfcd1_fs_fmt.src_bit == BIT_008  ? 8
 			: vfcd1_fs_fmt.src_bit == BIT_012 ? 12 : 10;
+
+	if (nr_4k1k_vds_en) {
+		dbg_h1("DLG mode set Y UV vertical skip mode : avg\n");
+		vfcd0->y_v_skip_en = 0x3;
+		vfcd0->c_v_skip_en = 0x3;
+	}
+
 	u32 vfcd_idx0;
 	u32 vfcd_idx1;
 
