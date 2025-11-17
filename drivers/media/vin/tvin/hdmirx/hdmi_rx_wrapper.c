@@ -28,6 +28,7 @@
 #include <linux/sched/clock.h>
 #include <linux/amlogic/clk_measure.h>
 #include <linux/hrtimer.h>
+#include <linux/amlogic/media/vpu/vpu.h>
 
 /* Local include */
 #include "hdmi_rx_repeater.h"
@@ -4281,6 +4282,11 @@ void wait_ddc_idle(u8 port)
 	}
 }
 
+unsigned int __weak rx_switch_vpu_clk(int over_clock_flag)
+{
+	return 0;
+}
+
 void hdmirx_open_main_port_t3x(u8 port)
 {
 	if (rx_info.main_port_open && port == rx_info.main_port)
@@ -4405,6 +4411,8 @@ void hdmirx_close_port_t3x(u8 port)
 	}
 	rx_emp_hw_enable(false);
 	rx_irq_en(0, port);
+	if (rx_info.chip_id == CHIP_ID_T6X)
+		rx_switch_vpu_clk(0);
 }
 
 void hdmirx_close_port(u8 port)

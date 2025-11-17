@@ -3799,4 +3799,6 @@ bool hdmi_rx_is_fifo_unnormal(u8 port);
 void hdmi_rx_frl_pix_chg(u8 port);
 u32 hdmirx_rd_ee_vol(u32 addr);
 void hdmirx_wr_ee_vol(u32 addr, u32 data);
+void rx_vpu_handler(struct work_struct *work);
+
 #endif

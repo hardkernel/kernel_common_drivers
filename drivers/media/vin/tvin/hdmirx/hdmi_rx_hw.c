@@ -30,6 +30,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
 #include <linux/amlogic/clk_measure.h>
+#include <linux/amlogic/media/vpu/vpu.h>
 
 /* Local include */
 #include "hdmi_rx_eq.h"
@@ -8997,3 +8998,9 @@ void hdmi_rx_cor_reset(u8 port)
 	udelay(1);
 	hdmirx_wr_top(TOP_SW_RESET, 0, port);
 }
+
+void rx_vpu_handler(struct work_struct *work)
+{
+	rx_switch_vpu_clk(1);
+}
+

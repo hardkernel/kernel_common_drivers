@@ -7,11 +7,12 @@
 #include "dsc_dec_hw.h"
 #include "dsc_dec_debug.h"
 #include "dsc_dec_reg.h"
+#include "../tvin_global.h"
 
 #define MHz	1000000
 #define PIX_BAND0 (333 * MHz)
-#define PIX_BAND1 (370 * MHz)
-#define PIX_BAND2 (408 * MHz)
+#define PIX_BAND1 (358 * MHz)
+#define PIX_BAND2 (406 * MHz)
 
 #define VPU_CLK_DIV_2 1
 #define FPLL_DIV3 2
@@ -946,6 +947,15 @@ void dsc_dec_clk_calculate(unsigned int integer, unsigned int frac)
 void dsc_clk_config(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 {
 	struct hdmi_dsc_pps_data_s *pps_data = &dsc_dec_drv->pps_data;
+	u32 tmp;
+	u32 clk;
+
+	if (pps_data->native_420 == 1 || pps_data->native_422 == 1)
+		tmp = 2;
+	else
+		tmp = 1;
+
+	clk = pps_data->pixel_clk / (pps_data->bits_per_pixel / tmp) * 192;
 
 	if (dsc_dec_drv->data->chip_type == DSC_DEC_CHIP_T3X) {
 		dsc_dec_config_fix_pll_clk(DSC_CLK_BAND0);
@@ -978,7 +988,7 @@ void dsc_clk_config(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 		}
 	} else {
 		if (pps_data->pic_width == 7680 && pps_data->pic_height == 4320) {
-			set_dsc_clk_cntl(FPLL_DIV3);
+			set_dsc_clk_cntl(FPLL_DIV3, clk);
 			if (pps_data->pixel_clk <= PIX_BAND0) {
 				//yuv420 ppc setting is different from others.
 				if (dsc_dec_drv->pps_data.native_420)
@@ -989,13 +999,20 @@ void dsc_clk_config(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 				dsc_dec_drv->pix_per_clk = 2;
 			}
 		} else {
-			if ((pps_data->pixel_clk / pps_data->bits_per_pixel * 192 > PIX_BAND0) ||
+			if (clk > PIX_BAND0 ||
 				pps_data->dsc_force_4ppc) {
 				dsc_dec_drv->pix_per_clk = 2;
-				set_dsc_clk_cntl(VPU_CLK_DIV_2);
+				if (clk <= PIX_BAND1)
+					dsc_dec_config_fix_pll_clk(DSC_CLK_BAND1);
+				else if (clk <= PIX_BAND2)
+					dsc_dec_config_fix_pll_clk(DSC_CLK_BAND2);
+				else
+					dsc_dec_config_fix_pll_clk(DSC_CLK_BAND4);
+				//need vpu clk enhance
+				set_dsc_clk_cntl(DSC_PIX_PLL, clk);
 			} else {
 				dsc_dec_drv->pix_per_clk = 1;
-				set_dsc_clk_cntl(FPLL_DIV3);
+				set_dsc_clk_cntl(FPLL_DIV3, clk);
 			}
 		}
 	}

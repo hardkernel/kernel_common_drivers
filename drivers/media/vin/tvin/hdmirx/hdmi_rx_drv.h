@@ -1217,6 +1217,9 @@ extern struct workqueue_struct *clkmsr_wq;
 extern struct edid_delayed_work_data edid_reset_work;
 extern struct work_struct     earc_hpd_dwork;
 extern struct workqueue_struct *earc_hpd_wq;
+extern struct work_struct     vpu_dwork;
+extern struct workqueue_struct *vpu_wq;
+
 extern struct workqueue_struct	*repeater_wq;
 extern struct edid_update_work_s edid_update_dwork;
 extern struct workqueue_struct *edid_update_wq;

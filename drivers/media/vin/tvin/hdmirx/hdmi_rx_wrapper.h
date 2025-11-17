@@ -225,6 +225,8 @@ void rx_edid_update_handler(struct work_struct *dwork);
 void frate_monitor(void);
 void frate_monitor1(void);
 
+unsigned int rx_switch_vpu_clk(int over_clock_flag);
+
 void __weak set_video_mute(u32 owner, bool on)
 {
 }

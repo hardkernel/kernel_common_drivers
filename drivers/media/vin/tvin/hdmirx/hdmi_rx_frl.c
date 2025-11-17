@@ -29,6 +29,8 @@
 #include <linux/amlogic/clk_measure.h>
 #include <linux/amlogic/media/video_sink/video.h>
 #include <uapi/amlogic/hdmi_rx.h>
+#include "../tvin_global.h"
+
 /* Local Include */
 #include "hdmi_rx_repeater.h"
 #include "hdmi_rx_drv.h"
@@ -1271,10 +1273,12 @@ void rx_set_dsc_hdmi_cntl(unsigned int val)
 	hdmirx_wr_top_common(TOP_DSC_HDMI_CNTL, val);
 }
 
-void set_dsc_clk_cntl(int clk_select)
+void set_dsc_clk_cntl(int clk_select, int clk)
 {
 	if (rx_info.chip_id != CHIP_ID_T6X)
 		return;
+	if (clk >= 406 * MHz && clk_select == H_DSC_PIX_PLL)
+		schedule_work(&vpu_dwork);
 	if (clk_select == H_VPU_CLK_DIV_2)
 		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x343);
 	else if (clk_select == H_FPLL_DIV3)

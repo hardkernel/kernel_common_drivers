@@ -262,7 +262,6 @@ struct hdmirx_scdc_info {
 #define HDMI_IOC_AUDIO_DATA_DUMP	_IO(HDMI_IOC_MAGIC, 0x1b)
 
 void rx_set_dsc_hdmi_cntl(unsigned int val);
-void set_dsc_clk_cntl(int clk_select);
 
 #endif
 

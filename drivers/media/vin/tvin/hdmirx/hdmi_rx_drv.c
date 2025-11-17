@@ -29,6 +29,8 @@
 #include <linux/io.h>
 #include <linux/compat.h>
 #include <linux/suspend.h>
+#include <linux/amlogic/media/vpu/vpu.h>
+
 /* #include <linux/earlysuspend.h> */
 #include <linux/delay.h>
 #include <linux/of.h>
@@ -124,6 +126,8 @@ struct work_struct     clkmsr_dwork;
 struct workqueue_struct *clkmsr_wq;
 struct work_struct     earc_hpd_dwork;
 struct workqueue_struct *earc_hpd_wq;
+struct work_struct     vpu_dwork;
+struct workqueue_struct *vpu_wq;
 struct edid_delayed_work_data edid_reset_work;
 
 // edid updata
@@ -634,6 +638,8 @@ void hdmirx_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	/* parm->info.fmt = TVIN_SIG_FMT_NULL; */
 	/* parm->info.status = TVIN_SIG_STATUS_NULL; */
 	rx_pr("%s port:%d, port_type:%d ok\n", __func__, port - TVIN_PORT_HDMI0, port_type);
+	if (rx_info.chip_id == CHIP_ID_T6X)
+		rx_switch_vpu_clk(0);
 }
 
 /*
@@ -1738,7 +1744,10 @@ void hdmirx_get_spd_info(struct tvin_frontend_s *fe,
 
 	port = rx_get_port_from_type(port_type);
 	memcpy(&prop->spd_data, &rx_pkt[port].spd_info, sizeof(struct tvin_spd_data_s));
+}
 
+void __weak dsc_update_vstart(int vstart, int vend, int odd)
+{
 }
 
 void hdmirx_get_pps_info(struct tvin_sig_property_s *prop, u8 port)//todo)
@@ -4589,6 +4598,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 	/* create for earc hpd ctl */
 	earc_hpd_wq = create_workqueue(hdevp->frontend.name);
 	INIT_WORK(&earc_hpd_dwork, rx_earc_hpd_handler);
+
+	vpu_wq = create_workqueue(hdevp->frontend.name);
+	INIT_WORK(&vpu_dwork, rx_vpu_handler);
 
 	INIT_DELAYED_WORK(&edid_reset_work.delayed_work, rx_edid_reset_handler);
 	/* create for frl training */
