@@ -501,7 +501,6 @@ void hdmirx_fsm_var_init(void)
 		aud_sr_stb_max = 10;
 		clk_stable_max = 3;
 		rx_phy_level = 5;
-		detect_time_min = 20;
 		break;
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
@@ -1031,6 +1030,8 @@ static int rx_cor_irq_handler(u8 port)
 				rx[port].hdcp.rpt_reauth_event =
 				HDCP_VER_22 | HDCP_NEED_REQ_DS_AUTH;
 			rx[port].hdcp.hdcp_source = true;
+			if (rx[port].hdcp.reauth_req_cnt > 0)
+				rx[port].hdcp.reauth_req_cnt--;
 			rx_pr("22\n");
 		}
 	}
@@ -1062,6 +1063,8 @@ static int rx_cor_irq_handler(u8 port)
 				rx[port].hdcp.rpt_reauth_event =
 				HDCP_VER_14 | HDCP_NEED_REQ_DS_AUTH;
 			rx[port].hdcp.hdcp_source = true;
+			if (rx[port].hdcp.reauth_req_cnt > 0)
+				rx[port].hdcp.reauth_req_cnt--;
 			rx_pr("14\n");
 		}
 		if (rx_get_bits(rx_intr_1, _BIT(0))) {
@@ -4982,7 +4985,8 @@ void rx_main_state_machine(void)
 					 rx[port].var.dvi_check_en = false;
 					break;
 				}
-				if (rx[port].last_sw_vic != rx[port].pre.sw_vic)
+				if (rx[port].last_sw_vic != rx[port].pre.sw_vic ||
+					rx[port].hdcp.reauth_req_cnt)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
@@ -5448,7 +5452,8 @@ void rx_port0_main_state_machine(void)
 					rx[port].var.dvi_check_en = false;
 					break;
 				}
-				if (rx[port].last_sw_vic != rx[port].pre.sw_vic)
+				if (rx[port].last_sw_vic != rx[port].pre.sw_vic ||
+					rx[port].hdcp.reauth_req_cnt > 0)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
@@ -5872,7 +5877,8 @@ void rx_port1_main_state_machine(void)
 					rx[port].var.dvi_check_en = false;
 					break;
 				}
-				if (rx[port].last_sw_vic != rx[port].pre.sw_vic)
+				if (rx[port].last_sw_vic != rx[port].pre.sw_vic ||
+					rx[port].hdcp.reauth_req_cnt > 0)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
@@ -6373,7 +6379,8 @@ void rx_port2_main_state_machine(void)
 					 rx[port].var.dvi_check_en = false;
 					break;
 				}
-				if (rx[port].last_sw_vic != rx[port].pre.sw_vic)
+				if (rx[port].last_sw_vic != rx[port].pre.sw_vic ||
+					rx[port].hdcp.reauth_req_cnt > 0)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
@@ -6951,7 +6958,8 @@ void rx_port3_main_state_machine(void)
 					 rx[port].var.dvi_check_en = false;
 					break;
 				}
-				if (rx[port].last_sw_vic != rx[port].pre.sw_vic)
+				if (rx[port].last_sw_vic != rx[port].pre.sw_vic ||
+					rx[port].hdcp.reauth_req_cnt > 0)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;

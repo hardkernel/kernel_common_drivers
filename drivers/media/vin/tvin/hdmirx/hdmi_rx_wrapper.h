@@ -64,9 +64,10 @@
 /* 2025.10.15 fix green screen issue for case78 */
 /*2025.11.4 add edid switch protect*/
 /* 2025.11.11 enable EMP until signal stable */
-/*2025.11.4 add edid switch protect*/
+/* 2025.11.4 add edid switch protect*/
 /* 2025.11.14 optimize t6x signal time */
-#define RX_WRAPPER_VER "ver.2025/11/14"
+/* 2025.11.20 fix issue that hdcp reauth too slow */
+#define RX_WRAPPER_VER "ver.2025/11/20"
 
 struct freq_ref_s {
 	bool interlace;

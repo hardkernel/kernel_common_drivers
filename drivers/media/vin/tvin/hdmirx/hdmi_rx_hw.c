@@ -4399,6 +4399,7 @@ void rx_hdcp_monitor(u8 port)
 		rx[port].hdcp.hdcp_pre_ver = HDCP_VER_NONE;
 		rx[port].hdcp.hdcp_version = HDCP_VER_NONE;
 		rx[port].state = FSM_SIG_WAIT_STABLE;
+		rx[port].stable_timestamp = rx_info.timestamp; //for min time detect
 		rx[port].ecc_err = 0;
 		rx[port].ecc_err_frames_cnt = 0;
 	}
@@ -8168,6 +8169,7 @@ void rx_hdcp_22_sent_reauth(u8 port)
 void rx_hdcp_14_sent_reauth(u8 port)
 {
 	hdmirx_wr_cor(RX_HDCP_DEBUG_HDCP1X_IVCRX, 0x80, port);
+	rx[port].hdcp.reauth_req_cnt++;
 }
 
 void rx_check_ecc_error(u8 port)
@@ -8497,6 +8499,7 @@ void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod)
 		break;
 	case CHIP_ID_T6D:
 	case CHIP_ID_T6W:
+	case CHIP_ID_T6X:
 		rx_info.i2c_buff.addr_base = T6D_I2C_MONITOR_BASE;
 		break;
 	default:
@@ -8505,7 +8508,7 @@ void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod)
 	bist_mode = smp_mod > 2 ? 1 : 0;
 
 	data32 = 0;
-	data32 |= bist_mode << 31; //[31]  bist_mode  exist bug, can't use
+	data32 |= bist_mode << 31; //[31]  t3x bist_mode  exist bug, can't use
 	data32 |= (dump_mod & 0x1f) << 16; //[20-16]dump mode
 	data32 |= 0x1 << 4; //[4]   clk_free
 	data32 |= (smp_mod & 0x3) << 2; //[3:2] smp_mode
@@ -8524,6 +8527,10 @@ void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod)
 		sel += 4;
 		data32 |= (sel >= 4 ? 1 << (sel - 4) : 0) << 24; //i2c master num is 4
 		break;
+	case CHIP_ID_T6X:
+		sel += 5;
+		data32 |= (sel >= 5 ? 1 << (sel - 5) : 0) << 24; //i2c master num is 5
+		break;
 	default:
 		break;
 	}
@@ -8534,6 +8541,7 @@ void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod)
 		break;
 	case CHIP_ID_T3X:
 	case CHIP_ID_T6W:
+	case CHIP_ID_T6X:
 		data32 |= (1 << sel) << 0; //[23:0]  sel input scl to monitor
 		break;
 	default:
@@ -8594,6 +8602,7 @@ void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod)
 				(I2C_BUFF_SIZE >> 2));
 			break;
 		case CHIP_ID_T6W:
+		case CHIP_ID_T6X:
 			wr_reg_clk_ctl(I2C_MONITOR_DDR_START_ADDR,
 				rx_info.i2c_buff.phy_addr >> 2);
 			wr_reg_clk_ctl(I2C_MONITOR_DDR_END_ADDR,
@@ -8703,6 +8712,7 @@ void rx_i2c_dump(void)
 			rx_info.i2c_buff.phy_addr;
 		break;
 	case CHIP_ID_T6W:
+	case CHIP_ID_T6X:
 		buf_cnt = (rd_reg_clk_ctl(I2C_MONITOR_DDR_WPTR) -
 			rd_reg_clk_ctl(I2C_MONITOR_DDR_START_ADDR)) << 2;
 		break;
