@@ -1464,7 +1464,7 @@ static bool ad82120b_is_volatile_reg(struct device *dev, unsigned int reg)
 	case AD82120B_DEVICE_ID_REG:
 		return true;
 	default:
-		return false;
+		return true;
 	}
 #endif
 }
