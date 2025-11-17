@@ -5334,7 +5334,7 @@ int crg_rewrite_otg_write_UDC(void)
 
 	if (READ_ONCE(gi->composite.gadget_driver.udc_name)) {
 		CRG_ERROR("UDC already written. skip.\n");
-		goto err;
+		goto err1;
 	}
 
 	mutex_lock(&gi->lock);
@@ -5353,6 +5353,7 @@ int crg_rewrite_otg_write_UDC(void)
 	return 0;
 err:
 	mutex_unlock(&gi->lock);
+err1:
 	kfree(name);
 	return ret;
 }
