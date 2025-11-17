@@ -56,6 +56,7 @@ struct mbox_payload {
 #define DATA_TYPE_MDNS_FRAME_SIZE	0x0e	/* For mDNS offload */
 #define DATA_TYPE_MDNS_FRAME_INFO	0x0f	/* For mDNS offload */
 #define DATA_TYPE_GET_PASST_STATUS	0x10	/* For mDNS offload */
+#define DATA_TYPE_IPV4_MASK		0x11	/* Set IPv4 Mask */
 
 #define WKUP_REASON_UNUSED		0x00
 #define WKUP_REASON_MAGIC		0x01	/* Magic packet wakeup */
@@ -336,7 +337,7 @@ static void __set_ipv4_address(void)
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
-	__be32 ip;
+	__be32 ip, ip_mask;
 	char ip_str[16];
 	bool found = false;
 
@@ -346,6 +347,7 @@ static void __set_ipv4_address(void)
 		/* Find available IPv4 addresses */
 		in_dev_for_each_ifa_rcu(ifa, in_dev) {
 			ip = ifa->ifa_local;
+			ip_mask = ifa->ifa_mask;
 			snprintf(ip_str, sizeof(ip_str), "%pI4", &ip);
 			found = true;
 			break;
@@ -353,8 +355,10 @@ static void __set_ipv4_address(void)
 	}
 	rcu_read_unlock();
 
-	if (found)
+	if (found) {
 		__mbox_data_write(DATA_TYPE_IPV4_ADDR, &ip, 4);
+		__mbox_data_write(DATA_TYPE_IPV4_MASK, &ip_mask, 4);
+	}
 }
 
 bool amlogic_wol_wakeup_src_not_empty(void)
