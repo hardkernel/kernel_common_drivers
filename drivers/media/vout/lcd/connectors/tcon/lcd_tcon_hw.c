@@ -40,6 +40,11 @@ int tcon_lut_dma_get_frame_cnt_t6w(struct aml_lcd_drv_s *pdrv)
 	return lcd_tcon_getb(pdrv, 0x5d3, 6, 1);
 }
 
+void tcon_lut_dma_clk_en(struct aml_lcd_drv_s *pdrv)
+{
+	lcd_tcon_setb(pdrv, 0x207, 1, 31, 1); //enable dma clk
+}
+
 void tcon_lut_dma_start(struct aml_lcd_drv_s *pdrv)
 {
 	lcd_tcon_setb(pdrv, 0x207, 1, 31, 1); //enable dma clk
@@ -205,6 +210,35 @@ void tcon_sw_dma_trig(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_setb(pdrv, 0x5dd, 0, 31, 1); //reg_lut_dma_sw_start
 }
 
+static int tcon_sw_dma_done(struct aml_lcd_drv_s *pdrv)
+{
+	return !!lcd_tcon_getb(pdrv, 0x5d3, 7, 1);
+}
+
+int wait_tcon_sw_dma_done(struct aml_lcd_drv_s *pdrv, unsigned int timeout_us)
+{
+	unsigned int to = timeout_us >> 1;
+
+	while (to-- > 0) {
+		udelay(2);
+		if (tcon_sw_dma_done(pdrv))
+			return 1;
+	}
+
+	return 0;
+}
+
+static int tcon_aptu_dma_done(struct aml_lcd_drv_s *pdrv)
+{
+	return !!lcd_tcon_getb(pdrv, 0x5d3, 6, 1);
+}
+
+static void tcon_clr_dma_done(struct aml_lcd_drv_s *pdrv)
+{
+	lcd_tcon_setb(pdrv, 0x5d3, 1, 31, 1);
+	lcd_tcon_setb(pdrv, 0x5d3, 0, 31, 1);
+}
+
 static void lcd_tcon_dma_addr_add(struct lcd_tcon_dma_ops_s *ops,
 		phys_addr_t paddr, unsigned int size)
 {
@@ -236,6 +270,43 @@ void lcd_tcon_lut_dma_update(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops
 	if (ops->status) {
 		if (ops->get_frame_cnt(pdrv)) {
 			ops->stop(pdrv);
+			ops->status = 0;
+		} else {
+			return;//enabled but not trans finish
+		}
+	}
+
+	if (!ops->addr_list)
+		return;
+
+	dma_info = list_entry(ops->addr_list, struct lcd_tcon_dma_info_s, list);
+	ops->mif_set(pdrv, dma_info->paddr, dma_info->size);
+
+	ops->start(pdrv);
+	ops->status = 1;
+
+	if (ops->addr_list->next != ops->addr_list) {
+		list_temp = ops->addr_list->next;
+		list_del(ops->addr_list);
+		ops->addr_list = list_temp;
+	} else {
+		ops->addr_list = NULL;
+	}
+	kfree(dma_info);
+}
+
+void lcd_tcon_lut_dma_update_t6x(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops)
+{
+	struct lcd_tcon_dma_info_s *dma_info;
+	struct list_head *list_temp;
+
+	if (!ops || !ops->mif_set || !ops->start || !ops->stop || !ops->get_frame_cnt)
+		return;
+
+	if (ops->status) {
+		if (tcon_aptu_dma_done(pdrv)) {
+			ops->stop(pdrv);
+			tcon_clr_dma_done(pdrv);
 			ops->status = 0;
 		} else {
 			return;//enabled but not trans finish
@@ -609,8 +680,10 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv, unsigned char *da
 	unsigned int reg_cnt, reg_byte, data_cnt, data_byte;
 	unsigned short block_ctrl_flag;
 	unsigned char exe_in_isr = 0, exe_ignore = 0;
-	unsigned int part_start_offset, part_offset;
+	unsigned int part_start_offset, part_offset, temp_size = 0;
 	struct lcd_tcon_dma_ops_s *dma_ops = NULL;
+	u64 temp_addr = 0;
+	phys_addr_t vrr_paddr;
 	int ret;
 	int vrr_data_valid = 0;
 	struct lcd_tcon_vrr_data_s *vrr_data = NULL;
@@ -1005,6 +1078,11 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv, unsigned char *da
 				vrr_data = &tcon_local->vrr_data;
 				if (!vrr_data->support || !vrr_data->part)
 					break;
+				/* uboot alloced this memory, no need once lcd disable->enable */
+				if (lrm_get_by_name("tcon_vrr_data", &temp_addr, &temp_size) == 0) {
+					vrr_paddr = (phys_addr_t)temp_addr;
+					lrm_free(NULL, vrr_paddr);
+				}
 				vrr_data->en = 1;
 				vrr_data->paddr = paddr;
 				vrr_data->size = data_part.dma->dma_data_size;
@@ -1017,9 +1095,16 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv, unsigned char *da
 				tcon_sw_dma_mif_set(pdrv,
 						vrr_data->paddr + ret * vrr_data->part_size,
 						vrr_data->part_size);
+				tcon_lut_dma_clk_en(pdrv);
+				tcon_clr_dma_done(pdrv);
 				tcon_sw_dma_trig(pdrv);
-				tcon_lut_dma_start(pdrv);
+				ret = wait_tcon_sw_dma_done(pdrv, 3000);
+				tcon_clr_dma_done(pdrv);
 				tcon_fr_detect_enable(pdrv, 1);
+				if ((lcd_debug_print_flag & LCD_DBG_PR_ADV))
+					LCDPR("%s: vrr_dma: paddr:0x%llx, size:0x%x %s\n",
+						__func__, (unsigned long long)vrr_data->paddr,
+						vrr_data->part_size, ret ? "ok" : "fail");
 				break;
 			}
 

@@ -74,9 +74,11 @@ void tcon_fr_detect_config(struct aml_lcd_drv_s *pdrv, unsigned int mode,
 void tcon_fr_detect_enable(struct aml_lcd_drv_s *pdrv, int enable)
 {
 	if (enable)
-		lcd_tcon_setb(pdrv, 0x232, 1,  13, 1);
+		//lcd_tcon_setb(pdrv, 0x232, 1,  13, 1);// this may cause screen flicker
+		lcd_tcon_rdma_wr_bits(pdrv, 0x232, 1, 13, 1);
 	else
-		lcd_tcon_setb(pdrv, 0x232, 0,  13, 1);
+		//lcd_tcon_setb(pdrv, 0x232, 0,  13, 1);
+		lcd_tcon_rdma_wr_bits(pdrv, 0x232, 0, 13, 1);
 }
 
 void lcd_tcon_data_parse_vrr(struct lcd_tcon_vrr_data_s *vrr,

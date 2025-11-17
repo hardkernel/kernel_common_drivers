@@ -339,6 +339,8 @@ void tcon_lut_dma_init_t6w(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s
 void tcon_lut_dma_deinit(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
 void lcd_tcon_lut_dma_update(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
 void tcon_vrr_dma_mif_set(struct aml_lcd_drv_s *pdrv, phys_addr_t paddr, unsigned int size);
+void lcd_tcon_lut_dma_update_t6x(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
+
 
 void lcd_tcon_ext_header_check(struct lcd_tcon_init_block_ext_header_s *ext_header);
 int lcd_tcon_get_core_size(struct lcd_tcon_config_s *tcon_conf,

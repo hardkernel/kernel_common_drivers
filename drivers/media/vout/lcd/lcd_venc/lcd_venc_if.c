@@ -287,8 +287,6 @@ unsigned int lcd_get_encl_frm_cnt(struct aml_lcd_drv_s *pdrv)
 	if (!lcd_venc_op.get_encl_frm_cnt)
 		return 0;
 
-	LCD_DBG(pdrv, "%s", __func__);
-
 	cnt = lcd_venc_op.get_encl_frm_cnt(pdrv);
 
 	return cnt;
