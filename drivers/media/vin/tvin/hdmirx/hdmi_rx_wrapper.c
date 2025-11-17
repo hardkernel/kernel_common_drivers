@@ -664,8 +664,12 @@ void rx_tasklet_handler(unsigned long arg)
 
 	if (rx[port].irq_flag & IRQ_AVI_CHG_FLAG) {
 		if (video_mute_enabled(port) && rx_chk_avi_valid(port)) {
-			hdmirx_mute_vpp_pkt(true, port);
-			rx[port].vpp_mute_cnt = vpp_mute_cnt;
+			if (tvin_get_game_mode_status(rx_get_port_type(port))) {
+				hdmirx_mute_vpp_pkt(true, port);
+				rx[port].vpp_mute_cnt = vpp_mute_cnt;
+			} else {
+				skip_frame(skip_frame_cnt, port, "avi-");
+			}
 		} else {
 			skip_frame(skip_frame_cnt, port, "avi-");
 		}

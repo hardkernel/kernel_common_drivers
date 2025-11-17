@@ -212,7 +212,7 @@ int suspend_pddq_sel = 1;
 /* as cvt required, set hpd low if cec off when boot */
 u32 hpd_low_cec_off = 1;
 u32 rx_5v_wake_up_en;
-int vpp_mute_cnt = 6;
+int vpp_mute_cnt = 30;
 int gcp_mute_cnt = 25;
 int gcp_mute_flag[4];
 int ee_voltage_val = 0xe0004;

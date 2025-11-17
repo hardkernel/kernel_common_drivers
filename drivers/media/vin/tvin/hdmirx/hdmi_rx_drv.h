@@ -103,7 +103,8 @@
 //2025.09.29 remove unused ioctl cmd
 //2025.11.11 add vsync polarity support and cal for neg vstart
 //2025.11.12 set VESA 640*480 aspect ratio to 4/3
-#define RX_DRV_VER "ver.2025/11/12"
+//2025.11.18 add mute cnt when avi change
+#define RX_DRV_VER "ver.2025/11/18"
 
 /*print type*/
 #define COR1_LOG	0x10000
