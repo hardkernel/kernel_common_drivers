@@ -1857,7 +1857,8 @@ void vpu_module_clk_disable(u32 vpp_index, u32 module, bool async)
 		vd2_hdr2_clk_gate, osd2_hdr2_clk_gate, vpp_pi_gclk_ctrl,
 		safa_pps_gate_ctrl;
 	/*t6w dolby clk gate influence hdr*/
-	if (video_is_meson_t6w_cpu() && module == DV_TVCORE)
+	if ((video_is_meson_t6w_cpu() || video_is_meson_t6x_cpu()) &&
+		module == DV_TVCORE)
 		return;
 	if (video_is_meson_txhd2_cpu() || video_is_meson_s1a_cpu() ||
 		video_is_meson_s7_cpu() || video_is_meson_s7d_cpu() ||

@@ -1505,7 +1505,7 @@ void enable_amdv_hw5(int enable)
 						/*top2 int disable*/
 						WRITE_VPP_DV_REG_BITS
 						(T6W_VPU_DOLBY_IRQ_CTRL2, 0, 0, 8);
-						//WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 0);
+						WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 0);
 					} else {
 						/*top1 int disable*/
 						VSYNC_WR_DV_REG_BITS
@@ -1513,7 +1513,7 @@ void enable_amdv_hw5(int enable)
 						/*top2 int disable*/
 						VSYNC_WR_DV_REG_BITS
 						(T6W_VPU_DOLBY_IRQ_CTRL2, 0, 0, 8);
-						//VSYNC_WR_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 0);
+						VSYNC_WR_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 0);
 					}
 					cfg_dd_path_off();
 					if (is_aml_t6w())
@@ -1557,7 +1557,7 @@ void enable_amdv_hw5(int enable)
 						/*top2 int disable*/
 						WRITE_VPP_DV_REG_BITS
 						(T6W_VPU_DOLBY_IRQ_CTRL2, 0, 0, 8);
-						//WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 0);
+						WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 0);
 					} else {
 						/*top1 int disable*/
 						VSYNC_WR_DV_REG_BITS
@@ -1565,7 +1565,7 @@ void enable_amdv_hw5(int enable)
 						/*top2 int disable*/
 						VSYNC_WR_DV_REG_BITS
 						(T6W_VPU_DOLBY_IRQ_CTRL2, 0, 0, 8);
-						//VSYNC_WR_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 0);
+						VSYNC_WR_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 0);
 					}
 					cfg_dd_path_off();
 					/*when switch to dpss during play,pre-set bit8=1 to*/
