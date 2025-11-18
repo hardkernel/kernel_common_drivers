@@ -356,7 +356,7 @@ bool vdin_is_qms_plus_state_chg(struct vdin_dev_s *devp);
 bool vdin_is_qms_state_chg(struct vdin_dev_s *devp);
 void vdin_sw_reset(struct vdin_dev_s *devp);
 unsigned int vdin_calculate_common_divisor(unsigned int x, unsigned int y);
-int vdin_get_base_fr(struct vdin_dev_s *devp);
+unsigned int vdin_get_base_fr(struct vdin_dev_s *devp);
 bool vdin_is_3d_interlace_signal(struct vdin_dev_s *devp);
 u64 vdin_calculate_isr_interval_value(struct vdin_dev_s *devp);
 void vdin_set_hscale(struct vdin_dev_s *devp, unsigned int dst_w);

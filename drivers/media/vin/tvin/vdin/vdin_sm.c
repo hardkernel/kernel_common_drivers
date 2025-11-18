@@ -102,7 +102,6 @@ static inline void vdin_update_parm(struct vdin_dev_s *devp)
 		devp->parm.info.trans_fmt = devp->prop.trans_fmt;
 
 	devp->parm.info.is_dvi = devp->prop.dvi_info;
-	devp->parm.info.fps = devp->prop.fps;
 	devp->parm.info.cfmt =
 		devp->prop.color_format;
 }
@@ -318,7 +317,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 		}
 
 		if (devp->pre_prop.fps != devp->prop.fps &&
-		    IS_HDMI_SRC(devp->parm.port) && !vdin_is_vrr_state(devp)) {
+		    IS_HDMI_SRC(devp->parm.port) && !vdin_is_vrr_state(devp) &&
+		    !(devp->prop.vtem_data.qms_en || devp->prop.qms_plus_flag)) {
 			if (devp->sg_chg_fps_cnt > 8) {
 				devp->sg_chg_fps_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_VS_FRQ;
@@ -1021,7 +1021,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				if (sm_p->exit_prestable_cnt <=
 					hdmi_prestable_out_cnt) {
 					tmp = vdin_get_base_fr(devp);
-					if (tmp)
+					if (!tmp)
 						break;
 				}
 			}

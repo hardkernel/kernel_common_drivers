@@ -8579,19 +8579,18 @@ void vdin_sw_reset(struct vdin_dev_s *devp)
 }
 
 /* get base or maxmun value when vrr or freesync
- * return:
- * = 0:get correct base framerate from vrr/freesync
- * < 0:no correct base framerate from vrr/freesync
+ * return fps:
+ * = 0:uncorrect base framerate
  */
-int vdin_get_base_fr(struct vdin_dev_s *devp)
+unsigned int vdin_get_base_fr(struct vdin_dev_s *devp)
 {
 	unsigned int fps = 0;
-	int ret = -1;
 
 	if (!IS_HDMI_SRC(devp->parm.port))
-		return ret;
+		return fps;
 
-	if (devp->prop.vtem_data.vrr_en) { /* vrr */
+	if (devp->prop.vtem_data.vrr_en || devp->prop.qms_plus_flag ||
+		devp->prop.vtem_data.qms_en) { /* vrr */
 		if (devp->prop.hw_vic != 0) {
 		#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
@@ -8625,21 +8624,18 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 	#endif
 	}
 
-	if (fps) {
-		/* upper get this value prevent frequent changes */
-		if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
-			devp->parm.info.fps = fps;
-		ret = 0;
-	}
+	if (fps)
+		devp->parm.info.fps = fps;
 
 	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_RATIO)
-		pr_info("%s vrr_en:%d,vic=%d,base_fr=%d,spd[5]:%#x,spd[7]:%#x,fps:%d,%d,%d,%d\n",
+		pr_info("%s vrr_en:%d,vic=%d;%d,%d,base_fr=%d,spd[5]:%#x,[7]:%#x,fps:%d,%d,%d,%d\n",
 			__func__, devp->prop.vtem_data.vrr_en, devp->prop.hw_vic,
+			devp->prop.vtem_data.qms_en, devp->prop.qms_plus_flag,
 			devp->prop.vtem_data.base_framerate, devp->prop.spd_data.data[5],
 			devp->prop.spd_data.data[7], devp->parm.info.fps, devp->prop.fps,
 			devp->vin_base_fps, devp->vout_base_fps);
 
-	return ret;
+	return fps;
 }
 
 /* check 3D interlace signal:

@@ -3191,7 +3191,7 @@ int vdin_vs_duration_check(struct vdin_dev_s *devp)
 
 	if (devp->index || devp->game_mode || !IS_HDMI_SRC(devp->parm.port) ||
 	    vdin_is_auto_game_mode(devp) || devp->prop.vtem_data.qms_en ||
-	    devp->prop.vtem_data.qms_plus_en || vdin_is_vrr_state(devp))
+	    devp->prop.qms_plus_flag || vdin_is_vrr_state(devp))
 		return ret;
 
 	cur_time = devp->cycle;
