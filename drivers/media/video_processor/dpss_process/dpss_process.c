@@ -26,6 +26,9 @@
 
 #include "dpss_process.h"
 #include "dpss_proc_file.h"
+#ifdef CONFIG_AMLOGIC_DPSS_THERMAL
+#include "dpss_cooling.h"
+#endif
 #include "../../common/uvm_process/meson_uvm_lcevc_processor.h"
 
 #define DPSS_PROCESS_DEVICE_NAME   "di_process"
@@ -61,6 +64,10 @@ static u32 direct_mode_flag;
 static enum direct_mode_override force_direct_mode;
 static bool is_dual_channel_enabled;
 static u32 vd1_toggle_frame_index[2];
+#ifdef CONFIG_AMLOGIC_DPSS_THERMAL
+static u32 temperature_control_en;
+struct dpss_cooling_device *dpss_cdev_global;
+#endif
 
 static DEFINE_MUTEX(dpss_process_mutex);
 
@@ -1875,6 +1882,59 @@ void get_vd1_toggle_first_frame_index(u32 layer_index, u32 frame_index)
 }
 EXPORT_SYMBOL(get_vd1_toggle_first_frame_index);
 
+#ifdef CONFIG_AMLOGIC_DPSS_THERMAL
+int set_dpss_cooling_state(int enable)
+{
+	if (temperature_control_en != enable)
+		temperature_control_en =  enable;
+
+	pr_info("dp:[0]: set temperature_control_en to %d.\n", enable);
+
+	return 0;
+}
+
+void register_dpss_cooling(struct device_node *np)
+{
+	struct thermal_cooling_device *ret = NULL;
+	struct dpss_cooling_device *dpss_cdev;
+
+	dpss_cdev = kzalloc(sizeof(*dpss_cdev), GFP_KERNEL);
+	if  (!dpss_cdev)
+		return;
+
+	dpss_cdev->maxstep = 1;
+	dpss_cdev->set_dpss_cooling_state = set_dpss_cooling_state;
+	ret = dpss_cooling_register(dpss_cdev, np);
+	if (!ret) {
+		pr_err("failed to allocate major number\n");
+		goto fail_dpss_cooling_register;
+	}
+	dpss_cdev->cool_dev = ret;
+	dpss_cdev_global = dpss_cdev;
+	return;
+
+fail_dpss_cooling_register:
+	kfree(dpss_cdev);
+	dpss_cdev = NULL;
+}
+
+void unregister_dpss_cooling(void)
+{
+	struct dpss_cooling_device *dpss_cdev;
+
+	if  (!dpss_cdev_global) {
+		pr_err("NULL dev, no need unreg.\n");
+		return;
+	}
+	dpss_cdev = dpss_cdev_global;
+	dpss_cdev_global = NULL;
+
+	if (dpss_cdev->cool_dev)
+		dpss_cooling_unregister(dpss_cdev->cool_dev);
+	kfree(dpss_cdev);
+}
+#endif
+
 static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_info_t *frame_info)
 {
 	int i;
@@ -3059,7 +3119,13 @@ static int dpss_process_probe(struct platform_device *pdev)
 					      NULL, ports[i].name);
 		dp_timeline_create(i);
 	}
-	pr_err("%s num=%d\n", __func__, dpss_process_instance_num);
+
+#ifdef CONFIG_AMLOGIC_DPSS_THERMAL
+	if (of_property_present(pdev->dev.of_node, "#cooling-cells"))
+		register_dpss_cooling(pdev->dev.of_node);
+#endif
+
+		pr_err("%s num=%d\n", __func__, dpss_process_instance_num);
 	return ret;
 
 error1:
@@ -3081,6 +3147,9 @@ static void dpss_process_remove(struct platform_device *pdev)
 
 	unregister_chrdev(DI_PROCESS_MAJOR, DPSS_PROCESS_DEVICE_NAME);
 	class_destroy(&dpss_process_class);
+#ifdef CONFIG_AMLOGIC_DPSS_THERMAL
+	unregister_dpss_cooling();
+#endif
 };
 
 static struct platform_driver dpss_process_driver = {

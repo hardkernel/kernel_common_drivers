@@ -1129,10 +1129,11 @@
 			status = "disabled";
 		};
 
-		dpss_process {
+		dpss_process: dpss_process {
 			compatible = "amlogic, dpss_process";
 			dev_name = "di_process";
 			status = "okay";
+			#cooling-cells = <2>;
 		};
 
 		video_queue {
@@ -1833,6 +1834,14 @@
 		resets = <&reset RESET_TS_TOP>;
 	};
 
+	vir_tsensor: vir_tsensor {
+		compatible = "amlogic, vir-tsens";
+		status = "okay";
+		zone-name = "soc_thermal";
+		num-vtsens = <1>;
+		#thermal-sensor-cells = <1>;
+	};
+
 	meson_cooldev: meson-cooldev@0 {
 		status = "okay";
 		compatible = "amlogic, meson-cooldev";
@@ -1902,6 +1911,25 @@
 					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
+				};
+			};
+		};
+
+		vir_thermal: vir_thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&vir_tsensor 0>;
+			trips {
+				vir_control: trip-point@0 {
+					temperature = <105000>;
+					hysteresis = <3000>;
+					type = "passive";
+				};
+			};
+			cooling-maps {
+				dpss_cooling_map {
+					trip = <&vir_control>;
+					cooling-device = <&dpss_process 0 1>;
 				};
 			};
 		};

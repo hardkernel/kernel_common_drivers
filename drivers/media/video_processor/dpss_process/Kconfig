@@ -13,4 +13,13 @@ config AMLOGIC_DPSS_PROCESS
 	help
 		Select to enable "Amlogic dpss_process device support.
 
+config AMLOGIC_DPSS_THERMAL
+	tristate "generic dpss cooling support"
+	depends on AMLOGIC_COOLDEV
+	default n
+	help
+		This implements change the dpss power state.
+		this driver gives apis which indicates thermal info to dpss driver to
+		control dpss power.
+
 endmenu
