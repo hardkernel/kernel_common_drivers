@@ -16,6 +16,7 @@ enum prealloc_mem_type {
 	PREALLOC_DPSS_YUV_TYPE = 6,
 };
 
+void release_all_prealloc_job_direct(void);
 void release_prealloc_job(int inst_identify);
 void release_prealloc_job_with_type(int inst_identify, u32 type);
 void submit_prealloc_job(u32 type, u32 num, u32 size, int align_2n, int memflags, int inst_id);

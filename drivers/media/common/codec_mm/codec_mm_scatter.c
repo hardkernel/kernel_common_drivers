@@ -70,6 +70,9 @@
 u32 scatter_align_pages_size = 128;
 int scatter_swap_threshold_size = 20;
 
+static int scatter_cache_margin = 1024;
+module_param(scatter_cache_margin, int, 0644);
+
 /*
  * bit[3:0]	print level
  * bit[4]	scatter info
@@ -3413,7 +3416,7 @@ static void codec_mm_scatter_cache_manage(struct codec_mm_scatter_mgt *smgt)
 				}
 			}
 		} else if ((smgt->cached_pages >
-			   (smgt->keep_size_PAGE + 1000)) &&
+			   (smgt->keep_size_PAGE + scatter_cache_margin)) &&
 			   time_after64(get_jiffies_64(),
 			   smgt->delay_free_timeout_jiffies64)) {
 			/*wait time out can free.*/

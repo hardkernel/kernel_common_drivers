@@ -167,6 +167,31 @@ static void release_unused_buffer(struct work_struct *work)
 	}
 }
 
+void release_all_prealloc_job_direct(void)
+{
+	int key;
+	struct codec_mm_pre_mgt_s *pre_mgt = get_mem_pre_mgt();
+	struct prealloc_job *job, *tmp;
+	struct hlist_node *hnode_tmp;
+
+	spin_lock(&pre_mgt->job_list_lock);
+	list_for_each_entry_safe(job, tmp, &pre_mgt->prealloc_job_list, list) {
+		list_del_init(&job->list);
+		complete(&job->done);
+	}
+	spin_unlock(&pre_mgt->job_list_lock);
+
+	mutex_lock(&pre_mgt->ht_list_mutex);
+	for (key = 0; key < HASH_SIZE(ht); key++) {
+		hash_for_each_possible_safe(ht, job, hnode_tmp, hnode, key) {
+			job->inst_id = INVALID_INST_ID;
+		}
+	}
+	mutex_unlock(&pre_mgt->ht_list_mutex);
+	release_unused_buffer(&pre_mgt->release_wrk);
+}
+EXPORT_SYMBOL(release_all_prealloc_job_direct);
+
 void release_prealloc_job(int inst_identify)
 {
 	int key;

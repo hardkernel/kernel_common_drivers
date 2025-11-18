@@ -31,6 +31,7 @@
 #include <linux/amlogic/media/codec_mm/codec_mm_scatter.h>
 #include <linux/amlogic/media/codec_mm/codec_mm_state.h>
 #include <linux/amlogic/media/codec_mm/configs.h>
+#include <linux/amlogic/media/codec_mm/codec_mm_prealloc.h>
 #include <linux/page-isolation.h>
 #include <asm/pgtable.h>
 #ifdef CONFIG_ARM64
@@ -1367,6 +1368,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 			else
 				codec_mm_scatter_free_all_ignorecache(1);
 		}
+		release_all_prealloc_job_direct();
 		if (atomic_read(&mgt->tvp_user_count) != 0 &&
 			!(memflags & CODEC_MM_FLAGS_TVP) &&
 			strncmp((void *)mem->owner, TVP_POOL_NAME, strlen(TVP_POOL_NAME)) &&
