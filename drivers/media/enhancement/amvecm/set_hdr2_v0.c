@@ -2854,7 +2854,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			pr_csc(128, "%s: IPT_SDR adpscl_shift_1 = 0x%x\n",
 				__func__, adpscl_shift[1]);
 		} else if (hdr_mtx_param->p_sel & SDR_HDR) {
-			if (chip_cls_id == TV_CHIP && module_sel == VD1_HDR) {
+			if ((chip_cls_id == TV_CHIP || chip_type_id == chip_t7) &&
+				module_sel == VD1_HDR) {
 				adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 				adpscl_shift[1] = OO_NOR -
 					_log2((1 << OO_NOR) / ogain_lut_148);
@@ -5133,7 +5134,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		hdr_lut_param.ogain_inser = 0;
 	} else if (hdr_process_select & SDR_HDR ||
 		hdr_process_select & SDR_CUVA) {
-		if (chip_cls_id == TV_CHIP &&
+		if ((chip_cls_id == TV_CHIP || chip_type_id == chip_t7) &&
 			(module_sel == VD1_HDR ||
 			module_sel == S5_VD1_SLICE1)) {
 			for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
