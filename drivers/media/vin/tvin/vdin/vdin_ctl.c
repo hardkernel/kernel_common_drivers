@@ -655,19 +655,32 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (vdin_is_dolby_signal_in(devp)) {
-		/* Is dolby vision signal input */
-		/*
-		 *if (devp->dv.low_latency) {
-		 *	if (devp->prop.color_format == TVIN_YUV422) {
-		 *		format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
-		 *	} else if (devp->prop.color_format == TVIN_RGB444) {
-		 *		format_convert = VDIN_FORMAT_CONVERT_RGB_RGB;
-		 *	}
-		 *} else {
-		 *	format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
-		 *}
-		 */
-		if (vdin_dv_is_hw2(devp)) {
+		if (vdin_dv_is_hw5(devp)) {
+			if (devp->prop.color_format == TVIN_RGB444) {
+				/* T6W VFCE do not support 4k 444 10bit */
+				if (devp->dtdata->hw_ver == VDIN_HW_T6W &&
+					devp->prop.colordepth > VDIN_COLOR_DEEPS_8BIT)
+					format_convert = VDIN_FORMAT_CONVERT_RGB_YUV422;
+				else
+					format_convert = VDIN_FORMAT_CONVERT_RGB_RGB;
+			} else if (devp->prop.color_format == TVIN_YUV444) {
+				/* T6W VFCE do not support 4k 444 10bit */
+				if (devp->dtdata->hw_ver == VDIN_HW_T6W &&
+					devp->prop.colordepth > VDIN_COLOR_DEEPS_8BIT)
+					format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
+				else
+					format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
+			} else if (devp->prop.color_format == TVIN_YUV422) {
+				/*rx/pre_proc will tunneled to 444*/
+				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
+			} else if (devp->prop.color_format == TVIN_YUV420) {
+				/* t6w not support 4k 444 10 and 420 12 input no tunnel */
+				if (devp->dtdata->hw_ver == VDIN_HW_T6W)
+					format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
+				else
+					format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
+			}
+		} else if (vdin_dv_is_hw2(devp)) {
 			if (devp->prop.color_format == TVIN_RGB444)
 				format_convert = VDIN_FORMAT_CONVERT_RGB_YUV422;
 			else if (devp->prop.color_format == TVIN_YUV422 &&
@@ -1980,7 +1993,7 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 			matrix_sel = VDIN_SEL_MATRIX0;
 		}
 		if (!devp->dv.dv_flag || devp->dv_is_not_std ||
-			/* dv hw2 not source-led needs csc */
+			vdin_is_csc_needed(devp->format_convert) ||
 		    (vdin_dv_is_hw2(devp) && !vdin_dv_is_source_led(devp))) {
 			devp->csc_idx = vdin_set_color_matrix(devp,
 						matrix_sel, devp->format_convert);
@@ -6127,6 +6140,22 @@ bool vdin_is_convert_to_nv21(u32 format_convert)
 	if (format_convert == VDIN_FORMAT_CONVERT_YUV_NV12 ||
 	    format_convert == VDIN_FORMAT_CONVERT_YUV_NV21 ||
 	    format_convert == VDIN_FORMAT_CONVERT_RGB_NV12 ||
+	    format_convert == VDIN_FORMAT_CONVERT_RGB_NV21)
+		return true;
+	else
+		return false;
+}
+
+bool vdin_is_csc_needed(u32 format_convert)
+{
+	if (format_convert == VDIN_FORMAT_CONVERT_YUV_RGB    ||
+	    format_convert == VDIN_FORMAT_CONVERT_YUV_GBR    ||
+	    format_convert == VDIN_FORMAT_CONVERT_YUV_BRG    ||
+	    format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422 ||
+	    format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422 ||
+	    format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422 ||
+	    format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444 ||
+	    format_convert == VDIN_FORMAT_CONVERT_RGB_NV12   ||
 	    format_convert == VDIN_FORMAT_CONVERT_RGB_NV21)
 		return true;
 	else
