@@ -6,7 +6,8 @@ EXTRA_CLOSED_SOURCE_MODULE_LIST=(
 	hdr10_tmo_alg.ko
 	hdr10p_adaptive_alg.ko
 	cuva_hdr_alg.ko
-	*_fe.ko
+	*_fe*.ko
 	frc*.ko
-	gdc_fw.ko
+	gdc_fw*.ko
+	amlogic_di_driver*.ko
 )
