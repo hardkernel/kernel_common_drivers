@@ -734,10 +734,6 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 	}
 
 	edid_port_type[port_num] = edid_type;
-	if (hdmi_cec_en == 1) {
-		port_hpd_rst_flag |= 1 << port_num;
-		rx_set_port_hpd(port_num, 0);
-	}
 	if (size > sizeof(edid_buf1) + 1) {
 		rx_pr("edid size overflow\n");
 		size = sizeof(edid_buf1) + 1;

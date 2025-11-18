@@ -547,6 +547,8 @@ struct rx_video_info {
 	u32 vblank;
 	u32 vfront;
 	u32 vback;
+	u32 vsync;
+	u32 hsync_polarity;
 	/** Horizontal offset */
 	u32 hoffset;
 	/** Horizontal active */
@@ -556,6 +558,7 @@ struct rx_video_info {
 	u32 hfront;
 	u32 hback;
 	u32 hblank;
+	u32 hsync;
 	/** AVI Y1-0, video format */
 	u8 colorspace;
 	/** AVI VIC6-0, video identification code */

@@ -5579,6 +5579,15 @@ void rx_get_de_sts(u8 port)
 			(hdmirx_rd_cor(COR_FDET_HFRONT + 1, port) << 8);
 		rx[port].cur.hback = hdmirx_rd_cor(COR_FDET_HBACK, port) |
 			(hdmirx_rd_cor(COR_FDET_HBACK + 1, port) << 8);
+		rx[port].cur.hsync_polarity =
+			hdmirx_rd_bits_cor(VP_FDET_STATUS_VID_IVCRX, _BIT(0), port);
+		if (rx[port].cur.hsync_polarity) {
+			rx[port].cur.hsync = hdmirx_rd_cor(COR_HSYNC_HIGH_COUNT_LO, port) |
+				(hdmirx_rd_cor(COR_HSYNC_HIGH_COUNT_LO + 1, port) << 8);
+		} else {
+			rx[port].cur.hsync = hdmirx_rd_cor(COR_HSYNC_LOW_COUNT_LO, port) |
+				(hdmirx_rd_cor(COR_HSYNC_LOW_COUNT_LO + 1, port) << 8);
+		}
 		rx[port].cur.vactive = hdmirx_rd_cor(COR_LINE_CNT_LO, port) |
 			(hdmirx_rd_cor(COR_LINE_CNT_HI, port) << 8);
 		rx[port].cur.htotal = (hdmirx_rd_cor(COR_HSYNC_LOW_COUNT_LO, port) |
@@ -5593,11 +5602,15 @@ void rx_get_de_sts(u8 port)
 			(hdmirx_rd_cor(COR_VSYNC_HIGH_COUNT_LO, port) |
 			(hdmirx_rd_cor(COR_VSYNC_HIGH_COUNT_HI, port) << 8));
 		if (rx[port].cur.vsync_polarity) {
+			rx[port].cur.vsync = hdmirx_rd_cor(COR_VSYNC_HIGH_COUNT_LO, port) +
+				(hdmirx_rd_cor(COR_VSYNC_HIGH_COUNT_LO + 1, port) << 8);
 			rx[port].cur.vbegin = hdmirx_rd_cor(COR_VSYNC_HIGH_COUNT_LO, port) +
 				(hdmirx_rd_cor(COR_VSYNC_HIGH_COUNT_LO + 1, port) << 8) +
 				hdmirx_rd_cor(COR_VSYNC_VBACK_COUNT_EVEN, port) +
 				(hdmirx_rd_cor(COR_VSYNC_VBACK_COUNT_EVEN + 1, port) << 8);
 		} else {
+			rx[port].cur.vsync = hdmirx_rd_cor(COR_VSYNC_LOW_COUNT_LO, port) +
+				(hdmirx_rd_cor(COR_VSYNC_LOW_COUNT_LO + 1, port) << 8);
 			rx[port].cur.vbegin = hdmirx_rd_cor(COR_VSYNC_LOW_COUNT_LO, port) +
 				(hdmirx_rd_cor(COR_VSYNC_LOW_COUNT_LO + 1, port) << 8) +
 				hdmirx_rd_cor(COR_VSYNC_VBACK_COUNT_EVEN, port) +

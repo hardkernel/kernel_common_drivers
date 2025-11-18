@@ -66,6 +66,7 @@
 /* 2025.11.11 enable EMP until signal stable */
 /* 2025.11.4 add edid switch protect*/
 /* 2025.11.14 optimize t6x signal time */
+/* 2025.11.19 add hpd protect */
 /* 2025.11.20 fix issue that hdcp reauth too slow */
 #define RX_WRAPPER_VER "ver.2025/11/20"
 
@@ -239,4 +240,6 @@ void dump_phy_status(u8 port);
 void rx_monitor_error_counter(u8 port);
 void rx_fsm_print_handler(struct work_struct *work);
 bool rx_is_need_recovery_after_cor_reset(u8 port);
+int rx_get_cur_hpd_sts(u8 port);
+
 #endif

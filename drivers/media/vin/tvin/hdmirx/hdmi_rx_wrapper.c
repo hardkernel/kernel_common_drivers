@@ -919,6 +919,7 @@ static int rx_cor_irq_handler(u8 port)
 	u8 intr_3 = 0;
 	u8 intr_5 = 0;
 	u8 intr_6 = 0;
+	u8 intr_v = 0;
 	u8 rx_intr_1 = 0;
 	u8 rx_intr_4 = 0;
 	u8 rx_depack2_intr0;
@@ -938,10 +939,10 @@ static int rx_cor_irq_handler(u8 port)
 	if (intr_2 != 0)
 		hdmirx_wr_cor(RX_DEPACK_INTR2_DP2_IVCRX, intr_2, port);
 
-	intr_2 = hdmirx_rd_cor(RX_INTR2_PWD_IVCRX, port);
-	if (intr_2 != 0) {
-		hdmirx_wr_cor(RX_INTR2_PWD_IVCRX, intr_2, port);
-		if (intr_2 & _BIT(6)) {
+	intr_v = hdmirx_rd_cor(RX_INTR2_PWD_IVCRX, port);
+	if (intr_v != 0) {
+		hdmirx_wr_cor(RX_INTR2_PWD_IVCRX, intr_v, port);
+		if (intr_v & _BIT(6)) {
 			if (rx[port].dsc_flag && rx[port].is_htotal_odd) {
 				htotal = (hdmirx_rd_cor(COR_HSYNC_LOW_COUNT_LO, port) |
 				(hdmirx_rd_cor(COR_HSYNC_LOW_COUNT_HI, port) << 8)) +
@@ -1548,8 +1549,7 @@ irqreturn_t irq2_handler(int irq, void *params)
 			skip_frame(skip_frame_cnt, E_PORT2, "irq2 valid_m_fall");
 			if (log_level & 0x100)
 				rx_pr("[isr] valid_m_fall\n");
-			if (rx[E_PORT2].state >= FSM_WAIT_FRL_TRN_DONE)
-				rx[E_PORT2].state = FSM_WAIT_FRL_TRN_DONE;
+			rx[E_PORT2].fsm_ext_state = FSM_WAIT_FRL_TRN_DONE;
 		}
 	}
 	if (hdmirx_top_intr_stat & top_irq_tab[IRQ_EMP_DONE]) {
@@ -1744,8 +1744,7 @@ irqreturn_t irq3_handler(int irq, void *params)
 			skip_frame(skip_frame_cnt, E_PORT3, "irq3 valid_m_fail");
 			if (log_level & 0x100)
 				rx_pr("[isr] valid_m_fall\n");
-			if (rx[E_PORT3].state >= FSM_WAIT_FRL_TRN_DONE)
-				rx[E_PORT3].state = FSM_WAIT_FRL_TRN_DONE;
+			rx[E_PORT3].fsm_ext_state = FSM_WAIT_FRL_TRN_DONE;
 		}
 	}
 	if (hdmirx_top_intr_stat & top_irq_tab[IRQ_EMP_DONE]) {
@@ -7359,6 +7358,22 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size, u8 port)
 	pos += snprintf(buf + pos, size - pos,
 		"Vactive: %d\n", rx[port].cur.vactive);
 	pos += snprintf(buf + pos, size - pos,
+		"hblank: %d\n", rx[port].cur.hblank);
+	pos += snprintf(buf + pos, size - pos,
+		"hfront: %d\n", rx[port].cur.hfront);
+	pos += snprintf(buf + pos, size - pos,
+		"hsync: %d\n", rx[port].cur.hsync);
+	pos += snprintf(buf + pos, size - pos,
+		"hback: %d\n", rx[port].cur.hback);
+	pos += snprintf(buf + pos, size - pos,
+		"vblank: %d\n", rx[port].cur.vblank);
+	pos += snprintf(buf + pos, size - pos,
+		"vfront: %d\n", rx[port].cur.vfront);
+	pos += snprintf(buf + pos, size - pos,
+		"vsync: %d\n", rx[port].cur.vsync);
+	pos += snprintf(buf + pos, size - pos,
+		"vback: %d\n", rx[port].cur.vback);
+	pos += snprintf(buf + pos, size - pos,
 		"Repetition: %d\n", rx[port].cur.repeat);
 	pos += snprintf(buf + pos, size - pos,
 		"Color Depth: %d\n", rx[port].cur.colordepth);
@@ -8022,8 +8037,10 @@ int hdmirx_debug(const char *buf, int size)
 void rx_ext_state_monitor(u8 port)
 {
 	if (rx[port].fsm_ext_state != FSM_NULL) {
-		rx[port].state = rx[port].fsm_ext_state;
-		rx[port].fsm_ext_state = FSM_NULL;
+		if (rx[port].fsm_ext_state < rx[port].state) {
+			rx[port].state = rx[port].fsm_ext_state;
+			rx[port].fsm_ext_state = FSM_NULL;
+		}
 		if (rx[port].state != rx[port].pre_state) {
 			if (log_level & LOG_EN)
 				rx_pr("fsm %d (%s) to (%s)\n",
