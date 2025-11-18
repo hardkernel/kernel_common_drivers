@@ -163,7 +163,7 @@
 					num_in_links = /bits/ 8  <0x0>;
 					num_out_links = /bits/ 8  <0x1>;
 					out_links = <0 &afbc1_block_path2>;
-					capability = /bits/ 64 <0x7>;
+					capability = /bits/ 64 <0x80000000f>;
 				};
 				osd2_block_path2: block@1 {
 					id = /bits/ 8  <OSD2_BLOCK>;
@@ -173,7 +173,7 @@
 					num_in_links = /bits/ 8  <0x0>;
 					num_out_links = /bits/ 8  <0x1>;
 					out_links = <1 &afbc1_block_path2>;
-					capability = /bits/ 64 <0x7>;
+					capability = /bits/ 64 <0x80000000f>;
 				};
 				osd3_block_path2: block@2 {
 					id = /bits/ 8  <OSD3_BLOCK>;
@@ -183,7 +183,7 @@
 					num_in_links = /bits/ 8  <0x0>;
 					num_out_links = /bits/ 8  <0x1>;
 					out_links = <2 &osd_blend_block_path2>;
-					capability = /bits/ 64 <0x1>;
+					capability = /bits/ 64 <0x800000008>;
 				};
 				afbc1_block_path2: block@3 {
 					id = /bits/ 8  <AFBC1_BLOCK>;
