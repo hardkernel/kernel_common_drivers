@@ -787,8 +787,7 @@ int video_pipeline_check_block(struct meson_video_sub_pipeline_state *mvps,
 
 	MESON_DRM_TRAVERSE("mvps (%p), atomic-state(%p)\n", mvps, state);
 
-	if (!(mvps->video_plane_info[plane_index].enable &&
-		mvps->index == mvps->video_plane_info[plane_index].crtc_index))
+	if (!(mvps->index == mvps->video_plane_info[plane_index].crtc_index))
 		return -EINVAL;
 
 	block = &mvps->pipe->video[plane_index]->base;

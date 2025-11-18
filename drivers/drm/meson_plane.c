@@ -2338,6 +2338,8 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	ret = meson_video_plane_fb_check(plane, state, plane_info);
 	if (ret < 0) {
 		plane_info->enable = 0;
+		plane_info->dmabuf[0] = NULL;
+		plane_info->dmabuf[1] = NULL;
 		video_pipeline_block_check(mvsp, atomic_state, video_plane->plane_index);
 		DRM_DEBUG_DRIVER("plane%d fb is NULL,disable the plane!\n",
 			  plane_info->plane_index);
