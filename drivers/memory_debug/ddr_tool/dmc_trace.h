@@ -14,21 +14,20 @@
 #include <asm/memory.h>
 #include <linux/page-flags.h>
 struct page;
-char *to_ports(int id);
-char *to_sub_ports_name(int mid, int sid, char rw);
+struct dmc_mon_comm;
 unsigned long read_violation_mem(unsigned long addr, char rw);
 
 TRACE_EVENT(dmc_violation,
 
-	TP_PROTO(char *title, unsigned long addr, unsigned long status, char *port, char *sub,
-		 char rw, unsigned long pagetrace, unsigned int order, unsigned long flags,
-		 unsigned long long time, unsigned int same, unsigned int total),
+	TP_PROTO(char *title, struct dmc_mon_comm *mon_comm, char *port, char *sub,
+		 unsigned long pagetrace, unsigned long value),
 
-	TP_ARGS(title, addr, status, port, sub, rw, pagetrace, order, flags, time, same, total),
+	TP_ARGS(title, mon_comm, port, sub, pagetrace, value),
 
 	TP_STRUCT__entry(
 		__string(title, title)
 		__field(unsigned long, addr)
+		__field(unsigned long, value)
 		__field(unsigned long, status)
 		__string(port, port)
 		__string(sub, sub)
@@ -37,28 +36,31 @@ TRACE_EVENT(dmc_violation,
 		__field(unsigned int, order)
 		__field(unsigned long, flags)
 		__field(unsigned long long, time)
+		__field(unsigned int, invalid)
 		__field(unsigned int, same)
 		__field(unsigned int, total)
 	),
 
 	TP_fast_assign(
 		__assign_str(title);
-		__entry->addr = addr;
-		__entry->status = status;
+		__entry->addr = mon_comm->addr;
+		__entry->value = value;
+		__entry->status = mon_comm->status;
 		__assign_str(port);
 		__assign_str(sub);
-		__entry->rw = rw;
+		__entry->rw = mon_comm->rw;
 		__entry->page_trace = pagetrace;
-		__entry->order = order;
-		__entry->flags = flags;
-		__entry->time = time;
-		__entry->total = same;
-		__entry->same = total;
+		__entry->order = (&mon_comm->trace)->order;
+		__entry->flags = mon_comm->page_flags;
+		__entry->time = mon_comm->time;
+		__entry->invalid = mon_comm->prot_buf.invalid;
+		__entry->same = mon_comm->prot_buf.same;
+		__entry->total = mon_comm->prot_buf.total;
 	),
 
-	TP_printk("addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx lru:%d a:%ps(%d) t:%lld rw:%c%s(%d/%d)",
+	TP_printk("addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx lru:%d a:%ps(%d) t:%lld rw:%c%s(%d/%d/%d)",
 		  __entry->addr,
-		  read_violation_mem(__entry->addr, __entry->rw),
+		  __entry->value,
 		  __entry->status,
 		  __get_str(port),
 		  __get_str(sub),
@@ -69,6 +71,7 @@ TRACE_EVENT(dmc_violation,
 		  __entry->time,
 		  __entry->rw,
 		  __get_str(title),
+		  __entry->invalid,
 		  __entry->same,
 		  __entry->total)
 );

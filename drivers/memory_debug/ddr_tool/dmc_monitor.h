@@ -42,6 +42,7 @@
 #define DMC_DEBUG_TRACE		BIT(5)
 #define DMC_DEBUG_IRQ_THREAD	BIT(6)
 #define DMC_DEBUG_VALUE		BIT(7)
+#define DMC_DEBUG_FREE_IGNORE	BIT(8)
 
 enum dmc_mode_type {
 	DMC_MODE_RESERVED = 0x0,
@@ -80,6 +81,7 @@ struct port_type {
 struct dmc_port_buf {
 	unsigned int total;
 	unsigned int same;
+	unsigned int invalid;
 };
 
 struct dmc_mon_comm {
@@ -158,6 +160,8 @@ unsigned int get_all_dev_mask(void);
  */
 unsigned long dmc_prot_rw(void  __iomem *base, long off, unsigned long value, int rw);
 
+void dmc_recheck_invalid(struct dmc_mon_comm *mon_comm, unsigned long addr, int port, int sub,
+			 unsigned int *same, unsigned int *invalid);
 void dmc_vio_check_page(void *data);
 char *to_ports(int id);
 char *to_sub_ports_name(int mid, int sid, char rw);

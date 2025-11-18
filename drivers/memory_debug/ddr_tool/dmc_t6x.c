@@ -144,7 +144,7 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 
 static void t6x_recheck_violation(void *data)
 {
-	unsigned int i, count = 0, same = 0, reg0, reg1, port, subport;
+	unsigned int i, count = 0, same = 0, invalid = 0, reg0, reg1, port, subport;
 	unsigned long addr;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 	void *io = mon_comm->io_mem;
@@ -164,17 +164,13 @@ static void t6x_recheck_violation(void *data)
 		port = (port << 3);
 		port |= ((reg1 >> 14) & 0x7);
 		subport = (reg1 >> 4) & 0x3ff;
-
-		if (port == mon_comm->port.number &&
-		    subport == mon_comm->port.number &&
-		    (PHYS_PFN(addr) <= PHYS_PFN(mon_comm->addr) + 2) &&
-		    (PHYS_PFN(addr) >= PHYS_PFN(mon_comm->addr) - 1))
-			same++;
+		dmc_recheck_invalid(mon_comm, addr, port, subport, &same, &invalid);
 
 		if (sched_clock() - t >= get_recheck_ns())
 			break;
 	}
 	mon_comm->prot_buf.same = same;
+	mon_comm->prot_buf.invalid = invalid;
 }
 
 static int t6x_dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)

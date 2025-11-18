@@ -47,17 +47,17 @@
 #include "dmc_trace.h"
 
 // #define DEBUG
-#define DMC_VERSION		"1.11"
+#define DMC_VERSION		"1.11.1"
 
 #define IRQ_CHECK		0
 #define IRQ_CLEAR		1
 
 #define DMC_SEC_RATELIMIT_BURST	15
 #define DMC_RATELIMIT_BURST	30
-#define dmc_pr_crit(fmt, addr, val, status, port, subport, page_flags, lru, trace, order, time, rw, title, same, total, rs)	\
-({																\
-	if (__ratelimit(rs))													\
-		pr_crit(fmt, addr, val, status, port, subport, page_flags, lru, trace, order, time, rw, title, same, total);	\
+#define dmc_pr_crit(fmt, addr, val, status, port, subport, page_flags, lru, trace, order, time, rw, title, invalid, same, total, rs)	\
+({																	\
+	if (__ratelimit(rs))														\
+		pr_crit(fmt, addr, val, status, port, subport, page_flags, lru, trace, order, time, rw, title, invalid, same, total);	\
 })
 
 struct dmc_monitor *dmc_mon;
@@ -482,7 +482,7 @@ void show_violation_mem_printk(char *title, void *data)
 
 	static DEFINE_RATELIMIT_STATE(dmc_rs, HZ, DMC_RATELIMIT_BURST);
 
-	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx lru:%d a:%ps(%d), t:%lld rw:%c%s(%d/%d)\n",
+	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx lru:%d a:%ps(%d), t:%lld rw:%c%s(%d/%d/%d)\n",
 		mon_comm->addr, read_violation_mem(mon_comm->addr, mon_comm->rw),
 		mon_comm->status,
 		mon_comm->port.name ? mon_comm->port.name : mon_comm->port.id,
@@ -492,7 +492,9 @@ void show_violation_mem_printk(char *title, void *data)
 		(void *)dmc_unpack_ip(&mon_comm->trace),
 		(&mon_comm->trace)->order,
 		mon_comm->time, mon_comm->rw, title,
-		mon_comm->prot_buf.same, mon_comm->prot_buf.total, &dmc_rs);
+		mon_comm->prot_buf.invalid,
+		mon_comm->prot_buf.same,
+		mon_comm->prot_buf.total, &dmc_rs);
 }
 
 void show_violation_mem_trace_event(char *title, void *data)
@@ -501,15 +503,9 @@ void show_violation_mem_trace_event(char *title, void *data)
 	char *port = mon_comm->port.name ? mon_comm->port.name : mon_comm->port.id;
 	char *sub = mon_comm->sub.name ? mon_comm->sub.name : mon_comm->sub.id;
 
-	trace_dmc_violation(title, mon_comm->addr,
-				mon_comm->status, port, sub,
-				mon_comm->rw,
-				dmc_unpack_ip(&mon_comm->trace),
-				(&mon_comm->trace)->order,
-				mon_comm->page_flags,
-				mon_comm->time,
-				mon_comm->prot_buf.same,
-				mon_comm->prot_buf.total);
+	trace_dmc_violation(title, mon_comm, port, sub,
+			    dmc_unpack_ip(&mon_comm->trace),
+			    read_violation_mem(mon_comm->addr, mon_comm->rw));
 }
 
 unsigned long dmc_prot_rw(void  __iomem *base,
@@ -700,12 +696,26 @@ irq_finish:
 		dmc_irq_sleep(data);
 }
 
+void dmc_recheck_invalid(struct dmc_mon_comm *mon_comm,
+			 unsigned long addr, int port, int sub,
+			 unsigned int *same, unsigned int *invalid)
+{
+	if (mon_comm->port.number == port &&
+	    mon_comm->sub.number == sub &&
+	    (PHYS_PFN(addr) <= PHYS_PFN(mon_comm->addr) + 2) &&
+	    (PHYS_PFN(addr) >= PHYS_PFN(mon_comm->addr) - 1)) {
+		(*same)++;
+		if (!dmc_get_page_trace(phys_to_page(addr)))
+			(*invalid)++;
+	}
+}
+
 void dmc_common_recheck(struct dmc_monitor *mon, void *data)
 {
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 	struct dmc_mon_comm tmp = *mon_comm;
 	unsigned long long t;
-	unsigned int count = 0, same = 0;
+	unsigned int count = 0, same = 0, invalid = 0;
 
 	if (dmc_mon->ops && dmc_mon->ops->handle_irq) {
 		dmc_mon->ops->handle_irq(mon, data, IRQ_CLEAR);
@@ -714,16 +724,15 @@ void dmc_common_recheck(struct dmc_monitor *mon, void *data)
 			if (!dmc_mon->ops->handle_irq(mon, &tmp, IRQ_CHECK)) {
 				dmc_mon->ops->handle_irq(mon, data, IRQ_CLEAR);
 				count++;
-				if (mon_comm->port.number == tmp.port.number &&
-				    mon_comm->sub.number == tmp.sub.number &&
-				    (PHYS_PFN(tmp.addr) <= PHYS_PFN(mon_comm->addr) + 2) &&
-				    (PHYS_PFN(tmp.addr) >= PHYS_PFN(mon_comm->addr) - 1))
-					same++;
+				dmc_recheck_invalid(mon_comm, tmp.addr,
+						    tmp.port.number, tmp.sub.number,
+						    &same, &invalid);
 			}
 		} while (sched_clock() - t < init_thread_recheck_ns);
 	}
 	mon_comm->prot_buf.total = count;
 	mon_comm->prot_buf.same = same;
+	mon_comm->prot_buf.invalid = invalid;
 }
 
 void dmc_output_violation(struct dmc_monitor *mon, void *data)
@@ -749,8 +758,12 @@ int dmc_violation_ignore(char *title, void *data, unsigned long vio_bit)
 #endif
 
 	/* if trace invalid , should not be ignore*/
-	if (trace && trace->order == IP_INVALID)
+	if (trace && trace->order == IP_INVALID) {
+		/* if page status is free and recheck not found again, ignore*/
+		if ((dmc_mon->debug & DMC_DEBUG_FREE_IGNORE) && !mon_comm->prot_buf.invalid)
+			is_ignore = 1;
 		goto dmc_ignore;
+	}
 
 	/* ignore cma driver pages */
 	if ((is_migrate_cma(mon_comm->migratetype) ||
@@ -858,6 +871,7 @@ static void dmc_set_default(struct dmc_monitor *mon)
 
 	mon->addr_start = 0x0;
 	mon->addr_end = get_num_physpages() << PAGE_SHIFT;
+	mon->debug |= DMC_DEBUG_FREE_IGNORE;
 	pr_emerg("set dmc default: device=%llx, range:%lx-%lx, debug=%x, filter=%s,%s\n",
 			mon->device, mon->addr_start, mon->addr_end,
 			mon->debug, default_filter_dev, default_filter_sym);
@@ -1390,6 +1404,11 @@ static ssize_t debug_store(const struct class *class,
 			dmc_mon->debug |= DMC_DEBUG_VALUE;
 		else
 			dmc_mon->debug &= ~DMC_DEBUG_VALUE;
+	}  else if (strstr(string, "free") == string) {
+		if (val)
+			dmc_mon->debug |= DMC_DEBUG_FREE_IGNORE;
+		else
+			dmc_mon->debug &= ~DMC_DEBUG_FREE_IGNORE;
 	} else {
 		pr_info("invalid param name:%s\n", buf);
 		return count;
@@ -1429,6 +1448,8 @@ static ssize_t debug_show(const struct class *class,
 	s += sprintf(buf + s, "pr_limit: printk ratelimit :%d\n", DMC_RATELIMIT_BURST);
 	s += sprintf(buf + s, "value:   read violation value :%d\n",
 			dmc_mon->debug & DMC_DEBUG_VALUE ? 1 : 0);
+	s += sprintf(buf + s, "free:     page free ignore :%d\n",
+			dmc_mon->debug & DMC_DEBUG_FREE_IGNORE ? 1 : 0);
 
 	return s;
 }
