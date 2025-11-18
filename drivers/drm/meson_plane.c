@@ -1240,6 +1240,11 @@ static int meson_video_prepare_repeat_fence(struct drm_plane *plane,
 	int ret = 0;
 	s32 __user *fence_ptr;
 
+	if (!mvv->fence) {
+		WARN_ON(!mvv->fence);
+		return -EFAULT;
+	}
+
 	plane_state = to_am_meson_video_plane_state(state);
 
 	fence_ptr = get_release_fence_for_video(plane_state);
@@ -2736,7 +2741,6 @@ void meson_video_plane_async_update(struct drm_plane *plane,
 	swap(plane->state->fb, new_state->fb);
 
 	for_each_oldnew_private_obj_in_state(state, obj, old_obj_state, new_obj_state, i) {
-		DRM_DEBUG_DRIVER("obj->state %px old_obj_state %px", obj->state, old_obj_state);
 
 		if ((obj == &sub_pipe->obj && index == 0) || obj == &mvv->base.obj) {
 			old_obj_state->state = state;
