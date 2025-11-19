@@ -338,6 +338,18 @@ static void meson_parse_max_config(struct device_node *node, u32 *max_width,
 	}
 }
 
+static void meson_encoder_fill_possible_clone(struct drm_device *dev)
+{
+	struct drm_encoder *encoder;
+	u32 encoder_mask = 0;
+
+	drm_for_each_encoder(encoder, dev)
+		encoder_mask |= drm_encoder_mask(encoder);
+
+	drm_for_each_encoder(encoder, dev)
+		encoder->possible_clones = encoder_mask;
+}
+
 static int am_meson_drm_bind(struct device *dev)
 {
 	struct meson_drm *priv;
@@ -413,6 +425,7 @@ static int am_meson_drm_bind(struct device *dev)
 	if (ret)
 		goto err_unbind_all;
 
+	meson_encoder_fill_possible_clone(drm);
 	drm_mode_config_reset(drm);
 	/*
 	 * enable drm irq mode.
