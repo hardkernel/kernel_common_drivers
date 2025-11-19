@@ -174,7 +174,7 @@ static int spinand_mtd_block_markbad(struct mtd_info *mtd, loff_t offs)
 
 static int meson_spinand_parse_dt(struct mtd_info *mtd)
 {
-	u32 bl_mode, fip_copies, fip_size = 0;
+	u32 bl_mode = NAND_FIPMODE_ADVANCE, fip_copies = 0, fip_size = 0;
 	struct device_node *np = mtd_get_of_node(mtd);
 
 	if (!np) {
@@ -182,21 +182,14 @@ static int meson_spinand_parse_dt(struct mtd_info *mtd)
 		return -ENODEV;
 	}
 
-	if (of_property_read_u32(np, "bl_mode", &bl_mode)) {
-		pr_info("%s %d: use default discrete mode\n\n", __func__, __LINE__);
-		bl_mode = NAND_FIPMODE_DISCRETE;
-	}
+	of_property_read_u32(np, "bl_mode", &bl_mode);
+	of_property_read_u32(np, "fip_copies", &fip_copies);
 
 	if (bl_mode == NAND_FIPMODE_DISCRETE) {
 		if (of_property_read_u32(np, "fip_size", &fip_size)) {
 			pr_err("%s %d: no fip size in dts\n", __func__, __LINE__);
 			return -EINVAL;
 		}
-	}
-
-	if (of_property_read_u32(np, "fip_copies", &fip_copies)) {
-		pr_err("%s %d: no fip size in dts\n", __func__, __LINE__);
-		return -EINVAL;
 	}
 
 	meson_nand_set_bootloader_mode(bl_mode);
