@@ -5220,8 +5220,7 @@ void vdin_set_vscale(struct vdin_dev_s *devp)
 	} else {
 		wr_bits(offset, VDIN_VSC_INI_CTRL, 0,
 			VSC_PHASE0_ALWAYS_EN_BIT, VSC_PHASE0_ALWAYS_EN_WID);
-		if (devp->dtdata->hw_ver == VDIN_HW_T6X &&
-			!devp->input_over_pixel_clk && devp->vinfo_over_pixel_clk)
+		if (devp->dtdata->hw_ver == VDIN_HW_T6X && devp->vinfo_over_pixel_clk)
 			wr_bits(offset, VDIN_VSC_INI_CTRL, 1,
 			OUTSIDE_PIC_PAD_EN_BIT, OUTSIDE_PIC_PAD_EN_WID);
 		/* scale phase is 0x8000 */

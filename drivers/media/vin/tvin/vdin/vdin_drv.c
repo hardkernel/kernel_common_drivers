@@ -2338,10 +2338,15 @@ int vdin_loopback_parm_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para
 		(devp->dtdata->hw_ver == VDIN_HW_T6X && devp->input_over_pixel_clk)) {
 		para->over_pixel_clock = true;
 
-		para->h_active = (para->h_active >> 1);
+		para->h_active = para->h_active >> 1;
+		para->crop[1] = para->crop[1] >> 1;
+		para->crop[2] = para->crop[2] >> 1;
 
-		if (devp->dtdata->hw_ver == VDIN_HW_T3X)
-			para->v_active = (para->v_active >> 1);
+		if (devp->dtdata->hw_ver == VDIN_HW_T3X) {
+			para->v_active = para->v_active >> 1;
+			para->crop[0] = para->crop[0] >> 1;
+			para->crop[3] = para->crop[3] >> 1;
+		}
 
 		if (para->dest_h_active > para->h_active)
 			para->dest_h_active = para->h_active;
