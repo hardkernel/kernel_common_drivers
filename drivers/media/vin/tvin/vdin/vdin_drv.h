@@ -861,6 +861,7 @@ struct vdin_dts_config_s {
 	unsigned int vdin_hdr_chg_cnt;
 	unsigned int vdin_vrr_chg_cnt;
 	unsigned int vdin_qms_chg_cnt;
+	unsigned int sct_remain_size;
 };
 
 struct vdin_s5_s {

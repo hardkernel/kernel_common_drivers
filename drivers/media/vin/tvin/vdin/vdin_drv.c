@@ -7202,6 +7202,7 @@ static void vdin_get_dts_config(struct vdin_dev_s *devp,
 	devp->delay_line_num = 2;
 	/* Enable aspect ratio by default */
 	devp->vdin_function_sel |= VDIN_SET_DISPLAY_RATIO;
+	devp->dts_config.sct_remain_size = 2;/* Keep 2 pages to allocate the buffer faster.*/
 }
 
 static int vdin_drv_probe(struct platform_device *pdev)

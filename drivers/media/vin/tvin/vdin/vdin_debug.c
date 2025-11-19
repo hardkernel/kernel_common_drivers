@@ -5025,6 +5025,11 @@ start_chk:
 				devp->debug.bypass_game_dyn_fmt = false;
 			pr_info("bypass_game_dyn_fmt:%d\n", devp->debug.bypass_game_dyn_fmt);
 		}
+	} else if (!strcmp(parm[0], "sct_remain_size")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.sct_remain_size = temp;
+		pr_info("vdin%d,sct_remain_size = %#x\n",
+			devp->index, devp->dts_config.sct_remain_size);
 	}
 #endif
 	else if (!strcmp(parm[0], "state")) {

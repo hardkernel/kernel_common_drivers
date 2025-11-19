@@ -365,7 +365,7 @@ void vdin_sct_free_idx_in_game(struct vdin_dev_s *devp)
 		    vfe->sct_stat == VFRAME_SCT_STATE_FULL) {
 			vfe->sct_stat = VFRAME_SCT_STATE_INIT;
 			spin_unlock_irqrestore(&devp->vfp->wr_lock, wr_list_flags);
-			vdin_sct_free(devp->vfp, vfe->vf.index);
+			vdin_sct_free_tail(devp, vfe->vf.index, devp->dts_config.sct_remain_size);
 		} else {
 			spin_unlock_irqrestore(&devp->vfp->wr_lock, wr_list_flags);
 		}
