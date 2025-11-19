@@ -1602,18 +1602,18 @@ void vdin_set_all_regs_s5(struct vdin_dev_s *devp)
 //	}
 }
 
-static void vdin_delay_line_s5(struct vdin_dev_s *devp, unsigned short num)
+static void vdin_delay_line_s5(struct vdin_dev_s *devp, unsigned int num)
 {
-	unsigned int offset;
+	if (devp->hw_core == VDIN_HW_CORE_LITE)
+		return;
 
-	offset = devp->addr_offset;
-	wr_bits(offset, VDIN_IF_TOP_VDIN1_SYNC_CTRL0, num,
+	wr_bits(devp->addr_offset, VDIN_IF_TOP_VDIN1_SYNC_CTRL0, num,
 		DLY_GO_FIELD_LINES_BIT, DLY_GO_FIELD_LINES_WID);
 	if (num)
-		wr_bits(offset, VDIN_IF_TOP_VDIN1_SYNC_CTRL0, 1,
+		wr_bits(devp->addr_offset, VDIN_IF_TOP_VDIN1_SYNC_CTRL0, 1,
 			DLY_GO_FIELD_EN_BIT, DLY_GO_FIELD_EN_WID);
 	else
-		wr_bits(offset, VDIN_IF_TOP_VDIN1_SYNC_CTRL0, 0,
+		wr_bits(devp->addr_offset, VDIN_IF_TOP_VDIN1_SYNC_CTRL0, 0,
 			DLY_GO_FIELD_EN_BIT, DLY_GO_FIELD_EN_WID);
 }
 

@@ -2016,9 +2016,12 @@ void vdin_set_dv_tunnel_t3x(struct vdin_dev_s *devp)
 	}
 }
 
-static void vdin_delay_line_t3x(struct vdin_dev_s *devp, unsigned short num)
+static void vdin_delay_line_t3x(struct vdin_dev_s *devp, unsigned int num)
 {
 	unsigned int offset;
+
+	if (devp->hw_core == VDIN_HW_CORE_LITE)
+		return;
 
 	offset = devp->index * VDIN_TOP_OFFSET;
 	wr_bits(offset, VDIN0_SYNC_CONVERT_SYNC_CTRL0, num,
