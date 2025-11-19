@@ -1472,6 +1472,11 @@ static void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
 	is_mosaic_22 = vf->type_ext & VIDTYPE_EXT_MOSAIC_22;
 
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+	if (dev->index < 2)
+		get_vd1_toggle_first_frame_index(dev->index, frame_index);
+#endif
+
 	if (vf->flag & VFRAME_FLAG_FAKE_FRAME) {
 		vd_print(dev->index, PRINT_OTHER, "put: fake frame\n");
 		return;
@@ -2306,6 +2311,8 @@ static bool detect_vf_usage(struct videodisplay_dev *dev,
 			vd_print(dev->index, PRINT_ERROR, "get NULL vf!!\n");
 			return false;
 		}
+		if (!(vf->dpss_flg & 0x08))
+			vf->dpss_flg |= 0x10;
 	}
 	if (vf && (vf->type & VIDTYPE_DI_PW || vf->di_flag & DI_FLAG_DI_PVPPLINK)) {
 		vd_print(dev->index, PRINT_OTHER, "di_vf=%px type_ext=%x.\n", vf, vf->type_ext);
@@ -3204,6 +3211,8 @@ static void vframe_display(struct videodisplay_dev *dev,
 		if (frame_info->rotation & ROTATION_180_DEGREES)
 			vf->flag |= VFRAME_FLAG_MIRROR_H | VFRAME_FLAG_MIRROR_V;
 
+		if (!(vf->dpss_flg & 0x08))
+			vf->dpss_flg |= 0x10;
 		vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
 		vf->plane_num = 1;
 		vf->canvas0Addr = -1;

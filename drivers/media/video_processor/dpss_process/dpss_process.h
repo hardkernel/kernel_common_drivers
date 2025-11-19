@@ -136,10 +136,15 @@ struct dpss_process_dev {
 	bool dpss_is_tvp;
 	bool cur_is_i;
 	bool dpss_module_bypass;
-	int hdr_en;
-	int dd_owner;  /*init:-1 nodv: 0 dpss:1 vpp:2*/
+	bool last_frame_vd1_toggle;
 	u32 transform;
 	int direct_mode_en;
+	bool vd1_to_dpss;
+	bool is_start_player;
+	bool need_check_hdr_state;
+	bool allow_destroy_dpss;
+	u32 dpss_switch_vd1_first_index;
+	u32 i_frame_cnt;
 };
 
 #define DPSS_PROCESS_IOC_MAGIC  'I'
@@ -152,4 +157,6 @@ int di_get_ref_vf(struct file *file, struct vframe_s **vf_1, struct vframe_s **v
 	struct file **file_1, struct file **file_2);
 struct uvm_di_mgr_t *get_uvm_di_mgr(struct file *file_vf);
 int di_processed_checkin(struct file *file);
+void get_vd1_toggle_first_frame_index(u32 layer_index, u32 frame_index);
+
 #endif

@@ -883,7 +883,7 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			 vf->duration);
 
 		vc_print(dev->index, PRINT_OTHER,
-			"%s: prelink_en=%d, vf=%px(%px), frame_index=%d, vf_type=0x%x, vf_flag=0x%x, vf->timestamp: %lld.di_flag=%x\n",
+			"%s: prelink_en=%d, vf=%px(%px), frame_index=%d, vf_type=0x%x, vf_flag=0x%x, vf->timestamp: %lld.di_flag=%x, dpss_flg:%x\n",
 			__func__,
 			enable_prelink,
 			vf,
@@ -892,7 +892,8 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			vf->type,
 			vf->flag,
 			div_u64(vf->timestamp, 1000000000),
-			vf->di_flag);
+			vf->di_flag,
+			vf->dpss_flg);
 
 		vc_print(dev->index, PRINT_OTHER,
 			"%s: fbc:headaddr=0x%lx, bodyaddr=0x%lx, width=%d, height=%d.\n",
@@ -1006,7 +1007,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 	}
 
 	vc_print(dev->index, PRINT_OTHER,
-		"%s: prelink_en=%d, vf=%px(%px), frame_index=%d, vf_type=0x%x, vf_flag=0x%x, vf->timestamp: %lld.\n",
+		"%s: prelink_en=%d, vf=%px(%px), frame_index=%d, vf_type=0x%x, vf_flag=0x%x, dpss_flg=%x, vf->timestamp: %lld.\n",
 		__func__,
 		enable_prelink,
 		vf,
@@ -1014,6 +1015,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 		vf->frame_index,
 		vf->type,
 		vf->flag,
+		vf->dpss_flg,
 		div_u64(vf->timestamp, 1000000000));
 
 	vc_print(dev->index, PRINT_OTHER,

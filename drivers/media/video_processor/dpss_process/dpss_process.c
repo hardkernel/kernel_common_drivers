@@ -50,8 +50,6 @@ static u32 q_dropped = 1;
 u32 dpss_buf_mgr_print_flag;
 static u32 force_width;
 static u32 force_height;
-static int dpss_hdr_en = -1;
-static u32 force_dd_vpp;
 static int dpss_bypass = -1;
 static u32 work_mode_ctl;
 static u32 work_mode_ctl_pip;
@@ -62,6 +60,7 @@ static bool is_start_dump;
 static u32 direct_mode_flag;
 static enum direct_mode_override force_direct_mode;
 static bool is_dual_channel_enabled;
+static u32 vd1_toggle_frame_index[2];
 
 static DEFINE_MUTEX(dpss_process_mutex);
 
@@ -1148,7 +1147,7 @@ static enum DPSS_ERRORTYPE dp_fill_output_done(void *arg, struct vframe_s *vf)
 	dev->fill_done_count++;
 	total_fill_done_count++;
 
-	if (!dev->first_out)
+	if (dev->first_out)
 		dp_print(dev->index, PRINT_OTHER, "%s: DPSS output first frame\n", __func__);
 
 	pp_info = (struct pp_info_t *)vf->pp_info;
@@ -1222,6 +1221,7 @@ static enum DPSS_ERRORTYPE dp_fill_output_done(void *arg, struct vframe_s *vf)
 	else
 		dp_print(dev->index, PRINT_OTHER, "%s: no ud.\n", __func__);
 
+	vf->dpss_flg |= DPSS_FLG_OUT_DONE;
 	private_data->vf = *vf;
 	private_data->vf_p = vf;
 
@@ -1591,145 +1591,6 @@ static void connect_to_dpss(struct dpss_process_dev *dev, struct vframe_s *vf, i
 		dev->dpss_parm.dps_work_mode);
 }
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-static int dpss_process_set_dd_owner(struct dpss_process_dev *dev, int dd_module_flag)
-{
-	if (!is_amdv_enable())
-		return false;
-
-	dp_print(dev->index, PRINT_OTHER, "%s: dd_module_flag=%d.\n", __func__, dd_module_flag);
-
-	if (dd_module_flag == 1)
-		update_dd_mode(DOLBY5_DPSS_MODE); //dv_dpss_mode
-	else if (dd_module_flag == 2)
-		update_dd_mode(DOLBY5_VD1_MODE);//dv_vpp_mode
-	else
-		update_dd_mode(DOLBY5_WRAP_BYPS);//dv off
-
-	dev->dd_owner = dd_module_flag;
-
-	return 0;
-}
-
-static bool is_dd_vframe(struct dpss_process_dev *dev, struct vframe_s *vf)
-{
-	bool ret = false;
-
-	if (IS_ERR_OR_NULL(vf)) {
-		dp_print(dev->index, PRINT_ERROR, "%s: NULL param.\n", __func__);
-		return -1;
-	}
-
-	if (!is_amdv_enable())
-		return false;
-
-	if (vf->signal_type & (1 << 30) || is_amdv_frame(vf))
-		ret = true;
-
-	return ret;
-}
-
-static int check_dd_owner(struct dpss_process_dev *dev, struct vframe_s *vf)
-{
-	int ret = 0;
-
-	if (!dev || !vf) {
-		pr_err("%s: param is invalid.\n", __func__);
-		return -EINVAL;
-	}
-
-	if (dev->index > 0) {
-		dp_print(dev->index, PRINT_OTHER, "%s: only dpss0 support dd.\n", __func__);
-		return 0;
-	}
-
-	if (is_dd_vframe(dev, vf)) {
-		if (dev->dd_owner == -1) {
-			if (force_dd_vpp) {
-				dp_print(dev->index, PRINT_OTHER, "start use vpp dv.\n");
-				dpss_process_set_dd_owner(dev, 2);
-				return -1;
-			}
-
-			dp_print(dev->index, PRINT_OTHER, "start use dpss dv.\n");
-			dpss_process_set_dd_owner(dev, 1);
-		} else {
-			if (force_dd_vpp) {
-				if (dev->dd_owner != 2) {
-					dp_print(dev->index, PRINT_OTHER, "change to vpp dv.\n");
-						usleep_range(6000, 10000);
-					ret = 1;
-				} else {
-					ret = -1;
-				}
-
-				return ret;
-			}
-
-			if (dev->dd_owner != 1) {
-				dp_print(dev->index, PRINT_OTHER, "change to dpss dv.\n");
-				dpss_process_set_dd_owner(dev, 1);
-			}
-
-			if (!get_dd_mode_update_status()) {
-				dp_print(dev->index, PRINT_OTHER, "dv not ready.\n");
-				return -1;
-			}
-		}
-	} else {
-		dpss_process_set_dd_owner(dev, 0);
-		if (force_dd_vpp) {
-			dp_print(dev->index, PRINT_OTHER, "force use vpp, bypass dpss.\n");
-			return -1;
-		}
-	}
-
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-static void check_hdr_config(struct dpss_process_dev *dev, struct vframe_s *vf)
-{
-	bool is_dd_input = false;
-
-	if (!dev || !vf) {
-		pr_err("%s: param is invalid.\n", __func__);
-		return;
-	}
-
-	if (dev->index > 0) {
-		dp_print(dev->index, PRINT_OTHER, "%s: only dpss0 support hdr.\n", __func__);
-		return;
-	}
-
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	is_dd_input = is_dd_vframe(dev, vf);
-#endif
-	if (is_dd_input) {
-		if (dev->hdr_en) {
-			dp_print(dev->index, PRINT_OTHER, "DV input, disable hdr.\n");
-				amvecm_set_dpss_mode(0);
-				dev->hdr_en = 0;
-		}
-	} else {
-		if (!dev->hdr_en) {
-			dp_print(dev->index, PRINT_OTHER, "enable dpss hdr.\n");
-			amvecm_set_dpss_mode(1);//en hdr on dpss
-			dev->hdr_en = 1;
-		}
-
-		if (dpss_hdr_en == 1 && !dev->hdr_en) {
-			amvecm_set_dpss_mode(1);//en hdr on dpss
-			dev->hdr_en = 1;
-		} else if (dpss_hdr_en == 0 && dev->hdr_en) {
-			amvecm_set_dpss_mode(0);//off hdr on dpss
-			dev->hdr_en = 0;
-		}
-	}
-}
-#endif
-
 static int find_standard_duration(struct dpss_process_dev *dev, int duration_val)
 {
 	int min = INT_MAX;
@@ -1771,16 +1632,21 @@ static int dpss_process_init(struct dpss_process_dev *dev)
 	dev->last_buf_mgr_reset_id = 0xFFFFFFFF;
 	dev->last_frame_index = 0xFFFFFFFF;
 	dev->last_vf.type = 0;
+	dev->last_vf.compWidth = 0;
+	dev->last_vf.compHeight = 0;
 	dev->dpss_module_bypass = false;
 	dev->first_out = false;
 	dev->q_dummy_frame_done = false;
 	dev->last_frame_bypass = false;
 	dev->cur_is_i = false;
 	dev->last_buf_mgr = NULL;
-	dev->hdr_en = 0;
-	dev->dd_owner = -1;
 	dev->last_file = NULL;
 	dev->direct_mode_en = 0;
+	dev->vd1_to_dpss = false;
+	dev->is_start_player = 1;
+	dev->need_check_hdr_state = false;
+	dev->last_frame_vd1_toggle = false;
+	dev->i_frame_cnt = 0;
 
 	receive_q_init(dev);
 	dpss_input_free_q_init(dev);
@@ -1798,6 +1664,7 @@ static int dpss_process_uninit(struct dpss_process_dev *dev)
 	struct dpss_in_buf_t *buf;
 
 	dev->inited = false;
+	dev->is_start_player = 0;
 
 	dpss_out_q_uninit(dev);
 
@@ -1806,13 +1673,6 @@ static int dpss_process_uninit(struct dpss_process_dev *dev)
 		is_dual_channel_enabled = 0;
 	}
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-	if (dev->hdr_en && dev->index == 0) {
-		dp_print(dev->index, PRINT_ERROR, "%s: disable dpss hdr.\n", __func__);
-		amvecm_set_dpss_mode(0);
-		dev->hdr_en = 0;
-	}
-#endif
 	if (dev->dpss_index >= 0) {
 		ret = dpss_destroy_instance(dev->dpss_index);
 		if (ret != 0)
@@ -1847,12 +1707,7 @@ static int dpss_process_uninit(struct dpss_process_dev *dev)
 			buf->pp_info.queued = false;
 		}
 	}
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_amdv_enable() && dev->index == 0) {
-		dp_print(dev->index, PRINT_OTHER, "disable dpss dd.\n");
-		dpss_process_set_dd_owner(dev, 0);
-	}
-#endif
+
 	if (dev->fget_count != dev->fput_count)
 		dp_print(dev->index, PRINT_OTHER,
 			  "file leak!!!, fget_count=%lld, fput_count=%lld\n",
@@ -1921,7 +1776,7 @@ static bool check_need_do_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 	/*PC mode no need do dpss */
 	if (vf->flag & VFRAME_FLAG_PC_MODE) {
 		if (vf->type & VIDTYPE_INTERLACE && vf->type & VIDTYPE_VIU_422) {
-			dp_print(dev->index, PRINT_OTHER, "special pc mode,need do dpss.\n");
+			dp_print(dev->index, PRINT_OTHER, "special pc mode,no need do dpss.\n");
 			need_do_dpss = true;
 		} else {
 			dp_print(dev->index, PRINT_OTHER, "pc mode,need do dpss.\n");
@@ -2010,6 +1865,16 @@ static bool check_need_do_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 	return need_do_dpss;
 }
 
+void get_vd1_toggle_first_frame_index(u32 layer_index, u32 frame_index)
+{
+	if (layer_index > 1) {
+		pr_err("get toggle layer_index=%d err.\n", layer_index);
+		return;
+	}
+	vd1_toggle_frame_index[layer_index] = frame_index;
+}
+EXPORT_SYMBOL(get_vd1_toggle_first_frame_index);
+
 static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_info_t *frame_info)
 {
 	int i;
@@ -2026,7 +1891,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 	bool need_do_dummy = false, rotate_en = false;
 	struct dp_buf_mgr_t *cur_buf_mgr;
 	struct dpss_status dpss_state;
-	int hdr_ready_state = 1, dpss_ready_state = 1;
+	int dpss_ready_state = 1;
 	int ret = 0;
 	struct dpss_cmd_a_s dpss_para;
 	bool is_interlace = false;
@@ -2079,7 +1944,6 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 			dev->cur_is_i = true;
 		else
 			dev->cur_is_i = false;
-		dev->last_vf = *vf;
 	}
 
 	if (dev->index == 0) {
@@ -2127,16 +1991,33 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		dp_print(dev->index, PRINT_OTHER,
 			"%s: stream changed, need notify processor\n",
 			__func__);
-		ret = 3;
 	}
 
 	if (frame_info->transform == 4 || frame_info->transform == 7)
 		rotate_en = true;
 
 	if (!check_need_do_dpss(dev, vf, rotate_en)) {
+		dev->i_frame_cnt = 0;
+		dev->is_start_player = 0;
+		vf->dpss_flg |= DPSS_FLG_MODULE_BYPASS;
+
 		if (!dev->last_frame_bypass && dev->last_vf.type) {
 			dp_print(dev->index, PRINT_OTHER, "no bypass to bypass.\n");
+			dev->dpss_switch_vd1_first_index = vf->frame_index;
 			dev->last_vf.type = 0;
+			dev->allow_destroy_dpss = false;
+		}
+
+		if (vd1_toggle_frame_index[dev->index] >= dev->dpss_switch_vd1_first_index) {
+			dp_print(dev->index, PRINT_OTHER,
+				"allow destroy dpss, and do it, put_frame_index=%d, vd1_first_index=%d.\n",
+				vd1_toggle_frame_index[dev->index],
+				dev->dpss_switch_vd1_first_index);
+			dev->allow_destroy_dpss = true;
+		}
+		if (dev->allow_destroy_dpss) {
+			dev->dpss_switch_vd1_first_index = 0xffffffff;
+			dev->allow_destroy_dpss = false;
 			dp_put_file(dev, file_vf);
 			return 1;
 		}
@@ -2149,23 +2030,8 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		dev->last_file = file_vf;
 		dev->last_frame_bypass = true;
 		dp_put_file(dev, file_vf);
+		dev->last_frame_vd1_toggle = true;
 
-		if (dev->index == 0) {
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-			if (is_amdv_enable()) {
-				dp_print(dev->index, PRINT_OTHER, "change to vpp dv.\n");
-				dpss_process_set_dd_owner(dev, 2);
-			}
-#endif
-
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-			if (dev->hdr_en) {
-				dp_print(dev->index, PRINT_OTHER, "disable dpss hdr.\n");
-				amvecm_set_dpss_mode(0);//off hdr on dpss
-				dev->hdr_en = 0;
-			}
-#endif
-		}
 		return ret;
 	}
 
@@ -2214,35 +2080,13 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		}
 	}
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	/*need check DV owner switch*/
-	ret = check_dd_owner(dev, vf);
-	if (ret == 1 || ret == -1) {
-		if (ret == -1) {
-			dp_print(dev->index, PRINT_OTHER, "dv owner check, need bypass dpss.\n");
-			frame_info->out_fd = -1;
-			frame_info->out_fence_fd = -1;
-			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-			frame_info->frame_index = vf->frame_index;
-			frame_info->need_bypass = true;
-			dev->last_frame_bypass = true;
-		}
-		dev->last_file = file_vf;
-		dp_put_file(dev, file_vf);
-		return ret;
+	if (dev->index == 0 && dev->is_start_player) {
+		hdr_path_switch_to_dpss(3);
+		dp_print(dev->index, PRINT_ERROR, "it is start player.\n");
+		dev->is_start_player = 0;
+		dev->need_check_hdr_state = true;
 	}
-#endif
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-	if (dev->index == 0) {
-		check_hdr_config(dev, vf);
-		if (dev->hdr_en && (amvecm_get_muxio_ready_for_dpss() != 1)) {
-			dp_print(dev->index, PRINT_OTHER, "%s: hdr enable, buf not ready.\n",
-				__func__);
-			hdr_ready_state = 0;
-		}
-	}
-#endif
 	memset(&dpss_state, 0, sizeof(struct dpss_status));
 	if (dpss_get_state(dev->dpss_index, DPSS_STATE_BUF, NULL, &dpss_state) != 0)
 		dp_print(dev->index, PRINT_ERROR, "get buf statefailed.\n");
@@ -2252,7 +2096,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		dpss_ready_state = 0;
 	}
 
-	if (!dpss_ready_state || !hdr_ready_state) {
+	if (!dpss_ready_state) {
 		frame_info->out_fd = -1;
 		frame_info->out_fence_fd = -1;
 		frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
@@ -2264,6 +2108,65 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		dp_put_file(dev, file_vf);
 
 		return 0;
+	}
+
+	if (dev->index == 0 && dev->need_check_hdr_state) {
+		if (!hdr_path_delink_status()) {
+			dp_print(dev->index, PRINT_OTHER,
+				"start play, do dpss but hdr not ready, bypass.\n");
+			frame_info->out_fd = -1;
+			frame_info->out_fence_fd = -1;
+			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
+			frame_info->frame_index = vf->frame_index;
+			frame_info->need_bypass = true;
+			dev->last_file = file_vf;
+			dev->last_frame_bypass = true;
+			vf->type_ext |= VIDTYPE_EXT_DPSS_DROP;
+			dp_put_file(dev, file_vf);
+			dev->need_check_hdr_state = true;
+			return ret;
+		}
+		dp_print(dev->index, PRINT_OTHER,
+			"start play, hdr already ready.\n");
+		dev->need_check_hdr_state = false;
+	}
+
+	if (dev->index == 0 && dev->last_frame_vd1_toggle && !dev->vd1_to_dpss) {
+		hdr_path_switch_to_dpss(1);
+		if (!hdr_path_delink_status()) {
+			dp_print(dev->index, PRINT_OTHER, "vd1 switch to dpss, not ready .\n");
+			frame_info->out_fd = -1;
+			frame_info->out_fence_fd = -1;
+			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
+			frame_info->frame_index = vf->frame_index;
+			frame_info->need_bypass = true;
+			dev->last_file = file_vf;
+			dev->last_frame_bypass = true;
+			dp_put_file(dev, file_vf);
+			dev->vd1_to_dpss = true;
+			dev->last_frame_vd1_toggle = true;
+			return ret;
+		}
+		dp_print(dev->index, PRINT_OTHER, "vd1 switch to dpss, already ready .\n");
+		dev->vd1_to_dpss = false;
+	}
+	if (dev->index == 0 && dev->vd1_to_dpss) {
+		if (!hdr_path_delink_status()) {
+			dp_print(dev->index, PRINT_OTHER, "vd1 switch to dpss, not ready.\n");
+			frame_info->out_fd = -1;
+			frame_info->out_fence_fd = -1;
+			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
+			frame_info->frame_index = vf->frame_index;
+			frame_info->need_bypass = true;
+			dev->last_file = file_vf;
+			dev->last_frame_bypass = true;
+			dp_put_file(dev, file_vf);
+			dev->vd1_to_dpss = true;
+			dev->last_frame_vd1_toggle = true;
+			return ret;
+		}
+		dp_print(dev->index, PRINT_OTHER, "vd1 switch to dpss, already ready.\n");
+		dev->vd1_to_dpss = false;
 	}
 
 	if (vf->type & VIDTYPE_INTERLACE)
@@ -2335,6 +2238,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 			frame_info->frame_index = vf->frame_index;
 			frame_info->need_bypass = true;
 			dev->last_file = file_vf;
+			dev->last_frame_vd1_toggle = true;
 
 			dp_print(dev->index, PRINT_OTHER, "dpss bypass.\n");
 			dp_put_file(dev, file_vf);
@@ -2386,6 +2290,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		}
 
 		out_fence_fd = dp_timeline_create_fence(dev);
+		dev->last_frame_vd1_toggle = false;
 
 		if (!kfifo_put(&dev->file_wait_q, dmabuf))
 			dp_print(dev->index, PRINT_ERROR, "put file_wait fail\n");
@@ -2400,6 +2305,13 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 			dp_print(dev->index, PRINT_ERROR, "put ready fail\n");
 
 		wake_up_interruptible(&dev->wq);
+	}
+
+	if (vf->type & VIDTYPE_INTERLACE)
+		dev->i_frame_cnt++;
+	if (dev->i_frame_cnt == 1) {
+		vf->type_ext |= VIDTYPE_EXT_DPSS_DROP;
+		dp_print(dev->index, PRINT_ERROR, "first i, need drop\n");
 	}
 
 	frame_info->out_fence_fd = out_fence_fd;
@@ -2875,27 +2787,6 @@ static ssize_t force_height_store(const struct class *cla,
 	return count;
 }
 
-static ssize_t dpss_hdr_en_show(const struct class *class,
-	const struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", dpss_hdr_en);
-}
-
-static ssize_t dpss_hdr_en_store(const struct class *cla, const struct class_attribute *attr,
-	const char *buf, size_t count)
-{
-	long tmp = 0;
-	int ret;
-
-	ret = kstrtol(buf, 0, &tmp);
-	if (ret != 0) {
-		pr_info("ERROR converting %s to long int!\n", buf);
-		return ret;
-	}
-	dpss_hdr_en = tmp;
-	return count;
-}
-
 static ssize_t dpss_bypass_show(const struct class *class,
 				      const struct class_attribute *attr,
 				      char *buf)
@@ -2916,28 +2807,6 @@ static ssize_t dpss_bypass_store(const struct class *cla,
 		return ret;
 	}
 	dpss_bypass = tmp;
-	return count;
-}
-
-static ssize_t force_dd_vpp_show(const struct class *class,
-	const struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", force_dd_vpp);
-}
-
-static ssize_t force_dd_vpp_store(const struct class *cla,
-	const struct class_attribute *attr, const char *buf, size_t count)
-{
-	long tmp = 0;
-	int ret;
-
-	ret = kstrtol(buf, 0, &tmp);
-	if (ret != 0) {
-		pr_info("ERROR converting %s to long int!\n", buf);
-		return ret;
-	}
-
-	force_dd_vpp = tmp;
 	return count;
 }
 
@@ -3116,8 +2985,6 @@ static CLASS_ATTR_RW(di_proc_enable);
 static CLASS_ATTR_RW(q_dropped);
 static CLASS_ATTR_RW(force_width);
 static CLASS_ATTR_RW(force_height);
-static CLASS_ATTR_RW(dpss_hdr_en);
-static CLASS_ATTR_RW(force_dd_vpp);
 static CLASS_ATTR_RW(dpss_bypass);
 static CLASS_ATTR_RW(work_mode_ctl);
 static CLASS_ATTR_RW(work_mode_ctl_pip);
@@ -3141,8 +3008,6 @@ static struct attribute *dpss_process_class_attrs[] = {
 	&class_attr_q_dropped.attr,
 	&class_attr_force_width.attr,
 	&class_attr_force_height.attr,
-	&class_attr_dpss_hdr_en.attr,
-	&class_attr_force_dd_vpp.attr,
 	&class_attr_dpss_bypass.attr,
 	&class_attr_work_mode_ctl.attr,
 	&class_attr_work_mode_ctl_pip.attr,

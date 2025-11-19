@@ -107,9 +107,12 @@ enum DPSS_BUF_STATE {
 #define DPSS_CMD_ASY_WORKMODE	(1)
 #define DPSS_CMD_ASY_2_WORKMODE	(2) // weak mode, not cause resolution change
 //...
-#define DPSS_FLG_BYPASS	(0x00001) //this flag is set on input vframe
-#define DPSS_FLG_DDD	(0x00002)
-#define DPSS_FLG_HDR	(0x00004)
+#define DPSS_FLG_BYPASS	        (0x00001) //this flag is set on input vframe
+#define DPSS_FLG_DDD	        (0x00002)
+#define DPSS_FLG_HDR	        (0x00004)
+#define DPSS_FLG_OUT_DONE       (0x00008) //this flag is set in pipeline means do dpss done
+#define DPSS_FLG_OUT_BYPASS     (0x00010) //this flag is set in pipeline means not do dpss
+#define DPSS_FLG_MODULE_BYPASS  (0x00020) //this flag is set in pipeline means bypass dpss module
 
 /************************************************/
 
