@@ -4329,7 +4329,7 @@
 	};
 
 	all_nand_pins: all_nand_pins {
-	mux {
+		mux-shared {
 			groups = "emmc_d0",
 				"emmc_d1",
 				"emmc_d2",
@@ -4337,9 +4337,12 @@
 				"emmc_d4",
 				"emmc_d5",
 				"emmc_d6",
-				"emmc_d7",
-				"nand_ce0",
-				"nand_ale",
+				"emmc_d7";
+			function = "emmc";
+			input-enable;
+		};
+		mux {
+			groups = "nand_ale",
 				"nand_cle",
 				"nand_wen_clk",
 				"nand_ren_wr";
