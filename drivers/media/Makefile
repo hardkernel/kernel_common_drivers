@@ -23,5 +23,7 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/avsync/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/frc/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/di_v4l/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/di_mini/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vpq/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vpp/Makefile
 obj-$(CONFIG_AMLOGIC_VIDEO_CAPTURE)	+= camera/
 obj-$(CONFIG_AMLOGIC_DVB_CORE) += dvb-core/

@@ -95,6 +95,8 @@ source "$(COMMON_DRIVERS_DIR)/drivers/media/dtv_demod/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/frc/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/di_v4l/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/di_mini/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/media/vpq/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/media/vpp/Kconfig"
 endif
 endmenu
 

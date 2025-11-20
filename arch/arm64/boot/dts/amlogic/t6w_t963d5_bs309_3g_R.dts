@@ -1239,5 +1239,5 @@
 };
 
 &aml_vpq {
-	status = "disabled";
+	status = "okay";
 };

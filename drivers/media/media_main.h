@@ -823,4 +823,23 @@ static inline int v2d_module_init(void)
 	return 0;
 }
 #endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VPQ
+int vpq_init(void);
+#else
+static inline int vpq_init(void)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VPP
+int __init vpp_drv_init(void);
+#else
+static int vpp_drv_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif
