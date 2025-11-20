@@ -376,14 +376,13 @@ lcd_resource_ready_success:
 	mutex_unlock(&lcd_power_mutex);
 }
 
-int lcd_resource_is_ready(struct aml_lcd_drv_s *pdrv)
+static int lcd_resource_status_check(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_resource_s *res_i;
 
 	if (!pdrv)
 		return 0;
 
-	mutex_lock(&lcd_power_mutex);
 	res_i = pdrv->resource;
 	while (res_i) {
 		if (res_i->ready == 0) {
@@ -391,14 +390,25 @@ int lcd_resource_is_ready(struct aml_lcd_drv_s *pdrv)
 				LCDERR("[%d]: %s: not ready: res_type[index]: %d[%d]\n",
 					pdrv->index, __func__, res_i->type, res_i->index);
 			}
-			mutex_unlock(&lcd_power_mutex);
 			return 0;
 		}
 		res_i = res_i->next_res;
 	}
 
-	mutex_unlock(&lcd_power_mutex);
 	return 1;
+}
+
+int lcd_resource_is_ready(struct aml_lcd_drv_s *pdrv)
+{
+	int ret;
+
+	if (!pdrv)
+		return 0;
+
+	mutex_lock(&lcd_power_mutex);
+	ret = lcd_resource_status_check(pdrv);
+	mutex_unlock(&lcd_power_mutex);
+	return ret;
 }
 
 void lcd_resource_remove_all(struct aml_lcd_drv_s *pdrv)
@@ -975,7 +985,7 @@ void lcd_power_if_early_on(struct aml_lcd_drv_s *pdrv)
 	} else {
 		LCD_PR(pdrv, "directly if_early_on, status=0x%x\n", pdrv->status);
 		/*if resource is not ready, call lcd_queue_work instead*/
-		if (lcd_resource_is_ready(pdrv)) {
+		if (lcd_resource_status_check(pdrv)) {
 			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON | LCD_EVENT_ENCL_ACTIVE,
 					(void *)pdrv);
 			lcd_if_enable_retry(pdrv);
