@@ -5397,25 +5397,27 @@ static int crg_udc_resume(struct device *dev)
 	//if (crg_udc->controller_type != USB_M31)
 		//amlogic_crg_device_usb2_init(crg_udc->phy_id);
 
-#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+//#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 	/* Actually the crg_rewrite_otg_write_UDC() is used to restart the controller
 	 * to workaround quirks emerge in suspend-resume stress test.
 	 * It is safe to skip it if the driver chooses to use resume-reinit scheme.
-	 */
-	if (crg_udc_suspend_reinit(crg_udc))
-		goto done;
 
-	/* Threads should be runnable or ums unbind will stuck.
+	 * if (crg_udc_suspend_reinit(crg_udc))
+	 * goto done;
+
+	* Threads should be runnable or ums unbind will stuck.
 	 * Defer the udc restart and it also helps to shorten the
 	 * boot time.
-	 */
-	if (!delayed_work_pending(&crg_udc->reset_udc)) {
-		crg_udc->resume_recovery = 1;
-		queue_delayed_work(system_freezable_wq,
-					&crg_udc->reset_udc, msecs_to_jiffies(500));
-	}
-done:
-#endif
+
+	* if (!delayed_work_pending(&crg_udc->reset_udc)) {
+	* crg_udc->resume_recovery = 1;
+	* queue_delayed_work(system_freezable_wq,
+	* &crg_udc->reset_udc, msecs_to_jiffies(500));
+	* }
+	* done:
+	* #endif
+	*/
+
 	return 0;
 }
 
@@ -5479,6 +5481,12 @@ static int crg_udc_pm_cb(struct notifier_block *notifier,
 		if (crg_udc_suspend_reinit(crg_udc)) {
 			crg_udc_remove(pdev);
 			crg_udc_probe(pdev);
+		} else {
+			if (!delayed_work_pending(&crg_udc->reset_udc)) {
+				crg_udc->resume_recovery = 1;
+				queue_delayed_work(system_freezable_wq,
+					&crg_udc->reset_udc, msecs_to_jiffies(500));
+			}
 		}
 		break;
 	case PM_RESTORE_PREPARE:
