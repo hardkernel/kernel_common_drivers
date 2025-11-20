@@ -5704,6 +5704,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
+		if (devp->flags & VDIN_FLAG_SM_DISABLE ||
+		    devp->flags & VDIN_FLAG_SUSPEND)
+			break;
+
 		mutex_lock(&devp->fe_lock);
 		if (!(devp->flags & VDIN_FLAG_DEC_STARTED)) {
 			viuin_select_loopback_path();
