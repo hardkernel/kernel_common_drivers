@@ -7191,6 +7191,8 @@ static void vdin_get_dts_config(struct vdin_dev_s *devp,
 	devp->dts_config.vdin_qms_chg_cnt = 2;
 	/* The VFCE cannot complete the compression in time,so adds 2 lines of time */
 	devp->delay_line_num = 2;
+	/* Enable aspect ratio by default */
+	devp->vdin_function_sel |= VDIN_SET_DISPLAY_RATIO;
 }
 
 static int vdin_drv_probe(struct platform_device *pdev)
