@@ -2743,14 +2743,14 @@ void meson_video_plane_async_update(struct drm_plane *plane,
 	swap(plane->state->fb, new_state->fb);
 
 	for_each_oldnew_private_obj_in_state(state, obj, old_obj_state, new_obj_state, i) {
+		if (obj != &sub_pipe->obj && obj !=  &mvv->base.obj)
+			continue;
 
-		if ((obj == &sub_pipe->obj && index == 0) || obj == &mvv->base.obj) {
-			old_obj_state->state = state;
-			new_obj_state->state = NULL;
+		old_obj_state->state = state;
+		new_obj_state->state = NULL;
 
-			state->private_objs[i].state = old_obj_state;
-			obj->state = new_obj_state;
-		}
+		state->private_objs[i].state = old_obj_state;
+		obj->state = new_obj_state;
 	}
 
 	if (new_state && !meson_video_plane_is_repeat_frame(mvv)) {
