@@ -10,6 +10,8 @@
 #include <linux/types.h>
 #include <linux/sched/clock.h>
 #endif
+#include <linux/amlogic/media/dpss/dpss_frc.h>
+
 #include "dpss_frc_dbg.h"
 #include "dpss_s.h"
 #include "dpss_sys.h"

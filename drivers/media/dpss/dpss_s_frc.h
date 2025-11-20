@@ -37,10 +37,6 @@ void dpss_frc_pattern_dbg_ctrl(void);
 void set_delta_ms(int in_fps, int out_fps, int delta);
 void dump_delta_ms(void);
 
-void dpss_frc_set_dejudder(u8 dejudder_level);
-void dpss_frc_set_deblur(u8 deblur_level);
-void dpss_frc_set_mc_bypass(u8 bypass);
-void dpss_frc_demo_win(u8 demo_num, u8 style);
 void dpss_frc_set_memc_enable(u8 function, u8 enable);
 void update_n2m_info_to_fw(enum DPSS_FRC_RATIO frc_ratio);
 void frc_dbg_read_table_value(void);

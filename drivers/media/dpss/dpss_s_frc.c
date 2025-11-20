@@ -2454,6 +2454,7 @@ void dpss_frc_demo_win(u8 demo_num, u8 style)
 	dbg_h1("%s demo_num:%d, demo_style :%d\n",
 			__func__, demo_num, demo_style);
 }
+EXPORT_SYMBOL(dpss_frc_demo_win);
 
 void frc_set_mc_bypass(u8 bypass)
 {
@@ -2496,6 +2497,7 @@ void dpss_frc_set_mc_bypass(u8 enable_mc)
 	}
 	frc_top->memc_enable = enable_mc;
 }
+EXPORT_SYMBOL(dpss_frc_set_mc_bypass);
 
 void dpss_frc_set_dejudder(u8 dejudder_level)
 {
@@ -2516,11 +2518,13 @@ void dpss_frc_set_dejudder(u8 dejudder_level)
 			pfw_data->frc_memc_level(pfw_data);
 	}
 }
+EXPORT_SYMBOL(dpss_frc_set_dejudder);
 
 void dpss_frc_set_deblur(u8 deblur_level)
 {
 	pr_frc(1, "%s deblur_level:%d\n", __func__, deblur_level);
 }
+EXPORT_SYMBOL(dpss_frc_set_deblur);
 
 static void get_vout_framerate(struct frc_state_s *state_st)
 {

@@ -6,6 +6,8 @@
 #ifndef __DPSS_FRC_H__
 #define __DPSS_FRC_H__
 
+#include <linux/amlogic/media/vfm/vframe.h>
+
 enum EPVPP_DISPLAY_FRC_MODE {
 	EPVPP_DISPLAY_MODE_FRC_BYPASS = 0,
 	EPVPP_DISPLAY_MODE_FRC,
@@ -73,5 +75,10 @@ int dpss_frc_get_video_latency_for_gd1(void);
 u32 VSYNC_RD_VIDEO_TABLE_REG(u32 adr);
 int VSYNC_WR_VIDEO_TABLE_REG(u32 adr, u32 val);
 int VSYNC_WR_VIDEO_TABLE_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+
+void dpss_frc_set_deblur(u8 deblur_level);
+void dpss_frc_set_mc_bypass(u8 enable_mc);
+void dpss_frc_set_dejudder(u8 dejudder_level);
+void dpss_frc_demo_win(u8 demo_num, u8 style);
 
 #endif	/*__DPSS_FRC_H__*/

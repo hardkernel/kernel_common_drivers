@@ -59,6 +59,7 @@
 #include <linux/amlogic/media/di/dpss_interface.h>
 #endif				/* RUN_ON_ARM */
 #include <linux/amlogic/media/dpss/frc_common_x.h>
+#include <linux/amlogic/media/dpss/dpss_frc.h>
 
 #include "dpss_base.h"
 #include "dpss_s.h"
