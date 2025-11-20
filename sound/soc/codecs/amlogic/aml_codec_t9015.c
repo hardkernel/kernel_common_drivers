@@ -47,6 +47,7 @@ struct aml_T9015_audio_priv {
 	int ch1_sel;
 	struct t9015_acodec_chipinfo *chipinfo;
 	struct reset_control *rst;
+	int dac_reset;
 };
 
 static struct t9015_acodec_chipinfo aml_acodec_cinfo = {
@@ -139,6 +140,35 @@ static const struct soc_enum dac_gain_enum =
 SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(dac_gain_texts),
 		dac_gain_texts);
 
+static int Dac_reset_get(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct aml_T9015_audio_priv *T9015_audio =
+		snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = T9015_audio->dac_reset;
+	return 0;
+}
+
+static int Dac_reset_set(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	int value = ucontrol->value.integer.value[0];
+	struct aml_T9015_audio_priv *T9015_audio =
+		snd_soc_component_get_drvdata(component);
+
+	T9015_audio->dac_reset = value;
+	if (value) {
+		snd_soc_component_update_bits(component, AUDIO_CONFIG_BLOCK_ENABLE, 0x3 << 4,
+						0 << 4);
+		snd_soc_component_update_bits(component, AUDIO_CONFIG_BLOCK_ENABLE, 0x3 << 4,
+						0x3 << 4);
+	}
+	return 0;
+}
+
 static const struct snd_kcontrol_new T9015_audio_snd_controls[] = {
 	/*DAC Digital Volume control */
 	SOC_DOUBLE_TLV("DAC Digital Playback Volume",
@@ -151,6 +181,10 @@ static const struct snd_kcontrol_new T9015_audio_snd_controls[] = {
 		     dac_gain_enum,
 		     aml_dac_gain_get_enum,
 		     aml_dac_gain_set_enum),
+
+	SOC_SINGLE_BOOL_EXT("DAC Reset", 0,
+			    Dac_reset_get,
+			    Dac_reset_set),
 
 };
 
