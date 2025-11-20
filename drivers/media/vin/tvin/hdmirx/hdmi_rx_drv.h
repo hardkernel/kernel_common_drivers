@@ -1070,6 +1070,7 @@ struct rx_s {
 	bool new_emp_pkt;
 	struct emp_dsf_st emp_dsf_info[EMP_DSF_CNT_MAX];
 	unsigned char edid_mix_buf[EDID_MIX_MAX_SIZE];
+	bool game_chg;
 	unsigned int pwr_sts;
 	/* for debug */
 	/*struct pd_infoframe_s dbg_info;*/
@@ -1111,6 +1112,7 @@ struct rx_s {
 	u32 frl_pix_cnt;
 	u8 frl_fdet_check_step;
 	u32 rx_sig_type;
+	u32 rx_sig_type_pre;
 };
 
 struct reg_map {

@@ -739,6 +739,7 @@ void rx_pkt_initial(u8 port)
 	rx[i].spd_pkt_st = HDMIRX_PACKET_STATUS_NOT_RECEIVED;
 	rx[i].avi_pkt_st = HDMIRX_PACKET_STATUS_NOT_RECEIVED;
 	rx[i].rx_sig_type &= MSK(3, 0);
+	rx[port].game_chg = false;
 	if (!emp_info_p) {
 		rx_pr("%s emp info null\n", __func__);
 		return;
@@ -3031,4 +3032,17 @@ void get_hdmirx_qms_plus_info(char *buf, u32 max_len)
 			rx[port].vtem_info.base_framerate);
 	}
 	snprintf(buf + i, max_len - i, "\n");
+}
+
+bool rx_game_need_mute(u8 port)
+{
+	bool ret = true;
+
+	if ((rx[port].rx_sig_type & (AMDV_MASK | HDR_MASK)) ==
+		(rx[port].rx_sig_type_pre & (AMDV_MASK | HDR_MASK))) {
+		if ((rx[port].rx_sig_type & GAME_MASK) != (rx[port].rx_sig_type_pre & GAME_MASK))
+			ret = false;
+	}
+
+	return ret;
 }

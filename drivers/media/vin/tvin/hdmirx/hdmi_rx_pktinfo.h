@@ -22,7 +22,8 @@
 /* 2025.09.30 fix emp form2 dolby vision issue */
 /* 2025.11.05 fix unpack AVI packet when no EMP isr */
 /* 2025.11.12 clear unique drm flag before parsing DRM packet */
-#define RX_PKT_VER "ver.2025/11/12"
+/* 2025.11.14 not mute when game change */
+#define RX_PKT_VER "ver.2025/11/14"
 
 #define K_ONEPKT_BUFF_SIZE		8
 #define K_PKT_REREAD_SIZE		2
@@ -136,6 +137,11 @@ enum rx_sig_type_e {
 	E_EMP_FVA	= 0x400000,
 	E_AVI_FILMMAKER	= 0x800000,
 };
+
+#define GAME_MASK (E_VSIF_HDR_ALLM | E_VSIF_HDMI_ALLM | E_VSIF_DV_ALLM | E_EMP_AMDV_ALLM | \
+	E_VSIF_AMDV_LL | E_EMP_VRR)
+#define AMDV_MASK (E_DRM_AMDV | E_VSIF_AMDV | E_EMP_AMDV)
+#define HDR_MASK (E_DRM_HDR10 | E_DRM_HLG | E_DRM_AMDV)
 
 enum pkt_decode_type {
 	PKT_BUFF_SET_FIFO = 0x01,
@@ -1164,4 +1170,5 @@ void hdmirx_pkt_var_init(u8 port);
 void rx_reset_pkt_cnt(enum pkt_type_e type, u8 port);
 bool rx_is_dv_unique_drm(struct drm_infoframe_st *drm_pkt);
 void rx_dump_aud_sample_pkt(u8 port);
+bool rx_game_need_mute(u8 port);
 #endif
