@@ -3256,7 +3256,7 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 		md = VDIN_VF_RECYCLE;
 
 	/*skip policy process*/
-	if (vfe && devp->vfp->skip_vf_num > 0)
+	if (vfe)
 		vdin_vf_disp_mode_update(vfe, devp->vfp);
 
 	/*force recycle one frame*/

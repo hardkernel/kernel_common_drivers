@@ -192,7 +192,7 @@ int cec_dev_en;
 bool dev_is_apple_tv_v2;
 int hdmi_cec_en = 0xff;
 static bool tv_auto_power_on;
-int vdin_drop_frame_cnt = 1;
+int vdin_drop_frame_cnt;
 int vdin_reset_pcs_en;
 int audio_dump_frame = 360;
 int audio_dump_type;
