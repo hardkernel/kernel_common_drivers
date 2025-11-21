@@ -21,11 +21,15 @@ bool tuner_find_by_name(struct dvb_frontend *fe, const char *name)
 void tuner_set_params(struct dvb_frontend *fe)
 {
 	int ret = -1;
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 
+	timer_trace_begin(demod, D_TIMER_DBG2, "TUNER_TUNE");
 	if (fe->ops.tuner_ops.set_params)
 		ret = fe->ops.tuner_ops.set_params(fe);
 	else
 		PR_ERR("set_params NULL\n");
+
+	timer_trace_end(demod, D_TIMER_DBG2, "TUNER_TUNE");
 }
 
 int tuner_get_ch_power(struct dvb_frontend *fe)

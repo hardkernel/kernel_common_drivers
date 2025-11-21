@@ -1879,6 +1879,12 @@ int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 		return 0;
 	}
 
+	if (aml_demod_debug & DBG_TIME) {
+		timer_enable(demod, D_TIMER_DBG1);
+		timer_enable(demod, D_TIMER_DBG2);
+	}
+	timer_trace_begin(demod, D_TIMER_DBG1, "DEMOD_INIT");
+
 	if ((cdelsys == SYS_DVBT && ldelsys == SYS_DVBT2) ||
 		(cdelsys == SYS_DVBT2 && ldelsys == SYS_DVBT))
 		is_T_T2_switch = true;
@@ -1954,6 +1960,10 @@ int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 			PR_INFO("delsys %d not support\n", cdelsys);
 			delsys_exit(demod, ldelsys, SYS_UNDEFINED);
 		}
+		if (aml_demod_debug & DBG_TIME) {
+			timer_disable(demod, D_TIMER_DBG1);
+			timer_disable(demod, D_TIMER_DBG2);
+		}
 
 		return 0;
 	}
@@ -1981,8 +1991,13 @@ int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 	demod->last_delsys = cdelsys;
 	PR_INFO("[id %d] fe type:%d\n", demod->id, fe->ops.info.type);
 
-	if (fe->ops.tuner_ops.set_config && !is_T_T2_switch)
+	if (fe->ops.tuner_ops.set_config && !is_T_T2_switch) {
+		timer_trace_begin(demod, D_TIMER_DBG2, "TUNER_INIT");
 		fe->ops.tuner_ops.set_config(fe, NULL);
+		timer_trace_end(demod, D_TIMER_DBG2, "TUNER_INIT");
+	}
+
+	timer_trace_end(demod, D_TIMER_DBG1, "DEMOD_INIT");
 
 	return 0;
 }
@@ -2672,6 +2687,7 @@ static int aml_dtvdm_tune(struct dvb_frontend *fe, bool re_tune,
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	enum fe_delivery_system delsys = SYS_UNDEFINED;
 	int ret = 0;
+	enum fe_status last_status = demod->last_status;
 
 	mutex_lock(&devp->lock);
 
@@ -2690,6 +2706,9 @@ static int aml_dtvdm_tune(struct dvb_frontend *fe, bool re_tune,
 
 		return -ECANCELED;
 	}
+
+	if (re_tune)
+		timer_trace_begin(demod, D_TIMER_DBG1, "DEMOD_TUNE");
 
 	switch (delsys) {
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
@@ -2748,6 +2767,14 @@ static int aml_dtvdm_tune(struct dvb_frontend *fe, bool re_tune,
 #endif
 	default:
 		break;
+	}
+
+	if (re_tune) {
+		timer_trace_end(demod, D_TIMER_DBG1, "DEMOD_TUNE");
+		timer_trace_begin(demod, D_TIMER_DBG1, "DEMOD_LOCK");
+	} else {
+		if (last_status != *status && *status == FE_LOCKED)
+			timer_trace_end(demod, D_TIMER_DBG1, "DEMOD_LOCK");
 	}
 
 	mutex_unlock(&devp->lock);

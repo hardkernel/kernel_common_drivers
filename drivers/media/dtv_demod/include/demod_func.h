@@ -596,5 +596,8 @@ int timer_not_enough(struct aml_dtvdemod *demod, enum ddemod_timer_s tmid);
 int timer_is_enough(struct aml_dtvdemod *demod, enum ddemod_timer_s tmid);
 int timer_tuner_not_enough(struct aml_dtvdemod *demod);
 int fw_check_sum(unsigned char *buf, unsigned int len);
+int timer_enable(struct aml_dtvdemod *demod, enum ddemod_timer_s tmid);
+int timer_trace_begin(struct aml_dtvdemod *demod, enum ddemod_timer_s tmid, const char *TAG);
+int timer_trace_end(struct aml_dtvdemod *demod, enum ddemod_timer_s tmid, const char *TAG);
 
 #endif

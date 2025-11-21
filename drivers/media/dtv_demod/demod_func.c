@@ -3377,6 +3377,35 @@ int timer_tuner_not_enough(struct aml_dtvdemod *demod)
 	return ret;
 }
 
+int timer_enable(struct aml_dtvdemod *demod, enum ddemod_timer_s tmid)
+{
+	demod->gtimer[tmid].enable = 1;
+
+	return 0;
+}
+
+int timer_trace_begin(struct aml_dtvdemod *demod, enum ddemod_timer_s tmid, const char *TAG)
+{
+	if (demod->gtimer[tmid].enable) {
+		demod->gtimer[tmid].start = jiffies_to_msecs(jiffies);
+		//PR_TIME("%s\n", TAG);
+	}
+
+	return 0;
+}
+
+int timer_trace_end(struct aml_dtvdemod *demod, enum ddemod_timer_s tmid, const char *TAG)
+{
+	unsigned int time = 0;
+
+	if (demod->gtimer[tmid].enable && demod->gtimer[tmid].start) {
+		time = jiffies_to_msecs(jiffies);
+		PR_TIME("%s time is %u ms\n", TAG, time - demod->gtimer[tmid].start);
+		demod->gtimer[tmid].start = 0;
+	}
+	return 0;
+}
+
 void real_para_clear(struct aml_demod_para_real *para)
 {
 	para->modulation = -1;
