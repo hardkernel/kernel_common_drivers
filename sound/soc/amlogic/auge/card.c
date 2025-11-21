@@ -38,7 +38,12 @@
 #endif
 #include <linux/amlogic/gpiolib.h>
 #include <linux/kthread.h>
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/panic_notifier.h>
+#include <linux/notifier.h>
+#endif
 #include "sound_init.h"
+
 /*the same as audio hal type define!*/
 static const char * const audio_format[] = {
 	"PCM",
@@ -194,6 +199,9 @@ struct aml_card_data {
 	int suspend_flag;
 	bool spk_mute_enable;
 	int hp_mute_flag;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct notifier_block notifier;
+#endif
 };
 
 #define aml_priv_to_dev(priv) ((priv)->snd_card.dev)
@@ -1513,7 +1521,25 @@ static struct early_suspend card_early_suspend_handler = {
 	.resume  = aml_card_late_resume,
 };
 #endif
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int panic_notifier_to_audio(struct notifier_block *self,
+				   unsigned long v, void *p)
+{
+	struct aml_card_data *priv = container_of(self, struct aml_card_data,
+						   notifier);
+	struct device *dev = aml_priv_to_dev(priv);
 
+	priv->av_mute_enable = 1;
+	priv->spk_mute_enable = 1;
+	aml_card_parse_gpios(dev->of_node, priv);
+
+	if (priv->thread) {
+		kthread_stop(priv->thread);
+		priv->thread = NULL;
+	}
+	return NOTIFY_DONE;
+}
+#endif
 static int aml_card_probe(struct platform_device *pdev)
 {
 	struct aml_card_data *priv;
@@ -1533,7 +1559,6 @@ static int aml_card_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
 	dai_props = devm_kzalloc(dev, sizeof(*dai_props) * num, GFP_KERNEL);
 	dai_link  = devm_kzalloc(dev, sizeof(*dai_link)  * num, GFP_KERNEL);
 	if (!dai_props || !dai_link)
@@ -1659,8 +1684,12 @@ static int aml_card_probe(struct platform_device *pdev)
 		wake_up_process(priv->thread);
 	}
 	wake_up_interruptible(&priv->wq);
-
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+	priv->notifier.notifier_call = panic_notifier_to_audio;
+	priv->notifier.priority = 200; /* ftrace_dump_on_oops panic notifier priority is 150 */
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &priv->notifier);
+#endif
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	card_early_suspend_handler.param = pdev;
 	register_early_suspend(&card_early_suspend_handler);
