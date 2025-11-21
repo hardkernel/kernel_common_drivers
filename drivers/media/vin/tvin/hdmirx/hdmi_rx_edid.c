@@ -869,11 +869,19 @@ void rx_edid_update_freesync_info(unsigned char *p_edid)
 	if (rx_info.vrr_min == 0)
 		return;
 	p_edid[vsdb_start + 6] = rx_info.vrr_min;
+	start = block * EDID_BLK_SIZE;
+	end = (block + 1) * EDID_BLK_SIZE - 1;
 	if (rx_info.vrr_max <= 255) {
+		if (p_edid[vsdb_start + 4] == 0x3) {
+			p_edid[vsdb_start + 4] = 0x2;
+			p_edid[vsdb_start] -= FS_LEN_DELTA;
+			for (i = vsdb_start + 14; i < end - FS_LEN_DELTA; ++i)
+				p_edid[i] = p_edid[i + FS_LEN_DELTA];
+			memset(&p_edid[end - FS_LEN_DELTA], 0, FS_LEN_DELTA);
+			p_edid[start + EDID_DESCRIP_OFFSET] -= FS_LEN_DELTA;
+		}
 		p_edid[vsdb_start + 7] = rx_info.vrr_max;
 	} else {
-		start = block * EDID_BLK_SIZE;
-		end = (block + 1) * EDID_BLK_SIZE - 1;
 		i = start + p_edid[start + 2];
 		while (i < end) {
 			if (p_edid[i] == 0)
@@ -881,13 +889,14 @@ void rx_edid_update_freesync_info(unsigned char *p_edid)
 			i += DETAILED_TIMING_LEN;
 		}
 		free_size = end - i;
-		if (free_size < 2) {
+		if (free_size < FS_LEN_DELTA) {
 			rx_pr("no enough space to update freesync block\n");
 			return;
 		}
 		for (i = 0; i < end - vsdb_start - tag_len; ++i)
-			p_edid[end - i - 1] = p_edid[end - i - 1 - 2];
-		p_edid[vsdb_start] += 2;
+			p_edid[end - i - 1] = p_edid[end - i - 1 - FS_LEN_DELTA];
+		p_edid[start + EDID_DESCRIP_OFFSET] += FS_LEN_DELTA;
+		p_edid[vsdb_start] += FS_LEN_DELTA;
 		p_edid[vsdb_start + 4] = 0x03;
 		p_edid[vsdb_start + 7] = 0xf0;
 		p_edid[vsdb_start + 14] = rx_info.vrr_max & 0xff;
@@ -1165,7 +1174,7 @@ struct data_block_location_s rx_get_cea_tag_offset(u8 *cur_edid, u16 tag_code)
 		while (i < max_offset) {
 			if (tag_code == rx_get_tag_code(cur_edid + i)) {
 				if (log_level & EDID_LOG)
-					rx_pr("find tag: %#x, start addr: %#x\n", tag_code, i);
+					rx_pr("find tag: %#x, start addr: %d\n", tag_code, i);
 				ret.pos[ret.num] = i;
 				ret.num++;
 				if (ret.num >= 10)
@@ -1526,7 +1535,7 @@ bool rx_edid_update_aud_blk(u_char *pedid,
 			    u_char *sad_data,
 			    u_char len)
 {
-	u_char tmp_aud_blk[128];
+	u_char tmp_aud_blk[31];
 
 	if (!pedid)
 		return false;
@@ -1549,6 +1558,8 @@ bool rx_edid_update_aud_blk(u_char *pedid,
 unsigned char rx_edid_update_sad(unsigned char *p_edid)
 {
 	unsigned char offset = 0;
+	int i = 0, k = 0;
+	unsigned char buff[31] = {0};
 
 	if (need_support_atmos_bit != 0xff)	{
 		offset = get_atmos_offset(p_edid);
@@ -1563,6 +1574,11 @@ unsigned char rx_edid_update_sad(unsigned char *p_edid)
 			if (log_level & EDID_LOG)
 				rx_pr("offset = %d\n", offset);
 		}
+	}
+	if (log_level & EDID_LOG) {
+		for (i = 0; i < tmp_sad_len; ++i)
+			k += sprintf(buff + k, "%02x", tmp_sad[i]);
+		pr_debug("audio data:%s\n", buff);
 	}
 	rx_edid_update_aud_blk(p_edid, tmp_sad, tmp_sad_len);
 	return 0;
@@ -5907,6 +5923,7 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 
 	/* if (!tag_data_blk) { */
 	if (tag_offset == 0) {
+		//TODO
 		cea_ext = kzalloc(sizeof(*cea_ext), GFP_KERNEL);
 		if (!cea_ext)
 			return;
@@ -5982,6 +5999,8 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 		add_data_blk = add_buf;
 		/* replace data blk */
 		add_db_len = BLK_LENGTH(add_data_blk[0]) + 1;
+		free_size = rx_get_cta_free_size(p_edid + EDID_BLK_SIZE *
+				(tag_offset / EDID_BLK_SIZE), EDID_BLK_SIZE);
 		if (tag_db_len >= add_db_len) {
 			/* move data behind current data
 			 * block, except checksum
@@ -6033,7 +6052,8 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 			return;
 		}
 		/* dtd offset modify */
-		p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] +=
+		p_edid[EDID_BLK_SIZE * (tag_offset / EDID_BLK_SIZE)
+			+ EDID_DESCRIP_OFFSET] +=
 			(add_db_len - tag_db_len);
 		/* copy added data block */
 		memcpy(p_edid + tag_offset, add_data_blk, add_db_len);
@@ -7648,11 +7668,9 @@ bool hdmi_rx_top_edid_update(void)
 #ifdef CONFIG_AMLOGIC_HDMITX
 		rpt_edid_extraction(pedid);
 #endif
-		for (j = 0; j < ext_blk_num; ++j) {
-			if (pedid[j * EDID_BLK_SIZE] == 0x2)
-				pedid[j * EDID_BLK_SIZE + 2] = rx_get_dtd_offset(pedid, j);
+		for (j = 0; j < ext_blk_num; ++j)
 			pedid[END_OF_BLK(j)] = rx_edid_calc_cksum(pedid, j);
-		}
+
 		for (j = 0; j < EDID_SIZE; j++) {
 			hdmirx_wr_top(edid_addr[i] + j, pedid[j], i);
 			edid_cur[i * EDID_SIZE + j] = pedid[j];
