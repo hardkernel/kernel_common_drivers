@@ -1352,6 +1352,9 @@ void update_cp_cfg_hw5(bool update_pyramid, bool is_top1, bool enable)
 	tdc->d_contrast = cfg_info[cur_pic_mode].contrast;
 	tdc->d_color_shift = cfg_info[cur_pic_mode].colorshift;
 	tdc->d_saturation = cfg_info[cur_pic_mode].saturation;
+	tdc->pr_config.precision_rendering_strength = cfg_info[cur_pic_mode].pd_value;
+	tdc->d_local_contrast = cfg_info[cur_pic_mode].local_contrast;
+	tdc->d_brightness_pr_on = cfg_info[cur_pic_mode].brightness_pr_on;
 
 	if (dv_user_cfg_flag) {
 		tdc->gamma = user_target_config[cur_pic_mode].gamma;
@@ -1528,6 +1531,12 @@ void restore_dv_pq_setting(enum pq_reset_e pq_reset)
 			cfg_info[mode].global_dimming =
 				bin_to_cfg_dvp[mode].tdc.gd_config.global_dimming;
 			cfg_info[mode].bypass_pd_from_user = false;
+			cfg_info[mode].pd_value =
+				bin_to_cfg_dvp[mode].tdc.pr_config.precision_rendering_strength;
+			cfg_info[mode].local_contrast =
+				bin_to_cfg_dvp[mode].tdc.d_local_contrast;
+			cfg_info[mode].brightness_pr_on =
+				bin_to_cfg_dvp[mode].tdc.d_brightness_pr_on;
 			memcpy(cfg_info[mode].vsvdb,
 			       bin_to_cfg_dvp[mode].tdc.vsvdb,
 			       sizeof(cfg_info[mode].vsvdb));
@@ -2612,66 +2621,93 @@ void set_single_pq_value(int mode, enum pq_item_e item, s16 value)
 		pr_err("err picture mode %d\n", mode);
 		return;
 	}
-	if (!use_inter_pq) {
-		if (!is_valid_pq_exter_value(exter_value)) {
-			exter_value =
-				clamps(exter_value, EXTER_MIN_PQ, EXTER_MAX_PQ);
-			pr_info("clamps %s to %d\n",
-				pq_item_str[item], exter_value);
-		}
-		inter_value = map_pq_exter_to_inter(item, exter_value);
-		if (debug_dolby & 0x200) {
-			pr_info("%s: mode:%d, item:%s, [inter:%d, exter:%d]\n",
-				__func__, mode, pq_item_str[item],
-				inter_value, exter_value);
+	if (item >= PD_VALUE) {
+		inter_value = 128 * exter_value;
+		switch (item) {
+		case PD_VALUE:
+			if (cfg_info[cur_pic_mode].pd_value != inter_value) {
+				cfg_info[cur_pic_mode].pd_value = inter_value;
+				pq_changed = true;
+			}
+			break;
+		case PD_LOCAL_CONTRAST:
+			if (cfg_info[cur_pic_mode].local_contrast != inter_value) {
+				cfg_info[cur_pic_mode].local_contrast = inter_value;
+				pq_changed = true;
+			}
+			break;
+		case PD_BRIGHTNESS_PR_ON:
+			if (cfg_info[cur_pic_mode].brightness_pr_on != inter_value) {
+				cfg_info[cur_pic_mode].brightness_pr_on = inter_value;
+				pq_changed = true;
+			}
+			break;
+		default:
+			pr_err("err pq_item %d\n", item);
+			break;
 		}
 	} else {
-		inter_value = value;
-		if (!is_valid_pq_inter_value(inter_value)) {
-			if (is_aml_hw5())
-				inter_value =
+		if (!use_inter_pq) {
+			if (!is_valid_pq_exter_value(exter_value)) {
+				exter_value =
+					clamps(exter_value, EXTER_MIN_PQ, EXTER_MAX_PQ);
+				pr_info("clamps %s to %d\n",
+					pq_item_str[item], exter_value);
+			}
+			inter_value = map_pq_exter_to_inter(item, exter_value);
+			if (debug_dolby & 0x200) {
+				pr_info("%s: mode:%d, item:%s, [inter:%d, exter:%d]\n",
+					__func__, mode, pq_item_str[item],
+					inter_value, exter_value);
+			}
+		} else {
+			inter_value = value;
+			if (!is_valid_pq_inter_value(inter_value)) {
+				if (is_aml_hw5())
+					inter_value =
 					clamps(inter_value, INTER_MIN_PQ_HW5, INTER_MAX_PQ_HW5);
-			else
-				inter_value =
-					clamps(inter_value, INTER_MIN_PQ, INTER_MAX_PQ);
-			pr_info("clamps %s to %d\n",
-				pq_item_str[item], inter_value);
+				else
+					inter_value =
+						clamps(inter_value, INTER_MIN_PQ, INTER_MAX_PQ);
+				pr_info("clamps %s to %d\n",
+					pq_item_str[item], inter_value);
+			}
+			if (debug_dolby & 0x200) {
+				exter_value = map_pq_inter_to_exter(item, inter_value);
+				pr_info("%s: mode:%d, item:%s, [inter:%d, exter:%d]\n",
+					__func__, mode, pq_item_str[item],
+					inter_value, exter_value);
+			}
 		}
-		if (debug_dolby & 0x200) {
-			exter_value = map_pq_inter_to_exter(item, inter_value);
-			pr_info("%s: mode:%d, item:%s, [inter:%d, exter:%d]\n",
-				__func__, mode, pq_item_str[item],
-				inter_value, exter_value);
+		switch (item) {
+		case PQ_BRIGHTNESS:
+			if (cfg_info[cur_pic_mode].brightness != inter_value) {
+				cfg_info[cur_pic_mode].brightness = inter_value;
+				pq_changed = true;
+			}
+			break;
+		case PQ_CONTRAST:
+			if (cfg_info[cur_pic_mode].contrast != inter_value) {
+				cfg_info[cur_pic_mode].contrast = inter_value;
+				pq_changed = true;
+			}
+			break;
+		case PQ_COLORSHIFT:
+			if (cfg_info[cur_pic_mode].colorshift != inter_value) {
+				cfg_info[cur_pic_mode].colorshift = inter_value;
+				pq_changed = true;
+			}
+			break;
+		case PQ_SATURATION:
+			if (cfg_info[cur_pic_mode].saturation != inter_value) {
+				cfg_info[cur_pic_mode].saturation = inter_value;
+				pq_changed = true;
+			}
+			break;
+		default:
+			pr_err("err pq_item %d\n", item);
+			break;
 		}
-	}
-	switch (item) {
-	case PQ_BRIGHTNESS:
-		if (cfg_info[cur_pic_mode].brightness != inter_value) {
-			cfg_info[cur_pic_mode].brightness = inter_value;
-			pq_changed = true;
-		}
-		break;
-	case PQ_CONTRAST:
-		if (cfg_info[cur_pic_mode].contrast != inter_value) {
-			cfg_info[cur_pic_mode].contrast = inter_value;
-			pq_changed = true;
-		}
-		break;
-	case PQ_COLORSHIFT:
-		if (cfg_info[cur_pic_mode].colorshift != inter_value) {
-			cfg_info[cur_pic_mode].colorshift = inter_value;
-			pq_changed = true;
-		}
-		break;
-	case PQ_SATURATION:
-		if (cfg_info[cur_pic_mode].saturation != inter_value) {
-			cfg_info[cur_pic_mode].saturation = inter_value;
-			pq_changed = true;
-		}
-		break;
-	default:
-		pr_err("err pq_item %d\n", item);
-		break;
 	}
 	if (pq_changed)
 		update_cp_cfg();
@@ -2840,6 +2876,9 @@ int get_dv_pq_info(char *buf)
 	"echo global_dimming value   > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo hlg_min value      > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo hlg_max value      > /sys/class/amdolby_vision/dv_pq_info;\n"
+	"echo pd_value value     > /sys/class/amdolby_vision/dv_pq_info;\n"
+	"echo local_contrast value	> /sys/class/amdolby_vision/dv_pq_info;\n"
+	"echo brightness_pr_on value > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo bypass_pd_from_user value   > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo all v1 v2 v3 v4 v5 > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo reset value        > /sys/class/amdolby_vision/dv_pq_info;\n"
@@ -2854,6 +2893,9 @@ int get_dv_pq_info(char *buf)
 	"darkdetail      range: 0 or 1\n"
 	"lightsense      range: 0 or 1\n"
 	"bypass_pd       range: 0 or 1\n"
+	"pd_value        range: [0, 256]\n"
+	"local_contrast  range: [0, 256]\n"
+	"brightness_pr_on	range: [0, 256]\n"
 	"reset            0: reset pict mode/all pq for all pict mode]\n"
 	"                 1: reset pq for all picture mode]\n"
 	"                 2: reset pq for current picture mode]\n"
@@ -2931,6 +2973,15 @@ int get_dv_pq_info(char *buf)
 	pos += sprintf(buf + pos,
 		       "current hlg_min:           [%d]\n",
 		       hlg_min);
+	pos += sprintf(buf + pos,
+		       "current pd_value:          [%d]\n",
+		       cfg_info[cur_pic_mode].pd_value);
+	pos += sprintf(buf + pos,
+		       "current local_contrast:    [%d]\n",
+		       cfg_info[cur_pic_mode].local_contrast);
+	pos += sprintf(buf + pos,
+		       "current brightness_pr_on:  [%d]\n",
+		       cfg_info[cur_pic_mode].brightness_pr_on);
 
 	if (dv_user_cfg_flag) {
 		pos += sprintf(buf + pos,
@@ -3158,6 +3209,21 @@ int set_dv_pq_info(const char *buf, size_t count)
 			hlg_min = val;
 			set_update_cfg(true);
 		}
+	} else if (!strcmp(parm[0], "pd_value")) {
+		if (kstrtoint(parm[1], 10, &val) != 0)
+			goto ERR;
+		val = clamps(val, 0, 256);
+		item = PD_VALUE;
+	} else if (!strcmp(parm[0], "local_contrast")) {
+		if (kstrtoint(parm[1], 10, &val) != 0)
+			goto ERR;
+		val = clamps(val, 0, 256);
+		item = PD_LOCAL_CONTRAST;
+	} else if (!strcmp(parm[0], "brightness_pr_on")) {
+		if (kstrtoint(parm[1], 10, &val) != 0)
+			goto ERR;
+		val = clamps(val, 0, 256);
+		item = PD_BRIGHTNESS_PR_ON;
 	} else {
 		pr_info("unsupport cmd\n");
 	}

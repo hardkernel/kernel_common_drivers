@@ -12,7 +12,10 @@ enum pq_item_e {
 	PQ_BRIGHTNESS = 0,     /*Brightness */
 	PQ_CONTRAST = 1,       /*Contrast */
 	PQ_COLORSHIFT = 2,     /*ColorShift or Tint*/
-	PQ_SATURATION = 3      /*Saturation or color */
+	PQ_SATURATION = 3,     /*Saturation or color */
+	PD_VALUE = 4,
+	PD_LOCAL_CONTRAST = 5,
+	PD_BRIGHTNESS_PR_ON = 6
 };
 
 enum pq_reset_e {

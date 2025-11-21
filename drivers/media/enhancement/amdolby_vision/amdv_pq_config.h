@@ -291,6 +291,9 @@ struct dv_cfg_info_s {
 	int t_rear_lum;
 	bool bypass_pd_from_user;
 	bool global_dimming;    /*global dimming, on or off*/
+	int pd_value;           /* precision detail for pd, 0-256 */
+	int local_contrast;		/* contrast for pd, 0-256 */
+	int brightness_pr_on;	/* brightness for pd, 0-256 */
 };
 
 struct dv_pq_center_value_s {
