@@ -18,6 +18,7 @@
 #include <linux/types.h>
 
 #include <linux/amlogic/meson_uvm_core.h>
+#include <linux/amlogic/meson_uvm_ge2d_utils.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
 
@@ -35,6 +36,15 @@
 
 struct mua_device;
 struct mua_buffer;
+
+enum mua_filldata_policy_mask {
+	MUA_ALL_WRAPPER,
+	MUA_WRAPPER_GE2D,
+	MUA_SRC_DEFAULT,
+	MUA_FORCE_FILL_DUMMY,
+	MUA_FORCE_AFBC_SOFT_DECODE,
+	MUA_FORCE_GE2D_COPY
+};
 
 enum mua_debug_mask {
 	MUA_DEBUG_LEVEL_ERROR,
@@ -59,6 +69,7 @@ struct mua_buffer {
 	int byte_stride;
 	u32 width;
 	u32 height;
+	phys_addr_t realloc_paddr;
 	phys_addr_t paddr;
 	int commit_display;
 	u32 index;
@@ -76,6 +87,7 @@ struct mua_device {
 
 	struct mutex buffer_lock; /* dev mutex */
 	int pid;
+	struct uvm_ge2d *ge2d;
 };
 
 struct uvm_alloc_data {

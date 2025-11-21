@@ -99,6 +99,7 @@ ddk_module(
                 "common/uvm_process/amlogic_fbc_hook.c",
                 "common/uvm_process/attach_uvm_processor.c",
                 "common/uvm_process/meson_uvm_buffer_info.c",
+                "common/uvm_process/meson_uvm_ge2d_utils.c",
             ],
         },
         "CONFIG_AMLOGIC_UVM_PROCESSOR": {

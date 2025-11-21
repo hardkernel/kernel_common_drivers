@@ -766,7 +766,7 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 			UVM_PRINTK(UVM_INFO, "%s: src_sgt(%px). nents = %u, length=%u\n",
 				__func__, src_sgt, src_sgt->nents, src_sgt->sgl->length);
 			page = sg_page(src_sgt->sgl);
-			buffer->paddr = PFN_PHYS(page_to_pfn(page));
+			buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
 			buffer->ibuffer[1] = ibuffer;
 			buffer->idmabuf[1] = idmabuf;
 			buffer->sg_table = src_sgt;
@@ -798,7 +798,7 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 		UVM_PRINTK(UVM_INFO, "%s(%d): src_sgt(%px). nents = %u, length=%u\n",
 			__func__, __LINE__, src_sgt, src_sgt->nents, src_sgt->sgl->length);
 		page = sg_page(src_sgt->sgl);
-		buffer->paddr = PFN_PHYS(page_to_pfn(page));
+		buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
 		buffer->sg_table = src_sgt;
 
 		info.sgt = src_sgt;

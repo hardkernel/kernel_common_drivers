@@ -8,6 +8,7 @@ ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/common/ion_dev/
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_UVM_CORE)		+= common/uvm_process/attach_uvm_processor.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_UVM_CORE)		+= common/uvm_process/amlogic_fbc_hook.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_UVM_CORE)		+= common/uvm_process/meson_uvm_buffer_info.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_UVM_CORE)		+= common/uvm_process/meson_uvm_ge2d_utils.o
 
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_UVM_PROCESSOR)	+= common/uvm_process/meson_uvm_nn_processor.o      \
 							   common/uvm_process/meson_uvm_aipq_processor.o    \

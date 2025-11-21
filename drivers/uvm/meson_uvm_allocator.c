@@ -24,13 +24,12 @@
 #include <linux/dma-direction.h>
 #include <uapi/linux/dma-heap.h>
 
+#include <linux/amlogic/media/avbc_wrapper_interface.h>
 #include <linux/amlogic/media/dev_ion.h>
 #include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/meson_uvm_allocator.h>
 #include <linux/amlogic/meson_uvm_interface.h>
-#ifdef CONFIG_AMLOGIC_MEDIA_WRAPPER
-#include <linux/amlogic/media/avbc_wrapper_interface.h>
-#endif
 
 static struct mua_device *mua_dev;
 
@@ -38,8 +37,8 @@ static int enable_screencap;
 module_param_named(enable_screencap, enable_screencap, int, 0664);
 static int mua_debug_level = MUA_ERROR;
 module_param(mua_debug_level, int, 0644);
-static int force_skip_fill;
-module_param_named(force_skip_fill, force_skip_fill, int, 0664);
+static int mua_filldata_policy = MUA_WRAPPER_GE2D;
+module_param(mua_filldata_policy, int, 0644);
 
 #define MUA_PRINTK(level, fmt, arg...) \
 	do {	\
@@ -58,7 +57,6 @@ static int uvm_decoder_para_num = UVM_DECODER_PARA_NUM * UVM_DECODER_NODE_NUM;
 static int decoder_para[UVM_DECODER_PARA_NUM * UVM_DECODER_NODE_NUM] = { 0 };
 module_param_array(decoder_para, uint, &uvm_decoder_para_num, 0644);
 
-#ifdef CONFIG_AMLOGIC_MEDIA_WRAPPER
 #define MAX_SIZE_8K (8192 * 4608)
 #define MAX_SIZE_4K (4096 * 2304)
 #define MAX_SIZE_2K (1920 * 1088)
@@ -81,7 +79,6 @@ static int get_header_size(int w, int h)
 
 	return MMU_COMPRESS_HEADER_SIZE_1080P;
 }
-#endif
 
 static void mua_dummy_buffer_init(void)
 {
@@ -205,6 +202,26 @@ static bool mua_is_valid_dmabuf(int fd)
 	return true;
 }
 
+static struct vframe_s *mua_dmabuf_get_vframe(struct dma_buf *dmabuf)
+{
+	struct vframe_s *vf = NULL;
+	bool is_dec_vf = false;
+
+	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
+	if (is_dec_vf) {
+		vf = dmabuf_get_vframe(dmabuf);
+		MUA_PRINTK(MUA_INFO, "vf=%px vf->vf_ext:%px vf->flags:%d!\n",
+			vf, vf->vf_ext, vf->flag);
+		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
+			if (vf->type & VIDTYPE_INTERLACE)
+				vf = vf->vf_ext;
+		}
+		dmabuf_put_vframe(dmabuf);
+	}
+
+	return vf;
+}
+
 static void mua_handle_free(struct uvm_buf_obj *obj)
 {
 	struct mua_buffer *buffer;
@@ -249,28 +266,102 @@ size_t mua_calc_real_dmabuf_size(unsigned int align, unsigned int byte_stride,
 	return size;
 }
 
-#ifdef CONFIG_AMLOGIC_MEDIA_WRAPPER
-int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
+static int ge2d_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
+{
+	u32 src_w_stride, src_h_stride, dst_w_stride, dst_h_stride;
+	struct canvas_config_s src_canvas_config[2], dst_canvas_config[2];
+	struct uvm_ge2d_info ge2d_info = { 0 };
+	struct vframe_s *vf = NULL;
+	int ret = -1;
+
+	vf = mua_dmabuf_get_vframe(dmabuf);
+	if (!vf) {
+		MUA_PRINTK(MUA_ERROR, "%s: vf is NULL!\n", __func__);
+		return ret;
+	}
+
+	src_w_stride = ALIGN(vf->width, 64);
+	src_h_stride = ALIGN(vf->height, 64);
+
+	dst_w_stride = buffer->byte_stride;
+	dst_h_stride = ALIGN(buffer->height, buffer->align);
+
+	src_canvas_config[0].phy_addr = buffer->paddr;
+	src_canvas_config[0].width = src_w_stride;
+	src_canvas_config[0].height = src_h_stride;
+	src_canvas_config[0].block_mode = 0;
+	src_canvas_config[0].endian = 0;
+	src_canvas_config[0].bit_depth = 0;
+
+	src_canvas_config[1].phy_addr = buffer->paddr + src_w_stride * src_h_stride;
+	src_canvas_config[1].width = src_w_stride;
+	src_canvas_config[1].height = src_h_stride;
+	src_canvas_config[1].block_mode = 0;
+	src_canvas_config[1].endian = 0;
+	src_canvas_config[1].bit_depth = 0;
+
+	dst_canvas_config[0] = src_canvas_config[0];
+	dst_canvas_config[0].width = dst_w_stride;
+	dst_canvas_config[0].height = dst_h_stride;
+	dst_canvas_config[0].phy_addr = buffer->realloc_paddr;
+
+	dst_canvas_config[1] = src_canvas_config[1];
+	dst_canvas_config[1].width = dst_w_stride;
+	dst_canvas_config[1].height = dst_h_stride;
+	dst_canvas_config[1].phy_addr = buffer->realloc_paddr + dst_w_stride * dst_h_stride;
+
+	ge2d_info.src_canvasAddr = -1;
+	ge2d_info.src_yuv_width = vf->width;
+	ge2d_info.src_yuv_height = vf->height;
+	ge2d_info.dst_vf = vf;
+	ge2d_info.dst_yuv_width = vf->compWidth - vf->src_crop.right;
+	ge2d_info.dst_yuv_height = vf->compHeight - vf->src_crop.bottom;
+	ge2d_info.src_canvas_config[0] = src_canvas_config[0];
+	ge2d_info.src_canvas_config[1] = src_canvas_config[1];
+	ge2d_info.dst_canvas_config[0] = dst_canvas_config[0];
+	ge2d_info.dst_canvas_config[1] = dst_canvas_config[1];
+
+	MUA_PRINTK(MUA_INFO,
+		"compWidthxcompHeight(%ux%u), top:%d, left:%d, bottom:%d, right:%d, size:%zu\n",
+		vf->compWidth, vf->compHeight,
+		vf->src_crop.top, vf->src_crop.left,
+		vf->src_crop.bottom, vf->src_crop.right, buffer->idmabuf[1]->size);
+	MUA_PRINTK(MUA_INFO,
+		"src_addr(0x%lx, 0x%lx), dst_addr(0x%lx, 0x%lx), src_stride(%ux%u), dst_stride(%ux%u)\n",
+		src_canvas_config[0].phy_addr, src_canvas_config[1].phy_addr,
+		dst_canvas_config[0].phy_addr, dst_canvas_config[1].phy_addr,
+		src_w_stride, src_h_stride, dst_w_stride, dst_h_stride);
+	if (!mua_dev->ge2d) {
+		int mode = (vf->type == AML_PIX_FMT_NV21) ?
+				UVM_GE2D_MODE_CONVERT_NV21 : UVM_GE2D_MODE_CONVERT_NV12;
+		mode |= UVM_GE2D_MODE_CONVERT_LE;
+		ret = AMLOGIC_UVM_ge2d_init(&mua_dev->ge2d, mode);
+		if (ret < 0) {
+			MUA_PRINTK(MUA_ERROR, "%s: uvm_ge2d_init fail!\n", __func__);
+			return ret;
+		}
+	}
+	ret = AMLOGIC_UVM_ge2d_copy_data(mua_dev->ge2d, &ge2d_info);
+	if (ret < 0)
+		MUA_PRINTK(MUA_ERROR, "%s: aml_ge2d_copy() fail!\n", __func__);
+
+	if (mua_dev->ge2d) {
+		AMLOGIC_UVM_ge2d_destroy(mua_dev->ge2d);
+		mua_dev->ge2d = NULL;
+	}
+
+	return ret;
+}
+
+static int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
 {
 	struct vframe_s *vf = NULL;
-	bool is_dec_vf = false;
 	struct avbc_input *in;
 	struct avbc_output *out;
 	int ret = -1;
 	size_t buf_size = 0;
 
-	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
-	if (is_dec_vf) {
-		vf = dmabuf_get_vframe(dmabuf);
-		MUA_PRINTK(MUA_INFO, "vf=%px vf->vf_ext:%px vf->flags:%d!\n",
-			vf, vf->vf_ext, vf->flag);
-		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
-			if (vf->type & VIDTYPE_INTERLACE)
-				vf = vf->vf_ext;
-		}
-		dmabuf_put_vframe(dmabuf);
-	}
-
+	vf = mua_dmabuf_get_vframe(dmabuf);
 	if (!vf) {
 		MUA_PRINTK(MUA_ERROR, "%s: vf is NULL!\n", __func__);
 		return ret;
@@ -290,7 +381,7 @@ int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
 		return -ENOMEM;
 	}
 
-	if ((vf->bitdepth & BITDEPTH_YMASK)  == BITDEPTH_Y10)
+	if ((vf->bitdepth & BITDEPTH_YMASK) == BITDEPTH_Y10)
 		in->img.bitdep = 10;
 	else
 		in->img.bitdep = 8;
@@ -316,8 +407,8 @@ int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
 			buffer->byte_stride, buffer->height) * 2 / 3;
 	MUA_PRINTK(MUA_INFO, "fill dummy data buf size=%zu\n", buf_size);
 
-	memset(phys_to_virt(buffer->paddr), 0x15, buf_size);
-	memset(phys_to_virt(buffer->paddr) + buf_size, 0x80, buf_size / 2);
+	memset(phys_to_virt(buffer->realloc_paddr), 0x15, buf_size);
+	memset(phys_to_virt(buffer->realloc_paddr) + buf_size, 0x80, buf_size / 2);
 
 	out->img.bitdep = in->img.bitdep;
 	if (buffer->byte_stride == buffer->width && in->img.bitdep == 10) {
@@ -328,7 +419,7 @@ int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
 				((vf->type & VIDTYPE_VIU_NV12) ?
 					AML_PIX_FMT_NV12 : AML_PIX_FMT_NV21);
 	out->img.mtype = AVBC_MEM_PHYADDR;
-	out->img.data = buffer->paddr;
+	out->img.data = buffer->realloc_paddr;
 	out->img.size = buffer->idmabuf[1]->size;
 	out->img.rect.x = 0;
 	out->img.rect.y = 0;
@@ -336,7 +427,7 @@ int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
 		out->img.rect.width = buffer->byte_stride / 2;
 	else
 		out->img.rect.width = buffer->byte_stride;
-	out->img.rect.height = buffer->height;
+	out->img.rect.height = ALIGN(buffer->height, buffer->align);
 	MUA_PRINTK(MUA_INFO, "%s: addr=0x%llx size=%u width=%u height=%u bitdepth=%u\n",
 		__func__, out->img.data, out->img.size,
 		out->img.rect.width, out->img.rect.height, out->img.bitdep);
@@ -349,7 +440,6 @@ int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
 	kfree(out);
 	return ret;
 }
-#endif
 
 int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, void *vaddr)
 {
@@ -362,13 +452,88 @@ int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, vo
 	val_data.width = buffer->width;
 	val_data.height = ALIGN(buffer->height, buffer->align);
 	val_data.size = buffer->idmabuf[1]->size;
-	val_data.phy_addr[0] = buffer->paddr;
+	val_data.phy_addr[0] = buffer->realloc_paddr;
 	MUA_PRINTK(MUA_INFO, "%s. width=%d height=%d byte_stride=%d align=%d size=%zu\n",
 			__func__, buffer->width, buffer->height,
 			buffer->byte_stride, buffer->align, buffer->idmabuf[1]->size);
 #ifdef CONFIG_AMLOGIC_V4L_VIDEO3
 	AMLOGIC_V4LVIDEO_data_copy(&val_data, dmabuf, buffer->align);
 #endif
+
+	return 0;
+}
+
+static int mua_screencap_filldata(struct mua_buffer *buffer, struct dma_buf *dmabuf,
+			void *vaddr, struct vframe_s *vf, bool skip_fill_buf)
+{
+	size_t buf_size = 0;
+	int ret = 0;
+
+	switch (mua_filldata_policy) {
+	case MUA_ALL_WRAPPER:
+		MUA_PRINTK(MUA_INFO, "%s all avbcd wrapper fill.\n", __func__);
+		ret = avbcd_uvm_fill_pattern(buffer, dmabuf);
+		break;
+	case MUA_WRAPPER_GE2D:
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_S5 ||
+		    get_cpu_type() == MESON_CPU_MAJOR_ID_S6 ||
+		    get_cpu_type() == MESON_CPU_MAJOR_ID_T3X) {
+			MUA_PRINTK(MUA_INFO, "%s vicp fill.\n", __func__);
+			ret = avbcd_uvm_fill_pattern(buffer, dmabuf);
+		} else {
+			if (skip_fill_buf) {
+				if (0) {//(vf->compWidth >= 3840 && vf->compHeight >= 2160) {
+					MUA_PRINTK(MUA_INFO, "%s avbcd fill.\n", __func__);
+					ret = avbcd_uvm_fill_pattern(buffer, dmabuf);
+				} else {
+					MUA_PRINTK(MUA_INFO, "%s ge2d fill.\n", __func__);
+					ret = ge2d_uvm_fill_pattern(buffer, dmabuf);
+				}
+			} else {
+				MUA_PRINTK(MUA_INFO, "%s afbc soft decode fill.\n", __func__);
+				meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
+			}
+		}
+		break;
+	case MUA_SRC_DEFAULT:
+		if (skip_fill_buf) {
+			buf_size = mua_calc_real_dmabuf_size(buffer->align,
+					buffer->byte_stride, buffer->height) * 2 / 3;
+
+			MUA_PRINTK(MUA_INFO, "%s default fill dummy data buf_size=%zu\n",
+					 __func__, buf_size);
+			memset(vaddr, 0x15, buf_size);
+			memset(vaddr + buf_size, 0x80, buf_size / 2);
+		} else {
+			if (avbcd_uvm_fill_pattern(buffer, dmabuf)) {
+				MUA_PRINTK(MUA_INFO, "%s default afbc soft decode fill.\n",
+					 __func__);
+				meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
+			}
+		}
+		break;
+	case MUA_FORCE_FILL_DUMMY:
+		buf_size = mua_calc_real_dmabuf_size(buffer->align,
+				buffer->byte_stride, buffer->height) * 2 / 3;
+
+		MUA_PRINTK(MUA_INFO, "%s force fill dummy data buf_size=%zu\n",
+				 __func__, buf_size);
+		memset(vaddr, 0x15, buf_size);
+		memset(vaddr + buf_size, 0x80, buf_size / 2);
+		break;
+	case MUA_FORCE_AFBC_SOFT_DECODE:
+		MUA_PRINTK(MUA_INFO, "%s force afbc soft decode fill.\n", __func__);
+		meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
+		break;
+	case MUA_FORCE_GE2D_COPY:
+		MUA_PRINTK(MUA_INFO, "%s force ge2d copy fill.\n", __func__);
+		ret = ge2d_uvm_fill_pattern(buffer, dmabuf);
+		break;
+	default:
+		MUA_PRINTK(MUA_ERROR, "%s mua_filldata_policy is error.\n", __func__);
+	}
+	if (ret < 0)
+		MUA_PRINTK(MUA_ERROR, "%s fail.\n", __func__);
 
 	return 0;
 }
@@ -393,6 +558,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	size_t new_size = 0;
 	struct dma_heap *heap;
 	struct dma_buf_attachment *attachment = NULL;
+	struct vframe_s *vf = NULL;
 
 	buffer = container_of(obj, struct mua_buffer, base);
 	if (!buffer)
@@ -410,9 +576,10 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		skip_fill_buf = true;
 	}
 
-	if (force_skip_fill) {
-		MUA_PRINTK(MUA_DBG, "gpu_realloc: force skip fill buffer.\n");
-		skip_fill_buf = true;
+	vf = mua_dmabuf_get_vframe(dmabuf);
+	if (!vf) {
+		MUA_PRINTK(MUA_ERROR, "%s: vf is NULL!\n", __func__);
+		return -EINVAL;
 	}
 
 	if (buffer->idmabuf[1])
@@ -479,7 +646,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 			MUA_PRINTK(MUA_INFO, "%s: src_sgt(%px). nents = %u, length=%u\n",
 				__func__, src_sgt, src_sgt->nents, src_sgt->sgl->length);
 			page = sg_page(src_sgt->sgl);
-			buffer->paddr = PFN_PHYS(page_to_pfn(page));
+			buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
 			buffer->ibuffer[1] = ibuffer;
 			buffer->idmabuf[1] = idmabuf;
 			buffer->sg_table = src_sgt;
@@ -511,7 +678,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		MUA_PRINTK(MUA_INFO, "%s(%d): src_sgt(%px). nents = %u, length=%u\n",
 			__func__, __LINE__, src_sgt, src_sgt->nents, src_sgt->sgl->length);
 		page = sg_page(src_sgt->sgl);
-		buffer->paddr = PFN_PHYS(page_to_pfn(page));
+		buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
 		buffer->sg_table = src_sgt;
 
 		info.sgt = src_sgt;
@@ -556,19 +723,8 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	MUA_PRINTK(MUA_INFO, "buffer vaddr: %px.\n", vaddr);
 
 	//start to filldata
-	if (skip_fill_buf) {
-		size_t buf_size = mua_calc_real_dmabuf_size(buffer->align,
-				buffer->byte_stride, buffer->height) * 2 / 3;
+	mua_screencap_filldata(buffer, dmabuf, vaddr, vf, skip_fill_buf);
 
-		MUA_PRINTK(MUA_INFO, "%s buf size=%zu\n", __func__, buf_size);
-		memset(vaddr, 0x15, buf_size);
-		memset(vaddr + buf_size, 0x80, buf_size / 2);
-	} else {
-#ifdef CONFIG_AMLOGIC_MEDIA_WRAPPER
-		if (avbcd_uvm_fill_pattern(buffer, dmabuf))
-#endif
-			meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
-	}
 	vunmap(vaddr);
 	if (src_sgt && attachment) {
 		dma_buf_unmap_attachment(attachment, src_sgt, DMA_BIDIRECTIONAL);
@@ -647,7 +803,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 			}
 
 			page = sg_page(src_sgt->sgl);
-			buffer->paddr = PFN_PHYS(page_to_pfn(page));
+			buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
 			buffer->ibuffer[0] = ibuffer;
 			buffer->sg_table = src_sgt;
 			buffer->idmabuf[0] = idmabuf;
@@ -714,6 +870,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 	struct dma_heap *heap;
 	struct dma_buf_attachment *attachment = NULL;
 	struct sg_table *sg = NULL;
+	struct page *page;
 
 	memset(&info, 0, sizeof(info));
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
@@ -778,6 +935,8 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 			MUA_PRINTK(MUA_ERROR, "%s: Failed to get dma sg", __func__);
 			goto detach_dma_buf;
 		}
+		page = sg_page(sg->sgl);
+		buffer->paddr = PFN_PHYS(page_to_pfn(page));
 
 		info.sgt = sg;
 		info.obj = &buffer->base;

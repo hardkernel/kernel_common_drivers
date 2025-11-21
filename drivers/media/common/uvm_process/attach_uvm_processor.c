@@ -5,6 +5,7 @@
 
 #include <linux/amlogic/meson_uvm_allocator.h>
 #include <linux/amlogic/meson_uvm_core.h>
+#include <linux/amlogic/meson_uvm_ge2d_utils.h>
 #include <linux/amlogic/meson_uvm_interface.h>
 #include "meson_uvm_aicolor_processor.h"
 #include "meson_uvm_aiface_processor.h"
@@ -64,6 +65,9 @@ int __init attach_uvm_processor_init(void)
 {
 	register_amlogic_attach_uvm_info_fun(attach_uvm_info);
 	register_amlogic_get_uvm_video_info_fun(get_uvm_video_info);
+	register_amlogic_uvm_ge2d_init_fun(uvm_ge2d_init);
+	register_amlogic_uvm_ge2d_copy_data_fun(uvm_ge2d_copy_data);
+	register_amlogic_uvm_ge2d_destroy_fun(uvm_ge2d_destroy);
 	return 0;
 }
 
@@ -71,4 +75,7 @@ void __exit attach_uvm_processor_exit(void)
 {
 	unregister_amlogic_attach_uvm_info_fun();
 	unregister_amlogic_get_uvm_video_info_fun();
+	unregister_amlogic_uvm_ge2d_init_fun();
+	unregister_amlogic_uvm_ge2d_copy_data_fun();
+	unregister_amlogic_uvm_ge2d_destroy_fun();
 }

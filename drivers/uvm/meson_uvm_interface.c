@@ -12,6 +12,9 @@
 static AMLOGIC_V4LVIDEO_data_copy_fun_t g_v4lvideo_fun;
 static AMLOGIC_ATTACH_uvm_info_fun_t g_attach_fun;
 static AMLOGIC_GET_UVM_video_info_fun_t g_video_fun;
+static AMLOGIC_UVM_ge2d_init_fun_t g_ge2d_init_fun;
+static AMLOGIC_UVM_ge2d_copy_data_fun_t g_ge2d_copy_fun;
+static AMLOGIC_UVM_ge2d_destroy_fun_t g_ge2d_destroy_fun;
 
 void AMLOGIC_V4LVIDEO_data_copy(struct v4l_data_t *v4l_data,
 			       struct dma_buf *dmabuf, u32 align)
@@ -95,3 +98,83 @@ int unregister_amlogic_get_uvm_video_info_fun(void)
 	return 0;
 }
 EXPORT_SYMBOL(unregister_amlogic_get_uvm_video_info_fun);
+
+int AMLOGIC_UVM_ge2d_init(struct uvm_ge2d **ge2d_handle, int mode)
+{
+	if (g_ge2d_init_fun)
+		return g_ge2d_init_fun(ge2d_handle, mode);
+	pr_err("no %s ERRR!!\n", __func__);
+	return -1;
+}
+
+int register_amlogic_uvm_ge2d_init_fun(AMLOGIC_UVM_ge2d_init_fun_t fn)
+{
+	if (g_ge2d_init_fun) {
+		pr_err("error!!,AMLOGIC_GET_UVM_video_info have register\n");
+		return -1;
+	}
+
+	g_ge2d_init_fun = fn;
+	return 0;
+}
+EXPORT_SYMBOL(register_amlogic_uvm_ge2d_init_fun);
+
+int unregister_amlogic_uvm_ge2d_init_fun(void)
+{
+	g_ge2d_init_fun = NULL;
+
+	return 0;
+}
+EXPORT_SYMBOL(unregister_amlogic_uvm_ge2d_init_fun);
+
+int AMLOGIC_UVM_ge2d_copy_data(struct uvm_ge2d *ge2d, struct uvm_ge2d_info *ge2d_info)
+{
+	if (g_ge2d_copy_fun)
+		return g_ge2d_copy_fun(ge2d, ge2d_info);
+	pr_err("no %s ERRR!!\n", __func__);
+	return -1;
+}
+
+int register_amlogic_uvm_ge2d_copy_data_fun(AMLOGIC_UVM_ge2d_copy_data_fun_t fn)
+{
+	if (g_ge2d_copy_fun) {
+		pr_err("error!!,AMLOGIC_GET_UVM_video_info have register\n");
+		return -1;
+	}
+
+	g_ge2d_copy_fun = fn;
+	return 0;
+}
+EXPORT_SYMBOL(register_amlogic_uvm_ge2d_copy_data_fun);
+
+int unregister_amlogic_uvm_ge2d_copy_data_fun(void)
+{
+	g_ge2d_copy_fun = NULL;
+
+	return 0;
+}
+EXPORT_SYMBOL(unregister_amlogic_uvm_ge2d_copy_data_fun);
+
+void AMLOGIC_UVM_ge2d_destroy(struct uvm_ge2d *ge2d)
+{
+	if (g_ge2d_destroy_fun) {
+		g_ge2d_destroy_fun(ge2d);
+		return;
+	}
+	pr_err("no %s ERRR!!\n", __func__);
+}
+
+void register_amlogic_uvm_ge2d_destroy_fun(AMLOGIC_UVM_ge2d_destroy_fun_t fn)
+{
+	if (g_ge2d_destroy_fun)
+		pr_err("error!!,AMLOGIC_GET_UVM_video_info have register\n");
+
+	g_ge2d_destroy_fun = fn;
+}
+EXPORT_SYMBOL(register_amlogic_uvm_ge2d_destroy_fun);
+
+void unregister_amlogic_uvm_ge2d_destroy_fun(void)
+{
+	g_ge2d_destroy_fun = NULL;
+}
+EXPORT_SYMBOL(unregister_amlogic_uvm_ge2d_destroy_fun);
