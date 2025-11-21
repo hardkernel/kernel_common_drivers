@@ -847,7 +847,7 @@ void hdmirx_get_hdcp_sts(struct tvin_sig_property_s *prop, u8 port)
 
 void hdmirx_get_hw_vic(struct tvin_sig_property_s *prop, u8 port)
 {
-	prop->hw_vic = rx[port].pre.hw_vic;
+	prop->hw_vic = rx[port].cur.hw_vic;
 }
 
 /*
