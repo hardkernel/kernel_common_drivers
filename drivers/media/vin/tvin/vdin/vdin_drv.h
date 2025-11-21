@@ -27,6 +27,7 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
 #include <linux/amlogic/media/video_sink/video_signal_notify.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#include <linux/amlogic/media/video_sink/video.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 #include "../common/rdma/rdma.h"
@@ -742,6 +743,7 @@ struct vdin_debug_s {
 	unsigned int force_disp_mode;
 	unsigned int reg_addr;
 	bool bypass_game_dyn_fmt;
+	bool force_pause_en;
 };
 
 struct vdin_dv_s {
@@ -768,6 +770,7 @@ struct vdin_dv_s {
 	bool low_latency;
 	unsigned int chg_cnt;
 	unsigned int allm_chg_cnt;
+	unsigned int allm1_chg_cnt;
 };
 
 struct vdin_hdr_s {
@@ -782,6 +785,7 @@ struct vdin_dv_hw5_s {
 	unsigned int dw_out_w;
 	unsigned int dw_out_h;
 	unsigned int dw_dfmt;
+	bool is_auto_mute_needed;
 };
 
 struct vdin_afbce_s {
@@ -864,6 +868,7 @@ struct vdin_dts_config_s {
 	unsigned int vdin_vrr_chg_cnt;
 	unsigned int vdin_qms_chg_cnt;
 	unsigned int sct_remain_size;
+	unsigned int vdin_mut_cnt;
 };
 
 struct vdin_s5_s {
@@ -1261,6 +1266,7 @@ struct vdin_dev_s {
 	bool vinfo_over_pixel_clk;
 	bool input_over_pixel_clk;
 	bool pause_dec_once;
+	unsigned int mute_cnt;
 	unsigned int ignore_frames;
 	/*use frame rate to cal duration*/
 	unsigned int use_frame_rate;
@@ -1485,6 +1491,8 @@ void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en);
 void vdin_resume_hw_write(struct vdin_dev_s *devp, bool rdma_en);
 void vdin_reg_dmc_notifier(unsigned int index);
 void vdin_unreg_dmc_notifier(unsigned int index);
+void vdin_update_vf_flag(struct vdin_dev_s *devp, struct vf_entry *vfe);
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
 									unsigned int buf_num);
@@ -1496,5 +1504,6 @@ bool vdin_get_video_ready_state(enum tvin_port_e port);
 void vdin_dyn_fmt(struct vdin_dev_s *devp);
 void vdin_get_secure_state(struct vdin_dev_s *devp);
 unsigned int vdin_check_secure_write_error(struct vdin_dev_s *devp);
+void rx_mute_vpp(u8 port_type);
 #endif /* __TVIN_VDIN_DRV_H */
 

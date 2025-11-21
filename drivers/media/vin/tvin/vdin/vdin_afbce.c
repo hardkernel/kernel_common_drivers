@@ -710,7 +710,7 @@ void vdin_pause_afbce_write(struct vdin_dev_s *devp, unsigned int rdma_enable, b
 	if (is_meson_t3x_cpu()) {
 		vdin_pause_afbce_write_t3x(devp, rdma_enable, pause_en);
 		return;
-	} else if (is_meson_t6w_cpu()) {
+	} else if (is_meson_t6w_cpu() || is_meson_t6x_cpu()) {
 		vdin_vfce_pause_write(devp, rdma_enable, pause_en);
 		return;
 	}

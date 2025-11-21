@@ -22,6 +22,7 @@
 #include "vdin_drv.h"
 
 #define DRIVER_NAME	"vdin"
+#define VDIN_AFBCE_MIN_SIZE	128 //pages
 
 int vdin_sct_init(struct vdin_dev_s *devp);
 void vdin_sct_worker(struct work_struct *work);

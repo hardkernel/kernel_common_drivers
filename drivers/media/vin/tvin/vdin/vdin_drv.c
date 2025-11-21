@@ -280,6 +280,7 @@ EXPORT_SYMBOL(get_vdin_status);
  */
 void tvin_update_vdin_prop(u8 port_type, u8 pkt_type)
 {
+	int ret;
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct vframe_s *update_wr_vf = NULL;
 	struct vdin_dev_s *devp = NULL;
@@ -317,10 +318,29 @@ void tvin_update_vdin_prop(u8 port_type, u8 pkt_type)
 			sm_ops->get_sig_property(devp->frontend, &devp->prop, devp->port_type);
 		break;
 	}
-	if (vdin_package_done_check_state(devp)) {
-		if (devp->game_mode)
-			vdin_pause_hw_write(devp, 0);
-		devp->frame_drop_num = 1;
+
+	if (devp->mute_cnt) {
+		devp->mute_cnt--;
+		if (devp->mute_cnt == 0)
+			set_video_mute(VDIN_MUTE_SET, false);
+	}
+	ret = vdin_package_done_check_state(devp);
+	if (ret) {
+		if (devp->game_mode & VDIN_GAME_MODE_1_2) {
+			if ((ret & BIT1) && !devp->mute_cnt) {
+				if (devp->debug.vdin_isr_monitor)
+					pr_info("%s vdin%d,irq_cnt:%d,game:%d\n", __func__,
+						devp->index, devp->irq_cnt, devp->game_mode);
+				set_video_mute_vcbus(VDIN_MUTE_SET, true);
+				set_video_mute(VDIN_MUTE_SET, true);
+				devp->mute_cnt = devp->dts_config.vdin_mut_cnt;
+			}
+			/* t6w/t6x cannot pause afbce in active area */
+			if (!(devp->dtdata->hw_ver == VDIN_HW_T6W ||
+				devp->dtdata->hw_ver == VDIN_HW_T6X) || devp->debug.force_pause_en)
+				vdin_pause_hw_write(devp, 0);
+		}
+
 		vdin_vf_skip_all_disp(devp->vfp);
 		vdin_drop_frame_info(devp, "de start state chg");
 	}
@@ -908,6 +928,17 @@ static void vdin_handle_game_mode_chg(struct vdin_dev_s *devp)
 
 	game_mode_pre = devp->game_mode;
 
+	if ((devp->vdin_function_sel & VDIN_AUTO_GAME_MODE) &&
+	    ((vdin_is_auto_game_mode(devp) && !game_mode) ||
+	    (!vdin_is_auto_game_mode(devp) && game_mode))) {
+		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
+			pr_info("%s game:%d,game mode cur:0x%x\n",
+				__func__, game_mode, devp->game_mode);
+		game_mode = !game_mode;
+		devp->auto_game_flag = true;
+		devp->game_mode_chg = VDIN_GAME_MODE_CHK;
+	}
+
 	if (devp->game_mode_chg == VDIN_GAME_MODE_CHK)
 		vdin_game_mode_check(devp);
 
@@ -1247,6 +1278,9 @@ static void vdin_dv_hw5_init(struct vdin_dev_s *devp)
 			(VDIN_AFBCE_EN_1080P | VDIN_AFBCE_EN_720P | VDIN_AFBCE_EN_SMALL);
 		pr_info("t3x dv hw5 init %#x\n", devp->afbce_flag);
 	}
+	if ((devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) &&
+		vdin_dv_is_source_led(devp) && devp->dbg_force_one_buffer != 3)
+		devp->dv_hw5.is_auto_mute_needed = true;
 }
 
 static void vdin_is_crop_valid(struct vdin_dev_s *devp, struct vdin_parm_s  *para)
@@ -1569,6 +1603,7 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 
 	devp->vdin_drop_ctl_cnt = 0;
 	devp->dv.allm_chg_cnt = 0;
+	devp->dv.allm1_chg_cnt = 0;
 	devp->sg_chg_fps_cnt = 0;
 	devp->af_num = VDIN_CANVAS_MAX_CNT;
 	/* write vframe as default */
@@ -1821,8 +1856,9 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		devp->dv_is_not_std = true;
 
 	if ((devp->vdin_function_sel & VDIN_AUTO_GAME_MODE) &&
-	    vdin_is_auto_game_mode(devp) && !game_mode) {
-		game_mode = 1;
+	    ((vdin_is_auto_game_mode(devp) && !game_mode) ||
+	    (!vdin_is_auto_game_mode(devp) && game_mode))) {
+		game_mode = !game_mode;
 		devp->auto_game_flag = true;
 	}
 
@@ -3285,6 +3321,7 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 	}
 	/*skip policy process*/
 	vdin_vf_disp_mode_update(vfe, devp->vfp);
+	vdin_update_vf_flag(devp, vfe);
 	vfe->vf.duration = devp->cur_duration;
 
 	/*force recycle one frame*/
@@ -3361,15 +3398,15 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				 1000));
 
 		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-			pr_info("vdin%d cnt:%d vf(%px):%d sg_type:%#x %#x flag:%#x %#x\n",
+			pr_info("vdin%d cnt:%d vf(%px):%d sg_type:%#x %#x flag:%#x %#x;vrr:%d\n",
 				devp->index, devp->irq_cnt,
 				&devp->vfp->last_last_vfe->vf,
 				devp->vfp->last_last_vfe->vf.index,
 				devp->vfp->last_last_vfe->vf.signal_type,
 				devp->vfp->last_last_vfe->vf.type,
 				devp->vfp->last_last_vfe->flag,
-				devp->vfp->last_last_vfe->vf.flag);
-
+				devp->vfp->last_last_vfe->vf.flag,
+				devp->vfp->last_last_vfe->vf.vf_vrr_param.frc_get_vrr);
 		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
 			pr_info("frm_irq:%d,fps:%d,dur:%u,disp:%d,wxh:[%d %d],canvas0_w:%d\n",
 				devp->vfp->last_last_vfe->vf.frame_irq_cnt,
@@ -3525,6 +3562,22 @@ static inline void vdin_dynamic_switch_vrr(struct vdin_dev_s *devp)
 	}
 }
 
+void vdin_update_vf_flag(struct vdin_dev_s *devp, struct vf_entry *vfe)
+{
+	if (devp->game_mode)
+		vfe->vf.flag |= VFRAME_FLAG_GAME_MODE;
+	else
+		vfe->vf.flag &= ~VFRAME_FLAG_GAME_MODE;
+
+	if (devp->vdin_pc_mode)
+		vfe->vf.flag |= VFRAME_FLAG_PC_MODE;
+	else
+		vfe->vf.flag &= ~VFRAME_FLAG_PC_MODE;
+
+	devp->vrr_data.cur_vrr_status = get_cur_vrr_status(devp);
+	vfe->vf.vf_vrr_param.frc_get_vrr = devp->vrr_data.cur_vrr_status;
+}
+
 static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 {
 	vfe->vf.type = devp->curr_field_type;
@@ -3640,7 +3693,7 @@ static void vdin_set_one_buffer_mode(struct vdin_dev_s *devp, struct vf_entry *n
 	if ((devp->game_mode & VDIN_GAME_MODE_2) &&
 		devp->dbg_force_one_buffer != 2  &&
 		(frame_lock_type_vrr_lock() && devp->dbg_force_one_buffer) &&
-		g_disp_count <= 1) {
+		g_disp_count <= 1 && !devp->dv_hw5.is_auto_mute_needed) {
 		/* all vf will use this phy address of current next_wr_vfe */
 		if (devp->af_num >= VDIN_CANVAS_MAX_CNT) {
 			devp->af_num = next_wr_vfe->af_num;
@@ -3998,17 +4051,29 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	spin_lock_irqsave(&devp->isr_lock, flags);
 
+	/* Check whether frame written done */
+	if (devp->dts_config.chk_write_done_en && IS_HDMI_SRC(devp->parm.port)) {
+		if (!vdin_write_done_check(devp)) {
+			devp->vdin_irq_flag = VDIN_IRQ_FLG_SKIP_FRAME;
+			vdin_drop_frame_info(devp, "write done check");
+			devp->vdin_drop_cnt++;
+		}
+	}
+
 	if (devp->dv.chg_cnt || (devp->dv.allm_chg_cnt && !vdin_is_vrr_state(devp) &&
 		!devp->vrr_data.vrr_chg_cnt) ||
 	    devp->vrr_data.vrr_chg_cnt ||
 	    devp->prop.hdr_info.hdr_check_cnt ||
 	    devp->prop.hdr10p_info.hdr10p_check_cnt) {
-		if (devp->game_mode)
-			vdin_pause_hw_write(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
+		if (devp->game_mode & VDIN_GAME_MODE_1_2) {
+			vdin_pause_hw_write(devp, 0);
+			devp->pause_dec_once = true;
+		}
 		vdin_drop_frame_info(devp, "dv or vrr allm chg");
 		vdin_vf_skip_all_disp(devp->vfp);
 		devp->vdin_drop_cnt++;
-		goto irq_handled;
+		devp->vdin_irq_flag = VDIN_IRQ_FLG_IGNORE_FRAME;
+//		goto irq_handled;
 	}
 
 	if (devp->afbce_mode == 1) {
@@ -4035,7 +4100,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	if (devp->frame_drop_num) {
 		devp->frame_drop_num--;
-		if (devp->game_mode && devp->mem_type != VDIN_MEM_TYPE_SCT)
+		if (devp->game_mode & VDIN_GAME_MODE_1_2)
 			vdin_pause_hw_write(devp, 0);
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_DROP_FRAME;
 		vdin_drop_frame_info(devp, "drop frame");
@@ -4177,15 +4242,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	next_wr_vfe = provider_vf_peek(devp->vfp);
 
-	/* Check whether frame written done */
-	if (devp->dts_config.chk_write_done_en && IS_HDMI_SRC(devp->parm.port)) {
-		if (!vdin_write_done_check(devp)) {
-			devp->vdin_irq_flag = VDIN_IRQ_FLG_SKIP_FRAME;
-			vdin_drop_frame_info(devp, "write done check");
-			devp->vdin_drop_cnt++;
-		}
-	}
-
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* change afbce mode */
 	if (next_wr_vfe && devp->afbce_mode_pre != devp->afbce_mode)
@@ -4195,7 +4251,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	dec_ops = devp->frontend->dec_ops;
 	if (!dec_ops || !dec_ops->decode_isr ||
 	    dec_ops->decode_isr(devp->frontend, devp->h_cnt64, devp->port_type) == TVIN_BUF_SKIP) {
-		if (devp->game_mode)
+		if (devp->game_mode & VDIN_GAME_MODE_1_2)
 			vdin_pause_hw_write(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_BUFF_SKIP;
 		vdin_drop_frame_info(devp, "buf skip flg");
@@ -4408,6 +4464,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/* game mode 2 */
 		vdin_vframe_put_and_recycle(devp, next_wr_vfe, put_md);
 	}
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
+		pr_info("vdin%d,[%d %d]last_frame_idx:%d,cur_frame_idx:%d\n",
+			devp->index, devp->irq_cnt, devp->frame_cnt,
+			devp->msct_top.last_frame_idx,
+			devp->msct_top.cur_frame_idx);
 	devp->msct_top.last_frame_idx = devp->msct_top.cur_frame_idx;
 	devp->msct_top.cur_frame_idx = curr_wr_vf->index;
 
@@ -4418,8 +4479,7 @@ irq_handled:
 	//for debug
 	vdin_dbg_access_reg(devp, 1);
 	/*hdmi skip policy should adapt to all drop front vframe case*/
-	if (devp->vfp->skip_vf_num > 0 &&
-	    vf_drop_cnt < devp->vdin_drop_cnt)
+	if (vf_drop_cnt < devp->vdin_drop_cnt)
 		vdin_vf_disp_mode_skip(devp->vfp);
 
 	devp->vdin_irq_flag = 0;
@@ -7280,6 +7340,7 @@ static void vdin_get_dts_config(struct vdin_dev_s *devp,
 	/* Enable aspect ratio by default */
 	devp->vdin_function_sel |= VDIN_SET_DISPLAY_RATIO;
 	devp->dts_config.sct_remain_size = 2;/* Keep 2 pages to allocate the buffer faster.*/
+	devp->dts_config.vdin_mut_cnt = 32;
 }
 
 static int vdin_drv_probe(struct platform_device *pdev)

@@ -4852,7 +4852,7 @@ bool vdin_write_done_check(struct vdin_dev_s *devp)
 
 	/* If write ddr paused,donot checking write done */
 	if (devp->debug.pause_mif_dec || devp->debug.pause_afbce_dec ||
-		devp->pause_dec || devp->pause_dec_once)
+		devp->pause_dec)
 		return true;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -7631,11 +7631,14 @@ bool vdin_is_qms_state_chg(struct vdin_dev_s *devp)
  *	but HDMI is DE start complete packet reception
  *	So need check immediately status whether change prevent abnormal frame
  * return value:
- *	true: state change
- *	false: state not change
+ *	bit0: VDIN needs to pause dec
+ *	bit1: VDIN needs to mute
  */
-bool vdin_package_done_check_state(struct vdin_dev_s *devp)
+int vdin_package_done_check_state(struct vdin_dev_s *devp)
 {
+	bool latency_changed = false;
+	int ret = 0;
+
 	if (devp->debug.vdin_isr_monitor) {
 		pr_info("vdin%d,dv[%d %d],hdr[%d,%d],allm[%d %d],vrr[%d %d %d %d],[%d %d],%d\n",
 			devp->index, devp->dv.dv_flag, devp->prop.dolby_vision,
@@ -7646,15 +7649,31 @@ bool vdin_package_done_check_state(struct vdin_dev_s *devp)
 			devp->prop.color_format, devp->pre_prop.color_format,
 			devp->parm.info.status);
 	}
+	latency_changed =
+		(devp->pre_prop.latency.cn_type != devp->prop.latency.cn_type) ||
+		(!!devp->pre_prop.latency.allm_mode != !!devp->prop.latency.allm_mode);
 
 	if (devp->dv.dv_flag != devp->prop.dolby_vision ||
 	    devp->prop.vdin_hdr_flag != devp->pre_prop.vdin_hdr_flag ||
 	    vdin_is_vrr_state_chg(devp) ||
 	    devp->prop.color_format != devp->pre_prop.color_format ||
 	    devp->parm.info.status != TVIN_SIG_STATUS_STABLE)
-		return true;
-	else
-		return false;
+		ret |= BIT0;
+
+	if (devp->dv_hw5.is_auto_mute_needed) {
+		if (latency_changed)
+			ret |= BIT0;
+		if (vdin_is_vrr_state_chg(devp) && !devp->prop.vtem_data.vrr_en &&
+			devp->game_mode) { //need mute
+			ret |= BIT1;
+		}
+		if (latency_changed && !devp->prop.latency.allm_mode &&
+			devp->game_mode) { //need mute
+			ret |= BIT1;
+		}
+	}
+
+	return ret;
 }
 
 void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
@@ -7680,13 +7699,17 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 			devp->prop.hdr10p_info.hdr10p_check_cnt = 0;
 
 		if (!!devp->prop.latency.allm_mode != !!devp->pre_prop.latency.allm_mode ||
-		    devp->prop.latency.it_content != devp->pre_prop.latency.it_content ||
-		    devp->prop.latency.cn_type != devp->pre_prop.latency.cn_type ||
 		    devp->prop.filmmaker.fmm_flag != devp->pre_prop.filmmaker.fmm_flag ||
 		    devp->prop.imax_flag != devp->pre_prop.imax_flag)
 			devp->dv.allm_chg_cnt++;
 		else
 			devp->dv.allm_chg_cnt = 0;
+
+		if (devp->prop.latency.it_content != devp->pre_prop.latency.it_content ||
+		    devp->prop.latency.cn_type != devp->pre_prop.latency.cn_type)
+			devp->dv.allm1_chg_cnt++;
+		else
+			devp->dv.allm1_chg_cnt = 0;
 
 		/* hdmi/tvafe source afd check */
 		if ((devp->prop.aspect_ratio &&

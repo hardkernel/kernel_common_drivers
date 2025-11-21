@@ -5045,6 +5045,19 @@ start_chk:
 			devp->dts_config.sct_remain_size = temp;
 		pr_info("vdin%d,sct_remain_size = %#x\n",
 			devp->index, devp->dts_config.sct_remain_size);
+	} else if (!strcmp(parm[0], "vdin_mut_cnt")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.vdin_mut_cnt = temp;
+		pr_info("vdin%d,vdin_mut_cnt = %#x\n",
+			devp->index, devp->dts_config.vdin_mut_cnt);
+	} else if (!strcmp(parm[0], "force_pause_en")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				devp->debug.force_pause_en = true;
+			else
+				devp->debug.force_pause_en = false;
+			pr_info("force_pause_en:%d\n", devp->debug.force_pause_en);
+		}
 	}
 #endif
 	else if (!strcmp(parm[0], "state")) {

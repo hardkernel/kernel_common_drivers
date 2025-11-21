@@ -122,6 +122,8 @@ void vdin_sct_read_mmu_num(struct vdin_dev_s *devp, struct vf_entry *vfe)
 		} else {
 			vfe->vf.afbce_num = rd(devp->addr_offset, AFBCE_MMU_NUM);
 		}
+		if (vfe->vf.afbce_num < VDIN_AFBCE_MIN_SIZE)
+			vfe->vf.afbce_num = 0;
 		idx = devp->msct_top.cur_frame_idx;
 		devp->msct_top.sct_stat[idx].compressed_page_cnt = vfe->vf.afbce_num;
 		devp->msct_top.vfe = vfe;

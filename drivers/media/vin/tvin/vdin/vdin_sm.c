@@ -235,8 +235,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			}
 		}
 
-		if (!!devp->prop.latency.allm_mode !=
-			!!devp->pre_prop.latency.allm_mode) {
+		if (devp->prop.latency.allm_mode !=
+			devp->pre_prop.latency.allm_mode) {
 			if (devp->dv.allm_chg_cnt > devp->dts_config.vdin_dv_chg_cnt) {
 				devp->dv.allm_chg_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_DV_ALLM;
@@ -287,7 +287,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 		if (devp->pre_prop.latency.it_content !=
 		    devp->prop.latency.it_content) {
 			if (devp->dv.allm_chg_cnt > devp->dts_config.vdin_dv_chg_cnt) {
-				devp->dv.allm_chg_cnt = 0;
+				devp->dv.allm1_chg_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_DV_ALLM;
 				temp = devp->pre_prop.latency.it_content;
 				if (signal_chg)
@@ -303,7 +303,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 		if (devp->pre_prop.latency.cn_type !=
 		    devp->prop.latency.cn_type) {
 			if (devp->dv.allm_chg_cnt > devp->dts_config.vdin_dv_chg_cnt) {
-				devp->dv.allm_chg_cnt = 0;
+				devp->dv.allm1_chg_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_DV_ALLM;
 				temp = devp->pre_prop.latency.cn_type;
 				if (signal_chg)
