@@ -689,6 +689,10 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 			if (kstrtoul(parm[1], 0, &val1) < 0)
 				goto ldim_attr_store_err;
 			ldim_print_en = (unsigned char)val1;
+			if (ldim_print_en)
+				fw->fw_ctrl |= FW_CTRL_FW_PRINT_EN;
+			else
+				fw->fw_ctrl &= ~FW_CTRL_FW_PRINT_EN;
 		}
 		pr_info("ldim_print_en = %d\n", ldim_print_en);
 	} else if (!strcmp(parm[0], "level_idx")) {
@@ -708,9 +712,9 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 			}
 
 			tmp = (unsigned char)val1;
-			if (tmp > ldim_drv->pq_num) {
-				LDIMPR("level_idx(%d) is bigger than pq_num(%d), do nothing!\n",
-				tmp, ldim_drv->pq_num);
+			if (tmp >= ldim_drv->pq_num) {
+				LDIMPR("level_idx(%d) is bigger than max level(%d), do nothing!\n",
+				tmp, (ldim_drv->pq_num - 1));
 				goto ldim_attr_store_err;
 			}
 			ldim_drv->level_idx = tmp;

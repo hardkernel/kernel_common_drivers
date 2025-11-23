@@ -96,18 +96,18 @@ struct ldim_fw_param_s {
  * bit29: bypass alg
  * bit28: bypass remap bl
  * bit27: resume
- * bit5:  fw_print_en
- * bit4:  ld sel
- * bit3--0:  level_idx
+ * bit9:  fw_print_en
+ * bit8:  ld sel
+ * bit7--0:  level_idx
  */
 #define FW_CTRL_PQBYPASS		BIT(31)
 #define FW_CTRL_GET_HIST		BIT(30)
 #define FW_CTRL_BYPASS_ALG		BIT(29)
 #define FW_CTRL_BYPASS_REMAP_BL	BIT(28)
 #define FW_CTRL_RESUME			BIT(27)
-#define FW_CTRL_FW_PRINT_EN		BIT(5)
-#define FW_CTRL_LD_SEL			BIT(4)
-#define FW_CTRL_LEVEL_IDX		0x0000000F
+#define FW_CTRL_FW_PRINT_EN		BIT(9)
+#define FW_CTRL_LD_SEL			BIT(8)
+#define FW_CTRL_LEVEL_IDX		0x000000FF
 
 struct ldim_fw_s {
 	/* header */

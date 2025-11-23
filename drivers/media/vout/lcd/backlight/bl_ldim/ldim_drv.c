@@ -814,14 +814,15 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		argp = (void __user *)ldim_buff.ptr;
 		LDIMPR("index =  0x%x, len=  0x%x\n", ldim_buff.index, ldim_buff.len);
-		if (ldim_buff.len == 0 || ldim_buff.len > 0x40000) {
+
+		if (ldim_buff.len == 0 || ldim_buff.len > 0x400000) {
 			LDIMERR("pq bin size = %d is invalid!!\n", ldim_buff.len);
 			return -EFAULT;
 		}
 
 		if (ldim_buff.index) {
-			ldim_driver.pq_num = (ldim_buff.index >> 8) & 0xf;
-			if (ldim_driver.pq_num && ldim_driver.pq_num < 16) {
+			ldim_driver.pq_num = (ldim_buff.index >> 8) & 0xff;
+			if (ldim_driver.pq_num && ldim_driver.pq_num <= 0xff) {
 				ldim_driver.pq_size = ldim_buff.len / ldim_driver.pq_num;
 			} else {
 				LDIMERR("ldim_driver.pq_num is wrong!!\n");
@@ -865,9 +866,9 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				   sizeof(unsigned char))) {
 			ret = -EFAULT;
 		}
-		if (ldim_driver.level_idx > ldim_driver.pq_num) {
-			LDIMPR("level_idx = %d is bigger than pq_num(%d)!!, do nothing!\n",
-			ldim_driver.level_idx, ldim_driver.pq_num);
+		if (ldim_driver.level_idx >= ldim_driver.pq_num) {
+			LDIMPR("level_idx = %d is bigger than max level index(%d)!!, do nothing!\n",
+			ldim_driver.level_idx, (ldim_driver.pq_num - 1));
 			return -EFAULT;
 		}
 

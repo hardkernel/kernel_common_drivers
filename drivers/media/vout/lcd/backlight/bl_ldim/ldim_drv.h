@@ -30,8 +30,9 @@
 /*20241217: multiple spi support */
 /*20250316: optimize ldim_fw_s */
 /*20250803: add bcon support */
+/*20251123: modify level idx to 256 */
 
-#define LDIM_DRV_VER    "20250803"
+#define LDIM_DRV_VER    "20251123"
 
 extern unsigned char ldim_print_en;
 #define LDIMPR(fmt, args...)     \
