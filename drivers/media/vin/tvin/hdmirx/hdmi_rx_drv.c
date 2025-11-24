@@ -652,6 +652,9 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe, enum tvin_port_type_e port_typ
 	parm->info.fmt = TVIN_SIG_FMT_NULL;
 	parm->info.status = TVIN_SIG_STATUS_NULL;
 
+	if (early_suspend_flag)
+		return;
+
 	if (rx_info.chip_id >= CHIP_ID_T3X)
 		hdmirx_close_port_t3x(port);
 	else
