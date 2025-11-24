@@ -619,6 +619,8 @@ static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	plane_info = &mvsps->plane_info[osd_index];
 	reg_ops = state->sub->reg_ops;
 
+	arm_fbc_check_error(afbc->status_regs);
+
 	if (!plane_info->afbc_en) {
 		if (is_meson_s6_cpu()) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -833,6 +835,7 @@ static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	core_enable = 0;
 
 	afbc_stat_reg = afbc->status_regs;
+	arm_fbc_check_error(afbc_stat_reg);
 	osd_afbc_ctrl_init(vblk, reg_ops, mvps);
 
 	for (i = afbc->start_surface; i <= afbc->end_surface; i++) {
@@ -1031,6 +1034,8 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	afbc_stat_reg = afbc->status_regs;
 	core_enable = 0;
 
+	arm_fbc_check_error(afbc_stat_reg);
+
 	for (i = afbc->start_surface; i <= afbc->end_surface; i++) {
 		if (mvsps->plane_info[i].enable && mvsps->plane_info[i].afbc_en) {
 			core_enable = 1;
@@ -1209,6 +1214,8 @@ static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	afbc_stat_reg = afbc->status_regs;
 	core_enable = 0;
 
+	arm_fbc_check_error(afbc_stat_reg);
+
 	for (i = afbc->start_surface; i <= afbc->end_surface; i++) {
 		if (mvsps->plane_info[i].enable && mvsps->plane_info[i].afbc_en) {
 			core_enable = 1;
@@ -1384,6 +1391,8 @@ static void t3x_osd_afbc_set_state(struct meson_vpu_block *vblk,
 
 	afbc_stat_reg = afbc->status_regs;
 	core_enable = 0;
+
+	arm_fbc_check_error(afbc_stat_reg);
 
 	for (i = afbc->start_surface; i <= afbc->end_surface; i++) {
 		if (mvsps->plane_info[i].enable && mvsps->plane_info[i].afbc_en) {
@@ -1561,6 +1570,8 @@ static void s6_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	afbc_reg = afbc->afbc_regs;
 	plane_info = &mvsps->plane_info[osd_index];
 	reg_ops = state->sub->reg_ops;
+
+	arm_fbc_check_error(afbc->status_regs);
 
 	if (!plane_info->afbc_en) {
 		t7_osd_afbc_enable(vblk, reg_ops, afbc->status_regs, osd_index, 0);
@@ -2210,13 +2221,18 @@ void arm_fbc_start(struct meson_vpu_sub_pipeline_state *pipeline_state,
 	afbc_set_cnt = pipeline_state->global_afbc;
 }
 
-void arm_fbc_check_error(void)
+void arm_fbc_check_error(struct afbc_status_reg_s *afbc_stat_reg)
 {
 	u32 val;
 
+	if (!afbc_stat_reg) {
+		DRM_ERROR("afbc_stat_reg is NULL!");
+		return;
+	}
+
 	if (afbc_err_irq_clear) {
 		/*check afbc error*/
-		val = meson_drm_read_reg(VPU_MAFBC_IRQ_RAW_STATUS);
+		val = meson_drm_read_reg(afbc_stat_reg->vpu_mafbc_irq_raw_status);
 		if (val & 0x3c) {
 			DRM_ERROR("afbc error happened, %x-%x\n", val, global_afbc_mask);
 			afbc_err_cnt++;

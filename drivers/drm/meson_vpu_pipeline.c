@@ -893,8 +893,6 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 		  old_mvsps->enable_blocks, old_mvsps,
 		  new_mvsps->enable_blocks, new_mvsps);
 
-	arm_fbc_check_error();
-
 	affected_blocks = old_mvsps->enable_blocks | new_mvsps->enable_blocks;
 
 	if (affected_blocks == 0) {
