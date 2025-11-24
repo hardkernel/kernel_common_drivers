@@ -160,7 +160,7 @@ void dptx_driver_ready(struct dptx_drv_s *dptx)
 
 	dptx->pin_c = devm_pinctrl_get_select(dptx->dev, "DPTX-ON");
 	if (IS_ERR_OR_NULL(dptx->pin_c)) {
-		DPTXPR(dptx->idx, LOG_E, "pinctrl mux: %p, err: %d",
+		DPTX_ERR(dptx, "pinctrl mux: %p, err: %d",
 		       dptx->pin_c, IS_ERR(dptx->pin_c));
 	}
 

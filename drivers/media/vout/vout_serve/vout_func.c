@@ -557,6 +557,8 @@ int vout_func_set_vframe_rate_hint(int index, int duration)
 	int ret = -1;
 	struct vout_server_s *p_server = NULL;
 	void *data;
+	struct vinfo_s *info_s;
+	char *mode_name = NULL;
 
 	mutex_lock(&vout_mutex);
 
@@ -564,8 +566,39 @@ int vout_func_set_vframe_rate_hint(int index, int duration)
 
 	if (p_server) {
 		data = p_server->data;
-		if (p_server->op.set_vframe_rate_hint)
+		if (p_server->op.get_vinfo) {
+			info_s = p_server->op.get_vinfo(data);
+			if (info_s)
+				mode_name = info_s->name;
+		}
+
+		if (p_server->op.set_vframe_rate_hint) {
+			if (index == 1) {
+				vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, mode_name);
+			} else if (index == 2) {
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+				vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, mode_name);
+#endif
+			} else if (index == 3) {
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+				vout3_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, mode_name);
+#endif
+			}
+
 			ret = p_server->op.set_vframe_rate_hint(duration, data);
+
+			if (index == 1) {
+				vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, mode_name);
+			} else if (index == 2) {
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+				vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, mode_name);
+#endif
+			} else if (index == 3) {
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+				vout3_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, mode_name);
+#endif
+			}
+		}
 	}
 
 	mutex_unlock(&vout_mutex);

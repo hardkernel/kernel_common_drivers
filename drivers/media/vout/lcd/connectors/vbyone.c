@@ -177,7 +177,7 @@ void lcd_vbyone_sw_reset(struct aml_lcd_drv_s *pdrv)
 			reg_phy_tx_ctrl0 = ANACTRL_LVDS_TX_PHY_CNTL1;
 			break;
 		default:
-			LCDERR("[%d]: %s: invalid drv_index\n", pdrv->index, __func__);
+			LCD_ERR(pdrv, "%s: invalid drv_index", __func__);
 			return;
 		}
 		offset = pdrv->data->offset_venc_if[pdrv->index];
@@ -223,7 +223,7 @@ void lcd_vbyone_sw_reset(struct aml_lcd_drv_s *pdrv)
 			reg_phy_tx_ctrl1 = ANACTRL_LVDS_TX_PHY_CNTL3;
 			break;
 		default:
-			LCDERR("[%d]: %s: invalid drv_index\n", pdrv->index, __func__);
+			LCD_ERR(pdrv, "%s: invalid drv_index", __func__);
 			return;
 		}
 		offset = pdrv->data->offset_venc_if[pdrv->index];

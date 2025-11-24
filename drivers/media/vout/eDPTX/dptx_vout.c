@@ -89,15 +89,22 @@ void dptx_print_helper(struct dptx_drv_s *dptx, u8 port, u8 pr_type, const char 
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	if (port == 0xff)
-		snprintf(buffer, sizeof(buffer), "%u]", dptx->idx);
-	else
-		snprintf(buffer, sizeof(buffer), "%u]-%u", dptx->idx, port);
+	if (dptx) {
+		if (port == 0xff)
+			snprintf(buffer, sizeof(buffer), "%u]", dptx->idx);
+		else
+			snprintf(buffer, sizeof(buffer), "%u]-%u", dptx->idx, port);
+	} else {
+		if (port == 0xff)
+			snprintf(buffer, sizeof(buffer), "-]");
+		else
+			snprintf(buffer, sizeof(buffer), "-]-%u", port);
+	}
 
 	if (pr_type == LOG_E)
-		pr_err("[DPTX-%s(err): %pV\n", buffer, &vaf);
+		pr_err("[eDP:%s(err): %pV\n", buffer, &vaf);
 	else
-		pr_info("[DPTX-%s: %pV\n", buffer, &vaf);
+		pr_info("[eDP:%s: %pV\n", buffer, &vaf);
 
 	va_end(args);
 }
@@ -236,7 +243,6 @@ static irqreturn_t dptx_HPD_post_handler(int irq, void *data)
 	else
 		dptx_notifier_call_chain(DPTX_EVENT_PLUG_OUT, dptx);
 
-	// DPTXPR(dptx->idx, LOG_I, "%s done\n", __func__);
 	return IRQ_HANDLED;
 }
 
@@ -248,7 +254,7 @@ static int dptx_io_open(struct inode *inode, struct file *file)
 	dptx = container_of(inode->i_cdev, struct dptx_drv_s, cdev);
 	file->private_data = dptx;
 
-	DPTXPR(dptx->idx, LOG_I, "%s", __func__);
+	DPTX_PR(dptx, "%s %p", __func__, file);
 
 	return 0;
 }
@@ -261,7 +267,7 @@ static int dptx_io_release(struct inode *inode, struct file *file)
 		return 0;
 
 	dptx = (struct dptx_drv_s *)file->private_data;
-	DPTXPR(dptx->idx, LOG_I, "%s", __func__);
+	DPTX_PR(dptx, "%s %p", __func__, file);
 	file->private_data = NULL;
 	return 0;
 }
@@ -377,7 +383,7 @@ lcd_cdev_init_once_err_1:
 lcd_cdev_init_once_err:
 	kfree(dptx_cdev);
 	dptx_cdev = NULL;
-	DPTXPR(0, LOG_E, "%s: failed: %d\n", __func__, ret);
+	DPTX_ERR(NULL, "%s: failed: %d", __func__, ret);
 	return -1;
 }
 
@@ -913,24 +919,24 @@ static int dptx_probe(struct platform_device *pdev)
 		return -1;
 	ret = of_property_read_u32(pdev->dev.of_node, "index", &index);
 	if (ret) {
-		DPTXPR(0, LOG_E, "no index exist");
+		DPTX_ERR(NULL, "no index exist");
 		return 0;
 	}
 	if (index >= DPTX_MAX_DRV) {
-		DPTXPR(index, LOG_E, "%s: invalid index %d\n", __func__, index);
+		DPTX_ERR(NULL, "%s: invalid index %d", __func__, index);
 		return -1;
 	}
 
 	match = of_match_device(dptx_dt_match_table, &pdev->dev);
 	if (!match) {
-		DPTXPR(index, LOG_E, "%s: no match table\n", __func__);
+		DPTX_ERR(NULL, "%s: no match table", __func__);
 		return -1;
 	}
 	pdata = (struct dptx_chip_data_s *)match->data;
-	DPTXPR(index, LOG_I, "driver version: %s(%d-%s)",
-			     DPTX_DRV_VERSION, pdata->chip_type, pdata->chip_name);
+	pr_info("[eDP:%u]: %s: driver version: %s(%d-%s)", index, __func__,
+		DPTX_DRV_VERSION, pdata->chip_type, pdata->chip_name);
 	if (index >= pdata->drv_max) {
-		DPTXPR(index, LOG_E, "%s: invalid index\n", __func__);
+		DPTX_ERR(NULL, "%s: invalid index", __func__);
 		return -1;
 	}
 
@@ -1004,7 +1010,7 @@ static void dptx_remove(struct platform_device *pdev)
 	dptx_driver[index] = NULL;
 	dptx_global_remove_once();
 
-	DPTXPR(index, LOG_I, "%s done", __func__);
+	pr_info("[eDP:%u]: %s done", index, __func__);
 }
 
 static int dptx_resume(struct platform_device *pdev)
@@ -1047,7 +1053,7 @@ static void dptx_shutdown(struct platform_device *pdev)
 	if (!dptx)
 		return;
 
-	DPTXPR(dptx->idx, LOG_I, "%s", __func__);
+	DPTX_PR(dptx, "%s", __func__);
 
 	dptx_notifier_call_chain(DPTX_EVENT_DISABLE, (void *)dptx);
 }
@@ -1070,7 +1076,7 @@ static struct platform_driver eDP_platform_driver = {
 int __init eDPTX_init(void)
 {
 	if (platform_driver_register(&eDP_platform_driver)) {
-		DPTXPR(0, LOG_E, "failed to register DisplayPort driver module\n");
+		DPTX_ERR(NULL, "failed to register DisplayPort driver module\n");
 		return -ENODEV;
 	}
 
@@ -1094,13 +1100,13 @@ static int __dptx_bootargs_setup(char *str)
 
 	ptr = strstr(str, ",");
 	if (!ptr || ptr == str) {
-		DPTXPR(0, LOG_E, "%s: invalid boot ctrl str: %s", __func__, str);
+		DPTX_ERR(NULL, "%s: invalid boot ctrl str: %s", __func__, str);
 		return -EINVAL;
 	}
 	snprintf(temp_str, (ptr - str > 11) ? 11 : ptr - str + 1, "%s", str);
 	ret = kstrtouint(temp_str, 16, &data32);
 	if (ret) {
-		DPTXPR(0, LOG_E, "%s: invalid data", __func__);
+		DPTX_ERR(NULL, "%s: invalid data", __func__);
 		return -EINVAL;
 	}
 
@@ -1116,7 +1122,7 @@ static int __dptx_bootargs_setup(char *str)
 			snprintf(eDP_propname[1], 32, "%s", ptr2);
 	}
 
-	DPTXPR(0, LOG_I, "%s: data:0x%x, %s,%s", __func__, data32,
+	DPTX_PR(NULL, "%s: data:0x%x, %s,%s", __func__, data32,
 				eDP_propname[0], eDP_propname[1]);
 	return 1;
 }

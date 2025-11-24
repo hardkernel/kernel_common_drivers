@@ -1194,7 +1194,7 @@ ldim_dev_get_config_from_ini_err:
 
 static int ldim_check_config_load(struct ldim_dev_driver_s *drv)
 {
-	drv->config_load = lcd_panel_config_load_detect(0, drv->key_valid, __func__);
+	drv->config_load = lcd_panel_config_load_detect(0, __func__);
 	if (drv->config_load == LCD_CONFIG_NONE || drv->config_load == LCD_CONFIG_ERR)
 		return -1;
 

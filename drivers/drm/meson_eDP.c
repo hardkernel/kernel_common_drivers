@@ -471,7 +471,7 @@ static int meson_eDP_encoder_atomic_check(struct drm_encoder *encoder,
 		to_am_meson_crtc_state(crtc_state);
 
 	/*drm not find connector by vout_validate_vmode*/
-	meson_crtc_state->preset_vmode = VMODE_LCD;
+	meson_crtc_state->preset_vmode = VMODE_eDP;
 
 	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
 	return 0;

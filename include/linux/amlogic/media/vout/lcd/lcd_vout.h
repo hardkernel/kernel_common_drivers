@@ -705,7 +705,6 @@ struct lcd_duration_s {
 	unsigned int frame_rate;
 	unsigned int duration_num;
 	unsigned int duration_den;
-	unsigned int frac;
 };
 
 struct lcd_vmode_info_s {
@@ -928,7 +927,6 @@ struct aml_lcd_drv_s {
 	unsigned int retry_cnt;
 	unsigned char mode;
 	unsigned char lcd_pxp;
-	unsigned char key_valid;
 	unsigned char clk_path; /* 0=hpll, 1=gp0_pll */
 	unsigned char config_load;
 	  /*bit[1]: 0=lcd_if late_resume(default), 1=lcd_if resume */

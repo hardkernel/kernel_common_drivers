@@ -37,7 +37,12 @@ static inline __s64 lcd_s64_constraint(__s64 v, __s64 min, __s64 max)
 	return v > max ? max : v < min ? min : v;
 }
 
-static inline unsigned long long lcd_diff(unsigned long long a, unsigned long long b)
+static inline unsigned int lcd_u32_diff(unsigned int a, unsigned int b)
+{
+	return (a >= b) ? (a - b) : (b - a);
+}
+
+static inline unsigned long long lcd_u64_diff(unsigned long long a, unsigned long long b)
 {
 	return (a >= b) ? (a - b) : (b - a);
 }

@@ -19,7 +19,7 @@ static struct dsi_ctrl_s *dsi_ctrl_op;
 void dsi_tx_ready(struct aml_lcd_drv_s *pdrv)
 {
 	if (!dsi_ctrl_op || !dsi_ctrl_op->tx_ready) {
-		LCDERR("[%d]: %s not supported\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s not supported", __func__);
 		return;
 	}
 	dsi_ctrl_op->tx_ready(pdrv);
@@ -28,7 +28,7 @@ void dsi_tx_ready(struct aml_lcd_drv_s *pdrv)
 void dsi_disp_on(struct aml_lcd_drv_s *pdrv)
 {
 	if (!dsi_ctrl_op || !dsi_ctrl_op->disp_on) {
-		LCDERR("[%d]: %s not supported\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s not supported", __func__);
 		return;
 	}
 	dsi_ctrl_op->disp_on(pdrv);
@@ -37,7 +37,7 @@ void dsi_disp_on(struct aml_lcd_drv_s *pdrv)
 void dsi_disp_off(struct aml_lcd_drv_s *pdrv)
 {
 	if (!dsi_ctrl_op || !dsi_ctrl_op->disp_off) {
-		LCDERR("[%d]: %s not supported\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s not supported", __func__);
 		return;
 	}
 	dsi_ctrl_op->disp_off(pdrv);
@@ -46,7 +46,7 @@ void dsi_disp_off(struct aml_lcd_drv_s *pdrv)
 void dsi_tx_close(struct aml_lcd_drv_s *pdrv)
 {
 	if (!dsi_ctrl_op || !dsi_ctrl_op->tx_close) {
-		LCDERR("[%d]: %s not supported\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s not supported", __func__);
 		return;
 	}
 	dsi_ctrl_op->tx_close(pdrv);

@@ -1022,7 +1022,7 @@ static ssize_t lcd_debug_prbs_store(struct device *dev, struct device_attribute 
 
 	lcd_debug_info = (struct lcd_debug_info_s *)pdrv->debug_info;
 	if (!lcd_debug_info) {
-		LCDPR("%s: debug_info is null\n", __func__);
+		LCD_PR(pdrv, "%s: debug_info is null", __func__);
 		return count;
 	}
 
@@ -1108,7 +1108,7 @@ static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv, unsigned int pclk)
 	pconf->timing.enc_clk = pconf->timing.act_timing.pixel_clk / pconf->timing.ppc;
 
 	if (pdrv->curr_dev->dev_cfg.timing.ppc > 1) {
-		LCDPR("ppc=%d, pixel_clk=%d, enc_clk=%d\n", pdrv->curr_dev->dev_cfg.timing.ppc,
+		LCD_PR(pdrv, "ppc=%d, pixel_clk=%d, enc_clk=%d", pconf->timing.ppc,
 			pconf->timing.act_timing.pixel_clk, pconf->timing.enc_clk);
 	}
 
@@ -1940,7 +1940,7 @@ static ssize_t lcd_debug_power_store(struct device *dev, struct device_attribute
 
 lcd_debug_power_store_next:
 	mutex_lock(&lcd_power_mutex);
-	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, temp);
+	LCD_PR(pdrv, "%s: %d", __func__, temp);
 	if (temp) {
 		if (pdrv->status & LCD_STATUS_ENCL_ON) {
 			if (pdrv->status & LCD_STATE_DUMMY) {
@@ -2400,7 +2400,7 @@ static ssize_t lcd_debug_clk_store(struct device *dev, struct device_attribute *
 		if (ret == 0)
 			pdrv->clk_path = set_val;
 		lcd_clk_generate_parameter(pdrv);
-		LCDPR("[%u]: CLK change path: %u\n", pdrv->index, set_val);
+		LCD_PR(pdrv, "CLK change path: %u", set_val);
 	}
 
 lcd_clk_debug_store_end:
@@ -2601,7 +2601,7 @@ static ssize_t lcd_debug_test_store(struct device *dev, struct device_attribute 
 	return count;
 
 lcd_debug_test_store_err:
-	LCD_ERR(pdrv, "%s: invalid parameters\n", __func__);
+	LCD_ERR(pdrv, "%s: invalid parameters", __func__);
 	kfree(buf_orig);
 	kfree(parm);
 	return -EINVAL;

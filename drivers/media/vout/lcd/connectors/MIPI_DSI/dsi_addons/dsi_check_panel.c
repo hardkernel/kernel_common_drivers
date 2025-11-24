@@ -31,7 +31,7 @@ int mipi_dsi_check_state(struct aml_lcd_drv_s *pdrv, u8 reg, u8 cnt)
 
 	rd_data = kcalloc(cnt, sizeof(u8), GFP_KERNEL);
 	if (!rd_data) {
-		LCDERR("[%d]: %s: rd_data kcalloc error\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: rd_data kcalloc error", __func__);
 		return 0;
 	}
 
@@ -42,7 +42,7 @@ int mipi_dsi_check_state(struct aml_lcd_drv_s *pdrv, u8 reg, u8 cnt)
 	if (ret < 0)
 		goto mipi_dsi_check_state_err;
 	if (ret != cnt) {
-		LCDERR("[%d]: %s: read back cnt is wrong\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: read back cnt is wrong", __func__);
 		goto mipi_dsi_check_state_err;
 	}
 
@@ -54,14 +54,14 @@ int mipi_dsi_check_state(struct aml_lcd_drv_s *pdrv, u8 reg, u8 cnt)
 	dconf->check_state = 1;
 	lcd_vcbus_setb(L_VCOM_VS_ADDR + offset, 1, 12, 1);
 	pdrv->curr_dev->dev_cfg.retry_enable_flag = 0;
-	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, dconf->check_state);
+	LCD_PR(pdrv, "%s: %d", __func__, dconf->check_state);
 	kfree(rd_data);
 	return 0;
 
 mipi_dsi_check_state_err:
 	dconf->check_state = 0;
 	lcd_vcbus_setb(L_VCOM_VS_ADDR + offset, 0, 12, 1);
-	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, dconf->check_state);
+	LCD_PR(pdrv, "%s: %d", __func__, dconf->check_state);
 	pdrv->curr_dev->dev_cfg.retry_enable_flag = 1;
 	kfree(rd_data);
 	return -1;

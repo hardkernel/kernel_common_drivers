@@ -47,7 +47,7 @@ struct lcd_clk_config_s *get_lcd_clk_config(struct aml_lcd_drv_s *pdrv)
 	int i;
 
 	if (!pdrv) {
-		LCDERR("%s: pdrv is null", __func__);
+		LCD_ERR(pdrv, "%s: pdrv is null", __func__);
 		return NULL;
 	}
 	if (!pdrv->clk_conf) {
@@ -57,15 +57,13 @@ struct lcd_clk_config_s *get_lcd_clk_config(struct aml_lcd_drv_s *pdrv)
 
 	cconf = (struct lcd_clk_config_s *)pdrv->clk_conf;
 	if (!cconf->data) {
-		LCDERR("[%d]: %s: clk config data is null\n",
-				pdrv->index, __func__);
+		LCD_ERR(NULL, "%s: clk config data is null", __func__);
 		return NULL;
 	}
 
 	for (i = 0; i < cconf->pll_conf_num; i++) {
 		if (!cconf->data->pll_data[i]) {
-			LCDERR("[%d]: %s: pll data is null\n",
-				pdrv->index, __func__);
+			LCD_ERR(NULL, "%s: pll data is null", __func__);
 			return NULL;
 		}
 	}
@@ -333,7 +331,7 @@ int lcd_ss_enable(int index, unsigned int flag)
 
 	pdrv = aml_lcd_get_driver(index);
 	if (!pdrv) {
-		LCDERR("[%d]: %s: drv is null\n", index, __func__);
+		LCD_ERR(pdrv, "%s: drv[%d] is null", index, __func__);
 		return -1;
 	}
 	LCD_DBG(pdrv, "%s", __func__);
@@ -378,7 +376,7 @@ void lcd_clk_pll_reset(struct aml_lcd_drv_s *pdrv)
 	if (cconf->data->pll_reset)
 		cconf->data->pll_reset(pdrv);
 	mutex_unlock(&lcd_clk_mutex);
-	LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_PR(pdrv, "%s", __func__);
 }
 
 unsigned long long lcd_pll_freq_get(int index)
@@ -414,7 +412,6 @@ void lcd_vlock_m_update(int index, unsigned int vlock_m)
 
 	pdrv = aml_lcd_get_driver(index);
 	if (!pdrv) {
-		LCDERR("[%d]: %s: drv is null\n", index, __func__);
 		return;
 	}
 	cconf = get_lcd_clk_config(pdrv);
@@ -422,13 +419,12 @@ void lcd_vlock_m_update(int index, unsigned int vlock_m)
 		return;
 
 	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL) {
-		LCDERR("%s: dual pll, can't adjust single pll m\n", __func__);
+		LCD_ERR(pdrv, "%s: dual pll, can't adjust single pll m", __func__);
 		return;
 	}
 
 	vlock_m &= 0xff;
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
-		LCDPR("[%d]: %s, vlcok_m: 0x%x\n", index, __func__, vlock_m);
+	LCD_DBG_ADV2(pdrv, "%s, vlcok_m: 0x%x", __func__, vlock_m);
 
 	if (cconf->data->pll_m_set)
 		cconf->data->pll_m_set(pdrv, vlock_m);
@@ -442,7 +438,6 @@ void lcd_vlock_frac_update(int index, unsigned int vlock_frac)
 
 	pdrv = aml_lcd_get_driver(index);
 	if (!pdrv) {
-		LCDERR("[%d]: %s: drv is null\n", index, __func__);
 		return;
 	}
 	cconf = get_lcd_clk_config(pdrv);
@@ -450,13 +445,12 @@ void lcd_vlock_frac_update(int index, unsigned int vlock_frac)
 		return;
 
 	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL) {
-		LCDERR("%s: dual pll, can't adjust single pll frac\n", __func__);
+		LCD_ERR(pdrv, "%s: dual pll, can't adjust single pll frac", __func__);
 		return;
 	}
 
 	vlock_frac &= 0x7ffff;
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
-		LCDPR("[%d]: %s, vlock_frac: 0x%x\n", index, __func__, vlock_frac);
+	LCD_DBG_ADV2(pdrv, "%s, vlock_frac: 0x%x", __func__, vlock_frac);
 
 	if (cconf->data->pll_frac_set)
 		cconf->data->pll_frac_set(pdrv, vlock_frac);
@@ -594,7 +588,7 @@ int lcd_clk_set_dummy(struct aml_lcd_drv_s *pdrv, int status)
 		lcd_request_vpu_overclk(pdrv, pdrv->curr_dev->dev_cfg.timing.enc_clk);
 		lcd_set_clk(pdrv);
 	}
-	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
+	LCD_PR(pdrv, "%s: %d", __func__, status);
 	return 0;
 }
 
@@ -617,7 +611,7 @@ int lcd_mlvds_clk_phase_set(struct aml_lcd_drv_s *pdrv)
 		ret = cconf->data->mlvds_clk_phase_set(pdrv);
 	mutex_unlock(&lcd_clk_mutex);
 
-	LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_PR(pdrv, "%s", __func__);
 	return ret;
 }
 

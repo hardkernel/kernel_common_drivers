@@ -28,7 +28,7 @@ static void dptx_venc_wait_vsync(struct dptx_drv_s *dptx)
 		line_cnt_previous = line_cnt;
 		dptx_delay_us(1);
 	}
-	/*DPTXPR(dptx->idx, LOG_I, "line_cnt=%d, line_cnt_previous=%d, i=%d\n",
+	/*DPTX_PR(dptx, "line_cnt=%d, line_cnt_previous=%d, i=%d\n",
 	 *	line_cnt, line_cnt_previous, i);
 	 */
 }
@@ -38,7 +38,7 @@ static unsigned int dptx_venc_get_max_lint_cnt(struct dptx_drv_s *dptx)
 	unsigned int line_cnt;
 
 	line_cnt = dptx_vcbus_read(ENCL_VIDEO_MAX_LNCNT + dptx->data->offset_venc[dptx->idx]) + 1;
-	/*DPTXPR(dptx->idx, LOG_I, "[%d]: %s: line_cnt=%d", dptx->idx, __func__, line_cnt); */
+	/*DPTX_PR(dptx, "[%d]: %s: line_cnt=%d", dptx->idx, __func__, line_cnt); */
 
 	return line_cnt;
 }

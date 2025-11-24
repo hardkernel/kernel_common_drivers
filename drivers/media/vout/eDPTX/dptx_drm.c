@@ -19,6 +19,7 @@
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/eDPTX/DPTX.h>
+#include <linux/amlogic/media/vout/eDPTX/DPTX_notify.h>
 #include "dptx_common.h"
 #include <linux/component.h>
 #include <drm/amlogic/meson_drm_bind.h>
@@ -99,7 +100,7 @@ static int dptx_drm_add_modes(struct meson_panel_dev *dptx_drm_dev,
 	//sprintf(&pmode->name, "%ux%up%uhz")
 	__str_add_vmode(dptx, pmode->name, vmd_p, pclk / 1000);
 
-	DPTXPR(dptx->idx, LOG_I, "%s: %s, clock=%dkHz, htotal=%d, vtotal=%d",
+	DPTX_PR(dptx, "%s: %s, clock=%dkHz, htotal=%d, vtotal=%d",
 		__func__, pmode->name, pmode->clock, pmode->htotal, pmode->vtotal);
 	return 0;
 }
@@ -126,7 +127,7 @@ static int get_dptx_modes(struct meson_panel_dev *dptx_drm_dev,
 		}
 	}
 
-	DPTXPR(dptx->idx, LOG_I, "%s: %u/%u", __func__, valid_mode_cnt, mode_cnt);
+	DPTX_PR(dptx, "%s: %u/%u", __func__, valid_mode_cnt, mode_cnt);
 
 	nmodes = kcalloc(valid_mode_cnt + 1, sizeof(struct drm_display_mode), GFP_KERNEL);
 	if (!nmodes) {
@@ -150,6 +151,125 @@ static int get_dptx_modes(struct meson_panel_dev *dptx_drm_dev,
 	return 0;
 }
 
+u8 dptx_drm_timing_find(struct dptx_drv_s *dptx, struct drm_display_mode *pmode)
+{
+	u8 idx;
+	u32 fr100;
+	struct dptx_vmode_s *vmode_p;
+	struct dptx_detail_timing_s *v_tm;
+	u32 pclk, htotal, vtotal, h_active, v_active;
+
+	if (!pmode)
+		return 1;
+
+	pclk = pmode->clock;
+	htotal = pmode->htotal;
+	vtotal = pmode->vtotal;
+	h_active = pmode->hdisplay;
+	v_active = pmode->vdisplay;
+	DPTX_PR(dptx, "drm set %u[%u] * %u[%u] %u kHz",
+		h_active, htotal, v_active, vtotal, pclk);
+
+	pclk = pclk * 1000;
+	pclk = dptx_div_around(pclk, vtotal);
+	pclk = pclk * 100;
+	pclk = dptx_div_around(pclk, htotal);
+	// pclk is (frame_rate * 100) now
+
+	for (idx = 0; idx < DPTX_DRV_VMODE_MAX; idx++) {
+		vmode_p = &dptx->vmode_mgr.vmodes[idx];
+		if (!(vmode_p->flag & VMODE_FLAG_VALID))
+			continue;
+
+		v_tm = &dptx->sink.timing[vmode_p->base_dtd_idx];
+
+		if (v_tm->h_act != h_active || v_tm->v_act != v_active ||
+				v_tm->h_period != htotal || v_tm->v_period != vtotal)
+			continue;
+
+		if (vmode_p->fr_adv == 1) { //5994 case
+			fr100 = vmode_p->fr100_int * 1000;
+			fr100 = fr100 / 1001;
+		} else {
+			fr100 = vmode_p->fr100_int;
+		}
+
+		if (dptx_diff(pclk, fr100) <= 50) {
+			DPTX_PR(dptx, "%s: match %s, %dx%d@%u.%02uhz", __func__,
+				v_tm->name, v_tm->h_act, v_tm->v_act, fr100 / 100, fr100 % 100);
+			dptx->next_vmd_idx = idx;
+			return 0;
+		}
+	}
+	if (h_active == 640 && v_active == 480 && dptx_diff(pclk, 6000) <= 50) { // 640x480p
+		dptx->next_vmd_idx = 0xff;
+		return 0;
+	}
+
+	dptx->next_vmd_idx = 0xff;
+	return 1;
+}
+
+static int dptx_set_apply_vmode(struct dptx_drv_s *dptx,  enum vmode_e mode)
+{
+	int ret = 0;
+
+	if ((mode & VMODE_MODE_BIT_MASK) != VMODE_eDP) {
+		DPTX_ERR(dptx, "unsupport mode 0x%x", mode & VMODE_MODE_BIT_MASK);
+		return -1;
+	}
+
+	// lcd_vrr_dev_register(pdrv);
+	if (mode & VMODE_INIT_BIT_MASK) { //first boot: set clktree
+		//lcd_clk_gate_switch(pdrv, 1);
+		dptx->status |= DPTX_STA_DISP_ON;
+	} else if (dptx->status & DPTX_STA_LINK_ON) { //mode change
+		if (dptx->next_vmd_idx == 0xff) {
+			DPTX_ERR(dptx, "next vmode to 640x480p60hz");
+			dptx_user_set_vmode(dptx, dptx->next_vmd_idx);
+		} else if (dptx->next_vmd_idx == dptx->vmode_mgr.vmode_sel_idx) {
+			DPTX_ERR(dptx, "next vmode same as current");
+		} else {
+			dptx_user_set_vmode(dptx, dptx->next_vmd_idx);
+		}
+	} else {
+		//mode change by drm (disable + mode_change)
+		if ((dptx->status & DPTX_STA_DRV_READY) == 0)
+			dptx_notifier_call_chain(DPTX_EVENT_PREPARE, (void *)dptx);
+		dptx_notifier_call_chain(DPTX_PRIORITY_HPD_CHECK, (void *)dptx);
+		// aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)pdrv);
+		// pdrv->status |= LCD_EVENT_ENABLE;
+	}
+
+	return ret;
+}
+
+static void dptx_drm_set_mode_timing(struct meson_panel_dev *panel,
+				struct drm_display_mode *mode, enum vmode_e vmode)
+{
+	struct drm_eDP_wrapper_s *wrapper = to_drm_dptx_wrapper(panel);
+	struct dptx_drv_s *dptx;
+	// struct lcd_vmode_list_s *temp_list = pdrv->vmode_mgr.vmode_list_header;
+	u8 ret;
+
+	if (!wrapper || !wrapper->dptx_drv)
+		return;
+
+	dptx = wrapper->dptx_drv;
+
+	if (!mode || ((vmode & 0xf) != VMODE_eDP)) {
+		DPTX_PR(dptx, "null mode received", __func__);
+		return;
+	}
+
+	ret = dptx_drm_timing_find(dptx, mode);
+	if (ret) {
+		DPTX_PR(dptx, "%s: not matched", __func__);
+		return;
+	}
+	dptx_set_apply_vmode(dptx, vmode);
+}
+
 static int meson_eDP_bind(struct device *dev, struct device *master, void *data)
 {
 	struct meson_drm_bound_data *bound_data = data;
@@ -162,6 +282,7 @@ static int meson_eDP_bind(struct device *dev, struct device *master, void *data)
 	// drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.add_modes = dptx_drm_add_modes;
 	drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.get_modes = get_dptx_modes;
 	drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.get_modes_vrr_range = NULL;
+	drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.set_mode_timing = dptx_drm_set_mode_timing;
 
 	drm_eDP_wrappers[dptx->idx].drm_type = DRM_MODE_CONNECTOR_MESON_EDP_A + dptx->idx;
 
@@ -171,13 +292,14 @@ static int meson_eDP_bind(struct device *dev, struct device *master, void *data)
 			bound_data->connector_component_bind(bound_data->drm,
 				drm_eDP_wrappers[dptx->idx].drm_type,
 				&drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.base);
-		DPTXPR(dptx->idx, LOG_I, "%s: connector_type: 0x%x, drm_id: %d", __func__,
+		DPTX_PR(dptx, "%s: connector_type: 0x%x, drm_id: %d", __func__,
 			drm_eDP_wrappers[dptx->idx].drm_type,
 			drm_eDP_wrappers[dptx->idx].drm_id);
 	} else {
-		DPTXPR(dptx->idx, LOG_E, "no bind func from drm");
+		DPTX_ERR(dptx, "no bind func from drm");
 	}
 
+	drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.base.vout_serv = &dptx->vout_server;
 	// drm_panel_init(dptx->drm_panel, )
 
 	return 0;
@@ -192,11 +314,11 @@ static void meson_eDP_unbind(struct device *dev, struct device *master, void *da
 		bound_data->connector_component_unbind(bound_data->drm,
 			drm_eDP_wrappers[dptx->idx].drm_type,
 			&drm_eDP_wrappers[dptx->idx].drm_eDPTX_instance.base);
-		DPTXPR(dptx->idx, LOG_I, "%s: connector_type: 0x%x, drm_id: %d", __func__,
+		DPTX_PR(dptx, "%s: connector_type: 0x%x, drm_id: %d", __func__,
 			drm_eDP_wrappers[dptx->idx].drm_type,
 			drm_eDP_wrappers[dptx->idx].drm_id);
 	} else {
-		DPTXPR(dptx->idx, LOG_E, "no unbind func from drm");
+		DPTX_ERR(dptx, "no unbind func from drm");
 	}
 
 	drm_eDP_wrappers[dptx->idx].drm_id = 0;

@@ -105,7 +105,7 @@ u8 ds_to_DPCD_LANESET(u8 ds_level)
 	case DPTX_PHY_STA_VSW_3_PREEM_0:
 		return (0x0 << 5 | 0x0 << 3 | 0x1 << 2 | 0x3);
 	default:
-		DPTXPR(0, LOG_E, "%s level %u out of protocal limit", __func__, ds_level);
+		DPTX_ERR(NULL, "%s level %u out of protocal limit", __func__, ds_level);
 		return 0;
 	}
 }
@@ -121,7 +121,7 @@ u8 dptx_v_p_to_ds(u8 vsw, u8 preem)
 	else if (vsw == 3 && preem < 1)
 		return 9 + preem;
 
-	DPTXPR(0, LOG_E, "%s (vsw=%u preem=%u) out of protocal limit", __func__, vsw, preem);
+	DPTX_ERR(NULL, "%s (vsw=%u preem=%u) out of protocal limit", __func__, vsw, preem);
 	return 0;
 }
 

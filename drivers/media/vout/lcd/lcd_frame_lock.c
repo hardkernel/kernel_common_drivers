@@ -526,7 +526,7 @@ unsigned int lcd_get_sw_vrr_target_fr(int index)
 
 lcd_get_sw_vrr_target_fr_exit:
 	if (lcd_debug_print_flag & LCD_DBG_PR_ISR)
-		LCDERR("[%d]: sw_vrr tg_fr:%d, exit\n", index, pdrv->sw_vrr.tg_fr);
+		LCD_ERR(pdrv, "sw_vrr tg_fr:%d, exit", pdrv->sw_vrr.tg_fr);
 	return 0;
 }
 EXPORT_SYMBOL(lcd_get_sw_vrr_target_fr);

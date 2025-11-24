@@ -938,7 +938,7 @@ static int bl_config_load_from_ini(struct aml_bl_drv_s *bdrv)
 
 int lcd_bl_check_config_load(struct aml_bl_drv_s *drv)
 {
-	drv->config_load = lcd_panel_config_load_detect(drv->index, drv->key_valid, __func__);
+	drv->config_load = lcd_panel_config_load_detect(drv->index, __func__);
 	if (drv->config_load == LCD_CONFIG_NONE || drv->config_load == LCD_CONFIG_ERR)
 		return -1;
 

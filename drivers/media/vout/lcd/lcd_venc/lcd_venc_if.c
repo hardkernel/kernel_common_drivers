@@ -92,18 +92,18 @@ void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
 	int ret;
 
 	if (!lcd_venc_op.venc_debug_test) {
-		LCDERR("[%d]: %s: invalid\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: invalid", __func__);
 		return;
 	}
 
 	ret = lcd_venc_op.venc_debug_test(pdrv, num);
 	if (ret) {
-		LCDERR("[%d]: %s: %d not support\n", pdrv->index, __func__, num);
+		LCD_ERR(pdrv, "%s: %d not support", __func__, num);
 		return;
 	}
 
 	if (num == 0)
-		LCDPR("[%d]: disable test pattern\n", pdrv->index);
+		LCD_PR(pdrv, "disable test pattern");
 }
 
 //vsync isr stage
@@ -134,7 +134,7 @@ void lcd_mute_set(struct aml_lcd_drv_s *pdrv,  unsigned char flag)
 		} else {
 			lcd_venc_op.mute_set(pdrv, flag);
 		}
-		LCD_PR(pdrv, "%s, venc mute %s\n", __func__, flag ? "ON" : "OFF");
+		LCD_PR(pdrv, "%s, venc mute %s", __func__, flag ? "ON" : "OFF");
 	} else if (pdrv->viu_sel == 1) {
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 		if (pdrv->vmode_switch) {
@@ -154,7 +154,7 @@ void lcd_mute_set(struct aml_lcd_drv_s *pdrv,  unsigned char flag)
 		} else {
 			set_output_mute(flag);
 		}
-		LCD_DBG(pdrv, "%s, vpp mute %s\n", __func__, flag ? "ON" : "OFF");
+		LCD_DBG(pdrv, "%s, vpp mute %s", __func__, flag ? "ON" : "OFF");
 #endif
 	}
 }
@@ -190,7 +190,7 @@ void lcd_set_venc_timing(struct aml_lcd_drv_s *pdrv)
 void lcd_set_venc(struct aml_lcd_drv_s *pdrv)
 {
 	if (!lcd_venc_op.venc_set) {
-		LCDERR("[%d]: %s: invalid\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: invalid", __func__);
 		return;
 	}
 
@@ -203,7 +203,7 @@ void lcd_set_venc(struct aml_lcd_drv_s *pdrv)
 void lcd_venc_change(struct aml_lcd_drv_s *pdrv)
 {
 	if (!lcd_venc_op.venc_change) {
-		LCDERR("[%d]: %s: invalid\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: invalid", __func__);
 		return;
 	}
 
@@ -218,7 +218,7 @@ void lcd_venc_change(struct aml_lcd_drv_s *pdrv)
 void lcd_venc_enable(struct aml_lcd_drv_s *pdrv, int flag)
 {
 	if (!lcd_venc_op.venc_enable) {
-		LCDERR("[%d]: %s: invalid\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: invalid", __func__);
 		return;
 	}
 
@@ -231,7 +231,7 @@ int lcd_get_venc_state(struct aml_lcd_drv_s *pdrv)
 	int ret = 0;
 
 	if (!lcd_venc_op.get_venc_state) {
-		LCDERR("[%d]: %s: invalid\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: invalid", __func__);
 		return 0;
 	}
 
@@ -380,7 +380,7 @@ int lcd_venc_config_init(struct lcd_data_s *pdata)
 		break;
 	}
 	if (ret) {
-		LCDERR("%s: failed\n", __func__);
+		LCD_ERR(NULL, "%s: failed", __func__);
 		return -1;
 	}
 

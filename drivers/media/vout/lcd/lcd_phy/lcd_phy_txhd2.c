@@ -115,8 +115,7 @@ static void lcd_phy_cntl_lvds_set(struct aml_lcd_drv_s *pdrv, unsigned int statu
 	struct phy_attr_s *phy = pdrv->curr_dev->dev_cfg.phy_cfg.act_phy;
 	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("%s: %d, ckdi:0x%x\n", __func__, status, phy_cfg->ckdi);
+	LCD_DBG(pdrv, "%s: %d, ckdi:0x%x", __func__, status, phy_cfg->ckdi);
 
 	if (status) {
 		if (is_mlvds) {

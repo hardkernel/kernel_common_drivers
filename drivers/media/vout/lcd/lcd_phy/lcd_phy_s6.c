@@ -57,7 +57,7 @@ static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 		pdrv->curr_dev->dev_cfg.control.mipi_cfg.bit_rate_target > 1500 ? 0x6 : 0x3;
 	HSTX_50R_cali_val = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_DSI);
 	if (HSTX_50R_cali_val < 0) {
-		LCDERR("[%u]: DSI HSTX 50Ω resistance uncalibrated\n", pdrv->index);
+		LCD_ERR(pdrv, "DSI HSTX 50Ω resistance uncalibrated");
 		HSTX_50R_cali_val = 0xb;
 	}
 

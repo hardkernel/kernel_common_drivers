@@ -253,7 +253,7 @@ set_pll_retry:
 	if (ret) {
 		if (cnt++ < PLL_RETRY_MAX)
 			goto set_pll_retry;
-		LCDERR("[%d]: pll%d lock failed\n", pdrv->index, cconf->pll_config[pll_sel].pll_id);
+		LCD_ERR(pdrv, "pll%d lock failed", cconf->pll_config[pll_sel].pll_id);
 	} else {
 		udelay(100);
 		lcd_ana_setb(reg_ctrl2, 1, 5, 1);
@@ -310,7 +310,7 @@ static void _lcd_set_vid_pll_div_by_cconf(struct aml_lcd_drv_s *pdrv, int pll_se
 	if (cconf->data->pll_data[pll_sel]->div_sel_max == CLK_DIV_SEL_1 ||
 	    cconf->pll_config[pll_sel].div_sel > cconf->data->pll_data[pll_sel]->div_sel_max ||
 	    cconf->pll_config[pll_sel].div_sel >= ARRAY_SIZE(lcd_clk_div_table)) {
-		LCDERR("[%d]: invalid clk divider\n", pdrv->index);
+		LCD_ERR(pdrv, "invalid clk divider");
 		return;
 	}
 
@@ -614,8 +614,7 @@ static void lcd_prbs_config_clk(struct aml_lcd_drv_s *pdrv, unsigned int lcd_prb
 	} else if (lcd_prbs_mode == LCD_PRBS_MODE_FREQ) {
 		bit_rate = lcd_prbs_freq * 1000000ULL;
 	} else {
-		LCDERR("[%d]: %s: unsupport lcd_prbs_mode %d\n",
-		       pdrv->index, __func__, lcd_prbs_mode);
+		LCD_ERR(pdrv, "%s: unsupport lcd_prbs_mode %d", __func__, lcd_prbs_mode);
 		return;
 	}
 
@@ -697,14 +696,13 @@ static int lcd_prbs_test_process(struct aml_lcd_drv_s *pdrv, unsigned int timeou
 		}
 		if (ret) {
 			ret = -1;
-			LCDERR("[%d]: prbs check error 1(running state), val:0x%04x, cnt:%d\n",
-				pdrv->index, val2, lcd_prbs_cnt);
+			LCD_ERR(pdrv, "prbs check error 1(running state), val:0x%04x, cnt:%d",
+				val2, lcd_prbs_cnt);
 			break;
 		}
 		if (lcd_combo_dphy_getb(pdrv, reg_ctrl_out, 0, 16)) {
 			ret = -1;
-			LCDERR("[%d]: prbs check error 2(prbs), cnt:%d\n",
-				pdrv->index, lcd_prbs_cnt);
+			LCD_ERR(pdrv, "prbs check error 2(prbs), cnt:%d", lcd_prbs_cnt);
 			break;
 		}
 
@@ -716,8 +714,7 @@ static int lcd_prbs_test_process(struct aml_lcd_drv_s *pdrv, unsigned int timeou
 			clk_err_cnt = 0;
 		if (clk_err_cnt >= 10) {
 			ret = -1;
-			LCDERR("[%d]: prbs check error 3(clkmsr), cnt: %d\n",
-				pdrv->index, lcd_prbs_cnt);
+			LCD_ERR(pdrv, "prbs check error 3(clkmsr), cnt: %d", lcd_prbs_cnt);
 			break;
 		}
 	}
@@ -791,10 +788,9 @@ static void lcd_clk_generate_t3x(struct aml_lcd_drv_s *pdrv)
 		return;
 	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_P2P &&
 	    pdrv->curr_dev->dev_cfg.timing.act_timing.clk_mode == LCD_BIT_RATE_ADAPT) {
-		LCDPR("[%d]: %s: dual pll config\n", pdrv->index, __func__);
+		LCD_PR(pdrv, "%s: dual pll config", __func__);
 		if (cconf->pll_conf_num < 2) {
-			LCDERR("[%d]: %s: clk_conf_num %d error\n",
-				pdrv->index, __func__, cconf->pll_conf_num);
+			LCD_ERR(pdrv, "%s: clk_conf_num %d error", __func__, cconf->pll_conf_num);
 			return;
 		}
 		cconf->pll_mode |= LCD_PLL_MODE_DUAL_PLL;
@@ -956,7 +952,7 @@ struct lcd_clk_config_s *lcd_clk_config_chip_init_t3x(struct aml_lcd_drv_s *pdrv
 	if (!pdrv->clk_conf) {
 		cconf = kcalloc(1, sizeof(struct lcd_clk_config_s), GFP_KERNEL);
 		if (!cconf) {
-			LCDERR("[%d]: %s: Not enough memory\n", pdrv->index, __func__);
+			LCD_ERR(pdrv, "%s: Not enough memory", __func__);
 			return NULL;
 		}
 	} else {
@@ -970,7 +966,7 @@ struct lcd_clk_config_s *lcd_clk_config_chip_init_t3x(struct aml_lcd_drv_s *pdrv
 	cconf->pll_config = kcalloc(cconf->pll_conf_num, sizeof(struct lcd_pll_config_s),
 					GFP_KERNEL);
 	if (!cconf->pll_config) {
-		LCDERR("[%d]: %s: Not enough memory for pll config\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: Not enough memory for pll config", __func__);
 		kfree(cconf);
 		return NULL;
 	}

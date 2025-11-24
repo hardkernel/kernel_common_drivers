@@ -130,7 +130,7 @@ void panel_json_mem_free(void *mem)
 
 	jsp = (struct json_parse_s *)mem;
 	if (!json_parse_ok(jsp)) {
-		LCDERR("%s: not json type\n", __func__);
+		LCD_ERR(NULL, "%s: not json type", __func__);
 		kfree(mem);
 		return;
 	}

@@ -40,7 +40,7 @@ static void dsi_table_print(u8 *dsi_table, u16 n_max)
 
 	_str = kcalloc(PR_BUF_MAX, sizeof(char), GFP_KERNEL);
 	if (!_str) {
-		LCDERR("%s: buf malloc error\n", __func__);
+		LCD_ERR(NULL, "%s: buf malloc error", __func__);
 		return;
 	}
 
@@ -76,27 +76,19 @@ static void dsi_table_print(u8 *dsi_table, u16 n_max)
 
 void dsi_init_table_print(struct dsi_config_s *dconf)
 {
-	LCDPR("MIPI DSI init-on: %s\n", dconf->dsi_init_on ? "" : "NULL");
+	LCD_PR(NULL, "MIPI DSI init-on: %s", dconf->dsi_init_on ? "" : "NULL");
 	dsi_table_print(dconf->dsi_init_on, DSI_INIT_ON_MAX);
 
-	LCDPR("MIPI DSI suspend: %s\n", dconf->dsi_suspend ? "" : "NULL");
+	LCD_PR(NULL, "MIPI DSI suspend: %s", dconf->dsi_suspend ? "" : "NULL");
 	dsi_table_print(dconf->dsi_suspend, DSI_SUSPEND_MAX);
 
-	LCDPR("MIPI DSI resume: %s\n", dconf->dsi_resume ? "" : "NULL");
+	LCD_PR(NULL, "MIPI DSI resume: %s", dconf->dsi_resume ? "" : "NULL");
 	dsi_table_print(dconf->dsi_resume, DSI_RESUME_MAX);
 
-	LCDPR("MIPI DSI init-off: %s\n", dconf->dsi_init_off ? "" : "NULL");
+	LCD_PR(NULL, "MIPI DSI init-off: %s", dconf->dsi_init_off ? "" : "NULL");
 	dsi_table_print(dconf->dsi_init_off, DSI_INIT_OFF_MAX);
 
 }
-
-#ifdef TRY_TO_REMOVE_DSI_EXTERN
-static void dsi_extern_init_table_print(struct dsi_config_s *dconf, int on_off)
-{
-	if (dconf->extern_init != 0xff)
-		pr_info("extern init:        %d\n\n", dconf->extern_init);
-}
-#endif
 
 void lcd_dsi_info_print(struct lcd_config_s *pconf)
 {
@@ -104,9 +96,6 @@ void lcd_dsi_info_print(struct lcd_config_s *pconf)
 	dsi_base_cfg_print(pconf);
 
 	dsi_init_table_print(&pconf->control.mipi_cfg);
-#ifdef TRY_TO_REMOVE_DSI_EXTERN
-	dsi_extern_init_table_print(&pconf->control.mipi_cfg, 1);
-#endif
 }
 
 void lcd_dsi_post_config_load(struct aml_lcd_drv_s *pdrv)

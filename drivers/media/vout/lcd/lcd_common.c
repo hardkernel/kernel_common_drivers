@@ -160,21 +160,22 @@ void lcd_debug_print_helper(struct aml_lcd_drv_s *pdrv, u8 pr_type, const char *
 	vaf.va = &args;
 
 	if (pr_type == PR_TYPE_ERR) {
-		if (pdrv->device_mgr.dev_cnt > 1 && pdrv->curr_dev)
-			snprintf(buffer, sizeof(buffer),
-				"[lcd:%u:%u](err): ", pdrv->index, pdrv->curr_dev->idx);
+		if (!pdrv)
+			snprintf(buffer, sizeof(buffer), "[lcd:-](err): ");
+		else if (pdrv->device_mgr.dev_cnt > 1 && pdrv->curr_dev)
+			snprintf(buffer, sizeof(buffer), "[lcd:%u:%u](err): ",
+						pdrv->index, pdrv->curr_dev->idx);
 		else
-			snprintf(buffer, sizeof(buffer),
-				"[lcd:%u](err): ", pdrv->index);
-
+			snprintf(buffer, sizeof(buffer), "[lcd:%u](err): ", pdrv->index);
 		pr_err("%s%pV\n", buffer, &vaf);
 	} else {
-		if (pdrv->device_mgr.dev_cnt > 1 && pdrv->curr_dev)
-			snprintf(buffer, sizeof(buffer),
-				"[lcd:%u:%u]: ", pdrv->index, pdrv->curr_dev->idx);
+		if (!pdrv)
+			snprintf(buffer, sizeof(buffer), "[lcd:-]: ");
+		else if (pdrv->device_mgr.dev_cnt > 1 && pdrv->curr_dev)
+			snprintf(buffer, sizeof(buffer), "[lcd:%u:%u]: ",
+						pdrv->index, pdrv->curr_dev->idx);
 		else
-			snprintf(buffer, sizeof(buffer),
-				"[lcd:%u]: ", pdrv->index);
+			snprintf(buffer, sizeof(buffer), "[lcd:%u]: ", pdrv->index);
 
 		pr_info("%s%pV\n", buffer, &vaf);
 	}
@@ -527,7 +528,7 @@ static void lcd_custom_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
 	}
 
 	if (pconf->pinmux_flag == index) {
-		LCDPR("pinmux %s is already selected\n", pinmux_str);
+		LCD_PR(pdrv, "pinmux %s is already selected", pinmux_str);
 		return;
 	}
 
@@ -796,13 +797,13 @@ int lcd_detail_timing_print(struct lcd_detail_timing_s *dt, char *buf, int offse
 
 	len = offset;
 	len += snprintf(buf + len, max_len - len - 1,
-		"ht:%4d [%4d, %4d], hact:%4d, hsw:%2d, hbp:%3d%s, hfp:%3d%s, hpol:%d\n"
-		"vt:%4d [%4d, %4d], vact:%4d, vsw:%2d, vbp:%3d%s, vfp:%3d%s, vpol:%d\n"
-		"bits:%d, cfmt:0x%x, fr_adj:%d, switch_type:%d, clk_mode:%d, asf:%d, ufr:%d\n"
-		"ssc: level:%d, mode:%d, freq:%d, force:%d\n"
-		"pclk:%d [%d, %d]\n"
-		"frame_rate:%d [%d, %d]\n"
-		"vrr_range: [%d, %d]\n",
+		"  ht:%4d [%4d, %4d], hact:%4d, hsw:%2d, hbp:%3d%s, hfp:%3d%s, hpol:%d\n"
+		"  vt:%4d [%4d, %4d], vact:%4d, vsw:%2d, vbp:%3d%s, vfp:%3d%s, vpol:%d\n"
+		"  bits:%d, cfmt:0x%x, fr_adj:%d, switch_type:%d, clk_mode:%d, asf:%d, ufr:%d\n"
+		"  ssc: level:%d, mode:%d, freq:%d, force:%d\n"
+		"  pclk:%d [%d, %d]\n"
+		"  frame_rate:%d [%d, %d]\n"
+		"  vrr_range: [%d, %d]\n",
 		dt->h_period, dt->h_period_min, dt->h_period_max, dt->h_active,
 		dt->hsync_width, dt->hsync_bp, ck_hbp, dt->hsync_fp, ck_hfp, dt->hsync_pol,
 		dt->v_period, dt->v_period_min, dt->v_period_max, dt->v_active,
@@ -923,12 +924,12 @@ unsigned int lcd_config_timing_check(struct aml_lcd_drv_s *pdrv, struct aml_lcd_
 
 	ferr_str = kzalloc(PR_BUF_MAX, GFP_KERNEL);
 	if (!ferr_str) {
-		LCDERR("config_check fail for NOMEM\n");
+		LCD_DEV_ERR(pdrv, dev_p->idx, "config_check fail for NOMEM");
 		return 0;
 	}
 	warn_str = kzalloc(PR_BUF_MAX, GFP_KERNEL);
 	if (!warn_str) {
-		LCDERR("config_check fail for NOMEM\n");
+		LCD_DEV_ERR(pdrv, dev_p->idx, "config_check fail for NOMEM");
 		kfree(ferr_str);
 		return 0;
 	}
@@ -1125,8 +1126,6 @@ void lcd_vbyone_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 	unsigned long long bit_rate, band_width;
 	unsigned int temp, i;
 
-	LCD_DBG(pdrv, "%s", __func__);
-
 	//auto calculate bandwidth, clock
 	lane_count = pconf->control.vbyone_cfg.lane_count;
 	byte_mode = pconf->control.vbyone_cfg.byte_mode;
@@ -1178,8 +1177,6 @@ void lcd_mlvds_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 	unsigned long long bit_rate, band_width;
 	unsigned int lcd_bits, channel_num;
 
-	LCD_DBG(pdrv, "%s", __func__);
-
 	lcd_bits = pconf->timing.act_timing.lcd_bits;
 	channel_num = pconf->control.mlvds_cfg.channel_num;
 	band_width = pconf->timing.act_timing.pixel_clk;
@@ -1202,10 +1199,8 @@ void lcd_lvds_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 	bit_rate = lcd_do_div(band_width, port_div);
 	pconf->timing.bit_rate = bit_rate;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: port_div:%d bit_rate=%lluHz, pclk=%uhz\n",
-		      pdrv->index, port_div, bit_rate, pconf->timing.act_timing.pixel_clk);
-	}
+	LCD_DBG(pdrv, "port_div:%d bit_rate=%lluHz, pclk=%uhz",
+		port_div, bit_rate, pconf->timing.act_timing.pixel_clk);
 }
 
 void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv)
@@ -1214,8 +1209,6 @@ void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv)
 	unsigned int p2p_type, lcd_bits, lane_num, clk_mode;
 	unsigned long long bit_rate, band_width;
 	unsigned long long cspi_alpha = 0, frame_rate = 0, vtt = 0;
-
-	LCD_DBG(pdrv, "%s", __func__);
 
 	clk_mode = pconf->timing.act_timing.clk_mode;
 	lcd_bits = pconf->timing.act_timing.lcd_bits;
@@ -1393,7 +1386,7 @@ static void lcd_fr_range_update(struct lcd_detail_timing_s *ptiming)
 		}
 	}
 
-	LCDPR("%s: pclk=%u, h_period=%d, range: v_period(%d %d), vrr(%d %d), fr(%d %d)",
+	LCD_PR(NULL, "%s: pclk=%u, h_period=%d, range: v_period(%d %d), vrr(%d %d), fr(%d %d)",
 		__func__, ptiming->pixel_clk, ptiming->h_period, ptiming->v_period_min,
 		ptiming->v_period_max, ptiming->vfreq_vrr_min, ptiming->vfreq_vrr_max,
 		ptiming->frame_rate_min, ptiming->frame_rate_max);
@@ -1959,7 +1952,7 @@ static unsigned int lcd_vrr_lfc_switch(void *dev_data, int fps)
 
 	pdrv = (struct aml_lcd_drv_s *)dev_data;
 	if (!pdrv) {
-		LCDERR("%s: vrr dev_data is null\n", __func__);
+		LCD_ERR(pdrv, "%s: vrr dev_data is null");
 		return 0;
 	}
 	h_period = pdrv->curr_dev->dev_cfg.timing.act_timing.h_period;
@@ -1980,7 +1973,7 @@ static int lcd_vrr_disable_cb(void *dev_data)
 
 	pdrv = (struct aml_lcd_drv_s *)dev_data;
 	if (!pdrv) {
-		LCDERR("%s: vrr dev_data is null\n", __func__);
+		LCD_ERR(pdrv, "%s: vrr dev_data is null");
 		return -1;
 	}
 	lcd_venc_vrr_recovery(pdrv);

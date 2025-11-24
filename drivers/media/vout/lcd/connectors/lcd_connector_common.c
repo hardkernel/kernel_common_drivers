@@ -58,7 +58,7 @@ static int lcd_type_supported(struct aml_lcd_drv_s *pdrv)
 		return 0;
 #endif
 	default:
-		LCDERR("invalid lcd type: %s(%d)\n",
+		LCD_ERR(pdrv, "invalid lcd type: %s(%d)",
 		       lcd_type_type_to_str(lcd_type), lcd_type);
 		break;
 	}
@@ -117,7 +117,7 @@ void lcd_connector_driver_change(struct aml_lcd_drv_s *pdrv)
 	unsigned long long local_time[2];
 
 	if (!pdrv->probe_done)
-		LCDPR("[%d]: config not loaded, bypass %s", pdrv->index, __func__);
+		LCD_PR(pdrv, "config not loaded, bypass %s", __func__);
 
 	local_time[0] = sched_clock();
 
@@ -161,7 +161,7 @@ void lcd_connector_driver_init(struct aml_lcd_drv_s *pdrv)
 	// lcd_power_screen_black(pdrv);
 	// vpp power off when suspend, need cpu write mute
 	if (pdrv->viu_sel == 1 && pdrv->data->chip_type == LCD_CHIP_S6) {
-		LCDPR("[%d]: %s black\n", pdrv->index, __func__);
+		LCD_PR(pdrv, "%s black", __func__);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 		// lcd_post2_matrix();
 #endif
@@ -231,7 +231,7 @@ void lcd_connector_driver_init(struct aml_lcd_drv_s *pdrv)
 
 void lcd_connector_driver_disable(struct aml_lcd_drv_s *pdrv)
 {
-	LCDPR("[%d]: disable driver\n", pdrv->index);
+	LCD_PR(pdrv, "disable driver");
 
 	if (lcd_type_supported(pdrv))
 		return;

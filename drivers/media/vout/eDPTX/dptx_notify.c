@@ -36,7 +36,7 @@ static int dptx_backlight_off_notifier(struct notifier_block *nb, unsigned long 
 	if (!(event & DPTX_EVENT_BACKLIGHT_OFF))
 		return NOTIFY_DONE;
 	if (!dptx) {
-		DPTXPR(0, LOG_E, "%s: data is null", __func__);
+		DPTX_ERR(NULL, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
@@ -61,7 +61,7 @@ static int dptx_backlight_on_notifier(struct notifier_block *nb, unsigned long e
 	if (!(event & DPTX_EVENT_BACKLIGHT_ON))
 		return NOTIFY_DONE;
 	if (!dptx) {
-		DPTXPR(0, LOG_E, "%s: data is null", __func__);
+		DPTX_ERR(NULL, "%s: data is null", __func__);
 		return NOTIFY_OK;
 	}
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
@@ -86,7 +86,7 @@ static int dptx_mute_event_notifier(struct notifier_block *nb, unsigned long eve
 	if (!(event & DPTX_EVENT_SCREEN_BLACK))
 		return NOTIFY_DONE;
 	if (!dptx) {
-		DPTXPR(0, LOG_E, "%s: data is null", __func__);
+		DPTX_ERR(NULL, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
@@ -111,7 +111,7 @@ static int dptx_unmute_event_notifier(struct notifier_block *nb, unsigned long e
 	if (!(event & DPTX_EVENT_SCREEN_RESTORE))
 		return NOTIFY_DONE;
 	if (!dptx) {
-		DPTXPR(0, LOG_E, "%s: data is null", __func__);
+		DPTX_ERR(NULL, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
@@ -136,7 +136,7 @@ static int dptx_link_on_notifier(struct notifier_block *nb, unsigned long event,
 	if (!(event & DPTX_EVENT_LINK_ON))
 		return NOTIFY_DONE;
 	if (!dptx) {
-		DPTXPR(0, LOG_E, "%s: data is null", __func__);
+		DPTX_ERR(NULL, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
@@ -161,7 +161,7 @@ static int dptx_link_off_notifier(struct notifier_block *nb, unsigned long event
 	if (!(event & DPTX_EVENT_LINK_OFF))
 		return NOTIFY_DONE;
 	if (!dptx) {
-		DPTXPR(0, LOG_E, "%s: data is null", __func__);
+		DPTX_ERR(NULL, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
@@ -186,7 +186,7 @@ static int dptx_driver_ready_notifier(struct notifier_block *nb, unsigned long e
 	if (!(event & DPTX_EVENT_TX_READY))
 		return NOTIFY_DONE;
 	if (!dptx) {
-		DPTXPR(0, LOG_E, "%s: data is null", __func__);
+		DPTX_ERR(NULL, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
 	if (!(dptx->status & DPTX_STA_PROBE_DONE))
@@ -212,7 +212,7 @@ static int dptx_driver_close_notifier(struct notifier_block *nb, unsigned long e
 	if (!(event & DPTX_EVENT_TX_CLOSE))
 		return NOTIFY_DONE;
 	if (!dptx) {
-		DPTXPR(0, LOG_E, "%s: data is null", __func__);
+		DPTX_ERR(NULL, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
@@ -238,7 +238,7 @@ static int dptx_HPD_check_event_notifier(struct notifier_block *nb, unsigned lon
 	if (!(event & DPTX_EVENT_HPD_CHECK))
 		return NOTIFY_DONE;
 	if (!dptx) {
-		DPTXPR(0, LOG_E, "%s: data is null", __func__);
+		DPTX_ERR(NULL, "%s: data is null", __func__);
 		return NOTIFY_DONE;
 	}
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
@@ -263,7 +263,7 @@ static int dptx_HPD_trigger_en_notifier(struct notifier_block *nb, unsigned long
 	if (!(event & DPTX_EVENT_HPD_RESTORE))
 		return NOTIFY_DONE;
 	if (!dptx) {
-		DPTXPR(0, LOG_E, "%s: data is null", __func__);
+		DPTX_ERR(NULL, "%s: data is null", __func__);
 		return NOTIFY_OK;
 	}
 	if (!(dptx->status & (DPTX_STA_PROBE_DONE | DPTX_STA_DRV_READY)))
@@ -313,37 +313,37 @@ int dptx_notifier_init(void)
 
 	ret = dptx_notifier_register(&dptx_backlight_off_event_notifier_nb);
 	if (ret)
-		DPTXPR(0, LOG_E, "regist dptx_backlight_off_event_notifier_nb failed");
+		DPTX_ERR(NULL, "regist dptx_backlight_off_event_notifier_nb failed");
 	ret = dptx_notifier_register(&dptx_backlight_on_event_notifier_nb);
 	if (ret)
-		DPTXPR(0, LOG_E, "regist dptx_backlight_on_event_notifier_nb failed\n");
+		DPTX_ERR(NULL, "regist dptx_backlight_on_event_notifier_nb failed\n");
 	ret = dptx_notifier_register(&dptx_mute_on_event_notifier_nb);
 	if (ret)
-		DPTXPR(0, LOG_E, "regist dptx_mute_on_event_notifier_nb failed");
+		DPTX_ERR(NULL, "regist dptx_mute_on_event_notifier_nb failed");
 	ret = dptx_notifier_register(&dptx_mute_off_event_notifier_nb);
 	if (ret)
-		DPTXPR(0, LOG_E, "regist dptx_mute_off_event_notifier_nb failed\n");
+		DPTX_ERR(NULL, "regist dptx_mute_off_event_notifier_nb failed\n");
 	ret = dptx_notifier_register(&dptx_link_on_event_notifier_nb);
 	if (ret)
-		DPTXPR(0, LOG_E, "regist dptx_link_on_event_notifier_nb failed");
+		DPTX_ERR(NULL, "regist dptx_link_on_event_notifier_nb failed");
 	ret = dptx_notifier_register(&dptx_link_off_event_notifier_nb);
 	if (ret)
-		DPTXPR(0, LOG_E, "regist dptx_link_off_event_notifier_nb failed\n");
+		DPTX_ERR(NULL, "regist dptx_link_off_event_notifier_nb failed\n");
 	ret = dptx_notifier_register(&dptx_driver_close_event_notifier_nb);
 	if (ret)
-		DPTXPR(0, LOG_E, "regist dptx_driver_close_event_notifier_nb failed");
+		DPTX_ERR(NULL, "regist dptx_driver_close_event_notifier_nb failed");
 	ret = dptx_notifier_register(&dptx_driver_ready_event_notifier_nb);
 	if (ret)
-		DPTXPR(0, LOG_E, "regist dptx_driver_ready_event_notifier_nb failed\n");
+		DPTX_ERR(NULL, "regist dptx_driver_ready_event_notifier_nb failed\n");
 	ret = dptx_notifier_register(&dptx_HPD_check_event_notifier_nb);
 	if (ret)
-		DPTXPR(0, LOG_E, "regist dptx_HPD_check_event_notifier_nb failed\n");
+		DPTX_ERR(NULL, "regist dptx_HPD_check_event_notifier_nb failed\n");
 	ret = dptx_notifier_register(&dptx_HPD_restore_event_notifier_nb);
 	if (ret)
-		DPTXPR(0, LOG_E, "regist dptx_HPD_restore_event_notifier_nb failed");
+		DPTX_ERR(NULL, "regist dptx_HPD_restore_event_notifier_nb failed");
 	ret = dptx_notifier_register(&dptx_HPD_ignore_event_notifier_nb);
 	if (ret)
-		DPTXPR(0, LOG_E, "regist dptx_HPD_ignore_event_notifier_nb failed\n");
+		DPTX_ERR(NULL, "regist dptx_HPD_ignore_event_notifier_nb failed\n");
 	return 0;
 }
 

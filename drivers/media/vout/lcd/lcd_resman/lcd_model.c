@@ -139,7 +139,7 @@ int lcd_trans_str_array(const char *data_str, unsigned int *data_buf, int cnt_ma
 			break;
 		ret = kstrtouint(token, 0, &data_buf[i]);
 		if (ret) {
-			LCDERR("%s: index %d failed\n", __func__, i);
+			LCD_ERR(NULL, "%s: index %d failed", __func__, i);
 			kfree(tmp_buf);
 			return -1;
 		}
@@ -183,7 +183,7 @@ unsigned int lcd_get_str_array_index(const char *data_str, unsigned int index, u
 		if (i == index) {
 			ret = kstrtouint(token, 0, &val);
 			if (ret)
-				LCDERR("%s: index %d failed\n", __func__, index);
+				LCD_ERR(NULL, "%s: index %d failed", __func__, index);
 			break;
 		}
 		i++;

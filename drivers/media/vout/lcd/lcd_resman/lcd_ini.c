@@ -95,14 +95,14 @@ static int lcd_ini_integrity_flag(void *inip)
 	psec = lcd_ini_get_section(inip, "start");
 	str = lcd_ini_get_str(inip, psec, "start_tag", "null");
 	if (strcasecmp(str, AML_START)) {
-		LCDERR("%s: start_tag (%s) is error!\n", __func__, str);
+		LCD_ERR(NULL, "%s: start_tag (%s) is error!", __func__, str);
 		return -1;
 	}
 
 	psec = lcd_ini_get_section(inip, "end");
 	str = lcd_ini_get_str(inip, psec, "end_tag", "null");
 	if (strcasecmp(str, AML_END)) {
-		LCDERR("%s: end_tag (%s) is error!\n", __func__, str);
+		LCD_ERR(NULL, "%s: end_tag (%s) is error!", __func__, str);
 		return -1;
 	}
 

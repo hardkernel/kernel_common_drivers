@@ -45,16 +45,14 @@ static void lcd_set_fclk_div(struct aml_lcd_drv_s *pdrv)
 	unsigned int i = 0, div = 0, min_err_sel_idx = 0, min_err_div = 1;
 	unsigned int min_err = 100000, error;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG_ADV(pdrv, "%s", __func__);
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
 		return;
 
 	f_target = pdrv->curr_dev->dev_cfg.timing.lcd_clk / 1000;
 	if (f_target >= cconf->data->xd_out_fmax) {
-		LCDERR("%s: freq(%dKHz) out of limit(%dkHz)\n", __func__,
-			f_target, 75000000);
+		LCD_ERR(pdrv, "%s: freq(%dKHz) out of limit(75MHz)", __func__, f_target);
 		return;
 	}
 
@@ -65,9 +63,8 @@ static void lcd_set_fclk_div(struct aml_lcd_drv_s *pdrv)
 				min_err_sel_idx = i;
 				min_err_div = div;
 				min_err = error;
-				if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
-					LCDPR("_sel:%d, _div:%d, err:%d\n",
-						fclk_div_table[i][0], min_err_div, min_err);
+				LCD_DBG_ADV2(pdrv, "_sel:%d, _div:%d, err:%d",
+					fclk_div_table[i][0], min_err_div, min_err);
 			}
 		}
 		i++;
@@ -77,7 +74,7 @@ static void lcd_set_fclk_div(struct aml_lcd_drv_s *pdrv)
 	cconf->data->vclk_sel = fclk_div_table[min_err_sel_idx][0];
 	cconf->fout = fclk_div_table[min_err_sel_idx][1] / min_err_div;
 
-	LCDPR("[%d]: f_tar:%d, f_out:%d, fclk:%dkHz, div:%d, error:%d\n", pdrv->index,
+	LCD_PR(pdrv, "f_tar:%d, f_out:%d, fclk:%dkHz, div:%d, error:%d",
 		f_target, cconf->fout, fclk_div_table[min_err_sel_idx][1], min_err_div, min_err);
 }
 
@@ -92,8 +89,7 @@ static void lcd_set_vclk_crt_a4(struct aml_lcd_drv_s *pdrv)  /* from c3 */
 	struct lcd_clk_config_s *cconf;
 	unsigned int clk_phase;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
-		LCDPR("lcd clk: set_vclk_crt_c3\n");
+	LCD_DBG_ADV2(pdrv, "%s", __func__);
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
 		return;

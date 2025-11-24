@@ -104,7 +104,7 @@ int lcd_phy_param_get(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy_cfg,
 	if (!pdrv || !phy_cfg || !phy)
 		return -1;
 	if (!lcd_phy_ctrl || !lcd_phy_ctrl->phy_param_get) {
-		LCDPR("[%d]: %s: phy_param_get is null\n", pdrv->index, __func__);
+		LCD_PR(pdrv, "%s: phy_param_get is null", __func__);
 		return -1;
 	}
 
@@ -221,7 +221,7 @@ void lcd_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	if (pdrv->lcd_pxp)
 		return;
 	if (!lcd_phy_ctrl || !pdrv->phy_set) {
-		LCDPR("[%d]: %s: phy_set is null\n", pdrv->index, __func__);
+		LCD_PR(pdrv, "%s: phy_set is null", __func__);
 		return;
 	}
 
@@ -229,9 +229,8 @@ void lcd_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 		if (pdrv->index == i)
 			continue;
 		if (phy_cfg->lane_valid & lcd_phy_ctrl->lane_lock[i]) {
-			LCDERR("[%d]: %s: lane_valid 0x%x conflict with lane_lock[%d] 0x%x\n",
-				pdrv->index, __func__, phy_cfg->lane_valid,
-				i, lcd_phy_ctrl->lane_lock[i]);
+			LCD_ERR(pdrv, "%s: lane_valid 0x%x conflict with lane_lock[%d] 0x%x",
+				__func__, phy_cfg->lane_valid, i, lcd_phy_ctrl->lane_lock[i]);
 			return;
 		}
 	}

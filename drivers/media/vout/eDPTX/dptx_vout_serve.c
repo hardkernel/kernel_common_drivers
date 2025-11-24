@@ -47,7 +47,7 @@ static int dptx_check_same_vmodeattr(char *mode, void *data)
 {
 	struct dptx_drv_s *dptx = (struct dptx_drv_s *)data;
 
-	DPTXPR(dptx->idx, LOG_V, "%s: %s", __func__, mode);
+	DPTX_DBG(dptx, "%s: %s", __func__, mode);
 
 	return 1;
 }
@@ -56,7 +56,7 @@ static int dptx_vmode_is_supported(enum vmode_e mode, void *data)
 {
 	struct dptx_drv_s *dptx = (struct dptx_drv_s *)data;
 
-	DPTXPR(dptx->idx, LOG_V, "%s: 0x%x", __func__, mode);
+	DPTX_DBG(dptx, "%s: 0x%x", __func__, mode);
 
 	if ((mode & VMODE_MODE_BIT_MASK) == VMODE_eDP)
 		return true;
@@ -74,7 +74,7 @@ static int dptx_set_current_vmode(enum vmode_e mode, void *data)
 		return -1;
 
 	if ((mode & VMODE_MODE_BIT_MASK) != VMODE_eDP) {
-		DPTXPR(dptx->idx, LOG_E, "unsupport mode 0x%x", mode & VMODE_MODE_BIT_MASK);
+		DPTX_ERR(dptx, "unsupport mode 0x%x", mode & VMODE_MODE_BIT_MASK);
 		return -1;
 	}
 
@@ -85,10 +85,10 @@ static int dptx_set_current_vmode(enum vmode_e mode, void *data)
 		dptx->status |= DPTX_STA_DISP_ON;
 	} else if (dptx->status & DPTX_STA_LINK_ON) { //mode change by vout
 		if (dptx->next_vmd_idx == 0xff) {
-			DPTXPR(dptx->idx, LOG_E, "next vmode to 640x480p60hz");
+			DPTX_ERR(dptx, "next vmode to 640x480p60hz");
 			dptx_user_set_vmode(dptx, dptx->next_vmd_idx);
 		} else if (dptx->next_vmd_idx == dptx->vmode_mgr.vmode_sel_idx) {
-			DPTXPR(dptx->idx, LOG_E, "next vmode same as current");
+			DPTX_ERR(dptx, "next vmode same as current");
 		} else {
 			dptx_user_set_vmode(dptx, dptx->next_vmd_idx);
 		}
@@ -125,7 +125,7 @@ static int dptx_vout_set_state(int index, void *data)
 	if (!dptx)
 		return -1;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: viu:[%d -> %d]", __func__, dptx->viu_sel, index);
+	DPTX_PR(dptx, "%s: viu:[%d -> %d]", __func__, dptx->viu_sel, index);
 	dptx->viu_sel = index;
 
 	return 0;
@@ -138,7 +138,7 @@ static int dptx_vout_clr_state(int index, void *data)
 	if (!dptx)
 		return -1;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: viu=%d, clear_viu=%d", __func__, dptx->viu_sel, index);
+	DPTX_PR(dptx, "%s: viu=%d, clear_viu=%d", __func__, dptx->viu_sel, index);
 	if (dptx->viu_sel == index)
 		dptx->viu_sel = 0;
 
@@ -186,7 +186,7 @@ static enum vmode_e dptx_validate_vmode(char *mode, unsigned int frac, void *dat
 	if (!dptx || !mode)
 		return VMODE_MAX;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: %s (curr_mode=%s)", __func__, mode, dptx->vinfo.name);
+	DPTX_PR(dptx, "%s: %s (curr_mode=%s)", __func__, mode, dptx->vinfo.name);
 
 	if (dptx_vmode_str_check(dptx, mode))
 		return VMODE_MAX;
@@ -198,7 +198,7 @@ static int dptx_set_vframe_rate_hint(int duration, void *data)
 {
 	struct dptx_drv_s *dptx = (struct dptx_drv_s *)data;
 
-	DPTXPR(dptx->idx, LOG_I, "%s: %d", __func__, duration);
+	DPTX_PR(dptx, "%s: %d", __func__, duration);
 
 	return 0;
 }
@@ -255,7 +255,7 @@ static int dptx_early_suspend(void *data)
 		return 0;
 
 	dptx_notifier_call_chain(DPTX_EVENT_DISP_OFF, (void *)dptx);
-	DPTXPR(dptx->idx, LOG_I, "%s finished (0x%x)", __func__, dptx->status);
+	DPTX_PR(dptx, "%s finished (0x%x)", __func__, dptx->status);
 
 	return 0;
 }
@@ -280,7 +280,7 @@ static int dptx_late_resume(void *data)
 	else
 		dptx_notifier_call_chain(DPTX_EVENT_HPD_RESTORE, dptx);
 
-	DPTXPR(dptx->idx, LOG_I, "%s finished (0x%x)", __func__, dptx->status);
+	DPTX_PR(dptx, "%s finished (0x%x)", __func__, dptx->status);
 
 	return 0;
 }
@@ -338,7 +338,7 @@ void dptx_vout_server_init(struct dptx_drv_s *dptx)
 		snprintf(dptx->vout_server.name, 30, "%s_vout_server", dptx_edp_connector);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	DPTXPR(dptx->idx, LOG_I, "regist: %s", dptx->vout_server.name);
+	DPTX_PR(dptx, "regist: %s", dptx->vout_server.name);
 	vout_register_server(&dptx->vout_server);
 #endif
 }

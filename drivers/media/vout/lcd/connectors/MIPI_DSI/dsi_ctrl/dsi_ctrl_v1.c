@@ -365,8 +365,7 @@ static inline void print_mipi_cmd_status(struct aml_lcd_drv_s *pdrv, u8 port, in
 {
 	if (cnt)
 		return;
-	LCDPR("[%d]: cmd error: status=0x%04x, int0=0x%06x, int1=0x%06x\n",
-		pdrv->index, status,
+	LCD_PR(pdrv, "cmd error: status=0x%04x, int0=0x%06x, int1=0x%06x", status,
 		dsi_host_read(pdrv, port, MIPI_DSI_DWC_INT_ST0_OS),
 		dsi_host_read(pdrv, port, MIPI_DSI_DWC_INT_ST1_OS));
 }
@@ -395,7 +394,7 @@ static int wait_bta_ack(struct aml_lcd_drv_s *pdrv, u8 port)
 		i--;
 	} while ((((phy_status & 0x2) >> BIT_PHY_DIRECTION) == 0x0) && (i > 0));
 	if (i == 0) {
-		LCDERR("[%d]: phy direction error: RX\n", pdrv->index);
+		LCD_ERR(pdrv, "phy direction error: RX");
 		return -1;
 	}
 
@@ -407,7 +406,7 @@ static int wait_bta_ack(struct aml_lcd_drv_s *pdrv, u8 port)
 		i--;
 	} while ((((phy_status & 0x2) >> BIT_PHY_DIRECTION) == 0x1) && (i > 0));
 	if (i == 0) {
-		LCDERR("[%d]: phy direction error: TX\n", pdrv->index);
+		LCD_ERR(pdrv, "phy direction error: TX");
 		return -1;
 	}
 
@@ -507,7 +506,7 @@ static int dsi_generic_read_packet(struct aml_lcd_drv_s *pdrv, u8 port, struct d
 		}
 		for (j = 0; j < pld_non0_idx; j++) {
 			if (i >= DSI_RD_MAX) {
-				LCDPR("need enlarge DSI_RD_MAX (rd_raw: 0x%08x)\n", rd_data);
+				LCD_PR(pdrv, "need enlarge DSI_RD_MAX (rd_raw: 0x%08x)", rd_data);
 				goto dsi_generic_read_packet_done;
 			}
 			req->rd_data[i++] = (u8)((rd_data >> (j * 8)) & 0xff);
@@ -738,7 +737,8 @@ static void mipi_dsi_non_burst_packet_config(struct lcd_config_s *pconf)
 			vid_null_size = 0;
 		} else { //should larger vid_pkt_size
 			vid_null_size = 0;
-			LCDERR("%s: wrong vid_pkt_size(overhead=%d)\n", __func__, chunk_overhead);
+			LCD_ERR(NULL, "%s: wrong vid_pkt_size(overhead=%d)",
+				__func__, chunk_overhead);
 		}
 	} else {
 		multi_pkt_en = 0;
@@ -755,18 +755,16 @@ static void mipi_dsi_non_burst_packet_config(struct lcd_config_s *pconf)
 	dconf->vid_null_size = vid_null_size;
 	dconf->vid_pkt_size = vid_pkt_size;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("MIPI DSI NON-BURST setting:\n"
-			"  multi_pkt_en = %d\n"
-			"  chunks_num   = %d\n"
-			"  chunks       = %d\n"
-			"  vid_byte[%d] = byte_pix[%d] * vid_pkt_size[%d]\n"
-			"  overhead[%d](vid_null_size[%d])\n",
-			multi_pkt_en,
-			vid_num_chunks,
-			total_bytes_per_chunk, vid_byte_per_chunk, byte_pixel, vid_pkt_size,
-			chunk_overhead, vid_null_size);
-	}
+	LCD_DBG(NULL, "MIPI DSI NON-BURST setting:\n"
+		"  multi_pkt_en = %d\n"
+		"  chunks_num   = %d\n"
+		"  chunks       = %d\n"
+		"  vid_byte[%d] = byte_pix[%d] * vid_pkt_size[%d]\n"
+		"  overhead[%d](vid_null_size[%d])",
+		multi_pkt_en,
+		vid_num_chunks,
+		total_bytes_per_chunk, vid_byte_per_chunk, byte_pixel, vid_pkt_size,
+		chunk_overhead, vid_null_size);
 }
 
 static void mipi_dsi_vid_mode_config(struct lcd_config_s *pconf)
@@ -787,7 +785,7 @@ static void mipi_dsi_phy_config(struct aml_lcd_drv_s *pdrv, u32 dsi_bitrate)
 	struct dsi_dphy_s *dphy = &pdrv->curr_dev->dev_cfg.control.mipi_cfg.dphy;
 
 	if (dsi_bitrate == 0) {
-		LCDERR("%s: DSI dphy t_UI is 0\n", __func__);
+		LCD_ERR(pdrv, "%s: DSI dphy t_UI is 0", __func__);
 		return;
 	}
 

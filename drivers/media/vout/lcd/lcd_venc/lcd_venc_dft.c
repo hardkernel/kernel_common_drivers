@@ -56,12 +56,12 @@ static void lcd_venc_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag)
 	if (flag) {
 		if (lcd_vcbus_getb(L_GAMMA_CNTL_PORT, 0, 1) == 0) {
 			lcd_vcbus_setb(L_GAMMA_CNTL_PORT, 1, 0, 1);
-			LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, flag);
+			LCD_PR(pdrv, "%s: %d", __func__, flag);
 		}
 	} else {
 		if (lcd_vcbus_getb(L_GAMMA_CNTL_PORT, 0, 1)) {
 			lcd_vcbus_setb(L_GAMMA_CNTL_PORT, 0, 0, 1);
-			LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, flag);
+			LCD_PR(pdrv, "%s: %d", __func__, flag);
 		}
 	}
 }
@@ -113,7 +113,7 @@ static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV, lcd_enc_tst[num][5], 3, 1);
 
 	if (num > 0)
-		LCDPR("[%d]: show test pattern: %s\n", pdrv->index, lcd_enc_tst_str[num]);
+		LCD_PR(pdrv, "show test pattern: %s", lcd_enc_tst_str[num]);
 
 	return 0;
 }

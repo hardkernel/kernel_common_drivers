@@ -377,7 +377,7 @@ static ssize_t dptx_debug_plug_store(struct device *dev, struct device_attribute
 
 	ret = kstrtouint(buf, 10, &temp);
 	if (ret) {
-		DPTXPR(dptx->idx, LOG_E, "invalid data");
+		DPTX_ERR(dptx, "invalid data");
 		return -EINVAL;
 	}
 	if (temp == 2) {
@@ -406,7 +406,7 @@ static ssize_t dptx_debug_enable_store(struct device *dev, struct device_attribu
 
 	ret = kstrtouint(buf, 10, &temp);
 	if (ret) {
-		DPTXPR(dptx->idx, LOG_E, "invalid data");
+		DPTX_ERR(dptx, "invalid data");
 		return -EINVAL;
 	}
 	if (temp)
@@ -430,7 +430,7 @@ static ssize_t dptx_debug_pattern_store(struct device *dev, struct device_attrib
 
 	ret = kstrtouint(buf, 10, &temp);
 	if (ret) {
-		DPTXPR(dptx->idx, LOG_E, "invalid data");
+		DPTX_ERR(dptx, "invalid data");
 		return -EINVAL;
 	}
 	dptx_debug_test(dptx, temp);
@@ -451,7 +451,7 @@ static ssize_t dptx_debug_training_store(struct device *dev, struct device_attri
 
 	ret = kstrtouint(buf, 10, &temp);
 	if (ret) {
-		DPTXPR(dptx->idx, LOG_E, "invalid data");
+		DPTX_ERR(dptx, "invalid data");
 		return -EINVAL;
 	}
 	if (temp == 1)
@@ -514,7 +514,7 @@ int dptx_debug_probe(struct dptx_drv_s *dptx)
 
 	for (i = 0; i < ARRAY_SIZE(dptx_debug_attrs); i++) {
 		if (device_create_file(dptx->dev, &dptx_debug_attrs[i])) {
-			DPTXPR(dptx->idx, LOG_E, "create debug attribute %s fail",
+			DPTX_ERR(dptx, "create debug attribute %s fail",
 				dptx_debug_attrs[i].attr.name);
 		}
 	}

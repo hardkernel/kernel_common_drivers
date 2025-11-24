@@ -28,14 +28,6 @@ extern u8 dptx_print_level;
 #define LOG_V      2 // log level Verbose
 #define LOG_A      3 // log level All
 
-#define DPTXPR(idx, level, fmt, args...) \
-	do { \
-		if (!(level)) \
-			pr_err("[DPTX-%u]E: " fmt "\n", idx, ## args); \
-		else if (dptx_print_level >= (level)) \
-			pr_info("[DPTX-%u]: " fmt "\n", idx, ## args); \
-	} while (0)
-
 #define DPTX_ERR(drv, fmt, ...)     \
 		dptx_print_helper(drv, 0xff, LOG_E, fmt, ##__VA_ARGS__)
 #define DPTX_PR(drv, fmt, ...)      \

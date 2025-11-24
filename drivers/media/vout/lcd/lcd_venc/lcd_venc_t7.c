@@ -520,7 +520,7 @@ static void lcd_venc_set(struct aml_lcd_drv_s *pdrv)
 		reg_disp_viu_ctrl = VPU_DISP_VIU2_CTRL;
 		break;
 	default:
-		LCDERR("[%d]: %s: invalid drv_index\n", pdrv->index, __func__);
+		LCD_ERR(pdrv, "%s: invalid drv_index", __func__);
 		return;
 	}
 

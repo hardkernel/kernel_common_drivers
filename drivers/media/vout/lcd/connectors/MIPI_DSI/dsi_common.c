@@ -15,11 +15,6 @@
 #include "./dsi_ctrl/dsi_ctrl.h"
 #include "../lcd_connector.h"
 #include <linux/amlogic/media/vout/lcd/lcd_model.h>
-#ifdef TRY_TO_REMOVE_DSI_EXTERN
-#ifdef CONFIG_AMLOGIC_LCD_EXTERN
-#include <linux/amlogic/media/vout/lcd/lcd_extern.h>
-#endif
-#endif
 
 char *dsi_op_mode_table[] = {"Video", "Command"};
 
@@ -298,7 +293,7 @@ static void dsi_req_print(int ret, struct dsi_cmd_req_s *req)
 
 	string = kcalloc(1024, sizeof(char), GFP_KERNEL);
 	if (!string) {
-		LCDERR("%s: buf malloc error\n", __func__);
+		LCD_ERR(NULL, "%s: buf malloc error", __func__);
 		return;
 	}
 
@@ -447,8 +442,8 @@ int dsi_run_oneline_cmd(struct aml_lcd_drv_s *pdrv, u8 port,
 		// DSI_RD_MAX default size is 4, if any read will return size over 4,
 		// enlarge DSI_RD_MAX, each req will kcalloc such mem.
 		if (dsi_rd_len > DSI_RD_MAX)
-			LCDPR("[%d]: set max rx %d bytes, need to enlarge DSI_RD_MAX (%d)\n",
-				pdrv->index, dsi_rd_len, DSI_RD_MAX);
+			LCD_PR(pdrv, "set max rx %d bytes, need to enlarge DSI_RD_MAX (%d)",
+				dsi_rd_len, DSI_RD_MAX);
 		ret = dsi_DT_set_max_return_pkt_size(pdrv, port, &dsi_cmd_req);
 		return ret;
 	case DT_GEN_RD_0:
@@ -464,7 +459,7 @@ int dsi_run_oneline_cmd(struct aml_lcd_drv_s *pdrv, u8 port,
 		ret = dsi_DT_DCS_read(pdrv, port, &dsi_cmd_req);
 		break;
 	default:
-		LCDERR("[%d]: unsupport DSI cmd: 0x%02x\n", pdrv->index, dsi_cmd_req.data_type);
+		LCD_ERR(pdrv, "unsupport DSI cmd: 0x%02x", dsi_cmd_req.data_type);
 		return -1;
 	}
 
@@ -473,7 +468,7 @@ int dsi_run_oneline_cmd(struct aml_lcd_drv_s *pdrv, u8 port,
 
 	if (!ret && is_rd && rd_back_len && rd_back) {
 		if (dsi_cmd_req.rd_out_len > rd_back_len) {
-			LCDERR("[%d]: %s rd out %d, back limit %d\n", pdrv->index, __func__,
+			LCD_ERR(pdrv, "%s rd out %d, back limit %d", __func__,
 				dsi_cmd_req.rd_out_len, rd_back_len);
 			return 0;
 		}
@@ -516,7 +511,7 @@ int dsi_exec_init_table(struct aml_lcd_drv_s *pdrv,
 			continue;
 		}
 		if (i + 2 + cmd_size > pld_limit) {
-			LCDERR("[%d]: step %d: cmd_size out of support\n", pdrv->index, step);
+			LCD_ERR(pdrv, "step %d: cmd_size out of support", step);
 			break;
 		}
 
@@ -529,8 +524,7 @@ int dsi_exec_init_table(struct aml_lcd_drv_s *pdrv,
 			break;
 		case LCD_EXT_CMD_TYPE_GPIO:
 			if (cmd_size < 2) {
-				LCDERR("[%d]: step %d: invalid size %d for gpio\n",
-					pdrv->index, step, cmd_size);
+				LCD_ERR(pdrv, "step %d: invalid size %d for gpio", step, cmd_size);
 				break;
 			}
 			lcd_cpu_gpio_set(pdrv, payload[i + 2], payload[i + 3]);
@@ -539,16 +533,15 @@ int dsi_exec_init_table(struct aml_lcd_drv_s *pdrv,
 			break;
 		case LCD_EXT_CMD_TYPE_CHECK:
 			if (cmd_size < 3) {
-				LCDERR("[%d]: step %d: invalid size %d for check\n",
-					pdrv->index, step, cmd_size);
+				LCD_ERR(pdrv, "step %d: invalid size %d for check", step, cmd_size);
 				break;
 			}
 			mipi_dsi_check_state(pdrv, payload[i + 2], payload[i + 3]);
 			break;
 		case LCD_EXT_CMD_TYPE_SWITCH_PORT:
 			if (cmd_size != 1) {
-				LCDERR("[%d]: step %d: invalid size %d for switch port\n",
-					pdrv->index, step, cmd_size);
+				LCD_ERR(pdrv, "step %d: invalid size %d for switch port",
+					step, cmd_size);
 				break;
 			}
 			LCD_DBG(pdrv, "step %d: following cmd will be on port-%c%c", step,
@@ -639,29 +632,6 @@ static void dsi_panel_init(struct aml_lcd_drv_s *pdrv)
 {
 	struct dsi_config_s *dconf = &pdrv->curr_dev->dev_cfg.control.mipi_cfg;
 
-#ifdef TRY_TO_REMOVE_DSI_EXTERN
-#ifdef CONFIG_AMLOGIC_LCD_EXTERN
-	struct lcd_extern_driver_s *edrv;
-	struct lcd_extern_dev_s *edev;
-
-	if (dconf->extern_init == LCD_EXTERN_INDEX_INVALID) {
-		LCDPR("[%d]: %s extern [%d] invalid\n", pdrv->index, __func__, dconf->extern_init);
-		goto dsi_panel_init_main;
-	}
-	edrv = lcd_extern_get_driver(pdrv->index);
-	edev = lcd_extern_get_dev(edrv, dconf->extern_init);
-	if (!edrv || !edev) {
-		LCDPR("[%d]: no lcd_extern dev\n", pdrv->index);
-		goto dsi_panel_init_main;
-	}
-	// remove support on dsi cmd on extern driver
-	if (edev->config.table_init_on && edev->power_on) {
-		edev->power_on(edrv, edev);
-		LCDPR("[%d]: [extern]%s dsi init on\n", pdrv->index, edev->config.name);
-	}
-dsi_panel_init_main:
-#endif
-#endif
 	if (dconf->dsi_init_on) {
 		dsi_exec_init_table(pdrv, dconf->dsi_init_on, DSI_INIT_ON_MAX, NULL, 0);
 		LCD_PR(pdrv, "%s table", __func__);
@@ -676,28 +646,6 @@ static void dsi_panel_deinit(struct aml_lcd_drv_s *pdrv)
 		dsi_exec_init_table(pdrv, dconf->dsi_init_off, DSI_INIT_OFF_MAX, NULL, 0);
 		LCD_PR(pdrv, "%s table", __func__);
 	}
-
-#ifdef TRY_TO_REMOVE_DSI_EXTERN
-#ifdef CONFIG_AMLOGIC_LCD_EXTERN
-	struct lcd_extern_driver_s *edrv;
-	struct lcd_extern_dev_s *edev;
-
-	if (dconf->extern_init == LCD_EXTERN_INDEX_INVALID) {
-		LCDPR("[%d]: %s extern [%d] invalid\n", pdrv->index, __func__, dconf->extern_init);
-		return;
-	}
-	edrv = lcd_extern_get_driver(pdrv->index);
-	edev = lcd_extern_get_dev(edrv, dconf->extern_init);
-	if (!edrv || !edev) {
-		LCDPR("[%d]: no lcd_extern dev\n", pdrv->index);
-		return;
-	}
-	if (edev->config.table_init_off && edev->power_off) {
-		edev->power_off(edrv, edev);
-		LCDPR("[%d]: [extern]%s dsi init off\n", pdrv->index, edev->config.name);
-	}
-#endif
-#endif
 }
 
 void lcd_dsi_tx_ctrl(struct aml_lcd_drv_s *pdrv, u8 en)

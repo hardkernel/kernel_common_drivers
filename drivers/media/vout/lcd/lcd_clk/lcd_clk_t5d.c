@@ -420,8 +420,7 @@ static void lcd_prbs_config_clk(struct aml_lcd_drv_s *pdrv, unsigned int lcd_prb
 
 	if (!cconf)
 		return;
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCD_DBG_ADV2(pdrv, "%s", __func__);
 
 	if (lcd_prbs_mode == LCD_PRBS_MODE_VX1) {
 		bit_rate = 2970000000ULL;
@@ -441,8 +440,7 @@ static void lcd_prbs_config_clk(struct aml_lcd_drv_s *pdrv, unsigned int lcd_prb
 	lcd_clk_set(pdrv);
 	lcd_set_vclk_crt(pdrv);
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("%s ok\n", __func__);
+	LCD_DBG_ADV2(pdrv, "%s ok", __func__);
 }
 
 static void lcd_clk_prbs_test(struct aml_lcd_drv_s *pdrv, unsigned int ms, unsigned int mode_flag)

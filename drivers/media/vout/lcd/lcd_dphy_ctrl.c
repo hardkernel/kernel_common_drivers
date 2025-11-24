@@ -276,7 +276,7 @@ static void lcd_lvds_lane_init(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device
 	unsigned char temp, i, n;
 	int ret;
 
-	LCD_DBG(pdrv, "%s", __func__);
+	LCD_DBG(pdrv, "%s: [0x%8x][0x%8x]", __func__, map0, map1);
 
 	// 12-12 channel:
 	// d0_a:0 d1_a:1 d2_a:2 clk_a:3 d3_a:4 d4_a:5 d0_b:6 d1_b:7 d2_b:8 clk_b:9 d3_b:a d4_b:b
@@ -689,7 +689,7 @@ void lcd_lane_map_set(struct aml_lcd_drv_s *pdrv)
 
 void lcd_mipi_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 {
-	LCD_DBG(pdrv, "%s", __func__);
+	LCD_DBG(pdrv, "%s: %u", __func__, on_off);
 
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T7:
@@ -925,7 +925,7 @@ void lcd_vbyone_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 	unsigned int bit_data_in_lvds = 0, bit_data_in_edp = 0, bit_lane_sel = 0;
 	unsigned int bit_fifo_clk = 0, cntl_ser_mask = 0, cntl_ser_bit = 0;
 
-	LCD_DBG(pdrv, "%s", __func__);
+	LCD_DBG(pdrv, "%s: %u", __func__, on_off);
 
 	phy_div = pdrv->curr_dev->dev_cfg.control.vbyone_cfg.phy_div;
 	lane_num = pdrv->curr_dev->dev_cfg.control.vbyone_cfg.lane_count;
@@ -1096,7 +1096,7 @@ void lcd_mlvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 {
 	unsigned int div_sel;
 
-	LCD_DBG(pdrv, "%s", __func__);
+	LCD_DBG(pdrv, "%s: %u", __func__, on_off);
 
 	/* phy_div: 0=div6, 1=div 7, 2=div8, 3=div10 */
 	if (pdrv->curr_dev->dev_cfg.timing.act_timing.lcd_bits == 18)
@@ -1202,7 +1202,7 @@ void lcd_p2p_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 {
 	unsigned int p2p_type, phy_div, bit_data_in_lvds, bit_data_in_edp;
 
-	LCD_DBG(pdrv, "%s", __func__);
+	LCD_DBG(pdrv, "%s: %u", __func__, on_off);
 
 	/* phy_div: 0=div6, 1=div 7, 2=div8, 3=div10 */
 	p2p_type = pdrv->curr_dev->dev_cfg.control.p2p_cfg.p2p_type & 0x1f;
@@ -1310,7 +1310,7 @@ void lcd_dphy_set_data(struct aml_lcd_drv_s *pdrv, int data)
 {
 	unsigned int reg_phy_tx_ctrl0;
 
-	LCDPR("[%d]: %s: %d%s\n", pdrv->index, __func__, data, data == 0xff ? "(off)" : "");
+	LCD_PR(pdrv, "%s: %d%s", __func__, data, data == 0xff ? "(off)" : "");
 
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T7:
@@ -1443,7 +1443,7 @@ void lcd_dphy_set_data(struct aml_lcd_drv_s *pdrv, int data)
 			lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL1, 3, 28, 2);
 			break;
 		case 2:
-			LCDPR("not support\n");
+			LCD_PR(pdrv, "not support");
 			break;
 		default:
 			lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL1, 0, 26, 4);

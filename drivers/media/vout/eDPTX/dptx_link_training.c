@@ -510,7 +510,7 @@ static int dptx_run_training_loop(struct dptx_drv_s *dptx, unsigned int retry_cn
 				state = DP_TRAINING_SUCCESS;
 				break;
 			}
-			DPTXPR(dptx->idx, LOG_I, "%s: channel EQ failed", __func__);
+			DPTX_PR(dptx, "%s: channel EQ failed", __func__);
 			if (bit_rate_adaptive && ret == 1)
 				state = DP_TRAINING_ADJ_SPD_CR_FAIL_IN_EQ;
 			else if (bit_rate_adaptive && ret == 2)

@@ -131,8 +131,7 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status, int bypass)
 	if (!phy_ctrl_p)
 		return;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
-		LCDPR("%s: %d, bypass:%d\n", __func__, status, bypass);
+	LCD_DBG_ADV(pdrv, "%s: %d, bypass:%d", __func__, status, bypass);
 
 	reg_data = 1; //bit[0]=1
 	if (status) {
@@ -172,7 +171,7 @@ static void lcd_lvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int com_data = 0;
 
 	if (pdrv->index) {
-		LCDERR("invalid drv_index %d for lvds\n", pdrv->index);
+		LCD_ERR(NULL, "invalid drv_index %d for lvds");
 		return;
 	}
 
@@ -228,7 +227,7 @@ static void lcd_p2p_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 				com_data = 0xfe60027f;
 			break;
 		default:
-			LCDERR("%s: invalid p2p_type 0x%x\n", __func__, p2p_type);
+			LCD_ERR(NULL, "%s: invalid p2p_type 0x%x", __func__, p2p_type);
 			return;
 		}
 		lcd_phy_common_update(pdrv, com_data);
