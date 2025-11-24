@@ -11,6 +11,9 @@
 static int __init debug_main_init(void)
 {
 	pr_debug("### %s() start\n", __func__);
+#if IS_ENABLED(CONFIG_AMLOGIC_UBOOT_LOG)
+	call_sub_init(meson_uboot_log_init);
+#endif
 #if IS_MODULE(CONFIG_AMLOGIC_DEBUG_PRINTK)
 	call_sub_init(printk_vendor_hook_init);
 #endif
@@ -39,6 +42,9 @@ static void __exit debug_main_exit(void)
 #endif
 #if IS_ENABLED(CONFIG_ARM64_MTE)
 	aml_debug_mte_exit();
+#endif
+#if IS_ENABLED(CONFIG_AMLOGIC_UBOOT_LOG)
+	meson_uboot_log_exit();
 #endif
 }
 

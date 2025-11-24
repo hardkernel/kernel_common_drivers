@@ -26,6 +26,7 @@ ifeq ($(CONFIG_AMLOGIC_DEBUG_PRINTK),m)
 else
 	obj-$(CONFIG_AMLOGIC_DEBUG_PRINTK) += printk.o
 endif
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_UBOOT_LOG) += uboot_log.o ring_buffer.o
 
 MODULE_NAME_IOTRACE = amlogic-debug-iotrace
 obj-$(CONFIG_AMLOGIC_DEBUG_IOTRACE) += $(MODULE_NAME_IOTRACE).o

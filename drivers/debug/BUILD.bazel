@@ -48,6 +48,12 @@ ddk_module(
                    "kprobes.c",
             ],
         },
+        "CONFIG_AMLOGIC_UBOOT_LOG": {
+            True: [
+                   "uboot_log.c",
+                   "ring_buffer.c",
+            ],
+        },
         "CONFIG_AMLOGIC_DEBUG_ISOLCPUS": {
             True: ["isolcpus.c"],
         },

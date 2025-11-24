@@ -166,6 +166,14 @@
 		status = "disabled";
 	};
 
+	uboot_log {
+		compatible = "amlogic, uboot_log";
+		status = "okay";
+		memory-region = <&log_reserved &bl30log_reserved>;
+		reg = <0xfe0100ec 0x4>; /*timer E*/
+		mboxes = <&mbox_fifo T6W_REE2AO_REFRESH>;
+	};
+
 	aml_reboot {
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;

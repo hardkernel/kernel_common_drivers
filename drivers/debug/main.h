@@ -76,4 +76,9 @@ int aml_debug_mte_init(void);
 void aml_debug_mte_exit(void);
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_UBOOT_LOG)
+int __init meson_uboot_log_init(void);
+void __exit meson_uboot_log_exit(void);
+#endif
+
 #endif /*_DEBUG_MAIN_H__*/

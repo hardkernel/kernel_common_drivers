@@ -211,3 +211,10 @@ config AMLOGIC_TXHD2_REMOVE
 	default n
 	help
 	  remove more for txhd2 project
+
+config AMLOGIC_UBOOT_LOG
+	tristate "Amlogic uboot log"
+	default n
+	help
+	  Amlogic uboot log driver
+

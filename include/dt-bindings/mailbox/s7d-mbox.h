@@ -34,6 +34,7 @@
 #define S7D_REE2AO8       72
 #define S7D_REE2AO9       73
 #define S7D_REE2AO10      74
+#define S7D_REE2AO11      75
 
 /* MBOX CLIENT ID */
 /* AOCPU to ARMREE client ID */
@@ -57,6 +58,7 @@
 #define S7D_REE2AO_ETH       S7D_REE2AO7
 #define S7D_REE2AO_SPINLOCK  S7D_REE2AO8
 #define S7D_REE2AO_IR        S7D_REE2AO9
+#define S7D_REE2AO_REFRESH   S7D_REE2AO11
 
 /* MBOX CHANNEL ID */
 #define S7D_MBOX_AO2REE    2
