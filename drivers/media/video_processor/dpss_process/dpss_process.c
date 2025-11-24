@@ -10,6 +10,7 @@
 #include <linux/time.h>
 #include <linux/uaccess.h>
 #include <linux/file.h>
+#include <linux/of.h>
 #include <uapi/linux/sched/types.h>
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/sched/clock.h>
@@ -2530,6 +2531,13 @@ static long dpss_process_ioctl(struct file *file,
 			ret = -EFAULT;
 		break;
 
+	case DPSS_PROCESS_IOCTL_GET_ENABLE:
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
+		ret = get_di_proc_enable();
+#else
+		ret = 0;
+#endif
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -3146,6 +3154,7 @@ static int dpss_process_probe(struct platform_device *pdev)
 	int ret = 0;
 	int i = 0;
 	struct dpss_process_port_s *st;
+	int di_backend_support = 0;
 
 	pr_err("dpss_process probe\n");
 	/*need read from dts*/
@@ -3158,6 +3167,10 @@ static int dpss_process_probe(struct platform_device *pdev)
 		pr_err("Can't allocate major for dpss_process device\n");
 		goto error1;
 	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "di_backend_support_en", &di_backend_support);
+	if (di_backend_support)
+		set_di_proc_enable(1);
 
 	for (st = &ports[0], i = 0;
 	     i < dpss_process_instance_num; i++, st++) {

@@ -1094,12 +1094,14 @@
 	di_process {
 		compatible = "amlogic, di_process";
 		dev_name = "di_process";
+		di_backend_support_en = <1>;
 		status = "disabled";
 	};
 
 	dpss_process {
 		compatible = "amlogic, dpss_process";
 		dev_name = "di_process";
+		di_backend_support_en = <1>;
 		status = "okay";
 	};
 

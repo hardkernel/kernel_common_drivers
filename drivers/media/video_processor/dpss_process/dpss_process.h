@@ -154,6 +154,7 @@ struct dpss_process_dev {
 #define DPSS_PROCESS_IOCTL_UNINIT      _IO(DPSS_PROCESS_IOC_MAGIC, 0x01)
 #define DPSS_PROCESS_IOCTL_SET_FRAME   _IOW(DPSS_PROCESS_IOC_MAGIC, 0x02, struct frame_info_t)
 #define DPSS_PROCESS_IOCTL_Q_OUTPUT    _IOW(DPSS_PROCESS_IOC_MAGIC, 0x03, int)
+#define DPSS_PROCESS_IOCTL_GET_ENABLE  _IO(DPSS_PROCESS_IOC_MAGIC, 0x04)
 
 int di_get_ref_vf(struct file *file, struct vframe_s **vf_1, struct vframe_s **vf_2,
 	struct file **file_1, struct file **file_2);

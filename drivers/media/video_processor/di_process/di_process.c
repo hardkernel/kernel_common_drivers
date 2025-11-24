@@ -18,6 +18,7 @@
 #include <linux/vmalloc.h>
 #include <linux/amlogic/aml_sync_api.h>
 #include <linux/compat.h>
+#include <linux/of.h>
 
 #include "di_process.h"
 #include "di_proc_file.h"
@@ -1914,6 +1915,13 @@ static long di_process_ioctl(struct file *file,
 		else
 			ret = -EFAULT;
 		break;
+	case DI_PROCESS_IOCTL_GET_ENABLE:
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
+		ret = get_di_proc_enable();
+#else
+		ret = 0;
+#endif
+		break;
 
 	default:
 		return -EINVAL;
@@ -2381,6 +2389,7 @@ static int di_process_probe(struct platform_device *pdev)
 	int ret = 0;
 	int i = 0;
 	struct di_process_port_s *st;
+	int di_backend_support = 0;
 
 	pr_debug("di process probe\n");
 	/*need read from dts*/
@@ -2394,6 +2403,10 @@ static int di_process_probe(struct platform_device *pdev)
 		pr_err("Can't allocate major for di_process device\n");
 		goto error1;
 	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "di_backend_support_en", &di_backend_support);
+	if (di_backend_support)
+		set_di_proc_enable(1);
 
 	for (st = &ports[0], i = 0;
 	     i < di_process_instance_num; i++, st++) {
