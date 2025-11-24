@@ -1202,7 +1202,8 @@
 &aml_bt {
 	status = "okay";
 	bt_en-gpios = <&gpio  GPIOD_11  GPIO_ACTIVE_HIGH>;
-	//hostwake-gpios = <&gpio  GPIOD_13  GPIO_ACTIVE_HIGH>;
+	btwakeup-gpios = <&gpio  GPIOD_8  GPIO_ACTIVE_HIGH>;
+	hostwake-gpios = <&gpio  GPIOD_12  GPIO_ACTIVE_HIGH>;
 	power_down_disable = <1>;
 };
 
