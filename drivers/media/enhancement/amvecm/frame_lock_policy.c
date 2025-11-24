@@ -676,7 +676,7 @@ u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vfr
 		ret = FRAMELOCK_VLOCK;
 		vrr_skip_frame_cnt = 15;
 		hdr_low_latency = 0;
-	} else if (frame_sts.vrr_en) {
+	} else if (frame_sts.vrr_en || (vf->flag & VFRAME_FLAG_GAME_MODE)) {
 		if (frame_lock_frame_rate_check(vf, vinfo) &&
 			frame_sts.vrr_frame_outof_range_cnt < vrr_outof_rge_cnt &&
 			vrr_skip_frame_cnt == 0 && frame_sts.vrr_frame_cur != 0) {

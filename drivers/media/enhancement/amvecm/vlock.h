@@ -11,7 +11,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2024/0222: adaptive for vlock 100/120hz phase"
+#define VLOCK_VER "Ref.2025/0801: t966 bringup"
 
 #define VLOCK_REG_NUM					33
 #define VLOCK_ALL_LOCK_CNT				400
@@ -312,12 +312,13 @@ enum vlock_pll_sel {
 
 #define VLOCK_DEBUG_INFO_ERR	(BIT(15))
 
-#define ENCL_SYNC_LINE_LENGTH			0x1c4c
+#define ENCL_SYNC_LINE_LENGTH		0x1c4c
 #define ENCL_SYNC_PIXEL_EN			0x1c4d
-#define ENCL_SYNC_TO_LINE_EN			0x1c4e
+#define ENCL_SYNC_TO_LINE_EN		0x1c4e
 #define ENCL_FRC_CTRL				0x1cdd
 
-#define ENCL_FRC_CTRL_T3X                    0x14D9
+#define ENCL_FRC_CTRL_T3X			0x14D9
+#define ENCL_FRC_CTRL_T6X			0x72dd
 
 /* 0:enc;1:pll;2:manual pll */
 extern enum VLOCK_MD vlock_mode;

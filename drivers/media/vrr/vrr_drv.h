@@ -16,7 +16,8 @@
 /* ver:20250409: t6w bringup */
 /* ver:20250513: dot by dot change delay line */
 /* ver:20250605: enable vrr not change delay line */
-#define VRR_DRV_VERSION  "enable vrr not change delay line"
+/* ver:20250801: vrr bringup for t6x */
+#define VRR_DRV_VERSION  "20250801 T6X VRR"
 
 #define VRRPR(fmt, args...)      pr_info("vrr: " fmt "", ## args)
 #define VRRERR(fmt, args...)     pr_err("vrr error: " fmt "", ## args)
@@ -43,6 +44,7 @@ enum vrr_chip_e {
 	VRR_CHIP_T5M = 3,
 	VRR_CHIP_T3X = 4,
 	VRR_CHIP_T6W = 5,
+	VRR_CHIP_T6X = 6,
 	VRR_CHIP_MAX,
 };
 

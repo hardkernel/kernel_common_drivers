@@ -47,6 +47,25 @@
 //Bit 30:4   reverse           //R/W, unsigned,
 //Bit 3:0    cfg_vsp_rst_num   //R/W, unsigned,
 
+#define VENC_VRR_CTRL_T6X                              0x72d6
+//Bit   31   pls_vsp_din      // W1T, pulse
+//Bit   30   pls_vrr_clr      // W1T, pulse
+//Bit 27:24  reg_vrr_frm_num  // R/W, unsigned, default 1
+//Bit 23:8   reg_vsp_dly_num  // R/W, unsigned, default 0
+//Bit  7:4   reg_vrr_frm_ths  // R/W, unsigned, default 0
+//Bit  3:2   reg_vrr_vsp_en   // R/W, unsigned, default 0
+//Bit    1   reg_vrr_mode     // R/W, unsigned, default 0
+//Bit    0   reg_vrr_vsp_sel  // R/W, unsigned, default 0
+#define VENC_VRR_ADJ_LMT_T6X                           0x72d8
+//Bit 31:16  reg_vrr_min_vnum  //R/W, unsigned,
+//Bit 15:0   reg_vrr_max_vnum  //R/W, unsigned,
+#define VENC_VRR_CTRL1_T6X                             0x72d9
+//Bit 31     pls_vsp_cnt_rst   //R/W, unsigned, default 0
+//Bit 29:28  reserved
+//Bit 27:12  reg_pre_dly_num   //R/W, unsigned, default 16'h40
+//Bit 11:4   reg_iofrm_num     //R/W, unsigned, default 8'h10
+//Bit 3:0    reg_vsp_rst_num   //R/W, unsigned, default 1
+
 #define VPU_VENCP_STAT                             0x1cec
 #define ENCL_SYNC_CTRL                             0x1cde
 
