@@ -1385,6 +1385,9 @@ void dpss_s_unreg_step2(struct dpss_ch_s *pch)
 #ifdef FUNC_EN_DD
 	dpss_dd_disable();
 #endif
+#ifdef FUNC_EN_HDR
+	dpss_hdr_disable();
+#endif
 	dpss_s_print_inf(pch->c.ch);
 	//dpss-patch for reg
 	vfree(pch->d);

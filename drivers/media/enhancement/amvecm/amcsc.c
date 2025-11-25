@@ -11441,6 +11441,11 @@ void update_link_state(struct vframe_s *vf,
 
 	if (pvf->source_type == VFRAME_SOURCE_TYPE_HWC &&
 		nfs == VD1_FRM) {
+		if (muxio_ready_flag)
+			p->delink_status = 1;
+		else
+			p->delink_status = 0;
+		update_muxio_mode(pvf, vpp_index);
 		pr_log(0x400, "%s: hwc mute frame. don't need switch path\n", __func__);
 		return;
 	}

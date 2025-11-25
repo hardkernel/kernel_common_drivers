@@ -17394,6 +17394,13 @@ EXPORT_SYMBOL(amvecm_get_muxio_ready_for_dpss);
 void amvecm_set_muxio_link_for_dpss(unsigned int link_flag,
 	struct vframe_s *vf, enum vpp_index_e vpp_index)
 {
+	struct hdr_path_mux_sel_s *p = &h_p_s;
+
+	if (p->pre_path_mux == PATH_VD1) {
+		pr_log(0x400, "vd on vd1 path,dpss not cfg hdr path\n");
+		return;
+	}
+
 	set_muxio_link_mode(link_flag, vf, vpp_index);
 }
 EXPORT_SYMBOL(amvecm_set_muxio_link_for_dpss);

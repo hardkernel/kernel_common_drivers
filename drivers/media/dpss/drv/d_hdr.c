@@ -90,7 +90,9 @@ void dpss_hdr_pause(void)
 void dpss_hdr_disable(void)
 {
 #ifdef FUNC_EN_HDR
-
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	amvecm_set_muxio_link_for_dpss(0, NULL, VPP_VCBUS);
+#endif
 #endif /* FUNC_EN_HDR */
 }
 
