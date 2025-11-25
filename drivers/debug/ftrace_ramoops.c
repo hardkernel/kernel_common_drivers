@@ -359,6 +359,7 @@ void __nocfi pstore_io_save(unsigned long reg, unsigned long val, unsigned int f
 	if (reg_check_flag && flag == RECORD_TYPE_IO_W_END)
 		reg_check_func();
 
+#ifdef CONFIG_STACKTRACE
 	if (ramoops_io_stack) {
 		unsigned long stack_entries[MAX_STACK_DEPTH];
 
@@ -372,6 +373,7 @@ void __nocfi pstore_io_save(unsigned long reg, unsigned long val, unsigned int f
 			rec.parent_ip = stack_entries[5];
 		}
 	}
+#endif
 
 	cpu = raw_smp_processor_id();
 	if (unlikely(oops_in_progress) || unlikely(per_cpu(en, cpu))) {
