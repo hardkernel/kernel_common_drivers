@@ -1153,11 +1153,15 @@ void rx_read_ecc_err(u8 port)
 
 void clr_frl_fifo_status(u8 port)
 {
+	u32 hdmirx_top_intr_stat;
+
 	hdmirx_wr_cor(VP_FDET_IRQ_STATUS_VID_IVCRX, 0xff, port);
 	udelay(1);
 	hdmirx_wr_cor(VP_FDET_IRQ_STATUS_VID_IVCRX + 1, 0xff, port);
 	udelay(1);
 	hdmirx_wr_cor(VP_FDET_IRQ_STATUS_VID_IVCRX + 2, 0xff, port);
+	hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT, port);
+	hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat, port);
 }
 
 void rx_rcc_err_frl_config(u8 port)

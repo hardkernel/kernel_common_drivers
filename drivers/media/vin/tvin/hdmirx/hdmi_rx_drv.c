@@ -2051,8 +2051,15 @@ void hdmirx_get_avi_ext_colorimetry(struct tvin_sig_property_s *prop, u8 port)
 
 bool hdmirx_is_need_4ppc(u8 port)
 {
-	if ((rx[port].dsc_flag && ((rx[port].clk.pixel_clk * 192 /
-		rx[port].dsc_pps_data.bits_per_pixel) >= 333 * MHz)) || force_dsc_4ppc)
+	u32 tmp;
+
+	if (rx[port].cur.colorspace == E_COLOR_YUV420 || rx[port].cur.colorspace == E_COLOR_YUV422)
+		tmp = 2;
+	else
+		tmp = 1;
+	if ((rx[port].dsc_flag && ((rx[port].clk.pixel_clk /
+		(rx[port].dsc_pps_data.bits_per_pixel / tmp) * 192) >= 333 * MHz)) ||
+		force_dsc_4ppc)
 		return true;
 	else
 		return false;

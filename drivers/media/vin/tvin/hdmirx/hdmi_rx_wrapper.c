@@ -1554,6 +1554,7 @@ irqreturn_t irq2_handler(int irq, void *params)
 			skip_frame(skip_frame_cnt, E_PORT2, "irq2 valid_m_fall");
 			if (log_level & 0x100)
 				rx_pr("port2 [isr] valid_m_fall\n");
+			rx_irq_en(0, E_PORT2);
 			rx[E_PORT2].fsm_ext_state = FSM_WAIT_FRL_TRN_DONE;
 		}
 	}
@@ -1749,6 +1750,7 @@ irqreturn_t irq3_handler(int irq, void *params)
 			skip_frame(skip_frame_cnt, E_PORT3, "irq3 valid_m_fail");
 			if (log_level & 0x100)
 				rx_pr("port3 [isr] valid_m_fall\n");
+			rx_irq_en(0, E_PORT3);
 			rx[E_PORT3].fsm_ext_state = FSM_WAIT_FRL_TRN_DONE;
 		}
 	}
@@ -8133,10 +8135,9 @@ int hdmirx_debug(const char *buf, int size)
 void rx_ext_state_monitor(u8 port)
 {
 	if (rx[port].fsm_ext_state != FSM_NULL) {
-		if (rx[port].fsm_ext_state < rx[port].state) {
+		if (rx[port].fsm_ext_state < rx[port].state)
 			rx[port].state = rx[port].fsm_ext_state;
-			rx[port].fsm_ext_state = FSM_NULL;
-		}
+		rx[port].fsm_ext_state = FSM_NULL;
 		if (rx[port].state != rx[port].pre_state) {
 			if (log_level & LOG_EN)
 				rx_pr("fsm %d (%s) to (%s)\n",
