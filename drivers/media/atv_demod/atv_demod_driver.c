@@ -83,8 +83,98 @@
 /* 2025/04/21 --- V4.06 --- fix IO V4L2_READ_STATUS call and sync. */
 /* 2025/08/01 --- V4.07 --- add event for mts input change */
 /* 2025/08/08 --- V4.08 --- fix access reg crash when resumed and tuned but not be inited. */
-/* 2025/90/29 --- V6.00 --- t6w and t6x bringup */
-#define AMLATVDEMOD_VER "V6.00"
+/* 2025/09/29 --- V6.00 --- t6w and t6x bringup */
+/* 2025/11/26 --- V6.01 --- implement module debug parameter */
+#define AMLATVDEMOD_VER "V6.01"
+
+#define ATVDEMOD_ATTR_DEFINE()	\
+	ATVDEMOD_ATTR_ADD(reg_23cf, u32)	\
+	ATVDEMOD_ATTR_ADD(btsc_sap_mode, u32)	\
+	ATVDEMOD_ATTR_ADD(afc_limit, u32)	\
+	ATVDEMOD_ATTR_ADD(afc_timer_en, bool)	\
+	ATVDEMOD_ATTR_ADD(afc_timer_delay, u32)	\
+	ATVDEMOD_ATTR_ADD(afc_timer_delay2, u32)	\
+	ATVDEMOD_ATTR_ADD(afc_timer_delay3, u32)	\
+	ATVDEMOD_ATTR_ADD(afc_wave_cnt, u32)	\
+	ATVDEMOD_ATTR_ADD(tuner_status_cnt, u32)	\
+	ATVDEMOD_ATTR_ADD(slow_mode, bool)	\
+	ATVDEMOD_ATTR_ADD(broad_std, u32)	\
+	ATVDEMOD_ATTR_ADD(aud_std, u32)	\
+	ATVDEMOD_ATTR_ADD(aud_mode, u32)	\
+	ATVDEMOD_ATTR_ADD(aud_auto, bool)	\
+	ATVDEMOD_ATTR_ADD(aud_reinit, bool)	\
+	ATVDEMOD_ATTR_ADD(aud_mono_only, bool)	\
+	ATVDEMOD_ATTR_ADD(over_threshold, u64)	\
+	ATVDEMOD_ATTR_ADD(input_amplitude, u64)	\
+	ATVDEMOD_ATTR_ADD(atvaudio_det_outputmode_en, bool)	\
+	ATVDEMOD_ATTR_ADD(audio_carrier_offset_det_en, bool)	\
+	ATVDEMOD_ATTR_ADD(audio_det_en, bool)	\
+	ATVDEMOD_ATTR_ADD(non_std_en, u32)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_det_nonstd_en, bool)	\
+	ATVDEMOD_ATTR_ADD(non_std_times, u32)	\
+	ATVDEMOD_ATTR_ADD(non_check_delay_times, u32)	\
+	ATVDEMOD_ATTR_ADD(atv_video_gain, u32)	\
+	ATVDEMOD_ATTR_ADD(carrier_amplif_val, u32)	\
+	ATVDEMOD_ATTR_ADD(extra_input_fil_val, u32)	\
+	ATVDEMOD_ATTR_ADD(aud_dmd_jilinTV, bool)	\
+	ATVDEMOD_ATTR_ADD(if_freq, u32)	\
+	ATVDEMOD_ATTR_ADD(if_inv, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_demod_debug_en, u32)	\
+	ATVDEMOD_ATTR_ADD(btsc_detect_delay, u32)	\
+	ATVDEMOD_ATTR_ADD(nicam_detect_delay, u32)	\
+	ATVDEMOD_ATTR_ADD(a2_detect_delay, u32)	\
+	ATVDEMOD_ATTR_ADD(signal_audmode, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_thd_threshold1, u32)	\
+	ATVDEMOD_ATTR_ADD(gde_curve, u32)	\
+	ATVDEMOD_ATTR_ADD(sound_format, u32)	\
+	ATVDEMOD_ATTR_ADD(freq_hz_cvrt, u32)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_debug_en, u32)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_agc_pinmux, u32)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_agc_new, u32)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_afc_range, u32)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_afc_offset, u32)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_timer_en, bool)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_timer_delay, u32)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_timer_delay2, u32)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_mixer_tune_en, bool)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_overmodulated_en, bool)	\
+	ATVDEMOD_ATTR_ADD(atv_audio_overmodulated_en, bool)	\
+	ATVDEMOD_ATTR_ADD(audio_thd_en, bool)	\
+	ATVDEMOD_ATTR_ADD(pwm_kp, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_gain_val, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_ov_gain_val, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_a2_threshold, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_a2_delay, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_nicam_delay, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_a2_auto, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_a2_power_threshold, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_a2_carrier_report, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_gain_shift, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_gain_lpr, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_atv_ov, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_atv_ov_flag, u32)	\
+	ATVDEMOD_ATTR_ADD(audio_atv_ov_threshold, u32)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_isr_en, bool)	\
+	ATVDEMOD_ATTR_ADD(atv_audio_overmodulated_cnt, u32)	\
+	ATVDEMOD_ATTR_ADD(support_secam_l, bool)	\
+	ATVDEMOD_ATTR_ADD(atvdemod_horiz_freq_det_en, bool)	\
+	ATVDEMOD_ATTR_ADD(check_rssi, bool)	\
+	ATVDEMOD_ATTR_ADD(force_set, bool)	\
+	ATVDEMOD_ATTR_ADD(vfmt_cnt, u32)	\
+	ATVDEMOD_ATTR_ADD(pre_std, u32)	\
+	ATVDEMOD_ATTR_ADD(auddet_cnt, u32)	\
+	ATVDEMOD_ATTR_ADD(non_std_thld_4c_h, int)	\
+	ATVDEMOD_ATTR_ADD(non_std_thld_4c_l, int)	\
+	ATVDEMOD_ATTR_ADD(non_std_thld_54_h, int)	\
+	ATVDEMOD_ATTR_ADD(non_std_thld_54_l, int)	\
+	ATVDEMOD_ATTR_ADD(sum1_thd_h, int)	\
+	ATVDEMOD_ATTR_ADD(sum1_thd_l, int)	\
+	ATVDEMOD_ATTR_ADD(sum2_thd_h, int)	\
+	ATVDEMOD_ATTR_ADD(sum2_thd_l, int)	\
+	ATVDEMOD_ATTR_ADD(afc_default, int)	\
+	ATVDEMOD_ATTR_ADD(snr_threshold, int)	\
+	ATVDEMOD_ATTR_ADD(snr_val, int)	\
+	ATVDEMOD_ATTR_ADD(tuner_rssi, int)
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -102,7 +192,7 @@ static ssize_t atvdemod_debug_store(const struct class *class,
 	unsigned int data_snr[128] = { 0 };
 	unsigned int data_snr_avg = 0;
 	int block_addr = 0, block_reg = 0, block_val = 0;
-	int i = 0, val = 0;
+	int i = 0, val = 0, value = 0;
 	unsigned long tmp = 0, data = 0;
 	struct aml_atvdemod_device *dev =
 			container_of(class, struct aml_atvdemod_device, cls);
@@ -122,6 +212,12 @@ static ssize_t atvdemod_debug_store(const struct class *class,
 	if (parm[0] == NULL)
 		goto EXIT;
 
+	if (parm[1]) {
+		ret = kstrtoint(parm[1], 0, &value);
+		if (ret)
+			pr_err("parm[1] error %d\n", ret);
+	}
+
 	if (!strncmp(parm[0], "init", 4)) {
 		int priv_cfg = AML_ATVDEMOD_INIT;
 		struct dvb_frontend *fe = &dev->v4l2_fe.fe;
@@ -137,7 +233,9 @@ static ssize_t atvdemod_debug_store(const struct class *class,
 			fe->ops.analog_ops.set_config(fe, &priv_cfg);
 	} else if (!strncmp(parm[0], "reinit", 6)) {
 		ret = atv_demod_enter_mode(&dev->v4l2_fe.fe);
-	} else if (!strncmp(parm[0], "audout_mode", 11)) {
+	}
+	ATVDEMOD_ATTR_DEFINE()
+	else if (!strncmp(parm[0], "audout_mode", 11)) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 			atvauddemod_set_outputmode();
 		}

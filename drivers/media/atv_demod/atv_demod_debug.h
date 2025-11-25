@@ -132,6 +132,12 @@ struct dentry_value {
 
 #endif
 
+#define ATVDEMOD_ATTR_ADD(name, type)	\
+	else if (!strcmp(parm[0], #name)) {	\
+		extern type name;	\
+		name = (type)value;	\
+	}
+
 extern int aml_atvdemod_create_debugfs(const char *name);
 extern void aml_atvdemod_remove_debugfs(void);
 
