@@ -351,9 +351,10 @@
 				<&clkc CLKID_SD_EMMC_A_SEL>,
 				<&clkc CLKID_SD_EMMC_A>,
 				<&xtal>,
+				<&clkc CLKID_FCLK_DIV2>,
 				<&clkc CLKID_FCLK_DIV2>;
 				clock-names = "core", "mux0", "mux1",
-						"clkin0", "clkin1";
+						"clkin0", "clkin1", "clkin2";
 			mmc_debug_flag;
 			auto-clock-sdio;
 			resets = <&reset RESET_SD_EMMC_A>;
