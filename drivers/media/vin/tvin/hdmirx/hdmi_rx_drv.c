@@ -1900,7 +1900,7 @@ void hdmirx_get_vtem_info(struct tvin_sig_property_s *prop, u8 port)
 
 void hdmirx_get_sbtm_info(struct tvin_sig_property_s *prop, u8 port)
 {
-	memset(&prop->sbtm_data, 0, sizeof(struct tvin_sbtm_data_s));
+	memset(&prop->sbtm_data, 0, sizeof(struct sbtm_data));
 	if (rx[port].sbtm_info.flag)
 		memcpy(&prop->sbtm_data,
 			   &rx[port].sbtm_info, sizeof(struct sbtm_info_s));

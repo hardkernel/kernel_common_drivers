@@ -7354,6 +7354,33 @@ void vdin_fmm_check(struct vdin_dev_s *devp,
 	}
 }
 
+void vdin_set_sbtm_data(struct vdin_dev_s *devp,
+		       struct vframe_s *vf)
+{
+	/* sbtm data */
+	memset(&vf->sbtm, 0, sizeof(struct sbtm_data));
+	memcpy(&vf->sbtm, &devp->prop.sbtm_data, sizeof(struct sbtm_data));
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_HDR_SBTM_DATA) {
+		pr_info("sbtm_flag: 0x%02x ver:0x%02x mode:0x%02x sbtm_type:0x%02x\n",
+			devp->prop.sbtm_data.flag,
+			devp->prop.sbtm_data.sbtm_ver,
+			devp->prop.sbtm_data.sbtm_mode,
+			devp->prop.sbtm_data.sbtm_type);
+		pr_info("grdm_min:0x%02x grdm_lum:0x%02x frm_pb_limit_int:0x%04x\n",
+			devp->prop.sbtm_data.grdm_min,
+			devp->prop.sbtm_data.grdm_lum,
+			devp->prop.sbtm_data.frm_pb_limit_int);
+		pr_info("vf flag:0x%02x ver:0x%02x mode:0x%02x type:0x%02x 0x%02x 0x%02x 0x%04x\n",
+			vf->sbtm.flag,
+			vf->sbtm.sbtm_ver,
+			vf->sbtm.sbtm_mode,
+			vf->sbtm.sbtm_type,
+			vf->sbtm.grdm_min,
+			vf->sbtm.grdm_lum,
+			vf->sbtm.frm_pb_limit_int);
+	}
+}
+
 void vdin_set_drm_data(struct vdin_dev_s *devp,
 		       struct vframe_s *vf)
 {
@@ -7487,6 +7514,9 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 		vf->signal_type &= ~(1 << 31);
 	vdin_pr_emp_data(devp, vf);
 	vf->dv_crc_sts = devp->dv.dv_crc_check;
+
+	/* hdr sbtm data */
+	vdin_set_sbtm_data(devp, vf);
 }
 
 bool vdin_check_is_spd_data(struct vdin_dev_s *devp)

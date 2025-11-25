@@ -462,6 +462,16 @@ struct vtem_data {
 	unsigned int size;
 };
 
+struct sbtm_data {
+	u8 flag;
+	u8 sbtm_ver;
+	u8 sbtm_mode;
+	u8 sbtm_type;
+	u8 grdm_min;
+	u8 grdm_lum;
+	u16 frm_pb_limit_int;
+};
+
 #define MAX_COMPOSER_COUNT 9
 #define AXIS_INFO_COUNT    4
 
@@ -847,6 +857,7 @@ struct vframe_s {
 	struct emp_info emp;
 	struct spd_data spd;
 	struct vtem_data vtem;
+	struct sbtm_data sbtm;
 
 	u32 zorder;
 	u32 repeat_count;

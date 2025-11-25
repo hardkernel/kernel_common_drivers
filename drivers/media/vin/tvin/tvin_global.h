@@ -488,15 +488,6 @@ struct tvin_cuva_emds_data_s {
 	u8 rvd1[21];
 };
 
-struct tvin_sbtm_data_s {
-	u8 sbtm_ver;
-	u8 sbtm_mode;
-	u8 sbtm_type;
-	u8 grdm_min;
-	u8 grdm_lum;
-	u16 frm_pb_limit_int;
-};
-
 struct tvin_spd_data_s {
 	u8 pkttype;
 	u8 version;
@@ -596,7 +587,7 @@ struct tvin_sig_property_s {
 	struct tvin_hdr10plus_info_s hdr10p_info;
 	struct tvin_emp_data_s emp_data;
 	struct tvin_vtem_data_s vtem_data;
-	struct tvin_sbtm_data_s sbtm_data;
+	struct sbtm_data sbtm_data;
 	struct tvin_cuva_emds_data_s cuva_emds_data;
 	struct tvin_spd_data_s spd_data;
 	bool dsc_flag;

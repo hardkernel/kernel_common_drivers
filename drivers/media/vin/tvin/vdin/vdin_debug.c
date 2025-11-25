@@ -2160,6 +2160,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	}
 	pr_info("dolby_input : %d,unique:%d\n", devp->dv.dolby_input,
 		devp->prop.dv_unique_drm_flag);
+	pr_info("sbtm mode: %d", devp->prop.sbtm_data.sbtm_mode);
 	/*if (devp->cma_config_en != 1 || !(devp->cma_config_flag & 0x100))*/
 	/*	pr_info("dolby_mem_start = %ld, dolby_mem_size = %d\n",*/
 	/*		(devp->mem_start +*/
