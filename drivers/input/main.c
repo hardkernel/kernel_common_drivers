@@ -17,6 +17,7 @@ static int __init input_main_init(void)
 	call_sub_init(meson_ir_driver_init);
 	call_sub_init(meson_pmic6b_pwrkey_init);
 	call_sub_init(csk05_ts_init);
+	call_sub_init(input_filter_init);
 	pr_debug("### %s() end\n", __func__);
 	return 0;
 }
@@ -29,6 +30,7 @@ static void __exit input_main_exit(void)
 	meson_pmic6b_pwrkey_exit();
 	csk05_ts_exit();
 	amlogic_watchkey_driver_exit();
+	input_filter_exit();
 }
 
 module_init(input_main_init);

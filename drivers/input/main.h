@@ -90,4 +90,18 @@ static inline void csk05_ts_exit(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_INPUT_FILTER)
+int input_filter_init(void);
+void input_filter_exit(void);
+#else
+static inline int input_filter_init(void)
+{
+	return 0;
+}
+
+static inline void input_filter_exit(void)
+{
+}
+#endif
+
 #endif /*_INPUT_MAIN_H__*/

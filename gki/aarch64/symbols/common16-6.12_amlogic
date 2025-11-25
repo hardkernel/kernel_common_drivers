@@ -98,3 +98,11 @@
 
 #amlogic-snd-vad.ko
  pm_suspend
+
+#amlogic-input.ko
+ input_close_device
+ input_open_device
+ input_register_handle
+ input_register_handler
+ input_unregister_handle
+ input_unregister_handler

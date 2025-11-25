@@ -14,4 +14,5 @@ source "$(COMMON_DRIVERS_DIR)/drivers/input/keyboard/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/input/ir/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/input/meson_pmic6b/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/input/watchkey/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/input/misc/Kconfig"
 endif

@@ -39,6 +39,9 @@ ddk_module(
                 "watchkey/watch-key-of.c",
             ],
         },
+        "CONFIG_AMLOGIC_INPUT_FILTER": {
+            True: ["misc/input_filter.c"],
+        },
     },
     hdrs = [
     ],
