@@ -860,11 +860,78 @@ static bool is_4k1k165hz_out(const struct vinfo_s *vinfo)
 		return false;
 }
 
+static bool is_4k1k170hz_out(const struct vinfo_s *vinfo)
+{
+	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
+		(vinfo->brr_duration == 170 ||
+		 ((vinfo->sync_duration_num / vinfo->sync_duration_den) > 167 &&
+		 (vinfo->sync_duration_num / vinfo->sync_duration_den) < 173)))
+		return true;
+	else
+		return false;
+}
+
 static bool is_4k1k180hz_out(const struct vinfo_s *vinfo)
 {
 	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
-		((vinfo->sync_duration_num / vinfo->sync_duration_den) > 177 &&
-		(vinfo->sync_duration_num / vinfo->sync_duration_den) < 183))
+		(vinfo->brr_duration == 180 ||
+		 ((vinfo->sync_duration_num / vinfo->sync_duration_den) > 177 &&
+		 (vinfo->sync_duration_num / vinfo->sync_duration_den) < 183)))
+		return true;
+	else
+		return false;
+}
+
+static bool is_4k1k240hz_out(const struct vinfo_s *vinfo)
+{
+	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
+		(vinfo->brr_duration == 240 ||
+		 ((vinfo->sync_duration_num / vinfo->sync_duration_den) > 237 &&
+		 (vinfo->sync_duration_num / vinfo->sync_duration_den) < 243)))
+		return true;
+	else
+		return false;
+}
+
+static bool is_4k1k288hz_out(const struct vinfo_s *vinfo)
+{
+	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
+		(vinfo->brr_duration == 288 ||
+		 ((vinfo->sync_duration_num / vinfo->sync_duration_den) > 285 &&
+		 (vinfo->sync_duration_num / vinfo->sync_duration_den) < 291)))
+		return true;
+	else
+		return false;
+}
+
+static bool is_4k1k330hz_out(const struct vinfo_s *vinfo)
+{
+	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
+		(vinfo->brr_duration == 330 ||
+		 ((vinfo->sync_duration_num / vinfo->sync_duration_den) > 327 &&
+		 (vinfo->sync_duration_num / vinfo->sync_duration_den) < 333)))
+		return true;
+	else
+		return false;
+}
+
+static bool is_4k1k340hz_out(const struct vinfo_s *vinfo)
+{
+	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
+		(vinfo->brr_duration == 340 ||
+		 ((vinfo->sync_duration_num / vinfo->sync_duration_den) > 337 &&
+		 (vinfo->sync_duration_num / vinfo->sync_duration_den) < 343)))
+		return true;
+	else
+		return false;
+}
+
+static bool is_4k1k360hz_out(const struct vinfo_s *vinfo)
+{
+	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
+		(vinfo->brr_duration == 360 ||
+		 ((vinfo->sync_duration_num / vinfo->sync_duration_den) > 357 &&
+		 (vinfo->sync_duration_num / vinfo->sync_duration_den) < 363)))
 		return true;
 	else
 		return false;
@@ -872,16 +939,6 @@ static bool is_4k1k180hz_out(const struct vinfo_s *vinfo)
 
 #ifdef ENABLE_DPSS_FRC
 #ifdef AMLOGIC_MEDIA_DPSS
-static bool is_4k1k288hz_out(const struct vinfo_s *vinfo)
-{
-	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
-		((vinfo->sync_duration_num / vinfo->sync_duration_den) > 285 &&
-		(vinfo->sync_duration_num / vinfo->sync_duration_den) < 291))
-		return true;
-	else
-		return false;
-}
-
 static bool is_4k1k_dlg_mode(const struct vinfo_s *vinfo)
 {
 	if (vinfo->width == 3840 && vinfo->height == 1080 &&
@@ -1082,6 +1139,54 @@ static void ratio_adjust_for_high_freq(const struct vinfo_s *vinfo,
 			*min_ratio_1000 = round_div(min_skip_ratio, 1500, 1250);
 			*cur_vpp_speed_factor =
 				div_u64((u64)vpp_speed_factor * 0xde, 0x110);
+		}
+	}
+
+	if (is_meson_t6x_cpu()) {
+		if (is_4k1k360hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1648, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xd6, 0x110);
+		} else if (is_4k1k340hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1638, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xd6, 0x110);
+		} else if (is_4k1k330hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1685, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xd6, 0x110);
+		} else if (is_4k1k288hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1814, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xd9, 0x110);
+		} else if (is_4k1k240hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1432, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0x113, 0x110);
+		} else if (is_4k1k180hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 2273, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xd2, 0x110);
+		} else if (is_4k1k170hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 2226, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xd2, 0x110);
+		} else if (is_4k1k165hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 2294, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xd3, 0x110);
+		} else if (is_4k1k144hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 2485, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xd4, 0x110);
+		} else if (is_4k1k120hz_out(vinfo)) {
+			*min_ratio_1000 = round_div(min_skip_ratio, 1484, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0x10a, 0x110);
+		} else {
+			*min_ratio_1000 = round_div(min_skip_ratio, 2700, 1250);
+			*cur_vpp_speed_factor =
+				div_u64((u64)vpp_speed_factor * 0xea, 0x110);
 		}
 	}
 
@@ -1413,15 +1518,14 @@ static int vpp_process_speed_check
 #endif
 #endif
 
-	if (!cur_dev->has_2ppc_support) {
-		if ((sync_duration_num / sync_duration_den) > 60)
-			freq_ratio = (sync_duration_num /
-				sync_duration_den + 1) * 10 / 60;
+	if ((sync_duration_num / sync_duration_den) > 60)
+		freq_ratio = (sync_duration_num /
+			sync_duration_den + 1) * 10 / 60;
 
-		if (freq_ratio < 1)
-			freq_ratio = 1;
-		freq_ratio = (freq_ratio + 9) / 10;
-	}
+	if (freq_ratio < 1)
+		freq_ratio = 1;
+	freq_ratio = (freq_ratio + 9) / 10;
+
 	if (layer_id == 0 && (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME))
 		cur_freq_ratio = freq_ratio;
 
@@ -1469,6 +1573,7 @@ static int vpp_process_speed_check
 				    !is_meson_t5w_cpu() &&
 				    !is_meson_t3x_cpu() &&
 				    !is_meson_t6w_cpu() &&
+				    !is_meson_t6x_cpu() &&
 				    next_frame_par->vscale_skip_count > 0 &&
 				    ((vf->type & VIDTYPE_VIU_444) ||
 				     (vf->type & VIDTYPE_RGB_444)))
