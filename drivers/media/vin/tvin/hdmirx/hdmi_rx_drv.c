@@ -856,9 +856,11 @@ void hdmirx_get_hw_vic(struct tvin_sig_property_s *prop, u8 port)
 void hdmirx_get_fps_info(struct tvin_sig_property_s *prop, u8 port)
 {
 	u32 rate = rx[port].cur.frame_rate;
+	u32 base_rate = rx[port].pre.frame_rate;
 
 	prop->frame_rate = rate;
 	prop->fps = rate / 100 + (((rate % 100) / 10 >= 5) ? 1 : 0);
+	prop->base_fps = base_rate / 100 + (((base_rate % 100) / 10 >= 5) ? 1 : 0);
 }
 
 /* CTA-861 Table-2 */

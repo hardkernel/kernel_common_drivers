@@ -586,6 +586,7 @@ struct tvin_sig_property_s {
 	bool loopback_axis_en; /* set crop in vdin_v4l2_isr */
 	u8 up_sample_en;/* 420+2ppc 420+4ppc need enable to 1 */
 	u32 fps;
+	u32 base_fps;
 	u32 frame_rate;/* = fps x 100,for calculate duration*/
 	unsigned int skip_vf_num;/*skip pre vframe num*/
 	struct tvin_latency_s latency;

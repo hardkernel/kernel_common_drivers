@@ -8625,7 +8625,7 @@ unsigned int vdin_get_base_fr(struct vdin_dev_s *devp)
 		} else if (devp->prop.vtem_data.base_framerate) {
 			fps = devp->prop.vtem_data.base_framerate;
 		} else {
-			fps = devp->prop.fps;
+			fps = devp->prop.base_fps;
 		}
 
 		devp->vin_base_fps = fps;
@@ -8639,7 +8639,7 @@ unsigned int vdin_get_base_fr(struct vdin_dev_s *devp)
 			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
 		#endif
 		} else {
-			fps = devp->prop.fps;
+			fps = devp->prop.base_fps;
 		}
 
 		devp->vin_base_fps = fps;
@@ -8648,7 +8648,7 @@ unsigned int vdin_get_base_fr(struct vdin_dev_s *devp)
 		fps = hdmirx_get_base_fps(devp->prop.hw_vic);
 	#endif
 		if (!fps)
-			fps = devp->prop.fps;
+			fps = devp->prop.base_fps;
 	}
 
 	if (fps)

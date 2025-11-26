@@ -104,7 +104,8 @@
 //2025.11.11 add vsync polarity support and cal for neg vstart
 //2025.11.12 set VESA 640*480 aspect ratio to 4/3
 //2025.11.18 add mute cnt when avi change
-#define RX_DRV_VER "ver.2025/11/18"
+//2025.11.28 fix fps error issue for tb49
+#define RX_DRV_VER "ver.2025/11/28"
 
 /*print type*/
 #define COR1_LOG	0x10000
