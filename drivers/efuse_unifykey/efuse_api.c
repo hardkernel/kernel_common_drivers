@@ -125,7 +125,7 @@ int efuse_amlogic_cali_item_read(unsigned int item)
 	meson_sm_mutex_unlock();
 	return res.a0;
 }
-EXPORT_SYMBOL_GPL(efuse_amlogic_cali_item_read);
+EXPORT_SYMBOL(efuse_amlogic_cali_item_read);
 
 /*
  *return: 1: wrote, 0: not write, -1: fail or not support
@@ -150,7 +150,7 @@ int efuse_amlogic_check_lockable_item(unsigned int item)
 	meson_sm_mutex_unlock();
 	return res.a0;
 }
-EXPORT_SYMBOL_GPL(efuse_amlogic_check_lockable_item);
+EXPORT_SYMBOL(efuse_amlogic_check_lockable_item);
 
 unsigned long efuse_amlogic_set(char *buf, size_t count)
 {
@@ -308,7 +308,7 @@ u32 efuse_obj_read(u32 obj_id, char *name, u8 *buff, u32 *size)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(efuse_obj_read);
+EXPORT_SYMBOL(efuse_obj_read);
 
 static int char2hex(char *hex, void *bin, size_t hexlen)
 {
@@ -361,7 +361,7 @@ u32 efuse_obj_set_data(char *name, char *data)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(efuse_obj_set_data);
+EXPORT_SYMBOL(efuse_obj_set_data);
 
 u32 efuse_obj_set_enc_data(char *name, char *data)
 {
@@ -380,7 +380,7 @@ u32 efuse_obj_set_enc_data(char *name, char *data)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(efuse_obj_set_enc_data);
+EXPORT_SYMBOL(efuse_obj_set_enc_data);
 
 u32 efuse_obj_set_license(char *name)
 {
@@ -393,7 +393,7 @@ u32 efuse_obj_set_license(char *name)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(efuse_obj_set_license);
+EXPORT_SYMBOL(efuse_obj_set_license);
 
 u32 efuse_obj_lock(char *name)
 {
@@ -406,7 +406,7 @@ u32 efuse_obj_lock(char *name)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(efuse_obj_lock);
+EXPORT_SYMBOL(efuse_obj_lock);
 
 u32 efuse_obj_get_data(char *name)
 {
@@ -426,7 +426,7 @@ u32 efuse_obj_get_data(char *name)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(efuse_obj_get_data);
+EXPORT_SYMBOL(efuse_obj_get_data);
 
 u32 efuse_obj_get_lock(char *name)
 {
@@ -446,7 +446,7 @@ u32 efuse_obj_get_lock(char *name)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(efuse_obj_get_lock);
+EXPORT_SYMBOL(efuse_obj_get_lock);
 
 static ssize_t meson_trustzone_efuse_get_max(struct efuse_hal_api_arg *arg)
 {
