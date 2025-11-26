@@ -137,6 +137,7 @@ dtb-y += s6_pxp.dtb
 dtb-y += s6_s905d5_bq201.dtb
 dtb-y += s6_s905d5_bq201_16g.dtb
 dtb-y += s6_s905d5_bq201_linux.dtb
+dtb-y += s6_s905d5_bq201_sdio.dtb
 dtb-y += s6_s905d5_bq208.dtb
 dtb-y += s6_s905d5_bq209.dtb
 dtb-y += s6_s905x5_bl201.dtb
