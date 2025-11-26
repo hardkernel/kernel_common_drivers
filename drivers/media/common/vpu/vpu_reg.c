@@ -283,6 +283,7 @@ unsigned int vpu_clk_read(unsigned int _reg)
 	else
 		return 0;
 };
+EXPORT_SYMBOL(vpu_clk_read);
 
 void vpu_clk_write(unsigned int _reg, unsigned int _value)
 {
@@ -292,6 +293,7 @@ void vpu_clk_write(unsigned int _reg, unsigned int _value)
 	if (p)
 		writel(_value, p);
 };
+EXPORT_SYMBOL(vpu_clk_write);
 
 void vpu_clk_setb(unsigned int _reg, unsigned int _value,
 		  unsigned int _start, unsigned int _len)
@@ -300,6 +302,7 @@ void vpu_clk_setb(unsigned int _reg, unsigned int _value,
 			~(((1L << (_len)) - 1) << (_start))) |
 			(((_value) & ((1L << (_len)) - 1)) << (_start))));
 }
+EXPORT_SYMBOL(vpu_clk_setb);
 
 unsigned int vpu_clk_getb(unsigned int _reg, unsigned int _start,
 			  unsigned int _len)
