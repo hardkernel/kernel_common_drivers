@@ -6410,6 +6410,7 @@ struct vframe_s *get_dispbuf(u8 layer_id)
 		dispbuf = layer->vf_ext;
 	return dispbuf;
 }
+EXPORT_SYMBOL(get_dispbuf);
 
 static void pipx_vf_unreg_provider(u8 path_index)
 {

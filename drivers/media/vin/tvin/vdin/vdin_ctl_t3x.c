@@ -1820,7 +1820,7 @@ void vdin_set_frame_mif_write_addr_t3x(struct vdin_dev_s *devp,
 			stride_luma, stride_chroma);
 	}
 
-	if (devp->pause_dec || devp->debug.pause_mif_dec)
+	if (devp->pause_dec || devp->debug.pause_mif_dec || devp->pause_dec_once)
 		reg_en = false;
 
 	if (rdma_enable) {

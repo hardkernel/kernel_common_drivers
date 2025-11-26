@@ -2976,7 +2976,7 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 	/*	pr_info("stride luma:0x%x, chroma:0x%x\n",*/
 	/*		stride_luma, stride_chroma);*/
 	/*}*/
-	if (devp->pause_dec || devp->debug.pause_mif_dec)
+	if (devp->pause_dec || devp->debug.pause_mif_dec || devp->pause_dec_once)
 		pause_en = true;
 
 	if (rdma_enable) {
@@ -3114,7 +3114,7 @@ void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 				    VDIN_WR_CTRL + devp->addr_offset,
 				    canvas_id, WR_CANVAS_BIT, WR_CANVAS_WID);
 
-		if (devp->pause_dec || devp->debug.pause_mif_dec)
+		if (devp->pause_dec || devp->debug.pause_mif_dec || devp->pause_dec_once)
 			rdma_write_reg_bits(devp->rdma_handle, VDIN_WR_CTRL + devp->addr_offset,
 					    0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		else
@@ -4852,7 +4852,7 @@ bool vdin_write_done_check(struct vdin_dev_s *devp)
 
 	/* If write ddr paused,donot checking write done */
 	if (devp->debug.pause_mif_dec || devp->debug.pause_afbce_dec ||
-		devp->pause_dec)
+		devp->pause_dec || devp->pause_dec_once)
 		return true;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -4911,18 +4911,18 @@ bool vdin_write_done_check(struct vdin_dev_s *devp)
 	if (devp->afbce_valid && devp->double_wr) { /* afbce */
 		if (vdin_afbce_read_write_down_flag(devp)) {
 			devp->stats.afbce_normal_cnt++;
-			ret = true;
+			ret &= true;
 		} else {
 			devp->stats.afbce_abnormal_cnt++;
-			ret = false;
+			ret &= false;
 		}
 	}
 #endif
 
 	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
-		pr_info("%s vdin%d irq:%d,done:%d,check:%d,afbce:%d %d mif:%d %d\n",
+		pr_info("%s vdin%d irq:%d,ret:%d,check:%d,afbce:%d %d mif:%d %d\n",
 			__func__, devp->index, devp->stats.wr_done_irq_cnt,
-			done_flag, devp->stats.write_done_check,
+			ret, devp->stats.write_done_check,
 			devp->stats.afbce_normal_cnt, devp->stats.afbce_abnormal_cnt,
 			devp->stats.wmif_normal_cnt, devp->stats.wmif_abnormal_cnt);
 

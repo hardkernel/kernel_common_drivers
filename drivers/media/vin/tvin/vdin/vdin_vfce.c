@@ -857,7 +857,7 @@ void vdin_vfce_set_next_frame(struct vdin_dev_s *devp,
 				(compTableAddr + devp->afbce_info->frame_table_size_y) >> 4);
 		}
 
-		if (devp->pause_dec || devp->debug.pause_afbce_dec) {
+		if (devp->pause_dec || devp->debug.pause_afbce_dec || devp->pause_dec_once) {
 			rdma_write_reg_bits(devp->rdma_handle, VFCE_CHNL0_ENABLE, 0, 0, 1);
 			rdma_write_reg_bits(devp->rdma_handle, VFCE_CHNL1_ENABLE, 0, 0, 1);
 		} else {
@@ -906,6 +906,7 @@ void vdin_vfce_clear_write_down_flag(struct vdin_dev_s *devp)
 {
 	/* bit0:frm_end_clr;bit1:enc_error_clr */
 	W_VCBUS_BIT(VFCE_CHNL0_CLR_FLAG, 3, 0, 2);
+	W_VCBUS_BIT(VFCE_CHNL1_CLR_FLAG, 3, 0, 2);
 }
 
 /* return 1: write down */

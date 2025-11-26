@@ -1256,6 +1256,7 @@ struct vdin_dev_s {
 	bool force_unlock;
 	bool vinfo_over_pixel_clk;
 	bool input_over_pixel_clk;
+	bool pause_dec_once;
 	unsigned int ignore_frames;
 	/*use frame rate to cal duration*/
 	unsigned int use_frame_rate;

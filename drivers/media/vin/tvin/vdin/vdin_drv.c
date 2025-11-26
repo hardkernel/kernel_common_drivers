@@ -3274,16 +3274,20 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 	if (devp->debug.vdin_frame_work_mode == VDIN_VF_RECYCLE)
 		md = VDIN_VF_RECYCLE;
 
+	if (!vfe) {
+		if (devp->debug.vdin_isr_monitor)
+			pr_info("%s vdin%d,vfe == NULL!!!\n", __func__, devp->index);
+		return -1;
+	}
 	/*skip policy process*/
-	if (vfe)
-		vdin_vf_disp_mode_update(vfe, devp->vfp);
+	vdin_vf_disp_mode_update(vfe, devp->vfp);
+	vfe->vf.duration = devp->cur_duration;
 
-	if (vfe)
-		vfe->vf.duration = devp->cur_duration;
 	/*force recycle one frame*/
-	if (devp->frame_cnt < devp->vdin_drop_num || devp->vdin_irq_flag) {
-		if (vfe)
-			receiver_vf_put(&vfe->vf, devp->vfp);
+	if (devp->frame_cnt < devp->vdin_drop_num || devp->vdin_irq_flag ||
+		(vfe->flag & VF_FLAG_NEED_DROP)) {
+		vfe->flag &= ~(VF_FLAG_NEED_DROP);
+		receiver_vf_put(&vfe->vf, devp->vfp);
 		ret = -1;
 	} else if (devp->chg_drop_frame_cnt > 0) {
 		if (vfe)
@@ -3458,6 +3462,7 @@ void vdin_frame_write_ctrl_set(struct vdin_dev_s *devp,
 	if (devp->afbce_mode == 1 || devp->double_wr)
 		vdin_afbce_set_next_frame(devp, rdma_en, vfe);
 #endif
+	devp->pause_dec_once = false;
 }
 
 void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en)
@@ -3622,6 +3627,7 @@ static bool vdin_isneed_pcs_reset(struct vdin_dev_s *devp)
 static void vdin_set_one_buffer_mode(struct vdin_dev_s *devp, struct vf_entry *next_wr_vfe)
 {
 	struct vf_entry *master = NULL;
+	struct vframe_s *disp_vf = NULL;
 
 	if (!next_wr_vfe)
 		return;
@@ -3635,6 +3641,7 @@ static void vdin_set_one_buffer_mode(struct vdin_dev_s *devp, struct vf_entry *n
 		if (devp->af_num >= VDIN_CANVAS_MAX_CNT) {
 			devp->af_num = next_wr_vfe->af_num;
 			next_wr_vfe->flag |= VF_FLAG_ONE_BUFFER_MODE;
+			next_wr_vfe->flag |= VF_FLAG_USED_ONE_BUFFER;
 			return;
 		}
 
@@ -3663,6 +3670,29 @@ static void vdin_set_one_buffer_mode(struct vdin_dev_s *devp, struct vf_entry *n
 			next_wr_vfe->vf.canvas0_config[1].phy_addr = next_wr_vfe->phy_c_addr_bak;
 			/* afbce:update address in vdin_afbce_set_next_frame */
 		}
+	}
+
+	disp_vf = get_dispbuf(0);//VPP0
+	if (!disp_vf)
+		return;
+
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF) {
+		pr_info("vdin%d,[%d %d],disp:[%d,%#x,%#x,0x%lx],next_vf:[%d,%#x,%#x,%#x,0x%lx]\n",
+			devp->index, devp->irq_cnt, devp->frame_cnt,
+			disp_vf->frame_irq_cnt, disp_vf->type, disp_vf->flag,
+			disp_vf->canvas0_config[0].phy_addr,
+			next_wr_vfe->vf.frame_irq_cnt, next_wr_vfe->vf.type,
+			next_wr_vfe->vf.flag, next_wr_vfe->flag,
+			next_wr_vfe->vf.canvas0_config[0].phy_addr);
+	}
+
+	if ((next_wr_vfe->flag & VF_FLAG_USED_ONE_BUFFER) &&
+		devp->af_num == VDIN_CANVAS_MAX_CNT &&
+		disp_vf->canvas0_config[0].phy_addr ==
+			next_wr_vfe->vf.canvas0_config[0].phy_addr) {
+		devp->pause_dec_once = true;
+		next_wr_vfe->flag &= ~(VF_FLAG_USED_ONE_BUFFER);
+		next_wr_vfe->flag |= VF_FLAG_NEED_DROP;
 	}
 }
 
@@ -4021,13 +4051,17 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	if (!devp->curr_wr_vfe) {
 		devp->curr_wr_vfe = provider_vf_get(devp->vfp);
-		if (devp->curr_wr_vfe) {
-			devp->curr_wr_vfe->vf.ready_jiffies64 = jiffies_64;
-			devp->curr_wr_vfe->vf.ready_clock[0] = sched_clock();
+		if (!devp->curr_wr_vfe) {
+			if (devp->debug.vdin_isr_monitor)
+				pr_err("error,vdin%d,curr_wr_vfe==NULL!\n", devp->index);
+			goto irq_handled;
 		}
 
+		devp->curr_wr_vfe->vf.ready_jiffies64 = jiffies_64;
+		devp->curr_wr_vfe->vf.ready_clock[0] = sched_clock();
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (devp->curr_wr_vfe && devp->afbce_mode == 1)
+		if (devp->afbce_mode == 1)
 			vdin_afbce_set_next_frame(devp, (devp->flags &
 						  VDIN_FLAG_RDMA_ENABLE),
 						  devp->curr_wr_vfe);
