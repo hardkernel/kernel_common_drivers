@@ -324,8 +324,25 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status)
 		reg_data = 1 << 0;
 	} else {
 		reg_data = 0;
-		lcd_vx1_lvds_ctrl_write(pdrv, ANACTRL_DIF_PHY_CNTL14, 0x1140d100);
-		lcd_vx1_lvds_ctrl_write(pdrv, ANACTRL_DIF_PHY_CNTL15, 0x30800000);
+		if (phy->cv_mode == PHY_VMODE) {
+			lcd_vx1_lvds_ctrl_setb(pdrv,
+				ANACTRL_DIF_PHY_CNTL14, 0, 0, 3);  //common0[2:0]=0
+			lcd_vx1_lvds_ctrl_setb(pdrv,
+				ANACTRL_DIF_PHY_CNTL14, 0, 19, 2); //common1[4:3]=0
+			lcd_vx1_lvds_ctrl_setb(pdrv,
+				ANACTRL_DIF_PHY_CNTL15, 0, 16, 4); //vinlp[3:0]=0
+			lcd_vx1_lvds_ctrl_setb(pdrv,
+				ANACTRL_DIF_PHY_CNTL15, 0, 22, 1); //vinlp[6]=0
+			lcd_vx1_lvds_ctrl_setb(pdrv,
+				ANACTRL_DIF_PHY_CNTL15, 0, 24, 6); //vinlp[13:8]=0
+		} else {
+			lcd_vx1_lvds_ctrl_setb(pdrv,
+				ANACTRL_DIF_PHY_CNTL14, 0, 0, 3);  //common0[2:0]=0
+			lcd_vx1_lvds_ctrl_setb(pdrv,
+				ANACTRL_DIF_PHY_CNTL14, 0, 19, 2); //common1[4:3]=0
+			lcd_vx1_lvds_ctrl_setb(pdrv,
+				ANACTRL_DIF_PHY_CNTL15, 2, 22, 2); //vinlp[7:6]=2
+		}
 	}
 
 	for (i = 0; i < phy_cfg->lane_num; i++) {
