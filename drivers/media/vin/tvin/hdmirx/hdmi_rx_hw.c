@@ -4727,7 +4727,10 @@ void cor_init(u8 port)
 	if (rx_info.chip_id == CHIP_ID_T6X) {
 		hdmirx_wr_cor(EXT_MCLK_SEL_PWD_IVCRX_T6X, 0x01, port);//register address: 0x1701
 		/* dacr reset */
-		hdmirx_wr_bits_cor(HDMIRX_FSW_SRST, _BIT(4), 1, port);
+		data8 = 0;
+		data8 |= (1 << 4);//dacr rst
+		data8 |= (1 << 2);//reg_acr_rst
+		hdmirx_wr_cor(HDMIRX_FSW_SRST, data8, port);
 	} else {
 		hdmirx_wr_cor(EXT_MCLK_SEL_PWD_IVCRX, 0x01, port);//register address: 0x10c6
 	}

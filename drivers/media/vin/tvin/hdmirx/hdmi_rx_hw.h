@@ -62,7 +62,8 @@
 /* 2025.10.28 fix timing change when resume */
 /* 2025.10.30 fix vid if problem */
 /* 2025.11.18 do not suspend when digital clk is off */
-#define RX_HW_VER "ver.2025/11/18"
+/* 2025.11.26 add acr reset when power on for t6x */
+#define RX_HW_VER "ver.2025/11/26"
 
 #define K_TEST_CHK_ERR_CNT
 

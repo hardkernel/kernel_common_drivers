@@ -2063,6 +2063,8 @@ void rx_set_aud_output_t7(u32 param)
 
 void rx_sw_reset_t7(int level, u8 port)
 {
+	u8 data8 = 0;
+
 	/* deep color fifo */
 	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(4), 1, port);
 	/* clr gcp write&the respective av mute related filed */
@@ -2070,12 +2072,22 @@ void rx_sw_reset_t7(int level, u8 port)
 	udelay(1);
 	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(4), 0, port);
 	//hdmirx_wr_bits_cor(DEC_AV_MUTE_DP2_IVCRX, _BIT(5), 0, port);
-	/* dacr reset release */
 	if (rx_info.aml_phy.dacr_en) {
-		if (rx_info.chip_id == CHIP_ID_T6X)
-			hdmirx_wr_bits_cor(HDMIRX_FSW_SRST, _BIT(4), 0, port);
-		else
+		if (rx_info.chip_id == CHIP_ID_T6X) {
+			/* acr & dacr reset */
+			data8 = 0;
+			data8 |= (1 << 4);//dacr rst
+			data8 |= (1 << 2);//reg_acr_rst
+			hdmirx_wr_cor(HDMIRX_FSW_SRST, data8, port);
+			udelay(1);
+			data8 = 0;
+			data8 |= (0 << 4);//dacr rst
+			data8 |= (0 << 2);//reg_acr_rst
+			hdmirx_wr_cor(HDMIRX_FSW_SRST, data8, port);
+		} else {
+			/* dacr reset */
 			hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(4), 0, port);
+		}
 	}
 }
 
