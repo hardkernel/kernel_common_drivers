@@ -173,7 +173,7 @@
 		secure_vdec_reserved:linux,secure_vdec_reserved {
 			compatible = "amlogic, secure-vdec-reserved";
 			no-map;
-			size = <0x400000>;
+			size = <0x800000>;
 			alignment = <0x100000>;
 			alloc-ranges = <0x30000000 0x10000000>;
 		};

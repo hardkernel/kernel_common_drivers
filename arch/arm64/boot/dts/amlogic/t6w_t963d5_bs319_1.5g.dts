@@ -783,7 +783,7 @@
 };
 
 &vdin1 {
-	//memory-region = <&vdin1_cma_reserved>;
+	memory-region = <&vdin1_cma_reserved>;
 	status = "okay";
 };
 
@@ -889,10 +889,6 @@
 		reg = <0x20>;
 		status = "okay";
 	};
-};
-
-&pwm_d {
-	status = "okay";
 };
 
 &ethmac {
@@ -1041,14 +1037,6 @@
 };
 
 &saradc {
-	status = "okay";
-};
-
-&pdd {
-	status = "okay";
-};
-
-&pdd_monitor {
 	status = "okay";
 };
 

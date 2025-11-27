@@ -147,7 +147,6 @@
 			reusable;
 			size = <0x0 0xC00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x00000000 0x0 0x80000000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -155,7 +154,6 @@
 			reusable;
 			size = <0x0 0x17800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x80000000>;
 			linux,contiguous-region;
 		};
 
@@ -173,7 +171,6 @@
 			no-map;
 			size = <0x0 0x1000000>;
 			alignment = <0x0 0x100000>;
-			alloc-ranges = <0x0 0x0 0x0 0x80000000>;
 		};
 
 		/* global autoconfigured region for contiguous allocations */

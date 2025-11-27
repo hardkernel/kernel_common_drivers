@@ -882,10 +882,6 @@
 	};
 };
 
-&pwm_d {
-	status = "okay";
-};
-
 &ethmac {
 	status = "okay";
 	phy-handle = <&internal_ephy>;
@@ -1032,14 +1028,6 @@
 };
 
 &saradc {
-	status = "okay";
-};
-
-&pdd {
-	status = "okay";
-};
-
-&pdd_monitor {
 	status = "okay";
 };
 

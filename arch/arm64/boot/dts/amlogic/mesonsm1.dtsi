@@ -320,6 +320,7 @@
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
+		dis_nb_cpus_in_shutdown;
 		reg = <0x0 0xff80023c 0x0 0x4>; /* SEC_AO_SEC_SD_CFG15 */
 		status = "okay";
 	};
@@ -1860,8 +1861,6 @@ usbphy0: usbphy0@ffe09000 {
 		compatible = "amlogic, meson_irblaster";
 		reg = <0x0 0xff80014c 0x0 0x10>,
 			<0x0 0xff800040 0x0 0x4>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&irblaster_pins>;
 		interrupts = <0 198 1>;
 		status = "disabled";
 	};

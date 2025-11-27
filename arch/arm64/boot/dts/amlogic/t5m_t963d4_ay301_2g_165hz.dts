@@ -1269,6 +1269,7 @@
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
+	src_clk_rate = <1544400000>;
 //	amlogic,dram-access-quirk;
 
 //	mmc-pwrseq = <&emmc_pwrseq>;

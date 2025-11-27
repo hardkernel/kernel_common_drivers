@@ -1276,6 +1276,9 @@
 	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
+	keep-alive = <1>;
+	mac_wol = <1>;
+	mdns_wkup = <1>;
 };
 
 &ir {

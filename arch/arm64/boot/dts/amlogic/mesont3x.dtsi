@@ -1704,7 +1704,7 @@
 				status = "disabled";
 			};
 
-			dcon_led: dcon_led@000 {
+			dcon_led: dcon_led@0x4c000 {
 				compatible = "amlogic,led_unipolar_ctrl";
 				reg = <0x0 0x4c000 0x0 0x88>;
 				interrupts = <GIC_SPI 31 IRQ_TYPE_EDGE_RISING>;
@@ -2992,6 +2992,12 @@
 			0x0 0xfe000000 0x0 0xc00>; /* clk reg */
 	};
 
+	di_process {
+		compatible = "amlogic, di_process";
+		dev_name = "di_process";
+		status = "okay";
+	};
+
 	vout_mux: vout_mux {
 		compatible = "amlogic, vout_mux-t3x";
 		status = "okay";
@@ -3536,7 +3542,6 @@
 		>;
 		clocks = <&clkc CLKID_CDAC_CLK>;
 		clock-names = "vdac_clk_gate";
-		auto_adj_en = <0xfe>;
 		cutwindow_val_h = <0 0 0 0 8>; /* level 0~4 */
 		cutwindow_val_v = <4 8 14 16 24>;  /* level 0~4 */
 	};

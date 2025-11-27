@@ -779,7 +779,7 @@
 };
 
 &vdin1 {
-	//memory-region = <&vdin1_cma_reserved>;
+	memory-region = <&vdin1_cma_reserved>;
 	status = "okay";
 };
 
@@ -891,6 +891,7 @@
 	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
+	amlogic,wol-enable;
 };
 
 &usbphy0 {
