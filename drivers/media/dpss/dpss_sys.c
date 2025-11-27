@@ -1106,7 +1106,10 @@ static long dpss_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	devp = file->private_data;
 	if (!devp)
 		return -EFAULT;
-
+	if (devp->flags & DI_SUSPEND_FLAG) {
+		dbg_s0("stop io when suspend\n");
+		return -EFAULT;
+	}
 	pchip_st = devp->pchip_st;
 	if (!pchip_st)
 		return -EFAULT;
@@ -1526,6 +1529,23 @@ fail_kmalloc_dev:
 	return ret;
 }
 
+void dpss_destroy_self(void)
+{
+	int i, ret;
+	struct dpss_ch_s *pch;
+
+	dbg_s0("%s:enter\n", __func__);
+	for (i = 0; i < DPSS_CHANNEL_NUB; i++) {
+		pch = dpss_get_ch(i);
+		if (pch && pch->c.reg_s1) {
+			dbg_s0("%s:%d\n", __func__, i);
+			ret = dpss_destroy_instance(i);
+			if (ret != DPSS_ERR_NONE)
+				DBG_ERR("%s:%d\n", __func__, ret);
+		}
+	}
+}
+
 #ifdef RUN_ON_ARM
 static void dpss_remove(struct platform_device *pdev)
 {
@@ -1593,6 +1613,14 @@ static void dpss_shutdown(struct platform_device *pdev)
 	struct dpss_dev_s *devp = NULL;
 
 	devp = platform_get_drvdata(pdev);
+
+	if (!devp) {
+		DBG_ERR("%s:no devp\n", __func__);
+		return;
+	}
+	devp->flags |= DI_SUSPEND_FLAG;
+
+	dpss_destroy_self();
 
 	if (dpss_pdev->clk_status) {
 		clk_disable_unprepare(devp->vpu_clk_dae);
