@@ -64,7 +64,6 @@ enum ad82120b_type {
 	AD82120B,
 };
 
-static int reset_pin_setting;
 static char string[AD82120B_PARAM_COUNT];
 static const char * const ad82120b_supply_names[] = {
 	"dvdd",		/* Digital power supply. Connect to 3.3-V supply. */
@@ -600,57 +599,6 @@ struct ad82120b_data {
 	int no_device;
 };
 
-static int ad82120b_pd_gpio_set(struct snd_soc_component *component, bool enable)
-{
-	struct ad82120b_data *ad82120b =
-		snd_soc_component_get_drvdata(component);
-	int ret = 0;
-
-	if (enable) {
-		if (!reset_pin_setting) {
-			// request amp PD pin control GPIO
-			if (IS_ERR_OR_NULL(ad82120b->reset_pin_desc)) {
-				ad82120b->reset_pin_desc = gpiod_get(ad82120b->dev,
-							"reset_pin", GPIOF_OUT_INIT_LOW);
-			}
-			if (IS_ERR(ad82120b->reset_pin_desc)) {
-				dev_err(component->dev, "failed to request reset pin gpio\n");
-				return -1;
-			}
-
-			// pull high amp PD pin
-			ret = gpiod_direction_output(ad82120b->reset_pin_desc, GPIOF_OUT_INIT_HIGH);
-			dev_info(component->dev, "ad82120b pd pin status = %d\n",
-				gpiod_get_value(ad82120b->reset_pin_desc));
-			if (!ret)
-				ad82120b->no_device = 1;
-			reset_pin_setting = 1;
-			gpiod_put(ad82120b->reset_pin_desc);
-		}
-	} else {
-		if (reset_pin_setting) {
-			// request amp PD pin control GPIO
-			if (IS_ERR_OR_NULL(ad82120b->reset_pin_desc)) {
-				ad82120b->reset_pin_desc = gpiod_get(ad82120b->dev,
-							"reset_pin", GPIOF_OUT_INIT_LOW);
-			}
-			if (IS_ERR(ad82120b->reset_pin_desc)) {
-				dev_err(component->dev, "failed to request reset pin gpio\n");
-				return -1;
-			}
-			ret = gpiod_direction_output(ad82120b->reset_pin_desc, GPIOF_OUT_INIT_LOW);
-			dev_info(component->dev, "ad82120b pd pin status = %d\n",
-				gpiod_get_value(ad82120b->reset_pin_desc));
-			if (!ret)
-				ad82120b->no_device = 1;
-			reset_pin_setting = 0;
-			gpiod_put(ad82120b->reset_pin_desc);
-		}
-	}
-
-	return 0;
-}
-
 static int ad82120b_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
@@ -907,6 +855,25 @@ static const struct snd_kcontrol_new ad82120b_eq_mode_control[] = {
 #define AD82120B_ERROR_FLAG (AD82120B_OCE | AD82120B_DCDE | AD82120B_OTE |\
 			 AD82120B_UVE | AD82120B_BSUVE | AD82120B_OVPE)
 
+static int ad82120b_power_on(struct device *dev, bool enable)
+{
+	struct ad82120b_data *ad82120b =  dev_get_drvdata(dev);
+
+	if (IS_ERR(ad82120b->reset_pin_desc)) {
+		dev_err(dev, "failed to request reset pin gpio\n");
+		return -1;
+	}
+
+	// pull high amp PD pin
+	if (enable)
+		gpiod_direction_output(ad82120b->reset_pin_desc, GPIOF_OUT_INIT_HIGH);
+	else
+		gpiod_direction_output(ad82120b->reset_pin_desc, GPIOF_OUT_INIT_LOW);
+	dev_vdbg(dev, "ad82120b pd pin status = %d\n",
+		gpiod_get_value(ad82120b->reset_pin_desc));
+	return 0;
+}
+
 static void ad82120b_fault_check_work(struct work_struct *work)
 {
 	struct ad82120b_data *ad82120b = container_of(work, struct ad82120b_data,
@@ -987,9 +954,9 @@ static void ad82120b_fault_check_work(struct work_struct *work)
 	 */
 	dev_crit(dev, "toggle pd pin H->L->H to clear latching faults\n");
 
-	ad82120b_pd_gpio_set(ad82120b->component, false);		// pull low amp PD pin
+	ad82120b_power_on(dev, false);		// pull low amp PD pin
 	msleep(20);
-	ad82120b_pd_gpio_set(ad82120b->component, true);		// pull high amp PD pin
+	ad82120b_power_on(dev, true);		// pull high amp PD pin
 
 out:
 	/* Schedule the next fault check at the specified interval */
@@ -1000,13 +967,14 @@ out:
 static int ad82120b_reg_ram_init(struct snd_soc_component *component)
 {
 	struct ad82120b_data *ad82120b = snd_soc_component_get_drvdata(component);
+	struct device *dev = ad82120b->dev;
 	int ret;
 	int i;
 	int reg_data;
 
 	pr_info("ad82120b i2c address = %p,  %s!\n", component, __func__);
 
-	ad82120b_pd_gpio_set(component, true);			// pull high amp PD pin
+	ad82120b_power_on(dev, true);;			// pull high amp PD pin
 
 	msleep(45);
 
@@ -1362,6 +1330,7 @@ static void ad82120b_set_volume(struct snd_soc_component *component, int vol)
 static int ad82120b_suspend(struct snd_soc_component *component)
 {
 	struct ad82120b_data *ad82120b = snd_soc_component_get_drvdata(component);
+	struct device *dev = ad82120b->dev;
 	int ret;
 
 	pr_info("%s ad82120b suspend.\n", __func__);
@@ -1374,7 +1343,7 @@ static int ad82120b_suspend(struct snd_soc_component *component)
 	if (ret < 0)
 		dev_err(component->dev, "failed to disable supplies: %d\n", ret);
 
-	ad82120b_pd_gpio_set(component, false);
+	ad82120b_power_on(dev, false);
 
 	return ret;
 }
@@ -1382,11 +1351,13 @@ static int ad82120b_suspend(struct snd_soc_component *component)
 static int ad82120b_resume(struct snd_soc_component *component)
 {
 	struct ad82120b_data *ad82120b = snd_soc_component_get_drvdata(component);
+	struct device *dev = ad82120b->dev;
 	int ret, i, j;
 	char *p = ad82120b->m_reg_tab;
 
 	pr_info("%s ad82120b resume.\n", __func__);
 
+	ad82120b_power_on(dev, true);
 	ret = regulator_bulk_enable(ARRAY_SIZE(ad82120b->supplies),
 				    ad82120b->supplies);
 	if (ret < 0) {
@@ -1958,23 +1929,13 @@ static int ad82120b_parse_dt(struct ad82120b_data *ad82120b, struct device *dev)
 	ad82120b->ch_mode = ch_mode;
 	dev_info(dev, "ch mode %d\n", ch_mode);
 
-	return 0;
-}
+	ad82120b->reset_pin_desc = gpiod_get(ad82120b->dev,
+					"reset_pin", GPIOF_OUT_INIT_LOW);
 
-static void ad82120b_power_on(struct device *dev)
-{
-	struct ad82120b_data *ad82120b =  dev_get_drvdata(dev);
-
-	if (IS_ERR_OR_NULL(ad82120b->reset_pin_desc)) {
-		ad82120b->reset_pin_desc = gpiod_get(ad82120b->dev,
-			"reset_pin", GPIOF_OUT_INIT_LOW);
-	}
 	if (IS_ERR(ad82120b->reset_pin_desc))
-		dev_err(dev, "failed to request reset pin gpio\n");
-	// pull high amp PD pin
-	gpiod_direction_output(ad82120b->reset_pin_desc, GPIOF_OUT_INIT_HIGH);
-	dev_info(dev, "ad82120b pd pin status = %d\n",
-		gpiod_get_value(ad82120b->reset_pin_desc));
+		dev_err(dev, "ad82120b reset_pin err\n");
+
+	return 0;
 }
 
 static const struct i2c_device_id ad82120b_id[] = {
@@ -1992,7 +1953,6 @@ static int ad82120b_probe(struct i2c_client *client)
 	int i;
 	u32 dummy;
 	const struct i2c_device_id *id = i2c_match_id(ad82120b_id, client);
-
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -2029,7 +1989,7 @@ static int ad82120b_probe(struct i2c_client *client)
 	dev_set_drvdata(dev, data);
 	data->dev  = dev;
 	ad82120b_parse_dt(data, &client->dev);
-	ad82120b_power_on(&client->dev);
+	ad82120b_power_on(dev, true);
 
 	ret = regmap_read(data->regmap, 0x00, &dummy);
 	if (ret != 0) {
@@ -2078,27 +2038,17 @@ static void ad82120b_shutdown(struct i2c_client *client)
 	if (!ad82120b)
 		return;
 
-	if (!IS_ERR(ad82120b->reset_pin_desc) && reset_pin_setting) {
-		// request amp PD pin control GPIO
-		if (IS_ERR_OR_NULL(ad82120b->reset_pin_desc)) {
-			ad82120b->reset_pin_desc = gpiod_get(ad82120b->dev,
-						"reset_pin", GPIOF_OUT_INIT_LOW);
-		}
-		if (IS_ERR(ad82120b->reset_pin_desc)) {
-			pr_info("ad82120b invalid reset pin\n");
-			return;
-		}
-
-		// pull high amp PD pin
-		ret = gpiod_direction_output(ad82120b->reset_pin_desc, GPIOF_OUT_INIT_LOW);
-		pr_info("ad82120b pd pin status = %d\n",
-			gpiod_get_value(ad82120b->reset_pin_desc));
-		if (!ret)
-			ad82120b->no_device = 1;
-		reset_pin_setting = 0;
+	if (!IS_ERR(ad82120b->reset_pin_desc)) {
+		ret = ad82120b_power_on(&client->dev, false);
+		pr_debug("%s, ret:%d ad82120b pd pin status = %d\n",
+			__func__, ret, gpiod_get_value(ad82120b->reset_pin_desc));
+		ad82120b->no_device = 1;
 		msleep(20);
 		gpiod_put(ad82120b->reset_pin_desc);
+		ad82120b->reset_pin_desc = NULL;
 	}
+	return;
+
 }
 
 #if IS_ENABLED(CONFIG_OF)
