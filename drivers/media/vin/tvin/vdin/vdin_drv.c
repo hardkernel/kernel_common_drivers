@@ -1693,7 +1693,9 @@ void vdin_register_rdma_read(struct vdin_dev_s *devp)
 {
 	int ret = 0;
 
-	if (devp->dtdata->hw_ver == VDIN_HW_T6W && devp->mem_type == VDIN_MEM_TYPE_SCT) {
+	if ((devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) &&
+		devp->rdma_read_handle > 0 &&
+		devp->mem_type == VDIN_MEM_TYPE_SCT) {
 		if (devp->debug.reg_addr)
 			devp->reg_hnd.reg_addr = devp->debug.reg_addr;
 		else
@@ -1703,6 +1705,8 @@ void vdin_register_rdma_read(struct vdin_dev_s *devp)
 			pr_err("vdin%d error: offset:%d,reg_addr:%#x,ret:%d\n", devp->index,
 				devp->reg_hnd.offset, devp->reg_hnd.reg_addr, ret);
 		}
+	} else {
+		devp->reg_hnd.reg_addr = 0;
 	}
 }
 
@@ -1710,7 +1714,7 @@ void vdin_unregister_rdma_read(struct vdin_dev_s *devp)
 {
 	unsigned int ret;
 
-	if (devp->rdma_read_handle > 0) {
+	if (devp->reg_hnd.reg_addr > 0) {
 		ret = rdma_remove_read_reg(devp->rdma_read_handle, &devp->reg_hnd, 1);
 		if (ret) {
 			pr_err("vdin%d error: offset:%d,reg_addr:%#x,ret:%d\n", devp->index,
@@ -7359,6 +7363,8 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		vdin_rdma_read_op.arg = devp;
 		devp->rdma_read_handle = rdma_register(&vdin_rdma_read_op, NULL, RDMA_TABLE_SIZE);
 		pr_info("vdin%d: rdma_read_handle:%d\n", devp->index, devp->rdma_read_handle);
+	} else {
+		devp->rdma_read_handle = -1;
 	}
 #endif
 
