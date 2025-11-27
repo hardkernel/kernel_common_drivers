@@ -435,6 +435,8 @@ static int am_meson_drm_bind(struct device *dev)
 	am_drm_param.flush_time = 3;
 	am_drm_param.osdscaler_v_filter_mode = -1;
 	am_drm_param.osdscaler_h_filter_mode = -1;
+	/* Add a 5% safety factor by default*/
+	am_drm_param.osdscaler_safety_factor = 105;
 	am_drm_param.osd_hold_line = 0x08; /* same as VIU1_DEFAULT_HOLD_LINE in osd mif */
 	am_drm_param.async_commit_ioctl_threshold = 5;
 	am_drm_param.fbdev_pan_display_threshold = 5;

@@ -537,6 +537,9 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 
 	plane_info->hdisplay = mode->hdisplay;
 	plane_info->vdisplay = mode->vdisplay;
+	/* add for calculation of scaler coefficient */
+	plane_info->htotal = mode->htotal;
+	plane_info->clock = mode->clock;
 	DRM_DEBUG_DRIVER("modified:src[(%d %d),%dx%d]dst[(%d %d),%dx%d]enable[%d]\n",
 		plane_info->src_x, plane_info->src_y, plane_info->src_w, plane_info->src_h,
 		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h,
@@ -728,37 +731,6 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h);
 	DRM_DEBUG_DRIVER("modified:enable = %d, orig[%d %d], crop[%d %d]\n",
 		plane_info->enable, orig_w, orig_h, crop_w, crop_h);
-}
-
-static int
-meson_plane_check_size_range(struct meson_vpu_osd_layer_info *plane_info)
-{
-	u32 dst_w, dst_h, src_w, src_h, ratio_x, ratio_y;
-	int ret;
-
-	src_w = plane_info->src_w;
-	src_h = plane_info->src_h;
-	dst_w = plane_info->dst_w;
-	dst_h = plane_info->dst_h;
-	ratio_x = 0;
-	ratio_y = 0;
-	ret = 0;
-
-	if (src_w > dst_w)
-		ratio_x = (src_w + dst_w - 1) / dst_w;
-	if (src_h > dst_h)
-		ratio_y = (src_h + dst_h - 1) / dst_h;
-	if (ratio_x > MESON_OSD_SCALE_DOWN_LIMIT ||
-	    ratio_y > MESON_OSD_SCALE_DOWN_LIMIT)
-		DRM_DEBUG_DRIVER("may exceed the limit of magnification\n");
-	if (src_w < dst_w)
-		ratio_x = (dst_w + src_w - 1) / src_w;
-	if (src_h < dst_h)
-		ratio_y = (dst_h + src_h - 1) / src_h;
-	if (ratio_x > MESON_OSD_SCALE_UP_LIMIT ||
-	    ratio_y > MESON_OSD_SCALE_UP_LIMIT)
-		DRM_DEBUG_DRIVER("may exceed the limit of the reduction factor\n");
-	return ret;
 }
 
 static int meson_plane_fb_check(struct drm_plane *plane,
@@ -2216,15 +2188,6 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 	mvps->plane_index[osd_plane->plane_index] = osd_plane->plane_index;
 
 	meson_plane_position_calc(plane_info, state, mvps->pipeline);
-
-	ret = meson_plane_check_size_range(plane_info);
-	if (ret < 0) {
-		plane_info->enable = 0;
-		DRM_INFO("plane%d size check [%dx%d->%dx%d] unsupport!!!\n",
-			plane_info->plane_index, plane_info->src_w, plane_info->src_h,
-			plane_info->dst_w, plane_info->dst_h);
-		return ret;
-	}
 
 	old_mvps = meson_vpu_pipeline_get_old_state(drv->pipeline->subs[crtc_index],
 				state->state);

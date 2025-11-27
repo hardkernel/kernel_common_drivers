@@ -277,6 +277,13 @@ struct meson_vpu_osd_layer_info {
 	u32 *palette_arry;
 	int gfcd_vskip;
 	int gfcd_hskip;
+	u16 htotal;
+	/**
+	 * @clock:
+	 *
+	 * Pixel clock in kHz.
+	 */
+	int clock;		/* in kHz */
 	struct osd_dimm_info osd_dimm;
 };
 

@@ -107,6 +107,7 @@ struct meson_drm_param {
 	int force_mali_afbc_mode;
 	int async_commit_ioctl_threshold;
 	int fbdev_pan_display_threshold;
+	int osdscaler_safety_factor;
 };
 
 extern struct meson_drm_param am_drm_param;

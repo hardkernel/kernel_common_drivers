@@ -11,6 +11,7 @@
 #include "meson_osd_afbc.h"
 #include "meson_vpu_postblend.h"
 #include <linux/amlogic/media/registers/cpu_version.h>
+#include <linux/math64.h>
 
 static struct osd_scaler_reg_s osd_scaler_reg[HW_OSD_SCALER_NUM] = {
 	{
@@ -1018,6 +1019,64 @@ void scaler_filter_mode_check(struct meson_vpu_block *vblk,
 	}
 }
 
+/**
+ * SRC_W * SRC_H * (1/666M HZ) /（DST_H * (1/venc_clk)）= EXP_H
+ * 1. Shrinking height (h) is limited, scaling height is unlimited.
+ * 2. EXP_H is the scaler out height.
+ * 3. DST_H: htotal of mode and buffer, take the larger one.
+ * 4. venc_clk: venc_clk.
+ * 5. 666MHz is the VPU clock speed, which varies for each chip.
+ */
+static int
+meson_scaler_check_size_range(struct meson_vpu_block *vblk,
+			struct meson_vpu_osd_layer_info *plane_info,
+			struct meson_vpu_sub_pipeline_state *mvps)
+{
+	u16 htotal;
+	u32 dst_h, fb_h;
+	u32 input_width, input_height, output_height;
+	/* khz->hz */
+	int clock = plane_info->clock * 1000;
+	u64 exp_h, numerator, denominator;
+
+	fb_h = plane_info->fb_h;
+	htotal = plane_info->htotal;
+	dst_h = MAX(fb_h, htotal);
+	input_width = mvps->scaler_param[vblk->index].input_width;
+	input_height = mvps->scaler_param[vblk->index].input_height;
+	output_height = mvps->scaler_param[vblk->index].output_height;
+
+	/**
+	 * The division in the algorithm is inaccurate,
+	 * and floating-point numbers have precision issues,
+	 * so it is changed to cross-multiplication.
+	 */
+
+	numerator = (u64)input_height * input_width * clock;
+	denominator = (u64)vpu_clk_get() * dst_h;
+
+	/* Autosh error check.
+	 * 32-bit systems do not support direct division of 64-bit data using "/".
+	 */
+	exp_h = div64_u64(numerator, denominator);
+
+	/* Add a safety factor to mitigate the impact of boundary values.*/
+	if (am_drm_param.osdscaler_safety_factor >= 100) {
+		exp_h = exp_h * am_drm_param.osdscaler_safety_factor;
+		do_div(exp_h, 100);
+	} else {
+		DRM_ERROR("The scaler safety factor must be greater than 100\n");
+		return -EINVAL;
+	}
+
+	if (output_height < exp_h) {
+		DRM_ERROR("scaler error,Exceeding the scaler lower bound\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int scaler_check_state(struct meson_vpu_block *vblk,
 			      struct meson_vpu_block_state *state,
 		struct meson_vpu_sub_pipeline_state *mvps)
@@ -1025,6 +1084,7 @@ static int scaler_check_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_osd_layer_info *plane_info;
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
 	struct meson_vpu_scaler_state *scaler_state = to_scaler_state(state);
+	int ret = 0;
 
 	if (state->checked)
 		return 0;
@@ -1032,6 +1092,14 @@ static int scaler_check_state(struct meson_vpu_block *vblk,
 	state->checked = true;
 	plane_info = &mvps->plane_info[vblk->index];
 	scaler_state->crtc_index = plane_info->crtc_index;
+	ret = meson_scaler_check_size_range(vblk, plane_info, mvps);
+	if (ret < 0) {
+		plane_info->enable = 0;
+		DRM_ERROR("plane%d size check [%dx%d->%dx%d] unsupport!!!\n",
+			plane_info->plane_index, plane_info->src_w, plane_info->src_h,
+			plane_info->dst_w, plane_info->dst_h);
+		return ret;
+	}
 	MESON_DRM_BLOCK("%s check_state called.\n", scaler->base.name);
 
 	return 0;

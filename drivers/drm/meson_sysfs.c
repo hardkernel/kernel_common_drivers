@@ -2380,6 +2380,8 @@ AM_BIN_ATTR_MOD_PARAM_R_DEF(async_commit_ioctl_threshold)
 AM_BIN_ATTR_MOD_PARAM_W_DEF(async_commit_ioctl_threshold)
 AM_BIN_ATTR_MOD_PARAM_R_DEF(fbdev_pan_display_threshold)
 AM_BIN_ATTR_MOD_PARAM_W_DEF(fbdev_pan_display_threshold)
+AM_BIN_ATTR_MOD_PARAM_R_DEF(osdscaler_safety_factor)
+AM_BIN_ATTR_MOD_PARAM_W_DEF(osdscaler_safety_factor)
 
 static struct bin_attribute module_param_attr[] = {
 AM_BIN_ATTR_MOD_PARAM_RW(crtc_force_hint)
@@ -2393,6 +2395,7 @@ AM_BIN_ATTR_MOD_PARAM_RW(osd_hold_line)
 AM_BIN_ATTR_MOD_PARAM_RW(force_mali_afbc_mode)
 AM_BIN_ATTR_MOD_PARAM_RW(async_commit_ioctl_threshold)
 AM_BIN_ATTR_MOD_PARAM_RW(fbdev_pan_display_threshold)
+AM_BIN_ATTR_MOD_PARAM_RW(osdscaler_safety_factor)
 };
 
 static struct attribute_group module_param_group = {
