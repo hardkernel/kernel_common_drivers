@@ -383,5 +383,5 @@ void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 				    enum vdin_format_convert_e format_convert,
 				    unsigned int full_pack,
 				    unsigned int source_bitdepth);
-void vdin_dlg_update_hist_hv(unsigned int temp_hist_width, unsigned int temp_hist_height);
+void vdin_dlg_update_hist_hv(unsigned int h, unsigned int v, unsigned int fps);
 #endif

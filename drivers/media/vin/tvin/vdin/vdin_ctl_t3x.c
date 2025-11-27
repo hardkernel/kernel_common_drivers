@@ -2074,13 +2074,6 @@ void vdin_dlg_update_hist_hv_t3x(unsigned int temp_hist_width, unsigned int temp
 		HIST_HEND_BIT, HIST_HEND_WID);
 	wr_bits(hist_offset, VDIN0_LUMA_HIST_V_START_END, temp_hist_height - 1,
 		HIST_VEND_BIT, HIST_VEND_WID);
-
-	if (devp->debug.vdin_dbg_en)
-		pr_info("hist width (0x%x):0x%x, height (0x%x):0x%x\n",
-			VDIN0_LUMA_HIST_H_START_END + hist_offset,
-			rd(hist_offset, VDIN_HIST_H_START_END),
-			VDIN0_LUMA_HIST_V_START_END + hist_offset,
-			rd(hist_offset, VDIN_HIST_V_START_END));
 }
 
 void vdin_get_hist_val_t3x(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist_temp)

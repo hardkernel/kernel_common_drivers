@@ -4392,7 +4392,7 @@ void vdin_hw_disable(struct vdin_dev_s *devp)
 }
 
 /* For DLG, the configuration for obtaining the hist_hwin_vwin needs to be updated.*/
-void vdin_dlg_update_hist_hv(unsigned int temp_hist_width, unsigned int temp_hist_height)
+void vdin_dlg_update_hist_hv(unsigned int h, unsigned int v, unsigned int fps)
 {
 	struct vdin_dev_s *devp = vdin_get_dev(0);
 	struct vdin_dev_s *devp_vdin1 = vdin_get_dev(1);
@@ -4400,10 +4400,10 @@ void vdin_dlg_update_hist_hv(unsigned int temp_hist_width, unsigned int temp_his
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
-		vdin_dlg_update_hist_hv_s5(temp_hist_width, temp_hist_height);
+		vdin_dlg_update_hist_hv_s5(h, v);
 		return;
 	} else if (is_meson_t3x_cpu()) {
-		vdin_dlg_update_hist_hv_t3x(temp_hist_width, temp_hist_height);
+		vdin_dlg_update_hist_hv_t3x(h, v);
 		return;
 	}
 #endif
@@ -4415,26 +4415,15 @@ void vdin_dlg_update_hist_hv(unsigned int temp_hist_width, unsigned int temp_his
 		hist_offset = devp_vdin1->addr_offset;
 
 	if (devp->dtdata->hw_ver == VDIN_HW_T6X) {
-		wr_bits(0, VDIN_HIST_H_START_END_T6X, temp_hist_width - 1,
-			HIST_HEND_BIT, HIST_HEND_WID);
-		wr_bits(0, VDIN_HIST_V_START_END_T6X, temp_hist_height - 1,
-			HIST_VEND_BIT, HIST_VEND_WID);
-		pr_info("hist width (0x%x):0x%x, height (0x%x):0x%x\n",
-			VDIN_HIST_H_START_END_T6X,
-			rd(0, VDIN_HIST_H_START_END_T6X),
-			VDIN_HIST_V_START_END_T6X,
-			rd(0, VDIN_HIST_V_START_END_T6X));
+		if (h * v * fps > VDIN_LITE_CORE_MAX_PIXEL_CLOCK)
+			wr_bits(0, VDIN_HIST_H_START_END_T6X, (h / 2) - 1,
+				HIST_HEND_BIT, HIST_HEND_WID);
+		else
+			wr_bits(0, VDIN_HIST_H_START_END_T6X, h - 1, HIST_HEND_BIT, HIST_HEND_WID);
+		wr_bits(0, VDIN_HIST_V_START_END_T6X, v - 1, HIST_VEND_BIT, HIST_VEND_WID);
 	} else {
-		wr_bits(hist_offset, VDIN_HIST_H_START_END, temp_hist_width - 1,
-			HIST_HEND_BIT, HIST_HEND_WID);
-		wr_bits(hist_offset, VDIN_HIST_V_START_END, temp_hist_height - 1,
-			HIST_VEND_BIT, HIST_VEND_WID);
-		if (devp->debug.vdin_dbg_en)
-			pr_info("hist width (0x%x):0x%x, height (0x%x):0x%x\n",
-				VDIN_HIST_H_START_END + hist_offset,
-				rd(hist_offset, VDIN_HIST_H_START_END),
-				VDIN_HIST_V_START_END + hist_offset,
-				rd(hist_offset, VDIN_HIST_V_START_END));
+		wr_bits(hist_offset, VDIN_HIST_H_START_END, h - 1, HIST_HEND_BIT, HIST_HEND_WID);
+		wr_bits(hist_offset, VDIN_HIST_V_START_END, v - 1, HIST_VEND_BIT, HIST_VEND_WID);
 	}
 }
 

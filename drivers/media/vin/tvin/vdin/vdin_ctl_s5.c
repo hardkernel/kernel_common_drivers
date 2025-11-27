@@ -1543,13 +1543,6 @@ void vdin_dlg_update_hist_hv_s5(unsigned int temp_hist_width, unsigned int temp_
 	/* win_v */
 	wr_bits(hist_offset, VDIN_LUMA_HIST_V_START_END, temp_hist_height - 1,
 		HIST_VEND_BIT, HIST_VEND_WID);
-
-	if (devp_vdin1->debug.vdin_dbg_en)
-		pr_info("hist width (0x%x):0x%x, height (0x%x):0x%x\n",
-			VDIN_LUMA_HIST_H_START_END + hist_offset,
-			rd(hist_offset, VDIN_HIST_H_START_END),
-			VDIN_LUMA_HIST_V_START_END + hist_offset,
-			rd(hist_offset, VDIN_HIST_V_START_END));
 }
 
 void vdin_get_hist_val_s5(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist_temp)

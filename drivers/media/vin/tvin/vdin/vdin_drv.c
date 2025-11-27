@@ -7089,7 +7089,6 @@ static int vdin_get_vinfo_notify_callback(struct notifier_block *block,
 	struct vdin_dev_s *devp = vdin_get_dev(0);
 	struct vdin_dev_s *devp_vdin1 = vdin_get_dev(1);
 	const struct vinfo_s *vinfo = get_current_vinfo();
-	unsigned int temp_hist_width, temp_hist_height;
 
 	if (event != VOUT_EVENT_MODE_CHANGE)
 		return 0;
@@ -7097,11 +7096,11 @@ static int vdin_get_vinfo_notify_callback(struct notifier_block *block,
 	devp->vinfo_std_duration = vinfo->sync_duration_num / vinfo->sync_duration_den;
 	devp->vrr_data.cur_vrr_status = get_cur_vrr_status(devp);
 
-	temp_hist_width = vinfo->width;
-	temp_hist_height = vinfo->height;
-	vdin_dlg_update_hist_hv(temp_hist_width, temp_hist_height);
-	if (devp->debug.vdin_dbg_en)
-		pr_info("vdin%d,std_dur:%d,vrr:%d\n", devp->index, devp->vinfo_std_duration,
+	vdin_dlg_update_hist_hv(vinfo->width, vinfo->height, devp->vinfo_std_duration);
+
+	if (devp_vdin1 && devp_vdin1->debug.vdin_dbg_en)
+		pr_info("vdin%d,vinfo:%dx%d@%dHz,vrr:%d\n",
+			devp->index, vinfo->width, vinfo->height, devp->vinfo_std_duration,
 			devp->vrr_data.cur_vrr_status);
 	if (devp_vdin1 && devp->dtdata->hw_ver == VDIN_HW_T3X)
 		devp_vdin1->vinfo_std_duration = devp->vinfo_std_duration;
