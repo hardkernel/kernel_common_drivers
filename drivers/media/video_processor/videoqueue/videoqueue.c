@@ -1287,7 +1287,7 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 
 	ret = vt_send_cmd(dev->dev_session, dev->tunnel_id,
 		VT_VIDEO_SET_GAME_MODE, 0);
-	vq_print(dev->inst, P_ERROR, "set no game mode\n");
+	vq_print(dev->inst, P_THREAD, "set no game mode\n");
 	dev->game_mode = false;
 	if (ret < 0)
 		vq_print(dev->inst, P_ERROR, "set game mode false err\n");
@@ -1308,7 +1308,7 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 		}
 		buf_mgr_reset(dev->dp_buf_mgr);
 
-		vq_print(dev->inst, P_ERROR, "release buf mgr.\n");
+		vq_print(dev->inst, P_THREAD, "release buf mgr.\n");
 		buf_mgr_release(dev->dp_buf_mgr);
 		dev->dp_buf_mgr_index++;
 		dev->di_backend_en = false;
@@ -1325,7 +1325,7 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 			if (kfifo_get(&dev->dq_info_q, &dq_info)) {
 				free_file = dq_info->free_file;
 				fence_file = dq_info->fence_file;
-				vq_print(dev->inst, P_ERROR, "unreg: dq_info_q keep vf\n");
+				vq_print(dev->inst, P_THREAD, "unreg: dq_info_q keep vf\n");
 				if (free_file)
 					v4lvideo_keep_vf(free_file);
 				if (!IS_ERR_OR_NULL(fence_file)) {

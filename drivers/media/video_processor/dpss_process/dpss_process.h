@@ -145,6 +145,7 @@ struct dpss_process_dev {
 	bool allow_destroy_dpss;
 	u32 dpss_switch_vd1_first_index;
 	u32 i_frame_cnt;
+	int output_duration;
 };
 
 #define DPSS_PROCESS_IOC_MAGIC  'I'

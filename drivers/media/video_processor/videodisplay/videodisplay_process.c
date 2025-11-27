@@ -2819,7 +2819,8 @@ static inline int vd_perform_pulldown(struct videodisplay_dev *dev, struct vfram
 static int find_nearest_duration(struct videodisplay_dev *dev, int duration_val)
 {
 	int min = INT_MAX;
-	int duration_arr[11] = {800, 801, 960, 1600, 1601, 1920, 3200, 3203, 3840, 4000, 4004};
+	int duration_arr[] = {266, 282, 290, 333, 400, 582, 667, 800, 801,
+		960, 1600, 1601, 1920, 3200, 3203, 3840, 4000, 4004};
 	int i = 0, num = 0, diff = 0;
 	int recy_count = sizeof(duration_arr) / sizeof(int);
 

@@ -2643,7 +2643,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 		prm_dpe->dcntr_en = 1;
 		prm_dpe->dcntr_en_bk = 1;
 		prm_top->dct_ahead_dv_mode = 1;
-		if ((dpss_dct_force & 0xff) && dpss_en_dct)
+		if ((dpss_dct_force & 0xff) && dpss_en_dct && !pch->d->w_mode_2)
 			prm_top->dct_ahead_dv_mode = 1;
 		else
 			prm_top->dct_ahead_dv_mode = 0;

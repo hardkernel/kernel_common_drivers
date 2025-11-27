@@ -626,6 +626,56 @@ exit:
 	return 0;
 }
 
+static void buf_mgr_set_eos(struct dp_buf_mgr_t *buf_mgr, struct vf_ref_t *vf_ref)
+{
+	struct vframe_s *vf = NULL;
+	struct file *file = NULL;
+
+	if (!buf_mgr || !vf_ref) {
+		pr_err("%s: NULL param.\n", __func__);
+		return;
+	}
+
+	vf = &vf_ref->vf;
+	if (!vf) {
+		buf_mgr_print(buf_mgr, PRINT_ERROR, "%s: vf is NULL.\n", __func__);
+		return;
+	}
+
+	if (vf->type & VIDTYPE_INTERLACE) {
+		buf_mgr_print(buf_mgr, PRINT_OTHER,
+			"%s: frame_index=%d type:%d, eos is not necessary\n",
+			__func__,
+			vf->frame_index,
+			vf->type);
+		return;
+	}
+
+	file = vf_ref->file;
+
+	if (!file) {
+		buf_mgr_print(buf_mgr, PRINT_ERROR,
+			"%s: not find file, buf_mgr=%px\n", __func__, buf_mgr);
+		return;
+	}
+
+	vf = get_vf_from_file(buf_mgr, file);
+	if (!vf) {
+		buf_mgr_print(buf_mgr, PRINT_ERROR,
+			"%s: not find vf, buf_mgr=%px, file=%px\n", __func__, buf_mgr, file);
+		return;
+	}
+
+	vf->type_ext |= VIDTYPE_EXT_DPSS_EOS;
+	buf_mgr_print(buf_mgr, PRINT_OTHER,
+		"%s: vf:%px, frame_index=%d, file:%px, type_ext:0x%x\n",
+		__func__,
+		vf,
+		vf->frame_index,
+		file,
+		vf->type_ext);
+}
+
 void buf_mgr_get(struct dp_buf_mgr_t *buf_mgr)
 {
 	if (!buf_mgr) {
@@ -835,7 +885,7 @@ struct dp_buf_mgr_t *buf_mgr_creat(int dec_type, int id, void *caller_data,
 	buf_mgr->caller_data = caller_data;
 	buf_mgr->recycle_buffer_cb = recycle_buffer_cb;
 	buf_mgr->reset_id = 1;
-	buf_mgr_print(buf_mgr, PRINT_ERROR, "buf mgr creat\n");
+	buf_mgr_print(buf_mgr, PRINT_OTHER, "buf mgr creat\n");
 	buf_mgr_get(buf_mgr);
 	mutex_init(&buf_mgr->ref_count_mutex);
 	mutex_init(&buf_mgr->file_mutex);
@@ -858,7 +908,7 @@ int buf_mgr_release(struct dp_buf_mgr_t *buf_mgr)
 	}
 
 	buf_mgr->reset_id++;
-	buf_mgr_print(buf_mgr, PRINT_ERROR, "%s func is called\n", __func__);
+	buf_mgr_print(buf_mgr, PRINT_OTHER, "%s func is called\n", __func__);
 	buf_mgr_put(buf_mgr);
 	return 0;
 }
@@ -878,7 +928,7 @@ int buf_mgr_reset(struct dp_buf_mgr_t *buf_mgr)
 		return -1;
 	}
 
-	buf_mgr_print(buf_mgr, PRINT_ERROR, "%s func is called\n", __func__);
+	buf_mgr_print(buf_mgr, PRINT_OTHER, "%s func is called\n", __func__);
 
 	mutex_lock(&buf_mgr->file_mutex);
 	buf_mgr->reset_id++;
@@ -889,6 +939,7 @@ int buf_mgr_reset(struct dp_buf_mgr_t *buf_mgr)
 	if (buf_mgr->ref_list_1) {
 		if (buf_mgr->ref_list_1->ref_number == 2) {
 			vf_ref_count_dec(buf_mgr, buf_mgr->ref_list_1);
+			buf_mgr_set_eos(buf_mgr, buf_mgr->ref_list_1);
 		} else if (buf_mgr->ref_list_1->ref_number == 3) {
 			vf_ref_count_dec(buf_mgr, buf_mgr->ref_list_1);
 			vf_ref_count_dec(buf_mgr, buf_mgr->ref_list_1);

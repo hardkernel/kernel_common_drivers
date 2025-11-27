@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/amlogic/aml_sync_api.h>
 #include <linux/compat.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
@@ -1481,6 +1482,54 @@ static void dpss_lcevc_buf_uninit(struct dpss_process_dev *dev)
 	}
 }
 
+static int get_output_duration(struct dpss_process_dev *dev)
+{
+	struct vinfo_s *vinfo;
+	u64 output_fps;
+	int ret = 1600;
+
+	vinfo = get_current_vinfo();
+	if (IS_ERR_OR_NULL(vinfo)) {
+		dp_print(dev->index, PRINT_ERROR, "%s: get display vinfo err!!\n", __func__);
+		return ret;
+	}
+
+	output_fps = div64_u64(vinfo->sync_duration_num, vinfo->sync_duration_den);
+	if (output_fps > 0 && output_fps < 24)
+		ret = 4004;
+	else if (output_fps == 24)
+		ret = 4000;
+	else if (output_fps == 25)
+		ret = 3840;
+	else if (output_fps > 25 && output_fps < 30)
+		ret = 3203;
+	else if (output_fps == 30)
+		ret = 3200;
+	else if (output_fps == 50)
+		ret = 1920;
+	else if (output_fps > 50 && output_fps < 60)
+		ret = 1601;
+	else if (output_fps == 60)
+		ret = 1600;
+	else if (output_fps == 100)
+		ret = 960;
+	else if (output_fps > 100 && output_fps < 120)
+		ret = 801;
+	else if (output_fps == 120)
+		ret = 800;
+	else if (output_fps == 240)
+		ret = 400;
+	else
+		ret = 1600;
+
+	dp_print(dev->index, PRINT_OTHER, "%s: output:fps %lld, duration %d.\n",
+		__func__,
+		output_fps,
+		ret);
+
+	return ret;
+}
+
 static int dpss_config_work_mode(int dev_index)
 {
 	u32 dps_work_mode;
@@ -1510,32 +1559,6 @@ static int dpss_config_work_mode(int dev_index)
 		work_mode_ctl_pip = dps_work_mode;
 		is_dual_channel_enabled = true;
 	}
-
-	if (dps_work_mode & DPSS_WORK_MODE_NR)
-		dp_print(dev_index, PRINT_ERROR, "%s: NR mode enable.\n", __func__);
-
-	if (dps_work_mode & DPSS_WORK_MODE_DDD)
-		dp_print(dev_index, PRINT_ERROR, "%s: DV mode enable.\n", __func__);
-
-	if (dps_work_mode & DPSS_WORK_MODE_LC_EVC)
-		dp_print(dev_index, PRINT_ERROR, "%s: LC_EVC mode enable.\n", __func__);
-
-	if (dps_work_mode & DPSS_WORK_MODE_DCT)
-		dp_print(dev_index, PRINT_ERROR, "%s: DCT mode enable.\n", __func__);
-
-	if (dps_work_mode & DPSS_WORK_MODE_FRC)
-		dp_print(dev_index, PRINT_ERROR, "%s: FRC mode enable.\n", __func__);
-
-	if (dps_work_mode & DPSS_WORK_MODE_HDR)
-		dp_print(dev_index, PRINT_ERROR, "%s: HDR mode enable.\n", __func__);
-
-	if (dps_work_mode & DPSS_WORK_MODE_DI)
-		dp_print(dev_index, PRINT_ERROR, "%s: DI mode enable.\n", __func__);
-
-	if (dps_work_mode & DPSS_WORK_MODE_MAIN)
-		dp_print(dev_index, PRINT_ERROR, "%s: main dpss.\n", __func__);
-	else
-		dp_print(dev_index, PRINT_ERROR, "%s: pip dpss.\n", __func__);
 
 	return dps_work_mode;
 }
@@ -1591,7 +1614,7 @@ static void connect_to_dpss(struct dpss_process_dev *dev, struct vframe_s *vf, i
 		return;
 	}
 
-	dp_print(dev->index, PRINT_OTHER,
+	dp_print(dev->index, PRINT_ERROR,
 		"%s: dpss_index: %d, work_mode: 0x%x.\n",
 		__func__,
 		dev->dpss_index,
@@ -1601,8 +1624,8 @@ static void connect_to_dpss(struct dpss_process_dev *dev, struct vframe_s *vf, i
 static int find_standard_duration(struct dpss_process_dev *dev, int duration_val)
 {
 	int min = INT_MAX;
-	int duration_arr[14] = {400, 582, 667, 800, 801, 960, 1600, 1601, 1920, 3200, 3203, 3840,
-		4000, 4004};
+	int duration_arr[] = {266, 282, 290, 333, 400, 582, 667, 800, 801, 960,
+			1600, 1601, 1920, 3200, 3203, 3840, 4000, 4004};
 	int i = 0, num = 0, diff = 0;
 	int recy_count = sizeof(duration_arr) / sizeof(int);
 
@@ -1721,14 +1744,14 @@ static int dpss_process_uninit(struct dpss_process_dev *dev)
 			  dev->fget_count, dev->fput_count);
 
 	if (dev->fence_creat_count != dev->fence_release_count) {
-		dp_print(dev->index, PRINT_ERROR,
+		dp_print(dev->index, PRINT_OTHER,
 			"fence_creat_count =%lld, fence_release_count=%lld\n",
 			dev->fence_creat_count, dev->fence_release_count);
 		dp_timeline_increase(dev, dev->fence_creat_count
 				- dev->fence_release_count);
 	}
 
-	dp_print(dev->index, PRINT_OTHER,
+	dp_print(dev->index, PRINT_ERROR,
 		  "fill_done/fill: cur: %lld/%lld, total: %d/%d\n",
 		  dev->fill_done_count, dev->fill_count,
 		  total_fill_done_count, total_fill_count);
@@ -1853,9 +1876,15 @@ static bool check_need_do_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 	/* above 2560*1440 444 10bit afbc no need do dpss*/
 	if ((vf->compWidth > 2560 || vf->width > 2560) &&
 		(vf->bitdepth & BITDEPTH_Y10) &&
-		(vf->type & VIDTYPE_VIU_444) &&
+		(vf->type & VIDTYPE_VIU_444 || vf->type & VIDTYPE_RGB_444) &&
 		(vf->type & VIDTYPE_COMPRESS)) {
 		dp_print(dev->index, PRINT_OTHER, "444 10bit over 2560, no need do dpss.\n");
+		need_do_dpss = false;
+	}
+
+	/*input fps more than output fps*/
+	if (vf->duration < dev->output_duration) {
+		dp_print(dev->index, PRINT_OTHER, "input fps more than output, no need do dpss.\n");
 		need_do_dpss = false;
 	}
 
@@ -2056,6 +2085,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 	if (frame_info->transform == 4 || frame_info->transform == 7)
 		rotate_en = true;
 
+	dev->output_duration = get_output_duration(dev);
 	if (!check_need_do_dpss(dev, vf, rotate_en)) {
 		dev->i_frame_cnt = 0;
 		dev->is_start_player = 0;
