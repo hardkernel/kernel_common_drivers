@@ -51,7 +51,6 @@
 #include "meson_tx_task_mgr.h"
 #include "meson_tx_internal.h"
 #include "hdmitx_hdcp.h"
-#include "hdmitx/tx21/hdmitx_packet.h"
 
 #define HDMI_TX_COUNT 32
 static struct class *hdmitx_class;
@@ -866,12 +865,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	/* load init hdr state from HW info */
 	hdmitx_hdr_load_hw_state(tx_comm);
 	hdmitx_bootup_post_process(tx_comm);
-
-	/*
-	 * in cuva receiver mode, when you start the device for the
-	 * first time, you need to write all 0 data to the cuva d_hdr buffer
-	 */
-	hdmitx_cuva_dhdr_init(tx_comm);
 
 	/* after unlock, now can take actions of bottom half of hpd irq */
 	mutex_unlock(&tx_comm->base.set_mode_mutex);

@@ -154,9 +154,20 @@ void hdmi_audio_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_drm_infoframe_set(struct hdmi_drm_infoframe *info);
 void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb);
 
-/* dhdr set */
-void hdmitx_cuva_dhdr_reset(struct hdmitx_common *tx_comm);
+/*
+ * When sending CUVA EMP, there are timing requirements:
+ * Step 1: hdmitx_cuva_dhdr_init
+ * When setting the mode, write all zeros to the CUVA EMP hardware buffer
+ *
+ * Step 2: hdmitx_cuva_dhdr_reset
+ * Ensure that data from each frame in the software is updated in the
+ * hardware buffer and prevent dirty data
+ *
+ * Step 3: hdmitx_dhdr_send
+ * Send the data from the hardware buffer out each frame
+ */
 void hdmitx_cuva_dhdr_init(struct hdmitx_common *tx_comm);
+void hdmitx_cuva_dhdr_reset(struct hdmitx_common *tx_comm);
 void hdmitx_dhdr_send(u8 *body, int size);
 /* dhdr test api */
 void hdmitx21_write_dhdr_sram(void);

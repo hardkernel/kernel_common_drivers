@@ -16,6 +16,7 @@
 #include "hdmitx_vout.h"
 #include "hdmitx_module.h"
 #include "hdmitx_hdr.h"
+#include "hdmitx/tx21/hdmitx_packet.h"
 
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 
@@ -514,6 +515,9 @@ void hdmitx_bootup_post_process(struct hdmitx_common *tx_comm)
 		if (tx_comm->fmt_para.frac_mode)
 			hdmitx_mode_update_timing(&tx_comm->fmt_para.timing,
 						  tx_comm->fmt_para.frac_mode);
+
+		/* step1: write all zeros to the CUVA EMP hardware buffer */
+		hdmitx_cuva_dhdr_init(tx_comm);
 		/*
 		 * During the kernel startup process, the HDR/DV module will use
 		 * vinfo information, it needs to attach vinfo after the EDID is

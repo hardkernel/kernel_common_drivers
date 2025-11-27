@@ -48,7 +48,6 @@
 #include "hdmitx_vout.h"
 #include "hdmitx_hdr.h"
 #include "hdmitx_audio.h"
-#include "hdmitx/tx21/hdmitx_packet.h"
 
 #define HDMI_TX_COUNT 32
 static struct class *hdmitx_class;
@@ -827,12 +826,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	/* only when hpd is high does it need to update vinfo and send the div40 signal */
 	if (hpd_state)
 		hdmitx_bootup_post_process(tx_comm);
-
-	/*
-	 * in cuva receiver mode, when you start the device for the
-	 * first time, you need to write all 0 data to the cuva d_hdr buffer
-	 */
-	hdmitx_cuva_dhdr_init(tx_comm);
 
 	/* after unlock, now can take actions of bottom half of hpd irq */
 	mutex_unlock(&tx_comm->hdmimode_mutex);

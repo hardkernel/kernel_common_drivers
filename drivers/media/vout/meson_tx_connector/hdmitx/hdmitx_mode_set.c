@@ -16,6 +16,7 @@
 #include "hdmitx_module.h"
 #include "hdmitx_hdr.h"
 #include "meson_tx_task_mgr.h"
+#include "tx21/hdmitx_packet.h"
 
 const struct tx_timing *meson_tx_mode_match_timing_name(const char *name);
 
@@ -470,6 +471,9 @@ void hdmitx_bootup_post_process(struct hdmitx_common *tx_comm)
 				hdmitx_hw_cntl(tx_comm->tx_hw, DDC_SCDC_DIV40_SCRAMB,
 					(void *)&arg, NULL);
 		}
+
+		/* step1: write all zeros to the CUVA EMP hardware buffer */
+		hdmitx_cuva_dhdr_init(tx_comm);
 		/*
 		 * During the kernel startup process, the HDR/DV module will use
 		 * vinfo information, it needs to attach vinfo after the EDID is

@@ -4872,35 +4872,11 @@ void hdmitx21_dither_config(struct hdmitx21_dev *hdev)
 	hd21_write_reg(VPU_HDMI_DITH_CNTL, data32);
 }
 
-/* for emds pkt cuva receiver mode */
-void hdmitx_cuva_dhdr_reset(struct hdmitx_common *tx_comm)
-{
-	struct meson_tx_hdr *tx_hdr = NULL;
-
-	if (!tx_comm)
-		return;
-
-	tx_hdr = tx_comm->hdr_state;
-
-	switch (tx_comm->tx_hw->chip_data->chip_type) {
-	case MESON_CPU_ID_T7:
-	case MESON_CPU_ID_S5:
-	case MESON_CPU_ID_S7:
-	case MESON_CPU_ID_S7D:
-	case MESON_CPU_ID_S6:
-		/* only in cuva receiver mode, reset d_hdr when cuva signal needs to be output */
-		if (tx_hdr->cuva_dhdr_reset) {
-			/* reset d_hdr */
-			hdmitx21_set_reg_bits(D_HDR_GEN_CTL_IVCTX, 1, 3, 1);
-			hdmitx21_set_reg_bits(D_HDR_GEN_CTL_IVCTX, 0, 3, 1);
-		}
-		break;
-	default:
-		break;
-	}
-}
-
-/* for emds pkt cuva receiver mode */
+/*
+ * for emds pkt cuva receiver mode
+ * Step 1: hdmitx_cuva_dhdr_init
+ * When setting the mode, write all zeros to the CUVA EMP hardware buffer
+ */
 void hdmitx_cuva_dhdr_init(struct hdmitx_common *tx_comm)
 {
 	int i;
@@ -4945,6 +4921,44 @@ void hdmitx_cuva_dhdr_init(struct hdmitx_common *tx_comm)
 	}
 }
 
+/*
+ * for emds pkt cuva receiver mode
+ * Step 2: hdmitx_cuva_dhdr_reset
+ * Ensure that data from each frame in the software is updated in the
+ * hardware buffer and prevent dirty data
+ */
+void hdmitx_cuva_dhdr_reset(struct hdmitx_common *tx_comm)
+{
+	struct meson_tx_hdr *tx_hdr = NULL;
+
+	if (!tx_comm)
+		return;
+
+	tx_hdr = tx_comm->hdr_state;
+
+	switch (tx_comm->tx_hw->chip_data->chip_type) {
+	case MESON_CPU_ID_T7:
+	case MESON_CPU_ID_S5:
+	case MESON_CPU_ID_S7:
+	case MESON_CPU_ID_S7D:
+	case MESON_CPU_ID_S6:
+		/* only in cuva receiver mode, reset d_hdr when cuva signal needs to be output */
+		if (tx_hdr->cuva_dhdr_reset) {
+			/* reset d_hdr */
+			hdmitx21_set_reg_bits(D_HDR_GEN_CTL_IVCTX, 1, 3, 1);
+			hdmitx21_set_reg_bits(D_HDR_GEN_CTL_IVCTX, 0, 3, 1);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+/*
+ * for emds pkt cuva receiver mode
+ * Step 3: hdmitx_dhdr_send
+ * Send the data from the hardware buffer out each frame
+ */
 void hdmitx_dhdr_send(u8 *body, int size)
 {
 	u32 data;
@@ -6398,6 +6412,7 @@ static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm)
 {
 	struct hdmitx21_dev *hdev = container_of(tx_comm, struct hdmitx21_dev, tx_comm);
 	struct vinfo_s *vinfo = NULL;
+	struct cuva_info *cuva = &tx_comm->base.rxcap.hdr_info.cuva_info;
 #ifdef CONFIG_AMLOGIC_DSC
 	struct meson_tx_format_para *para = &tx_comm->fmt_para;
 #endif
@@ -6464,6 +6479,13 @@ static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm)
 		HDMITX_INFO("vinfo: set cur_enc_ppc as %d, vpp color: %d\n",
 			vinfo->cur_enc_ppc, vinfo->vpp_post_out_color_fmt);
 	}
+
+	/*
+	 * Step 1: When setting the mode, if the TV supports CUVA receiver mode,
+	 * write all zeros to the CUVA EMP hardware buffer
+	 */
+	if (cuva->rx_mode_sup)
+		hdmitx_cuva_dhdr_init(tx_comm);
 
 	return 0;
 }
