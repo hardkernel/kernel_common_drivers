@@ -52,6 +52,8 @@ enum EDPSS_Q_CH_ID {
 	EDPSS_Q_CH_V_RECYCLE,
 	EDPSS_Q_CH_NR_DOING,	//
 	EDPSS_Q_CH_FRC_DOING,	//
+	EDPSS_Q_CH_FRONT_IDLE,	// for di_front out idle
+	EDPSS_Q_CH_FRONT_O,	// for di_front out buffer
 	EDPSS_Q_CH_NUB
 };
 
@@ -197,6 +199,7 @@ struct dpss_nr_i_s {
 	unsigned char idx;
 	unsigned char nr_buf_idx; //add playback fallback check for frc
 	struct vframe_s *in_vfm;
+	struct vframe_s *front_vfm; //for di_front
 	struct dpss_sub_vf_s sub_vf_in;
 
 	struct dpss_in_vf_info info_in;	//
@@ -329,6 +332,10 @@ struct dpss_ch_d_s1 {
 	struct vframe_s *vfm_dis;	//dbg only
 	struct dpss_h_nr_mng_s h_nr_mng[DPSS_VFM_IN_NUB];	//use doing
 
+	/*di front*/
+	struct vframe_s *cfg_vfm[DPSS_CFG_NUM];
+	unsigned int cfg_cnt;
+
 	bool vfm_dis_en;	//dbg only
 	/* q_ch */
 	struct dpss_fifo_s q_ch[EDPSS_Q_CH_NUB];
@@ -382,6 +389,7 @@ struct dpss_ch_d_s1 {
 	unsigned char idx_hd; //
 	unsigned char mem_err;
 	bool nr_reset; //add for light chg
+	bool di_front;
 };
 
 enum DPPS_SML_BUF_IDX {
@@ -611,7 +619,7 @@ struct dpss_ch_c_s1 {
 	bool support_4k;
 	bool support_i;
 	bool support_frc;
-	//-----------------------
+
 };
 
 struct prm_dpss_input {

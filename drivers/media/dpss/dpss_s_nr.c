@@ -324,7 +324,11 @@ static void _prm_top_init(struct dpss_ch_s *pch, struct PRM_DPSS_TOP *prm_top,
 
 	if (!vf)
 		return;
-	//ary add:
+	//
+	if (pch->d->di_front)
+		prm_top->di_front = true;
+	else
+		prm_top->di_front = false;
 	prm_top->dae_dpe_cfg_en = dpss_dbg_dae_dpe_cfg;
 	dbg_h1("dae_dpe_cfg_en = %d\n", prm_top->dae_dpe_cfg_en);
 	prm_top->case_id = pch->c.case_id;
@@ -471,7 +475,10 @@ static void _prm_top_init_light(struct dpss_ch_s *pch, struct PRM_DPSS_TOP *prm_
 	if (dpss_dbg_level_get() > 1)	//dbg only
 		print_s_PRM_SRC_FMT_t(&prm_top->src_fs_fmt, "src_fs");
 #endif
-	if ((dpss_en_afbc & C_BIT0 || (pch->c.o_afbc & C_BIT0))) {
+	if (pch->d->di_front) {
+		prm_top->nro_fs_fmt =
+		    fmt_cfg(YUV420, PLANAR_X2, BIT_008, CMPR_UN, IS_PSRC);
+	} else if ((dpss_en_afbc & C_BIT0 || (pch->c.o_afbc & C_BIT0))) {
 		prm_top->nro_fs_fmt =
 		    fmt_cfg(YUV420, PLANAR_X1, BIT_008, CMPR_AFBC, IS_PSRC);
 	} else if ((dpss_en_afbc & C_BIT1) || (pch->c.o_afbc & C_BIT1)) {
@@ -1106,7 +1113,20 @@ void dpss_val_user(struct dpss_ch_s *pch,
 		else
 			src = 1;
 		dbg_i0("%s:src=%d\n", __func__, src);
-		if (src) {
+		if (pch->d->di_front) {
+			if (src) {
+				if (VFM_IS_I_SRC(vfs->type))
+					pch->c.case_id = TST_CASE_IDX_SRC1_NRDI;
+				else
+					pch->c.case_id = TST_CASE_IDX_SRC1_NR;
+			} else {
+				if (VFM_IS_I_SRC(vfs->type))
+					pch->c.case_id = TST_CASE_IDX_0107;
+				else
+					pch->c.case_id = TST_CASE_IDX_0000;
+				enable_mc_link = 0; //tmp
+			}
+		} else if (src) {
 			//src 1:
 			if (VFM_IS_I_SRC(vfs->type))
 				pch->c.case_id = TST_CASE_IDX_SRC1_NRDI;
@@ -2166,6 +2186,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 		dbg_dpss_reset1(0);
 		dpss_crc_init();
 	}
+
 	if (dpss_is_h_first_ch(pch) && !light_chg) {
 		dbg_dpss_reset(dpss_reset_ctrl);
 		hw_init_part1(vf);
@@ -2859,7 +2880,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 	if (dpss_dbg_top_cfg0 & C_BIT31)
 		f_dpss_hw_init(prm_top);
 
-	if (dpss_en_hdr && !pch->c.ch) {
+	if (dpss_en_hdr && !pch->c.ch && !pch->d->di_front) {
 		//dpss_hdr_int(vfs->width, vfs->height, 1);
 		dpss_hdr_sw(true, vf);
 		dbg_h2("%s dpss_hdr_sw true\n", __func__);
@@ -2985,6 +3006,46 @@ void nr_h_wait_mode(struct dpss_ch_s *pch)
 			break;
 		}
 	}
+}
+
+void hw_cfg_addr_dio(struct dpss_ch_s *pch,
+		     unsigned int in_cnt, struct vframe_s *vfm)
+{
+	unsigned int idx_in;
+	unsigned long addr_y, addr_c;
+	unsigned int addr_s_y, addr_s_c;
+	struct PRM_DPSS_TOP *prm_top;
+
+	unsigned int src_mode;
+
+	prm_top = &pch->c.prm_top;
+	src_mode = prm_top->src_mode;
+
+	idx_in = in_cnt % pch->c.o_b_nub;
+
+	if (!vfm) {
+		DBG_ERR("%s:no vfm?in_cnt=%d\n", __func__, in_cnt);
+		return;
+	}
+	addr_y = vfm->canvas0_config[0].phy_addr;
+	addr_c = vfm->canvas0_config[1].phy_addr;
+
+	addr_s_y = (unsigned int)(addr_y >> 9);
+	addr_s_c = (unsigned int)(addr_c >> 9);
+
+	if (!src_mode) {
+		prm_top->src0_dio_fbuf_yaddr[idx_in] = addr_s_y;
+		prm_top->src0_dio_fbuf_caddr[idx_in] = addr_s_c;
+		wr((DPSS_SRC0_DIO_FBUF_YADDR0 + idx_in), addr_s_y);
+		wr((DPSS_SRC0_DIO_FBUF_CADDR0 + idx_in), addr_s_c);
+	} else {
+		prm_top->src1_dio_fbuf_yaddr[idx_in] = addr_s_y;
+		prm_top->src1_dio_fbuf_caddr[idx_in] = addr_s_c;
+		wr((DPSS_SRC1_DIO_FBUF_YADDR0 + idx_in), addr_s_y);
+		wr((DPSS_SRC1_DIO_FBUF_CADDR0 + idx_in), addr_s_c);
+	}
+	dbg_h1("%s:vfm_o in_cnt=%d,idx_in=%d, addr y=0x%lx, vfm_o = %px\n",
+		"cfg_addr", in_cnt, idx_in, addr_y, vfm);
 }
 
 bool nr_only_input_buf(struct dpss_ch_s *pch, struct dpss_nr_i_s *nr_i)

@@ -376,15 +376,17 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 		}
 	}
 
-	if (!dpss_en_hdr) {
+	if (!dpss_en_hdr || prm_top->di_front) {
 		vbe_hdr_path_sel = 3;
 		dct_status = 0;
 	}
 
 	w_reg_bit(VPU_VBE_TOP_HDR_CTRL, vbe_hdr_path_sel, 0, 2);
+	if (!prm_top->di_front) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-	amvecm_set_ext_status_for_dpss(dct_status);
+		amvecm_set_ext_status_for_dpss(dct_status);
 #endif
+	}
 //	dbg_h2("vbe_hdr_path_sel=%d, dct_status=%d\n",
 //		vbe_hdr_path_sel, dct_status);
 

@@ -27,6 +27,7 @@
 
 //#define FUNC_EN_DAE_HPPS	(1) //have float
 
+#define FUNC_DI_FRONT		(1)
 //#define FUNC_EN_CHECK_RO (1)
 /*************************************/
 

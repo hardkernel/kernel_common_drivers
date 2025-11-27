@@ -152,6 +152,8 @@ const char * const ch_q_name[] = {
 	"ch_v_recycle",
 	"ch_nr_doing",
 	"ch_frc_doing",
+	"ch_front_idle",
+	"ch_front_o",
 	"ch_buf",
 };
 
@@ -505,6 +507,9 @@ bool dpss_api_init_data(struct dpss_ch_s *pch)
 		goto dpss_pch_d_q_fail;
 	}
 
+	if (pch->c.parm.dps_work_mode & DPSS_WORK_MODE_FRONT)
+		pch_d->di_front = true;
+	dbg_i0("ch[%d] di_front=%d\n", pch->c.ch, pch_d->di_front);
 	/* new link */
 	code_ins = code_count(pch);
 	for (i = 0; i < DPSS_VFM_IN_NUB; i++) {
@@ -551,7 +556,7 @@ bool dpss_api_init_data(struct dpss_ch_s *pch)
 		lk->lk_up = vfm;
 		vfm->dpss_data = lk;
 		lk->code_up = code_count(vfm);
-		nr_i->lk_grd_parent = vfm;
+		//nr_i->lk_grd_parent = vfm;
 		dbg_i2("%d:vfm:%px\n", i, vfm);
 		dbg_i0("\tfrc_i:%px\n", frc_i);
 		//q in idle:
@@ -562,6 +567,17 @@ bool dpss_api_init_data(struct dpss_ch_s *pch)
 	}
 	pch->d = pch_d;
 
+	//di_front
+	if (pch->d->di_front) {
+		q = &pch_d->q_ch[EDPSS_Q_CH_FRONT_IDLE];
+		for (i = 0; i < DPSS_CFG_NUM; i++) {
+			if (kfifo_is_full(&q->f)) {
+				DBG_WARN("di_front q idle is full %d\n", i);
+				break;
+			}
+			dpss_q_in_idx(q, i);
+		}
+	}
 	return true;
 
 dpss_pch_d_q_fail:
@@ -720,7 +736,8 @@ int _create_instance(bool fix, int index, struct dpss_init_parm *parm)
 		parm->di_parm.output_format,
 		pch->c.o_afbc);
 	if (parm->dps_work_mode != DPSS_WORK_MODE_FRC &&
-				fix == 0) // not for frc only case
+				fix == 0 &&
+				!pch->d->di_front) // not for frc only case
 		dpss_input_q_init(&pch->q);
 	return (int)ch;
 }
@@ -885,12 +902,69 @@ enum DPSS_ERRORTYPE _input_buffer(struct dpss_ch_s *pch, struct vframe_s *vfm)
 			vfm->height,
 			vfm->canvas0_config[0].phy_addr,
 			vfm->canvas0_config[1].phy_addr);
-
+	dbg_ins1("%s:%p,type=0x%x,%d\n", __func__,
+		vfm, vfm->type, pch->d->cnt_in);
 	ret = dpss_q_in_vfm(&pch->d->q_ch[EDPSS_Q_CH_IN], vfm_idle);
 	if (ret)
 		pch->d->cnt_in++;
 
 	return DPSS_ERR_NONE;
+}
+
+enum DPSS_ERRORTYPE _cfg_buffer(struct dpss_ch_s *pch, struct vframe_s *vfm)
+{
+	unsigned char idx = 0;
+	struct dpss_fifo_s *q_idle, *q_o;
+	int ret_fifo;
+	enum DPSS_ERRORTYPE ret_1 = DPSS_ERR_NONE;
+	int err_num = 0;
+
+	if (!pch || !pch->d) {
+		//DBG_ERR("%s 01\n", __func__);
+		err_num = 1;
+		ret_1 = DPSS_ERR_INDEX_NOT_ACTIVE;
+		goto cfg_buf_err;
+	}
+	if (!pch->d->di_front) {
+		//DBG_ERR("%s: not di_front\n", __func__);
+		err_num = 2;
+		ret_1 = DPSS_ERR_UNSUPPORT;
+		goto cfg_buf_err;
+	}
+	q_idle = &pch->d->q_ch[EDPSS_Q_CH_FRONT_IDLE];
+	q_o = &pch->d->q_ch[EDPSS_Q_CH_FRONT_O];
+
+	if (kfifo_is_empty(&q_idle->f) || kfifo_is_full(&q_o->f)) {
+		//DBG_WARN("%s: full\n", __func__);
+		err_num = 3;
+		ret_1 = DPSS_ERR_IN_NO_SPACE;
+		goto cfg_buf_err;
+	}
+	ret_fifo = kfifo_get(&q_idle->f, &idx);
+	if (ret_fifo != 1 || idx >= DPSS_CFG_NUM) {
+		//DBG_ERR("%s: full2 %d\n", __func__, idx);
+		err_num = 4;
+		ret_1 = DPSS_ERR_IN_NO_SPACE;
+		goto cfg_buf_err;
+	}
+
+	dbg_ins1("%s:%px:%d\n", "cfg_buf", vfm, pch->d->cfg_cnt);
+	pch->d->cfg_vfm[idx] = vfm;
+	pch->d->cfg_cnt++;
+
+	ret_fifo = kfifo_put(&q_o->f, idx);
+	if (ret_fifo != 1) {
+		//DBG_ERR("%s: full 3 %d\n", __func__, idx);
+		err_num = 5;
+		ret_1 = DPSS_ERR_IN_NO_SPACE;
+		goto cfg_buf_err;
+	}
+
+	return DPSS_ERR_NONE;
+
+cfg_buf_err:
+	DBG_ERR("cfg_buf:%d\n", err_num);
+	return ret_1;
 }
 
 enum DPSS_ERRORTYPE _back_buffer(struct dpss_ch_s *pch, struct vframe_s *vfm)
@@ -1129,7 +1203,7 @@ enum DPSS_ERRORTYPE dpss_block_task(unsigned int cmd, int ch_index, void *para)
 		ret = _input_buffer(pch, para);
 		break;
 	case E_DPSS_BLK_CMD_IN_OUT_BUF:
-
+		ret = _cfg_buffer(pch, para);
 		break;
 	case E_DPSS_BLK_CMD_BACK_BUF:
 		ret = _back_buffer(pch, para);
@@ -1264,6 +1338,7 @@ static void itf_put_back_input(struct dpss_ch_s *pch, struct vframe_s *vfm)
 
 	ch = pch->c.ch;
 	if (pch->c.etype) {/* ins*/
+		dbg_ins1("%s:empty_in:%p:%d\n", __func__, vfm, pch->d->cnt_pre_put);
 		pch->c.parm.ops.empty_input_done(pch->c.parm.ops.arg, vfm);
 	} else {	/* vframe path */
 		_vf_put(vfm, ch);
@@ -1742,6 +1817,7 @@ int dpss_create_instance(struct dpss_init_parm *parm)
 
 	return ret;
 }
+EXPORT_SYMBOL(dpss_create_instance);
 
 int dpss_destroy_instance(int index)
 {
@@ -1750,6 +1826,7 @@ int dpss_destroy_instance(int index)
 	ret = dpss_block_task(E_DPSS_BLK_CMD_DESTROY, index, NULL);
 	return ret;
 }
+EXPORT_SYMBOL(dpss_destroy_instance);
 
 enum DPSS_ERRORTYPE dpss_empty_input_buffer(int index, struct vframe_s *vfm)
 {
@@ -1760,6 +1837,7 @@ enum DPSS_ERRORTYPE dpss_empty_input_buffer(int index, struct vframe_s *vfm)
 
 	return ret;
 }
+EXPORT_SYMBOL(dpss_empty_input_buffer);
 
 enum DPSS_ERRORTYPE dpss_fill_output_buffer(int index, struct vframe_s *vfm)
 {
@@ -1769,6 +1847,17 @@ enum DPSS_ERRORTYPE dpss_fill_output_buffer(int index, struct vframe_s *vfm)
 
 	return ret;
 }
+EXPORT_SYMBOL(dpss_fill_output_buffer);
+
+enum DPSS_ERRORTYPE dpss_empty_out_buffer(int index, struct vframe_s *vfm)
+{
+	int ret;
+
+	ret = dpss_block_task(E_DPSS_BLK_CMD_IN_OUT_BUF, index, vfm);
+
+	return ret;
+}
+EXPORT_SYMBOL(dpss_empty_out_buffer);
 
 int dpss_get_state(int index, enum DPSS_STATE cmd_state, struct vframe_s *vfm,
 	struct dpss_status *state)
@@ -1786,6 +1875,7 @@ int dpss_get_state(int index, enum DPSS_STATE cmd_state, struct vframe_s *vfm,
 
 	return ret;
 }
+EXPORT_SYMBOL(dpss_get_state);
 
 int dpss_get_vf_info(struct vframe_s *vf, struct dpss_out_vf_info *dpss_out_info)
 {
@@ -1809,6 +1899,7 @@ int dpss_get_vf_info(struct vframe_s *vf, struct dpss_out_vf_info *dpss_out_info
 
 	return ret;
 }
+EXPORT_SYMBOL(dpss_get_vf_info);
 
 //
 int dpss_cmd_asy(int index, unsigned int cmd_asy, struct dpss_cmd_a_s *para)
@@ -1848,6 +1939,7 @@ int dpss_cmd_asy(int index, unsigned int cmd_asy, struct dpss_cmd_a_s *para)
 	}
 	return DPSS_ERR_NONE;
 }
+EXPORT_SYMBOL(dpss_cmd_asy);
 
 /*****************************************
  * pre-allocate

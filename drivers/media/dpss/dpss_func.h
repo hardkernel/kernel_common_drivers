@@ -111,6 +111,7 @@ void dpss_h_b_int(struct dpss_ch_s *pch);
 void dpss_s2_recycle_back(struct dpss_ch_s *pch);
 void dpss_s2_recycle_back_frc(struct dpss_ch_s *pch);
 void dpss_s2_parser_rd_new(struct dpss_ch_s *pch);
+void dpss_s2_parser_rd_nr_only(struct dpss_ch_s *pch);
 void dpss_s2_parser_rd_frc(struct dpss_ch_s *pch);
 
 void dpss_s_reg(struct dpss_ch_s *pch);
@@ -238,6 +239,9 @@ bool nr_only_rd(struct dpss_ch_s *pch, unsigned int *idx);
 void nr_h_wait_mode(struct dpss_ch_s *pch);
 unsigned int hw_check_rd_nub(unsigned int src_mode);
 void hw_release_buf(unsigned int src_mode, unsigned int idx, bool tbc_mode);
+void hw_cfg_addr_dio(struct dpss_ch_s *pch,
+	unsigned int in_cnt, struct vframe_s *vfm);
+void dpss_di_front_bypass(struct dpss_ch_s *pch, struct dpss_nr_i_s *nr_i);
 
 struct dpss_ch_s *dpss_get_crr_ch(void);
 void nr_only_release_input(unsigned int index);

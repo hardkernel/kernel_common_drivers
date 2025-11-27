@@ -2962,7 +2962,7 @@ void irq_dpe1(void)
 					   &dpss_dpe_nr_frm_cnt_adj,
 					   &dpss_dpe_di_frm_cnt_adj);
 
-		if (prm_top->is_i) {
+		if (prm_top->is_i && !prm_top->di_front) {
 			nr_yaddr = rd(DPSS_DPE_DIN_WR_BADDR4) >> 5;
 			dpss_input_q_update_dpe_status(prm_top, nr_yaddr);
 		}
@@ -3032,8 +3032,12 @@ void irq_dpe1(void)
 
 		if (dpss_h_bypass)
 			dpe_nr_mode = DPE_NR_BYPS;	//dpe_nr_mode
-		dpss_inp_drop_count = dpss_input_get_drop_count(prm_top->in_q);
-		dpss_total_count = dpss_dpe_nr_frm_cnt + dpss_inp_drop_count;
+		if (!prm_top->di_front) {
+			dpss_inp_drop_count = dpss_input_get_drop_count(prm_top->in_q);
+			dpss_total_count = dpss_dpe_nr_frm_cnt + dpss_inp_drop_count;
+		} else {
+			dpss_total_count = dpss_dpe_nr_frm_cnt;
+		}
 		if (is_di2pps) {
 			di2pps_idx = dpss_total_count % prm_top->num_dpe_o;
 			di2pps_yaddr = prm_top->src0_di2pps_buf_yaddr[di2pps_idx] << 5;
@@ -3056,7 +3060,7 @@ void irq_dpe1(void)
 #endif
 			vfm = dpss_irq_get_vfm((dpss_total_count % prm_top->num_in), 2);
 			dpss_dd_dpe_update(vfm);
-		} else if (dpss_en_hdr) {
+		} else if (dpss_en_hdr && !prm_top->di_front) {
 			vfm = dpss_irq_get_vfm((dpss_total_count % prm_top->num_in), 3);
 			dbg_ins2("dpss hdr sw\n");
 			dpss_hdr_sw(true, vfm);

@@ -31,6 +31,7 @@
 #define DPSS_WORK_MODE_MAIN		0x80
 #define DPSS_DD_CP_MODE			0x100
 #define DPSS_WORK_MODE_BY_DPSS		0x800
+#define DPSS_WORK_MODE_FRONT		0x8000
 
 #define DPSS_PARA_UPDATE		0x1000000
 
@@ -116,7 +117,7 @@ enum DPSS_BUF_STATE {
 #define DPSS_FLG_OUT_BYPASS       (0x00010) //this flag is set in pipeline means not do dpss
 #define DPSS_FLG_MODULE_BYPASS    (0x00020) //this flag is set in pipeline means bypass dpss module
 #define DPSS_FLG_SET_DPSS_PROCESS (0x00040) //this flag is set in dpss_process means receive the vf
-
+#define DPSS_FLG_FRONT	(0x00100)
 #define DPSS_FLG_NEW_TRIG	      (0x10000) //trig re-setting by input
 /************************************************/
 
@@ -277,6 +278,20 @@ enum DPSS_ERRORTYPE dpss_empty_input_buffer(int index, struct vframe_s *vfm);
  */
 
 enum DPSS_ERRORTYPE dpss_fill_output_buffer(int index, struct vframe_s *vfm);
+
+/**
+ * @brief  dpss_empty_out_buffer  send output buffer to dps
+ *
+ * @param[in]  index   instance index
+ * @param[in]  buffer  Pointer of buffer structure
+ * @	use this function put post buf to dpss
+ * @		-canvas0_config[0].width : to cfg
+ * @		-canvas0_config[0].phy_addr : address
+ * @		-canvas0_config[0].block_mode = 0 fix
+ * @		-canvas0_config[0].endian = 0 fix
+ * @return      Success or fail type
+ */
+enum DPSS_ERRORTYPE dpss_empty_out_buffer(int index, struct vframe_s *vfm);
 
 /**
  * @brief  dpss_get_state  Get the state of di by instance index

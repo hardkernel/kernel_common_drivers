@@ -54,6 +54,7 @@
 #define DPSS_RDMA_RAM_NUB	(10)
 #define DPSS_RDMA_RAM_ONE_SIZE	(0x100)
 #define DPSS_RDMA_BUF_NUB_MAX	(16)
+#define DPSS_CFG_NUM		(10) //di front out
 /*****************************************/
 //#ifdef USE_FRC_ONLY_CASE
 //#define DPSS_VFM_IN_NUB		16

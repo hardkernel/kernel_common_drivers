@@ -850,7 +850,11 @@ static unsigned int dpss_sub_support_null(struct dpss_ch_s *pch, struct vframe_s
 		return D_W_B(BP);
 	if (pch->d->bypass_rs)
 		return D_W_B(BP);
-
+	if (pch->d->di_front) {
+		if (!VFM_IS_I_SRC(vfm->type) ||
+		   (vfm->type & VIDTYPE_V4L_EOS))
+			return D_W_B(BP);
+	}
 	return 0;
 }
 
@@ -1363,6 +1367,7 @@ void dpss_reg_val(struct dpss_ch_s *pch)
 	pch->c.out_total_cnt = 0;
 	pch->c.disp_cnt = 0;
 	pch->c.last_chg = false;
+
 	pch->d->idx_hd = 1;
 	for (i = 0; i < DPSS_VFM_IN_NUB; i++)
 		pch->d->h_dae_vf_idx[i] = 0xff;
@@ -1400,7 +1405,13 @@ void dpss_reg_val(struct dpss_ch_s *pch)
 		dbg_i0("num_pq_buf = %d\n", pch->c.num_pq_buf);
 	}
 
-	if (!pch->c.ch) {
+	if (pch->d->di_front) {
+		pch->c.en_dw = false;
+		pch->c.en_frc = false;
+		pch->c.support_i = true;
+		pch->c.support_4k = false;
+		pch->c.mem_support = 0;//C_BIT2;
+	} else if (!pch->c.ch) {
 		if (!(pch->c.parm.dps_work_mode & DPSS_WORK_MODE_FRC))
 			pch->c.en_frc = false;
 		if (pch->c.etype) {
@@ -1557,11 +1568,15 @@ void dpss_s2_work(struct dpss_ch_s *pch)
 	if (!pch)
 		return;
 	if (pch->c.parm.dps_work_mode != DPSS_WORK_MODE_FRC) {
-		dpss_s2_recycle_back(pch);
+		if (!pch->d->di_front)
+			dpss_s2_recycle_back(pch);
 		//itf_polling_in_o(pch);
 		dpss_s2_parser_input_new(pch);
 		dpss_h_parser_nr(pch);
-		dpss_s2_parser_rd_new(pch);
+		if (pch->d->di_front)
+			dpss_s2_parser_rd_nr_only(pch);
+		else
+			dpss_s2_parser_rd_new(pch);
 		itf_polling_in_o(pch);
 	} else { //  dps_work_mode == DPSS_WORK_MODE_FRC
 		dpss_s2_recycle_back_frc(pch);
@@ -1582,7 +1597,9 @@ void dpss_s2_parser_input_new(struct dpss_ch_s *pch)
 	unsigned int w_mode;
 	struct dpss_nr_i_s *nr_i;
 	unsigned int nr_free_id;
-
+	unsigned char idx_front = 0;
+	struct vframe_s *vfm_front = NULL; //for di_front
+	int ret_fifo;
 #ifdef FUNC_EN_PQ
 	struct di_parm_s *de_devp;
 #endif
@@ -1616,6 +1633,10 @@ void dpss_s2_parser_input_new(struct dpss_ch_s *pch)
 		return;
 	}
 	//========================================================
+	if (pch->d->di_front &&
+	    kfifo_is_empty(&pch->d->q_ch[EDPSS_Q_CH_FRONT_O].f))
+		return;
+
 	//peek:
 	vfm = dpss_q_peek_vfm(pch, EDPSS_Q_CH_IN);
 	if (!vfm || !vfm->dpss_data) {
@@ -1629,6 +1650,23 @@ void dpss_s2_parser_input_new(struct dpss_ch_s *pch)
 		return;
 	}
 	//========================================================
+	if (pch->d->di_front) {
+		ret_fifo = kfifo_get(&pch->d->q_ch[EDPSS_Q_CH_FRONT_O].f, &idx_front);
+		if (ret_fifo != 1 || idx_front >= DPSS_CFG_NUM) {
+			DBG_ERR("%s:front o %d %d\n", __func__,
+				ret_fifo, idx_front);
+			return;
+		}
+		vfm_front = pch->d->cfg_vfm[idx_front];
+		pch->d->cfg_vfm[idx_front] = NULL;
+		ret_fifo = kfifo_put(&pch->d->q_ch[EDPSS_Q_CH_FRONT_IDLE].f, idx_front);
+		if (ret_fifo != 1) {
+			DBG_ERR("%s:front idle %d %d\n", __func__,
+				ret_fifo, idx_front);
+			return;
+		}
+		nr_i->front_vfm = vfm_front;
+	}
 	vfm = dpss_q_out_vfm(pch, EDPSS_Q_CH_IN);
 
 	vfm_in = nr_i->in_vfm;
@@ -1646,7 +1684,10 @@ void dpss_s2_parser_input_new(struct dpss_ch_s *pch)
 	if ((w_mode & C_BIT0) &&
 	    pch->d->state_bypass) {
 		//send back to-do
-		dpss_q_in_vfm(&pch->d->q_ch[EDPSS_Q_CH_IN_RECYCLE], vfm); //to-do
+		if (pch->d->di_front)
+			dpss_di_front_bypass(pch, nr_i);
+		else
+			dpss_q_in_vfm(&pch->d->q_ch[EDPSS_Q_CH_IN_RECYCLE], vfm); //to-do
 		return;
 	}
 
@@ -1800,17 +1841,18 @@ void dpss_h_parser_nr(struct dpss_ch_s *pch)
 
 	if (!vfm || !vfm->dpss_data)
 		return;
+
 	//check if chg:
 
 	pch->q.wait_hw_finish = false;
 	pch->q.wait_sw_finish = false;
-
-	input_q_free_count = dpss_input_q_free_count(&pch->q);
-	if (input_q_free_count == 0) {
-		dbg_i2("%s:ch[%d] input_q is full!\n", __func__, pch->c.ch);
-		return;
+	if (!pch->d->di_front) {
+		input_q_free_count = dpss_input_q_free_count(&pch->q);
+		if (input_q_free_count == 0) {
+			dbg_i2("%s:ch[%d] input_q is full!\n", __func__, pch->c.ch);
+			return;
+		}
 	}
-
 	nr_free_id = dpss_h_b_buf_get_free(pch);
 	if (nr_free_id == DPSS_NR_NO_FREE) {
 		dbg_i2("%s:ch[%d] wait input vfm\n", __func__, pch->c.ch);
@@ -1841,7 +1883,7 @@ void dpss_h_parser_nr(struct dpss_ch_s *pch)
 			pch->q.wait_hw_finish = true;
 			return;
 		}
-		if (pch->c.in_cnt != pch->c.disp_cnt) {
+		if (pch->c.in_cnt != pch->c.disp_cnt && !pch->d->di_front) {
 			dbg_i2("%s:ch[%d]in_cnt:%d, disp_cnt:%d\n", __func__,
 				pch->c.ch,
 				pch->c.in_cnt,
@@ -1875,8 +1917,13 @@ void dpss_h_parser_nr(struct dpss_ch_s *pch)
 	}
 	if (nr_i->chg && nr_i->sub_vf_in.is_bypass) {
 		//send back vframe:
-		dpss_q_in_vfm(&pch->d->q_ch[EDPSS_Q_CH_IN_RECYCLE], vfm);
-		dpss_input_q_init(&pch->q);
+		if (pch->d->di_front)
+			dpss_di_front_bypass(pch, nr_i);
+		else
+			dpss_q_in_vfm(&pch->d->q_ch[EDPSS_Q_CH_IN_RECYCLE], vfm);
+
+		if (!pch->d->di_front)
+			dpss_input_q_init(&pch->q);
 		pch->c.in_cnt = 0;
 		pch->c.out_cnt = 0;
 		pch->c.disp_cnt = 0;
@@ -1923,7 +1970,8 @@ void dpss_h_parser_nr(struct dpss_ch_s *pch)
 		if (!light_chg) {
 			dpss_h_b_int(pch);
 			nr_only_int(pch, &nr_i->sub_vf_in, nr_i->in_vfm);
-			dpss_input_q_init(&pch->q);
+			if (!pch->d->di_front)
+				dpss_input_q_init(&pch->q);
 			pch->c.in_cnt = 0;
 			pch->c.out_cnt = 0;
 			pch->c.disp_cnt = 0;
@@ -1947,7 +1995,8 @@ void dpss_h_parser_nr(struct dpss_ch_s *pch)
 		return;
 	}
 
-	dpss_input_q_in(&pch->q, vfm);
+	if (!pch->d->di_front)
+		dpss_input_q_in(&pch->q, vfm);
 	if (!pch->c.ch)
 		dpss_get_hw()->st_idle &= ~C_BIT0;
 	else
@@ -1957,6 +2006,8 @@ void dpss_h_parser_nr(struct dpss_ch_s *pch)
 	dpss_h_b_buf_get(pch, nr_free_id, vfm);
 	if (pch->c.ch == 0 && pch->d->frc_link)
 		dpss_h_update_frc(vfm);
+	if (pch->d->di_front)
+		hw_cfg_addr_dio(pch, pch->c.in_cnt, nr_i->front_vfm);
 	nr_only_input_buf(pch, nr_i);
 	pch->d->cnt_h_in++;
 }
@@ -2107,6 +2158,169 @@ module_param_named(dpss_o_42210_4K, dpss_o_42210_4K, uint, 0664);
 unsigned int dpss_frc_delay_count = 2; // 3
 module_param_named(dpss_frc_delay_count, dpss_frc_delay_count, uint, 0664);
 
+void dpss_di_front_bypass(struct dpss_ch_s *pch, struct dpss_nr_i_s *nr_i)
+{
+	struct vframe_s *vfm_in, *vfm_front, *vfm;
+
+	if (!pch || !nr_i ||
+	    !nr_i->in_vfm ||
+	    !nr_i->front_vfm ||
+	    !nr_i->lk_grd_parent) {
+		DBG_ERR("%s:no input\n", __func__);
+		return;
+	}
+	vfm_in = nr_i->in_vfm;
+	vfm_front = nr_i->front_vfm;
+	vfm = (struct vframe_s *)nr_i->lk_grd_parent;
+	vfm_in->dpss_flg = DPSS_FLG_BYPASS | DPSS_FLG_FRONT;
+	vfm_front->dpss_flg = DPSS_FLG_BYPASS | DPSS_FLG_FRONT;
+	if (vfm_in->type & VIDTYPE_V4L_EOS)
+		vfm_front->type |= VIDTYPE_V4L_EOS;
+
+	dbg_ins1("%s:fill_out:%p, %d\n", __func__, vfm_front, pch->d->cnt_pst_get);
+	pch->d->cnt_pst_get++;
+	pch->c.parm.ops.fill_output_done(pch->c.parm.ops.arg, vfm_front);
+
+	dpss_in_rck_in(pch, vfm_in);
+	nr_i->in_vfm = NULL;
+	nr_i->front_vfm = NULL;
+
+	memset(&nr_i->sub_vf_in, 0, sizeof(nr_i->sub_vf_in));
+
+	dpss_q_in_vfm(&pch->d->q_ch[EDPSS_Q_CH_IDLE_NR], vfm);
+}
+
+/* only for di_front */
+void dpss_s2_parser_rd_nr_only(struct dpss_ch_s *pch)
+{
+	unsigned int idx;
+	struct PRM_DPSS_TOP *prm_top;// = prm_dpss_top;
+	unsigned int dpe_done_diff;
+	bool tbc_mode;
+	unsigned int count;
+	unsigned int in_cnt, out_cnt;
+//	unsigned char b_idx;
+	struct vframe_s *vfm = NULL, *vfm_in = NULL, *vfm_fr = NULL;
+	struct dpss_nr_i_s *nr_i;
+	struct canvas_config_s *cvs;
+
+	if (!pch->d || !pch->d->init)
+		return;
+	if (!pch->d->di_front) {
+		DBG_ERR("%s:not di_front?\n", __func__);
+		return;
+	}
+
+	prm_top = &pch->c.prm_top;
+
+	nr_h_wait_mode(pch);	//tmp here
+
+	if (pch->c.in_cnt < pch->c.out_cnt) {
+		DBG_WARN("%s:overflow:%u, %u\n", __func__,
+			pch->c.in_cnt, pch->c.out_cnt);
+		return;
+	}
+	if (pch->c.in_cnt == pch->c.out_cnt)
+		return;
+
+	in_cnt = pch->c.in_cnt;
+	out_cnt = pch->c.out_cnt;
+	if (prm_top->src_mode == 0)
+		count = rd(DPSS_FBUF_DPE_FRM_IDX);
+	else
+		count = rd(DPSS_FBUF_DPE_FRM_IDX + 0x300);
+
+	if (out_cnt >= count)
+		return;
+
+	dpe_done_diff = count - pch->c.out_cnt;
+	//---------------------------------------------
+	idx = out_cnt % pch->c.o_b_nub;
+
+	vfm = dpss_h_b_buf_put(pch, idx);//just for balance
+
+	if (!vfm || !vfm->dpss_data) {
+		DBG_WARN("%s:ch[%d]:no vfm?\n", __func__, pch->c.ch);
+		//return;
+	} else {
+		nr_i = lk_get_nr_i(vfm);
+		if (!nr_i || !nr_i->in_vfm) {
+			DBG_ERR("%s: nr_i is null or no in_vfm?\n", __func__);
+			return;
+		}
+		vfm_fr = nr_i->front_vfm;
+		if (vfm_fr) {
+			vfm_fr->dpss_flg = 0;
+			vfm_fr->dpss_flg = DPSS_FLG_FRONT;
+			vfm_fr->plane_num = 2;
+			vfm_fr->bitdepth = 0;
+			vfm_fr->type_dw = 0;
+			vfm_fr->type &= ~DPSS_VFMT_MASK_ALL;
+			vfm_fr->type |= VIDTYPE_VIU_FIELD;
+			if (prm_top->out_mode == OUT_YUV420_NV12)
+				vfm_fr->type |= VIDTYPE_VIU_NV12;
+			else
+				vfm_fr->type |= VIDTYPE_VIU_NV21;
+
+			vfm_fr->bitdepth |= (BITDEPTH_Y8 |
+				BITDEPTH_U8	|
+				BITDEPTH_V8);
+			vfm_fr->canvas0Addr = (u32)-1;
+			cvs = &vfm_fr->canvas0_config[0];
+			cvs->bit_depth = 8;
+			cvs->width = nr_i->sub_vf_in.cvs_h;
+			cvs->height = nr_i->sub_vf_in.height;
+			cvs->block_mode = 0;
+			cvs->endian = 0;
+			cvs = &vfm_fr->canvas0_config[1];
+			cvs->bit_depth = 8;
+			cvs->width = nr_i->sub_vf_in.cvs_h;
+			cvs->height = nr_i->sub_vf_in.height;
+			cvs->height = cvs->height >> 1;
+			cvs->block_mode = 0;
+			cvs->endian = 0;
+
+			nr_i->front_vfm = NULL;
+			vfm_in = nr_i->in_vfm;
+
+			dpss_in_rck_in(pch, vfm_in);
+			nr_i->in_vfm = NULL;
+
+			memset(&nr_i->sub_vf_in, 0, sizeof(nr_i->sub_vf_in));
+			//to-do: need mv sub infor in one;
+			dpss_q_in_vfm(&pch->d->q_ch[EDPSS_Q_CH_IDLE_NR], vfm);
+		}
+	}
+	//---------------------------------------------
+	//
+	if (vfm_fr) {
+		dbg_ins1("%s:fill_out:%p, %d\n", __func__, vfm_fr, pch->d->cnt_pst_get);
+		pch->d->cnt_pst_get++;
+		pch->c.parm.ops.fill_output_done(pch->c.parm.ops.arg, vfm_fr);
+	} else {
+		DBG_ERR("%s:no vfm ?\n", __func__);
+	}
+	//---------------------------------------------
+	// release buffer:-----------------------------
+	if (prm_top->sw_tbc_mode)
+		tbc_mode = true;
+	else
+		tbc_mode = false;
+	hw_release_buf(prm_top->src_mode, idx, tbc_mode); //idx need check
+	//---------------------------------------------
+	dbg_ct1("%s:ch[%d] r in_cnt =%d out_cnt=%d hw = %d\n",
+		__func__,
+		pch->c.ch, pch->c.in_cnt, pch->c.out_cnt, count);
+	pch->c.out_cnt++;
+
+	if (pch->c.in_cnt == pch->c.out_cnt) {
+		dbg_i2("%s:hw finish\n", __func__);
+		if (!pch->c.ch)
+			dpss_get_hw()->st_idle |= C_BIT0;
+		else
+			dpss_get_hw()->st_idle |= C_BIT1;
+	}
+}
 //pre-mem:
 /************************
  * [3:0] sml
@@ -3738,7 +3952,11 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 		return;
 	}
 
-	if (pch->c.etype) {
+	if (pch->d->di_front) {
+		is_4k = false;
+		is_i = true;
+		need_afrc = false;
+	} else if (pch->c.etype) {
 		if (pch->c.parm.di_parm.width > 1 || pch->c.parm.di_parm.height > 1)
 			is_4k = true;
 		else
@@ -4308,7 +4526,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	}
 	dbg_m0("ch[%d] nr:0x%x, mem_support=0x%x\n",
 		pch->c.ch, size_buf, pch->c.mem_support);
-	if (!size_buf) {
+	if (!size_buf && !pch->d->di_front) {
 		DBG_ERR("%s:size is 0? 0x%x\n", __func__,
 			(unsigned int)pch->c.mem_support);
 		size_buf = dd->hd_nr_info.size_total;
@@ -4386,76 +4604,80 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	else
 		dbg_m0("Workmode is : YUV\n");
 //-------------------------
-	for (i = 0; i < pch->c.o_b_nub; i++) {
-		blk = &pch->c.blk_r_nr[i];
-		memset(&oret, 0, sizeof(oret));
-		memset(&a_para, 0, sizeof(a_para));
-		a_para.inf = blk_i;
-		a_para.owner = "nr";
-		a_para.note = "tmp";
-		a_para.shift_bits = 9;
-		a_para.ower_id = 3 + i;
+	if (!pch->d->di_front) {
+		for (i = 0; i < pch->c.o_b_nub; i++) {
+			blk = &pch->c.blk_r_nr[i];
+			memset(&oret, 0, sizeof(oret));
+			memset(&a_para, 0, sizeof(a_para));
+			a_para.inf = blk_i;
+			a_para.owner = "nr";
+			a_para.note = "tmp";
+			a_para.shift_bits = 9;
+			a_para.ower_id = 3 + i;
 
-		a_para.cma_flg = C_BIT1; //pre-alloc
-		if (dpss_mem_flg & 0xf0) {
-			a_para.cma_flg &= (~C_BIT1);
-			dbg_m0("nr:cma_flg= 0x%x\n", a_para.cma_flg);
-		}
-		aret = dpss_mm_alloc_api2(&a_para, &oret);
-		if (aret) {
-			blk->c.blk_typ = 0;	//tmp
-			blk->c.b.blk_m.inf = blk_i;
-			blk->c.b.blk_m.flg_alloc = true;
-			blk->c.b.blk_m.mem_start = oret.addr;
-			blk->c.b.blk_m.pages = oret.ppage;
-			blk->c.b.blk_m.mem_handle = oret.mem_handle;
-			blk->c.st_id = 0;	//EBLK_ST_ALLOC;
-			pch->c.alloc_cnt_blk_nr++;
-			dbg_m1("alloc:nr %s:%d\n", a_para.owner, i);
-			flg_a = true;
-			pch->c.blk_nr[i] = blk;
-
-			pch->c.addr_nr[i] = blk->c.b.blk_m.mem_start;
-			dbg_m1("nr addr:0x%lx\n", pch->c.addr_nr[i]);
-			pch->c.addr_nr_uv[i] = pch->c.addr_nr[i] + (blk_i->mem_size / 2);
-			if ((dpss_en_afbc & C_BIT1) || (pch->c.o_afbc & C_BIT1) || need_afrc)
-				pch->c.addr_nr_uv[i] = pch->c.addr_nr[i] +
-					afrc_info->size_body_y;
-
-			dbg_m1("uv addr=0x%lx\n", pch->c.addr_nr_uv[i]);
-
-			//cnt tab:
-			if (((dpss_en_afbc & C_BIT0) ||
-			     (pch->c.o_afbc & C_BIT0)) && a_afbc_hd && a_afbc_tab) {
-				pch->c.crc_y[i] =
-					dpss_afbc_int_tab(pch->c.addr_afbc_tab[i],
-					pch->c.addr_nr[i],
-					afbc_info->size_tab,
-					size_buf);
-			} else if (((dpss_en_afbc & C_BIT1) ||
-				(pch->c.o_afbc & C_BIT1) || need_afrc) &&
-				a_afbc_hd  && a_afbc_tab) {
-				//y:
-				pch->c.crc_y[i] = dpss_afbc_int_tab(pch->c.addr_afbc_tab[i],
-						pch->c.addr_nr[i],
-						afrc_info->size_tab_y,
-						afrc_info->size_body_y);
-				//c:
-				pch->c.crc_c[i] = dpss_afbc_int_tab(pch->c.addr_afbc_tab_c[i],
-						pch->c.addr_nr_uv[i],
-						afrc_info->size_tab_c,
-						afrc_info->size_body_c);
-			} else if (((dpss_en_afbc & 0xff)	||
-				   (pch->c.o_afbc & 0xff)) &&
-				   (!a_afbc_hd || !a_afbc_tab)) {
-				DBG_ERR("no hd ?:0x%x %d %d\n",
-					dpss_en_afbc, a_afbc_hd, a_afbc_tab);
+			a_para.cma_flg = C_BIT1; //pre-alloc
+			if (dpss_mem_flg & 0xf0) {
+				a_para.cma_flg &= (~C_BIT1);
+				dbg_m0("nr:cma_flg= 0x%x\n", a_para.cma_flg);
 			}
-		} else {
-			pch->d->mem_err |= C_BIT3;
-			DBG_WARN("alloc failed nr:%i\n", i);
-			//blk_idle_put(d_dd, blk);
-			pch->c.addr_nr[i] = 0;
+			aret = dpss_mm_alloc_api2(&a_para, &oret);
+			if (aret) {
+				blk->c.blk_typ = 0;	//tmp
+				blk->c.b.blk_m.inf = blk_i;
+				blk->c.b.blk_m.flg_alloc = true;
+				blk->c.b.blk_m.mem_start = oret.addr;
+				blk->c.b.blk_m.pages = oret.ppage;
+				blk->c.b.blk_m.mem_handle = oret.mem_handle;
+				blk->c.st_id = 0;	//EBLK_ST_ALLOC;
+				pch->c.alloc_cnt_blk_nr++;
+				dbg_m1("alloc:nr %s:%d\n", a_para.owner, i);
+				flg_a = true;
+				pch->c.blk_nr[i] = blk;
+
+				pch->c.addr_nr[i] = blk->c.b.blk_m.mem_start;
+				dbg_m1("nr addr:0x%lx\n", pch->c.addr_nr[i]);
+				pch->c.addr_nr_uv[i] = pch->c.addr_nr[i] + (blk_i->mem_size / 2);
+				if ((dpss_en_afbc & C_BIT1) ||
+					(pch->c.o_afbc & C_BIT1) || need_afrc)
+					pch->c.addr_nr_uv[i] = pch->c.addr_nr[i] +
+						afrc_info->size_body_y;
+
+				dbg_m1("uv addr=0x%lx\n", pch->c.addr_nr_uv[i]);
+
+				//cnt tab:
+				if (((dpss_en_afbc & C_BIT0) ||
+				     (pch->c.o_afbc & C_BIT0)) && a_afbc_hd && a_afbc_tab) {
+					pch->c.crc_y[i] =
+						dpss_afbc_int_tab(pch->c.addr_afbc_tab[i],
+						pch->c.addr_nr[i],
+						afbc_info->size_tab,
+						size_buf);
+				} else if (((dpss_en_afbc & C_BIT1) ||
+					(pch->c.o_afbc & C_BIT1) || need_afrc) &&
+					a_afbc_hd  && a_afbc_tab) {
+					//y:
+					pch->c.crc_y[i] = dpss_afbc_int_tab(pch->c.addr_afbc_tab[i],
+							pch->c.addr_nr[i],
+							afrc_info->size_tab_y,
+							afrc_info->size_body_y);
+					//c:
+					pch->c.crc_c[i] =
+						dpss_afbc_int_tab(pch->c.addr_afbc_tab_c[i],
+							pch->c.addr_nr_uv[i],
+							afrc_info->size_tab_c,
+							afrc_info->size_body_c);
+				} else if (((dpss_en_afbc & 0xff)	||
+					   (pch->c.o_afbc & 0xff)) &&
+					   (!a_afbc_hd || !a_afbc_tab)) {
+					DBG_ERR("no hd ?:0x%x %d %d\n",
+						dpss_en_afbc, a_afbc_hd, a_afbc_tab);
+				}
+			} else {
+				pch->d->mem_err |= C_BIT3;
+				DBG_WARN("alloc failed nr:%i\n", i);
+				//blk_idle_put(d_dd, blk);
+				pch->c.addr_nr[i] = 0;
+			}
 		}
 	}
 
@@ -4863,7 +5085,8 @@ static void dpss_buf_release(struct dpss_ch_s *pch)
 void dpss_buf_reg(struct dpss_ch_s *pch)
 {
 	dpss_buf_infor(pch);
-	dpss_buf_infor_4k(pch);//test
+	if (!pch->d->di_front)
+		dpss_buf_infor_4k(pch);//test
 
 	dpss_buf_alloc(pch);
 }

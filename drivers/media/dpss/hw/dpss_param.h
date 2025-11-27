@@ -573,6 +573,7 @@ struct PRM_DPSS_TOP {
 	bool is_hdmi_src;
 	bool reset_path;
 	u32  idx_done;
+	bool di_front; //1125
 	u32 s_cnt; //for dv cnt
 	bool dct_ahead_dv_mode;
 	unsigned char num_in;

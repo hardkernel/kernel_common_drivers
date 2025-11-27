@@ -58,6 +58,6 @@ static inline unsigned int get_reg_bits(unsigned int val, unsigned int bstart,
 unsigned int code_count(void *p);
 bool code_check(void *p, unsigned int code);
 
-bool dpss_timer_cnt(unsigned long *ptimer, unsigned int hs_nub);
+//tmp bool dpss_timer_cnt(unsigned long *ptimer, unsigned int hs_nub);
 
 #endif	/*__BASE_C_H__*/
