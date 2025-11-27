@@ -104,6 +104,7 @@ void vdin_sct_free_wr_list_idx(struct vf_pool *p, struct vframe_s *vf)
 void vdin_sct_read_mmu_num(struct vdin_dev_s *devp, struct vf_entry *vfe)
 {
 	unsigned int *paddr = NULL;
+	unsigned int idx;
 
 	if (devp->mem_type == VDIN_MEM_TYPE_SCT && vfe) {
 		if (devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) {
@@ -121,10 +122,15 @@ void vdin_sct_read_mmu_num(struct vdin_dev_s *devp, struct vf_entry *vfe)
 		} else {
 			vfe->vf.afbce_num = rd(devp->addr_offset, AFBCE_MMU_NUM);
 		}
+		idx = devp->msct_top.cur_frame_idx;
+		devp->msct_top.sct_stat[idx].compressed_page_cnt = vfe->vf.afbce_num;
 		devp->msct_top.vfe = vfe;
+
 		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_MMU_NUM)
-			pr_info("vdin%d vf:%d afbce_num:%d\n",
-				devp->index, vfe->vf.index, vfe->vf.afbce_num);
+			pr_info("vdin%d vf:%d afbce_num:%d;cur_idx:%d,cmp:%d\n",
+				devp->index, vfe->vf.index, vfe->vf.afbce_num,
+				devp->msct_top.cur_frame_idx,
+				devp->msct_top.sct_stat[idx].compressed_page_cnt);
 	}
 }
 
@@ -375,6 +381,7 @@ void vdin_sct_free_idx_in_game(struct vdin_dev_s *devp)
 void vdin_sct_worker(struct work_struct *work)
 {
 	int ret = 0;
+	unsigned int idx;
 	struct vf_entry *vfe = NULL, *next_wr_vfe = NULL;
 
 	struct vdin_dev_s *devp =
@@ -399,25 +406,22 @@ void vdin_sct_worker(struct work_struct *work)
 	//alloc memory for the next vfe.
 	next_wr_vfe = provider_vf_peek(devp->vfp);
 	if (next_wr_vfe) {
-		if ((devp->debug.sct_print_ctl & SCT_PRINT_CTL_WARN) &&
-		    !devp->game_mode && next_wr_vfe->sct_stat == VFRAME_SCT_STATE_FULL &&
-		    !(devp->debug.dbg_sct_ctl & DBG_SCT_CTL_NO_FREE_TAIL) &&
-		    !(devp->debug.dbg_sct_ctl & DBG_SCT_CTL_NO_FREE_WR_LIST))
-			pr_warn("%s,full mem size!!!vf_index:%d,sct_stat:%d,status:%d\n",
-				__func__, next_wr_vfe->vf.index,
-				next_wr_vfe->sct_stat, next_wr_vfe->status);
 		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_WORKER)
-			pr_info("%s,vf_idx:%d,cur_page_cnt:%d\n",
+			pr_info("%s,vf_idx:%d,cur_page_cnt:%d;status:%d,sct:%d,af_num:%d\n",
 				__func__, next_wr_vfe->vf.index,
-				devp->msct_top.sct_stat[next_wr_vfe->vf.index].cur_page_cnt);
+				devp->msct_top.sct_stat[next_wr_vfe->vf.index].cur_page_cnt,
+				next_wr_vfe->status, next_wr_vfe->sct_stat, devp->af_num);
 		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_MEM_HLD)
 			pr_info("vdin%d,mem handle[%d]:%p\n", devp->index, next_wr_vfe->vf.index,
 			next_wr_vfe->vf.mem_handle);
-		//this memory is used for every vf in one buffer mode,donot alloc again or free it
-		if (next_wr_vfe->vf.index != devp->af_num) {
+		if (next_wr_vfe->sct_stat != VFRAME_SCT_STATE_FULL) {
 			ret = vdin_sct_alloc(devp, next_wr_vfe->vf.index);
 			if (ret >= 0)
 				next_wr_vfe->sct_stat = VFRAME_SCT_STATE_FULL;
+		} else {
+			if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_WORKER)
+				pr_info("warning-vf_idx:%d,sct_stat:%d;\n",
+					next_wr_vfe->vf.index, next_wr_vfe->sct_stat);
 		}
 
 		next_wr_vfe->vf.afbce_num = 0;
@@ -435,19 +439,21 @@ void vdin_sct_worker(struct work_struct *work)
 
 	//free redundancy memory of captured vf.
 	//do not free redundancy pages in game mode,free all pages of these in wr_list.
-	if (vfe) {
-		if (!devp->game_mode && !(devp->debug.dbg_sct_ctl & DBG_SCT_CTL_NO_FREE_TAIL)) {
+	vfe = vf_get_master(devp->vfp, devp->msct_top.last_frame_idx);
+	if (vfe && next_wr_vfe && vfe->vf.index != next_wr_vfe->vf.index) {
+		if (!(devp->debug.dbg_sct_ctl & DBG_SCT_CTL_NO_FREE_TAIL)) {
+			idx = devp->msct_top.last_frame_idx;
 			if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_WORKER)
-				pr_info("%s,vdin%d index:%d,num:%d,stat:%d\n",
+				pr_info("%s,vdin%d index:%d,num:%d,stat:%d;idx:%d %d,cmp:%d\n",
 					__func__, devp->index, vfe->vf.index,
-					vfe->vf.afbce_num, vfe->sct_stat);
-			if (vfe->sct_stat != VFRAME_SCT_STATE_FULL)
-				pr_err("%s,sct_stat= %d\n", __func__, vfe->sct_stat);
+					vfe->vf.afbce_num, vfe->sct_stat,
+					devp->msct_top.cur_frame_idx,
+					devp->msct_top.last_frame_idx,
+					devp->msct_top.sct_stat[idx].compressed_page_cnt);
 			//free tail
-			vdin_sct_free_tail(devp, vfe->vf.index, vfe->vf.afbce_num);
+			vdin_sct_free_tail(devp, vfe->vf.index,
+				devp->msct_top.sct_stat[idx].compressed_page_cnt);
 			vfe->sct_stat = VFRAME_SCT_STATE_FREE_TAIL;
-		} else if (devp->game_mode) {
-			vdin_sct_free_idx_in_game(devp);
 		}
 		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_WORKER)
 			pr_info("%s,exit! vf_idx:%d,stat:%d %d\n", __func__,

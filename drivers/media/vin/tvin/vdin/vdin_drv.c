@@ -318,7 +318,7 @@ void tvin_update_vdin_prop(u8 port_type, u8 pkt_type)
 		break;
 	}
 	if (vdin_package_done_check_state(devp)) {
-		if (devp->game_mode && devp->mem_type != VDIN_MEM_TYPE_SCT)
+		if (devp->game_mode)
 			vdin_pause_hw_write(devp, 0);
 		devp->frame_drop_num = 1;
 		vdin_vf_skip_all_disp(devp->vfp);
@@ -4408,6 +4408,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/* game mode 2 */
 		vdin_vframe_put_and_recycle(devp, next_wr_vfe, put_md);
 	}
+	devp->msct_top.last_frame_idx = devp->msct_top.cur_frame_idx;
+	devp->msct_top.cur_frame_idx = curr_wr_vf->index;
 
 	devp->frame_cnt++;
 	vdin_slt_test(devp);

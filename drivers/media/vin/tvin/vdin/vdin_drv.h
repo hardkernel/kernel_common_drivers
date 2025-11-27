@@ -940,7 +940,7 @@ enum vdin_mem_type_e {
 
 struct vdin_msc_stat_s {
 	unsigned int cur_page_cnt;
-
+	unsigned int compressed_page_cnt;
 	unsigned int curr_tt_size;
 	unsigned int max_size; /* max for one frame */
 //	unsigned int sum_max_tt_size;
@@ -972,6 +972,9 @@ struct vdin_msct_top_s {
 	struct vdin_msc_stat_s sct_stat[VDIN_CANVAS_MAX_CNT];
 	u64 sc_start_time;
 	struct vf_entry *vfe;
+	/* For getting the compressed afbc size */
+	unsigned int cur_frame_idx;
+	unsigned int last_frame_idx;
 };
 /* scatter end */
 
