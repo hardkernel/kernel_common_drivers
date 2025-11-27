@@ -74,6 +74,17 @@ void film_grain_cfg(struct FGRAIN_t *fgrain, struct vframe_s *vf, uint cnt)
 		fgrain->src_8bit = false;
 	else
 		fgrain->src_8bit = true;
+
+	if (vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
+		w_reg_bit_vc(VPU_LUT_DMA_SEC_IN, 1, 0, 1);
+		w_reg_bit_vc(VPU_LUT_DMA_SEC_IN, 1, 1, 1);
+		w_reg_bit_vc(VPU_LUT_DMA_SEC_IN, 1, 2, 1);
+	} else {
+		w_reg_bit_vc(VPU_LUT_DMA_SEC_IN, 0, 0, 1);
+		w_reg_bit_vc(VPU_LUT_DMA_SEC_IN, 0, 1, 1);
+		w_reg_bit_vc(VPU_LUT_DMA_SEC_IN, 0, 2, 1);
+	}
+
 	id  = fgrain->id;
 	reg_ext_imode = fgrain->src_8bit_mst ? 0 : 1;
 	reg_comp_bits = fgrain->src_8bit == 1 ? 0 : 1;//8 : 10

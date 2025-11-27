@@ -345,9 +345,6 @@ void hw_cfg_dpss_dae(enum DPSS_WORK_MODE  dae_mode,
 	if (prm_top->src_is_1080p_nods) {
 		dae_yuv->little_endian = prm_top->l_endian;//dpss_dbg_uv_swap & C_BIT1;
 		dae_yuv->swap_64bit = prm_top->swap_64bit;//dpss_dbg_uv_swap & C_BIT2;
-	} else {
-		dae_yuv->little_endian = 1;
-		dae_yuv->swap_64bit = 0;
 	}
 	dae_yuv->canvas_hsize = prm_top->nr_src_canvas_hsize;
 
@@ -1427,7 +1424,7 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 	dae_yuv->uv_swap = 0;
 	dae_yuv->little_endian = prm_top->l_endian;
 	dae_yuv->swap_64bit = prm_top->swap_64bit;
-	dae_yuv->block_mode = prm_top->block_mode;
+	dae_yuv->block_mode = 0;//prm_top->block_mode;
 
 	dpss_cfg_viu_pix_rdmif(dae_yuv, 1);
 

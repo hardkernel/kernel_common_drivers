@@ -7,6 +7,7 @@
 #ifdef RUN_ON_ARM
 #include <linux/amlogic/media/di/dpss_interface.h>
 #include <linux/amlogic/media/dpss/dpss_frc.h>
+#include <linux/amlogic/media/dpss/frc_common_x.h>
 #include <linux/kfifo.h>
 #include <linux/module.h>
 #include <linux/semaphore.h>
@@ -46,7 +47,9 @@ void hw_cfg_dpss_mc_ini(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr)
 	w_reg_bit(DPSS_DPE_MC_START_CTRL, 4, 4, 13);
 	w_reg_bit(DPSS_DPE_MC_START_CTRL, 3, 0, 2);
 	w_reg_bit(DPSS_DPE_MC_START_CTRL, 4, 4, 13);
-	w_reg_bit(DPSS_DPE_MC_TOP_GCLK, 0xF, 8, 4);
+	//w_reg_bit(DPSS_DPE_MC_TOP_GCLK, 0xF, 8, 4);
+	//w_reg_bit(DPSS_DPE_MC_TOP_GCLK, 2, 16, 2);
+	wr(DPSS_DPE_MC_TOP_GCLK, 0x20f00);
 	// game mode cfg start
 	w_reg_bit(FRC_MC_HW_CTRL0, (game_mode | mc_lp_mode), 3, 1);	// lp_mode
 
@@ -772,7 +775,7 @@ void hw_cfg_dpss_mc_bbd(u32 frm_hsize, u32 frm_vsize, u32 bbd_en, u32 bbd_sel, u
 	w_reg_bit(FRC_BBD_MISC, 10, 4, 4);
 }
 
-void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top)
+void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 {
 	u32 data32;
 	u32 dpe_pre_pixl_buf;
@@ -821,7 +824,22 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top)
 	u32 dpe_melogo_baddr;
 	u32 dpe_vpmc_mv_baddr;
 
+	bool is_pause_state = false;
+	bool is_empty = false;
+
 	struct frc_chip_st *pchip_st = dpss_get_frc_st();
+	struct frc_state_s *state_st;
+
+	if (!pchip_st)
+		return;
+
+	state_st = &pchip_st->state_st;
+
+	if (!obuf_rdy) {
+		if (!state_st->enable_last_drop)
+			return;
+		is_pause_state = true;
+	}
 
 	data32		  = rd(DPSS_FRC_MC_IUFF_STATUS);
 	mc_ibuf_vld	  = (data32 >> 4) & 0x1;
@@ -841,24 +859,73 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top)
 	if (pchip_st && (pchip_st->state_st.mc_bypass || pchip_st->state_st.force_mc_phase0))
 		dpe_intp_phs = 0;
 
-	dbg_h2("display buff info: %x\n", data32);
-	dbg_h2("dpe_pre_pixl_buf     = %#x\n", dpe_pre_pixl_buf);
-	dbg_h2("dpe_cur_pixl_buf     = %#x\n", dpe_cur_pixl_buf);
-	dbg_h2("dpe_ibuf_nr_byps_pre = %#x\n", dpe_ibuf_nr_byps_pre);
-	dbg_h2("dpe_ibuf_nr_byps_cur = %#x\n", dpe_ibuf_nr_byps_cur);
-	dbg_h2("dpe_plogo_buf        = %#x\n", dpe_plogo_buf);
-	dbg_h2("dpe_clogo_buf        = %#x\n", dpe_clogo_buf);
-	dbg_h2("dpe_intp_phs         = %#x\n", dpe_intp_phs);
-	dbg_h2("dpe_byp_en           = %#x\n", dpe_byp_en);
+	if (!state_st->force_disable_check_fallback && state_st->check_fallback == 1) {
+		dpss_put_last_queue(&mc_ibuf_q, &is_empty, &dpe_cur_pixl_buf);
+		state_st->force_mc_cur_idx = dpe_cur_pixl_buf;
+		pr_frc(1, "need force mc cur id=%d\t(%d,%d)\n",
+			dpe_cur_pixl_buf, mc_ibuf_q.front, mc_ibuf_q.rear);
+		state_st->check_fallback = 2;
+	} else if (state_st->check_fallback == 2) {
+		if (dpe_pre_pixl_buf != state_st->force_mc_cur_idx)
+			dpe_cur_pixl_buf = state_st->force_mc_cur_idx;
+		else
+			state_st->check_fallback = 0;
+	}
+
+	if (!state_st->is_wait_mc_state) {
+		dpss_peek_queue(&mc_ibuf_q, &state_st->mc_q_idx, &is_empty);
+		if (!is_empty && state_st->mc_q_idx == dpe_pre_pixl_buf)
+			dpss_put_queue(&mc_ibuf_q, &state_st->mc_q_idx, &is_empty);
+	}
+
+	pr_frc(1, "is_empty=%d, is_pause_state=%d\n", is_empty, is_pause_state);
+
+	if (is_pause_state) {
+		if (is_empty) {
+			state_st->is_wait_mc_state = true;
+			return;
+		}
+		dpss_put_queue(&mc_ibuf_q, &state_st->mc_q_idx, &is_empty);
+		if (!state_st->is_pause_state_last_frmae) {
+			state_st->mc_q_idx_last = state_st->mc_q_idx;
+			dpss_put_queue(&mc_ibuf_q, &state_st->mc_q_idx, &is_empty);
+		}
+		dpe_pre_pixl_buf = state_st->mc_q_idx_last;
+		dpe_cur_pixl_buf = state_st->mc_q_idx;
+		dpe_intp_phs = 128;
+		state_st->is_pause_state_last_frmae = true;
+		state_st->mc_q_idx_last = state_st->mc_q_idx;
+	} else if (state_st->is_pause_state_last_frmae && state_st->mc_q_idx != 0xff &&
+		dpe_cur_pixl_buf != state_st->mc_q_idx) {
+		dpe_pre_pixl_buf = dpe_cur_pixl_buf;
+		dpe_cur_pixl_buf = state_st->mc_q_idx;
+		dpe_intp_phs = 128;
+	} else {
+		state_st->is_pause_state_last_frmae = false;
+		state_st->is_wait_mc_state = false;
+	}
+
+	if (state_st->is_wait_mc_state)
+		return;
+
+	pr_frc(1, "mc_q_idx=%d, dpe_pre_pixl_buf=%d, dpe_cur_pixl_buf=%d, pause_st_last=%d\n",
+		state_st->mc_q_idx, dpe_pre_pixl_buf, dpe_cur_pixl_buf,
+		state_st->is_pause_state_last_frmae);
+
+	pr_frc(1, "display buff info: %x\n", data32);
+	pr_frc(1, "dpe_ibuf_nr_byps_pre = %#x\n", dpe_ibuf_nr_byps_pre);
+	pr_frc(1, "dpe_ibuf_nr_byps_cur = %#x\n", dpe_ibuf_nr_byps_cur);
+	pr_frc(1, "dpe_plogo_buf        = %#x\n", dpe_plogo_buf);
+	pr_frc(1, "dpe_clogo_buf        = %#x\n", dpe_clogo_buf);
+	pr_frc(1, "dpe_intp_phs         = %#x\n", dpe_intp_phs);
+	pr_frc(1, "dpe_byp_en           = %#x\n", dpe_byp_en);
 
 	data32				  = rd(FRC_DPSS_DISP_BUFF_INFO_1);
 	dpe_mvlogo_buf		  = (data32 >> 0) & 0xf;
 	dpe_mv_cur_frm_idx	  = dpe_mvlogo_buf;
 	dpe_image_cur_frm_idx = dpe_cur_pixl_buf;
 	dpe_image_pre_frm_idx = dpe_pre_pixl_buf;
-	dbg_h2("dpe_mv_cur_frm_idx      = %#x\n", dpe_mv_cur_frm_idx);
-	dbg_h2("dpe_image_cur_frm_idx   = %#x\n", dpe_image_cur_frm_idx);
-	dbg_h2("dpe_image_pre_frm_idx   = %#x\n", dpe_pre_pixl_buf);
+	pr_frc(1, "dpe_mv_cur_frm_idx      = %#x\n", dpe_mv_cur_frm_idx);
 
 	bool mc_mif_reg_mode = (rd(DPSS_DPE_MC_MIF_CTRL0) >> 2) & 0x1;
 	u32	 dpe_pixl_buf_idx0 =
@@ -974,19 +1041,19 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top)
 	dpe_melogo_baddr	 = mc_blk_logo_buf + dpe_mvlogo_buf * mc_blk_logo_step;
 	dpe_vpmc_mv_baddr	 = mc_vpmc_mv_buf + dpe_mvlogo_buf * mc_vpmc_mv_step;
 
-	dbg_h2("%s mc_luma0_rdmif_baddr1= %x\n", __func__, mc_luma0_rdmif_baddr1);
-	dbg_h2("%s mc_luma0_rdmif_baddr0= %x\n", __func__, mc_luma0_rdmif_baddr0);
-	dbg_h2("%s mc_chrm0_rdmif_baddr1= %x\n", __func__, mc_chrm0_rdmif_baddr1);
-	dbg_h2("%s mc_chrm0_rdmif_baddr0= %x\n", __func__, mc_chrm0_rdmif_baddr0);
-	dbg_h2("%s mc_luma1_rdmif_baddr1= %x\n", __func__, mc_luma1_rdmif_baddr1);
-	dbg_h2("%s mc_luma1_rdmif_baddr0= %x\n", __func__, mc_luma1_rdmif_baddr0);
-	dbg_h2("%s mc_chrm1_rdmif_baddr1= %x\n", __func__, mc_chrm1_rdmif_baddr1);
-	dbg_h2("%s mc_chrm1_rdmif_baddr0= %x\n", __func__, mc_chrm1_rdmif_baddr0);
+	pr_frc(1, "%s mc_luma0_rdmif_baddr1= %x\n", __func__, mc_luma0_rdmif_baddr1);
+	pr_frc(1, "%s mc_luma0_rdmif_baddr0= %x\n", __func__, mc_luma0_rdmif_baddr0);
+	pr_frc(1, "%s mc_chrm0_rdmif_baddr1= %x\n", __func__, mc_chrm0_rdmif_baddr1);
+	pr_frc(1, "%s mc_chrm0_rdmif_baddr0= %x\n", __func__, mc_chrm0_rdmif_baddr0);
+	pr_frc(1, "%s mc_luma1_rdmif_baddr1= %x\n", __func__, mc_luma1_rdmif_baddr1);
+	pr_frc(1, "%s mc_luma1_rdmif_baddr0= %x\n", __func__, mc_luma1_rdmif_baddr0);
+	pr_frc(1, "%s mc_chrm1_rdmif_baddr1= %x\n", __func__, mc_chrm1_rdmif_baddr1);
+	pr_frc(1, "%s mc_chrm1_rdmif_baddr0= %x\n", __func__, mc_chrm1_rdmif_baddr0);
 
-	dbg_h2("%s ip_logo0_rdmif_baddr = %x\n", __func__, ip_logo0_rdmif_baddr);
-	dbg_h2("%s ip_logo1_rdmif_baddr = %x\n", __func__, ip_logo1_rdmif_baddr);
-	dbg_h2("%s dpe_melogo_baddr     = %x\n", __func__, dpe_melogo_baddr);
-	dbg_h2("%s dpe_vpmc_mv_baddr    = %x\n", __func__, dpe_vpmc_mv_baddr);
+	pr_frc(1, "%s ip_logo0_rdmif_baddr = %x\n", __func__, ip_logo0_rdmif_baddr);
+	pr_frc(1, "%s ip_logo1_rdmif_baddr = %x\n", __func__, ip_logo1_rdmif_baddr);
+	pr_frc(1, "%s dpe_melogo_baddr     = %x\n", __func__, dpe_melogo_baddr);
+	pr_frc(1, "%s dpe_vpmc_mv_baddr    = %x\n", __func__, dpe_vpmc_mv_baddr);
 
 	////==========================================================////
 	//// dpe input data
@@ -995,7 +1062,7 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top)
 	u32 mc_use_tbc_addr = rd(DPSS_TOP_APB_TBC_SEL_CTRL) & 0x1;
 
 	if (mc_use_tbc_addr == 0) {
-		dbg_h2("MC use driver config\n");
+		pr_frc(1, "MC use driver config\n");
 
 		wr(DPSS_DPE_MC_DIN_LUMA0_BADDR0, mc_luma0_rdmif_baddr0);
 		wr(DPSS_DPE_MC_DIN_LUMA0_BADDR1, mc_luma0_rdmif_baddr1);
@@ -1009,7 +1076,7 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top)
 		wr(DPSS_DPE_MC_DIN_CHRM1_BADDR0, mc_chrm1_rdmif_baddr0);
 		wr(DPSS_DPE_MC_DIN_CHRM1_BADDR1, mc_chrm1_rdmif_baddr1);
 		if (prm_top->dpss_mode == DPSS_FRC_MODE &&
-			(pchip_st ? pchip_st->state_st.compr_sel != DDR_MIF : 0)) {
+			pchip_st->state_st.compr_sel != DDR_MIF) {
 			wr_vc(get_vfcd_regs_ofst(DPSS_RMIF_MC0) +
 				VFCD_AFBC_HEAD_BADDR, mc_luma0_rdmif_baddr1);
 			wr_vc(get_vfcd_regs_ofst(DPSS_RMIF_MC0) +
@@ -1026,7 +1093,7 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top)
 				VFCD_AFRC_CHRM_HEAD_BADDR, mc_chrm1_rdmif_baddr1);
 			wr_vc(get_vfcd_regs_ofst(DPSS_RMIF_MC1) +
 				VFCD_AFRC_CHRM_BODY_BADDR, mc_chrm1_rdmif_baddr0);
-			dbg_h2("MC vfcd afbc/afrc config\n");
+			pr_frc(1, "MC vfcd afbc/afrc config\n");
 		}
 
 		wr(DPSS_DPE_MC_DIN_LOGO_BADDR0, ip_logo0_rdmif_baddr);
@@ -1041,7 +1108,7 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top)
 
 		dpss_dpe_dbg_cfg();
 	} else {
-		dbg_h2("MC use tbc config\n");
+		pr_frc(1, "MC use tbc config\n");
 	}
 
 	bool cut_win_en = prm_top->cut_win_en;
@@ -1214,13 +1281,13 @@ void hw_dpss_dpe_info_cfg_sw(u32 *base_addr, u32 *base_oft, u32 buf_num,
 	dpe_mv_cur_frm_idx	  = mv_phs_idx;			// dae_frm_idx%buf_num;
 	dpe_image_cur_frm_idx = dpe_cur_pixl_buf;	// vdin_frm_idx%vdin_buf_num;
 	dpe_image_pre_frm_idx = dpe_pre_pixl_buf;	// vdin_frm_idx%vdin_buf_num;
-	dbg_h2("dpe_pre_pixl_buf        : %x\n", dpe_pre_pixl_buf);
-	dbg_h2("dpe_cur_pixl_buf        : %x\n", dpe_cur_pixl_buf);
-	dbg_h2("dpe_plogo_buf           = %x\n", dpe_plogo_buf);
-	dbg_h2("dpe_clogo_buf           = %x\n", dpe_clogo_buf);
-	dbg_h2("dpe_mvlogo_buf          = %x\n", dpe_mvlogo_buf);
-	dbg_h2("dpe_mv_cur_frm_idx      = %x\n", dpe_mv_cur_frm_idx);
-	dbg_h2("dpe_image_cur_frm_idx   = %x\n", dpe_image_cur_frm_idx);
+	pr_frc(1, "dpe_pre_pixl_buf        : %x\n", dpe_pre_pixl_buf);
+	pr_frc(1, "dpe_cur_pixl_buf        : %x\n", dpe_cur_pixl_buf);
+	pr_frc(1, "dpe_plogo_buf           = %x\n", dpe_plogo_buf);
+	pr_frc(1, "dpe_clogo_buf           = %x\n", dpe_clogo_buf);
+	pr_frc(1, "dpe_mvlogo_buf          = %x\n", dpe_mvlogo_buf);
+	pr_frc(1, "dpe_mv_cur_frm_idx      = %x\n", dpe_mv_cur_frm_idx);
+	pr_frc(1, "dpe_image_cur_frm_idx   = %x\n", dpe_image_cur_frm_idx);
 	////====================================////
 	//// dpe input data
 	////====================================////

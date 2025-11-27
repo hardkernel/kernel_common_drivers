@@ -388,6 +388,7 @@ struct dpss_mem_a_s {		//mem_a_s
 	const char *note;
 	unsigned int shift_bits;
 	unsigned char ower_id;	//use this to debug only
+	unsigned int cma_flg; // 10-17
 };
 
 struct dpss_mem_r_s {		//mem_r_s
@@ -499,7 +500,7 @@ struct dpss_buf_sml_s {		//c_cfg_sml_s
 	//unsigned int size_nr;
 	unsigned int size_dw;
 	unsigned int size_mix;
-	unsigned int size_mix_c;	//use this as frc mix buffer
+//	unsigned int size_mix_c;	//use this as frc mix buffer
 	unsigned int size_mv;
 	unsigned int size_alp;
 	unsigned int size_logo;
@@ -583,12 +584,14 @@ struct dpss_buf_sml_s {		//c_cfg_sml_s
 //      unsigned int size_s_nr_only;
 	unsigned int size_s_frc_only;
 	unsigned int size_s_nr_frc;
+#ifdef _HIS_CODE_
 	bool en_dct;
 	bool en_tfbc;
 	bool en_grad;
 	bool en_dw;
 	bool en_frc;
 	bool en_afbc;
+#endif
 };
 
 struct dpss_buf_rdma_s {

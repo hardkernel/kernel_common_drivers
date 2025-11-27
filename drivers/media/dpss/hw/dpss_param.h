@@ -347,7 +347,8 @@ struct PRM_DPSS_TOP {
 	bool   frc_iplogo_en:1;
 	bool   frc_bbd_en:1;
 	bool   frc_no_alg_ko:1;
-	bool   use_inp_big:1;
+	u8   use_inp_big;
+	int            amdv_2_frc_frm;
 	unsigned int        src0_fbuf_yaddr[16];
 	unsigned int        src0_fbuf_caddr[16];
 	unsigned int        src0_dwbuf_yaddr[16];
@@ -546,6 +547,7 @@ struct PRM_DPSS_TOP {
 	bool mode_drct;
 	bool mode_drct2;
 	bool mode_drct_lst; //for dd
+	bool dw_disable; //
 	struct dpss_input_q *in_q;
 	u32 vds_4k1k_en;
 	bool is_current;
@@ -558,6 +560,14 @@ struct PRM_DPSS_TOP {
 	bool trig_bypass; //1006
 	u32 s_cnt; //for dv cnt
 	bool dct_ahead_dv_mode;
+	unsigned char num_in;
+	unsigned char num_dpe_o;
+	unsigned char num_lc; //
+	unsigned char num_aepe;
+	unsigned char num_nr_wrpt;
+	unsigned char num_dblk;
+	unsigned char num_dpe_ro;
+	unsigned char num_nr_me_ro;
 };
 
 struct PRM_DPSS_SIZE {

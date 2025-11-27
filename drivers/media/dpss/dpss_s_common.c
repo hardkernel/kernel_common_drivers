@@ -84,6 +84,44 @@ unsigned int pass_cnt; //crc
 unsigned int dpss_light_chg;
 module_param_named(dpss_light_chg, dpss_light_chg, uint, 0664);
 
+//bit[15:0] src0 en: bit 15
+//bit [31:16] src1 en : bit 31
+unsigned int dpss_mem_support; //
+module_param_named(dpss_mem_support, dpss_mem_support, uint, 0664);
+
+unsigned int dpss_cfg_buf_num;
+module_param_named(dpss_cfg_buf_num, dpss_cfg_buf_num, uint, 0664);
+
+unsigned char dpss_cfg_num_in(unsigned int ch)
+{
+	if (ch)
+		return (unsigned char)((dpss_cfg_buf_num >> 16) & 0xf);
+
+	return (unsigned char)(dpss_cfg_buf_num & 0xf);
+}
+
+unsigned char dpss_cfg_num_out(unsigned int ch)
+{
+	unsigned int tmp;
+
+	if (ch) {
+		tmp = dpss_cfg_buf_num >> 16;
+		return (unsigned char)((tmp >> 4) & 0xf);
+	}
+	return (unsigned char)((dpss_cfg_buf_num >> 4) & 0xf);
+}
+
+unsigned char dpss_cfg_num_pq(unsigned int ch)
+{
+	unsigned int tmp;
+
+	if (ch) {
+		tmp = dpss_cfg_buf_num >> 16;
+		return (unsigned char)((tmp >> 8) & 0xf);
+	}
+	return (unsigned char)((dpss_cfg_buf_num >> 8) & 0xf);
+}
+
 /********************************
  *timer:
  *******************************/
@@ -454,6 +492,7 @@ bool dpss_s_prob(struct dpss_dev_s *dpss_pdev)
 	dpss_buf_infor(pch);
 	dpss_buf_infor_4k(pch);
 	dpss_pch_init();
+	dpss_pre_buf_prob();
 
 	return 0;
 }
@@ -496,7 +535,9 @@ void dpss_s_suspend(struct dpss_dev_s *dpss_pdev)
 			return;
 		}
 	}
-
+#ifdef FUNC_EN_PQ
+	pq_update_suspend_flag(1);
+#endif
 	if (dpss_pdev->clk_status) {
 		DBG_INF("dpss suspend start close clk\n");
 		clk_set_rate(dpss_pdev->vpu_clk_dpe, 0);
@@ -520,6 +561,9 @@ void dpss_s_resume(struct dpss_dev_s *dpss_pdev)
 		clk_set_rate(dpss_pdev->vpu_clk_dpe, 800000000);
 		dpss_pdev->clk_status |= (1 << 1);
 	}
+
+	dpss_irq_set_affinity_hint(dpss_pdev);
+
 	dbg_s1("cur dpe clk :0x%lx\n", clk_get_rate(dpss_pdev->vpu_clk_dpe));
 	dbg_s1("cur dae clk :0x%lx\n", clk_get_rate(dpss_pdev->vpu_clk_dae));
 	dbg_s1("%s ok\n", __func__);
@@ -537,7 +581,9 @@ void dpss_s_freeze(struct dpss_dev_s *dpss_pdev)
 			return;
 		}
 	}
-
+#ifdef FUNC_EN_PQ
+	pq_update_suspend_flag(1);
+#endif
 	dbg_s1("dpss freeze start close clk\n");
 	if (dpss_pdev->clk_status) {
 		clk_set_rate(dpss_pdev->vpu_clk_dpe, 0);
@@ -561,9 +607,27 @@ void dpss_s_restore(struct dpss_dev_s *dpss_pdev)
 		clk_set_rate(dpss_pdev->vpu_clk_dpe, 800000000);
 		dpss_pdev->clk_status |= (1 << 1);
 	}
+
+	dpss_irq_set_affinity_hint(dpss_pdev);
+
 	dbg_s1("cur dpe clk :0x%lx\n", clk_get_rate(dpss_pdev->vpu_clk_dpe));
 	dbg_s1("cur dae clk :0x%lx\n", clk_get_rate(dpss_pdev->vpu_clk_dae));
 	dbg_s1("%s ok\n", __func__);
+}
+
+void dpss_irq_set_affinity_hint(struct dpss_dev_s *dpss_pdev)
+{
+	u32 i;
+
+	if (!dpss_pdev)
+		return;
+
+	for (i = 0; i < DPSS_IRQ_ID_NUB; i++) {
+		if (i == 0)
+			irq_set_affinity_hint(dpss_pdev->irq_q[i], cpumask_of(3));
+		else
+			irq_set_affinity_hint(dpss_pdev->irq_q[i], cpumask_of(2));
+	}
 }
 
 void dpss_s_thaw(struct dpss_dev_s *dpss_pdev)
@@ -1228,6 +1292,8 @@ void dpss_reg_val(struct dpss_ch_s *pch)
 	int i;
 	struct dpss_dd_s *dd;
 
+	unsigned char cfg_num_in = 0, cfg_num_o = 0, cfg_num_pq = 0;
+
 	dd = dpss_get_dd();
 	if (!pch || !dd) {
 		DBG_WARN("%s:no pch or dd\n", __func__);
@@ -1246,13 +1312,23 @@ void dpss_reg_val(struct dpss_ch_s *pch)
 		pch->d->is_secure = true;
 	dbg_i0("is_secure:%d\n", pch->d->is_secure);
 
+	cfg_num_in = dpss_cfg_num_in(pch->c.ch);
+	cfg_num_o = dpss_cfg_num_out(pch->c.ch);
+
 	if (pch->c.parm.dps_work_mode != DPSS_WORK_MODE_FRC) {
 		pch->c.in_b_nub = DPSS_HW_LOOP_IN_OUT_BUF_NUB;
 		pch->c.o_b_nub = DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+
+		if (cfg_num_in && cfg_num_in < DPSS_HW_LOOP_IN_OUT_BUF_NUB)
+			pch->c.in_b_nub = cfg_num_in;
+		if (cfg_num_o && cfg_num_o < DPSS_HW_LOOP_IN_OUT_BUF_NUB)
+			pch->c.o_b_nub = cfg_num_o;
 	} else {
 		pch->c.in_b_nub = 16;
 		pch->c.o_b_nub = 16;
 	}
+	dbg_i0("in_b_nub=%d o = %d\n", pch->c.in_b_nub, pch->c.o_b_nub);
+
 	pch->c.cnt_in = 0;
 	pch->c.cnt_proce = 0;
 	pch->c.cnt_dpe_rd_cp = 0;
@@ -1284,6 +1360,61 @@ void dpss_reg_val(struct dpss_ch_s *pch)
 	pch->d->afrc_bs_y = dd->afrc_bs_y;
 	pch->d->afrc_bs_c = dd->afrc_bs_c;
 	dbg_i2("afrc:bs <%d> <%d>\n", pch->d->afrc_bs_y, pch->d->afrc_bs_c);
+//------
+	pch->c.en_dct = true;
+	pch->c.en_tfbc = true;
+	pch->c.en_dw = true;
+	pch->c.en_frc = true;
+	//num for mem
+//	pch->c.num_dpe_o = DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+	pch->c.num_lc = 4; //
+	pch->c.num_aepe = nr_aepe_buf_num_dbg;
+	pch->c.num_nr_wrpt = 3;
+	pch->c.num_pq_buf = pch->c.o_b_nub;
+	cfg_num_pq = dpss_cfg_num_pq(pch->c.ch);
+
+	if (cfg_num_pq && cfg_num_pq <= DPSS_HW_LOOP_IN_OUT_BUF_NUB) {
+		pch->c.num_pq_buf = cfg_num_pq;
+		dbg_i0("num_pq_buf = %d\n", pch->c.num_pq_buf);
+	}
+
+	if (!pch->c.ch) {
+		if (!(pch->c.parm.dps_work_mode & DPSS_WORK_MODE_FRC))
+			pch->c.en_frc = false;
+		if (pch->c.etype) {
+			if (pch->c.parm.di_parm.is_interlace) {
+				pch->c.support_i = true;
+				pch->c.support_4k = false;
+			} else {
+				pch->c.support_i = false;
+				pch->c.support_4k = true;
+			}
+		} else {
+			//vfm path: tmp:
+			pch->c.support_4k = true;
+			pch->c.support_i = true;
+		}
+		if (pch->c.support_4k)
+			pch->c.mem_support = C_BIT2 | C_BIT5;
+		else
+			pch->c.mem_support = C_BIT2;
+		if (dpss_mem_support & C_BIT15)
+			pch->c.mem_support = (unsigned char)(dpss_mem_support & 0xff);
+	} else {
+		pch->c.en_dw = false;
+		pch->c.en_frc = false;
+		pch->c.support_4k = false;
+		pch->c.support_i = true;
+		pch->c.mem_support = C_BIT2;
+		if (dpss_mem_support & C_BIT31)
+			pch->c.mem_support =
+			(unsigned char)((dpss_mem_support >> 16) & 0xff);
+	}
+	if (!pch->c.support_i && !dpss_lc_buf)
+		pch->c.num_lc = 0;
+
+	dbg_m0("%s:mem_support:0x%x\n", __func__, pch->c.mem_support);
+//------
 
 	if (pch->c.ch == 0) {
 		dpss_get_hw()->ch_act |= C_BIT0;
@@ -1352,6 +1483,7 @@ void dpss_s_unreg_step1(struct dpss_ch_s *pch)
 {
 	dbg_i0("%s:ch[%d]\n", __func__, pch->c.ch);
 	nr_unreg_hw(pch);
+	frc_unreg_hw(pch->c.ch);
 }
 
 bool dpss_s_unreg_wait_hw_stop(struct dpss_ch_s *pch)
@@ -1389,10 +1521,12 @@ void dpss_s_unreg_step2(struct dpss_ch_s *pch)
 	dpss_hdr_disable();
 #endif
 	dpss_s_print_inf(pch->c.ch);
+#ifdef _HIS_CODE_	//ary
 	//dpss-patch for reg
 	vfree(pch->d);
 	pch->d = NULL;
 	dbg_i0("\t:clr d\n");
+#endif
 }
 
 //work when reg_s2
@@ -1946,6 +2080,13 @@ module_param_named(dpss_o_42210_4K, dpss_o_42210_4K, uint, 0664);
 unsigned int dpss_frc_delay_count = 2; // 3
 module_param_named(dpss_frc_delay_count, dpss_frc_delay_count, uint, 0664);
 
+//pre-mem:
+/************************
+ * [3:0] sml
+ ************************/
+unsigned int dpss_mem_flg;
+module_param_named(dpss_mem_flg, dpss_mem_flg, uint, 0664);
+
 void dpss_s2_parser_rd_new(struct dpss_ch_s *pch)
 {
 	unsigned int idx;
@@ -2054,7 +2195,7 @@ output_vf:
 		idx = pch->q.dpe_done_count % pch->c.o_b_nub;
 	}
 
-	if (idx > DPSS_HW_LOOP_IN_OUT_BUF_NUB - 1) {
+	if (idx > pch->c.o_b_nub - 1) {
 		DBG_ERR("%s: invalid buf index(%d).\n", __func__, idx);
 		return;
 	}
@@ -2116,7 +2257,7 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 		return;
 	}
 
-	vf_idx = pch->c.out_cnt % pch->c.o_b_nub;
+	vf_idx = pch->c.out_cnt % pch->c.in_b_nub;
 
 	if (dpss_slt_mode)
 		if (pch->c.out_cnt == 0)
@@ -2132,12 +2273,12 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 		bb_idx,
 		vf_idx);
 	pch->d->idx_done = bb_idx;
-	b_idx = (bb_idx + pch->d->idx_start) % DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+	b_idx = (bb_idx + pch->d->idx_start) % pch->c.o_b_nub;
 
 	hd_idx = bb_idx;
-	if (pch->d->idx_hd)
-		hd_idx = bb_idx + DPSS_HW_LOOP_IN_OUT_BUF_NUB;
-
+	if (pch->d->idx_hd) {
+		hd_idx = bb_idx + pch->c.o_b_nub;
+	}
 	if (!vfm || !vfm->dpss_data) {
 		DBG_ERR("%s:no vfm?\n", __func__);
 		return;
@@ -2240,9 +2381,6 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 		dbg_h0("dpss doing fg\n");
 	}
 
-	if (pch->d->frc_link)
-		vfm->type_ext |= VIDTYPE_EXT_FRC_LINK;
-
 	if (dpss_o_42210 == 2 || prm_top->out_mode == OUT_YUV422_2_PLANE) {
 		vfm->type &= ~(VIDTYPE_VIU_NV12 |
 			       VIDTYPE_VIU_444	|
@@ -2271,6 +2409,10 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 		DBG_ERR("%s:idx is overflow:%d,%d\n", __func__, b_idx,
 			pch->c.o_b_nub);
 		b_idx = 0;
+	}
+	if (pch->d->frc_link) {
+		vfm->type_ext |= VIDTYPE_EXT_FRC_LINK;
+		nr_i->nr_buf_idx = b_idx;
 	}
 	if (dpss_dbg_o_w) {
 		DBG_INF("force o w=%d -> %d\n", vfm->width, dpss_dbg_o_w);
@@ -2794,6 +2936,9 @@ void dpss_buf_s_count_rdma(struct dpss_buf_rdma_s *info)
 	       info->size_total, info->size_one, info->nub_max);
 }
 
+#define m_cnt(h, v, bit, off, a_b)  \
+	(((((((h) * (bit)) + (off)) >> (a_b)) << (a_b)) >> 3) * (v))
+
 /********************************************************/
 //buf:small mif:
 void dpss_buf_s_count_hd(bool hd, struct dpss_buf_sml_s *sml_i, struct dpss_ch_s *pch)
@@ -2803,21 +2948,31 @@ void dpss_buf_s_count_hd(bool hd, struct dpss_buf_sml_s *sml_i, struct dpss_ch_s
 	unsigned int canvas_width = 3840, canvas_align_width = 32;
 	unsigned int logo_h_size = 960, logo_v_size = 540;
 	unsigned int me_blk_h_size = 240, me_blk_v_size = 135;
+	unsigned int nr_addr_align = 16; //PAGE_SIZE;	//
+	unsigned char num_aepe;
+//	unsigned char num_dpe_o;
+	unsigned char num_dblk;
+	unsigned char num_nr_wrpt;
+	unsigned char num_dpe_ro;
+	unsigned char num_nr_me_ro;
+
+#ifdef _HIS_CODE_
 	bool is_p = false;
 
 	if (pch->c.parm.di_parm.is_interlace)
 		is_p = false;
 	else
 		is_p = true;
-	dbg_m2("%s is_p = %d", __func__, is_p);
+	dbg_m2("%s is_p = %d\n", __func__, is_p);
+#endif
 	/* tmp */
-	sml_i->en_dct = true;
-	sml_i->en_dw = true;
-	sml_i->en_grad = true;
-	sml_i->en_tfbc = true;
-	sml_i->en_frc = true;
+//	sml_i->en_dct = true;
+//	sml_i->en_dw = true;
+//	sml_i->en_grad = true;
+//	sml_i->en_tfbc = true;
+//	sml_i->en_frc = true;
 
-	sml_i->en_afbc = true;
+//	sml_i->en_afbc = true;
 	/**********************************************/
 	/* count buf info */
 	/**********************************************/
@@ -2846,22 +3001,20 @@ void dpss_buf_s_count_hd(bool hd, struct dpss_buf_sml_s *sml_i, struct dpss_ch_s
 	// gradh		3840	1	1	null	32
 	// gradv		1	2160	1	null	32
 
-	dbg_m2("%s:canvas_width %d\n", __func__, canvas_width);
+	dbg_m1("%s:canvas_width %d\n", __func__, canvas_width);
 	//size_dw fmt = 422 10 bit h * v
 	m_size = roundup(h * 10 * 2 / 8, 128) * v;
 	//sml_i->size_dw = roundup(m_size, canvas_align_width);
 	sml_i->size_dw = roundup(m_size, PAGE_SIZE); //09-16
 	//------------------------
 	//size_mix  h * v * 1 * 8 / 8
-	m_size = (960 * 8 + 511) / 512 * 512 * v / 8;//h * v;
-	sml_i->size_mix = roundup(m_size, canvas_align_width);
-	sml_i->size_mix_c = sml_i->size_mix;	//ary use this as frc mix buffer
+
+	sml_i->size_mix = m_cnt(960, 544, 8, 511, 9);
 	//------------------------
 	//size_mv  240 * 135 * 1 * 64 / 8
-	m_size = 240 * 135 * 64 / 8;
-	sml_i->size_mv = roundup(m_size, canvas_align_width);
-	m_size = (960 * 4 + 511) / 512 * 512 * 540 / 8;
-	sml_i->size_alp = roundup(m_size, canvas_align_width);
+
+	sml_i->size_mv =  m_cnt(240, 136, 64, 511, 9);
+	sml_i->size_alp =  m_cnt(960, 544, 4, 511, 9);
 	//------------------------
 	//size_logo  h * v * 1 * 1 / 8
 	m_size = (960 * 1 + 511) / 512 * 512 * v / 8;//h * v / 8;
@@ -2870,41 +3023,20 @@ void dpss_buf_s_count_hd(bool hd, struct dpss_buf_sml_s *sml_i, struct dpss_ch_s
 	//size_melogo  240 * 135 * 1  / 8
 	m_size = (960 * 1 + 511) / 512 * 512 * v / 8;//240 * 135 / 8;
 	sml_i->size_melogo = roundup(m_size, canvas_align_width);
-	//------------------------
-	//size_mtn  h * v * 1 * 4 / 8
-	m_size = (960 * 8 + 511) / 512 * 512 * v / 8;//h * v * 8 / 8;
-	sml_i->size_mtn = roundup(m_size, canvas_align_width);
-	//------------------------
-	//size_blk_info  240 * 135 * 1 * 32 / 8
-	m_size = (240 * 24 + 511) / 512 * 512 * 135 / 8;//240 * 135 * 32 / 8;
-	sml_i->size_blk_info = roundup(m_size, canvas_align_width);
-	//------------------------
-	//size_dmsq  h * v * 1 * 8 / 8
-	m_size = ((3840 / 2) * 4 + 511) / 512 * 512 * (2160 / 2) / 8;//h * v;
-	//m_size = (960 * 4 + 511) / 512 * 512 * v / 8;//h * v;
-	sml_i->size_dmsq = roundup(m_size, canvas_align_width);
-	//------------------------
-	//size_dct_c
-	sml_i->size_dct_y = SZ_512K + SZ_32K;	/*960 * 576 = 540K tmp */
-	sml_i->size_dct_c = sml_i->size_dct_y * 2;    /*960 * 576 = 540K tmp */
-	//------------------------
-	/*size_tfbc  h * v * 1 * 8 / 8 */
-	m_size = (128 * 8 + 511) / 512 * 512 * 96 / 8; //h * v; 128 * 96
-	sml_i->size_tfbc = roundup(m_size, canvas_align_width);
-	//------------------------
-	//size_dct_grid  81 * 46 * 1 * 384 / 8
-	m_size = 81 * 8 * 46 * 128 / 8;
-	sml_i->size_dct_grid = roundup(m_size, canvas_align_width);
-	//------------------------
-	//size_grad_h  h * 1 * 1 * 32 / 8
-	m_size = 3840 * 32 / 8;
-	sml_i->size_grad_h = roundup(m_size, canvas_align_width);
-	//------------------------
-	//size_grad_v  1 * v * 1 * 32 / 8
-	m_size = 2160 * 64 * 8 / 8;
-	sml_i->size_grad_v = roundup(m_size, canvas_align_width);
-	sml_i->size_ro1 = 0x1000;
-	sml_i->size_ro2 = 0x1000;
+
+	sml_i->size_mtn =  m_cnt(960, 544, 8, 511, 9);
+	sml_i->size_blk_info =  m_cnt(240, 136, 24, 511, 9);
+	sml_i->size_dmsq =  m_cnt(1920, 1088, 4, 511, 9);
+
+	sml_i->size_tfbc =  m_cnt(128, 96, 8, 511, 9);
+	sml_i->size_grad_h =  m_cnt(3840, 1, 32, 511, 9);
+	sml_i->size_grad_v =  m_cnt(4, 2160, 32, 511, 9);
+	sml_i->size_dct_grid =  m_cnt(648, 46, 128, 511, 9);
+	sml_i->size_dct_y =  m_cnt(960, 544, 8, 511, 9);
+	sml_i->size_dct_c = sml_i->size_dct_y << 1; // x 2
+	sml_i->size_ro1 =  m_cnt(580, 1, 32, 511, 9);
+	sml_i->size_ro2 =  sml_i->size_ro1;
+
 	// frc size -----------------------------------------------------------
 	m_size = (logo_h_size * 8 + 511) / 512 * 512 / 8 * 540; // 8000;//8 bit @dongfei
 	sml_i->size_frc_inp_mbuf0 = roundup(m_size, canvas_align_width);
@@ -2949,41 +3081,49 @@ void dpss_buf_s_count_hd(bool hd, struct dpss_buf_sml_s *sml_i, struct dpss_ch_s
 	dbg_m1("\tsize_frc_mer0:0x%x, 0x%x\n", m_size, sml_i->size_frc_mer0);
 	// frc size -----------------------------------------------------------
 	//------------------------DPSS_SML_NUB  (8)
+
+	num_aepe     = pch->c.num_aepe;
+	//num_dpe_o    = sml_i->num_dpe_o;
+	num_nr_wrpt  = pch->c.num_nr_wrpt;
+	num_dblk     = pch->c.num_pq_buf;
+	num_dpe_ro   = pch->c.num_pq_buf;
+	num_nr_me_ro = pch->c.num_pq_buf;
+
 	sml_i->size_ts_mix =
-	    roundup((sml_i->size_mix) * DPSS_SML_NUB, PAGE_SIZE);
+	    roundup((sml_i->size_mix) * num_nr_wrpt, nr_addr_align);
 	sml_i->size_ts_mv =
-	    roundup(sml_i->size_mv * DPSS_SML_NUB, PAGE_SIZE);
-	if (is_p)
+	    roundup(sml_i->size_mv * num_aepe, nr_addr_align); //num
+	if (!pch->c.support_i)
 		sml_i->size_ts_alp = 0;
 	else
 		sml_i->size_ts_alp =
-		roundup(sml_i->size_alp * DPSS_SML_NUB, PAGE_SIZE);
+		roundup(sml_i->size_alp * num_aepe, nr_addr_align); //num
 	sml_i->size_ts_logo =
 	    roundup(sml_i->size_logo * DPSS_SML_NUB, PAGE_SIZE);
 	sml_i->size_ts_melogo =
 	    roundup(sml_i->size_melogo * DPSS_SML_NUB, PAGE_SIZE);
 	sml_i->size_ts_mtn =
-	    roundup(sml_i->size_mtn * nr_aepe_buf_num_dbg, PAGE_SIZE);
+	    roundup(sml_i->size_mtn * num_aepe, nr_addr_align);
 	sml_i->size_ts_blk_info =
-	    roundup(sml_i->size_blk_info * nr_aepe_buf_num_dbg, PAGE_SIZE);
+	    roundup(sml_i->size_blk_info * num_aepe, nr_addr_align);
 	sml_i->size_ts_dmsq =
-	    roundup(sml_i->size_dmsq * DPSS_DMS_NUB, PAGE_SIZE);
+	    roundup(sml_i->size_dmsq * DPSS_DMS_NUB, nr_addr_align);
 	sml_i->size_ts_dct_grid =
-	    roundup(sml_i->size_dct_grid * nr_aepe_buf_num_dbg, PAGE_SIZE);
+	    roundup(sml_i->size_dct_grid * num_aepe, nr_addr_align);
 	sml_i->size_ts_dct_y =
-	    roundup(sml_i->size_dct_y * nr_aepe_buf_num_dbg, PAGE_SIZE);
+	    roundup(sml_i->size_dct_y * num_aepe, nr_addr_align);
 	sml_i->size_ts_dct_c =
-	    roundup(sml_i->size_dct_c * nr_aepe_buf_num_dbg, PAGE_SIZE);
+	    roundup(sml_i->size_dct_c * num_aepe, nr_addr_align);
 	sml_i->size_ts_tfbc =
-	    roundup(sml_i->size_tfbc * nr_aepe_buf_num_dbg, PAGE_SIZE);
+	    roundup(sml_i->size_tfbc * num_aepe, nr_addr_align);
 	sml_i->size_ts_grad_h =
-	    roundup(sml_i->size_grad_h * DPSS_SML_NUB, PAGE_SIZE);
+	    roundup(sml_i->size_grad_h * num_dblk, nr_addr_align);
 	sml_i->size_ts_grad_v =
-	    roundup(sml_i->size_grad_v * DPSS_SML_NUB, PAGE_SIZE);
+	    roundup(sml_i->size_grad_v * num_dblk, nr_addr_align);
 	sml_i->size_ts_ro1 =
-	    roundup(sml_i->size_ro1 * DPSS_SML_NUB, PAGE_SIZE);
+	    roundup(sml_i->size_ro1 * num_nr_me_ro, nr_addr_align);
 	sml_i->size_ts_ro2 =
-	    roundup(sml_i->size_ro2 * DPSS_SML_NUB, PAGE_SIZE);
+	    roundup(sml_i->size_ro2 * num_dpe_ro, nr_addr_align);
 #ifdef _HIS_CODE_
 	sml_i->size_ts_dw =
 	    roundup(sml_i->size_dw * DPSS_HW_LOOP_IN_OUT_BUF_NUB,
@@ -3053,7 +3193,7 @@ void dpss_buf_s_count_hd(bool hd, struct dpss_buf_sml_s *sml_i, struct dpss_ch_s
 	    sml_i->size_ts_frc_vp_mc_mv +
 	    sml_i->size_ts_frc_vp_mc_logo + sml_i->size_ts_frc_mero;
 
-	if (sml_i->en_dct) {
+	if (pch->c.en_dct) {
 		sml_i->size_t_nr_s = sml_i->size_t_nr_s + sml_i->size_ts_dct_y +
 			sml_i->size_ts_dct_c + sml_i->size_ts_dct_grid;
 	} else {
@@ -3061,31 +3201,28 @@ void dpss_buf_s_count_hd(bool hd, struct dpss_buf_sml_s *sml_i, struct dpss_ch_s
 		sml_i->size_ts_dct_y = 0;
 		sml_i->size_ts_dct_c = 0;
 	}
-	if (sml_i->en_tfbc)
+	if (pch->c.en_tfbc)
 		sml_i->size_t_nr_s = sml_i->size_t_nr_s + sml_i->size_ts_tfbc;
 	else
 		sml_i->size_ts_tfbc = 0;
 
-	if (sml_i->en_grad) {
-		sml_i->size_t_nr_s = sml_i->size_t_nr_s +
-		    sml_i->size_ts_grad_h + sml_i->size_ts_grad_v;
-	} else {
-		sml_i->size_ts_grad_h = 0;
-		sml_i->size_ts_grad_v = 0;
-	}
+	sml_i->size_t_nr_s = sml_i->size_t_nr_s +
+	    sml_i->size_ts_grad_h + sml_i->size_ts_grad_v;
 
-	if (!sml_i->en_dw)
+	if (!pch->c.en_dw)
 		sml_i->size_ts_dw = 0;
 
-	if (sml_i->en_frc)
+	if (pch->c.en_frc) {
 		sml_i->size_t_nr_frc_s = sml_i->size_t_nr_s + sml_i->size_t_frc;
-	else
+	} else {
 		sml_i->size_t_frc = 0;
+		sml_i->size_t_nr_frc_s = sml_i->size_t_nr_s;
+	}
 
 	sml_i->size_t_dct = sml_i->size_ts_dct_grid +
 		sml_i->size_ts_dct_y + sml_i->size_ts_dct_c;
 	sml_i->size_t_grad = sml_i->size_ts_grad_h + sml_i->size_ts_grad_v;
-	dbg_m1("\tsize_s_frc_only:0x%x\n", sml_i->size_t_frc);
+	dbg_m1("\tsize_t_frc:0x%x\n", sml_i->size_t_frc);
 	dbg_m1("\tsize_s_nr_only:0x%x, 0x%x\n", m_size, sml_i->size_t_nr_s);
 	dbg_m1("\tsize_s_nr_frc:0x%x\n", sml_i->size_t_nr_frc_s);
 	//------------------------
@@ -3166,10 +3303,16 @@ static int dpss_buf_nr_count(struct dpss_mm_p_cnt_in_s *i_cfg,
 		//o_cfg->size_total >> 1;//tmp
 	}
 
-	pr_info("%s mode=%d\n", __func__, i_cfg->mode);
-	pr_info("\t size_total:0x%x, size_page:0x%x, cvs:<%d, %d>, off_uv=0x%x,nr_width<%d, %d>\n",
-		o_cfg->size_total, o_cfg->size_page,
-		o_cfg->cvs_w, o_cfg->cvs_h, o_cfg->off_uv, nr_width, canvas_height);
+	dbg_m1("%s: mode:%d, size(total:0x%x, page:0x%x), cvs:<%d, %d>, off_uv=0x%x, nr<%d, %d>.\n",
+		__func__,
+		i_cfg->mode,
+		o_cfg->size_total,
+		o_cfg->size_page,
+		o_cfg->cvs_w,
+		o_cfg->cvs_h,
+		o_cfg->off_uv,
+		nr_width,
+		canvas_height);
 	return 0;
 }
 
@@ -3297,7 +3440,7 @@ static bool _mm_cma_alloc(struct device *dev, size_t count, struct dpss_mm_s *o)
 }
 
 static bool _mm_codec_alloc(const char *owner, size_t count,
-			    int cma_mode, struct dpss_mm_s *o, bool tvp_flg)
+			    unsigned int cma_mode, struct dpss_mm_s *o, bool tvp_flg)
 {
 #ifdef RUN_ON_ARM
 	int flags = 0;
@@ -3310,13 +3453,17 @@ static bool _mm_codec_alloc(const char *owner, size_t count,
 		flags |= CODEC_MM_FLAGS_RESERVED | CODEC_MM_FLAGS_CMA;
 	}
 
-	if (cma_mode == 4 && !istvp)
+	if (!(cma_mode & C_BIT0) && !istvp)
 		flags = CODEC_MM_FLAGS_CMA_FIRST;
+	if (cma_mode & C_BIT1)
+		flags |= CODEC_MM_FLAGS_FOR_TRY_PREALLOC;
 	o->addr = codec_mm_alloc_for_dma(owner, count, 0, flags);
+
 	if (o->addr == 0) {
 		DBG_ERR("%s: failed\n", __func__);
 		return false;
 	}
+	dbg_m1("%s:cma_mode=0x%x, flags=0x%x\n", __func__, cma_mode, flags);
 	if (istvp)
 		o->ppage = (struct page *)TVP_MEM_PAGES;
 	else
@@ -3326,7 +3473,7 @@ static bool _mm_codec_alloc(const char *owner, size_t count,
 }
 
 static bool _mm_codec_alloc_hd(const char *owner, size_t count,
-			    int cma_mode, struct dpss_mm_s *o, bool tvp_flg)
+			    unsigned int cma_mode, struct dpss_mm_s *o, bool tvp_flg)
 {
 #ifdef RUN_ON_ARM
 	int flags = 0;
@@ -3340,14 +3487,17 @@ static bool _mm_codec_alloc_hd(const char *owner, size_t count,
 		flags |= CODEC_MM_FLAGS_RESERVED | CODEC_MM_FLAGS_CMA;
 	}
 
-	if (cma_mode == 4 && !istvp)
+	if (!(cma_mode & C_BIT0) && !istvp)
 		flags = CODEC_MM_FLAGS_CMA_FIRST;
+	if (cma_mode & C_BIT1)
+		flags |= CODEC_MM_FLAGS_FOR_TRY_PREALLOC;
+
 	mm = codec_mm_alloc(owner, count << PAGE_SHIFT, 0, flags, -1);
 	if (!mm) {
 		DBG_ERR("%s: failed\n", __func__);
 		return false;
 	}
-	dbg_m2("%s:hd:%p\n", __func__, mm);
+	dbg_m1("%s:hd:%p flags=0x%x\n", __func__, mm, flags);
 
 	o->addr = mm->phy_addr;
 	if (o->addr == 0) {
@@ -3382,10 +3532,10 @@ bool dpss_mm_alloc_api2(struct dpss_mem_a_s *in_para, struct dpss_mm_s *o)
 //#if 1 //to-do
 	if (blk_i->mem_from == DPSS_MEM_FROM_CODEC) {	//
 		ret = _mm_codec_alloc(DEVICE_NAME,
-				     blk_i->page_size, 4, o, blk_i->tvp);
+				     blk_i->page_size, in_para->cma_flg, o, blk_i->tvp);
 	} else if (blk_i->mem_from == DPSS_MEM_FROM_CODEC_HD) {
 		ret = _mm_codec_alloc_hd(DEVICE_NAME,
-				     blk_i->page_size, 4, o, blk_i->tvp);
+				     blk_i->page_size, in_para->cma_flg, o, blk_i->tvp);
 	} else if (blk_i->mem_from == DPSS_MEM_FROM_CMA_DPSS) {	//
 		ret = _mm_cma_alloc(&de_devp->pdev->dev, blk_i->page_size, o);
 	} else if (blk_i->mem_from == DPSS_MEM_FROM_CMA_C) {	//
@@ -3516,10 +3666,12 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	bool en_secure = false;
 	bool is_4k = true;
 	bool is_i = true;
-	unsigned int max_1080;
-	unsigned int max_4k;
+//	unsigned int max_1080;
+//	unsigned int max_4k;
 	bool need_afrc = false;
 	unsigned int pps_uv_size;
+
+	unsigned int mem_support; // bit 0: afbc; bit 1: afrc; bit 2: mif;
 
 #ifdef RDMA_ALLOC_MODE_DMA
 	dma_addr_t dma_handle;
@@ -3571,20 +3723,20 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	if ((dpss_en_afbc & C_BIT0) || (pch->c.o_afbc & C_BIT0)) {
 		sml_info->size_afbc = afbc_info->size_info;
 		sml_info->size_ts_afbc =	//size_info -> table
-				sml_info->size_afbc * DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+				sml_info->size_afbc * pch->c.o_b_nub;
 		sml_info->size_ts_afbc_tab =
-				afbc_info->size_tab * DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+				afbc_info->size_tab * pch->c.o_b_nub;
 		sml_info->size_ts_afrc_tab_c = 0;
 	} else if ((dpss_en_afbc & C_BIT1) || (pch->c.o_afbc & C_BIT1) || need_afrc) {
 		sml_info->size_afrc_y = afrc_info->size_hearder_y;
 		sml_info->size_afrc_c = afrc_info->size_hearder_c;
 		sml_info->size_afbc = sml_info->size_afrc_y + sml_info->size_afrc_c;
 		sml_info->size_ts_afbc =	//size_info -> table
-				sml_info->size_afbc * DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+				sml_info->size_afbc * pch->c.o_b_nub;
 		sml_info->size_ts_afbc_tab =
-				afrc_info->size_tab_y * DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+				afrc_info->size_tab_y * pch->c.o_b_nub;
 		sml_info->size_ts_afrc_tab_c =
-				afrc_info->size_tab_c * DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+				afrc_info->size_tab_c * pch->c.o_b_nub;
 	} else {
 		sml_info->size_afbc = 0;
 		sml_info->size_ts_afbc = 0;
@@ -3664,24 +3816,24 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 
 	if (a_afbc_hd && a_afbc_hd_b) {
 		if ((dpss_en_afbc & C_BIT0) || (pch->c.o_afbc & C_BIT0)) {
-			for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+			for (i = 0; i < pch->c.o_b_nub; i++) {
 				pch->c.addr_afbc_info[i] =
 					pch->c.addr_afbc_hd_base +
 					i * sml_info->size_afbc;
-				pch->c.addr_afbc_info[i + DPSS_HW_LOOP_IN_OUT_BUF_NUB] =
+				pch->c.addr_afbc_info[i + pch->c.o_b_nub] =
 					pch->c.addr_afbc_hd_b_base +
 					i * sml_info->size_afbc;
 				dbg_m2("afbce:infor :addr:%d:0x%lx: addr:%d:0x%lx:\n",
 					i, pch->c.addr_afbc_info[i],
-					i + DPSS_HW_LOOP_IN_OUT_BUF_NUB,
-					pch->c.addr_afbc_info[i + DPSS_HW_LOOP_IN_OUT_BUF_NUB]);
+					i + pch->c.o_b_nub,
+					pch->c.addr_afbc_info[i + pch->c.o_b_nub]);
 			}
 		} else if ((dpss_en_afbc & C_BIT1) || (pch->c.o_afbc & C_BIT1) ||
 			need_afrc) { //afrc:
 			b_tmp = pch->c.addr_afbc_hd_base;
 			//check:to-do
 			//info y:
-			for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+			for (i = 0; i < pch->c.o_b_nub; i++) {
 				pch->c.addr_afbc_info[i] =
 					b_tmp + i * afrc_info->size_hearder_y;
 				dbg_m2("afrc:infor:y:addr:%d:0x%lx:\n",
@@ -3689,9 +3841,9 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 			}
 			//info c:
 			b_tmp = pch->c.addr_afbc_hd_base +
-				DPSS_HW_LOOP_IN_OUT_BUF_NUB *
+				pch->c.o_b_nub *
 				afrc_info->size_hearder_y;
-			for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+			for (i = 0; i < pch->c.o_b_nub; i++) {
 				pch->c.addr_afbc_info_c[i] =
 					b_tmp + i * afrc_info->size_hearder_c;
 				dbg_m2("afrc:infor:c:addr:%d:0x%lx:\n",
@@ -3700,24 +3852,24 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 			//~~~~ b
 			//info y:
 			b_tmp = pch->c.addr_afbc_hd_b_base;
-			for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
-				pch->c.addr_afbc_info[i + DPSS_HW_LOOP_IN_OUT_BUF_NUB] =
+			for (i = 0; i < pch->c.o_b_nub; i++) {
+				pch->c.addr_afbc_info[i + pch->c.o_b_nub] =
 					b_tmp + i * afrc_info->size_hearder_y;
 				dbg_m2("afrc:infor:y:addr:%d:0x%lx:\n",
-					i + DPSS_HW_LOOP_IN_OUT_BUF_NUB,
-					pch->c.addr_afbc_info[i + DPSS_HW_LOOP_IN_OUT_BUF_NUB]);
+					i + pch->c.o_b_nub,
+					pch->c.addr_afbc_info[i + pch->c.o_b_nub]);
 			}
 
 			//info c:
 			b_tmp = pch->c.addr_afbc_hd_b_base +
-				DPSS_HW_LOOP_IN_OUT_BUF_NUB *
+				pch->c.o_b_nub *
 				afrc_info->size_hearder_y;
-			for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
-				pch->c.addr_afbc_info_c[i + DPSS_HW_LOOP_IN_OUT_BUF_NUB] =
+			for (i = 0; i < pch->c.o_b_nub; i++) {
+				pch->c.addr_afbc_info_c[i + pch->c.o_b_nub] =
 					b_tmp + i * afrc_info->size_hearder_c;
 				dbg_m2("afrc:infor:c:addr:%d:0x%lx:\n",
-					i + DPSS_HW_LOOP_IN_OUT_BUF_NUB,
-					pch->c.addr_afbc_info_c[i + DPSS_HW_LOOP_IN_OUT_BUF_NUB]);
+					i + pch->c.o_b_nub,
+					pch->c.addr_afbc_info_c[i + pch->c.o_b_nub]);
 			}
 			dbg_m2("afrc c end addr:%d:0x%lx\n", i,
 				(b_tmp + i * afrc_info->size_hearder_c));
@@ -3764,7 +3916,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	if (a_afbc_tab) {
 		b_afbc = pch->c.addr_afbc_tab_base;
 		if ((dpss_en_afbc & C_BIT0) || (pch->c.o_afbc & C_BIT0)) {
-			for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+			for (i = 0; i < pch->c.o_b_nub; i++) {
 				pch->c.addr_afbc_tab[i] = b_afbc +
 					i * afbc_info->size_tab;
 				pch->c.addr_afbc_tab_c[i] = pch->c.addr_afbc_tab[i];
@@ -3776,7 +3928,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 			b_tmp = b_afbc;
 			//check:to-do
 			//info y:
-			for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+			for (i = 0; i < pch->c.o_b_nub; i++) {
 				pch->c.addr_afbc_tab[i] = b_tmp +
 					i * afrc_info->size_tab_y;
 				dbg_m2("afrc:tab:y:addr:%d:0x%lx:\n",
@@ -3784,7 +3936,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 			}
 			//info c:
 			b_tmp = b_afbc + sml_info->size_ts_afbc_tab;
-			for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+			for (i = 0; i < pch->c.o_b_nub; i++) {
 				pch->c.addr_afbc_tab_c[i] = b_tmp +
 					i * afrc_info->size_tab_c;
 
@@ -3821,6 +3973,12 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	a_para.note = "tmp";
 	a_para.ower_id = 1;
 	a_para.shift_bits = 4;
+
+	a_para.cma_flg = C_BIT1; //pre-alloc
+	if (dpss_mem_flg & C_BIT1) {
+		a_para.cma_flg &= (~C_BIT1);
+		dbg_m0("sml:cma_flg= 0x%x\n", a_para.cma_flg);
+	}
 	aret = dpss_mm_alloc_api2(&a_para, &oret);
 	if (aret) {
 		blk->c.blk_typ = 0;	//tmp
@@ -3851,21 +4009,39 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	if (a_sml) {
 		//addr:
 		b_addr = pch->c.addr_sml_base;
-		b_inpm0 = b_addr + 0;
-		b_inpm1 = b_inpm0 + sml_info->size_ts_frc_inp_mbuf0;
-		b_mem =  b_inpm1 + sml_info->size_ts_frc_inp_mbuf1;
-		b_memv_n = b_mem + sml_info->size_ts_frc_me_mbuf;
-		b_memv_c = b_memv_n + sml_info->size_ts_frc_me_nc_uni_mv;
-		b_memv_p = b_memv_c + sml_info->size_ts_frc_me_cn_uni_mv;
-		b_iir_logo = b_memv_p + sml_info->size_ts_frc_me_pc_phs_mv;
-		b_scc_logo = b_iir_logo + sml_info->size_ts_frc_logo_iir;
-		b_blk_logo = b_scc_logo + sml_info->size_ts_frc_logo_ssc;
-		b_iplogo = b_blk_logo + sml_info->size_ts_frc_blk_logo;
-		b_mevp = b_iplogo + sml_info->size_ts_frc_pix_logo;
-		b_melogo = b_mevp + sml_info->size_ts_frc_vp_mc_mv;
-		b_mero = b_melogo + sml_info->size_ts_frc_vp_mc_logo;
+		if (pch->c.en_frc) {
+			b_inpm0 = b_addr + 0;
+			b_inpm1 = b_inpm0 + sml_info->size_ts_frc_inp_mbuf0;
+			b_mem =  b_inpm1 + sml_info->size_ts_frc_inp_mbuf1;
+			b_memv_n = b_mem + sml_info->size_ts_frc_me_mbuf;
+			b_memv_c = b_memv_n + sml_info->size_ts_frc_me_nc_uni_mv;
+			b_memv_p = b_memv_c + sml_info->size_ts_frc_me_cn_uni_mv;
+			b_iir_logo = b_memv_p + sml_info->size_ts_frc_me_pc_phs_mv;
+			b_scc_logo = b_iir_logo + sml_info->size_ts_frc_logo_iir;
+			b_blk_logo = b_scc_logo + sml_info->size_ts_frc_logo_ssc;
+			b_iplogo = b_blk_logo + sml_info->size_ts_frc_blk_logo;
+			b_mevp = b_iplogo + sml_info->size_ts_frc_pix_logo;
+			b_melogo = b_mevp + sml_info->size_ts_frc_vp_mc_mv;
+			b_mero = b_melogo + sml_info->size_ts_frc_vp_mc_logo;
+			b_mix = b_mero + sml_info->size_ts_frc_mero;
+		} else {
+			b_inpm0 = b_addr + 0;
+			b_inpm1 = b_inpm0;
+			b_mem =  b_inpm0;
+			b_memv_n = b_inpm0;
+			b_memv_c = b_inpm0;
+			b_memv_p = b_inpm0;
+			b_iir_logo = b_inpm0;
+			b_scc_logo = b_inpm0;
+			b_blk_logo = b_inpm0;
+			b_iplogo = b_inpm0;
+			b_mevp = b_inpm0;
+			b_melogo = b_inpm0;
+			b_mero = b_inpm0;
 
-		b_mix = b_mero + sml_info->size_ts_frc_mero;
+			b_mix = b_addr; //begin for nr
+		}
+
 		b_mv = b_mix + sml_info->size_ts_mix;
 		b_alp = b_mv + sml_info->size_ts_mv;
 		b_mtn = b_alp + sml_info->size_ts_alp;
@@ -3979,7 +4155,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 			pch->c.vaddr_ro4, b_grad_h, b_grad_v);
 	}
 	//dw buffer:----------------------------
-	if (sml_info->en_dw) {
+	if (pch->c.en_dw) {
 		blk_i = &pch->c.blki_dw;
 		memset(blk_i, 0, sizeof(*blk_i));
 		blk_i->mem_size = sml_info->size_dw; //sml_info->size_ts_dw;
@@ -3988,7 +4164,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 		blk_i->mem_from = DPSS_MEM_FROM_CODEC_HD;
 		blk_i->cnt_cfg = NULL;
 
-		for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+		for (i = 0; i < pch->c.o_b_nub; i++) {
 			blk = &pch->c.blk_r_dw[i];
 			memset(&oret, 0, sizeof(oret));
 			memset(&a_para, 0, sizeof(a_para));
@@ -4037,11 +4213,59 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	blk_i->tvp = en_secure ? 1 : 0;
 	blk_i->mem_from = DPSS_MEM_FROM_CODEC_HD;
 	blk_i->cnt_cfg = NULL;
-//-------------------------
+
+	size_buf = 0;
+	mem_support = (pch->c.mem_support & 0xf0) >> 4;
+	if (mem_support) { //4k
+		size_buf = 0;
+		if (mem_support & C_BIT0) {//afbce
+			size_tmp = dd->fd_afbc_info.body_buffer_size;
+			size_buf = max(size_tmp, size_buf);
+			dbg_m1("4k:afbce:0x%x\n", size_buf);
+		}
+		if (mem_support & C_BIT1) {//afrc
+			size_tmp = dd->fd_afrc_info.size_body;
+			size_buf = max(size_tmp, size_buf);
+			dbg_m1("4k:afrc:0x%x\n", size_buf);
+		}
+		if (mem_support & C_BIT2) {//mif
+			size_tmp = dd->fd_nr_info.size_total;
+			size_buf = max(size_tmp, size_buf);
+			dbg_m1("4k:mif:0x%x\n", size_buf);
+		}
+	}
+	mem_support = pch->c.mem_support & 0xf;
+	if (mem_support) {
+		if (mem_support & C_BIT0) {//afbce
+			size_tmp = dd->hd_afbc_info.body_buffer_size;
+			size_buf = max(size_tmp, size_buf);
+			dbg_m1("1080p:afbce:0x%x\n", size_buf);
+		}
+		if (mem_support & C_BIT1) {//afrc
+			size_tmp = dd->hd_afrc_info.size_body;
+			size_buf = max(size_tmp, size_buf);
+			dbg_m1("1080p:arc:0x%x\n", size_buf);
+		}
+		if (mem_support & C_BIT2) {//mif
+			size_tmp = dd->hd_nr_info.size_total;
+			size_buf = max(size_tmp, size_buf);
+			dbg_m1("1080p:mif:0x%x\n", size_buf);
+		}
+	}
+	dbg_m0("ch[%d] nr:0x%x, mem_support=0x%x\n",
+		pch->c.ch, size_buf, pch->c.mem_support);
+	if (!size_buf) {
+		DBG_ERR("%s:size is 0? 0x%x\n", __func__,
+			(unsigned int)pch->c.mem_support);
+		size_buf = dd->hd_nr_info.size_total;
+	}
+	blk_i->mem_size = size_buf;
+	blk_i->page_size = blk_i->mem_size >> PAGE_SHIFT;
+#ifdef _HIS_CODE_
 	if ((dpss_en_afbc & 0xff) || (pch->c.o_afbc & 0xff) || need_afrc) {
 		size_buf = nr_info->size_total;
 		if (afbc_info->body_buffer_size > nr_info->size_total) {
-			DBG_INF("afbce:alloc:buf size: 0x%x <- 0x%x\n",
+			dbg_m1("afbce:alloc:buf size: 0x%x <- 0x%x\n",
 				afbc_info->body_buffer_size,
 				nr_info->size_total);
 			size_buf = afbc_info->body_buffer_size;
@@ -4051,7 +4275,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 		blk_i->mem_size = size_tmp;
 		blk_i->page_size = blk_i->mem_size >> PAGE_SHIFT;
 
-		DBG_INF("afbce:buf size: 0x%x <- 0x%x, 0x%x <- 0x%x\n",
+		dbg_m0("afbce:buf size: 0x%x <- 0x%x, 0x%x <- 0x%x\n",
 			blk_i->mem_size,
 			nr_info->size_total,
 			blk_i->page_size,
@@ -4075,13 +4299,13 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 		afrc_info->size_body,
 		nr_info->size_total,
 		size_tmp);
-
+#endif
 #ifdef _HIS_CODE_
 	if (((dpss_en_afbc & C_BIT1) || (pch->c.o_afbc & C_BIT1)) &&
 		dpss_afrc_head) {
 		size_buf = nr_info->size_total;
 		if (nr_info->size_total > afrc_info->size_body) {
-			DBG_INF("afrce:alloc:buf size: 0x%x <- 0x%x\n",
+			dbg_m1("afrce:alloc:buf size: 0x%x <- 0x%x\n",
 				afbc_info->body_buffer_size,
 				nr_info->size_total);
 			size_buf = afrc_info->size_body;
@@ -4090,7 +4314,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 		blk_i->mem_size = size_tmp;
 		blk_i->page_size = blk_i->mem_size >> PAGE_SHIFT;
 
-		DBG_INF("afrce:buf size: 0x%x <- 0x%x, 0x%x <- 0x%x\n",
+		dbg_m1("afrce:buf size: 0x%x <- 0x%x, 0x%x <- 0x%x\n",
 			blk_i->mem_size,
 			nr_info->size_total,
 			blk_i->page_size,
@@ -4099,17 +4323,16 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 #endif
 
 	if ((dpss_en_afbc & C_BIT1) || (pch->c.o_afbc & C_BIT1))
-		DBG_INF("Workmode is : AFRC, Compression ratio : %u%%, %u%%,is header: %u\n",
+		dbg_m0("Workmode is : AFRC, Compression ratio : %u%%, %u%%,is header: %u\n",
 			(dpss_afrc_y * 100) / 80,
 			(dpss_afrc_c * 100) / 80,
 			dpss_afrc_head);
 	else if (dpss_en_afbc & C_BIT0 || (pch->c.o_afbc & C_BIT0))
-		DBG_INF("Workmode is : AFBC\n");
+		dbg_m0("Workmode is : AFBC\n");
 	else
-		DBG_INF("Workmode is : YUV\n");
-
+		dbg_m0("Workmode is : YUV\n");
 //-------------------------
-	for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+	for (i = 0; i < pch->c.o_b_nub; i++) {
 		blk = &pch->c.blk_r_nr[i];
 		memset(&oret, 0, sizeof(oret));
 		memset(&a_para, 0, sizeof(a_para));
@@ -4118,6 +4341,12 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 		a_para.note = "tmp";
 		a_para.shift_bits = 9;
 		a_para.ower_id = 3 + i;
+
+		a_para.cma_flg = C_BIT1; //pre-alloc
+		if (dpss_mem_flg & 0xf0) {
+			a_para.cma_flg &= (~C_BIT1);
+			dbg_m0("nr:cma_flg= 0x%x\n", a_para.cma_flg);
+		}
 		aret = dpss_mm_alloc_api2(&a_para, &oret);
 		if (aret) {
 			blk->c.blk_typ = 0;	//tmp
@@ -4177,7 +4406,8 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	}
 
 	//lc buf:
-	if (dpss_lc_buf || is_i || dpss_nr_debug || dpss_en_pps) {
+//	if (dpss_lc_buf || pch->c.support_i || dpss_nr_debug || dpss_en_pps) {
+	if (pch->c.support_i) { //to-do
 		blk_i = &pch->c.blki_lc;
 		memset(blk_i, 0, sizeof(*blk_i));
 		blk_i->mem_size = dd->hd_lc_info.size_total;
@@ -4186,7 +4416,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 		blk_i->mem_from = DPSS_MEM_FROM_CODEC;
 		blk_i->cnt_cfg = NULL;
 
-		for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+		for (i = 0; i < pch->c.num_lc; i++) {
 			blk = &pch->c.blk_r_lc[i];
 			memset(&oret, 0, sizeof(oret));
 			memset(&a_para, 0, sizeof(a_para));
@@ -4231,7 +4461,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 		blk_i->cnt_cfg = NULL;
 		pps_uv_size = dd->hd_lc_info.off_uv * 2;
 
-		for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+		for (i = 0; i < pch->c.o_b_nub; i++) {
 			blk = &pch->c.blk_r_di2pps[i];
 			memset(&oret, 0, sizeof(oret));
 			memset(&a_para, 0, sizeof(a_para));
@@ -4343,10 +4573,10 @@ static void dpss_buf_release(struct dpss_ch_s *pch)
 {
 	struct dpss_mem_r_s r_para;
 	u8 i;
-	int ch;
 	struct dpss_blk_s *blk;
 #ifdef FUNC_EN_PQ //ary add mark
 	struct di_parm_s *de_pqp;
+	unsigned int cnt;
 #endif
 #ifdef RDMA_ALLOC_MODE_DMA
 //      dma_addr_t dma_handle;
@@ -4364,7 +4594,7 @@ static void dpss_buf_release(struct dpss_ch_s *pch)
 	//release afbc_hd=========================
 	blk = &pch->c.blk_r_afbc_hd;
 	if (!blk) {
-		DBG_WARN("%s:release:afbc_hd:no\n", __func__);
+		dbg_m0("%s:release:afbc_hd:no\n", __func__);
 	} else if (blk->c.b.blk_m.flg_alloc) {
 		memset(&r_para, 0, sizeof(r_para));
 		r_para.blk = &blk->c.b.blk_m;//note: tmp;
@@ -4401,24 +4631,35 @@ static void dpss_buf_release(struct dpss_ch_s *pch)
 	}
 	//release sml
 #ifdef FUNC_EN_PQ //ary add mark
-	ch = pch->c.ch;
-	de_pqp = dpss_pq_data(ch);
-	de_pqp->dae_ro_buffer = NULL;
-	de_pqp->dpe_ro_buffer = NULL;
-	de_pqp->dblk_h_ro_buffer = NULL;
-	de_pqp->dblk_v_ro_buffer = NULL;
-	de_pqp->dae_ro_pd_buffer = NULL;
-	if (de_pqp->me_ro_buffer) {
-		if (de_pqp->me_ro_buffer->buf)
-			memset(de_pqp->me_ro_buffer->buf,
-				0, DPSS_RO_ME_SIZE * sizeof(u32));
-		de_pqp->me_ro_buffer = NULL;
+	cnt = 0; /* 200us x 5 = 1ms dpe fw 2ms*/
+	while (!pq_can_exit(pch) && cnt < 10) {
+		usleep_range(100, 200);
+		cnt++;
 	}
-	if (de_pqp->input_ro_buffer) {
-		if (de_pqp->input_ro_buffer->buf)
-			memset(de_pqp->input_ro_buffer->buf,
-				0, DPSS_RO_INPUT_SIZE * sizeof(u32));
-		de_pqp->input_ro_buffer = NULL;
+	if (pq_can_exit(pch)) {
+		de_pqp = dpss_pq_data(pch->c.ch);
+		de_pqp->dae_ro_buffer = NULL;
+		de_pqp->dpe_ro_buffer = NULL;
+		de_pqp->dblk_h_ro_buffer = NULL;
+		de_pqp->dblk_v_ro_buffer = NULL;
+		de_pqp->dae_ro_pd_buffer = NULL;
+		if (de_pqp->me_ro_buffer) {
+			if (de_pqp->me_ro_buffer->buf)
+				memset(de_pqp->me_ro_buffer->buf,
+					0, DPSS_RO_ME_SIZE * sizeof(u32));
+			else
+				DBG_WARN("ro:%d\n", pch->c.ch);
+			de_pqp->me_ro_buffer = NULL;
+		}
+		if (de_pqp->input_ro_buffer) {
+			if (de_pqp->input_ro_buffer->buf)
+				memset(de_pqp->input_ro_buffer->buf,
+					0, DPSS_RO_INPUT_SIZE * sizeof(u32));
+			else
+				DBG_WARN("ro2:%d\n", pch->c.ch);
+			de_pqp->input_ro_buffer = NULL;
+		}
+		DBG_INF("%s:unreg finish:%d\n", __func__, cnt);
 	}
 #endif
 	if (dpss_slt_mode)
@@ -4479,10 +4720,11 @@ static void dpss_buf_release(struct dpss_ch_s *pch)
 	}
 
 	//release dw=========================
-	for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+	for (i = 0; i < pch->c.o_b_nub; i++) {
 		blk = pch->c.blk_dw[i];
 		if (!blk) {
-			DBG_WARN("%s:release:dw:no [%d]\n", __func__, i);
+			if (pch->c.en_dw)
+				DBG_WARN("%s:release:dw:no [%d]\n", __func__, i);
 			continue;
 		} else {
 			memset(&r_para, 0, sizeof(r_para));
@@ -4503,7 +4745,7 @@ static void dpss_buf_release(struct dpss_ch_s *pch)
 		}
 	}
 	//release nr buffer:
-	for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+	for (i = 0; i < pch->c.o_b_nub; i++) {
 		//blk = blk_o_get_locked(d_dd, j);
 		blk = pch->c.blk_nr[i];
 		if (!blk) {
@@ -4521,11 +4763,11 @@ static void dpss_buf_release(struct dpss_ch_s *pch)
 	}
 
 	//release lc buffer:
-	for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+	for (i = 0; i < pch->c.num_lc; i++) {
 		//blk = blk_o_get_locked(d_dd, j);
 		blk = pch->c.blk_lc[i];
 		if (!blk) {
-			DBG_WARN("%s:release nr:no [%d]\n", __func__, i);
+			dbg_m0("%s:release nr:no [%d]\n", __func__, i);
 			continue;
 		}
 		memset(&r_para, 0, sizeof(r_para));
@@ -4540,7 +4782,7 @@ static void dpss_buf_release(struct dpss_ch_s *pch)
 
 //release di2pps buffer
 	if (is_di2pps) {
-		for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+		for (i = 0; i < pch->c.o_b_nub; i++) {
 			//blk = blk_o_get_locked(d_dd, j);
 			blk = pch->c.blk_di2pps[i];
 			if (!blk) {

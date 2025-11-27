@@ -117,9 +117,6 @@ module_param_named(dpss_dbg_game_mode, dpss_dbg_game_mode, uint, 0664);
 unsigned int dpss_dbg_sw_mode;
 module_param_named(dpss_dbg_sw_mode, dpss_dbg_sw_mode, uint, 0664);
 
-unsigned int dpss_inp_done_int = 1;
-module_param_named(dpss_inp_done_int, dpss_inp_done_int, uint, 0664);
-
 bool dpss_dbg_dos_mode;		// = true; //bit 0 for dae
 module_param_named(dpss_dbg_dos_mode, dpss_dbg_dos_mode, bool, 0664);
 
@@ -230,7 +227,7 @@ static bool check_need_enable_4k1k(struct vframe_s *vf)
 	bool ret = false;
 	bool input_4k2k = false, output_4k1k = false;
 	struct vinfo_s *vinfo = NULL;
-	int flag = 1920 * 1088;
+	int flag = 2560 * 1440;
 
 	if (IS_ERR_OR_NULL(vf)) {
 		dbg_h1("%s: NULL param!!\n", __func__);
@@ -387,6 +384,19 @@ static void _prm_top_init(struct dpss_ch_s *pch, struct PRM_DPSS_TOP *prm_top,
 		prm_top->film_mode = DPSS_VIDEO;
 		prm_top->frc_ratio = DPSS_FRC_RATIO_1_2;
 	}
+
+	prm_top->num_in		= pch->c.in_b_nub;
+	prm_top->num_dpe_o    = pch->c.o_b_nub;
+	prm_top->num_lc       = pch->c.num_lc;   //
+	prm_top->num_aepe     = pch->c.num_aepe;
+	prm_top->num_nr_wrpt  = pch->c.num_nr_wrpt;
+	prm_top->num_dblk     = pch->c.num_pq_buf;
+	prm_top->num_dpe_ro   = pch->c.num_pq_buf;
+	prm_top->num_nr_me_ro = pch->c.num_pq_buf;
+	if (!pch->c.en_dw)
+		prm_top->dw_disable = true;
+	else
+		prm_top->dw_disable = false;
 	dbg_h0("%s: frc_rev_mode:%d, node:%d.\n", __func__, prm_top->frc_rev_mode,
 		frc_top->frc_rev_mode);
 }
@@ -603,7 +613,7 @@ static void _prm_top_init_light(struct dpss_ch_s *pch, struct PRM_DPSS_TOP *prm_
 // src : 0 or 1
 void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 			  struct dpss_ch_s *pch,
-			  unsigned int src, unsigned int buf_nub)
+			  unsigned int src)
 {
 	int i;
 	//unsigned long addr_offset = 0; //to-do
@@ -613,6 +623,7 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 	unsigned int *addr_t11, *addr_t12, *addr_t21, *addr_t22; //10-02
 	struct dpss_buf_sml_s *sml_info;
 	unsigned char b_idx;
+	unsigned int buf_nub;
 
 	if (!prm_top || !pch || !pch->c.sml_info) {
 		DBG_ERR("%s:src: %d\n", __func__, src);
@@ -621,6 +632,7 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 	dbg_h1("%s:src=%d\n", __func__, src);
 	sml_info = pch->c.sml_info;
 
+	buf_nub = pch->c.o_b_nub;
 	if (src > 1) {
 		DBG_WARN("%s:src fix to 0:%d\n", __func__, src);
 		src = 0;
@@ -644,8 +656,8 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 			addr_t21 = &prm_top->src0_nro_fbuf_m_y[0];
 			addr_t22 = &prm_top->src0_nro_fbuf_m_c[0];
 
-			for (i = 0; i < buf_nub; i++) {
-				b_idx = (i + pch->d->idx_start) % DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+			for (i = 0; i < buf_nub; i++) {	//out
+				b_idx = (i + pch->d->idx_start) % buf_nub;
 				laddr_y = pch->c.addr_afbc_tab[b_idx];
 				laddr_uv = pch->c.addr_afbc_tab_c[b_idx];
 				addr_t11[i] = (unsigned int)(laddr_y >> 9);
@@ -658,7 +670,7 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 			}
 		}
 		for (i = 0; i < buf_nub; i++) {
-			b_idx = (i + pch->d->idx_start) % DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+			b_idx = (i + pch->d->idx_start) % buf_nub;
 			if (pch->d->is_i || pch->d->proc_as_i) {	//----------is i
 				if (!dpss_en_afbc && !pch->c.o_afbc) {
 					laddr_y = pch->c.addr_nr[b_idx];
@@ -734,7 +746,7 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 		addr_t3 = &prm_top->src0_dio_dwbuf_yaddr[0];
 		addr_t4 = &prm_top->src0_dio_dwbuf_caddr[0];
 		for (i = 0; i < buf_nub; i++) {
-			b_idx = (i + pch->d->idx_start) % DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+			b_idx = (i + pch->d->idx_start) % buf_nub;
 			laddr_y = pch->c.addr_dw[b_idx];
 			laddr_uv = pch->c.addr_dwuv[b_idx];
 			addr_t1[i] = (unsigned int)(laddr_y >> 9);
@@ -784,7 +796,7 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 		    (unsigned int)(pch->c.addr_dw[0] >> 4);
 
 		if (pch->d->idx_hd)
-			b_idx = DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+			b_idx = buf_nub;
 		else
 			b_idx = 0;
 		prm_top->src0_afbce_h_yaddr =
@@ -864,7 +876,7 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 		addr_t3 = &prm_top->src1_dio_fbuf_yaddr[0];
 		addr_t4 = &prm_top->src1_dio_fbuf_caddr[0];
 		for (i = 0; i < buf_nub; i++) {
-			b_idx = (i + pch->d->idx_start) % DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+			b_idx = (i + pch->d->idx_start) % buf_nub;
 			if (pch->d->is_i || pch->d->proc_as_i) {
 				laddr_y = pch->c.addr_nr[b_idx];
 				laddr_uv = pch->c.addr_nr_uv[b_idx];
@@ -905,7 +917,7 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 		addr_t3 = &prm_top->src1_dio_dwbuf_yaddr[0];
 		addr_t4 = &prm_top->src1_dio_dwbuf_caddr[0];
 		for (i = 0; i < buf_nub; i++) {
-			b_idx = (i + pch->d->idx_start) % DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+			b_idx = (i + pch->d->idx_start) % buf_nub;
 			laddr_y = pch->c.addr_dw[b_idx];
 			laddr_uv = pch->c.addr_dwuv[b_idx];
 			addr_t1[i] = (unsigned int)(laddr_y >> 9);
@@ -1595,7 +1607,7 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 		// test soft contrl case
 		prm_top->sw_buf_rls_en = 0;
 		prm_top->sw_tbc_ctrl_en = dpss_dbg_sw_mode;
-		prm_top->inp_done_int = dpss_inp_done_int;
+		prm_top->inp_done_int = 1;
 		prm_top->me_mc_link_en = dpss_dbg_game_mode;
 
 		if (prm_top->game_mode_n2m | prm_top->game_mode_film)
@@ -1642,7 +1654,7 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 		// test soft contrl case
 		prm_top->sw_buf_rls_en = 0;
 		prm_top->sw_tbc_ctrl_en = dpss_dbg_sw_mode;
-		prm_top->inp_done_int = dpss_inp_done_int;
+		prm_top->inp_done_int = 1;
 		prm_top->me_mc_link_en = dpss_dbg_game_mode;
 
 		if (prm_top->game_mode_n2m | prm_top->game_mode_film)
@@ -1672,7 +1684,7 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 		prm_top->cfg_seed = 1;
 		prm_top->frc_en = true;
 		prm_top->frc_ds_scale_en = 0;	//1;
-		prm_top->inp_done_int = dpss_inp_done_int;
+		prm_top->inp_done_int = 1;
 		if (is_di2pps) {
 			prm_top->dpe_mc_size.frm_hsize = pps_out_w;
 			prm_top->dpe_mc_size.frm_vsize = pps_out_h;
@@ -1912,7 +1924,7 @@ void hw_init_prm(struct dpss_ch_s *pch, struct PRM_DPSS_TOP *prm_top,
 	//------
 	_prm_top_init(pch, prm_top, src_in, false, NULL); //path id 0 is src 0
 	_prm_top_init_light(pch, prm_top, src_in, false, NULL);
-	_prm_top_init_buffer(prm_top, pch, src_in, DPSS_HW_LOOP_IN_OUT_BUF_NUB);
+	_prm_top_init_buffer(prm_top, pch, src_in);
 	hw_init_small_addr(prm_top, src_in);
 	_prm_top_init_vfm(pch, prm_top, vfms, false);
 }
@@ -1920,6 +1932,11 @@ void hw_init_prm(struct dpss_ch_s *pch, struct PRM_DPSS_TOP *prm_top,
 void nr_unreg_hw(struct dpss_ch_s *pch)
 {
 	dpss_hw_disable_one_play(pch);
+	if (!dpss_get_hw()->src_act &&
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T6W) {
+		wr(VPU_DAE_WRAP_GCLK_CTRL0, 0x0);
+		wr(VPU_DAE_WRAP_GCLK_CTRL1, 0x0);
+	}
 }
 
 void nr_unreg_val(struct dpss_ch_s *pch)
@@ -2088,6 +2105,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 	bool light_chg = false;
 	unsigned int val;
 	unsigned int me_size_tmp;
+	struct PRM_INTF_TYPE *dae_yuv;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	struct dpss_info_s dpss_info;
@@ -2301,21 +2319,34 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 	dbg_h2("vfm plane:%d vfs->type 0x%x,vf->flag 0x%x.\n", vfs->plane_num,
 			vfs->type, vf->flag);
 
+	dae_yuv = &prm_dae->nr_yuv_intf;
+
 	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR) {
 		prm_top->l_endian = 1;
 		prm_top->swap_64bit = 0;
+		dae_yuv->swap_64bit = 0;
+		dae_yuv->little_endian = 1;
 	} else {
 		prm_top->l_endian = 0;
 		prm_top->swap_64bit = 1;
+		if (vf->canvas0_config[0].block_mode) {
+			dae_yuv->swap_64bit = 0;
+			dae_yuv->little_endian = 1;
+		} else {
+			dae_yuv->swap_64bit = 1;
+			dae_yuv->little_endian = 0;
+		}
 	}
 	prm_top->block_mode = vf->canvas0_config[0].block_mode;
 	dbg_h2("vfm flag:%d vfs->endian 0x%x\n", vf->flag, vf->canvas0_config[0].endian);
 	dbg_h2("vfm block mode %d\n", vf->canvas0_config[0].block_mode);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_amdv_frame(vf) && is_amdv_enable())
+	if (is_amdv_frame(vf) && is_amdv_enable()) {
 		prm_top->is_amdv_frame = true;
-	else
+		prm_top->amdv_2_frc_frm = is_amdv_frame(vf);
+	} else {
 		prm_top->is_amdv_frame = false;
+	}
 #endif
 	if (vfs->type & VIDTYPE_COMB_MODE)
 		pch->d->fmt444_comb = 1;
@@ -2418,6 +2449,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 	pq_create_instance(0);
 	pq_int(pch, vfs);
 #ifdef FUNC_EN_PQ
+	dinr_pq_data[pch->c.ch].ch = pch->c.ch;
 	dae_hw_init(&dinr_pq_data[pch->c.ch], op);
 #endif
 	dbg_h2("%s:proc_as_i:%d\n", __func__,
@@ -2590,7 +2622,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 	//cfg_dpss_size_nr(prm_top);//test for me setting todo//test
 	fpga_ucode_1217(prm_top, dpss_dbg_top_cfg0);//part of HW_Initialize 12-17
 	if (!light_chg) {
-		_prm_top_init_buffer(prm_top, pch, src, DPSS_HW_LOOP_IN_OUT_BUF_NUB);
+		_prm_top_init_buffer(prm_top, pch, src);
 		hw_init_small_addr(prm_top, src);
 	}
 	_prm_top_init_vfm(pch, prm_top, vfs, false);
@@ -2733,8 +2765,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 		prm_top_di->org_vsize	   = prm_top->org_vsize / 2;
 		prm_top_di->dae_dsy_scale  = 0;
 
-		_prm_top_init_buffer(prm_top_di, pch, src,
-				     DPSS_HW_LOOP_IN_OUT_BUF_NUB);
+		_prm_top_init_buffer(prm_top_di, pch, src);
 
 		if (!dpss_dbg_dis_i_srcreg)
 			w_reg_bit(DPSS_TOP_FUNC_CTRL, SRC_IDX_DI1, 24, 4);
@@ -2843,7 +2874,12 @@ struct vframe_s *dpss_irq_get_vfm(unsigned int idx, unsigned int lab)
 	unsigned char id, v_id;
 	struct vframe_s *vfm;
 
-	id = (idx % DPSS_HW_LOOP_IN_OUT_BUF_NUB);
+	//id = (idx % DPSS_HW_LOOP_IN_OUT_BUF_NUB);
+	id = idx;
+	if (idx >= DPSS_HW_LOOP_IN_OUT_BUF_NUB) {
+		id = 0;
+		DBG_ERR("%s:overflow:%d\n", __func__, idx);
+	}
 
 	v_id = dpss_idx[id];
 	nr_i = &dpss_nr1[v_id];
@@ -2963,6 +2999,8 @@ bool nr_only_input_buf(struct dpss_ch_s *pch, struct dpss_nr_i_s *nr_i)
 	if (vf->fgs_valid && vf->fgs_table_adr && fg_enable) {
 		prm_top->fgrain.dma_ini[0] = 1;
 		film_grain_cfg(&prm_top->fgrain, vf, pch->c.in_cnt);
+	} else {
+		film_grain_uint();
 	}
 	dbg_h1("%s in ch%d,vfm index:0x%x,type:0x%x,flag:0x%x,in_cnt:0x%x,out:0x%x\n", __func__,
 				pch->c.ch, vf->frame_index,
@@ -3257,16 +3295,25 @@ void dbg_dpss_reset(unsigned int para)
 		dbg_i0("no reset\n");
 		return;
 	}
-	w_reg_bit(DPSS_DPE_MC_TOP_RESET, 1, 22, 1);
-	dbg_h1("dpss mc_reset\n");
-	if (para == 0)
+
+	if (para == 0) {
+		wr(DPSS_DPE_MC_TOP_RESET, BIT_22 + BIT_25);
+		dbg_f1("mc reset bit 22+25\n");
 		return;
-	else if (para == 1)
+	} else if ((para & 0xF0) == 0x80) {
+		wr(DPSS_DPE_MC_TOP_RESET, BIT_22);
+		//dbg_f1("mc reset bit 22\n");
+	}
+	if ((para & 0x0F) == 0x01) {
 		w_reg_bit(DPSS_TOP_SOFT_RST, 0x0010, 0, 13); //2024-12-05 from 0x47e to 0x10
-	else if (para == 2)
+		//dbg_h1("dpss reset 0x10\n");
+		w_reg_bit(DPSS_TOP_SOFT_RST, 0x0000, 0, 13);
+
+	} else if ((para & 0x0F) == 0x02) {
 		w_reg_bit(DPSS_TOP_SOFT_RST, 0x047e, 0, 13); //2024-12-05 from 0x1fff to 0xf7e
-	w_reg_bit(DPSS_TOP_SOFT_RST, 0x0000, 0, 13);
-	dbg_h1("dpss reset\n");
+		//dbg_h1("dpss reset 0x47e\n");
+		w_reg_bit(DPSS_TOP_SOFT_RST, 0x0000, 0, 13);
+	}
 }
 
 void dpss_dis_idx(struct dpss_ch_s *pch, unsigned int idx)

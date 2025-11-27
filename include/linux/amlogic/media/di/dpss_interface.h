@@ -106,6 +106,8 @@ enum DPSS_BUF_STATE {
 //cmd_asy  cmd
 #define DPSS_CMD_ASY_WORKMODE	(1)
 #define DPSS_CMD_ASY_2_WORKMODE	(2) // weak mode, not cause resolution change
+#define DPSS_CMD_ENABLE_FRC	(3)
+
 //...
 #define DPSS_FLG_BYPASS	        (0x00001) //this flag is set on input vframe
 #define DPSS_FLG_DDD	        (0x00002)

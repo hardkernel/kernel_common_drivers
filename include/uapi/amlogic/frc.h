@@ -66,9 +66,14 @@ struct v4l2_ext_memc_motion_comp_info {
 
 /* DPSS_FRC IOCTRL */
 #define DPSS_FRC_IOC_MAGIC    'M'
+#define DPSS_FRC_IOC_GET_VIDEO_LATENCY   _IOR(DPSS_FRC_IOC_MAGIC, 0x03, unsigned int)
 #define DPSS_FRC_IOC_SET_DEBLUR_LEVEL    _IOW(DPSS_FRC_IOC_MAGIC, 0x05,	unsigned int)
 #define DPSS_FRC_IOC_SET_MEMC_ON_OFF     _IOW(DPSS_FRC_IOC_MAGIC, 0x06,	unsigned int)
 #define DPSS_FRC_IOC_SET_MEMC_LEVEL      _IOW(DPSS_FRC_IOC_MAGIC, 0x07, unsigned int)
 #define DPSS_FRC_IOC_SET_MEMC_DMEO_MODE  _IOW(DPSS_FRC_IOC_MAGIC, 0x08, unsigned int)
+#define DPSS_FRC_IOC_SET_MEMC_VENDOR     _IOW(DPSS_FRC_IOC_MAGIC, 0x09, unsigned int)
+#define DPSS_FRC_IOC_GET_MEMC_VERSION    _IOR(DPSS_FRC_IOC_MAGIC, 0x0F, unsigned char[64])
+#define DPSS_FRC_IOC_GET_MEMC_GMV        _IOR(DPSS_FRC_IOC_MAGIC, 0x12, unsigned int)
+
 
 #endif

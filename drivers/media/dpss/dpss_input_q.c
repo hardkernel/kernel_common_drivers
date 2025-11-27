@@ -25,6 +25,7 @@ void dpss_input_q_init(struct dpss_input_q *q)
 	int i;
 
 	mutex_init(&q->input_q_mutex);
+	spin_lock_init(&q->kfifo_lock);
 
 	mutex_lock(&q->input_q_mutex);
 	for (i = 0; i < DPSS_INP_LIST_COUNT; i++) {
@@ -194,11 +195,11 @@ void dpss_input_q_update_dpe_status(struct PRM_DPSS_TOP *top, u32 addr_y)
 			return;
 		}
 
-		for (i = 0; i < DPSS_HW_LOOP_IN_OUT_BUF_NUB; i++) {
+		for (i = 0; i < top->num_dpe_o; i++) { //out ?
 			if (addr_y == top->src0_dio_fbuf_yaddr[i])
 				break;
 		}
-		if (i == DPSS_HW_LOOP_IN_OUT_BUF_NUB) {
+		if (i == top->num_dpe_o) {
 			DBG_ERR("%s: No match buffer found for 0x%x\n", __func__, addr_y);
 			return;
 		}
@@ -246,11 +247,13 @@ u32 dpss_input_get_drop_count(struct dpss_input_q *q)
 	struct prm_dpss_input *input_tmp[DPSS_INP_LIST_COUNT];
 	int len;
 	u32 drop_count = 0;
+	unsigned long flags;
 
 	len = kfifo_len(&q->input_q);
 	if (len == 0) {
 		DBG_ERR("irq: input_q: task: peek failed\n");
 	} else {
+		spin_lock_irqsave(&q->kfifo_lock, flags);
 		if (kfifo_out_peek(&q->input_q, (void *)&input_tmp, len)) {
 			for (i = 0; i < len; i++) {
 				input = input_tmp[i];
@@ -261,6 +264,7 @@ u32 dpss_input_get_drop_count(struct dpss_input_q *q)
 			if (i == len)
 				dbg_ct0("irq: input_q: no input undone frame\n");
 		}
+		spin_unlock_irqrestore(&q->kfifo_lock, flags);
 		if (!input)
 			return 0;
 
@@ -278,6 +282,7 @@ u32 dpss_input_q_out_1(struct dpss_input_q *q)
 {
 	u32 count = 0;
 	struct prm_dpss_input *input;
+	unsigned long flags;
 
 	mutex_lock(&q->input_q_mutex);
 	while (1) {
@@ -286,10 +291,12 @@ u32 dpss_input_q_out_1(struct dpss_input_q *q)
 
 		if (input->input_done && !input->is_key_frame) {
 			count++;
+			spin_lock_irqsave(&q->kfifo_lock, flags);
 			if (!kfifo_get(&q->input_q, &input))
 				DBG_ERR("%s: task: get failed\n", __func__);
 			else
 				input->used = false;
+			spin_unlock_irqrestore(&q->kfifo_lock, flags);
 			dbg_ct0("%s:input_q: output vf_1: no_key index=%d, in_index=%d\n",
 				__func__, input->index, input->input_in_index);
 		} else {
@@ -305,6 +312,7 @@ u32 dpss_input_q_out_1(struct dpss_input_q *q)
 void dpss_input_q_out_head_key(struct dpss_input_q *q)
 {
 	struct prm_dpss_input *input;
+	unsigned long flags;
 
 	mutex_lock(&q->input_q_mutex);
 	if (!kfifo_peek(&q->input_q, &input)) {
@@ -317,10 +325,12 @@ void dpss_input_q_out_head_key(struct dpss_input_q *q)
 		dbg_ct0("%s:input_q:output vf_2:key index=%d,len=%d,in_index=%d\n",
 			__func__, input->index, kfifo_len(&q->input_q),
 			input->input_in_index);
+		spin_lock_irqsave(&q->kfifo_lock, flags);
 		if (!kfifo_get(&q->input_q, &input))
 			DBG_ERR("%s:input_q:  task: get failed\n", __func__);
 		else
 			input->used = false;
+		spin_unlock_irqrestore(&q->kfifo_lock, flags);
 	} else {
 		DBG_WARN("%s:input_q: should not here!!!\n", __func__);
 	}
@@ -331,11 +341,14 @@ void dpss_input_q_out_head_key(struct dpss_input_q *q)
 void dpss_input_q_out_head(struct dpss_input_q *q)
 {
 	struct prm_dpss_input *input;
+	unsigned long flags;
 
 	mutex_lock(&q->input_q_mutex);
+	spin_lock_irqsave(&q->kfifo_lock, flags);
 	if (!kfifo_get(&q->input_q, &input))
 		DBG_ERR("%s:input_q:  task: get failed\n", __func__);
 	else
 		input->used = false;
+	spin_unlock_irqrestore(&q->kfifo_lock, flags);
 	mutex_unlock(&q->input_q_mutex);
 }

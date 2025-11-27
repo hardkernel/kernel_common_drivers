@@ -15,6 +15,9 @@
 #include <linux/vmalloc.h>
 
 #include <linux/amlogic/media/di/dpss_interface.h>
+#include <linux/amlogic/media/dpss/dpss_frc.h>
+#include <linux/amlogic/media/codec_mm/codec_mm_prealloc.h>
+
 #endif /* RUN_ON_ARM */
 
 #include "dpss_base.h"
@@ -629,7 +632,7 @@ int _create_instance(bool fix, int index, struct dpss_init_parm *parm)
 	unsigned int ch = 0;
 	struct dpss_ch_s *pch;
 
-	dbg_i0("%s:fix:%d, index:%d\n", __func__, fix, index);
+	dbg_ins0("%s:fix:%d, index:%d\n", "create", fix, index);
 
 	if (fix) {
 		ch = (unsigned int)index;
@@ -697,11 +700,16 @@ int _create_instance(bool fix, int index, struct dpss_init_parm *parm)
 	if (dpss_nr_debug)
 		pch->c.o_afbc = 0;
 
-	dpss_api_init_data(pch);
+	if (!dpss_api_init_data(pch)) {
+		pch->c.reg_s1 = false;
+		mutex_unlock(&pch->c.ch_lock);
+		DBG_ERR("%s:init data err ch[%d]\n", __func__, ch);
+		return DPSS_ERR_IN_NO_SPACE;
+	}
 
 	dpss_api_reg(pch);
 	mutex_unlock(&pch->c.ch_lock);
-	dbg_i0("%s:ch[%d],tmode[0x%x],out[0x%x] o_afbc=%d\n", "ins:create",
+	dbg_ins0("%s:ch[%d],tmode[0x%x],out[0x%x] o_afbc=%d\n", "ins:create",
 		ch, parm->dps_work_mode,
 		parm->di_parm.output_format,
 		pch->c.o_afbc);
@@ -724,8 +732,12 @@ static enum DPSS_ERRORTYPE _destroy_instance(struct dpss_ch_s *pch)
 	}
 	dpss_api_unreg(pch);
 	_ch_releas_data_fifo(pch->d);
+	//dpss-patch for reg
+	if (pch->d)
+		vfree(pch->d);
+	pch->d = NULL;
 	pch->c.reg_s1 = 0;
-
+	dbg_ins0("destroy:ch[%d]\n", pch->c.ch);
 	return DPSS_ERR_NONE;
 }
 
@@ -989,6 +1001,7 @@ static struct vframe_s *_get_ready(int ch_index)
 		if (pch->c.reg_s2)
 			vfm->type_ext |= VIDTYPE_EXT_FRC_LINK;
 		pch->d->cnt_pst_get++;
+		pch->c.disp_cnt++;
 		dbg_h1("%s:cvs:out vf 1<%d,%d> <%d,%d> addr<0x%lx,0x%lx>\n",
 			__func__,
 			vfm->canvas0_config[0].width,
@@ -1195,11 +1208,17 @@ static void _vfm_polling_get_pre_block(struct dpss_ch_s *pch, int inp_is_full)
 	struct vframe_s *vfm = NULL, *vfm2;
 	unsigned int ch;
 	int ret_in;
+	bool lock_ret;
 
 	if (!dpss_dbg_is_run())
 		return;
 
-	mutex_lock(&pch->c.ch_lock); //lock
+	//mutex_lock(&pch->c.ch_lock); //lock
+	lock_ret = mutex_trylock(&pch->c.ch_lock);
+	if (!lock_ret) {
+		DBG_WARN("pre_block:wait\n");
+		return;
+	}
 	ch = pch->c.ch;
 	if (inp_is_full) {
 		vfm = _vf_get(ch);
@@ -1220,7 +1239,6 @@ static void _vfm_polling_get_pre_block(struct dpss_ch_s *pch, int inp_is_full)
 	ret_in = _input_buffer(pch, vfm);
 	if (ret_in == DPSS_ERR_NONE) {
 		pch->d->cnt_pre_get++;
-		pch->c.disp_cnt++;
 
 		vfm2 = _vf_get(ch);
 		if (vfm != vfm2) {
@@ -1253,10 +1271,16 @@ static void _vfm_polling_put_pre_block(struct dpss_ch_s *pch)
 {
 	struct vframe_s *vfm = NULL; // *vfm_in = NULL;
 	unsigned int len; // ch,
+	bool lock_ret;
 
 	int i;
 
-	mutex_lock(&pch->c.ch_lock); //lock
+	//mutex_lock(&pch->c.ch_lock); //lock
+	lock_ret = mutex_trylock(&pch->c.ch_lock);
+	if (!lock_ret) {
+		DBG_WARN("put pre:wait\n");
+		return;
+	}
 	//	ch = pch->c.ch;
 	//to-do list
 	//recycle to pre:
@@ -1315,9 +1339,21 @@ void _ins_polling_send_ready(struct dpss_ch_s *pch)
 	struct vframe_s *vfm = NULL;
 	int i;
 	unsigned int len;
+	bool lock_ret = false;
+
 	//int ret_in;
 
-	mutex_lock(&pch->c.ch_lock); //lock
+	//mutex_lock(&pch->c.ch_lock); //lock
+	for (i = 0; i < 3; i++) {
+		lock_ret = mutex_trylock(&pch->c.ch_lock);
+		if (lock_ret)
+			break;
+	}
+
+	if (!lock_ret) {
+		DBG_WARN("send ready:wait\n");
+		return;
+	}
 	//ready to post:
 	len = kfifo_len(&pch->d->q_ch[EDPSS_Q_CH_RD].f);
 	if (len) {
@@ -1779,13 +1815,12 @@ int dpss_cmd_asy(int index, unsigned int cmd_asy, struct dpss_cmd_a_s *para)
 	if (ch > DPSS_CHANNEL_NUB)
 		return DPSS_ERR_INDEX_OVERFLOW;
 	pch = dpss_get_ch(ch);
+	if (!para || !pch || !pch->d) {
+		DBG_ERR("%s:no para:work\n", __func__);
+		return DPSS_ERR_UNDEFINED;
+	}
 
 	if (cmd_asy == DPSS_CMD_ASY_WORKMODE) {
-		if (!para || !pch->d) {
-			DBG_ERR("%s:no para:work\n", __func__);
-			return DPSS_ERR_UNDEFINED;
-		}
-
 		//pch->c.parm.dps_work_mode = para->para;
 		pch->d->new_w_mode = para->para;
 		pch->d->new_w_mode |= DPSS_PARA_UPDATE;
@@ -1794,19 +1829,55 @@ int dpss_cmd_asy(int index, unsigned int cmd_asy, struct dpss_cmd_a_s *para)
 			pch->c.parm.dps_work_mode,
 			pch->d->new_w_mode);
 	} else if (cmd_asy == DPSS_CMD_ASY_2_WORKMODE) {
-		if (!para || !pch->d) {
-			DBG_ERR("%s:no para:work\n", __func__);
-			return DPSS_ERR_UNDEFINED;
-		}
-
 		//pch->c.parm.dps_work_mode = para->para;
 		pch->d->w_mode_2 = para->para;
 
 		dbg_i0("%s:chg w_mode_2:0x%x\n",
 			__func__,
 			pch->d->w_mode_2);
+	} else if (cmd_asy == DPSS_CMD_ENABLE_FRC) {
+		dbg_i0("%s: frc_enable: %d\n", __func__, para->para);
+		dpss_frc_set_mc_bypass((u8)para->para);
 	}
 	return DPSS_ERR_NONE;
 }
+
+/*****************************************
+ * pre-allocate
+ *****************************************/
+int dpss_buf_ize = 4096;
+module_param_named(dpss_buf_ize, dpss_buf_ize, int, 0664);
+
+int dpss_yuv_buf_ize = 4096;
+module_param_named(dpss_yuv_buf_ize, dpss_yuv_buf_ize, int, 0664);
+
+int dpss_yuv_buf_nub = DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+module_param_named(dpss_yuv_buf_nub, dpss_yuv_buf_nub, int, 0664);
+
+void dpss_pre_buf_prob(void)
+{
+	struct dpss_dd_s *dd;
+
+	dd = dpss_get_dd();
+	dpss_buf_ize = dd->uhd_sml_info.size_t_nr_frc_s;
+	dpss_yuv_buf_ize = dd->fd_afrc_info.size_body;
+	dbg_m1("%s:0x%x,0x%x\n", __func__, dpss_buf_ize, dpss_yuv_buf_ize);
+}
+
+void dpss_submit_pre_buf(int inst_id, int mem_flags)
+{
+	submit_prealloc_job(PREALLOC_DPSS_SML_TYPE, 1, dpss_buf_ize,
+		PAGE_SHIFT, 0, -1);
+	submit_prealloc_job(PREALLOC_DPSS_YUV_TYPE, dpss_yuv_buf_nub, dpss_yuv_buf_ize,
+		PAGE_SHIFT, mem_flags, -1);
+}
+EXPORT_SYMBOL(dpss_submit_pre_buf);
+
+void dpss_release_pre_buf(int inst_id)
+{
+	release_prealloc_job_with_type(-1, PREALLOC_DPSS_SML_TYPE);
+	release_prealloc_job_with_type(-1, PREALLOC_DPSS_YUV_TYPE);
+}
+EXPORT_SYMBOL(dpss_release_pre_buf);
 
 /**************************************************************************************/

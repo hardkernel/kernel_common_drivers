@@ -34,8 +34,9 @@ static unsigned int buf_alloced;
 
 static struct dpss_rdma_info rdma_info[RDMA_CHANNEL]; // 0: man 1:pre vsync 2:vsync
 
-static unsigned int rdma_handle_irq_pre_vs = 0x2; // pre vs tri bit:2
-static unsigned int rdma_handle_irq_vs = 0x10000000; //vs tri bit:28
+static unsigned int rdma_handle_irq_pre_vs = 0x2; // pre vs tri bit:1
+// static unsigned int rdma_handle_irq_vs = 0x10000000; //vs tri bit:28
+static unsigned int rdma_handle_irq_vs = 0x1; //vs tri bit:0
 
 int rdma_enable(void)
 {

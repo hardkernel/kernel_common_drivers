@@ -23,6 +23,7 @@ void dpss_inp_reg_monitor(void);
 void dpss_dae0_reg_monitor(void);
 void dpss_pre_vs_reg_monitor(void);
 void dpss_vsync_reg_monitor(void);
+void frc_unreg_hw(u32 ch);
 void frc_unreg_clear_state(u32 ch);
 void frc_reg_update_state(u32 ch);
 void dpss_enable_mc_link(bool enable);
@@ -31,12 +32,14 @@ void check_dpss_frc_status(void);
 void frc_undone_check(void);
 void frc_set_mc_bypass(u8 bypass);
 void dpss_frc_check_reg_stats(void);
+void dpss_frc_check_undone_stats(void);
+
 void dpss_frc_get_init_csc(void);
 void dpss_frc_set_mc_pattern(u8 enpat);
 void dpss_frc_pattern_dbg_ctrl(void);
 void set_delta_ms(int in_fps, int out_fps, int delta);
 void dump_delta_ms(void);
-
+void dpss_set_mc_link_state(u8 en);
 void dpss_frc_set_memc_enable(u8 function, u8 enable);
 void update_n2m_info_to_fw(enum DPSS_FRC_RATIO frc_ratio);
 void frc_dbg_read_table_value(void);
@@ -45,5 +48,8 @@ void get_n2m_value_from_frc_ratio(enum DPSS_FRC_RATIO frc_ratio, u32 *inp_n, u32
 bool is_vd1_link_state(void);
 void dpss_frc_prob(struct dpss_dev_s *devp);
 void dpss_frc_remove(void);
+int dpss_frc_tell_alg_vendor(u8 vendor_info);
+void dpss_frc_get_memc_gmv(struct memc_gmv_s *memc_gmv);
+void dpss_frc_resume(void);
 
 #endif

@@ -195,6 +195,7 @@ struct dpss_nr_i_s {
 	void *lk_parent;
 	void *lk_grd_parent;
 	unsigned char idx;
+	unsigned char nr_buf_idx; //add playback fallback check for frc
 	struct vframe_s *in_vfm;
 	struct dpss_sub_vf_s sub_vf_in;
 
@@ -593,6 +594,24 @@ struct dpss_ch_c_s1 {
 	unsigned int out_total_cnt; //add 1002
 	unsigned int disp_cnt;  //g_dpss_disp_cnt
 	struct vframe_s *vfm_last;
+	bool en_dct;
+	bool en_tfbc;
+	bool en_dw;
+	bool en_frc;
+	unsigned char num_lc; //
+	unsigned char num_aepe;
+	unsigned char num_nr_wrpt;
+	unsigned char num_pq_buf;
+	//1080p:bit 0: afbc; bit 1: afrc; bit 2: mif
+	//4k: bit 4: afbc; bit 5: afrc; bit 6: mif
+	unsigned char mem_support;
+	//mem support 4k ?
+	//mem support i ?
+	//other ?
+	bool support_4k;
+	bool support_i;
+	bool support_frc;
+	//-----------------------
 };
 
 struct prm_dpss_input {
@@ -620,6 +639,7 @@ struct dpss_input_q {
 	bool wait_hw_finish;
 	bool wait_sw_finish;
 	struct mutex input_q_mutex; //mutex lock
+	spinlock_t kfifo_lock;//spinlock lock
 };
 
 struct dpss_ch_s {

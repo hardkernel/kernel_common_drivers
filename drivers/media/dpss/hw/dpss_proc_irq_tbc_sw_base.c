@@ -76,7 +76,7 @@ u32 frc_dae_ibuf_level = 0, frc_dae_obuf_level = 4;//ary tmp reg_frc_dae_obuf_nu
 u32 fnr_dae_ibuf_level = 0, fnr_dae_obuf_level = 6; //ary tmp reg_fnr_dae_obuf_num;
 u32 fnr_dpe_ibuf_level = 0, fnr_dpe_obuf_level = 6; //ary tmp reg_fnr_dpe_obuf_num;
 
-u32 viu_frm_idx = 0, src_frm_idx = 0, inp_frm_idx = 0, frc_dae_frm_idx = 0
+u32 viu_frm_idx = 0, src_frm_idx = 0, inp_frm_idx = 0, frc_dae_frm_idx = 0;
 /*ary no use,frc_dpe_frm_idx=0*/;
 u32 fnr_dae_frm_idx = 0, fnr_dpe_frm_idx = 0;
 u32 dae0_frm_rst_cnt = 0, dae1_frm_rst_cnt = 0, dae2_frm_rst_cnt = 0;

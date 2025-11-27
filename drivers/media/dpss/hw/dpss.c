@@ -37,6 +37,8 @@
 #include "../dpss/dpss_hw.h"
 #include "../dpss/dpss_hw_frc.h"
 #include "../dpss/sys_def.h"
+#include <linux/amlogic/media/registers/cpu_version.h>
+
 unsigned int nr_aepe_buf_num_dbg = 3;
 module_param_named(nr_aepe_buf_num_dbg, nr_aepe_buf_num_dbg, uint, 0664);
 
@@ -194,6 +196,10 @@ void hw_cfg_dpss_top(struct PRM_DPSS_TOP *prm_top)
 	//04-15 for rdma
 	w_reg_bit(DPSS_RDMA_INT_MODEL_SEL, 1, 0, 1);
 	w_reg_bit(DPSS_RDMA_DONE_FLAG_SEL, 0, 0, 16);
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T6W) {
+		wr(VPU_DAE_WRAP_GCLK_CTRL0, 0xa);
+		wr(VPU_DAE_WRAP_GCLK_CTRL1, 0xa);//close gate clock from vlsi dae stuck
+	}
 
 	//just for get register for check
 	w_reg_bit(DPSS_DPE_INTF_CTRL0,
@@ -552,15 +558,16 @@ void hw_cfg_dpss_tbc_frc(struct PRM_DPSS_TOP *prm_top,
 	//1bit, 0 use detect film phase, 1 use calculate film phase
 	u32 tbc_auto_mode = 1;//1bit, 0: phase tab ctrl, 1: automatic ctrl
 	//ary no use	u32 inp_nr_link_mode = 1; //1bit frcnr_me_share_mode
-	u32 inp_ibuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+	u32 inp_ibuf_num;
 	//16; //(prm_top.film_mode == DPSS_FILM_PD) ? 16 : 4;
-	u32 inp_obuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6
-	u32 nr_dae_ibuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6;
-	u32  nr_aepe_buf_num = nr_aepe_buf_num_dbg;//?
-	u32  nr_dpe_obuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6;
+	u32 inp_obuf_num;//6
+	u32 nr_dae_ibuf_num;//6;
+	u32  nr_aepe_buf_num;//?
+	u32  nr_dpe_obuf_num;//6;
 	u32  frc_dae_ibuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6
 	u32  frc_dae_obuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6
 	u32  frc_dpe_obuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6
+	u32 num_dblk, num_wrbk, num_nrdi_wrpt, num_nr_me_ro, num_dpe_ro;
 	u32  reg_frc_src_idx = 1; // 4bit //todo ?
 	enum DPSS_WORK_MODE dpss_mode = prm_top->dpss_mode;
 	bool frc_tbc_en = (frc_nr_en >> 1) & 0x1; //todo
@@ -577,19 +584,30 @@ void hw_cfg_dpss_tbc_frc(struct PRM_DPSS_TOP *prm_top,
 		nr_dae_ibuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6;
 		nr_aepe_buf_num = nr_aepe_buf_num_dbg;//?
 		nr_dpe_obuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6;
+		num_dblk = nr_dpe_obuf_num;
+		num_wrbk = nr_dpe_obuf_num;
 		frc_dae_ibuf_num = 16;
 		frc_dae_obuf_num = 6;
 		frc_dpe_obuf_num = 16;
 	} else {
-		inp_ibuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;
-		inp_obuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;
-		nr_dae_ibuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6;
-		nr_aepe_buf_num = nr_aepe_buf_num_dbg;//?
-		nr_dpe_obuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6;
+		inp_ibuf_num = prm_top->num_in;//DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+		inp_obuf_num = prm_top->num_in;//DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+		nr_dae_ibuf_num = prm_top->num_in;//DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6;
+		nr_aepe_buf_num = prm_top->num_aepe;//nr_aepe_buf_num_dbg;//
+		nr_dpe_obuf_num = prm_top->num_dpe_o; //DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6;
 		frc_dae_ibuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;
 		frc_dae_obuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;
 		frc_dpe_obuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+		num_dblk = prm_top->num_dblk;
+		if (prm_top->is_i)
+			num_wrbk = prm_top->num_lc;
+		else
+			num_wrbk = nr_dpe_obuf_num;
 	}
+	num_nrdi_wrpt = prm_top->num_nr_wrpt;
+	num_nr_me_ro = prm_top->num_nr_me_ro;
+	num_dpe_ro = prm_top->num_nr_me_ro;
+
 	w_reg_bit(DPSS_TOP_FUNC_BYP_CTRL, frc_byp_mode, 8, 1);
 	//reg_frc_byp_mode
 	w_reg_bit(DPSS_TOP_FUNC_BYP_CTRL, fnr_byp_mode, 4, 1);
@@ -663,9 +681,9 @@ void hw_cfg_dpss_tbc_frc(struct PRM_DPSS_TOP *prm_top,
 		((nr_dpe_obuf_num & 0x1f) <<
 		0)); //reg_dpe_obuf_num
 	wr(DPSS_FBUF_DPE_NUM_CTRL,
-		((nr_dpe_obuf_num & 0x1f) << 8)
+		((num_dblk & 0x1f) << 8)
 		| //reg_dblk_buf_num
-		((nr_dpe_obuf_num & 0x1f) <<
+		((num_wrbk & 0x1f) <<
 		0)); //reg_wrbk_obuf_num
 	wr(FRC_DPE_OUT_BUFF_NUM,
 		((frc_dae_obuf_num & 0x1f) << 16)
@@ -677,6 +695,14 @@ void hw_cfg_dpss_tbc_frc(struct PRM_DPSS_TOP *prm_top,
 		| //reg_mero_fb_num//nr_frc_0113
 		((16 & 0x1f) << 8) | //reg_logo_fb_num
 		((16 & 0x1f) << 0));//reg_frc_fb_num
+
+	w_reg_bit(DPSS_REG_NRDI_WRPT_FULL_NUM,
+		(num_nrdi_wrpt & 0xf), 0, 4); //reg_nrdi_wrpt_full_num
+	//move
+	w_reg_bit(DPSS_FBUF_DPE_RDMA_INFO, num_dpe_ro, 0, 4);	//reg_dpe_rdma_num
+	w_reg_bit(DPSS_FBUF_DAE_INIT, num_nr_me_ro, 24, 4);	//reg_dae_mero_num
+	//move w_reg_bit(DPSS_FBUF_DAE_INIT + 0x300, DPSS_HW_LOOP_IN_OUT_BUF_NUB, 24, 4);
+
 	w_reg_bit(FRC_REG_LOAD_ORG_FRAME_0, 1, 27, 1);
 	//reg_ip_film_end_0, TODO for FILM MODE
 	w_reg_bit(DPSS_TOP_FUNC_CTRL, reg_phsx2x_mode_en, 0, 1);
@@ -877,10 +903,11 @@ static void hw_cfg_dpss_tbc_vdi(struct PRM_DPSS_TOP *prm_top, u32 vdi_nr_en)
 	u32 org_hsize;
 	u32 org_vsize;
 //#if 1	//ary add for loop num
-	u32 nr_dae_ibuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6;
-	u32 nr_aepe_buf_num = nr_aepe_buf_num_dbg;//?
-	u32 nr_dpe_obuf_num = DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6;
+	u32 nr_dae_ibuf_num = prm_top->num_in;
+	u32 nr_aepe_buf_num = prm_top->num_aepe;//nr_aepe_buf_num_dbg;//?
+	u32 nr_dpe_obuf_num = prm_top->num_dpe_o;//DPSS_HW_LOOP_IN_OUT_BUF_NUB;//6;
 //#endif
+	u32 num_dblk, num_wrbk, num_nrdi_wrpt, num_nr_me_ro, num_dpe_ro;
 
 	if (prm_top->auto_alig_en && prm_top->org_hsize != 0xffff) {
 		org_hsize    = prm_top->org_hsize;
@@ -904,6 +931,15 @@ static void hw_cfg_dpss_tbc_vdi(struct PRM_DPSS_TOP *prm_top, u32 vdi_nr_en)
 
 	dbg_h2("\torg_hsize=%4d  org_vsize=%4d\n", org_hsize, org_vsize);
 	dbg_h2("\tfrm_hsize=%4d  frm_vsize=%4d\n", frm_hsize, frm_vsize);
+
+	num_nrdi_wrpt = prm_top->num_nr_wrpt;
+	num_nr_me_ro = prm_top->num_nr_me_ro;
+	num_dpe_ro = prm_top->num_nr_me_ro;
+	num_dblk = prm_top->num_dblk;
+	if (prm_top->is_i)
+		num_wrbk = prm_top->num_lc;
+	else
+		num_wrbk = nr_dpe_obuf_num;
 
 	w_reg_bit(DPSS_REGOFST_VDICTRL +
 		DPSS_FBUF_TOP_CTRL, di_tbc_en, 2,
@@ -930,11 +966,19 @@ static void hw_cfg_dpss_tbc_vdi(struct PRM_DPSS_TOP *prm_top, u32 vdi_nr_en)
 		((nr_dpe_obuf_num & 0x1f) <<
 		0));//reg_dpe_obuf_num
 	wr(DPSS_REGOFST_VDICTRL + DPSS_FBUF_DPE_NUM_CTRL,
-		((nr_dpe_obuf_num & 0x1f) << 8)
+		((num_dblk & 0x1f) << 8)
 		| //reg_dblk_buf_num
-		((nr_dpe_obuf_num & 0x1f) <<
+		((num_wrbk & 0x1f) <<
 		0));//reg_wrbk_obuf_num
-//#endif
+//add-------
+	w_reg_bit(DPSS_REGOFST_VDICTRL + DPSS_REG_NRDI_WRPT_FULL_NUM,
+			(num_nrdi_wrpt & 0xf), 0, 4); //reg_nrdi_wrpt_full_num
+	//move
+	w_reg_bit(DPSS_REGOFST_VDICTRL + DPSS_FBUF_DPE_RDMA_INFO,
+			num_dpe_ro, 0, 4);	//reg_dpe_rdma_num
+	w_reg_bit(DPSS_REGOFST_VDICTRL + DPSS_FBUF_DAE_INIT,
+		num_nr_me_ro, 24, 4);	//reg_dae_mero_num
+//-----------
 	w_reg_bit(DPSS_REGOFST_VDICTRL +
 		DPSS_FBUF_OUT_RLS_MODE, di_frc_link, 0, 1);
 	//for frc align

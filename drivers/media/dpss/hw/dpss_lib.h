@@ -13,6 +13,11 @@ void vpu_initqueue(struct Vpu_queue *queue);
 bool vpu_is_queue_empty(struct Vpu_queue *queue);
 bool vpu_enqueue(struct Vpu_queue *queue, int value);
 bool vpu_dequeue(struct Vpu_queue *queue, int *value, int *empty);
+void dpss_initqueue(struct dpss_queue *queue);
+bool dpss_enqueue(struct dpss_queue *queue, int value);
+bool dpss_peek_queue(struct dpss_queue *queue, int *value, bool *empty);
+bool dpss_put_queue(struct dpss_queue *queue, int *value, bool *empty);
+void dpss_put_last_queue(struct dpss_queue *queue, bool *empty, u32 *value);
 
 extern struct Vpu_queue inp_bufQ;
 extern unsigned int g_SIM_FRM_NUM;

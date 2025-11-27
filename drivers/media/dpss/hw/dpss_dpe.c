@@ -326,7 +326,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 	u32 w1_mask = w1_sel == 7;
 	u32 ds_mask = dolby_parallel ? 1 : ds_sel == 3;
 
-	if (dpss_dbg_dis_dw) {
+	if (dpss_dbg_dis_dw || prm_top->dw_disable) {
 		ds_sel = 3;
 		dbg_h2("this force disable dw\n");
 	}

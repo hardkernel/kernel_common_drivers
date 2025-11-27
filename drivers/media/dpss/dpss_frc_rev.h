@@ -30,8 +30,10 @@
 // dpss: modify dae_wrpt_full_num [1/1]
 // dpss: chg pre_vsync_offset
 // dpss: enable frc only case
+// dpss:20250910 chg n2m config setting
+// dpss:20251028 set io_ctrl enable by self
 
-#define DPSS_FRC_FW_VER			"20250910 chg n2m config setting"
+#define DPSS_FRC_FW_VER			"20251113 frc shows the final frame"
 #define DPSS_FRC_KERDRV_VER                  1000
 
 //#define DPSS_FRC_DEVNO		1

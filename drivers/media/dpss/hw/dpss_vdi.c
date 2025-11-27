@@ -22,6 +22,13 @@ unsigned int dpss_lcevc_en;
 unsigned int dpss_di_debug;
 unsigned int dpss_force_nr_debug;//i mode open nr debugs
 unsigned int dpss_force_pq;//force enable nr debugs
+static u32 diout_slc_xbgn[4];
+static u32 diout_slc_hsize[4];
+static u32 diout_slc_xend[4];
+
+static u32 diout_demo_slc_xbgn[4];
+static u32 diout_demo_slc_hsize[4];
+static u32 diout_demo_slc_xend[4];
 
 void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 {
@@ -236,6 +243,40 @@ void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 		di_write_data_table(DI_PAGE_MODULE_DNR, 0);
 	di_write_data_table(DI_PAGE_MODULE_XLR, 0);
 	di_db_dm[REG_DM_MAX].val = pq_update;
+
+	if (dpss_di_debug) {
+		wr(VPU_POST_NR_SLC_OVLP_SIZE, (((0x0 & 0xff) << 24) |
+			((0x0 & 0xff) << 16) | ((0x0 & 0xff) << 8) |
+			((0x0 & 0xff) << 0)));//need lusen check 2 or4???
+		w_reg_bit(VPU_NR_ENABLE, 0, 0, 1);
+		wr(VPU_DI_HW_SLC_DI_OUT_HBGN_10,
+			((diout_demo_slc_xbgn[1] & 0x3fff) << 16) |
+			((diout_demo_slc_xbgn[0] & 0x3fff) << 0));
+		wr(VPU_DI_HW_SLC_DI_OUT_HBGN_32,
+			((diout_demo_slc_xbgn[3] & 0x3fff) << 16) |
+			((diout_demo_slc_xbgn[2] & 0x3fff) << 0));
+		wr(VPU_DI_HW_SLC_DI_OUT_HSIZE_10,
+			((diout_demo_slc_hsize[1] & 0x3fff) << 16) |
+			((diout_demo_slc_hsize[0] & 0x3fff) << 0));
+		wr(VPU_DI_HW_SLC_DI_OUT_HSIZE_32,
+			((diout_demo_slc_hsize[3] & 0x3fff) << 16) |
+			((diout_demo_slc_hsize[2] & 0x3fff) << 0));
+	} else {
+		wr(VPU_POST_NR_SLC_OVLP_SIZE, (((0x2 & 0xff) << 24) |
+			((0x2 & 0xff) << 16) | ((0x2 & 0xff) << 8) |
+			((0x2 & 0xff) << 0)));//need lusen check 2 or4???
+		w_reg_bit(VPU_NR_ENABLE, 1, 0, 1);
+		wr(VPU_DI_HW_SLC_DI_OUT_HBGN_10, ((diout_slc_xbgn[1] & 0x3fff) << 16) |
+		((diout_slc_xbgn[0] & 0x3fff) << 0));
+		wr(VPU_DI_HW_SLC_DI_OUT_HBGN_32, ((diout_slc_xbgn[3] & 0x3fff) << 16) |
+			((diout_slc_xbgn[2] & 0x3fff) << 0));
+		wr(VPU_DI_HW_SLC_DI_OUT_HSIZE_10,
+			((diout_slc_hsize[1] & 0x3fff) << 16) |
+			((diout_slc_hsize[0] & 0x3fff) << 0));
+		wr(VPU_DI_HW_SLC_DI_OUT_HSIZE_32,
+			((diout_slc_hsize[3] & 0x3fff) << 16) |
+			((diout_slc_hsize[2] & 0x3fff) << 0));
+	}
 }
 
 void cfg_dpss_vdi(struct PRM_DPSS_TOP *prm_top,
@@ -262,7 +303,7 @@ void cfg_dpss_vdi(struct PRM_DPSS_TOP *prm_top,
 	bool top_is_first = 0;
 	bool reg_ei_en	= di_en;
 
-	dbg_h2("%s nr_src0_en = %d nr_src1_en = %d", __func__, nr_src0_en, nr_src1_en);
+	dbg_h2("%s nr_src0_en = %d nr_src1_en = %d\n", __func__, nr_src0_en, nr_src1_en);
 	dbg_h2(" di_en = %d is_psrc = %0d\n", di_en, is_psrc);
 	dbg_h2("<%s> hsize = %d vsize = %d\n", __func__, hsize, vsize);
 
@@ -465,9 +506,9 @@ void cfg_dpss_vdi(struct PRM_DPSS_TOP *prm_top,
 	w_reg_bit(VPU_VBE_TOP_HOLD, 5, 16, 13);//reg_hold_vnum
 
 	cfg_dpss_vdi_slice(hsize, vsize, slc_num, prm_top, nr_pps_cfg);
-	wr(DPSS_FBUF_DPE_RDMA_INFO, DPSS_HW_LOOP_IN_OUT_BUF_NUB);//reg_pic_hsize
-	w_reg_bit(DPSS_FBUF_DAE_INIT, DPSS_HW_LOOP_IN_OUT_BUF_NUB, 24, 4);
-	w_reg_bit(DPSS_FBUF_DAE_INIT + 0x300, DPSS_HW_LOOP_IN_OUT_BUF_NUB, 24, 4);
+//	wr(DPSS_FBUF_DPE_RDMA_INFO, DPSS_HW_LOOP_IN_OUT_BUF_NUB);//reg_pic_hsize
+//	w_reg_bit(DPSS_FBUF_DAE_INIT, DPSS_HW_LOOP_IN_OUT_BUF_NUB, 24, 4);
+//	w_reg_bit(DPSS_FBUF_DAE_INIT + 0x300, DPSS_HW_LOOP_IN_OUT_BUF_NUB, 24, 4);
 }
 
 //==============================================================//
@@ -569,12 +610,14 @@ void cfg_dpss_vdi_slice(u32 frm_hsize,
 	// u32 di_out_cut_ovlp = slc_num == 1 ? 0 : 62;
 	u32 ovlp_size       = slc_num == 1 ? 0 : 64;
 	u32 di_out_cut_ovlp = slc_num == 1 ? 0 : 62 - ext_pad;
+	u32 di_out_cut_ovlp_demo = slc_num == 1 ? 0 : 64 - ext_pad;
+
 	u32 pix_rd_xbgn[4];
 	u32 pix_rd_xend[4];
 	u32 pix_slc_hsize[4];
-	u32 diout_slc_xbgn[4];
-	u32 diout_slc_xend[4];
-	u32 diout_slc_hsize[4];
+	//u32 diout_slc_xbgn[4];
+	//u32 diout_slc_xend[4];
+	//u32 diout_slc_hsize[4];
 
 	//pix_rd_xbgn[0] = slc_act_hbgn[0] - 0;
 	//pix_rd_xend[0] = slc_act_hbgn[0] + slc_act_hsize[0] + ovlp_size - 1;
@@ -607,11 +650,24 @@ void cfg_dpss_vdi_slice(u32 frm_hsize,
 	diout_slc_xbgn[3] = pix_rd_xbgn[3] + di_out_cut_ovlp;
 	diout_slc_xend[3] = pix_rd_xend[3];
 
+	diout_demo_slc_xbgn[0] = pix_rd_xbgn[0];
+	diout_demo_slc_xend[0] = pix_rd_xend[0] - di_out_cut_ovlp_demo;
+	diout_demo_slc_xbgn[1] = pix_rd_xbgn[1] + di_out_cut_ovlp_demo;
+	diout_demo_slc_xend[1] = pix_rd_xend[1] - di_out_cut_ovlp_demo;
+	diout_demo_slc_xbgn[2] = pix_rd_xbgn[2] + di_out_cut_ovlp_demo;
+	diout_demo_slc_xend[2] = pix_rd_xend[2] - di_out_cut_ovlp_demo;
+	diout_demo_slc_xbgn[3] = pix_rd_xbgn[3] + di_out_cut_ovlp_demo;
+	diout_demo_slc_xend[3] = pix_rd_xend[3];
+
 	for (i = 0; i < slc_num; i++)
 		pix_slc_hsize[i] = pix_rd_xend[i] - pix_rd_xbgn[i] + 1;
 
 	for (i = 0; i < slc_num; i++)
-		diout_slc_hsize[i] = diout_slc_xend[i] - diout_slc_xbgn[i] + 1;
+		diout_slc_hsize[i] = diout_slc_xend[i] -
+			diout_slc_xbgn[i] + 1;
+	for (i = 0; i < slc_num; i++)
+		diout_demo_slc_hsize[i] = diout_demo_slc_xend[i] -
+			diout_demo_slc_xbgn[i] + 1;
 
 	//for di ro register
 	wr(VPU_DI_HW_SLC_HBGN_10, ((slc_act_hbgn[1] & 0x3fff) << 16) |
@@ -650,6 +706,20 @@ void cfg_dpss_vdi_slice(u32 frm_hsize,
 	wr(VPU_DI_HW_SLC_DI_OUT_HSIZE_32,
 		((diout_slc_hsize[3] & 0x3fff) << 16) |
 		((diout_slc_hsize[2] & 0x3fff) << 0));
+	if (dpss_di_debug) {
+		wr(VPU_DI_HW_SLC_DI_OUT_HBGN_10,
+			((diout_demo_slc_xbgn[1] & 0x3fff) << 16) |
+			((diout_demo_slc_xbgn[0] & 0x3fff) << 0));
+		wr(VPU_DI_HW_SLC_DI_OUT_HBGN_32,
+			((diout_demo_slc_xbgn[3] & 0x3fff) << 16) |
+			((diout_demo_slc_xbgn[2] & 0x3fff) << 0));
+		wr(VPU_DI_HW_SLC_DI_OUT_HSIZE_10,
+			((diout_demo_slc_hsize[1] & 0x3fff) << 16) |
+			((diout_demo_slc_hsize[0] & 0x3fff) << 0));
+		wr(VPU_DI_HW_SLC_DI_OUT_HSIZE_32,
+			((diout_demo_slc_hsize[3] & 0x3fff) << 16) |
+			((diout_demo_slc_hsize[2] & 0x3fff) << 0));
+	}
 
 	if (slc_num == 1)
 		wr(VPU_POST_NR_SLC_ACT_HSIZE_0, ((slc_act_hsize[1] & 0xffff) << 16) |
@@ -674,15 +744,17 @@ void cfg_dpss_vdi_slice(u32 frm_hsize,
 		slc_act_hsize[0] + slc_act_hsize[1] + slc_act_hsize[2] - 2,
 		0, 13);//reg_slc3_h_bgn
 	if (!prm_top->is_i || dpss_di_debug || dpss_nr_debug ||
-		dpss_force_nr_debug)
+		dpss_force_nr_debug) {
 		wr(VPU_POST_NR_SLC_OVLP_SIZE, (((0x0 & 0xff) << 24) |
 			((0x0 & 0xff) << 16) | ((0x0 & 0xff) << 8) |
 			((0x0 & 0xff) << 0)));//need lusen check 2 or4???
-	else
+		w_reg_bit(VPU_NR_ENABLE, 0, 0, 1);
+	} else {
 		wr(VPU_POST_NR_SLC_OVLP_SIZE, (((0x2 & 0xff) << 24) |
 			((0x2 & 0xff) << 16) | ((0x2 & 0xff) << 8) |
 			((0x2 & 0xff) << 0)));//need lusen check 2 or4???
-
+		w_reg_bit(VPU_NR_ENABLE, 1, 0, 1);
+	}
 	wr(VPU_DBLK_DI_DPOST_OUP_HCROP, 0x0);//crop
 
 	wr(VPU_NR_SLC_CUR_PAD, (0 << 24) | (0 << 16) |

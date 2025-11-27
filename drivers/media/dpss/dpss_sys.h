@@ -228,11 +228,13 @@ struct frc_ctrl_dbg_s {
 	unsigned dbg_freq_disable:1;
 	unsigned dbg_mute_disable:1;
 	unsigned dbg_dur0_disable:1;
-	unsigned get_glb_motion_no_alg:1;
-
+	unsigned mc_rdmif_err_reset_en:1;
+	unsigned disable_io_ctrl:1;
+	unsigned ui_frc_state_sel:1;
 	unsigned frc_on_dly_cnt:8;	// t3x revB no used
 	unsigned dbg_mvrd_mode:16;
 	unsigned out_line:32;  /*ctl mc out line for user*/
+	unsigned check_reg_status:16;
 };
 
 enum frc_mc_mtx_csc_e {
@@ -396,6 +398,7 @@ struct frc_work_s {
 struct frc_state_s {
 	bool is_frc_vpp_link;
 	bool need_switch_to_vd1;
+	bool need_disable_mc_link;
 	bool have_update_vfcd;
 	bool dpss_reg;
 	bool check_frc_status_en;
@@ -413,11 +416,18 @@ struct frc_state_s {
 	bool mc_cut_position;
 	bool mc_lp_mode;
 	bool mc_bypass_always;
-	bool use_inp_big;
+	u8 use_inp_big;
 	bool detect_speed;
+	bool force_disable_dpe_mix;
+	bool force_disable_check_fallback;
+	bool is_dos;
+	u8 check_fallback;
 	u8  detect_threshold;
 	u8 dae0_bypass_mode;
 	u8 dst_buf_th;
+	u8 enable_frclink_cnt;
+	u8 nr_buf_idx;
+	u8 force_mc_cur_idx;
 	u32 mc_bypass_cnt;
 	u32 force_mc_byp_cnt;
 	u32 pre_vsync_offset;
@@ -430,6 +440,14 @@ struct frc_state_s {
 	unsigned int big_plane;
 	unsigned int mc_used_cnt;
 	enum frc_src_s frc_src;/*2025312 not use*/
+
+	bool enable_last_drop; //drop last frame
+	bool need_drop_dd;
+	bool force_disable_drop_last;
+	bool is_pause_state_last_frmae;
+	bool is_wait_mc_state;
+	u32 mc_q_idx;
+	u32 mc_q_idx_last;
 
 	struct buf_s buf_stats;
 	struct proc_s proc_stats;

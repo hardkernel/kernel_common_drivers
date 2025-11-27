@@ -628,6 +628,7 @@ void dpss_phs_lut_ini(enum DPSS_FRC_RATIO frc_ratio_mode, enum DPSS_FILM_MODE fi
 			phase_table_num = 5;
 		} else {
 			dbg_h2("==== USE ERROR CANDENCE ====");
+			return;
 		}
 		// input_n          = 1;
 		// output_m         = 1;

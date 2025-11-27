@@ -1028,7 +1028,7 @@ void afbcd_update_addr(struct PRM_DPSS_TOP *prm_top, unsigned int cnt)
 
 	w_reg_bit_vc(reg_ofst + VFCD_TOP_CTRL0, 1, 27, 2);
 
-	idx = cnt % DPSS_HW_LOOP_IN_OUT_BUF_NUB;
+	idx = cnt % prm_top->num_in;
 	addr = prm_top->src0_head_yaddr[idx] << 5;
 
 	wr_vc(reg_ofst + VFCD_AFBC_HEAD_BADDR,  addr);//for luma_addr ,

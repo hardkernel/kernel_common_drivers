@@ -66,6 +66,7 @@
 #include "dpss_sys.h"
 #include "dpss_func.h"
 #include "dpss_s_frc.h"
+#include "drv/d_pq.h"
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
 #endif
@@ -1093,11 +1094,29 @@ static long dpss_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	/* to-do */
 	int ret = 0;
 	struct dpss_dev_s *devp;
+	struct dpss_frc_fw_data_s *pfw_data;
+	struct frc_chip_st *pchip_st;
 	void __user *argp = (void __user *)arg;
 	u32 data;
+	struct memc_gmv_s memc_gmv;
+
+	memc_gmv.gmv_x = 0;
+	memc_gmv.gmv_y = 0;
 
 	devp = file->private_data;
 	if (!devp)
+		return -EFAULT;
+
+	pchip_st = devp->pchip_st;
+	if (!pchip_st)
+		return -EFAULT;
+
+	if (pchip_st->dbg_st.ctrl_dbg.disable_io_ctrl == 1) {
+		pr_frc(0, "disable dpss_frc ioctrl\n");
+		return ret;
+	}
+	pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
+	if (!pfw_data)
 		return -EFAULT;
 
 	switch (cmd) {
@@ -1114,7 +1133,10 @@ static long dpss_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
-		dpss_frc_set_mc_bypass(data);
+		if (pchip_st->dbg_st.ctrl_dbg.ui_frc_state_sel)
+			dpss_frc_set_mc_bypass(data);
+		else
+			dpss_set_mc_link_state(data);
 		break;
 
 	case DPSS_FRC_IOC_SET_MEMC_LEVEL:
@@ -1132,6 +1154,28 @@ static long dpss_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 		dpss_frc_demo_win(data, 0);
+		break;
+	case DPSS_FRC_IOC_GET_MEMC_VERSION:
+		data = 0x1111;
+		if (copy_to_user(argp, &pfw_data->frc_alg_ver[0], FRC_ALG_VER_SIZE))
+			ret = -EFAULT;
+		break;
+	case DPSS_FRC_IOC_GET_VIDEO_LATENCY:
+		data = (u32)dpss_frc_get_video_latency();
+		if (copy_to_user(argp, &data, sizeof(u32)))
+			ret = -EFAULT;
+		break;
+	case DPSS_FRC_IOC_SET_MEMC_VENDOR:
+		if (copy_from_user(&data, argp, sizeof(u32))) {
+			ret = -EFAULT;
+			break;
+		}
+		dpss_frc_tell_alg_vendor(data);
+		break;
+	case DPSS_FRC_IOC_GET_MEMC_GMV:
+		dpss_frc_get_memc_gmv(&memc_gmv);
+		if (copy_to_user(argp, &memc_gmv, sizeof(memc_gmv)))
+			ret = -EFAULT;
 		break;
 	}
 	return ret;
@@ -1276,7 +1320,9 @@ static void dpss_early_suspend(struct early_suspend *h)
 			return;
 		}
 	}
-
+#ifdef FUNC_EN_PQ
+	pq_update_suspend_flag(1);
+#endif
 	if (dpss_pdev->clk_status) {
 		clk_set_rate(dpss_pdev->vpu_clk_dpe, 0);
 		clk_disable_unprepare(dpss_pdev->vpu_clk_dae);
@@ -1299,6 +1345,9 @@ static void dpss_late_resume(struct early_suspend *h)
 		clk_set_rate(dpss_pdev->vpu_clk_dpe, 800000000);
 		dpss_pdev->clk_status |= (1 << 1);
 	}
+
+	dpss_irq_set_affinity_hint(dpss_pdev);
+
 	dbg_s1("cur dpe clk :0x%lx\n", clk_get_rate(dpss_pdev->vpu_clk_dpe));
 };
 
@@ -1619,6 +1668,7 @@ static int dpss_resume(struct device *dev)
 	dpss_s_resume(devp);
 	devp->flags &= ~DI_SUSPEND_FLAG;
 	/************/
+	dpss_frc_resume();
 	dbg_s0("%s finish\n", __func__);
 	return 0;
 }

@@ -3119,7 +3119,7 @@ void dpss_cfg_viu_pix_rdmif(struct PRM_INTF_TYPE *prm_mif, s32 mif_index)
 	w_reg_bit(regs_ofst + INP_MIF1_RMIF_CTRL1, 3, 0, 3);	//burst8
 	w_reg_bit(regs_ofst + INP_MIF0_RMIF_CTRL1, prm_mif->reg_mode, 27, 2);
 
-	if (prm_mif->block_mode && mif_index == 1) {
+	if (prm_mif->block_mode) {
 		w_reg_bit(regs_ofst + INP_MIF0_RMIF_CTRL1, 1 << 2 |
 			prm_mif->block_mode, 20, 3);
 		w_reg_bit(regs_ofst + INP_MIF1_RMIF_CTRL1, 1 << 2 |

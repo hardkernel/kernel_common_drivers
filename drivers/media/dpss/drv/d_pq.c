@@ -104,6 +104,14 @@ struct di_db_reg_s di_db_dm[DPSS_DB_DM_NUM] = {
 };
 EXPORT_SYMBOL(di_db_dm);
 
+int dpss_db_data_version(void)
+{
+	int version;
+
+	version = 0x000A;
+	return version;
+}
+
 void dpss_me_size_update(u8 ch)
 {
 	dinr_pq_data[ch].me_width = me_width_init;
@@ -130,6 +138,9 @@ void dpss_me_ro_data_update(void)
 	int index;
 	u32 data32;
 
+	if (dpss_bypass_ko)
+		return;
+
 	for (index = 0; index < DPSS_RO_ME_SIZE; index++) {
 		data32 = rd(FRC_ME_RO_RGN_T_CONSIS_0 + index);
 		dinr_me_buffer_data[index] = data32;
@@ -138,6 +149,9 @@ void dpss_me_ro_data_update(void)
 
 void dpss_input_ro_data_update(unsigned int inp_ofrm_vld)
 {
+	if (dpss_bypass_ko)
+		return;
+
 	dinr_input_buffer_data[0] = rd(FRC_FD_DIF_GL);
 	dinr_input_buffer_data[1] = inp_ofrm_vld;
 }
@@ -248,6 +262,8 @@ void pq_update_ro_me(u32 buf_id, u8 ch)
 		DBG_ERR("me_ro_buffer is null!\n");
 		return;
 	}
+	if (dpss_bypass_ko)
+		return;
 
 	dinr_pq_data[ch].frame_index = buf_id;
 	dinr_pq_data[ch].me_ro_buffer->buf_id = buf_id;
@@ -263,6 +279,9 @@ void pq_update_ro_input(u32 buf_id, u8 ch)
 		DBG_ERR("input_ro_buffer is null!\n");
 		return;
 	}
+	if (dpss_bypass_ko)
+		return;
+
 	dinr_input_buffer_data[2] = dpss_snr_en;
 	dinr_input_buffer_data[3] = dpss_tnr_en;
 	dinr_input_buffer_data[4] = dpss_dm_en;
@@ -273,9 +292,15 @@ void pq_update_ro_input(u32 buf_id, u8 ch)
 		dinr_pq_data[ch].input_ro_buffer->buf);
 }
 
+void pq_update_suspend_flag(u32 suspend_flag)
+{
+	di_db_dm[REG_DM_MAX + 1].val = suspend_flag;
+	dbg_i1("%s:pq :%x\n", __func__, suspend_flag);
+}
+
 enum vframe_signal_fmt_e dpss_sfmt(struct vframe_s *vf)
 {
-	if (!vf)
+	if (!vf || dpss_bypass_ko)
 		return VFRAME_SIGNAL_FMT_INVALID;
 
 	/* invalid src fmt case */
@@ -354,6 +379,13 @@ void pq_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs)
 	dinr_input_buffer_data[2] = dpss_snr_en;
 	dinr_input_buffer_data[3] = dpss_tnr_en;
 	dinr_input_buffer_data[4] = dpss_dm_en;
+	atomic_set(&de_devp->pq_dae_unreg, 1);
+	atomic_set(&de_devp->pq_dpe_unreg, 1);
+	if (di_db_dm[REG_DM_MAX + 1].val) {
+		de_devp->reserved3 = 1;
+		di_db_dm[REG_DM_MAX + 1].val = 0;
+		DBG_INF("%s suspend :%d\n", __func__, de_devp->reserved3);
+	}
 	de_devp->checksum = "30";
 	dbg_i1("%s-1:%d,%d,%d\n", __func__, de_devp->v_width, de_devp->v_height,
 		de_devp->bitdepth);
@@ -367,6 +399,20 @@ void pq_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs)
 		dinr_pq_data[ch].input_ro_buffer,
 		dinr_pq_data[ch].dae_ro_pd_buffer);
 #endif /* FUNC_EN_PQ */
+}
+
+bool pq_can_exit(struct dpss_ch_s *pch)
+{
+	bool ret = false;
+
+#ifdef FUNC_EN_PQ
+	struct di_parm_s *de_devp;
+
+	de_devp = dpss_pq_data(pch->c.ch);
+	if (atomic_read(&de_devp->pq_dae_unreg) && atomic_read(&de_devp->pq_dpe_unreg))
+		ret = true;
+#endif
+	return ret;
 }
 
 /**************************************

@@ -21,6 +21,9 @@ void dpss_s_resume(struct dpss_dev_s *dpss_pdev);
 void dpss_s_freeze(struct dpss_dev_s *dpss_pdev);
 void dpss_s_restore(struct dpss_dev_s *dpss_pdev);
 void dpss_s_thaw(struct dpss_dev_s *dpss_pdev);
+void dpss_irq_set_affinity_hint(struct dpss_dev_s *dpss_pdev);
+//pre-alloc
+void dpss_pre_buf_prob(void);
 
 /* interface for interrupt */
 #ifdef C_TST_ON_T6D
@@ -280,8 +283,7 @@ void _prm_top_input_buffer_set(struct PRM_DPSS_TOP *prm_top,
 void dpss_val_2_top(struct PRM_DPSS_TOP *prm_top,
 			   struct dpss_user_para_s *prm_user);
 void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
-				 struct dpss_ch_s *pch, unsigned int src,
-				 unsigned int buf_nub);
+				 struct dpss_ch_s *pch, unsigned int src);
 void _prm_top_init_vfm(struct dpss_ch_s *pch, struct PRM_DPSS_TOP *prm_top,
 				struct dpss_sub_vf_s *vfms, bool is_ex_di);	//user case
 

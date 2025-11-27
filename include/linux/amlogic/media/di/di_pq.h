@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/version.h>
+#include <linux/atomic.h>
 
 /************************************************
  * config define
@@ -113,6 +114,8 @@ struct di_parm_s {
 	u32 reserved4;
 	u32 reserved5;
 	u32 reserved6;
+	atomic_t pq_dae_unreg;
+	atomic_t pq_dpe_unreg;
 };
 
 struct reg_acc {

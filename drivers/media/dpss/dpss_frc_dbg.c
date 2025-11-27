@@ -44,17 +44,10 @@ static void dpss_frc_debug_parse_param(char *buf_orig, char **parm)
 void dpss_frc_status(void)
 {
 	struct frc_chip_st *pchip_st;
-	// struct frc_state_s *state_st;
-	// struct vinfo_s *vinfo = get_current_vinfo();
 	struct dpss_frc_fw_data_s *pfw_data;
 	struct dpss_frc_top_type_s *frc_top;
 	struct frc_state_s *state_st;
 	struct frc_interrupt_s *frc_int_st;
-	// u32 dae_frm_phs;
-	// u32 dpe_intp_phs;
-	//bool mc_ibuf_vld;
-	//bool is_vd1_link;
-	//bool manual_disable_link = false;
 
 	pchip_st = dpss_get_frc_st();
 	if (!pchip_st)
@@ -90,23 +83,27 @@ void dpss_frc_status(void)
 			state_st->n2m_status.input_framerate,
 			state_st->n2m_status.output_framerate,
 			state_st->n2m_status.duration);
-	pr_frc(0, "irq_vs\t cnt= %8d duration= %dus timestamp= %ld\n",
+	pr_frc(0, "irq_vs\t cnt= %8d[%d] duration= %dus stamp= %ld\n",
 			frc_int_st->frc_vsync_cnt,
+			rd(DPSS_DISP_GO_FIELD_CNT),
 			frc_int_st->frc_vsync_duration,
 			(ulong)frc_int_st->frc_vsync_timestamp);
-	pr_frc(0, "irq_pre_vs\t cnt= %8d duration= %dus timestamp= %ld\n",
+	pr_frc(0, "irq_pre_vs\t cnt= %8d[%d] duration= %dus stamp= %ld\n",
 			frc_int_st->pre_vsync_cnt,
+			rd(DPSS_DPE_PRE_VSYNC_CNT),
 			frc_int_st->pre_vsync_duration,
 			(ulong)frc_int_st->pre_vsync_timestamp);
-	pr_frc(0, "irq_inp\t cnt= %8d duration= %dus timestamp= %ld\n",
+	pr_frc(0, "irq_inp\t cnt= %8d[%d] duration= %dus stamp= %ld\n",
 			frc_int_st->inp_int_cnt,
+			rd(DPSS_INP_FRM_INT_CNT),
 			frc_int_st->inp_duration,
 			(ulong)frc_int_st->inp_timestamp);
 	pr_frc(0, "irq_inp\t min_duration= %dus max_duration= %dus\n",
 			frc_int_st->inp_min_duration,
 			frc_int_st->inp_max_duration);
-	pr_frc(0, "irq_dae0\t cnt= %8d duration= %dus timestamp= %ld\n",
+	pr_frc(0, "irq_dae0\t cnt= %8d[%d] duration= %dus stamp= %ld\n",
 			frc_int_st->dae0_int_cnt,
+			rd(DPSS_DAE0_FRM_INT_CNT),
 			frc_int_st->dae0_duration,
 			(ulong)frc_int_st->dae0_timestamp);
 
@@ -126,6 +123,7 @@ void dpss_frc_status(void)
 //	       state_st->out_sts.vout_width, state_st->out_sts.vout_height);
 //	pr_frc(0, "vfb(0x1cb4/0x14ca)= %d\n", fw_data->frc_top_type.vfb);
 	dpss_frc_check_reg_stats();
+	dpss_frc_check_undone_stats();
 }
 
 static ssize_t dpss_frc_debug_if_help(char *buf)
@@ -136,6 +134,7 @@ static ssize_t dpss_frc_debug_if_help(char *buf)
 	struct dpss_frc_fw_data_s *pfw_data;
 	struct dpss_frc_top_type_s *frc_top;
 	struct dpss_frc_fw_alg_ctrl_s *frc_fw_alg_ctrl;
+	struct frc_debug_s *dbg_st;
 
 	pchip_st = dpss_get_frc_st();
 	if (!pchip_st)
@@ -146,6 +145,8 @@ static ssize_t dpss_frc_debug_if_help(char *buf)
 	frc_top = &pfw_data->frc_top_type;
 	frc_fw_alg_ctrl = &pfw_data->frc_fw_alg_ctrl;
 	state_st = &pchip_st->state_st;
+	dbg_st = &pchip_st->dbg_st;
+
 	len +=
 		sprintf(buf + len, "ratio\t=%d\n", state_st->n2m_status.frc_ratio);
 	len +=
@@ -182,6 +183,26 @@ static ssize_t dpss_frc_debug_if_help(char *buf)
 		sprintf(buf + len, "force_n2m\t=%d, ratio=%d\n",
 			state_st->force_n2m,
 			state_st->n2m_status.frc_ratio);
+	len +=
+		sprintf(buf + len, "force_disable_dpe_mix\t=%d\n",
+			state_st->force_disable_dpe_mix);
+	len +=
+		sprintf(buf + len, "disable_io_ctrl\t=%d\n",
+			dbg_st->ctrl_dbg.disable_io_ctrl);
+		sprintf(buf + len, "enable_frclink_cnt\t=%d\n",
+			state_st->enable_frclink_cnt);
+	len +=
+		sprintf(buf + len, "enable_mc_link\t=%d\n",
+			enable_mc_link);
+	len +=
+		sprintf(buf + len, "force_disable_drop_last\t=%d\n",
+			state_st->force_disable_drop_last);
+	len +=
+		sprintf(buf + len, "force_disable_check_fallback\t=%d\n",
+			state_st->force_disable_check_fallback);
+	len +=
+		sprintf(buf + len, "ui_frc_state_sel\t=%d\n",
+			dbg_st->ctrl_dbg.ui_frc_state_sel);
 	return len;
 }
 
@@ -357,6 +378,41 @@ static void dpss_frc_debug_if(const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			state_st->force_mc_phase0 = val1;
+	} else if (!strcmp(parm[0], "force_disable_dpe_mix")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			state_st->force_disable_dpe_mix = val1;
+	} else if (!strcmp(parm[0], "disable_io_ctrl")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			dbg_st->ctrl_dbg.disable_io_ctrl = val1;
+	} else if (!strcmp(parm[0], "enable_frclink_cnt")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			state_st->enable_frclink_cnt = val1;
+	} else if (!strcmp(parm[0], "enable_mc_link")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			enable_mc_link = val1;
+	} else if (!strcmp(parm[0], "force_disable_drop_last")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			state_st->force_disable_drop_last = val1;
+	} else if (!strcmp(parm[0], "force_disable_check_fallback")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			state_st->force_disable_check_fallback = val1;
+	} else if (!strcmp(parm[0], "ui_frc_state_sel")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			dbg_st->ctrl_dbg.ui_frc_state_sel = val1;
 	}
 exit:
 	kfree(buf_orig);
@@ -1836,13 +1892,14 @@ ssize_t dpss_frc_debug_param_if_help(char *buf)
 	struct dpss_frc_top_type_s *frc_top;
 	struct frc_chip_st *pchip_st;
 	struct frc_state_s *state_st;
-
+	struct frc_debug_s *dbg_st;
 	pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
 	pchip_st = dpss_get_frc_st();
 	if (!pfw_data || !pchip_st)
 		return 0;
 	frc_top = &pfw_data->frc_top_type;
 	state_st = &pchip_st->state_st;
+	dbg_st =  &pchip_st->dbg_st;
 	len +=
 		sprintf(buf + len, "frc_top->dpss_mode\t=%d\n", frc_top->dpss_mode);
 	len +=
@@ -1894,7 +1951,7 @@ ssize_t dpss_frc_debug_param_if_help(char *buf)
 			state_st->pre_vsync_offset);
 	len += sprintf(buf + len, "stats->mc_lp_mode\t=%d\n",
 			state_st->mc_lp_mode);
-	len += sprintf(buf + len, "stats->use_inp_big\t= %d\n",
+	len += sprintf(buf + len, "stats->use_inp_big\t= %#x\n",
 			state_st->use_inp_big);
 	len += sprintf(buf + len, "stats->detect_speed\t= %d, %d\n",
 			state_st->detect_speed, state_st->detect_threshold);
@@ -1902,6 +1959,14 @@ ssize_t dpss_frc_debug_param_if_help(char *buf)
 			state_st->dst_buf_th);
 	len += sprintf(buf + len, "frc_delay_dbg\t= %d\n",
 			frc_delay_dbg);
+	len += sprintf(buf + len, "mc_rdmif_err_reset_en\t= %d\n",
+			dbg_st->ctrl_dbg.mc_rdmif_err_reset_en);
+	len += sprintf(buf + len, "check_reg_status\t= %d\n",
+			dbg_st->ctrl_dbg.check_reg_status);
+	len += sprintf(buf + len, "enable_last_drop\t=%d\n",
+			state_st->enable_last_drop);
+	len += sprintf(buf + len, "need_disable_mc_link\t= %d\n",
+			state_st->need_disable_mc_link);
 	return len;
 }
 
@@ -2047,12 +2112,22 @@ void dpss_frc_debug_param_if(const char *buf, size_t count)
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			state_st->mc_lp_mode = (bool)val1;
 		pr_frc(2, "mc_lp_mode= %d\n", state_st->mc_lp_mode);
-	} else if (!strcmp(parm[0], "use_inp_big")) {
+	} else if (!strcmp(parm[0], "use_inp_big_i")) {
 		if (!parm[1])
 			goto exit;
-		if (kstrtoint(parm[1], 10, &val1) == 0)
-			state_st->use_inp_big = (bool)val1;
-		pr_frc(2, "use_inp_big= %d\n", state_st->use_inp_big);
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
+			state_st->use_inp_big &= 0xF0;
+			state_st->use_inp_big |= (val1 & 0x0F);
+		}
+		pr_frc(2, "use_inp_big_i= %#x\n", state_st->use_inp_big);
+	} else if (!strcmp(parm[0], "use_inp_big_p")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
+			state_st->use_inp_big &= 0x0F;
+			state_st->use_inp_big |= (val1 & 0x0F) << 4;
+		}
+		pr_frc(2, "use_inp_big_p= %#x\n", state_st->use_inp_big);
 	} else if (!strcmp(parm[0], "detect_speed")) {
 		if (!parm[2])
 			goto exit;
@@ -2112,8 +2187,8 @@ void dpss_frc_debug_param_if(const char *buf, size_t count)
 			int in_fps, out_fps, delta;
 
 			if (kstrtoint(parm[1], 10, &in_fps) == 0 &&
-			    kstrtoint(parm[2], 10, &out_fps) == 0 &&
-			    kstrtoint(parm[3], 10, &delta) == 0)
+				kstrtoint(parm[2], 10, &out_fps) == 0 &&
+				kstrtoint(parm[3], 10, &delta) == 0)
 				set_delta_ms(in_fps, out_fps, delta);
 		} else if (!strcmp(parm[1], "dump")) {
 			dump_delta_ms();
@@ -2121,6 +2196,16 @@ void dpss_frc_debug_param_if(const char *buf, size_t count)
 			if (kstrtoint(parm[1], 10, &val1) == 0)
 				frc_delay_dbg = val1;
 		}
+	} else if (!strcmp(parm[0], "mc_rdmif_err_reset_en")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			dbg_st->ctrl_dbg.mc_rdmif_err_reset_en = (u8)val1;
+	} else if (!strcmp(parm[0], "check_reg_status")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			dbg_st->ctrl_dbg.check_reg_status = (u16)val1;
 	}
 exit:
 	kfree(buf_orig);

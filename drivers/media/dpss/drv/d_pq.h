@@ -20,13 +20,16 @@ struct di_parm_s *dpss_pq_data(u8 ch);
 void dpss_me_size_update(u8 ch);
 void dpss_me_ro_data_update(void);
 void dpss_input_ro_data_update(unsigned int inp_ofrm_vld);
+bool pq_can_exit(struct dpss_ch_s *pch);
+void pq_update_suspend_flag(u32 suspend_flag);
+
 ssize_t dpss_pq_en_show(const struct class *device,
 		const struct class_attribute *attr, char *buf);
 
 ssize_t dpss_pq_en_store(const struct class *class,
 		const struct class_attribute *attr,
 		const char *buf, size_t count);
-
+int dpss_db_data_version(void);
 extern struct di_parm_s dinr_pq_data[];
 
 #endif	/*__DPSS_D_PQ_H__*/

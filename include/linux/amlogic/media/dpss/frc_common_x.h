@@ -162,8 +162,8 @@ struct dpss_frc_fw_alg_ctrl_s {
 	u8 frc_algctrl_u8param6;
 	u8 frc_algctrl_u8param7;
 	u8 frc_algctrl_u8param8;
-	u16 frc_algctrl_u16param1;
-	u16 frc_algctrl_u16param2;
+	s16 frc_algctrl_s16param1; //gmv_x
+	s16 frc_algctrl_s16param2; //gmv_y
 	u32 frc_algctrl_u32film;
 	u32 frc_algctrl_u32param2;
 	// t6w
@@ -206,10 +206,21 @@ struct dpss_frc_fw_data_s {
 //extern int frc_kerdrv_ver;
 #define QUEEN_NUM 60
 
+struct dpss_queue {
+	u32 data[QUEEN_NUM];
+	u16 front;
+	u16 rear;
+};
+
 struct Vpu_queue {
 	int data[QUEEN_NUM];
 	int front;
 	int rear;
+};
+
+struct memc_gmv_s {
+	s16 gmv_x;
+	s16 gmv_y;
 };
 
 void DPSS_WRITE_FRC_REG(unsigned int reg, unsigned int val);
