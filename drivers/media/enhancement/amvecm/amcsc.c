@@ -9073,9 +9073,9 @@ static int vpp_matrix_update(struct vframe_s *vf,
 			if (chip_type_id == chip_s5 || chip_type_id == chip_t3x)
 				s5_get_hist(vd_path, HIST_E_RGBMAX, vpp_index);
 			else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
-				get_hist(vd_path, hist_select);
+				get_hist(vd_path, hist_select, vpp_index);
 			else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
-				get_hist(vd_path, HIST_E_RGBMAX);
+				get_hist(vd_path, HIST_E_RGBMAX, vpp_index);
 		}
 
 		sbtm_sbtmdb_set(vinfo);
@@ -10435,7 +10435,7 @@ void calculate_dynamic_curve_for_dpss(struct vframe_s *vf)
 				pre_tmo_reg = tmo_fw_param_get();
 				pre_tmo_reg->hdr_hist_sel = HIST_E_LUMA;
 			}
-			get_hist(vd_path, hist_select);
+			get_hist(vd_path, hist_select, vpp_index);
 			hdr10_tm_process_update(master_info, vd_path, vpp_index);
 		}
 	}

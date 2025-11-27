@@ -155,7 +155,8 @@ int hdr10_tm_update(enum hdr_module_sel module_sel,
 	enum hdr_process_sel hdr_process_select,
 	enum vpp_index_e vpp_index);
 void get_hist(enum vd_path_e vd_path,
-	enum hdr_hist_sel hist_sel);
+	enum hdr_hist_sel hist_sel,
+	enum vpp_index_e vpp_index);
 int cuva_hdr_update(enum hdr_module_sel module_sel,
 	enum hdr_process_sel hdr_process_select, enum vpp_index_e vpp_index);
 void hdr_reg_dump(unsigned int offset);

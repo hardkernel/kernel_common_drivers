@@ -1852,6 +1852,7 @@ void s5_get_hist(enum vd_path_e vd_path,
 
 void s5_hdr_hist_config(enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *hdr_lut_param,
+	enum hdr_hist_sel hist_sel,
 	enum vpp_index_e vpp_index)
 {
 	unsigned int hist_ctrl;
@@ -1925,9 +1926,9 @@ void s5_hdr_hist_config(enum hdr_module_sel module_sel,
 
 	if (hdr_lut_param->hist_en) {
 		if (chip_type_id == chip_t3x)
-			tmp = 0x10200;
+			tmp = (1 << 16) | (1 << 4) | (hist_sel << 0);
 		else
-			tmp = 0x200;/*bit9 for hist clk ctrl*/
+			tmp = (1 << 4) | (hist_sel << 0);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_ctrl, tmp, vpp_sel);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_hs_he, 0xeff, vpp_sel);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_vs_ve, 0x86f, vpp_sel);

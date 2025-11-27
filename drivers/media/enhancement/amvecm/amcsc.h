@@ -364,6 +364,7 @@ extern uint force_output;
 extern unsigned int hdr_policy_bak;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+extern uint hdr_hist_select;
 extern uint osd_gamut_conv_type;
 extern uint gamut_conv_enable;
 extern uint force_csc_type;

@@ -12336,7 +12336,7 @@ static ssize_t amvecm_debug_store(const struct class *cla,
 			goto free_buf;
 		if (val > 0)
 			vd_path = VD2_PATH;
-		get_hist(vd_path, HIST_E_RGBMAX);
+		get_hist(vd_path, HIST_E_RGBMAX, VPP_VCBUS);
 		pr_info("amvecm refresh_hdr_hist path %d\n", vd_path);
 	} else if (!strncmp(parm[0], "checkpattern", 12)) {
 		if (!strncmp(parm[1], "enable", 6)) {

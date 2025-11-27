@@ -41,6 +41,7 @@ void s5_set_c_gain(enum hdr_module_sel module_sel,
 		enum vpp_index_e vpp_index);
 void s5_hdr_hist_config(enum hdr_module_sel module_sel,
 		     struct hdr_proc_lut_param_s *hdr_lut_param,
+		     enum hdr_hist_sel hist_sel,
 		     enum vpp_index_e vpp_index);
 void s5_hdr_hist_config_int(void);
 void s5_get_hist(enum vd_path_e vd_path,

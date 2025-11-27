@@ -4009,14 +4009,12 @@ u32 hist_maxrgb_luminance[128] = {
 	6903, 7431, 8001, 8616, 9281, 10000
 };
 
-void set_hist(enum hdr_module_sel module_sel, int enable,
-	enum hdr_hist_sel hist_sel,
-	unsigned int hist_width, unsigned int hist_height)
+void set_hist_size(enum hdr_module_sel module_sel, unsigned int hist_width,
+	unsigned int hist_height, enum vpp_index_e vpp_index)
 {
 	unsigned int hist_ctrl_port = 0;
 	unsigned int addr_offset_vd1 = 0;
 	unsigned int addr_offset_vd2 = 0;
-	unsigned int val = 0;
 
 	if (chip_type_id == chip_t6d) {
 		addr_offset_vd1 = 0x2a00;
@@ -4041,32 +4039,18 @@ void set_hist(enum hdr_module_sel module_sel, int enable,
 		hist_ctrl_port = VD3_HDR2_HIST_CTRL;
 	}
 
-	if (enable) {
-		if (chip_type_id >= chip_s6) {
-			val = (1 << 16) | (1 << 4) | (hist_sel << 0);
-			if ((chip_type_id == chip_t6w || chip_type_id == chip_t6x) &&
-				!dpss_mode)
-				WRITE_VPP_REG(DOLBY_HDR2_HIST_SLC_X_ST_ED_0, 0x20000eff);
-		} else {
-			val = (1 << 4) | (hist_sel << 0);
-		}
+	if ((chip_type_id == chip_t6w || chip_type_id == chip_t6x) &&
+		!dpss_mode)
+		VSYNC_WRITE_VPP_REG_VPP_SEL(DOLBY_HDR2_HIST_SLC_X_ST_ED_0,
+			0x20000eff, vpp_index);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(hist_ctrl_port + 1, hist_width - 1, vpp_index);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(hist_ctrl_port + 2, hist_height - 1, vpp_index);
 
-		WRITE_VPP_REG(hist_ctrl_port + 1, hist_width - 1);
-		WRITE_VPP_REG(hist_ctrl_port + 2, hist_height - 1);
-		WRITE_VPP_REG(hist_ctrl_port, val);
-	} else {
-		if (chip_type_id >= chip_s6) {
-			if (READ_VPP_REG_BITS(hist_ctrl_port, 16, 1))
-				WRITE_VPP_REG_BITS(hist_ctrl_port, 0, 16, 1);
-		} else {
-			if (READ_VPP_REG_BITS(hist_ctrl_port, 4, 1))
-				WRITE_VPP_REG_BITS(hist_ctrl_port, 0, 4, 1);
-		}
-		hdr_max_rgb = 0;
-	}
+	hdr_max_rgb = 0;
 }
 
-void get_hist(enum vd_path_e vd_path, enum hdr_hist_sel hist_sel)
+void get_hist(enum vd_path_e vd_path, enum hdr_hist_sel hist_sel,
+	enum vpp_index_e vpp_index)
 {
 	unsigned int hist_ctrl_port = 0;
 	unsigned int hist_height, hist_width, i;
@@ -4169,10 +4153,8 @@ void get_hist(enum vd_path_e vd_path, enum hdr_hist_sel hist_sel)
 		return;
 
 	if ((hist_height != READ_VPP_REG(hist_ctrl_port + 2) + 1) ||
-	    (hist_width != READ_VPP_REG(hist_ctrl_port + 1) + 1) ||
-	    /*(READ_VPP_REG_BITS(hist_ctrl_port, 4, 1) == 0) ||*/
-	    (READ_VPP_REG_BITS(hist_ctrl_port, 0, 3) != hist_sel)) {
-		set_hist(module_sel, 1, hist_sel, hist_width, hist_height);
+	    (hist_width != READ_VPP_REG(hist_ctrl_port + 1) + 1)) {
+		set_hist_size(module_sel, hist_width, hist_height, vpp_index);
 		return;
 	}
 
@@ -4260,8 +4242,9 @@ void get_hist(enum vd_path_e vd_path, enum hdr_hist_sel hist_sel)
 }
 
 void hdr_hist_config(enum hdr_module_sel module_sel,
-		     struct hdr_proc_lut_param_s *hdr_lut_param,
-		     enum vpp_index_e vpp_index)
+	struct hdr_proc_lut_param_s *hdr_lut_param,
+	enum hdr_hist_sel hist_sel,
+	enum vpp_index_e vpp_index)
 {
 	unsigned int hist_ctrl;
 	unsigned int hist_hs_he;
@@ -4270,7 +4253,7 @@ void hdr_hist_config(enum hdr_module_sel module_sel,
 	unsigned int addr_offset_osd2 = 0;
 	unsigned int addr_offset_vd1 = 0;
 	unsigned int addr_offset_vd2 = 0;
-	unsigned int default_val = 0;
+	unsigned int val = 0;
 
 	if (chip_type_id == chip_s7d ||
 		chip_type_id == chip_s6)
@@ -4281,21 +4264,14 @@ void hdr_hist_config(enum hdr_module_sel module_sel,
 	} else if (chip_type_id == chip_t6w) {
 		addr_offset_vd1 = 0x1400;
 		addr_offset_vd2 = 0x2a30;
-		default_val = 0x10010;
 	} else if (chip_type_id == chip_t6x) {
 		addr_offset_vd1 = 0x1400;
 		addr_offset_vd2 = 0x2ab0;
-		default_val = 0x10010;
 		if (module_sel == VD1_1_HDR || module_sel == VD2_1_HDR) {
 			addr_offset_vd1 += 0x80;
 			addr_offset_vd2 += 0x80;
 		}
 	}
-
-	if (chip_type_id >= chip_s6)
-		default_val = 0x10010;
-	else
-		default_val = 0x10;
 
 	if (vpp_index == VPP_TOP1 &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
@@ -4344,9 +4320,11 @@ void hdr_hist_config(enum hdr_module_sel module_sel,
 		return;
 
 	if (hdr_lut_param->hist_en) {
-		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_ctrl, default_val, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_hs_he, 0xeff, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_vs_ve, 0x86f, vpp_sel);
+		if (chip_type_id >= chip_s6)
+			val = (1 << 16) | (1 << 4) | (hist_sel << 0);
+		else
+			val = (1 << 4) | (hist_sel << 0);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_ctrl, val, vpp_sel);
 	} else {
 		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_ctrl, 0x5510, vpp_sel);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_hs_he, 0x10000, vpp_sel);
@@ -4816,6 +4794,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	enum vpp_matrix_e mtx_sel = MTX_NULL;
 	enum mtx_csc_e mtx_csc = MATRIX_NULL;
 	struct hdr_gmt_comp_param_s *gmt_comp_para = &gmt_comp_default;
+	enum hdr_hist_sel hist_select = HIST_E_RGBMAX;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	enum LUT_DMA_ID_e dma_id = HDR_DMA_ID;
@@ -4971,6 +4950,11 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		module_sel == OSD2_HDR))
 		bit_depth = 10;
 
+	if (hdr_hist_select &&
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_T6W ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T6X))
+		hist_select = HIST_E_LUMA;
+
 	/*lut1 parameters*/
 	hdr_lut1_param.reg_adpscl1_mode = 1;
 	hdr_lut1_param.reg_ogain_blend = 0;
@@ -5066,6 +5050,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 					hdr_lut_param.lut_on = LUT_OFF;
 			}
 		}
+		hdr_lut_param.hist_en = LUT_OFF;
 		hdr_lut_param.bitdepth = bit_depth;
 	} else if (hdr_process_select & HDR_SDR ||
 		hdr_process_select & HDR10P_SDR) {
@@ -6594,7 +6579,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			&hdr_mtx_param, NULL, NULL, vpp_index);
 		s5_set_c_gain(module_sel, &hdr_lut_param, vpp_index);
 
-		s5_hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
+		s5_hdr_hist_config(module_sel, &hdr_lut_param,
+			hist_select, vpp_index);
 
 		if (is_meson_s5_cpu())
 			dma_id = HDR_DMA_ID;
@@ -6633,7 +6619,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			&hdr_mtx_param, NULL, NULL, vpp_index);
 		set_c_gain(module_sel, &hdr_lut_param, vpp_index);
 
-		hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
+		hdr_hist_config(module_sel, &hdr_lut_param,
+			hist_select, vpp_index);
 
 		if (clip_func == 0xff) {
 			if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
@@ -6878,6 +6865,7 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	enum LUT_DMA_ID_e dma_id = HDR_DMA_ID;
 #endif
+	enum hdr_hist_sel hist_select = HIST_E_RGBMAX;
 
 	if (disable_flush_flag)
 		return hdr_process_select;
@@ -6925,6 +6913,11 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 		module_sel == OSD2_HDR ||
 		module_sel == OSD3_HDR))
 		return hdr_process_select;
+
+	if (hdr_hist_select &&
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_T6W ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T6X))
+		hist_select = HIST_E_LUMA;
 
 	if (((module_sel == OSD1_HDR && vpp_index == VPP_TOP1) ||
 		(module_sel == OSD3_HDR && vpp_index == VPP_TOP0)) &&
@@ -7026,6 +7019,7 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 		hdr_lut_param.bitdepth = bit_depth;
 		hdr_lut_param.lut_on = LUT_OFF;
 		hdr_lut_param.cgain_en = LUT_OFF;
+		hdr_lut_param.hist_en = LUT_OFF;
 	} else if (hdr_process_select & HDR10P_SDR) {
 		for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
 			hdr_lut_param.oetf_lut[i]  = oe_y_lut_sdr[i];
@@ -7050,6 +7044,7 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 		hdr_lut_param.lut_on = LUT_ON;
 		hdr_lut_param.bitdepth = bit_depth;
 		hdr_lut_param.cgain_en = LUT_OFF;
+		hdr_lut_param.hist_en = LUT_ON;
 	} else {
 		return hdr_process_select;
 	}
@@ -7197,7 +7192,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 			&hdr_mtx_param, NULL, NULL, vpp_index);
 		s5_set_c_gain(module_sel, &hdr_lut_param, vpp_index);
 
-		s5_hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
+		s5_hdr_hist_config(module_sel, &hdr_lut_param,
+			hist_select, vpp_index);
 
 		if (is_meson_s5_cpu())
 			dma_id = HDR_DMA_ID;
@@ -7221,7 +7217,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 			&hdr_mtx_param, NULL, NULL, vpp_index);
 		set_c_gain(module_sel, &hdr_lut_param, vpp_index);
 
-		hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
+		hdr_hist_config(module_sel, &hdr_lut_param,
+			hist_select, vpp_index);
 
 		if (clip_func == 0xff) {
 			if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
@@ -7378,6 +7375,7 @@ enum hdr_process_sel hlgp_func(enum hdr_module_sel module_sel,
 	int *oft_post_in = bypass_pos;
 	enum LUT_DMA_ID_e dma_id = HDR_DMA_ID;
 	struct hdr_gmt_comp_param_s *gmt_comp_para = &gmt_comp_default;
+	enum hdr_hist_sel hist_select = HIST_E_RGBMAX;
 
 	if (disable_flush_flag)
 		return hdr_process_select;
@@ -7423,6 +7421,11 @@ enum hdr_process_sel hlgp_func(enum hdr_module_sel module_sel,
 		module_sel == OSD2_HDR ||
 		module_sel == OSD3_HDR))
 		return hdr_process_select;
+
+	if (hdr_hist_select &&
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_T6W ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T6X))
+		hist_select = HIST_E_LUMA;
 
 	if (((module_sel == OSD1_HDR && vpp_index == VPP_TOP1) ||
 		(module_sel == OSD3_HDR && vpp_index == VPP_TOP0)) &&
@@ -7529,6 +7532,7 @@ enum hdr_process_sel hlgp_func(enum hdr_module_sel module_sel,
 		hdr_lut_param.lut_on = LUT_ON;
 		hdr_lut_param.bitdepth = bit_depth;
 		hdr_lut_param.cgain_en = LUT_OFF;
+		hdr_lut_param.hist_en = LUT_ON;
 	} else {
 		return hdr_process_select;
 	}
@@ -7616,7 +7620,8 @@ enum hdr_process_sel hlgp_func(enum hdr_module_sel module_sel,
 			&hdr_mtx_param, NULL, NULL, vpp_index);
 		s5_set_c_gain(module_sel, &hdr_lut_param, vpp_index);
 
-		s5_hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
+		s5_hdr_hist_config(module_sel, &hdr_lut_param,
+			hist_select, vpp_index);
 
 		if (is_meson_s5_cpu())
 			dma_id = HDR_DMA_ID;
@@ -7645,7 +7650,8 @@ enum hdr_process_sel hlgp_func(enum hdr_module_sel module_sel,
 			&hdr_mtx_param, NULL, NULL, vpp_index);
 		set_c_gain(module_sel, &hdr_lut_param, vpp_index);
 
-		hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
+		hdr_hist_config(module_sel, &hdr_lut_param,
+			hist_select, vpp_index);
 
 		if (clip_func == 0xff) {
 			if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
