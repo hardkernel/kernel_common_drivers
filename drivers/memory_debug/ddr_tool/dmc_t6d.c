@@ -155,6 +155,7 @@ static int t6d_dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
 		/* clear irq */
 		irqreg = dmc_prot_rw(mon_comm->io_mem, DMC_PROT_IRQ_CTRL_STS, 0, DMC_READ);
 		irqreg |= 0x04;		/* en */
+		irqreg |= BIT(3);	/* clear prot cache */
 		dmc_prot_rw(mon_comm->io_mem, DMC_PROT_IRQ_CTRL_STS, irqreg, DMC_WRITE);
 	} else {
 		return check_violation(mon, data);
