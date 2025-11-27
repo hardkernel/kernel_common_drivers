@@ -2061,8 +2061,13 @@ static u64 dmabuf_manage_handle2addr(struct secure_pool_info *pool, u64 handle)
 		if (!list_empty(&pool->block_node)) {
 			list_for_each_safe(pos, tmp, &pool->block_node) {
 				block = list_entry(pos, struct block_node, node);
-				if (block && block->addr == handle)
-					return block->addr;
+				if (pool->version >= SECURE_HEAP_STAND_POOL_VERSION) {
+					if (block && block->phyaddr == handle)
+						return block->addr;
+				} else {
+					if (block && block->addr == handle)
+						return block->addr;
+				}
 			}
 		}
 	}
@@ -2157,21 +2162,32 @@ static int dmabuf_manage_release_dmabufheap_resource(struct secure_pool_info *po
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
 	struct block_node *block = NULL;
 	struct list_head *pos = NULL, *tmp = NULL;
+	u64 handle = 0;
 
-	if (pool) {
-		if (!list_empty(&pool->block_node)) {
-			list_for_each_safe(pos, tmp, &pool->block_node) {
-				block = list_entry(pos, struct block_node, node);
-				if (block && block->addr) {
-					dmabuf_manage_secmem_block_free(pool, block->addr);
-					list_del(&block->node);
-					kfree(block);
+	if (!pool)
+		return -EINVAL;
+
+	if (!list_empty(&pool->block_node)) {
+		list_for_each_safe(pos, tmp, &pool->block_node) {
+			block = list_entry(pos, struct block_node, node);
+			if (block) {
+				if (pool->version >= SECURE_HEAP_STAND_POOL_VERSION) {
+					if (block->phyaddr)
+						handle = block->phyaddr;
+				} else {
+					if (block->addr)
+						handle = block->addr;
 				}
-			}
-		}
 
-		dmabuf_manage_destroy_secmem_pool(pool);
+				dmabuf_manage_secmem_block_free(pool, handle);
+			}
+
+			list_del(&block->node);
+			kfree(block);
+		}
 	}
+
+	dmabuf_manage_destroy_secmem_pool(pool);
 #endif
 
 	return 0;
@@ -2232,32 +2248,43 @@ int dmabuf_manage_secure_block_free(u32 id_high, u32 id_low,
 	struct list_head *tmp = NULL;
 	struct block_node *block = NULL;
 
+	if (addr == 0 || size == 0)
+		return -EINVAL;
+
 	mutex_lock(&g_secure_pool_mutex);
 	pool = dmabuf_manage_get_secure_vdec_pool(id_high, id_low);
+	if (!pool)
+		goto free_block;
 
-	if (pool) {
-		if (addr && size > 0) {
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
-			if (version >= SECURE_HEAP_USER_TA_VERSION)
-				dmabuf_manage_secmem_block_free(pool, addr);
+	if (version >= SECURE_HEAP_USER_TA_VERSION)
+		dmabuf_manage_secmem_block_free(pool, addr);
 #endif
 
-			if (!list_empty(&pool->block_node)) {
-				list_for_each_safe(pos, tmp, &pool->block_node) {
-					block = list_entry(pos, struct block_node, node);
-					if (block && block->addr == addr && block->size == size) {
+	if (!list_empty(&pool->block_node)) {
+		list_for_each_safe(pos, tmp, &pool->block_node) {
+			block = list_entry(pos, struct block_node, node);
+			if (block && block->size == size) {
+				if (pool->version >= SECURE_HEAP_STAND_POOL_VERSION) {
+					if (block->phyaddr == addr) {
+						list_del(&block->node);
+						kfree(block);
+					}
+				} else {
+					if (block->addr == addr) {
 						list_del(&block->node);
 						kfree(block);
 					}
 				}
 			}
 		}
-
-#if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
-		dmabuf_manage_destroy_secmem_pool(pool);
-#endif
 	}
 
+#if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
+	dmabuf_manage_destroy_secmem_pool(pool);
+#endif
+
+free_block:
 	mutex_unlock(&g_secure_pool_mutex);
 	return 0;
 }
