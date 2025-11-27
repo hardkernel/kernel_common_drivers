@@ -3214,6 +3214,8 @@ void dpss_buf_s_count_hd(bool hd, struct dpss_buf_sml_s *sml_i, struct dpss_ch_s
 	if (!pch->c.en_dw)
 		sml_i->size_ts_dw = 0;
 
+	sml_i->size_t_nr_s = roundup(sml_i->size_t_nr_s, PAGE_SIZE);
+
 	if (pch->c.en_frc) {
 		sml_i->size_t_nr_frc_s = sml_i->size_t_nr_s + sml_i->size_t_frc;
 	} else {
