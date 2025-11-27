@@ -17476,9 +17476,18 @@ EXPORT_SYMBOL(hdr_path_switch_to_dpss);
 
 int hdr_path_delink_status(void)
 {
+	int ret = 0;
 	struct hdr_path_mux_sel_s *p = &h_p_s;
 
-	return p->delink_status;
+	if (p->delink_status == DELINK)
+		ret = DELINK;
+	else if (p->delink_status == LINK_DPSS &&
+		p->pre_path_mux == PATH_DPSS)
+		ret = LINK_DPSS;
+	else
+		ret = LINK_ON;
+
+	return ret;
 }
 EXPORT_SYMBOL(hdr_path_delink_status);
 

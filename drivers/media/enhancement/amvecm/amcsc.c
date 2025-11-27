@@ -11221,9 +11221,9 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 		}
 
 		if (muxio_ready_flag)
-			p->delink_status = 1;
+			p->delink_status = DELINK;
 		else
-			p->delink_status = 0;
+			p->delink_status = LINK_ON;
 
 		pr_log(0x1000, "%s: no frame, clear status : frm_src:%s,\n"
 				"pre_path_mux:%s, ndp:%s, delink=%d\n",
@@ -11277,7 +11277,7 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 			p->frm_src = nfs;
 			p->path_mux = PATH_VD1;
 			p->pre_path_mux = PATH_VD1;
-			p->delink_status = 0;
+			p->delink_status = LINK_ON;
 			//avoid dpss flag error or special case mute video
 			if (p->mute_cnt) {
 				pr_log(0x400, "%s: vd1 unmute: mute_cnt:%d, frm_idx=%d\n",
@@ -11287,13 +11287,13 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 			}
 		} else if (p->frm_src == VD1_FRM && nfs == DPSS_FRM &&
 			p->path_mux == PATH_DPSS && p->path_mux != p->pre_path_mux &&
-			p->delink_status) {
+			p->delink_status == DELINK) {
 			if (!p->min_mc ||
 				p->fst_frame ||
 				(p->min_mc && p->mute_cnt >= p->min_mc && !p->fst_frame)) {
 				set_video_mute(PATH_SW_MUTE_SET, false);
 				p->mute_cnt = 0;
-				p->delink_status = 0;
+				p->delink_status = LINK_DPSS;
 				pr_csc(0x400, "sw01:path sw dpss done,vd mute off:is_dd_frame:%d\n"
 				"frm_src:%s,nfs:%s,pre_pm:%s,ndp:%s,fst_frm=%d,mc=%d,frm_idx=%d\n",
 					is_dd_frame, fs_str[p->frm_src], fs_str[nfs],
@@ -11314,7 +11314,7 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 					p->fst_frame, p->mute_cnt, pvf->frame_index);
 			}
 		} else if (nfs == DPSS_FRM && p->pre_path_mux != PATH_DPSS) {
-			p->delink_status = 0;
+			p->delink_status = LINK_DPSS;
 			pr_csc(0x400, "sw01: path on dpss: frm_src:%s, nfs:%s,\n"
 				"pre_path_mux:%s, ndp:%s, fst_frm=%d, frm_idx=%d\n",
 				fs_str[p->frm_src], fs_str[nfs],
@@ -11416,9 +11416,9 @@ void update_link_state(struct vframe_s *vf,
 		}
 
 		if (muxio_ready_flag)
-			p->delink_status = 1;
+			p->delink_status = DELINK;
 		else
-			p->delink_status = 0;
+			p->delink_status = LINK_ON;
 
 		pr_log(0x1000, "%s: no frame, clear status : frm_src:%s,\n"
 				"pre_path_mux:%s, ndp:%s, delink=%d\n",
@@ -11442,9 +11442,9 @@ void update_link_state(struct vframe_s *vf,
 	if (pvf->source_type == VFRAME_SOURCE_TYPE_HWC &&
 		nfs == VD1_FRM) {
 		if (muxio_ready_flag)
-			p->delink_status = 1;
+			p->delink_status = DELINK;
 		else
-			p->delink_status = 0;
+			p->delink_status = LINK_ON;
 		update_muxio_mode(pvf, vpp_index);
 		pr_log(0x400, "%s: hwc mute frame. don't need switch path\n", __func__);
 		return;
@@ -11459,7 +11459,7 @@ void update_link_state(struct vframe_s *vf,
 #endif
 			delink_rdy = muxio_ready_flag;
 		if (delink_rdy) {
-			p->delink_status = 1;
+			p->delink_status = DELINK;
 			//p->mute_cnt++;
 			pr_csc(0x400, "sw02: delink rdy, waiting for unmute,\n"
 				"mute_cnt=%d, frame_index=%d\n",

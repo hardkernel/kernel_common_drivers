@@ -465,6 +465,12 @@ enum dh_proc_e {
 	D_HDR
 };
 
+enum dl_st_e {
+	LINK_ON = 0,
+	DELINK,
+	LINK_DPSS
+};
+
 struct hdr_path_mux_sel_s {
 	enum path_mux_e path_mux;
 	enum path_mux_e pre_path_mux;
