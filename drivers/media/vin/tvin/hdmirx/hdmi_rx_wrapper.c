@@ -1262,7 +1262,7 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT, port);
 				}
 				rx_get_avi_info(port);
 				if (!rx_game_need_mute(port))
-					rx[port].game_chg = true;
+					rx[port].pkt_need_mute = false;
 				rx[port].rx_sig_type_pre = rx[port].rx_sig_type;
 				tvin_update_vdin_prop(rx_get_port_type(port),
 					PKT_TYPE_UNKNOWN);
@@ -1422,7 +1422,7 @@ irqreturn_t irq1_handler(int irq, void *params)
 			}
 			rx_get_avi_info(E_PORT1);
 			if (!rx_game_need_mute(E_PORT1))
-				rx[E_PORT1].game_chg = true;
+				rx[E_PORT1].pkt_need_mute = false;
 			rx[E_PORT1].rx_sig_type_pre = rx[E_PORT1].rx_sig_type;
 			tvin_update_vdin_prop(rx_get_port_type(E_PORT1),
 				PKT_TYPE_UNKNOWN);
@@ -1585,7 +1585,7 @@ irqreturn_t irq2_handler(int irq, void *params)
 			}
 			rx_get_avi_info(E_PORT2);
 			if (!rx_game_need_mute(E_PORT2))
-				rx[E_PORT2].game_chg = true;
+				rx[E_PORT2].pkt_need_mute = false;
 			rx[E_PORT2].rx_sig_type_pre = rx[E_PORT2].rx_sig_type;
 			tvin_update_vdin_prop(rx_get_port_type(E_PORT2),
 				PKT_TYPE_UNKNOWN);
@@ -1781,7 +1781,7 @@ irqreturn_t irq3_handler(int irq, void *params)
 			}
 			rx_get_avi_info(E_PORT3);
 			if (!rx_game_need_mute(E_PORT3))
-				rx[E_PORT3].game_chg = true;
+				rx[E_PORT3].pkt_need_mute = false;
 			rx[E_PORT3].rx_sig_type_pre = rx[E_PORT3].rx_sig_type;
 			tvin_update_vdin_prop(rx_get_port_type(E_PORT3),
 				PKT_TYPE_UNKNOWN);
@@ -4213,7 +4213,7 @@ void skip_frame(unsigned int cnt, u8 port, char *str)
 
 void hdmirx_mute_vpp_pkt(bool en, u8 port)
 {
-	if (game_unmute_enable && rx[port].game_chg)
+	if (game_unmute_enable && !rx[port].pkt_need_mute)
 		return;
 
 	if (en) {

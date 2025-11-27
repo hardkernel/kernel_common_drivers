@@ -1076,7 +1076,7 @@ struct rx_s {
 	bool new_emp_pkt;
 	struct emp_dsf_st emp_dsf_info[EMP_DSF_CNT_MAX];
 	unsigned char edid_mix_buf[EDID_MIX_MAX_SIZE];
-	bool game_chg;
+	bool pkt_need_mute;
 	unsigned int pwr_sts;
 	/* for debug */
 	/*struct pd_infoframe_s dbg_info;*/

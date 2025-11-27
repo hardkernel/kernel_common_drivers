@@ -23,7 +23,8 @@
 /* 2025.11.05 fix unpack AVI packet when no EMP isr */
 /* 2025.11.12 clear unique drm flag before parsing DRM packet */
 /* 2025.11.14 not mute when game change */
-#define RX_PKT_VER "ver.2025/11/14"
+/* 2025.12.01 fix probability mute issues when game change */
+#define RX_PKT_VER "ver.2025/12/01"
 
 #define K_ONEPKT_BUFF_SIZE		8
 #define K_PKT_REREAD_SIZE		2
