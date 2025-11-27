@@ -475,6 +475,7 @@ static void t7_postblend_set_state(struct meson_vpu_block *vblk,
 	struct osd_scope_s scope = {0, 1919, 0, 1079};
 	struct postblend_reg_s *reg = postblend->reg;
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+	struct meson_vpu_pipeline *pipeline = postblend->base.pipeline;
 	crtc_index = vblk->index;
 	amc = vblk->pipeline->priv->crtcs[crtc_index];
 
@@ -482,10 +483,17 @@ static void t7_postblend_set_state(struct meson_vpu_block *vblk,
 		vblk->ops->init_register(vblk, state);
 
 	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
-	scope.h_start = mvps->vpp_scope_x;
-	scope.v_start = mvps->vpp_scope_y;
-	scope.h_end = scope.h_start + mvps->scaler_param[0].output_width - 1;
-	scope.v_end = scope.v_start + mvps->scaler_param[0].output_height - 1;
+	if (!(pipeline->osd_capability[MESON_OSD1] & BIT(LOCAL_SCALER_SUPPORT))) {
+		scope.h_start = mvps->vpp_scope_x;
+		scope.v_start = mvps->vpp_scope_y;
+		scope.h_end = scope.h_start + mvps->scaler_param[0].output_width - 1;
+		scope.v_end = scope.v_start + mvps->scaler_param[0].output_height - 1;
+	} else {
+		scope.h_start = 0;
+		scope.v_start = 0;
+		scope.h_end = mvps->osdblend_output_width - 1;
+		scope.v_end = mvps->osdblend_output_height - 1;
+	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	secure_config(OSD_MODULE, mvps->sec_src, crtc_index);
@@ -1219,6 +1227,11 @@ static void fix_vpu_clk2_default_regs(struct meson_vpu_block *vblk,
 				 struct rdma_reg_ops *reg_ops, int crtc_index, u32 *crtcmask_osd)
 {
 	int i;
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct meson_vpu_pipeline *pipeline = postblend->base.pipeline;
+	/* add for code format check*/
+	u32 scale1_ctl = VPP_OSD1_SCALE_CTRL;
+	u32 local_scaler = BIT(LOCAL_SCALER_SUPPORT);
 
 	if (crtc_index == 0) {
 		/* default: osd byp dolby */
@@ -1233,7 +1246,10 @@ static void fix_vpu_clk2_default_regs(struct meson_vpu_block *vblk,
 			/* OSD use the corresponding VPP according to crtcmask_osd */
 			osd_set_vpp_path_default(vblk, reg_ops, i + 1, crtcmask_osd[i]);
 			if (i == 0) {
-				reg_ops->rdma_write_reg_bits(VPP_OSD1_SCALE_CTRL, 0x2, 0, 3);
+				if (pipeline->osd_capability[MESON_OSD1] & local_scaler)
+					reg_ops->rdma_write_reg_bits(scale1_ctl, 0x3, 0, 3);
+				else
+					reg_ops->rdma_write_reg_bits(scale1_ctl, 0x2, 0, 3);
 			} else if (i == 1) {
 				reg_ops->rdma_write_reg_bits(VPP_OSD2_SCALE_CTRL, 0x3, 0, 3);
 			} else if (i == 2) {
