@@ -1049,7 +1049,9 @@ struct rx_s {
 	int aud_sr_stable_cnt;
 	int aud_sr_unstable_cnt;
 	u32 last_sw_vic;
+	u32 plugin_gap;
 	bool min_time_en;
+	bool min_time_detect_done;
 	unsigned long stable_timestamp;
 	unsigned long unready_timestamp;
 	/* info */

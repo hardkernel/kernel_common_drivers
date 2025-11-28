@@ -5062,8 +5062,12 @@ static int hdmirx_resume(struct platform_device *pdev)
 	rx_set_suspend_edid_clk(false);
 	/* enable hdcp access on ddc */
 	rx_hdcp_access_on_ddc_en(true);
-	for (i = 0; i < rx_info.port_num; i++)
-		rx[i].fsm_ext_state = FSM_HPD_LOW;
+	for (i = 0; i < rx_info.port_num; i++) {
+		if (rx_info.chip_id >= CHIP_ID_T3X && rx_get_cur_hpd_sts(i))
+			rx[i].fsm_ext_state = FSM_HPD_HIGH;
+		else
+			rx[i].fsm_ext_state = FSM_HPD_LOW;
+	}
 	rx_add_timer(hdevp);
 	rx_pr("hdmirx pm: resume\n");
 	/* for wakeup by pwr5v pin, only available on T7 for now */

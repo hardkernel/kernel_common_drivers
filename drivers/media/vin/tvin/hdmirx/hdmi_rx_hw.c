@@ -4249,8 +4249,8 @@ bool rx_clk_rate_monitor(u8 port)
 	if (clk_rate != rx[port].phy.clk_rate) {
 		changed = true;
 		if (log_level & VIDEO_LOG)
-			rx_pr("clk_rate:%d, last_clk_rate: %d\n",
-					clk_rate, rx[port].phy.clk_rate);
+			rx_pr("port%d, clk_rate:%d, last_clk_rate: %d\n",
+				port, clk_rate, rx[port].phy.clk_rate);
 		rx[port].phy.clk_rate = clk_rate;
 	}
 	if (changed) {
@@ -4328,12 +4328,12 @@ void rx_afifo_monitor(u8 port)
 		afifo_overflow_cnt++;
 		hdmirx_audio_fifo_rst(port);
 		if (log_level & AUDIO_LOG)
-			rx_pr("overflow\n");
+			rx_pr("port%d overflow\n", port);
 	} else if (rx[port].afifo_sts & 1) {
 		afifo_underflow_cnt++;
 		hdmirx_audio_fifo_rst(port);
 		if (log_level & AUDIO_LOG)
-			rx_pr("underflow\n");
+			rx_pr("port%d underflow\n", port);
 	} else {
 		if (afifo_overflow_cnt)
 			afifo_overflow_cnt--;
@@ -4351,7 +4351,7 @@ void rx_afifo_monitor(u8 port)
 			//rx_set_cur_hpd(0, 5);
 			//rx[rx_info.main_port].state = FSM_5V_LOST;
 			rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
-			rx_pr("!!force reset\n");
+			rx_pr("port%d !!force reset\n", port);
 		}
 	}
 	//if (afifo_underflow_cnt) {
@@ -4378,7 +4378,7 @@ void rx_hdcp_monitor(u8 port)
 	if (rx[port].ecc_err &&
 		rx[port].ecc_pkt_cnt == rx[port].ecc_err) {
 		if (log_level & VIDEO_LOG)
-			rx_pr("ecc:%d-%d\n", rx[port].ecc_err,
+			rx_pr("port%d, ecc:%d-%d\n", port, rx[port].ecc_err,
 				  rx[port].ecc_pkt_cnt);
 		skip_frame(1, port, "hdcp ecc err");
 		rx[port].ecc_err_frames_cnt++;
@@ -4401,7 +4401,7 @@ void rx_hdcp_monitor(u8 port)
 			rx[port].hdcp.hdcp_pre_ver == HDCP_VER_14) {
 			rx_pr("port%d hdcp14 reauth-err:%d, reauth_req:0x%x\n",
 				port, rx[port].ecc_err,
-				hdmirx_rd_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, port));
+				hdmirx_rd_cor(RX_HDCP_DEBUG_HDCP1X_IVCRX, port));
 			rx_hdcp_14_sent_reauth(port);
 		} else {
 			rx_pr("port%d reauth-err:%d, reauth_req:0x%x\n",
@@ -4418,17 +4418,17 @@ void rx_hdcp_monitor(u8 port)
 	//hdcp14 status
 	tmp = hdmirx_rd_cor(RX_HDCP_STAT_HDCP1X_IVCRX, port);
 	if (tmp == 2 || tmp == 0x0a) {
-		rx_pr("hdcp1sts %x->%x\n", sts1, tmp);
+		rx_pr("port%d, hdcp1sts %x->%x\n", port, sts1, tmp);
 		sts1 = tmp;
 	}
 	tmp = hdmirx_rd_cor(CP2PAX_AUTH_STAT_HDCP2X_IVCRX, port);
 	if (tmp != sts2 && (log_level & HDCP_LOG)) {
-		rx_pr("hdcp2sts %x->%x\n", sts2, tmp);
+		rx_pr("port%d hdcp2sts %x->%x\n", port, sts2, tmp);
 		sts2 = tmp;
 	}
 	tmp = hdmirx_rd_cor(CP2PAX_STATE_HDCP2X_IVCRX, port);
 	if (tmp != sts3 && (log_level & HDCP_LOG)) {
-		rx_pr("hdcp2sts3 %x->%x\n", sts3, tmp);
+		rx_pr("port%d hdcp2sts3 %x->%x\n", port, sts3, tmp);
 		sts3 = tmp;
 	}
 }

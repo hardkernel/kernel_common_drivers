@@ -68,7 +68,8 @@
 /* 2025.11.14 optimize t6x signal time */
 /* 2025.11.19 add hpd protect */
 /* 2025.11.20 fix issue that hdcp reauth too slow */
-#define RX_WRAPPER_VER "ver.2025/11/20"
+/* 2025.12.02 optimise log & fastswitch */
+#define RX_WRAPPER_VER "ver.2025/12/02"
 
 struct freq_ref_s {
 	bool interlace;
@@ -101,7 +102,6 @@ enum fsm_states_e {
 	FSM_SIG_FRL_CHECK,
 	FSM_SIG_FRL_DOUBLE_CHECK,
 	FSM_SIG_FDET_CHECK,
-	FSM_SIG_PRE_READY,
 	FSM_SIG_READY,
 	FSM_NULL,
 };
