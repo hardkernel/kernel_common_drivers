@@ -644,7 +644,7 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 	LDIMPR("%s: bl_mcu type=%d,datawidth=%d, tbuf_size=%d\n",
 		__func__, bl_mcu->type, bl_mcu->datawidth, bl_mcu->tbuf_size);
 
-	if (dev_drv->dma_support) {
+	if (dev_drv->dma_support && dev_drv->spi_dev[0]->controller->dma_alignment) {
 		n = bl_mcu->tbuf_size;
 		bl_mcu->tbuf_size = ldim_spi_dma_cycle_align_byte(n);
 		LDIMPR("%s: bl_mcu->tbuf_size is %d --> %d\n", __func__, n, bl_mcu->tbuf_size);

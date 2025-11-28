@@ -132,16 +132,20 @@ int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
 	xlen = tlen;
 	if (dev_drv->dma_support) {
 		if (spi->controller->dma_alignment) {
+			spi->bits_per_word = 64;
 			xlen = ldim_spi_dma_cycle_align_byte(tlen);
 			if (xlen > max_len) {
 				LDIMERR("%s: dma xlen %d out of max_len %d\n",
 					__func__, xlen, max_len);
 				return -1;
 			}
+		} else {
+			spi->bits_per_word = 8;
 		}
-		if ((spi->controller->mode_bits & SPI_LSB_FIRST) == 0)
+
+		if ((spi->controller->mode_bits & SPI_LSB_FIRST) == 0 &&
+			spi->bits_per_word == 64)
 			ldim_spi_buf_byte_swap_64bit(tbuf, tlen, xlen);
-		spi->bits_per_word = 64;
 	} else {
 		spi->bits_per_word = 8;
 	}
@@ -323,14 +327,19 @@ int ldim_spi_write_dma_trig(struct spi_device *spi, unsigned char *tbuf,
 	xlen = tlen;
 	if (dev_drv->dma_support) {
 		if (spi->controller->dma_alignment) {
+			spi->bits_per_word = 64;
 			xlen = ldim_spi_dma_cycle_align_byte(tlen);
 			if (xlen > max_len) {
 				LDIMERR("%s: dma xlen %d out of max_len %d\n",
 					__func__, xlen, max_len);
 				return -1;
 			}
+		} else {
+			spi->bits_per_word = 8;
 		}
-		if ((spi->controller->mode_bits & SPI_LSB_FIRST) == 0)
+
+		if ((spi->controller->mode_bits & SPI_LSB_FIRST) == 0 &&
+			spi->bits_per_word == 64)
 			ldim_spi_buf_byte_swap_64bit(tbuf, tlen, xlen);
 	} else {
 		if (ldim_debug_print & LDIM_DBG_PR_SPI)
@@ -341,9 +350,7 @@ int ldim_spi_write_dma_trig(struct spi_device *spi, unsigned char *tbuf,
 	memcpy(priv->tx_buf, tbuf, xlen * sizeof(unsigned char));//copy duty to spi tx buf
 
 	if (priv->trig_init == 0 ||
-		xlen != priv->xlen ||
-		spi->bits_per_word != 64) {
-		spi->bits_per_word = 64;
+		xlen != priv->xlen) {
 		priv->xlen = xlen;
 		ret = ldim_spi_init_dma_trig(spi);
 		ret = ldim_spi_dma_trig_start(spi);
@@ -387,7 +394,6 @@ int ldim_spi_write_xfer(struct spi_device *spi, unsigned char *tbuf, int tlen)
 
 	spi->bits_per_word = 8;
 	ret = cdata->dirspi_xfer(spi, tbuf, 0, tlen);
-	spi->bits_per_word = 64;
 	if (ret)
 		LDIMERR("%s spi(0x%p) failed\n", __func__, spi);
 	priv->async_busy = 0;
@@ -644,7 +650,11 @@ static int ldim_spi_dev_probe(struct spi_device *spi)
 		return 0;
 
 	dev_set_drvdata(&spi->dev, dev_drv);
-	spi->bits_per_word = 64;
+	if (spi->controller->dma_alignment)
+		spi->bits_per_word = 64;
+	else
+		spi->bits_per_word = 8;
+
 	if (spi->controller->mode_bits & SPI_LSB_FIRST)
 		spi->mode |= SPI_LSB_FIRST;
 

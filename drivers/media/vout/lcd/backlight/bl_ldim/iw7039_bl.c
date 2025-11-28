@@ -716,7 +716,7 @@ int ldim_dev_iw7039_probe(struct aml_ldim_driver_s *ldim_drv)
 
 	/* spi transfer buffer: header + reg_max_cnt * chip_cnt */
 	bl_iw7039->tbuf_size = IW7039_REG_MAX + bl_iw7039->reg_buf_size * 2;
-	if (bl_iw7039->dma_support) {
+	if (bl_iw7039->dma_support && dev_drv->spi_dev[0]->controller->dma_alignment) {
 		n = bl_iw7039->tbuf_size;
 		bl_iw7039->tbuf_size = ldim_spi_dma_cycle_align_byte(n);
 	}

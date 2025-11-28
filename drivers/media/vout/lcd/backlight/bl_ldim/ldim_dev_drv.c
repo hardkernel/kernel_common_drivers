@@ -55,6 +55,7 @@ static struct spicc_controller_data ldim_spi_controller_data = {
 	.dummy_ctl = 0,
 	.ss_leading_gap = 2,
 	.ss_trailing_gap = 2,
+	.word_gap = 0,/*0: no word_gap*/
 	//.priv = &ldim_spi_priv,
 };
 
