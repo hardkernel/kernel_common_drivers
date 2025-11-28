@@ -1132,7 +1132,7 @@
 		dpss_process {
 			compatible = "amlogic, dpss_process";
 			dev_name = "di_process";
-			status = "disabled";
+			status = "okay";
 		};
 
 		video_queue {
@@ -1701,7 +1701,7 @@
 
 	multi-dpss {
 	       compatible = "amlogic, dpss-t6x";
-	       status = "disabled";
+	       status = "okay";
 	       flag_cma = <4>; //<1>;
 			clocks = <&clkc CLKID_DAE>,
 				<&clkc CLKID_DPE>;
