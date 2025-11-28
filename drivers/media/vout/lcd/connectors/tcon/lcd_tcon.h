@@ -44,6 +44,15 @@ struct lcd_tcon_dma_ops_s {
 	void (*init)(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
 	void (*deinit)(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
 	void (*update)(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
+	int (*is_done)(struct aml_lcd_drv_s *pdrv);
+	void (*clr_done)(struct aml_lcd_drv_s *pdrv);
+	int (*wait_done)(struct aml_lcd_drv_s *pdrv, unsigned int timeout_us);
+
+	void (*sw_mif_set)(struct aml_lcd_drv_s *pdrv, phys_addr_t paddr, unsigned int size);
+	void (*sw_trigger)(struct aml_lcd_drv_s *pdrv);
+	int (*sw_is_done)(struct aml_lcd_drv_s *pdrv);
+	int (*sw_wait_done)(struct aml_lcd_drv_s *pdrv, unsigned int timeout_us);
+	void (*sw_clr_done)(struct aml_lcd_drv_s *pdrv);
 };
 
 struct lcd_tcon_reg_skip_s {
@@ -341,6 +350,13 @@ void lcd_tcon_lut_dma_update(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops
 void tcon_vrr_dma_mif_set(struct aml_lcd_drv_s *pdrv, phys_addr_t paddr, unsigned int size);
 void lcd_tcon_lut_dma_update_t6x(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
 
+void tcon_sw_dma_mif_set(struct aml_lcd_drv_s *pdrv, phys_addr_t paddr, unsigned int size);
+void tcon_sw_dma_trig(struct aml_lcd_drv_s *pdrv);
+int tcon_sw_dma_done(struct aml_lcd_drv_s *pdrv);
+int wait_tcon_sw_dma_done(struct aml_lcd_drv_s *pdrv, unsigned int timeout_us);
+int tcon_aptu_dma_done(struct aml_lcd_drv_s *pdrv);
+int wait_tcon_aptu_dma_done(struct aml_lcd_drv_s *pdrv, unsigned int timeout_us);
+void tcon_clr_dma_done(struct aml_lcd_drv_s *pdrv);
 
 void lcd_tcon_ext_header_check(struct lcd_tcon_init_block_ext_header_s *ext_header);
 int lcd_tcon_get_core_size(struct lcd_tcon_config_s *tcon_conf,
