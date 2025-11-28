@@ -1117,7 +1117,7 @@ void vdin_vf_disp_mode_update(struct vf_entry *vfe, struct vf_pool *p)
 
 	if (p->skip_vf_num)
 		p->disp_mode[p->disp_index[0]] = VFRAME_DISP_MODE_UNKNOWN;
-	else if (p->disp_mode[p->disp_index[0]] != VFRAME_DISP_MODE_SKIP)
+	else
 		p->disp_mode[p->disp_index[0]] = VFRAME_DISP_MODE_OK;
 }
 
