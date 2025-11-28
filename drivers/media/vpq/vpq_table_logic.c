@@ -5,6 +5,7 @@
 
 #include <linux/amlogic/media/vpp/vpp_drv.h>
 #include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #include "vpq_table_logic.h"
 #include "vpq_common.h"
 #include "vpq_printk.h"
@@ -491,6 +492,7 @@ static int set_color_curves(struct pq_cm_base_param_s *param)
 	// SatByY
 	for (i = 0; i < CURVE_LEN_SAT_BY_Y; i++)
 		base_curve_sat_by_y[i] = param->sat_by_y_0[i];
+	/* coverity[overrun-buffer-val] */
 	ret |= vpp_pq_mgr_set_cm_curve(EN_CM_SAT_BY_L, base_curve_sat_by_y);
 
 	// SatByHY
@@ -543,11 +545,6 @@ int vpq_set_color_base(unsigned char value)
 	}
 
 	param = &pq_table_param.cm_base_table[index][(enum pq_table_level_e)value];
-	if (!param) {
-		pr_inf(lev_tab, "fail to get base data pointer\n");
-		return RET_NULL_POINT;
-	}
-
 	ret = set_color_curves(param);
 	pr_inf(lev_tab, "ret:%d, value:%d\n", ret, value);
 
@@ -730,11 +727,6 @@ int vpq_set_dnlp_mode(unsigned char value)
 	}
 
 	pdata = &pq_table_param.dnlp_table[index][value].param;
-	if (!pdata) {
-		pr_inf(lev_tab, "fail to get pdata pointer\n");
-		return RET_NULL_POINT;
-	}
-
 	ret = vpp_pq_mgr_set_dnlp_param(pdata);
 	pr_inf(lev_tab, "ret:%d, value:%d\n", ret, value);
 
@@ -837,13 +829,9 @@ int vpq_set_lc_mode(unsigned char value)
 	}
 
 	plc_curve = &pq_table_param.lc_table[index][value].curve;
-	plc_param = &pq_table_param.lc_table[index][value].param;
-	if (!plc_curve || !plc_param) {
-		pr_inf(lev_tab, "fail to get plc_curve || plc_param pointer\n");
-		return RET_NULL_POINT;
-	}
-
 	ret = vpp_pq_mgr_set_lc_curve(plc_curve);
+
+	plc_param = &pq_table_param.lc_table[index][value].param;
 	ret |= vpp_pq_mgr_set_lc_param(plc_param);
 	pr_inf(lev_tab, "ret:%d\n", ret);
 
@@ -879,11 +867,6 @@ int vpq_set_hdr_tmo_mode(unsigned char value)
 	}
 
 	pdata = &pq_table_param.tmo_table[index][value].param;
-	if (!pdata) {
-		pr_inf(lev_tab, "fail to get pdata pointer\n");
-		return RET_NULL_POINT;
-	}
-
 	ret = vpp_pq_mgr_set_hdr_tmo_param(pdata);
 	pr_inf(lev_tab, "ret:%d\n", ret);
 
@@ -1031,11 +1014,6 @@ int vpq_set_black_stretch(unsigned char value)
 	}
 
 	pdata = &pq_table_param.blkext_table[index][value].param;
-	if (!pdata) {
-		pr_inf(lev_tab, "fail to get pdata pointer\n");
-		return RET_NULL_POINT;
-	}
-
 	vpp_pq_mgr_set_blkext_params(pdata);
 
 	pq_setting_val[PQ_BLK] = value;
@@ -1070,11 +1048,6 @@ int vpq_set_blue_stretch(unsigned char value)
 	}
 
 	pdata = &pq_table_param.bls_table[index][value].param;
-	if (!pdata) {
-		pr_inf(lev_tab, "fail to get pdata pointer\n");
-		return RET_NULL_POINT;
-	}
-
 	vpp_pq_mgr_set_blue_stretch_params(pdata);
 
 	pq_setting_val[PQ_BLS] = value;
@@ -1109,11 +1082,6 @@ int vpq_set_chroma_coring(unsigned char value)
 	}
 
 	pdata = &pq_table_param.ccoring_table[index][value].param;
-	if (!pdata) {
-		pr_inf(lev_tab, "fail to get pdata pointer\n");
-		return RET_NULL_POINT;
-	}
-
 	vpp_pq_mgr_set_chroma_coring_params(pdata);
 
 	pq_setting_val[PQ_CCORING] = value;
@@ -1234,11 +1202,6 @@ int vpq_set_nr(unsigned char value)
 	}
 
 	pdata = &pq_table_param.nr_table[index][value].param;
-	if (!pdata) {
-		pr_inf(lev_tab, "fail to get pdata pointer\n");
-		return RET_NULL_POINT;
-	}
-
 	ret = di_pq_mgr_dnr_param(pdata);
 	pr_inf(lev_tab, "ret:%d\n", ret);
 
@@ -1277,11 +1240,6 @@ int vpq_set_deblock(unsigned char value)
 	}
 
 	pdata = &pq_table_param.dblk_table[index][value].param;
-	if (!pdata) {
-		pr_inf(lev_tab, "fail to get pdata pointer\n");
-		return RET_NULL_POINT;
-	}
-
 	ret = di_pq_mgr_dblk_param(pdata);
 	pr_inf(lev_tab, "ret:%d\n", ret);
 
@@ -1320,11 +1278,6 @@ int vpq_set_demosquito(unsigned char value)
 	}
 
 	pdata = &pq_table_param.demos_table[index][value].param;
-	if (!pdata) {
-		pr_inf(lev_tab, "fail to get pdata pointer\n");
-		return RET_NULL_POINT;
-	}
-
 	ret = di_pq_mgr_demosquito_param(pdata);
 	pr_inf(lev_tab, "ret:%d\n", ret);
 
@@ -1363,11 +1316,6 @@ int vpq_set_smoothplus_mode(unsigned char value)
 	}
 
 	pdata = &pq_table_param.dct_table[index][value].param;
-	if (!pdata) {
-		pr_inf(lev_tab, "fail to get pdata pointer\n");
-		return RET_NULL_POINT;
-	}
-
 	ret = di_pq_mgr_dct_param(pdata);
 	pr_inf(lev_tab, "ret:%d\n", ret);
 
@@ -1400,11 +1348,6 @@ int vpq_set_di_param(void)
 	}
 
 	pdata = &pq_table_param.di_table[index].param;
-	if (!pdata) {
-		pr_inf(lev_tab, "fail to get pdata pointer\n");
-		return RET_NULL_POINT;
-	}
-
 	ret = di_pq_mgr_xlr_param(pdata);
 	pr_inf(lev_tab, "ret:%d\n", ret);
 
@@ -1487,7 +1430,9 @@ int vpq_set_xlr_dpss(struct vpq_xlr_param_s *pdata)
  */
 int vpq_set_amdv_pic_mode_id(unsigned char value)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	amdv_set_pic_mode_id(value);
+#endif
 
 	pq_setting_val[PQ_AMDV_PIC_MODE] = value;
 
@@ -1496,7 +1441,9 @@ int vpq_set_amdv_pic_mode_id(unsigned char value)
 
 int vpq_set_amdv_dark_detail(unsigned char value)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	amdv_set_dark_detail(value);
+#endif
 
 	pq_setting_val[PQ_AMDV_DARK_DETAIL] = value;
 
@@ -1505,6 +1452,7 @@ int vpq_set_amdv_dark_detail(unsigned char value)
 
 int vpq_set_amdv_light_sensor(struct vpq_light_sensor_s *pdata)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	struct light_sensor_s light_sensor;
 
 	light_sensor.flag = pdata->flag;
@@ -1512,6 +1460,7 @@ int vpq_set_amdv_light_sensor(struct vpq_light_sensor_s *pdata)
 	light_sensor.t_rearLum = pdata->t_rearLum;
 
 	amdv_set_light_sense(light_sensor);
+#endif
 
 	pre_light_sensor = *pdata;
 
@@ -1520,7 +1469,9 @@ int vpq_set_amdv_light_sensor(struct vpq_light_sensor_s *pdata)
 
 int vpq_set_amdv_precision_detail(unsigned char value)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	amdv_set_precision_detail_bypass(value);
+#endif
 
 	pq_setting_val[PQ_AMDV_PRE_DETAIL] = value;
 
@@ -1530,6 +1481,7 @@ int vpq_set_amdv_precision_detail(unsigned char value)
 struct vpq_dv_cfg_support_s vpq_get_dv_cfg_support(unsigned char value)
 {
 	struct vpq_dv_cfg_support_s vpq_cfg = {0};
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	struct dv_cfg_support_s dv_cfg = {0};
 
 	dv_cfg.pic_mode_id = value;
@@ -1540,6 +1492,7 @@ struct vpq_dv_cfg_support_s vpq_get_dv_cfg_support(unsigned char value)
 	vpq_cfg.precision_detail = dv_cfg.precision_detail;
 	vpq_cfg.dark_detail = dv_cfg.dark_detail;
 	vpq_cfg.light_sense = dv_cfg.light_sense;
+#endif
 
 	return vpq_cfg;
 }
