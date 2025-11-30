@@ -90,6 +90,12 @@ int vpq_ioctl_set_nonstandard_timing_map(struct file *file, unsigned long arg)
 		return -EFAULT;
 	}
 
+	if (req.map_count == 0 ||
+		req.map_count > RESERVE_NONSTANDARD_TIMING_COUNT) {
+		pr_error("non-standing timing count is zero or out range\n");
+		return -EINVAL;
+	}
+
 	buf_size = req.map_count * sizeof(struct vpq_nonstandard_timing_map_s);
 	pdata = kmalloc(buf_size, GFP_KERNEL);
 	if (!pdata) {

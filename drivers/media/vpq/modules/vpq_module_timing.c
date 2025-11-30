@@ -321,10 +321,6 @@ int vpq_module_timing_set_nonstandard_map(unsigned char value,
 	if (!pdata)
 		return RET_NULL_POINT;
 
-	if (value == 0 ||
-		value > RESERVE_NONSTANDARD_TIMING_COUNT)
-		return RET_INVALID_INPUT;
-
 	nonstandard_map_count = value;
 	for (i = 0; i < value; i++) {
 		nonstandard_maps[i] =  pdata[i];
