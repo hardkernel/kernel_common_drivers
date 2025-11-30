@@ -122,7 +122,7 @@ static long vpq_compat_ioctl(struct file *file, unsigned int cmd, unsigned long 
 {
 	unsigned long ret;
 
-	//pr_pri("file:%px\n", file);
+	//vpq_pr_info("file:%px\n", file);
 
 	arg = (unsigned long)compat_ptr(arg);
 	ret = vpq_ioctl(file, cmd, arg);
@@ -161,11 +161,11 @@ static int vpq_dts_parse(struct vpq_dev_s *vpq_devp)
 	const struct of_device_id *of_id;
 	struct platform_device *pdev = vpq_devp->pdev;
 
-	//pr_pri("start\n");
+	//vpq_pr_info("start\n");
 
 	of_id = of_match_device(vpq_dts_match, &pdev->dev);
 	if (of_id) {
-		pr_pri("%s compatible\n", of_id->compatible);
+		vpq_pr_info("%s compatible\n", of_id->compatible);
 
 		vpq_devp->pm_data = (struct vpq_match_data_s *)of_id->data;
 	}
@@ -174,13 +174,13 @@ static int vpq_dts_parse(struct vpq_dev_s *vpq_devp)
 
 static void vpq_event_work(struct work_struct *work)
 {
-	//pr_pri("start\n");
+	//vpq_pr_info("start\n");
 
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct vpq_dev_s *devp =
 		container_of(dwork, struct vpq_dev_s, event_dwork);
 	if (!devp) {
-		pr_pri("dwork error\n");
+		vpq_pr_info("dwork error\n");
 		return;
 	}
 
@@ -198,7 +198,7 @@ static void vpq_event_work(struct work_struct *work)
 	//envp[1] = NULL;
 	//snprintf(env, UEVENT_LEN_MAX, "vpq_event_info=%d", devp->event_info);
 	//ret = kobject_uevent_env(&devp->dev->kobj, KOBJ_CHANGE, envp);
-	//pr_pri("event_info:%d, ret:%d\n", devp->event_info, ret);
+	//vpq_pr_info("event_info:%d, ret:%d\n", devp->event_info, ret);
 }
 
 static int vpq_probe(struct platform_device *pdev)
@@ -207,11 +207,11 @@ static int vpq_probe(struct platform_device *pdev)
 	int i;
 	struct vpq_dev_s *vpq_devp = NULL;
 
-	//pr_pri("start\n");
+	//vpq_pr_info("start\n");
 
 	vpq_dev = kzalloc(sizeof(*vpq_dev), GFP_KERNEL);
 	if (!vpq_dev) {
-		//pr_error("vpq dev kzalloc error\n");
+		//vpq_pr_info("vpq dev kzalloc error\n");
 
 		ret = -1;
 		goto fail_alloc_dev;
@@ -221,14 +221,14 @@ static int vpq_probe(struct platform_device *pdev)
 
 	ret = alloc_chrdev_region(&vpq_devp->devno, 0, VPQ_DEVNO, VPQ_NAME);
 	if (ret < 0) {
-		pr_error("vpq devno alloc failed\n");
+		vpq_pr_err("vpq devno alloc failed\n");
 
 		goto fail_alloc_region;
 	}
 
 	vpq_devp->clsp = class_create(/*THIS_MODULE, */VPQ_CLS_NAME);
 	if (IS_ERR(vpq_devp->clsp)) {
-		pr_error("vpq class create failed\n");
+		vpq_pr_err("vpq class create failed\n");
 
 		ret = -1;
 		goto fail_create_class;
@@ -237,7 +237,7 @@ static int vpq_probe(struct platform_device *pdev)
 	for (i = 0; vpq_class_attr[i].attr.name; i++) {
 		ret = class_create_file(vpq_devp->clsp, &vpq_class_attr[i]);
 		if (ret < 0) {
-			pr_error("vpq class create file failed\n");
+			vpq_pr_err("vpq class create file failed\n");
 
 			goto fail_create_class_file;
 		}
@@ -249,14 +249,14 @@ static int vpq_probe(struct platform_device *pdev)
 	vpq_devp->vpq_cdev.owner = THIS_MODULE;
 	ret = cdev_add(&vpq_devp->vpq_cdev, vpq_devp->devno, VPQ_DEVNO);
 	if (ret < 0) {
-		pr_error("vpq add cdev failed\n");
+		vpq_pr_err("vpq add cdev failed\n");
 
 		goto fail_add_cdev;
 	}
 
 	vpq_devp->dev = device_create(vpq_devp->clsp, NULL, vpq_devp->devno, vpq_devp, VPQ_NAME);
 	if (!vpq_devp->dev) {
-		pr_error("vpq device_create failed\n");
+		vpq_pr_err("vpq device_create failed\n");
 
 		ret = -1;
 		goto fail_create_dev;
@@ -277,7 +277,7 @@ static int vpq_probe(struct platform_device *pdev)
 	/*init queue*/
 	init_waitqueue_head(&vpq_devp->queue);
 
-	//pr_pri("end\n");
+	//vpq_pr_info("end\n");
 
 	return ret;
 
@@ -302,7 +302,7 @@ static void vpq_remove(struct platform_device *pdev)
 	int i;
 	struct vpq_dev_s *vpq_devp = get_vpq_dev();
 
-	//pr_pri("start\n");
+	//vpq_pr_info("start\n");
 
 	cancel_delayed_work(&vpq_devp->event_dwork);
 
@@ -324,7 +324,7 @@ static void vpq_shutdown(struct platform_device *pdev)
 	int i;
 	struct vpq_dev_s *vpq_devp = get_vpq_dev();
 
-	//pr_pri("start\n");
+	//vpq_pr_info("start\n");
 
 	device_destroy(vpq_devp->clsp, vpq_devp->devno);
 	cdev_del(&vpq_devp->vpq_cdev);
@@ -351,10 +351,10 @@ static struct platform_driver vpq_driver = {
 
 int __init vpq_init(void)
 {
-	//pr_pri("start\n");
+	//vpq_pr_info("start\n");
 
 	if (platform_driver_register(&vpq_driver)) {
-		pr_error("module init failed\n");
+		vpq_pr_err("module init failed\n");
 		return -ENODEV;
 	}
 
@@ -363,7 +363,7 @@ int __init vpq_init(void)
 
 void __exit vpq_exit(void)
 {
-	//pr_pri("start\n");
+	//vpq_pr_info("start\n");
 
 	platform_driver_unregister(&vpq_driver);
 }

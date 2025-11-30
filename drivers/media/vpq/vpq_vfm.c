@@ -3,6 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+//#define DEBUG
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #else
@@ -31,7 +32,7 @@ static unsigned int pre_sig[VFRAME_SOURCE_TYPE_HWC + 1][SIG_MAX];
 
 void vpq_vfm_init(void)
 {
-	//pr_pri("start\n");
+	//vpq_pr_info("start\n");
 	memset(pre_sig, 0, sizeof(pre_sig));
 	memset(cur_sig, 0, sizeof(cur_sig));
 }
@@ -73,7 +74,7 @@ static void _vpq_vfm_update_height_width(unsigned int type,
 
 	cur_sig[cur_src_type][SIG_HEIGHT] = (type & VIDTYPE_COMPRESS) ? compHeight : height;
 	cur_sig[cur_src_type][SIG_WIDTH] = (type & VIDTYPE_COMPRESS) ? compWidth : width;
-	//pr_inf(lev_vfm, "height/width:%d, %d\n",
+	//vpq_pr_dbg(lev_vfm, "height/width:%d, %d\n",
 		//cur_sig[cur_src_type][SIG_HEIGHT], cur_sig[cur_src_type][SIG_WIDTH]);
 }
 
@@ -95,7 +96,7 @@ static void _vpq_vfm_update_color_primaries(unsigned int signal_type)
 	else
 		cur_color_primaries = VPQ_COLOR_PRIM_NULL;
 
-	//pr_inf(lev_vfm, "cur_color_primaries:%d\n", cur_color_primaries);
+	//vpq_pr_dbg(lev_vfm, "cur_color_primaries:%d\n", cur_color_primaries);
 }
 
 static void _vpq_vfm_update_transfer_characteristic(unsigned int signal_type)
@@ -119,7 +120,7 @@ static void _vpq_vfm_update_transfer_characteristic(unsigned int signal_type)
 	else
 		hdr_type = VPQ_VFM_HDR_TYPE_SDR;
 
-	//pr_inf(lev_vfm, "hdr_type:%d\n", hdr_type);
+	//vpq_pr_dbg(lev_vfm, "hdr_type:%d\n", hdr_type);
 	cur_sig[cur_src_type][SIG_HDR] = hdr_type;
 }
 
@@ -138,7 +139,7 @@ static void _vpq_vfm_update_is_amdv(unsigned int signal_type, struct vframe_s *p
 	else
 		is_amdv = 0; // no amdv source
 
-	//pr_inf(lev_vfm, "is_amdv:%d\n", is_amdv);
+	//vpq_pr_dbg(lev_vfm, "is_amdv:%d\n", is_amdv);
 	cur_sig[cur_src_type][SIG_AMDV] = is_amdv;
 }
 
@@ -153,7 +154,7 @@ static void _vpq_vfm_update_signal_scan_mode(unsigned int type_original)
 		cur_scan_mode = VPQ_VFM_SCAN_MODE_NULL;
 	}
 
-	//pr_inf(lev_vfm, "cur_scan_mode:0x%x\n", cur_scan_mode);
+	//vpq_pr_dbg(lev_vfm, "cur_scan_mode:0x%x\n", cur_scan_mode);
 }
 
 static void _vpq_vfm_update_fps(unsigned int duration)
@@ -178,7 +179,7 @@ static void _vpq_vfm_update_fps(unsigned int duration)
 	else if (duration == 4000 || duration == 4004)
 		cur_fps = 24;
 
-	//pr_inf(lev_vfm, "cur_fps:%d\n", cur_fps);
+	//vpq_pr_dbg(lev_vfm, "cur_fps:%d\n", cur_fps);
 }
 
 //static void _vpq_vfm_update_latency_and_vrr(struct tvin_latency_s latency,
@@ -202,7 +203,7 @@ static void _vpq_vfm_update_fps(unsigned int duration)
 
 static void print_signal_info(const char *string, int scr_type, int sig_info[])
 {
-	pr_pri("%s src:%d, port:0x%x, fmt:0x%x, w-h:%d %d, hdr:%d, amdv:%d, game:%d, pc:%d\n",
+	vpq_pr_info("%s src:%d, port:0x%x, fmt:0x%x, w-h:%d %d, hdr:%d, amdv:%d, game:%d, pc:%d\n",
 		string, scr_type,
 		sig_info[SIG_PORT], sig_info[SIG_FMT],  sig_info[SIG_WIDTH], sig_info[SIG_HEIGHT],
 		sig_info[SIG_HDR],  sig_info[SIG_AMDV], sig_info[SIG_GAME],  sig_info[SIG_PC]);
@@ -235,7 +236,7 @@ static void _vpq_vfm_update_pq_effect(void)
 
 			if (cur_sig[cur_src_type][SIG_HEIGHT] != 0 &&
 				cur_sig[cur_src_type][SIG_WIDTH]  != 0) {
-				//pr_pri("trigger hdmi pq update and event\n");
+				//vpq_pr_info("trigger hdmi pq update and event\n");
 				vpq_set_pq_effect();
 				vpq_vfm_send_event(VPQ_VFM_EVENT_SIG_INFO_CHANGE);
 			}
@@ -264,7 +265,7 @@ static void _vpq_vfm_update_pq_effect(void)
 
 			if (cur_sig[cur_src_type][SIG_HEIGHT] != 0 &&
 				cur_sig[cur_src_type][SIG_WIDTH]  != 0) {
-				//pr_pri("trigger mpeg pq update and event\n");
+				//vpq_pr_info("trigger mpeg pq update and event\n");
 				vpq_set_pq_effect();
 				vpq_vfm_send_event(VPQ_VFM_EVENT_SIG_INFO_CHANGE);
 			}
@@ -285,7 +286,7 @@ static void _vpq_vfm_update_pq_effect(void)
 void vpq_vfm_process(struct vframe_s *pvf)
 {
 	if (!pvf) {
-		pr_inf(lev_vfm, "pvf is null\n");
+		vpq_pr_dbg(lev_vfm, "pvf is null\n");
 		return;
 	}
 
@@ -304,7 +305,7 @@ void vpq_vfm_process(struct vframe_s *pvf)
 	_vpq_vfm_update_fps(pvf->duration);
 	//_vpq_vfm_update_latency_and_vrr(pvf->latency, pvf->cur_vrr_status);
 
-	//pr_inf(lev_vfm,
+	//vpq_pr_dbg(lev_vfm,
 	//	"source_type:%d,   port:0x%x,        sig_fmt:0x%x,\n"
 	//	"trans_fmt:%d,     source_mode:%d,   type:%d,\n"
 	//	"compHeight:%d,    compWidth:%d,     height:%d,\n"
@@ -325,7 +326,7 @@ EXPORT_SYMBOL(vpq_vfm_process);
 
 void vpq_vfm_video_enable(int enable)
 {
-	pr_pri("%d\n", enable);
+	vpq_pr_info("%d\n", enable);
 	if (enable == 0) {
 		pre_src_type = VFRAME_SOURCE_TYPE_HWC;
 		memset(pre_sig, 0, sizeof(pre_sig));
@@ -408,7 +409,7 @@ void vpq_frm_get_fps(unsigned int *fps)
 
 void vpq_vfm_send_event(enum vpq_vfm_event_info_e event_info)
 {
-	pr_pri("start event_info:%d\n", event_info);
+	vpq_pr_info("start event_info:%d\n", event_info);
 
 	struct vpq_dev_s *vpq_devp = get_vpq_dev();
 
@@ -423,7 +424,7 @@ enum vpq_vfm_event_info_e vpq_vfm_get_event_info(void)
 {
 	struct vpq_dev_s *vpq_devp = get_vpq_dev();
 
-	pr_pri("vpq_devp->event_info:%d\n", vpq_devp->event_info);
+	vpq_pr_info("vpq_devp->event_info:%d\n", vpq_devp->event_info);
 
 	return (enum vpq_vfm_event_info_e)vpq_devp->event_info;
 }

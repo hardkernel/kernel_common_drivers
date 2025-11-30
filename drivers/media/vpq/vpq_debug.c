@@ -3,6 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+//#define DEBUG
 #include "vpq_debug.h"
 #include "vpq_printk.h"
 #include "vpq_common.h"
@@ -12,167 +13,6 @@
 unsigned int log_lev;
 
 #define STATE_AS_STRING(state) (((state) == 1) ? "enable" : "disable")
-
-#if ENABLE_USAGE_STR
-static const char *vpq_debug_usage_str = {
-	"Description:\n"
-	" vpq module support below debug cmd:\n"
-	" 1. get log level\n"
-	"    --> cat /sys/class/vpq/log_lev\n"
-	" 2. set log level\n"
-	"    --> echo log_lev xx > /sys/class/vpq/log_lev\n"
-	"\n"
-	" 3. get chip id\n"
-	"    --> cat /sys/class/vpq/chip_infor\n"
-	"\n"
-	" 4. get reg table version\n"
-	"    --> cat /sys/class/vpq/reg_table_ver\n"
-	"\n"
-	" 5. get pq modules config\n"
-	"    --> cat /sys/class/vpq/module_cfg\n"
-	"\n"
-	" 6. get aml_vpp pq modules status\n"
-	"    --> cat /sys/class/vpq/module_status\n"
-	" 7. set aml_vpp pq modules status\n"
-	"    --> echo xx yy > /sys/class/vpq/module_status\n"
-	"\n"
-	" 8. get source signal infor\n"
-	"    --> cat /sys/class/vpq/src_infor\n"
-	"\n"
-	" 9. get other infor\n"
-	"    --> cat /sys/class/vpq/other_infor\n"
-	"\n"
-	" 10. get his information\n"
-	"    --> cat /sys/class/vpq/his_avg\n"
-	"\n"
-	" 11. set pq setting value\n"
-	"    --> echo xx yy > /sys/class/vpq/pq_setting\n"
-	"\n"
-	" 12. dump register table\n"
-	"    --> echo xx > /sys/class/vpq/dump_table\n"
-	"\n"
-};
-
-static const char *vpq_log_lev_usage_str = {
-	"Usage:\n"
-	"echo log_lev value > /sys/class/vpq/log_lev\n"
-	"--> value: 1(ioctl); 2(table); 3(module); 4(vfm); 5(proc);\n"
-	"\n"
-};
-
-static const char *vpq_module_status_usage_str = {
-	"Usage:\n"
-	"echo pq_module value1 value2 > /sys/class/vpq/module_status\n"
-	"--> value1: vadj1; vadj2; pregamma; gamma; wb; dnlp; ccoring;\n"
-	"            sr0; sr1; lc; cm; ble; bls; lut3d; dejaggy_sr0;\n"
-	"            dejaggy_sr1; dering_sr0; dering_sr1; all;\n"
-	"--> value2: 0~1\n"
-	"\n"
-};
-
-static const char *vpq_pq_setting_usage_str = {
-	"Usage:\n"
-	"echo bri value > /sys/class/vpq/pq_setting\n"
-	"--> value: -512 ~ +512\n"
-	"\n"
-	"echo con value > /sys/class/vpq/pq_setting\n"
-	"--> value: -1023 ~ +1023\n"
-	"\n"
-	"echo sat value > /sys/class/vpq/pq_setting\n"
-	"--> value: -127 ~ +127\n"
-	"\n"
-	"echo hue value > /sys/class/vpq/pq_setting\n"
-	"--> value: -127 ~ +127\n"
-	"\n"
-	"echo sharp value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 255\n"
-	"\n"
-	"echo bri_post value > /sys/class/vpq/pq_setting\n"
-	"--> value: -512 ~ +512\n"
-	"\n"
-	"echo cont_post value > /sys/class/vpq/pq_setting\n"
-	"--> value: -1023 ~ +1023\n"
-	"\n"
-	"echo sat_post value > /sys/class/vpq/pq_setting\n"
-	"--> value: -127 ~ +127\n"
-	"\n"
-	"echo hue_post value > /sys/class/vpq/pq_setting\n"
-	"--> value: -127 ~ +127\n"
-	"\n"
-	"echo dnlp value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 3\n"
-	"\n"
-	"echo lc value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 3\n"
-	"\n"
-	"echo blkext value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 3\n"
-	"\n"
-	"echo rgb_ogo value1...value9 > /sys/class/vpq/pq_setting\n"
-	"--> value1 ~ value3: -1024~1023 (r_pre_offset; g_pre_offset; b_pre_offset)\n"
-	"--> value4 ~ value6: 0~2047 (r_gain; g_gain; b_gain;)\n"
-	"--> value7 ~ value9: -1024~1023 (r_post_offset; g_post_offset; b_post_offset)\n"
-	"\n"
-	"echo cms value1...value5 > /sys/class/vpq/pq_setting\n"
-	"--> value1: 0~1 (color_type: 9_color; 14_color)\n"
-	"--> value2: 0~8 (color_9: read; green; blue; cyan; magenta; yellow; skin; yellow_green; blue_green)\n"
-	"--> value3: 0~13 (color_14: blue_purple; purple; purple_red; red; fleshtone_cheeks; fleshtone_hair_cheeks;\n"
-	"                  fleshtone_yellow; yellow; yellow_green; green; green_cyan; cyan; cyan_blue; blue)\n"
-	"--> value4: 0~2 (cms_type: sat; hue; luma)\n"
-	"--> value5: -128~127\n"
-	"\n"
-	"echo blue_stretch value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 3\n"
-	"\n"
-	"echo aipq value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 3\n"
-	"\n"
-	"echo aisr value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 3\n"
-	"\n"
-	"echo csc_type value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 3\n"
-	"\n"
-	"echo chroma_coring value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 3\n"
-	"\n"
-	"echo amdv_pic_mode_id value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 255\n"
-	"\n"
-	"echo amdv_dark_detail value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 255\n"
-	"\n"
-	"echo amdv_light_sensor value1 value2 value3 > /sys/class/vpq/pq_setting\n"
-	"--> value1: 0 ~ 1 (flag)\n"
-	"--> value2: 0 ~ 255 (t_frontLux)\n"
-	"--> value3: 0 ~ 255 (t_rearLum)\n"
-	"\n"
-	"echo amdv_precision_detail value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 255\n"
-	"\n"
-	"echo memc_en value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 1\n"
-	"\n"
-	"echo memc_deblur value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 255\n"
-	"\n"
-	"echo memc_dejudder value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 255\n"
-	"\n"
-	"echo memc_demo value > /sys/class/vpq/pq_setting\n"
-	"--> value: 0 ~ 255\n"
-	"\n"
-};
-
-static const char *vpq_dump_table_usage_str = {
-	"Usage:\n"
-	"echo dump_data value > /sys/class/vpq/dump_table\n"
-	"--> value: 0(dnlp); 1(hdrtmo); 2(aipq); 3(lc); 4(chroma cor); 5(black ext)\n"
-	"           6(blue stretch);\n"
-	"           20(nr); 21(deblock)); 22(demosquito); 23(smoothplus); 24(di);\n"
-	"\n"
-};
-#endif
 
 static void parse_param(char *pbuf, char **param)
 {
@@ -209,11 +49,7 @@ ssize_t vpq_debug_cmd_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
 {
-#if ENABLE_USAGE_STR
-	return sprintf(buf, "%s\n", vpq_debug_usage_str);
-#else
 	return 0;
-#endif
 }
 
 ssize_t vpq_debug_cmd_store(const struct class *class,
@@ -228,14 +64,10 @@ ssize_t vpq_log_lev_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
 {
-	pr_inf(lev_dbg, "show log_lev: %d\n", log_lev);
-	pr_inf(lev_dbg, "\n");
+	vpq_pr_dbg(lev_dbg, "show log_lev: %d\n", log_lev);
+	vpq_pr_dbg(lev_dbg, "--------------------------------\n");
 
-#if ENABLE_USAGE_STR
-	return sprintf(buf, "%s\n", vpq_log_lev_usage_str);
-#else
 	return 0;
-#endif
 }
 
 ssize_t vpq_log_lev_store(const struct class *class,
@@ -256,9 +88,9 @@ ssize_t vpq_log_lev_store(const struct class *class,
 		if (kstrtouint(param[1], 10, &log_lev) < 0)
 			goto free_buf;
 
-		pr_inf(lev_dbg, "log_lev %d\n", log_lev);
+		vpq_pr_dbg(lev_dbg, "log_lev %d\n", log_lev);
 	} else {
-		pr_inf(lev_dbg, "cmd error\n");
+		vpq_pr_dbg(lev_dbg, "cmd error\n");
 		goto free_buf;
 	}
 
@@ -268,7 +100,6 @@ free_buf:
 	return count;
 }
 
-#if OPEN_PRINTK
 static char *chip_type_tostring(enum vpq_chip_class_e chip_type)
 {
 	if (chip_type == CHIP_CLASS_NULL)
@@ -300,7 +131,6 @@ static char *chip_id_tostring(enum vpq_chip_e chip_id)
 	else
 		return "NULL";
 }
-#endif
 
 ssize_t vpq_chip_infor_show(const struct class *class,
 			const struct class_attribute *attr,
@@ -309,10 +139,10 @@ ssize_t vpq_chip_infor_show(const struct class *class,
 	__maybe_unused enum vpq_chip_class_e chip_type = vpq_get_chip_type();
 	__maybe_unused enum vpq_chip_e chip_id = vpq_get_chip_id();
 
-	pr_inf(lev_dbg, "current chip information:\n");
-	pr_inf(lev_dbg, "  type:%s\n", chip_type_tostring(chip_type));
-	pr_inf(lev_dbg, "  id:%s\n", chip_id_tostring(chip_id));
-	pr_inf(lev_dbg, "--------------------------------\n");
+	vpq_pr_dbg(lev_dbg, "current chip information:\n");
+	vpq_pr_dbg(lev_dbg, "  type:%s\n", chip_type_tostring(chip_type));
+	vpq_pr_dbg(lev_dbg, "  id:%s\n", chip_id_tostring(chip_id));
+	vpq_pr_dbg(lev_dbg, "--------------------------------\n");
 
 	return 0;
 }
@@ -329,13 +159,13 @@ ssize_t vpq_reg_table_ver_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
 {
-	pr_inf(lev_dbg, "current pq table ver information\n");
-	pr_inf(lev_dbg, "  project_version :%s\n", pq_table_ver.project_version);
-	pr_inf(lev_dbg, "  chip_version    :%s\n", pq_table_ver.chip_version);
-	pr_inf(lev_dbg, "  table_version   :%s\n", pq_table_ver.table_version);
-	pr_inf(lev_dbg, "  oem_model       :%s\n", pq_table_ver.oem_model);
-	pr_inf(lev_dbg, "  panel_index     :%s\n", pq_table_ver.panel_index);
-	pr_inf(lev_dbg, "--------------------------------\n");
+	vpq_pr_dbg(lev_dbg, "current pq table ver information\n");
+	vpq_pr_dbg(lev_dbg, "  project_version :%s\n", pq_table_ver.project_version);
+	vpq_pr_dbg(lev_dbg, "  chip_version    :%s\n", pq_table_ver.chip_version);
+	vpq_pr_dbg(lev_dbg, "  table_version   :%s\n", pq_table_ver.table_version);
+	vpq_pr_dbg(lev_dbg, "  oem_model       :%s\n", pq_table_ver.oem_model);
+	vpq_pr_dbg(lev_dbg, "  panel_index     :%s\n", pq_table_ver.panel_index);
+	vpq_pr_dbg(lev_dbg, "--------------------------------\n");
 
 	return 0;
 }
@@ -352,11 +182,7 @@ ssize_t vpq_pq_setting_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
 {
-#if ENABLE_USAGE_STR
-	return sprintf(buf, "%s\n", vpq_pq_setting_usage_str);
-#else
 	return 0;
-#endif
 }
 
 ssize_t vpq_pq_setting_store(const struct class *class,
@@ -544,8 +370,7 @@ ssize_t vpq_pq_setting_store(const struct class *class,
 
 		vpq_set_memc_demo_mode(value);
 	} else {
-		pr_inf(lev_dbg, "cmd error\n");
-		goto free_buf;
+		vpq_pr_dbg(lev_dbg, "cmd error\n");
 	}
 
 free_buf:
@@ -558,39 +383,69 @@ ssize_t vpq_pq_module_cfg_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
 {
-	pr_inf(lev_dbg, "show pq modules cfg:\n");
-	pr_inf(lev_dbg, " pq_en           :%s\n", STATE_AS_STRING(pq_module_cfg.pq_en));
-	pr_inf(lev_dbg, " vadj1_en        :%s\n", STATE_AS_STRING(pq_module_cfg.vadj1_en));
-	pr_inf(lev_dbg, " vd1_ctrst_en    :%s\n", STATE_AS_STRING(pq_module_cfg.vd1_ctrst_en));
-	pr_inf(lev_dbg, " vadj2_en        :%s\n", STATE_AS_STRING(pq_module_cfg.vadj2_en));
-	pr_inf(lev_dbg, " post_ctrst_en   :%s\n", STATE_AS_STRING(pq_module_cfg.post_ctrst_en));
-	pr_inf(lev_dbg, " pregamma_en     :%s\n", STATE_AS_STRING(pq_module_cfg.pregamma_en));
-	pr_inf(lev_dbg, " gamma_en        :%s\n", STATE_AS_STRING(pq_module_cfg.gamma_en));
-	pr_inf(lev_dbg, " wb_en           :%s\n", STATE_AS_STRING(pq_module_cfg.wb_en));
-	pr_inf(lev_dbg, " dnlp_en         :%s\n", STATE_AS_STRING(pq_module_cfg.dnlp_en));
-	pr_inf(lev_dbg, " lc_en           :%s\n", STATE_AS_STRING(pq_module_cfg.lc_en));
-	pr_inf(lev_dbg, " black_ext_en    :%s\n", STATE_AS_STRING(pq_module_cfg.black_ext_en));
-	pr_inf(lev_dbg, " blue_stretch_en :%s\n", STATE_AS_STRING(pq_module_cfg.blue_stretch_en));
-	pr_inf(lev_dbg, " chroma_cor_en   :%s\n", STATE_AS_STRING(pq_module_cfg.chroma_cor_en));
-	pr_inf(lev_dbg, " sharpness0_en   :%s\n", STATE_AS_STRING(pq_module_cfg.sharpness0_en));
-	pr_inf(lev_dbg, " sharpness1_en   :%s\n", STATE_AS_STRING(pq_module_cfg.sharpness1_en));
-	pr_inf(lev_dbg, " cm_en           :%s\n", STATE_AS_STRING(pq_module_cfg.cm_en));
-	pr_inf(lev_dbg, " lut3d_en        :%s\n", STATE_AS_STRING(pq_module_cfg.lut3d_en));
-	pr_inf(lev_dbg, " dejaggy_sr0_en  :%s\n", STATE_AS_STRING(pq_module_cfg.dejaggy_sr0_en));
-	pr_inf(lev_dbg, " dejaggy_sr1_en  :%s\n", STATE_AS_STRING(pq_module_cfg.dejaggy_sr1_en));
-	pr_inf(lev_dbg, " dering_sr0_en   :%s\n", STATE_AS_STRING(pq_module_cfg.dering_sr0_en));
-	pr_inf(lev_dbg, " dering_sr1_en   :%s\n", STATE_AS_STRING(pq_module_cfg.dering_sr1_en));
-	pr_inf(lev_dbg, " di_en           :%s\n", STATE_AS_STRING(pq_module_cfg.di_en));
-	pr_inf(lev_dbg, " mcdi_en         :%s\n", STATE_AS_STRING(pq_module_cfg.mcdi_en));
-	pr_inf(lev_dbg, " deblock_en      :%s\n", STATE_AS_STRING(pq_module_cfg.deblock_en));
-	pr_inf(lev_dbg, " demosquito_en   :%s\n", STATE_AS_STRING(pq_module_cfg.demosquito_en));
-	pr_inf(lev_dbg, " smoothplus_en   :%s\n", STATE_AS_STRING(pq_module_cfg.smoothplus_en));
-	pr_inf(lev_dbg, " nr_en           :%s\n", STATE_AS_STRING(pq_module_cfg.nr_en));
-	pr_inf(lev_dbg, " hdrtmo_en       :%s\n", STATE_AS_STRING(pq_module_cfg.hdrtmo_en));
-	pr_inf(lev_dbg, " ai_en           :%s\n", STATE_AS_STRING(pq_module_cfg.ai_en));
-	pr_inf(lev_dbg, " aisr_en         :%s\n", STATE_AS_STRING(pq_module_cfg.aisr_en));
+	vpq_pr_dbg(lev_dbg, "show pq modules cfg:\n");
+	vpq_pr_dbg(lev_dbg, " pq_en           :%s\n",
+		STATE_AS_STRING(pq_module_cfg.pq_en));
+	vpq_pr_dbg(lev_dbg, " vadj1_en        :%s\n",
+		STATE_AS_STRING(pq_module_cfg.vadj1_en));
+	vpq_pr_dbg(lev_dbg, " vd1_ctrst_en    :%s\n",
+		STATE_AS_STRING(pq_module_cfg.vd1_ctrst_en));
+	vpq_pr_dbg(lev_dbg, " vadj2_en        :%s\n",
+		STATE_AS_STRING(pq_module_cfg.vadj2_en));
+	vpq_pr_dbg(lev_dbg, " post_ctrst_en   :%s\n",
+		STATE_AS_STRING(pq_module_cfg.post_ctrst_en));
+	vpq_pr_dbg(lev_dbg, " pregamma_en     :%s\n",
+		STATE_AS_STRING(pq_module_cfg.pregamma_en));
+	vpq_pr_dbg(lev_dbg, " gamma_en        :%s\n",
+		STATE_AS_STRING(pq_module_cfg.gamma_en));
+	vpq_pr_dbg(lev_dbg, " wb_en           :%s\n",
+		STATE_AS_STRING(pq_module_cfg.wb_en));
+	vpq_pr_dbg(lev_dbg, " dnlp_en         :%s\n",
+		STATE_AS_STRING(pq_module_cfg.dnlp_en));
+	vpq_pr_dbg(lev_dbg, " lc_en           :%s\n",
+		STATE_AS_STRING(pq_module_cfg.lc_en));
+	vpq_pr_dbg(lev_dbg, " black_ext_en    :%s\n",
+		STATE_AS_STRING(pq_module_cfg.black_ext_en));
+	vpq_pr_dbg(lev_dbg, " blue_stretch_en :%s\n",
+		STATE_AS_STRING(pq_module_cfg.blue_stretch_en));
+	vpq_pr_dbg(lev_dbg, " chroma_cor_en   :%s\n",
+		STATE_AS_STRING(pq_module_cfg.chroma_cor_en));
+	vpq_pr_dbg(lev_dbg, " sharpness0_en   :%s\n",
+		STATE_AS_STRING(pq_module_cfg.sharpness0_en));
+	vpq_pr_dbg(lev_dbg, " sharpness1_en   :%s\n",
+		STATE_AS_STRING(pq_module_cfg.sharpness1_en));
+	vpq_pr_dbg(lev_dbg, " cm_en           :%s\n",
+		STATE_AS_STRING(pq_module_cfg.cm_en));
+	vpq_pr_dbg(lev_dbg, " lut3d_en        :%s\n",
+		STATE_AS_STRING(pq_module_cfg.lut3d_en));
+	vpq_pr_dbg(lev_dbg, " dejaggy_sr0_en  :%s\n",
+		STATE_AS_STRING(pq_module_cfg.dejaggy_sr0_en));
+	vpq_pr_dbg(lev_dbg, " dejaggy_sr1_en  :%s\n",
+		STATE_AS_STRING(pq_module_cfg.dejaggy_sr1_en));
+	vpq_pr_dbg(lev_dbg, " dering_sr0_en   :%s\n",
+		STATE_AS_STRING(pq_module_cfg.dering_sr0_en));
+	vpq_pr_dbg(lev_dbg, " dering_sr1_en   :%s\n",
+		STATE_AS_STRING(pq_module_cfg.dering_sr1_en));
+	vpq_pr_dbg(lev_dbg, " di_en           :%s\n",
+		STATE_AS_STRING(pq_module_cfg.di_en));
+	vpq_pr_dbg(lev_dbg, " mcdi_en         :%s\n",
+		STATE_AS_STRING(pq_module_cfg.mcdi_en));
+	vpq_pr_dbg(lev_dbg, " deblock_en      :%s\n",
+		STATE_AS_STRING(pq_module_cfg.deblock_en));
+	vpq_pr_dbg(lev_dbg, " demosquito_en   :%s\n",
+		STATE_AS_STRING(pq_module_cfg.demosquito_en));
+	vpq_pr_dbg(lev_dbg, " smoothplus_en   :%s\n",
+		STATE_AS_STRING(pq_module_cfg.smoothplus_en));
+	vpq_pr_dbg(lev_dbg, " nr_en           :%s\n",
+		STATE_AS_STRING(pq_module_cfg.nr_en));
+	vpq_pr_dbg(lev_dbg, " hdrtmo_en       :%s\n",
+		STATE_AS_STRING(pq_module_cfg.hdrtmo_en));
+	vpq_pr_dbg(lev_dbg, " ai_en           :%s\n",
+		STATE_AS_STRING(pq_module_cfg.ai_en));
+	vpq_pr_dbg(lev_dbg, " aisr_en         :%s\n",
+		STATE_AS_STRING(pq_module_cfg.aisr_en));
 
-	pr_inf(lev_dbg, "--------------------------------\n");
+	vpq_pr_dbg(lev_dbg, "--------------------------------\n");
 
 	return 0;
 }
@@ -611,37 +466,54 @@ ssize_t vpq_pq_module_status_show(const struct class *class,
 
 	vpq_get_pq_module_status(&pq_state);
 
-	pr_inf(lev_dbg, "show vpp pq module status:\n");
-	pr_inf(lev_dbg, " pq           :%s\n", STATE_AS_STRING(pq_state.pq_en));
-	pr_inf(lev_dbg, " vadj1        :%s\n", STATE_AS_STRING(pq_state.pq_cfg.vadj1_en));
-	pr_inf(lev_dbg, " vd1_ctrst    :%s\n", STATE_AS_STRING(pq_state.pq_cfg.vd1_ctrst_en));
-	pr_inf(lev_dbg, " vadj2        :%s\n", STATE_AS_STRING(pq_state.pq_cfg.vadj2_en));
-	pr_inf(lev_dbg, " post_ctrst   :%s\n", STATE_AS_STRING(pq_state.pq_cfg.post_ctrst_en));
-	pr_inf(lev_dbg, " pregamma     :%s\n", STATE_AS_STRING(pq_state.pq_cfg.pregamma_en));
-	pr_inf(lev_dbg, " gamma        :%s\n", STATE_AS_STRING(pq_state.pq_cfg.gamma_en));
-	pr_inf(lev_dbg, " wb           :%s\n", STATE_AS_STRING(pq_state.pq_cfg.wb_en));
-	pr_inf(lev_dbg, " dnlp         :%s\n", STATE_AS_STRING(pq_state.pq_cfg.dnlp_en));
-	pr_inf(lev_dbg, " lc           :%s\n", STATE_AS_STRING(pq_state.pq_cfg.lc_en));
-	pr_inf(lev_dbg, " black_ext    :%s\n", STATE_AS_STRING(pq_state.pq_cfg.black_ext_en));
-	pr_inf(lev_dbg, " blue_stretch :%s\n", STATE_AS_STRING(pq_state.pq_cfg.blue_stretch_en));
-	pr_inf(lev_dbg, " chroma_cor   :%s\n", STATE_AS_STRING(pq_state.pq_cfg.chroma_cor_en));
-	pr_inf(lev_dbg, " sharpness0   :%s\n", STATE_AS_STRING(pq_state.pq_cfg.sharpness0_en));
-	pr_inf(lev_dbg, " sharpness1   :%s\n", STATE_AS_STRING(pq_state.pq_cfg.sharpness1_en));
-	pr_inf(lev_dbg, " cm           :%s\n", STATE_AS_STRING(pq_state.pq_cfg.cm_en));
-	pr_inf(lev_dbg, " lut3d        :%s\n", STATE_AS_STRING(pq_state.pq_cfg.lut3d_en));
-	pr_inf(lev_dbg, " dejaggy_sr0  :%s\n", STATE_AS_STRING(pq_state.pq_cfg.dejaggy_sr0_en));
-	pr_inf(lev_dbg, " dejaggy_sr1  :%s\n", STATE_AS_STRING(pq_state.pq_cfg.dejaggy_sr0_en));
-	pr_inf(lev_dbg, " dering_sr0   :%s\n", STATE_AS_STRING(pq_state.pq_cfg.dering_sr0_en));
-	pr_inf(lev_dbg, " dering_sr1   :%s\n", STATE_AS_STRING(pq_state.pq_cfg.dering_sr0_en));
+	vpq_pr_dbg(lev_dbg, "show vpp pq module status:\n");
+	vpq_pr_dbg(lev_dbg, " pq           :%s\n",
+		STATE_AS_STRING(pq_state.pq_en));
+	vpq_pr_dbg(lev_dbg, " vadj1        :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.vadj1_en));
+	vpq_pr_dbg(lev_dbg, " vd1_ctrst    :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.vd1_ctrst_en));
+	vpq_pr_dbg(lev_dbg, " vadj2        :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.vadj2_en));
+	vpq_pr_dbg(lev_dbg, " post_ctrst   :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.post_ctrst_en));
+	vpq_pr_dbg(lev_dbg, " pregamma     :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.pregamma_en));
+	vpq_pr_dbg(lev_dbg, " gamma        :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.gamma_en));
+	vpq_pr_dbg(lev_dbg, " wb           :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.wb_en));
+	vpq_pr_dbg(lev_dbg, " dnlp         :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.dnlp_en));
+	vpq_pr_dbg(lev_dbg, " lc           :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.lc_en));
+	vpq_pr_dbg(lev_dbg, " black_ext    :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.black_ext_en));
+	vpq_pr_dbg(lev_dbg, " blue_stretch :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.blue_stretch_en));
+	vpq_pr_dbg(lev_dbg, " chroma_cor   :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.chroma_cor_en));
+	vpq_pr_dbg(lev_dbg, " sharpness0   :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.sharpness0_en));
+	vpq_pr_dbg(lev_dbg, " sharpness1   :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.sharpness1_en));
+	vpq_pr_dbg(lev_dbg, " cm           :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.cm_en));
+	vpq_pr_dbg(lev_dbg, " lut3d        :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.lut3d_en));
+	vpq_pr_dbg(lev_dbg, " dejaggy_sr0  :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.dejaggy_sr0_en));
+	vpq_pr_dbg(lev_dbg, " dejaggy_sr1  :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.dejaggy_sr0_en));
+	vpq_pr_dbg(lev_dbg, " dering_sr0   :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.dering_sr0_en));
+	vpq_pr_dbg(lev_dbg, " dering_sr1   :%s\n",
+		STATE_AS_STRING(pq_state.pq_cfg.dering_sr0_en));
 
-	pr_inf(lev_dbg, "--------------------------------\n");
-	pr_inf(lev_dbg, "\n");
+	vpq_pr_dbg(lev_dbg, "--------------------------------\n");
+	vpq_pr_dbg(lev_dbg, "\n");
 
-#if ENABLE_USAGE_STR
-	return sprintf(buf, "%s\n", vpq_module_status_usage_str);
-#else
 	return 0;
-#endif
 }
 
 ssize_t vpq_pq_module_status_store(const struct class *class,
@@ -706,7 +578,7 @@ ssize_t vpq_pq_module_status_store(const struct class *class,
 		if (kstrtouint(param[2], 10, &value) < 0)
 			goto free_buf;
 
-		pr_inf(lev_dbg, "pq_module_status %d %d\n", module, value);
+		vpq_pr_dbg(lev_dbg, "pq_module_status %d %d\n", module, value);
 		vpq_set_pq_module_status(module, value);
 	}
 
@@ -716,7 +588,6 @@ free_buf:
 	return count;
 }
 
-#if OPEN_PRINTK
 static char *src_type_tostring(enum vpq_source_type_e src_type)
 {
 	if (src_type == VPQ_SRC_TYPE_MPEG)
@@ -764,7 +635,6 @@ static char *hdr_type_tostring(enum vpq_hdr_type_e hdr_type)
 	else
 		return "NONE";
 }
-#endif
 
 ssize_t vpq_src_infor_show(const struct class *class,
 			const struct class_attribute *attr,
@@ -774,22 +644,22 @@ ssize_t vpq_src_infor_show(const struct class *class,
 
 	vpq_get_signal_info(&sig_info);
 
-	pr_inf(lev_dbg, "current signal information:\n");
-	pr_inf(lev_dbg, " source              :%s\n", src_type_tostring(sig_info.src_type));
-	pr_inf(lev_dbg, " hdmi port           :%s\n", port_type_tostring(sig_info.hdmi_port));
-	pr_inf(lev_dbg, " signal fmt(vdin)    :0x%x\n", sig_info.sig_fmt);
-	pr_inf(lev_dbg, " trans fmt(vdin)     :%d\n", sig_info.trans_fmt);
-	pr_inf(lev_dbg, " height              :%d\n", sig_info.height);
-	pr_inf(lev_dbg, " width               :%d\n", sig_info.width);
-	pr_inf(lev_dbg, " fps                 :%dhz\n", sig_info.fps);
-	pr_inf(lev_dbg, " hdr type            :%s\n", hdr_type_tostring(sig_info.hdr_type));
-	pr_inf(lev_dbg, " dv                  :%d\n", sig_info.is_amdv);
-	pr_inf(lev_dbg, " game                :%d\n", sig_info.is_game);
-	pr_inf(lev_dbg, " pc                  :%d\n", sig_info.is_pc);
-	pr_inf(lev_dbg, " scan_mode           :%s\n",
+	vpq_pr_dbg(lev_dbg, "current signal information:\n");
+	vpq_pr_dbg(lev_dbg, " source              :%s\n", src_type_tostring(sig_info.src_type));
+	vpq_pr_dbg(lev_dbg, " hdmi port           :%s\n", port_type_tostring(sig_info.hdmi_port));
+	vpq_pr_dbg(lev_dbg, " signal fmt(vdin)    :0x%x\n", sig_info.sig_fmt);
+	vpq_pr_dbg(lev_dbg, " trans fmt(vdin)     :%d\n", sig_info.trans_fmt);
+	vpq_pr_dbg(lev_dbg, " height              :%d\n", sig_info.height);
+	vpq_pr_dbg(lev_dbg, " width               :%d\n", sig_info.width);
+	vpq_pr_dbg(lev_dbg, " fps                 :%dhz\n", sig_info.fps);
+	vpq_pr_dbg(lev_dbg, " hdr type            :%s\n", hdr_type_tostring(sig_info.hdr_type));
+	vpq_pr_dbg(lev_dbg, " dv                  :%d\n", sig_info.is_amdv);
+	vpq_pr_dbg(lev_dbg, " game                :%d\n", sig_info.is_game);
+	vpq_pr_dbg(lev_dbg, " pc                  :%d\n", sig_info.is_pc);
+	vpq_pr_dbg(lev_dbg, " scan_mode           :%s\n",
 				(sig_info.scan_mode == VPQ_SCAN_MODE_PROGRESSIVE) ? "P" :
 				((sig_info.scan_mode == VPQ_SCAN_MODE_INTERLACED) ? "I" : "NULL"));
-	pr_inf(lev_dbg, "--------------------------------\n");
+	vpq_pr_dbg(lev_dbg, "--------------------------------\n");
 
 	return 0;
 }
@@ -843,12 +713,12 @@ ssize_t vpq_other_infor_show(const struct class *class,
 
 	for (i = 0; i < 29; i++) {
 		if (strcmp(csctype[i][0], "\0") == 0) {
-			pr_inf(lev_dbg, "show csc_type: NULL\n");
+			vpq_pr_dbg(lev_dbg, "show csc_type: NULL\n");
 			break;
 		}
 
 		if (vpq_get_csc_type() == atoi(csctype[i][1])) {
-			pr_inf(lev_dbg, "current csc_type: %s\n", csctype[i][0]);
+			vpq_pr_dbg(lev_dbg, "current csc_type: %s\n", csctype[i][0]);
 			break;
 		}
 	}
@@ -871,12 +741,12 @@ ssize_t vpq_hist_avg_show(const struct class *class,
 	struct vpq_hist_ave_s hist_avg = {0};
 
 	vpq_get_hist_avg(&hist_avg);
-	pr_inf(lev_dbg, "current hist avg:\n");
-	pr_inf(lev_dbg, " sum    :%d\n", hist_avg.sum);
-	pr_inf(lev_dbg, " height :%d\n", hist_avg.height);
-	pr_inf(lev_dbg, " width  :%d\n", hist_avg.width);
-	pr_inf(lev_dbg, " ave    :%d\n", hist_avg.ave);
-	pr_inf(lev_dbg, "--------------------------------\n");
+	vpq_pr_dbg(lev_dbg, "current hist avg:\n");
+	vpq_pr_dbg(lev_dbg, " sum    :%d\n", hist_avg.sum);
+	vpq_pr_dbg(lev_dbg, " height :%d\n", hist_avg.height);
+	vpq_pr_dbg(lev_dbg, " width  :%d\n", hist_avg.width);
+	vpq_pr_dbg(lev_dbg, " ave    :%d\n", hist_avg.ave);
+	vpq_pr_dbg(lev_dbg, "--------------------------------\n");
 
 	return 0;
 }
@@ -893,11 +763,7 @@ ssize_t vpq_dump_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
 {
-#if ENABLE_USAGE_STR
-	return sprintf(buf, "%s\n", vpq_dump_table_usage_str);
-#else
 	return 0;
-#endif
 }
 
 ssize_t vpq_dump_store(const struct class *class,
@@ -919,10 +785,10 @@ ssize_t vpq_dump_store(const struct class *class,
 		if (kstrtouint(param[1], 10, &value) < 0)
 			goto free_buf;
 
-		pr_inf(lev_dbg, "dump_module %d\n", value);
+		vpq_pr_dbg(lev_dbg, "dump_module %d\n", value);
 		vpq_module_dump_pq_table(value);
 	} else {
-		pr_inf(lev_dbg, "cmd error\n");
+		vpq_pr_dbg(lev_dbg, "cmd error\n");
 		goto free_buf;
 	}
 

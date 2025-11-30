@@ -3,6 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+//#define DEBUG
 #include <linux/kernel.h>
 #include "vpq_module_timing.h"
 #include "../vpq_printk.h"
@@ -283,12 +284,12 @@ static enum pq_source_timing_e find_timing_index(const struct sig_info_t *info)
 
 	for (i = 0; i < table_size; i++) {
 		if (compare_signal_info(info, &sig_info_table[i])) {
-			pr_inf(lev_mod, "matched standard timing index:%d\n", i);
+			vpq_pr_dbg(lev_mod, "matched standard timing index:%d\n", i);
 			return (enum pq_source_timing_e)i;
 		}
 	}
 
-	pr_inf(lev_mod, "no standard timing matched, use PQ_SRC_INDEX_MPEG_1080P\n");
+	vpq_pr_dbg(lev_mod, "no standard timing matched, use PQ_SRC_INDEX_MPEG_1080P\n");
 	return PQ_SRC_INDEX_MPEG_1080P;
 }
 
@@ -324,7 +325,7 @@ int vpq_module_timing_set_nonstandard_map(unsigned char value,
 	nonstandard_map_count = value;
 	for (i = 0; i < value; i++) {
 		nonstandard_maps[i] =  pdata[i];
-		pr_pri("non-standard timing map[%d]:%d,%d, %s,%s,%d\n",
+		vpq_pr_info("non-standard timing map[%d]:%d,%d, %s,%s,%d\n",
 			i, pdata[i].height, pdata[i].width, pdata[i].hdr_string,
 			pdata[i].src_string, pdata[i].timing_index);
 	}
@@ -344,14 +345,14 @@ static enum pq_source_timing_e check_nonstandard_timing(unsigned int height,
 			nonstandard_maps[i].width == width &&
 			strcmp(nonstandard_maps[i].hdr_string, hdr_string) == 0 &&
 			strcmp(nonstandard_maps[i].src_string, src_string) == 0) {
-			pr_inf(lev_mod, "matched non-standard timing: %d, %d, %s, %s, %d\n",
+			vpq_pr_dbg(lev_mod, "matched non-standard timing: %d, %d, %s, %s, %d\n",
 				height, width, hdr_string, src_string,
 				nonstandard_maps[i].timing_index);
 			return (enum pq_source_timing_e)nonstandard_maps[i].timing_index;
 		}
 	}
 
-	pr_inf(lev_mod, "no non-standard timing index\n");
+	vpq_pr_dbg(lev_mod, "no non-standard timing index\n");
 	return PQ_SRC_INDEX_MAX;
 }
 
@@ -367,14 +368,14 @@ unsigned char vpq_module_timing_table_index(enum pq_table_module_index_e module)
 	enum pq_source_timing_e timing_index = PQ_SRC_INDEX_MAX;
 	struct sig_info_t cur_sig_info;
 
-	pr_inf(lev_mod, "module:%d\n", module);
+	vpq_pr_dbg(lev_mod, "module:%d\n", module);
 
 	// get current vframe signal info
 	src_type = vpq_vfm_get_source_type();
 	vpq_vfm_get_height_width(&height, &width);
 	scan_mode = vpq_vfm_get_signal_scan_mode();
 	hdr_type = vpq_vfm_get_hdr_type();
-	pr_inf(lev_mod, "current signal source/h-w/scan/hdr:%d, %d, %d, %d, %d\n",
+	vpq_pr_dbg(lev_mod, "current signal source/h-w/scan/hdr:%d, %d, %d, %d, %d\n",
 		src_type, height, width, scan_mode, hdr_type);
 
 	// get standard and non-standard source timing index
@@ -392,7 +393,7 @@ unsigned char vpq_module_timing_table_index(enum pq_table_module_index_e module)
 		if (nonstandard_index >= PQ_SRC_INDEX_RESERVE_1 &&
 			nonstandard_index <= PQ_SRC_INDEX_RESERVE_1) {
 			timing_index = nonstandard_index;
-			pr_inf(lev_mod, "use non-standard timing index:%d\n", timing_index);
+			vpq_pr_dbg(lev_mod, "use non-standard timing index:%d\n", timing_index);
 			goto get_table_index;
 		}
 
@@ -404,7 +405,7 @@ unsigned char vpq_module_timing_table_index(enum pq_table_module_index_e module)
 get_table_index:
 	// get pq table index
 	tab_index = pq_table_param.pq_index_table0[timing_index][module];
-	pr_inf(lev_mod, "final table index:%d\n", tab_index);
+	vpq_pr_dbg(lev_mod, "final table index:%d\n", tab_index);
 
 	return tab_index;
 }

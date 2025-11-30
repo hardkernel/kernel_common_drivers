@@ -9,6 +9,7 @@
 #include <linux/fs.h>
 
 #define RELOAD_PQ_FOR_SAME_TIMING    (0) // ex: unplug->plug cable
+#define VF_BY_HWC                    (0)
 
 int vpq_ioctl_process(struct file *file, unsigned int cmd, unsigned long arg);
 

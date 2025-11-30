@@ -1146,7 +1146,6 @@ ddk_module(
                 "vpq/vpq_def_table.c",
                 "vpq/vpq_table_logic.c",
                 "vpq/vpq_vfm.c",
-                "vpq/vpq_processor.c",
                 "vpq/modules/vpq_module_cm.c",
                 "vpq/modules/vpq_module_timing.c",
                 "vpq/modules/vpq_module_dump.c",

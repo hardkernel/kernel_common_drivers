@@ -3,6 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+//#define DEBUG
 #include "vpq_module_cm.h"
 #include "../vpq_printk.h"
 
@@ -126,7 +127,7 @@ void color_adj_by_mode(struct color_adj_param_s param, int *curve_io)
 	if (!curve_io)
 		return;
 
-	pr_inf(lev_mod, "param:%d %d %d %d %d %d",
+	vpq_pr_dbg(lev_mod, "param:%d %d %d %d %d %d",
 		param.curve_type, param.color_type, param.mode_9,
 		param.mode_14, param.value, param.lpf_en);
 
@@ -154,6 +155,5 @@ void color_adj_by_mode(struct color_adj_param_s param, int *curve_io)
 		&lpf_coef[0], smooth_coef, curve_io);
 
 	for (i = 0; i < 32; i++)
-		pr_inf(lev_mod, "curve_io[%d]:%d\n",
-			i, curve_io[i]);
+		vpq_pr_dbg(lev_mod, "curve_io[%d]:%d\n", i, curve_io[i]);
 }

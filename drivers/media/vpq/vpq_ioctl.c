@@ -3,6 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+//#define DEBUG
 #include <linux/io.h>
 #include <linux/amlogic/media/vpq/vpq_cmd.h>
 #include "vpq_ioctl.h"
@@ -24,10 +25,10 @@ int vpq_ioctl_set_table_version_info(struct file *file, unsigned long arg)
 
 	if (copy_from_user(&ver_info,
 			(void __user *)arg, sizeof(struct vpq_table_ver_info_s))) {
-		pr_error("copy_from_user fail\n");
+		vpq_pr_err("copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_pri("project_ver:%s, chip_ver:%s\n",
+		vpq_pr_info("project_ver:%s, chip_ver:%s\n",
 			ver_info.project_ver, ver_info.chip_ver);
 
 		ret = vpq_set_pq_table_version(&ver_info);
@@ -45,27 +46,27 @@ int vpq_ioctl_set_table_param(struct file *file, unsigned long arg)
 
 	if (copy_from_user(&bin_param,
 			(void __user *)arg, sizeof(struct vpq_table_bin_param_s))) {
-		pr_error("copy_from_user fail\n");
+		vpq_pr_err("copy_from_user fail\n");
 		return -EFAULT;
 	}
 
 	if (bin_param.len != sizeof(struct PQ_TABLE_PARAM)) {
-		pr_error("hal bin_param.len 0x%x not same driver struct size 0x%zx\n",
+		vpq_pr_err("hal bin_param.len 0x%x not same driver struct size 0x%zx\n",
 			bin_param.len, sizeof(struct PQ_TABLE_PARAM));
 		return -EFAULT;
 	}
-	//pr_pri("hal struct size same with driver struct, index:0x%x, len:0x%x\n",
+	//vpq_pr_info("hal struct size same with driver struct, index:0x%x, len:0x%x\n",
 	//	bin_param.index, bin_param.len);
 
 	argp = (void __user *)bin_param.ptr;
 	buf = vmalloc(bin_param.len);
 	if (!buf) {
-		pr_error("vmalloc bin_param buf for receive PQ_TABLE_PARAM fail\n");
+		//vpq_pr_err("vmalloc bin_param buf for receive PQ_TABLE_PARAM fail\n");
 		return -ENOMEM;
 	}
 
 	if (copy_from_user((void *)buf, argp, bin_param.len)) {
-		pr_error("cp bin_param to buf fail\n");
+		vpq_pr_err("cp bin_param to buf fail\n");
 		ret = -EFAULT;
 	} else {
 		bin_param.ptr = buf;
@@ -86,30 +87,30 @@ int vpq_ioctl_set_nonstandard_timing_map(struct file *file, unsigned long arg)
 
 	if (copy_from_user(&req,
 			(void __user *)arg, sizeof(struct vpq_nonstandard_timing_req_s))) {
-		pr_error("copy_from_user fail\n");
+		vpq_pr_err("copy_from_user fail\n");
 		return -EFAULT;
 	}
 
 	if (req.map_count == 0 ||
 		req.map_count > RESERVE_NONSTANDARD_TIMING_COUNT) {
-		pr_error("non-standing timing count is zero or out range\n");
+		vpq_pr_err("non-standing timing count is zero or out range\n");
 		return -EINVAL;
 	}
 
 	buf_size = req.map_count * sizeof(struct vpq_nonstandard_timing_map_s);
 	pdata = kmalloc(buf_size, GFP_KERNEL);
 	if (!pdata) {
-		pr_error("vmalloc pdata buf fail\n");
+		//vpq_pr_err("vmalloc pdata buf fail\n");
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(pdata, (void __user *)arg + sizeof(req), buf_size)) {
-		pr_error("copy_from_user pdata fail\n");
+		vpq_pr_err("copy_from_user pdata fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_pri("req.map_count:%d\n", req.map_count);
+		vpq_pr_info("req.map_count:%d\n", req.map_count);
 		for (i = 0; i < req.map_count; i++) {
-			pr_pri("non-standard timing map[%d]:%d,%d,%s,%s,%d\n",
+			vpq_pr_info("non-standard timing map[%d]:%d,%d,%s,%s,%d\n",
 				i, pdata[i].width, pdata[i].height, pdata[i].hdr_string,
 				pdata[i].src_string, pdata[i].timing_index);
 		}
@@ -127,10 +128,10 @@ int vpq_ioctl_set_pq_module_cfg(struct file *file, unsigned long arg)
 	struct vpq_pq_module_cfg_s cfg = {0};
 
 	if (copy_from_user(&cfg, (void __user *)arg, sizeof(struct vpq_pq_module_cfg_s))) {
-		pr_error("copy_from_user fail\n");
+		vpq_pr_err("copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_pri("cfg:\n"
+		vpq_pr_info("cfg:\n"
 			"%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,\n"
 			"%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,\n"
 			"%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,\n",
@@ -156,10 +157,10 @@ int vpq_ioctl_set_pq_module_status(struct file *file, unsigned long arg)
 
 	if (copy_from_user(&status,
 			(void __user *)arg, sizeof(struct vpq_pq_module_status_s))) {
-		pr_error("copy_from_user fail\n");
+		vpq_pr_err("copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "module:%d status:%d\n", status.module, status.status);
+		vpq_pr_dbg(lev_ioc, "module:%d status:%d\n", status.module, status.status);
 		ret = vpq_set_pq_module_status(status.module, status.status);
 	}
 
@@ -172,10 +173,10 @@ int vpq_ioctl_set_brightness(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(int))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_brightness(value);
 	}
 
@@ -188,10 +189,10 @@ int vpq_ioctl_set_contrast(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(int))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_contrast(value);
 	}
 
@@ -204,10 +205,10 @@ int vpq_ioctl_set_saturation(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(int))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_saturation(value);
 	}
 
@@ -220,10 +221,10 @@ int vpq_ioctl_set_hue(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(int))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_hue(value);
 	}
 
@@ -236,10 +237,10 @@ int vpq_ioctl_set_sharpness(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(int))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_sharpness(value);
 	}
 
@@ -252,10 +253,10 @@ int vpq_ioctl_set_brightness_post(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(int))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_brightness_post(value);
 	}
 
@@ -268,10 +269,10 @@ int vpq_ioctl_set_contrast_post(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(int))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_contrast_post(value);
 	}
 
@@ -284,10 +285,10 @@ int vpq_ioctl_set_saturation_post(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(int))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_saturation_post(value);
 	}
 
@@ -300,10 +301,10 @@ int vpq_ioctl_set_hue_post(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(int))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_hue_post(value);
 	}
 
@@ -319,25 +320,25 @@ int vpq_ioctl_set_overscan_table(struct file *file, unsigned long arg)
 
 	if (copy_from_user(&os_table, (void __user *)arg,
 			sizeof(struct vpq_overscan_table_s))) {
-		pr_inf(lev_ioc, "copy_from_user os_table fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user os_table fail\n");
 		return -EFAULT;
 	}
 
 	if (os_table.length > VPQ_TIMING_MAX ||
 		os_table.length <= 0) {
-		pr_inf(lev_ioc, "length check fail\n");
+		vpq_pr_dbg(lev_ioc, "length check fail\n");
 		return -EFAULT;
 	}
 
 	buf_size = os_table.length * sizeof(struct vpq_overscan_data_s);
 	pdata = kmalloc(buf_size, GFP_KERNEL);
 	if (!pdata) {
-		pr_inf(lev_ioc, "vmalloc pdata buf fail\n");
+		//vpq_pr_dbg(lev_ioc, "vmalloc pdata buf fail\n");
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(pdata, (void __user *)os_table.param_ptr, buf_size)) {
-		pr_inf(lev_ioc, "copy_from_user pdata fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user pdata fail\n");
 		ret = -EFAULT;
 	} else {
 		ret = vpq_set_overscan_data(os_table.length, pdata);
@@ -358,12 +359,12 @@ int vpq_ioctl_set_gamma_table(struct file *file, unsigned long arg)
 
 	if (copy_from_user(&g_tab_tmp,
 			(void __user *)arg, sizeof(struct vpq_gamma_vari_table_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
 		gma_point = vpq_get_gamma_table_point();
 		if (g_tab_tmp.number != gma_point) {
-			pr_inf(lev_ioc, "get %d points, driver require %d\n",
+			vpq_pr_dbg(lev_ioc, "get %d points, driver require %d\n",
 				g_tab_tmp.number, gma_point);
 		}
 
@@ -373,7 +374,7 @@ int vpq_ioctl_set_gamma_table(struct file *file, unsigned long arg)
 		g_table.b_data = kmalloc(buf_size, GFP_KERNEL);
 
 		if (!g_table.r_data || !g_table.g_data || !g_table.b_data) {
-			pr_inf(lev_ioc, "vmalloc g_table buf fail\n");
+			vpq_pr_dbg(lev_ioc, "vmalloc g_table buf fail\n");
 			kfree(g_table.r_data);
 			kfree(g_table.g_data);
 			kfree(g_table.b_data);
@@ -382,28 +383,28 @@ int vpq_ioctl_set_gamma_table(struct file *file, unsigned long arg)
 
 		if (copy_from_user(g_table.r_data,
 				(void __user *)g_tab_tmp.r_data, buf_size)) {
-			pr_inf(lev_ioc, "copy_from_user r_data fail\n");
+			vpq_pr_dbg(lev_ioc, "copy_from_user r_data fail\n");
 			ret = -EFAULT;
 		}
 
 		if (copy_from_user(g_table.g_data,
 				(void __user *)g_tab_tmp.g_data, buf_size)) {
-			pr_inf(lev_ioc, "copy_from_user g_data fail\n");
+			vpq_pr_dbg(lev_ioc, "copy_from_user g_data fail\n");
 			ret = -EFAULT;
 		}
 
 		if (copy_from_user(g_table.b_data,
 				(void __user *)g_tab_tmp.b_data, buf_size)) {
-			pr_inf(lev_ioc, "copy_from_user b_data fail\n");
+			vpq_pr_dbg(lev_ioc, "copy_from_user b_data fail\n");
 			ret = -EFAULT;
 		}
 
 		for (i = 0; i < gma_point; i++)
-			pr_inf(lev_ioc, "r/g/b[%d]:%d %d %d\n",
+			vpq_pr_dbg(lev_ioc, "r/g/b[%d]:%d %d %d\n",
 				i, g_table.r_data[i], g_table.g_data[i], g_table.b_data[i]);
 
 		if (ret != -EFAULT) {
-			pr_inf(lev_ioc, "success\n");
+			vpq_pr_dbg(lev_ioc, "success\n");
 			ret = vpq_set_gamma_table(&g_table);
 		}
 
@@ -421,10 +422,10 @@ int vpq_ioctl_set_rgb_ogo(struct file *file, unsigned long arg)
 	struct vpq_rgb_ogo_s rgb_ogo = {0};
 
 	if (copy_from_user(&rgb_ogo, (void __user *)arg, sizeof(struct vpq_rgb_ogo_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "rgbogo:%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+		vpq_pr_dbg(lev_ioc, "rgbogo:%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 			rgb_ogo.r_pre_offset, rgb_ogo.g_pre_offset, rgb_ogo.b_pre_offset,
 			rgb_ogo.r_gain, rgb_ogo.g_gain, rgb_ogo.b_gain,
 			rgb_ogo.r_post_offset, rgb_ogo.g_post_offset, rgb_ogo.b_post_offset);
@@ -442,16 +443,16 @@ int vpq_ioctl_set_matrix_param(struct file *file, unsigned long arg)
 	struct vpq_mtrx_info_s matrix_info = {0};
 
 	if (copy_from_user(&matrix_info, (void __user *)arg, sizeof(struct vpq_mtrx_info_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "matrix_info:%d\n", matrix_info.mtrx_sel);
+		vpq_pr_dbg(lev_ioc, "matrix_info:%d\n", matrix_info.mtrx_sel);
 		for (i = 0; i < VPQ_MTRX_OFFSET_LEN; i++) {
-			pr_inf(lev_ioc, "pre_offset/post_offset[%d]:%d, %d\n", i,
+			vpq_pr_dbg(lev_ioc, "pre_offset/post_offset[%d]:%d, %d\n", i,
 				matrix_info.mtrx_param.pre_offset[i],
 				matrix_info.mtrx_param.post_offset[i]);
 		}
-		pr_inf(lev_ioc, "right_shift:%d\n", matrix_info.mtrx_param.right_shift);
+		vpq_pr_dbg(lev_ioc, "right_shift:%d\n", matrix_info.mtrx_param.right_shift);
 
 		ret = vpq_set_matrix_param(&matrix_info);
 	}
@@ -465,10 +466,10 @@ int vpq_ioctl_set_color_base(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_color_base(value);
 	}
 
@@ -481,10 +482,10 @@ int vpq_ioctl_set_color_customize(struct file *file, unsigned long arg)
 	struct vpq_cms_s cms_param = {0};
 
 	if (copy_from_user(&cms_param, (void __user *)arg, sizeof(struct vpq_cms_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "cms_param:%d,%d,%d,%d,%d\n",
+		vpq_pr_dbg(lev_ioc, "cms_param:%d,%d,%d,%d,%d\n",
 			cms_param.color_type, cms_param.color_9, cms_param.color_14,
 			cms_param.cms_type, cms_param.value);
 
@@ -500,10 +501,10 @@ int vpq_ioctl_set_black_stretch(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_black_stretch(value);
 	}
 
@@ -516,10 +517,10 @@ int vpq_ioctl_set_dnlp_mode(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_dnlp_mode(value);
 	}
 
@@ -532,10 +533,10 @@ int vpq_ioctl_set_lc_mode(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_lc_mode(value);
 	}
 
@@ -548,10 +549,10 @@ int vpq_ioctl_set_csc_type(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(enum vpq_csc_type_e))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_csc_type(value);
 	}
 
@@ -567,24 +568,24 @@ int vpq_ioctl_set_3dlut_data(struct file *file, unsigned long arg)
 
 	if (copy_from_user(&lut_data,
 			(void __user *)arg, sizeof(struct vpq_lut3d_table_s))) {
-		pr_inf(lev_ioc, "copy_from_user lut_data fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user lut_data fail\n");
 		return -EFAULT;
 	}
 
 	if (lut_data.data_size == 0) {
-		pr_inf(lev_ioc, "data_size check fail\n");
+		vpq_pr_dbg(lev_ioc, "data_size check fail\n");
 		return -EFAULT;
 	}
 
 	buf_size = 17 * 17 * 17 * 3 * sizeof(int);
 	pdata = kmalloc(buf_size, GFP_KERNEL);
 	if (!pdata) {
-		pr_inf(lev_ioc, "vmalloc pdata buf fail\n");
+		//vpq_pr_dbg(lev_ioc, "vmalloc pdata buf fail\n");
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(pdata, (void __user *)lut_data.data, buf_size)) {
-		pr_inf(lev_ioc, "copy_from_user pdata fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user pdata fail\n");
 		ret = -EFAULT;
 	} else {
 		lut_data.data = pdata;
@@ -601,10 +602,10 @@ int vpq_ioctl_set_hdr_tmo_mode(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_hdr_tmo_mode(value);
 	}
 
@@ -621,7 +622,7 @@ int vpq_ioctl_set_hdr_tmo(struct file *file, unsigned long arg)
 
 	if (copy_from_user(&hdr_lut, (void __user *)arg,
 		sizeof(struct vpq_hdr_lut_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		return -EFAULT;
 	}
 
@@ -631,17 +632,17 @@ int vpq_ioctl_set_hdr_tmo(struct file *file, unsigned long arg)
 	buf_size = hdr_lut.lut_size * sizeof(int);
 	ptmp_data = kmalloc(buf_size, GFP_KERNEL);
 	if (!ptmp_data) {
-		pr_inf(lev_ioc, "vmalloc ptmp_data buf fail\n");
+		//vpq_pr_dbg(lev_ioc, "vmalloc ptmp_data buf fail\n");
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(ptmp_data, (void __user *)arg, buf_size)) {
-		pr_inf(lev_ioc, "copy_from_user fail 2\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail 2\n");
 		ret = -EFAULT;
 	} else {
 		hdr_lut.lut_data = ptmp_data;
 		for (i = 0; i < hdr_lut.lut_size; i++)
-			pr_inf(lev_ioc, "lut_data[%d]:%d\n", i, hdr_lut.lut_data[i]);
+			vpq_pr_dbg(lev_ioc, "lut_data[%d]:%d\n", i, hdr_lut.lut_data[i]);
 		ret = vpq_set_hdr_tmo(&hdr_lut);
 	}
 	kfree(ptmp_data);
@@ -659,7 +660,7 @@ int vpq_ioctl_set_hdr_oetf(struct file *file, unsigned long arg)
 
 	if (copy_from_user(&hdr_lut, (void __user *)arg,
 		sizeof(struct vpq_hdr_lut_s))) {
-		pr_inf(lev_ioc, "copy_from_user hdr_lut fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user hdr_lut fail\n");
 		return -EFAULT;
 	}
 
@@ -669,17 +670,17 @@ int vpq_ioctl_set_hdr_oetf(struct file *file, unsigned long arg)
 	buf_size = hdr_lut.lut_size * sizeof(int);
 	ptmp_data = kmalloc(buf_size, GFP_KERNEL);
 	if (!ptmp_data) {
-		pr_inf(lev_ioc, "vmalloc ptmp_data buf fail\n");
+		//vpq_pr_dbg(lev_ioc, "vmalloc ptmp_data buf fail\n");
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(ptmp_data, (void __user *)arg, buf_size)) {
-		pr_inf(lev_ioc, "copy_from_user ptmp_data fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user ptmp_data fail\n");
 		ret = -EFAULT;
 	} else {
 		hdr_lut.lut_data = ptmp_data;
 		for (i = 0; i < hdr_lut.lut_size; i++)
-			pr_inf(lev_ioc, "lut_data[%d]:%d\n", i, hdr_lut.lut_data[i]);
+			vpq_pr_dbg(lev_ioc, "lut_data[%d]:%d\n", i, hdr_lut.lut_data[i]);
 		ret = vpq_set_hdr_oetf(&hdr_lut);
 	}
 	kfree(ptmp_data);
@@ -697,7 +698,7 @@ int vpq_ioctl_set_hdr_eotf(struct file *file, unsigned long arg)
 
 	if (copy_from_user(&hdr_lut, (void __user *)arg,
 		sizeof(struct vpq_hdr_lut_s))) {
-		pr_inf(lev_ioc, "copy_from_user hdr_lut fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user hdr_lut fail\n");
 		return -EFAULT;
 	}
 
@@ -707,17 +708,17 @@ int vpq_ioctl_set_hdr_eotf(struct file *file, unsigned long arg)
 	buf_size = hdr_lut.lut_size * sizeof(int);
 	ptmp_data = kmalloc(buf_size, GFP_KERNEL);
 	if (!ptmp_data) {
-		pr_inf(lev_ioc, "vmalloc ptmp_data buf fail\n");
+		//vpq_pr_dbg(lev_ioc, "vmalloc ptmp_data buf fail\n");
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(ptmp_data, (void __user *)arg, buf_size)) {
-		pr_inf(lev_ioc, "copy_from_user ptmp_data fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user ptmp_data fail\n");
 		ret = -EFAULT;
 	} else {
 		hdr_lut.lut_data = ptmp_data;
 		for (i = 0; i < hdr_lut.lut_size; i++)
-			pr_inf(lev_ioc, "lut_data[%d]:%d\n", i, hdr_lut.lut_data[i]);
+			vpq_pr_dbg(lev_ioc, "lut_data[%d]:%d\n", i, hdr_lut.lut_data[i]);
 		ret = vpq_set_hdr_eotf(&hdr_lut);
 	}
 	kfree(ptmp_data);
@@ -735,7 +736,7 @@ int vpq_ioctl_set_hdr_cgain(struct file *file, unsigned long arg)
 
 	if (copy_from_user(&hdr_lut, (void __user *)arg,
 		sizeof(struct vpq_hdr_lut_s))) {
-		pr_inf(lev_ioc, "copy_from_user hdr_lut fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user hdr_lut fail\n");
 		return -EFAULT;
 	}
 
@@ -745,17 +746,17 @@ int vpq_ioctl_set_hdr_cgain(struct file *file, unsigned long arg)
 	buf_size = hdr_lut.lut_size * sizeof(int);
 	ptmp_data = kmalloc(buf_size, GFP_KERNEL);
 	if (!ptmp_data) {
-		pr_inf(lev_ioc, "vmalloc ptmp_data buf fail\n");
+		//vpq_pr_dbg(lev_ioc, "vmalloc ptmp_data buf fail\n");
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(ptmp_data, (void __user *)arg, buf_size)) {
-		pr_inf(lev_ioc, "copy_from_user ptmp_data fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user ptmp_data fail\n");
 		ret = -EFAULT;
 	} else {
 		hdr_lut.lut_data = ptmp_data;
 		for (i = 0; i < hdr_lut.lut_size; i++)
-			pr_inf(lev_ioc, "lut_data[%d]:%d\n", i, hdr_lut.lut_data[i]);
+			vpq_pr_dbg(lev_ioc, "lut_data[%d]:%d\n", i, hdr_lut.lut_data[i]);
 		ret = vpq_set_hdr_cgain(&hdr_lut);
 	}
 	kfree(ptmp_data);
@@ -769,10 +770,10 @@ int vpq_ioctl_set_aipq_mode(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_aipq_mode(value);
 	}
 
@@ -785,10 +786,10 @@ int vpq_ioctl_set_aisr_mode(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_aisr_mode(value);
 	}
 
@@ -801,10 +802,10 @@ int vpq_ioctl_set_blue_stretch(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_blue_stretch(value);
 	}
 
@@ -817,10 +818,10 @@ int vpq_ioctl_set_chroma_coring(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_chroma_coring(value);
 	}
 
@@ -834,12 +835,12 @@ int vpq_ioctl_set_eye_protect(struct file *file, unsigned long arg)
 	struct vpq_eye_protect_s protect_param = {0};
 
 	if (copy_from_user(&protect_param, (void __user *)arg, sizeof(struct vpq_eye_protect_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "enable:%d\n", protect_param.enable);
+		vpq_pr_dbg(lev_ioc, "enable:%d\n", protect_param.enable);
 		for (i = 0; i < VPQ_MODE_RGB_MAX; i++)
-			pr_inf(lev_ioc, "rgb[%d]:%d\n", i, protect_param.rgb[i]);
+			vpq_pr_dbg(lev_ioc, "rgb[%d]:%d\n", i, protect_param.rgb[i]);
 		ret = vpq_set_eys_protect(&protect_param);
 	}
 
@@ -870,10 +871,10 @@ int vpq_ioctl_set_pc_mode(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(enum vpq_pc_mode_e))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_pc_mode(value);
 	}
 
@@ -886,10 +887,10 @@ int vpq_ioctl_set_color_primary_status(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(int))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_color_primary_status(value);
 	}
 
@@ -906,16 +907,16 @@ int vpq_ioctl_set_color_primary(struct file *file, unsigned long arg)
 	buf_size =  sizeof(struct vpq_color_primary_s);
 	pdata = kmalloc(buf_size, GFP_KERNEL);
 	if (!pdata) {
-		pr_inf(lev_ioc, "vmalloc pdata buf fail\n");
+		//vpq_pr_dbg(lev_ioc, "vmalloc pdata buf fail\n");
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(pdata, (void __user *)arg, buf_size)) {
-		pr_inf(lev_ioc, "copy_from_user ptmp_data fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user ptmp_data fail\n");
 		ret = -EFAULT;
 	} else {
 		for (i = 0; i < VPQ_COLOR_PRIMARY_LEN; i++)
-			pr_inf(lev_ioc, "data_src/data_dest[%d]:%d, %d\n", i,
+			vpq_pr_dbg(lev_ioc, "data_src/data_dest[%d]:%d, %d\n", i,
 				pdata->data_src[i], pdata->data_dest[i]);
 
 		ret = vpq_set_color_primary(pdata);
@@ -931,12 +932,12 @@ int vpq_ioctl_set_frame_status(struct file *file, unsigned long arg)
 	int value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(enum vpq_frame_status_e))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 
-		#ifdef RELOAD_PQ_FOR_SAME_TIMING
+		#if RELOAD_PQ_FOR_SAME_TIMING
 			ret = vpq_set_frame_status(value);
 			ret |= vpq_processor_set_frame_status(value);
 		#endif
@@ -951,11 +952,13 @@ int vpq_ioctl_set_frame(struct file *file, unsigned long arg)
 	struct vpq_frame_info_s frame_info = {0};
 
 	if (copy_from_user(&frame_info, (void __user *)arg, sizeof(struct vpq_frame_info_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		//pr_inf(lev_ioc, "shared_fd:%d\n", frame_info.shared_fd);
+		//vpq_pr_dbg(lev_ioc, "shared_fd:%d\n", frame_info.shared_fd);
+	#if VF_BY_HWC
 		ret = vpq_process_set_frame(file->private_data, &frame_info);
+	#endif
 	}
 
 	return ret;
@@ -967,10 +970,10 @@ int vpq_ioctl_set_nr(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_nr(value);
 	}
 
@@ -983,10 +986,10 @@ int vpq_ioctl_set_deblock(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_deblock(value);
 	}
 
@@ -999,10 +1002,10 @@ int vpq_ioctl_set_demosquito(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_demosquito(value);
 	}
 
@@ -1015,10 +1018,10 @@ int vpq_ioctl_set_smoothplus_mode(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_smoothplus_mode(value);
 	}
 
@@ -1031,10 +1034,10 @@ int vpq_ioctl_set_amdv_pic_mode_id(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_amdv_pic_mode_id(value);
 	}
 
@@ -1047,10 +1050,10 @@ int vpq_ioctl_set_amdv_dark_detail(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_amdv_dark_detail(value);
 	}
 
@@ -1063,10 +1066,10 @@ int vpq_ioctl_set_amdv_light_sensor(struct file *file, unsigned long arg)
 	struct vpq_light_sensor_s light_sensor = {0};
 
 	if (copy_from_user(&light_sensor, (void __user *)arg, sizeof(struct vpq_light_sensor_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "flag:%d, t_frontLux:%d, t_rearLum:%d\n",
+		vpq_pr_dbg(lev_ioc, "flag:%d, t_frontLux:%d, t_rearLum:%d\n",
 			light_sensor.flag, light_sensor.t_frontLux, light_sensor.t_rearLum);
 		ret = vpq_set_amdv_light_sensor(&light_sensor);
 	}
@@ -1080,10 +1083,10 @@ int vpq_ioctl_set_amdv_precision_detail(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_amdv_precision_detail(value);
 	}
 
@@ -1096,10 +1099,10 @@ int vpq_ioctl_set_memc_on_off(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_memc_on_off(value);
 	}
 
@@ -1112,10 +1115,10 @@ int vpq_ioctl_set_memc_deblur_level(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_memc_deblur_level(value);
 	}
 
@@ -1128,10 +1131,10 @@ int vpq_ioctl_set_memc_dejudder_level(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_memc_dejudder_level(value);
 	}
 
@@ -1144,10 +1147,10 @@ int vpq_ioctl_set_memc_demo_mode(struct file *file, unsigned long arg)
 	unsigned char value = 0;
 
 	if (copy_from_user(&value, (void __user *)arg, sizeof(unsigned char))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
-		pr_inf(lev_ioc, "value:%d\n", value);
+		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_memc_demo_mode(value);
 	}
 
@@ -1168,10 +1171,10 @@ int vpq_ioctl_get_chip_type(struct file *file, unsigned long arg)
 {
 	enum vpq_chip_type_e chip_type = (enum vpq_chip_type_e)vpq_get_chip_type();
 
-	pr_inf(lev_ioc, "chip_type:%d\n", chip_type);
+	vpq_pr_dbg(lev_ioc, "chip_type:%d\n", chip_type);
 
 	if (copy_to_user((void __user *)arg, &chip_type, sizeof(enum vpq_chip_type_e))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		return -EFAULT;
 	}
 
@@ -1182,10 +1185,10 @@ int vpq_ioctl_get_chip_id(struct file *file, unsigned long arg)
 {
 	enum vpq_chip_id_e chip_id = (enum vpq_chip_id_e)vpq_get_chip_id();
 
-	pr_inf(lev_ioc, "chip_id:%d\n", chip_id);
+	vpq_pr_dbg(lev_ioc, "chip_id:%d\n", chip_id);
 
 	if (copy_to_user((void __user *)arg, &chip_id, sizeof(enum vpq_chip_id_e))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		return -EFAULT;
 	}
 
@@ -1196,10 +1199,10 @@ int vpq_ioctl_get_pc_mode(struct file *file, unsigned long arg)
 {
 	enum vpq_pc_mode_e pc_mode = (enum vpq_pc_mode_e)vpq_get_pc_mode();
 
-	pr_inf(lev_ioc, "pc_mode:%d\n", pc_mode);
+	vpq_pr_dbg(lev_ioc, "pc_mode:%d\n", pc_mode);
 
 	if (copy_to_user((void __user *)arg, &pc_mode, sizeof(enum vpq_pc_mode_e))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		return -EFAULT;
 	}
 
@@ -1212,11 +1215,11 @@ int vpq_ioctl_get_hist_avg(struct file *file, unsigned long arg)
 	struct vpq_hist_ave_s hist_ave = {0};
 
 	ret = vpq_get_hist_avg(&hist_ave);
-	//pr_inf(lev_ioc, "hist_ave:%d,%d,%d,%d\n",
+	//vpq_pr_dbg(lev_ioc, "hist_ave:%d,%d,%d,%d\n",
 	//	hist_ave.sum, hist_ave.width, hist_ave.height, hist_ave.ave);
 
 	if (copy_to_user((void __user *)arg, &hist_ave, sizeof(struct vpq_hist_ave_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	}
 
@@ -1233,25 +1236,25 @@ int vpq_ioctl_get_histogram(struct file *file, unsigned long arg)
 	buf_size = sizeof(struct vpq_hist_param_s);
 	phist = kmalloc(buf_size, GFP_KERNEL);
 	if (!phist) {
-		pr_inf(lev_ioc, "vmalloc buf failed\n");
+		//vpq_pr_dbg(lev_ioc, "vmalloc buf failed\n");
 		return -ENOMEM;
 	}
 
 	ret = vpq_get_histogram(phist);
-	pr_inf(lev_ioc, "hist_param:%d,%d,%d\n",
+	vpq_pr_dbg(lev_ioc, "hist_param:%d,%d,%d\n",
 		phist->hist_pow, phist->luma_sum, phist->pixel_sum);
 	for (i = 0; i < VPQ_HIST_BIN_COUNT; i++) {
-		pr_inf(lev_ioc, "hist[%d]:%d\n", i, phist->hist[i]);
-		pr_inf(lev_ioc, "dark_hist[%d]:%d\n", i, phist->dark_hist[i]);
+		vpq_pr_dbg(lev_ioc, "hist[%d]:%d\n", i, phist->hist[i]);
+		vpq_pr_dbg(lev_ioc, "dark_hist[%d]:%d\n", i, phist->dark_hist[i]);
 	}
 	i = 0;
 	for (i = 0; i < VPQ_COLOR_HIST_BIN_COUNT; i++) {
-		pr_inf(lev_ioc, "hue_hist[%d]:%d\n", i, phist->hue_hist[i]);
-		pr_inf(lev_ioc, "sat_hist[%d]:%d\n", i, phist->sat_hist[i]);
+		vpq_pr_dbg(lev_ioc, "hue_hist[%d]:%d\n", i, phist->hue_hist[i]);
+		vpq_pr_dbg(lev_ioc, "sat_hist[%d]:%d\n", i, phist->sat_hist[i]);
 	}
 
 	if (copy_to_user((void __user *)arg, phist, buf_size)) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	}
 	kfree(phist);
@@ -1269,16 +1272,16 @@ int vpq_ioctl_get_hdr_histogram(struct file *file, unsigned long arg)
 	buf_size = sizeof(struct vpq_hdr_hist_param_s);
 	phist = kmalloc(buf_size, GFP_KERNEL);
 	if (!phist) {
-		pr_inf(lev_ioc, "vmalloc buf failed\n");
+		//vpq_pr_dbg(lev_ioc, "vmalloc buf failed\n");
 		return -ENOMEM;
 	}
 
 	ret = vpq_get_hdr_histogram(phist);
 	for (i = 0; i < VPQ_HDR_HIST_BIN_COUNT; i++)
-		pr_inf(lev_ioc, "data_rgb_max[%d]:%d\n", i, phist->data_rgb_max[i]);
+		vpq_pr_dbg(lev_ioc, "data_rgb_max[%d]:%d\n", i, phist->data_rgb_max[i]);
 
 	if (copy_to_user((void __user *)arg, phist, buf_size)) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	}
 	kfree(phist);
@@ -1292,10 +1295,10 @@ int vpq_ioctl_get_csc_type(struct file *file, unsigned long arg)
 	int value = 0;
 
 	value = vpq_get_csc_type();
-	pr_inf(lev_ioc, "value:%d\n", value);
+	vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 
 	if (copy_to_user((void __user *)arg, &value, sizeof(enum vpq_csc_type_e))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	}
 
@@ -1307,10 +1310,10 @@ int vpq_ioctl_get_color_primary(struct file *file, unsigned long arg)
 	int value = 0;
 
 	value = (int)vpq_get_color_primary();
-	pr_inf(lev_ioc, "value:%d\n", value);
+	vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 
 	if (copy_to_user((void __user *)arg, &value, sizeof(int))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		return -EFAULT;
 	}
 
@@ -1326,15 +1329,16 @@ int vpq_ioctl_get_hdr_metadata(struct file *file, unsigned long arg)
 	ret = vpq_get_hdr_metadata(&metadata);
 	for (i = 0; i < 3; i++) {
 		for (j = 0; j < 2; j++)
-			pr_inf(lev_ioc, "primaries[%d][%d]:%d\n", i, j, metadata.primaries[i][j]);
+			vpq_pr_dbg(lev_ioc, "primaries[%d][%d]:%d\n",
+				i, j, metadata.primaries[i][j]);
 	}
 	for (z = 0; z < 2; z++) {
-		pr_inf(lev_ioc, "white_point[%d]:%d\n", i, metadata.white_point[z]);
-		pr_inf(lev_ioc, "luminance[%d]:%d\n", i, metadata.luminance[z]);
+		vpq_pr_dbg(lev_ioc, "white_point[%d]:%d\n", i, metadata.white_point[z]);
+		vpq_pr_dbg(lev_ioc, "luminance[%d]:%d\n", i, metadata.luminance[z]);
 	}
 
 	if (copy_to_user((void __user *)arg, &metadata, sizeof(struct vpq_hdr_metadata_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	}
 
@@ -1346,10 +1350,10 @@ int vpq_ioctl_get_event_info(struct file *file, unsigned long arg)
 	enum vpq_event_info_e event_info = VPQ_EVENT_NONE;
 
 	event_info = (enum vpq_event_info_e)vpq_get_event_info();
-	pr_inf(lev_ioc, "event_info:%d\n", event_info);
+	vpq_pr_dbg(lev_ioc, "event_info:%d\n", event_info);
 
 	if (copy_to_user((void __user *)arg, &event_info, sizeof(enum vpq_event_info_e))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		return -EFAULT;
 	}
 
@@ -1362,16 +1366,16 @@ int vpq_ioctl_get_signal_info(struct file *file, unsigned long arg)
 
 	vpq_get_signal_info(&sig_info);
 
-	pr_inf(lev_ioc, "src_type:%d, hdmi_port:%d, sig_mode:%d, scan_mode:%d\n",
+	vpq_pr_dbg(lev_ioc, "src_type:%d, hdmi_port:%d, sig_mode:%d, scan_mode:%d\n",
 		sig_info.src_type, sig_info.hdmi_port, sig_info.sig_mode, sig_info.scan_mode);
-	pr_inf(lev_ioc, "hdr_type:%d, is_amdv:%d, is_game:%d, is_pc:%d\n",
+	vpq_pr_dbg(lev_ioc, "hdr_type:%d, is_amdv:%d, is_game:%d, is_pc:%d\n",
 		sig_info.hdr_type, sig_info.is_amdv, sig_info.is_game, sig_info.is_pc);
-	pr_inf(lev_ioc, "sig_fmt:0x%x, trans_fmt:%d, height:%d, width:%d, fps:%d\n",
+	vpq_pr_dbg(lev_ioc, "sig_fmt:0x%x, trans_fmt:%d, height:%d, width:%d, fps:%d\n",
 		sig_info.sig_fmt, sig_info.trans_fmt, sig_info.height, sig_info.width,
 		sig_info.fps);
 
 	if (copy_to_user((void __user *)arg, &sig_info, sizeof(struct vpq_signal_info_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		return -EFAULT;
 	}
 
@@ -1383,18 +1387,18 @@ int vpq_ioctl_get_dv_cfg_support(struct file *file, unsigned long arg)
 	struct vpq_dv_cfg_support_s cfg_support = {0};
 
 	if (copy_from_user(&cfg_support, (void __user *)arg, sizeof(struct vpq_dv_cfg_support_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		return -EFAULT;
 	}
 
-	pr_inf(lev_ioc, "pic_mode_id:%d\n", cfg_support.pic_mode_id);
+	vpq_pr_dbg(lev_ioc, "pic_mode_id:%d\n", cfg_support.pic_mode_id);
 	cfg_support = vpq_get_dv_cfg_support(cfg_support.pic_mode_id);
 
-	pr_inf(lev_ioc, "precision_detail:%d, dark_detail:%d, light_sense:%d\n",
+	vpq_pr_dbg(lev_ioc, "precision_detail:%d, dark_detail:%d, light_sense:%d\n",
 		cfg_support.precision_detail, cfg_support.dark_detail, cfg_support.light_sense);
 
 	if (copy_to_user((void __user *)arg, &cfg_support, sizeof(struct vpq_dv_cfg_support_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		return -EFAULT;
 	}
 
@@ -1409,11 +1413,11 @@ int vpq_ioctl_set_nr_dpss(struct file *file, unsigned long arg)
 	struct vpq_dnr_param_s dnr_param = {0};
 
 	if (copy_from_user(&dnr_param, (void __user *)arg, sizeof(struct vpq_dnr_param_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
 		for (i = 0; i < DNR_MAX; i++)
-			pr_inf(lev_ioc, "param[%d]:%d\n", i, dnr_param.param[i]);
+			vpq_pr_dbg(lev_ioc, "param[%d]:%d\n", i, dnr_param.param[i]);
 		ret = vpq_set_nr_dpss(&dnr_param);
 	}
 
@@ -1427,11 +1431,11 @@ int vpq_ioctl_set_deblock_dpss(struct file *file, unsigned long arg)
 	struct vpq_dblk_param_s dblk_param = {0};
 
 	if (copy_from_user(&dblk_param, (void __user *)arg, sizeof(struct vpq_dblk_param_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
 		for (i = 0; i < DBLK_MAX; i++)
-			pr_inf(lev_ioc, "param[%d]:%d\n", i, dblk_param.param[i]);
+			vpq_pr_dbg(lev_ioc, "param[%d]:%d\n", i, dblk_param.param[i]);
 		ret = vpq_set_deblock_dpss(&dblk_param);
 	}
 
@@ -1446,11 +1450,11 @@ int vpq_ioctl_set_demosquito_dpss(struct file *file, unsigned long arg)
 
 	if (copy_from_user(&demo_param, (void __user *)arg,
 			sizeof(struct vpq_demosquito_param_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
 		for (i = 0; i < DM_MAX; i++)
-			pr_inf(lev_ioc, "param[%d]:%d\n", i, demo_param.param[i]);
+			vpq_pr_dbg(lev_ioc, "param[%d]:%d\n", i, demo_param.param[i]);
 		ret = vpq_set_demosquito_dpss(&demo_param);
 	}
 
@@ -1464,11 +1468,11 @@ int vpq_ioctl_set_smoothplus_dpss(struct file *file, unsigned long arg)
 	struct vpq_dct_param_s dct_param = {0};
 
 	if (copy_from_user(&dct_param, (void __user *)arg, sizeof(struct vpq_dct_param_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
 		for (i = 0; i < DCT_MAX; i++)
-			pr_inf(lev_ioc, "param[%d]:%d\n", i, dct_param.param[i]);
+			vpq_pr_dbg(lev_ioc, "param[%d]:%d\n", i, dct_param.param[i]);
 		ret = vpq_set_smoothplus_dpss(&dct_param);
 	}
 
@@ -1482,11 +1486,11 @@ int vpq_ioctl_set_xlr_dpss(struct file *file, unsigned long arg)
 	struct vpq_xlr_param_s xlr_param = {0};
 
 	if (copy_from_user(&xlr_param, (void __user *)arg, sizeof(struct vpq_xlr_param_s))) {
-		pr_inf(lev_ioc, "copy_from_user fail\n");
+		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
 		for (i = 0; i < XLR_MAX; i++)
-			pr_inf(lev_ioc, "param[%d]:%d\n", i, xlr_param.param[i]);
+			vpq_pr_dbg(lev_ioc, "param[%d]:%d\n", i, xlr_param.param[i]);
 		ret = vpq_set_xlr_dpss(&xlr_param);
 	}
 
@@ -1592,7 +1596,7 @@ int vpq_ioctl_process(struct file *file, unsigned int cmd, unsigned long arg)
 		if (cmd == st_ioctl_info[index].cmd) {
 			if (cmd != VPQ_IOC_GET_HIST_AVG &&
 				cmd != VPQ_IOC_SET_FRAME) {
-				pr_inf(lev_ioc, "cmd:0x%x\n", _IOC_NR(cmd));
+				vpq_pr_dbg(lev_ioc, "cmd:0x%x\n", _IOC_NR(cmd));
 			}
 
 			ret = st_ioctl_info[index].ioctl_func(file, arg);
