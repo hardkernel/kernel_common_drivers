@@ -828,11 +828,8 @@ void vpu_pipeline_gfcd_odd_size_calculate(int index, int sc_idx,
 
 	if (sc_idx != -1) {
 		scaler_param = &mvps->scaler_param[sc_idx];
-		if (scaler_param->input_width != scaler_param->output_width ||
-			scaler_param->input_height != scaler_param->output_height) {
-			scaler_param->input_width_offset = GFCD_SRC_W_OFFSET;
-			return;
-		}
+		scaler_param->input_width_offset = GFCD_SRC_W_OFFSET;
+		return;
 	}
 
 	for (i = 0; i < MESON_MAX_BLOCKS; i++) {
