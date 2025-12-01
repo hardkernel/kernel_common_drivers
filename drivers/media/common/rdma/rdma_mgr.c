@@ -4475,7 +4475,7 @@ static int __init rdma_probe(struct platform_device *pdev)
 		} else {
 			info->rdma_ins[i].rdma_regadr = &rdma_regadr[i];
 		}
-		info->rdma_ins[i].keep_buf = 1;
+		info->rdma_ins[i].keep_buf = 0;
 		/*do not change it in normal case */
 		info->rdma_ins[i].used = 0;
 		info->rdma_ins[i].prev_trigger_type = 0;
