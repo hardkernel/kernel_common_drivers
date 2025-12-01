@@ -363,13 +363,14 @@ static const struct pll_params_table t6x_gp0_pll_table[] = {
 
 static const struct pll_params_table t6x_gp1_pll_table[] = {
 	PLL_PARAMS_OD(70, 1, 0), /* DCO = 1680M OD = 0 PLL = 1680M */
+	PLL_PARAMS_OD(74, 1, 0), /* DCO = 1776M OD = 0 PLL = 1776M */
 	{ /* sentinel */  }
 };
 
 static const struct pll_params_table t6x_gp2_pll_table[] = {
-	PLL_PARAMS_OD(148, 1, 1), /* DCO = 1776M OD = 1 PLL = 888M */
 	PLL_PARAMS_OD(134, 1, 1), /* DCO = 1608M OD = 1 PLL = 804M */
-	PLL_PARAMS_OD(136, 1, 1), /* DCO = 1640M OD = 1 PLL = 820M */
+	PLL_PARAMS_OD(136, 1, 1), /* DCO = 1632M OD = 1 PLL = 816M */
+	PLL_PARAMS_OD(140, 1, 1), /* DCO = 1680M OD = 1 PLL = 840M */
 	{ /* sentinel */  }
 };
 
@@ -547,7 +548,8 @@ static struct clk_regmap t6x_gp2_pll = {
 		.table = t6x_gp2_pll_table,
 		.init_regs = t6x_gp2_init_regs,
 		.init_count = ARRAY_SIZE(t6x_gp2_init_regs),
-		.flags = CLK_MESON_PLL_FIXED_EN0P5 | CLK_MESON_PLL_NOINIT_ENABLED,
+		.flags = CLK_MESON_PLL_FIXED_EN0P5 | CLK_MESON_PLL_L_RSTN |
+			CLK_MESON_PLL_NOINIT_ENABLED,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp2_pll",
@@ -2332,14 +2334,13 @@ static struct clk_regmap t6x_hcodec = {
 	},
 };
 
-static u32 t6x_vpu_mux_table[] = {0, 1, 2, 3, 6};
+static u32 t6x_vpu_mux_table[] = {0, 1, 2, 3};
 
 static const struct clk_hw *t6x_vpu_parent_hws[] = {
 	&t6x_fclk_div3.hw,
 	&t6x_fclk_div4.hw,
 	&t6x_gp1_pll.hw,
 	&t6x_fclk_div2p5.hw,
-	&t6x_gp2_pll.hw
 };
 
 static struct clk_regmap t6x_vpu_0_sel = {
@@ -2354,11 +2355,6 @@ static struct clk_regmap t6x_vpu_0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t6x_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(t6x_vpu_parent_hws),
-		/* In most case, the flag is not added for mux clock, in T6X, vpu need gp1 840M and
-		 * gp2 892M, it makes vpu can switch 840M and 892M.
-		 * If not, remove this flag
-		 */
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2387,7 +2383,7 @@ static struct clk_regmap t6x_vpu_0 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &t6x_vpu_0_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -2403,11 +2399,6 @@ static struct clk_regmap t6x_vpu_1_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t6x_vpu_parent_hws,
 		.num_parents = ARRAY_SIZE(t6x_vpu_parent_hws),
-		/* In most case, the flag is not added for mux clock, in T6X, vpu need gp1 840M and
-		 * gp2 892M, it makes vpu can switch 840M and 892M.
-		 * If not, remove this flag
-		 */
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2436,7 +2427,7 @@ static struct clk_regmap t6x_vpu_1 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &t6x_vpu_1_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -6001,6 +5992,75 @@ static struct clk_regmap *const t6x_pll_clk_regmaps[] = {
 	&t6x_mpll_50m,
 };
 
+struct t6x_vpu_nb_data {
+	struct notifier_block nb;
+	struct clk_hw *mali;
+	struct clk_hw *hevcb;
+};
+
+static int t6x_vpu_notifier_cb(struct notifier_block *nb,
+				unsigned long event, void *data)
+{
+	struct t6x_vpu_nb_data *nb_data = container_of(nb, struct t6x_vpu_nb_data, nb);
+	struct clk_notifier_data *ndata = data;
+	unsigned long fdiv2p5_rate = clk_hw_get_rate(&t6x_fclk_div2p5.hw);
+	unsigned long mali_rate = clk_hw_get_rate(nb_data->mali);
+	unsigned long hevcb_rate = clk_hw_get_rate(nb_data->hevcb);
+	unsigned long nrate = ndata->new_rate;
+	static unsigned long mali_rate_saved, hevcb_rate_saved;
+
+	switch (event) {
+	case PRE_RATE_CHANGE:
+		/*
+		 * set vpu 800Mhz --> set gp1 1776Mhz --> set vpu 888Mz
+		 * If mali used gp1 1680Mhz, gp1 can not set to 1776Mhz since
+		 * gp1 is protected.
+		 * Migrate mali to fclk2p5 when setting vpu equals 800Mhz
+		 */
+		if (mali_rate > fdiv2p5_rate) {
+			clk_set_rate(nb_data->mali->clk, fdiv2p5_rate);
+			mali_rate_saved = mali_rate;
+		}
+		if (hevcb_rate > fdiv2p5_rate) {
+			clk_set_rate(nb_data->hevcb->clk, fdiv2p5_rate);
+			hevcb_rate_saved = hevcb_rate;
+		}
+
+		return NOTIFY_OK;
+	case POST_RATE_CHANGE:
+		if (nrate == 888000000) {
+			/*
+			 * mali and hevcb can not switch to gp1 pll now,
+			 * their max rate is fdiv2p5
+			 */
+			clk_hw_set_rate_range(nb_data->mali, 0, fdiv2p5_rate);
+			clk_hw_set_rate_range(nb_data->hevcb, 0, fdiv2p5_rate);
+		}
+		if (nrate == 840000000) {
+			/* Restore mali and hevcb maximum value limit */
+			clk_hw_set_rate_range(nb_data->mali, 0, nrate);
+			clk_hw_set_rate_range(nb_data->hevcb, 0, nrate);
+			/* update mali to max, mali may changed by scaling frequency  */
+			if (mali_rate == fdiv2p5_rate && mali_rate_saved > 0)
+				clk_set_rate(nb_data->mali->clk, mali_rate_saved);
+			/* restore hevcb rate if the saved rate > 800Mhz */
+			if (hevcb_rate_saved > fdiv2p5_rate)
+				clk_set_rate(nb_data->hevcb->clk, hevcb_rate_saved);
+		}
+
+		return NOTIFY_OK;
+
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
+static struct t6x_vpu_nb_data t6x_vpu_nb_data = {
+	.nb.notifier_call = t6x_vpu_notifier_cb,
+	.mali = &t6x_mali.hw,
+	.hevcb = &t6x_hevcb.hw,
+};
+
 static int meson_t6x_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -6049,6 +6109,12 @@ static int meson_t6x_probe(struct platform_device *pdev)
 			return ret;
 		}
 #endif
+	}
+
+	ret = clk_notifier_register(t6x_vpu.hw.clk, &t6x_vpu_nb_data.nb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register vpu clk notifier\n");
+		return ret;
 	}
 
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
