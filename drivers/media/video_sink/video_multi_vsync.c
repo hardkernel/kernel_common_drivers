@@ -503,6 +503,8 @@ irqreturn_t vsync_isr_viu2(int irq, void *dev_id)
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	info = get_current_vinfo2();
 #endif
+	if (!info)
+		return IRQ_HANDLED;
 	ret = vsync_isr_viux(VPP1, info);
 	atomic_set(&video_inirq_flag_vpp[0], 0);
 	return ret;
@@ -518,6 +520,8 @@ irqreturn_t vsync_isr_viu3(int irq, void *dev_id)
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
 	info = get_current_vinfo3();
 #endif
+	if (!info)
+		return IRQ_HANDLED;
 	ret = vsync_isr_viux(VPP2, info);
 	atomic_set(&video_inirq_flag_vpp[1], 0);
 	return ret;
