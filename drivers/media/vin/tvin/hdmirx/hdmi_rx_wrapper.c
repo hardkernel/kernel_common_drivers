@@ -83,7 +83,7 @@ static int clk_unstable_max;
 static int clk_stable_max;
 static int unnormal_wait_max = 200;
 static int wait_no_sig_max = 600;
-static int fpll_stable_max = 10;
+static int fpll_stable_max = 30;
 static int reset_pcs_en;
 static int force_avi_stable;
 int fsm_debug;
@@ -121,7 +121,6 @@ int fpll_ready_max = 3;
 int rx_emp_dbg_en;
 int frl_lock_det_max = 10;
 //for rs err test
-int frl_debug_en;
 int rs_err_chk;
 int err_cnt = 100;
 bool cts_ced_err_test = true;
@@ -2057,8 +2056,12 @@ bool de_active_check(u8 port)
 	if (abs(rx[port].cur.hactive - rx[port].cur.vactive) >= 6000)
 		ret = true;
 
-	if (rx[port].cur.hactive == 0 && rx[port].cur.vactive == 0)
-		ret = false;
+	if (rx[port].cur.hactive == 0 && rx[port].cur.vactive == 0) {
+		if (!hdmirx_rd_cor(SCDCS_FRL_STATUS_SCDC_IVCRX, port))
+			ret = true;
+		else
+			ret = false;
+	}
 
 	return ret;
 }
@@ -3353,7 +3356,6 @@ void rx_get_global_variable(const char *buf)
 	pr_var(vpp_mute_cnt, i++);
 	pr_var(gcp_mute_cnt, i++);
 	pr_var(fps_unready_max, i++);
-	pr_var(frl_debug_en, i++);
 	pr_var(rx_emp_dbg_en, i++);
 	pr_var(fsm_debug, i++);
 	pr_var(qms_plus_cfg, i++);
@@ -3380,6 +3382,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(ee_voltage_en, i++);
 	pr_var(force_dsc_4ppc, i++);
 	pr_var(htotal_threshold, i++);
+	pr_var(fpll_stable_max, i++);
 	pr_var(rx[E_PORT0].var.clk_stable_cnt, i++);
 	pr_var(rx[E_PORT1].var.clk_stable_cnt, i++);
 	pr_var(rx[E_PORT2].var.clk_stable_cnt, i++);
@@ -3824,9 +3827,6 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(fps_unready_max),
 		&fps_unready_max, value))
 		return pr_var(fps_unready_max, index);
-	if (set_pr_var(tmpbuf, var_to_str(frl_debug_en),
-		&frl_debug_en, value))
-		return pr_var(frl_debug_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx_emp_dbg_en),
 		&rx_emp_dbg_en, value))
 		return pr_var(rx_emp_dbg_en, index);
@@ -3884,6 +3884,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(htotal_threshold),
 		&htotal_threshold, value))
 		return pr_var(htotal_threshold, index);
+	if (set_pr_var(tmpbuf, var_to_str(fpll_stable_max),
+		&fpll_stable_max, value))
+		return pr_var(fpll_stable_max, index);
 	//fsm var
 	if (set_pr_var(tmpbuf, var_to_str(rx[E_PORT0].var.dbg_ve),
 		&rx[E_PORT0].var.dbg_ve, value))
@@ -6218,8 +6221,10 @@ void rx_port2_main_state_machine(void)
 			break;
 		rx[port].var.fpll_ready_cnt = 0;
 		if (is_fpll_err(port)) {
-			if (rx[port].var.fpll_stable_cnt++ < fpll_stable_max)
+			if (rx[port].var.fpll_stable_cnt++ < fpll_stable_max) {
+				reset_pcs(port);
 				break;
+			}
 		}
 		if (cts_ced_err_test)
 			rx_rcc_err_frl_config(port);
@@ -6800,8 +6805,10 @@ void rx_port3_main_state_machine(void)
 			break;
 		rx[port].var.fpll_ready_cnt = 0;
 		if (is_fpll_err(port)) {
-			if (rx[port].var.fpll_stable_cnt++ < fpll_stable_max)
+			if (rx[port].var.fpll_stable_cnt++ < fpll_stable_max) {
+				reset_pcs(port);
 				break;
+			}
 		}
 		if (cts_ced_err_test)
 			rx_rcc_err_frl_config(port);

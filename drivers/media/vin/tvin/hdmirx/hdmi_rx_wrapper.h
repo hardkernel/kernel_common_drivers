@@ -180,7 +180,6 @@ extern u32 dbg_cs;
 extern int color_bar_debug_en;
 extern int port_debug_en;
 extern int fpll_ready_max;
-extern int frl_debug_en;
 extern int rx_emp_dbg_en;
 extern int fsm_debug;
 extern int qms_plus_cfg;

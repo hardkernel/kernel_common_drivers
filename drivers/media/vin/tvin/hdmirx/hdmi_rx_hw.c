@@ -147,7 +147,7 @@ int frl_scrambler_en = 1;
 //int frl_rate;
 int phy_rate;
 //for t3x debug,todo
-u32 frl_sync_cnt = 300;
+u32 frl_sync_cnt = 2000;
 u32 odn_reg_n_mul = 6;
 int vpcore_debug = 3;
 u32 ext_cnt = 2000;
@@ -1054,6 +1054,8 @@ bool hdmirx_poll_cor(u32 addr, u8 exp_data, u8 mask, u32 max_try, u8 port)
 			cnt++;
 			rd_data = hdmirx_rd_cor(addr, port);
 		}
+		if (cnt == (frl_sync_cnt / 2))
+			reset_pcs(port);
 		udelay(5);
 	}
 	if (done == 0)
