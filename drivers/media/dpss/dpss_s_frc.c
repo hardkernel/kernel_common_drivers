@@ -2611,7 +2611,8 @@ void frc_unreg_hw(u32 ch)
 {
 	struct frc_chip_st *pchip_st = dpss_get_frc_st();
 	struct frc_state_s *state_st;
-	unsigned int wait_cnt = 0;
+	unsigned int wait_cnt = 0, vout_hz = 0, vsync_us = 0, wait_cnt_max = 200;
+	struct vinfo_s *vinfo;
 
 	if (!pchip_st || ch)
 		return;
@@ -2619,12 +2620,23 @@ void frc_unreg_hw(u32 ch)
 	state_st = &pchip_st->state_st;
 
 	state_st->dpss_reg = 0;
-	/* wait for frc link off, max: 500us x 100 = 50ms */
-	while (!is_vd1_link_state() && wait_cnt < 100) {
+	vinfo = get_current_vinfo();
+	if (vinfo && vinfo->sync_duration_den) {
+		vout_hz = vinfo->sync_duration_num / vinfo->sync_duration_den;
+		vout_hz = vinfo->brr_duration ? vinfo->brr_duration : vout_hz;
+		if (vout_hz) {
+			vsync_us = 1000000 / vout_hz;
+			wait_cnt_max = (35 * vsync_us / 10) / 500; /* 3.5 vsync time */
+		}
+	}
+
+	/* wait for frc link off */
+	while (!is_vd1_link_state() && wait_cnt < wait_cnt_max) {
 		usleep_range(500, 600);
 		wait_cnt++;
 	}
-	dbg_h1("frc unreg wait_cnt:%d\n", wait_cnt);
+	dbg_h1("frc unreg wait_cnt:%d(%dms), wait_cnt_max:%d\n",
+		wait_cnt, wait_cnt * 500 / 1000, wait_cnt_max);
 }
 
 void frc_unreg_clear_state(u32 ch)

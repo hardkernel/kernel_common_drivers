@@ -2083,7 +2083,8 @@ void irq_pre_vs(void)
 		pfw_data->pre_vsync_irq_handler && (dpss_dbg_irq_ko & C_BIT0))
 		pfw_data->pre_vsync_irq_handler(pfw_data);
 
-	if (state_st->need_switch_to_vd1 || state_st->mc_bypass || manual_disable_link) {
+	if (state_st->need_switch_to_vd1 || state_st->mc_bypass || manual_disable_link ||
+	    !state_st->dpss_reg) {
 		//dpss_rdma_auto_wr_reg(DPSS_DPE_MC_PHASE, 0);
 		wr(DPSS_DPE_MC_PHASE, 0);
 		dbg_f2("set mc phase 0 (mcbypass:%d, need_to vd1:%d, disable_link:%d)\n",
