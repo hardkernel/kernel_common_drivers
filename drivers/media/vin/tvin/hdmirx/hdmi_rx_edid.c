@@ -5898,7 +5898,7 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 	u16 tag_code = 0;
 	u8 tag_offset = 0;
 	u8 block_pos = 1;
-	int free_size = 0;
+	int free_size = 0, tmp_size = 0;
 	u8 total_free_size = 0;
 	u8 free_space_off;
 	u32 i = 0;
@@ -5999,8 +5999,12 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 		add_data_blk = add_buf;
 		/* replace data blk */
 		add_db_len = BLK_LENGTH(add_data_blk[0]) + 1;
-		free_size = rx_get_cta_free_size(p_edid + EDID_BLK_SIZE *
+		tmp_size = rx_get_cta_free_size(p_edid + EDID_BLK_SIZE *
 				(tag_offset / EDID_BLK_SIZE), EDID_BLK_SIZE);
+		if (tmp_size < 0)
+			free_size = 0;
+		else
+			free_size = tmp_size;
 		if (tag_db_len >= add_db_len) {
 			/* move data behind current data
 			 * block, except checksum
@@ -6011,7 +6015,8 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 			/* need clear the new free space to 0 */
 			free_size += (tag_db_len - add_db_len);
 			free_space_off = blk_end - free_size;
-			memset(&p_edid[free_space_off], 0, free_size);
+			if (free_size > 0 && free_size < 32)
+				memset(&p_edid[free_space_off], 0, free_size);
 		} else if (add_db_len - tag_db_len <= free_size) {
 			/* move data behind current data
 			 * block, except checksum
