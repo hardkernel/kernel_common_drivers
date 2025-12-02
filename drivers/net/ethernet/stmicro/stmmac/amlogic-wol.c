@@ -57,10 +57,16 @@ struct mbox_payload {
 #define DATA_TYPE_MDNS_FRAME_INFO	0x0f	/* For mDNS offload */
 #define DATA_TYPE_GET_PASST_STATUS	0x10	/* For mDNS offload */
 #define DATA_TYPE_IPV4_MASK		0x11	/* Set IPv4 Mask */
+#define DATA_TYPE_SET_WAKEUP_PORT_NUM	0x12	/* For wakeup port */
+#define DATA_TYPE_SET_WAKEUP_PORT	0x13	/* For wakeup port */
 
 #define WKUP_REASON_UNUSED		0x00
 #define WKUP_REASON_MAGIC		0x01	/* Magic packet wakeup */
 #define WKUP_REASON_MDNS		0x02	/* mDNS wakeup */
+
+#define WKUP_VALID			BIT(0)
+#define WKUP_PROTO			BIT(1)
+#define WKUP_TYPE			BIT(2)
 
 static const char * const wakeup_names[] = {
 	[WKUP_REASON_UNUSED]	= "unused",
@@ -78,6 +84,7 @@ static int g_mdnsoffload_result;
 #define MDNS_LIST_CRITERIA_MAX          8
 #define MDNS_RAW_DATA_LENGTH_MAX        492
 #define MDNS_QNAME_LENGTH_MAX           80
+#define MDNS_WAKE_PORT_MAX              16
 #define NETLINK_TEST                    17
 #define TYPE_SET_OFFLOAD_STATE          1
 #define TYPE_ENABLE_NETLINK_SERVER      2
@@ -85,6 +92,7 @@ static int g_mdnsoffload_result;
 #define TYPE_ADD_RESPONSE               4
 #define TYPE_REMOVE_RESPONSE            5
 #define TYPE_SET_PASSTHROUGH_BEHAVIOR   6
+#define TYPE_SET_WAKEUP_PORT            7
 
 #pragma pack(push, 1)
 struct match_criteria {
@@ -121,6 +129,21 @@ enum passthrough_behavior_enum {
 	FORWARD_ALL,
 	DROP_ALL,
 	PASSTHROUGH_LIST,
+};
+
+enum wp_proto {
+	PROTO_TCP = 0,
+	PROTO_UDP = 1,
+};
+
+enum wp_type {
+	PORT_LOCAL = 0,
+	PORT_REMOTE = 1,
+};
+
+struct wake_up_port {
+	u8 flags;
+	u16 port;
 };
 
 static int handle_offload_msg(unsigned char *puc, const char *mode);
@@ -558,6 +581,12 @@ static void __maybe_unused mdns_remove_passthrough(u8 *qname, u8 len)
 	__mbox_data_write(DATA_TYPE_REMOVE_PASST, &passthrough_data, sizeof(passthrough_data));
 }
 
+static void __maybe_unused mdns_set_wakeup_port(struct wake_up_port *wp, u32 port_num)
+{
+	__mbox_data_write(DATA_TYPE_SET_WAKEUP_PORT_NUM, &port_num, 1);
+	__mbox_data_write(DATA_TYPE_SET_WAKEUP_PORT, wp, sizeof(struct wake_up_port) * port_num);
+}
+
 void mdns_netlink_recv_msg(struct sk_buff *skb)
 {
 	struct sk_buff *skb_out;
@@ -675,6 +704,35 @@ int handle_offload_msg(unsigned char *puc, const char *mode)
 		unsigned char val = puc[8];
 
 		mdns_set_passthrough_behavior(val);
+	} else if (type == TYPE_SET_WAKEUP_PORT) {
+		struct wake_up_port wp[MDNS_WAKE_PORT_MAX];
+		int i, port_num;
+		unsigned char *q;
+
+		port_num = *((u32 *)(puc + 8));
+		if (port_num <= 0 || port_num > MDNS_WAKE_PORT_MAX) {
+			pr_err("%s: Invalid port number: %d\n", __func__, port_num);
+			return -1;
+		}
+		q = puc + 4 + 4 + 4;
+		for (i = 0; i < port_num; i++) {
+			unsigned char protocol, matcher;
+			unsigned short port;
+
+			protocol = *((unsigned char *)q);
+			q += 1;
+			matcher = *((unsigned char *)q);
+			q += 1;
+			port = *((unsigned short *)q);
+			q += 2;
+			wp[i].flags = WKUP_VALID;
+			if (protocol == PROTO_UDP)
+				wp[i].flags |= WKUP_PROTO;
+			if (matcher == PORT_REMOTE)
+				wp[i].flags |= WKUP_TYPE;
+			wp[i].port = port;
+		}
+		mdns_set_wakeup_port(wp, port_num);
 	} else {
 		pr_err("%s: unsupported type: %d\n", mode, type);
 		return -1;
