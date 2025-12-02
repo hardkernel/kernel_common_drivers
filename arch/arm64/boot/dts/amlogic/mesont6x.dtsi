@@ -260,6 +260,12 @@
 		version = <2>;
 	};
 
+	aocpu_monitor {
+		compatible = "amlogic, aocpu_monitor";
+		status = "okay";
+		mboxes = <&mbox_fifo T6X_REE2AO_ALIVE_MSG>;
+	};
+
 	pwrdm: power-domains {
 		compatible = "amlogic,t6x-power-domain";
 		#power-domain-cells = <1>;
