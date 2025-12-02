@@ -203,6 +203,8 @@ void rx_21_dump_fpll_0_t6x(void);
 void rx_21_dump_fpll_1_t6x(void);
 void aml_phy_exbist_t6x_20(u8 port, u8 ch);
 void aml_phy_exbist_t6x_21(u8 port, u8 ch);
+void aml_phy_exbist_ber_check_t6x_21(u8 port);
+void aml_phy_exbist_ber_rst_t6x_21(u8 port);
 bool rx_check_tap0_t6x(void);
 //void reset_pcs(void);
 

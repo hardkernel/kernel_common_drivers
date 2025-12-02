@@ -7997,8 +7997,12 @@ int hdmirx_debug(const char *buf, int size)
 			aml_phy_exbist(port, E_CH2);
 		else if (tmpbuf[6] == '3')
 			aml_phy_exbist(port, E_CH3);
+		else if (tmpbuf[6] == 'e')
+			aml_phy_exbist_ber_check_t6x_21(port);
 		else if (tmpbuf[6] == 'f')
 			aml_phy_exbist(port, E_ALL_CH);
+		else if (tmpbuf[6] == 'r')
+			aml_phy_exbist_ber_rst_t6x_21(port);
 	} else if (strncmp(tmpbuf, "dacr", 4) == 0) {
 		if (tmpbuf[4] == '0')
 			rx_internal_dacr_mclk_en(0, port);

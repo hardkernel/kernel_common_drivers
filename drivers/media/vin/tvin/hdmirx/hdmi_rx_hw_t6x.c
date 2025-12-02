@@ -3455,16 +3455,44 @@ void aml_phy_exbist_t6x_21(u8 port, u8 ch)
 	u32 data32, tmp;
 
 	rx_pr("port21 frl exbist:frlrate=%d,ch%d\n", frl_rate_id, ch);
-	rx_21_frl_phy_cfg_t6x(port);
-	aml_pll_bw_cfg_t6x_21(frl_rate_id, port);
-	rx_21_frl_pll_cfg_t6x(frl_rate_id, port);
-	rx_21_eq_cfg_t6x(frl_rate_id, port);
+	//phy cfg
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_MISC0, 0x01fcf0f0, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_MISC1, 0x30f7000f, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_MISC2, 0x00005a00, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_AFE, 0x2320ffff, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_DFE, 0x041f0205, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_PI, 0x01102008, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_CTRL, 0x03f06555, port);
+
+	//pll cfg
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x0520fa00, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL1, 0x014451a4, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x0520fa01, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x0520fa03, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x0520fa07, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, 0x4520fa07, port);
+	usleep_range(10, 20);
+	if ((hdmirx_rd_amlphy_t6x(T6X_HDMIRX21PLL_CTRL0, port) >> 31) & 1)
+		rx_pr("pll lock\n");
+	else
+		rx_pr("pll unlock\n");
+
+	//phy cdr&eq&dfe adp
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_MISC0, 0x01fcf0ff, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, 0x00001082, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, 0x3001104f, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, 0x00007082, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, 0x3003304f, port);
 	usleep_range(1000, 1100);
 	//sw reset
 	hdmirx_wr_top(TOP_SW_RESET, 0xfffffe7f, port);
 	usleep_range(5, 10);
 	hdmirx_wr_top(TOP_SW_RESET, 0, port);
 	usleep_range(1000, 1100);
+	data32 = 0;
+	data32 |= (1 << 14);//tmds_clk_sel:1-tmds21 0-tmds20
+	data32 |= ((ch * 4) << 10);
+	hdmirx_wr_top(TOP_CLK_CNTL, data32, port);
 	//digital prbs 15 check
 	data32 = 0;
 	data32 |= (2 << 28);//[29:28]source_2
@@ -3556,6 +3584,22 @@ void aml_phy_exbist_t6x_21(u8 port, u8 ch)
 			hdmirx_rd_check_top(TOP_PRBS_ANA_BER_CH3, 0, 0, port);
 		}
 	}
+}
+
+/* check ber error */
+void aml_phy_exbist_ber_check_t6x_21(u8 port)
+{
+	hdmirx_rd_check_top(TOP_PRBS_ANA_BER_CH0, 0, 0, port);
+	hdmirx_rd_check_top(TOP_PRBS_ANA_BER_CH1, 0, 0, port);
+	hdmirx_rd_check_top(TOP_PRBS_ANA_BER_CH2, 0, 0, port);
+	hdmirx_rd_check_top(TOP_PRBS_ANA_BER_CH3, 0, 0, port);
+}
+
+/* sw_reset_bist */
+void aml_phy_exbist_ber_rst_t6x_21(u8 port)
+{
+	hdmirx_wr_top(TOP_SW_RESET, 0x100, port);
+	hdmirx_wr_top(TOP_SW_RESET, 0x0, port);
 }
 
 int aml_phy_get_iq_skew_val_t6x(u32 val_0, u32 val_1)
