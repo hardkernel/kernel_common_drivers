@@ -2682,6 +2682,12 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 		else
 			prm_top->dct_ahead_dv_mode = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		if (is_amdv_enable() && is_amdv_frame(vf)) {
+			if (!is_amdv_dpss_path() ||
+				get_amdv_force_mode() == AMDV_OUTPUT_MODE_BYPASS)
+				prm_top->dct_ahead_dv_mode = 0;/*if dv bypass,not config dct->dv*/
+		}
+
 		dpss_info.dct_ahead_dv_mode = prm_top->dct_ahead_dv_mode;
 #endif
 		prm_dpe->dcntr_slc.hsize = prm_top->frm_hsize;

@@ -88,18 +88,18 @@ bool update_path_done;
 bool enable_2ppc = true;
 
 const char dolby_work_mode_str[12][20] = {
-	"wrap byps",
-	"core byps",
-	"vd1 mode",
-	"vd1 mode 2ppc",
-	"vdin mode",
-	"vdin mode 2ppc",
-	"dpss mode",
-	"dpss mode 2ppc",
-	"dpss prl mode",
-	"dpss prl mode 2ppc",
-	"dpss di mode",
-	"dpss di mode 2ppc"
+	"wrap-byps",
+	"core-byps",
+	"vd1",
+	"vd1-2ppc",
+	"vdin",
+	"vdin-2ppc",
+	"dpss",
+	"dpss-2ppc",
+	"dpss-prl",
+	"dpss-prl 2ppc",
+	"dpss-di",
+	"dpss-di-2ppc"
 };
 
 void init_prm_dolby(struct dpss_info_s *dpss_info)
@@ -143,36 +143,30 @@ void update_dd_dpss_info(struct dpss_info_s *dpss_info)
 
 void update_dd_mode(enum dolby_work_mode mode)
 {
-	if (debug_dolby & 0x80000)
-		pr_dv_dbg("set top_dd_work_mode %d, cur %d %d %d %d\n",
-			mode, top_dd_work_mode, prm_dolby.dolby5_mode,
-			delay_update_path, dolby_vision_on);
-
 	if (ignore_top_path_change) {
 		update_path_done = true;
 		delay_update_path = 0;
 		return;
 	}
-	if (delay_update_path &&
-		(mode == DOLBY5_DPSS_MODE || mode == DOLBY5_DPSS_MODE_2PPC)) {
-		pr_dv_dbg("switch from vd1 to dpss is in process,ignore\n");
-		return;
-	}
+
 	if (is_aml_t6x() && enable_2ppc) {
 		if (mode == DOLBY5_DPSS_MODE)
 			mode = DOLBY5_DPSS_MODE_2PPC;
 		if (mode == DOLBY5_VD1_MODE)
 			mode = DOLBY5_VD1_MODE_2PPC;
 	}
-	if (mode != prm_dolby.dolby5_mode)
-		pr_dv_dbg("top dolby5 mode change %s => %s\n",
-		dolby_work_mode_str[prm_dolby.dolby5_mode],
-		dolby_work_mode_str[mode]);
+	if (debug_dolby & 0x1)
+		pr_dv_dbg("set top_dd_work_mode %s,cur:%s,%s,delay %d,on %d\n",
+			dolby_work_mode_str[mode],
+			dolby_work_mode_str[top_dd_work_mode],
+			dolby_work_mode_str[prm_dolby.dolby5_mode],
+			delay_update_path, dolby_vision_on);
 
-	if (mode != top_dd_work_mode)
-		pr_dv_dbg("top dolby5 mode change %s  => %s\n",
-		dolby_work_mode_str[top_dd_work_mode],
-		dolby_work_mode_str[mode]);
+	if (delay_update_path &&
+		(mode == DOLBY5_DPSS_MODE || mode == DOLBY5_DPSS_MODE_2PPC)) {
+		/*switch from vd1 to dpss is in process,ignore*/
+		return;
+	}
 
 	if (mode != prm_dolby.dolby5_mode &&
 		dolby_vision_on &&
@@ -189,7 +183,7 @@ void update_dd_mode(enum dolby_work_mode mode)
 		dolby_vision_on &&
 		(mode == DOLBY5_VD1_MODE || mode == DOLBY5_VD1_MODE_2PPC)) {
 		/*switch to VD1 during playing, bypass dv immediately*/
-		pr_dv_dbg("dpss switch to VD1 during playing, bypass dv first\n");
+		pr_dv_dbg("dpss switch to VD1 during playing, bypass first\n");
 		amdolby_vision_process_hw5(NULL, NULL, 0, 0);
 	}
 
