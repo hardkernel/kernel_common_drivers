@@ -29,7 +29,7 @@ enum key_manager_permit_e {
 
 /* for ioctrl transfer parameters. */
 struct key_item_info_t {
-	unsigned int id;
+	int id;
 	char	     name[KEY_UNIFY_NAME_LEN];
 	unsigned int size;
 	unsigned int perm;
