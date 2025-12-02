@@ -67,7 +67,7 @@ static int am_meson_fbdev_alloc_fb_gem(struct fb_info *info)
 	struct drm_framebuffer *fb = helper->fb;
 	struct drm_device *dev = helper->dev;
 	struct am_meson_gem_object *meson_gem;
-	void *vaddr;
+	void *vaddr = NULL;
 	struct page **pages;
 	struct page **tmp;
 	struct sg_page_iter piter;
@@ -86,6 +86,14 @@ static int am_meson_fbdev_alloc_fb_gem(struct fb_info *info)
 			DRM_ERROR("alloc memory %d fail\n", (u32)size);
 			return -ENOMEM;
 		}
+#ifndef CONFIG_AMLOGIC_ION_DEV
+		if (!meson_gem->is_dma) {
+			DRM_WARN("ion is not supported anymore!\n");
+			meson_gem_object_free(&meson_gem->base);
+			return -EINVAL;
+		}
+#endif
+
 		fbdev->fb_gem = &meson_gem->base;
 		fb = helper->fb;
 		meson_fb = container_of(fb, struct am_meson_fb, base);
@@ -112,8 +120,10 @@ static int am_meson_fbdev_alloc_fb_gem(struct fb_info *info)
 			vaddr = vmap(pages, npages, VM_MAP, pgprot);
 			vfree(pages);
 		} else {
+#ifdef CONFIG_AMLOGIC_ION_DEV
 			vaddr = ion_heap_map_kernel(meson_gem->ionbuffer->heap,
 						meson_gem->ionbuffer);
+#endif
 		}
 		info->screen_base = (char __iomem *)vaddr;
 		info->fix.smem_start = meson_gem->addr;
@@ -139,6 +149,7 @@ static void am_meson_fbdev_free_fb_gem(struct fb_info *info)
 
 	fbdev = container_of(helper, struct meson_drm_fbdev, base);
 	if (fbdev && fbdev->fb_gem) {
+#ifdef CONFIG_AMLOGIC_ION_DEV
 		struct drm_gem_object *gem_obj = fbdev->fb_gem;
 		struct am_meson_gem_object *meson_gem = container_of(gem_obj,
 					struct am_meson_gem_object, base);
@@ -146,6 +157,7 @@ static void am_meson_fbdev_free_fb_gem(struct fb_info *info)
 		if (!meson_gem->is_dma)
 			ion_heap_unmap_kernel(meson_gem->ionbuffer->heap,
 					meson_gem->ionbuffer);
+#endif
 		info->screen_base = NULL;
 
 		meson_gem_object_free(fbdev->fb_gem);
