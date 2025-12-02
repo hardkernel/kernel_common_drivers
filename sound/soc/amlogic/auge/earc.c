@@ -273,6 +273,7 @@ struct earc {
 	bool rx_parity_err;
 	bool hold_bus_flag;
 	bool shutdown;
+	bool tx_d2a_enable;
 };
 
 static struct earc *s_earc;
@@ -464,7 +465,8 @@ static void earctx_reg_init_work_func(struct work_struct *p_work)
 
 	/* tx cmdc anlog init */
 	earctx_cmdc_init(p_earc->tx_top_map, st, p_earc->chipinfo);
-
+	/* synchronously record the d2a status by st after earctx_cmdc_init */
+	p_earc->tx_d2a_enable = st;
 	earctx_cmdc_earc_mode(p_earc->tx_cmdc_map, p_earc->tx_earc_mode);
 	earctx_cmdc_hpd_detect(p_earc->tx_top_map,
 			       p_earc->tx_cmdc_map,
@@ -2321,6 +2323,44 @@ static int earctx_set_mute(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int earctx_get_d2a_enable(struct snd_kcontrol *kcontrol,
+		    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_cmdc_map))
+		return 0;
+
+	ucontrol->value.integer.value[0] = p_earc->tx_d2a_enable;
+
+	return 0;
+}
+
+/*
+ * eARC TX D2A Mute bit for case 11.1.17-5
+ */
+static int earctx_set_d2a_enable(struct snd_kcontrol *kcontrol,
+		    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	bool enable = ucontrol->value.integer.value[0];
+	unsigned long flags;
+
+	if (!p_earc || IS_ERR_OR_NULL(p_earc->tx_cmdc_map))
+		return 0;
+
+	p_earc->tx_d2a_enable = enable;
+
+	spin_lock_irqsave(&p_earc->tx_lock, flags);
+	if (p_earc->tx_cmdc_map)
+		earctx_enable_d2a(p_earc->tx_top_map, p_earc->tx_d2a_enable);
+	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
+
+	return 0;
+}
+
 static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode, bool tinymix)
 {
 	unsigned long flags;
@@ -2347,6 +2387,7 @@ static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode, bool tinym
 	if (!p_earc->tx_earc_mode) {
 		rx_earc_hpd_cntl(); /* reset hpd */
 		earctx_enable_d2a(p_earc->tx_top_map, false);
+		p_earc->tx_d2a_enable = false;
 	}
 #endif
 	/* set arc initiated and arc_enable */
@@ -2358,6 +2399,7 @@ static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode, bool tinym
 	if (p_earc->tx_earc_mode) {
 		p_earc->tx_reset_hpd = true;
 		earctx_enable_d2a(p_earc->tx_top_map, true);
+		p_earc->tx_d2a_enable = true;
 		rx_earc_hpd_cntl(); /* reset hpd */
 	}
 #endif
@@ -2933,7 +2975,12 @@ static const struct snd_kcontrol_new earc_tx_controls[] = {
 
 	SND_IEC958(SNDRV_CTL_NAME_IEC958("", PLAYBACK, DEFAULT),
 		   earctx_get_iec958,
-		   earctx_set_iec958)
+		   earctx_set_iec958),
+
+	SOC_SINGLE_BOOL_EXT("eARC_TX D2A Enable",
+			    0,
+			    earctx_get_d2a_enable,
+			    earctx_set_d2a_enable)
 };
 
 static const struct snd_kcontrol_new earc_rx_controls[] = {
