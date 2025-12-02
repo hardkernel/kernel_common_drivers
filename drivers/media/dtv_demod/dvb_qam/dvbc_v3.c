@@ -827,12 +827,12 @@ void dvbc_cfg_sw_hw_sr_max(struct aml_dtvdemod *demod, unsigned int max_sr)
 	qam_write_bits(demod, 0x12, (max_sr - 100) & 0xffff, 8, 16);
 }
 
-static void sort_with_index(unsigned char size, unsigned char data[], unsigned char index[])
+static void sort_with_index(unsigned char size, short data[], unsigned char index[])
 {
 	unsigned char i = 0, j = 0;
 
 	struct index_data {
-		unsigned char value;
+		short value;
 		unsigned char index;
 	};
 
@@ -906,7 +906,8 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 	unsigned char i = 0, greater = 0, count = 0, flag = 0;
 	char ret = 0;
 	int j = 0;
-	unsigned char dis_idx[5] = { 0 }, dis_val[5] = { 0 };
+	unsigned char dis_idx[5] = { 0 };
+	short dis_val[5] = { 0 };
 	unsigned char dis_len = ARRAY_SIZE(dis_val);
 	unsigned short matrix[MSIZE][MSIZE] = { 0 };
 	unsigned char row[MSIZE * MSIZE] = { 0 }, col[MSIZE * MSIZE] = { 0 };

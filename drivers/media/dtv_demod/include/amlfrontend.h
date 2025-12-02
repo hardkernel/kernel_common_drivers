@@ -224,6 +224,7 @@
 /*  V4.0.007 optimize loading method of t2 firmware */
 /*  V4.1.000 T6X bringup for kernel 6.12 */
 /*  V4.1.001 add time consuming trace */
+/*  V4.1.002 fix dvbc_auto_qam_process variable type error */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -240,8 +241,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V4.1.001"
-#define DTVDEMOD_VER	"2025/11/24 add time consuming trace"
+#define AMLDTVDEMOD_VER "V4.1.002"
+#define DTVDEMOD_VER	"2025/12/02 fix dvbc_auto_qam_process variable type error"
 #define AMLDTVDEMOD_T2_FW_VER "v1059.20250521"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
