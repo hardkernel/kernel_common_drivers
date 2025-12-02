@@ -28,6 +28,8 @@
 #include <linux/amlogic/media/video_sink/video.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 #include <linux/amlogic/media/di/di.h>

@@ -59,7 +59,11 @@
 #include "amcsc_pip.h"
 #include "bitdepth.h"
 #include "cm2_adj.h"
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
+#endif
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #include "keystone_correction.h"
 #include "pattern_detection.h"

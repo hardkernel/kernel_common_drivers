@@ -16,6 +16,11 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
+#endif
 #include <enhancement/amvecm/amcsc.h>
 #include "meson_drm_rdma.h"
 #include "meson_async_atomic.h"
@@ -39,36 +44,6 @@ static int drm_get_dv_support_info(void)
 	return 0;
 #endif
 }
-
-#ifndef CONFIG_AMLOGIC_TXHD2_REMOVE
-#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-bool get_amdv_mode(void)
-{
-	return false;
-}
-
-bool is_amdv_enable(void)
-{
-	return false;
-}
-
-void set_amdv_ll_policy(int policy)
-{
-}
-
-void set_amdv_policy(int policy)
-{
-}
-
-void set_amdv_enable(bool enable)
-{
-}
-
-void set_amdv_mode(int mode)
-{
-}
-#endif
-#endif
 
 static int gamma_boot_ctl(char *str)
 {

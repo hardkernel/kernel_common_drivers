@@ -19,6 +19,8 @@
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
 #endif
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>

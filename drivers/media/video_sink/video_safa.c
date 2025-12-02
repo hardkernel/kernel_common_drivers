@@ -48,6 +48,8 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #include "../enhancement/amdolby_vision/amdv_uevent.h"
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
 #endif
 #include <linux/amlogic/media/video_sink/vpp.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA

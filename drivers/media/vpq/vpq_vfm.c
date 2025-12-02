@@ -3,7 +3,11 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
+#endif
 #include "vpq_vfm.h"
 #include "vpq_printk.h"
 #include "vpq_table_logic.h"

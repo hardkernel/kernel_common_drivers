@@ -49,6 +49,8 @@ struct vframe_s;
 #define AV1_SEI 0x14000000 /*for both dv and hdr10plus*/
 #define HDR10P 0x02000000
 
+#define AMDV_UPDATE_OSD_MODE 0x00000001
+
 enum py_level {
 	PY_SIX_LEVEL = 0,
 	PY_SEVEN_LEVEL = 1,
@@ -194,6 +196,8 @@ bool is_amdv_video_on(void);
 bool is_amdv_graphic_on(void);
 bool is_amdv_graphic_on_osd3(void);
 bool for_amdv_certification(void);
+void set_amdv_ll_policy(u32 policy);
+void set_amdv_enable(bool enable);
 void set_amdv_mode(int mode);
 int get_amdv_mode(void);
 int get_amdv_force_mode(void);
@@ -299,20 +303,7 @@ void update_dd_mode(enum dolby_work_mode mode);
 bool get_dd_mode_update_status(void);
 u32 get_hw5_status(struct vframe_s *vf);
 u8 get_dd_align_count(void);
-#define AMDV_UPDATE_OSD_MODE 0x00000001
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 int amdv_notifier_call_chain(unsigned long val, void *v);
 int register_osd_func(int (*get_osd_enable_status)(u32 index));
-#else
-static inline int amdv_notifier_call_chain(unsigned long val, void *v)
-{
-	return 0;
-}
 
-static inline int register_osd_func(int (*get_osd_enable_status)(u32 index))
-{
-	return 0;
-}
-
-#endif
 #endif

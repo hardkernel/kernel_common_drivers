@@ -9,8 +9,11 @@
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
-
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
+#endif
 #include "meson_uvm_buffer_info.h"
 
 #define LOG_ERROR   1

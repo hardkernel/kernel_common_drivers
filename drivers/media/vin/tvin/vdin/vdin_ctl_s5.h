@@ -70,8 +70,6 @@ unsigned int vdin_get_active_v_s5(unsigned int offset);
 unsigned int vdin_get_total_v_s5(unsigned int offset);
 void vdin_set_matrix_color_s5(struct vdin_dev_s *devp);
 
-bool for_amdv_certification(void);
-
 void vdin_change_matrix0_s5(u32 offset, u32 matrix_csc);
 void vdin_change_matrix1_s5(u32 offset, u32 matrix_csc);
 void vdin_change_matrix_hdr_s5(u32 offset, u32 matrix_csc);

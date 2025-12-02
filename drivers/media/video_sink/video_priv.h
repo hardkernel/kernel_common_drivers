@@ -1026,14 +1026,7 @@ extern bool force_vpp_blend_update;
 extern bool video_mute_on;
 extern u32 vsync_counts;
 extern u32 smallwindow_link_enable, smallwindow_link_h;
-bool is_amdv_enable(void);
-#ifdef AMLOGIC_MEDIA_DPSS
-bool is_amdv_dpss_path(void);
-#endif
-bool is_amdv_on(void);
-bool is_amdv_stb_mode(void);
 bool is_dovi_tv_on(void);
-bool for_amdv_certification(void);
 
 struct video_dev_s *get_video_cur_dev(void);
 u32 get_video_enabled(u8 layer_id);
@@ -1049,15 +1042,6 @@ bool is_picmode_changed(u8 layer_id, struct vframe_s *vf);
 
 void safe_switch_videolayer(u8 layer_id,
 			    bool on, bool async);
-
-#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-bool is_amdv_enable(void);
-bool is_amdv_on(void);
-bool is_amdv_stb_mode(void);
-bool for_amdv_certification(void);
-int is_amdv_frame(struct vframe_s *vf);
-void amdv_set_toggle_flag(int flag);
-#endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 void config_dvel_position(struct video_layer_s *layer,

@@ -56,6 +56,8 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 #include "linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h"

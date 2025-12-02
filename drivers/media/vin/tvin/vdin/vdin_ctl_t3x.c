@@ -21,7 +21,11 @@
 #include <linux/sched/clock.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/video_sink/video.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
+#endif
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
 #include "../dsc_dec/dsc_dec_drv.h"

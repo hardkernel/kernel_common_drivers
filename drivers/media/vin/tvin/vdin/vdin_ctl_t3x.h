@@ -141,8 +141,6 @@ bool vdin_is_convert_to_nv21(u32 format_convert);
 bool vdin_is_4k(struct vdin_dev_s *devp);
 void vdin_set_matrix_color_t3x(struct vdin_dev_s *devp);
 
-bool for_amdv_certification(void);
-
 void vdin_change_matrix0_t3x(u32 offset, u32 matrix_csc);
 void vdin_change_matrix1_t3x(u32 offset, u32 matrix_csc);
 void vdin_change_matrix_hdr_t3x(u32 offset, u32 matrix_csc);

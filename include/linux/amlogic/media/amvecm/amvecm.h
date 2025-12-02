@@ -730,20 +730,6 @@ void amvecm_update_link_state(struct vframe_s *vf,
 	struct vframe_s *rpt_vf,
 	enum vpp_index_e vpp_index);
 
-#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-bool is_amdv_enable(void);
-bool is_amdv_on(void);
-bool is_amdv_stb_mode(void);
-bool for_amdv_certification(void);
-int is_amdv_frame(struct vframe_s *vf);
-void amdv_set_toggle_flag(int flag);
-int get_dv_support_info(void);
-bool support_multi_core1(void);
-bool is_hdmi_ll_as_hdr10(void);
-int get_amdv_src_format(enum vd_path_e vd_path, struct vframe_s *vf);
-int get_amdv_ll_policy(void);
-#endif
-
 enum vpp_matrix_ext_csc_e {
 	VPP_MATRIX_EXT_NULL = 0,
 	VPP_MATRIX_SMPTE_ST_170,

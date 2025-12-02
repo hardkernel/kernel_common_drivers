@@ -21,6 +21,8 @@
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
 #endif
 #endif				//RUN_ON_ARM
 #include <linux/amlogic/media/dpss/frc_common_x.h>

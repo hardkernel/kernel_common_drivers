@@ -11,7 +11,11 @@
 #include "meson_vpu_util.h"
 #include "meson_vpu_osdblend.h"
 #include "meson_osd_proc.h"
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
+#endif
 
 #define BLEND_DOUT_DEF_HSIZE 3840
 #define BLEND_DOUT_DEF_VSIZE 2160

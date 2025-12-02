@@ -173,16 +173,6 @@ int am_meson_hdmi_get_hdmitx_diag(struct drm_device *dev,
 			void *data, struct drm_file *file_priv);
 #endif
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-void set_amdv_policy(int policy);
-int get_amdv_policy(void);
-void set_amdv_ll_policy(int policy);
-void set_amdv_enable(bool enable);
-int get_dv_support_info(void);
-bool is_amdv_enable(void);
-void set_amdv_mode(int mode);
-int get_amdv_mode(void);
-#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 void set_hdr_policy(int policy);
 int get_hdr_policy(void);

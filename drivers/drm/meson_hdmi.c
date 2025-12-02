@@ -37,6 +37,12 @@
 #include "meson_vpu.h"
 #include "meson_crtc.h"
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
+#endif
+
 #define HDMITX_ATTR_LEN_MAX	16
 #define HDMITX_MAX_BPC	12
 

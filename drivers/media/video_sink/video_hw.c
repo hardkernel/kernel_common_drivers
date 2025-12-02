@@ -74,8 +74,10 @@
 #include <linux/amlogic/media/video_sink/video.h>
 #include "../common/vfm/vfm.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #include "../enhancement/amdolby_vision/amdv_uevent.h"
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
 #endif
 #include "video_receiver.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
@@ -962,93 +964,6 @@ u32 g_mosaic_mode;
 static s32 pic_axis_get[4][4];
 static s32 pic_axis_set[4][4];
 #define PIC_AXIS_INVALID (-4096)
-
-/*********************************************************
- * Utils APIs
- *********************************************************/
-#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-bool is_amdv_enable(void)
-{
-	return false;
-}
-
-#ifdef AMLOGIC_MEDIA_DPSS
-bool is_amdv_dpss_path(void)
-{
-	return false;
-}
-#endif
-
-bool is_amdv_on(void)
-{
-	return false;
-}
-
-bool is_amdv_stb_mode(void)
-{
-	return false;
-}
-
-bool for_amdv_certification(void)
-{
-	return false;
-}
-
-void dv_vf_light_reg_provider(void)
-{
-}
-
-void dv_vf_light_unreg_provider(void)
-{
-}
-
-void amdv_update_backlight(void)
-{
-}
-
-int is_amdv_frame(struct vframe_s *vf)
-{
-	return false;
-}
-
-void amdv_set_toggle_flag(int flag)
-{
-}
-
-int get_dv_support_info(void)
-{
-	return false;
-}
-
-bool support_multi_core1(void)
-{
-	return false;
-}
-
-bool is_hdmi_ll_as_hdr10(void)
-{
-	return false;
-}
-
-int get_amdv_mode(void)
-{
-	return -1;
-}
-
-void set_amdv_mode(int mode)
-{
-}
-
-int get_amdv_src_format(enum vd_path_e vd_path, struct vframe_s *vf)
-{
-	return 0;
-}
-
-int get_amdv_ll_policy(void)
-{
-	return 0;
-}
-#endif
 
 bool is_dovi_tv_on(void)
 {

@@ -73,6 +73,8 @@
 #include "../common/vfm/vfm.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
 #endif
 #include "video_receiver.h"
 
@@ -607,79 +609,6 @@ static u32 postblend_color;
 
 u32 g_mosaic_mode;
 u32 pic_axis[4][4];
-/*********************************************************
- * Utils APIs
- *********************************************************/
-#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-#if IS_MODULE(CONFIG_AMLOGIC_MEDIA_VIDEO)
-bool is_amdv_enable(void)
-{
-	return false;
-}
-#endif
-
-bool is_amdv_on(void)
-{
-	return false;
-}
-
-bool is_amdv_stb_mode(void)
-{
-	return false;
-}
-
-bool for_amdv_certification(void)
-{
-	return false;
-}
-
-void dv_vf_light_reg_provider(void)
-{
-}
-
-void dv_vf_light_unreg_provider(void)
-{
-}
-
-void amdv_update_backlight(void)
-{
-}
-
-int is_amdv_frame(struct vframe_s *vf)
-{
-	return false;
-}
-
-void amdv_set_toggle_flag(int flag)
-{
-}
-
-int get_dv_support_info(void)
-{
-	return false;
-}
-
-bool support_multi_core1(void)
-{
-	return false;
-}
-
-bool is_hdmi_ll_as_hdr10(void)
-{
-	return false;
-}
-
-#if IS_MODULE(CONFIG_AMLOGIC_MEDIA_VIDEO)
-int get_amdv_mode(void)
-{
-	return false;
-}
-
-void set_amdv_mode(int mode)
-{
-}
-#endif
-#endif
 
 bool is_dovi_tv_on(void)
 {

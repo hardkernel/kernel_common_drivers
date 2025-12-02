@@ -35,7 +35,11 @@
 #include "dolby_sys.h"
 #include "register.h"
 #include <linux/amlogic/media/vfm/vframe.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#else
+#include <linux/amlogic/media/amdolbyvision/dolby_vision_ext.h>
+#endif
 #define OP_BYPASS_CVM				0x01
 #define OP_BYPASS_CSC				0x02
 #define OP_CLKGATE_WHEN_LOAD_LUT	0x04
