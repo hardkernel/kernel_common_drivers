@@ -262,7 +262,9 @@ static int _dmx_set_hw_source_ts_clone(struct dmx_demux *dmx, int hw_source)
 	if (pdmx->hw_source != hw_source) {
 		pr_dbg("%s org source:%d, change source:%d\n",
 				__func__, pdmx->hw_source, hw_source);
-		if (pdmx->used_feed_num && pdmx->sc2_input) {
+		if (pdmx->used_feed_num &&
+			pdmx->sc2_input &&
+			abs(pdmx->hw_source - hw_source) != 64) {
 			pr_dbg("%s feed num:%d\n", __func__, pdmx->used_feed_num);
 			ts_clone_disconnect(pdmx->id, pdmx->hw_source, pdmx->sc2_input);
 			ts_clone_connect(pdmx->id, hw_source, pdmx->sc2_input);
