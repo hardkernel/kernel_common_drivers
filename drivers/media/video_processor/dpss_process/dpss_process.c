@@ -1614,7 +1614,7 @@ static void connect_to_dpss(struct dpss_process_dev *dev, struct vframe_s *vf, i
 		return;
 	}
 
-	dp_print(dev->index, PRINT_ERROR,
+	dp_print(dev->index, PRINT_OTHER,
 		"%s: dpss_index: %d, work_mode: 0x%x.\n",
 		__func__,
 		dev->dpss_index,
@@ -1643,7 +1643,7 @@ static int find_standard_duration(struct dpss_process_dev *dev, int duration_val
 
 static int dpss_process_init(struct dpss_process_dev *dev)
 {
-	dp_print(dev->index, PRINT_ERROR, "%s: dev index = %d.\n", __func__, dev->index);
+	dp_print(dev->index, PRINT_OTHER, "%s: dev index = %d.\n", __func__, dev->index);
 
 	dev->dpss_index = -1;
 	dev->dpss_is_tvp = false;
@@ -1751,7 +1751,7 @@ static int dpss_process_uninit(struct dpss_process_dev *dev)
 				- dev->fence_release_count);
 	}
 
-	dp_print(dev->index, PRINT_ERROR,
+	dp_print(dev->index, PRINT_OTHER,
 		  "fill_done/fill: cur: %lld/%lld, total: %d/%d\n",
 		  dev->fill_done_count, dev->fill_count,
 		  total_fill_done_count, total_fill_count);
@@ -2159,7 +2159,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		/*need check 180 rotate*/
 		if ((frame_info->transform == 3 && dev->transform != 3) ||
 			(frame_info->transform != 3 && dev->transform == 3)) {
-			dp_print(dev->index, PRINT_ERROR, "rotate change, need up layer reinit.\n");
+			dp_print(dev->index, PRINT_OTHER, "rotate change, need up layer reinit.\n");
 			rotate180_switch = true;
 		}
 
@@ -2172,7 +2172,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 
 	if (dev->index == 0 && dev->is_start_player) {
 		hdr_path_switch_to_dpss(3);
-		dp_print(dev->index, PRINT_ERROR, "it is start player.\n");
+		dp_print(dev->index, PRINT_OTHER, "it is start player.\n");
 		dev->is_start_player = 0;
 		dev->need_check_hdr_state = true;
 	}

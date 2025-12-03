@@ -10,7 +10,7 @@
 #include "vicp_rdma.h"
 #include "vicp_hdr.h"
 
-#define ADDR_VALUE_8G    0x200000000
+#define ADDR_VALUE_8G    (0x200000000ULL)
 extern u32 print_flag;
 extern u32 dump_yuv_flag;
 extern u32 scaler_en;

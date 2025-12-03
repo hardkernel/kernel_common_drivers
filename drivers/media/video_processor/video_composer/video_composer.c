@@ -56,7 +56,7 @@
 
 #define WAIT_READY_Q_TIMEOUT 100
 
-#define ADDR_VALUE_8G    0x200000000
+#define ADDR_VALUE_8G    (0x200000000ULL)
 
 #define INORM   50000
 
