@@ -190,6 +190,7 @@
 			no-map;
 			size = <0x1000000>;
 			alignment = <0x100000>;
+			alloc-ranges = <0x00000000 0x40000000>;
 		};
 
 		dmaheap_cma_reserved:heap-gfx {

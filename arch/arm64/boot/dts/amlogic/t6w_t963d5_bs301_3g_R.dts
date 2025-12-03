@@ -130,6 +130,7 @@
 			size = <0x0 0x1c00000>;
 			alignment = <0x0 0x400000>;
 			status = "okay";
+			alloc-ranges = <0x0 0x00000000 0x0 0x80000000>;
 		};
 
 		dmaheap_cma_reserved:heap-gfx {
@@ -210,6 +211,7 @@
 			no-map;
 			size = <0x0 0x1000000>;
 			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x00000000 0x0 0x80000000>;
 		};
 
 		/* global autoconfigured region for contiguous allocations */
@@ -219,6 +221,7 @@
 			size = <0x0 0x1000000>;
 			alignment = <0x0 0x400000>;
 			linux,cma-default;
+			alloc-ranges = <0x0 0x00000000 0x0 0x80000000>;
 		};
 	};
 
