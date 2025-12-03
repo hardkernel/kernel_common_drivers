@@ -127,7 +127,7 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	unsigned int tps_coderate, ts_fifo_cnt = 0, ts_cnt = 0, fec_rate = 0;
-	static int no_signal_cnt, unlock_cnt, reset_time;
+	static int no_signal_cnt, unlock_cnt, reset_time, lock_cnt;
 	unsigned int cur_time, reset_per_times = dvbt_reset_per_times;
 
 	cur_time = jiffies_to_msecs(jiffies);
@@ -136,6 +136,7 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 		no_signal_cnt = 0;
 		unlock_cnt = 0;
 		reset_time = 0;
+		lock_cnt = 0;
 	}
 
 	if (devp->tuner_strength_limit)
@@ -148,6 +149,7 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 		unlock_cnt = 0;
 		*is_signal = 0;
 		reset_time = cur_time;
+		lock_cnt = 0;
 		*status = FE_TIMEDOUT;
 		demod->last_lock = -1;
 		demod->last_status = *status;
@@ -184,7 +186,6 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 	if (s == 1) {
 		ilock = 1;
 		*status = FE_LOCKED;
-
 		//dBx10.
 		demod->real_para.snr = (((dvbt_t2_rdb(CHC_CIR_SNR1) & 0x7) << 8) |
 			dvbt_t2_rdb(CHC_CIR_SNR0)) * 30 / 64;
@@ -202,6 +203,10 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 		demod->real_para.tps_cell_id =
 			(dvbt_t2_rdb(0x2916) & 0xff) |
 			((dvbt_t2_rdb(0x2915) & 0xff) << 8);
+		if (++lock_cnt % 4 == 0) {
+			demod->real_para.ber = dvbt_get_ber();
+			lock_cnt = 0;
+		}
 	} else {
 		if (demod->time_passed < TIMEOUT_DVBT) {
 			ilock = 0;
@@ -210,6 +215,7 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 			ilock = 0;
 			*status = FE_TIMEDOUT;
 		}
+		lock_cnt = 0;
 		real_para_clear(&demod->real_para);
 	}
 
@@ -472,7 +478,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	unsigned int p1_peak = 0, val = 0, cur_time = 0;
-	static int no_signal_cnt, unlock_cnt, reset_time;
+	static int no_signal_cnt, unlock_cnt, reset_time, lock_cnt;
 	int snr = 0, modu = 0, cr = 0, l1post = 0, ldpc = 0;
 	unsigned int plp_num = 0, fef_info = 0;
 	unsigned int data_plp = 0, common_plp = 0;
@@ -492,6 +498,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 			if (!(no_signal_cnt++ % 20))
 				dvbt2_reset(demod, fe);
 			unlock_cnt = 0;
+			lock_cnt = 0;
 			*is_signal = 0;
 			reset_time = cur_time;
 			*status = FE_TIMEDOUT;
@@ -695,15 +702,22 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 		demod->real_para.plp_common = plp_common;
 		demod->real_para.fef_info = fef_info;
 
+		if (++lock_cnt % 2 == 0) {
+			demod->real_para.ber = dvbt2_get_ber();
+			lock_cnt = 0;
+		}
+
 		dvbt2_get_FFT_GI(&demod->real_para.fft_mode, &demod->real_para.gi);
 
 		/* for call r842 dvbt agc slow */
 		if (tuner_find_by_name(fe, "r842") && fe->ops.tuner_ops.get_rf_strength)
 			fe->ops.tuner_ops.get_rf_strength(fe, &rf_strength);
 	} else if (demod->last_lock == -CONTINUE_TIMES_UNLOCK) {
+		lock_cnt = 0;
 		*status = FE_TIMEDOUT;
 		real_para_clear(&demod->real_para);
 	} else {
+		lock_cnt = 0;
 		*status = 0;
 	}
 
@@ -754,7 +768,11 @@ int dvbt2_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 int dvbt_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	*ber = 0;
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+
+	*ber = demod->real_para.ber;
+
+	PR_DVBT("[id %d] ber %d E-07\n", demod->id, *ber);
 
 	return 0;
 }

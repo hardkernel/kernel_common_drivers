@@ -1328,6 +1328,9 @@ void dvbt2_info(struct aml_dtvdemod *demod, struct seq_file *seq)
 	unsigned int c_snr = dvbt_t2_rdb(0x2a08) + ((dvbt_t2_rdb(0x2a09)) << 8);
 	unsigned int f_snr = dvbt_t2_rdb(0x2a5c) + ((dvbt_t2_rdb(0x2a5d)) << 8);
 	unsigned int d_snr = dvbt_t2_rdb(0xabc) + ((dvbt_t2_rdb(0xabd)) << 8);
+	/* 0: 16K LDPC, 1: 64K LDPC */
+	unsigned char plp_fec_type = (dvbt_t2_rdb(0x8c7) >> 6) & 0x3;
+	unsigned char code_rate = (dvbt_t2_rdb(0x8c3) >> 1) & 0x7;
 
 	/* ts type */
 	unsigned int ts_type = dvbt_t2_rdb(0x870) & 0x3;
@@ -1502,6 +1505,7 @@ void dvbt2_info(struct aml_dtvdemod *demod, struct seq_file *seq)
 			(dvbt_t2_rdb(0x2745) >> 5) & 0x01, (dvbt_t2_rdb(0x839) >> 4) & 0x01,
 			(dvbt_t2_rdb(0x839) >> 3) & 0x01, dvbt_t2_rdb(0x15ba), dvbt_t2_rdb(0x15d5),
 			dvbt_t2_rdb(0x361b));
+		seq_printf(seq, "fec_type %d, code_rate %d\n", plp_fec_type, code_rate);
 		seq_printf(seq, "pwr_meter 0x%x\n\n",
 			   (dvbt_t2_rdb(0x82f) << 8) + dvbt_t2_rdb(0x82e));
 	} else {
@@ -1515,6 +1519,7 @@ void dvbt2_info(struct aml_dtvdemod *demod, struct seq_file *seq)
 			(dvbt_t2_rdb(0x2745) >> 5) & 0x01, (dvbt_t2_rdb(0x839) >> 4) & 0x01,
 			(dvbt_t2_rdb(0x839) >> 3) & 0x01, dvbt_t2_rdb(0x15ba), dvbt_t2_rdb(0x15d5),
 			dvbt_t2_rdb(0x361b));
+		PR_DVBT("fec_type %d, code_rate %d\n", plp_fec_type, code_rate);
 		PR_DVBT("pwr_meter 0x%x\n\n", (dvbt_t2_rdb(0x82f) << 8) + dvbt_t2_rdb(0x82e));
 	}
 }
@@ -1692,4 +1697,147 @@ int dvbt_get_FFT_GI(u32 *fft_mode, u32 *guard_interval)
 		*guard_interval = GUARD_INTERVAL_AUTO;
 
 	return 0;
+}
+
+static u32 calcul_ber(u32 p1err_cnt1, u32 p1num_event1)
+{
+	u32 ber = 0;
+	u32 top_fec_type = 0;
+	u32 frame_unit1 = 0;
+
+	top_fec_type = (dvbt_t2_rdb(0x8c7) >> 6) & 0x3;
+	switch (top_fec_type) {
+	case 0:
+		frame_unit1 = 162; //16K LDPC
+		break;
+	case 1:
+		frame_unit1 = 648; //64K LDPC
+		break;
+	default:
+		frame_unit1 = 648;
+		break;
+	}
+
+	switch (p1num_event1) {
+	case 2:
+		ber = (((p1err_cnt1 * 3125) / 8) / frame_unit1);
+		/* res= (ber/ 2^4) * 10e7 */
+		break;
+	case 3:
+		ber = (((p1err_cnt1 * 3125) / 32) / frame_unit1);
+		/* res= (ber/ 2^6) * 10e7 */
+		break;
+	case 4:
+		ber = (((p1err_cnt1 * 3125) / 128) / frame_unit1);
+		/* res= (ber/ 2^8) * 10e7 */
+		break;
+	case 5:
+		ber = (((p1err_cnt1 * 3125) / 512) / frame_unit1);
+		/* res= (ber/ 2^10) * 10e7 */
+		break;
+	case 6:
+		ber = (((p1err_cnt1 * 3125) / 2048) / frame_unit1);
+		/* res= (ber/ 2^12) * 10e7 */
+		break;
+	case 7:
+	default:
+		ber = p1err_cnt1 * 100000;
+		break;
+	}
+
+	PR_DVBT("top_fec_type %d, p1err_cnt1 %d, p1num_event1 %d, frame_unit1 %d\n",
+			top_fec_type, p1err_cnt1, p1num_event1, frame_unit1);
+
+	return ber;
+}
+
+u32 dvbt_get_ber(void)
+{
+	u32 reg_0x5d9 = 0, reg_0x5da = 0, reg_0x5db = 0;
+	u32 ber = 0, cpt = 0, timeout = 0;
+	u32 p1_sfe_err_cnt = 0, p1_sfe_err_old = 0;
+	u8 i = 0, TPS_CONST = 0;
+
+	if (!demod_chip_after_eq(DTVDEMOD_HW_T3))
+		return 0;
+
+	dvbt_t2_wrb(0x5d8, 0x74);
+	dvbt_t2_wrb(0x5db, 0x00);
+
+	TPS_CONST = dvbt_t2_rdb(0x2912) & 0x3;
+	switch (TPS_CONST) {
+	case 0:
+		timeout = 170;
+		break; /*QPSK*/
+	case 1:
+		timeout = 150;
+		break; /*16QAM*/
+	default:
+		timeout = 100;
+		break; /*64QAM*/
+	}
+
+	do {
+		reg_0x5d9 = dvbt_t2_rdb(0x5d9);
+		reg_0x5da = dvbt_t2_rdb(0x5da);
+		reg_0x5db = dvbt_t2_rdb(0x5db);
+		p1_sfe_err_old = (reg_0x5d9 >> 7) & 0x1;
+		PR_DVBT("0x5d9 0x%x, p1_sfe_err_old %d\n", reg_0x5d9, p1_sfe_err_old);
+		if (!p1_sfe_err_old) {
+			p1_sfe_err_cnt = (((reg_0x5d9 & 0x7f) << 16) |
+					((reg_0x5da & 0xff) << 8) | (reg_0x5db & 0xff));
+
+			if (p1_sfe_err_cnt == 0) {
+				ber = 0;
+			} else {
+				for (i = 0; i < 3; i++)
+					p1_sfe_err_cnt = ((p1_sfe_err_cnt * 100) / (1 << 6));
+
+				ber = ((p1_sfe_err_cnt * 10) / (1 << 3));
+			}
+		}
+
+		PR_DVBT("p1_sfe_err_cnt %d, cpt %d, 0x5d9 0x%x, 0x5da 0x%x, 0x5db 0x%x\n",
+			p1_sfe_err_cnt, cpt, reg_0x5d9, reg_0x5da, reg_0x5db);
+
+		++cpt;
+
+		usleep_range(5000, 5001);
+	} while ((p1_sfe_err_old == 1) && (cpt < timeout));
+
+	PR_DVBT("TPS_CONST %d, p1_sfe_err_old %d, p1_sfe_err_cnt %d, 0x5d8 0x%x, 0x5db 0x%x\n",
+			TPS_CONST, p1_sfe_err_old, p1_sfe_err_cnt,
+			dvbt_t2_rdb(0x5d8), dvbt_t2_rdb(0x5db));
+
+	return ber;
+}
+
+u32 dvbt2_get_ber(void)
+{
+	u32 p1err_src1 = 0, p1num_event1 = 0;
+	u32 ber = 0, p1err_cnt1 = 0;
+	u32 reg_0x598 = 0, reg_0x599 = 0, reg_0x59a = 0, reg_0x59b = 0;
+
+	if (!demod_chip_after_eq(DTVDEMOD_HW_T3))
+		return 0;
+
+	reg_0x598 = dvbt_t2_rdb(0x598);
+	reg_0x599 = dvbt_t2_rdb(0x599);
+	reg_0x59a = dvbt_t2_rdb(0x59a);
+	reg_0x59b = dvbt_t2_rdb(0x59b);
+
+	PR_DVBT("0x598 0x%x, 0x599 0x%x, 0x59a 0x%x, 0x59b 0x%x\n",
+			reg_0x598, reg_0x599, reg_0x59a, reg_0x59b);
+
+	p1err_cnt1 = ((reg_0x599 & 0x7f) << 16) | ((reg_0x59a & 0xff) << 8) | (reg_0x59b & 0xff);
+	p1err_src1 = (reg_0x598 >> 4) & 0xf;
+	if (p1err_src1 > 0) {
+		p1num_event1 = reg_0x598 & 0x7;
+		ber = calcul_ber(p1err_cnt1, p1num_event1);
+	}
+
+	PR_DVBT("p1err_cnt1 0x%x, p1err_src1 %d, ber %d\n",
+			p1err_cnt1, p1err_src1, ber);
+
+	return ber;
 }

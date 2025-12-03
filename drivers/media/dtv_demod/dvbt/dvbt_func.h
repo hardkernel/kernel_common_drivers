@@ -522,5 +522,7 @@ unsigned int dvbt_set_ch(struct aml_dtvdemod *demod,
 		struct aml_demod_dvbt *demod_dvbt, struct dvb_frontend *fe);
 int dvbt2_set_ch(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 unsigned int dvbt2_get_fw_size(void);
+u32 dvbt2_get_ber(void);
+u32 dvbt_get_ber(void);
 
 #endif
