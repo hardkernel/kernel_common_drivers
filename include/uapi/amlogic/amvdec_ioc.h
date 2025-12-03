@@ -171,7 +171,12 @@ struct vdec_status {
 	struct aspect_ratio_info aspect_ratio;
 	__u64 arg;
 	unsigned int size;
-	char reserved[60];
+	__u32 dw;
+	__u8 dpb_num;
+	__u8 margin_num;
+	__u8 filed_flag;
+	__u8 bit_depth;
+	char reserved[52];
 };
 
 struct adec_status {
@@ -333,6 +338,11 @@ struct vdec_info {
 	};
 	__u32 error_count;
 	__u32 status;
+	__u32 dw;
+	__u8 dpb_num;
+	__u8 margin_num;
+	__u8 filed_flag;
+	__u8 bit_depth;
 	__u32 frame_count;
 	__u32 error_frame_count;
 	__u32 drop_frame_count;
