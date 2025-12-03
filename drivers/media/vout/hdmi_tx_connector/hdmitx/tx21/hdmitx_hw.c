@@ -5925,8 +5925,8 @@ static int hdmitx_pkt_dump(char *buf, int len)
 	union hdmi_infoframe *infoframe = NULL;
 	struct hdmi_avi_infoframe *avi = NULL;
 	struct hdmi_drm_infoframe *drm = NULL;
-	//struct hdmi_vendor_infoframe *vendor = NULL;
 	struct hdmi_audio_infoframe *audio = NULL;
+	unsigned int ieeeoui = 0;
 
 	//GCP PKT
 	pos += snprintf(buf + pos, len - pos, "hdmitx gcp reg config\n");
@@ -6146,7 +6146,6 @@ static int hdmitx_pkt_dump(char *buf, int len)
 				"AVI.bottom_bar: %d\n", avi->bottom_bar);
 			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.left_bar: %d\n", avi->left_bar);
 			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.right: %d\n", avi->right_bar);
-			pos += snprintf(buf + pos, PAGE_SIZE, "\n");
 		}
 	}
 	pos += snprintf(buf + pos, len - pos, "\n");
@@ -6216,7 +6215,94 @@ static int hdmitx_pkt_dump(char *buf, int len)
 	}
 	pos += snprintf(buf + pos, len - pos, "\n");
 
-	/* TODO: vendor vendor2 */
+	/* VSIF PKT */
+	ret = hdmitx_infoframe_raw_get(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	if (ret == -1) {
+		pos += snprintf(buf + pos, len - pos, "VSIF body get error\n");
+	} else if (ret == 0) {
+		pos += snprintf(buf + pos, len - pos, "VSIF PKT not enable\n");
+	} else {
+		ieeeoui = body[6] << 16 | body[5] << 8 | body[4];
+		switch (ieeeoui) {
+		case HDMI_IEEE_OUI:
+			conf = "hdmi_ieee_oui";
+			break;
+		case HDMI_FORUM_IEEE_OUI:
+			conf = "hdmi_forum_ieee_oui";
+			break;
+		case DOVI_IEEEOUI:
+			conf = "amdv_ieee_oui";
+			break;
+		case CUVA_IEEEOUI:
+			conf = "cuva_ieee_oui";
+			break;
+		case HDR10PLUS_IEEEOUI:
+			conf = "hdr10plus_ieee_oui";
+			break;
+		default:
+			conf = "invalid_ieee_oui";
+			break;
+		}
+		pos += snprintf(buf + pos, len - pos, "VSIF.ieee_oui: %s (0x%06x)\n",
+				conf, ieeeoui);
+		if (ieeeoui == HDMI_IEEE_OUI) {
+			pos += snprintf(buf + pos, len - pos, "VSIF.hdmi_vic: %d\n", body[8]);
+		} else if (ieeeoui == HDMI_FORUM_IEEE_OUI) {
+			pos += snprintf(buf + pos, len - pos, "VSIF.allm: %d\n",
+					(body[8] & 0x2) >> 1);
+		} else if (ieeeoui == DOVI_IEEEOUI) {
+			pos += snprintf(buf + pos, len - pos, "VSIF.amdv_signal: %d\n",
+					(body[7] & 0x2) >> 1);
+			pos += snprintf(buf + pos, len - pos, "VSIF.amdv_low_latency: %d\n",
+					body[7] & 0x1);
+		}
+	}
+	pos += snprintf(buf + pos, len - pos, "\n");
+
+	/* VSIF1 PKT */
+	ret = hdmitx_infoframe_raw_get(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+	if (ret == -1) {
+		pos += snprintf(buf + pos, len - pos, "VSIF1 body get error\n");
+	} else if (ret == 0) {
+		pos += snprintf(buf + pos, len - pos, "VSIF1 PKT not enable\n");
+	} else {
+		ieeeoui = body[6] << 16 | body[5] << 8 | body[4];
+		switch (ieeeoui) {
+		case HDMI_IEEE_OUI:
+			conf = "hdmi_ieee_oui";
+			break;
+		case HDMI_FORUM_IEEE_OUI:
+			conf = "hdmi_forum_ieee_oui";
+			break;
+		case DOVI_IEEEOUI:
+			conf = "amdv_ieee_oui";
+			break;
+		case CUVA_IEEEOUI:
+			conf = "cuva_ieee_oui";
+			break;
+		case HDR10PLUS_IEEEOUI:
+			conf = "hdr10plus_ieee_oui";
+			break;
+		default:
+			conf = "invalid_ieee_oui";
+			break;
+		}
+		pos += snprintf(buf + pos, len - pos, "VSIF1.ieee_oui: %s (0x%06x)\n",
+				conf, ieeeoui);
+		if (ieeeoui == HDMI_IEEE_OUI) {
+			pos += snprintf(buf + pos, len - pos, "VSIF1.hdmi_vic: %d\n", body[8]);
+		} else if (ieeeoui == HDMI_FORUM_IEEE_OUI) {
+			pos += snprintf(buf + pos, len - pos, "VSIF1.allm: %d\n",
+					(body[8] & 0x2) >> 1);
+		} else if (ieeeoui == DOVI_IEEEOUI) {
+			pos += snprintf(buf + pos, len - pos, "VSIF1.amdv_signal: %d\n",
+					(body[7] & 0x2) >> 1);
+			pos += snprintf(buf + pos, len - pos, "VSIF1.amdv_low_latency: %d\n",
+					body[7] & 0x1);
+		}
+	}
+	pos += snprintf(buf + pos, len - pos, "\n");
+
 	/* AUDIO PKT */
 	infoframe = &hdev->tx_comm.infoframe.aud;
 	audio = &infoframe->audio;

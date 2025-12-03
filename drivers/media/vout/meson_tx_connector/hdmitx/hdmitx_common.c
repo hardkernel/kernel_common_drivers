@@ -987,8 +987,8 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 			buffer[4] = GET_OUI_BYTE0(ieeeoui);
 			buffer[5] = GET_OUI_BYTE1(ieeeoui);
 			buffer[6] = GET_OUI_BYTE2(ieeeoui);
-			buffer[7] = vic & 0xf;
-			buffer[8] = 0x20;
+			buffer[7] = 0x20;
+			buffer[8] = vic & 0xf;
 			arg = 0;
 			hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_AVI_VIC, (void *)&arg, NULL);
 			hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_VSIF1, buffer, NULL);
