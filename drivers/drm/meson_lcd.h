@@ -17,7 +17,9 @@ struct meson_panel {
 
 	struct meson_panel_dev *panel_dev;
 	struct drm_property *panel_type_prop;
+	struct drm_property *panel_ready_prop;
 	int panel_type;
+	bool panel_ready;
 
 	/* vrr related */
 	int num_vrr_group;

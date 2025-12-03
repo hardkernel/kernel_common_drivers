@@ -179,6 +179,9 @@ int meson_panel_atomic_get_property(struct drm_connector *connector,
 	if (property == panel->panel_type_prop) {
 		*val = panel->panel_type;
 		return 0;
+	} else if (property == panel->panel_ready_prop) {
+		*val = panel->panel_ready;
+		return 0;
 	}
 
 	return -EINVAL;
@@ -198,6 +201,7 @@ void meson_panel_atomic_print_state(struct drm_printer *p,
 	am_lcd = connector_to_meson_panel(conn);
 	drm_printf(p, "\tdrm lcd state:\n");
 	drm_printf(p, "\t\t  vrr range :\n");
+	drm_printf(p, "\t\t ready:[%d]\n", am_lcd->panel_ready);
 	for (i = 0; i < am_lcd->num_vrr_group; i++) {
 		group = &am_lcd->groups[i];
 		drm_printf(p, "\t\t %u,%u,%u-%u,%s\n", group->width, group->height,
@@ -230,7 +234,7 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct am_meson_crtc_state *meson_old_crtc_state;
 	enum vmode_e vmode = meson_crtc_state->vmode;
 	unsigned int vrefresh = drm_mode_vrefresh(mode);
-
+	struct meson_panel *panel = encoder_to_meson_panel(encoder);
 	crtc = encoder->crtc;
 
 	if ((vmode & VMODE_MODE_BIT_MASK) != VMODE_LCD) {
@@ -290,6 +294,7 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_FINISH);
 	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "lcd");
+	panel->panel_ready = true;
 
 	DRM_DEBUG_KMS("[%s]-[%d] exit\n", __func__, __LINE__);
 }
@@ -297,6 +302,10 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 static void meson_panel_encoder_atomic_disable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
+	struct meson_panel *panel = encoder_to_meson_panel(encoder);
+
+	panel->panel_ready = false;
+
 	DRM_DEBUG_KMS("[%s]-[%d] called\n", __func__, __LINE__);
 }
 
@@ -406,6 +415,22 @@ static const struct drm_encoder_helper_funcs meson_panel_encoder_helper_funcs = 
 static const struct drm_encoder_funcs meson_panel_encoder_funcs = {
 	.destroy        = drm_encoder_cleanup,
 };
+
+static void meson_lcd_creat_ready_property(struct drm_device *drm_dev,
+						  struct meson_panel *panel)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"ready", -1, INT_MAX);//
+
+	if (prop) {
+		panel->panel_ready_prop = prop;
+		drm_object_attach_property(&panel->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to panel ready property\n");
+	}
+}
 
 int meson_panel_dev_bind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf)
@@ -523,7 +548,7 @@ int meson_panel_dev_bind(struct drm_device *drm,
 			__func__, __LINE__);
 		goto free_resource;
 	}
-
+	meson_lcd_creat_ready_property(drm, panel_instance);
 	/*prop for userspace to acquire prop*/
 	type_prop = drm_property_create_range(drm, DRM_MODE_PROP_IMMUTABLE,
 		MESON_CONNECTOR_TYPE_PROP_NAME, 0, INT_MAX);
