@@ -7177,13 +7177,14 @@ static u32 p3_white_point[2] = {
 };
 
 void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
-			 struct hdr10_parameter *p_hdr10_param)
+		struct hdr10_parameter *p_hdr10_param, enum input_mode_enum input_mode)
 {
 	struct vframe_content_light_level_s *p_cll =
 		&p_mdc->content_light_level;
 	u8 flag = 0;
 	u32 max_lum = 1000 * 10000;
 	u32 min_lum = 50;
+	u32 luminance[2] = {0};
 	int primaries_type = 0;
 
 	if (get_primary_policy() == PRIMARIES_NATIVE ||
@@ -7222,15 +7223,18 @@ void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
 		return;
 	}
 
+	luminance[0] = input_mode == IN_MODE_HDMI ?
+		p_mdc->luminance[0] * 10000 : p_mdc->luminance[0];
+	luminance[1] = p_mdc->luminance[1];
 	primaries_type = get_primaries_type(p_mdc);
 	if (primaries_type == 2) {
 		/* GBR -> RGB as DV will swap back to GBR
 		 * in send_hdmi_pkt
 		 */
 		if (p_hdr10_param->max_display_mastering_lum !=
-		    p_mdc->luminance[0] ||
+		    luminance[0] ||
 		    p_hdr10_param->min_display_mastering_lum !=
-		    p_mdc->luminance[1] ||
+		    luminance[1] ||
 		    p_hdr10_param->r_x != p_mdc->primaries[2][0] ||
 		    p_hdr10_param->r_y != p_mdc->primaries[2][1] ||
 		    p_hdr10_param->g_x != p_mdc->primaries[0][0] ||
@@ -7241,14 +7245,13 @@ void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
 		    p_hdr10_param->w_y != p_mdc->white_point[1]) {
 			flag |= 1;
 			p_hdr10_param->max_display_mastering_lum =
-				p_mdc->luminance[0];
-			if (p_mdc->luminance[0] == 0) {
+				luminance[0];
+			if (luminance[0] == 0) {
 				if ((debug_dolby & 1))
 					pr_info("invalid max, use default\n");
 				p_hdr10_param->max_display_mastering_lum = max_lum;
 			}
-			p_hdr10_param->min_display_mastering_lum =
-				p_mdc->luminance[1];
+			p_hdr10_param->min_display_mastering_lum = luminance[1];
 			p_hdr10_param->r_x = p_mdc->primaries[2][0];
 			p_hdr10_param->r_y = p_mdc->primaries[2][1];
 			p_hdr10_param->g_x = p_mdc->primaries[0][0];
@@ -7263,9 +7266,9 @@ void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
 		 * in send_hdmi_pkt
 		 */
 		if (p_hdr10_param->max_display_mastering_lum !=
-		    p_mdc->luminance[0] ||
+		    luminance[0] ||
 		    p_hdr10_param->min_display_mastering_lum !=
-		    p_mdc->luminance[1] ||
+		    luminance[1] ||
 		    p_hdr10_param->r_x != p_mdc->primaries[0][0] ||
 		    p_hdr10_param->r_y != p_mdc->primaries[0][1] ||
 		    p_hdr10_param->g_x != p_mdc->primaries[1][0] ||
@@ -7276,14 +7279,13 @@ void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
 		    p_hdr10_param->w_y != p_mdc->white_point[1]) {
 			flag |= 1;
 			p_hdr10_param->max_display_mastering_lum =
-				p_mdc->luminance[0];
-			if (p_mdc->luminance[0] == 0) {
+				luminance[0];
+			if (luminance[0] == 0) {
 				if ((debug_dolby & 1))
 					pr_info("invalid max, use default\n");
 				p_hdr10_param->max_display_mastering_lum = max_lum;
 			}
-			p_hdr10_param->min_display_mastering_lum =
-				p_mdc->luminance[1];
+			p_hdr10_param->min_display_mastering_lum = luminance[1];
 			p_hdr10_param->r_x = p_mdc->primaries[0][0];
 			p_hdr10_param->r_y = p_mdc->primaries[0][1];
 			p_hdr10_param->g_x = p_mdc->primaries[1][0];
@@ -7304,15 +7306,15 @@ void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
 			p_mdc->primaries[2][1] == 0 &&
 			p_mdc->white_point[0] == 0 &&
 			p_mdc->white_point[1] == 0 &&
-			p_mdc->luminance[0] == 0 &&
-			p_mdc->luminance[1] == 0 &&
+			luminance[0] == 0 &&
+			luminance[1] == 0 &&
 			p_cll->max_pic_average == 0 &&
 			p_cll->max_content == 0) {/*stb, passthrough zero drms*/
 			flag |= 1;
 			p_hdr10_param->max_display_mastering_lum =
-				p_mdc->luminance[0];
+				luminance[0];
 			p_hdr10_param->min_display_mastering_lum =
-				p_mdc->luminance[1];
+				luminance[1];
 			p_hdr10_param->r_x = p_mdc->primaries[0][0];
 			p_hdr10_param->r_y = p_mdc->primaries[0][1];
 			p_hdr10_param->g_x = p_mdc->primaries[1][0];
@@ -8748,9 +8750,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 			if (is_hdr10_frame(vf) || force_hdmin_fmt == 1) {
 				src_format = FORMAT_HDR10;
 				/* prepare parameter from hdmi for hdr10 */
-				p_mdc->luminance[0] *= 10000;
-				prepare_hdr10_param
-					(p_mdc, &hdr10_param);
+				prepare_hdr10_param(p_mdc, &hdr10_param, input_mode);
 				req.dv_enhance_exist = 0;
 				src_bdp = 12;
 			}
@@ -8962,7 +8962,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 			src_format = FORMAT_HDR10;
 			/* prepare parameter from SEI for hdr10 */
 			p_mdc =	&vf->prop.master_display_colour;
-			prepare_hdr10_param(p_mdc, &hdr10_param);
+			prepare_hdr10_param(p_mdc, &hdr10_param, input_mode);
 			/* for 962x with v1.4 or stb with v2.3 may use 12 bit */
 			src_bdp = 10;
 			req.dv_enhance_exist = 0;
@@ -9153,6 +9153,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 			req.low_latency = vf->src_fmt.low_latency;
 			req.is_dv_unique_drm = vf->src_fmt.is_dv_unique_drm;
 		}
+		input_mode = IN_MODE_HDMI;
 
 		if (req.low_latency == 1) {
 			src_format = FORMAT_HDR10;
@@ -9162,7 +9163,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 			}
 			p_mdc = &vf->prop.master_display_colour;
 
-			prepare_hdr10_param(p_mdc, &hdr10_param);
+			prepare_hdr10_param(p_mdc, &hdr10_param, input_mode);
 			src_bdp = 10;
 			req.aux_size = 0;
 			req.aux_buf = NULL;
@@ -9173,7 +9174,6 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 				       req.aux_buf, req.aux_size);
 			}
 			src_format = FORMAT_DOVI;
-			input_mode = IN_MODE_HDMI;
 			src_bdp = 12;
 			meta_flag_bl = 0;
 			el_flag = 0;
@@ -9198,9 +9198,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 			if (is_hdr10_frame(vf) || force_hdmin_fmt == 1) {
 				src_format = FORMAT_HDR10;
 				p_mdc =	&vf->prop.master_display_colour;
-				if (p_mdc->present_flag)
-					p_mdc->luminance[0] *= 10000;
-				prepare_hdr10_param(p_mdc, &hdr10_param);
+				prepare_hdr10_param(p_mdc, &hdr10_param, input_mode);
 			}
 
 			if (is_hlg_frame(vf) || force_hdmin_fmt == 2)
@@ -10612,7 +10610,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			src_format = FORMAT_HDR10;
 			/* prepare parameter from SEI for hdr10 */
 			p_mdc = &vf->prop.master_display_colour;
-			prepare_hdr10_param(p_mdc, &dv_inst[dv_id].hdr10_param);
+			prepare_hdr10_param(p_mdc, &dv_inst[dv_id].hdr10_param, input_mode);
 
 			/* for 962x with v1.4 or stb with v2.3 may use 12 bit */
 			src_bdp = 10;
@@ -10780,6 +10778,8 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		else
 			hdmi_in_allm = false;
 
+		input_mode = IN_MODE_HDMI;
+
 		if (vf->src_fmt.sei_magic_code != HDMI_SEI_MAGIC_CODE) {
 			req.vf = vf;
 			req.bot_flag = 0;
@@ -10944,14 +10944,13 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 					vf->signal_type |= 0x00091000;
 				}
 				p_mdc = &vf->prop.master_display_colour;
-				prepare_hdr10_param(p_mdc, &dv_inst[dv_id].hdr10_param);
+				prepare_hdr10_param(p_mdc, &dv_inst[dv_id].hdr10_param, input_mode);
 
 				src_bdp = 10;
 				req.aux_size = 0;
 				req.aux_buf = NULL;
 			} else {
 				src_format = FORMAT_DOVI_LL;
-				input_mode = IN_MODE_HDMI;
 				src_bdp = 12;
 				req.aux_size = 0;
 				req.aux_buf = NULL;
@@ -10963,7 +10962,6 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 				       req.aux_buf, req.aux_size);
 			}
 			src_format = FORMAT_DOVI;
-			input_mode = IN_MODE_HDMI;
 			src_bdp = 12;
 			meta_flag_bl = 0;
 			el_flag = 0;
@@ -10988,7 +10986,6 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 
 			if (dv_unique_drm) {
 				src_format = FORMAT_DOVI_LL;
-				input_mode = IN_MODE_HDMI;
 				src_bdp = 8;
 				req.aux_size = 0;
 				req.aux_buf = NULL;
@@ -10996,9 +10993,8 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 				if (is_hdr10_frame(vf) || force_hdmin_fmt == 1) {
 					src_format = FORMAT_HDR10;
 					p_mdc = &vf->prop.master_display_colour;
-					if (p_mdc->present_flag)
-						p_mdc->luminance[0] *= 10000;
-					prepare_hdr10_param(p_mdc, &dv_inst[dv_id].hdr10_param);
+					prepare_hdr10_param(p_mdc, &dv_inst[dv_id].hdr10_param,
+										input_mode);
 				}
 
 				if (is_hlg_frame(vf) || force_hdmin_fmt == 2)
@@ -11007,7 +11003,6 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 				if (is_hdr10plus_frame(vf))
 					src_format = FORMAT_HDR10PLUS;
 
-				input_mode = IN_MODE_HDMI;
 				src_bdp = 10;
 			}
 		}

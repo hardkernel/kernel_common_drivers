@@ -1547,9 +1547,7 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 			if (is_hdr10_frame(vf) || force_hdmin_fmt == 1) {
 				src_format = FORMAT_HDR10;
 				/* prepare parameter from hdmi for hdr10 */
-				p_mdc->luminance[0] *= 10000;
-				prepare_hdr10_param
-					(p_mdc, &v_inst_info->hdr10_param);
+				prepare_hdr10_param(p_mdc, &v_inst_info->hdr10_param, input_mode);
 				req.dv_enhance_exist = 0;
 				src_bdp = 10;
 			}
@@ -1722,7 +1720,7 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 			src_format = FORMAT_HDR10;
 			/* prepare parameter from SEI for hdr10 */
 			p_mdc =	&vf->prop.master_display_colour;
-			prepare_hdr10_param(p_mdc, &v_inst_info->hdr10_param);
+			prepare_hdr10_param(p_mdc, &v_inst_info->hdr10_param, input_mode);
 			/* for 962x with v1.4 or stb with v2.3 may use 12 bit */
 			src_bdp = 10;
 			req.dv_enhance_exist = 0;
@@ -2328,9 +2326,7 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 			if (is_hdr10_frame(vf) || force_hdmin_fmt == 1) {
 				src_format = FORMAT_HDR10;
 				/* prepare parameter from hdmi for hdr10 */
-				p_mdc->luminance[0] *= 10000;
-				prepare_hdr10_param
-					(p_mdc, &v_inst_info->hdr10_param);
+				prepare_hdr10_param(p_mdc, &v_inst_info->hdr10_param, input_mode);
 				req.dv_enhance_exist = 0;
 				src_bdp = 10;
 			}
@@ -2522,7 +2518,7 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 			src_format = FORMAT_HDR10;
 			/* prepare parameter from SEI for hdr10 */
 			p_mdc =	&vf->prop.master_display_colour;
-			prepare_hdr10_param(p_mdc, &v_inst_info->hdr10_param);
+			prepare_hdr10_param(p_mdc, &v_inst_info->hdr10_param, input_mode);
 			/* for 962x with v1.4 or stb with v2.3 may use 12 bit */
 			src_bdp = 10;
 			req.dv_enhance_exist = 0;

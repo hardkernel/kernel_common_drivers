@@ -1413,7 +1413,7 @@ bool dump_enable_f(int inst_id);
 bool check_atsc_dvb(char *p);
 void amdvdolby_vision_vf_add(struct vframe_s *vf, struct vframe_s *el_vf);
 void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
-			 struct hdr10_parameter *p_hdr10_param);
+			 struct hdr10_parameter *p_hdr10_param, enum input_mode_enum input_mode);
 bool is_hlg_frame(struct vframe_s *vf);
 bool is_hdr10_frame(struct vframe_s *vf);
 bool is_mvc_frame(struct vframe_s *vf);
