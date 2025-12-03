@@ -350,7 +350,8 @@ struct rx_var_param {
 	int fpll_ready_cnt;
 	int frl_lock_det_cnt;
 	//bool clk_debug_en;
-	int hpd_wait_cnt;
+	u32 hpd_low_cnt;
+	u32 hpd_high_cnt;
 	/* increase time of hpd low, to avoid some source like */
 	/* MTK box/KaiboerH9 i2c communicate error */
 	int sig_unstable_cnt;
@@ -1057,7 +1058,6 @@ struct rx_s {
 	int aud_sr_stable_cnt;
 	int aud_sr_unstable_cnt;
 	u32 last_sw_vic;
-	u32 plugin_gap;
 	bool min_time_en;
 	bool min_time_detect_done;
 	unsigned long stable_timestamp;

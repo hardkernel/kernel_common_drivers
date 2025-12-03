@@ -231,6 +231,11 @@ struct hdmirx_scdc_info {
 	unsigned int val;
 };
 
+enum hdmirx_suspend_type_e {
+	SLEEP_MODE = 0,
+	SCREEN_MODE = 1
+};
+
 #define HDMI_IOC_MAGIC 'H'
 #define HDMI_IOC_HDCP_ON	_IO(HDMI_IOC_MAGIC, 0x01)
 #define HDMI_IOC_HDCP_OFF	_IO(HDMI_IOC_MAGIC, 0x02)
@@ -261,6 +266,7 @@ struct hdmirx_scdc_info {
 #define HDMI_IOC_SET_DUMP_PARAMS	_IO(HDMI_IOC_MAGIC, 0x1a)
 #define HDMI_IOC_AUDIO_DATA_DUMP	_IO(HDMI_IOC_MAGIC, 0x1b)
 #define HDMI_IOC_GET_FR_LIMIT	_IOR(HDMI_IOC_MAGIC, 0x1c, unsigned char)
+#define HDMI_IOC_SET_SUSPEND_TYPE	_IOW(HDMI_IOC_MAGIC, 0x1d, enum hdmirx_suspend_type_e)
 
 void rx_set_dsc_hdmi_cntl(unsigned int val);
 

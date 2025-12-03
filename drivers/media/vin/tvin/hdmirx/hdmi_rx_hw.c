@@ -3324,39 +3324,49 @@ void scdc_dwork_handler(struct work_struct *work)
 
 int rx_set_port_hpd(u8 port_id, bool val)
 {
+	u8 i = 0;
+
 	if (port_id < rx_info.port_num) {
 		if (val != hdmirx_rd_bits_top_common(TOP_HPD_PWR5V, _BIT(port_id)))
-			rx_pr("%s, port:%d, val:%d\n", __func__, port_id, val);
-	} else if (port_id == ALL_PORTS) {
-		if (val != hdmirx_rd_bits_top_common(TOP_HPD_PWR5V, MSK(4, 0)))
-			rx_pr("%s, port:%d, val:%d\n", __func__, port_id, val);
-	} else {
+			rx_pr("rx_set_port_hpd, port:%d, val:%d\n", port_id, val);
+		else
+			return -1;
+	} else if (port_id != ALL_PORTS) {
 		return -1;
 	}
 	if (port_id < rx_info.port_num) {
 		if (val) {
 			hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, _BIT(port_id), 1);
-			rx_i2c_edid_cfg_with_port(0xf, true);
+			rx_i2c_edid_cfg_with_port(port_id, true);
 			rx_set_term_value(port_id, 1);
+			rx[port_id].var.hpd_low_cnt = 0;
 		} else {
 			rx_i2c_edid_cfg_with_port(port_id, false);
 			hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, _BIT(port_id), 0);
 			rx_set_term_value(port_id, 0);
+			rx[port_id].var.hpd_high_cnt = 0;
 		}
 	} else if (port_id == ALL_PORTS) {
-		if (val) {
-			rx_i2c_edid_cfg_with_port(0xf, true);
-			hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, MSK(4, 0), 0xF);
-			rx_set_term_value(port_id, 1);
-		} else {
-			hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, MSK(4, 0), 0x0);
-			rx_set_term_value(port_id, 0);
+		for (i = 0; i < rx_info.port_num && i < E_PORT_NUM; i++) {
+			if (val != hdmirx_rd_bits_top_common(TOP_HPD_PWR5V, _BIT(i)))
+				rx_pr("rx_set_port_hpd, ALL_PORTS port:%d, val:%d\n", i, val);
+			else
+				continue;
+			if (val) {
+				rx_i2c_edid_cfg_with_port(i, true);
+				hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, _BIT(i), 1);
+				rx_set_term_value(i, 1);
+				rx[i].var.hpd_low_cnt = 0;
+			} else {
+				hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, _BIT(i), 0);
+				rx_set_term_value(i, 0);
+				rx[i].var.hpd_high_cnt = 0;
+			}
 		}
 	} else {
 		return -1;
 	}
-	if (log_level & EDID_LOG)
-		rx_pr("%s, port:%d, val:%d\n", __func__, port_id, val);
+
 	return 0;
 }
 

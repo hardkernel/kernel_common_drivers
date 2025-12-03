@@ -163,6 +163,7 @@ static unsigned char *hdmirx_log_buf;
 static unsigned int  hdmirx_log_wr_pos;
 static unsigned int  hdmirx_log_rd_pos;
 static unsigned int  hdmirx_log_buf_size;
+static enum hdmirx_suspend_type_e rx_suspend_type;
 unsigned int pwr_sts;
 struct tvin_latency_s latency_info;
 struct tasklet_struct rx_tasklet;
@@ -2648,6 +2649,20 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 		}
 		mutex_unlock(&devp->rx_lock);
 		break;
+	case HDMI_IOC_SET_SUSPEND_TYPE:
+		if (!argp)
+			return -EINVAL;
+		enum hdmirx_suspend_type_e suspend_type;
+
+		mutex_lock(&devp->rx_lock);
+		if (copy_from_user(&suspend_type, argp, sizeof(enum hdmirx_suspend_type_e))) {
+			ret = -EFAULT;
+			mutex_unlock(&devp->rx_lock);
+			break;
+		}
+		rx_suspend_type = suspend_type;
+		mutex_unlock(&devp->rx_lock);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -3715,7 +3730,7 @@ static void rx_phy_resume(void)
 		aml_phy_init_no_delay(E_PORT2);
 		aml_phy_init_no_delay(E_PORT3);
 	}
-	pre_port = 0xff;
+	//pre_port = 0xff;
 	rx_info.boot_flag = true;
 	//hdmirx_top_irq_en(1, 2);
 }
@@ -4078,6 +4093,10 @@ static void hdmirx_early_suspend(struct early_suspend *h)
 
 	if (early_suspend_flag)
 		return;
+	if (rx_suspend_type == SCREEN_MODE) {
+		rx_pr("hdmirx_early_suspend SCREEN_MODE\n");
+		return;
+	}
 	early_suspend_flag = true;
 	rx_del_timer(rx_info.hdmirx_dev);
 	rx_irq_en(0, E_PORT0);
@@ -4100,7 +4119,7 @@ static void hdmirx_early_suspend(struct early_suspend *h)
 	msleep(20);
 	rx_phy_suspend();
 	rx_dig_clk_en(0);
-	rx_pr("%s- ok\n", __func__);
+	rx_pr("hdmirx_early_suspend - ok\n");
 }
 
 static void hdmirx_late_resume(struct early_suspend *h)
@@ -4109,6 +4128,11 @@ static void hdmirx_late_resume(struct early_suspend *h)
 
 	if (!early_suspend_flag)
 		return;
+	if (rx_suspend_type == SCREEN_MODE) {
+		rx_pr("hdmirx_late_resume SCREEN_MODE\n");
+		rx_suspend_type = SLEEP_MODE;
+		return;
+	}
 	early_suspend_flag = false;
 	if (rx_get_dig_clk_en_sts())
 		return;
@@ -4116,11 +4140,22 @@ static void hdmirx_late_resume(struct early_suspend *h)
 	rx_phy_resume();
 	if (rx_info.chip_id >= CHIP_ID_T3X)
 		sm_pause = 0;
-	for (i = 0; i < rx_info.port_num; i++)
-		rx[i].fsm_ext_state = FSM_HPD_LOW;
+	for (i = 0; i < rx_info.port_num; i++) {
+		if (rx_get_cur_hpd_sts(i)) {
+			rx[i].fsm_ext_state = FSM_HPD_LOW;
+			if (rx_info.chip_id < CHIP_ID_T3X)
+				port_hpd_rst_flag |= (1 << i);
+		} else {
+			if (rx_info.chip_id >= CHIP_ID_T3X)
+				rx_set_cur_hpd(1, 6, i);
+			else
+				port_hpd_rst_flag |= (1 << i);
+			rx[i].fsm_ext_state = FSM_HPD_HIGH;
+		}
+	}
 	rx_add_timer(rx_info.hdmirx_dev);
 	rx_emp_hw_enable(true);
-	rx_pr("%s- ok\n", __func__);
+	rx_pr("hdmirx_late_resume - ok\n");
 };
 
 static struct early_suspend hdmirx_early_suspend_handler = {
@@ -5071,6 +5106,10 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	struct hdmirx_dev_s *hdevp;
 	int i = 0;
 
+	if (rx_suspend_type == SCREEN_MODE) {
+		rx_pr("hdmirx_suspend SCREEN_MODE\n");
+		return 0;
+	}
 	hdevp = platform_get_drvdata(pdev);
 	rx_del_timer(hdevp);
 	rx_info.suspend_flag = true;
@@ -5120,6 +5159,11 @@ static int hdmirx_resume(struct platform_device *pdev)
 	struct hdmirx_dev_s *hdevp;
 	int i;
 
+	if (rx_suspend_type == SCREEN_MODE) {
+		rx_pr("hdmirx_resume SCREEN_MODE\n");
+		rx_suspend_type = SLEEP_MODE;
+		return 0;
+	}
 	hdevp = platform_get_drvdata(pdev);
 	rx_emp_hw_enable(true);
 	rx_dig_clk_en(1);
@@ -5132,10 +5176,17 @@ static int hdmirx_resume(struct platform_device *pdev)
 	/* enable hdcp access on ddc */
 	rx_hdcp_access_on_ddc_en(true);
 	for (i = 0; i < rx_info.port_num; i++) {
-		if (rx_info.chip_id >= CHIP_ID_T3X && rx_get_cur_hpd_sts(i))
-			rx[i].fsm_ext_state = FSM_HPD_HIGH;
-		else
+		if (rx_get_cur_hpd_sts(i)) {
 			rx[i].fsm_ext_state = FSM_HPD_LOW;
+			if (rx_info.chip_id < CHIP_ID_T3X)
+				port_hpd_rst_flag |= (1 << i);
+		} else {
+			if (rx_info.chip_id >= CHIP_ID_T3X)
+				rx_set_cur_hpd(1, 6, i);
+			else
+				port_hpd_rst_flag |= (1 << i);
+			rx[i].fsm_ext_state = FSM_HPD_HIGH;
+		}
 	}
 	rx_add_timer(hdevp);
 	rx_pr("hdmirx pm: resume\n");

@@ -2870,7 +2870,8 @@ static void signal_status_init(u8 port)
 {
 	rx[port].no_signal = false;
 	rx[port].wait_no_sig_cnt = 0;
-	rx[port].var.hpd_wait_cnt = 0;
+	rx[port].var.hpd_low_cnt = 0;
+	rx[port].var.hpd_high_cnt = 0;
 	rx[port].var.pll_unlock_cnt = 0;
 	rx[port].var.pll_lock_cnt = 0;
 	rx[port].var.sig_unstable_cnt = 0;
@@ -3030,7 +3031,7 @@ bool rx_hpd_keep_low(u8 port)
 	int hpd_wait = 0;
 
 	hpd_wait = rx_get_hpd_wait(port);
-	if (rx[port].var.hpd_wait_cnt <= hpd_wait)
+	if (rx[port].var.hpd_low_cnt <= hpd_wait)
 		ret = true;
 	if (is_earc_hpd_low() && rx_info.main_port == rx_info.arc_port)
 		ret = true;
@@ -4370,7 +4371,8 @@ void hdmirx_open_main_port(u8 port)
 		force_clk_rate &= ~(_BIT(4));
 	if (rx_special_func_en(port)) {
 		rx[port].state = FSM_HPD_HIGH;
-	} else if (rx[port].plugin_gap < rx_plugin_protect_cnt) {
+	} else if (rx[port].var.hpd_high_cnt > 0 &&
+		rx[port].var.hpd_high_cnt < rx_plugin_protect_cnt) {
 		rx[port].state = FSM_HPD_HIGH;
 	} else if (pre_port != rx_info.main_port ||
 		(rx_get_cur_hpd_sts(rx_info.main_port) == 0)) {
@@ -4594,9 +4596,6 @@ void rx_5v_monitor(void)
 	if (tmp_5v != pwr_sts)
 		check_cnt++;
 
-	for (i = 0; i < rx_info.port_num; i++)
-		if (rx[i].plugin_gap)
-			rx[i].plugin_gap++;
 	if (check_cnt >= pow5v_max_cnt) {
 		check_cnt = 0;
 		rx_power_consumption_cntl(tmp_5v);
@@ -4633,7 +4632,6 @@ void rx_5v_monitor(void)
 				if (rx[i].cur_5v_sts == 0) {
 					set_fsm_state(FSM_5V_LOST, i);
 					rx[i].pre_5v_sts = 0;
-					rx[i].plugin_gap = 0;
 					rx[i].tx_type = DEV_UNKNOWN;
 					rx[i].hdcp.hdcp_pre_ver = HDCP_VER_NONE;
 					rx_clr_edid_type(i);
@@ -4643,8 +4641,6 @@ void rx_5v_monitor(void)
 					if (rx_info.pre_load.cfg &&
 						i == rx_info.pre_load.cur_load_port)
 						rx_info.pre_load.cur_load_port = 0xff;
-				} else {
-					rx[i].plugin_gap = 1;
 				}
 			}
 			if (hdmirx_repeat_support()) {
@@ -4850,7 +4846,7 @@ void rx_main_state_machine(void)
 	case FSM_HPD_HIGH:
 		if (rx[port].cur_5v_sts == 0)
 			break;
-		rx[port].var.hpd_wait_cnt++;
+		//rx[port].var.hpd_low_cnt++;
 		if (rx_get_cur_hpd_sts(port) == 0) {
 			if (rx_hpd_keep_low(port))
 				break;
@@ -4858,7 +4854,7 @@ void rx_main_state_machine(void)
 		} else if (pre_port != port) {
 			hdmirx_hw_config(port);
 		}
-		rx[port].var.hpd_wait_cnt = 0;
+		//rx[port].var.hpd_low_cnt = 0;
 		rx[port].var.clk_unstable_cnt = 0;
 		rx[port].var.esd_phy_rst_cnt = 0;
 		rx[port].var.downstream_hpd_flag = 0;
@@ -5367,13 +5363,13 @@ void rx_port0_main_state_machine(void)
 	case FSM_HPD_HIGH:
 		if (rx[port].cur_5v_sts == 0)
 			break;
-		rx[port].var.hpd_wait_cnt++;
+		//rx[port].var.hpd_low_cnt++;
 		if (rx_get_cur_hpd_sts(port) == 0) {
 			if (rx_hpd_keep_low(port) && rx[port].pre_5v_sts)
 				break;
 			//hdmirx_hw_config(port);//todo
 		}
-		rx[port].var.hpd_wait_cnt = 0;
+		//rx[port].var.hpd_low_cnt = 0;
 		rx[port].var.clk_unstable_cnt = 0;
 		//rx[port].var.esd_phy_rst_cnt = 0;
 		rx[port].var.downstream_hpd_flag = 0;
@@ -5803,13 +5799,13 @@ void rx_port1_main_state_machine(void)
 	case FSM_HPD_HIGH:
 		if (rx[port].cur_5v_sts == 0)
 			break;
-		rx[port].var.hpd_wait_cnt++;
+		//rx[port].var.hpd_low_cnt++;
 		if (rx_get_cur_hpd_sts(port) == 0) {
 			if (rx_hpd_keep_low(port) && rx[port].pre_5v_sts)
 				break;
 			//hdmirx_hw_config(port);//todo
 		}
-		rx[port].var.hpd_wait_cnt = 0;
+		//rx[port].var.hpd_low_cnt = 0;
 		rx[port].pre_5v_sts = 1;
 		rx[port].var.clk_unstable_cnt = 0;
 		rx[port].var.downstream_hpd_flag = 0;
@@ -6246,13 +6242,13 @@ void rx_port2_main_state_machine(void)
 	case FSM_HPD_HIGH:
 		if (rx[port].cur_5v_sts == 0)
 			break;
-		rx[port].var.hpd_wait_cnt++;
+		//rx[port].var.hpd_low_cnt++;
 		if (rx_get_cur_hpd_sts(port) == 0) {
 			if (rx_hpd_keep_low(port) && rx[port].pre_5v_sts)
 				break;
 			//hdmirx_hw_config(port);
 		}
-		rx[port].var.hpd_wait_cnt = 0;
+		//rx[port].var.hpd_low_cnt = 0;
 		rx[port].var.clk_unstable_cnt = 0;
 		rx[port].var.downstream_hpd_flag = 0;
 		rx[port].var.edid_update_flag = 0;
@@ -6847,13 +6843,13 @@ void rx_port3_main_state_machine(void)
 	case FSM_HPD_HIGH:
 		if (rx[port].cur_5v_sts == 0)
 			break;
-		rx[port].var.hpd_wait_cnt++;
+		//rx[port].var.hpd_low_cnt++;
 		if (rx_get_cur_hpd_sts(port) == 0) {
 			if (rx_hpd_keep_low(port) && rx[port].pre_5v_sts)
 				break;
 			//hdmirx_hw_config(port);
 		}
-		rx[port].var.hpd_wait_cnt = 0;
+		//rx[port].var.hpd_low_cnt = 0;
 		rx[port].var.clk_unstable_cnt = 0;
 		rx[port].var.downstream_hpd_flag = 0;
 		rx[port].var.edid_update_flag = 0;
@@ -8403,29 +8399,29 @@ void frate_monitor1(void)
 
 void rx_hpd_monitor(void)
 {
-	static u8 hpd_wait_cnt[4];
 	u8 i;
 	int hpd_wait;
 
-	if (!hdmi_cec_en || hdmi_cec_en == 0xff)
-		return;
-
-	if (rx_info.chip_id >= CHIP_ID_T3X)
-		return;
-
-	if (rx_info.main_port_open)
-		port_hpd_rst_flag &= ~(1 << rx_info.main_port);
+	//if (!hdmi_cec_en || hdmi_cec_en == 0xff)
+	//	return;
 
 	for (i = E_PORT0; i < rx_info.port_num; i++) {
+		if (!rx_get_cur_hpd_sts(i))
+			rx[i].var.hpd_low_cnt++;
+		else
+			rx[i].var.hpd_high_cnt++;
+		if (rx_info.chip_id >= CHIP_ID_T3X)
+			continue;
+		if (rx_info.main_port_open && i == rx_info.main_port) {
+			port_hpd_rst_flag &= ~(1 << rx_info.main_port);
+			continue;
+		}
 		hpd_wait = rx_get_hpd_wait(i);
 		if ((port_hpd_rst_flag & _BIT(i)) && rx[i].cur_5v_sts) {
-			if (hpd_wait_cnt[i]++ > hpd_wait) {
+			if (rx[i].var.hpd_low_cnt > hpd_wait) {
 				rx_set_port_hpd(i, 1);
-				hpd_wait_cnt[i] = 0;
 				port_hpd_rst_flag &= 0xff & (~_BIT(i));
 			}
-		} else {
-			hpd_wait_cnt[i] = 0;
 		}
 	}
 }
