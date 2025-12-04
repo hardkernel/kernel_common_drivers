@@ -7,7 +7,7 @@
 
 #include <linux/arm-smccc.h>
 
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
+#if IS_REACHABLE(CONFIG_AMLOGIC_DEBUG)
 #undef arm_smccc_smc
 #undef arm_smccc_smc_quirk
 

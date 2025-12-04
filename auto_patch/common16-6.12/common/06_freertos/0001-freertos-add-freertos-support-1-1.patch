@@ -1,4 +1,4 @@
-From 865919e6e6271b76f381d8dd216af3abc4afa253 Mon Sep 17 00:00:00 2001
+From 35ce0b1b91753edc9d327085058427ba436204d2 Mon Sep 17 00:00:00 2001
 From: "wanwei.jiang" <wanwei.jiang@amlogic.com>
 Date: Mon, 28 Feb 2022 09:54:55 +0800
 Subject: [PATCH] freertos: add freertos support [1/1]
@@ -143,7 +143,7 @@ index 15ad0056aa903..157d3317a5e5a 100644
  		/*
  		 * NOTE: in some cases this _won't_ be NMI context. See the
 diff --git a/drivers/irqchip/irq-gic-common.c b/drivers/irqchip/irq-gic-common.c
-index c776f9142610e..b2efcc23269dc 100644
+index c776f9142610e..49d9ba429ecd5 100644
 --- a/drivers/irqchip/irq-gic-common.c
 +++ b/drivers/irqchip/irq-gic-common.c
 @@ -11,6 +11,10 @@
@@ -188,7 +188,7 @@ index c776f9142610e..b2efcc23269dc 100644
 +	for (i = 32; i < gic_irqs; i += 4) {
 +		tmp = readl_relaxed(base + GIC_DIST_PRI + i);
 +		tmp = freertos_get_irqregval
-+			(GICD_INT_DEF_PRI_X4, tmp, i, 4);
++			(REPEAT_BYTE_U32(priority), tmp, i, 4);
 +		writel_relaxed(tmp, base + GIC_DIST_PRI + i);
 +	}
 +#else

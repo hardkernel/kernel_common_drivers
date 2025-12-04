@@ -131,7 +131,7 @@ static ssize_t free_reserved_store(const struct class *class,
 	bool free;
 	int ret;
 
-	ret = kstrtobool(buffer, &free);
+	ret = kstrtobool(buf, &free);
 	if (ret < 0 || !free) {
 		pr_err("Please enter y or Y or 1 to start freeing memory\n");
 		return count;
@@ -233,7 +233,6 @@ static int aml_free_probe(struct platform_device *pdev)
 
 	/* create class attributes */
 	jdev->cls.name = AML_FREE_NAME;
-	jdev->cls.owner = THIS_MODULE;
 	jdev->cls.class_groups = aml_free_groups;
 	ret = class_register(&jdev->cls);
 	if (ret) {

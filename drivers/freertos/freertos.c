@@ -34,6 +34,7 @@
 #include <linux/mm.h>
 #include <linux/sched/clock.h>
 #include <linux/cpu.h>
+#include <linux/vmalloc.h>
 
 #define AML_RTOS_NAME "freertos"
 
