@@ -96,6 +96,7 @@ u32 allm_func_en = 0xff;
 u32 qms_func_en = 0xff;
 u32 htotal_cnt;
 int htotal_threshold = 3;
+int pix_limit = 400;
 static int frate_flg = 0xf;
 static int frate_flg1 = 0xf;
 char fsm_pr_buff[E_PORT_NUM][100];
@@ -2791,10 +2792,15 @@ static int get_fmt_with_colordepth(u8 port, u8 colordepth)
 			continue;
 		if (rx[port].pre.colorspace != E_COLOR_YUV420 && freq_ref[i].cd420 == 3)
 			continue;
-		if (freq_ref[i].cd420 != 4 && rx[port].pre.htotal < 100)
+		if (freq_ref[i].cd420 != 4 && (rx[port].pre.htotal < 100 || rx[port].dsc_flag))
 			continue;
-		if (freq_ref[i].cd420 == 4 && rx[port].pre.htotal > 960)
+		if (freq_ref[i].cd420 == 4 && rx[port].pre.htotal > 960 && !rx[port].dsc_flag)
 			continue;
+		if (rx_info.chip_id == CHIP_ID_T6X) {
+			if (rx[port].clk.pixel_clk >= pix_limit * MHz &&
+				rx[port].pre.colorspace == E_COLOR_YUV420)
+				continue;
+		}
 		//if (freq_ref[i].type_3d != rx[port].vs_info_details._3d_structure)
 			//continue;
 		break;
@@ -3393,6 +3399,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(force_dsc_4ppc, i++);
 	pr_var(htotal_threshold, i++);
 	pr_var(fpll_stable_max, i++);
+	pr_var(pix_limit, i++);
 	pr_var(rx[E_PORT0].var.clk_stable_cnt, i++);
 	pr_var(rx[E_PORT1].var.clk_stable_cnt, i++);
 	pr_var(rx[E_PORT2].var.clk_stable_cnt, i++);
@@ -3902,6 +3909,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(fpll_stable_max),
 		&fpll_stable_max, value))
 		return pr_var(fpll_stable_max, index);
+	if (set_pr_var(tmpbuf, var_to_str(pix_limit),
+		&pix_limit, value))
+		return pr_var(pix_limit, index);
 	//fsm var
 	if (set_pr_var(tmpbuf, var_to_str(rx[E_PORT0].var.dbg_ve),
 		&rx[E_PORT0].var.dbg_ve, value))
@@ -6295,6 +6305,8 @@ void rx_port2_main_state_machine(void)
 		rx[port].state =  FSM_SIG_UNSTABLE;
 		htotal_cnt = 0;
 		clr_frl_fifo_status(port);
+		rx_switch_to_self_hsync(port, false);
+		rx_clr_f_det(true, port);
 		break;
 	case FSM_WAIT_CLK_STABLE:
 		if (rx[port].cur_5v_sts == 0)
@@ -6366,6 +6378,7 @@ void rx_port2_main_state_machine(void)
 			if (++rx[port].var.pll_lock_cnt < pll_lock_max)
 				break;
 			rx_cor_reset(port);
+			rx_clr_f_det(false, port);
 			hdmirx_output_en(1);
 			//rx_irq_en(true, port);
 			//hdmirx_top_irq_en(1, 1, port);
@@ -6395,8 +6408,6 @@ void rx_port2_main_state_machine(void)
 		rx[port].var.sig_stable_err_cnt = 0;
 		rx[port].var.clk_chg_cnt = 0;
 		rx[port].var.check_dsc_de_cnt = 0;
-		rx_switch_to_self_hsync(port, false);
-		rx_clr_f_det(true, port);
 		if (rx_info.chip_id == CHIP_ID_T3X) {
 			rx[port].state = FSM_SIG_HOLD;
 		} else {
@@ -6422,7 +6433,8 @@ void rx_port2_main_state_machine(void)
 			rx[port].state = FSM_WAIT_CLK_STABLE;
 			break;
 		}
-		rx_clr_f_det(false, port);
+		if (rx_info.chip_id == CHIP_ID_T3X)
+			rx_clr_f_det(false, port);
 		memcpy(&rx[port].pre, &rx[port].cur, sizeof(struct rx_video_info));
 		rx_get_video_info(port);
 		if (rx_is_timing_stable(port)) {
@@ -6893,6 +6905,8 @@ void rx_port3_main_state_machine(void)
 		rx[port].state = FSM_SIG_UNSTABLE;
 		htotal_cnt = 0;
 		clr_frl_fifo_status(port);
+		rx_switch_to_self_hsync(port, false);
+		rx_clr_f_det(true, port);
 		break;
 	case FSM_WAIT_CLK_STABLE:
 		if (rx[port].cur_5v_sts == 0)
@@ -6963,6 +6977,7 @@ void rx_port3_main_state_machine(void)
 			if (++rx[port].var.pll_lock_cnt < pll_lock_max)
 				break;
 			rx_cor_reset(port);
+			rx_clr_f_det(false, port);
 			hdmirx_output_en(1);
 			rx[port].dsc_flag = false;
 			rx[port].state = FSM_SIG_WAIT_STABLE;
@@ -6990,8 +7005,6 @@ void rx_port3_main_state_machine(void)
 		rx[port].var.sig_stable_err_cnt = 0;
 		rx[port].var.clk_chg_cnt = 0;
 		rx[port].var.check_dsc_de_cnt = 0;
-		rx_switch_to_self_hsync(port, false);
-		rx_clr_f_det(true, port);
 		if (rx_info.chip_id == CHIP_ID_T3X) {
 			rx[port].state = FSM_SIG_HOLD;
 		} else {
@@ -7017,7 +7030,8 @@ void rx_port3_main_state_machine(void)
 			rx[port].state = FSM_WAIT_CLK_STABLE;
 			break;
 		}
-		rx_clr_f_det(false, port);
+		if (rx_info.chip_id == CHIP_ID_T3X)
+			rx_clr_f_det(false, port);
 		memcpy(&rx[port].pre, &rx[port].cur, sizeof(struct rx_video_info));
 		rx_get_video_info(port);
 		if (rx_is_timing_stable(port)) {

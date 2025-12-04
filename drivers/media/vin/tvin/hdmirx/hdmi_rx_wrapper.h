@@ -69,6 +69,7 @@
 /* 2025.11.19 add hpd protect */
 /* 2025.11.20 fix issue that hdcp reauth too slow */
 /* 2025.12.02 optimise log & fastswitch */
+/* 2025.12.17 modify frl signal flow */
 /* 2025.12.24 update phy 12G settings and init flow */
 /* 2025.12.26 fix training err*/
 #define RX_WRAPPER_VER "ver.2025/12/26"
