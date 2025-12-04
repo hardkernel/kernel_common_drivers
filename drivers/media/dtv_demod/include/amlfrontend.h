@@ -226,6 +226,7 @@
 /*  V4.1.001 add time consuming trace */
 /*  V4.1.002 fix dvbc_auto_qam_process variable type error */
 /*  V4.1.003 fix dvb-t/t2 ber */
+/*  V4.1.004 fix dtmb ddr access after unlock signal(T5M) */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -242,8 +243,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V4.1.003"
-#define DTVDEMOD_VER	"2025/11/28 fix dvb-t/t2 ber"
+#define AMLDTVDEMOD_VER "V4.1.004"
+#define DTVDEMOD_VER	"2025/12/04 fix dtmb ddr access after unlock signal(T5M)"
 #define AMLDTVDEMOD_T2_FW_VER "v1059.20250521"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

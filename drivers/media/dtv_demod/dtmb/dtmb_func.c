@@ -379,8 +379,8 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	union DTMB_TOP_CTRL_SW_RST_BITS sw_rst;
-	unsigned int value_before;
-	int fec_bch_add, i, strength;
+	unsigned int value_before = 0;
+	int fec_bch_add = 0, last_fec_bch_add = 0, i = 0, strength = 0;
 	char *info1 = "fec lock,but bch add,need reset,wait not to reset";
 	char *info2 = "fec lock,but bch add,need reset,now is lock";
 	int strength_limit = THRD_TUNER_STRENGTH_DTMB;
@@ -388,13 +388,27 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 	if (tuner_find_by_name(fe, "atbm253"))
 		strength_limit = THRD_TUNER_STRENGTH_DTMB + 5;
 
+	strength = tuner_get_ch_power(fe);
 	fec_bch_add = dtmb_reg_r_bch();
-	/*PR_DTMB("[debug]fec lock,fec_bch_add is %d\n", fec_bch_add);*/
-	msleep(100);
-	if ((dtmb_reg_r_bch() - fec_bch_add) >= 50) {
+	last_fec_bch_add = fec_bch_add;
+
+	while ((fec_bch_add - last_fec_bch_add) < 50 && i < 20) {
+		last_fec_bch_add = fec_bch_add;
+
+		usleep_range(500, 600);//msleep(10);
+
+		fec_bch_add = dtmb_reg_r_bch();
+		++i;
+	}
+
+	PR_DTMB("i %d fec_bch_add %d last_fec_bch_add %d strength %d\n",
+			i, fec_bch_add, last_fec_bch_add, strength);
+
+	if ((fec_bch_add - last_fec_bch_add) >= 50) {
 		PR_DTMB("%s\n", info1);
 
-		if (demod_chip_eq(DTVDEMOD_HW_T3)) {
+		if (demod_chip_eq(DTVDEMOD_HW_T3) ||
+			demod_chip_eq(DTVDEMOD_HW_T5M)) {
 			value_before = dtmb_read_reg(0x7);
 			PR_INFO("dtmb set ddr\n");
 			dtmb_write_reg(0x7, 0x6ffffd);
@@ -409,7 +423,8 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 		sw_rst.b.ctrl_sw_rst_noreg = 1;
 		dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
 
-		if (demod_chip_eq(DTVDEMOD_HW_T3)) {
+		if (demod_chip_eq(DTVDEMOD_HW_T3) ||
+			demod_chip_eq(DTVDEMOD_HW_T5M)) {
 			clear_ddr_bus_data(demod);
 			dtmb_write_reg(0x7, value_before);
 			dtmb_write_reg_bits(0x47, 0x0, 22, 1);
@@ -421,7 +436,7 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 		dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
 
 		for (i = 0; i < 60; i++) {
-			PR_DTMB("fsm state:0x%x\n", dtmb_read_reg(0xd4));
+			PR_DTMB("fsm:0x%x\n", dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0));
 			msleep(50);
 			if (check_dtmb_fec_lock() == 1) {
 				PR_DTMB("%s\n", info2);
@@ -445,20 +460,28 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 void dtmb_bch_check_new(struct dvb_frontend *fe, bool reset)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
-	int fec_bch;
+	int fec_bch = 0, strength = 0;
 	static int last_fec_bch;
 	union DTMB_TOP_CTRL_SW_RST_BITS sw_rst;
-	unsigned int val;
+	unsigned int val = 0;
+	int strength_limit = THRD_TUNER_STRENGTH_DTMB;
+
+	if (tuner_find_by_name(fe, "atbm253"))
+		strength_limit = THRD_TUNER_STRENGTH_DTMB + 5;
 
 	if (reset) {
 		last_fec_bch = -1;
 		return;
 	}
 
+	strength = tuner_get_ch_power(fe);
 	fec_bch = dtmb_reg_r_bch();
-	if (last_fec_bch != -1 && (fec_bch - last_fec_bch) > 50) {
+	PR_DTMB("fec_bch %d, last_fec_bch %d strength %d\n",
+			fec_bch, last_fec_bch, strength);
+	if ((last_fec_bch != -1 && (fec_bch - last_fec_bch) > 50)) {
 		PR_DTMB("fec lock, but bch add, need reset\n");
-		if (demod_chip_eq(DTVDEMOD_HW_T3)) {
+		if (demod_chip_eq(DTVDEMOD_HW_T3) ||
+			demod_chip_eq(DTVDEMOD_HW_T5M)) {
 			val = dtmb_read_reg(0x7);
 			PR_INFO("dtmb set ddr\n");
 			dtmb_write_reg(0x7, 0x6ffffd);
@@ -472,7 +495,8 @@ void dtmb_bch_check_new(struct dvb_frontend *fe, bool reset)
 		sw_rst.b.ctrl_sw_rst_noreg = 1;
 		dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
 
-		if (demod_chip_eq(DTVDEMOD_HW_T3)) {
+		if (demod_chip_eq(DTVDEMOD_HW_T3) ||
+			demod_chip_eq(DTVDEMOD_HW_T5M)) {
 			clear_ddr_bus_data(demod);
 			dtmb_write_reg(0x7, val);
 			dtmb_write_reg_bits(0x47, 0x0, 22, 1);

@@ -305,7 +305,8 @@ int gxtv_demod_dtmb_read_status_old(struct dvb_frontend *fe,
 	}
 
 	demod->real_para.snr = dtmb_convert_snr(dtmb_reg_r_che_snr()) * 10;
-	PR_DTMB("snr %d dBx10.\n", demod->real_para.snr);
+	PR_DTMB("snr %d dBx10, fsm 0x%x\n",
+			demod->real_para.snr, dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0));
 
 	s = amdemod_stat_dtmb_islock(demod, SYS_DTMB);
 

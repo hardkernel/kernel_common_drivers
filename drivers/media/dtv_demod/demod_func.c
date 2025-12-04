@@ -2379,6 +2379,10 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 			front_write_bits(AFIFO_ADC, 1, ADC_2S_COMPLEMENT_BIT,
 					 ADC_2S_COMPLEMENT_WID);
 
+			// burst(N * 64byte) to single(64byte)
+			if (demod_chip_eq(DTVDEMOD_HW_T5M))
+				front_write_bits(TEST_BUS, 1, 27, 1);
+
 			/* T5M and after is set at tune. */
 			if (!demod_chip_after_eq(DTVDEMOD_HW_T5M))
 				front_write_bits(TEST_BUS, 1, DC_ARB_EN_BIT, DC_ARB_EN_WID);

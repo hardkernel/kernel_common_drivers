@@ -1707,6 +1707,8 @@ static ssize_t attr_store(const struct class *cls, const struct class_attribute 
 		val = write_riscv_ram();
 		PR_INFO("download t2 fw:%d\n", val);
 #endif
+	} else if (!strcmp(parm[0], "clear_ddr_bus")) {
+		clear_ddr_bus_data(demod);
 	}
 	DEMOD_COMMON_ATTR_DEFINE()
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_ISDBT
