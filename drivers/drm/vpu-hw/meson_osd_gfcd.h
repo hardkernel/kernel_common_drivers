@@ -74,6 +74,9 @@
 #define GFCD_FRM_SIZE_S1                           0x59c9
 #define GFCD_MIF_HEAD_CTRL0_S1                     0x5973
 #define GFCD_MIF_BODY_CTRL_S1                      0x5977
+#define GFCD_RO_SOLID_G0_S1                        0x59cc
+#define GFCD_RO_SOLID_G1_S1                        0x59cd
+#define GFCD_RO_SOLID_G2_S1                        0x59ce
 
 struct gfcd_reg_s {
 	u32 gfcd_mif_mode_sel;
@@ -87,6 +90,7 @@ struct gfcd_reg_s {
 	u32 gfcd_frm_size;
 	u32 gfcd_mif_head_ctrl0;
 	u32 gfcd_mif_body_ctrl;
+	u32 gfcd_ro_solid_g0;
 };
 
 extern const struct meson_drm_format_info *

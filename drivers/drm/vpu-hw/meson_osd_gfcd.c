@@ -21,6 +21,7 @@ static struct gfcd_reg_s gfcd_reg[2] = {
 		GFCD_FRM_SIZE,
 		GFCD_MIF_HEAD_CTRL0,
 		GFCD_MIF_BODY_CTRL,
+		GFCD_RO_SOLID_G0,
 	},
 	{
 		GFCD_MIF_MODE_SEL_S1,
@@ -34,6 +35,7 @@ static struct gfcd_reg_s gfcd_reg[2] = {
 		GFCD_FRM_SIZE_S1,
 		GFCD_MIF_HEAD_CTRL0_S1,
 		GFCD_MIF_BODY_CTRL_S1,
+		GFCD_RO_SOLID_G0_S1,
 	},
 };
 
@@ -74,6 +76,7 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 	struct gfcd_reg_s *reg;
 	const struct meson_drm_format_info *info;
 	u64 header_addr;
+	u32 val;
 	bool reverse_x, reverse_y, is_afrc, alpha_div_en = 0, gfcd_en = 0;
 	u8 tile_mode, blk_mode = 0, alpha_replace = 0;
 	int i;
@@ -88,6 +91,14 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 		gfcd_en = (plane_info->process_unit == GFCD_AFBC ||
 			plane_info->process_unit == GFCD_AFRC);
 		if (plane_info->enable && gfcd_en) {
+			//check gfcd decoder status
+			val = meson_drm_read_reg(reg->gfcd_ro_solid_g0);
+			if (val & 0xf0000000) {
+				DRM_ERROR("gfbc error happened 0x%x osd%d\n", val,
+					plane_info->plane_index);
+				gfcd->gfbc_err_cnt++;
+			}
+
 			reverse_x = (plane_info->rotation & DRM_MODE_REFLECT_X) ? 1 : 0;
 			reverse_y = (plane_info->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0;
 
@@ -223,6 +234,7 @@ static void gfcd_dump_register(struct drm_printer *p,
 	for (i = 0; i < gfcd->num_surface; i++) {
 		reg = &gfcd->reg[i];
 		snprintf(buff, 8, "OSD%d", i + 1);
+		drm_printf(p, "gfbc error [%d]\n", gfcd->gfbc_err_cnt);
 		reg_addr = reg->gfcd_mif_mode_sel;
 		value = meson_drm_read_reg(reg_addr);
 		drm_printf(p, "%s_%-27s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
