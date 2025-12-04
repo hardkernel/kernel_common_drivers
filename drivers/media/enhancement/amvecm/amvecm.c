@@ -17470,6 +17470,8 @@ void hdr_path_switch_to_dpss(unsigned int val)
 
 		if (val == 3)
 			p->fst_frame = 1;
+		else
+			p->fst_frame = 0;
 		p->path_mux = PATH_DPSS;
 		if (p->pre_path_mux == PATH_DELINK)
 			p->pre_path_mux = PATH_DPSS;

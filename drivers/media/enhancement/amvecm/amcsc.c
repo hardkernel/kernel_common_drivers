@@ -11287,6 +11287,8 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 				set_video_mute(PATH_SW_MUTE_SET, false);
 				p->mute_cnt = 0;
 			}
+			if (p->fst_frame)
+				p->fst_frame = 0;
 		} else if (p->frm_src == VD1_FRM && nfs == DPSS_FRM &&
 			p->path_mux == PATH_DPSS && p->path_mux != p->pre_path_mux &&
 			p->delink_status == DELINK) {
@@ -11354,6 +11356,8 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 				set_video_mute(PATH_SW_MUTE_SET, false);
 				p->mute_cnt = 0;
 			}
+			if (p->fst_frame)
+				p->fst_frame = 0;
 			return;
 		}
 
