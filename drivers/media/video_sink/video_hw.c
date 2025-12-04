@@ -9301,10 +9301,21 @@ s32 config_vd_pps_internal(struct video_layer_s *layer,
 		setting->vsr.vsr_top.is_interlaced = cur_frame_par->is_interlaced;
 		/* todo for pc mode 444 other 422 */
 		if (layer->dispbuf) {
-			setting->vsr.vsr_top.input_422_en =
-				!((layer->dispbuf->type & VIDTYPE_RGB_444 ||
-				layer->dispbuf->type & VIDTYPE_VIU_444) &&
-				!(layer->dispbuf->type_ext & VIDTYPE_EXT_LUMA_ONLY));
+			if (cur_dev->display_module == T6W_DISPLAY_MODULE) {
+				setting->vsr.vsr_top.input_422_en = 1;
+				if (layer->dispbuf->type & VIDTYPE_RGB_444 ||
+				    layer->dispbuf->type & VIDTYPE_VIU_444) {
+					if ((layer->dispbuf->flag & VFRAME_FLAG_PC_MODE) ||
+					    (layer->dispbuf->type & VIDTYPE_PIC) ||
+					    (layer->dispbuf->type_ext & VIDTYPE_EXT_LUMA_ONLY))
+						setting->vsr.vsr_top.input_422_en = 0;
+				}
+			} else {
+				setting->vsr.vsr_top.input_422_en =
+					!((layer->dispbuf->type & VIDTYPE_RGB_444 ||
+					layer->dispbuf->type & VIDTYPE_VIU_444) &&
+					!(layer->dispbuf->type_ext & VIDTYPE_EXT_LUMA_ONLY));
+			}
 		}
 		/* safa scaler config */
 		/* vsr top disable must bypass pps */
@@ -13196,6 +13207,8 @@ static bool is_vframe_changed
 	    (new_vf->flag & VFRAME_FLAG_FIX_TUNNEL) ||
 	    (cur_vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) !=
 	    (new_vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) ||
+	    (cur_vf->flag & VFRAME_FLAG_PC_MODE) !=
+	    (new_vf->flag & VFRAME_FLAG_PC_MODE) ||
 	    (cur_vf->type_ext & VIDTYPE_EXT_HIGH_BANDWIDTH) !=
 	    (new_vf->type_ext & VIDTYPE_EXT_HIGH_BANDWIDTH) ||
 	    (cur_vf->type_ext & VIDTYPE_EXT_FRC_LINK) !=
