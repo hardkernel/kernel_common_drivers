@@ -165,8 +165,8 @@ static void dolby5_ahb_reg_config(u32 *reg_baddr,
 			if (reg_addr == 4)/*clear interrupt*/
 				reg_val = reg_val | 0x3e;
 			if (reg_addr == 5) {
-				if (py_off)/*enable hist int*/
-					reg_val = (reg_val & 0x20) | (1 << 5);
+				if (py_off)/*only enable L1L4 interrupt*/
+					reg_val = 1 << 5;
 			}
 			if (reg_addr == 1 || reg_addr == 2 || reg_addr == 3 ||
 				reg_addr == 4 || reg_val != p_last_val || reset) {
