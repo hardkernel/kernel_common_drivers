@@ -197,5 +197,5 @@ enum vpp_muxio_sel_e {
 void muxio_config(enum vpp_muxio_sel_e sel,
 	int rdma_mode, int vpp_index);
 unsigned int get_muxio_link_status(void);
-
+void clr_pre_muxio_val(void);
 #endif

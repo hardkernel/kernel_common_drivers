@@ -472,6 +472,12 @@ enum dl_st_e {
 	LINK_DPSS
 };
 
+enum frm_src_type_e {
+	SRC_NULL = 0,
+	SRC_HDR,
+	SRC_AMDV
+};
+
 struct hdr_path_mux_sel_s {
 	enum path_mux_e path_mux;
 	enum path_mux_e pre_path_mux;
@@ -483,6 +489,7 @@ struct hdr_path_mux_sel_s {
 	enum dh_proc_e dh_p;
 
 	unsigned int fst_frame;
+	enum frm_src_type_e pre_frm_type;
 };
 
 extern const char *pm_str[3];

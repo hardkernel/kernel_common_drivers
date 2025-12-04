@@ -4753,7 +4753,9 @@ unsigned int get_muxio_link_status(void)
 		reg_val[i] = pre_muxio_reg_val[i];
 	}
 
-	if (reg_val[0] == 0xfff && reg_val[1] == 0xffffff) {
+	if (((reg_val[0] & 0xff0) == 0xff0) || ((reg_val[1] & 0xfffff) == 0xfffff)) {
+		ret = 0;
+	} else if (((cur_reg_val[0] & 0xff0) == 0xff0) || ((cur_reg_val[1] & 0xfffff) == 0xfffff)) {
 		ret = 0;
 	} else {
 		pr_csc(128, "%s: 0x%x/0x%x/0x%x=0x%x/0x%x/0x%x\n",
@@ -4763,6 +4765,14 @@ unsigned int get_muxio_link_status(void)
 	}
 
 	return ret;
+}
+
+void clr_pre_muxio_val(void)
+{
+	int i;
+
+	for (i = 0; i < 3; i++)
+		pre_muxio_reg_val[i] = 0;
 }
 
 struct hdr_proc_lut_param_s hdr_lut_param;

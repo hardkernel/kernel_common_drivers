@@ -11194,6 +11194,7 @@ struct hdr_path_mux_sel_s h_p_s = {
 	.frm_src = NULL_FRM,
 	.dh_p = NO_PROC,
 	.fst_frame = 0,
+	.pre_frm_type = SRC_NULL,
 };
 
 const char *pm_str[3] = {
@@ -11234,6 +11235,7 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 		p->pre_path_mux = PATH_DELINK;
 		p->frm_src = NULL_FRM;
 		p->dh_p = NO_PROC;
+		p->pre_frm_type = SRC_NULL;
 
 		if (p->mute_cnt) {
 			set_video_mute(PATH_SW_MUTE_SET, false);
@@ -11271,6 +11273,13 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 	if (is_amdv_enable() && pvf && is_amdv_frame(pvf))
 		is_dd_frame = 1;
 #endif
+
+	if (is_dd_frame && p->pre_frm_type == SRC_HDR)
+		clr_pre_muxio_val();
+	if (is_dd_frame)
+		p->pre_frm_type = SRC_AMDV;
+	else
+		p->pre_frm_type = SRC_HDR;
 
 	pr_log(0x800, "%s:frm_src:%s,nfs;%s,pre_pm:%s,pm:%s,ndp:%s,dp_bps=%d,frm_idx=%d\n",
 			__func__, fs_str[p->frm_src], fs_str[nfs],
@@ -11433,6 +11442,7 @@ void update_link_state(struct vframe_s *vf,
 		p->frm_src = NULL_FRM;
 		p->dh_p = NO_PROC;
 		p->fst_frame = 0;
+		p->pre_frm_type = SRC_NULL;
 
 		if (p->mute_cnt) {
 			set_video_mute(PATH_SW_MUTE_SET, false);
