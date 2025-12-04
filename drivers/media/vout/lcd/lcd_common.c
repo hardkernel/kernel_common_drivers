@@ -66,7 +66,7 @@ void lcd_delay_us(int us)
 {
 	if (!us)
 		return;
-	else if (us < 20)
+	else if (us <= 20)
 		udelay(us);
 	else if (us < 1000)
 		usleep_range(us, us + 2);

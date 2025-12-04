@@ -72,7 +72,7 @@ struct vbyone_ctrl_regs_s *vx1_reg = &vbo_reg_t7;
 #define VX1_LOCKN_STABLE_CNT      100
 #define VX1_LOCKN_CONFIRM_DELAY   100 //us
 #define VX1_LOCKN_CONFIRM_CNT     5
-#define VX1_HPD_WAIT_TIMEOUT      10000  /* *50us */
+#define VX1_HPD_WAIT_TIMEOUT      500  /* 500*1ms=500ms */
 
 #define VX1_TRAINING_TIMEOUT      60  /* vsync cnt */
 #define VSYNC_CNT_VX1_RESET       5
@@ -759,14 +759,14 @@ void lcd_vbyone_wait_hpd(struct aml_lcd_drv_s *pdrv)
 	while (i++ < VX1_HPD_WAIT_TIMEOUT) {
 		if (lcd_vcbus_getb(vx1_reg->reg_status + offset, 6, 1) == 0)
 			break;
-		lcd_delay_us(50);
+		lcd_delay_us(1000);
 	}
 
 	val = lcd_vcbus_getb(vx1_reg->reg_status + offset, 6, 1);
 	if (val) {
 		LCD_PR(pdrv, "%s: hpd=%d", __func__, val);
 	} else {
-		LCD_PR(pdrv, "%s: hpd=%d, i=%d", __func__, val, i);
+		LCD_PR(pdrv, "%s: hpd=%d, wait time=%dms\n", pdrv->index, __func__, val, i);
 		/* force low only activated for actual hpd is low */
 		lcd_vcbus_setb(vx1_reg->reg_insig_ctrl + offset, 1, 2, 2);
 	}
@@ -803,10 +803,9 @@ static void lcd_vbyone_wait_lock(struct aml_lcd_drv_s *pdrv)
 		if (lock_ok) {
 			lock_ok = 0;
 			lock_cnt = 0;
-			usleep_range(VX1_LOCKN_CONFIRM_DELAY * lock_confirm_cnt,
-					VX1_LOCKN_CONFIRM_DELAY * lock_confirm_cnt + 10);
+			lcd_delay_us(VX1_LOCKN_CONFIRM_DELAY * lock_confirm_cnt);
 		} else {
-			usleep_range(VX1_LOCKN_INTERVAL, VX1_LOCKN_INTERVAL + 10);
+			lcd_delay_us(VX1_LOCKN_INTERVAL);
 		}
 		i--;
 	}
