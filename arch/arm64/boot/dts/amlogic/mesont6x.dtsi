@@ -4371,7 +4371,8 @@
 			input-enable;
 		};
 		mux {
-			groups = "nand_ale",
+			groups = "nand_ce0",
+				"nand_ale",
 				"nand_cle",
 				"nand_wen_clk",
 				"nand_ren_wr";
