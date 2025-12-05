@@ -330,6 +330,26 @@ err1:
 	return ret;
 }
 
+static void crg_host_exit(struct crg *crg)
+{
+	/* amlogic_crg_otg_work may call crg_exit (which calls crg_remove)
+	 * after crg_shutdown. It is err-prone to dereference crg->xhci member and
+	 * unregister crg->xhci. Set crg->xhci to NULL to avoid this.
+	 * Since the xhci plat dev has been removed by crg_shutdown, this function
+	 * should have been called. It is safe to return here.
+	 */
+	if (!crg->xhci) {
+		dev_warn(crg->dev,
+			"%s: crg->xhci already removed, exit...\n",
+			__func__);
+		return;
+	}
+
+	/*crg_reset_thread_stop(crg->xhci);*/
+	platform_device_unregister(crg->xhci);
+	crg->xhci = NULL;
+}
+
 static int crg_core_init_mode(struct crg *crg)
 {
 	struct device *dev = crg->dev;
@@ -462,7 +482,10 @@ void crg_shutdown(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 
+	crg_host_exit(crg);
 	crg_core_exit(crg);
+	if (crg->regs)
+		iounmap(crg->regs);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
