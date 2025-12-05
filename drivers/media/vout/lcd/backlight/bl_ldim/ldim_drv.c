@@ -314,16 +314,16 @@ static int ldim_set_level(unsigned int level)
 
 	level = ldim_level_curve_mapping(&ldim_driver, level);
 
-	if (strcmp(dev_drv->name, "blmcu") == 0) {
-		level = (level >> 4) & 0xff;
-		dev_drv->mcu_dim = (dev_drv->mcu_dim & 0xffffff00) | (level & 0xff);
-	} else {
-		level &= 0xfff;
-		ldim_driver.litgain = (unsigned int)level;
-		if (ldim_driver.fw && ldim_driver.fw->param)
-			ldim_driver.fw->param->litgain = ldim_driver.litgain;
-		ldim_driver.level_update = 1;
-	}
+	//if (strcmp(dev_drv->name, "blmcu") == 0) {
+	//	level = (level >> 4) & 0xff;
+	//	dev_drv->mcu_dim = (dev_drv->mcu_dim & 0xffffff00) | (level & 0xff);
+	//} else {
+	level &= 0xfff;
+	ldim_driver.litgain = (unsigned int)level;
+	if (ldim_driver.fw && ldim_driver.fw->param)
+		ldim_driver.fw->param->litgain = ldim_driver.litgain;
+	ldim_driver.level_update = 1;
+	//}
 
 	return 0;
 }
