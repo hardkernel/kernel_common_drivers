@@ -16,6 +16,7 @@
 #define ALGORITHM_GZIP				4
 #define ALGORITHM_ZLIB				5
 #define ALGORITHM_DEFLATE			6
+#define ALGORITHM_DMA_COPY			15
 
 #define CMD_COMPRESS				1
 #define CMD_DECOMPRESS				0

@@ -45,6 +45,14 @@ config AMLOGIC_F2FS
 
 		If unsure, say N.
 
+config AMFC_DMA_TEST
+	bool "amfc dma test case for bandwidth"
+	depends on AMLOGIC_AMFC
+	default y
+	help
+		Provide an interface for bandwidth testing.
+		the test node: /sys/class/amfc/band_test
+
 source "$(COMMON_DRIVERS_DIR)/drivers/amfc/aml_erofs/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/amfc/aml_zram/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/amfc/sym_helper/Kconfig"
