@@ -18619,10 +18619,9 @@ static int _video_hw_init(void)
 			ofifo_size = 0x1000;
 		else
 			ofifo_size = vpp_ofifo_size;
-		if (cur_dev->display_module != T6W_DISPLAY_MODULE)
-			WRITE_VCBUS_REG_BITS
-				(VPP_OFIFO_SIZE, ofifo_size,
-				VPP_OFIFO_SIZE_BIT, VPP_OFIFO_SIZE_WID);
+		WRITE_VCBUS_REG_BITS
+			(VPP_OFIFO_SIZE, ofifo_size,
+			VPP_OFIFO_SIZE_BIT, VPP_OFIFO_SIZE_WID);
 		WRITE_VCBUS_REG_BITS
 			(VPP_MATRIX_CTRL, 0, 10, 5);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
@@ -19626,21 +19625,10 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 
 void video_resume_hw_recovery(bool restore_vpu_sec)
 {
-	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		_video_hw_init_s5();
-	} else {
-		u32 ofifo_size;
-
-		if (vpp_ofifo_size == 0xff)
-			ofifo_size = 0x1000;
-		else
-			ofifo_size = vpp_ofifo_size;
-		if (cur_dev->display_module != T6W_DISPLAY_MODULE)
-			WRITE_VCBUS_REG_BITS
-				(VPP_OFIFO_SIZE, ofifo_size,
-				VPP_OFIFO_SIZE_BIT, VPP_OFIFO_SIZE_WID);
+	else
 		_video_hw_init();
-	}
 	if (restore_vpu_sec)
 		vpp_probe_en_set(1);
 	vd_layer[0].property_changed = true;

@@ -282,7 +282,7 @@ enum {
 #define VPP_FORCE_FIELD_BOTTOM      BIT(16)
 #define VPP_FOURCE_GO_FIELD         BIT(15)
 #define VPP_FOURCE_GO_LINE          BIT(14)
-#define VPP_OFIFO_SIZE_WID          13
+#define VPP_OFIFO_SIZE_WID          14
 #define VPP_OFIFO_SIZE_MASK         0xfff
 #define VPP_OFIFO_SIZE_BIT          0
 
