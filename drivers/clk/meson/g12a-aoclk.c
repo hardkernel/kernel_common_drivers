@@ -102,7 +102,7 @@ static struct clk_regmap g12a_aoclk_32k_by_oscin_pre = {
 		.bit_idx = 31,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "g12a_ao_32k_by_oscin_pre",
+		.name = "g12a_ao_32k_pre",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&g12a_aoclk_cts_oscin.hw
@@ -141,7 +141,7 @@ static struct clk_regmap g12a_aoclk_32k_by_oscin_div = {
 		.table = g12a_32k_div_table,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "g12a_ao_32k_by_oscin_div",
+		.name = "g12a_ao_32k_div",
 		.ops = &meson_clk_dualdiv_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&g12a_aoclk_32k_by_oscin_pre.hw
@@ -158,7 +158,7 @@ static struct clk_regmap g12a_aoclk_32k_by_oscin_sel = {
 		.flags = CLK_MUX_ROUND_CLOSEST,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "g12a_ao_32k_by_oscin_sel",
+		.name = "g12a_ao_32k_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&g12a_aoclk_32k_by_oscin_div.hw,
@@ -175,7 +175,7 @@ static struct clk_regmap g12a_aoclk_32k_by_oscin = {
 		.bit_idx = 30,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "g12a_ao_32k_by_oscin",
+		.name = "g12a_ao_32k",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&g12a_aoclk_32k_by_oscin_sel.hw

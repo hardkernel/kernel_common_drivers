@@ -2815,7 +2815,7 @@ static struct clk_regmap g12a_ge2d_gate = {
 		.bit_idx = 30,
 	},
 	.hw.init = &(struct clk_init_data) {
-		.name = "vapb",
+		.name = "ge2d",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &g12a_vapb_sel.hw },
 		.num_parents = 1,
