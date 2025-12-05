@@ -31,7 +31,7 @@
 #else
 ulong canvas_get_addr(u32 index)
 {
-	pr_info("canvas not config\n");
+	pr_debug("canvas not config\n");
 	return -1;
 }
 #endif
@@ -119,7 +119,7 @@ static int vfm_map_remove_by_index(int index)
 		if (vfp && vfp->ops && vfp->ops->event_cb) {
 			vfp->ops->event_cb(VFRAME_EVENT_RECEIVER_FORCE_UNREG,
 				NULL, vfp->op_arg);
-			pr_err("%s: VFRAME_EVENT_RECEIVER_FORCE_UNREG %s\n",
+			pr_debug("%s: VFRAME_EVENT_RECEIVER_FORCE_UNREG %s\n",
 			       __func__, vfm_map[index]->name[i]);
 		}
 	}
@@ -254,7 +254,7 @@ retry:
 		spin_lock_irqsave(&lock, flags);
 		if (i == old_num && old_num != vfm_map_num && cnt--) {
 			spin_unlock_irqrestore(&lock, flags);
-			pr_err("%s: vfm_map changed on add, need retry!\n",
+			pr_warn("%s: vfm_map changed on add, need retry!\n",
 			       __func__);
 			goto retry;
 		}
@@ -343,7 +343,7 @@ static char *vf_get_receiver_name_inmap(int i, const char *provider_name)
 	for (j = 0; j < vfm_map[i]->vfm_map_size; j++) {
 		namelen = strlen(vfm_map[i]->name[j]);
 		if (vfm_debug_flag & 2) {
-			pr_err("%s:vfm_map:%s\n", __func__,
+			pr_debug("%s:vfm_map:%s\n", __func__,
 			       vfm_map[i]->name[j]);
 		}
 		if ((!strncmp(vfm_map[i]->name[j], provider_name, namelen)) &&
@@ -507,7 +507,7 @@ int dump_vfm_state(char *buf)
 	len += provider_list(buf + len);
 	len += receiver_list(buf + len);
 	if (print_flag)
-		pr_info("%s\n", local_dump_buf);
+		pr_debug("%s\n", local_dump_buf);
 	return len;
 }
 
@@ -557,15 +557,15 @@ void vfm_dump_one(const char *name)
 
 	pbuf = buf;
 
-	pr_info("\n --- dumping provider %s---\n", name);
+	pr_debug("\n --- dumping provider %s---\n", name);
 	if (!vfm_vf_get_states(prov, &states)) {
-		pr_info("vframe_pool_size=%d\n",
+		pr_debug("vframe_pool_size=%d\n",
 			states.vf_pool_size);
-		pr_info("vframe buf_free_num=%d\n",
+		pr_debug("vframe buf_free_num=%d\n",
 			states.buf_free_num);
-		pr_info("vframe buf_recycle_num=%d\n",
+		pr_debug("vframe buf_recycle_num=%d\n",
 			states.buf_recycle_num);
-		pr_info("vframe buf_avail_num=%d\n",
+		pr_debug("vframe buf_avail_num=%d\n",
 			states.buf_avail_num);
 
 		spin_lock_irqsave(&lock, flags);
@@ -606,7 +606,7 @@ void vfm_dump_one(const char *name)
 		}
 		spin_unlock_irqrestore(&lock, flags);
 
-		pr_info("%s\n", buf);
+		pr_debug("%s\n", buf);
 	}
 	vftrace_dump_trace_infos(prov->traceget);
 	vftrace_dump_trace_infos(prov->traceput);
@@ -638,7 +638,7 @@ static int dummy_receiver_event_fun(int type, void *data, void *arg)
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
 		char *provider_name = (char *)data;
 
-		pr_info("%s, provider %s unregistered\n",
+		pr_debug("%s, provider %s unregistered\n",
 			__func__, provider_name);
 	} else if (type ==
 		VFRAME_EVENT_PROVIDER_VFRAME_READY) {
@@ -656,7 +656,7 @@ static int dummy_receiver_event_fun(int type, void *data, void *arg)
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		char *provider_name = (char *)data;
 
-		pr_info("%s, provider %s registered\n",
+		pr_debug("%s, provider %s registered\n",
 			__func__, provider_name);
 	}
 	return 0;
@@ -670,7 +670,7 @@ static void add_dummy_receiver(char *vfm_name_)
 {
 	struct vframe_receiver_s *dummy_vf_recv =
 	 kmalloc(sizeof(struct vframe_receiver_s), GFP_KERNEL);
-	pr_info("%s(%s)\n", __func__, vfm_name_);
+	pr_debug("%s(%s)\n", __func__, vfm_name_);
 	if (dummy_vf_recv) {
 		char *vfm_name = kmalloc(16, GFP_KERNEL);
 
@@ -679,7 +679,7 @@ static void add_dummy_receiver(char *vfm_name_)
 				 &dummy_vf_receiver,
 				 dummy_vf_recv);
 		vf_reg_receiver(dummy_vf_recv);
-		pr_info("%s: %s\n", __func__, dummy_vf_recv->name);
+		pr_debug("%s: %s\n", __func__, dummy_vf_recv->name);
 	}
 }
 
@@ -705,7 +705,7 @@ static ssize_t map_store(const struct class *class,
 
 	if (vfm_debug_flag & 0x10000)
 		return count;
-	pr_err("%s:%s\n", __func__, buf);
+	pr_debug("%s:%s\n", __func__, buf);
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	ps = buf_orig;
 	while (1) {
