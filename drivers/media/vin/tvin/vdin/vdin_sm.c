@@ -698,7 +698,7 @@ void tvin_sig_chg_event_process(struct vdin_dev_s *devp, u32 chg)
 			devp->starting_chg = chg;
 			pr_info("starting_chg:0X%x\n", devp->starting_chg);
 		}
-		return;
+		//return;
 	}
 
 	if (devp->starting_chg) {
@@ -769,11 +769,13 @@ void tvin_sig_chg_event_process(struct vdin_dev_s *devp, u32 chg)
 	}
 
 	if (re_cfg) {
+		if (devp->flags & VDIN_FLAG_DEC_STARTED) {
+			devp->parm.info.status = TVIN_SIG_STATUS_UNSTABLE;
+			sm_dev[devp->index].state = TVIN_SM_STATUS_UNSTABLE;
+			devp->frame_drop_num = devp->dts_config.vdin_re_cfg_drop_cnt;
+		}
 		if (devp->debug.sm_debug_enable & VDIN_SM_LOG_L_1)
-			pr_info("vdin reconfig, set unstable\n");
-		devp->parm.info.status = TVIN_SIG_STATUS_UNSTABLE;
-		sm_dev[devp->index].state = TVIN_SM_STATUS_UNSTABLE;
-		devp->frame_drop_num = devp->dts_config.vdin_re_cfg_drop_cnt;
+			pr_info("vdin reconfig, flags = 0x%x\n", devp->flags);
 	}
 	devp->pre_event_info.event_sts = devp->event_info.event_sts;
 	vdin_send_event(devp, devp->event_info.event_sts);
