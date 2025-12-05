@@ -1213,6 +1213,7 @@ void hdmirx_get_aspect_ratio(struct tvin_sig_property_s *prop, u8 port)
 void hdmirx_set_timing_info(struct tvin_sig_property_s *prop, u8 port)
 {
 	enum tvin_sig_fmt_e sig_fmt;
+	u8 tmp_ve_flag = 0;
 
 	sig_fmt = hdmirx_hw_get_fmt(port);
 	/* in some PC case, 4096X2160 show in 3840X2160 monitor will */
@@ -1242,16 +1243,22 @@ void hdmirx_set_timing_info(struct tvin_sig_property_s *prop, u8 port)
 		    prop->fps > 49 &&
 		    (sig_fmt == TVIN_SIG_FMT_HDMI_4096_2160_00HZ ||
 		     sig_fmt == TVIN_SIG_FMT_HDMI_3840_2160_00HZ))
-			prop->ve = 1;
+			tmp_ve_flag = 1;
 	} else if (rx_info.chip_id >= CHIP_ID_TM2) {
 		/* workaround for 16bit4K flash line issue. */
 		if (rx[port].pre.colordepth == E_COLORDEPTH_16 &&
 		    (sig_fmt == TVIN_SIG_FMT_HDMI_4096_2160_00HZ ||
 		     sig_fmt == TVIN_SIG_FMT_HDMI_3840_2160_00HZ))
-			prop->ve = 1;
+			tmp_ve_flag = 1;
 	}
 	if (rx[port].dsc_flag && rx[port].cur.vfront < 4)
-		prop->ve = 1;
+		tmp_ve_flag = 1;
+
+	if (tmp_ve_flag)
+		prop->ve = tmp_ve_flag;
+	else
+		prop->ve = 0;
+
 	if (rx[port].var.dbg_ve)
 		prop->ve = rx[port].var.dbg_ve;
 	prop->polarity_vs = rx[port].cur.vsync_polarity;

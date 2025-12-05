@@ -3826,7 +3826,7 @@ static void vdin_set_crop(struct vdin_dev_s *devp, struct vf_entry *curr_wr_vfe)
 	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_CROP)
 		pr_info("vdin%d,func:%#x,prop[%d %d %d %d],mc:%#x,[%d %d %d %d],wxh[%d %d]\n",
 			devp->index, devp->vdin_function_sel,
-			devp->prop.hs, devp->prop.he, devp->prop.vs, devp->prop.he,
+			devp->prop.hs, devp->prop.he, devp->prop.vs, devp->prop.ve,
 			curr_wr_vfe->vf.src_crop.magic_code,
 			curr_wr_vfe->vf.src_crop.top, curr_wr_vfe->vf.src_crop.bottom,
 			curr_wr_vfe->vf.src_crop.left, curr_wr_vfe->vf.src_crop.right,
