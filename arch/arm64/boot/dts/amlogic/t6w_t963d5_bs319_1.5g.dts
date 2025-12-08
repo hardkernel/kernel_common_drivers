@@ -175,7 +175,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x19400000>;
+			size = <0x0 0x16800000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x30000000 0x0 0x30000000>;
 			linux,contiguous-region;
@@ -262,8 +262,9 @@
 		 * scatter_alloc_mode: the mode of scatter memory allocation
 		 * 0: default mode, alloc from system and cma
 		 * 1: only alloc from system
+		 * 2: only alloc from cma
 		 */
-		scatter_alloc_mode = <1>;
+		scatter_alloc_mode = <2>;
 	};
 
 	video_queue {
