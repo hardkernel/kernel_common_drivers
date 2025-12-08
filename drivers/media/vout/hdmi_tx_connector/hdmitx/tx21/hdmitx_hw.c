@@ -3209,6 +3209,38 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		hdev->tx_comm.bist_lock = 1;
 		/* for 480i/576i mode */
 		if (vinfo->viu_mux == VIU_MUX_ENCI) {
+			if (strncmp(tmpbuf + 4, "blank", 5) == 0) {
+				hd21_write_reg(ENCI_TST_MDSEL, 0);
+				hd21_write_reg(ENCI_TST_Y, 0x0);
+				hd21_write_reg(ENCI_TST_CB, 0x200);
+				hd21_write_reg(ENCI_TST_CR, 0x200);
+				hd21_write_reg(ENCI_TST_EN, 1);
+				return;
+			}
+			if (strncmp(tmpbuf + 4, "red", 3) == 0) {
+				hd21_write_reg(ENCI_TST_MDSEL, 0);
+				hd21_write_reg(ENCI_TST_Y, 0x200);
+				hd21_write_reg(ENCI_TST_CB, 0x0);
+				hd21_write_reg(ENCI_TST_CR, 0x3ff);
+				hd21_write_reg(ENCI_TST_EN, 1);
+				return;
+			}
+			if (strncmp(tmpbuf + 4, "green", 5) == 0) {
+				hd21_write_reg(ENCI_TST_MDSEL, 0);
+				hd21_write_reg(ENCI_TST_Y, 0x200);
+				hd21_write_reg(ENCI_TST_CB, 0x0);
+				hd21_write_reg(ENCI_TST_CR, 0x0);
+				hd21_write_reg(ENCI_TST_EN, 1);
+				return;
+			}
+			if (strncmp(tmpbuf + 4, "blue", 4) == 0) {
+				hd21_write_reg(ENCI_TST_MDSEL, 0);
+				hd21_write_reg(ENCI_TST_Y, 0x200);
+				hd21_write_reg(ENCI_TST_CB, 0x3ff);
+				hd21_write_reg(ENCI_TST_CR, 0x0);
+				hd21_write_reg(ENCI_TST_EN, 1);
+				return;
+			}
 			/* nearly DE_BEGIN */
 			hd21_write_reg(ENCI_TST_CLRBAR_STRT, 0x112);
 			/* 1440 / 8 = 0xb4 */
@@ -3260,6 +3292,42 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hd21_write_reg(VENC_VIDEO_TST_CLRBAR_STRT, 0x113);
 			hd21_write_reg(VENC_VIDEO_TST_MDSEL, 1);
 			hd21_write_reg(VENC_VIDEO_TST_CLRBAR_WIDTH, value / 8);
+			return;
+		}
+		if (strncmp(tmpbuf + 4, "blank", 5) == 0) {
+			hd21_write_reg(VENC_VIDEO_TST_MDSEL, 0);
+			hd21_write_reg(VENC_VIDEO_TST_Y, 0x0);
+			hd21_write_reg(VENC_VIDEO_TST_CB, 0x200);
+			hd21_write_reg(VENC_VIDEO_TST_CR, 0x200);
+			hd21_write_reg(VENC_VIDEO_TST_EN, 1);
+			hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+			return;
+		}
+		if (strncmp(tmpbuf + 4, "red", 3) == 0) {
+			hd21_write_reg(VENC_VIDEO_TST_MDSEL, 0);
+			hd21_write_reg(VENC_VIDEO_TST_Y, 0x200);
+			hd21_write_reg(VENC_VIDEO_TST_CB, 0x0);
+			hd21_write_reg(VENC_VIDEO_TST_CR, 0x3ff);
+			hd21_write_reg(VENC_VIDEO_TST_EN, 1);
+			hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+			return;
+		}
+		if (strncmp(tmpbuf + 4, "green", 5) == 0) {
+			hd21_write_reg(VENC_VIDEO_TST_MDSEL, 0);
+			hd21_write_reg(VENC_VIDEO_TST_Y, 0x200);
+			hd21_write_reg(VENC_VIDEO_TST_CB, 0x0);
+			hd21_write_reg(VENC_VIDEO_TST_CR, 0x0);
+			hd21_write_reg(VENC_VIDEO_TST_EN, 1);
+			hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+			return;
+		}
+		if (strncmp(tmpbuf + 4, "blue", 4) == 0) {
+			hd21_write_reg(VENC_VIDEO_TST_MDSEL, 0);
+			hd21_write_reg(VENC_VIDEO_TST_Y, 0x200);
+			hd21_write_reg(VENC_VIDEO_TST_CB, 0x3ff);
+			hd21_write_reg(VENC_VIDEO_TST_CR, 0x0);
+			hd21_write_reg(VENC_VIDEO_TST_EN, 1);
+			hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
 			return;
 		}
 		if ((strncmp(tmpbuf + 4, "X", 1) == 0) || (strncmp(tmpbuf + 4, "x", 1) == 0)) {

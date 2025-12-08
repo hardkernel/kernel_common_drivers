@@ -3497,6 +3497,42 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hd_write_reg(P_VENC_VIDEO_TST_VDCNT_STSET, value);
 			return;
 		}
+		if (strncmp(tmpbuf + 4, "blank", 5) == 0) {
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 0);
+			hd_write_reg(P_VENC_VIDEO_TST_Y, 0x0);
+			hd_write_reg(P_VENC_VIDEO_TST_CB, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_CR, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 1);
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+			return;
+		}
+		if (strncmp(tmpbuf + 4, "red", 3) == 0) {
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 0);
+			hd_write_reg(P_VENC_VIDEO_TST_Y, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_CB, 0x0);
+			hd_write_reg(P_VENC_VIDEO_TST_CR, 0x3ff);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 1);
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+			return;
+		}
+		if (strncmp(tmpbuf + 4, "green", 5) == 0) {
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 0);
+			hd_write_reg(P_VENC_VIDEO_TST_Y, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_CB, 0x0);
+			hd_write_reg(P_VENC_VIDEO_TST_CR, 0x0);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 1);
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+			return;
+		}
+		if (strncmp(tmpbuf + 4, "blue", 4) == 0) {
+			hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 0);
+			hd_write_reg(P_VENC_VIDEO_TST_Y, 0x200);
+			hd_write_reg(P_VENC_VIDEO_TST_CB, 0x3ff);
+			hd_write_reg(P_VENC_VIDEO_TST_CR, 0x0);
+			hd_write_reg(P_VENC_VIDEO_TST_EN, 1);
+			hd_set_reg_bits(P_ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+			return;
+		}
 		hd_write_reg(P_VENC_VIDEO_TST_MDSEL, 1);
 		value = 1920;
 		ret = kstrtoul(tmpbuf + 4, 10, &value);
