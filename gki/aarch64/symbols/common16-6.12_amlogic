@@ -92,3 +92,6 @@
 
 # amlogic-spi.ko
  spi_delay_exec
+
+#amlogic-pm.ko
+ pm_suspend_target_state

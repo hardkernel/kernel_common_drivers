@@ -383,7 +383,6 @@ static unsigned long __invoke_psci_fn_smc(unsigned long function_id,
 
 static void __iomem *debug_reg;
 static void __iomem *exit_reg;
-static suspend_state_t pm_state;
 static unsigned int resume_reason;
 static unsigned int suspend_reason;
 static unsigned int clear_suspend_reason;
@@ -457,7 +456,7 @@ static struct notifier_block clr_suspend_notifier = {
 
 unsigned int is_pm_s2idle_mode(void)
 {
-	if (pm_state == PM_SUSPEND_TO_IDLE)
+	if (pm_suspend_target_state == PM_SUSPEND_TO_IDLE)
 		return 1;
 	else
 		return 0;
