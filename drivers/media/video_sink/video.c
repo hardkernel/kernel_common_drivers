@@ -5505,13 +5505,14 @@ void vsync_fisr_in(void)
 static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 {
+	check_video_mute();
 	vsync_isr_cpuid = smp_processor_id();
 	if (video_suspend && video_suspend_cycle >= 1) {
 		if (log_out)
 			if (debug_flag & DEBUG_FLAG_BASIC_INFO)
 				pr_info("video suspend, vsync exit\n");
 		log_out = 0;
-		check_video_mute();
+		//check_video_mute();
 		return IRQ_HANDLED;
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
@@ -8549,9 +8550,9 @@ static ssize_t video_mute_store(const struct class *cla,
 		return -EINVAL;
 
 	if (val)
-		ret = set_video_mute_info(USER_MUTE_SET, true);
+		ret = set_video_mute_info(USER_MUTE_SET, true, false);
 	else
-		ret = set_video_mute_info(USER_MUTE_SET, false);
+		ret = set_video_mute_info(USER_MUTE_SET, false, false);
 	if (ret == 0) {
 		if (val == 0)
 			pr_info("VIDEO UNMUTE by %s ret = %d\n", current->comm, ret);

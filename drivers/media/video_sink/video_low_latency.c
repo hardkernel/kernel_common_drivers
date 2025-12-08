@@ -1767,10 +1767,10 @@ static int lowlatency_vsync(u8 instance_id)
 	}
 #endif
 exit:
-	vd_clip_setting(VPP0, 0, &vd_layer[0].clip_setting);
-	vd_clip_setting(VPP0, 1, &vd_layer[1].clip_setting);
+	vd_clip_setting(VPP0, 0, &vd_layer[0].clip_setting, false);
+	vd_clip_setting(VPP0, 1, &vd_layer[1].clip_setting, false);
 	if (cur_dev->max_vd_layers == 3)
-		vd_clip_setting(VPP0, 2, &vd_layer[2].clip_setting);
+		vd_clip_setting(VPP0, 2, &vd_layer[2].clip_setting, false);
 
 	vpp_blend_update(vinfo, VPP0);
 

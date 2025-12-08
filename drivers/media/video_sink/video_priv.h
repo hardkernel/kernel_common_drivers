@@ -1089,7 +1089,8 @@ void vd_scaler_setting(struct video_layer_s *layer,
 void vd_blend_setting(struct video_layer_s *layer,
 		      struct blend_setting_s *setting);
 void vd_clip_setting(u8 vpp_index, u8 layer_id,
-		     struct clip_setting_s *setting);
+		     struct clip_setting_s *setting,
+		     bool use_vcbus);
 void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
 				 struct vpp_frame_par_s *frame_par,
 				 struct vframe_s *vf);

@@ -101,6 +101,7 @@ static u32 bypass_cm;
 bool hscaler_8tap_enable[MAX_VD_LAYER];
 struct pre_scaler_info pre_scaler[MAX_VD_LAYER];
 static bool video_mute_array[MAX_VIDEO_MUTE_OWNER];
+static bool video_mute_vcbus[MAX_VIDEO_MUTE_OWNER];
 
 static DEFINE_SPINLOCK(video_onoff_lock);
 static DEFINE_SPINLOCK(video2_onoff_lock);
@@ -592,6 +593,7 @@ static const enum f2v_vphase_type_e vpp_phase_table[4][3] = {
 static const u8 skip_tab[6] = { 0x24, 0x04, 0x68, 0x48, 0x28, 0x08 };
 
 bool video_mute_on;
+bool video_mute_on_vcbus;
 /* 0: mute off, 1: mute on */
 static int video_mute_status;
 static bool output_mute_on;
@@ -4158,7 +4160,7 @@ static void disable_vd2_blend(struct video_layer_s *layer)
 	layer->new_vframe_count = 0;
 }
 
-static void vdx_clip_setting(u8 layer_id, struct clip_setting_s *setting)
+static void vdx_clip_setting(u8 layer_id, struct clip_setting_s *setting, bool use_vcbus)
 {
 	u32 misc_off;
 	u8 vpp_index = 0;
@@ -4172,6 +4174,12 @@ static void vdx_clip_setting(u8 layer_id, struct clip_setting_s *setting)
 	switch (layer_id) {
 	case 0:
 		misc_off = setting->misc_reg_offt;
+		if (use_vcbus) {
+			WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0 + misc_off,
+					setting->clip_max);
+			WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1 + misc_off,
+					setting->clip_min);
+		}
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(VPP_VD1_CLIP_MISC0 + misc_off,
 			setting->clip_max);
@@ -4181,6 +4189,12 @@ static void vdx_clip_setting(u8 layer_id, struct clip_setting_s *setting)
 		break;
 	case 1:
 		misc_off = setting->misc_reg_offt;
+		if (use_vcbus) {
+			WRITE_VCBUS_REG(VPP_VD2_CLIP_MISC0 + misc_off,
+					setting->clip_max);
+			WRITE_VCBUS_REG(VPP_VD2_CLIP_MISC1 + misc_off,
+					setting->clip_min);
+		}
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(VPP_VD2_CLIP_MISC0 + misc_off,
 			setting->clip_max);
@@ -4190,6 +4204,12 @@ static void vdx_clip_setting(u8 layer_id, struct clip_setting_s *setting)
 		break;
 	case 2:
 		misc_off = setting->misc_reg_offt;
+		if (use_vcbus) {
+			WRITE_VCBUS_REG(VPP_VD3_CLIP_MISC0 + misc_off,
+					setting->clip_max);
+			WRITE_VCBUS_REG(VPP_VD3_CLIP_MISC1 + misc_off,
+					setting->clip_min);
+		}
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(VPP_VD3_CLIP_MISC0 + misc_off,
 			setting->clip_max);
@@ -5426,11 +5446,11 @@ void vd_scaler_setting(struct video_layer_s *layer,
 }
 
 void vd_clip_setting(u8 vpp_index, u8 layer_id,
-	struct clip_setting_s *setting)
+	struct clip_setting_s *setting, bool use_vcbus)
 {
 	if (setting->clip_done)
 		return;
-	vdx_clip_setting(layer_id, setting);
+	vdx_clip_setting(layer_id, setting, use_vcbus);
 	setting->clip_done = true;
 }
 
@@ -5503,11 +5523,19 @@ void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
 /*********************************************************
  * Vpp APIs
  *********************************************************/
+/* set mute registers via rdma on next vsync */
 void set_video_mute(u32 owner, bool on)
 {
-	set_video_mute_info(owner, on);
+	set_video_mute_info(owner, on, false);
 }
 EXPORT_SYMBOL(set_video_mute);
+
+/* set mute registers via vcbus and rdma on next vsync */
+void (set_video_mute_vcbus)(u32 owner, bool on)
+{
+	set_video_mute_info(owner, on, true);
+}
+EXPORT_SYMBOL(set_video_mute_vcbus);
 
 bool get_video_mute_val(u32 owner)
 {
@@ -5590,7 +5618,7 @@ static inline bool is_tv_panel(void)
 	return tv_panel;
 }
 
-static inline void mute_video(void)
+static inline void mute_video(bool use_vcbus)
 {
 	u32 black_val;
 	u8 vpp_index = VPP0;
@@ -5598,6 +5626,10 @@ static inline void mute_video(void)
 	/*black_val = (0x0 << 20) | (0x0 << 10) | 0;*/ /* RGB */
 	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
 
+	if (use_vcbus) {
+		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, black_val);
+		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, black_val);
+	}
 	cur_dev->rdma_func[vpp_index].rdma_wr
 		(VPP_VD1_CLIP_MISC0,
 		black_val);
@@ -5621,17 +5653,20 @@ static inline void unmute_video(void)
 		(0x0 << 10) | 0x0);
 }
 
-int set_video_mute_info(u32 owner, bool on)
+int set_video_mute_info(u32 owner, bool on, bool use_vcbus)
 {
 	if (on) {
 		if (video_mute_array[owner])
 			return -EINVAL;
 		video_mute_array[owner] = true;
-		pr_info("%d mute video\n", owner);
+		if (use_vcbus)
+			video_mute_vcbus[owner] = true;
+		pr_info("%d mute video, use_vcbus:%d\n", owner, use_vcbus);
 	} else {
 		if (!video_mute_array[owner])
 			return -EINVAL;
 		video_mute_array[owner] = false;
+		video_mute_vcbus[owner] = false;
 		pr_info("%d unmute video\n", owner);
 	}
 	return 0;
@@ -5643,7 +5678,7 @@ void get_video_mute_info(void)
 	static const char *const mute_owner[] = {
 		"video_mute_set", "hdmi_rx_mute_set", "user_mute_set",
 		"aml_dolby_mute_set", "drm_mute_set", "vpp_internal",
-		"vc_mute_set", "path_sw_mute_set"
+		"vc_mute_set", "path_sw_mute_set", "vdin_mute_set"
 	};
 
 	pr_info("video mute owner list:\n");
@@ -5660,6 +5695,8 @@ static void check_video_mute_state(void)
 	for (i = 0; i < MAX_VIDEO_MUTE_OWNER; i++) {
 		if (video_mute_array[i]) {
 			video_mute_on = true;
+			if (video_mute_vcbus[i])
+				video_mute_on_vcbus = true;
 			return;
 		}
 	}
@@ -5671,7 +5708,8 @@ void check_video_mute(void)
 	check_video_mute_state();
 	if (video_mute_on) {
 		if (video_mute_status != VIDEO_MUTE_ON_VPP) {
-			mute_video();
+			mute_video(video_mute_on_vcbus);
+			video_mute_on_vcbus = false;
 			pr_info("%s: VIDEO_MUTE_ON_VPP\n", __func__);
 		}
 		video_mute_status = VIDEO_MUTE_ON_VPP;
@@ -6046,18 +6084,20 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 
 	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
 		if (vd1_vd2_mux) {
-			vd_clip_setting(VPP0, 1, &vd_layer[0].clip_setting);
+			vd_clip_setting(VPP0, 1, &vd_layer[0].clip_setting, false);
 		} else {
-			vd_clip_setting(VPP0, 0, &vd_layer[0].clip_setting);
-			vd_clip_setting(VPP0, 1, &vd_layer[1].clip_setting);
+			vd_clip_setting(VPP0, 0, &vd_layer[0].clip_setting, false);
+			vd_clip_setting(VPP0, 1, &vd_layer[1].clip_setting, false);
 		}
 		if (cur_dev->max_vd_layers == 3)
-			vd_clip_setting(VPP0, 2, &vd_layer[2].clip_setting);
+			vd_clip_setting(VPP0, 2, &vd_layer[2].clip_setting, false);
 	}
 
 	check_video_pattern_output();
 	check_postblend_pattern_output();
-	check_video_mute();
+	/* Move this to the beginning of the vsync ISR.
+	 * check_video_mute();
+	 */
 	check_output_mute();
 
 	if (vd_layer[0].enable_3d_mode == mode_3d_mvc_enable)

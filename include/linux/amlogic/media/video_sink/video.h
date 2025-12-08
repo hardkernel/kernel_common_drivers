@@ -344,6 +344,7 @@ enum video_mute_owner {
 	VPP_INTERNAL       = 5,
 	VC_MUTE_SET        = 6,
 	PATH_SW_MUTE_SET   = 7,
+	VDIN_MUTE_SET      = 8,
 	MAX_VIDEO_MUTE_OWNER,
 };
 
@@ -488,6 +489,7 @@ struct vpp_postblend_scope_s {
 };
 
 void set_video_mute(u32 owner, bool on);
+void set_video_mute_vcbus(u32 owner, bool on);
 void rx_mute_dual_video_rdma(int vdin0_mute, int vdin1_mute);
 void rx_mute_dual_video_vcbus(int vdin0_mute, int vdin1_mute);
 void mute_output_vcbus(void);

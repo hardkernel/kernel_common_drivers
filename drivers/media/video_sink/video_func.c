@@ -2188,7 +2188,7 @@ render_exit:
 	/* check if need blank */
 	vdx_force_black(0);
 	video_secure_set(layer->vpp_index);
-	vd_clip_setting(layer->vpp_index, 0, &vd_layer[0].clip_setting);
+	vd_clip_setting(layer->vpp_index, 0, &vd_layer[0].clip_setting, false);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	memset(&ai_face_value, 0, sizeof(ai_face_value));
 	if (vd_layer[0].dispbuf &&
@@ -2395,7 +2395,7 @@ render_exit:
 	video_secure_set(layer->vpp_index);
 
 	vd_clip_setting(layer->vpp_index,
-		layer_id, &vd_layer[layer_id].clip_setting);
+		layer_id, &vd_layer[layer_id].clip_setting, false);
 	/* all frames has been renderred, so reset new frame flag */
 	vd_layer[layer_id].new_frame = false;
 	return ret;
