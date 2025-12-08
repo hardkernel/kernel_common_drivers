@@ -29,7 +29,8 @@ struct uvm_aipq_info {
 	s32 frame_index;
 	s32 nn_do_aipq_type;
 	s32 is_sc_change;
-	s32 reserved[7];
+	s32 nn_get_fmt_type;
+	s32 reserved[6];
 };
 
 struct ge2d_output_t {

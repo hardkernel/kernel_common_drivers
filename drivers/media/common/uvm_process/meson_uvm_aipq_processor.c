@@ -450,7 +450,8 @@ int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 	return 0;
 }
 
-static int convert_rgb24_to_y8_process(struct ge2d_output_t *output)
+static int convert_rgb24_to_y8_process(struct ge2d_output_t *output,
+	struct uvm_aipq_info *aipq_info)
 {
 	struct config_para_ex_s ge2d_config_s;
 	struct config_para_ex_s *ge2d_config = &ge2d_config_s;
@@ -473,8 +474,10 @@ static int convert_rgb24_to_y8_process(struct ge2d_output_t *output)
 	ge2d_config->src_planes[0].w = cs.width;
 	ge2d_config->src_planes[0].h = cs.height;
 	ge2d_config->src_para.canvas_index = input_canvas;
-	ge2d_config->src_para.format = GE2D_FORMAT_S24_BGR | GE2D_LITTLE_ENDIAN;
-
+	if (aipq_info->nn_get_fmt_type == 1)
+		ge2d_config->src_para.format = GE2D_FORMAT_S24_RGB | GE2D_LITTLE_ENDIAN;
+	else
+		ge2d_config->src_para.format = GE2D_FORMAT_S24_BGR | GE2D_LITTLE_ENDIAN;
 	input_width = output->width;
 	input_height = output->height;
 	canvas_config(output_canvas, output->addr, output->width,
@@ -809,7 +812,10 @@ int aipq_getinfo(void *arg, char *buf)
 		memset(&output, 0, sizeof(struct ge2d_output_t));
 		output.width = aipq_info->nn_input_frame_width;
 		output.height = aipq_info->nn_input_frame_height;
-		output.format = GE2D_FORMAT_S24_BGR;
+		if (aipq_info->nn_get_fmt_type == 1)
+			output.format = GE2D_FORMAT_S24_RGB;
+		else
+			output.format = GE2D_FORMAT_S24_BGR;
 		output.addr = (ulong)phy_addr;
 		do_gettimeofday(&begin_time);
 		ret = ge2d_vf_process(vf, &output);
@@ -836,7 +842,7 @@ int aipq_getinfo(void *arg, char *buf)
 			output.format = GE2D_FORMAT_S8_Y;
 			output.addr = ((ulong)phy_addr + aipq_info->nn_input_frame_width *
 				aipq_info->nn_input_frame_height * 3);
-			ret = convert_rgb24_to_y8_process(&output);
+			ret = convert_rgb24_to_y8_process(&output, aipq_info);
 			if (ret < 0) {
 				aipq_print(PRINT_ERROR, "ge2d output Y8 err\n");
 				return -EINVAL;
