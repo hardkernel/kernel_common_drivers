@@ -77,6 +77,7 @@ struct vbyone_ctrl_regs_s *vx1_reg = &vbo_reg_t7;
 #define VX1_TRAINING_TIMEOUT      60  /* vsync cnt */
 #define VSYNC_CNT_VX1_RESET       5
 #define VSYNC_CNT_VX1_STABLE      20
+#define VSYNC_CNT_VX1_RETRY       60
 
 #define VX1_MNT_INTERVAL          20  //unit:ms
 
@@ -860,6 +861,7 @@ void lcd_vbyone_interrupt_enable(struct aml_lcd_drv_s *pdrv, int flag)
 	vx1_conf->training_stable_cnt = 0;
 	vx1_conf->clk_err_cnt = 0;
 	vx1_conf->unstable_trg = 0;
+	vx1_conf->retry_cnt = 0;
 	vx1_conf->vsync_cnt = 0;
 
 	if (flag) {
@@ -1111,15 +1113,20 @@ int lcd_vbyone_vsync_handler(struct aml_lcd_drv_s *pdrv)
 			LCD_PR(pdrv, "vx1 sw_reset 3");
 			vx1_conf->vsync_cnt++;
 		} else if ((vx1_conf->vsync_cnt > VSYNC_CNT_VX1_RESET) &&
-			   (vx1_conf->vsync_cnt <= VSYNC_CNT_VX1_STABLE)) {
+			   (vx1_conf->vsync_cnt <= VSYNC_CNT_VX1_STABLE)  &&
+			   (vx1_conf->retry_cnt <= VSYNC_CNT_VX1_RETRY)) {
 			if (lcd_vcbus_read(vx1_reg->reg_status + offset) & 0x20) {
-				vx1_conf->unstable_trg = 0;
-				vx1_conf->vsync_cnt = 0;
-				lcd_vbyone_hw_filter(pdrv, 1);
+				vx1_conf->vsync_cnt++;
+			} else {
+				vx1_conf->vsync_cnt = VSYNC_CNT_VX1_RESET + 1;
+				vx1_conf->retry_cnt++;
 			}
-			vx1_conf->vsync_cnt++;
-		} else if (vx1_conf->vsync_cnt > VSYNC_CNT_VX1_STABLE) {
+		} else if (vx1_conf->vsync_cnt > VSYNC_CNT_VX1_STABLE ||
+			   vx1_conf->retry_cnt > VSYNC_CNT_VX1_RETRY) {
+			vx1_conf->unstable_trg = 0;
 			vx1_conf->vsync_cnt = 0;
+			vx1_conf->retry_cnt = 0;
+			lcd_vbyone_hw_filter(pdrv, 1);
 		} else {
 			vx1_conf->vsync_cnt++;
 		}

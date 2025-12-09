@@ -316,6 +316,7 @@ struct vbyone_config_s {
 	unsigned char timeout_reset_flag;
 	unsigned char vx1_fsm_acq_st;
 	unsigned char unstable_trg;
+	unsigned char retry_cnt;
 
 	unsigned int slice;
 };
