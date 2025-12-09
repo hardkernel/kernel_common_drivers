@@ -316,30 +316,29 @@ static inline unsigned long long lcd_pll_real_fvco_calc(unsigned long long pll_f
 
 int lcd_pll_get_frac(struct lcd_clk_config_s *cconf, int pll_sel, unsigned long long pll_fvco)
 {
-	unsigned int frac_range, frac, offset;
+	unsigned int frac_range, frac, m;
 	unsigned long long fvco_calc, temp;
 	struct lcd_pll_config_s *pll_config = &cconf->pll_config[pll_sel];
 	struct lcd_pll_data_s *pll_data = cconf->data->pll_data[pll_sel];
+	unsigned long long fvco_diff;
 
-	frac_range = pll_data->pll_frac_range;
-
-	fvco_calc = lcd_pll_real_fvco_calc(pll_fvco, pll_config, pll_data);
-	temp = cconf->fin;
-	temp = lcd_do_div((temp * pll_config->pll_m), pll_config->pll_n);
-	if (fvco_calc >= temp) {
-		temp = fvco_calc - temp;
-		offset = 0;
-	} else {
-		temp = temp - fvco_calc;
-		offset = 1;
-	}
-	if (temp >= (2 * cconf->fin)) {
-		LCDERR("%s: pll changing %lldHz is too much\n", __func__, temp);
+	fvco_diff = pll_fvco >= pll_config->pll_fvco ?
+			pll_fvco - pll_config->pll_fvco :
+			pll_config->pll_fvco - pll_fvco;
+	if (fvco_diff > (2 * cconf->fin)) {
+		LCDERR("%s: pll changing %lldHz is too much\n", __func__, fvco_diff);
 		return -1;
 	}
 
-	frac = lcd_do_div((temp * frac_range * pll_config->pll_n * 10), cconf->fin) + 5;
+	frac_range = pll_data->pll_frac_range;
+	fvco_calc = lcd_pll_real_fvco_calc(pll_fvco, pll_config, pll_data);
+	m = lcd_do_div(fvco_calc, cconf->fin);
+	temp = cconf->fin;
+	temp *= m;
+	temp = fvco_calc - temp;
+	frac = lcd_do_div((temp * pll_data->pll_frac_range * 10), cconf->fin) + 5;
 	frac /= 10;
+
 	if (cconf->pll_mode & LCD_PLL_MODE_FRAC_SHIFT) {
 		if ((frac == (frac_range >> 1)) || (frac == (frac_range >> 2))) {
 			frac |= 0x66;
@@ -348,7 +347,8 @@ int lcd_pll_get_frac(struct lcd_clk_config_s *cconf, int pll_sel, unsigned long 
 			pll_config->pll_frac_half_shift = 0;
 		}
 	}
-	pll_config->pll_frac = frac | (offset << pll_data->pll_frac_sign_bit);
+	pll_config->pll_m = m;
+	pll_config->pll_frac = frac;
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("%s: 0x%x\n", __func__, pll_config->pll_frac);
 
@@ -914,31 +914,7 @@ static int lcd_pll_frac_generate_phy(struct aml_lcd_drv_s *pdrv)
 	if (lcd_debug_print_flag & LCD_DBG_PR_CLK)
 		LCDPR("%s enc_clk=%d\n", __func__, enc_clk);
 
-	clk_div_out = enc_clk * cconf->xd;
-	if (clk_div_out > cconf->data->pll_data[0]->div_out_fmax) {
-		LCDERR("%s: wrong clk_div_out value %uHz\n", __func__, clk_div_out);
-		return -1;
-	}
-
-	clk_div_in = clk_vid_pll_div_calc(clk_div_out, clk_div_sel, CLK_DIV_O2I);
-	if (clk_div_in > cconf->data->pll_data[0]->div_in_fmax) {
-		LCDERR("%s: wrong clk_div_in value %lldHz\n", __func__, clk_div_in);
-		return -1;
-	}
-
-	pll_fout = clk_div_in;
-	if (pll_fout > cconf->data->pll_data[0]->pll_out_fmax ||
-	    pll_fout < cconf->data->pll_data[0]->pll_out_fmin) {
-		LCDERR("%s: wrong pll_fout value %lldHz\n", __func__, pll_fout);
-		return -1;
-	}
-	if (lcd_debug_print_flag & LCD_DBG_PR_CLK)
-		LCDPR("%s pll_fout=%lld\n", __func__, pll_fout);
-
-	if (cconf->data->pll_data[0]->od_cnt == 3)
-		pll_fvco = pll_fout * od1 * od2 * od3;
-	else
-		pll_fvco = pll_fout * od1;
+	pll_fvco = pconf->timing.bit_rate * tcon_div_table[cconf->pll_tcon_div_sel];
 	if (pll_fvco < cconf->data->pll_data[0]->pll_vco_fmin ||
 	    pll_fvco > cconf->data->pll_data[0]->pll_vco_fmax) {
 		LCDERR("%s: wrong pll_fvco value %lldHz\n", __func__, pll_fvco);
@@ -946,6 +922,29 @@ static int lcd_pll_frac_generate_phy(struct aml_lcd_drv_s *pdrv)
 	}
 	if (lcd_debug_print_flag & LCD_DBG_PR_CLK)
 		LCDPR("%s pll_fvco=%lld\n", __func__, pll_fvco);
+
+	if (!(cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL)) {
+		clk_div_in = lcd_do_div(pll_fvco, od1 * od2 * od3);
+		if (clk_div_in > cconf->data->pll_data[0]->div_in_fmax) {
+			LCDERR("%s: wrong clk_div_in value %lldHz\n", __func__, clk_div_in);
+			return -1;
+		}
+
+		pll_fout = clk_div_in;
+		if (pll_fout > cconf->data->pll_data[0]->pll_out_fmax ||
+		pll_fout < cconf->data->pll_data[0]->pll_out_fmin) {
+			LCDERR("%s: wrong pll_fout value %lldHz\n", __func__, pll_fout);
+			return -1;
+		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_CLK)
+			LCDPR("%s pll_fout=%lld\n", __func__, pll_fout);
+
+		clk_div_out = clk_vid_pll_div_calc(clk_div_in, clk_div_sel, CLK_DIV_I2O);
+		if (clk_div_out > cconf->data->pll_data[0]->div_out_fmax) {
+			LCDERR("%s: wrong clk_div_out value %uHz\n", __func__, clk_div_out);
+			return -1;
+		}
+	}
 
 	ret = lcd_pll_get_frac(cconf, LCD_PLL_SEL_PHY, pll_fvco);
 	if (ret == 0) {

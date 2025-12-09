@@ -53,9 +53,6 @@ static void lcd_pll_frac_set_t6x(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 	struct lcd_clk_config_s *cconf;
 	unsigned int reg, val;
 
-	if (pdrv->lcd_pxp)
-		return;
-
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
 		return;
@@ -66,12 +63,31 @@ static void lcd_pll_frac_set_t6x(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
 		__func__, reg, val, lcd_vx1_lvds_ctrl_read(pdrv, reg));
 
+	reg = ANACTRL_TCON_PLL0_CNTL0;
+	val = lcd_vx1_lvds_ctrl_read(pdrv, reg);
+	if ((val & 0x1ff) != cconf->pll_config[0].pll_m) {
+		lcd_vx1_lvds_ctrl_setb(pdrv, reg, cconf->pll_config[0].pll_m, 0, 9);
+		LCD_PR(pdrv, "%s: pll_m=0x%x", __func__, cconf->pll_config[0].pll_m);
+		LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
+			__func__, reg, val, lcd_vx1_lvds_ctrl_read(pdrv, reg));
+	}
+
 	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL) {
 		reg = ANACTRL_PIXPLL_CTRL1;
 		val = lcd_ana_read(reg);
 		lcd_ana_setb(reg, cconf->pll_config[1].pll_frac, 0, 19);
 		LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
 			__func__, reg, val, lcd_ana_read(reg));
+
+		reg = ANACTRL_PIXPLL_CTRL0;
+		val = lcd_ana_read(reg);
+		if ((val & 0x1ff) != cconf->pll_config[1].pll_m) {
+			lcd_ana_setb(reg, cconf->pll_config[1].pll_frac, 0, 9);
+			LCD_PR(pdrv, "%s: dsc pll_m=0x%x\n",
+				__func__, cconf->pll_config[1].pll_frac);
+			LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
+				__func__, reg, val, lcd_ana_read(reg));
+		}
 	}
 }
 
