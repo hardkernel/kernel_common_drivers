@@ -539,7 +539,7 @@ struct dpss_dev_s {		//di_dev_s      di_dev_t
 	/***************************/
 	struct dpss_mng_s mng;
 	/***************************/
-	void *data_l;
+	struct dpss_data_s *data_l;
 
 	struct vpu_dev_s *dim_vpu_clk_gate_dev;
 	struct vpu_dev_s *dim_vpu_pd_dec;
