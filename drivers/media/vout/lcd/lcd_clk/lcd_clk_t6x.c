@@ -25,7 +25,7 @@
 
 #define LCD_CLK_DIV_OUT_JUDGELINE 765000000
 
-static const unsigned int dsc_od_table[6] = {1, 2, 4, 8};
+static const unsigned int gp2_od_table[6] = {1, 2, 4, 8};
 
 static unsigned int tcon_div_t6x[][4] = {
 	/* vx1pll_div214h, tcon_bypass_en, vx1pll_clk1x_selh */
@@ -73,17 +73,17 @@ static void lcd_pll_frac_set_t6x(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 	}
 
 	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL) {
-		reg = ANACTRL_PIXPLL_CTRL1;
+		reg = ANACTRL_GP2PLL_CTRL1;
 		val = lcd_ana_read(reg);
 		lcd_ana_setb(reg, cconf->pll_config[1].pll_frac, 0, 19);
 		LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
 			__func__, reg, val, lcd_ana_read(reg));
 
-		reg = ANACTRL_PIXPLL_CTRL0;
+		reg = ANACTRL_GP2PLL_CTRL0;
 		val = lcd_ana_read(reg);
 		if ((val & 0x1ff) != cconf->pll_config[1].pll_m) {
 			lcd_ana_setb(reg, cconf->pll_config[1].pll_frac, 0, 9);
-			LCD_PR(pdrv, "%s: dsc pll_m=0x%x\n",
+			LCD_PR(pdrv, "%s: gp2 pll_m=0x%x\n",
 				__func__, cconf->pll_config[1].pll_frac);
 			LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
 				__func__, reg, val, lcd_ana_read(reg));
@@ -328,17 +328,18 @@ static void lcd_set_pll_t6x(struct aml_lcd_drv_s *pdrv)
 				((cconf->pll_config[1].pll_n & 0x1f) << 16);
 			pll_ctrl1 = 0x03a00000 |
 				(cconf->pll_config[1].pll_frac & 0x7ffff);
-			lcd_ana_write(ANACTRL_PIXPLL_CTRL0, pll_ctrl0);
-			lcd_ana_setb(ANACTRL_PIXPLL_CTRL0, 1, 28, 1);
-			lcd_ana_write(ANACTRL_PIXPLL_CTRL1, pll_ctrl1);
-			lcd_ana_write(ANACTRL_PIXPLL_CTRL2, 0x00040000);
-			lcd_ana_write(ANACTRL_PIXPLL_CTRL3, 0x0f0da000);
+			pll_ctrl3 = 0x0b0da000 | (cconf->data->pll_data[1]->pll_0_5_div_en << 26);
+			lcd_ana_write(ANACTRL_GP2PLL_CTRL0, pll_ctrl0);
+			lcd_ana_setb(ANACTRL_GP2PLL_CTRL0, 1, 28, 1);
+			lcd_ana_write(ANACTRL_GP2PLL_CTRL1, pll_ctrl1);
+			lcd_ana_write(ANACTRL_GP2PLL_CTRL2, 0x00040000);
+			lcd_ana_write(ANACTRL_GP2PLL_CTRL3, pll_ctrl3);
 			usleep_range(20, 30);
-			lcd_ana_setb(ANACTRL_PIXPLL_CTRL0, 0, 29, 1);
+			lcd_ana_setb(ANACTRL_GP2PLL_CTRL0, 0, 29, 1);
 			usleep_range(20, 30);
-			lcd_ana_setb(ANACTRL_PIXPLL_CTRL3, 1, 9, 1);
+			lcd_ana_setb(ANACTRL_GP2PLL_CTRL3, 1, 9, 1);
 			ret = lcd_pll_wait_lock(cconf->pll_config[1].pll_id,
-						ANACTRL_PIXPLL_CTRL0, 31);
+						ANACTRL_GP2PLL_CTRL0, 31);
 		} while (ret && ++cnt < PLL_RETRY_MAX);
 	}
 	if (ret)
@@ -372,7 +373,7 @@ static void lcd_set_vid_pll_div_t6x(struct aml_lcd_drv_s *pdrv)
 
 	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL) {
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("no need to set clk divider for dsc pll\n\n");
+			LCDPR("no need to set clk divider for gp2\n\n");
 		return;
 	}
 
@@ -692,11 +693,11 @@ static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		ANACTRL_TCON_PLL0_STS,
 		ANACTRL_VID_PLL_CLK_DIV,
 	};
-	unsigned int dsc_pll_reg_table[] = {
-		ANACTRL_PIXPLL_CTRL0,
-		ANACTRL_PIXPLL_CTRL1,
-		ANACTRL_PIXPLL_CTRL2,
-		ANACTRL_PIXPLL_CTRL3,
+	unsigned int gp2_pll_reg_table[] = {
+		ANACTRL_GP2PLL_CTRL0,
+		ANACTRL_GP2PLL_CTRL1,
+		ANACTRL_GP2PLL_CTRL2,
+		ANACTRL_GP2PLL_CTRL3,
 	};
 	unsigned int clk_reg_table[] = {
 		CLKCTRL_VIID_CLK0_DIV,
@@ -721,8 +722,8 @@ static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 
 	cconf = get_lcd_clk_config(pdrv);
 	if (cconf && (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL)) {
-		table = dsc_pll_reg_table;
-		size = ARRAY_SIZE(dsc_pll_reg_table);
+		table = gp2_pll_reg_table;
+		size = ARRAY_SIZE(gp2_pll_reg_table);
 		for (i = 0; i < size; i++) {
 			n = lcd_debug_info_len(len + offset);
 			len += snprintf((buf + len), n, "pll [0x%02x] = 0x%08x\n",
@@ -774,7 +775,7 @@ static void lcd_clk_generate_t6x(struct aml_lcd_drv_s *pdrv)
 			return;
 		}
 		cconf->pll_mode |= LCD_PLL_MODE_DUAL_PLL;
-		cconf->data->vclk_sel = 2;
+		cconf->data->vclk_sel = 3;
 	} else {
 		cconf->pll_mode &= ~LCD_PLL_MODE_DUAL_PLL;
 		cconf->data->vclk_sel = 0;
@@ -806,7 +807,7 @@ static struct lcd_pll_data_s lcd_pll_data_tcon_t6x = {
 	.div_sel_max = CLK_DIV_SEL_2p25,
 };
 
-static struct lcd_pll_data_s lcd_pll_data_dsc_t6x = {
+static struct lcd_pll_data_s lcd_pll_data_gp2_t6x = {
 	.pll_od_fb = 0,
 	.pll_0_5_div_en = 1,
 	.pll_m_max = 511,
@@ -831,7 +832,7 @@ static struct lcd_pll_data_s lcd_pll_data_dsc_t6x = {
 
 static struct lcd_clk_data_s lcd_clk_data_t6x = {
 	.pll_data[0] = &lcd_pll_data_tcon_t6x,
-	.pll_data[1] = &lcd_pll_data_dsc_t6x,
+	.pll_data[1] = &lcd_pll_data_gp2_t6x,
 	.xd_out_fmax = 840000000,
 	.phy_clk_location = 0,
 
