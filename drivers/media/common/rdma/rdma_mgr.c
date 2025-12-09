@@ -2790,7 +2790,8 @@ s32 rdma_remove_read_reg(int handle, struct reg_handle *reg_hnd, u32 count)
 			}
 			return 0;
 		}
-		pr_err("%s: out of bound\n", __func__);
+		if (debug_flag & 1)
+			pr_err("%s: out of bound\n", __func__);
 		return -1;
 	}
 	pr_err("%s: handle is error\n", __func__);

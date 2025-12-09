@@ -841,10 +841,9 @@ static bool is_4k1k120hz_out(const struct vinfo_s *vinfo)
 
 static bool is_4k1k144hz_out(const struct vinfo_s *vinfo)
 {
-	if ((vinfo->width >= 3840 && vinfo->height >= 1080 &&
+	if (vinfo->width >= 3840 && vinfo->height >= 1080 &&
 		((vinfo->sync_duration_num / vinfo->sync_duration_den) > 140) &&
-		((vinfo->sync_duration_num / vinfo->sync_duration_den) < 148)) &&
-		(vinfo->width < 7680 && vinfo->height < 2160))
+		((vinfo->sync_duration_num / vinfo->sync_duration_den) < 148))
 		return true;
 	else
 		return false;
@@ -1156,13 +1155,13 @@ static void ratio_adjust_for_high_freq(const struct vinfo_s *vinfo,
 			*cur_vpp_speed_factor =
 				div_u64((u64)vpp_speed_factor * 0xd6, 0x110);
 		} else if (is_4k1k288hz_out(vinfo)) {
-			*min_ratio_1000 = round_div(min_skip_ratio, 1814, 1250);
+			*min_ratio_1000 = round_div(min_skip_ratio, 1830, 1250);
 			*cur_vpp_speed_factor =
 				div_u64((u64)vpp_speed_factor * 0xd9, 0x110);
 		} else if (is_4k1k240hz_out(vinfo)) {
 			*min_ratio_1000 = round_div(min_skip_ratio, 1432, 1250);
 			*cur_vpp_speed_factor =
-				div_u64((u64)vpp_speed_factor * 0x113, 0x110);
+				div_u64((u64)vpp_speed_factor * 0x110, 0x110);
 		} else if (is_4k1k180hz_out(vinfo)) {
 			*min_ratio_1000 = round_div(min_skip_ratio, 2273, 1250);
 			*cur_vpp_speed_factor =
@@ -1460,7 +1459,8 @@ static int vpp_process_speed_check
 #ifdef AMLOGIC_MEDIA_DPSS
 	if (is_frc_link_source(vf)  &&
 		is_frc_link_available(vf) &&
-		!next_frame_par->vscale_skip_count) {
+		!next_frame_par->vscale_skip_count &&
+		!next_frame_par->nocomp) {
 		u32 input_time_us_per_line10 = 0, display_time_us_per_line10 = 0;
 		u32 frc_ratio = frc_link_ratio;
 
