@@ -15153,7 +15153,7 @@ static struct mconfig video_configs[] = {
 #include <linux/amlogic/media/di/di_interface.h>
 
 static bool restore_vpu_sec = true;
-static void video_early_suspend(struct early_suspend *h)
+static void video_suspend_interface(void)
 {
 	safe_switch_videolayer(0, false, false);
 	safe_switch_videolayer(1, false, false);
@@ -15163,7 +15163,7 @@ static void video_early_suspend(struct early_suspend *h)
 	pr_info("%s ok\n", __func__);
 }
 
-static void video_late_resume(struct early_suspend *h)
+static void video_resume_interface(void)
 {
 	video_resume_hw_recovery(restore_vpu_sec);
 	video_suspend_cycle = 0;
@@ -15172,9 +15172,31 @@ static void video_late_resume(struct early_suspend *h)
 	pr_info("%s ok\n", __func__);
 };
 
+static void video_early_suspend(struct early_suspend *h)
+{
+	video_suspend_interface();
+}
+
+static void video_late_resume(struct early_suspend *h)
+{
+	video_resume_interface();
+};
+
+static int video_platform_resume(struct device *dev)
+{
+	video_resume_interface();
+	return 0;
+}
+
+static int video_platform_suspend(struct device *dev)
+{
+	video_suspend_interface();
+	return 0;
+}
 static struct early_suspend video_early_suspend_handler = {
-	.suspend = video_early_suspend,
-	.resume = video_late_resume,
+	.level = EARLY_SUSPEND_LEVEL_VIDEO,
+	//.suspend = video_early_suspend,
+	//.resume = video_late_resume,
 };
 #endif
 
@@ -17342,6 +17364,10 @@ static const struct dev_pm_ops amvideo_pm_ops = {
 	.freeze = amvideo_freeze,
 	.thaw = amvideo_thaw,
 	.restore = amvideo_restore,
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	.resume = video_platform_resume,
+	.suspend = video_platform_suspend,
+#endif
 };
 
 static struct platform_driver amvideom_driver = {

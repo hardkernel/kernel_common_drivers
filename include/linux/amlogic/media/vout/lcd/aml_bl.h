@@ -196,12 +196,13 @@ struct bl_metrics_config_s {
 /* Upper 4 bits in bl props are reserved for driver internal use */
 #define BL_STATE_DEBUG_FORCE_EN       BIT(8)
 #define BL_STATE_PWM_SWITCH           BIT(7)
+#define BL_STATE_PRE_ON               BIT(6)
 #define BL_STATE_GD_EN                BIT(4)
 #define BL_STATE_LCD_ON               BIT(3)
 #define BL_STATE_BL_INIT_ON           BIT(2)
 #define BL_STATE_BL_POWER_ON          BIT(1)
 #define BL_STATE_BL_ON                BIT(0)
-/* #define BL_POWER_ON_DELAY_WORK */
+
 struct aml_bl_drv_s {
 	unsigned int index;
 	unsigned int key_valid;

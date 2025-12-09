@@ -987,6 +987,7 @@ void bl_lcd_on_ctrl(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->status & LCD_STATE_BL_PRE_ON) {
 		bdrv->pre_on_time = local_time[0];
+		bdrv->state |= BL_STATE_PRE_ON;
 		BLPR("[%d]: %s: pre_on\n", bdrv->index, __func__);
 		return;
 	}
@@ -1020,13 +1021,14 @@ void bl_lcd_on_ctrl(struct aml_lcd_drv_s *pdrv)
 	}
 
 	if (bdrv->bconf.method < BL_CTRL_MAX) {
-#ifdef BL_POWER_ON_DELAY_WORK
-		lcd_queue_delayed_on_work(&bdrv->delayed_on_work, delay_ms);
-#else
-		if (delay_ms)
-			lcd_delay_ms(delay_ms);
-		bl_on_function(bdrv);
-#endif
+		if (bdrv->state & BL_STATE_PRE_ON) {
+			bdrv->state &= ~BL_STATE_PRE_ON;
+			lcd_queue_delayed_work(&bdrv->delayed_on_work, delay_ms);
+		} else {
+			if (delay_ms)
+				lcd_delay_ms(delay_ms);
+			bl_on_function(bdrv);
+		}
 	} else {
 		BLERR("[%d]: wrong backlight control method\n", bdrv->index);
 	}

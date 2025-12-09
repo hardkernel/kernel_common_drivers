@@ -117,29 +117,11 @@ int lcd_mode_resume(void *data)
 	if ((pdrv->status & LCD_STATE_VMODE_ACTIVE) == 0)
 		return 0;
 
-	if (pdrv->status & LCD_STATE_POWER) {
-		if (pdrv->status & LCD_STATE_BL_PRE_ON) {
-			pdrv->status &= ~LCD_STATE_BL_PRE_ON;
-#ifdef CONFIG_AMLOGIC_BACKLIGHT
-			bl_lcd_on_ctrl(pdrv);
-#endif
-			lcd_power_screen_restore(pdrv);
-		}
-		return 0;
-	}
-
 	if (pdrv->resume_type & (1 << 0)) {
 		lcd_queue_work(&pdrv->late_resume_work);
 	} else {
-		mutex_lock(&lcd_power_mutex);
 		LCD_PR(pdrv, "directly lcd late_resume, status=0x%x", pdrv->status);
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON | LCD_EVENT_ENCL_ACTIVE,
-						(void *)pdrv);
-		lcd_if_enable_retry(pdrv);
-		pdrv->status |= LCD_STATE_POWER;
-		pdrv->status &= ~LCD_STATE_DUMMY;
-		LCD_PR(pdrv, "late_resume finished, status=0x%x", pdrv->status);
-		mutex_unlock(&lcd_power_mutex);
+		lcd_late_resume(pdrv);
 	}
 
 	return 0;

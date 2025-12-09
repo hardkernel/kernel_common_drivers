@@ -313,5 +313,6 @@ void lcd_resource_remove_all(struct aml_lcd_drv_s *pdrv);
 int get_lcd_config_load_ready(unsigned char index);
 int lcd_drm_add(struct device *dev);
 void lcd_drm_remove(struct device *dev);
+void lcd_late_resume(struct aml_lcd_drv_s *pdrv);
 
 #endif

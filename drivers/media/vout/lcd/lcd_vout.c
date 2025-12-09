@@ -1108,6 +1108,31 @@ static void lcd_mode_switch_on_work(struct work_struct *work)
 	pdrv->proc_time.switch_full_time = local_time[1] - pdrv->proc_time.switch_start_time;
 }
 
+void lcd_late_resume(struct aml_lcd_drv_s *pdrv)
+{
+	if (!pdrv)
+		return;
+
+	if (pdrv->status & LCD_STATE_POWER) {
+		if (pdrv->status & LCD_STATE_BL_PRE_ON) {
+			pdrv->status &= ~LCD_STATE_BL_PRE_ON;
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+			bl_lcd_on_ctrl(pdrv);
+#endif
+			lcd_power_screen_restore(pdrv);
+		}
+		return;
+	}
+
+	mutex_lock(&lcd_power_mutex);
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON | LCD_EVENT_ENCL_ACTIVE, (void *)pdrv);
+	lcd_if_enable_retry(pdrv);
+	pdrv->status |= LCD_STATE_POWER;
+	pdrv->status &= ~LCD_STATE_DUMMY;
+	LCD_PR(pdrv, "%s finished, status=0x%x", __func__, pdrv->status);
+	mutex_unlock(&lcd_power_mutex);
+}
+
 static void lcd_lata_resume_work(struct work_struct *work)
 {
 	struct aml_lcd_drv_s *pdrv;
@@ -1120,14 +1145,7 @@ static void lcd_lata_resume_work(struct work_struct *work)
 		lcd_queue_work(&pdrv->late_resume_work);
 		return;
 	}
-
-	mutex_lock(&lcd_power_mutex);
-	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON | LCD_EVENT_ENCL_ACTIVE, (void *)pdrv);
-	lcd_if_enable_retry(pdrv);
-	pdrv->status |= LCD_STATE_POWER;
-	pdrv->status &= ~LCD_STATE_DUMMY;
-	LCD_PR(pdrv, "%s finished, status=0x%x", __func__, pdrv->status);
-	mutex_unlock(&lcd_power_mutex);
+	lcd_late_resume(pdrv);
 }
 
 static void lcd_init_on_delayed_work(struct work_struct *p_work)

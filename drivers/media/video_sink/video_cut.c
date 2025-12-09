@@ -9829,6 +9829,7 @@ static void video_late_resume(struct early_suspend *h)
 };
 
 static struct early_suspend video_early_suspend_handler = {
+	.level = EARLY_SUSPEND_LEVEL_VIDEO,
 	.suspend = video_early_suspend,
 	.resume = video_late_resume,
 };
