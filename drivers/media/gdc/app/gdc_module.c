@@ -1633,7 +1633,10 @@ static long meson_gdc_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
 	int ret = -1;
+#ifdef CONFIG_AMLOGIC_ION_DEV
 	size_t len = 0;
+	phys_addr_t addr = 0;
+#endif
 	bool rc = false;
 	struct gdc_context_s *context = NULL;
 	struct gdc_settings gs;
@@ -1645,7 +1648,6 @@ static long meson_gdc_ioctl(struct file *file, unsigned int cmd,
 	struct gdc_settings_with_fw gs_with_fw;
 	struct gdc_dmabuf_req_s gdc_req_buf;
 	struct gdc_dmabuf_exp_s gdc_exp_buf;
-	phys_addr_t addr = 0;
 	int index, dma_fd;
 	void __user *argp = (void __user *)arg;
 	struct gdc_queue_item_s *pitem = NULL;
@@ -1662,6 +1664,7 @@ static long meson_gdc_ioctl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case GDC_PROCESS:
+#ifdef CONFIG_AMLOGIC_ION_DEV
 		ret = copy_from_user(&gs, argp, sizeof(gs));
 		if (ret < 0) {
 			gdc_log(LOG_ERR, "copy from user failed\n");
@@ -1672,13 +1675,9 @@ static long meson_gdc_ioctl(struct file *file, unsigned int cmd,
 			sizeof(gs), gs.magic);
 
 		//configure gdc config, buffer address and resolution
-#ifdef CONFIG_AMLOGIC_ION_DEV
 		ret = meson_ion_share_fd_to_phys(gs.out_fd,
 						 &addr,
 						 &len);
-	#else
-		ret = -1;
-	#endif
 		if (ret < 0) {
 			gdc_log(LOG_ERR,
 				"import out fd %d failed\n", gs.out_fd);
@@ -1693,34 +1692,24 @@ static long meson_gdc_ioctl(struct file *file, unsigned int cmd,
 		gdc_cmd->base_gdc = 0;
 		gdc_cmd->current_addr = gdc_cmd->buffer_addr;
 
-#ifdef CONFIG_AMLOGIC_ION_DEV
 		ret = meson_ion_share_fd_to_phys(gc->config_addr,
 						 &addr,
 						 &len);
-	#else
-		ret = -1;
-	#endif
 		if (ret < 0) {
 			gdc_log(LOG_ERR, "import config fd failed\n");
 			mutex_unlock(&context->d_mutext);
 			return -EINVAL;
 		}
-
 		gc->config_addr = addr;
 
-#ifdef CONFIG_AMLOGIC_ION_DEV
 		ret = meson_ion_share_fd_to_phys(gs.in_fd,
 						 &addr,
 						 &len);
-	#else
-		ret = -1;
-	#endif
 		if (ret < 0) {
 			gdc_log(LOG_ERR, "import in fd %d failed\n", gs.in_fd);
 			mutex_unlock(&context->d_mutext);
 			return -EINVAL;
 		}
-
 		ret = meson_gdc_set_input_addr(addr, gdc_cmd);
 		if (ret != 0) {
 			gdc_log(LOG_ERR, "set input addr failed\n");
@@ -1739,6 +1728,10 @@ static long meson_gdc_ioctl(struct file *file, unsigned int cmd,
 		}
 		mutex_unlock(&context->d_mutext);
 		gdc_wq_add_work(context, pitem);
+#else
+		gdc_log(LOG_ERR, "Do not support ION\n");
+		return -EOPNOTSUPP;
+#endif
 	break;
 	case GDC_RUN:
 		ret = copy_from_user(&gs, argp, sizeof(gs));

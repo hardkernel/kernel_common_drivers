@@ -1597,6 +1597,7 @@ static int build_ge2d_addr_config_ion(struct config_planes_ion_s *plane,
 				      unsigned long *addr,
 				      unsigned int *stride)
 {
+#ifdef CONFIG_AMLOGIC_ION_DEV
 	int ret = -1, i = 0;
 	int bpp_value = bpp(format);
 	phys_addr_t addr_temp = 0;
@@ -1608,16 +1609,12 @@ static int build_ge2d_addr_config_ion(struct config_planes_ion_s *plane,
 		return ret;
 	for (i = 0; i < MAX_PLANE; i++) {
 		if (plane[i].shared_fd) {
-#ifdef CONFIG_AMLOGIC_ION_DEV
 			size_t len = 0;
 
 			ret = meson_ion_share_fd_to_phys(plane[i].shared_fd,
 							 &addr_temp, &len);
 			if (ret != 0)
 				return ret;
-#else
-			return ret;
-#endif
 			plane[i].addr += addr_temp;
 		} else if (plane[i].addr) {
 			plane[i].addr += plane[0].addr;
@@ -1638,6 +1635,10 @@ static int build_ge2d_addr_config_ion(struct config_planes_ion_s *plane,
 		}
 	}
 	return ret;
+#else
+	ge2d_log_err("Do not support ION\n");
+	return -EOPNOTSUPP;
+#endif
 }
 
 static int
@@ -1753,6 +1754,7 @@ static int build_ge2d_config_ex_ion(struct ge2d_context_s *context,
 				    unsigned int format,
 				    unsigned int data_type)
 {
+#ifdef CONFIG_AMLOGIC_ION_DEV
 	struct ge2d_canvas_cfg_s *canvas_cfg = NULL;
 	int bpp_value = bpp(format);
 	int ret = -1, i;
@@ -1765,7 +1767,6 @@ static int build_ge2d_config_ex_ion(struct ge2d_context_s *context,
 			/* multi-src_planes */
 			canvas_set = 0;
 			if (plane[i].shared_fd) {
-#ifdef CONFIG_AMLOGIC_ION_DEV
 				size_t len;
 
 				ret = meson_ion_share_fd_to_phys
@@ -1774,9 +1775,6 @@ static int build_ge2d_config_ex_ion(struct ge2d_context_s *context,
 					 &len);
 				if (ret != 0)
 					return ret;
-#else
-				return ret;
-#endif
 				plane[i].addr += addr;
 				canvas_set = 1;
 			} else if (plane[i].addr) {
@@ -1799,6 +1797,10 @@ static int build_ge2d_config_ex_ion(struct ge2d_context_s *context,
 		}
 	}
 	return ret;
+#else
+	ge2d_log_err("Do not support ION\n");
+	return -EOPNOTSUPP;
+#endif
 }
 
 static int build_ge2d_config_ex_dma(struct ge2d_context_s *context,

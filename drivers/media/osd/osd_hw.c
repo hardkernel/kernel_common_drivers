@@ -13986,7 +13986,7 @@ static void osd_setting_viux(u32 output_index)
 				break;
 			default:
 				osd_log_err("osd%d, vpp_top%x index error\n", index, output_index);
-				break;
+				return;
 			}
 
 			if (vinfo)
