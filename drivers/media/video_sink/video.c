@@ -2754,9 +2754,6 @@ static int hdmi_in_delay_check(struct vframe_s *vf)
 
 	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
 
-	if (hdmin_delay_done)
-		return 0;
-
 	if (!vf || vf->duration == 0)
 		return 0;
 
@@ -2772,6 +2769,10 @@ static int hdmi_in_delay_check(struct vframe_s *vf)
 	}
 
 	spin_lock_irqsave(&hdmi_avsync_lock, flags);
+	if (hdmin_delay_done) {
+		spin_unlock_irqrestore(&hdmi_avsync_lock, flags);
+		return 0;
+	}
 	/* update duration */
 	vsync_duration = (int)(vf->duration / 96);
 

@@ -1020,29 +1020,37 @@ void rdma_unregister(int i)
 	struct rdma_device_info *info = &rdma_info;
 
 	pr_info("%s(%d)\r\n", __func__, i);
-	if (i > 0 && i < rdma_meson_dev.channel_num && info->rdma_ins[i].op) {
+
+	if (i <= 0 || i >= rdma_meson_dev.channel_num)
+		return;
 		/*rdma_clear(i);*/
-		info->rdma_ins[i].op_arg = NULL;
-		if (!info->rdma_ins[i].keep_buf) {
-			kfree(info->rdma_ins[i].reg_buf);
-			info->rdma_ins[i].reg_buf = NULL;
-			kfree(info->rdma_ins[i].rdma_table_mirror);
-			info->rdma_ins[i].rdma_table_mirror = NULL;
-		}
-		if (info->rdma_ins[i].rdma_table_addr) {
-			dma_free_coherent
-			(&info->rdma_dev->dev,
-			 info->rdma_ins[i].rdma_table_size,
-			 info->rdma_ins[i].rdma_table_addr,
-			 (dma_addr_t)
-			 info->rdma_ins[i].rdma_table_phy_addr);
-			 info->rdma_ins[i].rdma_table_addr = NULL;
-		}
-		info->rdma_ins[i].rdma_table_size = 0;
-		spin_lock_irqsave(&rdma_lock, flags);
-		info->rdma_ins[i].op = NULL;
+	spin_lock_irqsave(&rdma_lock, flags);
+
+	if (!info->rdma_ins[i].op) {
 		spin_unlock_irqrestore(&rdma_lock, flags);
+		return;
 	}
+
+	info->rdma_ins[i].op = NULL;
+	info->rdma_ins[i].op_arg = NULL;
+	spin_unlock_irqrestore(&rdma_lock, flags);
+
+	if (!info->rdma_ins[i].keep_buf) {
+		kfree(info->rdma_ins[i].reg_buf);
+		info->rdma_ins[i].reg_buf = NULL;
+		kfree(info->rdma_ins[i].rdma_table_mirror);
+		info->rdma_ins[i].rdma_table_mirror = NULL;
+	}
+	if (info->rdma_ins[i].rdma_table_addr) {
+		dma_free_coherent
+		(&info->rdma_dev->dev,
+		 info->rdma_ins[i].rdma_table_size,
+		 info->rdma_ins[i].rdma_table_addr,
+		 (dma_addr_t)
+		 info->rdma_ins[i].rdma_table_phy_addr);
+		 info->rdma_ins[i].rdma_table_addr = NULL;
+	}
+	info->rdma_ins[i].rdma_table_size = 0;
 }
 EXPORT_SYMBOL(rdma_unregister);
 static void rdma_reset(unsigned char external_reset)
