@@ -895,9 +895,9 @@ void cci_run_new(struct aml_dtvdemod *demod)
 	PR_ATSC("[cci_run2 %d ms]\n", time[2] - time[1]);
 
 	if (cci_cnt > 0) {
-		PR_ATSC("read 0x33: 0x%x, 0x34: 0x%x\n",
+		PR_ALL("read 0x33: 0x%x, 0x34: 0x%x\n",
 				front_read_reg(0x33), front_read_reg(0x34));
-		PR_ATSC("read 0x60: 0x%x, 0x61: 0x%x\n",
+		PR_ALL("read 0x60: 0x%x, 0x61: 0x%x\n",
 				atsc_read_reg_v4(ATSC_DEMOD_REG_0X60),
 				atsc_read_reg_v4(ATSC_DEMOD_REG_0X61));
 
@@ -987,9 +987,9 @@ void cci_run_new(struct aml_dtvdemod *demod)
 			}
 		}
 
-		PR_ATSC("read2 0x33: 0x%x, 0x34: 0x%x\n",
+		PR_ALL("read2 0x33: 0x%x, 0x34: 0x%x\n",
 				front_read_reg(0x33), front_read_reg(0x34));
-		PR_ATSC("read2 0x60: 0x%x, 0x61: 0x%x\n",
+		PR_ALL("read2 0x60: 0x%x, 0x61: 0x%x\n",
 				atsc_read_reg_v4(ATSC_DEMOD_REG_0X60),
 				atsc_read_reg_v4(ATSC_DEMOD_REG_0X61));
 	}

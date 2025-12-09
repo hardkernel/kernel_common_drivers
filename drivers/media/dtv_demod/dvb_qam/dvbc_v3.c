@@ -970,8 +970,8 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 		d3 = qam_read_reg(demod, 0xd3);
 	}
 
-	PR_DVBC("0xbe[0x%x], 0xbf[0x%x], 0xc0[0x%x]\n", be, bf, c0);
-	PR_DVBC("0xd3[0x%x], 0xd4[0x%x], 0xd5[0x%x]\n", d3, d4, d5);
+	PR_ALL("0xbe[0x%x], 0xbf[0x%x], 0xc0[0x%x]\n", be, bf, c0);
+	PR_ALL("0xd3[0x%x], 0xd4[0x%x], 0xd5[0x%x]\n", d3, d4, d5);
 
 	// 3. get QAM probability distribution.
 	if (demod_chip_after_eq(DTVDEMOD_HW_T5M)) {
@@ -1077,7 +1077,7 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 
 			j -= MSIZE;
 
-			PR_DVBC("[%d, %d, %d, %d, %d, %d, %d, %d]\n",
+			PR_ALL("[%d, %d, %d, %d, %d, %d, %d, %d]\n",
 				matrix[i][0], matrix[i][1], matrix[i][2], matrix[i][3],
 				matrix[i][4], matrix[i][5], matrix[i][6], matrix[i][7]);
 		}
@@ -1115,16 +1115,16 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
 	total_all_acc = total_32_64_128_256_acc + idx_16_acc;
 	total_all_acc += idx_8_acc + idx_4_acc + idx_2_acc + idx_1_acc;
 
-	PR_DVBC("idx_1_acc: 0x%x, idx_2_acc: 0x%x, idx_4_acc: 0x%x\n",
+	PR_ALL("idx_1_acc: 0x%x, idx_2_acc: 0x%x, idx_4_acc: 0x%x\n",
 			idx_1_acc, idx_2_acc, idx_4_acc);
-	PR_DVBC("idx_8_acc: 0x%x, idx_16_acc: 0x%x, index_32_acc: 0x%x\n",
+	PR_ALL("idx_8_acc: 0x%x, idx_16_acc: 0x%x, index_32_acc: 0x%x\n",
 			idx_8_acc, idx_16_acc, idx_32_acc);
-	PR_DVBC("idx_64_acc: 0x%x, idx_128_acc: 0x%x, idx_256_acc: 0x%x\n",
+	PR_ALL("idx_64_acc: 0x%x, idx_128_acc: 0x%x, idx_256_acc: 0x%x\n",
 			idx_64_acc, idx_128_acc, idx_256_acc);
-	PR_DVBC("total_64_128_256_acc: 0x%x.\n", total_64_128_256_acc);
-	PR_DVBC("total_32_64_128_256_acc: 0x%x.\n", total_32_64_128_256_acc);
-	PR_DVBC("total_all_acc: 0x%x.\n", total_all_acc);
-	PR_DVBC("idx_all: 0x%x(%d), idx_77: 0x%x(%d), idx[0]: %d\n",
+	PR_ALL("total_64_128_256_acc: 0x%x.\n", total_64_128_256_acc);
+	PR_ALL("total_32_64_128_256_acc: 0x%x.\n", total_32_64_128_256_acc);
+	PR_ALL("total_all_acc: 0x%x.\n", total_all_acc);
+	PR_ALL("idx_all: 0x%x(%d), idx_77: 0x%x(%d), idx[0]: %d\n",
 			idx_all, idx_all, idx_77, idx_77, idx[0]);
 
 	if (total_all_acc < 60 || total_64_128_256_acc <= 4) {

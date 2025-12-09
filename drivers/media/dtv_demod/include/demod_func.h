@@ -114,6 +114,8 @@ extern unsigned char blind_scan_new;
 #define DBG_DVBS	BIT(7)
 #define DBG_ISDBT	BIT(8)
 #define DBG_TIME	BIT(9)
+#define DBG_ALL		BIT(12)
+
 
 #define PR_INFO(fmt, args ...)	pr_info("dtv_dmd:" fmt, ##args)
 
@@ -177,6 +179,13 @@ extern unsigned char blind_scan_new;
 #define PR_DBGL(fmt, args ...) \
 	do { \
 		if (aml_demod_debug & DBG_LOOP) { \
+			pr_info("dtv_dmd:" fmt, ##args); \
+		} \
+	} while (0)
+
+#define PR_ALL(fmt, args ...) \
+	do { \
+		if (aml_demod_debug & DBG_ALL) { \
 			pr_info("dtv_dmd:" fmt, ##args); \
 		} \
 	} while (0)

@@ -383,7 +383,7 @@ static int dvbt2_optimize_doppler(struct dvb_frontend *fe)
 	usleep_range(t2_0x2a48_delay, t2_0x2a48_delay + 1);
 	time[1] = jiffies_to_msecs(jiffies);
 
-	PR_DVBT("0x2a48 is %x,one cost %d ms,\n", dvbt_t2_rdb(0x2a48), time[1] - time[0]);
+	PR_ALL("0x2a48 is %x,one cost %d ms,\n", dvbt_t2_rdb(0x2a48), time[1] - time[0]);
 
 	for (ck0 = 0; ck0 < 1024; ck0++) {
 		dvbt_t2_wrb(0x2a4d, (char)(ck0 >> 8));
@@ -392,14 +392,14 @@ static int dvbt2_optimize_doppler(struct dvb_frontend *fe)
 		vcir = dvbt_t2_rdb(0x2a50) + (dvbt_t2_rdb(0x2a51) << 8);
 
 		if (max1 < vcir && vcir != 0) {
-			PR_DVBT("max1 is %d,vcir is %d,ck0 is %d,loc1 is %d\n",
+			PR_ALL("max1 is %d,vcir is %d,ck0 is %d,loc1 is %d\n",
 				max1, vcir, ck0, loc1);
 			max1 = vcir;
 			loc1 = ck0;
 		}
 	}
 
-	PR_DVBT("max1 is %d,loc1 is %d\n", max1, loc1);
+	PR_ALL("max1 is %d,loc1 is %d\n", max1, loc1);
 
 	if ((loc1 - range_th) < 0)
 		loc_use1 = 0;
@@ -411,7 +411,7 @@ static int dvbt2_optimize_doppler(struct dvb_frontend *fe)
 	else
 		loc_use2 = loc1 + range_th;
 
-	PR_DVBT("loc_use1 is %d,loc_use2 is %d,range_th is %d\n", loc_use1, loc_use2, range_th);
+	PR_ALL("loc_use1 is %d,loc_use2 is %d,range_th is %d\n", loc_use1, loc_use2, range_th);
 
 	for (ck0 = loc_use1; ck0 < loc_use2; ck0++) {
 		dvbt_t2_wrb(0x2a4d, (char)(ck0 >> 8));
@@ -421,14 +421,14 @@ static int dvbt2_optimize_doppler(struct dvb_frontend *fe)
 		vcir = dvbt_t2_rdb(0x2a50) + (dvbt_t2_rdb(0x2a51) << 8);
 		if (vcir != 0 && max2 < vcir  &&
 			(((loc1  + loc1_th) < ck0) || ((loc1 - loc1_th) > ck0))) {
-			PR_DVBT("max2 is %d,vcir is %d,ck0 is %d,loc2 is %d\n",
+			PR_ALL("max2 is %d,vcir is %d,ck0 is %d,loc2 is %d\n",
 				max2, vcir, ck0, loc2);
 			max2 = vcir;
 			loc2 = ck0;
 		}
 	}
 
-	PR_DVBT("max2 is %d,loc2 is %d,loc1_th is %d\n", max2, loc2, loc1_th);
+	PR_ALL("max2 is %d,loc2 is %d,loc1_th is %d\n", max2, loc2, loc1_th);
 
 	if (loc1 > loc2)
 		delta_loc = loc1 - loc2;
@@ -440,7 +440,7 @@ static int dvbt2_optimize_doppler(struct dvb_frontend *fe)
 	else
 		delta_loc1 = loc_20u - delta_loc;
 
-	PR_DVBT("delta_loc is %d,delta_loc1 is %d,loc_20u is %d\n",
+	PR_ALL("delta_loc is %d,delta_loc1 is %d,loc_20u is %d\n",
 		delta_loc, delta_loc1, loc_20u);
 
 	fixed_max1 = max1 * FIXED_ONE;
@@ -455,7 +455,7 @@ static int dvbt2_optimize_doppler(struct dvb_frontend *fe)
 	}
 
 	max_th = 68608; //1.05 (Q16.16)
-	PR_DVBT("delta_max %d,max_th %d,delta_loc1 %d,loc_20u %d,loc_th %d\n",
+	PR_ALL("delta_max %d,max_th %d,delta_loc1 %d,loc_20u %d,loc_th %d\n",
 		delta_max, max_th, delta_loc1, loc_20u, loc_th);
 	if (max_th  > delta_max && (loc_th >= (delta_loc1))) {
 		PR_DVBT("t2 echo 20us 0db detected !\n");
@@ -552,9 +552,9 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 		snr = snr + (snr - 190 + 5) / 10;
 
 	if (demod_chip_after_eq(DTVDEMOD_HW_T6W)) {
-		PR_DVBT("cfo_jita_det 0x%x\n", (dvbt_t2_rdb(0x28D9) >> 7) & 0x01);
-		PR_DVBT("cfo_gain 0x%x\n", dvbt_t2_rdb(0x2897));
-		PR_DVBT("cfo_jita 0x%x\n", ((dvbt_t2_rdb(0x28d9) & 0x1f) << 8) +
+		PR_ALL("cfo_jita_det 0x%x\n", (dvbt_t2_rdb(0x28D9) >> 7) & 0x01);
+		PR_ALL("cfo_gain 0x%x\n", dvbt_t2_rdb(0x2897));
+		PR_ALL("cfo_jita 0x%x\n", ((dvbt_t2_rdb(0x28d9) & 0x1f) << 8) +
 			(dvbt_t2_rdb(0x28d8) & 0xff));
 	}
 
@@ -586,12 +586,12 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 				snr_iir = snr_iir / 64;
 			}
 
-			PR_DVBT("0x2a08:%x,0x2a09:%x,tmp:%ld\n",
+			PR_ALL("0x2a08:%x,0x2a09:%x,tmp:%ld\n",
 				dvbt_t2_rdb(0x2a08), dvbt_t2_rdb(0x2a09), tmp);
-			PR_DVBT("1c:%x,876:%x,2745:%x,83b:%x,8c3:%x\n",
+			PR_ALL("1c:%x,876:%x,2745:%x,83b:%x,8c3:%x\n",
 				dvbt_t2_rdb(0x1c), dvbt_t2_rdb(0x876), dvbt_t2_rdb(0x2745),
 				dvbt_t2_rdb(0x83B), dvbt_t2_rdb(0x8c3));
-			PR_DVBT("snr_iir=%d,snr_iir=%d,iir_cnt=%d,0xdc=%x\n",
+			PR_ALL("snr_iir=%d,snr_iir=%d,iir_cnt=%d,0xdc=%x\n",
 				snr_iir, snr_iir * 3 / 64, iir_cnt, dvbt_t2_rdb(0xdc));
 
 			if ((dvbt_t2_rdb(0x1c) == 0x07) &&

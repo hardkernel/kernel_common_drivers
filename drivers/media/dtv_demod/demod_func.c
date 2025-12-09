@@ -2555,7 +2555,7 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 		break;
 	}
 
-	PR_ERR("%s: %d done\n", __func__, demod->demod_status.delsys);
+	PR_INFO("%s: %d done\n", __func__, demod->demod_status.delsys);
 
 	return 0;
 }

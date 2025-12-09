@@ -1745,7 +1745,7 @@ static u32 calcul_ber(u32 p1err_cnt1, u32 p1num_event1)
 		break;
 	}
 
-	PR_DVBT("top_fec_type %d, p1err_cnt1 %d, p1num_event1 %d, frame_unit1 %d\n",
+	PR_ALL("top_fec_type %d, p1err_cnt1 %d, p1num_event1 %d, frame_unit1 %d\n",
 			top_fec_type, p1err_cnt1, p1num_event1, frame_unit1);
 
 	return ber;
@@ -1782,7 +1782,7 @@ u32 dvbt_get_ber(void)
 		reg_0x5da = dvbt_t2_rdb(0x5da);
 		reg_0x5db = dvbt_t2_rdb(0x5db);
 		p1_sfe_err_old = (reg_0x5d9 >> 7) & 0x1;
-		PR_DVBT("0x5d9 0x%x, p1_sfe_err_old %d\n", reg_0x5d9, p1_sfe_err_old);
+		PR_ALL("0x5d9 0x%x, p1_sfe_err_old %d\n", reg_0x5d9, p1_sfe_err_old);
 		if (!p1_sfe_err_old) {
 			p1_sfe_err_cnt = (((reg_0x5d9 & 0x7f) << 16) |
 					((reg_0x5da & 0xff) << 8) | (reg_0x5db & 0xff));
@@ -1797,7 +1797,7 @@ u32 dvbt_get_ber(void)
 			}
 		}
 
-		PR_DVBT("p1_sfe_err_cnt %d, cpt %d, 0x5d9 0x%x, 0x5da 0x%x, 0x5db 0x%x\n",
+		PR_ALL("p1_sfe_err_cnt %d, cpt %d, 0x5d9 0x%x, 0x5da 0x%x, 0x5db 0x%x\n",
 			p1_sfe_err_cnt, cpt, reg_0x5d9, reg_0x5da, reg_0x5db);
 
 		++cpt;
@@ -1805,7 +1805,7 @@ u32 dvbt_get_ber(void)
 		usleep_range(5000, 5001);
 	} while ((p1_sfe_err_old == 1) && (cpt < timeout));
 
-	PR_DVBT("TPS_CONST %d, p1_sfe_err_old %d, p1_sfe_err_cnt %d, 0x5d8 0x%x, 0x5db 0x%x\n",
+	PR_ALL("TPS_CONST %d, p1_sfe_err_old %d, p1_sfe_err_cnt %d, 0x5d8 0x%x, 0x5db 0x%x\n",
 			TPS_CONST, p1_sfe_err_old, p1_sfe_err_cnt,
 			dvbt_t2_rdb(0x5d8), dvbt_t2_rdb(0x5db));
 
@@ -1826,7 +1826,7 @@ u32 dvbt2_get_ber(void)
 	reg_0x59a = dvbt_t2_rdb(0x59a);
 	reg_0x59b = dvbt_t2_rdb(0x59b);
 
-	PR_DVBT("0x598 0x%x, 0x599 0x%x, 0x59a 0x%x, 0x59b 0x%x\n",
+	PR_ALL("0x598 0x%x, 0x599 0x%x, 0x59a 0x%x, 0x59b 0x%x\n",
 			reg_0x598, reg_0x599, reg_0x59a, reg_0x59b);
 
 	p1err_cnt1 = ((reg_0x599 & 0x7f) << 16) | ((reg_0x59a & 0xff) << 8) | (reg_0x59b & 0xff);
@@ -1836,7 +1836,7 @@ u32 dvbt2_get_ber(void)
 		ber = calcul_ber(p1err_cnt1, p1num_event1);
 	}
 
-	PR_DVBT("p1err_cnt1 0x%x, p1err_src1 %d, ber %d\n",
+	PR_ALL("p1err_cnt1 0x%x, p1err_src1 %d, ber %d\n",
 			p1err_cnt1, p1err_src1, ber);
 
 	return ber;
