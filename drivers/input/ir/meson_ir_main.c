@@ -940,7 +940,7 @@ static int meson_ir_hardware_init(struct platform_device *pdev)
 
 		ret = devm_request_irq(&pdev->dev, chip->irqno[cnt],
 				       meson_ir_interrupt,
-				       IRQF_SHARED, chip->dev_name,
+				       IRQF_SHARED | IRQF_NO_SUSPEND, chip->dev_name,
 				       (void *)chip);
 		if (ret < 0) {
 			dev_err(chip->dev, "request_irq error %d\n", ret);
@@ -1168,6 +1168,8 @@ static int meson_ir_resume(struct device *dev)
 	if (chip->irqno[1] >= 0)
 		irq_set_affinity_hint(chip->irqno[1],
 				      cpumask_of(chip->irq_cpumask));
+	if (is_pm_s2idle_mode())
+		return 0;
 	meson_ir_set_irq(chip, 1);
 	return 0;
 }
@@ -1176,6 +1178,8 @@ static int meson_ir_suspend(struct device *dev)
 {
 	struct meson_ir_chip *chip = dev_get_drvdata(dev);
 
+	if (is_pm_s2idle_mode())
+		return 0;
 	meson_ir_set_irq(chip, 0);
 
 	return 0;

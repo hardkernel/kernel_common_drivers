@@ -23,7 +23,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
-
+#include <linux/amlogic/pm.h>
 #include "meson_ir_core.h"
 #include "meson_ir_main.h"
 
@@ -143,8 +143,14 @@ void meson_ir_keydown(struct meson_ir_dev *dev, int scancode, int status)
 
 	if (status == IR_STATUS_NORMAL) {
 		keycode = dev->getkeycode(dev, scancode);
-		if (keycode == KEY_POWER)
-			pm_wakeup_hard_event(dev->dev);
+		if (is_pm_s2idle_mode()) {
+			if (keycode == KEY_POWER) {
+				pm_wakeup_hard_event(dev->dev);
+			} else {
+				spin_unlock_irqrestore(&dev->keylock, flags);
+				return;
+			}
+		}
 		meson_ir_do_keydown(dev, scancode, keycode);
 	}
 
