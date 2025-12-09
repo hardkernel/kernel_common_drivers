@@ -7683,7 +7683,8 @@ static int amlvideo2_receiver_event_fun(int type, void *data,
 		node->provide_ready = 0;
 		if (node->r_type != AML_RECEIVER_NONE) {
 			amlvideo2_stop_thread(&node->vidq);
-			pr_err("%s,%dstop thread\n", __func__, __LINE__);
+			if (amlvideo2_dbg_en)
+				pr_info("%s,%d stop thread\n", __func__, __LINE__);
 		}
 		if (amlvideo2_dbg_en)
 			pr_info("pflag = %d\n", node->pflag);
