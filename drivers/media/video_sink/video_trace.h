@@ -15,7 +15,7 @@
 DECLARE_EVENT_CLASS
 	(video_event_class,
 	TP_PROTO(const char *name, int left, int top, int right, int bottom),
-	TP_ARGS(name, left, top, bottom, right),
+	TP_ARGS(name, left, top, right, bottom),
 	TP_STRUCT__entry
 		(__string(name, name)
 		 __field(int, left)
@@ -35,11 +35,11 @@ DECLARE_EVENT_CLASS
 		  __entry->right, __entry->bottom)
 );
 
-#define DEFINE_VIDEO_EVENT(name) \
-DEFINE_EVENT(video_event_class, name, \
+#define DEFINE_VIDEO_EVENT(trace_name) \
+DEFINE_EVENT(video_event_class, trace_name, \
 	TP_PROTO(const char *name, int left, int top, int right, int bottom), \
 	TP_ARGS(name, left, top, right, bottom))
-
+/*coverity[OVERRUN]*/
 DEFINE_VIDEO_EVENT(axis);
 
 DECLARE_EVENT_CLASS
@@ -67,7 +67,7 @@ DECLARE_EVENT_CLASS
 		 __entry->time5 = time5;
 		 __entry->duration = duration;
 	),
-	TP_printk("[%s:%ld %ld %ld %ld %ld %d]", __get_str(name),
+	TP_printk("[%s:%lu %lu %lu %lu %lu %d]", __get_str(name),
 		  __entry->time1, __entry->time2,
 		  __entry->time3, __entry->time4,
 		  __entry->time5, __entry->duration)
@@ -80,7 +80,7 @@ DEFINE_EVENT(vsync_log_time, trace_name, \
 		unsigned long time3, unsigned long time4, \
 		unsigned long time5, int duration), \
 	TP_ARGS(name, time1, time2, time3, time4, time5, duration))
-
+/*coverity[OVERRUN]*/
 DEFINE_VSYNC_TIME(timeinfo);
 
 DECLARE_EVENT_CLASS
@@ -108,7 +108,7 @@ DECLARE_EVENT_CLASS
 DEFINE_EVENT(vsync_log_encline, trace_name, \
 	TP_PROTO(const char *name, const char *sub_name, int start_line, int cur_line), \
 	TP_ARGS(name, sub_name, start_line, cur_line))
-
+/*coverity[OVERRUN]*/
 DEFINE_VSYNC_ENCLINE(encline);
 
 DECLARE_EVENT_CLASS
@@ -147,7 +147,7 @@ DEFINE_EVENT(vsync_log_field_state, trace_name, \
 		int cur_state, int new_state, \
 		int flag, int cnt1, int cnt2), \
 	TP_ARGS(name, sub_name, cur_state, new_state, flag, cnt1, cnt2))
-
+/*coverity[OVERRUN]*/
 DEFINE_VSYNC_FSTATE(field_state);
 
 DECLARE_EVENT_CLASS
@@ -180,6 +180,6 @@ DECLARE_EVENT_CLASS
 DEFINE_EVENT(vsync_log_vframe, trace_name, \
 	TP_PROTO(const char *name, void *vf, int arg1, int arg2, int id, int cnt), \
 	TP_ARGS(name, vf, arg1, arg2, id, cnt))
-
+/*coverity[OVERRUN]*/
 DEFINE_VSYNC_VFRAME(vframe);
 #endif /* _VIDEO_TRACE_H */

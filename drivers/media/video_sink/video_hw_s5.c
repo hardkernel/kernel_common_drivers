@@ -12437,6 +12437,8 @@ void set_video_slice_policy(struct video_layer_s *layer,
 	bool sideband = false;
 	u32 sync_duration_num = 60;
 
+	if (!vinfo)
+		return;
 	if (cur_dev->display_module != S5_DISPLAY_MODULE)
 		return;
 	/* check input */

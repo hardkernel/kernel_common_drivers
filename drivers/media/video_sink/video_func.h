@@ -115,7 +115,7 @@ extern struct vpp_frame_par_s *cur_frame_par[MAX_VD_LAYERS];
 extern u32 vpp_crc_en;
 extern int vpp_crc_result;
 extern const struct vinfo_s *vinfo;
-extern const char *src_fmt_str[];
+extern const char *src_fmt_str[13];
 extern bool go_exit;
 
 /* ai_pq */
