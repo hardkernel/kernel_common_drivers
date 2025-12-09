@@ -12460,7 +12460,7 @@ void set_video_slice_policy(struct video_layer_s *layer,
 		if (vinfo->brr_duration)
 			sync_duration_num = vinfo->brr_duration * vinfo->sync_duration_den;
 		else
-			sync_duration_num = vinfo->sync_duration_den;
+			sync_duration_num = vinfo->sync_duration_num;
 	}
 	if (layer->layer_id == 0 && vinfo) {
 		if ((src_width > 4096 && src_height >= 2160) ||
@@ -12665,7 +12665,7 @@ void adjust_video_slice_policy(u32 layer_id,
 		if (vinfo->brr_duration)
 			sync_duration_num = vinfo->brr_duration * vinfo->sync_duration_den;
 		else
-			sync_duration_num = vinfo->sync_duration_den;
+			sync_duration_num = vinfo->sync_duration_num;
 	}
 	if (layer->layer_id == 0) {
 		/* check output */
