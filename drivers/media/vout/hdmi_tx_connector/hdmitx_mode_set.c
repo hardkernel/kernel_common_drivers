@@ -28,7 +28,7 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 		HDMITX_ERROR("Should run disable_mode before enable new mode.\n");
 
 	if (tx_comm->hpd_state == 0 || tx_comm->suspend_flag) {
-		HDMITX_ERROR("%s current hpd_state/suspend (%d,%d), exit\n",
+		HDMITX_WARNING("%s current hpd_state/suspend (%d,%d), skip phy setting\n",
 			__func__, tx_comm->hpd_state, tx_comm->suspend_flag);
 		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_SKIP);
 		tx_comm->skip_phy_setting = true;
@@ -133,7 +133,10 @@ int hdmitx_common_do_mode_setting(struct hdmitx_common *tx_comm,
 
 	ret = hdmitx_common_enable_mode(tx_comm, new_para);
 	if (ret < 0) {
-		HDMITX_ERROR("mode enable fail\n");
+		if (!tx_comm->skip_phy_setting) {
+			HDMITX_ERROR("mode enable fail\n");
+			hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_ERROR);
+		}
 		tx_comm->skip_phy_setting = false;
 		goto fail;
 	}
@@ -141,15 +144,13 @@ int hdmitx_common_do_mode_setting(struct hdmitx_common *tx_comm,
 	ret = hdmitx_common_post_enable_mode(tx_comm, new_para);
 	if (ret < 0) {
 		HDMITX_ERROR("post mode enable fail\n");
+		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_ERROR);
 		goto fail;
 	}
 
 	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_ENABLE_OUTPUT);
 
 fail:
-	if (ret < 0)
-		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_ERROR);
-
 	mutex_unlock(&tx_comm->hdmimode_mutex);
 	return ret;
 }
@@ -604,7 +605,10 @@ int hdmitx_set_display(struct hdmitx_common *tx_comm, enum hdmi_vic video_code)
 		hdmitx_hw_cntl(hw_comm, AUX_PKT_SET_SPD_INFO, NULL, NULL);
 		ret = 0;
 	} else {
-		HDMITX_ERROR("%s set video mode fail\n", __func__);
+		if (tx_comm->skip_phy_setting)
+			HDMITX_INFO("%s skip phy setting\n", __func__);
+		else
+			HDMITX_ERROR("%s set video mode fail\n", __func__);
 	}
 
 	return ret;
