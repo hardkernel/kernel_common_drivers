@@ -2180,10 +2180,9 @@ static int dmabuf_manage_release_dmabufheap_resource(struct secure_pool_info *po
 				}
 
 				dmabuf_manage_secmem_block_free(pool, handle);
+				list_del(&block->node);
+				kfree(block);
 			}
-
-			list_del(&block->node);
-			kfree(block);
 		}
 	}
 
