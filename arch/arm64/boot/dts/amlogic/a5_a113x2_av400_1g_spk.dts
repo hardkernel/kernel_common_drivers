@@ -1511,3 +1511,7 @@
 				>;
 		};
 };
+
+&chosen {
+		bootargs = "swiotlb=noforce";
+};

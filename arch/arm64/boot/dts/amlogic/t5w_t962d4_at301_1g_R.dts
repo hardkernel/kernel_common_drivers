@@ -1105,3 +1105,7 @@
 &aml_vpp {
 	status = "disabled";
 };
+
+&chosen {
+	bootargs = "swiotlb=noforce";
+};

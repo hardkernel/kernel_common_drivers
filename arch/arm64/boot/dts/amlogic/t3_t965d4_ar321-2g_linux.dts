@@ -1539,3 +1539,7 @@
 	vddio3v3_en = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
 	p5v_en = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
 };
+
+&chosen {
+	bootargs = "usbcore.autosuspend=-1 swiotlb=noforce";
+};

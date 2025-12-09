@@ -1590,3 +1590,7 @@
 				>;
 		};
 };
+
+&chosen {
+		bootargs = "swiotlb=noforce";
+};

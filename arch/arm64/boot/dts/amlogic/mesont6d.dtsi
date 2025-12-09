@@ -1493,6 +1493,7 @@
 		#thermal-sensor-cells = <1>;
 		reset-names = "ts_rst";
 		resets = <&reset RESET_TS_CPU>;
+		cust_governor = "power_allocator";
 	};
 
 	top_tsensor: top_tsensor@fe01c000 {
@@ -1509,7 +1510,6 @@
 		#thermal-sensor-cells = <1>;
 		reset-names = "ts_rst";
 		resets = <&reset RESET_TS_TOP>;
-		cust_governor = "power_allocator";
 	};
 
 	meson_cooldev: meson-cooldev@0 {

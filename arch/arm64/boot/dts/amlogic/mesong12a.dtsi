@@ -1920,7 +1920,7 @@
 		compatible = "amlogic, cpu-major-id-g12a";
 	};
 
-	chosen {
+	chosen: chosen {
 	};
 
 	codec_mm {

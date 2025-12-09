@@ -1622,3 +1622,7 @@
 	wb_en = <0>;/*1:enable ;0:disable*/
 	vlock_en = <0>;/*1:enable;0:disable*/
 };
+
+&chosen {
+		bootargs = "swiotlb=noforce";
+};

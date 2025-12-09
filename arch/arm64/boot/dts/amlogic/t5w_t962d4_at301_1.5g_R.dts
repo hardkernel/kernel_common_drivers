@@ -1112,3 +1112,7 @@
 &aml_vpp {
 	status = "disabled";
 };
+
+&chosen {
+	bootargs = "usbcore.autosuspend=-1 swiotlb=noforce";
+};

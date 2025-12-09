@@ -25,6 +25,7 @@
 	};
 	chosen {
 		stdout-path = "serial0:115200n8";
+		bootargs = "swiotlb=noforce";
 	};
 	memory@0 {
 		device_type = "memory";

@@ -2333,7 +2333,7 @@
 		status = "disabled";
 	};
 
-	chosen {
+	chosen: chosen {
 		bootargs = "usbcore.autosuspend=-1 dm_mod.reserved_bio_based_ios=8";
 	};
 

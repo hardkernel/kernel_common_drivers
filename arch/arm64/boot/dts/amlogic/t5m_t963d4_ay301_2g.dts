@@ -1615,4 +1615,3 @@
 &chosen {
 	bootargs = "usbcore.autosuspend=-1 swiotlb=noforce";
 };
-

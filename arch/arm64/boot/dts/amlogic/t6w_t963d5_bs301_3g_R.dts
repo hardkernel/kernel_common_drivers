@@ -1071,3 +1071,7 @@
 &aml_vpq {
 	status = "okay";
 };
+
+&chosen {
+	bootargs = "usbcore.autosuspend=-1 swiotlb=noforce";
+};

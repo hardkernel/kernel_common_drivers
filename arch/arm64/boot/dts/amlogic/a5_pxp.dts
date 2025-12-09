@@ -1327,3 +1327,7 @@
 	status = "disabled";
 	uart-has-rtscts;
 };
+
+&chosen {
+		bootargs = "swiotlb=noforce";
+};

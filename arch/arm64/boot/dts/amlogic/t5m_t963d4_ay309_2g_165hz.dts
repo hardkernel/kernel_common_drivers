@@ -1678,3 +1678,7 @@
 	reset-gpios = <&gpio  GPIOD_13  GPIO_ACTIVE_HIGH>;
 	btwakeup-gpios = <&gpio    GPIOD_8 GPIO_ACTIVE_HIGH>;
 };
+
+&chosen {
+	bootargs = "usbcore.autosuspend=-1 swiotlb=noforce";
+};
