@@ -362,7 +362,5 @@ int hdmi_timing_vrefresh(const struct hdmi_timing *t);
 int hdmitx_mode_update_timing(struct hdmi_timing *t, bool to_frac_mode);
 const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic);
 
-/* if vic is an aspect ratio of 64:27, return true */
-bool hdmitx_mode_aspect_ratio_is_64_27_vic(enum hdmi_vic vic);
-
+enum hdmi_picture_aspect hdmitx_mode_get_vic_aspect_ratio(enum hdmi_vic vic);
 #endif

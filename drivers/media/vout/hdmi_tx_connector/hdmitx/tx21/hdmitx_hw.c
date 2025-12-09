@@ -3949,6 +3949,7 @@ static void hdmitx_construct_avi_packet(struct hdmitx21_dev *hdev)
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	enum hdmi_scan_mode scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
+	enum hdmi_picture_aspect pic_ar = hdmitx_mode_get_vic_aspect_ratio(para->timing.vic);
 
 	hdmi_avi_infoframe_init(info);
 	info->version = 2;
@@ -3957,7 +3958,12 @@ static void hdmitx_construct_avi_packet(struct hdmitx21_dev *hdev)
 		info->colorimetry = HDMI_COLORIMETRY_ITU_601;
 	else
 		info->colorimetry = HDMI_COLORIMETRY_ITU_709;
-	info->picture_aspect = HDMI_PICTURE_ASPECT_16_9;
+	if (pic_ar == HDMI_PICTURE_ASPECT_4_3)
+		info->picture_aspect = HDMI_PICTURE_ASPECT_4_3;
+	else if (pic_ar == HDMI_PICTURE_ASPECT_NONE)
+		info->picture_aspect = HDMI_PICTURE_ASPECT_NONE;
+	else
+		info->picture_aspect = HDMI_PICTURE_ASPECT_16_9;
 	info->active_aspect = HDMI_ACTIVE_ASPECT_PICTURE;
 	info->itc = 0;
 	info->extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
