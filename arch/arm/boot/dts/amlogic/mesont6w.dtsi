@@ -3191,6 +3191,9 @@
 	clocks = <&clkc CLKID_MALI>;
 	clock-names = "gpu_mux";
 
+	qchannel-reg = <0xFE010488 0x4>;
+	qchannel-enable = <1>;
+
 	/*
 	 * Mali clocking is provided by two identical clock paths
 	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
