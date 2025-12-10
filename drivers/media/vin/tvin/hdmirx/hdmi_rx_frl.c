@@ -49,9 +49,8 @@ const u32 fpll[] = {
 	0x0b0da201, //0x0b0da201
 };
 
-#define H_VPU_CLK_DIV_2 1
-#define H_FPLL_DIV3 2
-#define H_DSC_PIX_PLL 3
+#define VPU_OVER_SPEED 406
+#define VPU_OVER_SPEED1 838
 
 enum frl_rate_e hdmirx_get_frl_rate(u8 port)
 {
@@ -1281,13 +1280,20 @@ void set_dsc_clk_cntl(int clk_select, int clk)
 {
 	if (rx_info.chip_id != CHIP_ID_T6X)
 		return;
-	if (clk >= 406 * MHz && clk_select == H_DSC_PIX_PLL)
-		schedule_work(&vpu_dwork);
+	if (clk_select == H_DSC_PIX_PLL) {
+		if (clk > VPU_OVER_SPEED * MHz)
+			schedule_work(&vpu_dwork);
+	} else if (clk_select == H_HDMI) {
+		if (clk > VPU_OVER_SPEED1 * MHz)
+			schedule_work(&vpu_dwork);
+	}
 	if (clk_select == H_VPU_CLK_DIV_2)
 		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x343);
 	else if (clk_select == H_FPLL_DIV3)
 		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x140);
-	else
+	else if (clk_select == H_DSC_PIX_PLL)
 		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x1c0);
+	else
+		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x2c0);
 }
 

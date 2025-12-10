@@ -5926,6 +5926,7 @@ void hdmirx_late_config_video(u8 port)
 	}
 	hdmirx_wr_top_common(TOP_DSC_HDMI_CNTL, 0x0);
 	hdmirx_wr_top_common(TOP_DSC_HDMI_CNTL, 0x1);
+	set_dsc_clk_cntl(H_HDMI, rx[port].clk.pixel_clk);
 }
 
 /*

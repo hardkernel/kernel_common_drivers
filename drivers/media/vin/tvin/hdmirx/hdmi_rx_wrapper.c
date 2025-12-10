@@ -8268,8 +8268,19 @@ void frate_monitor(void)
 		}
 	}
 	//rx_monitor_error_counter(port);
-	if (rx[port].var.frl_rate)
+	if (rx[port].var.frl_rate) {
 		valid_m_monitor(port);
+		if (rx[port].state >= FSM_SIG_STABLE_TO_READY && rx[port].dsc_flag) {
+			if (hdmirx_rd_bits_cor(VP_FDET_STATUS_VID_IVCRX, _BIT(1), port) == 0)  {
+				if (hdmirx_rd_bits_top_common(TOP_VID_CNTL3, MSK(4, 0)) != 0xf)
+					hdmirx_wr_bits_top_common(TOP_VID_CNTL3, MSK(4, 0), 0xf);
+			} else {
+				if (hdmirx_rd_bits_top_common(TOP_VID_CNTL3, MSK(4, 0)) != 0x0)
+					hdmirx_wr_bits_top_common(TOP_VID_CNTL3, MSK(4, 0), 0x0);
+			}
+		}
+	}
+
 }
 
 void frate_monitor1(void)
@@ -8340,8 +8351,18 @@ void frate_monitor1(void)
 		}
 	}
 	//rx_monitor_error_counter(port);
-	if (rx[port].var.frl_rate)
+	if (rx[port].var.frl_rate) {
 		valid_m_monitor1(port);
+		if (rx[port].state >= FSM_SIG_STABLE_TO_READY && rx[port].dsc_flag) {
+			if (hdmirx_rd_bits_cor(VP_FDET_STATUS_VID_IVCRX, _BIT(1), port) == 0)  {
+				if (hdmirx_rd_bits_top_common(TOP_VID_CNTL3, MSK(4, 0)) != 0xf)
+					hdmirx_wr_bits_top_common(TOP_VID_CNTL3, MSK(4, 0), 0xf);
+			} else {
+				if (hdmirx_rd_bits_top_common(TOP_VID_CNTL3, MSK(4, 0)) != 0x0)
+					hdmirx_wr_bits_top_common(TOP_VID_CNTL3, MSK(4, 0), 0x0);
+			}
+		}
+	}
 }
 
 void rx_hpd_monitor(void)
