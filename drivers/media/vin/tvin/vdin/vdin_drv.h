@@ -742,6 +742,7 @@ struct vdin_debug_s {
 	unsigned int ignore_vdin_ioctl;
 	unsigned int force_disp_mode;
 	unsigned int reg_addr;
+	unsigned int dbg_force_duration;
 	bool bypass_game_dyn_fmt;
 	bool force_pause_en;
 };

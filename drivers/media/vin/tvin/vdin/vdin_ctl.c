@@ -5072,7 +5072,9 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 
 	/* dynamic duration update */
 	if (devp->dtdata->hw_ver >= VDIN_HW_T7) {
-		if (vdin_is_3d_interlace_signal(devp)) {
+		if (IS_TVAFE_SRC(devp->parm.port) && devp->parm.info.fps) {
+			curr_wr_vf->duration = 96000 / devp->parm.info.fps;
+		} else if (vdin_is_3d_interlace_signal(devp)) {
 			/* 3d interlace give up bottom field need change duration for avsync */
 			curr_wr_vf->duration = devp->duration;
 		} else if (devp->cycle > 834114 && devp->cycle < 834226) {
@@ -5086,6 +5088,9 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 			curr_wr_vf->duration = devp->duration;
 		}
 
+		if (devp->debug.dbg_force_duration)
+			curr_wr_vf->duration = (devp->debug.dbg_force_duration & 0xffff);
+
 		if (devp->cycle) {
 			tmp_clk = devp->msr_clk_val * 10;/* 50M * 100 */
 			tmp_cycle = devp->cycle / 10;
@@ -5093,13 +5098,10 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 		}
 
 		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-			pr_info("fps1=%d--%d\n", devp->prop.fps, curr_wr_vf->fps);
-
-		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-			pr_info("vdin%d,[%d,%d] duration:%d %d,fps:%d %d,cycle:%d\n",
+			pr_info("vdin%d,[%d,%d] duration:%d %d,fps:%d %d,cycle:%d,fps:%d\n",
 				devp->index, devp->irq_cnt, devp->frame_cnt,
 				devp->duration, curr_wr_vf->duration,
-				devp->parm.info.fps, devp->prop.fps, devp->cycle);
+				devp->parm.info.fps, devp->prop.fps, devp->cycle, curr_wr_vf->fps);
 
 	} else {
 #ifdef VDIN_DYNAMIC_DURATION

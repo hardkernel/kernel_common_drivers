@@ -5058,6 +5058,11 @@ start_chk:
 				devp->debug.force_pause_en = false;
 			pr_info("force_pause_en:%d\n", devp->debug.force_pause_en);
 		}
+	} else if (!strcmp(parm[0], "dbg_force_duration")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.dbg_force_duration = temp;
+		pr_info("vdin%d,dbg_force_duration = %d\n",
+			devp->index, devp->debug.dbg_force_duration);
 	}
 #endif
 	else if (!strcmp(parm[0], "state")) {
