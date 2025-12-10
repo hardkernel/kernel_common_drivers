@@ -887,7 +887,7 @@ static noinstr unsigned long aml_arch_stack_walk(stack_trace_consume_fn consume_
 unsigned long __nocfi find_back_trace(void *arg)
 {
 #if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515 || defined(CONFIG_ARM)
-	struct stackframe frame;
+	struct stackframe frame = {0};
 	int ret, step = 0;
 #endif
 
@@ -912,6 +912,9 @@ unsigned long __nocfi find_back_trace(void *arg)
 	frame.sp = current_stack_pointer;
 	frame.lr = (unsigned long)__builtin_return_address(0);
 	frame.pc = (unsigned long)find_back_trace;
+#ifdef CONFIG_KRETPROBES
+	frame.tsk = current;
+#endif
 #endif
 
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
@@ -1038,6 +1041,11 @@ static int aml_gfp_migratetype(const gfp_t gfp_flags)
 	VM_WARN_ON((gfp_flags & AML_GFP_MOVABLE_MASK) == AML_GFP_MOVABLE_MASK);
 	BUILD_BUG_ON((1UL << AML_GFP_MOVABLE_SHIFT) != ___GFP_MOVABLE);
 	BUILD_BUG_ON((___GFP_MOVABLE >> AML_GFP_MOVABLE_SHIFT) != MIGRATE_MOVABLE);
+
+#ifdef CONFIG_ARM64
+	if ((gfp_flags & GFP_ATOMIC) == GFP_ATOMIC)
+		return MIGRATE_HIGHATOMIC;
+#endif
 
 	/* Group based on mobility */
 	return (gfp_flags & AML_GFP_MOVABLE_MASK) >> AML_GFP_MOVABLE_SHIFT;
