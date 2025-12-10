@@ -1241,7 +1241,7 @@ static int vpp_process_speed_check
 	u32 video_speed_check_height,
 	struct vpp_frame_par_s *next_frame_par,
 	const struct vinfo_s *vinfo, struct vframe_s *vf,
-	u32 vpp_flags, u32 op_flag)
+	u32 vpp_flags, u32 op_flag, u32 wide_mode)
 {
 	u32 cur_ratio, bpp = 1;
 	int min_ratio_1000 = 0;
@@ -1497,7 +1497,8 @@ static int vpp_process_speed_check
 				sync_duration_den);
 		if (input_time_us > display_time_us)
 			return SPEED_CHECK_VSKIP;
-		if (smallwindow_link_enable) {
+		if (smallwindow_link_enable &&
+			wide_mode != VIDEO_WIDEOPTION_NORMAL_NOSCALEUP) {
 			u32 smallwindow_link_h_temp = smallwindow_link_h;
 
 			/* for FHD output */
@@ -3348,7 +3349,7 @@ RESTART:
 			speed_check_height,
 			next_frame_par,
 			vinfo, vf, vpp_flags,
-			input->op_flag);
+			input->op_flag, wide_mode);
 
 		if (skip == SPEED_CHECK_VSKIP &&
 			!force_skip_update) {
