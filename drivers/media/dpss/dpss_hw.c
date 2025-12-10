@@ -2724,6 +2724,10 @@ void irq_dpe1(void)
 #endif
 			vfm = dpss_irq_get_vfm((dpss_total_count % prm_top->num_in), 2);
 			dpss_dd_dpe_update(vfm);
+		} else if (dpss_en_hdr) {
+			vfm = dpss_irq_get_vfm((dpss_total_count % prm_top->num_in), 3);
+			dbg_ins2("dpss hdr sw\n");
+			dpss_hdr_sw(true, vfm);
 		}
 
 		hw_process_dpe1_frm_rst(cfg_slc,

@@ -984,6 +984,15 @@ unsigned int dpss_sub_chg_nr(struct dpss_ch_s *pch, struct vframe_s *vfm)
 		}
 		dpss_vfm_2_subvf(&nr_i->sub_vf_in, vfm);
 		chg = dpss_sub_vf_check(pch, &nr_i->sub_vf_in);
+		if (!chg) {
+			if ((vfm->dpss_flg & DPSS_FLG_NEW_TRIG) ||
+			    (dpss_dbg_bypss & C_BIT8)) {
+				chg = 10;
+				DBG_INF("%s:ch[%d]:new trig\n",
+					"input chg", pch->c.ch);
+			}
+		}
+
 		if (pch->c.ch) {
 			if (chg)
 				return D_W_B(NR);
@@ -1625,7 +1634,7 @@ void dpss_s2_parser_input_new(struct dpss_ch_s *pch)
 	vfm_in = nr_i->in_vfm;
 	//copy and back
 	dpss_vfm_cp(vfm, vfm_in);
-
+	vfm->dpss_flg = vfm_in->dpss_flg & DPSS_FLG_NEW_TRIG; //keep input
 	w_mode = dpss_work_mode_count(pch, vfm);
 
 	chg = dpss_m_chg_count(pch, vfm);

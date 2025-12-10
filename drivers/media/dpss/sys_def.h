@@ -226,6 +226,7 @@ extern unsigned int nr_bypass_test;
 bool tst_dbg_reg(void);
 
 extern bool dpss_slt_mode;
+extern bool dpss_en_hdr;
 
 //exnern void tst_case_00(void);		//SRC0->INP->NR
 //tbc:
