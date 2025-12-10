@@ -907,7 +907,7 @@ bool alloc_from_system(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem,
 	if (mem->mem_handle) {
 		mem->vbuffer = mem->mem_handle;
 		mem->phy_addr = virt_to_phys(mem->mem_handle);
-		dma_sync_single_for_device(mgt->dev, mem->phy_addr,
+		dma_sync_single_for_cpu(mgt->dev, mem->phy_addr,
 			PAGE_ALIGN(mem->buffer_size), DMA_FROM_DEVICE);
 		return true;
 	}
@@ -928,10 +928,8 @@ bool alloc_from_cma(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem,
 	mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA;
 	if (mem->mem_handle) {
 		mem->phy_addr = page_to_phys((struct page *)mem->mem_handle);
-		if (!mgt->tvp_enable && !(mem->flags & CODEC_MM_FLAGS_TVP)) {
-			dma_sync_single_for_device(mgt->dev, mem->phy_addr,
+		dma_sync_single_for_cpu(mgt->dev, mem->phy_addr,
 				mem->page_count << PAGE_SHIFT, DMA_FROM_DEVICE);
-		}
 		mem->vbuffer = (mem->flags & CODEC_MM_FLAGS_CPU) ?
 			codec_mm_map_phyaddr(mem) : NULL;
 
@@ -1168,8 +1166,6 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 			codec_mm_clear_alloc_in(mgt, mem, align_2n, &alloc_trace_mask);
 			if (mem->mem_handle) {
 				mem->tee_set_start_time = codec_mm_get_current_us();
-				dma_sync_single_for_device(mgt->dev, mem->phy_addr,
-							   mem->buffer_size, DMA_TO_DEVICE);
 				tee_sectbl_secmem_set(mem->phy_addr, mem->buffer_size, true);
 				codec_mm_update_tee_alloc_time(mgt, mem->tee_set_start_time);
 				mem->tee_set_end_time = codec_mm_get_current_us();
