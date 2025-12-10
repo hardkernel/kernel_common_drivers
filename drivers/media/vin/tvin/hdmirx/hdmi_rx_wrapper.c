@@ -1110,8 +1110,11 @@ static int rx_cor_irq_handler(u8 port)
 			tvin_update_vdin_prop(rx_get_port_type(port),
 				PKT_TYPE_INFOFRAME_SPD);
 		}
-		if (rx_get_bits(intr_2, INTR2_BIT0_AVI))
+		if (rx_get_bits(intr_2, INTR2_BIT0_AVI)) {
 			rx[port].irq_flag |= IRQ_AVI_CHG_FLAG;
+			rx[port].game_mode =
+				tvin_get_game_mode_status(rx_get_port_type(port));
+		}
 		if (rx_get_bits(intr_2, INTR2_BIT4_UNREC)) {
 			rx[port].rx_sig_type &= ~(MSK(3, 0));
 			rx[port].hdr_info.hdr_type = HDMIRX_HDR_MODE_SDR;
@@ -4230,8 +4233,10 @@ void hdmirx_mute_vpp_pkt(bool en, u8 port)
 			rx_mute_t3x(true, rx_get_port_type(port));
 			rx[port].var.mute_cnt = 0;
 		} else {
-			if (tvin_get_game_mode_status(rx_get_port_type(port)))
+			if (rx[port].game_mode) {
 				rx_mute_vpp(rx_get_port_type(port));
+				rx[port].game_mode = false;
+			}
 			rx[port].vpp_mute = true;
 			set_video_mute(HDMI_RX_MUTE_SET, true);
 			rx[port].var.mute_cnt = 0;

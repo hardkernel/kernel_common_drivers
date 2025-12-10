@@ -1130,6 +1130,7 @@ struct rx_s {
 	u32 odd_cnt;
 	u32 odd1_cnt;
 	bool need_add_one;
+	bool game_mode;
 };
 
 struct reg_map {

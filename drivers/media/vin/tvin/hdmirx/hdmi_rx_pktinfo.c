@@ -3043,7 +3043,7 @@ bool rx_game_need_mute(u8 port)
 			(rx[port].rx_sig_type_pre & ~GAME_MASK))
 			ret = false;
 	}
-	rx[port].pkt_need_mute = false;
+	rx[port].pkt_need_mute = true;
 
 	return ret;
 }
