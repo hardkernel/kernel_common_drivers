@@ -718,13 +718,6 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 	/*set idim*/
 	bl_mcu->idim = dev_drv->boost_conf.iset;
 
-	if (bl_mcu->bl_pwm_en) {
-		/* Generate external VSYNC to VSYNC/PWM pin */
-		ldim_set_duty_pwm(&dev_drv->ldim_pwm_config);
-		ldim_set_duty_pwm(&dev_drv->analog_pwm_config);
-		dev_drv->pinmux_ctrl(dev_drv, 1);
-	}
-
 	blmcu_ldim_dev_update(dev_drv);
 
 	if (dev_drv->class) {

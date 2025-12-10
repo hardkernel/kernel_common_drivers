@@ -344,6 +344,41 @@ void ldim_pwm_off(struct bl_pwm_config_s *bl_pwm)
 }
 
 /* ****************************************************** */
+
+static int ldim_pwm_custom_pinmux_ctrl(struct ldim_dev_driver_s *dev_drv, int status)
+{
+	char pinmux_str[LDIM_DEV_NAME_MAX + 5];
+	int ret = 0, index = 0xff;
+
+	if (dev_drv->ldim_pwm_config.pwm_port >= BL_PWM_MAX)
+		return 0;
+
+	if (status) {
+		index = 0;
+		sprintf(pinmux_str, "%s", dev_drv->pinmux_name);
+	} else {
+		index = 1;
+		sprintf(pinmux_str, "%s_off", dev_drv->pinmux_name);
+	}
+	if (dev_drv->pinmux_flag == index) {
+		LDIMPR("pinmux %s is already selected\n", pinmux_str);
+		return 0;
+	}
+
+	/* request pwm pinmux */
+	dev_drv->pin = devm_pinctrl_get_select(dev_drv->dev, pinmux_str);
+	if (IS_ERR_OR_NULL(dev_drv->pin)) {
+		LDIMERR("set pinmux %s error\n", pinmux_str);
+		ret = -1;
+	} else {
+		if (ldim_debug_print)
+			LDIMPR("set pinmux %s: 0x%p\n", pinmux_str, dev_drv->pin);
+	}
+	dev_drv->pinmux_flag = index;
+
+	return ret;
+}
+
 static char *ldim_pinmux_str[] = {
 	"ldim_pwm",               /* 0 */
 	"ldim_pwm_vs",            /* 1 */
@@ -365,6 +400,9 @@ static int ldim_pwm_pinmux_ctrl(struct ldim_dev_driver_s *dev_drv, int status)
 
 	if (dev_drv->ldim_pwm_config.pwm_port >= BL_PWM_MAX)
 		return 0;
+
+	if (strcmp(dev_drv->pinmux_name, "invalid"))
+		return ldim_pwm_custom_pinmux_ctrl(dev_drv, status);
 
 	if (status) {
 		if (dev_drv->type == LDIM_DEV_TYPE_ABCON) {

@@ -568,18 +568,18 @@ static int lcd_cus_ctrl_parse_tuning_attr_ini(struct aml_lcd_drv_s *pdrv,
 			tmp_phy.ref_bias, tmp_phy.odt, tmp_phy.cv_mode);
 
 		for (j = 0; j < lane_cnt; j++) {
-			sprintf(key_str, "ch%u_rterm", i);
+			sprintf(key_str, "ch%u_rterm", j);
 			tmp_phy.lane[j].rterm =
 				lcd_ini_get_val(inip, tuning_sec, key_str, tmp_phy.lane[j].rterm);
-			sprintf(key_str, "ch%u_amp", i);
+			sprintf(key_str, "ch%u_amp", j);
 			tmp_phy.lane[j].amp =
 				lcd_ini_get_val(inip, tuning_sec, key_str, tmp_phy.lane[j].amp);
-			sprintf(key_str, "ch%u_preem", i);
+			sprintf(key_str, "ch%u_preem", j);
 			tmp_phy.lane[j].preem =
 				lcd_ini_get_val(inip, tuning_sec, key_str, tmp_phy.lane[j].preem);
 			LCD_DEV_DBG(pdrv, dev_p->idx,
 				"%s: lane[%d]: preem=0x%x, amp=0x%x, rterm=0x%x",
-				TUNING_ATTR_PARSE, i, tmp_phy.lane[j].preem, tmp_phy.lane[j].amp,
+				TUNING_ATTR_PARSE, j, tmp_phy.lane[j].preem, tmp_phy.lane[j].amp,
 				tmp_phy.lane[j].rterm);
 		}
 

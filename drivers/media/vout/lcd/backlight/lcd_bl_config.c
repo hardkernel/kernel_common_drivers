@@ -104,7 +104,7 @@ static void bl_config_print(struct aml_bl_drv_s *bdrv)
 	BLPR("power_on_dly  = %dms\n", bconf->power_on_delay);
 	BLPR("power_off_dly = %dms\n\n", bconf->power_off_delay);
 	BLPR("bl_hold_on    = %dms\n", bconf->bl_hold_on);
-
+	BLPR("bl_pinmux_sel = %s\n", bconf->pinmux_name);
 	switch (bconf->method) {
 	case BL_CTRL_PWM:
 		BLPR("pwm_on_delay  = %dms\n", bconf->pwm_on_delay);
@@ -251,6 +251,14 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		str = "backlight";
 	}
 	strscpy(bconf->name, str, BL_NAME_MAX);
+
+	ret = of_property_read_string(child, "bl_pinmux_sel", &str);
+	if (!ret) {
+		BLPR("find custom bl_pinmux_sel:%s\n", str);
+		strscpy(bconf->pinmux_name, str, BL_NAME_MAX);
+	} else {
+		strscpy(bconf->pinmux_name, "invalid", BL_NAME_MAX);
+	}
 
 	ret = of_property_read_u32_array(child, "bl_level_default_uboot_kernel", &para[0], 2);
 	if (ret) {
@@ -662,6 +670,9 @@ static int bl_config_load_from_json(struct aml_bl_drv_s *bdrv)
 	bconf->bl_pwm_switch_port = json_get_obj_u32(jsp, child, "pwm_switch_port", BL_PWM_MAX);
 	bconf->bl_pwm_switch_freq = json_get_obj_u32(jsp, child, "pwm_switch_freq", 0);
 	bconf->bl_hold_on = json_get_obj_u32(jsp, child, "bl_hold_on", 0);
+	str = json_get_obj_str(jsp, child, "bl_pinmux_sel", "invalid");
+	if (str)
+		strscpy(bconf->pinmux_name, str, BL_NAME_MAX);
 	bl_gpio_probe(bdrv, bconf->en_gpio);
 
 	if (bconf->method == BL_CTRL_LOCAL_DIMMING) {
@@ -782,6 +793,9 @@ static int bl_config_load_from_ini(struct aml_bl_drv_s *bdrv)
 
 	str = lcd_ini_get_str(inip, psec, "bl_name", "null");
 	strscpy(bconf->name, str, sizeof(bconf->name));
+
+	str = lcd_ini_get_str(inip, psec, "bl_pinmux_sel", "invalid");
+	strscpy(bconf->pinmux_name, str, BL_NAME_MAX);
 
 	bconf->level_uboot = lcd_ini_get_val(inip, psec, "bl_level_uboot", 0);
 	val = lcd_ini_get_val(inip, psec, "bl_level_kernel", 0);

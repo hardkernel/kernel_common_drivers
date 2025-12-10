@@ -301,9 +301,9 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 
 	ret = of_property_read_string(child, "ldim_pwm_pinmux_sel", &str);
 	if (ret)
-		strcpy(dev_drv->pinmux_name, "invalid");
+		strscpy(dev_drv->pinmux_name, "invalid", LDIM_DEV_NAME_MAX);
 	else
-		strcpy(dev_drv->pinmux_name, str);
+		strscpy(dev_drv->pinmux_name, str, LDIM_DEV_NAME_MAX);
 
 	ret = of_property_read_u32_array(child, "en_gpio_on_off", temp, 3);
 	if (ret) {
@@ -1248,7 +1248,6 @@ int ldim_dev_get_config(struct ldim_dev_driver_s *dev_drv, struct device_node *n
 		ret = -1;
 		break;
 	}
-
 	len = sprintf(str, "mcu_header=0x%08x, mcu_dim=0x%08x, ",
 		dev_drv->mcu_header, dev_drv->mcu_dim);
 	len += sprintf(str + len, "spi_sync:%d, spi_line_n: %d, ",
@@ -1257,6 +1256,7 @@ int ldim_dev_get_config(struct ldim_dev_driver_s *dev_drv, struct device_node *n
 		"chip_cnt:%d, hw_on_dly: %dms, hw_off_dly: %dms, cus pwm_pinmux_sel:%s",
 		dev_drv->chip_cnt, dev_drv->hw_on_delay, dev_drv->hw_off_delay,
 		dev_drv->pinmux_name);
+
 	LDIMPR("load %s config: %s: type:%d, %s\n",
 		dev_drv->name, get_lcd_config_load(dev_drv->config_load),
 		dev_drv->type, str);

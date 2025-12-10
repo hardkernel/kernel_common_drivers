@@ -717,13 +717,6 @@ int ldim_dev_abcon_xwire_probe(struct aml_ldim_driver_s *ldim_drv)
 	//init abcon register for xwire
 	//ldim_abcon_init_registers_for_xwire();
 
-	if (bl_xwire->bl_pwm_en) {
-		/* Generate external VSYNC to VSYNC/PWM pin */
-		ldim_set_duty_pwm(&dev_drv->ldim_pwm_config);
-		ldim_set_duty_pwm(&dev_drv->analog_pwm_config);
-		dev_drv->pinmux_ctrl(dev_drv, 1);
-	}
-
 	abcon_xwire_dev_update(dev_drv);
 
 	if (dev_drv->class) {

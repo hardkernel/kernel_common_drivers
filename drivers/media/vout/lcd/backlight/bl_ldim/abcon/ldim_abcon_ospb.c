@@ -929,13 +929,6 @@ int ldim_dev_abcon_ospb_probe(struct aml_ldim_driver_s *ldim_drv)
 	//init abcon register for ospb
 	ldim_abcon_init_registers_for_ospb();
 
-	if (bl_ospb->bl_pwm_en) {
-		/* Generate external VSYNC to VSYNC/PWM pin */
-		ldim_set_duty_pwm(&dev_drv->ldim_pwm_config);
-		ldim_set_duty_pwm(&dev_drv->analog_pwm_config);
-		dev_drv->pinmux_ctrl(dev_drv, 1);
-	}
-
 	abcon_ospb_dev_update(dev_drv);
 
 	if (dev_drv->class) {

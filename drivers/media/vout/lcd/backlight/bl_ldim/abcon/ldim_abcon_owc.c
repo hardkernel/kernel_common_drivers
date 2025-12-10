@@ -852,13 +852,6 @@ int ldim_dev_abcon_owc_probe(struct aml_ldim_driver_s *ldim_drv)
 	//init abcon register for owc
 	ldim_abcon_init_registers_for_owc();
 
-	if (bl_owc->bl_pwm_en) {
-		/* Generate external VSYNC to VSYNC/PWM pin */
-		ldim_set_duty_pwm(&dev_drv->ldim_pwm_config);
-		ldim_set_duty_pwm(&dev_drv->analog_pwm_config);
-		dev_drv->pinmux_ctrl(dev_drv, 1);
-	}
-
 	abcon_owc_dev_update(dev_drv);
 
 	if (dev_drv->class) {
