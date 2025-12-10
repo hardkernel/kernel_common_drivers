@@ -911,7 +911,7 @@ static const struct aml_cam_dev_info_s cam_devs[] = {
 
 static const struct aml_cam_dev_info_s *get_cam_info_by_name(const char *name)
 {
-	int i;
+	unsigned int i;
 
 	if (!name)
 		return NULL;
