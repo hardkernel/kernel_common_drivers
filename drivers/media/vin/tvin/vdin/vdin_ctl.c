@@ -8627,9 +8627,13 @@ unsigned int vdin_get_base_fr(struct vdin_dev_s *devp)
 		devp->vin_base_fps = fps;
 	} else if (vdin_check_is_spd_data(devp) &&
 		(devp->prop.spd_data.data[5] & 0x7)) { /* FreeSync */
-		/* FreeSync Maximum refresh rate (Hz) */
+		/* FreeSync Maximum refresh rate (Hz), for > 256fps add data[11] bit0:1*/
 		if (devp->prop.spd_data.data[7]) {
-			fps = devp->prop.spd_data.data[7];
+			if (devp->prop.spd_data.version < 3)
+				fps = devp->prop.spd_data.data[7];
+			else
+				fps = devp->prop.spd_data.data[7] +
+					((devp->prop.spd_data.data[11] & 0x3) << 8);
 		} else if (devp->prop.hw_vic != 0) {
 		#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
@@ -8651,11 +8655,12 @@ unsigned int vdin_get_base_fr(struct vdin_dev_s *devp)
 		devp->parm.info.fps = fps;
 
 	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_RATIO)
-		pr_info("%s vrr_en:%d vic=%d;%d,%d;base_fr=%d,spd[5]:%#x,[7]:%#x,fps:%d,%d,%d,%d\n",
+		pr_info("%s vrr_en:%d vic=%d;%d,%d;base_fr=%d,spd[5]:%#x,[7]:%#x,[11]:%#x,fps:%d,%d,%d,%d\n",
 			__func__, devp->prop.vtem_data.vrr_en, devp->prop.hw_vic,
 			devp->prop.vtem_data.qms_en, devp->prop.qms_plus_flag,
 			devp->prop.vtem_data.base_framerate, devp->prop.spd_data.data[5],
-			devp->prop.spd_data.data[7], devp->parm.info.fps, devp->prop.fps,
+			devp->prop.spd_data.data[7], devp->prop.spd_data.data[11],
+			devp->parm.info.fps, devp->prop.fps,
 			devp->vin_base_fps, devp->vout_base_fps);
 
 	return fps;
