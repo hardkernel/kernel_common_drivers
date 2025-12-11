@@ -71,6 +71,10 @@ static void lcd_pll_frac_set_t6x(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 		LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
 			__func__, reg, val, lcd_vx1_lvds_ctrl_read(pdrv, reg));
 	}
+	lcd_delay_us(10);
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL_VLOCK, 1, 4, 1);
+	lcd_delay_us(10);
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL_VLOCK, 0, 4, 1);
 
 	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL) {
 		reg = ANACTRL_GP2PLL_CTRL1;
@@ -317,6 +321,13 @@ static void lcd_set_pll_t6x(struct aml_lcd_drv_s *pdrv)
 	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL0_CNTL3, 0, 31, 1);
 	usleep_range(10, 15);
 	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL0_CNTL3, 1, 31, 1);
+
+	/* set load to 0 */
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL_VLOCK, 0, 4, 1);
+	/* select ANACTRL_TCON_PLL_VLOCK[4] as load */
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL_VLOCK, 0, 3, 1);
+	/* enable load en*/
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL0_CNTL0, 1, 14, 1);
 
 	if ((cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL)) {
 		cnt = 0;
