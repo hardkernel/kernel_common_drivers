@@ -20,6 +20,12 @@
 #include "meson_crtc.h"
 #include "meson_drv.h"
 #include "meson_vpu.h"
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DRM
+#include <trace/events/meson_atrace.h>
+#endif
+
 static int flush_time = 3;
 static int rdma_table_flush_time = 1;
 
@@ -566,9 +572,11 @@ void vpu_pipeline_check_finish_reg(int crtc_index)
 	u32  val;
 
 	val = meson_drm_read_reg(drm_rdma_cnt[crtc_index].reg);
-	if (val != drm_rdma_cnt[crtc_index].val)
+	if (val != drm_rdma_cnt[crtc_index].val) {
+		ATRACE_COUNTER("check_reg", drm_rdma_cnt[crtc_index].val);
 		DRM_DEBUG("request crtc%d, drm_rdma_dt_cnt [%d] current [%d]\n",
 			  crtc_index, drm_rdma_cnt[crtc_index].val >> 8, val >> 8);
+	}
 }
 
 void vpu_pipeline_detect_reset(struct meson_vpu_sub_pipeline *sub_pipeline)
