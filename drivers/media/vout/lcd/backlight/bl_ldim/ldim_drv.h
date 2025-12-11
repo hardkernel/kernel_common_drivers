@@ -31,8 +31,9 @@
 /*20250316: optimize ldim_fw_s */
 /*20250803: add bcon support */
 /*20251123: modify level idx to 256 */
+/*20260110: modify ldim_fw_s */
 
-#define LDIM_DRV_VER    "20251123"
+#define LDIM_DRV_VER    "20260110"
 
 extern unsigned char ldim_print_en;
 #define LDIMPR(fmt, args...)     \
@@ -58,7 +59,7 @@ enum spiout_type_e {
 	SPIOUT_MAX,
 };
 
-#define FW_IPARAM_LEN		16
+#define FW_PPARAM_LEN		16
 
 #define LDIM_DBG_PR_VSYNC_ISR		0x80
 #define LDIM_DBG_PR_PWM_VS_ISR		0x40

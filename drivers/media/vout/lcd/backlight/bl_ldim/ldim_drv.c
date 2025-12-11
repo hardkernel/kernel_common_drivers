@@ -140,8 +140,6 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.fw_time = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	.time_msr_en = 0,
 	.level_curve = {{0, 100}, {1024, 1024}, {2048, 2048}, {3072, 3072}, {4095, 4095}},
-	.pq_num = 4,
-	.pq_size = 0x1228,
 
 	.pqdata = NULL,
 	.data = NULL,
@@ -376,20 +374,22 @@ static void ldim_config_print(void)
 static void ldim_fw_vsync_update(void)
 {
 	struct ldim_fw_s *fw = ldim_driver.fw;
+	struct ldim_fw_param_s *param;
 
 	if (!fw)
 		return;
 	if (!fw->param || !fw->param->conf)
 		return;
 
-	if (fw->param->conf->func_en != ldim_driver.func_en ||
-		fw->param->conf->hsize != ldim_driver.conf->hsize ||
-		fw->param->conf->vsize != ldim_driver.conf->vsize ||
-		fw->param->res_update != ldim_driver.resolution_update) {
-		fw->param->conf->func_en = ldim_driver.func_en;
-		fw->param->conf->hsize = ldim_driver.conf->hsize;
-		fw->param->conf->vsize = ldim_driver.conf->vsize;
-		fw->param->res_update = ldim_driver.resolution_update;
+	param = fw->param;
+	if (param->conf->func_en != ldim_driver.func_en ||
+		param->conf->hsize != ldim_driver.conf->hsize ||
+		param->conf->vsize != ldim_driver.conf->vsize ||
+		param->res_update != ldim_driver.resolution_update) {
+		param->conf->func_en = ldim_driver.func_en;
+		param->conf->hsize = ldim_driver.conf->hsize;
+		param->conf->vsize = ldim_driver.conf->vsize;
+		param->res_update = ldim_driver.resolution_update;
 
 		if (fw->fw_info_update)
 			fw->fw_info_update(ldim_driver.fw);
@@ -398,6 +398,7 @@ static void ldim_fw_vsync_update(void)
 		fw->param->res_update = 0;
 	}
 
+	param->vsync_flag = ldim_driver.vsync_change_flag;
 }
 
 void ldim_vs_arithmetic(struct aml_ldim_driver_s *ldim_drv)
@@ -420,7 +421,7 @@ void ldim_vs_arithmetic(struct aml_ldim_driver_s *ldim_drv)
 		return;
 
 	memcpy(cus_fw->bl_matrix, fw->bl_matrix, size * (sizeof(unsigned int)));
-	cus_fw->fw_alg_frm(cus_fw, fw->param->stts);
+	cus_fw->fw_alg_frm(cus_fw);
 	if (fw->fw_rmem_duty_set && cus_fw->comp_en)
 		fw->fw_rmem_duty_set(cus_fw->bl_matrix);
 	if (fw->fw_pq_set && cus_fw->pq_update && fw_pq) {
@@ -766,7 +767,6 @@ EXPORT_SYMBOL(aml_ldim_get_bbd_state);
 
 static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	int i = 0;
 	int ret = 0;
 	void __user *argp;
 	int mcd_nr;
@@ -804,6 +804,11 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	argp = (void __user *)arg;
+	if (fw->fw_cmd) {
+		ret = fw->fw_cmd(fw, mcd_nr, argp);
+		if (ret)
+			return ret;
+	}
 	switch (mcd_nr) {
 	case AML_LDIM_IOC_NR_SET_PQ_INIT:
 		if (copy_from_user(&ldim_buff,
@@ -820,19 +825,6 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		}
 
-		if (ldim_buff.index) {
-			ldim_driver.pq_num = (ldim_buff.index >> 8) & 0xff;
-			if (ldim_driver.pq_num && ldim_driver.pq_num <= 0xff) {
-				ldim_driver.pq_size = ldim_buff.len / ldim_driver.pq_num;
-			} else {
-				LDIMERR("ldim_driver.pq_num is wrong!!\n");
-				return -EFAULT;
-			}
-		} else {
-			if (ldim_driver.pq_size)
-				ldim_driver.pq_num = ldim_buff.len / ldim_driver.pq_size;
-		}
-
 		ldim_driver.pqdata =  kcalloc(ldim_buff.len, sizeof(char), GFP_KERNEL);
 		if (!ldim_driver.pqdata) {
 			LDIMERR("alloc ldim_driver.pqdata buf fail\n");
@@ -845,6 +837,8 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		param->pq_header = ldim_buff.index;
+		param->pq_len = ldim_buff.len;
+		param->pq = ldim_driver.pqdata;
 		ldim_driver.state |= LDIM_STATE_PQ_INIT;
 		break;
 	case AML_LDIM_IOC_NR_GET_LEVEL_IDX:
@@ -866,25 +860,11 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				   sizeof(unsigned char))) {
 			ret = -EFAULT;
 		}
-		if (ldim_driver.level_idx >= ldim_driver.pq_num) {
-			LDIMPR("level_idx = %d is bigger than max level index(%d)!!, do nothing!\n",
-			ldim_driver.level_idx, (ldim_driver.pq_num - 1));
-			return -EFAULT;
-		}
 
-		ldim_driver.fw->fw_ctrl &= ~FW_CTRL_LEVEL_IDX;
-		ldim_driver.fw->fw_ctrl |= ldim_driver.level_idx;
-
-		fw_pq = ldim_driver.pqdata + ldim_driver.level_idx * ldim_driver.pq_size;
-		if (ldim_driver.cus_fw)
-			ldim_driver.cus_fw->pqdata = fw_pq;
-		if (ldim_driver.fw->fw_pq_set)
-			ldim_driver.fw->fw_pq_set(fw_pq);
-
+		ldim_driver.fw->param->level = ldim_driver.level_idx;
 		ldim_driver.brightness_bypass = 0;
 
-		LDIMPR("%s level_idx=%d, fw_ctrl=0x%x\n", __func__,
-		ldim_driver.level_idx, ldim_driver.fw->fw_ctrl);
+		LDIMPR("%s level_idx=%d\n", __func__, ldim_driver.level_idx);
 		break;
 	case AML_LDIM_IOC_NR_GET_FUNC_EN:
 		if (copy_to_user(argp, &ldim_driver.func_en, sizeof(unsigned char)))
@@ -996,10 +976,7 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			vfree(buf);
 			return -EFAULT;
 		}
-		if (lcd_debug_print_flag & LCD_DBG_PR_BL_LDIM) {
-			for (i = 0; i < ldim_buff.len; i++)
-				LDIMPR("buf[%d] =  0x%x\n", i, buf[i]);
-		}
+
 		memset(ldim_driver.dev_drv->bl_mapping, 0, ldim_buff.len);
 		memcpy(ldim_driver.dev_drv->bl_mapping, buf, ldim_buff.len);
 #ifdef CONFIG_AMLOGIC_BL_LDIM_ABCON
@@ -1189,7 +1166,6 @@ static int aml_ldim_malloc(struct platform_device *pdev, struct ldim_drv_data_s 
 	unsigned int mem_size;
 	int i, ret = 0;
 	struct ldim_fw_s *fw = aml_ldim_get_fw();
-	struct ldim_fw_custom_s *fw_cus = aml_ldim_get_fw_cus();
 
 	/* init reserved memory */
 	ret = of_reserved_mem_device_init(&pdev->dev);
@@ -1233,29 +1209,14 @@ static int aml_ldim_malloc(struct platform_device *pdev, struct ldim_drv_data_s 
 	for (i = 0; i < zone_num; i++)
 		ldim_driver.test_matrix[i] = 2048;
 
-	if (fw_cus && fw_cus->fw_param) {
-		fw_cus->fw_param->param = kcalloc(32, sizeof(int), GFP_KERNEL);
-		if (!fw_cus->fw_param->param)
-			goto ldim_malloc_t7_err4;
-	}
-
 	if (fw && fw->param) {
-		fw->param->iparam = kcalloc(FW_IPARAM_LEN, sizeof(int), GFP_KERNEL);
-		if (!fw->param->iparam)
-			goto ldim_malloc_t7_err5;
-		fw->param->oparam = kcalloc(FW_IPARAM_LEN, sizeof(int), GFP_KERNEL);
-		if (!fw->param->oparam)
-			goto ldim_malloc_t7_err6;
+		fw->param->pparam = kcalloc(FW_PPARAM_LEN, sizeof(int *), GFP_KERNEL);
+		if (!fw->param->pparam)
+			goto ldim_malloc_t7_err4;
 	}
 
 	return 0;
 
-ldim_malloc_t7_err6:
-	if (fw && fw->param)
-		kfree(fw->param->iparam);
-ldim_malloc_t7_err5:
-	if (fw_cus && fw_cus->fw_param)
-		kfree(fw_cus->fw_param->param);
 ldim_malloc_t7_err4:
 	kfree(ldim_driver.test_matrix);
 ldim_malloc_t7_err3:
@@ -1461,6 +1422,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 	ldim_driver.fw->chip_type = devp->data->ldc_chip_type;
 	ldim_driver.fw->param->conf->seg_row = ldim_config.seg_row;
 	ldim_driver.fw->param->conf->seg_col = ldim_config.seg_col;
+	ldim_driver.fw->param->vsync_flag = ldim_driver.vsync_change_flag;
 	ldim_driver.fw->param->rmem = &ldim_rmem;
 	ldim_driver.fw->valid = 1;
 

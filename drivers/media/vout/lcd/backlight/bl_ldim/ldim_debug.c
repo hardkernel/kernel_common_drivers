@@ -276,7 +276,7 @@ static ssize_t ldim_cus_fw_param_get(struct aml_ldim_driver_s *ldim_drv, char *b
 
 	len = sprintf(buf, "for_tool:");
 
-	for (i = 0; i < 32; i++)
+	for (i = 0; i < ldim_drv->cus_fw->fw_param->param_len; i++)
 		len += sprintf(buf + len, " %d", ldim_drv->cus_fw->fw_param->param[i]);
 
 	return len;
@@ -341,7 +341,6 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 	unsigned long val1 = 0;
 	size_t ret = 0;
 	unsigned int seg_size;
-	unsigned char tmp = 0;
 
 	if (!fw || !fw->param || !fw->fw_debug_store)
 		return -EINVAL;
@@ -592,13 +591,16 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 		}
 		pr_info("cus_fw_print_lv = %d\n", cus_fw->fw_print_lv);
 	} else if (!strcmp(parm[0], "cus_fw_param")) {
-		if (!cus_fw)
+		if (!cus_fw || !cus_fw->fw_param || !cus_fw->fw_param->param)
 			goto ldim_attr_store_err;
-		if (!strcmp(parm[1], "r")) {
-			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_RD;
-			dbg_attr.mode = LDIM_DBG_ATTR_MODE_CUS_PARAM;
-			dbg_attr.index = 0;
-			goto ldim_attr_store_end;
+
+		if (parm[1]) {
+			if (!strcmp(parm[1], "r")) {
+				dbg_attr.cmd = LDIM_DBG_ATTR_CMD_RD;
+				dbg_attr.mode = LDIM_DBG_ATTR_MODE_CUS_PARAM;
+				dbg_attr.index = 0;
+				goto ldim_attr_store_end;
+			}
 		}
 		if (parm[2]) {
 			if (kstrtouint(parm[1], 0, &i) < 0)
@@ -606,19 +608,11 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 			if (kstrtouint(parm[2], 0, &j) < 0)
 				goto ldim_attr_store_err;
 
-			if (cus_fw->fw_alg_frm &&
-				cus_fw->fw_param &&
-				cus_fw->fw_param->param)
+			if (i < cus_fw->fw_param->param_len)
 				cus_fw->fw_param->param[i] = j;
 		}
-		for (k = 0; k < 32; k++) {
-			if (cus_fw->fw_alg_frm &&
-				cus_fw->fw_param &&
-				cus_fw->fw_param->param) {
-				pr_info("cus_fw[%d] = %d\n",
-					k, cus_fw->fw_param->param[k]);
-			}
-		}
+		for (k = 0; k < cus_fw->fw_param->param_len; k++)
+			pr_info("cus_fw[%d] = %d\n", k, cus_fw->fw_param->param[k]);
 	} else if (!strcmp(parm[0], "info")) {
 		pr_info("ldim_drv_ver: %s\n", LDIM_DRV_VER);
 		if (ldim_drv->config_print)
@@ -637,8 +631,6 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 			"ldim_data_min         = %d\n"
 			"ldim_data_max         = %d\n"
 			"pqdata               = 0x%p\n"
-			"pq_num               = %d\n"
-			"pq_size               = 0x%x\n"
 			"litgain               = %d\n"
 			"fw_valid              = %d\n"
 			"fw_sel                = %d\n"
@@ -654,8 +646,6 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 			ldim_drv->test_bl_en,
 			ldim_drv->data_min, ldim_drv->data_max,
 			ldim_drv->pqdata,
-			ldim_drv->pq_num,
-			ldim_drv->pq_size,
 			ldim_drv->litgain,
 			ldim_drv->fw->valid,
 			ldim_drv->fw->param->fw_sel,
@@ -711,22 +701,9 @@ static ssize_t ldim_attr_store(const struct class *cla, const struct class_attri
 				goto ldim_attr_store_err;
 			}
 
-			tmp = (unsigned char)val1;
-			if (tmp >= ldim_drv->pq_num) {
-				LDIMPR("level_idx(%d) is bigger than max level(%d), do nothing!\n",
-				tmp, (ldim_drv->pq_num - 1));
-				goto ldim_attr_store_err;
-			}
-			ldim_drv->level_idx = tmp;
+			ldim_drv->level_idx = (unsigned char)val1;
+			fw->param->level = ldim_drv->level_idx;
 
-			fw->fw_ctrl &= ~FW_CTRL_LEVEL_IDX;
-			fw->fw_ctrl |= ldim_drv->level_idx;
-
-			fw_pq = ldim_drv->pqdata + ldim_drv->level_idx * ldim_drv->pq_size;
-			if (ldim_drv->cus_fw)
-				ldim_drv->cus_fw->pqdata = fw_pq;
-			if (ldim_drv->fw->fw_pq_set)
-				ldim_drv->fw->fw_pq_set(fw_pq);
 			ldim_drv->brightness_bypass = 0;
 		}
 		pr_info("level_idx = %d\n", ldim_drv->level_idx);
@@ -1318,24 +1295,6 @@ static ssize_t ldim_debug_store(const struct class *class, const struct class_at
 		pr_info("fw_time:\n");
 		ldim_time_print(ldim_drv->fw_time);
 		pr_info("pwm_vs_irq_err_cnt: %d\n", ldim_drv->pwm_vs_irq_err_cnt);
-	} else if (!strcmp(parm[0], "fw_iparam")) {
-		if (!fw->param || !fw->param->iparam)
-			goto ldim_debug_store_err;
-		if (parm[2]) {
-			if (kstrtouint(parm[1], 0, &temp) < 0)
-				goto ldim_debug_store_err;
-			if (kstrtouint(parm[2], 0, &val) < 0)
-				goto ldim_debug_store_err;
-			fw->param->iparam[temp] = val;
-		}
-		for (i = 0; i < FW_IPARAM_LEN; i++)
-			pr_info("iparam[%d]: 0x%x\n", i, fw->param->iparam[i]);
-	} else if (!strcmp(parm[0], "fw_oparam")) {
-		if (!fw->param || !fw->param->oparam)
-			goto ldim_debug_store_err;
-
-		for (i = 0; i < FW_IPARAM_LEN; i++)
-			pr_info("oparam[%d]:0x%x\n", i, fw->param->oparam[i]);
 	} else if (!strcmp(parm[0], "black_frm_en")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 0, &temp) < 0)

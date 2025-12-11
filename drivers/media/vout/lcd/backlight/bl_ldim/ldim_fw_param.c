@@ -15,9 +15,17 @@
 #include <linux/amlogic/media/vout/lcd/ldim_fw.h>
 #include "ldim_drv.h"
 
+struct ldim_ext_hist_s ext_hist = {
+	.glb_apl = 0,
+	.glb_hist_cnt = 0,
+	.glb_hist_sum = 0,
+	.glb_hist = NULL,
+};
+
 static struct ldim_stts_s ldim_stts = {
 	.global_hist = NULL,
 	.seg_hist = NULL,
+	.ext_hist = &ext_hist,
 };
 
 static struct ldim_fw_config_s ldim_fw_conf = {
@@ -35,6 +43,8 @@ static struct ldim_fw_param_s ldim_fw_param = {
 	.para_ver = 1,
 	.para_size = sizeof(struct ldim_fw_param_s),
 	.pq_header = 0,
+	.pq_len = 0,
+	.pq = NULL,
 
 	.fw_sel = 0,
 	.res_update = 0,
@@ -44,8 +54,7 @@ static struct ldim_fw_param_s ldim_fw_param = {
 	.rmem = NULL,
 	.stts = &ldim_stts,
 	.ext_boost = NULL,
-	.iparam = NULL,
-	.oparam = NULL,
+	.pparam = NULL,
 };
 
 static struct ldim_fw_s ldim_fw = {
@@ -72,13 +81,16 @@ static struct ldim_fw_s ldim_fw = {
 	.fw_rmem_duty_set = NULL,
 	.fw_debug_show = NULL,
 	.fw_debug_store = NULL,
+	.fw_cmd = NULL,
 };
 
 struct ldim_cus_fw_param_s ldim_cus_fw_param = {
 	.para_ver = FW_PARA_VER,
 	.para_size = sizeof(struct ldim_cus_fw_param_s),
 
+	.param_len = 0,
 	.param = NULL,
+	.cus = NULL,
 };
 
 static struct ldim_fw_custom_s ldim_fw_cus = {

@@ -1333,6 +1333,19 @@ void *dpss_get_fw_data(void)
 }
 EXPORT_SYMBOL(dpss_get_fw_data);
 
+void dpss_get_motion(unsigned int *mot)
+{
+	struct dpss_frc_fw_data_s *pfw_data;
+	int i;
+
+	pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
+	if (pfw_data && mot) {
+		for (i = 0; i <= 12; i++)
+			mot[i] = pfw_data->reg_val[i].val;
+	}
+}
+EXPORT_SYMBOL(dpss_get_motion);
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 static void dpss_early_suspend(struct early_suspend *h)
 {

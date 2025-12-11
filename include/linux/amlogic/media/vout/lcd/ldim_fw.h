@@ -2,9 +2,10 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-
 #ifndef _INC_AML_LDIM_ALG_H_
 #define _INC_AML_LDIM_ALG_H_
+
+#include <linux/uaccess.h>
 
 #define	LDC_T7 0x00
 #define	LDC_T3 0x01
@@ -29,12 +30,20 @@ struct ldim_seg_hist_s {
 	unsigned int min_index;
 };
 
+struct ldim_ext_hist_s {
+	unsigned int *glb_hist;
+	unsigned int glb_hist_sum;
+	unsigned int glb_hist_cnt;
+	unsigned int glb_apl;
+};
+
 struct ldim_stts_s {
 	unsigned int *global_hist;
 	unsigned int global_hist_sum;
 	unsigned int global_hist_cnt;
 	unsigned int global_apl;
 	struct ldim_seg_hist_s *seg_hist;
+	struct ldim_ext_hist_s *ext_hist;
 };
 
 struct ldim_rmem_s {
@@ -57,37 +66,41 @@ struct ldim_fw_config_s {
 };
 
 struct ldim_boost_s {
-	unsigned char en;
-	unsigned char mode;
-	unsigned short i_l100;
-	unsigned short i_l32;
-	unsigned short i_l100_val;
-	unsigned short i_l32_val;
-	unsigned char kp_l100;
-	unsigned char kp_l32;
-	unsigned char kp_cur;
-	unsigned short i_cur;
+	unsigned int en;
+	unsigned int mode;
+	unsigned int i_l100;
+	unsigned int i_l32;
+	unsigned int i_l100_val;
+	unsigned int i_l32_val;
+	unsigned int kp_l100;
+	unsigned int kp_l32;
+	unsigned int kp_cur;
+	unsigned int i_cur;
 	unsigned int apl;
 	unsigned int pre_apl;
 	int *iset;
 	int *val;
+	int *parm;
 };
 
 struct ldim_fw_param_s {
 	unsigned int para_ver;
 	unsigned int para_size;
 	unsigned int pq_header;
+	unsigned int pq_len;
+	char *pq;
 
 	unsigned char fw_sel;
 	unsigned char res_update;
+	unsigned char vsync_flag;
+	unsigned char level;
 	unsigned int litgain;
 
 	struct ldim_fw_config_s *conf;
 	struct ldim_rmem_s *rmem;
 	struct ldim_stts_s *stts;
 	struct ldim_boost_s *ext_boost;
-	int *iparam;
-	int *oparam;
+	int **pparam;
 };
 
 /* fw_ctrl description
@@ -98,16 +111,15 @@ struct ldim_fw_param_s {
  * bit27: resume
  * bit9:  fw_print_en
  * bit8:  ld sel
- * bit7--0:  level_idx
  */
 #define FW_CTRL_PQBYPASS		BIT(31)
 #define FW_CTRL_GET_HIST		BIT(30)
 #define FW_CTRL_BYPASS_ALG		BIT(29)
 #define FW_CTRL_BYPASS_REMAP_BL	BIT(28)
 #define FW_CTRL_RESUME			BIT(27)
+#define FW_CTRL_GET_GLB_HIST	BIT(10)
 #define FW_CTRL_FW_PRINT_EN		BIT(9)
 #define FW_CTRL_LD_SEL			BIT(8)
-#define FW_CTRL_LEVEL_IDX		0x000000FF
 
 struct ldim_fw_s {
 	/* header */
@@ -136,13 +148,16 @@ struct ldim_fw_s {
 		enum ldc_dbg_type_e type, char *buf);
 	ssize_t (*fw_debug_store)(struct ldim_fw_s *fw,
 		enum ldc_dbg_type_e type, char *buf, size_t len);
+	int (*fw_cmd)(struct ldim_fw_s *fw, int cmd, void *data);
 };
 
 struct ldim_cus_fw_param_s {
 	unsigned int para_ver;
 	unsigned int para_size;
 
+	int param_len;
 	int *param;
+	int *cus;
 };
 
 struct ldim_fw_custom_s {
@@ -166,8 +181,7 @@ struct ldim_fw_custom_s {
 	unsigned int *bl_matrix;/*backlight matrix output*/
 
 	/*function for backlight matrix algorithm*/
-	void (*fw_alg_frm)(struct ldim_fw_custom_s *fw_cus,
-		struct ldim_stts_s *stts);
+	void (*fw_alg_frm)(struct ldim_fw_custom_s *fw_cus);
 	void (*fw_alg_para_print)(struct ldim_fw_custom_s *fw_cus);
 };
 
@@ -176,7 +190,8 @@ struct ldim_fw_custom_s {
 /*20230915 version 2 modify interface for set pq*/
 /*20230915 version 3 add in_param, out_param*/
 /*20250305 version 4 add boost*/
-#define FW_PARA_VER    4
+/*20250305 version 5 add ext_hist, mot...*/
+#define FW_PARA_VER    5
 
 struct ldim_fw_s *aml_ldim_get_fw(void);
 struct ldim_fw_custom_s *aml_ldim_get_fw_cus(void);

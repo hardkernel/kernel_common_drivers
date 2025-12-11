@@ -217,8 +217,6 @@ struct aml_ldim_driver_s {
 	unsigned long long fw_time[10];
 	unsigned char time_msr_en;
 	unsigned int level_curve[5][2];
-	unsigned char pq_num;
-	unsigned int pq_size;
 
 	char *pqdata;
 	int ldim_vsync_irq;

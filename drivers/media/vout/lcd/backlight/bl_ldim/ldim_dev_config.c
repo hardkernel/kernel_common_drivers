@@ -455,18 +455,22 @@ ldim_dev_get_config_from_dts_profile:
 	}
 
 	/* get cus_param , maximum = 32 x 4 bytes */
-	for (i = 0; i < 32; i++) {
-		ret = of_property_read_u32_index(child,
-			"ldim_cus_param", i, &val);
-		if (ret) {
-			LDIMPR("get ldim_cus_param[%d] failed, size =%d\n",
-				i, i);
-			i = 32;
-		} else {
-			if (fw_cus && fw_cus->fw_param) {
-				fw_cus->fw_param->param[i] = val;
-				LDIMPR("param[%d] = %d\n",
-					i, fw_cus->fw_param->param[i]);
+	if (fw_cus && fw_cus->fw_param) {
+		fw_cus->fw_param->param_len = 32;
+		fw_cus->fw_param->param = kcalloc(32, sizeof(int), GFP_KERNEL);
+		if (fw_cus->fw_param->param) {
+			for (i = 0; i < 32; i++) {
+				ret = of_property_read_u32_index(child,
+					"ldim_cus_param", i, &val);
+				if (ret) {
+					LDIMPR("get ldim_cus_param[%d] failed, size =%d\n",
+						i, i);
+					i = 32;
+				} else {
+					fw_cus->fw_param->param[i] = val;
+					LDIMPR("param[%d] = %d\n",
+						i, fw_cus->fw_param->param[i]);
+				}
 			}
 		}
 	}
@@ -821,14 +825,22 @@ static int ldim_dev_get_config_from_json(struct ldim_dev_driver_s *dev_drv, phan
 
 //custom_params
 	child = json_get_object_child(jsp, parent, "custom_params");
-	if (child && fw_cus && fw_cus->fw_param && fw_cus->fw_param->param) {
+	if (child && fw_cus && fw_cus->fw_param) {
 		cnt = json_get_array_size(jsp, child);
-		cnt = lcd_s32_constraint(cnt, 0, 32);
-		for (i = 0; i < cnt; i++)
-			fw_cus->fw_param->param[i] = json_get_arr_u32(jsp, child, i, 0);
+		cnt = lcd_s32_constraint(cnt, 0, 256);
+		LDIMPR("get custom_params cnt = %d\n", cnt);
+		if (cnt) {//!=0
+			fw_cus->fw_param->param_len = cnt;
+			fw_cus->fw_param->param = kcalloc(cnt, sizeof(int), GFP_KERNEL);
+			if (!fw_cus->fw_param->param)
+				goto parse_ldim_init_on;
+			for (i = 0; i < cnt; i++)
+				fw_cus->fw_param->param[i] = json_get_arr_u32(jsp, child, i, 0);
+		}
 	}
 
 //commands
+parse_ldim_init_on:
 	child = json_get_object_child(jsp, parent, "commands");
 	if (child) {
 		dev_drv->cmd_size = LCD_EXT_CMD_SIZE_DYNAMIC;
@@ -1133,13 +1145,19 @@ static int ldim_dev_get_config_from_ini(struct ldim_dev_driver_s *dev_drv, phand
 				dev_drv->boundary_y, init_len);
 	}
 
-	if (fw_cus && fw_cus->fw_param && fw_cus->fw_param->param) {
+	if (fw_cus && fw_cus->fw_param) {
 		tmp_cnt = lcd_ini_get_array(inip, psec, "param_data",
 			fw_cus->fw_param->param, 32);
 		LDIMPR("custom param size = %d\n",  tmp_cnt);
-		for (i = 0; i < tmp_cnt; i++) {
-			LDIMPR("fw_cus->fw_param->param[%d] = %d = 0x%x\n",
-				i, fw_cus->fw_param->param[i], fw_cus->fw_param->param[i]);
+		if (tmp_cnt) {//!=0
+			fw_cus->fw_param->param_len = tmp_cnt;
+			fw_cus->fw_param->param = kcalloc(tmp_cnt, sizeof(int), GFP_KERNEL);
+			if (fw_cus->fw_param->param) {
+				for (i = 0; i < tmp_cnt; i++) {
+					LDIMPR("fw_cus->fw_param->param[%d] = %d = 0x%x\n",
+					i, fw_cus->fw_param->param[i], fw_cus->fw_param->param[i]);
+				}
+			}
 		}
 	}
 
