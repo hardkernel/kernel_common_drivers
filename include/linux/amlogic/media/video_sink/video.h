@@ -479,6 +479,8 @@ struct video_input_info {
 	u32 crop_right;
 	u32 crop_top;
 	u32 crop_bottom;
+	u32 vscale_skip_count;
+	u32 hscale_skip_count;
 };
 
 struct vpp_postblend_scope_s {

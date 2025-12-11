@@ -42,6 +42,7 @@
 #endif
 #include "../common/uvm_process/meson_uvm_nn_processor.h"
 
+#include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include "video_priv.h"
 #include "vpp_pq.h"
 #include "vpp_post_s5.h"
@@ -3272,7 +3273,31 @@ RESTART:
 			/* TODO: re-calculate ratio x if VPP_line_in_length_ round_down */
 		}
 	}
+	//for t6x vdin loopback workaround, crop hsize must 4 aligned
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
+	if (video_is_meson_t6x_cpu() &&
+		vdin_need_hsize_align(w_in, h_in)) {
+		u32 align_val = 4;
+		u32 aligned_end, aligned_size;
 
+		if (next_frame_par->VPP_line_in_length_ % 4) {
+			aligned_size = round_down
+				(next_frame_par->VPP_line_in_length_, align_val);
+
+			aligned_end = aligned_size + next_frame_par->VPP_hd_start_lines_ - 1;
+			if (cur_super_debug)
+				pr_info("layer%d: h end: %d->%d h size %d->%d align_val:%d\n",
+					input->layer_id,
+					next_frame_par->VPP_hd_end_lines_, aligned_end,
+					next_frame_par->VPP_line_in_length_, aligned_size,
+					align_val);
+			next_frame_par->VPP_line_in_length_ = aligned_size;
+			next_frame_par->VPP_hd_end_lines_ = aligned_end;
+		}
+	}
+#endif
+#endif
 	/*
 	 *find overlapped region between
 	 * [start, end], [0, width_out-1],
@@ -6122,6 +6147,32 @@ RESTART:
 	next_frame_par->VPP_line_in_length_ =
 		next_frame_par->VPP_hd_end_lines_ -
 		next_frame_par->VPP_hd_start_lines_ + 1;
+
+	//for t6x vdin loopback workaround, crop hsize must 4 aligned
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
+	if (video_is_meson_t6x_cpu() &&
+		vdin_need_hsize_align(w_in, h_in)) {
+		u32 align_val = 4;
+		u32 aligned_end, aligned_size;
+
+		if (next_frame_par->VPP_line_in_length_ % 4) {
+			aligned_size = round_down
+				(next_frame_par->VPP_line_in_length_, align_val);
+
+			aligned_end = aligned_size + next_frame_par->VPP_hd_start_lines_ - 1;
+			if (cur_super_debug)
+				pr_info("layer%d: h end: %d->%d h size %d->%d align_val:%d\n",
+					input->layer_id,
+					next_frame_par->VPP_hd_end_lines_, aligned_end,
+					next_frame_par->VPP_line_in_length_, aligned_size,
+					align_val);
+			next_frame_par->VPP_line_in_length_ = aligned_size;
+			next_frame_par->VPP_hd_end_lines_ = aligned_end;
+		}
+	}
+#endif
+#endif
 	/*
 	 *find overlapped region between
 	 * [start, end], [0, width_out-1],

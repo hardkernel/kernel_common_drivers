@@ -1427,6 +1427,8 @@ void  get_video_input_info(struct video_input_info *input_info)
 	input_info->crop_bottom = cur_frame_par[0]->crop_bottom;
 	input_info->crop_left = cur_frame_par[0]->crop_left;
 	input_info->crop_right = cur_frame_par[0]->crop_right;
+	input_info->vscale_skip_count = cur_frame_par[0]->vscale_skip_count;
+	input_info->hscale_skip_count = cur_frame_par[0]->hscale_skip_count;
 }
 
 bool is_crop_from_vf(struct vframe_s *vf)
