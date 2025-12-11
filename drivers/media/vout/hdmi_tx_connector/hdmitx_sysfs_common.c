@@ -1342,6 +1342,19 @@ static ssize_t hdmitx_cur_status_show(struct device *dev,
 
 static DEVICE_ATTR_RO(hdmitx_cur_status);
 
+static ssize_t debug_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "Usage:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"  echo xxx > /sys/class/amhdmitx/amhdmitx0/debug\n");
+
+	return pos;
+}
+
 static ssize_t debug_store(struct device *dev,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count)
@@ -1363,7 +1376,7 @@ static ssize_t debug_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR_WO(debug);
+static DEVICE_ATTR_RW(debug);
 
 /* Indicate whether a rptx under repeater */
 static ssize_t hdmi_repeater_tx_show(struct device *dev,
