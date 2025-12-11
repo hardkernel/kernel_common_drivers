@@ -1276,6 +1276,9 @@ static int vpp_process_speed_check
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	frc_enable = frc_n2m_worked();
 	frc_ratio  = frc_get_n2m_ratio();
+	//for t5m always used ratio=10 to calc
+	if (video_is_meson_t5m_cpu())
+		frc_ratio = 10;
 #endif
 	/* brr_duration only for QMS case */
 	if (vinfo->brr_duration) {
