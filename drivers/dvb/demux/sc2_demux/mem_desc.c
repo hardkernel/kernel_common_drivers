@@ -1624,6 +1624,11 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 	u64 buf_start;
 	u64 buf_end;
 	int total = count;
+	unsigned char *vaddr = 0;
+	unsigned long reg = 0;
+	unsigned long length = 0;
+	struct page *page = NULL;
+	int alignment = sizeof(unsigned long);
 
 	pr_dbg("%s id:%d start w:%d\n", __func__, pchan->id, count);
 	do {
@@ -1654,6 +1659,43 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 			pchan->memdescs->bits.address_high = (tmp >> 32) & 0x3;
 		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
 		pchan->memdescs->bits.byte_length = buf_end - buf_start;
+
+		if (dump_input_cb) {
+	#ifdef CONFIG_ARM64
+			if (pfn_is_map_memory(buf_start >> PAGE_SHIFT)) {
+	#else
+			if (pfn_valid(buf_start >> PAGE_SHIFT)) {
+	#endif
+				page = pfn_to_page(buf_start >> PAGE_SHIFT);
+				vaddr = kmap(page) + (buf_start & ~PAGE_MASK);
+				kasan_disable_current();
+				//pr_dbg("%s %d buffers start = %lx phy addr = %lx
+				//vir addr = %lx\n",
+				//__func__, __LINE__, ts_data.buf_start, tmp, vaddr);
+				dump_input_cb(pchan->id, -1, DMX_DUMP_INPUT_TYPE, vaddr,
+				pchan->memdescs->bits.byte_length, &dump_input_head);
+				kasan_enable_current();
+				kunmap(page);
+			} else {
+				reg = round_down(buf_start, alignment - 1);
+				length = (buf_end - buf_start) + (buf_start - reg);
+				vaddr = (void *)ioremap_wc(reg, length);
+				if (IS_ERR_OR_NULL(vaddr)) {
+					dprint("%s %d ioremap fail\n", __func__, __LINE__);
+				} else {
+					//pr_dbg("%s %d buffers start = %lx
+					//phy addr = %lx vir addr = %lx\n",
+					//__func__, __LINE__, ts_data.buf_start,
+					//tmp, vaddr);
+					dump_input_cb(pchan->id, -1, DMX_DUMP_INPUT_TYPE,
+						vaddr + (buf_start - reg),
+						pchan->memdescs->bits.byte_length,
+						&dump_input_head);
+
+					iounmap(vaddr);
+				}
+			}
+		}
 
 		dma_sync_single_for_device(aml_get_device(),
 			pchan->memdescs_phy, sizeof(union mem_desc),
