@@ -435,6 +435,7 @@ static void meson_uphy_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id meson_uphy_id_table[] = {
+	{ .compatible = "amlogic,uphy-sm1", .data = &meson_uphy_sm1_pdata },
 	{ .compatible = "amlogic,uphy-sc2", .data = &meson_uphy_sc2_pdata },
 	{ .compatible = "amlogic,u2phy-s4", .data = &meson_uphy_s4_pdata },
 	{ .compatible = "amlogic,uphy-t7c", .data = &meson_uphy_t7c_pdata },
@@ -455,7 +456,7 @@ static const struct of_device_id meson_uphy_id_table[] = {
 };
 MODULE_DEVICE_TABLE(of, meson_uphy_id_table);
 
-void meson_uphy_complete(struct device *dev)
+static void meson_uphy_complete(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct meson_uphy_pool *ppool = platform_get_drvdata(pdev);
@@ -467,7 +468,7 @@ void meson_uphy_complete(struct device *dev)
 	}
 }
 
-int meson_uphy_suspend(struct device *dev)
+static int meson_uphy_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct meson_uphy_pool *ppool = platform_get_drvdata(pdev);
@@ -482,7 +483,7 @@ int meson_uphy_suspend(struct device *dev)
 	return ret;
 }
 
-int meson_uphy_resume(struct device *dev)
+static int meson_uphy_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct meson_uphy_pool *ppool = platform_get_drvdata(pdev);
@@ -497,7 +498,7 @@ int meson_uphy_resume(struct device *dev)
 	return ret;
 }
 
-int meson_uphy_freeze(struct device *dev)
+static int meson_uphy_freeze(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct meson_uphy_pool *ppool = platform_get_drvdata(pdev);
@@ -512,7 +513,7 @@ int meson_uphy_freeze(struct device *dev)
 	return ret;
 }
 
-int meson_uphy_thaw(struct device *dev)
+static int meson_uphy_thaw(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct meson_uphy_pool *ppool = platform_get_drvdata(pdev);
@@ -527,7 +528,7 @@ int meson_uphy_thaw(struct device *dev)
 	return ret;
 }
 
-int meson_uphy_restore(struct device *dev)
+static int meson_uphy_restore(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct meson_uphy_pool *ppool = platform_get_drvdata(pdev);

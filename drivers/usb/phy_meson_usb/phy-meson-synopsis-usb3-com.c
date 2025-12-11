@@ -381,8 +381,8 @@ int meson_synopsis_u3phy_parse(struct device *dev, struct meson_uphy_instance *i
 	for (i = 0; i < aml_u3phy->clk_num; i++)
 		dev_dbg(dev, "%s %px.\n", aml_u3phy->clks[i].id, (void *)aml_u3phy->clks[i].clk);
 
-	/* Default OFF. */
-	writel(0x1d, aml_u3phy->phy3_cfg);
+	/* Default OFF. MAY crash the system if it is set earlier. */
+	//writel(0x1d, aml_u3phy->phy3_cfg);
 	aml_u3phy->suspend_flag = 1;
 
 	return ret;

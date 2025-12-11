@@ -52,7 +52,7 @@ int meson_u2phy_usb_reset(struct amlogic_usb_v2 *phy)
 	return 0;
 }
 
-int meson_u2phy_usb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
+static int __maybe_unused meson_u2phy_usb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 {
 	u32 val = 0;
 	size_t mask = 0;
@@ -91,7 +91,7 @@ int meson_u2phy_usb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 }
 
 /* comb reset. Reset phy comb(phy mode, idpin detect etc.). */
-int meson_u2phy_comb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
+static int meson_u2phy_comb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 {
 	u32 val = 0;
 	size_t mask = 0;
@@ -125,7 +125,7 @@ int meson_u2phy_comb_hold_reset(struct amlogic_usb_v2 *phy, bool on)
 	return 0;
 }
 
-int meson_u2phy_reset_comb(struct amlogic_usb_v2 *phy)
+static int meson_u2phy_reset_comb(struct amlogic_usb_v2 *phy)
 {
 	meson_u2phy_comb_hold_reset(phy, false);
 	usleep_range(50, 100);
@@ -496,7 +496,7 @@ void meson_u2phy_phy_legacy_device_tuning(struct amlogic_usb_v2 *phy, bool tune)
 	phy->phy_cfg_state[0] = tune;
 }
 
-static void meson_u2phy_legacy_force_disable_xhci_port_a(struct amlogic_usb_v2 *phy)
+void meson_u2phy_legacy_force_disable_xhci_port_a(struct amlogic_usb_v2 *phy)
 {
 	union u2p_r2_v2 reg2;
 	union usb_r5_v2 r5;
@@ -520,7 +520,7 @@ static void meson_u2phy_legacy_force_disable_xhci_port_a(struct amlogic_usb_v2 *
 	}
 }
 
-static void meson_u2phy_legacy_resume_xhci_port_a(struct amlogic_usb_v2 *phy)
+void meson_u2phy_legacy_resume_xhci_port_a(struct amlogic_usb_v2 *phy)
 {
 	union u2p_r2_v2 reg2;
 	union usb_r5_v2 r5;
@@ -563,18 +563,23 @@ int meson_u2phy_legacy_set_mode(struct amlogic_usb_v2 *phy, enum meson_uphy_mode
 		dev_dbg(phy->dev, "%s: reg0:0x%x.\n", __func__,
 				readl(&phy->u2p_aml_regs[0]->r0));
 		meson_u2phy_legacy_resume_xhci_port_a(phy);
+		if (phy->usb_aml_regs) {
+			r1.d32 = readl(&phy->usb_aml_regs->r1);
+			r1.b.u3h_fladj_30mhz_reg = 0x20;
+			writel(r1.d32, &phy->usb_aml_regs->r1);
+		}
 		/* FIXME: SOCs ported yet are observed that only the otg port has the
 		 * usb_aml_regs. Are there any violations?
 		 */
 		if (phy->otg_helper.otg_port && phy->usb_aml_regs) {
 			r0.d32 = readl(&phy->usb_aml_regs->r0);
-			r1.d32 = readl(&phy->usb_aml_regs->r1);
+			//r1.d32 = readl(&phy->usb_aml_regs->r1);
 			r4.d32 = readl(&phy->usb_aml_regs->r4);
 			r0.b.u2d_act = 0;
 			writel(r0.d32, &phy->usb_aml_regs->r0);
 			WARN_ON(phy->phy_id > 3);
-			r1.b.u3h_host_u2_port_disable &= ~BIT(phy->phy_id);
-			writel(r1.d32, &phy->usb_aml_regs->r1);
+			//r1.b.u3h_host_u2_port_disable &= ~BIT(phy->phy_id);
+			//writel(r1.d32, &phy->usb_aml_regs->r1);
 			r4.b.p21_SLEEPM0 = 0x0;
 			writel(r4.d32, &phy->usb_aml_regs->r4);
 		}
@@ -594,7 +599,7 @@ int meson_u2phy_legacy_set_mode(struct amlogic_usb_v2 *phy, enum meson_uphy_mode
 
 		if (phy->otg_helper.otg_port && phy->usb_aml_regs) {
 			r0.d32 = readl(&phy->usb_aml_regs->r0);
-			r1.d32 = readl(&phy->usb_aml_regs->r1);
+			//r1.d32 = readl(&phy->usb_aml_regs->r1);
 			r4.d32 = readl(&phy->usb_aml_regs->r4);
 
 			r0.b.u2d_act = 1;
@@ -606,8 +611,11 @@ int meson_u2phy_legacy_set_mode(struct amlogic_usb_v2 *phy, enum meson_uphy_mode
 
 			/* Bit mapped port to host disable map */
 			WARN_ON(phy->phy_id > 3);
-			r1.b.u3h_host_u2_port_disable |= BIT(phy->phy_id);
-			writel(r1.d32, &phy->usb_aml_regs->r1);
+			//r1.b.u3h_host_u2_port_disable |= BIT(phy->phy_id);
+			/* When the companion u3port is not mux to the controller, troggleing this
+			 * bit from 0 to 1 will lose every u2port csc status.
+			 */
+			//writel(r1.d32, &phy->usb_aml_regs->r1);
 		}
 		reg0.d32 = readl(&phy->u2p_aml_regs[0]->r0);
 		reg0.b.host_device = 0;

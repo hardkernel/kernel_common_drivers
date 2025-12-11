@@ -107,6 +107,7 @@ struct meson_uphy_pdata {
 	void (*otg_remove)(struct meson_uphy_instance *instance);
 };
 
+extern struct meson_uphy_pdata meson_uphy_sm1_pdata;
 extern struct meson_uphy_pdata meson_uphy_sc2_pdata;
 extern struct meson_uphy_pdata meson_uphy_s4_pdata;
 extern struct meson_uphy_pdata meson_uphy_t7c_pdata;
@@ -136,7 +137,7 @@ extern bool meson_u2phy_960m;
 
 inline bool meson_uphy_of_device_pci_available(void);
 int meson_u2phy_usb_reset(struct amlogic_usb_v2 *phy);
-int meson_u2phy_usb_hold_reset(struct amlogic_usb_v2 *phy, bool on);
+//int meson_u2phy_usb_hold_reset(struct amlogic_usb_v2 *phy, bool on);
 int meson_u2phy_hold_reset(struct amlogic_usb_v2 *phy, bool on);
 int meson_u2phy_reset_phycfg(struct amlogic_usb_v2 *phy);
 int meson_u2phy_reg_reset(struct amlogic_usb_v2 *phy);
@@ -145,6 +146,8 @@ int meson_u2phy_apb_hold_reset(struct amlogic_usb_v2 *phy, bool on);
 int meson_u2phy_apb_reset(struct amlogic_usb_v2 *phy);
 void meson_u2phy_set_vbus_power(struct amlogic_usb_v2 *phy, bool is_power_on);
 void meson_u2phy_phy_legacy_device_tuning(struct amlogic_usb_v2 *phy, bool tune);
+void meson_u2phy_legacy_force_disable_xhci_port_a(struct amlogic_usb_v2 *phy);
+void meson_u2phy_legacy_resume_xhci_port_a(struct amlogic_usb_v2 *phy);
 int meson_usb2phy_legacy_set_pll(struct amlogic_usb_v2 *phy);
 void meson_usb2phy_legacy_cali_disc_squelch(struct amlogic_usb_v2 *phy);
 void meson_usb2phy_legacy_cali_disc_squelch_n(struct amlogic_usb_v2 *phy);
@@ -189,10 +192,40 @@ int meson_uphy_rtmux_otg_init(struct amlogic_usb_v2 *phy);
 void meson_uphy_rtmux_otg_remove(struct meson_uphy_instance *instance);
 int meson_uphy_rtmux_otg_register_notifier(struct notifier_block *nb);
 int meson_uphy_rtmux_otg_unregister_notifier(struct notifier_block *nb);
+#if IS_ENABLED(CONFIG_AMLOGIC_CRG)
 void crg_exit(void);
 int crg_init(void);
 void crg_gadget_exit(void);
 int crg_gadget_init(void);
 const char *crg_udc_get_UDC_name(void);
 int crg_otg_write_UDC(const char *udc_name);
+#else
+static inline void crg_exit(void)
+{
+}
+
+static inline int crg_init(void)
+{
+	return -1;
+}
+
+static inline void crg_gadget_exit(void)
+{
+}
+
+static inline int crg_gadget_init(void)
+{
+	return -1;
+}
+
+static inline const char *crg_udc_get_UDC_name(void)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline int crg_otg_write_UDC(const char *udc_name)
+{
+	return -1;
+}
+#endif /* CONFIG_AMLOGIC_CRG */
 #endif/* _PHY_MESON_USB2_H */

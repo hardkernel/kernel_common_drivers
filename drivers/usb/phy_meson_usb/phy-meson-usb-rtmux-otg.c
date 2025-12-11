@@ -226,17 +226,17 @@ static void meson_uphy_rtmux_id_pin_deconfig(struct amlogic_usb_v2 *phy)
 	dev_dbg(phy->dev, "<%s> ok\n", __func__);
 }
 
-void meson_uphy_rtmux_otg_complete(struct meson_uphy_instance *instance)
+static void meson_uphy_rtmux_otg_complete(struct meson_uphy_instance *instance)
 {
 	struct amlogic_usb_v2 *phy = (struct amlogic_usb_v2 *)instance->meson_uphy;
 
 	if (phy->current_mode == MESON_USB_MODE_HOST)
-		resume_xhci_port_a();
+		meson_u2phy_legacy_force_disable_xhci_port_a(phy);
 	else if (phy->current_mode == MESON_USB_MODE_DEVICE)
-		force_disable_xhci_port_a();
+		meson_u2phy_legacy_resume_xhci_port_a(phy);
 }
 
-int meson_uphy_rtmux_otg_suspend(struct meson_uphy_instance *instance)
+static int meson_uphy_rtmux_otg_suspend(struct meson_uphy_instance *instance)
 {
 	struct amlogic_usb_v2 *phy = (struct amlogic_usb_v2 *)instance->meson_uphy;
 
@@ -253,7 +253,7 @@ int meson_uphy_rtmux_otg_suspend(struct meson_uphy_instance *instance)
 	return 0;
 }
 
-int meson_uphy_rtmux_otg_resume(struct meson_uphy_instance *instance)
+static int meson_uphy_rtmux_otg_resume(struct meson_uphy_instance *instance)
 {
 	struct amlogic_usb_v2 *phy = (struct amlogic_usb_v2 *)instance->meson_uphy;
 

@@ -317,7 +317,7 @@ static int meson_u2phy_crg_otg_v2_regulator(struct device *dev, struct amlogic_u
 	return retval;
 }
 
-int meson_u2phy_crg_otg_v2_suspend(struct meson_uphy_instance *instance)
+static int meson_u2phy_crg_otg_v2_suspend(struct meson_uphy_instance *instance)
 {
 	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)instance->meson_uphy;
 
@@ -331,7 +331,7 @@ int meson_u2phy_crg_otg_v2_suspend(struct meson_uphy_instance *instance)
 	return 0;
 }
 
-int meson_u2phy_crg_otg_v2_resume(struct meson_uphy_instance *instance)
+static int meson_u2phy_crg_otg_v2_resume(struct meson_uphy_instance *instance)
 {
 	struct amlogic_usb_v2 *mphy = (struct amlogic_usb_v2 *)instance->meson_uphy;
 	int ret = 0;
