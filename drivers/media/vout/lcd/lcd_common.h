@@ -174,6 +174,7 @@ int lcd_phy_param_get(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy_cfg,
 
 int lcd_phy_param_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 int lcd_phy_analog_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
+void lcd_phy_reset(struct aml_lcd_drv_s *pdrv);
 void lcd_phy_set(struct aml_lcd_drv_s *pdrv, int status);
 int lcd_phy_probe(struct aml_lcd_drv_s *pdrv);
 int lcd_phy_config_init(struct lcd_data_s *pdata);

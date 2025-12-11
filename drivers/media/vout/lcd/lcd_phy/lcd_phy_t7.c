@@ -218,6 +218,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_t7 = {
 	.phy_lane_phase_sel_def = NULL,
 	.phy_param_get = NULL,
 	.phy_reg_dump = lcd_phy_reg_dump,
+	.phy_reset = NULL,
 
 	.phy_set_lvds = lcd_lvds_phy_set,
 	.phy_set_vx1 = lcd_vbyone_phy_set,

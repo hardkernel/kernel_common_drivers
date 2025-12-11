@@ -407,22 +407,10 @@ static void lcd_set_vid_pll_div_t6x(struct aml_lcd_drv_s *pdrv)
 	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_VID_PLL_CLK_DIV, 1, 19, 1);
 }
 
-static void lcd_phy_reset_t6x(struct aml_lcd_drv_s *pdrv)
-{
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
-	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_DIF_PHY_CNTL14, 0, 19, 2);  //en=0 & reset
-	usleep_range(50, 60);
-	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_DIF_PHY_CNTL14, 1, 20, 1);  //en=1
-	usleep_range(50, 60);
-	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_DIF_PHY_CNTL14, 1, 19, 1);  //work
-}
-
 static void lcd_clk_set_t6x(struct aml_lcd_drv_s *pdrv)
 {
 	lcd_set_pll_t6x(pdrv);
 	lcd_set_vid_pll_div_t6x(pdrv);
-	lcd_phy_reset_t6x(pdrv);
 }
 
 static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)

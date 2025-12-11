@@ -250,6 +250,16 @@ void lcd_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	phy_cfg->state = status ? 1 : 0;
 }
 
+void lcd_phy_reset(struct aml_lcd_drv_s *pdrv)
+{
+	if (pdrv->lcd_pxp)
+		return;
+	if (!lcd_phy_ctrl || !lcd_phy_ctrl->phy_reset)
+		return;
+
+	lcd_phy_ctrl->phy_reset(pdrv);
+}
+
 int lcd_phy_probe(struct aml_lcd_drv_s *pdrv)
 {
 	if (pdrv->lcd_pxp) {

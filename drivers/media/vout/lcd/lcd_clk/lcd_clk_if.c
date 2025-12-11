@@ -517,6 +517,7 @@ lcd_set_clk_retry:
 	if (cconf->data->clktree_set)
 		cconf->data->clktree_set(pdrv);
 	pdrv->curr_dev->dev_cfg.timing.clk_change = 0; /* clear clk_change flag */
+	lcd_phy_reset(pdrv);
 	mutex_unlock(&lcd_clk_mutex);
 
 	LCD_DBG(pdrv, "%s: clk_change=0x%x", __func__, pdrv->curr_dev->dev_cfg.timing.clk_change);
