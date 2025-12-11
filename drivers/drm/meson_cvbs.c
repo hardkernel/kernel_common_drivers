@@ -261,11 +261,31 @@ void am_cvbs_atomic_destroy_state(struct drm_connector *connector,
 	kfree(cvbs_state);
 }
 
+void am_cvbs_connector_reset(struct drm_connector *connector)
+{
+	struct am_cvbs_connector_state *cvbs_state =
+		kzalloc(sizeof(*cvbs_state), GFP_KERNEL);
+	struct drm_connector_state *cur_conn_state = connector->state;
+	struct am_cvbs_connector_state *cur_cvbs_state = NULL;
+
+	if (cur_conn_state) {
+		cur_cvbs_state = to_am_cvbs_connector_state(cur_conn_state);
+
+		__drm_atomic_helper_connector_destroy_state(cur_conn_state);
+		kfree(cur_cvbs_state);
+	}
+
+	if (cvbs_state)
+		__drm_atomic_helper_connector_reset(connector, &cvbs_state->base);
+	else
+		connector->state = NULL;
+}
+
 static const struct drm_connector_funcs am_cvbs_connector_funcs = {
 	.detect			= am_cvbs_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.destroy		= am_cvbs_connector_destroy,
-	.reset			= drm_atomic_helper_connector_reset,
+	.reset			= am_cvbs_connector_reset,
 	.atomic_duplicate_state	= am_cvbs_atomic_duplicate_state,
 	.atomic_destroy_state	= am_cvbs_atomic_destroy_state,
 	.atomic_set_property	= am_cvbs_connector_atomic_set_property,
