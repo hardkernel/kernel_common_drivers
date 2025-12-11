@@ -249,4 +249,5 @@ bool rx_edid_set_aud_sad(u_char *sad, u_char len);
 int rx_set_audio_param(uint32_t param);
 void rx_earc_hpd_cntl(void);
 unsigned int rx_get_hdmi5v_sts(void);
+bool vdin_need_hsize_align(unsigned int h, unsigned int v);
 #endif

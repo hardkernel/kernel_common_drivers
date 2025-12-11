@@ -2370,11 +2370,69 @@ void vdin_self_stop_dec(struct vdin_dev_s *devp)
 	devp->flags &= (~VDIN_FLAG_DEC_STARTED);
 }
 
+bool vdin_need_hsize_align(unsigned int h, unsigned int v)
+{
+	unsigned long input_pixel_clock = 0;
+	unsigned int fps = 0;
+	const struct vinfo_s *vinfo = NULL;
+
+	if (!is_meson_t6x_cpu())
+		return false;
+
+	vinfo = get_current_vinfo();
+	fps = vinfo->std_duration;
+
+	if (!fps)
+		fps = vinfo->sync_duration_num / vinfo->sync_duration_den;
+
+	input_pixel_clock = (unsigned long)h * v * fps;
+
+	if (input_pixel_clock > VDIN_LITE_CORE_MAX_PIXEL_CLOCK)
+		return true;
+	else
+		return false;
+}
+EXPORT_SYMBOL(vdin_need_hsize_align);
+
+void vdin_loopback_port_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para)
+{
+	struct video_input_info video_input_parms;
+
+	memset(&video_input_parms, 0, sizeof(struct video_input_info));
+
+	if ((is_meson_g12a_cpu() || (is_meson_g12b_cpu()) ||
+		is_meson_sm1_cpu()) && para->port == TVIN_PORT_VIU1_WB0_VPP) {
+		pr_info("vdin%d force to use postblend\n", devp->index);
+		para->port = TVIN_PORT_VIU1_WB0_POST_BLEND;
+	}
+
+	if (is_meson_t6x_cpu()) {
+		if (para->port == TVIN_PORT_VIU1_WB0_VD1 &&
+			vdin_need_hsize_align(para->h_active, para->v_active) &&
+			(para->h_active % 4)) {
+			para->port = TVIN_PORT_VIU1_VIDEO;
+			get_video_input_info(&video_input_parms);
+			para->h_active = video_input_parms.width;
+			para->v_active = video_input_parms.height;
+			if (para->dest_h_active > para->h_active)
+				para->dest_h_active = para->h_active;
+			if (para->dest_v_active > para->v_active)
+				para->dest_v_active = para->v_active;
+			pr_info("vdin%d force preblend vd1 (%dx%d) skip(%d %d)\n",
+				devp->index, para->h_active, para->v_active,
+				video_input_parms.hscale_skip_count,
+				video_input_parms.vscale_skip_count);
+		}
+	}
+}
+
 int vdin_loopback_parm_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para)
 {
 	const struct vinfo_s *vinfo = NULL;
+	struct video_input_info video_input_parms;
 	unsigned long vinfo_pixel_clock = 0;
 	unsigned long input_pixel_clock = 0;
+	bool is_need_h_skip = false;
 
 	if ((!(devp->dtdata->hw_ver == VDIN_HW_T3X) &&
 		!(devp->dtdata->hw_ver == VDIN_HW_T6X)) || !para)
@@ -2383,6 +2441,8 @@ int vdin_loopback_parm_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para
 	devp->vinfo_over_pixel_clk = false;
 	devp->input_over_pixel_clk = false;
 	para->over_pixel_clock = false;
+
+	memset(&video_input_parms, 0, sizeof(struct video_input_info));
 
 	vinfo = get_current_vinfo();
 	if (!vinfo) {
@@ -2395,13 +2455,21 @@ int vdin_loopback_parm_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para
 	input_pixel_clock = (unsigned long)para->h_active
 				* para->v_active * para->frame_rate;
 
+	get_video_input_info(&video_input_parms);
+
 	if (vinfo_pixel_clock > VDIN_LITE_CORE_MAX_PIXEL_CLOCK)
 		devp->vinfo_over_pixel_clk = true;
 	if (input_pixel_clock > VDIN_LITE_CORE_MAX_PIXEL_CLOCK)
 		devp->input_over_pixel_clk = true;
 
+	if (devp->parm.port == TVIN_PORT_VIU1_VIDEO &&
+		!video_input_parms.hscale_skip_count && video_input_parms.vscale_skip_count &&
+		devp->vinfo_over_pixel_clk)
+		is_need_h_skip = true;
+
 	if ((devp->dtdata->hw_ver == VDIN_HW_T3X && devp->vinfo_over_pixel_clk) ||
-		(devp->dtdata->hw_ver == VDIN_HW_T6X && devp->input_over_pixel_clk)) {
+		(devp->dtdata->hw_ver == VDIN_HW_T6X &&
+		(devp->input_over_pixel_clk || is_need_h_skip))) {
 		para->over_pixel_clock = true;
 
 		para->h_active = para->h_active >> 1;
@@ -2423,9 +2491,7 @@ int vdin_loopback_parm_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *para
 			!(devp->flags & VDIN_FLAG_V4L2_DEBUG))
 			para->dest_v_active = (para->dest_v_active >> 1);
 
-		memset(para->crop, 0, sizeof(para->crop));
-
-		pr_info("%s vdin%d vinfo[%dx%d@%dHz %d ppc] [%dx%d] -> [%dx%d]\n",
+		pr_info("%s vdin%d vinfo[%dx%d@%dHz %dppc] [%dx%d] -> [%dx%d]\n",
 			__func__, devp->index,
 			vinfo->width, vinfo->height, vinfo->std_duration, vinfo->cur_enc_ppc,
 			para->h_active, para->v_active, para->dest_h_active, para->dest_v_active);
@@ -2445,6 +2511,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	struct vdin_dev_s *devp = vdin_devp[no];
 	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
 	enum tvin_sig_fmt_e fmt;
+
 #ifdef CONFIG_AMLOGIC_LCD
 	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(0);
 
@@ -2494,13 +2561,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	}
 
 	mutex_lock(&devp->fe_lock);
-	/* g12a/g12b/sm1 do not have wb0_vpp */
-	if ((is_meson_g12a_cpu() || (is_meson_g12b_cpu()) ||
-		is_meson_sm1_cpu()) && para->port == TVIN_PORT_VIU1_WB0_VPP) {
-		pr_info("line:%d, cpu :%#x, vdin%d force to use postblend\n",
-			__LINE__, get_cpu_type(), devp->index);
-		para->port = TVIN_PORT_VIU1_WB0_POST_BLEND;
-	}
+	vdin_loopback_port_adjust(devp, para);
 	devp->parm.port = para->port;
 
 	if (devp->parm.port == TVIN_PORT_VIU1_VIDEO)
