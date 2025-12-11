@@ -323,6 +323,7 @@ struct vbyone_config_s {
 
 struct vbyone_ctrl_regs_s {
 	unsigned int reg_status;
+	unsigned char hpd_bit;
 	unsigned int reg_insig_ctrl;
 	unsigned int reg_filter_l;
 	unsigned int reg_filter_h;

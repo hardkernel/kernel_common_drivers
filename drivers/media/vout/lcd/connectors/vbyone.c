@@ -28,6 +28,7 @@ static spinlock_t vx1_intr_lock;
 
 struct vbyone_ctrl_regs_s vbo_reg_t7 = {
 	.reg_status = VBO_STATUS_L_T7,
+	.hpd_bit = 6,
 	.reg_insig_ctrl = VBO_INSGN_CTRL_T7,
 	.reg_filter_l = VBO_INFILTER_CTRL_T7,
 	.reg_filter_h = VBO_INFILTER_CTRL_H_T7,
@@ -41,6 +42,7 @@ struct vbyone_ctrl_regs_s vbo_reg_t7 = {
 
 struct vbyone_ctrl_regs_s vbo_reg_t3x = {
 	.reg_status = VBO_STATUS_L_T3X,
+	.hpd_bit = 16,
 	.reg_insig_ctrl = VBO_INSGN_CTRL_T3X,
 	.reg_filter_l = VBO_INFILTER_CTRL_T3X,
 	.reg_filter_h = VBO_INFILTER_CTRL_H_T3X,
@@ -757,12 +759,12 @@ void lcd_vbyone_wait_hpd(struct aml_lcd_drv_s *pdrv)
 
 	LCD_DBG(pdrv, "%s ...", __func__);
 	while (i++ < VX1_HPD_WAIT_TIMEOUT) {
-		if (lcd_vcbus_getb(vx1_reg->reg_status + offset, 6, 1) == 0)
+		if (lcd_vcbus_getb(vx1_reg->reg_status + offset, vx1_reg->hpd_bit, 1) == 0)
 			break;
 		lcd_delay_us(1000);
 	}
 
-	val = lcd_vcbus_getb(vx1_reg->reg_status + offset, 6, 1);
+	val = lcd_vcbus_getb(vx1_reg->reg_status + offset, vx1_reg->hpd_bit, 1);
 	if (val) {
 		LCD_PR(pdrv, "%s: hpd=%d", __func__, val);
 	} else {
