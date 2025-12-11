@@ -5640,11 +5640,16 @@ int set_video_mute_info(u32 owner, bool on)
 void get_video_mute_info(void)
 {
 	int i;
+	static const char *const mute_owner[] = {
+		"video_mute_set", "hdmi_rx_mute_set", "user_mute_set",
+		"aml_dolby_mute_set", "drm_mute_set", "vpp_internal",
+		"vc_mute_set", "path_sw_mute_set"
+	};
 
 	pr_info("video mute owner list:\n");
 	for (i = 0; i < MAX_VIDEO_MUTE_OWNER; i++) {
 		if (video_mute_array[i])
-			pr_info("%d\n", i);
+			pr_info("%d:%s\n", i, mute_owner[i]);
 	}
 }
 
