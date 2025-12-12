@@ -275,7 +275,8 @@ static void copy_pgd(void)
 	size  = (PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t);
 	pr_debug("pgd:%p, pgd_k:%p, pdg_i:%p\n",
 		 pgd_c, pgd_k, pgd_i);
-	memcpy(pgd_c, pgd_k, size);
+	if (pgd_c != pgd_k)
+		memcpy(pgd_c, pgd_k, size);
 	memcpy(pgd_i, pgd_k, size);
 }
 
