@@ -1836,8 +1836,9 @@
 	};
 
 	meson_uvm {
-		compatible = "amlogic, meson_uvm";
 		status = "okay";
+		compatible = "amlogic, meson_uvm";
+		enable_screencap = <1>;
 	};
 
 	meson_videotunnel{

@@ -22,6 +22,8 @@
 #include <linux/amlogic/ion.h>
 #include <linux/dma-heap.h>
 #include <linux/dma-direction.h>
+#include <linux/dma-direct.h>
+#include <linux/time.h>
 #include <uapi/linux/dma-heap.h>
 
 #include <linux/amlogic/media/avbc_wrapper_interface.h>
@@ -32,7 +34,7 @@
 #include <linux/amlogic/meson_uvm_interface.h>
 
 static struct mua_device *mua_dev;
-
+struct device *uvmdev;
 static int enable_screencap;
 module_param_named(enable_screencap, enable_screencap, int, 0664);
 static int mua_debug_level = MUA_ERROR;
@@ -273,6 +275,7 @@ static int ge2d_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmab
 	struct uvm_ge2d_info ge2d_info = { 0 };
 	struct vframe_s *vf = NULL;
 	int ret = -1;
+	size_t buf_size = 0;
 
 	vf = mua_dmabuf_get_vframe(dmabuf);
 	if (!vf) {
@@ -299,6 +302,15 @@ static int ge2d_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmab
 	src_canvas_config[1].block_mode = 0;
 	src_canvas_config[1].endian = 0;
 	src_canvas_config[1].bit_depth = 0;
+
+	buf_size = mua_calc_real_dmabuf_size(buffer->align,
+			buffer->byte_stride, buffer->height) * 2 / 3;
+	MUA_PRINTK(MUA_INFO, "ge2d buf size=%zu\n", buf_size);
+
+	memset(phys_to_virt(buffer->realloc_paddr), 0x15, buf_size);
+	memset(phys_to_virt(buffer->realloc_paddr) + buf_size, 0x80, buf_size / 2);
+	dma_sync_single_for_device(uvmdev, phys_to_dma(uvmdev, buffer->realloc_paddr),
+				   buf_size * 3 / 2, DMA_BIDIRECTIONAL);
 
 	dst_canvas_config[0] = src_canvas_config[0];
 	dst_canvas_config[0].width = dst_w_stride;
@@ -405,10 +417,12 @@ static int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dma
 
 	buf_size = mua_calc_real_dmabuf_size(buffer->align,
 			buffer->byte_stride, buffer->height) * 2 / 3;
-	MUA_PRINTK(MUA_INFO, "fill dummy data buf size=%zu\n", buf_size);
+	MUA_PRINTK(MUA_INFO, "wrapper buf size=%zu\n", buf_size);
 
 	memset(phys_to_virt(buffer->realloc_paddr), 0x15, buf_size);
 	memset(phys_to_virt(buffer->realloc_paddr) + buf_size, 0x80, buf_size / 2);
+	dma_sync_single_for_device(uvmdev, phys_to_dma(uvmdev, buffer->realloc_paddr),
+				   buf_size * 3 / 2, DMA_BIDIRECTIONAL);
 
 	out->img.bitdep = in->img.bitdep;
 	if (buffer->byte_stride == buffer->width && in->img.bitdep == 10) {
@@ -444,9 +458,14 @@ static int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dma
 int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, void *vaddr)
 {
 	struct v4l_data_t val_data;
+	size_t buf_size = mua_calc_real_dmabuf_size(buffer->align,
+			buffer->byte_stride, buffer->height) * 2 / 3;
+
+	MUA_PRINTK(MUA_INFO, "soft decode buf size=%zu\n", buf_size);
+	memset(vaddr, 0x15, buf_size);
+	memset(vaddr + buf_size, 0x80, buf_size / 2);
 
 	memset(&val_data, 0, sizeof(val_data));
-
 	val_data.dst_addr = vaddr;
 	val_data.byte_stride = buffer->byte_stride;
 	val_data.width = buffer->width;
@@ -456,9 +475,8 @@ int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, vo
 	MUA_PRINTK(MUA_INFO, "%s. width=%d height=%d byte_stride=%d align=%d size=%zu\n",
 			__func__, buffer->width, buffer->height,
 			buffer->byte_stride, buffer->align, buffer->idmabuf[1]->size);
-#ifdef CONFIG_AMLOGIC_V4L_VIDEO3
+
 	AMLOGIC_V4LVIDEO_data_copy(&val_data, dmabuf, buffer->align);
-#endif
 
 	return 0;
 }
@@ -562,6 +580,8 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	struct dma_heap *heap;
 	struct dma_buf_attachment *attachment = NULL;
 	struct vframe_s *vf = NULL;
+	struct timeval start, end;
+	unsigned long time_use = 0;
 
 	buffer = container_of(obj, struct mua_buffer, base);
 	if (!buffer)
@@ -726,7 +746,12 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	MUA_PRINTK(MUA_INFO, "buffer vaddr: %px.\n", vaddr);
 
 	//start to filldata
+	do_gettimeofday(&start);
 	mua_screencap_filldata(buffer, dmabuf, vaddr, vf, skip_fill_buf);
+	do_gettimeofday(&end);
+	time_use = (end.tv_sec - start.tv_sec) * 1000 +
+				(end.tv_usec - start.tv_usec) / 1000;
+	MUA_PRINTK(MUA_INFO, "mua screencap use time: %ldms\n", time_use);
 
 	vunmap(vaddr);
 	if (src_sgt && attachment) {
@@ -1401,6 +1426,15 @@ static const struct file_operations mua_fops = {
 
 static int mua_probe(struct platform_device *pdev)
 {
+	int ret;
+	u32 enable_scp;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "enable_screencap", &enable_scp);
+	if (ret)
+		enable_scp = 0;
+	enable_screencap = enable_scp;
+	uvmdev = &pdev->dev;
+
 	mua_dev = kzalloc(sizeof(*mua_dev), GFP_KERNEL);
 	if (!mua_dev)
 		return -ENOMEM;
