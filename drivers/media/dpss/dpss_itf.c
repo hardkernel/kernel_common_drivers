@@ -1351,7 +1351,7 @@ void _ins_polling_send_ready(struct dpss_ch_s *pch)
 	}
 
 	if (!lock_ret) {
-		DBG_WARN("send ready:wait\n");
+		dbg_ct0("send ready:wait\n");
 		return;
 	}
 	//ready to post:
