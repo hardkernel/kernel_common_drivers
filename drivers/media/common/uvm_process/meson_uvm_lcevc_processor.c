@@ -206,6 +206,8 @@ int attach_lcevc_hook_mod_info(int shared_fd,
 			"%s: fget lcevc fd %d fail\n",
 			__func__, lcevc_info->lcevc_fd);
 		dma_buf_put(dmabuf);
+		if (!attached)
+			kfree(lcevc_4_attach);
 		return -EBADF;
 	}
 	lcevc_4_attach->base_fd = shared_fd;
