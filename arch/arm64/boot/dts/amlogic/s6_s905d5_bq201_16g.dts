@@ -125,8 +125,8 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p STB android16 size 56M */
-			size = <0x0 0x3800000>;
+			/* 4k hdmi, 1080p lcd, android16 size 240M */
+			size = <0x0 0xf000000>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_secure_reserved:heap-secure {
