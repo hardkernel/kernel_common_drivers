@@ -464,7 +464,7 @@
 		cpu-type = "gxl";
 		clock-src = "usb3.0";
 		clocks = <&clkc CLKID_USB>;
-		clock-names = "dwc_general";
+		clock-names = "bus_early";
 	};
 
 	usb2_phy_v2: usb2phy@ffe09000 {

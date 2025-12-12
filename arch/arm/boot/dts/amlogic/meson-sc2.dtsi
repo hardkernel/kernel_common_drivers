@@ -795,19 +795,19 @@
 		};
 
 		dwc3: dwc3@fde00000 {
-				compatible = "snps,dwc3-meson";
-				status = "disable";
-				reg = <0xfde00000 0x100000>;
-				interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
-				dr_mode = "host";
-				maximum-speed = "super-speed";
-				snps,dis_u2_susphy_quirk;
-				snps,quirk-frame-length-adjustment;
-				snps,usb2-lpm-disable;
-				phys = <&u2p0port0>, <&u2p0port1>, <&u3p0port0>;
-				phy-names = "usb2-0", "usb2-1", "usb3-phy";
-				clocks = <&clkc CLKID_SYS_USB>;
-				clock-names = "usb_general";
+			compatible = "snps,dwc3-meson";
+			status = "disable";
+			reg = <0xfde00000 0x100000>;
+			interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+			dr_mode = "host";
+			maximum-speed = "super-speed";
+			snps,dis_u2_susphy_quirk;
+			snps,quirk-frame-length-adjustment;
+			snps,usb2-lpm-disable;
+			phys = <&u2p0port0>, <&u2p0port1>, <&u3p0port0>;
+			phy-names = "usb2-0", "usb2-1", "usb3-phy";
+			clocks = <&clkc CLKID_SYS_USB>;
+			clock-names = "bus_early";
 		};
 
 		dwc2_a: dwc2_a@fdd00000 {

@@ -503,21 +503,21 @@
 	};
 
 	dwc3: dwc3@ff500000 {
-			compatible = "snps,dwc3-meson";
-			status = "disable";
-			reg = <0x0 0xff500000 0x0 0x100000>;
-			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-			dr_mode = "host";
-			maximum-speed = "super-speed";
-			snps,dis_u2_susphy_quirk;
-			snps,quirk-frame-length-adjustment;
-			snps,usb2-lpm-disable;
-			usb-phy = <&usb2_phy_v2>, <&usb3_phy_v2>;
-			clocks = <&clkc CLKID_USB>;
-			clock-names = "usb_general";
-			/*usb5v-supply = <&ao_5v>;*/
-			/*usb3v3-supply = <&vddao_3v3>;*/
-			/*usb1v8-supply = <&vddio_ao1v8>;*/
+		compatible = "snps,dwc3-meson";
+		status = "disable";
+		reg = <0x0 0xff500000 0x0 0x100000>;
+		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+		dr_mode = "host";
+		maximum-speed = "super-speed";
+		snps,dis_u2_susphy_quirk;
+		snps,quirk-frame-length-adjustment;
+		snps,usb2-lpm-disable;
+		usb-phy = <&usb2_phy_v2>, <&usb3_phy_v2>;
+		clocks = <&clkc CLKID_USB>;
+		clock-names = "bus_early";
+		/*usb5v-supply = <&ao_5v>;*/
+		/*usb3v3-supply = <&vddao_3v3>;*/
+		/*usb1v8-supply = <&vddio_ao1v8>;*/
 	};
 
 	usb2_phy_v2: usb2phy@ffe09000 {
