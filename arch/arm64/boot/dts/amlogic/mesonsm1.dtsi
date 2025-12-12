@@ -1970,6 +1970,8 @@ usbphy0: usbphy0@ffe09000 {
 		regulator-max-microvolt = <1050000>;
 		regulator-always-on;
 		max-duty-cycle = <1500>;
+		amlogic,vsel-step = <3>;
+		amlogic,usleep-time = <200>;
 		/* Voltage Duty-Cycle */
 		voltage-table = <1050000 0>,
 			<1040000 3>,
