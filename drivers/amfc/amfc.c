@@ -136,6 +136,22 @@ static int early_amfc_clk_set(char *buf)
 }
 __setup("amfc_clk=", early_amfc_clk_set);
 
+static unsigned int default_log;
+
+static int early_amfc_log_set(char *buf)
+{
+	int i = 0;
+
+	if (kstrtoint(buf, 10, &i))
+		return -EINVAL;
+
+	pr_emerg("set amfc_log to %d\n", i);
+	default_log = i;
+	return 1;
+}
+__setup("amfc_log=", early_amfc_log_set);
+
+
 static int amfc_hw_init(void)
 {
 	unsigned int value;
@@ -341,6 +357,9 @@ static int show_regs(char *buf)
 	unsigned int *p;
 	unsigned int phy_base, i, size  = 0;
 
+	if (!amfc->log && !buf)
+		return 0;
+
 	phy_base = vmalloc_to_phys(amfc->io_base, 0);
 	p = (unsigned int *)amfc->io_base;
 	if (buf) {
@@ -357,16 +376,16 @@ static int show_regs(char *buf)
 		size += sprintf(buf + size, "AMFC_SECURE_TOP_REG:%08x\n",
 				amfc_hw_read(AMFC_SECURE_TOP_REG));
 	} else {
-		pr_info("AMFC_REGS:\n");
+		pr_info_ratelimited("AMFC_REGS:\n");
 		for (i = 0; i < 0x48; i++) {
 			if (!(i & 0x3))
-				pr_info("0x%08x: ", phy_base + i * 4);
+				pr_info_ratelimited("0x%08x: ", phy_base + i * 4);
 			pr_cont("%08x ", p[i]);
 		}
-		pr_info("\n");
-		pr_info("CLKCTRL_AMFC_CLK_CTRL:%08x\n",
+		pr_info_ratelimited("\n");
+		pr_info_ratelimited("CLKCTRL_AMFC_CLK_CTRL:%08x\n",
 			amfc_clk_read(CLKCTRL_AMFC_CLK_CTRL));
-		pr_info("AMFC_SECURE_TOP_REG:%08x\n",
+		pr_info_ratelimited("AMFC_SECURE_TOP_REG:%08x\n",
 			amfc_hw_read(AMFC_SECURE_TOP_REG));
 	}
 	return size;
@@ -374,11 +393,11 @@ static int show_regs(char *buf)
 
 static void show_acl(struct amfc_cmd_list *acl)
 {
-	if (!acl)
+	if (!acl || !amfc->log)
 		return;
 
-	pr_info("acl:%px\n", acl);
-	pr_info("%08x %08x %08x %08x  %08x %08x %08x %08x\n",
+	pr_info_ratelimited("acl:%px\n", acl);
+	pr_info_ratelimited("%08x %08x %08x %08x  %08x %08x %08x %08x\n",
 		acl->src_addr, acl->dst_addr, acl->link_addr, acl->src_size,
 		acl->dst_size, acl->control,  acl->status,    acl->result_size);
 }
@@ -389,9 +408,12 @@ static void dump_addr(void *buf, unsigned int size)
 	int i;
 	unsigned int *p = (unsigned int *)buf;
 
-	pr_info("%s addr:%px, size:%d\n", __func__, buf, size);
+	if (!amfc->log)
+		return ;
+
+	pr_info_ratelimited("%s addr:%px, size:%d\n", __func__, buf, size);
 	for (i = 0; i < size / 4; i += 4) {
-		pr_info("%px: %08x %08x %08x %08x\n",
+		pr_info_ratelimited("%px: %08x %08x %08x %08x\n",
 			p + i, p[i], p[i + 1], p[i + 2], p[i + 3]);
 	}
 }
@@ -672,7 +694,7 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 	if (atomic_read(&amfc->in_suspend))
 		return -ENODEV;
 
-	if (amfc->log > 1)
+	if (amfc->log > 2)
 		pr_info("%s, src:%px, dst:%px, src size:%d, dst size:%d\n",
 			__func__, src, dst, (int)src_size, (int)dst_size);
 	if (stream)
@@ -764,17 +786,20 @@ again:
 				break;
 			cur = sched_clock();
 			if (cur - tick >= timeout * 1000) {
-				pr_emerg("%s timeout:%lld -> %lld, %lld\n",
+				pr_emerg_ratelimited("%s timeout:%lld -> %lld, %lld\n",
 					 __func__, tick, cur, timeout);
 				show_regs(NULL);
 				amfc_unmap_addr((long)acl, sizeof(*acl), DMA_FROM_DEVICE);
 				show_acl(acl);
-				pr_info("src:%px, dst:%px, src_size:%d, dst_size:%d\n", src, dst, (int)src_size, (int)dst_size);
+				pr_info_ratelimited("src:%px, dst:%px, src_size:%d, dst_size:%d\n", src, dst, (int)src_size, (int)dst_size);
 				dump_addr(src, src_size);
-				if (cur - tick >= timeout * 50000UL)
+				if (cur - tick >= timeout * 500UL)
 					break;
 				// init again and retry;
 				amfc_hw_init();
+				/* release for irq */
+				local_irq_enable();
+				local_irq_disable();
 				goto again;
 			}
 			if (atomic_read(&amfc->in_suspend)) {
@@ -812,7 +837,7 @@ out:
 						acl, src, dst, (int)src_size, (int)dst_size, ret,
 						acl->result_size, clks);
 			} else {
-				pr_err("acl:%px, decompress failed, src:%px, dst:%px, ssize:%d, dsize:%d, ret:%d, status:%x\n",
+				pr_err_ratelimited("acl:%px, decompress failed, src:%px, dst:%px, ssize:%d, dsize:%d, ret:%d, status:%x\n",
 					acl, src, dst, (int)src_size, (int)dst_size,
 					ret, amfc_hw_read(AMFC_GL_CMD1_STATUS));
 				show_regs(NULL);
@@ -848,7 +873,7 @@ error_handled:
 			amfc->z_dtick     += clks;
 			amfc->total_dtick += clks;
 		}
-		if (amfc->log)
+		if (amfc->log > 2)
 			pr_info("decompress ACL:%px, src:%px, dst:%px, src size:%5d, dst size,%5d, result size:%5d, tick:%d\n",
 				acl, src, dst, (int)src_size, (int)dst_size, ret, clks);
 	}
@@ -898,7 +923,7 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 	if (atomic_read(&amfc->in_suspend))
 		return -ENODEV;
 
-	if (amfc->log > 1)
+	if (amfc->log > 2)
 		pr_info("%s, src:%px, dst:%px, src size:%d, dst size:%d\n",
 			__func__, src, dst, (int)src_size, (int)dst_size);
 	amfc_map_addr((long)src, src_size, DMA_TO_DEVICE);
@@ -980,18 +1005,21 @@ again:
 				break;
 			cur = sched_clock();
 			if (cur - tick >= timeout * 1000) {
-				pr_emerg("%s timeout:%lld -> %lld, %lld, tick:%d\n",
+				pr_emerg_ratelimited("%s timeout:%lld -> %lld, %lld, tick:%d\n",
 					 __func__, tick, cur, timeout, amfc_hw_read(AMFC_CMD0_TIME_MEASURE));
 				show_regs(NULL);
 				amfc_unmap_addr((long)acl, sizeof(*acl), DMA_FROM_DEVICE);
 				show_acl(acl);
-				pr_info("src:%px, dst:%px, src_size:%d, dst_size:%d\n", src, dst, (int)src_size, (int)dst_size);
+				pr_info_ratelimited("src:%px, dst:%px, src_size:%d, dst_size:%d\n", src, dst, (int)src_size, (int)dst_size);
 				dump_addr(src, src_size);
-				if (cur - tick >= timeout * 50000UL)
+				if (cur - tick >= timeout * 500UL)
 					break;
 
 				// init again and retry;
 				amfc_hw_init();
+				/* release for irq */
+				local_irq_enable();
+				local_irq_disable();
 				goto again;
 			}
 			if (atomic_read(&amfc->in_suspend)) {
@@ -1021,7 +1049,7 @@ out:
 		} else {
 			amfc->in_enc_err = 1;
 			if (((status & AMFC_ERR_MASK) >> 8) != AMFC_ENC_DST_SIZE_OVF) {
-				pr_err("acl:%px, compress failed, src:%px, dst:%px, ssize:%d, dsize:%d, ret:%d, status:%x\n",
+				pr_err_ratelimited("acl:%px, compress failed, src:%px, dst:%px, ssize:%d, dsize:%d, ret:%d, status:%x\n",
 					acl, src, dst, (int)src_size, (int)dst_size,
 					ret, amfc_hw_read(AMFC_GL_CMD0_STATUS));
 				show_regs(NULL);
@@ -1042,7 +1070,7 @@ error_handled:
 		amfc->cin         += src_size;
 		amfc->cout        += ret;
 		amfc->total_ctick += clks;
-		if (amfc->log)
+		if (amfc->log > 2)
 			pr_info("  compress acl:%px, src:%px, dst:%px, src size:%5d, result size:%5d, tick:%d\n",
 				acl, src, dst, (int)src_size, ret, clks);
 	}
@@ -1757,9 +1785,8 @@ static int amfc_probe(struct platform_device *pdev)
 	spin_lock_init(&amfc->dec_lock);
 	atomic_set(&amfc->in_suspend, 0);
 	amfc_hw_init();
-#ifdef CONFIG_AMFC_DEBUG
-	amfc->log = 1;
-#endif
+
+	amfc->log = default_log;
 
 	if (amfc->hw_version < AMFC_VER_1_1) {
 		amfc->bounce_buffer = vzalloc(128 * 1024 + AMFC_STREAM_MARGIN);
