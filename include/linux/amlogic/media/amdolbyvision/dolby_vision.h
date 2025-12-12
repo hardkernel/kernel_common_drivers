@@ -293,6 +293,7 @@ void amdv_set_dark_detail(int dark_detail);
 void amdv_set_light_sense(struct light_sensor_s light_sensor);
 void amdv_get_cfg_support(struct dv_cfg_support_s *dv_cfg_support);
 void amdv_set_precision_detail_bypass(int bypass_pd);
+void amdv_set_config_data(struct dv_config_data_s *config_data);
 
 u32 *get_core2_lut(void);
 void init_prm_dolby(struct dpss_info_s *dpss_info);

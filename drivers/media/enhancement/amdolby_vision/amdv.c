@@ -16659,6 +16659,57 @@ void amdv_set_precision_detail_bypass(int bypass_pd)
 }
 EXPORT_SYMBOL(amdv_set_precision_detail_bypass);
 
+void amdv_set_config_data(struct dv_config_data_s *config_data)
+{
+	if (!config_data)
+		return;
+	if (config_data->file_name == 0) {
+		/*check cfg size copy_from_user*/
+		if (config_data->file_size > MAX_CFG_SIZE ||
+			config_data->file_size <= 0)  {
+			pr_dv_dbg("common cfg size check fail!!\n");
+			return;
+		}
+		cfg_size = config_data->file_size * sizeof(char);
+		if (cfg_data) {
+			vfree(cfg_data);
+			cfg_data = NULL;
+		}
+		cfg_data = vmalloc(cfg_size);
+		if (!cfg_data)
+			return;
+		cfg_data = (char *)config_data->file_data;
+	}
+	if (config_data->file_name == 1) {
+		/*check bin size copy_from_user*/
+		if (config_data->file_size > MAX_BIN_SIZE ||
+			config_data->file_size <= 0)
+			return;
+		bin_size = config_data->file_size * sizeof(char);
+		if (bin_data) {
+			vfree(bin_data);
+			bin_data = NULL;
+		}
+		bin_data = vmalloc(bin_size);
+		if (!bin_data)
+			return;
+		bin_data = (char *)config_data->file_data;
+	}
+	if (!cfg_data || !bin_data) {
+		pr_info("[DV]: set config fail, cfg_size=%d, bin_size=%d\n",
+			cfg_size, bin_size);
+		return;
+	}
+	if (is_aml_tm2_tvmode() ||
+	    is_aml_t7_tvmode() ||
+	    is_aml_t3_tvmode() ||
+	    is_aml_t5w() ||
+	    is_aml_t5m() ||
+	    p_funcs_tv)
+		cp_dv_pq_config_data();
+}
+EXPORT_SYMBOL(amdv_set_config_data);
+
 static long amdolby_vision_ioctl(struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
