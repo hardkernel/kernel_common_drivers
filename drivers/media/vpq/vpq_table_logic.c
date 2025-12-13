@@ -6,6 +6,7 @@
 //#define DEBUG
 #include <linux/amlogic/media/vpp/vpp_drv.h>
 #include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/dpss/dpss_frc.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #else
@@ -1483,6 +1484,18 @@ int vpq_set_amdv_precision_detail(unsigned char value)
 	return 0;
 }
 
+int vpq_set_amdv_cfg_data(struct vpq_dv_config_data_s *pdata)
+{
+	if (!pdata)
+		return RET_NULL_POINT;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	amdv_set_config_data((struct dv_config_data_s *)pdata);
+#endif
+
+	return 0;
+}
+
 struct vpq_dv_cfg_support_s vpq_get_dv_cfg_support(unsigned char value)
 {
 	struct vpq_dv_cfg_support_s vpq_cfg = {0};
@@ -1507,28 +1520,28 @@ struct vpq_dv_cfg_support_s vpq_get_dv_cfg_support(unsigned char value)
  */
 int vpq_set_memc_on_off(unsigned char value)
 {
-	//dpss_frc_set_mc_bypass(value);
+	dpss_frc_set_mc_bypass(value);
 
 	return 0;
 }
 
 int vpq_set_memc_deblur_level(unsigned char value)
 {
-	//dpss_frc_set_deblur(value);
+	dpss_frc_set_deblur(value);
 
 	return 0;
 }
 
 int vpq_set_memc_dejudder_level(unsigned char value)
 {
-	//dpss_frc_set_dejudder(value);
+	dpss_frc_set_dejudder(value);
 
 	return 0;
 }
 
 int vpq_set_memc_demo_mode(unsigned char value)
 {
-	//dpss_frc_demo_win(value, 0);
+	dpss_frc_demo_win(value, 0);
 
 	return 0;
 }

@@ -160,6 +160,7 @@ int vpq_set_amdv_pic_mode_id(unsigned char value);
 int vpq_set_amdv_dark_detail(unsigned char value);
 int vpq_set_amdv_light_sensor(struct vpq_light_sensor_s *pdata);
 int vpq_set_amdv_precision_detail(unsigned char value);
+int vpq_set_amdv_cfg_data(struct vpq_dv_config_data_s *pdata);
 struct vpq_dv_cfg_support_s vpq_get_dv_cfg_support(unsigned char value);
 
 int vpq_set_memc_on_off(unsigned char value);

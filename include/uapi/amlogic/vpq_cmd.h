@@ -427,6 +427,15 @@ struct vpq_light_sensor_s {
 	unsigned int t_rearLum;
 };
 
+struct vpq_dv_config_data_s {
+	unsigned int file_name;  /* 0:cfg 1:bin */
+	unsigned int file_size;
+	union {
+		void *file_data;
+		long long file_table;
+	};
+};
+
 struct vpq_nonstandard_timing_map_s {
 	unsigned int width;
 	unsigned int height;
@@ -694,6 +703,7 @@ struct vpq_xlr_param_s {
 #define VPQ_IOC_SET_AMDV_LIGHT_SENSE       _IOW(VPQ_IOC_MAGIC, 0x52, struct vpq_light_sensor_s)
 /* 1: precision detail bypass, 0: precision detail not bypass */
 #define VPQ_IOC_SET_AMDV_PRECISION_DETAIL  _IOW(VPQ_IOC_MAGIC, 0x53, unsigned char)
+#define VPQ_IOC_SET_AMDV_CONFIG_DATA       _IOW(VPQ_IOC_MAGIC, 0x54, struct vpq_dv_config_data_s)
 
 #define VPQ_IOC_SET_MEMC_ON_OFF            _IOW(VPQ_IOC_MAGIC, 0x60, unsigned char)
 #define VPQ_IOC_SET_MEMC_DEBLUR_LEVEL      _IOW(VPQ_IOC_MAGIC, 0x61, unsigned char)

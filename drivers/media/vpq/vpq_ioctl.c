@@ -12,6 +12,15 @@
 #include "vpq_table_logic.h"
 #include "vpq_processor.h"
 
+const int BRIGHTNESS_MIN = -1024;
+const int BRIGHTNESS_MAX = 1023;
+const int CONTRAST_MIN; // = 0;
+const int CONTRAST_MAX = 255;
+const int SATURATION_MIN = -128;
+const int SATURATION_MAX = 127;
+const int HUE_MIN = -25;
+const int HUE_MAX = 25;
+
 typedef int (*vpq_ioctl_func)(struct file *file, unsigned long arg);
 struct vpq_ioctl_func_s {
 	int cmd;
@@ -176,6 +185,8 @@ int vpq_ioctl_set_brightness(struct file *file, unsigned long arg)
 		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
+		if (value < BRIGHTNESS_MIN || value > BRIGHTNESS_MAX)
+			return -EINVAL;
 		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_brightness(value);
 	}
@@ -192,6 +203,8 @@ int vpq_ioctl_set_contrast(struct file *file, unsigned long arg)
 		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
+		if (value < CONTRAST_MIN || value > CONTRAST_MAX)
+			return -EINVAL;
 		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_contrast(value);
 	}
@@ -208,6 +221,8 @@ int vpq_ioctl_set_saturation(struct file *file, unsigned long arg)
 		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
+		if (value < SATURATION_MIN || value > SATURATION_MAX)
+			return -EINVAL;
 		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_saturation(value);
 	}
@@ -224,6 +239,8 @@ int vpq_ioctl_set_hue(struct file *file, unsigned long arg)
 		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
+		if (value < HUE_MIN || value > HUE_MAX)
+			return -EINVAL;
 		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_hue(value);
 	}
@@ -256,6 +273,8 @@ int vpq_ioctl_set_brightness_post(struct file *file, unsigned long arg)
 		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
+		if (value < BRIGHTNESS_MIN || value > BRIGHTNESS_MAX)
+			return -EINVAL;
 		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_brightness_post(value);
 	}
@@ -272,6 +291,8 @@ int vpq_ioctl_set_contrast_post(struct file *file, unsigned long arg)
 		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
+		if (value < CONTRAST_MIN || value > CONTRAST_MAX)
+			return -EINVAL;
 		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_contrast_post(value);
 	}
@@ -288,6 +309,8 @@ int vpq_ioctl_set_saturation_post(struct file *file, unsigned long arg)
 		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
+		if (value < SATURATION_MIN || value > SATURATION_MAX)
+			return -EINVAL;
 		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_saturation_post(value);
 	}
@@ -304,6 +327,8 @@ int vpq_ioctl_set_hue_post(struct file *file, unsigned long arg)
 		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		ret = -EFAULT;
 	} else {
+		if (value < HUE_MIN || value > HUE_MAX)
+			return -EINVAL;
 		vpq_pr_dbg(lev_ioc, "value:%d\n", value);
 		ret = vpq_set_hue_post(value);
 	}
@@ -1093,6 +1118,44 @@ int vpq_ioctl_set_amdv_precision_detail(struct file *file, unsigned long arg)
 	return ret;
 }
 
+int vpq_ioctl_set_amdv_config_data(struct file *file, unsigned long arg)
+{
+	int ret = 0;
+	void __user *argp;
+	unsigned char *buf;
+	struct vpq_dv_config_data_s cfg_data = {0};
+	const unsigned int MAX_FILE_SIZE = 1024 * 30; //30k
+
+	if (copy_from_user(&cfg_data,
+			(void __user *)arg, sizeof(struct vpq_dv_config_data_s))) {
+		vpq_pr_err("copy_from_user fail\n");
+		return -EFAULT;
+	}
+
+	vpq_pr_info("amdv file:%d, size:%d\n", cfg_data.file_name, cfg_data.file_size);
+
+	if (cfg_data.file_size <= 0 || cfg_data.file_size > MAX_FILE_SIZE)
+		return -EINVAL;
+
+	argp = (void __user *)cfg_data.file_data;
+	buf = kmalloc(cfg_data.file_size, GFP_KERNEL);
+	if (!buf) {
+		//vpq_pr_err("vmalloc cfg_data buf for receive amdv file fail\n");
+		return -ENOMEM;
+	}
+
+	if (copy_from_user((void *)buf, argp, cfg_data.file_size)) {
+		vpq_pr_err("cp cfg_data to buf fail\n");
+		ret = -EFAULT;
+	} else {
+		cfg_data.file_data = buf;
+		ret = vpq_set_amdv_cfg_data(&cfg_data);
+	}
+	kfree(buf);
+
+	return ret;
+}
+
 int vpq_ioctl_set_memc_on_off(struct file *file, unsigned long arg)
 {
 	int ret = 0;
@@ -1384,20 +1447,25 @@ int vpq_ioctl_get_signal_info(struct file *file, unsigned long arg)
 
 int vpq_ioctl_get_dv_cfg_support(struct file *file, unsigned long arg)
 {
-	struct vpq_dv_cfg_support_s cfg_support = {0};
+	struct vpq_dv_cfg_support_s param = {0};
+	const int PIC_MODE_ID_MIN = 1;
+	const int PIC_MODE_ID_MAX = 4;
 
-	if (copy_from_user(&cfg_support, (void __user *)arg, sizeof(struct vpq_dv_cfg_support_s))) {
+	if (copy_from_user(&param, (void __user *)arg, sizeof(struct vpq_dv_cfg_support_s))) {
 		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		return -EFAULT;
 	}
 
-	vpq_pr_dbg(lev_ioc, "pic_mode_id:%d\n", cfg_support.pic_mode_id);
-	cfg_support = vpq_get_dv_cfg_support(cfg_support.pic_mode_id);
+	if (param.pic_mode_id < PIC_MODE_ID_MIN || param.pic_mode_id > PIC_MODE_ID_MAX)
+		return -EINVAL;
+
+	vpq_pr_dbg(lev_ioc, "pic_mode_id:%d\n", param.pic_mode_id);
+	param = vpq_get_dv_cfg_support(param.pic_mode_id);
 
 	vpq_pr_dbg(lev_ioc, "precision_detail:%d, dark_detail:%d, light_sense:%d\n",
-		cfg_support.precision_detail, cfg_support.dark_detail, cfg_support.light_sense);
+		param.precision_detail, param.dark_detail, param.light_sense);
 
-	if (copy_to_user((void __user *)arg, &cfg_support, sizeof(struct vpq_dv_cfg_support_s))) {
+	if (copy_to_user((void __user *)arg, &param, sizeof(struct vpq_dv_cfg_support_s))) {
 		vpq_pr_dbg(lev_ioc, "copy_from_user fail\n");
 		return -EFAULT;
 	}
@@ -1553,6 +1621,7 @@ static struct vpq_ioctl_func_s st_ioctl_info[] = {
 	{VPQ_IOC_SET_AMDV_DARK_DETAIL,       vpq_ioctl_set_amdv_dark_detail},
 	{VPQ_IOC_SET_AMDV_LIGHT_SENSE,       vpq_ioctl_set_amdv_light_sensor},
 	{VPQ_IOC_SET_AMDV_PRECISION_DETAIL,  vpq_ioctl_set_amdv_precision_detail},
+	{VPQ_IOC_SET_AMDV_CONFIG_DATA,       vpq_ioctl_set_amdv_config_data},
 
 	{VPQ_IOC_SET_MEMC_ON_OFF,            vpq_ioctl_set_memc_on_off},
 	{VPQ_IOC_SET_MEMC_DEBLUR_LEVEL,      vpq_ioctl_set_memc_deblur_level},
