@@ -342,6 +342,7 @@ void hdmirx_phy_var_init(void)
 			rx_info.aml_phy_21.pll_bw_21 = 0x51;
 			rx_info.aml_phy_21.cdr_ph_div = 0x8;
 			rx_info.aml_phy_21.cdr_pi_ofst = 0x3f;
+			rx_info.acr_rst_delay = 2000;
 		}
 	}
 	rx_info.aml_phy.force_bw = 0x0;
@@ -3488,6 +3489,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(l_bist_en, i++);
 	pr_var(ee_voltage_val, i++);
 	pr_var(frl_rate_id, i++);
+	pr_var(rx_info.acr_rst_delay, i++);
 }
 
 bool str_cmp(unsigned char *buff, unsigned char *str)
@@ -4206,6 +4208,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(frl_rate_id),
 		&frl_rate_id, value))
 		return pr_var(frl_rate_id, index);
+	if (set_pr_var(tmpbuf, var_to_str(rx_info.acr_rst_delay),
+		&rx_info.acr_rst_delay, value))
+		return pr_var(rx_info.acr_rst_delay, index);
 	return 0;
 }
 
@@ -7608,6 +7613,9 @@ static void dump_clk_status(u8 port)
 	      rx[port].clk.tmds_clk);
 	rx_pr("audio clock = %d\n",
 	      rx[port].clk.aud_pll);
+	if (rx_info.aml_phy.dacr_en)
+		rx_pr("audio sck clock = %d\n",
+			rx_info.aud_sck_clk);
 	if (rx_info.chip_id <= CHIP_ID_TXLX)
 		rx_pr("mpll clock = %d\n",
 		      rx[port].clk.mpll_clk);

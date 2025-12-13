@@ -1019,6 +1019,8 @@ struct rx_info_s {
 	bool timer_flag;
 	/* bit[3:0]:HDMI4/3/2/1 */
 	u32 disable_port_num;
+	u32 aud_sck_clk;
+	u32 acr_rst_delay;
 #ifdef CONFIG_RX_AUDIO_TO_EMP
 	struct aud_to_emp_s aud_emp;
 #endif

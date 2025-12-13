@@ -2084,6 +2084,7 @@ void rx_sw_reset_t7(int level, u8 port)
 			data8 |= (0 << 4);//dacr rst
 			data8 |= (0 << 2);//reg_acr_rst
 			hdmirx_wr_cor(HDMIRX_FSW_SRST, data8, port);
+			udelay(rx_info.acr_rst_delay);
 		} else {
 			/* dacr reset */
 			hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(4), 0, port);

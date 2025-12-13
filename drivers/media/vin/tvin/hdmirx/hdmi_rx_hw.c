@@ -2378,9 +2378,15 @@ u32 hdmirx_audio_fifo_rst(u8 port)
 		hdmirx_wr_cor(RX_AUDIO_FIFO_RST, 0x0, port);
 		break;
 	case CHIP_ID_T6X:
-		hdmirx_wr_bits_cor(HDMIRX_FSW_SRST, _BIT(1), 1, port);
+		if (!rx_info.aud_sck_clk) {
+			hdmirx_wr_cor(HDMIRX_FSW_SRST, 0x14, port);
+			udelay(1);
+			hdmirx_wr_cor(HDMIRX_FSW_SRST, 0x0, port);
+			udelay(rx_info.acr_rst_delay);
+		}
+		hdmirx_wr_cor(HDMIRX_FSW_SRST, 0x2, port);
 		udelay(1);
-		hdmirx_wr_bits_cor(HDMIRX_FSW_SRST, _BIT(1), 0, port);
+		hdmirx_wr_cor(HDMIRX_FSW_SRST, 0x0, port);
 		break;
 	case CHIP_ID_TXHD:
 	case CHIP_ID_T5D:
@@ -5226,7 +5232,7 @@ void rx_aud_pll_ctl(bool en, u8 port)
 		} else {
 			/* dacr reset */
 			if (rx_info.chip_id == CHIP_ID_T6X)
-				hdmirx_wr_bits_cor(HDMIRX_FSW_SRST, _BIT(4), 1, port);
+				hdmirx_wr_cor(HDMIRX_FSW_SRST, 0x14, port);
 			else
 				hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(4), 1, port);
 			/* afifo reset mode */
@@ -6252,6 +6258,7 @@ void rx_clkmsr_handler(struct work_struct *work)
 	case CHIP_ID_T6X:
 		aud_pll = meson_clk_measure_with_precision(104, 32);
 		p_clk = meson_clk_measure_with_precision(0, 32);
+		rx_info.aud_sck_clk = meson_clk_measure_with_precision(69, 32);
 		if (rx[E_PORT0].cur_5v_sts) {
 			rx[E_PORT0].clk.cable_clk = meson_clk_measure_with_precision(72, 32);
 			rx[E_PORT0].clk.tmds_clk = meson_clk_measure_with_precision(91, 32);
