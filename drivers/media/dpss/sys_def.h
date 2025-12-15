@@ -370,6 +370,7 @@ extern u32 mc_undone_cnt;
 extern unsigned int dpss_dbg_step;//tmp
 extern int enable_mc_link;
 extern struct dpss_queue mc_ibuf_q;
+extern struct display_queue display_buf_q;
 
 extern unsigned int dpss_t6x_direct;
 extern unsigned int dpss_en_dct;

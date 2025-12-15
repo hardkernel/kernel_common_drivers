@@ -87,11 +87,14 @@ struct dpss_frc_top_type_s {
 	/*input*/
 	u16       hsize;
 	u16       vsize;
-	u16       inp_padding_xofst;
-	u16       inp_padding_yofst;
+	u16       mc_hsize;
+	u16       mc_vsize;
 
-	u32       vfp;//line num before vsync,VIDEO_VSO_BLINE
-	u32       vfb;//line num before de   ,VIDEO_VAVON_BLINE
+	u16       crop_top;
+	u16       crop_left;
+	u16       crop_bottom;
+	u16       crop_right;
+
 	u32       frc_fb_num; //buffer num for frc loop
 	enum frc_ratio_mode_type frc_ratio_mode;
 	enum en_drv_film_mode       film_mode;//film_mode
@@ -104,8 +107,8 @@ struct dpss_frc_top_type_s {
 	u16       other_set1;
 	u8        rdma_en; //1:rdma 0:cpu interrupt access reg
 	u8        motion_ctrl;  // for frc motion ctrl
-	u8        rdma_reserved2;
-	u8        rdma_reserved3;
+	u8        need_dpe_mix; //t6w badedit
+	u8        dpe_mix_cnt; //t6w badedit
 	u32       frc_prot_mode;//0:memc prefetch acorrding mode frame 1:memc prefetch 1 frame
 	u32       force_en;    // for debug
 	u32       in_out_ratio;
@@ -205,12 +208,6 @@ struct dpss_frc_fw_data_s {
 //extern int frc_dbg_en;
 //extern int frc_kerdrv_ver;
 #define QUEEN_NUM 60
-
-struct dpss_queue {
-	u32 data[QUEEN_NUM];
-	u16 front;
-	u16 rear;
-};
 
 struct Vpu_queue {
 	int data[QUEEN_NUM];

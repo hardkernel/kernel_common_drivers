@@ -206,10 +206,16 @@ struct DPSS_CUT_WIN {
 	u32  frm_vsize;
 	u32  win_hsize;
 	u32  win_vsize;
+	u32  win_hsize_align;
+	u32  win_vsize_align;
 	u32  win_hbgn;
 	u32  win_hend;
 	u32  win_vbgn;
 	u32  win_vend;
+	u32  win_hbgn_align;
+	u32  win_hend_align;
+	u32  win_vbgn_align;
+	u32  win_vend_align;
 };
 
 struct PRM_MC_SET {

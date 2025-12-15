@@ -66,6 +66,7 @@ int pvpp_sw_frc(bool on);
 void frc_disable_plink_notify(bool async);
 void frc_plink_state_changed_notify(void);
 void irq_display(void);
+void post_vsync_signal_to_dpss_rdma(void);
 
 int dpss_frc_get_video_latency(void);
 int dpss_frc_get_video_latency_for_gd(void);

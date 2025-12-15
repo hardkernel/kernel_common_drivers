@@ -211,4 +211,6 @@ void cfg_viu_pix_rdmif_baddr(s32 mif_index, u32 ybaddr, u32 cbbaddr,
 void cfg_vfcd_rdmif_ext(enum dpss_mif_e mif_index, struct PRM_INTF_TYPE *prm_mif);
 void dpss_dae_wrmif_cfg_brst_len(u32 burst_len);
 void dpss_dae_rdmif_cfg_brst_len(u32 burst_len);
+void hw_cfg_mc_sub_rdmif(struct PRM_INTF_TYPE *prm_mif, s32 mif_index,
+		      s32 only_change_addr);
 #endif

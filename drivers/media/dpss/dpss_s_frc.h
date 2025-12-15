@@ -31,6 +31,7 @@ void dpss_enable_mc_link(bool enable);
 void check_dpss_frc_status(void);
 void frc_undone_check(void);
 void frc_set_mc_bypass(u8 bypass);
+void frc_set_mc_bypass_rdma(u8 bypass);
 void dpss_frc_check_reg_stats(void);
 void dpss_frc_check_undone_stats(void);
 
@@ -51,5 +52,10 @@ void dpss_frc_remove(void);
 int dpss_frc_tell_alg_vendor(u8 vendor_info);
 void dpss_frc_get_memc_gmv(struct memc_gmv_s *memc_gmv);
 void dpss_frc_resume(void);
+
+//fw
+void update_n2m_info_to_fw(enum DPSS_FRC_RATIO frc_ratio);
+void update_mc_cut_size_to_fw(u16 mc_hsize, u16 mc_vsize,
+			u16 crop_top, u16 crop_left, u16 crop_bottom, u16 crop_right);
 
 #endif

@@ -6223,6 +6223,9 @@ exit:
 			if (vd_fake_func[i].vd_late_process)
 				vd_fake_func[i].vd_late_process(0xff, i);
 	}
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+	post_vsync_signal_to_dpss_rdma();
+#endif
 LATE_PROC:
 	misc_late_proc();
 	for (i = 0; i < MAX_VD_LAYER; i++)

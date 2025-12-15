@@ -53,6 +53,7 @@ static struct dpss_frc_fw_data_s fw_data;	// important 2021_0510
 static const char frc_alg_def_ver[] = "alg_ver:default";
 
 struct dpss_queue mc_ibuf_q;
+struct display_queue display_buf_q;
 int enable_mc_link = 1;
 int frc_delay_dbg; // for avsync debug
 
@@ -265,6 +266,17 @@ static struct class_attribute frc_class_attrs[] = {
 	__ATTR(pq_dct, 0644, dpss_pq_dct_show, dpss_pq_dct_store),
 	__ATTR_NULL
 };
+
+static inline unsigned int frc_align_up(unsigned int x, unsigned int a)
+{
+	// return (x + (a - 1)) & ~(a - 1);
+	return (x + a) & ~(a - 1);
+}
+
+static inline unsigned int frc_align_down(unsigned int x, unsigned int a)
+{
+	return x & ~(a - 1);
+}
 
 unsigned int dpss_dbg_in_fmt_frc;
 module_param_named(dpss_dbg_in_fmt_frc, dpss_dbg_in_fmt_frc, uint, 0664);
@@ -1030,8 +1042,6 @@ static void frc_state_init(void)
 	}
 	state_st = &pchip_st->state_st;
 
-	state_st->pre_idx = 0;
-	state_st->cur_idx = 0;
 	state_st->frc_src = FROM_DEC;
 	state_st->src0_disp_obuf_rdy = 0;
 	state_st->mc_bypass = true;
@@ -1050,12 +1060,19 @@ static void frc_state_init(void)
 	state_st->is_pause_state_last_frmae = false;
 	state_st->is_wait_mc_state = false;
 	state_st->need_drop_dd = false;
+	state_st->dae_ready = false;
+	state_st->dpe_ready = false;
+	state_st->dpe_mix = false;
+	state_st->mv_buf_idx = 0;
 	if (state_st->force_n2m == 0)
 		memset(&state_st->n2m_status, 0, sizeof(state_st->n2m_status));
+	memset(&state_st->me_pcn_st, 0, sizeof(state_st->me_pcn_st));
+	memset(&state_st->mc_disp_st, 0, sizeof(state_st->mc_disp_st));
 	memset(&pchip_st->win_st, 0, sizeof(struct frc_cut_win_s));
 	memset(&state_st->frc_int_st, 0, sizeof(state_st->frc_int_st));
 	memset(&g_frc_work_stats, 0, sizeof(struct frc_state_s));
 	vpu_initqueue(&inp_bufQ);
+	display_init_queue(&display_buf_q);
 }
 
 static void frc_compress_fmt_parse(struct dpss_sub_vf_s *vfs)
@@ -1123,6 +1140,16 @@ void init_frc_pre(struct dpss_sub_vf_s *vfs)
 	frc_top->vsize = dpss_en_pps ? pps_out_h : prm_top->frm_vsize;
 	frc_top->auto_align_en = 0;
 	frc_top->motion_ctrl = prm_top->amdv_2_frc_frm;
+	frc_top->hsize = prm_top->frm_hsize;
+	frc_top->vsize = prm_top->frm_vsize;
+	frc_top->mc_hsize = prm_top->frm_hsize;
+	frc_top->mc_vsize = prm_top->frm_vsize;
+	frc_top->crop_top = 0;
+	frc_top->crop_left = 0;
+	frc_top->crop_bottom = 0;
+	frc_top->crop_right = 0;
+	frc_top->need_dpe_mix = 0;
+	frc_top->dpe_mix_cnt = 0;
 
 	if (pfw_data->frc_input_cfg)
 		pfw_data->frc_input_cfg(pfw_data);
@@ -1143,6 +1170,7 @@ void init_frc_pre(struct dpss_sub_vf_s *vfs)
 	bbd_init = 1;
 	frc_state_init();
 	dpss_initqueue(&mc_ibuf_q);
+	display_init_queue(&display_buf_q);
 	frc_compress_fmt_parse(vfs);
 	frc_fw_alg_ctrl = &pfw_data->frc_fw_alg_ctrl;
 	prm_top->frc_melogo_en = frc_fw_alg_ctrl->melogo_en;
@@ -1244,6 +1272,8 @@ void init_frc_post(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs)
 
 	if (state_st->mc_cut_position == 1)
 		w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 1, 8, 1);
+	else
+		w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 0, 8, 1);
 
 	w_reg_bit(DPSS_REG_DAE_WRPT_FULL_NUM, dae_wrpt_full_num, 0, 4);
 	w_reg_bit(FRC_REG_CURSOR, 0, 0, 3); //cancel dae force mix
@@ -1903,7 +1933,7 @@ void frc_update_ds_scale(struct vframe_s *vfm)
 	}
 }
 
-void frc_cut_win_check_2_step(struct frc_win_s *win, struct vframe_s *vfm)
+void frc_cut_win_chk_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 {
 	struct PRM_DPSS_TOP *prm_top;
 	struct frc_chip_st *pchip_st;
@@ -1913,7 +1943,18 @@ void frc_cut_win_check_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 	unsigned int src_width, src_height;
 	struct frc_state_s *state_st;
 	static bool win_size_chg_flag;
-	u32 temp_value; // src_from_nr
+	u32 src_from_nr;
+	u32 align_base_h = 8, align_base_v = 8;
+	u32 win_hbgn_align = 0;
+	u32 win_hend_align = 0;
+	u32 win_vbgn_align = 0;
+	u32 win_vend_align = 0;
+	u16 mc_hsize = 0;
+	u16 mc_vsize = 0;
+	u16 crop_top  = 0;
+	u16 crop_left = 0;
+	u16 crop_bottom = 0;
+	u16 crop_right = 0;
 
 	pchip_st = dpss_get_frc_st();
 	pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
@@ -1925,8 +1966,12 @@ void frc_cut_win_check_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 	prm_top  = prm_dpss_top;
 	state_st = &pchip_st->state_st;
 	frc_top = &pfw_data->frc_top_type;
-	if (frc_top->mc_cut_en == 0)
-		return;
+
+	if (state_st->mc_cut_position == 1)
+		return;   // cut after mc
+
+	//if (frc_top->mc_cut_en == 0)
+	//	return;
 
 	if (win->x_size == 0 || win->y_size == 0) {
 		dbg_f1("%s: win size = 0, chg_fleg reset 0\n", __func__);
@@ -1940,7 +1985,15 @@ void frc_cut_win_check_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 		src_width = vfm->width;
 		src_height = vfm->height;
 	}
-	// pr_frc(1, "src_size <%d,%d>\n", src_width, src_height);
+
+	if (src_width > 1920) {
+		align_base_h = 16;
+		if (src_height > 1080)
+			align_base_v = 16;
+	} else if (src_height > 1080) {
+		align_base_h = 16;
+		align_base_v = 16;
+	}
 	win_s    = &pchip_st->win_st;
 	if (win_s->win_hbgn != win->x_st || win_s->win_hend != win->x_end ||
 		win_s->win_vbgn != win->y_st || win_s->win_vend != win->y_end) {
@@ -1963,53 +2016,82 @@ void frc_cut_win_check_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 				win->orig_w, win->orig_h);
 		dbg_f1("frc_cut_win_1_step:win_size_chg_flag = %d\n",
 				win_size_chg_flag);
-		return;
+		if (frc_top->mc_cut_en == 0)
+			return;
 	}
 
 	if (win_size_chg_flag  == 1) {
-		//if (prm_top->dpss_mode == DPSS_FRC_MODE)
-		//	src_from_nr = 0;
-		//else
-		//	src_from_nr = 1;
+		if (prm_top->dpss_mode == DPSS_FRC_MODE)
+			src_from_nr = 0;
+		else
+			src_from_nr = 1;
 		if (win_s->cut_win_en == 1) {
-			if (state_st->mc_cut_position == 1) {
-				prm_top->cut_win_en = 0;
-				prm_top->cut_win_position = 1;
-				//w_reg_bit(DPSS_DPE_MC_WIN_CUT_H, win_s->win_hbgn, 0, 13);
-				//w_reg_bit(DPSS_DPE_MC_WIN_CUT_H, win_s->win_hend, 16, 13);
-				temp_value = win_s->win_hbgn | (win_s->win_hend << 16);
-				wr(DPSS_DPE_MC_WIN_CUT_H, temp_value);
-				//w_reg_bit(DPSS_DPE_MC_WIN_CUT_V, win_s->win_vbgn, 0, 13);
-				//w_reg_bit(DPSS_DPE_MC_WIN_CUT_V, win_s->win_vend, 16, 13);
-				temp_value = win_s->win_vbgn | (win_s->win_vend << 16);
-				wr(DPSS_DPE_MC_WIN_CUT_V, temp_value);
-				w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 1, 8, 1);
-			} else {
-				prm_top->cut_win_en = 1;
-				prm_top->cut_win_position = 0;
-				prm_top->prm_cut_win.frm_hsize = src_width;
-				prm_top->prm_cut_win.frm_vsize = src_height;
-				prm_top->prm_cut_win.win_hsize = win_s->win_hsize;
-				prm_top->prm_cut_win.win_vsize = win_s->win_vsize;
-				prm_top->prm_cut_win.win_hbgn  = win_s->win_hbgn;
-				prm_top->prm_cut_win.win_hend  = win_s->win_hend;
-				prm_top->prm_cut_win.win_vbgn  = win_s->win_vbgn;
-				prm_top->prm_cut_win.win_vend  = win_s->win_vend;
-				// hw_cfg_dpss_top(prm_top);
-				//hw_cfg_dpss_mc_ini(prm_top, src_from_nr);
-			}
-			dbg_f1("frc_cut_win_en=<%d, %d> mc_ini_1\n",
+			prm_top->cut_win_en = 1;
+			prm_top->prm_cut_win.frm_hsize = src_width;
+			prm_top->prm_cut_win.frm_vsize = src_height;
+
+			win_hbgn_align = frc_align_down(win_s->win_hbgn, align_base_h);
+			win_hend_align = frc_align_up(win_s->win_hend, align_base_h) - 1;
+			win_vbgn_align = frc_align_down(win_s->win_vbgn, align_base_v);
+			win_vend_align = frc_align_up(win_s->win_vend, align_base_v) - 1;
+			if (win_vend_align > prm_top->frm_vsize)
+				win_vend_align = win_s->win_vend;
+
+			prm_top->prm_cut_win.win_hbgn_align = win_hbgn_align;
+			prm_top->prm_cut_win.win_hend_align = win_hend_align;
+			prm_top->prm_cut_win.win_vbgn_align = win_vbgn_align;
+			prm_top->prm_cut_win.win_vend_align = win_vend_align;
+
+			prm_top->prm_cut_win.win_hsize_align = win_hend_align - win_hbgn_align + 1;
+			prm_top->prm_cut_win.win_vsize_align = win_vend_align - win_vbgn_align + 1;
+
+			mc_hsize = prm_top->prm_cut_win.win_hsize_align;
+			mc_vsize = prm_top->prm_cut_win.win_vsize_align;
+			crop_top  = win_vbgn_align;
+			crop_left = win_hbgn_align;
+			crop_bottom = src_height - 1 - win_vend_align;
+			crop_right = frc_align_up(src_width, align_base_v) - 1 - win_hend_align;
+
+			prm_top->prm_cut_win.win_hbgn  = win_s->win_hbgn - win_hbgn_align;
+			prm_top->prm_cut_win.win_hend  = win_s->win_hend - win_hbgn_align;
+			prm_top->prm_cut_win.win_vbgn  = win_s->win_vbgn - win_vbgn_align;
+			prm_top->prm_cut_win.win_vend  = win_s->win_vend - win_vbgn_align;
+
+			prm_top->prm_cut_win.win_hsize = prm_top->prm_cut_win.win_hsize_align;
+			prm_top->prm_cut_win.win_vsize = prm_top->prm_cut_win.win_vsize_align;
+			dbg_f1("frc_cut_win_1_step:prm_cut_win point <%d,%d,%d,%d>\n",
+					prm_top->prm_cut_win.win_hbgn,
+					prm_top->prm_cut_win.win_hend,
+					prm_top->prm_cut_win.win_vbgn,
+					prm_top->prm_cut_win.win_vend);
+			dbg_f1("frc_cut_win_1_step:prm_cut_win size <%d,%d>,<%d,%d>\n",
+					prm_top->prm_cut_win.win_hsize,
+					prm_top->prm_cut_win.win_vsize,
+					prm_top->prm_cut_win.win_hsize_align,
+					prm_top->prm_cut_win.win_vsize_align);
+
+			if (frc_top->mc_cut_en == 0)
+				frc_mc_cut_0(prm_top, src_from_nr);
+			else
+				frc_mc_cut_1(prm_top, src_from_nr);
+			//dpss_rdma_auto_wr_tri(2);
+			update_mc_cut_size_to_fw(mc_hsize, mc_vsize,
+						crop_top, crop_left, crop_bottom, crop_right);
+			dbg_f1("cut_win_en=<%d, %d> frc_mc_cut_1_1\n",
 					win_s->cut_win_en, prm_top->cut_win_en);
-		} else { // (win_s->cut_win_en is 0)
-			if (state_st->mc_cut_position == 1) {
-				prm_top->cut_win_position = 0;
-				w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 0, 8, 1);
-			} else if (prm_top->cut_win_en == 1) {
-				prm_top->cut_win_en = 0;
-				w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 1, 0, 8);
-			}
-			//hw_cfg_dpss_mc_ini(prm_top, src_from_nr);
-			dbg_f1("frc_cut_win_en=<%d, %d> mc_ini_2\n",
+		} else if (win_s->cut_win_en == 0 && prm_top->cut_win_en == 1) {
+			prm_top->cut_win_en = 0;
+			if (frc_top->mc_cut_en == 0)
+				frc_mc_cut_0(prm_top, src_from_nr);
+			else
+				frc_mc_cut_1(prm_top, src_from_nr);
+			//dpss_rdma_auto_wr_tri(2);
+			update_mc_cut_size_to_fw(prm_top->frm_hsize, prm_top->frm_vsize,
+						0, 0, 0, 0);
+			dbg_f1("cut_win_en=<%d, %d> frc_mc_cut_1_2\n",
+				win_s->cut_win_en, prm_top->cut_win_en);
+		} else {
+			dbg_f1("cut_win_en=<%d, %d>\n",
 				win_s->cut_win_en, prm_top->cut_win_en);
 		}
 		dbg_f1("frc_cut_win_2_step: win set <%d, %d, %d, %d>\n",
@@ -2041,10 +2123,9 @@ void frc_cut_win_set_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 	prm_top  = prm_dpss_top;
 	state_st = &pchip_st->state_st;
 	frc_top = &pfw_data->frc_top_type;
-	if (frc_top->mc_cut_en == 0)
-		return;
+
 	if (state_st->mc_cut_position == 0)
-		return;
+		return;  //  // cut before mc
 
 	prm_top->cut_win_en = 0;
 	if (vfm->type & VIDTYPE_COMPRESS) {
@@ -2077,7 +2158,7 @@ void frc_cut_win_set_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 			DPSS_RDMA_WR_VS(DPSS_DPE_MC_WIN_CUT_H, temp_value);
 			temp_value1 = win_s->win_vbgn | (win_s->win_vend << 16);
 			DPSS_RDMA_WR_VS(DPSS_DPE_MC_WIN_CUT_V, temp_value1);
-			dpss_rdma_auto_wr_tri(2);
+			// dpss_rdma_auto_wr_tri(2); // use new rdam function
 			win_size_chg_flag = 0;
 		} else {
 			win_size_chg_flag = 1;
@@ -2270,7 +2351,7 @@ int pvpp_display_frc(struct vframe_s *vfm,
 
 	state_st = &pchip_st->state_st;
 
-	if (!state_st->dpss_reg)
+	if (!state_st->dpss_reg || !state_st->dpe_ready)
 		return ret;
 
 	get_nr_buf_idx(vfm, state_st);
@@ -2304,7 +2385,7 @@ int pvpp_display_frc(struct vframe_s *vfm,
 		if (in_para->win.x_size == 0 || in_para->win.y_size == 0)
 			dbg_f1("%s in_para win_size (%d, %d)\n",
 					__func__, in_para->win.x_size, in_para->win.y_size);
-		// frc_cut_win_check_2_step(&in_para->win, vfm);
+		frc_cut_win_chk_2_step(&in_para->win, vfm);
 		frc_cut_win_set_2_step(&in_para->win, vfm);
 		frc_transform_check(vfm, in_para);
 		check_readback_reg(BIT_0);
@@ -2650,6 +2731,21 @@ void frc_set_mc_bypass(u8 bypass)
 	} else if (bypass == 0) {
 		w_reg_bit(FRC_MC_DBG_PHASE_EN, 0x0, 16, 2);
 		w_reg_bit(FRC_MC_HW_CTRL0, 0x0, 0, 2);
+	}
+	dbg_h1("%s bypass:%d\n", __func__, bypass);
+}
+
+void frc_set_mc_bypass_rdma(u8 bypass)
+{
+	if (bypass == 1) {
+		DPSS_RDMA_WR_BIT_PRE_VS(FRC_MC_DBG_PHASE_EN, 0x3, 16, 2);
+		DPSS_RDMA_WR_BIT_PRE_VS(FRC_MC_HW_CTRL0, 0x1, 0, 2);
+	} else if (bypass == 3) {
+		DPSS_RDMA_WR_BIT_PRE_VS(FRC_MC_DBG_PHASE_EN, 0x3, 16, 2);
+		DPSS_RDMA_WR_BIT_PRE_VS(FRC_MC_HW_CTRL0, 0x3, 0, 2);
+	} else if (bypass == 0) {
+		DPSS_RDMA_WR_BIT_PRE_VS(FRC_MC_DBG_PHASE_EN, 0x0, 16, 2);
+		DPSS_RDMA_WR_BIT_PRE_VS(FRC_MC_HW_CTRL0, 0x0, 0, 2);
 	}
 	dbg_h1("%s bypass:%d\n", __func__, bypass);
 }
@@ -3842,3 +3938,28 @@ void dpss_frc_resume(void)
 	if (pfw_data->frc_fw_reinit)
 		pfw_data->frc_fw_reinit(pfw_data);
 }
+
+void update_mc_cut_size_to_fw(u16 mc_hsize, u16 mc_vsize,
+				u16 crop_top, u16 crop_left, u16 crop_bottom, u16 crop_right)
+{
+	struct dpss_frc_fw_data_s *pfw_data;
+	struct dpss_frc_top_type_s *frc_top;
+
+	pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
+	if (!pfw_data) {
+		DBG_ERR("%s: frc_fw is null\n", __func__);
+		return;
+	}
+
+	frc_top = &pfw_data->frc_top_type;
+	frc_top->mc_hsize = mc_hsize;
+	frc_top->mc_vsize = mc_vsize;
+	frc_top->crop_top = crop_top;
+	frc_top->crop_left = crop_left;
+	frc_top->crop_bottom = crop_bottom;
+	frc_top->crop_right = crop_right;
+
+	if (pfw_data->frc_input_cfg)
+		pfw_data->frc_input_cfg(pfw_data);
+}
+

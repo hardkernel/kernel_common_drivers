@@ -58,6 +58,8 @@ int rdma_enable(void);
 // void dpss_rdma_auto_wr_reg(unsigned int addr, unsigned int val);
 void dpss_rdma_auto_wr_tri(u32 handle);
 void DPSS_RDMA_WR_PRE_VS(u32 addr, u32 val);
+void DPSS_RDMA_WR_BIT_PRE_VS(u32 addr, u32 val, u32 start, u32 len);
 void DPSS_RDMA_WR_VS(u32 addr, u32 val);
+void DPSS_RDMA_WR_BIT_VS(u32 addr, u32 val, u32 start, u32 len);
 
 #endif //__DPSS_RDMA_FRC_H__

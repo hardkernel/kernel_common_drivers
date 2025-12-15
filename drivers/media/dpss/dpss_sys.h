@@ -389,6 +389,19 @@ struct frc_interrupt_s {
 	u64 frc_vsync_timestamp;
 };
 
+struct me_pcn_s {
+	unsigned p:4;
+	unsigned c:4;
+	unsigned n:4;
+	unsigned use:4;
+};
+
+struct mc_disp_s {
+	u8 wr_idx;
+	u8 disp_idx;
+	u8 step;
+};
+
 struct frc_work_s {
 	// struct work_struct clk_work;
 	struct work_struct print_work;
@@ -421,18 +434,21 @@ struct frc_state_s {
 	bool force_disable_dpe_mix;
 	bool force_disable_check_fallback;
 	bool is_dos;
+	bool dae_ready;
+	bool dpe_ready;
+	u8 dpe_mix;
+	u8 mv_buf_idx;
 	u8 check_fallback;
-	u8  detect_threshold;
+	u8 detect_threshold;
 	u8 dae0_bypass_mode;
 	u8 dst_buf_th;
 	u8 enable_frclink_cnt;
 	u8 nr_buf_idx;
 	u8 force_mc_cur_idx;
+	u8 mc_drop_idx;
 	u32 mc_bypass_cnt;
 	u32 force_mc_byp_cnt;
 	u32 pre_vsync_offset;
-	unsigned int pre_idx;
-	unsigned int cur_idx;
 	unsigned int put_frame_cnt;
 	enum compress_fmt_s compr_sel;
 	unsigned int big_fmt;
@@ -454,6 +470,8 @@ struct frc_state_s {
 	struct undone_s undone_stats;
 	struct n2m_s n2m_status;
 	struct frc_interrupt_s frc_int_st;
+	struct me_pcn_s me_pcn_st;
+	struct mc_disp_s mc_disp_st;
 	struct dpss_frc_i_s *src_frc_inp[16];
 };
 

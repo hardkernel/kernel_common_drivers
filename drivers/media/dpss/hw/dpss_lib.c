@@ -61,10 +61,10 @@ bool dpss_is_queue_empty(struct dpss_queue *queue)
 
 bool dpss_enqueue(struct dpss_queue *queue, int value)
 {
-	if ((queue->rear + 1) % QUEEN_NUM == queue->front)
+	if ((queue->rear + 1) % DPSS_QUEEN_NUM == queue->front)
 		return 0;
 	queue->data[queue->rear] = value;
-	queue->rear = (queue->rear + 1) % QUEEN_NUM;
+	queue->rear = (queue->rear + 1) % DPSS_QUEEN_NUM;
 	return 1;
 }
 
@@ -85,7 +85,7 @@ bool dpss_put_queue(struct dpss_queue *queue, int *value, bool *empty)
 		return 0;
 	}
 	*value = queue->data[queue->front];
-	queue->front = (queue->front + 1) % QUEEN_NUM;
+	queue->front = (queue->front + 1) % DPSS_QUEEN_NUM;
 	return 1;
 }
 
@@ -103,8 +103,40 @@ void dpss_put_last_queue(struct dpss_queue *queue, bool *empty, u32 *value)
 	if (queue->rear != 0)
 		tmp_idx--;
 	else
-		tmp_idx = QUEEN_NUM - 1;
+		tmp_idx = DPSS_QUEEN_NUM - 1;
 
 	*value = queue->data[tmp_idx];
+}
+
+void display_init_queue(struct display_queue *queue)
+{
+	memset(queue, 0x0, sizeof(struct display_queue));
+}
+
+bool display_queue_is_empty(struct display_queue *queue)
+{
+	return queue->inp_idx == queue->drop_idx;
+}
+
+bool display_queue_put(struct display_queue *queue)
+{
+	u8 drop_index = queue->drop_idx;
+	u8 mc_index = queue->mc_idx;
+
+	if (mc_index < drop_index)
+		mc_index += DPSS_QUEEN_NUM;
+
+	return mc_index > drop_index ? true : false;
+}
+
+u8 get_dst_buf_cnt(struct display_queue *queue)
+{
+	u8 drop_index = queue->drop_idx;
+	u8 inp_index = queue->inp_idx;
+
+	if (inp_index < drop_index)
+		inp_index += DPSS_QUEEN_NUM;
+
+	return inp_index - drop_index;
 }
 

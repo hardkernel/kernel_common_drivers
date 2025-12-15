@@ -286,5 +286,6 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 				 struct dpss_ch_s *pch, unsigned int src);
 void _prm_top_init_vfm(struct dpss_ch_s *pch, struct PRM_DPSS_TOP *prm_top,
 				struct dpss_sub_vf_s *vfms, bool is_ex_di);	//user case
+inline u32 update_reg_val(u32 reg_val, u32 val, u8 start, u8 len);
 
 #endif	/*__DPSS_FUNC_H__*/

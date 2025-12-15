@@ -14,21 +14,32 @@
 #endif
 #include "dpss_base.h"
 #include "dpss_hw.h"
-#include "dpss_hw_frc.h"
 #include "dpss_s.h"
 #include "dpss_sys.h"
 #include "dpss_rdma_frc.h"
 #include "dpss_s_frc.h"
+#include "dpss_hw_frc.h"
 
 #include "./hw/define.h"
 #include "./hw/dpss.h"
 #include "./hw/dpss_intf.h"
 #include "./hw/dpss_mc.h"
 #include "./hw/vfcd.h"
+#include "hw/dpss_lib.h"
 #include "dpss_func.h"
 
 unsigned int used_rdma; //force g_dpss_tst_case
 module_param_named(used_rdma, used_rdma, uint, 0664);
+
+u32 update_reg_val(u32 reg_val, u32 val, u8 start, u8 len)
+{
+	u32 mask = (((1L << len) - 1) << start);
+	u32 tmp;
+
+	tmp = reg_val & ~mask;
+	tmp |= (val << start) & mask;
+	return tmp;
+}
 
 void hw_cfg_dpss_mc_ini(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr)
 {
@@ -126,14 +137,12 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 	pix_rmif->pad_hmode	  = prm_mc->pad_hmode;
 	pix_rmif->pad_vmode	  = prm_mc->pad_vmode;
 
-	pix_rmif->slc_x_st[0] = cut_win_en ? prm_top->prm_cut_win.win_hbgn : 0;
-	pix_rmif->slc_x_ed[0] = cut_win_en ? prm_top->prm_cut_win.win_hend :
-		prm_top->frm_hsize - 1;
-	//pix_rmif->slc_x_ed[0] = cut_win_en ? prm_top->prm_cut_win.win_hend : frm_hsize - 1;
-	pix_rmif->slc_y_st[0] = cut_win_en ? prm_top->prm_cut_win.win_vbgn : 0;
-	pix_rmif->slc_y_ed[0] = cut_win_en ? prm_top->prm_cut_win.win_vend :
-		prm_top->frm_vsize - 1;
-	//pix_rmif->slc_y_ed[0] = cut_win_en ? prm_top->prm_cut_win.win_vend : frm_vsize - 1;
+	pix_rmif->slc_x_st[0] = cut_win_en ? prm_top->prm_cut_win.win_hbgn_align : 0;
+	pix_rmif->slc_x_ed[0] =
+		cut_win_en ? prm_top->prm_cut_win.win_hend_align : prm_top->frm_hsize - 1;
+	pix_rmif->slc_y_st[0] = cut_win_en ? prm_top->prm_cut_win.win_vbgn_align : 0;
+	pix_rmif->slc_y_ed[0] =
+		cut_win_en ? prm_top->prm_cut_win.win_vend_align : prm_top->frm_vsize - 1;
 	pix_rmif->skip_line = mc_skip_mode_v;
 	pix_rmif->cut_win_en	= cut_win_en;
 
@@ -143,9 +152,9 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 		pix_rmif->src_vsize = cut_win_en ?
 				prm_top->prm_cut_win.frm_vsize : prm_mc->frm_vsize;
 		pix_rmif->slc_x_ed[0] = cut_win_en ?
-				prm_top->prm_cut_win.win_hend : prm_mc->frm_hsize - 1;
+				prm_top->prm_cut_win.win_hend_align : prm_mc->frm_hsize - 1;
 		pix_rmif->slc_y_ed[0] = cut_win_en ?
-				prm_top->prm_cut_win.win_vend : prm_mc->frm_vsize - 1;
+				prm_top->prm_cut_win.win_vend_align : prm_mc->frm_vsize - 1;
 	}
 	// nr+frc 422 10bit 2plane
 	if (prm_top->dpss_mode == DPSS_FRC_MODE) {
@@ -183,10 +192,12 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 	vfcd->src_hsize	   = cut_win_en ? prm_top->prm_cut_win.frm_hsize : prm_top->frm_hsize;
 	vfcd->src_vsize	   = cut_win_en ? prm_top->prm_cut_win.frm_vsize : prm_top->frm_vsize;
 	vfcd->fmt444_out   = fmt444_out;
-	vfcd->win_bgn_h[0] = cut_win_en ? prm_top->prm_cut_win.win_hbgn : 0;
-	vfcd->win_end_h[0] = cut_win_en ? prm_top->prm_cut_win.win_hend : prm_top->frm_hsize - 1;
-	vfcd->win_bgn_v[0] = cut_win_en ? prm_top->prm_cut_win.win_vbgn : 0;
-	vfcd->win_end_v[0] = cut_win_en ? prm_top->prm_cut_win.win_vend : prm_top->frm_vsize - 1;
+	vfcd->win_bgn_h[0] = cut_win_en ? prm_top->prm_cut_win.win_hbgn_align : 0;
+	vfcd->win_end_h[0] =
+		cut_win_en ? prm_top->prm_cut_win.win_hend_align : prm_top->frm_hsize - 1;
+	vfcd->win_bgn_v[0] = cut_win_en ? prm_top->prm_cut_win.win_vbgn_align : 0;
+	vfcd->win_end_v[0] =
+		cut_win_en ? prm_top->prm_cut_win.win_vend_align : prm_top->frm_vsize - 1;
 	vfcd->compbits_y =
 		dec_src_bit;// pix_rmif.src_bit == BIT_8 ? 8 :pix_rmif.src_bit == BIT_12 ? 12 :10 ;
 	vfcd->compbits_c =
@@ -200,9 +211,9 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 		vfcd->src_vsize    = cut_win_en ?
 			prm_top->prm_cut_win.frm_vsize : prm_mc->frm_vsize;
 		vfcd->win_end_h[0] = cut_win_en ?
-			prm_top->prm_cut_win.win_hend : prm_mc->frm_hsize - 1;
+			prm_top->prm_cut_win.win_hend_align : prm_mc->frm_hsize - 1;
 		vfcd->win_end_v[0] = cut_win_en ?
-			prm_top->prm_cut_win.win_vend : prm_mc->frm_vsize - 1;
+			prm_top->prm_cut_win.win_vend_align : prm_mc->frm_vsize - 1;
 	}
 
 	vfcd->src_fmt	  = fmt;
@@ -263,6 +274,10 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 	u32 cur_logo_hsize = prm_top->frm_hsize >> x_scl;
 	u32 mv_hsize	   = pre_logo_hsize >> 2;
 	u32 me_logo_hsize  = pre_logo_hsize >> 2;
+	u32 mc_out_hbgn = 0;
+	u32 mc_out_hend = 0;
+	u32 mc_out_vbgn = 0;
+	u32 mc_out_vend = 0;
 	struct PRM_INTF_TYPE *pre_logo_rmif = &pchip->pre_logo_rmif;
 	struct PRM_INTF_TYPE *cur_logo_rmif = &pchip->cur_logo_rmif;
 	struct PRM_INTF_TYPE *mv_rmif = &pchip->mv_rmif;
@@ -288,15 +303,15 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 		mv_rmif->pack_mode		= 4;
 		me_logo_rmif->pack_mode	= 0;
 
-		pre_logo_rmif->slc_x_st[0] = prm_top->prm_cut_win.win_hbgn >> x_scl;
-		pre_logo_rmif->slc_x_ed[0] = prm_top->prm_cut_win.win_hend >> x_scl;
-		pre_logo_rmif->slc_y_st[0] = prm_top->prm_cut_win.win_vbgn >> y_scl;
-		pre_logo_rmif->slc_y_ed[0] = prm_top->prm_cut_win.win_vend >> y_scl;
+		pre_logo_rmif->slc_x_st[0] = prm_top->prm_cut_win.win_hbgn_align >> x_scl;
+		pre_logo_rmif->slc_x_ed[0] = prm_top->prm_cut_win.win_hend_align >> x_scl;
+		pre_logo_rmif->slc_y_st[0] = prm_top->prm_cut_win.win_vbgn_align >> y_scl;
+		pre_logo_rmif->slc_y_ed[0] = prm_top->prm_cut_win.win_vend_align >> y_scl;
 
-		cur_logo_rmif->slc_x_st[0] = prm_top->prm_cut_win.win_hbgn >> x_scl;
-		cur_logo_rmif->slc_x_ed[0] = prm_top->prm_cut_win.win_hend >> x_scl;
-		cur_logo_rmif->slc_y_st[0] = prm_top->prm_cut_win.win_vbgn >> y_scl;
-		cur_logo_rmif->slc_y_ed[0] = prm_top->prm_cut_win.win_vend >> y_scl;
+		cur_logo_rmif->slc_x_st[0] = prm_top->prm_cut_win.win_hbgn_align >> x_scl;
+		cur_logo_rmif->slc_x_ed[0] = prm_top->prm_cut_win.win_hend_align >> x_scl;
+		cur_logo_rmif->slc_y_st[0] = prm_top->prm_cut_win.win_vbgn_align >> y_scl;
+		cur_logo_rmif->slc_y_ed[0] = prm_top->prm_cut_win.win_vend_align >> y_scl;
 
 		mv_rmif->slc_x_st[0] = pre_logo_rmif->slc_x_st[0] >> 2;
 		mv_rmif->slc_x_ed[0] = pre_logo_rmif->slc_x_ed[0] >> 2;
@@ -322,6 +337,20 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 		cfg_mc_sub_rdmif(me_logo_rmif, 3, 0);
 
 		w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 0xf, 3, 4);
+		w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 0x1, 8, 1);
+
+		mc_out_hbgn = prm_top->prm_cut_win.win_hbgn;
+		mc_out_hend = prm_top->prm_cut_win.win_hend;
+		mc_out_vbgn = prm_top->prm_cut_win.win_vbgn;
+		mc_out_vend = prm_top->prm_cut_win.win_vend;
+
+		w_reg_bit(DPSS_DPE_MC_WIN_CUT_H, mc_out_hbgn, 0, 13);
+		w_reg_bit(DPSS_DPE_MC_WIN_CUT_H, mc_out_hend, 16, 13);
+		w_reg_bit(DPSS_DPE_MC_WIN_CUT_V, mc_out_vbgn, 0, 13);
+		w_reg_bit(DPSS_DPE_MC_WIN_CUT_V, mc_out_vend, 16, 13);
+	} else {
+		w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 0x0, 8, 1);
+		w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 0x0, 3, 4);
 	}
 }
 
@@ -364,8 +393,8 @@ void hw_cfg_dpss_mc0(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr, struct DPSS_
 	//	frm_hsize = prm_top->frm_hsize;
 	//	frm_vsize = prm_top->frm_vsize;
 	//}
-
 	frm_hsize = frm_hsize > 1920 ? (frm_hsize + 15) / 16 * 16 : (frm_hsize + 7) / 8 * 8;
+	//frm_hsize = frm_hsize > 1920 ? (frm_hsize + 15) / 16 * 16 : (frm_hsize + 7) / 8 * 8;
 
 	if (prm_mc->pad_en && prm_top->org_hsize != 0xffff) {
 		src_hsize = cut_win_en	  ? win_hsize
@@ -639,6 +668,128 @@ void hw_cfg_dpss_mc0(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr, struct DPSS_
 		w_reg_bit(DPSS_FBUF_TOP_CTRL, 0, 3, 1);
 }
 
+void frc_me_cut(struct PRM_DPSS_TOP *prm_top)
+{
+	u32 x_scl = prm_top->dpe_dw_dsx;
+	u32 y_scl = prm_top->dpe_dw_dsy;
+	u32 pre_logo_rmif_bits = 1;
+	u32 cur_logo_rmif_bits = 1;
+	u32 mv_rmif_bits = 64;
+	u32 me_logo_rmif_bits  = 1;
+
+	u32 frm_hsize;
+	u32 pre_logo_hsize;
+	u32 cur_logo_hsize;
+	u32 mv_hsize;
+	u32 me_logo_hsize;
+	u32 mc_out_hbgn = 0;
+	u32 mc_out_hend = 0;
+	u32 mc_out_vbgn = 0;
+	u32 mc_out_vend = 0;
+	u32 tmp_reg_value;
+	struct PRM_INTF_TYPE *pre_logo_rmif;
+	struct PRM_INTF_TYPE *cur_logo_rmif;
+	struct PRM_INTF_TYPE *mv_rmif;
+	struct PRM_INTF_TYPE *me_logo_rmif;
+	struct frc_chip_st *pchip = dpss_get_frc_st();
+	bool cut_win_en;
+
+	if (!pchip) {
+		dbg_h2("%s pchip is null\n", __func__);
+		return;
+	}
+	pre_logo_rmif = &pchip->pre_logo_rmif;
+	cur_logo_rmif = &pchip->cur_logo_rmif;
+	mv_rmif = &pchip->mv_rmif;
+	me_logo_rmif = &pchip->me_logo_rmif;
+
+	frm_hsize = prm_top->frm_hsize;
+	pre_logo_hsize = frm_hsize >> x_scl;
+	cur_logo_hsize = frm_hsize >> x_scl;
+	mv_hsize	   = pre_logo_hsize >> 2;
+	me_logo_hsize  = pre_logo_hsize >> 2;
+	cut_win_en = prm_top->cut_win_en;
+
+	memset((void *)(pre_logo_rmif), 0, sizeof(struct PRM_INTF_TYPE));
+	memset((void *)(cur_logo_rmif), 0, sizeof(struct PRM_INTF_TYPE));
+	memset((void *)(mv_rmif), 0, sizeof(struct PRM_INTF_TYPE));
+	memset((void *)(me_logo_rmif), 0, sizeof(struct PRM_INTF_TYPE));
+
+	pre_logo_rmif->burst_len = 2;
+	cur_logo_rmif->burst_len = 2;
+	mv_rmif->burst_len		= 2;
+	me_logo_rmif->burst_len	= 2;
+	if (cut_win_en) {
+		pre_logo_rmif->bits_mode = 12;
+		cur_logo_rmif->bits_mode = 12;
+		mv_rmif->bits_mode		= 4;
+		me_logo_rmif->bits_mode	= 12;
+
+		pre_logo_rmif->pack_mode = 4;
+		cur_logo_rmif->pack_mode = 4;
+		mv_rmif->pack_mode		= 4;
+		me_logo_rmif->pack_mode	= 0;
+
+		pre_logo_rmif->slc_x_st[0] = prm_top->prm_cut_win.win_hbgn_align >> x_scl;
+		pre_logo_rmif->slc_x_ed[0] = prm_top->prm_cut_win.win_hend_align >> x_scl;
+		pre_logo_rmif->slc_y_st[0] = prm_top->prm_cut_win.win_vbgn_align >> y_scl;
+		pre_logo_rmif->slc_y_ed[0] = prm_top->prm_cut_win.win_vend_align >> y_scl;
+
+		cur_logo_rmif->slc_x_st[0] = prm_top->prm_cut_win.win_hbgn_align >> x_scl;
+		cur_logo_rmif->slc_x_ed[0] = prm_top->prm_cut_win.win_hend_align >> x_scl;
+		cur_logo_rmif->slc_y_st[0] = prm_top->prm_cut_win.win_vbgn_align >> y_scl;
+		cur_logo_rmif->slc_y_ed[0] = prm_top->prm_cut_win.win_vend_align >> y_scl;
+
+		mv_rmif->slc_x_st[0] = pre_logo_rmif->slc_x_st[0] >> 2;
+		mv_rmif->slc_x_ed[0] = pre_logo_rmif->slc_x_ed[0] >> 2;
+		mv_rmif->slc_y_st[0] = pre_logo_rmif->slc_y_st[0] >> 2;
+		mv_rmif->slc_y_ed[0] = pre_logo_rmif->slc_y_ed[0] >> 2;
+
+		me_logo_rmif->slc_x_st[0] = pre_logo_rmif->slc_x_st[0] >> 2;
+		me_logo_rmif->slc_x_ed[0] = pre_logo_rmif->slc_x_ed[0] >> 2;
+		me_logo_rmif->slc_y_st[0] = pre_logo_rmif->slc_y_st[0] >> 2;
+		me_logo_rmif->slc_y_ed[0] = pre_logo_rmif->slc_y_ed[0] >> 2;
+
+		pre_logo_rmif->stride = (((pre_logo_hsize * pre_logo_rmif_bits + 127) >>
+						7) + 3) >> 2 << 2;
+		cur_logo_rmif->stride = (((cur_logo_hsize * cur_logo_rmif_bits + 127) >>
+						7) + 3) >> 2 << 2;
+		mv_rmif->stride = (((mv_hsize * mv_rmif_bits + 127) >> 7) + 3) >> 2 << 2;
+		me_logo_rmif->stride = (((me_logo_hsize * me_logo_rmif_bits + 127) >>
+						7) + 3) >> 2 << 2;
+
+		hw_cfg_mc_sub_rdmif(pre_logo_rmif, 0, 0);
+		hw_cfg_mc_sub_rdmif(cur_logo_rmif, 1, 0);
+		hw_cfg_mc_sub_rdmif(mv_rmif, 2, 0);
+		hw_cfg_mc_sub_rdmif(me_logo_rmif, 3, 0);
+
+		//w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 0xf, 3, 4);
+		//w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 0x1, 8, 1);
+		tmp_reg_value = rd(DPSS_DPE_MC_MIF_CTRL0);
+		tmp_reg_value &= 0xfffffe87;
+		tmp_reg_value |= 0x178;
+		DPSS_RDMA_WR_VS(DPSS_DPE_MC_MIF_CTRL0, tmp_reg_value);
+
+		mc_out_hbgn = prm_top->prm_cut_win.win_hbgn;
+		mc_out_hend = prm_top->prm_cut_win.win_hend;
+		mc_out_vbgn = prm_top->prm_cut_win.win_vbgn;
+		mc_out_vend = prm_top->prm_cut_win.win_vend;
+		//w_reg_bit(DPSS_DPE_MC_WIN_CUT_H, mc_out_hbgn, 0, 13);
+		//w_reg_bit(DPSS_DPE_MC_WIN_CUT_H, mc_out_hend, 16, 13);
+		//w_reg_bit(DPSS_DPE_MC_WIN_CUT_V, mc_out_vbgn, 0, 13);
+		//w_reg_bit(DPSS_DPE_MC_WIN_CUT_V, mc_out_vend, 16, 13);
+		tmp_reg_value = mc_out_hbgn | (mc_out_hend << 16);
+		DPSS_RDMA_WR_VS(DPSS_DPE_MC_WIN_CUT_H, tmp_reg_value);
+		tmp_reg_value = mc_out_vbgn | (mc_out_vend << 16);
+		DPSS_RDMA_WR_VS(DPSS_DPE_MC_WIN_CUT_V, tmp_reg_value);
+	} else {
+		tmp_reg_value = rd(DPSS_DPE_MC_MIF_CTRL0);
+		tmp_reg_value &= 0xfffffe87;
+		tmp_reg_value |= 0x01;
+		DPSS_RDMA_WR_VS(DPSS_DPE_MC_MIF_CTRL0, tmp_reg_value);
+	}
+}
+
 void hw_cfg_dpss_mc_pre_triggle(void)
 {	// cfg @go_filed
 	// w_reg_bit(DPSS_DPE_MC_START_CTRL, 1, 0, 1);
@@ -775,17 +926,14 @@ void hw_cfg_dpss_mc_bbd(u32 frm_hsize, u32 frm_vsize, u32 bbd_en, u32 bbd_sel, u
 	w_reg_bit(FRC_BBD_MISC, 10, 4, 4);
 }
 
-void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
+bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 {
 	u32 data32;
 	u32 dpe_pre_pixl_buf;
 	u32 dpe_cur_pixl_buf;
-	u32 dpe_ibuf_nr_byps_pre;
-	u32 dpe_ibuf_nr_byps_cur;
 	u32 dpe_plogo_buf;
 	u32 dpe_clogo_buf;
 	u32 dpe_intp_phs;
-	u32 dpe_byp_en;
 	u32 dpe_mvlogo_buf;
 	u32 dpe_mv_cur_frm_idx;
 	u32 dpe_image_cur_frm_idx;
@@ -806,7 +954,6 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	u32 mc_pix_logo_step;
 	u32 mc_blk_logo_step;
 	u32 mc_vpmc_mv_step;
-	u32 mc_ibuf_vld;
 	u32 game_mode_ntm;
 
 	u32 mc_luma0_rdmif_baddr0;
@@ -826,35 +973,69 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 
 	bool is_pause_state = false;
 	bool is_empty = false;
+	u8 display_mc_idx;
 
 	struct frc_chip_st *pchip_st = dpss_get_frc_st();
 	struct frc_state_s *state_st;
+	struct display_buffer_info_s *display_buf_info;
 
 	if (!pchip_st)
-		return;
+		return false;
 
 	state_st = &pchip_st->state_st;
 
 	if (!obuf_rdy) {
 		if (!state_st->enable_last_drop)
-			return;
+			return false;
 		is_pause_state = true;
 	}
 
 	data32		  = rd(DPSS_FRC_MC_IUFF_STATUS);
-	mc_ibuf_vld	  = (data32 >> 4) & 0x1;
 	game_mode_ntm = (rd(FRC_DPSS_LLM) >> 2) & 0x1;
 
-	data32			 = rd(FRC_DPSS_DISP_BUFF_INFO_0);
-	dpe_pre_pixl_buf = (data32 >> 2) & 0xf;
-	dpe_cur_pixl_buf = (data32 >> 8) & 0xf;
+	data32 = display_buf_q.mc_idx;
+	if (data32 >= DPSS_QUEEN_NUM || data32 == display_buf_q.inp_idx) {
+		pr_frc(2, "display_buf_q: mc_idx=%d, inp_idx=%d\n", data32, display_buf_q.inp_idx);
+		return false;
+	}
+	display_buf_info = &display_buf_q.data[data32];
+	while (display_buf_info->dae_mix) {
+		data32 = (display_buf_q.mc_idx + 1) % DPSS_QUEEN_NUM;
+		if (data32 == display_buf_q.inp_idx) {
+			pr_frc(2, "can not do dae mix:mc_idx=%d, inp_idx=%d\n",
+				display_buf_q.mc_idx, display_buf_q.inp_idx);
+			return false;
+		}
+		display_buf_q.mc_idx = (display_buf_q.mc_idx + 1) % DPSS_QUEEN_NUM;
+		display_buf_info = &display_buf_q.data[data32];
+	}
+	if (state_st->dpe_mix) {
+		data32 = (display_buf_q.mc_idx + 1) % DPSS_QUEEN_NUM;
+		state_st->dpe_mix = false;
+		if (data32 == display_buf_q.inp_idx) {
+			pr_frc(2, "can not do dpe mix:mc_idx=%d, inp_idx=%d\n",
+				display_buf_q.mc_idx, display_buf_q.inp_idx);
+			return false;
+		}
+		display_buf_q.mc_idx = (display_buf_q.mc_idx + 1) % DPSS_QUEEN_NUM;
+		display_buf_info = &display_buf_q.data[data32];
+	}
+	display_mc_idx = display_buf_q.mc_idx;
+	dpe_pre_pixl_buf = display_buf_info->p;
+	dpe_cur_pixl_buf = display_buf_info->c;
+	dpe_plogo_buf    = display_buf_info->logo_pre;
+	dpe_clogo_buf    = display_buf_info->logo_cur;
+	dpe_intp_phs     = display_buf_info->mc_phase;
+	dpe_mvlogo_buf   = display_buf_info->mv_buf;
 
-	dpe_ibuf_nr_byps_pre = (data32 >> 12) & 0x1;
-	dpe_ibuf_nr_byps_cur = (data32 >> 13) & 0x1;
-	dpe_plogo_buf		 = (data32 >> 14) & 0xf;
-	dpe_clogo_buf		 = (data32 >> 18) & 0xf;
-	dpe_intp_phs		 = (mc_ibuf_vld) ? (data32 >> 22) & 0xff : 0;
-	dpe_byp_en			 = (data32 >> 30) & 0x1;
+	dpe_mv_cur_frm_idx	  = dpe_mvlogo_buf;
+	dpe_image_cur_frm_idx = dpe_cur_pixl_buf;
+	dpe_image_pre_frm_idx = dpe_pre_pixl_buf;
+
+	display_buf_q.mc_idx = (display_buf_q.mc_idx + 1) % DPSS_QUEEN_NUM;
+
+	pr_frc(1, "display_buf_q:drop_idx=%d, mc_idx=%d, inp_idx=%d\n",
+		display_buf_q.drop_idx, display_buf_q.mc_idx, display_buf_q.inp_idx);
 
 	if (pchip_st && (pchip_st->state_st.mc_bypass || pchip_st->state_st.force_mc_phase0))
 		dpe_intp_phs = 0;
@@ -883,7 +1064,7 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	if (is_pause_state) {
 		if (is_empty) {
 			state_st->is_wait_mc_state = true;
-			return;
+			return false;
 		}
 		dpss_put_queue(&mc_ibuf_q, &state_st->mc_q_idx, &is_empty);
 		if (!state_st->is_pause_state_last_frmae) {
@@ -906,26 +1087,33 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	}
 
 	if (state_st->is_wait_mc_state)
-		return;
+		return false;
 
-	pr_frc(1, "mc_q_idx=%d, dpe_pre_pixl_buf=%d, dpe_cur_pixl_buf=%d, pause_st_last=%d\n",
-		state_st->mc_q_idx, dpe_pre_pixl_buf, dpe_cur_pixl_buf,
+	state_st->dpe_ready = true;
+//	if (state_st->mc_disp_st.step == 0) {
+//		state_st->mc_disp_st.wr_idx = dpe_pre_pixl_buf;
+//		state_st->mc_disp_st.step = 1;
+//	} else {
+//		state_st->mc_disp_st.disp_idx = state_st->mc_disp_st.wr_idx;
+//		state_st->mc_disp_st.wr_idx = dpe_pre_pixl_buf;
+//	}
+	state_st->mc_disp_st.disp_idx = dpe_pre_pixl_buf;
+
+	pr_frc(1, "mc_q_idx=%d, display_mc_idx=%d, dpe_pre=%d, dpe_cur=%d, pause_st_last=%d\n",
+		state_st->mc_q_idx, display_mc_idx, dpe_pre_pixl_buf, dpe_cur_pixl_buf,
 		state_st->is_pause_state_last_frmae);
 
-	pr_frc(1, "display buff info: %x\n", data32);
-	pr_frc(1, "dpe_ibuf_nr_byps_pre = %#x\n", dpe_ibuf_nr_byps_pre);
-	pr_frc(1, "dpe_ibuf_nr_byps_cur = %#x\n", dpe_ibuf_nr_byps_cur);
-	pr_frc(1, "dpe_plogo_buf        = %#x\n", dpe_plogo_buf);
-	pr_frc(1, "dpe_clogo_buf        = %#x\n", dpe_clogo_buf);
-	pr_frc(1, "dpe_intp_phs         = %#x\n", dpe_intp_phs);
-	pr_frc(1, "dpe_byp_en           = %#x\n", dpe_byp_en);
+	pr_frc(1, "mc:pc=%d,%d, logo=%d,%d, mv=%d, mc_phs=%3d\n",
+		dpe_pre_pixl_buf, dpe_cur_pixl_buf, dpe_plogo_buf,
+		dpe_clogo_buf, dpe_mvlogo_buf, dpe_intp_phs);
+
+	data32			 = rd(FRC_DPSS_DISP_BUFF_INFO_0);
+	pr_frc(1, "ro:pc=%d,%d, logo=%d,%d, mc_phs=%3d, byp_en=%d\n",
+		(data32 >> 2) & 0xf, (data32 >> 8) & 0xf, (data32 >> 14) & 0xf,
+		(data32 >> 18) & 0xf, (data32 >> 22) & 0xff, (data32 >> 30) & 0x1);
 
 	data32				  = rd(FRC_DPSS_DISP_BUFF_INFO_1);
-	dpe_mvlogo_buf		  = (data32 >> 0) & 0xf;
-	dpe_mv_cur_frm_idx	  = dpe_mvlogo_buf;
-	dpe_image_cur_frm_idx = dpe_cur_pixl_buf;
-	dpe_image_pre_frm_idx = dpe_pre_pixl_buf;
-	pr_frc(1, "dpe_mv_cur_frm_idx      = %#x\n", dpe_mv_cur_frm_idx);
+	pr_frc(1, "ro:dpe_mv_cur_frm_idx=%d\n", data32 & 0xf);
 
 	bool mc_mif_reg_mode = (rd(DPSS_DPE_MC_MIF_CTRL0) >> 2) & 0x1;
 	u32	 dpe_pixl_buf_idx0 =
@@ -966,7 +1154,7 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		mc_inp_head_cbuf_addr	 = rd(DPSS_SRC0_DIOUT_CHEAD_ADDR);
 		mc_inp_head_ybuf_step	 = rd(DPSS_SRC0_DIOUT_YHEAD_STEP);
 		mc_inp_head_cbuf_step	 = rd(DPSS_SRC0_DIOUT_CHEAD_STEP);
-	} else if (dpe_ibuf_nr_byps_cur | game_mode_ntm) {
+	} else if (game_mode_ntm) {
 		src0_fbuf_yaddr[0]		 = rd(DPSS_SRC0_FBUF_YADDR0 + dpe_pixl_buf_idx0);
 		src0_fbuf_caddr[0]		 = rd(DPSS_SRC0_FBUF_CADDR0 + dpe_pixl_buf_idx0);
 		src0_fbuf_yaddr[1]		 = rd(DPSS_SRC0_FBUF_YADDR0 + dpe_pixl_buf_idx1);
@@ -1006,14 +1194,14 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	// dpe input data
 	//=====================================================================================////
 	mc_luma0_rdmif_baddr0 = mc_inp_body_ybuf_addr[0] << 5;
-	if (dpe_ibuf_nr_byps_cur | game_mode_ntm)
+	if (game_mode_ntm)
 		mc_luma0_rdmif_baddr1 = prm_top->src0_head_yaddr[dpe_pixl_buf_idx0];
 	else
 		mc_luma0_rdmif_baddr1 = mc_inp_head_ybuf_addr +
 			mc_inp_head_ybuf_step * dpe_pixl_buf_idx0;
 
 	mc_luma1_rdmif_baddr0 = mc_inp_body_ybuf_addr[1] << 5;
-	if (dpe_ibuf_nr_byps_cur | game_mode_ntm)
+	if (game_mode_ntm)
 		mc_luma1_rdmif_baddr1 = prm_top->src0_head_yaddr[dpe_pixl_buf_idx1];
 	else
 		mc_luma1_rdmif_baddr1 = mc_inp_head_ybuf_addr +
@@ -1041,19 +1229,21 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	dpe_melogo_baddr	 = mc_blk_logo_buf + dpe_mvlogo_buf * mc_blk_logo_step;
 	dpe_vpmc_mv_baddr	 = mc_vpmc_mv_buf + dpe_mvlogo_buf * mc_vpmc_mv_step;
 
-	pr_frc(1, "%s mc_luma0_rdmif_baddr1= %x\n", __func__, mc_luma0_rdmif_baddr1);
-	pr_frc(1, "%s mc_luma0_rdmif_baddr0= %x\n", __func__, mc_luma0_rdmif_baddr0);
-	pr_frc(1, "%s mc_chrm0_rdmif_baddr1= %x\n", __func__, mc_chrm0_rdmif_baddr1);
-	pr_frc(1, "%s mc_chrm0_rdmif_baddr0= %x\n", __func__, mc_chrm0_rdmif_baddr0);
-	pr_frc(1, "%s mc_luma1_rdmif_baddr1= %x\n", __func__, mc_luma1_rdmif_baddr1);
-	pr_frc(1, "%s mc_luma1_rdmif_baddr0= %x\n", __func__, mc_luma1_rdmif_baddr0);
-	pr_frc(1, "%s mc_chrm1_rdmif_baddr1= %x\n", __func__, mc_chrm1_rdmif_baddr1);
-	pr_frc(1, "%s mc_chrm1_rdmif_baddr0= %x\n", __func__, mc_chrm1_rdmif_baddr0);
+	if (state_st->check_frc_status_en) {
+		pr_frc(1, "%s mc_luma0_rdmif_baddr1= %x\n", __func__, mc_luma0_rdmif_baddr1);
+		pr_frc(1, "%s mc_luma0_rdmif_baddr0= %x\n", __func__, mc_luma0_rdmif_baddr0);
+		pr_frc(1, "%s mc_chrm0_rdmif_baddr1= %x\n", __func__, mc_chrm0_rdmif_baddr1);
+		pr_frc(1, "%s mc_chrm0_rdmif_baddr0= %x\n", __func__, mc_chrm0_rdmif_baddr0);
+		pr_frc(1, "%s mc_luma1_rdmif_baddr1= %x\n", __func__, mc_luma1_rdmif_baddr1);
+		pr_frc(1, "%s mc_luma1_rdmif_baddr0= %x\n", __func__, mc_luma1_rdmif_baddr0);
+		pr_frc(1, "%s mc_chrm1_rdmif_baddr1= %x\n", __func__, mc_chrm1_rdmif_baddr1);
+		pr_frc(1, "%s mc_chrm1_rdmif_baddr0= %x\n", __func__, mc_chrm1_rdmif_baddr0);
 
-	pr_frc(1, "%s ip_logo0_rdmif_baddr = %x\n", __func__, ip_logo0_rdmif_baddr);
-	pr_frc(1, "%s ip_logo1_rdmif_baddr = %x\n", __func__, ip_logo1_rdmif_baddr);
-	pr_frc(1, "%s dpe_melogo_baddr     = %x\n", __func__, dpe_melogo_baddr);
-	pr_frc(1, "%s dpe_vpmc_mv_baddr    = %x\n", __func__, dpe_vpmc_mv_baddr);
+		pr_frc(1, "%s ip_logo0_rdmif_baddr = %x\n", __func__, ip_logo0_rdmif_baddr);
+		pr_frc(1, "%s ip_logo1_rdmif_baddr = %x\n", __func__, ip_logo1_rdmif_baddr);
+		pr_frc(1, "%s dpe_melogo_baddr     = %x\n", __func__, dpe_melogo_baddr);
+		pr_frc(1, "%s dpe_vpmc_mv_baddr    = %x\n", __func__, dpe_vpmc_mv_baddr);
+	}
 
 	////==========================================================////
 	//// dpe input data
@@ -1062,8 +1252,6 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	u32 mc_use_tbc_addr = rd(DPSS_TOP_APB_TBC_SEL_CTRL) & 0x1;
 
 	if (mc_use_tbc_addr == 0) {
-		pr_frc(1, "MC use driver config\n");
-
 		wr(DPSS_DPE_MC_DIN_LUMA0_BADDR0, mc_luma0_rdmif_baddr0);
 		wr(DPSS_DPE_MC_DIN_LUMA0_BADDR1, mc_luma0_rdmif_baddr1);
 
@@ -1107,23 +1295,15 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		w_reg_bit(DPSS_DPE_MC_PHASE, dpe_intp_phs, 0, 8);
 
 		dpss_dpe_dbg_cfg();
-	} else {
-		pr_frc(1, "MC use tbc config\n");
 	}
 
 	bool cut_win_en = prm_top->cut_win_en;
 	u32 get_pix_logo_mode;
-	struct frc_chip_st *pchip = dpss_get_frc_st();
 
-	if (unlikely(!pchip)) {
-		DBG_ERR("dpe cfg null pointer: pchip is NULL\n");
-		return;
-	}
-
-	struct PRM_INTF_TYPE *pre_logo_rmif = &pchip->pre_logo_rmif;
-	struct PRM_INTF_TYPE *cur_logo_rmif = &pchip->cur_logo_rmif;
-	struct PRM_INTF_TYPE *mv_rmif = &pchip->mv_rmif;
-	struct PRM_INTF_TYPE *me_logo_rmif = &pchip->me_logo_rmif;
+	struct PRM_INTF_TYPE *pre_logo_rmif = &pchip_st->pre_logo_rmif;
+	struct PRM_INTF_TYPE *cur_logo_rmif = &pchip_st->cur_logo_rmif;
+	struct PRM_INTF_TYPE *mv_rmif = &pchip_st->mv_rmif;
+	struct PRM_INTF_TYPE *me_logo_rmif = &pchip_st->me_logo_rmif;
 
 	memset((void *)(pre_logo_rmif), 0, sizeof(struct PRM_INTF_TYPE));
 	memset((void *)(cur_logo_rmif), 0, sizeof(struct PRM_INTF_TYPE));
@@ -1148,6 +1328,7 @@ void hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		cfg_mc_sub_rdmif(mv_rmif, 2, 1);
 		cfg_mc_sub_rdmif(me_logo_rmif, 3, 1);
 	}
+	return true;
 }
 
 #define PIC_ORG_Y_BADDR 0x72000000
@@ -1734,5 +1915,216 @@ void hw_config_dae_loop_tab(enum DPSS_FRC_RATIO frc_ratio, enum DPSS_FILM_MODE f
 
 		dbg_h2("dae_ofrm inp_ofrm_step=%d\n", inp_ofrm_step);
 	}
+}
+
+void frc_mc_cut_0(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr)
+{
+	struct frc_chip_st *pchip = dpss_get_frc_st();
+	struct DPSS_MC0_TYPE *prm_mc;
+
+	if (!pchip) {
+		dbg_h2("%s pchip is null\n", __func__);
+		return;
+	}
+	prm_mc = &pchip->prm_mc;
+	hw_cfg_dpss_mc0(prm_top, src_from_nr, prm_mc);
+	hw_cfg_dpss_mc_intf(prm_top, prm_mc);
+}
+
+void frc_mc_cut_1(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr)
+{
+	struct frc_chip_st *pchip = dpss_get_frc_st();
+	struct DPSS_MC0_TYPE *prm_mc;
+	struct PRM_INTF_TYPE *pix_rmif;
+	struct VFCD_t *vfcd;
+	bool cut_win_en;
+	u32 win_hsize;
+	u32 win_vsize;
+	u32 frm_hsize;
+	u32 frm_vsize;
+	u32 mc_size_sel;
+	u32 mc_skip_mode;
+	u32 tmp_reg_value;
+	u32 src_hsize;	  //= prm_top.org_hsize;
+	u32 src_vsize;	  //= prm_top.org_vsize;
+	u32 fmt;
+	u32 fmt444_out;
+
+	if (!pchip) {
+		dbg_h2("%s pchip is null\n", __func__);
+		return;
+	}
+	pix_rmif = &pchip->mc_pix_rmif;
+	vfcd = &pchip->mc_vfcd;
+	prm_mc = &pchip->prm_mc;
+	fmt		   = prm_mc->pix_fmt == YUV444 ? 0 : prm_mc->pix_fmt == YUV422 ? 1 : 2;
+	fmt444_out = ((prm_top->frc_vfcd_vfmt == 1) && (fmt == 2)) ? 2 : 0;
+
+	mc_skip_mode = prm_top->mc_skip_mode;
+	cut_win_en = prm_top->cut_win_en;
+	win_hsize	 = prm_top->prm_cut_win.win_hsize;
+	win_vsize	 = prm_top->prm_cut_win.win_vsize;
+	mc_size_sel = prm_top->nr_hscale_on || prm_top->nr_aapps_up ||
+				prm_top->frc_ds_scale_en || mc_skip_mode;
+
+	frm_hsize = cut_win_en ? win_hsize : mc_size_sel ?
+		prm_top->dpe_mc_size.frm_hsize : prm_top->frm_hsize;
+	frm_vsize = cut_win_en ? win_vsize : mc_size_sel ?
+		prm_top->dpe_mc_size.frm_vsize : prm_top->frm_vsize;
+	frm_hsize = frm_hsize > 1920 ? (frm_hsize + 15) / 16 * 16 :
+		(frm_hsize + 7) / 8 * 8;
+
+	if (prm_mc->pad_en && prm_top->org_hsize != 0xffff) {
+		src_hsize = cut_win_en	  ? win_hsize
+					: mc_size_sel ? prm_top->dpe_mc_size.src_hsize
+								  : prm_top->org_hsize;
+		src_vsize = cut_win_en	  ? win_vsize
+					: mc_size_sel ? prm_top->dpe_mc_size.src_vsize
+								  : prm_top->org_vsize;
+	} else {
+		src_hsize = cut_win_en	  ? win_hsize
+					: mc_size_sel ? prm_top->dpe_mc_size.frm_hsize
+								  : prm_top->frm_hsize;
+		src_vsize = cut_win_en	  ? win_vsize
+					: mc_size_sel ? prm_top->dpe_mc_size.frm_vsize
+								  : prm_top->frm_vsize;
+	}
+
+	u32 me_dsx;
+	u32 me_dsy;
+	u32 me_hsize;
+	u32 me_vsize;
+	u32 me_blk_hsize;
+	u32 me_blk_vsize;
+
+	if (prm_top->dpss_mode == DPSS_FRC_MODE) {
+		me_dsx = prm_top->dae_dsx_scale;
+		me_dsy = prm_top->dae_dsy_scale;
+	} else {
+		me_dsx = prm_top->dpe_dw_dsx;
+		me_dsy = prm_top->dpe_dw_dsy;
+	}
+	me_hsize	 = (frm_hsize + (1 << me_dsx) - 1) >> me_dsx;
+	me_vsize	 = (frm_vsize + (1 << me_dsy) - 1) >> me_dsy;
+	me_blk_hsize = (me_hsize + 3) >> 2;
+	me_blk_vsize = (me_vsize + 3) >> 2;
+
+	//w_reg_bit(DPSS_DPE_MC_BLKBAR_X, src_hsize - 1, 16, 13); // reg_blackbar_xyxy2
+	//w_reg_bit(DPSS_DPE_MC_BLKBAR_X, 0, 0, 13);		// reg_blackbar_xyxy0
+	//w_reg_bit(DPSS_DPE_MC_BLKBAR_Y, src_vsize - 1, 16, 13); // reg_blackbar_xyxy3
+	//w_reg_bit(DPSS_DPE_MC_BLKBAR_Y, 0, 0, 13);	// reg_blackbar_xyxy1
+	tmp_reg_value = (src_hsize - 1) << 16;
+	DPSS_RDMA_WR_VS(DPSS_DPE_MC_BLKBAR_X, tmp_reg_value);
+	tmp_reg_value = (src_vsize - 1) << 16;
+	DPSS_RDMA_WR_VS(DPSS_DPE_MC_BLKBAR_Y, tmp_reg_value);
+
+	//wr(DPSS_DPE_MC_TOP_FSIZE, (frm_hsize << 16) | frm_vsize);
+	//wr(DPSS_DPE_MC_SRC_FSIZE, (src_hsize << 16) | src_vsize);
+	tmp_reg_value = frm_hsize << 16 | frm_vsize;
+	DPSS_RDMA_WR_VS(DPSS_DPE_MC_TOP_FSIZE, tmp_reg_value);
+	tmp_reg_value = src_hsize << 16 | src_vsize;
+	DPSS_RDMA_WR_VS(DPSS_DPE_MC_SRC_FSIZE, tmp_reg_value);
+
+	//hw_cfg_dpss_mc_slice(frm_hsize, frm_vsize, 1);	 // slc_num);
+	//w_reg_bit(FRC_MC_SLC_CTRL3, mc_slice_x_end[0], 0, 16);	 // reg_slc0_xend
+	tmp_reg_value = frm_hsize - 1;
+	DPSS_RDMA_WR_VS(FRC_MC_SLC_CTRL3, tmp_reg_value);
+
+	//hw_cfg_dpss_mc_bbd(frm_hsize, frm_vsize, bbd_en, 0x0, src_hsize, src_vsize);
+	//w_reg_bit(FRC_MC_BB_HANDLE_ORG_ME_BB_XYXY_RIGHT_BOT, (src_hsize >> me_dsx) - 1, 16,
+	//			16);   // reg_mc_org_me_blk_bb_xyxy_2  //org me size
+	//w_reg_bit(FRC_MC_BB_HANDLE_ORG_ME_BB_XYXY_RIGHT_BOT, (src_vsize >> me_dsy) - 1, 0,
+	//			16);   // reg_mc_org_me_blk_bb_xyxy_3   //org me size
+	tmp_reg_value = ((src_hsize >> me_dsx) - 1) << 16 | ((src_vsize >> me_dsy) - 1);
+	DPSS_RDMA_WR_VS(FRC_MC_BB_HANDLE_ORG_ME_BB_XYXY_RIGHT_BOT, tmp_reg_value);
+	//w_reg_bit(FRC_MC_BB_HANDLE_ORG_ME_BLK_BB_XYXY_RIT_AND_BOT,
+	//	((src_hsize >> me_dsx) >> 2) - 1, 16, 16);   // reg_mc_org_me_blk_bb_xyxy_2
+	//w_reg_bit(FRC_MC_BB_HANDLE_ORG_ME_BLK_BB_XYXY_RIT_AND_BOT,
+	//	((src_vsize >> me_dsy) >> 2) - 1, 0, 16);	  // reg_mc_org_me_blk_bb_xyxy_3
+	tmp_reg_value = (((src_hsize >> me_dsx) >> 2) - 1) << 16;
+	tmp_reg_value |= (((src_vsize >> me_dsy) >> 2) - 1);
+	DPSS_RDMA_WR_VS(FRC_MC_BB_HANDLE_ORG_ME_BLK_BB_XYXY_RIT_AND_BOT, tmp_reg_value);
+	//w_reg_bit(FRC_MC_BB_HANDLE_ME_BLK_BB_XYXY_RIT_AND_BOT, me_blk_hsize - 1, 16,
+	//			16);   // reg_mc_me_blk_bb_xyxy_2
+	//w_reg_bit(FRC_MC_BB_HANDLE_ME_BLK_BB_XYXY_RIT_AND_BOT, me_blk_vsize - 1, 0,
+	//			16);   // reg_mc_me_blk_bb_xyxy_3
+	tmp_reg_value = ((me_blk_hsize - 1) << 16) | (me_blk_vsize - 1);
+	DPSS_RDMA_WR_VS(FRC_MC_BB_HANDLE_ME_BLK_BB_XYXY_RIT_AND_BOT, tmp_reg_value);
+
+	//w_reg_bit(FRC_MC_WRAP_BB_1, src_hsize - 1, 16, 13); // reg_blackbar_xyxy2
+	//w_reg_bit(FRC_MC_WRAP_BB_1, src_vsize - 1, 0, 13);	// reg_blackbar_xyxy3
+	tmp_reg_value = (src_hsize - 1) << 16 | (src_vsize - 1);
+	DPSS_RDMA_WR_VS(FRC_MC_WRAP_BB_1, tmp_reg_value);
+
+	//hw_cfg_dpss_mc_intf(prm_top, prm_mc); // below implement
+	pix_rmif->src_hsize = cut_win_en ? prm_top->prm_cut_win.frm_hsize :
+		prm_top->frm_hsize;
+	pix_rmif->src_vsize = cut_win_en ? prm_top->prm_cut_win.frm_vsize :
+		prm_top->frm_vsize;
+
+	pix_rmif->slc_x_st[0] = cut_win_en ? prm_top->prm_cut_win.win_hbgn_align : 0;
+	pix_rmif->slc_x_ed[0] =
+		cut_win_en ? prm_top->prm_cut_win.win_hend_align : prm_top->frm_hsize - 1;
+	pix_rmif->slc_y_st[0] = cut_win_en ? prm_top->prm_cut_win.win_vbgn_align : 0;
+	pix_rmif->slc_y_ed[0] =
+		cut_win_en ? prm_top->prm_cut_win.win_vend_align : prm_top->frm_vsize - 1;
+	//pix_rmif->skip_line = mc_skip_mode_v;
+	pix_rmif->cut_win_en	= cut_win_en;
+
+	frc_cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC0, pix_rmif, fmt444_out);
+	frc_cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC1, pix_rmif, fmt444_out);
+	dbg_h2("%s src_bit %d pix_bit %d\n", __func__, pix_rmif->src_bit, prm_mc->pix_bit);
+	dbg_h2("%s update mif\n", __func__);
+	vfcd->cut_win_en   = cut_win_en;
+	vfcd->src_hsize	   = cut_win_en ? prm_top->prm_cut_win.frm_hsize : prm_top->frm_hsize;
+	vfcd->src_vsize	   = cut_win_en ? prm_top->prm_cut_win.frm_vsize : prm_top->frm_vsize;
+	vfcd->fmt444_out   = fmt444_out;
+	vfcd->win_bgn_h[0] = cut_win_en ? prm_top->prm_cut_win.win_hbgn_align : 0;
+	vfcd->win_end_h[0] =
+		cut_win_en ? prm_top->prm_cut_win.win_hend_align : prm_top->frm_hsize - 1;
+	vfcd->win_bgn_v[0] = cut_win_en ? prm_top->prm_cut_win.win_vbgn_align : 0;
+	vfcd->win_end_v[0] =
+		cut_win_en ? prm_top->prm_cut_win.win_vend_align : prm_top->frm_vsize - 1;
+
+	dbg_h2("%s vfcd->src_h/v size:(%d,%d)\n", __func__, vfcd->src_hsize, vfcd->src_vsize);
+	dbg_h2("%s pix_rmif.slc_x:(%d,%d), .slc_y:(%d,%d)\n", __func__, vfcd->win_bgn_h[0],
+		   vfcd->win_end_h[0], vfcd->win_bgn_v[0], vfcd->win_end_v[0]);
+	frc_cfg_vfcd_dec(4, vfcd);	 // mc0
+	frc_cfg_vfcd_dec(5, vfcd);	 // mc1
+	frc_me_cut(prm_top);
+}
+
+void hw_update_display_info(struct display_buffer_info_s *display_buf_info)
+{
+	struct frc_chip_st *pchip_st = dpss_get_frc_st();
+	struct frc_state_s *state_st;
+	struct me_pcn_s *me_pcn_st;
+
+	if (!pchip_st || !display_buf_info) {
+		dbg_h0("%s pchip_st is null\n", __func__);
+		return;
+	}
+	state_st = &pchip_st->state_st;
+	me_pcn_st = &state_st->me_pcn_st;
+	display_buf_info->dae_mix = (rd(FRC_REG_CURSOR) & 0x7) == 7 ? 1 : 0;
+	display_buf_info->p = me_pcn_st->p;
+	display_buf_info->c = me_pcn_st->c;
+	display_buf_info->n = me_pcn_st->n;
+	display_buf_info->logo_pre = rd(FRC_REG_OUT_FID) >> 4 & 0xf;
+	display_buf_info->logo_cur = rd(FRC_REG_OUT_FID) & 0xf;
+	display_buf_info->mc_phase = rd(FRC_REG_OUT_PHS) >> 12 & 0xfff;
+	if (display_buf_info->dae_mix) {
+		if (state_st->mv_buf_idx == 0)
+			state_st->mv_buf_idx = DPSS_SML_NUB - 1;
+		else
+			state_st->mv_buf_idx--;
+	}
+	display_buf_info->mv_buf = pchip_st->state_st.mv_buf_idx;
+	state_st->mv_buf_idx = (state_st->mv_buf_idx + 1) % DPSS_SML_NUB;
+
+	pr_frc(2, "dae_mix=%d, pcn=(%d,%d,%d), logo=(%d,%d,%d), mc_phase=%3d\n",
+		display_buf_info->dae_mix, display_buf_info->p, display_buf_info->c,
+		display_buf_info->n, display_buf_info->logo_pre, display_buf_info->logo_cur,
+		display_buf_info->mv_buf, display_buf_info->mc_phase);
 }
 

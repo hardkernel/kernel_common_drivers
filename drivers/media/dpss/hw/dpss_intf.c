@@ -12,6 +12,7 @@
 #include "../dpss_base.h"
 #include "../dpss_s.h"
 #include "../dpss_sys.h"
+#include "../dpss_func.h"
 
 #include <linux/amlogic/media/dpss/dpss_frc.h>
 
@@ -3143,8 +3144,6 @@ void cfg_mc_sub_rdmif(struct PRM_INTF_TYPE *prm_mif, s32 mif_index,
 	s32 regs_ofst_sub3 = (0xe060 - 0xc100);	//ary addr change *4
 	s32 regs_ofst;
 
-	dbg_h2("cfg_mc_sub_rd_mifstart\n");
-
 	switch (mif_index) {
 	case 0:
 		regs_ofst = regs_ofst_sub0;
@@ -3186,6 +3185,58 @@ void cfg_mc_sub_rdmif(struct PRM_INTF_TYPE *prm_mif, s32 mif_index,
 	//burst_len, 2: burst4
 
 	dbg_h2("cfg_mc_sub_rd_mif end\n");
+}
+
+void hw_cfg_mc_sub_rdmif(struct PRM_INTF_TYPE *prm_mif, s32 mif_index,
+		      s32 only_change_addr)
+{
+	s32 regs_ofst_sub0 = (0xe000 - 0xc100);	//ary addr change *4
+	s32 regs_ofst_sub1 = (0xe020 - 0xc100);	//ary addr change *4
+	s32 regs_ofst_sub2 = (0xe040 - 0xc100);	//ary addr change *4
+	s32 regs_ofst_sub3 = (0xe060 - 0xc100);	//ary addr change *4
+	s32 regs_ofst;
+
+	switch (mif_index) {
+	case 0:
+		regs_ofst = regs_ofst_sub0;
+		break;
+	case 1:
+		regs_ofst = regs_ofst_sub1;
+		break;
+	case 2:
+		regs_ofst = regs_ofst_sub2;
+		break;
+	case 3:
+		regs_ofst = regs_ofst_sub3;
+		break;
+	default:
+		regs_ofst = regs_ofst_sub0;
+		break;
+	}
+
+	s32 stride = prm_mif->stride;
+	s32 baddr = prm_mif->src_baddr[0];
+	s32 x_start = prm_mif->slc_x_st[0];
+	s32 x_end = prm_mif->slc_x_ed[0];
+	s32 y_start = prm_mif->slc_y_st[0];
+	s32 y_end = prm_mif->slc_y_ed[0];
+	s32 bits_mode = prm_mif->bits_mode;
+	s32 pack_mode = prm_mif->pack_mode;
+	u32 tmp_reg_value;
+
+	if (only_change_addr == 1) {
+		DPSS_RDMA_WR_VS(regs_ofst + VPU_VPSS_RMIF_CTRL4, baddr);
+	} else {
+		tmp_reg_value = rd(regs_ofst + VPU_VPSS_RMIF_CTRL3);
+		tmp_reg_value = update_reg_val(tmp_reg_value, stride, 0, 13);
+		DPSS_RDMA_WR_VS(regs_ofst + VPU_VPSS_RMIF_CTRL3, tmp_reg_value);
+		DPSS_RDMA_WR_VS(regs_ofst + VPU_VPSS_RMIF_CTRL4, baddr);
+		DPSS_RDMA_WR_VS(regs_ofst + VPU_VPSS_RMIF_SCOPE_X, (x_end << 16 | x_start));
+		DPSS_RDMA_WR_VS(regs_ofst + VPU_VPSS_RMIF_SCOPE_Y, (y_end << 16 | y_start));
+		tmp_reg_value = rd(regs_ofst + VPU_VPSS_RMIF_CTRL5);
+		tmp_reg_value = update_reg_val(tmp_reg_value, bits_mode << 3 | pack_mode, 0, 7);
+		DPSS_RDMA_WR_VS(regs_ofst + VPU_VPSS_RMIF_CTRL5, tmp_reg_value);
+	}
 }
 
 void cfg_lcevc_top(u32 lcevc_en, u32 src1_frm_hsize,	//normal_afbcd_hsize, input
