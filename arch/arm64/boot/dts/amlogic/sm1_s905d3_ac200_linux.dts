@@ -288,7 +288,7 @@
 				system-clock-frequency = <24576000>;
 			};
 			tdmacodec: codec {
-				sound-dai = <&dummy_codec &dummy_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 

@@ -444,6 +444,7 @@
 			format = "i2s";
 			mclk-fs = <256>;
 			continuous-clock;
+			multi_codec_overlay = <1>;
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
@@ -463,8 +464,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				prefix-names = "AMP";
-				sound-dai = <&ad82120b &acodec>;
+				prefix-names = "AMP","AMP";
+				sound-dai = <&ad82120b &aml_p555 &acodec>;
 			};
 		};
 
@@ -975,6 +976,13 @@
 		#sound-dai-cells = <0>;
 		reset_pin-gpios = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 		reg = <0x6c>;
+		status = "okay";
+	};
+	aml_p555: aml_p555@36 {
+		compatible = "AMLOGIC,p555";
+		#sound-dai-cells = <0>;
+		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+		reg = <0x36>;
 		status = "okay";
 	};
 };

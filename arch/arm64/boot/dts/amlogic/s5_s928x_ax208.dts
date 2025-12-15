@@ -800,6 +800,7 @@
 			&tdma_clk_pins>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -820,6 +821,7 @@
 		i2s2hdmi = <1>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -849,7 +851,7 @@
 		clk_tuning_enable = <1>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
-
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
