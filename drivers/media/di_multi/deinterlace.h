@@ -876,6 +876,8 @@ extern spinlock_t plist_lock;
 extern spinlock_t lock_pvpp;
 extern unsigned int pldn_dly;
 extern unsigned int di_reverse;
+extern bool di_rev;
+extern bool rotation;
 
 void dim_dbg_pre_cnt(unsigned int channel, char *item);
 

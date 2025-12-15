@@ -5219,7 +5219,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	rev_x = mif->rev_x;
 	rev_y = mif->rev_y;
 	if (DIM_IS_IC(T6D) && mif_index == DI_MIF0_ID_INP) {
-		if (di_reverse && cfgg(EN_POST_LINK)) {
+		if (di_rev && cfgg(EN_POST_LINK)) {
 			rev_x = 1;
 			rev_y = 1;
 		}
@@ -6059,7 +6059,7 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 				di_mif->chroma_x_start0 = 0;
 				di_mif->chroma_x_end0 =
 					di_buf->vframe->width / 2 - 1;
-				if (di_reverse && DIM_IS_IC(T6D)) {
+				if (di_rev && DIM_IS_IC(T6D)) {
 					di_mif->luma_y_start0 = 1;
 					di_mif->luma_y_end0 =
 						di_buf->vframe->height - 1;
@@ -6083,7 +6083,7 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 				di_mif->chroma_x_start0 = 0;
 				di_mif->chroma_x_end0 =
 					di_buf->vframe->width / 2 - 1;
-				if (di_reverse && DIM_IS_IC(T6D)) {
+				if (di_rev && DIM_IS_IC(T6D)) {
 					di_mif->luma_y_start0 = 0;
 					di_mif->luma_y_end0 =
 						di_buf->vframe->height - 1 - 1;

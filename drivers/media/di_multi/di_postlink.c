@@ -1172,7 +1172,11 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 	/* make sure the height is even number */
 	di_width = para->win.x_size;
 	di_height = para->win.y_size;
-	if (di_reverse && (DIM_IS_IC(T5DB) || DIM_IS_IC(T5) || DIM_IS_IC(T6D))) {
+	rotation = para->plink_reverse;
+	di_rev = (rotation == di_reverse) ? 0 : 1;
+
+	dbg_reg("%s %d %d %d\n", __func__, di_reverse, rotation, di_rev);
+	if (di_rev && (DIM_IS_IC(T5DB) || DIM_IS_IC(T5) || DIM_IS_IC(T6D))) {
 		di_start_x = para->win.orig_w - para->win.x_st - di_width;
 		di_end_x = di_width + di_start_x - 1;
 		if (di_end_x > (para->win.orig_w - 1))
