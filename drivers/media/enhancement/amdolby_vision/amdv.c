@@ -629,6 +629,7 @@ bool disable_detunnel;
 
 static bool hdmi_in_allm;
 static bool local_allm;
+static int dv_dual_layer;
 #define MAX_PARAM   8
 
 struct apo_value_s apo_value;
@@ -4647,6 +4648,21 @@ static enum signal_format_enum get_cur_src_format(void)
 	return ret;
 }
 
+static bool is_dual_layer_dv(struct vframe_s *vf)
+{
+	if (!dv_dual_layer)
+		return false;
+	if (vf) {
+		pr_dv_dbg("vf ext_signal_type is=%d\n", vf->ext_signal_type);
+		if ((vf->ext_signal_type & (1 << 1)) ||
+		(vf->ext_signal_type & (1 << 2)))
+			return true;
+		else
+			return false;
+	}
+	return false;
+}
+
 static int amdv_policy_process_v1(struct vframe_s *vf,
 				int *mode, enum signal_format_enum src_format)
 {
@@ -5430,6 +5446,22 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 					pr_dv_dbg("dovi->AMDV_OUTPUT_MODE_SDR8, cap=%x\n",
 							  sink_hdr_support(vinfo));
 					*mode = AMDV_OUTPUT_MODE_SDR8;
+					mode_change = 1;
+				}
+			}
+		} else if (is_dual_layer_dv(vf) && src_format != FORMAT_HDR10PLUS) {
+			if (vinfo && sink_support_dv(vinfo)) {
+				/* TV support DOVI, DOVI -> DOVI */
+				if (dolby_vision_mode !=
+				AMDV_OUTPUT_MODE_IPT_TUNNEL) {
+					*mode = AMDV_OUTPUT_MODE_IPT_TUNNEL;
+					mode_change = 1;
+				}
+			} else {
+				/* HDR/SDR bypass */
+				if (dolby_vision_mode !=
+				AMDV_OUTPUT_MODE_BYPASS) {
+					*mode = AMDV_OUTPUT_MODE_BYPASS;
 					mode_change = 1;
 				}
 			}
@@ -10631,6 +10663,13 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 
 		if (src_format != FORMAT_DOVI && is_cuva_frame(vf))
 			src_format = FORMAT_CUVA;
+
+		/* double layer dolby source workround method */
+		if ((src_format == FORMAT_CUVA || src_format == FORMAT_HDR10PLUS) &&
+			is_dual_layer_dv(vf) && sink_support_dv(vinfo)) {
+			src_format = FORMAT_SDR;
+			pr_dv_dbg("cuva/10+ dual layer src, force set as sdr\n");
+		}
 
 		/* TODO: need 962e ? */
 		if (src_format == FORMAT_SDR &&
@@ -19350,6 +19389,29 @@ static ssize_t amdolby_vision_inst_debug_store
 	return count;
 }
 
+static ssize_t amdolby_vision_dual_layer_show
+	 (const struct class *cla,
+	  const struct class_attribute *attr,
+	  char *buf)
+{
+	return sprintf(buf, "%d\n", dv_dual_layer);
+}
+
+static ssize_t amdolby_vision_dual_layer_store
+	 (const struct class *cla,
+	  const struct class_attribute *attr,
+	  const char *buf, size_t count)
+{
+	size_t r;
+	int value = 0;
+
+	r = kstrtoint(buf, 0, &value);
+	if (r != 0)
+		return -EINVAL;
+	dv_dual_layer = value;
+	return count;
+}
+
 static ssize_t amdolby_vision_operate_mode_show
 	 (const struct class *cla,
 	  const struct class_attribute *attr,
@@ -19841,6 +19903,9 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(inst_res_debug, 0644,
 	       amdolby_vision_inst_debug_show,
 	       amdolby_vision_inst_debug_store),
+	__ATTR(dv_dual_layer, 0644,
+	       amdolby_vision_dual_layer_show,
+		   amdolby_vision_dual_layer_store),
 	__ATTR(load_reg_file, 0644,
 	       amdolby_vision_load_reg_file_show,
 	       amdolby_vision_load_reg_file_store),
