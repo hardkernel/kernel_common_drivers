@@ -1275,7 +1275,7 @@ static int meson_spicc_setup(struct spi_device *spi)
 	int ret = 0, i;
 
 	for (i = 0; i < SPI_CS_CNT_MAX; i++)
-		if (spi->chip_select[i] != SPI_INVALID_CS)
+		if (spi->chip_select[i] != (u8)SPI_INVALID_CS)
 			spicc->cs_gpiods[spi->chip_select[i]] = spi->cs_gpiod[i];
 
 	cdata = (struct spicc_controller_data *)spi->controller_data;
