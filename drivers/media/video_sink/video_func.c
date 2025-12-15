@@ -1420,16 +1420,19 @@ void set_video_zorder_ext(int layer_index, int zorder)
 
 void  get_video_input_info(struct video_input_info *input_info)
 {
-	if (!cur_frame_par[0])
+	struct vpp_frame_par_s *cur_frame_par;
+
+	cur_frame_par = get_cur_frame_par(&vd_layer[0]);
+	if (!cur_frame_par)
 		return;
-	input_info->height = cur_frame_par[0]->video_input_h;
-	input_info->width = cur_frame_par[0]->video_input_w;
-	input_info->crop_top = cur_frame_par[0]->crop_top;
-	input_info->crop_bottom = cur_frame_par[0]->crop_bottom;
-	input_info->crop_left = cur_frame_par[0]->crop_left;
-	input_info->crop_right = cur_frame_par[0]->crop_right;
-	input_info->vscale_skip_count = cur_frame_par[0]->vscale_skip_count;
-	input_info->hscale_skip_count = cur_frame_par[0]->hscale_skip_count;
+	input_info->height = cur_frame_par->video_input_h;
+	input_info->width = cur_frame_par->video_input_w;
+	input_info->crop_top = cur_frame_par->crop_top;
+	input_info->crop_bottom = cur_frame_par->crop_bottom;
+	input_info->crop_left = cur_frame_par->crop_left;
+	input_info->crop_right = cur_frame_par->crop_right;
+	input_info->vscale_skip_count = cur_frame_par->vscale_skip_count;
+	input_info->hscale_skip_count = cur_frame_par->hscale_skip_count;
 }
 
 bool is_crop_from_vf(struct vframe_s *vf)
@@ -1827,7 +1830,8 @@ s32 primary_render_frame(struct video_layer_s *layer,
 		force_setting = true;
 		glayer_info[layer->layer_id].fgrain_force_update = false;
 	}
-	frame_par = layer->cur_frame_par;
+	//frame_par = layer->cur_frame_par;
+	frame_par = get_cur_frame_par(layer);
 	if (layer->switch_vf && layer->vf_ext)
 		dispbuf = layer->vf_ext;
 	else
@@ -3261,14 +3265,17 @@ static int amvideo_early_proc(u8 layer_id)
 		hdmi_in_delay_maxmin_old(vf);
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
-	if (cur_frame_par[0] &&
+	struct vpp_frame_par_s *cur_frame_par = NULL;
+
+	cur_frame_par = get_cur_frame_par(&vd_layer[0]);
+	if (cur_frame_par &&
 		(vd1_path_id == VFM_PATH_AMVIDEO ||
 		vd1_path_id == VFM_PATH_DEF)) {
 		/*need call every vsync*/
 		if (vf_tmp)
-			frame_lock_process(vf_tmp, cur_frame_par[0], line);
+			frame_lock_process(vf_tmp, cur_frame_par, line);
 		else
-			frame_lock_process(NULL, cur_frame_par[0], line);
+			frame_lock_process(NULL, cur_frame_par, line);
 	}
 #endif
 
@@ -3722,6 +3729,7 @@ static struct vframe_s *do_renderx_toggle_frame
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	u16 line = glayer_info[0].layer_top;
 #endif
+	struct vpp_frame_par_s *cur_frame_par = NULL;
 
 	/* video_render.x toggle frame */
 	if (gvideo_recv[path_index]) {
@@ -3740,18 +3748,19 @@ static struct vframe_s *do_renderx_toggle_frame
 				if (tvin_vf_is_keeped(gvideo_recv[0]->cur_buf))
 					new_frame_count = 0;
 			}
+			cur_frame_par = get_cur_frame_par(&vd_layer[0]);
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 			if (vd_path_id[0] == VFM_PATH_VIDEO_RENDER0 &&
-				cur_frame_par[0]) {
+				cur_frame_par) {
 				/*need call every vsync*/
 				if (path_new_frame)
 					frame_lock_process(path_new_frame,
-						cur_frame_par[0], line);
+						cur_frame_par, line);
 				else if (vd_layer[0].dispbuf)
 					frame_lock_process(vd_layer[0].dispbuf,
-						cur_frame_par[0], line);
+						cur_frame_par, line);
 				else
-					frame_lock_process(NULL, cur_frame_par[0], line);
+					frame_lock_process(NULL, cur_frame_par, line);
 			}
 #endif
 		}
@@ -6260,12 +6269,15 @@ LATE_PROC:
 
 int get_current_frame_para(int *top, int *left, int *bottom, int *right)
 {
-	if (!cur_frame_par[0])
+	struct vpp_frame_par_s *cur_frame_par;
+
+	cur_frame_par = get_cur_frame_par(&vd_layer[0]);
+	if (!cur_frame_par)
 		return -1;
-	*top = cur_frame_par[0]->VPP_vd_start_lines_;
-	*left = cur_frame_par[0]->VPP_hd_start_lines_;
-	*bottom = cur_frame_par[0]->VPP_vd_end_lines_;
-	*right = cur_frame_par[0]->VPP_hd_end_lines_;
+	*top = cur_frame_par->VPP_vd_start_lines_;
+	*left = cur_frame_par->VPP_hd_start_lines_;
+	*bottom = cur_frame_par->VPP_vd_end_lines_;
+	*right = cur_frame_par->VPP_hd_end_lines_;
 	return 0;
 }
 

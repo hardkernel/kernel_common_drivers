@@ -206,6 +206,27 @@ struct vpp_frame_par_s {
 	u32 frc_v_size;
 };
 
+struct vpp_frame_par_save_s {
+	struct vpp_frame_par_s frame_par;
+	bool used_saved_parm;
+	u32 width_in_pre;
+	u32 height_in_pre;
+	u32 video_source_crop_left_pre;
+	u32 video_source_crop_right_pre;
+	u32 video_source_crop_top_pre;
+	u32 video_source_crop_bottom_pre;
+
+	u32 VPP_hd_start_lines_save;
+	u32 VPP_hd_end_lines_save;
+	u32 VPP_vd_start_lines_save;
+	u32 VPP_vd_end_lines_save;
+
+	u32 VPP_hsc_startp_save;
+	u32 VPP_hsc_endp_save;
+	u32 VPP_vsc_startp_save;
+	u32 VPP_vsc_endp_save;
+};
+
 struct disp_info_s {
 	u8 layer_id;
 	u8 layer_support;

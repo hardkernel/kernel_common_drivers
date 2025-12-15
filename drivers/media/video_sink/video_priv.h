@@ -1404,6 +1404,7 @@ void update_vd_amvecm_info(struct video_layer_s *layer);
 int VSYNC_WR_VIDEO_TABLE_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 int PRE_VSYNC_WR_VIDEO_TABLE_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 
+struct vpp_frame_par_s *get_cur_frame_par(struct video_layer_s *layer);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 enum avevent_e {

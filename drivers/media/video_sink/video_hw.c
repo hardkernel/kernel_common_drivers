@@ -8517,7 +8517,8 @@ void config_dvel_position(struct video_layer_s *layer,
 		return;
 
 	bl_vf = layer->dispbuf;
-	cur_frame_par = layer->cur_frame_par;
+	//cur_frame_par = layer->cur_frame_par;
+	cur_frame_par = get_cur_frame_par(layer);
 
 	setting->id = 1;
 	setting->p_vd_mif_reg = &vd_layer[1].vd_mif_reg;
@@ -8600,7 +8601,7 @@ void config_dvel_position(struct video_layer_s *layer,
 	}
 
 	if ((bl_vf->type & VIDTYPE_COMPRESS) &&
-	    !layer->cur_frame_par->nocomp)
+	    !cur_frame_par->nocomp)
 		setting->skip_afbc = false;
 	else
 		setting->skip_afbc = true;
@@ -8650,7 +8651,8 @@ s32 config_dvel_pps(struct video_layer_s *layer,
 
 	setting->support =
 		glayer_info[1].pps_support;
-	setting->frame_par = layer->cur_frame_par;
+	//setting->frame_par = layer->cur_frame_par;
+	setting->frame_par = get_cur_frame_par(layer);
 	setting->id = 1;
 	setting->misc_reg_offt = vd_layer[1].misc_reg_offt;
 
@@ -8673,7 +8675,8 @@ s32 config_dvel_blend(struct video_layer_s *layer,
 	if (!layer || !layer->cur_frame_par || !setting)
 		return -1;
 
-	setting->frame_par = layer->cur_frame_par;
+	//setting->frame_par = layer->cur_frame_par;
+	setting->frame_par = get_cur_frame_par(layer);
 	setting->id = 1;
 	setting->misc_reg_offt = vd_layer[1].misc_reg_offt;
 	setting->layer_alpha = layer->layer_alpha;
@@ -8715,7 +8718,8 @@ static void get_3d_horz_pos(struct video_layer_s *layer,
 	if (!vf || !layer->cur_frame_par)
 		return;
 
-	cur_frame_par = layer->cur_frame_par;
+	//cur_frame_par = layer->cur_frame_par;
+	cur_frame_par = get_cur_frame_par(layer);
 	vpp_3d_mode = cur_frame_par->vpp_3d_mode;
 	crop_sx = info->crop_left;
 	crop_ex = info->crop_right;
@@ -8777,7 +8781,8 @@ static void get_3d_vert_pos(struct video_layer_s *layer,
 	if (!vf || !layer->cur_frame_par)
 		return;
 
-	cur_frame_par = layer->cur_frame_par;
+	//cur_frame_par = layer->cur_frame_par;
+	cur_frame_par = get_cur_frame_par(layer);
 	vpp_3d_mode = cur_frame_par->vpp_3d_mode;
 	crop_sy = info->crop_top;
 	crop_ey = info->crop_bottom;
@@ -8973,7 +8978,8 @@ s32 config_3d_vd2_blend(struct video_layer_s *layer,
 	memcpy(setting, &layer->bld_setting, sizeof(struct blend_setting_s));
 	setting->id = 1;
 
-	cur_frame_par = layer->cur_frame_par;
+	//cur_frame_par = layer->cur_frame_par;
+	cur_frame_par = get_cur_frame_par(layer);
 	x_lines = layer->end_x_lines /
 		(cur_frame_par->hscale_skip_count + 1);
 	y_lines = layer->end_y_lines /
@@ -9066,7 +9072,8 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 	src_end_y_lines -= 1;
 
 	misc_off = layer->misc_reg_offt;
-	cur_frame_par = layer->cur_frame_par;
+	//cur_frame_par = layer->cur_frame_par;
+	cur_frame_par = get_cur_frame_par(layer);
 	if (FA_enable && toggle_3d_fa_frame == OUT_FA_A_FRAME) {
 		if (get_cpu_type() < MESON_CPU_MAJOR_ID_SC2 &&
 			cur_dev->display_module == OLD_DISPLAY_MODULE) {
@@ -9274,9 +9281,12 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 	u32 blank;
 	u32 start_x_lines, end_x_lines, start_y_lines, end_y_lines;
 	int h_chrm_ratio = 1, v_chrm_ratio = 1;
+	struct vpp_frame_par_s *cur_frame_par;
 
 	if (!layer || !layer->cur_frame_par || !layer->dispbuf || !setting)
 		return -1;
+
+	cur_frame_par = get_cur_frame_par(layer);
 
 	if (layer->switch_vf && layer->vf_ext)
 		dispbuf = layer->vf_ext;
@@ -9352,8 +9362,8 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 	setting->end_x_lines = end_x_lines;
 	setting->start_y_lines = start_y_lines;
 	setting->end_y_lines = end_y_lines;
-	setting->h_skip = layer->cur_frame_par->hscale_skip_count;
-	setting->v_skip = layer->cur_frame_par->vscale_skip_count;
+	setting->h_skip = cur_frame_par->hscale_skip_count;
+	setting->v_skip = cur_frame_par->vscale_skip_count;
 	/* afbc is nv12 as default */
 	setting->hc_skip = 2;
 	setting->vc_skip = 2;
@@ -9369,7 +9379,7 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 	}
 
 	if ((dispbuf->type & VIDTYPE_COMPRESS) &&
-	    !layer->cur_frame_par->nocomp)
+	    !cur_frame_par->nocomp)
 		setting->skip_afbc = false;
 	else
 		setting->skip_afbc = true;
@@ -9442,7 +9452,7 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 	}
 #endif
 	setting->vpp_3d_mode =
-		layer->cur_frame_par->vpp_3d_mode;
+		cur_frame_par->vpp_3d_mode;
 	return 0;
 }
 
@@ -9452,7 +9462,8 @@ static void config_vd_param_internal(struct video_layer_s *layer,
 	u32 zoom_start_y, zoom_end_y, blank = 0;
 	struct vpp_frame_par_s *frame_par = NULL;
 
-	frame_par = layer->cur_frame_par;
+	//frame_par = layer->cur_frame_par;
+	frame_par = get_cur_frame_par(layer);
 
 	/* progressive or decode interlace case height 1:1 */
 	/* vdin afbc and interlace case height 1:1 */
@@ -9540,7 +9551,8 @@ s32 config_vd_pps_internal(struct video_layer_s *layer,
 	} else {
 		setting->vsr_safa_support = glayer_info[layer->layer_id].vsr_safa_support;
 	}
-	cur_frame_par = layer->cur_frame_par;
+	//cur_frame_par = layer->cur_frame_par;
+	cur_frame_par = get_cur_frame_par(layer);
 	vpp_filter = &cur_frame_par->vpp_filter;
 	setting->frame_par = cur_frame_par;
 	setting->id = layer->layer_id;
@@ -9733,7 +9745,8 @@ s32 config_vd_blend_mosaic(struct video_layer_s *layer,
 	struct video_layer_s *virtual_layer;
 
 	/* t6x mosaic hardware path: pps->preblend->postblend */
-	cur_frame_par = layer->cur_frame_par;
+	//cur_frame_par = layer->cur_frame_par;
+	cur_frame_par = get_cur_frame_par(layer);
 	setting->frame_par = cur_frame_par;
 	setting->id = layer->layer_id;
 	setting->misc_reg_offt = layer->misc_reg_offt;
@@ -9788,7 +9801,8 @@ s32 config_vd_blend(struct video_layer_s *layer,
 		dispbuf = layer->vf_ext;
 	else
 		dispbuf = layer->dispbuf;
-	cur_frame_par = layer->cur_frame_par;
+	//cur_frame_par = layer->cur_frame_par;
+	cur_frame_par = get_cur_frame_par(layer);
 	setting->frame_par = cur_frame_par;
 	setting->id = layer->layer_id;
 	setting->misc_reg_offt = layer->misc_reg_offt;

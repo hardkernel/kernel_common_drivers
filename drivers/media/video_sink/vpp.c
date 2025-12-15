@@ -41,7 +41,7 @@
 #include <linux/amlogic/media/frc/frc_common.h>
 #endif
 #include "../common/uvm_process/meson_uvm_nn_processor.h"
-
+#include <linux/amlogic/media/dpss/dpss_frc.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include "video_priv.h"
 #include "vpp_pq.h"
@@ -2001,6 +2001,24 @@ static void format_support_adjust(struct video_layer_s *layer,
 			next_frame_par->hscale_skip_count);
 }
 
+static struct vpp_frame_par_save_s frame_par_save;
+
+struct vpp_frame_par_s *get_cur_frame_par(struct video_layer_s *layer)
+{
+#ifdef ENABLE_DPSS_FRC
+	if (cur_dev->display_module == T6W_DISPLAY_MODULE &&
+			layer->layer_id == 0 &&
+			is_frc_link_on(layer) &&
+			!mc_phase0_ready() &&
+			frame_par_save.used_saved_parm)
+		return &frame_par_save.frame_par;
+	else
+		return layer->cur_frame_par;
+#else
+	return layer->cur_frame_par;
+#endif
+}
+
 static int vpp_set_filters_internal
 	(struct disp_info_s *input,
 	struct ar_frac_s *ext_ar,
@@ -2010,7 +2028,7 @@ static int vpp_set_filters_internal
 	u32 hei_out,
 	const struct vinfo_s *vinfo,
 	u32 vpp_flags,
-	struct vpp_frame_par_s *next_frame_par, struct vframe_s *vf)
+	struct vpp_frame_par_s *next_frame_par, struct vframe_s *vf, bool used_pre_pam)
 {
 	u32 screen_width = 0, screen_height = 0;
 	s32 start, end;
@@ -2155,58 +2173,65 @@ static int vpp_set_filters_internal
 		video_source_crop_top = 0;
 		video_source_crop_bottom = 0;
 	} else {
-		video_source_crop_left = input->crop_left;
-		video_source_crop_right = input->crop_right;
-		video_source_crop_top = input->crop_top;
-		video_source_crop_bottom = input->crop_bottom;
+		if (used_pre_pam) {
+			video_source_crop_top = frame_par_save.video_source_crop_top_pre;
+			video_source_crop_left = frame_par_save.video_source_crop_left_pre;
+			video_source_crop_bottom = frame_par_save.video_source_crop_bottom_pre;
+			video_source_crop_right = frame_par_save.video_source_crop_right_pre;
+		} else {
+			video_source_crop_left = input->crop_left;
+			video_source_crop_right = input->crop_right;
+			video_source_crop_top = input->crop_top;
+			video_source_crop_bottom = input->crop_bottom;
 
-		if (video_source_crop_left < 0)
-			video_source_crop_left = 0;
-		if (video_source_crop_right < 0)
-			video_source_crop_right = 0;
-		if (video_source_crop_top < 0)
-			video_source_crop_top = 0;
-		if (video_source_crop_bottom < 0)
-			video_source_crop_bottom = 0;
+			if (video_source_crop_left < 0)
+				video_source_crop_left = 0;
+			if (video_source_crop_right < 0)
+				video_source_crop_right = 0;
+			if (video_source_crop_top < 0)
+				video_source_crop_top = 0;
+			if (video_source_crop_bottom < 0)
+				video_source_crop_bottom = 0;
 
-		/* AFD calculation will apply all crop parameters */
-		/* Only apply other crop parameters under non-AFD case */
-		/* apply src crop and user crop together */
-		if (!(vpp_flags & VPP_FLAG_FORCE_NO_SRC_CROP)) {
-			s32 src_crop_top = 0, src_crop_left = 0;
-			s32 src_crop_right = 0, src_crop_bottom = 0;
+			/* AFD calculation will apply all crop parameters */
+			/* Only apply other crop parameters under non-AFD case */
+			/* apply src crop and user crop together */
+			if (!(vpp_flags & VPP_FLAG_FORCE_NO_SRC_CROP)) {
+				s32 src_crop_top = 0, src_crop_left = 0;
+				s32 src_crop_right = 0, src_crop_bottom = 0;
 
-			if (is_src_crop_valid(input->src_crop)) {
-				if (cur_super_debug)
-					pr_info("%s:vf src crop(%d/%d/%d/%d)\n", __func__,
-						vf->src_crop.top, vf->src_crop.left,
-						vf->src_crop.bottom, vf->src_crop.right);
-				if (vf->type & VIDTYPE_COMPRESS) {
-					src_crop_top = vf->src_crop.top;
-					src_crop_left = vf->src_crop.left;
-					src_crop_bottom = vf->src_crop.bottom;
-					src_crop_right = vf->src_crop.right;
-				} else {
-					src_crop_top = vf->src_crop.top;
-					src_crop_left = vf->src_crop.left;
+				if (is_src_crop_valid(input->src_crop)) {
+					if (cur_super_debug)
+						pr_info("vf src crop(%d/%d/%d/%d)\n",
+							vf->src_crop.top, vf->src_crop.left,
+							vf->src_crop.bottom, vf->src_crop.right);
+					if (vf->type & VIDTYPE_COMPRESS) {
+						src_crop_top = vf->src_crop.top;
+						src_crop_left = vf->src_crop.left;
+						src_crop_bottom = vf->src_crop.bottom;
+						src_crop_right = vf->src_crop.right;
+					} else {
+						src_crop_top = vf->src_crop.top;
+						src_crop_left = vf->src_crop.left;
+					}
 				}
+				video_source_crop_top += src_crop_top;
+				video_source_crop_left += src_crop_left;
+				video_source_crop_bottom += src_crop_bottom;
+				video_source_crop_right += src_crop_right;
 			}
-			video_source_crop_top += src_crop_top;
-			video_source_crop_left += src_crop_left;
-			video_source_crop_bottom += src_crop_bottom;
-			video_source_crop_right += src_crop_right;
-		}
-		if (nr_pps_h_scaler_rate) {
-			video_source_crop_left =
-				video_source_crop_left * (nr_pps_h_scaler_rate + 1);
-			video_source_crop_right =
-				video_source_crop_right * (nr_pps_h_scaler_rate + 1);
-		}
-		if (nr_pps_v_scaler_rate) {
-			video_source_crop_top =
-				video_source_crop_top * (nr_pps_v_scaler_rate + 1);
-			video_source_crop_bottom =
-				video_source_crop_bottom * (nr_pps_v_scaler_rate + 1);
+			if (nr_pps_h_scaler_rate) {
+				video_source_crop_left =
+					video_source_crop_left * (nr_pps_h_scaler_rate + 1);
+				video_source_crop_right =
+					video_source_crop_right * (nr_pps_h_scaler_rate + 1);
+			}
+			if (nr_pps_v_scaler_rate) {
+				video_source_crop_top =
+					video_source_crop_top * (nr_pps_v_scaler_rate + 1);
+				video_source_crop_bottom =
+					video_source_crop_bottom * (nr_pps_v_scaler_rate + 1);
+			}
 		}
 		if (cur_super_debug)
 			pr_info("%s:line=%d, video_source_crop(%d/%d/%d/%d)\n",
@@ -4066,6 +4091,94 @@ RESTART:
 			pr_info("layer%d: frc,switch the display to vf_ext %p->%p\n",
 				input->layer_id, vf, vf->vf_ext);
 	}
+#ifdef ENABLE_DPSS_FRC
+	if (!used_pre_pam && cur_dev->display_module == T6W_DISPLAY_MODULE &&
+		input->layer_id == 0 &&
+		frame_par_save.used_saved_parm) {
+		frame_par_save.used_saved_parm = false;
+		if (cur_super_debug)
+			pr_info("clear frame_par_save.used_saved_parm=%d\n",
+				frame_par_save.used_saved_parm);
+	}
+
+	if (!used_pre_pam && cur_dev->display_module == T6W_DISPLAY_MODULE &&
+		input->layer_id == 0) {
+		if (is_frc_link_on(&vd_layer[input->layer_id]) &&
+			!mc_phase0_ready() &&
+			(frame_par_save.VPP_hd_start_lines_save !=
+			next_frame_par->VPP_hd_start_lines_ ||
+			frame_par_save.VPP_hd_end_lines_save !=
+			next_frame_par->VPP_hd_end_lines_ ||
+			frame_par_save.VPP_vd_start_lines_save !=
+			next_frame_par->VPP_vd_start_lines_ ||
+			frame_par_save.VPP_vd_end_lines_save !=
+			next_frame_par->VPP_vd_end_lines_)) {
+			if (cur_super_debug)
+				pr_info("used pre frame input info:pre %d,%d,%d,%d, cur:%d,%d,%d,%d, output pre:%d,%d,%d,%d, cur:%d,%d,%d,%d\n",
+					frame_par_save.VPP_hd_start_lines_save,
+					frame_par_save.VPP_hd_end_lines_save,
+					frame_par_save.VPP_vd_start_lines_save,
+					frame_par_save.VPP_vd_end_lines_save,
+					next_frame_par->VPP_hd_start_lines_,
+					next_frame_par->VPP_hd_end_lines_,
+					next_frame_par->VPP_vd_start_lines_,
+					next_frame_par->VPP_vd_end_lines_,
+					frame_par_save.VPP_hsc_startp_save,
+					frame_par_save.VPP_hsc_endp_save,
+					frame_par_save.VPP_vsc_startp_save,
+					frame_par_save.VPP_vsc_endp_save,
+					next_frame_par->VPP_hsc_startp,
+					next_frame_par->VPP_hsc_endp,
+					next_frame_par->VPP_vsc_startp,
+					next_frame_par->VPP_vsc_endp);
+
+			//if output changed, bypass frc
+			if (frame_par_save.VPP_hsc_startp_save !=
+				next_frame_par->VPP_hsc_startp ||
+				frame_par_save.VPP_hsc_endp_save !=
+				next_frame_par->VPP_hsc_endp ||
+				frame_par_save.VPP_vsc_startp_save !=
+				next_frame_par->VPP_vsc_startp ||
+				frame_par_save.VPP_vsc_endp_save !=
+				next_frame_par->VPP_vsc_endp) {
+				vd_layer[input->layer_id].frc_link_bypass_check = true;
+			} else {
+				memset(&frame_par_save.frame_par, 0,
+					sizeof(struct vpp_frame_par_s));
+				frame_par_save.used_saved_parm = true;
+				//used pre video_source_crop
+				vpp_set_filters_internal(input, ext_ar,
+					frame_par_save.width_in_pre,
+					frame_par_save.height_in_pre,
+					wid_out, hei_out, vinfo, vpp_flags,
+					&frame_par_save.frame_par, vf, true);
+			}
+			//force update for next frame
+			vd_layer[input->layer_id].property_changed = true;
+		}
+		//save current
+		frame_par_save.VPP_hd_start_lines_save =
+			next_frame_par->VPP_hd_start_lines_;
+		frame_par_save.VPP_hd_end_lines_save =
+			next_frame_par->VPP_hd_end_lines_;
+		frame_par_save.VPP_vd_start_lines_save =
+			next_frame_par->VPP_vd_start_lines_;
+		frame_par_save.VPP_vd_end_lines_save =
+			next_frame_par->VPP_vd_end_lines_;
+
+		frame_par_save.video_source_crop_left_pre = video_source_crop_left;
+		frame_par_save.video_source_crop_right_pre = video_source_crop_right;
+		frame_par_save.video_source_crop_top_pre = video_source_crop_top;
+		frame_par_save.video_source_crop_bottom_pre = video_source_crop_bottom;
+		frame_par_save.width_in_pre = width_in;
+		frame_par_save.height_in_pre = height_in;
+
+		frame_par_save.VPP_hsc_startp_save = next_frame_par->VPP_hsc_startp;
+		frame_par_save.VPP_hsc_endp_save = next_frame_par->VPP_hsc_endp;
+		frame_par_save.VPP_vsc_startp_save = next_frame_par->VPP_vsc_startp;
+		frame_par_save.VPP_vsc_endp_save = next_frame_par->VPP_vsc_endp;
+	}
+#endif
 	return ret;
 }
 
@@ -6794,7 +6907,7 @@ RERTY:
 			(&local_input, &dst_ar,
 			src_width, src_height,
 			dst_width, dst_height,
-			vinfo, vpp_flags, next_frame_par, vf);
+			vinfo, vpp_flags, next_frame_par, vf, false);
 	} else {
 		if (get_pi_enabled(input->layer_id)) {
 			dst_width = vinfo->width >> 1;
