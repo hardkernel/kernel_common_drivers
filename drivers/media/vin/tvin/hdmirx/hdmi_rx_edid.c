@@ -849,54 +849,33 @@ void rx_edid_update_hdr_dv_info(unsigned char *p_edid)
 void rx_edid_update_freesync_info(unsigned char *p_edid)
 {
 	u_int vsdb_start = 0;
-	u8 tag_len, block;
-	u32 start, end, i;
-	int free_size;
+	u8 version;
 	struct data_block_location_s ret;
 
-	if (!p_edid)
+	if (!p_edid || vrr_func_en != 1)
 		return;
 	ret = rx_get_cea_tag_offset(p_edid, VSDB_FREESYNC_TAG);
 	if (ret.num < 1)
 		return;
 	vsdb_start = ret.pos[ret.num - 1];
-	tag_len = (p_edid[vsdb_start] & 0x1f) + 1;
-	block = vsdb_start / EDID_BLK_SIZE;
 	if (rx_info.vrr_min == 0)
 		return;
 	p_edid[vsdb_start + 6] = rx_info.vrr_min;
-	start = block * EDID_BLK_SIZE;
-	end = (block + 1) * EDID_BLK_SIZE - 1;
+	version = p_edid[vsdb_start + 4];
 	if (rx_info.vrr_max <= 255) {
-		if (p_edid[vsdb_start + 4] == 0x3) {
-			p_edid[vsdb_start + 4] = 0x2;
-			p_edid[vsdb_start] -= FS_LEN_DELTA;
-			for (i = vsdb_start + 14; i < end - FS_LEN_DELTA; ++i)
-				p_edid[i] = p_edid[i + FS_LEN_DELTA];
-			memset(&p_edid[end - FS_LEN_DELTA], 0, FS_LEN_DELTA);
-			p_edid[start + EDID_DESCRIP_OFFSET] -= FS_LEN_DELTA;
-		}
 		p_edid[vsdb_start + 7] = rx_info.vrr_max;
+		if (version == 0x3) {
+			p_edid[vsdb_start + 14] = rx_info.vrr_max;
+			p_edid[vsdb_start + 15] = 0;
+		}
 	} else {
-		i = start + p_edid[start + 2];
-		while (i < end) {
-			if (p_edid[i] == 0)
-				break;
-			i += DETAILED_TIMING_LEN;
+		if (version == 0x3) {
+			p_edid[vsdb_start + 7] = 0xf0; //protocol requirement
+			p_edid[vsdb_start + 14] = rx_info.vrr_max & 0xff;
+			p_edid[vsdb_start + 15] = (rx_info.vrr_max & 0x300) >> 8;
+		} else {
+			rx_pr("!!!!error version\n");
 		}
-		free_size = end - i;
-		if (free_size < FS_LEN_DELTA) {
-			rx_pr("no enough space to update freesync block\n");
-			return;
-		}
-		for (i = 0; i < end - vsdb_start - tag_len; ++i)
-			p_edid[end - i - 1] = p_edid[end - i - 1 - FS_LEN_DELTA];
-		p_edid[start + EDID_DESCRIP_OFFSET] += FS_LEN_DELTA;
-		p_edid[vsdb_start] += FS_LEN_DELTA;
-		p_edid[vsdb_start + 4] = 0x03;
-		p_edid[vsdb_start + 7] = 0xf0;
-		p_edid[vsdb_start + 14] = rx_info.vrr_max & 0xff;
-		p_edid[vsdb_start + 15] = (rx_info.vrr_max & 0x300) >> 8;
 	}
 }
 

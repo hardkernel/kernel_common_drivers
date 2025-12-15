@@ -171,6 +171,10 @@ u32 *pd_fifo_buf_b;
 u32 top_irq_tab[IRQ_TYPE_CNT];
 bool ee_voltage_en;
 int force_dsc_4ppc;
+bool update_vrr_en;
+module_param(update_vrr_en, bool, 0664);
+MODULE_PARM_DESC(update_vrr_en, "update_vrr_en");
+
 static DEFINE_SPINLOCK(rx_pr_lock);
 DECLARE_WAIT_QUEUE_HEAD(query_wait);
 
@@ -3986,6 +3990,14 @@ static int rx_vrr_notify_handler(struct notifier_block *nb,
 {
 	int ret = 0;
 	struct vrr_notifier_data_s vdata;
+
+	static bool update_done;
+
+	if (!update_vrr_en) {
+		if (update_done)
+			return ret;
+		update_done = true;
+	}
 
 	switch (value) {
 	case VRR_EVENT_UPDATE:

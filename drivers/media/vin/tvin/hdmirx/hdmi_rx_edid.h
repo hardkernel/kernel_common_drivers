@@ -21,7 +21,8 @@
 //2025.07.23 update qms length
 //2025.11.04 fix VRR range, update Freesync range
 //2025.11.24 fix DTD offset error
-#define RX_EDID_H_VER "ver.2025/11/24"
+//2025.12.15 update vrr range once
+#define RX_EDID_H_VER "ver.2025/12/15"
 
 #define EDID_EXT_BLK_OFF	128
 #define EDID_BLK_SIZE		128
@@ -145,7 +146,6 @@
 #define ADD_FIELD_OFFSET 8
 #define DSC_QMS_OFFSET 11
 #define DSC_FIELD_OFFSET 13
-#define FS_LEN_DELTA 2
 #define END_OF_BLK(x) (((x) + 1) * EDID_BLK_SIZE - 1)
 
 enum edid_type_e {
