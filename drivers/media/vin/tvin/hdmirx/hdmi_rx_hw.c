@@ -5892,12 +5892,17 @@ void hdmirx_late_config_video(u8 port)
 		udelay(5);
 		hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, _BIT(30), 1);
 		hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, MSK(3, 27), 2);
+		hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, _BIT(31), 0);
 	} else {
 		if (rx[port].dsc_flag) {
 			rx_switch_to_self_hsync(port, true);
 			if (hdmirx_rd_bits_cor(VP_FDET_STATUS_VID_IVCRX, _BIT(1), port) == 0)
 				hdmirx_wr_bits_top_common(TOP_VID_CNTL3, MSK(4, 0), 0xf);
 			else
+				hdmirx_wr_bits_top_common(TOP_VID_CNTL3, MSK(4, 0), 0x0);
+		} else {
+			rx_switch_to_self_hsync(port, false);
+			if (rx_info.chip_id == CHIP_ID_T6X)
 				hdmirx_wr_bits_top_common(TOP_VID_CNTL3, MSK(4, 0), 0x0);
 		}
 		hdmirx_wr_bits_top_common_1(TOP_VID_CNTL, _BIT(20), 0);

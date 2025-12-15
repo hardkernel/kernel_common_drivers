@@ -63,7 +63,8 @@
 /* 2025.10.30 fix vid if problem */
 /* 2025.11.18 do not suspend when digital clk is off */
 /* 2025.11.26 add acr reset when power on for t6x */
-#define RX_HW_VER "ver.2025/11/26"
+/* 2025.12.17 fixed screen flickering after switching DSC to non-DSC mode */
+#define RX_HW_VER "ver.2025/12/17"
 
 #define K_TEST_CHK_ERR_CNT
 
