@@ -2384,7 +2384,10 @@ void irq_dae1(void)
 	unsigned int idx_in = 0;
 
 	dbg_h2("%s:m=0x%x\n", __func__, src0_nrdi_frc_en);
-
+	if (!(dpss_get_hw()->src_act & C_BIT0)) {
+		DBG_ERR("not act 0\n");
+		return;
+	}
 #ifdef FUNC_EN_PQ
 	if (dpss_dae_frm_cnt_src1 < 2) {
 		ro_index = 0;
@@ -2566,6 +2569,11 @@ void irq_dpe1(void)
 	unsigned long nr_yaddr;
 	u32 i;
 	//bool ret_rd;
+
+	if (!(dpss_get_hw()->src_act & C_BIT0)) {
+		DBG_ERR("not act 1\n");
+		return;
+	}
 #ifdef FUNC_EN_PQ
 	if (dpss_dpe_nr_frm_cnt < 2) {
 		ro_index = 0;
@@ -2809,6 +2817,10 @@ void irq_dae2(void)
 	u32 dpss_dpe_nr_frm_cnt_adj;
 	u32 dpss_dpe_di_frm_cnt_adj;
 
+	if (!(dpss_get_hw()->src_act & C_BIT1)) {
+		DBG_ERR("not act 2\n");
+		return;
+	}
 #ifdef FUNC_EN_PQ
 	if (dpss_dae_frm_cnt_src2 < 2) {
 		ro_index = 0;
@@ -2899,6 +2911,11 @@ void irq_dpe2(void)
 	u32 dpss_dae_frm_cnt_src2_adj;
 	u32 dpss_dpe_nr_frm_cnt_adj;
 	u32 dpss_dpe_di_frm_cnt_adj;
+
+	if (!(dpss_get_hw()->src_act & C_BIT1)) {
+		DBG_ERR("not act 3\n");
+		return;
+	}
 
 #ifdef FUNC_EN_PQ
 	if (dpss_dpe_di_frm_cnt < 2) {
