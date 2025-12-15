@@ -207,7 +207,6 @@ unsigned int av_fmt = 0x7f;
 unsigned int atv_fmt = 0x1f;//0x7f;
 
 static int dg_ave_last = 0x200;
-static int pga_step_last = 1;
 
 static bool cvd_pr_flag;
 static bool cvd_pr1_chroma_flag;
@@ -801,7 +800,6 @@ inline void tvafe_cvd2_reset_pga(void)
 		VAFE_PGA_GAIN_BIT, VAFE_PGA_GAIN_WID);
 
 	/*reset pga parameter*/
-	pga_step_last = 1;
 	dg_ave_last = 0x200;
 }
 
@@ -2949,10 +2947,14 @@ inline void tvafe_cvd2_adj_pga(struct tvafe_cvd2_s *cvd2)
 
 		tmp = abs(dg_ave - (signed short)CVD2_DGAIN_MIDDLE);
 		if (tmp > CVD2_DGAIN_MIDDLE)
-			step = 16;
+			step = 32;
 		else if (tmp > (CVD2_DGAIN_MIDDLE >> 1))
-			step = 5;
+			step = 16;
 		else if (tmp > (CVD2_DGAIN_MIDDLE >> 2))
+			step = 8;
+		else if (tmp > (CVD2_DGAIN_MIDDLE >> 3))
+			step = 4;
+		else if (tmp > (CVD2_DGAIN_MIDDLE >> 4))
 			step = 2;
 		else
 			step = 1;
@@ -2980,10 +2982,8 @@ inline void tvafe_cvd2_adj_pga(struct tvafe_cvd2_s *cvd2)
 			W_APB_BIT(TVFE_VAFE_CTRL1, pga,
 			VAFE_PGA_GAIN_BIT, VAFE_PGA_GAIN_WID);
 			if (tvafe_dbg_print & TVAFE_DBG_ISR)
-				tvafe_pr_info("%s: pga_step_last:0x%x step:0x%x.\n",
-					__func__, pga_step_last, step);
+				tvafe_pr_info("%s: step:0x%x.\n", __func__, step);
 		}
-		pga_step_last = step;
 	}
 }
 #endif

@@ -291,7 +291,7 @@ static inline u32 rd_bits(u32 offset, u32 reg, const u32 start, const u32 len)
 
 #define TVAFE_SET_CVBS_PGA_EN
 #ifdef TVAFE_SET_CVBS_PGA_EN
-#define TVAFE_SET_CVBS_PGA_START    5
+#define TVAFE_SET_CVBS_PGA_START    2
 #define TVAFE_SET_CVBS_PGA_STEP     1
 #define CVD2_DGAIN_MIDDLE           0x0200
 #define CVD2_DGAIN_WINDOW           0x000F
