@@ -565,6 +565,12 @@ static void enable_all_hdr_info(struct hdmitx_common *tx_comm, struct rx_cap *pr
 				para->cs == HDMI_COLORSPACE_YUV420)
 			memset(hdr_info, 0, sizeof(struct hdr_info));
 	}
+	if (hdmitx_find_vendor_shield_hdr(tx_comm->base.edid_buf)) {
+		if (para->cd == COLORDEPTH_36B &&
+			para->cs == HDMI_COLORSPACE_YUV422) {
+			memset(hdr_info, 0, sizeof(struct hdr_info));
+		}
+	}
 }
 
 static void update_hdr_strategy_linux(struct hdmitx_common *tx_comm, struct hdr_info *hdr_info,

@@ -61,6 +61,12 @@ static struct edid_venddat_t vendor_hdcp_delay[] = {
 	/* Add new vendor data here */
 };
 
+static struct edid_venddat_t vendor_shield_hdr[] = {
+	/* BLACKLINK */
+	{ {0x63, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x21} }
+	/* Add new vendor data here */
+};
+
 /* HDMIPLL_CTRL3/4 under 4k50/60hz 6G mode should use the setting
  * witch is used under 4k59.94hz, specially for SAMSUNG UA55KS7300JXXZ
  * flash screen/no signal issue on SM1/SC2
@@ -193,6 +199,24 @@ bool hdmitx_find_vendor_hdcp_delay(unsigned char *edid_buf)
 	for (i = 0; i < ARRAY_SIZE(vendor_hdcp_delay); i++) {
 		if (memcmp(&edid_buf[8], vendor_hdcp_delay[i].data,
 		    sizeof(vendor_hdcp_delay[i].data)) == 0)
+			return true;
+	}
+	return false;
+}
+
+/*
+ * special TV to mask the HDR capabilities at 422,12bit.
+ */
+bool hdmitx_find_vendor_shield_hdr(unsigned char *edid_buf)
+{
+	int i;
+
+	if (!edid_buf)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(vendor_shield_hdr); i++) {
+		if (memcmp(&edid_buf[8], vendor_shield_hdr[i].data,
+			sizeof(vendor_shield_hdr[i].data)) == 0)
 			return true;
 	}
 	return false;
