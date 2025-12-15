@@ -28,6 +28,7 @@
 #include <linux/amlogic/media/di/dpss_interface.h>
 
 static enum vd_format_e last_signal_type = SIGNAL_INVALID;
+static u32 last_color_primaries;
 static enum output_format_e target_format[VD_PATH_MAX];
 static enum hdr_type_e cur_source_format[VD_PATH_MAX];
 enum output_format_e output_format;
@@ -3380,12 +3381,14 @@ void hdmi_packet_process(int signal_change_flag,
 	/* none hdr+ and cuva*/
 	if (f_h) {
 		if ((vd_signal.signal_type == SIGNAL_SDR &&
-			last_signal_type == SIGNAL_SDR) ||
-			(src_type[vd_path] == CUVA_HDR_SOURCE ||
-			src_type[vd_path] == CUVA_HLG_SOURCE)) {
+			last_signal_type == SIGNAL_SDR &&
+			last_color_primaries == ((send_info.features >> 16) & 0xff)) ||
+			src_type[vd_path] == CUVA_HDR_SOURCE ||
+			src_type[vd_path] == CUVA_HLG_SOURCE) {
 			return;
 		}
 		last_signal_type = vd_signal.signal_type;
+		last_color_primaries = (send_info.features >> 16) & 0xff;
 		f_h(vdev->tx_instance, &send_info);
 		notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 		cuva_drm_pkt_null = 0;

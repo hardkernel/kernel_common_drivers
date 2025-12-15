@@ -9299,6 +9299,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	unsigned int max_output_lum_sdr = 0;
 	u32 dummy_data = 0;
 	u32 dummy_alpha = 0;
+	enum hdr_type_e source_type = UNKNOWN_SOURCE;
 
 	if (dpss_mode &&
 		vd_path == VD1_PATH) {
@@ -9768,6 +9769,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			if (is_amdv_enable()) {
 				/* dolby enable */
 				dv_hdr_policy = get_amdv_hdr_policy(vf);
+				source_type = get_source_type(VD1_PATH, vpp_index, vf);
 				pr_csc(8,
 				       "vd%d: %d %d Fake SDR frame%s, dv on=%d, policy=%d, hdr policy=0x%x, height %d, width %d\n",
 				       vd_path + 1,
@@ -9781,22 +9783,23 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				       cur_vd_h,
 				       cur_vd_w);
 				if (vd_path == VD2_PATH || // TODO, add vd3??
-				   (vd_path == VD1_PATH &&
-				   (get_source_type(VD1_PATH, vpp_index, vf) == HDRTYPE_HDR10PLUS ||
-				   get_source_type(VD1_PATH, vpp_index, vf) == HDRTYPE_MVC ||
-				   get_source_type(VD1_PATH, vpp_index, vf) == HDRTYPE_CUVA_HDR ||
-				   get_source_type(VD1_PATH, vpp_index, vf) == HDRTYPE_CUVA_HLG ||
-				   get_source_type(VD1_PATH, vpp_index, vf) == HDRTYPE_PRIMESL ||
-				   ((get_dv_support_info() & 7) != 7) ||
-				   ((get_source_type(VD1_PATH, vpp_index, vf) == HDRTYPE_HDR10 ||
-				   get_source_type(VD1_PATH, vpp_index, vf) == HDRTYPE_HDR10_709) &&
-				       !(dv_hdr_policy & 1)) ||
-				      (get_source_type(VD1_PATH, vpp_index, vf) == HDRTYPE_HLG &&
-				       !(dv_hdr_policy & 2)) ||
-				      (get_source_type(VD1_PATH, vpp_index, vf) == HDRTYPE_SDR &&
-				       !(dv_hdr_policy & 0x20)) ||
-				       ((cur_vd_w  > 4096 || cur_vd_h > 2160) &&
-				       !support_8k_amdv())))) {
+					(vd_path == VD1_PATH &&
+					(source_type == HDRTYPE_HDR10PLUS ||
+					source_type == HDRTYPE_MVC ||
+					source_type == HDRTYPE_CUVA_HDR ||
+					source_type == HDRTYPE_CUVA_HLG ||
+					source_type == HDRTYPE_PRIMESL ||
+					((source_type == HDRTYPE_HDR10 ||
+					source_type == HDRTYPE_HDR10_709) &&
+					!(dv_hdr_policy & 1)) ||
+					(source_type == HDRTYPE_HLG &&
+					!(dv_hdr_policy & 2)) ||
+					((source_type == HDRTYPE_SDR ||
+					source_type == HDRTYPE_SDR2020) &&
+					!(dv_hdr_policy & 0x20)) ||
+					((get_dv_support_info() & 7) != 7) ||
+					((cur_vd_w  > 4096 || cur_vd_h > 2160) &&
+					!support_8k_amdv())))) {
 					/* and VD1 adaptive or VD2*/
 					/* or always hdr hdr+/hlg bypass */
 					/* faked vframe to switch matrix */
