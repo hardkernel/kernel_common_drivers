@@ -286,8 +286,8 @@ void cfg_dpss_vdi(struct PRM_DPSS_TOP *prm_top,
 	u32 slc_num      = prm_top->dpe_slc_num;
 	u32 me_dsx       = prm_top->dae_dsx_scale;
 	u32 me_dsy       = prm_top->dae_dsy_scale;
-	u32 mvx_div_mode = prm_top->mvx_div_mode;
-	u32 mvy_div_mode = prm_top->mvy_div_mode;
+	u32 mvx_div_mode = 1;
+	u32 mvy_div_mode = 1;
 	bool is_psrc      = prm_top->src_fs_fmt.interlace == IS_PSRC;//interlace
 	// bool is_isrc = 1;
 	//prm_top.src_fs_fmt.interlace==IS_ISRC;//interlace

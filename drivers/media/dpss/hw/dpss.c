@@ -921,8 +921,8 @@ static void hw_cfg_dpss_tbc_vdi(struct PRM_DPSS_TOP *prm_top, u32 vdi_nr_en)
 	u32 frm_vsize    = prm_top->frm_vsize;
 	u32 me_dsx       = prm_top->dae_dsx_scale;
 	u32 me_dsy       = prm_top->dae_dsy_scale;
-	u32 mvx_div_mode = prm_top->mvx_div_mode;
-	u32 mvy_div_mode = prm_top->mvy_div_mode;
+	u32 mvx_div_mode = 1;
+	u32 mvy_div_mode = 1;
 	//ary no use u32 dpe_slc_num  = prm_top->dpe_slc_num;
 	//ary no use u32 dpe_dw_dsx   = prm_top->dpe_dw_dsx;
 	//ary no use u32 dpe_dw_dsy   = prm_top->dpe_dw_dsy;

@@ -1746,9 +1746,6 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 	dbg_h0("dv slic :%d dv pad :%d\n", prm_top->amdv_slc_num, prm_top->amdv_pad);
 	dbg_h0("dv_frm_size <%d %d> dv org size <%d %d>\n", prm_top->amdv_frm_hsize,
 		prm_top->amdv_frm_vsize, prm_top->amdv_org_hsize, prm_top->amdv_org_vsize);
-	prm_top->mvx_div_mode = prm_top->dpe_dw_dsx;
-	prm_top->mvy_div_mode = prm_top->dpe_dw_dsy;
-	dbg_i2("mvy [%d,%d]\n", prm_top->mvx_div_mode, prm_top->mvy_div_mode);
 }
 
 //use this for auto mode only:

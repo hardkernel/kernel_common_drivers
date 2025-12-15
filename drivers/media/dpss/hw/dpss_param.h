@@ -289,7 +289,7 @@ struct PRM_DPSS_TOP {
 
 	u32        dae_dsx_scale;
 	u32        dae_dsy_scale;
-	u32        mvx_div_mode;
+	u32        mvx_div_mode;  //nr di must be 1:1.frc must be 2:2
 	u32        mvy_div_mode;
 	u32        dpe_slc_num;
 	u32        dpe_dw_dsx;	//ary:double write x ratio?

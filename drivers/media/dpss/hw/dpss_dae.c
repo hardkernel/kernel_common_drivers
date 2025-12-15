@@ -151,8 +151,8 @@ void hw_cfg_dpss_dae(enum DPSS_WORK_MODE  dae_mode,
 		reg_mix_hds_en, reg_mix_vds_en);
 	u32 me_blk_hsize  = (me_hsize + 3) >> 2;
 	u32 me_blk_vsize  = (me_vsize + 3) >> 2;
-	u32 mvx_div_mode  = prm_top->mvx_div_mode;
-	u32 mvy_div_mode  = prm_top->mvy_div_mode;
+	u32 mvx_div_mode  = 1;
+	u32 mvy_div_mode  = 1;
 
 	if (me_hsize < 80)
 		dae_grd_num_mode = 0;
