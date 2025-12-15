@@ -187,7 +187,7 @@ static void __iomem *irq_latch_mode_reg;
 static void __iomem *irq_latch_clr_reg;
 static spinlock_t irq_latch_lock;
 
-static void irq_latch_clr(int irq)
+void irq_latch_clr(int irq)
 {
 	struct irq_desc *desc = NULL;
 	irq_hw_number_t hwirq;
@@ -204,7 +204,10 @@ static void irq_latch_clr(int irq)
 	if (!desc)
 		return;
 
-	hwirq = desc->irq_data.hwirq;
+	if (desc->irq_data.parent_data)
+		hwirq = desc->irq_data.parent_data->hwirq;
+	else
+		hwirq = desc->irq_data.hwirq;
 	if (hwirq < 32 || hwirq >= IRQ_CNT)
 		return;
 
@@ -225,6 +228,7 @@ static void irq_latch_clr(int irq)
 		spin_unlock_irqrestore(&irq_latch_lock, flags);
 	}
 }
+EXPORT_SYMBOL(irq_latch_clr);
 
 static void __maybe_unused isr_in_hook(void *data, int irq, struct irqaction *action)
 {
