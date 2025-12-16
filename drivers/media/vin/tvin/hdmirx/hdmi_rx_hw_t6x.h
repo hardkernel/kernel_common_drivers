@@ -83,6 +83,7 @@
 	#define SQ_GATED	_BIT(29)
 #define T6X_HDMIRX21PHY_MISC2           (0x47 << 2)
 	#define RTERM_FLAG_T6X_21	_BIT(31)
+	#define LDO_VTUNE MSK(4, 8)
 	#define RTERM_VAL_T6X_21	MSK(4, 0)
 #define T6X_HDMIRX21PHY_DCHA_AFE        (0x48 << 2)
 	#define HYPER_GAIN	MSK(4, 16)

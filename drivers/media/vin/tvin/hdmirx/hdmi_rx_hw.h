@@ -64,7 +64,8 @@
 /* 2025.11.18 do not suspend when digital clk is off */
 /* 2025.11.26 add acr reset when power on for t6x */
 /* 2025.12.17 fixed screen flickering after switching DSC to non-DSC mode */
-#define RX_HW_VER "ver.2025/12/17"
+/* 2025.12.18 fix hdmirx21 SLT SS corner 1080p issue */
+#define RX_HW_VER "ver.2025/12/18"
 
 #define K_TEST_CHK_ERR_CNT
 

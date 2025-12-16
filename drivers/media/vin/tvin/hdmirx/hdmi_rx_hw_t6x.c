@@ -1418,13 +1418,13 @@ static const u32 phy_misc_t6x_21[][3] = {
 		/* misc0	misc1		misc2 */
 		/* 0x114	0x118		0x11c */
 	{	 /* 24~35M */
-		0x1ff777f, 0x10f7000f, 0x00005a00,
+		0x1ff777f, 0x10f7000f, 0x00005f00,
 	},
 	{	 /* 37~75M */
-		0x1ff777f, 0x10f7000f, 0x00005a00,
+		0x1ff777f, 0x10f7000f, 0x00005f00,
 	},
 	{	 /* 75~150M */
-		0x1ff777f, 0x10f7000f, 0x00005a00,
+		0x1ff777f, 0x10f7000f, 0x00005f00,
 	},
 	{	 /* 150~340M */
 		0x1ff777f, 0x10f7000f, 0x00005a00,
@@ -1810,6 +1810,9 @@ void aml_pll_bw_cfg_t6x_21(int f_rate, u8 port)
 		data32 = phy_dchd_t6x_21[idx][1];
 		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, EQ_BYP_VAL1,
 			data32 & 0x1f, port);
+		data32 = phy_misc_t6x_21[idx][2];
+		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_MISC2, LDO_VTUNE,
+			(data32 >> 8) & 0xf, port);
 		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, EQ_BYP_EN,
 			(data32 >> 5) & 0x1, port);
 		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, DFE_TAPS_DISABLE,
