@@ -185,8 +185,12 @@ bool is_bypass_i_p(void)
 {
 	bool ret = false;
 	struct di_hpre_s  *pre = get_hw_pre();
+	if (!pre) {
+		PR_ERR("%s: pre is null\n", __func__);
+		return false;
+	}
 	struct di_vinfo_s *vc = &pre->vinf_curr;
-	#ifdef MARK_HIS
+#ifdef MARK_HIS
 	struct di_vinfo_s *vl = &pre->vinf_lst;
 
 	if (vl->ch != vc->ch			&&
@@ -194,25 +198,47 @@ bool is_bypass_i_p(void)
 	    VFMT_IS_P(vc->vtype)) {
 		ret = true;
 	}
-	#else
+#else
 	unsigned int ch_c, ch_l;
 
 	struct di_pre_stru_s *ppre_c, *ppre_l;
 
-	if (!get_reg_flag(0)	||
-	    !get_reg_flag(1))
+	if (!get_reg_flag(0) || !get_reg_flag(1))
 		return ret;
 
 	ch_c = vc->ch;
-	ch_l = (ch_c ? 0 : 1);
+
+	if (ch_c >= DI_CHANNEL_NUB) {
+		PR_ERR("%s: ch%d invalid, max %d\n",
+			__func__, ch_c, DI_CHANNEL_NUB - 1);
+		return false;
+	}
+
+	if (DI_CHANNEL_NUB == 1)
+		ch_l = 0;
+	else
+		ch_l = (ch_c ? 0 : 1);
+
 	ppre_c = get_pre_stru(ch_c);
+
+	if (!ppre_c) {
+		PR_ERR("%s: ppre_c is null\n", __func__);
+		return false;
+	}
+
 	ppre_l = get_pre_stru(ch_l);
+
+	if (!ppre_l) {
+		PR_ERR("%s: ppre_l is null\n", __func__);
+		return false;
+	}
+
 	if (VFMT_IS_I(ppre_l->cur_inp_type)	&&
 	    VFMT_IS_P(ppre_c->cur_inp_type)) {
 		ret = true;
 		dim_print("ch[%d]:bypass p\n", ch_c);
 	}
-	#endif
+#endif
 
 	return ret;
 }
