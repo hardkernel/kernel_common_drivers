@@ -1229,7 +1229,7 @@ static struct ddr_port_desc ddr_port_desc_t6w[] __initdata = {
 static struct ddr_port_desc ddr_port_desc_t6x[] __initdata = {
 	{ .port_id =  0, .bus = 0, .mdc_port_id = 0, .port_name = "ARM"           },
 	{ .port_id =  8, .bus = 1, .mdc_port_id = 0, .port_name = "VPU0"          },
-	{ .port_id = 16, .bus = 2, .mdc_port_id = 0, .port_name = "VPU1"          },
+	{ .port_id = 16, .bus = 2, .mdc_port_id = 0, .port_name = "VPU2"          },
 	{ .port_id = 24, .bus = 3, .mdc_port_id = 0, .port_name = "MALI"          },
 	{ .port_id = 25, .bus = 3, .mdc_port_id = 1, .port_name = "HEVC"          },
 	{ .port_id = 26, .bus = 3, .mdc_port_id = 2, .port_name = "GE2D"          },

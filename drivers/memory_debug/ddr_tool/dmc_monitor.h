@@ -43,6 +43,7 @@
 #define DMC_DEBUG_IRQ_THREAD	BIT(6)
 #define DMC_DEBUG_VALUE		BIT(7)
 #define DMC_DEBUG_FREE_IGNORE	BIT(8)
+#define DMC_DEBUG_SEC_DUMP	BIT(9)
 
 enum dmc_mode_type {
 	DMC_MODE_RESERVED = 0x0,
@@ -172,6 +173,10 @@ void dmc_irq_sleep(void *data);
 void dmc_output_violation(struct dmc_monitor *mon, void *data);
 void set_port_to_mon_comm(void *data, int port, int subport);
 unsigned long get_recheck_ns(void);
+int dmc_sec_save_info(char *output, unsigned char index, struct dmc_mon_comm *data);
+int dmc_sec_save_reg(char *output, unsigned char index, unsigned long reg_status,
+		     unsigned long *reg, int number);
+
 
 extern struct dmc_monitor *dmc_mon;
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_GX

@@ -234,7 +234,7 @@ static int t7_dmc_mon_set(struct dmc_monitor *mon)
 			dmc_prot_rw(io, DMC_PROT1_CTRL1, 0UL, DMC_WRITE);
 		}
 
-		val = 0X7;
+		val = 0x7;
 		dmc_prot_rw(io, DMC_PROT_IRQ_CTRL_STS, val, DMC_WRITE);
 	}
 
@@ -306,51 +306,36 @@ static int t7_reg_analysis(char *input, char *output)
 
 static int dmc_sec_check(char *output, unsigned char index)
 {
-	unsigned long dmc_vio_status, dmc_vio_reg[4], addr, base;
-	int count = 0, error = 0, port, subport, i;
-	char rw = 'n';
+	struct dmc_mon_comm tmp;
+	unsigned long dmc_vio_status, dmc_vio_reg[4];
+	int count = 0, i;
 
-	base = dmc_mon->mon_comm[index].io_base;
-	dmc_vio_status = dmc_rw(base + DMC_SEC_STATUS, 0, DMC_READ);
+	tmp.rw = 'n';
+	tmp.io_base = dmc_mon->mon_comm[index].io_base;
+	dmc_vio_status = dmc_rw(tmp.io_base + DMC_SEC_STATUS, 0, DMC_READ);
 	for (i = 0; i < 4; i++)
-		dmc_vio_reg[i] = dmc_rw(base + DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
+		dmc_vio_reg[i] = dmc_rw(tmp.io_base + DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
 
 	if (dmc_vio_status & 0x1) {
-		error = 1;
-		rw = 'r';
-		addr  = (dmc_vio_reg[3] >> 15) & 0x03;
-		addr  = DMC_ADDR_HIGH(addr);
-		addr |= dmc_vio_reg[2];
-		port = dmc_vio_reg[3] & 0xff;
-		subport = (dmc_vio_reg[3] >> 9) & 0x7;
-		count += sprintf(output + count,
-				"DMC%d SEC READ CHECK ERROR: addr:0x%lx, port:%s, subport:%s\n",
-				index, addr, to_ports(port), to_sub_ports_name(port, subport, rw));
+		tmp.rw = 'r';
+		tmp.addr  = (dmc_vio_reg[3] >> 15) & 0x03;
+		tmp.addr  = DMC_ADDR_HIGH(tmp.addr);
+		tmp.addr |= dmc_vio_reg[2];
+		tmp.port.number = dmc_vio_reg[3] & 0xff;
+		tmp.sub.number = (dmc_vio_reg[3] >> 9) & 0x7;
+		count += dmc_sec_save_info(output + count, index, &tmp);
 	}
 	if (dmc_vio_status & 0x2) {
-		error = 1;
-		rw = 'w';
-		addr  = (dmc_vio_reg[1] >> 15) & 0x03;
-		addr  = DMC_ADDR_HIGH(addr);
-		addr |= dmc_vio_reg[0];
-		port = dmc_vio_reg[1] & 0xff;
-		subport = (dmc_vio_reg[1] >> 9) & 0x7;
-		count += sprintf(output + count,
-				"DMC%d SEC WRITE CHECK ERROR: addr:0x%lx, port:%s, subport:%s\n",
-				index, addr, to_ports(port), to_sub_ports_name(port, subport, rw));
+		tmp.rw = 'w';
+		tmp.addr  = (dmc_vio_reg[1] >> 15) & 0x03;
+		tmp.addr  = DMC_ADDR_HIGH(tmp.addr);
+		tmp.addr |= dmc_vio_reg[0];
+		tmp.port.number = dmc_vio_reg[1] & 0xff;
+		tmp.sub.number = (dmc_vio_reg[1] >> 9) & 0x7;
+		count += dmc_sec_save_info(output + count, index, &tmp);
 	}
 
-	if (!error)
-		count += sprintf(output + count, "DMC%d SEC CHECK PASS.\n", index);
-
-	if (dmc_vio_status || dmc_vio_reg[0] ||
-		dmc_vio_reg[1] || dmc_vio_reg[2] || dmc_vio_reg[3]) {
-		count += sprintf(output + count,
-					"DMC%d_SEC_STATUS:%lx\n", index, dmc_vio_status);
-		for (i = 0; i < 4; i++)
-			count += sprintf(output + count,
-						"DMC%d_VIO_ADDR%d:%lx\n", index, i, dmc_vio_reg[i]);
-	}
+	count += dmc_sec_save_reg(output + count, index, dmc_vio_status, dmc_vio_reg, 4);
 
 	return count;
 }

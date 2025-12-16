@@ -334,82 +334,68 @@ static int reg_analysis(char *input, char *output)
 
 static int dmc_sec_check(char *output, unsigned char index)
 {
-	unsigned long dmc_vio_status, dmc_vio_reg[4], addr, base;
-	int count = 0, error = 0, port, subport, remap_id, i;
-	char rw = 'n';
+	struct dmc_mon_comm tmp;
+	unsigned long dmc_vio_status, dmc_vio_reg[4];
+	int count = 0, remap_id, i;
 
-	base = dmc_mon->mon_comm[index].io_base;
-	dmc_vio_status = dmc_rw(base + DMC_SEC_STATUS, 0, DMC_READ);
+	tmp.rw = 'n';
+	tmp.io_base = dmc_mon->mon_comm[index].io_base;
+	dmc_vio_status = dmc_rw(tmp.io_base + DMC_SEC_STATUS, 0, DMC_READ);
 	for (i = 0; i < 4; i++)
-		dmc_vio_reg[i] = dmc_rw(base + DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
+		dmc_vio_reg[i] = dmc_rw(tmp.io_base + DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
 
 	if (dmc_vio_status & DMC_READ_VIOLATION) {
-		error = 1;
-		rw = 'r';
-		addr = (dmc_vio_reg[3] >> DMC_VIO_ADDR_OFFSET) & DMC_VIO_ADDR_MASK;
-		addr = DMC_ADDR_HIGH(addr) | dmc_vio_reg[2];
-		subport = (dmc_vio_reg[3] >> 19) & 0x3ff;
-		port = (dmc_vio_reg[3] & 0x3) << 3;
+		tmp.rw = 'r';
+		tmp.addr = (dmc_vio_reg[3] >> DMC_VIO_ADDR_OFFSET) & DMC_VIO_ADDR_MASK;
+		tmp.addr = DMC_ADDR_HIGH(tmp.addr) | dmc_vio_reg[2];
+		tmp.sub.number = (dmc_vio_reg[3] >> 19) & 0x3ff;
+		tmp.port.number = (dmc_vio_reg[3] & 0x3) << 3;
 		remap_id = (dmc_vio_reg[3] >> 2) & 0x7f;
-		if (port == 0x18) {
+		if (tmp.port.number == 0x18) {
 			if (remap_id <= 9)
-				port |= 0x0;
+				tmp.port.number |= 0x0;
 			else if (remap_id <= 25)
-				port |= 0x1;
+				tmp.port.number |= 0x1;
 			else if (remap_id <= 27)
-				port |= 0x2;
+				tmp.port.number |= 0x2;
 			else if (remap_id <= 54)
-				port |= 0x3;
+				tmp.port.number |= 0x3;
 			else if (remap_id <= 56)
-				port |= 0x4;
+				tmp.port.number |= 0x4;
 			else if (remap_id <= 71)
-				port |= 0x5;
+				tmp.port.number |= 0x5;
 			else
-				port |= 0x6;
+				tmp.port.number |= 0x6;
 		}
-		count += sprintf(output + count,
-				 "DMC SEC READ CHECK ERROR: addr:0x%lx, port:%s, subport:%s\n",
-				addr, to_ports(port), to_sub_ports_name(port, subport, rw));
+		count += dmc_sec_save_info(output + count, index, &tmp);
 	}
 	if (dmc_vio_status & DMC_WRITE_VIOLATION) {
-		error = 1;
-		rw = 'w';
-		addr = (dmc_vio_reg[1] >> DMC_VIO_ADDR_OFFSET) & DMC_VIO_ADDR_MASK;
-		addr = DMC_ADDR_HIGH(addr) | dmc_vio_reg[0];
-		subport = (dmc_vio_reg[1] >> 19) & 0x3ff;
-		port = (dmc_vio_reg[1] & 0x3) << 3;
+		tmp.rw = 'w';
+		tmp.addr = (dmc_vio_reg[1] >> DMC_VIO_ADDR_OFFSET) & DMC_VIO_ADDR_MASK;
+		tmp.addr = DMC_ADDR_HIGH(tmp.addr) | dmc_vio_reg[0];
+		tmp.sub.number = (dmc_vio_reg[1] >> 19) & 0x3ff;
+		tmp.port.number = (dmc_vio_reg[1] & 0x3) << 3;
 		remap_id = (dmc_vio_reg[1] >> 2) & 0x7f;
-		if (port == 0x18) {
+		if (tmp.port.number == 0x18) {
 			if (remap_id <= 9)
-				port |= 0x0;
+				tmp.port.number |= 0x0;
 			else if (remap_id <= 25)
-				port |= 0x1;
+				tmp.port.number |= 0x1;
 			else if (remap_id <= 27)
-				port |= 0x2;
+				tmp.port.number |= 0x2;
 			else if (remap_id <= 54)
-				port |= 0x3;
+				tmp.port.number |= 0x3;
 			else if (remap_id <= 56)
-				port |= 0x4;
+				tmp.port.number |= 0x4;
 			else if (remap_id <= 71)
-				port |= 0x5;
+				tmp.port.number |= 0x5;
 			else
-				port |= 0x6;
+				tmp.port.number |= 0x6;
 		}
-		count += sprintf(output + count,
-				 "DMC SEC WRITE CHECK ERROR: addr:0x%lx, port:%s, subport:%s\n",
-				 addr, to_ports(port), to_sub_ports_name(port, subport, rw));
+		count += dmc_sec_save_info(output + count, index, &tmp);
 	}
 
-	if (!error)
-		count += sprintf(output + count, "DMC SEC CHECK PASS.\n");
-
-	if (dmc_vio_status || dmc_vio_reg[0] ||
-		dmc_vio_reg[1] || dmc_vio_reg[2] || dmc_vio_reg[3]) {
-		count += sprintf(output + count, "DMC_SEC_STATUS:%lx\n", dmc_vio_status);
-		for (i = 0; i < 4; i++)
-			count += sprintf(output + count,
-					 "DMC_VIO_ADDR%d:%lx\n", i, dmc_vio_reg[i]);
-	}
+	count += dmc_sec_save_reg(output + count, index, dmc_vio_status, dmc_vio_reg, 4);
 
 	return count;
 }

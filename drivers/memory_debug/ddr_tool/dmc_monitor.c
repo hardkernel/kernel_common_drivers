@@ -47,7 +47,7 @@
 #include "dmc_trace.h"
 
 // #define DEBUG
-#define DMC_VERSION		"1.11.2"
+#define DMC_VERSION		"1.11.3"
 
 #define IRQ_CHECK		0
 #define IRQ_CLEAR		1
@@ -965,6 +965,53 @@ size_t dump_dmc_reg(char *buf)
 	return sz;
 }
 
+int dmc_sec_save_info(char *output, unsigned char index, struct dmc_mon_comm *data)
+{
+	int count = 0;
+
+	set_port_to_mon_comm(data, data->port.number, data->sub.number);
+
+	count += sprintf(output + count,
+			"DMC%d %s %s CHECK ERROR: addr:0x%lx, port:%s, subport:%s\n",
+			index,
+			data->addr > (get_num_physpages() << PAGE_SHIFT) ? "ADDR" : "SEC",
+			data->rw == 'r' ? "READ" : "WRITE",
+			data->addr,
+			data->port.name ? data->port.name : data->port.id,
+			data->sub.name ? data->sub.name : data->sub.id);
+
+	return count;
+}
+
+int dmc_sec_save_reg(char *output, unsigned char index, unsigned long reg_status,
+		     unsigned long *reg, int number)
+{
+	int count = 0, print = 0, i;
+
+	if (!(reg_status & 0x3))
+		count += sprintf(output + count, "DMC%d SEC CHECK PASS.\n", index);
+
+	for (i = 0; i < number; i++) {
+		if (reg[i] != 0) {
+			print = 1;
+			break;
+		}
+	}
+
+	if (reg_status || print) {
+		count += sprintf(output + count,
+					"DMC%d_SEC_STATUS:%lx\n", index, reg_status);
+		for (i = 0; i < number; i++)
+			count += sprintf(output + count,
+						"DMC%d_VIO_ADDR%d:%lx\n", index, i, reg[i]);
+	}
+
+	if (dmc_mon->debug & DMC_DEBUG_SEC_DUMP)
+		dump_stack();
+
+	return count;
+}
+
 static void dmc_sec_reg_check(char *info, unsigned char index)
 {
 	int len = 0, i;
@@ -1404,11 +1451,16 @@ static ssize_t debug_store(const struct class *class,
 			dmc_mon->debug |= DMC_DEBUG_VALUE;
 		else
 			dmc_mon->debug &= ~DMC_DEBUG_VALUE;
-	}  else if (strstr(string, "free") == string) {
+	} else if (strstr(string, "free") == string) {
 		if (val)
 			dmc_mon->debug |= DMC_DEBUG_FREE_IGNORE;
 		else
 			dmc_mon->debug &= ~DMC_DEBUG_FREE_IGNORE;
+	} else if (strstr(string, "sec_dump") == string) {
+		if (val)
+			dmc_mon->debug |= DMC_DEBUG_SEC_DUMP;
+		else
+			dmc_mon->debug &= ~DMC_DEBUG_SEC_DUMP;
 	} else {
 		pr_info("invalid param name:%s\n", buf);
 		return count;
@@ -1450,6 +1502,8 @@ static ssize_t debug_show(const struct class *class,
 			dmc_mon->debug & DMC_DEBUG_VALUE ? 1 : 0);
 	s += sprintf(buf + s, "free:     page free ignore :%d\n",
 			dmc_mon->debug & DMC_DEBUG_FREE_IGNORE ? 1 : 0);
+	s += sprintf(buf + s, "sec_dump: dump stack when sec vio check :%d\n",
+			dmc_mon->debug & DMC_DEBUG_SEC_DUMP ? 1 : 0);
 
 	return s;
 }
