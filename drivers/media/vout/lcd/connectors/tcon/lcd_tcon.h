@@ -87,6 +87,7 @@ struct lcd_tcon_config_s {
 	unsigned int axi_mem_size;
 	unsigned int bin_path_size;
 	unsigned int secure_cfg_size;
+	unsigned int vfp_tail;  //tcon vfp lines requirement
 
 	struct lcd_tcon_init_setting_s *init_pre_setting;
 	struct lcd_tcon_init_setting_s *init_post_setting;
