@@ -317,6 +317,8 @@ struct dpss_sub_vf_s {		//dsub_vf_s
 	u32 sei_magic_code;
 	void *mem_handle;	/* di use this for struct dim_mm_blk_s */
 	u32 duration;
+	bool fgs_valid;
+	ulong fgs_table_adr;
 //      u32 dpss_id;
 	/*******************************/
 	/* */
@@ -340,6 +342,7 @@ struct dpss_vinfo_s {		//di_vinfo_s
 	unsigned int h;
 	unsigned int v;
 	bool duration_overflow; //0808
+	bool fg;
 	unsigned int bitdepth;
 	struct canvas_config_s canvas0_config[2];
 };

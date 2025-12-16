@@ -207,6 +207,8 @@ bool dpss_vfm_2_subvf(struct dpss_sub_vf_s *vfms, struct vframe_s *vfm)
 	vfms->fmt = vfm->src_fmt.fmt;
 	vfms->sei_magic_code = vfm->src_fmt.sei_magic_code;
 	vfms->duration = vfm->duration;
+	vfms->fgs_valid = vfm->fgs_valid;
+	vfms->fgs_table_adr = vfm->fgs_table_adr;
 //      vfms->dpss_id           = vfm->dpss_id;
 	/*****************************************/
 	if (vfms->width > 3840 || vfms->height > 2160)
@@ -370,6 +372,10 @@ static void sub_vf_2_vinfo(struct dpss_vinfo_s *vt, struct dpss_sub_vf_s *vfms)
 	vt->v = vfms->height;
 	vt->duration_overflow = vfms->duration_overflow;
 	vt->bitdepth = vfms->bitdepth;
+	if (vfms->fgs_valid && vfms->fgs_table_adr)
+		vt->fg = true;
+	else
+		vt->fg = false;
 	memcpy(&vt->canvas0_config[0], &vfms->canvas0_config[0], sizeof(vt->canvas0_config[0]) * 2);
 }
 
@@ -415,6 +421,9 @@ unsigned int dpss_sub_vf_check(struct dpss_ch_s *pch,
 		  vinf_c->v,
 		  vinf_c->src_type,
 		  vinf_c->bitdepth);
+
+		if (vinf_l->fg != vinf_c->fg)
+			DBG_INF("\tchg fg:%d\n", vinf_c->fg);
 	}
 	return ret;
 }
@@ -447,6 +456,8 @@ static unsigned int dpss_is_vinfo_chg(struct dpss_vinfo_s *v1,	/* new */
 	} else if (v1->duration_overflow != v2->duration_overflow) {
 		/* */
 		ret = 3;
+	} else if (v1->fg != v2->fg) {
+		ret = 4;
 	}
 	return ret;
 }
