@@ -106,7 +106,8 @@
 //2025.11.18 add mute cnt when avi change
 //2025.11.27 fix bits per pixel cal
 //2025.11.28 fix fps error issue for tb49
-#define RX_DRV_VER "ver.2025/11/28"
+//2025.12.16 fix PM-related DMC VIOLATION issues
+#define RX_DRV_VER "ver.2025/12/16"
 
 /*print type*/
 #define COR1_LOG	0x10000
