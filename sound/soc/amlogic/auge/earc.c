@@ -3248,6 +3248,10 @@ static void earc_hdmitx_hpdst(bool st)
 	dev_info(p_earc->dev, "HDMITX cable is %s\n",
 		 st ? "plugin" : "plugout");
 
+	if (p_earc->shutdown) {
+		dev_info(p_earc->dev, "%s system entry shutdown, do nothing\n", __func__);
+		return;
+	}
 	if (!p_earc->resumed)
 		earc_clock_enable();
 
