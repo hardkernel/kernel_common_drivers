@@ -501,6 +501,8 @@ struct sei_parser_s {
 	bool err_flag;
 };
 
+/*LOAD_BUFFER_SIZE, nums of buffer read bytes*/
+#define LOAD_BUFFER_SIZE 4
 static struct sei_parser_s prime_sl_parser;
 
 static int loadbyte(struct sei_parser_s *p, u8 *byte)
@@ -622,7 +624,9 @@ static u32 read_ue(struct sei_parser_s *p)
 static void init_sei_parser(struct sei_parser_s *p, u8 *raw_meta, u32 meta_size)
 {
 	p->buffer_ptr = raw_meta;
-	p->buffer_size = meta_size;
+	/*size read by metadata should be multiple of LOAD_BUFFER_SIZE*/
+	p->buffer_size =
+		((meta_size + LOAD_BUFFER_SIZE - 1) / LOAD_BUFFER_SIZE) * LOAD_BUFFER_SIZE;
 	p->readbits = 0;
 	p->readbytes = 0;
 	p->zero_num = 0;
