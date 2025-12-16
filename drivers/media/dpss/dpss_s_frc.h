@@ -6,6 +6,8 @@
 #ifndef __DPSS_S_FRC_H__
 #define __DPSS_S_FRC_H__
 
+#include <linux/amlogic/media/dpss/dpss_frc.h>
+
 #define FRC_ME_FUNC     0x10
 #define FRC_VP_FUNC     0x11
 #define FRC_BBD_FUNC    0x12
@@ -54,6 +56,13 @@ void dpss_frc_get_memc_gmv(struct memc_gmv_s *memc_gmv);
 void dpss_frc_resume(void);
 int dpss_frc_fpp_memc_set_level(u8 level, u8 num);
 void update_frc_state(void);
+struct vframe_s *frc_get_vfm(void);
+void mc_res_switch_begin(void);
+
+//crop
+void detect_axis_change(struct pvpp_dis_frc_para_in_s *in_para);
+void detect_crop_change(struct frc_win_s *vpp_win, struct vframe_s *vfm);
+void update_frc_screen_vinfo(struct pvpp_dis_frc_para_in_s *in_para);
 
 //fw
 void update_n2m_info_to_fw(enum DPSS_FRC_RATIO frc_ratio);

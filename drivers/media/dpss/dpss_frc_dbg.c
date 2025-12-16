@@ -73,6 +73,9 @@ void dpss_frc_status(void)
 	pr_frc(0, "film\t= %d\n", (rd(FRC_REG_PHS_TABLE) >> 8) & 0xFF);
 	pr_frc(0, "mc_link_enable\t= [dpss:%2d, vd1_mc:%2d]\n", rd(FRC_DPSS_VPP_LINK) & 0x1,
 			!is_vd1_link_state());
+	pr_frc(0, "mc_link_ctrl:(%d,%d,%d,%d,%d)\n",
+			state_st->dpss_reg, state_st->dpe_ready, enable_mc_link,
+			state_st->need_disable_mc_link, state_st->unformat_bypass);
 	pr_frc(0, "pre_vsync_offset\t= %d\n",
 			rd_vc(pchip_st->encl_frc_ctrl) & 0xffff);
 	pr_frc(0, "mc_bypass\t= %d\n", rd(FRC_MC_HW_CTRL0) & 0x3);
@@ -106,6 +109,7 @@ void dpss_frc_status(void)
 			rd(DPSS_DAE0_FRM_INT_CNT),
 			frc_int_st->dae0_duration,
 			(ulong)frc_int_st->dae0_timestamp);
+	pr_frc(0, "irq_chk_err_cnt=%d\n", frc_int_st->irq_chk_err_cnt);
 
 //	pr_frc(0, "vpu_vd hsize= %d, vsize= %d\n", state_st->vd_sts.vd_h_size,
 //	       state_st->vd_sts.vd_v_size);

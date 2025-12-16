@@ -926,6 +926,11 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 #endif
 
 	if (frc_vf) {
+		if (toggle_vf) {
+			memcpy(frc_vf->axis, toggle_vf->axis, sizeof(u32) * 4);
+			memcpy(&frc_vf->pic_mode, &toggle_vf->pic_mode,
+				sizeof(struct vframe_pic_mode_s));
+		}
 		frc_vf->type_backup = frc_vf->type;
 		ins->cur_buf = frc_vf;
 		frc_vf->vf_ext = toggle_vf;

@@ -121,12 +121,12 @@ bool display_queue_is_empty(struct display_queue *queue)
 bool display_queue_put(struct display_queue *queue)
 {
 	u8 drop_index = queue->drop_idx;
-	u8 mc_index = queue->mc_idx;
+	u8 disp_index = queue->disp_idx;
 
-	if (mc_index < drop_index)
-		mc_index += DPSS_QUEEN_NUM;
+	if (disp_index < drop_index)
+		disp_index += DPSS_QUEEN_NUM;
 
-	return mc_index > drop_index ? true : false;
+	return disp_index > drop_index ? true : false;
 }
 
 u8 get_dst_buf_cnt(struct display_queue *queue)

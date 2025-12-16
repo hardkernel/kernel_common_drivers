@@ -30,6 +30,7 @@ struct dpss_queue {
 struct display_queue {
 	struct display_buffer_info_s data[DPSS_QUEEN_NUM];
 	u8 drop_idx;
+	u8 disp_idx;
 	u8 mc_idx;
 	u8 inp_idx;
 };

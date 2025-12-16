@@ -75,6 +75,7 @@ int dpss_frc_get_video_latency_for_gd(void);
 int dpss_frc_get_video_latency_for_gd1(void);
 void dpss_frc_set_mc_bypass(u8 bypass);
 int dpss_frc_get_enable(void);
+bool mc_phase0_ready(void);
 //vpp rdma
 u32 VSYNC_RD_VIDEO_TABLE_REG(u32 adr);
 int VSYNC_WR_VIDEO_TABLE_REG(u32 adr, u32 val);

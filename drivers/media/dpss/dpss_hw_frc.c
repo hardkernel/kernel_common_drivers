@@ -28,7 +28,7 @@
 #include "hw/dpss_lib.h"
 #include "dpss_func.h"
 
-unsigned int used_rdma; //force g_dpss_tst_case
+unsigned int used_rdma = 1; //force g_dpss_tst_case
 module_param_named(used_rdma, used_rdma, uint, 0664);
 
 u32 update_reg_val(u32 reg_val, u32 val, u8 start, u8 len)
@@ -948,6 +948,7 @@ void hw_cfg_dpss_mc_bbd(u32 frm_hsize, u32 frm_vsize, u32 bbd_en, u32 bbd_sel, u
 bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 {
 	u32 data32;
+	u32 data32_1;
 	u32 dpe_pre_pixl_buf;
 	u32 dpe_cur_pixl_buf;
 	u32 dpe_plogo_buf;
@@ -1014,7 +1015,7 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 
 	data32 = display_buf_q.mc_idx;
 	if (data32 >= DPSS_QUEEN_NUM || data32 == display_buf_q.inp_idx) {
-		pr_frc(2, "display_buf_q: mc_idx=%d, inp_idx=%d, drop_idx=%d\n",
+		pr_frc(2, "display_buf_q: mc_idx=%d, inp_idx=%d, enable_drop=%d\n",
 				data32, display_buf_q.inp_idx, state_st->enable_last_drop);
 		if (!state_st->enable_last_drop)
 			return false;
@@ -1036,6 +1037,8 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 			return false;
 		}
 		display_buf_q.mc_idx = (display_buf_q.mc_idx + 1) % DPSS_QUEEN_NUM;
+		if (state_st->dpe_ready && display_buf_q.disp_idx != display_buf_q.mc_idx)
+			display_buf_q.disp_idx = (display_buf_q.disp_idx + 1) % DPSS_QUEEN_NUM;
 		display_buf_info = &display_buf_q.data[data32];
 	}
 	if (state_st->dpe_mix) {
@@ -1047,6 +1050,8 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 			return false;
 		}
 		display_buf_q.mc_idx = (display_buf_q.mc_idx + 1) % DPSS_QUEEN_NUM;
+		if (state_st->dpe_ready && display_buf_q.disp_idx != display_buf_q.mc_idx)
+			display_buf_q.disp_idx = (display_buf_q.disp_idx + 1) % DPSS_QUEEN_NUM;
 		display_buf_info = &display_buf_q.data[data32];
 	}
 	display_mc_idx = display_buf_q.mc_idx;
@@ -1062,18 +1067,15 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	dpe_image_pre_frm_idx = dpe_pre_pixl_buf;
 
 	display_buf_q.mc_idx = (display_buf_q.mc_idx + 1) % DPSS_QUEEN_NUM;
-
-	pr_frc(1, "display_buf_q:drop_idx=%d, mc_idx=%d, inp_idx=%d\n",
-		display_buf_q.drop_idx, display_buf_q.mc_idx, display_buf_q.inp_idx);
+	if (state_st->dpe_ready && display_buf_q.disp_idx != display_buf_q.mc_idx)
+		display_buf_q.disp_idx = (display_buf_q.disp_idx + 1) % DPSS_QUEEN_NUM;
 
 	if (pchip_st && (pchip_st->state_st.mc_bypass || pchip_st->state_st.force_mc_phase0))
 		dpe_intp_phs = 0;
 
 	if (!state_st->force_disable_check_fallback && state_st->check_fallback == 1) {
-		dpss_put_last_queue(&mc_ibuf_q, &is_empty, &dpe_cur_pixl_buf);
-		state_st->force_mc_cur_idx = dpe_cur_pixl_buf;
-		pr_frc(1, "need force mc cur id=%d\t(%d,%d)\n",
-			dpe_cur_pixl_buf, mc_ibuf_q.front, mc_ibuf_q.rear);
+		dpe_cur_pixl_buf = state_st->force_mc_cur_idx;
+		pr_frc(1, "need force mc cur id=%d\n", dpe_cur_pixl_buf);
 		state_st->check_fallback = 2;
 	} else if (state_st->check_fallback == 2) {
 		if (dpe_pre_pixl_buf != state_st->force_mc_cur_idx)
@@ -1088,6 +1090,9 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 			dpss_put_queue(&mc_ibuf_q, &state_st->mc_q_idx, &is_empty);
 	}
 
+	pr_frc(1, "display_buf_q:drop_idx=%d, disp_idx=%d, mc_idx=%d, inp_idx=%d\n",
+		display_buf_q.drop_idx, display_buf_q.disp_idx,
+		display_buf_q.mc_idx, display_buf_q.inp_idx);
 	pr_frc(1, "is_empty=%d, is_pause_state=%d\n", is_empty, is_pause_state);
 
 	if (is_pause_state) {
@@ -1119,15 +1124,18 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		return false;
 
 	state_st->dpe_ready = true;
-//	if (state_st->mc_disp_st.step == 0) {
-//		state_st->mc_disp_st.wr_idx = dpe_pre_pixl_buf;
-//		state_st->mc_disp_st.step = 1;
-//	} else {
-//		state_st->mc_disp_st.disp_idx = state_st->mc_disp_st.wr_idx;
-//		state_st->mc_disp_st.wr_idx = dpe_pre_pixl_buf;
-//	}
-	state_st->mc_disp_st.disp_idx = dpe_pre_pixl_buf;
-	state_st->mc_cur_idx = dpe_cur_pixl_buf;
+	state_st->dpe_intp_phs = dpe_intp_phs;
+
+	if (state_st->mc_disp_st.step == 0) {
+		state_st->mc_disp_st.step = 1;
+	} else {
+		state_st->mc_disp_st.disp_pre_idx = state_st->mc_disp_st.wr_pre_idx;
+		state_st->mc_disp_st.disp_cur_idx = state_st->mc_disp_st.wr_cur_idx;
+	}
+	state_st->mc_disp_st.wr_pre_idx = dpe_pre_pixl_buf;
+	state_st->mc_disp_st.wr_cur_idx = dpe_cur_pixl_buf;
+
+	mc_res_switch_begin();
 
 	pr_frc(1, "mc_q_idx=%d, display_mc_idx=%d, dpe_pre=%d, dpe_cur=%d, pause_st_last=%d\n",
 		state_st->mc_q_idx, display_mc_idx, dpe_pre_pixl_buf, dpe_cur_pixl_buf,
@@ -1137,18 +1145,11 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		dpe_pre_pixl_buf, dpe_cur_pixl_buf, dpe_plogo_buf,
 		dpe_clogo_buf, dpe_mvlogo_buf, dpe_intp_phs);
 
-	data32			 = rd(FRC_DPSS_DISP_BUFF_INFO_0);
-	pr_frc(1, "ro:pc=%d,%d, logo=%d,%d, mc_phs=%3d, byp_en=%d\n",
+	data32 = rd(FRC_DPSS_DISP_BUFF_INFO_0);
+	data32_1 = rd(FRC_DPSS_DISP_BUFF_INFO_1);
+	pr_frc(1, "ro:pc=%d,%d, logo=%d,%d, mv=%d, mc_phs=%3d\n",
 		(data32 >> 2) & 0xf, (data32 >> 8) & 0xf, (data32 >> 14) & 0xf,
-		(data32 >> 18) & 0xf, (data32 >> 22) & 0xff, (data32 >> 30) & 0x1);
-
-	data32				  = rd(FRC_DPSS_DISP_BUFF_INFO_1);
-	pr_frc(1, "ro:dpe_mv_cur_frm_idx=%d\n", data32 & 0xf);
-
-	//if (pchip_st->state_st.cut_pre_mc_work == 1) {
-	//	dpe_intp_phs = 0;
-	//	pchip_st->state_st.cut_pre_mc_work = 0;
-	//}
+		(data32 >> 18) & 0xf, data32_1 & 0xf, (data32 >> 22) & 0xff);
 
 	bool mc_mif_reg_mode = (rd(DPSS_DPE_MC_MIF_CTRL0) >> 2) & 0x1;
 	u32	 dpe_pixl_buf_idx0 =
@@ -1175,8 +1176,6 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		w_reg_bit(DPSS_DPE_INTF_CTRL2, 0, 4, 2);
 
 	nr_aapps_4k1k_en = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
-
-	dbg_i0("%s:is_pps top ch=%d,=%d\n", __func__, prm_top->ch, pps->pps_en);
 
 	if (src0_nrdi_frc_en) {
 		src0_dio_fbuf_yaddr[0]	 = rd(DPSS_SRC0_DIO_FBUF_YADDR0 + dpe_pixl_buf_idx0);
@@ -1363,17 +1362,17 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	u32 mc_use_tbc_addr = rd(DPSS_TOP_APB_TBC_SEL_CTRL) & 0x1;
 
 	if (mc_use_tbc_addr == 0) {
-		wr(DPSS_DPE_MC_DIN_LUMA0_BADDR0, mc_luma0_rdmif_baddr0);
-		wr(DPSS_DPE_MC_DIN_LUMA0_BADDR1, mc_luma0_rdmif_baddr1);
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_DIN_LUMA0_BADDR0, mc_luma0_rdmif_baddr0);
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_DIN_LUMA0_BADDR1, mc_luma0_rdmif_baddr1);
 
-		wr(DPSS_DPE_MC_DIN_LUMA1_BADDR0, mc_luma1_rdmif_baddr0);
-		wr(DPSS_DPE_MC_DIN_LUMA1_BADDR1, mc_luma1_rdmif_baddr1);
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_DIN_LUMA1_BADDR0, mc_luma1_rdmif_baddr0);
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_DIN_LUMA1_BADDR1, mc_luma1_rdmif_baddr1);
 
-		wr(DPSS_DPE_MC_DIN_CHRM0_BADDR0, mc_chrm0_rdmif_baddr0);
-		wr(DPSS_DPE_MC_DIN_CHRM0_BADDR1, mc_chrm0_rdmif_baddr1);
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_DIN_CHRM0_BADDR0, mc_chrm0_rdmif_baddr0);
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_DIN_CHRM0_BADDR1, mc_chrm0_rdmif_baddr1);
 
-		wr(DPSS_DPE_MC_DIN_CHRM1_BADDR0, mc_chrm1_rdmif_baddr0);
-		wr(DPSS_DPE_MC_DIN_CHRM1_BADDR1, mc_chrm1_rdmif_baddr1);
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_DIN_CHRM1_BADDR0, mc_chrm1_rdmif_baddr0);
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_DIN_CHRM1_BADDR1, mc_chrm1_rdmif_baddr1);
 		if (prm_top->dpss_mode == DPSS_FRC_MODE &&
 			pchip_st->state_st.compr_sel != DDR_MIF) {
 			wr_vc(get_vfcd_regs_ofst(DPSS_RMIF_MC0) +
@@ -1392,18 +1391,17 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 				VFCD_AFRC_CHRM_HEAD_BADDR, mc_chrm1_rdmif_baddr1);
 			wr_vc(get_vfcd_regs_ofst(DPSS_RMIF_MC1) +
 				VFCD_AFRC_CHRM_BODY_BADDR, mc_chrm1_rdmif_baddr0);
-			pr_frc(1, "MC vfcd afbc/afrc config\n");
 		}
 
-		wr(DPSS_DPE_MC_DIN_LOGO_BADDR0, ip_logo0_rdmif_baddr);
-		wr(DPSS_DPE_MC_DIN_LOGO_BADDR1, ip_logo1_rdmif_baddr);
-		wr(DPSS_DPE_MC_DIN_MELG_BADDR1, dpe_melogo_baddr);
-		wr(DPSS_DPE_MC_DIN_MV_BADDR1, dpe_vpmc_mv_baddr);
-		w_reg_bit(DPSS_DPE_MC_DIN_FRM_IDX0, dpe_image_pre_frm_idx, 8, 4);
-		w_reg_bit(DPSS_DPE_MC_DIN_FRM_IDX0, dpe_image_cur_frm_idx, 4, 4);
-		w_reg_bit(DPSS_DPE_MC_DIN_FRM_IDX0, dpe_mv_cur_frm_idx, 0, 4);
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_DIN_LOGO_BADDR0, ip_logo0_rdmif_baddr);
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_DIN_LOGO_BADDR1, ip_logo1_rdmif_baddr);
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_DIN_MELG_BADDR1, dpe_melogo_baddr);
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_DIN_MV_BADDR1, dpe_vpmc_mv_baddr);
+		DPSS_RDMA_WR_BIT_PRE_VS(DPSS_DPE_MC_DIN_FRM_IDX0, dpe_image_pre_frm_idx, 8, 4);
+		DPSS_RDMA_WR_BIT_PRE_VS(DPSS_DPE_MC_DIN_FRM_IDX0, dpe_image_cur_frm_idx, 4, 4);
+		DPSS_RDMA_WR_BIT_PRE_VS(DPSS_DPE_MC_DIN_FRM_IDX0, dpe_mv_cur_frm_idx, 0, 4);
 		// w_reg_bit(DPSS_DPE_MC_CTRL0,dpe_intp_phs,20,8);
-		w_reg_bit(DPSS_DPE_MC_PHASE, dpe_intp_phs, 0, 8);
+		DPSS_RDMA_WR_BIT_PRE_VS(DPSS_DPE_MC_PHASE, dpe_intp_phs, 0, 8);
 
 		dpss_dpe_dbg_cfg();
 	}
@@ -1439,6 +1437,7 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		cfg_mc_sub_rdmif(mv_rmif, 2, 1);
 		cfg_mc_sub_rdmif(me_logo_rmif, 3, 1);
 	}
+
 	return true;
 }
 
@@ -1651,12 +1650,12 @@ void hw_mc_vfcd_cfg_update(void)
 	struct frc_chip_st *pchip_st = dpss_get_frc_st();
 
 	if (!pchip_st) {
-		dbg_h0("%s pchip_st is null\n", __func__);
+		dbg_h0("pchip_st is null\n");
 		return;
 	}
 	pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
 	if (!pfw_data) {
-		dbg_h0("%s pfw_data is null\n", __func__);
+		dbg_h0("pfw_data is null\n");
 		return;
 	}
 	frc_top = &pfw_data->frc_top_type;
@@ -1669,10 +1668,8 @@ void hw_mc_vfcd_cfg_update(void)
 		regs_ofst = get_vfcd_regs_ofst(DPSS_RMIF_MC1);
 		VSYNC_WR_VIDEO_TABLE_REG_BITS(RMIF_TOP_CTRL + regs_ofst, 1, 13, 1);
 	}
-	dbg_h2("%s update mif\n", __func__);
 	frc_cfg_vfcd_dec(4, &pchip_st->mc_vfcd);   // mc0
 	//frc_cfg_vfcd_dec(5, &pchip_st->mc_vfcd);   // mc1
-	dbg_h2("%s update cmpr\n", __func__);
 
 	if (pchip_st->prm_mc.src_cmpr == CMPR_AFBC) {
 		frc_cfg_vfcd_cmpr_enable(4, 1);
@@ -2248,6 +2245,7 @@ void frc_mc_cut_1(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr)
 
 	//afrc not need cfg 444_comb
 	VSYNC_WR_VIDEO_TABLE_REG_BITS(VFCD_AFBC_ENABLE + regs_ofst, 0, 20, 1);
+
 	frc_me_cut(prm_top);
 }
 

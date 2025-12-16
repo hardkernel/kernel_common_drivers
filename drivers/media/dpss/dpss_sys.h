@@ -339,7 +339,8 @@ struct undone_s {
 };
 
 struct frc_cut_win_s {
-	u32 cut_win_en;
+	u16 cut_win_en;
+	u16 cut_win_chg;
 	u32 frm_hsize;
 	u32 frm_vsize;
 	u32 win_hsize;
@@ -348,6 +349,21 @@ struct frc_cut_win_s {
 	u32 win_hend;
 	u32 win_vbgn;
 	u32 win_vend;
+};
+
+struct disp_screen_vinfo_s {
+	u32 vinfo_chg;
+	u32 vtotal;
+	u32 htotal;
+	u32 width;
+	u32 height;
+	u32 frequency;
+	u32 x_d_st;
+	u32 y_d_st;
+	u32 x_d_end;
+	u32 y_d_end;
+	u32 x_d_size;
+	u32 y_d_size;
 };
 
 struct framerate_s {
@@ -389,6 +405,10 @@ struct frc_interrupt_s {
 	u32 frc_vsync_cnt;
 	u32 frc_vsync_duration;
 	u64 frc_vsync_timestamp;
+
+	s16 irq_chk;
+	u16 irq_chk_flag;
+	u32 irq_chk_err_cnt;
 };
 
 struct me_pcn_s {
@@ -399,8 +419,10 @@ struct me_pcn_s {
 };
 
 struct mc_disp_s {
-	u8 wr_idx;
-	u8 disp_idx;
+	u8 wr_pre_idx;
+	u8 wr_cur_idx;
+	u8 disp_pre_idx;
+	u8 disp_cur_idx;
 	u8 step;
 };
 
@@ -431,10 +453,12 @@ struct frc_vf_ctrl_s {
 
 struct frc_state_s {
 	bool is_frc_vpp_link;
-	bool need_switch_to_vd1;
 	bool need_disable_mc_link;
 	bool have_update_vfcd;
 	bool dpss_reg;
+	bool frc_en;//dpss mode include frc
+	bool frc_init;
+	bool trig_pos_chg;
 	bool check_frc_status_en;
 	bool unformat_bypass;
 	bool special_format;
@@ -448,24 +472,27 @@ struct frc_state_s {
 	bool src0_disp_obuf_rdy;
 	bool mc_bypass;
 	bool force_mc_phase0;
+	bool need_set_phase0;
 	bool mc_set_phase0;
-	bool frc_en;//dpss mode include frc
+	bool mc_phase0_rdma;//rdma wr phase0
 	bool demo_win_en;
 	bool mc_cut_position;
-	u8 cut_pre_mc_work;
 	bool mc_lp_mode;
 	u8 mc_bypass_always;
 	u8 use_inp_big;
 	bool detect_speed;
 	bool src_chg;
-	bool mc_byp_switch;
+	bool mc_byp_switch_on;
+	bool mc_byp_switch_off;
 	bool mc_ini_rdma_done;
+	bool use_phase0_done;
 	bool first_put_vfm;
 	bool force_disable_dpe_mix;
 	bool force_disable_check_fallback;
 	bool is_dos;
 	bool dae_ready;
 	bool dpe_ready;
+	bool bypass_chg;
 	u8 dpe_mix;
 	u8 mv_buf_idx;
 	bool win_size_zero_flag;
@@ -485,7 +512,7 @@ struct frc_state_s {
 	u32 enable_mc_cnt;
 	u32 cur_fw_pause;
 	u32 cur_frc_me_en;
-	u32 mc_cur_idx;
+	u32 dpe_intp_phs;
 	unsigned int put_frame_cnt;
 	enum compress_fmt_s compr_sel;
 	unsigned int big_fmt;
@@ -537,6 +564,7 @@ struct frc_chip_st {
 	struct PRM_INTF_TYPE me_logo_rmif;
 	struct DPSS_MC0_TYPE prm_mc;
 	struct frc_cut_win_s win_st;
+	struct disp_screen_vinfo_s vinfo_st;
 	struct frc_mc_csc_set_s init_csc;
 	int fmt444_out;
 };

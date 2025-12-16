@@ -1759,172 +1759,11 @@ void hw_cfg_dpss_dpe_no_buf_update(enum DPSS_WORK_MODE dpe_mode,
 	w_reg_bit(DPSS_DPE_HW_DBG, ~dcntr_en, 12, 1);	// dcntr_slc_end mask
 }
 
-void config_inp_ofrm_flg_fw(u32 inp_ofrm_vld)
-{
-	w_reg_bit(FRC_AUTO_MODE_INP_OFRM_WREN, inp_ofrm_vld, 0, 1);
-}
-
-void config_dae_ofrm_step_at_inp_site_fw(u32 inp_ofrm_step)
-{
-	w_reg_bit(FRC_REG_TOP_CTRL8, inp_ofrm_step, 0, 12);
-}
-
-void config_dae_ofrm_step_at_dae_site_fw(uint32_t dae_ofrm_step)
-{
-	w_reg_bit(FRC_REG_TOP_CTRL7, dae_ofrm_step, 0, 20);
-}
-
-int hw_set_inp_loop_tab_switch(int film_mode, int film_phase)
-{
-	int inp_ofrm_loop_tab;
-	u8  inp_ofrm_vld;
-
-	switch (film_mode) {
-	case EN_DRV_VIDEO:
-		inp_ofrm_loop_tab = 0b1;
-		break;//VIDEO
-	case EN_DRV_FILM22:
-		inp_ofrm_loop_tab = 0b01;
-		break;//22
-	case EN_DRV_FILM32:
-		inp_ofrm_loop_tab = 0b00101;
-		break;//32
-	case EN_DRV_FILM3223:
-		inp_ofrm_loop_tab = 0b0010010101;
-		break;//3223
-	case EN_DRV_FILM2224:
-		inp_ofrm_loop_tab = 0b0001010101;
-		break;//2224
-	case EN_DRV_FILM32322:
-		inp_ofrm_loop_tab = 0b001010010101;
-		break;//32322
-	case EN_DRV_FILM44:
-		inp_ofrm_loop_tab = 0b0001;
-		break;//44
-	case EN_DRV_FILM21111:
-		inp_ofrm_loop_tab = 0b011111;
-		break;//21111
-	case EN_DRV_FILM23322:
-		inp_ofrm_loop_tab = 0b001001010101;
-		break;//23322
-	case EN_DRV_FILM2111:
-		inp_ofrm_loop_tab = 0b01111;
-		break;//2111
-	case EN_DRV_FILM22224:
-		inp_ofrm_loop_tab = 0b000101010101;
-		break;//22224
-	case EN_DRV_FILM33:
-		inp_ofrm_loop_tab = 0b001;
-		break;//33
-	case EN_DRV_FILM334:
-		inp_ofrm_loop_tab = 0b0001001001;
-		break;//334
-	case EN_DRV_FILM55:
-		inp_ofrm_loop_tab = 0b00001;
-		break;//55
-	case EN_DRV_FILM64:
-		inp_ofrm_loop_tab = 0b0000010001;
-		break;//64
-	case EN_DRV_FILM66:
-		inp_ofrm_loop_tab = 0b000001;
-		break;//66
-	case EN_DRV_FILM87:
-		inp_ofrm_loop_tab = 0b000000010000001;
-		break;//87
-	case EN_DRV_FILM212:
-		inp_ofrm_loop_tab = 0b01011;
-		break;//212
-	case EN_DRV_FILM1123:
-		inp_ofrm_loop_tab = 0b0010101010101010101010101;
-		break;//1123
-	default:
-		inp_ofrm_loop_tab = 0b1;
-		break;
-	}
-
-	inp_ofrm_vld = (inp_ofrm_loop_tab >> film_phase) & 0x1;
-
-	return inp_ofrm_vld;
-}
-
-int hw_set_step_switch(int film_mode)
-{
-	int step = 128;
-
-	switch (film_mode) {
-	case EN_DRV_VIDEO:
-		step = 128;
-		break;
-	case EN_DRV_FILM22:
-		step = 64;
-		break;
-	case EN_DRV_FILM32:
-		step = 51;
-		break;
-	case EN_DRV_FILM3223:
-		step = 51;
-		break;
-	case EN_DRV_FILM2224:
-		step = 51;
-		break;
-	case EN_DRV_FILM32322:
-		step = 53;
-		break;
-	case EN_DRV_FILM44:
-		step = 32;
-		break;
-	case EN_DRV_FILM21111:
-		step = 106;
-		break;
-	case EN_DRV_FILM23322:
-		step = 53;
-		break;
-	case EN_DRV_FILM2111:
-		step = 102;
-		break;
-	case EN_DRV_FILM22224:
-		step = 53;
-		break;
-	case EN_DRV_FILM33:
-		step = 42;
-		break;
-	case EN_DRV_FILM334:
-		step = 38;
-		break;
-	case EN_DRV_FILM55:
-		step = 25;
-		break;
-	case EN_DRV_FILM64:
-		step = 25;
-		break;
-	case EN_DRV_FILM66:
-		step = 21;
-		break;
-	case EN_DRV_FILM87:
-		step = 17;
-		break;
-	case EN_DRV_FILM212:
-		step = 76;
-		break;
-	case EN_DRV_FILM1123:
-		step = 61;
-		break;
-	default:
-		frc_dbg(DPSS_FRC_TOP, "<dpss.c>: film_mode ERROR\n");
-		break;
-	}
-
-	return step;
-}
-
 unsigned int dpss_int = IRQ_MODE_CASE_0_SRC0_NR_DI;	//bit 0 for dae
 module_param_named(dpss_int, dpss_int, uint, 0664);
 
 unsigned int dpss_dbg_dae0_byp_cnt = 20;
 module_param_named(dpss_dbg_dae0_byp_cnt, dpss_dbg_dae0_byp_cnt, uint, 0664);
-
-int dpss_dbg_adj_idx = 1;
-module_param_named(dpss_dbg_adj_idx, dpss_dbg_adj_idx, uint, 0664);
 
 int dpss_dbg_irq_ko = 0x1111;
 module_param_named(dpss_dbg_irq_ko, dpss_dbg_irq_ko, uint, 0664);
@@ -1946,7 +1785,7 @@ static void mc_put_buffer(struct frc_state_s *state_st)
 	dst_buf_cnt = get_dst_buf_cnt(&display_buf_q);
 	pr_frc(1, "drop_idx=%d, mc_idx=%d, inp_idx=%d, diff=%d, mc_drop=%d, mc_display=%d\n",
 		display_buf_q.drop_idx, display_buf_q.mc_idx, display_buf_q.inp_idx,
-		dst_buf_cnt, state_st->mc_drop_idx, state_st->mc_disp_st.disp_idx);
+		dst_buf_cnt, state_st->mc_drop_idx, state_st->mc_disp_st.disp_pre_idx);
 }
 
 static bool mc_need_drop_frame(struct dpss_frc_top_type_s *frc_top, struct frc_state_s *state_st)
@@ -1988,16 +1827,14 @@ void irq_pre_vs(void)
 	struct PRM_DPSS_TOP *prm_top = prm_dpss_top;
 	struct PRM_DPSS_DPE *prm_dpe = prm_dpss_dpe;
 	struct frc_interrupt_s *frc_int_st;
-	bool is_vd1_link;
-	bool manual_disable_link = false;
 	u64 timestamp = sched_clock();
 	u32 frc_dst_buf;
 	u8 mc_drop_idx;
 	u8 drop_idx;
+	u8 mc_bypass_st;
+	u8 mc_phase_st;
+	u8 fallback_st;
 	struct display_buffer_info_s *display_buf_info;
-
-	static u16 pre_org_hsize;
-	static u16 pre_org_vsize;
 
 	pchip_st = dpss_get_frc_st();
 
@@ -2018,8 +1855,25 @@ void irq_pre_vs(void)
 	frc_int_st->pre_vsync_duration = timestamp - frc_int_st->pre_vsync_timestamp;
 	frc_int_st->pre_vsync_timestamp = timestamp;
 	frc_int_st->pre_vsync_cnt++;
+	if (state_st->frc_init) {
+		state_st->frc_init = false;
+		frc_int_st->irq_chk = 0;
+		frc_int_st->irq_chk_flag = 0;
+	}
+	frc_int_st->irq_chk++;
+	if (frc_int_st->irq_chk_flag) {
+		if (frc_int_st->irq_chk) {
+			frc_int_st->irq_chk_err_cnt++;
+			frc_int_st->irq_chk = 0;
+		}
+	} else {
+		if (frc_int_st->irq_chk != 1) {
+			frc_int_st->irq_chk_err_cnt++;
+			frc_int_st->irq_chk = 1;
+		}
+	}
 
-	dbg_h2("irq_pre_vsync start %d\n", frc_int_st->pre_vsync_cnt);
+	mc_bypass_st = rd(FRC_MC_HW_CTRL0) & 0x3;
 	src0_disp_obuf_rdy = state_st->src0_disp_obuf_rdy;
 
 	frc_undone_check();
@@ -2027,12 +1881,11 @@ void irq_pre_vs(void)
 	if (src0_disp_obuf_rdy && display_queue_put(&display_buf_q))
 		mc_put_buffer(state_st);
 	frc_dst_buf = rd(DPSS_FRC_DST_BUFF_STATUS) & 0xf;
-	dbg_f2("frc_dst_buf pre = %d\n", frc_dst_buf);
 	while (src0_disp_obuf_rdy && frc_dst_buf > 0 && display_queue_put(&display_buf_q)) {
 		drop_idx = (display_buf_q.drop_idx + 1) % DPSS_QUEEN_NUM;
 		display_buf_info = &display_buf_q.data[drop_idx];
 		mc_drop_idx = display_buf_info->p;
-		if (state_st->mc_disp_st.disp_idx == state_st->mc_drop_idx &&
+		if (state_st->mc_disp_st.disp_pre_idx == state_st->mc_drop_idx &&
 			mc_drop_idx != state_st->mc_drop_idx) {
 			pr_frc(2, "now_mc_drop_idx=%d\n", mc_drop_idx);
 			break;
@@ -2061,88 +1914,49 @@ void irq_pre_vs(void)
 		state_st->enable_last_drop = false;
 
 	display_ready = hw_dpss_dpe_info_cfg(prm_top, src0_disp_obuf_rdy);
+	fallback_st = state_st->force_disable_check_fallback ? 0 : state_st->check_fallback;
 
-	is_vd1_link = is_vd1_link_state();
-	if (prm_top->trig_byp_mc && !is_vd1_link) {
-		pre_org_hsize = prm_top->org_hsize;
-		pre_org_vsize = prm_top->org_vsize;
-		// state_st->src_chg = 1;
-		// prm_top->trig_byp_mc = false;
-		if (state_st->mc_cur_idx ==
-			(prm_top->idx_done + dpss_dbg_adj_idx) % DPSS_DPS_NUB) {
-			prm_top->trig_byp_mc = false;
-			state_st->src_chg = 1;
-			dbg_h2("cur_idx:%d, idx_done:%d, new size idx:%d\n",
-				state_st->mc_cur_idx, prm_top->idx_done,
-				(prm_top->idx_done + 1) % DPSS_DPS_NUB);
-		}
-		// hw_dpss_dpe_info_cfg(prm_top);
-		//cfg_dpss_mc_ini(prm_top, 1);
-		// mc_byp_cnt = 1;//dpss_dbg_mc_byp_cnt;
-		state_st->mc_byp_switch = true;
-		dbg_h2("trig byp mc\n");
+	if (state_st->enable_mc_cnt != 0) {
+		state_st->enable_mc_cnt--;
+		if (state_st->enable_mc_cnt == dpss_dbg_dae0_byp_cnt)
+			state_st->trig_pos_chg = false;
+		if (state_st->enable_mc_cnt == 0)
+			state_st->mc_byp_switch_off = true;
 	}
-
-	if (!(state_st->enable_mc_cnt--)) {
-		frc_set_mc_bypass(0);
+	if (state_st->mc_byp_switch_off) {
+		frc_set_mc_bypass_rdma(0);
+		state_st->bypass_chg = true;
+		state_st->mc_byp_switch_off = false;
 		dbg_h2("enable mc\n");
 	}
-
-	if (!enable_mc_link && !is_vd1_link)
-		manual_disable_link = true;
 
 	if (display_ready && frc_top->fw_pause == 0 &&
 		pfw_data->pre_vsync_irq_handler && (dpss_dbg_irq_ko & C_BIT0))
 		pfw_data->pre_vsync_irq_handler(pfw_data);
 
-	if (state_st->need_switch_to_vd1 || state_st->mc_bypass || manual_disable_link ||
-	    !state_st->dpss_reg) {
-		//dpss_rdma_auto_wr_reg(DPSS_DPE_MC_PHASE, 0);
-		wr(DPSS_DPE_MC_PHASE, 0);
-		dbg_f2("set mc phase 0 (mcbypass:%d, need_to vd1:%d, disable_link:%d)\n",
-			state_st->mc_bypass, state_st->need_switch_to_vd1, manual_disable_link);
-		state_st->mc_set_phase0 = true;
-	}
-	if (state_st->cut_pre_mc_work == 1) {
-		wr(DPSS_DPE_MC_PHASE, 0);
-		dbg_f2("only for cut set phase0)\n");
-		state_st->cut_pre_mc_work = 0;
-	}
-
 	if (state_st->mc_bypass && state_st->have_update_vfcd &&
 		!state_st->mc_bypass_always && frc_top->memc_enable) {
 		if (state_st->mc_bypass_cnt) {
-			dbg_f2("mc_bypass_cnt = %d\n", state_st->mc_bypass_cnt);
 			state_st->mc_bypass_cnt--;
-		} else if (!state_st->force_disable_check_fallback && state_st->check_fallback) {
-			dbg_f2("need check fallback=%d\n", state_st->check_fallback);
-		} else {
-			frc_set_mc_bypass(0);
+		} else if (fallback_st == 0) {
+			frc_set_mc_bypass_rdma(0);
 			state_st->mc_bypass = false;
-			dbg_f2("mc bypass set 0\n");
+			state_st->bypass_chg = true;
 		}
 	}
 
-	dbg_f2("mc_phase=%3d, mc_bypass=%d, obuf_rdy=%d, display_ready=%d\n",
-		rd(DPSS_DPE_MC_PHASE), state_st->mc_bypass, src0_disp_obuf_rdy, display_ready);
-
-	if (state_st->mc_byp_switch && !state_st->mc_ini_rdma_done) {
-		wr(DPSS_DPE_MC_PHASE, 0);
-		frc_set_mc_bypass(1);
-		dbg_h2("trig byp mc pre\n");
+	if (state_st->mc_byp_switch_on) {
+		frc_set_mc_bypass_rdma(3);
+		state_st->bypass_chg = true;
+		state_st->use_phase0_done = false;
+		dbg_h2("trig byp mc cur\n");
 	}
 
-	if (state_st->mc_ini_rdma_done) {
-		wr(DPSS_DPE_MC_PHASE, 0);
-		frc_set_mc_bypass(3);
-		state_st->mc_byp_switch = false;
-		state_st->mc_ini_rdma_done = false;
+	if (state_st->src_chg) {
+		state_st->mc_byp_switch_on = false;
+		state_st->trig_pos_chg = true;
 		state_st->enable_mc_cnt = dpss_dbg_dae0_byp_cnt + 10;
 
-		// notify alg size chg
-		// frc_top->hsize = dpss_en_pps ? pps_out_w : prm_top->frm_hsize;
-		// frc_top->vsize = dpss_en_pps ? pps_out_h : prm_top->frm_vsize;
-		// frc_top->auto_align_en = 0;
 		if (pps_out_w) {
 			frc_top->hsize = prm_top->is_pps ? pps_out_w : prm_top->frm_hsize;
 			frc_top->vsize = prm_top->is_pps ? pps_out_h : prm_top->frm_vsize;
@@ -2155,13 +1969,36 @@ void irq_pre_vs(void)
 		if (pfw_data->frc_input_cfg)
 			pfw_data->frc_input_cfg(pfw_data);
 
-		dbg_h2("trig byp mc cur\n");
+		dbg_h2("src_chg\n");
 	}
 
-	dbg_h2("mc status(e78c):%x mc phase:%x\n",
-		rd(FRC_MC_HW_CTRL0), rd(DPSS_DPE_MC_PHASE));
+	if (!state_st->dpss_reg || state_st->bypass_chg || state_st->src_chg ||
+			!state_st->use_phase0_done || state_st->need_set_phase0 ||
+			state_st->mc_bypass || !state_st->is_frc_vpp_link ||
+			pchip_st->win_st.cut_win_chg) {
+		DPSS_RDMA_WR_PRE_VS(DPSS_DPE_MC_PHASE, 0);
+		state_st->mc_set_phase0 = true;
+		state_st->bypass_chg = false;
+	} else {
+		state_st->mc_set_phase0 = false;
+	}
+
+	if (state_st->mc_set_phase0 || state_st->dpe_intp_phs == 0)
+		state_st->mc_phase0_rdma = true;
+	else
+		state_st->mc_phase0_rdma = false;
+
+	mc_phase_st = rd(DPSS_DPE_MC_PHASE) & 0xff;
+	dbg_f2("phase0=(%d,%3d,%d), mc_phase=%3d, obuf_rdy=%d, display_ready=%d, pre_vs_cnt=%d\n",
+			state_st->mc_set_phase0, state_st->dpe_intp_phs, state_st->mc_phase0_rdma,
+			mc_phase_st, src0_disp_obuf_rdy, display_ready, frc_int_st->pre_vsync_cnt);
+	dbg_f2("mc_bypass=%d,bypass_cnt=%d,fallback=%d,bypass_chg=%d,trig_pos_chg=%d,mc_link=%d\n",
+		state_st->mc_bypass, state_st->mc_bypass_cnt, fallback_st,
+		state_st->bypass_chg, state_st->trig_pos_chg, state_st->is_frc_vpp_link);
+
 	//don't add  logic after triggle function,add by fxj
-	hw_cfg_dpss_mc_pre_triggle();
+	if (!state_st->trig_pos_chg)
+		hw_cfg_dpss_mc_pre_triggle();
 
 #ifdef USE_FRC_PRE_VS_RDMA
 	// dpss_rdma_auto_wr_reg(reg, val + idx);
@@ -2203,8 +2040,26 @@ void irq_display(void)
 	frc_int_st->frc_vsync_duration = timestamp - frc_int_st->frc_vsync_timestamp;
 	frc_int_st->frc_vsync_timestamp = timestamp;
 	frc_int_st->frc_vsync_cnt++;
+	if (state_st->frc_init) {
+		state_st->frc_init = false;
+		frc_int_st->irq_chk = 0;
+		frc_int_st->irq_chk_flag = 1;
+	}
+	frc_int_st->irq_chk--;
+	if (frc_int_st->irq_chk_flag) {
+		if (frc_int_st->irq_chk != -1) {
+			frc_int_st->irq_chk_err_cnt++;
+			frc_int_st->irq_chk = -1;
+		}
+	} else {
+		if (frc_int_st->irq_chk != 0) {
+			frc_int_st->irq_chk_err_cnt++;
+			frc_int_st->irq_chk = 0;
+		}
+	}
 
-	state_st = &pchip_st->state_st;
+	if (state_st->trig_pos_chg)
+		DPSS_RDMA_WR_VS(DPSS_DPE_MC_START_CTRL, 0x40000042);
 
 	dpss_vsync_reg_monitor();
 	if (frc_ocnt_status)
@@ -2221,11 +2076,11 @@ void irq_display(void)
 		cfg_dpss_mc_ini(prm_top, 1);
 		state_st->src_chg = 0;
 		state_st->mc_ini_rdma_done = true;
-		update_frc_state();
-		dbg_h2("%s mc update pre_idx:%d, cur_idx:%d\n",
-			__func__,
-			state_st->mc_disp_st.disp_idx,
-			state_st->mc_cur_idx);
+		state_st->use_phase0_done = true;
+//		update_frc_state();
+		dbg_h2("mc update pre_idx:%d, cur_idx:%d\n",
+			state_st->mc_disp_st.disp_pre_idx,
+			state_st->mc_disp_st.wr_cur_idx);
 	}
 
 	if (frc_top->fw_pause == 0 && (dpss_dbg_irq_ko & C_BIT4)) {
@@ -2254,14 +2109,13 @@ u32 fnr_dpe_obuf_rls_ini;
 void irq_inp(void)
 {
 	unsigned int inp_cnt;
-	unsigned int inp_film_mode_fw = rd(FRC_REG_PHS_TABLE) & 0xff;
-	unsigned int inp_film_phse_fw = (rd(FRC_REG_FILM_PHS_2) >> 16) & 0xff;
-	unsigned int frc_reg_film_phs_1 = rd(FRC_REG_FILM_PHS_1);
-	unsigned int inp_film_mode_hw = (frc_reg_film_phs_1 >> 8) & 0xff;
-	unsigned int inp_film_phs_hw = (frc_reg_film_phs_1) & 0xff;
+	unsigned int inp_film_mode_fw;
+	unsigned int inp_film_phse_fw;
+	unsigned int frc_reg_film_phs_1;
+	unsigned int inp_film_mode_hw;
+	unsigned int inp_film_phs_hw;
 
 	u32 inp_ofrm_vld = 0;
-	u32 inp_ofrm_vld_fw = 0;
 	unsigned int dpss_frc_inp_buf_fid = 0;
 	unsigned int inp_org_in = 0;
 	unsigned int inp_in = 0;
@@ -2306,6 +2160,12 @@ void irq_inp(void)
 		frc_int_st->inp_max_duration = frc_int_st->inp_duration;
 	frc_int_st->inp_timestamp = timestamp;
 	frc_int_st->inp_int_cnt++;
+
+	inp_film_mode_fw = rd(FRC_REG_PHS_TABLE) & 0xff;
+	inp_film_phse_fw = (rd(FRC_REG_FILM_PHS_2) >> 16) & 0xff;
+	frc_reg_film_phs_1 = rd(FRC_REG_FILM_PHS_1);
+	inp_film_mode_hw = (frc_reg_film_phs_1 >> 8) & 0xff;
+	inp_film_phs_hw = (frc_reg_film_phs_1) & 0xff;
 
 	dpss_frc_inp_buf_fid = rd(DPSS_FRC_INP_BUF_FID);
 	inp_org_in = (dpss_frc_inp_buf_fid >> 16) & 0xf;
@@ -2376,10 +2236,6 @@ void irq_inp(void)
 			if (frc_top->fw_pause == 0 && pfw_data->inp_irq_handler &&
 				(dpss_dbg_irq_ko & C_BIT8)) {
 				inp_ofrm_vld = pfw_data->inp_irq_handler(pfw_data);
-			} else {
-				inp_ofrm_vld_fw = hw_set_inp_loop_tab_switch(inp_film_mode_hw,
-					inp_film_phs_hw);
-				config_inp_ofrm_flg_fw(inp_ofrm_vld_fw);
 			}
 			if (prm_top->inp_done_int == 1 &&
 				(prm_top->sw_tbc_ctrl_en == 1 ||
@@ -2423,12 +2279,7 @@ void irq_inp(void)
 			if (frc_top->fw_pause == 0 && pfw_data->inp_irq_handler &&
 				(dpss_dbg_irq_ko & C_BIT8)) {
 				inp_ofrm_vld = pfw_data->inp_irq_handler(pfw_data);
-			} else {
-				inp_ofrm_vld_fw = hw_set_inp_loop_tab_switch(inp_film_mode_hw,
-					inp_film_phs_hw);
-				config_inp_ofrm_flg_fw(inp_ofrm_vld_fw);
 			}
-
 			if (prm_top->inp_done_int == 1 &&
 				(prm_top->sw_tbc_ctrl_en == 1 ||
 				prm_top->sw_buf_rls_en == 1))
@@ -2527,8 +2378,6 @@ void irq_dae0(void)
 	struct PRM_DPSS_TOP *prm_top = prm_dpss_top;
 	struct PRM_DPSS_DAE *prm_dae = prm_dpss_dae;
 	u64 timestamp = sched_clock();
-	u32 reg_val, frc_input_n, frc_output_m, frc_film_mode_hw;
-	u32 dae_ofrm_step = 128;
 
 	enum DPSS_FILM_MODE dae_film_mode = (enum DPSS_FILM_MODE)(rd(FRC_FRC_DAE_STATUS) & 0xff);
 
@@ -2665,14 +2514,6 @@ void irq_dae0(void)
 
 	if (frc_top->fw_pause == 0 && pfw_data->dae_irq_handler && (dpss_dbg_irq_ko & C_BIT12)) {
 		pfw_data->dae_irq_handler(pfw_data);
-	} else {
-		reg_val = rd(FRC_REG_PHS_TABLE);
-		frc_input_n  = (reg_val >> 24) & 0xff;
-		frc_output_m = (reg_val >> 16) & 0xff;
-		frc_film_mode_hw = (rd(FRC_REG_FILM_PHS_1) >> 8) & 0xff;
-		dae_ofrm_step = hw_set_step_switch(frc_film_mode_hw);
-		dae_ofrm_step = DIV((dae_ofrm_step * frc_input_n) << 16, frc_output_m) >> 4;
-		config_dae_ofrm_step_at_dae_site_fw(dae_ofrm_step);
 	}
 	// hw_config_dae_loop_tab(prm_dpss_top.frc_ratio, dae_film_mode, 0);
 

@@ -46,9 +46,9 @@
 #define DPSS_PIP_CHANNEL	1
 //#define DI_PLINK_CN_NUB       4
 /*****************************************/
-#define DPSS_DPS_NUB	(7)	//tmp
-#define DPSS_HW_LOOP_IN_OUT_BUF_NUB (7)	//0 ~ 15
-#define DPSS_SML_NUB  (7)  // frc only need set to 8
+#define DPSS_DPS_NUB	(8)	//tmp
+#define DPSS_HW_LOOP_IN_OUT_BUF_NUB (8)	//0 ~ 15
+#define DPSS_SML_NUB  (8)  // frc only need set to 8
 #define DPSS_DMS_NUB  (2)  // dms only need set to 2
 #define DPSS_SML_FRC_NUB  (8)   // frc_only =8
 #define DPSS_RDMA_RAM_NUB	(10)

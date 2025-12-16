@@ -1249,11 +1249,6 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 	u32 v_limit = 540;
 	static u16 pre_me_hsize, pre_me_vsize;
 
-	dbg_h2("%s:dae_mode0 = %d, prm_dpss_dae:0x%px\n", __func__,
-					dae_mode, prm_dae);
-
-	dbg_h2("nr_hscale_on=%d dae_hpps_en=%d\n\n", prm_top->nr_hscale_on, dae_hpps_en);
-
 	w_reg_bit(VPU_DAE_WRAP_CTRL, src_is_byps, 31, 1);//reg_dae_byps
 	if (src_is_byps) {
 		dbg_f2("dae0 bypass\n");
@@ -1275,8 +1270,6 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 		org_vsize    = dpe_pps_en ?
 			prm_top->dpe_mc_size.frm_vsize : prm_top->frm_vsize;
 	}
-	dbg_i0("%s:is_pps prm_top->nr_aapps_up ch=%d =%d,=%d,=%d\n", __func__,
-		prm_top->ch, pps->pps_en, org_hsize, org_vsize);
 
 	u32 me_dsx        = prm_top->dpe_dw_dsx;
 	u32 me_dsy        = prm_top->dpe_dw_dsy;
@@ -1299,9 +1292,7 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 		me_hsize = (me_hsize + 3) / 4 * 4;
 		me_vsize = (me_vsize + 3) / 4 * 4;
 	}
-	dbg_h2("\tinp<%d,%d>, mix_ds_en:<%d,%d> v_limit:%d\n", inp_hsize,
-		inp_vsize, reg_mix_hds_en, reg_mix_vds_en, v_limit);
-	dbg_h2("\tme_size:<%d,%d>\n", me_hsize, me_vsize);
+
 	u32 me_blk_hsize  = (me_hsize + 3) >> 2;
 	u32 me_blk_vsize  = (me_vsize + 3) >> 2;
 	//u32 mvx_div_mode  = prm_top->mvx_div_mode;
@@ -1318,7 +1309,13 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 	prm_size_ext->me_blk_hsize    = me_blk_hsize;
 	prm_size_ext->me_blk_vsize    = me_blk_vsize;
 	prm_dae->prm_size         = *prm_size_ext;
-	dbg_h2("%s:prm_dpss_dae: update prm_size\n", __func__);
+
+	if (pre_me_hsize != me_hsize || pre_me_vsize != me_vsize) {
+		ini_cfg_frc_dae = 0;
+		pre_me_hsize = me_hsize;
+		pre_me_vsize = me_vsize;
+		dbg_h2("me size chg\n");
+	}
 
 	if (pre_me_hsize != me_hsize || pre_me_vsize != me_vsize) {
 		ini_cfg_frc_dae = 0;
@@ -1351,9 +1348,6 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 	u32 dae_frc_loop = mc_dae_proc_st == 3 ? 0 :
 				nr_dae_proc_st == 3 ? 1 :
 				di_dae_proc_st == 3 ? 2 : 0;
-
-	dbg_h2("%s:reg:st:mc=0x%x, nr=0x%x, di = 0x%x\n", __func__,
-		mc_dae_proc_st, nr_dae_proc_st, di_dae_proc_st);
 
 	u32 nr_frc_link = (dae_frc_loop == 0x0) &&
 				(prm_top->dpss_mode == DPSS_FRC_NR_MODE ||
@@ -1388,9 +1382,6 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 				dae_frc_loop == 1 ? nr_rd_idx :
 				dae_frc_loop == 2 ? di_rd_idx : 0;
 
-	dbg_h2("%s:reg:idx:mc=0x%x, nr=0x%x, di = 0x%x, cur=0x%x\n", __func__,
-		mc_rd_idx, nr_rd_idx, di_rd_idx, cur_rd_idx);
-
 	u32 luma_raddr = luma_baddr_x16[cur_rd_idx] << 5;
 	u32 chrm_raddr = chrm_baddr_x16[cur_rd_idx] << 5;
 
@@ -1404,9 +1395,6 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 	//Augustine: add for mif mmu mode
 	prm_dae->dae_yuv_mif.src_baddr[0] = luma_raddr << 4;
 	prm_dae->dae_yuv_mif.src_baddr[1] = chrm_raddr << 4;
-
-	dbg_h2("dae_frc_loop=%d cur_rd_idx=%d\n", dae_frc_loop, cur_rd_idx);
-	dbg_h2("luma_raddr=0x%x chrm_raddr=0x%x\n", luma_raddr, chrm_raddr);
 
 	if (dae_mode == DAE_FRC_MODE)
 		dae_yuv = prm_dae->ext_yuv_intf;
@@ -1501,7 +1489,6 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 
 	// need reflash with set 0 in dae0 irq
 	w_reg_bit(FRC_ME_TOP_CTRL2, 0, 16, 1);	//for p source read PD
-	dbg_h2("%s:prm_dpss_dae0:%x\n", __func__, rd(FRC_ME_TOP_CTRL2));
 
 	ini_cfg_frc_dae++;
 	if (ini_cfg_frc_dae > 2 && frc_melogo_en == 0) {
@@ -1787,7 +1774,6 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 //==============================================================//
 	dpss_dae_rdmif_cfg_brst_len(2); //(u32 burst_len): 2 : brst4, 1: brst2
 	dpss_dae_wrmif_cfg_brst_len(2); //(u32 burst_len): 2 : brst4, 1: brst2
-	dbg_w2("%s frc end, cnt:%d\n", "dae0", ini_cfg_frc_dae);//tmp for sim
 }
 
 //ME_LBUF
