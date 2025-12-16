@@ -112,11 +112,6 @@ module_param(scatter_debug_mode, int, 0644);
 #define MAX_SID (SID_MASK - 1)
 #define MAX_HASH_SID (MAX_SID - 1)
 
-#define SCATTER_ALLOC_FROM_DEFAULT	0
-#define SCATTER_ALLOC_FROM_SYS		1
-#define SCATTER_ALLOC_FROM_CMA		2
-#define SCATTER_ALLOC_FROM_MIXED	3
-
 #define ADDR_SEED(paddr) (((paddr) >> (MAX_ADDR_SHIFT << 1)) +\
 					((paddr) >> MAX_ADDR_SHIFT) +\
 					(paddr))
@@ -222,6 +217,7 @@ struct codec_mm_scatter_mgt {
 	u32 reserved_block_mm_M;
 	u32 keep_size_PAGE;
 	int mem_flags;
+	u32 scatter_alloc_mode;
 
 	int alloc_from_sys_sc_cnt;
 	int alloc_from_sys_page_cnt;
@@ -3677,15 +3673,33 @@ static void codec_mm_scatter_monitor(struct work_struct *work)
 	mutex_unlock(&smgt->monitor_lock);
 }
 
-static u32 codec_mm_scatter_get_reserved_block_size(void)
+static u32 codec_mm_get_scatter_alloc_mode(struct codec_mm_scatter_mgt *smgt)
 {
-	u32 ret, reserved_block_size;
 	int alloc_mode =
 		codec_mm_get_property_from_dts("scatter_alloc_mode");
-	u32 total_size = codec_mm_get_total_size() / SZ_1M;
 
 	if (alloc_mode < 0)
 		alloc_mode = SCATTER_ALLOC_FROM_DEFAULT;
+
+	return alloc_mode;
+}
+
+enum scatter_source codec_mm_scatter_source_check(int is_secure)
+{
+	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt(0);
+
+	if (is_secure || smgt->no_alloc_from_sys)
+		return SCATTER_ALLOC_FROM_CMA;
+
+	return smgt->scatter_alloc_mode;
+}
+EXPORT_SYMBOL(codec_mm_scatter_source_check);
+
+static u32 codec_mm_scatter_get_reserved_block_size(struct codec_mm_scatter_mgt *smgt)
+{
+	u32 ret, reserved_block_size;
+	int alloc_mode = smgt->scatter_alloc_mode;
+	u32 total_size = codec_mm_get_total_size() / SZ_1M;
 
 	switch (alloc_mode) {
 	case SCATTER_ALLOC_FROM_SYS:
@@ -3735,7 +3749,8 @@ static int codec_mm_scatter_mgt_alloc_in(struct codec_mm_scatter_mgt **psmgt)
 	smgt->try_alloc_in_sys_page_cnt_max = MAX_SYS_BLOCK_PAGE;
 	smgt->try_alloc_in_sys_page_cnt = MAX_SYS_BLOCK_PAGE;
 	smgt->try_alloc_in_sys_page_cnt_min = MIN_SYS_BLOCK_PAGE;
-	smgt->reserved_block_mm_M = codec_mm_scatter_get_reserved_block_size();
+	smgt->scatter_alloc_mode = codec_mm_get_scatter_alloc_mode(smgt);
+	smgt->reserved_block_mm_M = codec_mm_scatter_get_reserved_block_size(smgt);
 	smgt->keep_size_PAGE = is_2k_platform() ?
 		CACHED_SIZE_DEF_1080P >> PAGE_SHIFT : CACHED_SIZE_DEF_4K >> PAGE_SHIFT;
 	smgt->alloc_from_cma_first = 1;

@@ -101,6 +101,14 @@ enum e_mmu_alloc_status {
 		MMU_ALLOC_START_LOCK_DONE,
 };
 
+enum scatter_source {
+	SCATTER_ALLOC_FROM_DEFAULT = 0,
+	SCATTER_ALLOC_FROM_SYS,
+	SCATTER_ALLOC_FROM_CMA,
+	SCATTER_ALLOC_FROM_MIXED,
+	SCATTER_ALLOC_FROM_MAX,
+};
+
 int codec_mm_scatter_free_all_pages(struct codec_mm_scatter *mms);
 
 int codec_mm_scatter_free_tail_pages(struct codec_mm_scatter *mms,
@@ -134,5 +142,7 @@ u32 codec_mm_scatter_get_slot_size(bool is_tvp);
 
 int codec_mm_scatter_set_limited_size(u32 owner_id,
 	u32 limited_size, int is_tvp);
+
+enum scatter_source codec_mm_scatter_source_check(int is_secure);
 
 #endif
