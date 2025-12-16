@@ -1064,3 +1064,13 @@ void switch_vf(struct video_recv_s *ins, bool switch_flag)
 	ins->switch_vf = switch_flag;
 	pr_info("set switch_flag %d\n", switch_flag);
 }
+
+__weak struct vframe_s *get_vfm_from_frc(void)
+{
+	return NULL;
+}
+
+__weak void *put_vfm_to_frc(struct vframe_s *vfm)
+{
+	return NULL;
+}
