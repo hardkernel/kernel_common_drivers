@@ -2085,13 +2085,15 @@ void init_cec_port_info(struct hdmi_port_info *port,
 		phy_addr = 0;
 	}
 
-	/* found physical address append for repeator */
-	for (a = 0; a < 4; a++) {
-		if (phy_addr & phy_head) {
-			phy_head >>= 4;
-			phy_app  >>= 4;
-		} else {
-			break;
+	if (phy_addr != 0) {
+		/* found physical address append for repeator */
+		for (a = 0; a < 4; a++) {
+			if (phy_addr & phy_head) {
+				phy_head >>= 4;
+				phy_app  >>= 4;
+			} else {
+				break;
+			}
 		}
 	}
 
