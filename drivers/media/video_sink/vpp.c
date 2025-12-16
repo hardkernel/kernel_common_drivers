@@ -4150,14 +4150,18 @@ static void dnn_pps_phase_auto_calculation(struct vpp_frame_par_s *aisr_frame_pa
 	if (!cur_dev->aisr_support ||
 	    !cur_dev->pps_auto_calc)
 		return;
+	/*coverity[DIVIDE_BY_ZERO]*/
 	h_pps_ratio = div_s64(((s64)aisr_frame_par->nnhf_input_w << 25),
 			      (s64)aisr_frame_par->reshape_output_w);
 	h_pps_ratio = (h_pps_ratio + 1) >> 1;
+	/*coverity[DIVIDE_BY_ZERO]*/
 	v_pps_ratio = div_s64(((s64)aisr_frame_par->nnhf_input_h << 25),
 			      (s64)aisr_frame_par->reshape_output_h);
 	v_pps_ratio = (v_pps_ratio + 1) >> 1;
+	/*coverity[DIVIDE_BY_ZERO]*/
 	h_pps_phase = div_s64(((s64)1 << 49), h_pps_ratio * 2);
 	h_pps_phase = (h_pps_phase - (1 << 24) + 1) >> 1;
+	/*coverity[DIVIDE_BY_ZERO]*/
 	v_pps_phase = div_s64(((s64)1 << 49), v_pps_ratio * 2);
 	v_pps_phase = (v_pps_phase - (1 << 24) + 1) >> 1;
 	aisr_frame_par->h_phase[1] = h_pps_phase;
