@@ -1040,7 +1040,7 @@
 			 * bit9:use 10bit at 4k_50/60hz_10bit
 			 * bit10: support 10bit when double write
 			 */
-			tv_bit_mode = <0x215>;
+			tv_bit_mode = <0x235>;
 			/* afbce_bit_mode: (amlogic frame buff compression encoder)
 			 * bit0 -- enable afbce
 			 * bit1 -- enable afbce compression-lossy
@@ -1087,7 +1087,10 @@
 			 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
 			 */
 			vdin_id = <1>;
+			clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
+				clock-names = "fclk_div5", "cts_vdin_meas_clk";
 			tv_bit_mode = <0x15>;
+			chk_wr_done_en;
 			/* vdin v4l2 */
 			v4l_support_en = <0>;
 			v4l_vd_num = <71>;

@@ -3371,12 +3371,13 @@
 		/* afbce_bit_mode: (amlogic frame buff compression encoder)
 		 * bit0 -- enable afbce
 		 * bit1 -- enable afbce compression-lossy
+		 * bit2 -- enable afbce 422-12bit
 		 * bit4 -- afbce for 4k
 		 * bit5 -- afbce for 1080p 1080i
 		 * bit6 -- afbce for 720p
 		 * bit7 -- afbce for smaller resolution
 		 */
-		afbce_bit_mode = <0x71>;
+		afbce_bit_mode = <0x75>;
 		vdin_function_sel = <0x420200>;
 		chk_wr_done_en;
 		lossy_mode = <0x0>; /* 0x0:quan_lossy 0x1:cr_lossy */
@@ -3385,7 +3386,7 @@
 		double_write_en;
 		/* dbg_no_wr_check; */
 		/* vdin v4l2 */
-		v4l_support_en = <0>;
+		v4l_support_en;
 		v4l_vd_num = <70>;
 		/* v4l2 capability */
 		driver   = "vdinvideo";
@@ -3457,8 +3458,8 @@
 		/* urgent_en; */
 		double_write_en;
 		/* vdin v4l2 */
-		v4l_support_en = <0>;
-		v4l_vd_num = <70>;
+		v4l_support_en;
+		v4l_vd_num = <72>;
 		/* v4l2 capability */
 		driver   = "vdinvideo";
 		bus_info = "vdin1 v4l2";
@@ -3489,11 +3490,11 @@
 		vdin_export_id = <1>;
 		tv_bit_mode = <0x15>;
 		/* vdin v4l2 */
-		v4l_support_en = <0>;
+		v4l_support_en;
 		v4l_vd_num = <71>;
 		/* v4l2 capability */
 		driver   = "vdinvideo";
-		bus_info = "vdin1 v4l2";
+		bus_info = "vdin2 v4l2";
 		version  = <0x20220120>;
 		/* fe_ports refer to tvin.h */
 		fe_ports = <0x0000a002   /* WB0_VD1 */

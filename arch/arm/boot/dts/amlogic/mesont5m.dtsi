@@ -1154,9 +1154,9 @@
 			interrupt-names = "vsync_int"/*, "vpu_crash_int",*/
 					/*"write_done_int"*/;
 			rdma-irq = <4>;
-			vdin_id = <1>;
 			clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
 				clock-names = "fclk_div5", "cts_vdin_meas_clk";
+			vdin_id = <1>;
 			tv_bit_mode = <0x15>;
 			/* vdin v4l2 */
 			v4l_support_en = <0>;

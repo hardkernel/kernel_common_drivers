@@ -1792,10 +1792,6 @@
 		interrupts = <0 212 1>;
 		interrupt-names = "vsync_int";
 		rdma-irq = <4>;
-		/*clocks = <&clkc CLKID_FCLK_DIV5>,
-		 *	<&clkc CLKID_VDIN_MEAS>;
-		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
-		 */
 		vdin_id = <1>;
 		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
 		clock-names = "fclk_div5", "cts_vdin_meas_clk";
