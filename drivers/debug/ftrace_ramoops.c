@@ -57,7 +57,7 @@ __setup("ramoops_io_blacklist=", ramoops_io_blacklist_setup);
 
 static unsigned int check_reg[MAX_DETECT_REG];
 static unsigned int check_mask[MAX_DETECT_REG];
-static unsigned int *virt_addr[MAX_DETECT_REG];
+static void __iomem *virt_addr[MAX_DETECT_REG];
 unsigned long old_val_reg[MAX_DETECT_REG];
 
 DEFINE_PER_CPU(bool, frc_iotrace_cut);
@@ -160,7 +160,7 @@ __setup("reg_check_panic=", reg_check_panic_setup);
 void reg_check_init(void)
 {
 	int i;
-	unsigned int *virt_tmp[MAX_DETECT_REG] = {NULL};
+	void __iomem *virt_tmp[MAX_DETECT_REG] = {NULL};
 
 	memcpy(virt_tmp, virt_addr, sizeof(virt_addr));
 
@@ -178,7 +178,7 @@ void reg_check_init(void)
 
 	for (i = 0; i < MAX_DETECT_REG; i++) {
 		if (check_reg[i]) {
-			virt_addr[i] = (unsigned int *)ioremap(check_reg[i], sizeof(unsigned long));
+			virt_addr[i] = ioremap(check_reg[i], 4);
 			if (!virt_addr[i]) {
 				pr_err("Unable to map reg 0x%x\n", check_reg[i]);
 				return;
@@ -190,30 +190,45 @@ void reg_check_init(void)
 	}
 }
 
-void reg_check_func(void)
+void reg_check_func(unsigned long vaddr, unsigned int flag)
 {
 	unsigned int val;
 	unsigned long tmp;
 	unsigned int i = 0;
-	unsigned int *tmp_addr;
+	void __iomem *tmp_addr;
+	unsigned long pfn;
+	unsigned int phys_addr;
 
 	rcu_read_lock();
-	while (i < MAX_DETECT_REG && virt_addr[i]) {
-		tmp_addr = rcu_dereference(virt_addr[i]);
-		if (old_val_reg[i] != -1) {
-			val = *tmp_addr;
-			if ((val & check_mask[i]) != (old_val_reg[i] & check_mask[i])) {
-				tmp = old_val_reg[i];
-				old_val_reg[i] = val;
-				pr_err("phys_addr:0x%x new_val=0x%x old_val=0x%lx\n",
-					check_reg[i], val, tmp);
-				if (!reg_check_panic)
-					dump_stack();
-				else
-					panic("reg_check_panic");
+	while ((i < MAX_DETECT_REG) && check_reg[i]) {
+		if (!check_mask[i]) {
+			if (!is_vmalloc_addr((void *)vaddr))
+				return;
+
+			pfn = vmalloc_to_pfn((void *)vaddr);
+			phys_addr = (pfn << 12) | (vaddr & 0xFFF);
+
+			if (check_reg[i] == phys_addr) {
+				pr_info("access phys register 0x%x\n", phys_addr);
+				dump_stack();
 			}
-		} else {
-			old_val_reg[i] = *tmp_addr;
+		} else if ((flag == RECORD_TYPE_IO_W_END) && check_mask[i] && virt_addr[i]) {
+			tmp_addr = rcu_dereference(virt_addr[i]);
+			if (old_val_reg[i] != -1) {
+				val = readl(tmp_addr);
+				if ((val & check_mask[i]) != (old_val_reg[i] & check_mask[i])) {
+					tmp = old_val_reg[i];
+					old_val_reg[i] = val;
+					pr_err("phys_addr:0x%x new_val=0x%x old_val=0x%lx\n",
+						check_reg[i], val, tmp);
+					if (!reg_check_panic)
+						dump_stack();
+					else
+						panic("reg_check_panic");
+				}
+			} else {
+				old_val_reg[i] = readl(tmp_addr);
+			}
 		}
 		i++;
 	}
@@ -356,8 +371,8 @@ void __nocfi pstore_io_save(unsigned long reg, unsigned long val, unsigned int f
 				offset_in_page(reg);
 	rec.reg_val = (unsigned int)val;
 
-	if (reg_check_flag && flag == RECORD_TYPE_IO_W_END)
-		reg_check_func();
+	if (reg_check_flag)
+		reg_check_func(reg, flag);
 
 #ifdef CONFIG_STACKTRACE
 	if (ramoops_io_stack) {
