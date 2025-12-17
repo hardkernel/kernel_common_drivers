@@ -248,7 +248,7 @@ void videoqueue_pcrscr_update(u8 vpp_index, s32 inc, u32 base)
 
 static inline int DUR2PTS(int y)
 {
-	int var = 0, count = 0;
+	int var = 0;
 	int x = y;
 
 	if (y >= 1915 && y <= 1925) {
@@ -271,8 +271,7 @@ static inline int DUR2PTS(int y)
 		var = x * 15;
 	} else {
 		var = 12012;
-		count = x / 800;
-		var = var * count;
+		var = var * x / 800;
 	}
 
 	return var;
@@ -282,7 +281,7 @@ int get_standard_duration(struct video_queue_dev *dev, int duration_val)
 {
 	int min = INT_MAX;
 	int duration_arr[] = {266, 282, 290, 333, 400, 582, 667, 800, 801,
-		960, 1600, 1601, 1920, 3200, 3203, 3840, 4000, 4004};
+		960, 1600, 1601, 1920, 2000, 3200, 3203, 3840, 4000, 4004};
 	int i = 0, num = 0, diff = 0;
 	int recy_count = sizeof(duration_arr) / sizeof(int);
 
