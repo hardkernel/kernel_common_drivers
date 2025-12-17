@@ -2894,6 +2894,7 @@ void vdin_force_go_filed_t3x(struct vdin_dev_s *devp)
 	wr_bits(devp->index * VDIN_TOP_OFFSET, VDIN0_SYNC_CONVERT_SYNC_CTRL0, 0, 31, 1);
 }
 
+/* t3x t6x */
 void vdin_dolby_addr_update_t3x(struct vdin_dev_s *devp, unsigned int index)
 {
 	unsigned int offset = devp->addr_offset;
@@ -2902,6 +2903,8 @@ void vdin_dolby_addr_update_t3x(struct vdin_dev_s *devp, unsigned int index)
 
 	if (index >= devp->canvas_max_num)
 		return;
+	if (devp->dtdata->hw_ver == VDIN_HW_T6X)
+		offset += VDIN0_META_REG_OFFSET;
 	devp->vfp->dv_buf[index] = NULL;
 	devp->vfp->dv_buf_size[index] = 0;
 	p = (u32 *)devp->vfp->dv_buf_vmem[index];
@@ -2930,10 +2933,14 @@ void vdin_dolby_addr_update_t3x(struct vdin_dev_s *devp, unsigned int index)
 	}
 }
 
+/* t3x t6x */
 void vdin_dolby_config_t3x(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 	unsigned int value = 0;
+
+	if (devp->dtdata->hw_ver == VDIN_HW_T6X)
+		offset += VDIN0_META_REG_OFFSET;
 
 	devp->dv.dv_config = 1;
 	devp->dv.dv_path_idx = devp->index;
@@ -2961,10 +2968,16 @@ void vdin_dolby_config_t3x(struct vdin_dev_s *devp)
 		wr_bits(offset, VDIN0_META_AXI_CTRL0, 0, 5, 1);
 		wr_bits(offset, VDIN0_META_AXI_CTRL0, 0, 4, 1);
 		/*enable wr memory*/
-		vdin_dolby_mdata_write_en_t3x(offset, 1);
+		if (devp->dtdata->hw_ver == VDIN_HW_T6X)
+			vdin_dolby_mdata_write_en_t6x(offset, 1);
+		else
+			vdin_dolby_mdata_write_en_t3x(offset, 1);
 	} else {
 		/*disable wr memory*/
-		vdin_dolby_mdata_write_en_t3x(offset, 0);
+		if (devp->dtdata->hw_ver == VDIN_HW_T6X)
+			vdin_dolby_mdata_write_en_t6x(offset, 0);
+		else
+			vdin_dolby_mdata_write_en_t3x(offset, 0);
 		value  = 0;
 		value |= (0 << 31);/* reg_meta_rd_en */
 		value |= (1 << 30);/* reg_meta_rd_mode */

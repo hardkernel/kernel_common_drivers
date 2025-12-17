@@ -2635,23 +2635,23 @@ void vdin_set_wr_ctrl_vsync(struct vdin_dev_s *devp,
 	if (rdma_enable) {
 		if (devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) {
 			rdma_write_reg(devp->rdma_handle,
-				VDIN0_WRMIF_LUMA_CTRL1 + devp->addr_offset, stride_luma);
+				VDIN0_WRMIF_LUMA_CTRL1 + offset, stride_luma);
 			rdma_write_reg(devp->rdma_handle,
-				VDIN0_WRMIF_CHRM_CTRL1 + devp->addr_offset, stride_chroma);
+				VDIN0_WRMIF_CHRM_CTRL1 + offset, stride_chroma);
 			rdma_write_reg_bits(devp->rdma_handle,
-				VDIN0_WRMIF_CTRL1 + devp->addr_offset,
+				VDIN0_WRMIF_CTRL1 + offset,
 				t6d_wrmif_fmt, 26, 2);
 			rdma_write_reg_bits(devp->rdma_handle,
-				VDIN0_WRMIF_CTRL1 + devp->addr_offset,
+				VDIN0_WRMIF_CTRL1 + offset,
 				reg_pix_separate, 25, 1);
 			rdma_write_reg_bits(devp->rdma_handle,
-				VDIN0_WRMIF_CTRL1 + devp->addr_offset,
+				VDIN0_WRMIF_CTRL1 + offset,
 				hconv_mode, 20, HCONV_MODE_WID);
 			rdma_write_reg_bits(devp->rdma_handle,
-				VDIN0_WRMIF_CTRL1 + devp->addr_offset,
+				VDIN0_WRMIF_CTRL1 + offset,
 				vconv_mode, 22, VCONV_MODE_WID);
 			rdma_write_reg_bits(devp->rdma_handle,
-				VDIN0_WRMIF_CTRL1 + devp->addr_offset,
+				VDIN0_WRMIF_CTRL1 + offset,
 				swap_cbcr, 24, SWAP_CBCR_WID);
 		} else if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
 			rdma_write_reg(devp->rdma_handle,
