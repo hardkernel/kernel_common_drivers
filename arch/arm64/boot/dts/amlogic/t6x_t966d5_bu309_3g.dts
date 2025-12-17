@@ -115,6 +115,7 @@
 			/* 1080p TV androidU size 88M */
 			size = <0x0 0x5800000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x80000000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
@@ -122,6 +123,7 @@
 			/* 1080p TV androidU size 28M */
 			size = <0x0 0x1c00000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x80000000>;
 		};
 		dmaheap_secure_reserved:heap-secure {
 			compatible = "shared-dma-pool";
