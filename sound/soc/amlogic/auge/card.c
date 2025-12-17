@@ -1527,16 +1527,14 @@ static int panic_notifier_to_audio(struct notifier_block *self,
 {
 	struct aml_card_data *priv = container_of(self, struct aml_card_data,
 						   notifier);
-	struct device *dev = aml_priv_to_dev(priv);
 
-	priv->av_mute_enable = 1;
-	priv->spk_mute_enable = 1;
-	aml_card_parse_gpios(dev->of_node, priv);
+	/*note: spk dts is mute flag*/
+	if (!IS_ERR_OR_NULL(priv->spk_mute))
+		gpiod_direction_output(priv->spk_mute, GPIOF_OUT_INIT_HIGH);
+	if (!IS_ERR_OR_NULL(priv->avout_mute_desc))
+		gpiod_direction_output(priv->avout_mute_desc,
+			GPIOF_OUT_INIT_LOW);
 
-	if (priv->thread) {
-		kthread_stop(priv->thread);
-		priv->thread = NULL;
-	}
 	return NOTIFY_DONE;
 }
 #endif
