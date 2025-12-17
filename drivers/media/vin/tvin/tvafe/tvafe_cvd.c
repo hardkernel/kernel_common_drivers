@@ -144,7 +144,7 @@ enum AUDIO_IF atv_aif = AIF_MAX;
 /*1:force nonstandard configure every loop*/
 /*2:nonstandard configure once*/
 /*3:force don't nonstandard configure*/
-enum tvafe_no_std_config_e force_nostd = FORCE_CONFIG_ONCE;
+enum tvafe_no_std_config_e force_nostd = NO_CONFIG;
 
 static int ignore_pal_nt;
 
