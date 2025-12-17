@@ -1304,6 +1304,13 @@ usbphy0: usbphy0@ffe09000 {
 		};
 	};
 
+	smmu: aml_smmu {
+		compatible = "amlogic,smmu";
+		status = "disabled";
+		#iommu-cells = <1>;
+		memory-region = <&pcie_dma_ops_mm>;
+	};
+
 	pcie_A: pcie@fc000000 {
 		compatible = "amlogic, amlogic-pcie-v2", "snps,dw-pcie";
 		reg = <0x0 0xfc000000 0x0 0x400000
@@ -1343,7 +1350,7 @@ usbphy0: usbphy0@ffe09000 {
 		pcie-apb-rst-bit = <15>;
 		pcie-phy-rst-bit = <14>;
 		pcie-ctrl-rst-bit = <12>;
-		pwr-ctl = <1>;
+		power-domains = <&pwrdm PWRC_SM1_PCIE_ID>;
 		status = "disabled";
 	};
 
