@@ -495,7 +495,7 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 			}
 		}
 
-		if (prxcap->native_Mode & (1 << 5)) {
+		if (prxcap->native_Mode & CAP_BIT5_YCBCR_444_MASK) {
 			if (prxcap->dc_y444) {
 				if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2)
 					seq_puts(s, "444,12bit\n");
@@ -505,7 +505,7 @@ int hdmirx_info_show(struct seq_file *s, void *v)
 			seq_puts(s, "444,8bit\n");
 		}
 		/* y422, not check dc */
-		if (prxcap->native_Mode & (1 << 4))
+		if (prxcap->native_Mode & CAP_BIT4_YCBCR_422_MASK)
 			seq_puts(s, "422,12bit\n");
 
 		if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2)

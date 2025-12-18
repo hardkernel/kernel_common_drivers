@@ -400,7 +400,7 @@ bool meson_tx_edid_validate_color(struct tx_timing *timing,
 		if (cs == HDMI_COLORSPACE_YUV444) {
 			enum hdmi_color_depth rx_y444_max_dc = COLORDEPTH_24B;
 			/* Rx may not support Y444 */
-			if (!(rx_cap->native_Mode & (1 << 5)))
+			if (!(rx_cap->native_Mode & CAP_BIT5_YCBCR_444_MASK))
 				return true;
 			if (rx_cap->dc_y444 && (rx_cap->dc_30bit ||
 				dv->sup_10b_12b_444 == 0x1))
@@ -413,7 +413,7 @@ bool meson_tx_edid_validate_color(struct tx_timing *timing,
 				return true;
 		} else if (cs == HDMI_COLORSPACE_YUV422) {
 			/* Rx may not support Y422 */
-			if (rx_cap->native_Mode & (1 << 4))
+			if (rx_cap->native_Mode & CAP_BIT4_YCBCR_422_MASK)
 				return true;
 		} else if (cs == HDMI_COLORSPACE_RGB) {
 			enum hdmi_color_depth rx_rgb_max_dc = COLORDEPTH_24B;
