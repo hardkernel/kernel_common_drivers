@@ -709,8 +709,8 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 						addr_t3[i] = (unsigned int)(laddr_y >> 9);
 						addr_t4[i] = (unsigned int)(laddr_uv >> 9);
 
-						laddr_y = pch->c.addr_lc[i];
-						laddr_uv = pch->c.addr_lc_uv[i];
+						laddr_y = pch->c.addr_lc[b_idx];
+						laddr_uv = pch->c.addr_lc_uv[b_idx];
 						addr_t1[i] = (unsigned int)(laddr_y >> 9);
 						addr_t2[i] = (unsigned int)(laddr_uv >> 9);
 					} else {
@@ -718,8 +718,8 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 						laddr_uv = pch->c.addr_nr_uv[b_idx];
 						addr_t1[i] = (unsigned int)(laddr_y >> 9);  //test1
 						addr_t2[i] = (unsigned int)(laddr_uv >> 9);
-						laddr_y = pch->c.addr_lc[i];
-						laddr_uv = pch->c.addr_lc_uv[i];
+						laddr_y = pch->c.addr_lc[b_idx];
+						laddr_uv = pch->c.addr_lc_uv[b_idx];
 						addr_t3[i] = (unsigned int)(laddr_y >> 9);//test1
 						addr_t4[i] = (unsigned int)(laddr_uv >> 9);
 					}
@@ -2187,7 +2187,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 			pch->c.o_afbc = 0;
 	}
 
-	if (dpss_nr_debug)
+	if (dpss_nr_debug == 1)
 		pch->c.o_afbc = 0;
 
 	dbg_i1("%s:is_4k: %d, o_afrc: %d, afrc_bs : %d.%d\n",
@@ -2270,14 +2270,14 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 		else
 			pch->d->is_top_first = true;
 		if (dpss_nr_debug) {
-			dpss_nr_debug = 0;
-			dpss_force_nr_debug = 1;
+			dpss_nr_debug = 2;
+			//dpss_force_nr_debug = 1;
 		}
 	} else {
 		pch->d->is_i = false;
 		prm_top->is_i = false;
-		if (dpss_force_nr_debug) {
-			dpss_force_nr_debug = 0;
+		if (dpss_nr_debug) {
+			//dpss_force_nr_debug = 0;
 			dpss_nr_debug = 1;
 		}
 	}

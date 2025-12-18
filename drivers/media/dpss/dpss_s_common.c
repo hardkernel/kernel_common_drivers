@@ -2451,7 +2451,7 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 		vfm->height = pps_out_h;
 	}
 
-	if (prm_top->vds_4k1k_en || dpss_force_nr_debug) {
+	if (prm_top->vds_4k1k_en || dpss_force_nr_debug || dpss_nr_debug == 2) {
 		vfm->height = vfm->height >> 1;
 		vfm->canvas0_config[0].height = vfm->canvas0_config[0].height >> 1;
 	}
@@ -3735,7 +3735,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 		}
 	}
 
-	if (dpss_nr_debug || dpss_en_afbc_force & C_BIT2)
+	if (dpss_nr_debug == 1 || dpss_en_afbc_force & C_BIT2)
 		need_afrc = false;
 
 	if (is_i && dpss_en_pps)
@@ -4444,8 +4444,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	}
 
 	//lc buf:
-//	if (dpss_lc_buf || pch->c.support_i || dpss_nr_debug || dpss_en_pps) {
-	if (pch->c.support_i) { //to-do
+	if (pch->c.support_i || dpss_nr_debug) { //to-do
 		blk_i = &pch->c.blki_lc;
 		memset(blk_i, 0, sizeof(*blk_i));
 		blk_i->mem_size = dd->hd_lc_info.size_total;

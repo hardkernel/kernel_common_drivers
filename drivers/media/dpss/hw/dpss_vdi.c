@@ -19,7 +19,7 @@ unsigned int dpss_pq_en = 1;
 unsigned int dpss_xlr_en = 1;
 unsigned int dpss_me_en = 1;
 unsigned int dpss_lcevc_en;
-unsigned int dpss_di_debug;
+unsigned int dpss_di_debug = 1;
 unsigned int dpss_force_nr_debug;//i mode open nr debugs
 unsigned int dpss_force_pq;//force enable nr debugs
 static u32 diout_slc_xbgn[4];
@@ -117,6 +117,8 @@ void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 				reg_nr_snr_en = 0;
 				reg_nr_tnr_en = 0;
 				reg_dmsq_en = 0;
+				reg_cue_en = 0;
+				reg_ne_en = 0;
 			}
 		}
 		if (!reg_nr_snr_en && !reg_nr_tnr_en &&
@@ -131,7 +133,7 @@ void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 	else
 		w_reg_bit(VPU_DBLK_MISC_CTRL, 0, 0, 1);//reg_dblk_inp_c44to42_en
 
-	if (dblk_en | reg_cue_en | reg_cfr_en | di_en |
+	if (reg_cue_en | reg_cfr_en | di_en |
 		reg_dmsq_en | reg_nr_tnr_en | reg_nr_snr_en)
 		w_reg_bit(VPU_NR_CORE_MISC_CTRL, ((1 & 0x1) << 2) |
 		//reg_nr_pre2_inp_c44to42_en
@@ -144,6 +146,9 @@ void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 			((0 & 0x1) << 0), 0, 3);//reg_nr_cur_inp_c44to42_en
 	if (dpss_pq_en) {
 		if (reg_nr_tnr_en == 0 && reg_nr_snr_en == 0 && reg_dmsq_en == 0 && !di_en)
+			w_reg_bit(VPU_NR_CORE_MISC_CTRL, 0, 0, 3);
+		else if (reg_nr_tnr_en == 0 && reg_nr_snr_en == 0 &&
+				reg_dmsq_en == 0 && reg_cue_en == 0)
 			w_reg_bit(VPU_NR_CORE_MISC_CTRL, 0, 0, 3);
 		else if (nr_src0_en)
 			w_reg_bit(VPU_NR_CORE_MISC_CTRL, 7, 0, 3);
@@ -205,7 +210,7 @@ void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 	dbg_h2("%s:VPU_NR_ENABLE:%d,%d,%d,%d,%d\n", __func__, reg_nr_tnr_en,
 		reg_nr_snr_en, reg_dmsq_en, reg_dblk_en_v, dblk_en);
 	dbg_h2("%s:VPU_NR_ENABLE:%d\n", __func__, rd(VPU_NR_ENABLE));
-	if (dpss_nr_debug) {
+	if (dpss_nr_debug == 1) {
 		//w_reg_bit(VPU_POST_NR_GRAD_EDGE_7, 0, 20, 1);//reg_7_flag_en
 		w_reg_bit(DPSS_DPE_INTF_AFBCD0, 1, 22, 3);
 		//Wr_reg_bits(DOS_DOWN_S_MODE, 0, 8, 8);
@@ -244,7 +249,7 @@ void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 	di_write_data_table(DI_PAGE_MODULE_XLR, 0);
 	di_db_dm[REG_DM_MAX].val = pq_update;
 
-	if (dpss_di_debug) {
+	if (dpss_di_debug || dpss_nr_debug || dpss_force_nr_debug) {
 		wr(VPU_POST_NR_SLC_OVLP_SIZE, (((0x0 & 0xff) << 24) |
 			((0x0 & 0xff) << 16) | ((0x0 & 0xff) << 8) |
 			((0x0 & 0xff) << 0)));//need lusen check 2 or4???
@@ -407,7 +412,7 @@ void cfg_dpss_vdi(struct PRM_DPSS_TOP *prm_top,
 	w_reg_bit(VPU_CUE_MODE_ENABLE, reg_cue_en, 0, 1);//reg_cue_enable_r
 	//w_reg_bit(VPU_MCDI_EN, reg_mcdi_en, 0, 1); //reg_mcdi_en
 	w_reg_bit(VPU_DI_BLEND_EI_POST_EN_MODE, reg_ei_en, 2, 1);//reg_di_ei_en
-	if (dpss_nr_debug) {
+	if (dpss_nr_debug == 1) {
 		//w_reg_bit(VPU_POST_NR_GRAD_EDGE_7, 0, 20, 1);//reg_7_flag_en
 		w_reg_bit(DPSS_DPE_INTF_AFBCD0, 1, 22, 3);
 		//w_reg_bit(DOS_DOWN_S_MODE, 0, 8, 8);
@@ -430,7 +435,8 @@ void cfg_dpss_vdi(struct PRM_DPSS_TOP *prm_top,
 	u32 reg_nr_out_hs_en;
 	u32 reg_post_in_hs_en;
 
-	if (reg_di_en == 0 && (reg_post_en || reg_7_flag_en || dpss_nr_debug)) {
+	if (reg_di_en == 0 &&
+		(reg_post_en || reg_7_flag_en || dpss_nr_debug == 1)) {
 		reg_nr_out_hs_en = 3;
 		reg_post_in_hs_en = 1;
 	} else {
@@ -706,7 +712,7 @@ void cfg_dpss_vdi_slice(u32 frm_hsize,
 	wr(VPU_DI_HW_SLC_DI_OUT_HSIZE_32,
 		((diout_slc_hsize[3] & 0x3fff) << 16) |
 		((diout_slc_hsize[2] & 0x3fff) << 0));
-	if (dpss_di_debug) {
+	if (dpss_di_debug || dpss_nr_debug || dpss_force_nr_debug) {
 		wr(VPU_DI_HW_SLC_DI_OUT_HBGN_10,
 			((diout_demo_slc_xbgn[1] & 0x3fff) << 16) |
 			((diout_demo_slc_xbgn[0] & 0x3fff) << 0));

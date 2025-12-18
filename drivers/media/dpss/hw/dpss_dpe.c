@@ -93,7 +93,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 		wr(DPSS_DPE_TOP_SW_SEL2, reg_din_sel_sw_en2);
 	}
 
-	if (dpss_force_nr_debug)
+	if (dpss_force_nr_debug || dpss_nr_debug == 2)
 		nr_debug_mode = 0;
 
 	prm_top->dpe_out2bbd_en = bb_en;
@@ -135,7 +135,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 		vbe_pad = (dpe_mode == DPE_NR_BYPS || dpe_mode == DPE_BBD_ONLY ? 0 :
 				prm_top->comp_setting.vfce_in_overlap > 0 ? 60 : 64) + aa_pad;
 	}
-	if (dpss_force_nr_debug) {
+	if (dpss_force_nr_debug || dpss_nr_debug == 2) {
 		nr_pps_cfg->aa_pad = 0;
 		prm_dpe->aa_pad = 0;
 		prm_dpe->aa_pad_assign_en = 1;
@@ -334,7 +334,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 		ds_sel = 3;
 		dbg_h2("this force disable dw\n");
 	}
-	if (dpss_force_nr_debug) {
+	if (dpss_force_nr_debug || dpss_nr_debug == 2) {
 		vfce_mask = 1;
 		ds_mask = 1;
 		ds_sel = 3;
@@ -353,7 +353,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 			(vfce_on);
 
 	w_reg_bit(DPSS_DPE_INTF_AFBCD0, wrpath_sel, 12, 15);
-	if (dpss_force_nr_debug) {
+	if (dpss_force_nr_debug || dpss_nr_debug == 2) {
 		w_reg_bit(DPSS_DPE_INTF_AFBCD0, 1, 12 + 4, 3);
 		w_reg_bit(DPSS_DPE_INTF_AFBCD0, 3, 12 + 13, 2);
 		w_reg_bit(DPSS_DPE_INTF_CTRL0, 1, 0, 2);//close ds wrmif0
@@ -2484,7 +2484,7 @@ void dpss_vbe_proc_byp(u32 path_id)
 			w_reg_bit(DPSS_DPE_INTF_DBG, 1, 2, 1);//wmif1  frm_end_mask
 			w_reg_bit(DPSS_DPE_INTF_DBG, 0x7, 4, 3); //{dblkh,dblkv,dmsq}
 		}
-		if (dpss_force_nr_debug) {
+		if (dpss_force_nr_debug || dpss_nr_debug == 2) {
 			w_reg_bit(DPSS_DPE_INTF_AFBCD0, 1, 12 + 4, 3);
 			w_reg_bit(DPSS_DPE_INTF_AFBCD0, 3, 12 + 13, 2);
 			w_reg_bit(DPSS_DPE_INTF_CTRL0, 1, 0, 2);//close ds wrmif0

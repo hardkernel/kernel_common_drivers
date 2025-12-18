@@ -697,7 +697,7 @@ int _create_instance(bool fix, int index, struct dpss_init_parm *parm)
 		}
 	}
 
-	if (dpss_nr_debug)
+	if (dpss_nr_debug == 1)
 		pch->c.o_afbc = 0;
 
 	if (!dpss_api_init_data(pch)) {
