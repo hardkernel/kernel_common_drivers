@@ -9299,7 +9299,6 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	unsigned int max_output_lum_sdr = 0;
 	u32 dummy_data = 0;
 	u32 dummy_alpha = 0;
-	enum hdr_type_e source_type = UNKNOWN_SOURCE;
 
 	if (dpss_mode &&
 		vd_path == VD1_PATH) {
@@ -9765,6 +9764,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			/* video off */
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			int dv_hdr_policy = 0;
+			enum hdr_type_e source_type = UNKNOWN_SOURCE;
 
 			if (is_amdv_enable()) {
 				/* dolby enable */
