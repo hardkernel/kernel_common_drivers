@@ -1789,6 +1789,33 @@ unsigned int vdin_get_total_v_t3x(unsigned int offset)
 		       GO_LN_CNT_SDW_BIT, GO_LN_CNT_SDW_WID);
 }
 
+void vdin_mute_t3x(struct vdin_dev_s *devp, bool en)
+{
+	u8 port_type;
+
+	if (devp->dtdata->hw_ver != VDIN_HW_T3X)
+		return;
+
+	port_type = devp->port_type;
+	if (en) {
+		if (port_type == TVIN_PORT_MAIN)
+			rx_mute_dual_video_rdma(E_RX_MUTE, E_RX_NA);
+		else if (port_type == TVIN_PORT_SUB)
+			rx_mute_dual_video_rdma(E_RX_NA, E_RX_MUTE);
+		else
+			rx_mute_dual_video_rdma(E_RX_NA, E_RX_NA);
+	} else {
+		if (port_type == TVIN_PORT_MAIN)
+			rx_mute_dual_video_rdma(E_RX_UNMUTE, E_RX_NA);
+		else if (port_type == TVIN_PORT_SUB)
+			rx_mute_dual_video_rdma(E_RX_NA, E_RX_UNMUTE);
+		else
+			rx_mute_dual_video_rdma(E_RX_NA, E_RX_NA);
+	}
+	if (devp->debug.vdin_dbg_en)
+		pr_info("%s(): port:%d mute:%d\n", __func__, port_type, en);
+}
+
 void vdin_set_frame_mif_write_addr_t3x(struct vdin_dev_s *devp,
 			unsigned int rdma_enable,
 			struct vf_entry *vfe)

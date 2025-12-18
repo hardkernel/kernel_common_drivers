@@ -2137,10 +2137,6 @@ void vdin_delay_n_vsync(struct vdin_dev_s *devp, unsigned int vsync_cnt)
 	if (devp->hw_core == VDIN_HW_CORE_LITE)
 		return;
 
-	if (!((devp->last_wr_vfe && (devp->last_wr_vfe->vf.flag & VFRAME_FLAG_GAME_MODE)) ||
-	      (devp->curr_wr_vfe && (devp->curr_wr_vfe->vf.flag & VFRAME_FLAG_GAME_MODE))))
-		return;
-
 	if (devp->parm.info.fps) {
 		delay_us = (1000000 / devp->parm.info.fps) * vsync_cnt;
 		if (devp->debug.vdin_dbg_en)
@@ -2189,6 +2185,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		return;
 	}
 #endif
+	if (IS_HDMI_SRC(devp->parm.port))
+		vdin_mute_vpp(devp, true);
+
 	disable_irq(devp->irq);
 	devp->flags &= (~VDIN_FLAG_ISR_EN);
 	vdin_unregister_rdma_read(devp);
@@ -2334,6 +2333,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	}
 	devp->debug.slt_test.vf_check_result = false;
 	devp->debug.slt_test.vf_pass_cnt = 0;
+
+	if (IS_HDMI_SRC(devp->parm.port))
+		vdin_mute_vpp(devp, false);
 
 	if (devp->debug.vdin_time_en)
 		pr_info("vdin.%d stop time %ums,run time:%ums.\n",

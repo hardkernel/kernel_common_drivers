@@ -2931,6 +2931,25 @@ unsigned int vdin_get_total_v(struct vdin_dev_s *devp)
 		       GO_LN_CNT_SDW_BIT, GO_LN_CNT_SDW_WID);
 }
 
+void vdin_mute_vpp(struct vdin_dev_s *devp, bool en)
+{
+	if (en) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (devp->dtdata->hw_ver == VDIN_HW_T3X)
+			vdin_mute_t3x(devp, true);
+		else
+#endif
+			set_video_mute(VDIN_MUTE_SET, true);
+	} else {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (devp->dtdata->hw_ver == VDIN_HW_T3X)
+			vdin_mute_t3x(devp, false);
+		else
+#endif
+			set_video_mute(VDIN_MUTE_SET, false);
+	}
+}
+
 void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 			unsigned int rdma_enable,
 			struct vf_entry *vfe)

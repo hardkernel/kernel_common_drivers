@@ -162,4 +162,5 @@ void vdin_dlg_update_hist_hv_t3x(unsigned int temp_hist_width, unsigned int temp
 void vdin_get_hist_val_t3x(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist_temp);
 void vdin_hist_init_t3x(struct vdin_dev_s *devp);
 void vdin_clear_vdi6_afifo_overflow_t3x(unsigned int offset);
+void vdin_mute_t3x(struct vdin_dev_s *devp, bool en);
 #endif

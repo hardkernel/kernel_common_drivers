@@ -380,4 +380,5 @@ void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 				    unsigned int full_pack,
 				    unsigned int source_bitdepth);
 void vdin_dlg_update_hist_hv(unsigned int h, unsigned int v, unsigned int fps);
+void vdin_mute_vpp(struct vdin_dev_s *devp, bool en);
 #endif
