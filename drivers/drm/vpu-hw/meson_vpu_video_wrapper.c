@@ -242,7 +242,7 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	MESON_DRM_BLOCK("video->dmabuf-[%px %px], plane_info->dmabuf-[%px %px]\n",
 		video->dmabuf[0], video->dmabuf[1],
 		plane_info->dmabuf[0], plane_info->dmabuf[1]);
-	if (video->dmabuf[0] != plane_info->dmabuf[0]) {
+	if (video->dmabuf[0] != plane_info->dmabuf[0] && plane_info->dmabuf[0]) {
 		video->dmabuf[0] = plane_info->dmabuf[0];
 		video->dmabuf[1] = plane_info->dmabuf[1];
 	}
@@ -521,15 +521,13 @@ static void video_disable_work_func(struct work_struct *works)
 		video_display_control(worker->idx, 0);
 #endif
 
-	MESON_DRM_BLOCK("dmabuf:%px %px.\n", worker->dmabuf[0], worker->dmabuf[1]);
-
 	if (worker->dmabuf[0])
 		dma_buf_put(worker->dmabuf[0]);
 
 	if (worker->dmabuf[1])
 		dma_buf_put(worker->dmabuf[1]);
-
 	worker->video->video_enabled = 0;
+	DRM_INFO("%s worker disable done.\n", worker->video->base.name);
 	worker->dmabuf[0] = NULL;
 	worker->dmabuf[1] = NULL;
 }
@@ -557,7 +555,6 @@ static void video_hw_disable(struct meson_vpu_block *vblk,
 	struct meson_vpu_video *video = to_video_block(vblk);
 	struct meson_vpu_disable_work *worker = &video->worker;
 	struct meson_drm *priv;
-	int i;
 
 	if (!video) {
 		MESON_DRM_BLOCK("disable break for NULL.\n");
@@ -569,19 +566,31 @@ static void video_hw_disable(struct meson_vpu_block *vblk,
 		video->present_fence, video->base.name);
 
 	priv = video->base.pipeline->priv;
-	worker->idx = vblk->index;
-	worker->video = video;
 
-	for (i = 0; i < 2; i++) {
-		if (video->dmabuf[i]) {
-			worker->dmabuf[i] = video->dmabuf[i];
-			get_dma_buf(video->dmabuf[i]);
-		}
-	}
+	if (video->dmabuf[0])
+		get_dma_buf(video->dmabuf[0]);
 
-	if (video->disable_thread) {
+	if (video->dmabuf[1])
+		get_dma_buf(video->dmabuf[1]);
+
+	if (video->disable_thread && priv->of_conf.disable_thread_en) {
+		worker->idx = vblk->index;
+		worker->video = video;
+		worker->dmabuf[0] = video->dmabuf[0];
+		worker->dmabuf[1] = video->dmabuf[1];
 		atomic_set(&video->work_pending, 1);
 		wake_up(&video->disable_wq);
+	} else {
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+		video_display_control(vblk->index, 0);
+#endif
+		if (video->dmabuf[0])
+			dma_buf_put(video->dmabuf[0]);
+
+		if (video->dmabuf[1])
+			dma_buf_put(video->dmabuf[1]);
+		video->video_enabled = 0;
+		DRM_INFO("%s disable done.\n", video->base.name);
 	}
 
 	video->fence = NULL;

@@ -148,6 +148,19 @@ static void am_meson_vpu_get_plane_crtc_mask(struct meson_drm *priv,
 	}
 }
 
+static void meson_video_parse_config(struct drm_device *dev, struct meson_of_conf *conf)
+{
+	u32 disable_thread_en = 0;
+	int ret;
+
+	ret = of_property_read_u32(dev->dev->of_node,
+				   "disable_thread_en", &disable_thread_en);
+	if (ret)
+		DRM_DEBUG("%s no disable thread enable config!\n", __func__);
+
+	conf->disable_thread_en = disable_thread_en;
+}
+
 void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
 	struct meson_drm *priv)
 {
@@ -203,6 +216,7 @@ void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
 		pipeline->num_video, conf->crtcmask_video);
 
 	meson_osd_parse_config(dev, conf);
+	meson_video_parse_config(dev, conf);
 	meson_connect_parse_config(dev, conf);
 	meson_parse_gfcd_config(dev, conf);
 }

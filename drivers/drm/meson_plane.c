@@ -1906,6 +1906,7 @@ static void meson_osd_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tglobal_alpha=%u\n", plane_info->global_alpha);
 	drm_printf(p, "\t\tscaling_filter=%u\n", plane_info->scaling_filter);
 	drm_printf(p, "\t\tread_ports=%u\n", plane_info->read_ports);
+	drm_printf(p, "\t\tdisable_thread_en=%u\n", drv->of_conf.disable_thread_en);
 }
 
 static void meson_video_plane_atomic_print_state(struct drm_printer *p,

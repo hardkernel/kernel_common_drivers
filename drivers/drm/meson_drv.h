@@ -83,6 +83,8 @@ struct meson_of_conf {
 	u32 force_slice;
 	/* for fbdev size: 0:non-afbc align 1:afbc align*/
 	u32 afbc_aligned_size;
+	/* video disable by thread */
+	u32 disable_thread_en;
 };
 
 enum drm_pm_state {
