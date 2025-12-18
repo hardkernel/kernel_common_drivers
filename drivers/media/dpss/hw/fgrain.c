@@ -43,7 +43,6 @@ void film_grain_uint(void)
 {
 	wr_vc(VPU_DMA_RDMIF1_CTRL, 0x00000200);
 	w_reg_bit_vc(VPU_AXIRD_FG_CTRL, 0xf, 0, 4);
-	w_reg_bit_vc(VPU_DMA_RDMIF_SEL, 1, 0, 1);
 }
 
 void film_grain_cfg(struct FGRAIN_t *fgrain, struct vframe_s *vf, uint cnt)
