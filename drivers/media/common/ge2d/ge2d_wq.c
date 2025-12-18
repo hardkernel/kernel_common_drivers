@@ -3214,63 +3214,74 @@ EXPORT_SYMBOL(create_ge2d_work_queue);
 int  destroy_ge2d_work_queue(struct ge2d_context_s *ge2d_work_queue)
 {
 	struct ge2d_queue_item_s *pitem, *tmp;
+	struct ge2d_context_s *ctx;
 	struct list_head		*head;
-	int empty, timeout = 0;
+	bool found = false;
+	int timeout = 0;
 
-	if (ge2d_work_queue) {
-		/* first detach it from the process queue,then delete it . */
-		/* maybe process queue is changing .so we lock it. */
-		spin_lock(&ge2d_manager.event.sem_lock);
-		if (!list_empty(&ge2d_work_queue->list))
-			list_del_init(&ge2d_work_queue->list);
-		else
-			ge2d_log_err("%p not in any list\n", ge2d_work_queue);
-		empty = list_empty(&ge2d_manager.process_queue);
+	if (!ge2d_work_queue)
+		return -EINVAL;
+
+	spin_lock(&ge2d_manager.event.sem_lock);
+	list_for_each_entry(ctx, &ge2d_manager.process_queue, list) {
+		if (ctx == ge2d_work_queue) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		/* already destroyed */
 		spin_unlock(&ge2d_manager.event.sem_lock);
-
-		mutex_lock(&ge2d_manager.event.destroy_lock);
-		if (ge2d_manager.current_wq == ge2d_work_queue &&
-		    ge2d_work_queue->ge2d_state == GE2D_STATE_RUNNING) {
-			ge2d_work_queue->ge2d_request_exit = 1;
-			mutex_unlock(&ge2d_manager.event.destroy_lock);
-			timeout =
-			  wait_for_completion_timeout(&ge2d_manager.event
-						      .process_complete,
-						      msecs_to_jiffies(2000));
-			if (!timeout)
-				ge2d_log_err("wait timeout\n");
-			/* condition so complex ,simplify it . */
-			ge2d_manager.last_wq = NULL;
-		} else {
-			mutex_unlock(&ge2d_manager.event.destroy_lock);
-		}
-		/* we can delete it safely. */
-
-		head = &ge2d_work_queue->work_queue;
-		list_for_each_entry_safe(pitem, tmp, head, list) {
-			if (pitem) {
-				list_del(&pitem->list);
-				kfree(pitem);
-			}
-		}
-		head = &ge2d_work_queue->free_queue;
-		list_for_each_entry_safe(pitem, tmp, head, list) {
-			if (pitem) {
-				list_del(&pitem->list);
-				kfree(pitem);
-			}
-		}
-		/* release clut8 table memory */
-		if (ge2d_work_queue->config.clut8_table.data &&
-		    ge2d_work_queue->config.clut8_table.count)
-			kfree(ge2d_work_queue->config.clut8_table.data);
-
-		kfree(ge2d_work_queue);
-		ge2d_work_queue = NULL;
+		ge2d_log_err("ge2d_work_queue %p already destroyed by %s\n",
+			     ge2d_work_queue, current->comm);
 		return 0;
 	}
 
-	return  -1;
+	list_del_init(&ge2d_work_queue->list);
+	spin_unlock(&ge2d_manager.event.sem_lock);
+	/* first detach it from the process queue,then delete it . */
+	/* maybe process queue is changing .so we lock it. */
+
+	mutex_lock(&ge2d_manager.event.destroy_lock);
+	if (ge2d_manager.current_wq == ge2d_work_queue &&
+	    ge2d_work_queue->ge2d_state == GE2D_STATE_RUNNING) {
+		ge2d_work_queue->ge2d_request_exit = 1;
+		mutex_unlock(&ge2d_manager.event.destroy_lock);
+		timeout =
+		  wait_for_completion_timeout(&ge2d_manager.event
+					      .process_complete,
+					      msecs_to_jiffies(2000));
+		if (!timeout)
+			ge2d_log_err("wait timeout\n");
+		/* condition so complex ,simplify it . */
+		ge2d_manager.last_wq = NULL;
+	} else {
+		mutex_unlock(&ge2d_manager.event.destroy_lock);
+	}
+	/* we can delete it safely. */
+
+	head = &ge2d_work_queue->work_queue;
+	list_for_each_entry_safe(pitem, tmp, head, list) {
+		if (pitem) {
+			list_del(&pitem->list);
+			kfree(pitem);
+		}
+	}
+	head = &ge2d_work_queue->free_queue;
+	list_for_each_entry_safe(pitem, tmp, head, list) {
+		if (pitem) {
+			list_del(&pitem->list);
+			kfree(pitem);
+		}
+	}
+	/* release clut8 table memory */
+	if (ge2d_work_queue->config.clut8_table.data &&
+	    ge2d_work_queue->config.clut8_table.count)
+		kfree(ge2d_work_queue->config.clut8_table.data);
+
+	kfree(ge2d_work_queue);
+	return 0;
 }
 EXPORT_SYMBOL(destroy_ge2d_work_queue);
 
