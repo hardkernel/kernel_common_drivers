@@ -1213,6 +1213,7 @@ struct vdin_dev_s {
 	enum vdin_game_mode_chg_e game_mode_chg;
 	unsigned char af_num;/* for one buffer mode */
 	unsigned int game_mode_dly;
+	unsigned int auto_game_mode_val;
 
 	int chg_drop_frame_cnt;
 	unsigned int vdin_pc_mode;

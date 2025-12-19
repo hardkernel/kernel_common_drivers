@@ -173,6 +173,7 @@ struct dv_meta_pkt {
 };
 
 extern unsigned int game_mode;
+extern unsigned int game_mode_cfg;
 extern unsigned int vdin_force_game_mode;
 extern unsigned int vdin_pc_mode;
 extern int irq_max_count;

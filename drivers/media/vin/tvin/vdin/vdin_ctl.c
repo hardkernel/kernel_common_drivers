@@ -54,6 +54,7 @@ unsigned int vdin0_afbce_debug_force;
 
 /*bit0/1:game mode enable for vdin0/1*/
 unsigned int vdin_force_game_mode;
+unsigned int game_mode_cfg;
 unsigned int game_mode;
 module_param(game_mode, uint, 0664);
 MODULE_PARM_DESC(game_mode, "game_mode");
@@ -8784,15 +8785,22 @@ u64 vdin_calculate_isr_interval_value(struct vdin_dev_s *devp)
  */
 bool vdin_is_auto_game_mode(struct vdin_dev_s *devp)
 {
+	bool cur_game_mode = !!game_mode_cfg;
+
 	if (devp->debug.bypass_game_mode)
-		return false;
+		return cur_game_mode;
 
 	if (devp->parm.info.status != TVIN_SIG_STATUS_STABLE)
-		return false;
+		return cur_game_mode;
 
 	/* sink-led not support game mode */
 	if (vdin_dv_is_sink_led(devp))
 		return false;
+
+	/* DV sdk5.2.1 requirement */
+	if ((devp->dtdata->hw_ver == VDIN_HW_T6W ||
+		devp->dtdata->hw_ver == VDIN_HW_T6X) && !vdin_dv_is_source_led(devp))
+		return cur_game_mode;
 
 	if (devp->prop.latency.allm_mode || vdin_is_vrr_state(devp) ||
 	    (devp->prop.latency.it_content && devp->prop.latency.cn_type == GAME))

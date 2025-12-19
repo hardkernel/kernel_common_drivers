@@ -924,19 +924,21 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 
 static void vdin_handle_game_mode_chg(struct vdin_dev_s *devp)
 {
-	unsigned int game_mode_pre;
+	unsigned int game_mode_pre, tmp;
 
 	game_mode_pre = devp->game_mode;
 
-	if ((devp->vdin_function_sel & VDIN_AUTO_GAME_MODE) &&
-	    ((vdin_is_auto_game_mode(devp) && !game_mode) ||
-	    (!vdin_is_auto_game_mode(devp) && game_mode))) {
+	if (devp->vdin_function_sel & VDIN_AUTO_GAME_MODE) {
+		tmp = vdin_is_auto_game_mode(devp);
+		if (tmp != devp->auto_game_mode_val) {
+			devp->auto_game_flag = true;
+			devp->auto_game_mode_val = tmp;
+			devp->game_mode_chg = VDIN_GAME_MODE_CHK;
+			game_mode = tmp;
+		}
 		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
-			pr_info("%s game:%d,game mode cur:0x%x\n",
+			pr_info("1-%s game:%d,game mode cur:0x%x\n",
 				__func__, game_mode, devp->game_mode);
-		game_mode = !game_mode;
-		devp->auto_game_flag = true;
-		devp->game_mode_chg = VDIN_GAME_MODE_CHK;
 	}
 
 	if (devp->game_mode_chg == VDIN_GAME_MODE_CHK)
@@ -1855,10 +1857,9 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	if (vdin_dv_is_not_std_source_led(devp))
 		devp->dv_is_not_std = true;
 
-	if ((devp->vdin_function_sel & VDIN_AUTO_GAME_MODE) &&
-	    ((vdin_is_auto_game_mode(devp) && !game_mode) ||
-	    (!vdin_is_auto_game_mode(devp) && game_mode))) {
-		game_mode = !game_mode;
+	if (devp->vdin_function_sel & VDIN_AUTO_GAME_MODE) {
+		devp->auto_game_mode_val = vdin_is_auto_game_mode(devp);
+		game_mode = devp->auto_game_mode_val;
 		devp->auto_game_flag = true;
 	}
 
@@ -2316,7 +2317,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->common_divisor = 0;
 	devp->interlace_drop_bottom = 0;
 	if (devp->auto_game_flag) {//remove auto game mode
-		game_mode = 0;
+		game_mode = game_mode_cfg;
 		devp->auto_game_flag = false;
 	}
 
@@ -5761,6 +5762,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		mutex_lock(&devp->fe_lock);
 		if (game_mode != tmp)
 			vdin_game_mode_chg(devp, game_mode, tmp);
+		game_mode_cfg = tmp;
 		game_mode = tmp;
 		devp->auto_game_flag = false;
 		mutex_unlock(&devp->fe_lock);

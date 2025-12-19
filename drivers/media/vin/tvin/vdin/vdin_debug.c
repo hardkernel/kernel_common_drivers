@@ -2118,7 +2118,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("vpu crash irq cnt: %d\n", devp->vpu_crash_cnt);
 	pr_info("vdin_drop_cnt: %d frame_cnt:%d ignore_frames:%d\n",
 		devp->vdin_drop_cnt, devp->frame_cnt, devp->ignore_frames);
-	pr_info("game_mode cfg :  0x%x\n", game_mode);
+	pr_info("game_mode cfg :  0x%x 0x%x\n", game_mode_cfg, game_mode);
 	pr_info("game_mode cur:  0x%x bypass_game_mode:%#x\n",
 		devp->game_mode, devp->debug.bypass_game_mode);
 	pr_info("vrr_mode:  0x%x,vdin_vrr_en_flag=%d\n", devp->vrr_data.vrr_mode,
