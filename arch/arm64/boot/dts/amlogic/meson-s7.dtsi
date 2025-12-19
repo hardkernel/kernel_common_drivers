@@ -1114,7 +1114,7 @@
 		hdmitx-gpios-sda = <&gpio GPIOH_0 0>;
 		interrupts = <0 204 4
 			0 197 1>;
-		interrupt-names = "hdmitx_hpd", "vrr_vsync";
+		interrupt-names = "hdmitx_hpd", "hdmitx_vsync";
 		reg =	<0x0 0xff000000 0x0 0x40000>,
 			<0x0 0xfe310000 0x0 0x10000>,
 			<0x0 0xfe300000 0x0 0x10000>,

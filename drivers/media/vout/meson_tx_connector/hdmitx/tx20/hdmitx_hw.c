@@ -31,7 +31,7 @@
 #include <linux/reset.h>
 #include <linux/compiler.h>
 #include <linux/amlogic/arm-smccc.h>
-
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
@@ -706,11 +706,30 @@ static void hdmitx20_private_data_init(struct hdmitx20_dev *hdev)
 	hdev->hw_comm.hdmi_tx_cap.dsc_capable = false;
 	hdev->hw_comm.hdmi_tx_cap.tx_max_frl_rate = FRL_NONE;
 
+	if (hdev->hw_comm.chip_data->chip_type == MESON_CPU_ID_TM2 ||
+		hdev->hw_comm.chip_data->chip_type == MESON_CPU_ID_TM2B) {
+		/* diff revA/B of TM2 chip */
+		if (is_meson_rev_b()) {
+			hdev->hw_comm.chip_data->chip_type = MESON_CPU_ID_TM2B;
+			hdev->hw_comm.chip_data->chip_name = "tm2b";
+		} else {
+			hdev->hw_comm.chip_data->chip_type = MESON_CPU_ID_TM2;
+			hdev->hw_comm.chip_data->chip_name = "tm2";
+		}
+	}
+
 	/* for hdcp */
 	hdev->max_exceed = 200;
 	hdev->tx20_hw.base = &hdev->hw_comm;
 	/* init hdcp */
 	hdmitx20_hdcp_init(hdev);
+
+#ifdef CONFIG_AMLOGIC_VPU
+	hdev->tx_comm.encp_vpu_dev = vpu_dev_register(VPU_VENCP, DEVICE_NAME);
+	hdev->tx_comm.enci_vpu_dev = vpu_dev_register(VPU_VENCI, DEVICE_NAME);
+	/* vpu gate/mem ctrl for hdmitx, since TM2B */
+	hdev->tx_comm.hdmi_vpu_dev = vpu_dev_register(VPU_HDMI, DEVICE_NAME);
+#endif
 }
 
 /* note: if need to check if global_tx_hw not NULL before use it
@@ -2881,7 +2900,7 @@ static int hdmitx_setup_irq(struct hdmitx_hw_common *tx_hw)
 			(void *)hdev);
 	if (r != 0)
 		HDMITX_INFO(SYS "can't request hdmitx irq\n");
-	r = request_irq(tx_comm->irq_viu1_vsync, &vsync_intr_handler,
+	r = request_irq(tx_comm->irq_hdmitx_vsync, &vsync_intr_handler,
 			IRQF_SHARED, "hdmi_vsync",
 			(void *)hdev);
 	if (r != 0)
@@ -2895,7 +2914,7 @@ static void hdmitx_free_irq(struct hdmitx_hw_common *tx_hw)
 	struct hdmitx20_dev *hdev = container_of(tx_hw, struct hdmitx20_dev, hw_comm);
 
 	free_irq(hdev->tx_comm.irq_hpd, (void *)hdev);
-	free_irq(hdev->tx_comm.irq_viu1_vsync, (void *)hdev);
+	free_irq(hdev->tx_comm.irq_hdmitx_vsync, (void *)hdev);
 }
 
 void hdmitx20_meson_uninit(struct hdmitx_hw_common *tx_hw)
@@ -2907,6 +2926,12 @@ void hdmitx20_meson_uninit(struct hdmitx_hw_common *tx_hw)
 	hdmitx20_hdcp_uninit(hdev);
 	phy_pll_off();
 	hdmitx_hpd_hw_op(HPD_UNMUX_HPD);
+
+#ifdef CONFIG_AMLOGIC_VPU
+		vpu_dev_unregister(hdev->tx_comm.encp_vpu_dev);
+		vpu_dev_unregister(hdev->tx_comm.enci_vpu_dev);
+		vpu_dev_unregister(hdev->tx_comm.hdmi_vpu_dev);
+#endif
 }
 
 static void hw_reset_dbg(void)
@@ -5537,6 +5562,7 @@ static int hdmitx20_hw_cntl_core_misc(struct hdmitx_hw_common *tx_hw, unsigned i
 			      void *input_argv, void *output_struct)
 {
 	struct hdmitx20_dev *hdev = container_of(tx_hw, struct hdmitx20_dev, hw_comm);
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 	int ret = 0;
 	u32 arg;
 
@@ -5591,6 +5617,32 @@ static int hdmitx20_hw_cntl_core_misc(struct hdmitx_hw_common *tx_hw, unsigned i
 		return hdmitx_uboot_already_display();
 	case CORE_MISC_EVENT_PROCESS:
 		hdmitx_core_intr_process(&hdev->tx_comm);
+		break;
+	case CORE_MISC_HDCP_SUSPEND:
+		/*
+		 * if HPD is high before suspend, and there were hpd
+		 * plugout -> in event happened in deep suspend stage,
+		 * now resume and stay in early resume stage, still
+		 * need to respond to plugin irq and read/update EDID.
+		 * so clear last_hpd_handle_done_stat for re-enter
+		 * plugin handle. Note there may be re-enter plugout/in
+		 * handler under suspend
+		 */
+
+		/* drm tx22 enters AUTH_STOP, don't do hdcp22 IP reset */
+		if (tx_comm->hdcptx_comm.hdcp_ctl_lvl > 0)
+			return 0;
+
+		hdmitx_hw_cntl(tx_hw, PLATFORM_DIS_HPLL, NULL, NULL);
+		hdmitx_hw_cntl(tx_hw, HDCP_RESET, NULL, NULL);
+		arg = false;
+		hdmitx_hw_cntl(tx_hw, PLATFORM_ESM_CLK_CTRL, (void *)&arg, NULL);
+		break;
+	case CORE_MISC_HDCP_RESUME:
+		arg = true;
+		hdmitx_hw_cntl(tx_hw, PLATFORM_ESM_CLK_CTRL, (void *)&arg, NULL);
+		if (tx_hw->chip_data->chip_type < MESON_CPU_ID_G12A)
+			hdmitx_hw_cntl(tx_hw, DDC_I2C_RESET, NULL, NULL);
 		break;
 	case CORE_MISC_VP_CMS_CSC:
 	default:

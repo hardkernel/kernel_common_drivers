@@ -561,19 +561,19 @@ int hdmitx_setup_irqs(struct hdmitx_hw_common *tx_hw)
 			(void *)phdev);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	r = request_irq(phdev->tx_comm.irq_vrr_vsync, &vrr_vsync_intr_handler,
+	r = request_irq(phdev->tx_comm.irq_hdmitx_vsync, &vrr_vsync_intr_handler,
 			IRQF_SHARED, "hdmitx_vrr_vsync",
 			(void *)phdev);
 	if (r != 0)
 		HDMITX_INFO(SYS "can't request vrr_vsync irq\n");
 #endif
-	r = request_irq(phdev->tx_comm.irq_vrr_vsync, &vsync_intr_handler,
+	r = request_irq(phdev->tx_comm.irq_hdmitx_vsync, &vsync_intr_handler,
 			IRQF_SHARED, "hdmi_vsync",
 			(void *)phdev);
 	if (r != 0)
 		HDMITX_INFO(SYS "can't request hdmi_vsync irq\n");
 #ifdef CONFIG_AMLOGIC_DSC
-	r = request_irq(phdev->tx_comm.irq_vrr_vsync, &emp_vsync_intr_handler,
+	r = request_irq(phdev->tx_comm.irq_hdmitx_vsync, &emp_vsync_intr_handler,
 			IRQF_SHARED, "hdmitx_emp_vsync",
 			(void *)phdev);
 	if (r != 0)

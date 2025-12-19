@@ -1183,7 +1183,7 @@
 		hdmitx-gpios-sda = <&gpio GPIOH_0 0>;
 		interrupts = <0 204 4
 			0 197 1>;
-		interrupt-names = "hdmitx_hpd", "vrr_vsync";
+		interrupt-names = "hdmitx_hpd", "hdmitx_vsync";
 		enc_idx = <0>;
 		max_refresh_rate = <120>; /* the max fresh_rate of S7D is upto 120hz */
 		reg =	<0xff000000 0x40000>,

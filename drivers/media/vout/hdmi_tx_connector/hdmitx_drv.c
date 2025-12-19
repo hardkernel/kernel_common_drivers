@@ -291,36 +291,23 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 			HDMITX_INFO("get pin control fail\n");
 			return -1;
 		}
-		if (hw_comm->chip_data->chip_type < MESON_CPU_ID_T7) {
-			tx_comm->pinctrl_default =
-				pinctrl_lookup_state(pdev->dev.pins->p, "default");
-			if (IS_ERR(tx_comm->pinctrl_default))
-				HDMITX_ERROR("no default of pinctrl state\n");
 
-			tx_comm->pinctrl_i2c =
-				pinctrl_lookup_state(pdev->dev.pins->p, "hdmitx_i2c");
-			if (IS_ERR(tx_comm->pinctrl_i2c))
-				HDMITX_DEBUG("no hdmitx_i2c of pinctrl state\n");
-			pinctrl_select_state(pdev->dev.pins->p,
-					tx_comm->pinctrl_default);
+		tx_comm->pinctrl_hpd = pinctrl_lookup_state(pin, "hdmitx_hpd");
+		if (IS_ERR(tx_comm->pinctrl_hpd)) {
+			HDMITX_ERROR("no default of pinctrl state\n");
 		} else {
-			tx_comm->pinctrl_default = pinctrl_lookup_state(pin, "hdmitx_hpd");
-			if (IS_ERR(tx_comm->pinctrl_default)) {
-				HDMITX_ERROR("no default of pinctrl state\n");
-			} else {
-				ret = pinctrl_select_state(pin, tx_comm->pinctrl_default);
-				if (ret < 0)
-					HDMITX_ERROR("failed to select default pinctrl state\n");
-			}
+			ret = pinctrl_select_state(pin, tx_comm->pinctrl_hpd);
+			if (ret < 0)
+				HDMITX_ERROR("failed to select hpd pinctrl state\n");
+		}
 
-			tx_comm->pinctrl_i2c = pinctrl_lookup_state(pin, "hdmitx_ddc");
-			if (IS_ERR(tx_comm->pinctrl_i2c)) {
-				HDMITX_ERROR("no hdmitx_i2c of pinctrl state\n");
-			} else {
-				ret = pinctrl_select_state(pin, tx_comm->pinctrl_i2c);
-				if (ret < 0)
-					HDMITX_ERROR("failed to select hdmitx_i2c pinctrl state\n");
-			}
+		tx_comm->pinctrl_ddc = pinctrl_lookup_state(pin, "hdmitx_ddc");
+		if (IS_ERR(tx_comm->pinctrl_ddc)) {
+			HDMITX_ERROR("no hdmitx_ddc of pinctrl state\n");
+		} else {
+			ret = pinctrl_select_state(pin, tx_comm->pinctrl_ddc);
+			if (ret < 0)
+				HDMITX_ERROR("failed to select hdmitx_ddc pinctrl state\n");
 		}
 	} else {
 		HDMITX_INFO("node null\n");
@@ -507,26 +494,13 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 			return -ENXIO;
 	}
 	HDMITX_DEBUG("hpd irq = %d\n", tx_comm->irq_hpd);
-	if (hw_comm->chip_data->chip_type < MESON_CPU_ID_T7) {
-		tx_comm->irq_viu1_vsync =
-		platform_get_irq_byname(pdev, "viu1_vsync");
-		if (tx_comm->irq_viu1_vsync == -ENXIO) {
-			HDMITX_ERROR("%s: ERROR: viu1_vsync irq No not found\n",
-				__func__);
-			return -ENXIO;
-		}
-		HDMITX_DEBUG("viu1_vsync irq = %d\n", tx_comm->irq_viu1_vsync);
-	} else {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		tx_comm->irq_vrr_vsync = platform_get_irq_byname(pdev, "vrr_vsync");
-		if (tx_comm->irq_vrr_vsync == -ENXIO) {
-			HDMITX_ERROR("%s: ERROR: hdmitx vrr_vsync irq No not found\n",
-				__func__);
-				return -ENXIO;
-		}
-		HDMITX_DEBUG("vrr vsync irq = %d\n", tx_comm->irq_vrr_vsync);
-#endif
+
+	tx_comm->irq_hdmitx_vsync = platform_get_irq_byname(pdev, "hdmitx_vsync");
+	if (tx_comm->irq_hdmitx_vsync == -ENXIO) {
+		HDMITX_ERROR("%s: ERROR: hdmitx vsync irq No not found\n", __func__);
+		return -ENXIO;
 	}
+
 	ret = of_property_read_u32(pdev->dev.of_node, "arc_rx_en", &val);
 	if (!ret)
 		tx_comm->arc_rx_en = val;

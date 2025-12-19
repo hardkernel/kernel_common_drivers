@@ -39,6 +39,7 @@ int hdmitx21_init_reg_map(struct platform_device *pdev);
 void hdmitx21_sw_debug_func(struct hdmitx_common *tx_comm, const char *cmd_str);
 void hdmitx21_meson_init(struct hdmitx_hw_common *hw_comm);
 void hdmitx21_meson_uninit(struct hdmitx_hw_common *tx_hw);
+void hdmitx21_pm_restore(struct hdmitx_common *tx_comm);
 struct hdmitx_common *hdmitx21_alloc_instance(struct device *device);
 /***** use for hdmitx 21 end *****/
 

@@ -76,6 +76,7 @@ struct hdmitx_ops {
 	int (*get_dbg_files_count)(void);
 	void (*sw_debug_func)(struct hdmitx_common *tx_comm, const char *cmd_str);
 	void *(*hdcp_init)(void *hdcptx_comm);
+	void (*pm_restore)(struct hdmitx_common *tx_comm);
 };
 
 struct amhdmitx_data_s {

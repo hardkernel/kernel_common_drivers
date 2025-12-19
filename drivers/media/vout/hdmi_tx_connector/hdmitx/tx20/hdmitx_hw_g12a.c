@@ -581,7 +581,7 @@ int hdmitx_hpd_hw_op_g12a(enum hpd_op cmd)
 		break;
 	case HPD_MUX_HPD:
 		pinctrl_select_state(hdev->tx_comm.pdev->pins->p,
-				     hdev->tx_comm.pinctrl_default);
+				     hdev->tx_comm.pinctrl_hpd);
 		break;
 	case HPD_READ_HPD_GPIO:
 		ret = hdmitx_rd_reg(HDMITX_DWC_PHY_STAT0) & (1 << 1);
@@ -656,7 +656,7 @@ int hdmitx_ddc_hw_op_g12a(enum ddc_op cmd)
 	switch (cmd) {
 	case DDC_MUX_DDC:
 		pinctrl_select_state(hdev->tx_comm.pdev->pins->p,
-				     hdev->tx_comm.pinctrl_default);
+				     hdev->tx_comm.pinctrl_ddc);
 		break;
 	case DDC_UNMUX_DDC:
 		pinctrl_select_state(hdev->tx_comm.pdev->pins->p, hdev->tx_comm.pinctrl_i2c);

@@ -432,7 +432,7 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	/*add modes from hdmitx instead of edid*/
 	count = hdmitx_common_get_mode_list(tx_comm, &timing_list);
 
-	count_qms = hdmitx_common_get_vrr_mode_list(tx_comm, &timing_list, count, &vrr_timing_list);
+	count_qms = hdmitx_common_get_vrr_mode_list(tx_comm, timing_list, count, &vrr_timing_list);
 
 	if (count) {
 		meson_hdmitx_mode_probed_add(count, timing_list, connector, true);

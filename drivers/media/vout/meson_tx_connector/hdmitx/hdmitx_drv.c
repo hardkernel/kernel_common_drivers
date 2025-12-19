@@ -31,7 +31,6 @@
 
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_common.h>
-#include <linux/amlogic/media/registers/cpu_version.h>
 #include <drm/amlogic/meson_drm_bind.h>
 
 #ifdef CONFIG_AMLOGIC_DSC
@@ -107,6 +106,7 @@ static struct hdmitx_ops hdmitx21_ops = {
 	.get_dbg_files_count = hdmitx21_get_dbg_files_count,
 	.sw_debug_func = hdmitx21_sw_debug_func,
 	.hdcp_init = hdmitx21_hdcp_init,
+	.pm_restore = hdmitx21_pm_restore,
 };
 
 static struct amhdmitx_data_s amhdmitx_data_t7 = {
@@ -302,36 +302,22 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 			HDMITX_INFO("get pin control fail\n");
 			return -1;
 		}
-		if (hw_comm->chip_data->chip_type < MESON_CPU_ID_T7) {
-			tx_comm->pinctrl_default =
-				pinctrl_lookup_state(pdev->dev.pins->p, "default");
-			if (IS_ERR(tx_comm->pinctrl_default))
-				HDMITX_ERROR("no default of pinctrl state\n");
-
-			tx_comm->pinctrl_i2c =
-				pinctrl_lookup_state(pdev->dev.pins->p, "hdmitx_i2c");
-			if (IS_ERR(tx_comm->pinctrl_i2c))
-				HDMITX_DEBUG("no hdmitx_i2c of pinctrl state\n");
-			pinctrl_select_state(pdev->dev.pins->p,
-					tx_comm->pinctrl_default);
+		tx_comm->pinctrl_hpd = pinctrl_lookup_state(pin, "hdmitx_hpd");
+		if (IS_ERR(tx_comm->pinctrl_hpd)) {
+			HDMITX_ERROR("no default of pinctrl state\n");
 		} else {
-			tx_comm->pinctrl_default = pinctrl_lookup_state(pin, "hdmitx_hpd");
-			if (IS_ERR(tx_comm->pinctrl_default)) {
-				HDMITX_ERROR("no default of pinctrl state\n");
-			} else {
-				ret = pinctrl_select_state(pin, tx_comm->pinctrl_default);
-				if (ret < 0)
-					HDMITX_ERROR("failed to select default pinctrl state\n");
-			}
+			ret = pinctrl_select_state(pin, tx_comm->pinctrl_hpd);
+			if (ret < 0)
+				HDMITX_ERROR("failed to select hpd pinctrl state\n");
+		}
 
-			tx_comm->pinctrl_i2c = pinctrl_lookup_state(pin, "hdmitx_ddc");
-			if (IS_ERR(tx_comm->pinctrl_i2c)) {
-				HDMITX_ERROR("no hdmitx_i2c of pinctrl state\n");
-			} else {
-				ret = pinctrl_select_state(pin, tx_comm->pinctrl_i2c);
-				if (ret < 0)
-					HDMITX_ERROR("failed to select hdmitx_i2c pinctrl state\n");
-			}
+		tx_comm->pinctrl_ddc = pinctrl_lookup_state(pin, "hdmitx_ddc");
+		if (IS_ERR(tx_comm->pinctrl_ddc)) {
+			HDMITX_ERROR("no hdmitx_ddc of pinctrl state\n");
+		} else {
+			ret = pinctrl_select_state(pin, tx_comm->pinctrl_ddc);
+			if (ret < 0)
+				HDMITX_ERROR("failed to select hdmitx_ddc pinctrl state\n");
 		}
 	} else {
 		HDMITX_INFO("node null\n");
@@ -357,21 +343,6 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 		memset(&tx_comm->config_data, 0,
 		       sizeof(struct hdmi_config_platform_data));
 
-		if (hw_comm->chip_data->chip_type == MESON_CPU_ID_TM2 ||
-			hw_comm->chip_data->chip_type == MESON_CPU_ID_TM2B) {
-			/* diff revA/B of TM2 chip */
-			if (is_meson_rev_b()) {
-				hw_comm->chip_data->chip_type = MESON_CPU_ID_TM2B;
-				hw_comm->chip_data->chip_name = "tm2b";
-			} else {
-				hw_comm->chip_data->chip_type = MESON_CPU_ID_TM2;
-				hw_comm->chip_data->chip_name = "tm2";
-			}
-		}
-		if (hw_comm->chip_data->chip_type == MESON_CPU_ID_S5)
-			hw_comm->hdmi_tx_cap.dsc_capable = true;
-		else
-			hw_comm->hdmi_tx_cap.dsc_capable = false;
 		/* Get hdmi_rext information */
 		ret = of_property_read_u32(pdev->dev.of_node, "hdmi_rext", &val);
 		tx_comm->hdmi_rext = val;
@@ -512,26 +483,13 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 			return -ENXIO;
 	}
 	HDMITX_DEBUG("hpd irq = %d\n", tx_comm->irq_hpd);
-	if (hw_comm->chip_data->chip_type < MESON_CPU_ID_T7) {
-		tx_comm->irq_viu1_vsync =
-		platform_get_irq_byname(pdev, "viu1_vsync");
-		if (tx_comm->irq_viu1_vsync == -ENXIO) {
-			HDMITX_ERROR("%s: ERROR: viu1_vsync irq No not found\n",
-				__func__);
-			return -ENXIO;
-		}
-		HDMITX_DEBUG("viu1_vsync irq = %d\n", tx_comm->irq_viu1_vsync);
-	} else {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		tx_comm->irq_vrr_vsync = platform_get_irq_byname(pdev, "vrr_vsync");
-		if (tx_comm->irq_vrr_vsync == -ENXIO) {
-			HDMITX_ERROR("%s: ERROR: hdmitx vrr_vsync irq No not found\n",
-				__func__);
-				return -ENXIO;
-		}
-		HDMITX_DEBUG("vrr vsync irq = %d\n", tx_comm->irq_vrr_vsync);
-#endif
+
+	tx_comm->irq_hdmitx_vsync = platform_get_irq_byname(pdev, "hdmitx_vsync");
+	if (tx_comm->irq_hdmitx_vsync == -ENXIO) {
+		HDMITX_ERROR("%s: ERROR: hdmitx vsync irq No not found\n", __func__);
+		return -ENXIO;
 	}
+
 	ret = of_property_read_u32(pdev->dev.of_node, "arc_rx_en", &val);
 	if (!ret)
 		tx_comm->arc_rx_en = val;
@@ -801,14 +759,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	tx_comm->base.pdev = dev;
 	/* set kobj for event_mgr before use uevent api */
 	meson_tx_event_mgr_set_uevent_dev(tx_comm->base.event_mgr, tx_comm->base.pdev, "hdmi");
-#ifdef CONFIG_AMLOGIC_VPU
-	if (tx_comm->tx_hw->chip_data->chip_type <	MESON_CPU_ID_T7) {
-		tx_comm->encp_vpu_dev = vpu_dev_register(VPU_VENCP, DEVICE_NAME);
-		tx_comm->enci_vpu_dev = vpu_dev_register(VPU_VENCI, DEVICE_NAME);
-		/* vpu gate/mem ctrl for hdmitx, since TM2B */
-		tx_comm->hdmi_vpu_dev = vpu_dev_register(VPU_HDMI, DEVICE_NAME);
-	}
-#endif
 	/* platform related functions */
 	tx_comm->reboot_nb.notifier_call = hdmitx_reboot_notifier;
 	register_reboot_notifier(&tx_comm->reboot_nb);
@@ -1185,13 +1135,6 @@ static void amhdmitx_remove(struct platform_device *pdev)
 	aout_unregister_client(&tx_comm->hdmitx_notifier_nb_a);
 #endif
 	hdmitx_common_destroy(tx_comm);
-#ifdef CONFIG_AMLOGIC_VPU
-	if (tx_comm->tx_hw->chip_data->chip_type < MESON_CPU_ID_T7) {
-		vpu_dev_unregister(tx_comm->encp_vpu_dev);
-		vpu_dev_unregister(tx_comm->enci_vpu_dev);
-		vpu_dev_unregister(tx_comm->hdmi_vpu_dev);
-	}
-#endif
 
 	/* Remove the cdev */
 	cdev_del(&tx_comm->cdev);
@@ -1199,38 +1142,6 @@ static void amhdmitx_remove(struct platform_device *pdev)
 	class_destroy(hdmitx_class);
 
 	unregister_chrdev_region(tx_comm->hdmitx_id, HDMI_TX_COUNT);
-}
-
-static void _amhdmitx_suspend(struct hdmitx_common *tx_comm)
-{
-	struct hdmitx_hw_common *hw_comm = NULL;
-	bool arg = false;
-
-	if (!tx_comm || !tx_comm->tx_hw) {
-		HDMITX_ERROR("%s: drvdata is NULL\n", __func__);
-		return;
-	}
-	hw_comm = tx_comm->tx_hw;
-	/*
-	 * if HPD is high before suspend, and there were hpd
-	 * plugout -> in event happened in deep suspend stage,
-	 * now resume and stay in early resume stage, still
-	 * need to respond to plugin irq and read/update EDID.
-	 * so clear last_hpd_handle_done_stat for re-enter
-	 * plugin handle. Note there may be re-enter plugout/in
-	 * handler under suspend
-	 */
-	if (tx_comm->tx_hw->chip_data->chip_type < MESON_CPU_ID_T7) {
-		/* drm tx22 enters AUTH_STOP, don't do hdcp22 IP reset */
-		if (tx_comm->hdcptx_comm.hdcp_ctl_lvl > 0)
-			return;
-
-		hdmitx_hw_cntl(hw_comm, PLATFORM_DIS_HPLL, NULL, NULL);
-		hdmitx_hw_cntl(hw_comm, HDCP_RESET, NULL, NULL);
-		arg = false;
-		hdmitx_hw_cntl(hw_comm, PLATFORM_ESM_CLK_CTRL, (void *)&arg, NULL);
-		HDMITX_INFO("amhdmitx: suspend and reset hdcp\n");
-	}
 }
 
 /*
@@ -1257,7 +1168,6 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 		return 0;
 	}
 	hw_comm = tx_comm->tx_hw;
-	hdmitx_hw_cntl(hw_comm, PLATFORM_HDMI_CLKS_CTRL, (void *)&arg, NULL);
 
 	/*
 	 * after suspend, VPU power domain will be powered off,
@@ -1265,7 +1175,8 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 	 */
 	hdmitx_hw_cntl(hw_comm, HDCP14_KEY_LOAD, (void *)&arg, NULL);
 	meson_tx_event_mgr_suspend(tx_comm->base.event_mgr, true);
-	_amhdmitx_suspend(tx_comm);
+
+	hdmitx_hw_cntl(tx_comm->tx_hw, CORE_MISC_HDCP_SUSPEND, NULL, NULL);
 
 	HDMITX_INFO("amhdmitx: suspend\n");
 	return 0;
@@ -1291,8 +1202,7 @@ static int amhdmitx_resume(struct platform_device *pdev)
 	 * modules will be reset. When it wakes up,the hdmitx driver needs to reinitialize the
 	 * required top register.
 	 */
-	if (tx_hw_base->chip_data->chip_type >= MESON_CPU_ID_S7)
-		hdmitx_hw_cntl(tx_hw_base, CORE_MISC_HW_INIT, (void *)&arg, NULL);
+	hdmitx_hw_cntl(tx_hw_base, CORE_MISC_HW_INIT, (void *)&arg, NULL);
 	mutex_lock(&tx_comm->base.set_mode_mutex);
 	meson_tx_event_mgr_suspend(tx_comm->base.event_mgr, false);
 	/* need to update EDID in case TV changed during suspend */
@@ -1311,10 +1221,7 @@ static int amhdmitx_resume(struct platform_device *pdev)
 	 */
 	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl > 0)
 		return 0;
-	hdmitx_hw_cntl(tx_hw_base, PLATFORM_ESM_CLK_CTRL, (void *)&arg, NULL);
-
-	if (tx_hw_base->chip_data->chip_type < MESON_CPU_ID_G12A)
-		hdmitx_hw_cntl(tx_hw_base, DDC_I2C_RESET, NULL, NULL);
+	hdmitx_hw_cntl(tx_hw_base, CORE_MISC_HDCP_RESUME, NULL, NULL);
 	return 0;
 }
 
@@ -1338,51 +1245,14 @@ static int amhdmitx_pm_restore(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct hdmitx_common *tx_comm = dev_get_drvdata(&pdev->dev);
-	struct hdmitx_hw_common *tx_hw_base = NULL;
-	bool arg = false;
-	bool hpd_state;
 
 	if (!tx_comm || !tx_comm->tx_hw) {
 		HDMITX_ERROR("%s: drvdata is NULL\n", __func__);
 		return 0;
 	}
-	tx_hw_base = tx_comm->tx_hw;
-	if (tx_hw_base->chip_data->chip_type < MESON_CPU_ID_T7)
-		return -1;
-	HDMITX_INFO("%s restore\n", __func__);
-	mutex_lock(&tx_comm->base.set_mode_mutex);
-	/*
-	 * if hdmitx init and display already, then should not do
-	 * HW init again as it may change clk settings, otherwise
-	 * need to do hw init as did in driver probe in case HW is
-	 * in power down or unknown state
-	 */
-	hdmitx_hw_cntl(tx_hw_base, CORE_MISC_HW_INIT, (void *)&arg, NULL);
-	/*
-	 * after suspend to disk and before resume, it may change TV set,
-	 * need to update EDID/HPD/fmt_para by current HW status
-	 * as which did in driver probe
-	 */
-	hpd_state = !!hdmitx_hw_cntl(tx_hw_base, PLATFORM_GET_HPD_GPI_ST, NULL, NULL);
-	hdmitx_hw_cntl(tx_hw_base, MODE_FLOW_HPD_IRQ_TOP_HALF, (void *)&hpd_state, NULL);
-	/* actions in bottom half of plug intr */
-	/* need to parse EDID as vinfo need edid information */
-	if (hpd_state) {
-		tx_comm->base.parse_edid_by_tx_cfg = true;
-		meson_tx_plugin_unlocked(&tx_comm->base);
-		tx_comm->base.parse_edid_by_tx_cfg = false;
-	} else {
-		meson_tx_plugout_unlocked(&tx_comm->base);
-	}
-	/* load fmt para from hw info */
-	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
-	/* load init hdr state for HW info */
-	hdmitx_hdr_load_hw_state(tx_comm);
-	hdmitx_bootup_post_process(tx_comm);
-	mutex_unlock(&tx_comm->base.set_mode_mutex);
-
-	/* notify to drm hdmi */
-	meson_tx_fire_drm_hpd_cb_unlocked(&tx_comm->base);
+	if (tx_comm->tx_hw->chip_data->hdmitx_ops &&
+		tx_comm->tx_hw->chip_data->hdmitx_ops->pm_restore)
+		tx_comm->tx_hw->chip_data->hdmitx_ops->pm_restore(tx_comm);
 	return 0;
 }
 
@@ -1398,17 +1268,12 @@ const struct dev_pm_ops hdmitx_pm = {
 static void amhdmitx_shutdown(struct platform_device *pdev)
 {
 	struct hdmitx_common *tx_comm = dev_get_drvdata(&pdev->dev);
-	bool arg = false;
 
 	if (!tx_comm || !tx_comm->tx_hw) {
 		HDMITX_ERROR("%s: drvdata is NULL\n", __func__);
 		return;
 	}
-	_amhdmitx_suspend(tx_comm);
-	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
-		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_DISABLE, NULL, NULL);
-		hdmitx_hw_cntl(tx_comm->tx_hw, PLATFORM_HDMI_CLKS_CTRL, (void *)&arg, NULL);
-	}
+	hdmitx_hw_cntl(tx_comm->tx_hw, CORE_MISC_HDCP_SUSPEND, NULL, NULL);
 }
 
 static struct platform_driver amhdmitx_driver = {

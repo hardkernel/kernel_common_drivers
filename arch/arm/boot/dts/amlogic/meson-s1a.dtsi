@@ -1181,7 +1181,7 @@
 		pinctrl-1=<&hdmitx_ddc>;
 		interrupts = <0 204 4
 			0 197 1>;
-		interrupt-names = "hdmitx_hpd", "vrr_vsync";
+		interrupt-names = "hdmitx_hpd", "hdmitx_vsync";
 		res_1080p = <1>;
 		reg =	<0xff000000 0x40000>,
 			<0xfe340000 0x10000>,

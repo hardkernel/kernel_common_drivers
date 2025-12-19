@@ -584,9 +584,10 @@
 		dev_name = "amhdmitx";
 		status = "disabled";
 		vend-data = <&vend_data>;
-		pinctrl-names="default", "hdmitx_i2c";
-		pinctrl-0=<&hdmitx_hpd &hdmitx_ddc>;
-		pinctrl-1=<&hdmitx_hpd_gpio>;
+		pinctrl-names="hdmitx_hpd", "hdmitx_ddc", "hdmitx_i2c";
+		pinctrl-0=<&hdmitx_hpd>;
+		pinctrl-1=<&hdmitx_ddc>;
+		pinctrl-2=<&hdmitx_hpd_gpio>;
 		hdmitx-gpios-hpd = <&gpio GPIOH_16 0>;
 		hdmitx-gpios-scl = <&gpio GPIOH_23 0>;
 		hdmitx-gpios-sda = <&gpio GPIOH_24 0>;
@@ -604,7 +605,7 @@
 			"cts_hdmi_axi_clk";
 		interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH
 			0 3 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "hdmitx_hpd", "viu1_vsync";
+		interrupt-names = "hdmitx_hpd", "hdmitx_vsync";
 		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
 		/* 0:M8B   1:GXBB 2:GXTVBB 3:GXL  4:GXM
 		 * 5:TXL   6:TXLX 7:AXG    8:GXLX 9:TXHD

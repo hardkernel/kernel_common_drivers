@@ -39,6 +39,7 @@
 #include "hdmitx_hdr.h"
 #include "hdmitx_hdcp.h"
 #include "meson_tx_event_mgr.h"
+#include "meson_tx_internal.h"
 
 #define yuv2rgb  1
 #define rgb2yuv  2
@@ -765,9 +766,12 @@ static void hdmitx21_private_data_init(struct hdmitx21_dev *h21_dev)
 
 	hdmitx_init_gate_bit_mask(h21_dev);
 	/* s5 init status check task */
-	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
+	if (tx_comm->tx_hw->chip_data->chip_type == MESON_CPU_ID_S5) {
 		tx_comm->task_clk_check = kthread_run(hdmitx21_status_check, (void *)h21_dev,
 					"kthread_hdmi_clk_check");
+		/* s5 support dsc */
+		tx_comm->tx_hw->hdmi_tx_cap.dsc_capable = true;
+	}
 
 	amhdmitx_infoframe_init(tx_comm);
 #ifdef CONFIG_AMLOGIC_HDCP_TX_MODERN
@@ -2290,8 +2294,7 @@ static void hdmitx_free_irq(struct hdmitx_hw_common *tx_hw)
 	struct hdmitx21_dev *hdev = container_of(tx_hw, struct hdmitx21_dev, hw_comm);
 
 	free_irq(hdev->tx_comm.irq_hpd, (void *)hdev);
-	free_irq(hdev->tx_comm.irq_viu1_vsync, (void *)hdev);
-	free_irq(hdev->tx_comm.irq_vrr_vsync, (void *)hdev);
+	free_irq(hdev->tx_comm.irq_hdmitx_vsync, (void *)hdev);
 }
 
 void hdmitx21_meson_uninit(struct hdmitx_hw_common *hw_comm)
@@ -4164,11 +4167,13 @@ static int hdmitx21_hw_cntl_core_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		ret = hdmitx_get_hdmi_dvi_config(hdev);
 		break;
 	case CORE_MISC_HW_INIT:
-		ret = hdmitx21_check_input_argv(cmd, input_argv);
-		if (ret < 0)
-			break;
-		arg = *((bool *)input_argv);
-		hdmi_hwp_init(hdev, !!arg);
+		if (tx_hw->chip_data->chip_type >= MESON_CPU_ID_S7) {
+			ret = hdmitx21_check_input_argv(cmd, input_argv);
+			if (ret < 0)
+				break;
+			arg = *((bool *)input_argv);
+			hdmi_hwp_init(hdev, !!arg);
+		}
 		break;
 	case CORE_MISC_VP_CMS_CSC:
 		ret = hdmitx21_check_input_argv(cmd, input_argv);
@@ -4191,6 +4196,11 @@ static int hdmitx21_hw_cntl_core_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		return hdmitx21_uboot_already_display();
 	case CORE_MISC_EVENT_PROCESS:
 		hdmitx_core_intr_process(&hdev->tx_comm);
+		break;
+	case CORE_MISC_HDCP_SUSPEND:
+		arg = false;
+		hdmitx_hw_cntl(tx_hw, HDCP_DISABLE, NULL, NULL);
+		hdmitx_hw_cntl(tx_hw, PLATFORM_HDMI_CLKS_CTRL, (void *)&arg, NULL);
 		break;
 	case CORE_MISC_SUSPEND_RESUME_CNTL:
 	default:
@@ -6235,6 +6245,54 @@ void hdmitx21_sw_debug_func(struct hdmitx_common *tx_comm, const char *buf)
 		hdev->emp_verbose = value;
 		HDMITX_INFO("emp_verbose :%d\n", hdev->emp_verbose);
 	}
+}
+
+void hdmitx21_pm_restore(struct hdmitx_common *tx_comm)
+{
+	struct hdmitx_hw_common *tx_hw_base = NULL;
+	bool arg = false;
+	bool hpd_state;
+
+	if (!tx_comm || !tx_comm->tx_hw) {
+		HDMITX_ERROR("%s: tx_comm or tx_hw is NULL\n", __func__);
+		return;
+	}
+	tx_hw_base = tx_comm->tx_hw;
+
+	HDMITX_INFO("%s restore\n", __func__);
+	mutex_lock(&tx_comm->base.set_mode_mutex);
+	/*
+	 * if hdmitx init and display already, then should not do
+	 * HW init again as it may change clk settings, otherwise
+	 * need to do hw init as did in driver probe in case HW is
+	 * in power down or unknown state
+	 */
+	hdmitx_hw_cntl(tx_hw_base, CORE_MISC_HW_INIT, (void *)&arg, NULL);
+	/*
+	 * after suspend to disk and before resume, it may change TV set,
+	 * need to update EDID/HPD/fmt_para by current HW status
+	 * as which did in driver probe
+	 */
+	hpd_state = !!hdmitx_hw_cntl(tx_hw_base, PLATFORM_GET_HPD_GPI_ST, NULL, NULL);
+	hdmitx_hw_cntl(tx_hw_base, MODE_FLOW_HPD_IRQ_TOP_HALF, (void *)&hpd_state, NULL);
+	/* actions in bottom half of plug intr */
+	/* need to parse EDID as vinfo need edid information */
+	if (hpd_state) {
+		tx_comm->base.parse_edid_by_tx_cfg = true;
+		meson_tx_plugin_unlocked(&tx_comm->base);
+		tx_comm->base.parse_edid_by_tx_cfg = false;
+	} else {
+		meson_tx_plugout_unlocked(&tx_comm->base);
+	}
+	/* load fmt para from hw info */
+	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
+	/* load init hdr state for HW info */
+	hdmitx_hdr_load_hw_state(tx_comm);
+	hdmitx_bootup_post_process(tx_comm);
+	mutex_unlock(&tx_comm->base.set_mode_mutex);
+
+	/* notify to drm hdmi */
+	meson_tx_fire_drm_hpd_cb_unlocked(&tx_comm->base);
 }
 
 static void hdmitx_pre_display_init(struct hdmitx21_dev *hdev)

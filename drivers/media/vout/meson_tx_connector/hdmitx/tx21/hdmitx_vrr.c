@@ -1489,7 +1489,7 @@ void hdmitx_vrr_disable(void)
 	struct tx_vrr_params *vrr = &vrr_para;
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
-	if (hdev->tx_comm.irq_vrr_vsync)
+	if (hdev->tx_comm.irq_hdmitx_vsync)
 		vrr->conf_params.vrr_enabled = 0;
 }
 
@@ -1498,7 +1498,7 @@ void hdmitx_vrr_enable(void)
 	struct tx_vrr_params *vrr = &vrr_para;
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
-	if (hdev->tx_comm.irq_vrr_vsync)
+	if (hdev->tx_comm.irq_hdmitx_vsync)
 		vrr->conf_params.vrr_enabled = 1;
 }
 

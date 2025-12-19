@@ -3338,7 +3338,7 @@ static int hdmitx_setup_irq(struct hdmitx_hw_common *tx_hw)
 			(void *)hdev);
 	if (r != 0)
 		HDMITX_INFO(SYS "can't request hdmitx irq\n");
-	r = request_irq(tx_comm->irq_viu1_vsync, &vsync_intr_handler,
+	r = request_irq(tx_comm->irq_hdmitx_vsync, &vsync_intr_handler,
 			IRQF_SHARED, "hdmi_vsync",
 			(void *)hdev);
 	if (r != 0)
@@ -3352,7 +3352,7 @@ static void hdmitx_free_irq(struct hdmitx_hw_common *tx_hw)
 	struct hdmitx20_dev *hdev = container_of(tx_hw, struct hdmitx20_dev, hw_comm);
 
 	free_irq(hdev->tx_comm.irq_hpd, (void *)hdev);
-	free_irq(hdev->tx_comm.irq_viu1_vsync, (void *)hdev);
+	free_irq(hdev->tx_comm.irq_hdmitx_vsync, (void *)hdev);
 }
 
 void hdmitx20_meson_uninit(struct hdmitx_hw_common *tx_hw)

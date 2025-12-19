@@ -461,8 +461,9 @@ struct hdmitx_common {
 	u32 pxp_mode:1;
 	u32 arc_rx_en;
 	struct hdmitx_clk_tree_s hdmitx_clk_tree;
-	struct pinctrl_state *pinctrl_i2c;
-	struct pinctrl_state *pinctrl_default;
+	struct pinctrl_state *pinctrl_ddc;
+	struct pinctrl_state *pinctrl_hpd;
+	struct pinctrl_state *pinctrl_i2c;	/* general i2c func */
 	/* kernel 6.12 or later, /amhdmitx/frac_enable should be set as default 1 */
 	bool frac_enable;
 
@@ -503,8 +504,7 @@ struct hdmitx_common {
 
 	/* 16. interrupt related */
 	u32 irq_hpd;
-	u32 irq_viu1_vsync;
-	u32 irq_vrr_vsync;
+	u32 irq_hdmitx_vsync;
 };
 
 #define to_hdmitx_common(x)	container_of(x, struct hdmitx_common, base.conn_dev)
@@ -681,7 +681,7 @@ const struct hdr_info *hdmitx_common_get_hdr_info(struct hdmitx_common *tx_comm)
 const struct hdr_info *hdmitx_common_get_hdr_info_rx(struct hdmitx_common *tx_comm);
 int hdmitx_common_get_mode_list(struct hdmitx_common *tx_comm, struct tx_timing **timing_list);
 int hdmitx_common_get_vrr_mode_list(struct hdmitx_common *tx_comm,
-	struct tx_timing **timing_list, int count, struct tx_timing **vrr_timing_list);
+	struct tx_timing *timing_list, int count, struct tx_timing **vrr_timing_list);
 void get_hdmi_efuse(struct hdmitx_common *tx_comm);
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
 enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);

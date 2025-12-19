@@ -2117,21 +2117,22 @@ EXPORT_SYMBOL(hdmitx_common_get_mode_list);
  * @vrr_timing_list: Output parameters used to obtain vrr_timing_list
  */
 int hdmitx_common_get_vrr_mode_list(struct hdmitx_common *tx_comm,
-	struct tx_timing **timing_list, int count, struct tx_timing **vrr_timing_list)
+	struct tx_timing *timing_list, int count, struct tx_timing **vrr_timing_list)
 {
 	int num_group = 0;
 	u32 vrr_cap = 0;
 	int count_qms = 0;
 	int i = 0, j = 0;
+	int current_vic;
 	int *tmp;
 	struct hdmitx_vrr_mode_group *groups;
 	struct hdmitx_vrr_mode_group *group;
 	struct tx_timing *vrr_timings = NULL;
 	const struct tx_timing *timing;
 
-	if (!tx_comm || !timing_list) {
+	if (!tx_comm || !timing_list || !vrr_timing_list) {
 		HDMITX_ERROR("%s tx_comm or timing_list is null\n", __func__);
-		return count;
+		return count_qms;
 	}
 	vrr_timings = vzalloc(MAX_VRR_GROUP_VIC_NUM * sizeof(struct tx_timing));
 	groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*groups), GFP_KERNEL);
@@ -2150,6 +2151,10 @@ int hdmitx_common_get_vrr_mode_list(struct hdmitx_common *tx_comm,
 		for (i = 0; i < num_group; i++) {
 			group = &groups[i];
 			for (j = 0; j < ARRAY_SIZE(group->qms_vic_lists); j++) {
+				if (count_qms >= MAX_VRR_GROUP_VIC_NUM) {
+					HDMITX_WARNING("%s qms tmp array full\n", __func__);
+					break;
+				}
 				tmp[count_qms] = group->qms_vic_lists[j];
 				HDMITX_DEBUG("%s__%d__%d__%zd\n", __func__,
 				__LINE__, tmp[count_qms],
@@ -2157,42 +2162,48 @@ int hdmitx_common_get_vrr_mode_list(struct hdmitx_common *tx_comm,
 				count_qms++;
 			}
 		}
-
 		/*remove duplicate vics array variables*/
 		while (src  < count_qms) {
 			bool exist = false;
-
 			for (i = 0; i < count; i++) {
-				if (tmp[src] == timing_list[i]->vic) {
+				/* if vic = 0, skip */
+				if (tmp[src] == 0)
+					continue;
+				if (tmp[src] == timing_list[i].vic) {
 					src++;
 					exist = true;
 					break;
 				}
 			}
-
 			if (!exist) {
-				timing = meson_tx_mode_vic_to_timing(tmp[src++]);
+				current_vic = tmp[src];
+				src++;
+				timing = meson_tx_mode_vic_to_timing(current_vic);
 				if (!timing) {
 					HDMITX_DEBUG("%s: vic[%d] not found in timing list.\n",
-						__func__, tmp[src++]);
+						__func__, current_vic);
+					continue;
+				}
+				if (dst >= MAX_VRR_GROUP_VIC_NUM) {
+					HDMITX_WARNING("vrr_timings full, vic[%d]\n", current_vic);
 					continue;
 				}
 				memcpy(&vrr_timings[dst++], timing, sizeof(*timing));
 			}
 		}
-		count = dst;
+		count_qms = dst;
 	}
 out:
 	kfree(tmp);
 	kfree(groups);
-	if (count == 0) {
+	if (count_qms == 0) {
 		vfree(vrr_timings);
 		*vrr_timing_list = NULL;
 	} else {
 		*vrr_timing_list = vrr_timings;
 	}
 
-	return count;
+	return count_qms;
 }
 EXPORT_SYMBOL(hdmitx_common_get_vrr_mode_list);
 

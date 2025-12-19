@@ -402,8 +402,9 @@ struct hdmitx_common {
 	u32 pxp_mode:1;
 	u32 arc_rx_en;
 	struct hdmitx_clk_tree_s hdmitx_clk_tree;
-	struct pinctrl_state *pinctrl_i2c;
-	struct pinctrl_state *pinctrl_default;
+	struct pinctrl_state *pinctrl_ddc;
+	struct pinctrl_state *pinctrl_hpd;
+	struct pinctrl_state *pinctrl_i2c;	/* general i2c func */
 	/* kernel 6.12 or later, /amhdmitx/frac_enable should be set as default 1 */
 	bool frac_enable;
 
@@ -451,8 +452,7 @@ struct hdmitx_common {
 
 	/* 16. interrupt related */
 	u32 irq_hpd;
-	u32 irq_viu1_vsync;
-	u32 irq_vrr_vsync;
+	u32 irq_hdmitx_vsync;
 	struct delayed_work work_internal_intr;
 };
 

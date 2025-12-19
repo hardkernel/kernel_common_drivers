@@ -2910,8 +2910,7 @@ static void hdmitx_free_irq(struct hdmitx_hw_common *tx_hw)
 	struct hdmitx21_dev *hdev = container_of(tx_hw, struct hdmitx21_dev, hw_comm);
 
 	free_irq(hdev->tx_comm.irq_hpd, (void *)hdev);
-	free_irq(hdev->tx_comm.irq_viu1_vsync, (void *)hdev);
-	free_irq(hdev->tx_comm.irq_vrr_vsync, (void *)hdev);
+	free_irq(hdev->tx_comm.irq_hdmitx_vsync, (void *)hdev);
 }
 
 void hdmitx21_meson_uninit(struct hdmitx_hw_common *hw_comm)
