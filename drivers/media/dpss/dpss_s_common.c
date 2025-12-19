@@ -2473,9 +2473,18 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 			vfm->type_ext &= ~VIDTYPE_EXT_AFRC_COMPRESS;
 		dbg_i2("ch[%d]:afbce:o:vfm:type=0x%x:0x%lx\n", pch->c.ch,
 				vfm->type, vfm->compHeadAddr);
+
+		//void *mem_handle_1; //table
+		//void *mem_head_handle; //head
+		//void *mem_handle; //body
+		//void *mem_dw_handle //dw
 		//mem_handle
 		//tab
 		blk = &pch->c.blk_r_afbc_tab;
+		vfm->mem_handle_1 = blk->c.b.blk_m.mem_handle;
+		blk = &pch->c.blk_r_afbc_hd;
+		if (pch->d->idx_hd)
+			blk = &pch->c.blk_r_afbc_hd_b;
 		vfm->mem_head_handle = blk->c.b.blk_m.mem_handle;
 		blk = &pch->c.blk_r_nr[b_idx];
 		vfm->mem_handle = blk->c.b.blk_m.mem_handle;
@@ -2551,6 +2560,10 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 		//mem_handle
 		//table
 		blk = &pch->c.blk_r_afbc_tab;
+		vfm->mem_handle_1 = blk->c.b.blk_m.mem_handle;
+		blk = &pch->c.blk_r_afbc_hd;
+		if (pch->d->idx_hd)
+			blk = &pch->c.blk_r_afbc_hd_b;
 		vfm->mem_head_handle = blk->c.b.blk_m.mem_handle;
 		blk = &pch->c.blk_r_nr[b_idx];
 		vfm->mem_handle = blk->c.b.blk_m.mem_handle;
@@ -2563,13 +2576,14 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 	}
 
 	if (!dpss_en_afbc && !pch->c.o_afbc) {
+		vfm->mem_handle_1 = NULL;
 		vfm->mem_head_handle = NULL;
 		vfm->mem_dw_handle = NULL;
 		blk = &pch->c.blk_r_nr[b_idx];
 		vfm->mem_handle = blk->c.b.blk_m.mem_handle;
 	}
 	dbg_m2("ch[%d]:%d:hd:\n", pch->c.ch, b_idx);
-	dbg_m2("\t%p %p %p\n",
+	dbg_m2("\t%p %p %p %p\n", vfm->mem_handle_1,
 		vfm->mem_handle, vfm->mem_head_handle, vfm->mem_dw_handle);
 	if (vfm->type_ext & VIDTYPE_EXT_LCEVC) {
 		//clear:
