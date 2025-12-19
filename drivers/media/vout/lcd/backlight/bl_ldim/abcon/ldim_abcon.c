@@ -177,7 +177,7 @@ void ldim_abcon_swduty_set(struct aml_ldim_driver_s *ldim_drv)
 
 int ldim_abcon_mem_init(struct ldim_dev_driver_s *dev_drv)
 {
-	phys_addr_t paddr = 0;
+	dma_addr_t paddr = 0;
 	unsigned int *vaddr;
 	unsigned int size;
 	unsigned int ch_offset, ldc_seg_offset, sw_duty_offset, wseg_offset, rseg_offset;
@@ -209,7 +209,7 @@ int ldim_abcon_mem_init(struct ldim_dev_driver_s *dev_drv)
 		return -1;
 	}
 
-	ABCONPR("abcon_base paddr=0x%llx, vaddr = 0x%px, size=0x%x\n", paddr, vaddr, size);
+	ABCONPR("abcon_base paddr=0x%llx, vaddr = 0x%px, size=0x%x\n", (u64)paddr, vaddr, size);
 
 	abcon_mem.base_paddr = paddr;
 	abcon_mem.base_vaddr = vaddr;
@@ -233,12 +233,12 @@ int ldim_abcon_mem_init(struct ldim_dev_driver_s *dev_drv)
 		"swduty_paddr=0x%llx, swduty=0x%px\n"
 		"wseg_paddr=0x%llx, wseg=0x%px\n"
 		"rseg_paddr=0x%llx, rseg=0x%px\n",
-		paddr, size,
-		abcon_mem.ch_mapping_paddr, abcon_mem.ch_mapping,
-		abcon_mem.ldc_seg_paddr, abcon_mem.ldc_seg,
-		abcon_mem.swduty_paddr, abcon_mem.swduty,
-		abcon_mem.wseg_paddr, abcon_mem.wseg,
-		abcon_mem.rseg_paddr, abcon_mem.rseg);
+		(u64)paddr, size,
+		(u64)abcon_mem.ch_mapping_paddr, abcon_mem.ch_mapping,
+		(u64)abcon_mem.ldc_seg_paddr, abcon_mem.ldc_seg,
+		(u64)abcon_mem.swduty_paddr, abcon_mem.swduty,
+		(u64)abcon_mem.wseg_paddr, abcon_mem.wseg,
+		(u64)abcon_mem.rseg_paddr, abcon_mem.rseg);
 
 	return 0;
 }

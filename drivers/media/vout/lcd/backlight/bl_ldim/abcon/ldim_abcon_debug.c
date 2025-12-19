@@ -76,11 +76,11 @@ static ssize_t abcon_show(const struct class *class, const struct class_attribut
 			"act_lane=%d\n"
 			"max_lane_dim=%d\n"
 			"autotrans_ready=%d\n",
-			abcon_mem.ch_mapping_paddr, abcon_mem.ch_mapping,
-			abcon_mem.ldc_seg_paddr, abcon_mem.ldc_seg,
-			abcon_mem.swduty_paddr, abcon_mem.swduty,
-			abcon_mem.wseg_paddr, abcon_mem.wseg,
-			abcon_mem.rseg_paddr, abcon_mem.rseg,
+			(u64)abcon_mem.ch_mapping_paddr, abcon_mem.ch_mapping,
+			(u64)abcon_mem.ldc_seg_paddr, abcon_mem.ldc_seg,
+			(u64)abcon_mem.swduty_paddr, abcon_mem.swduty,
+			(u64)abcon_mem.wseg_paddr, abcon_mem.wseg,
+			(u64)abcon_mem.rseg_paddr, abcon_mem.rseg,
 			abcon->act_lane,
 			abcon->max_lane_dim,
 			abcon->autotrans_ready);
@@ -136,7 +136,7 @@ static ssize_t abcon_debug_store(const struct class *class, const struct class_a
 				goto abcon_debug_store_err;
 			abcon_mem.base_paddr = val;
 		}
-		ABCONPR("base_paddr = 0x%llx\n", abcon_mem.base_paddr);
+		ABCONPR("base_paddr = 0x%llx\n", (u64)abcon_mem.base_paddr);
 	} else if (!strcmp(parm[0], "tx_clk")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 0, &val) < 0)

@@ -73,17 +73,17 @@
 
 struct abcon_mem_s {
 	unsigned int *base_vaddr;
-	phys_addr_t base_paddr;
+	dma_addr_t base_paddr;
 	unsigned int *wseg;
-	phys_addr_t wseg_paddr;
+	dma_addr_t wseg_paddr;
 	unsigned int *rseg;
-	phys_addr_t rseg_paddr;
+	dma_addr_t rseg_paddr;
 	unsigned int *swduty;
-	phys_addr_t swduty_paddr;
+	dma_addr_t swduty_paddr;
 	unsigned int *ch_mapping;
-	phys_addr_t ch_mapping_paddr;
+	dma_addr_t ch_mapping_paddr;
 	unsigned int *ldc_seg;
-	phys_addr_t ldc_seg_paddr;
+	dma_addr_t ldc_seg_paddr;
 	unsigned char swduty_fid;
 };
 
