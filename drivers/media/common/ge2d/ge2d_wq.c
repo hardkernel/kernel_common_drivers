@@ -48,9 +48,21 @@
 #define OSD4_CANVAS_INDEX 0x42
 #define ALLOC_CANVAS_INDEX 0x44
 
+#define GE2D_DUMP_REG        0x10
 #define GE2D_NO_POWER_OFF_OP 0x8
 #define GE2D_NO_POWER_ON_OP  0x4
 #define GE2D_ONOFF_MODE_MAX_COUNT 32767
+
+/* T6X: 0xfe035000 + offset */
+#define    MDC_SYS_BASE_ADDR        0xfe035000
+#define    MDC_AXI0_CHAN_STS        0x16c
+#define    MDC_AXI1_CHAN_STS        0x17c
+#define    MDC_AXI2_CHAN_STS        0x18c
+#define    MDC_AXI3_CHAN_STS        0x19c
+#define    MDC_AXI4_CHAN_STS        0x20c
+#define    MDC_AXI5_CHAN_STS        0x21c
+#define    MDC_AXI6_CHAN_STS        0x22c
+#define    MDC_CHAN_REQ_CTRL        0x230
 
 static struct ge2d_manager_s ge2d_manager;
 static int ge2d_irq = -ENXIO;
@@ -64,6 +76,7 @@ static struct timer_list clk_timer;
 #define CLK_TIMER_MS (1000)
 static DEFINE_MUTEX(clk_mutex);
 struct work_struct clk_work;
+static void __iomem *mdc_sys_reg;
 
 static const int bpp_type_lut[] = {
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
@@ -372,6 +385,74 @@ ssize_t free_queue_status_show(const struct class *cla, const struct class_attri
 			get_queue_member_count(&wq->free_queue));
 }
 
+static void write_mdc_sys_reg(u32 reg, u32 val)
+{
+	if (mdc_sys_reg == 0) {
+		ge2d_log_err("write(%x), err iomap\n", reg);
+		return;
+	}
+
+	ge2d_log_dbg("write(%x) = %x\n", reg, val);
+
+	writel(val, mdc_sys_reg + reg);
+}
+
+static u32 read_mdc_sys_reg(u32 reg)
+{
+	u32 val;
+
+	if (mdc_sys_reg == 0) {
+		ge2d_log_err("read(%x), err iomap\n", reg);
+		return -1;
+	}
+
+	val = readl(mdc_sys_reg + reg);
+
+	ge2d_log_dbg("read(%x) = %x\n", reg, val);
+
+	return val;
+}
+
+int mdc_sys_wait_status(u32 reg, u32 mask, u32 exp_val)
+{
+	ulong timeout = jiffies + (HZ / 10);
+	u32 val;
+
+	if (mdc_sys_reg == 0) {
+		ge2d_log_err("wait(%x), err iomap\n", reg);
+		return 0;
+	}
+	val = read_mdc_sys_reg(reg);
+	while (!((val & mask) == exp_val)) {
+		if (time_after(jiffies, timeout)) {
+			ge2d_log_err("wait timeout, reg %x, val %x, mask %x\n",
+				     reg, val, mask);
+			return -EBUSY;
+		}
+		val = read_mdc_sys_reg(reg);
+	}
+
+	return 0;
+}
+
+bool ge2d_is_busy(void)
+{
+	int reg = GE2D_STATUS0, bit = 0;
+
+	if (ge2d_meson_dev.chip_type >= MESON_CPU_MAJOR_ID_S7D) {
+		reg = GE2D_STATUS2;
+		bit = 3;
+	}
+	if (ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_T6X) {
+		if (read_mdc_sys_reg(MDC_AXI2_CHAN_STS) & 0xffff0000)
+			return true;
+	}
+	if (ge2d_reg_read(reg) & BIT(bit))
+		return true;
+	else
+		return false;
+}
+
 static inline int work_queue_no_space(struct ge2d_context_s *queue)
 {
 	return list_empty(&queue->free_queue);
@@ -444,10 +525,22 @@ static void ge2d_dump_cmd(struct ge2d_cmd_s *cfg)
 
 	ge2d_log_info("GE2D_STATUS0=0x%x\n", ge2d_reg_read(GE2D_STATUS0));
 	ge2d_log_info("GE2D_STATUS1=0x%x\n", ge2d_reg_read(GE2D_STATUS1));
+	ge2d_log_info("GE2D_STATUS2=0x%x\n", ge2d_reg_read(GE2D_STATUS2));
 
 	if (ge2d_meson_dev.cmd_queue_mode)
 		ge2d_log_info("frame:%d residual in the buffer\n",
 			      ge2d_reg_read(GE2D_AXI2DMA_STATUS));
+
+	dump_ge2d_regs();
+	if (ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_T6X) {
+		ge2d_log_info("MDC_AXI0_CHAN_STS=0x%x\n", read_mdc_sys_reg(MDC_AXI0_CHAN_STS));
+		ge2d_log_info("MDC_AXI1_CHAN_STS=0x%x\n", read_mdc_sys_reg(MDC_AXI1_CHAN_STS));
+		ge2d_log_info("MDC_AXI2_CHAN_STS=0x%x\n", read_mdc_sys_reg(MDC_AXI2_CHAN_STS));
+		ge2d_log_info("MDC_AXI3_CHAN_STS=0x%x\n", read_mdc_sys_reg(MDC_AXI3_CHAN_STS));
+		ge2d_log_info("MDC_AXI4_CHAN_STS=0x%x\n", read_mdc_sys_reg(MDC_AXI4_CHAN_STS));
+		ge2d_log_info("MDC_AXI5_CHAN_STS=0x%x\n", read_mdc_sys_reg(MDC_AXI5_CHAN_STS));
+		ge2d_log_info("MDC_AXI6_CHAN_STS=0x%x\n", read_mdc_sys_reg(MDC_AXI6_CHAN_STS));
+	}
 }
 
 static void ge2d_set_canvas(struct ge2d_config_s *cfg)
@@ -818,6 +911,38 @@ static int is_cmd_queue_ready(struct ge2d_queue_item_s *pitem)
 	return 0;
 }
 
+static void do_timeout(struct ge2d_queue_item_s *pitem)
+{
+	u32 val;
+
+	ge2d_dump_cmd(&pitem->cmd);
+	if (ge2d_meson_dev.cmd_queue_mode) {
+		ge2d_dma_reset();
+		backup_init_regs = 1;
+	}
+	if (ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_T6X) {
+		/* 1. Disable GE2D request enable in MDC.
+		 * 2. Continue checking whether MDC_AXI2_CHAN_STS is all zeros
+		 *    (loop until zero, and print a message if the retry limit is exceeded).
+		 * 3. Perform a GE2D soft reset.
+		 * 4. Re-enable GE2D request enable in MDC.
+		 */
+		val = read_mdc_sys_reg(MDC_CHAN_REQ_CTRL);
+		val &= ~(1 << 2);   // bit2 set 0
+		write_mdc_sys_reg(MDC_CHAN_REQ_CTRL, val);
+		if (!mdc_sys_wait_status(MDC_AXI2_CHAN_STS, 0xffff0000, 0)) {
+			ge2d_soft_rst();
+			ge2d_pre_init();
+		}
+		val = read_mdc_sys_reg(MDC_CHAN_REQ_CTRL);
+		val |= (1 << 2);   // bit2 set 1
+		write_mdc_sys_reg(MDC_CHAN_REQ_CTRL, val);
+	} else {
+		ge2d_soft_rst();
+		ge2d_pre_init();
+	}
+}
+
 static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 {
 	struct ge2d_queue_item_s *pitem;
@@ -881,12 +1006,7 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 					 msecs_to_jiffies(1000));
 				if (timeout == 0) {
 					ge2d_log_err("ge2d timeout!!!\n");
-					ge2d_dump_cmd(&pitem->cmd);
-					if (ge2d_meson_dev.cmd_queue_mode) {
-						ge2d_dma_reset();
-						backup_init_regs = 1;
-					}
-					ge2d_soft_rst();
+					do_timeout(pitem);
 					break;
 				}
 			}
@@ -902,17 +1022,14 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 				    residual_cnt0 == residual_cnt1 &&
 				    residual_cnt0 != 0) {
 					ge2d_log_err("ge2d timeout!!!\n");
-					ge2d_dump_cmd(&pitem->cmd);
-					if (ge2d_meson_dev.cmd_queue_mode) {
-						ge2d_dma_reset();
-						backup_init_regs = 1;
-					}
-					ge2d_soft_rst();
+					do_timeout(pitem);
 					break;
 				}
 			}
 		}
 
+		if (ge2d_dump_reg_enable & GE2D_DUMP_REG) /* for debugging */
+			ge2d_dump_cmd(&pitem->cmd);
 		pitem->time_process_done = ktime_get();
 		if (ge2d_log_level) {
 			ktime_t diff_time;
@@ -3335,6 +3452,12 @@ int ge2d_wq_init(struct platform_device *pdev, int irq, struct clk *clk)
 		return -1;
 	}
 	ge2d_manager.probe = 1;
+
+	if (ge2d_meson_dev.chip_type == MESON_CPU_MAJOR_ID_T6X) {
+		mdc_sys_reg = ioremap(MDC_SYS_BASE_ADDR, 0x2000);
+		if (!mdc_sys_reg)
+			ge2d_log_err("mdc_sys reg ioremap failed\n");
+	}
 	return 0;
 }
 

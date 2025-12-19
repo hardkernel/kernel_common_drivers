@@ -1579,20 +1579,6 @@ bool ge2d_queue_empty(void)
 	return ret;
 }
 
-bool ge2d_is_busy(void)
-{
-	int reg = GE2D_STATUS0, bit = 0;
-
-	if (ge2d_meson_dev.chip_type >= MESON_CPU_MAJOR_ID_S7D) {
-		reg = GE2D_STATUS2;
-		bit = 3;
-	}
-	if (ge2d_reg_read(reg) & BIT(bit))
-		return true;
-	else
-		return false;
-}
-
 void ge2d_soft_rst(void)
 {
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, 1, 31, 1);
@@ -1724,4 +1710,12 @@ void dump_cmd_queue_regs(u32 queue_index)
 		pr_info("reg[0x%x]: 0x%x\n", *(start_addr + i * 2 + 1),
 			*(start_addr + i * 2));
 	}
+}
+
+void dump_ge2d_regs(void)
+{
+	u32 i;
+
+	for (i = GE2D_REG_START; i <= GE2D_REG_END; i++)
+		pr_info("reg[0x%x]: 0x%x\n", i, ge2d_reg_read(i));
 }

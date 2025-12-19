@@ -34,4 +34,5 @@ void dmc_ge2d_test_notifier(void);
 #endif
 void ge2d_runtime_pwr(int enable);
 int ge2d_irq_init(int irq);
+void dump_ge2d_regs(void);
 #endif
