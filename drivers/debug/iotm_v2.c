@@ -21,6 +21,7 @@
 #include <linux/amlogic/gki_module.h>
 #include <trace/hooks/traps.h>
 #include <linux/amlogic/aml_iotm.h>
+#include <linux/arm-smccc.h>
 #include <linux/panic_notifier.h>
 #include <linux/timer.h>
 #include <linux/syscore_ops.h>
@@ -79,15 +80,16 @@ static void trace_time_loop_check_v2(void *trace_start, void *trace_end, u64 *pr
 
 static void print_single_trace_v2(void *ptr, char *buf)
 {
+	u64 kernel_time, rem_nsec, per_cpu_time, per_cpu_us_time;
+	u32 sched_stream2;
 	u8 sched_comm[7] = {0};
 	int pos = 0;
 	struct iotm_record_v2 *record = ptr;
 	u64 ts = ((u64)(record->stream0) << STREAM1_TS_BITS | record->stream1.ts) *
-				NSEC_PER_IOTM_TS;
-	u64 kernel_time = ts_to_kernel_time_v2(ts);
-	u64 rem_nsec = do_div(kernel_time, NSEC_PER_SEC);
-	u32 sched_stream2;
-	u64 per_cpu_time, per_cpu_us_time;
+				THOUSAND_NSEC_PER_IOTM_TS;
+	do_div(ts, 1000);
+	kernel_time = ts_to_kernel_time_v2(ts);
+	rem_nsec = do_div(kernel_time, NSEC_PER_SEC);
 
 	do_div(rem_nsec, 1000);
 	pos += sprintf(buf + pos, "[%05llu.%06llu] <%02d> ",
@@ -146,7 +148,8 @@ static void print_single_trace_v2(void *ptr, char *buf)
 				record->io_stream2.fail ? "fail" : "",
 				record->io_stream2.addr + ADDR_OFFSET,
 				record->stream3,
-				record->io_stream2.mid == AOCPU_TRACE ? "AOCPU" : "",
+				(record->stream1.mid == 0 &&
+				record->io_stream2.mid == 1) ? "AOCPU" : "",
 				node_name);
 	}
 
@@ -165,6 +168,14 @@ static bool is_trace_loop_v2(void)
 static inline void etb_coresight_clk_v2(void)
 {
 	writel(FUNNEL_CTRL_REG_VAL_V2, iotm.cssys_base + FUNNEL_CTRL_REG);
+}
+
+static inline void coresight_clk_enable_v2(void)
+{
+	struct arm_smccc_res res;
+
+	iotm_smccc_smc(AML_IOTM_SMC_CMD, AML_IOTM_INIT_SMC_ARG,
+			AML_IOTM_INIT_CLK_SMC_ARG, 0, 0, res);
 }
 
 /*
@@ -214,9 +225,23 @@ static void ddr_range_set_v2(u32 trace_buf_start)
 		iotm.cssys_base + MONITOR_BUF_SIZE_LOW);
 }
 
+static int axi_mode_enable_v2(struct iotm *iotm, int iotm_en)
+{
+	unsigned int val;
+
+	/* monitor vapb4 and capu bus then start trace data */
+	val = readl(iotm->cssys_base + IOTM_CTRL_MODE);
+	val |= (IOTM_CTRL_MODE_CAPU_ENABLE | IOTM_CTRL_MODE_VAPB4_ENABLE |
+		IOTM_CTRL_MODE_TRACE_ENABLE);
+	writel(val, iotm->cssys_base + IOTM_CTRL_MODE);
+
+	return 0;
+}
+
 struct iotm_ops iotm_v2_ops = {
 	.ddr_range_set = ddr_range_set_v2,
 	.etb_coresight_clk = etb_coresight_clk_v2,
+	.coresight_clk_enable = coresight_clk_enable_v2,
 	.boot_timer_setup = boot_timer_setup_v2,
 	.boot_time_record = boot_time_record_v2,
 	.is_watchdog = is_watchdog_v2,
@@ -226,4 +251,5 @@ struct iotm_ops iotm_v2_ops = {
 	.sw_record_write = sw_record_write_v2,
 	.trace_time_loop_check = trace_time_loop_check_v2,
 	.clean_buf = clean_buf_v2,
+	.axi_mode_enable = axi_mode_enable_v2,
 };

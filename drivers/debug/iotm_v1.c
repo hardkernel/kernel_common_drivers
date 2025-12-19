@@ -223,6 +223,10 @@ static inline void etb_coresight_clk_v1(void)
 	writel(FUNNEL_CTRL_REG_VAL_V1, iotm.cssys_base + FUNNEL_CTRL_REG);
 }
 
+static inline void coresight_clk_enable_v1(void)
+{
+}
+
 /*
  * Different versions have different status detections for watchdogs
  * if watchdog reset:
@@ -267,9 +271,54 @@ static void ddr_range_set_v1(u32 trace_buf_start)
 		iotm.cssys_base + MONITOR_BUF_SIZE_LOW);
 }
 
+static int axi_mode_enable_v1(struct iotm *iotm, int iotm_en)
+{
+	unsigned int val, i;
+	unsigned long flags;
+
+	/* confirm IOTM_AXI_ADDR can point to the correct ddr address */
+	for (i = 0; i < CONTINUOUS_PULSE; i++) {
+		val = readl(iotm->cssys_base + IOTM_CTRL_MODE);
+		val |= IOTM_CTRL_MODE_TRACE_ENABLE;
+		writel(val, iotm->cssys_base + IOTM_CTRL_MODE);
+		udelay(CONTINUOUS_PULSE_TIME);
+
+		val = readl(iotm->cssys_base + IOTM_CTRL_MODE);
+		val &= ~IOTM_CTRL_MODE_TRACE_ENABLE;
+		writel(val, iotm->cssys_base + IOTM_CTRL_MODE);
+	}
+
+	local_irq_save(flags);
+	/* monitor vapb4 and capu bus then start trace data */
+	val = readl(iotm->cssys_base + IOTM_CTRL_MODE);
+	val |= (IOTM_CTRL_MODE_CAPU_ENABLE | IOTM_CTRL_MODE_VAPB4_ENABLE |
+			IOTM_CTRL_MODE_TRACE_ENABLE);
+	writel(val, iotm->cssys_base + IOTM_CTRL_MODE);
+
+	/* When disable record trace, the axi_addr can't be changed. */
+	if (iotm_en != IOTM_ENABLE_NO_TRACE) {
+		/* Check whether 0x0 is written in the trace */
+		val = readl(iotm->cssys_base + IOTM_AXI_ADDR);
+		if (val < iotm->buf_start || val >= iotm->buf_end) {
+			pr_err("IOTM:AXI_ADDR = 0x%x is wrong,close iotm\n", val);
+
+			val = readl(iotm->cssys_base + IOTM_CTRL_MODE);
+			val |= IOTM_CTRL_MODE_TRACE_DISABLE;
+			writel(val, iotm->cssys_base + IOTM_CTRL_MODE);
+
+			local_irq_restore(flags);
+			return -1;
+		}
+	}
+	local_irq_restore(flags);
+
+	return 0;
+}
+
 struct iotm_ops iotm_v1_ops = {
 	.ddr_range_set = ddr_range_set_v1,
 	.etb_coresight_clk = etb_coresight_clk_v1,
+	.coresight_clk_enable = coresight_clk_enable_v1,
 	.boot_timer_setup = boot_timer_setup_v1,
 	.boot_time_record = boot_time_record_v1,
 	.is_watchdog = is_watchdog_v1,
@@ -279,4 +328,5 @@ struct iotm_ops iotm_v1_ops = {
 	.sw_record_write = sw_record_write_v1,
 	.trace_time_loop_check = trace_time_loop_check_v1,
 	.clean_buf = clean_buf_v1,
+	.axi_mode_enable = axi_mode_enable_v1,
 };

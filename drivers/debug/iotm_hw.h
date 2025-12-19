@@ -8,6 +8,18 @@
 
 #include <linux/list.h>
 
+#define AML_IOTM_SMC_CMD			0x8200007A
+#define AML_IOTM_INIT_SMC_ARG			0x1
+#define AML_IOTM_RANGE_SMC_ARG			0x2
+#define AML_IOTM_JTAG_SMC_ARG			0x3
+#define AML_IOTM_SHUTDOWN_SMC_ARG		0x4
+#define AML_IOTM_JTAG_DISABLE_SMC_ARG		0x0
+#define AML_IOTM_JTAG_ENABLE_SMC_ARG		0x1
+#define AML_IOTM_INIT_CLK_SMC_ARG		0x0
+#define AML_IOTM_INIT_HW_SMC_ARG		0x1
+#define CONTINUOUS_PULSE_TIME                   10
+#define CONTINUOUS_PULSE                        20
+
 #define REPLICAPTER_LOCKACCESS			0x1fb0
 #define TPIU_ITATBCTR2				0x2ef0
 #define TPIU_ITCTRL				0x2f00
@@ -108,6 +120,7 @@
 #define MAX_TS					0x7ffffff
 //NSEC_PER_IOTM_TS:TS1 * NSEC_PER_IOTM_TS = NS
 #define NSEC_PER_IOTM_TS			666
+#define THOUSAND_NSEC_PER_IOTM_TS		666666
 
 #define iotm_smccc_smc(cmd, arg0, arg1, arg2, arg3, res) \
 __arm_smccc_smc(cmd, arg0, arg1, arg2, arg3, 0, 0, 0, &(res), NULL)
@@ -115,6 +128,30 @@ __arm_smccc_smc(cmd, arg0, arg1, arg2, arg3, 0, 0, 0, &(res), NULL)
 /* Combine two words into double_word */
 #define PACK_U32_TO_U64(high, low)	\
 	((((u64)(high)) << 32) | ((u64)(low)))
+
+enum iotm_en_mode {
+	IOTM_DISABLE,
+	IOTM_ENABLE,
+	IOTM_ENABLE_NO_TRACE,
+};
+
+enum iotm_mode {
+	AXI_MODE,
+	TPIU_MODE,
+	ETB_MODE,
+};
+
+enum iotm_type {
+	IOTM_TYPE_T6D,
+	IOTM_TYPE_T6W,
+	IOTM_TYPE_T6X,
+};
+
+enum iotm_dump {
+	IOTM_DUMP_NONE,
+	IOTM_DUMP_WATCHDOG,
+	IOTM_DUMP_ALL,
+};
 
 struct iotm_record_v1 {
 	struct {
@@ -178,20 +215,6 @@ struct reg_entry {
 	const char *reg_name;
 };
 
-struct iotm_ops {
-	void (*ddr_range_set)(u32 trace_buf_start);
-	void (*ddr_range_get)(u32 *reg_base, void *buf, int *offset);
-	void (*etb_coresight_clk)(void);
-	void (*boot_time_record)(u64 pct, u64 ns_time);
-	void (*boot_timer_setup)(void);
-	bool (*is_watchdog)(void);
-	bool (*is_trace_loop)(void);
-	void (*print_single_trace)(void *ptr, char *buf);
-	void (*sw_record_write)(u32 sw_type, u32 val1, u32 val2);
-	void (*trace_time_loop_check)(void *trace_start, void *trace_end, u64 *prev_time);
-	void (*clean_buf)(void);
-};
-
 struct iotm {
 	int cpu_type;
 	int supported;
@@ -216,6 +239,22 @@ struct iotm {
 	struct reg_entry *reg_table;
 	int reg_table_size;
 	int saved_trace_show;
+};
+
+struct iotm_ops {
+	void (*ddr_range_set)(u32 trace_buf_start);
+	void (*ddr_range_get)(u32 *reg_base, void *buf, int *offset);
+	void (*etb_coresight_clk)(void);
+	void (*coresight_clk_enable)(void);
+	void (*boot_time_record)(u64 pct, u64 ns_time);
+	void (*boot_timer_setup)(void);
+	bool (*is_watchdog)(void);
+	bool (*is_trace_loop)(void);
+	void (*print_single_trace)(void *ptr, char *buf);
+	void (*sw_record_write)(u32 sw_type, u32 val1, u32 val2);
+	void (*trace_time_loop_check)(void *trace_start, void *trace_end, u64 *prev_time);
+	void (*clean_buf)(void);
+	int  (*axi_mode_enable)(struct iotm *iotm, int iotm_en);
 };
 
 extern struct iotm iotm;

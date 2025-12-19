@@ -1,0 +1,51 @@
+From 6067ff0bd580cb1ee288fc92b5bdfb72d5d1561d Mon Sep 17 00:00:00 2001
+From: Lei Zhang <lei.zhang@amlogic.com>
+Date: Tue, 28 Oct 2025 13:46:18 +0800
+Subject: [PATCH] IOTM: add bus error hook for arm32 [1/1]
+
+PD#SWPL-
+
+Problem:
+module send bus error rather than IOTM
+
+Solution:
+stop IOTM when receive bus error
+
+Verify:
+on T6x
+
+Signed-off-by: Lei Zhang <lei.zhang@amlogic.com>
+Change-Id: Iebaf29c64114b7eba5b0a16ad41016a1bead0bc4
+---
+ arch/arm/mm/fault.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
+index a19cae85cc53..ecfc4bc5f2c1 100644
+--- a/arch/arm/mm/fault.c
++++ b/arch/arm/mm/fault.c
+@@ -603,6 +603,10 @@ hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int, struct pt_regs *)
+ 	fsr_info[nr].name = name;
+ }
+
++#ifdef CONFIG_AMLOGIC_DEBUG_IOTM
++extern void dabt_arm_serror(const char *reason, struct pt_regs *regs);
++#endif
++
+ /*
+  * Dispatch a data abort to the relevant handler.
+  */
+@@ -619,6 +623,10 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
+ 		inf->name, fsr, addr);
+ 	show_pte(KERN_ALERT, current->mm, addr);
+
++#ifdef CONFIG_AMLOGIC_DEBUG_IOTM
++	dabt_arm_serror(inf->name, regs);
++#endif
++
+ 	arm_notify_die("", regs, inf->sig, inf->code, (void __user *)addr,
+ 		       fsr, 0);
+ }
+--
+2.29.0
+

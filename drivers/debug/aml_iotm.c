@@ -33,19 +33,11 @@
 #include <linux/sort.h>
 #include "iotm_hw.h"
 
-#define AML_IOTM_SMC_CMD			0x8200007A
-#define AML_IOTM_INIT_SMC_ARG			0x1
-#define AML_IOTM_RANGE_SMC_ARG			0x2
-#define AML_IOTM_JTAG_SMC_ARG			0x3
-#define AML_IOTM_JTAG_DISABLE_SMC_ARG		0x0
-#define AML_IOTM_JTAG_ENABLE_SMC_ARG		0x1
 #define IOTM_DUMP_TRACE_CNT			3000
 #define ETB_SIZE				(8 * 1024)
 #define TRACE_BUF_SIZE				512
 #define IOTM_MONITOR_RANGE_MAX			0xFFFFFFFF
 #define IOTM_MONITOR_RANGE_MIN			0xE0000000
-#define CONTINUOUS_PULSE			20
-#define CONTINUOUS_PULSE_TIME			10
 #define IOTM_V1					0x1
 #define IOTM_V2					0x2
 #define DDR_TRACE_MAGIC				"IOTM_trace:"
@@ -53,30 +45,6 @@
 #define NUM_OF_IRQ				1000
 #define ETB_BUF_FULL				0x7FF
 #define NUM_OF_UNRELIABLE			10
-
-enum iotm_en_mode {
-	IOTM_DISABLE,
-	IOTM_ENABLE,
-	IOTM_ENABLE_NO_TRACE,
-};
-
-enum iotm_mode {
-	AXI_MODE,
-	TPIU_MODE,
-	ETB_MODE,
-};
-
-enum iotm_type {
-	IOTM_TYPE_T6D,
-	IOTM_TYPE_T6W,
-	IOTM_TYPE_T6X,
-};
-
-enum iotm_dump {
-	IOTM_DUMP_NONE,
-	IOTM_DUMP_WATCHDOG,
-	IOTM_DUMP_ALL,
-};
 
 struct iotm iotm = {
 	.monitor_mode = AXI_MODE,
@@ -417,9 +385,10 @@ static void print_ddr_buf(int *cnt, int trace_cnt, void *trace_start, void *trac
 	char buf[TRACE_BUF_SIZE] = "";
 
 	while (trace_start < trace_end) {
-		iotm.ops->print_single_trace(trace_start, buf);
-		if (*cnt > trace_cnt)
+		if (*cnt > trace_cnt) {
+			iotm.ops->print_single_trace(trace_start, buf);
 			pr_err("%s", buf);
+		}
 
 		(*cnt)++;
 		trace_start += iotm.bytes_per_trace;
@@ -485,10 +454,10 @@ static void auto_dump_ddr_buf(void)
 
 static bool need_dump(void)
 {
+	unsigned int val;
+
 	/* before reboot */
 	if (iotm.supported) {
-		unsigned int val;
-
 		val = readl(iotm.cssys_base + IOTM_IRQ_CTRL);
 		if (iotm.timeout_irq_handled || (val & (IOTM_IRQ_CTRL_CAPU_TIMEOUT |
 			IOTM_IRQ_CTRL_VAPB4_TIMEOUT)))
@@ -598,6 +567,17 @@ static void dump_register_info(void *buf)
 	pos += sprintf(buf + pos, "IOTM:MONITOR_STATUS:0x%x IOTM_CTRL_MODE = 0x%x\n",
 				reg_base[(MONITOR_STATUS - ADDR_RANGE0_BEGIN) >> 2],
 				reg_base[(IOTM_CTRL_MODE - ADDR_RANGE0_BEGIN) >> 2]);
+
+	pos += sprintf(buf + pos, "IOTM:VAPB4_MONITOR_ADDR:0x%x VAPB4_MONITOR_DATA = 0x%x\n",
+				reg_base[(VAPB4_MONITOR_ADDR - ADDR_RANGE0_BEGIN) >> 2],
+				reg_base[(VAPB4_MONITOR_DATA - ADDR_RANGE0_BEGIN) >> 2]);
+
+	pos += sprintf(buf + pos, "IOTM:CAPU_MONITOR_ADDR:0x%x CAPU_MONITOR_DATA = 0x%x\n",
+				reg_base[(CAPU_MONITOR_ADDR - ADDR_RANGE0_BEGIN) >> 2],
+				reg_base[(CAPU_MONITOR_DATA - ADDR_RANGE0_BEGIN) >> 2]);
+
+	pos += sprintf(buf + pos, "IOTM:IOTM_IRQ_CTRL:0x%x\n",
+				reg_base[(IOTM_IRQ_CTRL - ADDR_RANGE0_BEGIN) >> 2]);
 }
 
 static void dump_trace(void)
@@ -648,6 +628,12 @@ static int iotm_exception_handler(struct notifier_block *nb,
 			unsigned long action, void *data)
 {
 	unsigned int val;
+	unsigned int iotm_ctrl_mode_val;
+
+	iotm_ctrl_mode_val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
+	iotm_ctrl_mode_val |= IOTM_CTRL_MODE_TRACE_DISABLE;
+	writel(iotm_ctrl_mode_val, iotm.cssys_base + IOTM_CTRL_MODE);
+	udelay(5);
 
 	val = readl(iotm.cssys_base + IOTM_IRQ_CTRL);
 
@@ -879,21 +865,18 @@ static int ddr_trace_magic_set(void)
 	return 0;
 }
 
-static int coresight_init(void)
+static int iotm_hw_init(void)
 {
+	int ret;
 	unsigned int val, i;
 	struct arm_smccc_res res;
-	unsigned long flags;
+	unsigned int trace_buf_start;
 
-	/* stop iotm. */
-	val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
-	val |= IOTM_CTRL_MODE_TRACE_DISABLE;
-	writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
+	/* init iotm */
+	iotm_smccc_smc(AML_IOTM_SMC_CMD, AML_IOTM_INIT_SMC_ARG,
+			AML_IOTM_INIT_HW_SMC_ARG, 0, 0, res);
 
-	/* init iotm and reset coresight */
-	iotm_smccc_smc(AML_IOTM_SMC_CMD, AML_IOTM_INIT_SMC_ARG, 0, 0, 0, res);
-
-	/* Whether the iotm records trace data */
+	/* Whether iotm not record trace data */
 	if (iotm_en == IOTM_ENABLE_NO_TRACE) {
 		iotm_smccc_smc(AML_IOTM_SMC_CMD, AML_IOTM_JTAG_SMC_ARG,
 			AML_IOTM_JTAG_DISABLE_SMC_ARG, 0, 0, res);
@@ -908,16 +891,15 @@ static int coresight_init(void)
 	}
 
 	if (iotm.monitor_mode == AXI_MODE) {
-		int ret = ddr_trace_magic_set();
-		u32 trace_buf_start = iotm.buf_start + SIZE_OF_TRACE_MAGIC;
+		ret = ddr_trace_magic_set();
 
 		if (ret)
 			return ret;
 
-		/* Allocate DDR reserved space to MONITOR_BUF_SIZE_LOW. */
-		writel(trace_buf_start,
-			iotm.cssys_base + MONITOR_BUF_BASEADDR_LOW);
+		trace_buf_start = iotm.buf_start + SIZE_OF_TRACE_MAGIC;
 
+		/* Allocate DDR reserved space to MONITOR_BUF_SIZE_LOW. */
+		writel(trace_buf_start, iotm.cssys_base + MONITOR_BUF_BASEADDR_LOW);
 		iotm.ops->ddr_range_set(trace_buf_start);
 	} else if (iotm.monitor_mode == ETB_MODE) {
 		/* init coresight and set iotm_mode*/
@@ -940,42 +922,23 @@ static int coresight_init(void)
 	/* crtl_iotm_ts=4: TS1:[31:5],TS0: [4:1] */
 	val &= ~IOTM_CTRL_MODE_TS;
 	val |= IOTM_CTRL_MODE_TS_27;
-
-	if (iotm.monitor_mode == AXI_MODE) {
-		/* confirm IOTM_AXI_ADDR can point to the correct ddr address */
-		for (i = 0; i < CONTINUOUS_PULSE; i++) {
-			val |= IOTM_CTRL_MODE_TRACE_ENABLE;
-			writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
-			udelay(CONTINUOUS_PULSE_TIME);
-
-			val &= ~IOTM_CTRL_MODE_TRACE_ENABLE;
-			writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
-		}
-	}
-
-	local_irq_save(flags);
-	/* monitor vapb4 and capu bus then start trace data */
-	val |= (IOTM_CTRL_MODE_CAPU_ENABLE | IOTM_CTRL_MODE_VAPB4_ENABLE |
-			IOTM_CTRL_MODE_TRACE_ENABLE);
 	writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
 
-	/* When disable record trace, the axi_addr can't be changed. */
-	if (iotm.monitor_mode == AXI_MODE && iotm_en != IOTM_ENABLE_NO_TRACE) {
-		/* Check whether 0x0 is written in the trace */
-		val = readl(iotm.cssys_base + IOTM_AXI_ADDR);
-		val = readl(iotm.cssys_base + IOTM_AXI_ADDR);
-		if (val < iotm.buf_start || val >= iotm.buf_end) {
-			pr_err("IOTM:AXI_ADDR = 0x%x is wrong,close iotm\n", val);
+	if (iotm.monitor_mode == AXI_MODE) {
+		ret = iotm.ops->axi_mode_enable(&iotm, iotm.monitor_mode);
 
-			val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
-			val |= IOTM_CTRL_MODE_TRACE_DISABLE;
-			writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
-
-			local_irq_restore(flags);
+		if (ret) {
+			pr_err("IOTM: iotm trace enable fail\n");
 			return -1;
 		}
+	} else {
+		/* monitor vapb4 and capu bus then start trace data */
+		val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
+		val |= (IOTM_CTRL_MODE_CAPU_ENABLE | IOTM_CTRL_MODE_VAPB4_ENABLE |
+				IOTM_CTRL_MODE_TRACE_ENABLE);
+		writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
 	}
-	local_irq_restore(flags);
+
 	return 0;
 }
 
@@ -993,6 +956,8 @@ static int iotm_syscore_suspend(void)
 	iotm_ctrl_mode_val |= IOTM_CTRL_MODE_TRACE_DISABLE;
 	writel(iotm_ctrl_mode_val, iotm.cssys_base + IOTM_CTRL_MODE);
 
+	udelay(5);
+
 	return 0;
 }
 
@@ -1003,7 +968,7 @@ static void iotm_syscore_resume(void)
 	if (!iotm.supported || iotm.en_saved == IOTM_DISABLE)
 		return;
 
-	ret = coresight_init();
+	ret = iotm_hw_init();
 	if (!ret)
 		iotm_en = iotm.en_saved;
 
@@ -1012,7 +977,13 @@ static void iotm_syscore_resume(void)
 
 static void iotm_syscore_shutdown(void)
 {
+	unsigned int count = 0;
+
 	iotm_syscore_suspend();
+
+	count = readl(iotm.cssys_base + MONITOR_STATUS) & 0x1FFF;
+	if (count)
+		pr_err("IOTM: %d byte left in fifo", count);
 }
 
 static struct syscore_ops iotm_syscore_ops = {
@@ -1121,21 +1092,22 @@ static bool ddr_trace_valid(void)
 	if (!memcmp(vaddr, DDR_TRACE_MAGIC, strlen(DDR_TRACE_MAGIC)))
 		return true;
 
+	pr_err("IOTM: magic not match, not dump trace\n");
 	return false;
 }
 
 static void watchdog_dump_trace(void)
 {
 	unsigned int val;
+	unsigned int count = 0;
 
-	// stop iotm, munual flush
+	count = readl(iotm.cssys_base + MONITOR_STATUS) & 0x1FFF;
+	if (count)
+		pr_err("IOTM: %d byte left in fifo\n", count);
+
+	// stop iotm, manual flush
 	val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
 	writel(val | IOTM_CTRL_MODE_TRACE_DISABLE, iotm.cssys_base + IOTM_CTRL_MODE);
-
-	/* watchdog reset need clear MONITOR_RANGE_INCLUDE_RST_MASK */
-	val = readl(iotm.cssys_base + MONITOR_RANGE_INCLUDE);
-	val &= ~MONITOR_RANGE_INCLUDE_RST_MASK;
-	writel(val, iotm.cssys_base + MONITOR_RANGE_INCLUDE);
 
 	/* init coresight to dump trace */
 	if (iotm.monitor_mode == ETB_MODE) {
@@ -1155,6 +1127,66 @@ static void watchdog_dump_trace(void)
 		kfree(iotm.etb_buf);
 }
 
+__maybe_unused static void iotm_dump_exception(void)
+{
+	unsigned int val;
+	char buf[300] = "";
+	int pos = 0;
+
+	if (!iotm.supported || iotm_en == IOTM_DISABLE)
+		return;
+
+	val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
+	pos += sprintf(buf + pos, "IOTM_CTRL_MODE: %x\n", val);
+
+	val |= IOTM_CTRL_MODE_TRACE_DISABLE;
+	writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
+
+	val = readl(iotm.cssys_base + MONITOR_STATUS);
+	pos += sprintf(buf + pos, "MONITOR_STATUS: %x\n", val);
+
+	val = readl(iotm.cssys_base + IOTM_IRQ_CTRL);
+	pos += sprintf(buf + pos, "IOTM_IRQ_CTRL: %x\n", val);
+
+	if (val & IOTM_IRQ_CTRL_CAPU_TIMEOUT)
+		pos += sprintf(buf + pos, "IOTM:capu timeout(50ms) addr:%x data:%x\n",
+				readl(iotm.cssys_base + CAPU_MONITOR_ADDR),
+				readl(iotm.cssys_base + CAPU_MONITOR_DATA));
+	else if (val & IOTM_IRQ_CTRL_VAPB4_TIMEOUT)
+		pos += sprintf(buf + pos, "IOTM:vapb4 timeout(50ms) addr:%x data:%x\n",
+				readl(iotm.cssys_base + VAPB4_MONITOR_ADDR),
+				readl(iotm.cssys_base + VAPB4_MONITOR_DATA));
+
+	val = readl(iotm.cssys_base + VAPB4_MONITOR_ADDR);
+	pos += sprintf(buf + pos, "VAPB4_MONITOR_ADDR: %x\n", val);
+
+	val = readl(iotm.cssys_base + VAPB4_MONITOR_DATA);
+	pos += sprintf(buf + pos, "VAPB4_MONITOR_DATA: %x\n", val);
+
+	val = readl(iotm.cssys_base + CAPU_MONITOR_ADDR);
+	pos += sprintf(buf + pos, "CAPU_MONITOR_ADDR: %x\n", val);
+
+	val = readl(iotm.cssys_base + CAPU_MONITOR_DATA);
+	pos += sprintf(buf + pos, "CAPU_MONITOR_DATA: %x\n", val);
+
+	iotm.timeout_irq_handled = 1;
+	pr_err("%s", buf);
+}
+
+#if defined(CONFIG_ARM64) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
+static void iotm_async_dump(void *data, struct pt_regs *regs, unsigned long esr)
+{
+	iotm_dump_exception();
+}
+#elif defined(CONFIG_ARM)
+__maybe_unused void dabt_arm_serror(const char *reason, struct pt_regs *regs)
+{
+	if (strstr(reason, "imprecise external abort"))
+		iotm_dump_exception();
+}
+EXPORT_SYMBOL(dabt_arm_serror);
+#endif
+
 static int __ref iotm_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -1167,11 +1199,13 @@ static int __ref iotm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	iotm.ops->coresight_clk_enable();
+
 	watchdog_dump_trace();
 
 	spin_lock_init(&iotm.record_lock);
 
-	ret = coresight_init();
+	ret = iotm_hw_init();
 	if (ret)
 		return ret;
 
@@ -1190,6 +1224,9 @@ static int __ref iotm_probe(struct platform_device *pdev)
 	/* print iotm trace */
 	atomic_notifier_chain_register(&panic_notifier_list, &iotm_panic_notifier);
 
+#if defined(CONFIG_ARM64) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
+	register_trace_android_rvh_arm64_serror_panic(iotm_async_dump, NULL);
+#endif
 	register_syscore_ops(&iotm_syscore_ops);
 
 	iotm.ops->boot_timer_setup();
