@@ -733,6 +733,7 @@ struct vdin_debug_s {
 	bool vdin_time_en;
 	bool invert_top_bot;
 	bool bypass_secure_check;
+	bool skip_samba_csc;
 	int vdin_memset_dbg_en;
 	int vdin_memset_en;
 	int vdin_ctl_dbg;
@@ -1081,6 +1082,7 @@ struct vdin_dev_s {
 	bool secure_en;
 	bool secure_video;
 	bool mem_ta_access;
+	bool support_secure;
 	bool mem_protected;
 	bool mem_registered;
 	unsigned int vf_mem_size;

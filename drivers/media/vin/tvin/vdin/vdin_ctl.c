@@ -1701,6 +1701,15 @@ static void vdin_manual_matrix_csc(struct vdin_dev_s *devp, enum vdin_matrix_csc
 		pr_info("%s matrix_csc:%d\n", __func__, *matrix_csc);
 }
 
+static void vdin_samba_matrix_csc(struct vdin_dev_s *devp, enum vdin_matrix_csc_e *matrix_csc)
+{
+	if (devp->debug.skip_samba_csc)
+		return;
+
+	if (devp->parm.port == TVIN_PORT_VIU1_VIDEO)
+		*matrix_csc = VDIN_MATRIX_NULL;
+}
+
 static enum vdin_matrix_csc_e
 vdin_set_color_matrix(struct vdin_dev_s *devp, enum vdin_matrix_sel_e matrix_sel,
 	enum vdin_format_convert_e format_convert)
@@ -1856,7 +1865,7 @@ vdin_set_color_matrix(struct vdin_dev_s *devp, enum vdin_matrix_sel_e matrix_sel
 			else
 				matrix_csc = VDIN_MATRIX_NULL;
 		}
-
+		vdin_samba_matrix_csc(devp, &matrix_csc);
 		break;
 	case VDIN_FORMAT_CONVERT_MAX:
 	default:

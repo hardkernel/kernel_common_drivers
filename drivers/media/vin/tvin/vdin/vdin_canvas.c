@@ -1005,19 +1005,20 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		}
 
 #if IS_ENABLED(CONFIG_AMLOGIC_TEE)
-		/* Secure memory is supported in projector scenario */
-		if (devp->secure_en && devp->set_canvas_manual) {
+		if (devp->secure_video && devp->support_secure) {
 			devp->secure_handle = 0;
 			res = tee_protect_mem_by_type(devp->secure_type,
 						      devp->mem_start,
 						      mem_size,
 						      &devp->secure_handle);
-			if (res) {
+			if (res)
 				devp->mem_protected = 0;
-				pr_info("vdin%d secure protect error!\n", devp->index);
-			} else {
+			else
 				devp->mem_protected = 1;
-			}
+			if (devp->debug.vdin_dbg_en)
+				pr_info("vdin%d secure mem protect: %d (addr:0x%lx, size:0x%x)\n",
+					devp->index, devp->mem_protected,
+					devp->mem_start, mem_size);
 		}
 #endif
 		for (i = 0; i < max_buffer_num; i++) {
@@ -1178,7 +1179,7 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 		}
 	} else {
 #if IS_ENABLED(CONFIG_AMLOGIC_TEE)
-		if (devp->secure_en && devp->mem_protected) {
+		if (devp->mem_protected) {
 			tee_unprotect_mem(devp->secure_handle);
 			devp->mem_protected = 0;
 			if (devp->debug.vdin_dbg_en)

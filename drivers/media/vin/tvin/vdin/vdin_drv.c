@@ -2547,13 +2547,14 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	}
 
 	devp->is_one_buffer = para->is_one_buffer;
+	devp->support_secure = para->support_secure;
+
 	if (!IS_ERR_OR_NULL(vdin0_devp)) {
 		devp->matrix_pattern_mode = 0;
 		/* check input content is protected */
 		if ((vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
 		    (vdin0_devp->flags & VDIN_FLAG_DEC_STARTED) &&
-		    !devp->set_canvas_manual &&
-		    !devp->mem_ta_access) {
+		    !devp->set_canvas_manual) {
 			if ((vdin0_devp->prop.hdcp_sts || vdin0_devp->prop.macrovision_sts) &&
 				!devp->mem_protected) {
 				pr_err("hdmi or tvafe secure en, non-secure buffer\n");
@@ -4633,19 +4634,23 @@ static struct vf_entry *check_vdin_read_list(struct vdin_dev_s *devp)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void vdin_set_vfe_type(struct vdin_dev_s *devp, struct vf_entry *vfe)
 {
-	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_SECURE)
-		pr_info("%s() matrix=%d, secure=%d, lcd_mute=%d", __func__,
-			devp->matrix_pattern_mode, devp->secure_video, devp->is_lcd_mute);
-
 	if (devp->matrix_pattern_mode || devp->secure_video || devp->is_lcd_mute)
 		vfe->vf.type_ext |= VIDTYPE_EXT_VDIN_HDCP;
 	else
 		vfe->vf.type_ext &= ~VIDTYPE_EXT_VDIN_HDCP;
 
+	if (devp->secure_video)
+		vfe->vf.flag |= VFRAME_FLAG_VIDEO_SECURE;
+	else
+		vfe->vf.flag &= ~VFRAME_FLAG_VIDEO_SECURE;
+
 	if (vdin_support_axis_change(devp)) {
 		vfe->vf.width = devp->prop.scaling4w;
 		vfe->vf.height = devp->prop.scaling4h;
 	}
+
+	vfe->vf.original_width = devp->h_active_org;
+	vfe->vf.original_height = devp->v_active_org;
 }
 
 /* hdcp or macrovision state change,set or recovery vdin1 matrix */
@@ -4661,7 +4666,6 @@ static void vdin_v4l2_handle_secure_chg(struct vdin_dev_s *devp)
 			protect_mode = 0;
 		if (protect_mode != devp->matrix_pattern_mode && !devp->mem_protected &&
 			!devp->set_canvas_manual &&
-			!devp->mem_ta_access &&
 			(vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
 			(vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
 			devp->matrix_pattern_mode = protect_mode;
@@ -4669,7 +4673,8 @@ static void vdin_v4l2_handle_secure_chg(struct vdin_dev_s *devp)
 				vdin0_devp->prop.hdcp_sts, vdin0_devp->prop.macrovision_sts,
 				protect_mode);
 			vdin_set_matrix(devp);
-		} else if ((devp->matrix_pattern_mode == VDIN_SECURE_PATTERN) &&
+		} else if (devp->matrix_pattern_mode &&
+			(devp->matrix_pattern_mode == VDIN_SECURE_PATTERN) &&
 			!(vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
 			devp->matrix_pattern_mode = 0;
 			pr_debug("set vdin1 matrix to normal\n");

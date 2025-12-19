@@ -1988,8 +1988,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("double write cfg:0x%x, cur:%d,10bit sup: %d\n", devp->double_wr_cfg,
 		devp->double_wr,
 		devp->double_wr_10bit_sup);
-	pr_info("secure_en: %d, mem protected: %d\n", devp->secure_en,
-		devp->mem_protected);
+	pr_info("secure_video:%d, mem protected:%d, support_secure:%d\n",
+		devp->secure_video, devp->mem_protected, devp->support_secure);
 	if (devp->cma_config_en != 1 || !(devp->cma_config_flag & 0x100))
 		pr_info("mem_start = 0x%lx, mem_size = 0x%x\n",
 			devp->mem_start, devp->mem_size);
@@ -4549,6 +4549,15 @@ start_chk:
 				devp->debug.bypass_secure_check = false;
 		}
 		pr_info("bypass_secure_check:%d\n", devp->debug.bypass_secure_check);
+	} else if (!strcmp(parm[0], "skip_samba_csc")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (temp)
+				devp->debug.skip_samba_csc = true;
+			else
+				devp->debug.skip_samba_csc = false;
+		}
+		pr_info("skip_samba_csc:%d\n",
+			devp->debug.skip_samba_csc);
 	} else if (!strcmp(parm[0], "v4l2_buff_area")) {
 		/*
 		 * 0: codec_mm_cma area
