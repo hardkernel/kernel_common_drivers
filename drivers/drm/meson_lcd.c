@@ -272,6 +272,7 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 			meson_vout_notify_mode_change(amcrtc->vout_index,
 				vmode, EVENT_MODE_SET_FINISH);
 			meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "lcd");
+			panel->panel_ready = true;
 		}
 
 		if (vrefresh != meson_crtc_state->brr ||
