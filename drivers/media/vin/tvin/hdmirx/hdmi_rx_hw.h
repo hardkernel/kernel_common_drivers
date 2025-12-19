@@ -65,7 +65,8 @@
 /* 2025.11.26 add acr reset when power on for t6x */
 /* 2025.12.17 fixed screen flickering after switching DSC to non-DSC mode */
 /* 2025.12.18 fix hdmirx21 SLT SS corner 1080p issue */
-#define RX_HW_VER "ver.2025/12/18"
+/* 2025.12.30 remove gb check for dvi */
+#define RX_HW_VER "ver.2025/12/30"
 
 #define K_TEST_CHK_ERR_CNT
 
