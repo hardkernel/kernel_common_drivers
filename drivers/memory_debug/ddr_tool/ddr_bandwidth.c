@@ -981,32 +981,34 @@ static ssize_t mode_store(const struct class *class,
 }
 static CLASS_ATTR_RW(mode);
 
-static ssize_t irq_clock_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t sampling_freq_show(const struct class *class,
+				  const struct class_attribute *attr,
+				  char *buf)
 {
-	return sprintf(buf, "count=%d, %ldns\n", aml_db->clock_count, aml_db->ddr_poll_ns);
+	return sprintf(buf, "%ld Hz\n", 1000000000 / aml_db->ddr_poll_ns);
 }
 
-static ssize_t irq_clock_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t sampling_freq_store(const struct class *class,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
-	long val = 0;
+	long freq;
+	long val;
 
-	if (kstrtoul(buf, 10, &val)) {
+	if (kstrtoul(buf, 10, &freq)) {
 		pr_info("invalid input:%s\n", buf);
 		return 0;
 	}
+	aml_db->ddr_poll_ns = 1000000000 / freq;
+	val = aml_db->dmc_freq / freq;
 	aml_db->threshold /= (aml_db->clock_count / 10000);
 	aml_db->threshold *= (val / 10000);
 	aml_db->clock_count = val;
-	aml_db->ddr_poll_ns = val * 1000000000 / aml_db->dmc_freq;
 	if (aml_db->ops && aml_db->ops->init)
 		aml_db->ops->init(aml_db);
 	return count;
 }
-static CLASS_ATTR_RW(irq_clock);
+static CLASS_ATTR_RW(sampling_freq);
 
 static ssize_t usage_stat_store(const struct class *class,
 			const struct class_attribute *attr,
@@ -1554,7 +1556,7 @@ static CLASS_ATTR_RW(increase_tool);
 
 static struct attribute *aml_ddr_tool_attrs[] = {
 	&class_attr_port.attr,
-	&class_attr_irq_clock.attr,
+	&class_attr_sampling_freq.attr,
 	&class_attr_priority.attr,
 	&class_attr_threshold.attr,
 	&class_attr_mode.attr,
@@ -3104,11 +3106,11 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 		aml_db->ops->bus_width_init(aml_db);
 
 	raw_spin_lock_init(&aml_db->lock);
-	aml_db->clock_count = aml_db->ops->get_freq(aml_db) / 100; /* default 100HZ */
-	aml_db->ddr_poll_ns = 10000000;	/* default 10ms */
+	aml_db->clock_count = aml_db->ops->get_freq(aml_db) / DEFAULT_SAMPLING_FREQ; // 1000hz
+	aml_db->ddr_poll_ns = 1000000000 / DEFAULT_SAMPLING_FREQ;	// 1ms
 	aml_db->mode = MODE_DISABLE;
 	aml_db->threshold = DEFAULT_THRESHOLD * aml_db->bytes_per_cycle *
-			    (aml_db->clock_count / 10000);
+			    (aml_db->clock_count / 1000);
 
 	if (!aml_db->ops->config_port)
 		return -EINVAL;
