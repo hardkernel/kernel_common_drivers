@@ -11275,14 +11275,13 @@ void suspend_matrix(void)
 	unsigned int length;
 
 	if (chip_type_id == chip_s7d ||
-		chip_type_id == chip_s6)
+		chip_type_id == chip_s6 ||
+		chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w ||
+		chip_type_id == chip_t6x)
 		length = RECOVERY_REG_MTX_MAX * 4;
 	else if (chip_type_id == chip_t7)
 		length = RECOVERY_REG_MTX_MAX * 2 + 1;
-	else if (chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w ||
-		chip_type_id == chip_t6x)
-		length = RECOVERY_REG_MTX_MAX * 3;
 	else if (chip_cls_id == TV_CHIP)
 		length = RECOVERY_REG_MTX_MAX * 2;
 	else
@@ -11339,6 +11338,10 @@ void suspend_matrix(void)
 		reg = VPP_POST2_MATRIX_COEF00_01;
 		for (i = 28; i < 42; i++)
 			reg_matrix_list[i].addr = reg + i - 28;
+
+		reg = VPP_POST_MATRIX_COEF00_01;
+		for (i = 42; i < 56; i++)
+			reg_matrix_list[i].addr = reg + i - 42;
 	}
 
 	if (chip_type_id == chip_t7) {
@@ -11762,14 +11765,13 @@ void resume_matrix(int vpp_index)
 		return;
 
 	if (chip_type_id == chip_s7d ||
-		chip_type_id == chip_s6)
+		chip_type_id == chip_s6 ||
+		chip_type_id == chip_t6d ||
+		chip_type_id == chip_t6w ||
+		chip_type_id == chip_t6x)
 		length = RECOVERY_REG_MTX_MAX * 4;
 	else if (chip_type_id == chip_t7)
 		length = RECOVERY_REG_MTX_MAX * 2 + 1;
-	else if (chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w ||
-		chip_type_id == chip_t6x)
-		length = RECOVERY_REG_MTX_MAX * 3;
 	else if (chip_cls_id == TV_CHIP)
 		length = RECOVERY_REG_MTX_MAX * 2;
 	else
@@ -11783,7 +11785,7 @@ void resume_matrix(int vpp_index)
 	for (i = 0; i < length; i++) {
 		reg = reg_matrix_list[i].addr;
 		tmp = READ_VPP_REG(reg);
-		pr_amvecm_dbg("amvecm: resume matrix [0x%x] = 0x%x/0x%x\n",
+		pr_amvecm_dbg("amvecm:resume matrix [0x%x] = 0x%x/0x%x\n",
 			reg, reg_matrix_list[i].val, tmp);
 	}
 
