@@ -1085,7 +1085,7 @@ error_alloc_object:
 	kfree(block->priv);
 	kfree(block);
 error_copy:
-	return res;
+	return -EFAULT;
 }
 
 static long dmabuf_manage_get_dmabufinfo(unsigned long args)
@@ -1296,7 +1296,7 @@ static int dmabuf_manage_extend_alloc_dmabuf(unsigned long args)
 error_fd:
 	dma_buf_put(dbuf);
 error_alloc:
-	codec_mm_free_for_dma("dmabuf", block->paddr);
+	codec_mm_free_for_dma("dmabuf", block->extend_paddr);
 error_alloc_object:
 	kfree(block);
 error_copy:
