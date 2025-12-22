@@ -70,7 +70,8 @@
 /* 2025.11.20 fix issue that hdcp reauth too slow */
 /* 2025.12.02 optimise log & fastswitch */
 /* 2025.12.24 update phy 12G settings and init flow */
-#define RX_WRAPPER_VER "ver.2025/12/24"
+/* 2025.12.26 fix training err*/
+#define RX_WRAPPER_VER "ver.2025/12/26"
 
 struct freq_ref_s {
 	bool interlace;

@@ -2160,7 +2160,8 @@ void aml_phy_init_t6x_21(u8 port)
 {
 	rx_21_frl_phy_cfg_t6x(port);
 	aml_pll_bw_cfg_t6x_21(rx[port].var.frl_rate, port);
-	if (rx[port].state <= FSM_FRL_FLT_READY || rx[port].state == FSM_WAIT_CLK_STABLE)
+	if (rx[port].state <= FSM_FRL_FLT_READY || rx[port].state == FSM_WAIT_CLK_STABLE ||
+		(!rx[port].var.frl_rate && rx[port].clk.cable_clk < TMDS_CLK_MIN * KHz))
 		return;
 	rx_21_frl_pll_cfg_t6x(rx[port].var.frl_rate, port);
 	rx_21_eq_cfg_t6x(rx[port].var.frl_rate, port);

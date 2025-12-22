@@ -386,7 +386,6 @@ void rx_lts_p_frl_start(u8 port)
 	data8 = hdmirx_rd_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, port);
 	hdmirx_wr_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, (data8 | 0x10), port);//frl_start
 	hdmirx_wr_bits_cor(H21RXSB_INTR2_M42H_IVCRX, _BIT(4), 1, port);
-	force_clk_stable = 1;
 	rx_set_frl_train_sts(E_FRL_TRAIN_FINISH, port);
 }
 
