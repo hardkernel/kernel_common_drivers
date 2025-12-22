@@ -563,7 +563,6 @@ static void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt,
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
 	tvafe_mode = 0;
 #endif
-	force_fmt_flag = false;
 	mutex_unlock(&devp->afe_mutex);
 }
 

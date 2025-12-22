@@ -115,7 +115,6 @@ static const unsigned int cvd_mem_4f_length[TVIN_SIG_FMT_CVBS_MAX -
 	0x0000e946, /* TVIN_SIG_FMT_CVBS_NTSC_50, */
 };
 
-int force_fmt_flag;
 static bool scene_colorful_old;
 static int lock_cnt;
 bool reinit_scan;
@@ -1535,7 +1534,7 @@ static void cvd_force_config_fmt(struct tvafe_cvd2_s *cvd2,
 	/* force to ntscm */
 	else if ((!tvafe_is_line625(cvd2) && !cvd2->hw.pal) ||
 		config_force_fmt == 2) {
-		tvafe_try_format(cvd2, mem, TVIN_SIG_FMT_CVBS_PAL_CN);
+		tvafe_try_format(cvd2, mem, TVIN_SIG_FMT_CVBS_NTSC_M);
 		tvafe_pr_info("[%s]:force the fmt to TVIN_SIG_FMT_CVBS_NTSC_M\n",
 			__func__);
 	}
@@ -2488,10 +2487,8 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
 			if (!tvafe_mode) {
 				atv_play = true;
-				if (tvafe_atv_search_channel) {
-					force_fmt_flag = false;
+				if (tvafe_atv_search_channel)
 					return;
-				}
 			}
 			if (!cvd_pr_flag && (tvafe_dbg_print & TVAFE_DBG_SMR)) {
 				cvd_pr_flag = true;
@@ -2539,12 +2536,9 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 			cvd2->hw_data[cvd2->hw_data_cur].secam_acd_sts, try_format_cnt);
 			/* force mode:due to some*/
 			/*signal is hard to check out */
-		if (++try_format_cnt == try_format_max) {
+		if (++try_format_cnt >= try_format_max) {
 			cvd_force_config_fmt(cvd2, mem, config_force_fmt);
-			return;
-		} else if (try_format_cnt > try_format_max) {
 			cvd2->info.state = TVAFE_CVD2_STATE_FIND;
-			force_fmt_flag = 1;
 			return;
 		}
 		if (IS_TVAFE_ATV_SRC(cvd2->vd_port)) {
@@ -2862,6 +2856,12 @@ inline bool tvafe_cvd2_no_sig(struct tvafe_cvd2_s *cvd2,
  */
 inline bool tvafe_cvd2_fmt_chg(struct tvafe_cvd2_s *cvd2)
 {
+	static enum tvin_sig_fmt_e fmt = TVIN_SIG_FMT_NULL;
+
+	if (fmt != cvd2->config_fmt) {
+		fmt = cvd2->config_fmt;
+		return true;
+	}
 	if (cvd2->info.state == TVAFE_CVD2_STATE_FIND)
 		return false;
 	else

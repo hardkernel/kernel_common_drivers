@@ -54,7 +54,8 @@
 /* 20250805: remove clear state in dec_stop */
 /* 20250820: drop 40 frames before wss stable */
 /* 20250829: Determine the standard based on the audio format */
-#define TVAFE_VER "20250829: Determine the standard based on the audio format"
+/* 20251224: Notify vdin when config format changes */
+#define TVAFE_VER "20251224: Notify vdin when config format changes"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010

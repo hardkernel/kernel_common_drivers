@@ -1327,6 +1327,8 @@ static int atvdemod_fe_detect(struct v4l2_frontend *v4l2_fe)
 	if (fe->ops.analog_ops.set_config)
 		fe->ops.analog_ops.set_config(fe, &priv_cfg);
 
+	aml_audiomode_autodet1(v4l2_fe);
+	aml_fe_hook_call_set_mode(CH_IN_SEARCH);
 	atvdemod_fe_try_analog_format(v4l2_fe, auto_detect,
 			&std_bk, &audio, &soundsys);
 
