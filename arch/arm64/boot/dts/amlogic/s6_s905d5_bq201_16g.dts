@@ -7,7 +7,7 @@
 
 #include "meson-s6.dtsi"
 #include "hdr10plus.dtsi"
-#include "mesons6_drm_multidisplay.dtsi"
+#include "mesons6_drm.dtsi"
 #include "mesons6_audio.dtsi"
 #include "firmware_ab.dtsi"
 #include "mesons6_BQ20X_panel.dtsi"
@@ -1167,6 +1167,7 @@
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x7f800000";
+	assigned-clock-rates = <250000000>;
 
 	connectors_dev: port@1 {
 		drm_to_lcd0: endpoint@2 {
@@ -1191,6 +1192,10 @@
 
 &drm_subsystem {
 	status = "okay";
+	crtc_max_out_size = <1 0>; /** 0:1080p fb 1:4k fb */
+	vpu_block_select = <&vpu_blocks_viu2>;
+	gfcd_enable = /bits/ 8  <0>;
+	crtc_masks = <3 3 1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
 	fbdev_sizes = <1280 720 1280 1440 32>;
 };
 
