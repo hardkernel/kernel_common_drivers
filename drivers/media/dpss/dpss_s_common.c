@@ -2112,6 +2112,7 @@ module_param_named(dpss_mem_flg, dpss_mem_flg, uint, 0664);
 void dpss_s2_parser_rd_new(struct dpss_ch_s *pch)
 {
 	unsigned int idx;
+	int ret = 0;
 	struct PRM_DPSS_TOP *prm_top;// = prm_dpss_top;
 	unsigned int dpe_done_diff;
 	bool input_enabled; // = prm_top->frc_en;
@@ -2208,10 +2209,15 @@ output_vf:
 		if (need_output_last_i) {
 			idx = pch->q.output_idx_last;
 		} else {
-			if (prm_top->frc_en && pch->c.ch == 0)
-				idx = dpss_input_get_buf_index(&pch->q);
-			else
+			if (prm_top->frc_en && pch->c.ch == 0) {
+				ret = dpss_input_get_buf_index(&pch->q);
+				if (ret >= 0)
+					idx = ret;
+				else
+					return;
+			} else {
 				idx = pch->q.dpe_done_count % pch->c.o_b_nub;
+			}
 		}
 	} else {
 		idx = pch->q.dpe_done_count % pch->c.o_b_nub;

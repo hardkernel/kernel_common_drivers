@@ -758,12 +758,18 @@ void hw_init_part1(struct vframe_s *vfrm)
 		DBG_ERR("%s pchip_st is null\n", __func__);
 		return;
 	}
+
 	if (pchip_st->encl_frc_ctrl == 0) {
 		DBG_ERR("%s encl_frc_ctrl reg null\n", __func__);
 		return;
 	}
 
-	if (vinfo && vinfo->sync_duration_den != 0)
+	if (!vinfo) {
+		DBG_ERR("%s vinfo is null\n", __func__);
+		return;
+	}
+
+	if (vinfo->sync_duration_den != 0)
 		out_frm_rate = vinfo->sync_duration_num / vinfo->sync_duration_den;
 
 	//if (pchip_st->chip == ID_T6X)

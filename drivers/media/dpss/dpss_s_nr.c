@@ -231,7 +231,7 @@ static bool check_need_enable_4k1k(struct vframe_s *vf)
 	struct vinfo_s *vinfo = NULL;
 	int flag = 2560 * 1440;
 
-	if (IS_ERR_OR_NULL(vf)) {
+	if (!vf) {
 		dbg_h1("%s: NULL param!!\n", __func__);
 		return false;
 	}
