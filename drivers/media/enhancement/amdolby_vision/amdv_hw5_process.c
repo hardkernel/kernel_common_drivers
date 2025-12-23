@@ -664,7 +664,7 @@ u32 get_top1_onoff(void)
 	if (!is_amdv_enable())
 		return 0;
 
-	if (efuse_mode & 2)
+	if ((efuse_mode & 2) || device_disable_pd)
 		return 0;
 
 	/*todo for precision disabled but L1L4 enable*/

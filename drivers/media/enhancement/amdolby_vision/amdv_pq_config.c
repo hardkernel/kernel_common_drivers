@@ -1205,7 +1205,7 @@ void calculate_panel_max_pq(enum signal_format_enum src_format,
 		tv_max_lin = max_lin;
 		tv_max_pq = max_pq;
 
-		if (is_aml_t3x() && config_dvp) {
+		if ((is_aml_t3x() || is_aml_t6w() || is_aml_t6x()) && config_dvp) {
 			config_dvp->max = tv_max_lin << 18;//todo
 		} else if (config) {
 			config->max_lin = tv_max_lin << 18;
@@ -1280,22 +1280,45 @@ static void update_vsvdb_to_rx(void)
 	}
 }
 
+/*no efuse and device support and cfg support, return > 0*/
 u32 check_cfg_enabled_top1(void)
 {
 	struct target_config_dvp *tdc;
 	u32 ret = CFG_NONE;
+	bool pr_enabled = false;
+	bool l1l4 = false;
+
+	if ((efuse_mode & 2) || device_disable_pd) {
+		if (debug_dolby & 0x200)
+			pr_dv_dbg("device not support pd %d %d\n", efuse_mode, device_disable_pd);
+		return ret;
+	}
 
 	if (bin_to_cfg_dvp) {
 		tdc = &bin_to_cfg_dvp[cur_pic_mode].tdc;
 
-		if (tdc && tdc->pr_config.supports_precision_rendering)
+		if (tdc && tdc->pr_config.supports_precision_rendering) {
 			ret |= CFG_ENABLE_PRECISION;
-		if (tdc && tdc->ana_config.enalbe_l1l4_gen)
+			pr_enabled = true;
+		}
+		if (tdc && tdc->ana_config.enalbe_l1l4_gen) {
 			ret |= CFG_ENABLE_L1L4;
+			l1l4 = true;
+		}
 	}
+
 	/*todo, check dynamic_cfg_enabled_top1*/
 	if (debug_dolby & 0x200)
 		pr_dv_dbg("check cfg enable precision %d\n", ret);
+
+	py_enabled = pr_enabled;
+	l1l4_enabled = l1l4;
+	if (!l1l4_enabled)
+		l1l4_distance = 0;
+	else if (py_enabled)
+		l1l4_distance = 1;
+	else/*pd disable but L1L4 on*/
+		l1l4_distance = 2;
 	return ret;
 }
 
@@ -1307,7 +1330,8 @@ struct dv_cfg_support_s get_cfg_support(int mode)
 
 	if (bin_to_cfg_dvp && is_aml_hw5()) {
 		tdc_dvp = &bin_to_cfg_dvp[mode].tdc;
-		if (tdc_dvp && tdc_dvp->pr_config.supports_precision_rendering)
+		if (tdc_dvp && tdc_dvp->pr_config.supports_precision_rendering &&
+			!(efuse_mode & 2) && !device_disable_pd)
 			dv_cfg_support.precision_detail = 1;
 		if (tdc_dvp && tdc_dvp->ambient_config.dark_detail)
 			dv_cfg_support.dark_detail = 1;

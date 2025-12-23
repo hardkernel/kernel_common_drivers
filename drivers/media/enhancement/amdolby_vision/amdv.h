@@ -1085,6 +1085,7 @@ extern bool enable_2ppc;
 extern u32 force_level;
 extern bool prl_mode;
 extern bool force_corep_max_level6;
+extern bool device_disable_pd;
 /************/
 extern enum signal_format_enum g_dst_format;
 

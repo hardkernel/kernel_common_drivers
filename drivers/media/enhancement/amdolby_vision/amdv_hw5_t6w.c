@@ -221,7 +221,8 @@ static void dolby5_ahb_reg_config(u32 *reg_baddr,
 				force_bypass_pd_level0 ||
 				force_bypass_pd_in_game ||
 				miss_top1_and_bypass_pr_once ||
-				(efuse_mode & 0x2)))
+				(efuse_mode & 0x2) ||
+				device_disable_pd))
 				reg_val = reg_val | (1 << 3);
 
 			/*0x10 clear interrupt*/
@@ -359,7 +360,8 @@ static void dolby5_ahb_reg_config(u32 *reg_baddr,
 				force_bypass_pd_level0 ||
 				force_bypass_pd_in_game ||
 				miss_top1_and_bypass_pr_once ||
-				(efuse_mode & 0x2)))
+				(efuse_mode & 0x2) ||
+				device_disable_pd))
 				reg_val = reg_val | (1 << 3);
 
 			/*0x10 clear interrupt*/

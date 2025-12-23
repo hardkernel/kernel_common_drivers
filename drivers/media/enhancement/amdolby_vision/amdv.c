@@ -667,6 +667,8 @@ static char meta_buf[1024];
 u32 path_sel;
 u32 slice_num;
 u32 pad_mode;
+bool device_disable_pd;
+
 bool is_aml_gxm(void)
 {
 	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_GXM)
@@ -3067,6 +3069,79 @@ static const struct vframe_receiver_op_s dvel_vf_receiver = {
 
 static struct vframe_receiver_s dvel_vf_recv;
 
+void check_efuse(void)
+{
+	unsigned int reg_clk;
+	unsigned int reg_value = 0;
+	unsigned int reg_value_1 = 0;
+	unsigned int reg_value_2 = 0;
+
+	/* get efuse flag*/
+	if (is_aml_txlx() || is_aml_tm2() || is_aml_t7() ||
+		is_aml_t3() || is_aml_t5w() || is_aml_t5m()) {
+		WRITE_VCBUS_REG_BITS(VPU_CLK_GATE, 1, 4, 1);
+		reg_clk = READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL);
+		WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, 0x2800);
+		reg_value = READ_VPP_DV_REG(AMDV_TV_REG_START + 1);
+		if (debug_dolby & 1)
+			pr_info("reg_clk=%x %x, VPU_CLK_GATE=0x%x\n",
+				reg_clk, READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL),
+				READ_VPP_DV_REG(VPU_CLK_GATE));
+		if ((reg_value & 0x400) == 0)
+			efuse_mode = 0;
+		else
+			efuse_mode = 1;
+		WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, reg_clk);
+		if (efuse_mode == 1)
+			WRITE_VCBUS_REG_BITS(VPU_CLK_GATE, 0, 4, 1);
+	} else if (is_aml_t3x()) {
+		vpu_module_clk_enable(0, DV_TVCORE, 1);
+		reg_clk = READ_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK);
+		WRITE_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK, 0xA0000);
+		reg_value = READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0 + 1);
+		udelay(2);
+		reg_value_2 = READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0 + 1);
+		pr_info("top2 reg_value=0x%x 0x%x\n", reg_value, reg_value_2);
+		if (reg_value_2 & 0x10000)/*top2*/
+			efuse_mode |= 1 << 0;
+
+		reg_value_1 = READ_VPP_DV_REG(DOLBY5_CORE1_REG_BASE + 1);
+		if (reg_value_1 & 0x80)/*top1*/
+			efuse_mode |= 1 << 1;
+		WRITE_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK, reg_clk);
+		vpu_module_clk_disable(0, DV_TVCORE, 1);
+	} else if (is_aml_t6w() || is_aml_t6x()) {
+		//todo
+		reg_clk = READ_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK);
+		WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 1);
+		reg_value = READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0 + 1);
+		udelay(2);
+		reg_value_2 = READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0 + 1);
+		pr_info("top2 reg_value=0x%x 0x%x\n", reg_value, reg_value_2);
+		if (reg_value_2 & 0x10000)/*top2*/
+			efuse_mode |= 1 << 0;
+
+		reg_value_1 = READ_VPP_DV_REG(T6W_DOLBY5_CORE1_REG_BASE + 1);
+		if (reg_value_1 & 0x80)/*top1*/
+			efuse_mode |= 1 << 1;
+		WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, reg_clk);
+	} else if (is_amdv_stb_mode()) {/*ott*/
+		reg_value = READ_VPP_DV_REG(AMDV_CORE1A_REG_START + 1);
+		if ((reg_value & 0x100) == 0)
+			efuse_mode = 0;
+		else
+			efuse_mode = 1;
+	}
+	efuse_checked = true;
+	if (debug_dolby & 1) {
+		if (is_aml_hw5())
+			pr_info("efuse_mode=%d,reg_value top1=0x%x,top2=0x%x\n",
+				efuse_mode, reg_value_1, reg_value_2);
+		else
+			pr_info("efuse_mode=%d,reg_value=0x%x\n", efuse_mode, reg_value);
+	}
+}
+
 void amdv_init_receiver(void *pdev)
 {
 	u32 alloc_size;
@@ -3153,44 +3228,51 @@ void amdv_init_receiver(void *pdev)
 		dv5_md_hist.hist_vaddr[1] = dma_alloc_coherent(&amdv_pdev->dev,
 						alloc_size, &dv5_md_hist.hist_paddr[1], GFP_KERNEL);
 
-		if (is_aml_t3x())
-			py_buf_cnt = PYRAMID_BUF_CNT;
-		else if (is_aml_t6w() || is_aml_t6x())
-			py_buf_cnt = 2;
-		for (i = 0; i < py_buf_cnt; i++) {/*read,write,reserved*/
-			for (j = 0; j < 7; j++) {
-				py_addr[i].top1_py_size[j] = py_size[j];
-				alloc_size = (py_addr[i].top1_py_size[j] +
-							((1 << 6) - 1)) & ~((1 << 6) - 1);
-				py_addr[i].py_vaddr[j] = dma_alloc_coherent(&amdv_pdev->dev,
-					alloc_size, &py_addr[i].top1_py_paddr[j], GFP_KERNEL);
-				if (py_addr[i].py_vaddr[j]) {
-					memset(py_addr[i].py_vaddr[j], 0, alloc_size);
-					//pr_info("pyup_vaddr %px %x, alloc size %d\n",
-					//		py_addr[i].py_vaddr[j],
-					//		py_addr[i].top1_py_paddr[j],
-					//		alloc_size);
-				} else {
-					pr_err("dma alloc top1_py error\n");
+		if ((!(efuse_mode & 2) && !device_disable_pd)) {
+			if (is_aml_t3x())
+				py_buf_cnt = PYRAMID_BUF_CNT;
+			else if (is_aml_t6w() || is_aml_t6x())
+				py_buf_cnt = 2;
+
+			for (i = 0; i < py_buf_cnt; i++) {/*read,write,reserved*/
+				for (j = 0; j < 7; j++) {
+					py_addr[i].top1_py_size[j] = py_size[j];
+					alloc_size = (py_addr[i].top1_py_size[j] +
+								((1 << 6) - 1)) & ~((1 << 6) - 1);
+					py_addr[i].py_vaddr[j] = dma_alloc_coherent(&amdv_pdev->dev,
+						alloc_size,
+						&py_addr[i].top1_py_paddr[j], GFP_KERNEL);
+					if (py_addr[i].py_vaddr[j]) {
+						memset(py_addr[i].py_vaddr[j], 0, alloc_size);
+						//pr_info("pyup_vaddr %px %x, alloc size %d\n",
+						//		py_addr[i].py_vaddr[j],
+						//		py_addr[i].top1_py_paddr[j],
+						//		alloc_size);
+					} else {
+						pr_err("dma alloc top1_py error\n");
+					}
 				}
 			}
-		}
-		if (is_aml_t6w() || is_aml_t6x()) {
-			for (i = 0; i < TOP_BUF_CNT; i++) {
-				/*corep pyup max size 512x288*/
-				top_info.up_buf[i].pyup_size =
-				is_aml_t6w() ? PY_UP_SIZE_6 : PY_UP_SIZE_7;
-				alloc_size = top_info.up_buf[i].pyup_size;
-				top_info.up_buf[i].pyup_vaddr = dma_alloc_coherent(&amdv_pdev->dev,
-					alloc_size, &top_info.up_buf[i].pyup_paddr, GFP_KERNEL);
-				if (top_info.up_buf[i].pyup_vaddr) {
-					memset(top_info.up_buf[i].pyup_vaddr, 0, alloc_size);
-					//pr_info("pyup_vaddr %px %x, alloc size %d\n",
-					//		top_info.up_buf[i].pyup_vaddr,
-					//		top_info.up_buf[i].pyup_paddr,
-					//		alloc_size);
-				} else {
-					pr_err("dma alloc pyup error\n");
+			if (is_aml_t6w() || is_aml_t6x()) {
+				for (i = 0; i < TOP_BUF_CNT; i++) {
+					/*corep pyup max size 512x288*/
+					top_info.up_buf[i].pyup_size =
+					is_aml_t6w() ? PY_UP_SIZE_6 : PY_UP_SIZE_7;
+					alloc_size = top_info.up_buf[i].pyup_size;
+					top_info.up_buf[i].pyup_vaddr =
+						dma_alloc_coherent(&amdv_pdev->dev,
+						alloc_size,
+						&top_info.up_buf[i].pyup_paddr, GFP_KERNEL);
+					if (top_info.up_buf[i].pyup_vaddr) {
+						memset(top_info.up_buf[i].pyup_vaddr, 0,
+							alloc_size);
+						//pr_info("pyup_vaddr %px %x, alloc size %d\n",
+						//		top_info.up_buf[i].pyup_vaddr,
+						//		top_info.up_buf[i].pyup_paddr,
+						//		alloc_size);
+					} else {
+						pr_err("dma alloc pyup error\n");
+					}
 				}
 			}
 		}
@@ -15886,9 +15968,6 @@ bool chip_support_dv(void)
 int register_dv_functions(const struct dolby_vision_func_s *func)
 {
 	int ret = -1;
-	unsigned int reg_clk;
-	unsigned int reg_value = 0;
-	unsigned int reg_value_1 = 0;
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	unsigned int ko_info_len = 0;
 	int i;
@@ -15937,70 +16016,6 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			}
 		}
 	}
-
-	/* get efuse flag*/
-	if (is_aml_txlx() || is_aml_tm2() || is_aml_t7() ||
-		is_aml_t3() || is_aml_t5w() || is_aml_t5m()) {
-		WRITE_VCBUS_REG_BITS(VPU_CLK_GATE, 1, 4, 1);
-		reg_clk = READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL);
-		WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, 0x2800);
-		reg_value = READ_VPP_DV_REG(AMDV_TV_REG_START + 1);
-		if (debug_dolby & 1)
-			pr_info("reg_clk=%x %x, VPU_CLK_GATE=0x%x\n",
-				reg_clk, READ_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL),
-				READ_VPP_DV_REG(VPU_CLK_GATE));
-		if ((reg_value & 0x400) == 0)
-			efuse_mode = 0;
-		else
-			efuse_mode = 1;
-		WRITE_VPP_DV_REG(AMDV_TV_CLKGATE_CTRL, reg_clk);
-		if (efuse_mode == 1)
-			WRITE_VCBUS_REG_BITS(VPU_CLK_GATE, 0, 4, 1);
-		efuse_checked = true;
-	} else if (is_aml_t3x()) {
-		vpu_module_clk_enable(0, DV_TVCORE, 1);
-		reg_clk = READ_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK);
-		WRITE_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK, 0xA0000);
-		reg_value = READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0 + 1);
-		pr_info("top2 0x%x\n", reg_value);
-		reg_value = READ_VPP_DV_REG(DOLBY5_CORE2_REG_BASE0 + 1);
-		pr_info("top2 reg_value = 0x%x\n", reg_value);
-		if (reg_value & 0x10000)/*top2*/
-			efuse_mode |= 1 << 0;
-
-		reg_value_1 = READ_VPP_DV_REG(DOLBY5_CORE1_REG_BASE + 1);
-		if (reg_value_1 & 0x80)/*top1*/
-			efuse_mode |= 1 << 1;
-		WRITE_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK, reg_clk);
-		vpu_module_clk_disable(0, DV_TVCORE, 1);
-	} else if (is_aml_t6w() || is_aml_t6x()) {
-		//todo
-		reg_clk = READ_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK);
-		WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, 1);
-		pr_info("dolby warp clk: 0x%x => 0x%x\n", reg_clk,
-			READ_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK));
-		reg_value = READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0 + 1);
-		pr_info("top2 reg_value = 0x%x\n", reg_value);
-		reg_value = READ_VPP_DV_REG(T6W_DOLBY5_CORE2_REG_BASE0 + 1);
-		if (reg_value & 0x10000)/*top2*/
-			efuse_mode |= 1 << 0;
-
-		reg_value_1 = READ_VPP_DV_REG(T6W_DOLBY5_CORE1_REG_BASE + 1);
-		if (reg_value_1 & 0x80)/*top1*/
-			efuse_mode |= 1 << 1;
-		WRITE_VPP_DV_REG(T6W_VPU_DOLBY_WRAP_GCLK, reg_clk);
-	} else {
-		reg_value = READ_VPP_DV_REG(AMDV_CORE1A_REG_START + 1);
-		if ((reg_value & 0x100) == 0)
-			efuse_mode = 0;
-		else
-			efuse_mode = 1;
-	}
-	if (is_aml_hw5())
-		pr_info("efuse_mode=%d,reg_value top1=0x%x,top2=0x%x\n",
-			efuse_mode, reg_value_1, reg_value);
-	else
-		pr_info("efuse_mode=%d,reg_value=0x%x\n", efuse_mode, reg_value);
 
 	support_info = (efuse_mode & 1) ? 0 : 1;/*bit0=1 => no efuse*/
 	support_info = support_info | (1 << 2); /*bit2=1 => value updated*/
@@ -19223,9 +19238,11 @@ static ssize_t amdolby_vision_inst_status_show
 
 		if (tv_hw5_setting) {
 			cfg_enable_top1 = check_cfg_enabled_top1();
-			len += sprintf(buf + len, "cfg:precision %d,l1l4:%d\n",
+			len += sprintf(buf + len, "cfg:pd %d,l1l4:%d,efuse %d,device_dis_pd %d\n",
 				cfg_enable_top1 & CFG_ENABLE_PRECISION,
-				cfg_enable_top1 & CFG_ENABLE_L1L4);
+				cfg_enable_top1 & CFG_ENABLE_L1L4,
+				efuse_mode,
+				device_disable_pd);
 		}
 		if (tv_hw5_setting && tv_hw5_setting->pq_config)
 			len += sprintf(buf + len, "cur cp cfg:precision %d %d,l1l4:%d\n",
@@ -20119,7 +20136,7 @@ static int amdolby_vision_probe(struct platform_device *pdev)
 	struct amdolby_vision_dev_s *devp = &amdolby_vision_dev;
 	unsigned int val;
 
-	pr_info("\n amdolby_vision probe start & ver: %s\n", DRIVER_VER);
+	pr_info("amdolby_vision probe start & ver: %s\n", DRIVER_VER);
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
 		struct dv_device_data_s *dv_meson;
@@ -20232,6 +20249,7 @@ static int amdolby_vision_probe(struct platform_device *pdev)
 		}
 	}
 	amdv_addr();
+	check_efuse();
 	amdv_init_receiver(pdev);
 	if (amdv_create_inst())
 		goto fail_add_cdev;
@@ -20353,31 +20371,34 @@ static void amdolby_vision_remove(struct platform_device *pdev)
 					lut_dma_info[i].dma_paddr_top2);
 			}
 		}
-
 		dma_free_coherent(&pdev->dev, dv5_md_hist.hist_size,
 				dv5_md_hist.hist_vaddr[0], dv5_md_hist.hist_paddr[0]);
 		dma_free_coherent(&pdev->dev, dv5_md_hist.hist_size,
 				dv5_md_hist.hist_vaddr[1], dv5_md_hist.hist_paddr[1]);
 
-		if (is_aml_t3x())
-			py_buf_cnt = PYRAMID_BUF_CNT;
-		else if (is_aml_t6w() || is_aml_t6x())
-			py_buf_cnt = 2;
+		if ((!(efuse_mode & 2) && !device_disable_pd)) {
+			if (is_aml_t3x())
+				py_buf_cnt = PYRAMID_BUF_CNT;
+			else if (is_aml_t6w() || is_aml_t6x())
+				py_buf_cnt = 2;
 
-		for (i = 0; i < py_buf_cnt; i++) {
-			for (j = 0; j < 7; j++) {
-				if (py_addr[i].py_vaddr[j])
-					dma_free_coherent(&pdev->dev, py_addr[i].top1_py_size[j],
-						py_addr[i].py_vaddr[j],
-						py_addr[i].top1_py_paddr[j]);
+			for (i = 0; i < py_buf_cnt; i++) {
+				for (j = 0; j < 7; j++) {
+					if (py_addr[i].py_vaddr[j])
+						dma_free_coherent(&pdev->dev,
+							py_addr[i].top1_py_size[j],
+							py_addr[i].py_vaddr[j],
+							py_addr[i].top1_py_paddr[j]);
+				}
 			}
-		}
-		if (is_aml_t6w() || is_aml_t6x()) {
-			for (i = 0; i < TOP_BUF_CNT; i++) {
-				if (top_info.up_buf[i].pyup_vaddr)
-					dma_free_coherent(&pdev->dev, top_info.up_buf[i].pyup_size,
-						top_info.up_buf[i].pyup_vaddr,
-						top_info.up_buf[i].pyup_paddr);
+			if (is_aml_t6w() || is_aml_t6x()) {
+				for (i = 0; i < TOP_BUF_CNT; i++) {
+					if (top_info.up_buf[i].pyup_vaddr)
+						dma_free_coherent(&pdev->dev,
+							top_info.up_buf[i].pyup_size,
+							top_info.up_buf[i].pyup_vaddr,
+							top_info.up_buf[i].pyup_paddr);
+				}
 			}
 		}
 	} else {
