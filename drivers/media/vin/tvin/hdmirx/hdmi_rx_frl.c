@@ -49,7 +49,7 @@ const u32 fpll[] = {
 	0x0b0da201, //0x0b0da201
 };
 
-#define VPU_OVER_SPEED 406
+#define VPU_OVER_SPEED 390
 #define VPU_OVER_SPEED1 838
 
 enum frl_rate_e hdmirx_get_frl_rate(u8 port)
