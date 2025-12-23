@@ -864,6 +864,15 @@ struct aml_sw_vrr_s {
 	spinlock_t set_lock;//
 };
 
+struct aml_vrr_test_s {
+	unsigned char test_en;
+	unsigned char step;
+	unsigned char test_pattern;
+	unsigned int step_dly;
+	unsigned int vtotal_min;
+	unsigned int vtotal_max;
+};
+
 #define LCD_CONFIG_NONE 0
 #define LCD_CONFIG_DTS  1
 #define LCD_CONFIG_FILE 2
@@ -986,6 +995,7 @@ struct aml_lcd_drv_s {
 	struct vrr_device_s *vrr_dev;
 	struct aml_fr_lock_s *fr_lock;
 	struct aml_sw_vrr_s sw_vrr;
+	struct aml_vrr_test_s vrr_test;
 #ifdef CONFIG_OF
 	struct device_node *of_node;
 #endif
@@ -1029,6 +1039,7 @@ struct aml_lcd_drv_s {
 	struct work_struct late_resume_work;
 	struct work_struct vx1_reset_work;
 	struct work_struct mode_switch_on_work;
+	struct work_struct vrr_test_work;
 	struct delayed_work init_on_delayed_work;
 	struct delayed_work test_delayed_work;
 

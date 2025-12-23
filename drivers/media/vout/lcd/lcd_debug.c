@@ -2416,44 +2416,195 @@ static ssize_t lcd_debug_test_show(struct device *dev, struct device_attribute *
 	return sprintf(buf, "[%d]: test pattern: %d\n", pdrv->index, pdrv->test_state);
 }
 
+static void lcd_debug_vrr_test_work(struct work_struct *work)
+{
+	struct aml_lcd_drv_s *pdrv;
+	struct lcd_detail_timing_s *ptiming;
+	struct aml_vrr_test_s *vrr_test;
+	unsigned int fr[2], temp, i;
+	unsigned long flags = 0;
+
+	pdrv = container_of(work, struct aml_lcd_drv_s, vrr_test_work);
+	if (!pdrv->curr_dev)
+		return;
+	ptiming = &pdrv->curr_dev->dev_cfg.timing.act_timing;
+	vrr_test = &pdrv->vrr_test;
+
+	if (!(pdrv->status & LCD_STATUS_IF_ON)) {
+		vrr_test->test_en = 0;
+		LCD_ERR(pdrv, "lcd interface is off, exit");
+		return;
+	}
+
+	LCD_PR(pdrv, "vrr test: step %d, delay %dms, pattern %d, vtotal range %d ~ %d",
+		vrr_test->step, vrr_test->step_dly, vrr_test->test_pattern,
+		vrr_test->vtotal_min, vrr_test->vtotal_max);
+	if (vrr_test->step == 0 || ptiming->h_period == 0 ||
+	    vrr_test->vtotal_min == 0 || vrr_test->vtotal_max == 0) {
+		vrr_test->test_en = 0;
+		LCD_ERR(pdrv, "invalid 0 parameter, exit");
+		return;
+	}
+	if (vrr_test->test_pattern) {
+		spin_lock_irqsave(&pdrv->isr_lock, flags);
+		pdrv->test_flag = vrr_test->test_pattern;
+		pdrv->test_state = vrr_test->test_pattern;
+		lcd_debug_test(pdrv, pdrv->test_state);
+		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+	}
+	fr[0] = ptiming->pixel_clk / ptiming->h_period / vrr_test->vtotal_min;
+	fr[1] = ptiming->pixel_clk / ptiming->h_period / vrr_test->vtotal_max;
+	temp = (vrr_test->vtotal_max - vrr_test->vtotal_min) / vrr_test->step;
+	temp = temp * vrr_test->step_dly / 1000;
+	LCD_PR(pdrv, "vrr test: frame_rate range %d ~ %d, will take time: %ds",
+		fr[0], fr[1], temp);
+
+	for (i = vrr_test->vtotal_min; i <= vrr_test->vtotal_max; i += vrr_test->step) {
+		if (vrr_test->test_en == 0)
+			break;
+		if (!(pdrv->status & LCD_STATUS_IF_ON)) {
+			vrr_test->test_en = 0;
+			break;
+		}
+		lcd_venc_adj_vtotal(pdrv, i);
+		temp = (vrr_test->vtotal_max - i) / vrr_test->step;
+		temp = temp * vrr_test->step_dly / 1000;
+		LCD_PR(pdrv, "vrr test vtotal: %d (->%d), time_left: %ds",
+			i, vrr_test->vtotal_max, temp);
+		lcd_delay_ms(vrr_test->step_dly);
+	}
+	if (pdrv->test_flag) {
+		spin_lock_irqsave(&pdrv->isr_lock, flags);
+		pdrv->test_flag = 0;
+		pdrv->test_state = 0;
+		lcd_debug_test(pdrv, pdrv->test_state);
+		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+	}
+	if (vrr_test->test_en) {
+		vrr_test->test_en = 0;
+		LCD_PR(pdrv, "vrr test finished");
+	} else {
+		LCD_PR(pdrv, "vrr test stopped");
+	}
+}
+
 static ssize_t lcd_debug_test_store(struct device *dev, struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
-	unsigned int temp = 0, i = 0;
+	struct lcd_detail_timing_s *ptiming;
+	char *buf_orig;
+	char **parm = NULL;
+	unsigned int temp = 0, step, dly, val[2], i = 0;
 	int ret = 0;
 	unsigned long flags = 0;
 
-	if (buf[0] == 'f') { /* force test pattern */
-		ret = sscanf(buf, "force %d", &temp);
-		if (ret == 0)
-			goto lcd_debug_test_store_next;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return count;
+	parm = kcalloc(8, sizeof(char *), GFP_KERNEL);
+	if (!parm) {
+		kfree(buf_orig);
+		return count;
+	}
+
+	lcd_debug_parse_param(buf_orig, parm, 8);
+
+	if (strcmp(parm[0], "force") == 0) { /* force test pattern */
+		if (kstrtou32(parm[1], 10, &temp))
+			goto lcd_debug_test_store_err;
 		spin_lock_irqsave(&pdrv->isr_lock, flags);
 		pdrv->test_flag = (unsigned char)temp;
 		pdrv->test_state = (unsigned char)temp;
 		lcd_debug_test(pdrv, pdrv->test_state);
 		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 		return count;
-	}
+	} else if (strcmp(parm[0], "vrr") == 0) { /* vrr */
+		if (!pdrv->curr_dev) {
+			LCD_ERR(pdrv, "%s: curr_dev is NULL", __func__);
+			goto lcd_debug_test_store_err;
+		}
+		ptiming = &pdrv->curr_dev->dev_cfg.timing.act_timing;
+		step = 0;
+		dly = 500;
+		temp = 0;
+		val[0] = ptiming->v_period_min;
+		val[1] = ptiming->v_period_max;
+		if (parm[1]) {
+			if (kstrtou32(parm[1], 10, &step))
+				goto lcd_debug_test_store_err;
+		}
+		if (parm[2]) {
+			if (kstrtou32(parm[2], 10, &dly))
+				goto lcd_debug_test_store_err;
+		}
+		if (parm[3]) {
+			if (kstrtou32(parm[3], 10, &temp))
+				goto lcd_debug_test_store_err;
+		}
+		if (parm[4]) {
+			if (kstrtou32(parm[4], 10, &val[0]))
+				goto lcd_debug_test_store_err;
+			if (val[0] == 0)
+				goto lcd_debug_test_store_err;
+			if (val[0] < ptiming->v_period_min) {
+				LCD_PR(pdrv, "%s: vtotal_min %d less than spec, force to %d",
+					__func__, val[0], ptiming->v_period_min);
+				val[0] = ptiming->v_period_min;
+			}
+		}
+		if (parm[5]) {
+			if (kstrtou32(parm[5], 10, &val[1]))
+				goto lcd_debug_test_store_err;
+			if (val[1] == 0)
+				goto lcd_debug_test_store_err;
+			if (val[1] > ptiming->v_period_min) {
+				LCD_PR(pdrv, "%s: vtotal_max %d bigger than spec, force to %d",
+					__func__, val[1], ptiming->v_period_max);
+				val[1] = ptiming->v_period_max;
+			}
+		}
 
-lcd_debug_test_store_next:
-	ret = kstrtouint(buf, 10, &temp);
-	if (ret) {
-		pr_info("invalid data\n");
-		return -EINVAL;
-	}
-	spin_lock_irqsave(&pdrv->isr_lock, flags);
-	pdrv->test_flag = (unsigned char)temp;
-	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+		if (step == 0) {
+			pdrv->vrr_test.test_en = 0;
+		} else {
+			pdrv->vrr_test.test_en = 1;
+			pdrv->vrr_test.step = step;
+			pdrv->vrr_test.step_dly = dly;
+			pdrv->vrr_test.test_pattern = temp;
+			pdrv->vrr_test.vtotal_min = val[0];
+			pdrv->vrr_test.vtotal_max = val[1];
+			lcd_queue_work(&pdrv->vrr_test_work);
+		}
+	} else {
+		ret = kstrtouint(buf, 10, &temp);
+		if (ret)
+			goto lcd_debug_test_store_err;
+		spin_lock_irqsave(&pdrv->isr_lock, flags);
+		pdrv->test_flag = (unsigned char)temp;
+		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 
-	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, temp);
-	while (i++ < 5000) {
+		while (i++ < 200) {
+			if (pdrv->test_state == temp)
+				break;
+			lcd_delay_ms(1);
+		}
 		if (pdrv->test_state == temp)
-			break;
-		lcd_delay_us(20);
+			ret = 0;
+		else
+			ret = -1;
+		LCD_PR(pdrv, ": %s: %d %s", __func__, temp, ret ? "failed" : "successfully");
 	}
 
+	kfree(buf_orig);
+	kfree(parm);
 	return count;
+
+lcd_debug_test_store_err:
+	LCD_ERR(pdrv, "%s: invalid parameters\n", __func__);
+	kfree(buf_orig);
+	kfree(parm);
+	return -EINVAL;
 }
 
 static ssize_t lcd_debug_mute_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -5221,7 +5372,10 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 	}
 	pdrv->debug_info = (void *)lcd_debug_info;
 
-	return lcd_debug_file_op_basic(pdrv, 1);
+	lcd_debug_file_op_basic(pdrv, 1);
+	INIT_WORK(&pdrv->vrr_test_work, lcd_debug_vrr_test_work);
+
+	return 0;
 }
 
 int lcd_debug_init_connector(struct aml_lcd_drv_s *pdrv)
@@ -5269,7 +5423,10 @@ int lcd_debug_init_connector(struct aml_lcd_drv_s *pdrv)
 
 int lcd_debug_remove_basic(struct aml_lcd_drv_s *pdrv)
 {
-	return lcd_debug_file_op_basic(pdrv, 0);
+	cancel_work_sync(&pdrv->vrr_test_work);
+	lcd_debug_file_op_basic(pdrv, 0);
+
+	return 0;
 }
 
 int lcd_debug_remove_connector(struct aml_lcd_drv_s *pdrv)
