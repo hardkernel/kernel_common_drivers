@@ -343,6 +343,7 @@ void hdmirx_phy_var_init(void)
 			rx_info.aml_phy_21.cdr_ph_div = 0x8;
 			rx_info.aml_phy_21.cdr_pi_ofst = 0x3f;
 			rx_info.acr_rst_delay = 2000;
+			rx_info.aml_phy_21.cable_tuning_en = 1;
 		}
 	}
 	rx_info.aml_phy.force_bw = 0x0;
@@ -3477,6 +3478,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(rx_info.aml_phy_21.rterm_dbg_lvl, i++);
 	pr_var(rx_info.aml_phy_21.cdr_pi_ofst, i++);
 	pr_var(rx_info.aml_phy_21.cdr_ph_div, i++);
+	pr_var(rx_info.aml_phy_21.cable_tuning_en, i++);
 	pr_var(rx_info.aml_phy.force_bw, i++);
 	pr_var(rx_info.pre_load.cfg, i++);
 	pr_var(tuning_cnt, i++);
@@ -4170,6 +4172,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy_21.cdr_pi_ofst),
 		&rx_info.aml_phy_21.cdr_pi_ofst, value))
 		return pr_var(rx_info.aml_phy_21.cdr_pi_ofst, index);
+	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy_21.cable_tuning_en),
+		&rx_info.aml_phy_21.cable_tuning_en, value))
+		return pr_var(rx_info.aml_phy_21.cable_tuning_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy.force_bw),
 		&rx_info.aml_phy.force_bw, value))
 		return pr_var(rx_info.aml_phy.force_bw, index);

@@ -777,6 +777,8 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 	int cnt = 0;
 	unsigned long data = 0;
 	u32 pll_ctrl0, pll_ctrl1, pll_ctrl2, pll_ctrl3;
+	u32 eq_stg2_temp = 0;
+	u32 eq_pole_temp = 0;
 
 	if (log_level & FRL_LOG)
 		rx_pr("fpll cal,port=%d\n", port);
@@ -864,6 +866,18 @@ void rx_21_fpll_calculation(int f_rate, u8 port)
 	}
 	if (log_level & FRL_LOG)
 		rx_pr("port-%d m valid\n", port);
+	if (rx_info.chip_id == CHIP_ID_T6X && reg_valid_m &&
+		rx_info.aml_phy_21.cable_tuning_en && f_rate == FRL_12G_4LANE) {
+		eq_stg2_temp =
+			((rx_info.aml_phy_21.eq_stg2 <= 0x7) ? rx_info.aml_phy_21.eq_stg2 : 0x2);
+		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_AFE, BUF_BST,
+			eq_stg2_temp, port);
+		eq_pole_temp =
+			((rx_info.aml_phy_21.eq_pole <= 0x7) ? rx_info.aml_phy_21.eq_pole : 0x1);
+		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_AFE, LEQ_POLE,
+			eq_pole_temp, port);
+		rx_pr("cable tuning done\n");
+	}
 	//or get flclk based on frl_rate!!! todo
 	flclk = rx_get_flclk(port);
 	if (!flclk) {

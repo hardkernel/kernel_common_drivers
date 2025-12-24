@@ -1556,7 +1556,7 @@ void aml_phy_offset_cal_t6x_21(int port)
 {
 	u32 data32;
 	/* rterm not enabled */
-	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_MISC0, 0x01bcfff0, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_MISC0, 0x013cfff0, port);
 	/* squelch not enabled*/
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_MISC1, 0x3077000f, port);
 	data32 = 0x00005a00;
@@ -1817,8 +1817,8 @@ void aml_pll_bw_cfg_t6x_21(int f_rate, u8 port)
 			(data32 >> 5) & 0x1, port);
 		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, DFE_TAPS_DISABLE,
 			(data32 >> 19) & 0x1, port);
-		if (log_level & FRL_LOG)
-			rx_pr("phy bwth\n");
+		if (log_level & PHY_LOG)
+			rx_pr("phy bwth-%d\n", idx);
 	}
 	//config pll
 	clk_rate = rx_get_scdc_clkrate_sts(port);
@@ -4526,14 +4526,14 @@ void hdmirx_vga_gain_tuning_t6x(u8 port)
 
 			tap0_0_def = hdmirx_rd_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_AFE,
 				MSK(4, 0), port);
-			if ((dfe0_tap0 < (vga_tuning_min + 5)) && !tap0_0_done) {
+			if (dfe0_tap0 < vga_tuning_min && !tap0_0_done) {
 				tap0_0_dec = graytodecimal_t6x(tap0_0_def);
 				tap0_0_dec += 1;
 				hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_AFE,
 					MSK(4, 0), decimaltogray_t6x(tap0_0_dec), port);
 				if (tap0_0_dec == 15)
 					tap0_0_done = 1;
-			} else if ((dfe0_tap0 > (vga_tuning_max + 5)) && !tap0_0_done) {
+			} else if (dfe0_tap0 > vga_tuning_max && !tap0_0_done) {
 				tap0_0_dec = graytodecimal_t6x(tap0_0_def);
 				tap0_0_dec -= 1;
 				hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_AFE,
@@ -4550,14 +4550,14 @@ void hdmirx_vga_gain_tuning_t6x(u8 port)
 			}
 			tap0_1_def = hdmirx_rd_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_AFE,
 			MSK(4, 4), port);
-			if ((dfe1_tap0 < (vga_tuning_min + 5)) && !tap0_1_done) {
+			if (dfe1_tap0 < vga_tuning_min && !tap0_1_done) {
 				tap0_1_dec = graytodecimal_t6x(tap0_1_def);
 				tap0_1_dec += 1;
 				hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_AFE, MSK(4, 4),
 				    decimaltogray_t6x(tap0_1_dec), port);
 				if (tap0_1_dec == 15)
 					tap0_1_done = 1;
-			} else if ((dfe1_tap0 > (vga_tuning_max + 5)) && !tap0_1_done) {
+			} else if (dfe1_tap0 > vga_tuning_max && !tap0_1_done) {
 				tap0_1_dec = graytodecimal_t6x(tap0_1_def);
 				tap0_1_dec -= 1;
 				hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_AFE, MSK(4, 4),

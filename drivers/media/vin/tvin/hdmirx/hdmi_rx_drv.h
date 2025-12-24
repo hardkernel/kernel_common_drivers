@@ -495,6 +495,7 @@ struct rx_aml_phy {
 	u8 pll_bw_21;
 	u8 cdr_ph_div;
 	u8 cdr_pi_ofst;
+	bool cable_tuning_en;
 };
 
 struct rx_aml_phy_21 {
