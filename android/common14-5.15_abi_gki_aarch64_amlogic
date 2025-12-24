@@ -140,3 +140,9 @@
 # amlogic-input.ko
   sysfs_emit_at
   strreplace
+
+# rtc-pcf8563.ko
+  _bcd2bin
+  _bin2bcd
+  of_clk_src_simple_get
+>>>>>>> 6176494ea (ODROID-C5: configs: support pcf8563)
