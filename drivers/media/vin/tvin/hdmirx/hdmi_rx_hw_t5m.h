@@ -65,6 +65,8 @@
 #define T5M_RG_RX20PLL_0		0x000
 #define T5M_RG_RX20PLL_1		0x004
 
+#define T5M_MAX_PIXEL_CLK (666 * MHz)
+
 extern int tapx_value;
 extern int agc_enable;
 extern u32 afe_value;

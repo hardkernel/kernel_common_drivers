@@ -107,7 +107,8 @@
 //2025.11.27 fix bits per pixel cal
 //2025.11.28 fix fps error issue for tb49
 //2025.12.16 fix PM-related DMC VIOLATION issues
-#define RX_DRV_VER "ver.2025/12/16"
+//2025.12.24 add ioc for framerate limit
+#define RX_DRV_VER "ver.2025/12/24"
 
 /*print type*/
 #define COR1_LOG	0x10000

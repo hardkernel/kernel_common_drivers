@@ -260,6 +260,7 @@ struct hdmirx_scdc_info {
 #define HDMI_IOC_GET_SCDC_REG	_IOR(HDMI_IOC_MAGIC, 0x19, struct hdmirx_scdc_info)
 #define HDMI_IOC_SET_DUMP_PARAMS	_IO(HDMI_IOC_MAGIC, 0x1a)
 #define HDMI_IOC_AUDIO_DATA_DUMP	_IO(HDMI_IOC_MAGIC, 0x1b)
+#define HDMI_IOC_GET_FR_LIMIT	_IOR(HDMI_IOC_MAGIC, 0x1c, unsigned char)
 
 void rx_set_dsc_hdmi_cntl(unsigned int val);
 

@@ -2237,6 +2237,30 @@ static int hdmirx_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static u8 hdmirx_get_fr_limit(void)
+{
+	u8 ret = 0;
+	u32 pixel_clk = 0;
+	u8 port = rx_info.main_port;
+
+	if (rx[port].state != FSM_SIG_READY) {
+		rx_pr("HDMI sig not ready\n");
+		return 0;
+	}
+	if (rx_info.chip_id == CHIP_ID_T5M) {
+		if (rx[port].cur.colorspace == E_COLOR_YUV420)
+			pixel_clk = (rx[port].cur.frame_rate / 100) * (rx[port].cur.htotal * 2) *
+				rx[port].cur.vtotal;
+		else
+			pixel_clk = (rx[port].cur.frame_rate / 100) * rx[port].cur.htotal *
+				rx[port].cur.vtotal;
+		if (pixel_clk >= T5M_MAX_PIXEL_CLK)
+			ret = 1;
+	}
+
+	return ret;
+}
+
 /*
  * hdmirx_ioctl - file operation interface
  */
@@ -2596,6 +2620,25 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 		if (rx_info.chip_id == CHIP_ID_T3X)
 			rx_emp1_to_ddr_init(rx_info.main_port);
 		hdmirx_top_irq_en(IRQ_EN_ALL, rx_info.main_port);
+		mutex_unlock(&devp->rx_lock);
+		break;
+	case HDMI_IOC_GET_FR_LIMIT:
+		if (!argp)
+			return -EINVAL;
+		u8 flag = 0;
+
+		mutex_lock(&devp->rx_lock);
+		if (copy_from_user(&flag, argp, sizeof(unsigned char))) {
+			ret = -EFAULT;
+			mutex_unlock(&devp->rx_lock);
+			break;
+		}
+		flag = hdmirx_get_fr_limit();
+		if (copy_to_user(argp, &flag, sizeof(unsigned char))) {
+			ret = -EFAULT;
+			mutex_unlock(&devp->rx_lock);
+			break;
+		}
 		mutex_unlock(&devp->rx_lock);
 		break;
 	default:
