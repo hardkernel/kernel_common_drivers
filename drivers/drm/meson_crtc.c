@@ -572,11 +572,13 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct drm_display_mode *old_mode;
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
 	struct meson_vpu_pipeline *pipeline = amcrtc->pipeline;
+	struct meson_drm *priv = amcrtc->priv;
 	struct am_meson_crtc_state *meson_crtc_state =
 					to_am_meson_crtc_state(crtc->state);
 	struct meson_vpu_sub_pipeline_state *mvsps =
 		priv_to_sub_pipeline_state(pipeline->subs[amcrtc->crtc_index]->obj.state);
 	struct am_meson_crtc_state *old_am_crtc_state;
+	int hdrpolicy = 0;
 	struct drm_connector_state *new_conn_state;
 	struct meson_connector *mesonconn = NULL;
 	struct drm_connector *connector;
@@ -604,11 +606,47 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		DRM_ERROR("meson_crtc_enable NULL mode failed.\n");
 		return;
 	}
-	DRM_INFO("%s-[%d] in: new[%s], old[%s], vmode[%d-%d], uboot[%d], vrr[%d]\n",
+	DRM_INFO("%s-[%d] in: new[%s], old[%s], vmode[%d-%d], uboot[%d], compat[%d], vrr[%d]\n",
 		__func__, amcrtc->crtc_index, adjusted_mode->name, old_mode->name,
 		meson_crtc_state->vmode, meson_crtc_state->preset_vmode,
-		meson_crtc_state->uboot_mode_init, crtc->state->vrr_enabled);
+		meson_crtc_state->uboot_mode_init, priv->compat_mode,
+		crtc->state->vrr_enabled);
 	adjusted_vrefresh = drm_mode_vrefresh(adjusted_mode);
+
+	if (!priv->compat_mode) {
+		/* update follow source/follow sink to hdr/dv core.
+		 * drm didnot send hdmitx pkt, we just set policy to hdr core.
+		 */
+		if (meson_crtc_state->crtc_hdr_process_policy
+				== MESON_HDR_POLICY_FOLLOW_SOURCE ||
+			meson_crtc_state->crtc_hdr_process_policy
+				== MESON_HDR_POLICY_FOLLOW_SINK) {
+		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			/*enable/disable dv*/
+			if (meson_crtc_state->crtc_dv_enable) {
+				if (meson_crtc_state->crtc_eotf_type
+						== HDMI_EOTF_MESON_DOLBYVISION_LL) {
+					set_amdv_ll_policy(1);
+				} else {
+					set_amdv_ll_policy(0);
+				}
+				set_amdv_enable(true);
+			}
+		#endif
+
+			hdrpolicy = (meson_crtc_state->crtc_hdr_process_policy
+				== MESON_HDR_POLICY_FOLLOW_SINK) ? 0 : 1;
+		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+			set_hdr_policy(hdrpolicy);
+		#endif
+		}
+		/*force eotf by property*/
+		//set_eotf_by_property(meson_crtc_state);
+		if (meson_crtc_state->force_output_type !=
+			old_am_crtc_state->force_output_type) {
+			set_force_output(meson_crtc_state->force_output_type);
+		}
+	}
 
 	/*Turn on the settings function later
 	 *if (priv->compat_mode) {
