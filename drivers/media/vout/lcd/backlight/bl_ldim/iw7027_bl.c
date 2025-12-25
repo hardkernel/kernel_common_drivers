@@ -936,6 +936,7 @@ static int iw7027_ldim_dev_update(struct ldim_dev_driver_s *dev_drv)
 int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 {
 	struct ldim_dev_driver_s *dev_drv = ldim_drv->dev_drv;
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct spicc_controller_data *cdata;
 	struct spi_private_data *priv;
 	int n, i;
@@ -1022,7 +1023,8 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 	if (dev_drv->spi_sync == SPI_ASYNC)
 		spin_lock_init(&spi_lock);
 
-	bl_iw7027->dev_on_flag = 1; /* default enable in uboot */
+	if (bdrv->state & BL_STATE_BL_ON)
+		bl_iw7027->dev_on_flag = 1; /* default enable in uboot */
 
 	ldim_pr("%s ok\n", __func__);
 	return 0;

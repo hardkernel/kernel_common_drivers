@@ -181,13 +181,16 @@ static int ldim_on_init(void)
 {
 	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 
-	LDIMPR("%s\n", __func__);
+	if (!bdrv)
+		return -1;
 
-	ldim_driver.init_on_flag = 1;
-	ldim_driver.level_update = 1;
-	ldim_driver.state |= LDIM_STATE_POWER_ON;
-	if (bdrv)
-		lcd_resource_ready(bdrv->index, LCD_RES_BACKLIGHT, bdrv->bconf.index);
+	if (bdrv->state & BL_STATE_BL_ON) {
+		ldim_driver.init_on_flag = 1;
+		ldim_driver.level_update = 1;
+		ldim_driver.state |= LDIM_STATE_POWER_ON;
+	}
+
+	lcd_resource_ready(bdrv->index, LCD_RES_BACKLIGHT, bdrv->bconf.index);
 
 	return 0;
 }
