@@ -3191,8 +3191,7 @@ static inline struct di_dbg_reg_log *get_dbg_reg_log(void)
 static inline struct di_ores_s *get_orsc(unsigned int ch)
 {
 	if (ch >= DI_CHANNEL_NUB) {
-		pr_error("%s:ch[%d] out of bounds[%d]\n",
-			__func__, ch, DI_CHANNEL_NUB - 1);
+		pr_error("ch[%d] out of bounds[%d]\n", ch, DI_CHANNEL_NUB - 1);
 		return NULL;
 	}
 
