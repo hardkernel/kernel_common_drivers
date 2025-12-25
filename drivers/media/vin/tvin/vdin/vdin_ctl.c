@@ -2784,6 +2784,25 @@ void vdin_wr_frame_en(unsigned int ch, unsigned int on_off)
 }
 EXPORT_SYMBOL(vdin_wr_frame_en);
 
+unsigned long vdin_get_chroma_sum(void)
+{
+	unsigned long chroma_sum_in = 0;
+	struct vdin_dev_s *devp = vdin_get_dev(0);
+
+	if (!devp || !IS_TVAFE_SRC(devp->parm.port))
+		return 0;
+
+	if (devp->dtdata->hw_ver == VDIN_HW_T3X)
+		chroma_sum_in = rd(0, VDIN0_LUMA_HIST_CHROMA_SUM);
+	else if (devp->dtdata->hw_ver == VDIN_HW_T6X)
+		chroma_sum_in = rd(0, VDIN_HIST_CHROMA_SUM_T6X);
+	else
+		chroma_sum_in = rd(0, VDIN_HIST_CHROMA_SUM);
+
+	return chroma_sum_in;
+}
+EXPORT_SYMBOL(vdin_get_chroma_sum);
+
 void vdin_force_mif_ctl(struct vdin_dev_s *devp, unsigned int rdma_enable, bool on_off)
 {
 	unsigned int offset = devp->addr_offset;

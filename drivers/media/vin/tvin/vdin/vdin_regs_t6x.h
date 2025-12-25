@@ -26,6 +26,7 @@
 #define VDIN_HIST_H_START_END_T6X           0x1292
 #define VDIN_HIST_V_START_END_T6X           0x1293
 #define VDIN_HIST_SPL_VAL_T6X               0x1297
+#define VDIN_HIST_CHROMA_SUM_T6X            0x1299
 /* t6x hist end */
 
 #define VDIN0_META_REG_OFFSET	(VDIN0_META_DSC_CTRL0_T6X - VDIN0_META_DSC_CTRL0) //0x4180

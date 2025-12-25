@@ -1673,8 +1673,7 @@ static void tvafe_cvd2_non_std_signal_det(struct tvafe_cvd2_s *cvd2)
 	unsigned long chroma_sum_in = 0;
 	static bool non_std_enable_tmp, nonstd_flag_adv;
 
-	chroma_sum_in = rd_bits(0, VDIN_HIST_CHROMA_SUM,
-				HIST_CHROMA_SUM_BIT,  HIST_CHROMA_SUM_WID);
+	chroma_sum_in = vdin_get_chroma_sum();
 	chroma_sum_pre3 = chroma_sum_pre2;
 	chroma_sum_pre2 = chroma_sum_pre1;
 	chroma_sum_pre1 = chroma_sum_in;
@@ -1713,6 +1712,10 @@ static void tvafe_cvd2_non_std_signal_det(struct tvafe_cvd2_s *cvd2)
 			nonstd_flag_adv = 1;
 		else
 			nonstd_flag_adv = 0;
+	} else if (!(cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_I ||
+		cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M)) {
+		non_std_enable_tmp = 0;
+		nonstd_flag_adv = 0;
 	}
 
 	if (non_std_enable_tmp != nonstd_flag_adv) {

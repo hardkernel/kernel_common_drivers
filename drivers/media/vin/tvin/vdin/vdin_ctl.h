@@ -241,6 +241,7 @@ void vdin_bypass_isp(unsigned int offset);
 void vdin_set_mpegin(struct vdin_dev_s *devp);
 void vdin_force_go_filed(struct vdin_dev_s *devp);
 void vdin_adjust_tvafe_snow_brightness(void);
+unsigned long vdin_get_chroma_sum(void);
 void vdin_set_config(struct vdin_dev_s *devp);
 void vdin_dolby_config(struct vdin_dev_s *devp);
 void vdin_dolby_buffer_update(struct vdin_dev_s *devp,
