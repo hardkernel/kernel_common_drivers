@@ -559,6 +559,16 @@ void update_top1_onoff(struct vframe_s *vf)
 		} else {
 			enable_top1 = false;
 		}
+		if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+			if (debug_dolby & 0x80000)
+				pr_dv_dbg("game mode, flag %x, bypass precision\n", vf->flag);
+			enable_top1 = false;
+			/*game need lowlatency, not support PD*/
+			/*If UI switch to IQ when source is game, need force bypss PD*/
+			force_bypass_pd_in_game = true;
+		} else {
+			force_bypass_pd_in_game = false;
+		}
 
 		if (force_top1_enable == 1) {
 			if (cfg_enable_top1 == CFG_NONE) {

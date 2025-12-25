@@ -219,6 +219,7 @@ static void dolby5_ahb_reg_config(u32 *reg_baddr,
 				force_bypass_precision_once ||
 				force_bypass_precision ||
 				force_bypass_pd_level0 ||
+				force_bypass_pd_in_game ||
 				miss_top1_and_bypass_pr_once ||
 				(efuse_mode & 0x2)))
 				reg_val = reg_val | (1 << 3);
@@ -356,6 +357,7 @@ static void dolby5_ahb_reg_config(u32 *reg_baddr,
 				force_bypass_precision_once ||
 				force_bypass_precision ||
 				force_bypass_pd_level0 ||
+				force_bypass_pd_in_game ||
 				miss_top1_and_bypass_pr_once ||
 				(efuse_mode & 0x2)))
 				reg_val = reg_val | (1 << 3);
@@ -3638,6 +3640,7 @@ int cfg_dolby_top(struct prm_dolby_top *prm_dolby,
 			if (last_top2_py_level != top2_info.py_level && top2_info.core_on &&
 				!force_bypass_precision_once && !force_bypass_precision &&
 				!force_bypass_pd_level0 &&
+				!force_bypass_pd_in_game &&
 				!miss_top1_and_bypass_pr_once) {
 				pr_dv_dbg("top2 py_level status changed %s->%s\n",
 					level_str[last_top2_py_level],
@@ -3662,6 +3665,7 @@ int cfg_dolby_top(struct prm_dolby_top *prm_dolby,
 					!force_bypass_precision_once &&
 					!force_bypass_precision &&
 					!force_bypass_pd_level0 &&
+					!force_bypass_pd_in_game &&
 					!(dolby_vision_flags & FLAG_CERTIFICATION)) {
 					if (debug_dolby & 1)
 						pr_dv_dbg("missed top1, bypass precision once\n");
@@ -3693,7 +3697,8 @@ int cfg_dolby_top(struct prm_dolby_top *prm_dolby,
 				else
 					cur_pr = true;
 				if (cur_pr && !last_pr && !force_bypass_precision_once &&
-					!force_bypass_precision && !force_bypass_pd_level0) {
+					!force_bypass_precision && !force_bypass_pd_level0 &&
+					!force_bypass_pd_in_game) {
 					//reset = true;
 					sw_reset = true;
 					toggle = true;
@@ -3715,7 +3720,8 @@ int cfg_dolby_top(struct prm_dolby_top *prm_dolby,
 					if (!force_bypass_precision_once &&
 						!miss_top1_and_bypass_pr_once &&
 						!force_bypass_precision &&
-						!force_bypass_pd_level0)
+						!force_bypass_pd_level0 &&
+						!force_bypass_pd_in_game)
 						reset = true;/*need hw reset*/
 					if (debug_dolby & 0x40000000)
 						pr_info("rdma error\n");
@@ -3741,6 +3747,7 @@ int cfg_dolby_top(struct prm_dolby_top *prm_dolby,
 						!force_bypass_precision_once &&
 						!force_bypass_precision &&
 						!force_bypass_pd_level0 &&
+						!force_bypass_pd_in_game &&
 						cur_pr && py_enabled && top2_info.core_on &&
 						cur_top2_status &&
 						(last_top2_ro4 != 0x120024 ||
@@ -3777,11 +3784,12 @@ int cfg_dolby_top(struct prm_dolby_top *prm_dolby,
 				//	reset = true;
 			}
 			if (debug_dolby & 8)
-				pr_dv_dbg("last_py_enabled %d %d,%d %d,%d %d,%d %d,%d %d,reset %d %d\n",
+				pr_dv_dbg("last_py_enabled %d %d,%d %d,%d %d,%d %d,%d %d,%d,reset %d %d\n",
 				last_py_enabled, py_enabled,
 				pr_done, top1_done,
 				force_bypass_precision_once, miss_top1_and_bypass_pr_once,
 				force_bypass_precision, force_bypass_pd_level0,
+				force_bypass_pd_in_game,
 				cur_pr, cur_top2_status,
 				reset, sw_reset);
 		}

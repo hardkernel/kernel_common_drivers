@@ -19248,6 +19248,7 @@ static ssize_t amdolby_vision_inst_status_show
 		len += sprintf(buf + len, "num_downsamplers:%d, scale:%d\n",
 			num_downsamplers, top1_scale);
 		len += sprintf(buf + len, "force_bypass_precision:%d\n", force_bypass_precision);
+		len += sprintf(buf + len, "force_bypass_pd_in_game:%d\n", force_bypass_pd_in_game);
 		len += sprintf(buf + len, "force_bypass_precision_once:%d\n",
 			force_bypass_precision_once);
 		len += sprintf(buf + len, "miss_top1_and_bypass_pr_once:%d\n",

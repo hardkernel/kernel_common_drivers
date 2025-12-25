@@ -1027,6 +1027,7 @@ extern bool force_bypass_precision;
 extern bool force_bypass_pd_level0;
 extern bool force_bypass_precision_once;
 extern bool miss_top1_and_bypass_pr_once;
+extern bool force_bypass_pd_in_game;
 extern bool update_top2_control_path_flag;
 extern bool disable_detunnel;
 extern u32 top1_scale;
