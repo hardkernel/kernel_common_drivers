@@ -322,12 +322,12 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		if (!is_process_drm_vf) {
 			new_src_w = mvvs->src_w;
 			new_src_h = mvvs->src_h;
-			if (dec_vf->type & VIDTYPE_COMPRESS) {
-				pic_w = dec_vf->compWidth;
-				pic_h = dec_vf->compHeight;
+			if (vf->type & VIDTYPE_COMPRESS) {
+				pic_w = vf->compWidth;
+				pic_h = vf->compHeight;
 			} else {
-				pic_w = dec_vf->width;
-				pic_h = dec_vf->height;
+				pic_w = vf->width;
+				pic_h = vf->height;
 			}
 		} else {
 			bpp = video_bpp_get(mvvs->pixel_format);
