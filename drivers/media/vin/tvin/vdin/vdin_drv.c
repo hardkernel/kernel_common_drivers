@@ -1630,7 +1630,6 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 	devp->debug.dv_dbg_mask = (DV_BUF_START_RESET);
 	devp->debug.vdin_frame_work_mode = VDIN_VF_PUT;
 	devp->debug.sleep_time = 50;
-	devp->debug.sm_debug_enable = VDIN_SM_LOG_L_1;
 }
 
 bool vdin_get_video_ready_state(enum tvin_port_e port)
@@ -7406,6 +7405,7 @@ static void vdin_get_dts_config(struct vdin_dev_s *devp,
 	devp->vdin_function_sel |= VDIN_SET_DISPLAY_RATIO;
 	devp->dts_config.sct_remain_size = 2;/* Keep 2 pages to allocate the buffer faster.*/
 	devp->dts_config.vdin_mut_cnt = 32;
+	devp->debug.sm_debug_enable = VDIN_SM_LOG_L_1;
 }
 
 static int vdin_drv_probe(struct platform_device *pdev)

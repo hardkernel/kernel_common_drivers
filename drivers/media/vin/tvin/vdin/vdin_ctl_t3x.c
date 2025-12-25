@@ -810,8 +810,6 @@ void vdin_change_matrix0_t3x(u32 offset, u32 matrix_csc)
 		wr(offset, VDIN0_MAT_OFFSET2,       matrix_tbl->post_offset2);
 		wr_bits(offset, VDIN0_PP_CTRL, 1, PP_MAT0_EN_BIT, PP_MAT0_EN_WID);
 	}
-
-		pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 /* hdr2 used as only matrix,not hdr matrix
@@ -843,8 +841,6 @@ void vdin_change_matrix1_t3x(u32 offset, u32 matrix_csc)
 		/* Actually no mat1 on t3x */
 		//wr_bits(offset, VDIN0_PP_CTRL, 0, PP_MAT1_EN_BIT, PP_MAT1_EN_WID);
 	}
-
-	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 //TODO:hdr
@@ -889,8 +885,6 @@ void vdin_change_matrix_hdr_t3x(u32 offset, u32 matrix_csc)
 		wr_bits(offset, VDIN0_HDR2_CTRL, 1, 13, 1);/* reg_hdr2_top_en */
 		wr_bits(offset, VDIN0_PP_CTRL, 1, PP_MAT1_EN_BIT, PP_MAT1_EN_WID);
 	}
-
-	pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 static enum vdin_matrix_csc_e
@@ -1813,7 +1807,7 @@ void vdin_mute_t3x(struct vdin_dev_s *devp, bool en)
 			rx_mute_dual_video_rdma(E_RX_NA, E_RX_NA);
 	}
 	if (devp->debug.vdin_dbg_en)
-		pr_info("%s(): port:%d mute:%d\n", __func__, port_type, en);
+		pr_info("[vdin] mute t3x: port:%d mute:%d\n", port_type, en);
 }
 
 void vdin_set_frame_mif_write_addr_t3x(struct vdin_dev_s *devp,
@@ -2037,7 +2031,8 @@ void vdin_set_dv_tunnel_t3x(struct vdin_dev_s *devp)
 		return;
 
 	if (vdin_dv_is_need_tunnel(devp)) {
-		wr(0, VPU_VDIN_HDMI0_TUNNEL, 0x80304512);
+		wr(devp->index * VPU_VDIN_HDMI_TUNNEL_REG_OFFSET,
+			VPU_VDIN_HDMI0_TUNNEL, 0x80304512);
 		if (devp->debug.vdin_dbg_en)
 			pr_info("vdin%d,enable hdmi_if tunnel\n", devp->index);
 	} else {

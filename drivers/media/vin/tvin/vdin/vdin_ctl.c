@@ -1619,10 +1619,16 @@ void vdin_change_matrix1(u32 offset, u32 matrix_csc)
 			tmp = matrix_tbl->pre_offset0_1 >> 16;
 			tmp = (tmp << 14) |
 				(matrix_tbl->pre_offset0_1 & 0x1fff);
+			if (devp->debug.vdin_dbg_en)
+				pr_info("pre_offset0_1:%#x,tbl:%#x\n",
+				tmp, matrix_tbl->pre_offset0_1);
 			wr(offset, VDIN_MATRIX_PRE_OFFSET0_1, tmp);
 			tmp = matrix_tbl->post_offset0_1 >> 16;
 			tmp = (tmp << 14) |
 				(matrix_tbl->post_offset0_1 & 0x1fff);
+			if (devp->debug.vdin_dbg_en)
+				pr_info("post_offset0_1:%#x,tbl:%#x\n",
+				tmp, matrix_tbl->post_offset0_1);
 			wr(offset, VDIN_MATRIX_OFFSET0_1, tmp);
 		} else {
 			wr(offset,
@@ -5085,7 +5091,8 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 			tmp_cycle = devp->cycle / 10;
 			curr_wr_vf->fps = DIV_ROUND_CLOSEST(tmp_clk, tmp_cycle);
 		}
-		if (devp->debug.vdin_isr_monitor & BIT(25))
+
+		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
 			pr_info("fps1=%d--%d\n", devp->prop.fps, curr_wr_vf->fps);
 
 		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
@@ -8912,7 +8919,7 @@ enum vdin_vrr_mode_e get_cur_vrr_status(struct vdin_dev_s *devp)
 		ret = VDIN_VRR_OFF;
 	}
 
-	if (devp->debug.vdin_dbg_en)
+	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VRR_DATA)
 		pr_info("%s port:0x%x vrr:%d freesync:%d game:%d allm:%d instead:%d small:%d\n",
 			__func__, devp->parm.port, devp->prop.vtem_data.vrr_en,
 			freesync_type, game_mode, devp->prop.latency.allm_mode,

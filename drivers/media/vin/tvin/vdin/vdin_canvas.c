@@ -1114,8 +1114,8 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 	if (devp->cma_config_en == 0 || devp->cma_mem_alloc == 0) {
 		if (devp->work_mode == VDIN_WORK_MD_V4L)
 			pr_err("vdin%d %s v4l2 mode do not need do this (%d,%d)!!!\n",
-				   devp->index, __func__, devp->cma_config_en,
-				   devp->cma_mem_alloc);
+				devp->index, __func__, devp->cma_config_en,
+				devp->cma_mem_alloc);
 		else
 			pr_err("vdin%d %s fail for (%d,%d)!!!\n",
 			       devp->index, __func__, devp->cma_config_en,

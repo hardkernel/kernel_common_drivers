@@ -5859,7 +5859,6 @@ int vdin_create_debug_files(struct device *dev)
 
 	ret = device_create_file(dev, &dev_attr_sig_det);
 	ret = device_create_file(dev, &dev_attr_attr);
-	ret = device_create_file(dev, &dev_attr_dts_config);
 	/* create sysfs attribute files */
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	#ifdef VF_LOG_EN
@@ -5876,6 +5875,7 @@ int vdin_create_debug_files(struct device *dev)
 	ret = device_create_file(dev, &dev_attr_snow_flag);
 	ret = device_create_file(dev, &dev_attr_input_rate);
 	ret = device_create_file(dev, &dev_attr_slt_test);
+	ret = device_create_file(dev, &dev_attr_dts_config);
 	for (i = 0; i < VDIN_MAX_INSTANCE; i++) {
 		ret = sysfs_create_group(&dev->kobj, &vdin_attr_group[i]);
 		if (ret)
@@ -5903,9 +5903,9 @@ void vdin_remove_debug_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_input_rate);
 	device_remove_file(dev, &dev_attr_slt_test);
 	device_remove_file(dev, &dev_attr_color_info);
+	device_remove_file(dev, &dev_attr_dts_config);
 #endif
 	device_remove_file(dev, &dev_attr_attr);
-	device_remove_file(dev, &dev_attr_dts_config);
 	device_remove_file(dev, &dev_attr_sig_det);
 }
 
