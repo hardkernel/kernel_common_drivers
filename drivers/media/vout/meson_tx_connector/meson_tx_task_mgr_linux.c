@@ -62,7 +62,7 @@ int tx_task_mgr_setup_task(struct tx_task_manager *mgr, struct tx_task_info *inf
 	task->queue_type = info->queue_type;
 	task->flags = info->flag;
 
-	if (!mgr->queues[task->queue_type] && info->queue_name) {
+	if (!mgr->queues[task->queue_type] && info->queue_name[0]) {
 		workqueue = alloc_ordered_workqueue(info->queue_name,
 					info->queue_flag);
 		if (!workqueue)

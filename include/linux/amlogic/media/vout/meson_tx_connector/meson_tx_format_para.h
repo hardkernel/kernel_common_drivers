@@ -44,10 +44,12 @@ struct dptx_hw_fmt_para {
 	u32 total_bandwidth;
 	enum dp_link_rate_e link_rate;
 	enum dp_lane_count_e lane_count;
+	u8 dsc_en;
 };
 
 /* hw related format param, set in calc_format_para() func */
 struct hdmitx_hw_fmt_para {
+	enum hdmi_vic vic;
 	u32 scrambler_en:1;
 	u32 tmds_clk_div40:1;
 	u32 tmds_clk; /* Unit: 1000 */
@@ -65,7 +67,7 @@ struct meson_tx_format_para {
 	enum hdmi_colorspace cs; /* 0/1/2/3: rgb/422/444/420 */
 	enum hdmi_quantization_range cr; /* limit, full */
 	bool cta_range; /* 1: cta range; 0: vesa range */
-	bool bt709; /* 1: bt-709; 0: bt-601 */
+	u8 colorimetry; /* >= 2: bt-2020...; 1: bt-709; 0: bt-601 */
 	u32 frac_mode;
 	/* video source virtual channel, used for MST index */
 	u8 vc_id;
@@ -73,18 +75,6 @@ struct meson_tx_format_para {
 	 * bit[3:0]: venc_idx, bit[7:4]: hdmi_if_idx, other bits for future
 	 */
 	u32 vid_clk_path;
-
-	/* below members only for hdmitx,
-	 * TODO: move into struct hdmitx_hw_fmt_para later
-	 */
-	enum hdmi_vic vic;
-	/*hw related information, set in calc_format_para() func*/
-	u32 scrambler_en:1;
-	u32 tmds_clk_div40:1;
-	u32 tmds_clk; /* Unit: 1000 */
-	u8 dsc_en;
-	enum frl_rate_enum frl_rate;
-	/*hw related information end*/
 
 	u32 flag_3dfp:1;
 	u32 flag_3dtb:1;

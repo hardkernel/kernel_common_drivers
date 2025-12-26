@@ -65,8 +65,6 @@ struct hdmitx21_dev {
 	struct hdmitx21_hw tx21_hw;
 
 	u8 manual_frl_rate; /* for manual setting */
-	u8 frl_rate; /* for mode setting */
-	u8 dsc_en;
 
 	/* ignore fifo intr5 if hdmitx output disabled */
 	bool ignore_fifo_intr5;

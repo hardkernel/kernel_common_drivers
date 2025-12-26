@@ -37,6 +37,7 @@ u8 dptx_get_mapped_bpc(enum hdmi_color_depth cd);
 void dptx_avi_infoframe_set(struct dptx_hw_common *hw_comm, u8 vc_id, struct avi_infoframe *info);
 void dptx_avi_infoframe_rawset(struct dptx_hw_common *hw_comm, u8 vc_id, u8 *hb, u8 *pb);
 void dptx_spd_infoframe_set(struct dptx_hw_common *hw_comm, u8 vc_id, struct spd_infoframe *info);
+void dptx_spd_infoframe_rawset(struct dptx_hw_common *hw_comm, u8 vc_id, u8 *hb, u8 *pb);
 void dptx_audio_infoframe_set(struct dptx_hw_common *hw_comm, u8 vc_id,
 	struct audio_infoframe *info);
 void dptx_audio_infoframe_rawset(struct dptx_hw_common *hw_comm, u8 vc_id, u8 *hb, u8 *pb);

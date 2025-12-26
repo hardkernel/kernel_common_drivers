@@ -12,7 +12,7 @@
 #include "meson_hdmi_modern.h"
 #endif
 
-#include "meson_dptx.h"
+#include "meson_tx_helper.h"
 #include "meson_cvbs.h"
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #include "meson_lcd.h"
@@ -45,21 +45,15 @@ int meson_connector_dev_bind(struct drm_device *drm,
 
 	if (type > DRM_MODE_MESON_CONNECTOR_HDMI_START &&
 			type < DRM_MODE_MESON_CONNECTOR_HDMI_END) {
-#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
+#if !defined(CONFIG_AMLOGIC_DRM_CUT_HDMI) || !defined(CONFIG_AMLOGIC_DRM_CUT_HDMI_MODERN)
 		return meson_hdmitx_dev_bind(drm, type, intf);
 #else
-	pr_err("hdmi connector is not supported!\n");
-			return -1;
+		pr_err("hdmi connector is not supported!\n");
+		return -1;
 #endif
 	}
 
 	switch (type) {
-#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
-	case DRM_MODE_CONNECTOR_HDMIA:
-	case DRM_MODE_CONNECTOR_HDMIB:
-		return meson_hdmitx_dev_bind(drm, type, intf);
-#endif
-
 #ifdef CONFIG_AMLOGIC_DRM_DP
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		return meson_dptx_dev_bind(drm, type, intf);
@@ -117,12 +111,6 @@ int meson_connector_dev_unbind(struct drm_device *drm,
 	}
 
 	switch (type) {
-#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
-	case DRM_MODE_CONNECTOR_HDMIA:
-	case DRM_MODE_CONNECTOR_HDMIB:
-		return meson_hdmitx_dev_unbind(drm, type, intf);
-#endif
-
 #ifdef CONFIG_AMLOGIC_DRM_DP
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		return meson_dptx_dev_unbind(drm, type, intf);

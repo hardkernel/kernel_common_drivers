@@ -21,8 +21,6 @@
 #include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_hw_common.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_edid.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_types.h>
-#include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_tracer.h>
-#include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_event_mgr.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #include <linux/amlogic/media/vout/dsc.h>
 #include <linux/amlogic/media/vrr/vrr.h>
@@ -38,6 +36,9 @@
 typedef void (*audio_en_callback)(bool enable);
 typedef int (*audio_st_callback)(void);
 struct hdcptx_common;
+struct meson_tx_event_mgr;
+enum tx_trace_log_bits;
+enum meson_tx_event;
 
 struct hdcptx_api {
 	bool (*get_hdcptx_lstore)(struct hdcptx_common *hdcptx_comm, int hdcp_type);
@@ -473,8 +474,6 @@ struct hdmitx_common {
 	struct scdc_locked_st ch_locked_st;
 
 	/* 15. debug & log */
-	struct hdmitx_tracer *tx_tracer;
-	struct hdmitx_event_mgr *event_mgr;
 	struct st_debug_param debug_param;
 	struct dentry *hdmitx_file_dbgfs;
 	struct proc_dir_entry *hdmitx_proc_dbgfs;
@@ -546,25 +545,7 @@ bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap);
  */
 void hdmitx_edid_process(struct hdmitx_common *tx_comm, bool boot_flag, bool drm_parse_part);
 
-/* Attach platform related functions to hdmitx_common;
- * Currently hdmitx_tracer, hdmitx_uevent_mgr is platform related;
- */
-enum HDMITX_PLATFORM_API_TYPE {
-	HDMITX_PLATFORM_TRACER = 0,
-	HDMITX_PLATFORM_UEVENT,
-};
-
-int hdmitx_common_attch_platform_data(struct hdmitx_common *tx_comm,
-	enum HDMITX_PLATFORM_API_TYPE type, void *plt_data);
-
-/*
- * Notify hpd event to all outer modules: vpp by vout, drm, userspace
- * bool force_uevent: force send uevent even the hpd state NOT change
- */
-int hdmitx_common_notify_ced_status(struct hdmitx_common *tx_comm);
-int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent);
-
-int hdmitx_set_uevent(struct hdmitx_common *tx_comm, enum hdmitx_event type, int val);
+int hdmitx_set_uevent(struct hdmitx_common *tx_comm, enum meson_tx_event type, int val);
 
 u32 hdmitx_edid_get_hdmi14_4k_vic(u32 vic);
 /* packet api */
@@ -595,6 +576,10 @@ int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 	struct meson_tx_state *new_state,
 	char *mode,  enum hdmi_colorspace cs,
 	enum hdmi_color_depth cd, bool brr_valid);
+int hdmitx_validate_tx_state_fmt_para(struct meson_tx_dev *tx_base,
+	struct meson_tx_state *base_state);
+int hdmitx_build_hw_format_para(struct meson_tx_dev *tx_base,
+	struct meson_tx_format_para *para);
 int hdmitx_common_check_valid_para_of_vic(struct hdmitx_common *tx_comm,
 					  enum hdmi_vic vic);
 
@@ -624,7 +609,7 @@ int hdmitx_get_connector(void);
 void hdmitx_common_sw_debug_func(struct hdmitx_common *tx_comm, const char *cmd_str);
 /*******************************hdmitx common api end*******************************/
 
-int hdmitx_audio_register_ctrl_callback(struct hdmitx_tracer *tracer,
+int hdmitx_audio_register_ctrl_callback(struct meson_tx_tracer *tracer,
 						audio_en_callback cb1, audio_st_callback cb2);
 
 int hdmitx_get_hpd_state(struct hdmitx_common *tx_comm);
@@ -665,7 +650,7 @@ bool is_tv_changed(char *cur_edid_chksum, char *boot_param_edid_chksum);
 void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx_hw);
 void hdmitx_vout_uninit(struct hdmitx_common *tx_comm);
 void hdmitx_build_fmt_attr_str(struct hdmitx_common *tx_comm);
-void hdmitx_current_status(struct hdmitx_common *tx_comm, enum hdmitx_event_log_bits event);
+void hdmitx_current_status(struct hdmitx_common *tx_comm, enum tx_trace_log_bits event);
 ssize_t hdcp_lstore_show(struct device *dev, struct device_attribute *attr,
 				char *buf);
 ssize_t hdcp_mode_show(struct device *dev, struct device_attribute *attr,
@@ -694,7 +679,9 @@ const struct dv_info *hdmitx_common_get_dv_info(struct hdmitx_common *tx_comm);
 const struct dv_info *hdmitx_common_get_dv_info_rx(struct hdmitx_common *tx_comm);
 const struct hdr_info *hdmitx_common_get_hdr_info(struct hdmitx_common *tx_comm);
 const struct hdr_info *hdmitx_common_get_hdr_info_rx(struct hdmitx_common *tx_comm);
-int hdmitx_common_get_vic_list(struct hdmitx_common *tx_comm, int **vics);
+int hdmitx_common_get_mode_list(struct hdmitx_common *tx_comm, struct tx_timing **timing_list);
+int hdmitx_common_get_vrr_mode_list(struct hdmitx_common *tx_comm,
+	struct tx_timing **timing_list, int count, struct tx_timing **vrr_timing_list);
 void get_hdmi_efuse(struct hdmitx_common *tx_comm);
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
 enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);

@@ -44,7 +44,6 @@ static int meson_tx_general_phy_set_mode(void *data, enum meson_tx_phy_mode mode
 
 static int meson_tx_general_phy_configure(void *phy, struct meson_tx_phy_cfg_opts *opts)
 {
-	pr_info("%s\n", __func__);
 	return 0;
 }
 

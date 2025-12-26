@@ -87,11 +87,11 @@ void hdmitx_set_s7_htxpll_clk_out(const u32 clk, u32 div)
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
 	enum hdmi_color_depth cd = COLORDEPTH_24B;
-	struct meson_tx_format_para *para = &hdev->tx_comm.fmt_para;
+	struct meson_tx_format_para *para = NULL;
 
-	if (!hdev || !para)
+	if (!hdev)
 		return;
-
+	para = &hdev->tx_comm.fmt_para;
 	cs = para->cs;
 	cd = para->cd;
 
@@ -101,7 +101,7 @@ void hdmitx_set_s7_htxpll_clk_out(const u32 clk, u32 div)
 		pr_err("%s[%d] %d out of htxpll range(3~6G]\n", __func__, __LINE__, clk);
 		return;
 	}
-	set_s7_htxpll_clk_other(clk, hdev->frl_rate ? 1 : 0);
+	set_s7_htxpll_clk_other(clk, para->tx_hw_para.hdmitx_hw_para.frl_rate ? 1 : 0);
 
 	//pll_od10
 	if ((div % 8) == 0) {

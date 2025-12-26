@@ -12,28 +12,35 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/of_address.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/clk/meson_tx_clk.h>
 #include "meson_tx_clk_internal.h"
 
 #define DEVICE_NAME "meson_tx_clk"
 
-static int tx_clk_reg_map(struct platform_device *pdev, void __iomem **clk_reg_io_base)
+static int tx_clk_reg_map(struct platform_device *pdev, struct meson_tx_clk *tx_clk)
 {
-	void __iomem *base;
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	u8 i = 0;
+	struct resource res;
+	struct device_node *np = NULL;
 
-	if (!res) {
-		pr_err("%s not get clk_reg resource\n", __func__);
-		return -ENXIO;
+	if (!pdev || !tx_clk) {
+		pr_err("%s invalid clk instance\n", __func__);
+		return -EINVAL;
 	}
 
-	base = devm_ioremap(&pdev->dev, res->start,
-				     resource_size(res));
-	if (IS_ERR(base)) {
-		pr_err("%s ioremap failed\n", __func__);
-		return -ENXIO;
+	np = pdev->dev.of_node;
+	/* get the core, vpu, ana, ... etc address from dts */
+	for (i = 0; i < REG_MAX; i++) {
+		if (of_address_to_resource(np, i, &res)) {
+			pr_err("%s not get regbase index %d\n", __func__, i);
+			return -1;
+		}
+		tx_clk->reg_io_base[i] = devm_ioremap(&pdev->dev, res.start,
+						 resource_size(&res));
+		if (IS_ERR(tx_clk->reg_io_base[i]))
+			return -ENXIO;
 	}
-	*clk_reg_io_base = base;
 
 	return 0;
 }
@@ -121,7 +128,7 @@ static int meson_tx_clk_probe(struct platform_device *pdev)
 	if (!tx_clk)
 		return -ENOMEM;
 
-	ret = tx_clk_reg_map(pdev, &tx_clk->reg_io_base);
+	ret = tx_clk_reg_map(pdev, tx_clk);
 	if (ret)
 		goto reg_map_err;
 	tx_clk->tx_clk_ops = plat_data;

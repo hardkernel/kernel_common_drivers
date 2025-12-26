@@ -28,6 +28,76 @@ const char *meson_tx_event_to_str(enum tx_trace_log_bits event)
 		return "tx_hpd_plugout\n";
 	case TX_HPD_PLUGIN:
 		return "tx_hpd_plugin\n";
+	case TX_EDID_HDMI_DEVICE:
+		return "tx_edid_hdmi_device\n";
+	case TX_EDID_DVI_DEVICE:
+		return "tx_edid_dvi_device\n";
+	case TX_EDID_HDR_SUPPORT:
+		return "tx_edid_hdr_device\n";
+	case TX_EDID_DV_SUPPORT:
+		return "tx_edid_dv_device\n";
+	case TX_HDR_MODE_SDR:
+		return "tx_hdr_mode_sdr\n";
+	case TX_HDR_MODE_SMPTE2084:
+		return "tx_hdr_mode_smpte2084\n";
+	case TX_HDR_MODE_HLG:
+		return "tx_hdr_mode_hlg\n";
+	case TX_HDR_MODE_HDR10PLUS:
+		return "tx_hdr_mode_hdr10plus\n";
+	case TX_HDR_MODE_CUVA:
+		return "tx_hdr_mode_cuva\n";
+	case TX_HDR_MODE_DV_STD:
+		return "tx_hdr_mode_dv_std\n";
+	case TX_HDR_MODE_DV_LL:
+		return "tx_hdr_mode_dv_ll\n";
+	case TX_KMS_DISABLE_OUTPUT:
+		return "output_disable\n";
+	case TX_KMS_ENABLE_OUTPUT:
+		return "output_enable\n";
+	case TX_EDID_HEAD_ERROR:
+		return "tx_edid_head_error\n";
+	case TX_EDID_CHECKSUM_ERROR:
+		return "tx_edid_checksum_error\n";
+	case TX_EDID_I2C_ERROR:
+		return "tx_edid_i2c_error\n";
+	case TX_HDCP_AUTH_SUCCESS:
+		return "tx_hdcp_auth_success\n";
+	case TX_HDCP_AUTH_FAILURE:
+		return "tx_hdcp_auth_failure\n";
+	case TX_HDCP_HDCP_1_ENABLED:
+		return "tx_hdcp_hdcp1_enabled\n";
+	case TX_HDCP_HDCP_2_ENABLED:
+		return "tx_hdcp_hdcp2_enabled\n";
+	case TX_HDCP_NOT_ENABLED:
+		return "tx_hdcp_not_enabled\n";
+	case TX_HDCP_DEVICE_NOT_READY_ERROR:
+		return "tx_hdcp_device_not_ready_error\n";
+	case TX_HDCP_AUTH_NO_14_KEYS_ERROR:
+		return "tx_hdcp_auth_no_14_keys_error\n";
+	case TX_HDCP_AUTH_NO_22_KEYS_ERROR:
+		return "tx_hdcp_auth_no_22_keys_error\n";
+	case TX_HDCP_AUTH_READ_BKSV_ERROR:
+		return "tx_hdcp_auth_read_bksv_error\n";
+	case TX_HDCP_AUTH_VI_MISMATCH_ERROR:
+		return "tx_hdcp_auth_vi_mismatch_error\n";
+	case TX_HDCP_AUTH_TOPOLOGY_ERROR:
+		return "tx_hdcp_auth_topology_error\n";
+	case TX_HDCP_AUTH_R0_MISMATCH_ERROR:
+		return "tx_hdcp_auth_r0_mismatch_error\n";
+	case TX_HDCP_AUTH_REPEATER_DELAY_ERROR:
+		return "tx_hdcp_auth_repeater_delay_error\n";
+	case TX_HDCP_I2C_ERROR:
+		return "tx_hdcp_i2c_error\n";
+	case TX_KMS_ERROR:
+		return "KMS_ERROR\n";
+	case TX_KMS_SKIP:
+		return "KMS_SKIP\n";
+	case TX_AUDIO_MODE_SETTING:
+		return "tx_audio_mode_setting\n";
+	case TX_AUDIO_MUTE:
+		return "tx_audio_mute\n";
+	case TX_AUDIO_UNMUTE:
+		return "tx_audio_unmute\n";
 	default:
 		return "Unknown event\n";
 	}
@@ -64,8 +134,8 @@ int meson_tx_tracer_write_event(struct meson_tx_tracer *tracer,
 	tracer->previous_event = event;
 
 	/* Play HDR10+ videos, HDMITX_HDR_MODE_HDR10PLUS only writes once */
-	//if (tracer->hdr10plus_event == HDMITX_HDR_MODE_HDR10PLUS)
-	//	return 0;
+	if (tracer->hdr10plus_event == TX_HDR_MODE_HDR10PLUS)
+		return 0;
 
 	//if (event & HDMITX_HDMI_ERROR_MASK)
 	//	HDMITX_ERROR("Record HDMI error: %s\n", hdmitx_event_to_str(event));
@@ -82,6 +152,16 @@ int meson_tx_tracer_write_event(struct meson_tx_tracer *tracer,
 	schedule_work(&tracer->uevent_work);
 
 	return ret;
+}
+
+/* When hdr10plus mode ends, clear hdr10plus_event flag */
+int meson_tx_tracer_clean_hdr10plus_event(struct meson_tx_tracer *tracer,
+	enum tx_trace_log_bits event)
+{
+	if (event == TX_HDR_MODE_HDR10PLUS)
+		tracer->hdr10plus_event = -1;
+
+	return 0;
 }
 
 int meson_tx_tracer_read_event(struct meson_tx_tracer *tracer,
@@ -224,10 +304,11 @@ struct meson_tx_event_mgr *meson_tx_event_mgr_create(struct meson_tx_dev *tx_dev
 }
 
 void meson_tx_event_mgr_set_uevent_dev(struct meson_tx_event_mgr *event_mgr,
-					struct device *dev)
+					struct device *dev, const char *uevent_prefix)
 {
 	/*uevent*/
 	event_mgr->kobj = &dev->kobj;
+	event_mgr->dev_name = uevent_prefix;
 }
 
 void meson_tx_event_mgr_suspend(struct meson_tx_event_mgr *event_mgr, bool suspend_flag)
@@ -328,7 +409,7 @@ int meson_tx_event_mgr_send_uevent(struct meson_tx_event_mgr *uevent_mgr,
 	memset(env, 0, sizeof(env));
 	envp[0] = env;
 	envp[1] = NULL;
-	snprintf(env, MAX_UEVENT_LEN, "%s%d", event->env, state);
+	snprintf(env, MAX_UEVENT_LEN, "%s%s%d", uevent_mgr->dev_name, event->env, state);
 
 	if (uevent_mgr->deep_suspend_flag) {
 		if (type == TX_HPD_EVENT && uevent_mgr->tx_extcon) {
@@ -336,7 +417,15 @@ int meson_tx_event_mgr_send_uevent(struct meson_tx_event_mgr *uevent_mgr,
 			extcon_event = true;
 		}
 	} else {
-		ret = kobject_uevent_env(uevent_mgr->kobj, KOBJ_CHANGE, envp);
+		/*
+		 * kobj is set by drm side when probe, it will crash
+		 * when call kobject_uevent_env() if kobj is invalid;
+		 * so if kobj is invalid, just update event state and
+		 * not sent uevent (as system is not ready to listen
+		 * to uevent at this moment, no need to send uevent)
+		 */
+		if (uevent_mgr->kobj)
+			ret = kobject_uevent_env(uevent_mgr->kobj, KOBJ_CHANGE, envp);
 
 		/*
 		 * for AndroidU framework, audio need hdmi disconnect when suspend

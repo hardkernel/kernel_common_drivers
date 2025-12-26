@@ -107,7 +107,9 @@ int dptx_get_mode_list(struct dptx_common *tx_comm, struct tx_timing **timing_li
 	/* Filter supported timings */
 	for (i = 0; i < disp_id_cap->timing_count; i++) {
 		timing = &disp_id_cap->timing[i / BLK_TIMING_CNT][i % BLK_TIMING_CNT];
-		if (!dptx_validate_timing_with_basic_cs(&tx_comm->base, timing))
+		/* always treat timing supported under pxp */
+		if (!tx_comm->base.pxp_mode &&
+			!dptx_validate_timing_with_basic_cs(&tx_comm->base, timing))
 			continue;
 		memcpy(&disp_id_timings[count++], timing, sizeof(*timing));
 	}
@@ -183,8 +185,7 @@ u8 dptx_get_color_component_cnt(enum colorimetry_format color)
 		[COLORIMETRY_FORMAT_RGB] = 3,
 		[COLORIMETRY_FORMAT_YUV444] = 3,
 		[COLORIMETRY_FORMAT_YUV422] = 2,
-		/* TO confirm for Y420 */
-		[COLORIMETRY_FORMAT_YUV420] = 1,
+		[COLORIMETRY_FORMAT_YUV420] = 3,
 		[COLORIMETRY_FORMAT_Y_ONLY] = 1,
 		[COLORIMETRY_FORMAT_RAW] = 1,
 	};
@@ -196,9 +197,10 @@ u8 dptx_get_color_component_cnt(enum colorimetry_format color)
 	return color_component[color];
 }
 
+/* return pixel clk(bits per second) with specific cs/cd */
 static u32 calc_video_fmt_bw(u32 pixel_clk, enum colorimetry_format cs, color_depth_t cd)
 {
-	return pixel_clk * dptx_calc_bpp(cs, dptx_get_mapped_bpc(cd)) / 24;
+	return pixel_clk * dptx_calc_bpp(cs, dptx_get_mapped_bpc(cd));
 }
 
 /* calculate HW format para from sw para, such as tmds_clk, lane_count/link_rate */
@@ -221,13 +223,13 @@ int dptx_calc_hw_fmt_para(struct meson_tx_hw *tx_hw, struct meson_tx_format_para
 		sw_para->cd);
 	/* if use 128b132b coding will cost 0.30%, bandwidth = bandwidth * 33 / 32; */
 	/* 8b10b coding will cost 20% */
-	bandwidth += bandwidth / 4;
+	bandwidth *= 10;
+	bandwidth /= 8;
+
 	/* downspread overhead 0.5% */
 	bandwidth += bandwidth / 199;
 	/* FEC overhead 0.5% */
 	bandwidth += bandwidth * 3 / 256;
-	/* multiple 10 times */
-	bandwidth *= 10;
 
 	hw_para->total_bandwidth = bandwidth;
 	/* choose low rate firstly, then count */
@@ -272,15 +274,25 @@ static int dptx_mode_enable(struct meson_tx_dev *tx_dev, struct meson_tx_format_
 {
 	struct dptx_common *tx_comm = NULL;
 	int ret = 0;
+	struct meson_tx_clk *tx_clk = NULL;
 
 	if (!tx_dev || !para)
 		return -EINVAL;
 	tx_comm = to_dptx_common(tx_dev);
+	tx_clk = tx_dev->tx_hw_base->tx_clk;
 
-	ret = dptx_link_training(tx_comm);
+	ret = dptx_link_training(tx_comm->link_train);
 	if (ret != 0) {
 		DPTX_ERROR("%s link training failed, abort mode set\n", __func__);
 		return ret;
+	} else {
+		/* update the link rate/lane count as they may be
+		 * changed after link training
+		 */
+		dptx_update_link_fmt_para(tx_comm, para);
+		DPTX_INFO("%s update link rate:0x%x, lane count:0x%x\n",
+			__func__, para->tx_hw_para.dptx_hw_para.link_rate,
+			para->tx_hw_para.dptx_hw_para.lane_count);
 	}
 
 	return dptx_hw_cntl(tx_dev->tx_hw_base, MODE_FLOW_ENABLE_MODE, para, NULL);
@@ -377,9 +389,9 @@ static void dptx_irq_hpd_process(void *para)
 		DPTX_INFO("%s DOWNSTREAM_PORT_STATUS_CHANGED to: %d\n", __func__, sink_count);
 	}
 	if (link_sink_status_buf[4] & BIT(7)) {
-		DPTX_INFO("%s LINK_STATUS_UPDATED\n", __func__, sink_count);
+		DPTX_INFO("%s LINK_STATUS_UPDATED %d\n", __func__, sink_count);
 		/* re-training */
-		if (dptx_link_training(tx_comm) != 0)
+		if (dptx_link_training(tx_comm->link_train) != 0)
 			DPTX_ERROR("%s link training failed, abort mode set\n", __func__);
 	}
 
@@ -475,6 +487,7 @@ static struct tx_task_info dptx_common_task_infos[] = {
 		.type = IRQ_HPD_TASK,
 		.queue_type = TASK_QUEUE_HPD_IRQ,
 		.flag = TASK_FLAG_DELAY_WORK,
+		.init_queue_name = "irq_hpd",
 		.queue_name = "irq_hpd",
 		.queue_flag = WQ_HIGHPRI | WQ_CPU_INTENSIVE,
 	}
@@ -485,7 +498,6 @@ static int dptx_common_task_init(struct dptx_common *tx_comm)
 {
 	int i;
 	int ret = 0;
-	char queue_name[QUEUE_NAME_MAX_LEN] = {0};
 
 	if (!tx_comm) {
 		DPTX_ERROR("%s NULL tx_comm pointer\n", __func__);
@@ -493,9 +505,8 @@ static int dptx_common_task_init(struct dptx_common *tx_comm)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(dptx_common_task_infos); i++) {
-		sprintf(queue_name, "dptx%d_%s", tx_comm->dev_idx,
-			dptx_common_task_infos[i].queue_name);
-		dptx_common_task_infos[i].queue_name = queue_name;
+		sprintf(dptx_common_task_infos[i].queue_name, "dptx%d_%s", tx_comm->dev_idx,
+			dptx_common_task_infos[i].init_queue_name);
 		ret = tx_task_mgr_setup_task(tx_comm->base.task_mgr,
 			&dptx_common_task_infos[i], tx_comm);
 		if (ret)
@@ -507,23 +518,12 @@ static int dptx_common_task_init(struct dptx_common *tx_comm)
 
 int dptx_common_init(struct dptx_common *tx_comm, struct meson_tx_hw *tx_hw)
 {
-	struct meson_tx_event_mgr *tx_event_mgr;
-	struct meson_tx_tracer *tx_tracer;
 	struct meson_tx_dev *tx_dev = &tx_comm->base;
 	struct dptx_hw_common *hw_comm = to_dptx_hw_common(tx_hw);
 	int ret = 0;
 
 	/* meson_tx_dev common init */
 	meson_tx_dev_init(tx_dev, tx_hw, &dptx_common_helper_ops);
-
-	tx_event_mgr = meson_tx_event_mgr_create(&tx_comm->base);
-	meson_tx_event_mgr_suspend(tx_event_mgr, false);
-	meson_tx_attch_platform_data(&tx_comm->base,
-		TX_PLATFORM_UEVENT, tx_event_mgr);
-	tx_tracer = meson_tx_tracer_create(tx_event_mgr);
-	meson_tx_attch_platform_data(&tx_comm->base,
-		TX_PLATFORM_TRACER, tx_tracer);
-
 	mutex_init(&tx_dev->set_mode_mutex);
 	mutex_init(&tx_dev->valid_mode_mutex);
 	/* parse rx cap in both EDID and displayID */
@@ -538,6 +538,10 @@ int dptx_common_init(struct dptx_common *tx_comm, struct meson_tx_hw *tx_hw)
 	tx_comm->hw_comm = hw_comm;
 	/* pass aux instance to HW side for aux access during mode set */
 	tx_comm->hw_comm->tx_aux = tx_comm->tx_aux;
+	tx_comm->link_train = dptx_link_train_init(tx_comm);
+	if (!tx_comm->link_train)
+		return -ENOMEM;
+	hw_comm->is_edp = tx_comm->is_edp;
 	/* dptx vout init */
 	dptx_vout_init(tx_comm);
 	/* dptx common event/task init */
@@ -554,10 +558,12 @@ int dptx_common_uninit(struct dptx_common *tx_comm)
 		return -EINVAL;
 
 	dptx_vout_uninit(tx_comm);
+	dptx_link_train_uninit(tx_comm->link_train);
 	kfree(tx_comm->base.tx_cap);
 	tx_comm->base.tx_cap = NULL;
 	kfree(tx_comm->tx_aux);
 	tx_comm->tx_aux = NULL;
+	dptx_timer_uninit(tx_comm->hw_comm);
 	meson_tx_tracer_destroy(tx_comm->base.tx_tracer);
 	meson_tx_event_mgr_destroy(tx_comm->base.event_mgr);
 	meson_tx_dev_release(&tx_comm->base);

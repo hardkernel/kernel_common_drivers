@@ -111,7 +111,7 @@ int am_meson_get_vrr_range_ioctl(struct drm_device *dev,
 		return -ENOENT;
 
 	switch (connector->connector_type) {
-#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
+#if !defined(CONFIG_AMLOGIC_DRM_CUT_HDMI) || !defined(CONFIG_AMLOGIC_DRM_CUT_HDMI_MODERN)
 	case DRM_MODE_CONNECTOR_HDMIA:
 		num_group = am_meson_hdmi_get_vrr_range(dev, data, file_priv);
 		break;

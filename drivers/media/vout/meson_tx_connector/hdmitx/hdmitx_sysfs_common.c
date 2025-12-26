@@ -19,7 +19,7 @@
 #include "hdmitx_module.h"
 #include "meson_tx_task_mgr.h"
 #include "hdmitx_vout.h"
-
+#include "meson_tx_event_mgr.h"
 /************************common sysfs*************************/
 
 static ssize_t hpd_state_show(struct device *dev,
@@ -877,7 +877,7 @@ static ssize_t _contenttype_mode_store(struct device *dev,
 		hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 0, NULL);
 	}
 	/* recover hdmi1.4 vsif */
-	if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) &&
+	if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.vic) &&
 		!hdmitx_dv_en(tx_comm->tx_hw) &&
 		!hdmitx_hdr10p_en(tx_comm->tx_hw))
 		hdmitx_common_setup_vsif_packet(tx_comm, VT_HDMI14_4K, 1, NULL);
@@ -1286,7 +1286,7 @@ static ssize_t hdmitx_cur_status_show(struct device *dev,
 	int pos = 0;
 	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
 
-	pos = hdmitx_tracer_read_event(tx_comm->tx_tracer,
+	pos = meson_tx_tracer_read_event(tx_comm->base.tx_tracer,
 		buf, PAGE_SIZE);
 	return pos;
 }
@@ -1448,7 +1448,7 @@ static ssize_t soundbar_en_show(struct device *dev,
 	struct hdmitx_common *tx_comm = dev_get_drvdata(dev);
 
 	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n\r",
-		tx_comm->event_mgr->soundbar_en_flag);
+		tx_comm->base.event_mgr->soundbar_en_flag);
 
 	return pos;
 }
@@ -1469,15 +1469,15 @@ static ssize_t soundbar_en_store(struct device *dev,
 	if (com_str(buf, "0")) {
 		soundbar_en = 0;
 		if (tx_comm->base.hpd_state)
-			hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
-					HDMITX_SOUNDBAR_EVENT, 1, 1);
+			meson_tx_event_mgr_send_uevent(tx_comm->base.event_mgr,
+					TX_SOUNDBAR_EVENT, 1, 1);
 	} else if (com_str(buf, "1")) {
 		soundbar_en = 1;
 		if (tx_comm->base.hpd_state)
-			hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
-					HDMITX_SOUNDBAR_EVENT, 0, 1);
+			meson_tx_event_mgr_send_uevent(tx_comm->base.event_mgr,
+					TX_SOUNDBAR_EVENT, 0, 1);
 	}
-	tx_comm->event_mgr->soundbar_en_flag = soundbar_en;
+	tx_comm->base.event_mgr->soundbar_en_flag = soundbar_en;
 	mutex_unlock(&tx_comm->base.set_mode_mutex);
 	return count;
 }
@@ -1733,11 +1733,11 @@ ssize_t hdcp_lstore_show(struct device *dev,
 		if (hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_14_LSTORE, NULL, NULL))
 			lstore |= BIT(0);
 		else
-			hdmitx_current_status(tx_comm, HDMITX_HDCP_AUTH_NO_14_KEYS_ERROR);
+			hdmitx_current_status(tx_comm, TX_HDCP_AUTH_NO_14_KEYS_ERROR);
 		if (hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_22_LSTORE, NULL, NULL))
 			lstore |= BIT(1);
 		else
-			hdmitx_current_status(tx_comm, HDMITX_HDCP_AUTH_NO_22_KEYS_ERROR);
+			hdmitx_current_status(tx_comm, TX_HDCP_AUTH_NO_22_KEYS_ERROR);
 	}
 	if ((lstore & 0x3) == 0x3) {
 		pos += snprintf(buf + pos, PAGE_SIZE - pos, "14+22\n");

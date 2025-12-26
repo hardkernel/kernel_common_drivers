@@ -9,6 +9,7 @@
 #include "hdmi_rx_repeater.h"
 #include "hdmitx_module.h"
 #include "hdmitx_audio.h"
+#include "meson_tx_event_mgr.h"
 
 static struct hdmitx_common *tx_common_instance;
 static u8 hdmi_allm_passthough_en;
@@ -19,11 +20,11 @@ static inline void hdmitx_notify_hpd(int hpd, void *p)
 		return;
 
 	if (hpd)
-		hdmitx_event_mgr_notify(tx_common_instance->event_mgr,
-				HDMITX_PLUG, p);
+		meson_tx_event_mgr_notify(tx_common_instance->base.event_mgr,
+			TX_PLUG, p);
 	else
-		hdmitx_event_mgr_notify(tx_common_instance->event_mgr,
-				HDMITX_UNPLUG, NULL);
+		meson_tx_event_mgr_notify(tx_common_instance->base.event_mgr,
+			TX_UNPLUG, NULL);
 }
 
 /* for notify to cec */
@@ -34,23 +35,14 @@ int hdmitx_event_notifier_regist(struct notifier_block *nb)
 	if (!nb || !tx_common_instance)
 		return ret;
 
-	ret = hdmitx_event_mgr_notifier_register(tx_common_instance->event_mgr,
-		(struct hdmitx_notifier_client *)nb);
+	ret = meson_tx_event_mgr_notifier_register(tx_common_instance->base.event_mgr,
+		(struct tx_notifier_client *)nb);
 
 	/* update status when register */
-	if (!ret && nb->notifier_call) {
-		/* if (hdev->tx_comm.hdmi_repeater == 1) */
+	if (!ret && nb->notifier_call)
 		hdmitx_notify_hpd(tx_common_instance->base.hpd_state,
 			tx_common_instance->base.rxcap.edid_parsing ?
 			tx_common_instance->base.edid_buf : NULL);
-		/* actually notify phy_addr is not used by CEC/hdmirx */
-		/* if (hdev->tx_comm.base.rxcap.physical_addr != 0xffff) { */
-		/* if (hdev->tx_comm.hdmi_repeater == 1) */
-		/* hdmitx_event_mgr_notify(hdev->tx_comm.event_mgr, */
-		/* HDMITX_PHY_ADDR_VALID, */
-		/* &hdev->tx_comm.base.rxcap.physical_addr); */
-		/* } */
-	}
 
 	return ret;
 }
@@ -61,8 +53,8 @@ int hdmitx_event_notifier_unregist(struct notifier_block *nb)
 	if (!tx_common_instance)
 		return -1;
 
-	return hdmitx_event_mgr_notifier_unregister(tx_common_instance->event_mgr,
-		(struct hdmitx_notifier_client *)nb);
+	return meson_tx_event_mgr_notifier_unregister(tx_common_instance->base.event_mgr,
+		(struct tx_notifier_client *)nb);
 }
 EXPORT_SYMBOL(hdmitx_event_notifier_unregist);
 
@@ -162,9 +154,11 @@ bool hdmitx_update_latency_mode(struct tvin_latency_s *latency_info)
 		}
 		/* disable ALLM firstly */
 		if (tx_comm->allm_mode == 1) {
+			enum hdmi_vic vic = tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.vic;
 			tx_comm->allm_mode = 0;
+
 			hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 0, NULL);
-			if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0 &&
+			if (hdmitx_edid_get_hdmi14_4k_vic(vic) > 0 &&
 				!hdmitx_dv_en(tx_comm->tx_hw) &&
 				!hdmitx_hdr10p_en(tx_comm->tx_hw))
 				hdmitx_common_setup_vsif_packet(tx_comm, VT_HDMI14_4K, 1, NULL);
@@ -219,8 +213,8 @@ void hdmitx_ext_set_audio_output(int enable)
 
 	hdmitx_audio_mute_op(tx_common_instance, enable, AUDIO_MUTE_PATH_1);
 	HDMITX_INFO("audio: enable:%d\n", enable);
-	hdmitx_tracer_write_event(tx_common_instance->tx_tracer,
-			enable ? HDMITX_AUDIO_UNMUTE : HDMITX_AUDIO_MUTE);
+	meson_tx_tracer_write_event(tx_common_instance->base.tx_tracer,
+			enable ? TX_AUDIO_UNMUTE : TX_AUDIO_MUTE);
 }
 EXPORT_SYMBOL(hdmitx_ext_set_audio_output);
 

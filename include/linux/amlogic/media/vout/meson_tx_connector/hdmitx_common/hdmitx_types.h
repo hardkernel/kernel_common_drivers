@@ -19,6 +19,7 @@ enum vrr_type {
 struct vrr_setting_info {
 	enum vrr_type type; /* if type is T_VRR_NONE, means exit VRR mode */
 	bool gpu_drive_vsync; /* reserved, not support now */
+	u32 frac_mode;		/* use for qms, 0: integer mode, 1: frac mode */
 };
 
 enum hdcp_ver_e {

@@ -14,6 +14,7 @@
 #include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_common.h>
 #include "hdmitx_log.h"
 #include "hdmitx_audio.h"
+#include "meson_tx_event_mgr.h"
 
 /* Recommended N and Expected CTS for 32kHz */
 static const struct hdmi_audio_fs_ncts aud_32k_para = {
@@ -693,7 +694,7 @@ static int hdmitx_audio_notify_callback(struct notifier_block *block,
 
 	tx_aud_param->aud_notify_update = 1;
 	tx_comm->tx_hw->set_aud_mode(tx_comm->tx_hw, tx_aud_param);
-	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_AUDIO_MODE_SETTING);
+	meson_tx_tracer_write_event(tx_comm->base.tx_tracer, TX_AUDIO_MODE_SETTING);
 	tx_aud_param->aud_notify_update = 0;
 	HDMITX_DEBUG_AUDIO("audio: set audio end\n");
 

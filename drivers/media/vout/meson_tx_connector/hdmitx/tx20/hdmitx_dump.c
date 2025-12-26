@@ -40,7 +40,7 @@ static int dump_hdmi_phy_pll_reg_show(struct seq_file *s, void *p)
 	seq_printf(s, "resolution: %s\n", tx_comm->fmt_para.name);
 	hdmitx_format_para_rebuild_fmt_attr_str(&tx_comm->fmt_para, fmt_attr, sizeof(fmt_attr));
 	seq_printf(s, "attr: %s\n", fmt_attr);
-	seq_printf(s, "tmds clock: %dkhz\n", tx_comm->fmt_para.tmds_clk);
+	seq_printf(s, "tmds clock: %dkhz\n", tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.tmds_clk);
 
 	switch (tx_comm->tx_hw->chip_data->chip_type) {
 	case MESON_CPU_ID_SC2:
