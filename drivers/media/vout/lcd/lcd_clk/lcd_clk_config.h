@@ -110,6 +110,14 @@ struct lcd_pll_data_s {
 struct lcd_clk_data_s {
 	/*pll data*/
 	struct lcd_pll_data_s *pll_data[2];
+	/* clk path node parameters */
+	unsigned int xd_out_fmax;
+	//0:pll_clk_phase, 1:pll_clk2, 2:vid_pll_clk
+	unsigned int phy_clk_location;
+
+	unsigned short xd_max;
+	unsigned short phy_div_max;
+
 	/*only pll for phy need ss, so put it here */
 	unsigned int ss_support;
 	unsigned int ss_level_max;
@@ -119,13 +127,6 @@ struct lcd_clk_data_s {
 	unsigned int ss_dep_sel_max;
 	unsigned int ss_str_m_max;
 	unsigned char *ss_freq_dep_opt;
-	/* clk path node parameters */
-	unsigned int xd_out_fmax;
-	//0:pll_clk_phase, 1:pll_clk2, 2:vid_pll_clk
-	unsigned int phy_clk_location;
-
-	unsigned short xd_max;
-	unsigned short phy_div_max;
 
 	unsigned char vclk_sel;
 	unsigned int enc_clk_msr_id;
@@ -147,8 +148,8 @@ struct lcd_clk_data_s {
 	unsigned long long (*pll_hz_get)(struct aml_lcd_drv_s *pdrv);
 	void (*pll_reset)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_set)(struct aml_lcd_drv_s *pdrv);
-	void (*clk_set_dummy)(struct aml_lcd_drv_s *pdrv);
 	void (*vclk_crt_set)(struct aml_lcd_drv_s *pdrv);
+	void (*clk_set_dummy)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_disable)(struct aml_lcd_drv_s *pdrv);
 	int (*mlvds_clk_phase_set)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_config_init_print)(struct aml_lcd_drv_s *pdrv);

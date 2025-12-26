@@ -583,11 +583,6 @@ static struct lcd_clk_data_s lcd_clk_data_t5d = {
 	.xd_out_fmax = 400000000,
 	.phy_clk_location = 0,
 
-	.vclk_sel = 0,
-	.enc_clk_msr_id = 9,
-	.fifo_clk_msr_id = 129,
-	.tcon_clk_msr_id = 128,
-
 	.xd_max = 256,
 	.phy_div_max = 256,
 
@@ -598,6 +593,12 @@ static struct lcd_clk_data_s lcd_clk_data_t5d = {
 	.ss_dep_base = 500, //ppm
 	.ss_dep_sel_max = 12,
 	.ss_str_m_max = 10,
+	.ss_freq_dep_opt = NULL,
+
+	.vclk_sel = 0,
+	.enc_clk_msr_id = 9,
+	.fifo_clk_msr_id = 129,
+	.tcon_clk_msr_id = 128,
 
 	.clktree_set = lcd_set_tcon_clk_t5,
 	.clktree_index = {
@@ -615,12 +616,13 @@ static struct lcd_clk_data_s lcd_clk_data_t5d = {
 	.clk_ss_init = lcd_pll_ss_init,
 	.pll_frac_set = lcd_pll_frac_set,
 	.pll_m_set = lcd_pll_m_set,
+	.pll_hz_get = NULL,
 	.pll_reset = lcd_pll_reset,
 	.clk_set = lcd_clk_set,
 	.vclk_crt_set = lcd_set_vclk_crt,
+	.clk_set_dummy = NULL,
 	.clk_disable = lcd_clk_disable,
 	.mlvds_clk_phase_set = lcd_set_mlvds_clk_phase,
-	.clk_set_dummy = NULL,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
 	.clk_reg_print = lcd_clk_reg_dump,
