@@ -476,7 +476,7 @@ static void meson_dptx_hpd_cb(void *data)
 
 	DRM_INFO("drm hdmitx hpd notify\n");
 
-	drm_kms_helper_hotplug_event(connector->dev);
+	meson_drm_kms_helper_hotplug_event(connector);
 }
 
 /* Optional colorspace properties. */
@@ -600,6 +600,7 @@ int meson_dptx_dev_bind(struct drm_device *drm,
 	mesonconn->drm_priv = priv;
 	mesonconn->update = meson_dptx_update;
 	mesonconn->connector_type = type;
+	mesonconn->data = tx_dev;
 	encoder = &meson_dptx->encoder;
 	connector = &meson_dptx->base.connector;
 	intf->conn = connector;

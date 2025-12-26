@@ -7,7 +7,8 @@
 #include <drm/drm_print.h>
 
 #include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_mode.h>
-
+#include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_dev.h>
+#include "meson_drv.h"
 #include "meson_tx_helper.h"
 
 enum hdmi_color_depth bitdepth_to_colordepth(int bitdepth)
@@ -162,5 +163,96 @@ void meson_drm_mode_build_tx_timing(struct drm_display_mode *mode,
 	DRM_DEBUG("%s %d %d %d %d %d %d %d %d\n", __func__,
 		timing->h_active, timing->h_front, timing->h_sync, timing->h_total,
 		timing->v_active, timing->v_front, timing->v_sync, timing->v_total);
+}
+
+int meson_tx_mode_testattr_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv)
+{
+	struct drm_connector *connector;
+	struct meson_tx_state *new_state;
+	enum hdmi_colorspace cs;
+	enum hdmi_color_depth cd;
+	enum hdmi_quantization_range cr;
+	struct drm_mode_test_attr *f = data;
+	struct drm_display_mode *mode;
+	struct drm_display_mode *found_mode = NULL;
+	struct tx_timing *timing = NULL;
+	struct drm_mode_object *mo;
+	struct meson_tx_dev *base = NULL;
+	struct meson_connector *mesonconn;
+	int ret = 0;
+
+	mo = drm_mode_object_find(dev, file_priv, f->conn_id, DRM_MODE_OBJECT_CONNECTOR);
+	if (!mo) {
+		ret = -EINVAL;
+		goto out_free_mo;
+	}
+
+	connector = obj_to_connector(mo);
+	mesonconn = connector_to_meson_connector(connector);
+	base = (struct meson_tx_dev *)(mesonconn->data);
+
+	meson_tx_parse_color_attr(f->attr, &cs, &cd, &cr);
+
+	new_state = kzalloc(sizeof(*new_state), GFP_KERNEL);
+	if (!new_state) {
+		ret = -ENOMEM;
+		goto out_free_new_state;
+	}
+
+	timing = kzalloc(sizeof(*timing), GFP_KERNEL);
+	if (!timing) {
+		ret = -ENOMEM;
+		goto out_free_timing;
+	}
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		if (strstr(f->modename, mode->name)) {
+			found_mode = mode;
+			break;
+		}
+	}
+
+	new_state->sequence_id = meson_tx_get_hpd_hw_sequence_id(base);
+
+	meson_drm_mode_build_tx_timing(found_mode, timing);
+	meson_tx_format_para_init(base, timing, 0, cs, cd, 0, &new_state->para);
+
+	if (!meson_tx_validate_mode(base, new_state))
+		f->valid = 1;
+	else
+		f->valid = 0;
+
+out_free_timing:
+	kfree(timing);
+out_free_new_state:
+	kfree(new_state);
+out_free_mo:
+	drm_mode_object_put(mo);
+
+	return ret;
+}
+
+void meson_drm_kms_helper_hotplug_event(struct drm_connector *connector)
+{
+	char event_string[64];
+	char *envp[] = { event_string, NULL };
+	struct drm_device *dev = connector->dev;
+
+	snprintf(event_string, sizeof(event_string),
+				"HOTPLUG=1,CONNECTOR=%s,CONNECTOR_ID=%d,CONNECTOR_TYPE=%d",
+				connector->name,
+				connector->base.id,
+				connector->connector_type);
+
+	DRM_INFO("hotplug event for %s (id=%d, type=%d) (event=%s)\n",
+				  connector->name,
+				  connector->base.id,
+				  connector->connector_type,
+				  event_string);
+
+	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
+
+	drm_client_dev_hotplug(dev);
 }
 

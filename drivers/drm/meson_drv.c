@@ -41,6 +41,7 @@
 #include "meson_writeback.h"
 #include "meson_logo.h"
 #include "meson_plane.h"
+#include "meson_tx_helper.h"
 #include <linux/amlogic/media/osd/osd_logo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/cpu_version.h>
@@ -219,8 +220,14 @@ static const struct drm_ioctl_desc meson_ioctls[] = {
 	#endif
 	DRM_IOCTL_DEF_DRV(MESON_ASYNC_ATOMIC, meson_async_atomic_ioctl,
 			  0),
-#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
+
+#if defined(CONFIG_AMLOGIC_DRM_CUT_HDMI) && !defined(CONFIG_AMLOGIC_DRM_CUT_HDMI_MODERN)
+	DRM_IOCTL_DEF_DRV(MESON_TESTATTR, meson_tx_mode_testattr_ioctl, 0),
+#elif !defined(CONFIG_AMLOGIC_DRM_CUT_HDMI) && defined(CONFIG_AMLOGIC_DRM_CUT_HDMI_MODERN)
 	DRM_IOCTL_DEF_DRV(MESON_TESTATTR, am_meson_mode_testattr_ioctl, 0),
+#endif
+
+#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
 	DRM_IOCTL_DEF_DRV(MESON_GET_HDMITX_DIAG, am_meson_get_hdmitx_diag_ioctl, 0),
 #endif
 	DRM_IOCTL_DEF_DRV(MESON_GET_VRR_RANGE, am_meson_get_vrr_range_ioctl, 0),

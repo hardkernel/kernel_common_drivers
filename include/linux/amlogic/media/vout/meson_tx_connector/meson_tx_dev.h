@@ -94,6 +94,21 @@ struct meson_tx_dev {
 	bool pxp_mode;
 };
 
+struct parse_cd {
+	enum hdmi_color_depth cd;
+	const char *name;
+};
+
+struct parse_cs {
+	enum hdmi_colorspace cs;
+	const char *name;
+};
+
+struct parse_cr {
+	enum hdmi_quantization_range cr;
+	const char *name;
+};
+
 #define to_meson_tx_dev(x)	container_of(x, struct meson_tx_dev, conn_dev)
 #define to_meson_tx_state(x)	container_of(x, struct meson_tx_state, para)
 
@@ -110,7 +125,9 @@ struct meson_tx_log *meson_get_tx_log(struct meson_tx_dev *tx_dev);
 unsigned char *meson_tx_get_raw_edid(struct meson_tx_dev *tx_dev);
 void meson_tx_get_init_state(struct meson_tx_dev *tx_dev,
 			   struct meson_tx_state *state);
-
+void meson_tx_parse_color_attr(char const *attr_str,
+	enum hdmi_colorspace *cs, enum hdmi_color_depth *cd,
+	enum hdmi_quantization_range *cr);
 int meson_tx_validate_mode(struct meson_tx_dev *tx_dev, struct meson_tx_state *new_state);
 int meson_tx_format_para_init(struct meson_tx_dev *tx_dev, struct tx_timing *timing,
 	u32 frac_mode, enum hdmi_colorspace cs,

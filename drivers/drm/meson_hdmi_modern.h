@@ -184,8 +184,6 @@ int meson_hdmitx_dev_unbind(struct drm_device *drm,
 
 void convert_attrstr(char *attr_str, struct tx_color_attr *attr_param);
 
-int am_meson_mode_testattr_ioctl(struct drm_device *dev, void *data,
-	struct drm_file *file_priv);
 int am_meson_get_vrr_range_ioctl(struct drm_device *dev, void *data,
 	struct drm_file *file_priv);
 

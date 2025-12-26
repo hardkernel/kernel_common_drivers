@@ -520,6 +520,66 @@ bool meson_tx_edid_validate_color(struct tx_timing *timing,
 	return ret;
 }
 
+static struct parse_cd parse_cd_[] = {
+	{COLORDEPTH_24B, "8bit",},
+	{COLORDEPTH_30B, "10bit"},
+	{COLORDEPTH_36B, "12bit"},
+	{COLORDEPTH_48B, "16bit"},
+};
+
+static struct parse_cs parse_cs_[] = {
+	{HDMI_COLORSPACE_RGB, "rgb",},
+	{HDMI_COLORSPACE_YUV422, "422",},
+	{HDMI_COLORSPACE_YUV444, "444",},
+	{HDMI_COLORSPACE_YUV420, "420",},
+};
+
+static struct parse_cr parse_cr_[] = {
+	{HDMI_QUANTIZATION_RANGE_LIMITED, "limit",},
+	{HDMI_QUANTIZATION_RANGE_FULL, "full",},
+};
+
+void meson_tx_parse_color_attr(char const *attr_str,
+	enum hdmi_colorspace *cs, enum hdmi_color_depth *cd,
+	enum hdmi_quantization_range *cr)
+{
+	int i;
+
+	/* parse color depth */
+	for (i = 0; i < sizeof(parse_cd_) / sizeof(struct parse_cd); i++) {
+		if (strstr(attr_str, parse_cd_[i].name)) {
+			*cd = parse_cd_[i].cd;
+			break;
+		}
+	}
+	/* set default value */
+	if (i == sizeof(parse_cd_) / sizeof(struct parse_cd))
+		*cd = COLORDEPTH_24B;
+
+	/* parse color space */
+	for (i = 0; i < sizeof(parse_cs_) / sizeof(struct parse_cs); i++) {
+		if (strstr(attr_str, parse_cs_[i].name)) {
+			*cs = parse_cs_[i].cs;
+			break;
+		}
+	}
+	/* set default value */
+	if (i == sizeof(parse_cs_) / sizeof(struct parse_cs))
+		*cs = HDMI_COLORSPACE_YUV444;
+
+	/* parse color range */
+	for (i = 0; i < sizeof(parse_cr_) / sizeof(struct parse_cr); i++) {
+		if (strstr(attr_str, parse_cr_[i].name)) {
+			*cr = parse_cr_[i].cr;
+			break;
+		}
+	}
+	/* set default value */
+	if (i == sizeof(parse_cr_) / sizeof(struct parse_cr))
+		*cr = HDMI_QUANTIZATION_RANGE_FULL;
+}
+EXPORT_SYMBOL(meson_tx_parse_color_attr);
+
 void meson_tx_format_para_rst(struct meson_tx_format_para *para)
 {
 	if (!para)
@@ -590,11 +650,19 @@ int meson_tx_validate_mode(struct meson_tx_dev *tx_dev, struct meson_tx_state *n
 		return 0;
 	}
 
+	if (new_state->sequence_id != tx_dev->hw_sequence_id) {
+		TX_ERROR(tx_log, "%s: sequence_id failed: %lld\n",
+							__func__, new_state->sequence_id);
+		ret = -EINVAL;
+		goto out;
+	}
+
 	mutex_lock(&tx_dev->valid_mode_mutex);
 	ret = tx_dev->ops->validate_fmt_para(tx_dev, new_state);
 	if (ret)
 		TX_DEBUG(tx_log, "validate format para [%s,cs:%d,cd:%d] return error %d\n",
 			     new_sw_para->name, new_sw_para->cs, new_sw_para->cd, ret);
+out:
 	mutex_unlock(&tx_dev->valid_mode_mutex);
 	return ret;
 }

@@ -46,7 +46,6 @@
 #define HDMITX_ATTR_LEN_MAX	16
 #define HDMITX_MAX_BPC	12
 
-static struct drm_connector *tx_conn;
 /* confirm whether the current mode is integer mode or frac mode */
 static bool meson_hdmitx_is_alter_mode(struct drm_display_mode *mode);
 
@@ -2486,7 +2485,7 @@ static void meson_hdmitx_hpd_cb(void *data)
 					   CEC_PHYS_ADDR_INVALID);
 	}
 #endif
-	drm_kms_helper_hotplug_event(am_hdmi->base.connector.dev);
+	meson_drm_kms_helper_hotplug_event(&am_hdmi->base.connector);
 }
 
 int meson_hdmitx_dev_bind(struct drm_device *drm,
@@ -2509,6 +2508,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 #endif
 	struct connector_hdcp_cb hdcp_cb;
 	int hdcp_ctl_lvl;
+	struct meson_tx_dev *tx_dev;
 
 	DRM_DEBUG("%s [%d] type =%d\n", __func__, __LINE__, type);
 	am_hdmi = devm_kzalloc(drm->dev, sizeof(*am_hdmi), GFP_KERNEL);
@@ -2516,6 +2516,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 		return -ENOMEM;
 
 	am_hdmi->hdmitx_dev = intf;
+	tx_dev  = to_meson_tx_dev(intf);
 	tx_comm  = to_hdmitx_common(intf);
 	hdcp_ctl_lvl = tx_comm->hdcptx_comm.hdcp_ctl_lvl;
 	DRM_DEBUG("hdcp_ctl_lvl=%d\n", hdcp_ctl_lvl);
@@ -2549,11 +2550,10 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	mesonconn->drm_priv = priv;
 	mesonconn->update = meson_hdmitx_update;
 	mesonconn->connector_type = type;
+	mesonconn->data = tx_dev;
 	encoder = &am_hdmi->encoder;
 	connector = &am_hdmi->base.connector;
 	intf->conn = connector;
-	//TODO hwc&weston should pass conn id
-	tx_conn = connector;
 	am_hdmi->hdmi_type = type;
 
 	switch (type) {
@@ -2704,36 +2704,6 @@ int meson_hdmitx_dev_unbind(struct drm_device *drm,
 	am_hdmi->base.connector.funcs->destroy(connector);
 	am_hdmi->encoder.funcs->destroy(&am_hdmi->encoder);
 
-	return 0;
-}
-
-int am_meson_mode_testattr_ioctl(struct drm_device *dev,
-			void *data, struct drm_file *file_priv)
-{
-	struct drm_connector *connector;
-	struct hdmitx_common *tx_comm;
-	struct meson_tx_state *new_state;
-	enum hdmi_colorspace cs;
-	enum hdmi_color_depth cd;
-	enum hdmi_quantization_range cr;
-	struct drm_mode_test_attr *f = data;
-
-	connector = tx_conn;
-	tx_comm = meson_get_hdmitx_common(connector);
-	hdmitx_parse_color_attr(f->attr, &cs, &cd, &cr);
-
-	new_state = kzalloc(sizeof(*new_state), GFP_KERNEL);
-	if (!new_state)
-		return -ENOMEM;
-
-	new_state->sequence_id = meson_tx_get_hpd_hw_sequence_id(&tx_comm->base);
-
-	if (!hdmitx_common_validate_mode_locked(tx_comm, new_state, f->modename, cs, cd, 1))
-		f->valid = 1;
-	else
-		f->valid = 0;
-
-	kfree(new_state);
 	return 0;
 }
 

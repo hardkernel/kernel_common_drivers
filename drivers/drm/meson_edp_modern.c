@@ -68,7 +68,10 @@ static int meson_edp_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	struct meson_dp_tx *meson_dptx = connector_to_meson_dptx(connector);
 	struct dptx_common *tx_comm = connector_to_dptx_common(connector);
+	struct meson_dptx_connector_state *dptx_state =
+		to_dptx_connector_state(connector->state);
 	struct tx_timing *timing_list = NULL;
+	u64 sequence_id, new_sequence_id;
 	int count = 0;
 
 	if (!meson_dptx || !meson_dptx->dptx_dev || !tx_comm)
@@ -76,6 +79,12 @@ static int meson_edp_get_modes(struct drm_connector *connector)
 
 	edid = (struct edid *)meson_tx_get_raw_edid(&tx_comm->base);
 	drm_connector_update_edid_property(connector, edid);
+
+	sequence_id = dptx_state->base_state.sequence_id;
+	new_sequence_id = meson_tx_get_hpd_hw_sequence_id(&tx_comm->base);
+
+	if (sequence_id != new_sequence_id)
+		dptx_state->base_state.sequence_id = new_sequence_id;
 
 	count = dptx_get_mode_list(tx_comm, &timing_list);
 	if (count > 0) {
@@ -199,6 +208,7 @@ static void meson_edp_reset(struct drm_connector *connector)
 	__drm_atomic_helper_connector_reset(connector, &dptx_state->base);
 
 	tx_state = &dptx_state->base_state;
+	tx_state->sequence_id = ~0ULL;
 }
 
 struct drm_connector_state *meson_edp_atomic_duplicate_state
@@ -563,6 +573,7 @@ int meson_edp_dev_bind(struct drm_device *drm,
 	mesonconn->drm_priv = priv;
 	mesonconn->update = meson_edp_update;
 	mesonconn->connector_type = type;
+	mesonconn->data = tx_dev;
 	encoder = &meson_dptx->encoder;
 	connector = &meson_dptx->base.connector;
 	intf->conn = connector;

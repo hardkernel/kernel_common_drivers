@@ -36,6 +36,7 @@ struct meson_drm_thread {
 
 struct meson_connector {
 	struct drm_connector connector;
+	void *data;
 	struct meson_drm *drm_priv;
 	int connector_type;
 	void (*update)(struct drm_connector_state *new_state,
