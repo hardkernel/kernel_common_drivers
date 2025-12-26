@@ -985,13 +985,8 @@ static ssize_t port_status_show(const struct class *cla,
 		return sprintf(buf, "%x\n", tmp);
 	}
 #endif
-	tmp = hdmirx_rd_top(TOP_HPD_PWR5V);
+	tmp = hdmirx_get_connect_info();
 	CEC_INFO("TOP_HPD_PWR5V:%x\n", tmp);
-	tmp >>= 20;
-	tmp &= 0xf;
-#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
-	tmp |= (tx_hpd << 16);
-#endif
 	return sprintf(buf, "%x\n", tmp);
 }
 
@@ -1867,7 +1862,6 @@ static long hdmitx_cec_ioctl(struct file *f,
 
 	case CEC_IOC_SET_ARC_ENABLE:
 		/*CEC_INFO("Ioc set arc pin\n");*/
-		cec_enable_arc_pin(arg);
 		break;
 
 	case CEC_IOC_GET_BOOT_ADDR:

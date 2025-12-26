@@ -379,17 +379,6 @@ static void aocecb_wr_reg(unsigned long addr, unsigned long data)
 } /* aocecb_wr_only_reg */
 
 /*----------------- low level for EE cec rx/tx support ----------------*/
-static inline void hdmirx_set_bits_top(u32 reg, u32 bits,
-				       u32 start, u32 len)
-{
-	unsigned int tmp;
-
-	tmp = hdmirx_rd_top(reg);
-	tmp &= ~(((1 << len) - 1) << start);
-	tmp |=  (bits << start);
-	hdmirx_wr_top(reg, tmp);
-}
-
 unsigned int hdmirx_cec_read(unsigned int reg)
 {
 	/*
@@ -554,11 +543,6 @@ void cec_spd_info_init(void)
 		}
 	}
 	INIT_LIST_HEAD(&spd_tx_device_info.spd_info_list);
-	//TCL white list: 0x080046/STR-DH590, tx_type:8(scdc)
-	//loki white list: 0x080046/sony BDP-S570 dvd, tx_type:4(1.4)
-	//TCL and loki has a same spd vendor id,we set tx_type
-	//to edid1.4 for fix loki issue, if TCL found this device issue
-	//we should change tv_type back to 8(scdc).
 	cec_add_spd_info(4, 0x080046, "BDP-S470");
 	cec_add_spd_info(4, 0x080046, "BDP-S570");
 	cec_add_spd_info(4, 0x080046, "BDP-S790");
@@ -744,11 +728,6 @@ static void ao_cecb_init(void)
 		/* [13: 0] clk_div */
 		data32 |= (732 - 1)   << 0;
 		write_hiu(HHI_32K_CLK_CNTL, data32);
-		hdmirx_wr_top(TOP_EDID_ADDR_CEC, EDID_CEC_ID_ADDR);
-
-		/* hdmirx_cecclk_en */
-		hdmirx_set_bits_top(TOP_CLK_CNTL, 1, 2, 1);
-		hdmirx_set_bits_top(TOP_EDID_GEN_CNTL, EDID_AUTO_CEC_EN, 11, 1);
 
 		/* enable all cec irq */
 		/*cec_irq_enable(true);*/
@@ -1565,46 +1544,6 @@ void cec_irq_enable(bool enable)
 			ao_ceca_irq_enable(enable);
 	}
 }
-
-void cec_enable_arc_pin(bool enable)
-{
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	unsigned int data;
-	unsigned int chipid = cec_dev->plat_data->chip_id;
-
-	/* box no arc out*/
-	if (chipid != CEC_CHIP_TXL &&
-	    chipid != CEC_CHIP_TXLX &&
-	    chipid != CEC_CHIP_TL1 &&
-	    chipid != CEC_CHIP_TM2)
-		return;
-
-	/*tm2 later, audio module handle this*/
-	if (chipid >= CEC_CHIP_TM2)
-		return;
-
-	/* tl1 tm2*/
-	if (cec_dev->plat_data->cecb_ver >= CECB_VER_2) {
-		data = rd_reg_hhi(HHI_HDMIRX_ARC_CNTL);
-		/* enable bit 1:1 bit 0: 0*/
-		if (enable)
-			data |= 0x02;
-		else
-			data &= 0xfffffffd;
-		wr_reg_hhi(HHI_HDMIRX_ARC_CNTL, data);
-		/*CEC_INFO("set arc en:%d, reg:%x\n", enable, data);*/
-	} else {
-		/* only tv chip select arc according arg */
-		if (enable)
-			hdmirx_wr_top(TOP_ARCTX_CNTL, 0x01);
-		else
-			hdmirx_wr_top(TOP_ARCTX_CNTL, 0x00);
-		/*CEC_INFO("set arc en:%d, reg:%lx\n",*/
-		/*	 enable, hdmirx_rd_top(TOP_ARCTX_CNTL));*/
-	}
-#endif
-}
-EXPORT_SYMBOL(cec_enable_arc_pin);
 
 static int cec_read_padreg(void)
 {

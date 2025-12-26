@@ -692,23 +692,10 @@ struct cec_uevent {
 #define CEC_IOC_KEY_EVENT _IOW(CEC_IOC_MAGIC, 0x15, uint32_t)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
-unsigned long hdmirx_rd_top(unsigned long addr);
-void hdmirx_wr_top(unsigned long addr, unsigned long data);
 uint32_t hdmirx_rd_dwc(u16 addr);
 void hdmirx_wr_dwc(u16 addr, u32 data);
-unsigned int rd_reg_hhi(unsigned int offset);
-void wr_reg_hhi(unsigned int offset, unsigned int val);
 int __attribute__((weak))cec_set_dev_info(uint8_t dev_idx);
 #else
-
-static inline unsigned long hdmirx_rd_top(unsigned long addr)
-{
-	return 0;
-}
-
-static inline void hdmirx_wr_top(unsigned long addr, unsigned long data)
-{
-}
 
 static inline uint32_t hdmirx_rd_dwc(u16 addr)
 {
@@ -716,15 +703,6 @@ static inline uint32_t hdmirx_rd_dwc(u16 addr)
 }
 
 static inline void hdmirx_wr_dwc(u16 addr, u16 data)
-{
-}
-
-unsigned int __weak rd_reg_hhi(u32 offset)
-{
-	return 0;
-}
-
-void __weak wr_reg_hhi(unsigned int offset, unsigned int val)
 {
 }
 

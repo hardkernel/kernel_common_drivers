@@ -995,13 +995,8 @@ static ssize_t port_status_show(const struct class *cla,
 		tmp = tx_hpd;
 		return sprintf(buf, "%x\n", tmp);
 	}
-	tmp = hdmirx_rd_top(TOP_HPD_PWR5V);
+	tmp = hdmirx_get_connect_info();
 	CEC_INFO("TOP_HPD_PWR5V:%x\n", tmp);
-	tmp >>= 20;
-	tmp &= 0xf;
-#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
-	tmp |= (tx_hpd << 16);
-#endif
 	return sprintf(buf, "%x\n", tmp);
 }
 

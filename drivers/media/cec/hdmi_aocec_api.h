@@ -63,8 +63,6 @@ void cec_logicaddr_remove(unsigned int cec_sel, unsigned int l_add);
 void cec_clear_all_logical_addr(unsigned int cec_sel);
 void cec_restore_logical_addr(unsigned int cec_sel, unsigned int addr_en);
 
-void cec_enable_arc_pin(bool enable);
-
 enum hrtimer_restart cec_line_check(struct hrtimer *timer);
 int check_conflict(int bit_periods);
 void cec_ip_share_io(u32 share, u32 cec_ip);
