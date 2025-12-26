@@ -1575,8 +1575,9 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 
 		if (prm_top->org_hsize > 1920) {
 			prm_top->frm_hsize = (prm_top->org_hsize + 15) & (~0xf);
+			prm_top->alig_hmode = 1;
 			if (dpss_dbg_ds & 0x100)
-				prm_top->alig_hmode = 1;
+				prm_top->alig_hmode = 0;
 		} else {
 			prm_top->frm_hsize = (prm_top->org_hsize + 7) & (~0x7);
 			prm_top->alig_hmode = 0;

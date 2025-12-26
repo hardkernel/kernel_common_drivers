@@ -461,6 +461,8 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 
 	//cfg dpe size for software mode
 	hw_cfg_dpe_size(dpe_mode, prm_top, prm_dpe, dpe_pad);
+	prm_dpe->lst_overlap = dpe_pad.reg_vbe_pad +
+			dpe_pad.reg_dv_pad + dpe_pad.reg_dcntr_pad; //1225
 	hw_cfg_dpss_dpe_intf(prm_top, prm_dpe, nr_pps_cfg->pps_en);
 
 	u32 cur_lft_pad[4];
@@ -1442,6 +1444,18 @@ void hw_cfg_dpss_dpe_intf(struct PRM_DPSS_TOP *prm_top,
 	}
 	pix_rmif3->uv_swap = false;
 	pix_rmif4->uv_swap = false;
+
+	if (!prm_top->is_i) {
+		//must not write to pix_rmif2 / pix_rmif3
+		pix_rmif->lst_overlap	= prm_dpe->lst_overlap;
+		pix_rmif2->lst_overlap = prm_dpe->lst_overlap2;
+	} else {
+		//must not write to pix_rmif2 / pix_rmif3
+		pix_rmif2->lst_overlap	= prm_dpe->lst_overlap;
+		pix_rmif3->lst_overlap = prm_dpe->lst_overlap2;
+		pix_rmif4->lst_overlap = prm_dpe->lst_overlap2;
+	}
+	dbg_h2("2: lst_overlap =%d,%d\n", pix_rmif->lst_overlap, pix_rmif2->lst_overlap);
 
 	if (dpss_dbg_uv_swap & C_BIT5)
 		pix_rmif2->uv_swap = true;
@@ -2697,6 +2711,7 @@ void hw_cfg_dpe_size(enum DPSS_WORK_MODE dpe_mode,
 	cur_rgt_pad[3] = 0;
 
 	pre_pad = vbe_pad;
+	prm_dpe->lst_overlap2 = pre_pad;
 
 	u32 dmsq_xsft = prm_dpe->prm_dpe_sub_rmif.dmsq_xsft;
 

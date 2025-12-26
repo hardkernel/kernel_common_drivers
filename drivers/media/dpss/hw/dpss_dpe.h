@@ -43,6 +43,8 @@ struct PRM_DPSS_DPE {
 	struct PRM_INTF_TYPE pix_rmif_tmp; //07-10
 	u32 aa_pad;
 	u32 aa_pad_assign_en;
+	u32 lst_overlap;
+	u32 lst_overlap2;
 };
 
 #ifdef MOV

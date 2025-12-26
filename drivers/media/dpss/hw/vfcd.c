@@ -572,18 +572,21 @@ void cfg_vfcd_fmtup(u32 cmpr_sel, u32 regs_ofst, u32 fmt_mode, u32 hfmt_en,
 	dbg_h2("h win: %d,%d\n", win_yout_hsize, win_uvout_hsize);
 	u32 index = regs_ofst / (256 * 4);
 
-	dbg_h2("vfcd index is%0x, pad_ydout_vsize=0x%x\n", index, pad_ydout_vsize);
-	wr_vc((regs_ofst + VFCD_LUMA_PAD_SIZE),
-		pad_en << 29 | ((pad_ydout_vsize & 0x7ff) << 16) |
-		(pad_ydout_hsize & 0x7ff));
-	wr_vc((regs_ofst + VFCD_LUMA_PAD_OFST),
-		pad_ydout_vofst << 16 | pad_ydout_hofst);
+	if (dpss_dbg_0709 & C_BIT0) {
+		dbg_h2("vfcd index is%0x, pad_ydout_vsize=0x%x\n", index, pad_ydout_vsize);
+		wr_vc((regs_ofst + VFCD_LUMA_PAD_SIZE),
+			pad_en << 29 | ((pad_ydout_vsize & 0x7ff) << 16) |
+			(pad_ydout_hsize & 0x7ff));
+		wr_vc((regs_ofst + VFCD_LUMA_PAD_OFST),
+			pad_ydout_vofst << 16 | pad_ydout_hofst);
 
-	wr_vc((regs_ofst + VFCD_CHRM_PAD_SIZE),
-		pad_cdout_vsize << 16 | pad_cdout_hsize);
-	wr_vc((regs_ofst + VFCD_CHRM_PAD_OFST),
-		pad_cdout_vofst << 16 | pad_cdout_hofst);
-
+		wr_vc((regs_ofst + VFCD_CHRM_PAD_SIZE),
+			pad_cdout_vsize << 16 | pad_cdout_hsize);
+		wr_vc((regs_ofst + VFCD_CHRM_PAD_OFST),
+			pad_cdout_vofst << 16 | pad_cdout_hofst);
+	} else {
+		dbg_h2("disable vfcd_wr\n");
+	}
 	switch (index) {
 	case 0:
 		wr_vc((regs_ofst + VFCD_PAD_DUMY_DATA),
@@ -1458,17 +1461,21 @@ void frc_cfg_vfcd_fmtup(u32 cmpr_sel, u32 regs_ofst, u32 fmt_mode, u32 hfmt_en,
 			(win_uvout_vsize + 15) / 16 * 16) : win_uvout_vsize;
 	u32 index = regs_ofst / (256 * 4);
 
-	dbg_h2("vfcd index is%0x, pad_ydout_vsize=0x%x\n", index, pad_ydout_vsize);
-	VSYNC_WR_VIDEO_TABLE_REG((regs_ofst + VFCD_LUMA_PAD_SIZE),
-		pad_en << 29 | ((pad_ydout_vsize & 0x7ff) << 16) |
-		(pad_ydout_hsize & 0x7ff));
-	VSYNC_WR_VIDEO_TABLE_REG((regs_ofst + VFCD_LUMA_PAD_OFST),
-		pad_ydout_vofst << 16 | pad_ydout_hofst);
+	if (dpss_dbg_0709 & C_BIT1) {
+		dbg_h2("vfcd index is%0x, pad_ydout_vsize=0x%x\n", index, pad_ydout_vsize);
+		VSYNC_WR_VIDEO_TABLE_REG((regs_ofst + VFCD_LUMA_PAD_SIZE),
+			pad_en << 29 | ((pad_ydout_vsize & 0x7ff) << 16) |
+			(pad_ydout_hsize & 0x7ff));
+		VSYNC_WR_VIDEO_TABLE_REG((regs_ofst + VFCD_LUMA_PAD_OFST),
+			pad_ydout_vofst << 16 | pad_ydout_hofst);
 
-	VSYNC_WR_VIDEO_TABLE_REG((regs_ofst + VFCD_CHRM_PAD_SIZE),
-		pad_cdout_vsize << 16 | pad_cdout_hsize);
-	VSYNC_WR_VIDEO_TABLE_REG((regs_ofst + VFCD_CHRM_PAD_OFST),
-		pad_cdout_vofst << 16 | pad_cdout_hofst);
+		VSYNC_WR_VIDEO_TABLE_REG((regs_ofst + VFCD_CHRM_PAD_SIZE),
+			pad_cdout_vsize << 16 | pad_cdout_hsize);
+		VSYNC_WR_VIDEO_TABLE_REG((regs_ofst + VFCD_CHRM_PAD_OFST),
+			pad_cdout_vofst << 16 | pad_cdout_hofst);
+	} else {
+		dbg_h2("disable vfcd_mc_wr\n");
+	}
 
 	switch (index) {
 	case 0:

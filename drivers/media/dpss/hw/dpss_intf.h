@@ -117,6 +117,7 @@ struct PRM_INTF_TYPE {
 	u32 slc_num;
 	u32 canvas_hsize;
 	u32 block_mode;
+	u32 lst_overlap;
 };
 
 enum dpss_mif_e {

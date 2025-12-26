@@ -190,5 +190,5 @@ void frc_cfg_vfcd_fmtup(u32 cmpr_sel,	//1:afbc ;2:afrc
 
 void frc_cfg_vfcd_dec(u32 index, struct VFCD_t *vfcd);
 void frc_cfg_vfcd_cmpr_enable(u32 index, u32 cmp_sel);
-
+extern unsigned int dpss_dbg_0709;
 #endif

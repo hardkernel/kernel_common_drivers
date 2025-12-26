@@ -772,8 +772,10 @@ void cfg_vfcd_rdmif_2ch(enum dpss_mif_e mif_index, struct PRM_INTF_TYPE *prm_mif
  */
 	u32 win_yout_hsize;
 	u32 win_yout_vsize;
-	u32 win_uvout_hsize;
+//	u32 win_uvout_hsize;
 	u32 win_uvout_vsize;
+
+	u32 lst_overlap = prm_mif->lst_overlap;
 
 	if (vfcd_nr_flag)
 		win_yout_hsize = prm_mif->slc_num == 1 ? slc0_x_ed_luma - slc0_x_st_luma + 1 :
@@ -782,8 +784,9 @@ void cfg_vfcd_rdmif_2ch(enum dpss_mif_e mif_index, struct PRM_INTF_TYPE *prm_mif
 	else
 		win_yout_hsize = slc0_x_ed_luma - slc0_x_st_luma + 1;
 
+	win_yout_hsize = win_yout_hsize - lst_overlap;
 	win_yout_vsize = slc0_y_ed_luma - slc0_y_st_luma + 1;
-
+#ifdef _HIS_CODE_ //2025-12-26 2290 stuck
 	if (vfcd_nr_flag)
 		win_uvout_hsize = hfmt_en ? win_yout_hsize :
 			prm_mif->slc_num == 1 ? slc0_x_ed_chrm - slc0_x_st_chrm + 1 :
@@ -791,7 +794,7 @@ void cfg_vfcd_rdmif_2ch(enum dpss_mif_e mif_index, struct PRM_INTF_TYPE *prm_mif
 				slc3_x_ed_chrm - slc3_x_st_chrm + 1;
 	else
 		win_uvout_hsize = slc0_x_ed_chrm - slc0_x_st_chrm + 1;
-
+#endif
 	win_uvout_vsize =
 		vfmt_en ? win_yout_vsize : slc0_y_ed_chrm - slc0_y_st_chrm + 1;
 
@@ -799,7 +802,7 @@ void cfg_vfcd_rdmif_2ch(enum dpss_mif_e mif_index, struct PRM_INTF_TYPE *prm_mif
 		win_yout_vsize = win_yout_vsize / 2;
 		win_uvout_vsize = win_uvout_vsize / 2;
 	}
-	dbg_h2("%d %d %d %d\n", win_yout_hsize, win_yout_vsize, win_uvout_hsize, win_uvout_vsize);
+	dbg_h2("%d %d %d\n", win_yout_hsize, win_yout_vsize, win_uvout_vsize);
 
 	u32 pad_ydout_hofst = 0;
 	u32 pad_ydout_vofst = 0;
@@ -812,6 +815,7 @@ void cfg_vfcd_rdmif_2ch(enum dpss_mif_e mif_index, struct PRM_INTF_TYPE *prm_mif
 					7) / 8 * 8 : (win_yout_hsize +
 						  15) / 16 *
 			       16) : win_yout_hsize;
+	pad_ydout_hsize += lst_overlap;
 
 	if (vfcd_nr_flag || vfcd_mc_flag)
 		pad_ydout_vsize = win_yout_vsize;
@@ -824,7 +828,7 @@ void cfg_vfcd_rdmif_2ch(enum dpss_mif_e mif_index, struct PRM_INTF_TYPE *prm_mif
 	u32 pad_cdout_vofst = 0;
 	u32 pad_cdout_hsize;
 	u32 pad_cdout_vsize;
-
+#ifdef _HIS_CODE_ //12-26 2290 stuck
 	if (vfcd_mc_flag)
 		pad_cdout_hsize = prm_mif->pad_en ? (prm_mif->pad_hmode == 0 ?
 				(win_uvout_hsize + 3) / 4 * 4 :
@@ -833,6 +837,9 @@ void cfg_vfcd_rdmif_2ch(enum dpss_mif_e mif_index, struct PRM_INTF_TYPE *prm_mif
 		pad_cdout_hsize = prm_mif->pad_en ? (prm_mif->pad_hmode == 0 ?
 				(win_uvout_hsize + 7) / 8 * 8 :
 				(win_uvout_hsize + 15) / 16 * 16) : win_uvout_hsize;
+#endif
+	pad_cdout_hsize = (prm_mif->src_fmt != YUV444) && (!hfmt_en) ?
+			pad_ydout_hsize >> 1 : pad_ydout_hsize;
 
 	//u32 pad_cdout_vsize =
 	//    prm_mif->pad_en ? (prm_mif->pad_vmode ==
