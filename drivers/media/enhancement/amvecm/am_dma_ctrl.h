@@ -98,4 +98,5 @@ int am_dma_set_mif_data_gamut0(int *eotf, int *oetf, int *ootf);
 int am_dma_set_mif_data_gamut1(int *eotf, int *oetf);
 int am_dma_set_mif_data_3dlut(int *plut3d);
 int check_dma_status(enum lut_dma_wr_id_e dma_wr_id);
+void am_dma_updat_hdr2_hist(int mosaic_mode);
 #endif

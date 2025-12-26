@@ -284,6 +284,7 @@ void lc_evc_pq_settings(unsigned int lc_evc_src, int vpp_index);
 extern int input_444_mode;
 unsigned int skip_444_settings(struct am_reg_s *p);
 void amve_444_config_update(struct vframe_s *vf, int vpp_index);
-
+extern int lut3d_dma_case;
+extern uint flag_lut3d_resume;
 #endif
 

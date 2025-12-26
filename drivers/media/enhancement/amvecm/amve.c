@@ -162,6 +162,9 @@ int lut3d_debug;
 /*static int frame_lock_freq;*/
 int video_rgb_ogo_mode_sw;
 int video_rgb_ogo_xvy_mtx;
+
+int lut3d_dma_case = 1;
+
 int video_rgb_ogo_xvy_mtx_latch;
 
 int lc_evc[LC_EVC_SIZE] = {
@@ -2658,6 +2661,8 @@ void update_lut3d_base_data(unsigned int p3dlut_in[][3])
 	}
 }
 
+uint flag_lut3d_resume;
+
 int vpp_set_lut3d(int bfromkey,
 	int keyindex,
 	unsigned int p3dlut_in[][3],
@@ -2827,11 +2832,14 @@ int vpp_set_lut3d(int bfromkey,
 			differ_flag = _update_lut3d_data(p3dlut_in);
 	}
 
-	if (!differ_flag) {
+	if (!differ_flag && !flag_lut3d_resume) {
 		pr_amve_dbg("[%s]same curve data not write.\n", __func__);
 		mutex_unlock(&vpp_lut3d_lock);
 		return 0;
 	}
+
+	if (flag_lut3d_resume)
+		flag_lut3d_resume = 0;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (chip_type_id == chip_t3x) {
@@ -2839,7 +2847,7 @@ int vpp_set_lut3d(int bfromkey,
 	} else
 #endif
 	{
-		if (hist_dma_case && chip_type_id == chip_t6x) {
+		if (lut3d_dma_case && chip_type_id == chip_t6x) {
 			am_dma_set_mif_data_3dlut(plut3d);
 			WRITE_VPP_REG_BITS(VPP_LUT3D_CTRL, 1, 1, 1);//enable dma wr
 			ctltemp  = READ_VPP_REG(VPP_LUT3D_CTRL);
@@ -3095,7 +3103,7 @@ void lut3d_update(unsigned int p3dlut_in[][3], int vpp_index)
 	} else
 #endif
 	{
-		if (hist_dma_case && chip_type_id == chip_t6x) {
+		if (lut3d_dma_case && chip_type_id == chip_t6x) {
 			am_dma_set_mif_data_3dlut(plut3d);
 			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LUT3D_CTRL,
 				1, 1, 1, vpp_index);//enable dma wr

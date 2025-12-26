@@ -73,6 +73,8 @@ uint gamut_conv_enable;
 uint osd_gamut_conv_type;/*0:off, 1:bt709, 2:dci-p3, 3:bt2020*/
 uint gamut_mapping0_en;
 uint gamut_mapping1_en;
+int gamut_dma_case = 1;
+
 int pri_hdr;
 int set_dummy_flag;
 int last_out_range = 10;
@@ -773,7 +775,7 @@ uint hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3) | (1 << 4);
 #endif
 
 /* 0: off, 1: normal, 2: bypass */
-static int video_process_status[VD_PATH_MAX] = {2, 2, 2};
+static int video_process_status[VD_PATH_MAX] = {2, 2, 2, 2, 2};
 
 void set_hdr_module_status(enum vd_path_e vd_path, int status)
 {
@@ -8904,6 +8906,69 @@ int is_video_turn_on(bool *vd_on, enum vd_path_e vd_path)
 EXPORT_SYMBOL(is_video_turn_on);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+
+int hdr_hist_test_module;
+int hdr_hist_test_cnt;
+
+void hdr_hist_test(enum vd_path_e vd_path)
+{
+	unsigned int i = 0;
+	unsigned int hdr_hist[128] = {0};
+	unsigned int hdr_hist_dma[128] = {0};
+	unsigned int hist_ctrl = DOLBY_HDR2_HIST_CTRL;
+	unsigned int hist_rd = DOLBY_HDR2_HIST_RD;
+	unsigned int dma_idx = 0;
+
+	if (chip_type_id != chip_t6x)
+		return;
+
+	if (vd_path != hdr_hist_test_module)
+		return;
+
+	if (hdr_hist_test_module == VD1_PATH) {
+		dma_idx = EN_HDR_DMA_ID_VD1;
+	} else if (hdr_hist_test_module == VD2_PATH) {
+		hist_ctrl += 0x1700;
+		hist_rd += 0x1700;
+		dma_idx = EN_HDR_DMA_ID_VD2;
+	} else if (hdr_hist_test_module == VD1_1_PATH) {
+		hist_ctrl += 0x80;
+		hist_rd += 0x80;
+		dma_idx = EN_HDR_DMA_ID_VD1_1;
+	} else if (hdr_hist_test_module == VD2_1_PATH) {
+		hist_ctrl += 0x1780;
+		hist_rd += 0x1780;
+		dma_idx = EN_HDR_DMA_ID_VD2_1;
+	} else {
+		return;
+	}
+
+	if (hdr_hist_test_cnt)
+		hdr_hist_test_cnt--;
+	else
+		return;
+
+	pr_info("=====hdr hist(%d) reg = 0x%x=====\n", hdr_hist_test_module,
+		hist_ctrl);
+	WRITE_VPP_REG_BITS(hist_ctrl, 0, 17, 8);
+	for (i = 0; i < 128; i++)
+		hdr_hist[i] = READ_VPP_REG(hist_rd);
+
+	if (hdr_hist_dma_case) {
+		am_dma_get_mif_data_hdr2_hist(dma_idx, hdr_hist_dma, 128);
+			for (i = 0; i < 128; i++)
+				pr_info("[%d] vcbus= %x, dma = %x\n", i, hdr_hist[i],
+					hdr_hist_dma[i]);
+
+		for (i = 0; i < 128; i++) {
+			if (hdr_hist_dma[i] != hdr_hist[i]) {
+				pr_info("check hdr_hist[%d] fail\n", i);
+				return;
+			}
+		}
+	}
+}
+
 static int vpp_matrix_update(struct vframe_s *vf,
 			     struct vinfo_s *vinfo, int flags,
 			     enum vd_path_e vd_path, enum vpp_index_e vpp_index)
@@ -8985,8 +9050,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		    (!is_amdv_on() || vd_path == VD2_PATH || vd_path == VD3_PATH)) {
 			video_process_status[vd_path] = HDR_MODULE_ON;
 			pr_csc(4,
-			       "%d:set video_process_status[%s] = HDR_MODULE_ON\n",
-			       __LINE__, vd_path == VD1_PATH ? "VD1" : "VD2");
+			       "set video_process_status[%d] = HDR_MODULE_ON\n",
+			       vd_path);
 		} else {
 			return 2;
 		}
@@ -9087,6 +9152,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		sbtm_sbtmdb_set(vinfo);
 	}
 
+	if (!(flags & CSC_FLAG_CHECK_OUTPUT))
+		hdr_hist_test(vd_path);
 #ifdef T7_BRINGUP_MULTI_VPP
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7) {
 		// TODO
@@ -10451,6 +10518,7 @@ void calculate_dynamic_curve_for_dpss(struct vframe_s *vf)
 	enum hdr_hist_sel hist_select = HIST_E_RGBMAX;
 	struct aml_tmo_reg_sw *pre_tmo_reg = NULL;
 
+	hdr_hist_test(vd_path);
 	if (hdr_process_mode_dpss == PROC_HDR_TO_SDR &&
 		cur_csc_type_dpss == VPP_MATRIX_BT2020YUV_BT2020RGB &&
 		(cur_dpss_src_format == HDRTYPE_HDR10 ||
@@ -12132,8 +12200,6 @@ void gamut_mapping_wrapper_init(void)
 	vecm_latch_flag2 |= FLAG_GAMUT_MAPPING1_UPDATE;
 }
 
-extern int hist_dma_case;
-
 void set_gamut_mapping_wrapper(int module, int vpp_index)
 {
 	int i = 0;
@@ -12271,7 +12337,7 @@ void set_gamut_mapping_wrapper(int module, int vpp_index)
 
 		if (gamut_mapping0_param.flag_update_lut) {
 			gamut_mapping0_param.flag_update_lut = 0;
-			if (hist_dma_case) {
+			if (gamut_dma_case) {
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_MISC2, 1, 0, 1,
 					vpp_index);
 				am_dma_set_mif_data_gamut0(gamut_mapping0_param.eotf_lut,
@@ -12350,7 +12416,7 @@ void set_gamut_mapping_wrapper(int module, int vpp_index)
 
 		if (gamut_mapping1_param.flag_update_lut) {
 			gamut_mapping1_param.flag_update_lut = 0;
-			if (hist_dma_case) {
+			if (gamut_dma_case) {
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_MISC2, 1, 0, 1,
 					vpp_index);
 				am_dma_set_mif_data_gamut1(gamut_mapping1_param.eotf_lut,

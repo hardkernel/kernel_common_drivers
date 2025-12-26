@@ -1175,25 +1175,49 @@ int set_hdr_tmo_reg(void)
 	return 0;
 }
 
+int check_hist_available(int *hist_hdr)
+{
+	int i = 0;
+	int ret = 0;
+
+	if (hist_hdr) {
+		for (i = 0; i < 128; i++) {
+			if (hist_hdr[i] != 0) {
+				ret = 1;
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
 void hdr10_tmo_gen(u32 *oo_gain, u32 *cgain, u32 *oo_gain1)
 {
 	struct aml_tmo_reg_sw *pre_tmo_reg;
 	struct vpp_hist_param_s *p = get_vpp_hist();
 	unsigned short *vpp_hist = p->vpp_gamma;
 	struct aml_hdr_prm_s hdr_luts = {{0}, {0}};
+	int *hist_hdr;
 
 	pre_tmo_reg = tmo_fw_param_get();
 	if (!pre_tmo_reg->pre_hdr10_tmo_alg) {
-		pr_tmo_dbg("%s: hdr10_tmo alg func is NULL\n", __func__);
+		pr_tmo_dbg("hdr10_tmo alg func is NULL\n");
+		return;
+	}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (chip_type_id == chip_t3x)
+		hist_hdr = &s5_hdr_hist[NUM_HDR_HIST - 1][0];
+	else
+#endif
+		hist_hdr = &hdr_hist[NUM_HDR_HIST - 1][0];
+
+	if (!check_hist_available(hist_hdr)) {
+		pr_tmo_dbg("%s: hdr_hist unavailable\n", __func__);
 		return;
 	}
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (chip_type_id == chip_t3x)
-		tmo_reg.pre_hdr10_tmo_alg(&hdr_luts, pre_tmo_reg, s5_hdr_hist[15], vpp_hist);
-	else
-#endif
-		tmo_reg.pre_hdr10_tmo_alg(&hdr_luts, pre_tmo_reg, hdr_hist[15], vpp_hist);
+	tmo_reg.pre_hdr10_tmo_alg(&hdr_luts, pre_tmo_reg, hist_hdr, vpp_hist);
 
 	memcpy(oo_gain, hdr_luts.hdr_ogain_lut, sizeof(int) * 149);
 	memcpy(cgain, hdr_luts.hdr_cgain_lut, sizeof(int) * 65);

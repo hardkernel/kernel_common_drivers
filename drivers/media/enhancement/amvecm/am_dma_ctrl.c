@@ -365,14 +365,14 @@ void am_dma_init(void)
 		/*dma packet: vd1/vd2 hdr_hist*/
 		dma_count[EN_DMA_WR_ID_VD1_HDR_HIST] = 26; //2*2
 		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_HIST].stride = 26;
-		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_HIST].addr_mode = 0;
+		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_HIST].addr_mode = 3;
 		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_HIST].rpt_num = 0;
 		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_HIST].step = 26;
 		lut_dma_wr[EN_DMA_WR_ID_VD1_HDR_HIST].auto_addr_en = 0;
 
 		dma_count[EN_DMA_WR_ID_VD2_HDR_HIST] = 26;
 		lut_dma_wr[EN_DMA_WR_ID_VD2_HDR_HIST].stride = 26;
-		lut_dma_wr[EN_DMA_WR_ID_VD2_HDR_HIST].addr_mode = 0;
+		lut_dma_wr[EN_DMA_WR_ID_VD2_HDR_HIST].addr_mode = 3;
 		lut_dma_wr[EN_DMA_WR_ID_VD2_HDR_HIST].rpt_num = 0;
 		lut_dma_wr[EN_DMA_WR_ID_VD2_HDR_HIST].step = 26;
 		lut_dma_wr[EN_DMA_WR_ID_VD2_HDR_HIST].auto_addr_en = 0;
@@ -963,6 +963,45 @@ int am_dma_get_mif_data_cm2_hist_sat(int index,
 	return 0;
 }
 
+void am_dma_updat_hdr2_hist(int mosaic_mode)
+{
+	enum lut_dma_wr_id_e dma_wr_id = EN_DMA_WR_ID_VD1_HDR_HIST;
+	unsigned int addr;
+	unsigned int val;
+	int wr_sel;
+	int offset;
+	int i = 0;
+	static int pre_mosaic_mode;
+	struct vpu_lut_dma_wr_s *cfg_data;
+
+	if (pre_mosaic_mode != mosaic_mode)
+		pre_mosaic_mode = mosaic_mode;
+	else
+		return;
+
+	for (i = 0; i < 2; i++) {
+		cfg_data = &lut_dma_wr[dma_wr_id + i];
+		cfg_data->addr_mode = mosaic_mode ? 0 : 3;
+		if (cfg_data->dma_wr_id < 8) {
+			wr_sel = 0;
+			offset = cfg_data->dma_wr_id;
+		} else {
+			wr_sel = 1;
+			offset = cfg_data->dma_wr_id - 8;
+		}
+		addr = ADDR_PARAM(dma_reg_cfg.page,
+		dma_reg_cfg.reg_wrmif_sel);
+		val = 0xff0 + wr_sel;
+		VSYNC_WRITE_VPP_REG(addr, val);
+
+		addr = ADDR_PARAM(dma_reg_cfg.page,
+		dma_reg_cfg.reg_wrmif0_ctrl) + offset;
+		VSYNC_WRITE_VPP_REG_BITS(addr, cfg_data->addr_mode, 28, 2);
+		pr_am_dma(" reg = %x, cfg_data->addr_mode = %d\n",
+			addr, cfg_data->addr_mode);
+	}
+}
+
 int am_dma_get_mif_data_hdr2_hist(int index,
 	unsigned int *data, unsigned int length)
 {
@@ -1008,7 +1047,6 @@ int am_dma_get_mif_data_hdr2_hist(int index,
 	}
 
 	val = (unsigned char *)dma_vaddr[dma_id];
-
 	for (i = 0; i < 26; i++) {
 		offset = 16 * i;
 		for (j = 0; j < 5; j++) {

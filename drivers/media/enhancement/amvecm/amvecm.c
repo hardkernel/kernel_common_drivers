@@ -96,7 +96,7 @@
 #include <linux/amlogic/aml_iotrace.h>
 #endif
 
-#define AMVECM_VERSION "amvecm module ver_20251227-0"
+#define AMVECM_VERSION "amvecm module ver_20260104-0"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -1455,61 +1455,6 @@ void get_dark_luma_hist(struct vpp_hist_param_s *vp)
 	}
 }
 
-int flag_hdr_hist_test;
-
-void hdr_hist_test(void)
-{
-	unsigned int i = 0;
-	unsigned int hdr_hist[128] = {0};
-	unsigned int hdr_hist_dma[128] = {0};
-	unsigned int hist_ctrl = DOLBY_HDR2_HIST_CTRL;
-	unsigned int hist_rd = DOLBY_HDR2_HIST_RD;
-	unsigned int dma_idx = 0;
-
-	if (chip_type_id != chip_t6x)
-		return;
-
-	if (flag_hdr_hist_test == 1) {
-		dma_idx = EN_HDR_DMA_ID_VD1;
-	} else if (flag_hdr_hist_test == 2) {
-		hist_ctrl += 0x1700;
-		hist_rd += 0x1700;
-		dma_idx = EN_HDR_DMA_ID_VD2;
-	} else if (flag_hdr_hist_test == 3) {
-		hist_ctrl += 0x80;
-		hist_rd += 0x80;
-		dma_idx = EN_HDR_DMA_ID_VD1_1;
-	} else if (flag_hdr_hist_test == 4) {
-		hist_ctrl += 0x1780;
-		hist_rd += 0x1780;
-		dma_idx = EN_HDR_DMA_ID_VD2_1;
-	} else {
-		return;
-	}
-
-//	pr_info("=====hdr hist(%d) reg = 0x%x=====\n", flag_hdr_hist_test,
-//		hist_ctrl);
-	WRITE_VPP_REG_BITS(hist_ctrl, 0, 17, 8);
-	for (i = 0; i < 128; i++) {
-		hdr_hist[i] = READ_VPP_REG(hist_rd);
-//		pr_info("hdr_hist[%d]= %x\n", i, hdr_hist[i]);
-	}
-
-	if (chip_type_id == chip_t6x && hist_dma_case) {
-		am_dma_get_mif_data_hdr2_hist(dma_idx, hdr_hist_dma, 128);
-//		for (i = 0; i < 128; i++)
-//			pr_info("hdr_hist_dma[%d]= %x\n", i, hdr_hist_dma[i]);
-	}
-	flag_hdr_hist_test = 0;
-	for (i = 0; i < 128; i++) {
-		if (hdr_hist_dma[i] != hdr_hist[i]) {
-//			pr_info("check hdr_hist[%d] fail\n", i);
-			return;
-		}
-	}
-//	pr_info("check hdr_hist ok\n");
-}
-
 void get_cm_hist(struct vpp_hist_param_s *vp)
 {
 	int i;
@@ -2041,7 +1986,6 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf,
 
 	get_cm_hist(vp);
 	get_dark_luma_hist(vp);
-	hdr_hist_test();
 
 	if (debug_game_mode_1 &&
 	    vpp_luma_max != vp->vpp_luma_max) {
@@ -4330,6 +4274,7 @@ static int amvecm_pre_matrix_process(struct vframe_s *toggle_vf,
 		if ((toggle_vf && toggle_vf->type_ext & VIDTYPE_EXT_MOSAIC_22) ||
 			(vf && vf->type_ext & VIDTYPE_EXT_MOSAIC_22)) {
 			mosaic_mode = 1;
+			am_dma_updat_hdr2_hist(mosaic_mode);
 			for (i = 0; i < 4; i++) {
 				result |= amvecm_matrix_process(toggle_vf ?
 					toggle_vf->vc_private->mosaic_vf[mosaic_idx[i]] : NULL,
@@ -4345,6 +4290,7 @@ static int amvecm_pre_matrix_process(struct vframe_s *toggle_vf,
 					flags, mosaic_vd_path[i], vpp_index);
 				}
 				mosaic_mode = 0;
+				am_dma_updat_hdr2_hist(mosaic_mode);
 			} else {
 				result = amvecm_matrix_process(toggle_vf, vf, flags, vd_path,
 					vpp_index);
@@ -8962,7 +8908,6 @@ static ssize_t amvecm_hdr_dbg_store(const struct class *cla,
 	int curve_val[65] = {0};
 	char *stemp = NULL;
 	int addr_ofst, sel_val, para_val, comp_val;
-	unsigned int hdr_hist[128];
 	unsigned int v_size, h_size = 0;
 
 	if (!buf)
@@ -9135,6 +9080,24 @@ static ssize_t amvecm_hdr_dbg_store(const struct class *cla,
 	} else if (!strcmp(parm[0], "hdr10p_adp")) {
 		hdr10p_adp_dbg(parm);
 	} else if (!strcmp(parm[0], "get_hist")) {
+		if (chip_type_id != chip_t6x)
+			goto free_buf;
+
+		if (!parm[1])
+			goto free_buf;
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		hdr_hist_test_module = val;
+
+		if (parm[2]) {
+			if (kstrtoul(parm[2], 10, &val) < 0)
+				hdr_hist_test_cnt = 1;
+			else
+				hdr_hist_test_cnt = val;
+		} else {
+			hdr_hist_test_cnt = 1;
+		}
+	} else if (!strcmp(parm[0], "hist_size")) {
 		unsigned int hdr_size = VPU_HDR2_SIZE_IN;
 		unsigned int hdr_offset = 0;
 
@@ -9148,19 +9111,15 @@ static ssize_t amvecm_hdr_dbg_store(const struct class *cla,
 
 		if (val == 1) {
 			hdr_size = VPU_HDR2_SIZE_IN;
-			flag_hdr_hist_test = val;
 		} else if (val == 2) {
 			hdr_size = VD2_HDR_IN_SIZE;
 			hdr_offset = 0x1700;
-			flag_hdr_hist_test = val;
 		} else if (val == 3) {
 			hdr_size = VPU_HDR2_FRM2_SIZE;
 			hdr_offset = 0x80;
-			flag_hdr_hist_test = val;
 		} else if (val == 4) {
 			hdr_size = VD2_1_HDR_IN_SIZE;
 			hdr_offset = 0x1780;
-			flag_hdr_hist_test = val;
 		}
 
 		h_size = READ_VPP_REG_BITS(hdr_size, 0, 13);
@@ -9168,28 +9127,13 @@ static ssize_t amvecm_hdr_dbg_store(const struct class *cla,
 		WRITE_VPP_REG(DOLBY_HDR2_HIST_H_START_END + hdr_offset, h_size - 1);
 		WRITE_VPP_REG(DOLBY_HDR2_HIST_V_START_END + hdr_offset, v_size - 1);
 		WRITE_VPP_REG(DOLBY_HDR2_HIST_CTRL + hdr_offset, 0x10010);
-	} else if (!strcmp(parm[0], "hist_dma")) {
-		if (chip_type_id != chip_t6x)
-			goto free_buf;
-		if (!parm[1])
-			goto free_buf;
-		if (kstrtoul(parm[1], 10, &val) < 0)
-			goto free_buf;
-
-		if (val == 1) {
-			am_dma_get_mif_data_hdr2_hist(EN_HDR_DMA_ID_VD1, hdr_hist, 128);
-			for (i = 0; i < 128; i++)
-				pr_info("hdr_hist_dma[%d]= %x\n", i, hdr_hist[i]);
-			am_dma_get_mif_data_hdr2_hist(EN_HDR_DMA_ID_VD1_1, hdr_hist, 128);
-			for (i = 0; i < 128; i++)
-				pr_info("hdr_1_hist_dma[%d]= %x\n", i, hdr_hist[i]);
-		} else if (val == 2) {
-			am_dma_get_mif_data_hdr2_hist(EN_HDR_DMA_ID_VD2, hdr_hist, 128);
-			for (i = 0; i < 128; i++)
-				pr_info("hdr2_hist_dma[%d]= %x\n", i, hdr_hist[i]);
-			am_dma_get_mif_data_hdr2_hist(EN_HDR_DMA_ID_VD2_1, hdr_hist, 128);
-			for (i = 0; i < 128; i++)
-				pr_info("hdr2_1_hist_dma[%d]= %x\n", i, hdr_hist[i]);
+	} else if (!strcmp(parm[0], "hist_dma_case")) {
+		if (!parm[1]) {
+			pr_info("cur hdr_hist_dma_case = %d\n", hdr_hist_dma_case);
+		} else {
+			if (kstrtoul(parm[1], 10, &val) < 0)
+				goto free_buf;
+			hdr_hist_dma_case = val;
 		}
 	}
 
@@ -12391,6 +12335,8 @@ void resume_lut3d(int vpp_index)
 		vpp_enable_lut3d(1);
 		lut3d_update(0, vpp_index);
 		pr_amvecm_dbg("amvecm: resume lut3d\n");
+	} else {
+		flag_lut3d_resume = 1;
 	}
 }
 
@@ -13271,6 +13217,14 @@ static ssize_t amvecm_debug_store(const struct class *cla,
 				lut3d_debug = val;
 			} else {
 				lut3d_debug = 0;
+			}
+		} else if (!strcmp(parm[1], "dma_case")) {
+			if (!parm[2]) {
+				pr_info("cur lut3d_dma_case = %d\n", lut3d_dma_case);
+			} else {
+				if (kstrtoul(parm[2], 10, &val) < 0)
+					goto free_buf;
+				lut3d_dma_case = val;
 			}
 		} else if (!strcmp(parm[1], "long_section")) {
 			if (parm[2]) {
@@ -15906,6 +15860,14 @@ static ssize_t amvecm_gamut_mapping_store(const struct class *cla,
 			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
 			force_toggle();
 			pr_info("set vpp_color_pri_sel = %d\n", vpp_color_pri_sel);
+		}
+	} else if (!strcmp(parm[0], "dma_case")) {
+		if (!parm[1]) {
+			pr_info("cur gamut_dma_case = %d\n", gamut_dma_case);
+		} else {
+			if (kstrtoint(parm[1], 10, &val) < 0)
+				goto free_buf;
+			gamut_dma_case = val;
 		}
 	}
 

@@ -504,6 +504,10 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 void update_link_state(struct vframe_s *vf,
 	struct vframe_s *rpt_vf,
 	enum vpp_index_e vpp_index);
+extern int gamut_dma_case;
+extern int hdr_hist_test_module;
+extern int hdr_hist_test_cnt;
+void hdr_hist_test(enum vd_path_e vd_path);
 #endif
 #endif /* AM_CSC_H */
 

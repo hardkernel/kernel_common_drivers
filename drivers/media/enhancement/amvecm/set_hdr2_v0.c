@@ -44,6 +44,8 @@ int hdr_tool_ogain_shift;
 module_param(hdr_tool_ogain_shift, int, 0664);
 MODULE_PARM_DESC(hdr_tool_ogain_shift, "\n hdr_tool_ogain_shift\n");
 
+int hdr_hist_dma_case = 1;
+
 // sdr to hdr table  12bit
 int cgain_lut0[HDR2_CGAIN_LUT_SIZE] = {
 	0x400, 0x400, 0x400, 0x400, 0x400, 0x400, 0x400, 0x400, 0x400,
@@ -2463,8 +2465,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 
 	if (!hdr_mtx_param ||
 		(!hdr_lut_param && mtx_sel == HDR_GAMUT_MTX)) {
-		pr_csc(128, "%s: null return, mtx_sel = 0x%x\n",
-			__func__, mtx_sel);
+		pr_csc(128, "null return, mtx_sel = 0x%x\n", mtx_sel);
 		return;
 	}
 
@@ -2474,8 +2475,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 		(chip_type_id == chip_t6w || chip_type_id == chip_t6x) &&
 		module_sel == VD2_HDR) {
 		matrix_on = 0;
-		pr_csc(128, "%s: sel(%d) off.\n",
-			__func__, module_sel);
+		pr_csc(128, "sel(%d) off.\n", module_sel);
 	}
 
 	/* need change clock gate as freerun when mtx on directly, not rdma op */
@@ -2513,7 +2513,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				0, 0, 12, vpp_sel);
 	}
 
-	pr_csc(128, "%s: mtx_sel = 0x%x\n", __func__, mtx_sel);
+	pr_csc(128, "mtx_sel = 0x%x\n", mtx_sel);
 
 	if (mtx_sel == HDR_IN_MTX) {
 		for (i = 0; i < MTX_NUM_PARAM; i++) {
@@ -2584,8 +2584,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			module_sel == VD1_HDR) {
 			for (i = 0; i < 3; i++) {
 				pre_offset[i] = (pre_offset[i] >> 1) - 256;
-				pr_csc(128, "%s: in_mtx sel(%d) lc_evc pre_offset[%d] %d\n",
-					__func__, module_sel, i, pre_offset[i]);
+				pr_csc(128, "in_mtx sel(%d) lc_evc pre_offset[%d] %d\n",
+					module_sel, i, pre_offset[i]);
 			}
 		}
 
@@ -2629,8 +2629,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			(chip_type_id == chip_t6w || chip_type_id == chip_t6x) &&
 			module_sel == VD1_HDR) {
 			clip_conv_rs[0] -= 1;
-			pr_csc(128, "%s: in_mtx sel(%d) lc_evc clip_conv_rs %d\n",
-				__func__, module_sel, clip_conv_rs[0]);
+			pr_csc(128, "in_mtx sel(%d) lc_evc clip_conv_rs %d\n",
+				module_sel, clip_conv_rs[0]);
 		}
 
 		tmp = ((clip_comp_th[0] & 0xfff) << 8) |
@@ -2640,8 +2640,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	} else if (mtx_sel == HDR_GAMUT_MTX) {
 		u32 ogain_lut_148 = hdr_lut_param->ogain_lut[148];
 
-		pr_csc(128, "%s: p_sel = 0x%x, gmt_bit_mode = 0x%x, ogain_lut_148 = 0x%x\n",
-			__func__, hdr_mtx_param->p_sel,
+		pr_csc(128, "p_sel = 0x%x, gmt_bit_mode = 0x%x, ogain_lut_148 = 0x%x\n",
+			hdr_mtx_param->p_sel,
 			hdr_mtx_param->gmt_bit_mode, ogain_lut_148);
 
 		for (i = 0; i < 9; i++)
@@ -2650,8 +2650,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 		/* TODO: use hdr_mtx_param->gmut_shift directly */
 		gmut_shift = calc_gmut_shift(hdr_mtx_param);
 
-		pr_csc(128, "%s: gmut_shift = 0x%x\n",
-			__func__, gmut_shift);
+		pr_csc(128, "gmut_shift = 0x%x\n", gmut_shift);
 
 		for (i = 0; i < 3; i++) {
 			if (chip_type_id > chip_t6d)
@@ -2723,8 +2722,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			}
 			pre_tmo_reg = tmo_fw_param_get();
 			pre_tmo_reg->hdr_ogain_shift = adpscl_shift[1];
-			pr_csc(128, "%s: HDR_SDR adpscl_shift_1 = 0x%x\n",
-				__func__, adpscl_shift[1]);
+			pr_csc(128, "HDR_SDR adpscl_shift_1 = 0x%x\n", adpscl_shift[1]);
 		} else if (hdr_mtx_param->p_sel & CUVA_SDR) {
 			if (chip_type_id > chip_t6d) {
 				adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
@@ -2778,8 +2776,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				_log2((1 << OO_NOR) / ogain_lut_148)
 				- 1;
 			}
-			pr_csc(128, "%s: HLG_SDR adpscl_shift_1 = 0x%x\n",
-				__func__, adpscl_shift[1]);
+			pr_csc(128, "HLG_SDR adpscl_shift_1 = 0x%x\n", adpscl_shift[1]);
 		} else if ((hdr_mtx_param->p_sel & HDR10P_SDR) ||
 			(hdr_mtx_param->p_sel_ext & HLGP_SDR)) {
 			if (p_hdr10pgen_param)
@@ -2802,14 +2799,14 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				adpscl_shift[0] -= p_hdr10pgen_param->shift;
 				adpscl_shift[1] -= p_hdr10pgen_param->shift;
 			}
-			pr_csc(128, "%s: HDR10P_SDR adpscl_shift_1 = 0x%x\n",
-				__func__, adpscl_shift[1]);
+			pr_csc(128, "HDR10P_SDR adpscl_shift_1 = 0x%x\n",
+				adpscl_shift[1]);
 		} else if (hdr_mtx_param->p_sel & HDR_HLG) {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 			adpscl_shift[1] = OO_NOR -
 			_log2((1 << OO_NOR) / ogain_lut_148);
-			pr_csc(128, "%s: HDR_HLG adpscl_shift_1 = 0x%x\n",
-				__func__, adpscl_shift[1]);
+			pr_csc(128, "HDR_HLG adpscl_shift_1 = 0x%x\n",
+				adpscl_shift[1]);
 		} else if (hdr_mtx_param->p_sel & SDR_GMT_CONVERT) {
 			if (hdr_mtx_param->gmt_bit_mode) {
 				scale_shift =
@@ -2824,8 +2821,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift - 1;
 				adpscl_shift[1] = OO_NOR - scale_shift - 1;
 			}
-			pr_csc(128, "%s: SDR_GMT_CONVERT adpscl_shift_1 = 0x%x\n",
-				__func__, adpscl_shift[1]);
+			pr_csc(128, "SDR_GMT_CONVERT adpscl_shift_1 = 0x%x\n",
+				adpscl_shift[1]);
 		} else if (hdr_mtx_param->p_sel & CUVA_HDR) {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 			adpscl_shift[1] = hdr_lut_param->adp_scal_x_shift + 2;
@@ -2844,8 +2841,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift  - 2;
 			adpscl_shift[1] = OO_NOR -
 			_log2((1 << OO_NOR) / ogain_lut_148) - 2;
-			pr_csc(128, "%s: IPT_SDR adpscl_shift_1 = 0x%x\n",
-				__func__, adpscl_shift[1]);
+			pr_csc(128, "IPT_SDR adpscl_shift_1 = 0x%x\n",
+				adpscl_shift[1]);
 		} else if (hdr_mtx_param->p_sel & SDR_HDR) {
 			if ((chip_cls_id == TV_CHIP || chip_type_id == chip_t7) &&
 				module_sel == VD1_HDR) {
@@ -2856,24 +2853,24 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 				adpscl_shift[1] = OO_NOR;
 			}
-			pr_csc(128, "%s: SDR_HDR adpscl_shift_1 = 0x%x\n",
-				__func__, adpscl_shift[1]);
-			pr_csc(128, "%s: chip_cls_id/module_sel = 0x%x/%x\n",
-				__func__, chip_cls_id, module_sel);
+			pr_csc(128, "SDR_HDR adpscl_shift_1 = 0x%x\n",
+				adpscl_shift[1]);
+			pr_csc(128, "chip_cls_id/module_sel = 0x%x/%x\n",
+				chip_cls_id, module_sel);
 		} else if (hdr_mtx_param->p_sel & HDR_HDR) {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 			adpscl_shift[1] = OO_NOR - _log2((1 << OO_NOR) / 64);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
 			if (get_prime_sl_frame()) {
 				adpscl_shift[1] = OO_NOR;
-				pr_csc(1, "%s: test fix shift\n", __func__);
+				pr_csc(1, "test fix shift\n");
 			}
 #endif
 		} else {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 			adpscl_shift[1] = OO_NOR;
-			pr_csc(128, "%s: else adpscl_shift_1/p_sel = 0x%x/%x\n",
-				__func__, adpscl_shift[1], hdr_mtx_param->p_sel);
+			pr_csc(128, "else adpscl_shift_1/p_sel = 0x%x/%x\n",
+				adpscl_shift[1], hdr_mtx_param->p_sel);
 		}
 
 		if (hdr_mtx_param->p_sel_ext & HLGP_SDR) {
@@ -4157,7 +4154,7 @@ void get_hist(enum vd_path_e vd_path, enum hdr_hist_sel hist_sel,
 	memset(percentile, 0, 9 * sizeof(u32));
 	total_pixel = 0;
 
-	if (chip_type_id == chip_t6x && hist_dma_case) {
+	if (chip_type_id == chip_t6x && hdr_hist_dma_case) {
 		if (vd_path == VD1_PATH)
 			am_dma_get_mif_data_hdr2_hist(EN_HDR_DMA_ID_VD1,
 			hdr_hist[NUM_HDR_HIST - 1], 128);
@@ -4870,8 +4867,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		return hdr_process_select;
 	}
 
-	pr_csc(128, "%s: hdr module=%d, proc sel=0x%x vpp_index = %d\n",
-		__func__,
+	pr_csc(128, "hdr module=%d, proc sel=0x%x vpp_index = %d\n",
 		module_sel,
 		hdr_process_select,
 		vpp_index);
@@ -4899,11 +4895,11 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			/* VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0, vpp_sel); */
 			if (!is_amdv_on() || chip_cls_id == TV_CHIP) {
 				hdr_process_select |= RGB_OSD;
-				pr_csc(128, "%s: dv off proc sel or tv chip = 0x%x\n",
-					__func__, hdr_process_select);
+				pr_csc(128, "dv off proc sel or tv chip = 0x%x\n",
+					hdr_process_select);
 			} else {
-				pr_csc(128, "%s: dv on proc sel = 0x%x\n",
-					__func__, hdr_process_select);
+				pr_csc(128, "dv on proc sel = 0x%x\n",
+					hdr_process_select);
 			}
 		}
 
@@ -5161,8 +5157,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				if (sbtm_en && sbtm_mode) {
 					hdr_lut_param.ogain_lut[i] = oo_y_lut_sbtm[i];
 					if (i == 0)
-						pr_csc(12, "%s sbtm:SDR_HDR. oo_lut[10]= %d\n",
-							__func__, oo_y_lut_sbtm[10]);
+						pr_csc(12, "sbtm:SDR_HDR. oo_lut[10]= %d\n",
+							oo_y_lut_sbtm[10]);
 				} else {
 					hdr_lut_param.ogain_lut[i] = oo_y_lut_sdr_hdr[i];
 				}
@@ -5532,8 +5528,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		}
 		hdr_lut_param.bitdepth = bit_depth;
 	} else if (hdr_process_select & HDR_HDR) {
-		pr_csc(12, "%s sbtm: HDR_HDR.  oo_y_lut_sbtm[10] = %d\n",
-			__func__, oo_y_lut_sbtm[10]);
+		pr_csc(12, "sbtm: HDR_HDR.  oo_y_lut_sbtm[10] = %d\n",
+			oo_y_lut_sbtm[10]);
 		for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
 			hdr_lut_param.oetf_lut[i]  = oe_y_lut_hdr[i];
 			hdr_lut_param.ogain_lut[i] = oo_y_lut_sbtm[i];
@@ -5547,7 +5543,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
 			if (get_prime_sl_frame()) {
 				hdr_lut_param.ogain_lut[i] = oo_y_lut_bypass[i];
-				pr_csc(1, "%s: prime_sl frame,HDR_HDR bypass ootf\n", __func__);
+				pr_csc(1, "prime_sl frame,HDR_HDR bypass ootf\n");
 			}
 #endif
 			if (i < HDR2_CGAIN_LUT_SIZE)
@@ -5558,7 +5554,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		hdr_lut_param.cgain_en = LUT_OFF;
 		hdr_lut_param.hist_en = LUT_ON;
 	} else if (hdr_process_select & SDR_GMT_CONVERT) {
-		pr_csc(128, "%s: prime_sl on,run into SDR_GMT_CONVERT\n", __func__);
+		pr_csc(128, "prime_sl on,run into SDR_GMT_CONVERT\n");
 		for (i = 0; i < HDR2_OETF_LUT_SIZE; i++) {
 			hdr_lut_param.oetf_lut[i]  = oe_y_lut_sdr[i];
 			hdr_lut_param.ogain_lut[i] = oo_y_lut_bypass[i];
@@ -5687,14 +5683,13 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		    hdr_process_select & CUVAHLG_CUVA)) {
 		/* sdr process, always rgb osd here*/
 		if (hdr_process_select & RGB_OSD) {
-			pr_csc(128, "%s: RGB_OSD HDR_BYPASS, hdr_process_select = %x\n",
-				__func__, hdr_process_select);
-			pr_csc(128, "%s: RGB_OSD HDR_BYPASS, module_sel = %d\n",
-				__func__, module_sel);
+			pr_csc(128, "RGB_OSD HDR_BYPASS, hdr_process_select = %x\n",
+				hdr_process_select);
+			pr_csc(128, "RGB_OSD HDR_BYPASS, module_sel = %d\n",
+				module_sel);
 			if ((hdr_process_select & RGB_VDIN) ||
 				(hdr_process_select & FULL_VDIN)) {
-				pr_csc(128, "%s: RGB_OSD HDR_BYPASS, rgb2ycbcrf_709\n",
-					__func__);
+				pr_csc(128, "RGB_OSD HDR_BYPASS, rgb2ycbcrf_709\n");
 				coeff_in = rgb2ycbcrf_709;
 				oft_pre_in = rgb2yuvfpre;
 				oft_post_in = rgb2yuvfpos;
@@ -5702,8 +5697,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				oft_post_out = bypass_pos;
 
 				get_source_csc_info(vpp_index, &cur_source, &cur_csc);
-				pr_csc(128, "%s: RGB_OSD HDR_BYPASS, cur_source/csc = %d/%d\n",
-					__func__, cur_source, cur_csc);
+				pr_csc(128, "RGB_OSD HDR_BYPASS, cur_source/csc = %d/%d\n",
+					cur_source, cur_csc);
 				if (cur_source != HDRTYPE_SDR &&
 					cur_csc != VPP_MATRIX_YUV709F_RGB) {
 					coeff_in = rgb2ycbcr_709;
@@ -5715,15 +5710,14 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 					coeff_in = rgb2ycbcr_bt2020;
 				else
 					coeff_in = rgb2ycbcr_709;
-				pr_csc(128, "%s: RGB_OSD HDR_BYPASS, rgb2ycbcr_709\n",
-					__func__);
+				pr_csc(128, "RGB_OSD HDR_BYPASS, rgb2ycbcr_709\n");
 				oft_pre_in = rgb2yuvpre;
 				oft_post_in = rgb2yuvpos;
 				oft_pre_out = bypass_pre;
 				oft_post_out = bypass_pos;
 			}
 		} else {
-			pr_csc(128, "%s: not RGB_OSD\n", __func__);
+			pr_csc(128, "not RGB_OSD\n");
 			coeff_in = bypass_coeff;
 			oft_pre_in = bypass_pre;
 			oft_post_in = bypass_pos;
@@ -5739,8 +5733,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			module_sel == OSD2_HDR ||
 			module_sel == OSD3_HDR) &&
 			(hdr_process_select & HDR_BYPASS)) {
-			pr_csc(128, "%s: module_sel = %d HDR_BYPASS ic(%d) bypass matrix in.\n",
-				__func__, module_sel, chip_type_id);
+			pr_csc(128, "module_sel = %d HDR_BYPASS ic(%d) bypass matrix in.\n",
+				module_sel, chip_type_id);
 			coeff_in = bypass_coeff;
 			oft_pre_in = bypass_pre;
 			oft_post_in = bypass_pos;
@@ -5755,18 +5749,18 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		    hdr_process_select & SDR_IPT ||
 		    hdr_process_select & CUVA_HDR ||
 		    hdr_process_select & SDR_CUVA)) {
-		pr_csc(128, "%s: RGB_OSD, hdr_process_select = %x, module_sel = %d\n",
-			__func__, hdr_process_select, module_sel);
+		pr_csc(128, "RGB_OSD, hdr_process_select = %x, module_sel = %d\n",
+			hdr_process_select, module_sel);
 		/* sdr process, always rgb osd here*/
 		if (hdr_process_select & RGB_OSD) {
-			pr_csc(128, "%s: RGB_OSD, bypass_coeff\n", __func__);
+			pr_csc(128, "RGB_OSD, bypass_coeff\n");
 			coeff_in = bypass_coeff;
 			oft_pre_in = bypass_pre;
 			oft_post_in = bypass_pos;
 			oft_pre_out = rgb2yuvpre;
 			oft_post_out = rgb2yuvpos;
 		} else {
-			pr_csc(128, "%s: RGB_OSD, ycbcr2rgb_709\n", __func__);
+			pr_csc(128, "RGB_OSD, ycbcr2rgb_709\n");
 			coeff_in = ycbcr2rgb_709;
 			oft_pre_in = yuv2rgbpre;
 			oft_post_in = yuv2rgbpos;
@@ -5784,8 +5778,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			(hdr_process_select & SDR_HDR ||
 			hdr_process_select & SDR_HLG ||
 			hdr_process_select & SDR_CUVA)) {
-			pr_csc(128, "%s: module_sel (%d) hdr_proc(%d) ic(%d) bypass matrix in.\n",
-				__func__, module_sel, hdr_process_select, chip_type_id);
+			pr_csc(128, "module_sel (%d) hdr_proc(%d) ic(%d) bypass matrix in.\n",
+				module_sel, hdr_process_select, chip_type_id);
 			coeff_in = bypass_coeff;
 			oft_pre_in = bypass_pre;
 			oft_post_in = bypass_pos;
@@ -6101,7 +6095,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				hdr_mtx_param.mtx_in[i] = ycbcr2rgb_709[i];
 				hdr_mtx_param.mtx_cgain[i] = bypass_coeff[i];
 				hdr_mtx_param.mtx_ogain[i] = bypass_coeff[i];
-				pr_csc(1, "%s: prime_sl frame,HDR_HDR mtx change\n", __func__);
+				pr_csc(1, "prime_sl frame,HDR_HDR mtx change\n");
 			}
 #endif
 			if (i < 9) {
@@ -6115,7 +6109,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 #endif
 			}
 		}
-		pr_csc(12, "%s sbtm: HDR_HDR.  mtx_gamut is gamut_bypass\n", __func__);
+		pr_csc(12, "sbtm: HDR_HDR.  mtx_gamut is gamut_bypass\n");
 
 		hdr_mtx_param.mtx_on = MTX_ON;
 		hdr_mtx_param.p_sel = hdr_process_select;
@@ -6142,8 +6136,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				coeff_in = ycbcrf2rgb_709;
 				oft_pre_in = yuvf2rgbpre;
 				oft_post_in = yuv2rgbpos;
-				pr_csc(128, "%s: SDR_HDR FULL_VDIN coeff_in ycbcrf2rgb_709\n",
-					__func__);
+				pr_csc(128, "SDR_HDR FULL_VDIN coeff_in ycbcrf2rgb_709\n");
 			}
 		}
 
@@ -6166,8 +6159,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 					  module_sel == OSD2_HDR ||
 					  module_sel == OSD3_HDR)) {
 					hdr_mtx_param.mtx_out[i] = bypass_coeff[i];
-					pr_csc(128, "%s: module_sel = %d t3x bypass matrix out.\n",
-						__func__, module_sel);
+					pr_csc(128, "module_sel = %d t3x bypass matrix out.\n",
+						module_sel);
 				} else {
 					hdr_mtx_param.mtx_out[i] = rgb2ycbcr_709[i];
 				}
@@ -6175,8 +6168,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				if (hdr_process_select & FULL_VDIN) {
 					hdr_mtx_param.mtx_out[i] = rgb2ycbcrf_709[i];
 					pr_csc(128,
-						"%s: SDR_HDR FULL_VDIN coeff_out rgb2ycbcrf_709\n",
-						__func__);
+						"SDR_HDR FULL_VDIN coeff_out rgb2ycbcrf_709\n");
 
 					if (i < 3) {
 						hdr_mtx_param.mtxi_pre_offset[i] =
@@ -6218,8 +6210,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 					module_sel == OSD3_HDR)) {
 					hdr_mtx_param.mtx_out[i] = bypass_coeff[i];
 					if (i == 1)
-						pr_csc(128, "%s:moduleSel=%d ic(%d) bypass mtx_o\n",
-							__func__, module_sel, chip_type_id);
+						pr_csc(128, "moduleSel=%d ic(%d) bypass mtx_o\n",
+							module_sel, chip_type_id);
 				} else {
 					hdr_mtx_param.mtx_out[i] = rgb2ycbcr_ncl2020[i];
 				}
@@ -6230,8 +6222,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 					gmt_mtx) {
 					hdr_mtx_param.mtx_gamut[i] =
 						gmt_mtx->matrix[i / 3][i % 3];
-					pr_csc(12, "%s sbtm: SDR_HDR.  mtx_gamut[%d]= %d\n",
-						__func__, i, hdr_mtx_param.mtx_gamut[i]);
+					pr_csc(12, "sbtm: SDR_HDR.  mtx_gamut[%d]= %d\n",
+						i, hdr_mtx_param.mtx_gamut[i]);
 				} else if (i < 9 && !gmt_mtx) {
 					hdr_mtx_param.mtx_gamut[i] =
 						ncl_709_2020[i];
@@ -6484,7 +6476,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			for (i = 0; i < 9; i++)
 				hdr_mtx_param.mtx_gamut[i] =
 					ncl_2020_709[i];
-			pr_csc(1, "%s: prime_sl frame,SDR_GMT_CONVERT mtx change\n", __func__);
+			pr_csc(1, "prime_sl frame,SDR_GMT_CONVERT mtx change\n");
 		}
 #endif
 		hdr_mtx_param.mtx_on = MTX_ON;
@@ -6566,9 +6558,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu() || is_meson_t3x_cpu()) {
-		pr_csc(12, "%s: s5 update hdr core sel(%d).\n",
-			__func__,
-			module_sel);
+		pr_csc(12, "s5 update hdr core sel(%d).\n", module_sel);
 		s5_set_hdr_matrix(module_sel, HDR_IN_MTX,
 			&hdr_mtx_param, NULL, NULL, vpp_index);
 		s5_set_eotf_lut(module_sel, &hdr_lut_param, vpp_index);
@@ -6674,8 +6664,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 
 		mtx_setting(mtx_sel, mtx_csc, mtx_on);
 
-		pr_csc(12, "%s: ic(%d) OSD(%d) mtx_csc(%d) mtx_on(%d)\n",
-			__func__, chip_type_id, mtx_sel, mtx_csc, mtx_on);
+		pr_csc(12, "ic(%d) OSD(%d) mtx_csc(%d) mtx_on(%d)\n",
+			chip_type_id, mtx_sel, mtx_csc, mtx_on);
 	}
 
 	return hdr_process_select;

@@ -263,6 +263,7 @@ void set_hdr_parameter_reg(struct hdr_parameter_reg_s *data);
 void get_hdr_parameter_reg(struct hdr_parameter_reg_s *data);
 int hdr10_param_dbg(char **parm);
 int get_hdr_on(void);
+extern int hdr_hist_dma_case;
 
 #endif
 #endif

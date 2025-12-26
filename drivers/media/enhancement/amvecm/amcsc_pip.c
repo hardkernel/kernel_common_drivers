@@ -3538,9 +3538,7 @@ void video_post_process(struct vframe_s *vf,
 		is_vpp0(VD1_PATH),
 		is_vpp1(VD2_PATH),
 		vpp_index);
-	pr_csc(32, "%d  %s: vd_path=%d, vd1 %s, vd2 %s, hdr_module = %d src = %d\n",
-		__LINE__,
-		__func__,
+	pr_csc(32, "vd_path=%d, vd1 %s, vd2 %s, hdr_module = %d src = %d\n",
 		vd_path,
 		is_video_layer_on(VD1_PATH) ? "on" : "off",
 		is_video_layer_on(VD2_PATH) ? "on" : "off",
@@ -4514,11 +4512,7 @@ void video_post_process(struct vframe_s *vf,
 				}
 			}
 		} else {
-			pr_csc(12, "%s: vpp_index = %d mode = %d [%d]\n",
-				__func__,
-				vpp_index,
-				vinfo->mode,
-				__LINE__);
+			pr_csc(12, "vpp_index = %d mode = %d\n", vpp_index, vinfo->mode);
 			if ((vf && vf->type & VIDTYPE_RGB_444) &&
 			    source_type[vd_path] == HDRTYPE_SDR &&
 			    (get_hdr_module_status(vd_path, vpp_index) != HDR_MODULE_OFF)) {
@@ -4526,9 +4520,7 @@ void video_post_process(struct vframe_s *vf,
 					__func__,
 					vd_path + 1,
 					source_type[vd_path]);
-
-				pr_csc(128, "%s: sdr rgb444 csc_type = %d\n",
-					__func__, csc_type);
+				pr_csc(128, "sdr rgb444 csc_type = %d\n", csc_type);
 
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
 					0, 1, 1, vpp_index);
@@ -4555,8 +4547,7 @@ void video_post_process(struct vframe_s *vf,
 				pr_csc(12, "type[vd%d]=%d\n",
 					vd_path + 1,
 					source_type[vd_path]);
-				pr_csc(128, "%s: others csc_type = %d\n",
-					__func__, csc_type);
+				pr_csc(128, " others csc_type = %d\n", csc_type);
 				/*VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);*/
 				/*VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);*/
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
