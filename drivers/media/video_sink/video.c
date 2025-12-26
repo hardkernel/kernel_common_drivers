@@ -7710,7 +7710,7 @@ static ssize_t video_screen_mode_show(const struct class *cla,
 		"normal-noscaleup",
 		"4-3 ignore", "4-3 letter box", "4-3 pan scan", "4-3 combined",
 		"16-9 ignore", "16-9 letter box", "16-9 pan scan",
-		"16-9 combined", "Custom AR", "AFD", "non-linear-T", "21-9"
+		"16-9 combined", "Custom AR", "AFD", "non-linear-T", "21-9", "32-9"
 	};
 
 	if (layer->wide_mode < ARRAY_SIZE(wide_str)) {
@@ -10795,7 +10795,7 @@ static ssize_t videopip_screen_mode_show(const struct class *cla,
 		"normal-noscaleup",
 		"4-3 ignore", "4-3 letter box", "4-3 pan scan", "4-3 combined",
 		"16-9 ignore", "16-9 letter box", "16-9 pan scan",
-		"16-9 combined", "Custom AR", "AFD", "non-linear-T", "21-9"
+		"16-9 combined", "Custom AR", "AFD", "non-linear-T", "21-9", "32-9"
 	};
 
 	if (layer->wide_mode < ARRAY_SIZE(wide_str))
@@ -10849,7 +10849,7 @@ static ssize_t videopip2_screen_mode_show(const struct class *cla,
 		"normal-noscaleup",
 		"4-3 ignore", "4-3 letter box", "4-3 pan scan", "4-3 combined",
 		"16-9 ignore", "16-9 letter box", "16-9 pan scan",
-		"16-9 combined", "Custom AR", "AFD", "non-linear-T", "21-9"
+		"16-9 combined", "Custom AR", "AFD", "non-linear-T", "21-9", "32-9"
 	};
 
 	if (layer->wide_mode < ARRAY_SIZE(wide_str))

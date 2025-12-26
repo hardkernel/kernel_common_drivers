@@ -2570,6 +2570,23 @@ RESTART:
 		else
 			wide_mode = VIDEO_WIDEOPTION_NORMAL;
 		use_sar = false;
+	} else if (wide_mode == VIDEO_WIDEOPTION_32_9) {
+		if (vpp_flags & VPP_FLAG_PORTRAIT_MODE) {
+			aspect_factor = 0x255;
+			src_ar.numerator = 9;
+			src_ar.denominator = 32;
+		} else {
+			aspect_factor = 0x48;
+			src_ar.numerator = 32;
+			src_ar.denominator = 9;
+		}
+		if (!(vpp_flags & VPP_FLAG_PORTRAIT_MODE) &&
+		    video_layer_width > 1 && video_layer_height > 1 &&
+		    (9 * video_layer_width == video_layer_height * 32))
+			wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
+		else
+			wide_mode = VIDEO_WIDEOPTION_NORMAL;
+		use_sar = false;
 	}
 	/* if use the mode ar, will disable ext ar */
 
