@@ -453,9 +453,11 @@ void vdin_sct_worker(struct work_struct *work)
 					devp->msct_top.last_frame_idx,
 					devp->msct_top.sct_stat[idx].compressed_page_cnt);
 			//free tail
-			vdin_sct_free_tail(devp, vfe->vf.index,
-				devp->msct_top.sct_stat[idx].compressed_page_cnt);
-			vfe->sct_stat = VFRAME_SCT_STATE_FREE_TAIL;
+			if (vfe->vf.index != devp->af_num) {
+				vdin_sct_free_tail(devp, vfe->vf.index,
+					devp->msct_top.sct_stat[idx].compressed_page_cnt);
+				vfe->sct_stat = VFRAME_SCT_STATE_FREE_TAIL;
+			}
 		}
 		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_WORKER)
 			pr_info("%s,exit! vf_idx:%d,stat:%d %d\n", __func__,
