@@ -164,7 +164,7 @@ static void aml_snd_update_bits(u32 base_type, unsigned int reg,
 	pr_err("write snd reg %x error\n", reg);
 }
 
-int aml_pdm_read(unsigned int reg)
+int aml_vad_pdm_read(unsigned int reg)
 {
 	int ret, val = 0;
 
@@ -176,18 +176,18 @@ int aml_pdm_read(unsigned int reg)
 	return val;
 }
 
-void aml_pdm_write(unsigned int reg, unsigned int val)
+void aml_vad_pdm_write(unsigned int reg, unsigned int val)
 {
 	aml_snd_write(IO_PDM_BUS, reg, val);
 }
 
-void aml_pdm_update_bits(unsigned int reg, unsigned int mask,
+void aml_vad_pdm_update_bits(unsigned int reg, unsigned int mask,
 			 unsigned int val)
 {
 	aml_snd_update_bits(IO_PDM_BUS, reg, mask, val);
 }
 
-int audiobus_read(unsigned int reg)
+int aml_vad_audiobus_read(unsigned int reg)
 {
 	int ret, val = 0;
 
@@ -200,18 +200,18 @@ int audiobus_read(unsigned int reg)
 	return val;
 }
 
-void audiobus_write(unsigned int reg, unsigned int val)
+void aml_vad_audiobus_write(unsigned int reg, unsigned int val)
 {
 	aml_snd_write(IO_AUDIO_BUS, reg, val);
 }
 
-void audiobus_update_bits(unsigned int reg, unsigned int mask,
+void aml_vad_audiobus_update_bits(unsigned int reg, unsigned int mask,
 			  unsigned int val)
 {
 	aml_snd_update_bits(IO_AUDIO_BUS, reg, mask, val);
 }
 
-int vad_read(unsigned int reg)
+int aml_vad_vad_read(unsigned int reg)
 {
 	int ret, val = 0;
 
@@ -224,91 +224,91 @@ int vad_read(unsigned int reg)
 	return val;
 }
 
-void vad_write(unsigned int reg, unsigned int val)
+void aml_vad_vad_write(unsigned int reg, unsigned int val)
 {
 	aml_snd_write(IO_VAD, reg, val);
 }
 
-void vad_update_bits(unsigned int reg, unsigned int mask,
+void aml_vad_update_bits(unsigned int reg, unsigned int mask,
 		     unsigned int val)
 {
 	aml_snd_update_bits(IO_VAD, reg, mask, val);
 }
 
-void vad_set_ram_coeff(int len, int *params)
+void aml_vad_set_ram_coeff(int len, int *params)
 {
 	int i, ctrl_v;
 
 	for (i = 0; i < len; i++) {
 		ctrl_v = 0x1 << 31 | (i << 0);
-		vad_write(VAD_LUT_WR, params[i]);
-		vad_write(VAD_LUT_CTRL, ctrl_v);
+		aml_vad_vad_write(VAD_LUT_WR, params[i]);
+		aml_vad_vad_write(VAD_LUT_CTRL, ctrl_v);
 	}
 }
 
 /* parameters for downsample and emphasis filter */
-void vad_set_de_params(int len, int *params)
+void aml_vad_set_de_params(int len, int *params)
 {
 	int i;
 
 	for (i = 0; i < len; i++)
-		vad_write(VAD_FIR_CTRL + i, params[i]);
+		aml_vad_vad_write(VAD_FIR_CTRL + i, params[i]);
 }
 
 /* Power detection */
-void vad_set_pwd(void)
+void aml_vad_set_pwd(void)
 {
 	/* frame for 32 ms */
-	vad_write(VAD_FRAME_CTRL0,
+	aml_vad_vad_write(VAD_FRAME_CTRL0,
 		  0x2 << 30 |
 		  0x1 << 24 |
 		  0x1 << 16);
 
-	vad_write(VAD_FRAME_CTRL1, 0x00000d65);
-	vad_write(VAD_FRAME_CTRL2, 0xd00103ff);
+	aml_vad_vad_write(VAD_FRAME_CTRL1, 0x00000d65);
+	aml_vad_vad_write(VAD_FRAME_CTRL2, 0xd00103ff);
 }
 
-void vad_set_cep(void)
+void aml_vad_set_cep(void)
 {
-	vad_write(VAD_CEP_CTRL0, 0x11050000);
-	vad_write(VAD_CEP_CTRL1, 0x0000001b);
-	vad_write(VAD_CEP_CTRL2, 0xc001fd);
-	vad_write(VAD_CEP_CTRL3, 0x137f0000);
-	vad_write(VAD_CEP_CTRL4, 0x186d0000);
-	vad_write(VAD_CEP_CTRL5, 0xfd00f61);
-	vad_write(VAD_DEC_CTRL, 0x10030001);
+	aml_vad_vad_write(VAD_CEP_CTRL0, 0x11050000);
+	aml_vad_vad_write(VAD_CEP_CTRL1, 0x0000001b);
+	aml_vad_vad_write(VAD_CEP_CTRL2, 0xc001fd);
+	aml_vad_vad_write(VAD_CEP_CTRL3, 0x137f0000);
+	aml_vad_vad_write(VAD_CEP_CTRL4, 0x186d0000);
+	aml_vad_vad_write(VAD_CEP_CTRL5, 0xfd00f61);
+	aml_vad_vad_write(VAD_DEC_CTRL, 0x10030001);
 }
 
-void vad_set_src(int src)
+void aml_vad_set_src(int src)
 {
-	audiobus_update_bits(EE_AUDIO_TOVAD_CTRL0,
+	aml_vad_audiobus_update_bits(EE_AUDIO_TOVAD_CTRL0,
 		0x1f << 12,
 		src << 12);
 }
 
-void vad_set_in(void)
+void aml_vad_set_in(void)
 {
 	/* two channel enable */
-	vad_write(VAD_IN_SEL0, 0x00000001);
-	vad_write(VAD_IN_SEL1, 0x00000002);
+	aml_vad_vad_write(VAD_IN_SEL0, 0x00000001);
+	aml_vad_vad_write(VAD_IN_SEL1, 0x00000002);
 
-	vad_write(VAD_TO_DDR, 0xa0000719);
+	aml_vad_vad_write(VAD_TO_DDR, 0xa0000719);
 }
 
-void vad_set_enable(bool enable)
+void aml_vad_set_enable(bool enable)
 {
-	audiobus_update_bits(EE_AUDIO_TOVAD_CTRL0,
+	aml_vad_audiobus_update_bits(EE_AUDIO_TOVAD_CTRL0,
 		0x1 << 31 | 0x1 << 30,
 		enable << 31 | 0x1 << 30);
 
 	if (enable) {
-		vad_write(VAD_TOP_CTRL0, 0x7ff);
-		vad_write(VAD_TOP_CTRL0, 0x0);
+		aml_vad_vad_write(VAD_TOP_CTRL0, 0x7ff);
+		aml_vad_vad_write(VAD_TOP_CTRL0, 0x0);
 
-		vad_write(VAD_TOP_CTRL1, 0xff);
-		vad_write(VAD_TOP_CTRL1, 0x0);
+		aml_vad_vad_write(VAD_TOP_CTRL1, 0xff);
+		aml_vad_vad_write(VAD_TOP_CTRL1, 0x0);
 
-		vad_update_bits(VAD_TOP_CTRL0,
+		aml_vad_update_bits(VAD_TOP_CTRL0,
 			0xfff << 20,
 			1 << 31 | /* vad_en */
 			1 << 30 | /* dec_fir_en */
@@ -320,16 +320,16 @@ void vad_set_enable(bool enable)
 			0 << 20   /* two_channel_en */
 		);
 	} else {
-		vad_write(VAD_TOP_CTRL0, 0x0);
+		aml_vad_vad_write(VAD_TOP_CTRL0, 0x0);
 
-		vad_write(VAD_TOP_CTRL1, 0x0);
+		aml_vad_vad_write(VAD_TOP_CTRL1, 0x0);
 	}
 }
 
-void vad_set_two_channel_en(bool en)
+void aml_vad_set_two_channel_en(bool en)
 {
 	/* two_channel_en */
-	vad_update_bits(VAD_TOP_CTRL0, 0x1 << 20, en << 20);
+	aml_vad_update_bits(VAD_TOP_CTRL0, 0x1 << 20, en << 20);
 }
 
 static int vad_wakeup_count;
@@ -363,29 +363,29 @@ static irqreturn_t vad_fs_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void aml_toddr_set_fifos(void)
+void aml_vad_toddr_set_fifos(void)
 {
-	audiobus_update_bits(EE_AUDIO_TODDR_A_CTRL1,
+	aml_vad_audiobus_update_bits(EE_AUDIO_TODDR_A_CTRL1,
 			0xfff << 12 | 0xf << 8,
 			0x3f << 12 | 2 << 8);
 
-	audiobus_update_bits(EE_AUDIO_TODDR_A_CTRL0, 0x1, 0x1);
+	aml_vad_audiobus_update_bits(EE_AUDIO_TODDR_A_CTRL0, 0x1, 0x1);
 }
 
-int aml_toddr_set_buf(unsigned int start, unsigned int end)
+int aml_vad_toddr_set_buf(unsigned int start, unsigned int end)
 {
-	audiobus_write(EE_AUDIO_TODDR_A_START_ADDR, start);
-	audiobus_write(EE_AUDIO_TODDR_A_FINISH_ADDR, end);
+	aml_vad_audiobus_write(EE_AUDIO_TODDR_A_START_ADDR, start);
+	aml_vad_audiobus_write(EE_AUDIO_TODDR_A_FINISH_ADDR, end);
 
-	audiobus_write(EE_AUDIO_TODDR_A_INIT_ADDR, start);
+	aml_vad_audiobus_write(EE_AUDIO_TODDR_A_INIT_ADDR, start);
 
 	return 0;
 }
 
-int aml_toddr_set_intrpt(unsigned int intrpt)
+int aml_vad_toddr_set_intrpt(unsigned int intrpt)
 {
-	audiobus_write(EE_AUDIO_TODDR_A_INT_ADDR, intrpt);
-	audiobus_update_bits(EE_AUDIO_TODDR_A_CTRL0, 0xff << 16, 0x4 << 16);
+	aml_vad_audiobus_write(EE_AUDIO_TODDR_A_INT_ADDR, intrpt);
+	aml_vad_audiobus_update_bits(EE_AUDIO_TODDR_A_CTRL0, 0xff << 16, 0x4 << 16);
 
 	return 0;
 }
@@ -416,50 +416,51 @@ enum toddr_src {
 	TODDR_SRC_MAX = 21
 };
 
-void aml_toddr_select_src(enum toddr_src src)
+void aml_vad_toddr_select_src(enum toddr_src src)
 {
-	audiobus_update_bits(EE_AUDIO_TODDR_A_CTRL1,
+	aml_vad_audiobus_update_bits(EE_AUDIO_TODDR_A_CTRL1,
 				 0x1f << 26,
 				 4 << 26);
 }
 
-void aml_toddr_set_format(int channel)
+void aml_vad_toddr_set_format(int channel)
 {
-	audiobus_update_bits(EE_AUDIO_TODDR_A_CTRL0,
+	aml_vad_audiobus_update_bits(EE_AUDIO_TODDR_A_CTRL0,
 		0x1 << 27 | 0x7 << 24 | 0x1fff << 3,
 		0x1 << 27 | 0 << 24 | 0 << 13 |
 		0x1f << 8 | 0x10 << 3);
 
-	audiobus_update_bits(EE_AUDIO_TODDR_A_CHSYNC_CTRL,
+	aml_vad_audiobus_update_bits(EE_AUDIO_TODDR_A_CHSYNC_CTRL,
 			0x1 << 31 | 0xFF, 0x1 << 31 | (channel - 1));
 }
 
-void aml_toddr_enable(bool enable, int channel)
+void vad_toddr_enable(bool enable, int channel)
 {
-	audiobus_update_bits(EE_AUDIO_TODDR_A_CTRL0, 1 << 31, enable << 31);
+	aml_vad_audiobus_update_bits(EE_AUDIO_TODDR_A_CTRL0, 1 << 31, enable << 31);
 	if (!enable) {
-		audiobus_write(EE_AUDIO_TODDR_A_CTRL0, 0x0);
-		audiobus_write(EE_AUDIO_TODDR_A_CTRL1, 0x0);
-		audiobus_update_bits(EE_AUDIO_TODDR_A_CHSYNC_CTRL, 0x1 << 31 | 0xFF, (channel - 1));
+		aml_vad_audiobus_write(EE_AUDIO_TODDR_A_CTRL0, 0x0);
+		aml_vad_audiobus_write(EE_AUDIO_TODDR_A_CTRL1, 0x0);
+		aml_vad_audiobus_update_bits(EE_AUDIO_TODDR_A_CHSYNC_CTRL,
+				0x1 << 31 | 0xFF, (channel - 1));
 	}
 }
 
-unsigned int aml_toddr_get_position(void)
+unsigned int aml_vad_toddr_get_position(void)
 {
-	return audiobus_read(EE_AUDIO_TODDR_A_STATUS2);
+	return aml_vad_audiobus_read(EE_AUDIO_TODDR_A_STATUS2);
 }
 
-void aml_pdm_ctrl(struct vad_open *p_vadopen)
+void aml_vad_pdm_ctrl(struct vad_open *p_vadopen)
 {
 	int ch_mask;
 
 	//pdm open
-	aml_pdm_write(PDM_CLKG_CTRL, 1);
+	aml_vad_pdm_write(PDM_CLKG_CTRL, 1);
 
 	ch_mask = (1 << p_vadopen->ch_num) - 1;
 
 	/* must be sure that clk and pdm is enable */
-	aml_pdm_update_bits(PDM_CTRL,
+	aml_vad_pdm_update_bits(PDM_CTRL,
 				(0x7 << 28 | 0xff << 8 | 0xff << 0),
 				/* invert the PDM_DCLK or not */
 				(0 << 30) |
@@ -475,19 +476,19 @@ void aml_pdm_ctrl(struct vad_open *p_vadopen)
 				(ch_mask << 0)
 				);
 
-	aml_pdm_write(PDM_CHAN_CTRL, ((0xa << 24) |
+	aml_vad_pdm_write(PDM_CHAN_CTRL, ((0xa << 24) |
 					(0xa << 16) |
 					(0xa << 8) |
 					(0xa << 0)
 		));
-	aml_pdm_write(PDM_CHAN_CTRL1, ((0xa << 24) |
+	aml_vad_pdm_write(PDM_CHAN_CTRL1, ((0xa << 24) |
 					(0xa << 16) |
 					(0xa << 8) |
 					(0xa << 0)
 		));
 }
 
-int pdm_get_ors(int dclk_idx, int sample_rate)
+int aml_vad_pdm_get_ors(int dclk_idx, int sample_rate)
 {
 	int osr = 0;
 
@@ -619,7 +620,7 @@ static void aml_pdm_HPF_coeff(int pdm_gain_index, int osr,
 	f3_ds_rate	 = 2;
 
 	/* hcic */
-	aml_pdm_write(PDM_HCIC_CTRL1,
+	aml_vad_pdm_write(PDM_HCIC_CTRL1,
 		(0x80000000 |
 		hcic_tap_num |
 		(hcic_dn_rate << 4) |
@@ -627,19 +628,19 @@ static void aml_pdm_HPF_coeff(int pdm_gain_index, int osr,
 		);
 
 	/* lpf */
-	aml_pdm_write(PDM_F1_CTRL,
+	aml_vad_pdm_write(PDM_F1_CTRL,
 		(0x80000000 |
 		f1_tap_num |
 		(2 << 12) |
 		(f1_rnd_mode << 16))
 		);
-	aml_pdm_write(PDM_F2_CTRL,
+	aml_vad_pdm_write(PDM_F2_CTRL,
 		(0x80000000 |
 		f2_tap_num |
 		(2 << 12) |
 		(f2_rnd_mode << 16))
 		);
-	aml_pdm_write(PDM_F3_CTRL,
+	aml_vad_pdm_write(PDM_F3_CTRL,
 		(0x80000000 |
 		f3_tap_num |
 		(2 << 12) |
@@ -647,7 +648,7 @@ static void aml_pdm_HPF_coeff(int pdm_gain_index, int osr,
 		);
 
 	/* hpf */
-	aml_pdm_write(PDM_HPF_CTRL,
+	aml_vad_pdm_write(PDM_HPF_CTRL,
 		(hpf_out_factor |
 		(hpf_shift_step << 16) |
 		(hpf_en << 31))
@@ -663,23 +664,23 @@ static void aml_pdm_LPF_coeff(int lpf1_len, const int *lpf1_coeff,
 	s32 data;
 	s32 data_tmp;
 
-	aml_pdm_write(PDM_COEFF_ADDR, 0);
+	aml_vad_pdm_write(PDM_COEFF_ADDR, 0);
 	for (i = 0;
 		i < lpf1_len;
 		i++)
-		aml_pdm_write(PDM_COEFF_DATA, lpf1_coeff[i]);
+		aml_vad_pdm_write(PDM_COEFF_DATA, lpf1_coeff[i]);
 	for (i = 0;
 		i < lpf2_len;
 		i++)
-		aml_pdm_write(PDM_COEFF_DATA, lpf2_coeff[i]);
+		aml_vad_pdm_write(PDM_COEFF_DATA, lpf2_coeff[i]);
 	for (i = 0;
 		i < lpf3_len;
 		i++)
-		aml_pdm_write(PDM_COEFF_DATA, lpf3_coeff[i]);
+		aml_vad_pdm_write(PDM_COEFF_DATA, lpf3_coeff[i]);
 
-	aml_pdm_write(PDM_COEFF_ADDR, 0);
+	aml_vad_pdm_write(PDM_COEFF_ADDR, 0);
 	for (i = 0; i < lpf1_len; i++) {
-		data = aml_pdm_read(PDM_COEFF_DATA);
+		data = aml_vad_pdm_read(PDM_COEFF_DATA);
 		data_tmp = lpf1_coeff[i];
 		if (data != data_tmp) {
 			pr_info("FAILED coeff data verified wrong!\n");
@@ -688,7 +689,7 @@ static void aml_pdm_LPF_coeff(int lpf1_len, const int *lpf1_coeff,
 		}
 	}
 	for (i = 0; i < lpf2_len; i++) {
-		data = aml_pdm_read(PDM_COEFF_DATA);
+		data = aml_vad_pdm_read(PDM_COEFF_DATA);
 		data_tmp = lpf2_coeff[i];
 		if (data != data_tmp) {
 			pr_info("FAILED coeff data verified wrong!\n");
@@ -697,7 +698,7 @@ static void aml_pdm_LPF_coeff(int lpf1_len, const int *lpf1_coeff,
 		}
 	}
 	for (i = 0; i < lpf3_len; i++) {
-		data = aml_pdm_read(PDM_COEFF_DATA);
+		data = aml_vad_pdm_read(PDM_COEFF_DATA);
 		data_tmp = lpf3_coeff[i];
 		if (data != data_tmp) {
 			pr_info("FAILED coeff data verified wrong!\n");
@@ -707,7 +708,7 @@ static void aml_pdm_LPF_coeff(int lpf1_len, const int *lpf1_coeff,
 	}
 }
 
-void aml_pdm_filter_ctrl(int pdm_gain_index, int osr, int lpf_mode, int hpf_mode)
+void aml_vad_pdm_filter_ctrl(int pdm_gain_index, int osr, int lpf_mode, int hpf_mode)
 {
 	int lpf1_len, lpf2_len, lpf3_len;
 	const int *lpf1_coeff, *lpf2_coeff, *lpf3_coeff;
@@ -820,23 +821,23 @@ void aml_pdm_filter_ctrl(int pdm_gain_index, int osr, int lpf_mode, int hpf_mode
 		lpf3_len, lpf3_coeff);
 }
 
-void pdm_enable(int is_enable)
+void aml_vad_pdm_enable(int is_enable)
 {
-	aml_pdm_update_bits(PDM_CTRL,
+	aml_vad_pdm_update_bits(PDM_CTRL,
 		0x1 << 31,
 		is_enable << 31);
 }
 
-void pdm_fifo_reset(void)
+void aml_vad_pdm_fifo_reset(void)
 {
 	/* PDM Asynchronous FIFO soft reset.
 	 * write 1 to soft reset AFIFO
 	 */
-	aml_pdm_update_bits(PDM_CTRL,
+	aml_vad_pdm_update_bits(PDM_CTRL,
 		0x1 << 16,
 		0 << 16);
 
-	aml_pdm_update_bits(PDM_CTRL,
+	aml_vad_pdm_update_bits(PDM_CTRL,
 		0x1 << 16,
 		0x1 << 16);
 }
@@ -861,9 +862,9 @@ static void vad_deinit(struct vad_open *p_vadopen)
 		vfree(p_vadopen->buf);
 	p_vadopen->buf = NULL;
 
-	pdm_enable(false);
-	aml_toddr_enable(false, p_vadopen->ch_num);
-	vad_set_enable(false);
+	aml_vad_pdm_enable(false);
+	vad_toddr_enable(false, p_vadopen->ch_num);
+	aml_vad_set_enable(false);
 	pr_info("vad open module deinit success\n");
 }
 
@@ -961,7 +962,7 @@ static int vad_engine_check(struct vad_open *p_vadopen, bool init)
 				pr_info("%s:wait vad buffer time out!\n", __func__);
 				return 0;
 			}
-			p_vadopen->curr_addr = aml_toddr_get_position();
+			p_vadopen->curr_addr = aml_vad_toddr_get_position();
 			if (p_vadopen->curr_addr < start ||
 			    start > end || p_vadopen->curr_addr > end)
 				continue;
@@ -998,7 +999,7 @@ static int vad_engine_check(struct vad_open *p_vadopen, bool init)
 		if (kthread_should_stop())
 			break;
 
-		p_vadopen->curr_addr = aml_toddr_get_position();
+		p_vadopen->curr_addr = aml_vad_toddr_get_position();
 		if (p_vadopen->last_cur_addr == p_vadopen->curr_addr)
 			continue;
 		p_vadopen->last_cur_addr = p_vadopen->curr_addr;
@@ -1235,8 +1236,8 @@ static int vad_open_probe(struct platform_device *pdev)
 	}
 
 	/* open gate */
-	audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
-	audiobus_write(EE_AUDIO_CLK_GATE_EN1, 0xffffffff);
+	aml_vad_audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
+	aml_vad_audiobus_write(EE_AUDIO_CLK_GATE_EN1, 0xffffffff);
 
 	/* vad clock */
 	p_vadopen->vad_srcpll = devm_clk_get(&pdev->dev, "vad_srcpll");
@@ -1254,7 +1255,7 @@ static int vad_open_probe(struct platform_device *pdev)
 	}
 
 	//set vad clock tree, vad clock = 25000000, fclk_div5(400M)
-	audiobus_write(EE_AUDIO_CLK_VAD_CTRL, 0x8700000F);
+	aml_vad_audiobus_write(EE_AUDIO_CLK_VAD_CTRL, 0x8700000F);
 
 	p_vadopen->sysclk_srcpll = devm_clk_get(&pdev->dev, "sysclk_srcpll");
 	if (IS_ERR(p_vadopen->sysclk_srcpll)) {
@@ -1272,7 +1273,7 @@ static int vad_open_probe(struct platform_device *pdev)
 	}
 
 	//set pdm sys clock tree 133333351, fclk_div3(666M)
-	audiobus_write(EE_AUDIO_CLK_PDMIN_CTRL1, 0x85000004);
+	aml_vad_audiobus_write(EE_AUDIO_CLK_PDMIN_CTRL1, 0x85000004);
 
 	p_vadopen->dclk_srcpll = devm_clk_get(&pdev->dev, "dclk_srcpll");
 	if (IS_ERR(p_vadopen->dclk_srcpll)) {
@@ -1292,7 +1293,7 @@ static int vad_open_probe(struct platform_device *pdev)
 	}
 
 	//set pdm dclk clock tree 3.072M, hifi(491.52)
-	audiobus_write(EE_AUDIO_CLK_PDMIN_CTRL0, 0x8100009F);
+	aml_vad_audiobus_write(EE_AUDIO_CLK_PDMIN_CTRL0, 0x8100009F);
 
 	//vad dma budder
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
@@ -1373,38 +1374,38 @@ static int vad_open_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	aml_pdm_ctrl(p_vadopen);
+	aml_vad_pdm_ctrl(p_vadopen);
 
 	/* filter for pdm */
-	osr = pdm_get_ors(dclk_idx, samplerate);
+	osr = aml_vad_pdm_get_ors(dclk_idx, samplerate);
 
-	aml_pdm_filter_ctrl(pdm_gain_index, osr, lpf_filter_mode, hpf_filter_mode);
+	aml_vad_pdm_filter_ctrl(pdm_gain_index, osr, lpf_filter_mode, hpf_filter_mode);
 
-	pdm_fifo_reset();
+	aml_vad_pdm_fifo_reset();
 
-	vad_set_enable(true);
-	vad_set_ram_coeff(len_ram, p_win_coeff);
-	vad_set_de_params(len_de, p_de_coeff);
-	vad_set_pwd();
-	vad_set_cep();
-	vad_set_src(PDMIN);
-	vad_set_in();
+	aml_vad_set_enable(true);
+	aml_vad_set_ram_coeff(len_ram, p_win_coeff);
+	aml_vad_set_de_params(len_de, p_de_coeff);
+	aml_vad_set_pwd();
+	aml_vad_set_cep();
+	aml_vad_set_src(PDMIN);
+	aml_vad_set_in();
 
 	/* reset then enable VAD */
-	vad_set_enable(false);
-	vad_set_enable(true);
+	aml_vad_set_enable(false);
+	aml_vad_set_enable(true);
 
-	aml_toddr_set_fifos();
-	aml_toddr_set_buf(p_vadopen->dma_buffer.addr,
+	aml_vad_toddr_set_fifos();
+	aml_vad_toddr_set_buf(p_vadopen->dma_buffer.addr,
 			p_vadopen->dma_buffer.addr + p_vadopen->dma_buffer.bytes - 8);
-	aml_toddr_set_intrpt(0x200);
-	aml_toddr_select_src(PDMIN);
-	aml_toddr_set_format(p_vadopen->ch_num);
-	aml_toddr_enable(true, p_vadopen->ch_num);
+	aml_vad_toddr_set_intrpt(0x200);
+	aml_vad_toddr_select_src(PDMIN);
+	aml_vad_toddr_set_format(p_vadopen->ch_num);
+	vad_toddr_enable(true, p_vadopen->ch_num);
 
 	INIT_WORK(&p_vadopen->deinit_work, deinit_work_func);
 
-	pdm_enable(true);
+	aml_vad_pdm_enable(true);
 	p_vadopen->en = true;
 
 	//freeze system
