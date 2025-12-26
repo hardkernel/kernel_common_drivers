@@ -112,9 +112,9 @@ void vdin_sct_read_mmu_num(struct vdin_dev_s *devp, struct vf_entry *vfe)
 			if (paddr) {
 				vfe->vf.afbce_num = *paddr;
 			} else {
-				vfe->vf.afbce_num = devp->msct_top.mmu_4k_number * 8 / 10;
 				if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_MMU_NUM)
-					pr_info("vdin%d rdma read mmu failed!!!\n", devp->index);
+					pr_info("vdin%d rdma read mmu failed!\n", devp->index);
+				vfe->vf.afbce_num = 0;
 			}
 			devp->afbce_mmu_num = 0;
 		} else if (devp->dtdata->hw_ver == VDIN_HW_T3X) {
@@ -122,8 +122,11 @@ void vdin_sct_read_mmu_num(struct vdin_dev_s *devp, struct vf_entry *vfe)
 		} else {
 			vfe->vf.afbce_num = rd(devp->addr_offset, AFBCE_MMU_NUM);
 		}
-		if (vfe->vf.afbce_num < VDIN_AFBCE_MIN_SIZE)
-			vfe->vf.afbce_num = 0;
+		if (vfe->vf.afbce_num < VDIN_AFBCE_MIN_SIZE) {
+			if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_MMU_NUM)
+				pr_info("vdin%d ,mmu num=%d\n", devp->index, vfe->vf.afbce_num);
+			vfe->vf.afbce_num = devp->msct_top.mmu_4k_number * 7 / 10;
+		}
 		idx = devp->msct_top.cur_frame_idx;
 		devp->msct_top.sct_stat[idx].compressed_page_cnt = vfe->vf.afbce_num;
 		devp->msct_top.vfe = vfe;
