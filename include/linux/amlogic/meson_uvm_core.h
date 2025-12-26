@@ -243,4 +243,6 @@ bool is_valid_mod_type(struct dma_buf *dmabuf,
 		       enum uvm_hook_mod_type type);
 int dmabuf_get_uvm_buf_real_size(struct dma_buf *dmabuf);
 
+void uvm_realloc_dmabuf_put_flag(struct dma_buf *dmabuf);
+
 #endif

@@ -16,6 +16,7 @@
 #include <linux/sched.h>
 #include <linux/ioctl.h>
 #include <linux/types.h>
+#include <linux/ktime.h>
 
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/meson_uvm_ge2d_utils.h>
@@ -77,6 +78,17 @@ struct mua_buffer {
 	u32 align;
 };
 
+struct mua_realloc_buffer_list {
+	struct dma_buf *dmabuf;
+	struct dma_buf *fake_dmabuf;
+	atomic_t dmabuf_ref;
+	u32 dmabuf_w;
+	u32 dmabuf_h;
+	bool flag;
+	ktime_t timestamp;
+	struct list_head dmabuf_list;
+};
+
 struct mua_device {
 	struct miscdevice dev;
 	struct rb_root root;
@@ -84,7 +96,8 @@ struct mua_device {
 	u32 dummy_dmabuf_w[MAX_PIPE_LINE];
 	u32 dummy_dmabuf_h[MAX_PIPE_LINE];
 	struct kref dummy_dmabuf_ref[MAX_PIPE_LINE];
-
+	struct mua_realloc_buffer_list mua_rec_buf_list;
+	struct mutex mua_rec_buf_lock; /* mua_rec_buf_list mutex */
 	struct mutex buffer_lock; /* dev mutex */
 	int pid;
 	struct uvm_ge2d *ge2d;
@@ -201,6 +214,7 @@ union uvm_ioctl_arg {
 size_t mua_calc_real_dmabuf_size(unsigned int align, unsigned int byte_stride,
 			   unsigned int height);
 int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, void *vaddr);
+struct mua_device *meson_uvm_get_mua_dev(void);
 
 #endif
 

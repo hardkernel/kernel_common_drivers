@@ -702,7 +702,6 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 {
 	int i, j, num_pages;
 	struct dma_buf *idmabuf = NULL;
-	struct ion_buffer *ibuffer;
 	struct uvm_alloc_info info;
 	struct mua_buffer *buffer;
 	struct page *page;
@@ -719,8 +718,8 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 	buffer = container_of(obj, struct mua_buffer, base);
 	if (!buffer)
 		return -EINVAL;
-	UVM_PRINTK(UVM_INFO, "%s. WxH: %dx%d\n",
-				__func__, buffer->width, buffer->height);
+	UVM_PRINTK(UVM_INFO, "do fbc decoder. WxH: %dx%d\n",
+		   buffer->width, buffer->height);
 	memset(&info, 0, sizeof(info));
 
 	dmabuf->size = mua_calc_real_dmabuf_size(buffer->align,
@@ -729,8 +728,7 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 			buffer, buffer->size, dmabuf->size);
 	heap = dma_heap_find(CODECMM_HEAP_NAME);
 	if (!heap) {
-		UVM_PRINTK(UVM_ERROR, "%s: dma_heap_find fail. heap name is %s\n",
-			__func__, CODECMM_HEAP_NAME);
+		UVM_PRINTK(UVM_ERROR, "find heap: %s fail.\n", CODECMM_HEAP_NAME);
 		return -ENOMEM;
 	}
 
@@ -738,65 +736,60 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 		idmabuf = dma_heap_buffer_alloc(heap, dmabuf->size,
 			O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
 		if (IS_ERR(idmabuf)) {
-			UVM_PRINTK(UVM_ERROR, "%s: dma_heap_buffer_alloc fail.\n", __func__);
+			UVM_PRINTK(UVM_ERROR, "alloc idmabuf fail.\n");
 			return -ENOMEM;
 		}
-		UVM_PRINTK(UVM_INFO, "%s: idmabuf(%px) alloc success.\n", __func__, idmabuf);
+		UVM_PRINTK(MUA_INFO, "idmabuf(%px) alloc success.\n", idmabuf);
 
-		ibuffer = idmabuf->priv;
-		if (ibuffer) {
-			attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
-			if (!attachment) {
-				UVM_PRINTK(UVM_ERROR, "%s: Failed to set dma attach", __func__);
-				return -ENOMEM;
-			}
-
-			src_sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
-			if (!src_sgt) {
-				UVM_PRINTK(UVM_ERROR, "%s: Failed to get dma sg", __func__);
-				goto detach_dma_buf;
-			}
-
-			ret = dma_buf_begin_cpu_access(idmabuf, DMA_BIDIRECTIONAL);
-			if (ret) {
-				UVM_PRINTK(UVM_ERROR, "%s: Failed to get dma sg", __func__);
-				goto unmap_attachment;
-			}
-
-			UVM_PRINTK(UVM_INFO, "%s: src_sgt(%px). nents = %u, length=%u\n",
-				__func__, src_sgt, src_sgt->nents, src_sgt->sgl->length);
-			page = sg_page(src_sgt->sgl);
-			buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
-			buffer->ibuffer[1] = ibuffer;
-			buffer->idmabuf[1] = idmabuf;
-			buffer->sg_table = src_sgt;
-
-			info.sgt = src_sgt;
-			dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
-		}
-	} else {
-		idmabuf = buffer->idmabuf[1];
 		attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
 		if (!attachment) {
-			UVM_PRINTK(UVM_ERROR, "%s(%d): Failed to set dma attach",
-				__func__, __LINE__);
+			UVM_PRINTK(UVM_ERROR, "failed to set dma attach.\n");
 			return -ENOMEM;
 		}
 
 		src_sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
 		if (!src_sgt) {
-			UVM_PRINTK(UVM_ERROR, "%s(%d): Failed to get dma sg", __func__, __LINE__);
+			UVM_PRINTK(UVM_ERROR, "failed to get dma sg.\n");
 			goto detach_dma_buf;
 		}
 
 		ret = dma_buf_begin_cpu_access(idmabuf, DMA_BIDIRECTIONAL);
 		if (ret) {
-			UVM_PRINTK(UVM_ERROR, "%s: Failed to get dma sg", __func__);
+			UVM_PRINTK(UVM_ERROR, "failed to get dma sg.\n");
 			goto unmap_attachment;
 		}
 
-		UVM_PRINTK(UVM_INFO, "%s(%d): src_sgt(%px). nents = %u, length=%u\n",
-			__func__, __LINE__, src_sgt, src_sgt->nents, src_sgt->sgl->length);
+		UVM_PRINTK(UVM_INFO, "src_sgt(%px). nents = %u, length=%u\n",
+			   src_sgt, src_sgt->nents, src_sgt->sgl->length);
+		page = sg_page(src_sgt->sgl);
+		buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
+		buffer->idmabuf[1] = idmabuf;
+		buffer->sg_table = src_sgt;
+
+		info.sgt = src_sgt;
+		dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
+	} else {
+		idmabuf = buffer->idmabuf[1];
+		attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
+		if (!attachment) {
+			UVM_PRINTK(UVM_ERROR, "failed to set dma attach.\n");
+			return -ENOMEM;
+		}
+
+		src_sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
+		if (!src_sgt) {
+			UVM_PRINTK(UVM_ERROR, "failed to get dma sg.\n");
+			goto detach_dma_buf;
+		}
+
+		ret = dma_buf_begin_cpu_access(idmabuf, DMA_BIDIRECTIONAL);
+		if (ret) {
+			UVM_PRINTK(UVM_ERROR, "failed to get dma sg.\n");
+			goto unmap_attachment;
+		}
+
+		UVM_PRINTK(UVM_INFO, "else src_sgt(%px). nents = %u, length=%u\n",
+			   src_sgt, src_sgt->nents, src_sgt->sgl->length);
 		page = sg_page(src_sgt->sgl);
 		buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
 		buffer->sg_table = src_sgt;
@@ -829,8 +822,7 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 
 	vaddr = vmap(page_array, num_pages, VM_MAP, pgprot);
 	if (!vaddr) {
-		UVM_PRINTK(UVM_ERROR, "vmap fail, size: %d\n",
-			   num_pages << PAGE_SHIFT);
+		UVM_PRINTK(UVM_ERROR, "vmap fail, size: %d\n", num_pages << PAGE_SHIFT);
 		vfree(page_array);
 		if (src_sgt && attachment) {
 			dma_buf_unmap_attachment(attachment, src_sgt, DMA_BIDIRECTIONAL);
@@ -838,7 +830,7 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 		}
 		return -ENOMEM;
 	}
-	UVM_PRINTK(UVM_INFO, "buffer vaddr: %px.\n", vaddr);
+	UVM_PRINTK(UVM_INFO, "do fbc decoder buffer vaddr: %px.\n", vaddr);
 
 	//start to filldata
 	meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
@@ -1224,3 +1216,28 @@ int dmabuf_get_uvm_buf_real_size(struct dma_buf *dmabuf)
 	return handle->size;
 }
 EXPORT_SYMBOL(dmabuf_get_uvm_buf_real_size);
+
+void uvm_realloc_dmabuf_put_flag(struct dma_buf *dmabuf)
+{
+	struct mua_device *mua_dev = NULL;
+	struct mua_realloc_buffer_list *entry, *tmp;
+
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+		UVM_PRINTK(UVM_ERROR, "dmabuf is not uvm.\n");
+		return;
+	}
+
+	mua_dev = meson_uvm_get_mua_dev();
+	mutex_lock(&mua_dev->mua_rec_buf_lock);
+	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+		if (entry->fake_dmabuf == dmabuf) {
+			entry->flag = false;
+			entry->timestamp = ktime_get();
+			UVM_PRINTK(UVM_INFO, "clear fake_dmabuf(%px) idmabuf(%px) flag(%d).\n",
+				  dmabuf, entry->dmabuf, entry->flag);
+			break;
+		}
+	}
+	mutex_unlock(&mua_dev->mua_rec_buf_lock);
+}
+EXPORT_SYMBOL(uvm_realloc_dmabuf_put_flag);

@@ -33,7 +33,7 @@
 #include <linux/amlogic/meson_uvm_allocator.h>
 #include <linux/amlogic/meson_uvm_interface.h>
 
-static struct mua_device *mua_dev;
+struct mua_device *mua_dev;
 struct device *uvmdev;
 static int enable_screencap;
 module_param_named(enable_screencap, enable_screencap, int, 0664);
@@ -41,6 +41,10 @@ static int mua_debug_level = MUA_ERROR;
 module_param(mua_debug_level, int, 0644);
 static int mua_filldata_policy = MUA_ALL_WRAPPER;
 module_param(mua_filldata_policy, int, 0644);
+static int realloc_buf_count = 4;
+module_param(realloc_buf_count, int, 0664);
+static int enable_rec_buf_pool;
+module_param_named(enable_rec_buf_pool, enable_rec_buf_pool, int, 0664);
 
 #define MUA_PRINTK(level, fmt, arg...) \
 	do {	\
@@ -67,6 +71,9 @@ module_param_array(decoder_para, uint, &uvm_decoder_para_num, 0644);
 #define MMU_COMPRESS_HEADER_SIZE_1080P  0x10000
 #define MMU_COMPRESS_HEADER_SIZE_4K     0x48000
 #define MMU_COMPRESS_HEADER_SIZE_8K     0x120000
+static bool realloc_once;
+static int insert_count;
+static int skip_realloc;
 
 static int get_header_size(int w, int h)
 {
@@ -81,6 +88,12 @@ static int get_header_size(int w, int h)
 
 	return MMU_COMPRESS_HEADER_SIZE_1080P;
 }
+
+struct mua_device *meson_uvm_get_mua_dev(void)
+{
+	return mua_dev;
+}
+EXPORT_SYMBOL(meson_uvm_get_mua_dev);
 
 static void mua_dummy_buffer_init(void)
 {
@@ -184,6 +197,136 @@ static void mua_dummy_buffer_put(struct dma_buf *dmabuf)
 			   __func__, __LINE__);
 }
 
+static int mua_realloc_buffer_insert(struct dma_buf *idmabuf,
+			u32 width, u32 height)
+{
+	struct mua_realloc_buffer_list *new_node;
+
+	new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
+	if (!new_node) {
+		MUA_PRINTK(MUA_ERROR, "kzalloc rec_buf list fail.\n");
+		return -ENOMEM;
+	}
+
+	new_node->dmabuf = idmabuf;
+	new_node->fake_dmabuf = NULL;
+	atomic_add(1, &new_node->dmabuf_ref);
+	new_node->dmabuf_w = width;
+	new_node->dmabuf_h = height;
+	new_node->flag = false;
+	new_node->timestamp = ktime_get();
+	MUA_PRINTK(MUA_INFO, "insert idmabuf(%px) WxH(%ux%u) done.\n",
+		   idmabuf, width, height);
+
+	mutex_lock(&mua_dev->mua_rec_buf_lock);
+	list_add_tail(&new_node->dmabuf_list, &mua_dev->mua_rec_buf_list.dmabuf_list);
+	mutex_unlock(&mua_dev->mua_rec_buf_lock);
+	insert_count++;
+
+	return 0;
+}
+
+static struct dma_buf *mua_realloc_buffer_get(struct dma_buf *idmabuf,
+			u32 width, u32 height)
+{
+	struct dma_buf *dmabuf = NULL;
+	struct mua_realloc_buffer_list *entry, *tmp, *oldest;
+	ktime_t oldest_ts = KTIME_MAX;
+
+	mutex_lock(&mua_dev->mua_rec_buf_lock);
+	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+		if (!entry->flag && ktime_compare(entry->timestamp, oldest_ts) < 0) {
+			oldest_ts = entry->timestamp;
+			oldest = entry;
+		}
+	}
+
+	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+		if (entry->flag && entry->dmabuf == idmabuf &&
+		    entry->dmabuf_w == width && entry->dmabuf_h == height) {
+			dmabuf = entry->dmabuf;
+			skip_realloc = 1;
+			MUA_PRINTK(MUA_INFO, "get skip_realloc(%d)\n", skip_realloc);
+			break;
+		}
+		if (entry == oldest && entry->dmabuf_w == width && entry->dmabuf_h == height) {
+			entry->flag = true;
+			dmabuf = entry->dmabuf;
+			MUA_PRINTK(MUA_INFO, "get dmabuf(%px) idmabuf(%px) flag(%d)\n",
+				   dmabuf, idmabuf, entry->flag);
+			break;
+		}
+	}
+	mutex_unlock(&mua_dev->mua_rec_buf_lock);
+
+	return dmabuf;
+}
+
+static void mua_realloc_buffer_bind(struct dma_buf *idmabuf,
+			struct dma_buf *fake_dmabuf, u32 width, u32 height)
+{
+	struct uvm_buf_obj *obj = NULL;
+	struct mua_buffer *buffer = NULL;
+	struct mua_realloc_buffer_list *entry, *tmp;
+
+	obj = dmabuf_get_uvm_buf_obj(fake_dmabuf);
+	buffer = container_of(obj, struct mua_buffer, base);
+
+	mutex_lock(&mua_dev->mua_rec_buf_lock);
+	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+		if (entry->dmabuf == buffer->idmabuf[1]) {
+			atomic_sub(1, &entry->dmabuf_ref);
+			MUA_PRINTK(MUA_INFO, "pre_idmabuf(%px) fake_dmabuf(%px) dmabuf_ref(%u)\n",
+				   entry->dmabuf, fake_dmabuf, atomic_read(&entry->dmabuf_ref));
+			break;
+		}
+	}
+
+	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+		if (entry->dmabuf == idmabuf &&
+		    entry->dmabuf_w == width && entry->dmabuf_h == height) {
+			entry->fake_dmabuf = fake_dmabuf;
+			atomic_add(1, &entry->dmabuf_ref);
+			MUA_PRINTK(MUA_INFO, "bind idmabuf(%px) fake_dmabuf(%px) dmabuf_ref(%u)\n",
+				   idmabuf, fake_dmabuf, atomic_read(&entry->dmabuf_ref));
+			break;
+		}
+	}
+	mutex_unlock(&mua_dev->mua_rec_buf_lock);
+}
+
+static void mua_realloc_buffer_put(struct dma_buf *idmabuf)
+{
+	struct mua_realloc_buffer_list *entry, *tmp;
+	bool all_ones = true;
+
+	mutex_lock(&mua_dev->mua_rec_buf_lock);
+	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+		if (entry->dmabuf == idmabuf) {
+			atomic_sub(1, &entry->dmabuf_ref);
+			break;
+		}
+	}
+
+	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+		if (atomic_read(&entry->dmabuf_ref) != 1) {
+			all_ones = false;
+			break;
+		}
+	}
+	if (all_ones) {
+		list_for_each_entry_safe(entry, tmp,
+				&mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+			MUA_PRINTK(MUA_INFO, "put dmabuf(%px).\n", entry->dmabuf);
+			dma_buf_put(entry->dmabuf);
+			list_del(&entry->dmabuf_list);
+			kfree(entry);
+		}
+	}
+	mutex_unlock(&mua_dev->mua_rec_buf_lock);
+	insert_count = 0;
+}
+
 static bool mua_is_valid_dmabuf(int fd)
 {
 	struct dma_buf *dmabuf = NULL;
@@ -227,7 +370,6 @@ static struct vframe_s *mua_dmabuf_get_vframe(struct dma_buf *dmabuf)
 static void mua_handle_free(struct uvm_buf_obj *obj)
 {
 	struct mua_buffer *buffer;
-	struct ion_buffer *ibuffer[2];
 	struct dma_buf *idmabuf[2];
 	int buf_cnt = 0;
 
@@ -235,23 +377,31 @@ static void mua_handle_free(struct uvm_buf_obj *obj)
 	if (!buffer)
 		return;
 
-	ibuffer[0] = buffer->ibuffer[0];
-	ibuffer[1] = buffer->ibuffer[1];
 	idmabuf[0] = buffer->idmabuf[0];
 	idmabuf[1] = buffer->idmabuf[1];
-	MUA_PRINTK(MUA_INFO, "%s idmabuf[0]=%px idmabuf[1]=%px\n",
-		   __func__, idmabuf[0], idmabuf[1]);
-	MUA_PRINTK(MUA_INFO, "%s ibuffer[0]=%px ibuffer[1]=%px\n",
-		   __func__, ibuffer[0], ibuffer[1]);
+	MUA_PRINTK(MUA_INFO, "mua handle free idmabuf[0]=%px idmabuf[1]=%px\n",
+		   idmabuf[0], idmabuf[1]);
 
-	while (buf_cnt < 2 && ibuffer[buf_cnt] && idmabuf[buf_cnt]) {
-		MUA_PRINTK(MUA_INFO, "%s free idmabuf[%d]\n", __func__, buf_cnt);
-		if (buf_cnt == 1 && mua_dummy_buffer_exit(idmabuf[buf_cnt]))
-			mua_dummy_buffer_put(idmabuf[buf_cnt]);
-		else
-			dma_buf_put(idmabuf[buf_cnt]);
-		buf_cnt++;
+	if (enable_rec_buf_pool) {
+		while (buf_cnt < 2 && idmabuf[0]) {
+			MUA_PRINTK(MUA_INFO, "free idmabuf[%d]\n", buf_cnt);
+			if (buf_cnt == 1)
+				mua_realloc_buffer_put(idmabuf[buf_cnt]);
+			else
+				dma_buf_put(idmabuf[buf_cnt]);
+			buf_cnt++;
+		}
+	} else {
+		while (buf_cnt < 2 && idmabuf[buf_cnt]) {
+			MUA_PRINTK(MUA_INFO, "free idmabuf[%d]\n", buf_cnt);
+			if (buf_cnt == 1 && mua_dummy_buffer_exit(idmabuf[buf_cnt]))
+				mua_dummy_buffer_put(idmabuf[buf_cnt]);
+			else
+				dma_buf_put(idmabuf[buf_cnt]);
+			buf_cnt++;
+		}
 	}
+	realloc_once = false;
 
 	kfree(buffer);
 }
@@ -458,7 +608,9 @@ static int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dma
 int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, void *vaddr)
 {
 	struct v4l_data_t val_data;
-	size_t buf_size = mua_calc_real_dmabuf_size(buffer->align,
+	size_t buf_size = 0;
+
+	buf_size = mua_calc_real_dmabuf_size(buffer->align,
 			buffer->byte_stride, buffer->height) * 2 / 3;
 
 	MUA_PRINTK(MUA_INFO, "soft decode buf size=%zu\n", buf_size);
@@ -564,7 +716,6 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 {
 	int i, j, num_pages;
 	struct dma_buf *idmabuf = NULL;
-	struct ion_buffer *ibuffer;
 	struct uvm_alloc_info info;
 	struct mua_buffer *buffer;
 	struct page *page;
@@ -582,7 +733,9 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	struct vframe_s *vf = NULL;
 	struct timeval start, end;
 	unsigned long time_use = 0;
+	bool fill_dummy_data = false;
 
+	do_gettimeofday(&start);
 	buffer = container_of(obj, struct mua_buffer, base);
 	if (!buffer)
 		return -EINVAL;
@@ -605,12 +758,20 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		return -EINVAL;
 	}
 
-	if (buffer->idmabuf[1])
-		pre_size = buffer->idmabuf[1]->size;
-	else if (buffer->idmabuf[0])
-		pre_size = buffer->idmabuf[0]->size;
-	else
-		pre_size = dmabuf->size;
+	heap = dma_heap_find(CODECMM_HEAP_NAME);
+	if (!heap) {
+		MUA_PRINTK(MUA_ERROR, "find heap: %s fail.\n", CODECMM_HEAP_NAME);
+		return -ENOMEM;
+	}
+
+	if (!enable_rec_buf_pool) {
+		if (buffer->idmabuf[1])
+			pre_size = buffer->idmabuf[1]->size;
+		else if (buffer->idmabuf[0])
+			pre_size = buffer->idmabuf[0]->size;
+		else
+			pre_size = dmabuf->size;
+	}
 
 	if (buffer->ion_flags & MUA_SIZE_SKIP)
 		new_size = buffer->origin_size;
@@ -621,56 +782,137 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	 * so we need align it before check with pre_size
 	 */
 	new_size = PAGE_ALIGN(new_size);
-	MUA_PRINTK(MUA_INFO, "buffer(0x%px)->size:%zu realloc new_size=%zu, pre_size = %zu\n",
-			buffer, buffer->size, new_size, pre_size);
-	if (new_size < pre_size)
-		new_size = pre_size;
-	heap = dma_heap_find(CODECMM_HEAP_NAME);
-	if (!heap) {
-		MUA_PRINTK(MUA_ERROR, "%s: dma_heap_find fail. heap name is %s\n",
-			__func__, CODECMM_HEAP_NAME);
-		return -ENOMEM;
-	}
+	MUA_PRINTK(MUA_INFO, "buffer(0x%px)->size:%zu realloc new_size=%zu\n",
+			buffer, buffer->size, new_size);
 
-	if (pre_size != new_size && buffer->idmabuf[1]) {
-		dma_buf_put(buffer->idmabuf[1]);
-		buffer->idmabuf[1] = NULL;
-	}
+	if (enable_rec_buf_pool) {
+		int ret;
 
-	if (skip_fill_buf && !buffer->idmabuf[1]) {
-		idmabuf = mua_dummy_buffer_get(buffer->width, buffer->height);
-		buffer->idmabuf[1] = idmabuf;
-	}
-
-	if (!buffer->idmabuf[1]) {
-		idmabuf = dma_heap_buffer_alloc(heap, new_size,
-			O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
-		if (IS_ERR(idmabuf)) {
-			MUA_PRINTK(MUA_ERROR, "%s: dma_heap_buffer_alloc fail.\n", __func__);
-			return -ENOMEM;
+		idmabuf = mua_realloc_buffer_get(buffer->idmabuf[1],
+				buffer->width, buffer->height);
+		MUA_PRINTK(MUA_INFO, "idmabuf(%px) don't do realloc.\n", idmabuf);
+		if (skip_realloc) {
+			MUA_PRINTK(MUA_INFO, "idmabuf is same.\n");
+			skip_realloc = 0;
+			return 0;
 		}
-		MUA_PRINTK(MUA_INFO, "%s: idmabuf(%px) alloc success.\n", __func__, idmabuf);
 
-		ibuffer = idmabuf->priv;
-		if (ibuffer) {
+		if (!idmabuf && insert_count) {
+			MUA_PRINTK(MUA_ERROR, "idmabuf is NULL/all used.\n");
+			idmabuf = dma_heap_buffer_alloc(heap, new_size,
+				O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
+			if (IS_ERR(idmabuf)) {
+				MUA_PRINTK(MUA_ERROR, "alloc idmabuf fail.\n");
+				return -ENOMEM;
+			}
+			MUA_PRINTK(MUA_INFO, "idmabuf(%px) alloc success.\n", idmabuf);
+
+			ret = mua_realloc_buffer_insert(idmabuf, buffer->width, buffer->height);
+			if (ret) {
+				MUA_PRINTK(MUA_ERROR, "insert rec_buf fail.\n");
+				return -ENOMEM;
+			}
+		} else if (!idmabuf && !insert_count) {
+			MUA_PRINTK(MUA_ERROR, "idmabuf is NULL.\n");
+			idmabuf = dma_heap_buffer_alloc(heap, new_size,
+				O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
+			if (IS_ERR(idmabuf)) {
+				MUA_PRINTK(MUA_ERROR, "alloc idmabuf fail.\n");
+				return -ENOMEM;
+			}
+			MUA_PRINTK(MUA_INFO, "idmabuf(%px) alloc success.\n", idmabuf);
+
 			attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
 			if (!attachment) {
-				MUA_PRINTK(MUA_ERROR, "%s: Failed to set dma attach", __func__);
+				MUA_PRINTK(MUA_ERROR, "failed to set dma attach.\n");
 				return -ENOMEM;
 			}
 
 			src_sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
 			if (!src_sgt) {
-				MUA_PRINTK(MUA_ERROR, "%s: Failed to get dma sg", __func__);
+				MUA_PRINTK(MUA_ERROR, "failed to get dma sg.\n");
 				dma_buf_detach(idmabuf, attachment);
 				return -ENOMEM;
 			}
 
-			MUA_PRINTK(MUA_INFO, "%s: src_sgt(%px). nents = %u, length=%u\n",
-				__func__, src_sgt, src_sgt->nents, src_sgt->sgl->length);
+			MUA_PRINTK(MUA_INFO, "src_sgt(%px). nents = %u, length=%u\n",
+				   src_sgt, src_sgt->nents, src_sgt->sgl->length);
 			page = sg_page(src_sgt->sgl);
 			buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
-			buffer->ibuffer[1] = ibuffer;
+			buffer->idmabuf[1] = idmabuf;
+			buffer->sg_table = src_sgt;
+
+			info.sgt = src_sgt;
+			dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
+			fill_dummy_data = true;
+		} else if (!idmabuf) {
+			MUA_PRINTK(MUA_ERROR, "realloc buffer reached up limit.\n");
+			return -ENOMEM;
+		}
+		mua_realloc_buffer_bind(idmabuf, dmabuf, buffer->width, buffer->height);
+
+		attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
+		if (!attachment) {
+			MUA_PRINTK(MUA_ERROR, "failed to set dma attach.\n");
+			return -ENOMEM;
+		}
+
+		src_sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
+		if (!src_sgt) {
+			MUA_PRINTK(MUA_ERROR, "failed to get dma sg.\n");
+			dma_buf_detach(idmabuf, attachment);
+			return -ENOMEM;
+		}
+
+		MUA_PRINTK(MUA_INFO, "src_sgt(%px). nents = %u, length=%u\n",
+			   src_sgt, src_sgt->nents, src_sgt->sgl->length);
+		page = sg_page(src_sgt->sgl);
+		buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
+		buffer->idmabuf[1] = idmabuf;
+		buffer->sg_table = src_sgt;
+
+		info.sgt = src_sgt;
+		dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
+	} else {
+		if (new_size < pre_size)
+			new_size = pre_size;
+
+		if (pre_size != new_size && buffer->idmabuf[1]) {
+			dma_buf_put(buffer->idmabuf[1]);
+			buffer->idmabuf[1] = NULL;
+		}
+
+		if (skip_fill_buf && !buffer->idmabuf[1]) {
+			idmabuf = mua_dummy_buffer_get(buffer->width, buffer->height);
+			buffer->idmabuf[1] = idmabuf;
+		}
+
+		if (!buffer->idmabuf[1]) {
+			idmabuf = dma_heap_buffer_alloc(heap, new_size,
+				O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
+			if (IS_ERR(idmabuf)) {
+				MUA_PRINTK(MUA_ERROR, "alloc idmabuf fail.\n");
+				return -ENOMEM;
+			}
+			MUA_PRINTK(MUA_INFO, "idmabuf(%px) alloc success.\n", idmabuf);
+
+			attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
+			if (!attachment) {
+				MUA_PRINTK(MUA_ERROR, "failed to set dma attach.\n");
+				return -ENOMEM;
+			}
+
+			src_sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
+			if (!src_sgt) {
+				MUA_PRINTK(MUA_ERROR, "failed to get dma sg.\n");
+				dma_buf_detach(idmabuf, attachment);
+				return -ENOMEM;
+			}
+
+			MUA_PRINTK(MUA_INFO, "src_sgt(%px). nents = %u, length=%u\n",
+				   src_sgt, src_sgt->nents, src_sgt->sgl->length);
+			page = sg_page(src_sgt->sgl);
+			buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
 			buffer->idmabuf[1] = idmabuf;
 			buffer->sg_table = src_sgt;
 
@@ -679,33 +921,31 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 			if (skip_fill_buf)
 				mua_dummy_buffer_insert(idmabuf, buffer->width,
 							buffer->height);
-		}
-	} else {
-		idmabuf = buffer->idmabuf[1];
-		MUA_PRINTK(MUA_INFO, "%s: idmabuf(%px) don't do realloc.\n",
-			__func__, idmabuf);
-		attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
-		if (!attachment) {
-			MUA_PRINTK(MUA_ERROR, "%s(%d): Failed to set dma attach",
-				__func__, __LINE__);
-			return -ENOMEM;
-		}
+		} else {
+			idmabuf = buffer->idmabuf[1];
+			MUA_PRINTK(MUA_INFO, "idmabuf(%px) don't do realloc.\n", idmabuf);
+			attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
+			if (!attachment) {
+				MUA_PRINTK(MUA_ERROR, "failed to set dma attach.\n");
+				return -ENOMEM;
+			}
 
-		src_sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
-		if (!src_sgt) {
-			MUA_PRINTK(MUA_ERROR, "%s(%d): Failed to get dma sg", __func__, __LINE__);
-			dma_buf_detach(idmabuf, attachment);
-			return -ENOMEM;
+			src_sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
+			if (!src_sgt) {
+				MUA_PRINTK(MUA_ERROR, "failed to get dma sg.\n");
+				dma_buf_detach(idmabuf, attachment);
+				return -ENOMEM;
+			}
+
+			MUA_PRINTK(MUA_INFO, "src_sgt(%px). nents = %u, length=%u\n",
+				   src_sgt, src_sgt->nents, src_sgt->sgl->length);
+			page = sg_page(src_sgt->sgl);
+			buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
+			buffer->sg_table = src_sgt;
+
+			info.sgt = src_sgt;
+			dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
 		}
-
-		MUA_PRINTK(MUA_INFO, "%s(%d): src_sgt(%px). nents = %u, length=%u\n",
-			__func__, __LINE__, src_sgt, src_sgt->nents, src_sgt->sgl->length);
-		page = sg_page(src_sgt->sgl);
-		buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
-		buffer->sg_table = src_sgt;
-
-		info.sgt = src_sgt;
-		dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
 	}
 
 	//start to do vmap
@@ -732,8 +972,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 
 	vaddr = vmap(page_array, num_pages, VM_MAP, pgprot);
 	if (!vaddr) {
-		MUA_PRINTK(MUA_ERROR, "vmap fail, size: %d\n",
-			   num_pages << PAGE_SHIFT);
+		MUA_PRINTK(MUA_ERROR, "vmap fail, size: %d\n", num_pages << PAGE_SHIFT);
 		vfree(page_array);
 		if (src_sgt && attachment) {
 			dma_buf_unmap_attachment(attachment, src_sgt, DMA_BIDIRECTIONAL);
@@ -743,21 +982,29 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		return -ENOMEM;
 	}
 	vfree(page_array);
-	MUA_PRINTK(MUA_INFO, "buffer vaddr: %px.\n", vaddr);
+	MUA_PRINTK(MUA_INFO, "realloc buffer vaddr: %px.\n", vaddr);
 
 	//start to filldata
-	do_gettimeofday(&start);
-	mua_screencap_filldata(buffer, dmabuf, vaddr, vf, skip_fill_buf);
-	do_gettimeofday(&end);
-	time_use = (end.tv_sec - start.tv_sec) * 1000 +
-				(end.tv_usec - start.tv_usec) / 1000;
-	MUA_PRINTK(MUA_INFO, "mua screencap use time: %ldms\n", time_use);
+	if (enable_rec_buf_pool && fill_dummy_data) {
+		size_t buf_size = mua_calc_real_dmabuf_size(buffer->align,
+				buffer->byte_stride, buffer->height) * 2 / 3;
+
+		MUA_PRINTK(MUA_INFO, "force fill dummy data buf_size=%zu\n", buf_size);
+		memset(vaddr, 0x15, buf_size);
+		memset(vaddr + buf_size, 0x80, buf_size / 2);
+	} else {
+		mua_screencap_filldata(buffer, dmabuf, vaddr, vf, skip_fill_buf);
+	}
 
 	vunmap(vaddr);
 	if (src_sgt && attachment) {
 		dma_buf_unmap_attachment(attachment, src_sgt, DMA_BIDIRECTIONAL);
 		dma_buf_detach(idmabuf, attachment);
 	}
+	do_gettimeofday(&end);
+	time_use = (end.tv_sec - start.tv_sec) * 1000 +
+				(end.tv_usec - start.tv_usec) / 1000;
+	MUA_PRINTK(MUA_INFO, "uvm realloc use time: %ldms\n", time_use);
 
 	return 0;
 }
@@ -767,7 +1014,6 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 {
 	int i, j, num_pages;
 	struct dma_buf *idmabuf;
-	struct ion_buffer *ibuffer;
 	struct uvm_alloc_info info;
 	struct mua_buffer *buffer;
 	struct page *page;
@@ -786,7 +1032,6 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 		return -EINVAL;
 
 	memset(&info, 0, sizeof(info));
-	MUA_PRINTK(MUA_INFO, "%s, %d.\n", __func__, __LINE__);
 
 	if (!enable_screencap && current->tgid == mua_dev->pid &&
 	    buffer->commit_display) {
@@ -794,51 +1039,43 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 		return -ENODEV;
 	}
 
-	if (!buffer->ibuffer[0]) {
-		if (buffer->ion_flags & MUA_USAGE_PROTECTED)
-			name = CODECMM_SECURE_HEAP_NAME;
-		else if (buffer->ion_flags & ION_FLAG_CACHED)
-			name = CODECMM_CACHED_HEAP_NAME;
+	if (buffer->ion_flags & MUA_USAGE_PROTECTED)
+		name = CODECMM_SECURE_HEAP_NAME;
+	else if (buffer->ion_flags & ION_FLAG_CACHED)
+		name = CODECMM_CACHED_HEAP_NAME;
 
-		heap = dma_heap_find(name);
-		if (!heap) {
-			MUA_PRINTK(MUA_ERROR, "%s: dma_heap_find fail. heap name is %s\n",
-				   __func__, name);
-			return -ENOMEM;
-		}
-
-		idmabuf = dma_heap_buffer_alloc(heap, dmabuf->size, O_RDWR,
-			DMA_HEAP_VALID_HEAP_FLAGS);
-		if (IS_ERR(idmabuf)) {
-			MUA_PRINTK(MUA_ERROR, "%s: dma_heap_buffer_alloc fail. name is %s\n",
-				__func__, name);
-			return -ENOMEM;
-		}
-
-		ibuffer = idmabuf->priv;
-		if (ibuffer) {
-			attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
-			if (!attachment) {
-				MUA_PRINTK(MUA_ERROR, "%s: Failed to set dma attach", __func__);
-				return -ENOMEM;
-			}
-
-			src_sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
-			if (!src_sgt) {
-				MUA_PRINTK(MUA_ERROR, "%s: Failed to get dma sg", __func__);
-				dma_buf_detach(idmabuf, attachment);
-				return -ENOMEM;
-			}
-
-			page = sg_page(src_sgt->sgl);
-			buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
-			buffer->ibuffer[0] = ibuffer;
-			buffer->sg_table = src_sgt;
-			buffer->idmabuf[0] = idmabuf;
-			info.sgt = src_sgt;
-			dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
-		}
+	heap = dma_heap_find(name);
+	if (!heap) {
+		MUA_PRINTK(MUA_ERROR, "find heap: %s fail.\n", name);
+		return -ENOMEM;
 	}
+
+	idmabuf = dma_heap_buffer_alloc(heap, dmabuf->size, O_RDWR,
+		DMA_HEAP_VALID_HEAP_FLAGS);
+	if (IS_ERR(idmabuf)) {
+		MUA_PRINTK(MUA_ERROR, "alloc idmabuf fail.\n");
+		return -ENOMEM;
+	}
+
+	attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
+	if (!attachment) {
+		MUA_PRINTK(MUA_ERROR, "failed to set dma attach.\n");
+		return -ENOMEM;
+	}
+
+	src_sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
+	if (!src_sgt) {
+		MUA_PRINTK(MUA_ERROR, "failed to get dma sg.\n");
+		dma_buf_detach(idmabuf, attachment);
+		return -ENOMEM;
+	}
+
+	page = sg_page(src_sgt->sgl);
+	buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
+	buffer->sg_table = src_sgt;
+	buffer->idmabuf[0] = idmabuf;
+	info.sgt = src_sgt;
+	dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
 
 	//start to do vmap
 	if (!buffer->sg_table) {
@@ -864,8 +1101,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 
 	vaddr = vmap(page_array, num_pages, VM_MAP, pgprot);
 	if (!vaddr) {
-		MUA_PRINTK(MUA_ERROR, "vmap fail, size: %d\n",
-			   num_pages << PAGE_SHIFT);
+		MUA_PRINTK(MUA_ERROR, "vmap fail, size: %d\n", num_pages << PAGE_SHIFT);
 		vfree(page_array);
 		if (src_sgt && attachment) {
 			dma_buf_unmap_attachment(attachment, src_sgt, DMA_BIDIRECTIONAL);
@@ -875,7 +1111,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 		return -ENOMEM;
 	}
 	vfree(page_array);
-	MUA_PRINTK(MUA_INFO, "buffer vaddr: %px.\n", vaddr);
+	MUA_PRINTK(MUA_INFO, "delay_alloc buffer vaddr: %px.\n", vaddr);
 
 	//start to filldata
 	meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
@@ -893,7 +1129,6 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 	struct mua_buffer *buffer;
 	struct uvm_alloc_info info;
 	struct dma_buf *idmabuf;
-	struct ion_buffer *ibuffer;
 	char *name = CODECMM_HEAP_NAME;
 	struct dma_heap *heap;
 	struct dma_buf_attachment *attachment = NULL;
@@ -941,9 +1176,40 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 		MUA_PRINTK(MUA_INFO, "%s: idmabuf(%px) alloc success. heap name is %s, flags=%u\n",
 			__func__, idmabuf, name, data->flags);
 
-		ibuffer = idmabuf->priv;
-		buffer->ibuffer[0] = ibuffer;
-		buffer->ibuffer[1] = NULL;
+		if (enable_rec_buf_pool) {
+			struct dma_buf *realloc_idmabuf[20];
+			struct dma_heap *realloc_heap[20];
+			int i, ret;
+
+			if (!realloc_once) {
+				for (i = 0; i < realloc_buf_count; i++) {
+					realloc_heap[i] = dma_heap_find(CODECMM_HEAP_NAME);
+					if (!realloc_heap[i]) {
+						MUA_PRINTK(MUA_ERROR, "find heap: %s fail.\n",
+							    CODECMM_HEAP_NAME);
+						goto free_buffer;
+					}
+
+					realloc_idmabuf[i] = dma_heap_buffer_alloc(realloc_heap[i],
+						data->size, O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
+					if (IS_ERR(realloc_idmabuf[i])) {
+						MUA_PRINTK(MUA_ERROR, "alloc rec_idmabuf fail.\n");
+						goto free_buffer;
+					}
+					MUA_PRINTK(MUA_INFO, "realloc_idmabuf[%d](%px) alloc.\n",
+						   i, realloc_idmabuf[i]);
+
+					ret = mua_realloc_buffer_insert(realloc_idmabuf[i],
+							buffer->width, buffer->height);
+					if (ret) {
+						MUA_PRINTK(MUA_ERROR, "insert rec_buf fail.\n");
+						goto free_buffer;
+					}
+				}
+			}
+			realloc_once = true;
+		}
+
 		buffer->idmabuf[0] = idmabuf;
 		buffer->idmabuf[1] = NULL;
 
@@ -1427,12 +1693,16 @@ static const struct file_operations mua_fops = {
 static int mua_probe(struct platform_device *pdev)
 {
 	int ret;
-	u32 enable_scp;
+	u32 enable_scp, enable_recbuf_pool;
 
 	ret = of_property_read_u32(pdev->dev.of_node, "enable_screencap", &enable_scp);
 	if (ret)
 		enable_scp = 0;
 	enable_screencap = enable_scp;
+	ret = of_property_read_u32(pdev->dev.of_node, "enable_rec_buf_pool", &enable_recbuf_pool);
+	if (ret)
+		enable_recbuf_pool = 0;
+	enable_rec_buf_pool = enable_recbuf_pool;
 	uvmdev = &pdev->dev;
 
 	mua_dev = kzalloc(sizeof(*mua_dev), GFP_KERNEL);
@@ -1444,6 +1714,10 @@ static int mua_probe(struct platform_device *pdev)
 	mua_dev->dev.fops = &mua_fops;
 	mutex_init(&mua_dev->buffer_lock);
 	mua_dummy_buffer_init();
+	mua_dev->mua_rec_buf_list.dmabuf = NULL;
+	mua_dev->mua_rec_buf_list.fake_dmabuf = NULL;
+	INIT_LIST_HEAD(&mua_dev->mua_rec_buf_list.dmabuf_list);
+	mutex_init(&mua_dev->mua_rec_buf_lock);
 
 	return misc_register(&mua_dev->dev);
 }
