@@ -104,6 +104,7 @@ enum cmd_aux_pkt {
 	AUX_PKT_SET_EMP_SBTM,
 	AUX_PKT_SET_SDP, /* used for setting the Secondary Data Packet */
 	AUX_PKT_GET_SDP, /* used for getting the Secondary Data Packet */
+	AUX_PKT_SDP_INFO_DUMP
 };
 
 #define OFF_AVMUTE		0x0
@@ -163,6 +164,7 @@ enum cmd_core_misc {
 	CORE_MISC_HW_INIT,
 	CORE_MISC_TRIGGER_HPD,
 	CORE_MISC_EVENT_PROCESS,
+	CORE_MISC_REG_RD_WR,
 };
 
 #define HDMITX_EARLY_SUSPEND	0x1

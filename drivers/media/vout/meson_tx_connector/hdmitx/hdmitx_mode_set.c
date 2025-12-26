@@ -16,6 +16,9 @@
 #include "hdmitx_module.h"
 #include "hdmitx_hdr.h"
 #include "meson_tx_task_mgr.h"
+#include "meson_tx_event_mgr.h"
+#include "meson_tx_internal.h"
+
 #include "tx21/hdmitx_packet.h"
 
 const struct tx_timing *meson_tx_mode_match_timing_name(const char *name);
@@ -34,23 +37,26 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 	if (tx_comm->base.hpd_state == 0 || tx_comm->suspend_flag) {
 		HDMITX_ERROR("%s current hpd_state/suspend (%d,%d), exit\n",
 			__func__, tx_comm->base.hpd_state, tx_comm->suspend_flag);
-		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_SKIP);
+		meson_tx_tracer_write_event(tx_comm->base.tx_tracer, TX_KMS_SKIP);
 		mutex_unlock(&tx_comm->base.valid_mode_mutex);
 		return -1;
 	}
 
-	/*TODO: keep for hw module to read format_para, remove later.*/
 	memcpy(&tx_comm->fmt_para, para, sizeof(struct meson_tx_format_para));
 
 	/*check if vic supported by rx*/
-	if (!meson_tx_edid_validate_vic(&tx_comm->base.rxcap, tx_comm->fmt_para.vic)) {
-		HDMITX_ERROR("edid invalid vic-%d return error\n", tx_comm->fmt_para.vic);
+	if (!meson_tx_edid_validate_vic(&tx_comm->base.rxcap,
+		tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.vic)) {
+		HDMITX_ERROR("edid invalid vic-%d return error\n",
+			tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.vic);
 		mutex_unlock(&tx_comm->base.valid_mode_mutex);
 		return -EINVAL;
 	}
 
-	if (hdmitx_common_validate_vic(tx_comm, tx_comm->fmt_para.vic)) {
-		HDMITX_ERROR("validate vic-%d return error\n", tx_comm->fmt_para.vic);
+	if (hdmitx_common_validate_vic(tx_comm,
+		tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.vic)) {
+		HDMITX_ERROR("validate vic-%d return error\n",
+			tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.vic);
 		mutex_unlock(&tx_comm->base.valid_mode_mutex);
 		return -EINVAL;
 	}
@@ -103,8 +109,8 @@ static int hdmitx_common_post_enable_mode(struct hdmitx_common *tx_comm,
 	 * need set audio mode again when set video mode, so send the event
 	 * to audio hal to reset alsa and set audio mode
 	 */
-	hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
-		HDMITX_VMODE_AUDIO_EVENT, true, true);
+	meson_tx_event_mgr_send_uevent(tx_comm->base.event_mgr,
+		TX_VMODE_AUDIO_EVENT, true, true);
 
 	return 0;
 }
@@ -156,11 +162,11 @@ int hdmitx_common_do_mode_setting(struct hdmitx_common *tx_comm,
 		goto fail;
 	}
 
-	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_ENABLE_OUTPUT);
+	meson_tx_tracer_write_event(tx_comm->base.tx_tracer, TX_KMS_ENABLE_OUTPUT);
 
 fail:
 	if (ret < 0)
-		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_ERROR);
+		meson_tx_tracer_write_event(tx_comm->base.tx_tracer, TX_KMS_ERROR);
 
 	mutex_unlock(&tx_comm->base.set_mode_mutex);
 	return ret;
@@ -270,7 +276,7 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 		tx_comm->hdcptx_comm.ready = 0;
 		arg = TMDS_PHY_DISABLE;
 		hdmitx_hw_cntl(tx_hw, PLATFORM_PHY_OP, (void *)&arg, NULL);
-		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_DISABLE_OUTPUT);
+		meson_tx_tracer_write_event(tx_comm->base.tx_tracer, TX_KMS_DISABLE_OUTPUT);
 	}
 
 	/* disable frl/dsc/vrr */
@@ -341,9 +347,9 @@ void hdmitx_common_late_resume(struct hdmitx_common *tx_comm)
 	hdmitx_hw_cntl(tx_hw_base, CORE_MISC_SUSPEND_RESUME_CNTL, (void *)&arg, NULL);
 
 	/* step3: SW: post uevent to system */
-	hdmitx_common_notify_hpd_status(tx_comm, true);
-	hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
-		HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP, false);
+	meson_tx_notify_hpd_status(&tx_comm->base, true);
+	meson_tx_event_mgr_send_uevent(tx_comm->base.event_mgr,
+		TX_HDCPPWR_EVENT, HDMI_WAKEUP, false);
 }
 
 /* plugin process: action should be done in lock.
@@ -359,10 +365,6 @@ int hdmitx_hpd_plugin_handler(struct meson_tx_dev *tx_dev)
 		HDMITX_ERROR("%s NULL tx_dev pointer\n", __func__);
 		return 1;
 	}
-
-	HDMITX_INFO(SYS "hpd_high\n");
-	/* TODO: trace event move to common */
-	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_HPD_PLUGIN);
 
 	/* step1: SW: start rxsense check */
 	if (tx_comm->rxsense_policy) {
@@ -397,9 +399,7 @@ int hdmitx_hpd_plugin_handler(struct meson_tx_dev *tx_dev)
 	/* SW: special for hdmi hdcp repeater */
 	if (tx_comm->hdcptx_comm.hdcp_rpt_en)
 		rx_set_repeater_support(1);
-	/* TODO: move to tx_common */
 	tx_comm->hdcptx_comm.hpd_state = 1;
-	hdmitx_common_notify_hpd_status(tx_comm, false);
 	return 0;
 }
 
@@ -413,18 +413,12 @@ int hdmitx_hpd_plugout_handler(struct meson_tx_dev *tx_dev)
 		return 1;
 	}
 
-	HDMITX_INFO(SYS "hpd_low\n");
-	/* TODO: trace event move to common */
-	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_HPD_PLUGOUT);
-
 	/* disable output */
 	hdmitx_common_output_disable(tx_comm, true, true, true, tx_comm->forced_edid ? 0 : 1);
 	/* private process for plugout */
 	hdmitx_hw_cntl(tx_comm->tx_hw, MODE_FLOW_PRIVATE_PLUGOUT_PROCESS, NULL, NULL);
 
-	/* TODO: move to tx_common */
 	tx_comm->hdcptx_comm.hpd_state = 0;
-	hdmitx_common_notify_hpd_status(tx_comm, false);
 	return 0;
 }
 
@@ -467,7 +461,7 @@ void hdmitx_bootup_post_process(struct hdmitx_common *tx_comm)
 			frl_rate = hdmitx_hw_cntl(tx_comm->tx_hw, FRL_GET_MODE, NULL, NULL);
 		/* if current mode is TMDS/nonFRL, then resend_div40 */
 		if (frl_rate == FRL_NONE) {
-			if (tx_comm->fmt_para.tmds_clk_div40)
+			if (tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.tmds_clk_div40)
 				hdmitx_hw_cntl(tx_comm->tx_hw, DDC_SCDC_DIV40_SCRAMB,
 					(void *)&arg, NULL);
 		}

@@ -52,6 +52,7 @@
 #include "hdmitx_audio.h"
 #include "hdmitx_module.h"
 #include "meson_tx_hw_task.h"
+#include "meson_tx_event_mgr.h"
 
 #define HDMITX_VIC_MASK			0xff
 
@@ -680,15 +681,15 @@ static int hdmitx_calc_format_para(struct hdmitx_hw_common *tx_hw,
 		return -EINVAL;
 
 	/*update tmds clock.*/
-	para->tmds_clk = hdmitx_calc_tmds_clk(para->timing.pixel_freq,
+	para->tx_hw_para.hdmitx_hw_para.tmds_clk = hdmitx_calc_tmds_clk(para->timing.pixel_freq,
 		para->cs, para->cd);
 
-	if (para->tmds_clk > 340000) {
-		para->scrambler_en = 1;
-		para->tmds_clk_div40 = 1;
+	if (para->tx_hw_para.hdmitx_hw_para.tmds_clk > 340000) {
+		para->tx_hw_para.hdmitx_hw_para.scrambler_en = 1;
+		para->tx_hw_para.hdmitx_hw_para.tmds_clk_div40 = 1;
 	} else {
-		para->scrambler_en = 0;
-		para->tmds_clk_div40 = 0;
+		para->tx_hw_para.hdmitx_hw_para.scrambler_en = 0;
+		para->tx_hw_para.hdmitx_hw_para.tmds_clk_div40 = 0;
 	}
 
 	return 0;
@@ -956,7 +957,7 @@ static void hdmi_tvenc1080i_set(struct meson_tx_format_para *param)
 		vs_bline_odd = 0, vs_eline_odd = 0;
 	unsigned long vso_begin_evn = 0, vso_begin_odd = 0;
 
-	if (param->vic == HDMI_5_1920x1080i60_16x9) {
+	if (param->tx_hw_para.hdmitx_hw_para.vic == HDMI_5_1920x1080i60_16x9) {
 		INTERLACE_MODE = 1;
 		PIXEL_REPEAT_VENC = 0;
 		PIXEL_REPEAT_HDMI = 0;
@@ -971,7 +972,7 @@ static void hdmi_tvenc1080i_set(struct meson_tx_format_para *param)
 		VSYNC_LINES = 5;
 		SOF_LINES = 15;
 		TOTAL_FRAMES = 4;
-	} else if (param->vic == HDMI_20_1920x1080i50_16x9) {
+	} else if (param->tx_hw_para.hdmitx_hw_para.vic == HDMI_20_1920x1080i50_16x9) {
 		INTERLACE_MODE = 1;
 		PIXEL_REPEAT_VENC = 0;
 		PIXEL_REPEAT_HDMI = 0;
@@ -1101,11 +1102,11 @@ static void hdmi_tvenc4k2k_set(struct meson_tx_format_para *param)
  * we need to delay Vsync by 1 line as well, to meet the timing
  */
 	if (global_tx_hw->base->chip_data->chip_type > MESON_CPU_ID_TM2 &&
-		is_hdmi4k_support_420(param->vic) &&
+		is_hdmi4k_support_420(param->tx_hw_para.hdmitx_hw_para.vic) &&
 		param->cs == HDMI_COLORSPACE_YUV420)
 		vs_adjust_420 = 1;
 
-	switch (param->vic) {
+	switch (param->tx_hw_para.hdmitx_hw_para.vic) {
 	case HDMI_95_3840x2160p30_16x9:
 	case HDMI_97_3840x2160p60_16x9:
 		INTERLACE_MODE = 0U;
@@ -1207,7 +1208,8 @@ static void hdmi_tvenc4k2k_set(struct meson_tx_format_para *param)
 		TOTAL_FRAMES = 3;
 		break;
 	default:
-		HDMITX_INFO("hdmitx20: no setting for VIC = %d\n", param->vic);
+		HDMITX_INFO("hdmitx20: no setting for VIC = %d\n",
+			param->tx_hw_para.hdmitx_hw_para.vic);
 		break;
 	}
 
@@ -1270,7 +1272,7 @@ static void hdmi_tvenc4k2k_set(struct meson_tx_format_para *param)
 			(0 << 12)
 	);
 
-	if ((is_hdmi4k_support_420(param->vic) &&
+	if ((is_hdmi4k_support_420(param->tx_hw_para.hdmitx_hw_para.vic) &&
 		param->cs == HDMI_COLORSPACE_YUV420) &&
 	    global_tx_hw->base->chip_data->chip_type >= MESON_CPU_ID_TM2B) {
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 8, 1);
@@ -1306,7 +1308,7 @@ static void hdmi_tvenc480i_set(struct meson_tx_format_para *param)
 	if (global_tx_hw->base->chip_data->chip_type < MESON_CPU_ID_SC2)
 		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 8, 1);
 
-	switch (param->vic) {
+	switch (param->tx_hw_para.hdmitx_hw_para.vic) {
 	case HDMI_6_720x480i60_4x3:
 	case HDMI_7_720x480i60_16x9:
 	case HDMI_11_2880x480i60_16x9:
@@ -1455,8 +1457,8 @@ static void hdmi_tvenc480i_set(struct meson_tx_format_para *param)
 			(1 << 8) |
 			(1 << 12)
 	);
-	if (param->vic == HDMI_11_2880x480i60_16x9 ||
-	    param->vic == HDMI_26_2880x576i50_16x9)
+	if (param->tx_hw_para.hdmitx_hw_para.vic == HDMI_11_2880x480i60_16x9 ||
+	    param->tx_hw_para.hdmitx_hw_para.vic == HDMI_26_2880x576i50_16x9)
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 3, 12, 4);
 }
 
@@ -1484,9 +1486,9 @@ static void hdmi_tvenc_vesa_set(struct meson_tx_format_para *param)
 	unsigned long vso_begin_evn = 0;
 	const struct tx_timing *vtiming = NULL;
 
-	vtiming = meson_tx_mode_vic_to_timing(param->vic);
+	vtiming = meson_tx_mode_vic_to_timing(param->tx_hw_para.hdmitx_hw_para.vic);
 	if (!vtiming) {
-		HDMITX_INFO("don't find Paras for VESA %d\n", param->vic);
+		HDMITX_INFO("don't find Paras for VESA %d\n", param->tx_hw_para.hdmitx_hw_para.vic);
 		return;
 	}
 
@@ -1558,7 +1560,7 @@ static void hdmi_tvenc_vesa_set(struct meson_tx_format_para *param)
 	hd_write_reg(P_ENCP_DVI_VSO_BEGIN_EVN, vso_begin_evn);  /* 1692 */
 	hd_write_reg(P_ENCP_DVI_VSO_END_EVN, vso_begin_evn);  /* 1692 */
 
-	switch (param->vic) {
+	switch (param->tx_hw_para.hdmitx_hw_para.vic) {
 	default:
 		hd_write_reg(P_VPU_HDMI_SETTING, (0 << 0) |
 				(0 << 1) | /* [	1] src_sel_encp */
@@ -1596,19 +1598,20 @@ static void hdmi_tvenc_set(struct meson_tx_format_para *param)
 	unsigned long vso_begin_evn = 0;
 	const struct tx_timing *hdmi_encp_timing = NULL;
 
-	if ((param->vic & HDMITX_VESA_OFFSET) == HDMITX_VESA_OFFSET) {
+	if ((param->tx_hw_para.hdmitx_hw_para.vic & HDMITX_VESA_OFFSET) == HDMITX_VESA_OFFSET) {
 		/* VESA modes setting */
 		hdmi_tvenc_vesa_set(param);
 		return;
 	}
 
-	hdmi_encp_timing = meson_tx_mode_vic_to_timing(param->vic);
+	hdmi_encp_timing = meson_tx_mode_vic_to_timing(param->tx_hw_para.hdmitx_hw_para.vic);
 	if (!hdmi_encp_timing) {
-		HDMITX_INFO("don't find Paras for VIC : %d\n", param->vic);
+		HDMITX_INFO("don't find Paras for VIC : %d\n",
+			param->tx_hw_para.hdmitx_hw_para.vic);
 		return;
-	} // TODO
+	}
 
-	switch (param->vic) {
+	switch (param->tx_hw_para.hdmitx_hw_para.vic) {
 	case HDMI_109_1280x720p48_64x27:
 		INTERLACE_MODE = 0U;
 		PIXEL_REPEAT_VENC = 0;
@@ -1865,10 +1868,10 @@ static void hdmi_tvenc_set(struct meson_tx_format_para *param)
 	hd_write_reg(P_ENCP_DVI_VSO_BEGIN_EVN, vso_begin_evn);  /* 1692 */
 	hd_write_reg(P_ENCP_DVI_VSO_END_EVN, vso_begin_evn);  /* 1692 */
 
-	if (param->vic == HDMI_111_1920x1080p48_16x9 ||
-	    param->vic == HDMI_112_1920x1080p48_64x27)
+	if (param->tx_hw_para.hdmitx_hw_para.vic == HDMI_111_1920x1080p48_16x9 ||
+	    param->tx_hw_para.hdmitx_hw_para.vic == HDMI_112_1920x1080p48_64x27)
 		hd_write_reg(P_ENCP_DE_V_END_EVEN, 0x230);
-	switch (param->vic) {
+	switch (param->tx_hw_para.hdmitx_hw_para.vic) {
 	case HDMI_109_1280x720p48_64x27:
 	case HDMI_110_1680x720p48_64x27:
 	case HDMI_111_1920x1080p48_16x9:
@@ -1890,8 +1893,8 @@ static void hdmi_tvenc_set(struct meson_tx_format_para *param)
 				(1 << 8) |
 				(1 << 12)
 		);
-		if (param->vic == HDMI_11_2880x480i60_16x9 ||
-		    param->vic == HDMI_26_2880x576i50_16x9)
+		if (param->tx_hw_para.hdmitx_hw_para.vic == HDMI_11_2880x480i60_16x9 ||
+		    param->tx_hw_para.hdmitx_hw_para.vic == HDMI_26_2880x576i50_16x9)
 			hd_set_reg_bits(P_VPU_HDMI_SETTING, 3, 12, 4);
 		break;
 	case HDMI_5_1920x1080i60_16x9:
@@ -1941,8 +1944,8 @@ static void hdmi_tvenc_set(struct meson_tx_format_para *param)
 				(0 << 8) |
 				(0 << 12)
 		);
-		if (param->vic == HDMI_36_2880x480p60_16x9 ||
-		    param->vic == HDMI_38_2880x576p50_16x9)
+		if (param->tx_hw_para.hdmitx_hw_para.vic == HDMI_36_2880x480p60_16x9 ||
+		    param->tx_hw_para.hdmitx_hw_para.vic == HDMI_38_2880x576p50_16x9)
 			hd_set_reg_bits(P_VPU_HDMI_SETTING, 3, 12, 4);
 		break;
 	case HDMI_4_1280x720p60_16x9:
@@ -1968,8 +1971,8 @@ static void hdmi_tvenc_set(struct meson_tx_format_para *param)
 				(0 << 12)
 		);
 	}
-	if (param->vic == HDMI_36_2880x480p60_16x9 ||
-	    param->vic == HDMI_38_2880x576p50_16x9)
+	if (param->tx_hw_para.hdmitx_hw_para.vic == HDMI_36_2880x480p60_16x9 ||
+	    param->tx_hw_para.hdmitx_hw_para.vic == HDMI_38_2880x576p50_16x9)
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 3, 12, 4);
 }
 
@@ -2074,7 +2077,7 @@ do { \
 	RESET_HDMI_PHY();
 #undef RESET_HDMI_PHY
 
-	switch (hdev->tx_comm.fmt_para.vic) {
+	switch (hdev->tx_comm.fmt_para.tx_hw_para.hdmitx_hw_para.vic) {
 	case HDMI_96_3840x2160p50_16x9:
 	case HDMI_97_3840x2160p60_16x9:
 	case HDMI_101_4096x2160p50_256x135:
@@ -2143,7 +2146,7 @@ static void hdmitx_set_scdc(struct hdmitx20_dev *hdev)
 	struct meson_tx_format_para *para = &hdev->tx_comm.fmt_para;
 	u8 pref_clk_div40 = 0;
 
-	switch (para->vic) {
+	switch (para->tx_hw_para.hdmitx_hw_para.vic) {
 	case HDMI_96_3840x2160p50_16x9:
 	case HDMI_97_3840x2160p60_16x9:
 	case HDMI_101_4096x2160p50_256x135:
@@ -2177,14 +2180,14 @@ static void hdmitx_set_scdc(struct hdmitx20_dev *hdev)
 		break;
 	}
 
-	if (pref_clk_div40 != para->tmds_clk_div40) {
+	if (pref_clk_div40 != para->tx_hw_para.hdmitx_hw_para.tmds_clk_div40) {
 		HDMITX_ERROR("clk div40 failed!!\n");
 		hdmitx_format_para_print(para, NULL);
 	}
 
-	set_tmds_clk_div40(para->tmds_clk_div40);
+	set_tmds_clk_div40(para->tx_hw_para.hdmitx_hw_para.tmds_clk_div40);
 	scdc_config(&hdev->tx_comm);
-	hdev->tx_comm.tx_hw->pre_tmds_clk_div40 = para->tmds_clk_div40;
+	hdev->tx_comm.tx_hw->pre_tmds_clk_div40 = para->tx_hw_para.hdmitx_hw_para.tmds_clk_div40;
 }
 
 void hdmitx_set_enc_hw(struct hdmitx20_dev *hdev)
@@ -2197,7 +2200,7 @@ void hdmitx_set_enc_hw(struct hdmitx20_dev *hdev)
 	if (para->flag_3dfp) {
 		hd_write_reg(P_VPU_HDMI_SETTING, 0x8c);
 	} else {
-		switch (para->vic) {
+		switch (para->tx_hw_para.hdmitx_hw_para.vic) {
 		case HDMI_6_720x480i60_4x3:
 		case HDMI_7_720x480i60_16x9:
 		case HDMI_21_720x576i50_4x3:
@@ -2237,7 +2240,7 @@ void hdmitx_set_enc_hw(struct hdmitx20_dev *hdev)
 		hd_set_reg_bits(P_VPU_HDMI_FMT_CTRL, 2, 0, 2);
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 4, 4);
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 8, 1);
-		if ((is_hdmi4k_support_420(hdev->tx_comm.fmt_para.vic)) &&
+		if ((is_hdmi4k_support_420(hdev->tx_comm.fmt_para.tx_hw_para.hdmitx_hw_para.vic)) &&
 		    hdev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_TM2B)
 			hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 8, 1);
 	}
@@ -2247,7 +2250,7 @@ void hdmitx_set_enc_hw(struct hdmitx20_dev *hdev)
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 4, 4);
 	}
 
-	switch (para->vic) {
+	switch (para->tx_hw_para.hdmitx_hw_para.vic) {
 	case HDMI_6_720x480i60_4x3:
 	case HDMI_7_720x480i60_16x9:
 	case HDMI_21_720x576i50_4x3:
@@ -2337,7 +2340,7 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw, struct meson_tx_f
 	hdmitx_set_enc_hw(hdev);
 
 	hdmitx_set_hw(hdev);
-	switch (para->vic) {
+	switch (para->tx_hw_para.hdmitx_hw_para.vic) {
 	case HDMI_6_720x480i60_4x3:
 	case HDMI_7_720x480i60_16x9:
 	case HDMI_21_720x576i50_4x3:
@@ -4259,7 +4262,7 @@ static void hdcp_ksv_sha1_calc(struct hdmitx20_dev *hdev)
 			} else {
 				valid = HDCP_KSVLIST_INVALID;
 				hdmitx_current_status(&hdev->tx_comm,
-						      HDMITX_HDCP_AUTH_VI_MISMATCH_ERROR);
+						      TX_HDCP_AUTH_VI_MISMATCH_ERROR);
 			}
 			ksv_sha_matched = valid;
 		}
@@ -4321,7 +4324,7 @@ static void hdcptx_events_handle(struct timer_list *t)
 			topo14->max_devs_exceeded = 1;
 			topo14->max_cascade_exceeded = 1;
 			hdev->hdcp_max_exceed_state = 1;
-			hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_AUTH_TOPOLOGY_ERROR);
+			hdmitx_current_status(&hdev->tx_comm, TX_HDCP_AUTH_TOPOLOGY_ERROR);
 		}
 	}
 
@@ -4379,17 +4382,17 @@ static void hdcptx_events_handle(struct timer_list *t)
 		hdmitx20_hw_cntl(&hdev->hw_comm,
 			HDCP14_SAVE_OBS, (void *)&obs_cur, NULL);
 		if (obs_cur.intstat & (3 << 3))
-			hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_I2C_ERROR);
+			hdmitx_current_status(&hdev->tx_comm, TX_HDCP_I2C_ERROR);
 		if (((obs_cur.obs0 >> 4) == 3) && (((obs_cur.obs0 >> 1) & 0x7) == 0))
-			hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_AUTH_R0_MISMATCH_ERROR);
+			hdmitx_current_status(&hdev->tx_comm, TX_HDCP_AUTH_R0_MISMATCH_ERROR);
 		if (((obs_cur.obs0 >> 4) == 9) && (((obs_cur.obs0 >> 1) & 0x7) == 2))
-			hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_AUTH_VI_MISMATCH_ERROR);
+			hdmitx_current_status(&hdev->tx_comm, TX_HDCP_AUTH_VI_MISMATCH_ERROR);
 		if (((obs_cur.obs0 >> 4) == 8) && (((obs_cur.obs0 >> 1) & 0x7) == 1))
 			hdmitx_current_status(&hdev->tx_comm,
-					      HDMITX_HDCP_AUTH_REPEATER_DELAY_ERROR);
+					      TX_HDCP_AUTH_REPEATER_DELAY_ERROR);
 	}
 	if (st_flag & (1 << 4))
-		hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_I2C_ERROR);
+		hdmitx_current_status(&hdev->tx_comm, TX_HDCP_I2C_ERROR);
 
 	if (st_flag & (1 << 1)) {
 		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, (1 << 1));
@@ -4511,6 +4514,7 @@ static unsigned int is_sync_polarity_negative(unsigned int vic)
 static void hdmitx_dith_ctrl(struct hdmitx20_dev *hdev)
 {
 	unsigned int hs_flag = 0;
+	enum hdmi_vic vic = hdev->tx_comm.fmt_para.tx_hw_para.hdmitx_hw_para.vic;
 
 	switch (hdev->tx_comm.fmt_para.cd) {
 	case COLORDEPTH_30B:
@@ -4524,7 +4528,7 @@ static void hdmitx_dith_ctrl(struct hdmitx20_dev *hdev)
 			/* force to config sync pol of VPU_HDMI_SETTING
 			 * and VPU_HDMI_DITH_CNTL
 			 */
-			if (is_sync_polarity_negative(hdev->tx_comm.fmt_para.vic))
+			if (is_sync_polarity_negative(vic))
 				hs_flag = 0x0;
 			else
 				hs_flag = 0x3;
@@ -5666,6 +5670,7 @@ static int hdmitx20_hw_cntl_vpu(struct hdmitx_hw_common *tx_hw, unsigned int cmd
 {
 	struct hdmitx20_dev *hdev = container_of(tx_hw, struct hdmitx20_dev, hw_comm);
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	enum hdmi_vic vic = tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.vic;
 	enum amhdmitx_chip_e chip_id = hdev->tx_comm.tx_hw->chip_data->chip_type;
 	u32 arg;
 	int ret = 0;
@@ -5717,7 +5722,7 @@ static int hdmitx20_hw_cntl_vpu(struct hdmitx_hw_common *tx_hw, unsigned int cmd
 		if ((arg & 0xF) == CSC_Y444_8BIT) {
 			/* 1.vpu->encp */
 			hd_set_reg_bits(P_VPU_HDMI_SETTING, 4, 5, 3);
-			if (is_sync_polarity_negative(tx_comm->fmt_para.vic))
+			if (is_sync_polarity_negative(vic))
 				hd_set_reg_bits(P_VPU_HDMI_SETTING, 0x0, 2, 2);
 			else
 				hd_set_reg_bits(P_VPU_HDMI_SETTING, 0x3, 2, 2);
@@ -5728,8 +5733,8 @@ static int hdmitx20_hw_cntl_vpu(struct hdmitx_hw_common *tx_hw, unsigned int cmd
 			hdmitx_dith_ctrl(hdev);
 
 			/* 3.vid input remap */
-			hdmitx_in_vid_map(tx_comm->fmt_para.vic, COLORDEPTH_24B,
-				HDMI_COLORSPACE_YUV444, HDMI_COLORSPACE_YUV444);
+			hdmitx_in_vid_map(tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.vic,
+				COLORDEPTH_24B,	HDMI_COLORSPACE_YUV444, HDMI_COLORSPACE_YUV444);
 
 			/* 4.Video Packet YCC color remapping/configure */
 			hdmitx_vp_conf(COLORDEPTH_24B, HDMI_COLORSPACE_YUV444);
@@ -5753,7 +5758,7 @@ static int hdmitx20_hw_cntl_vpu(struct hdmitx_hw_common *tx_hw, unsigned int cmd
 			hdmitx_dith_ctrl(hdev);
 
 			/* 3.vid input remap */
-			hdmitx_in_vid_map(tx_comm->fmt_para.vic, COLORDEPTH_36B,
+			hdmitx_in_vid_map(vic, COLORDEPTH_36B,
 				HDMI_COLORSPACE_YUV444, HDMI_COLORSPACE_YUV422);
 
 			/* 4.Video Packet YCC color remapping/configure */
@@ -5770,7 +5775,7 @@ static int hdmitx20_hw_cntl_vpu(struct hdmitx_hw_common *tx_hw, unsigned int cmd
 		} else if ((arg & 0xF) == CSC_RGB_8BIT) {
 			/* 1.vpu->encp */
 			hd_set_reg_bits(P_VPU_HDMI_SETTING, 4, 5, 3);
-			if (is_sync_polarity_negative(tx_comm->fmt_para.vic))
+			if (is_sync_polarity_negative(vic))
 				hd_set_reg_bits(P_VPU_HDMI_SETTING, 0x0, 2, 2);
 			else
 				hd_set_reg_bits(P_VPU_HDMI_SETTING, 0x3, 2, 2);
@@ -5781,8 +5786,8 @@ static int hdmitx20_hw_cntl_vpu(struct hdmitx_hw_common *tx_hw, unsigned int cmd
 			hdmitx_dith_ctrl(hdev);
 
 			/* 3.vid input remap */
-			hdmitx_in_vid_map(tx_comm->fmt_para.vic, COLORDEPTH_24B,
-			HDMI_COLORSPACE_YUV444, HDMI_COLORSPACE_RGB);
+			hdmitx_in_vid_map(vic, COLORDEPTH_24B,
+				HDMI_COLORSPACE_YUV444, HDMI_COLORSPACE_RGB);
 
 			/* 4.Video Packet YCC color remapping/configure */
 			hdmitx_vp_conf(COLORDEPTH_24B, HDMI_COLORSPACE_RGB);
@@ -6108,7 +6113,7 @@ void hdmitx_set_avi_colorimetry(struct meson_tx_format_para *para)
 		return;
 
 	/* set Colorimetry in AVIInfo */
-	switch (para->vic) {
+	switch (para->tx_hw_para.hdmitx_hw_para.vic) {
 	case HDMI_2_720x480p60_4x3:
 	case HDMI_3_720x480p60_16x9:
 	case HDMI_6_720x480i60_4x3:
@@ -6257,7 +6262,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 			vid_map = 0x12;
 	}
 
-	switch (para->vic) {
+	switch (para->tx_hw_para.hdmitx_hw_para.vic) {
 	case HDMI_6_720x480i60_4x3:
 	case HDMI_7_720x480i60_16x9:
 	case HDMI_10_2880x480i60_4x3:
@@ -6508,7 +6513,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32 |= (((output_color_format >> 2) & 0x1) << 7);
 	data32 |= (1 << 6);
 	/* underscan */
-	scan_mode = hdmitx_check_scan_info(prxcap, scan_mode, para->vic);
+	scan_mode = hdmitx_check_scan_info(prxcap, scan_mode, para->tx_hw_para.hdmitx_hw_para.vic);
 	data32 |= (scan_mode << 4);
 	data32 |= (0 << 2);
 	data32 |= (0x2 << 0);    /* FIXED YCBCR 444 */
@@ -6540,7 +6545,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 1, 2, 2);
 
 	/* set Aspect Ratio in AVIInfo */
-	switch (para->vic) {
+	switch (para->tx_hw_para.hdmitx_hw_para.vic) {
 	case HDMI_2_720x480p60_4x3:
 	case HDMI_6_720x480i60_4x3:
 	case HDMI_8_720x240p60_4x3:
@@ -6584,9 +6589,9 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, vic & HDMITX_VIC_MASK);
 
 	/* For VESA modes, set VIC as 0 */
-	if (para->vic >= HDMITX_VESA_OFFSET) {
+	if (para->tx_hw_para.hdmitx_hw_para.vic >= HDMITX_VESA_OFFSET) {
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
-		hdmitx_set_isaformat(para->vic);
+		hdmitx_set_isaformat(para->tx_hw_para.hdmitx_hw_para.vic);
 	}
 
 	/* write Audio Infoframe packet configuration */
@@ -7000,9 +7005,9 @@ static void hdmitx_set_hw(struct hdmitx20_dev *hdev)
 	const struct meson_tx_format_para *para = &hdev->tx_comm.fmt_para;
 
 	HDMITX_INFO(" config hdmitx IP vic = %d cd:%d cs: %d\n",
-		para->vic, para->cd, para->cs);
+		para->tx_hw_para.hdmitx_hw_para.vic, para->cd, para->cs);
 
-	config_hdmi20_tx(para->vic, hdev,
+	config_hdmi20_tx(para->tx_hw_para.hdmitx_hw_para.vic, hdev,
 			para->cd,
 			TX_INPUT_COLOR_FORMAT,
 			para->cs);
@@ -7047,7 +7052,7 @@ static int hdmitx20_enable_mode(struct hdmitx_common *tx_comm)
 	int ret;
 
 	/* if vic is HDMI_UNKNOWN, hdmitx_set_display will disable HDMI */
-	ret = hdmitx_set_display(tx_comm, tx_comm->fmt_para.vic);
+	ret = hdmitx_set_display(tx_comm, tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.vic);
 
 	if (tx_comm->tx_hw->set_aud_mode)
 		tx_comm->tx_hw->set_aud_mode(tx_comm->tx_hw, &tx_comm->cur_audio_param);

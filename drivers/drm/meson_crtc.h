@@ -167,9 +167,10 @@ int am_meson_lcd_get_vrr_range(struct drm_connector *connector,
 int am_meson_eDP_get_vrr_range(struct drm_connector *connector,
 			struct drm_vrr_mode_group *groups, int max_group);
 #endif
-#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
+
 int am_meson_hdmi_get_vrr_range(struct drm_device *dev,
 			void *data, struct drm_file *file_priv);
+#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
 int am_meson_hdmi_get_hdmitx_diag(struct drm_device *dev,
 			void *data, struct drm_file *file_priv);
 #endif

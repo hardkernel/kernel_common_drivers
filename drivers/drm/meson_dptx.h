@@ -10,9 +10,22 @@
 #include <drm/drm_encoder.h>
 
 #include <drm/amlogic/meson_connector_dev.h>
+#include <linux/amlogic/media/vout/meson_tx_connector/dptx_common/dptx_common.h>
 
 #include "meson_drv.h"
 #include "meson_tx_helper.h"
+
+struct meson_dptx_connector_state {
+	struct drm_connector_state base;
+	struct tx_color_attr color_attr_para;
+	struct meson_tx_state base_state;
+};
+
+#define to_dptx_connector_state(x)	container_of(x, struct meson_dptx_connector_state, base)
+
+#define encoder_to_meson_dptx(x)	container_of(x, struct meson_dp_tx, encoder)
+#define connector_to_meson_dptx(x)  \
+	container_of(connector_to_meson_connector(x), struct meson_dp_tx, base)
 
 struct meson_dp_tx {
 	struct meson_connector base;
@@ -33,16 +46,6 @@ struct meson_dp_tx {
 	struct drm_property *color_space_prop;
 	struct drm_property *color_depth_prop;
 };
-
-int meson_dptx_dev_bind(struct drm_device *drm,
-	int type, struct meson_connector_dev *intf);
-int meson_dptx_dev_unbind(struct drm_device *drm,
-	int type, struct meson_connector_dev *intf);
-
-int meson_edp_dev_bind(struct drm_device *drm,
-	int type, struct meson_connector_dev *intf);
-int meson_edp_dev_unbind(struct drm_device *drm,
-	int type, struct meson_connector_dev *intf);
 
 #endif
 

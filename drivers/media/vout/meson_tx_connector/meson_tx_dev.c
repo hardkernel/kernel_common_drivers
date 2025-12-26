@@ -113,15 +113,13 @@ void meson_tx_plugin_unlocked(struct meson_tx_dev *tx_dev)
 		return;
 	}
 
-	TX_INFO(tx_log, "hpd_high\n");
-
-	meson_tx_tracer_write_event(tx_dev->tx_tracer, TX_HPD_PLUGIN);
-
 	tx_dev->hw_sequence_id = get_jiffies_64();
-	TX_INFO(tx_log, "sequence id: %lld\n", tx_dev->hw_sequence_id);
+	TX_INFO(tx_log, "hpd_high, sequence id: %lld\n", tx_dev->hw_sequence_id);
+	meson_tx_tracer_write_event(tx_dev->tx_tracer, TX_HPD_PLUGIN);
 	/* SW: status update */
 	tx_dev->already_used_state = 1;
 	tx_dev->hpd_state = true;
+
 	if (tx_dev->ops->hpd_plugin)
 		tx_dev->ops->hpd_plugin(tx_dev);
 	meson_tx_notify_hpd_status(tx_dev, false);
@@ -152,9 +150,7 @@ void meson_tx_plugout_unlocked(struct meson_tx_dev *tx_dev)
 	}
 
 	TX_INFO(tx_log, "hpd_low\n");
-
 	meson_tx_tracer_write_event(tx_dev->tx_tracer, TX_HPD_PLUGOUT);
-
 	meson_tx_clear_rx_cap(&tx_dev->rxcap);
 	memset(tx_dev->edid_buf, 0, sizeof(tx_dev->edid_buf));
 	tx_dev->hpd_state = false;
@@ -202,6 +198,7 @@ static struct tx_task_info tx_task_infos[] = {
 static int meson_tx_task_init(struct meson_tx_dev *tx_dev, struct meson_tx_hw *tx_hw)
 {
 	int i;
+	int ret = 0;
 
 	if (!tx_dev || !tx_hw) {
 		pr_err("%s NULL tx_comm pointer\n", __func__);
@@ -211,8 +208,12 @@ static int meson_tx_task_init(struct meson_tx_dev *tx_dev, struct meson_tx_hw *t
 	if (!tx_dev->task_mgr)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(tx_task_infos); i++)
-		tx_task_mgr_setup_task(tx_dev->task_mgr, &tx_task_infos[i], tx_dev);
+	for (i = 0; i < ARRAY_SIZE(tx_task_infos); i++) {
+		ret = tx_task_mgr_setup_task(tx_dev->task_mgr, &tx_task_infos[i], tx_dev);
+		if (ret)
+			pr_err("%s setup task[%s] failed\n",
+				__func__, tx_task_infos[i].name);
+	}
 
 	/* init hw task ops */
 	tx_hw->event_ops = kzalloc(sizeof(*tx_hw->event_ops), GFP_KERNEL);
@@ -241,7 +242,7 @@ int meson_tx_sysfs_create(struct meson_tx_dev *tx_dev)
 	if (tx_dev->ops->create_sysfs)
 		tx_dev->ops->create_sysfs(tx_dev);
 
-	meson_tx_event_mgr_set_uevent_dev(tx_dev->event_mgr, tx_dev->dev);
+	meson_tx_event_mgr_set_uevent_dev(tx_dev->event_mgr, tx_dev->dev, dev_name(tx_dev->dev));
 	return 0;
 }
 EXPORT_SYMBOL(meson_tx_sysfs_create);
@@ -261,6 +262,9 @@ void meson_tx_dev_init(struct meson_tx_dev *tx_dev, struct meson_tx_hw *tx_hw,
 	tx_dev->tx_hw_base = tx_hw;
 	meson_tx_log_init(&tx_dev->tx_log, dev_name(tx_dev->pdev));
 	meson_tx_task_init(tx_dev, tx_dev->tx_hw_base);
+	tx_dev->event_mgr = meson_tx_event_mgr_create(tx_dev);
+	meson_tx_event_mgr_suspend(tx_dev->event_mgr, false);
+	tx_dev->tx_tracer = meson_tx_tracer_create(tx_dev->event_mgr);
 }
 
 void meson_tx_dev_release(struct meson_tx_dev *tx_dev)
@@ -375,6 +379,7 @@ bool meson_tx_edid_validate_timing(struct tx_timing *timing, struct rx_cap *rx_c
 		ret = true;
 	return ret;
 }
+EXPORT_SYMBOL(meson_tx_edid_validate_timing);
 
 /* check if cs/cd under specific timing is supported in RX_Cap(EDID/displayID)
  * note should use meson_tx_match_detail_timing() to get complete timing firstly
@@ -527,15 +532,16 @@ void meson_tx_format_para_rst(struct meson_tx_format_para *para)
 	para->cr = HDMI_QUANTIZATION_RANGE_RESERVED;
 }
 
-/* init SW format_para with cs/cd/timing... */
-int meson_tx_format_para_init(struct meson_tx_format_para *para, struct tx_timing *timing,
+/* init SW and HW format_para with cs/cd/timing... */
+int meson_tx_format_para_init(struct meson_tx_dev *tx_dev, struct tx_timing *timing,
 	u32 frac_mode, enum hdmi_colorspace cs,
-	enum hdmi_color_depth cd, enum hdmi_quantization_range cr)
+	enum hdmi_color_depth cd, enum hdmi_quantization_range cr,
+	struct meson_tx_format_para *para)
 {
 	int ret = 0;
 	const struct tx_timing *match_timing = NULL;
 
-	if (!para || !timing)
+	if (!para || !timing || !tx_dev)
 		return -EINVAL;
 
 	meson_tx_format_para_rst(para);
@@ -559,6 +565,11 @@ int meson_tx_format_para_init(struct meson_tx_format_para *para, struct tx_timin
 		para->frac_mode = 0;
 	else
 		para->frac_mode = frac_mode;
+
+	/* build hw fmt_para */
+	if (tx_dev->ops->build_hw_fmt_para)
+		return tx_dev->ops->build_hw_fmt_para(tx_dev, para);
+
 	return 0;
 }
 EXPORT_SYMBOL(meson_tx_format_para_init);
@@ -575,6 +586,10 @@ int meson_tx_validate_mode(struct meson_tx_dev *tx_dev, struct meson_tx_state *n
 		return -EINVAL;
 	}
 	new_sw_para = &new_state->para;
+	if (tx_dev->pxp_mode) {
+		TX_INFO(tx_log, "[%s]: treat mode valid in PXP\n", __func__);
+		return 0;
+	}
 
 	mutex_lock(&tx_dev->valid_mode_mutex);
 	ret = tx_dev->ops->validate_fmt_para(tx_dev, new_state);
@@ -602,28 +617,6 @@ int meson_tx_build_clk_param(struct meson_tx_dev *tx_dev,
 }
 EXPORT_SYMBOL(meson_tx_build_clk_param);
 
-int meson_tx_attch_platform_data(struct meson_tx_dev *tx_dev,
-	enum TX_PLATFORM_API_TYPE type, void *plt_data)
-{
-	if (!tx_dev || !plt_data) {
-		TX_ERROR(NULL, "[%s]: invalid input param\n", __func__);
-		return -EINVAL;
-	}
-	switch (type) {
-	case TX_PLATFORM_TRACER:
-		tx_dev->tx_tracer = (struct meson_tx_tracer *)plt_data;
-		break;
-	case TX_PLATFORM_UEVENT:
-		tx_dev->event_mgr = (struct meson_tx_event_mgr *)plt_data;
-		break;
-	default:
-		TX_ERROR(&tx_dev->tx_log, "%s unknown platform api %d\n", __func__, type);
-		break;
-	};
-
-	return 0;
-}
-
 int meson_tx_notify_hpd_status(struct meson_tx_dev *tx_dev, bool force_uevent)
 {
 	if (!tx_dev) {
@@ -648,6 +641,15 @@ int meson_tx_notify_hpd_status(struct meson_tx_dev *tx_dev, bool force_uevent)
 		meson_tx_event_mgr_set_uevent_state(tx_dev->event_mgr,
 				TX_AUDIO_EVENT, tx_dev->hpd_state);
 	}
+	/*
+	 * always notify to other driver module: such as CEC/RX
+	 * CEC/RX side will decide to update HPD/EDID or
+	 * not by product type
+	 */
+	if (tx_dev->hpd_state)
+		meson_tx_event_mgr_notify(tx_dev->event_mgr, TX_PLUG, tx_dev->edid_buf);
+	else
+		meson_tx_event_mgr_notify(tx_dev->event_mgr, TX_UNPLUG, NULL);
 
 	return 0;
 }

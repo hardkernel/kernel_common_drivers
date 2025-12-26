@@ -117,7 +117,6 @@ void hw_timer_poll_wait_us(struct dptx_hw_common *tx_hw, enum timer_hw_type type
 
 	if (us > TIMER_MAX_CNT)
 		us = TIMER_MAX_CNT;
-
 	hw_timer_enable(tx_hw, type, false);
 	hw_timer_auto_reload(tx_hw, type, false);
 	hw_timer_set_us(tx_hw, type, us);

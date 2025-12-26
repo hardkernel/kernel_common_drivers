@@ -140,6 +140,13 @@ static int dptx_get_dt_info(struct platform_device *pdev,
 	} else {
 		tx_cap->max_v_active = val;
 	}
+	ret = of_property_read_u32(pdev->dev.of_node, "pxp_mode", &val);
+	if (ret)
+		tx_comm->base.pxp_mode = 0;
+	else
+		tx_comm->base.pxp_mode = !!val;
+	hw_comm->hw_base.pxp_mode = tx_comm->base.pxp_mode;
+	DPTX_INFO("%s: pxp_mode:%d\n", __func__, tx_comm->base.pxp_mode);
 
 	hw_comm->hw_base.regs_region = kzalloc(sizeof(*hw_comm->hw_base.regs_region) * REG_IDX_MAX,
 		GFP_KERNEL);
@@ -163,12 +170,28 @@ static int dptx_get_dt_info(struct platform_device *pdev,
 		DPTX_DEBUG("Mapped Addr: 0x%x\n", res.start);
 	}
 
-	irq_index = platform_get_irq_byname(pdev, "dptx_hpd");
-	if (irq_index == -ENXIO) {
-		DPTX_ERROR("%s: dptx irq_id not found\n", __func__);
-		return -ENXIO;
+	if (tx_comm->is_edp == 0) {
+		irq_index = platform_get_irq_byname(pdev, "apb_dp_int");
+		if (irq_index == -ENXIO) {
+			DPTX_ERROR("%s: apb_dp_int not found\n", __func__);
+			return -ENXIO;
+		}
+		hw_comm->dptx_irq_id = irq_index;
+		irq_index = platform_get_irq_byname(pdev, "hdcp2tx_intr");
+		if (irq_index == -ENXIO) {
+			DPTX_ERROR("%s: hdcp2tx_intr not found\n", __func__);
+			return -ENXIO;
+		}
+		hw_comm->hdcp2tx_irq_id = irq_index;
+	} else {
+		irq_index = platform_get_irq_byname(pdev, "apb_int_edptx");
+		if (irq_index == -ENXIO) {
+			DPTX_ERROR("%s: apb_int_edptx not found\n", __func__);
+			return -ENXIO;
+		}
+		hw_comm->dptx_irq_id = irq_index;
 	}
-	hw_comm->irq_id = irq_index;
+
 	return 0;
 }
 

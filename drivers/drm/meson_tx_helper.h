@@ -8,6 +8,7 @@
 
 #include <linux/hdmi.h>
 #include <linux/amlogic/media/vout/vinfo.h>
+#include <drm/amlogic/meson_connector_dev.h>
 
 struct tx_timing;
 
@@ -21,5 +22,15 @@ int colordepth_to_bitdepth(enum hdmi_color_depth color_depth);
 void meson_connector_fill_mode_timing(struct drm_display_mode *mode,
 				const struct tx_timing *timing, bool edid_vic);
 void meson_drm_mode_build_tx_timing(struct drm_display_mode *mode, struct tx_timing *timing);
+
+int meson_dptx_dev_bind(struct drm_device *drm,
+			int type, struct meson_connector_dev *intf);
+int meson_dptx_dev_unbind(struct drm_device *drm,
+			  int type, struct meson_connector_dev *intf);
+
+int meson_edp_dev_bind(struct drm_device *drm,
+		       int type, struct meson_connector_dev *intf);
+int meson_edp_dev_unbind(struct drm_device *drm,
+			 int type, struct meson_connector_dev *intf);
 
 #endif

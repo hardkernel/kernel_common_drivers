@@ -16,6 +16,7 @@ enum cmd_dptx_aux {
 	/* dptx ddc start */
 	DP_AUX_CMD = CMD_DDC_AUX_OFFSET + CMD_DPTX_OFFSET,
 	DP_AUX_PIN_MUX_OP,
+	DP_AUX_BLK_MODE_SET
 };
 
 /* 0x11 HDCP */
@@ -42,14 +43,24 @@ enum cmd_dptx_dsc {
 	DP_DSC_CMD = CMD_DSC_OFFSET + CMD_DPTX_OFFSET,
 };
 
+/* 0x17 VRR/adaptive_sync */
+enum cmd_dptx_adaptive_sync {
+	/* dptx dsc start */
+	DP_ADAPTIVE_SYNC_CMD = CMD_VRR_OFFSET + CMD_DPTX_OFFSET,
+	DP_ADAPTIVE_SYNC_EN,
+	DP_ADAPTIVE_SYNC_DIS
+};
+
 /* 0x18 core misc */
 enum cmd_dptx_core_misc {
 	/* dptx start */
 	DP_CORE_MISC_CMD = CMD_CORE_MISC_OFFSET + CMD_DPTX_OFFSET,
 	DP_TIMER_INIT,
+	DP_TIMER_UNINIT,
 	DP_TIMER_GET,
 	DP_TIMER_START,
 	DP_TIMER_STOP,
+	DP_HPD_OVER
 };
 
 /* 0x19 CMD_PLATFORM */
@@ -77,6 +88,8 @@ enum cmd_link_training {
 	LINKCONF_SET_8B10B_CODING,
 	LINKCONF_SET_TRAIN_PATTERN,
 	LINKCONF_SET_VSWING_PREEMP,
+	LINKCONF_SAVE_LINK_RATE,
+	LINKCONF_SAVE_LANE_COUNT
 };
 
 enum map_addr_idx_e {
@@ -89,6 +102,15 @@ enum map_addr_idx_e {
 	VPUCTRL_REG_IDX,
 	PADCTRL_REG_IDX,
 	REG_IDX_MAX,
+};
+
+struct reg_access {
+	/* 0: read, 1: write, 2: read & dump */
+	u8 rd_wr_type;
+	enum map_addr_idx_e reg_type;
+	/* start and end address for read & dump case */
+	u32 addr;
+	u32 val;
 };
 
 #endif

@@ -19,6 +19,7 @@ struct meson_tx_helper_ops {
 	int (*hpd_plugin)(struct meson_tx_dev *tx_dev);
 	int (*hpd_plugout)(struct meson_tx_dev *tx_dev);
 	int (*validate_fmt_para)(struct meson_tx_dev *tx_base, struct meson_tx_state *state);
+	int (*build_hw_fmt_para)(struct meson_tx_dev *tx_base, struct meson_tx_format_para *para);
 	int (*pre_mode_enable)(struct meson_tx_dev *tx_base, struct meson_tx_format_para *para);
 	int (*mode_enable)(struct meson_tx_dev *tx_base, struct meson_tx_format_para *para);
 	int (*post_mode_enable)(struct meson_tx_dev *tx_base, struct meson_tx_format_para *para);
@@ -39,8 +40,6 @@ void meson_tx_plugout_unlocked(struct meson_tx_dev *tx_dev);
 void meson_tx_dev_init(struct meson_tx_dev *tx_dev, struct meson_tx_hw *tx_hw,
 		       struct meson_tx_helper_ops *ops);
 void meson_tx_dev_release(struct meson_tx_dev *tx_dev);
-int meson_tx_attch_platform_data(struct meson_tx_dev *tx_dev,
-	enum TX_PLATFORM_API_TYPE type, void *plt_data);
 int meson_tx_notify_hpd_status(struct meson_tx_dev *tx_dev, bool force_uevent);
 
 /* meson_tx_hw interface */
@@ -53,7 +52,6 @@ void meson_tx_hw_setup_phy(struct meson_tx_hw *tx_hw,
 void meson_tx_hw_setup_clk(struct meson_tx_hw *tx_hw,
 			   struct meson_tx_clk *tx_clk);
 
-bool meson_tx_edid_validate_timing(struct tx_timing *timing, struct rx_cap *rx_cap);
 bool meson_tx_edid_validate_color(struct tx_timing *timing,
 	enum hdmi_colorspace cs, enum hdmi_color_depth cd, struct rx_cap *rx_cap);
 

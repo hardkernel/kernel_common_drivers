@@ -33,6 +33,13 @@ struct dptx_aux {
 	unsigned int i2c_nack_count;
 	/* the count of i2c defer */
 	unsigned int i2c_defer_count;
+
+	/* aux reply timeout period */
+	u32 aux_timeout_ms;
+	/* retry times if aux fail  */
+	u8 aux_retry_times;
+	/* read EDID bytes every time */
+	u8 edid_read_cnt_once;
 };
 
 struct dptx_aux *dptx_aux_init(struct dptx_hw_common *tx_comm);
@@ -57,5 +64,6 @@ static inline ssize_t dptx_aux_writeb_dpcd(struct dptx_aux *aux,
 int dptx_aux_read_dpcd_caps(struct dptx_aux *aux, u8 *dpcd, size_t size);
 
 int dptx_aux_read_edid_data(struct dptx_aux *aux, u8 *edid, int size);
+int dptx_aux_read_edid_dbg(struct dptx_aux *aux, u8 *_edid, u32 type);
 
 #endif /* _DPTX_AUX_HELPER_H_ */

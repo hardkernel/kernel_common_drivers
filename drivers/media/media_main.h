@@ -61,7 +61,8 @@ static inline int amrdma_init(void)
 }
 #endif
 
-#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21) || \
+	defined(CONFIG_AMLOGIC_HDMITX_MODERN))
 int amhdmitx_init(void);
 #else
 static inline int amhdmitx_init(void)
