@@ -2221,7 +2221,6 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 		if (plane_info->pixel_format != old_plane_info->pixel_format) {
 			DRM_DEBUG_DRIVER("pixel format changed [0x%x -> 0x%x].\n",
 				old_plane_info->pixel_format, plane_info->pixel_format);
-			plane_info->status_changed = 1;
 		}
 	}
 
