@@ -707,16 +707,63 @@ static struct spi_driver ldim_spi_dev_driver = {
 	},
 };
 
+struct spi_controller *spi_aliases_to_ctlr(const char *spi_aliases, int spicc_version)
+{
+	struct platform_device *pdev;
+	struct spi_controller *ctlr = NULL;
+	struct device_node *of_aliases;
+	struct device_node *target_node;
+	struct property *pp;
+	const char *alias_name;
+	struct meson_spicc_device *spicc_v1_device_ = NULL;
+	struct spicc_device *spicc_v2_device_ = NULL;
+
+	of_aliases = of_find_node_by_path("/aliases");
+
+	if (!of_aliases) {
+		pr_err("Failed to find /aliases node\n");
+		return NULL;
+	}
+
+	for_each_property_of_node(of_aliases, pp) {
+		alias_name = pp->name;
+
+		if (!strncmp(alias_name, spi_aliases, strlen(pp->name))) {
+			target_node = of_find_node_by_path(pp->value);
+
+		if (!target_node) {
+			pr_warn("Alias %s has no valid target node\n", alias_name);
+			continue;
+		}
+
+		pdev = of_find_device_by_node(target_node);
+		if (!pdev)
+			return NULL;
+
+		if (spicc_version == SPICC_V1) {
+			spicc_v1_device_ = platform_get_drvdata(pdev);
+			ctlr = spicc_v1_device_->controller;
+		} else if (spicc_version == SPICC_V2) {
+			spicc_v2_device_ = platform_get_drvdata(pdev);
+			ctlr = spicc_v2_device_->controller;
+		}
+
+		of_node_put(target_node);
+		}
+	}
+
+	of_node_put(of_aliases);
+
+	return ctlr;
+}
+
 int ldim_spi_driver_add(struct ldim_dev_driver_s *dev_drv)
 {
-	//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
-	return -1;
-#else
 	struct spi_controller *ctlr;
 	struct spicc_controller_data *cdata;
 	struct spi_device *spi_device;
 	int ret, i;
+	char busname[16];
 
 	for (i = 0; i < dev_drv->spi_dev_num; i++) {
 		cdata = dev_drv->spi_info[i].controller_data;
@@ -724,9 +771,13 @@ int ldim_spi_driver_add(struct ldim_dev_driver_s *dev_drv)
 		cdata->ss_leading_gap = dev_drv->cs_hold_delay;
 		cdata->ss_trailing_gap = dev_drv->cs_clk_delay;
 
-		ctlr = spi_find_controller(dev_drv->spi_info[i].bus_num);
+		snprintf(busname, sizeof(busname), "spi%d",
+			dev_drv->spi_info[i].bus_num);
+		//Default:SPICC_V2 new spicc controller after A4
+		//TODO: add spicc version detect code for dts，spicltr_version = <2>;
+		ctlr = spi_aliases_to_ctlr(busname, SPICC_V2);
 		if (!ctlr) {
-			LDIMERR("get busnum[%d] failed\n", i);
+			LDIMERR("get busnum[%d] busname[%s] failed\n", i, busname);
 			return -1;
 		}
 
@@ -750,7 +801,6 @@ int ldim_spi_driver_add(struct ldim_dev_driver_s *dev_drv)
 
 	LDIMPR("%s ok\n", __func__);
 	return 0;
-#endif
 }
 
 int ldim_spi_driver_remove(struct ldim_dev_driver_s *dev_drv)
