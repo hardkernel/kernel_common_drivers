@@ -289,4 +289,5 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch, struct PRM_DPSS_TOP *prm_top,
 inline u32 update_reg_val(u32 reg_val, u32 val, u8 start, u8 len);
 
 void dpss_hdr_sw(bool sw, struct vframe_s *vfm);
+void dpss_hdr_proc(struct vframe_s *vfm);
 #endif	/*__DPSS_FUNC_H__*/
