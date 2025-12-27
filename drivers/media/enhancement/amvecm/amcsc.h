@@ -193,6 +193,7 @@ enum output_format_e get_force_output(void);
 void set_force_output(enum output_format_e output);
 void set_vout2_change(unsigned int flag);
 unsigned int get_vout2_change(void);
+
 enum cuva_mode_type_e get_cuva_mode(void);
 enum cuva_mode_type_e get_tx_cuva_mode(struct vinfo_s *vinfo);
 
@@ -412,6 +413,8 @@ void set_muxio_link_mode(unsigned int link_flag,
 void update_muxio_mode(struct vframe_s *vf,
 	enum vpp_index_e vpp_index);
 unsigned int get_muxio_ready_for_dpss(void);
+void set_dct_status_for_dpss(unsigned int val);
+void set_lc_evc_ctrl_for_dpss(unsigned int enable, unsigned int lc_evc_src);
 
 struct gamut_mapping_s {
 	unsigned int eotf_en;
@@ -501,9 +504,6 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 void update_link_state(struct vframe_s *vf,
 	struct vframe_s *rpt_vf,
 	enum vpp_index_e vpp_index);
-
-void set_dct_status_for_dpss(unsigned int val);
-void set_lc_evc_ctrl_for_dpss(unsigned int enable, unsigned int lc_evc_src);
 #endif
 #endif /* AM_CSC_H */
 

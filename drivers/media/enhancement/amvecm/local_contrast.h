@@ -82,7 +82,8 @@ void lc_disable(int rdma_mode, int vpp_index);
 bool lc_curve_ctrl_reg_set_flag(unsigned int addr);
 void lc_prt_curve(void);
 int get_lc_pattern_gain(void);
-void lc_change_pattern_curve_nodes(int lc_gain);
+void lc_change_pattern_curve_nodes(int lc_gain,
+	int blk_hnum, int blk_vnum);
 void lc_load_curve(struct ve_lc_curve_parm_s *p);
 void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type, char *buf);
 void lc_slt_en(int enable);

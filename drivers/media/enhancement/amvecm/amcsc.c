@@ -103,7 +103,6 @@ struct hdr_cap_info_s hdr_cap_info;
 int cur_vinfo_out_range = 0xff;
 int cur_vinfo_out_cs = 0xff;
 
-uint gamut_mapping1_en;
 /*hdr------------------------------------*/
 void hdr_osd_off(enum vpp_index_e vpp_index)
 {
@@ -3517,6 +3516,8 @@ static void vpp_set_matrix3(unsigned int on,
 {
 	int reg_value;
 
+	reg_value = READ_VPP_REG(VPP_MATRIX_CTRL);
+
 	if (on)
 		mtx_en_mux |= XVY_MTX_EN_MASK;
 	else
@@ -4971,7 +4972,7 @@ enum vpp_matrix_csc_e prepare_customer_matrix(u32 (*s)[3][2],/* src prim */
 	s64 prmy_src[4][2];
 	s64 prmy_dst[4][2];
 	s64 out[3][3];
-	int ret;
+	int ret = VPP_MATRIX_BT2020YUV_BT2020RGB;
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	int i, j;
 
@@ -5189,7 +5190,7 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 		       enum vpp_index_e vpp_index)
 {
 	int need_adjust_contrast_saturation = 0;
-	int max_lumin; /* 10000*/
+	int max_lumin = 10000;
 	int s5_silce_mode = get_s5_slice_mode();
 	struct matrix_s m = {
 		{0, 0, 0},
@@ -5534,7 +5535,7 @@ static int hlg_process(enum vpp_matrix_csc_e csc_type,
 		       enum vpp_index_e vpp_index)
 {
 	int need_adjust_contrast_saturation = 0;
-	int max_lumin; /* 10000 */
+	int max_lumin = 10000;
 	struct matrix_s m = {
 		{0, 0, 0},
 		{
@@ -7320,13 +7321,11 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path,
 			else
 				hdr_type = HDRTYPE_HDR10_709;
 		}
-	} else if (signal_transfer_characteristic == 1) {
+	} else {
 		if (signal_color_primaries == 9)
 			hdr_type = HDRTYPE_SDR2020;
 		else
 			hdr_type = HDRTYPE_SDR;
-	} else {
-		hdr_type = HDRTYPE_SDR;
 	}
 
 	ext_signal_type = get_cur_vd_ext_signal_type(vd_path);
@@ -9726,7 +9725,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			}
 		}
 		if (!is_amdv_enable() &&
-		    get_hdr_policy() != cur_hdr_policy) {
+			get_hdr_policy() != cur_hdr_policy &&
+			chip_cls_id != TV_CHIP) {
 			null_vf_cnt[vd_path] = 1;
 			toggle_frame = 1;
 		} else if (!is_video_layer_on(vd_path) &&
@@ -10636,6 +10636,7 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 	};
 	enum hdr_type_e gamut_src_format = HDRTYPE_SDR;
 	int bypass_gamut_wrapper = 0;
+	int sdr_gmt_conv_en = 0;
 
 	int s5_silce_mode = get_s5_slice_mode();
 
@@ -10713,14 +10714,17 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 			if (!sdr_ext_mode_dpss_changed) {
 				if (sdr_process_mode_dpss == PROC_BYPASS) {
 					gamut_src_format = source_format;
-					if (gamut_conv_enable) {
+					if (gamut_conv_enable &&
+						(vpp_color_pri_sel || !gamut_mapping1_en)) {
 						gamut_convert_process(vinfo, &source_format,
 							vd_path, &m, 11, DEST_NONE);
 						gamut_src_format = HDRTYPE_SDR;
+						sdr_gmt_conv_en = 1;
 					}
 					hdr_proc_multi_slices(vf, VD1_HDR,
-						gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
-						vinfo, gamut_conv_enable ? &m : NULL,
+						sdr_gmt_conv_en ? SDR_GMT_CONVERT : HDR_BYPASS,
+						vinfo,
+						sdr_gmt_conv_en ? &m : NULL,
 						s5_silce_mode, vpp_index);
 				} else if (sdr_process_mode_dpss == PROC_SDR_TO_HDR) {
 					gamut_src_format = HDRTYPE_HDR10;
@@ -10753,6 +10757,7 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 			if (gamut_conv_enable) {
 				gamut_convert_process(vinfo, &source_format,
 					vd_path, &m, 11, DEST_NONE);
+				bypass_gamut_wrapper = 1;
 			}
 			hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
@@ -10781,8 +10786,13 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
 			} else if (hlg_process_mode_dpss == PROC_HLG_TO_SDR) {
+				if (gamut_conv_enable)
+					gamut_convert_process(vinfo, &source_format,
+						vd_path, &m, 14, DEST_NONE);
 				hdr_proc_multi_slices(vf, VD1_HDR, HLG_SDR,
-					vinfo, NULL, s5_silce_mode, vpp_index);
+					vinfo,
+					gamut_conv_enable ? &m : NULL,
+					s5_silce_mode, vpp_index);
 			}
 			break;
 		case HDRTYPE_HDR10PLUS:
@@ -10805,8 +10815,13 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVA_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
 			} else if (cuva_hdr_process_mode_dpss == PROC_CUVA_TO_SDR) {
+				if (gamut_conv_enable)
+					gamut_convert_process(vinfo, &source_format,
+						vd_path, &m, 14, DEST_NONE);
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVA_SDR,
-					vinfo, NULL, s5_silce_mode, vpp_index);
+					vinfo,
+					gamut_conv_enable ? &m : NULL,
+					s5_silce_mode, vpp_index);
 			}
 			break;
 		case HDRTYPE_CUVA_HLG:
@@ -10816,13 +10831,21 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVA_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
 			} else if (cuva_hlg_process_mode_dpss == PROC_CUVAHLG_TO_SDR) {
+				if (gamut_conv_enable)
+					gamut_convert_process(vinfo, &source_format,
+						vd_path, &m, 14, DEST_NONE);
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVAHLG_SDR,
-					vinfo, NULL, s5_silce_mode, vpp_index);
+					vinfo,
+					gamut_conv_enable ? &m : NULL,
+					s5_silce_mode, vpp_index);
 			}
 			break;
 		default:
 			break;
 		}
+
+		if (source_format != HDRTYPE_SDR && !vpp_color_pri_sel)
+			bypass_gamut_wrapper = 1;
 
 		cal_gamut_mapping_wrapper_matrix(gamut_src_format, vinfo,
 			bypass_gamut_wrapper, vpp_index);
@@ -11068,10 +11091,14 @@ void set_muxio_link_mode(unsigned int link_flag,
 				cfg_sel = VPP_MUXIO_SEL_DPSS_DD;
 			}
 		} else {
-			if (!is_dd_frame)
-				cfg_sel = VPP_MUXIO_SEL_VD1_HDR;
-			else
+			if (!is_dd_frame) {
+				if (!flag_lc_evc_src)
+					cfg_sel = VPP_MUXIO_SEL_VD1_HDR;
+				else
+					cfg_sel = VPP_MUXIO_SEL_LC_EVC_HDR;
+			} else {
 				cfg_sel = VPP_MUXIO_SEL_VD1_DD;
+			}
 		}
 
 		muxio_de_link_status = 0;
@@ -11079,12 +11106,12 @@ void set_muxio_link_mode(unsigned int link_flag,
 		muxio_de_link_status = 1;
 	}
 
-	pr_csc(128, "%s: link_flag/is_dd_frame=%d/%d, muxio_de_link_status=%d\n",
-		__func__, link_flag, is_dd_frame, muxio_de_link_status);
+	pr_csc(128, "[muxio_link]: link_flag/is_dd_frame/de_link_status/dct=%d/%d/%d/%d\n",
+		link_flag, is_dd_frame, muxio_de_link_status, dct_status_dpss);
 
 	if (vf)
-		pr_csc(128, "%s: vf/index=%px/%d, dpss_mode=%d\n",
-			__func__, vf, vf->frame_index, dpss_mode);
+		pr_csc(128, "[muxio_link]: vf/index=%px/%d, dpss_mode=%d\n",
+			vf, vf->frame_index, dpss_mode);
 
 	if (vpp_index != VPP_VCBUS)
 		rdma_mode = 1;
@@ -11242,7 +11269,7 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 	unsigned int dp_mod_byps = 0;
 
 	pvf  = vf ? vf : (rpt_vf ? rpt_vf : NULL);
-	pr_log(0x1000, "%s: vf： %p, rpt_vf: %p\n", __func__, vf, rpt_vf);
+	pr_log(0x1000, "%s: vf: %p, rpt_vf: %p\n", __func__, vf, rpt_vf);
 
 	if (!pvf) {
 		//p->path_mux = PATH_DELINK;
@@ -11312,7 +11339,7 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			update_dd_mode(DOLBY5_VD1_MODE);
 #endif
-			amvecm_set_dpss_mode(0);
+			set_dpss_mode(0);
 			pr_csc(0x400, "sw01: path sw from dpss to vd1: frm_src:%s, nfs:%s,\n"
 				"pre_path_mux:%s, ndp:%s, frame_index=%d\n",
 				fs_str[p->frm_src], fs_str[nfs],
@@ -11352,7 +11379,7 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 			} else {
 				if (p->mute_cnt)
 					p->mute_cnt++;
-				pr_csc(0x400, "sw01:sw dpss,force mute:is_dd_frame:%d,min_mc：%d\n"
+				pr_csc(0x400, "sw01:sw dpss,force mute:is_dd_frame:%d,min_mc:%d\n"
 				"frm_src:%s,nfs:%s,pre_pm:%s,ndp:%s,fst_frm=%d,mc=%d,frm_idx=%d\n",
 					is_dd_frame, p->min_mc,
 					fs_str[p->frm_src], fs_str[nfs],
@@ -11392,7 +11419,7 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			update_dd_mode(DOLBY5_VD1_MODE);
 #endif
-			amvecm_set_dpss_mode(0);
+			set_dpss_mode(0);
 			p->path_mux = PATH_VD1;
 			if (p->mute_cnt) {
 				set_video_mute(PATH_SW_MUTE_SET, false);
@@ -11413,7 +11440,7 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 				update_dd_mode(DOLBY5_DPSS_MODE);
 #endif
 			} else {
-				amvecm_set_dpss_mode(1);
+				set_dpss_mode(1);
 			}
 			pr_csc(0x400, "sw01: path sw to dpss, video %s: is_dd_frame:%d,\n"
 				"frm_src:%s,nfs:%s,pre_pm:%s,pm:%s,ndp:%s,mute_cnt=%d,frm_idx=%d\n"
@@ -11449,7 +11476,7 @@ void update_link_state(struct vframe_s *vf,
 	unsigned int delink_rdy = 0;
 
 	pvf  = vf ? vf : (rpt_vf ? rpt_vf : NULL);
-	pr_log(0x1000, "%s: vf： %p, rpt_vf: %p\n", __func__, vf, rpt_vf);
+	pr_log(0x1000, "%s: vf: %p, rpt_vf: %p\n", __func__, vf, rpt_vf);
 
 	if (!pvf) {
 		//p->path_mux = PATH_DELINK;
@@ -11526,7 +11553,7 @@ void update_link_state(struct vframe_s *vf,
 				update_dd_mode(DOLBY5_DPSS_MODE);
 #endif
 			} else {
-				amvecm_set_dpss_mode(1);
+				set_dpss_mode(1);
 			}
 			pr_csc(0x400, "sw02: path sw to dpss, video %s: is_dd_frame:%d,\n"
 				"frm_src:%s,nfs:%s,pre_pm:%s,pm:%s,mute_cnt=%d,frame_index=%d\n"
@@ -12015,19 +12042,19 @@ int gamut1_oetf_144[144] = {
 	991, 1008, 1023};//u10
 
 int eotf_sdr[143] = {
-	0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 3, 3, 4, 5, 6, 6, 16, 31, 52,
-	78, 109, 147, 190, 240, 296, 358, 427, 503, 586, 675, 771, 875,
-	985, 1103, 1228, 1361, 1501, 1648, 1803, 1965, 2136, 2313, 2499,
-	2693, 2894, 3104, 3321, 3547, 3780, 4022, 4272, 4530, 4796, 5071,
-	5354, 5646, 5946, 6254, 6571, 6897, 7231, 7574, 7925, 8286, 8654,
-	9032, 9419, 9814, 10219, 10632, 11054, 11485, 11925, 12374, 12833,
-	13300, 13777, 14262, 14757, 15261, 15775, 16297, 16829, 17371, 17921,
-	18481, 19051, 19630, 20218, 20816, 21423, 22040, 22666, 23302, 23948,
-	24603, 25268, 25943, 26627, 27321, 28025, 28739, 29462, 30195, 30938,
-	31691, 32454, 33227, 34009, 34802, 35604, 36417, 37239, 38072, 38915,
-	39767, 40630, 41503, 42386, 43279, 44183, 45096, 46020, 46954, 47898,
-	48852, 49817, 50792, 51778, 52773, 53779, 54796, 55823, 56860, 57908,
-	58966, 60034, 61113, 62203, 63303, 64413, 65535};
+	0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 4, 4, 5, 6, 7, 17, 32, 52,
+	78, 110, 147, 191, 240, 296, 359, 428, 504, 586, 676, 772, 875,
+	986, 1104, 1229, 1361, 1501, 1648, 1803, 1966, 2136, 2314, 2500,
+	2693, 2895, 3104, 3322, 3547, 3781, 4022, 4272, 4530, 4797, 5072,
+	5355, 5646, 5946, 6255, 6572, 6897, 7231, 7574, 7926, 8286, 8655,
+	9033, 9419, 9815, 10219, 10632, 11054, 11486, 11926, 12375, 12833,
+	13301, 13777, 14263, 14758, 15262, 15775, 16298, 16830, 17371, 17922,
+	18482, 19051, 19630, 20218, 20816, 21424, 22040, 22667, 23303, 23949,
+	24604, 25269, 25943, 26628, 27322, 28026, 28739, 29462, 30196, 30939,
+	31692, 32454, 33227, 34010, 34802, 35605, 36417, 37240, 38072, 38915,
+	39768, 40631, 41503, 42387, 43280, 44183, 45097, 46020, 46954, 47899,
+	48853, 49818, 50793, 51778, 52774, 53780, 54796, 55823, 56860, 57908,
+	58966, 60035, 61114, 62203, 63303, 64414, 65535};
 
 int oetf_sdr[144] = {
 	0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3,
@@ -12239,11 +12266,9 @@ void set_gamut_mapping_wrapper(int module, int vpp_index)
 			if (hist_dma_case) {
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_MISC2, 1, 0, 1,
 					vpp_index);
-/*
- *				am_dma_set_mif_data_gamut0(gamut_mapping0_param.eotf_lut,
- *				gamut_mapping0_param.oetf_lut,
- *				gamut_mapping0_param.ootf_lut);
- */
+				am_dma_set_mif_data_gamut0(gamut_mapping0_param.eotf_lut,
+				gamut_mapping0_param.oetf_lut,
+				gamut_mapping0_param.ootf_lut);
 				return;
 			}
 
@@ -12320,10 +12345,8 @@ void set_gamut_mapping_wrapper(int module, int vpp_index)
 			if (hist_dma_case) {
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_MISC2, 1, 0, 1,
 					vpp_index);
-/*
- *				am_dma_set_mif_data_gamut1(gamut_mapping1_param.eotf_lut,
- *					gamut_mapping1_param.oetf_lut);
- */
+				am_dma_set_mif_data_gamut1(gamut_mapping1_param.eotf_lut,
+					gamut_mapping1_param.oetf_lut);
 				return;
 			}
 

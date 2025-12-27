@@ -283,6 +283,19 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 		if (skip != 0)
 			mask &= ~skip;
 
+		if (input_444_mode) {
+			skip = skip_444_settings(&p->am_reg[i]);
+			if (skip != 0)
+				mask &= ~skip;
+		}
+
+//		if (debug_regload) {
+//			pr_amcm_dbg("\n[%s] i=%d, length=%d, skip=0x%x\n",
+//				__func__, i, p->length, skip);
+//			pr_amcm_dbg("\n[%d] addr=0x%x, mask=0x%x, val=0x%x\n",
+//				p->am_reg[i].type, addr, mask, val);
+//		}
+
 		switch (p->am_reg[i].type) {
 		case REG_TYPE_PHY:
 			break;
@@ -345,9 +358,9 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 			}
 
 			/* add for cm patch size config */
-			if (addr == 0x205 ||
+			if ((addr == 0x205 ||
 				addr == 0x209 ||
-				addr == 0x20a) {
+				addr == 0x20a) && !suspend_drv_flag) {
 				pr_amcm_dbg("[amcm]:%s %s addr:0x%x",
 					"REG_TYPE_INDEX_VPPCHROMA",
 					__func__, addr);
@@ -449,8 +462,7 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 				if (pq_reg_wr_rdma)
 					VSYNC_WRITE_VPP_REG_EX_VPP_SEL(addr, val, 0, vpp_index);
 				else
-					WRITE_VPP_REG(p->am_reg[i].addr,
-						p->am_reg[i].val);
+					WRITE_VPP_REG(addr, val);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 				/*for slice1 sr*/

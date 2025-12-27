@@ -390,6 +390,7 @@ int DPSS_B_WR_MPEG_REG(u32 adr, u32 val);
 int DPSS_B_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 u32 DPSS_B_RD_MPEG_REG(u32 adr);
 #endif
+
 /* table1:hdr; table2:sr dnlp lc;table3:other modules*/
 static int index_rdma_part_ins(u32 reg)
 {
@@ -764,12 +765,6 @@ static inline void VSYNC_WRITE_VPP_REG_VPP_SEL_LUT(u32 reg,
 		VSYNC_WR_MPEG_REG_VPP2(reg1, value);
 	} else if (vpp_sel == 1) {
 		VSYNC_WR_MPEG_REG_VPP1(reg1, value);
-#if DPSS_RMDA
-	} else if (vpp_sel == 4) {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		DPSS_B_RD_MPEG_REG(offset_addr(reg));
-#endif
-#endif
 	} else {
 		if (pq_rdma_init)
 			VSYNC_WR_TABLE_REG_SIMPLE(index, reg1, value);

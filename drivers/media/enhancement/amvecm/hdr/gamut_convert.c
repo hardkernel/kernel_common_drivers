@@ -383,8 +383,6 @@ u32 force_dst_primary[8] = {
 	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
 };
 
-int gamut_mode;//0:auto 1:force
-
 u32 panel_primary[8] = {
 	0.64 * NORM + 0.5, 0.33 * NORM + 0.5,	/* R */
 	0.30 * NORM + 0.5, 0.60 * NORM + 0.5,	/* G */
@@ -399,6 +397,8 @@ struct hdr_gamut_data_s force_gamut_mtx = {
 		0x0, 0x0, 0x800,
 	}
 };
+
+int vpp_color_pri_sel;/*0:709 or panel, 1:2020*/
 
 int gamut_convert_process(struct vinfo_s *vinfo,
 			  enum hdr_type_e *source_type,
@@ -427,7 +427,10 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 		(source_type[vd_path] == HDRTYPE_HDR10_709)) ||
 		(source_type[vd_path] == HDRTYPE_HLG) ||
 		(source_type[vd_path] == HDRTYPE_PRIMESL) ||
-		(source_type[vd_path] == HDRTYPE_HDR10PLUS)) {
+		(source_type[vd_path] == HDRTYPE_HDR10PLUS) ||
+		(source_type[vd_path] == HDRTYPE_CUVA_HDR) ||
+		(source_type[vd_path] == HDRTYPE_CUVA_HLG) ||
+		(source_type[vd_path] == HDRTYPE_HLGPLUS)) {
 		if (get_primary_policy() == PRIMARIES_AUTO) {
 			for (i = 0; i < 3; i++)
 				for (j = 0; j < 2; j++) {
@@ -487,12 +490,13 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 			}
 	}
 
-	if (chip_type_id == chip_t6x && gamut_mapping1_en) {
+	if (chip_type_id == chip_t6x && gamut_mapping1_en &&
+		vpp_color_pri_sel) {
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 2; j++) {
 				dest_prmy[i][j] =
-					std_bt709_prmy[(i + 2) % 3][j];
-				dest_prmy[3][j] = std_bt709_white_point[j];
+					std_bt2020_prmy[(i + 2) % 3][j];
+				dest_prmy[3][j] = std_bt2020_white_point[j];
 		}
 	}
 
@@ -644,6 +648,15 @@ int gamut_mode_process(struct vinfo_s *vinfo,
 			for (j = 0; j < 2; j++) {
 				src_prmy[i][j] = std_bt709_prmy[(i + 2) % 3][j];
 				src_prmy[3][j] = std_bt709_white_point[j];
+			}
+	}
+
+	if (chip_type_id == chip_t6x && gamut_conv_enable &&
+		vpp_color_pri_sel) {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				src_prmy[i][j] = std_bt2020_prmy[(i + 2) % 3][j];
+				src_prmy[3][j] = std_bt2020_white_point[j];
 			}
 	}
 

@@ -167,6 +167,7 @@ extern int fmeter_en;
 extern int cur_sr_level;
 extern int pre_fmeter_level, fmeter_flag;
 extern unsigned int fmeter_debug;
+extern struct fmeter_data_s data_meter;
 extern struct aml_fmeter_drv_param_s fmeter_drv_param;
 
 void amve_fmeter_init(int enable);
@@ -246,6 +247,7 @@ void sharpness_gain_update(int vpp_index);
 void osd_sharpness_init(void);
 void osd_sharpness_ctrl(unsigned int sel, unsigned int enable);
 void amvecm_vadj_enable(enum vadj_index_e vadj_idx, int enable);
+
 void init_pq_rdma_part_ins(void);
 
 extern int amve_debug;
@@ -265,9 +267,23 @@ extern int dv_pq_bypass;
 extern unsigned int contrast_adj_sel;
 void amve_sharpness_sub_vsync_ctrl(unsigned int enable, int vpp_index);
 void amve_old_sharpness_sub_vsync_ctrl(unsigned int enable, int vpp_index);
+void pre_saturation_gain_update(void);
+int vpp_set_lut3d(int bfromkey,
+	int keyindex,
+	unsigned int p3dlut_in[][3],
+	int blut3dcheck);
+extern struct pre_sat_data_s pre_sat_data;
 int vpp_check_lut3d(void);
 int lut3d_test(int test_case, int enable);
 
+int get_skin_api(void);
+void set_skin_api(int en);
+
 void lc_evc_pq_settings(unsigned int lc_evc_src, int vpp_index);
+
+extern int input_444_mode;
+unsigned int skip_444_settings(struct am_reg_s *p);
+void amve_444_config_update(struct vframe_s *vf, int vpp_index);
+
 #endif
 

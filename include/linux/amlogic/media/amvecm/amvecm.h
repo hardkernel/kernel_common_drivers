@@ -235,6 +235,11 @@ struct ve_pq_table_s {
 	unsigned int reserved2;
 };
 
+struct pre_sat_data_s {
+	unsigned int enable;
+	unsigned int gain;
+};
+
 /* CMS ioctl data structure */
 struct cms_data_s {
 	int color;
@@ -254,29 +259,6 @@ enum vpp_transfer_characteristic_e {
 	VPP_ST2084 = 0x2,
 	VPP_ST2094_40 = 0x4,
 };
-/*
-enum ve_source_input_e {
-	SOURCE_INVALID = -1,
-	SOURCE_TV = 0,
-	SOURCE_AV1,
-	SOURCE_AV2,
-	SOURCE_YPBPR1,
-	SOURCE_YPBPR2,
-	SOURCE_HDMI1,
-	SOURCE_HDMI2,
-	SOURCE_HDMI3,
-	SOURCE_HDMI4,
-	SOURCE_VGA,
-	SOURCE_MPEG,
-	SOURCE_DTV,
-	SOURCE_SVIDEO,
-	SOURCE_IPTV,
-	SOURCE_DUMMY,
-	SOURCE_SPDIF,
-	SOURCE_ADTV,
-	SOURCE_MAX,
-};
-*/
 
 /*pq_timing:
  *SD/HD/FHD/UHD for DTV/MEPG,
@@ -488,11 +470,6 @@ struct vdj_parm_s {
 	int sat_hue;
 };
 
-struct pre_sat_data_s {
-	unsigned int enable;
-	unsigned int gain;
-};
-
 extern signed int vd1_brightness, vd1_contrast;
 extern int gamma_en;
 extern unsigned int atv_source_flg;
@@ -537,6 +514,8 @@ struct vpq_size_s {
 };
 
 void amvecm_size_info_update(int vpp_index);
+extern int flag_cuva_hdr;
+extern int sel_val;
 
 int amvecm_on_vs(struct vframe_s *display_vf,
 		 struct vframe_s *toggle_vf,
@@ -681,6 +660,7 @@ void bs_ct_latch(void);
 int pkt_adv_chip(void);
 extern unsigned int ai_color_enable;
 void amve_lc_evc_ctrl(unsigned int enable, unsigned int lc_evc_src);
+void lcd_post2_matrix(void);
 
 int register_osd_status_cb(int (*get_osd_enable_status)(u32 index));
 void resume_recovery_process(int vpp_index);
@@ -783,12 +763,19 @@ extern unsigned int pq_bypass_debug_flag;
 extern int cur_contrast_v;
 extern int cur_contrast_u;
 extern int cur_vpp_index;
+extern int hdr_on;
+extern int hdr_set_on;
+extern unsigned int flag_cm_lc_dma_en;
+extern int last_out_range;
 extern unsigned int hdr_core_fix_mode;
 extern int set_dummy_flag;
 extern bool mosaic_mode;
 
 extern unsigned int flag_cm_lc_dma_en;
 extern unsigned int pc_mode;
+extern int hdr10p_set_on;
+extern bool suspend_drv_flag;
 
+void gamut_mapping_wrapper_crtl(int module, int en);
 #endif /* AMVECM_H */
 

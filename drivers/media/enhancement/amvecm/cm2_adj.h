@@ -28,6 +28,12 @@
 #define CM2_ENH_COEF3_H02 0x113
 #define CM2_ENH_COEF4_H02 0x114
 
+extern char def_sat_via_hs[3][32];
+extern char def_hue_via_s[5][32];
+extern char def_hue_via_hue[32];
+extern char def_luma_via_hue[32];
+extern int cm_mode;
+
 void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs);
 void cm2_curve_update_hue(struct cm_color_md cm_color_md_hue);
 void cm2_curve_update_luma(struct cm_color_md cm_color_md_luma);

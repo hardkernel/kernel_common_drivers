@@ -18,6 +18,7 @@ extern u32 force_dst_primary[8];
 extern u32 panel_primary[8];
 extern int gamut_mode;
 extern struct hdr_gamut_data_s force_gamut_mtx;
+extern int vpp_color_pri_sel;
 int gamut_convert_process(struct vinfo_s *vinfo,
 	enum hdr_type_e *source_type,
 	enum vd_path_e vd_path,

@@ -8,45 +8,52 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/amlogic/media/amvecm/amvecm.h>
 #include "am_dma_ctrl.h"
 #include "reg_helper.h"
 
 int am_dma_ctrl_dbg;
 
-#define LUT_DMA_AUTO_ADDR_STEP_WR_0  0x2808
-
 #define pr_am_dma(fmt, args...)\
 	do {\
-		if (am_dma_ctrl_dbg == 0x1) {\
+		if (am_dma_ctrl_dbg & 0x1) {\
 			pr_info("am_dma_ctrl: " fmt, ## args);\
 		} \
 	} while (0)\
 
 #define pr_am_dma_vi(fmt, args...)\
 	do {\
-		if (am_dma_ctrl_dbg == 0x2) {\
+		if (am_dma_ctrl_dbg & 0x2) {\
 			pr_info("am_dma_ctrl: " fmt, ## args);\
 		} \
 	} while (0)\
 
 #define pr_am_dma_hdr2(fmt, args...)\
 	do {\
-		if (am_dma_ctrl_dbg == 0x3) {\
+		if (am_dma_ctrl_dbg & 0x4) {\
 			pr_info("am_dma_ctrl: " fmt, ## args);\
 		} \
 	} while (0)\
 
 #define pr_am_dma_lc(fmt, args...)\
 	do {\
-		if (am_dma_ctrl_dbg == 0x4) {\
+		if (am_dma_ctrl_dbg & 0x8) {\
 			pr_info("am_dma_ctrl: " fmt, ## args);\
 		} \
 	} while (0)\
 
+#define pr_am_dma_lut3d(fmt, args...)\
+	(do {\
+		if (am_dma_ctrl_dbg & 0x10) {\
+			pr_info("am_dma_ctrl: " fmt, ## args);\
+		} \
+	} while (0))\
+
 #define ADDR_PARAM(page, reg)  (((page) << 8) | (reg))
 #define UNIT_SIZE (16) /*128/8*/
 
-/*For 3D LUT*/
+#define LUT_DMA_AUTO_ADDR_STEP_WR_0  0x2808
+
 #define VPU_DMA_RDMIF0_CTRL   0x2750
 #define VPU_DMA_RDMIF1_CTRL   0x2751
 #define VPU_DMA_RDMIF2_CTRL   0x2752
@@ -119,6 +126,15 @@ struct vpu_lut_dma_wr_s {
 	int auto_addr_en;
 };
 
+struct vpu_lut_dma_rd_s {
+	enum lut_dma_rd_id_e dma_rd_id;
+	u32 stride;
+	u64 baddr0;
+	u64 baddr1;
+	u64 baddr2;
+	u64 baddr3;
+};
+
 struct _dma_reg_cfg_s {
 	unsigned char page;
 	unsigned char reg_wrmif_ctrl;
@@ -142,15 +158,6 @@ struct _viu_dma_reg_cfg_s {
 	unsigned char reg_ctrl1;
 };
 
-struct vpu_lut_dma_rd_s {
-	enum lut_dma_rd_id_e dma_rd_id;
-	u32 stride;
-	u64 baddr0;
-	u64 baddr1;
-	u64 baddr2;
-	u64 baddr3;
-};
-
 static struct _dma_reg_cfg_s dma_reg_cfg = {
 	.page = 0x27,
 	.reg_wrmif_ctrl = 0xd5,
@@ -166,7 +173,6 @@ static struct _dma_reg_cfg_s dma_reg_cfg = {
 	.reg_rdmif0_badr3 = 0x5b,
 	.reg_rdmif_sel = 0x78,
 	.reg_wrmif_ctrl2 = 0xce,
-
 };
 
 static struct _viu_dma_reg_cfg_s viu_dma_reg_cfg = {
@@ -179,12 +185,10 @@ static struct device vecm_dev;
 static ulong alloc_size[EN_DMA_WR_ID_MAX];
 static dma_addr_t dma_paddr[EN_DMA_WR_ID_MAX];
 static dma_addr_t dma_rd_paddr[EN_DMA_RD_ID_MAX];
-
 static void *dma_vaddr[EN_DMA_WR_ID_MAX];
 static void *dma_rd_vaddr[EN_DMA_RD_ID_MAX];
 static struct vpu_lut_dma_wr_s lut_dma_wr[EN_DMA_WR_ID_MAX];
 static struct vpu_lut_dma_rd_s lut_dma_rd[EN_DMA_RD_ID_MAX];
-
 static unsigned int dma_count[EN_DMA_WR_ID_MAX] = {
 	12 * 8 * 4, 12 * 8 * 4,
 	22, 22,
@@ -257,11 +261,15 @@ static void _set_vpu_lut_dma_mif_wr_unit(int enable,
 	addr = ADDR_PARAM(dma_reg_cfg.page,
 		dma_reg_cfg.reg_wrmif0_ctrl) + offset;
 	val = READ_VPP_REG_S5(addr);
+
 	val |= ((cfg_data->addr_mode & 0x3) << 28) |
 		((cfg_data->rpt_num & 0xff) << 18) |
 		((enable & 0x1) << 16) |
 		(cfg_data->stride & 0x1fff);
-	WRITE_VPP_REG_S5(addr, val);
+	WRITE_VPP_REG_BITS_S5(addr, cfg_data->addr_mode, 28, 2);
+	WRITE_VPP_REG_BITS_S5(addr, cfg_data->rpt_num, 18, 8);
+	WRITE_VPP_REG_BITS_S5(addr, enable, 16, 1);
+	WRITE_VPP_REG_BITS_S5(addr, cfg_data->stride, 0, 13);
 
 	pr_am_dma("%s: reg = %x, val = %x\n",
 		__func__, addr, val);
@@ -428,6 +436,30 @@ void am_dma_init(void)
 unsigned int dma_cm_en;
 unsigned int dma_lc_en;
 
+int check_dma_status(enum lut_dma_wr_id_e dma_wr_id)
+{
+	unsigned int reg_val = 0;
+	unsigned int ro_hold_timeout = 0;
+	unsigned int ro_lut_wr_id = 0;
+	unsigned int ro_wrmif_cnt = 0;
+	unsigned int cnt_not_match = 0;
+
+	reg_val = READ_VPP_REG(0x27ee);
+	ro_lut_wr_id = reg_val >> 27 & 0xf;
+	ro_hold_timeout = reg_val >> 25 & 0x1;
+	ro_wrmif_cnt = reg_val >> 12 & 0x1fff;
+
+	if (ro_lut_wr_id == dma_wr_id &&
+		ro_wrmif_cnt != lut_dma_wr[dma_wr_id].stride)
+		cnt_not_match = 1;
+
+//	if (ro_hold_timeout | cnt_not_match)
+//		pr_am_dma("%s: reg_val = 0x%x, stride = %d\n",
+//			__func__, reg_val, lut_dma_wr[dma_wr_id].stride);
+
+	return ro_hold_timeout | cnt_not_match;
+}
+
 void am_dma_update_mif_wr_cm_lc(enum wr_md_e md)
 {
 	enum lut_dma_wr_id_e dma_wr_id = EN_DMA_WR_ID_CM2_LC;
@@ -515,54 +547,6 @@ void am_dma_update_mif_wr_cm_lc(enum wr_md_e md)
 	}
 }
 
-void am_dma_reset_lc(int enable, int rdma_mode, int vpp_index)
-{
-	unsigned int addr;
-	unsigned int val;
-	unsigned int rpt_num;
-	unsigned int stride_num;
-
-	if (enable) {
-		rpt_num = 1;
-		stride_num = 4;
-	} else {
-		rpt_num = 8;
-		stride_num = 48;
-	}
-
-	//pr_am_dma("%s: rpt_num = %d, stride_num = %d, rdma_mode = %d, vpp_index = %d\n",
-	pr_info("%s: rpt_num = %d, stride_num = %d, rdma_mode = %d, vpp_index = %d\n",
-		__func__, rpt_num, stride_num, rdma_mode, vpp_index);
-
-	addr = ADDR_PARAM(dma_reg_cfg.page,
-		dma_reg_cfg.reg_wrmif0_ctrl) + EN_DMA_WR_ID_LC_STTS_0;
-	val = READ_VPP_REG_S5(addr);
-	val = (val & 0xfc03e000) |
-		((rpt_num & 0xff) << 18) |
-		(stride_num & 0x1fff);
-	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG_VPP_SEL(addr, val, vpp_index);
-	else
-		WRITE_VPP_REG_S5(addr, val);
-	//pr_am_dma("%s: enable = %d, reg = 0x%x, val = 0x%08x\n",
-	pr_info("%s: enable = %d, reg = 0x%x, val = 0x%08x\n",
-		__func__, enable, addr, val);
-}
-
-void am_dma_set_wr_cfg(enum lut_dma_wr_id_e dma_wr_id, int enable,
-	unsigned int stride, unsigned int addr_mode, unsigned int rpt_num)
-{
-	if (dma_wr_id != EN_DMA_WR_ID_MAX) {
-		lut_dma_wr[dma_wr_id].stride = stride;
-		lut_dma_wr[dma_wr_id].addr_mode = addr_mode;
-		lut_dma_wr[dma_wr_id].rpt_num = rpt_num;
-
-		if (dma_vaddr[dma_wr_id])
-			_set_vpu_lut_dma_mif_wr_unit(enable,
-				&lut_dma_wr[dma_wr_id]);
-	}
-}
-
 void am_dma_buffer_malloc(struct platform_device *pdev,
 	enum lut_dma_wr_id_e dma_wr_id)
 {
@@ -618,17 +602,22 @@ void am_dma_rd_buffer_malloc(struct platform_device *pdev,
 void am_dma_buffer_free(struct platform_device *pdev,
 	enum lut_dma_wr_id_e dma_wr_id)
 {
-	int i = 0;
-
 	vecm_dev = pdev->dev;
 
-	if (dma_wr_id == EN_DMA_WR_ID_MAX) {
-		for (i = 0; i < EN_DMA_WR_ID_AMBIENT_LIGHT; i++)
-			dma_free_coherent(&vecm_dev,
-				alloc_size[i], dma_vaddr[i], dma_paddr[i]);
-	} else {
+	if (dma_wr_id != EN_DMA_WR_ID_MAX) {
 		dma_free_coherent(&vecm_dev, alloc_size[dma_wr_id],
 			dma_vaddr[dma_wr_id], dma_paddr[dma_wr_id]);
+	}
+}
+
+void am_dma_rd_buffer_free(struct platform_device *pdev,
+	enum lut_dma_rd_id_e dma_rd_id)
+{
+	vecm_dev = pdev->dev;
+
+	if (dma_rd_id != EN_DMA_RD_ID_MAX) {
+		dma_free_coherent(&vecm_dev, dma_rd_count[dma_rd_id] * UNIT_SIZE,
+			dma_rd_vaddr[dma_rd_id], dma_rd_paddr[dma_rd_id]);
 	}
 }
 
@@ -643,23 +632,17 @@ void am_dma_set_mif_wr_status(int enable)
 	pr_am_dma("%s: reg = %x, enable = %d\n",
 		__func__, addr, enable);
 
-	addr = ADDR_PARAM(dma_reg_cfg.page,
-		dma_reg_cfg.reg_sr_mode_l2c1);
-	WRITE_VPP_REG_BITS_S5(addr, 1, 22, 1);
+	if (chip_type_id == chip_t3x) {
+		addr = ADDR_PARAM(dma_reg_cfg.page,
+			dma_reg_cfg.reg_sr_mode_l2c1);
+		WRITE_VPP_REG_BITS_S5(addr, 1, 22, 1);
+	}
 }
 
 void am_dma_set_mif_wr(enum lut_dma_wr_id_e dma_wr_id,
 	int enable)
 {
-	int i = 0;
-
-	if (dma_wr_id == EN_DMA_WR_ID_MAX) {
-		for (i = 0; i < EN_DMA_WR_ID_AMBIENT_LIGHT; i++) {
-			if (dma_vaddr[i])
-				_set_vpu_lut_dma_mif_wr_unit(enable,
-					&lut_dma_wr[i]);
-		}
-	} else {
+	if (dma_wr_id != EN_DMA_WR_ID_MAX) {
 		if (dma_vaddr[dma_wr_id])
 			_set_vpu_lut_dma_mif_wr_unit(enable,
 				&lut_dma_wr[dma_wr_id]);
@@ -815,6 +798,9 @@ void am_dma_get_mif_data_vi_hist(int index,
 	unsigned int size = length;
 	unsigned short *val;
 
+	if (chip_type_id != chip_t3x)
+		return;
+
 	if (!data || length == 0) {
 		pr_am_dma("%s: data or length not fit.\n",
 			__func__);
@@ -852,6 +838,9 @@ void am_dma_get_mif_data_vi_hist_low(int index,
 	unsigned short tmp = 0;
 	unsigned int size = length;
 	unsigned char *val;
+
+	if (chip_type_id != chip_t3x)
+		return;
 
 	if (!data || length == 0) {
 		pr_am_dma("%s: data or length not fit.\n",
@@ -892,7 +881,7 @@ void am_dma_get_mif_data_vi_hist_low(int index,
 	}
 }
 
-void am_dma_get_mif_data_cm2_hist_hue(int index,
+int am_dma_get_mif_data_cm2_hist_hue(int index,
 	unsigned int *data, unsigned int length)
 {
 	int i = 0;
@@ -903,7 +892,7 @@ void am_dma_get_mif_data_cm2_hist_hue(int index,
 	if (!data || length == 0) {
 		pr_am_dma("%s: data or length not fit.\n",
 			__func__);
-		return;
+		return 1;
 	}
 
 	if (index > 1)
@@ -917,12 +906,12 @@ void am_dma_get_mif_data_cm2_hist_hue(int index,
 	else if (chip_type_id == chip_t3x)
 		dma_id = EN_DMA_WR_ID_CM2_HIST_0 + index;
 	else
-		return;
+		return 1;
 
 	if (!dma_vaddr[dma_id]) {
 		pr_am_dma("%s: dma_vaddr %d is NULL.\n",
 			__func__, dma_id);
-		return;
+		return 1;
 	}
 
 	val = (unsigned int *)dma_vaddr[dma_id];
@@ -930,10 +919,10 @@ void am_dma_get_mif_data_cm2_hist_hue(int index,
 	for (i = 0; i < size; i++)
 		data[i] = val[i];
 
-	return;
+	return 0;
 }
 
-void am_dma_get_mif_data_cm2_hist_sat(int index,
+int am_dma_get_mif_data_cm2_hist_sat(int index,
 	unsigned int *data, unsigned int length)
 {
 	int i = 0;
@@ -944,7 +933,7 @@ void am_dma_get_mif_data_cm2_hist_sat(int index,
 	if (!data || length == 0) {
 		pr_am_dma("%s: data or length not fit.\n",
 			__func__);
-		return;
+		return 1;
 	}
 
 	if (index > 1)
@@ -958,12 +947,12 @@ void am_dma_get_mif_data_cm2_hist_sat(int index,
 	else if (chip_type_id == chip_t3x)
 		dma_id = EN_DMA_WR_ID_CM2_HIST_0 + index;
 	else
-		return;
+		return 1;
 
 	if (!dma_vaddr[dma_id]) {
 		pr_am_dma("%s: dma_vaddr %d is NULL.\n",
 			__func__, dma_id);
-		return;
+		return 1;
 	}
 
 	val = (unsigned int *)dma_vaddr[dma_id] + 32;
@@ -971,10 +960,10 @@ void am_dma_get_mif_data_cm2_hist_sat(int index,
 	for (i = 0; i < size; i++)
 		data[i] = val[i];
 
-	return;
+	return 0;
 }
 
-void am_dma_get_mif_data_hdr2_hist(int index,
+int am_dma_get_mif_data_hdr2_hist(int index,
 	unsigned int *data, unsigned int length)
 {
 	int i = 0;
@@ -989,7 +978,7 @@ void am_dma_get_mif_data_hdr2_hist(int index,
 	if (!data || length == 0) {
 		pr_am_dma("%s: data or length not fit.\n",
 			__func__);
-		return;
+		return 1;
 	}
 
 	if (chip_type_id == chip_t6x) {
@@ -1010,12 +999,12 @@ void am_dma_get_mif_data_hdr2_hist(int index,
 	else if (chip_type_id == chip_t3x)
 		dma_id = EN_DMA_WR_ID_CM2_HIST_0 + index;
 	else
-		return;
+		return 1;
 
 	if (!dma_vaddr[dma_id]) {
 		pr_am_dma("%s: dma_vaddr %d is NULL.\n",
 			__func__, dma_id);
-		return;
+		return 1;
 	}
 
 	val = (unsigned char *)dma_vaddr[dma_id];
@@ -1037,7 +1026,7 @@ void am_dma_get_mif_data_hdr2_hist(int index,
 		}
 	}
 
-	return;
+	return 0;
 }
 
 void am_dma_get_blend_vi_hist(unsigned short *data,
@@ -1047,6 +1036,9 @@ void am_dma_get_blend_vi_hist(unsigned short *data,
 	unsigned int size = length;
 	unsigned short *val_0;
 	unsigned short *val_1;
+
+	if (chip_type_id != chip_t3x)
+		return;
 
 	if (!data || length == 0) {
 		pr_am_dma("%s: data or length not fit.\n",
@@ -1084,6 +1076,9 @@ void am_dma_get_blend_vi_hist_low(unsigned short *data,
 	unsigned short tmp = 0;
 	unsigned short tmp_0 = 0;
 	unsigned short tmp_1 = 0;
+
+	if (chip_type_id != chip_t3x)
+		return;
 
 	if (!data || length == 0) {
 		pr_am_dma("%s: data or length not fit.\n",
@@ -1140,6 +1135,9 @@ void am_dma_get_blend_cm2_hist_hue(unsigned int *data,
 	unsigned int tmp_0 = 0;
 	unsigned int tmp_1 = 0;
 
+	if (chip_type_id != chip_t3x)
+		return;
+
 	if (!data || length == 0) {
 		pr_am_dma("%s: data or length not fit.\n",
 			__func__);
@@ -1190,6 +1188,9 @@ void am_dma_get_blend_cm2_hist_sat(unsigned int *data,
 	unsigned int tmp = 0;
 	unsigned int tmp_0 = 0;
 	unsigned int tmp_1 = 0;
+
+	if (chip_type_id != chip_t3x)
+		return;
 
 	if (!data || length == 0) {
 		pr_am_dma("%s: data or length not fit.\n",
@@ -1247,6 +1248,9 @@ void am_dma_get_blend_hdr2_hist(unsigned int *data,
 	unsigned int tmp_0 = 0;
 	unsigned int tmp_1 = 0;
 
+	if (chip_type_id != chip_t3x)
+		return;
+
 	if (!data || length == 0) {
 		pr_am_dma("%s: data or length not fit.\n",
 			__func__);
@@ -1297,6 +1301,89 @@ void am_dma_get_blend_hdr2_hist(unsigned int *data,
 	}
 }
 
+int am_dma_set_mif_data_gamut0(int *eotf, int *oetf, int *ootf)
+{
+	int i;
+	enum lut_dma_rd_id_e dma_id = EN_DMA_RD_ID_GAMUT0;
+	unsigned int *addr;
+	unsigned int k = 0;
+	unsigned int flag = 0xf2000000;
+
+	if (!eotf || !oetf || !ootf) {
+//		pr_am_dma("%s: lut is NULL.\n", __func__);
+		return 1;
+	}
+
+	if (!dma_rd_vaddr[dma_id]) {
+//		pr_am_dma("%s: dma_rd_vaddr %d is NULL.\n",
+//			__func__, dma_id);
+		return 1;
+	}
+	addr = (unsigned int *)dma_rd_vaddr[dma_id];
+//	pr_info("%s:dma_vaddr = %p, addr = %p\n", __func__,
+//		dma_rd_vaddr[dma_id], addr);
+
+	for (i = 0; i < 3; i++)
+		addr[k++] = 0;
+	addr[k++] = flag;
+	for (i = 0; i < 143 / 2; i++)
+		addr[k++] = (eotf[i * 2 + 1] << 16) | eotf[i * 2];
+	addr[k++] = eotf[142];
+
+	for (i = 0; i < 3; i++)
+		addr[k++] = 0;
+	addr[k++] = flag;
+	for (i = 0; i < 144 / 2; i++)
+		addr[k++] = (oetf[i * 2 + 1] << 16) | oetf[i * 2];
+
+	for (i = 0; i < 3; i++)
+		addr[k++] = 0;
+	addr[k++] = flag;
+	for (i = 0; i < 144 / 2; i++)
+		addr[k++] = (ootf[i * 2 + 1] << 16) | ootf[i * 2];
+
+	return 0;
+}
+
+int am_dma_set_mif_data_gamut1(int *eotf, int *oetf)
+{
+	int i;
+	enum lut_dma_rd_id_e dma_id = EN_DMA_RD_ID_GAMUT1;
+	unsigned int *addr;
+	unsigned int k = 0;
+	unsigned int flag = 0xf2000000;
+
+	if (!eotf || !oetf) {
+//		pr_am_dma("%s: lut is NULL.\n", __func__);
+		return 1;
+	}
+
+	if (!dma_rd_vaddr[dma_id]) {
+//		pr_am_dma("%s: dma_rd_vaddr %d is NULL.\n",
+//			__func__, dma_id);
+		return 1;
+	}
+
+	addr = (unsigned int *)dma_rd_vaddr[dma_id];
+//	pr_info("%s: dma_vaddr = %p, addr = %p\n", __func__,
+//		dma_rd_vaddr[dma_id], addr);
+
+	for (i = 0; i < 3; i++)
+		addr[k++] = 0;
+	addr[k++] = flag;
+	for (i = 0; i < 143 / 2; i++)
+		addr[k++] = (eotf[i * 2 + 1] << 16) | eotf[i * 2];
+	addr[k++] = eotf[142];
+
+	for (i = 0; i < 3; i++)
+		addr[k++] = 0;
+	addr[k++] = flag;
+	for (i = 0; i < 144 / 2; i++)
+		addr[k++] = (oetf[i * 2 + 1] << 16) | oetf[i * 2];
+
+	return 0;
+}
+
 int am_dma_set_mif_data_3dlut(int *plut3d)
 {
 	int i;
@@ -1318,20 +1405,20 @@ int am_dma_set_mif_data_3dlut(int *plut3d)
 	unsigned int *addr;
 
 	if (!plut3d) {
-		pr_am_dma("%s: pLut3D is NULL.\n", __func__);
+//		pr_am_dma("%s: pLut3D is NULL.\n", __func__);
 		return 1;
 	}
 
 	if (!dma_rd_vaddr[dma_id]) {
-		pr_am_dma("%s: dma_rd_vaddr %d is NULL.\n",
-			__func__, dma_id);
+//		pr_am_dma("%s: dma_rd_vaddr %d is NULL.\n",
+//			__func__, dma_id);
 		return 1;
 	}
 
 	for (i = 0; i < 8; i++) {
 		ram[i] = kzalloc(17 * 17 * 17 * sizeof(long long), GFP_ATOMIC);
 		if (!ram[i]) {
-			pr_am_dma("%s:error kzalloc[%d] fail.\n", __func__, i);
+//			pr_am_dma("%s:error kzalloc[%d] fail.\n", __func__, i);
 			return 2;
 		}
 	}
@@ -1733,6 +1820,40 @@ static void _set_vpu_lut_dma(struct vpu_lut_dma_type_s      *vpu_lut_dma)
 	WRITE_VPP_REG_S5(addr, val);
 
 	_set_vpu_lut_dma_mif(vpu_lut_dma);
+}
+
+void am_dma_reset_lc(int enable, int rdma_mode, int vpp_index)
+{
+	unsigned int addr;
+	unsigned int val;
+	unsigned int rpt_num;
+	unsigned int stride_num;
+
+	if (enable) {
+		rpt_num = 1;
+		stride_num = 4;
+	} else {
+		rpt_num = 8;
+		stride_num = 48;
+	}
+
+	//pr_am_dma("%s: rpt_num = %d, stride_num = %d, rdma_mode = %d, vpp_index = %d\n",
+	//pr_info("%s: rpt_num = %d, stride_num = %d, rdma_mode = %d, vpp_index = %d\n",
+	//	__func__, rpt_num, stride_num, rdma_mode, vpp_index);
+
+	addr = ADDR_PARAM(dma_reg_cfg.page,
+		dma_reg_cfg.reg_wrmif0_ctrl) + EN_DMA_WR_ID_LC_STTS_0;
+	val = READ_VPP_REG_S5(addr);
+	val = (val & 0xfc03e000) |
+		((rpt_num & 0xff) << 18) |
+		(stride_num & 0x1fff);
+	if (rdma_mode)
+		VSYNC_WRITE_VPP_REG_VPP_SEL(addr, val, vpp_index);
+	else
+		WRITE_VPP_REG_S5(addr, val);
+	//pr_am_dma("%s: enable = %d, reg = 0x%x, val = 0x%08x\n",
+	//pr_info("%s: enable = %d, reg = 0x%x, val = 0x%08x\n",
+	//	__func__, enable, addr, val);
 }
 
 static void _fill_dma_data_lut3d(void *dma_vaddr,

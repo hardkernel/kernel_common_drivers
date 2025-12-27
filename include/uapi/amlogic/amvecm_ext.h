@@ -829,7 +829,7 @@ struct hdr_parameter_reg_s {
 #define AMVECM_IOC_S_BLUE_STR			_IOW(_VE_CM, 0x7a, struct blue_str_parm_s)
 #define AMVECM_IOC_S_COLOR_TUNE			_IOW(_VE_CM, 0x7b, struct color_tune_parm_s)
 #define AMVECM_IOC_3D_LUT_EN			_IO(_VE_CM, 0x7c)
-#define AMVECM_IOC_COLOR_PRI_EN			_IO(_VE_CM, 0x7d)
+#define AMVECM_IOC_COLOR_PRI_EN			_IOW(_VE_CM, 0x7d, int)
 #define AMVECM_IOC_COLOR_PRIMARY		_IOW(_VE_CM, 0x7e, struct primary_s)
 #define AMVECM_IOC_S_GAMUT_CONV_EN		_IOW(_VE_CM, 0x7f, enum gamut_conv_enable_e)
 #define AMVECM_IOC_COLOR_MTX_EN			_IO(_VE_CM, 0x80)
@@ -861,6 +861,8 @@ struct hdr_parameter_reg_s {
 #define AMVECM_IOC_G_OSD_PIC_MODE    _IOR(_VE_CM, 0x94, struct am_osd_vdj_mode_s)
 #define AMVECM_IOC_S_OSD_PIC_MODE    _IOW(_VE_CM, 0x95, struct am_osd_vdj_mode_s)
 
+#define AMVECM_IOC_S_PQ_LOAD_EN      _IO(_VE_CM, 0x96)
+
 /*hdr10_tmo ext ioc*/
 #define AMVECM_IOC_S_HDR_TMO_EXT	_IOW(_VE_CM, 0x97, struct hdr_tmo_sw_ext)
 #define AMVECM_IOC_G_HDR_TMO_EXT	_IOR(_VE_CM, 0x98, struct hdr_tmo_sw_ext)
@@ -875,6 +877,7 @@ struct hdr_parameter_reg_s {
 
 #define AMDI_IOC_SET_NR2_EN    _IOW(_DI_, 0xa7, unsigned char)
 #define AMDI_IOC_SET_DNR_EN    _IOW(_DI_, 0xa8, unsigned char)
+
 #define AMVECM_IOC_G_FORCE_OUT   _IOR(_VE_CM, 0xa9, int)
 #define AMDI_IOC_SET_DM_EN     _IOW(_DI_, 0xaa, unsigned char)
 #define AMVECM_IOC_S_HDR10P_ON   _IOW(_VE_CM, 0xab, int)
@@ -883,5 +886,5 @@ struct hdr_parameter_reg_s {
 #define AMVECM_IOC_S_GMT_WRAPPER_MODE _IOW(_VE_CM, 0xad, int)
 #define AMVECM_IOC_S_GMT_WRAPPER_COEF _IOW(_VE_CM, 0xae, struct hdr_gamut_data_s)
 #define AMVECM_IOC_S_PANEL_PRIMARY    _IOW(_VE_CM, 0xaf, struct panel_primary_s)
-
+#define AMVECM_IOC_S_CM_MODE    _IOW(_VE_CM, 0xb0, int)
 #endif

@@ -25,6 +25,7 @@ extern int dnlp_en;/*0:disable;1:enable */
 
 extern unsigned int sr1_reg_val[101];
 extern int pq_reg_wr_rdma;
+extern unsigned int cm_size;
 
 /* *********************************************************************** */
 /* *** IOCTL-oriented functions ****************************************** */

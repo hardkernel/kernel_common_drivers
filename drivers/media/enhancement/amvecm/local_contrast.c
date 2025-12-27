@@ -107,6 +107,7 @@ int lc_pattern_detect_log1;
 int lc_read_curve_nodes_changed_en;
 int lc_change_curve_nodes_en;
 int lc_pattern_detect_log1_cnt;
+int lc_special_pattern_detect;
 
 /*lc saturation gain, low parameters*/
 /*static unsigned int lc_satur_gain[63] = {
@@ -149,6 +150,8 @@ int tune_curve_en = 2;
 int detect_signal_range_en = 2;
 int detect_signal_range_threshold_black = 1600;
 int detect_signal_range_threshold_white = 3200;
+
+static unsigned int input_422_flag = 1;
 
 /*for debug*/
 int lc_dbg_flag;
@@ -1102,6 +1105,10 @@ static void lc_top_config(int enable, int h_num, int v_num,
 	unsigned int height, unsigned int width, int bitdepth,
 	int flag, int flag_full, int rdma_mode, int vpp_index)
 {
+	unsigned int lc_input_sel_y = 6;
+	unsigned int lc_input_sel_c = 6;
+	unsigned int lc_sr_in = 0;
+
 	pr_amlc_dbg("[%s]:enable/h_num/v_num/height/width: %d/%d/%d/%d/%d\n",
 		__func__, enable, h_num, v_num, height, width);
 	pr_amlc_dbg("[%s]:bitdepth/flag/flag_full: %d/%d/%d\n",
@@ -1133,16 +1140,26 @@ static void lc_top_config(int enable, int h_num, int v_num,
 			}
 		}
 
+		if (chip_type_id >= chip_t6d) {
+			if (input_422_flag) {
+				//lc_input_sel_y = 5;
+				//lc_input_sel_c = 5;
+				lc_sr_in = 0;
+			} else {
+				//lc_input_sel_y = 6;
+				//lc_input_sel_c = 6;
+				lc_sr_in = 1;
+			}
+		}
+
 		if (rdma_mode) {
-			if (chip_type_id == chip_t6d ||
-				chip_type_id == chip_t6w ||
-				chip_type_id == chip_t6x) {
-					/*lcinput_ysel*/
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_INPUT_SEL, 5, 4, 3,
-					vpp_index);
+			if (chip_type_id >= chip_t6d) {
+				/*lcinput_ysel*/
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_INPUT_SEL,
+					lc_input_sel_y, 4, 3, vpp_index);
 				/*lcinput_csel*/
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_INPUT_SEL, 5, 0, 3,
-					vpp_index);
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_INPUT_SEL,
+					lc_input_sel_c, 0, 3, vpp_index);
 				/*lc ram write h num*/
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_BLK_HV_NUM, h_num,
 					8, 8, vpp_index);
@@ -1153,8 +1170,8 @@ static void lc_top_config(int enable, int h_num, int v_num,
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_MODE, 1, 0, 1,
 					vpp_index);
 				/*LC sync ctl*/
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_MODE, 0, 8, 1,
-					vpp_index);
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_MODE,
+					lc_sr_in, 8, 1, vpp_index);
 				/*lc enable need set at last*/
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_LC_MODE, enable, 4, 1,
 					vpp_index);
@@ -1185,13 +1202,13 @@ static void lc_top_config(int enable, int h_num, int v_num,
 					enable, 4, 1, vpp_index);
 			}
 		} else {
-			if (chip_type_id == chip_t6d ||
-				chip_type_id == chip_t6w ||
-				chip_type_id == chip_t6x) {
+			if (chip_type_id >= chip_t6d) {
 				/*lcinput_ysel*/
-				WRITE_VPP_REG_BITS(VPP_LC_INPUT_SEL, 5, 4, 3);
+				WRITE_VPP_REG_BITS(VPP_LC_INPUT_SEL,
+					lc_input_sel_y, 4, 3);
 				/*lcinput_csel*/
-				WRITE_VPP_REG_BITS(VPP_LC_INPUT_SEL, 5, 0, 3);
+				WRITE_VPP_REG_BITS(VPP_LC_INPUT_SEL,
+					lc_input_sel_c, 0, 3);
 				/*lc ram write h num*/
 				WRITE_VPP_REG_BITS(VPP_LC_BLK_HV_NUM, h_num, 8, 8);
 				/*lc ram write v num*/
@@ -1201,7 +1218,8 @@ static void lc_top_config(int enable, int h_num, int v_num,
 				/*lc blend mode,default 1*/
 				WRITE_VPP_REG_BITS(VPP_LC_MODE, 1, 0, 1);
 				/*LC sync ctl*/
-				WRITE_VPP_REG_BITS(VPP_LC_MODE, 0, 8, 1);
+				WRITE_VPP_REG_BITS(VPP_LC_MODE,
+					lc_sr_in, 8, 1);
 				/*lc enable need set at last*/
 				WRITE_VPP_REG_BITS(VPP_LC_MODE, enable, 4, 1);
 			} else {
@@ -1340,6 +1358,7 @@ void lc_config(int enable,
 {
 	int h_num, v_num;
 	unsigned int height, width;
+	static unsigned int height_pre, width_pre;
 	static unsigned int vf_height, vf_width, flag_full_pre;
 	static unsigned int sps_w_in_pre, sps_h_in_pre;
 	unsigned int flag, flag_full;
@@ -1378,14 +1397,22 @@ void lc_config(int enable,
 	}
 
 	if ((chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6w) && lc_vd_info) {
+		chip_type_id == chip_t6w || chip_type_id == chip_t6x) &&
+		lc_vd_info) {
 		sps_h_in = lc_vd_info->vd1_in_vsize;
 		sps_w_in = lc_vd_info->vd1_in_hsize;
+		height = lc_vd_info->vd1_dout_vsize;
+		width = lc_vd_info->vd1_dout_hsize;
+	} else {
+		height = sps_h_in << sps_v_en;
+		width = sps_w_in << sps_h_en;
 	}
 
 	if (flag_full != flag_full_pre ||
 		sps_h_in_pre != sps_h_in ||
-		sps_w_in_pre != sps_w_in) {
+		sps_w_in_pre != sps_w_in ||
+		width_pre != width ||
+		height_pre != height) {
 		pr_amlc_dbg("signal/sps_w_in/sps_h_in changed,\n");
 		pr_amlc_dbg("flag_full:%d->%d sps_w_in:%d->%d sps_h_in:%d->%d\n",
 			flag_full_pre,
@@ -1401,6 +1428,8 @@ void lc_config(int enable,
 		flag_full == flag_full_pre &&
 		sps_w_in_pre == sps_w_in &&
 		sps_h_in_pre == sps_h_in &&
+		width_pre == width &&
+		height_pre == height &&
 		lc_en_chflg && !lc_slice_num_changed) {
 		/*pr_amlc_dbg("%s: lc_en_chflg = %d\n",*/
 		/*	__func__, lc_en_chflg);*/
@@ -1410,16 +1439,8 @@ void lc_config(int enable,
 	}
 
 	flag_full_pre = flag_full;
-
-	if ((chip_type_id == chip_t6d ||
-		chip_type_id == chip_t6x) && lc_vd_info) {
-		height = lc_vd_info->vd1_dout_vsize;
-		width = lc_vd_info->vd1_dout_hsize;
-	} else {
-		height = sps_h_in << sps_h_en;
-		width = sps_w_in << sps_v_en;
-	}
-
+	height_pre = height;
+	width_pre = width;
 	sps_w_in_pre = sps_w_in;
 	sps_h_in_pre = sps_h_in;
 
@@ -1455,15 +1476,20 @@ void lc_config(int enable,
 		width, bitdepth, flag, flag_full,
 		lc_rdma_mode, vpp_index);
 
-	width = sps_w_in;
-	height = sps_h_in;
-
+	/*config stts and curve size*/
 	if (chip_type_id == chip_txhd2 ||
-		chip_type_id == chip_t6d)
-		in_sel = 5;
-	else
-		in_sel = 4;
-
+		chip_type_id == chip_t6d) {
+		in_sel = 5;//5:vd1
+		if (lc_vd_info && chip_type_id == chip_t6d) {
+			height = lc_vd_info->vd1_in_vsize;
+			width = lc_vd_info->vd1_in_hsize;
+		} else {
+			width = sps_w_in;
+			height = sps_h_in;
+		}
+	} else {
+		in_sel = 4;// 4: vsr_sr_din
+	}
 	if (chip_type_id != chip_t3x) {
 		lc_curve_ctrl_config(lc_en_ctrl, height, width,
 			lc_rdma_mode, vpp_index);
@@ -1688,7 +1714,8 @@ static void _read_region(int blk_vnum, int blk_hnum)
 	lc_tune_curve.lc_reg_black_count =
 		lc_tune_curve.lc_reg_black_count / 96;
 
-	if ((flag_cm_lc_dma_en & 0x2) && chip_type_id == chip_t6x) {
+	if ((flag_cm_lc_dma_en & 0x2) && chip_type_id == chip_t6x &&
+		!check_dma_status(EN_DMA_WR_ID_CM2_LC)) {
 		am_dma_get_mif_data_lc_stts(0, lc_hist, 12 * 8 * 17);
 		am_dma_get_mif_data_lc_curve(lc_szcurve, 12, 8);
 		/*part3: add tune curve node patch--by vlsi-guopan*/
@@ -1787,6 +1814,11 @@ void lc_read_region(int blk_vnum, int blk_hnum,
 	int *data_curve;
 	int *data_hist;
 	int prt_flag = 0;
+
+	if (!lc_malloc_ok) {
+//		pr_amlc_dbg("[%s] lc malloc fail\n", __func__);
+		return;
+	}
 
 	if (chip_type_id != chip_t3x) {
 		_read_region(blk_vnum, blk_hnum);
@@ -2137,6 +2169,7 @@ void lc_init(int bitdepth)
 		ve_lc_curve_set(1, 0, NULL, 0, 0);
 		ve_lc_curve_set(1, 0, NULL, 1, 0);
 	}
+
 	lc_drv_param_init();
 }
 
@@ -2394,42 +2427,22 @@ int get_lc_pattern_gain(void)
 	return lc_gain;
 }
 
-void lc_change_pattern_curve_nodes(int lc_gain)
+void lc_change_pattern_curve_nodes(int lc_gain,
+	int blk_hnum, int blk_vnum)
 {
-	int i, j;
-	int blk_hnum, blk_vnum;
-	unsigned int temp1, temp2, cur_block;
-	int dif_value1, dif_value2, dif_value3;
+	unsigned int i;
+	unsigned int j;
+	unsigned int cur_block;
+	int dif_value1 = 0;
+	int dif_value2 = 0;
+	int dif_value3 = 0;
 
-	lc_curve_get_blk_num(&blk_hnum, &blk_vnum);
-
-	WRITE_VPP_REG(LC_CURVE_RAM_CTRL, 1);
-	WRITE_VPP_REG(LC_CURVE_RAM_ADDR, 0);
+	if (blk_hnum <= 0 || blk_vnum <= 0)
+		return;
 
 	for (i = 0; i < blk_vnum; i++) {
 		for (j = 0; j < blk_hnum; j++) {
 			cur_block = i * blk_hnum + j;
-			/*part1: get lc curve node*/
-			temp1 = READ_VPP_REG(LC_CURVE_RAM_DATA);
-			temp2 = READ_VPP_REG(LC_CURVE_RAM_DATA);
-
-			lc_szcurve[cur_block * 6 + 0] =
-				temp1 & 0x3ff;         //bit0:9      yminV
-			lc_szcurve[cur_block * 6 + 1] =
-				(temp1 >> 10) & 0x3ff; //bit10:19    minBV
-			lc_szcurve[cur_block * 6 + 2] =
-				(temp1 >> 20) & 0x3ff; //bit20:29    PKBV
-			lc_szcurve[cur_block * 6 + 3] =
-				temp2 & 0x3ff;         //bit0:9      maxBV
-			lc_szcurve[cur_block * 6 + 4] =
-				(temp2 >> 10) & 0x3ff; //bit10:19    ymaxV
-			lc_szcurve[cur_block * 6 + 5] =
-				(temp2 >> 20) & 0x3ff; //bit20:29    ypkBV
-
-			/*add logic*/
-			dif_value1 = 0;
-			dif_value2 = 0;
-			dif_value3 = 0;
 
 			dif_value1 = lc_szcurve[cur_block * 6 + 1] -
 				lc_szcurve[cur_block * 6 + 0];
@@ -2458,8 +2471,354 @@ void lc_change_pattern_curve_nodes(int lc_gain)
 	}
 
 	lc_read_curve_nodes_changed_en = 0;
+}
 
-	WRITE_VPP_REG(LC_CURVE_RAM_CTRL, 0);
+int pre_lc_en;
+
+static int get_average_luma(struct vpp_hist_param_s *vp, int step)
+{
+	int ret = 0;
+	int i = 0;
+	int sum = 0;
+
+	if (!vp)
+		return 0;
+
+	for (i = 0; i < 64; i++)
+		sum += vp->vpp_gamma[i];
+
+	ret = sum / step;
+
+	return ret;
+}
+
+static int get_average_hue(struct vpp_hist_param_s *vp, int step)
+{
+	int ret = 0;
+	int i = 0;
+	int sum = 0;
+
+	if (!vp)
+		return 0;
+
+	for (i = 0; i < 32; i++)
+		sum += vp->vpp_hue_gamma[i];
+
+	ret = sum / step;
+
+	return ret;
+}
+
+static int get_contiguous_zero_count_luma(struct vpp_hist_param_s *vp)
+{
+	int ret = 0;
+	int i = 0;
+	int count = 0;
+
+	if (!vp)
+		return 0;
+
+	for (i = 4; i < 59; i++) {
+		if (vp->vpp_gamma[i] == 0) {
+			count++;
+		} else {
+			if (count > ret)
+				ret = count;
+			count = 0;
+		}
+	}
+
+	return ret;
+}
+
+static int full_grey_detect(struct vpp_hist_param_s *vp)
+{
+	int ret = 1;
+	int i = 0;
+
+	if (!vp)
+		return 0;
+
+	for (i = 0; i < 32; i++) {
+		if (vp->vpp_hue_gamma[i] != 0) {
+			ret = 0;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static int single_bin_detect(struct vpp_hist_param_s *vp)
+{
+	int ret = 0;
+	int i = 0;
+	int count = 0;
+	int threshold_data = 0x10;
+	int threshold_bin = 3;
+	int luma_min, luma_max;
+
+	if (!vp)
+		return 0;
+
+	luma_min = vp->vpp_luma_min;
+	luma_max = vp->vpp_luma_max;
+
+	for (i = 0; i < 64; i++) {
+		if (vp->vpp_gamma[i] > threshold_data)
+			count++;
+	}
+
+	if (count > 0 &&
+		(luma_min == luma_max || count < threshold_bin)) {
+		ret = 1;
+		if (amlc_debug == 0x100)
+			pr_info("[detect] single bin case.\n");
+	}
+
+	return ret;
+}
+
+static int grey_level_detect(struct vpp_hist_param_s *vp)
+{
+	int i = 0;
+	int count = 0;
+	int contiguous_zero_count = 0;
+	int luma_max;
+	int luma_min;
+	int average_val;
+
+	if (!vp)
+		return 0;
+
+	if (!full_grey_detect(vp))
+		return 0;
+
+	luma_min = vp->vpp_luma_min;
+	luma_max = vp->vpp_luma_max;
+	contiguous_zero_count = get_contiguous_zero_count_luma(vp);
+
+	if (luma_max > 0xe7 && luma_min < 0x12) {
+		/*11 level*/
+		average_val = get_average_luma(vp, 11);
+
+		for (i = 0; i < 64; i++) {
+			if (vp->vpp_gamma[i] > (average_val >> 1))
+				count++;
+		}
+
+		if (count > 8 && count < 13 &&
+			contiguous_zero_count < 6) {
+//			if (amlc_debug == 0x100)
+//				pr_info("[detect] 11 level case.\n");
+			return 1;
+		}
+
+		/*16 level*/
+		count = 0;
+		average_val = get_average_luma(vp, 16);
+
+		for (i = 0; i < 64; i++) {
+			if (vp->vpp_gamma[i] > (average_val >> 1))
+				count++;
+		}
+
+		if (count > 13 && count < 19 &&
+			contiguous_zero_count < 4) {
+//			if (amlc_debug == 0x100)
+//				pr_info("[detect] 16 level case.\n");
+			return 1;
+		}
+
+		/*32 level*/
+		count = 0;
+		average_val = get_average_luma(vp, 32);
+
+		for (i = 0; i < 64; i++) {
+			if (vp->vpp_gamma[i] > (average_val >> 1))
+				count++;
+		}
+
+		if (count > 29 && count < 35 &&
+			contiguous_zero_count < 2) {
+//			if (amlc_debug == 0x100)
+//				pr_info("[detect] 32 level case.\n");
+			return 1;
+		}
+
+		/* 64 level*/
+		count = 0;
+		average_val = get_average_luma(vp, 64);
+		for (i = 0; i < 64; i++) {
+			if (vp->vpp_gamma[i] > (average_val >> 1))
+				count++;
+		}
+
+		if (count > 60 && count < 68 && contiguous_zero_count < 1) {
+//			if (amlc_debug == 0x100)
+//				pr_info("[detect] 64 level case.\n");
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static int customer_pattern_detect(struct vpp_hist_param_s *vp)
+{
+	int ret = 0;
+	int i = 0;
+	int sum = 0;
+	int tmp = 0;
+	int count = 0;
+	int max_luma_index = 0;
+	int max_no_zero_index = 0;
+	int luma_max, luma_min;
+	int full_grey = 0;
+	int match_block[3] = {1, 1, 1};
+	int average_hue = 0;
+	int sat_zero_bin_count = 0;
+	int bin_match_count = 0;
+	int average_val = 0;
+
+	if (!vp)
+		return 0;
+
+	luma_min = vp->vpp_luma_min;
+	luma_max = vp->vpp_luma_max;
+	full_grey = full_grey_detect(vp);
+	average_val = get_average_luma(vp, 58);
+
+	for (i = 0; i < 64; i++) {
+		tmp = vp->vpp_gamma[i];
+		if (tmp > average_val)
+			count++;
+		if (tmp == 0xffff)
+			bin_match_count++;
+	}
+
+	if (bin_match_count > 0 &&
+		bin_match_count < 5 &&
+		count < 11) {
+		ret = 1;
+//		if (amlc_debug == 0x100)
+//			pr_info("[detect] box case.\n");
+	}
+
+	tmp = 0;
+	sum = 0;
+	count = 0;
+	if (full_grey && luma_max > 0xe7 && luma_min < 0x12) {
+		for (i = 0; i < 64; i++) {
+			if (vp->vpp_gamma[i] > tmp) {
+				tmp = vp->vpp_gamma[i];
+				max_luma_index = i;
+			}
+
+			if (i > 15)
+				sum += vp->vpp_gamma[i];
+		}
+
+		tmp = sum >> 3;
+		for (i = 16; i < 64; i++) {
+			if (vp->vpp_gamma[i] > tmp)
+				count++;
+		}
+
+		if (count > 2 && count < 6 &&
+			max_luma_index < 7) {
+			ret = 1;
+//			if (amlc_debug == 0x100)
+//				pr_info("[detect] 4 step case.\n");
+		}
+
+		for (i = 4; i < 14; i++) {
+			if (vp->vpp_gamma[i] == 0) {
+				match_block[0] = 0;
+				break;
+			}
+		}
+
+		for (i = 28; i < 35; i++) {
+			if (vp->vpp_gamma[i] != 0) {
+				match_block[1] = 0;
+				break;
+			}
+		}
+
+		for (i = 52; i < 59; i++) {
+			if (vp->vpp_gamma[i] == 0) {
+				match_block[2] = 0;
+				break;
+			}
+		}
+
+		if (match_block[0] &&
+			match_block[1] &&
+			match_block[2]) {
+			ret = 1;
+//			if (amlc_debug == 0x100)
+//				pr_info("[detect] black and white blend case.\n");
+		}
+	}
+
+	tmp = 0;
+	if (full_grey && luma_max < 0x68 && luma_min < 0x12 &&
+		luma_max != luma_min) {
+		for (i = 0; i < 64; i++) {
+			if (vp->vpp_gamma[i] > tmp) {
+				tmp = vp->vpp_gamma[i];
+				max_luma_index = i;
+			}
+
+			if (vp->vpp_gamma[i] != 0)
+				max_no_zero_index = i;
+		}
+
+		if (max_no_zero_index < 26 && max_luma_index < 10) {
+			ret = 1;
+//			if (amlc_debug == 0x100)
+//				pr_info("[detect] black step case.\n");
+		}
+	}
+
+	count = 0;
+	if (!full_grey && luma_max > 0xd0 && luma_min < 0x12) {
+		average_hue = get_average_hue(vp, 6);
+
+		for (i = 0; i < 32; i++) {
+			if (vp->vpp_hue_gamma[i] > (average_hue >> 1))
+				count++;
+
+			if (vp->vpp_sat_gamma[i] == 0)
+				sat_zero_bin_count++;
+		}
+
+		if (count == 6 && sat_zero_bin_count == 0) {
+			ret = 1;
+//			if (amlc_debug == 0x100)
+//				pr_info("[detect] color sat 6 step case.\n");
+		}
+	}
+
+	return ret;
+}
+
+static int special_pattern_detect(struct vpp_hist_param_s *vp)
+{
+	int ret = 0;
+
+	if (!vp)
+		return 0;
+
+	if (customer_pattern_detect(vp))
+		ret = 1;
+	else if (grey_level_detect(vp))
+		ret = 1;
+	else if (single_bin_detect(vp))
+		ret = 1;
+
+	return ret;
 }
 
 void lc_process(struct vframe_s *vf,
@@ -2495,11 +2854,6 @@ void lc_process(struct vframe_s *vf,
 
 	if (!lc_malloc_ok) {
 		pr_amlc_dbg("[%s] lc malloc fail\n", __func__);
-		return;
-	}
-
-	if (!lc_drv_param.lc_fw_curve_iir || !lc_drv_param.tune_nodes_patch) {
-		pr_amlc_dbg("[%s] lc alg null\n", __func__);
 		return;
 	}
 
@@ -2544,9 +2898,15 @@ void lc_process(struct vframe_s *vf,
 		width = sps_w_in << sps_h_en;
 	}
 
-	if (!lc_en ||
+	if (pre_lc_en != lc_en) {
+//		pr_amlc_dbg("[lc] lc_en from %d to %d\n", pre_lc_en, lc_en);
+		pre_lc_en = lc_en;
+	}
+
+	if (!lc_en  ||
 		(vf && width < width_limit && height < height_limit)) {
-		lc_disable(lc_rdma_mode, vpp_index);
+		if (lc_en_chflg == 0xff)
+			lc_disable(lc_rdma_mode, vpp_index);
 		return;
 	}
 
@@ -2565,7 +2925,7 @@ void lc_process(struct vframe_s *vf,
 	}
 
 	if (chip_type_id != chip_t3x)
-		lc_bypass_th = 1;
+		lc_bypass_th = 0;//0:skip 1 frame
 	else
 		lc_bypass_th = skip_num;
 
@@ -2574,6 +2934,12 @@ void lc_process(struct vframe_s *vf,
 		pr_amlc_dbg("[%s] lc_flag = %d\n", __func__, lc_flag);
 		return;
 	}
+
+	if ((vf->type & VIDTYPE_VIU_444) &&
+		((vf->flag & VFRAME_FLAG_PC_MODE) || (vf->type & VIDTYPE_PIC)))
+		input_422_flag = 0;
+	else
+		input_422_flag = 1;
 
 	lc_config(lc_en, vf, sps_h_en, sps_v_en,
 		sps_w_in, sps_h_in, lc_bitdepth, vpp_index, vp);
@@ -2598,10 +2964,19 @@ void lc_process(struct vframe_s *vf,
 
 		if (lc_change_curve_nodes_en) {
 			lc_gain = get_lc_pattern_gain();
-			lc_change_pattern_curve_nodes(lc_gain);
+			lc_change_pattern_curve_nodes(lc_gain,
+				blk_hnum, blk_vnum);
 		}
 
-		if (vf && !lc_skip_iir)
+		/*skip lc curve when special pattern*/
+		if (lc_special_pattern_detect && special_pattern_detect(vp)) {
+			set_lc_curve(1, 0, vpp_index);
+			lc_flag = 0xff;
+			lc_bypass_flag = 0xff;
+			return;
+		}
+
+		if (vf && !lc_skip_iir && lc_drv_param.lc_fw_curve_iir)
 			/*do time domain iir*/
 			lc_drv_param.lc_fw_curve_iir(lc_hist,
 				lc_szcurve, blk_vnum, blk_hnum, chip_type_id);
@@ -2629,7 +3004,7 @@ void lc_process(struct vframe_s *vf,
 		/*}*/
 		lc_read_region(blk_vnum, blk_hnum, 0);
 
-		if (vf && !lc_skip_iir)
+		if (vf && !lc_skip_iir && lc_drv_param.lc_fw_curve_iir)
 			/*do time domain iir*/
 			lc_drv_param.lc_fw_curve_iir(lc_hist,
 				lc_szcurve, blk_vnum, blk_hnum, chip_type_id);
@@ -2681,14 +3056,17 @@ void lc_free(void)
 	lc_malloc_ok = 0;
 }
 
-void lc_slt_en(int     enable)
+void lc_slt_en(int enable)
 {
 	if (enable) {
 		lc_init(lc_bitdepth);
 		tune_curve_en = 1;
 		lc_skip_iir = 1;
 		lc_en = 1;
-		ve_lc_mapping_ctrl(lc_en, 1, 0);
+
+		if (chip_type_id == chip_t3x)
+			ve_lc_mapping_ctrl(lc_en, 1, 0);
+
 	} else {
 		lc_skip_iir = 0;
 		tune_curve_en = 2;
@@ -3249,10 +3627,10 @@ int lc_debug_store(char **parm)
 		if (!strcmp(parm[1], "all")) {
 			/*dump curve of one frame*/
 			if (ve_multi_picture_case_get() > 0)
-				lc_hist_prcnt = 2;
+				lc_curve_prcnt = 2;
 			else
-				lc_hist_prcnt = 1;
-			amlc_debug = 0x80;
+				lc_curve_prcnt = 1;
+			amlc_debug = 0x1;
 		} else if (!strcmp(parm[1], "slice0")) {
 			lc_read_region(8, 12, 0);
 			lc_prt_curve();

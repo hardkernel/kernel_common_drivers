@@ -33,6 +33,8 @@ ulong ve_dnlp_reg_def[16] = {
 	0xdad7d5d2,	0xe6e3e0dd,	0xf2efece9,	0xfdfaf7f4
 };
 
+unsigned int dnlp_dbg_final_curve[64];
+unsigned int dnlp_dbg_mode;//0: auto, 1: ve_dnlp_final_curve
 unsigned int dnlp_dbg_flag;
 int dnlp_rd_param;
 char dnlp_rd_curve[400];
@@ -465,9 +467,17 @@ void ve_dnlp_calculate_lpf(void)
 	if (dnlp_insmod_ok == 0)
 		return;
 
-	for (i = 0; i < 64; i++)
-		ve_dnlp_lpf[i] = ve_dnlp_lpf[i] -
-		(ve_dnlp_lpf[i] >> ve_dnlp_rt) + dnlp_alg_output->ve_dnlp_tgt[i];
+	if (dnlp_dbg_mode) {
+		for (i = 0; i < 64; i++)
+			ve_dnlp_lpf[i] = ve_dnlp_lpf[i] -
+			(ve_dnlp_lpf[i] >> ve_dnlp_rt) + dnlp_dbg_final_curve[i];
+	} else {
+		for (i = 0; i < 64; i++) {
+			ve_dnlp_lpf[i] = ve_dnlp_lpf[i] -
+			(ve_dnlp_lpf[i] >> ve_dnlp_rt) + dnlp_alg_output->ve_dnlp_tgt[i];
+			dnlp_dbg_final_curve[i] = dnlp_alg_output->ve_dnlp_tgt[i];
+		}
+	}
 }
 
 void ve_dnlp_calculate_reg(void)
@@ -955,6 +965,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_rw_param->dnlp_scurv_low[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
+				dnlp_rd_curve[4 * 65] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -975,6 +986,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_rw_param->dnlp_scurv_mid1[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
+				dnlp_rd_curve[4 * 65] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -995,6 +1007,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_rw_param->dnlp_scurv_mid2[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
+				dnlp_rd_curve[4 * 65] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -1015,6 +1028,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_rw_param->dnlp_scurv_hgh1[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
+				dnlp_rd_curve[4 * 65] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -1035,6 +1049,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_rw_param->dnlp_scurv_hgh2[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
+				dnlp_rd_curve[4 * 65] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -1055,6 +1070,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_rw_param->gain_var_lut49[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 49);
+				dnlp_rd_curve[4 * 49] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -1076,6 +1092,7 @@ int dnlp_debug_store(char **parm)
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp,
 					sizeof(char) * 4 * 65);
+				dnlp_rd_curve[4 * 65] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -1097,6 +1114,7 @@ int dnlp_debug_store(char **parm)
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp,
 					sizeof(char) * 4 * 65);
+				dnlp_rd_curve[4 * 65] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -1117,6 +1135,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_rw_param->wext_gain[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 48);
+				dnlp_rd_curve[4 * 48] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -1136,6 +1155,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_rw_param->adp_thrd[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 33);
+				dnlp_rd_curve[4 * 33] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -1155,6 +1175,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_rw_param->reg_blk_boost_12[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 13);
+				dnlp_rd_curve[4 * 13] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -1175,6 +1196,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_rw_param->reg_adp_ofset_20[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 20);
+				dnlp_rd_curve[4 * 20] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -1195,6 +1217,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_rw_param->reg_mono_protect[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 6);
+				dnlp_rd_curve[4 * 6] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -1216,6 +1239,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(p[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 9);
+				dnlp_rd_curve[4 * 9] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -1228,15 +1252,15 @@ int dnlp_debug_store(char **parm)
 						p[val]);
 			}
 		} else if (!strcmp(parm[1], "ve_dnlp_tgt")) {
-			/*read only curve*/
 			if (!parm[2]) {
 				pr_info("error cmd\n");
 				goto error;
 			} else if (!strcmp(parm[2], "all")) {
-				for (i = 0; i < 65; i++)
-					d_convert_str(dnlp_alg_output->ve_dnlp_tgt[i],
+				for (i = 0; i < 64; i++)
+					d_convert_str(dnlp_dbg_final_curve[i],
 							  i, stemp, 4, 10);
-				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
+				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 64);
+				dnlp_rd_curve[4 * 64] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				pr_info("error cmd\n");
@@ -1251,6 +1275,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_alg_output->ve_dnlp_tgt_10b[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
+				dnlp_rd_curve[4 * 65] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				pr_info("error cmd\n");
@@ -1265,6 +1290,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_ro_param->gmscurve[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
+				dnlp_rd_curve[4 * 65] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				pr_info("error cmd\n");
@@ -1279,6 +1305,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_ro_param->clash_curve[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
+				dnlp_rd_curve[4 * 65] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				pr_info("error cmd\n");
@@ -1293,6 +1320,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_ro_param->clsh_scvbld[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
+				dnlp_rd_curve[4 * 65] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				pr_info("error cmd\n");
@@ -1307,6 +1335,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(dnlp_dbg_ro_param->blkwht_ebld[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 65);
+				dnlp_rd_curve[4 * 65] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				pr_info("error cmd\n");
@@ -1322,6 +1351,7 @@ int dnlp_debug_store(char **parm)
 					d_convert_str(hist_tmp[i],
 							  i, stemp, 4, 10);
 				memcpy(dnlp_rd_curve, stemp, sizeof(char) * 4 * 64);
+				dnlp_rd_curve[4 * 64] = '\0';
 				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
 			} else {
 				pr_info("error cmd\n");
@@ -1625,6 +1655,27 @@ int dnlp_debug_store(char **parm)
 					dnlp_dbg_rw_param->reg_trend_wht_expand_lut8[num] =
 						val;
 			}
+		} else if (!strcmp(parm[1], "ve_dnlp_tgt")) {
+			if (!parm[2]) {
+				pr_info("error cmd\n");
+				goto error;
+			} else if (!strcmp(parm[2], "all")) {
+				str_sapr_to_d(parm[3], curve_val, 5);
+				for (i = 0; i < 64; i++)
+					dnlp_dbg_final_curve[i] = curve_val[i];
+			} else {
+				if (kstrtoul(parm[2], 10, &val) < 0)
+					goto error;
+
+				num = val;
+				if (kstrtoul(parm[3], 10, &val) < 0)
+					goto error;
+
+				if (num > 63)
+					pr_info("error cmd\n");
+				else
+					dnlp_dbg_final_curve[num] = val;
+			}
 		}
 	} else if (!strcmp(parm[0], "ro")) {
 		if (!strcmp(parm[1], "luma_avg4")) {
@@ -1658,6 +1709,13 @@ int dnlp_debug_store(char **parm)
 		dump_dnlp_reg();
 	} else if (!strcmp(parm[0], "version")) {
 		pr_info("dnlp driver version : %s\n", DNLP_VER);
+	} else if (!strcmp(parm[0], "set_dbg_mode")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto error;
+		dnlp_dbg_mode = val;
+	} else if (!strcmp(parm[0], "get_dbg_mode")) {
+		dnlp_rd_param = dnlp_dbg_mode;
+		dnlp_dbg_flag |= DNLP_PARAM_RD_UPDATE;
 	}
 	kfree(stemp);
 	return 0;
