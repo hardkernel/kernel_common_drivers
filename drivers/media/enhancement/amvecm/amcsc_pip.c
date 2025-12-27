@@ -197,7 +197,7 @@ void hdr_proc(struct vframe_s *vf,
 
 	if (vf && !dpss_mode &&
 		!is_dd_frame && module_sel == VD1_HDR &&
-		!(hdr_process_select & HDR_BYPASS))
+		!fake_frame_flag[VD1_PATH])
 		set_muxio_link_mode(1, vf, vpp_index);
 
 	if (vf && !pre_dpss_mode && !dpss_mode &&

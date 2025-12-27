@@ -233,6 +233,8 @@ extern struct master_display_info_s dbg_hdr_send;
 extern unsigned int tx_cuva_mode;
 extern unsigned int cuva_dbg_mode; /* only for debug tx_cuva_mode*/
 
+extern unsigned int fake_frame_flag[VD_PATH_MAX];
+
 int amvecm_matrix_process(struct vframe_s *vf, struct vframe_s *vf_rpt, int flags,
 			  enum vd_path_e vd_path, enum vpp_index_e vpp_index);
 int amvecm_hdr_dbg(u32 sel);

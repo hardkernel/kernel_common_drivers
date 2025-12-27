@@ -9281,6 +9281,8 @@ static bool dovi_on;
 static unsigned int fg_vf_sw_dbg;
 unsigned int null_vf_max = 2;
 
+unsigned int fake_frame_flag[VD_PATH_MAX];
+
 int amvecm_matrix_process(struct vframe_s *vf,
 			  struct vframe_s *vf_rpt, int flags,
 			  enum vd_path_e vd_path, enum vpp_index_e vpp_index)
@@ -9300,6 +9302,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	u32 dummy_data = 0;
 	u32 dummy_alpha = 0;
 
+	fake_frame_flag[vd_path] = 0;
 	if (dpss_mode &&
 		vd_path == VD1_PATH) {
 		if (cur_signal_type[VD1_PATH] != 0xffffffff)
@@ -9857,7 +9860,6 @@ int amvecm_matrix_process(struct vframe_s *vf,
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			}
 #endif
-
 			if (send_fake_frame) {
 				memset(&fake_vframe, 0x0,
 				       sizeof(struct vframe_s));
@@ -9874,9 +9876,11 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				memset(&fake_vframe.prop.master_display_colour,
 				       0,
 				       size);
+				fake_frame_flag[vd_path] = 1;
 				vpp_matrix_update(&fake_vframe, vinfo,
 						  CSC_FLAG_TOGGLE_FRAME | CSC_FLAG_FORCE_SIGNAL,
 						  vd_path, vpp_index);
+				fake_frame_flag[vd_path] = 0;
 				last_vf[vd_path] = NULL;
 				null_vf_cnt[vd_path] = null_vf_max + 1;
 				fg_vf_sw_dbg = 4;
@@ -10982,7 +10986,11 @@ void set_dpss_mode(unsigned int val)
 			pr_csc(128, "%s: muxio_ready_flag 0 -> 1\n",
 				__func__);
 		} else {
-			muxio_de_link_mode = 1;
+			if ((dpss_mode && !muxio_ready_flag) ||
+				!dpss_mode)
+				muxio_de_link_mode = 1;
+			pr_log(0x1000, "%s: muxio_ready_flag:%d\n",
+				__func__, muxio_ready_flag);
 		}
 
 		if (!val) {
@@ -11102,12 +11110,18 @@ void update_muxio_mode(struct vframe_s *vf,
 
 		if (muxio_de_link_status)
 			muxio_ready_flag = 1;
+		pr_log(0x1000, "NULL frame:mux_dlk_sta: %d, mu_dlk_mode:%d, mu_rdy_flag:%d\n",
+				muxio_de_link_status,
+				muxio_de_link_mode, muxio_ready_flag);
 	}
 
 	if (muxio_de_link_mode) {
 		set_muxio_link_mode(0, NULL, vpp_index);
 		muxio_de_link_mode = 0;
 		muxio_link_delay_cnt = muxio_link_delay_num;
+		pr_log(0x1000, "delink:mux_dlk_sta: %d, mu_dlk_mode:%d, mu_rdy_flag:%d\n",
+				muxio_de_link_status,
+				muxio_de_link_mode, muxio_ready_flag);
 		return;
 	}
 
@@ -11307,6 +11321,7 @@ void vd1_dpss_switch_proc(struct vframe_s *vf,
 			p->path_mux = PATH_VD1;
 			p->pre_path_mux = PATH_VD1;
 			p->delink_status = LINK_ON;
+			muxio_ready_flag = 0;
 			//avoid dpss flag error or special case mute video
 			if (p->mute_cnt) {
 				pr_log(0x400, "%s: vd1 unmute: mute_cnt:%d, frm_idx=%d\n",
@@ -11431,7 +11446,7 @@ void update_link_state(struct vframe_s *vf,
 	struct hdr_path_mux_sel_s *p = &h_p_s;
 	struct vframe_s *pvf = NULL;
 	unsigned int is_dd_frame = 0;
-	unsigned int delink_rdy;
+	unsigned int delink_rdy = 0;
 
 	pvf  = vf ? vf : (rpt_vf ? rpt_vf : NULL);
 	pr_log(0x1000, "%s: vf： %p, rpt_vf: %p\n", __func__, vf, rpt_vf);
@@ -11496,8 +11511,8 @@ void update_link_state(struct vframe_s *vf,
 			p->delink_status = DELINK;
 			//p->mute_cnt++;
 			pr_csc(0x400, "sw02: delink rdy, waiting for unmute,\n"
-				"mute_cnt=%d, frame_index=%d\n",
-				p->mute_cnt, pvf->frame_index);
+				"delink_rdy=%d, mute_cnt=%d, frame_index=%d\n",
+				delink_rdy, p->mute_cnt, pvf->frame_index);
 		}
 
 		//for repeat frame mute
