@@ -944,6 +944,10 @@ void dsc_dec_clk_calculate(unsigned int integer, unsigned int frac)
 	dsc_dec_config_pll_clk(od, dpll_m, dpll_n, div_frac);
 }
 
+void __weak set_dsc_clk_cntl(int clk_select, int clk)
+{
+}
+
 void dsc_clk_config(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 {
 	struct hdmi_dsc_pps_data_s *pps_data = &dsc_dec_drv->pps_data;

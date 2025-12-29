@@ -72,7 +72,8 @@
 /* 2025.12.17 modify frl signal flow */
 /* 2025.12.24 update phy 12G settings and init flow */
 /* 2025.12.26 fix training err*/
-#define RX_WRAPPER_VER "ver.2025/12/26"
+/* 2025.12.30 fix 420 no signal*/
+#define RX_WRAPPER_VER "ver.2025/12/30"
 
 struct freq_ref_s {
 	bool interlace;

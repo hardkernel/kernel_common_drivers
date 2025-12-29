@@ -374,6 +374,10 @@ void dsc_dec_config_pll_clk(unsigned int od, unsigned int dpll_m,
 	}
 }
 
+void __weak rx_set_dsc_hdmi_cntl(unsigned int val)
+{
+}
+
 void dsc_dec_config_vpu_mux(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 {
 	if (dsc_dec_drv->data->chip_type == DSC_DEC_CHIP_T6X) {
