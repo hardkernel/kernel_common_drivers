@@ -830,6 +830,8 @@ int aml_get_audio_edid(struct snd_kcontrol *kcontrol,
 	char *val = (char *)bytes + sizeof(*tlv);
 	int res;
 
+	memset(p_extn->user_setting_edid, 0, MAX_AUDIO_EDID_LENGTH);
+
 	/* get current edid to userspace */
 	p_extn->user_setting_edid_size =
 		(int)rx_edid_get_aud_sad(p_extn->user_setting_edid);
