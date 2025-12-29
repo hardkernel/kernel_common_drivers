@@ -161,6 +161,15 @@
 			linux,contiguous-region;
 		};
 
+		/* codec shared reserved */
+		codec_mm_reserved:linux,codec_mm_reserved {
+			compatible = "amlogic, codec-mm-reserved";
+			size = <0x0 0x0>;
+			alignment = <0x0 0x100000>;
+			//no-map;
+			status = "disabled";
+		};
+
 		secure_vdec_reserved:linux,secure_vdec_reserved {
 			compatible = "amlogic, secure-vdec-reserved";
 			no-map;
@@ -203,7 +212,20 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
-
+	codec_mm {
+		compatible = "amlogic, codec, mm";
+		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
+		dev_name = "codec_mm";
+		status = "okay";
+		/* secure memory controller para <switch  align_2n> */
+		secure_ctrl_para = <1 16>;
+		/*
+		 * scatter_alloc_mode: the mode of scatter memory allocation
+		 * 0: default mode, alloc from system and cma
+		 * 1: only alloc from system
+		 */
+		scatter_alloc_mode = <1>;
+	};
 	multi-di {
 		/***************************************************
 		 * memory: default is 4

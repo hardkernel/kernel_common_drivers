@@ -104,7 +104,7 @@
 		ldc_mem_reserved:linux,ldc_mem {
 			compatible = "shared-dma-pool";
 			reusable;
-			reg = <0x0 0x50000000 0x0 0x00800000>;
+			reg = <0x0 0x50000000 0x0 0x0>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		 };
@@ -113,7 +113,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1080p TV androidU size 88M */
-			size = <0x0 0x5800000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
@@ -127,8 +127,8 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1080p TV secure size 56M, 1 osd layer + 3 framebuffers */
-			size = <0x0>;
-			alignment = <0x400000>;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x400000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -153,10 +153,19 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x1ac00000>;
+			size = <0x0 0x17800000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0x80000000>;
 			linux,contiguous-region;
+		};
+
+		/* codec shared reserved */
+		codec_mm_reserved:linux,codec_mm_reserved {
+			compatible = "amlogic, codec-mm-reserved";
+			size = <0x0 0x0>;
+			alignment = <0x0 0x100000>;
+			//no-map;
+			status = "disabled";
 		};
 
 		secure_vdec_reserved:linux,secure_vdec_reserved {
@@ -200,7 +209,20 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
-
+	codec_mm {
+		compatible = "amlogic, codec, mm";
+		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
+		dev_name = "codec_mm";
+		status = "okay";
+		/* secure memory controller para <switch  align_2n> */
+		secure_ctrl_para = <1 16>;
+		/*
+		 * scatter_alloc_mode: the mode of scatter memory allocation
+		 * 0: default mode, alloc from system and cma
+		 * 1: only alloc from system
+		 */
+		scatter_alloc_mode = <1>;
+	};
 	multi-di {
 		/***************************************************
 		 * memory: default is 4
@@ -666,7 +688,7 @@
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
-
+	run-low-mem;
 	bus-width = <8>;
 	//cap-sd-highspeed;
 	cap-mmc-highspeed;
