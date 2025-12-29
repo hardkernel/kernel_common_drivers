@@ -106,6 +106,7 @@ static cec_callback cec_hdmirx5v_update;
 
 /* for debug */
 //bool clk_debug_en;
+bool vtem_interval_debug;
 u32 rx5v_debug_en;
 u32 err_chk_en;
 u32 force_vic;
@@ -3254,6 +3255,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(spec_dev_wait_cnt_max, i++);
 	pr_var(sig_stable_max, i++);
 	pr_var(hpd_wait_dbg, i++);
+	pr_var(vtem_interval_debug, i++);
 	pr_var(sig_unstable_max, i++);
 	pr_var(sig_unready_max, i++);
 	pr_var(pow5v_max_cnt, i++);
@@ -3567,6 +3569,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(sig_stable_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(hpd_wait_dbg), &hpd_wait_dbg, value))
 		return pr_var(hpd_wait_dbg, index);
+	if (set_pr_var(tmpbuf, var_to_str(vtem_interval_debug), &vtem_interval_debug, value))
+		return pr_var(vtem_interval_debug, index);
 	if (set_pr_var(tmpbuf, var_to_str(log_level), &log_level, value))
 		return pr_var(log_level, index);
 	if (set_pr_var(tmpbuf, var_to_str(sig_unready_max), &sig_unready_max, value))

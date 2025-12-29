@@ -108,7 +108,8 @@
 //2025.11.28 fix fps error issue for tb49
 //2025.12.16 fix PM-related DMC VIOLATION issues
 //2025.12.24 add ioc for framerate limit
-#define RX_DRV_VER "ver.2025/12/24"
+//2025.12.29 Fix issue that VTEM packages not delivered at high framerate
+#define RX_DRV_VER "ver.2025/12/29"
 
 /*print type*/
 #define COR1_LOG	0x10000

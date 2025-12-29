@@ -1895,7 +1895,13 @@ void hdmirx_get_vtem_info(struct tvin_sig_property_s *prop, u8 port)
 {
 	if (rx[port].vtem_info.qms_en == 1 && rx[port].vtem_info.m_const == 0)
 		return;
-	memcpy(&prop->vtem_data, &rx[port].vtem_info, sizeof(struct vtem_info_s));
+	if (rxpktsts[port].pkt_attach_vtem || !vtem_interval_debug) {
+		memcpy(&prop->vtem_data, &rx[port].vtem_info, sizeof(struct vtem_info_s));
+		rx_reset_pkt_cnt(PKT_TYPE_EMP, port);
+	} else {
+		if (--rx[port].pkt_mini_interval[PKT_TYPE_EMP] <= 0)
+			memset(&prop->vtem_data, 0, sizeof(struct vtem_info_s));
+	}
 }
 
 void hdmirx_get_sbtm_info(struct tvin_sig_property_s *prop, u8 port)

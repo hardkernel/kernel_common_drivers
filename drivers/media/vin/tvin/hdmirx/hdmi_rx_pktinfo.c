@@ -28,7 +28,7 @@
 /*
  * bool hdr_enable = true;
  */
-static struct rxpkt_st rxpktsts[E_PORT_NUM];
+struct rxpkt_st rxpktsts[E_PORT_NUM];
 struct packet_info_s rx_pkt[E_PORT_NUM];
 u32 rx_vsif_type[E_PORT_NUM];
 u32 rx_emp_type[E_PORT_NUM];
@@ -730,6 +730,7 @@ void rx_pkt_initial(u8 port)
 	//emp info
 	rx[i].sbtm_info.flag = false;
 	rx[i].vtem_info.vrr_en = false;
+	rxpktsts[port].pkt_attach_vtem = false;
 	rx[i].amdv_type &= DV_UNIQUE_DRM;
 	rx[i].emp_cuva_info.flag = false;
 	rx[i].vsif_fmm_flag = false;
@@ -2083,6 +2084,9 @@ void rx_reset_pkt_cnt(enum pkt_type_e type, u8 port)
 	case PKT_TYPE_INFOFRAME_DRM:
 		rx[port].pkt_mini_interval[PKT_TYPE_INFOFRAME_DRM] = 2;
 		break;
+	case PKT_TYPE_EMP:
+		rx[port].pkt_mini_interval[PKT_TYPE_EMP] = 2;
+		break;
 	default:
 		rx[port].pkt_mini_interval[type] = 0;
 		break;
@@ -2513,7 +2517,7 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src, u8 port)
 	return 0;
 }
 
-int rx_check_emp_type(struct emp_pkt_st *pkt)
+int rx_check_emp_type(struct emp_pkt_st *pkt, u8 port)
 {
 	u32 u_ieee;
 	int emp_type = -1;
@@ -2560,6 +2564,7 @@ int rx_check_emp_type(struct emp_pkt_st *pkt)
 		pkt->cnt.organization_id == 1 &&
 		pkt->cnt.data_set_tag_lo == 1) {
 		emp_type = sync ? EMP_VTEM_CLASS1 : EMP_VTEM_CLASS0;//vtem
+		rxpktsts[port].pkt_attach_vtem = true;
 	} else if (pkt->cnt.organization_id == 1 &&
 		pkt->cnt.data_set_tag_lo == 3 &&
 		ds_type == 1 &&
@@ -2755,7 +2760,7 @@ void rx_get_em_info(u8 port)
 		rx_pr("emp_dsf_cnt:0x%x\n", rx[port].emp_dsf_cnt);
 	for (i = 0; i < rx[port].emp_dsf_cnt; i++) {
 		pkt = (struct emp_pkt_st *)rx[port].emp_dsf_info[i].pkt_addr;
-		rx[port].emp_type = rx_check_emp_type(pkt);
+		rx[port].emp_type = rx_check_emp_type(pkt, port);
 
 		switch (rx[port].emp_type) {
 		case EMP_VTEM_CLASS0:

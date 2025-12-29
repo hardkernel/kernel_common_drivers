@@ -1037,6 +1037,7 @@ struct rxpkt_st {
 
 	u32 pkt_attach_vsi;
 	u32 pkt_attach_drm;
+	bool pkt_attach_vtem;
 };
 
 struct packet_info_s {
@@ -1120,6 +1121,8 @@ struct st_pkt_test_buff {
 };
 
 extern struct packet_info_s rx_pkt[4];
+extern struct rxpkt_st rxpktsts[];
+
 extern u32 rx_vsif_type[4];
 extern u32 rx_emp_type[4];
 /*extern bool hdr_enable;*/
