@@ -3516,6 +3516,13 @@
 		};
 	};
 
+	remote_pins_sleep: remote_pin_sleep {
+		mux {
+			groups = "GPIOD_5";
+			function = "gpio_periphs";
+		};
+	};
+
 	remote_b_pins: remote_b_pin {
 		mux {
 			groups = "ir_in_b_z";
