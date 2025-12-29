@@ -699,7 +699,7 @@
 };
 
 &amhdmitx {
-	status = "disabled";
+	status = "okay";
 };
 
 &cvbsout {

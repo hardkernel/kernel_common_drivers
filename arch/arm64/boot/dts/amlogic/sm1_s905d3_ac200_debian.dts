@@ -764,7 +764,7 @@
 };
 
 &amhdmitx {
-	status = "disabled";
+	status = "okay";
 	hdcp_ctl_lvl = <1>;
 };
 
