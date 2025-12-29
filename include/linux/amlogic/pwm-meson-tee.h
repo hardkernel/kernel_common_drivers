@@ -80,6 +80,10 @@ struct meson_pwm_tee {
 	 * that is shared between the two PWMs.
 	 */
 	spinlock_t lock;
+#ifdef CONFIG_HIBERNATION
+#define PWM_TEE_REG_NUMS			8
+	u32 regs_restore[PWM_TEE_REG_NUMS];
+#endif
 };
 
 int meson_pwm_sysfs_init(struct device *dev, bool tee_pwm);

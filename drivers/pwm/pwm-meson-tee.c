@@ -21,6 +21,7 @@
 #include <linux/amlogic/arm-smccc.h>
 #include <linux/amlogic/pwm-meson-tee.h>
 #include <linux/amlogic/secure_pwm_i2c.h>
+#include <linux/pinctrl/consumer.h>
 
 #define TEE_RW_NODE				1
 #define DOUBLE_CHAN_COMPAT
@@ -409,10 +410,68 @@ static int meson_pwm_tee_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_HIBERNATION
+static int meson_pwm_tee_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct meson_pwm_tee *meson = platform_get_drvdata(pdev);
+	int i;
+
+	pinctrl_pm_select_sleep_state(dev);
+	for (i = 0; i < PWM_TEE_REG_NUMS; i++) {
+		meson->regs_restore[i] = readl(meson->base + 4 * i);
+		pr_debug("pwm freeze, reg%d: 0x%x\n", i, meson->regs_restore[i]);
+	}
+
+	return 0;
+}
+
+static int meson_pwm_tee_thaw(struct device *dev)
+{
+	return 0;
+}
+
+static int meson_pwm_tee_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct meson_pwm_tee *meson = platform_get_drvdata(pdev);
+	int i;
+
+	pinctrl_pm_select_default_state(dev);
+	for (i = 0; i < PWM_TEE_REG_NUMS; i++) {
+		writel(meson->regs_restore[i], meson->base + 4 * i);
+		pr_debug("pwm restore, reg%d: 0x%x\n", i, meson->regs_restore[i]);
+	}
+
+	return 0;
+}
+
+static int meson_pwm_tee_pm_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int meson_pwm_tee_pm_resume(struct device *dev)
+{
+	return 0;
+}
+
+const struct dev_pm_ops meson_pwm_tee_pm = {
+	.freeze		= meson_pwm_tee_freeze,
+	.thaw		= meson_pwm_tee_thaw,
+	.restore	= meson_pwm_tee_restore,
+	.suspend	= meson_pwm_tee_pm_suspend,
+	.resume		= meson_pwm_tee_pm_resume,
+};
+#endif
+
 static struct platform_driver meson_pwm_tee_driver = {
 	.driver = {
 		.name = "meson-pwm-tee",
 		.of_match_table = meson_pwm_tee_matches,
+#ifdef CONFIG_HIBERNATION
+		.pm = &meson_pwm_tee_pm,
+#endif
 	},
 	.probe = meson_pwm_tee_probe,
 };
