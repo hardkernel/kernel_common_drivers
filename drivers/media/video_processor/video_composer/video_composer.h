@@ -299,6 +299,7 @@ struct composer_dev {
 	u32 fence_wait_count;
 	bool is_tv_path;
 	u32 low_latency_case;
+	bool last_vf_from_dpss;
 };
 
 struct capability_info_t {

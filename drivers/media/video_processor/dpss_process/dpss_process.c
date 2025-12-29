@@ -39,6 +39,9 @@
 #define WAIT_READY_Q_TIMEOUT 100
 #define MAX_RECEIVE_WAIT_TIME 15  /*15ms*/
 #define DPSS_INSTANCE_COUNT 2
+#define DPSS_BYPASS_LIMITED_WIDTH 160
+#define DPSS_BYPASS_LIMITED_HEIGHT 120
+#define CONTINUE_VD1_TOGGLE_NUM 10
 
 static u32 dpss_process_instance_num = DPSS_INSTANCE_COUNT;
 static u32 print_flag;
@@ -71,6 +74,7 @@ static u32 vd1_toggle_frame_index[2];
 static u32 temperature_control_en;
 struct dpss_cooling_device *dpss_cdev_global;
 #endif
+static u32 force_num_to_vd1;
 
 static DEFINE_MUTEX(dpss_process_mutex);
 
@@ -754,12 +758,18 @@ static int queue_input_to_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 	dpss_in_buf->vf.dpss_data = NULL;
 
 	dp_print(dev->index, PRINT_OTHER,
-		"%s: frame_index=%d, magic_code=0x%x, ud_addr=%p, ud_len=%d.\n",
+		"%s: frame_index=%d, magic_code=0x%x, ud_addr=%p, ud_len=%d, type=%x, flag=%x, compWidth=%d, compHeight=%d, width=%d, height=%d.\n",
 		__func__,
 		vf->frame_index,
 		vf->vf_ud_param.magic_code,
 		vf->vf_ud_param.ud_param.pbuf_addr,
-		vf->vf_ud_param.ud_param.buf_len);
+		vf->vf_ud_param.ud_param.buf_len,
+		vf->type,
+		vf->flag,
+		vf->compWidth,
+		vf->compHeight,
+		vf->width,
+		vf->height);
 
 	if (vf->type & VIDTYPE_FORCE_SIGN_IP_JOINT) {
 		vf->type &= ~VIDTYPE_FORCE_SIGN_IP_JOINT;
@@ -1685,14 +1695,14 @@ static int dpss_process_init(struct dpss_process_dev *dev)
 	dev->q_dummy_frame_done = false;
 	dev->last_frame_bypass = false;
 	dev->cur_is_i = false;
-	dev->last_buf_mgr = NULL;
 	dev->last_file = NULL;
 	dev->direct_mode_en = 0;
-	dev->vd1_to_dpss = false;
-	dev->is_start_player = 1;
+	dev->is_start_with_dpss = true;
 	dev->need_check_hdr_state = false;
 	dev->last_frame_vd1_toggle = false;
 	dev->i_frame_cnt = 0;
+	dev->continue_to_vd1_num = 0;
+	dev->should_on_vd1 = 0;
 
 	receive_q_init(dev);
 	dpss_input_free_q_init(dev);
@@ -1710,7 +1720,6 @@ static int dpss_process_uninit(struct dpss_process_dev *dev)
 	struct dpss_in_buf_t *buf;
 
 	dev->inited = false;
-	dev->is_start_player = 0;
 
 	dpss_out_q_uninit(dev);
 
@@ -1899,8 +1908,23 @@ static bool check_need_do_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 	}
 
 	/*input fps more than output fps*/
-	if (vf->duration < dev->output_duration) {
+	if ((vf->duration + 1) < dev->output_duration) {
 		dp_print(dev->index, PRINT_OTHER, "input fps more than output, no need do dpss.\n");
+		need_do_dpss = false;
+	}
+
+	/*input height less than 120, not do dpss*/
+	if (((vf->type & VIDTYPE_COMPRESS) && (vf->compWidth < DPSS_BYPASS_LIMITED_WIDTH ||
+		vf->compHeight < DPSS_BYPASS_LIMITED_HEIGHT)) ||
+		(!(vf->type & VIDTYPE_COMPRESS) && (vf->width < DPSS_BYPASS_LIMITED_WIDTH ||
+		vf->height < DPSS_BYPASS_LIMITED_HEIGHT))) {
+		dp_print(dev->index, PRINT_OTHER, "input w or h too small, no need do dpss.\n");
+		need_do_dpss = false;
+	}
+
+	/*dpss switch vd1, vd1 need toggle at least 10 frames, then allow switch to dpss*/
+	if (dev->should_on_vd1 && dev->continue_to_vd1_num < CONTINUE_VD1_TOGGLE_NUM) {
+		dp_print(dev->index, PRINT_OTHER, "vd1 toggle less 10 frames,continue bypass.\n");
 		need_do_dpss = false;
 	}
 
@@ -1980,6 +2004,26 @@ void unregister_dpss_cooling(void)
 }
 #endif
 
+static int display_original_frame(struct dpss_process_dev *dev,
+	struct frame_info_t *frame_info, struct file *file_vf, struct vframe_s *vf)
+{
+	if (!dev || !frame_info) {
+		pr_err("%s: param is invalid.\n", __func__);
+		return -EINVAL;
+	}
+
+	frame_info->out_fd = -1;
+	frame_info->out_fence_fd = -1;
+	frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
+	frame_info->frame_index = vf->frame_index;
+	frame_info->need_bypass = true;
+	dev->last_file = file_vf;
+	dev->last_frame_bypass = true;
+	dp_put_file(dev, file_vf);
+
+	return 1;
+}
+
 static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_info_t *frame_info)
 {
 	int i;
@@ -1994,9 +2038,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 	u32 max_width_new = 0, max_width_last = 0;
 	bool ip_switch = false, tvp_switch = false, rotate180_switch = false;
 	bool need_do_dummy = false, rotate_en = false;
-	struct dp_buf_mgr_t *cur_buf_mgr;
 	struct dpss_status dpss_state;
-	int dpss_ready_state = 1;
 	int ret = 0;
 	struct dpss_cmd_a_s dpss_para;
 	bool is_interlace = false;
@@ -2030,6 +2072,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		return -EINVAL;
 	}
 
+	vf->dpss_flg |= DPSS_FLG_SET_DPSS_PROCESS;
 	dp_print(dev->index, PRINT_OTHER,
 		"%s: len =%d, fd=%d, frame_index=%d, file_vf=%px, file_count=%ld\n",
 		__func__,
@@ -2043,12 +2086,20 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		connect_to_dpss(dev, vf, frame_info->transform);
 		if (dev->dpss_index == -1) {
 			dp_print(dev->index, PRINT_ERROR, "%s: connect to dpss fail.\n", __func__);
+			dp_put_file(dev, file_vf);
 			return -EINVAL;
 		}
 		if (vf->type & VIDTYPE_INTERLACE)
 			dev->cur_is_i = true;
 		else
 			dev->cur_is_i = false;
+	}
+
+	if (vf->source_type == VFRAME_SOURCE_TYPE_CVBS &&
+		vf->duration < 1600 && (vf->type & VIDTYPE_INTERLACE)) {
+		dp_print(dev->index, PRINT_OTHER,
+			"AV case, but duration=%d more than 1600, modify.\n", vf->duration);
+		vf->duration = 1600;
 	}
 
 	if (dev->index == 0) {
@@ -2085,33 +2136,33 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		}
 	}
 
-	cur_buf_mgr = get_buf_mgr(file_vf);
-	if (!dev->last_buf_mgr) {
-		dev->last_buf_mgr = cur_buf_mgr;
-		dp_print(dev->index, PRINT_OTHER,
-			"%s: new stream is on, first frame is set\n",
-			__func__);
-	} else if (cur_buf_mgr != dev->last_buf_mgr) {
-		dev->last_buf_mgr = cur_buf_mgr;
-		dp_print(dev->index, PRINT_OTHER,
-			"%s: stream changed, need notify processor\n",
-			__func__);
-	}
-
 	if (frame_info->transform == 4 || frame_info->transform == 7)
 		rotate_en = true;
 
 	dev->output_duration = get_output_duration(dev);
-	if (!check_need_do_dpss(dev, vf, rotate_en)) {
+	if (!check_need_do_dpss(dev, vf, rotate_en) || force_num_to_vd1) {
 		dev->i_frame_cnt = 0;
-		dev->is_start_player = 0;
-		vf->dpss_flg |= DPSS_FLG_MODULE_BYPASS;
+		dev->is_start_with_dpss = false;
+		if (force_num_to_vd1 > 0)
+			force_num_to_vd1--;
 
 		if (!dev->last_frame_bypass && dev->last_vf.type) {
 			dp_print(dev->index, PRINT_OTHER, "no bypass to bypass.\n");
 			dev->dpss_switch_vd1_first_index = vf->frame_index;
 			dev->last_vf.type = 0;
 			dev->allow_destroy_dpss = false;
+			dev->should_on_vd1 = 1;
+		}
+
+		if (dev->should_on_vd1)
+			dev->continue_to_vd1_num++;
+
+		if (dev->need_check_hdr_state) {
+			vf->dpss_flg |= DPSS_FLG_MODULE_BYPASS;
+			dev->need_check_hdr_state = false;
+			dp_print(dev->index, PRINT_OTHER,
+				"dv/hdr core switch dpss not ready, next to vd1 frame_index:%d.\n",
+				vf->frame_index);
 		}
 
 		if (vd1_toggle_frame_index[dev->index] >= dev->dpss_switch_vd1_first_index) {
@@ -2128,18 +2179,18 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 			return 1;
 		}
 
-		frame_info->out_fd = -1;
-		frame_info->out_fence_fd = -1;
-		frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-		frame_info->frame_index = vf->frame_index;
-		frame_info->need_bypass = true;
-		dev->last_file = file_vf;
-		dev->last_frame_bypass = true;
-		dp_put_file(dev, file_vf);
+		display_original_frame(dev, frame_info, file_vf, vf);
+		if (vf->type & VIDTYPE_INTERLACE)
+			dev->cur_is_i = true;
+		else
+			dev->cur_is_i = false;
+		dev->last_vf = *vf;
 		dev->last_frame_vd1_toggle = true;
 
 		return ret;
 	}
+	dev->should_on_vd1 = 0;
+	dev->continue_to_vd1_num = 0;
 
 	/*vf need check tvp switch*/
 	if (dev->last_vf.type == 0) {
@@ -2186,94 +2237,41 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		}
 	}
 
-	if (dev->index == 0 && dev->is_start_player) {
-		hdr_path_switch_to_dpss(3);
-		dp_print(dev->index, PRINT_OTHER, "it is start player.\n");
-		dev->is_start_player = 0;
-		dev->need_check_hdr_state = true;
-	}
-
 	memset(&dpss_state, 0, sizeof(struct dpss_status));
 	if (dpss_get_state(dev->dpss_index, DPSS_STATE_BUF, NULL, &dpss_state) != 0)
-		dp_print(dev->index, PRINT_ERROR, "get buf statefailed.\n");
+		dp_print(dev->index, PRINT_ERROR, "get buf state failed.\n");
 
 	if (dpss_state.buf_status != DPSS_BUF_STATE_READY) {
 		dp_print(dev->index, PRINT_OTHER, "dpss buf not ready.\n");
-		dpss_ready_state = 0;
-	}
-
-	if (!dpss_ready_state) {
-		frame_info->out_fd = -1;
-		frame_info->out_fence_fd = -1;
-		frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-		frame_info->frame_index = vf->frame_index;
-		frame_info->need_bypass = true;
-		dev->last_frame_bypass = true;
-		dev->last_file = file_vf;
 		vf->type_ext |= VIDTYPE_EXT_DPSS_DROP;
-		dp_put_file(dev, file_vf);
-
+		display_original_frame(dev, frame_info, file_vf, vf);
 		return 0;
 	}
 
-	if (dev->index == 0 && dev->need_check_hdr_state) {
-		if (!hdr_path_delink_status()) {
-			dp_print(dev->index, PRINT_OTHER,
-				"start play, do dpss but hdr not ready, bypass.\n");
-			frame_info->out_fd = -1;
-			frame_info->out_fence_fd = -1;
-			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-			frame_info->frame_index = vf->frame_index;
-			frame_info->need_bypass = true;
-			dev->last_file = file_vf;
-			dev->last_frame_bypass = true;
-			vf->type_ext |= VIDTYPE_EXT_DPSS_DROP;
-			dp_put_file(dev, file_vf);
-			dev->need_check_hdr_state = true;
-			return ret;
-		}
-		dp_print(dev->index, PRINT_OTHER,
-			"start play, hdr already ready.\n");
-		dev->need_check_hdr_state = false;
+	//start play and first send to dpss
+	if (dev->index == 0 && dev->is_start_with_dpss) {
+		dp_print(dev->index, PRINT_OTHER, "start play with dpss.\n");
+		hdr_path_switch_to_dpss(3);
+		dev->need_check_hdr_state = true;
+		dev->is_start_with_dpss = false;
 	}
 
-	if (dev->index == 0 && dev->last_frame_vd1_toggle && !dev->vd1_to_dpss) {
+	//VD1 switch to DPSS
+	if (dev->index == 0 && dev->last_frame_vd1_toggle) {
+		dp_print(dev->index, PRINT_OTHER, "vd1 switch to dpss\n");
 		hdr_path_switch_to_dpss(1);
-		if (!hdr_path_delink_status()) {
-			dp_print(dev->index, PRINT_OTHER, "vd1 switch to dpss, not ready .\n");
-			frame_info->out_fd = -1;
-			frame_info->out_fence_fd = -1;
-			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-			frame_info->frame_index = vf->frame_index;
-			frame_info->need_bypass = true;
-			dev->last_file = file_vf;
-			dev->last_frame_bypass = true;
-			dp_put_file(dev, file_vf);
-			dev->vd1_to_dpss = true;
-			dev->last_frame_vd1_toggle = true;
-			return ret;
-		}
-		dp_print(dev->index, PRINT_OTHER, "vd1 switch to dpss, already ready .\n");
-		dev->vd1_to_dpss = false;
+		dev->need_check_hdr_state = true;
+		dev->last_frame_vd1_toggle = false;
 	}
-	if (dev->index == 0 && dev->vd1_to_dpss) {
-		if (!hdr_path_delink_status()) {
-			dp_print(dev->index, PRINT_OTHER, "vd1 switch to dpss, not ready.\n");
-			frame_info->out_fd = -1;
-			frame_info->out_fence_fd = -1;
-			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-			frame_info->frame_index = vf->frame_index;
-			frame_info->need_bypass = true;
-			dev->last_file = file_vf;
-			dev->last_frame_bypass = true;
-			dp_put_file(dev, file_vf);
-			dev->vd1_to_dpss = true;
-			dev->last_frame_vd1_toggle = true;
-			return ret;
-		}
-		dp_print(dev->index, PRINT_OTHER, "vd1 switch to dpss, already ready.\n");
-		dev->vd1_to_dpss = false;
+
+	if (dev->need_check_hdr_state && !hdr_path_delink_status()) {
+		dp_print(dev->index, PRINT_ERROR, "need do dpss but hdr not ready, bypass.\n");
+		vf->type_ext |= VIDTYPE_EXT_DPSS_DROP;
+		display_original_frame(dev, frame_info, file_vf, vf);
+		return ret;
 	}
+
+	dev->need_check_hdr_state = false;
 
 	if (vf->type & VIDTYPE_INTERLACE)
 		dev->cur_is_i = true;
@@ -2320,14 +2318,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 	if (dev->last_file == file_vf) {
 		if (dev->last_frame_bypass) {
 			dp_print(dev->index, PRINT_OTHER, "repeat:last bypass, continue bypass\n");
-			frame_info->out_fd = -1;
-			frame_info->out_fence_fd = -1;
-			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-			frame_info->frame_index = vf->frame_index;
-			frame_info->need_bypass = true;
-			dev->last_file = file_vf;
-
-			dp_put_file(dev, file_vf);
+			display_original_frame(dev, frame_info, file_vf, vf);
 			return 0;
 		}
 
@@ -2337,20 +2328,6 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		is_repeat = true;
 		out_fence_fd = -1;
 	} else {
-		if (dev->dpss_module_bypass && vf->type & VIDTYPE_INTERLACE) {
-			frame_info->out_fd = -1;
-			frame_info->out_fence_fd = -1;
-			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-			frame_info->frame_index = vf->frame_index;
-			frame_info->need_bypass = true;
-			dev->last_file = file_vf;
-			dev->last_frame_vd1_toggle = true;
-
-			dp_print(dev->index, PRINT_OTHER, "dpss bypass.\n");
-			dp_put_file(dev, file_vf);
-			return 0;
-		}
-
 		i = get_received_frame_free_index(dev);
 		if (i < 0) {
 			dp_print(dev->index, PRINT_ERROR, "%s: get free index fail.\n", __func__);
@@ -2396,7 +2373,6 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		}
 
 		out_fence_fd = dp_timeline_create_fence(dev);
-		dev->last_frame_vd1_toggle = false;
 
 		if (!kfifo_put(&dev->file_wait_q, dmabuf))
 			dp_print(dev->index, PRINT_ERROR, "put file_wait fail\n");
@@ -3077,6 +3053,32 @@ static ssize_t force_direct_mode_store(const struct class *cla,
 	return count;
 }
 
+static ssize_t force_num_to_vd1_show(const struct class *class,
+	const struct class_attribute *attr, char *buf)
+{
+	int len = 0;
+
+	len = sprintf(buf + len, "force_num_to_vd1 is %d.\n", force_num_to_vd1);
+
+	return len;
+}
+
+static ssize_t force_num_to_vd1_store(const struct class *cla,
+	const struct class_attribute *attr, const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+
+	force_num_to_vd1 = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RO(total_get_count);
 static CLASS_ATTR_RO(total_put_count);
@@ -3098,6 +3100,7 @@ static CLASS_ATTR_RW(continue_dump_num);
 static CLASS_ATTR_RW(continue_dump_top_num);
 static CLASS_ATTR_RW(continue_dump_bottom_num);
 static CLASS_ATTR_RW(force_direct_mode);
+static CLASS_ATTR_RW(force_num_to_vd1);
 
 static struct attribute *dpss_process_class_attrs[] = {
 	&class_attr_print_flag.attr,
@@ -3121,6 +3124,7 @@ static struct attribute *dpss_process_class_attrs[] = {
 	&class_attr_continue_dump_top_num.attr,
 	&class_attr_continue_dump_bottom_num.attr,
 	&class_attr_force_direct_mode.attr,
+	&class_attr_force_num_to_vd1.attr,
 	NULL
 };
 

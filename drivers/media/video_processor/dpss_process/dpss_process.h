@@ -116,7 +116,6 @@ struct dpss_process_dev {
 	DECLARE_KFIFO(dpss_out_free_q, struct vframe_s *, DPSSPR_POOL_SIZE);
 	DECLARE_KFIFO(lcevc_out_q, struct lcevc_buf_t *, LCEVC_POOL_SIZE);
 	struct file *last_file;
-	struct dp_buf_mgr_t *last_buf_mgr;
 	struct dma_buf *last_dmabuf;
 	struct dma_buf *out_dmabuf[DPSSPR_POOL_SIZE];
 	unsigned long long fence_creat_count;
@@ -139,13 +138,15 @@ struct dpss_process_dev {
 	bool last_frame_vd1_toggle;
 	u32 transform;
 	int direct_mode_en;
-	bool vd1_to_dpss;
-	bool is_start_player;
+	bool is_start_with_dpss;
 	bool need_check_hdr_state;
 	bool allow_destroy_dpss;
 	u32 dpss_switch_vd1_first_index;
 	u32 i_frame_cnt;
 	int output_duration;
+	u32 continue_to_vd1_num;
+	bool should_on_vd1;
+	bool vd1_switch_dpss_is_done;
 };
 
 #define DPSS_PROCESS_IOC_MAGIC  'I'

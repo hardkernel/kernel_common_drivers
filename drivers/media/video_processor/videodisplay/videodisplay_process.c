@@ -2311,7 +2311,9 @@ static bool detect_vf_usage(struct videodisplay_dev *dev,
 			vd_print(dev->index, PRINT_ERROR, "get NULL vf!!\n");
 			return false;
 		}
-		if (!(vf->dpss_flg & 0x08))
+		if (dev->last_vf_from_dpss && !(vf->dpss_flg & 0x40))
+			vf->dpss_flg |= 0x08;
+		else if (!(vf->dpss_flg & 0x08))
 			vf->dpss_flg |= 0x10;
 	}
 	if (vf && (vf->type & VIDTYPE_DI_PW || vf->di_flag & DI_FLAG_DI_PVPPLINK)) {
@@ -3327,6 +3329,9 @@ static void vframe_display(struct videodisplay_dev *dev,
 
 	video_display_push_ready(dev, vf);
 
+	if (vf->dpss_flg & 0x08)
+		dev->last_vf_from_dpss = true;
+
 	if (!kfifo_put(&dev->ready_q, (const struct vframe_s *)vf)) {
 		vd_print(dev->index, PRINT_ERROR, "%s: put to ready_q failed.\n", __func__);
 		return;
@@ -4123,6 +4128,7 @@ static int video_display_init(struct videodisplay_dev *dev)
 	dev->kfifo_need_initialize = true;
 	dev->fence_wait_time_total = 0;
 	dev->fence_wait_count = 0;
+	dev->last_vf_from_dpss = false;
 	dev_array[dev->index] = dev;
 	init_completion(&dev->task_done);
 	for (i = 0; i < MAX_VD_LAYERS; i++)

@@ -218,6 +218,7 @@ struct videodisplay_dev {
 	u32 fence_wait_count;
 	bool is_tv_path;
 	u32 low_latency_case;
+	bool last_vf_from_dpss;
 };
 
 struct videodisplay_port_s *videodisplay_get_port(u32 index);
