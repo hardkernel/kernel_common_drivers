@@ -96,6 +96,7 @@
 /* keep the same with I2C_TIMEOUT_MS */
 #define MESON_I2C_PM_TIMEOUT	500
 #define I2C_TIMEOUT_MS		500
+#define MESON_I2C_PM_TIMEOUT	500
 
 enum {
 	STATE_IDLE,
@@ -442,22 +443,21 @@ static int meson_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 {
 	struct meson_i2c *i2c = adap->algo_data;
 	int i, ret = 0;
-#if FUTURE_USE
+
 	ret = pm_runtime_get_sync(i2c->dev);
 	if (ret < 0)
 		goto out;
-#endif
+
 	meson_i2c_init(i2c);//must init i2c in every xfer
 	for (i = 0; i < num; i++) {
 		ret = meson_i2c_xfer_msg(i2c, msgs + i);
 		if (ret)
 			break;
 	}
-#if FUTURE_USE
+
 out:
 	pm_runtime_mark_last_busy(i2c->dev);
 	pm_runtime_put_autosuspend(i2c->dev);
-#endif
 
 	return ret ?: i;
 }
@@ -564,7 +564,7 @@ static int meson_i2c_probe(struct platform_device *pdev)
 
 	i2c->irq = irq;
 	/* Disable the interrupt so that the system can enter low-power mode */
-#if FUTURE_USE
+
 	disable_irq(i2c->irq);
 	pm_runtime_enable(i2c->dev);
 	pm_runtime_set_autosuspend_delay(i2c->dev, MESON_I2C_PM_TIMEOUT);
@@ -576,7 +576,7 @@ static int meson_i2c_probe(struct platform_device *pdev)
 		pm_runtime_disable(i2c->dev);
 		return ret;
 	}
-#endif
+
 	/* speed sysfs */
 	ret = meson_i2c_speed_debug(&pdev->dev);
 	if (ret)
@@ -586,10 +586,8 @@ static int meson_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get clk rate\n");
 		return -EINVAL;
 	}
-#if FUTURE_USE
 	pm_runtime_mark_last_busy(i2c->dev);
 	pm_runtime_put_autosuspend(i2c->dev);
-#endif
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0)
 		return ret;
@@ -600,23 +598,18 @@ static int meson_i2c_probe(struct platform_device *pdev)
 static void meson_i2c_remove(struct platform_device *pdev)
 {
 	struct meson_i2c *i2c = platform_get_drvdata(pdev);
-#if FUTURE_USE
 	int ret;
 
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0)
-		return ret;
-#endif
+		return;
 
 	i2c_del_adapter(&i2c->adap);
-#if FUTURE_USE
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-#endif
 }
 
-#if FUTURE_USE
 static int meson_i2c_put(struct meson_i2c *i2c)
 {
 	disable_irq(i2c->irq);
@@ -667,8 +660,6 @@ static int meson_i2c_restore(struct device *dev)
 	if (i2c->is_runtime_sleep)
 		return 0;
 	ret = meson_i2c_regain(i2c);
-	meson_i2c_set_mask(i2c, REG_CTRL, REG_CTRL_START, 0);
-	meson_i2c_set_clk_div(i2c);
 
 	return ret;
 }
@@ -707,7 +698,6 @@ static const struct dev_pm_ops meson_i2c_pm_ops = {
 #endif
 };
 #endif
-#endif //FUTURE_USE
 
 static struct meson_i2c_data i2c_tee_data = {
 	.tee = true,
@@ -735,9 +725,7 @@ static struct platform_driver meson_i2c_driver = {
 	.remove  = meson_i2c_remove,
 	.driver  = {
 		.name  = "meson-i2c-v2",
-#if FUTURE_USE
 		.pm	= &meson_i2c_pm_ops,
-#endif
 		.of_match_table = meson_i2c_v2_match,
 	},
 };
