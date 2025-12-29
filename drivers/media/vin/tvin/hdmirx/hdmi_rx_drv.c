@@ -94,6 +94,7 @@ static int aml_hdcp22_pm_notify(struct notifier_block *nb,
 #define FORCE_RGB			2
 #define DEF_LOG_BUF_SIZE		0 /* (1024*128) */
 #define PRINT_TEMP_BUF_SIZE		64 /* 128 */
+#define HDMI_TB49_MAX_FR		288
 
 /*------------------------macro define end------------------------------*/
 
@@ -1968,21 +1969,25 @@ void hdmirx_get_hdr_info(struct tvin_frontend_s *fe, struct tvin_sig_property_s 
 {
 	struct drm_infoframe_st *drm_pkt;
 	u8 port = rx_get_port_from_type(port_type);
+	bool unique_drm_flag = false;
 
 	drm_pkt = (struct drm_infoframe_st *)&rx_pkt[port].drm_info;
 	if (rx_pkt_chk_attach_drm(port) && rx_chk_drm_valid(port)) {
-		if (rx_is_dv_unique_drm(drm_pkt)) {
-			prop->dv_unique_drm_flag = true;
-			rx[port].amdv_type = DV_UNIQUE_DRM;
-			rx[port].hdr_info.hdr_type = HDMIRX_HDR_MODE_AMDV;
-			rx[port].rx_sig_type |= E_DRM_AMDV;
-			memcpy(prop->hdr_info.hdr_data.rawdata, (u8 *)drm_pkt, 3);
-			memcpy(prop->hdr_info.hdr_data.rawdata + 3, (u8 *)drm_pkt + 4, 28);
+		rx_reset_pkt_cnt(PKT_TYPE_INFOFRAME_DRM, port);
+		unique_drm_flag = rx_is_dv_unique_drm(drm_pkt);
+		if (unique_drm_flag) {
+			if (prop->fps <= HDMI_TB49_MAX_FR) {
+				prop->dv_unique_drm_flag = true;
+				rx[port].amdv_type = DV_UNIQUE_DRM;
+				rx[port].hdr_info.hdr_type = HDMIRX_HDR_MODE_AMDV;
+				rx[port].rx_sig_type |= E_DRM_AMDV;
+				memcpy(prop->hdr_info.hdr_data.rawdata, (u8 *)drm_pkt, 3);
+				memcpy(prop->hdr_info.hdr_data.rawdata + 3, (u8 *)drm_pkt + 4, 28);
+			}
 			return;
 		} else {
 			prop->dv_unique_drm_flag = false;
 		}
-		rx_reset_pkt_cnt(PKT_TYPE_INFOFRAME_DRM, port);
 		prop->hdr_info.hdr_data.length = drm_pkt->length;
 		prop->hdr_info.hdr_data.eotf = drm_pkt->des_u.tp1.eotf;
 		rx[port].hdr_info.hdr_type = drm_pkt->des_u.tp1.eotf;
