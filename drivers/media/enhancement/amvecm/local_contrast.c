@@ -1365,6 +1365,10 @@ void lc_config(int enable,
 	int lc_en_ctrl = enable;
 	int in_sel;
 	unsigned int limit_full = 0;
+	unsigned int h_rate = 0;
+	unsigned int w_rate = 0;
+	unsigned int src_h = 0;
+	unsigned int src_w = 0;
 
 	h_num = LC_BLK_H_NUM;
 	v_num = LC_BLK_V_NUM;
@@ -1374,6 +1378,19 @@ void lc_config(int enable,
 		vf_width = 0;
 		return;
 	}
+
+	w_rate = vf->dpss_pps_dsx;
+	h_rate = vf->dpss_pps_dsy;
+
+	if (h_rate)
+		src_h = vf->height / (h_rate + 1);
+	else
+		src_h = vf->height;
+
+	if (w_rate)
+		src_w = vf->width / (w_rate + 1);
+	else
+		src_w = vf->width;
 
 	if (chip_type_id == chip_t3x &&
 		vf->source_type == VFRAME_SOURCE_TYPE_HWC) {
@@ -1423,8 +1440,8 @@ void lc_config(int enable,
 			sps_h_in);
 	}
 
-	if (vf_height == vf->height &&
-		vf_width == vf->width &&
+	if (vf_height == src_h &&
+		vf_width == src_w &&
 		flag_full == flag_full_pre &&
 		sps_w_in_pre == sps_w_in &&
 		sps_h_in_pre == sps_h_in &&
@@ -1444,8 +1461,8 @@ void lc_config(int enable,
 	sps_w_in_pre = sps_w_in;
 	sps_h_in_pre = sps_h_in;
 
-	vf_height = vf->height;
-	vf_width = vf->width;
+	vf_height = src_h;
+	vf_width = src_w;
 
 	lc_en_chflg = 0xff;
 

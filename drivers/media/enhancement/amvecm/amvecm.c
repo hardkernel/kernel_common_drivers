@@ -1632,6 +1632,9 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf,
 	unsigned int hist_height, hist_width;
 	u64 divid;
 
+	if (!vf)
+		return;
+
 	if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x) {
 		get_luma_hist(vf, vp, vpp_index);
@@ -1920,6 +1923,11 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf,
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T5W ||
 		chip_type_id == chip_t5m) {
+		unsigned int h_rate = vf->dpss_pps_dsy;
+		unsigned int w_rate = vf->dpss_pps_dsx;
+		unsigned int src_h = (h_rate) ? (vf->height / (h_rate + 1)) : vf->height;
+		unsigned int src_w = (w_rate) ? (vf->width / (w_rate + 1)) : vf->width;
+
 		vf->fmeter0_hcnt[0] =
 		READ_VPP_REG(SRSHARP0_RO_FMETER_HCNT_TYPE0);
 		vf->fmeter0_hcnt[1] =
@@ -1978,7 +1986,7 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf,
 		data_meter.fmeter1_ndcnt[3] = READ_VPP_REG(SRSHARP1_RO_FMETER_NDCNT_TYPE3);
 
 		if (fmeter_drv_param.fmeter_cal_score) {
-			fmeter_drv_param.fmeter_cal_score(vf->width, vf->height);
+			fmeter_drv_param.fmeter_cal_score(src_w, src_h);
 			vf->fmeter0_score = fmeter_drv_param.fmeter0_score;
 			vf->fmeter1_score = fmeter_drv_param.fmeter1_score;
 		}
@@ -2220,12 +2228,29 @@ void vpp_demo_func(struct vframe_s *vf,
 void amvecm_dejaggy_patch(struct vframe_s *vf)
 {
 	int gmv;
+	unsigned int h_rate = 0;
+	unsigned int w_rate = 0;
+	unsigned int src_h = 0;
+	unsigned int src_w = 0;
 
 	if (!vf) {
 		if (pd_detect_en)
 			pd_detect_en = 0;
 		return;
 	}
+
+	w_rate = vf->dpss_pps_dsx;
+	h_rate = vf->dpss_pps_dsy;
+
+	if (h_rate)
+		src_h = vf->height / (h_rate + 1);
+	else
+		src_h = vf->height;
+
+	if (w_rate)
+		src_w = vf->width / (w_rate + 1);
+	else
+		src_w = vf->width;
 
 	if (!pd_det)
 		return;
@@ -2236,8 +2261,8 @@ void amvecm_dejaggy_patch(struct vframe_s *vf)
 
 	gmv = vf->di_gmv / 10000;
 
-	if (vf->height == 1080 &&
-	    vf->width == 1920 &&
+	if (src_h == 1080 &&
+	    src_w == 1920 &&
 	    (vf->di_pulldown & (1 << 3)) &&
 	    ((vf->di_pulldown & 0x7) || gmv >= gmv_th)) {
 		if (pd_detect_en == 1)
@@ -2246,8 +2271,8 @@ void amvecm_dejaggy_patch(struct vframe_s *vf)
 		pd_combing_fix_patch(pd_fix_lvl);
 		pr_amvecm_dbg("pd_detect_en1 = %d; level = %d, vf->di_pulldown = 0x%x, gmv %d\n",
 			      pd_detect_en, pd_fix_lvl, vf->di_pulldown, gmv);
-	} else if ((vf->height == 1080) &&
-		 (vf->width == 1920) &&
+	} else if ((src_h == 1080) &&
+		 (src_w == 1920) &&
 		 (vf->di_pulldown & (1 << 3)) &&
 		 (gmv >= gmv_weak_th)) {
 		if (pd_detect_en == 2)

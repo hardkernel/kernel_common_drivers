@@ -1333,9 +1333,34 @@ void get_luma_hist(struct vframe_s *vf,
 	int i;
 	int overlap = 64;
 	int slice_case;
+	unsigned int h_rate = 0;
+	unsigned int w_rate = 0;
+	unsigned int src_h = 0;
+	unsigned int src_w = 0;
+	unsigned int src_compheight = 0;
+	unsigned int src_compwidth = 0;
 
 	if (!vf)
 		return;
+
+	w_rate = vf->dpss_pps_dsx;
+	h_rate = vf->dpss_pps_dsy;
+
+	if (h_rate) {
+		src_h = vf->height / (h_rate + 1);
+		src_compheight = vf->compHeight / (h_rate + 1);
+	} else {
+		src_h = vf->height;
+		src_compheight = vf->compHeight;
+	}
+
+	if (w_rate) {
+		src_w = vf->width / (w_rate + 1);
+		src_compwidth = vf->compWidth / (w_rate + 1);
+	} else {
+		src_w = vf->width;
+		src_compwidth = vf->compWidth;
+	}
 
 	slice_case = ve_multi_slice_case_get();
 
@@ -1357,9 +1382,9 @@ void get_luma_hist(struct vframe_s *vf,
 		height = vd_info->slice[0].vd1_slice_in_vsize;
 	} else {
 		width = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compWidth : vf->width;
+			src_compwidth : src_w;
 		height =  (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compHeight : vf->height;
+			src_compheight : src_h;
 
 		if (slice_case)
 			width = width >> 1;

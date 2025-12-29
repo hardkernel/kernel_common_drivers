@@ -3616,14 +3616,40 @@ static int src_timing_outputmode_changed(struct vframe_s *vf,
 					 enum vd_path_e vd_path)
 {
 	unsigned int width, height;
+	unsigned int h_rate = 0;
+	unsigned int w_rate = 0;
+	unsigned int src_h = 0;
+	unsigned int src_w = 0;
+	unsigned int src_compwidth = 0;
+	unsigned int src_compheight = 0;
 
-	if (vinfo_lcd_support())
+	if (vinfo_lcd_support() ||
+		!vf)
 		return 0;
 
+	w_rate = vf->dpss_pps_dsx;
+	h_rate = vf->dpss_pps_dsy;
+
+	if (h_rate) {
+		src_h = vf->height / (h_rate + 1);
+		src_compheight = vf->compHeight / (h_rate + 1);
+	} else {
+		src_h = vf->height;
+		src_compheight = vf->compHeight;
+	}
+
+	if (w_rate) {
+		src_w = vf->width / (w_rate + 1);
+		src_compwidth = vf->compWidth / (w_rate + 1);
+	} else {
+		src_w = vf->width;
+		src_compwidth = vf->compWidth;
+	}
+
 	width = (vf->type & VIDTYPE_COMPRESS) ?
-		vf->compWidth : vf->width;
+		src_compwidth : src_w;
 	height = (vf->type & VIDTYPE_COMPRESS) ?
-		vf->compHeight : vf->height;
+		src_compheight : src_h;
 
 	if (height < 720 && vinfo->height < 720)
 		vd1_mtx_sel = VPP_MATRIX_NULL;
@@ -3683,11 +3709,37 @@ static int cur_vd_w;
 static int cur_vd_h;
 void get_cur_vd_size(struct vframe_s *vf)
 {
+	unsigned int h_rate = 0;
+	unsigned int w_rate = 0;
+	unsigned int src_h = 0;
+	unsigned int src_w = 0;
+	unsigned int src_compheight = 0;
+	unsigned int src_compwidth = 0;
+
 	if (vf) {
+		w_rate = vf->dpss_pps_dsx;
+		h_rate = vf->dpss_pps_dsy;
+
+		if (h_rate) {
+			src_h = vf->height / (h_rate + 1);
+			src_compheight = vf->compHeight / (h_rate + 1);
+		} else {
+			src_h = vf->height;
+			src_compheight = vf->compHeight;
+		}
+
+		if (w_rate) {
+			src_w = vf->width / (w_rate + 1);
+			src_compwidth = vf->compWidth / (w_rate + 1);
+		} else {
+			src_w = vf->width;
+			src_compwidth = vf->compWidth;
+		}
+
 		cur_vd_h = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compHeight : vf->height;
+			src_compheight : src_h;
 		cur_vd_w = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compWidth : vf->width;
+			src_compwidth : src_w;
 	};
 }
 
@@ -4070,12 +4122,25 @@ int signal_type_changed(struct vframe_s *vf,
 	u32 limit_full = 0;
 	u32 src_height = 0;
 	enum vpp_matrix_csc_e csc_type = VPP_MATRIX_NULL;
+	unsigned int h_rate = 0;
+	unsigned int src_h = 0;
+	unsigned int src_compheight = 0;
 
 	if (!vinfo)
 		return 0;
 
 	if (!vf)
 		return 0;
+
+	h_rate = vf->dpss_pps_dsy;
+
+	if (h_rate) {
+		src_h = vf->height / (h_rate + 1);
+		src_compheight = vf->compHeight / (h_rate + 1);
+	} else {
+		src_h = vf->height;
+		src_compheight = vf->compHeight;
+	}
 
 	csc_type = get_csc_type();
 	limit_full = (vf->signal_type >> 25) & 0x01;
@@ -4153,9 +4218,10 @@ int signal_type_changed(struct vframe_s *vf,
 #endif
 	} else { /* for local play */
 		if (vf->type & VIDTYPE_COMPRESS)
-			src_height = vf->compHeight;
+			src_height = src_compheight;
 		else
-			src_height = vf->height;
+			src_height = src_h;
+
 		if (src_height >= 720)
 			default_signal_type =
 				/* HD default 709 limit */
@@ -8987,6 +9053,12 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	int i, k;
 	struct aml_tmo_reg_sw *pre_tmo_reg = NULL;
 	enum hdr_hist_sel hist_select = HIST_E_RGBMAX;
+	unsigned int h_rate = 0;
+	unsigned int w_rate = 0;
+	unsigned int src_h = 0;
+	unsigned int src_w = 0;
+	unsigned int src_compheight = 0;
+	unsigned int src_compwidth = 0;
 
 	if (!vinfo || vinfo->mode == VMODE_NULL ||
 	    vinfo->mode == VMODE_INVALID)
@@ -9013,6 +9085,27 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	if (vf && vinfo)
 		signal_change_flag =
 			signal_type_changed(vf, vinfo, vd_path, vpp_index);
+
+	if (vf) {
+		w_rate = vf->dpss_pps_dsx;
+		h_rate = vf->dpss_pps_dsy;
+
+		if (h_rate) {
+			src_h = vf->height / (h_rate + 1);
+			src_compheight = vf->compHeight / (h_rate + 1);
+		} else {
+			src_h = vf->height;
+			src_compheight = vf->compHeight;
+		}
+
+		if (w_rate) {
+			src_w = vf->width / (w_rate + 1);
+			src_compwidth = vf->compWidth / (w_rate + 1);
+		} else {
+			src_w = vf->width;
+			src_compwidth = vf->compWidth;
+		}
+	}
 
 	if ((flags & CSC_FLAG_CHECK_OUTPUT) &&
 	    (signal_change_flag & (SIG_PRI_INFO | SIG_CS_CHG))) {
@@ -9286,9 +9379,9 @@ static int vpp_matrix_update(struct vframe_s *vf,
 			if (vf && vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_HDR10PRIME) {
 				pre_tmo_reg = tmo_fw_param_get();
 				pre_tmo_reg->w = (vf->type & VIDTYPE_COMPRESS) ?
-					vf->compWidth : vf->width;
+					src_compwidth : src_w;
 				pre_tmo_reg->h = (vf->type & VIDTYPE_COMPRESS) ?
-					vf->compHeight : vf->height;
+					src_compheight : src_h;
 
 				hdr10_tm_process_update(p, vd_path, vpp_index);
 				pr_csc(1, "ahdr not hdr10_tm_process\n");
@@ -10337,9 +10430,22 @@ int signal_type_detect_for_dpss(struct vframe_s *vf)
 	struct vframe_master_display_colour_s *p_new = NULL;
 	struct vframe_master_display_colour_s cus;
 	enum vd_path_e vd_path = VD1_PATH;
+	unsigned int h_rate = 0;
+	unsigned int src_h = 0;
+	unsigned int src_compheight = 0;
 
 	if (!vf)
 		return 0;
+
+	h_rate = vf->dpss_pps_dsy;
+
+	if (h_rate) {
+		src_h = vf->height / (h_rate + 1);
+		src_compheight = vf->compHeight / (h_rate + 1);
+	} else {
+		src_h = vf->height;
+		src_compheight = vf->compHeight;
+	}
 
 	ext_signal_type = vf->ext_signal_type;
 	limit_full = (vf->signal_type >> 25) & 0x01;
@@ -10359,9 +10465,9 @@ int signal_type_detect_for_dpss(struct vframe_s *vf)
 			| (1 << 0); /* bt709 */
 	} else { /* for local play */
 		if (vf->type & VIDTYPE_COMPRESS)
-			src_height = vf->compHeight;
+			src_height = src_compheight;
 		else
-			src_height = vf->height;
+			src_height = src_h;
 
 		if (src_height >= 720)
 			default_signal_type =
@@ -11132,10 +11238,29 @@ void set_muxio_link_mode(unsigned int link_flag,
 	enum vpp_muxio_sel_e cfg_sel = VPP_MUXIO_SEL_DE_LINK;
 	unsigned int is_dd_frame = 0;
 	unsigned int mute_flag = 0;
+	unsigned int h_rate = 0;
+	unsigned int w_rate = 0;
+	unsigned int src_h = 0;
+	unsigned int src_w = 0;
 
 	if (force_source_format == 0xff || hdr_core_fix_mode ||
 		(chip_type_id != chip_t6w && chip_type_id != chip_t6x))
 		return;
+
+	if (vf) {
+		w_rate = vf->dpss_pps_dsx;
+		h_rate = vf->dpss_pps_dsy;
+
+		if (h_rate)
+			src_h = vf->height / (h_rate + 1);
+		else
+			src_h = vf->height;
+
+		if (w_rate)
+			src_w = vf->width / (w_rate + 1);
+		else
+			src_w = vf->width;
+	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (is_amdv_enable() && vf && is_amdv_frame(vf))
@@ -11143,7 +11268,7 @@ void set_muxio_link_mode(unsigned int link_flag,
 #endif
 
 	if (vf && (vf->source_type == VFRAME_SOURCE_TYPE_HWC ||
-		(vf->width == 384 && vf->height == 180))) {
+		(src_w == 384 && src_h == 180))) {
 		mute_flag = 1;
 		pr_csc(128, "%s: mute frame.\n", __func__);
 	}

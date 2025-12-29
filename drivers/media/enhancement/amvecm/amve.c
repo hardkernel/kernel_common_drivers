@@ -2331,16 +2331,42 @@ void amve_sharpness_adaptive_setting(struct vframe_s *vf,
 	unsigned int cur_level;
 	unsigned int width, height;
 	struct vinfo_s *vinfo = get_current_vinfo();
+	unsigned int h_rate = 0;
+	unsigned int w_rate = 0;
+	unsigned int src_h = 0;
+	unsigned int src_w = 0;
+	unsigned int src_compwidth = 0;
+	unsigned int src_compheight = 0;
 
 	if (!vf)
 		return;
+
+	w_rate = vf->dpss_pps_dsx;
+	h_rate = vf->dpss_pps_dsy;
+
+	if (h_rate) {
+		src_h = vf->height / (h_rate + 1);
+		src_compheight = vf->compHeight / (h_rate + 1);
+	} else {
+		src_h = vf->height;
+		src_compheight = vf->compHeight;
+	}
+
+	if (w_rate) {
+		src_w = vf->width / (w_rate + 1);
+		src_compwidth = vf->compWidth / (w_rate + 1);
+	} else {
+		src_w = vf->width;
+		src_compwidth = vf->compWidth;
+	}
+
 	if (vinfo->mode == VMODE_CVBS) {
 		cur_level = SR_CVBS_LEVEL;
 	} else {
 		width = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compWidth : vf->width;
+			src_compwidth : src_w;
 		height = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compHeight : vf->height;
+			src_compheight : src_h;
 
 		if (sps_h_en == 1 && sps_v_en == 1) {
 			/*super scaler h and v scale up x2 */
@@ -2385,6 +2411,9 @@ void amvecm_fresh_overscan(struct vframe_s *vf, struct vframe_s *vf_rpt)
 {
 	unsigned int height = 0;
 	unsigned int cur_overscan_timing = 0;
+	unsigned int h_rate = 0;
+	unsigned int src_h = 0;
+	unsigned int src_compheight = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	unsigned int cur_fmt;
 	unsigned int offset = TIMING_UHD + 1;/*av&atv*/
@@ -2398,9 +2427,19 @@ void amvecm_fresh_overscan(struct vframe_s *vf, struct vframe_s *vf_rpt)
 		return;
 	}
 
+	h_rate = cur_vf->dpss_pps_dsy;
+
+	if (h_rate) {
+		src_h = cur_vf->height / (h_rate + 1);
+		src_compheight = cur_vf->compHeight / (h_rate + 1);
+	} else {
+		src_h = cur_vf->height;
+		src_compheight = cur_vf->compHeight;
+	}
+
 	if (overscan_table[0].load_flag) {
 		height = (cur_vf->type & VIDTYPE_COMPRESS) ?
-			cur_vf->compHeight : cur_vf->height;
+			src_compheight : src_h;
 		if (height <= 480)
 			cur_overscan_timing = TIMING_SD_480;
 		else if (height <= 576)
@@ -6149,6 +6188,9 @@ void amve_vsr_config_update(struct vframe_s *vf, int vpp_index)
 	unsigned int width_out = 3840;
 	unsigned int width_in = 1920;
 	struct vinfo_s *vinfo = get_current_vinfo();
+	unsigned int w_rate = 0;
+	unsigned int src_w = 0;
+	unsigned int src_compwidth = 0;
 
 	if (!vf)
 		return;
@@ -6158,8 +6200,18 @@ void amve_vsr_config_update(struct vframe_s *vf, int vpp_index)
 		width_out = vinfo->width;
 	}
 
+	w_rate = vf->dpss_pps_dsx;
+
+	if (w_rate) {
+		src_w = vf->width / (w_rate + 1);
+		src_compwidth = vf->compWidth / (w_rate + 1);
+	} else {
+		src_w = vf->width;
+		src_compwidth = vf->compWidth;
+	}
+
 	width_in = (vf->type & VIDTYPE_COMPRESS) ?
-		vf->compWidth : vf->width;
+		src_compwidth : src_w;
 
 	if (chip_type_id >= chip_s7d) {
 		if (width_out > 1920 &&
