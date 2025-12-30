@@ -707,6 +707,7 @@ void hw_process_dpe1_frm_rst(int cfg_slc,
 	struct PRM_DPSS_DPE *prm_dpe)
 {
 	//if((intVector == GIC_INT_VEC(SPI_DPSS_DPE1_INT)) && (src0_nrdi_frc_en == 0))
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
 	if (src0_nrdi_frc_en != 0)
 		return;
 
@@ -744,6 +745,37 @@ void hw_process_dpe1_frm_rst(int cfg_slc,
 
 	if (cfg_slc)
 		prm_top->dpe_slc_num   = slc_num;
+
+	int di2pps_idx;
+	unsigned long nr_yaddr;
+	u32 i;
+
+	nr_yaddr = rd(DPSS_DPE_DIN_WR_BADDR4) >> 5;
+	di2pps_idx = -1;
+	for (i = 0; i < prm_top->num_dpe_o; i++) {
+		if (nr_yaddr == prm_top->src0_dio_fbuf_yaddr[i]) {
+			di2pps_idx = i;
+			if (pps->pps_en)
+				prm_top->fbuf_is_pps[i] = 1;
+			else
+				prm_top->fbuf_is_pps[i] = 0;
+			break;
+		}
+	}
+	dbg_pps0("pps[%d] pps test di 0x%x,%d\n", di2pps_idx,
+		rd(DPSS_DPE_DIN_WR_BADDR4), prm_top->fbuf_is_pps[i]);
+	if (pps->pps_en) {
+		nr_yaddr = rd(DPSS_DPE_DIN_WR_BADDR0) >> 5;
+		di2pps_idx = -1;
+		for (i = 0; i < prm_top->num_dpe_o; i++) {
+			if (nr_yaddr == prm_top->src0_nro_fbuf_yaddr[i]) {
+				di2pps_idx = i;
+				break;
+			}
+		}
+		dbg_pps0("pps2[%d] pps test nr 0x%x\n", di2pps_idx,
+			rd(DPSS_DPE_DIN_WR_BADDR0));
+	}
 
 	if (prm_top->bbd_parallel == 1) {
 		//no need trig dpe config & wrmif
@@ -817,6 +849,12 @@ void hw_process_dpe1_nrdi_frm_rst(int cfg_slc,
 	struct PRM_DPSS_TOP *prm_top,
 	struct PRM_DPSS_DPE *prm_dpe)
 {
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
+	int di2pps_idx;
+	unsigned long di2pps_yaddr;
+	unsigned long di2pps_caddr;
+	unsigned long nr_yaddr;
+	u32 i;
 	if (src0_nrdi_frc_en != 1)
 		return;
 
@@ -893,11 +931,11 @@ void hw_process_dpe1_nrdi_frm_rst(int cfg_slc,
 
 	if (dpss_dpe_nr_frm_cnt < dpss_di_ignore_num) {
 		if (dpss_dpe_nr_frm_cnt == 0) {
-			dpss_vbe_proc_byp(1);//di
+			dpss_vbe_proc_byp(1, pps->pps_en);//di
 			dpss_last_dpe_src = 3;
 		} else {
 			if (dpss_slt_mode) {
-				dpss_vbe_proc_byp(1);
+				dpss_vbe_proc_byp(1, pps->pps_en);
 			} else {
 	//07-10			hw_cfg_dpss_dpe(dpe_di_mode, prm_top, prm_dpe, &g_nr_pps_cfg);
 				w_reg_bit(VPU_DI_BLEND_EI_POST_EN_MODE, 1, 4, 4);
@@ -916,6 +954,26 @@ void hw_process_dpe1_nrdi_frm_rst(int cfg_slc,
 		hw_dpe_update_interlace(prm_top, prm_dpe);
 
 		hw_dpe_out_addr_rd(SRC_IDX_NR); //use nr tbc loop idx
+	if (pps->di2pps_en) {
+		nr_yaddr = rd(DPSS_DPE_DIN_WR_BADDR4) >> 5;
+		di2pps_idx = -1;
+		for (i = 0; i < prm_top->num_dpe_o; i++) {
+			if (nr_yaddr == prm_top->src0_dio_fbuf_yaddr[i]) {
+				di2pps_idx = i;
+				break;
+			}
+		}
+		if (di2pps_idx < 0 || di2pps_idx >= prm_top->num_dpe_o) {
+			DBG_ERR("No match buffer found for 0x%lx\n", nr_yaddr);
+			return;
+		}
+		di2pps_yaddr = prm_top->src0_di2pps_buf_yaddr[di2pps_idx];
+		di2pps_caddr = prm_top->src0_di2pps_buf_caddr[di2pps_idx];
+		wr(DPSS_DPE_PPS_WR_BADDR0, di2pps_yaddr << 5);
+		wr(DPSS_DPE_PPS_WR_BADDR1, di2pps_caddr << 5);
+		dbg_h1("pps[%d] pps test 1 0x%x\n", di2pps_idx,
+			rd(DPSS_DPE_DIN_WR_BADDR4));
+	}
 		cfg_dpe_triggle(prm_top);
 		dpss_dpe_nr_frm_cnt++;
 	}
@@ -1015,7 +1073,7 @@ void hw_process_dpe2_frm_rst(int cfg_slc,
 				dpss_last_dpe_src = 1;
 			}
 			if (dpss_dpe_di_frm_cnt == 0) {
-				dpss_vbe_proc_byp(2);//
+				dpss_vbe_proc_byp(2, 0);//
 				dpss_last_dpe_src = 3;
 			} else {
 				w_reg_bit(VPU_DI_BLEND_EI_POST_EN_MODE, 1, 4, 4);
@@ -1031,10 +1089,10 @@ void hw_process_dpe2_frm_rst(int cfg_slc,
 				dpss_last_dpe_src = 1;
 			}
 			if (dpss_slt_mode) {
-				dpss_vbe_proc_byp(1);
+				dpss_vbe_proc_byp(1, 0);
 			} else {
 				if (dpss_dpe_di_frm_cnt == 0) {
-					dpss_vbe_proc_byp(1);//di
+					dpss_vbe_proc_byp(1, 0);//di
 					dpss_last_dpe_src = 3;
 				} else {
 	//0710				hw_cfg_dpss_dpe(dpe_di_mode, prm_top, prm_dpe,

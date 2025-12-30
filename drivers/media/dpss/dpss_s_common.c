@@ -23,6 +23,7 @@
 #include <linux/amlogic/tee.h>
 #include <linux/amlogic/media/dpss/dpss_frc.h>
 #include <linux/dma-mapping.h>	//for rdma
+#include <linux/amlogic/media/registers/cpu_version.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #else
@@ -61,6 +62,9 @@ module_param_named(dpss_tst_4k, dpss_tst_4k, bool, 0664);
 unsigned int dpss_o_fmt = EDPSS_DP_MODE_422_10BIT_2PACK;
 module_param_named(dpss_o_fmt, dpss_o_fmt, uint, 0664);
 
+unsigned int dpss_pps_count;
+module_param_named(dpss_pps_count, dpss_pps_count, uint, 0664);
+
 //bit 0 for ch 0;
 //bi 1 for ch 1;
 unsigned int dpss_dbg_bypss;
@@ -80,7 +84,6 @@ module_param_named(dpss_lc_buf, dpss_lc_buf, bool, 0664);
 unsigned int dpss_hw_pause;
 module_param_named(dpss_hw_pause, dpss_hw_pause, uint, 0664);
 
-bool is_di2pps;
 unsigned int pass_cnt; //crc
 
 unsigned int dpss_light_chg = 0x1;
@@ -400,12 +403,14 @@ unsigned int dpss_sub_vf_check(struct dpss_ch_s *pch,
 	sub_vf_2_vinfo(vinf_c, vfms);
 	ret = dpss_is_vinfo_chg(vinf_c, vinf_l, true);
 
-	if (vinf_c->h > 1919 || vinf_c->v > 1079)
-		dpss_en_pps = 0;
-	else if (dpss_pps_check)
-		dpss_en_pps = 1;
+	if (VFM_IS_I_SRC(vfms->type))
+		pch->d->is_i = 1;
+	else
+		pch->d->is_i = 0;
+	nr_dpe_pps_para(pch, vinf_c->h, vinf_c->v);
 
-	dbg_h2("dpss_en_pps is %d\n", dpss_en_pps);
+	dbg_i0("%s:is_pps ch=%d =%d,=%d\n", __func__,
+		pch->c.ch, pch->c.prm_top.is_pps, pch->c.prm_top.is_di2pps);
 
 	if (ret) {
 		DBG_INF("%s:ch[%d]:0x%x:%d x %d:%d:%d > 0x%x:%d x %d:%d:%d.\n",
@@ -2496,6 +2501,7 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 	unsigned int canvas_align_width = 64;
 	unsigned int vf_idx;
 	struct dpss_blk_s *blk;
+	struct PRM_DPSS_DPE *prm_dpe = &pch->c.prm_dpe;
 
 	if (output_last) {
 		dbg_h1("%s:output_last: in=%d, out=%d\n", __func__, pch->c.in_cnt, pch->c.out_cnt);
@@ -2670,11 +2676,27 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 		vfm->height = dpss_dbg_o_h;
 	}
 
-	if (dpss_en_pps) {
-		dbg_h2("%s: open pps, set vf.\n", __func__);
-		vfm->width = pps_out_w;
-		vfm->height = pps_out_h;
+	vfm->original_width = vfm->width;
+	vfm->original_height = vfm->height;
+
+	if (pch->c.prm_top.is_pps && dpss_dpe_nr_frm_cnt > dpss_pps_count) {
+		dbg_h2("%s: open pps, set vf.%d,%d,%d,%d,%d,%d\n", __func__,
+			vfm->original_width, vfm->original_height,
+			vfm->width, vfm->height, vfm->dpss_pps_dsy, vfm->dpss_pps_dsx);
+		if (pps_out_w) {
+			vfm->width = pps_out_w;
+			vfm->height = pps_out_h;
+		} else {
+			vfm->width = prm_dpe->dpe_nr_size.pps_hsize;
+			vfm->height = prm_dpe->dpe_nr_size.pps_vsize;
+		}
+		vfm->dpss_pps_dsx = pch->c.prm_top.pps_dsx;
+		vfm->dpss_pps_dsy = pch->c.prm_top.pps_dsy;
+	} else {
+		vfm->dpss_pps_dsx = 0;
+		vfm->dpss_pps_dsy = 0;
 	}
+	dbg_i0("%s:is_pps,ch=%d, =%d\n", __func__, pch->c.ch, pch->c.prm_top.is_pps);
 
 	if (prm_top->vds_4k1k_en || dpss_force_nr_debug || dpss_nr_debug == 2) {
 		vfm->height = vfm->height >> 1;
@@ -2877,9 +2899,16 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 		cvs = &vfm->canvas0_config[0];
 		cvs->bit_depth = 10;
 		cvs->phy_addr = pch->c.addr_nr[b_idx];
-		if (is_di2pps) {
+		if (pch->c.prm_top.is_di2pps && dpss_dpe_nr_frm_cnt > dpss_pps_count) {
 			cvs->phy_addr = pch->c.addr_di2pps[b_idx];
-			dbg_i2("di2pps out yaddr[%d]: 0x%lx\n", b_idx, cvs->phy_addr);
+			dbg_pps0("di2pps out yaddr[%d]: 0x%lx\n", b_idx, cvs->phy_addr);
+		} else if (pch->c.prm_top.is_pps && dpss_dpe_nr_frm_cnt > dpss_pps_count) {
+			cvs->phy_addr = pch->c.addr_lc[b_idx];
+			dbg_pps0("p yad[%d]: 0x%lx,0x%lx\n", b_idx,
+				cvs->phy_addr, pch->c.addr_nr[b_idx]);
+		} else {
+			dbg_pps0("yad[%d]: 0x%lx,0x%lx\n", b_idx,
+				cvs->phy_addr, pch->c.addr_nr[b_idx]);
 		}
 		cvs->width = (vfm->width * 5) / 4;
 		cvs->width = roundup(cvs->width, canvas_align_width);
@@ -2891,10 +2920,18 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 		cvs = &vfm->canvas0_config[1];
 		cvs->bit_depth = 10;
 		cvs->phy_addr = pch->c.addr_nr_uv[b_idx];
-		if (is_di2pps) {
+		if (pch->c.prm_top.is_di2pps && dpss_dpe_nr_frm_cnt > dpss_pps_count) {
 			cvs->phy_addr = pch->c.addr_di2pps_uv[b_idx];
-			dbg_i2("di2pps out uvaddr[%d]: 0x%lx\n", b_idx, cvs->phy_addr);
+			dbg_pps0("di2pps out uvaddr[%d]: 0x%lx\n", b_idx, cvs->phy_addr);
+		} else if (pch->c.prm_top.is_pps && dpss_dpe_nr_frm_cnt > dpss_pps_count) {
+			cvs->phy_addr = pch->c.addr_lc_uv[b_idx];
+			dbg_pps0("is_pps pps out uvaddr[%d]: 0x%lx\n", b_idx, cvs->phy_addr);
+		} else {
+			dbg_pps0("uvaddr[%d]: 0x%lx\n", b_idx, cvs->phy_addr);
 		}
+		dbg_pps0("%s:is_pps ch=%d,=%d,=%d\n", __func__, pch->c.ch,
+			pch->c.prm_top.is_pps, pch->c.prm_top.is_di2pps);
+
 		cvs->width = (vfm->width * 5) / 4;
 		cvs->width = roundup(cvs->width, canvas_align_width);
 		cvs->height = vfm->height;
@@ -3212,8 +3249,8 @@ void dpss_buf_s_count_hd(bool hd, struct dpss_buf_sml_s *sml_i, struct dpss_ch_s
 	unsigned int h = 3840, v = 2160;
 	unsigned int m_size = 0;
 	unsigned int canvas_width = 3840, canvas_align_width = 32;
-	unsigned int logo_h_size = 960, logo_v_size = 540;
-	unsigned int me_blk_h_size = 240, me_blk_v_size = 135;
+	unsigned int logo_h_size = 960, logo_v_size = 540, logo_v_size_i = 576;
+	unsigned int me_blk_h_size = 240, me_blk_v_size = 135, me_blk_v_size_i = 144;
 	unsigned int nr_addr_align = 16; //PAGE_SIZE;	//
 	unsigned char num_aepe;
 //	unsigned char num_dpe_o;
@@ -3221,6 +3258,7 @@ void dpss_buf_s_count_hd(bool hd, struct dpss_buf_sml_s *sml_i, struct dpss_ch_s
 	unsigned char num_nr_wrpt;
 	unsigned char num_dpe_ro;
 	unsigned char num_nr_me_ro;
+	struct frc_chip_st *pchip_st = NULL;
 
 #ifdef _HIS_CODE_
 	bool is_p = false;
@@ -3231,6 +3269,7 @@ void dpss_buf_s_count_hd(bool hd, struct dpss_buf_sml_s *sml_i, struct dpss_ch_s
 		is_p = true;
 	dbg_m2("%s is_p = %d\n", __func__, is_p);
 #endif
+	pchip_st = dpss_get_frc_st();
 	/* tmp */
 //	sml_i->en_dct = true;
 //	sml_i->en_dw = true;
@@ -3334,12 +3373,18 @@ void dpss_buf_s_count_hd(bool hd, struct dpss_buf_sml_s *sml_i, struct dpss_ch_s
 	sml_i->size_frc_blk_logo = roundup(m_size, canvas_align_width);
 
 	m_size = (logo_h_size * 1 + 511) / 8 * logo_v_size;	// 8000
+	if (pch->c.support_i &&  pchip_st &&
+		pchip_st->chip == ID_T6X)
+		m_size = (logo_h_size * 1 + 511) / 8 * logo_v_size_i;
 	sml_i->size_frc_pix_logo = roundup(m_size, canvas_align_width);
 
 	m_size = (me_blk_h_size * 64 + 511) / 8 * me_blk_v_size;	// 8000
 	sml_i->size_frc_vp_mc_mv = roundup(m_size, canvas_align_width);
 
 	m_size = (me_blk_h_size * 1 + 511) / 8 * me_blk_v_size;	// 8000
+	if (pch->c.support_i &&  pchip_st &&
+		pchip_st->chip == ID_T6X)
+		m_size = (me_blk_h_size * 1 + 511) / 8 * me_blk_v_size_i;
 	sml_i->size_frc_vp_mc_logo = roundup(m_size, canvas_align_width);
 
 	m_size = 0x10000;	// 0x100
@@ -3614,10 +3659,12 @@ void dpss_buf_infor(struct dpss_ch_s *pch)
 		i_cfg->h = 1088;
 		i_cfg->w = 1920;
 	}
-	if (dpss_en_pps) {
+	if (pps_out_w) {
 		i_cfg->h = pps_out_h;
 		i_cfg->w = pps_out_w;
 	}
+	dbg_i0("%s:is_pps ch=%d,=%d,=%d\n", __func__,
+		pch->c.ch, pch->c.prm_top.is_pps, pch->c.prm_top.is_di2pps);
 	i_cfg->mode = dpss_o_42212;
 	dpss_buf_nr_count(i_cfg, &dd->hd_nr_info);
 	memcpy(&dd->hd_lc_info, &dd->hd_nr_info, sizeof(dd->hd_lc_info));
@@ -3907,7 +3954,9 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 //      struct dpss_mem_a_s *in_para;
 //      struct dpss_mm_s *o;
 	struct dpss_blk_s *blk;
+	struct dpss_blk_s *blk_local;
 	struct dpss_cfg_blki_s *blk_i;
+	struct dpss_cfg_blki_s *blk_l;
 	struct dpss_mm_s oret;
 	struct dpss_mem_a_s a_para;
 	bool aret, flg_a = false;
@@ -3946,6 +3995,9 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 //--------------rdma--------------
 	struct dpss_dev_s *de_devp = dpss_get_devp();
 #endif
+	struct frc_chip_st *pchip_st = NULL;
+
+	pchip_st = dpss_get_frc_st();
 	dd = dpss_get_dd();
 	if (!pch || !dd) {
 		DBG_WARN("%s:no pch or dd\n", __func__);
@@ -3968,14 +4020,15 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 			is_i = false;
 		}
 	}
+	if (is_i)
+		pch->d->is_i = 1;
+	else
+		pch->d->is_i = 0;
+	nr_dpe_pps_para(pch, pch->c.parm.di_parm.width,
+		pch->c.parm.di_parm.height);
 
 	if (dpss_nr_debug == 1 || dpss_en_afbc_force & C_BIT2)
 		need_afrc = false;
-
-	if (is_i && dpss_en_pps)
-		is_di2pps = true;
-	else
-		is_di2pps = false;
 
 	if (pch->d->is_secure) //
 		en_secure = true;
@@ -4485,7 +4538,15 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	blk_i->tvp = en_secure ? 1 : 0;
 	blk_i->mem_from = DPSS_MEM_FROM_CODEC_HD;
 	blk_i->cnt_cfg = NULL;
-
+	if (pchip_st && pchip_st->chip == ID_T6X) {
+		blk_l = &pch->c.blki_lc;
+		memset(blk_l, 0, sizeof(*blk_l));
+		blk_l->mem_size = dd->hd_lc_info.size_total;
+		blk_l->page_size = dd->hd_lc_info.size_page;
+		blk_l->tvp = en_secure ? 1 : 0;
+		blk_l->mem_from = DPSS_MEM_FROM_CODEC;
+		blk_l->cnt_cfg = NULL;
+	}
 	size_buf = 0;
 	mem_support = (pch->c.mem_support & 0xf0) >> 4;
 	if (mem_support) { //4k
@@ -4607,6 +4668,8 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	if (!pch->d->di_front) {
 		for (i = 0; i < pch->c.o_b_nub; i++) {
 			blk = &pch->c.blk_r_nr[i];
+			if (pchip_st && pchip_st->chip == ID_T6X)
+				blk_local = &pch->c.blk_r_lc[i];
 			memset(&oret, 0, sizeof(oret));
 			memset(&a_para, 0, sizeof(a_para));
 			a_para.inf = blk_i;
@@ -4636,17 +4699,36 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 
 				pch->c.addr_nr[i] = blk->c.b.blk_m.mem_start;
 				dbg_m1("nr addr:0x%lx\n", pch->c.addr_nr[i]);
-				pch->c.addr_nr_uv[i] = pch->c.addr_nr[i] + (blk_i->mem_size / 2);
+				pch->c.addr_nr_uv[i] = pch->c.addr_nr[i] +
+					(blk_i->mem_size / 2);
 				if ((dpss_en_afbc & C_BIT1) ||
-					(pch->c.o_afbc & C_BIT1) || need_afrc)
+				    (pch->c.o_afbc & C_BIT1) || need_afrc)
 					pch->c.addr_nr_uv[i] = pch->c.addr_nr[i] +
 						afrc_info->size_body_y;
 
 				dbg_m1("uv addr=0x%lx\n", pch->c.addr_nr_uv[i]);
-
+				if (pchip_st && pchip_st->chip == ID_T6X) {
+					blk_local->c.blk_typ = 0;	//tmp
+					blk_local->c.b.blk_m.inf = blk_i;
+					blk_local->c.b.blk_m.flg_alloc = true;
+					blk_local->c.b.blk_m.mem_start =
+						pch->c.addr_nr[i] + dd->hd_nr_info.off_uv;
+					blk_local->c.b.blk_m.pages = oret.ppage;
+					blk_local->c.st_id = 0;	//EBLK_ST_ALLOC;
+					pch->c.alloc_cnt_blk_lc++;
+					dbg_m1("alloc:lc %s:%d\n", a_para.owner, i);
+					flg_a = true;
+					pch->c.blk_lc[i] = blk_local;
+					pch->c.addr_lc[i] = blk_local->c.b.blk_m.mem_start;
+					pch->c.addr_lc_uv[i] =
+						pch->c.addr_nr_uv[i] + dd->hd_nr_info.off_uv;
+					dbg_m1("y addr=0x%lx,uv addr=0x%lx\n", pch->c.addr_lc[i],
+							pch->c.addr_lc_uv[i]);
+				}
 				//cnt tab:
 				if (((dpss_en_afbc & C_BIT0) ||
-				     (pch->c.o_afbc & C_BIT0)) && a_afbc_hd && a_afbc_tab) {
+				     (pch->c.o_afbc & C_BIT0)) &&
+				     a_afbc_hd && a_afbc_tab) {
 					pch->c.crc_y[i] =
 						dpss_afbc_int_tab(pch->c.addr_afbc_tab[i],
 						pch->c.addr_nr[i],
@@ -4656,13 +4738,14 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 					(pch->c.o_afbc & C_BIT1) || need_afrc) &&
 					a_afbc_hd  && a_afbc_tab) {
 					//y:
-					pch->c.crc_y[i] = dpss_afbc_int_tab(pch->c.addr_afbc_tab[i],
+					pch->c.crc_y[i] =
+					dpss_afbc_int_tab(pch->c.addr_afbc_tab[i],
 							pch->c.addr_nr[i],
 							afrc_info->size_tab_y,
 							afrc_info->size_body_y);
 					//c:
 					pch->c.crc_c[i] =
-						dpss_afbc_int_tab(pch->c.addr_afbc_tab_c[i],
+					dpss_afbc_int_tab(pch->c.addr_afbc_tab_c[i],
 							pch->c.addr_nr_uv[i],
 							afrc_info->size_tab_c,
 							afrc_info->size_body_c);
@@ -4726,7 +4809,9 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	}
 
 //di2pps buf
-	if (is_di2pps) {
+	if ((pch->c.support_i &&  pchip_st &&
+		pchip_st->chip == ID_T6X) && dpss_pps_check != C_BIT1 &&
+		!dpss_nr_debug && !dpss_force_nr_debug) {
 		blk_i = &pch->c.blki_di2pps;
 		memset(blk_i, 0, sizeof(*blk_i));
 		blk_i->mem_size = dd->hd_lc_info.size_total * 2;
@@ -5056,12 +5141,12 @@ static void dpss_buf_release(struct dpss_ch_s *pch)
 	}
 
 //release di2pps buffer
-	if (is_di2pps) {
+	//if (pch->c.prm_top.is_di2pps) {
 		for (i = 0; i < pch->c.o_b_nub; i++) {
 			//blk = blk_o_get_locked(d_dd, j);
 			blk = pch->c.blk_di2pps[i];
 			if (!blk) {
-				DBG_WARN("%s:di2pps release nr:no [%d]\n", __func__, i);
+				dbg_m1("%s:di2pps release nr:no [%d]\n", __func__, i);
 				continue;
 			}
 			memset(&r_para, 0, sizeof(r_para));
@@ -5073,8 +5158,7 @@ static void dpss_buf_release(struct dpss_ch_s *pch)
 			pch->c.alloc_cnt_blk_di2pps--;
 			pch->c.blk_di2pps[i] = NULL;
 		}
-	}
-
+	//}
 	pch->c.buf_status = DPSS_BUF_STATE_UNREADY;
 	dbg_m0("%s:finish:%d:%d:%d\n", __func__,
 			pch->c.alloc_cnt_blk_nr,
@@ -5104,6 +5188,16 @@ void dpss_buf_unreg(struct dpss_ch_s *pch)
 	memset(&pch->c.blk_r_dw, 0, sizeof(pch->c.blk_r_dw));
 	memset(&pch->c.blk_r_nr[0], 0,
 	       sizeof(pch->c.blk_r_nr[0]) * DPSS_HW_LOOP_IN_OUT_BUF_NUB);
+	if (pch->c.ch == 0) {
+		memset(&g_nr_pps_cfg, 0, sizeof(g_nr_pps_cfg));
+		pch->c.prm_top.is_pps = 0;
+		pch->c.prm_top.is_di2pps = 0;
+		pch->c.prm_top.pps_dsx = 0;
+		pch->c.prm_top.pps_dsy = 0;
+		pch->c.prm_top.ch = 0;
+	}
+	dbg_i0("%s:is_pps ch=%d,=%d,=%d\n", __func__,
+		pch->c.ch, pch->c.prm_top.is_pps, pch->c.prm_top.is_di2pps);
 	//memset(&pch->c.buf_nr[0], 0, sizeof(pch->c.buf_nr[0]) * DPSS_DPS_NUB);
 	dbg_m0("%s:ch[%d]:finish\n", __func__, pch->c.ch);
 }

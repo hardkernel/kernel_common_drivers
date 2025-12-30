@@ -1289,6 +1289,9 @@ static void hw_cfg_dpss_buff_addr(struct PRM_DPSS_TOP *prm_top,
 				dpss_src0_nro_fbuf_caddr);
 			wr((DPSS_SRC0_DIO_FBUF_YADDR0 + i),
 				dpss_src0_dio_fbuf_yaddr);
+			dbg_pps0("%s:addr:nro:path_id 0,yaddr:[%d]:0x%x\n",
+				__func__, i, dpss_src0_dio_fbuf_yaddr);
+
 			wr((DPSS_SRC0_DIO_FBUF_CADDR0 + i),
 				dpss_src0_dio_fbuf_caddr);
 			wr((DPSS_SRC0_DPEO_DWBUF_YADDR0 + i),
@@ -1375,6 +1378,11 @@ void hw_cfg_dpss_buff_addr_src0_nro(struct PRM_DPSS_TOP *prm_top,
 				prm_top->src0_nro_fbuf_m_y[i];
 			prm_top->src0_nro_fbuf_caddr[i] =
 				prm_top->src0_nro_fbuf_m_c[i];
+			prm_top->src0_dio_fbuf_yaddr[i] =
+				prm_top->src0_diopps_fbuf_yaddr[i];
+			prm_top->src0_dio_fbuf_caddr[i] =
+				prm_top->src0_diopps_fbuf_caddr[i];
+
 		}
 	}
 	for (i = 0; i < 16;  i++) {
@@ -1382,6 +1390,11 @@ void hw_cfg_dpss_buff_addr_src0_nro(struct PRM_DPSS_TOP *prm_top,
 			prm_top->src0_nro_fbuf_yaddr[i]);
 		wr((DPSS_SRC0_NRO_FBUF_CADDR0 + i),
 			prm_top->src0_nro_fbuf_caddr[i]);
+		wr((DPSS_SRC0_DIO_FBUF_YADDR0 + i),
+			prm_top->src0_dio_fbuf_yaddr[i]);
+		wr((DPSS_SRC0_DIO_FBUF_CADDR0 + i),
+			prm_top->src0_dio_fbuf_caddr[i]);
+
 	}
 }
 

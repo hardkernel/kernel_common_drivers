@@ -93,6 +93,7 @@ void cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm_mc
 
 	pix_rmif->reverse[0]  = prm_mc->mc_rev_mode & 0x1;
 	pix_rmif->reverse[1]  = (prm_mc->mc_rev_mode & 0x2) >> 1;
+
 	pix_rmif->mmu_mode_en = prm_mc->mmu_mode_en;
 	pix_rmif->pad_en	  = prm_mc->pad_en && (!mc_skip_mode);
 	pix_rmif->pad_hmode	  = prm_mc->pad_hmode;
@@ -120,6 +121,7 @@ void cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm_mc
 				prm_top->prm_cut_win.win_vend : prm_mc->frm_vsize - 1;
 	}
 	dbg_i0("%s:is_pps top ch=%d,=%d\n", __func__, prm_top->ch, pps->pps_en);
+
 	// nr+frc 422 10bit 2plane
 	if (prm_top->dpss_mode == DPSS_FRC_MODE) {
 		pix_rmif->little_endian = 0;
@@ -633,6 +635,14 @@ void cfg_dpss_mc0(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr,
 		DPSS_RDMA_WR_BIT_VS(DPSS_FBUF_TOP_CTRL, 1, 3, 1);	// dpe_pps_en
 	else
 		DPSS_RDMA_WR_BIT_VS(DPSS_FBUF_TOP_CTRL, 0, 3, 1);
+	dbg_h2("%s me_size(%d, %d), me_blk(%d, %d)\n", __func__,
+	       me_hsize, me_vsize, me_blk_hsize, me_blk_vsize);
+	dbg_h2
+	    ("%s src_from_nr : %d, pix(fmt: %d, bit: %d, plan: %d, cmp: %d\n",
+	     __func__, src_from_nr, pix_fmt, pix_bit, pix_plan, pix_cmpr);
+	dbg_h2("%s frm_size( %d, %d), src_size( %d, %d)\n", __func__,
+	       prm_mc->frm_hsize, prm_mc->frm_vsize, prm_mc->src_hsize,
+	       prm_mc->src_vsize);
 }
 
 void cfg_dpss_mc_pre_triggle(void)

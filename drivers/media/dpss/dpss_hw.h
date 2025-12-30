@@ -231,7 +231,7 @@ void hw_cfg_dpe_size(enum DPSS_WORK_MODE dpe_mode,
 				struct PRM_DPSS_DPE *prm_dpe,
 				struct PRM_DPE_PAD dpe_pad);
 void hw_cfg_dpss_dpe_intf(struct PRM_DPSS_TOP *prm_top,
-	struct PRM_DPSS_DPE *prm_dpe);
+		struct PRM_DPSS_DPE *prm_dpe, bool pps_en);
 
 //called by vs:
 void hw_process_disp_done_int(char ch);

@@ -221,6 +221,7 @@ extern unsigned int dpss_dbg;
 #define DPSS_M_HW_FRC			C_BIT11
 #define DPSS_M_CHECK			C_BIT12
 #define DPSS_M_COUNT			C_BIT13
+#define DPSS_M_PPS			C_BIT14
 #define dbg_md(mark, level, fmt, args ...)		\
 	do {						\
 		if (dpss_dbg & DPSS_DBG_M_C_ALL)	\
@@ -254,6 +255,9 @@ extern unsigned int dpss_dbg;
 #define dbg_ct0(fmt, args ...)		dbg_md(DPSS_M_COUNT, 0, fmt, ##args)
 #define dbg_ct1(fmt, args ...)		dbg_md(DPSS_M_COUNT, 1, fmt, ##args)
 #define dbg_ct2(fmt, args ...)		dbg_md(DPSS_M_COUNT, 2, fmt, ##args)
+#define dbg_pps0(fmt, args ...)		dbg_md(DPSS_M_PPS, 0, fmt, ##args)
+#define dbg_pps1(fmt, args ...)		dbg_md(DPSS_M_PPS, 1, fmt, ##args)
+#define dbg_pps2(fmt, args ...)		dbg_md(DPSS_M_PPS, 2, fmt, ##args)
 //rdma:
 #define dbg_a0(fmt, args ...)		dbg_md(DPSS_M_RDMA, 0, fmt, ##args)
 #define dbg_a1(fmt, args ...)		dbg_md(DPSS_M_RDMA, 1, fmt, ##args)

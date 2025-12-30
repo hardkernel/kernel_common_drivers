@@ -38,15 +38,6 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 	struct AA_PPS_TOP_TYPE *nr_pps_cfg)
 {
 	dbg_w2("%s:%d\n", "cfg_dpe", dpe_mode);
-	if (dpss_en_pps) {
-		w_reg_bit(DPSS_DPE_INTF_CTRL2, 3, 4, 2); //open pps path
-		prm_dpe->dpe_nr_size.pps_hsize = pps_out_w;
-		prm_dpe->dpe_nr_size.pps_vsize = pps_out_h;
-	} else {
-		w_reg_bit(DPSS_DPE_INTF_CTRL2, 0, 4, 2);
-		prm_dpe->dpe_nr_size.pps_hsize = 0;
-		prm_dpe->dpe_nr_size.pps_vsize = 0;
-	}
 
 	u32 reg_din_sel_sw_en0 = 0;//0xffe00000; //bit31:21
 	u32 reg_din_sel_sw_en1 = 0;//0x007fffff; //bit54:32
@@ -75,12 +66,19 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 
 	u32 bbd_en     = rd(DPSS_DPE_BBD_CTRL) == 0x2;
 	//reg_aa_pps_mode == 3 -> nr aapps 4k1k
-	bool nr_aapps_en = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
+	bool nr_aapps_en;//= ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
 	bool dpss_nr_vpp_link = (rd(DPSS_NR_VPP_LINK) & 0x1);
 	bool nr_src1_di_loop = 0;//di loop when src1 only nr
 
-	dbg_h2("dcntr_en=%d\n", dcntr_en);
-	dbg_h2("nr_aapps_en=%x\n", nr_aapps_en);
+	dbg_h2("pps ch=%d, dcntr_en=%d,=%d\n", prm_top->ch,
+			dcntr_en, nr_pps_cfg->pps_en);
+
+	if (nr_pps_cfg->pps_en)
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 3, 4, 2);
+	else
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 0, 4, 2);
+
+	nr_aapps_en = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
 
 	dbg_h2("\treg:en:bbd=%d, nr_aapps=%d, nr_link=%d\n",
 		bbd_en, nr_aapps_en, dpss_nr_vpp_link);
@@ -118,7 +116,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 	//u32 aa_pad   = (prm_top->nr_aapps_up | prm_top->nr_aapps_on) ? 16 :
 	//		prm_top->comp_setting.vfce_in_overlap > 0 ? 4 :
 	//		dpe_mode == DPE_NR_BYPS && bbd_en ? bbd_pad : 0;
-	u32 aa_pad = (prm_top->nr_aapps_up | prm_top->nr_aapps_on) ? 16 :
+	u32 aa_pad = (nr_pps_cfg->pps_en | prm_top->nr_aapps_on) ? 16 :
 			prm_dpe->aa_pad_assign_en == 0 ? 8 : prm_dpe->aa_pad;
 
 	if (dpss_lcevc_en) {
@@ -408,7 +406,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 
 	dbg_h2("%s:nr_byps_en=%d, dctre_en = %d\n", __func__, reg_nr_byps_en, dcntr_en);
 	if (reg_nr_byps_en & ~dcntr_en) {
-		dpss_vbe_proc_byp(0);//bypass nr
+		dpss_vbe_proc_byp(0, 0);//bypass nr
 		if (dpe_mode == DPE_BBD_ONLY) {
 			w_reg_bit(DPSS_DPE_RDMA_INFO1, 1, 0, 8);
 			//bbd_only can work when bypass
@@ -459,7 +457,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 
 	//cfg dpe size for software mode
 	hw_cfg_dpe_size(dpe_mode, prm_top, prm_dpe, dpe_pad);
-	hw_cfg_dpss_dpe_intf(prm_top, prm_dpe);
+	hw_cfg_dpss_dpe_intf(prm_top, prm_dpe, nr_pps_cfg->pps_en);
 
 	u32 cur_lft_pad[4];
 	u32 cur_rgt_pad[4];
@@ -593,7 +591,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 	u32 bbd_slc_in_rgt_ovlp[4];
 
 	dbg_w2("%s:aapps_up=%d, pps_hsize=%d, pps_vsize=%d.\n", __func__,
-			prm_top->nr_aapps_up,
+			nr_pps_cfg->pps_en,
 			prm_dpe->dpe_nr_size.pps_hsize,
 			prm_dpe->dpe_nr_size.pps_vsize);
 
@@ -604,12 +602,24 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 	slc_out_size1  = (slc_out_size1 & 0x1) + slc_out_size1;
 
 	bool di2pps = (ds_sel == 1); //di_out -->pps, wrmif0 for pre.wrmif1 for pps,wrmif2 for di
-	u32 pps_out2bbd_en = (prm_top->nr_aapps_up == 1 || prm_top->nr_aapps_on == 1) &&
+	u32 pps_out2bbd_en = (nr_pps_cfg->pps_en == 1 || prm_top->nr_aapps_on == 1) &&
 		(prm_top->dpe_out2bbd_en == 1 && (prm_top->dpe_out2bbd_mode == 3));
 
-	//ary move to globe    struct AA_PPS_TOP_TYPE nr_pps_cfg;
-	if (prm_top->nr_aapps_up) {
-		nr_pps_cfg->frm_hsize_in  = prm_top->frm_hsize;
+	if (!nr_aapps_en && !prm_top->comp_setting.vfce_in_overlap) {
+		dbg_h2("pps reset\n");
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 0, 8, 2);
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 0, 12, 2);
+		w_reg_bit(DPSS_DPE_MIF_CTRL1, 0, 11, 1);
+		wr(FRC_AA_PPS_COMP, 0xa1dc44);
+		w_reg_bit(FRC_AA_PPS_CTRL, 3, 0, 2);
+		wr(FRC_AA_PPS_HSC_START_PHASE_STEP, 0x1000000);
+		wr(FRC_AA_PPS_VSC_START_PHASE_STEP, 0x21000000);
+		wr(FRC_AA_PPS_COEF, 0x80);
+	}
+
+	//ary move to globe    AA_PPS_TOP_t nr_pps_cfg;
+	if (nr_pps_cfg->pps_en) {
+		nr_pps_cfg->frm_hsize_in  = prm_top->org_hsize;
 		nr_pps_cfg->frm_vsize_in  = di2pps ? prm_top->frm_vsize * 2 : prm_top->frm_vsize;
 		nr_pps_cfg->frm_hsize_out = prm_dpe->dpe_nr_size.pps_hsize;
 		nr_pps_cfg->frm_vsize_out = prm_dpe->dpe_nr_size.pps_vsize;
@@ -618,7 +628,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 		nr_pps_cfg->inst_sel      = 0; //reg cfg---0:aa_pps 1:lcevc
 		nr_pps_cfg->apply_mode    = 0;
 		//0:zoom up 2path out 1:zoom down 2path out 2:zoom up/down 1path out
-		nr_pps_cfg->ds_mode       = prm_top->nr_aapps_up;
+		nr_pps_cfg->ds_mode       = nr_pps_cfg->pps_en;
 		nr_pps_cfg->slc_num       = prm_top->dpe_slc_num;
 
 		//manual config pps addr buffer per frame
@@ -648,7 +658,22 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 		//int up_rate_num = 3;
 		//int up_rate_den = 2;
 		u32 uprate = nr_pps_cfg->frm_hsize_out * 64 / nr_pps_cfg->frm_hsize_in;
-		u32 ext_pad;
+		//u32 ext_pad;
+		u32 hds_pad = (nr_pps_cfg->frm_hsize_in == nr_pps_cfg->frm_hsize_out) ? 4 : 0;
+		u32 ext_pad_lf[4];
+		u32 ext_pad_rt[4];
+
+		slc_num = prm_top->slc_num;
+		ext_pad_lf[0] = 0;
+		ext_pad_lf[1] =
+			(slc_num == 4) ? hds_pad : (slc_num == 2) ? hds_pad : 0;
+		ext_pad_lf[2] = (slc_num == 4) ? hds_pad : 0;
+		ext_pad_lf[3] = (slc_num == 4) ? hds_pad : 0;
+		ext_pad_rt[0] =
+			(slc_num == 4) ? hds_pad : (slc_num == 2) ? hds_pad : 0;
+		ext_pad_rt[1] = (slc_num == 4) ? hds_pad : 0;
+		ext_pad_rt[2] = (slc_num == 4) ? hds_pad : 0;
+		ext_pad_rt[3] = 0;
 		//ary no use	u32 frm_hsize_t3;
 
 		frm_hsize_d4 = (prm_top->frm_hsize + 3) >> 2;
@@ -666,7 +691,6 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 		frm_hsize_t1 = frm_hsize_d4_rnd << 1;
 		frm_hsize_t2 = frm_hsize_t0 + frm_hsize_t1;
 		frm_hsize_m1 = nr_pps_cfg->frm_hsize_out;
-		slc_num = prm_top->slc_num;
 		//up_rate = nr_pps_cfg->frm_hsize_out / nr_pps_cfg->frm_hsize_in;
 
 		if (pps_out2bbd_en) {
@@ -748,37 +772,37 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 		w_reg_bit(DPSS_DPE_DS_IN_X_SLC3, nr_pps_cfg->slc_in_end[3] - 1, 16, 13);
 		w_reg_bit(DPSS_DPE_MIF_CTRL1, 1, 11, 1);
 		//aa_pps output slice size,with overlap
-		ext_pad = (nr_pps_cfg->frm_hsize_in == nr_pps_cfg->frm_hsize_out) ? 4 : 0;
+		//ext_pad = (nr_pps_cfg->frm_hsize_in == nr_pps_cfg->frm_hsize_out) ? 4 : 0;
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT0_X_SLC0,
 			nr_pps_cfg->slc_act_out_bgn[0], 0, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT0_X_SLC0,
-			nr_pps_cfg->slc_act_out_end[0] + ext_pad - 1, 16, 13);
+			nr_pps_cfg->slc_act_out_end[0] + ext_pad_rt[0] - 1, 16, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT0_X_SLC1,
-			nr_pps_cfg->slc_act_out_bgn[1] - ext_pad, 0, 13);
+			nr_pps_cfg->slc_act_out_bgn[1] - ext_pad_lf[1], 0, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT0_X_SLC1,
-			nr_pps_cfg->slc_act_out_end[1] + ext_pad - 1, 16, 13);
+			nr_pps_cfg->slc_act_out_end[1] + ext_pad_rt[1] - 1, 16, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT0_X_SLC2,
-			nr_pps_cfg->slc_act_out_bgn[2] - ext_pad, 0, 13);
+			nr_pps_cfg->slc_act_out_bgn[2] - ext_pad_lf[2], 0, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT0_X_SLC2,
-			nr_pps_cfg->slc_act_out_end[2] + ext_pad - 1, 16, 13);
+			nr_pps_cfg->slc_act_out_end[2] + ext_pad_rt[2] - 1, 16, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT0_X_SLC3,
-			nr_pps_cfg->slc_act_out_bgn[3] - ext_pad, 0, 13);
+			nr_pps_cfg->slc_act_out_bgn[3] - ext_pad_lf[3], 0, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT0_X_SLC3,
 			nr_pps_cfg->slc_act_out_end[3] - 1, 16, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT2_X_SLC0,
 			nr_pps_cfg->slc_act_out_bgn[0], 0, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT2_X_SLC0,
-			nr_pps_cfg->slc_act_out_end[0] + ext_pad - 1, 16, 13);
+			nr_pps_cfg->slc_act_out_end[0] + ext_pad_rt[0] - 1, 16, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT2_X_SLC1,
-			nr_pps_cfg->slc_act_out_bgn[1] - ext_pad, 0, 13);
+			nr_pps_cfg->slc_act_out_bgn[1] - ext_pad_lf[1], 0, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT2_X_SLC1,
-			nr_pps_cfg->slc_act_out_end[1] + ext_pad - 1, 16, 13);
+			nr_pps_cfg->slc_act_out_end[1] + ext_pad_rt[1] - 1, 16, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT2_X_SLC2,
-			nr_pps_cfg->slc_act_out_bgn[2] - ext_pad, 0, 13);
+			nr_pps_cfg->slc_act_out_bgn[2] - ext_pad_lf[2], 0, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT2_X_SLC2,
-			nr_pps_cfg->slc_act_out_end[2] + ext_pad - 1, 16, 13);
+			nr_pps_cfg->slc_act_out_end[2] + ext_pad_rt[2] - 1, 16, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT2_X_SLC3,
-			nr_pps_cfg->slc_act_out_bgn[3] - ext_pad, 0, 13);
+			nr_pps_cfg->slc_act_out_bgn[3] - ext_pad_lf[3], 0, 13);
 		w_reg_bit(DPSS_DPE_PATH_PPS_OUT2_X_SLC3,
 			nr_pps_cfg->slc_act_out_end[3] - 1, 16, 13);
 		//aa_pps output slice size,without overlap,to wrmif
@@ -1119,15 +1143,6 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 				bbd_frm_hsize, bbd_frm_vsize);
 		}
 	}
-
-	if (!nr_aapps_en && !prm_top->comp_setting.vfce_in_overlap) {
-		dbg_h2("off reset\n");
-		w_reg_bit(DPSS_DPE_INTF_CTRL2, 0, 8, 2);
-		w_reg_bit(DPSS_DPE_INTF_CTRL2, 0, 12, 2);
-		w_reg_bit(DPSS_DPE_MIF_CTRL1, 0, 11, 1);
-		wr(FRC_AA_PPS_COMP, 0xa1dc44);
-	}
-
 	w_reg_bit(DPSS_DPE_INTF_CTRL2, 7, 0, 3); //default
 	if ((prm_top->mode_drct2 || prm_top->mode_drct) && !prm_top->src_mode)
 		w_reg_bit(DPSS_DPE_INTF_CTRL2, 6, 0, 3);
@@ -1294,7 +1309,7 @@ struct VFCD_t vfcd1;
 
 //cfg_dpss_dpe_intf
 void hw_cfg_dpss_dpe_intf(struct PRM_DPSS_TOP *prm_top,
-		struct PRM_DPSS_DPE *prm_dpe)
+		struct PRM_DPSS_DPE *prm_dpe, bool pps_en)
 {
 	int i;
 	u32 dw_dsx = prm_top->dpe_dw_dsx;//double_wr
@@ -1897,7 +1912,7 @@ void hw_cfg_dpss_dpe_intf(struct PRM_DPSS_TOP *prm_top,
 	enum vid_src_fmt ds_plan = prm_top->nro_ds_fmt.src_plan;
 	//src_is_nr ? prm_top.nro_ds_fmt.src_plan : prm_top.src_ds_fmt.src_plan;
 
-	bool     nr_aapps_en = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
+	bool nr_aapps_en;// = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
 	//reg_aa_pps_mode == 3 -> nr aapps 4k1k
 
 	u32 reg_wr_wr_sep = fs_plan == PLANAR_X1 ? 0 : 1;//1:2plane
@@ -1920,8 +1935,8 @@ void hw_cfg_dpss_dpe_intf(struct PRM_DPSS_TOP *prm_top,
 	u32 reg_wr0_dsy    = dw_dsy;
 	//(src_is_nr && src_is_di) ? 0 :dw_dsy;
 	//I source NR DI , NR double write close
-	u32 reg_wr0_dsx = nr_aapps_en &&
-			(prm_dpe->dpe_nr_size.pps_hsize != prm_top->frm_hsize) ? 0 : dw_dsx;
+	u32 reg_wr0_dsx;// = nr_aapps_en &&
+			//(prm_dpe->dpe_nr_size.pps_hsize != prm_top->frm_hsize) ? 0 : dw_dsx;
 	//(src_is_nr && src_is_di) ? 0 :dw_dsx;
 	//I source NR DI , NR double write close
 	u32 reg_wr1_dsy    = dw_dsy;//wr1 nouse, wr0 use, only one dsmif
@@ -1932,12 +1947,25 @@ void hw_cfg_dpss_dpe_intf(struct PRM_DPSS_TOP *prm_top,
 	//0:8bit 1:10bit 2:12bit 3:16bit
 	u32 reg_wr_ds_fmt0 = ds_fmt == YUV444 ? 0 : ds_fmt == YUV422 ? 1 : 2; //0:444 1:422 2:420
 
-	u32 ds0_src_hsize = prm_top->nr_aapps_up ?
+	u32 ds0_src_hsize = pps_en ?
 		prm_dpe->dpe_nr_size.pps_hsize : prm_top->nr_hscale_on ?
 		prm_dpe->dpe_nr_size.frm_hsize : prm_top->frm_hsize;
-	u32 ds0_src_vsize = prm_top->nr_aapps_up ?
+	u32 ds0_src_vsize = pps_en ?
 		prm_dpe->dpe_nr_size.pps_vsize : prm_top->nr_hscale_on ?
 		prm_dpe->dpe_nr_size.frm_vsize : prm_top->frm_vsize;
+
+	if (pps_en)
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 3, 4, 2);
+	else
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 0, 4, 2);
+
+	nr_aapps_en = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
+
+	reg_wr0_dsx = nr_aapps_en &&
+		(prm_dpe->dpe_nr_size.pps_hsize != prm_top->frm_hsize) ? 0 : dw_dsx;
+	dbg_h2("%s pps ch=%d,pps_en=%x,%d,%d\n", __func__,
+			prm_top->ch, nr_aapps_en,
+			ds0_src_hsize, pps_en);
 
 	//wrmif0 and ds wrmif0: nr(ds) dout/mc frm0 //ref
 	wr(DPSS_DPE_INTF_CTRL0, ((reg_wr_ds_sep0 & 0x1) << 13)
@@ -2076,9 +2104,9 @@ void hw_cfg_dpss_dpe_intf(struct PRM_DPSS_TOP *prm_top,
 	//prm_top.nro_fs_fmt.src_cmpr   //un/afbc/afrc
 	pix_wmif1->interlace     = IS_PSRC;
 	//prm_top.nro_fs_fmt.interlace  //IS_PSRC/IS_ISRC
-	pix_wmif1->src_hsize     = prm_top->nr_aapps_up ?
+	pix_wmif1->src_hsize     = pps_en ?
 		prm_dpe->dpe_nr_size.pps_hsize : prm_top->frm_hsize;
-	pix_wmif1->src_vsize     = prm_top->nr_aapps_up ?
+	pix_wmif1->src_vsize     = pps_en ?
 		prm_dpe->dpe_nr_size.pps_vsize : prm_top->frm_vsize;
 	pix_wmif1->bits_mode     = 7;
 	//0:4b 1:8b 2:16b 3:32b 4:64b 5:128b 6:12b 7:10b 8:14b 9:24b 10:20b
@@ -2202,7 +2230,7 @@ void hw_cfg_dpss_dpe_intf(struct PRM_DPSS_TOP *prm_top,
 		(((prm_dpe->dpe_nr_size.frm_vsize + ((1 << dw_dsy) - 1))) >> dw_dsy) :
 		(((prm_top->frm_vsize + ((1 << dw_dsy) - 1))) >> dw_dsy);
 
-	if (dpss_en_pps) {
+	if (pps_en) {
 		ds_wmif0->src_hsize = (ds0_src_hsize + ((1 << dw_dsx) - 1)) >> dw_dsx;
 		ds_wmif0->src_vsize = (ds0_src_vsize + ((1 << dw_dsy) - 1)) >> dw_dsy;
 	}
@@ -2431,7 +2459,7 @@ void hw_cfg_dpss_dpe_intf(struct PRM_DPSS_TOP *prm_top,
 		cfg_dpe_pix_wrmif(DPSS_WMIF_DPE3, ds_wmif0);	//nr_ds
 }
 
-void dpss_vbe_proc_byp(u32 path_id)
+void dpss_vbe_proc_byp(u32 path_id, bool pps_en)
 {
 	if (dpss_slt_mode)
 		w_reg_bit(VPSS_VBE_CRC_CTRL, 7, 18, 3);
@@ -2470,7 +2498,7 @@ void dpss_vbe_proc_byp(u32 path_id)
 			w_reg_bit(DPSS_DPE_INTF_AFBCD0, 7, 12 + 13, 3);
 		//di ds data switch off
 			//wmif1 frm_end_mask //for di2pps
-			if (is_di2pps)
+			if (pps_en)
 				w_reg_bit(DPSS_DPE_INTF_DBG, 1, 2, 1);
 			else
 				w_reg_bit(DPSS_DPE_INTF_DBG, 0, 2, 1);

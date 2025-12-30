@@ -149,19 +149,16 @@ module_param_named(dpss_dbg_step, dpss_dbg_step, uint, 0664);
 unsigned int dpss_dbg_ds;
 module_param_named(dpss_dbg_ds, dpss_dbg_ds, uint, 0664);
 
-unsigned int dpss_en_pps;
-module_param_named(dpss_en_pps, dpss_en_pps, uint, 0664);
-
 unsigned int dpss_pps_check;
 module_param_named(dpss_pps_check, dpss_pps_check, uint, 0664);
 
 unsigned int test_slice;
 module_param_named(test_slice, test_slice, uint, 0664);
 
-unsigned int pps_out_w = 1920;
+unsigned int pps_out_w;//1920;
 module_param_named(pps_out_w, pps_out_w, uint, 0664);
 
-unsigned int pps_out_h = 1080;
+unsigned int pps_out_h;//1080;
 module_param_named(pps_out_h, pps_out_h, uint, 0664);
 
 unsigned int afrc_dict_mode_y = 1;
@@ -630,6 +627,8 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 	unsigned int *addr_t1, *addr_t2, *addr_t3, *addr_t4;
 	unsigned int *addr_t5, *addr_t6;
 	unsigned int *addr_t11, *addr_t12, *addr_t21, *addr_t22; //10-02
+	unsigned int *addr_t31, *addr_t32;
+
 	struct dpss_buf_sml_s *sml_info;
 	unsigned char b_idx;
 	unsigned int buf_nub;
@@ -640,6 +639,8 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 	}
 	dbg_h1("%s:src=%d\n", __func__, src);
 	sml_info = pch->c.sml_info;
+	dbg_i0("%s:is_pps ch=%d,=%d,=%d\n", __func__,
+		pch->c.ch, pch->c.prm_top.is_pps, pch->c.prm_top.is_di2pps);
 
 	buf_nub = pch->c.o_b_nub;
 	if (src > 1) {
@@ -664,7 +665,8 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 			addr_t12 = &prm_top->src0_nro_fbuf_af_c[0];
 			addr_t21 = &prm_top->src0_nro_fbuf_m_y[0];
 			addr_t22 = &prm_top->src0_nro_fbuf_m_c[0];
-
+			addr_t31 = &prm_top->src0_diopps_fbuf_yaddr[0];
+			addr_t32 = &prm_top->src0_diopps_fbuf_caddr[0];
 			for (i = 0; i < buf_nub; i++) {	//out
 				b_idx = (i + pch->d->idx_start) % buf_nub;
 				laddr_y = pch->c.addr_afbc_tab[b_idx];
@@ -676,6 +678,12 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 				laddr_uv = pch->c.addr_nr_uv[b_idx];
 				addr_t21[i] = (unsigned int)(laddr_y >> 9);
 				addr_t22[i] = (unsigned int)(laddr_uv >> 9);
+
+				laddr_y = pch->c.addr_lc[b_idx];
+				laddr_uv = pch->c.addr_lc_uv[b_idx];
+				addr_t31[i] = (unsigned int)(laddr_y >> 9);
+				addr_t32[i] = (unsigned int)(laddr_uv >> 9);
+
 			}
 		}
 		for (i = 0; i < buf_nub; i++) {
@@ -701,15 +709,20 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 				addr_t1[i] = (unsigned int)(laddr_y >> 9);
 				addr_t2[i] = (unsigned int)(laddr_uv >> 9);
 
-				if (is_di2pps) {
-					laddr_y = pch->c.addr_di2pps[i];
-					laddr_uv = pch->c.addr_di2pps_uv[i];
+				if (pch->c.prm_top.is_di2pps) {
+					laddr_y = pch->c.addr_di2pps[b_idx];
+					laddr_uv = pch->c.addr_di2pps_uv[b_idx];
+					addr_t5[i] = (unsigned int)(laddr_y >> 9);
+					addr_t6[i] = (unsigned int)(laddr_uv >> 9);
+				} else {
+					laddr_y = 0;
+					laddr_uv = 0;
 					addr_t5[i] = (unsigned int)(laddr_y >> 9);
 					addr_t6[i] = (unsigned int)(laddr_uv >> 9);
 				}
 			} else {	//----------is p
 				if (!dpss_en_afbc && !pch->c.o_afbc) {
-					if (dpss_nr_debug || dpss_en_pps) {
+					if (dpss_nr_debug) {
 						//for nr debug pattern,todo temp
 						laddr_y = pch->c.addr_nr[b_idx];
 						laddr_uv = pch->c.addr_nr_uv[b_idx];
@@ -740,6 +753,7 @@ void _prm_top_init_buffer(struct PRM_DPSS_TOP *prm_top,
 					addr_t3[i] = addr_t1[i];
 					addr_t4[i] = addr_t2[i];
 				}
+				prm_top->fbuf_is_pps[i] = 0;
 			}
 		}
 		//set from buf_nub to 15:
@@ -1407,10 +1421,129 @@ void nr_dpe_dw_cfg(struct PRM_DPSS_TOP *prm_top)
 		prm_top->dpe_dw_dsy, prm_top->frm_vsize, prm_top->frc_dae_div4);
 }
 
+void nr_dpe_pps_para(struct dpss_ch_s *pch,
+	unsigned int width, unsigned int height)
+{
+	struct AA_PPS_TOP_TYPE *pps;
+	struct frc_chip_st *pchip_st = NULL;
+	struct vinfo_s *vinfo = get_current_vinfo();
+
+	pchip_st = dpss_get_frc_st();
+
+	if (pch->c.ch == 0)
+		pps = &g_nr_pps_cfg;
+	else
+		pps = &g_nr_pps_cfg2;
+	pch->c.prm_top.ch = pch->c.ch;
+
+	if (!pch->c.ch &&  pchip_st &&
+	    pchip_st->chip == ID_T6X) {
+		if (width <= 960 || height <= 540) {
+			if (width <= 960)
+				pch->c.prm_top.pps_dsx = 1;
+			else
+				pch->c.prm_top.pps_dsx = 0;
+			if (height <= 540)
+				pch->c.prm_top.pps_dsy = 1;
+			else
+				pch->c.prm_top.pps_dsy = 0;
+			pch->c.prm_top.is_pps = 1;
+			if ((width == 720 && height == 576) &&
+				pch->d->is_i) {
+				pch->c.prm_top.pps_dsx = 1;
+				pch->c.prm_top.pps_dsy = 1;
+			}
+		} else {
+			pch->c.prm_top.pps_dsx = 0;
+			pch->c.prm_top.pps_dsy = 0;
+			pch->c.prm_top.is_pps = 0;
+		}
+	} else {
+		pch->c.prm_top.pps_dsx = 0;
+		pch->c.prm_top.pps_dsy = 0;
+		pch->c.prm_top.is_pps = 0;
+	}
+	if (pch->d->is_i && pch->c.prm_top.is_pps)
+		pch->c.prm_top.is_di2pps = 1;
+	else
+		pch->c.prm_top.is_di2pps = 0;
+
+	if (dpss_nr_debug || dpss_force_nr_debug) {
+		pch->c.prm_top.is_pps = 0;
+		pch->c.prm_top.is_di2pps = 0;
+	}
+	if (dpss_pps_check & C_BIT0) {
+		pch->c.prm_top.is_pps = 1;
+		pch->c.prm_top.is_di2pps = 1;
+	} else if (dpss_pps_check & C_BIT1) {
+		pch->c.prm_top.is_pps = 0;
+		pch->c.prm_top.is_di2pps = 0;
+		pch->c.prm_top.pps_dsx = 0;
+		pch->c.prm_top.pps_dsy = 0;
+	}
+	if ((vinfo && vinfo->height == 1080 &&
+		vinfo->width == 3840) || width >= 1920 || height >= 1080) {
+		pch->c.prm_top.pps_dsx = 0;
+		pch->c.prm_top.pps_dsy = 0;
+		pch->c.prm_top.is_pps = 0;
+		pch->c.prm_top.is_di2pps = 0;
+	}
+
+	pps->pps_en = pch->c.prm_top.is_pps;
+	pps->di2pps_en = pch->c.prm_top.is_di2pps;
+
+	dbg_h2("%s:is_pps dsx ch= %d,%d,%d,%d,%d,%d,%d,%d,%d\n", __func__,
+		pch->c.prm_top.ch, pch->c.prm_top.pps_dsx,
+		pch->c.prm_top.pps_dsy, width, height,
+		pch->d->is_i, pch->c.prm_top.is_pps,
+		pch->c.prm_top.is_di2pps, pps->pps_en);
+}
+
+void nr_dpe_pps_cfg(struct PRM_DPSS_TOP *prm_top, struct dpss_ch_s *pch,
+		struct dpss_sub_vf_s *vfms)
+{
+	struct PRM_DPSS_DPE *prm_dpe = &pch->c.prm_dpe;
+
+	if (!prm_top)
+		return;
+	if (VFM_IS_I_SRC(vfms->type))
+		pch->d->is_i = 1;
+	else
+		pch->d->is_i = 0;
+	nr_dpe_pps_para(pch, vfms->width, vfms->height);
+
+	if (pch->c.prm_top.is_pps) {
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 3, 4, 2); //open pps path
+		if (pps_out_w) {
+			prm_dpe->dpe_nr_size.pps_hsize = pps_out_w;
+			prm_dpe->dpe_nr_size.pps_vsize = pps_out_h;
+		} else {
+			prm_dpe->dpe_nr_size.pps_hsize =
+				vfms->width << pch->c.prm_top.pps_dsx;
+			prm_dpe->dpe_nr_size.pps_vsize =
+				vfms->height << pch->c.prm_top.pps_dsy;
+		}
+	} else {
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 0, 4, 2);
+		prm_dpe->dpe_nr_size.pps_hsize = 0;
+		prm_dpe->dpe_nr_size.pps_vsize = 0;
+		pch->c.prm_top.pps_dsx = 0;
+		pch->c.prm_top.pps_dsy = 0;
+	}
+	dbg_h2("%s:pps_dsx = %d,%d,%d,%d,%d,%d,%d\n", __func__,
+		pch->c.prm_top.pps_dsx,
+		pch->c.prm_top.pps_dsy, vfms->height, prm_top->frm_vsize,
+		pch->c.prm_top.is_pps, pch->d->is_i, pch->c.prm_top.is_di2pps);
+	dbg_i0("%s:is_pps ch=%d,=%d\n", __func__,
+		pch->c.ch, pch->c.prm_top.is_pps);
+}
+
 extern unsigned int fnr_dpe_obuf_rls_ini;
 void _prm_top_init_vfm(struct dpss_ch_s *pch,
 	struct PRM_DPSS_TOP *prm_top, struct dpss_sub_vf_s *vfms, bool is_ex_di)
 {
+	struct PRM_DPSS_DPE *prm_dpe = &pch->c.prm_dpe;
+
 	if (!prm_top || !vfms) {
 		DBG_ERR("%s is_ex_di:%d\n", __func__, is_ex_di);
 		return;
@@ -1512,7 +1645,7 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 		prm_top->dpe_slc_num = 4;
 	}
 
-	if (dpss_en_pps) {
+	if (pch->c.prm_top.is_pps) {
 		if (prm_top->frm_hsize > 1536) {
 			prm_top->slc_num = 4;
 			prm_top->dpe_slc_num = 4;
@@ -1533,7 +1666,7 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 		prm_top->dpe_slc_num = test_slice;
 	}
 
-	if (dpss_en_pps)
+	if (pch->c.prm_top.is_pps)
 		prm_top->nr_aapps_up = 1;
 	else
 		prm_top->nr_aapps_up = 0;
@@ -1541,6 +1674,8 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 	if (pch->d->nr_cp_mode)
 		prm_top->amdv_slc_num = prm_top->dpe_slc_num;
 	dbg_i0("%s:slc_num = %d\n", __func__, prm_top->dpe_slc_num);
+	dbg_i0("%s:is_pps ch=%d,=%d,=%d\n", __func__,
+		pch->c.ch, pch->c.prm_top.is_pps, pch->c.prm_top.is_di2pps);
 
 	if (prm_top->dpe_slc_num == 1)
 		prm_top->frm_hsize_sel = 0;
@@ -1662,11 +1797,18 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 			prm_top->dpe_mc_size.src_vsize =
 			    prm_top->frm_vsize >> prm_top->dae_dsy_scale;
 		}
-		if (dpss_en_pps) {
-			prm_top->dpe_mc_size.frm_hsize = pps_out_w;
-			prm_top->dpe_mc_size.frm_vsize = pps_out_h;
-			prm_top->dpe_mc_size.src_hsize = pps_out_w;
-			prm_top->dpe_mc_size.src_vsize = pps_out_h;
+		if (pch->c.prm_top.is_pps) {
+			if (pps_out_w) {
+				prm_top->dpe_mc_size.frm_hsize = pps_out_w;
+				prm_top->dpe_mc_size.frm_vsize = pps_out_h;
+				prm_top->dpe_mc_size.src_hsize = pps_out_w;
+				prm_top->dpe_mc_size.src_vsize = pps_out_h;
+			} else {
+				prm_top->dpe_mc_size.frm_hsize = prm_dpe->dpe_nr_size.pps_hsize;
+				prm_top->dpe_mc_size.frm_vsize = prm_dpe->dpe_nr_size.pps_vsize;
+				prm_top->dpe_mc_size.src_hsize = prm_dpe->dpe_nr_size.pps_hsize;
+				prm_top->dpe_mc_size.src_vsize = prm_dpe->dpe_nr_size.pps_vsize;
+			}
 			dbg_i2("frc_pps frm(%d,%d),src(%d,%d)\n",
 				prm_top->dpe_mc_size.frm_hsize,
 				prm_top->dpe_mc_size.frm_vsize,
@@ -1712,18 +1854,25 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 		prm_top->frc_en = true;
 		prm_top->frc_ds_scale_en = 0;	//1;
 		prm_top->inp_done_int = 1;
-		if (is_di2pps) {
-			prm_top->dpe_mc_size.frm_hsize = pps_out_w;
-			prm_top->dpe_mc_size.frm_vsize = pps_out_h;
-			prm_top->dpe_mc_size.src_hsize = pps_out_w;
-			prm_top->dpe_mc_size.src_vsize = pps_out_h;
-			dbg_i2("frc_pps[%d] frm(%d,%d),src(%d,%d)\n",
+		if (pch->c.prm_top.is_di2pps) {
+			if (pps_out_w) {
+				prm_top->dpe_mc_size.frm_hsize = pps_out_w;
+				prm_top->dpe_mc_size.frm_vsize = pps_out_h;
+				prm_top->dpe_mc_size.src_hsize = pps_out_w;
+				prm_top->dpe_mc_size.src_vsize = pps_out_h;
+			} else {
+				prm_top->dpe_mc_size.frm_hsize = prm_dpe->dpe_nr_size.pps_hsize;
+				prm_top->dpe_mc_size.frm_vsize = prm_dpe->dpe_nr_size.pps_vsize;
+				prm_top->dpe_mc_size.src_hsize = prm_dpe->dpe_nr_size.pps_hsize;
+				prm_top->dpe_mc_size.src_vsize = prm_dpe->dpe_nr_size.pps_vsize;
+			}
+		}
+		dbg_i2("frc_pps[%d] frm(%d,%d),src(%d,%d)\n",
 				pch->c.case_id,
 				prm_top->dpe_mc_size.frm_hsize,
 				prm_top->dpe_mc_size.frm_vsize,
 				prm_top->dpe_mc_size.src_hsize,
 				prm_top->dpe_mc_size.src_vsize);
-		}
 #ifdef MOV
 		prm_top->dpe_mc_size.frm_hsize =
 		    prm_top->frm_hsize >> prm_top->dae_dsx_scale;
@@ -2257,7 +2406,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 			pch->d->idx_hd = 0;
 		else
 			pch->d->idx_hd = 1;
-		dbg_h2("ch[%d] 2 idx_start = %d done = %d\n",
+		dbg_pps0("ch[%d] 2 idx_start = %d done = %d\n",
 		pch->c.ch, pch->d->idx_start,
 		last_idx_done);
 		//tmp here:
@@ -2654,6 +2803,9 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 					prm_top->dae_dsy_scale,
 					prm_top->dpe_dw_dsx,
 					prm_top->dpe_dw_dsy);
+		dbg_i0("dsx: check in: %d, %d, %d, %d\n",
+				vf->compWidth, vf->compHeight,
+				vf->width, vf->height);
 	} else {
 		//afbcd to-do
 		//below only for mif input
@@ -2678,6 +2830,8 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 	nr_lcevc_vf_parser(pch, vf, prm_top);
 	//cfg_dpss_size_nr(prm_top);//test for me setting todo//test
 	fpga_ucode_1217(prm_top, dpss_dbg_top_cfg0);//part of HW_Initialize 12-17
+	dbg_h2("%s:aa pps_dsx = %d,\n", __func__, prm_top->frm_vsize);
+	nr_dpe_pps_cfg(prm_top, pch, vfs);
 	if (!light_chg) {
 		_prm_top_init_buffer(prm_top, pch, src);
 		hw_init_small_addr(prm_top, src);
@@ -3466,7 +3620,7 @@ void dpss_dis_vfm(struct dpss_ch_s *pch, struct vframe_s *vfm)
 
 	idx = lk_idx_get(vfm);
 	dbg_h1("%s idx:%d, <%d,%d>\n", __func__, idx, vfm->width, vfm->height);
-	dbg_h1("\t:cqq 0 type:0x%x, plan:%d, bitdepth = 0x%x\n",
+	dbg_h1("\t:type:0x%x, plan:%d, bitdepth = 0x%x\n",
 		vfm->type, vfm->plane_num, vfm->bitdepth);
 	dbg_h1("\t:cvs:addr=<0x%lx, 0x%lx>, <%d,%d>,<%d,%d>\n",
 		vfm->canvas0_config[0].phy_addr,
@@ -4082,7 +4236,7 @@ void dpss_rdma_pre_set_all(struct dpss_ch_s *pch)
 		ptab = &pch->c.pre_tmp_b[4];	//dpss bypass
 		ptab->cnt = 0;
 		dpss_rdma_set_d_pre_tab(ptab);
-		dpss_vbe_proc_byp(1);	//di
+		dpss_vbe_proc_byp(1, 0);	//di
 		if (pch->c.pre_tmp_b[0].cnt) {
 			DBG_WARN("%s:case10001: bypass vc cnt =%d\n",
 				 __func__, pch->c.pre_tmp_b[0].cnt);

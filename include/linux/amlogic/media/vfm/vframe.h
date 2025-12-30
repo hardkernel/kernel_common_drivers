@@ -941,6 +941,10 @@ struct vframe_s {
 	void *dpss_data; //struct dpss_vf_s1 reciprocal link
 //	void *caller_data; //use this for ins test
 	void *pp_info;     /*only for di/dpss caller; struct pp_info*/
+	u32 original_width;
+	u32 original_height;
+	u32 dpss_pps_dsx;	//ary:double write x ratio?
+	u32 dpss_pps_dsy;
 } /*vframe_t */;
 
 #define VC_FLAG_AI_SR		0x1

@@ -10,8 +10,9 @@ static void _cfg_dpss_inp(struct PRM_DPSS_TOP *prm_top,
 			  struct PRM_DPSS_INP prm_inp,
 			  struct PRM_INTF_TYPE *inp_yuv_rdmif)
 {
-	u32 frm_hsize = is_di2pps ? prm_top->dpe_mc_size.frm_hsize : prm_top->frm_hsize;
-	u32 frm_vsize = is_di2pps ? prm_top->dpe_mc_size.frm_vsize : prm_top->frm_vsize;
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
+	u32 frm_hsize = pps->di2pps_en ? prm_top->dpe_mc_size.frm_hsize : prm_top->frm_hsize;
+	u32 frm_vsize = pps->di2pps_en ? prm_top->dpe_mc_size.frm_vsize : prm_top->frm_vsize;
 	u32 me_dsx = prm_top->dae_dsx_scale;
 	u32 me_dsy = prm_top->dae_dsy_scale;
 	bool me_hvds_en;
@@ -19,13 +20,14 @@ static void _cfg_dpss_inp(struct PRM_DPSS_TOP *prm_top,
 	enum vid_src_fmt src_fmt;
 	enum vid_src_fmt src_plan;
 	enum vid_src_fmt src_bit;
+	u32 v_limit = 540;
 
 	u32 org_hsize;
 	u32 org_vsize;
 
 	if (prm_top->auto_alig_en && prm_top->org_hsize != 0xffff) {
-		org_hsize = is_di2pps ? prm_top->dpe_mc_size.frm_hsize : prm_top->org_hsize;
-		org_vsize = is_di2pps ? prm_top->dpe_mc_size.frm_vsize : prm_top->org_vsize;
+		org_hsize = pps->di2pps_en ? prm_top->dpe_mc_size.frm_hsize : prm_top->org_hsize;
+		org_vsize = pps->di2pps_en ? prm_top->dpe_mc_size.frm_vsize : prm_top->org_vsize;
 	} else {
 		org_hsize = prm_top->frm_hsize;
 		org_vsize = prm_top->frm_vsize;
@@ -35,6 +37,8 @@ static void _cfg_dpss_inp(struct PRM_DPSS_TOP *prm_top,
 		me_dsx = prm_top->dpe_dw_dsx;
 		me_dsy = prm_top->dpe_dw_dsy;
 		only_fbuf = false;
+		if (pps->di2pps_en && frm_hsize == 1440 && frm_vsize == 1152)
+			v_limit = 576;
 	}
 
 	if (prm_top->is_i) {
@@ -79,7 +83,7 @@ static void _cfg_dpss_inp(struct PRM_DPSS_TOP *prm_top,
 
 	if ((prm_top->use_inp_big & 0x0f) == 1) {
 		if (prm_top->dpss_mode != DPSS_FRC_MODE && prm_top->is_i) {
-			if (prm_top->frm_vsize <= 540 && prm_top->frm_hsize <= 960) {
+			if (prm_top->frm_vsize <= v_limit && prm_top->frm_hsize <= 960) {
 				src_fmt = prm_top->nro_fs_fmt.src_fmt;
 				src_plan = prm_top->nro_fs_fmt.src_plan;
 				src_bit = prm_top->nro_fs_fmt.src_bit;
@@ -97,8 +101,8 @@ static void _cfg_dpss_inp(struct PRM_DPSS_TOP *prm_top,
 			}
 		}
 	}
-	dbg_h2("%s hsize=%d vsize=%d\n", __func__,
-			me_hsize, me_vsize);
+	dbg_h2("%s hsize=%d vsize=%d v_limit:%d\n", __func__,
+			me_hsize, me_vsize, v_limit);
 
 	//====================================================//
 	// inp interface

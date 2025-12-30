@@ -55,7 +55,7 @@ void cfg_dpe_size(enum DPSS_WORK_MODE   dpe_mode,
 	struct PRM_DPSS_DPE *prm_dpe,
 	struct PRM_DPE_PAD dpe_pad);
 #endif
-void dpss_vbe_proc_byp(u32 path_id);
+void dpss_vbe_proc_byp(u32 path_id, bool pps_en);
 void cfg_dpe_triggle(struct PRM_DPSS_TOP *prm_top);
 void cfg_dpe_dv_triggle(void);
 void nrdae_to_nrdpe_rx(int nr_info);

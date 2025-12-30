@@ -104,7 +104,7 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 	u32  mc_skip_mode_v = mc_skip_mode & 0x1;
 	//    struct PRM_INTF_TYPE pix_rmif;
 	//    memset((void *)(&pix_rmif), 0, sizeof(struct PRM_INTF_TYPE)); //ary add
-
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
 	struct frc_chip_st *pchip = dpss_get_frc_st();
 	struct PRM_INTF_TYPE *pix_rmif;
 	struct VFCD_t *vfcd;
@@ -146,7 +146,7 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 	pix_rmif->skip_line = mc_skip_mode_v;
 	pix_rmif->cut_win_en	= cut_win_en;
 
-	if (dpss_en_pps) {
+	if (pps->pps_en) {
 		pix_rmif->src_hsize = cut_win_en ?
 				prm_top->prm_cut_win.frm_hsize : prm_mc->frm_hsize;
 		pix_rmif->src_vsize = cut_win_en ?
@@ -160,6 +160,7 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 		pix_rmif->slc_y_ed[0] = cut_win_en ?
 				prm_top->prm_cut_win.win_vend_align : prm_mc->frm_vsize - 1;
 	}
+	dbg_i0("%s:is_pps top ch=%d,=%d\n", __func__, prm_top->ch, pps->pps_en);
 	// nr+frc 422 10bit 2plane
 	if (prm_top->dpss_mode == DPSS_FRC_MODE) {
 		pix_rmif->little_endian = 0;
@@ -210,7 +211,7 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 	// vfcd->head_baddr   = 0;//need_add
 	// vfcd->body_baddr   = 0;//need_add
 
-	if (dpss_en_pps) {
+	if (pps->pps_en) {
 		vfcd->src_hsize    = cut_win_en ?
 			prm_top->prm_cut_win.frm_hsize : prm_mc->frm_hsize;
 		vfcd->src_vsize    = cut_win_en ?
@@ -381,18 +382,21 @@ void hw_cfg_dpss_mc0(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr, struct DPSS_
 	u32 me_vsize;
 	u32 me_blk_hsize;
 	u32 me_blk_vsize;
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
 
 	cut_win_en	 = prm_top->cut_win_en;
 	//mc_cut_position = prm_top->cut_win_position;
 	mc_skip_mode = prm_top->mc_skip_mode;
 	win_hsize	 = prm_top->prm_cut_win.win_hsize;
 	win_vsize	 = prm_top->prm_cut_win.win_vsize;
-	mc_size_sel = prm_top->nr_hscale_on || prm_top->nr_aapps_up ||
+	mc_size_sel = prm_top->nr_hscale_on || pps->pps_en ||
 				prm_top->frc_ds_scale_en || mc_skip_mode;
 	frm_hsize = cut_win_en ? win_hsize : mc_size_sel ?
 		prm_top->dpe_mc_size.frm_hsize : prm_top->frm_hsize;
 	frm_vsize = cut_win_en ? win_vsize : mc_size_sel ?
 		prm_top->dpe_mc_size.frm_vsize : prm_top->frm_vsize;
+
+	dbg_h2("pps ch=%d,mc_size_sel%d,%d\n", prm_top->ch, mc_size_sel, pps->pps_en);
 
 	//if (mc_cut_position && cut_win_en) {
 	//	frm_hsize = prm_top->frm_hsize;
@@ -664,7 +668,14 @@ void hw_cfg_dpss_mc0(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr, struct DPSS_
 	// if DPE pps enable, pps wrmif use di waddr, MC need use di output
 	//==============================================================
 	// reg_aa_pps_mode == 3 -> nr aapps 4k1k
-	bool nr_aapps_4k1k_en = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
+	bool nr_aapps_4k1k_en;// = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
+
+	if (pps->pps_en)
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 3, 4, 2);
+	else
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 0, 4, 2);
+
+	nr_aapps_4k1k_en = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
 
 	if (prm_top->nr_aapps_up ||
 		(nr_aapps_4k1k_en && prm_top->dolby_mode != DOLBY_DPSS_PRL_MODE))
@@ -697,18 +708,21 @@ void frc_me_cut(struct PRM_DPSS_TOP *prm_top)
 	struct PRM_INTF_TYPE *mv_rmif;
 	struct PRM_INTF_TYPE *me_logo_rmif;
 	struct frc_chip_st *pchip = dpss_get_frc_st();
+	struct DPSS_MC0_TYPE *prm_mc;
 	bool cut_win_en;
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
 
 	if (!pchip) {
 		dbg_h2("%s pchip is null\n", __func__);
 		return;
 	}
+	prm_mc = &pchip->prm_mc;
 	pre_logo_rmif = &pchip->pre_logo_rmif;
 	cur_logo_rmif = &pchip->cur_logo_rmif;
 	mv_rmif = &pchip->mv_rmif;
 	me_logo_rmif = &pchip->me_logo_rmif;
 
-	frm_hsize = prm_top->frm_hsize;
+	frm_hsize = pps->pps_en ? prm_mc->frm_hsize : prm_top->frm_hsize;
 	pre_logo_hsize = frm_hsize >> x_scl;
 	cur_logo_hsize = frm_hsize >> x_scl;
 	mv_hsize	   = pre_logo_hsize >> 2;
@@ -975,7 +989,7 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	u32 ip_logo1_rdmif_baddr;
 	u32 dpe_melogo_baddr;
 	u32 dpe_vpmc_mv_baddr;
-
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
 	bool is_pause_state = false;
 	bool is_empty = false;
 	u8 display_mc_idx;
@@ -1142,8 +1156,7 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		mc_mif_reg_mode && dpe_intp_phs <= 64 ? dpe_pre_pixl_buf : dpe_cur_pixl_buf;
 
 	bool src0_nrdi_frc_en = (rd(DPSS_TOP_FUNC_CTRL) >> 5) & 0x1;
-	bool nr_aapps_4k1k_en =
-		((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
+	bool nr_aapps_4k1k_en;
 	bool nr_cmodel_byp_mode;
 
 	nr_cmodel_byp_mode = 0;
@@ -1155,12 +1168,21 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	u32 src0_dio_fbuf_yaddr[2];
 	u32 src0_dio_fbuf_caddr[2];
 
-	if (src0_nrdi_frc_en | nr_aapps_4k1k_en) {
+	if (pps->pps_en)
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 3, 4, 2);
+	else
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 0, 4, 2);
+
+	nr_aapps_4k1k_en = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
+
+	dbg_i0("%s:is_pps top ch=%d,=%d\n", __func__, prm_top->ch, pps->pps_en);
+
+	if (src0_nrdi_frc_en) {
 		src0_dio_fbuf_yaddr[0]	 = rd(DPSS_SRC0_DIO_FBUF_YADDR0 + dpe_pixl_buf_idx0);
 		src0_dio_fbuf_caddr[0]	 = rd(DPSS_SRC0_DIO_FBUF_CADDR0 + dpe_pixl_buf_idx0);
 		src0_dio_fbuf_yaddr[1]	 = rd(DPSS_SRC0_DIO_FBUF_YADDR0 + dpe_pixl_buf_idx1);
 		src0_dio_fbuf_caddr[1]	 = rd(DPSS_SRC0_DIO_FBUF_CADDR0 + dpe_pixl_buf_idx1);
-		if (is_di2pps) {
+		if (pps->di2pps_en) {
 			src0_dio_fbuf_yaddr[0] = prm_top->src0_di2pps_buf_yaddr[dpe_pixl_buf_idx0];
 			src0_dio_fbuf_caddr[0] = prm_top->src0_di2pps_buf_caddr[dpe_pixl_buf_idx0];
 			src0_dio_fbuf_yaddr[1] = prm_top->src0_di2pps_buf_yaddr[dpe_pixl_buf_idx1];
@@ -1218,10 +1240,56 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		mc_inp_body_cbuf_addr[0] = src0_nro_fbuf_caddr[0];
 		mc_inp_body_ybuf_addr[1] = src0_nro_fbuf_yaddr[1];
 		mc_inp_body_cbuf_addr[1] = src0_nro_fbuf_caddr[1];
+		if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx0]) {
+			mc_inp_body_ybuf_addr[0] =
+				rd(DPSS_SRC0_DIO_FBUF_YADDR0 + dpe_pixl_buf_idx0);
+			mc_inp_body_cbuf_addr[0] =
+				rd(DPSS_SRC0_DIO_FBUF_CADDR0 + dpe_pixl_buf_idx0);
+		}
+		if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx1]) {
+			mc_inp_body_ybuf_addr[1] =
+				rd(DPSS_SRC0_DIO_FBUF_YADDR0 + dpe_pixl_buf_idx1);
+			mc_inp_body_cbuf_addr[1] =
+				rd(DPSS_SRC0_DIO_FBUF_CADDR0 + dpe_pixl_buf_idx1);
+		}
 		mc_inp_head_ybuf_addr	 = rd(DPSS_SRC0_NROUT_YHEAD_ADDR);
 		mc_inp_head_cbuf_addr	 = rd(DPSS_SRC0_NROUT_CHEAD_ADDR);
 		mc_inp_head_ybuf_step	 = rd(DPSS_SRC0_NROUT_YHEAD_STEP);
 		mc_inp_head_cbuf_step	 = rd(DPSS_SRC0_NROUT_CHEAD_STEP);
+		if (pps->pps_en) {
+			if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx0]) {
+				mc_inp_body_ybuf_addr[0] =
+					rd(DPSS_SRC0_DIO_FBUF_YADDR0 + dpe_pixl_buf_idx0);
+				mc_inp_body_cbuf_addr[0] =
+					rd(DPSS_SRC0_DIO_FBUF_CADDR0 + dpe_pixl_buf_idx0);
+			}
+			if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx1]) {
+				mc_inp_body_ybuf_addr[1] =
+					rd(DPSS_SRC0_DIO_FBUF_YADDR0 + dpe_pixl_buf_idx1);
+				mc_inp_body_cbuf_addr[1] =
+					rd(DPSS_SRC0_DIO_FBUF_CADDR0 + dpe_pixl_buf_idx1);
+			}
+			if (pchip_st && pchip_st->state_st.pps_frc && (dpss_light_chg & C_BIT0)) {
+				if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx0]) {
+					mc_inp_body_ybuf_addr[0] =
+						prm_top->src0_diopps_fbuf_yaddr[dpe_pixl_buf_idx0];
+					mc_inp_body_cbuf_addr[0] =
+						prm_top->src0_diopps_fbuf_caddr[dpe_pixl_buf_idx0];
+				}
+				if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx1]) {
+					mc_inp_body_ybuf_addr[1] =
+						prm_top->src0_diopps_fbuf_yaddr[dpe_pixl_buf_idx1];
+					mc_inp_body_cbuf_addr[1] =
+						prm_top->src0_diopps_fbuf_caddr[dpe_pixl_buf_idx1];
+				}
+			}
+			mc_inp_head_ybuf_addr	 = rd(DPSS_SRC0_DIOUT_YHEAD_ADDR);
+			mc_inp_head_cbuf_addr	 = rd(DPSS_SRC0_DIOUT_CHEAD_ADDR);
+			mc_inp_head_ybuf_step	 = rd(DPSS_SRC0_DIOUT_YHEAD_STEP);
+			mc_inp_head_cbuf_step	 = rd(DPSS_SRC0_DIOUT_CHEAD_STEP);
+			dbg_pps0("pps frc di 0x%x,0x%x\n", mc_inp_body_ybuf_addr[0] << 5,
+				mc_inp_body_ybuf_addr[1] << 5);
+		}
 	}
 
 	mc_pix_logo_buf = rd(DPSS_SRC0_PIX_LOGO_ADDR);
@@ -1992,7 +2060,7 @@ void frc_mc_cut_1(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr)
 	u32 fmt;
 	u32 fmt444_out;
 	u32 regs_ofst;
-	// AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
 
 	if (!pchip) {
 		dbg_h2("%s pchip is null\n", __func__);
@@ -2115,16 +2183,16 @@ void frc_mc_cut_1(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr)
 	//pix_rmif->skip_line = mc_skip_mode_v;
 	pix_rmif->cut_win_en	= cut_win_en;
 
-	//if (pps->pps_en) {
-	//	pix_rmif->src_hsize = cut_win_en ?
-	//			prm_top->prm_cut_win.frm_hsize : prm_mc->frm_hsize;
-	//	pix_rmif->src_vsize = cut_win_en ?
-	//			prm_top->prm_cut_win.frm_vsize : prm_mc->frm_vsize;
-	//	pix_rmif->slc_x_ed[0] = cut_win_en ?
-	//			prm_top->prm_cut_win.win_hend_align : prm_mc->frm_hsize - 1;
-	//	pix_rmif->slc_y_ed[0] = cut_win_en ?
-	//			prm_top->prm_cut_win.win_vend_align : prm_mc->frm_vsize - 1;
-	//}
+	if (pps->pps_en) {
+		pix_rmif->src_hsize = cut_win_en ?
+				prm_top->prm_cut_win.frm_hsize : prm_mc->frm_hsize;
+		pix_rmif->src_vsize = cut_win_en ?
+				prm_top->prm_cut_win.frm_vsize : prm_mc->frm_vsize;
+		pix_rmif->slc_x_ed[0] = cut_win_en ?
+				prm_top->prm_cut_win.win_hend_align : prm_mc->frm_hsize - 1;
+		pix_rmif->slc_y_ed[0] = cut_win_en ?
+				prm_top->prm_cut_win.win_vend_align : prm_mc->frm_vsize - 1;
+	}
 
 	frc_cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC0, pix_rmif, fmt444_out);
 	frc_cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC1, pix_rmif, fmt444_out);
@@ -2141,6 +2209,16 @@ void frc_mc_cut_1(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr)
 	vfcd->win_end_v[0] =
 		cut_win_en ? prm_top->prm_cut_win.win_vend_align : prm_top->frm_vsize - 1;
 
+	if (pps->pps_en) {
+		vfcd->src_hsize    = cut_win_en ?
+			prm_top->prm_cut_win.frm_hsize : prm_mc->frm_hsize;
+		vfcd->src_vsize    = cut_win_en ?
+			prm_top->prm_cut_win.frm_vsize : prm_mc->frm_vsize;
+		vfcd->win_end_h[0] = cut_win_en ?
+			prm_top->prm_cut_win.win_hend_align : prm_mc->frm_hsize - 1;
+		vfcd->win_end_v[0] = cut_win_en ?
+			prm_top->prm_cut_win.win_vend_align : prm_mc->frm_vsize - 1;
+	}
 	dbg_h2("%s vfcd->src_h/v size:(%d,%d)\n", __func__, vfcd->src_hsize, vfcd->src_vsize);
 	dbg_h2("%s pix_rmif.slc_x:(%d,%d), .slc_y:(%d,%d)\n", __func__, vfcd->win_bgn_h[0],
 		   vfcd->win_end_h[0], vfcd->win_bgn_v[0], vfcd->win_end_v[0]);

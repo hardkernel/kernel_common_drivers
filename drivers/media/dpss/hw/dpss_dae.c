@@ -43,15 +43,16 @@ void hw_cfg_dpss_dae(enum DPSS_WORK_MODE  dae_mode,
 	bool dae_align_hmode = prm_top->alig_hmode & 0x1;
 	u32 nr_4k1k_vds_en = prm_top->vds_4k1k_en && src_is_nr;
 	//bool dae_align_vmode = prm_top->alig_vmode & 0x1;
-	u32 dpe_pps_en = (prm_top->nr_aapps_up | prm_top->nr_aapps_on) & src_is_frc;
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
+	u32 dpe_pps_en = (pps->pps_en | prm_top->nr_aapps_on) & src_is_frc;
 	int i;
 	bool dae_nosrc_en;
 	u32 inp_hsize, inp_vsize, me_hsize, me_vsize;
 	u32 me_hvds_en;
 	u32 dae_grd_num_mode;
 
-	dbg_h2("nr_hscale_on=%d dae_hpps_en=%d,dae_auto_align=%d\n\n",
-		prm_top->nr_hscale_on, dae_hpps_en, dae_auto_align);
+	dbg_h2("pps ch=%d,nr_hscale_on=%d dae_hpps_en=%d,dae_auto_align=%d,%d\n", prm_top->ch,
+		prm_top->nr_hscale_on, dae_hpps_en, dae_auto_align, dpe_pps_en);
 	dbg_h2("dae_align_hmode=%d alig_hmode=%d\n", dae_align_hmode, prm_top->alig_hmode);
 
 	w_reg_bit(VPU_DAE_WRAP_CTRL, src_is_byps, 31, 1);//reg_dae_byps
@@ -60,8 +61,9 @@ void hw_cfg_dpss_dae(enum DPSS_WORK_MODE  dae_mode,
 		prm_top->dpss_nr_byp = 1;
 		dbg_h2("[dpss_dae.c], dae bypass\n");
 		return;
+	} else {
+		prm_top->dpss_nr_byp = 0;
 	}
-	prm_top->dpss_nr_byp = 0;
 
 	enum vid_src_fmt src_fmt    = src_is_frc ? prm_top->nro_ds_fmt.src_fmt :
 				src_is_nr  ? prm_top->src_ds_fmt.src_fmt :
@@ -102,8 +104,9 @@ void hw_cfg_dpss_dae(enum DPSS_WORK_MODE  dae_mode,
 		inp_vsize	  = me_hvds_en ?	org_vsize :
 			(org_vsize + (1 << me_dsy) - 1) >> me_dsy;
 	}
-	dbg_h2("inp_hsize=%d, inp_vsize=%d,no_ds=%d size_in =%d\n",
-		inp_hsize, inp_vsize, prm_top->no_ds, prm_top->size_as_in);
+	dbg_h2("pps inp_hsize=%d, inp_vsize=%d,no_ds=%d size_in =%d,%d,%d\n",
+		inp_hsize, inp_vsize, prm_top->no_ds,
+		prm_top->size_as_in, org_hsize, org_vsize);
 
 	u32 reg_mix_hds_en = (prm_top->no_ds || inp_hsize > 960) ? me_dsx : 0;
 	u32 reg_mix_vds_en = (prm_top->no_ds || inp_vsize > 540) ? me_dsy : 0;
@@ -1238,10 +1241,12 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 	bool frc_melogo_en = prm_top->frc_melogo_en;
 	bool dpss_nr_bypass = prm_top->dpss_nr_byp;
 	bool frc_no_alg_ko = prm_top->frc_no_alg_ko;
-	u32 dpe_pps_en = (prm_top->nr_aapps_up | prm_top->nr_aapps_on) & src_is_frc;
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
+	u32 dpe_pps_en = (pps->pps_en | prm_top->nr_aapps_on) & src_is_frc;
 	int i;
 	u32 inp_hsize, inp_vsize, me_hsize, me_vsize;
-	//u32 v_limit = 540;
+
+	u32 v_limit = 540;
 	static u16 pre_me_hsize, pre_me_vsize;
 
 	dbg_h2("%s:dae_mode0 = %d, prm_dpss_dae:0x%px\n", __func__,
@@ -1260,18 +1265,18 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 	enum vid_src_fmt src_plane  = prm_top->nro_ds_fmt.src_plan;
 
 	if (prm_top->auto_alig_en && prm_top->org_hsize != 0xffff) {
-		org_hsize    = prm_top->org_hsize;
-		org_vsize    = prm_top->org_vsize;
-		if (dpss_en_pps) {
-			org_hsize    = dpe_pps_en ?
-				prm_top->dpe_mc_size.frm_hsize : prm_top->org_hsize;
-			org_vsize    = dpe_pps_en ?
-				prm_top->dpe_mc_size.frm_vsize : prm_top->org_vsize;
-		}
+		org_hsize    = dpe_pps_en ?
+			prm_top->dpe_mc_size.frm_hsize : prm_top->org_hsize;
+		org_vsize    = dpe_pps_en ?
+			prm_top->dpe_mc_size.frm_vsize : prm_top->org_vsize;
 	} else {
-		org_hsize    = dpe_pps_en ? prm_top->dpe_mc_size.frm_hsize : prm_top->frm_hsize;
-		org_vsize    = dpe_pps_en ? prm_top->dpe_mc_size.frm_vsize : prm_top->frm_vsize;
+		org_hsize    = dpe_pps_en ?
+			prm_top->dpe_mc_size.frm_hsize : prm_top->frm_hsize;
+		org_vsize    = dpe_pps_en ?
+			prm_top->dpe_mc_size.frm_vsize : prm_top->frm_vsize;
 	}
+	dbg_i0("%s:is_pps prm_top->nr_aapps_up ch=%d =%d,=%d,=%d\n", __func__,
+		prm_top->ch, pps->pps_en, org_hsize, org_vsize);
 
 	u32 me_dsx        = prm_top->dpe_dw_dsx;
 	u32 me_dsy        = prm_top->dpe_dw_dsy;
@@ -1279,10 +1284,12 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 
 	inp_hsize     = me_hvds_en ?  org_hsize : (org_hsize + (1 << me_dsx) - 1) >> me_dsx;
 	inp_vsize     = me_hvds_en ?  org_vsize : (org_vsize + (1 << me_dsy) - 1) >> me_dsy;
+	if (dpe_pps_en && prm_top->is_i && org_hsize == 1440 && org_vsize == 1152)
+		v_limit = 576;
 	u32 reg_mix_hds_en = (inp_hsize > 1920) ? 2 :
 				(frc_ds_scale_en || inp_hsize > 960) ? 1 : 0; //need_check
 	u32 reg_mix_vds_en = (inp_vsize > 1080) ? 2 :
-				(frc_ds_scale_en || inp_vsize > 540) ? 1 : 0; //need_check
+				(frc_ds_scale_en || inp_vsize > v_limit) ? 1 : 0; //need_check
 
 	me_hsize =	(dae_hpps_en) ? ((org_hsize == 4096) ? 960  : 480) :
 			(me_hvds_en) ? (inp_hsize + (1 << me_dsx) - 1) >> me_dsx : inp_hsize;
@@ -1292,8 +1299,8 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 		me_hsize = (me_hsize + 3) / 4 * 4;
 		me_vsize = (me_vsize + 3) / 4 * 4;
 	}
-	dbg_h2("\tinp<%d,%d>, mix_ds_en:<%d,%d>\n", inp_hsize,
-		inp_vsize, reg_mix_hds_en, reg_mix_vds_en);
+	dbg_h2("\tinp<%d,%d>, mix_ds_en:<%d,%d> v_limit:%d\n", inp_hsize,
+		inp_vsize, reg_mix_hds_en, reg_mix_vds_en, v_limit);
 	dbg_h2("\tme_size:<%d,%d>\n", me_hsize, me_vsize);
 	u32 me_blk_hsize  = (me_hsize + 3) >> 2;
 	u32 me_blk_vsize  = (me_vsize + 3) >> 2;

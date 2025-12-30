@@ -9,10 +9,10 @@
 #include <linux/math64.h>
 #endif
 
-unsigned int test_v_tap = 2;
+unsigned int test_v_tap = 4;
 module_param_named(test_v_tap, test_v_tap, uint, 0664);
 
-unsigned int test_h_tap = 2;
+unsigned int test_h_tap = 4;
 module_param_named(test_h_tap, test_h_tap, uint, 0664);
 
 void set_aa_pps_coef(u32 scale_coef_idx,
@@ -488,15 +488,9 @@ void aa_pps_top(struct AA_PPS_TOP_TYPE *aa_pps_top)
 				slc_mode, buf_depth);
 		} else {
 			reg_sc_mux_sel = 0;
-			reg_vds_tap_num = 4;
-			reg_hds_tap_num = 4;
+			reg_vds_tap_num = test_h_tap;
+			reg_hds_tap_num = test_v_tap;
 		}
-	}
-
-	if (dpss_en_pps) {
-		reg_hds_tap_num = test_h_tap;
-		reg_vds_tap_num = test_v_tap;
-		dbg_h2("change h:%d v:%d,\n", reg_hds_tap_num, reg_vds_tap_num);
 	}
 
 	//------ cfg reg

@@ -1041,6 +1041,11 @@ void hw_cfg_dpss_dpe_intf_addr_only(struct PRM_DPSS_TOP   *prm_top,
 		    prm_top->src0_nro_fbuf_yaddr[dpe_src0_nr_wr_idx] << 5;
 		pix_wmif2->src_baddr[1] =
 		    prm_top->src0_nro_fbuf_caddr[dpe_src0_nr_wr_idx] << 5;
+		pix_wmif1->src_baddr[0] =
+		    prm_top->src0_dio_fbuf_yaddr[dpe_src0_nr_wr_idx] << 5;
+		pix_wmif1->src_baddr[1] =
+		    prm_top->src0_dio_fbuf_caddr[dpe_src0_nr_wr_idx] << 5;
+
 		dbg_h2("%s:addr:nro: nr_mode:wr pix_wmif2 :%d:yaddr:0x%x\n",
 		       __func__, dpe_src0_nr_wr_idx, pix_wmif2->src_baddr[0]);
 		break;
@@ -1443,12 +1448,19 @@ void hw_cfg_dpss_dpe_no_buf_update(enum DPSS_WORK_MODE dpe_mode,
 
 	u32 bbd_en = rd(DPSS_DPE_BBD_CTRL) == 0x2;
 	//reg_aa_pps_mode == 3 -> nr aapps 4k1k
-	bool nr_aapps_en = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
+	bool nr_aapps_en;// = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
 	bool dpss_nr_vpp_link = (rd(DPSS_NR_VPP_LINK) & 0x1);
 	bool nr_src1_di_loop = 0;	//di loop when src1 only nr
 
+	if (prm_top->is_pps)
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 3, 4, 2);
+	else
+		w_reg_bit(DPSS_DPE_INTF_CTRL2, 0, 4, 2);
+
+	nr_aapps_en = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
+
 	dbg_h2("dcntr_en=%d\n", dcntr_en);
-	dbg_h2("nr_aapps_en=%x\n", nr_aapps_en);
+	dbg_h2("%s pps nr_aapps_en=%x\n", __func__, nr_aapps_en);
 
 	dbg_h2("\treg:en:bbd=%d, nr_aapps=%d, nr_link=%d\n",
 	       bbd_en, nr_aapps_en, dpss_nr_vpp_link);
@@ -1693,7 +1705,7 @@ void hw_cfg_dpss_dpe_no_buf_update(enum DPSS_WORK_MODE dpe_mode,
 	//nr_byp+dcntr+bbd, vbe_pad=dcntr_pad, nrdi_pad=0
 
 	if (reg_nr_byps_en & ~dcntr_en) {
-		dpss_vbe_proc_byp(0);	//bypass nr
+		dpss_vbe_proc_byp(0, 0);	//bypass nr
 	} else if (reg_nr_byps_en & dcntr_en) {
 		wr(VPU_NR_TOP_SYNC_CTRL, 0xffffffff);
 		//wr(VPU_NR_ENABLE, 0x0);
@@ -2882,11 +2894,7 @@ void irq_dpe1(void)
 	u32 dpss_dpe_di_frm_cnt_adj;
 	u32 dpss_inp_drop_count;
 	u32 dpss_total_count;
-	int di2pps_idx;
-	unsigned long di2pps_yaddr;
-	unsigned long di2pps_caddr;
 	unsigned long nr_yaddr;
-	u32 i;
 	//bool ret_rd;
 
 	if (!(dpss_get_hw()->src_act & C_BIT0)) {
@@ -2977,26 +2985,6 @@ void irq_dpe1(void)
 			dpss_hdr_proc(vfm);
 		}
 
-		if (is_di2pps) {
-			nr_yaddr = rd(DPSS_DPE_DIN_WR_BADDR4) >> 5;
-			di2pps_idx = -1;
-			for (i = 0; i < prm_top->num_dpe_o; i++) {
-				if (nr_yaddr == prm_top->src0_dio_fbuf_yaddr[i]) {
-					di2pps_idx = i;
-					break;
-				}
-			}
-			if (di2pps_idx < 0 || di2pps_idx >= prm_top->num_dpe_o) {
-				DBG_ERR("No match buffer found for 0x%lx\n", nr_yaddr);
-				return;
-			}
-			di2pps_yaddr = prm_top->src0_di2pps_buf_yaddr[di2pps_idx];
-			di2pps_caddr = prm_top->src0_di2pps_buf_caddr[di2pps_idx];
-			wr(DPSS_DPE_PPS_WR_BADDR0, di2pps_yaddr << 5);
-			wr(DPSS_DPE_PPS_WR_BADDR1, di2pps_caddr << 5);
-			dbg_h2("pps[%d] yaddr 0x%lx,caddr 0x%lx\n", di2pps_idx,
-					di2pps_yaddr, di2pps_caddr);
-		}
 		afbcd_update_addr(prm_top, dpss_dpe_nr_frm_cnt); //new
 		hw_process_dpe1_nrdi_frm_rst(cfg_slc,
 					     slc_num,
@@ -3038,15 +3026,6 @@ void irq_dpe1(void)
 			dpss_total_count = dpss_dpe_nr_frm_cnt + dpss_inp_drop_count;
 		} else {
 			dpss_total_count = dpss_dpe_nr_frm_cnt;
-		}
-		if (is_di2pps) {
-			di2pps_idx = dpss_total_count % prm_top->num_dpe_o;
-			di2pps_yaddr = prm_top->src0_di2pps_buf_yaddr[di2pps_idx] << 5;
-			di2pps_caddr = prm_top->src0_di2pps_buf_caddr[di2pps_idx] << 5;
-			wr(DPSS_DPE_PPS_WR_BADDR0, di2pps_yaddr);
-			wr(DPSS_DPE_PPS_WR_BADDR1, di2pps_caddr);
-			dbg_h2("pps[%d] yaddr 0x%lx,caddr 0x%lx\n", di2pps_idx,
-					di2pps_yaddr, di2pps_caddr);
 		}
 		afbcd_update_addr(prm_top, dpss_total_count); //new
 		dbg_ct0("dpe: %d + %d, total=%d\n", dpss_dpe_nr_frm_cnt, dpss_inp_drop_count,
@@ -4006,10 +3985,10 @@ void hw_tbc_process_dpe2_frm_rst_tbc(struct PRM_DPSS_TOP *prm_top,
 
 	if (dpss_dpe_di_frm_cnt < di_ignore_nub) {
 		if (prm_top->dolby_mode == DOLBY_DPSS_PRL_MODE) {
-			dpss_vbe_proc_byp(2);//dv_prl
+			dpss_vbe_proc_byp(2, 0);//dv_prl
 		} else {
 			if (!(dpss_dbg_tbc & C_BIT4))
-				dpss_vbe_proc_byp(1);//di
+				dpss_vbe_proc_byp(1, 0);//di
 		}
 	}
 

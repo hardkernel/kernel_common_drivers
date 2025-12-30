@@ -611,7 +611,7 @@ void cfg_dpss_vdi_slice(u32 frm_hsize,
 	//cfg di slice
 	//==============================================================//
 	// u32 ext_pad = prm_top->nr_aapps_up | prm_top->nr_aapps_on ? 16 : 0;
-	u32 ext_pad = prm_top->nr_aapps_up | prm_top->nr_aapps_on ? 16 : nr_pps_cfg->aa_pad;
+	u32 ext_pad = nr_pps_cfg->pps_en | prm_top->nr_aapps_on ? 16 : nr_pps_cfg->aa_pad;
 	// u32 ovlp_size       = slc_num == 1 ? 0 : 64 + ext_pad;
 	// u32 di_out_cut_ovlp = slc_num == 1 ? 0 : 62;
 	u32 ovlp_size       = slc_num == 1 ? 0 : 64;
