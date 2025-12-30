@@ -127,7 +127,6 @@ static int aml_mkl_init_dbgfs(void)
 	if (!aml_mkl_debug_dent) {
 		aml_mkl_debug_dent = debugfs_create_dir("aml_mkl", NULL);
 		if (!aml_mkl_debug_dent) {
-			KL_LOGE("can not create debugfs directory\n");
 			return -ENOMEM;
 		}
 
@@ -758,13 +757,11 @@ static int aml_mkl_get_dts_info(struct aml_mkl_dev *dev, struct platform_device 
 
 	ret = of_property_read_u32(pdev->dev.of_node, "kl_type", &dev->kl_type);
 	if (ret) {
-		KL_LOGE("%s: not found 0x%x\n", "kl_type", dev->kl_type);
 		return -1;
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node, "kl_vid_type", &dev->kl_vid_type);
 	if (ret) {
-		KL_LOGE("%s: not found 0x%x\n", "kl_vid_type", dev->kl_vid_type);
 		return -1;
 	}
 
@@ -810,7 +807,6 @@ int aml_mkl_init(struct class *aml_mkl_class, struct platform_device *pdev)
 	ret = alloc_chrdev_region(&aml_mkl_devt, 0, DEVICE_INSTANCES,
 				AML_MKL_DEVICE_NAME);
 	if (ret < 0) {
-		KL_LOGE("%s device can't be allocated.\n", AML_MKL_DEVICE_NAME);
 		return ret;
 	}
 
@@ -825,28 +821,24 @@ int aml_mkl_init(struct class *aml_mkl_class, struct platform_device *pdev)
 	device = device_create(aml_mkl_class, NULL, aml_mkl_devt, NULL,
 			       AML_MKL_DEVICE_NAME);
 	if (IS_ERR(device)) {
-		KL_LOGE("device_create failed\n");
 		ret = PTR_ERR(device);
 		goto delete_cdev;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		KL_LOGE("%s: platform_get_resource is failed\n", __func__);
 		ret = -ENOMEM;
 		goto destroy_device;
 	}
 
 	aml_mkl_dev.base_addr = devm_ioremap_resource(&pdev->dev, res);
 	if (!aml_mkl_dev.base_addr) {
-		KL_LOGE("%s base addr error\n", __func__);
 		ret = -ENOMEM;
 		goto destroy_device;
 	}
 
 	ret = aml_mkl_get_dts_info(&aml_mkl_dev, pdev);
 	if (ret != 0) {
-		KL_LOGE("%s: cannot find match dts info\n", __func__);
 		ret = -EINVAL;
 		goto destroy_device;
 	}
@@ -880,7 +872,6 @@ static int aml_mkl_probe(struct platform_device *pdev)
 
 	aml_mkl_class = class_create(AML_MKL_DEVICE_NAME);
 	if (IS_ERR(aml_mkl_class)) {
-		KL_LOGE("class_create failed\n");
 		ret = PTR_ERR(aml_mkl_class);
 		return ret;
 	}

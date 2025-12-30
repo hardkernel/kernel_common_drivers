@@ -24,7 +24,7 @@ extern u32 old_kt_log_level;
 #define KT_LOGD(fmt, ...)                                                   \
 	do {                                                             \
 		if (kt_log_level <= LOG_DEBUG)                               \
-			pr_info(GREEN_COLOR "[%s][%d]" NORMAL_COLOR  \
+			pr_debug(GREEN_COLOR "[%s][%d]" NORMAL_COLOR  \
 						" " fmt,                     \
 				__func__, __LINE__, ##__VA_ARGS__); \
 	} while (0)
@@ -47,7 +47,7 @@ extern u32 old_kt_log_level;
 #define KL_LOGD(fmt, ...)                                                   \
 	do {                                                             \
 		if (kl_log_level <= LOG_DEBUG)                               \
-			pr_info(GREEN_COLOR "[%s][%d]" NORMAL_COLOR  \
+			pr_debug(GREEN_COLOR "[%s][%d]" NORMAL_COLOR  \
 						" " fmt,                     \
 				__func__, __LINE__, ##__VA_ARGS__); \
 	} while (0)

@@ -113,7 +113,6 @@ static int aml_kt_init_dbgfs(void)
 	if (!aml_kt_debug_dent) {
 		aml_kt_debug_dent = debugfs_create_dir("aml_kt", NULL);
 		if (!aml_kt_debug_dent) {
-			KT_LOGE("can not create debugfs directory\n");
 			return -ENOMEM;
 		}
 
@@ -344,7 +343,6 @@ int aml_kt_alloc(struct aml_kt_dev *dev, u32 flag, u32 *handle)
 			dev->kt_iv_slot[entry] = kzalloc(sizeof(*dev->kt_iv_slot[entry]),
 				GFP_KERNEL);
 			if (!dev->kt_iv_slot[entry]) {
-				KT_LOGE("Error: KT ive kzalloc failed\n");
 				res = KT_ERROR;
 				goto exit;
 			}
@@ -359,7 +357,6 @@ int aml_kt_alloc(struct aml_kt_dev *dev, u32 flag, u32 *handle)
 			dev->kt_slot[entry] = kzalloc(sizeof(*dev->kt_slot[entry]),
 				GFP_KERNEL);
 			if (!dev->kt_slot[entry]) {
-				KT_LOGE("Error: KT kte kzalloc failed\n");
 				res = KT_ERROR;
 				goto exit;
 			}
@@ -369,7 +366,6 @@ int aml_kt_alloc(struct aml_kt_dev *dev, u32 flag, u32 *handle)
 
 	if (entry < entry_end) {
 		*handle = entry | (is_iv << KT_IV_FLAG_OFFSET);
-		KT_LOGI("flag:%#x, is_iv:%d, handle:%#x\n", flag, is_iv, *handle);
 		res = KT_SUCCESS;
 	} else {
 		KT_LOGE("Error: KT alloc return error, no kte/ive available\n");
@@ -414,7 +410,6 @@ int aml_kt_config(struct aml_kt_dev *dev, struct amlkt_cfg_param key_cfg)
 		}
 	}
 
-	KT_LOGD("--------------------------------------------------------------\n");
 	KT_LOGD("flag:%d, algo:%d, uid:%d, src:%d\n", key_cfg.key_flag, key_cfg.key_algo,
 	     key_cfg.key_userid, key_cfg.key_source);
 
@@ -1004,45 +999,38 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case AML_KT_ALLOC:
 		memset(&alloc_param, 0, sizeof(alloc_param));
 		if (copy_from_user(&alloc_param, (void __user *)arg, sizeof(alloc_param))) {
-			KT_LOGE("aml_kt_alloc copy_from_user error\n");
 			return -EFAULT;
 		}
 
 		ret = aml_kt_alloc(dev, alloc_param.flag, &alloc_param.handle);
 		if (ret != 0) {
-			KT_LOGE("aml_kt_alloc failed retval=0x%08x\n", ret);
 			return -EFAULT;
 		}
 
 		ret = copy_to_user((void __user *)arg, &alloc_param, sizeof(alloc_param));
 		if (unlikely(ret)) {
-			KT_LOGE("aml_kt_alloc copy_to_user error\n");
 			return -EFAULT;
 		}
 		break;
 	case AML_KT_CONFIG:
 		memset(&cfg_param, 0, sizeof(cfg_param));
 		if (copy_from_user(&cfg_param, (void __user *)arg, sizeof(cfg_param))) {
-			KT_LOGE("aml_kt_config copy_from_user error\n");
 			return -EFAULT;
 		}
 
 		ret = aml_kt_config(dev, cfg_param);
 		if (ret != 0) {
-			KT_LOGE("aml_kt_config failed retval=0x%08x\n", ret);
 			return -EFAULT;
 		}
 		break;
 	case AML_KT_SET:
 		memset(&key_param, 0, sizeof(key_param));
 		if (copy_from_user(&key_param, (void __user *)arg, sizeof(key_param))) {
-			KT_LOGE("aml_kt_set_host_key copy_from_user error\n");
 			return -EFAULT;
 		}
 
 		ret = aml_kt_set_host_key(dev, &key_param);
 		if (ret != 0) {
-			KT_LOGE("aml_kt_set failed retval=0x%08x\n", ret);
 			return -EFAULT;
 		}
 		break;
@@ -1075,7 +1063,6 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case AML_KT_INVALIDATE:
 		ret = get_user(handle, (u32 __user *)arg);
 		if (unlikely(ret)) {
-			KT_LOGE("aml_kt_invalidate get_user error\n");
 			return ret;
 		}
 
@@ -1088,7 +1075,6 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case AML_KT_GET_FLAG:
 		memset(&flag_param, 0, sizeof(flag_param));
 		if (copy_from_user(&flag_param, (void __user *)arg, sizeof(flag_param))) {
-			KT_LOGE("aml_kt_get_status copy_from_user error\n");
 			return -EFAULT;
 		}
 
@@ -1103,7 +1089,6 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = copy_to_user((void __user *)arg, &flag_param,
 				   sizeof(flag_param));
 		if (unlikely(ret)) {
-			KT_LOGE("aml_kt_get_status copy_to_user error\n");
 			return -EFAULT;
 		}
 		break;
@@ -1168,7 +1153,6 @@ static int aml_kt_get_dts_info(struct aml_kt_dev *dev, struct platform_device *p
 		ret = of_property_read_u32(pdev->dev.of_node, "s17_cfg_offset",
 			&dev->reg.s17_cfg_offset);
 		if (ret) {
-			KT_LOGE("%s: not found 0x%x\n", "s17_cfg_offset", dev->reg.s17_cfg_offset);
 			return KT_ERROR;
 		}
 	}
@@ -1176,7 +1160,6 @@ static int aml_kt_get_dts_info(struct aml_kt_dev *dev, struct platform_device *p
 	/* Check reserved KTE */
 	ret = of_property_read_u32(pdev->dev.of_node, "kt_reserved", &dev->kt_reserved);
 	if (ret) {
-		KT_LOGE("%s: not found 0x%x\n", "kt_reserved", dev->kt_reserved);
 		return KT_ERROR;
 	}
 
@@ -1184,8 +1167,6 @@ static int aml_kt_get_dts_info(struct aml_kt_dev *dev, struct platform_device *p
 	ret = of_property_read_u32(pdev->dev.of_node, "kt_host_key_max_len",
 				   &dev->host_key_max_len);
 	if (ret) {
-		KT_LOGE("%s: not found 0x%x\n", "kt_host_key_max_len",
-			dev->host_key_max_len);
 		return KT_ERROR;
 	}
 
@@ -1201,7 +1182,6 @@ int aml_kt_init(struct class *aml_kt_class, struct platform_device *pdev)
 	ret = alloc_chrdev_region(&aml_kt_devt, 0, DEVICE_INSTANCES,
 				AML_KT_DEVICE_NAME);
 	if (ret < 0) {
-		KT_LOGE("%s device can't be allocated.\n", AML_KT_DEVICE_NAME);
 		return ret;
 	}
 
@@ -1216,21 +1196,18 @@ int aml_kt_init(struct class *aml_kt_class, struct platform_device *pdev)
 	device = device_create(aml_kt_class, NULL, aml_kt_devt, NULL,
 			       AML_KT_DEVICE_NAME);
 	if (IS_ERR(device)) {
-		KT_LOGE("device_create failed\n");
 		ret = PTR_ERR(device);
 		goto delete_cdev;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		KT_LOGE("%s: platform_get_resource is failed\n", __func__);
 		ret = -ENOMEM;
 		goto destroy_device;
 	}
 
 	aml_kt_dev.base_addr = devm_ioremap_resource(&pdev->dev, res);
 	if (!aml_kt_dev.base_addr) {
-		KT_LOGE("%s base addr error\n", __func__);
 		ret = -ENOMEM;
 		goto destroy_device;
 	}
@@ -1288,7 +1265,6 @@ static int aml_kt_probe(struct platform_device *pdev)
 
 	aml_kt_class = class_create(AML_KT_DEVICE_NAME);
 	if (IS_ERR(aml_kt_class)) {
-		KT_LOGE("class_create failed\n");
 		ret = PTR_ERR(aml_kt_class);
 		return ret;
 	}
@@ -1347,8 +1323,7 @@ int __init aml_seckey_kt_init(void)
 
 	err = platform_driver_register(&aml_kt_drv);
 	if (err) {
-		KT_LOGE("%s: failed to register driver, err %d.\n",
-				__func__, err);
+		KT_LOGE("aml_seckey_kt_init: failed, err %d.\n", err);
 		return err;
 	}
 

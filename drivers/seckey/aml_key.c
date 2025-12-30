@@ -49,7 +49,6 @@ static int aml_key_init_dbgfs(void)
 	if (!aml_key_debug_dent) {
 		aml_key_debug_dent = debugfs_create_dir("aml_key", NULL);
 		if (!aml_key_debug_dent) {
-			LOGE("can not create debugfs directory\n");
 			return -ENOMEM;
 		}
 
@@ -95,7 +94,7 @@ static int aml_key_config(struct aml_kt_dev *dev, struct key_config key_cfg)
 		key_cfg.key_userid = AML_KT_USER_M2M_ANY;
 		break;
 	default:
-		LOGE("%s, %d invalid user id\n", __func__, __LINE__);
+		LOGE("aml_key_config invalid user id\n");
 		ret = KT_ERROR;
 		return ret;
 	}
@@ -132,7 +131,7 @@ static int aml_key_config(struct aml_kt_dev *dev, struct key_config key_cfg)
 		key_cfg.key_algo = AML_KT_ALGO_MULTI2;
 		break;
 	default:
-		LOGE("%s, %d invalid algo\n", __func__, __LINE__);
+		LOGE("aml_key_config invalid algo\n");
 		ret = KT_ERROR;
 		return ret;
 	}
@@ -254,7 +253,6 @@ static long aml_key_ioctl(struct file *filp, unsigned int cmd,
 		memset(&alloc_param, 0, sizeof(alloc_param));
 		if (copy_from_user(&alloc_param, (void __user *)arg,
 				   sizeof(alloc_param))) {
-			LOGE("aml_key_alloc copy_from_user error\n");
 			return -EFAULT;
 		}
 
@@ -262,14 +260,12 @@ static long aml_key_ioctl(struct file *filp, unsigned int cmd,
 			flag = AML_KT_ALLOC_FLAG_IV;
 		ret = aml_kt_alloc(&aml_kt_dev, flag, &alloc_param.key_index);
 		if (ret != 0) {
-			LOGE("aml_key_alloc failed retval=0x%08x\n", ret);
 			return -EFAULT;
 		}
 
 		ret = copy_to_user((void __user *)arg, &alloc_param,
 				   sizeof(alloc_param));
 		if (unlikely(ret)) {
-			LOGE("aml_key_alloc copy_to_user error\n");
 			return -EFAULT;
 		}
 		break;
@@ -277,13 +273,11 @@ static long aml_key_ioctl(struct file *filp, unsigned int cmd,
 		memset(&cfg_param, 0, sizeof(cfg_param));
 		if (copy_from_user(&cfg_param, (void __user *)arg,
 				   sizeof(cfg_param))) {
-			LOGE("aml_key_config copy_from_user error\n");
 			return -EFAULT;
 		}
 
 		ret = aml_key_config(&aml_kt_dev, cfg_param);
 		if (ret != 0) {
-			LOGE("aml_key_config failed retval=0x%08x\n", ret);
 			return -EFAULT;
 		}
 		break;
@@ -291,7 +285,6 @@ static long aml_key_ioctl(struct file *filp, unsigned int cmd,
 		memset(&key_param, 0, sizeof(key_param));
 		if (copy_from_user(&key_param, (void __user *)arg,
 				   sizeof(key_param))) {
-			LOGE("aml_key_set_host_key copy_from_user error\n");
 			return -EFAULT;
 		}
 
@@ -318,7 +311,6 @@ static long aml_key_ioctl(struct file *filp, unsigned int cmd,
 		memset(&key_param, 0, sizeof(key_param));
 		if (copy_from_user(&key_param, (void __user *)arg,
 				   sizeof(key_param))) {
-			LOGE("aml_kt_get_status copy_from_user error\n");
 			return -EFAULT;
 		}
 
@@ -333,7 +325,6 @@ static long aml_key_ioctl(struct file *filp, unsigned int cmd,
 		ret = copy_to_user((void __user *)arg, &key_param,
 				   sizeof(key_param));
 		if (unlikely(ret)) {
-			LOGE("aml_kt_get_status copy_to_user error\n");
 			return -EFAULT;
 		}
 		break;
@@ -375,7 +366,6 @@ int aml_key_init(struct class *aml_key_class)
 	device = device_create(aml_key_class, NULL, aml_key_devt, NULL,
 			       AML_KEY_DEVICE_NAME);
 	if (IS_ERR(device)) {
-		LOGE("device_create failed\n");
 		ret = PTR_ERR(device);
 		goto delete_cdev;
 	}
@@ -405,7 +395,6 @@ int __init aml_key_driver_init(void)
 
 	aml_key_class = class_create(AML_KEY_DEVICE_NAME);
 	if (IS_ERR(aml_key_class)) {
-		LOGE("class_create failed\n");
 		ret = PTR_ERR(aml_key_class);
 		return ret;
 	}
