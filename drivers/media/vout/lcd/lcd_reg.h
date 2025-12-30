@@ -113,6 +113,8 @@ struct reg_name_set_s {
 #define PADCTRL_PIN_MUX_REGN                       0x0017
 #define PADCTRL_PIN_MUX_REGO                       0x0018
 
+#define PADCTRL_GPIOH_I                            0x0048
+
 /* HIU:  HHI_CBUS_BASE = 0x10 */
 #define HHI_VIID_PLL_CNTL4                         0x46
 #define HHI_VIID_PLL_CNTL                          0x47
@@ -1885,6 +1887,8 @@ void lcd_cbus_setb(unsigned int reg, unsigned int value,
 unsigned int lcd_periphs_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
 void lcd_periphs_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 		       unsigned int value);
+unsigned int lcd_periphs_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
+			      unsigned int start, unsigned int len);
 
 unsigned int dsi_host_read(struct aml_lcd_drv_s *pdrv, u8 port, unsigned int reg);
 void dsi_host_write(struct aml_lcd_drv_s *pdrv, u8 port, unsigned int reg, unsigned int value);

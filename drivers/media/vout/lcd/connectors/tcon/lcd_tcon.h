@@ -72,6 +72,7 @@ struct tcon_core_reg_info_s {
 
 struct lcd_tcon_config_s {
 	unsigned char tcon_valid;
+	unsigned int chip_type;
 	unsigned int core_reg_ver;
 	unsigned int core_reg_width;
 	unsigned int reg_table_width;
@@ -104,6 +105,7 @@ struct lcd_tcon_config_s {
 	int (*tcon_top_init)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_enable)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_disable)(struct aml_lcd_drv_s *pdrv);
+	int (*tcon_lock_get_status)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_check)(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
 			struct tcon_core_reg_info_s *core_reg_info, char *ferr_str, char *warn_str);
 
@@ -335,6 +337,8 @@ void lcd_tcon_fw_update_core(struct lcd_tcon_fw_s *fw);
  * **********************************
  */
 /* internal */
+int tcon_get_lock_status_t5m(struct aml_lcd_drv_s *pdrv);
+int tcon_get_lock_status_t6w(struct aml_lcd_drv_s *pdrv);
 int tcon_lut_dma_get_frame_cnt(struct aml_lcd_drv_s *pdrv);
 int tcon_lut_dma_get_frame_cnt_t6w(struct aml_lcd_drv_s *pdrv);
 void tcon_lut_dma_start(struct aml_lcd_drv_s *pdrv);
@@ -428,6 +432,8 @@ int lcd_tcon_set_table32_reg(struct tcon_core_reg_info_s *core_reg_info,
 		unsigned int reg, unsigned int val);
 int lcd_tcon_setb_table32_reg(struct tcon_core_reg_info_s *core_reg_info,
 		unsigned int reg, unsigned int val, unsigned int start, unsigned int len);
+
+int lcd_tcon_lock_status_get(struct aml_lcd_drv_s *pdrv);
 
 /*
  * mode: 0-normal mode, 1-fix mode

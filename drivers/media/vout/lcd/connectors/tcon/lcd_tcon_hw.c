@@ -29,6 +29,16 @@ struct lcd_tcon_dma_info_s {
 	struct list_head list;
 };
 
+int tcon_get_lock_status_t5m(struct aml_lcd_drv_s *pdrv)
+{
+	return lcd_periphs_getb(pdrv, PADCTRL_GPIOH_I, 0, 1);
+}
+
+int tcon_get_lock_status_t6w(struct aml_lcd_drv_s *pdrv)
+{
+	return lcd_tcon_getb(pdrv, 0x4c8, 3, 1);
+}
+
 int tcon_lut_dma_get_frame_cnt(struct aml_lcd_drv_s *pdrv)
 {
 	return lcd_vcbus_getb(VPU_DMA_RDMIF7_CTRL, 28, 2);

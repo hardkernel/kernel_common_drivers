@@ -391,6 +391,33 @@ static int lcd_tcon_mm_table_print(struct tcon_mem_map_table_s *mm_table,
 	return len;
 }
 
+static int lcd_tcon_lut_valid_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
+	int len = 0, n;
+
+	if (!mm_table)
+		return len;
+
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n,
+		"lut_valid:\n"
+		"acc:    %d\n"
+		"od:     %d\n"
+		"lod:    %d\n"
+		"vac:    %d\n"
+		"demura: %d\n"
+		"dither: %d\n",
+		!!(mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_ACC),
+		!!(mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_OD),
+		!!(mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_LOD),
+		!!(mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_VAC),
+		!!(mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_DEMURA),
+		!!(mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_DITHER));
+
+	return len;
+}
+
 int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
@@ -514,25 +541,13 @@ int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	}
 
 	n = lcd_debug_info_len(len + offset);
-	len += snprintf((buf + len), n,
-		"\nlut_valid:\n"
-		"acc:    %d\n"
-		"od:     %d\n"
-		"lod:    %d\n"
-		"vac:    %d\n"
-		"demura: %d\n"
-		"dither: %d\n",
-		!!(mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_ACC),
-		!!(mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_OD),
-		!!(mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_LOD),
-		!!(mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_VAC),
-		!!(mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_DEMURA),
-		!!(mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_DITHER));
+	len += snprintf((buf + len), n, "\n");
+	len += lcd_tcon_lut_valid_print(pdrv, buf + len, len + offset);
 
 	return len;
 }
 
-static void lcd_tcon_lut_status_print(struct lcd_tcon_ctrl_s *tcon_ctrl, char *lut_str)
+static void lcd_tcon_lut_ctrl_status_print(struct lcd_tcon_ctrl_s *tcon_ctrl, char *lut_str)
 {
 	pr_info("%s:\n"
 		"acc:    %d\n"
@@ -788,14 +803,14 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 			ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
 			if (ret)
 				goto lcd_tcon_debug_store_err;
-			lcd_tcon_lut_status_print(&tcon_ctrl, "lut_valid");
+			lcd_tcon_lut_ctrl_status_print(&tcon_ctrl, "lut_valid");
 
 			tcon_ctrl.ctrl_val = 0;
 			tcon_ctrl.ctrl_type = TCON_FW_CTRL_LUT_MULTI_GET;
 			ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
 			if (ret)
 				goto lcd_tcon_debug_store_err;
-			lcd_tcon_lut_status_print(&tcon_ctrl, "lut_multi");
+			lcd_tcon_lut_ctrl_status_print(&tcon_ctrl, "lut_multi");
 			goto lcd_tcon_debug_store_end;
 		}
 		if (strcmp(parm[1], "demo") == 0) {
@@ -806,7 +821,7 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 				ret = tcon_fw->cmd_handler(tcon_fw, FWCMD_TCON_CTRL, &tcon_ctrl);
 				if (ret)
 					goto lcd_tcon_debug_store_err;
-				lcd_tcon_lut_status_print(&tcon_ctrl, "lut_demo");
+				lcd_tcon_lut_ctrl_status_print(&tcon_ctrl, "lut_demo");
 				goto lcd_tcon_debug_store_end;
 			}
 			if (strcmp(parm[2], "acc") == 0)
@@ -1066,8 +1081,16 @@ lcd_tcon_debug_store_err:
 ssize_t lcd_tcon_status_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	int len = 0;
 
-	return sprintf(buf, "0x%x\n", pdrv->tcon_status);
+	if (!pdrv->curr_dev)
+		return sprintf(buf, "[%d]: no curr_dev\n", pdrv->index);
+
+	if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_P2P)
+		len += sprintf(buf + len, "p2p_lock: %d\n", lcd_tcon_lock_status_get(pdrv));
+	len += lcd_tcon_lut_valid_print(pdrv, buf + len, len);
+
+	return len;
 }
 
 ssize_t lcd_tcon_reg_debug_show(struct device *dev, struct device_attribute *attr, char *buf)

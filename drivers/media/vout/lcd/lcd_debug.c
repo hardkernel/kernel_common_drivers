@@ -2531,6 +2531,11 @@ static ssize_t lcd_debug_test_store(struct device *dev, struct device_attribute 
 		val[0] = ptiming->v_period_min;
 		val[1] = ptiming->v_period_max;
 		if (parm[1]) {
+			if (strcmp(parm[1], "reset") == 0) {
+				lcd_venc_vrr_recovery(pdrv);
+				LCDPR("[%d]: %s: vrr test recovery\n", pdrv->index, __func__);
+				goto lcd_debug_test_store_end;
+			}
 			if (kstrtou32(parm[1], 10, &step))
 				goto lcd_debug_test_store_err;
 		}
@@ -2568,13 +2573,15 @@ static ssize_t lcd_debug_test_store(struct device *dev, struct device_attribute 
 		if (step == 0) {
 			pdrv->vrr_test.test_en = 0;
 		} else {
-			pdrv->vrr_test.test_en = 1;
 			pdrv->vrr_test.step = step;
 			pdrv->vrr_test.step_dly = dly;
 			pdrv->vrr_test.test_pattern = temp;
 			pdrv->vrr_test.vtotal_min = val[0];
 			pdrv->vrr_test.vtotal_max = val[1];
-			lcd_queue_work(&pdrv->vrr_test_work);
+			if (pdrv->vrr_test.test_en == 0) {
+				pdrv->vrr_test.test_en = 1;
+				lcd_queue_work(&pdrv->vrr_test_work);
+			}
 		}
 	} else {
 		ret = kstrtouint(buf, 10, &temp);
@@ -2596,6 +2603,7 @@ static ssize_t lcd_debug_test_store(struct device *dev, struct device_attribute 
 		LCD_PR(pdrv, ": %s: %d %s", __func__, temp, ret ? "failed" : "successfully");
 	}
 
+lcd_debug_test_store_end:
 	kfree(buf_orig);
 	kfree(parm);
 	return count;
@@ -4987,6 +4995,7 @@ static struct device_attribute lcd_debug_attrs_mlvds[] = {
 	__ATTR(mlvds,  0644, lcd_mlvds_debug_show, lcd_mlvds_debug_store),
 	__ATTR(phy,    0644, lcd_phy_debug_show, lcd_phy_debug_store),
 	__ATTR(dphy,   0200, NULL, lcd_dphy_debug_store),
+	__ATTR(status, 0444, lcd_tcon_status_show, NULL),
 	__ATTR(tcon,   0644, lcd_tcon_debug_show, lcd_tcon_debug_store),
 	__ATTR(tcon_status,   0444, lcd_tcon_status_show, NULL),
 	__ATTR(tcon_reg,   0644, lcd_tcon_reg_debug_show, lcd_tcon_reg_debug_store),
@@ -5002,6 +5011,7 @@ static struct device_attribute lcd_debug_attrs_p2p[] = {
 	__ATTR(p2p,    0644, lcd_p2p_debug_show, lcd_p2p_debug_store),
 	__ATTR(phy,    0644, lcd_phy_debug_show, lcd_phy_debug_store),
 	__ATTR(dphy,   0200, NULL, lcd_dphy_debug_store),
+	__ATTR(status, 0444, lcd_tcon_status_show, NULL),
 	__ATTR(tcon,   0644, lcd_tcon_debug_show, lcd_tcon_debug_store),
 	__ATTR(tcon_status,   0444, lcd_tcon_status_show, NULL),
 	__ATTR(tcon_reg,   0644, lcd_tcon_reg_debug_show, lcd_tcon_reg_debug_store),

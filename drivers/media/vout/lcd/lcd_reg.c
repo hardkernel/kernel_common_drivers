@@ -675,6 +675,24 @@ void lcd_periphs_write(struct aml_lcd_drv_s *pdrv,
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 };
 
+unsigned int lcd_periphs_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
+			      unsigned int start, unsigned int len)
+{
+	void __iomem *p;
+	unsigned int temp = 0;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_reg_spinlock, flags);
+	p = check_lcd_periphs_reg(pdrv, reg);
+	if (p) {
+		temp = readl(p);
+		temp = (temp >> start) & ((1L << len) - 1);
+	}
+	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
+
+	return temp;
+};
+
 unsigned int dsi_host_read(struct aml_lcd_drv_s *pdrv, u8 port, unsigned int reg)
 {
 	void __iomem *p;

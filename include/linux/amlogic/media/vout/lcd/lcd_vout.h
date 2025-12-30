@@ -1016,7 +1016,6 @@ struct aml_lcd_drv_s {
 	unsigned int fr_auto_policy;
 	unsigned int fr_mode;
 	unsigned int fr_duration;
-	unsigned int tcon_status;
 	unsigned int vsync_cnt;
 	unsigned int vsync_cnt_previous;
 	unsigned int vsync_test[8];

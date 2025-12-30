@@ -935,6 +935,20 @@ int lcd_tcon_top_init(struct aml_lcd_drv_s *pdrv)
 	return ret;
 }
 
+int lcd_tcon_lock_status_get(struct aml_lcd_drv_s *pdrv)
+{
+	int ret = lcd_tcon_valid_check();
+
+	if (ret)
+		return ret;
+
+	ret = -1;
+	if (lcd_tcon_conf->tcon_lock_get_status)
+		ret = lcd_tcon_conf->tcon_lock_get_status(pdrv);
+
+	return ret;
+}
+
 void lcd_tcon_dbg_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming)
 {
 	int ret;
@@ -3113,7 +3127,6 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 
 	lcd_tcon_rdma_init(pdrv);
 
-	pdrv->tcon_status = tcon_mm_table.lut_valid_flag;
 	tcon_mm_table.multi_lut_update = 1;
 	if (pdrv->status & LCD_STATUS_IF_ON)
 		pdrv->status |= LCD_STATUS_TCON_RDY;
@@ -3277,6 +3290,7 @@ static struct lcd_tcon_dma_ops_s lcd_tcon_dma_ops_t6x = {
 
 static struct lcd_tcon_config_s tcon_data_t5d = {
 	.tcon_valid = 0,
+	.chip_type = TCON_CHIP_T5D,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5D,
@@ -3308,11 +3322,13 @@ static struct lcd_tcon_config_s tcon_data_t5d = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
+	.tcon_lock_get_status = NULL,
 	.tcon_check = lcd_tcon_setting_check_t5d,
 };
 
 static struct lcd_tcon_config_s tcon_data_t3 = {
 	.tcon_valid = 0,
+	.chip_type = TCON_CHIP_T3,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5,
@@ -3347,11 +3363,13 @@ static struct lcd_tcon_config_s tcon_data_t3 = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
+	.tcon_lock_get_status = NULL,
 	.tcon_check = lcd_tcon_setting_check_t5,
 };
 
 static struct lcd_tcon_config_s tcon_data_t5w = {
 	.tcon_valid = 0,
+	.chip_type = TCON_CHIP_T5W,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5,
@@ -3386,11 +3404,13 @@ static struct lcd_tcon_config_s tcon_data_t5w = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
+	.tcon_lock_get_status = NULL,
 	.tcon_check = lcd_tcon_setting_check_t5,
 };
 
 static struct lcd_tcon_config_s tcon_data_t5m = {
 	.tcon_valid = 0,
+	.chip_type = TCON_CHIP_T5M,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5,
@@ -3425,11 +3445,13 @@ static struct lcd_tcon_config_s tcon_data_t5m = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
+	.tcon_lock_get_status = tcon_get_lock_status_t5m,
 	.tcon_check = lcd_tcon_setting_check_t5,
 };
 
 static struct lcd_tcon_config_s tcon_data_t3x = {
 	.tcon_valid = 0,
+	.chip_type = TCON_CHIP_T3X,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5,
@@ -3464,11 +3486,13 @@ static struct lcd_tcon_config_s tcon_data_t3x = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
+	.tcon_lock_get_status = tcon_get_lock_status_t5m,
 	.tcon_check = lcd_tcon_setting_check_t5,
 };
 
 static struct lcd_tcon_config_s tcon_data_txhd2 = {
 	.tcon_valid = 0,
+	.chip_type = TCON_CHIP_TXHD2,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5D,
@@ -3499,11 +3523,13 @@ static struct lcd_tcon_config_s tcon_data_txhd2 = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_txhd2,
+	.tcon_lock_get_status = NULL,
 	.tcon_check = lcd_tcon_setting_check_t5d,
 };
 
 static struct lcd_tcon_config_s tcon_data_t6d = {
 	.tcon_valid = 0,
+	.chip_type = TCON_CHIP_T6D,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5D,
@@ -3534,11 +3560,13 @@ static struct lcd_tcon_config_s tcon_data_t6d = {
 	.tcon_top_init = lcd_tcon_top_set_t6d,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_txhd2,
+	.tcon_lock_get_status = NULL,
 	.tcon_check = lcd_tcon_setting_check_t5d,
 };
 
 static struct lcd_tcon_config_s tcon_data_t6w = {
 	.tcon_valid = 0,
+	.chip_type = TCON_CHIP_T6W,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5,
@@ -3575,11 +3603,13 @@ static struct lcd_tcon_config_s tcon_data_t6w = {
 	.tcon_top_init = lcd_tcon_top_set_t6d,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
+	.tcon_lock_get_status = tcon_get_lock_status_t6w,
 	.tcon_check = lcd_tcon_setting_check_t5,
 };
 
 static struct lcd_tcon_config_s tcon_data_t6x = {
 	.tcon_valid = 0,
+	.chip_type = TCON_CHIP_T6X,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5,
@@ -3616,6 +3646,7 @@ static struct lcd_tcon_config_s tcon_data_t6x = {
 	.tcon_top_init = lcd_tcon_top_set_t6d,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
+	.tcon_lock_get_status = tcon_get_lock_status_t6w,
 	.tcon_check = lcd_tcon_setting_check_t5,
 };
 

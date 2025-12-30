@@ -24,7 +24,7 @@
 		clocks = <&clkc CLKID_SYS_CLK_TCON>, <&clkc CLKID_CTS_TCON_PLL_CLK>;
 		clock-names = "tcon_gate", "clk_tcon";
 		reg = <0xfe3b0000 0xd000   /* tcon */
-			0xfe004000 0x70    /* periphs */
+			0xfe004000 0x140    /* periphs */
 			0xfe002000 0xa0>;  /* reset */
 		interrupts = <0 197 1
 			0 194 1

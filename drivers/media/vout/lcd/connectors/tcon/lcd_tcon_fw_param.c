@@ -513,37 +513,7 @@ void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *t
 	if (!pdrv || !pdrv->data || !tcon_conf || !tcon_rmem)
 		return;
 
-	switch (pdrv->data->chip_type) {
-	case LCD_CHIP_T5D:
-		lcd_tcon_fw.config->chip_type = TCON_CHIP_T5D;
-		break;
-	case LCD_CHIP_T3:
-		lcd_tcon_fw.config->chip_type = TCON_CHIP_T3;
-		break;
-	case LCD_CHIP_T5W:
-		lcd_tcon_fw.config->chip_type = TCON_CHIP_T5W;
-		break;
-	case LCD_CHIP_T5M:
-		lcd_tcon_fw.config->chip_type = TCON_CHIP_T5M;
-		break;
-	case LCD_CHIP_T3X:
-		lcd_tcon_fw.config->chip_type = TCON_CHIP_T3X;
-		break;
-	case LCD_CHIP_TXHD2:
-		lcd_tcon_fw.config->chip_type = TCON_CHIP_TXHD2;
-		break;
-	case LCD_CHIP_T6D:
-		lcd_tcon_fw.config->chip_type = TCON_CHIP_T6D;
-		break;
-	case LCD_CHIP_T6W:
-		lcd_tcon_fw.config->chip_type = TCON_CHIP_T6W;
-		break;
-	case LCD_CHIP_T6X:
-		lcd_tcon_fw.config->chip_type = TCON_CHIP_T6X;
-		break;
-	default:
-		break;
-	}
+	lcd_tcon_fw.config->chip_type = tcon_conf->chip_type;
 	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
 	case LCD_MLVDS:
 		lcd_tcon_fw.config->if_type = TCON_IF_MLVDS;
