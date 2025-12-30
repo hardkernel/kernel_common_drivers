@@ -482,6 +482,7 @@ static bool eltest_flag;
 module_param(eltest_flag, bool, 0644);
 MODULE_PARM_DESC(eltest_flag, "0 or 1");
 
+#ifdef CRG_UDC_DEBUG
 #define xdebug(fmt...)					\
 do {									\
 	if (crg_udc_xfer_debug)					\
@@ -499,6 +500,11 @@ do {									\
 	if (crg_udc_portsc_debug)					\
 		pr_err(fmt);			\
 } while (0)
+#else
+#define xdebug(fmt...)
+#define CRG_DEBUG(fmt...) ((void)0)
+#define pdebug(fmt...)
+#endif
 
 #define CRG_ERROR(fmt...) pr_err(fmt)
 int crg_rewrite_otg_write_UDC(void);
