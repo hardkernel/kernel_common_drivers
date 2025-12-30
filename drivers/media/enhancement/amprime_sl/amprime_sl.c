@@ -115,7 +115,6 @@ static u32 prime_sl_hdr_mode = PRIME_SL_HDR_MODE_BYPASS_2020;
 static u32 prime_sl_certification_mode; /* 0:off, 1:on */
 static u32 prime_sl_encode_type; /* 0:HEVC, 1:AVC */
 static bool is_prime_sl_frame;/* 0:no, 1:yes */
-static u32 ampsl_display_counts;
 static u32 ampsl_dpss_display_counts;
 
 void *prime_sl_reg_setting_buf;
@@ -321,14 +320,12 @@ EXPORT_SYMBOL(is_prime_sl_on);
 
 bool get_prime_sl_frame(void)
 {
-	pr_sl(1, "%s:%d\n", __func__, is_prime_sl_frame);
 	return is_prime_sl_frame;
 }
 EXPORT_SYMBOL(get_prime_sl_frame);
 
 void set_prime_sl_frame(bool val)
 {
-	pr_sl(1, "%s:%d\n", __func__, val);
 	is_prime_sl_frame = val;
 }
 EXPORT_SYMBOL(set_prime_sl_frame);
@@ -566,18 +563,12 @@ static int loadbuffer(struct sei_parser_s *p, u32 *bytes)
 	if (loadbyte(p, &byte))
 		return -4;
 	*bytes |= byte;
-	pr_sl(0x40, "%s bytes:%x, readbytes:%d\n",
-		__func__, *bytes, p->readbytes);
 	return 0;
 }
 
 static int readbits(struct sei_parser_s *p, int bits)
 {
 	int value = 0;
-
-	pr_sl(0x40, "%s e bits:%d, cur:%x, next:%x, rdbytes:%d, rdbits:%d\n",
-		__func__, bits, p->cur_bytes, p->next_bytes,
-		p->readbytes, p->readbits);
 
 	p->readbits += bits;
 
@@ -593,9 +584,6 @@ static int readbits(struct sei_parser_s *p, int bits)
 		p->cur_bytes <<= p->readbits;
 	}
 
-	pr_sl(0x40, "%s x value:%x, cur:%x, next:%x, rdbytes:%d, rdbits:%d\n",
-		__func__, value, p->cur_bytes, p->next_bytes,
-		p->readbytes, p->readbits);
 	return value;
 }
 
@@ -718,7 +706,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		pr_sl(2, "Invalid itu_t_t35_country_code:%x\n", m);
 		return is_parser_success(p) ? 0 : -1;
 	}
-	pr_sl(0x20, "itu_t_t35_country_code:%x\n", m);
 
 	/* terminal_provider_code */
 	m = readU(p, 16);
@@ -726,7 +713,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		pr_sl(2, "Invalid terminal_provider_code:%x\n", m);
 		return is_parser_success(p) ? 0 : -2;
 	}
-	pr_sl(0x20, "terminal_provider_code:%x\n", m);
 
 	/* terminal_provider_oriented_code_message_idc */
 	m = readU(p, 8);
@@ -735,7 +721,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		return -3;
 	}
 	prime_sl_encode_type = m;
-	pr_sl(0x20, "terminal_provider_oriented_code_message_idc:%d\n", m);
 
 	/* sl_hdr_mode_value_minus1 */
 	metadata->part_id = readU(p, 4) + 1;
@@ -744,7 +729,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 			metadata->part_id);
 		return -4;
 	}
-	pr_sl(0x20, "sl_hdr_mode_value_minus1(part_id):%d\n", metadata->part_id);
 
 	/* sl_hdr_spec_major_version_idc */
 	metadata->major_spec_version_id = readU(p, 4);
@@ -753,8 +737,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 			metadata->major_spec_version_id);
 		return -5;
 	}
-	pr_sl(0x20, "sl_hdr_spec_major_version_idc:%d\n",
-		metadata->major_spec_version_id);
 
 	/* sl_hdr_spec_minor_version_idc */
 	metadata->minor_spec_version_id = readU(p, 7);
@@ -767,7 +749,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		pr_sl(1, "Unsupported sl_hdr_cancel_flag:%d\n", m);
 		return -6;
 	}
-	pr_sl(0x20, "sl_hdr_cancel_flag:%d\n", m);
 
 	if (!prime_sl_encode_type) {
 		/* sl_hdr_persistence_flag */
@@ -777,7 +758,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 			pr_sl(1, "Unsupported sl_hdr_persistence_flag:%d\n", m);
 			return -7;
 		}
-		pr_sl(0x20, "sl_hdr_persistence_flag:%d\n", m);
 	} else {
 		/* sl_hdr_repetition_period */
 		pr_sl(1, "264 encode type:%d\n", m);
@@ -786,7 +766,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 			pr_sl(1, "Unsupported sl_hdr_repetition_period:%d\n", m);
 			return -7;
 		}
-		pr_sl(0x20, "sl_hdr_repetition_period:%d\n", m);
 	}
 
 	/* original_picture_info_present_flag */
@@ -824,7 +803,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 			metadata->payload_mode);
 		return -10;
 	}
-	pr_sl(0x20, "sl_hdr_payload_mode:%d\n", metadata->payload_mode);
 
 	/* target_picture_primaries */
 	m = readU(p, 8);
@@ -832,7 +810,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		pr_sl(1, "Invalid target_picture_primaries:%d\n", m);
 		return -11;
 	}
-	pr_sl(0x20, "target_picture_primaries:%d\n", m);
 	metadata->sdr_pic_colour_space = m == 1 ? 0 : 1;
 
 	/* target_picture_max_luminance */
@@ -842,8 +819,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 			metadata->sdr_display_max_luminance);
 		return -12;
 	}
-	pr_sl(0x20, "target_picture_max_luminance:%d\n",
-		metadata->sdr_display_max_luminance);
 
 	/* target_picture_min_luminance */
 	metadata->sdr_display_min_luminance = readU(p, 16);
@@ -852,12 +827,9 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 			metadata->sdr_display_min_luminance);
 		return -13;
 	}
-	pr_sl(0x20, "target_picture_max_luminance:%d\n",
-		metadata->sdr_display_min_luminance);
 
 	/* src_mdcv_primaries_x[0] */
 	m = readU(p, 16);
-	pr_sl(0x20, "src_mdcv_primaries_x[0]:%d\n", m);
 	if (m == 15000) {
 		/* 0.300 * 50000 */
 		metadata->hdr_display_colour_space = 0;
@@ -881,36 +853,27 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 
 	/* src_mdcv_primaries_y[0] */
 	m = readU(p, 16);
-	pr_sl(0x20, "src_mdcv_primaries_y[0]:%d\n", m);
 	/* src_mdcv_primaries_x[1] */
 	m = readU(p, 16);
-	pr_sl(0x20, "src_mdcv_primaries_x[1]:%d\n", m);
 	/* src_mdcv_primaries_y[1] */
 	m = readU(p, 16);
-	pr_sl(0x20, "src_mdcv_primaries_y[1]:%d\n", m);
 	/* src_mdcv_primaries_x[2] */
 	m = readU(p, 16);
-	pr_sl(0x20, "src_mdcv_primaries_x[2]:%d\n", m);
 	/* src_mdcv_primaries_y[2] */
 	m = readU(p, 16);
-	pr_sl(0x20, "src_mdcv_primaries_y[2]:%d\n", m);
 	/* src_mdcv_ref_white_x */
 	m = readU(p, 16);
-	pr_sl(0x20, "src_mdcv_ref_white_x:%d\n", m);
 	/* src_mdcv_ref_white_y */
 	m = readU(p, 16);
-	pr_sl(0x20, "src_mdcv_ref_white_y:%d\n", m);
 
 	/* src_mdcv_max_mastering_luminance */
 	m = readU(p, 16);
-	pr_sl(0x20, "src_mdcv_max_mastering_luminance:%d\n", m);
 	metadata->hdr_display_max_luminance = 50 * ((m + 25) / 50);
 	if (metadata->hdr_display_max_luminance > 10000)
 		metadata->hdr_display_max_luminance = 10000;
 
 	/* src_mdcv_min_mastering_luminance */
 	m = readU(p, 16);
-	pr_sl(0x20, "src_mdcv_min_mastering_luminance:%d\n", m);
 	metadata->hdr_display_min_luminance = (m + 5000) / 10000;
 
 	/* matrix_coefficient_value[i] */
@@ -921,8 +884,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 				i, metadata->matrix_coefficient[i]);
 			return -15;
 		}
-		pr_sl(0x20, "matrix_coefficient[%d]:%d\n",
-			i, metadata->matrix_coefficient[i]);
 	}
 
 	/* chroma_to_luma_injection[i] */
@@ -933,16 +894,11 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 				i, metadata->chroma_to_luma_injection[i]);
 			return -16;
 		}
-		pr_sl(0x20, "chroma_to_luma_injection[%d]:%d\n",
-			i, metadata->chroma_to_luma_injection[i]);
 	}
 
 	/* k_coefficient_value[i] */
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 3; i++)
 		metadata->kcoefficient[i] = readU(p, 8);
-		pr_sl(0x20, "kcoefficient[%d]:%d\n",
-			i, metadata->kcoefficient[i]);
-	}
 
 	if (metadata->kcoefficient[0] > 63 || metadata->kcoefficient[1] > 127) {
 		pr_sl(1, "Invalid kCoefficient[i]:%d %d %d\n",
@@ -955,29 +911,14 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 	if (!metadata->payload_mode) {
 		/* tone_mapping_input_signal_black_level_offset */
 		metadata->u.variables.tm_input_signal_blacklevel_offset = readU(p, 8);
-		pr_sl(0x20, "tone_mapping_input_signal_black_level_offset:%d\n",
-			metadata->u.variables.tm_input_signal_blacklevel_offset);
-
 		/* tone_mapping_input_signal_white_level_offset */
 		metadata->u.variables.tm_input_signal_whitelevel_offset = readU(p, 8);
-		pr_sl(0x20, "tone_mapping_input_signal_white_level_offset:%d\n",
-			metadata->u.variables.tm_input_signal_whitelevel_offset);
-
 		/* shadow_gain_control */
 		metadata->u.variables.shadow_gain = readU(p, 8);
-		pr_sl(0x20, "shadow_gain_control:%d\n",
-			metadata->u.variables.shadow_gain);
-
 		/* highlight_gain_control */
 		metadata->u.variables.highlight_gain = readU(p, 8);
-		pr_sl(0x20, "highlight_gain_control:%d\n",
-			metadata->u.variables.highlight_gain);
-
 		/* mid_tone_width_adjustment_factor */
 		metadata->u.variables.mid_tone_width_adj_factor = readU(p, 8);
-		pr_sl(0x20, "mid_tone_width_adjustment_factor:%d\n",
-			metadata->u.variables.mid_tone_width_adj_factor);
-
 		/* tone_mapping_output_fine_tuning_num_val */
 		metadata->u.variables.tm_output_finetuning_num_val = readU(p, 4);
 		if (metadata->u.variables.tm_output_finetuning_num_val > 10) {
@@ -985,9 +926,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 				metadata->u.variables.tm_output_finetuning_num_val);
 			return -18;
 		}
-		pr_sl(0x20, "tone_mapping_output_fine_tuning_num_val:%d\n",
-			metadata->u.variables.tm_output_finetuning_num_val);
-
 		/* saturation_gain_num_val */
 		metadata->u.variables.saturation_gain_num_val = readU(p, 4);
 		if (metadata->u.variables.saturation_gain_num_val > 6) {
@@ -995,32 +933,21 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 				metadata->u.variables.saturation_gain_num_val);
 			return -19;
 		}
-		pr_sl(0x20, "saturation_gain_num_val:%d\n",
-			metadata->u.variables.saturation_gain_num_val);
-
 		for (i = 0; i < metadata->u.variables.tm_output_finetuning_num_val; i++) {
 			/* tone_mapping_output_fine_tuning_x[i] */
 			metadata->u.variables.tm_output_finetuning_x[i] = readU(p, 8);
 			/* tone_mapping_output_fine_tuning_y[i] */
 			metadata->u.variables.tm_output_finetuning_y[i] = readU(p, 8);
-			pr_sl(0x20, "tone_mapping_output_fine_tuning x[%d]:%d, y[%d]:%d\n",
-				i, metadata->u.variables.tm_output_finetuning_x[i],
-				i, metadata->u.variables.tm_output_finetuning_y[i]);
 		}
 		for (i = 0; i < metadata->u.variables.saturation_gain_num_val; i++) {
 			/* saturation_gain_x[i] */
 			metadata->u.variables.saturation_gain_x[i] = readU(p, 8);
 			/* saturation_gain_y[i] */
 			metadata->u.variables.saturation_gain_y[i] = readU(p, 8);
-			pr_sl(0x20, "saturation_gain x[%d]:%d, y[%d]:%d\n",
-				i, metadata->u.variables.saturation_gain_x[i],
-				i, metadata->u.variables.saturation_gain_y[i]);
 		}
 	} else {
 		/* lm_uniform_sampling_flag */
 		m = readU(p, 1);
-		pr_sl(0x20, "lm_uniform_sampling_flag:%d\n", m);
-
 		/* luminance_mapping_num_val */
 		metadata->u.tables.luminance_mapping_num_val = readU(p, 7);
 		if (metadata->u.tables.luminance_mapping_num_val != 65) {
@@ -1028,8 +955,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 				metadata->u.tables.luminance_mapping_num_val);
 			return -20;
 		}
-		pr_sl(0x20, "luminance_mapping_num_val:%d\n",
-			metadata->u.tables.luminance_mapping_num_val);
 		for (i = 0; i < metadata->u.tables.luminance_mapping_num_val; i++) {
 			if (!m) {
 				/* luminance_mapping_x[i] */
@@ -1049,23 +974,15 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 					i, metadata->u.tables.luminance_mapping_y[i]);
 				return -22;
 			}
-			pr_sl(0x20, "luminance_mapping x[%d]:%d, y[%d]:%d\n",
-				i, metadata->u.tables.luminance_mapping_x[i],
-				i, metadata->u.tables.luminance_mapping_y[i]);
 		}
 		/* cc_uniform_sampling_flag */
 		m = readU(p, 1);
-		pr_sl(0x20, "cc_uniform_sampling_flag:%d\n", m);
-
 		/* colour_correction_num_val */
 		metadata->u.tables.colour_correction_num_val = readU(p, 7);
 		if (metadata->u.tables.colour_correction_num_val != 65) {
 			pr_sl(1, "Unsupported colour_correction_num_val\n");
 			return -23;
 		}
-		pr_sl(0x20, "colour_correction_num_val:%d\n",
-			metadata->u.tables.colour_correction_num_val);
-
 		for (i = 0; i < metadata->u.tables.colour_correction_num_val; i++) {
 			if (!m) {
 				/* colour_correction_x[i] */
@@ -1085,9 +1002,6 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 					i, metadata->u.tables.colour_correction_y[i]);
 				return -25;
 			}
-			pr_sl(0x20, "colour_correction x[%d]:%d, y[%d]:%d\n",
-				i, metadata->u.tables.colour_correction_x[i],
-				i, metadata->u.tables.colour_correction_y[i]);
 		}
 	}
 
@@ -1118,7 +1032,6 @@ static int parser_prime_sei(struct sei_parser_s *parser,
 		return ret;
 
 	if (*p == 0xB5	&& ((*(p + 1) << 8) | *(p + 2)) == PRIME_SL_T35_PROV_CODE) {
-		pr_sl(1, "start h264 ahdr metadata parser\n");
 		p_sei = p;
 		init_sei_parser(parser, p_sei, size - (p_sei - sei_buf));
 		ret = parser_metadata_from_sei(parser, true);
@@ -1138,9 +1051,6 @@ static int parser_prime_sei(struct sei_parser_s *parser,
 	    nal_unit_type != NAL_UNIT_SEI_SUFFIX)
 		return 0;
 
-	pr_sl(0x40, "%s enter: nal_unit_type:%x, sei_buf:%px, p:%px, size:%d\n",
-		__func__, nal_unit_type, sei_buf, p, size);
-
 	while (p + 4 <= sei_buf + size) {
 		payload_type = *p++;
 		payload_size = *p++;
@@ -1150,9 +1060,6 @@ static int parser_prime_sei(struct sei_parser_s *parser,
 			switch (payload_type) {
 			case SEI_ITU_T_T35:
 				p_sei = p;
-				pr_sl(0x20, "%s get: sei:%px, size:%d; p:%px, p_size:%d\n",
-					__func__, sei_buf, (u32)(size - (p_sei - sei_buf)),
-					p, payload_size);
 				init_sei_parser(parser, p_sei, size - (p_sei - sei_buf));
 				ret = parser_metadata_from_sei(parser, true);
 				if (ret < 0) {
@@ -1167,8 +1074,6 @@ static int parser_prime_sei(struct sei_parser_s *parser,
 		}
 		p += payload_size;
 	}
-	pr_sl(0x40, "%s exit: sei_buf:%px, p:%px, size:%d\n",
-		__func__, sei_buf, p, size);
 	return ret;
 }
 
@@ -1222,10 +1127,6 @@ static int prime_sl_parser_metadata(struct vframe_s *vf)
 		req.aux_buf = (char *)get_sei_from_src_fmt(vf, &size);
 		req.aux_size = size;
 		prime_sl_video = true;
-		if (vf)
-			pr_sl(1, "[%s]:index=%d,magic_code=%x,fmt=%d,sei_ptr=%p,sei_size=%d\n",
-				__func__, vf->frame_index, vf->src_fmt.sei_magic_code,
-				vf->src_fmt.fmt, vf->src_fmt.sei_ptr, vf->src_fmt.sei_size);
 		if (!req.aux_buf || !req.aux_size ||
 			!is_valid_prime_sl_metadata(req.aux_buf, req.aux_size)) {
 			set_prime_sl_frame(0);
@@ -1250,8 +1151,6 @@ static int prime_sl_parser_metadata(struct vframe_s *vf)
 	if (req.aux_buf && req.aux_size &&
 	    (prime_sl_debug & 0x10)) {
 		meta_buf = req.aux_buf;
-		pr_sl(0x10, "src_fmt = %d metadata(%px, %d):\n",
-			get_vframe_src_fmt(vf), req.aux_buf, req.aux_size);
 		for (i = 0; i < req.aux_size + 8; i += 8) {
 			len = req.aux_size - i;
 			if (len < 8) {
@@ -1300,8 +1199,6 @@ static int prime_sl_parser_metadata(struct vframe_s *vf)
 				break;
 			}
 			if (type == 0x02000000) {
-				pr_sl(0x20, "%s find sei: aux:%px, size:%d p:%px, sei size:%d\n",
-					__func__, req.aux_buf, req.aux_size, p, size);
 				iret = parser_prime_sei(parser, p, size);
 				if (iret) {
 					success = (iret > 0) ? true : false;
@@ -1311,8 +1208,6 @@ static int prime_sl_parser_metadata(struct vframe_s *vf)
 					break;
 				}
 			}
-			pr_sl(0x40, "%s parser one: type:%x p:%px, sei size:%d\n",
-				__func__, type, p, size);
 			count++;
 			offest += size;
 			p += size;
@@ -1343,18 +1238,13 @@ void prime_sl_pre_check(struct vframe_s *vf)
 			!is_valid_prime_sl_metadata(aux_buf, aux_size)) {
 			set_prime_sl_frame(0);
 			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
-			pr_sl(1, "update ahdr fmt in advanced as %d\n",
-				vf->src_fmt.fmt);
 		} else {
-			if (!get_prime_sl_frame()) {
+			if (!get_prime_sl_frame())
 				set_prime_sl_frame(1);
-				pr_sl(1, "ahdr fmt should update every vsync\n");
-			}
 		}
 	} else if (get_prime_sl_frame() && vf &&
 		vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_HDR10PRIME) {
 		set_prime_sl_frame(0);
-		pr_sl(1, "vd1 metadata loss frame\n");
 	}
 }
 EXPORT_SYMBOL(prime_sl_pre_check);
@@ -1400,7 +1290,6 @@ void prime_sl_process(struct vframe_s *vf)
 			if (prime_sl_running) {
 				prime_sl_close();
 				prime_sl_running = 0;
-				ampsl_display_counts = 0;
 			}
 			return;
 		}
@@ -1408,16 +1297,8 @@ void prime_sl_process(struct vframe_s *vf)
 		if (is_amdv_on())
 			return;
 
-		if (vf)
-			pr_sl
-			(1, "[%s]frame_index:%d,magic_code:%x,src_fmt:%d,sei_ptr:%p,sei_size:%d\n",
-				__func__, vf->frame_index, vf->src_fmt.sei_magic_code,
-				vf->src_fmt.fmt, vf->src_fmt.sei_ptr, vf->src_fmt.sei_size);
-
-		if (last_vf != vf && vf) {
+		if (last_vf != vf && vf)
 			new_vf = true;
-			ampsl_display_counts++;
-		}
 		last_vf = vf;
 
 		if (prime_sl_enable && p_funcs && new_vf) {
@@ -1432,7 +1313,6 @@ void prime_sl_process(struct vframe_s *vf)
 				}
 				prime_sl_set_reg(&prime_sl_setting.prime_sl);
 				prime_sl_running = 1;
-				pr_sl(1, "cur counts:%d\n", ampsl_display_counts);
 			} else {
 				if (prime_sl_running) {
 					prime_sl_close();
@@ -1445,7 +1325,6 @@ void prime_sl_process(struct vframe_s *vf)
 			prime_sl_close();
 			prime_sl_running = 0;
 			set_prime_sl_frame(0);
-			ampsl_display_counts = 0;
 			dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
 		}
 	}
@@ -1495,26 +1374,6 @@ void prime_sl_process_for_dpss(struct vframe_s *vf)
 		return;
 	}
 
-	/* load fixed txt setting mode */
-	if (prime_sl_debug_run_mode == 1) {
-		pr_sl(1, "use fixed txt setting mode\n");
-		if (vf) {
-			if (!prime_sl_running)
-				dv_mem_power_on(VPU_PRIME_DOLBY_RAM);
-			prime_sl_set_reg(&psl);
-			prime_sl_running = 1;
-		} else {
-			prime_sl_close();
-			prime_sl_running = 0;
-			set_prime_sl_frame(0);
-			dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
-		}
-		return;
-	}
-
-	if (!prime_sl_probe || !prime_sl_enable || !p_funcs)
-		return;
-
 	if (prime_sl_dpss_mode) {
 		if (vf && vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_HDR10PRIME) {
 			if (prime_sl_running) {
@@ -1524,12 +1383,6 @@ void prime_sl_process_for_dpss(struct vframe_s *vf)
 			}
 			return;
 		}
-
-		if (vf)
-			pr_sl
-			(1, "[%s]frame_index:%d,magic_code:%x,src_fmt:%d,sei_ptr:%p,sei_size:%d\n",
-				__func__, vf->frame_index, vf->src_fmt.sei_magic_code,
-				vf->src_fmt.fmt, vf->src_fmt.sei_ptr, vf->src_fmt.sei_size);
 
 		if (last_vf != vf && vf) {
 			new_vf = true;
@@ -1549,7 +1402,6 @@ void prime_sl_process_for_dpss(struct vframe_s *vf)
 				}
 				prime_sl_set_reg(&prime_sl_setting.prime_sl);
 				prime_sl_running = 1;
-				pr_sl(1, "cur counts:%d\n", ampsl_dpss_display_counts);
 			} else {
 				if (prime_sl_running) {
 					prime_sl_close();
@@ -1562,7 +1414,6 @@ void prime_sl_process_for_dpss(struct vframe_s *vf)
 			prime_sl_close();
 			prime_sl_running = 0;
 			set_prime_sl_frame(0);
-			ampsl_dpss_display_counts = 0;
 			dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
 		}
 	}
@@ -1800,7 +1651,6 @@ int ampsl_load_file(char *fw_name, void **dst_buf)
 
 	snprintf(ampsl_name, (MAX_PATH_LEN - 1), "%s/%s",
 		 FIRMWARE_DIR, name);
-	pr_sl(200, "Try to load %s, filename: %s\n", fw_name, ampsl_name);
 
 	ret = request_firmware(&fw, ampsl_name, dev);
 	if (ret < 0) {
@@ -1839,15 +1689,13 @@ static bool ampsl_read_one_line(char **text_buf, char *line_buf)
 	bool eof_flag = false;
 
 	if (!text_buf || !(*text_buf) || !line_buf) {
-		pr_info("line_buf %p, text_buf %p\n", line_buf, text_buf);
+		pr_info("error,line_buf %p, text_buf %p\n", line_buf, text_buf);
 		return true;
 	}
 
 	line_buf[0] = '\0';
 	while (*line_buf == '\0') {
-		pr_sl(0x20, "*text_buf: %s\n", *text_buf);
 		line_end = strnchr(*text_buf, 128, '\n');
-		pr_sl(0x20, "line_end: %s\n", line_end);
 		if (!line_end) {
 			line_len = strlen(*text_buf);
 			eof_flag = true;
@@ -1890,7 +1738,6 @@ int ampsl_read_txt_to_buf(char *reg_txt, void *reg_buf, int reg_num)
 	while (!eof_flag) {
 		eof_flag = ampsl_read_one_line(&reg_txt, (char *)&cur_line);
 		ptr_line = cur_line;
-		pr_sl(200, "eof_flag %d, ptr_line: %s\n", eof_flag, ptr_line);
 		if (eof_flag && (strlen(cur_line) == 0))
 			break;
 		last_space = strrchr(ptr_line, ' ');
@@ -1906,7 +1753,6 @@ int ampsl_read_txt_to_buf(char *reg_txt, void *reg_buf, int reg_num)
 	}
 	if (reg_num == count)
 		pr_info("successfully load all setting regs!\n");
-	pr_info("read file, count: %d\n", count);
 	return count;
 }
 
@@ -1960,7 +1806,6 @@ static ssize_t amprime_sl_load_reg_file_store
 		return count;
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	parse_param_amprime_sl(buf_orig, (char **)&parm);
-	pr_info("%s: cmd: %s, %s\n", __func__, buf, parm[1]);
 
 	if (!strcmp(parm[0], "prime_sl_setting")) {
 		ampsl_load_file(parm[1], &prime_sl_setting_txt);
@@ -2133,7 +1978,6 @@ static int amprime_sl_probe(struct platform_device *pdev)
 	unsigned int i = 0;
 	struct amprime_sl_dev_s *devp = &amprime_sl_dev;
 
-	pr_info("%s start & ver: %s\n", __func__, DRIVER_VER);
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
 		struct prime_sl_device_data_s *prime_sl_meson;
@@ -2155,8 +1999,6 @@ static int amprime_sl_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 	}
-
-	pr_info("cpu_id=%d\n", prime_sl_meson_dev.cpu_id);
 	memset(devp, 0, (sizeof(struct amprime_sl_dev_s)));
 	ret = alloc_chrdev_region(&devp->devno, 0, 1, AMPRIME_SL_NAME);
 	if (ret < 0)
@@ -2207,7 +2049,6 @@ fail_create_class:
 	unregister_chrdev_region(devp->devno, 1);
 fail_alloc_region:
 	pr_info("[amprime_sl.] : amprime_sl alloc error.\n");
-	pr_info("[amprime_sl.] : amprime_sl.\n");
 	return ret;
 }
 
@@ -2220,7 +2061,6 @@ static __maybe_unused void amprime_sl_remove(struct platform_device *pdev)
 	cdev_del(&devp->cdev);
 	class_destroy(devp->clsp);
 	unregister_chrdev_region(devp->devno, 1);
-	pr_info("[ amprime_sl.] :  amprime_sl.\n");
 }
 
 static struct platform_driver amprime_sl_driver = {
@@ -2235,7 +2075,6 @@ static struct platform_driver amprime_sl_driver = {
 
 int __init amprime_sl_init(void)
 {
-	pr_info("prime_sl module init\n");
 	if (platform_driver_register(&amprime_sl_driver)) {
 		pr_info("failed to register amprime_sl module\n");
 		return -ENODEV;
@@ -2245,6 +2084,5 @@ int __init amprime_sl_init(void)
 
 void __exit amprime_sl_exit(void)
 {
-	pr_info("prime_sl module exit\n");
 	platform_driver_unregister(&amprime_sl_driver);
 }
