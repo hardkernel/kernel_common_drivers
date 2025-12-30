@@ -8013,7 +8013,10 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 		}
 		first_set = false;
 	}
-
+	/* disable lcevc when video off */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	amve_lc_evc_ctrl(false, false);
+#endif
 	if (layer->dispbuf &&
 	    is_local_vf(layer->dispbuf)) {
 		layer->dispbuf = NULL;
