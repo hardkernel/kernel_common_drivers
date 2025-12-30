@@ -34,7 +34,7 @@ struct aml_mbox_dev_rx_msg {
 	unsigned int msg_free;
 	struct aml_mbox_rx_data *rx_buf;
 	unsigned int rx_buf_len;
-	struct mutex lock; //mutex lock for RX ring buffer
+	spinlock_t lock; //spin lock for RX ring buffer
 };
 
 struct aml_mbox_dev {
@@ -69,12 +69,13 @@ static int mbox_try_to_read_rxdata(struct aml_mbox_dev_rx_msg *rx_msg,
 	struct aml_mbox_rx_data *rx_packet;
 	unsigned int msg_cnt;
 	unsigned int idx;
+	unsigned long flags;
 	u32 rx_buf_len;
 
-	mutex_lock(&rx_msg->lock);
+	spin_lock_irqsave(&rx_msg->lock, flags);
 	msg_cnt = rx_msg->msg_cnt;
 	if (!msg_cnt) {
-		mutex_unlock(&rx_msg->lock);
+		spin_unlock_irqrestore(&rx_msg->lock, flags);
 		return 1;
 	}
 
@@ -88,7 +89,7 @@ static int mbox_try_to_read_rxdata(struct aml_mbox_dev_rx_msg *rx_msg,
 	rx_packet = &rx_msg->rx_buf[idx];
 	memcpy(rx_data, rx_packet, sizeof(*rx_data));
 	rx_msg->msg_cnt--;
-	mutex_unlock(&rx_msg->lock);
+	spin_unlock_irqrestore(&rx_msg->lock, flags);
 	return 0;
 }
 
@@ -194,46 +195,44 @@ static ssize_t mbox_message_read(struct file *filp, char __user *userbuf,
 			__set_current_state(TASK_INTERRUPTIBLE);
 
 			ret = mbox_try_to_read_rxdata(rx_msg, &aml_rx_data);
-			if (!ret)
+			if (!ret) {
+				rx_data_buf = aml_rx_data.buf;
+				rxsize = aml_rx_data.size;
 				break;
+			}
 
 			if (filp->f_flags & O_NONBLOCK) {
 				ret = -EAGAIN;
-				goto waitq_err;
+				break;
 			}
 
 			if (signal_pending(current)) {
 				ret = -ERESTARTSYS;
-				goto waitq_err;
+				break;
 			}
 			schedule();
 		} while (1);
 
-		rx_data_buf = aml_rx_data.buf;
-		rxsize = aml_rx_data.size;
+		__set_current_state(TASK_RUNNING);
+		remove_wait_queue(&aml_dev->waitq, &mbox_wq);
+
+		if (ret)
+			return ret;
 		break;
 	default:
-		rx_data_buf = ree2remote_data->rxbuf;
 		rxsize = ree2remote_data->rxsize;
+		rx_data_buf = ree2remote_data->rxbuf;
+		if (!rx_data_buf) {
+			dev_err(dev, "Error: RX data buf is NULL!\n");
+			return -ENXIO;
+		}
 		break;
-	}
-
-	if (!rx_data_buf) {
-		dev_err(dev, "Error: RX data buf is NULL!\n");
-		ret = -ENXIO;
-		goto waitq_err;
 	}
 
 	rxsize = count > rxsize ? rxsize : count;
 	dev_dbg(dev, "%s: rxsize = %d\n", __func__, rxsize);
 	ret = simple_read_from_buffer(userbuf, rxsize, ppos,
 			rx_data_buf, MBOX_USER_SIZE);
-
-waitq_err:
-	if (aml_dev->dest == MAILBOX_ARM) {
-		__set_current_state(TASK_RUNNING);
-		remove_wait_queue(&aml_dev->waitq, &mbox_wq);
-	}
 
 	return ret;
 }
@@ -342,13 +341,14 @@ static int mbox_remote2ree_notify(struct aml_mbox_dev *aml_dev, void *mssg)
 	u32 cmd;
 	u32 rx_buf_len;
 	unsigned int idx;
+	unsigned long flags;
 
 	aml_rx_data = mssg;
 	cmd = aml_rx_data->cmd;
 	dev_dbg(dev, "%s: cmd = 0x%x\n", __func__, (unsigned int)cmd);
 
 	rx_msg = aml_dev->rx_msg;
-	mutex_lock(&rx_msg->lock);
+	spin_lock_irqsave(&rx_msg->lock, flags);
 	rx_buf_len = rx_msg->rx_buf_len;
 	if (rx_msg->msg_cnt < rx_buf_len) {
 		idx = rx_msg->msg_free;
@@ -361,16 +361,16 @@ static int mbox_remote2ree_notify(struct aml_mbox_dev *aml_dev, void *mssg)
 		else
 			rx_msg->msg_free++;
 
+		spin_unlock_irqrestore(&rx_msg->lock, flags);
 		dev_dbg(dev, "Data copied to RX buffer(count: %d/%d)\n",
 				rx_msg->msg_cnt, rx_buf_len);
-		mutex_unlock(&rx_msg->lock);
 
 		wake_up_interruptible(&aml_dev->waitq);
 		kill_fasync(&aml_dev->async_queue, SIGIO, POLL_IN);
 		dev_dbg(dev, "%s: %s wake up task or notify it to read data\n",
 				__func__, aml_dev->name);
 	} else {
-		mutex_unlock(&rx_msg->lock);
+		spin_unlock_irqrestore(&rx_msg->lock, flags);
 		dev_err(dev, "Err: dev %s RX buffer full, msg dropped\n",
 				aml_dev->name);
 	}
@@ -568,8 +568,6 @@ static int mbox_cdev_init(struct device *dev)
 			mbox_dev->rx_msg = devm_kzalloc(dev,
 					sizeof(*mbox_dev->rx_msg), GFP_KERNEL);
 			if (IS_ERR_OR_NULL(mbox_dev->rx_msg)) {
-				dev_err(dev, "%s failed to alloc mbox rx_msg\n",
-						mbox_dev->name);
 				ret = -ENOMEM;
 				goto cleanup;
 			}
@@ -577,14 +575,10 @@ static int mbox_cdev_init(struct device *dev)
 			ret = of_property_read_u32(dev->of_node,
 					"mbox-rx-queue-length", &rx_buf_len);
 			if (ret) {
-				dev_err(dev, "parse error, %s set RX buf length to default\n",
-						mbox_dev->name);
 				rx_buf_len = MBOX_DEV_RX_BUF_LEN_DEFAULT;
 			} else {
 				if (rx_buf_len < 1 || rx_buf_len > 100) {
-					dev_err(dev, "RX buf len should be: 1 <= len <= 100\n");
-					dev_err(dev, "invalid para, %s set length to default\n",
-							mbox_dev->name);
+					dev_err(dev, "Err: RX buf len should be: 1 <= len <= 100\n");
 					rx_buf_len = MBOX_DEV_RX_BUF_LEN_DEFAULT;
 				}
 			}
@@ -595,8 +589,6 @@ static int mbox_cdev_init(struct device *dev)
 					sizeof(*mbox_rx_buf) * rx_buf_len,
 					GFP_KERNEL);
 			if (IS_ERR_OR_NULL(mbox_rx_buf)) {
-				dev_err(dev, "%s failed to alloc mbox_rx_buf\n",
-						mbox_dev->name);
 				ret = -ENOMEM;
 				goto cleanup;
 			}
@@ -604,7 +596,7 @@ static int mbox_cdev_init(struct device *dev)
 			mbox_dev->rx_msg->msg_cnt = 0;
 			mbox_dev->rx_msg->msg_free = 0;
 			mbox_dev->rx_msg->rx_buf_len = rx_buf_len;
-			mutex_init(&mbox_dev->rx_msg->lock);
+			spin_lock_init(&mbox_dev->rx_msg->lock);
 			init_waitqueue_head(&mbox_dev->waitq);
 		}
 	}
