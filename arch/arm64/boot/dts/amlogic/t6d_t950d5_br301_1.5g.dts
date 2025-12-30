@@ -103,8 +103,8 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 720p TV androidU size 12M */
-			size = <0x0 0xc00000>;
+			/* 720p TV androidU size 16M */
+			size = <0x0 0x1000000>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_secure_reserved:heap-secure {
