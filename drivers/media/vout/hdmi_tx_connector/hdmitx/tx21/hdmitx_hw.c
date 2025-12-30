@@ -5379,7 +5379,7 @@ static void config_hdmi21_tx(struct hdmitx21_dev *hdev)
 	/* tmds_clk_div40 & scrambler_en already calculate in building format_para */
 	if (hdev->tx_comm.pxp_mode)
 		hdmitx_set_div40(0);
-	else
+	else if (!hdev->tx_comm.skip_phy_setting)
 		hdmitx_set_div40(para->tmds_clk_div40);
 	/*
 	 * Glitch-filter HPD and RxSense
