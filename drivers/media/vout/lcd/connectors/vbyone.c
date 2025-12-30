@@ -1013,14 +1013,18 @@ static void lcd_vx1_intr_fsm_monitor(struct aml_lcd_drv_s *pdrv)
 
 #define LCD_PCLK_TOLERANCE      2000000  /* 2M */
 #define LCD_PCLK_ERR_CNT_MAX    3
-static void lcd_vx1_monitor_timer_handler(struct timer_list *timer)
+static void lcd_vx1_clk_monitor_delayed_work(struct work_struct *p_work)
 {
-	struct aml_lcd_drv_s *pdrv = from_timer(pdrv, timer, vx1_mnt_timer);
+	struct delayed_work *d_work;
+	struct aml_lcd_drv_s *pdrv;
 	struct vbyone_config_s *vx1_conf;
 	int encl_clk;
 
+	d_work = container_of(p_work, struct delayed_work, work);
+	pdrv = container_of(d_work, struct aml_lcd_drv_s, clk_mnt_delayed_work);
+
 	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
-		goto vx1_hpll_timer_end;
+		goto vx1_clk_mnt_end;
 
 	vx1_conf = &pdrv->curr_dev->dev_cfg.control.vbyone_cfg;
 
@@ -1038,9 +1042,8 @@ static void lcd_vx1_monitor_timer_handler(struct timer_list *timer)
 	if (vx1_conf->vs_intr_en == 0)
 		lcd_vx1_intr_fsm_monitor(pdrv);
 
-vx1_hpll_timer_end:
-	pdrv->vx1_mnt_timer.expires = jiffies + msecs_to_jiffies(VX1_MNT_INTERVAL);
-	add_timer(&pdrv->vx1_mnt_timer);
+vx1_clk_mnt_end:
+	lcd_queue_delayed_work(&pdrv->clk_mnt_delayed_work, VX1_MNT_INTERVAL);
 }
 
 static void lcd_vx1_timeout_reset_work(struct work_struct *work)
@@ -1325,6 +1328,7 @@ int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv)
 	spin_lock_init(&vx1_intr_lock);
 
 	INIT_WORK(&pdrv->vx1_reset_work, lcd_vx1_timeout_reset_work);
+	INIT_DELAYED_WORK(&pdrv->clk_mnt_delayed_work, lcd_vx1_clk_monitor_delayed_work);
 
 	if (!pdrv->drv_res.res_vx1_irq) {
 		LCD_ERR(pdrv, "res_vx1_irq is null");
@@ -1344,23 +1348,17 @@ int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv)
 
 	lcd_vbyone_interrupt_enable(pdrv, 1);
 
-	/* add timer to monitor pll frequency */
-	timer_setup(&pdrv->vx1_mnt_timer, lcd_vx1_monitor_timer_handler, 0);
-	/* vx1_hpll_timer.data = NULL; */
-	pdrv->vx1_mnt_timer.expires = jiffies + msecs_to_jiffies(VX1_MNT_INTERVAL);
-	add_timer(&pdrv->vx1_mnt_timer);
-	/*LCDPR("[%d]: add vbyone monitor timer handler\n", pdrv->index);*/
+	lcd_queue_delayed_work(&pdrv->clk_mnt_delayed_work, VX1_MNT_INTERVAL);
 
 	return 0;
 }
 
 void lcd_vbyone_interrupt_down(struct aml_lcd_drv_s *pdrv)
 {
-	del_timer_sync(&pdrv->vx1_mnt_timer);
-
 	lcd_vbyone_interrupt_enable(pdrv, 0);
 	free_irq(pdrv->drv_res.res_vx1_irq, (void *)pdrv);
 	cancel_work_sync(&pdrv->vx1_reset_work);
+	cancel_delayed_work_sync(&pdrv->clk_mnt_delayed_work);
 
 	LCD_DBG(pdrv, "free vbyone irq");
 }

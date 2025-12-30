@@ -1038,9 +1038,9 @@ struct aml_lcd_drv_s {
 	struct work_struct mode_switch_on_work;
 	struct work_struct vrr_test_work;
 	struct delayed_work init_on_delayed_work;
+	struct delayed_work clk_mnt_delayed_work;
 	struct delayed_work test_delayed_work;
 
-	struct timer_list vx1_mnt_timer;
 	struct timer_list vs_none_timer;
 	struct completion vsync_done;
 	spinlock_t isr_lock; /* for mute and test isr */
