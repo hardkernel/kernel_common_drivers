@@ -100,25 +100,25 @@ u32 top_irq_mask_t6x[IRQ_TYPE_CNT] = {
 static const u32 phy_misc_t6x_20[][2] = {
 		/*  0x18	0x1c	*/
 	{	 /* 24~35M */
-		0xffe000c0, 0x11c73003,
+		0xff6000c0, 0x11c73003,
 	},
 	{	 /* 37~75M */
-		0xffe000c0, 0x11c73003,
+		0xff6000c0, 0x11c73003,
 	},
 	{	 /* 75~115M */
-		0xffe00080, 0x11c73002,
+		0xff600080, 0x11c73002,
 	},
 	{	 /* 115~150M */
-		0xffe00080, 0x11c73002,
+		0xff600080, 0x11c73002,
 	},
 	{	 /* 150~340M */
-		0xffe00040, 0x11c73001,
+		0xff600040, 0x11c73001,
 	},
 	{	 /* 340~525M */
-		0xffe00000, 0x11c73000,
+		0xff600000, 0x11c73000,
 	},
 	{	 /* 525~600M */
-		0xffe00000, 0x11c73000,
+		0xff600000, 0x11c73000,
 	},
 };
 
@@ -668,6 +668,7 @@ void aml_dfe_en_t6x_20(u8 port)
 void aml_phy_offset_cal_t6x_20(u8 port)
 {
 	u32 data32;
+	bool rx_sense;
 
 	/* PHY */
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX20PHY_DCHD_EQ, 0x70080050, port);
@@ -680,11 +681,13 @@ void aml_phy_offset_cal_t6x_20(u8 port)
 	usleep_range(10, 20);
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX20PHY_DCHA_MISC2, 0x11c73220, port);
 	usleep_range(10, 20);
-	data32 = 0xffe00100;
+	data32 = 0xff600100;
 	if (rx_info.aml_phy.rterm_flag) {
 		data32 = ((data32 & (~((0xf << 12) | 0x1))) |
 			(rx_info.aml_phy.rterm_val << 12) | rx_info.aml_phy.rterm_flag << 4);
 	}
+	rx_sense = hdmirx_rd_bits_amlphy_t6x(T6X_HDMIRX20PHY_DCHA_MISC1, _BIT(23), port);
+	data32 |= (rx_sense << 23);
 	hdmirx_wr_amlphy_t6x(T6X_HDMIRX20PHY_DCHA_MISC1, data32, port);
 	usleep_range(10, 20);
 
@@ -1354,6 +1357,7 @@ void aml_phy_cfg_t6x_20(u8 port)
 {
 	u32 idx = rx[port].phy.phy_bw;
 	u32 data32;
+	bool rx_sense;
 
 	if (rx_info.aml_phy.pre_int) {
 		if (log_level & PHY_LOG)
@@ -1388,6 +1392,8 @@ void aml_phy_cfg_t6x_20(u8 port)
 				(rx_info.aml_phy.rterm_val << 12) |
 				rx_info.aml_phy.rterm_flag << 4);
 		}
+		rx_sense = hdmirx_rd_bits_amlphy_t6x(T6X_HDMIRX20PHY_DCHA_MISC1, _BIT(23), port);
+		data32 |= (rx_sense << 23);
 		hdmirx_wr_amlphy_t6x(T6X_HDMIRX20PHY_DCHA_MISC1, data32, port);
 		usleep_range(5, 10);
 		data32 = phy_misc_t6x_20[idx][1];
@@ -1628,6 +1634,7 @@ void rx_21_frl_phy_cfg_t6x(u8 port)
 {
 	u32 data32 = 0;
 	u32 idx = rx[port].phy.phy_bw;
+	bool rx_sense;
 
 	if (rx_info.aml_phy_21.pre_int_21[port]) {
 		if (rx_info.aml_phy_21.ofst_en)
@@ -1635,7 +1642,10 @@ void rx_21_frl_phy_cfg_t6x(u8 port)
 		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_DFE, DFE_TAP_EN, 0x1ff, port);
 		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_DFE, DFE_H1_PD, 0x0, port);
 
-		hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_MISC0, phy_misc_t6x_21[idx][0], port);
+		data32 = phy_misc_t6x_21[idx][0];
+		rx_sense = hdmirx_rd_bits_amlphy_t6x(T6X_HDMIRX21PHY_MISC0, _BIT(22), port);
+		data32 |= (rx_sense << 22);
+		hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_MISC0, data32, port);
 		hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_MISC1, phy_misc_t6x_21[idx][1], port);
 		aml_phy_get_trim_val_t6x_21(port);
 		data32 = phy_misc_t6x_21[idx][2];
@@ -1653,7 +1663,7 @@ void rx_21_frl_phy_cfg_t6x(u8 port)
 		hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_DCHA_CTRL,  phy_dcha_t6x_21[idx][3], port);
 		hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR,  phy_dchd_t6x_21[idx][0], port);
 		hdmirx_wr_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ,  phy_dchd_t6x_21[idx][1], port);
-		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_MISC0, _BIT(22), 0x1, port);
+		//hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_MISC0, _BIT(22), 0x1, port);
 		if (!rx_info.aml_phy_21.pre_int_en)
 			rx_info.aml_phy_21.pre_int_21[port] = 0;
 	}
@@ -3626,15 +3636,15 @@ void rx_set_term_value_t6x_20(unsigned char port, bool value)
 {
 	u32 data32;
 
-	data32 = hdmirx_rd_amlphy_t6x(T6X_HDMIRX20PHY_DCHA_MISC2, port);
+	data32 = hdmirx_rd_amlphy_t6x(T6X_HDMIRX20PHY_DCHA_MISC1, port);
 	if (value) {
-		data32 |= (1 << 28);
+		data32 |= (1 << 23);
 	} else {
 		/* rst cdr to clr tmds_valid */
 		//data32 &= ~(MSK(3, 7));
-		data32 &= ~(1 << 28);
+		data32 &= ~(1 << 23);
 	}
-	hdmirx_wr_amlphy_t6x(T6X_HDMIRX20PHY_DCHA_MISC2, data32, port);
+	hdmirx_wr_amlphy_t6x(T6X_HDMIRX20PHY_DCHA_MISC1, data32, port);
 }
 
 void rx_set_term_value_t6x_21(unsigned char port, bool value)

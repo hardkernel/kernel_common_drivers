@@ -109,7 +109,8 @@
 //2025.12.16 fix PM-related DMC VIOLATION issues
 //2025.12.24 add ioc for framerate limit
 //2025.12.29 Fix issue that VTEM packages not delivered at high framerate
-#define RX_DRV_VER "ver.2025/12/29"
+//2025.12.30 optimize the hpd control flow when resume
+#define RX_DRV_VER "ver.2025/12/30"
 
 /*print type*/
 #define COR1_LOG	0x10000
