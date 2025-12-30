@@ -5619,7 +5619,7 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			virt_ptr_align32bit = (unsigned char *)
 				((((unsigned long)virt_ptr) + 0x1f) & (~0x1f));
 		}
-		memcpy(virt_ptr_align32bit, buffer, sizeof(struct hdmi_packet_t) * 3);
+		memcpy(virt_ptr_align32bit, buffer, sizeof(struct hdmi_cuva_emp_packet) * 3);
 		phys_ptr = virt_to_phys(virt_ptr_align32bit);
 		/* cuva needs to send 3 emp packets */
 		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0, 3, 16, 16);

@@ -6,7 +6,7 @@
 #ifndef __HDMITX_INFOFRAME_H
 #define __HDMITX_INFOFRAME_H
 
-struct hdmi_packet_t {
+struct hdmi_cuva_emp_packet {
 	u8 hb[3];
 	u8 pb[28];
 	/* padding to 32 bytes */

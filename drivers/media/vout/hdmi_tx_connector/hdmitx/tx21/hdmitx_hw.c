@@ -43,6 +43,12 @@
 #define yuv2rgb  1
 #define rgb2yuv  2
 
+#define CUVA_EMP_OFFSET  8
+#define CUVA_EMP_0_END   21
+#define CUVA_EMP_1_START 24
+#define CUVA_EMP_1_END   53
+#define CUVA_EMP_2_START 56
+
 static struct hdmitx21_hw *global_tx_hw;
 static struct hdmitx21_dev *tx21_dev;
 
@@ -4708,10 +4714,12 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		/* Data_Set_Length_MSB and Data_Set_Length_LSB */
 		md_data_length = pkt_byte[8] << 8 | pkt_byte[9];
 		/*
-		 * PB0 PB1 PB2 of vs_emds[1] and vs_emds[2] also need to be counted into
+		 * 1. no_used of vs_emds[0] and vs_emds[1] also need to be counted into
+		 * the length for data alignment
+		 * 2. HB0 HB1 HB2 of vs_emds[1] and vs_emds[2] also need to be counted into
 		 * the length for data alignment
 		 */
-		hdmitx_dhdr_send(pkt_byte, md_data_length + 6);
+		hdmitx_dhdr_send(pkt_byte, md_data_length + CUVA_EMP_OFFSET);
 		break;
 	case AUX_PKT_GET_QMS_BASE_REFRESH_RATE:
 		ret = hdmitx_get_base_refresh_rate_from_emp(hdev);
@@ -5873,10 +5881,13 @@ void hdmitx_dhdr_send(u8 *body, int size)
 	for (i = 0; i < size; i++) {
 		data = *body++;
 		/*
-		 * PB0, PB1, and PB2 of vs_emds[1] and vs_emds[2] are written by hardware and
+		 * 1. no_used of vs_emds[0] and vs_emds[1] do not need to be written to
+		 * the hardware reg
+		 * 2. HB0, HB1, and HB2 of vs_emds[1] and vs_emds[2] are written by hardware and
 		 * do not require software operation
 		 */
-		if ((i <= 23 && i >= 21) || (i <= 54 && i >= 52))
+		if ((i <= CUVA_EMP_1_START && i >= CUVA_EMP_0_END) ||
+				(i <= CUVA_EMP_2_START && i >= CUVA_EMP_1_END))
 			continue;
 		hdmitx21_wr_reg(D_HDR_MEM_WDATA_IVCTX, data);
 	}

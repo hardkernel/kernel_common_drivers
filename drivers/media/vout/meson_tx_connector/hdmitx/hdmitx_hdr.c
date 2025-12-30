@@ -1085,7 +1085,7 @@ void hdmitx_set_cuva_hdr_vsif(void *tx_instance, struct cuva_hdr_vsif_para *data
 
 void hdmitx_set_cuva_hdr_vs_emds(void *tx_instance, struct cuva_hdr_vs_emds_para *data)
 {
-	struct hdmi_packet_t vs_emds[3];
+	struct hdmi_cuva_emp_packet vs_emds[3];
 	unsigned long flags;
 	struct hdmitx_common *tx_comm = (struct hdmitx_common *)tx_instance;
 	struct hdmitx_hw_common *tx_hw = NULL;
