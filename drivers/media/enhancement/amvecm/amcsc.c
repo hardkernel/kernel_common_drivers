@@ -11651,6 +11651,33 @@ void update_link_state(struct vframe_s *vf,
 	update_muxio_mode(pvf, vpp_index);
 }
 
+void reset_hdr_path_cfg(void)
+{
+	struct hdr_path_mux_sel_s *p = &h_p_s;
+
+	p->path_mux = PATH_DELINK,
+	p->pre_path_mux = PATH_DELINK,
+	p->delink_status = 0,
+	p->mute_cnt = 0,
+	p->min_mc = 0,
+
+	p->frm_src = NULL_FRM,
+	p->dh_p = NO_PROC,
+	p->fst_frame = 0,
+	p->pre_frm_type = SRC_NULL,
+
+	set_muxio_link_mode(0, NULL, VPP_VCBUS);
+
+	muxio_ready_flag = 1;
+	muxio_de_link_mode = 0;
+	muxio_de_link_status = 1;
+	dpss_mode = 0;
+	pre_dpss_mode = 0;
+	cur_signal_type_dpss = 0xffffffff;
+	cur_ext_signal_type_dpss = 0;
+	cur_csc_type_dpss = 0xffff;
+}
+
 void set_dct_status_for_dpss(unsigned int val)
 {
 	dct_status_dpss = val;

@@ -18282,7 +18282,6 @@ static int amvecm_drv_suspend(struct device *dev)
 //		pr_info("amvecm: hdr_policy_bak=0x%x\n",
 //			hdr_policy_bak);
 	}
-
 	pr_info("amvecm: suspend module\n");
 	return 0;
 }
@@ -18319,6 +18318,7 @@ static int amvecm_drv_resume(struct device *dev)
 			resume_mtx_flag_set(true);
 		}
 	}
+	reset_hdr_path_cfg();
 	pr_info("amvecm: resume module\n");
 	return 0;
 }
