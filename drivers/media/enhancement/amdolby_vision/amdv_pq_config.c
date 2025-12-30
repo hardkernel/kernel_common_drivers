@@ -47,8 +47,9 @@ struct dv_user_target_config user_target_config[MAX_DV_PICTUREMODES];
 struct dv_user_cfg_info user_cfg_info[MAX_DV_PICTUREMODES];
 bool dv_user_cfg_flag;
 
-static s32 pq_center[MAX_DV_PICTUREMODES][4];
-static struct dv_pq_range_s pq_range[4];
+#define AMDV_BASIC_PQ_ITEM_NUM 4
+static s32 pq_center[MAX_DV_PICTUREMODES][AMDV_BASIC_PQ_ITEM_NUM];
+static struct dv_pq_range_s pq_range[AMDV_BASIC_PQ_ITEM_NUM];
 
 #define USE_CENTER_0 0
 
@@ -2553,7 +2554,10 @@ s16 get_single_pq_value(int mode, enum pq_item_e item)
 		break;
 	}
 
-	exter_value = map_pq_inter_to_exter(item, inter_value);
+	if (item < AMDV_BASIC_PQ_ITEM_NUM)
+		exter_value = map_pq_inter_to_exter(item, inter_value);
+	else
+		return exter_value;
 
 	if (debug_dolby & 0x200)
 		pr_info("%s: mode:%d, item:%s, [inter: %d, exter: %d]\n",
