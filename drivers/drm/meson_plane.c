@@ -2646,10 +2646,11 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 			drm_mode_vrefresh(&new_state->crtc->mode), crtc_index);
 
 	if (vpu_pipeline_osd_update(sub_pipe, state))
-		return;
+		goto out;
 
 	vpu_pipeline_finish_update(pipeline, crtc_index);
 
+out:
 	meson_commit_reenter_dec(pipeline->priv, crtc_index, ASYNC_MODE);
 }
 
