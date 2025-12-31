@@ -174,6 +174,7 @@ ssize_t testdev_dump(struct test_device *testdev, char *buf)
 	len += snprintf(buf + len, PAGE_SIZE, "mosi_idle_level: %d\n", cdata->mosi_idle_level);
 	len += snprintf(buf + len, PAGE_SIZE, "pclk_rate: %d\n", cdata->pclk_rate);
 	len += snprintf(buf + len, PAGE_SIZE, "nxfers: %d\n", testdev->nxfers);
+	len += snprintf(buf + len, PAGE_SIZE, "split_xfer_en: %d\n", cdata->split_xfer_en);
 
 	return len;
 }
@@ -369,6 +370,8 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 		cdata->mosi_idle_level = v;
 	if (!spicc_getopt(argc, argv, "pclk_rate", &v, NULL, 10))
 		cdata->pclk_rate = v;
+	if (!spicc_getopt(argc, argv, "split_xfer_en", &v, NULL, 10))
+		cdata->split_xfer_en = v;
 
 	ret = spi_setup(spi);
 	dev_info(&spi->controller->dev,

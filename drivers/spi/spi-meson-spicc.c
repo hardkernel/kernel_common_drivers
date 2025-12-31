@@ -315,6 +315,10 @@ struct meson_spicc_data {
 #define DIRSPI_STA_RUNNING	2
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+static void meson_spicc_hw_prepare(struct meson_spicc_device *spicc,
+				   u16 mode, u8 chip_select);
+static int __meson_spicc_transfer_one(struct meson_spicc_device *spicc,
+				      struct spi_transfer *xfer);
 static void meson_spicc_dma_unmap(struct meson_spicc_device *spicc,
 				  struct spi_transfer *t);
 static int meson_spi_delay_to_ns(struct spi_delay *_delay);
@@ -720,6 +724,142 @@ static int meson_spi_delay_exec(struct spi_delay *_delay)
 	return 0;
 }
 
+static inline void swap32phl(u32 *p)
+{
+	u32 tmp = *p;
+
+	*p = (tmp << 16) | (tmp >> 16);
+}
+
+static inline u64 swap64hl(u64 val)
+{
+	return (val << 32) | (val >> 32);
+}
+
+static void meson_spicc_memcpy_swap64(void *dist,
+				      void *src,
+				      int len,
+				      u8 bytes_per_word)
+{
+	u64 *dist64 = dist;
+	u64 *src64 = src;
+	u32 *dist32 = dist;
+
+	u32 words =  DIV_ROUND_UP(len, SPICC_DMA_BYTES_PER_WORD);
+
+	if (bytes_per_word == 1) {
+		while (words--)
+			*dist64++ = swab64(*src64++);
+	} else if (bytes_per_word == 2) {
+		while (words--) {
+			*dist64++ = swap64hl(*src64++);
+			swap32phl(dist32++);
+			swap32phl(dist32++);
+		}
+	} else if (bytes_per_word == 4) {
+		while (words--)
+			*dist64++ = swap64hl(*src64++);
+	}
+}
+
+static void meson_spicc_split_xfer(struct meson_spicc_device *spicc,
+				  struct spi_transfer *xfer,
+				  struct spi_transfer *dma_xfer,
+				  struct spi_transfer *pio_xfer)
+{
+	struct spicc_controller_data *cdata = (struct spicc_controller_data *)
+					spicc->spi->controller_data;
+	u32 pio_len, dma_len, words;
+
+	dma_xfer->len = 0;
+	pio_xfer->len = 0;
+	pio_len = xfer->len % SPICC_DMA_BYTES_PER_WORD;
+	dma_len = xfer->len - pio_len;
+	words = DIV_ROUND_UP(dma_len, SPICC_DMA_BYTES_PER_WORD);
+	if (!cdata || !cdata->split_xfer_en ||
+	    xfer->bits_per_word == 64 || !dma_len ||
+	    (!spicc->data->support_dma_burst_len_1 && words == 1) ||
+	    (spicc->data->has_word_mode_ctrl && !pio_len))
+		return;
+
+	words %= DMA_BURST_MAX;
+	if ((words == 1 && !spicc->data->support_dma_burst_len_1) ||
+	    (words > SPICC_FIFO_SIZE &&
+	     words % 2 && words % 3 && words % 5 && words % 7)) {
+		dma_len -= SPICC_DMA_BYTES_PER_WORD;
+		pio_len += SPICC_DMA_BYTES_PER_WORD;
+	}
+
+	memcpy(dma_xfer, xfer, sizeof(*xfer));
+	dma_xfer->len = dma_len;
+	if (!spicc->data->has_word_mode_ctrl) {
+		dma_xfer->bits_per_word = 64;
+		if (xfer->tx_buf) {
+			dma_xfer->tx_buf = kzalloc(dma_len, GFP_KERNEL | GFP_DMA);
+			if (!dma_xfer->tx_buf) {
+				dma_xfer->len = 0;
+				return;
+			}
+			meson_spicc_memcpy_swap64((void *)dma_xfer->tx_buf,
+						  (void *)xfer->tx_buf,
+						  dma_len,
+						  DIV_ROUND_UP(xfer->bits_per_word, 8));
+		}
+
+		if (xfer->rx_buf) {
+			dma_xfer->rx_buf = kzalloc(dma_len, GFP_KERNEL | GFP_DMA);
+			if (!dma_xfer->rx_buf) {
+				kfree(dma_xfer->tx_buf);
+				dma_xfer->len = 0;
+				return;
+			}
+		}
+	}
+
+	if (pio_len) {
+		memcpy(pio_xfer, xfer, sizeof(*xfer));
+		pio_xfer->len = pio_len;
+		if (pio_xfer->tx_buf)
+			pio_xfer->tx_buf += dma_len;
+		if (pio_xfer->rx_buf)
+			pio_xfer->rx_buf += dma_len;
+	}
+}
+
+static void meson_spicc_split_xfer_dma_release
+				(struct meson_spicc_device *spicc,
+				struct spi_transfer *orig_xfer,
+				struct spi_transfer *xfer,
+				bool rx_success)
+{
+	struct spicc_controller_data *cdata = (struct spicc_controller_data *)
+					spicc->spi->controller_data;
+
+	if (!cdata || !cdata->split_xfer_en ||
+	    !xfer->len || spicc->data->has_word_mode_ctrl)
+		return;
+
+	if (rx_success && xfer->rx_buf)
+		meson_spicc_memcpy_swap64(orig_xfer->rx_buf,
+				xfer->rx_buf,
+				xfer->len,
+				DIV_ROUND_UP(orig_xfer->bits_per_word, 8));
+
+	kfree(xfer->tx_buf);
+	kfree(xfer->rx_buf);
+	xfer->len = 0;
+}
+
+static void meson_spicc_split_xfer_pio_release
+				(struct meson_spicc_device *spicc,
+				struct spi_transfer *orig_xfer,
+				struct spi_transfer *xfer)
+{
+	(void)spicc;
+	(void)orig_xfer;
+	xfer->len = 0;
+}
+
 static int meson_spicc_dma_map(struct meson_spicc_device *spicc,
 			       struct spi_transfer *t)
 {
@@ -887,13 +1027,23 @@ static void meson_spicc_dma_irq(struct meson_spicc_device *spicc)
 
 		if (!spicc->complete) {
 			meson_spicc_dma_unmap(spicc, spicc->xfer);
-			spi_finalize_current_transfer(spicc->controller);
+			meson_spicc_split_xfer_dma_release(spicc,
+						spicc->orig_xfer,
+						&spicc->dma_xfer,
+						true);
+			if (spicc->pio_xfer.len) {
+				meson_spicc_reset_fifo(spicc);
+				__meson_spicc_transfer_one(spicc, &spicc->pio_xfer);
+			} else {
+				spi_finalize_current_transfer(spicc->controller);
+				spicc->pending = false;
+			}
 		} else {
 			dirspi_set_cs(spicc->spi, false);
 			spicc->complete(spicc->context);
 			spicc->complete = NULL;
+			spicc->pending = false;
 		}
-		spicc->pending = false;
 		return;
 	}
 
@@ -919,12 +1069,11 @@ static inline bool meson_spicc_rxready(struct meson_spicc_device *spicc)
 
 static inline u32 meson_spicc_pull_data(struct meson_spicc_device *spicc)
 {
-	unsigned int bytes = spicc->bytes_per_word;
+	unsigned int bytes = min_t(unsigned int, 4, spicc->bytes_per_word);
 	unsigned int byte_shift = 0;
 	u32 data = 0;
 	u8 byte;
 
-	spicc->tx_remain--;
 	if (!spicc->tx_buf)
 		return 0;
 
@@ -940,11 +1089,10 @@ static inline u32 meson_spicc_pull_data(struct meson_spicc_device *spicc)
 static inline void meson_spicc_push_data(struct meson_spicc_device *spicc,
 					 u32 data)
 {
-	unsigned int bytes = spicc->bytes_per_word;
+	unsigned int bytes = min_t(unsigned int, 4, spicc->bytes_per_word);
 	unsigned int byte_shift = 0;
 	u8 byte;
 
-	spicc->rx_remain--;
 	if (!spicc->rx_buf)
 		return;
 
@@ -957,26 +1105,41 @@ static inline void meson_spicc_push_data(struct meson_spicc_device *spicc,
 
 static inline void meson_spicc_rx(struct meson_spicc_device *spicc)
 {
+	u32 val;
+
 	/* Empty RX FIFO */
 	while (spicc->rx_remain &&
-	       meson_spicc_rxready(spicc))
-		meson_spicc_push_data(spicc,
+		meson_spicc_rxready(spicc)) {
+		val = readl_relaxed(spicc->base + SPICC_RXDATA);
+		if (spicc->bytes_per_word > 4)
+			meson_spicc_push_data(spicc,
 				readl_relaxed(spicc->base + SPICC_RXDATA));
+		meson_spicc_push_data(spicc, val);
+		spicc->rx_remain--;
+	}
 }
 
 static inline void meson_spicc_tx(struct meson_spicc_device *spicc)
 {
+	u32 val;
+
 	/* Fill Up TX FIFO */
 	while (spicc->tx_remain &&
-	       !meson_spicc_txfull(spicc))
-		writel_relaxed(meson_spicc_pull_data(spicc),
-			       spicc->base + SPICC_TXDATA);
+		!meson_spicc_txfull(spicc)) {
+		val = meson_spicc_pull_data(spicc);
+		if (spicc->bytes_per_word > 4)
+			writel_relaxed(meson_spicc_pull_data(spicc),
+				       spicc->base + SPICC_TXDATA);
+		writel_relaxed(val, spicc->base + SPICC_TXDATA);
+		spicc->tx_remain--;
+	}
 }
 
 static int meson_spicc_pio_polling(struct meson_spicc_device *spicc)
 {
 	unsigned long timeout;
 
+	writel_relaxed(0, spicc->base + SPICC_DMAREG);
 	meson_spicc_tx(spicc);
 	if (spicc->tx_remain) {
 		dev_err(&spicc->pdev->dev, "fifo residue\n");
@@ -1103,6 +1266,9 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 				    spicc->base + SPICC_CONREG);
 
 		if (!spicc->complete) {
+			meson_spicc_split_xfer_pio_release(spicc,
+						spicc->orig_xfer,
+						&spicc->pio_xfer);
 			spi_finalize_current_transfer(spicc->controller);
 		} else {
 			dirspi_set_cs(spicc->spi, false);
@@ -1116,16 +1282,13 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int meson_spicc_transfer_one(struct spi_controller *ctlr,
-				    struct spi_device *spi,
-				    struct spi_transfer *xfer)
+static int __meson_spicc_transfer_one(struct meson_spicc_device *spicc,
+				      struct spi_transfer *xfer)
 {
-	struct meson_spicc_device *spicc = spi_controller_get_devdata(ctlr);
+	int ret;
 
 	/* Store current transfer */
 	spicc->xfer = xfer;
-	spicc->complete = NULL;
-
 	/* Setup transfer parameters */
 	spicc->tx_buf = (u8 *)xfer->tx_buf;
 	spicc->rx_buf = (u8 *)xfer->rx_buf;
@@ -1135,10 +1298,9 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 	   DIV_ROUND_UP(spicc->xfer->bits_per_word, 8);
 
 	/* Setup transfer parameters */
-	if (((xfer->len % 8) == 0) &&
+	if (((xfer->len % SPICC_DMA_BYTES_PER_WORD) == 0) &&
 	    (spicc->data->support_dma_burst_len_1 || xfer->len >= 16) &&
-	    (spicc->word_mode_ctrl || xfer->bits_per_word == 64) &&
-	    !meson_spicc_dma_map(spicc, xfer)) {
+	    (spicc->data->has_word_mode_ctrl || xfer->bits_per_word == 64)) {
 		spicc->using_dma = 1;
 		spicc->tx_remain = xfer->len / SPICC_DMA_BYTES_PER_WORD;
 		spicc->rx_remain = spicc->tx_remain;
@@ -1149,15 +1311,14 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 	}
 
 	meson_spicc_set_width(spicc, xfer->bits_per_word);
-	meson_spicc_set_endian(spicc, spi->mode & SPI_LSB_FIRST);
+	meson_spicc_set_endian(spicc, spicc->spi->mode & SPI_LSB_FIRST);
 	meson_spicc_set_word_mode(spicc);
-	meson_spicc_set_speed(spicc, xfer->speed_hz, spi);
-
-	if (!xfer->len)
-		return 0;
-
+	meson_spicc_set_speed(spicc, xfer->speed_hz, spicc->spi);
 	writel_relaxed(0, spicc->base + SPICC_DMAREG);
 	if (spicc->using_dma) {
+		ret = meson_spicc_dma_map(spicc, xfer);
+		if (ret)
+			return ret;
 		writel_relaxed(xfer->tx_dma, spicc->base + SPICC_DRADDR);
 		writel_relaxed(xfer->rx_dma, spicc->base + SPICC_DWADDR);
 		writel_relaxed(xfer->speed_hz >> 25,
@@ -1170,20 +1331,64 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 					SPICC_DMA_DONE_EN : SPICC_TE_EN,
 			       spicc->base + SPICC_INTREG);
 		spicc->pending = true;
-		writel_bits_relaxed(SPICC_SMC, SPICC_SMC,
-				    spicc->base + SPICC_CONREG);
-	} else if (spicc->tx_remain <= SPICC_FIFO_SIZE && pio_polling_en()) {
-		return meson_spicc_pio_polling(spicc);
+		writel_bits_relaxed(SPICC_SMC | SPICC_XCH,
+				    SPICC_SMC, spicc->base + SPICC_CONREG);
 	} else {
 		meson_spicc_tx(spicc);
 		writel_relaxed(spi_controller_is_target(spicc->controller) ?
 			SPICC_RR_EN : SPICC_TC_EN, spicc->base + SPICC_INTREG);
 		spicc->pending = true;
-		writel_bits_relaxed(SPICC_XCH, SPICC_XCH,
-				    spicc->base + SPICC_CONREG);
+		writel_bits_relaxed(SPICC_SMC | SPICC_XCH,
+				    SPICC_XCH, spicc->base + SPICC_CONREG);
 	}
 
 	return 1;
+}
+
+static int meson_spicc_transfer_one(struct spi_controller *ctlr,
+				    struct spi_device *spi,
+				    struct spi_transfer *xfer)
+{
+	struct meson_spicc_device *spicc = spi_controller_get_devdata(ctlr);
+	int ret;
+
+	/* Store current transfer */
+	spicc->spi = spi;
+	spicc->orig_xfer = xfer;
+	spicc->complete = NULL;
+	spicc->tx_buf = (u8 *)xfer->tx_buf;
+	spicc->rx_buf = (u8 *)xfer->rx_buf;
+	spicc->bytes_per_word = DIV_ROUND_UP(xfer->bits_per_word, 8);
+	spicc->tx_remain = xfer->len / spicc->bytes_per_word;
+	spicc->rx_remain = spicc->tx_remain;
+
+	if (spicc->tx_remain <= SPICC_FIFO_SIZE) {
+		spicc->using_dma = 0;
+		spicc->dma_xfer.len = 0;
+		spicc->pio_xfer.len = 0;
+		meson_spicc_set_width(spicc, xfer->bits_per_word);
+		meson_spicc_set_endian(spicc, spi->mode & SPI_LSB_FIRST);
+		meson_spicc_set_word_mode(spicc);
+		meson_spicc_set_speed(spicc, xfer->speed_hz, spi);
+		return meson_spicc_pio_polling(spicc);
+	}
+
+	meson_spicc_split_xfer(spicc, xfer, &spicc->dma_xfer, &spicc->pio_xfer);
+	if (spicc->dma_xfer.len) {
+		ret = __meson_spicc_transfer_one(spicc, &spicc->dma_xfer);
+		if (ret < 0) {
+			meson_spicc_split_xfer_dma_release(spicc,
+						spicc->orig_xfer,
+						&spicc->dma_xfer, false);
+			meson_spicc_split_xfer_pio_release(spicc,
+						spicc->orig_xfer,
+						&spicc->pio_xfer);
+		}
+	} else {
+		ret = __meson_spicc_transfer_one(spicc, xfer);
+	}
+
+	return ret;
 }
 
 static int meson_spicc_prepare_message(struct spi_controller *ctlr,
@@ -1450,6 +1655,8 @@ static int dirspi_async(struct spi_device *spi,
 	spicc->context = context;
 	spicc->using_dma = 1;
 	spicc->bytes_per_word = DIV_ROUND_UP(spi->bits_per_word, 8);
+	spicc->dma_xfer.len = 0;
+	spicc->pio_xfer.len = 0;
 
 	dirspi_start(spi);
 	meson_spicc_hw_prepare(spicc, spi->mode, meson_spicc_get_ctrl_cs_line(spi));
@@ -1520,6 +1727,8 @@ static int dirspi_xfer(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len)
 	spicc->rx_buf = rx_buf;
 	spicc->tx_remain = len / spicc->bytes_per_word;
 	spicc->rx_remain = spicc->tx_remain;
+	spicc->dma_xfer.len = 0;
+	spicc->pio_xfer.len = 0;
 
 	meson_spicc_hw_prepare(spicc, spi->mode, meson_spicc_get_ctrl_cs_line(spi));
 	meson_spicc_set_width(spicc, spi->bits_per_word);
@@ -1540,12 +1749,16 @@ static int dirspi_xfer(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len)
 	while ((spicc->tx_remain || spicc->rx_remain) &&
 	       time_before(jiffies, timeout)) {
 		sta = readl_relaxed(spicc->base + SPICC_STATREG);
-		if (spicc->tx_remain && !(sta & SPICC_TF))
+		if (spicc->tx_remain && !(sta & SPICC_TF)) {
 			writel_relaxed(meson_spicc_pull_data(spicc),
 				spicc->base + SPICC_TXDATA);
-		if (sta & SPICC_RR)
+			spicc->tx_remain--;
+		}
+		if (sta & SPICC_RR) {
 			meson_spicc_push_data(spicc,
 				readl_relaxed(spicc->base + SPICC_RXDATA));
+			spicc->rx_remain--;
+		}
 	}
 
 	dirspi_stop(spi);
@@ -1654,6 +1867,8 @@ static int dirspi_dma_trig(struct spi_device *spi,
 
 	spicc->using_dma = 1;
 	spicc->bytes_per_word = DIV_ROUND_UP(spi->bits_per_word, 8);
+	spicc->dma_xfer.len = 0;
+	spicc->pio_xfer.len = 0;
 
 	meson_spicc_hw_prepare(spicc, spi->mode, meson_spicc_get_ctrl_cs_line(spi));
 	meson_spicc_set_width(spicc, spi->bits_per_word);
@@ -2010,10 +2225,6 @@ static int meson_spicc_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_MODIFY
 	spicc->parent_clk_fixed = false;
 	spicc->toggle_cs_every_word = false;
-	spicc->word_mode_ctrl = false;
-	if (spicc->data->has_word_mode_ctrl &&
-	    of_property_read_bool(pdev->dev.of_node, "word_mode_ctrl"))
-		spicc->word_mode_ctrl = true;
 	of_property_read_s32(pdev->dev.of_node, "latency",
 			     &spicc->miso_latency_default);
 	if (of_property_read_bool(pdev->dev.of_node, "parent_clk_fixed"))

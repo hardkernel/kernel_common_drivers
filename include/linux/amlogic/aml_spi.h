@@ -61,6 +61,7 @@ struct spicc_controller_data {
 	unsigned	dc_level:1;
 	unsigned	read_turn_around:8;
 	unsigned	miso_latency_en:1;
+	unsigned	split_xfer_en:1;
 	int		miso_latency; // in ns, signed
 	unsigned int	dma_trig_delay;
 	unsigned int	pclk_rate;
@@ -132,11 +133,13 @@ struct meson_spicc_device {
 	bool				parent_clk_fixed;
 	bool				clk_div_none;
 	bool				toggle_cs_every_word;
-	bool				word_mode_ctrl;
 	struct gpio_desc	**cs_gpiods;
 #endif
 	//struct spi_message		*message;
 	struct spi_transfer		*xfer;
+	struct spi_transfer		*orig_xfer;
+	struct spi_transfer		dma_xfer;
+	struct spi_transfer		pio_xfer;
 	u8				*tx_buf;
 	u8				*rx_buf;
 	unsigned int			bytes_per_word;
