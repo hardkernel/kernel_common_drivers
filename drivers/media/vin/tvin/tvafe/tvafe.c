@@ -738,8 +738,8 @@ static void tvafe_get_aspect_ratio_value(struct tvafe_dev_s *devp)
 		}
 
 		if (tvafe_dbg_print & TVAFE_DBG_WSS)
-			pr_info("wss active_ratio:%d->%d,ar_value:%d\n",
-				tvafe->aspect_ratio, maybe_ratio, ar_value);
+			pr_info("wss active_ratio:%d->%d,ar_value:%d,aspect:%d\n",
+				tvafe->active_ratio, maybe_ratio, ar_value, tvafe->aspect_ratio);
 
 		if (maybe_ratio) {
 			tvafe->aspect_ratio = tvafe_cvd2_get_aspect_ratio(maybe_ratio);

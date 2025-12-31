@@ -2512,6 +2512,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 			try_format_cnt = 0;
 			tvafe_try_format(cvd2, mem, cvd2->manual_fmt);
 			cvd2->info.state = TVAFE_CVD2_STATE_FIND;
+			tvafe_vbi_set_wss();
 			if (tvafe_dbg_print & TVAFE_DBG_SMR)
 				tvafe_pr_info("%s: manual fmt is:%s,do not need try other format!!!\n",
 				__func__, tvin_sig_fmt_str(cvd2->manual_fmt));

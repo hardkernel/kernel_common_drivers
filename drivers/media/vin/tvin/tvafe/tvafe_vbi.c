@@ -108,9 +108,9 @@ static inline void vbi_manual_reset(void)
 	//W_APB_REG(ACD_REG_22, 0x87080000);
 	//W_APB_REG(ACD_REG_22, 0x04080000);
 	W_APB_BIT(ACD_REG_22, 1, AML_VBI_RST_BIT, AML_VBI_RST_WID);
-	usleep_range(10, 12);
+	udelay(10);
 	W_APB_BIT(ACD_REG_22, 0, AML_VBI_RST_BIT, AML_VBI_RST_WID);
-	usleep_range(10, 12);
+	udelay(10);
 }
 
 static void vbi_hw_reset(struct vbi_dev_s *devp)
