@@ -61,6 +61,7 @@ static int sig_stable_err_max;
 static int err_cnt_sum_max;
 static int sig_unstable_max;
 static int sig_unready_max;
+static int sig_unnormal_max;
 static int fps_unready_max;
 static int frl_check_max = 30;
 static int frl_double_check_max = 5;
@@ -483,6 +484,7 @@ void hdmirx_fsm_var_init(void)
 		hbr_force_8ch = 1; //use it to enable hdr2spdif
 		sig_stable_err_max = 5;
 		sig_stable_max = 4;
+		sig_unnormal_max = 90;
 		fps_unready_max = 3;
 		dwc_rst_wait_cnt_max = 5;
 		spec_dev_wait_cnt_max = 200;
@@ -3255,6 +3257,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(dwc_rst_wait_cnt_max, i++);
 	pr_var(spec_dev_wait_cnt_max, i++);
 	pr_var(sig_stable_max, i++);
+	pr_var(sig_unnormal_max, i++);
 	pr_var(hpd_wait_dbg, i++);
 	pr_var(vtem_interval_debug, i++);
 	pr_var(sig_unstable_max, i++);
@@ -3568,6 +3571,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(spec_dev_wait_cnt_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(sig_stable_max), &sig_stable_max, value))
 		return pr_var(sig_stable_max, index);
+	if (set_pr_var(tmpbuf, var_to_str(sig_unnormal_max), &sig_unnormal_max, value))
+		return pr_var(sig_unnormal_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(hpd_wait_dbg), &hpd_wait_dbg, value))
 		return pr_var(hpd_wait_dbg, index);
 	if (set_pr_var(tmpbuf, var_to_str(vtem_interval_debug), &vtem_interval_debug, value))
@@ -6456,6 +6461,9 @@ void rx_port2_main_state_machine(void)
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;
 				if (fmt_vic_abnormal(port)) {
+					if (rx[port].var.vic_check_en &&
+						rx[port].var.sig_stable_cnt < sig_unnormal_max)
+						break;
 					if (rx[port].var.vic_check_en) {
 						/* hdmi_rx_top_edid_update(); */
 						hdmirx_hw_config(port);
@@ -7053,6 +7061,9 @@ void rx_port3_main_state_machine(void)
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;
 				if (fmt_vic_abnormal(port)) {
+					if (rx[port].var.vic_check_en &&
+						rx[port].var.sig_stable_cnt < sig_unnormal_max)
+						break;
 					if (rx[port].var.vic_check_en) {
 						/* hdmi_rx_top_edid_update(); */
 						hdmirx_hw_config(port);

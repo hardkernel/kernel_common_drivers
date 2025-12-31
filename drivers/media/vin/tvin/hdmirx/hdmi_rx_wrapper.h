@@ -73,7 +73,8 @@
 /* 2025.12.24 update phy 12G settings and init flow */
 /* 2025.12.26 fix training err*/
 /* 2025.12.30 fix 420 no signal*/
-#define RX_WRAPPER_VER "ver.2025/12/30"
+/* 2026.1.5 Add timeout protection measures for HDMI 2.1 port*/
+#define RX_WRAPPER_VER "ver.2026/1/5"
 
 struct freq_ref_s {
 	bool interlace;
