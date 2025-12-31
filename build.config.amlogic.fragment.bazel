@@ -53,8 +53,7 @@ function post_defconfig_cmds() {
 				${KCONFIG_DEFCONFIG} ${FRAGMENT_CONFIG_NOGKI}
 		fi
 
-		if [[ ${UPGRADE_PROJECT} == r || ${UPGRADE_PROJECT} == R || ${UPGRADE_PROJECT} == s || ${UPGRADE_PROJECT} == S \
-		   || ${UPGRADE_PROJECT} == u || ${UPGRADE_PROJECT} == U ]]; then
+		if [[ ! -z ${UPGRADE_PROJECT} ]]; then
 			KCONFIG_CONFIG=${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
 			${KCONFIG_DEFCONFIG} ${FRAGMENT_CONFIG_UPGRADE}
 		fi

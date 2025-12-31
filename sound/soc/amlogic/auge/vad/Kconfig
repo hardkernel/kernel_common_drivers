@@ -1,0 +1,9 @@
+config AMLOGIC_SND_SOC_AUGE_VAD
+	tristate "Amlogic snd vad"
+	default AMLOGIC_SND_SOC
+	help
+	  Say Y or M if you want to add support for audio arch Auge
+	  to the Amlogic Asoc Interface. it is a new audio arch to
+	  distinguish Meson audio arch. it is base on kernel 4.9
+	  Amlogic New SOC for New Audio ARCH
+

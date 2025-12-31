@@ -9,6 +9,6 @@ PR_FMT_VAD = $(subst amlogic-,,$(MODULE_NAME))
 PR_FMT_DEFINE_VAD="-Dpr_fmt(fmt)= \"[$(PR_FMT_VAD)]: \" fmt"
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/sound/soc/amlogic/auge/
 
-obj-$(CONFIG_AMLOGIC_SND_SOC) += $(MODULE_NAME).o
+obj-$(CONFIG_AMLOGIC_SND_SOC_AUGE_VAD) += $(MODULE_NAME).o
 $(MODULE_NAME)-y += vad_open.o
 CFLAGS_vad_open.o += $(PR_FMT_DEFINE_VAD)

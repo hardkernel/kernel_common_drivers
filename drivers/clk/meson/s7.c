@@ -3884,7 +3884,7 @@ static struct clk_regmap gen = {
 };
 
 #define MESON_CLK_GATE_SYS_CLK(_name, _reg, _bit)                     \
-struct clk_regmap _name = {                                           \
+static struct clk_regmap _name = {                                           \
 	.data = &(struct clk_regmap_gate_data) {                      \
 		.offset = (_reg),                                     \
 		.bit_idx = (_bit),                                    \
@@ -3928,7 +3928,7 @@ MESON_CLK_GATE_SYS_CLK(sys_usb, CLKCTRL_SYS_CLK_EN0_REG1, 26);
 MESON_CLK_GATE_SYS_CLK(sys_i2c_m_a, CLKCTRL_SYS_CLK_EN0_REG1, 30);
 
 #define MESON_CLK_GATE_HW(_name, _reg, _bit, _parent_hw)              \
-struct clk_regmap _name = {                                           \
+static struct clk_regmap _name = {                                           \
 	.data = &(struct clk_regmap_gate_data) {                      \
 		.offset = (_reg),                                     \
 		.bit_idx = (_bit),                                    \
@@ -3956,7 +3956,7 @@ MESON_CLK_GATE_SYS_CLK(sys_cpu_apb, CLKCTRL_SYS_CLK_EN0_REG2, 19);
 MESON_CLK_GATE_SYS_CLK(sys_vpu_intr, CLKCTRL_SYS_CLK_EN0_REG2, 25);
 MESON_CLK_GATE_SYS_CLK(sys_sar_adc, CLKCTRL_SYS_CLK_EN0_REG2, 28);
 
-struct clk_regmap sys_pwm_a;
+static struct clk_regmap sys_pwm_a;
 MESON_CLK_GATE_HW(sys_pwm_j, CLKCTRL_SYS_CLK_EN0_REG2, 29, sys_pwm_a.hw);
 MESON_CLK_GATE_SYS_CLK(sys_gic, CLKCTRL_SYS_CLK_EN0_REG2, 30);
 MESON_CLK_GATE_HW(sys_pwm_i, CLKCTRL_SYS_CLK_EN0_REG2, 31, sys_pwm_a.hw);
@@ -3970,7 +3970,7 @@ MESON_CLK_GATE_HW(sys_pwm_b, CLKCTRL_SYS_CLK_EN0_REG3, 6, sys_pwm_a.hw);
 MESON_CLK_GATE_SYS_CLK(sys_pwm_a, CLKCTRL_SYS_CLK_EN0_REG3, 7);
 
 #define MESON_CLK_GATE_AXI_CLK(_name, _reg, _bit)                     \
-struct clk_regmap _name = {                                           \
+static struct clk_regmap _name = {                                           \
 	.data = &(struct clk_regmap_gate_data) {                      \
 		.offset = (_reg),                                     \
 		.bit_idx = (_bit),                                    \

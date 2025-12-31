@@ -20285,6 +20285,7 @@ fail_alloc_region:
 	return ret;
 }
 
+#if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE)
 static void amdolby_vision_remove(struct platform_device *pdev)
 {
 	struct amdolby_vision_dev_s *devp = &amdolby_vision_dev;
@@ -20465,6 +20466,7 @@ static void amdolby_vision_remove(struct platform_device *pdev)
 	unregister_chrdev_region(devp->devno, 1);
 	pr_info("[ amdolby_vision.] :  amdolby_vision_exit.\n");
 }
+#endif
 
 static void amdolby_vision_shutdown(struct platform_device *pdev)
 {

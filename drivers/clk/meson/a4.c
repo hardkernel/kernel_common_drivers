@@ -1545,7 +1545,7 @@ static struct clk_regmap gen = {
 };
 
 #define MESON_CLK_GATE_SYS_CLK(_name, _reg, _bit)                     \
-struct clk_regmap _name = {                                           \
+static struct clk_regmap _name = {                                           \
 	.data = &(struct clk_regmap_gate_data) {                      \
 		.offset = (_reg),                                     \
 		.bit_idx = (_bit),                                    \
@@ -1618,7 +1618,7 @@ MESON_CLK_GATE_SYS_CLK(sys_usb_ctrl, CLKCTRL_SYS_CLK_EN0_REG1, 26);
 MESON_CLK_GATE_SYS_CLK(sys_acodec, CLKCTRL_SYS_CLK_EN0_REG1, 27);
 
 #define MESON_CLK_GATE_AXI_CLK(_name, _reg, _bit)                     \
-struct clk_regmap _name = {                                           \
+static struct clk_regmap _name = {                                           \
 	.data = &(struct clk_regmap_gate_data) {                      \
 		.offset = (_reg),                                     \
 		.bit_idx = (_bit),                                    \

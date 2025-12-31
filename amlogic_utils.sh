@@ -62,8 +62,7 @@ function pre_defconfig_cmds() {
 		fi
 	fi
 
-	if [[ ${UPGRADE_PROJECT} == r || ${UPGRADE_PROJECT} == R || ${UPGRADE_PROJECT} == s \
-	   || ${UPGRADE_PROJECT} == S || ${UPGRADE_PROJECT} == u || ${UPGRADE_PROJECT} == U ]]; then
+	if [[ ! -z ${UPGRADE_PROJECT} ]]; then
 		KCONFIG_CONFIG=${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${MERGE_CONFIG_SCRIPT_PATH}/merge_config.sh -m -r \
 		${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${FRAGMENT_CONFIG_UPGRADE}
 	fi
@@ -1742,8 +1741,8 @@ function build_kernel_with_bazel() {
 	[[ -n ${DDK_BUILD} && -n ${ANDROID_PROJECT} ]] && args="${args} --debug_modpost_warn"
 	[[ -z ${SYS_SKIP_GIT} ]] && args="${args}"
 	[[ -z ${PREBUILT_GKI} ]] && args="${args}"
-	[[ -z ${GKI_CONFIG} || -n ${UPDATE_KERNEL} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
-	[[ -n ${UPDATE_KERNEL} ]] && args="${args} --nokmi_symbol_list_violations_check --defconfig_fragment=//common_drivers:arch/arm64/configs/defconfig_fragment"
+	[[ -z ${GKI_CONFIG} || -n ${UPDATE_KERNEL} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode --nokmi_symbol_list_violations_check"
+	[[ -n ${UPDATE_KERNEL} ]] && args="${args} --defconfig_fragment=//common_drivers:arch/arm64/configs/defconfig_fragment"
 
 	PROJECT_DIR=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project
 	[[ -d ${PROJECT_DIR} ]] || mkdir -p ${PROJECT_DIR}

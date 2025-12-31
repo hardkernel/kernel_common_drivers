@@ -265,22 +265,25 @@ AMLOGIC_COMMON_MODULES = [
     "sound/drivers/snd-aloop.ko",
 ]
 
-
-AMLOGOC_COMMON_MODULES_REMOVE = [
-    "kernel/kheaders.ko",
-    "drivers/android/rust_binder.ko",
-] if project_configs.GKI_CONFIG in ("", "non_gki") else []
+AMLOGOC_COMMON_MODULES_REMOVE = (
+    [
+        "kernel/kheaders.ko",
+        "drivers/android/rust_binder.ko",
+    ] + (
+        [
+            "common_drivers/drivers/tty/serial/amlogic-uart.ko",
+            "//common_drivers/drivers/tty/serial:amlogic-uart",
+        ] if project_configs.UPGRADE_PROJECT else []
+    )
+) if project_configs.GKI_CONFIG in ("", "non_gki") else []
 
 AMLOGIC_UPGRADE_COMMON_MODULES = [
     # keep sorted
     "arch/arm64/crypto/sha1-ce.ko",
     "drivers/i2c/i2c-dev.ko",
-    "drivers/media/v4l2-core/v4l2-async.ko",
-    "drivers/media/v4l2-core/v4l2-fwnode.ko",
     "drivers/net/mdio/mdio-mux.ko",
     "drivers/net/pcs/pcs_xpcs.ko",
     "drivers/regulator/gpio-regulator.ko",
-    "fs/ntfs3/ntfs3.ko",
     "net/mac80211/mac80211.ko",
     "net/wireless/cfg80211.ko",
     "common_drivers/drivers/crypto/amlogic-crypto-dma.ko",
@@ -297,10 +300,6 @@ AMLOGIC_UPGRADE_COMMON_MODULES = [
     "//common_drivers/drivers/dvb/demux:amlogic-dvb-demux",
     "common_drivers/drivers/host/amlogic-host.ko",
     "//common_drivers/drivers/host:amlogic-host",
-    "common_drivers/drivers/hwspinlock/amlogic-hwspinlock.ko",
-    "//common_drivers/drivers/hwspinlock:amlogic-hwspinlock",
-    "common_drivers/drivers/iio/adc/amlogic-adc.ko",
-    "//common_drivers/drivers/iio/adc:amlogic-adc",
     "common_drivers/drivers/irblaster/amlogic-irblaster.ko",
     "//common_drivers/drivers/irblaster:amlogic-irblaster",
     "common_drivers/drivers/jtag/amlogic-jtag.ko",
@@ -317,8 +316,6 @@ AMLOGIC_UPGRADE_COMMON_MODULES = [
     "//common_drivers/drivers/rtc:amlogic-rtc",
     "common_drivers/drivers/soc_info/amlogic-socinfo.ko",
     "//common_drivers/drivers/soc_info:amlogic-socinfo",
-    "common_drivers/drivers/thermal/amlogic-thermal.ko",
-    "//common_drivers/drivers/thermal:amlogic-thermal",
     "common_drivers/drivers/usb/amlogic-usb.ko",
     "//common_drivers/drivers/usb:amlogic-usb",
     "common_drivers/drivers/wireless/amlogic-wireless.ko",
@@ -337,14 +334,14 @@ AMLOGIC_UPGRADE_COMMON_MODULES = [
     "//common_drivers/drivers/net:stmmac",
     "common_drivers/drivers/net/ethernet/stmicro/stmmac/stmmac-platform.ko",
     "//common_drivers/drivers/net:stmmac-platform",
-    "common_drivers/sound/soc/amlogic/amlogic-snd-soc.ko",
-    "//common_drivers/sound/soc:amlogic-snd-soc",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-ad82128.ko",
     "//common_drivers/sound/soc:amlogic-snd-codec-ad82128",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-ad82584f.ko",
     "//common_drivers/sound/soc:amlogic-snd-codec-ad82584f",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-dummy.ko",
     "//common_drivers/sound/soc:amlogic-snd-codec-dummy",
+    "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-gxlx4.ko",
+    "//common_drivers/sound/soc:amlogic-snd-codec-gxlx4",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-pa1.ko",
     "//common_drivers/sound/soc:amlogic-snd-codec-pa1",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-t9015.ko",
@@ -355,32 +352,51 @@ AMLOGIC_UPGRADE_COMMON_MODULES = [
     "//common_drivers/sound/soc:amlogic-snd-codec-tas5805",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-tl1.ko",
     "//common_drivers/sound/soc:amlogic-snd-codec-tl1",
+    "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-sy6026l.ko",
+    "//common_drivers/sound/soc:amlogic-snd-codec-sy6026l",
+    "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-t6d.ko",
+    "//common_drivers/sound/soc:amlogic-snd-codec-t6d",
+    "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-ad82120b.ko",
+    "//common_drivers/sound/soc:amlogic-snd-codec-ad82120b",
+    "common_drivers/sound/soc/amlogic/amlogic-snd-soc.ko",
+    "//common_drivers/sound/soc:amlogic-snd-soc",
+    "common_drivers/drivers/dvb/dummy_fe/amlogic-dummy-fe.ko",
+    "//common_drivers/drivers/dvb/dummy_fe:amlogic-dummy-fe",
+    "common_drivers/drivers/amfc/amlogic-soc-amfc.ko",
+    "//common_drivers/drivers/amfc:amlogic-soc-amfc",
+    "common_drivers/drivers/amfc/aml_erofs/amlogic-soc-erofs.ko",
+    "//common_drivers/drivers/amfc:amlogic-soc-erofs",
+    "common_drivers/drivers/amfc/aml_zram/aml-zram.ko",
+    "//common_drivers/drivers/amfc:aml-zram",
+    "common_drivers/drivers/amfc/sym_helper/amlogic-soc-sym_helper.ko",
+    "//common_drivers/drivers/amfc:amlogic-soc-sym_helper",
+    "common_drivers/drivers/aml_watermark/aml_watermark.ko",
+    "//common_drivers/drivers/aml_watermark:aml_watermark",
+    "common_drivers/drivers/net/phy/amlogic-realtek.ko",
+    "//common_drivers/drivers/net:amlogic-realtek",
 ]
 
-AMLOGIC_UPGRADE_P_MODULES = AMLOGIC_UPGRADE_COMMON_MODULES + [
+AMLOGIC_UPGRADE_P_MODULES = [
 
 ]
 
-AMLOGIC_UPGRADE_R_MODULES = AMLOGIC_UPGRADE_COMMON_MODULES + [
+AMLOGIC_UPGRADE_R_MODULES = [
 
 ]
 
-AMLOGIC_UPGRADE_S_MODULES = AMLOGIC_UPGRADE_COMMON_MODULES + [
+AMLOGIC_UPGRADE_S_MODULES = [
 
 ]
 
-AMLOGIC_UPGRADE_U_MODULES = AMLOGIC_UPGRADE_COMMON_MODULES + [
+AMLOGIC_UPGRADE_U_MODULES = [
 
 ]
 
 AMLOGIC_UPGRADE_R_REMOVE_MODULES = [
-    "common_drivers/drivers/tty/serial/amlogic-uart.ko",
-    "//common_drivers/drivers/tty/serial:amlogic-uart",
     "kernel/kheaders.ko",
 ]
 
 AMLOGIC_UPGRADE_S_REMOVE_MODULES = [
-    "common_drivers/drivers/tty/serial/amlogic-uart.ko",
 ]
 
 AMLOGIC_UPGRADE_P_REMOVE_MODULES = [
@@ -388,8 +404,6 @@ AMLOGIC_UPGRADE_P_REMOVE_MODULES = [
     "drivers/net/pcs/pcs_xpcs.ko",
     "drivers/net/mii.ko",
     "kernel/kheaders.ko",
-    "common_drivers/drivers/tty/serial/amlogic-uart.ko",
-    "//common_drivers/drivers/tty/serial:amlogic-uart",
     "common_drivers/drivers/drm/aml_drm.ko",
     "//common_drivers/drivers/drm:aml_drm",
     "common_drivers/drivers/hwspinlock/amlogic-hwspinlock.ko",
@@ -423,8 +437,6 @@ AMLOGIC_UPGRADE_P_REMOVE_MODULES = [
 ]
 
 AMLOGIC_UPGRADE_U_REMOVE_MODULES = [
-    "common_drivers/drivers/tty/serial/amlogic-uart.ko",
-    "//common_drivers/drivers/tty/serial:amlogic-uart",
 ]
 
 AMLOGIC_DDK_MODULES = []
@@ -434,10 +446,11 @@ def define_modules(
     ):
 
     AMLOGIC_GKIX_MODULES = AMLOGIC_GKI20_MODULES if project_configs.GKI_CONFIG == "gki_20" else AMLOGIC_GKI10_MODULES
-    AMLOGIC_COMMON_OR_UPGRADE_MODULES = AMLOGIC_UPGRADE_R_MODULES if project_configs.UPGRADE_PROJECT == "r" or project_configs.UPGRADE_PROJECT == "R" else \
-        AMLOGIC_UPGRADE_S_MODULES if project_configs.UPGRADE_PROJECT == "s" or project_configs.UPGRADE_PROJECT == "S" else \
-        AMLOGIC_UPGRADE_P_MODULES if project_configs.UPGRADE_PROJECT == "p" or project_configs.UPGRADE_PROJECT == "P" else \
-        AMLOGIC_UPGRADE_U_MODULES if project_configs.UPGRADE_PROJECT == "u" or project_configs.UPGRADE_PROJECT == "U" else \
+    AMLOGIC_COMMON_OR_UPGRADE_MODULES = AMLOGIC_UPGRADE_COMMON_MODULES + AMLOGIC_UPGRADE_R_MODULES if project_configs.UPGRADE_PROJECT == "r" or project_configs.UPGRADE_PROJECT == "R" else \
+        AMLOGIC_UPGRADE_COMMON_MODULES + AMLOGIC_UPGRADE_S_MODULES if project_configs.UPGRADE_PROJECT == "s" or project_configs.UPGRADE_PROJECT == "S" else \
+        AMLOGIC_UPGRADE_COMMON_MODULES + AMLOGIC_UPGRADE_P_MODULES if project_configs.UPGRADE_PROJECT == "p" or project_configs.UPGRADE_PROJECT == "P" else \
+        AMLOGIC_UPGRADE_COMMON_MODULES + AMLOGIC_UPGRADE_U_MODULES if project_configs.UPGRADE_PROJECT == "u" or project_configs.UPGRADE_PROJECT == "U" else \
+	AMLOGIC_UPGRADE_COMMON_MODULES if project_configs.UPGRADE_PROJECT else \
         AMLOGIC_COMMON_MODULES
     AMLOGIC_PROJECT_ALL_MODULES = AMLOGIC_COMMON_OR_UPGRADE_MODULES + AMLOGIC_GKIX_MODULES + project_configs.MODULES_OUT_ADD + AMLOGIC_ANDROID_MODULES if project_configs.EXTRA_ANDROID_MODULE else \
         AMLOGIC_COMMON_OR_UPGRADE_MODULES + AMLOGIC_GKIX_MODULES + project_configs.MODULES_OUT_ADD
