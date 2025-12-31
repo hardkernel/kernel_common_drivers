@@ -59,24 +59,28 @@ int is_valid_unifykey_storage_type(u32 storage_type)
 int register_unifykey_types(struct unifykey_type *uk_type)
 {
 	u32 type;
+	int ret = 0;
 
 	type = uk_type->storage_type;
 
 	if (!is_valid_unifykey_storage_type(type)) {
-		pr_err("not a supported unifykey storage type\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error;
 	}
 
 	if (is_valid_unifykey_storage_type(unifykey_types.storage_type)) {
-		pr_err("already registered\n");
-		return -EBUSY;
+		ret = -EBUSY;
+		goto error;
 	}
 
 	unifykey_types.storage_type = uk_type->storage_type;
 	unifykey_types.ops->read = uk_type->ops->read;
 	unifykey_types.ops->write = uk_type->ops->write;
 
-	return 0;
+error:
+	if (ret)
+		pr_err("register unifykey types failed: %d", ret);
+	return ret;
 }
 EXPORT_SYMBOL(register_unifykey_types);
 
@@ -91,51 +95,47 @@ static s32 _amlkey_init(u8 *seed, u32 len, int encrypt_type)
 	struct unifykey_type *uk_type;
 	u8	*storagekey_buf = NULL;
 
-	if (storagekey_info.buffer) {
-		pr_info("already init!\n");
-		goto _out;
-	}
+	if (storagekey_info.buffer)
+		goto error;
 
 	/* get buffer from bl31 */
 	storagekey_info.buffer = secure_storage_getbuf(&storagekey_info.size);
 	if (!storagekey_info.buffer) {
-		pr_err("can't get buffer from bl31!\n");
-		ret = -EINVAL;
-		goto _out;
+		ret = -1;
+		goto error;
 	}
 
 	/* fullfill key infos from storage. */
 	if (!is_valid_unifykey_storage_type(unifykey_types.storage_type)) {
-		pr_err("check whether emmc_key/nand_key driver is enabled\n");
-		ret = -EINVAL;
-		goto _out;
+		ret = -2;
+		goto error;
 	}
 
 	uk_type = &unifykey_types;
 	if (unlikely(!uk_type->ops->read)) {
-		pr_err("the read fun for current unifykey type is NULL\n");
-		ret = -EINVAL;
-		goto _out;
+		ret = -3;
+		goto error;
 	}
 
 	/* Get linear address, and read key from storage. */
 	storagekey_buf = kmalloc(storagekey_info.size, GFP_KERNEL);
-	if (!storagekey_buf)
-		return -ENOMEM;
+	if (!storagekey_buf) {
+		ret = -4;
+		goto error;
+	}
 	memset(storagekey_buf, 0, storagekey_info.size);
 	ret = uk_type->ops->read(storagekey_buf,
 				 storagekey_info.size,
 				 &actual_size);
 	if (ret) {
-		pr_err("fail to read key data\n");
 		memset(storagekey_info.buffer, 0, SECURESTORAGE_HEAD_SIZE);
+		ret = -5;
 		goto _out;
 	}
 
 	if (actual_size >= (1U << 20)) {
-		pr_err("really need more than 1M mem? please check\n");
 		memset(storagekey_info.buffer, 0, SECURESTORAGE_HEAD_SIZE);
-		ret = -EINVAL;
+		ret = -6;
 		goto _out;
 	}
 
@@ -147,6 +147,10 @@ static s32 _amlkey_init(u8 *seed, u32 len, int encrypt_type)
 
 _out:
 	kfree(storagekey_buf);
+
+error:
+	if (ret)
+		pr_err("amlkey init failed: %d", ret);
 	return ret;
 }
 
@@ -170,7 +174,6 @@ static u32 _amlkey_exist(const u8 *name)
 	u32	retval;
 
 	if (!name) {
-		pr_err("key name is NULL\n");
 		return 0;
 	}
 
@@ -189,7 +192,6 @@ static u32 _amlkey_get_attr(const u8 *name)
 	u32	retval;
 
 	if (!name) {
-		pr_err("key name is NULL\n");
 		return 0;
 	}
 
@@ -207,7 +209,6 @@ static unsigned int _amlkey_size(const u8 *name)
 	unsigned int	retval;
 
 	if (!name) {
-		pr_err("key name is NULL\n");
 		retval = 0;
 		goto _out;
 	}
@@ -225,7 +226,6 @@ static unsigned int _amlkey_read(const u8 *name, u8 *buffer, u32 len)
 	unsigned int retval = 0;
 
 	if (!name) {
-		pr_err("key name is NULL\n");
 		retval = 0;
 		goto _out;
 	}
@@ -244,38 +244,46 @@ static ssize_t _amlkey_write(const u8 *name, u8 *buffer,
 	u32	actual_length;
 	u8	*buf = NULL;
 	struct unifykey_type *uk_type;
+	int err = 0;
 
 	if (!name) {
-		pr_err("key name is NULL\n");
-		return retval;
+		err = -1;
+		goto _out;
 	}
 
 	if (secure_storage_write((u8 *)name, buffer, len, attr)) {
 		pr_err("fail to write key %s\n", name);
-		retval = 0;
+		err = -2;
 		goto _out;
 	}
 
 	retval = (ssize_t)len;
 
 	if (!is_valid_unifykey_storage_type(unifykey_types.storage_type)) {
-		pr_err("error: no storage type set\n");
-		return 0;
+		err = -3;
+		retval = 0;
+		goto _out;
 	}
 	uk_type = &unifykey_types;
 
 	if (!storagekey_info.buffer) {
+		err = -4;
 		retval = 0;
 		goto _out;
 	}
 
-	if (!securekey_prebuf)
-		return 0;
+	if (!securekey_prebuf) {
+		err = -5;
+		retval = 0;
+		goto _out;
+	}
 
 	if (storagekey_info.size > SECUREKEY_SIZE) {
-		pr_err("%s() %d: pre alloc buffer[0x%x] is too small, need size[0x%x].\n",
+		pr_dbg("%s() %d: pre alloc buffer[0x%x] is too small, need size[0x%x].\n",
 			__func__, __LINE__, SECUREKEY_SIZE, storagekey_info.size);
-		return 0;
+		err = -6;
+		retval = 0;
+		goto _out;
 	}
 
 	mutex_lock(&securekey_lock);
@@ -284,19 +292,21 @@ static ssize_t _amlkey_write(const u8 *name, u8 *buffer,
 
 	memcpy(buf, storagekey_info.buffer, storagekey_info.size);
 	if (!uk_type->ops->write) {
-		pr_err("the write fun for current unifykey type is NULL\n");
+		err = -7;
 		retval = 0;
 		mutex_unlock(&securekey_lock);
 		goto _out;
 	}
 	if (uk_type->ops->write(buf, storagekey_info.size, &actual_length)) {
-		pr_err("fail to write key data to storage\n");
+		err = -8;
 		retval = 0;
 	}
 
 	mutex_unlock(&securekey_lock);
 
 _out:
+	if (err)
+		pr_err("amlkey write failed: %d", err);
 	return retval;
 }
 
@@ -313,31 +323,36 @@ static u8 *normal_block;
 
 static s32 _amlkey_init_normal(u8 *seed, u32 len, int encrypt_type)
 {
-	int ret;
+	int ret = -1;
+	int err = 0;
 
-	if (!normal_block)
-		return -1;
-
-	if (!unifykey_types.ops->read) {
-		pr_err("no storage found\n");
-		return -1;
+	if (!normal_block) {
+		err = -1;
+		goto error;
 	}
 
-	if (normalkey_init())
-		return -1;
+	if (!unifykey_types.ops->read) {
+		err = -2;
+		goto error;
+	}
+
+	if (normalkey_init()) {
+		err = -3;
+		goto error;
+	}
 
 	mutex_lock(&normalkey_lock);
 	ret = unifykey_types.ops->read(normal_block,
 				       normal_blksz,
 				       &normal_flashsize);
 	if (ret) {
-		pr_err("read storage fail\n");
+		err = -4;
 		goto finish;
 	}
 
 	ret = normalkey_readfromblock(normal_block, normal_flashsize);
 	if (ret) {
-		pr_err("init block key fail\n");
+		err = -5;
 		goto finish;
 	}
 
@@ -347,6 +362,9 @@ finish:
 		normalkey_deinit();
 	mutex_unlock(&normalkey_lock);
 
+error:
+	if (err)
+		pr_err("amlkey init normal failed: %d", err);
 	return ret;
 }
 
@@ -408,30 +426,31 @@ static unsigned int _amlkey_read_normal(const u8 *name, u8 *buffer, u32 len)
 static ssize_t _amlkey_write_normal(const u8 *name, u8 *buffer,
 				    u32 len, u32 attr)
 {
-	int ret;
+	int ret = 0;
+	int err = 0;
 	u32 wrtsz = 0;
 
 	if (attr & OBJ_ATTR_SECURE) {
-		pr_err("can't write secure key\n");
-		return 0;
+		err = -1;
+		goto error;
 	}
 
 	if (!unifykey_types.ops->write) {
-		pr_err("no storage found\n");
-		return 0;
+		err = -2;
+		goto error;
 	}
 
 	mutex_lock(&normalkey_lock);
 	ret = normalkey_add(name, buffer, len, attr);
 	if (ret) {
-		pr_err("write key fail\n");
+		err = -3;
 		ret = 0;
 		goto unlock;
 	}
 
 	ret = normalkey_writetoblock(normal_block, normal_flashsize);
 	if (ret) {
-		pr_err("write block fail\n");
+		err = -4;
 		ret = 0;
 		goto unlock;
 	}
@@ -440,13 +459,17 @@ static ssize_t _amlkey_write_normal(const u8 *name, u8 *buffer,
 					normal_flashsize,
 					&wrtsz);
 	if (ret) {
-		pr_err("write storage fail\n");
+		err = -5;
 		ret = 0;
 		goto unlock;
 	}
 	ret = len;
 unlock:
 	mutex_unlock(&normalkey_lock);
+
+error:
+	if (err)
+		pr_err("amlkey write normal failed: %d", err);
 	return ret;
 }
 
@@ -474,7 +497,7 @@ int normal_key_init(struct platform_device *pdev)
 	ret = device_property_read_u32(&pdev->dev, "blocksize", &blksz);
 	if (!ret && blksz && PAGE_ALIGNED(blksz)) {
 		normal_blksz = blksz;
-		pr_info("block size from config: %x\n", blksz);
+		pr_dbg("block size from config: %x\n", blksz);
 	}
 
 	normal_block = kmalloc(normal_blksz, GFP_KERNEL);
@@ -529,7 +552,7 @@ int __init amlkey_if_init(struct platform_device *pdev)
 		return ret;
 	}
 
-	pr_debug("normal key used!\n");
+	pr_dbg("normal key used!\n");
 	ret = normal_key_init(pdev);
 	amlkey_if = &amlkey_ifs[IFTYPE_NORMAL_STORAGE];
 

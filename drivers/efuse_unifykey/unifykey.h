@@ -14,6 +14,13 @@
 
 #define KEY_UNIFY_NAME_LEN	48
 
+#define aml_unify_debug 0
+#define pr_dbg(fmt...)\
+	do {\
+		if (aml_unify_debug)\
+			pr_info("unifykey: "fmt);\
+	} while (0)
+
 enum key_manager_dev_e {
 	KEY_UNKNOWN_DEV = 0,
 	KEY_EFUSE,
