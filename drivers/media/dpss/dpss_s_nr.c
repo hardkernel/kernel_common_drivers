@@ -3066,8 +3066,8 @@ bool nr_only_input_buf(struct dpss_ch_s *pch, struct dpss_nr_i_s *nr_i)
 		dpss_dd_cfg_inp(vf);
 	}
 
-	//if (dpss_en_hdr && !pch->c.ch)
-		//dpss_hdr_proc(vf);
+	if (dpss_en_hdr && !pch->c.ch && pch->c.in_cnt == 1)
+		dpss_hdr_proc(vf);
 	if (pch->c.case_id == TST_CASE_IDX_1000) {
 		hw_tbc_src0_input(prm_top, index);
 		return true;
