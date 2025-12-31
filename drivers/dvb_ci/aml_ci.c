@@ -24,10 +24,10 @@ static int aml_ci_debug;
 #define pr_dbg(args...)\
 	do {\
 		if (aml_ci_debug)\
-			pr_err("aml_ci: " args);\
+			pr_err("ci:" args);\
 	} while (0)
 
-#define pr_error(fmt, args...) pr_err("DVBCI: " fmt, ## args)
+#define pr_error(fmt, args...) pr_err("ci:" fmt, ## args)
 
 /**\brief aml_ci_mem_read:mem read from cam
  * \param en50221: en50221 obj,used this data to get dvb_ci obj
@@ -41,15 +41,13 @@ static int aml_ci_mem_read(struct dvb_ca_en50221_cimcu *en50221, int slot, int a
 {
 	struct aml_ci *ci = en50221->data;
 
-	if (slot != 0) {
-		pr_error("slot !=0 %s :%d\r\n", __func__, slot);
+	if (slot != 0)
 		return -EINVAL;
-	}
 
 	if (ci->ci_mem_read)
 		return ci->ci_mem_read(ci, slot, addr);
 
-	pr_error("ci_mem_read is null %s\r\n", __func__);
+	// pr_error("ci_mem_read is null\r\n");
 	return -EINVAL;
 }
 
@@ -67,14 +65,13 @@ static int aml_ci_mem_write(struct dvb_ca_en50221_cimcu *en50221,
 {
 	struct aml_ci *ci = en50221->data;
 
-	if (slot != 0) {
-		pr_error("slot not 0 %s :%d\r\n", __func__, slot);
+	if (slot != 0)
 		return -EINVAL;
-	}
 
 	if (ci->ci_mem_write)
 		return ci->ci_mem_write(ci, slot, addr, data);
-	pr_error("ci_mem_write is null %s\r\n", __func__);
+
+	// pr_error("ci_mem_write is null\r\n");
 	return -EINVAL;
 }
 
@@ -90,15 +87,13 @@ static int aml_ci_io_read(struct dvb_ca_en50221_cimcu *en50221, int slot, u8 add
 {
 	struct aml_ci *ci = en50221->data;
 
-	if (slot != 0) {
-		pr_error("slot !=0 %s :%d\r\n", __func__, slot);
+	if (slot != 0)
 		return -EINVAL;
-	}
 
 	if (ci->ci_io_read)
 		return ci->ci_io_read(ci, slot, addr);
 
-	pr_error("ci_io_read is null %s\r\n", __func__);
+	// pr_error("ci_io_read is null\r\n");
 	return -EINVAL;
 }
 
@@ -116,15 +111,13 @@ static int aml_ci_io_write(struct dvb_ca_en50221_cimcu *en50221,
 {
 	struct aml_ci *ci = en50221->data;
 
-	if (slot != 0) {
-		pr_error("slot !=0 %s :%d\r\n", __func__, slot);
+	if (slot != 0)
 		return -EINVAL;
-	}
 
 	if (ci->ci_mem_write)
 		return ci->ci_io_write(ci, slot, addr, data);
 
-	pr_error("ci_io_write is null %s\r\n", __func__);
+	// pr_error("ci_io_write is null\r\n");
 	return -EINVAL;
 }
 
@@ -139,14 +132,14 @@ static int aml_ci_slot_reset(struct dvb_ca_en50221_cimcu *en50221, int slot)
 {
 	struct aml_ci *ci = en50221->data;
 
-	pr_dbg("Slot(%d): Slot RESET\n", slot);
+	// pr_dbg("Slot(%d): Slot RESET\n", slot);
 	if (ci->ci_slot_reset) {
 		ci->ci_slot_reset(ci, slot);
+		return 0;
 	} else {
-		pr_error("ci_slot_reset is null %s\r\n", __func__);
+		// pr_error("ci_slot_reset is null\r\n");
 		return -EINVAL;
 	}
-	return 0;
 }
 
 /**\brief aml_ci_slot_shutdown:show slot
@@ -160,14 +153,14 @@ static int aml_ci_slot_shutdown(struct dvb_ca_en50221_cimcu *en50221, int slot)
 {
 	struct aml_ci *ci = en50221->data;
 
-	pr_dbg("Slot(%d): Slot shutdown\n", slot);
+	// pr_dbg("Slot(%d): Slot shutdown\n", slot);
 	if (ci->ci_slot_shutdown) {
 		ci->ci_slot_shutdown(ci, slot);
+		return 0;
 	} else {
-		pr_error("ci_slot_shutdown is null %s\r\n", __func__);
+		// pr_error("ci_slot_shutdown is null\r\n");
 		return -EINVAL;
 	}
-	return 0;
 }
 
 /**\brief aml_ci_ts_control:control slot ts
@@ -181,15 +174,14 @@ static int aml_ci_ts_control(struct dvb_ca_en50221_cimcu *en50221, int slot)
 {
 	struct aml_ci *ci = en50221->data;
 
-	pr_dbg("Slot(%d): TS control\n", slot);
+	// pr_dbg("Slot(%d): TS control\n", slot);
 	if (ci->ci_slot_ts_enable) {
 		ci->ci_slot_ts_enable(ci, slot);
+		return 0;
 	} else {
-		pr_error("%s is null\r\n", __func__);
+		// pr_error("ci_slot_ts_enable is null\r\n");
 		return -EINVAL;
 	}
-
-	return 0;
 }
 
 /**\brief aml_ci_slot_status:get slot status
@@ -284,10 +276,11 @@ int aml_ci_init(struct platform_device *pdev,
 {
 	struct aml_ci *ci = NULL;
 	int ca_flags, result = 0;
+	int err_val = 0;
 
 	ci = kzalloc(sizeof(*ci), GFP_KERNEL);
 	if (!ci) {
-		pr_error("Out of memory!, exiting ..\n");
+		err_val = -1;
 		result = -ENOMEM;
 		goto err;
 	}
@@ -318,8 +311,7 @@ int aml_ci_init(struct platform_device *pdev,
 			result = dvb_ca_en50221_cimcu_init(dvb_adapter,
 				&ci->en50221_cimcu, ca_flags, 1);
 			if (result != 0) {
-				pr_error("EN50221_cimcu: Initialization failed <%d>\n",
-					result);
+				err_val = -2;
 				goto err;
 			}
 		}
@@ -332,7 +324,7 @@ int aml_ci_init(struct platform_device *pdev,
 		ci->ci_exit = aml_ci_bus_exit;
 	} else {
 		/* no io dev init,is error */
-		pr_dbg("unknown io type, please check io_type in dts file\r\n");
+		pr_dbg("unknown io type\r\n");
 	}
 
 	if (ci->ci_init)
@@ -340,6 +332,7 @@ int aml_ci_init(struct platform_device *pdev,
 
 	return result;
 err:
+	pr_error("init failed: %d\n", err_val);
 	kfree(ci);
 	return result;
 }
@@ -500,14 +493,14 @@ static int aml_ci_probe(struct platform_device *pdev)
 
 	dvb_adapter = aml_dvb_get_adapter(&pdev->dev);
 
-	pr_dbg("---Amlogic CI Init---[%p]\n", dvb_adapter);
+	pr_dbg("probe [%p]\n", dvb_adapter);
 
 	err = aml_ci_init(pdev, dvb_adapter, &ci_dev);
 	if (err < 0)
 		return err;
 
 	if (ci_dev->io_type == AML_DVB_IO_TYPE_CIBUS) {
-		pr_dbg("*********ci bus aml_ci_bus_mod_init---\n");
+		pr_dbg("mod init\n");
 		aml_ci_bus_mod_init();
 	}
 
@@ -526,7 +519,7 @@ static void aml_ci_remove(struct platform_device *pdev)
 		aml_ci_bus_mod_exit();
 		aml_ci_bus_exit(ci_dev);
 	} else {
-		pr_dbg("---Amlogic CI remove unknown io type---\n");
+		pr_dbg("remove io_type error\n");
 	}
 
 	aml_ci_exit(ci_dev);
@@ -534,12 +527,10 @@ static void aml_ci_remove(struct platform_device *pdev)
 
 static int aml_ci_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	pr_dbg("Amlogic CI Suspend!\n");
-
 	if (ci_dev->io_type == AML_DVB_IO_TYPE_CIBUS)
 		aml_ci_bus_exit(ci_dev);
 	else
-		pr_dbg("---Amlogic CI remove unknown io type---\n");
+		pr_dbg("suspend io_type error\n");
 
 	return 0;
 }
@@ -548,12 +539,10 @@ static int aml_ci_resume(struct platform_device *pdev)
 {
 	int err = 0;
 
-	pr_dbg("Amlogic CI Resume!\n");
-
 	if (ci_dev->io_type == AML_DVB_IO_TYPE_CIBUS)
 		aml_ci_bus_init(pdev, ci_dev);
 	else
-		pr_dbg("---Amlogic CI remove unknown io type---\n");
+		pr_dbg("resume io_type error\n");
 	return err;
 }
 
@@ -578,13 +567,13 @@ static struct platform_driver aml_ci_driver = {
 
 static int  aml_ci_mod_init(void)
 {
-	pr_dbg("Amlogic CI mode init\n");
+	pr_dbg("mode init\n");
 	return platform_driver_register(&aml_ci_driver);
 }
 
 static void  aml_ci_mod_exit(void)
 {
-	pr_dbg("Amlogic CI mode Exit\n");
+	//pr_dbg("mode exit\n");
 	platform_driver_unregister(&aml_ci_driver);
 }
 

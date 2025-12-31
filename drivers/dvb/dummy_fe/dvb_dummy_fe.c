@@ -79,7 +79,6 @@ static int _dummy_fe_property_process_set(struct dummy_fe_ctx_t *ctx,
 		ctx->status = data;
 		break;
 	default:
-		fe_err("%s invalid setprop, cmd: %d\n", __func__, cmd);
 		return -EINVAL;
 	}
 
@@ -114,7 +113,6 @@ static int _dummy_fe_property_process_get(struct dummy_fe_ctx_t *ctx,
 		*data = c->delivery_system;
 		break;
 	default:
-		fe_err("%s invalid getprop, cmd: %d\n", __func__, cmd);
 		return -EINVAL;
 	}
 
@@ -136,15 +134,14 @@ static long dummy_fe_wrapper_ioctl(struct file *file, unsigned int cmd, unsigned
 		for (i = 0; i < DUMMY_FE_MAX_DEV_CNT; i++) {
 			ctx = fe_ctx[i];
 			if (ctx)
-				fe_debug("%s dummy_fe_id: %d, prop.data: %d\n", __func__,
+				fe_debug("fe_id: %d, prop.data: %d\n",
 					ctx->dummy_fe_id, prop.data);
 			if (ctx &&
 				(ctx->dummy_fe_id == prop.data ||
 				ctx->dummy_fe_id == DUMMY_FE_INVALID_ID)) {
 				ctx->dummy_fe_id = prop.data;
 				ctx->filep = file;
-				fe_debug("%s set fe_id: %d, filep: %p\n",
-					__func__, ctx->dummy_fe_id, file);
+				fe_debug("set fe_id: %d, filep: %p\n", ctx->dummy_fe_id, file);
 				return 0;
 			}
 		}
@@ -156,10 +153,8 @@ static long dummy_fe_wrapper_ioctl(struct file *file, unsigned int cmd, unsigned
 		if (ctx && ctx->filep == file)
 			break;
 	}
-	if (i >= DUMMY_FE_MAX_DEV_CNT) {
-		fe_err("%s Failed to find dummy fe context, file:%p\n", __func__, file);
+	if (i >= DUMMY_FE_MAX_DEV_CNT)
 		return -1;
-	}
 
 	if (cmd == DUMMY_FE_SET_PROPERTY) {
 		return _dummy_fe_property_process_set(ctx, file, prop.cmd, prop.data);
@@ -181,13 +176,13 @@ static long dummy_fe_wrapper_ioctl(struct file *file, unsigned int cmd, unsigned
 
 static int dummy_fe_wrapper_open(struct inode *inodep, struct file *filep)
 {
-	fe_debug("%s filep:%p\n", __func__, filep);
+	// fe_debug("open filep:%p\n", filep);
 	return 0;
 }
 
 static int dummy_fe_wrapper_release(struct inode *inodep, struct file *filep)
 {
-	fe_debug("%s filep:%p\n", __func__, filep);
+	// fe_debug("release filep:%p\n", filep);
 	return 0;
 }
 
@@ -203,11 +198,8 @@ static unsigned int dummy_fe_wrapper_poll(struct file *filep, poll_table *wait)
 		if (ctx && ctx->filep == filep)
 			break;
 	}
-	if (i >= DUMMY_FE_MAX_DEV_CNT) {
-		pr_warn("%s Failed to find dummy fe context, file:%p\n",
-			__func__, filep);
+	if (i >= DUMMY_FE_MAX_DEV_CNT)
 		return -1;
-	}
 
 	poll_wait(filep, &ctx->wq, wait);
 	if (ctx->state == DUMMY_FE_LOCK)
@@ -244,20 +236,21 @@ static int __init dummy_fe_wrapper_init(void)
 {
 	dev_t dev = 0;
 	int ret;
+	int err_val;
 
 	// alloc dev. replace register_chrdev.
 	ret = alloc_chrdev_region(&dev, 0, 1, DEVICE_NAME);
 	if (ret < 0) {
-		fe_err("dummy-fe: device alloc fail.\n");
-		return ret;
+		err_val = -1;
+		goto error_handle;
 	}
 	major_number = MAJOR(dev);
 	if (major_number < 0) {
-		fe_err("dummy-fe: Failed to register a major number\n");
-		return major_number;
+		ret = major_number;
+		err_val = -2;
+		goto error_handle;
 	}
-	fe_debug("dummy-fe: Registered correctly with major number %d\n",
-		major_number);
+	fe_debug("major %d\n", major_number);
 
 	// init cdev
 	cdev_init(&dummy_cdev, &fops);
@@ -266,38 +259,40 @@ static int __init dummy_fe_wrapper_init(void)
 	// add cdev
 	ret = cdev_add(&dummy_cdev, dev, 1);
 	if (ret < 0) {
-		fe_err("dummy-fe: add cdev fail.\n");
 		unregister_chrdev_region(dev, 1);
-		return ret;
+		err_val = -3;
+		goto error_handle;
 	}
 
 	// create class
 	dummy_class = class_create(CLASS_NAME);
 	if (IS_ERR(dummy_class)) {
-		fe_err("dummy-fe: class creat failed.\n");
 		cdev_del(&dummy_cdev);
 		unregister_chrdev_region(dev, 1);
-		return PTR_ERR(dummy_class);
+		ret = PTR_ERR(dummy_class);
+		err_val = -4;
+		goto error_handle;
 	}
-
-	fe_debug("dummy-fe: Device class registered correctly\n");
 
 	//device create
 	dummy_device = device_create(dummy_class, NULL, dev, NULL, DEVICE_NAME);
 	if (IS_ERR(dummy_device)) {
-		fe_err("dummy-fe: Failed to create the device\n");
 		class_destroy(dummy_class);
 		cdev_del(&dummy_cdev);
 		unregister_chrdev_region(dev, 1);
-		return PTR_ERR(dummy_device);
+		ret = PTR_ERR(dummy_device);
+		err_val = -5;
+		goto error_handle;
 	}
 
-	fe_debug("dummy-fe: Device created\n");
-
 	demod_attach_register_cb(AM_DTV_DEMOD_DUMMY, dvb_dummy_fe_attach);
-	fe_debug("dummy-fe: register demod attach cb\n");
+	fe_debug("init success\n");
 
 	return 0;
+
+error_handle:
+	fe_debug("init failed: %d\n", err_val);
+	return ret;
 }
 
 static void __exit dummy_fe_wrapper_exit(void)
@@ -312,7 +307,7 @@ static void __exit dummy_fe_wrapper_exit(void)
 
 	unregister_chrdev_region(MKDEV(major_number, 0), 1);
 
-	fe_debug("Goodbye from the LKM!\n");
+	fe_debug("exit\n");
 }
 
 static int dvb_dummy_fe_read_status(struct dvb_frontend *fe,
@@ -323,7 +318,7 @@ static int dvb_dummy_fe_read_status(struct dvb_frontend *fe,
 
 	for (i = 0; i < 3; i++) {
 		if (ctx->state == DUMMY_FE_LOCK) {
-			fe_debug("tuner is locking. wait for 50ms!");
+			fe_debug("locking");
 			msleep(50);
 		} else {
 			break;
@@ -334,7 +329,7 @@ static int dvb_dummy_fe_read_status(struct dvb_frontend *fe,
 	else
 		ctx->status = FE_TIMEDOUT;
 
-	fe_debug("%s status: %d\n", __func__, ctx->status);
+	fe_debug("read status: %d\n", ctx->status);
 	*status = ctx->status;
 
 	return 0;
@@ -398,7 +393,7 @@ static int dvb_dummy_fe_get_property(struct dvb_frontend *fe,
 	}
 
 	tvp->u.data = 3;
-	fe_err("%s failed\n", __func__);
+	fe_err("get prop failed\n");
 
 	return 0;
 }
@@ -421,13 +416,12 @@ static int dvb_dummy_fe_set_frontend(struct dvb_frontend *fe)
 	struct dummy_fe_ctx_t *ctx = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	fe_debug("%s freq: %d, delivery_system: %d, fe_id: %d",
-		__func__, c->frequency, c->delivery_system, fe->id);
+	if (c)
+		fe_debug("set freq: %d, sys: %d, fe_id: %d",
+			c->frequency, c->delivery_system, fe->id);
 
-	if (!ctx) {
-		fe_err("%s dummy fe context is null\n", __func__);
+	if (!ctx)
 		return -1;
-	}
 
 	ctx->dummy_fe_id = fe->id;
 	ctx->state = DUMMY_FE_LOCK;
@@ -447,7 +441,7 @@ static int dvb_dummy_fe_init(struct dvb_frontend *fe)
 	struct dvb_device *dvbdev = *(struct dvb_device **)fe->frontend_priv;
 	struct dummy_fe_ctx_t *ctx = fe->demodulator_priv;
 
-	fe_debug("%s called, ctx: %p, fe_id: %d, dvbdev id: %d\n", __func__,
+	fe_debug("init ctx: %p, fe_id: %d, dvbdev id: %d\n",
 		ctx, fe->id, dvbdev->id);
 	fe->id = dvbdev->id;
 	ctx->state = DUMMY_FE_INIT;
@@ -481,10 +475,8 @@ static int _record_ctx(struct dummy_fe_ctx_t *ctx)
 		if (!fe_ctx[i])
 			break;
 	}
-	if (i >= DUMMY_FE_MAX_DEV_CNT) {
-		fe_err("Failed to record dummy fe context\n");
+	if (i >= DUMMY_FE_MAX_DEV_CNT)
 		return -1;
-	}
 
 	ctx->filep = NULL;
 	ctx->status = FE_NONE;
@@ -515,7 +507,7 @@ struct dvb_frontend *dvb_dummy_fe_attach(const struct demod_config *config)
 	ctx->frontend.demodulator_priv = ctx;
 	ctx->tsin = config->ts;
 
-	fe_debug("%s called, ctx: %p, tsin: %d\n", __func__, ctx, config->ts);
+	fe_debug("attach, ctx: %p, tsin: %d\n", ctx, config->ts);
 	/* record dummy fe ctx */
 	_record_ctx(ctx);
 

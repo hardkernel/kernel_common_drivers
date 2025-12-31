@@ -3789,8 +3789,8 @@ static ssize_t dmx_params_show(const struct class *class,
 	ts_input_debug(0, "debug_input", &param_value);
 	ret = sprintf(buf + total, "debug_input:%d\n", param_value);
 	total += ret;
-	dmabuf_debug(0, "dmabuf_manage_debug", &param_value);
-	ret = sprintf(buf + total, "dmabuf_manage_debug:%d\n", param_value);
+	dmabuf_debug(0, "debug_dmabuf", &param_value);
+	ret = sprintf(buf + total, "debug_dmabuf:%d\n", param_value);
 	total += ret;
 
 	mutex_unlock(&advb->mutex);
@@ -3868,7 +3868,7 @@ static ssize_t dmx_params_store(const struct class *class,
 		ts_clone_debug(1, param_name, &param_value);
 	else if (!strncmp(param_name, "debug_input", strlen("debug_input")))
 		ts_input_debug(1, param_name, &param_value);
-	else if (!strncmp(param_name, "dmabuf_manage_debug", strlen("dmabuf_manage_debug")))
+	else if (!strncmp(param_name, "debug_dmabuf", strlen("debug_dmabuf")))
 		dmabuf_debug(1, param_name, &param_value);
 	else
 		goto error_handle;

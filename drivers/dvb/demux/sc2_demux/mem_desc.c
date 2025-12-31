@@ -122,6 +122,7 @@ static int cache_init(int cache_level)
 	int total_size = 0;
 	int buf_page_num = 0;
 	unsigned int gfp_flags = 0;
+	int err_val = 0;
 
 	if (cache_level == 0 && !first_cache) {
 		first_cache = vmalloc(sizeof(*first_cache));
@@ -135,7 +136,7 @@ static int cache_init(int cache_level)
 		if ((get_dmx_version() >= 6) && (sizeof(unsigned long) == 8)) {
 			gfp_flags = GFP_KERNEL;
 			if (dma_set_mask_and_coherent(aml_get_device(), DMA_BIT_MASK(64)))
-				dprint("%s dma_set_mask_and_coherent fail\n", __func__);
+				dprint("dma_set_mask fail\n");
 		} else {
 			gfp_flags = GFP_KERNEL | GFP_DMA32;
 		}
@@ -144,8 +145,8 @@ static int cache_init(int cache_level)
 		if (!first_cache->start_virt) {
 			vfree(first_cache);
 			first_cache = NULL;
-			dprint("%s first cache fail\n", __func__);
-			return -1;
+			err_val = -1;
+			goto error_handle;
 		}
 		pr_dbg("first_cache start_phys:0x%lx, start_virt:0x%lx\n",
 			first_cache->start_phys, first_cache->start_virt);
@@ -167,23 +168,25 @@ static int cache_init(int cache_level)
 		if (!second_cache->start_phys) {
 			vfree(second_cache);
 			second_cache = NULL;
-			dprint("%s second cache fail\n", __func__);
-			return -1;
+			err_val = -2;
+			goto error_handle;
 		}
-		pr_dbg_mem("%s size:%d alloc finish\n", __func__, total_size);
 		second_cache->start_virt =
 		(unsigned long)codec_mm_phys_to_virt(second_cache->start_phys);
 		if (IS_ERR_OR_NULL((const void *)second_cache->start_virt)) {
 			codec_mm_free_for_dma("dmx", second_cache->start_phys);
 			vfree(second_cache);
-			dprint("phys to virt addr failed\n");
-			return -1;
+			err_val = -3;
+			goto error_handle;
 		}
-		pr_dbg_mem("%s size:%d done\n", __func__, total_size);
 		pr_dbg("second_cache start_phys:0x%lx, start_virt:0x%lx\n",
 			second_cache->start_phys, second_cache->start_virt);
 	}
 	return 0;
+
+error_handle:
+	dprint("cache init failed! err_val:%d\n", err_val);
+	return -1;
 }
 
 static int cache_destroy(int cache_level)
@@ -379,6 +382,7 @@ static int dmc_range_init(struct dmc_range *range, int sec_level)
 	unsigned long buf_start_virt = 0;
 	u32 ret = -1;
 	u32 len = range->size;
+	int err_val;
 
 	flags = CODEC_MM_FLAGS_DMA_CPU | CODEC_MM_FLAGS_FOR_VDECODER;
 
@@ -388,15 +392,14 @@ static int dmc_range_init(struct dmc_range *range, int sec_level)
 	buf_start =
 	    codec_mm_alloc_for_dma("dmx", buf_page_num, 4 + PAGE_SHIFT, flags);
 	if (!buf_start) {
-		dprint("%s fail\n", __func__);
-		return -1;
+		err_val = -1;
+		goto error_handle;
 	}
-	pr_dbg_mem("%s size:%d alloc finish\n", __func__, len);
 	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
 	if (IS_ERR_OR_NULL((const void *)buf_start_virt)) {
 		codec_mm_free_for_dma("dmx", buf_start);
-		dprint("phys to virt addr failed\n");
-		return -1;
+		err_val = -2;
+		goto error_handle;
 	}
 	pr_dbg_mem("dmc mem init phy:0x%lx, virt:0x%lx, len:%d\n",
 		buf_start, buf_start_virt, len);
@@ -407,8 +410,7 @@ static int dmc_range_init(struct dmc_range *range, int sec_level)
 		sec_level = sec_level == 1 ? 0 : sec_level;
 		ret = tee_protect_mem(TEE_MEM_TYPE_DEMUX,
 			sec_level, buf_start, len, &range->handle);
-		dprint("%s, protect 0x%lx, len:%d, ret:0x%x\n",
-				__func__, buf_start, len, ret);
+		dprint("tee_protect_mem ret:0x%x\n", ret);
 	}
 	range->buf_start_phy = buf_start;
 	range->free_start_phy = buf_start;
@@ -417,6 +419,10 @@ static int dmc_range_init(struct dmc_range *range, int sec_level)
 	range->region_list = NULL;
 	range->used = 1;
 	return 0;
+
+error_handle:
+	dprint("dmc range init failed! err_val:%d\n", err_val);
+	return -1;
 }
 
 static int dmc_range_destroy(struct dmc_range *range)
@@ -471,16 +477,15 @@ static int dmc_range_get_block(struct dmc_range *range, unsigned int len,
 		return -1;
 
 	temp = vmalloc(sizeof(*temp));
-	if (!temp) {
-		dprint("%s err vmalloc\n", __func__);
+	if (!temp)
 		return -1;
-	}
+
 	temp->len = len;
 	temp->start_phy = range->free_start_phy;
 	temp->start_virt = (unsigned long)codec_mm_phys_to_virt(temp->start_phy);
 	if (!temp->start_virt) {
 		vfree(temp);
-		dprint("%s codec_mm_phys_to_virt fail\n", __func__);
+		dprint("phys_to_virt fail\n");
 		return -1;
 	}
 	temp->status = 1;
@@ -529,10 +534,8 @@ static int dmc_mem_init(struct dmc_mem *mem, int sec_level)
 
 	mem->range_num = 2;
 	temp = vmalloc(sizeof(*temp) * mem->range_num);
-	if (!temp) {
-		dprint("%s err vmalloc\n", __func__);
+	if (!temp)
 		return -1;
-	}
 	memset(temp, 0, sizeof(*temp) * mem->range_num);
 
 	num = mem->total_size / DMC_MEM_DEFAULT_SIZE;
@@ -633,21 +636,26 @@ static int dmc_mem_free(unsigned long buf, unsigned int len, int sec_level)
 {
 	int dmc_index = sec_level - 1;
 	int ret = 0;
+	int err_val;
 
 	if (dmc_index < 0 || dmc_index >= 7) {
-		dprint("%s err level:%d\n", __func__, sec_level);
-		return -1;
+		err_val = -1;
+		goto error_handle;
 	}
 	if (!dmc_mem_level[dmc_index].init) {
-		dprint("%s err no init\n", __func__);
-		return -1;
+		err_val = -2;
+		goto error_handle;
 	}
 	ret = dmc_mem_free_block(&dmc_mem_level[dmc_index], buf);
 	if (ret != 0) {
-		dprint("err: can't free dmc mem buf:0x%lx", buf);
-		return -1;
+		err_val = -3;
+		goto error_handle;
 	}
 	return ret;
+
+error_handle:
+	dprint("dmc mem free failed! err_val:%d level:%d buf:0x%lx\n", err_val, sec_level, buf);
+	return -1;
 }
 
 int dmc_mem_set_size(int sec_level, unsigned int mem_size)
@@ -809,76 +817,68 @@ int _alloc_buff(unsigned int len, int sec_level,
 	unsigned long buf_start = 0;
 	unsigned long buf_start_virt = 0;
 	int iret = 0;
+	int err_val = 0;
+	int alloc_pos = 0;
 
+	pr_dbg_mem("%s size:%d\n", __func__, len);
 	if (sec_level) {
 		iret = dmc_mem_malloc(sec_level, len, &buf_start_virt, &buf_start);
 		if (iret == 0) {
-			*vir_mem = buf_start_virt;
-			*phy_mem = buf_start;
-			return 0;
+			alloc_pos = 1;
+			goto success_handle;
 		}
-		dprint("err:can't get mem len 0x%0x\n", len);
-		return -1;
+
+		err_val = -1;
+		goto error_handle;
 	}
 
 	iret = cache_malloc(len, &buf_start_virt, &buf_start);
 	if (iret == 0) {
-		if (buf_start >= 0xffffffff)
-			dprint_i("error cache phy:0x%lx, virt:0x%lx, len:%d\n",
-				buf_start, buf_start_virt, len);
-		else
-			pr_dbg("init cache phy 11:0x%lx, virt:0x%lx, len:%d\n",
-				buf_start, buf_start_virt, len);
-		memset((char *)buf_start_virt, 0xa5, len);
-		*vir_mem = buf_start_virt;
-		*phy_mem = buf_start;
-		return 0;
+		alloc_pos = 2;
+		goto success_handle;
 	}
-	if (pvr_memory_reserved &&
-		format == DVR_FORMAT) {
+
+	if (pvr_memory_reserved && format == DVR_FORMAT) {
 		iret = _alloc_buff_cma(len, &buf_start_virt, &buf_start);
 		if (iret == 0) {
-			dprint("init cma phy:0x%lx, virt:0x%lx, len:%d\n",
-				(unsigned long)buf_start, (unsigned long)buf_start_virt, len);
-			memset((char *)buf_start_virt, 0xa5, len);
-
-			*vir_mem = buf_start_virt;
-			*phy_mem = buf_start;
-			return 0;
+			alloc_pos = 3;
+			goto success_handle;
 		}
-		dprint("%s cma fail, len:0x%0x\n", __func__, len);
-		return -1;
+
+		err_val = -2;
+		goto error_handle;
 	}
 
 	if (len < BEN_LEVEL_SIZE)
 		flags = CODEC_MM_FLAGS_DMA_CPU;
 	else
 		flags = CODEC_MM_FLAGS_DMA_CPU | CODEC_MM_FLAGS_FOR_VDECODER;
-
 	buf_page_num = PAGE_ALIGN(len) / PAGE_SIZE;
-
-	pr_dbg_mem("%s size:%d\n", __func__, len);
-	buf_start =
-	    codec_mm_alloc_for_dma("dmx", buf_page_num, 4 + PAGE_SHIFT, flags);
+	buf_start = codec_mm_alloc_for_dma("dmx", buf_page_num, 4 + PAGE_SHIFT, flags);
 	if (!buf_start) {
-		dprint("%s fail\n", __func__);
-		return -1;
+		err_val = -3;
+		goto error_handle;
 	}
-	pr_dbg_mem("%s size:%d alloc finish\n", __func__, len);
 	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
 	if (IS_ERR_OR_NULL((const void *)buf_start_virt)) {
 		codec_mm_free_for_dma("dmx", buf_start);
-		dprint("phys to virt addr failed\n");
-		return -1;
+		err_val = -4;
+		goto error_handle;
 	}
-	pr_dbg_mem("init phy:0x%lx, virt:0x%lx, len:%d\n",
-			buf_start, buf_start_virt, len);
-	memset((char *)buf_start_virt, 0xa5, len);
+	alloc_pos = 4;
 
+success_handle:
+	pr_dbg_mem("alloc buf, phy:0x%lx, virt:0x%lx, len:%d, alloc_pos:%d\n",
+		buf_start, buf_start_virt, len, alloc_pos);
+	if (!sec_level)
+		memset((char *)buf_start_virt, 0xa5, len);
 	*vir_mem = buf_start_virt;
 	*phy_mem = buf_start;
-
 	return 0;
+
+error_handle:
+	dprint("alloc buf failed! err_val:%d\n", err_val);
+	return -1;
 }
 
 void _free_buff(unsigned long vir_mem, unsigned long phy_mem,
@@ -1227,13 +1227,10 @@ int SC2_bufferid_set_enable(struct chan_id *pchan, int enable, int sid, int pid)
 	wdma_config_enable(pchan, enable, pchan->memdescs_phy, pchan->mem_size,
 		sid, pid, pchan->sec_level);
 
-	pr_dbg("######wdma start###########\n");
 	pr_dbg("err:0x%0x, active:%d\n", wdma_get_err(pchan->id),
 	       wdma_get_active(pchan->id));
 	pr_dbg("wptr:0x%0llx\n", wdma_get_wptr(pchan->id));
 	pr_dbg("wr_len:0x%0x\n", wdma_get_wr_len(pchan->id, NULL));
-	pr_dbg("######wdma end###########\n");
-
 	return 0;
 }
 
@@ -1439,6 +1436,25 @@ int SC2_bufferid_move_read_rp(struct chan_id *pchan, unsigned int len, int flag)
 	return 0;
 }
 
+void _dump_mem_info(struct chan_id *pchan, int total)
+{
+	pr_dbg("dump mem info:\n");
+	pr_dbg("input data:0x%0x, des len:%d\n", (*(char *)(pchan->mem)), total);
+	pr_dbg("desc data:0x%0llx 0x%0llx\n", (*(u64 *)(pchan->memdescs)),
+		(*((u64 *)(pchan->memdescs) + 1)));
+}
+
+void _dump_rdma_info(struct chan_id *pchan)
+{
+	pr_dbg("dump rdma info:\n");
+	pr_dbg("status:0x%0x\n", rdma_get_status(pchan->id));
+	pr_dbg("err:0x%0x, len err:0x%0x, active:%d\n",
+		rdma_get_err(), rdma_get_len_err(), rdma_get_active());
+	pr_dbg("pkt_sync:0x%0x\n", rdma_get_pkt_sync_status(pchan->id));
+	pr_dbg("rptr:0x%0llx\n", rdma_get_rptr(pchan->id));
+	pr_dbg("cfg fifo:0x%0x\n", rdma_get_cfg_fifo());
+}
+
 /**
  * write to channel
  * \param pchan:struct chan_id handle
@@ -1521,7 +1537,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 				length = (buf_end - buf_start) + (buf_start - reg);
 				vaddr = (void *)ioremap_wc(reg, length);
 				if (IS_ERR_OR_NULL(vaddr)) {
-					dprint("%s %d ioremap fail\n", __func__, __LINE__);
+					dprint("ioremap_wc fail\n");
 				} else {
 					//pr_dbg("%s %d buffers start = %lx
 					//phy addr = %lx vir addr = %lx\n",
@@ -1564,12 +1580,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 
 		wmb();	/*Ensure pchan->mem contents visible */
 
-		pr_dbg("%s, input data:0x%0x, des len:%d\n", __func__,
-		       (*(char *)(pchan->mem)), total);
-		pr_dbg("%s, desc data:0x%0llx 0x%0llx\n", __func__,
-		       (*(u64 *)(pchan->memdescs)),
-		       (*((u64 *)(pchan->memdescs) + 1)));
-
+		_dump_mem_info(pchan, total);
 		pchan->enable = 1;
 		rdma_config_enable(pchan, 1, pchan->memdescs_phy,
 				   pchan->mem_size, total, pack_len);
@@ -1586,14 +1597,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 		dprint("%s, len not equal,ret:%d,w:%d\n",
 		       __func__, ret, total);
 
-	pr_dbg("#######rdma##########\n");
-	pr_dbg("status:0x%0x\n", rdma_get_status(pchan->id));
-	pr_dbg("err:0x%0x, len err:0x%0x, active:%d\n",
-		       rdma_get_err(), rdma_get_len_err(), rdma_get_active());
-	pr_dbg("pkt_sync:0x%0x\n", rdma_get_pkt_sync_status(pchan->id));
-	pr_dbg("ptr:0x%0llx\n", rdma_get_rptr(pchan->id));
-	pr_dbg("cfg fifo:0x%0x\n", rdma_get_cfg_fifo());
-	pr_dbg("#######rdma##########\n");
+	_dump_rdma_info(pchan);
 
 	/*disable */
 	rdma_config_enable(pchan, 0, 0, 0, 0, 0);
@@ -1681,7 +1685,7 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 				length = (buf_end - buf_start) + (buf_start - reg);
 				vaddr = (void *)ioremap_wc(reg, length);
 				if (IS_ERR_OR_NULL(vaddr)) {
-					dprint("%s %d ioremap fail\n", __func__, __LINE__);
+					dprint("ioremap_wc fail\n");
 				} else {
 					//pr_dbg("%s %d buffers start = %lx
 					//phy addr = %lx vir addr = %lx\n",
@@ -1721,12 +1725,7 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 
 		wmb();	/*Ensure pchan->mem contents visible */
 
-		pr_dbg("%s, input data:0x%0x, des len:%d\n", __func__,
-			   (*(char *)(pchan->mem)), total);
-		pr_dbg("%s, desc data:0x%0llx 0x%0llx\n", __func__,
-		       (*(u64 *)(pchan->memdescs)),
-		       (*((u64 *)(pchan->memdescs) + 1)));
-
+		_dump_mem_info(pchan, total);
 		pchan->enable = 1;
 		rdma_config_enable(pchan, 1, pchan->memdescs_phy,
 				   pchan->mem_size, total, pack_len);
@@ -1815,10 +1814,7 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 
 	wmb();	/*Ensure pchan->mem contents visible */
 
-	pr_dbg("%s, desc data:0x%0llx 0x%0llx\n", __func__,
-		(*(u64 *)(pchan->memdescs)),
-		(*((u64 *)(pchan->memdescs) + 1)));
-
+	_dump_mem_info(pchan, len);
 	pchan->enable = 1;
 	rdma_config_enable(pchan, 1, pchan->memdescs_phy, len, len, 188);
 
@@ -1830,14 +1826,7 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 		dprint("%s, len not equal,ret:%d,w:%d\n",
 	       __func__, ret, len);
 
-	pr_dbg("#######rdma##########\n");
-	pr_dbg("status:0x%0x\n", rdma_get_status(pchan->id));
-	pr_dbg("err:0x%0x, len err:0x%0x, active:%d\n",
-	       rdma_get_err(), rdma_get_len_err(), rdma_get_active());
-	pr_dbg("pkt_sync:0x%0x\n", rdma_get_pkt_sync_status(pchan->id));
-	pr_dbg("ptr:0x%0llx\n", rdma_get_rptr(pchan->id));
-	pr_dbg("cfg fifo:0x%0x\n", rdma_get_cfg_fifo());
-	pr_dbg("#######rdma##########\n");
+	_dump_rdma_info(pchan);
 
 	/*disable */
 	rdma_config_enable(pchan, 0, 0, 0, 0, 0);

@@ -237,7 +237,6 @@ static int _remove_chan_from_list(struct aml_dsc *dsc, struct dsc_channel *chan)
 	struct dsc_channel *ptmp = dsc->dsc_channels;
 	struct dsc_channel *pretmp = dsc->dsc_channels;
 
-	pr_dbg("%s\n", __func__);
 	while (ptmp) {
 		if (ptmp == chan) {
 			if (ptmp == dsc->dsc_channels)
@@ -255,12 +254,13 @@ static struct dsc_channel *_get_chan_from_list(struct aml_dsc *dsc, int id)
 {
 	struct dsc_channel *ptmp = dsc->dsc_channels;
 
-	pr_dbg("%s\n", __func__);
 	while (ptmp) {
 		if (ptmp->id == id)
 			return ptmp;
 		ptmp = ptmp->next;
 	}
+
+	pr_dbg("can't get chan, id: %d\n", id);
 	return NULL;
 }
 
@@ -321,16 +321,18 @@ static int _dsc_chan_alloc(struct aml_dsc *dsc, struct file *file,
 static void _dsc_chan_free(struct dsc_channel *ch, struct file *file)
 {
 	struct aml_dsc *dsc = (struct aml_dsc *)ch->dsc;
+	int err_val = 0;
 
-	pr_dbg("%s enter\n", __func__);
-
-	if (ch->state == DSC_STATE_FREE)
-		return;
+	if (ch->state == DSC_STATE_FREE) {
+		err_val = -1;
+		goto error_handle;
+	}
 
 	if (file && ch->file != file) {
-		pr_dbg("not same file, don't operate\n");
-		return;
+		err_val = -2;
+		goto error_handle;
 	}
+
 	ts_output_cas_dsc_remove(dsc->id, ch->id, ch->pid);
 	_remove_chan_from_list(dsc, ch);
 
@@ -343,8 +345,13 @@ static void _dsc_chan_free(struct dsc_channel *ch, struct file *file)
 	if (ch->multi2_index >= 0 && multi2_sets[ch->multi2_index].ref > 0)
 		multi2_sets[ch->multi2_index].ref--;
 
+	pr_dbg("free chan, id:%d\n", ch->id);
 	vfree(ch);
-	pr_dbg("%s exit\n", __func__);
+
+error_handle:
+	if (err_val)
+		dprint("free chan failed! id:%d err_val:%d\n", ch->id, err_val);
+	return;
 }
 
 static int _dsc_chan_set_key(struct dsc_channel *ch,
@@ -558,7 +565,6 @@ static enum ca_sc2_algo_type _transition_algo(enum ca_sc2_algo_type algo_input)
 {
 	enum ca_sc2_algo_type algo_output;
 
-	pr_dbg("%s algo_input:%d\n", __func__, algo_input);
 	switch (algo_input) {
 	case CA_ALGO_MULTI2:
 		algo_output = algo_input;
@@ -568,7 +574,7 @@ static enum ca_sc2_algo_type _transition_algo(enum ca_sc2_algo_type algo_input)
 		break;
 	}
 
-	pr_dbg("%s algo_output:%d\n", __func__, algo_output);
+	pr_dbg("transition algo, input:%d output:%d\n", algo_input, algo_output);
 	return algo_output;
 }
 
@@ -578,23 +584,19 @@ static int _alloc_multi2_set(struct dsc_channel *ch, unsigned char round,
 	struct dsc_pid_table *ptmp = NULL;
 	int i = 0;
 
-	pr_dbg("%s new round:%d syskey[0]:0x%02x syskey[31]:0x%02x\n",
-		__func__, round, syskey[0], syskey[31]);
+	pr_dbg("alloc multi2, new round:%d syskey[0]:0x%02x syskey[31]:0x%02x\n",
+		round, syskey[0], syskey[31]);
 	for (i = 0; i < MULTI2_SUM; i++) {
-		pr_dbg("%s i:%d multi2_sets[i].ref:%d\n", __func__, i, multi2_sets[i].ref);
-		pr_dbg("%s multi2_sets[i].multi2_params.round:%d\n",
-			__func__, multi2_sets[i].multi2_params.round);
-		pr_dbg("%s multi2_sets[i].multi2_params.syskey[0]:0x%02x\n",
-			__func__, multi2_sets[i].multi2_params.syskey[0]);
-		pr_dbg("%s multi2_sets[i].multi2_params.syskey[31]:0x%02x\n",
-			__func__, multi2_sets[i].multi2_params.syskey[31]);
+		pr_dbg("multi2_set i:%d ref:%d round:%d syskey[0]:0x%02x syskey[31]:0x%02x\n",
+			i, multi2_sets[i].ref, multi2_sets[i].multi2_params.round,
+			multi2_sets[i].multi2_params.syskey[0],
+			multi2_sets[i].multi2_params.syskey[31]);
 		if (multi2_sets[i].ref > 0 &&
 			round == multi2_sets[i].multi2_params.round &&
 			(memcmp(syskey, multi2_sets[i].multi2_params.syskey, 32) == 0)) {
 			multi2_sets[i].ref++;
 			ch->multi2_index = i;
-			pr_dbg("%s found a multi2 set with same params, ch->multi2_index:%d\n",
-				__func__, ch->multi2_index);
+			pr_dbg("found a same multi2 set, index:%d\n", ch->multi2_index);
 			break;
 		}
 	}
@@ -606,22 +608,20 @@ static int _alloc_multi2_set(struct dsc_channel *ch, unsigned char round,
 				memcpy(multi2_sets[i].multi2_params.syskey, syskey, 32);
 				multi2_sets[i].ref++;
 				ch->multi2_index = i;
-				pr_dbg("%s found an unused multi2 set, ch->multi2_index:%d\n",
-					__func__, ch->multi2_index);
+				pr_dbg("found an unused multi2 set, index:%d\n", ch->multi2_index);
 				break;
 			}
 		}
 	}
 
-	pr_dbg("%s ch->multi2_index:%d\n", __func__, ch->multi2_index);
 	if (ch->multi2_index < 0) {
-		dprint("%s no available multi2 set\n", __func__);
+		dprint("no available multi2 set error\n");
 		return -1;
 	}
 
 	ptmp = _get_dsc_pid_table(ch->index, ch->dsc_type);
 	if (!ptmp) {
-		dprint("%s _get_dsc_pid_table fail\n", __func__);
+		dprint("multi2 _get_dsc_pid_table error\n");
 		return -1;
 	}
 
@@ -686,7 +686,6 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct file *file, struct ca_sc2
 						 d->params.free_params.ca_index);
 			if (ch)
 				_dsc_chan_free(ch, NULL);
-
 			ret = 0;
 		}
 		break;

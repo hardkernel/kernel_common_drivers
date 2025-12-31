@@ -33,7 +33,7 @@ enum es_on_off {
 #define dprint_i(fmt, args...)   \
 	dprintk(LOG_ERROR, debug_register, fmt, ## args)
 #define pr_dbg(fmt, args...)     \
-	dprintk(LOG_DBG, debug_register, "sc2 control:" fmt, ## args)
+	dprintk(LOG_DBG, debug_register, "ctrl:" fmt, ## args)
 
 static int debug_register;
 
@@ -48,7 +48,7 @@ unsigned int get_dma_wch_base(void)
 			dma_wch_base = 0x2000;
 		else
 			dma_wch_base = 0x1000;
-		pr_dbg("%s dma_wch_base:0x%0x\n", __func__, dma_wch_base);
+		//pr_dbg("dma_wch_base:0x%0x\n", dma_wch_base);
 	}
 	return dma_wch_base;
 }
@@ -60,7 +60,7 @@ unsigned int get_dma_ctrl_base(void)
 			dma_ctrl_base = 0x1000;
 		else
 			dma_ctrl_base = 0x2000;
-		pr_dbg("%s dma_ctrl_base:0x%0x\n", __func__, dma_ctrl_base);
+		//pr_dbg("dma_ctrl_base:0x%0x\n", dma_ctrl_base);
 	}
 	return dma_ctrl_base;
 }
@@ -72,7 +72,7 @@ unsigned int get_dma_ch_width(void)
 			dma_ch_width = 0x40;
 		else
 			dma_ch_width = 0x20;
-		pr_dbg("%s dma_ch_width:0x%0x\n", __func__, dma_ch_width);
+		//pr_dbg("dma_ch_width:0x%0x\n", dma_ch_width);
 	}
 	return dma_ch_width;
 }
@@ -102,15 +102,13 @@ static void tee_tsout_config_sid_table(u32 sid, u32 begin, u32 length)
 	struct tee_dmx_sid_table_param param = {0};
 	int ret = -1;
 
-	pr_dbg("%s TEE sid:%d, pid begin:%d,len:%d\n",
-			__func__, sid, begin, length);
-
+	pr_dbg("tee sid table, sid:%d, pid begin:%d,len:%d\n", sid, begin, length);
 	param.sid = sid;
 	param.begin = begin;
 	param.length = length;
 	ret = tee_demux_set(TEE_DMX_SET_SID_TABLE,
 			(void *)&param, sizeof(param));
-	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+	pr_dbg("ret:%d\n", ret);
 }
 
 void tsout_config_sid_table(u32 sid, u32 begin, u32 length)
@@ -121,8 +119,8 @@ void tsout_config_sid_table(u32 sid, u32 begin, u32 length)
 	u32 sid_addr;
 
 	sid_addr = TS_OUT_SID_TAB_BASE + sid_reg_idx * 4;
-	pr_dbg("%s, read addr:0x%0x,sid:%d, pid begin:%d,len:%d\n",
-			__func__, sid_addr, sid, begin, length);
+	pr_dbg("sid table, read addr:0x%0x,sid:%d, pid begin:%d,len:%d\n",
+		sid_addr, sid, begin, length);
 
 	if (is_security_dmx == TEE_DMX_ENABLE)
 		return tee_tsout_config_sid_table(sid, begin, length);
@@ -137,7 +135,7 @@ void tsout_config_sid_table(u32 sid, u32 begin, u32 length)
 		    | ((begin & 0xFF) << 16)
 		    | ((length & 0xFF) << 24);
 	}
-	pr_dbg("%s data:0x%0x\n", __func__, data);
+	pr_dbg("data:0x%0x\n", data);
 	WRITE_CBUS_REG(sid_addr, data);
 }
 
@@ -147,8 +145,8 @@ static void tee_tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry,
 	struct tee_dmx_ts_table_param param = {0};
 	int ret = -1;
 
-	pr_dbg("%s, TEE pid:0x%0x, mask:0x%0x, pid_entry:0x%0x, buf_id:%d\n",
-	       __func__, pid, pid_mask, pid_entry, buffer_id);
+	pr_dbg("tee ts table, pid:0x%0x, mask:0x%0x, entry:0x%0x, buf_id:%d\n",
+	       pid, pid_mask, pid_entry, buffer_id);
 
 	param.pid = pid;
 	param.pid_mask = pid_mask;
@@ -160,12 +158,11 @@ static void tee_tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry,
 	else
 		param.sid = INVALID_SID;
 
-	pr_dbg("%s, TEE sid:0x%0x, sec_level:%d\n",
-	       __func__, param.sid, sec_level);
+	pr_dbg("TEE sid:0x%0x, sec_level:%d\n", param.sid, sec_level);
 
 	ret = tee_demux_set(TEE_DMX_SET_TS_TABLE,
 			(void *)&param, sizeof(param));
-	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+	pr_dbg("ret:%d\n", ret);
 }
 
 void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry,
@@ -174,8 +171,8 @@ void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry,
 	union PID_CFG_FIELD cfg;
 	union PID_DATA_FIELD data;
 
-	pr_dbg("%s,pid:0x%0x, mask:0x%0x, pid_entry:0x%0x, buf_id:%d\n",
-	       __func__, pid, pid_mask, pid_entry, buffer_id);
+	pr_dbg("ts table, pid:0x%0x, mask:0x%0x, entry:0x%0x, buf_id:%d\n",
+	       pid, pid_mask, pid_entry, buffer_id);
 
 	if (is_security_dmx == TEE_DMX_ENABLE)
 		return tee_tsout_config_ts_table(pid, pid_mask, pid_entry,
@@ -208,9 +205,7 @@ void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry,
 	}
 	WRITE_CBUS_REG(TS_OUTPUT_PID_DAT, data.data);
 	WRITE_CBUS_REG(TS_OUTPUT_PID_CFG, cfg.data);
-
-	pr_dbg("%s data.data:0x%0x\n", __func__, data.data);
-	pr_dbg("%s cfg.data:0x%0x\n", __func__, cfg.data);
+	pr_dbg("data:0x%0x cfg:0x%0x\n", data.data, cfg.data);
 
 	do {
 		cfg.data = READ_CBUS_REG(TS_OUTPUT_PID_CFG);
@@ -223,8 +218,8 @@ static void tee_tsout_config_es_table(u32 es_entry, int pid,
 	struct tee_dmx_es_table_param param = {0};
 	int ret = -1;
 
-	pr_dbg("%s TEE es_entry:%d, pid:0x%0x, sid:0x%0x,",
-	       __func__, es_entry, pid, sid);
+	pr_dbg("tee es table, es_entry:%d, pid:0x%0x, sid:0x%0x,",
+	       es_entry, pid, sid);
 	pr_dbg("reset:%d, dup_ok:%d, fmt:%d\n", reset, dup_ok, fmt);
 
 	param.es_entry = es_entry;
@@ -235,7 +230,7 @@ static void tee_tsout_config_es_table(u32 es_entry, int pid,
 	param.fmt = fmt;
 	ret = tee_demux_set(TEE_DMX_SET_ES_TABLE,
 			(void *)&param, sizeof(param));
-	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+	pr_dbg("ret:%d\n", ret);
 }
 
 void tsout_config_es_table(u32 es_entry, int pid,
@@ -244,8 +239,7 @@ void tsout_config_es_table(u32 es_entry, int pid,
 	union ES_TAB_FIELD data;
 
 	data.data = 0;
-	pr_dbg("%s es_entry:%d, pid:0x%0x, sid:0x%0x,",
-	       __func__, es_entry, pid, sid);
+	pr_dbg("es table, es_entry:%d, pid:0x%0x, sid:0x%0x,", es_entry, pid, sid);
 	pr_dbg("reset:%d, dup_ok:%d, fmt:%d\n", reset, dup_ok, fmt);
 
 	if (is_security_dmx == TEE_DMX_ENABLE)
@@ -266,7 +260,7 @@ void tsout_config_es_table(u32 es_entry, int pid,
 		else
 			data.b.on_off = EST_SAVE_TS;
 	}
-	pr_dbg("%s data.data:0x%0x\n", __func__, data.data);
+	pr_dbg("data:0x%0x\n", data.data);
 
 	WRITE_CBUS_REG(TS_OUTPUT_ES_TAB(es_entry), data.data);
 }
@@ -310,7 +304,7 @@ void tsout_config_pcr_table(u32 pcr_entry, u32 pcr_pid, u32 sid)
 		data.b.valid = 1;
 	}
 	WRITE_CBUS_REG(TS_OUTPUT_PCR_TAB(pcr_entry), data.data);
-	pr_dbg("%s data.data:0x%0x\n", __func__, data.data);
+	pr_dbg("pcr table, data:0x%0x\n", data.data);
 }
 
 void tsout_config_temi_table(u32 temi_entry, u32 pcr_pid, u32 sid, u32 buffer_id, u32 status)
@@ -328,7 +322,7 @@ void tsout_config_temi_table(u32 temi_entry, u32 pcr_pid, u32 sid, u32 buffer_id
 		data.b.ext = 1;
 	}
 	WRITE_CBUS_REG(TS_OUTPUT_PCR_TAB(temi_entry), data.data);
-	pr_dbg("%s data.data:0x%0x\n", __func__, data.data);
+	pr_dbg("temi table, data:0x%0x\n", data.data);
 }
 
 static int tee_tsout_config_get_pcr(u32 pcr_entry, u64 *pcr)
@@ -380,9 +374,7 @@ void tsout_config_remap_table(u32 pid_entry, u32 sid, int pid, int pid_new)
 
 	WRITE_CBUS_REG(TS_OUTPUT_PID_DAT, data.data);
 	WRITE_CBUS_REG(TS_OUTPUT_PID_CFG, cfg.data);
-
-	pr_dbg("%s data.data:0x%0x\n", __func__, data.data);
-	pr_dbg("%s cfg.data:0x%0x\n", __func__, cfg.data);
+	pr_dbg("remap table, data:0x%0x cfg:0x%0x\n", data.data, cfg.data);
 
 	do {
 		cfg.data = READ_CBUS_REG(TS_OUTPUT_PID_CFG);
@@ -424,8 +416,8 @@ static void tee_dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_ty
 	struct tee_dmx_pid_table_param param = {0};
 	int ret = -1;
 
-	pr_dbg("%s dsc_type:%d, pid_entry:%d, pid:%d\n",
-			__func__, dsc_type, pid_entry->id, pid_entry->pid);
+	pr_dbg("tee pid talbe, dsc_type:%d, pid_entry:%d, pid:%d\n",
+		dsc_type, pid_entry->id, pid_entry->pid);
 	param.type = dsc_type;
 	param.id = pid_entry->id;
 	param.table.bits.valid = pid_entry->valid;
@@ -444,7 +436,7 @@ static void tee_dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_ty
 	//memcpy(&param.table, pid_entry, sizeof(struct dsc_pid_table));
 	ret = tee_demux_set(TEE_DMX_SET_PID_TABLE,
 			(void *)&param, sizeof(param));
-	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+	pr_dbg("ret:%d\n", ret);
 	dsc_get_ready(dsc_type);
 	dsc_config_ready(dsc_type);
 }
@@ -455,13 +447,13 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 	unsigned int hi_addr = 0;
 	unsigned int lo_value = 0;
 	unsigned int hi_value = 0;
-	unsigned int scb_out_shift_bits = 0;
+	//unsigned int scb_out_shift_bits = 0;
 	unsigned int scb_as_is = 0;
 	unsigned int scb_out_for_odd = 0;
 	unsigned int scb_out_for_all_or_even = 0;
 
-	pr_dbg("%s dsc_type:%d, pid_entry:%d, sid:%d\n",
-	       __func__, dsc_type, pid_entry->id, pid_entry->sid);
+	pr_dbg("pid talbe, dsc_type:%d, pid_entry:%d, sid:%d\n",
+	       dsc_type, pid_entry->id, pid_entry->sid);
 	if (is_security_dmx == TEE_DMX_ENABLE)
 		return tee_dsc_config_pid_table(pid_entry, dsc_type);
 	dsc_get_ready(dsc_type);
@@ -501,7 +493,7 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 	} else {
 		dprint_i("error scb_as_is %d\n", pid_entry->scb_as_is);
 	}
-	pr_dbg("%s scb_out_shift_bits:0x%0x\n", __func__, scb_out_shift_bits);
+	//pr_dbg("%s scb_out_shift_bits:0x%0x\n", __func__, scb_out_shift_bits);
 
 	hi_value = ((pid_entry->pid >> 12) & 0x1) << HI_PID_PART2 |
 	    (pid_entry->sid << HI_SID) |
@@ -516,8 +508,7 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 	WRITE_CBUS_REG(lo_addr, lo_value);
 	WRITE_CBUS_REG(hi_addr, hi_value);
 
-	pr_dbg("%s lo_value:0x%0x\n", __func__, lo_value);
-	pr_dbg("%s hi_value:0x%0x\n", __func__, hi_value);
+	pr_dbg("hi_value:0x%0x lo_value:0x%0x\n", hi_value, lo_value);
 	dsc_config_ready(dsc_type);
 }
 
@@ -526,14 +517,11 @@ void dsc_config_multi2_round(int multi2_index, unsigned char round)
 	unsigned int addr = TSN_MULTI2_ROUNDS;
 	unsigned int value, mask;
 
-	pr_dbg("%s multi2_index:%d round:%d\n", __func__, multi2_index, (int)round);
 	value = READ_CBUS_REG(addr);
-	pr_dbg("%s TSN_MULTI2_ROUNDS old value:0x%0x\n", __func__, value);
 	mask = ~(0xffU << (multi2_index * 8 + 16));
-	pr_dbg("%s mask:0x%0x\n", __func__, mask);
 	value = (value & mask) | ((unsigned int)round << (multi2_index * 8 + 16));
-	pr_dbg("%s TSN_MULTI2_ROUNDS new value:0x%0x\n", __func__, value);
 	WRITE_CBUS_REG(addr, value);
+	pr_dbg("multi2 round, index:%d round:%d value:0x%0x\n", multi2_index, round, value);
 }
 
 void dsc_config_multi2_syskey(int multi2_index, unsigned char syskey[32])
@@ -542,7 +530,7 @@ void dsc_config_multi2_syskey(int multi2_index, unsigned char syskey[32])
 	unsigned int value = 0;
 	int i = 0;
 
-	pr_dbg("%s multi2_index:%d\n", __func__, multi2_index);
+	pr_dbg("multi2 syskey, index:%d\n", multi2_index);
 	for (i = 0; i < 32; i += 4) {
 		value = syskey[i] + (syskey[i + 1] << 8) +
 			(syskey[i + 2] << 16) + (syskey[i + 3] << 24);
@@ -557,14 +545,14 @@ void rdma_config_enable(struct chan_id *pchan, int enable,
 	u32 data = 0;
 	u64 tmp = 0;
 
+	pr_dbg("rdma enable:%d\n", enable);
 	if (enable) {
 		if (get_dmx_version() >= 6)
 			WRITE_CBUS_REG(TS_DMA_RCH_ADDR_HIGH(pchan->id),
 				(sizeof(unsigned long) == 8) ? ((desc >> 32) & 0x3) : 0);
 		WRITE_CBUS_REG(TS_DMA_RCH_ADDR_LOW(pchan->id), desc & 0xFFFFFFFF);
 		WRITE_CBUS_REG(TS_DMA_RCH_LEN(pchan->id), len);
-		pr_dbg("%s desc:0x%0lx\n", __func__, desc);
-		pr_dbg("%s total_size:0x%0x\n", __func__, len);
+		pr_dbg("desc:0x%0lx len:0x%0x\n", desc, len);
 
 		data = pack_len << RCH_CFG_READ_LEN;
 		data |= pack_len << RCH_CFG_PACKET_LEN;
@@ -574,16 +562,14 @@ void rdma_config_enable(struct chan_id *pchan, int enable,
 		if (get_dmx_version() >= 6)
 			tmp = pchan->memdescs->bits.address_high;
 		tmp = (tmp << 32) + pchan->memdescs->bits.address_low;
-		pr_dbg("%s addr:0x%0x data:0x%0x\n", __func__,
-		       TS_DMA_RCH_EACH_CFG(pchan->id), data);
-		pr_dbg("%s, output address:0x%llx, len:%d\n", __func__,
-				tmp, pchan->memdescs->bits.byte_length);
+		pr_dbg("addr:0x%0x data:0x%0x\n", TS_DMA_RCH_EACH_CFG(pchan->id), data);
+		pr_dbg("output address:0x%llx, len:%d\n", tmp, pchan->memdescs->bits.byte_length);
 	} else {
 		data = READ_CBUS_REG(TS_DMA_RCH_EACH_CFG(pchan->id));
 
 		data &= ~(1 << RCH_CFG_ENABLE);
 		WRITE_CBUS_REG(TS_DMA_RCH_EACH_CFG(pchan->id), data);
-		pr_dbg("%s data:0x%0x\n", __func__, data);
+		pr_dbg("data:0x%0x\n", data);
 	}
 }
 
@@ -657,7 +643,7 @@ void rdma_config_sync_num(unsigned int sync_num)
 {
 	unsigned int data = READ_CBUS_REG(TS_DMA_RCH_CFG);
 
-	pr_dbg("%s sync_num:%d\n", __func__, sync_num);
+	pr_dbg("rdma sync num:%d\n", sync_num);
 	data &= ~(0xF << 8);
 	data |= ((sync_num & 0xF) << 8);
 	WRITE_CBUS_REG(TS_DMA_RCH_CFG, data);
@@ -786,6 +772,7 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 	int ret = -1;
 	u64 tmp = 0;
 
+	pr_dbg("wdma enable:%d sec_dmx:%d\n", enable, is_security_dmx);
 	if (enable) {
 		do {
 		} while (!wdma_get_ready(pchan->id) && times++ < 20);
@@ -801,12 +788,10 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 			else
 				param.sid = INVALID_SID;
 
-			pr_dbg("[demux] %s sid:0x%x pid:0x%x sec_level:%d\n",
-				__func__, param.sid, param.pid, sec_level);
-
+			pr_dbg("sid:0x%x pid:0x%x sec:%d\n", param.sid, param.pid, sec_level);
 			ret = tee_demux_set(TEE_DMX_SET_DMA_DESC,
 					(void *)&param, sizeof(param));
-			pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+			pr_dbg("ret:%d\n", ret);
 		} else {
 			if (get_dmx_version() >= 6)
 				WRITE_CBUS_REG(TS_DMA_WCH_ADDR_HIGH(pchan->id),
@@ -817,10 +802,9 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 			if (get_dmx_version() >= 6)
 				tmp = pchan->memdescs->bits.address_high;
 			tmp = (tmp << 32) + pchan->memdescs->bits.address_low;
-			pr_dbg("%s, output address:0x%llx, len:%d\n", __func__,
-					tmp, pchan->memdescs->bits.byte_length);
-			pr_dbg("%s desc:0x%0lx\n", __func__, desc);
-			pr_dbg("%s total_size:0x%0x\n", __func__, total_size);
+			pr_dbg("output address:0x%llx, len:%d\n",
+				tmp, pchan->memdescs->bits.byte_length);
+			pr_dbg("desc:0x%0lx total_size:0x%0x\n", desc, total_size);
 		}
 	} else {
 //              unsigned int data;
@@ -838,7 +822,7 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 
 			ret = tee_demux_set(TEE_DMX_SET_DMA_DESC,
 					(void *)&param, sizeof(param));
-			pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+			pr_dbg("ret:%d\n", ret);
 		} else {
 			if (get_dmx_version() >= 6)
 				WRITE_CBUS_REG(TS_DMA_WCH_ADDR_HIGH(pchan->id), 0);
@@ -859,8 +843,7 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 		usleep_range(700, 800);
 		//delay
 //              while (times ++ < 500);
-		pr_dbg("%s wptr:0x%0x\n", __func__,
-		       READ_CBUS_REG(TS_DMA_WCH_WR_LEN(pchan->id)));
+		pr_dbg("wptr:0x%0x\n", READ_CBUS_REG(TS_DMA_WCH_WR_LEN(pchan->id)));
 		wdam_config_ready(pchan->id);
 	}
 }
@@ -1117,7 +1100,7 @@ void sc2_dump_register(void)
 	union PID_CFG_FIELD ts_cfg;
 	union PID_DATA_FIELD ts_data;
 
-	dprint_i("**************demod register************\n");
+	dprint_i("demod:\n");
 	for (i = 0; i < 4; i++) {
 		data = READ_CBUS_REG(DEMOD_PATH_CTRL(i));
 		dprint_i("path%d_ctrl:0x%0x ", i, data);
@@ -1146,7 +1129,7 @@ void sc2_dump_register(void)
 		dprint_i("ts_chn%d_err_status: 0x%0x\n", i, data);
 	}
 
-	dprint_i("**************dsc tsn************\n");
+	dprint_i("\ndsc tsn:\n");
 	for (i = 0; i < 64; i++) {
 		lo_addr = TSN_BASE_ADDR + i * 8;
 		hi_addr = TSN_BASE_ADDR + i * 8 + 4;
@@ -1162,10 +1145,10 @@ void sc2_dump_register(void)
 
 	for (i = 0; i < 64; i += 4) {
 		data = READ_CBUS_REG(TSN_MULTI2_SYSKEY + i);
-		dprint_i("addr: 0x%0x, multi2 syskey: 0x%0x\n", i, data);
+		dprint_i("addr: 0x%0x, syskey: 0x%0x\n", i, data);
 	}
 
-	dprint_i("**************dsc tsd************\n");
+	dprint_i("\ndsc tsd:\n");
 	for (i = 0; i < 64; i++) {
 		lo_addr = TSD_BASE_ADDR + i * 8;
 		hi_addr = TSD_BASE_ADDR + i * 8 + 4;
@@ -1175,7 +1158,8 @@ void sc2_dump_register(void)
 			dprint_i("pid table:%d, 0x%0x %0x\n",
 				 i, lo_data, hi_data);
 	}
-	dprint_i("**************dsc tse************\n");
+
+	dprint_i("\ndsc tse:\n");
 	for (i = 0; i < 64; i++) {
 		lo_addr = TSE_BASE_ADDR + i * 8;
 		hi_addr = TSE_BASE_ADDR + i * 8 + 4;
@@ -1186,8 +1170,7 @@ void sc2_dump_register(void)
 				 i, lo_data, hi_data);
 	}
 
-	dprint_i("**************output************\n");
-
+	dprint_i("\noutput:\n");
 	for (i = 0; i < 1024; i++) {
 		ts_cfg.b.pid_entry = i;
 		ts_cfg.b.remap_flag = 0;
@@ -1206,7 +1189,7 @@ void sc2_dump_register(void)
 				 i, ts_data.b.pid, ts_data.b.pid_mask);
 	}
 
-	dprint_i("**************rdma************\n");
+	dprint_i("\nrdma:\n");
 	for (i = 0; i < 32; i++) {
 		data = READ_CBUS_REG(TS_DMA_RCH_EACH_CFG(i));
 		if (data & (0x1 << RCH_CFG_ENABLE))
@@ -1238,8 +1221,6 @@ void sc2_dump_register(void)
 			dprint_i("rch_ptr:0x%0x\n", lo_data);
 		}
 	}
-
-	dprint_i("**************wdma************\n");
 }
 
 int sc2_control_debug(int direct, char *param_name, int *param_value)

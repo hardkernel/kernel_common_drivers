@@ -20,16 +20,16 @@ static int reset_time_l_t = 2000;
 #define pr_dbg(fmt, args...)\
 do {\
 	if (aml_pcmcia_debug)\
-		pr_err("aml_pcmcia:" fmt, ## args);\
+		pr_err("pcmcia:" fmt, ## args);\
 } while (0)
 
-#define pr_error(fmt, args...) pr_err("aml_pcmcia: " fmt, ## args)
+#define pr_error(fmt, args...) pr_err("pcmcia: " fmt, ## args)
 
 static int pcmcia_plugin(struct aml_pcmcia *pc, int reset)
 {
 	if (pc->slot_state == MODULE_XTRACTED) {
 		pc->pwr(pc, AML_PWR_OPEN);/*hi is open power*/
-		pr_dbg("CAM Plugged IN: Adapter(%d) Slot(0)\n", 0);
+		pr_dbg("CAM Plugged IN\n");
 		//udelay(50);
 		usleep_range(50, 60);
 		if (pc->io_device_type != AML_DVB_IO_TYPE_CIBUS)
@@ -41,7 +41,7 @@ static int pcmcia_plugin(struct aml_pcmcia *pc, int reset)
 		pc->slot_state = MODULE_INSERTED;
 
 	} else {
-		pr_error("repeat into pcmcia insert \r\n");
+		pr_error("repeat insert \r\n");
 		if (reset)
 			aml_pcmcia_reset(pc);
 	}
@@ -56,7 +56,7 @@ static int pcmcia_plugin(struct aml_pcmcia *pc, int reset)
 static int pcmcia_unplug(struct aml_pcmcia *pc)
 {
 	if (pc->slot_state == MODULE_INSERTED) {
-		pr_dbg(" CAM Unplugged: Adapter(%d) Slot(0)\n", 0);
+		pr_dbg("CAM Unplugged\n");
 		/*udelay(50);*/
 		/*aml_pcmcia_reset(pc);*/
 		/*wait plugin*/
@@ -78,7 +78,7 @@ static irqreturn_t pcmcia_irq_handler(int irq, void *dev_id)
 {
 	struct aml_pcmcia *pc = (struct aml_pcmcia *)dev_id;
 
-	pr_dbg("%s--into--\r\n", __func__);
+	pr_dbg("irq handler\r\n");
 	disable_irq_nosync(pc->irq);
 	schedule_work(&pc->pcmcia_work);
 	enable_irq(pc->irq);
@@ -98,42 +98,43 @@ static void aml_pcmcia_work(struct work_struct *work)
 	if (cd1 != cd2) {
 		pr_error("work CAM card not inerted.\n");
 	} else {
-		if (!cd1) {
-			pr_error("work Adapter(%d) Slot(0): CAM Plugin\n", 0);
+		if (!cd1)
 			pcmcia_plugin(pc, 0);
-		} else {
-			pr_error("work Adapter(%d) Slot(0): CAM Unplug\n", 0);
+		else
 			pcmcia_unplug(pc);
-		}
 	}
 }
 
 void aml_pcmcia_detect_cam(struct aml_pcmcia *pc)
 {
 	int cd1, cd2;
+	int err_val = 0;
 
 	if (!pc) {
-		pr_error("pc is null\n");
-		return;
+		err_val = -1;
+		goto error_handle;
 	}
 	if (pc->start_work == 0) {
-		pr_error("pc start work is 0\n");
-		return;
+		err_val = -2;
+		goto error_handle;
 	}
 	cd1 = pc->get_cd1(pc);
 	cd2 = pc->get_cd2(pc);
 
 	if (cd1 != cd2) {
-		pr_error("CAM card not inerted. check end\n");
+		err_val = -3;
+		goto error_handle;
 	} else {
-		if (!cd1) {
-			pr_error("Adapter(%d) Slot(0): CAM Plugin\n", 0);
+		if (!cd1)
 			pcmcia_plugin(pc, 1);
-		} else {
-			pr_error("Adapter(%d) Slot(0): CAM Unplug\n", 0);
+		else
 			pcmcia_unplug(pc);
-		}
 	}
+
+error_handle:
+	if (err_val)
+		pr_error("detect cam failed! err_val:%d\n", err_val);
+	return;
 }
 EXPORT_SYMBOL(aml_pcmcia_detect_cam);
 
@@ -144,7 +145,7 @@ int aml_pcmcia_init(struct aml_pcmcia *pc)
 	int err = 0;
 	unsigned long mode;
 
-	pr_dbg("%s start pc->irq=%d\r\n", __func__, pc->irq);
+	pr_dbg("init irq=%d\r\n", pc->irq);
 	pc->rst(pc, AML_L);
 	/*power on*/
 	if (pc->io_device_type != AML_DVB_IO_TYPE_CIBUS)
@@ -160,16 +161,14 @@ int aml_pcmcia_init(struct aml_pcmcia *pc)
 		mode = mode | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
 	}
 
-	err = request_irq(pc->irq,
-	pcmcia_irq_handler,
-	mode, "aml-pcmcia", pc);
+	err = request_irq(pc->irq, pcmcia_irq_handler, mode, "aml-pcmcia", pc);
 	if (err != 0) {
-		pr_error("ERROR: IRQ registration failed ! <%d>", err);
+		pr_error("request irq failed %d", err);
 		return -ENODEV;
 	}
 
 	pc_cur = pc;
-	pr_dbg("%s ok\r\n", __func__);
+	pr_dbg("init ok\r\n");
 	if (pc->io_device_type == AML_DVB_IO_TYPE_SPI_T312 ||
 		pc->io_device_type == AML_DVB_IO_TYPE_CIBUS) {
 		//mcu start very fast,so she can detect cam before soc init end.
@@ -190,15 +189,15 @@ EXPORT_SYMBOL(aml_pcmcia_exit);
 
 int aml_pcmcia_reset(struct aml_pcmcia *pc)
 {
-		pr_dbg("CAM RESET-->start\n");
-		/* viaccess neotion cam need delay 2000 and 3000 */
-		/* smit cam need delay 1000 and 1500 */
-		/* need change delay according cam vendor */
-		pc->rst(pc, AML_H);/*HI is reset*/
-		msleep(reset_time_h_t);
-		pc->rst(pc, AML_L);/*default LOW*/
-		msleep(reset_time_l_t);
-		pr_dbg("CAM RESET--end\n");
+	// pr_dbg("CAM RESET-->start\n");
+	/* viaccess neotion cam need delay 2000 and 3000 */
+	/* smit cam need delay 1000 and 1500 */
+	/* need change delay according cam vendor */
+	pc->rst(pc, AML_H);/*HI is reset*/
+	msleep(reset_time_h_t);
+	pc->rst(pc, AML_L);/*default LOW*/
+	msleep(reset_time_l_t);
+	pr_dbg("CAM RESET--end\n");
 	return 0;
 }
 EXPORT_SYMBOL(aml_pcmcia_reset);

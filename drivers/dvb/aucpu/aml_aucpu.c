@@ -238,7 +238,6 @@ static void cache_flush(u32 buf_start, u32 buf_size)
 
 s32 aucpu_hw_reset(void)
 {
-	aucpu_pr(LOG_DEBUG, "request aucpu reset from application\n");
 	return 0;
 }
 
@@ -246,7 +245,7 @@ static irqreturn_t aucpu_irq_handler(s32 irq, void *dev_id)
 {
 	struct aucpu_ctx_t *dev = (struct aucpu_ctx_t *)dev_id;
 
-	aucpu_pr(LOG_ALL, "Receive an AUCPU interrupt\n");
+	aucpu_pr(LOG_ALL, "AUCPU irq handler\n");
 
 	schedule_delayed_work(&dev->dbg_work, 0);
 
@@ -262,16 +261,13 @@ static s32 alloc_local_dma_buf(struct device *dev,
 
 	required = roundup(size, PAGE_SIZE);
 	buf->base = (ulong)kzalloc(required, GFP_KERNEL | GFP_DMA);
-	if (buf->base == 0) {
-		aucpu_pr(LOG_ERROR,
-			 "failed to allocate aucpu local memory\n");
+	if (buf->base == 0)
 		return -ENOMEM;
-	}
+
 	buf->size = required;
 	dma_addr = dma_map_single(dev, (void *)buf->base, buf->size, dir);
 	if (dma_mapping_error(dev, dma_addr)) {
-		aucpu_pr(LOG_ERROR, "error dma mapping addr 0x%lx\n",
-			 (ulong)dma_addr);
+		aucpu_pr(LOG_ERROR, "error dma addr 0x%lx\n", (ulong)dma_addr);
 		kfree((void *)buf->base);
 		buf->size = 0;
 		return -EINVAL;
@@ -282,10 +278,12 @@ static s32 alloc_local_dma_buf(struct device *dev,
 
 static s32 init_Aucpu_local_buf(struct device *dev)
 {
-	u32 index, update_size, err;
+	u32 index, update_size;
+	s32 err, err_val;
 	ulong phy, base_addr;
 	struct aucpu_buffer_t *pbuf;
 	struct aucpu_ctx_t  *pctx = s_aucpu_ctx;
+
 	/* update buffers */
 	update_size = roundup(sizeof(struct aml_aucpu_buf_upd), AUCPU_UPD_SZ);
 	if (use_reserve) {
@@ -296,15 +294,15 @@ static s32 init_Aucpu_local_buf(struct device *dev)
 					  update_size * AUCPU_MAX_INTST_NUM,
 					  DMA_TO_DEVICE);
 		if (err) {
-			aucpu_pr(LOG_ERROR, "error alloc update buffer\n");
-			return err;
+			err_val = -1;
+			goto ERROR_HANDLE;
 		}
 		phy = pctx->t_upd_buf.phys_addr;
 		base_addr = pctx->t_upd_buf.base;
 	}
 
-	aucpu_pr(LOG_DEBUG, "local upd buf start from 0x%lx item size 0x%x\n",
-		 phy, update_size);
+	aucpu_pr(LOG_DEBUG, "local upd buf 0x%lx base 0x%lx item size 0x%x\n",
+		 phy, base_addr, update_size);
 	for (index = 0; index < AUCPU_MAX_INTST_NUM; index++) {
 		pbuf = &pctx->strm_inst[index].in_upd_buf;
 		pbuf->phys_addr = phy;
@@ -312,8 +310,8 @@ static s32 init_Aucpu_local_buf(struct device *dev)
 		pbuf->size = update_size;
 		phy += update_size;
 		base_addr += update_size;
-		aucpu_pr(LOG_INFO, "upd buf %d @0x%lx size 0x%x, phy 0x%lx\n",
-			 index, pbuf->base, pbuf->size, pbuf->phys_addr);
+		// aucpu_pr(LOG_INFO, "upd buf %d @0x%lx size 0x%x, phy 0x%lx\n",
+			// index, pbuf->base, pbuf->size, pbuf->phys_addr);
 	}
 
 	/* report buffers */
@@ -323,14 +321,14 @@ static s32 init_Aucpu_local_buf(struct device *dev)
 					  update_size * AUCPU_MAX_INTST_NUM,
 					  DMA_FROM_DEVICE);
 		if (err) {
-			aucpu_pr(LOG_ERROR, "error alloc report buffer\n");
-			return err;
+			err_val = -2;
+			goto ERROR_HANDLE;
 		}
 		phy = pctx->t_rpt_buf.phys_addr;
 		base_addr = pctx->t_rpt_buf.base;
 	}
-	aucpu_pr(LOG_DEBUG, "local rpt buf start from 0x%lx item size 0x%x\n",
-		 phy, update_size);
+	aucpu_pr(LOG_DEBUG, "local rpt buf 0x%lx base 0x%lx item size 0x%x\n",
+		 phy, base_addr, update_size);
 	for (index = 0; index < AUCPU_MAX_INTST_NUM; index++) {
 		pbuf = &pctx->strm_inst[index].reprt_buf;
 		pbuf->phys_addr = phy;
@@ -338,8 +336,8 @@ static s32 init_Aucpu_local_buf(struct device *dev)
 		pbuf->size = update_size;
 		phy += update_size;
 		base_addr += update_size;
-		aucpu_pr(LOG_INFO, "rpt buf %d @0x%lx size 0x%x, phy 0x%lx\n",
-			 index, pbuf->base, pbuf->size, pbuf->phys_addr);
+		// aucpu_pr(LOG_INFO, "rpt buf %d @0x%lx size 0x%x, phy 0x%lx\n",
+			// index, pbuf->base, pbuf->size, pbuf->phys_addr);
 	}
 	/* debug buffer */
 	update_size = AUCPU_DBG_BUF_SZ + AUCPU_DBG_PAD_SZ;
@@ -348,8 +346,8 @@ static s32 init_Aucpu_local_buf(struct device *dev)
 		err = alloc_local_dma_buf(dev, pbuf, update_size,
 					  DMA_FROM_DEVICE);
 		if (err) {
-			aucpu_pr(LOG_ERROR, "error alloc debug buffer\n");
-			return err;
+			err_val = -3;
+			goto ERROR_HANDLE;
 		}
 	} else {
 		pbuf->phys_addr = phy;
@@ -366,11 +364,15 @@ static s32 init_Aucpu_local_buf(struct device *dev)
 
 	if (use_reserve &&
 	    (phy - pctx->aucpu_mem.phys_addr) > pctx->aucpu_mem.size) {
-		aucpu_pr(LOG_ERROR, "Allocated too less mem size 0x%x\n",
-			 pctx->aucpu_mem.size);
-		return -ENOMEM;
+		err = -ENOMEM;
+		err_val = -4;
+		goto ERROR_HANDLE;
 	}
 	return 0;
+
+ERROR_HANDLE:
+	aucpu_pr(LOG_ERROR, "init buf failed: %d\n", err_val);
+	return err;
 }
 
 static void uninit_Aucpu_local_buf(struct device *dev)
@@ -480,7 +482,7 @@ void change_debug_level(void)
 	pctx->aucpu_print_level = dbg_level;
 	res = send_aucpu_cmd(cmd);
 	if (res < 0) { // failed
-		aucpu_pr(LOG_ERROR, "aucpu set dbg buf failed\n");
+		aucpu_pr(LOG_ERROR, "aucpu set dbg level failed\n");
 	}
 	mutex_unlock(&pctx->mutex);
 }
@@ -644,8 +646,6 @@ static int load_start_aucpu_fw(struct device *device)
 	int result = 0;
 	unsigned int length = 0;
 
-	aucpu_pr(LOG_DEBUG, "FW\n");
-
 	result = request_firmware(&my_fw, "aucpu_fw.bin", device);
 	if (!my_fw || result < 0) {
 		aucpu_pr(LOG_ERROR, "load aucpu_fw.bin fail, result=%d\n", result);
@@ -663,8 +663,7 @@ static int load_start_aucpu_fw(struct device *device)
 
 	release_firmware(my_fw);
 
-	aucpu_pr(LOG_INFO, "download fw success reset start AUCPU\n");
-	aucpu_pr(LOG_INFO, "[%s] done  result %d\n", __func__, result);
+	aucpu_pr(LOG_INFO, "start aucpu fw result %d\n", result);
 	return result;
 }
 
@@ -673,7 +672,7 @@ static void stop_aucpu_fw(struct device *device)
 	int result = 0;
 
 	result = sec_fw_cmd(FW_TYPE_AUCPU_STOP, NULL, 0);
-	aucpu_pr(LOG_INFO, "[%s] done  result %d\n", __func__, result);
+	aucpu_pr(LOG_INFO, "stop aucpu %d\n", result);
 }
 
 s32 aml_aucpu_strm_create(struct aml_aucpu_strm_buf *src,
@@ -688,25 +687,23 @@ s32 aml_aucpu_strm_create(struct aml_aucpu_strm_buf *src,
 
 	pctx = s_aucpu_ctx;
 	if (!aucpu_dev) {
-		aucpu_pr(LOG_ERROR, "AUCPU driver did not init yet\n");
-		return AUCPU_DRVERR_NO_INIT;
+		res = AUCPU_DRVERR_NO_INIT;
+		goto ERROR_HANDLE;
 	}
 	if (pctx->activated_inst_num >= AUCPU_MAX_INTST_NUM) {
-		aucpu_pr(LOG_ERROR, "AUCPU too many stream instances\n");
-		return AUCPU_DRVERR_TOO_MANY_STRM;
+		res = AUCPU_DRVERR_TOO_MANY_STRM;
+		goto ERROR_HANDLE;
 	}
 	/* check parmeters */
-	aucpu_pr(LOG_INFO, "%s src 0x%lx size 0x%x dst 0x%lx size 0x%x\n",
-		 __func__, src->phy_start, src->buf_size,
-		 dst->phy_start, dst->buf_size);
+	aucpu_pr(LOG_INFO, "aucpu strm create src 0x%lx size 0x%x dst 0x%lx size 0x%x\n",
+		src->phy_start, src->buf_size, dst->phy_start, dst->buf_size);
 	aucpu_pr(LOG_INFO, "config media_type %d chn %d flags 0x%x-0x%x-0x%x\n",
 		 cfg->media_type, cfg->dma_chn_id, cfg->config_flags,
 		 src->buf_flags, dst->buf_flags);
 
 	if (cfg->media_type <= MEDIA_UNKNOWN || cfg->media_type >= MEDIA_MAX) {
-		aucpu_pr(LOG_ERROR, "invalid media format %d\n",
-			 cfg->media_type);
-		return AUCPU_DRVERR_INVALID_TYPE;
+		res = AUCPU_DRVERR_INVALID_TYPE;
+		goto ERROR_HANDLE;
 	}
 
 	mutex_lock(&pctx->mutex);
@@ -716,9 +713,9 @@ s32 aml_aucpu_strm_create(struct aml_aucpu_strm_buf *src,
 			break; // found one empty slot
 	}
 	if (handle_idx >= AUCPU_MAX_INTST_NUM) {
-		aucpu_pr(LOG_ERROR, "AUCPU can not find empty slot\n");
 		mutex_unlock(&pctx->mutex);
-		return AUCPU_DRVERR_NO_SLOT;
+		res = AUCPU_DRVERR_NO_SLOT;
+		goto ERROR_HANDLE;
 	}
 
 	pinst->media_type = cfg->media_type;
@@ -762,6 +759,10 @@ s32 aml_aucpu_strm_create(struct aml_aucpu_strm_buf *src,
 	}
 	mutex_unlock(&pctx->mutex);
 	return res;
+
+ERROR_HANDLE:
+	aucpu_pr(LOG_ERROR, "strm create failed! res:%d\n", res);
+	return res;
 }
 EXPORT_SYMBOL(aml_aucpu_strm_create);
 
@@ -769,31 +770,42 @@ static s32 valid_handle2Inst(s32 handle, struct aucpu_ctx_t *pctx,
 			     struct aucpu_inst_t **inst)
 {
 	struct aucpu_inst_t *pinst;
+	s32 res = AUCPU_NO_ERROR;
+	s32 err_val;
 
 	if (!aucpu_dev) {
-		aucpu_pr(LOG_ERROR, "AUCPU driver did not init yet\n");
-		return AUCPU_DRVERR_NO_INIT;
+		res = AUCPU_DRVERR_NO_INIT;
+		err_val = -1;
+		goto ERROR_HANDLE;
 	}
 	if (pctx->activated_inst_num == 0) {
-		aucpu_pr(LOG_ERROR, "AUCPU No strm active\n");
-		return AUCPU_DRVERR_NO_ACTIVE;
+		res = AUCPU_DRVERR_NO_ACTIVE;
+		err_val = -2;
+		goto ERROR_HANDLE;
 	}
 	if (handle < 0 || handle >= AUCPU_MAX_INTST_NUM) {
-		aucpu_pr(LOG_ERROR, "AUCPU invalid strm handle\n");
-		return AUCPU_DRVERR_INVALID_HANDLE;
+		res = AUCPU_DRVERR_INVALID_HANDLE;
+		err_val = -3;
+		goto ERROR_HANDLE;
 	}
 	pinst = &pctx->strm_inst[handle];
 	if (pinst->inst_handle < 0 ||
 	    pinst->inst_handle >= AUCPU_MAX_INTST_NUM) {
-		aucpu_pr(LOG_ERROR, "AUCPU handle is invalid\n");
-		return AUCPU_DRVERR_INVALID_HANDLE;
+		res = AUCPU_DRVERR_INVALID_HANDLE;
+		err_val = -4;
+		goto ERROR_HANDLE;
 	}
 	if (pinst->inst_status == AUCPU_STA_NONE) {
-		aucpu_pr(LOG_ERROR, "AUCPU strm handle is empty\n");
-		return AUCPU_DRVERR_INVALID_HANDLE;
+		res = AUCPU_DRVERR_INVALID_HANDLE;
+		err_val = -5;
+		goto ERROR_HANDLE;
 	}
 	*inst = pinst;
 	return AUCPU_NO_ERROR;
+
+ERROR_HANDLE:
+	aucpu_pr(LOG_ERROR, "handle2Inst failed: %d\n", err_val);
+	return res;
 }
 
 s32 aml_aucpu_strm_start(s32 handle)
@@ -805,14 +817,13 @@ s32 aml_aucpu_strm_start(s32 handle)
 
 	pctx = s_aucpu_ctx;
 	res = valid_handle2Inst(handle, pctx, &pinst);
-	if (res < 0) {
-		aucpu_pr(LOG_ERROR, "%s invalid_handle %d\n", __func__, handle);
+	if (res < 0)
 		return res;
-	}
 	if (pinst->inst_status != AUCPU_STA_IDLE) {
 		aucpu_pr(LOG_ERROR, "AUCPU strm %d is not idle\n", handle);
 		return AUCPU_DRVERR_WRONG_STATE;
 	}
+
 	mutex_lock(&pctx->mutex);
 	cmd = &pctx->last_cmd;
 	cmd->cmd_type = CMD_INST_START | ((pinst->inst_handle & 0xff) << 8);
@@ -835,10 +846,8 @@ s32 aml_aucpu_strm_stop(s32 handle)
 
 	pctx = s_aucpu_ctx;
 	res = valid_handle2Inst(handle, pctx, &pinst);
-	if (res < 0) {
-		aucpu_pr(LOG_ERROR, "%s invalid_handle %d\n", __func__, handle);
+	if (res < 0)
 		return res;
-	}
 	if (pinst->inst_status != AUCPU_STA_RUNNING &&
 	    pinst->inst_status != AUCPU_STA_FLUSHING) {
 		aucpu_pr(LOG_ERROR, "AUCPU strm %d is not running\n", handle);
@@ -867,15 +876,13 @@ s32 aml_aucpu_strm_flush(s32 handle)
 
 	pctx = s_aucpu_ctx;
 	res = valid_handle2Inst(handle, pctx, &pinst);
-	if (res < 0) {
-		aucpu_pr(LOG_ERROR, "%s invalid_handle %d\n", __func__, handle);
+	if (res < 0)
 		return res;
-	}
-
 	if (pinst->inst_status != AUCPU_STA_RUNNING) {
 		aucpu_pr(LOG_ERROR, "AUCPU strm %d is not running\n", handle);
 		return AUCPU_DRVERR_WRONG_STATE;
 	}
+
 	mutex_lock(&pctx->mutex);
 	cmd = &pctx->last_cmd;
 	cmd->cmd_type = CMD_INST_FLUSH | ((pinst->inst_handle & 0xff) << 8);
@@ -898,15 +905,14 @@ s32 aml_aucpu_strm_remove(s32 handle)
 
 	pctx = s_aucpu_ctx;
 	res = valid_handle2Inst(handle, pctx, &pinst);
-	if (res < 0) {
-		aucpu_pr(LOG_ERROR, "%s invalid_handle %d\n", __func__, handle);
+	if (res < 0)
 		return res;
-	}
 
 	if (pinst->inst_status != AUCPU_STA_IDLE) {
 		aucpu_pr(LOG_ERROR, "AUCPU strm %d is not running\n", handle);
 		return AUCPU_DRVERR_WRONG_STATE;
 	}
+
 	mutex_lock(&pctx->mutex);
 	cmd = &pctx->last_cmd;
 	cmd->cmd_type = CMD_INST_REMOVE | ((pinst->inst_handle & 0xff) << 8);
@@ -926,22 +932,25 @@ s32 aml_aucpu_strm_update_src(s32 handle, struct aml_aucpu_buf_upd *upd)
 	struct aucpu_ctx_t *pctx;
 	struct aucpu_inst_t *pinst;
 	struct aml_aucpu_buf_upd *pdest;
-	s32 res = AUCPU_NO_ERROR;
+	s32 res = AUCPU_NO_ERROR, err_val;
 
 	pctx = s_aucpu_ctx;
 	res = valid_handle2Inst(handle, pctx, &pinst);
 	if (res < 0) {
-		aucpu_pr(LOG_ERROR, "%s invalid_handle %d\n", __func__, handle);
-		return res;
+		err_val = -1;
+		goto ERROR_HANDLE;
 	}
 	if (pinst->inst_status != AUCPU_STA_RUNNING) {
-		aucpu_pr(LOG_ERROR, "AUCPU strm %d is not running\n", handle);
-		return AUCPU_DRVERR_WRONG_STATE;
+		err_val = -2;
+		res = AUCPU_DRVERR_WRONG_STATE;
+		goto ERROR_HANDLE;
 	}
 	if ((pinst->config_options & 0x1) == 0) {
-		aucpu_pr(LOG_ERROR, "AUCPU strm %d wrong config\n", handle);
-		return AUCPU_DRVERR_VALID_CONTEXT;
+		err_val = -3;
+		res = AUCPU_DRVERR_VALID_CONTEXT;
+		goto ERROR_HANDLE;
 	}
+
 	pdest = (struct aml_aucpu_buf_upd *)pinst->in_upd_buf.base;
 	pdest->phy_cur_ptr = upd->phy_cur_ptr;
 	pdest->byte_cnt = upd->byte_cnt;
@@ -950,6 +959,10 @@ s32 aml_aucpu_strm_update_src(s32 handle, struct aml_aucpu_buf_upd *upd)
 	/* need clean the  cache here to make sure data in DDR */
 	dma_flush(pinst->in_upd_buf.phys_addr, pinst->in_upd_buf.size);
 	return AUCPU_NO_ERROR;
+
+ERROR_HANDLE:
+	aucpu_pr(LOG_ERROR, "strm update failed:%d handle:%d\n", err_val, handle);
+	return res;
 }
 EXPORT_SYMBOL(aml_aucpu_strm_update_src);
 
@@ -958,23 +971,24 @@ s32 aml_aucpu_strm_get_dst(s32 handle, struct aml_aucpu_buf_upd *upd)
 	struct aucpu_ctx_t *pctx;
 	struct aucpu_inst_t *pinst;
 	struct aucpu_report_t *rpt;
-	s32 res = AUCPU_NO_ERROR;
+	s32 res = AUCPU_NO_ERROR, err_val;
 
 	pctx = s_aucpu_ctx;
 	res = valid_handle2Inst(handle, pctx, &pinst);
 	if (res < 0) {
-		aucpu_pr(LOG_ERROR, "%s invalid_handle %d\n", __func__, handle);
-		return res;
+		err_val = -1;
+		goto ERROR_HANDLE;
 	}
 	if (pinst->inst_status == AUCPU_STS_INST_IDLE) {
 		upd->phy_cur_ptr = pinst->dst_wrptr;
 		upd->byte_cnt = pinst->dst_byte_cnt;
-		aucpu_pr(LOG_INFO, "AUCPU strm %d is not running\n", handle);
-		return res;
+		err_val = -2;
+		goto ERROR_HANDLE;
 	} else if (pinst->inst_status != AUCPU_STA_RUNNING &&
 		   pinst->inst_status != AUCPU_STA_FLUSHING) {
-		aucpu_pr(LOG_ERROR, "AUCPU strm %d is not running\n", handle);
-		return AUCPU_DRVERR_WRONG_STATE;
+		res = AUCPU_DRVERR_WRONG_STATE;
+		err_val = -3;
+		goto ERROR_HANDLE;
 	}
 
 	cache_flush(pinst->reprt_buf.phys_addr, pinst->reprt_buf.size);
@@ -998,6 +1012,10 @@ s32 aml_aucpu_strm_get_dst(s32 handle, struct aml_aucpu_buf_upd *upd)
 		}
 	}
 	return res;
+
+ERROR_HANDLE:
+	aucpu_pr(LOG_INFO, "strm get dst failed: %d handle:%d\n", err_val, handle);
+	return res;
 }
 EXPORT_SYMBOL(aml_aucpu_strm_get_dst);
 
@@ -1009,10 +1027,8 @@ s32 aml_aucpu_strm_get_status(s32 handle, s32 *state, s32 *report)
 
 	pctx = s_aucpu_ctx;
 	res = valid_handle2Inst(handle, pctx, &pinst);
-	if (res < 0) {
-		aucpu_pr(LOG_ERROR, "%s invalid_handle %d\n", __func__, handle);
+	if (res < 0)
 		return AUCPU_DRVERR_VALID_CONTEXT;
-	}
 	*state = pinst->inst_status;
 	*report = pinst->work_state;
 	return res;
@@ -1044,18 +1060,18 @@ static void clear_aucpu_all_instances(void)
 
 	pctx = s_aucpu_ctx;
 	if (!pctx) {
-		aucpu_pr(LOG_ERROR, "AUCPU driver did not init yet\n");
+		aucpu_pr(LOG_ERROR, "AUCPU not init\n");
 		return;
 	}
 	if (pctx->activated_inst_num == 0)
-		aucpu_pr(LOG_ERROR, "AUCPU no active stream instances\n");
+		aucpu_pr(LOG_ERROR, "AUCPU no active inst\n");
 
 	mutex_lock(&pctx->mutex);
 	cmd = &pctx->last_cmd;
 	cmd->cmd_type = CMD_RESET_ALL;
 	res = send_aucpu_cmd(cmd);
 	if (res < 0) // failed
-		aucpu_pr(LOG_ERROR, "aucpu reset all scmd failed\n");
+		aucpu_pr(LOG_ERROR, "aucpu reset failed\n");
 
 	// clear the instance now
 	for (handle_idx = 0; handle_idx < AUCPU_MAX_INTST_NUM; handle_idx++) {
@@ -1074,10 +1090,8 @@ static s32 aucpu_open(struct inode *inode, struct file *filp)
 {
 	s32 r = 0;
 
-	aucpu_pr(LOG_DEBUG, "[+] %s\n", __func__);
 	filp->private_data = (void *)(s_aucpu_ctx);
-	aucpu_pr(LOG_ERROR, "Do nothing for AUCPU driver open\n");
-	aucpu_pr(LOG_DEBUG, "[-] %s, ret: %d\n", __func__, r);
+	aucpu_pr(LOG_ERROR, "AUCPU open\n");
 	return r;
 }
 
@@ -1086,7 +1100,7 @@ static long aucpu_ioctl(struct file *filp, u32 cmd, ulong arg)
 	s32 ret = 0;
 	struct aucpu_ctx_t *dev = (struct aucpu_ctx_t *)filp->private_data;
 
-	aucpu_pr(LOG_ERROR, "IOCTL NO supported, dev %p ret: %d\n", dev, ret);
+	aucpu_pr(LOG_ERROR, "AUCPU ioctl dev %p\n", dev);
 	return ret;
 }
 
@@ -1105,8 +1119,7 @@ static s32 aucpu_release(struct inode *inode, struct file *filp)
 {
 	s32 ret = 0;
 
-	aucpu_pr(LOG_DEBUG, "%s\n", __func__);
-	aucpu_pr(LOG_ERROR, "NO thing to do now, ret: %d\n", ret);
+	// aucpu_pr(LOG_DEBUG, "aucpu release\n");
 	return ret;
 }
 
@@ -1186,30 +1199,34 @@ static struct class aucpu_class = {
 
 s32 init_Aucpu_device(void)
 {
-	s32  r = 0;
+	s32  r = 0, err_val;
 
 	r = register_chrdev(0, AUCPU_DEV_NAME, &aucpu_fops);
 	if (r <= 0) {
-		aucpu_pr(LOG_ERROR, "register aucpu device error.\n");
-		return  -1;
+		err_val = -1;
+		goto ERROR_HANDLE;
 	}
 	s_aucpu_major = r;
 
 	r = class_register(&aucpu_class);
 	if (r < 0) {
-		aucpu_pr(LOG_ERROR, "register aucpu class error.\n");
-		return -1;
+		err_val = -2;
+		goto ERROR_HANDLE;
 	}
 	s_register_flag = 1;
 
 	aucpu_dev = device_create(&aucpu_class, NULL, MKDEV(s_aucpu_major, 0),
 				  NULL, AUCPU_DEV_NAME);
 	if (IS_ERR(aucpu_dev)) {
-		aucpu_pr(LOG_ERROR, "create aucpu device error.\n");
-		return -1;
+		err_val = -3;
+		goto ERROR_HANDLE;
 	}
 
 	return 0;
+
+ERROR_HANDLE:
+	aucpu_pr(LOG_ERROR, "init aucpu device failed: %d\n", err_val);
+	return -1;
 }
 
 s32 uninit_Aucpu_device(void)
@@ -1231,25 +1248,21 @@ s32 uninit_Aucpu_device(void)
 static s32 aucpu_mem_device_init(struct reserved_mem *rmem,
 	struct device *dev)
 {
-	s32 r;
+	s32 r, err_val;
 	struct aucpu_ctx_t *pctx;
 
 	if (!rmem) {
-		aucpu_pr(LOG_ERROR, "Can not obtain I/O memory, ");
-		aucpu_pr(LOG_ERROR, "will allocate multienc buffer!\n");
-		r = -EFAULT;
-		return r;
+		err_val = -1;
+		goto ERROR_HANDLE;
 	}
 
 	if (!rmem->base) {
-		aucpu_pr(LOG_ERROR, " Aucpu NO reserved mem assigned\n");
-		r = -EFAULT;
-		return r;
+		err_val = -2;
+		goto ERROR_HANDLE;
 	}
 	if (!s_aucpu_ctx) {
-		aucpu_pr(LOG_ERROR, "Aucpu did not allocate yet\n");
-		r = -EFAULT;
-		return r;
+		err_val = -3;
+		goto ERROR_HANDLE;
 	}
 	r = 0;
 	pctx = s_aucpu_ctx;
@@ -1261,15 +1274,19 @@ static s32 aucpu_mem_device_init(struct reserved_mem *rmem,
 		 pctx->aucpu_mem.size, pctx->aucpu_mem.phys_addr);
 
 	return r;
+
+ERROR_HANDLE:
+	aucpu_pr(LOG_ERROR, "aucpu mem init failed: %d\n", err_val);
+	return -EFAULT;
 }
 
 static s32 aucpu_init_try(struct platform_device *pdev)
 {
-	s32 err = 0, irq, idx;
+	s32 err = 0, irq, idx, err_val;
 	struct aucpu_ctx_t *pctx;
 	struct resource *res;
-	aucpu_pr(LOG_DEBUG, "%s\n", __func__);
 
+	aucpu_pr(LOG_DEBUG, "aucpu init try\n");
 	s_aucpu_major = 0;
 	use_reserve = false;
 	s_aucpu_irq = -1;
@@ -1282,26 +1299,22 @@ static s32 aucpu_init_try(struct platform_device *pdev)
 	s_register_flag = 0;
 	s_aucpu_register_base = 0;
 	s_aucpu_ctx = kzalloc(sizeof(*s_aucpu_ctx), GFP_KERNEL);
-	if (!s_aucpu_ctx) {
-		aucpu_pr(LOG_ERROR,
-			 "failed to allocate aucpu memory context\n");
+	if (!s_aucpu_ctx)
 		return -ENOMEM;
-	}
 
 	pctx = s_aucpu_ctx;
 
 	idx = of_reserved_mem_device_init(&pdev->dev);
-	if (idx != 0) {
-		aucpu_pr(LOG_DEBUG,
-			 "Aucpu reserved memory config fail.\n");
-	} else if (pctx->aucpu_mem.phys_addr) {
+	if (idx != 0)
+		aucpu_pr(LOG_DEBUG, "reserved mem fail\n");
+	else if (pctx->aucpu_mem.phys_addr)
 		use_reserve = true;
-	}
+
 	/* get interrupt resource */
 	irq = platform_get_irq_byname(pdev, "aucpu_irq");
 	if (irq < 0) {
-		aucpu_pr(LOG_ERROR, "get Aucpu irq resource error\n");
 		err = -EFAULT;
+		err_val = -1;
 		goto ERROR_PROVE_DEVICE;
 	}
 	s_aucpu_irq = irq;
@@ -1319,9 +1332,7 @@ static s32 aucpu_init_try(struct platform_device *pdev)
 		pctx->aucpu_reg.size = resource_size(res);
 
 		aucpu_pr(LOG_DEBUG,
-			 "aucpu base address get from platform");
-		aucpu_pr(LOG_DEBUG,
-			 " physical addr=0x%lx, base addr=0x%lx\n",
+			 "dts phys=0x%lx, base=0x%lx\n",
 			 pctx->aucpu_reg.phys_addr,
 			 pctx->aucpu_reg.base);
 	} else {
@@ -1332,9 +1343,7 @@ static s32 aucpu_init_try(struct platform_device *pdev)
 
 		pctx->aucpu_reg.size = AUCPU_REG_SIZE;
 		aucpu_pr(LOG_ERROR,
-			 "warning: aucpu base address get from defined value");
-		aucpu_pr(LOG_ERROR,
-			 "warning: defined physical addr=0x%lx, base addr=0x%lx\n",
+			 "warning: defined phys=0x%lx, base=0x%lx\n",
 			 pctx->aucpu_reg.phys_addr,
 			 pctx->aucpu_reg.base);
 	}
@@ -1344,26 +1353,24 @@ static s32 aucpu_init_try(struct platform_device *pdev)
 	/* get the major number of the character device */
 	if (init_Aucpu_device()) {
 		err = -EBUSY;
-		aucpu_pr(LOG_ERROR, "could not allocate major number\n");
+		err_val = -2;
 		goto ERROR_PROVE_DEVICE;
 	}
-	aucpu_pr(LOG_INFO, "SUCCESS alloc_chrdev_region\n");
 	pctx->aucpu_device = aucpu_dev;
 
 	/* init the local buffers */
 	if (init_Aucpu_local_buf(&pdev->dev /*aucpu_dev */)) {
 		err = -EBUSY;
-		aucpu_pr(LOG_ERROR, "did not allocate enough memory\n");
+		err_val = -3;
 		goto ERROR_PROVE_DEVICE;
 	}
 	/* load FW and start AUCPU */
 	load_firmware_status = load_start_aucpu_fw(&pdev->dev /*aucpu_dev */);
 	if (load_firmware_status) {
-		aucpu_pr(LOG_ERROR, "load start_aucpu_fw fail\n");
+		err_val = -4;
 		goto ERROR_PROVE_DEVICE;
 	}
-	aucpu_pr(LOG_INFO, "aucpu fw version: 0x%x\n",
-			ReadAucpuRegister(VERSION_ADDR));
+	aucpu_pr(LOG_INFO, "fw version: 0x%x\n", ReadAucpuRegister(VERSION_ADDR));
 
 	mutex_init(&pctx->mutex);
 	/*setup  the DEBUG buffer */
@@ -1375,16 +1382,17 @@ static s32 aucpu_init_try(struct platform_device *pdev)
 	err = request_irq(s_aucpu_irq, aucpu_irq_handler, 0,
 			  "Aucpu-irq", (void *)s_aucpu_ctx);
 	if (err) {
-		aucpu_pr(LOG_ERROR, "Failed to register irq handler\n");
+		err_val = -5;
 		goto ERROR_PROVE_DEVICE;
 	}
 	s_aucpu_irq_requested = true;
 	schedule_delayed_work(&pctx->dbg_work, DBG_POLL_TIME);
 //	aucpu_pdev = pdev;
-	aucpu_pr(LOG_ERROR, "Amlogic Aucpu driver installed\n");
+	aucpu_pr(LOG_ERROR, "Aucpu installed success\n");
 	return 0;
 
 ERROR_PROVE_DEVICE:
+	aucpu_pr(LOG_ERROR, "aucpu init failed: %d\n", err_val);
 	if (s_aucpu_irq_requested) {
 		free_irq(s_aucpu_irq, s_aucpu_ctx);
 		s_aucpu_irq = -1;
@@ -1443,7 +1451,6 @@ static void aucpu_remove(struct platform_device *pdev)
 	s_aucpu_ctx = NULL;
 	aucpu_dev = NULL;
 	aucpu_pdev = NULL;
-	aucpu_pr(LOG_DEBUG, "aupu_remove done\n");
 }
 
 static const struct of_device_id aml_aucpu_dt_match[] = {
@@ -1466,16 +1473,14 @@ s32 __init aucpu_init(void)
 {
 	s32 res;
 
-	aucpu_pr(LOG_DEBUG, "%s\n", __func__);
-
 	res = platform_driver_register(&aucpu_driver);
-	aucpu_pr(LOG_INFO, "end %s result=0x%x\n", __func__, res);
+	aucpu_pr(LOG_INFO, "aucpu init result=0x%x\n", res);
 	return res;
 }
 
 void __exit aucpu_exit(void)
 {
-	aucpu_pr(LOG_DEBUG, "%s\n", __func__);
+	// aucpu_pr(LOG_DEBUG, "aucpu exit\n");
 	platform_driver_unregister(&aucpu_driver);
 }
 

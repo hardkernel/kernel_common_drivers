@@ -40,7 +40,7 @@ static u32 fetch_done;
 		if (aml_ci_bus_debug)\
 			pr_err(args);\
 	} while (0)
-#define pr_error(fmt, args...) pr_err("aml_ci_bus: " fmt, ## args)
+#define pr_error(fmt, args...) pr_err("ci_bus:" fmt, ## args)
 
 #define INPUT 0
 #define OUTPUT 1
@@ -92,19 +92,17 @@ int init_ci_addr(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		pr_dbg("%s fail\n", __func__);
+		pr_dbg("init addr fail\n");
 		return -1;
 	}
 
 	if (!p_hw_base) {
 		p_hw_base = devm_ioremap_resource(&pdev->dev, res);
 
-		if (IS_ERR_OR_NULL(p_hw_base)) {
-			pr_dbg("%s base addr error\n", __func__);
-		} else {
-			pr_dbg("%s base addr = %lx\n", __func__,
-			       (unsigned long)p_hw_base);
-		}
+		if (IS_ERR_OR_NULL(p_hw_base))
+			pr_dbg("base addr error\n");
+		else
+			pr_dbg("base addr = %lx\n", (unsigned long)p_hw_base);
 	}
 	return 0;
 }
@@ -125,6 +123,7 @@ static int aml_ci_bus_select_gpio(struct aml_ci_bus *ci_bus_dev,
 	unsigned int old_select = ci_bus_dev->select;
 	struct pinctrl_state *s;
 	int ret = 0;
+	int err_val;
 
 	if (old_select == select)
 		return 0;
@@ -138,27 +137,30 @@ static int aml_ci_bus_select_gpio(struct aml_ci_bus *ci_bus_dev,
 	if (!ci_bus_dev->pinctrl) {
 		ci_bus_dev->pinctrl = devm_pinctrl_get(&ci_bus_dev->pdev->dev);
 		if (IS_ERR_OR_NULL(ci_bus_dev->pinctrl)) {
-			dev_err(&ci_bus_dev->pdev->dev, "could not get pinctrl handle\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			err_val = -1;
+			goto error_handle;
 		}
 	}
 	if (IS_ERR_OR_NULL(ci_bus_dev->pinctrl)) {
-		dev_err(&ci_bus_dev->pdev->dev, "return, could not get pinctrl handle\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		err_val = -2;
+		goto error_handle;
 	}
 	/* set pinmux */
 	switch (select) {
 	case AML_GPIO_ADDR:
 		s = pinctrl_lookup_state(ci_bus_dev->pinctrl, "ci_addr_pins");
 		if (IS_ERR_OR_NULL(s)) {
-			dev_err(&ci_bus_dev->pdev->dev,
-					"could not get ci_addr_pins state\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			err_val = -3;
+			goto error_handle;
 		}
 		ret = pinctrl_select_state(ci_bus_dev->pinctrl, s);
 		if (ret) {
-			dev_err(&ci_bus_dev->pdev->dev, "failed to set ci_addr_pins pinctrl\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			err_val = -4;
+			goto error_handle;
 		}
 		if (ci_bus_dev->le_pin) {
 			aml_set_gpio_out(ci_bus_dev->le_pin, ci_bus_dev->le_enable_level);
@@ -172,14 +174,15 @@ static int aml_ci_bus_select_gpio(struct aml_ci_bus *ci_bus_dev,
 		}
 		s = pinctrl_lookup_state(ci_bus_dev->pinctrl, "ci_ts_pins");
 		if (IS_ERR_OR_NULL(s)) {
-			dev_err(&ci_bus_dev->pdev->dev,
-					"could not get ci_ts_pins state\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			err_val = -5;
+			goto error_handle;
 		}
 		ret = pinctrl_select_state(ci_bus_dev->pinctrl, s);
 		if (ret) {
-			dev_err(&ci_bus_dev->pdev->dev, "failed to set ci_ts_pins pinctrl\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			err_val = -6;
+			goto error_handle;
 		}
 		break;
 	default:
@@ -187,6 +190,10 @@ static int aml_ci_bus_select_gpio(struct aml_ci_bus *ci_bus_dev,
 	}
 	ci_bus_dev->select = select;
 	return 0;
+
+error_handle:
+	dev_err(&ci_bus_dev->pdev->dev, "select gpio failed! err_val:%d\n", err_val);
+	return ret;
 }
 
 /**\brief aml_ci_bus_set_delay_time:set ci bus delay time
@@ -355,7 +362,7 @@ static int aml_ci_bus_init_reg(struct aml_ci_bus *ci_bus_dev)
 		aml_ci_bus_select_gpio(ci_bus_dev, AML_GPIO_ADDR);
 
 	//init ci bus reg
-	pr_dbg("%s---\r\n", __func__);
+	pr_dbg("init reg\r\n");
 	ctrl = READ_CIBUS_REG(CIPLUS_CTRL_REG);
 	ctrl = ctrl | (1 << CI_ENABLE);
 	ctrl = ctrl | (1 << ENABLE_CMP_IRQ);
@@ -727,43 +734,39 @@ static int aml_gio_power(struct aml_pcmcia *pc, int enable)
 	int ret = 0;
 	struct aml_ci_bus *ci_bus_dev = pc->priv;
 
+	pr_dbg("gio power, enable: %d\r\n", enable);
 	if (!ci_bus_dev) {
-		pr_dbg("ci bus dev is null %s : %d\r\n", __func__, enable);
+		pr_dbg("ci_bus_dev is null\r\n");
 		return -1;
 	}
-	pr_dbg("%s : %d\r\n", __func__, enable);
 
 	if (enable == AML_PWR_OPEN) {
 		/*hi level ,open power*/
 		if (ci_bus_dev->regulator_vcc5v) {
 			if (!ci_bus_dev->regulator_vcc5v_enabled) {
 				ret = regulator_enable(ci_bus_dev->regulator_vcc5v);
-				pr_dbg("%s regulator vcc5v enable ret=%d\r\n", __func__, ret);
 				if (ret)
-					pr_error("%s regulator vcc5v enable failed: %d\n",
-						__func__, ret);
+					pr_error("regulator vcc5v enable failed: %d\n", ret);
 				else
 					ci_bus_dev->regulator_vcc5v_enabled = 1;
 			}
 		} else {
 			ret = aml_set_gpio_out(ci_bus_dev->pwr_pin, AML_GPIO_LOW);
-			pr_dbg("%s aml_set_gpio_out ret=%d\r\n", __func__, ret);
+			pr_dbg("aml_set_gpio_out ret=%d\r\n", ret);
 		}
 	} else {
 		/*low level ,close power*/
 		if (ci_bus_dev->regulator_vcc5v) {
 			if (ci_bus_dev->regulator_vcc5v_enabled) {
 				ret = regulator_disable(ci_bus_dev->regulator_vcc5v);
-				pr_dbg("%s regulator vcc5v disable ret=%d\r\n", __func__, ret);
 				if (ret)
-					pr_error("%s regulator vcc5v disable failed: %d\n",
-						__func__, ret);
+					pr_error("regulator vcc5v disable failed: %d\n", ret);
 				else
 					ci_bus_dev->regulator_vcc5v_enabled = 0;
 			}
 		} else {
 			ret = aml_set_gpio_in(ci_bus_dev->pwr_pin);
-			pr_dbg("%s aml_set_gpio_in ret=%d\r\n", __func__, ret);
+			pr_dbg("aml_set_gpio_in ret=%d\r\n", ret);
 		}
 	}
 
@@ -783,16 +786,17 @@ static int aml_gio_reset(struct aml_pcmcia *pc, int enable)
 	/*need set hi and sleep set low*/
 	int ret = 0;
 	struct aml_ci_bus *ci_bus_dev = pc->priv;
+	int err_val = 0;
 
 	if (!ci_bus_dev) {
-		pr_dbg("ci bus dev is null %s : %d\r\n", __func__, enable);
-		return -1;
+		err_val = -1;
+		goto error_handle;
 	}
 
-	pr_dbg("%s : %d  type: %d\r\n", __func__, enable, ci_bus_dev->io_device_type);
+	pr_dbg("gio reset, enable: %d  type: %d\r\n", enable, ci_bus_dev->io_device_type);
 	if (!ci_bus_dev || !ci_bus_dev->priv) {
-		pr_dbg("rst by ci bus- ci bus dev-null-\r\n");
-		return -1;
+		err_val = -2;
+		goto error_handle;
 	}
 
 	aml_ci_bus_select_gpio(ci_bus_dev, AML_GPIO_ADDR);
@@ -801,6 +805,10 @@ static int aml_gio_reset(struct aml_pcmcia *pc, int enable)
 	pr_dbg("rst by ci bus- ci bus [%d]-\r\n", ci_bus_dev->select);
 
 	return ret;
+
+error_handle:
+	pr_error("gio reset failed! err_val:%d\n", err_val);
+	return -1;
 }
 
 /**\brief aml_gio_init_irq:set gpio irq
@@ -831,7 +839,7 @@ static int aml_gio_get_cd1(struct aml_pcmcia *pc)
 	struct aml_ci_bus *ci_bus_dev = pc->priv;
 
 	ret = aml_get_gpio_value(ci_bus_dev->cd_pin1);
-	pr_dbg("%s :cd: %d\r\n", __func__, ret);
+	pr_dbg("gio get cd1: %d\r\n", ret);
 	return ret;
 }
 
@@ -847,7 +855,7 @@ static int aml_gio_get_cd2(struct aml_pcmcia *pc)
 	struct aml_ci_bus *ci_bus_dev = pc->priv;
 
 	ret = aml_get_gpio_value(ci_bus_dev->cd_pin1);
-	pr_dbg("%s :cd: %d\r\n", __func__, ret);
+	pr_dbg("gio get cd2: %d\r\n", ret);
 	return ret;
 }
 
@@ -862,7 +870,7 @@ static int aml_cam_plugin(struct aml_pcmcia *pc, int plugin)
 {
 	struct aml_ci *ci = (struct aml_ci *)
 	((struct aml_ci_bus *)(pc->priv))->priv;
-	pr_dbg("%s : %d\r\n", __func__, plugin);
+	pr_dbg("cam plugin: %d\r\n", plugin);
 	if (((struct aml_ci_bus *)pc->priv)->raw_mode == 0) {
 		if (plugin) {
 			aml_ci_bus_select_gpio((struct aml_ci_bus *)(pc->priv), AML_GPIO_TS);
@@ -916,14 +924,17 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 	struct device_node *np = pdev->dev.of_node;
 	int ret = 0;
 	struct pinctrl_state *s = NULL;
+	int status = 0;
+	int err_val = 0;
 
 	pr_dbg("into get ci bus dts -----\r\n");
 	/*get gpio config from dts*/
 	/* get device config for dvbci_io*/
 	child = of_get_child_by_name(np, "dvbci_io");
 	if (!child) {
-		pr_error("failed to get dvbci_io\n");
-		return -1;
+		status = -1;
+		err_val = -1;
+		goto error_handle;
 	}
 	//below is get cd1 cd2 pwr irq reset gpio info
 	if (ci_bus_dev->io_device_type == AML_DVB_IO_TYPE_CIBUS) {
@@ -954,8 +965,9 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 		if (!ci_bus_dev->pinctrl) {
 			ci_bus_dev->pinctrl = devm_pinctrl_get(&pdev->dev);
 			if (IS_ERR_OR_NULL(ci_bus_dev->pinctrl)) {
-				pr_error("get pinctl could not get pinctrl handle\n");
-				return -EINVAL;
+				status = -EINVAL;
+				err_val = -2;
+				goto error_handle;
 			}
 		}
 
@@ -963,19 +975,22 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 			pr_dbg("ci bus get ts pin\r\n");
 			s = pinctrl_lookup_state(ci_bus_dev->pinctrl, "ci_ts_pins");
 			if (IS_ERR_OR_NULL(s)) {
-				pr_error("could not get jtag_apee_pins state\n");
-				return -1;
+				status = -1;
+				err_val = -3;
+				goto error_handle;
 			}
 			pr_dbg("ci bus select ts pin\r\n");
 			ret = pinctrl_select_state(ci_bus_dev->pinctrl, s);
 			if (ret) {
-				pr_error("failed to set pinctrl\n");
-				return -1;
+				status = -1;
+				err_val = -4;
+				goto error_handle;
 			}
 			ci_bus_dev->select = AML_GPIO_TS;
 		} else if (IS_ERR_OR_NULL(ci_bus_dev->pinctrl)) {
-			pr_error("could not get pinctrl handle\n");
-			return -EINVAL;
+			status = -EINVAL;
+			err_val = -5;
+			goto error_handle;
 		}
 		/*get reset pwd cd1 cd2 gpio pin*/
 		ci_bus_dev->cd_pin1 = NULL;
@@ -985,14 +1000,15 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 			&ci_bus_dev->cd_pin1_value, "cd_pin1",
 			INPUT, OUTLEVEL_HIGH);
 		if (ret) {
-			pr_error("dvb ci cd_pin1 pin request failed\n");
-			return -1;
+			status = -1;
+			err_val = -6;
+			goto error_handle;
 		}
 		ci_bus_dev->cd_pin2 = ci_bus_dev->cd_pin1;
 		ci_bus_dev->cd_pin2_value = ci_bus_dev->cd_pin1_value;
-		pr_dbg("ci_bus_dev->cd_pin1_value==%d\r\n", ci_bus_dev->cd_pin1_value);
+		pr_dbg("cd_pin1_value==%d\r\n", ci_bus_dev->cd_pin1_value);
 		ci_bus_dev->irq = gpiod_to_irq(ci_bus_dev->cd_pin1);
-		pr_dbg("ci_bus_dev->irq==%d  get from gpio cd1\r\n", ci_bus_dev->irq);
+		pr_dbg("cd1 irq==%d\r\n", ci_bus_dev->irq);
 
 		ci_bus_dev->pwr_pin = NULL;
 		if (!ci_bus_dev->regulator_vcc5v) {
@@ -1001,8 +1017,9 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 				&ci_bus_dev->pwr_pin, &ci_bus_dev->pwr_pin_value,
 				"pwr_pin", OUTPUT, OUTLEVEL_HIGH);
 			if (ret) {
-				pr_error("dvb ci pwr_pin pin request failed\n");
-				return -1;
+				status = -1;
+				err_val = -7;
+				goto error_handle;
 			}
 			aml_set_gpio_in(ci_bus_dev->pwr_pin);
 		}
@@ -1014,17 +1031,17 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 			&ci_bus_dev->le_pin, &ci_bus_dev->le_pin_value,
 			"le_pin", OUTPUT, OUTLEVEL_HIGH);
 		if (ret)
-			pr_error("dvb ci le_pin pin request failed\n");
+			pr_error("le_pin request failed\n");
 		else
-			pr_dbg("ci_bus_dev->le_value %d\n", ci_bus_dev->le_pin_value);
+			pr_dbg("le_value %d\n", ci_bus_dev->le_pin_value);
 		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "%s", "le_enable_level");
 		ret = of_property_read_u32(pdev->dev.of_node, buf, &ival);
 		if (ret) {
-			pr_error("dvb ci le_enable_level request failed\n");
+			pr_error("le_enable_level request failed\n");
 		} else {
 			ci_bus_dev->le_enable_level = ival;
-			pr_dbg("ci_bus_dev->le_enable_level-- %d\n", ci_bus_dev->le_enable_level);
+			pr_dbg("le_enable_level-- %d\n", ci_bus_dev->le_enable_level);
 		}
 		/*get addr_ts_mode_multiplex mode*/
 		ci_bus_dev->addr_ts_mode_multiplex = 1;
@@ -1032,15 +1049,19 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 		snprintf(buf, sizeof(buf), "%s", "addr_ts_mode_multiplex");
 		ret = of_property_read_u32(pdev->dev.of_node, buf, &ival);
 		if (ret) {
-			pr_error("dvb ci addr_ts_mode_multiplex request failed\n");
+			pr_error("addr_ts_mode_multiplex request failed\n");
 		} else {
 			ci_bus_dev->addr_ts_mode_multiplex = ival;
-			pr_dbg("ci_bus_dev->addr_ts_mode_multiplex %d ******\n",
+			pr_dbg("addr_ts_mode_multiplex %d ******\n",
 				ci_bus_dev->addr_ts_mode_multiplex);
 		}
 	}
 
 	return 0;
+
+error_handle:
+	pr_error("get dts config failed! err_val:%d\n", err_val);
+	return status;
 }
 
 /**\brief aml_ci_free_gpio:free ci gpio
@@ -1107,6 +1128,7 @@ int aml_ci_bus_init(struct platform_device *pdev, struct aml_ci *ci_dev)
 	int result;
 	int irq;
 
+	pr_dbg("init\r\n");
 	ci_bus_dev = &ci_bus;
 	ci_bus_dev->pdev = pdev;
 	ci_bus_dev->raw_mode = ci_dev->raw_mode;
@@ -1118,7 +1140,7 @@ int aml_ci_bus_init(struct platform_device *pdev, struct aml_ci *ci_dev)
 	mutex_init(&ci_bus_dev->mutex);
 	/*init io device type*/
 	ci_bus_dev->io_device_type = ci_dev->io_type;
-	pr_dbg("*********ci bus Dev type [%d]\n", ci_dev->io_type);
+	pr_dbg("io_type [%d]\n", ci_dev->io_type);
 	/*init regulator_vcc5v*/
 	ci_bus_dev->regulator_vcc5v = ci_dev->regulator_vcc5v;
 	ci_bus_dev->regulator_vcc5v_enabled = 0;
@@ -1133,12 +1155,13 @@ int aml_ci_bus_init(struct platform_device *pdev, struct aml_ci *ci_dev)
 					cmp_isr,
 					IRQF_SHARED | IRQF_TRIGGER_RISING,
 					"ciplus cmp irq", ci_bus_dev);
+			pr_err("request cmp irq\r\n");
 			if (irq == 0)
-				pr_dbg("request cmp irq success\r\n");
+				pr_dbg(" success\r\n");
 			else if (irq == -EBUSY)
-				pr_err("request cmp irq busy\r\n");
+				pr_err(" busy\r\n");
 			else
-				pr_err("request cmp irq error [%d]\r\n", irq);
+				pr_err(" error [%d]\r\n", irq);
 		} else {
 			disable_irq(ci_bus_dev->irq_cmp);
 		}
@@ -1151,17 +1174,18 @@ int aml_ci_bus_init(struct platform_device *pdev, struct aml_ci *ci_dev)
 					timeout_isr,
 					IRQF_SHARED | IRQF_TRIGGER_RISING,
 					"ciplus timeout irq", ci_bus_dev);
+			pr_err("request timeout irq\r\n");
 			if (irq == 0)
-				pr_err("request timeout irq success\r\n");
+				pr_err(" success\r\n");
 			else if (irq == -EBUSY)
-				pr_err("request timeout irq busy\r\n");
+				pr_err(" busy\r\n");
 			else
-				pr_err("request timeout irq error [%d]\r\n", irq);
+				pr_err(" error [%d]\r\n", irq);
 		} else {
 			disable_irq(ci_bus_dev->irq_timeout);
 		}
 	}
-	pr_dbg("*********ci bus init bus reg\n");
+	pr_dbg("init bus reg\n");
 	aml_ci_bus_init_reg(ci_bus_dev);
 	/*init ci_dev used api.*/
 	ci_dev->ci_mem_read  = aml_ci_bus_mem_read;
@@ -1177,7 +1201,7 @@ int aml_ci_bus_init(struct platform_device *pdev, struct aml_ci *ci_dev)
 
 	aml_pcmcia_alloc(ci_bus_dev, &pc);
 	pc->io_device_type = ci_bus_dev->io_device_type;
-	pr_dbg("*********ci bus aml_pcmcia_init start_work:%d\n", pc->start_work);
+	pr_dbg("start_work:%d\n", pc->start_work);
 	result = aml_pcmcia_init(pc);
 	if (result < 0) {
 		pr_error("aml_pcmcia_init failed\n");
@@ -1197,6 +1221,7 @@ EXPORT_SYMBOL(aml_ci_bus_init);
  */
 int aml_ci_bus_exit(struct aml_ci *ci)
 {
+	pr_dbg("exit\r\n");
 	/*exit pc card*/
 	aml_pcmcia_exit(&ci_bus.pc);
 	/*free gpio*/
@@ -1238,6 +1263,7 @@ static void aml_ci_bus_full_test(struct aml_ci *ci_dev)
 	unsigned char buf[10];
 	int count = 1000;
 	int count1 = 0;
+	int err_val = 0;
 
 	mdelay(1000);
 	pr_dbg("READ CIS START\r\n");
@@ -1248,20 +1274,20 @@ static void aml_ci_bus_full_test(struct aml_ci *ci_dev)
 		if ((i + 1) % 16 == 0)
 			pr_dbg(" \r\n");
 	}
-	pr_dbg("READ CIS OVER\r\n");
+	// pr_dbg("READ CIS OVER\r\n");
 	mdelay(1000);
 	pr_dbg("SW rst CAM...\r\n");
 	aml_ci_bus_io_write(ci_dev, 0, COM_STA_REG, RS);
-	pr_dbg("SW rst over.\r\n");
-	pr_dbg("-----------------------------------\r\n");
-	pr_dbg("TO delay 2000ms\r\n");
+	// pr_dbg("SW rst over.\r\n");
+	// pr_dbg("-----------------------------------\r\n");
+	// pr_dbg("TO delay 2000ms\r\n");
 	mdelay(2000);
-	pr_dbg("\r\n");
-	pr_dbg("--------------clear rs--!!!-YOU MUST CLEAR RS BIT--no sleep--------\r\n");
+	pr_dbg("clear rs\r\n");
+	// pr_dbg("--------------clear rs--!!!-YOU MUST CLEAR RS BIT--no sleep--------\r\n");
 	aml_ci_bus_io_write(ci_dev, 0, COM_STA_REG, 0);
-	pr_dbg("--------------sleep---------------------\r\n");
+	// pr_dbg("--------------sleep---------------------\r\n");
 	mdelay(2000);
-	pr_dbg("TO check sw-rst is OK\r\n");
+	// pr_dbg("TO check sw-rst is OK\r\n");
 	pr_dbg("start read fr \r\n");
 	if (1) {
 		unsigned char reg;
@@ -1289,11 +1315,11 @@ static void aml_ci_bus_full_test(struct aml_ci *ci_dev)
 		}
 	}
 end:
-	pr_dbg("TO check sw-rst over.\r\n");
-	pr_dbg("\r\n");
-	pr_dbg("-----------------------------------\r\n");
+	// pr_dbg("TO check sw-rst over.\r\n");
+	// pr_dbg("\r\n");
+	// pr_dbg("-----------------------------------\r\n");
 	pr_dbg("TO buffer size negotiation protocol...\r\n");
-	pr_dbg("Get which buf size CAM can support\r\n");
+	// pr_dbg("Get which buf size CAM can support\r\n");
 	aml_ci_bus_io_write(ci_dev, 0, COM_STA_REG, SR);
 	mdelay(1000);
 	while (1) {
@@ -1314,16 +1340,16 @@ end:
 		((aml_ci_bus_io_read(ci_dev, 0, SIZE_REG_M)) * 256);
 	pr_dbg("Module have <%d> Bytes send to host.\r\n", cnt);
 	if (cnt != 2) {
-		pr_dbg("The Bytes will be tx is ERR!\r\n");
-		return;
+		err_val = -1;
+		goto error_handle;
 	}
 	for (i = 0; i < cnt; i++)
 		buf[i] = aml_ci_bus_io_read(ci_dev, 0, DATA_REG);
 
 	reg = aml_ci_bus_io_read(ci_dev, 0, COM_STA_REG);
 	if (RE == (RE & reg)) {
-		pr_dbg("(1)Read CAM buf size ERR!\r\n");
-		return;
+		err_val = -2;
+		goto error_handle;
 	}
 	aml_ci_bus_io_write(ci_dev, 0, (COM_STA_REG), 0);
 
@@ -1345,13 +1371,13 @@ end:
 	}
 	reg = aml_ci_bus_io_read(ci_dev, 0, COM_STA_REG);
 	if (FR != (FR & reg)) {
-		pr_dbg("(2)Read CAM buf size ERR!-\r\n");
-		return;
+		err_val = -3;
+		goto error_handle;
 	}
 	bsize = (buf[0] * 256) + buf[1];
 	pr_dbg("CAM can support buf size is: <%d>B\r\n", bsize);
 
-	pr_dbg("Tell CAM which size buf is be used\r\n");
+	// pr_dbg("Tell CAM which size buf is be used\r\n");
 	reg = aml_ci_bus_io_read(ci_dev, 0, COM_STA_REG);
 	if (FR != (FR & reg))
 		pr_dbg("CAM is busy, waiting free\r\n");
@@ -1389,8 +1415,8 @@ end:
 	pr_dbg("PRIOR to check CAM'S DA\r\n");
 	reg = aml_ci_bus_io_read(ci_dev, 0, COM_STA_REG);
 	if ((reg & DA) == DA) {
-		pr_dbg("CAM have data send to HOST\r\n");
-		return;
+		err_val = -4;
+		goto error_handle;
 	}
 
 	buf[0] = (unsigned char)((bsize >> 8) & 0xff);
@@ -1421,8 +1447,8 @@ end:
 
 	reg = aml_ci_bus_io_read(ci_dev, 0, COM_STA_REG);
 	if (WE == (WE & reg)) {
-		pr_dbg("Write CAM ERR!\r\n");
-		return;
+		err_val = -5;
+		goto error_handle;
 	}
 	// } else {
 	// aml_ci_bus_io_write(ci_dev, 0, COM_STA_REG, SW);
@@ -1436,9 +1462,14 @@ end:
 	aml_ci_bus_io_write(ci_dev, 0, COM_STA_REG, SW);
 	mdelay(100);
 	aml_ci_bus_io_write(ci_dev, 0, COM_STA_REG, 0);
-	pr_dbg("Buffer size negotiation over!\r\n");
-	pr_dbg("NOW, HOST can communicates with CAM\r\n");
+	// pr_dbg("Buffer size negotiation over!\r\n");
+	// pr_dbg("NOW, HOST can communicates with CAM\r\n");
 	pr_dbg("NOW, TEST END\r\n");
+
+error_handle:
+	if (err_val)
+		pr_error("full test failed! err_val:%d\n", err_val);
+	return;
 }
 
 /**
@@ -1538,57 +1569,63 @@ static int dvb_ca_en50221_parse_attributes(void)
 	u16 devid = 0;
 	int config_base = 0;
 	int config_option;
+	int err_val;
 
 	/* CISTPL_DEVICE_0A */
 	status = dvb_ca_en50221_read_tuple(&address,
 	&tupleType, &tupleLength, tuple);
 	if (status < 0) {
-		pr_error("read status error\n");
-		return status;
+		err_val = -1;
+		goto error_handle;
 	}
 	if (tupleType != 0x1D) {
-		pr_error("read tupleType error [0x%x]\n", tupleType);
-		return -EINVAL;
+		status = -EINVAL;
+		err_val = -2;
+		goto error_handle;
 	}
 
 	/* CISTPL_DEVICE_0C */
 	status = dvb_ca_en50221_read_tuple(&address,
 	&tupleType, &tupleLength, tuple);
 	if (status < 0) {
-		pr_error("read cis  error\n");
-		return status;
+		err_val = -3;
+		goto error_handle;
 	}
 	if (tupleType != 0x1C) {
-		pr_error("read cis type error\n");
-		return -EINVAL;
+		status = -EINVAL;
+		err_val = -4;
+		goto error_handle;
 	}
 
 	/* CISTPL_VERS_1 */
 	status = dvb_ca_en50221_read_tuple(&address,
 	&tupleType, &tupleLength, tuple);
 	if (status < 0) {
-		pr_error("read cis  version error\n");
-		return status;
+		err_val = -5;
+		goto error_handle;
 	}
 	if (tupleType != 0x15) {
-		pr_error("read cis version type error\n");
-		return -EINVAL;
+		status = -EINVAL;
+		err_val = -6;
+		goto error_handle;
 	}
 
 	/* CISTPL_MANFID */
 	status = dvb_ca_en50221_read_tuple(&address, &tupleType,
 	&tupleLength, tuple);
 	if (status < 0) {
-		pr_error("read cis manfid error\n");
-		return status;
+		err_val = -7;
+		goto error_handle;
 	}
 	if (tupleType != 0x20) {
-		pr_error("read cis manfid type error\n");
-		return -EINVAL;
+		status = -EINVAL;
+		err_val = -8;
+		goto error_handle;
 	}
 	if (tupleLength != 4) {
-		pr_error("read cis manfid len error\n");
-		return -EINVAL;
+		status = -EINVAL;
+		err_val = -9;
+		goto error_handle;
 	}
 	manfid = (tuple[1] << 8) | tuple[0];
 	devid = (tuple[3] << 8) | tuple[2];
@@ -1597,23 +1634,26 @@ static int dvb_ca_en50221_parse_attributes(void)
 	status = dvb_ca_en50221_read_tuple(&address, &tupleType,
 	&tupleLength, tuple);
 	if (status < 0) {
-		pr_error("read cis config error\n");
-		return status;
+		err_val = -10;
+		goto error_handle;
 	}
 	if (tupleType != 0x1A) {
-		pr_error("read cis config type error\n");
-		return -EINVAL;
+		status = -EINVAL;
+		err_val = -11;
+		goto error_handle;
 	}
 	if (tupleLength < 3) {
-		pr_error("read cis config len error\n");
-		return -EINVAL;
+		status = -EINVAL;
+		err_val = -12;
+		goto error_handle;
 	}
 
 	/* extract the configbase */
 	rasz = tuple[0] & 3;
 	if (tupleLength < (3 + rasz + 14)) {
-		pr_error("read extract the configbase  error\n");
-		return -EINVAL;
+		status = -EINVAL;
+		err_val = -13;
+		goto error_handle;
 	}
 
 	for (i = 0; i < rasz + 1; i++)
@@ -1622,19 +1662,23 @@ static int dvb_ca_en50221_parse_attributes(void)
 	/* check it contains the correct DVB string */
 	dvb_str = findstr((char *)tuple, tupleLength, "DVB_CI_V", 8);
 	if (!dvb_str) {
-		pr_error("find dvb str DVB_CI_V  error\n");
-		return -EINVAL;
+		status = -EINVAL;
+		err_val = -14;
+		goto error_handle;
 	}
 	if (tupleLength < ((dvb_str - (char *)tuple) + 12)) {
-		pr_error("find dvb str DVB_CI_V len error\n");
-		return -EINVAL;
+		status = -EINVAL;
+		err_val = -15;
+		goto error_handle;
 	}
 
 	/* is it a version we support? */
 	if (strncmp(dvb_str + 8, "1.00", 4)) {
 		pr_error(" Unsupported DVB CAM module version %c%c%c%c\n",
 		dvb_str[8], dvb_str[9], dvb_str[10], dvb_str[11]);
-		return -EINVAL;
+		status = -EINVAL;
+		err_val = -16;
+		goto error_handle;
 	}
 
 	/* process the CFTABLE_ENTRY tuples, and any after those */
@@ -1642,8 +1686,8 @@ static int dvb_ca_en50221_parse_attributes(void)
 		status = dvb_ca_en50221_read_tuple(&address, &tupleType,
 		&tupleLength, tuple);
 		if (status < 0) {
-			pr_error("process the CFTABLE_ENTRY tuples error\n");
-			return status;
+			err_val = -17;
+			goto error_handle;
 		}
 
 		switch (tupleType) {
@@ -1686,12 +1730,17 @@ static int dvb_ca_en50221_parse_attributes(void)
 	}
 
 	if (address > 0x1000 || !got_cftableentry) {
-		pr_error("got_cftableentry :%d\n", got_cftableentry);
-		return -EINVAL;
+		status = -EINVAL;
+		err_val = -18;
+		goto error_handle;
 	}
 
-	pr_error("----------ci cis ok------\n");
+	pr_error("ci cis ok\n");
 	return 0;
+
+error_handle:
+	pr_error("parse attr failed! err_val:%d\n", err_val);
+	return status;
 }
 
 static ssize_t detect_cd_pin_show(const struct class *class,
