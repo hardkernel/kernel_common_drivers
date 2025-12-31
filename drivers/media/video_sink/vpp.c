@@ -1159,10 +1159,22 @@ static void ratio_adjust_for_high_freq(const struct vinfo_s *vinfo,
 			*min_ratio_1000 = round_div(min_skip_ratio, 1830, 1250);
 			*cur_vpp_speed_factor =
 				div_u64((u64)vpp_speed_factor * 0xd9, 0x110);
+			/* 1440p input and 4k1k 288hz output */
+			if (width_in <= 2560 && height_in <= 1440) {
+				*min_ratio_1000 = round_div(min_skip_ratio, 2035, 1250);
+				*cur_vpp_speed_factor =
+					div_u64((u64)vpp_speed_factor * 0x16b, 0x110);
+			}
 		} else if (is_4k1k240hz_out(vinfo)) {
 			*min_ratio_1000 = round_div(min_skip_ratio, 1432, 1250);
 			*cur_vpp_speed_factor =
 				div_u64((u64)vpp_speed_factor * 0x110, 0x110);
+			/* 1440p input and 4k1k 240hz output */
+			if (width_in <= 2560 && height_in <= 1440) {
+				*min_ratio_1000 = round_div(min_skip_ratio, 1708, 1250);
+				*cur_vpp_speed_factor =
+					div_u64((u64)vpp_speed_factor * 0x15A, 0x110);
+			}
 		} else if (is_4k1k180hz_out(vinfo)) {
 			*min_ratio_1000 = round_div(min_skip_ratio, 2273, 1250);
 			*cur_vpp_speed_factor =
