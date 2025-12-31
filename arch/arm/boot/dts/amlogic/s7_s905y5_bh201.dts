@@ -60,9 +60,9 @@
 
 		/* global autoconfigured region for contiguous allocations */
 
-		ramoops@7300000 {
+		ramoops@6C00000 {
 			compatible = "ramoops";
-			reg = <0x07300000 0x00080000>;/* addr set in uboot */
+			reg = <0x06C00000 0x00080000>;/* addr set in uboot */
 			record-size = <0x30000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x0>;
@@ -89,7 +89,7 @@
 			/*reusable;*/
 			no-map;
 			alignment = <0x100000>;
-			reg = <0x05000000 0x2300000>;
+			reg = <0x05000000 0x1C00000>;
 		};
 
 		logo_reserved:linux,meson-fb {
