@@ -1446,6 +1446,10 @@ static void dpss_out_q_uninit(struct dpss_process_dev *dev)
 
 	while (kfifo_len(&dev->dpss_out_q) > 0) {
 		if (kfifo_get(&dev->dpss_out_q, &dpss_out_buf)) {
+			if (!dpss_out_buf || !dpss_out_buf->private_data) {
+				dp_print(dev->index, PRINT_OTHER, "dpss_out_buf is NULL.\n");
+				continue;
+			}
 			vf = dpss_out_buf->vf;
 			if (vf) {
 				if (vf->type & VIDTYPE_COMPRESS) {
@@ -2508,14 +2512,16 @@ static int dpss_process_q_output(struct dpss_process_dev *dev, u32 fd)
 	enum DPSS_ERRORTYPE ret = 0;
 
 	file_vf = fget(fd);
-	if (!file_vf) {
-		dp_print(dev->index, PRINT_ERROR, "%s: fd invalid!!!\n", __func__);
+	if (!dev || !file_vf || !file_vf->private_data) {
+		pr_info("q_output: NULL param.\n");
 		return 0;
 	}
-	if (!file_vf->private_data) {
-		dp_print(dev->index, PRINT_ERROR, "%s: private_data NULL\n", __func__);
+
+	if (!dev->inited) {
+		dp_print(dev->index, PRINT_ERROR, "q_output but not inited.\n");
 		return 0;
 	}
+
 	total_get_count++;
 	dp_print(dev->index, PRINT_OTHER,
 		"%s: fd=%d, file_vf=%px, file_vf->private_data=%px\n",
@@ -3330,9 +3336,21 @@ static void dpss_process_shutdown(struct platform_device *pdev)
 	struct dpss_process_dev *dev = NULL;
 
 	for (i = 0; i < dpss_process_instance_num; i++) {
-		mutex_lock(&dpss_process_mutex);
 		dev = ports[i].process_dev;
-		dpss_process_uninit(dev);
+		if (!dev)
+			continue;
+
+		mutex_lock(&dpss_process_mutex);
+		dev->inited = false;
+		if (dev->fence_creat_count != dev->fence_release_count) {
+			dp_print(dev->index, PRINT_OTHER,
+				"%s: fence_creat_count =%lld, fence_release_count=%lld\n",
+				__func__,
+				dev->fence_creat_count,
+				dev->fence_release_count);
+			dp_timeline_increase(dev, dev->fence_creat_count
+				- dev->fence_release_count);
+		}
 		mutex_unlock(&dpss_process_mutex);
 	}
 }
