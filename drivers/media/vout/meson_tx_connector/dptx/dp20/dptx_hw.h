@@ -7,7 +7,6 @@
 #define __DPTX_HW_H__
 
 #include <linux/amlogic/media/vout/meson_tx_connector/dptx_common/dptx_hw_common.h>
-#include <linux/completion.h>
 
 enum hw_io_type {
 	TOP_LEVEL,
@@ -20,15 +19,8 @@ struct dptx20_hw {
 	struct dptx_hw_common hw_comm;
 	/* save un-handled interrupts, clear after interrupt handled */
 	u32 intr_state;
-
 	/* for dptx20 private task manager */
 	struct tx_task_manager *task_mgr;
-
-	/* true: polling aux intr status mode, false: use aux intr for aux status update */
-	bool aux_block_mode;
-	struct completion aux_completion;
-	/* save aux_status, for aux non-block only */
-	u32 aux_status;
 };
 
 #define to_dptx20_hw(x) container_of(x, struct dptx20_hw, hw_comm)
@@ -81,8 +73,6 @@ enum dptx_aux_status_t {
 
 int dptx20_reg_write(struct dptx_hw_common *tx_comm, u32 io_type, u32 offset, u32 value);
 u32 dptx20_reg_read(struct dptx_hw_common *tx_comm, u32 io_type, u32 offset);
-void dptx20_set_reg_bits(struct dptx_hw_common *tx_comm, u32 io_type,
-	u32 addr, u32 value, u32 offset, u32 len);
 
 u32 dptx20_rd_plt_reg(struct dptx_hw_common *tx_comm, u32 vaddr);
 void dptx20_wr_plt_reg(struct dptx_hw_common *tx_comm, u32 vaddr, u32 val);
@@ -93,14 +83,10 @@ u32 dptx20_hw_calc_mst_reg(u8 vc_id, u32 reg);
 
 ssize_t dptx_aux_xfer(struct dptx_hw_common *tx_comm, struct dptx_aux_msg *msg);
 void dptx_isr_disable(struct dptx_hw_common *tx_comm, u32 flags);
-void dptx_isr_enable(struct dptx_hw_common *tx_comm, u32 flags);
 
 void dptx_hw_get_mnvid_clock(struct dptx_hw_common *hw_comm, u8 video_num,
 	u32 *pixel_clock, u32 *link_clock);
 void dptx_hw_infoframe_send(struct dptx_hw_common *hw_comm, u8 vc_id, u16 info_type, u8 *body);
 int dptx_hw_infoframe_raw_get(struct dptx_hw_common *hw_comm, u8 vc_id, u16 info_type, u8 *body);
-void dptx_dump_infoframe_packets(struct dptx_hw_common *hw_comm, u8 vc_id);
-int dptx_vsc_pkt_for_pixel_enc(struct dptx_hw_common *hw_comm,
-	struct meson_tx_format_para *para, u8 sdp_sel);
 
 #endif

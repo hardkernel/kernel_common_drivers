@@ -7,7 +7,6 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/delay.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/clk/meson_tx_clk.h>
 
 #include "meson_tx_clk_reg.h"
@@ -20,22 +19,6 @@
 static void tx_vid_pll_pix_div_set(u8 div)
 {
 	pr_info("%s TODO\n", __func__);
-}
-
-/* for example 148.5M = set_pix_pll0(148500); */
-static int tx_clk_set_tcon_pll(struct meson_tx_clk *tx_clk, u32 clk_feq, u8 path_sel)
-{
-	/* for pixel0_pll_clk, force output 594Mhz */
-	tx_clk_set_reg_bits(tx_clk->reg_io_base[ANACTRL_REG],
-		ANACTRL_TCON_PLL0_CNTL0, 1, 28, 1);
-	tx_clk_set_reg_bits(tx_clk->reg_io_base[ANACTRL_REG],
-		ANACTRL_TCON_PLL0_CNTL0, 0, 30, 1);
-	/* for pixel1_pll_clk, force output 594Mhz */
-	tx_clk_set_reg_bits(tx_clk->reg_io_base[ANACTRL_REG],
-		ANACTRL_TCON_PLL1_CNTL0, 1, 28, 1);
-	tx_clk_set_reg_bits(tx_clk->reg_io_base[ANACTRL_REG],
-		ANACTRL_TCON_PLL1_CNTL0, 0, 30, 1);
-	return 0;
 }
 
 /*
@@ -57,8 +40,6 @@ int tx_pixel_pll_set_a9(struct meson_tx_clk *tx_clk,
 		pr_err("%s NULL tx_clk\n", __func__);
 		return -EINVAL;
 	}
-
-	tx_clk_set_tcon_pll(tx_clk, vco_clk, 0);
 
 	pr_info("%s TODO for VCO\n", __func__);
 	tx_vid_pll_pix_div_set(div);
@@ -155,40 +136,30 @@ static int tx_crt_video_clk_set_a9(struct meson_tx_clk *tx_clk,
 		clk_src = 1;
 		/* path/div set for V1 */
 		/* bit[19]: disable clk_div0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL, 0, 19, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL, 0, 19, 1);
 		/* bit[18:16]: cntl_clk_in_sel */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL, clk_src, 16, 3);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL, clk_src, 16, 3);
 		/* bit[7:0]: cntl_xd0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_DIV, clk_div - 1, 0, 8);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_DIV, clk_div - 1, 0, 8);
 		/* bit[19]: enable clk_div0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL, 1, 19, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL, 1, 19, 1);
 		/* bit[0]: enable v1 div1 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL, 1, 0, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL, 1, 0, 1);
 	} else if (vclk_sel == 1) {
 		/* step1: set crt_video_clk source and divider */
 		/* clk source: V2 always use pixel1_pll as source by default */
 		clk_src = 3;
 		/* path/div set for V2 */
 		/* bit[19]: disable clk_div0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VIID_CLK_CTRL, 0, 19, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VIID_CLK_CTRL, 0, 19, 1);
 		/* bit[18:16]: cntl_clk_in_sel */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VIID_CLK_CTRL, clk_src, 16, 3);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VIID_CLK_CTRL, clk_src, 16, 3);
 		/* bit[7:0]: cntl_xd0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VIID_CLK_DIV, clk_div - 1, 0, 8);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VIID_CLK_DIV, clk_div - 1, 0, 8);
 		/* bit[19]: enable clk_div0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VIID_CLK_CTRL, 1, 19, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VIID_CLK_CTRL, 1, 19, 1);
 		/* v2 div1 enable */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VIID_CLK_CTRL, 1, 0, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VIID_CLK_CTRL, 1, 0, 1);
 	} else {
 		pr_err("%s invalid vclk_sel(%d)\n", __func__, vclk_sel);
 		return -EINVAL;
@@ -207,19 +178,15 @@ static int tx_crt_video_clk_disable_a9(struct meson_tx_clk *tx_clk, u8 vclk_sel)
 	if (vclk_sel == 0) {
 		/* path/div set for V1 */
 		/* bit[19]: disable clk_div0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL, 0, 19, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL, 0, 19, 1);
 		/* bit[0]: v1 div1 disable */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL, 0, 0, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL, 0, 0, 1);
 	} else if (vclk_sel == 1) {
 		/* path/div set for V2 */
 		/* bit[19]: disable clk_div0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VIID_CLK_CTRL, 0, 19, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VIID_CLK_CTRL, 0, 19, 1);
 		/* bit[0]: v2 div1 disable */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VIID_CLK_CTRL, 0, 0, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VIID_CLK_CTRL, 0, 0, 1);
 	} else {
 		pr_err("%s invalid vclk_sel(%d)\n", __func__, vclk_sel);
 		return -EINVAL;
@@ -267,18 +234,16 @@ static int tx_venc_clk_set_a9(struct meson_tx_clk *tx_clk,
 
 	if (vclk_sel == 0) {
 		/* V1 enc0 sel div1 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VIID_CLK_DIV, venc_clk_div_offset, 12, 4);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VIID_CLK_DIV,
+			venc_clk_div_offset, 12, 4);
 		/* bit[10] enable enc0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL2, 1, 10, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL2, 1, 10, 1);
 	} else if (vclk_sel == 1) {
 		/* V2 enc1 sel div1 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VIID_CLK_DIV, 8 + venc_clk_div_offset, 8, 4);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VIID_CLK_DIV,
+			8 + venc_clk_div_offset, 8, 4);
 		/* [11] enable enc1 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL2, 1, 11, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL2, 1, 11, 1);
 	}
 
 	return 0;
@@ -325,31 +290,25 @@ static int tx_pixel_clk_set_a9(struct meson_tx_clk *tx_clk,
 
 	/* crt_video_clk to hdmi_if */
 	if (hdmi_if_idx == 0) {
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG], CLKCTRL_HDMI_CLK_CTRL,
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_HDMI_CLK_CTRL,
 			vclk_sel == 0 ? 0 + pixel_clk_div_offset : 8 + pixel_clk_div_offset, 16, 4);
 		/* fe0 sel div0 always */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_HDMI_CLK_CTRL,
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_HDMI_CLK_CTRL,
 			vclk_sel == 0 ? 0 : 8, 20, 4);
 		/* bit[5] enable pix0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL2, 1, 5, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL2, 1, 5, 1);
 		/* [9] enable fe0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL2, 1, 9, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL2, 1, 9, 1);
 	} else if (hdmi_if_idx == 1) {
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG], CLKCTRL_HDMI_CLK_CTRL,
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_HDMI_CLK_CTRL,
 			vclk_sel == 0 ? 0 + pixel_clk_div_offset : 8 + pixel_clk_div_offset, 24, 4);
 		/* fe0 sel div0 always */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_HDMI_CLK_CTRL,
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_HDMI_CLK_CTRL,
 			vclk_sel == 0 ? 0 : 8, 28, 4);
 		/* bit[5] enable pix0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL2, 1, 12, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL2, 1, 12, 1);
 		/* [9] enable fe0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL2, 1, 13, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL2, 1, 13, 1);
 	}
 
 	return 0;
@@ -364,11 +323,9 @@ static int tx_venc_clk_gate_a9(struct meson_tx_clk *tx_clk, u8 venc_idx, bool en
 	}
 
 	if (venc_idx == 0)
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL2, en, 10, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL2, en, 10, 1);
 	else if (venc_idx == 1)
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL2, en, 11, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL2, en, 11, 1);
 	else
 		pr_err("%s invalid venc_idx: %d\n", __func__, venc_idx);
 
@@ -385,18 +342,14 @@ static int tx_pixel_clk_gate_a9(struct meson_tx_clk *tx_clk, u8 hdmi_if_idx, boo
 
 	if (hdmi_if_idx == 0) {
 		/* bit[5] enable pix0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL2, en, 5, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL2, en, 5, 1);
 		/* bit[9] enable fe0 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL2, en, 9, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL2, en, 9, 1);
 	} else if (hdmi_if_idx == 1) {
 		/* bit[12] enable pix1 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL2, en, 12, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL2, en, 12, 1);
 		/* bit[13] enable fe1 */
-		tx_clk_set_reg_bits(tx_clk->reg_io_base[CLKCTRL_REG],
-			CLKCTRL_VID_CLK_CTRL2, en, 13, 1);
+		tx_clk_set_reg_bits(tx_clk->reg_io_base, CLKCTRL_VID_CLK_CTRL2, en, 13, 1);
 	} else {
 		pr_err("%s invalid hdmi_if_idx: %d\n", __func__, hdmi_if_idx);
 	}

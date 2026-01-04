@@ -42,8 +42,6 @@ struct meson_tx_hw {
 
 	/* for HW iomem access */
 	struct reg_map *regs_region;
-
-	bool pxp_mode;
 };
 
 #endif

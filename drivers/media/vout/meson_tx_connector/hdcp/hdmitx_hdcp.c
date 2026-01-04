@@ -920,7 +920,7 @@ static void hdcptx_notify_rpt_info(struct work_struct *work)
 	}
 	if (p_hdcp->bind_hdcptx_comm->send_event)
 		p_hdcp->bind_hdcptx_comm->send_event(p_hdcp->bind_hdcptx_comm->event_mgr,
-			TX_KSVLIST, &hdcp_topo);
+			HDMITX_KSVLIST, &hdcp_topo);
 }
 
 static void hdcptx_req_reauth_whandler(struct work_struct *work)

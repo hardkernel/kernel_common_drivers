@@ -22,9 +22,6 @@
 #include <linux/amlogic/media/vout/hdmi_tx_repeater.h>
 
 #define HDMITX_HZ  250
-/*HDMITX_HDCPPWR_EVENT event value*/
-#define HDMI_SUSPEND    0
-#define HDMI_WAKEUP     1
 
 /***** use for hdmitx 20 start *****/
 int hdmitx20_init_reg_map(struct platform_device *pdev);

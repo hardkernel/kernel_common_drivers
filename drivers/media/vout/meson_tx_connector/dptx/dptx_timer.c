@@ -16,14 +16,6 @@ void dptx_timer_init(struct dptx_hw_common *tx_hw)
 	dptx_hw_cntl(&tx_hw->hw_base, DP_TIMER_INIT, NULL, NULL);
 }
 
-void dptx_timer_uninit(struct dptx_hw_common *tx_hw)
-{
-	if (!tx_hw)
-		return;
-
-	dptx_hw_cntl(&tx_hw->hw_base, DP_TIMER_UNINIT, NULL, NULL);
-}
-
 void dptx_timer_start(struct dptx_hw_common *tx_hw, struct timer_config *cfg)
 {
 	int ret = 0;
@@ -33,12 +25,11 @@ void dptx_timer_start(struct dptx_hw_common *tx_hw, struct timer_config *cfg)
 		return;
 
 	ret = dptx_hw_cntl(&tx_hw->hw_base, DP_TIMER_GET, &cfg->timer_type, &handlers);
-	if (ret < 0 || !handlers) {
+	if (ret < 0) {
 		DPTX_INFO("%s %d failed\n", __func__, cfg->timer_type);
 		return;
 	}
 	handlers->cfg = *cfg;
-
 	mutex_lock(&handlers->timer_mutex);
 	dptx_hw_cntl(&tx_hw->hw_base, DP_TIMER_START, handlers, NULL);
 	mutex_unlock(&handlers->timer_mutex);
@@ -53,7 +44,7 @@ void dptx_timer_stop(struct dptx_hw_common *tx_hw, struct timer_config *cfg)
 		return;
 
 	ret = dptx_hw_cntl(&tx_hw->hw_base, DP_TIMER_GET, &cfg->timer_type, &handlers);
-	if (ret < 0 || !handlers) {
+	if (ret < 0) {
 		DPTX_INFO("%s %d failed\n", __func__, cfg->timer_type);
 		return;
 	}

@@ -91,10 +91,10 @@ static bool set_hpll_hclk_v1(unsigned int m, unsigned int frac_val)
 	hd_write_reg(P_HHI_HDMI_PLL_CNTL2, 0x00000000);
 
 	if (frac_val == 0x8168) {
-		if ((para->tx_hw_para.hdmitx_hw_para.vic == HDMI_96_3840x2160p50_16x9 ||
-		     para->tx_hw_para.hdmitx_hw_para.vic == HDMI_97_3840x2160p60_16x9 ||
-		     para->tx_hw_para.hdmitx_hw_para.vic == HDMI_106_3840x2160p50_64x27 ||
-		     para->tx_hw_para.hdmitx_hw_para.vic == HDMI_107_3840x2160p60_64x27) &&
+		if ((para->vic == HDMI_96_3840x2160p50_16x9 ||
+		     para->vic == HDMI_97_3840x2160p60_16x9 ||
+		     para->vic == HDMI_106_3840x2160p50_64x27 ||
+		     para->vic == HDMI_107_3840x2160p60_64x27) &&
 		     para->cs != HDMI_COLORSPACE_YUV420) {
 			hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x6a685c00);
 			hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x11551293);
@@ -105,12 +105,12 @@ static bool set_hpll_hclk_v1(unsigned int m, unsigned int frac_val)
 	} else {
 		if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_SM1 &&
 		    hdmitx_find_vendor_6g(hdev->tx_comm.base.edid_buf) &&
-		    (para->tx_hw_para.hdmitx_hw_para.vic == HDMI_96_3840x2160p50_16x9 ||
-		    para->tx_hw_para.hdmitx_hw_para.vic == HDMI_97_3840x2160p60_16x9 ||
-		    para->tx_hw_para.hdmitx_hw_para.vic == HDMI_106_3840x2160p50_64x27 ||
-		    para->tx_hw_para.hdmitx_hw_para.vic == HDMI_107_3840x2160p60_64x27 ||
-		    para->tx_hw_para.hdmitx_hw_para.vic == HDMI_101_4096x2160p50_256x135 ||
-		    para->tx_hw_para.hdmitx_hw_para.vic == HDMI_102_4096x2160p60_256x135) &&
+		    (para->vic == HDMI_96_3840x2160p50_16x9 ||
+		    para->vic == HDMI_97_3840x2160p60_16x9 ||
+		    para->vic == HDMI_106_3840x2160p50_64x27 ||
+		    para->vic == HDMI_107_3840x2160p60_64x27 ||
+		    para->vic == HDMI_101_4096x2160p50_256x135 ||
+		    para->vic == HDMI_102_4096x2160p60_256x135) &&
 		    para->cs != HDMI_COLORSPACE_YUV420) {
 			hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x6a685c00);
 			hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x11551293);
@@ -175,17 +175,16 @@ static bool set_hpll_hclk_v3(unsigned int m, unsigned int frac_val)
 static inline int is_dongle_mode(struct hdmitx20_dev *hdev)
 {
 	struct meson_tx_format_para *para = &hdev->tx_comm.fmt_para;
-	enum hdmi_vic vic = hdev->tx_comm.fmt_para.tx_hw_para.hdmitx_hw_para.vic;
 
 	return hdev->hw_comm.dongle_mode &&
 		(para->cs == HDMI_COLORSPACE_YUV422 ||
 		para->cd == COLORDEPTH_24B) &&
-		(vic == HDMI_19_1280x720p50_16x9 ||
-		vic == HDMI_4_1280x720p60_16x9 ||
-		vic == HDMI_5_1920x1080i60_16x9 ||
-		vic == HDMI_20_1920x1080i50_16x9 ||
-		vic == HDMI_16_1920x1080p60_16x9 ||
-		vic == HDMI_31_1920x1080p50_16x9);
+		(hdev->tx_comm.fmt_para.vic == HDMI_19_1280x720p50_16x9 ||
+		 hdev->tx_comm.fmt_para.vic == HDMI_4_1280x720p60_16x9 ||
+		 hdev->tx_comm.fmt_para.vic == HDMI_5_1920x1080i60_16x9 ||
+		 hdev->tx_comm.fmt_para.vic == HDMI_20_1920x1080i50_16x9 ||
+		 hdev->tx_comm.fmt_para.vic == HDMI_16_1920x1080p60_16x9 ||
+		 hdev->tx_comm.fmt_para.vic == HDMI_31_1920x1080p50_16x9);
 }
 
 static void set_hpll_hclk_dongle_5940m(void)

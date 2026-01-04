@@ -10,7 +10,6 @@
 
 #define EDID_LENGTH                            128
 #define DDC_ADDR                               0x50
-#define DDC_SEG_PTR                            0x30
 
 #define DP_LINK_STATUS_SIZE                    6
 #define DP_AUX_MAX_PAYLOAD_BYTES               16

@@ -31,6 +31,7 @@
 
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_common.h>
+#include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_platform_linux.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <drm/amlogic/meson_drm_bind.h>
 
@@ -50,7 +51,6 @@
 #include "meson_tx_task_mgr.h"
 #include "meson_tx_internal.h"
 #include "hdmitx_hdcp.h"
-#include "meson_tx_event_mgr.h"
 
 #define HDMI_TX_COUNT 32
 static struct class *hdmitx_class;
@@ -598,8 +598,8 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 		true, true, true, false);
 	hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_PARAM_RESET, NULL, NULL);
 	/* step3: SW: post uevent to system */
-	hdmitx_set_uevent(tx_comm, TX_HDCPPWR_EVENT, HDMI_SUSPEND);
-	hdmitx_set_uevent(tx_comm, TX_AUDIO_EVENT, 0);
+	hdmitx_set_uevent(tx_comm, HDMITX_HDCPPWR_EVENT, HDMI_SUSPEND);
+	hdmitx_set_uevent(tx_comm, HDMITX_AUDIO_EVENT, 0);
 
 	if (need_rst_ratio) {
 		arg = 0;
@@ -734,8 +734,6 @@ struct meson_tx_helper_ops hdmitx_common_helper_ops = {
 	.remove_sysfs	= NULL,
 	.hpd_plugin		= hdmitx_hpd_plugin_handler,
 	.hpd_plugout	= hdmitx_hpd_plugout_handler,
-	.validate_fmt_para	= hdmitx_validate_tx_state_fmt_para,
-	.build_hw_fmt_para	= hdmitx_build_hw_format_para,
 };
 
 static int amhdmitx_probe(struct platform_device *pdev)
@@ -745,6 +743,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	struct device *dev;
 	struct hdmitx_common *tx_comm;
 	struct hdmitx_hw_common *hw_comm;
+	struct hdmitx_tracer *tx_tracer;
+	struct hdmitx_event_mgr *tx_uevent_mgr;
 	struct amhdmitx_data_s *chip_data;
 	const struct of_device_id *match;
 	bool hpd_state;
@@ -798,9 +798,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		return r;
 	}
 	tx_comm->hdtx_dev = dev;
-	tx_comm->base.pdev = dev;
-	/* set kobj for event_mgr before use uevent api */
-	meson_tx_event_mgr_set_uevent_dev(tx_comm->base.event_mgr, tx_comm->base.pdev, "hdmi");
+
 #ifdef CONFIG_AMLOGIC_VPU
 	if (tx_comm->tx_hw->chip_data->chip_type <	MESON_CPU_ID_T7) {
 		tx_comm->encp_vpu_dev = vpu_dev_register(VPU_VENCP, DEVICE_NAME);
@@ -810,6 +808,13 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	}
 #endif
 	/* platform related functions */
+	tx_uevent_mgr = hdmitx_event_mgr_create(pdev, tx_comm->hdtx_dev);
+	hdmitx_event_mgr_suspend(tx_uevent_mgr, false);
+	hdmitx_common_attch_platform_data(tx_comm,
+		HDMITX_PLATFORM_UEVENT, tx_uevent_mgr);
+	tx_tracer = hdmitx_tracer_create(tx_uevent_mgr);
+	hdmitx_common_attch_platform_data(tx_comm,
+		HDMITX_PLATFORM_TRACER, tx_tracer);
 	tx_comm->reboot_nb.notifier_call = hdmitx_reboot_notifier;
 	register_reboot_notifier(&tx_comm->reboot_nb);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -821,7 +826,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	/* bind drm before hdmi event */
 	hdmitx_bind_meson_drm(device);
 	/* init power_uevent state */
-	hdmitx_set_uevent(tx_comm, TX_HDCPPWR_EVENT, HDMI_WAKEUP);
+	hdmitx_set_uevent(tx_comm, HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	/* reset EDID/vinfo */
 	if (!tx_comm->forced_edid) {
 		meson_tx_edid_buffer_clear(tx_comm->base.edid_buf, sizeof(tx_comm->base.edid_buf));
@@ -1020,7 +1025,7 @@ void hdmitx_common_sw_debug_func(struct hdmitx_common *tx_comm, const char *buf)
 			break;
 		}
 		if (update_hpd) {
-			meson_tx_notify_hpd_status(&tx_comm->base, false);
+			hdmitx_common_notify_hpd_status(tx_comm, false);
 			mutex_unlock(&tx_comm->base.set_mode_mutex);
 			/* notify to drm hdmi */
 			meson_tx_fire_drm_hpd_cb_unlocked(&tx_comm->base);
@@ -1264,7 +1269,7 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 	 * so hdcp1.4 key otp/crc need to be loaded again
 	 */
 	hdmitx_hw_cntl(hw_comm, HDCP14_KEY_LOAD, (void *)&arg, NULL);
-	meson_tx_event_mgr_suspend(tx_comm->base.event_mgr, true);
+	hdmitx_event_mgr_suspend(tx_comm->event_mgr, true);
 	_amhdmitx_suspend(tx_comm);
 
 	HDMITX_INFO("amhdmitx: suspend\n");
@@ -1294,7 +1299,7 @@ static int amhdmitx_resume(struct platform_device *pdev)
 	if (tx_hw_base->chip_data->chip_type >= MESON_CPU_ID_S7)
 		hdmitx_hw_cntl(tx_hw_base, CORE_MISC_HW_INIT, (void *)&arg, NULL);
 	mutex_lock(&tx_comm->base.set_mode_mutex);
-	meson_tx_event_mgr_suspend(tx_comm->base.event_mgr, false);
+	hdmitx_event_mgr_suspend(tx_comm->event_mgr, false);
 	/* need to update EDID in case TV changed during suspend */
 	hpd_state = !!(hdmitx_hw_cntl(tx_hw_base, PLATFORM_GET_HPD_GPI_ST, NULL, NULL));
 	if (hpd_state)

@@ -41,15 +41,9 @@ struct meson_tx_clk_data {
 	u32 phy_clk;
 };
 
-enum map_addr_e {
-	ANACTRL_REG,
-	CLKCTRL_REG,
-	REG_MAX,
-};
-
 struct meson_tx_clk {
 	struct platform_device *pdev;
-	void __iomem *reg_io_base[REG_MAX];
+	void __iomem *reg_io_base;
 	/* clk config mutex */
 	struct mutex clk_set_mutex;
 	const struct meson_tx_clk_ops *tx_clk_ops;

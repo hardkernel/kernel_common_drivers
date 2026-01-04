@@ -15,18 +15,17 @@
 #include <linux/amlogic/media/vout/meson_tx_connector/clk/meson_tx_clk.h>
 #include "meson_tx_dpcd.h"
 
-/* for notify to cec/dprx/hdmirx */
-#define TX_PLUG             1
-#define TX_UNPLUG           2
-#define TX_PHY_ADDR_VALID   3
-#define TX_KSVLIST          4
-
 typedef struct meson_tx_dev *(*conn_dev_to_txdev)(struct device *dev);
 
 struct meson_tx_helper_ops;
 struct tx_task_manager;
 struct meson_tx_event_mgr;
 struct meson_tx_tracer;
+
+enum TX_PLATFORM_API_TYPE {
+	TX_PLATFORM_TRACER = 0,
+	TX_PLATFORM_UEVENT,
+};
 
 struct meson_tx_state {
 	enum vmode_e mode;
@@ -73,7 +72,7 @@ struct meson_tx_dev {
 	/* edid data for HDMI, and displayid data for DP */
 	unsigned char edid_buf[EDID_MAX_BLOCK * 128];
 	/* 00000h~000ffh */
-	unsigned char dpcd_buf[DPTX_RECEIVER_CAP_SIZE];
+	unsigned char dpcd_buf[DP_RECEIVER_CAP_SIZE];
 	struct rx_cap rxcap;
 	struct dpcd_cap dpcd_cap;
 	/* only for bootup case */
@@ -90,8 +89,6 @@ struct meson_tx_dev {
 
 	void *tx_cap;
 	struct meson_tx_helper_ops *ops;
-
-	bool pxp_mode;
 };
 
 #define to_meson_tx_dev(x)	container_of(x, struct meson_tx_dev, conn_dev)
@@ -112,10 +109,9 @@ void meson_tx_get_init_state(struct meson_tx_dev *tx_dev,
 			   struct meson_tx_state *state);
 
 int meson_tx_validate_mode(struct meson_tx_dev *tx_dev, struct meson_tx_state *new_state);
-int meson_tx_format_para_init(struct meson_tx_dev *tx_dev, struct tx_timing *timing,
+int meson_tx_format_para_init(struct meson_tx_format_para *para, struct tx_timing *timing,
 	u32 frac_mode, enum hdmi_colorspace cs,
-	enum hdmi_color_depth cd, enum hdmi_quantization_range cr,
-	struct meson_tx_format_para *para);
+	enum hdmi_color_depth cd, enum hdmi_quantization_range cr);
 int meson_tx_build_clk_param(struct meson_tx_dev *tx_dev,
 	struct meson_tx_format_para *para, u32 enc_idx, u32 hdmi_if_idx);
 

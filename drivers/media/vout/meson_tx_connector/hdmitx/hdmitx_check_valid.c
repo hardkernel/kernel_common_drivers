@@ -260,7 +260,7 @@ static int hdmitx_edid_validate_format_para(struct tx_cap *hdmi_tx_cap,
 			prxcap->Max_TMDS_Clock1 = DEFAULT_MAX_TMDS_CLK;
 		rx_max_tmds_clk = prxcap->Max_TMDS_Clock1 * 5;
 	}
-	calc_tmds_clk = para->tx_hw_para.hdmitx_hw_para.tmds_clk / 1000;
+	calc_tmds_clk = para->tmds_clk / 1000;
 
 	/* more > 4k60 must use frl mode */
 	if (calc_tmds_clk > 594 || para->timing.pixel_freq / 1000 > 600)
@@ -402,7 +402,7 @@ static int hdmitx_edid_validate_format_para(struct tx_cap *hdmi_tx_cap,
 
 	if (para->cs == HDMI_COLORSPACE_YUV420) {
 		ret = 0;
-		if (!meson_tx_edid_check_y420_support(prxcap, para->tx_hw_para.hdmitx_hw_para.vic))
+		if (!meson_tx_edid_check_y420_support(prxcap, para->vic))
 			ret = -EACCES;
 		else if (!prxcap->dc_30bit_420 && para->cd == COLORDEPTH_30B)
 			ret = -EACCES;
@@ -428,7 +428,7 @@ int hdmitx_common_validate_format_para(struct hdmitx_common *tx_comm,
 	if (!tx_comm || !para)
 		return -EPERM;
 
-	if (para->tx_hw_para.hdmitx_hw_para.vic == HDMI_0_UNKNOWN)
+	if (para->vic == HDMI_0_UNKNOWN)
 		return -EPERM;
 
 	/* check if the format param is within capability of both TX/RX */

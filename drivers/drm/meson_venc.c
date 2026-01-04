@@ -9,7 +9,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
-#include <linux/slab.h>
+#include <linux/regmap.h>
 
 #include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_format_para.h>
 
@@ -20,12 +20,6 @@
 #define DEVICE_NAME "meson_tx_venc"
 #define MAX_VENC	4
 
-struct regmap {
-	phys_addr_t phys_addr;
-	size_t size;
-	void __iomem *virt_addr;
-};
-
 struct meson_tx_venc {
 	struct platform_device *pdev;
 	struct regmap *regmap[MAX_VENC];
@@ -33,232 +27,7 @@ struct meson_tx_venc {
 	int num_regmap;
 };
 
-static struct regmap *regmap_init_mmio(phys_addr_t phys_addr, void __iomem *virt_addr, size_t size)
-{
-	struct regmap *reg_map;
-
-	reg_map = kzalloc(sizeof(*reg_map), GFP_KERNEL);
-	if (!reg_map)
-		return NULL;
-
-	reg_map->phys_addr = phys_addr;
-	reg_map->size = size;
-	reg_map->virt_addr = virt_addr;
-
-	return reg_map;
-}
-
-static void regmap_write(struct regmap *regmap, unsigned int reg, unsigned int val)
-{
-	unsigned int reg_offset = reg << 2;
-	void __iomem *p = regmap->virt_addr + reg_offset;
-
-	writel(val, p);
-}
-
-static void regmap_update_bits(struct regmap *regmap, unsigned int reg, unsigned int mask,
-			       unsigned int val)
-{
-	unsigned int reg_val;
-	unsigned int new_val;
-	unsigned int reg_offset = reg << 2;
-	void __iomem *p = regmap->virt_addr + reg_offset;
-
-	reg_val = readl(p);
-	new_val = (reg_val & ~mask) | (val & mask);
-
-	regmap_write(regmap, reg, new_val);
-}
-
-static void regmap_read(struct regmap *regmap, unsigned int reg, unsigned int *val)
-{
-	unsigned int reg_offset = reg << 2;
-	void __iomem *p = regmap->virt_addr + reg_offset;
-
-	*val = readl(p);
-}
-
-int meson_venc_bist_mode_set(struct regmap *regmap, enum venc_type enc_type,
-	enum venc_bist_type bist_type)
-{
-	/* Both encp and encl have VIDEO_TST_EN, VIDEO_TST_MDSEL, ..., VIDEO_TST_VDCNT_STSET,
-	 * only with the offset 0x128
-	 */
-	u32 encl_offset;
-	u32 reg_mode_adv;
-	u32 reg_rgbin_ctrl;
-	u32 h_active;
-	u32 v_active;
-	u32 h_start;
-	u32 temp;
-
-	if (!regmap)
-		return -1;
-
-	pr_info("%s enc_type[%s] bist_type[%d]\n",
-		__func__, enc_type == VENC_ENCL ? "ENCL" : "ENCP", bist_type);
-
-	encl_offset = (enc_type == VENC_ENCL) ? 0x0128 : 0;
-	reg_mode_adv = (enc_type == VENC_ENCL) ? ENCL_VIDEO_MODE_ADV : ENCP_VIDEO_MODE_ADV;
-	reg_rgbin_ctrl = (enc_type == VENC_ENCL) ? ENCL_VIDEO_RGBIN_CTRL : ENCP_VIDEO_RGBIN_CTRL;
-
-	if (bist_type == VENC_BIST_PTTN_OFF) {
-		regmap_update_bits(regmap, reg_mode_adv, BIT(3), BIT(3));
-		regmap_update_bits(regmap, VENC_VIDEO_TST_EN + encl_offset, BIT(0), 0);
-		return 0;
-	}
-	regmap_update_bits(regmap, VENC_VIDEO_TST_EN + encl_offset, GENMASK(2, 0), GENMASK(2, 0));
-	regmap_update_bits(regmap, reg_mode_adv, BIT(3), 0);
-
-	if (enc_type == VENC_ENCL) {
-		/* ENCL pure color pattern with RGB mode */
-		if (bist_type == VENC_BIST_PTTN_BLACK) {
-			regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 0);
-			return 0;
-		}
-		if (bist_type == VENC_BIST_PTTN_WHITE) {
-			regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x3ff);
-			regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x3ff);
-			regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x3ff);
-			regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 0);
-			return 0;
-		}
-		if (bist_type == VENC_BIST_PTTN_RED) {
-			regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x3ff);
-			regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 0);
-			return 0;
-		}
-		if (bist_type == VENC_BIST_PTTN_GREEN) {
-			regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x3ff);
-			regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 0);
-			return 0;
-		}
-		if (bist_type == VENC_BIST_PTTN_BLUE) {
-			regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x3ff);
-			regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 0);
-			return 0;
-		}
-		/* for other patterns */
-		regmap_read(regmap, ENCL_VIDEO_HAVON_END, &temp);
-		regmap_read(regmap, ENCL_VIDEO_HAVON_BEGIN, &h_active);
-		/* note that need to use accurate h/vactive(1920/1080) instead
-		 * of 1919/1079 in gray/cross pattern
-		 */
-		h_active = temp - h_active + 1;
-		regmap_read(regmap, ENCL_VIDEO_VAVON_ELINE, &temp);
-		regmap_read(regmap, ENCL_VIDEO_VAVON_BLINE, &v_active);
-		v_active = temp - v_active + 1;
-		regmap_read(regmap, ENCL_VIDEO_HAVON_BEGIN, &h_start);
-		pr_info("h_active[%d] v_active[%d]\n", h_active, v_active);
-	} else if (enc_type == VENC_ENCP) {
-		/* ENCP pure color pattern with YCC mode */
-		if (bist_type == VENC_BIST_PTTN_BLACK) {
-			regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x200);
-			regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x200);
-			regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 0);
-			return 0;
-		}
-		if (bist_type == VENC_BIST_PTTN_WHITE) {
-			regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x3ff);
-			regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x200);
-			regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x200);
-			regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 0);
-			return 0;
-		}
-		if (bist_type == VENC_BIST_PTTN_RED) {
-			regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x200);
-			regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x3ff);
-			regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 0);
-			return 0;
-		}
-		if (bist_type == VENC_BIST_PTTN_GREEN) {
-			regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x200);
-			regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 0);
-			return 0;
-		}
-		if (bist_type == VENC_BIST_PTTN_BLUE) {
-			regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x200);
-			regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x3ff);
-			regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x0);
-			regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 0);
-			return 0;
-		}
-		/* for other patterns */
-		regmap_read(regmap, ENCP_DE_H_END, &temp);
-		regmap_read(regmap, ENCP_DE_H_BEGIN, &h_active);
-		h_active = temp - h_active;
-		regmap_read(regmap, ENCP_DE_V_END_EVEN, &temp);
-		regmap_read(regmap, ENCP_DE_V_BEGIN_EVEN, &v_active);
-		v_active = temp - v_active;
-		regmap_read(regmap, ENCP_VIDEO_HAVON_BEGIN, &h_start);
-	}
-
-	if (bist_type == VENC_BIST_PTTN_LINE) {
-		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 2);
-		return 0;
-	}
-	if (bist_type == VENC_BIST_PTTN_DOT) {
-		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 3);
-		return 0;
-	}
-	if (bist_type == VENC_BIST_PTTN_COLORBAR) {
-		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 1);
-		regmap_write(regmap, VENC_VIDEO_TST_CLRBAR_STRT + encl_offset, h_start - 2);
-		regmap_write(regmap, VENC_VIDEO_TST_CLRBAR_WIDTH + encl_offset, h_active / 8);
-		return 0;
-	}
-	if (bist_type == VENC_BIST_PTTN_CROSSING) {
-		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 4);
-		regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x3ff);
-		/* aspect ratio: 16:9 */
-		regmap_update_bits(regmap, VENC_VIDEO_TST_CB + encl_offset, GENMASK(5, 0), 16);
-		regmap_update_bits(regmap, VENC_VIDEO_TST_CR + encl_offset, GENMASK(5, 0), 9);
-		regmap_write(regmap, VENC_VIDEO_TST_CLRBAR_WIDTH + encl_offset, h_active);
-		regmap_write(regmap, VENC_VIDEO_TST_CLRBAR_STRT + encl_offset, v_active);
-		/* cross box width: value 0 means default width = 1 */
-		regmap_write(regmap, VENC_VIDEO_TST_VDCNT_STSET + encl_offset, 0);
-		regmap_update_bits(regmap, reg_rgbin_ctrl, BIT(1), BIT(1));
-		/* when TST_MDSEL is 4, need to reset BIT(9) */
-		regmap_update_bits(regmap, VENC_VIDEO_TST_CB + encl_offset, BIT(9), BIT(9));
-		regmap_update_bits(regmap, VENC_VIDEO_TST_CB + encl_offset, BIT(9), 0);
-		return 0;
-	}
-	if (bist_type == VENC_BIST_PTTN_GRAY) {
-		u32 steps = 32;
-
-		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 5);
-		regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 1024 / steps - 1);
-		regmap_update_bits(regmap, VENC_VIDEO_TST_CB + encl_offset, GENMASK(2, 0), 0);
-		regmap_update_bits(regmap, VENC_VIDEO_TST_CR + encl_offset, GENMASK(2, 0),
-			GENMASK(2, 0));
-		regmap_update_bits(regmap, VENC_VIDEO_TST_CR + encl_offset, GENMASK(9, 3),
-			(h_active / steps - 1) << 3);
-		regmap_write(regmap, VENC_VIDEO_TST_CLRBAR_WIDTH + encl_offset, 0);
-		regmap_write(regmap, VENC_VIDEO_TST_CLRBAR_STRT + encl_offset, h_start - 2);
-		regmap_write(regmap, VENC_VIDEO_TST_VDCNT_STSET + encl_offset, 0);
-		regmap_update_bits(regmap, reg_rgbin_ctrl, BIT(1), BIT(1));
-		regmap_update_bits(regmap, VENC_VIDEO_TST_CB + encl_offset, BIT(9), 0);
-		return 0;
-	}
-
-	return 0;
-}
-
-static void config_tv_encp_calc(struct regmap *regmap, struct meson_tx_format_para *para,
-	enum venc_bist_type bist_type)
+static void config_tv_encp_calc(struct regmap *regmap, struct meson_tx_format_para *para)
 {
 	const struct tx_timing *tp = NULL;
 	struct tx_timing timing = {0};
@@ -341,14 +110,11 @@ static void config_tv_encp_calc(struct regmap *regmap, struct meson_tx_format_pa
 	regmap_write(regmap, ENCP_VIDEO_MAX_PXCNT, tp->h_total - 1);
 	regmap_write(regmap, ENCP_VIDEO_MAX_LNCNT, tp->v_total - 1);
 
-	meson_venc_bist_mode_set(regmap, VENC_ENCP, bist_type);
+	// VENC timing gen is disabled
 	regmap_write(regmap, ENCP_VIDEO_EN, 1);
-
-	pr_info("%s set done\n", __func__);
 }
 
-static void config_tv_encl_calc(struct regmap *regmap, struct meson_tx_format_para *para,
-	enum venc_bist_type bist_type)
+static void config_tv_encl_calc(struct regmap *regmap, struct meson_tx_format_para *para)
 {
 	const struct tx_timing *tp = NULL;
 	u32 de_h_begin = 0;
@@ -418,21 +184,146 @@ static void config_tv_encl_calc(struct regmap *regmap, struct meson_tx_format_pa
 	regmap_write(regmap, VSYNC_VE_ADDR, tp->v_sync - 1);
 
 	regmap_write(regmap, ENCL_VIDEO_RGBIN_CTRL, 3);
-	meson_venc_bist_mode_set(regmap, VENC_ENCL, bist_type);
 	regmap_write(regmap, ENCL_VIDEO_EN, 1);
 	regmap_write(regmap, VPU_VENC_CTRL, 2);
 }
 
-int meson_venc_mode_set(struct meson_tx_venc *venc, u32 enc_index, u32 enc_type,
-	enum venc_bist_type bist_type, void *para)
+int meson_venc_mode_set(struct meson_tx_venc *venc, u32 enc_index, u32 enc_type, void *para)
 {
 	struct meson_tx_format_para *fmt_para = (struct meson_tx_format_para *)para;
 	struct regmap *regmap = venc->regmap[enc_index];
 
 	if (enc_type == VENC_ENCP)
-		config_tv_encp_calc(regmap, fmt_para, bist_type);
+		config_tv_encp_calc(regmap, fmt_para);
 	else if (enc_type == VENC_ENCL)
-		config_tv_encl_calc(regmap, fmt_para, bist_type);
+		config_tv_encl_calc(regmap, fmt_para);
+
+	return 0;
+}
+
+int meson_venc_bist_mode_set(struct meson_tx_venc *venc, u32 enc_index, void *para)
+{
+	struct video_bist_format_para *bist_para;
+	struct regmap *regmap;
+	/* Both encp and encl have VIDEO_TST_EN, VIDEO_TST_MDSEL, ..., VIDEO_TST_VDCNT_STSET,
+	 * only with the offset 0x128
+	 */
+	u32 encl_offset;
+	u32 reg_mode_adv;
+	u32 reg_rgbin_ctrl;
+	u32 h_active;
+	u32 v_active;
+	u32 temp;
+
+	if (!venc || !para)
+		return -1;
+
+	bist_para = (struct video_bist_format_para *)para;
+	regmap = venc->regmap[enc_index];
+
+	encl_offset = (bist_para->enc_sel == 1) ? 0x0128 : 0;
+	reg_mode_adv = (bist_para->enc_sel == 1) ? ENCL_VIDEO_MODE_ADV : ENCP_VIDEO_MODE_ADV;
+	reg_rgbin_ctrl = (bist_para->enc_sel == 1) ? ENCP_VIDEO_RGBIN_CTRL : ENCL_VIDEO_RGBIN_CTRL;
+	regmap_read(regmap, ENCP_DE_H_END + encl_offset, &temp);
+	regmap_read(regmap, ENCP_DE_H_BEGIN + encl_offset, &h_active);
+	h_active = temp - h_active;
+	regmap_read(regmap, ENCP_DE_V_END_EVEN + encl_offset, &temp);
+	regmap_read(regmap, ENCP_DE_V_BEGIN_EVEN + encl_offset, &v_active);
+	v_active = temp - v_active;
+
+	if (bist_para->bist_type == VENC_BIST_PTTN_OFF) {
+		regmap_update_bits(regmap, reg_mode_adv, BIT(3), BIT(3));
+		regmap_update_bits(regmap, VENC_VIDEO_TST_EN + encl_offset, BIT(0), 0);
+		return 0;
+	}
+	regmap_update_bits(regmap, VENC_VIDEO_TST_EN + encl_offset, GENMASK(2, 0), GENMASK(2, 0));
+	regmap_update_bits(regmap, reg_mode_adv, BIT(3), 0);
+	if (bist_para->bist_type == VENC_BIST_PTTN_BLACK) {
+		regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x0);
+		regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x200);
+		regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x200);
+		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 1);
+		return 0;
+	}
+	if (bist_para->bist_type == VENC_BIST_PTTN_WHITE) {
+		regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x3ff);
+		regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x200);
+		regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x200);
+		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 1);
+		return 0;
+	}
+	if (bist_para->bist_type == VENC_BIST_PTTN_RED) {
+		regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x144);
+		regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x168);
+		regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x3c0);
+		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 1);
+		return 0;
+	}
+	if (bist_para->bist_type == VENC_BIST_PTTN_GREEN) {
+		regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x244);
+		regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0xd8);
+		regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x66);
+		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 1);
+		return 0;
+	}
+	if (bist_para->bist_type == VENC_BIST_PTTN_BLUE) {
+		regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0xa4);
+		regmap_write(regmap, VENC_VIDEO_TST_CB + encl_offset, 0x3c0);
+		regmap_write(regmap, VENC_VIDEO_TST_CR + encl_offset, 0x1b8);
+		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 1);
+		return 0;
+	}
+	if (bist_para->bist_type == VENC_BIST_PTTN_LINE) {
+		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 2);
+		return 0;
+	}
+	if (bist_para->bist_type == VENC_BIST_PTTN_DOT) {
+		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 3);
+		return 0;
+	}
+	if (bist_para->bist_type == VENC_BIST_PTTN_COLORBAR) {
+		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 1);
+		regmap_read(regmap, ENCP_VIDEO_HAVON_BEGIN + encl_offset, &temp);
+		regmap_write(regmap, VENC_VIDEO_TST_CLRBAR_STRT + encl_offset, temp - 2);
+		regmap_write(regmap, VENC_VIDEO_TST_CLRBAR_WIDTH + encl_offset, h_active / 8);
+		return 0;
+	}
+	if (bist_para->bist_type == VENC_BIST_PTTN_CROSSING) {
+		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 4);
+		regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 0x3ff);
+		/* aspect ratio: 16:9 */
+		regmap_update_bits(regmap, VENC_VIDEO_TST_CB + encl_offset, GENMASK(5, 0), 16);
+		regmap_update_bits(regmap, VENC_VIDEO_TST_CR + encl_offset, GENMASK(5, 0), 9);
+		regmap_write(regmap, VENC_VIDEO_TST_CLRBAR_WIDTH + encl_offset, h_active);
+		regmap_write(regmap, VENC_VIDEO_TST_CLRBAR_STRT + encl_offset, v_active);
+		/* cross box width: default 1 */
+		regmap_write(regmap, VENC_VIDEO_TST_VDCNT_STSET + encl_offset, 0);
+		regmap_update_bits(regmap, reg_rgbin_ctrl, BIT(1), BIT(1));
+		/* when TST_MDSEL is 4, need to reset BIT(9) */
+		regmap_update_bits(regmap, VENC_VIDEO_TST_CB + encl_offset, BIT(9), BIT(9));
+		regmap_update_bits(regmap, VENC_VIDEO_TST_CB + encl_offset, BIT(9), 0);
+		return 0;
+	}
+	if (bist_para->bist_type == VENC_BIST_PTTN_GRAY) {
+		u32 steps = 32;
+
+		regmap_write(regmap, VENC_VIDEO_TST_MDSEL + encl_offset, 5);
+		regmap_write(regmap, VENC_VIDEO_TST_Y + encl_offset, 1024 / (steps - 1));
+		/* aspect ratio: 16:9 */
+		regmap_update_bits(regmap, VENC_VIDEO_TST_CB + encl_offset, GENMASK(2, 0), 0);
+		regmap_update_bits(regmap, VENC_VIDEO_TST_CR + encl_offset, GENMASK(2, 0),
+			GENMASK(2, 0));
+		regmap_update_bits(regmap, VENC_VIDEO_TST_CB + encl_offset, GENMASK(9, 3),
+			(h_active / (steps - 1)) << 3);
+		regmap_write(regmap, VENC_VIDEO_TST_CLRBAR_WIDTH + encl_offset, 0);
+		regmap_read(regmap, ENCP_VIDEO_HAVON_BEGIN + encl_offset, &temp);
+		regmap_write(regmap, VENC_VIDEO_TST_CLRBAR_STRT + encl_offset, temp - 2);
+		/* cross box width: default 1 */
+		regmap_write(regmap, VENC_VIDEO_TST_VDCNT_STSET + encl_offset, 0);
+		regmap_update_bits(regmap, reg_rgbin_ctrl, BIT(1), BIT(1));
+		regmap_update_bits(regmap, VENC_VIDEO_TST_CB + encl_offset, BIT(9), 0);
+		return 0;
+	}
 
 	return 0;
 }
@@ -442,16 +333,22 @@ int meson_venc_mode_check(struct meson_tx_venc *venc, u32 enc_index, void *para)
 	return 0;
 }
 
-int meson_venc_mode_disable(struct meson_tx_venc *venc, u32 enc_index, u32 enc_type)
+int meson_venc_mode_disable(struct meson_tx_venc *venc, u32 enc_index)
 {
 	struct regmap *regmap = venc->regmap[enc_index];
-	u32 venc_en_addr = (enc_type == VENC_ENCP) ? ENCP_VIDEO_EN : ENCL_VIDEO_EN;
 
 	// VENC timing gen is disabled
-	regmap_write(regmap, venc_en_addr, 0);
+	regmap_write(regmap, ENCP_VIDEO_EN, 0);
 
 	return 0;
 }
+
+static const struct regmap_config venc_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = 0xffff,
+};
 
 static int meson_tx_venc_probe(struct platform_device *pdev)
 {
@@ -494,7 +391,8 @@ static int meson_tx_venc_probe(struct platform_device *pdev)
 
 	for (i = 0; i < tx_venc->num_regmap; i++) {
 		venc_base = base + (venc_offset[i] << 2);
-		regmap[i] = regmap_init_mmio(res->start, venc_base, resource_size(res));
+		regmap[i] = devm_regmap_init_mmio(device, venc_base,
+						  &venc_regmap_config);
 		if (IS_ERR(regmap[i])) {
 			pr_err("%s regmap init mmio fail\n", __func__);
 			return -EINVAL;

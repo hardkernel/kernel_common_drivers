@@ -150,9 +150,6 @@
  */
 #define DPTX20_FEC_ENABLE                      0x098
 
-/* bit0: write 0/1 value to hpd, bit1: pd_over enable */
-#define DPTX20_HPD_OVER                        0x09C
-
 /* WO   FORCE_SCRAMBLER_RESET
  *    3 VS3_SCRAMBLER_RESET: Write to a 1 and input source 3 reset directly out of training.
  *      This bit is write only and will always read back as a 0.
@@ -234,10 +231,6 @@
  */
 #define DPTX20_AUX_REPLY_TIMEOUT_INTERVAL      0x110
 
-#define TR_DPTX_AUX_GTC_AUTO_CTRL              0x118
-
-#define TR_DPTX_AUX_APB_WR_RD_DONE             0x11c
-
 /* RO   HPD_INPUT_STATE
  *    0 Current state of the external HPD port.
  */
@@ -262,7 +255,6 @@
  *    0 HPD_EVENT: A 1 indicates that an HPD connect or disconnect event has been detected.
  */
 #define DPTX20_INTERRUPT_STATE                 0x130
-#define INTERRUPT_STATE_LPM_TIMER_EVENT             BIT(15)
 #define INTERRUPT_STATE_SRC3_ERR_EVENT              BIT(14)
 #define INTERRUPT_STATE_SRC3_OVF_EVENT              BIT(13)
 #define INTERRUPT_STATE_SRC2_ERR_EVENT              BIT(12)
@@ -820,7 +812,7 @@
  *      space. Encodings are determined by the selected color space. These bits are equivalent
  *      to bit 7-5 in the MISC0 field.
  */
-#define DPTX20_SRCX_COLORIMETRY_OVERRIDE       0x814
+#define DPTX20_SRCX_COLORIMETRY_OVERRIDE       0x810
 
 /* RW   SRC0_MAIN_STREAM_HTOTAL
  * 15:0 Horizontal line length total in clocks
@@ -1003,13 +995,6 @@
  *      of the pixel data from the previous frame.
  */
 #define DPTX20_SRCX_FRAMING_STATUS             0x870
-
-#define TR_DPTX_SRC0_INFO_POS01                0x880
-#define TR_DPTX_SRC0_INFO_POS23                0x884
-#define TR_DPTX_SRC0_INFO_POS45                0x888
-#define TR_DPTX_SRC0_INFO_POS67                0x88C
-#define TR_DPTX_SRC0_INFO_CTRL                 0x890
-#define TR_DPTX_SRC0_VID_INTR_TH               0x894
 
 /* RW   SEC0_AUDIO_ENABLE
  *    1 AUDIO_MUTE: Determines the state of the audio mute bit in the VBID packet.
@@ -1202,9 +1187,6 @@
  *    0 SPDIF input lane 0 status.
  */
 #define DPTX20_SECX_SPDIF_STATUS_READBACK     0x96c
-
-#define TR_DPTX_SEC0_INFOFRAME_ENABLE1         0x970
-#define TR_DPTX_SEC0_INFOFRAME_RATE1           0x974
 
 /* RW   SEC0_GTC_COUNT_CONFIG
  *23:16 GTC_COUNT_INT: Integer portion of the GTC accumulator count.

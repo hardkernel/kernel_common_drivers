@@ -7,7 +7,7 @@
 
 #include <linux/types.h>
 
-#define DPTX_RECEIVER_CAP_SIZE                   0x100
+#define DP_RECEIVER_CAP_SIZE                   0x100
 
 struct dpcd_cap {
 	/* DPCD version, not DP version. 10h: r1.0, ... 14h: r1.4 */

@@ -17,14 +17,13 @@ struct tx_task_manager;
 #define TASK_FLAG_DELAY_WORK BIT(2)
 #define TASK_FLAG_WORK   BIT(3)
 
-#define QUEUE_NAME_MAX_LEN 64
-
 typedef void (*tx_task_callback)(void *);
 
 enum task_queue_type {
 	TASK_QUEUE_HPD,
 	TASK_QUEUE_CORE,
 	TASK_QUEUE_HPD_IRQ,
+	TASK_QUEUE_AUX,
 	TASK_QUEUE_TIMER,
 	TASK_QUEUE_LOW,
 	TASK_QUEUE_HIGH,
@@ -39,8 +38,7 @@ struct tx_task_info {
 	enum task_type type;
 	enum task_queue_type queue_type;
 	u32 flag;
-	char *init_queue_name;
-	char queue_name[QUEUE_NAME_MAX_LEN];
+	char *queue_name;
 	u32 queue_flag;
 };
 

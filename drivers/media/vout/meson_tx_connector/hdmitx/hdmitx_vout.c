@@ -163,10 +163,10 @@ static void update_vinfo_from_format_para(struct hdmitx_common *tx_comm)
 	/* update ppc and color fmt info for vpp, only for FRL/DSC */
 	if (tx_comm->tx_hw->chip_data->chip_type >= MESON_CPU_ID_T7) {
 		vinfo->cur_enc_ppc = 1;
-		if (fmtpara->tx_hw_para.hdmitx_hw_para.frl_rate > FRL_NONE)
+		if (fmtpara->frl_rate > FRL_NONE)
 			vinfo->cur_enc_ppc = 4;
 #ifdef CONFIG_AMLOGIC_DSC
-		if (fmtpara->tx_hw_para.hdmitx_hw_para.dsc_en) {
+		if (fmtpara->dsc_en) {
 			if (tx_comm->fmt_para.cs == HDMI_COLORSPACE_RGB)
 				vinfo->vpp_post_out_color_fmt = 1;
 			else

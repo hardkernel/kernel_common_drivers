@@ -325,43 +325,6 @@ struct product_id_data_blk {
 	/* product_id_string(optional): 235 bytes maximum */
 };
 
-struct dynamic_video_timing_range_limits {
-	u8 pixel_clock_min[3];
-	u8 pixel_clock_max[3];
-	u8 vertical_refresh_rate_min;
-	u8 vertical_refresh_rate_max;
-	/*
-	 * flags bit 1:0
-	 *   For Block Revision 0
-	 *   Cleared to all 0s
-	 *
-	 *   For Block Revision 1
-	 *   Maximum Vertical Refresh Rate bit 9:8
-	 *
-	 * flag bit 7
-	 *   0 = Seamless Dynamic Video Timing change shall not be supported
-	 *   with a fixed horizontal pixel rate and dynamic vertical blanking
-	 *
-	 *   1 = Seamless Dynamic Video Timing change shall be supported
-	 *   with a fixed horizontal pixel rate and dynamic vertical blanking
-	 */
-	u8 flags;
-};
-
-/* Table 4-24: Dynamic Video Timing Range Limits Data Block of DisplayID v2.1a */
-struct dynamic_video_timing_range_limits_data_block {
-	struct displayid_block product_id_header;
-	struct dynamic_video_timing_range_limits dynamic_video_timing_range;
-};
-
-struct dynamic_video_timing_range_limits_info {
-	u32 pixel_clock_min:24;
-	u32 pixel_clock_max:24;
-	u8 vertical_refresh_rate_min;
-	u16 vertical_refresh_rate_max:10;
-	u8 seamless_support_flag;
-};
-
 struct display_id_cap {
 	/* 1.header of base section */
 	u8 version;
@@ -387,8 +350,6 @@ struct display_id_cap {
 	struct tx_timing **timing;
 	/* Display Interface Features Data Block */
 	struct display_interface_info display_interface;
-	/* Dynamic Video Timing Range Limits Data Block */
-	struct dynamic_video_timing_range_limits_info dynamic_video_timing_range;
 };
 
 struct display_product_type_id {
@@ -647,5 +608,4 @@ bool meson_tx_edid_support_y422(struct rx_cap *prxcap);
 void meson_tx_edid_phy_addr_parse(struct rx_cap *prxcap, u8 *edid_buf);
 int meson_tx_edid_audio_parse(struct rx_cap *prxcap, u8 *block_buf);
 bool meson_tx_validate_y420_vic(enum hdmi_vic vic);
-bool meson_tx_edid_validate_timing(struct tx_timing *timing, struct rx_cap *rx_cap);
 #endif

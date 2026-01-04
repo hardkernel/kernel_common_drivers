@@ -42,7 +42,6 @@
 #include <linux/workqueue.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include "meson_tx_event_mgr.h"
 
 static void drm_hdmitx_disable_hdcp_mode(unsigned int content_type);
 static void drm_hdmitx_enable_hdcp_mode(unsigned int content_type);
@@ -251,7 +250,7 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 	u32 arg;
 
 	if (hdmitx_hw_cntl(tx_comm->tx_hw, PLATFORM_RXSENSE, NULL, NULL) == 0)
-		hdmitx_current_status(tx_comm, TX_HDCP_DEVICE_NOT_READY_ERROR);
+		hdmitx_current_status(tx_comm, HDMITX_HDCP_DEVICE_NOT_READY_ERROR);
 	/*
 	 * there's risk:
 	 * hdcp2.2 start auth-->enter early suspend, stop hdcp-->
@@ -274,7 +273,7 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 		arg = HDCP14_OFF;
 		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_MODE_OP, (void *)&arg, NULL);
 		hdmitx_hdcp_do_work(tx_comm);
-		hdmitx_current_status(tx_comm, TX_HDCP_NOT_ENABLED);
+		hdmitx_current_status(tx_comm, HDMITX_HDCP_NOT_ENABLED);
 	}
 	if (strncmp(buf, "1", 1) == 0) {
 		if (vic == HDMI_17_720x576p50_4x3 || vic == HDMI_18_720x576p50_16x9)
@@ -283,7 +282,7 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 		hdmitx_hdcp_do_work(tx_comm);
 		arg = HDCP14_ON;
 		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_MODE_OP, (void *)&arg, NULL);
-		hdmitx_current_status(tx_comm, TX_HDCP_HDCP_1_ENABLED);
+		hdmitx_current_status(tx_comm, HDMITX_HDCP_HDCP_1_ENABLED);
 	}
 	if (strncmp(buf, "2", 1) == 0) {
 		if (tx_comm->hdcptx_comm.efuse_dis_hdcp_tx22) {
@@ -295,7 +294,7 @@ static void hdmitx20_set_hdcp_mode(struct hdmitx_common *tx_comm, const char *bu
 		hdmitx_hdcp_do_work(tx_comm);
 		arg = 2;
 		hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_MUX_INIT, (void *)&arg, NULL);
-		hdmitx_current_status(tx_comm, TX_HDCP_HDCP_2_ENABLED);
+		hdmitx_current_status(tx_comm, HDMITX_HDCP_HDCP_2_ENABLED);
 	}
 	mutex_unlock(&tx_comm->base.set_mode_mutex);
 }
@@ -740,7 +739,7 @@ static void drm_hdmitx_disable_hdcp_mode(unsigned int content_type)
 
 	hdev->tx_comm.hdcptx_comm.hdcp_mode = 0;
 	hdmitx_hdcp_do_work(&hdev->tx_comm);
-	hdmitx_current_status(&hdev->tx_comm, TX_HDCP_NOT_ENABLED);
+	hdmitx_current_status(&hdev->tx_comm, HDMITX_HDCP_NOT_ENABLED);
 }
 
 /* for linux/drm end */

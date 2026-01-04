@@ -21,8 +21,6 @@
 #include "hdmitx_hdr.h"
 #include "hdmitx_compliance.h"
 #include "meson_tx_task_mgr.h"
-#include "meson_tx_event_mgr.h"
-#include "meson_tx_internal.h"
 
 int hdmitx_format_para_init(struct meson_tx_format_para *para,
 		enum hdmi_vic vic, u32 frac_rate_policy,
@@ -65,7 +63,7 @@ static void hdmitx_rxsense_process(void *para)
 		return;
 	}
 	sense = hdmitx_hw_cntl(tx_comm->tx_hw, PLATFORM_RXSENSE, NULL, NULL);
-	hdmitx_set_uevent(tx_comm, TX_RXSENSE_EVENT, sense);
+	hdmitx_set_uevent(tx_comm, HDMITX_RXSENSE_EVENT, sense);
 	tx_task_mgr_queue_task(tx_comm->base.task_mgr, RXSENSE_TASK, 1000);
 }
 
@@ -80,8 +78,8 @@ static void hdmitx_cedst_process(void *para)
 	}
 	ced = hdmitx_hw_cntl(tx_comm->tx_hw, DDC_GET_CEDST, NULL, NULL);
 	/* firstly send as 0, then real ced, A trigger signal */
-	hdmitx_set_uevent(tx_comm, TX_CEDST_EVENT, 0);
-	hdmitx_set_uevent(tx_comm, TX_CEDST_EVENT, ced);
+	hdmitx_set_uevent(tx_comm, HDMITX_CEDST_EVENT, 0);
+	hdmitx_set_uevent(tx_comm, HDMITX_CEDST_EVENT, ced);
 	tx_task_mgr_queue_task(tx_comm->base.task_mgr, CEDST_TASK, 1000);
 }
 
@@ -149,7 +147,6 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 		HDMITX_ERROR("[%s]: invalid input param\n", __func__);
 		return -EINVAL;
 	}
-
 	/* only parse rx cap in EDID, skip displayID */
 	tx_comm->base.edid_parse_mask = 0x1;
 	para = &tx_comm->fmt_para;
@@ -215,16 +212,38 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	return 0;
 }
 
+int hdmitx_common_attch_platform_data(struct hdmitx_common *tx_comm,
+	enum HDMITX_PLATFORM_API_TYPE type, void *plt_data)
+{
+	if (!tx_comm || !plt_data) {
+		HDMITX_ERROR("[%s]: invalid input param\n", __func__);
+		return -EINVAL;
+	}
+	switch (type) {
+	case HDMITX_PLATFORM_TRACER:
+		tx_comm->tx_tracer = (struct hdmitx_tracer *)plt_data;
+		break;
+	case HDMITX_PLATFORM_UEVENT:
+		tx_comm->event_mgr = (struct hdmitx_event_mgr *)plt_data;
+		break;
+	default:
+		HDMITX_ERROR("%s unknown platform api %d\n", __func__, type);
+		break;
+	};
+
+	return 0;
+}
+
 int hdmitx_common_destroy(struct hdmitx_common *tx_comm)
 {
 	if (!tx_comm) {
 		HDMITX_ERROR("[%s]: invalid input param\n", __func__);
 		return -EINVAL;
 	}
-	if (tx_comm->base.tx_tracer)
-		meson_tx_tracer_destroy(tx_comm->base.tx_tracer);
-	if (tx_comm->base.event_mgr)
-		meson_tx_event_mgr_destroy(tx_comm->base.event_mgr);
+	if (tx_comm->tx_tracer)
+		hdmitx_tracer_destroy(tx_comm->tx_tracer);
+	if (tx_comm->event_mgr)
+		hdmitx_event_mgr_destroy(tx_comm->event_mgr);
 	if (tx_comm->hdr_state)
 		meson_tx_hdr_destroy(tx_comm->hdr_state);
 	return 0;
@@ -331,106 +350,6 @@ out:
 }
 EXPORT_SYMBOL(hdmitx_common_validate_mode_locked);
 
-/* check vic it's supported in EDID , update vic with 16x9 */
-static int hdmitx_common_update_vic_with_edid(struct hdmitx_common *tx_comm,
-	struct meson_tx_format_para *para)
-{
-	enum hdmi_vic prefer_vic = HDMI_0_UNKNOWN;
-
-	prefer_vic = hdmitx_get_prefer_vic(tx_comm, para->timing.vic);
-	/* check if vic supported by rx, except:480i 480p 576i 576p */
-	if (prefer_vic != HDMI_0_UNKNOWN &&
-		meson_tx_edid_validate_vic(&tx_comm->base.rxcap, prefer_vic) == false)
-		prefer_vic = HDMI_0_UNKNOWN;
-
-	/*
-	 * Don't call hdmitx_common_check_valid_para_of_vic anymore.
-	 * This function used to parse user passed mode name which should already
-	 * checked by hdmitx_common_check_valid_para_of_vic().
-	 */
-	if (prefer_vic == HDMI_0_UNKNOWN)
-		HDMITX_DEBUG("not find vic %d in edid\n", para->timing.vic);
-
-	para->timing.vic = prefer_vic;
-	para->tx_hw_para.hdmitx_hw_para.vic = prefer_vic;
-	return prefer_vic;
-}
-
-/*
- * validation step:
- * step1, check if VIC is supported in EDID
- * step2, check if VIC is supported by SOC hdmitx
- * step3, check format_para is supported by EDID/hdmitx_cap
- */
-int hdmitx_validate_tx_state_fmt_para(struct meson_tx_dev *tx_base,
-	struct meson_tx_state *base_state)
-{
-	int ret = 0;
-	struct meson_tx_format_para *new_para;
-	struct hdmitx_common *tx_comm = tx_dev_to_hdmitx_common(tx_base);
-
-	if (!tx_base || !base_state) {
-		HDMITX_ERROR("[%s]: invalid input param\n", __func__);
-		return -EINVAL;
-	}
-	new_para = &base_state->para;
-
-	mutex_lock(&tx_comm->base.set_mode_mutex);
-	if (base_state->sequence_id != tx_comm->base.hw_sequence_id) {
-		HDMITX_ERROR("%s: sequence_id failed: %lld\n",
-						__func__, base_state->sequence_id);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* step1, check if mode related VIC is supported in EDID */
-	if (!meson_tx_edid_validate_vic(&tx_comm->base.rxcap,
-		new_para->tx_hw_para.hdmitx_hw_para.vic)) {
-		HDMITX_DEBUG("edid validate vic = %d return error %d\n",
-			    new_para->tx_hw_para.hdmitx_hw_para.vic, ret);
-		ret = -EINVAL;
-		goto out;
-	}
-	/* step2, check if VIC is supported by SOC hdmitx */
-	ret = hdmitx_common_validate_vic(tx_comm,
-		new_para->tx_hw_para.hdmitx_hw_para.vic);
-	if (ret != 0) {
-		HDMITX_DEBUG("validate vic = %d return error %d\n",
-			    new_para->tx_hw_para.hdmitx_hw_para.vic, ret);
-		goto out;
-	}
-	/* step3, check format_para is supported by EDID/hdmitx_cap */
-	ret = hdmitx_common_validate_format_para(tx_comm, new_para);
-	if (ret)
-		HDMITX_DEBUG("validate format para [cs:%d,cd:%d] return error %d\n",
-			new_para->cs, new_para->cd, ret);
-out:
-	mutex_unlock(&tx_comm->base.set_mode_mutex);
-	return ret;
-}
-
-int hdmitx_build_hw_format_para(struct meson_tx_dev *tx_base,
-	struct meson_tx_format_para *para)
-{
-	int ret = 0;
-	struct hdmitx_common *tx_comm = tx_dev_to_hdmitx_common(tx_base);
-
-	if (!tx_comm || !tx_comm->tx_hw || !para) {
-		HDMITX_ERROR("[%s]: invalid input param\n", __func__);
-		return -EINVAL;
-	}
-	ret = hdmitx_common_update_vic_with_edid(tx_comm, para);
-	if (ret == HDMI_0_UNKNOWN) {
-		HDMITX_ERROR("%s: get vic fail\n", __func__);
-		return -EINVAL;
-	}
-	ret = hdmitx_hw_calc_format_para(tx_comm->tx_hw, para);
-	if (ret < 0)
-		hdmitx_format_para_print(para, NULL);
-
-	return ret;
-}
-
 /* init format para only when probe */
 int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 		struct meson_tx_format_para *para)
@@ -448,8 +367,7 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 	tx_hw = tx_comm->tx_hw;
 	if (hdmitx_hw_cntl(tx_hw, CORE_MISC_GET_OUTPUT_ST, NULL, NULL)) {
 		/* TODO: it has not consider VESA mode witch HW VIC = 0 */
-		para->tx_hw_para.hdmitx_hw_para.vic =
-			hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_AVI_VIC, NULL, NULL);
+		para->vic = hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_AVI_VIC, NULL, NULL);
 		para->cs = hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_AVI_CS, NULL, NULL);
 		para->cd = hdmitx_hw_cntl(tx_hw, AUX_PKT_GET_GCP_CD, NULL, NULL);
 		/*
@@ -473,20 +391,18 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 			dsc_en = true;
 		}
 
-		ret = hdmitx_common_build_format_para(tx_comm, para,
-			para->tx_hw_para.hdmitx_hw_para.vic,
+		ret = hdmitx_common_build_format_para(tx_comm, para, para->vic,
 			para->frac_mode, para->cs, para->cd,
 			HDMI_QUANTIZATION_RANGE_FULL);
 		if (ret == 0) {
 			HDMITX_DEBUG("%s init ok\n", __func__);
 			/* for bootup, override build format with HW state */
-			para->tx_hw_para.hdmitx_hw_para.dsc_en = dsc_en;
-			para->tx_hw_para.hdmitx_hw_para.frl_rate =
-				hdmitx_hw_cntl(tx_hw, FRL_GET_MODE, NULL, NULL);
+			para->dsc_en = dsc_en;
+			para->frl_rate = hdmitx_hw_cntl(tx_hw, FRL_GET_MODE, NULL, NULL);
 			hdmitx_format_para_print(para, NULL);
 		} else {
 			HDMITX_INFO("%s: init uboot format para fail (%d,%d,%d)\n",
-				__func__, para->tx_hw_para.hdmitx_hw_para.vic, para->cs, para->cd);
+				__func__, para->vic, para->cs, para->cd);
 		}
 
 		return ret;
@@ -845,13 +761,53 @@ int hdmitx_common_parse_vic_in_edid(struct hdmitx_common *tx_comm, const char *m
 }
 EXPORT_SYMBOL(hdmitx_common_parse_vic_in_edid);
 
-int hdmitx_set_uevent(struct hdmitx_common *tx_comm, enum meson_tx_event type, int val)
+int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent)
 {
 	if (!tx_comm) {
 		HDMITX_ERROR("%s fail\n", __func__);
 		return -EINVAL;
 	}
-	return meson_tx_event_mgr_send_uevent(tx_comm->base.event_mgr,
+	if (!tx_comm->suspend_flag) {
+		/* notify to userspace by uevent */
+		hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
+				HDMITX_HPD_EVENT, tx_comm->base.hpd_state, force_uevent);
+		hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
+				HDMITX_AUDIO_EVENT, tx_comm->base.hpd_state, force_uevent);
+	} else {
+		/*
+		 * under early suspend, only update uevent state, not
+		 * post to system, in case 1.old android system will
+		 * set hdmi mode, 2.audio server and audio_hal will
+		 * start run, increase power consumption
+		 */
+		hdmitx_event_mgr_set_uevent_state(tx_comm->event_mgr,
+				HDMITX_HPD_EVENT, tx_comm->base.hpd_state);
+		hdmitx_event_mgr_set_uevent_state(tx_comm->event_mgr,
+				HDMITX_AUDIO_EVENT, tx_comm->base.hpd_state);
+	}
+
+	/*
+	 * always notify to other driver module: CEC/RX
+	 * CEC/RX side will decide to update HPD/EDID or
+	 * not by product type
+	 */
+	/* if (tx_comm->hdmi_repeater == 1) { */
+	if (tx_comm->base.hpd_state)
+		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_PLUG, tx_comm->base.edid_buf);
+	else
+		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_UNPLUG, NULL);
+
+	return 0;
+}
+EXPORT_SYMBOL(hdmitx_common_notify_hpd_status);
+
+int hdmitx_set_uevent(struct hdmitx_common *tx_comm, enum hdmitx_event type, int val)
+{
+	if (!tx_comm) {
+		HDMITX_ERROR("%s fail\n", __func__);
+		return -EINVAL;
+	}
+	return hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
 				type, val, false);
 }
 
@@ -1024,13 +980,14 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 
 	if (type >= VT_MAX)
 		return -EINVAL;
-	vic = hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.vic);
+
 	switch (type) {
 	case VT_DEFAULT:
 		break;
 	case VT_HDMI14_4K:
 		ieeeoui = HDMI_IEEE_OUI;
 		len = 5;
+		vic = hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic);
 		if (vic > 0) {
 			buffer[2] = len;
 			buffer[4] = GET_OUI_BYTE0(ieeeoui);
@@ -1060,8 +1017,8 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 			/* set bit1, ALLM_MODE */
 			buffer[8] |= 1 << 1;
 			/* reset vic which may be reset by VT_HDMI14_4K */
-			if (vic > 0) {
-				arg = tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.vic;
+			if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0) {
+				arg = tx_comm->fmt_para.vic;
 				hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_AVI_VIC, (void *)&arg, NULL);
 			}
 			hdmitx_hw_cntl(tx_hw, AUX_PKT_SET_VSIF2, buffer, NULL);
@@ -1097,22 +1054,18 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 int hdmitx_common_set_allm_mode(struct hdmitx_common *tx_comm, int mode)
 {
 	struct hdmitx_hw_common *tx_hw_base = NULL;
-	struct meson_tx_format_para *para = NULL;
 	u32 arg = 0;
-	u32 vic = 0;
 
 	if (!tx_comm || !tx_comm->tx_hw) {
 		HDMITX_ERROR("[%s]: null param\n", __func__);
 		return -EINVAL;
 	}
 	tx_hw_base = tx_comm->tx_hw;
-	para = &tx_comm->fmt_para;
 	/* disable ALLM HF-VSIF, recover HDMI1.4 4k VSIF if it's legacy 4k24/25/30hz */
 	if (mode == 0) {
 		tx_comm->allm_mode = 0;
 		hdmitx_common_setup_vsif_packet(tx_comm, VT_ALLM, 0, NULL);
-		vic = hdmitx_edid_get_hdmi14_4k_vic(para->tx_hw_para.hdmitx_hw_para.vic);
-		if (vic > 0 &&
+		if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0 &&
 			!hdmitx_dv_en(tx_hw_base) &&
 			!hdmitx_hdr10p_en(tx_hw_base))
 			hdmitx_common_setup_vsif_packet(tx_comm, VT_HDMI14_4K, 1, NULL);
@@ -1193,28 +1146,28 @@ static int hdmitx_common_edid_tracer_post_proc(struct hdmitx_common *tx_comm, st
 	struct dv_info *dv;
 	struct hdr_info *hdr;
 
-	if (!prxcap || !tx_comm || !tx_comm->base.tx_tracer) {
+	if (!prxcap || !tx_comm || !tx_comm->tx_tracer) {
 		HDMITX_ERROR("%s: invalid param\n", __func__);
 		return -1;
 	}
 
 	if (prxcap->head_err)
-		meson_tx_tracer_write_event(tx_comm->base.tx_tracer, TX_EDID_HEAD_ERROR);
+		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_EDID_HEAD_ERROR);
 	if (prxcap->chksum_err)
-		meson_tx_tracer_write_event(tx_comm->base.tx_tracer, TX_EDID_CHECKSUM_ERROR);
+		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_EDID_CHECKSUM_ERROR);
 
 	dv = &prxcap->dv_info;
 	if (dv->ieeeoui == DV_IEEE_OUI && dv->block_flag == CORRECT)
-		meson_tx_tracer_write_event(tx_comm->base.tx_tracer, TX_EDID_DV_SUPPORT);
+		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_EDID_DV_SUPPORT);
 
 	hdr = &prxcap->hdr_info;
 	if (hdr->hdr_support > 0)
-		meson_tx_tracer_write_event(tx_comm->base.tx_tracer, TX_EDID_HDR_SUPPORT);
+		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_EDID_HDR_SUPPORT);
 
 	if (prxcap->ieeeoui == HDMI_IEEE_OUI)
-		meson_tx_tracer_write_event(tx_comm->base.tx_tracer, TX_EDID_HDMI_DEVICE);
+		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_EDID_HDMI_DEVICE);
 	else
-		meson_tx_tracer_write_event(tx_comm->base.tx_tracer, TX_EDID_DVI_DEVICE);
+		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_EDID_DVI_DEVICE);
 
 	return 0;
 }
@@ -1281,6 +1234,19 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 		msleep_interruptible(20);
 	}
 
+	/*
+	 * notify phy addr to rx/cec:
+	 * rx/cec currently do not use the phy addr of below
+	 * two interfaces, just keep for safety
+	 */
+	/* if (tx_comm->hdmi_repeater == 1) { */
+	/* hdmitx_event_mgr_notify(tx_comm->event_mgr, */
+	/* HDMITX_PHY_ADDR_VALID, &tx_comm->base.rxcap.physical_addr); */
+	/* rx_edid_physical_addr(tx_comm->base.rxcap.vsdb_phy_addr.a, */
+	/* tx_comm->base.rxcap.vsdb_phy_addr.b, */
+	/* tx_comm->base.rxcap.vsdb_phy_addr.c, */
+	/* tx_comm->base.rxcap.vsdb_phy_addr.d); */
+	/* } */
 	meson_tx_edid_raw_data_print(tx_comm->base.edid_buf);
 
 	return 0;
@@ -1322,13 +1288,13 @@ void hdmitx_common_edid_clear(struct hdmitx_common *tx_comm)
 	/* rx_edid_physical_addr(0, 0, 0, 0); */
 }
 
-void hdmitx_current_status(struct hdmitx_common *tx_comm, enum tx_trace_log_bits event)
+void hdmitx_current_status(struct hdmitx_common *tx_comm, enum hdmitx_event_log_bits event)
 {
 	if (!tx_comm) {
 		HDMITX_ERROR("%s: invalid param\n", __func__);
 		return;
 	}
-	meson_tx_tracer_write_event(tx_comm->base.tx_tracer, event);
+	hdmitx_tracer_write_event(tx_comm->tx_tracer, event);
 }
 
 void hdmitx_hdr_load_hw_state(struct hdmitx_common *tx_comm)
@@ -1968,7 +1934,7 @@ int hdmitx_common_set_contenttype(struct hdmitx_common *tx_comm, int content_typ
 	 * TODO: follow spec to skip contenttype when ALLM is on.
 	 */
 	/* recover hdmi1.4 vsif if necessary */
-	if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.tx_hw_para.hdmitx_hw_para.vic) &&
+	if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) &&
 		!hdmitx_dv_en(tx_comm->tx_hw) &&
 		!hdmitx_hdr10p_en(tx_comm->tx_hw))
 		hdmitx_common_setup_vsif_packet(tx_comm, VT_HDMI14_4K, 1, NULL);
@@ -2034,28 +2000,24 @@ const struct hdr_info *hdmitx_common_get_hdr_info_rx(struct hdmitx_common *tx_co
 EXPORT_SYMBOL(hdmitx_common_get_hdr_info_rx);
 
 /* similar as disp_cap_show() */
-int hdmitx_common_get_mode_list(struct hdmitx_common *tx_comm, struct tx_timing **timing_list)
+int hdmitx_common_get_vic_list(struct hdmitx_common *tx_comm, int **vics)
 {
 	struct rx_cap *prxcap = &tx_comm->base.rxcap;
 	enum hdmi_vic vic;
 	int len = prxcap->VIC_count + VESA_MAX_TIMING;
 	int i;
 	int count = 0;
-	int *edid_vics = NULL;
+	int *viclist = 0;
+	int *edid_vics = 0;
 	enum hdmi_vic prefer_vic = HDMI_0_UNKNOWN;
-	struct tx_timing *edid_timings = NULL;
-	const struct tx_timing *timing;
 
-	mutex_lock(&tx_comm->base.valid_mode_mutex);
-	edid_vics = vmalloc(len * sizeof(int));
-	/* Allocate memory for timing list.
-	 * note timing list memory may be > PAGE_SIZE
-	 */
-	edid_timings = vzalloc(len * sizeof(struct tx_timing));
-	if (!edid_vics || !edid_timings) {
-		HDMITX_ERROR("%s alloc fail\n", __func__);
-		goto out;
+	if (!tx_comm) {
+		HDMITX_ERROR("%s: invalid param\n", __func__);
+		return -EINVAL;
 	}
+	mutex_lock(&tx_comm->base.valid_mode_mutex);
+	viclist = kcalloc(len, sizeof(int),  GFP_KERNEL);
+	edid_vics = vmalloc(len * sizeof(int));
 	memset(edid_vics, 0, len * sizeof(int));
 
 	/* step1: only select VIC which is supported in EDID */
@@ -2064,6 +2026,7 @@ int hdmitx_common_get_mode_list(struct hdmitx_common *tx_comm, struct tx_timing 
 		memcpy(edid_vics, prxcap->VIC, sizeof(int) * prxcap->VIC_count);
 	for (i = 0; i < VESA_MAX_TIMING && prxcap->vesa_timing[i]; i++)
 		edid_vics[prxcap->VIC_count + i] = prxcap->vesa_timing[i];
+
 	for (i = 0; i < len; i++) {
 		vic = edid_vics[i];
 		if (vic == HDMI_0_UNKNOWN)
@@ -2090,111 +2053,21 @@ int hdmitx_common_get_mode_list(struct hdmitx_common *tx_comm, struct tx_timing 
 			continue;
 		}
 
-		timing = meson_tx_mode_vic_to_timing(vic);
-		if (!timing) {
-			HDMITX_DEBUG("%s: vic[%d] not found in timing list.\n", __func__, vic);
-			continue;
-		}
-		memcpy(&edid_timings[count++], timing, sizeof(*timing));
+		viclist[count] = vic;
+		count++;
 	}
-out:
+
 	vfree(edid_vics);
-	if (count == 0) {
-		vfree(edid_timings);
-		*timing_list = NULL;
-	} else {
-		*timing_list = edid_timings;
-	}
+
+	if (count == 0)
+		kfree(viclist);
+	else
+		*vics = viclist;
+
 	mutex_unlock(&tx_comm->base.valid_mode_mutex);
 	return count;
 }
-EXPORT_SYMBOL(hdmitx_common_get_mode_list);
-
-/*
- * @tx_comm: pointer to the hdmitx_common structure
- * @timing_list: the input parameter points to the timings corresponding to edid vic.
- * @count: Input parameter: the number of valid times in the timing_lists array.
- * @vrr_timing_list: Output parameters used to obtain vrr_timing_list
- */
-int hdmitx_common_get_vrr_mode_list(struct hdmitx_common *tx_comm,
-	struct tx_timing **timing_list, int count, struct tx_timing **vrr_timing_list)
-{
-	int num_group = 0;
-	u32 vrr_cap = 0;
-	int count_qms = 0;
-	int i = 0, j = 0;
-	int *tmp;
-	struct hdmitx_vrr_mode_group *groups;
-	struct hdmitx_vrr_mode_group *group;
-	struct tx_timing *vrr_timings = NULL;
-	const struct tx_timing *timing;
-
-	if (!tx_comm || !timing_list) {
-		HDMITX_ERROR("%s tx_comm or timing_list is null\n", __func__);
-		return count;
-	}
-	vrr_timings = vzalloc(MAX_VRR_GROUP_VIC_NUM * sizeof(struct tx_timing));
-	groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*groups), GFP_KERNEL);
-	tmp = kcalloc(MAX_VRR_GROUP_VIC_NUM, sizeof(int),  GFP_KERNEL);
-	if (!groups || !tmp || !vrr_timings) {
-		HDMITX_ERROR("%s alloc fail\n", __func__);
-		goto out;
-	}
-
-	/* get vrr capability */
-	vrr_cap = hdmitx_common_get_vrr_cap(tx_comm);
-	num_group = hdmitx_common_get_vrr_mode_group(tx_comm, groups, MAX_VRR_MODE_GROUP);
-	if (vrr_cap) {
-		int src = 0, dst = 0;
-
-		for (i = 0; i < num_group; i++) {
-			group = &groups[i];
-			for (j = 0; j < ARRAY_SIZE(group->qms_vic_lists); j++) {
-				tmp[count_qms] = group->qms_vic_lists[j];
-				HDMITX_DEBUG("%s__%d__%d__%zd\n", __func__,
-				__LINE__, tmp[count_qms],
-				ARRAY_SIZE(group->qms_vic_lists));
-				count_qms++;
-			}
-		}
-
-		/*remove duplicate vics array variables*/
-		while (src  < count_qms) {
-			bool exist = false;
-
-			for (i = 0; i < count; i++) {
-				if (tmp[src] == timing_list[i]->vic) {
-					src++;
-					exist = true;
-					break;
-				}
-			}
-
-			if (!exist) {
-				timing = meson_tx_mode_vic_to_timing(tmp[src++]);
-				if (!timing) {
-					HDMITX_DEBUG("%s: vic[%d] not found in timing list.\n",
-						__func__, tmp[src++]);
-					continue;
-				}
-				memcpy(&vrr_timings[dst++], timing, sizeof(*timing));
-			}
-		}
-		count = dst;
-	}
-out:
-	kfree(tmp);
-	kfree(groups);
-	if (count == 0) {
-		vfree(vrr_timings);
-		*vrr_timing_list = NULL;
-	} else {
-		*vrr_timing_list = vrr_timings;
-	}
-
-	return count;
-}
-EXPORT_SYMBOL(hdmitx_common_get_vrr_mode_list);
+EXPORT_SYMBOL(hdmitx_common_get_vic_list);
 
 int hdmitx_common_get_hdr_status(struct hdmitx_common *tx_comm)
 {
@@ -2262,7 +2135,6 @@ u32 hdmitx_common_get_vrr_cap(struct hdmitx_common *tx_comm)
 	if (prxcap->qms || prxcap->vrr_max || prxcap->vrr_min) {
 		vrr_cap |= prxcap->qms ? QMS_VRR_SUP : 0;
 		vrr_cap |= prxcap->vrr_min ? GAMING_VRR_SUP : 0;
-		HDMITX_DEBUG("%s get vrr cap : %d\n", __func__, vrr_cap);
 		return vrr_cap;
 	}
 
@@ -2467,7 +2339,7 @@ static void calc_vrr_range(struct rx_cap *prxcap,
 	 * Values of 49-63 are reserved.
 	 * Sources shall interpret values higher than 48 as a value of 48.
 	 * The actual limit is approximately 1.31% below this integer value in order
-	 * to support fractional frame rates (e.g., 24/1.001) and pixel clock extremes
+	 * to support fractional frame rates (e.g., 24/1.001) and pixel clock extremes。
 	 */
 	if (prxcap->vrr_min >= 49 && prxcap->vrr_min <= 63)
 		group->game_vrr_min = 4800;

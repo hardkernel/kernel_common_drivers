@@ -12,6 +12,8 @@ $(MEDIA_MODULE_NAME)-$(AMLOGIC_HDMITX_DRIVER_MODERN) += \
 							vout/meson_tx_connector/hdmitx/hdmitx_mode_set.o \
 							vout/meson_tx_connector/hdmitx/hdmitx_vout.o \
 							vout/meson_tx_connector/hdmitx/hdmitx_audio.o \
+							vout/meson_tx_connector/hdmitx/hdmitx_tracer_linux.o \
+							vout/meson_tx_connector/hdmitx/hdmitx_event_mgr_linux.o \
 							vout/meson_tx_connector/hdmitx/hdmitx_log.o \
 							vout/meson_tx_connector/hdmitx/hdmitx_compliance.o \
 							vout/meson_tx_connector/hdmitx/hdmitx_check_valid.o \

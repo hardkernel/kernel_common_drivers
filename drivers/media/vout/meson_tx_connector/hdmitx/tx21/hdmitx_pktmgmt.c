@@ -390,7 +390,7 @@ irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx21_dev *hdev)
 	struct dsc_offer_tx_data dsc_data;
 	struct tx_timing *timing;
 
-	if (!hdev->tx_comm.fmt_para.tx_hw_para.hdmitx_hw_para.dsc_en || hdev->emp_no == 0)
+	if (!hdev->dsc_en || hdev->emp_no == 0)
 		return IRQ_HANDLED;
 
 	if (hdev->emp_no != -1 || hdev->emp_no > 0)

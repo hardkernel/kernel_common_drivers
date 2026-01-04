@@ -72,17 +72,17 @@ static void dptx_set_tu_config(struct dptx_hw_common *hw_comm, u8 vc_id, u32 pix
 	u32 tu_size;
 	u32 bits_per_pixel;
 
-	if (!hw_comm || !pixel_clock || color >= COLORIMETRY_FORMAT_MAX)
-		return;
-
 	/* default value */
 	dptx20_reg_write(hw_comm, CORE_LEVEL,
 		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_TU_CONFIG), 64);
 
+	if (!hw_comm || !pixel_clock || color >= COLORIMETRY_FORMAT_MAX)
+		return;
+
 	bits_per_pixel = dptx_calc_bpp(color, colordepth);
 	bandwidth = dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_LINK_BW_SET) * 27;
 	bandwidth *= dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_LANE_COUNT_SET);
-	if (bandwidth == 0)
+	if (!bandwidth)
 		return;
 	data_per_tu = (pixel_clock * 8 * bits_per_pixel) / bandwidth;
 	tu_size = ((data_per_tu % 1000) * 16) / 1000;
@@ -96,9 +96,9 @@ static inline u32 choose_index(u32 val)
 {
 	u32 idx = 0ul;
 
-	if (val > 1ul && val <  6ul)
+	if (val >  1ul && val <  6ul)
 		idx = 0ul;
-	if (val > 7ul && val < 16ul)
+	if (val >  7ul && val < 16ul)
 		idx = 1ul;
 	if (val > 17ul && val < 48ul)
 		idx = 2ul;
@@ -142,7 +142,8 @@ static void dptx_set_data_control(struct dptx_hw_common *hw_comm, u8 vc_id,
 	/*
 	 * link domain first TU delay after input data available
 	 * large frames: delay depth = 4, accum delay = 1/2 TU
-	 * small frames: delay depth = 3, accum delay = 1/4 TU (usually test only frames)
+	 * small frames: delay depth = 3, accum delay = 1/4 TU
+	 *   always for test only
 	 */
 	if (h_blank < (h_active / 20)) {
 		fifo_settings = 0;
@@ -178,8 +179,7 @@ static void dptx_set_data_control(struct dptx_hw_common *hw_comm, u8 vc_id,
 	data_control = dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_SRCX_DATA_CONTROL);
 	data_control &= ~0xffff;
 	data_control |= fifo_settings;
-	dptx20_reg_write(hw_comm, CORE_LEVEL,
-		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_DATA_CONTROL), data_control);
+	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_SRCX_DATA_CONTROL, data_control);
 }
 
 static void dptx20_video_soft_reset(struct dptx_hw_common *hw_comm, u8 vc_id)
@@ -199,7 +199,6 @@ static void dptx20_timer_intr_handler(struct dptx_hw_common *hw_comm, enum timer
 		return;
 
 	handler = &hw_comm->timer_manager->handlers[type];
-	DPTX_DEBUG("%s timer_type = %d\n", __func__, type);
 
 	/* handler the TIMER_ISR and TIMER_REPEAT_ISR case */
 	switch (handler->cfg.wait_type) {
@@ -244,7 +243,29 @@ void dptx_hw_get_mnvid_clock(struct dptx_hw_common *hw_comm, u8 vc_id,
 		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_NVID));
 }
 
-/* timer interrupt bottom handler */
+/* aux reply interrupt bottom handler */
+static void dptx_aux_irq_process(void *para)
+{
+	struct dptx_hw_common *hw_comm = (struct dptx_hw_common *)para;
+	struct dptx20_hw *tx20_hw = NULL;
+
+	if (!hw_comm) {
+		DPTX_ERROR("%s NULL hw_comm pointer\n", __func__);
+		return;
+	}
+	tx20_hw = to_dptx20_hw(hw_comm);
+	/* AUX interrupts, below two interrupts should not come together */
+	if (tx20_hw->intr_state & INTERRUPT_STATE_REPLY_RECEIVED) {
+		tx20_hw->intr_state &= ~INTERRUPT_STATE_REPLY_RECEIVED;
+		DPTX_INFO("intr_state=0x%x\n", tx20_hw->intr_state);
+	}
+	if (tx20_hw->intr_state & INTERRUPT_STATE_REPLY_TIMEOUT) {
+		tx20_hw->intr_state &= ~INTERRUPT_STATE_REPLY_TIMEOUT;
+		DPTX_INFO("intr_state=0x%x\n", tx20_hw->intr_state);
+	}
+}
+
+/* aux reply interrupt bottom handler */
 static void dptx_timer_irq_process(void *para)
 {
 	struct dptx_hw_common *hw_comm = (struct dptx_hw_common *)para;
@@ -255,10 +276,7 @@ static void dptx_timer_irq_process(void *para)
 		return;
 	}
 	tx20_hw = to_dptx20_hw(hw_comm);
-	if (tx20_hw->intr_state & INTERRUPT_STATE_LPM_TIMER_EVENT) {
-		tx20_hw->intr_state &= ~INTERRUPT_STATE_LPM_TIMER_EVENT;
-		dptx20_timer_intr_handler(hw_comm, HW_LPM_TIMER);
-	}
+	/* AUX interrupts, below two interrupts should not come together */
 	if (tx20_hw->intr_state & INTERRUPT_STATE_MST_TIMER_EVENT) {
 		tx20_hw->intr_state &= ~INTERRUPT_STATE_MST_TIMER_EVENT;
 		dptx20_timer_intr_handler(hw_comm, HW_MST_TIMER);
@@ -271,16 +289,25 @@ static void dptx_timer_irq_process(void *para)
 		tx20_hw->intr_state &= ~INTERRUPT_STATE_GP_TIMER_EVENT;
 		dptx20_timer_intr_handler(hw_comm, HW_GP_TIMER);
 	}
+	/* STUB for LPM timer */
 }
 
 static struct tx_task_info dptx20_task_infos[] = {
+	{
+		.name = "aux_irq_task",
+		.fn = dptx_aux_irq_process,
+		.type = AUX_IRQ_TASK,
+		.queue_type = TASK_QUEUE_AUX,
+		.flag = TASK_FLAG_DELAY_WORK,
+		.queue_name = "aux_irq",
+		.queue_flag = WQ_HIGHPRI | WQ_CPU_INTENSIVE,
+	},
 	{
 		.name = "timer_irq_task",
 		.fn = dptx_timer_irq_process,
 		.type = TIMER_IRQ_TASK,
 		.queue_type = TASK_QUEUE_TIMER,
 		.flag = TASK_FLAG_DELAY_WORK,
-		.init_queue_name = "timer_irq",
 		.queue_name = "timer_irq",
 		.queue_flag = WQ_HIGHPRI | WQ_CPU_INTENSIVE,
 	},
@@ -292,6 +319,7 @@ static int dptx20_task_init(struct dptx_hw_common *hw_comm)
 	int i;
 	int ret = 0;
 	struct dptx20_hw *tx20_hw = NULL;
+	char queue_name[QUEUE_NAME_MAX_LEN] = {0};
 
 	if (!hw_comm) {
 		DPTX_ERROR("%s NULL hw_comm pointer\n", __func__);
@@ -303,8 +331,8 @@ static int dptx20_task_init(struct dptx_hw_common *hw_comm)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(dptx20_task_infos); i++) {
-		sprintf(dptx20_task_infos[i].queue_name, "dptx%d_%s", hw_comm->dev_idx,
-			dptx20_task_infos[i].init_queue_name);
+		sprintf(queue_name, "dptx%d_%s", hw_comm->dev_idx, dptx20_task_infos[i].queue_name);
+		dptx20_task_infos[i].queue_name = queue_name;
 		ret = tx_task_mgr_setup_task(tx20_hw->task_mgr, &dptx20_task_infos[i], hw_comm);
 		if (ret)
 			DPTX_ERROR("%s setup task[%s] failed\n",
@@ -332,21 +360,23 @@ static irqreturn_t dptx_intr_handler(int irq, void *para)
 	struct dptx_hw_common *hw_comm = (struct dptx_hw_common *)para;
 	struct dptx20_hw *tx20_hw = to_dptx20_hw(hw_comm);
 	struct meson_hw_event_ops *event_ops = hw_comm->hw_base.event_ops;
+	u32 intr_state;
 	bool hpd_state;
-	u32 aux_intr_state = 0;
-	u32 aux_status = 0;
 	u32 intr_mask = dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_INTERRUPT_MASK);
-	u32 intr_state = dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_INTERRUPT_STATE);
-
-	/* clear all intr status asap */
-	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_INTERRUPT_STATE, intr_state);
 
 	if (!event_ops)
 		return IRQ_HANDLED;
 
+	/*
+	 * save all the un-handled intr state, clear all interrupts status asap;
+	 * clear corresponding saved intr state until it's handled
+	 */
+	intr_state = dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_INTERRUPT_STATE);
 	tx20_hw->intr_state |= intr_state;
 	/* only handle enabled irq */
 	tx20_hw->intr_state &= ~intr_mask;
+	/* clear all intr status */
+	dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_INTERRUPT_CAUSE);
 
 	/* hotplug events in common tx task queue */
 	if (tx20_hw->intr_state & INTERRUPT_STATE_HPD_EVENT) {
@@ -354,8 +384,7 @@ static irqreturn_t dptx_intr_handler(int irq, void *para)
 		hpd_state = !!dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_HPD_INPUT_STATE);
 		if (hpd_state) {
 			/* HPD rising */
-			event_ops->queue_event(event_ops->data, HPD_PLUGIN,
-				hw_comm->hpd_in_filter_ms);
+			event_ops->queue_event(event_ops->data, HPD_PLUGIN, 500);
 		} else {
 			/* HPD falling */
 			event_ops->cancel_event(event_ops->data, HPD_PLUGIN, false);
@@ -367,7 +396,9 @@ static irqreturn_t dptx_intr_handler(int irq, void *para)
 		tx20_hw->intr_state &= ~INTERRUPT_STATE_HPD_IRQ;
 		event_ops->queue_event(event_ops->data, IRQ_HPD_TASK, 0);
 	}
-
+	/* aux irq in dptx private task queue */
+	if (tx20_hw->intr_state & (INTERRUPT_STATE_REPLY_RECEIVED | INTERRUPT_STATE_REPLY_TIMEOUT))
+		tx_task_mgr_queue_task(tx20_hw->task_mgr, AUX_IRQ_TASK, 0);
 	if (tx20_hw->intr_state & (INTERRUPT_STATE_SRC0_OVF_EVENT | INTERRUPT_STATE_SRC0_ERR_EVENT))
 		dptx20_video_soft_reset(hw_comm, 0);
 	if (tx20_hw->intr_state & (INTERRUPT_STATE_SRC1_OVF_EVENT | INTERRUPT_STATE_SRC1_ERR_EVENT))
@@ -376,40 +407,10 @@ static irqreturn_t dptx_intr_handler(int irq, void *para)
 		dptx20_video_soft_reset(hw_comm, 2);
 	if (tx20_hw->intr_state & (INTERRUPT_STATE_SRC3_OVF_EVENT | INTERRUPT_STATE_SRC3_ERR_EVENT))
 		dptx20_video_soft_reset(hw_comm, 3);
-	if (tx20_hw->intr_state & (INTERRUPT_STATE_LPM_TIMER_EVENT |
-		INTERRUPT_STATE_MST_TIMER_EVENT |
-		INTERRUPT_STATE_HDCP_TIMER_EVENT |
-		INTERRUPT_STATE_GP_TIMER_EVENT))
+	if (tx20_hw->intr_state & (INTERRUPT_STATE_MST_TIMER_EVENT |
+		INTERRUPT_STATE_HDCP_TIMER_EVENT | INTERRUPT_STATE_GP_TIMER_EVENT))
 		tx_task_mgr_queue_task(tx20_hw->task_mgr, TIMER_IRQ_TASK, 0);
-
-	aux_intr_state = intr_state & (INTERRUPT_STATE_REPLY_RECEIVED |
-		INTERRUPT_STATE_REPLY_TIMEOUT);
-	tx20_hw->intr_state &= ~(INTERRUPT_STATE_REPLY_RECEIVED | INTERRUPT_STATE_REPLY_TIMEOUT);
-	if (aux_intr_state) {
-		if (aux_intr_state == INTERRUPT_STATE_REPLY_TIMEOUT) {
-			tx20_hw->aux_status = DPTX_AUX_STATUS_TIMEOUT;
-			DPTX_DEBUG("%s aux timeout_intr\n", __func__);
-		} else if (aux_intr_state == INTERRUPT_STATE_REPLY_RECEIVED) {
-			aux_status = dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_AUX_STATUS);
-			if (aux_status & AUX_STATUS_REPLY_RECEIVED) {
-				tx20_hw->aux_status = DPTX_AUX_STATUS_OK;
-			} else if (aux_status & AUX_STATUS_REPLY_ERROR) {
-				tx20_hw->aux_status = DPTX_AUX_STATUS_ERROR;
-			} else {
-				DPTX_ERROR("%s unexpected aux_status 0x%x\n", __func__, aux_status);
-				/* default aux status */
-				tx20_hw->aux_status = DPTX_AUX_STATUS_REPLY_TIMEOUT;
-			}
-			DPTX_DEBUG("%s aux reply received, aux_status: 0x%x\n",
-				__func__, aux_status);
-		} else {
-			DPTX_ERROR("%s invalid aux_intr_state 0x%x\n", __func__, aux_intr_state);
-			/* default aux status */
-			tx20_hw->aux_status = DPTX_AUX_STATUS_REPLY_TIMEOUT;
-		}
-		complete(&tx20_hw->aux_completion);
-	}
-
+	/* TODO, LPM timer bits undefined */
 	return IRQ_HANDLED;
 }
 
@@ -427,7 +428,7 @@ static int dptx_setup_irq(struct dptx_hw_common *hw_comm)
 
 	if (!hw_comm)
 		return -1;
-	ret = request_irq(hw_comm->dptx_irq_id, &dptx_intr_handler,
+	ret = request_irq(hw_comm->irq_id, &dptx_intr_handler,
 		IRQF_SHARED, intr_name[hw_comm->dev_idx], (void *)hw_comm);
 	return ret;
 }
@@ -437,7 +438,7 @@ static void dptx_free_irq(struct dptx_hw_common *hw_comm)
 	if (!hw_comm)
 		return;
 
-	free_irq(hw_comm->dptx_irq_id, (void *)hw_comm);
+	free_irq(hw_comm->irq_id, (void *)hw_comm);
 }
 
 /*
@@ -461,34 +462,14 @@ static void init_tps1(struct dptx_hw_common *hw_comm)
 
 static void dptx_set_phy_link_rate(struct meson_tx_hw *tx_hw, enum dp_link_rate_e link_rate)
 {
-	u32 link_rate_mbps = 0;
-
 	if (!tx_hw || !tx_hw->tx_phy)
 		return;
 	if (link_rate == DPTX_LINK_RATE_UNKNOWN || link_rate == DPTX_LINK_RATE_MAX) {
 		DPTX_ERROR("%s invalid link rate: %d\n", __func__, link_rate);
 		return;
 	}
-
-	switch (link_rate) {
-	case DPTX_LINK_RATE_1P62GHZ:
-		link_rate_mbps = 1620;
-		break;
-	case DPTX_LINK_RATE_2P70GHZ:
-		link_rate_mbps = 2700;
-		break;
-	case DPTX_LINK_RATE_5P40GHZ:
-		link_rate_mbps = 5400;
-		break;
-	case DPTX_LINK_RATE_8P10GHZ:
-		link_rate_mbps = 8100;
-		break;
-	default:
-		link_rate_mbps = 0;
-		break;
-	}
-	tx_hw->tx_phy_conf.dp_ops.link_rate = link_rate_mbps;
-
+	/* related to dptx phy implementation, transfer rate to 1620/2700... */
+	tx_hw->tx_phy_conf.dp_ops.link_rate = (unsigned int)link_rate;
 	meson_tx_phy_configure(tx_hw->tx_phy, &tx_hw->tx_phy_conf);
 }
 
@@ -574,14 +555,11 @@ static int dptx_phy_inst_data_init(struct meson_tx_hw *tx_hw)
  */
 static int dptx_aux_nb_init(struct dptx_hw_common *hw_comm)
 {
-	struct dptx20_hw *tx20_hw = NULL;
-
-	if (!hw_comm)
-		return -EINVAL;
-
-	tx20_hw = to_dptx20_hw(hw_comm);
-	if (!tx20_hw->aux_block_mode)
-		init_completion(&tx20_hw->aux_completion);
+	/* TODO: */
+	/* step1: init aux transaction queue */
+	/* step2: state machine init for aux transaction */
+	/* step3: register aux interrupt handler */
+	/* step4: add virtual timing handler for aux */
 
 	return 0;
 }
@@ -630,12 +608,18 @@ static void dptx_func_blk_data_init(struct dptx_hw_common *hw_comm)
 {
 	if (!hw_comm)
 		return;
+	/* get core revision */
+	hw_comm->core_info = dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_CORE_REVISION);
 
 	dptx_aux_nb_init(hw_comm);
 	dptx_tmr_gp_init(hw_comm);
 	dptx_tmr_hdcp_init(hw_comm);
 	dptx_tmr_mst_init(hw_comm);
-	hw_comm->force_tps_pattern = 0;
+}
+
+/* #1.3 lpm data structure init */
+static void dptx_lpm_data_init(struct dptx_hw_common *hw_comm)
+{
 }
 
 /* hw_init#1 init hw realted driver data structure */
@@ -645,6 +629,7 @@ static void dptx_hw_inst_data_init(struct dptx_hw_common *hw_comm)
 		return;
 	dptx_phy_inst_data_init(&hw_comm->hw_base);
 	dptx_func_blk_data_init(hw_comm);
+	dptx_lpm_data_init(hw_comm);
 }
 
 /* #2.1.1 phy init operation:
@@ -672,11 +657,6 @@ static void dptx_hw_phy_init(struct meson_tx_phy *tx_phy)
  */
 static void dptx_hw_set_clk_div(struct dptx_hw_common *hw_comm, u32 apb_clk_mhz)
 {
-	/*
-	 * set clock divider for generating the internal 1MHz
-	 * clock from the APB host interface clock
-	 * APB clk/divider = 200MHz / 200 = 1Mhz
-	 */
 	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_AUX_CLOCK_DIVIDER, apb_clk_mhz);
 }
 
@@ -709,6 +689,9 @@ static void dptx_hw_set_clk_div(struct dptx_hw_common *hw_comm, u32 apb_clk_mhz)
  */
 static void dptx_hw_set_link_rate(struct dptx_hw_common *hw_comm, enum dp_link_rate_e link_rate)
 {
+	/* Set link rate: TO CONFIRM if needed */
+    /* cfg.link_rate = link_rate; */
+
 	/* Disable the core before continuing */
 	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_TRANSMITTER_ENABLE, 0);
 	/* Set the link rate in the core (for completeness) */
@@ -732,27 +715,14 @@ static void dptx_hw_set_link_rate(struct dptx_hw_common *hw_comm, enum dp_link_r
  */
 static void dptx_hw_set_lane_ct(struct dptx_hw_common *hw_comm, enum dp_lane_count_e lane_ct)
 {
+	/* Set link rate: TO CONFIRM if needed */
+    /* cfg.lane_ct = lane_ct; */
+
 	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_LANE_COUNT_SET, lane_ct);
 	dptx_phy_set_lane_count(&hw_comm->hw_base, lane_ct);
 }
 
-static void dptx_platform_hw_init(struct dptx_hw_common *hw_comm)
-{
-	/* dptx apb2 clk div: 0x2 */
-	dptx20_set_plt_reg_bits(hw_comm, CLKCTRL_DPTX_CLK_CTRL, 0x1, 0x0, 0x8);
-	/* dptx apb2 clk source: fclk_div5: 400Mhz */
-	dptx20_set_plt_reg_bits(hw_comm, CLKCTRL_DPTX_CLK_CTRL, 0x3, 0x9, 0x2);
-	/* dptx apb2 clk enable */
-	dptx20_set_plt_reg_bits(hw_comm, CLKCTRL_DPTX_CLK_CTRL, 0x1, 0x8, 0x1);
-
-	/* mem_pd */
-	if (hw_comm->is_edp)
-		dptx20_set_plt_reg_bits(hw_comm, PWRCTRL_MEM_PD21, 0x0, 0x0, 18);
-	else
-		dptx20_set_plt_reg_bits(hw_comm, PWRCTRL_MEM_PD13, 0x0, 0x8, 18);
-}
-
-#define APB_BUS_FREQ_MHZ 0xC8
+#define APB_BUS_FREQ_MHZ 150
 
 /*
  * Function: dptx_hw_core_init
@@ -763,10 +733,7 @@ static void dptx_platform_hw_init(struct dptx_hw_common *hw_comm)
  */
 void dptx_hw_core_init(struct dptx_hw_common *hw_comm)
 {
-	hw_comm->hpd_in_filter_ms = 100;
-	/* get core revision */
-	hw_comm->core_info = dptx20_reg_read(hw_comm, CORE_LEVEL, DPTX20_CORE_REVISION);
-	/* Set the clock divider for aux: apb2clk(200Mhz) / 200 = 1Mhz */
+	/* Set the clock divider for the TX core to the APB clock frequency */
 	dptx_hw_set_clk_div(hw_comm, APB_BUS_FREQ_MHZ);
 	/* Disable transmitter */
 	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_TRANSMITTER_ENABLE, 0);
@@ -792,38 +759,34 @@ void dptx_hw_core_init(struct dptx_hw_common *hw_comm)
 }
 
 /*
+ * Function: dptx_hw_lpm_stack_init
+ *
+ * LPM stack initialization function
+ * This function initializes LPM data structures.
+ *
+ * #2.1.3
+ */
+static void dptx_hw_lpm_stack_init(struct dptx_hw_common *hw_comm)
+{
+	/* TODO */
+	/* step1: lpm state machine init */
+	/* step2: lpm event queue init, 8 events */
+	/* step3: register lpm interrupt handler */
+}
+
+/*
  * Function: dptx_hw_intr_init
  *
  * Initialize DisplayPort transmitter interrupts.
  *
  * #2.1.4
  */
-static void dptx_hw_intr_init(struct dptx_hw_common *hw_comm)
+void dptx_hw_intr_init(struct dptx_hw_common *hw_comm)
 {
-	struct dptx20_hw *tx20_hw = NULL;
-	u32 intr_mask = INTERRUPT_MASK_HPD_IRQ_EVENT |
-		INTERRUPT_MASK_HPD_EVENT |
-		INTERRUPT_MASK_SRC0_OVF_EVENT |
-		INTERRUPT_MASK_SRC0_ERR_EVENT |
-		INTERRUPT_MASK_SRC1_OVF_EVENT |
-		INTERRUPT_MASK_SRC1_ERR_EVENT |
-		INTERRUPT_MASK_SRC2_OVF_EVENT |
-		INTERRUPT_MASK_SRC2_ERR_EVENT |
-		INTERRUPT_MASK_SRC3_OVF_EVENT |
-		INTERRUPT_MASK_SRC3_ERR_EVENT;
+	/* TODO: interrupt handler register */
 
-	if (!hw_comm) {
-		DPTX_ERROR("%s NULL hw_comm instance!\n", __func__);
-		return;
-	}
-	tx20_hw = to_dptx20_hw(hw_comm);
-
-	if (tx20_hw->aux_block_mode)
-		intr_mask |= (INTERRUPT_MASK_REPLY_RECEIVED_EVENT |
-			INTERRUPT_MASK_REPLY_TIMEOUT_EVENT);
 	/* core level intr unmask: enable core intr */
-	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_INTERRUPT_MASK, intr_mask);
-	dptx_setup_irq(hw_comm);
+	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_INTERRUPT_MASK, 0);
 }
 
 /*
@@ -839,25 +802,23 @@ void dptx_isr_disable(struct dptx_hw_common *tx_comm, u32 flags)
 	dptx20_reg_write(tx_comm, CORE_LEVEL, DPTX20_INTERRUPT_MASK, isr_mask);
 }
 
-void dptx_isr_enable(struct dptx_hw_common *tx_comm, u32 flags)
-{
-	u32 isr_mask = dptx20_reg_read(tx_comm, CORE_LEVEL, DPTX20_INTERRUPT_MASK);
-
-	isr_mask &= ~flags;
-	dptx20_reg_write(tx_comm, CORE_LEVEL, DPTX20_INTERRUPT_MASK, isr_mask);
-}
-
 /* #2.1 dptx task */
 static void dptx_hw_dptx_task_init(struct dptx_hw_common *hw_comm)
 {
-	dptx_platform_hw_init(hw_comm);
 	dptx_hw_phy_init(hw_comm->hw_base.tx_phy);
 	dptx_hw_core_init(hw_comm);
+	dptx_hw_lpm_stack_init(hw_comm);
 	dptx_hw_intr_init(hw_comm);
 }
 
 /* #2.2 Initialize HDCP task */
 static void dptx_hw_hdcp2_task_init(struct dptx_hw_common *hw_comm)
+{
+	/* TODO */
+}
+
+/* #2.3 Initialize the timer task */
+static void dptx_hw_timer_task_init(struct dptx_hw_common *hw_comm)
 {
 	/* TODO */
 }
@@ -880,6 +841,7 @@ static void dptx_hw_task_init(struct dptx_hw_common *hw_comm)
 {
 	dptx_hw_dptx_task_init(hw_comm);
 	dptx_hw_hdcp2_task_init(hw_comm);
+	dptx_hw_timer_task_init(hw_comm);
 	dptx_hw_mst_task_init(hw_comm);
 }
 
@@ -903,10 +865,11 @@ static int dptx20_hw_init(struct meson_tx_hw *tx_hw)
 	ret = dptx20_task_init(hw_comm);
 	if (ret < 0)
 		return ret;
+	/* TO CONFIRM: if need to move to dptx_hw_intr_init() */
+	dptx_setup_irq(hw_comm);
 
 	dptx_hw_inst_data_init(hw_comm);
 	dptx_hw_task_init(hw_comm);
-
 	return 0;
 }
 
@@ -969,9 +932,7 @@ static void dptx20_hw_set_vsc_colorimetry(struct dptx_hw_common *hw_comm,
 {
 	u32 data = 0;
 
-	if (para->cs != HDMI_COLORSPACE_YUV420 &&
-		para->colorimetry < 2 &&
-		!para->tx_hw_para.dptx_hw_para.dsc_en) {
+	if (para->cs != HDMI_COLORSPACE_YUV420 && !para->dsc_en) {
 		/* disable override of MSA */
 		dptx20_reg_write(hw_comm, CORE_LEVEL,
 			dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_COLORIMETRY_OVERRIDE), 0);
@@ -982,14 +943,13 @@ static void dptx20_hw_set_vsc_colorimetry(struct dptx_hw_common *hw_comm,
 	data |= dptx20_get_mapped_cd_conf(para->cd) & 0x7;
 	/* override colorimetry */
 	if (para->cs == HDMI_COLORSPACE_YUV420)
-		data |= 0x2 << 3;
+		data |= 0x4 << 3;
 	else
 		data |= (para->cs & 0x3) << 3;
-	if (para->tx_hw_para.dptx_hw_para.dsc_en)
+	if (para->dsc_en)
 		data |= 0x5 << 3;
 	/* override enable */
 	data |= 1 << 6;
-	data |= 1 << 7;
 
 	dptx20_reg_write(hw_comm, CORE_LEVEL,
 		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_COLORIMETRY_OVERRIDE), data);
@@ -1010,14 +970,14 @@ static void dptx20_hw_set_msa(struct dptx_hw_common *hw_comm,
 	/*
 	 * When bit 6 is set to 1, a Source device uses a VSC SDP to indicate the Pixel
 	 * Encoding/Colorimetry format and that a Sink device shall ignore bit 7, and MISC0,
-	 * bits 7:1 (i.e., MISC1, bit 7, and MISC0, bits 7:1, become "don't care").
+	 * bits 7:1 (i.e., MISC1, bit 7, and MISC0, bits 7:1, become "don’t care").
 	 */
 	bool vsc_colorimetry = false;
 	/*
 	 * 0: Link clock and main video stream clock are asynchronous.
 	 * 1: Link clock and main video stream clock are synchronous.
 	 */
-	bool clk_synchronous = hw_comm->vid_clk_sync_mode;
+	bool clk_synchronous = false;
 	/* Y-only or Raw mode is not default setting, support in the future */
 	bool y_only_or_raw_mode = false;
 	bool even_line_cnt = false;
@@ -1034,7 +994,7 @@ static void dptx20_hw_set_msa(struct dptx_hw_common *hw_comm,
 	/* 0 = Active high pulse. 1 = Active low pulse */
 	dptx20_reg_write(hw_comm, CORE_LEVEL,
 		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_MAIN_STREAM_POLARITY),
-			(!para->timing.h_pol) | (!para->timing.v_pol << 1));
+		(!para->timing.h_pol) | (!para->timing.v_pol << 1));
 	/* Hsync width, measured in pixel count. */
 	dptx20_reg_write(hw_comm, CORE_LEVEL,
 		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_MAIN_STREAM_HSWIDTH),
@@ -1066,8 +1026,8 @@ static void dptx20_hw_set_msa(struct dptx_hw_common *hw_comm,
 	misc |= (para->cs & 0x3) << 1;
 	/* 0: VESA (full/limit color)range, 1: CTA range */
 	misc |= para->cta_range << 3;
-	/* 0: BT.601, 1: BT.709, 2: BT2020(will be replaced by VSC, so ignore) */
-	misc |= !!para->colorimetry << 4;
+	/* 0: BT.601, 1: BT.709 */
+	misc |= para->bt709 << 4;
 	misc |= (dptx20_get_mapped_cd_conf(para->cd) & 0x7) << 5;
 	dptx20_reg_write(hw_comm, CORE_LEVEL,
 		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_MAIN_STREAM_MISC0), misc);
@@ -1075,12 +1035,6 @@ static void dptx20_hw_set_msa(struct dptx_hw_common *hw_comm,
 	/* check the line count is even or odd for interlace mode */
 	if (para->timing.pi_mode == 0)
 		even_line_cnt = para->timing.v_total % 2 ? false : true;
-	else
-		even_line_cnt = false;
-	if (para->cs == HDMI_COLORSPACE_YUV420 || para->colorimetry >= 2)
-		vsc_colorimetry = true;
-	else
-		vsc_colorimetry = false;
 	misc = 0;
 	/* set to 1 when the number of lines per frame of
 	 * the interlaced video stream is an even number.
@@ -1095,27 +1049,26 @@ static void dptx20_hw_set_msa(struct dptx_hw_common *hw_comm,
 	dptx20_reg_write(hw_comm, CORE_LEVEL,
 		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_MAIN_STREAM_MISC1), misc);
 
-	if (clk_synchronous) {
-		/*
-		 * In asynchronous mode, this register is read-only and will return the
-		 * value computed by the internal logic based on the input video clock. In
-		 * synchronous mode, this register is read-write and should be set to the
-		 * pixel clock rate multiplied by 100000
-		 */
-		dptx20_reg_write(hw_comm, CORE_LEVEL,
-			dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_MVID), para->timing.pixel_freq);
-		/*
-		 * DP1.4 spec Chapter2.2.3: The Nvid value in this Asynchronous Clock mode shall
-		 * be set to 2^15 (= 32768) or higher. A value of power of two should be used.
-		 *
-		 * In asynchronous mode, this register is read-only and will
-		 * return 0x8000. In synchronous mode, this register is read-write
-		 * and should be set to the link rate multiplied by 100000
-		 */
-		dptx20_reg_write(hw_comm, CORE_LEVEL,
-			dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_NVID),
-			para->tx_hw_para.dptx_hw_para.link_rate * 27000);
-	}
+	/*
+	 * In asynchronous mode, this register is read-only and will return the
+	 * value computed by the internal logic based on the input video clock. In
+	 * synchronous mode, this register is read-write and should be set to the
+	 * pixel clock rate multiplied by 100000
+	 */
+	/* dptx20_reg_write(hw_comm, CORE_LEVEL, */
+		/* dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_MVID), para->timing->pixel_freq); */
+
+	/*
+	 * DP1.4 spec Chapter2.2.3: The Nvid value in this Asynchronous Clock mode shall
+	 * be set to 2^15 (= 32768) or higher. A value of power of two should be used.
+	 *
+	 * In asynchronous mode, this register is read-only and will
+	 * return 0x8000. In synchronous mode, this register is read-write
+	 * and should be set to the link rate multiplied by 100000
+	 */
+	/* dptx20_reg_write(hw_comm, CORE_LEVEL, */
+		/* dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_NVID), */
+		/* para->tx_hw_para.dptx_hw_para.link_rate); */
 }
 
 /* config MST_CTRL in DPCD */
@@ -1149,10 +1102,6 @@ static void dptx20_hw_src_vid_enable(struct dptx_hw_common *hw_comm, u8 vc_id, b
 	if (enable) {
 		dptx20_reg_write(hw_comm, CORE_LEVEL,
 			dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_USER_CONTROL), 0x8);
-		/* Set this bit to a 1 to enable the output of active data on the
-		 * DisplayPort main link. This bit enables source X data to
-		 * be inserted into the packet in the assigned time slots.
-		 */
 		dptx20_reg_write(hw_comm, CORE_LEVEL,
 			dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_VIDEO_STREAM_ENABLE), 0x1);
 	} else {
@@ -1161,11 +1110,6 @@ static void dptx20_hw_src_vid_enable(struct dptx_hw_common *hw_comm, u8 vc_id, b
 		dptx20_reg_write(hw_comm, CORE_LEVEL,
 			dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_VIDEO_STREAM_ENABLE), 0);
 	}
-	/* INPUT_SOURCE_ENABLE: Enables the transmission of video and secondary
-	 * channel audio data from one or more MST virtual sources.
-	 * bit3~0 for MST3~0.
-	 * TO CONFIRM: disable bit for the disable input source when MST enabled?
-	 */
 	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_SOURCE_ENABLE, src_en | 0x1 << vc_id);
 }
 
@@ -1176,105 +1120,13 @@ static u32 dptx20_hw_calc_usr_data_ct(u32 hactive, enum colorimetry_format cs,
 	u32 pixels_per_line;
 	u32 pixel_bits_per_line;
 	u32 symbols_per_line;
-	u32 h_div = 1;
 
 	components_per_pixel = dptx_get_color_component_cnt(cs);
-	if (cs == COLORIMETRY_FORMAT_YUV420)
-		h_div = 2;
-	pixels_per_line = (hactive / h_div + lane_count - 1) / lane_count;
+	pixels_per_line = (hactive + lane_count - 1) / lane_count;
 	pixel_bits_per_line = pixels_per_line * bpc * components_per_pixel;
 	symbols_per_line = (pixel_bits_per_line + 7) / 8;
 
 	return symbols_per_line;
-}
-
-static void dptx_fec_init(struct dptx_hw_common *hw_comm)
-{
-	u8 dpcd_buff[3] = {0x0};
-
-	/* enable Rx MST */
-	if (hw_comm->mst_en) {
-		dpcd_buff[0] = 0x01;
-		dptx_aux_write_dpcd(hw_comm->tx_aux, 0x111, &dpcd_buff[0], 0x1);
-	}
-
-	if (hw_comm->fec_en == 1) {
-		DPTX_INFO("DPTX enable FEC\n");
-		dptx_aux_read_dpcd(hw_comm->tx_aux, DP_FEC_CAPABILITY, &dpcd_buff[0], 0x1);
-
-		if ((dpcd_buff[0] & DP_FEC_CAPABLE) == 0x0) {
-			DPTX_INFO("DPTX enable FEC but DPRX Not Support it!\n");
-		} else {
-			/* enable Rx FEC */
-			dpcd_buff[0] = 0x01;
-			dptx_aux_write_dpcd(hw_comm->tx_aux, DP_FEC_CONFIGURATION,
-				&dpcd_buff[0], 0x1);
-		}
-	} else {
-		DPTX_INFO("DPTX disable FEC.\n");
-	}
-}
-
-static int dptx_fec_enable(struct dptx_hw_common *hw_comm)
-{
-	if (!hw_comm)
-		return -EINVAL;
-
-	if (hw_comm->fec_en)
-		dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_FEC_ENABLE, 0x1);
-	return 0;
-}
-
-/* config swap yuv to uvy/uyz... */
-static int dptx_video_swap(struct dptx_hw_common *hw_comm, u8 vc_id, u8 user_comp_swap)
-{
-	if (!hw_comm)
-		return -EINVAL;
-
-	u32 val = dptx20_reg_read(hw_comm, CORE_LEVEL,
-		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_USER_CONTROL));
-
-	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_SRCX_USER_CONTROL,
-		(val & 0xf) | (user_comp_swap << 4));
-	return 0;
-}
-
-/* packet position setting
- * pos_en, bit0 for pos_0;...
- * new_pos_y[8], send in v line
- */
-static int dptx20_set_info_pos(struct dptx_hw_common *hw_comm, u8 vc_id, u32 pos_en, u16 *new_pos_y)
-{
-	u8 i;
-	u32 pos_y;
-	u32 info_ctrl;
-
-	if (!hw_comm)
-		return -EINVAL;
-	if (pos_en == 0)
-		return 0;
-	if (!new_pos_y)
-		return -EINVAL;
-
-	for (i = 0; i < 8; i++) {
-		if ((pos_en >> i) & 0x1) {
-			pos_y = dptx20_reg_read(hw_comm, CORE_LEVEL,
-			dptx20_hw_calc_mst_reg(vc_id, TR_DPTX_SRC0_INFO_POS01) + (i / 2) * 4);
-			pos_y |= new_pos_y[i] << (i % 2) * 16;
-			dptx20_reg_write(hw_comm, CORE_LEVEL, dptx20_hw_calc_mst_reg(vc_id,
-				TR_DPTX_SRC0_INFO_POS01) + (i / 2) * 4, pos_y);
-		}
-	}
-
-	/* info_ctrl [23:16] pos_en [8]: vauto; [7:0]: hback_win */
-	info_ctrl = dptx20_reg_read(hw_comm, CORE_LEVEL,
-		dptx20_hw_calc_mst_reg(vc_id, TR_DPTX_SRC0_INFO_CTRL));
-	info_ctrl |= (pos_en << 16);
-	/* pos_en */
-	dptx20_reg_write(hw_comm, CORE_LEVEL,
-		dptx20_hw_calc_mst_reg(vc_id, TR_DPTX_SRC0_INFO_CTRL), info_ctrl);
-
-	return 0;
 }
 
 /*
@@ -1293,8 +1145,6 @@ static int dptx20_hw_set_vid_mode(struct dptx_hw_common *hw_comm,
 	bool input_odd_even_filed_pol = true;
 	bool input_de_pol = true;
 	u32 symbols_per_line = 0;
-	u32 ppc = 1;
-	u32 pixel_clk = 0;
 
 	if (!hw_comm || !para) {
 		DPTX_ERROR("%s invalid hw_comm instance or format para\n", __func__);
@@ -1302,22 +1152,10 @@ static int dptx20_hw_set_vid_mode(struct dptx_hw_common *hw_comm,
 	}
 
 	vc_id = para->vc_id;
-	/* edp core is connected to VENC directly, and vsync/hsync polarity
-	 * from VENC is default negative, so need to set 0x864 sync polarity
-	 * to 0 to reverse sync polarity to positive to edp core;
-	 * dp core is connected to VPU_HDMI_IF, and VPU_HDMI_IF will modify
-	 * the sync polarity to which match CEA/VESA timing standard, so
-	 * set 0x864 sync polarity to timing.v_pol/timing.h_pol to bypass
-	 * positive sync polarity and reverse negative sync polarity to core
-	 */
-	if (hw_comm->is_edp)
-		sync_polarity = input_odd_even_filed_pol << 3 |
-			input_de_pol << 2 | 0 << 1 | 0;
-	else
-		sync_polarity = input_odd_even_filed_pol << 3 |
-			input_de_pol << 2 |
-			!!para->timing.v_pol << 1 |
-			!!para->timing.h_pol;
+	sync_polarity = input_odd_even_filed_pol << 3 |
+		input_de_pol << 2 |
+		!!para->timing.v_pol << 1 |
+		!!para->timing.h_pol;
 
 	dptx20_hw_set_msa(hw_comm, vc_id, para);
 	dptx20_hw_set_vsc_colorimetry(hw_comm, vc_id, para);
@@ -1338,103 +1176,26 @@ static int dptx20_hw_set_vid_mode(struct dptx_hw_common *hw_comm,
 	 * 2 for a dual pixel wide interface or
 	 * 4 for a quad pixel wide interface.
 	 */
-	if (para->cs == HDMI_COLORSPACE_YUV420) {
-		ppc = 2;
-		pixel_clk = para->timing.pixel_freq / 2;
-	} else {
-		ppc = 1;
-		pixel_clk = para->timing.pixel_freq;
-	}
-	/* set 1 if interlace mode */
 	dptx20_reg_write(hw_comm, CORE_LEVEL,
-		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_MAIN_STREAM_INTERLACED),
-		!para->timing.pi_mode);
-	dptx20_reg_write(hw_comm, CORE_LEVEL,
-		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_USER_PIXEL_COUNT), ppc);
+			dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_USER_PIXEL_COUNT), 1);
 	if (hw_comm->mst_en) {
 		DPTX_ERROR("%s TODO for MST calculate VCPS\n", __func__);
 	} else {
-		dptx_set_tu_config(hw_comm, vc_id, pixel_clk,
+		dptx_set_tu_config(hw_comm, vc_id, para->timing.pixel_freq,
 			(enum colorimetry_format)para->cs, dptx_get_mapped_bpc(para->cd));
 	}
-	/* set tu delay */
 	dptx_set_data_control(hw_comm, vc_id, para);
 	dptx20_hw_src_vid_enable(hw_comm, vc_id, true);
-
-	/* use INFOFRAME_TYPE_NTSC_VBI SDP SRAM to send Y420/BT2020 colorimetry SDP */
-	if (para->cs == HDMI_COLORSPACE_YUV420 || para->colorimetry > 1)
-		dptx_vsc_pkt_for_pixel_enc(hw_comm, para, (INFOFRAME_TYPE_NTSC_VBI & 0x7) - 1);
-	/* config intr_vid position, active + 5 */
-	if (hw_comm->hdcp_sec_en > 0)
-		dptx20_reg_write(hw_comm, CORE_LEVEL,
-			dptx20_hw_calc_mst_reg(vc_id, TR_DPTX_SRC0_VID_INTR_TH), 11);
-	else
-		dptx20_reg_write(hw_comm, CORE_LEVEL,
-			dptx20_hw_calc_mst_reg(vc_id, TR_DPTX_SRC0_VID_INTR_TH),
-			para->timing.v_back + 5);
 	return 0;
-}
-
-static void dptx20_psr_init(struct dptx_hw_common *hw_comm)
-{
-	u8 psr_en = hw_comm->psr_en;
-	u8 dpcd_buff[2] = {0x0};
-
-	if (psr_en != 0) {
-		DPTX_INFO("DPTX enable PSR, cfg DPCD->PSR via Aux..\n");
-		dptx_aux_read_dpcd(hw_comm->tx_aux, 0x70, &dpcd_buff[0], 0x2);
-
-		if (psr_en == 2 && dpcd_buff[0] < 2) {
-			DPTX_INFO("Error:DPTX enable PSR2, But DPRX Not Support it !!!\n");
-		} else if ((psr_en == 1) && (dpcd_buff[0] == 0)) {
-			DPTX_INFO("Error:DPTX enable PSR, But DPRX Not Support it !!!\n");
-		} else {
-			dpcd_buff[0] = ((psr_en == 2) << 6) | DP_PSR_MAIN_LINK_ACTIVE;
-			dptx_aux_write_dpcd(hw_comm->tx_aux, DP_PSR_EN_CFG, &dpcd_buff[0], 0x1);
-			dpcd_buff[0] = ((psr_en == 2) << 6) |
-				DP_PSR_MAIN_LINK_ACTIVE | DP_PSR_ENABLE;
-			dptx_aux_write_dpcd(hw_comm->tx_aux, DP_PSR_EN_CFG, &dpcd_buff[0], 0x1);
-		}
-	}
 }
 
 static int dptx20_hw_core_config(struct dptx_hw_common *hw_comm, struct meson_tx_format_para *para)
 {
-	u32 comp_swap = 0;
-
-	if (!hw_comm || !para) {
-		DPTX_ERROR("%s invalid param\n", __func__);
-		return -EINVAL;
-	}
-
-	/* config MST_CTRL in DPCD */
 	dptx20_hw_mst_init(hw_comm);
-	/* config PSR in DPCD */
-	dptx20_psr_init(hw_comm);
-
-	/* below actions for each source */
 	dptx20_hw_set_vid_mode(hw_comm, para);
 	/* note: set audio mode later from audio source */
-	/* dptx20_audio_setting(hw_comm, para->vc_id); */
-	/* info position */
-	dptx20_set_info_pos(hw_comm, para->vc_id, 0, NULL);
-	/* config swap yuv to uvy/uyz... */
-	if (hw_comm->is_edp) {
-		if (para->cs == HDMI_COLORSPACE_RGB)
-			comp_swap = 0;
-		else if (para->cs == HDMI_COLORSPACE_YUV444)
-			comp_swap = 4;
-		else
-			DPTX_ERROR("no color swap for cs other than Y444/RGB\n");
-		dptx_video_swap(hw_comm, para->vc_id, comp_swap);
-	}
-
 	if (hw_comm->mst_en)
 		dptx20_hw_mst_config(hw_comm);
-	/* config FEC if enable */
-	dptx_fec_enable(hw_comm);
-	/* enable sec when MST config done */
-	/* dptx_sec_enable(hw_comm, para->vc_id); */
 	return 0;
 }
 
@@ -1521,15 +1282,7 @@ static int dptx20_hw_cntl_linkconf(struct dptx_hw_common *hw_comm, u32 cmd,
 		case LINK_PATTERN_2:
 		case LINK_PATTERN_3:
 			dpcd[0] = 0;
-			/* force tps pattern while aux pattern_set accordingly, for debug */
-			if (hw_comm->force_tps_pattern == 1)
-				pattern = LINK_PATTERN_1 & 0x7;
-			else if (hw_comm->force_tps_pattern == 2)
-				pattern = LINK_PATTERN_2 & 0x7;
-			else if (hw_comm->force_tps_pattern == 3)
-				pattern = LINK_PATTERN_3 & 0x7;
-			else
-				pattern = link_pattern & 0x7;
+			pattern = link_pattern & 0x7;
 			scramble = 1;
 			dpcd[0] = link_pattern;
 			break;
@@ -1567,15 +1320,6 @@ static int dptx20_hw_cntl_linkconf(struct dptx_hw_common *hw_comm, u32 cmd,
 			dpcd[3] = dpcd[0];
 			dptx_aux_write_dpcd(hw_comm->tx_aux, DP_TRAINING_LANE0_SET, dpcd, 4);
 		}
-		break;
-	/* save link rate and lane count for calculation later */
-	case LINKCONF_SAVE_LINK_RATE:
-		dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_LINK_BW_SET,
-			*(enum dp_link_rate_e *)input_argv);
-		break;
-	case LINKCONF_SAVE_LANE_COUNT:
-		dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_LANE_COUNT_SET,
-			*(enum dp_lane_count_e *)input_argv);
 		break;
 	default:
 		break;
@@ -1835,8 +1579,7 @@ static int dptx20_vpu_fmt_config(struct dptx_hw_common *hw_comm,
 		  0 << 5 |
 		  0 << 6 |
 		  /* 12 bit to 10 bit round enable */
-		  ((para->cd == COLORDEPTH_24B ||
-			para->cd == COLORDEPTH_30B) ? 1 : 0) << 10 |
+		  ((para->cd == COLORDEPTH_24B) ? 1 : 0) << 10 |
 		  0 << 11 |
 		  0 << 12 |
 		  2 << 22 |
@@ -1896,13 +1639,12 @@ static int dptx20_vpu_fmt_config(struct dptx_hw_common *hw_comm,
 	/* invert H/Vsync polarity */
 	data32 |= para->timing.h_pol << 2;
 	data32 |= para->timing.v_pol << 3;
-	/* comp_map_post from CY1Y0 to Y1Y0C */
-	data32 |= ((para->cs == HDMI_COLORSPACE_YUV420) ? 1 : 0) << 5;
+	/* comp_map_post */
+	data32 |= ((para->cs == HDMI_COLORSPACE_YUV420) ? 4 : 0) << 5;
 	/* comp_map_pre, input is YCbCr(RGB), if output colorspace is YCC,
-	 * map to CrYCb(BRG) firstly; if output colorspace is RGB, also
-	 * need map_pre to CrYCb before do dptx20_vpu_set_matrix_ycbcr2rgb()
+	 * map to CrYCb(BRG) firstly
 	 */
-	data32 |= 3 << 16;
+	data32 |= ((para->cs == HDMI_COLORSPACE_RGB) ? 0 : 3) << 16;
 	/* One write every 2 hdmi_fe_clk if Y420 mode */
 	data32 |= ((para->cs == HDMI_COLORSPACE_YUV420) ? 1 : 0) << 20;
 	dptx20_wr_plt_reg(hw_comm, VPU_HDMI_SETTING + 0x200 * hdmi_if_idx, data32);
@@ -1915,9 +1657,12 @@ static int dptx20_vpu_fmt_config(struct dptx_hw_common *hw_comm,
 
 static int dptx20_pre_enable_mode(struct dptx_hw_common *hw_comm, struct meson_tx_format_para *para)
 {
-	hw_comm->vid_enable = true;
-	/* fec init should before link training initial, dp2.1 3.5.1.5.5 P933 */
-	dptx_fec_init(hw_comm);
+	/*
+	 * set clock divider for generating the internal 1MHz
+	 * clock from the APB host interface clock
+	 * APB clk/divider = 200MHz / 200 = 1Mhz
+	 */
+	dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_AUX_CLOCK_DIVIDER, 0xC8);
 
 	DPTX_INFO("%s %px done\n", __func__, hw_comm);
 
@@ -1942,13 +1687,9 @@ static int dptx20_enable_mode(struct dptx_hw_common *hw_comm, struct meson_tx_fo
 	}
 	meson_tx_clk_set(tx_clk, clk_mask);
 	/* venc config, skip here as it will be done in drm side */
-	if (hw_comm->is_edp) {
-		dptx20_set_plt_reg_bits(hw_comm, VPU_DISP_VIU0_CTRL, 1, 28, 1);
-	} else {
-		hdmi_if_idx = (tx_clk->tx_clk_cfg.clk_div_path >> 4) & 0x1;
-		venc_idx = tx_clk->tx_clk_cfg.clk_div_path & 0x1;
-		dptx20_vpu_fmt_config(hw_comm, para, venc_idx, hdmi_if_idx);
-	}
+	hdmi_if_idx = (tx_clk->tx_clk_cfg.clk_div_path >> 4) & 0x1;
+	venc_idx = tx_clk->tx_clk_cfg.clk_div_path & 0x1;
+	dptx20_vpu_fmt_config(hw_comm, para, venc_idx, hdmi_if_idx);
 	dptx20_hw_core_config(hw_comm, para);
 	DPTX_INFO("%s %px done\n", __func__, hw_comm);
 
@@ -1982,32 +1723,6 @@ static int dptx20_hw_cntl_flow_misc(struct meson_tx_hw *tx_hw, u32 cmd,
 	return ret;
 }
 
-static int dptx20_hw_cntl_aux(struct meson_tx_hw *tx_hw, u32 cmd,
-				  void *input_argv, void *output_struct)
-{
-	struct dptx_hw_common *hw_comm = to_dptx_hw_common(tx_hw);
-	struct dptx20_hw *tx20_hw = to_dptx20_hw(hw_comm);
-	int ret = 0;
-
-	if ((cmd & CMD_TYPE_MASK) != CMD_DDC_AUX_OFFSET) {
-		DPTX_ERROR("%s cmd[0x%x] wrong cmd type\n", __func__, cmd);
-		return -1;
-	}
-
-	switch (cmd) {
-	case DP_AUX_BLK_MODE_SET:
-		if (!input_argv) {
-			DPTX_ERROR("%s cmd[0x%x] null input arg\n", __func__, cmd);
-			ret = -1;
-		}
-		tx20_hw->aux_block_mode = !!((unsigned int *)input_argv);
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
 static int dptx20_hw_cntl_platform(struct meson_tx_hw *tx_hw, u32 cmd,
 				  void *input_argv, void *output_struct)
 {
@@ -2037,44 +1752,7 @@ static int dptx20_hw_cntl_platform(struct meson_tx_hw *tx_hw, u32 cmd,
 				break;
 			}
 			tx_clk->tx_clk_cfg.clk_div_path = fmt_para->vid_clk_path;
-			DPTX_INFO("%s TODO build PLL rate\n", __func__);
-			/* for DPTX/eDPTX, note that vco_clk need to be multiplied by
-			 * pll_div(5 or 10) later according to pll application note.
-			 * clk_to_crt_video/venc_clk equals pixel clk.
-			 */
-			/* tx_clk->tx_clk_cfg.pixel_vco_clk = 5940000 */
-
-			/* for PXP, force clk output from PLL top to 594000Khz,
-			 * and then output to clk_to_crt_video
-			 */
-			if (tx_hw->pxp_mode)
-				tx_clk->tx_clk_cfg.clk_to_crt_video = 594000;
-			else
-				tx_clk->tx_clk_cfg.clk_to_crt_video = fmt_para->timing.pixel_freq;
-			if (fmt_para->cs == HDMI_COLORSPACE_YUV420)
-				tx_clk->tx_clk_cfg.pixel_clk = fmt_para->timing.pixel_freq / 2;
-			else
-				tx_clk->tx_clk_cfg.pixel_clk = fmt_para->timing.pixel_freq;
-			tx_clk->tx_clk_cfg.venc_clk = fmt_para->timing.pixel_freq;
-
-			switch (fmt_para->tx_hw_para.dptx_hw_para.link_rate) {
-			case DPTX_LINK_RATE_1P62GHZ:
-				tx_clk->tx_clk_cfg.phy_clk = 1620000;
-				break;
-			case DPTX_LINK_RATE_2P70GHZ:
-				tx_clk->tx_clk_cfg.phy_clk = 2700000;
-				break;
-			case DPTX_LINK_RATE_5P40GHZ:
-				tx_clk->tx_clk_cfg.phy_clk = 5400;
-				break;
-			case DPTX_LINK_RATE_8P10GHZ:
-				tx_clk->tx_clk_cfg.phy_clk = 8100;
-				break;
-			default:
-				DPTX_ERROR("%s invalid link rate, force 1.62Ghz\n", __func__);
-				tx_clk->tx_clk_cfg.phy_clk = 1620000;
-				break;
-			}
+			DPTX_INFO("%s TODO build clk param, depends on PLL\n", __func__);
 		}
 		break;
 	case PLATFORM_GET_HPD_GPI_ST:
@@ -2096,7 +1774,6 @@ static int dptx20_hw_cntl_aux_pkt(struct meson_tx_hw *tx_hw, u32 cmd,
 	struct dptx_hw_common *hw_comm = to_dptx_hw_common(tx_hw);
 	int ret = 0;
 	struct aux_pkt_sdp_param *param;
-	u8 vc_id = 0;
 
 	if (!hw_comm)
 		return -1;
@@ -2115,59 +1792,6 @@ static int dptx20_hw_cntl_aux_pkt(struct meson_tx_hw *tx_hw, u32 cmd,
 		ret = dptx_hw_infoframe_raw_get(hw_comm, param->vc_id, param->type,
 			(u8 *)output_struct);
 		break;
-	case AUX_PKT_SDP_INFO_DUMP:
-		vc_id = *(u8 *)input_argv;
-		dptx_dump_infoframe_packets(hw_comm, vc_id);
-		break;
-	default:
-		break;
-	}
-	return ret;
-}
-
-static void dptx20_hw_set_adaptive_sync(struct dptx_hw_common *hw_comm, u8 vc_id, bool enable)
-{
-	u8 dpcd_buff = enable;
-	/* 0:vsync negedge 1:posedge 2:frame 1 posedge,other last line */
-	u8 msa_position_sel = 0;
-
-	DPTX_INFO("DPTX %s Adaptive sync\n", enable ? "enable" : "disable");
-	dptx20_set_reg_bits(hw_comm, CORE_LEVEL,
-		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_DATA_CONTROL), msa_position_sel, 18, 2);
-
-	/* MSA_TIMING_PAR_IGNORE_EN */
-	dptx_aux_write_dpcd(hw_comm->tx_aux, DP_DOWNSPREAD_CTRL, &dpcd_buff, 1);
-	dptx20_reg_write(hw_comm, CORE_LEVEL,
-		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SECX_ADAPTIVE_SYNC_ENABLE), enable);
-
-	/* enable SDP */
-	dptx20_reg_write(hw_comm, CORE_LEVEL,
-		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_SECONDARY_STREAM_ENABLE), 0x1);
-}
-
-static int dptx20_hw_cntl_adaptive_sync(struct meson_tx_hw *tx_hw, u32 cmd,
-				  void *input_argv, void *output_struct)
-{
-	struct dptx_hw_common *hw_comm = to_dptx_hw_common(tx_hw);
-	int ret = 0;
-	u8 vc_id = 0;
-
-	if (!hw_comm)
-		return -1;
-	if ((cmd & CMD_VRR_OFFSET) != CMD_VRR_OFFSET) {
-		DPTX_ERROR("%s cmd[0x%x] wrong cmd type\n", __func__, cmd);
-		return -1;
-	}
-
-	switch (cmd) {
-	case DP_ADAPTIVE_SYNC_EN:
-		vc_id = *(u8 *)input_argv;
-		dptx20_hw_set_adaptive_sync(hw_comm, vc_id, true);
-		break;
-	case DP_ADAPTIVE_SYNC_DIS:
-		vc_id = *(u8 *)input_argv;
-		dptx20_hw_set_adaptive_sync(hw_comm, vc_id, false);
-		break;
 	default:
 		break;
 	}
@@ -2184,7 +1808,6 @@ static void hw_timer_start(struct dptx_hw_common *hw_comm, enum timer_hw_type hw
 	case TIMER_WAIT:
 		hw_timer_init(hw_comm, hw_type);
 		hw_timer_poll_wait_us(hw_comm, hw_type, cfg->us);
-		DPTX_DEBUG("%s hw_type: %d timer wait end\n", __func__, hw_type);
 		break;
 	case TIMER_ISR:
 		hw_timer_init(hw_comm, hw_type);
@@ -2213,8 +1836,6 @@ static int dptx20_hw_cntl_core_misc(struct meson_tx_hw *tx_hw, u32 cmd,
 	struct dptx_timer_handler *handler = NULL;
 	enum timer_hw_type type = HW_GP_TIMER;
 	u32 size;
-	struct reg_access *reg_acc = NULL;
-	u32 value = 0;
 
 	if (!hw_comm)
 		return -1;
@@ -2238,96 +1859,25 @@ static int dptx20_hw_cntl_core_misc(struct meson_tx_hw *tx_hw, u32 cmd,
 		for (type = HW_GP_TIMER; type < HW_TIMER_MAX; type++)
 			mutex_init(&timer_manager->handlers[type].timer_mutex);
 		break;
-	case DP_TIMER_UNINIT:
-		kfree(timer_manager->handlers);
-		timer_manager->handlers = NULL;
-		kfree(timer_manager);
-		timer_manager = NULL;
-		break;
 	case DP_TIMER_GET:
 		if (!input_argv || !output_struct)
 			return -1;
 		hw_type = *(enum timer_hw_type *)input_argv;
 		if (hw_type > HW_TIMER_MAX)
 			return -1;
-		*(struct dptx_timer_handler **)output_struct = &timer_manager->handlers[hw_type];
+		*(struct dptx_timer_handler *)output_struct = timer_manager->handlers[hw_type];
 		break;
 	case DP_TIMER_START:
-		if (!input_argv)
-			return -1;
 		handler = (struct dptx_timer_handler *)input_argv;
 		if (handler->cfg.timer_type >= HW_TIMER_MAX)
 			return -1;
-		hw_timer_start(hw_comm, handler->cfg.timer_type, &handler->cfg);
+		hw_timer_start(hw_comm, hw_type, &handler->cfg);
 		break;
 	case DP_TIMER_STOP:
-		if (!input_argv)
-			return -1;
 		handler = (struct dptx_timer_handler *)input_argv;
 		if (handler->cfg.timer_type >= HW_TIMER_MAX)
 			return -1;
 		hw_timer_init(hw_comm, handler->cfg.timer_type);
-		break;
-	case CORE_MISC_REG_RD_WR:
-		if (!input_argv)
-			return -1;
-		reg_acc = (struct reg_access *)input_argv;
-		if (reg_acc->rd_wr_type == 0) {
-			if (reg_acc->reg_type == DPTX_COR_REG_IDX) {
-				reg_acc->val = dptx20_reg_read(hw_comm, CORE_LEVEL, reg_acc->addr);
-			} else {
-				reg_acc->addr = (reg_acc->reg_type << BASE_REG_OFFSET) +
-					(reg_acc->addr << 2);
-				reg_acc->val = dptx20_rd_plt_reg(hw_comm, reg_acc->addr);
-			}
-		} else if (reg_acc->rd_wr_type == 1) {
-			if (reg_acc->reg_type == DPTX_COR_REG_IDX) {
-				reg_acc->val = dptx20_reg_write(hw_comm, CORE_LEVEL,
-					reg_acc->addr, reg_acc->val);
-			} else {
-				reg_acc->addr = (reg_acc->reg_type << BASE_REG_OFFSET) +
-					(reg_acc->addr << 2);
-				dptx20_wr_plt_reg(hw_comm, reg_acc->addr, reg_acc->val);
-			}
-		} else {
-			u32 start_addr = reg_acc->addr;
-			u32 end_addr = reg_acc->val;
-			u32 tmp_addr = 0;
-			static const char * const reg_addr_type[] = {
-				"DPTX",
-				"SYSCTRL",
-				"ANACTRL",
-				"PWRCTR",
-				"RESETCTRL",
-				"CLKCTRL",
-				"VPUCTRL",
-				"PADCTRL",
-				"None"
-			};
-
-			if (reg_acc->reg_type == DPTX_COR_REG_IDX) {
-				for (tmp_addr = start_addr; tmp_addr <= end_addr; tmp_addr += 4)
-					DPTX_INFO("DPTX[0x%x] = 0x%x\n", tmp_addr,
-						dptx20_reg_read(hw_comm, CORE_LEVEL, tmp_addr));
-			} else {
-				if (reg_acc->reg_type >= REG_IDX_MAX)
-					break;
-				for (tmp_addr = start_addr; tmp_addr <= end_addr; tmp_addr++) {
-					value = dptx20_rd_plt_reg(hw_comm,
-						(reg_acc->reg_type << BASE_REG_OFFSET) +
-						(tmp_addr << 2));
-					DPTX_INFO("%s[0x%x] = 0x%x\n",
-						reg_addr_type[reg_acc->reg_type],
-						tmp_addr, value);
-				}
-			}
-		}
-		break;
-	case DP_HPD_OVER:
-		if (!input_argv)
-			return -1;
-		value = *(u32 *)input_argv;
-		dptx20_reg_write(hw_comm, CORE_LEVEL, DPTX20_HPD_OVER, value);
 		break;
 	default:
 		break;
@@ -2348,9 +1898,6 @@ static int dptx20_hw_cntl(struct meson_tx_hw *tx_hw, u32 cmd,
 	hw_comm = to_dptx_hw_common(tx_hw);
 
 	switch (cmd_type) {
-	case CMD_DDC_AUX_OFFSET:
-		dptx20_hw_cntl_aux(tx_hw, cmd, input_argv, output_struct);
-		break;
 	case CMD_LINK_TRAINING_OFFSET:
 		ret = dptx20_hw_cntl_linkconf(hw_comm, cmd, input_argv, output_struct);
 		break;
@@ -2362,9 +1909,6 @@ static int dptx20_hw_cntl(struct meson_tx_hw *tx_hw, u32 cmd,
 		break;
 	case CMD_AUX_PKT_OFFSET:
 		ret = dptx20_hw_cntl_aux_pkt(tx_hw, cmd, input_argv, output_struct);
-		break;
-	case CMD_VRR_OFFSET:
-		ret = dptx20_hw_cntl_adaptive_sync(tx_hw, cmd, input_argv, output_struct);
 		break;
 	case CMD_CORE_MISC_OFFSET:
 		ret = dptx20_hw_cntl_core_misc(tx_hw, cmd, input_argv, output_struct);

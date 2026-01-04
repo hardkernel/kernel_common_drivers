@@ -356,6 +356,8 @@ ddk_module(
                 "vout/meson_tx_connector/hdmitx/hdmitx_mode_set.c",
                 "vout/meson_tx_connector/hdmitx/hdmitx_vout.c",
                 "vout/meson_tx_connector/hdmitx/hdmitx_audio.c",
+                "vout/meson_tx_connector/hdmitx/hdmitx_tracer_linux.c",
+                "vout/meson_tx_connector/hdmitx/hdmitx_event_mgr_linux.c",
                 "vout/meson_tx_connector/hdmitx/hdmitx_log.c",
                 "vout/meson_tx_connector/hdmitx/hdmitx_compliance.c",
                 "vout/meson_tx_connector/hdmitx/hdmitx_check_valid.c",

@@ -103,10 +103,10 @@ int hdmitx_format_para_init(struct meson_tx_format_para *para,
 	hdmitx_format_para_reset(para);
 
 	para->timing = *timing;
-	para->tx_hw_para.hdmitx_hw_para.vic = timing->vic;
+	para->vic = timing->vic;
 	para->name = timing->name;
 	para->sname = timing->sname;
-	para->tx_hw_para.hdmitx_hw_para.tmds_clk = timing->pixel_freq;
+	para->tmds_clk = timing->pixel_freq;
 	para->cs = cs;
 	para->cd = cd;
 	para->cr = cr;
@@ -124,14 +124,14 @@ int hdmitx_format_para_init(struct meson_tx_format_para *para,
 int hdmitx_format_para_reset(struct meson_tx_format_para *para)
 {
 	memset(para, 0, sizeof(struct meson_tx_format_para));
-	para->tx_hw_para.hdmitx_hw_para.vic = HDMI_0_UNKNOWN;
+	para->vic = HDMI_0_UNKNOWN;
 	para->name = "invalid";
 	para->sname = "invalid";
 	para->cs = HDMI_COLORSPACE_RESERVED4;
 	para->cd = COLORDEPTH_RESERVED;
 	para->cr = HDMI_QUANTIZATION_RANGE_RESERVED;
-	para->tx_hw_para.hdmitx_hw_para.frl_rate = FRL_NONE;
-	para->tx_hw_para.hdmitx_hw_para.dsc_en = false;
+	para->frl_rate = FRL_NONE;
+	para->dsc_en = false;
 
 	return 0;
 }
@@ -148,11 +148,11 @@ int hdmitx_format_para_print(struct meson_tx_format_para *para, char *log_buf)
 		HDMITX_ERROR("%s got NULL para\n", __func__);
 		return -EINVAL;
 	}
-	if (para->tx_hw_para.hdmitx_hw_para.vic == HDMI_0_UNKNOWN) {
+	if (para->vic == HDMI_0_UNKNOWN) {
 		pos += snprintf(buf + pos, len - pos, "format_para: [INVALID] %px vic [0]", para);
 	} else {
 		pos += snprintf(buf + pos, len - pos, "format_para: %px vic [%d]\n",
-					para, para->tx_hw_para.hdmitx_hw_para.vic);
+					para, para->vic);
 		pos += snprintf(buf + pos, len - pos, "format_para: name %s frac %d\n",
 			para->sname ? para->sname : para->name, para->frac_mode);
 
@@ -179,15 +179,11 @@ int hdmitx_format_para_print(struct meson_tx_format_para *para, char *log_buf)
 		pos += snprintf(buf + pos, len - pos, "colordepth: %s\n", conf);
 
 		pos += snprintf(buf + pos, len - pos, "format_para: TMDS %d DIV40 %d,%d\n",
-			para->tx_hw_para.hdmitx_hw_para.tmds_clk,
-			para->tx_hw_para.hdmitx_hw_para.tmds_clk_div40,
-			para->tx_hw_para.hdmitx_hw_para.scrambler_en);
-		pos += snprintf(buf + pos, len - pos, "tmds_clk: %d\n",
-			para->tx_hw_para.hdmitx_hw_para.tmds_clk);
+			para->tmds_clk, para->tmds_clk_div40, para->scrambler_en);
+		pos += snprintf(buf + pos, len - pos, "tmds_clk: %d\n", para->tmds_clk);
 
 		pos += snprintf(buf + pos, len - pos, "format_para: frl_rate %d, dsc_en: %d\n",
-			para->tx_hw_para.hdmitx_hw_para.frl_rate,
-			para->tx_hw_para.hdmitx_hw_para.dsc_en);
+			para->frl_rate, para->dsc_en);
 	}
 
 	if (log_buf)

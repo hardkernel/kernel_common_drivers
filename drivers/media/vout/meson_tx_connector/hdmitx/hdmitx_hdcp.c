@@ -7,7 +7,6 @@
 #include<linux/kthread.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_common.h>
 #include "hdmitx_log.h"
-#include "meson_tx_event_mgr.h"
 
 static int hdmi_authenticated;
 MODULE_PARM_DESC(hdmi_authenticated, "\n hdmi_authenticated\n");
@@ -149,7 +148,7 @@ int hdmitx_hdcp_stat_monitor_task(void *data)
 			/* hdcp fail uevent filter end */
 
 			/* uevent report */
-			hdmitx_set_uevent(tx_comm, TX_HDCP_EVENT, hdmi_authenticated);
+			hdmitx_set_uevent(tx_comm, HDMITX_HDCP_EVENT, hdmi_authenticated);
 			auth_stat = hdmi_authenticated;
 			HDMITX_HDCP_INFO("mode %d, auth: %d\n",
 				tx_comm->hdcptx_comm.hdcp_mode, auth_stat);
@@ -157,7 +156,7 @@ int hdmitx_hdcp_stat_monitor_task(void *data)
 			/* status update, only collect the metric when hdmi is plugged in. */
 			if (tx_comm->base.hpd_state == 1) {
 				hdmitx_current_status(tx_comm, auth_stat ?
-					TX_HDCP_AUTH_SUCCESS : TX_HDCP_AUTH_FAILURE);
+					HDMITX_HDCP_AUTH_SUCCESS : HDMITX_HDCP_AUTH_FAILURE);
 			}
 
 			/* notify hdcp result to drm */

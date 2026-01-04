@@ -3198,60 +3198,6 @@ static int displayid_parse_display_interface_v1(struct display_id_cap *disp_id_c
 	return 0;
 }
 
-static int displayid_parse_dynamic_video_timing_range_limits(struct display_id_cap *disp_id_cap,
-		struct displayid_block *block)
-{
-	struct dynamic_video_timing_range_limits_data_block *video_range_blk = NULL;
-	struct dynamic_video_timing_range_limits_info *dynamic_video_range = NULL;
-
-	if (!disp_id_cap || !block)
-		return -1;
-
-	dynamic_video_range = &disp_id_cap->dynamic_video_timing_range;
-	video_range_blk = (struct dynamic_video_timing_range_limits_data_block *)block;
-	dynamic_video_range->pixel_clock_min =
-		video_range_blk->dynamic_video_timing_range.pixel_clock_min[2] << 16 |
-		video_range_blk->dynamic_video_timing_range.pixel_clock_min[1] << 8 |
-		video_range_blk->dynamic_video_timing_range.pixel_clock_min[0];
-	dynamic_video_range->pixel_clock_max =
-		video_range_blk->dynamic_video_timing_range.pixel_clock_max[2] << 16 |
-		video_range_blk->dynamic_video_timing_range.pixel_clock_max[1] << 8 |
-		video_range_blk->dynamic_video_timing_range.pixel_clock_max[0];
-	/* The minimum value is 1, so an offset needs to be added */
-	dynamic_video_range->pixel_clock_min += 1;
-	dynamic_video_range->pixel_clock_max += 1;
-	dynamic_video_range->vertical_refresh_rate_min =
-		video_range_blk->dynamic_video_timing_range.vertical_refresh_rate_min;
-
-	/*
-	 * flags bit 1:0
-	 *   For Block Revision 0
-	 *   Cleared to all 0s
-	 *
-	 *   For Block Revision 1
-	 *   Maximum Vertical Refresh Rate bit 9:8
-	 *
-	 * flag bit 7
-	 *   0 = Seamless Dynamic Video Timing change shall not be supported
-	 *   with a fixed horizontal pixel rate and dynamic vertical blanking
-	 *
-	 *   1 = Seamless Dynamic Video Timing change shall be supported
-	 *   with a fixed horizontal pixel rate and dynamic vertical blanking
-	 */
-	if (video_range_blk->product_id_header.rev)
-		dynamic_video_range->vertical_refresh_rate_max =
-			((video_range_blk->dynamic_video_timing_range.flags & 0x3) << 8) |
-			video_range_blk->dynamic_video_timing_range.vertical_refresh_rate_max;
-	else
-		dynamic_video_range->vertical_refresh_rate_max =
-			video_range_blk->dynamic_video_timing_range.vertical_refresh_rate_max;
-
-	dynamic_video_range->seamless_support_flag =
-		(video_range_blk->dynamic_video_timing_range.flags & BIT(7)) >> 7;
-
-	return 0;
-}
-
 static int displayid_parse_display_interface_v2(struct display_id_cap *disp_id_cap,
 	struct displayid_block *block)
 {
@@ -3420,9 +3366,7 @@ static int display_id_section_parse(struct display_id_cap *disp_id_cap, u8 *disp
 			break;
 		case DATA_BLOCK_2_TYPE_8_ENUMERATED_TIMING:
 		case DATA_BLOCK_2_TYPE_9_FORMULA_TIMING:
-			break;
 		case DATA_BLOCK_2_DYNAMIC_VIDEO_TIMING:
-			displayid_parse_dynamic_video_timing_range_limits(disp_id_cap, block);
 			break;
 		case DATA_BLOCK_2_DISPLAY_INTERFACE_FEATURES:
 			displayid_parse_display_interface_v2(disp_id_cap, block);
@@ -3718,17 +3662,4 @@ void display_id_cap_print(struct display_id_cap *disp_id_cap)
 		pr_info("color_space_eotf: %d\n",
 			disp_id_cap->display_interface.color_space_eotf);
 	}
-
-	if (disp_id_cap->dynamic_video_timing_range.pixel_clock_min ||
-			disp_id_cap->dynamic_video_timing_range.pixel_clock_max)
-		pr_info("dynamic_video_timing_pixel_clock_range: [%dHz, %dHz]\n",
-				disp_id_cap->dynamic_video_timing_range.pixel_clock_min,
-				disp_id_cap->dynamic_video_timing_range.pixel_clock_max);
-	if (disp_id_cap->dynamic_video_timing_range.vertical_refresh_rate_min ||
-			disp_id_cap->dynamic_video_timing_range.vertical_refresh_rate_max)
-		pr_info("dynamic_video_refresh_rate_range: [%dHz, %dHz]\n",
-				disp_id_cap->dynamic_video_timing_range.vertical_refresh_rate_min,
-				disp_id_cap->dynamic_video_timing_range.vertical_refresh_rate_max);
-	pr_info("seamless_support: %d\n",
-			disp_id_cap->dynamic_video_timing_range.seamless_support_flag);
 }

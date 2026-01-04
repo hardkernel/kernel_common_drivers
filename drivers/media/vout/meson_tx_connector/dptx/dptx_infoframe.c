@@ -63,10 +63,10 @@ void dptx_avi_infoframe_set(struct dptx_hw_common *hw_comm, u8 vc_id, struct avi
 	dptx_infoframe_send(hw_comm, vc_id, INFOFRAME_TYPE_AVI, (u8 *)&sdp_info);
 }
 
-/* note that pb[0] is checksum byte */
 void dptx_avi_infoframe_rawset(struct dptx_hw_common *hw_comm, u8 vc_id, u8 *hb, u8 *pb)
 {
 	struct dp_sdp sdp_info;
+	u8 data[DP_INFOFRAME_TOTAL_SZ];
 
 	if (!hb || !pb) {
 		dptx_infoframe_send(hw_comm, vc_id, INFOFRAME_TYPE_AVI, NULL);
@@ -74,6 +74,7 @@ void dptx_avi_infoframe_rawset(struct dptx_hw_common *hw_comm, u8 vc_id, u8 *hb,
 	}
 
 	memset(&sdp_info, 0, sizeof(sdp_info));
+	memset(data, 0, sizeof(data));
 	dptx_construct_sdp_header(&sdp_info.sdp_header, INFOFRAME_TYPE_AVI);
 	sdp_info.data[0] = hb[1];
 	sdp_info.data[1] = hb[2];
@@ -98,24 +99,6 @@ void dptx_spd_infoframe_set(struct dptx_hw_common *hw_comm, u8 vc_id, struct spd
 	sdp_info.data[0] = info->version;
 	sdp_info.data[1] = info->length;
 	memcpy(&sdp_info.data[2], &data[4], SPD_INFOFRAME_SIZE); /* ignore the checksum */
-	dptx_infoframe_send(hw_comm, vc_id, INFOFRAME_TYPE_SPD, (u8 *)&sdp_info);
-}
-
-/* note that pb[0] is checksum byte */
-void dptx_spd_infoframe_rawset(struct dptx_hw_common *hw_comm, u8 vc_id, u8 *hb, u8 *pb)
-{
-	struct dp_sdp sdp_info;
-
-	if (!hb || !pb) {
-		dptx_infoframe_send(hw_comm, vc_id, INFOFRAME_TYPE_SPD, NULL);
-		return;
-	}
-
-	memset(&sdp_info, 0, sizeof(sdp_info));
-	dptx_construct_sdp_header(&sdp_info.sdp_header, INFOFRAME_TYPE_SPD);
-	sdp_info.data[0] = hb[1];
-	sdp_info.data[1] = hb[2];
-	memcpy(&sdp_info.data[2], pb + 1, SPD_INFOFRAME_SIZE);
 	dptx_infoframe_send(hw_comm, vc_id, INFOFRAME_TYPE_SPD, (u8 *)&sdp_info);
 }
 
@@ -145,7 +128,6 @@ void dptx_audio_infoframe_set(struct dptx_hw_common *hw_comm, u8 vc_id,
 	dptx_infoframe_send(hw_comm, vc_id, INFOFRAME_TYPE_AUDIO, (u8 *)&sdp_info);
 }
 
-/* note that pb[0] is checksum byte */
 void dptx_audio_infoframe_rawset(struct dptx_hw_common *hw_comm, u8 vc_id, u8 *hb, u8 *pb)
 {
 	struct dp_sdp sdp_info;
@@ -181,7 +163,6 @@ void dptx_drm_infoframe_set(struct dptx_hw_common *hw_comm, u8 vc_id, struct drm
 	dptx_infoframe_send(hw_comm, vc_id, INFOFRAME_TYPE_DRM, (u8 *)&sdp_info);
 }
 
-/* note that pb[0] is checksum byte */
 void dptx_drm_infoframe_rawset(struct dptx_hw_common *hw_comm, u8 vc_id, u8 *hb, u8 *pb)
 {
 	struct dp_sdp sdp_info;
@@ -193,9 +174,9 @@ void dptx_drm_infoframe_rawset(struct dptx_hw_common *hw_comm, u8 vc_id, u8 *hb,
 
 	memset(&sdp_info, 0, sizeof(sdp_info));
 	dptx_construct_sdp_header(&sdp_info.sdp_header, INFOFRAME_TYPE_DRM);
+	memcpy(&sdp_info.data, pb, DRM_INFOFRAME_SIZE);
 	sdp_info.data[0] = hb[1];
 	sdp_info.data[1] = hb[2];
-	memcpy(&sdp_info.data[2], pb + 1, DRM_INFOFRAME_SIZE);
 	dptx_infoframe_send(hw_comm, vc_id, INFOFRAME_TYPE_DRM, (u8 *)&sdp_info);
 }
 

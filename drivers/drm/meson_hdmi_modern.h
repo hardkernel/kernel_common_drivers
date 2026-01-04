@@ -121,15 +121,7 @@ struct am_hdmi_tx {
 	 * 1:edid is valid
 	 */
 	struct drm_property *edid_valid_prop;
-	/*
-	 * TV VRR Capability
-	 * Range: 0-3
-	 * BIT(0): QMS
-	 * BIT(1): GAME
-	 * Android uses vrr_capable
-	 * Linux uses vrr_capable_type
-	 */
-	struct drm_property *vrr_capable_type_prop;
+
 	struct drm_property *color_space_prop;
 	struct drm_property *color_depth_prop;
 	struct drm_property *hdmi_hdr_status_prop;

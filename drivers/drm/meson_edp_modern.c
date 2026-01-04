@@ -237,63 +237,11 @@ static void meson_edp_atomic_print_state(struct drm_printer *p,
 {
 }
 
-static ssize_t venc_cfg_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "no support show\n");
-}
-
-/* bit[3] bist type, bit[2] VENC type, bit[1]: venc_index, bit[0]: enable
- * e.g. echo 1003 > venc_cfg for red pattern
- */
-static ssize_t venc_cfg_store(struct device *dev, struct device_attribute *attr,
-			      const char *buf, size_t count)
-{
-	struct drm_connector *connector = dev_get_drvdata(dev);
-	struct dptx_common *dptx_comm = connector_to_dptx_common(connector);
-	struct meson_dp_tx *meson_dptx = connector_to_meson_dptx(connector);
-	u32 enc_type = VENC_ENCP;
-	u32 bist_type = VENC_BIST_PTTN_COLORBAR;
-
-	if (buf[1] == '0' || buf[1] == '1')
-		meson_dptx->enc_idx = buf[1] - '0';
-	else
-		meson_dptx->enc_idx = 0;
-	if (buf[2] == '0' || buf[2] == '1')
-		enc_type = buf[2] - '0';
-	else
-		enc_type = VENC_ENCP;
-	if (buf[3])
-		bist_type = buf[3] - '0';
-	else
-		bist_type = VENC_BIST_PTTN_COLORBAR;
-	DRM_INFO("cfg venc_idx: %d, cfg venc_type: %s, bist type: %d\n",
-		meson_dptx->enc_idx, enc_type == VENC_ENCL ? "ENCL" : "ENCP", bist_type);
-
-	if (buf[0] == '1') {
-		meson_venc_mode_set(meson_dptx->venc, meson_dptx->enc_idx,
-			enc_type, bist_type, &dptx_comm->base.sw_fmt_para);
-		DRM_INFO("enable venc\n");
-	} else if (buf[0] == '0') {
-		meson_venc_mode_disable(meson_dptx->venc, meson_dptx->enc_idx, enc_type);
-		DRM_INFO("disable venc\n");
-	} else {
-		return -EINVAL;
-	}
-
-	return count;
-}
-static DEVICE_ATTR_RW(venc_cfg);
-
 static int meson_edp_late_register(struct drm_connector *connector)
 {
-	int ret;
 	struct dptx_common *dptx_comm = connector_to_dptx_common(connector);
 
 	meson_tx_sysfs_create(&dptx_comm->base);
-	ret = device_create_file(connector->kdev, &dev_attr_venc_cfg);
-	if (ret)
-		DRM_ERROR("Failed to create sysfs node: %d\n", ret);
-
 	return 0;
 }
 
@@ -301,7 +249,6 @@ static void meson_edp_early_unregister(struct drm_connector *connector)
 {
 	struct dptx_common *dptx_comm = connector_to_dptx_common(connector);
 
-	device_remove_file(connector->kdev, &dev_attr_venc_cfg);
 	meson_tx_sysfs_remove(&dptx_comm->base);
 }
 
@@ -356,13 +303,10 @@ static void meson_edp_encoder_atomic_enable(struct drm_encoder *encoder,
 
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 				      meson_crtc_state->vmode, EVENT_MODE_SET_START);
-	/* assume hdmi_if_index = venc_idx by default */
-	meson_tx_build_clk_param(tx_dev, &dptx_conn_state->base_state.para,
-		meson_dptx->enc_idx, meson_dptx->enc_idx);
 	meson_tx_do_mode_setting(tx_dev, &dptx_conn_state->base_state,
 				 &old_dptx_conn_state->base_state);
 	meson_venc_mode_set(meson_dptx->venc, meson_dptx->enc_idx, VENC_ENCL,
-			    VENC_BIST_PTTN_OFF, &dptx_conn_state->base_state.para);
+			    &dptx_conn_state->base_state.para);
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 				      meson_crtc_state->vmode, EVENT_MODE_SET_FINISH);
 	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "edp");
@@ -379,7 +323,7 @@ static void meson_edp_encoder_atomic_disable(struct drm_encoder *encoder,
 	old_conn_state = drm_atomic_get_old_connector_state(state, conn);
 	amcrtc = to_am_meson_crtc(old_conn_state->crtc);
 
-	meson_venc_mode_disable(meson_dptx->venc, meson_dptx->enc_idx, VENC_ENCL);
+	meson_venc_mode_disable(meson_dptx->venc, meson_dptx->enc_idx);
 }
 
 static enum drm_mode_status meson_edp_encoder_mode_valid(struct drm_encoder *crtc,
@@ -412,9 +356,9 @@ static int meson_edp_encoder_atomic_check(struct drm_encoder *encoder,
 
 	meson_drm_mode_build_tx_timing(adj_mode, timing);
 
-	meson_tx_format_para_init(&dptx_comm->base, timing,
+	meson_tx_format_para_init(&tx_state->para, timing,
 				  frac_mode, attr->colorformat,
-				  bitdepth_to_colordepth(attr->bitdepth), 0, &tx_state->para);
+				  bitdepth_to_colordepth(attr->bitdepth), 0);
 	ret = meson_tx_validate_mode(&dptx_comm->base, tx_state);
 	if (!ret)
 		meson_crtc_state->preset_vmode = VMODE_DPTX;

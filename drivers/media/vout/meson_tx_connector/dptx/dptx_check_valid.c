@@ -179,7 +179,7 @@ bool dptx_validate_timing_with_basic_cs(struct meson_tx_dev *tx_base, struct tx_
 		return false;
 
 	/* build SW/HW format param */
-	if (meson_tx_format_para_init(tx_base, timing, 0, cs, cd, cr, &sw_para))
+	if (meson_tx_format_para_init(&sw_para, timing, 0, cs, cd, cr))
 		return false;
 	if (dptx_calc_hw_fmt_para(tx_base->tx_hw_base, &sw_para, &hw_para))
 		return false;

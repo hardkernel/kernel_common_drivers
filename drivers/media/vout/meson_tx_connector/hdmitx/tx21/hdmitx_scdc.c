@@ -10,7 +10,7 @@ void scdc21_config(struct hdmitx21_dev *hdev)
 {
 	/* TMDS 1/40 & Scramble */
 	scdc21_wr_sink(SCDC_TMDS_CFG,
-		hdev->tx_comm.fmt_para.tx_hw_para.hdmitx_hw_para.tmds_clk_div40 ? 0x3 : 0);
+		hdev->tx_comm.fmt_para.tmds_clk_div40 ? 0x3 : 0);
 }
 
 /* update CED, 10.4.1.8 */

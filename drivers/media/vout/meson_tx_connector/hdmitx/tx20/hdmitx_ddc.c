@@ -271,7 +271,7 @@ void hdmitx_read_edid(struct hdmitx_common *tx_comm, unsigned char *rx_edid)
 			timeout_cnt++;
 		}
 		if (timeout == EDID_WAIT_TIMEOUT)
-			hdmitx_current_status(tx_comm, TX_EDID_I2C_ERROR);
+			hdmitx_current_status(tx_comm, HDMITX_EDID_I2C_ERROR);
 
 		hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 1 << 1);
 		/* Read back 8 bytes */

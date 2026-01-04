@@ -8,7 +8,6 @@
 
 #include <linux/types.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_common.h>
-#include "meson_tx_event_mgr.h"
 
 #define EDID_SLAVE	0x50
 	#define EDIDSEG_ADR	0x30
@@ -74,6 +73,8 @@ enum ddc_op {
 	DDC_MUX_DDC,
 	DDC_UNMUX_DDC,
 };
+
+struct hdmitx_dev;
 
 int hdmitx_ddc_hw_op(enum ddc_op cmd);
 

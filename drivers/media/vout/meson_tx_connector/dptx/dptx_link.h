@@ -176,13 +176,8 @@ struct link_train_t {
 	struct dptx_link_cfg_s *link_cfg;
 	enum link_status_e link_st;
 	bool train_running;
-	/* link training timeout period, unit: ms */
-	u32 timeout_ms;
 	struct dptx_aux *aux;
 	struct dptx_common *tx_comm;
-	/* force link rate and lane count for debug */
-	enum dp_link_rate_e force_lr;
-	enum dp_lane_count_e force_lc;
 };
 
 /*
@@ -192,9 +187,6 @@ struct link_train_t {
  *   0: successful
  *   -EAGAIN: may try again
  */
-int dptx_link_training(struct link_train_t *link_train);
-struct link_train_t *dptx_link_train_init(struct dptx_common *tx_comm);
-int dptx_link_train_uninit(struct link_train_t *link_train);
-int dptx_update_link_fmt_para(struct dptx_common *tx_comm, struct meson_tx_format_para *para);
+int dptx_link_training(struct dptx_common *tx_comm);
 
 #endif

@@ -84,7 +84,6 @@ struct dptx_common {
 	int drm_dptx_id;
 
 	struct dptx_hw_common *hw_comm;
-	struct link_train_t *link_train;
 	/* instance index */
 	u32 dev_idx;
 	u32 is_edp;

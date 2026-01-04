@@ -840,10 +840,9 @@ static void set_hdmitx_s5_htx_pll(struct hdmitx21_dev *hdev)
 	}
 
 	/* For FRL modes */
-	if (para->tx_hw_para.hdmitx_hw_para.frl_rate != FRL_NONE) {
-		HDMITX_INFO("set hpll for frl_rate %d\n",
-			para->tx_hw_para.hdmitx_hw_para.frl_rate);
-		switch (para->tx_hw_para.hdmitx_hw_para.frl_rate) {
+	if (hdev->frl_rate != FRL_NONE) {
+		HDMITX_INFO("set hpll for frl_rate %d\n", hdev->frl_rate);
+		switch (hdev->frl_rate) {
 		/* the divider will be overwrite by frl od in hdmitx_set_frl_hpll_od */
 		case FRL_3G3L:
 			hdmitx_set_s5_htxpll_clk_out(6000000, 8);
@@ -864,8 +863,7 @@ static void set_hdmitx_s5_htx_pll(struct hdmitx21_dev *hdev)
 			hdmitx_set_s5_htxpll_clk_out(5000000, 1);
 			break;
 		default:
-			HDMITX_ERROR("not support frl_rate: %d\n",
-				para->tx_hw_para.hdmitx_hw_para.frl_rate);
+			HDMITX_ERROR("not support frl_rate: %d\n", hdev->frl_rate);
 			break;
 		}
 		return;
@@ -1151,13 +1149,11 @@ static void set_hdmitx_htx_pll(struct hdmitx21_dev *hdev,
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S5) {
 		set_hdmitx_s5_htx_pll(hdev);
-		if (!para->tx_hw_para.hdmitx_hw_para.frl_rate &&
-			cd == COLORDEPTH_24B &&
-			hdev->tx_comm.sspll)
+		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 			set_hpll_sspll(vic);
 		/* will overwrite the od already set in set_hdmitx_s5_htx_pll */
-		if (para->tx_hw_para.hdmitx_hw_para.frl_rate)
-			hdmitx_set_frl_hpll_od(para->tx_hw_para.hdmitx_hw_para.frl_rate);
+		if (hdev->frl_rate)
+			hdmitx_set_frl_hpll_od(hdev->frl_rate);
 		if (cs != HDMI_COLORSPACE_YUV422) {
 			if (cd == COLORDEPTH_36B)
 				clk_div_val = VID_PLL_DIV_7p5;
@@ -1198,9 +1194,7 @@ static void set_hdmitx_htx_pll(struct hdmitx21_dev *hdev,
 	}
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7) {
 		hdmitx_set_s7_htx_pll(hdev);
-		if (!para->tx_hw_para.hdmitx_hw_para.frl_rate &&
-			cd == COLORDEPTH_24B &&
-			hdev->tx_comm.sspll)
+		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 			set_hpll_sspll(vic);
 		if (hdev->tx21_hw.clk_analog_path)
 			return;
@@ -1217,9 +1211,7 @@ static void set_hdmitx_htx_pll(struct hdmitx21_dev *hdev,
 	}
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S7D) {
 		hdmitx_set_s7d_htx_pll(hdev);
-		if (!para->tx_hw_para.hdmitx_hw_para.frl_rate &&
-			cd == COLORDEPTH_24B &&
-			hdev->tx_comm.sspll)
+		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 			set_hpll_sspll(vic);
 		if (hdev->tx21_hw.clk_analog_path)
 			return;
@@ -1237,9 +1229,7 @@ static void set_hdmitx_htx_pll(struct hdmitx21_dev *hdev,
 	}
 	if (hdev->tx_comm.tx_hw->chip_data->chip_type == MESON_CPU_ID_S6) {
 		hdmitx_set_s6_htx_pll(hdev);
-		if (!para->tx_hw_para.hdmitx_hw_para.frl_rate &&
-			cd == COLORDEPTH_24B &&
-			hdev->tx_comm.sspll)
+		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->tx_comm.sspll)
 			set_hpll_sspll(vic);
 		if (hdev->tx21_hw.clk_analog_path) {
 			/* bit15
@@ -1389,7 +1379,7 @@ static void hdmitx_set_fpll_without_dsc(struct hdmitx21_dev *hdev)
 	para = &hdev->tx_comm.fmt_para;
 	vic = para->timing.vic;
 	tmp_clk = para->timing.pixel_freq;
-	if (hdev->tx_comm.fmt_para.tx_hw_para.hdmitx_hw_para.frl_rate)
+	if (hdev->frl_rate)
 		tmp_clk /= 2;
 	switch (para->cs) {
 	case HDMI_COLORSPACE_RGB:
@@ -1503,7 +1493,7 @@ static void hdmitx_set_fpll_with_dsc(struct hdmitx21_dev *hdev)
 
 void hdmitx_set_fpll(struct hdmitx21_dev *hdev)
 {
-	if (hdev->tx_comm.fmt_para.tx_hw_para.hdmitx_hw_para.dsc_en)
+	if (hdev->dsc_en)
 		hdmitx_set_fpll_with_dsc(hdev);
 	else
 		hdmitx_set_fpll_without_dsc(hdev);
@@ -1731,9 +1721,9 @@ void hdmitx21_set_clk(struct hdmitx21_dev *hdev)
 		hdmitx_disable_s5_plls(hdev);
 		/* typical 3 modes: legacy tmds, FRL w/o DSC, FRL w/ DSC */
 		set_hdmitx_htx_pll(hdev, &test_clks);
-		if (hdev->tx_comm.fmt_para.tx_hw_para.hdmitx_hw_para.frl_rate) {
+		if (hdev->frl_rate) {
 			hdmitx_set_fpll(hdev);
-			if (hdev->tx_comm.fmt_para.tx_hw_para.hdmitx_hw_para.dsc_en)
+			if (hdev->dsc_en)
 				hdmitx_set_gp2pll(hdev);
 		}
 #endif

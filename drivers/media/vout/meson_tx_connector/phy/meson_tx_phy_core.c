@@ -60,6 +60,7 @@ int meson_tx_phy_configure(struct meson_tx_phy *phy, struct meson_tx_phy_cfg_opt
 	if (phy->ops->configure)
 		phy->ops->configure(phy, opts);
 
+	pr_info("%s\n", __func__);
 	return 0;
 }
 
