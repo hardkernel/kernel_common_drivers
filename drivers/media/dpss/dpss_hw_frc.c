@@ -1100,15 +1100,16 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 			state_st->mc_q_idx_last = state_st->mc_q_idx;
 			dpss_put_queue(&mc_ibuf_q, &state_st->mc_q_idx, &is_empty);
 		}
-		dpe_pre_pixl_buf = state_st->mc_q_idx_last;
+		dpe_pre_pixl_buf = state_st->mc_q_idx;
 		dpe_cur_pixl_buf = state_st->mc_q_idx;
-		dpe_intp_phs = 128;
+		dpe_intp_phs = 0;
 		state_st->is_pause_state_last_frmae = true;
 		state_st->mc_q_idx_last = state_st->mc_q_idx;
 	} else if (state_st->is_pause_state_last_frmae && state_st->mc_q_idx != 0xff &&
 		dpe_pre_pixl_buf != state_st->mc_q_idx) {
+		dpe_pre_pixl_buf = state_st->mc_q_idx;
 		dpe_cur_pixl_buf = state_st->mc_q_idx;
-		dpe_intp_phs = 128;
+		dpe_intp_phs = 0;
 	} else {
 		state_st->is_pause_state_last_frmae = false;
 		state_st->is_wait_mc_state = false;
