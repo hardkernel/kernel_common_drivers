@@ -10533,7 +10533,8 @@ void get_video_mute_info(void)
 	static const char *const mute_owner[] = {
 		"video_mute_set", "hdmi_rx_mute_set", "user_mute_set",
 		"aml_dolby_mute_set", "drm_mute_set", "vpp_internal",
-		"vc_mute_set", "path_sw_mute_set", "vdin_mute_set"
+		"vc_mute_set", "path_sw_mute_set", "vdin_mute_set",
+		"frc_mute_set"
 	};
 
 	pr_info("video mute owner list:\n");

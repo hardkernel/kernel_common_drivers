@@ -346,6 +346,7 @@ enum video_mute_owner {
 	VC_MUTE_SET        = 6,
 	PATH_SW_MUTE_SET   = 7,
 	VDIN_MUTE_SET      = 8,
+	FRC_MUTE_SET       = 9,
 	MAX_VIDEO_MUTE_OWNER,
 };
 
