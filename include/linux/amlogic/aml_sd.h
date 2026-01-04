@@ -121,10 +121,10 @@ struct aml_tuning_para {
 };
 
 struct mmc_stat_t {
-	s64 r_io_cnt;
-	s64 r_total_cnt;
-	s64 w_io_cnt;
-	s64 w_total_cnt;
+	u64 r_io_cnt;
+	u64 r_total_cnt;
+	u64 w_io_cnt;
+	u64 w_total_cnt;
 };
 
 struct meson_host {
