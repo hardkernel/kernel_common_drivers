@@ -2935,11 +2935,9 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 		dprint("dvb_dmxdev_init add frontend: error %d\n", ret);
 		return -1;
 	}
-	pdmx->dmx_ext.dmx.connect_frontend(&pdmx->dmx_ext.dmx, &pdmx->mem_fe);
-	if (ret < 0) {
-		dprint("dvb_dmxdev_init connect frontend: error %d\n", ret);
-		return -1;
-	}
+	pdmx->last_len = 0;
+	if (pdmx->dmx_ext.dmx.frontend)
+		pdmx->dmx_ext.dmx.frontend = &pdmx->mem_fe;
 	pdmx->buf_warning_level = 60;
 	pdmx->init = 1;
 	pdmx->sec_dvr_size = 0;

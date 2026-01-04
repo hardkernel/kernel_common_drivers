@@ -909,6 +909,9 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	else
 		hw_source = DMA_0;
 	//create dmx dev
+	if (mutex_lock_interruptible(&advb->mutex))
+		return -ERESTARTSYS;
+
 	for (i = 0; i < dmx_dev_num; i++) {
 		advb->dmx[i] = vmalloc(sizeof(*advb->dmx[i]));
 		if (!advb->dmx[i])
@@ -969,12 +972,12 @@ static int aml_dvb_probe(struct platform_device *pdev)
 
 	pr_dbg("probe dvb done, ret:%d, is_security_dmx:%d\n",
 			ret, is_security_dmx);
-
+	mutex_unlock(&advb->mutex);
 	return 0;
 
 INIT_ERR:
+	mutex_unlock(&advb->mutex);
 	aml_dvb_remove(pdev);
-
 	return -1;
 }
 
