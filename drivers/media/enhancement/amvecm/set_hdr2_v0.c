@@ -2548,7 +2548,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_EN_CTRL,
 				matrix_on, vpp_sel);
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
-			matrix_on, 4, 1, vpp_sel);
+			top_on, 4, 1, vpp_sel);
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
 			hdr_mtx_param->mtx_only,
 			16, 1, vpp_sel);
