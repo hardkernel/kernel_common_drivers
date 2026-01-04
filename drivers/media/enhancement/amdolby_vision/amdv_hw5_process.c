@@ -4051,6 +4051,8 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 		enable_detunnel = true;
 
 	if (dolby_vision_flags & FLAG_TOGGLE_FRAME) {
+		if (force_set)
+			reset_flag = true;
 		if (enable_top1 && !is_amdv_dpss_path()) {
 			if ((amdv_reset & 1) && !top1_info.core_on &&
 				top1_info.core_on_cnt == 0 &&

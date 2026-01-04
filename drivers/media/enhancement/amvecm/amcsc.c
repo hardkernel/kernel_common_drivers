@@ -7368,6 +7368,14 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path,
 enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,
 	enum vpp_index_e vpp_index, struct vframe_s *vf)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (vd_path == VD1_PATH &&
+		is_amdv_enable() &&
+		get_amdv_src_format(vd_path, vf)
+		== HDRTYPE_DOVI)
+		return HDRTYPE_DOVI;
+#endif
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifdef AMLOGIC_MEDIA_DPSS
 	if (dpss_mode)
