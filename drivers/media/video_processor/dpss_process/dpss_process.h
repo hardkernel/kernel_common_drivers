@@ -33,14 +33,6 @@
 #define LCEVC_RESIDUAL_Y10BIT_PACKED	1
 #define LCEVC_RESIDUAL_UYVY10BIT_PACKED	5
 
-struct dpss_process_port_s {
-	const char *name;
-	u32 index;
-	u32 open_count;
-	struct device *class_dev;
-	struct device *pdev;
-};
-
 struct frame_info_t {
 	u32 in_fd;
 	u32 out_fd;
@@ -90,7 +82,6 @@ enum direct_mode_override {
 
 struct dpss_process_dev {
 	u32 index;
-	struct dpss_process_port_s *port;
 	bool inited;
 	struct task_struct *kthread;
 	bool thread_need_stop;
@@ -116,6 +107,7 @@ struct dpss_process_dev {
 	DECLARE_KFIFO(dpss_out_free_q, struct vframe_s *, DPSSPR_POOL_SIZE);
 	DECLARE_KFIFO(lcevc_out_q, struct lcevc_buf_t *, LCEVC_POOL_SIZE);
 	struct file *last_file;
+	struct dp_buf_mgr_t *last_buf_mgr;
 	struct dma_buf *last_dmabuf;
 	struct dma_buf *out_dmabuf[DPSSPR_POOL_SIZE];
 	unsigned long long fence_creat_count;
@@ -138,6 +130,7 @@ struct dpss_process_dev {
 	bool last_frame_vd1_toggle;
 	u32 transform;
 	int direct_mode_en;
+	int frc_en;
 	bool is_start_with_dpss;
 	bool need_check_hdr_state;
 	bool allow_destroy_dpss;
@@ -146,7 +139,17 @@ struct dpss_process_dev {
 	int output_duration;
 	u32 continue_to_vd1_num;
 	bool should_on_vd1;
+	bool is_dtv_switch_first_vframe;
 	bool vd1_switch_dpss_is_done;
+};
+
+struct dpss_process_port_s {
+	const char *name;
+	u32 index;
+	u32 open_count;
+	struct device *class_dev;
+	struct device *pdev;
+	struct dpss_process_dev *process_dev;
 };
 
 #define DPSS_PROCESS_IOC_MAGIC  'I'

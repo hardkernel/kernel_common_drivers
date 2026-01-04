@@ -6,6 +6,7 @@
 #include <linux/amlogic/major.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/sysfs.h>
 #include <linux/time.h>
 #include <linux/uaccess.h>
@@ -1614,6 +1615,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 			dev->last_file = file_vf;
 
 			dp_print(dev->index, PRINT_OTHER, "dummy has done, need bypass\n");
+			vf->type_ext |= VIDTYPE_EXT_DI_BACKEND_DUMMY;
 			dp_put_file(dev, file_vf);
 			return 0;
 		}
@@ -1680,7 +1682,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		frame_info->frame_index = vf->frame_index;
 		frame_info->need_bypass = true;
 		dev->last_file = file_vf;
-
+		vf->type_ext |= VIDTYPE_EXT_DI_BACKEND_DUMMY;
 		dp_put_file(dev, file_vf);
 		return 0;
 	}
@@ -1714,6 +1716,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 			dev->last_file = file_vf;
 
 			dp_print(dev->index, PRINT_OTHER, "di bypass.\n");
+			vf->type_ext &= ~VIDTYPE_EXT_DI_BACKEND_DUMMY;
 			dp_put_file(dev, file_vf);
 			return 0;
 		}
@@ -1735,6 +1738,8 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		private_data->vf_p = NULL;
 		private_data->vf.frame_index = vf->frame_index;
 		private_data->vf.index_disp = vf->index_disp;
+		private_data->vf.type_original = vf->type_original;
+		private_data->vf.source_type = vf->source_type;
 		private_data->file = file_vf;
 		frame_index = vf->frame_index;
 
@@ -1914,6 +1919,13 @@ static long di_process_ioctl(struct file *file,
 			ret = di_process_q_output(dev, fd);
 		else
 			ret = -EFAULT;
+		break;
+	case DI_PROCESS_IOCTL_GET_ENABLE:
+#ifdef CONFIG_AMLOGIC_BUF_MANAGER
+		ret = get_di_proc_enable();
+#else
+		ret = 0;
+#endif
 		break;
 	case DI_PROCESS_IOCTL_GET_ENABLE:
 #ifdef CONFIG_AMLOGIC_BUF_MANAGER

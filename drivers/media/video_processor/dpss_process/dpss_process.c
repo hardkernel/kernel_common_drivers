@@ -6,6 +6,7 @@
 #include <linux/amlogic/major.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/sysfs.h>
 #include <linux/time.h>
 #include <linux/uaccess.h>
@@ -70,13 +71,13 @@ static bool is_start_dump;
 static u32 direct_mode_flag;
 static enum direct_mode_override force_direct_mode;
 static bool is_dual_channel_enabled;
+static u32 temperature_control_en;
 static u32 vd1_toggle_frame_index[2];
 #ifdef CONFIG_AMLOGIC_DPSS_THERMAL
-static u32 temperature_control_en;
 struct dpss_cooling_device *dpss_cdev_global;
 #endif
 static u32 force_num_to_vd1;
-
+static atomic_t input_eos_enabled = ATOMIC_INIT(0);
 static DEFINE_MUTEX(dpss_process_mutex);
 
 static int dp_print(int index, int debug_flag, const char *fmt, ...)
@@ -730,6 +731,25 @@ static int queue_input_to_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 				vf->src_crop.bottom);
 			vf->compHeight -= vf->src_crop.bottom;
 			vf->src_crop.bottom = 0;
+		}
+	}
+
+	struct vframe_s *enhance_vf;
+
+	enhance_vf = (struct vframe_s *)vf->enhance_vf;
+	if (enhance_vf) {
+		if (is_src_crop_valid(enhance_vf->src_crop)) {
+			if (enhance_vf->type & VIDTYPE_COMPRESS) {
+				dp_print(dev->index, PRINT_OTHER,
+					"%s:compWidth =%d, compHeight=%d,crop_right=%d, crop_bottom=%d\n",
+					__func__,
+					enhance_vf->compWidth,
+					enhance_vf->compHeight,
+					enhance_vf->src_crop.right,
+					enhance_vf->src_crop.bottom);
+				enhance_vf->compHeight -= enhance_vf->src_crop.bottom;
+				enhance_vf->src_crop.bottom = 0;
+			}
 		}
 	}
 
@@ -1509,6 +1529,26 @@ static void dpss_lcevc_buf_uninit(struct dpss_process_dev *dev)
 	}
 }
 
+static int find_standard_duration(struct dpss_process_dev *dev, int duration_val)
+{
+	int min = INT_MAX;
+	int duration_arr[] = {266, 282, 290, 333, 400, 582, 667, 800, 801, 960,
+		1600, 1601, 1920, 3200, 3203, 3840, 4000, 4004};
+	int i = 0, num = 0, diff = 0;
+	int recy_count = sizeof(duration_arr) / sizeof(int);
+
+	for (i = 0; i < recy_count; i++) {
+		diff = abs(duration_val - duration_arr[i]);
+		if (diff < min) {
+			min = diff;
+			num = i;
+		}
+	}
+
+	dp_print(dev->index, PRINT_OTHER, "The nearest duration is %d.\n", duration_arr[num]);
+	return duration_arr[num];
+}
+
 static int get_output_duration(struct dpss_process_dev *dev)
 {
 	struct vinfo_s *vinfo;
@@ -1544,8 +1584,12 @@ static int get_output_duration(struct dpss_process_dev *dev)
 		ret = 801;
 	else if (output_fps == 120)
 		ret = 800;
-	else if (output_fps == 240)
-		ret = 400;
+	else if (output_fps == 144)
+		ret = 667;
+	else if (output_fps == 165)
+		ret = 582;
+	else if (output_fps > 165)
+		ret = (int)div64_u64(96000ULL, output_fps);
 	else
 		ret = 1600;
 
@@ -1573,8 +1617,6 @@ static int dpss_config_work_mode(int dev_index)
 				DPSS_WORK_MODE_HDR |
 				DPSS_WORK_MODE_DI |
 				DPSS_WORK_MODE_MAIN;
-
-		work_mode_ctl = dps_work_mode;
 	} else {
 		if (work_mode_ctl_pip)
 			dps_work_mode = work_mode_ctl_pip;
@@ -1583,11 +1625,91 @@ static int dpss_config_work_mode(int dev_index)
 				DPSS_WORK_MODE_DCT |
 				DPSS_WORK_MODE_DI;
 
-		work_mode_ctl_pip = dps_work_mode;
 		is_dual_channel_enabled = true;
 	}
 
 	return dps_work_mode;
+}
+
+static void dpss_direct_mode_switch(struct dpss_process_dev *dev, struct vframe_s *vf)
+{
+	struct dpss_cmd_a_s dpss_para;
+	bool is_interlace = false;
+	bool is_high_fps = false;
+	bool need_enable_direct_mode = false;
+	u32 duration = 0;
+
+	if (!dev || !vf) {
+		pr_err("dp:[0]:%s:NULL param.\n", __func__);
+		return;
+	}
+
+	if (dev->index != 0) {
+		dp_print(dev->index, PRINT_OTHER, "%s: only main support direct mode.\n", __func__);
+		return;
+	}
+
+	if (vf->type & VIDTYPE_INTERLACE_BOTTOM)
+		is_interlace = true;
+
+	duration = find_standard_duration(dev, vf->duration);
+	if (duration >= 667 && duration < 1600)
+		is_high_fps = true;
+
+	need_enable_direct_mode = is_high_fps || is_dual_channel_enabled || temperature_control_en;
+
+	if (force_direct_mode == DIRECT_MODE_FORCED_ENABLE)
+		direct_mode_flag = 1;
+	else if (force_direct_mode == DIRECT_MODE_FORCED_DISABLE)
+		direct_mode_flag = 0;
+	else
+		direct_mode_flag = (need_enable_direct_mode && !is_interlace) ? 1 : 0;
+
+	memset(&dpss_para, 0, sizeof(struct dpss_cmd_a_s));
+	if (dev->direct_mode_en == 0 && direct_mode_flag == 1) {
+		dp_print(dev->index, PRINT_OTHER, "%s:enable direct mode.\n", __func__);
+		dpss_para.para |= DPSS_DIRECT_MODE;
+		dpss_cmd_asy(dev->dpss_index, DPSS_CMD_ASY_2_WORKMODE, &dpss_para);
+		dev->direct_mode_en = 1;
+	} else if (dev->direct_mode_en == 1 && direct_mode_flag == 0) {
+		dp_print(dev->index, PRINT_OTHER, "%s: disable direct mode.\n", __func__);
+		dpss_para.para &= ~DPSS_DIRECT_MODE;
+		dev->direct_mode_en = 0;
+		dpss_cmd_asy(dev->dpss_index, DPSS_CMD_ASY_2_WORKMODE, &dpss_para);
+	} else {
+		dp_print(dev->index, PRINT_OTHER, "%s: keep direct mode status :%d.\n",
+			__func__, direct_mode_flag);
+	}
+}
+
+static void dpss_frc_enable_switch(struct dpss_process_dev *dev, int enable)
+{
+	struct dpss_cmd_a_s dpss_para;
+
+	if (!dev) {
+		pr_err("dp:[0]:%s:NULL param.\n", __func__);
+		return;
+	}
+
+	if (dev->index != 0) {
+		dp_print(dev->index, PRINT_OTHER, "%s: only main support frc.\n", __func__);
+		return;
+	}
+
+	memset(&dpss_para, 0, sizeof(struct dpss_cmd_a_s));
+	if (dev->frc_en == 0 && enable == 1) {
+		dp_print(dev->index, PRINT_OTHER, "%s:enable frc.\n", __func__);
+		dpss_para.para = 1;
+		dpss_cmd_asy(dev->dpss_index, DPSS_CMD_ENABLE_FRC, &dpss_para);
+		dev->frc_en = 1;
+	} else if (dev->frc_en == 1 && enable == 0) {
+		dp_print(dev->index, PRINT_OTHER, "%s: disable frc.\n", __func__);
+		dpss_para.para = 0;
+		dev->frc_en = 0;
+		dpss_cmd_asy(dev->dpss_index, DPSS_CMD_ENABLE_FRC, &dpss_para);
+	} else {
+		dp_print(dev->index, PRINT_OTHER, "%s: keep frc status :%d.\n", __func__, enable);
+	}
 }
 
 static void connect_to_dpss(struct dpss_process_dev *dev, struct vframe_s *vf, int rotate)
@@ -1648,28 +1770,11 @@ static void connect_to_dpss(struct dpss_process_dev *dev, struct vframe_s *vf, i
 		dev->dpss_parm.dps_work_mode);
 }
 
-static int find_standard_duration(struct dpss_process_dev *dev, int duration_val)
-{
-	int min = INT_MAX;
-	int duration_arr[] = {266, 282, 290, 333, 400, 582, 667, 800, 801, 960,
-			1600, 1601, 1920, 3200, 3203, 3840, 4000, 4004};
-	int i = 0, num = 0, diff = 0;
-	int recy_count = sizeof(duration_arr) / sizeof(int);
-
-	for (i = 0; i < recy_count; i++) {
-		diff = abs(duration_val - duration_arr[i]);
-		if (diff < min) {
-			min = diff;
-			num = i;
-		}
-	}
-
-	dp_print(dev->index, PRINT_OTHER, "The nearest duration is %d.\n", duration_arr[num]);
-	return duration_arr[num];
-}
-
 static int dpss_process_init(struct dpss_process_dev *dev)
 {
+	if (!dev)
+		return 0;
+
 	dp_print(dev->index, PRINT_OTHER, "%s: dev index = %d.\n", __func__, dev->index);
 
 	dev->dpss_index = -1;
@@ -1696,14 +1801,17 @@ static int dpss_process_init(struct dpss_process_dev *dev)
 	dev->q_dummy_frame_done = false;
 	dev->last_frame_bypass = false;
 	dev->cur_is_i = false;
+	dev->last_buf_mgr = NULL;
 	dev->last_file = NULL;
 	dev->direct_mode_en = 0;
+	dev->frc_en = 0;
 	dev->is_start_with_dpss = true;
 	dev->need_check_hdr_state = false;
 	dev->last_frame_vd1_toggle = false;
 	dev->i_frame_cnt = 0;
 	dev->continue_to_vd1_num = 0;
 	dev->should_on_vd1 = 0;
+	dev->is_dtv_switch_first_vframe = false;
 
 	receive_q_init(dev);
 	dpss_input_free_q_init(dev);
@@ -1720,6 +1828,10 @@ static int dpss_process_uninit(struct dpss_process_dev *dev)
 	int i = 0;
 	struct dpss_in_buf_t *buf;
 
+	if (!dev)
+		return 0;
+
+	dp_print(dev->index, PRINT_OTHER, "%s: index = %d.\n", __func__, dev->index);
 	dev->inited = false;
 
 	dpss_out_q_uninit(dev);
@@ -1778,9 +1890,12 @@ static int dpss_process_uninit(struct dpss_process_dev *dev)
 	}
 
 	dp_print(dev->index, PRINT_OTHER,
-		  "fill_done/fill: cur: %lld/%lld, total: %d/%d\n",
-		  dev->fill_done_count, dev->fill_count,
-		  total_fill_done_count, total_fill_count);
+		"%s: fill_done/fill: cur: %lld/%lld, total: %d/%d\n",
+		__func__,
+		dev->fill_done_count,
+		dev->fill_count,
+		total_fill_done_count,
+		total_fill_count);
 
 	return ret;
 }
@@ -1942,6 +2057,53 @@ static bool check_need_do_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 	return need_do_dpss;
 }
 
+#ifdef CONFIG_AMLOGIC_DPSS_THERMAL
+struct dpss_cooling_device *dpss_cdev;
+int set_dpss_cooling_state(int enable)
+{
+	if (temperature_control_en != enable)
+		temperature_control_en =  enable;
+
+	pr_info("dp:[0]: %s: set temperature_control_en to %d.\n", __func__, enable);
+
+	return 0;
+}
+
+void register_dpss_cooling(void)
+{
+	struct thermal_cooling_device *ret = NULL;
+
+	dpss_cdev = kzalloc(sizeof(*dpss_cdev), GFP_KERNEL);
+	if  (!dpss_cdev)
+		return;
+
+	dpss_cdev->maxstep = 1;
+	dpss_cdev->set_dpss_cooling_state = set_dpss_cooling_state;
+	ret = dpss_cooling_register(dpss_cdev);
+	if (!ret) {
+		pr_err("%s: failed to allocate major number\n", __func__);
+		goto fail_dpss_cooling_register;
+	}
+	dpss_cdev->cool_dev = ret;
+	return;
+
+fail_dpss_cooling_register:
+	kfree(dpss_cdev);
+	dpss_cdev = NULL;
+}
+
+void unregister_dpss_cooling(void)
+{
+	if  (!dpss_cdev) {
+		pr_err("%s: NULL dev, no need unreg.\n", __func__);
+		return;
+	}
+	dpss_cooling_unregister(dpss_cdev->cool_dev);
+	kfree(dpss_cdev);
+	dpss_cdev = NULL;
+}
+#endif
+
 void get_vd1_toggle_first_frame_index(u32 layer_index, u32 frame_index)
 {
 	if (layer_index > 1) {
@@ -1952,58 +2114,11 @@ void get_vd1_toggle_first_frame_index(u32 layer_index, u32 frame_index)
 }
 EXPORT_SYMBOL(get_vd1_toggle_first_frame_index);
 
-#ifdef CONFIG_AMLOGIC_DPSS_THERMAL
-int set_dpss_cooling_state(int enable)
+void buf_mgr_set_eos(void)
 {
-	if (temperature_control_en != enable)
-		temperature_control_en =  enable;
-
-	pr_info("dp:[0]: set temperature_control_en to %d.\n", enable);
-
-	return 0;
+	if (is_dual_channel_enabled == 0)
+		atomic_set(&input_eos_enabled, 1);
 }
-
-void register_dpss_cooling(struct device_node *np)
-{
-	struct thermal_cooling_device *ret = NULL;
-	struct dpss_cooling_device *dpss_cdev;
-
-	dpss_cdev = kzalloc(sizeof(*dpss_cdev), GFP_KERNEL);
-	if  (!dpss_cdev)
-		return;
-
-	dpss_cdev->maxstep = 1;
-	dpss_cdev->set_dpss_cooling_state = set_dpss_cooling_state;
-	ret = dpss_cooling_register(dpss_cdev, np);
-	if (!ret) {
-		pr_err("failed to allocate major number\n");
-		goto fail_dpss_cooling_register;
-	}
-	dpss_cdev->cool_dev = ret;
-	dpss_cdev_global = dpss_cdev;
-	return;
-
-fail_dpss_cooling_register:
-	kfree(dpss_cdev);
-	dpss_cdev = NULL;
-}
-
-void unregister_dpss_cooling(void)
-{
-	struct dpss_cooling_device *dpss_cdev;
-
-	if  (!dpss_cdev_global) {
-		pr_err("NULL dev, no need unreg.\n");
-		return;
-	}
-	dpss_cdev = dpss_cdev_global;
-	dpss_cdev_global = NULL;
-
-	if (dpss_cdev->cool_dev)
-		dpss_cooling_unregister(dpss_cdev->cool_dev);
-	kfree(dpss_cdev);
-}
-#endif
 
 static int display_original_frame(struct dpss_process_dev *dev,
 	struct frame_info_t *frame_info, struct file *file_vf, struct vframe_s *vf)
@@ -2025,6 +2140,28 @@ static int display_original_frame(struct dpss_process_dev *dev,
 	return 1;
 }
 
+static bool is_dtv_source(struct file *file_vf, struct vframe_s *vf)
+{
+	bool is_v4l_vf = false;
+	bool is_tv_path;
+
+	if (!file_vf || !vf)
+		return false;
+
+	is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		vf->source_type == VFRAME_SOURCE_TYPE_TUNER)
+		is_tv_path = true;
+	else
+		is_tv_path = false;
+
+	if (is_v4l_vf && !is_tv_path)
+		return true;
+	else
+		return false;
+}
+
 static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_info_t *frame_info)
 {
 	int i;
@@ -2039,13 +2176,9 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 	u32 max_width_new = 0, max_width_last = 0;
 	bool ip_switch = false, tvp_switch = false, rotate180_switch = false;
 	bool need_do_dummy = false, rotate_en = false;
+	struct dp_buf_mgr_t *cur_buf_mgr;
 	struct dpss_status dpss_state;
 	int ret = 0;
-	struct dpss_cmd_a_s dpss_para;
-	bool is_interlace = false;
-	bool is_high_fps = false;
-	bool need_enable_direct_mode = false;
-	u32 duration = 0;
 
 	if (!dev || !frame_info) {
 		pr_err("%s: param is invalid.\n", __func__);
@@ -2058,6 +2191,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		return -EINVAL;
 	}
 
+	frame_info->need_bypass = false;
 	file_vf = dp_get_file(dev, frame_info->in_fd);
 	if (!file_vf) {
 		dp_print(dev->index, PRINT_ERROR,
@@ -2104,37 +2238,26 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 	}
 
 	if (dev->index == 0) {
-		if (vf->type & VIDTYPE_INTERLACE_BOTTOM)
-			is_interlace = true;
-
-		duration = find_standard_duration(dev, vf->duration);
-		if (duration >= 667 && duration < 1600)
-			is_high_fps = true;
-
-		need_enable_direct_mode = is_high_fps || is_dual_channel_enabled;
-
-		if (force_direct_mode == DIRECT_MODE_FORCED_ENABLE)
-			direct_mode_flag = 1;
-		else if (force_direct_mode == DIRECT_MODE_FORCED_DISABLE)
-			direct_mode_flag = 0;
+		if (temperature_control_en)
+			dpss_frc_enable_switch(dev, 0);
 		else
-			direct_mode_flag = (need_enable_direct_mode && !is_interlace) ? 1 : 0;
+			dpss_frc_enable_switch(dev, 1);
 
-		memset(&dpss_para, 0, sizeof(struct dpss_cmd_a_s));
-		if (dev->direct_mode_en == 0 && direct_mode_flag == 1) {
-			dp_print(dev->index, PRINT_OTHER, "%s:enable direct mode.\n", __func__);
-			dpss_para.para = DPSS_DIRECT_MODE;
-			dpss_cmd_asy(dev->dpss_index, DPSS_CMD_ASY_2_WORKMODE, &dpss_para);
-			dev->direct_mode_en = 1;
-		} else if (dev->direct_mode_en == 1 && direct_mode_flag == 0) {
-			dp_print(dev->index, PRINT_OTHER, "%s: disable direct mode.\n", __func__);
-			dpss_para.para = 0;
-			dev->direct_mode_en = 0;
-			dpss_cmd_asy(dev->dpss_index, 0, &dpss_para);
-		} else {
-			dp_print(dev->index, PRINT_OTHER, "%s: keep direct mode status :%d.\n",
-				__func__, direct_mode_flag);
-		}
+		dpss_direct_mode_switch(dev, vf);
+	}
+
+	cur_buf_mgr = get_buf_mgr(file_vf);
+	if (!dev->last_buf_mgr) {
+		dev->last_buf_mgr = cur_buf_mgr;
+		dp_print(dev->index, PRINT_OTHER,
+			"new stream is on, first frame is set\n");
+	} else if (cur_buf_mgr != dev->last_buf_mgr) {
+		dev->last_buf_mgr = cur_buf_mgr;
+		if (is_dtv_source(file_vf, vf))
+			dev->is_dtv_switch_first_vframe = true;
+		atomic_set(&input_eos_enabled, 0);
+		dp_print(dev->index, PRINT_OTHER,
+			"stream changed, need notify processor\n");
 	}
 
 	if (frame_info->transform == 4 || frame_info->transform == 7)
@@ -2285,6 +2408,18 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		frame_info->is_tvp = true;
 	else
 		frame_info->is_tvp = false;
+
+	if (atomic_read(&input_eos_enabled) == 1) {
+		vf->type_ext |= VIDTYPE_EXT_DPSS_EOS;
+		dp_print(dev->index, PRINT_OTHER, "frame_index=%d, input eos detected\n",
+			vf->frame_index);
+	}
+	if (dev->is_dtv_switch_first_vframe) {
+		dp_print(dev->index, PRINT_OTHER, "frame_index=%d, need eos flag\n",
+			vf->frame_index);
+		vf->type_ext |= VIDTYPE_EXT_DPSS_EOS;
+		dev->is_dtv_switch_first_vframe = false;
+	}
 
 	dp_print(dev->index, PRINT_OTHER,
 		"frame_index=%d,type=0x%x,flag=0x%x,compWidth=%d,compHeight=%d,width=%d,height=%d.\n",
@@ -2564,7 +2699,7 @@ static int dpss_process_open(struct inode *inode, struct file *file)
 
 	index = iminor(inode);
 	pr_info("%s iminor(inode) =%d\n", __func__, index);
-	if (index >= DPSS_INSTANCE_COUNT)
+	if (index >= dpss_process_instance_num)
 		return -ENODEV;
 
 	port = &ports[index];
@@ -2587,17 +2722,16 @@ static int dpss_process_open(struct inode *inode, struct file *file)
 	}
 	memset(dev, 0, sizeof(struct dpss_process_dev));
 
-	dev->port = port;
 	file->private_data = dev;
 	dev->index = port->index;
 	port->open_count++;
-
+	port->process_dev = dev;
 	mutex_unlock(&dpss_process_mutex);
 
 	dev->thread_need_stop = false;
 	init_waitqueue_head(&dev->wq);
 	mutex_init(&dev->mutex_dpss_out);
-	dev->kthread = kthread_create(dpss_process_thread, dev, dev->port->name);
+	dev->kthread = kthread_create(dpss_process_thread, dev, port->name);
 	if (IS_ERR(dev->kthread)) {
 		pr_err("dpss_process_thread creat failed\n");
 		return -ENOMEM;
@@ -2614,13 +2748,16 @@ static int dpss_process_open(struct inode *inode, struct file *file)
 static int dpss_process_release(struct inode *inode, struct file *file)
 {
 	struct dpss_process_dev *dev = file->private_data;
-	struct dpss_process_port_s *port = dev->port;
+	struct dpss_process_port_s *port;
+	int index;
 	int ret = 0, i = 0;
 
-	pr_info("dpss process release\n");
-
-	if (iminor(inode) >= dpss_process_instance_num)
+	index = iminor(inode);
+	pr_info("%s iminor(inode) =%d\n", __func__, index);
+	if (index >= dpss_process_instance_num)
 		return -ENODEV;
+
+	port = &ports[index];
 
 	if (dev->kthread) {
 		dev->thread_need_stop = true;
@@ -2651,6 +2788,7 @@ static int dpss_process_release(struct inode *inode, struct file *file)
 
 	mutex_lock(&dpss_process_mutex);
 	port->open_count--;
+	port->process_dev = NULL;
 	mutex_unlock(&dpss_process_mutex);
 
 	vfree(dev);
@@ -3061,6 +3199,31 @@ static ssize_t force_direct_mode_store(const struct class *cla,
 	return count;
 }
 
+static ssize_t temperature_control_en_show(const struct class *class,
+	const struct class_attribute *attr, char *buf)
+{
+	int len = 0;
+
+	len = sprintf(buf + len, "temperature_control_en is %d.\n", temperature_control_en);
+
+	return len;
+}
+
+static ssize_t temperature_control_en_store(const struct class *cla,
+	const struct class_attribute *attr, const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+
+	temperature_control_en = tmp;
+	return count;
+}
 static ssize_t force_num_to_vd1_show(const struct class *class,
 	const struct class_attribute *attr, char *buf)
 {
@@ -3108,6 +3271,7 @@ static CLASS_ATTR_RW(continue_dump_num);
 static CLASS_ATTR_RW(continue_dump_top_num);
 static CLASS_ATTR_RW(continue_dump_bottom_num);
 static CLASS_ATTR_RW(force_direct_mode);
+static CLASS_ATTR_RW(temperature_control_en);
 static CLASS_ATTR_RW(force_num_to_vd1);
 
 static struct attribute *dpss_process_class_attrs[] = {
@@ -3132,6 +3296,7 @@ static struct attribute *dpss_process_class_attrs[] = {
 	&class_attr_continue_dump_top_num.attr,
 	&class_attr_continue_dump_bottom_num.attr,
 	&class_attr_force_direct_mode.attr,
+	&class_attr_temperature_control_en.attr,
 	&class_attr_force_num_to_vd1.attr,
 	NULL
 };
@@ -3167,6 +3332,10 @@ static int dpss_process_probe(struct platform_device *pdev)
 		pr_err("Can't allocate major for dpss_process device\n");
 		goto error1;
 	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "di_backend_support_en", &di_backend_support);
+	if (di_backend_support)
+		set_di_proc_enable(1);
 
 	ret = of_property_read_u32(pdev->dev.of_node, "di_backend_support_en", &di_backend_support);
 	if (di_backend_support)
@@ -3215,9 +3384,23 @@ static void dpss_process_remove(struct platform_device *pdev)
 #endif
 };
 
+static void dpss_process_shutdown(struct platform_device *pdev)
+{
+	int i = 0;
+	struct dpss_process_dev *dev = NULL;
+
+	for (i = 0; i < dpss_process_instance_num; i++) {
+		mutex_lock(&dpss_process_mutex);
+		dev = ports[i].process_dev;
+		dpss_process_uninit(dev);
+		mutex_unlock(&dpss_process_mutex);
+	}
+}
+
 static struct platform_driver dpss_process_driver = {
 	.probe = dpss_process_probe,
 	.remove = dpss_process_remove,
+	.shutdown = dpss_process_shutdown,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "dpss_process",
