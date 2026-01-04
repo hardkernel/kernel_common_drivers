@@ -3625,6 +3625,18 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 				update_top2_control_path_flag = true;
 				toggle_mode = true;
 			}
+			if (!toggle_mode &&/*check if display_size is changed for rpt frame*/
+				(top2_info.core_disp_hsize != h_size ||
+				top2_info.core_disp_vsize != v_size)) {
+				if (debug_dolby & 0x400000)
+					pr_dv_dbg("rpt frame disp size change %d %d -> %d %d\n",
+						top2_info.core_disp_hsize,
+						top2_info.core_disp_vsize,
+						h_size, v_size);
+				dolby_vision_flags |= FLAG_TOGGLE_FRAME;
+				update_top2_control_path_flag = true;
+				toggle_mode = true;
+			}
 		}
 		if (is_aml_t6x() && vd_proc_info && vd_proc_info->mosaic_mode)
 			prm_dolby.mosaic_mode = 1;
