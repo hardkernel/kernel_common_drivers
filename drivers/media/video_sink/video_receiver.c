@@ -26,6 +26,7 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include <linux/amlogic/media/video_sink/video.h>
+#include <linux/amlogic/media/dpss/dpss_frc.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #else
@@ -553,6 +554,11 @@ static int  common_toggle_frame(struct video_recv_s *ins,
 					common_vf_put(ins, ins->original_vf);
 				}
 			} else {
+				#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+				if (ins->original_vf &&
+					glayer_info[0].display_path_id == ins->path_id)
+					put_vfm_to_frc(ins->original_vf);
+				#endif
 				common_vf_put(ins, ins->original_vf);
 			}
 		} else {
@@ -613,7 +619,7 @@ static s32 recv_common_early_process(struct video_recv_s *ins, u32 op)
 static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 								struct path_id_s *path_id)
 {
-	struct vframe_s *vf = NULL;
+	struct vframe_s *vf = NULL, *frc_vf = NULL;
 	struct vframe_s *toggle_vf = NULL;
 	s32 drop_count = -1;
 	int ret = -1;
@@ -630,6 +636,18 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 		return NULL;
 	}
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (glayer_info[0].display_path_id == ins->path_id && is_frc_link_on(&vd_layer[0])) {
+		frc_vf = get_vfm_from_frc();
+		if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL) {
+			if (frc_vf)
+				pr_info("get_vfm_from_frc w:%d h:%d vf:%p\n",
+					frc_vf->compWidth, frc_vf->compHeight, frc_vf);
+			else
+				pr_info("get_vfm_from_frc NULL\n");
+		}
+	}
+#endif
 	if (ins->request_exit) {
 		ins->do_exit = true;
 		ins->exited = false;
@@ -712,11 +730,13 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 					pr_info("ins->path_id %d,%s, wait\n",
 						ins->path_id, ins->recv_name);
 				if (ret == 4) {
+					struct vframe_s *tmp_vf = frc_vf ? frc_vf : vf;
+
 					if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
 						pr_info("first frame for top1\n");
-					amdv_parse_metadata_hw5_top1(vf);
-					amdolby_vision_process_hw5(vf, NULL,
-						vf->compWidth << 16 | vf->compHeight, 1);
+					amdv_parse_metadata_hw5_top1(tmp_vf);
+					amdolby_vision_process_hw5(tmp_vf, NULL,
+						tmp_vf->compWidth << 16 | tmp_vf->compHeight, 1);
 				}
 				break;
 			}
@@ -768,7 +788,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 #endif
 			if (vf) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-				amvecm_process(path_id, ins, vf);
+				amvecm_process(path_id, ins, frc_vf ? frc_vf : vf);
 #endif
 				if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
 					do_gettimeofday(&cur_line_info->end2);
@@ -822,16 +842,17 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 				if ((glayer_info[0].display_path_id ==
 				    ins->path_id || is_multi_dv_mode())) {
 #endif
+					struct vframe_s *tmp_vf = frc_vf ? frc_vf : vf;
 					if (get_top1_onoff() == 0) {/*no top1*/
-						dv_toggle_frame(vf, vd_path, true);
+						dv_toggle_frame(tmp_vf, vd_path, true);
 					} else if (get_top1_onoff() == 1) {
 						/*top1 enabled but no need get frame in advance*/
-						vf_top1 = vf;
+						vf_top1 = tmp_vf;
 						amdv_parse_metadata_hw5_top1(vf_top1);
-						dv_toggle_frame(vf, VD1_PATH, true);
+						dv_toggle_frame(tmp_vf, VD1_PATH, true);
 					} else if (get_top1_onoff() == 3) {/*top1 next + top2 cur*/
 						amdv_parse_metadata_hw5_top1(vf_top1);
-						dv_toggle_frame(vf, vd_path, true);
+						dv_toggle_frame(tmp_vf, vd_path, true);
 					}
 				}
 				if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
@@ -854,6 +875,11 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 		drop_count++;
 		vf = common_vf_peek(ins);
 	}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (toggle_vf && glayer_info[0].display_path_id == ins->path_id)
+		put_vfm_to_frc(toggle_vf);
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	if (toggle_vf && IS_DI_POST(toggle_vf->type) &&
 	    dil_get_diff_ver_flag() == DI_DRV_DEINTERLACE &&
@@ -899,8 +925,15 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 	}
 #endif
 
+	if (frc_vf) {
+		frc_vf->type_backup = frc_vf->type;
+		ins->cur_buf = frc_vf;
+		frc_vf->vf_ext = toggle_vf;
+	}
 	ins->last_switch_state = ins->switch_vf;
-	return toggle_vf;
+	if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+		pr_info("frc_vf:%p toggle_vf:%p\n", frc_vf, toggle_vf);
+	return frc_vf ? frc_vf : toggle_vf;
 }
 
 static s32 recv_common_return_frame(struct video_recv_s *ins,

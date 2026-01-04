@@ -335,4 +335,9 @@ u32 DPSS_B_RD_MPEG_REG(u32 adr);
 void dpss_v_rdma_config_a(void);
 void dpss_v_rdma_config_b(void);
 
+//frc-dp:Fast forward video
+void get_eos_from_dp(bool en);
+//detect speed-up playback
+void dp_dynamic_detect_play_speed(bool en);
+
 #endif	/*__DPSS_INTERLACE_H__*/

@@ -58,6 +58,7 @@ int enable_mc_link = 1;
 int frc_delay_dbg; // for avsync debug
 
 #define N2M_LIST 28
+#define DPSS_FRC_RESET_PATH_SKIP_CNT 5
 
 const char *vid_src_fmt_str[] = {
 	"YUV444",
@@ -653,9 +654,11 @@ static void frc_drv_initial(struct dpss_dev_s *devp)
 	frc_top->mc_skip_mode = 0; // b10:h/2,v/2, b0:v/2, b1:h/2
 	frc_top->frc_input_n = 1;
 	frc_top->frc_output_m = 1;
-	state_st->unformat_bypass = 1;
+	// state_st->unformat_bypass = 1;
+	state_st->unformat_bypass = 0; // enable (v>h)
 	state_st->special_format = 0;
-	state_st->mc_cut_position = 1;
+	// state_st->mc_cut_position = 1;
+	state_st->mc_cut_position = 0;
 	state_st->pre_vsync_offset = 0;
 	state_st->mc_lp_mode = 0;
 	state_st->use_inp_big = 0x10;
@@ -663,6 +666,7 @@ static void frc_drv_initial(struct dpss_dev_s *devp)
 	state_st->detect_threshold = 3;
 	state_st->dst_buf_th = 5;
 	state_st->enable_frclink_cnt = 2;
+	state_st->first_put_vfm = true;
 	frc_top->memc_enable = 2;
 	frc_top->frc_memc_level = 10;
 	frc_top->frc_deblur_level = 10;
@@ -673,6 +677,7 @@ static void frc_drv_initial(struct dpss_dev_s *devp)
 	frc_fw_alg_ctrl->melogo_en = 1;
 	frc_fw_alg_ctrl->frc_me_en = 1;
 	dbg_st->ctrl_dbg.mc_rdmif_err_reset_en = 1;
+	dbg_st->ctrl_dbg.frc_dae_div4 = 1;
 	frc_dbg(DPSS_FRC_TOP, "%s init_version_20250905\n", __func__);
 	if (pdata && pdata->mdata) {
 		if (pdata->mdata->ic_id == IC_ID_T6W) {
@@ -681,6 +686,7 @@ static void frc_drv_initial(struct dpss_dev_s *devp)
 		} else if (pdata->mdata->ic_id == IC_ID_T6X) {
 			frc_st.chip = ID_T6X;
 			frc_st.encl_frc_ctrl = ENCL_FRC_CTRL_T6X;
+			// dpss_light_chg = 0;
 		} else { // for further
 			frc_st.chip = ID_T6W;
 			frc_st.encl_frc_ctrl = ENCL_FRC_CTRL;
@@ -725,6 +731,7 @@ void dpss_frc_prob(struct dpss_dev_s *devp)
 	}
 
 	frc_drv_initial(devp);
+
 #ifdef USE_FRC_PRE_VS_RDMA
 	dpss_rdma_init();
 #endif
@@ -779,6 +786,7 @@ void hw_init_part1(struct vframe_s *vfrm)
 	//else
 	//	real_vtotal = 0x466;
 	real_vtotal = vinfo->vtotal;
+	vsync_lines = vinfo->vtotal / 2;
 	dbg_f1("%s:real_vtotal %d, out_frm_rate:%d\n",
 			__func__, real_vtotal, out_frm_rate);
 
@@ -816,8 +824,6 @@ void hw_init_part1(struct vframe_s *vfrm)
 			vsync_lines = 0x320;
 		else
 			vsync_lines = real_vtotal / 3 + 0x150;
-	} else {
-		vsync_lines = real_vtotal / 3 + 0x150;
 	}
 
 	if (vsync_lines > vinfo->height)
@@ -1066,6 +1072,7 @@ static void frc_state_init(void)
 	state_st->is_pause_state_last_frmae = false;
 	state_st->is_wait_mc_state = false;
 	state_st->need_drop_dd = false;
+	state_st->is_seek_bar = false;
 	state_st->dae_ready = false;
 	state_st->dpe_ready = false;
 	state_st->dpe_mix = false;
@@ -1120,7 +1127,7 @@ static void frc_compress_fmt_parse(struct dpss_sub_vf_s *vfs)
 }
 
 extern unsigned int dpss_dbg_top_cfg0;
-void init_frc_pre(struct dpss_sub_vf_s *vfs)
+void init_frc_pre(struct dpss_sub_vf_s *vfs, struct dpss_ch_s *pch)
 {
 	struct PRM_DPSS_TOP *prm_top = prm_dpss_top; //ary need check
 	struct dpss_frc_fw_data_s *pfw_data;
@@ -1128,10 +1135,13 @@ void init_frc_pre(struct dpss_sub_vf_s *vfs)
 	struct dpss_frc_fw_alg_ctrl_s *frc_fw_alg_ctrl = NULL;
 	struct frc_chip_st *pchip_st = dpss_get_frc_st();
 	struct frc_state_s *state_st;
+	struct PRM_DPSS_DPE *prm_dpe = &pch->c.prm_dpe;
+	struct frc_debug_s *dbg_st;
 
 	if (!pchip_st)
 		return;
 	state_st = &pchip_st->state_st;
+	dbg_st =  &pchip_st->dbg_st;
 	pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
 	if (!pfw_data) {
 		DBG_ERR("%s: frc_fw is null\n", __func__);
@@ -1142,12 +1152,20 @@ void init_frc_pre(struct dpss_sub_vf_s *vfs)
 		DBG_ERR("%s: frc_top is null\n", __func__);
 		return;
 	}
-	frc_top->hsize = dpss_en_pps ? pps_out_w : prm_top->frm_hsize;
-	frc_top->vsize = dpss_en_pps ? pps_out_h : prm_top->frm_vsize;
+	if (pps_out_w && pps_out_h) {
+		frc_top->hsize = pch->c.prm_top.is_pps ? pps_out_w : prm_top->frm_hsize;
+		frc_top->vsize = pch->c.prm_top.is_pps ? pps_out_h : prm_top->frm_vsize;
+	} else {
+		frc_top->hsize = pch->c.prm_top.is_pps ?
+			prm_dpe->dpe_nr_size.pps_hsize : prm_top->frm_hsize;
+		frc_top->vsize = pch->c.prm_top.is_pps ?
+			prm_dpe->dpe_nr_size.pps_vsize : prm_top->frm_vsize;
+	}
 	frc_top->auto_align_en = 0;
+	dbg_i0("%s:is_pps ch=%d,=%d,=%d\n", __func__,
+		pch->c.ch, pch->c.prm_top.is_pps, pch->c.prm_top.is_di2pps);
+
 	frc_top->motion_ctrl = prm_top->amdv_2_frc_frm;
-	frc_top->hsize = prm_top->frm_hsize;
-	frc_top->vsize = prm_top->frm_vsize;
 	frc_top->mc_hsize = prm_top->frm_hsize;
 	frc_top->mc_vsize = prm_top->frm_vsize;
 	frc_top->crop_top = 0;
@@ -1157,11 +1175,9 @@ void init_frc_pre(struct dpss_sub_vf_s *vfs)
 	frc_top->need_dpe_mix = 0;
 	frc_top->dpe_mix_cnt = 0;
 
-	if (pfw_data->frc_input_cfg)
-		pfw_data->frc_input_cfg(pfw_data);
 	prm_top->mc_auto_en = frc_top->mc_auto_en;
 
-	if (is_di2pps) {
+	if (pch->c.prm_top.is_di2pps) {
 		prm_top->mc_auto_en = 0;
 		dbg_h2("dis mc_auto_en %d\n", prm_top->mc_auto_en);
 	}
@@ -1186,6 +1202,33 @@ void init_frc_pre(struct dpss_sub_vf_s *vfs)
 	prm_top->frc_bbd_en = frc_fw_alg_ctrl->bbd_en;
 	prm_top->mc_lp_mode = state_st->mc_lp_mode;
 	prm_top->use_inp_big = state_st->use_inp_big;
+	prm_top->frc_dae_div4 = dbg_st->ctrl_dbg.frc_dae_div4;
+	nr_dpe_dw_cfg(prm_top);
+	if (prm_top->dpe_dw_dsx == 1 && prm_top->dpe_dw_dsy == 1)
+		frc_top->is_me1mc4 = 0;
+	else if (prm_top->dpe_dw_dsx == 2 && prm_top->dpe_dw_dsy == 2)
+		frc_top->is_me1mc4 = 1;
+	else if (prm_top->dpe_dw_dsx == 2 && prm_top->dpe_dw_dsy == 1)
+		frc_top->is_me1mc4 = 2;
+
+	if (pfw_data->frc_input_cfg)
+		pfw_data->frc_input_cfg(pfw_data);
+
+	prm_top->trig_byp_dae0 = false;
+	prm_top->trig_byp_mc = false;
+	prm_top->reset_path = true;
+	pchip_st->mc_pix_rmif.uv_swap = false;
+	state_st->mc_byp_switch = false;
+	state_st->mc_ini_rdma_done = false;
+	state_st->enable_mc_cnt = 0;
+	state_st->src_chg = false;
+	state_st->first_put_vfm = true;
+	state_st->cur_fw_pause = frc_top->fw_pause;
+	state_st->cur_frc_me_en = prm_top->frc_me_en;
+	state_st->mc_cur_idx = 0;
+	state_st->used_seq_vfm = false;
+	state_st->pps_frc = false;
+
 	if (state_st->force_n2m == 1) {
 		frc_top->in_out_ratio = state_st->n2m_status.frc_ratio;
 		dbg_f1("%s: force_n2m : %d\n", __func__,
@@ -1992,14 +2035,20 @@ void frc_cut_win_chk_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 		src_height = vfm->height;
 	}
 
-	if (src_width > 1920) {
+	//if (src_width > 1920) {
+	//	align_base_h = 16;
+	//	if (src_height > 1080)
+	//		align_base_v = 16;
+	//} else if (src_height > 1080) {
+	//	align_base_h = 16;
+	//	align_base_v = 16;
+	//}
+
+	if (prm_top->dpe_dw_dsx == 2)
 		align_base_h = 16;
-		if (src_height > 1080)
-			align_base_v = 16;
-	} else if (src_height > 1080) {
-		align_base_h = 16;
+	if (prm_top->dpe_dw_dsy == 2)
 		align_base_v = 16;
-	}
+
 	win_s    = &pchip_st->win_st;
 	if (win_s->win_hbgn != win->x_st || win_s->win_hend != win->x_end ||
 		win_s->win_vbgn != win->y_st || win_s->win_vend != win->y_end) {
@@ -2020,8 +2069,8 @@ void frc_cut_win_chk_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 				src_width, src_height,
 				win->x_size, win->y_size,
 				win->orig_w, win->orig_h);
-		dbg_f1("frc_cut_win_1_step:win_size_chg_flag = %d\n",
-				win_size_chg_flag);
+		dbg_f1("frc_cut_win_1_step:win_size_chg_flag = %d, align(%d,%d)\n",
+				win_size_chg_flag, align_base_h, align_base_v);
 		if (frc_top->mc_cut_en == 0)
 			return;
 	}
@@ -2033,6 +2082,7 @@ void frc_cut_win_chk_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 			src_from_nr = 1;
 		if (win_s->cut_win_en == 1) {
 			prm_top->cut_win_en = 1;
+			state_st->cut_pre_mc_work = 1;
 			prm_top->prm_cut_win.frm_hsize = src_width;
 			prm_top->prm_cut_win.frm_vsize = src_height;
 
@@ -2087,6 +2137,7 @@ void frc_cut_win_chk_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 					win_s->cut_win_en, prm_top->cut_win_en);
 		} else if (win_s->cut_win_en == 0 && prm_top->cut_win_en == 1) {
 			prm_top->cut_win_en = 0;
+			state_st->cut_pre_mc_work = 1;
 			if (frc_top->mc_cut_en == 0)
 				frc_mc_cut_0(prm_top, src_from_nr);
 			else
@@ -2133,6 +2184,9 @@ void frc_cut_win_set_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 	if (state_st->mc_cut_position == 0)
 		return;  //  // cut before mc
 
+	if ((win->x_size == 0 || win->y_size == 0) && state_st->win_size_zero_flag)
+		return;
+
 	prm_top->cut_win_en = 0;
 	if (vfm->type & VIDTYPE_COMPRESS) {
 		src_width = vfm->compWidth;
@@ -2148,11 +2202,10 @@ void frc_cut_win_set_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 		win_s->win_hend  = win->x_end;
 		win_s->win_vbgn  = win->y_st;
 		win_s->win_vend  = win->y_end;
-		dbg_f1("frc_cut_win_1_step:src_hv<%d,%d> win st<%d,%d>, win end<%d,%d>\n",
+		dbg_f1("cut_win_2_step:src_hv<%d,%d>,win st<%d,%d>,win end<%d,%d>,chg_flag:%d\n",
 				src_width, src_height,
 				win->x_st, win->y_st,
-				win->x_end, win->y_end);
-		dbg_f1("frc_cut_win_1_step_set:win_size_chg_flag = %d\n",
+				win->x_end, win->y_end,
 				win_size_chg_flag);
 		//wr(DPSS_DPE_MC_WIN_CUT_H, temp_value);
 		//temp_value = win_s->win_vbgn | (win_s->win_vend << 16);
@@ -2192,17 +2245,28 @@ void frc_cut_win_set_2_step(struct frc_win_s *win, struct vframe_s *vfm)
 
 void frc_transform_check(struct vframe_s *vfm, struct pvpp_dis_frc_para_in_s *in_para)
 {
-	int reverse = in_para->plink_reverse;
-	int mirror = in_para->plink_hv_mirror;
+	struct frc_chip_st *pchip = dpss_get_frc_st();
 	struct dpss_frc_fw_data_s *pfw_data;
 	struct PRM_DPSS_TOP *prm_top = prm_dpss_top;
+	int reverse, mirror;
 	u32 src_from_nr = 0, frc_rev_mode = 0, rev_x = 0, uv_swap = 0;
+	struct DPSS_MC0_TYPE *prm_mc;
 
+	if (!pchip) {
+		dbg_h2("%s pchip is null\n", __func__);
+		return;
+	}
 	pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
 	if (!pfw_data) {
 		DBG_ERR("%s: frc_fw or pchip_st or win is null\n", __func__);
 		return;
 	}
+	if (!in_para)
+		return;
+
+	prm_mc = &pchip->prm_mc;
+	reverse = in_para->plink_reverse;
+	mirror = in_para->plink_hv_mirror;
 
 	if (reverse)
 		frc_rev_mode |= C_BIT0 | C_BIT1;
@@ -2233,10 +2297,12 @@ void frc_transform_check(struct vframe_s *vfm, struct pvpp_dis_frc_para_in_s *in
 
 		prm_top->frc_rev_mode = frc_rev_mode;
 		pix_rmif->uv_swap = uv_swap;
-
+		prm_mc->mc_rev_mode = prm_top->frc_rev_mode;
 		dbg_f1("reverse:%d mirror:%d frc_rev_mode:0x%x uv_swap:%d\n",
-		       reverse, mirror, prm_top->frc_rev_mode, pix_rmif->uv_swap);
-		hw_cfg_dpss_mc_ini(prm_top, src_from_nr);
+			reverse, mirror, prm_top->frc_rev_mode, pix_rmif->uv_swap);
+		//hw_cfg_dpss_mc0(prm_top, src_from_nr, prm_mc);
+		//hw_cfg_dpss_mc_intf(prm_top, prm_mc);
+		hw_mc_reverse_update(prm_top, prm_mc);
 	}
 }
 
@@ -2264,9 +2330,10 @@ static void check_readback_reg(u8 reg_type)
 
 	if (reg_type == BIT_0 &&
 		(dbg_st->ctrl_dbg.check_reg_status & reg_type) == reg_type) {  // check mc cut reg
-		dbg_f1("check: mc_cut reg(%#x,%#x)",
+		dbg_f1("check: mc_cut reg(%#x,%#x), mc_phase(%#x)",
 			rd(DPSS_DPE_MC_WIN_CUT_H),
-			rd(DPSS_DPE_MC_WIN_CUT_V));
+			rd(DPSS_DPE_MC_WIN_CUT_V),
+			rd(DPSS_DPE_MC_PHASE));
 	} else if (reg_type == BIT_1 &&
 		(dbg_st->ctrl_dbg.check_reg_status & reg_type) == reg_type) {
 		dbg_f1("vd pps blend regs:\n");
@@ -2318,7 +2385,7 @@ static void check_readback_reg(u8 reg_type)
 	}
 }
 
-static void get_nr_buf_idx(struct vframe_s *vfm, struct frc_state_s *state_st)
+void get_nr_buf_idx(struct vframe_s *vfm, struct frc_state_s *state_st)
 {
 	struct dpss_nr_i_s *nr_i;
 
@@ -2360,8 +2427,6 @@ int pvpp_display_frc(struct vframe_s *vfm,
 	if (!state_st->dpss_reg || !state_st->dpe_ready)
 		return ret;
 
-	get_nr_buf_idx(vfm, state_st);
-
 	is_vd1_link = is_vd1_link_state();
 
 	if (is_vd1_link && state_st->need_switch_to_vd1)
@@ -2386,18 +2451,9 @@ int pvpp_display_frc(struct vframe_s *vfm,
 				state_st->special_format);
 		return ret;
 	}
-	//frc_cut_win_check(&in_para->win, vfm);
-	if (in_para) {
-		if (in_para->win.x_size == 0 || in_para->win.y_size == 0)
-			dbg_f1("%s in_para win_size (%d, %d)\n",
-					__func__, in_para->win.x_size, in_para->win.y_size);
-		frc_cut_win_chk_2_step(&in_para->win, vfm);
-		frc_cut_win_set_2_step(&in_para->win, vfm);
-		frc_transform_check(vfm, in_para);
-		check_readback_reg(BIT_0);
-		check_readback_reg(BIT_5);
-	}
 
+	//get_nr_buf_idx(vfm, state_st);
+	//frc_cut_win_check(&in_para->win, vfm);
 	if (dpss_dae_frm_cnt_src0 <= state_st->enable_frclink_cnt) {
 		dbg_h1("\tret:0 dae0_cnt:%d link_cnt:%d\n", dpss_dae_frm_cnt_src0,
 			state_st->enable_frclink_cnt);
@@ -2441,11 +2497,20 @@ int pvpp_display_frc(struct vframe_s *vfm,
 			wr(DPSS_DPE_MC_TOP_RESET, BIT_25); // RESET BIT 25
 			w_reg_bit(DPSS_DPE_MC_START_CTRL, 2, 0, 2);
 			hw_mc_vfcd_cfg_update();
-
 			state_st->mc_bypass = true;
 			state_st->mc_bypass_cnt = 1;
 			frc_set_mc_bypass(3);
 			dbg_f1("%s enable frc\n", __func__);
+		}
+		if (in_para) {
+			frc_transform_check(vfm, in_para);
+			if (in_para->win.x_size == 0 || in_para->win.y_size == 0)
+				dbg_f1("%s in_para win_size (%d, %d)\n",
+						__func__, in_para->win.x_size, in_para->win.y_size);
+			frc_cut_win_chk_2_step(&in_para->win, vfm);
+			frc_cut_win_set_2_step(&in_para->win, vfm);
+			check_readback_reg(BIT_0);
+			check_readback_reg(BIT_5);
 		}
 		ret = 1;
 	}
@@ -2772,7 +2837,7 @@ void dpss_frc_set_mc_bypass(u8 enable_mc)
 	}
 	if (enable_mc == frc_top->memc_enable)
 		return;
-	pr_frc(1, "%s ext_ctrl: enable :%d\n", __func__, enable_mc);
+	pr_frc(1, "ext_ctrl: memc_enable :%d\n", enable_mc);
 	if (enable_mc == 0) {
 		w_reg_bit(FRC_MC_DBG_PHASE_EN, 0x3, 16, 2);
 		w_reg_bit(FRC_MC_HW_CTRL0, 0x3, 0, 2);
@@ -2799,19 +2864,30 @@ void dpss_set_mc_link_state(u8 enable_mc_link)
 	if (enable_mc_link == frc_top->memc_enable)
 		return;
 
+	pr_frc(1, "ext_ctrl: link_en:%d\n", enable_mc_link);
 	if (enable_mc_link) {
-		pchip_st->state_st.need_disable_mc_link = 0;
-		pchip_st->state_st.force_n2m = 0;
-		pchip_st->state_st.n2m_status.output_framerate = 0;
+		pchip_st->state_st.need_disable_mc_link = false;
+		pchip_st->state_st.ui_set_n2m = false;
 	} else {
-		pchip_st->state_st.need_disable_mc_link = 1;
-		pchip_st->state_st.force_n2m = 1;
-		pchip_st->state_st.n2m_status.frc_ratio = 0;
+		pchip_st->state_st.need_disable_mc_link = true;
+		pchip_st->state_st.ui_set_n2m = true;
 	}
 
 	frc_top->memc_enable = enable_mc_link;
-
 	pr_frc(1, "need_disable_mc_link=%d\n", pchip_st->state_st.need_disable_mc_link);
+	usleep_range(500, 800);
+}
+
+int dpss_frc_get_enable(void)
+{
+	struct dpss_frc_fw_data_s *pfw_data;
+	struct dpss_frc_top_type_s *frc_top;
+
+	pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
+	if (!pfw_data)
+		return 0;
+	frc_top = &pfw_data->frc_top_type;
+	return frc_top->memc_enable;
 }
 
 void dpss_frc_set_dejudder(u8 dejudder_level)
@@ -2837,9 +2913,50 @@ EXPORT_SYMBOL(dpss_frc_set_dejudder);
 
 void dpss_frc_set_deblur(u8 deblur_level)
 {
-	pr_frc(1, "%s ext_ctrl: deblur_level:%d\n", __func__, deblur_level);
+	struct dpss_frc_fw_data_s *pfw_data;
+	struct dpss_frc_top_type_s *frc_top;
+
+	pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
+	if (pfw_data) {
+		frc_top = &pfw_data->frc_top_type;
+	} else {
+		DBG_ERR("%s: frc_fw is null\n", __func__);
+		return;	// add abnormal case
+	}
+	pr_frc(1, "ext_ctrl: deblur_level:%d\n", deblur_level);
+	if (deblur_level != pfw_data->frc_top_type.frc_deblur_level) {
+		pfw_data->frc_top_type.frc_deblur_level = deblur_level;
+		if (pfw_data->frc_memc_level)
+			pfw_data->frc_memc_level(pfw_data);
+	}
 }
 EXPORT_SYMBOL(dpss_frc_set_deblur);
+
+static void frc_set_force_n2m(struct frc_state_s *state_st)
+{
+	if (!state_st)
+		return;
+	if (state_st->ui_set_n2m || state_st->dbg_set_n2m) {
+		if (!state_st->force_n2m) {
+			state_st->force_n2m = true;
+			pr_frc(1, "force_n2m=%d\n", state_st->force_n2m);
+		}
+	} else if (state_st->fast_pat_set_n2m) {
+		if (!state_st->force_n2m) {
+			state_st->force_n2m = true;
+			state_st->n2m_status.force_frc_ratio = DPSS_FRC_RATIO_1_1;
+			pr_frc(1, "force_n2m=%d, force_frc_ratio=%d\n",
+				state_st->force_n2m, state_st->n2m_status.force_frc_ratio);
+		}
+	} else {
+		if (state_st->force_n2m) {
+			state_st->n2m_property_change = true;
+			state_st->force_n2m = false;
+			pr_frc(1, "force_n2m=%d, n2m_property_change=%d\n",
+				state_st->force_n2m, state_st->n2m_property_change);
+		}
+	}
+}
 
 static void get_vout_framerate(struct frc_state_s *state_st)
 {
@@ -2908,6 +3025,17 @@ bool  frc_dynamic_detect_play_speed(void)
 	return condition_flag;
 }
 
+void dp_dynamic_detect_play_speed(bool en)
+{
+	struct frc_chip_st *pchip_st = dpss_get_frc_st();
+
+	if (!pchip_st)
+		return;
+
+	pchip_st->state_st.fast_pat_set_n2m = en;
+	dbg_f1("fast_pat_set_n2m=%d\n", en);
+}
+
 void dpss_h_update_frc(struct vframe_s *vfm)
 {
 	struct frc_chip_st *pchip_st = dpss_get_frc_st();
@@ -2940,6 +3068,8 @@ void dpss_h_update_frc(struct vframe_s *vfm)
 	frc_top = &pfw_data->frc_top_type;
 	state_st = &pchip_st->state_st;
 
+	frc_set_force_n2m(state_st);
+
 	in_fr = state_st->n2m_status.input_framerate;
 	out_fr = state_st->n2m_status.output_framerate;
 
@@ -2964,10 +3094,11 @@ void dpss_h_update_frc(struct vframe_s *vfm)
 		in_fr_int, len > 0 ? frac_str : "0",
 		state_st->n2m_status.input_framerate);
 	if (state_st->force_n2m == 1 &&
-		(frc_top->in_out_ratio != prm_top->frc_ratio ||
-		frc_top->in_out_ratio != state_st->n2m_status.frc_ratio)) {
+		(frc_top->in_out_ratio != state_st->n2m_status.force_frc_ratio ||
+		prm_top->frc_ratio != state_st->n2m_status.force_frc_ratio)) {
 		prm_top->frc_ratio = state_st->n2m_status.frc_ratio;
 		frc_top->in_out_ratio = state_st->n2m_status.frc_ratio;
+		state_st->n2m_status.frc_ratio = state_st->n2m_status.force_frc_ratio;
 		frc_top->frc_in_frm_rate = state_st->n2m_status.input_framerate;
 		frc_top->frc_out_frm_rate = state_st->n2m_status.output_framerate;
 		update_n2m_info_to_fw(prm_top->frc_ratio);
@@ -2978,7 +3109,11 @@ void dpss_h_update_frc(struct vframe_s *vfm)
 	}
 
 	if (in_fr != state_st->n2m_status.input_framerate ||
-			out_fr != state_st->n2m_status.output_framerate) {
+			out_fr != state_st->n2m_status.output_framerate)
+		state_st->n2m_property_change = true;
+
+	if (state_st->n2m_property_change) {
+		state_st->n2m_property_change = false;
 		in_fr = state_st->n2m_status.input_framerate;
 		out_fr = state_st->n2m_status.output_framerate;
 		frc_top->frc_in_frm_rate = in_fr;
@@ -3021,9 +3156,13 @@ void dpss_h_update_frc(struct vframe_s *vfm)
 	is_4k2k = (src_w > 1920 && src_h > 1088);
 	state_st->is_dos = is_dos;
 
-	if (is_dos && is_4k2k && in_fr == out_fr &&
-		!state_st->mc_bypass_always) {
-		state_st->mc_bypass_always = 1;
+	if (is_dos && is_4k2k) {
+		if (pchip_st->chip == ID_T6W && in_fr >= 50)
+			state_st->mc_bypass_always = 2;
+		else if (pchip_st->chip == ID_T6X && in_fr == out_fr)
+			state_st->mc_bypass_always = 1;
+		else
+			state_st->mc_bypass_always = 0;
 		dbg_f2("is_dos=%d is_4k2k=%d(%d,%d) mc_bypass_always=%d\n",
 			is_dos, is_4k2k, src_w, src_h, state_st->mc_bypass_always);
 	}
@@ -3035,6 +3174,9 @@ void dpss_h_update_frc(struct vframe_s *vfm)
 		state_st->need_drop_dd = false;
 		dbg_f2("need_drop_dd=%d\n", state_st->need_drop_dd);
 	}
+
+	if (state_st->is_seek_bar && !(vfm->type_ext & VIDTYPE_EXT_DPSS_EOS))
+		state_st->is_seek_bar = false;
 }
 
 void dpss_frc_check_reg_stats(void)
@@ -3437,8 +3579,10 @@ void dpss_frc_get_init_csc(void)
 	struct frc_mc_csc_set_s *mc_csc_s;
 
 	pchip_st = dpss_get_frc_st();
-	mc_csc_s = &pchip_st->init_csc;
+	if (!pchip_st)
+		return;
 
+	mc_csc_s = &pchip_st->init_csc;
 	mc_csc_s->coef00_01 = rd(FRC_MC_CSC_COEF_00_01);
 	mc_csc_s->coef02_10 = rd(FRC_MC_CSC_COEF_02_10);
 	mc_csc_s->coef11_12 = rd(FRC_MC_CSC_COEF_11_12);
@@ -3471,8 +3615,10 @@ void dpss_frc_mtx_cfg(enum frc_mc_mtx_csc_e mtx_csc)
 	unsigned int en = 1;
 
 	pchip_st = dpss_get_frc_st();
-	mc_csc_s = &pchip_st->init_csc;
+	if (!pchip_st)
+		return;
 
+	mc_csc_s = &pchip_st->init_csc;
 	switch (mtx_csc) {
 	case CSC_OFF:
 		en = 0;
@@ -3969,3 +4115,299 @@ void update_mc_cut_size_to_fw(u16 mc_hsize, u16 mc_vsize,
 		pfw_data->frc_input_cfg(pfw_data);
 }
 
+int dpss_frc_fpp_memc_set_level(u8 level, u8 num)
+{
+	struct dpss_frc_fw_data_s *pfw_data;
+	int flag = 0;
+
+	pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
+	if (!pfw_data) {
+		DBG_ERR("%s: frc_fw is null\n", __func__);
+		return 0;
+	}
+	pr_frc(1, "fpp_set_memc_level:%d[%d]\n", level, num);
+	if (level != pfw_data->frc_top_type.frc_memc_level) {
+		pfw_data->frc_top_type.frc_memc_level = level;
+		flag = 1;
+	}
+	if (num != pfw_data->frc_top_type.frc_memc_level_1) {
+		pfw_data->frc_top_type.frc_memc_level_1 = num;
+		flag = 1;
+	}
+	if (pfw_data->frc_memc_level && flag)
+		pfw_data->frc_memc_level(pfw_data);
+	return 1;
+}
+
+static struct dpss_frc_vf_s frc_vf_s[DPSS_DPS_NUB];
+static unsigned int pre_cur_idx;
+static unsigned int inp_vfm_cnt;
+static struct frc_vf_ctrl_s frc_vf_ctrl;
+static unsigned int reset_path_skip_cnt;
+
+static inline void frc_vf_ctrl_reset(void)
+{
+	memset(&frc_vf_ctrl, 0, sizeof(frc_vf_ctrl));
+}
+
+static inline void frc_vf_ctrl_record_wr(u32 nr_buf_id)
+{
+	u32 idx = nr_buf_id % DPSS_DPS_NUB;
+
+	if (!frc_vf_ctrl.wr_initialized) {
+		frc_vf_ctrl.wr_initialized = true;
+	} else if (nr_buf_id <= frc_vf_ctrl.wr_seq) {
+		dbg_h2("wr_seq back off new:%u last:%u\n",
+			nr_buf_id, frc_vf_ctrl.wr_seq);
+	}
+
+	frc_vf_ctrl.wr_idx = idx;
+	frc_vf_ctrl.wr_seq = nr_buf_id;
+}
+
+static inline u32 frc_vf_ctrl_update_rd(u32 hw_idx, u32 *sequence, bool *reuse_last)
+{
+	u32 idx = hw_idx % DPSS_DPS_NUB;
+	u32 expected, ret_idx;
+
+	if (reuse_last)
+		*reuse_last = false;
+
+	if (!frc_vf_ctrl.rd_initialized) {
+		frc_vf_ctrl.rd_initialized = true;
+		frc_vf_ctrl.rd_idx = idx;
+		frc_vf_ctrl.rd_seq = frc_vf_s[idx].sequence;
+		frc_vf_ctrl.last_idx = idx;
+		frc_vf_ctrl.last_seq = frc_vf_ctrl.rd_seq;
+		frc_vf_ctrl.last_valid = true;
+		ret_idx = idx;
+	} else {
+		expected = (frc_vf_ctrl.rd_idx + 1) % DPSS_DPS_NUB;
+		if (idx != expected) {
+			dbg_h2("idx adjust hw:%u expect:%u\n",
+				idx, expected);
+			if (frc_vf_ctrl.last_valid) {
+				if (reuse_last)
+					*reuse_last = true;
+				if (sequence)
+					*sequence = frc_vf_ctrl.last_seq;
+				return frc_vf_ctrl.last_idx;
+			}
+		}
+
+		frc_vf_ctrl.rd_idx = idx;
+		frc_vf_ctrl.rd_seq = frc_vf_s[idx].sequence;
+		frc_vf_ctrl.last_idx = idx;
+		frc_vf_ctrl.last_seq = frc_vf_ctrl.rd_seq;
+		frc_vf_ctrl.last_valid = true;
+		ret_idx = idx;
+	}
+
+	if (sequence)
+		*sequence = frc_vf_ctrl.rd_seq;
+
+	return ret_idx;
+}
+
+struct vframe_s *get_vfm_from_frc(void)
+{
+	struct frc_chip_st *pchip_st;
+	struct frc_state_s *state_st;
+	struct vframe_s *vfm = NULL;
+	int vpp_skip_count = 0;
+	u32 cur_idx, ro_disp_info_0, seq_id;
+	bool reuse_last = false;
+	struct PRM_DPSS_TOP *prm_top = prm_dpss_top;
+
+	if (!inp_vfm_cnt)
+		// dbg_h2("%s no vfm?\n", __func__);
+		return NULL;
+
+	pchip_st = dpss_get_frc_st();
+	if (!pchip_st)
+		return NULL;
+
+	if (pchip_st->chip < ID_T6W)
+		//dbg_h2("%s not support this chip:%d\n",
+		//	__func__, pchip_st->chip);
+		return NULL;
+
+	if (!(dpss_light_chg & C_BIT0))
+		//dbg_h2("%s not light chg mode, dpss_light_chg:%d\n",
+		//	__func__, dpss_light_chg);
+		return NULL;
+
+	if (is_vd1_link_state())
+		//dbg_h2("%s is vd1 link\n", __func__);
+		return NULL;
+
+	if (prm_top->is_i)
+		//dbg_h2("%s is I src\n", __func__);
+		return NULL;
+
+	if (reset_path_skip_cnt) {
+		reset_path_skip_cnt--;
+		//dbg_h2("%s mc link on delay cnt, remain:%u\n",
+		//	__func__, reset_path_skip_cnt);
+		return NULL;
+	}
+
+	if (prm_top->reset_path) { //for skip count
+		prm_top->reset_path = false;
+		reset_path_skip_cnt = DPSS_FRC_RESET_PATH_SKIP_CNT;
+		//dbg_h2("%s mc link on delay cnt trigger\n",
+		//	__func__);
+		return NULL;
+	}
+
+	state_st = &pchip_st->state_st;
+	ro_disp_info_0 = rd(FRC_DPSS_DISP_BUFF_INFO_0);
+	cur_idx = (ro_disp_info_0 >> 8) & 0xf;
+	if (!state_st->src0_disp_obuf_rdy) {
+		cur_idx = pre_cur_idx; // used last idx
+	} else {
+		if (state_st->used_seq_vfm)
+			cur_idx = frc_vf_ctrl_update_rd(cur_idx,
+				&seq_id, &reuse_last);
+		else
+			cur_idx = state_st->mc_cur_idx % DPSS_DPS_NUB;
+	}
+
+	vfm = &frc_vf_s[cur_idx].vfm;
+	vpp_skip_count = get_current_vscale_skip_count(vfm);
+	if (vpp_skip_count) {
+		//dbg_h2("%s vpp skip count:%d\n",
+		//	__func__, vpp_skip_count);
+		return NULL;
+	}
+
+	pre_cur_idx = cur_idx;
+
+	//if (!reuse_last && frc_vf_s[cur_idx].sequence != seq_id)
+		//dbg_h2("%s sequence mismatch idx:%u seq:%u stored:%u\n",
+			//__func__, cur_idx, seq_id, frc_vf_s[cur_idx].sequence);
+
+	dbg_h2("cur_idx:%d nr_buf_id:%d, vfm(w,h)=(%d,%d) vf:%p pre_idx:%d\n",
+		cur_idx, vfm->nr_buf_id,
+		vfm->compWidth, vfm->compHeight, vfm, pre_cur_idx);
+
+	return vfm;
+}
+
+void *put_vfm_to_frc(struct vframe_s *vfm)
+{
+	u32 i, vfm_id, idx;
+	struct frc_chip_st *pchip_st;
+	struct frc_state_s *state_st;
+	struct PRM_DPSS_TOP *prm_top = prm_dpss_top;
+
+	if (!vfm) {
+		//dbg_h2("%s vfm is null\n", __func__);
+		return NULL;
+	}
+
+	pchip_st = dpss_get_frc_st();
+	if (!pchip_st)
+		return NULL;
+
+	if (pchip_st->chip < ID_T6W) {
+		//dbg_h2("%s not support this chip:%d\n",
+		//	__func__, pchip_st->chip);
+		return NULL;
+	}
+
+	if (prm_top->is_i) {
+		//dbg_h2("%s is I src\n", __func__);
+		return NULL;
+	}
+
+	dbg_h2("vf->nr_buf_id:%d, vfm-(w,h)=(%d,%d) vf:%p\n",
+		vfm->nr_buf_id,
+		vfm->compWidth, vfm->compHeight, vfm);
+	state_st = &pchip_st->state_st;
+	if (state_st->first_put_vfm) {
+		dbg_h2("first vfm, nr_id:%d\n", vfm->nr_buf_id);
+		// frc_init_vfm_s();
+		inp_vfm_cnt = 0;
+		pre_cur_idx = 0;
+		state_st->first_put_vfm = false;
+		frc_vf_ctrl_reset();
+		for (i = 0; i < DPSS_DPS_NUB; i++) {
+			frc_vf_s[i].nr_buf_id = i;
+			frc_vf_s[i].sequence = 0;
+			frc_vf_s[i].vfm = *vfm;
+			frc_vf_s[i].vfm.nr_buf_id = i;
+		}
+	}
+
+	vfm_id = vfm->nr_buf_id;
+	frc_vf_ctrl_record_wr(vfm_id);
+	idx = vfm_id % DPSS_DPS_NUB;
+	frc_vf_s[idx].nr_buf_id = vfm_id;
+	frc_vf_s[idx].sequence = vfm_id;
+	frc_vf_s[idx].vfm = *vfm;
+	frc_vf_s[idx].vfm.nr_buf_id = vfm_id;
+	inp_vfm_cnt++;
+
+	return NULL;
+}
+
+void update_frc_state(void)
+{
+	struct vframe_s *vfs = get_vfm_from_frc();
+	struct frc_chip_st *pchip_st = dpss_get_frc_st();
+	struct frc_state_s *state_st;
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
+
+	if (!pchip_st || !vfs) {
+		dbg_h0("pchip_st or vfs is null\n");
+		return;
+	}
+
+	state_st = &pchip_st->state_st;
+	state_st->pps_frc = pps->pps_en ? true : false;
+
+	if (VFM_IS_COMP_MODE(vfs->type))
+		if (VFM_IS_COMP_AFRC(vfs->type_ext))
+			state_st->compr_sel = DDR_AFRC;
+		else
+			state_st->compr_sel = DDR_AFBC;
+	else
+		state_st->compr_sel = DDR_MIF;
+
+	if (VFM_IS_FMT_420(vfs->type))
+		state_st->big_fmt = YUV420;
+	else if (VFM_IS_FMT_422(vfs->type))
+		state_st->big_fmt = YUV422;
+	else if (VFM_IS_FMT_444(vfs->type))
+		state_st->big_fmt = YUV444;
+
+	if (vfs->bitdepth & BITDEPTH_Y10)
+		state_st->big_bits = BIT_010;
+	else
+		state_st->big_bits = BIT_008;
+
+	state_st->big_plane = vfs->plane_num;
+	dbg_h2("%s update frc state done, compr_sel:%d,frc_pps:%d\n",
+		__func__, state_st->compr_sel, state_st->pps_frc);
+}
+
+//call function only eos
+void get_eos_from_dp(bool en)
+{
+	struct frc_chip_st *pchip_st = dpss_get_frc_st();
+	struct frc_state_s *state_st;
+
+	if (!pchip_st)
+		return;
+
+	state_st = &pchip_st->state_st;
+
+	if (en && !state_st->is_seek_bar)
+		state_st->is_seek_bar = true;
+	else
+		state_st->is_seek_bar = false;
+	dbg_f2("is_seek_bar=%d\n", state_st->is_seek_bar);
+	dbg_h2("update frc state done, compr_sel:%d\n",
+		 state_st->compr_sel);
+}

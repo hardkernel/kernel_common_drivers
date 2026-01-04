@@ -235,6 +235,7 @@ struct frc_ctrl_dbg_s {
 	unsigned dbg_mvrd_mode:16;
 	unsigned out_line:32;  /*ctl mc out line for user*/
 	unsigned check_reg_status:16;
+	unsigned frc_dae_div4:1;
 };
 
 enum frc_mc_mtx_csc_e {
@@ -356,6 +357,7 @@ struct framerate_s {
 
 struct n2m_s {
 	enum DPSS_FRC_RATIO frc_ratio;
+	enum DPSS_FRC_RATIO force_frc_ratio;
 	u8 input_framerate;
 	u8 output_framerate;
 	struct framerate_s in_fr;
@@ -408,6 +410,25 @@ struct frc_work_s {
 	// struct work_struct secure_work;
 };
 
+struct dpss_frc_vf_s {
+	bool is_on;
+	u32 nr_buf_id;
+	struct vframe_s vfm;
+	u32 sequence;
+};
+
+struct frc_vf_ctrl_s {
+	u32 wr_idx;
+	u32 rd_idx;
+	u32 wr_seq;
+	u32 rd_seq;
+	u32 last_idx;
+	u32 last_seq;
+	bool wr_initialized;
+	bool rd_initialized;
+	bool last_valid;
+};
+
 struct frc_state_s {
 	bool is_frc_vpp_link;
 	bool need_switch_to_vd1;
@@ -419,6 +440,10 @@ struct frc_state_s {
 	bool special_format;
 	bool inp_alg_worked;
 	bool force_n2m;
+	bool ui_set_n2m;
+	bool dbg_set_n2m;
+	bool fast_pat_set_n2m;
+	bool n2m_property_change;
 	bool is_first_frame;
 	bool src0_disp_obuf_rdy;
 	bool mc_bypass;
@@ -427,10 +452,15 @@ struct frc_state_s {
 	bool frc_en;//dpss mode include frc
 	bool demo_win_en;
 	bool mc_cut_position;
+	u8 cut_pre_mc_work;
 	bool mc_lp_mode;
-	bool mc_bypass_always;
+	u8 mc_bypass_always;
 	u8 use_inp_big;
 	bool detect_speed;
+	bool src_chg;
+	bool mc_byp_switch;
+	bool mc_ini_rdma_done;
+	bool first_put_vfm;
 	bool force_disable_dpe_mix;
 	bool force_disable_check_fallback;
 	bool is_dos;
@@ -438,6 +468,8 @@ struct frc_state_s {
 	bool dpe_ready;
 	u8 dpe_mix;
 	u8 mv_buf_idx;
+	bool win_size_zero_flag;
+	bool used_seq_vfm;
 	u8 check_fallback;
 	u8 detect_threshold;
 	u8 dae0_bypass_mode;
@@ -446,9 +478,14 @@ struct frc_state_s {
 	u8 nr_buf_idx;
 	u8 force_mc_cur_idx;
 	u8 mc_drop_idx;
+	u8 mc_switch_adj_idx;
 	u32 mc_bypass_cnt;
 	u32 force_mc_byp_cnt;
 	u32 pre_vsync_offset;
+	u32 enable_mc_cnt;
+	u32 cur_fw_pause;
+	u32 cur_frc_me_en;
+	u32 mc_cur_idx;
 	unsigned int put_frame_cnt;
 	enum compress_fmt_s compr_sel;
 	unsigned int big_fmt;
@@ -459,6 +496,7 @@ struct frc_state_s {
 
 	bool enable_last_drop; //drop last frame
 	bool need_drop_dd;
+	bool is_seek_bar;
 	bool force_disable_drop_last;
 	bool is_pause_state_last_frmae;
 	bool is_wait_mc_state;
@@ -473,12 +511,14 @@ struct frc_state_s {
 	struct me_pcn_s me_pcn_st;
 	struct mc_disp_s mc_disp_st;
 	struct dpss_frc_i_s *src_frc_inp[16];
+	bool pps_frc;
 };
 
 struct frc_chip_st {
 	enum chip_id chip;
 	u8 frc_en;
 	u32 encl_frc_ctrl;
+	u32 dbg_vfcd_holdline;
 //      struct frc_attribute_s *attr_st;
 //      struct frc_buf_s *buf_st;
 //      struct frc_clock_s *clk_st;
@@ -633,5 +673,6 @@ static inline struct frc_chip_st *dpss_get_frc_st(void)
 }
 
 void *dpss_get_fw_data(void);
+
 /*-------------------------*/
 #endif	/*__DPSS_SYS_H__*/

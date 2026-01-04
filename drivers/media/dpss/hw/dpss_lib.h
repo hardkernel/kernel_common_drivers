@@ -48,6 +48,7 @@ void display_init_queue(struct display_queue *queue);
 bool display_queue_is_empty(struct display_queue *queue);
 bool display_queue_put(struct display_queue *queue);
 u8 get_dst_buf_cnt(struct display_queue *queue);
+void display_queue_use_last(struct display_queue *queue, u8 sel);
 
 extern struct Vpu_queue inp_bufQ;
 extern unsigned int g_SIM_FRM_NUM;

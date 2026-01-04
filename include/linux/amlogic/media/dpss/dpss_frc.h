@@ -67,15 +67,19 @@ void frc_disable_plink_notify(bool async);
 void frc_plink_state_changed_notify(void);
 void irq_display(void);
 void post_vsync_signal_to_dpss_rdma(void);
+void *put_vfm_to_frc(struct vframe_s *vfm);
+struct vframe_s *get_vfm_from_frc(void);
 
 int dpss_frc_get_video_latency(void);
 int dpss_frc_get_video_latency_for_gd(void);
 int dpss_frc_get_video_latency_for_gd1(void);
 void dpss_frc_set_mc_bypass(u8 bypass);
+int dpss_frc_get_enable(void);
 //vpp rdma
 u32 VSYNC_RD_VIDEO_TABLE_REG(u32 adr);
 int VSYNC_WR_VIDEO_TABLE_REG(u32 adr, u32 val);
 int VSYNC_WR_VIDEO_TABLE_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+int get_current_vscale_skip_count(struct vframe_s *vf);
 
 void dpss_frc_set_deblur(u8 deblur_level);
 void dpss_frc_set_mc_bypass(u8 enable_mc);

@@ -9,8 +9,7 @@
 #include "dpss_param.h"
 
 void cfg_dpss_mc_ini(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr);
-void cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm_mc,
-				struct PRM_INTF_TYPE *pix_rmif);//ary add
+void cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm_mc);
 void cfg_dpss_mc0(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr, struct DPSS_MC0_TYPE *prm_mc);
 void cfg_dpss_mc_pre_triggle(void);//cfg @_pre_go_filed
 void cfg_dpss_mc_triggle(void);//cfg @go_filed

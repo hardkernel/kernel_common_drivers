@@ -140,3 +140,20 @@ u8 get_dst_buf_cnt(struct display_queue *queue)
 	return inp_index - drop_index;
 }
 
+//0:drop_index
+//1:mc_index
+//2:inp_index
+void display_queue_use_last(struct display_queue *queue, u8 sel)
+{
+	u8 *index;
+
+	if (!queue)
+		return;
+
+	index = sel == 0 ? &queue->drop_idx : sel == 1 ? &queue->mc_idx : &queue->inp_idx;
+	if (*index == 0 || *index >= DPSS_QUEEN_NUM)
+		*index = DPSS_QUEEN_NUM - 1;
+	else
+		(*index)--;
+}
+

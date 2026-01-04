@@ -1099,6 +1099,7 @@ static long dpss_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	void __user *argp = (void __user *)arg;
 	u32 data;
 	struct memc_gmv_s memc_gmv;
+	enum frc_fpp_state_e fpp_state;
 
 	memc_gmv.gmv_x = 0;
 	memc_gmv.gmv_y = 0;
@@ -1149,6 +1150,29 @@ static long dpss_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		dpss_frc_set_dejudder(data);
 		// pr_frc(1, "SET_MEMC_LEVEL:%d\n", data);
+		break;
+
+	case DPSS_FRC_IOC_SET_FPP_MEMC_LEVEL:
+		if (copy_from_user(&fpp_state, argp,
+			sizeof(enum frc_fpp_state_e))) {
+			pr_frc(1, "fpp copy from user error!/n");
+			ret = -EFAULT;
+			break;
+		}
+		if (fpp_state == FPP_MEMC_OFF)
+			dpss_frc_fpp_memc_set_level(0, 0);
+		else if (fpp_state == FPP_MEMC_LOW)
+			dpss_frc_fpp_memc_set_level(3, 0);
+		else if (fpp_state == FPP_MEMC_MID)
+			dpss_frc_fpp_memc_set_level(6, 0);
+		else if (fpp_state == FPP_MEMC_HIGH)
+			dpss_frc_fpp_memc_set_level(10, 0);
+		else if (fpp_state == FPP_MEMC_24PFILM)
+			dpss_frc_fpp_memc_set_level(10, 2);
+		else
+			dpss_frc_fpp_memc_set_level((u8)fpp_state, 0);
+
+		pr_frc(1, "set_fpp_memc_level:%d\n", fpp_state);
 		break;
 
 	case DPSS_FRC_IOC_SET_MEMC_DMEO_MODE:

@@ -189,6 +189,7 @@ static ssize_t dpss_frc_debug_if_help(char *buf)
 	len +=
 		sprintf(buf + len, "disable_io_ctrl\t=%d\n",
 			dbg_st->ctrl_dbg.disable_io_ctrl);
+	len +=
 		sprintf(buf + len, "enable_frclink_cnt\t=%d\n",
 			state_st->enable_frclink_cnt);
 	len +=
@@ -203,6 +204,12 @@ static ssize_t dpss_frc_debug_if_help(char *buf)
 	len +=
 		sprintf(buf + len, "ui_frc_state_sel\t=%d\n",
 			dbg_st->ctrl_dbg.ui_frc_state_sel);
+	len +=
+		sprintf(buf + len, "dbg_vfcd_hold_line\t=%d\n",
+			pchip_st->dbg_vfcd_holdline);
+	len +=
+		sprintf(buf + len, "frc_dae_div4\t=%d\n",
+			dbg_st->ctrl_dbg.frc_dae_div4);
 	return len;
 }
 
@@ -318,9 +325,9 @@ static void dpss_frc_debug_if(const char *buf, size_t count)
 		if (!parm[2])
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
-			state_st->force_n2m = val1;
+			state_st->dbg_set_n2m = val1;
 		if (kstrtoint(parm[2], 10, &val1) == 0)
-			state_st->n2m_status.frc_ratio = val1;
+			state_st->n2m_status.force_frc_ratio = val1;
 	} else if (!strcmp(parm[0], "check_frc_status")) {
 		if (!parm[1]) {
 			pr_frc(0, "err:input parameters error!\n");
@@ -341,8 +348,12 @@ static void dpss_frc_debug_if(const char *buf, size_t count)
 	} else if (!strcmp(parm[0], "memc_enable")) {
 		if (!parm[1])
 			goto exit;
-		if (kstrtoint(parm[1], 10, &val1) == 0)
-			dpss_frc_set_mc_bypass((u8)val1);
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
+			if (pchip_st->dbg_st.ctrl_dbg.ui_frc_state_sel)
+				dpss_frc_set_mc_bypass((u8)val1);
+			else
+				dpss_set_mc_link_state((u8)val1);
+		}
 	} else if (!strcmp(parm[0], "demo_win")) {
 		if (!parm[1])
 			goto exit;
@@ -351,8 +362,10 @@ static void dpss_frc_debug_if(const char *buf, size_t count)
 	} else if (!strcmp(parm[0], "frc_me_en")) {
 		if (!parm[1])
 			goto exit;
-		if (kstrtoint(parm[1], 10, &val1) == 0)
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
 			dpss_frc_set_memc_enable(FRC_ME_FUNC, (u8)val1);
+			state_st->cur_frc_me_en = val1;
+		}
 	}  else if (!strcmp(parm[0], "frc_bbd_en")) {
 		if (!parm[1])
 			goto exit;
@@ -413,6 +426,16 @@ static void dpss_frc_debug_if(const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			dbg_st->ctrl_dbg.ui_frc_state_sel = val1;
+	} else if (!strcmp(parm[0], "vfcd_hold_line")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			pchip_st->dbg_vfcd_holdline = val1;
+	} else if (!strcmp(parm[0], "frc_dae_div4")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			dbg_st->ctrl_dbg.frc_dae_div4 = val1;
 	}
 exit:
 	kfree(buf_orig);
@@ -2017,8 +2040,10 @@ void dpss_frc_debug_param_if(const char *buf, size_t count)
 	} else if (!strcmp(parm[0], "fw_pause")) {
 		if (!parm[1])
 			goto exit;
-		if (kstrtoint(parm[1], 10, &val1) == 0)
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
 			frc_top->fw_pause = (u32)val1;
+			state_st->cur_fw_pause = (u32)val1;
+		}
 	} else if (!strcmp(parm[0], "frc_rev_mode")) {
 		if (!parm[1])
 			goto exit;
@@ -2206,6 +2231,24 @@ void dpss_frc_debug_param_if(const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			dbg_st->ctrl_dbg.check_reg_status = (u16)val1;
+	} else if (!strcmp(parm[0], "win_size_flag")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
+			if (val1)
+				state_st->win_size_zero_flag = true;
+			else
+				state_st->win_size_zero_flag = false;
+		}
+	} else if (!strcmp(parm[0], "used_seq_vfm")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
+			if (val1)
+				state_st->used_seq_vfm = true;
+			else
+				state_st->used_seq_vfm = false;
+		}
 	}
 exit:
 	kfree(buf_orig);

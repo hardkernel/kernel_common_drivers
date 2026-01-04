@@ -151,8 +151,12 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 				prm_top->prm_cut_win.frm_hsize : prm_mc->frm_hsize;
 		pix_rmif->src_vsize = cut_win_en ?
 				prm_top->prm_cut_win.frm_vsize : prm_mc->frm_vsize;
+		pix_rmif->slc_x_st[0] = cut_win_en ?
+				prm_top->prm_cut_win.win_hbgn_align : 0;
 		pix_rmif->slc_x_ed[0] = cut_win_en ?
 				prm_top->prm_cut_win.win_hend_align : prm_mc->frm_hsize - 1;
+		pix_rmif->slc_y_st[0] = cut_win_en ?
+				prm_top->prm_cut_win.win_vbgn_align : 0;
 		pix_rmif->slc_y_ed[0] = cut_win_en ?
 				prm_top->prm_cut_win.win_vend_align : prm_mc->frm_vsize - 1;
 	}
@@ -169,6 +173,7 @@ void hw_cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm
 	dbg_h2("%s src_bit %d pix_bit %d\n", __func__, pix_rmif->src_bit, prm_mc->pix_bit);
 	//cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC0, pix_rmif, 0);
 	//cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC1, pix_rmif, 0);
+	//dbg_f2("dpss_init_done=%d\n", prm_top->is_dpss_init_done);
 	if (prm_top->is_dpss_init_done)
 		cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC0, pix_rmif, fmt444_out);
 	cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC1, pix_rmif, fmt444_out);
@@ -995,11 +1000,21 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 
 	data32 = display_buf_q.mc_idx;
 	if (data32 >= DPSS_QUEEN_NUM || data32 == display_buf_q.inp_idx) {
-		pr_frc(2, "display_buf_q: mc_idx=%d, inp_idx=%d\n", data32, display_buf_q.inp_idx);
-		return false;
+		pr_frc(2, "display_buf_q: mc_idx=%d, inp_idx=%d, drop_idx=%d\n",
+				data32, display_buf_q.inp_idx, state_st->enable_last_drop);
+		if (!state_st->enable_last_drop)
+			return false;
+		display_queue_use_last(&display_buf_q, 1);
+		data32 = display_buf_q.mc_idx;
 	}
-	display_buf_info = &display_buf_q.data[data32];
-	while (display_buf_info->dae_mix) {
+	if (data32 < DPSS_QUEEN_NUM) {
+		display_buf_info = &display_buf_q.data[data32];
+	} else {
+		pr_frc(2, "data32 (%d) > DPSS_QUEEN_NUM, reset to 0\n", data32);
+		display_buf_info = &display_buf_q.data[0];
+	}
+
+	if (display_buf_info->dae_mix) {
 		data32 = (display_buf_q.mc_idx + 1) % DPSS_QUEEN_NUM;
 		if (data32 == display_buf_q.inp_idx) {
 			pr_frc(2, "can not do dae mix:mc_idx=%d, inp_idx=%d\n",
@@ -1077,8 +1092,7 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		state_st->is_pause_state_last_frmae = true;
 		state_st->mc_q_idx_last = state_st->mc_q_idx;
 	} else if (state_st->is_pause_state_last_frmae && state_st->mc_q_idx != 0xff &&
-		dpe_cur_pixl_buf != state_st->mc_q_idx) {
-		dpe_pre_pixl_buf = dpe_cur_pixl_buf;
+		dpe_pre_pixl_buf != state_st->mc_q_idx) {
 		dpe_cur_pixl_buf = state_st->mc_q_idx;
 		dpe_intp_phs = 128;
 	} else {
@@ -1098,6 +1112,7 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 //		state_st->mc_disp_st.wr_idx = dpe_pre_pixl_buf;
 //	}
 	state_st->mc_disp_st.disp_idx = dpe_pre_pixl_buf;
+	state_st->mc_cur_idx = dpe_cur_pixl_buf;
 
 	pr_frc(1, "mc_q_idx=%d, display_mc_idx=%d, dpe_pre=%d, dpe_cur=%d, pause_st_last=%d\n",
 		state_st->mc_q_idx, display_mc_idx, dpe_pre_pixl_buf, dpe_cur_pixl_buf,
@@ -1114,6 +1129,11 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 
 	data32				  = rd(FRC_DPSS_DISP_BUFF_INFO_1);
 	pr_frc(1, "ro:dpe_mv_cur_frm_idx=%d\n", data32 & 0xf);
+
+	//if (pchip_st->state_st.cut_pre_mc_work == 1) {
+	//	dpe_intp_phs = 0;
+	//	pchip_st->state_st.cut_pre_mc_work = 0;
+	//}
 
 	bool mc_mif_reg_mode = (rd(DPSS_DPE_MC_MIF_CTRL0) >> 2) & 0x1;
 	u32	 dpe_pixl_buf_idx0 =
@@ -1172,6 +1192,28 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		src0_nro_fbuf_caddr[0]	 = rd(DPSS_SRC0_NRO_FBUF_CADDR0 + dpe_pixl_buf_idx0);
 		src0_nro_fbuf_yaddr[1]	 = rd(DPSS_SRC0_NRO_FBUF_YADDR0 + dpe_pixl_buf_idx1);
 		src0_nro_fbuf_caddr[1]	 = rd(DPSS_SRC0_NRO_FBUF_CADDR0 + dpe_pixl_buf_idx1);
+		// mif chg
+		if (dpss_light_chg & C_BIT0) {
+			if (pchip_st && pchip_st->state_st.compr_sel == DDR_AFRC) {
+				src0_nro_fbuf_yaddr[0] =
+					prm_top->src0_nro_fbuf_af_y[0 + dpe_pixl_buf_idx0];
+				src0_nro_fbuf_caddr[0] =
+					prm_top->src0_nro_fbuf_af_c[0 + dpe_pixl_buf_idx0];
+				src0_nro_fbuf_yaddr[1] =
+					prm_top->src0_nro_fbuf_af_y[0 + dpe_pixl_buf_idx1];
+				src0_nro_fbuf_caddr[1] =
+					prm_top->src0_nro_fbuf_af_c[0 + dpe_pixl_buf_idx1];
+			} else {
+				src0_nro_fbuf_yaddr[0] =
+					prm_top->src0_nro_fbuf_m_y[0 + dpe_pixl_buf_idx0];
+				src0_nro_fbuf_caddr[0] =
+					prm_top->src0_nro_fbuf_m_c[0 + dpe_pixl_buf_idx0];
+				src0_nro_fbuf_yaddr[1] =
+					prm_top->src0_nro_fbuf_m_y[0 + dpe_pixl_buf_idx1];
+				src0_nro_fbuf_caddr[1] =
+					prm_top->src0_nro_fbuf_m_c[0 + dpe_pixl_buf_idx1];
+			}
+		}
 		mc_inp_body_ybuf_addr[0] = src0_nro_fbuf_yaddr[0];
 		mc_inp_body_cbuf_addr[0] = src0_nro_fbuf_caddr[0];
 		mc_inp_body_ybuf_addr[1] = src0_nro_fbuf_yaddr[1];
@@ -1949,6 +1991,8 @@ void frc_mc_cut_1(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr)
 	u32 src_vsize;	  //= prm_top.org_vsize;
 	u32 fmt;
 	u32 fmt444_out;
+	u32 regs_ofst;
+	// AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
 
 	if (!pchip) {
 		dbg_h2("%s pchip is null\n", __func__);
@@ -2071,6 +2115,17 @@ void frc_mc_cut_1(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr)
 	//pix_rmif->skip_line = mc_skip_mode_v;
 	pix_rmif->cut_win_en	= cut_win_en;
 
+	//if (pps->pps_en) {
+	//	pix_rmif->src_hsize = cut_win_en ?
+	//			prm_top->prm_cut_win.frm_hsize : prm_mc->frm_hsize;
+	//	pix_rmif->src_vsize = cut_win_en ?
+	//			prm_top->prm_cut_win.frm_vsize : prm_mc->frm_vsize;
+	//	pix_rmif->slc_x_ed[0] = cut_win_en ?
+	//			prm_top->prm_cut_win.win_hend_align : prm_mc->frm_hsize - 1;
+	//	pix_rmif->slc_y_ed[0] = cut_win_en ?
+	//			prm_top->prm_cut_win.win_vend_align : prm_mc->frm_vsize - 1;
+	//}
+
 	frc_cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC0, pix_rmif, fmt444_out);
 	frc_cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC1, pix_rmif, fmt444_out);
 	dbg_h2("%s src_bit %d pix_bit %d\n", __func__, pix_rmif->src_bit, prm_mc->pix_bit);
@@ -2091,6 +2146,29 @@ void frc_mc_cut_1(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr)
 		   vfcd->win_end_h[0], vfcd->win_bgn_v[0], vfcd->win_end_v[0]);
 	frc_cfg_vfcd_dec(4, vfcd);	 // mc0
 	frc_cfg_vfcd_dec(5, vfcd);	 // mc1
+
+	if (prm_mc->src_cmpr == CMPR_AFBC) {
+		frc_cfg_vfcd_cmpr_enable(4, 1);
+		frc_cfg_vfcd_cmpr_enable(5, 1);
+		VSYNC_WR_VIDEO_TABLE_REG(4 * 256 + VFCD_TOP_CTRL3, 0xa);
+		VSYNC_WR_VIDEO_TABLE_REG(5 * 256 + VFCD_TOP_CTRL3, 0xa);
+	} else if (prm_mc->src_cmpr == CMPR_AFRC) {
+		frc_cfg_vfcd_cmpr_enable(4, 2);
+		frc_cfg_vfcd_cmpr_enable(5, 2);
+	} else {
+		frc_cfg_vfcd_cmpr_enable(4, 0);
+		frc_cfg_vfcd_cmpr_enable(5, 0);
+	}
+
+	regs_ofst = get_vfcd_regs_ofst(DPSS_RMIF_MC0);
+	VSYNC_WR_VIDEO_TABLE_REG(RMIF_RPT_LOOP + regs_ofst, 0);
+	VSYNC_WR_VIDEO_TABLE_REG(RMIF_F0_LUMA_RPT_PAT + regs_ofst, 0);
+	VSYNC_WR_VIDEO_TABLE_REG(RMIF_F0_CHRM_RPT_PAT + regs_ofst, 0);
+	VSYNC_WR_VIDEO_TABLE_REG(RMIF_F1_LUMA_RPT_PAT + regs_ofst, 0);
+	VSYNC_WR_VIDEO_TABLE_REG(RMIF_F1_CHRM_RPT_PAT + regs_ofst, 0);
+
+	//afrc not need cfg 444_comb
+	VSYNC_WR_VIDEO_TABLE_REG_BITS(VFCD_AFBC_ENABLE + regs_ofst, 0, 20, 1);
 	frc_me_cut(prm_top);
 }
 
@@ -2126,5 +2204,42 @@ void hw_update_display_info(struct display_buffer_info_s *display_buf_info)
 		display_buf_info->dae_mix, display_buf_info->p, display_buf_info->c,
 		display_buf_info->n, display_buf_info->logo_pre, display_buf_info->logo_cur,
 		display_buf_info->mv_buf, display_buf_info->mc_phase);
+}
+
+void hw_mc_reverse_update(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm_mc)
+{
+	struct frc_chip_st *pchip_st = dpss_get_frc_st();
+	struct PRM_INTF_TYPE *pix_rmif;
+	struct VFCD_t *vfcd;
+
+	if (!pchip_st) {
+		dbg_h0("%s pchip_st is null\n", __func__);
+		return;
+	}
+
+	pix_rmif = &pchip_st->mc_pix_rmif;
+	pix_rmif->reverse[0]  = prm_mc->mc_rev_mode & 0x1;
+	pix_rmif->reverse[1]  = (prm_mc->mc_rev_mode & 0x2) >> 1;
+	frc_cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC0, pix_rmif, pchip_st->fmt444_out);
+	frc_cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC1, pix_rmif, pchip_st->fmt444_out);
+	dbg_h2("%s update mif\n", __func__);
+
+	vfcd = &pchip_st->mc_vfcd;
+	vfcd->rev_mode	  = prm_mc->mc_rev_mode;
+	frc_cfg_vfcd_dec(4, vfcd);   // mc0
+	frc_cfg_vfcd_dec(5, vfcd);   // mc1
+	dbg_h2("%s update cmpr\n", __func__);
+	if (prm_mc->src_cmpr == CMPR_AFBC) {
+		frc_cfg_vfcd_cmpr_enable(4, 1);
+		frc_cfg_vfcd_cmpr_enable(5, 1);
+		VSYNC_WR_VIDEO_TABLE_REG(4 * 256 + VFCD_TOP_CTRL3, 0xa);
+		VSYNC_WR_VIDEO_TABLE_REG(5 * 256 + VFCD_TOP_CTRL3, 0xa);
+	} else if (prm_mc->src_cmpr == CMPR_AFRC) {
+		frc_cfg_vfcd_cmpr_enable(4, 2);
+		frc_cfg_vfcd_cmpr_enable(5, 2);
+	} else {
+		frc_cfg_vfcd_cmpr_enable(4, 0);
+		frc_cfg_vfcd_cmpr_enable(5, 0);
+	}
 }
 

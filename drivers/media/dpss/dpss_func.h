@@ -244,7 +244,7 @@ void nr_only_release_input(unsigned int index);
 void dpss_dis_idx(struct dpss_ch_s *pch, unsigned int idx);
 void dpss_dis_vfm(struct dpss_ch_s *pch, struct vframe_s *vfm);
 struct vframe_s *dpss_irq_get_vfm(unsigned int idx, unsigned int lab);
-
+void nr_dpe_dw_cfg(struct PRM_DPSS_TOP *prm_top);
 struct vframe_s *dpss_get_vfm(unsigned int ch, unsigned int mode, unsigned int idx);
 void dbg_hdr_int(unsigned int ch);
 void dbg_tbc_trig(unsigned int step);

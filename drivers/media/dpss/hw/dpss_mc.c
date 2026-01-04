@@ -2,11 +2,29 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+#include "../sys_def.h"
+#ifdef RUN_ON_ARM
+#include <linux/amlogic/media/di/dpss_interface.h>
+#include <linux/amlogic/media/dpss/dpss_frc.h>
+#include <linux/kfifo.h>
+#include <linux/module.h>
+#include <linux/semaphore.h>
+#endif
+#include "../dpss_base.h"
+#include "../dpss_hw.h"
+// #include "../dpss_hw_frc.h"
+#include "../dpss_s.h"
+#include "../dpss_sys.h"
+#include "../dpss_rdma_frc.h"
+#include "../dpss_s_frc.h"
+#include "../dpss_func.h"
 
+#include "dpss.h"
+#include "dpss_mc.h"
 #include "define.h"
 #include "dpss_intf.h"
-#include "dpss_mc.h"
 #include "vfcd.h"
+#include "dpss_param.h"
 
 int mc_pre_triger;
 int mc_trigger;
@@ -18,530 +36,603 @@ struct PRM_INTF_TYPE me_logo_rmif;
 
 void cfg_dpss_mc_ini(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr)
 {
-	bool game_mode = prm_top->dpe_game_mode & 0x1;
-	bool me_mc_link_en = prm_top->me_mc_link_en & 0x1;
-	bool mc_lp_mode = prm_top->mc_lp_mode & 0x1;
-	struct DPSS_MC0_TYPE prm_mc;
+	struct frc_chip_st *pchip = dpss_get_frc_st();
+	struct DPSS_MC0_TYPE *prm_mc;
 
-	w_reg_bit(DPSS_DPE_MC_START_CTRL, 3, 0, 2);
-	// game mode cfg start
-	w_reg_bit(FRC_MC_HW_CTRL0, (game_mode | mc_lp_mode), 3, 1);	//lp_mode
-	w_reg_bit(FRC_MC_MVRD_CTRL, !(game_mode || me_mc_link_en), 0, 1);
-	w_reg_bit(FRC_MC_MVRD_CTRL, !(game_mode), 1, 1);	//vdin_hs_en reg_mvrd_mode[1]
-
-	//game mode cfg end
-	prm_mc.mmu_mode_en = prm_top->mif_mmu_mode_en;
-	prm_mc.mc_rev_mode = prm_top->frc_rev_mode;
-	prm_mc.pad_en = prm_top->auto_alig_en;
-	prm_mc.pad_hmode = prm_top->alig_hmode;
-	prm_mc.pad_vmode = prm_top->alig_vmode;
-	mc_pre_triger = 0;
-	mc_trigger = 0;
-	if (prm_top->mc_auto_en == 1) {
-		w_reg_bit(DPSS_FRC_ONE_STEP_DISP_EN, 1, 0, 1);	//change MC TBC to auto mode;
-		w_reg_bit(DPSS_TOP_APB_TBC_SEL_CTRL, 1, 0, 1);	//open MC port TBC apb
-	} else {
-		w_reg_bit(DPSS_FRC_ONE_STEP_DISP_EN, 0, 0, 1);	//change MC TBC to auto mode;
-		w_reg_bit(DPSS_TOP_APB_TBC_SEL_CTRL, 0, 0, 1);	//open MC port TBC apb
+	if (!pchip) {
+		dbg_h2("%s pchip is null\n", __func__);
+		return;
 	}
-	cfg_dpss_mc0(prm_top, src_from_nr, &prm_mc);
-	cfg_dpss_mc_intf(prm_top, &prm_mc, &pix_rmif);
+	prm_mc = &pchip->prm_mc;
+	cfg_dpss_mc0(prm_top, src_from_nr, prm_mc);
+	cfg_dpss_mc_intf(prm_top, prm_mc);
+
 }
 
-void cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm_mc,
-	struct PRM_INTF_TYPE *pix_rmif)
+void cfg_dpss_mc_intf(struct PRM_DPSS_TOP *prm_top, struct DPSS_MC0_TYPE *prm_mc)
 {
-	u32 fmt =
-	    prm_mc->pix_fmt == YUV444 ? 0 : prm_mc->pix_fmt == YUV422 ? 1 : 2;
-	u32 fmt444_out = 0;
-
+	u32 fmt		   = prm_mc->pix_fmt == YUV444 ? 0 : prm_mc->pix_fmt == YUV422 ? 1 : 2;
+	// u32 fmt444_out = 0;
+	u32 fmt444_out = ((prm_top->frc_vfcd_vfmt == 1) && (fmt == 2)) ? 2 : 0;
 	//    u32 bit  = prm_mc.pix_bit == BIT_8  ? 0 : prm_mc.pix_bit == BIT_10 ? 1 : 2 ;
-
+	u32 regs_ofst;
 	bool cut_win_en = prm_top->cut_win_en;
+	//bool mc_cut_position = prm_top->cut_win_position;
+	u32  mc_skip_mode = prm_top->mc_skip_mode;
+	//u32 frm_hsize = (mc_skip_mode > 0) ? prm_top->frm_hsize : prm_mc->frm_hsize;
+	//u32 frm_vsize = (mc_skip_mode > 0) ? prm_top->frm_vsize : prm_mc->frm_vsize;
+	u32  mc_skip_mode_h = (mc_skip_mode >> 1) & 0x1;
+	u32  mc_skip_mode_v = mc_skip_mode & 0x1;
+	//    struct PRM_INTF_TYPE pix_rmif;
+	//    memset((void *)(&pix_rmif), 0, sizeof(struct PRM_INTF_TYPE)); //ary add
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
+	struct frc_chip_st *pchip = dpss_get_frc_st();
+	struct PRM_INTF_TYPE *pix_rmif;
+	struct VFCD_t *vfcd;
 
-	memset((void *)(pix_rmif), 0, sizeof(struct PRM_INTF_TYPE));
+	if (!pchip) {
+		dbg_h2("%s pchip is null\n", __func__);
+		return;
+	}
+	pix_rmif = &pchip->mc_pix_rmif;
+	vfcd = &pchip->mc_vfcd;
 
-	pix_rmif->src_fmt = prm_mc->pix_fmt;	//YUV444/YUV422/YUV420/RGB
-	pix_rmif->src_plan = prm_mc->pix_plan;	//PLANAR_X1/X2
-	pix_rmif->src_bit = prm_mc->pix_bit;	//BIT_8/10
-	pix_rmif->src_cmpr = CMPR_UN;	//un/afbc/afrc
-	pix_rmif->interlace = IS_PSRC;	//IS_PSRC/IS_ISRC
+	dbg_h2("%s fmt444_out = %d, h_skip:%d, v_skip:%d\n", __func__,
+			fmt444_out, mc_skip_mode_h, mc_skip_mode_v);
+	pchip->fmt444_out = fmt444_out;
+	pix_rmif->src_fmt	= prm_mc->pix_fmt;	  // YUV444/YUV422/YUV420/RGB
+	pix_rmif->src_plan	= prm_mc->pix_plan;	  // PLANAR_X1/X2
+	pix_rmif->src_bit	= prm_mc->pix_bit;	  // BIT_8/10
+	pix_rmif->src_cmpr	= CMPR_UN;			  // un/afbc/afrc
+	pix_rmif->interlace = IS_PSRC;			  // IS_PSRC/IS_ISRC
 
-	pix_rmif->src_hsize =
-	    cut_win_en ? prm_top->prm_cut_win.frm_hsize : prm_mc->src_hsize;
-	pix_rmif->src_vsize =
-	    cut_win_en ? prm_top->prm_cut_win.frm_vsize : prm_mc->src_vsize;
+	pix_rmif->src_hsize = cut_win_en ? prm_top->prm_cut_win.frm_hsize : prm_top->frm_hsize;
+	pix_rmif->src_vsize = cut_win_en ? prm_top->prm_cut_win.frm_vsize : prm_top->frm_vsize;
+	//pix_rmif->src_hsize = cut_win_en ? prm_top->prm_cut_win.frm_hsize : frm_hsize;
+	//pix_rmif->src_vsize = cut_win_en ? prm_top->prm_cut_win.frm_vsize : frm_vsize;
 
-	pix_rmif->reverse[0] = prm_mc->mc_rev_mode & 0x1;
-	pix_rmif->reverse[1] = (prm_mc->mc_rev_mode & 0x2) >> 1;
+	pix_rmif->reverse[0]  = prm_mc->mc_rev_mode & 0x1;
+	pix_rmif->reverse[1]  = (prm_mc->mc_rev_mode & 0x2) >> 1;
 	pix_rmif->mmu_mode_en = prm_mc->mmu_mode_en;
-	pix_rmif->pad_en = prm_mc->pad_en;
-	pix_rmif->pad_hmode = prm_mc->pad_hmode;
-	pix_rmif->pad_vmode = prm_mc->pad_vmode;
+	pix_rmif->pad_en	  = prm_mc->pad_en && (!mc_skip_mode);
+	pix_rmif->pad_hmode	  = prm_mc->pad_hmode;
+	pix_rmif->pad_vmode	  = prm_mc->pad_vmode;
 
 	pix_rmif->slc_x_st[0] = cut_win_en ? prm_top->prm_cut_win.win_hbgn : 0;
-	pix_rmif->slc_x_ed[0] =
-	    cut_win_en ? prm_top->prm_cut_win.win_hend : prm_mc->src_hsize - 1;
+	pix_rmif->slc_x_ed[0] = cut_win_en ? prm_top->prm_cut_win.win_hend :
+		prm_top->frm_hsize - 1;
+	//pix_rmif->slc_x_ed[0] = cut_win_en ? prm_top->prm_cut_win.win_hend : frm_hsize - 1;
 	pix_rmif->slc_y_st[0] = cut_win_en ? prm_top->prm_cut_win.win_vbgn : 0;
-	pix_rmif->slc_y_ed[0] =
-	    cut_win_en ? prm_top->prm_cut_win.win_vend : prm_mc->src_vsize - 1;
+	pix_rmif->slc_y_ed[0] = cut_win_en ? prm_top->prm_cut_win.win_vend :
+		prm_top->frm_vsize - 1;
+	//pix_rmif->slc_y_ed[0] = cut_win_en ? prm_top->prm_cut_win.win_vend : frm_vsize - 1;
+	pix_rmif->skip_line = mc_skip_mode_v;
+	pix_rmif->cut_win_en	= cut_win_en;
 
-	pix_rmif->cut_win_en = cut_win_en;
-	pix_rmif->slc_num = 1;
-	pix_rmif->little_endian = 1;	//ary add for default
-
-	cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC0, pix_rmif, 0);
-	cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC1, pix_rmif, 0);
-
-	struct VFCD_t vfcd;
-
-	init_dpss_vfcd(0, &vfcd);
-
-	vfcd.cmpr_sel = prm_mc->src_cmpr == CMPR_AFBC ? 1 :
-	    prm_mc->src_cmpr == CMPR_AFRC ? 2 : 0;
-	u32 dec_src_bit =
-	    prm_mc->src_cmpr == CMPR_UN ? 10 : prm_mc->pix_bit ==
-	    BIT_008 ? 8 : prm_mc->pix_bit == BIT_012 ? 12 : 10;
-	vfcd.cut_win_en = cut_win_en;
-	vfcd.src_hsize =
-	    cut_win_en ? prm_top->prm_cut_win.frm_hsize : prm_mc->src_hsize;
-	vfcd.src_vsize =
-	    cut_win_en ? prm_top->prm_cut_win.frm_vsize : prm_mc->src_vsize;
-	vfcd.fmt444_out = fmt444_out;
-	vfcd.win_bgn_h[0] = cut_win_en ? prm_top->prm_cut_win.win_hbgn : 0;
-	vfcd.win_end_h[0] =
-	    cut_win_en ? prm_top->prm_cut_win.win_hend : prm_mc->src_hsize - 1;
-	vfcd.win_bgn_v[0] = cut_win_en ? prm_top->prm_cut_win.win_vbgn : 0;
-	vfcd.win_end_v[0] =
-	    cut_win_en ? prm_top->prm_cut_win.win_vend : prm_mc->src_vsize - 1;
-	//pix_rmif.src_bit == BIT_8 ? 8 :pix_rmif.src_bit == BIT_12 ? 12 :10 ;
-	//pix_rmif.src_bit == BIT_8 ? 8 :pix_rmif.src_bit == BIT_12 ? 12 :10 ;
-	vfcd.compbits_y = dec_src_bit;
-	vfcd.compbits_c = dec_src_bit;
-	//vfcd.head_baddr   =0; //need_add
-	//vfcd.body_baddr   =0; //need_add
-
-	vfcd.src_fmt = fmt;
-	vfcd.hfmt_en = 0;
-	vfcd.vfmt_en = 0;
-	vfcd.rev_mode = 0;
-	vfcd.y_h_skip_en = 0;
-	vfcd.y_v_skip_en = 0;
-	vfcd.c_h_skip_en = 0;
-	vfcd.c_v_skip_en = 0;
-	vfcd.yc_rst_sep = prm_mc->src_cmpr == CMPR_AFBC ? 0 : 1;
-	vfcd.mmu_mode_en =
-	    prm_mc->comp_setting.afrc_head_mode ==
-	    0 ? prm_mc->comp_setting.mmu_mode_en : 0;
-	vfcd.mmu_page_mode = prm_mc->comp_setting.mmu_page_mode;
-
-	vfcd.afrcd.luma_comp_target = prm_mc->comp_setting.afrc_target_byte_y;
-	vfcd.afrcd.luma_header_en = prm_mc->comp_setting.afrc_head_mode;
-
-	vfcd.afrcd.chrm_comp_target = prm_mc->comp_setting.afrc_target_byte_c;
-	vfcd.afrcd.chrm_header_en = prm_mc->comp_setting.afrc_head_mode;
-
-	vfcd.afrcd.luma_dict_en = prm_top->comp_setting.afrc_dict_mode_y;
-	vfcd.afrcd.chrm_dict_en = prm_top->comp_setting.afrc_dict_mode_c;
-
-	dbg_h2("%s dict_en:%d %d\n", __func__, vfcd.afrcd.luma_dict_en, vfcd.afrcd.chrm_dict_en);
-	dbg_h2("%s cut_win_en: %d\n", __func__, cut_win_en);
-	dbg_h2("%s vfcd.src_h / v size:(%d, %d)\n", __func__, vfcd.src_hsize,
-	       vfcd.src_vsize);
-	dbg_h2("%s pix_rmif.slc_x:(%d, %d), .slc_y:(%d, %d)\n", __func__,
-	       vfcd.win_bgn_h[0], vfcd.win_end_h[0], vfcd.win_bgn_v[0],
-	       vfcd.win_end_v[0]);
-	cfg_vfcd_dec(4, &vfcd);	//mc0
-	cfg_vfcd_dec(5, &vfcd);	//mc1
-
-	//mc din vfcd mode
-	if (prm_mc->src_cmpr == CMPR_AFBC) {
-		cfg_vfcd_cmpr_enable(4, 1);	//vfcd_chose cur_afbc
-		cfg_vfcd_cmpr_enable(5, 1);	//vfcd_chose pre_afbc
-		wr_vc(4 * 256 + VFCD_TOP_CTRL3, 0xa);
-		wr_vc(5 * 256 + VFCD_TOP_CTRL3, 0xa);
-	} else if (prm_mc->src_cmpr == CMPR_AFRC) {
-		cfg_vfcd_cmpr_enable(4, 2);	//vfcd_chose cur_afbc
-		cfg_vfcd_cmpr_enable(5, 2);	//vfcd_chose pre_afbc
+	if (pps->pps_en) {
+		pix_rmif->src_hsize = cut_win_en ?
+				prm_top->prm_cut_win.frm_hsize : prm_mc->frm_hsize;
+		pix_rmif->src_vsize = cut_win_en ?
+				prm_top->prm_cut_win.frm_vsize : prm_mc->frm_vsize;
+		pix_rmif->slc_x_ed[0] = cut_win_en ?
+				prm_top->prm_cut_win.win_hend : prm_mc->frm_hsize - 1;
+		pix_rmif->slc_y_ed[0] = cut_win_en ?
+				prm_top->prm_cut_win.win_vend : prm_mc->frm_vsize - 1;
+	}
+	dbg_i0("%s:is_pps top ch=%d,=%d\n", __func__, prm_top->ch, pps->pps_en);
+	// nr+frc 422 10bit 2plane
+	if (prm_top->dpss_mode == DPSS_FRC_MODE) {
+		pix_rmif->little_endian = 0;
+		pix_rmif->swap_64bit = 1;
+		//pix_rmif->uv_swap = 0;//prm_top->uv_swap; // 1;
 	} else {
-		cfg_vfcd_cmpr_enable(4, 0);	//vfcd_chose cur_mif
-		cfg_vfcd_cmpr_enable(5, 0);	//vfcd_chose pre_mif
+		pix_rmif->little_endian = prm_top->l_endian;
+		pix_rmif->swap_64bit = prm_top->swap_64bit;//1;
+		//pix_rmif->uv_swap = 0;
+	}
+	dbg_h2("%s src_bit %d pix_bit %d\n", __func__, pix_rmif->src_bit, prm_mc->pix_bit);
+	//cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC0, pix_rmif, 0);
+	//cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC1, pix_rmif, 0);
+	if (prm_top->is_dpss_init_done)
+		frc_cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC0, pix_rmif, fmt444_out);
+	frc_cfg_vfcd_rdmif_2ch(DPSS_RMIF_MC1, pix_rmif, fmt444_out);
+	if (mc_skip_mode_h) {
+		regs_ofst = get_vfcd_regs_ofst(DPSS_RMIF_MC0);
+		VSYNC_WR_VIDEO_TABLE_REG_BITS(RMIF_TOP_CTRL + regs_ofst, 1, 13, 1);
+		regs_ofst = get_vfcd_regs_ofst(DPSS_RMIF_MC1);
+		VSYNC_WR_VIDEO_TABLE_REG_BITS(RMIF_TOP_CTRL + regs_ofst, 1, 13, 1);
 	}
 
-	u32 x_scl = prm_top->dae_dsx_scale;
-	u32 y_scl = prm_top->dae_dsy_scale;
-	u32 pre_logo_rmif_bits = 1;
-	u32 cur_logo_rmif_bits = 1;
-	u32 mv_rmif_bits = 64;
-	u32 me_logo_rmif_bits = 1;
+	init_dpss_vfcd(0, vfcd);
 
-	u32 pre_logo_hsize = prm_top->frm_hsize >> x_scl;
-	u32 cur_logo_hsize = prm_top->frm_hsize >> x_scl;
-	u32 mv_hsize = pre_logo_hsize >> 2;
-	u32 me_logo_hsize = pre_logo_hsize >> 2;
+	vfcd->cmpr_sel	   = prm_mc->src_cmpr == CMPR_AFBC ? 1 :
+				prm_mc->src_cmpr == CMPR_AFRC ? 2 : 0;
+	vfcd->frm_en_sel = 1;
+	u32 dec_src_bit	   = prm_mc->src_cmpr == CMPR_UN  ? 10
+						 : prm_mc->pix_bit == BIT_008 ? 8
+						 : prm_mc->pix_bit == BIT_012 ? 12
+						 : 10;
+	vfcd->cut_win_en   = cut_win_en || mc_skip_mode_h || mc_skip_mode_v;
+	vfcd->src_hsize	   = cut_win_en ? prm_top->prm_cut_win.frm_hsize : prm_top->frm_hsize;
+	vfcd->src_vsize	   = cut_win_en ? prm_top->prm_cut_win.frm_vsize : prm_top->frm_vsize;
+	vfcd->fmt444_out   = fmt444_out;
+	vfcd->win_bgn_h[0] = cut_win_en ? prm_top->prm_cut_win.win_hbgn : 0;
+	vfcd->win_end_h[0] = cut_win_en ? prm_top->prm_cut_win.win_hend : prm_top->frm_hsize - 1;
+	vfcd->win_bgn_v[0] = cut_win_en ? prm_top->prm_cut_win.win_vbgn : 0;
+	vfcd->win_end_v[0] = cut_win_en ? prm_top->prm_cut_win.win_vend : prm_top->frm_vsize - 1;
+	vfcd->compbits_y =
+		dec_src_bit;// pix_rmif.src_bit == BIT_8 ? 8 :pix_rmif.src_bit == BIT_12 ? 12 :10 ;
+	vfcd->compbits_c =
+		dec_src_bit;// pix_rmif.src_bit == BIT_8 ? 8 :pix_rmif.src_bit == BIT_12 ? 12 :10 ;
+	// vfcd->head_baddr   = 0;//need_add
+	// vfcd->body_baddr   = 0;//need_add
 
-	memset((void *)(&pre_logo_rmif), 0, sizeof(struct PRM_INTF_TYPE));
-	memset((void *)(&cur_logo_rmif), 0, sizeof(struct PRM_INTF_TYPE));
-	memset((void *)(&mv_rmif), 0, sizeof(struct PRM_INTF_TYPE));
-	memset((void *)(&me_logo_rmif), 0, sizeof(struct PRM_INTF_TYPE));
-
-	pre_logo_rmif.burst_len = 2;
-	cur_logo_rmif.burst_len = 2;
-	mv_rmif.burst_len = 2;
-	me_logo_rmif.burst_len = 2;
-	if (cut_win_en) {
-		pre_logo_rmif.bits_mode = 12;
-		cur_logo_rmif.bits_mode = 12;
-		mv_rmif.bits_mode = 4;
-		me_logo_rmif.bits_mode = 12;
-
-		pre_logo_rmif.pack_mode = 4;
-		cur_logo_rmif.pack_mode = 4;
-		mv_rmif.pack_mode = 4;
-		me_logo_rmif.pack_mode = 0;
-
-		pre_logo_rmif.slc_x_st[0] =
-		    prm_top->prm_cut_win.win_hbgn >> x_scl;
-		pre_logo_rmif.slc_x_ed[0] =
-		    prm_top->prm_cut_win.win_hend >> x_scl;
-		pre_logo_rmif.slc_y_st[0] =
-		    prm_top->prm_cut_win.win_vbgn >> y_scl;
-		pre_logo_rmif.slc_y_ed[0] =
-		    prm_top->prm_cut_win.win_vend >> y_scl;
-
-		cur_logo_rmif.slc_x_st[0] =
-		    prm_top->prm_cut_win.win_hbgn >> x_scl;
-		cur_logo_rmif.slc_x_ed[0] =
-		    prm_top->prm_cut_win.win_hend >> x_scl;
-		cur_logo_rmif.slc_y_st[0] =
-		    prm_top->prm_cut_win.win_vbgn >> y_scl;
-		cur_logo_rmif.slc_y_ed[0] =
-		    prm_top->prm_cut_win.win_vend >> y_scl;
-
-		mv_rmif.slc_x_st[0] = pre_logo_rmif.slc_x_st[0] >> 2;
-		mv_rmif.slc_x_ed[0] = pre_logo_rmif.slc_x_ed[0] >> 2;
-		mv_rmif.slc_y_st[0] = pre_logo_rmif.slc_y_st[0] >> 2;
-		mv_rmif.slc_y_ed[0] = pre_logo_rmif.slc_y_ed[0] >> 2;
-
-		me_logo_rmif.slc_x_st[0] = pre_logo_rmif.slc_x_st[0] >> 2;
-		me_logo_rmif.slc_x_ed[0] = pre_logo_rmif.slc_x_ed[0] >> 2;
-		me_logo_rmif.slc_y_st[0] = pre_logo_rmif.slc_y_st[0] >> 2;
-		me_logo_rmif.slc_y_ed[0] = pre_logo_rmif.slc_y_ed[0] >> 2;
-
-		pre_logo_rmif.stride =
-		    (((pre_logo_hsize * pre_logo_rmif_bits + 127) >> 7) +
-		     3) >> 2 << 2;
-		cur_logo_rmif.stride =
-		    (((cur_logo_hsize * cur_logo_rmif_bits + 127) >> 7) +
-		     3) >> 2 << 2;
-		mv_rmif.stride =
-		    (((mv_hsize * mv_rmif_bits + 127) >> 7) + 3) >> 2 << 2;
-		me_logo_rmif.stride =
-		    (((me_logo_hsize * me_logo_rmif_bits + 127) >> 7) +
-		     3) >> 2 << 2;
-
-		cfg_mc_sub_rdmif(&pre_logo_rmif, 0, 0);
-		cfg_mc_sub_rdmif(&cur_logo_rmif, 1, 0);
-		cfg_mc_sub_rdmif(&mv_rmif, 2, 0);
-		cfg_mc_sub_rdmif(&me_logo_rmif, 3, 0);
-
-		w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 0xf, 3, 4);
+	if (pps->pps_en) {
+		vfcd->src_hsize    = cut_win_en ?
+			prm_top->prm_cut_win.frm_hsize : prm_mc->frm_hsize;
+		vfcd->src_vsize    = cut_win_en ?
+			prm_top->prm_cut_win.frm_vsize : prm_mc->frm_vsize;
+		vfcd->win_end_h[0] = cut_win_en ?
+			prm_top->prm_cut_win.win_hend : prm_mc->frm_hsize - 1;
+		vfcd->win_end_v[0] = cut_win_en ?
+			prm_top->prm_cut_win.win_vend : prm_mc->frm_vsize - 1;
 	}
+
+	vfcd->src_fmt	  = fmt;
+	vfcd->hfmt_en      = 0;
+	vfcd->vfmt_en      = (fmt444_out != 0) ? prm_mc->pix_fmt == YUV420 : 0;
+	vfcd->rev_mode	  = prm_mc->mc_rev_mode;
+	vfcd->y_h_skip_en = mc_skip_mode_h;
+	vfcd->y_v_skip_en = mc_skip_mode_v;
+	vfcd->c_h_skip_en = mc_skip_mode_h;
+	vfcd->c_v_skip_en = mc_skip_mode_v;
+	vfcd->yc_rst_sep  = prm_mc->src_cmpr == CMPR_AFBC ? 0 : 1;
+	vfcd->mmu_mode_en =
+		prm_mc->comp_setting.afrc_head_mode == 0 ? prm_mc->comp_setting.mmu_mode_en : 0;
+	vfcd->mmu_page_mode = prm_mc->comp_setting.mmu_page_mode;
+
+	vfcd->afrcd.luma_comp_target = prm_mc->comp_setting.afrc_target_byte_y;
+	vfcd->afrcd.luma_header_en	 = prm_mc->comp_setting.afrc_head_mode;
+
+	vfcd->afrcd.chrm_comp_target = prm_mc->comp_setting.afrc_target_byte_c;
+	vfcd->afrcd.chrm_header_en	 = prm_mc->comp_setting.afrc_head_mode;
+
+	vfcd->afrcd.luma_dict_en = prm_top->comp_setting.afrc_dict_mode_y;
+	vfcd->afrcd.chrm_dict_en = prm_top->comp_setting.afrc_dict_mode_c;
+
+	dbg_h2("%s dict_en:%d %d\n", __func__, vfcd->afrcd.luma_dict_en, vfcd->afrcd.chrm_dict_en);
+	dbg_h2("%s cut_win_en:%d\n", __func__, cut_win_en);
+	dbg_h2("%s vfcd->src_h/v size:(%d,%d)\n", __func__, vfcd->src_hsize, vfcd->src_vsize);
+	dbg_h2("%s pix_rmif.slc_x:(%d,%d), .slc_y:(%d,%d)\n", __func__, vfcd->win_bgn_h[0],
+		   vfcd->win_end_h[0], vfcd->win_bgn_v[0], vfcd->win_end_v[0]);
+
+	if (prm_top->is_dpss_init_done)
+		frc_cfg_vfcd_dec(4, vfcd);	 // mc0
+	frc_cfg_vfcd_dec(5, vfcd);	 // mc1
+
+	if (prm_top->is_dpss_init_done) {
+		// mc din vfcd mode
+		if (prm_mc->src_cmpr == CMPR_AFBC) {
+			frc_cfg_vfcd_cmpr_enable(4, 1);	  // vfcd_chose cur_afbc
+			frc_cfg_vfcd_cmpr_enable(5, 1);	  // vfcd_chose pre_afbc
+			VSYNC_WR_VIDEO_TABLE_REG(4 * 256 + VFCD_TOP_CTRL3, 0xa);
+			VSYNC_WR_VIDEO_TABLE_REG(5 * 256 + VFCD_TOP_CTRL3, 0xa);
+		} else if (prm_mc->src_cmpr == CMPR_AFRC) {
+			frc_cfg_vfcd_cmpr_enable(4, 2);	  // vfcd_chose cur_afbc
+			frc_cfg_vfcd_cmpr_enable(5, 2);	  // vfcd_chose pre_afbc
+		} else {
+			frc_cfg_vfcd_cmpr_enable(4, 0);	  // vfcd_chose cur_mif
+			frc_cfg_vfcd_cmpr_enable(5, 0);	  // vfcd_chose pre_mif
+		}
+	}
+
+	// u32 x_scl = prm_top->dpe_dw_dsx;
+	// u32 y_scl = prm_top->dpe_dw_dsy;
+	// u32 pre_logo_rmif_bits = 1;
+	// u32 cur_logo_rmif_bits = 1;
+	// u32 mv_rmif_bits = 64;
+	// u32 me_logo_rmif_bits  = 1;
+
+	// u32 pre_logo_hsize = prm_top->frm_hsize >> x_scl;
+	// u32 cur_logo_hsize = prm_top->frm_hsize >> x_scl;
+	// u32 mv_hsize	   = pre_logo_hsize >> 2;
+	// u32 me_logo_hsize  = pre_logo_hsize >> 2;
+	// struct PRM_INTF_TYPE *pre_logo_rmif = &pchip->pre_logo_rmif;
+	// struct PRM_INTF_TYPE *cur_logo_rmif = &pchip->cur_logo_rmif;
+	// struct PRM_INTF_TYPE *mv_rmif = &pchip->mv_rmif;
+	// struct PRM_INTF_TYPE *me_logo_rmif = &pchip->me_logo_rmif;
+
+	// memset((void *)(pre_logo_rmif), 0, sizeof(struct PRM_INTF_TYPE));
+	// memset((void *)(cur_logo_rmif), 0, sizeof(struct PRM_INTF_TYPE));
+	// memset((void *)(mv_rmif), 0, sizeof(struct PRM_INTF_TYPE));
+	// memset((void *)(me_logo_rmif), 0, sizeof(struct PRM_INTF_TYPE));
+
+	// pre_logo_rmif->burst_len = 2;
+	// cur_logo_rmif->burst_len = 2;
+	// mv_rmif->burst_len		= 2;
+	// me_logo_rmif->burst_len	= 2;
+	// if (cut_win_en) {
+	// pre_logo_rmif->bits_mode = 12;
+	// cur_logo_rmif->bits_mode = 12;
+	// mv_rmif->bits_mode		= 4;
+	// me_logo_rmif->bits_mode	= 12;
+
+	// pre_logo_rmif->pack_mode = 4;
+	// cur_logo_rmif->pack_mode = 4;
+	// mv_rmif->pack_mode		= 4;
+	// me_logo_rmif->pack_mode	= 0;
+
+	// pre_logo_rmif->slc_x_st[0] = prm_top->prm_cut_win.win_hbgn >> x_scl;
+	// pre_logo_rmif->slc_x_ed[0] = prm_top->prm_cut_win.win_hend >> x_scl;
+	// pre_logo_rmif->slc_y_st[0] = prm_top->prm_cut_win.win_vbgn >> y_scl;
+	// pre_logo_rmif->slc_y_ed[0] = prm_top->prm_cut_win.win_vend >> y_scl;
+
+	// cur_logo_rmif->slc_x_st[0] = prm_top->prm_cut_win.win_hbgn >> x_scl;
+	// cur_logo_rmif->slc_x_ed[0] = prm_top->prm_cut_win.win_hend >> x_scl;
+	// cur_logo_rmif->slc_y_st[0] = prm_top->prm_cut_win.win_vbgn >> y_scl;
+	// cur_logo_rmif->slc_y_ed[0] = prm_top->prm_cut_win.win_vend >> y_scl;
+
+	// mv_rmif->slc_x_st[0] = pre_logo_rmif->slc_x_st[0] >> 2;
+	// mv_rmif->slc_x_ed[0] = pre_logo_rmif->slc_x_ed[0] >> 2;
+	// mv_rmif->slc_y_st[0] = pre_logo_rmif->slc_y_st[0] >> 2;
+	// mv_rmif->slc_y_ed[0] = pre_logo_rmif->slc_y_ed[0] >> 2;
+
+	// me_logo_rmif->slc_x_st[0] = pre_logo_rmif->slc_x_st[0] >> 2;
+	// me_logo_rmif->slc_x_ed[0] = pre_logo_rmif->slc_x_ed[0] >> 2;
+	// me_logo_rmif->slc_y_st[0] = pre_logo_rmif->slc_y_st[0] >> 2;
+	// me_logo_rmif->slc_y_ed[0] = pre_logo_rmif->slc_y_ed[0] >> 2;
+
+	// pre_logo_rmif->stride = (((pre_logo_hsize * pre_logo_rmif_bits + 127) >>
+	// 7) + 3) >> 2 << 2;
+	// cur_logo_rmif->stride = (((cur_logo_hsize * cur_logo_rmif_bits + 127) >>
+	// 7) + 3) >> 2 << 2;
+	// mv_rmif->stride = (((mv_hsize * mv_rmif_bits + 127) >> 7) + 3) >> 2 << 2;
+	// me_logo_rmif->stride = (((me_logo_hsize * me_logo_rmif_bits + 127) >>
+	// 7) + 3) >> 2 << 2;
+
+	// cfg_mc_sub_rdmif(pre_logo_rmif, 0, 0);
+	// cfg_mc_sub_rdmif(cur_logo_rmif, 1, 0);
+	// cfg_mc_sub_rdmif(mv_rmif, 2, 0);
+	// cfg_mc_sub_rdmif(me_logo_rmif, 3, 0);
+
+	// w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 0xf, 3, 4);
+	// }
 }
 
 //cfg @pre_go_field
 void cfg_dpss_mc0(struct PRM_DPSS_TOP *prm_top, u32 src_from_nr,
 	     struct DPSS_MC0_TYPE *prm_mc)
 {
-	u32 src_hsize;	//= prm_top.org_hsize;
-	u32 src_vsize;	//= prm_top.org_vsize;
-	bool cut_win_en = prm_top->cut_win_en;
-	u32 win_hsize = prm_top->prm_cut_win.win_hsize;
-	u32 win_vsize = prm_top->prm_cut_win.win_vsize;
-	u32 mc_size_sel = prm_top->nr_hscale_on | prm_top->nr_aapps_up |
-		prm_top->nr_aapps_on | prm_top->frc_ds_scale_en;
-	u32 frm_hsize = cut_win_en ? win_hsize : mc_size_sel ?
-		prm_top->dpe_mc_size.frm_hsize : prm_top->frm_hsize;
-	u32 frm_vsize = cut_win_en ? win_vsize : mc_size_sel ?
-		prm_top->dpe_mc_size.frm_vsize : prm_top->frm_vsize;
+	u32 src_hsize;	  //= prm_top.org_hsize;
+	u32 src_vsize;	  //= prm_top.org_vsize;
+	bool cut_win_en;
+	//bool mc_cut_position;
+	u32  mc_skip_mode;
+	u32 win_hsize;
+	u32 win_vsize;
+	u32 mc_size_sel;
+	u32 frm_hsize;
+	u32 frm_vsize;
 	int i;
+	u32 me_dsx;
+	u32 me_dsy;
+	u32 blk_xscale;
+	u32 blk_yscale;
+	u32 me_hsize;
+	u32 me_vsize;
+	u32 me_blk_hsize;
+	u32 me_blk_vsize;
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
 
-	if (prm_top->auto_alig_en && prm_top->org_hsize != 0xffff) {
-		src_hsize = cut_win_en ? win_hsize : mc_size_sel ?
-			prm_top->dpe_mc_size.src_hsize : prm_top->org_hsize;
-		src_vsize = cut_win_en ? win_vsize : mc_size_sel ?
-			prm_top->dpe_mc_size.src_vsize : prm_top->org_vsize;
+	cut_win_en	 = prm_top->cut_win_en;
+	//mc_cut_position = prm_top->cut_win_position;
+	mc_skip_mode = prm_top->mc_skip_mode;
+	win_hsize	 = prm_top->prm_cut_win.win_hsize;
+	win_vsize	 = prm_top->prm_cut_win.win_vsize;
+	mc_size_sel = prm_top->nr_hscale_on || pps->pps_en ||
+				prm_top->frc_ds_scale_en || mc_skip_mode;
+	frm_hsize = cut_win_en ? win_hsize : mc_size_sel ?
+		prm_top->dpe_mc_size.frm_hsize : prm_top->frm_hsize;
+	frm_vsize = cut_win_en ? win_vsize : mc_size_sel ?
+		prm_top->dpe_mc_size.frm_vsize : prm_top->frm_vsize;
+
+	dbg_h2("pps ch=%d,mc_size_sel%d,%d\n", prm_top->ch, mc_size_sel, pps->pps_en);
+
+	//if (mc_cut_position && cut_win_en) {
+	//	frm_hsize = prm_top->frm_hsize;
+	//	frm_vsize = prm_top->frm_vsize;
+	//}
+
+	frm_hsize = frm_hsize > 1920 ? (frm_hsize + 15) / 16 * 16 : (frm_hsize + 7) / 8 * 8;
+
+	if (prm_mc->pad_en && prm_top->org_hsize != 0xffff) {
+		src_hsize = cut_win_en	  ? win_hsize
+					: mc_size_sel ? prm_top->dpe_mc_size.src_hsize
+								  : prm_top->org_hsize;
+		src_vsize = cut_win_en	  ? win_vsize
+					: mc_size_sel ? prm_top->dpe_mc_size.src_vsize
+								  : prm_top->org_vsize;
 	} else {
-		src_hsize = cut_win_en ? win_hsize : mc_size_sel ?
-			prm_top->dpe_mc_size.frm_hsize : prm_top->frm_hsize;
-		src_vsize = cut_win_en ? win_vsize : mc_size_sel ?
-			prm_top->dpe_mc_size.frm_vsize : prm_top->frm_vsize;
+		src_hsize = cut_win_en	  ? win_hsize
+					: mc_size_sel ? prm_top->dpe_mc_size.frm_hsize
+								  : prm_top->frm_hsize;
+		src_vsize = cut_win_en	  ? win_vsize
+					: mc_size_sel ? prm_top->dpe_mc_size.frm_vsize
+								  : prm_top->frm_vsize;
 	}
+	//if (mc_cut_position && cut_win_en) {
+	//	src_hsize = prm_top->org_hsize;
+	//	src_vsize = prm_top->org_vsize;
+	//}
 
 	u32 mvx_div_mode = prm_top->mvx_div_mode;
 	u32 mvy_div_mode = prm_top->mvy_div_mode;
+	u32 blk_mode	 = 0;
+	u32 bbd_en		 = 1;
 
-	u32 me_dsx = prm_top->dae_dsx_scale;
-	u32 me_dsy = prm_top->dae_dsy_scale;
+	if (prm_top->dpss_mode == DPSS_FRC_MODE) {
+		me_dsx = prm_top->dae_dsx_scale;
+		me_dsy = prm_top->dae_dsy_scale;
+	} else {
+		me_dsx = prm_top->dpe_dw_dsx;
+		me_dsy = prm_top->dpe_dw_dsy;
+	}
 
-	u32 blk_xscale = me_dsx + 2;	//???
-	u32 blk_yscale = me_dsy + 2;	//???
+	blk_xscale = me_dsx + 2;
+	blk_yscale = me_dsy + 2;
+	me_hsize	 = (frm_hsize + (1 << me_dsx) - 1) >> me_dsx;
+	me_vsize	 = (frm_vsize + (1 << me_dsy) - 1) >> me_dsy;
+	me_blk_hsize = (me_hsize + 3) >> 2;
+	me_blk_vsize = (me_vsize + 3) >> 2;
 
-	u32 blk_mode = 0;
-	u32 bbd_en = 1;
-	u32 me_hsize = (frm_hsize + (1 << me_dsx) - 1) >> me_dsx;
-	u32 me_vsize = (frm_vsize + (1 << me_dsy) - 1) >> me_dsy;
-	u32 me_blk_hsize = (me_hsize + 3) >> 2;
-	u32 me_blk_vsize = (me_vsize + 3) >> 2;
+	if (me_dsx == 2 && me_dsy == 2) {
+		blk_mode = 1;	// 16x16, 4k2k
+	} else if (me_dsx == 2 && me_dsy == 1) {
+		blk_mode = 2;	// 16x8, 4k1k
+	} else if (me_dsx == 1 && me_dsy == 1) {
+		blk_mode = 0;	// 8x8, 1920x1080
+	} else { // no support
+		dbg_h2("me_dsx/dsy set fault!!\n");
+	}
 
-	if (me_dsx == 2 && me_dsy == 2)
-		blk_mode = 1;	//16x16, 4k2k
-	else if (me_dsx == 2 && me_dsy == 1)
-		blk_mode = 2;	//16x8, 4k1k
-	else if (me_dsx == 1 && me_dsy == 1)
-		blk_mode = 0;	//8x8, 1920x1080
-	else
-		dbg_h2("me_dsx / dsy set fault!!\n");
-	enum vid_src_fmt pix_fmt, pix_bit, pix_plan, pix_cmpr;
+	// enum vid_src_fmt pix_fmt, pix_bit, pix_plan, pix_cmpr;
+	enum vid_src_fmt pix_fmt, pix_fmt_src, pix_bit, pix_plan, pix_cmpr;
 
 	if (src_from_nr) {
-		pix_fmt = prm_top->nro_fs_fmt.src_fmt;
-		pix_bit = prm_top->nro_fs_fmt.src_bit;
+		pix_fmt = ((prm_top->nro_fs_fmt.src_fmt == YUV420) && prm_top->frc_vfcd_vfmt) ?
+					YUV422 : prm_top->nro_fs_fmt.src_fmt;
+		pix_fmt_src = prm_top->nro_fs_fmt.src_fmt;
+		pix_bit	 = prm_top->nro_fs_fmt.src_bit;
 		pix_plan = prm_top->nro_fs_fmt.src_plan;
 		pix_cmpr = prm_top->nro_fs_fmt.src_cmpr;
 	} else {
-		pix_fmt = prm_top->src_fs_fmt.src_fmt;
-		pix_bit = prm_top->src_fs_fmt.src_bit;
+		pix_fmt = ((prm_top->src_fs_fmt.src_fmt == YUV420) && prm_top->frc_vfcd_vfmt) ?
+					YUV422 : prm_top->src_fs_fmt.src_fmt;
+		pix_fmt_src = prm_top->src_fs_fmt.src_fmt;
+		pix_bit	 = prm_top->src_fs_fmt.src_bit;
 		pix_plan = prm_top->src_fs_fmt.src_plan;
 		pix_cmpr = prm_top->src_fs_fmt.src_cmpr;
 	}
-	w_reg_bit(DPSS_DPE_MC_CTRL0, 0, 0, 2);	//reg_mc_gcb_bypass_mc_en
-	w_reg_bit(DPSS_DPE_MC_CTRL0, blk_xscale, 8, 3);	//reg_mc_blksize_xscale
-	w_reg_bit(DPSS_DPE_MC_CTRL0, blk_yscale, 4, 3);	//reg_mc_blksize_yscale
-	w_reg_bit(DPSS_DPE_MC_CTRL0, mvx_div_mode, 16, 2);	//reg_me_mvx_div_mode
-	w_reg_bit(DPSS_DPE_MC_CTRL0, mvy_div_mode, 12, 2);	//reg_me_mvy_div_mode
+	dbg_h2("src_from_nr = %d pix_bit = %d\n", src_from_nr, pix_bit);
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_CTRL0, 0, 0, 2);// reg_mc_gcb_bypass_mc_en
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_CTRL0, blk_xscale, 8, 3);// reg_mc_blksize_xscale
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_CTRL0, blk_yscale, 4, 3);// reg_mc_blksize_yscale
 
-	w_reg_bit(DPSS_DPE_MC_BLKBAR_X, src_hsize - 1, 16, 13);	//reg_blackbar_xyxy2
-	w_reg_bit(DPSS_DPE_MC_BLKBAR_X, 0, 0, 13);	//reg_blackbar_xyxy0
-	w_reg_bit(DPSS_DPE_MC_BLKBAR_Y, src_vsize - 1, 16, 13);	//reg_blackbar_xyxy3
-	w_reg_bit(DPSS_DPE_MC_BLKBAR_Y, 0, 0, 13);	//reg_blackbar_xyxy1
-
-	//=============================//
-	//read dpss mc addr info here
-
-	//uint64_t luma0_baddr = 0;
-	//uint64_t luma1_baddr = 0;
-	//uint64_t chrm0_baddr = 0;
-	//uint64_t chrm1_baddr = 0;
-	//u32 logo0_baddr = 0;
-	//u32 logo1_baddr = 0;
-	//u32 mv_baddr    = 0;
-	//u32 melg_baddr  = 0;
-	//u32 phase       = 0;
-	//u32 gcb_bypass  = 0;
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_BLKBAR_X, src_hsize - 1, 16, 13);// reg_blackbar_xyxy2
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_BLKBAR_X, 0, 0, 13);// reg_blackbar_xyxy0
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_BLKBAR_Y, src_vsize - 1, 16, 13);// reg_blackbar_xyxy3
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_BLKBAR_Y, 0, 0, 13);// reg_blackbar_xyxy1
 
 	//=============================//
+	// read dpss mc addr info here
 
-	wr(DPSS_DPE_MC_TOP_FSIZE, (frm_hsize << 16) | frm_vsize);
-	wr(DPSS_DPE_MC_SRC_FSIZE, (src_hsize << 16) | src_vsize);
+	// uint64_t luma0_baddr = 0;
+	// uint64_t luma1_baddr = 0;
+	// uint64_t chrm0_baddr = 0;
+	// uint64_t chrm1_baddr = 0;
+	// u32 logo0_baddr = 0;
+	// u32 logo1_baddr = 0;
+	// u32 mv_baddr    = 0;
+	// u32 melg_baddr  = 0;
+	// u32 phase       = 0;
+	// u32 gcb_bypass  = 0;
 
-	//wr(DPSS_DPE_MC_DIN_LUMA0_BADDR0, luma0_baddr & 0xffff);
-	//wr(DPSS_DPE_MC_DIN_LUMA0_BADDR1, (luma0_baddr >> 32) & 0xffff);
-	//wr(DPSS_DPE_MC_DIN_LUMA1_BADDR0, luma1_baddr & 0xffff);
-	//wr(DPSS_DPE_MC_DIN_LUMA1_BADDR1, (luma1_baddr >> 32) & 0xffff);
+	//============================//
+
+	DPSS_RDMA_WR_VS(DPSS_DPE_MC_TOP_FSIZE, (frm_hsize << 16) | frm_vsize);
+	DPSS_RDMA_WR_VS(DPSS_DPE_MC_SRC_FSIZE, (src_hsize << 16) | src_vsize);
+
+	// wr(DPSS_DPE_MC_DIN_LUMA0_BADDR0, luma0_baddr&0xffff);
+	// wr(DPSS_DPE_MC_DIN_LUMA0_BADDR1,(luma0_baddr>>32)&0xffff);
+	// wr(DPSS_DPE_MC_DIN_LUMA1_BADDR0, luma1_baddr&0xffff);
+	// wr(DPSS_DPE_MC_DIN_LUMA1_BADDR1,(luma1_baddr>>32)&0xffff);
 	//
-	//wr(DPSS_DPE_MC_DIN_CHRM0_BADDR0, chrm0_baddr & 0xffff);
-	//wr(DPSS_DPE_MC_DIN_CHRM0_BADDR1, (chrm0_baddr >> 32) & 0xffff);
-	//wr(DPSS_DPE_MC_DIN_CHRM1_BADDR0, chrm1_baddr & 0xffff);
-	//wr(DPSS_DPE_MC_DIN_CHRM1_BADDR1, (chrm1_baddr >> 32) & 0xffff);
+	// wr(DPSS_DPE_MC_DIN_CHRM0_BADDR0, chrm0_baddr&0xffff);
+	// wr(DPSS_DPE_MC_DIN_CHRM0_BADDR1,(chrm0_baddr>>32)&0xffff);
+	// wr(DPSS_DPE_MC_DIN_CHRM1_BADDR0, chrm1_baddr&0xffff);
+	// wr(DPSS_DPE_MC_DIN_CHRM1_BADDR1,(chrm1_baddr>>32)&0xffff);
 
-	//wr(DPSS_DPE_MC_DIN_LOGO_BADDR0, logo0_baddr & 0xffff);
-	//wr(DPSS_DPE_MC_DIN_LOGO_BADDR1, logo1_baddr & 0xffff);
-	//wr(DPSS_DPE_MC_DIN_MELG_BADDR1, melg_baddr &0xffff);
-	//wr(DPSS_DPE_MC_DIN_MV_BADDR1  , melg_baddr &0xffff);
+	// wr(DPSS_DPE_MC_DIN_LOGO_BADDR0, logo0_baddr&0xffff);
+	// wr(DPSS_DPE_MC_DIN_LOGO_BADDR1, logo1_baddr&0xffff);
+	// wr(DPSS_DPE_MC_DIN_MELG_BADDR1, melg_baddr &0xffff);
+	// wr(DPSS_DPE_MC_DIN_MV_BADDR1  , melg_baddr &0xffff);
 
-	w_reg_bit(DPSS_DPE_MC_CTRL0, blk_mode & 0x3, 28, 2);
-	//w_reg_bit(DPSS_DPE_MC_CTRL0, phase & 0xff, 20, 8);
-	w_reg_bit(DPSS_DPE_MC_CTRL0, mvx_div_mode & 0x3, 16, 2);
-	w_reg_bit(DPSS_DPE_MC_CTRL0, mvy_div_mode & 0x3, 12, 2);
-	w_reg_bit(DPSS_DPE_MC_CTRL0, blk_xscale & 0x7, 8, 3);
-	w_reg_bit(DPSS_DPE_MC_CTRL0, blk_yscale & 0x7, 4, 3);
-	//w_reg_bit(DPSS_DPE_MC_CTRL0, gcb_bypass & 0x3, 0, 2);
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_CTRL0, blk_mode & 0x3, 28, 2);
+	// w_reg_bit(DPSS_DPE_MC_CTRL0, phase&0xff, 20, 8);
+	//w_reg_bit(DPSS_DPE_MC_CTRL0, mvx_div_mode & 0x3, 16, 2);
+	//w_reg_bit(DPSS_DPE_MC_CTRL0, mvy_div_mode & 0x3, 12, 2);
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_CTRL0, 2, 16, 2);
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_CTRL0, 2, 12, 2);
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_CTRL0, blk_xscale & 0x7, 8, 3);
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_CTRL0, blk_yscale & 0x7, 4, 3);
+	// w_reg_bit(DPSS_DPE_MC_CTRL0, gcb_bypass&0x3, 0, 2);
 
-	w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 1, 0, 1);
-	w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 0xff, 20, 8);	//rdmif_enable
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_MIF_CTRL0, 1, 0,
+				1);	 // reg_mode bit0, ctrl mc_top signals like baddr/phase
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_MIF_CTRL0, 0xff, 20, 8);// rdmif_enable
 
 	if (pix_fmt == YUV422)
-		w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 1, 16, 2);
+		DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_MIF_CTRL0, 1, 16, 2);
 	else if (pix_fmt == YUV420)
-		w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 2, 16, 2);
+		DPSS_RDMA_WR_BIT_VS(DPSS_DPE_MC_MIF_CTRL0, 2, 16, 2);
 	else
-		dbg_h2("ERROR: MC CONFIG WRONG FMT(%d)\n", pix_fmt);
+		dbg_h2("ERROR: MC CONFIG WRONG FMT\n");
 
-	//config_mc_slice
-	cfg_dpss_mc_slice(frm_hsize, frm_vsize, 1);	//slc_num);
-	cfg_dpss_mc_bbd(frm_hsize, frm_vsize, bbd_en, 0x0, src_hsize,
-			src_vsize);
+	// config_mc_slice
+	cfg_dpss_mc_slice(frm_hsize, frm_vsize, 1);	 // slc_num);
+	cfg_dpss_mc_bbd(frm_hsize, frm_vsize, bbd_en, 0x0, src_hsize, src_vsize);
 
 	//
 	if (me_dsx == 2) {
-		w_reg_bit(FRC_MC_SETTING2, 9, 8, 6);	//reg_mc_fetch_size
-		w_reg_bit(FRC_MC_SETTING2, 16, 0, 8);	//reg_mc_blk_x
+		DPSS_RDMA_WR_BIT_VS(FRC_MC_SETTING2, 9, 8, 6);  // reg_mc_fetch_size
+		DPSS_RDMA_WR_BIT_VS(FRC_MC_SETTING2, 16, 0, 8); // reg_mc_blk_x
 	} else {
-		w_reg_bit(FRC_MC_SETTING2, 5, 8, 6);	//reg_mc_fetch_size
-		w_reg_bit(FRC_MC_SETTING2, 8, 0, 8);	//reg_mc_blk_x
+		DPSS_RDMA_WR_BIT_VS(FRC_MC_SETTING2, 5, 8, 6);// reg_mc_fetch_size
+		DPSS_RDMA_WR_BIT_VS(FRC_MC_SETTING2, 8, 0, 8);// reg_mc_blk_x
 	}
-	w_reg_bit(FRC_MC_SETTING1, 0, 24, 1);	//reg_mc_bb_inner_en
-	w_reg_bit(FRC_MC_SETTING1, me_dsx, 8, 4);	//reg_mc_mvx_scale
-	w_reg_bit(FRC_MC_SETTING1, me_dsy, 0, 4);	//reg_mc_mvy_scale
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SETTING1, 0, 24, 1);// reg_mc_bb_inner_en
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SETTING1, me_dsx, 8, 4);// reg_mc_mvx_scale
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SETTING1, me_dsy, 0, 4);// reg_mc_mvy_scale
 
-	w_reg_bit(FRC_MC_BB_HANDLE_ORG_ME_BB_XYXY_LEFT_TOP, 0, 16, 16);
-	w_reg_bit(FRC_MC_BB_HANDLE_ORG_ME_BB_XYXY_LEFT_TOP, 0, 0, 16);
-	w_reg_bit(FRC_MC_BB_HANDLE_ORG_ME_BB_XYXY_RIGHT_BOT, (src_hsize >> me_dsx) - 1, 16, 16);
-	w_reg_bit(FRC_MC_BB_HANDLE_ORG_ME_BB_XYXY_RIGHT_BOT, (src_vsize >> me_dsy) - 1, 0, 16);
-	w_reg_bit(FRC_MC_BB_HANDLE_ORG_ME_BLK_BB_XYXY_LFT_AND_TOP, 0, 16, 16);
-	w_reg_bit(FRC_MC_BB_HANDLE_ORG_ME_BLK_BB_XYXY_LFT_AND_TOP, 0, 0, 16);
-	w_reg_bit(FRC_MC_BB_HANDLE_ORG_ME_BLK_BB_XYXY_RIT_AND_BOT,
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_BB_HANDLE_ORG_ME_BB_XYXY_LEFT_TOP, 0, 16,
+				16);// reg_mc_org_me_blk_bb_xyxy_0
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_BB_HANDLE_ORG_ME_BB_XYXY_LEFT_TOP,
+		0, 0, 16);// reg_mc_org_me_blk_bb_xyxy_1
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_BB_HANDLE_ORG_ME_BB_XYXY_RIGHT_BOT,
+		(src_hsize >> me_dsx) - 1, 16, 16);//reg_mc_org_me_blk_bb_xyxy_2//org me size
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_BB_HANDLE_ORG_ME_BB_XYXY_RIGHT_BOT,
+		(src_vsize >> me_dsy) - 1, 0, 16);//reg_mc_org_me_blk_bb_xyxy_3//org me size
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_BB_HANDLE_ORG_ME_BLK_BB_XYXY_LFT_AND_TOP, 0, 16,
+				16);// reg_mc_org_me_blk_bb_xyxy_0
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_BB_HANDLE_ORG_ME_BLK_BB_XYXY_LFT_AND_TOP, 0, 0,
+				16);// reg_mc_org_me_blk_bb_xyxy_1
+	DPSS_RDMA_WR_BIT_VS(//reg_mc_org_me_blk_bb_xyxy_2//org blk size
+		FRC_MC_BB_HANDLE_ORG_ME_BLK_BB_XYXY_RIT_AND_BOT,
 		((src_hsize >> me_dsx) >> 2) - 1, 16, 16);
-	w_reg_bit(FRC_MC_BB_HANDLE_ORG_ME_BLK_BB_XYXY_RIT_AND_BOT,
+	DPSS_RDMA_WR_BIT_VS(//reg_mc_org_me_blk_bb_xyxy_3//org blk size
+		FRC_MC_BB_HANDLE_ORG_ME_BLK_BB_XYXY_RIT_AND_BOT,
 		((src_vsize >> me_dsy) >> 2) - 1, 0, 16);
-	w_reg_bit(FRC_MC_BB_HANDLE_ME_BLK_BB_XYXY_LFT_AND_TOP, 0, 16, 16);
-	w_reg_bit(FRC_MC_BB_HANDLE_ME_BLK_BB_XYXY_LFT_AND_TOP, 0, 0, 16);
-	w_reg_bit(FRC_MC_BB_HANDLE_ME_BLK_BB_XYXY_RIT_AND_BOT, me_blk_hsize - 1, 16, 16);
-	w_reg_bit(FRC_MC_BB_HANDLE_ME_BLK_BB_XYXY_RIT_AND_BOT, me_blk_vsize - 1, 0, 16);
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_BB_HANDLE_ME_BLK_BB_XYXY_LFT_AND_TOP,
+		0, 16, 16);// reg_mc_me_blk_bb_xyxy_0
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_BB_HANDLE_ME_BLK_BB_XYXY_LFT_AND_TOP,
+		0, 0, 16);// reg_mc_me_blk_bb_xyxy_1
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_BB_HANDLE_ME_BLK_BB_XYXY_RIT_AND_BOT,
+		me_blk_hsize - 1, 16, 16);// reg_mc_me_blk_bb_xyxy_2
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_BB_HANDLE_ME_BLK_BB_XYXY_RIT_AND_BOT,
+		me_blk_vsize - 1, 0, 16);// reg_mc_me_blk_bb_xyxy_3
 
-	w_reg_bit(FRC_MC_WRAP_BB_0, 0, 16, 13);	//reg_blackbar_xyxy0
-	w_reg_bit(FRC_MC_WRAP_BB_0, 0, 0, 13);	//reg_blackbar_xyxy1
-	w_reg_bit(FRC_MC_WRAP_BB_1, src_hsize - 1, 16, 13);	//reg_blackbar_xyxy2
-	w_reg_bit(FRC_MC_WRAP_BB_1, src_vsize - 1, 0, 13);	//reg_blackbar_xyxy3
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_WRAP_BB_0, 0, 16, 13);// reg_blackbar_xyxy0
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_WRAP_BB_0, 0, 0, 13);// reg_blackbar_xyxy1
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_WRAP_BB_1, src_hsize - 1, 16, 13);// reg_blackbar_xyxy2
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_WRAP_BB_1, src_vsize - 1, 0, 13);// reg_blackbar_xyxy3
 
-	w_reg_bit(FRC_NOW_SRCH_REG, 64, 8, 8);	//reg_mc_vsrch_rng_luma //todo
-	w_reg_bit(FRC_NOW_SRCH_REG, 32, 0, 8);	//reg_mc_vsrch_rng_chrm
+	DPSS_RDMA_WR_BIT_VS(FRC_NOW_SRCH_REG, 64, 8, 8);// reg_mc_vsrch_rng_luma //todo
+	DPSS_RDMA_WR_BIT_VS(FRC_NOW_SRCH_REG, 32, 0, 8);// reg_mc_vsrch_rng_chrm
 
-	w_reg_bit(FRC_MC_FORCE_BV, 0, 0, 1);	//reg_mc_force_bv_en
-	w_reg_bit(FRC_MC_FORCE_BV, 0, 16, 13);	//reg_mc_force_mvx
-	w_reg_bit(FRC_MC_FORCE_BV, 0, 4, 12);	//reg_mc_force_mvy
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_FORCE_BV, 0, 0, 1);// reg_mc_force_bv_en
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_FORCE_BV, 0, 16, 13);// reg_mc_force_mvx
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_FORCE_BV, 0, 4, 12);	// reg_mc_force_mvy
 
-	w_reg_bit(FRC_SRCH_RNG_MODE, prm_top->mc_setting.chrm_srng_mode, 0, 4);
-	w_reg_bit(FRC_SRCH_RNG_MODE, prm_top->mc_setting.luma_srng_mode, 4, 4);
-	if (pix_fmt == YUV420 && pix_cmpr == CMPR_AFBC) {	//add afbc
-		if (prm_top->mc_setting.chrm_srng_mode < SRNG_NORMAL_V2
-			/* || prm_top.mc_setting.luma_srng_mode < SRNG_NORMAL_V2 */
-		    ) {		//srng must be v2 / h2v2
-			//dbg_h2("ERROR: mc srng mode set error\n");
+	DPSS_RDMA_WR_BIT_VS(FRC_SRCH_RNG_MODE, prm_top->mc_setting.chrm_srng_mode, 0, 4);
+	DPSS_RDMA_WR_BIT_VS(FRC_SRCH_RNG_MODE, prm_top->mc_setting.luma_srng_mode, 4, 4);
+	if (pix_fmt_src == YUV420 && pix_cmpr == CMPR_AFBC) {// add afbc
+		if (prm_top->mc_setting.chrm_srng_mode < SRNG_NORMAL_V2) { //||
+			 //prm_top.mc_setting.luma_srng_mode < SRNG_NORMAL_V2)
+			// dbg_h2("ERROR: mc srng mode set error\n");
 			dbg_h2("Just force to set SRNG_NORMAL_V2\n");
-			w_reg_bit(FRC_SRCH_RNG_MODE, SRNG_NORMAL_V2, 0, 4);
-			// w_reg_bit(FRC_SRCH_RNG_MODE, SRNG_NORMAL_V2, 4, 4);
+			DPSS_RDMA_WR_BIT_VS(FRC_SRCH_RNG_MODE, SRNG_NORMAL_V2, 0, 4);
+			//            w_reg_bit(FRC_SRCH_RNG_MODE, SRNG_NORMAL_V2, 4, 4);
 		}
-		//reg_mc_get_lbuf_wrap_lpf_mode set to 0 for bitmatch, SW not need!
-		//reg_mc_srch_rng_chrm_scale_en
-		//reg_mc_srch_rng_chrm_blw_yscale
-		//reg_mc_srch_rng_chrm_abv_yscale
-		w_reg_bit(FRC_MC_H2V2_SETTING, 0, 31, 1);
-		w_reg_bit(FRC_MC_H2V2_SETTING, 1, 24, 1);
-		w_reg_bit(FRC_MC_H2V2_SETTING, 1, 19, 1);
-		w_reg_bit(FRC_MC_H2V2_SETTING, 1, 21, 1);
-		//setting search range
-		if (prm_top->mc_setting.luma_srng_mode >= SRNG_NORMAL_V2) {
-			for (i = 0; i < 18; i = i + 1) {
-				w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0), -8, 0, 9);
-				w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0), -8, 16, 9);
-				w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1), 8, 0, 9);
-				w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1), 8, 16, 9);
-			}
-			for (i = 0; i < 9; i = i + 1) {
-				//pre ofst0:
-				w_reg_bit(FRC_MC_RANGE_SING_LUT_0 + (4 * i + 0), -8, 0, 9);
-				w_reg_bit(FRC_MC_RANGE_SING_LUT_0 + (4 * i + 0), -8, 16, 9);
-				//pre ofst1
-				w_reg_bit(FRC_MC_RANGE_SING_LUT_0 + (4 * i + 1), 4, 0, 9);
-				w_reg_bit(FRC_MC_RANGE_SING_LUT_0 + (4 * i + 1), 4, 16, 9);
-				//cur ofst0
-				w_reg_bit(FRC_MC_RANGE_SING_LUT_0 + (4 * i + 2), -8, 0, 9);
-				w_reg_bit(FRC_MC_RANGE_SING_LUT_0 + (4 * i + 2), -8, 16, 9);
-				//cur ofst1
-				w_reg_bit(FRC_MC_RANGE_SING_LUT_0 + (4 * i + 3), 12, 0, 9);
-				w_reg_bit(FRC_MC_RANGE_SING_LUT_0 + (4 * i + 3), 12, 16, 9);
-			}
-		} else {
-			for (i = 0; i < 18; i = i + 1) {
-				if (i % 2 == 0) {
-					w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0), -8, 0, 9);
-					w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 +
-						(2 * i + 0), -16, 16, 9);
-					w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1), 8, 0, 9);
-					w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1), 16, 16, 9);
-				} else {
-					w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0), -4, 0, 9);
-					w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0), -8, 16, 9);
-					w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1), 4, 0, 9);
-					w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1), 8, 16, 9);
-				}
-			}
-		}
-	}
-	if (pix_fmt == YUV422 && pix_cmpr == CMPR_AFBC) {	//add afbc
-		//setting search range
+		DPSS_RDMA_WR_BIT_VS(FRC_MC_H2V2_SETTING, 0, 31,
+					1);
+		DPSS_RDMA_WR_BIT_VS(FRC_MC_H2V2_SETTING, 1, 24, 1);// reg_mc_srch_rng_chrm_scale_en
+		DPSS_RDMA_WR_BIT_VS(FRC_MC_H2V2_SETTING,
+			1, 19, 1);// reg_mc_srch_rng_chrm_blw_yscale
+		DPSS_RDMA_WR_BIT_VS(FRC_MC_H2V2_SETTING,
+			1, 21, 1);// reg_mc_srch_rng_chrm_abv_yscale
+		// setting search range
 		for (i = 0; i < 18; i = i + 1) {
-			//pre_chrm    //ary addr change *4
-			//pre_luma    //ary addr change *4
-			//cur_chrm    //ary addr change *4
-			//cur_luma        //ary addr change *4
-			w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0), -16, 0, 9);
-			w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0), -16, 16, 9);
-			w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1), 16, 0, 9);
-			w_reg_bit(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1), 16, 16, 9);
+			if (i % 2 == 0) {
+				DPSS_RDMA_WR_BIT_VS(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0), -8, 0,
+							9);	  // pre_chrm	//ary addr change *4
+				DPSS_RDMA_WR_BIT_VS(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0), -16, 16,
+							9);	  // pre_luma	//ary addr change *4
+				DPSS_RDMA_WR_BIT_VS(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1), 8, 0,
+							9);	  // cur_chrm	//ary addr change *4
+				DPSS_RDMA_WR_BIT_VS(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1), 16, 16,
+							9);	  // cur_luma	//ary addr change *4
+			} else {
+				DPSS_RDMA_WR_BIT_VS(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0),
+					-4, 0, 9);
+				DPSS_RDMA_WR_BIT_VS(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0),
+					-8, 16, 9);
+				DPSS_RDMA_WR_BIT_VS(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1),
+					4, 0, 9);
+				DPSS_RDMA_WR_BIT_VS(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1),
+					8, 16, 9);
+			}
 		}
 	}
-	//DPSS_MC0_t mc_info;
-	prm_mc->frm_hsize = frm_hsize;
-	prm_mc->frm_vsize = frm_vsize;
-	prm_mc->src_hsize = src_hsize;
-	prm_mc->src_vsize = src_vsize;
+	if (pix_fmt_src == YUV422 && pix_cmpr == CMPR_AFBC) {	// add afbc
+		// setting search range
+		for (i = 0; i < 18; i = i + 1) {
+			DPSS_RDMA_WR_BIT_VS(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0), -16, 0,
+						9);	  // pre_chrm	//ary addr change *4
+			DPSS_RDMA_WR_BIT_VS(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 0), -16, 16,
+						9);	  // pre_luma	//ary addr change *4
+			DPSS_RDMA_WR_BIT_VS(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1), 16, 0,
+						9);	  // cur_chrm	//ary addr change *4
+			DPSS_RDMA_WR_BIT_VS(FRC_MC_RANGE_NORM_LUT_0 + (2 * i + 1), 16, 16,
+						9);	  // cur_luma		//ary addr change *4
+		}
+	}
+
+	// DPSS_MC0_t mc_info;
+
+	prm_mc->frm_hsize	 = frm_hsize;
+	prm_mc->frm_vsize	 = frm_vsize;
+	prm_mc->src_hsize	 = src_hsize;
+	prm_mc->src_vsize	 = src_vsize;
 	prm_mc->mvx_div_mode = mvx_div_mode;
 	prm_mc->mvy_div_mode = mvy_div_mode;
-	//prm_mc->luma0_baddr  = luma0_baddr;
-	//prm_mc->luma1_baddr  = luma1_baddr;
-	//prm_mc->chrm0_baddr  = chrm0_baddr;
-	//prm_mc->chrm1_baddr  = chrm1_baddr;
-	//prm_mc->logo0_baddr  = logo0_baddr;
-	//prm_mc->logo1_baddr  = logo1_baddr;
-	//prm_mc->mv_baddr     = mv_baddr;
-	//prm_mc->melg_baddr   = melg_baddr;
-	//prm_mc->phase        = phase;
-	prm_mc->pix_fmt = pix_fmt;
-	prm_mc->pix_bit = pix_bit;
+	// prm_mc->luma0_baddr  = luma0_baddr;
+	// prm_mc->luma1_baddr  = luma1_baddr;
+	// prm_mc->chrm0_baddr  = chrm0_baddr;
+	// prm_mc->chrm1_baddr  = chrm1_baddr;
+	// prm_mc->logo0_baddr  = logo0_baddr;
+	// prm_mc->logo1_baddr  = logo1_baddr;
+	// prm_mc->mv_baddr     = mv_baddr;
+	// prm_mc->melg_baddr   = melg_baddr;
+	// prm_mc->phase        = phase;
+	prm_mc->pix_fmt	 = pix_fmt_src;
+	prm_mc->pix_bit	 = pix_bit;
 	prm_mc->pix_plan = pix_plan;
 	prm_mc->src_cmpr = pix_cmpr;
 
-	prm_mc->comp_setting.mmu_mode_en = prm_top->comp_setting.mmu_mode_en;
-	prm_mc->comp_setting.mmu_page_mode =
-	    prm_top->comp_setting.mmu_page_mode;
-	prm_mc->comp_setting.afrc_head_mode =
-	    prm_top->comp_setting.afrc_head_mode;
-	prm_mc->comp_setting.afrc_target_byte_y =
-	    prm_top->comp_setting.afrc_target_byte_y;
-	prm_mc->comp_setting.afrc_target_byte_c =
-	    prm_top->comp_setting.afrc_target_byte_c;
+	prm_mc->comp_setting.mmu_mode_en	  = prm_top->comp_setting.mmu_mode_en;
+	prm_mc->comp_setting.mmu_page_mode	  = prm_top->comp_setting.mmu_page_mode;
+	prm_mc->comp_setting.afrc_head_mode	  = prm_top->comp_setting.afrc_head_mode;
+	prm_mc->comp_setting.afrc_target_byte_y = prm_top->comp_setting.afrc_target_byte_y;
+	prm_mc->comp_setting.afrc_target_byte_c = prm_top->comp_setting.afrc_target_byte_c;
 
-	//=============================================================
+	//==============================================================
 	// if DPE pps enable, pps wrmif use di waddr, MC need use di output
-	//=============================================================
-	//reg_aa_pps_mode == 3 -> nr aapps 4k1k
-	bool nr_aapps_4k1k_en = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
+	//==============================================================
+	// reg_aa_pps_mode == 3 -> nr aapps 4k1k
+	bool nr_aapps_4k1k_en;// = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
+
+	if (pps->pps_en)
+		DPSS_RDMA_WR_BIT_VS(DPSS_DPE_INTF_CTRL2, 3, 4, 2);
+	else
+		DPSS_RDMA_WR_BIT_VS(DPSS_DPE_INTF_CTRL2, 0, 4, 2);
+
+	nr_aapps_4k1k_en = ((rd(DPSS_DPE_INTF_CTRL2) >> 4) & 0x3) == 3;
 
 	if (prm_top->nr_aapps_up ||
-		(nr_aapps_4k1k_en && prm_top->dolby_mode != DOLBY_DPSS_PRL_MODE)) {
-		w_reg_bit(DPSS_FBUF_TOP_CTRL, 1, 3, 1);	//dpe_pps_en
-	}
-	dbg_h2("%s me_size(%d, %d), me_blk(%d, %d)\n", __func__,
-	       me_hsize, me_vsize, me_blk_hsize, me_blk_vsize);
-	dbg_h2
-	    ("%s src_from_nr : %d, pix(fmt: %d, bit: %d, plan: %d, cmp: %d\n",
-	     __func__, src_from_nr, pix_fmt, pix_bit, pix_plan, pix_cmpr);
-	dbg_h2("%s frm_size( %d, %d), src_size( %d, %d)\n", __func__,
-	       prm_mc->frm_hsize, prm_mc->frm_vsize, prm_mc->src_hsize,
-	       prm_mc->src_vsize);
+		(nr_aapps_4k1k_en && prm_top->dolby_mode != DOLBY_DPSS_PRL_MODE))
+		DPSS_RDMA_WR_BIT_VS(DPSS_FBUF_TOP_CTRL, 1, 3, 1);	// dpe_pps_en
+	else
+		DPSS_RDMA_WR_BIT_VS(DPSS_FBUF_TOP_CTRL, 0, 3, 1);
 }
 
 void cfg_dpss_mc_pre_triggle(void)
@@ -565,11 +656,11 @@ void cfg_dpss_mc_slice(u32 frm_hsize, u32 frm_vsize, u32 slice_num)
 {
 	int i;
 	u32 mc_slice_h_overlap = 32;
-	u32 mc_slice_lpad[4] = { 0, 0, 0, 0 };
-	u32 mc_slice_rpad[4] = { 0, 0, 0, 0 };
+	u32 mc_slice_lpad[4]   = {0, 0, 0, 0};
+	u32 mc_slice_rpad[4]   = {0, 0, 0, 0};
 
-	u32 mc_slice_x_st[4] = { 0, 0, 0, 0 };
-	u32 mc_slice_x_end[4] = { frm_hsize - 1, frm_hsize - 1, frm_hsize - 1, frm_hsize - 1};
+	u32 mc_slice_x_st[4]  = {0, 0, 0, 0};
+	u32 mc_slice_x_end[4] = {frm_hsize - 1, frm_hsize - 1, frm_hsize - 1, frm_hsize - 1};
 
 	for (i = 0; i < slice_num; i++) {
 		mc_slice_lpad[i] = i == 0 ? 0 : mc_slice_h_overlap;
@@ -577,129 +668,124 @@ void cfg_dpss_mc_slice(u32 frm_hsize, u32 frm_vsize, u32 slice_num)
 	}
 
 	if (slice_num == 4) {
-		mc_slice_x_st[0] = 0;
+		mc_slice_x_st[0]  = 0;
 		mc_slice_x_end[0] = frm_hsize / 4 + mc_slice_h_overlap - 1;
-		mc_slice_x_st[1] = frm_hsize / 4 - mc_slice_h_overlap;
+		mc_slice_x_st[1]  = frm_hsize / 4 - mc_slice_h_overlap;
 		mc_slice_x_end[1] = frm_hsize / 2 + mc_slice_h_overlap - 1;
-		mc_slice_x_st[2] = frm_hsize / 2 - mc_slice_h_overlap;
+		mc_slice_x_st[2]  = frm_hsize / 2 - mc_slice_h_overlap;
 		mc_slice_x_end[2] = frm_hsize * 3 / 4 + mc_slice_h_overlap - 1;
-		mc_slice_x_st[3] = frm_hsize * 3 / 4 - mc_slice_h_overlap;
+		mc_slice_x_st[3]  = frm_hsize * 3 / 4 - mc_slice_h_overlap;
 		mc_slice_x_end[3] = frm_hsize - 1;
 	} else if (slice_num == 2) {
-		mc_slice_x_st[0] = 0;
+		mc_slice_x_st[0]  = 0;
 		mc_slice_x_end[0] = frm_hsize / 2 + mc_slice_h_overlap - 1;
-		mc_slice_x_st[1] = frm_hsize / 2 - mc_slice_h_overlap;
+		mc_slice_x_st[1]  = frm_hsize / 2 - mc_slice_h_overlap;
 		mc_slice_x_end[1] = frm_hsize - 1;
-		mc_slice_x_st[2] = 0;
+		mc_slice_x_st[2]  = 0;
 		mc_slice_x_end[2] = 0;
-		mc_slice_x_st[3] = 0;
+		mc_slice_x_st[3]  = 0;
 		mc_slice_x_end[3] = 0;
 	} else {
-		mc_slice_x_st[0] = 0;
+		mc_slice_x_st[0]  = 0;
 		mc_slice_x_end[0] = frm_hsize - 1;
-		mc_slice_x_st[1] = 0;
+		mc_slice_x_st[1]  = 0;
 		mc_slice_x_end[1] = 0;
-		mc_slice_x_st[2] = 0;
+		mc_slice_x_st[2]  = 0;
 		mc_slice_x_end[2] = 0;
-		mc_slice_x_st[3] = 0;
+		mc_slice_x_st[3]  = 0;
 		mc_slice_x_end[3] = 0;
 	}
 
-	w_reg_bit(FRC_MC_SLC_CTRL1, mc_slice_lpad[0], 24, 8);	//reg_slc0_lpad
-	w_reg_bit(FRC_MC_SLC_CTRL1, mc_slice_rpad[0], 16, 8);	//reg_slc0_rpad
-	w_reg_bit(FRC_MC_SLC_CTRL1, mc_slice_lpad[1], 8, 8);	//reg_slc1_lpad
-	w_reg_bit(FRC_MC_SLC_CTRL1, mc_slice_rpad[1], 0, 8);	//reg_slc1_rpad
-	w_reg_bit(FRC_MC_SLC_CTRL2, mc_slice_lpad[2], 24, 8);	//reg_slc2_lpad
-	w_reg_bit(FRC_MC_SLC_CTRL2, mc_slice_rpad[2], 16, 8);	//reg_slc2_rpad
-	w_reg_bit(FRC_MC_SLC_CTRL2, mc_slice_lpad[3], 8, 8);	//reg_slc3_lpad
-	w_reg_bit(FRC_MC_SLC_CTRL2, mc_slice_rpad[3], 0, 8);	//reg_slc3_rpad
-	w_reg_bit(FRC_MC_SLC_CTRL3, mc_slice_x_st[0], 16, 16);	//reg_slc0_xbgn
-	w_reg_bit(FRC_MC_SLC_CTRL3, mc_slice_x_end[0], 0, 16);	//reg_slc0_xend
-	w_reg_bit(FRC_MC_SLC_CTRL4, mc_slice_x_st[1], 16, 16);	//reg_slc1_xbgn
-	w_reg_bit(FRC_MC_SLC_CTRL4, mc_slice_x_end[1], 0, 16);	//reg_slc1_xend
-	w_reg_bit(FRC_MC_SLC_CTRL5, mc_slice_x_st[2], 16, 16);	//reg_slc2_xbgn
-	w_reg_bit(FRC_MC_SLC_CTRL5, mc_slice_x_end[2], 0, 16);	//reg_slc2_xend
-	w_reg_bit(FRC_MC_SLC_CTRL6, mc_slice_x_st[3], 16, 16);	//reg_slc3_xbgn
-	w_reg_bit(FRC_MC_SLC_CTRL6, mc_slice_x_end[3], 0, 16);	//reg_slc3_xend
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL1, mc_slice_lpad[0], 24, 8);	   // reg_slc0_lpad
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL1, mc_slice_rpad[0], 16, 8);	   // reg_slc0_rpad
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL1, mc_slice_lpad[1], 8, 8);	   // reg_slc1_lpad
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL1, mc_slice_rpad[1], 0, 8);	   // reg_slc1_rpad
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL2, mc_slice_lpad[2], 24, 8);	   // reg_slc2_lpad
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL2, mc_slice_rpad[2], 16, 8);	   // reg_slc2_rpad
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL2, mc_slice_lpad[3], 8, 8);	   // reg_slc3_lpad
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL2, mc_slice_rpad[3], 0, 8);	   // reg_slc3_rpad
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL3, mc_slice_x_st[0], 16, 16);   // reg_slc0_xbgn
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL3, mc_slice_x_end[0], 0, 16);   // reg_slc0_xend
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL4, mc_slice_x_st[1], 16, 16);   // reg_slc1_xbgn
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL4, mc_slice_x_end[1], 0, 16);   // reg_slc1_xend
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL5, mc_slice_x_st[2], 16, 16);   // reg_slc2_xbgn
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL5, mc_slice_x_end[2], 0, 16);   // reg_slc2_xend
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL6, mc_slice_x_st[3], 16, 16);   // reg_slc3_xbgn
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL6, mc_slice_x_end[3], 0, 16);   // reg_slc3_xend
 
-	w_reg_bit(FRC_MC_SLC_CTRL0, (slice_num > 1), 0, 1);	//reg_slc_mode
-	//w_reg_bit(FRC_MC_SLC_CTRL0, 0, 1, 1); //reg_prephs_en_sel (todo?)
-	w_reg_bit(FRC_MC_SLC_CTRL0, slice_num - 1, 2, 2);	//reg_slc_num
-	//w_reg_bit(FRC_MC_SLC_CTRL0, mc_proc_alternate_mode, 4, 2); //reg_mc_intp_lnum
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL0, (slice_num > 1), 0, 1);	// reg_slc_mode
+	// w_reg_bit(FRC_MC_SLC_CTRL0,0,1,1); //reg_prephs_en_sel (todo?)
+	DPSS_RDMA_WR_BIT_VS(FRC_MC_SLC_CTRL0, slice_num - 1, 2, 2);	  // reg_slc_num
+	// w_reg_bit(FRC_MC_SLC_CTRL0,mc_proc_alternate_mode,4,2); //reg_mc_intp_lnum
 }
 
 void
 cfg_dpss_mc_bbd(u32 frm_hsize, u32 frm_vsize, u32 bbd_en,
 		u32 bbd_sel, u32 src_hsize, u32 src_vsize)
 {
-	//reg_bb_bbd_spatial_enable
-	w_reg_bit(FRC_BBD_CTRL, bbd_en, 16, 1);
-	//reg_bb_detail_en
-	w_reg_bit(FRC_BBD_CTRL, bbd_en, 17, 1);
-	//reg_bb_det_bot
-	w_reg_bit(FRC_BBD_DETECT_REGION_TOP2BOT, src_vsize - 1, 0, 16);
-	//reg_bb_det_rit
-	w_reg_bit(FRC_BBD_DETECT_REGION_LFT2RIT, src_hsize - 1, 0, 16);
-	//reg_bb_det_detail_bot
-	w_reg_bit(FRC_BBD_DETECT_DETAIL_TOP2BOT, src_vsize - 1, 0, 16);
-	//reg_bb_det_detail_rit
-	w_reg_bit(FRC_BBD_DETECT_DETAIL_LFT2RIT, src_hsize - 1, 0, 16);
-	//reg_bb_oob_detail_xyxy_2
-	w_reg_bit(FRC_BBD_OOB_DETAIL_WIN_RIT_BOT, src_hsize - 1, 16, 16);
-	//reg_bb_oob_detail_xyxy_3
-	w_reg_bit(FRC_BBD_OOB_DETAIL_WIN_RIT_BOT, src_vsize - 1, 0, 16);
-	//reg_bb_ver_th1
-	w_reg_bit(FRC_BBD_VER_TH, 8 * frm_hsize / 1920, 16, 16);
-	//reg_bb_ver_th2
-	w_reg_bit(FRC_BBD_VER_TH, 560 * frm_hsize / 1920, 0, 16);
-	//reg_bb_hor_th1
-	w_reg_bit(FRC_BBD_FINER_HOR_TH, 200 * frm_vsize / 1080, 16, 16);
-	//reg_bb_hor_th2
-	w_reg_bit(FRC_BBD_FINER_HOR_TH, 400 * frm_vsize / 1080, 0, 16);
-	//reg_bb_top_bot_edge_th1
-	w_reg_bit(FRC_BBD_TOP_BOT_EDGE_TH, 154 * frm_hsize / 1920, 16, 12);
-	//reg_bb_top_bot_edge_th2
-	w_reg_bit(FRC_BBD_TOP_BOT_EDGE_TH, 256 * frm_hsize / 1920, 0, 12);
-	//reg_bb_lft_rit_edge_th1
-	w_reg_bit(FRC_BBD_LFT_RIT_EDGE_TH, 87 * frm_vsize / 1080, 16, 12);
-	//reg_bb_lft_rit_edge_th2
-	w_reg_bit(FRC_BBD_LFT_RIT_EDGE_TH, 144 * frm_vsize / 1080, 0, 12);
-	//reg_bb_top_bot_edge_first_th
-	w_reg_bit(FRC_BBD_TOP_BOT_EDGE_FIRST_TH, 154 * frm_hsize / 1920, 16, 12);
-	//reg_bb_lft_rit_edge_first_th
-	w_reg_bit(FRC_BBD_TOP_BOT_EDGE_FIRST_TH, 87 * frm_vsize / 1080, 0, 12);
-	//reg_bb_top_edge_det_end
-	w_reg_bit(FRC_BBD_TOP_EDGE_DET_STT_END, 405 * frm_vsize / 1080, 0, 16);
-	//reg_bb_bot_edge_det_stt
-	w_reg_bit(FRC_BBD_BOT_EDGE_DET_STT_END, 674 * src_vsize / 1080, 16, 16);
-	//reg_bb_bot_edge_det_end
-	w_reg_bit(FRC_BBD_BOT_EDGE_DET_STT_END, frm_vsize - 1, 0, 16);
-	//reg_bb_lft_edge_det_end
-	w_reg_bit(FRC_BBD_LFT_EDGE_DET_STT_END, 720 * frm_hsize / 1920, 0, 16);
-	//reg_bb_rit_edge_det_stt
-	w_reg_bit(FRC_BBD_RIT_EDGE_DET_STT_END, 1199 * frm_hsize / 1920, 16, 16);
-	//reg_bb_rit_edge_det_end
-	w_reg_bit(FRC_BBD_RIT_EDGE_DET_STT_END, src_hsize - 1, 0, 16);
-	//reg_bb_oob_apl_xyxy_2
-	w_reg_bit(FRC_BBD_OOB_APL_CAL_RIT_BOT_RANGE, src_hsize - 1, 16, 16);
-	//reg_bb_oob_apl_xyxy_3
-	w_reg_bit(FRC_BBD_OOB_APL_CAL_RIT_BOT_RANGE, src_vsize - 1, 0, 16);
-	//reg_bb_apl_hist_xyxy_2
-	w_reg_bit(FRC_BBD_APL_HIST_WIN_RIT_BOT, src_hsize - 1, 16, 16);
-	//reg_bb_apl_hist_xyxy_3
-	w_reg_bit(FRC_BBD_APL_HIST_WIN_RIT_BOT, src_vsize - 1, 0, 16);
-	//reg_bb_edge2_detect_range_mode
-	w_reg_bit(FRC_BBD_EDGE_SETTING, 0, 16, 2);
-	//reg_bb_edge1_detect_range_mode
-	w_reg_bit(FRC_BBD_EDGE_SETTING, 0, 18, 2);
-	//cfg bbd sel, 0 - mc.mif0;1 - mc.mif1, 2 - nr.mif
-	//reg_bb_edge1_detect_range_mode
-	w_reg_bit(DPSS_DPE_BBD_CTRL, bbd_sel, 0, 2);
-	//cfg bbd source idx, src0 or src1
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_CTRL, bbd_en, 16, 1);// reg_bb_bbd_spatial_enable
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_CTRL, bbd_en, 17, 1);// reg_bb_detail_en
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_DETECT_REGION_TOP2BOT,
+		src_vsize - 1, 0, 16);// reg_bb_det_bot
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_DETECT_REGION_LFT2RIT,
+		src_hsize - 1, 0, 16);// reg_bb_det_rit
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_DETECT_DETAIL_TOP2BOT,
+		src_vsize - 1, 0, 16);// reg_bb_det_detail_bot
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_DETECT_DETAIL_LFT2RIT,
+		src_hsize - 1, 0, 16);// reg_bb_det_detail_rit
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_OOB_DETAIL_WIN_RIT_BOT,
+		src_hsize - 1, 16, 16);// reg_bb_oob_detail_xyxy_2
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_OOB_DETAIL_WIN_RIT_BOT,
+		src_vsize - 1, 0, 16);// reg_bb_oob_detail_xyxy_3
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_VER_TH,
+		8 * frm_hsize / 1920, 16, 16);// reg_bb_ver_th1
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_VER_TH,
+		560 * frm_hsize / 1920, 0, 16);// reg_bb_ver_th2
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_FINER_HOR_TH,
+		200 * frm_vsize / 1080, 16, 16);// reg_bb_hor_th1
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_FINER_HOR_TH,
+		400 * frm_vsize / 1080, 0, 16);// reg_bb_hor_th2
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_TOP_BOT_EDGE_TH,
+		154 * frm_hsize / 1920, 16, 12);  // reg_bb_top_bot_edge_th1
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_TOP_BOT_EDGE_TH,
+		256 * frm_hsize / 1920, 0, 12);// reg_bb_top_bot_edge_th2
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_LFT_RIT_EDGE_TH,
+		87 * frm_vsize / 1080, 16, 12);// reg_bb_lft_rit_edge_th1
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_LFT_RIT_EDGE_TH,
+		144 * frm_vsize / 1080, 0, 12);// reg_bb_lft_rit_edge_th2
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_TOP_BOT_EDGE_FIRST_TH,
+		154 * frm_hsize / 1920, 16, 12);// reg_bb_top_bot_edge_first_th
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_TOP_BOT_EDGE_FIRST_TH,
+		87 * frm_vsize / 1080, 0, 12);// reg_bb_lft_rit_edge_first_th
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_TOP_EDGE_DET_STT_END,
+		405 * frm_vsize / 1080, 0, 16);// reg_bb_top_edge_det_end
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_BOT_EDGE_DET_STT_END,
+		674 * src_vsize / 1080, 16, 16);
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_BOT_EDGE_DET_STT_END,
+		frm_vsize - 1, 0, 16);// reg_bb_bot_edge_det_end
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_LFT_EDGE_DET_STT_END,
+		720 * frm_hsize / 1920, 0, 16);// reg_bb_lft_edge_det_end
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_RIT_EDGE_DET_STT_END,
+		1199 * frm_hsize / 1920, 16, 16);
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_RIT_EDGE_DET_STT_END,
+		src_hsize - 1, 0, 16);// reg_bb_rit_edge_det_end
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_OOB_APL_CAL_RIT_BOT_RANGE,
+		src_hsize - 1, 16, 16);// reg_bb_oob_apl_xyxy_2
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_OOB_APL_CAL_RIT_BOT_RANGE,
+		src_vsize - 1, 0, 16);// reg_bb_oob_apl_xyxy_3
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_APL_HIST_WIN_RIT_BOT,
+		src_hsize - 1, 16, 16);// reg_bb_apl_hist_xyxy_2
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_APL_HIST_WIN_RIT_BOT,
+		src_vsize - 1, 0, 16);// reg_bb_apl_hist_xyxy_3
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_EDGE_SETTING, 0, 16, 2);// reg_bb_edge2_detect_range_mode
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_EDGE_SETTING, 0, 18, 2);// reg_bb_edge1_detect_range_mode
+	// cfg bbd sel, 0-mc.mif0;1-mc.mif1,2-nr.mif
+	DPSS_RDMA_WR_BIT_VS(DPSS_DPE_BBD_CTRL, bbd_sel, 0, 2);// reg_bb_edge1_detect_range_mode
+	// cfg bbd source idx, src0 or src1
 	u32 reg_fnr_src_idx = (rd(DPSS_TOP_FUNC_CTRL) >> 24) & 0xF;
 
-	w_reg_bit(DPSS_BBD_ONLY_CTRL, reg_fnr_src_idx, 4, 4);	//bbd_src_idx
-	w_reg_bit(FRC_BBD_MISC, 10, 4, 4);	//hdiff / vdiff clk open
+	DPSS_RDMA_WR_BIT_VS(DPSS_BBD_ONLY_CTRL, reg_fnr_src_idx, 4, 4);// bbd_src_idx
+	DPSS_RDMA_WR_BIT_VS(FRC_BBD_MISC, 10, 4, 4);
 }
 
 void dpss_dpe_info_cfg(u32 dpe_phs)

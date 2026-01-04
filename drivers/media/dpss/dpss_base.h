@@ -33,6 +33,7 @@
 #define USE_FRC_LINK_CODE   (1)
 // #define USE_FRC_ONLY_CASE   (0)
 #define USE_FRC_PRE_VS_RDMA (1)
+#define USE_FRC_VS_RDMA (1)
 /*****************************************/
 
 /*****************************************/
@@ -163,6 +164,8 @@ enum DPSS_MEM_FROM {
 	((src) == VFRAME_SOURCE_TYPE_CVBS)	||	\
 	((src) == VFRAME_SOURCE_TYPE_COMP)	||	\
 	((src) == VFRAME_SOURCE_TYPE_HDMI))
+
+#define VFM_IS_HDMI_SRC(src) ((src) == VFRAME_SOURCE_TYPE_HDMI)
 
 /*****************************************/
 #define DPSS_RUN_FLAG_RUN			0

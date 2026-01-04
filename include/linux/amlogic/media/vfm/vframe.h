@@ -936,6 +936,7 @@ struct vframe_s {
 
 	//ary:tmp
 	u32 dpss_flg;
+	u32 nr_buf_id;
 //	u32 dpss_id; //when have dpss, set this val from top
 	void *dpss_data; //struct dpss_vf_s1 reciprocal link
 //	void *caller_data; //use this for ins test

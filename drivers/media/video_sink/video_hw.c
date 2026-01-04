@@ -9281,14 +9281,18 @@ s32 config_vd_pps_internal(struct video_layer_s *layer,
 	if (setting->vsr_safa_support) {
 		bool postsc_en;
 
-		if (vpp_filter->vpp_hsc_start_phase_step == 0x1000000 &&
+		/* nr_pps_scaler, pps will do force postscaler, input size /2 */
+		//if (layer->nr_pps_h_scaler_rate)
+		//	src_w = src_w / (layer->nr_pps_h_scaler_rate + 1);
+		//if (layer->nr_pps_v_scaler_rate)
+		//	src_h = src_h / (layer->nr_pps_v_scaler_rate + 1);
+		if ((vpp_filter->vpp_hsc_start_phase_step == 0x1000000 &&
 			vpp_filter->vpp_vsc_start_phase_step == 0x1000000 &&
 			src_w == dst_w &&
 			src_h == dst_h &&
 			!vpp_filter->vpp_pre_vsc_en &&
-			!vpp_filter->vpp_pre_hsc_en)
+			!vpp_filter->vpp_pre_hsc_en) || layer->bypass_pps)
 			setting->sc_top_enable = false;
-
 		postsc_en = !(vpp_filter->vpp_hsc_start_phase_step == 0x1000000 &&
 			vpp_filter->vpp_vsc_start_phase_step == 0x1000000);
 		setting->vsr.layer_id = layer->layer_id;
@@ -14009,9 +14013,9 @@ static int set_layer_display_canvas_t6w(struct video_layer_s *layer,
 		struct canvas_s tmp;
 
 		canvas_read(cur_canvas_tbl[0], &tmp);
-		pr_info("%s %d: update_mif %d: vf(%px):%d, vsync =%d, frame_index=%d, y:%02x, adr:0x%lx (0x%lx), canvas0:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf_ext:%px uvm_vf:%px di_flag:%x size:%d %d, vframe size:%d line:%d\n",
+		pr_info("%s %d: update_mif %d: vf(%px %p):%d, vsync =%d, frame_index=%d, y:%02x, adr:0x%lx (0x%lx), canvas0:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf_ext:%px uvm_vf:%px di_flag:%x size:%d %d, vframe size:%d line:%d\n",
 			__func__, layer_id, update_mif ? 1 : 0,
-			vf, vf->index_disp, layer->display_cnt,
+			vf, vf, vf->index_disp, layer->display_cnt,
 			vf->frame_index, cur_canvas_tbl[0],
 			tmp.addr, vf->canvas0_config[0].phy_addr,
 			vf->canvas0Addr, vf->plane_num,
@@ -14947,7 +14951,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	if (!vf)
 		return vppfilter_fail;
 
-	if (IS_DI_PROCESSED(vf->type)) {
+	if (IS_DI_PROCESSED(vf->type) || IS_FRC_LINK(vf->type_ext)) {
 		if (vf->uvm_vf)
 			vf_ext = vf->uvm_vf;
 		else

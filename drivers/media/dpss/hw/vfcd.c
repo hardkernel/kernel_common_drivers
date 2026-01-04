@@ -759,9 +759,13 @@ void cfg_vfcd_dec(u32 index, struct VFCD_t *vfcd)
 	// }
 	u32 hold_line_num = 4;
 
-	if (pchip_st && pchip_st->chip == ID_T6X &&
-		(regs_ofst == 0x400 || regs_ofst == 0x500))
+	if (pchip_st && (pchip_st->chip == ID_T6X ||
+		pchip_st->chip == ID_T6W) &&
+		(regs_ofst == 0x400 || regs_ofst == 0x500)) {
 		hold_line_num = 6; //8
+		if (pchip_st->dbg_vfcd_holdline)
+			hold_line_num = pchip_st->dbg_vfcd_holdline;
+	}
 	//ary no use    u32 flim_grain_src_idx = 0;
 	w_reg_bit_vc((regs_ofst + VFCD_TOP_CTRL2), 1, 31, 1);	//reg_vfcd_enable
 	w_reg_bit_vc((regs_ofst + VFCD_TOP_CTRL2), vfcd->yc_rst_sep, 30, 1);
@@ -1594,10 +1598,10 @@ void frc_cfg_vfcd_afrcd(u32 src_sel, struct AFRCD_TYPE *afrcd)
 	VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFRC_CTRL0, luma_max_ac_depth, 20, 4);
 	VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFRC_CTRL0, pixel_is_diff_chn, 24, 1);
 	VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFRC_CTRL0, afrcd->input_bayer_mode, 25, 2);
-	VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFBC_HEAD_BADDR,
-		afrcd->luma_head_addr, 0, 32);
-	VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFBC_BODY_BADDR,
-		afrcd->luma_body_addr, 0, 32);
+	// VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFBC_HEAD_BADDR,
+	// afrcd->luma_head_addr, 0, 32);
+	// VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFBC_BODY_BADDR,
+	// afrcd->luma_body_addr, 0, 32);
 
 	VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFRC0_CTRL, afrcd->luma_header_en, 4, 1);
 	VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFRC0_CTRL, afrcd->luma_cu_bits, 8, 4);
@@ -1619,10 +1623,10 @@ void frc_cfg_vfcd_afrcd(u32 src_sel, struct AFRCD_TYPE *afrcd)
 	VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFRC1_CTRL, afrcd->chrm_pixel_bits, 20, 4);
 	if (pchip_st && pchip_st->chip == ID_T6X)
 		VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFRC1_CTRL, 1, 30, 1);
-	VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFRC_CHRM_HEAD_BADDR,
-		afrcd->chrm_head_addr, 0, 32);
-	VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFRC_CHRM_BODY_BADDR,
-		afrcd->chrm_body_addr, 0, 32);
+	// VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFRC_CHRM_HEAD_BADDR,
+	// afrcd->chrm_head_addr, 0, 32);
+	// VSYNC_WR_VIDEO_TABLE_REG_BITS(reg_ofst + VFCD_AFRC_CHRM_BODY_BADDR,
+	// afrcd->chrm_body_addr, 0, 32);
 }
 
 void frc_cfg_vfcd_dec(u32 index, struct VFCD_t *vfcd)
@@ -1644,9 +1648,13 @@ void frc_cfg_vfcd_dec(u32 index, struct VFCD_t *vfcd)
 	// }
 	u32 hold_line_num = 4;
 
-	if (pchip_st && pchip_st->chip == ID_T6X &&
-		(regs_ofst == 0x400 || regs_ofst == 0x500))
+	if (pchip_st && (pchip_st->chip == ID_T6X ||
+		pchip_st->chip == ID_T6W) &&
+		(regs_ofst == 0x400 || regs_ofst == 0x500)) {
 		hold_line_num = 6; //8
+		if (pchip_st->dbg_vfcd_holdline)
+			hold_line_num = pchip_st->dbg_vfcd_holdline;
+	}
 	//ary no use    u32 flim_grain_src_idx = 0;
 	VSYNC_WR_VIDEO_TABLE_REG_BITS((regs_ofst + VFCD_TOP_CTRL2), 1, 31, 1);	//reg_vfcd_enable
 	VSYNC_WR_VIDEO_TABLE_REG_BITS((regs_ofst + VFCD_TOP_CTRL2), vfcd->yc_rst_sep, 30, 1);
@@ -1732,6 +1740,11 @@ void frc_cfg_vfcd_dec(u32 index, struct VFCD_t *vfcd)
 
 	vfcd->afrcd.chrm_head_addr = vfcd->chrm_head_baddr;
 	vfcd->afrcd.chrm_body_addr = vfcd->chrm_body_baddr;
+
+	dbg_h2("vfcd->luma_head_baddr:%x vfcd->luma_body_baddr:%x\n",
+		vfcd->luma_head_baddr, vfcd->luma_body_baddr);
+	dbg_h2("vfcd->chrm_head_baddr:%x vfcd->chrm_body_baddr:%x\n",
+		vfcd->chrm_head_baddr, vfcd->chrm_body_baddr);
 	//vfcd->afrcd.chrm_dict_en = 0;
 	vfcd->afrcd.mmu_baddr0 = vfcd->mmu_baddr0;
 	vfcd->afrcd.mmu_baddr1 = vfcd->mmu_baddr1;

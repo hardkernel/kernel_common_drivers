@@ -3944,8 +3944,19 @@ RESTART:
 			ret = vppfilter_changed_but_switch;
 		if ((vpp_flags & VPP_FLAG_MORE_LOG) &&
 		    ret == vppfilter_changed_but_switch)
-			pr_debug
-				("layer%d: switch the display to vf_ext %p->%p\n",
+			pr_info("layer%d: switch the display to vf_ext %p->%p\n",
+				input->layer_id, vf, vf->vf_ext);
+	}
+
+	if (vf->vf_ext &&
+	    !(vpp_flags & VPP_FLAG_FORCE_NOT_SWITCH_VF)) {
+		if ((next_frame_par->vscale_skip_count > 0 &&
+		     (IS_FRC_LINK(vf->type_ext))) ||
+		    (vpp_flags & VPP_FLAG_FORCE_SWITCH_VF))
+			ret = vppfilter_changed_but_switch;
+		if ((vpp_flags & VPP_FLAG_MORE_LOG) &&
+		    ret == vppfilter_changed_but_switch)
+			pr_info("layer%d: frc,switch the display to vf_ext %p->%p\n",
 				input->layer_id, vf, vf->vf_ext);
 	}
 	return ret;

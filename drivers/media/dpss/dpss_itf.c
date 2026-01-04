@@ -322,6 +322,9 @@ struct dpss_nr_i_s *lk_get_nr_i(struct vframe_s *vfm)
 		return NULL;
 	}
 	lk = (struct dpss_lk1_s *)vfm->dpss_data;
+	if (!lk->lk_up || !lk->lk_dn || !lk->lk_info)
+		return NULL;
+
 	if (lk->idx_t != DPSS_VF_OWNER_NR) {
 		DBG_WARN("%s: not nr? (%u)\n", __func__, lk->idx_t);
 		return NULL;
@@ -342,6 +345,9 @@ struct dpss_frc_i_s *lk_get_frc_i(struct vframe_s *vfm)
 		return NULL;
 	}
 	lk = (struct dpss_lk1_s *)vfm->dpss_data;
+	if (!lk->lk_up || !lk->lk_dn || !lk->lk_info)
+		return NULL;
+
 	if (lk->idx_t != DPSS_VF_OWNER_FRC) {
 		DBG_WARN("%s:not frc? (%u)\n", __func__, lk->idx_t);
 		return NULL;
@@ -1837,7 +1843,8 @@ int dpss_cmd_asy(int index, unsigned int cmd_asy, struct dpss_cmd_a_s *para)
 			pch->d->w_mode_2);
 	} else if (cmd_asy == DPSS_CMD_ENABLE_FRC) {
 		dbg_i0("%s: frc_enable: %d\n", __func__, para->para);
-		dpss_frc_set_mc_bypass((u8)para->para);
+		if (dpss_frc_get_enable() == 1)
+			dpss_frc_set_mc_bypass((u8)para->para);
 	}
 	return DPSS_ERR_NONE;
 }

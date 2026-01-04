@@ -6226,6 +6226,7 @@ exit:
 				vd_fake_func[i].vd_late_process(0xff, i);
 	}
 #ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+	/* post vsync signal notify for dpss-rdma */
 	post_vsync_signal_to_dpss_rdma();
 #endif
 LATE_PROC:

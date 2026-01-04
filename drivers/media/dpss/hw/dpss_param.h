@@ -353,6 +353,8 @@ struct PRM_DPSS_TOP {
 	bool   frc_iplogo_en:1;
 	bool   frc_bbd_en:1;
 	bool   frc_no_alg_ko:1;
+	bool frc_dae_div4:1;
+
 	u8   use_inp_big;
 	int            amdv_2_frc_frm;
 	unsigned int        src0_fbuf_yaddr[16];
@@ -371,6 +373,8 @@ struct PRM_DPSS_TOP {
 	unsigned int        src0_nro_dwbuf_caddr[16];
 	unsigned int        src0_dio_fbuf_yaddr[16];
 	unsigned int        src0_dio_fbuf_caddr[16];
+	unsigned int	    src0_diopps_fbuf_yaddr[16];
+	unsigned int	    src0_diopps_fbuf_caddr[16];
 	unsigned int        src0_di2pps_buf_yaddr[16];
 	unsigned int        src0_di2pps_buf_caddr[16];
 	unsigned int        src0_dio_dwbuf_yaddr[16];
@@ -564,6 +568,11 @@ struct PRM_DPSS_TOP {
 	bool fmt_444_10;
 	u32 sw_dct_frame_cnt;
 	bool trig_bypass; //1006
+	bool trig_byp_dae0;
+	bool trig_byp_mc;
+	bool is_hdmi_src;
+	bool reset_path;
+	u32  idx_done;
 	u32 s_cnt; //for dv cnt
 	bool dct_ahead_dv_mode;
 	unsigned char num_in;
@@ -574,6 +583,12 @@ struct PRM_DPSS_TOP {
 	unsigned char num_dblk;
 	unsigned char num_dpe_ro;
 	unsigned char num_nr_me_ro;
+	u32 pps_dsx;
+	u32 pps_dsy;
+	bool is_pps;
+	bool is_di2pps;
+	u32 ch;
+	unsigned int fbuf_is_pps[16];
 };
 
 struct PRM_DPSS_SIZE {

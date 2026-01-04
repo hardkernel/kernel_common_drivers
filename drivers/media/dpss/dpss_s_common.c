@@ -83,7 +83,7 @@ module_param_named(dpss_hw_pause, dpss_hw_pause, uint, 0664);
 bool is_di2pps;
 unsigned int pass_cnt; //crc
 
-unsigned int dpss_light_chg;
+unsigned int dpss_light_chg = 0x1;
 module_param_named(dpss_light_chg, dpss_light_chg, uint, 0664);
 
 //bit[15:0] src0 en: bit 15
@@ -1791,7 +1791,7 @@ void dpss_h_parser_nr(struct dpss_ch_s *pch)
 	unsigned int timeout_ms = 1000;
 	ktime_t start, now;
 	s64 elapsed_ms;
-
+	bool is_vd1_link;
 	bool light_chg = false;
 	//=============================================
 	//peek:
@@ -1892,7 +1892,16 @@ void dpss_h_parser_nr(struct dpss_ch_s *pch)
 	}
 
 	if (nr_i->chg) {
-		if (pch->c.ch == 0 && pch->d->frc_link && resolution_switch_count) {
+		is_vd1_link = is_vd1_link_state();
+		if ((dpss_light_chg & C_BIT0) &&
+		     pch->d->nr_reset &&
+		     !VFM_IS_I_SRC(vfm->type) &&
+			 !VFM_IS_HDMI_SRC(vfm->source_type) &&
+			 !is_vd1_link)
+			light_chg = true;
+
+		if (pch->c.ch == 0 && pch->d->frc_link &&
+			resolution_switch_count && !light_chg) {
 			start = ktime_get();
 			dpss_enable_mc_link(0);
 			while (1) {
@@ -1908,12 +1917,8 @@ void dpss_h_parser_nr(struct dpss_ch_s *pch)
 				usleep_range(2000, 3000);
 			}
 		}
-		if (pch->c.ch == 0)
+		if (pch->c.ch == 0 && !light_chg)
 			resolution_switch_count++;
-		if ((dpss_light_chg & C_BIT0) &&
-		     pch->d->nr_reset &&
-		     !VFM_IS_I_SRC(vfm->type))
-			light_chg = true;
 
 		if (!light_chg) {
 			dpss_h_b_int(pch);
@@ -2704,10 +2709,15 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 		cvs->height = dpss_dbg_o_cvs_h / 2;
 		//vfm->height = dpss_dbg_o_h;
 	}
-	dbg_h1("out ch%d,vfm index:0x%x,type:0x%x,flag:0x%x,in_cnt:0x%x,out:0x%x\n",
-			pch->c.ch, vfm->frame_index,
-			vfm->type, vfm->flag,
-			pch->c.in_cnt, pch->c.out_cnt);
+	vfm->nr_buf_id = idx;
+	dbg_h1("out ch%d,buf_index:%d,vfm index:0x%x,type:0x%x,flag:0x%x,in_cnt:0x%x,out:0x%x\n",
+			pch->c.ch,
+			vfm->nr_buf_id,
+			vfm->frame_index,
+			vfm->type,
+			vfm->flag,
+			pch->c.in_cnt,
+			pch->c.out_cnt);
 	pch->c.out_cnt++;
 	pch->c.out_total_cnt++;
 	if (pch->c.in_cnt == pch->c.out_cnt) { //tmp here

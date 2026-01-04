@@ -1241,6 +1241,8 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 	u32 dpe_pps_en = (prm_top->nr_aapps_up | prm_top->nr_aapps_on) & src_is_frc;
 	int i;
 	u32 inp_hsize, inp_vsize, me_hsize, me_vsize;
+	//u32 v_limit = 540;
+	static u16 pre_me_hsize, pre_me_vsize;
 
 	dbg_h2("%s:dae_mode0 = %d, prm_dpss_dae:0x%px\n", __func__,
 					dae_mode, prm_dae);
@@ -1310,6 +1312,13 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 	prm_size_ext->me_blk_vsize    = me_blk_vsize;
 	prm_dae->prm_size         = *prm_size_ext;
 	dbg_h2("%s:prm_dpss_dae: update prm_size\n", __func__);
+
+	if (pre_me_hsize != me_hsize || pre_me_vsize != me_vsize) {
+		ini_cfg_frc_dae = 0;
+		pre_me_hsize = me_hsize;
+		pre_me_vsize = me_vsize;
+		dbg_h2("me size chg\n");
+	}
 
 	//==============================================================//
 	// dae_size
@@ -1757,7 +1766,8 @@ void hw_cfg_dpss_dae0_frc(enum DPSS_WORK_MODE  dae_mode,
 	//==============================================================//
 	// bbd
 	//==============================================================//
-	if (frc_bbd_en && bbd_init) {
+
+	if (frc_bbd_en/* && bbd_init*/) {
 		w_reg_bit(VPU_DAE_WRAP_CTRL, frc_bbd_en, 29, 1); //reg_bbd_en
 		w_reg_bit(FRC_BBD_MOTION_SETTING, frc_bbd_en, 10, 1); //reg_bb_bbd_temporal_enable
 		cfg_dpss_me_bbd(me_hsize, me_vsize);
@@ -2191,6 +2201,8 @@ void cfg_dpss_me_bbd(u32 me_hsize, u32 me_vsize)
 	w_reg_bit(FRC_BBD_DETECT_MOTION_REGION_LFT2RIT, me_hsize_m1, 0, 16);
 	//reg_bb_det_motion_rit
 	w_reg_bit(FRC_BBD_DETECT_MOTION_REGION_TOP2BOT, me_vsize_m1, 0, 16);
+	dbg_h2("%s bbd size(%d, %d)\n",
+		__func__, me_hsize_m1, me_vsize_m1);
 	//reg_bb_det_motion_bot
 	w_reg_bit(FRC_BBD_MOTION_NUM, reg_bb_finer_col_num, 0, 7);
 	//reg_bb_motion_finer_col_num

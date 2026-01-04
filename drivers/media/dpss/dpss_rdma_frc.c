@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2025 Amlogic, Inc. All rights reserved.
  */
 
 #include "sys_def.h"
@@ -38,8 +38,7 @@ static struct dpss_rdma_info rdma_info[RDMA_CHANNEL]; // 0: man 1:pre vsync 2:vs
 static unsigned int RDMA_IRQ_PRE_VSYNC = 0x1;
 static unsigned int RDMA_IRQ_VSYNC = 0x2;
 static unsigned int rdma_handle_irq_pre_vs = 0x2; // pre vs tri bit:1
-// static unsigned int rdma_handle_irq_vs = 0x10000000; //vs tri bit:28
-static unsigned int rdma_handle_irq_vs = 0x1; //vs tri bit:0
+static unsigned int rdma_handle_irq_vs = 0x1; //vs tri bit:0 update 25/11/12
 
 int rdma_enable(void)
 {
@@ -160,10 +159,13 @@ int rdma_find_table_adr_pre_vs(u32 addr)
 	rdma_info_pre_vs = &rdma_info[RDMA_IRQ_PRE_VSYNC];
 	if (rdma_info_pre_vs->rdma_item_count == 0)
 		return index;
+
 	dbg_a1("rdma_item_count:%d addr:%x\n",
 		rdma_info_pre_vs->rdma_item_count, addr);
 	for (i = (rdma_info_pre_vs->rdma_item_count - 1) * 2; i >= 0; i -= 2) {
 		if (rdma_info_pre_vs->rdma_table_addr[i] == addr) {
+			//value = rdma_info_pre_vs->rdma_table_addr[i + 1];
+			// index = i / 2 + 1;
 			index = i;
 			dbg_a1("index:%d, table_addr[%d]=%x, table_value[%d]=%x",
 				index, i, rdma_info_pre_vs->rdma_table_addr[i], i + 1,
@@ -171,6 +173,8 @@ int rdma_find_table_adr_pre_vs(u32 addr)
 			break;
 		}
 	}
+
+	// dbg_a1("%s index:%d\n", __func__, index);
 	return index;
 }
 
@@ -181,12 +185,17 @@ int rdma_find_table_adr_vs(u32 addr)
 	struct dpss_rdma_info *rdma_info_vs;
 
 	rdma_info_vs = &rdma_info[RDMA_IRQ_VSYNC];
+
 	if (rdma_info_vs->rdma_item_count == 0)
 		return index;
+
 	dbg_a1("rdma_item_count:%d addr:%x\n",
 		rdma_info_vs->rdma_item_count, addr);
+
 	for (i = (rdma_info_vs->rdma_item_count - 1) * 2; i >= 0; i -= 2) {
 		if (rdma_info_vs->rdma_table_addr[i] == addr) {
+			//value = rdma_info_vs->rdma_table_addr[i + 1];
+			// index = i / 2 + 1;
 			index = i;
 			dbg_a1("index:%d, table_addr[%d]=%x, table_value[%d]=%x",
 				index, i, rdma_info_vs->rdma_table_addr[i], i + 1,
@@ -194,8 +203,10 @@ int rdma_find_table_adr_vs(u32 addr)
 			break;
 		}
 	}
+	// dbg_a1("%s index:%d\n", __func__, index);
 	return index;
 }
+
 // pre_vs
 void dpss_rdma_pre_vs_table_config(unsigned int addr, unsigned int val)
 {
@@ -291,6 +302,7 @@ int _dpss_rdma_wr_bit_reg_pre_vs(u32 addr, u32 val, u32 start, u32 len)
 			write_val |= (val << start) & mask;
 			dpss_rdma_pre_vs_table_config(addr, write_val);
 		} else {
+			// update reg val
 			read_val = rdma_info[RDMA_IRQ_PRE_VSYNC].rdma_table_addr[index + 1];
 			mask = (((1L << len) - 1) << start);
 			write_val  = read_val & ~mask;
@@ -323,6 +335,7 @@ int _dpss_rdma_wr_bit_reg_vs(u32 addr, u32 val, u32 start, u32 len)
 			write_val |= (val << start) & mask;
 			dpss_rdma_vs_table_config(addr, write_val);
 		} else {
+			// update reg val
 			read_val = rdma_info[RDMA_IRQ_VSYNC].rdma_table_addr[index + 1];
 			mask = (((1L << len) - 1) << start);
 			write_val  = read_val & ~mask;
@@ -338,6 +351,7 @@ int _dpss_rdma_wr_bit_reg_vs(u32 addr, u32 val, u32 start, u32 len)
 	}
 	return 0;
 }
+
 void DPSS_RDMA_WR_PRE_VS(u32 addr, u32 val)
 {
 	if (unlikely(addr < 0x8000 || addr > 0xffff)) {
@@ -358,6 +372,7 @@ void DPSS_RDMA_WR_BIT_PRE_VS(u32 addr, u32 val, u32 start, u32 len)
 	_dpss_rdma_wr_bit_reg_pre_vs(addr, val, start, len);
 }
 EXPORT_SYMBOL(DPSS_RDMA_WR_BIT_PRE_VS);
+
 void DPSS_RDMA_WR_VS(u32 addr, u32 val)
 {
 	if (unlikely(addr < 0x8000 || addr > 0xffff)) {
@@ -368,6 +383,7 @@ void DPSS_RDMA_WR_VS(u32 addr, u32 val)
 	_dpss_rdma_wr_reg_vs(addr, val);
 }
 EXPORT_SYMBOL(DPSS_RDMA_WR_VS);
+
 void DPSS_RDMA_WR_BIT_VS(u32 addr, u32 val, u32 start, u32 len)
 {
 	if (unlikely(addr < 0x8000 || addr > 0xffff)) {
@@ -407,6 +423,7 @@ void post_vsync_signal_to_dpss_rdma(void)
 	dpss_rdma_auto_wr_tri(RDMA_IRQ_VSYNC);
 //#endif
 }
+
 void dpss_rdma_auto_wr_tri(u32 handle)
 {
 	unsigned int handle_irq = 0x2;

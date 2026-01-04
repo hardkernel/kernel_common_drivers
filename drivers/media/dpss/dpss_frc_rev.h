@@ -33,7 +33,7 @@
 // dpss:20250910 chg n2m config setting
 // dpss:20251028 set io_ctrl enable by self
 
-#define DPSS_FRC_FW_VER			"20251113 frc shows the final frame"
+#define DPSS_FRC_FW_VER			"20251125 add frc bypass when dpss reset"
 #define DPSS_FRC_KERDRV_VER                  1000
 
 //#define DPSS_FRC_DEVNO		1

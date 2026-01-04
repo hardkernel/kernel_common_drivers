@@ -15,7 +15,7 @@
 // #define DPSS_FRC_FW_VER			"20250816 dpss_frc_driver update release"
 // #define DPSS_FRC_KERDRV_VER		1000
 void dpss_h_update_frc(struct vframe_s *vfm);
-void init_frc_pre(struct dpss_sub_vf_s *vfs);
+void init_frc_pre(struct dpss_sub_vf_s *vfs, struct dpss_ch_s *pch);
 void init_frc_post(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs);
 void frc_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs, struct vframe_s *vf);
 bool frc_only_input_buf(struct dpss_ch_s *pch, struct dpss_frc_i_s *frc_i);
@@ -52,6 +52,8 @@ void dpss_frc_remove(void);
 int dpss_frc_tell_alg_vendor(u8 vendor_info);
 void dpss_frc_get_memc_gmv(struct memc_gmv_s *memc_gmv);
 void dpss_frc_resume(void);
+int dpss_frc_fpp_memc_set_level(u8 level, u8 num);
+void update_frc_state(void);
 
 //fw
 void update_n2m_info_to_fw(enum DPSS_FRC_RATIO frc_ratio);

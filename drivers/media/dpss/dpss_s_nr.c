@@ -1351,7 +1351,7 @@ void fpga_ucode_1217(struct PRM_DPSS_TOP *prm_top, unsigned int cfg0)
 		prm_top->auto_alig_en);
 }
 
-static void nr_dpe_dw_cfg(struct PRM_DPSS_TOP *prm_top)
+void nr_dpe_dw_cfg(struct PRM_DPSS_TOP *prm_top)
 {
 	struct vinfo_s *vinfo = get_current_vinfo();
 	u32 vout_fr = 0;
@@ -1371,15 +1371,20 @@ static void nr_dpe_dw_cfg(struct PRM_DPSS_TOP *prm_top)
 	if (vinfo)
 		vout_fr = vinfo->sync_duration_num / vinfo->sync_duration_den;
 
-	if (vout_fr > 199 && prm_top->frm_vsize >= 1080) {
-		prm_top->dpe_dw_dsx    = 2;
-		prm_top->dpe_dw_dsy    = 2;
+	//if (vout_fr > 199 && prm_top->frm_vsize >= 1080) {
+	//	prm_top->dpe_dw_dsx    = 2;
+	//	prm_top->dpe_dw_dsy    = 2;
+	//}
+
+	if (prm_top->dpe_dw_dsy >= 2) //  v > h
+		prm_top->dpe_dw_dsx = 2;
+	if (prm_top->frc_dae_div4 == 1 && vout_fr > 199 && prm_top->frm_vsize >= 1080) {
+		prm_top->dpe_dw_dsx = 2;
+		prm_top->dpe_dw_dsy = 2;
 	}
 
-	if (prm_top->dpe_dw_dsy >= 2)
-		prm_top->dpe_dw_dsx = 2;
-	dbg_h2("%s:dpe_dw_dsx = %d,%d,%d\n", __func__, prm_top->dpe_dw_dsx,
-		prm_top->dpe_dw_dsy, prm_top->frm_vsize);
+	dbg_h2("%s:dpe_dw_dsx = %d,%d,%d, div4:%d\n", __func__, prm_top->dpe_dw_dsx,
+		prm_top->dpe_dw_dsy, prm_top->frm_vsize, prm_top->frc_dae_div4);
 }
 
 extern unsigned int fnr_dpe_obuf_rls_ini;
@@ -2088,6 +2093,9 @@ void nr_lcevc_vf_parser(struct dpss_ch_s *pch, struct vframe_s *vf,
 unsigned int dpss_dbg_0709; //disable reset
 module_param_named(dpss_dbg_0709, dpss_dbg_0709, uint, 0664);
 
+unsigned int dpss_dbg_nr_sleep; //disable reset
+module_param_named(dpss_dbg_nr_sleep, dpss_dbg_nr_sleep, uint, 0664);
+
 void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 		 struct vframe_s *vf)
 {
@@ -2102,6 +2110,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 	struct AA_PPS_TOP_TYPE *pps;
 	unsigned char last_idx_done;
 	bool light_chg = false;
+	bool is_vd1_link;
 	unsigned int val;
 	unsigned int me_size_tmp;
 	struct PRM_INTF_TYPE *dae_yuv;
@@ -2121,13 +2130,35 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 	bool is_4k, is_fhd_high_fps;
 	//release: to-do;
 
+	is_vd1_link = is_vd1_link_state();
 	if (pch->d->nr_reset &&
 	    !VFM_IS_I_SRC(vf->type) &&
-	    (dpss_light_chg & C_BIT0)) {
+	    (dpss_light_chg & C_BIT0) &&
+		!VFM_IS_HDMI_SRC(vf->source_type) &&
+		!is_vd1_link) {
 		//not support i / p
 		light_chg = true;
 	}
-	dbg_i1("%s: start init.light = %d\n", __func__, light_chg);
+	dbg_i1("%s: start init.light = %d source_type:%d\n",
+		__func__, light_chg, vf->source_type);
+
+	if (light_chg) {
+		prm_top->trig_byp_dae0 = true;
+		prm_top->trig_byp_mc = true;
+		dbg_h2("%s trig byp dae0 and mc\n", __func__);
+		if (dpss_dbg_nr_sleep) {
+			usleep_range(dpss_dbg_nr_sleep, dpss_dbg_nr_sleep + 1000);
+			dbg_h2("%s sleep done\n", __func__);
+		}
+	} else {
+		prm_top->reset_path = true;
+		dbg_h2("%s do reset path\n", __func__);
+	}
+
+	if (VFM_IS_HDMI_SRC(vf->source_type))
+		prm_top->is_hdmi_src = true;
+	else
+		prm_top->is_hdmi_src = false;
 
 	if (!light_chg)
 		dpss_h_val_init(pch);
@@ -2212,6 +2243,9 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 		for (i = 0; i < DPSS_VFM_IN_NUB; i++)
 			pch->d->h_dae_vf_idx[i] = 0xff;
 		dbg_h2("%s:dae_vf:clean\n", __func__);
+	} else {
+		prm_top->idx_done = pch->d->idx_done;
+		dbg_h2("%s size chg buf idx:%d\n", __func__, pch->d->idx_done);
 	}
 
 	//..
@@ -2226,11 +2260,13 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 			dpss_dae_frm_cnt_src1 = 0;
 			dpss_dpe_nr_frm_cnt = 0;
 			src0_frm_idx_cnt = 0;
-			ini_cfg_frc_dae = 0;
+			// ini_cfg_frc_dae = 0;
 			frc_fst_frm = 0;
 			ini_cfg_dae_in_nr_frc = 0;
 			frc_fst_frm_in_nr = 1;
 		}
+
+		ini_cfg_frc_dae = 0; // initial bbd size
 	} else {
 		dpss_dae_frm_cnt_src2 = 0;
 		dpss_dpe_di_frm_cnt = 0;
@@ -2281,6 +2317,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 			dpss_nr_debug = 1;
 		}
 	}
+
 	dbg_i1("%s:is_i:%d %d top:%d:\n", __func__,
 		pch->d->is_i,
 		pch->d->is_field,
@@ -2626,10 +2663,10 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 	}
 	_prm_top_init_vfm(pch, prm_top, vfs, false);
 
-	if (pch->c.ch == 0 && pch->d->frc_link)
-		init_frc_pre(vfs);
+	if (pch->c.ch == 0 && pch->d->frc_link && !light_chg)
+		init_frc_pre(vfs, pch);
 
-//      hw_init_prm(pch, prm_top, src, vfs);
+	//hw_init_prm(pch, prm_top, src, vfs);
 
 	if (!light_chg)
 		hw_cfg_dpss_top(prm_top);
@@ -2760,6 +2797,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 
 	if (light_chg)
 		prm_top->trig_bypass = true;
+
 	if (pch->d->en_di_src) {
 		dbg_i1("en_di_src\n");
 		memcpy(prm_top_di, prm_top, sizeof(*prm_top_di));
@@ -2796,9 +2834,8 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 	} else {
 		if (!dpss_dbg_dis_i_srcreg)
 			w_reg_bit(DPSS_TOP_FUNC_CTRL, SRC_IDX_NR, 24, 4);
-		if ((dpss_dbg_top_cfg0 & C_BIT28) || dpss_is_h_first_ch(pch))
+		if (((dpss_dbg_top_cfg0 & C_BIT28) || dpss_is_h_first_ch(pch)) && !light_chg)
 			hw_cfg_dpss_dae(prm_top->dae_nr_mode, prm_top, prm_dae);
-
 		if ((dpss_dbg_top_cfg0 & C_BIT29) || dpss_is_h_first_ch(pch)) {
 			if (pch->c.case_id == TST_CASE_IDX_0002) {
 				dbg_i1("do not set dpe\n");
@@ -2811,7 +2848,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 			}
 		}
 	}
-	if (pch->c.ch == 0 && pch->d->frc_link)
+	if (pch->c.ch == 0 && pch->d->frc_link && !light_chg)
 		init_frc_post(pch, vfs);
 	if (dpss_dbg_top_cfg0 & C_BIT30) {
 		dbg_h2("bypass dae:0x80ae\n");
@@ -2871,6 +2908,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 
 	pch->d->init = true;
 	prm_top->is_dpss_init_done = true;
+	//dbg_f2("dpss_init_done=%d\n", prm_top->is_dpss_init_done);
 }
 
 struct vframe_s *dpss_irq_get_vfm(unsigned int idx, unsigned int lab)
