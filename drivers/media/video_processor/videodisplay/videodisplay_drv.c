@@ -1416,14 +1416,23 @@ static int videodisplay_probe(struct platform_device *pdev)
 	u32 layer_cap = 0;
 	struct videodisplay_port_s *port;
 
-	layer_cap = video_get_layer_capability();
 	videodisplay_instance_num = 0;
-	if (layer_cap & LAYER0_SCALER)
-		videodisplay_instance_num++;
-	if (layer_cap & LAYER1_SCALER)
-		videodisplay_instance_num++;
-	if (layer_cap & LAYER2_SCALER)
-		videodisplay_instance_num++;
+	ret = of_property_read_u32(pdev->dev.of_node, "videodisplay_instance_num",
+				&videodisplay_instance_num);
+	if (ret > 0)
+		dev_info(&pdev->dev, "Read 'videodisplay_instance_num' from dts: %u\n",
+				videodisplay_instance_num);
+
+	if (videodisplay_instance_num == 0) {
+		layer_cap = video_get_layer_capability();
+		if (layer_cap & LAYER0_SCALER)
+			videodisplay_instance_num++;
+		if (layer_cap & LAYER1_SCALER)
+			videodisplay_instance_num++;
+		if (layer_cap & LAYER2_SCALER)
+			videodisplay_instance_num++;
+	}
+
 	if (is_meson_c3_cpu())
 		videodisplay_instance_num = 1;
 	ret = class_register(&videodisplay_class);
