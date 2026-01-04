@@ -85,7 +85,7 @@ static int clk_unstable_max;
 static int clk_stable_max;
 static int unnormal_wait_max = 200;
 static int wait_no_sig_max = 600;
-static int fpll_stable_max = 30;
+static int fpll_stable_max = 150;
 static int reset_pcs_en;
 static int force_avi_stable;
 int fsm_debug;
@@ -2059,6 +2059,7 @@ static const struct freq_ref_s freq_ref[] = {
 bool de_active_check(u8 port)
 {
 	bool ret = false;
+	int lock;
 
 	if (rx[port].cur.hactive <= 200 || rx[port].cur.vactive <= 200)
 		ret = true;
@@ -2069,8 +2070,9 @@ bool de_active_check(u8 port)
 	if (abs(rx[port].cur.hactive - rx[port].cur.vactive) >= 6000)
 		ret = true;
 
+	lock = hdmirx_rd_cor(SCDCS_STATUS_FLAGS0_SCDC_IVCRX, port) & 0xf;
 	if (rx[port].cur.hactive == 0 && rx[port].cur.vactive == 0) {
-		if (!hdmirx_rd_cor(SCDCS_FRL_STATUS_SCDC_IVCRX, port))
+		if (rx[port].var.frl_rate && lock != FRL_CH_LOCK)
 			ret = true;
 		else
 			ret = false;
@@ -6293,7 +6295,6 @@ void rx_port2_main_state_machine(void)
 		rx_lts_p_frl_start(port);
 		rx[port].stable_timestamp = rx_info.timestamp;
 		rx[port].min_time_detect_done = false;
-		rx[port].state = FSM_WAIT_FRL_TRN_DONE;
 		rx[port].var.fpll_stable_cnt = 0;
 		rx[port].var.fpll_ready_cnt = 0;
 		rx[port].var.frl_lock_det_cnt = 0;
@@ -6897,7 +6898,6 @@ void rx_port3_main_state_machine(void)
 		rx_lts_p_frl_start(port);
 		if (rx_is_need_edid_reset(port))
 			rx_edid_module_reset();
-		rx[port].state = FSM_WAIT_FRL_TRN_DONE;
 		rx[port].var.fpll_stable_cnt = 0;
 		rx[port].var.fpll_ready_cnt = 0;
 		rx[port].var.frl_lock_det_cnt = 0;

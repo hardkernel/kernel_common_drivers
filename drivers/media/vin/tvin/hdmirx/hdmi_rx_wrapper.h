@@ -33,6 +33,7 @@
 #define HPD_WAIT_21 110
 #define HPD_WAIT_512 110
 #define FRL_UNREADY_MAX 200
+#define FRL_CH_LOCK 0xe
 /* 2024.07.02 optimize suspend flow */
 /* 2024.07.19 optimize cts flow */
 /* 2024.08.22 Fix the issue of flashing green screen at the end of SDR playback */
@@ -75,7 +76,8 @@
 /* 2025.12.30 fix 420 no signal*/
 /* 2026.1.5 Add timeout protection measures for HDMI 2.1 port*/
 /* 2025.1.6 HDMI cannot recognize 420 */
-#define RX_WRAPPER_VER "ver.2026/1/6"
+/* 2025.1.8 add ch lock protect for frl training */
+#define RX_WRAPPER_VER "ver.2026/1/8"
 
 struct freq_ref_s {
 	bool interlace;
