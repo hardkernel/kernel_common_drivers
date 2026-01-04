@@ -309,8 +309,21 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status)
 		LCDPR("%s: %d, ckdi:0x%x\n", __func__, status, phy_cfg->ckdi);
 
 	if (!status) {
-		lcd_vx1_lvds_ctrl_write(pdrv, ANACTRL_DIF_PHY_CNTL14, 0x1300d100);
-		lcd_vx1_lvds_ctrl_write(pdrv, ANACTRL_DIF_PHY_CNTL15, 0x30800000);
+		lcd_vx1_lvds_ctrl_setb(pdrv,
+			ANACTRL_DIF_PHY_CNTL14, 0, 0, 3);  //common0[2:0]=0
+		lcd_vx1_lvds_ctrl_setb(pdrv,
+			ANACTRL_DIF_PHY_CNTL14, 0, 19, 2); //common1[4:3]=0
+		if (phy->cv_mode == PHY_VMODE) {
+			lcd_vx1_lvds_ctrl_setb(pdrv,
+				ANACTRL_DIF_PHY_CNTL15, 0, 16, 4); //vinlp[3:0]=0
+			lcd_vx1_lvds_ctrl_setb(pdrv,
+				ANACTRL_DIF_PHY_CNTL15, 0, 22, 1); //vinlp[6]=0
+			lcd_vx1_lvds_ctrl_setb(pdrv,
+				ANACTRL_DIF_PHY_CNTL15, 0, 24, 6); //vinlp[13:8]=0
+		} else {
+			lcd_vx1_lvds_ctrl_setb(pdrv,
+				ANACTRL_DIF_PHY_CNTL15, 2, 22, 2); //vinlp[7:6]=2
+		}
 	}
 
 	for (i = 0; i < phy_cfg->lane_num; i++) {
@@ -355,6 +368,17 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status)
 		lcd_vx1_lvds_ctrl_setb(pdrv, chreg_reg[i >> 1], chreg, bit, 16);
 		lcd_vx1_lvds_ctrl_setb(pdrv, chdig_reg[i >> 1], chdig, bit, 16);
 	}
+}
+
+static void lcd_phy_reset_t6w(struct aml_lcd_drv_s *pdrv)
+{
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: phy reset\n", pdrv->index);
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_DIF_PHY_CNTL14, 0, 19, 2);  //en=0 & reset
+	usleep_range(50, 100);
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_DIF_PHY_CNTL14, 1, 20, 1);  //en=1
+	usleep_range(50, 100);
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_DIF_PHY_CNTL14, 1, 19, 1);  //work
 }
 
 static void lcd_lvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
@@ -598,7 +622,7 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_t6w = {
 	.phy_lane_pn_swap_dft = lcd_phy_lane_pn_swap_def,
 	.phy_param_get = lcd_phy_param_get_from_reg,
 	.phy_reg_dump = lcd_phy_reg_dump,
-	.phy_reset = NULL,
+	.phy_reset = lcd_phy_reset_t6w,
 
 	.phy_set_lvds = lcd_lvds_phy_set,
 	.phy_set_vx1 = lcd_vbyone_phy_set,

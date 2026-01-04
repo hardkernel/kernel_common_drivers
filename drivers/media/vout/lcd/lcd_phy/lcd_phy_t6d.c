@@ -216,7 +216,7 @@ static void lcd_phy_common_update(struct aml_lcd_drv_s *pdrv, unsigned int cntl1
 static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status)
 {
 	int sel = -1;
-	unsigned int chreg, reg_data = 0, chdig = 0;
+	unsigned int chreg, chdig = 0;
 	unsigned char i, bit;
 	unsigned char is_mlvds = pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_MLVDS;
 	struct phy_attr_s *phy = pdrv->curr_dev->dev_cfg.phy_cfg.act_phy;
@@ -225,15 +225,15 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, int status)
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("%s: %d, ckdi:0x%x\n", __func__, status, phy_cfg->ckdi);
 
-	if (status) {
-		reg_data = 1 << 0;
-	} else {
-		reg_data = 0;
-		lcd_ana_write(ANACTRL_DIF_PHY_CNTL14, 0x1300d100);
+	if (!status) {
+		lcd_ana_setb(ANACTRL_DIF_PHY_CNTL14, 0, 0, 3);  //common0[2:0]=0
+		lcd_ana_setb(ANACTRL_DIF_PHY_CNTL14, 0, 19, 2); //common1[4:3]=0
+		if (phy->cv_mode == PHY_VMODE)
+			lcd_ana_setb(ANACTRL_DIF_PHY_CNTL15, 0, 24, 5); //vinlp[12:8]=0
 		if (phy_ctrl_bit_on)
-			lcd_ana_setb(ANACTRL_DIF_PHY_CNTL15, 0x10, 16, 8);
+			lcd_ana_setb(ANACTRL_DIF_PHY_CNTL15, 2, 22, 2); //vinlp[7:6]=2
 		else
-			lcd_ana_setb(ANACTRL_DIF_PHY_CNTL15, 0x90, 16, 8);
+			lcd_ana_setb(ANACTRL_DIF_PHY_CNTL15, 0, 22, 2); //vinlp[7:6]=0
 	}
 
 	for (i = 0; i < phy_cfg->lane_num; i++) {
