@@ -18,6 +18,10 @@
 #include <asm/irq_regs.h>
 #include <linux/perf_event.h>
 #include <linux/sched/clock.h>
+#ifdef CONFIG_SUSPEND
+#include <linux/pm.h>
+#include <linux/suspend.h>
+#endif
 #include <linux/amlogic/aml_iotm.h>
 
 #include "lockup.h"
@@ -65,7 +69,12 @@ static int is_hardlockup_other_cpu(unsigned int cpu)
 	unsigned long hrint = per_cpu(hrtimer_interrupts, cpu);
 	unsigned long lock_cnt = per_cpu(hrtimer_interrupts_lock_cnt, cpu);
 
+#ifdef CONFIG_SUSPEND
+	if (hrint ==  per_cpu(hrtimer_interrupts_saved, cpu) &&
+		pm_suspend_target_state != PM_SUSPEND_TO_IDLE) {
+#else
 	if (hrint ==  per_cpu(hrtimer_interrupts_saved, cpu)) {
+#endif
 		per_cpu(hrtimer_interrupts_lock_cnt, cpu) = ++lock_cnt;
 		if (lock_cnt > hardlockup_thresh)
 			return 1;
