@@ -100,6 +100,8 @@ struct video_queue_dev {
 	struct dp_buf_mgr_t *dp_buf_mgr;
 	int dp_buf_mgr_index;
 	struct mutex mutex_reg;/*for reg or unreg*/
+	u32 last_frame_type;
+	u32 drop_interlace_count;
 };
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
