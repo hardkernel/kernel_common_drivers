@@ -2531,7 +2531,7 @@ static ssize_t lcd_debug_test_store(struct device *dev, struct device_attribute 
 	lcd_debug_parse_param(buf_orig, parm, 8);
 
 	if (strcmp(parm[0], "force") == 0) { /* force test pattern */
-		if (kstrtou32(parm[1], 10, &temp))
+		if (!parm[1] || kstrtou32(parm[1], 10, &temp))
 			goto lcd_debug_test_store_err;
 		spin_lock_irqsave(&pdrv->isr_lock, flags);
 		pdrv->test_flag = (unsigned char)temp;
