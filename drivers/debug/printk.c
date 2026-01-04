@@ -104,11 +104,10 @@ int printk_vendor_hook_init(void)
 
 	ret = register_trace_android_vh_printk_caller_id(printk_caller_id, NULL);
 	if (ret)
-		pr_err("register_trace_android_vh_printk_caller_id fail ret=%d\n", ret);
-
+		return -EINVAL;
 	ret = register_trace_android_vh_printk_caller(printk_caller, NULL);
 	if (ret)
-		pr_err("register_trace_android_vh_printk_caller fail ret=%d\n", ret);
+		return -EINVAL;
 
 	return ret;
 }
@@ -119,11 +118,11 @@ void printk_vendor_hook_exit(void)
 
 	ret = unregister_trace_android_vh_printk_caller_id(printk_caller_id, NULL);
 	if (ret)
-		pr_err("unregister_trace_android_vh_printk_caller_id fail ret=%d\n", ret);
+		return;
 
 	ret = unregister_trace_android_vh_printk_caller(printk_caller, NULL);
 	if (ret)
-		pr_err("unregister_trace_android_vh_printk_caller fail ret=%d\n", ret);
+		return;
 }
 #else
 int printk_vendor_hook_init(void)

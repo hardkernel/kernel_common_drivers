@@ -62,7 +62,6 @@ int __init gki_config_init(void)
 
 	dentry = proc_create("gki_config", 0644, NULL, &gki_config_ops);
 	if (IS_ERR_OR_NULL(dentry)) {
-		pr_err("%s, create sysfs failed\n", __func__);
 		return -1;
 	}
 	return 0;

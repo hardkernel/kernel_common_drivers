@@ -90,7 +90,6 @@ static int isolcpus_speedup_boot_set(const char *val, const struct kernel_param 
 
 	ret = kstrtoint(val, 10, &n);
 	if (ret != 0) {
-		pr_err("bad isolcpus_speedup_boot args:%s\n", val);
 		return -EINVAL;
 	}
 	param_set_int(val, kp);
@@ -114,7 +113,6 @@ static int isolcpus_speedup_boot_setup(char *str)
 	have_isolcpus_speedup_boot = 1;
 
 	if (kstrtoint(str, 0, &isolcpus_speedup_boot)) {
-		pr_err("isolcpus_speedup_boot bad arg:%s\n", str);
 		return -EINVAL;
 	}
 
@@ -138,7 +136,7 @@ int aml_isolcpus_init(void)
 	int ret;
 
 	if (have_isolcpus && (have_aml_isolcpus || have_isolcpus_speedup_boot)) {
-		WARN(1, "Please use aml_isolcpus instead of isolcpus bootargs!\n");
+		WARN(1, "Please use aml_isolcpus bootargs!\n");
 		return 0;
 	}
 
@@ -147,13 +145,13 @@ int aml_isolcpus_init(void)
 
 	ret = register_kprobe(&kp_housekeeping_cpumask);
 	if (ret) {
-		pr_info("register_kprobe: kp_housekeeping_cpumask retry offset 4\n");
+		pr_info("kp_housekeeping_cpumask retry offset 4\n");
 
 		kp_housekeeping_cpumask.addr = 0;
 		kp_housekeeping_cpumask.offset = 4;
 		ret = register_kprobe(&kp_housekeeping_cpumask);
 		if (ret) {
-			pr_err("register_kprobe: kp_housekeeping_cpumask offset 4 fail:%d\n", ret);
+			pr_err("kp_housekeeping_cpumask offset 4 fail:%d\n", ret);
 			return 1;
 		}
 	}

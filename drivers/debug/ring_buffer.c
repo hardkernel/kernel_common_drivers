@@ -270,7 +270,7 @@ unsigned int bl30_read_ring_buffer(unsigned int *timer, unsigned char *buffer,
 		unsigned int size, unsigned int *msg_state)
 {
 	if (!bl30_m_rb.rb) {
-		pr_notice("Please run \"echo 1 > /proc/uboot_log\" to get bl30 log\n");
+		pr_err("Please run \"echo 1 > /proc/uboot_log\" to get bl30 log\n");
 		return 0;
 	}
 	return __read_ring_buffer(&bl30_m_rb, timer, buffer, size, msg_state);
@@ -432,11 +432,9 @@ void blx_init_uboot_log(unsigned long base_addr, unsigned long size)
 	//initial_ring_buffer((unsigned char *)UBOOT_LOG_BUF_BASE, UBOOT_LOG_BUF_SIZE);
 	initial_ring_buffer((unsigned char *)base_addr, size);
 	if (!uboot_m_rb.rb) {
-		pr_notice("uboot log init fail\n");
+		pr_err("uboot log init fail\n");
 		return;
 	}
-	pr_notice("%s:%d uboot log len:0x%x,len_b:0x%x\n", __func__, __LINE__,
-		 uboot_m_rb.rb->len, uboot_m_rb.rb->len_b);
 }
 
 static void bl30_copy_to_ddr(char *src, char *dst, int size)
@@ -459,11 +457,11 @@ void bl30_init_log(unsigned long base_addr, unsigned long size)
 		bl30_copy_to_ddr((char *)base_addr, (char *)bl30_log_buf, BL30_LOG_BUF_SIZE);
 		bl30_m_rb.rb = (struct ring_buffer *)bl30_log_buf;
 		bl30_m_rb.data = ((char *)bl30_m_rb.rb) + sizeof(struct ring_buffer);
-		pr_notice("%s:%d bl30 log len:0x%x,len_b:0x%x\n", __func__, __LINE__,
+		pr_info("bl30 log len:0x%x,len_b:0x%x\n",
 			 bl30_m_rb.rb->len, bl30_m_rb.rb->len_b);
 		return;
 	}
-	pr_notice("bl30 log don't be saved\n");
+	pr_info("bl30 log don't be saved\n");
 }
 
 /*
@@ -486,10 +484,10 @@ void bl30_log_update(unsigned long base_addr, unsigned long size)
 		if (!bl30_m_rb.rb) {
 			bl30_m_rb.rb = (struct ring_buffer *)bl30_log_buf;
 			bl30_m_rb.data = ((char *)bl30_m_rb.rb) + sizeof(struct ring_buffer);
-			pr_notice("%s:%d bl30 log len:0x%x,len_b:0x%x\n", __func__, __LINE__,
+			pr_err("bl30 log len:0x%x,len_b:0x%x\n",
 				 bl30_m_rb.rb->len, bl30_m_rb.rb->len_b);
 		}
-		pr_notice("bl30 log update to ddr end\n");
+		pr_debug("bl30 log update to ddr end\n");
 	}
 }
 
@@ -520,7 +518,7 @@ void dump_loop_buf_log(void)
 
 	blx_ready = 0;
 	//pr_notice("save log addr: 0x%lx\n", UBOOT_LOG_BUF_BASE);
-	pr_notice("*dump start:\n");
+	pr_info("*dump start:\n");
 	memset(r_buf, 0, sizeof(r_buf));
 	for (i = 0; i < 1000; i++) {
 		memset(r_buf, 0, sizeof(r_buf));
@@ -544,7 +542,7 @@ void dump_loop_buf_log(void)
 			}
 		}
 	}
-	pr_notice("*dump end\n");
+	pr_info("*dump end\n");
 }
 #endif
 

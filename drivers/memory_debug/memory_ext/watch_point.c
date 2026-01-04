@@ -452,7 +452,7 @@ int aml_watch_point_register(unsigned long addr,
 	}
 	if (i == awp->num_watch_points) {
 		spin_unlock(&awp->lock);
-		pr_err("%s, watch point is all used\n", __func__);
+		pr_err("watch point is all used\n");
 		return -ENODEV;
 	}
 	spin_unlock(&awp->lock);

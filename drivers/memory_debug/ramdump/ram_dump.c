@@ -94,8 +94,8 @@ char ramdump_info[256];
 static void ramdump_parse_info(void)
 {
 #if IS_BUILTIN(CONFIG_AMLOGIC_MEMORY_DEBUG)
-	pr_info("%s, .text : 0x%px - 0x%px, pa(.text): 0x%lx\n",
-		__func__, (unsigned long *)_text,
+	pr_info("ramdump .text : 0x%px - 0x%px, pa(.text): 0x%lx\n",
+		(unsigned long *)_text,
 		(unsigned long *)_etext, (unsigned long)__pa_symbol(_text));
 #endif
 
@@ -132,7 +132,6 @@ static int early_ramdump_para(char *buf)
 	} else {
 		ret = sscanf(buf, "%lx,%lx", &ramdump_base, &ramdump_size);
 		if (ret != 2) {
-			pr_err("invalid boot args\n");
 			ramdump_disable = 1;
 		}
 		ramdump_disable = 0;
@@ -153,7 +152,7 @@ static ssize_t ramdump_bin_read(struct file *filp, struct kobject *kobj,
 	void *p = NULL;
 
 	if (!ram->mem_base || off >= ram->mem_size) {
-		pr_info("%s, crash sysfsnode data err.\n", __func__);
+		pr_info("crash sysfsnode data err.\n");
 		return 0;
 	}
 
@@ -187,15 +186,15 @@ static ssize_t ramdump_bin_read(struct file *filp, struct kobject *kobj,
 
 	/* Log when offset moves forward by 200MB */
 	if (off >= ram->last_logged_off + DUMP_LOG_STEP) {
-		pr_info("%s, read offset: 0x%llx (%llu MB) count: %zu\n",
-			__func__, (unsigned long long)off,
+		pr_info("read offset: 0x%llx (%llu MB) count: %zu\n",
+			(unsigned long long)off,
 			(unsigned long long)(off >> 20), count);
 		ram->last_logged_off = off;
 	}
 
 	/* Log once at the end of the dump */
 	if (off + count >= ram->mem_size)
-		pr_info("%s, read finished. Total: 0x%llx (%llu MB)\n", __func__,
+		pr_info("read finished. Total: 0x%llx (%llu MB)\n",
 			(unsigned long long)ram->mem_size,
 			(unsigned long long)(ram->mem_size >> 20));
 
@@ -407,7 +406,6 @@ static int ramdump_dma_init(struct device *dev)
 	/* find dts node: /reserved-memory/ramdump_bl33z */
 	node = of_find_node_by_name(NULL, "ramdump_bl33z");
 	if (!node) {
-		pr_err("%s, Failed to find node ramdump_bl33z\n", __func__);
 		return -EINVAL;
 	}
 
@@ -418,8 +416,6 @@ static int ramdump_dma_init(struct device *dev)
 	if (rmem) {
 		dma_t.rsv_base = rmem->base;
 		dma_t.rsv_size = rmem->size;
-		pr_info("%s, ramdump DMA area: 0x%08x ~ 0x%08x (%d MB)\n",
-			__func__, rmem->base, rmem->base + rmem->size, rmem->size / (1 << 20));
 	} else {
 		pr_err("%s, Failed to get resource from node ramdump_bl33z.\n", __func__);
 		return -EINVAL;
@@ -428,7 +424,6 @@ static int ramdump_dma_init(struct device *dev)
 	/* find dts node: /aml_dma */
 	node = of_find_node_by_name(NULL, "aml_dma");
 	if (!node) {
-		pr_err("%s, Failed to find node aml_dma.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -436,20 +431,18 @@ static int ramdump_dma_init(struct device *dev)
 		return -ENODEV;
 
 	if (of_address_to_resource(node, 0, &res)) {
-		pr_err("%s, Failed to get resource from node aml_dma.\n", __func__);
 		of_node_put(node);
 		return -EINVAL;
 	}
 
 	dma_t.reg_base = devm_ioremap(dev, res.start, resource_size(&res));
 	if (!dma_t.reg_base) {
-		pr_err("%s, Failed to map aml_dma register resource.\n", __func__);
 		of_node_put(node);
 		return -ENOMEM;
 	}
 
-	pr_info("%s, DMA register base address: %p, REG_OFFSET_STS0=0x%x\n",
-			__func__, dma_t.reg_base, REG_OFFSET_STS0);
+	pr_info("DMA register base address: %p, REG_OFFSET_STS0=0x%x\n",
+			dma_t.reg_base, REG_OFFSET_STS0);
 	dma_t.reg_virt_t0 = dma_t.reg_base + REG_OFFSET_T0 * 4;
 	dma_t.reg_virt_sts0 = dma_t.reg_base + REG_OFFSET_STS0 * 4;
 
@@ -470,8 +463,8 @@ static int ramdump_dma_init(struct device *dev)
 	dma_t.dsc->dsc_cfg.b.eoc = 1;    // End of chain
 	dma_t.dsc->dsc_cfg.b.owner = 1;  // Owned by hardware
 
-	pr_info("%s: dma_dsc size %d Bytes. Vaddr:%08x, Paddr:%08x\n",
-			__func__, sizeof(struct dma_dsc),
+	pr_info("dma_dsc size %d Bytes. Vaddr:%08x, Paddr:%08x\n",
+			sizeof(struct dma_dsc),
 			(unsigned int)dma_t.dsc, (unsigned int)dma_t.paddr);
 
 	return 0;
@@ -482,7 +475,7 @@ static void ramdump_dma_free(struct device *dev)
 	if (dma_t.dsc) {
 		dma_free_coherent(dev, sizeof(struct dma_dsc), dma_t.dsc, dma_t.paddr);
 		dma_t.dsc = NULL;
-		pr_info("%s, DMA descriptor freed.\n", __func__);
+		pr_info("DMA descriptor freed.\n");
 	}
 }
 
@@ -493,19 +486,19 @@ static int ramdump_dma_copy(void)
 	int ret = 0;
 
 	if (!dma_t.reg_base) {
-		pr_err("%s: need dma init before.\n", __func__);
+		pr_err("need dma init before.\n");
 		return -1;
 	}
 
 	if (!cfg_sticky_reg) {
-		pr_err("%s: need ramdump init before.\n", __func__);
+		pr_err("need ramdump init before.\n");
 		return -1;
 	}
 
 	writel(DMA_STS0_READY, dma_t.reg_virt_sts0);
 	writel((uintptr_t)dma_t.paddr | DMA_EOC_FLAG, dma_t.reg_virt_t0);
 
-	pr_info("%s: DMA tx start ...\n", __func__);
+	pr_info("DMA tx start ...\n");
 	while (cnt <= RAMDUMP_DMA_MAX_RETRIES) {
 		if (readl(dma_t.reg_virt_sts0) != 0)
 			break;
@@ -514,21 +507,21 @@ static int ramdump_dma_copy(void)
 	}
 
 	if (cnt > RAMDUMP_DMA_MAX_RETRIES) {
-		pr_info("%s: ERROR! DMA tx timeout(%d ms). Drop dump.bin!\n",
-				__func__, RAMDUMP_DMA_MAX_RETRIES);
+		pr_info("ERROR! DMA tx timeout(%d ms). Drop dump.bin!\n",
+				RAMDUMP_DMA_MAX_RETRIES);
 		dump_set = readl(cfg_sticky_reg) & ~RAMDUMP_STICKY_DMA_MASK;
 		dump_set &= ~AMLOGIC_KERNEL_BOOTED;
 		writel(dump_set, cfg_sticky_reg);
 		return -1;
 	}
 
-	pr_info("%s: OK. DMA tx %d MB in %d ms.\n",
-			__func__, dma_t.rsv_size / (1 << 20), cnt);
+	pr_info("ramdump_dma_copy OK. DMA tx %d MB in %d ms.\n",
+			dma_t.rsv_size / (1 << 20), cnt);
 	dump_set = readl(cfg_sticky_reg) & ~RAMDUMP_STICKY_DMA_MASK;
 	dump_set |= dma_t.rsv_base / RAMDUMP_DMA_ALIGNED_4MB;
 	writel(dump_set, cfg_sticky_reg);
-	pr_info("%s, done. addr=0x%08x, sticky=0x%04x\n",
-			__func__, dma_t.rsv_base, readl(cfg_sticky_reg));
+	pr_info("ramdump_dma_copy done. addr=0x%08x, sticky=0x%04x\n",
+			dma_t.rsv_base, readl(cfg_sticky_reg));
 
 	return ret;
 }
@@ -546,7 +539,7 @@ static int ramdump_verify_md5_sum(const void *addr, size_t size)
 	int i, ret = -EINVAL;
 	int desc_size;
 
-	pr_info("%s, arm64 start.\n", __func__);
+	pr_debug("%s, arm64 start.\n", __func__);
 	tfm = crypto_alloc_shash("md5", 0, 0);
 	if (IS_ERR(tfm))
 		return PTR_ERR(tfm);
@@ -567,35 +560,32 @@ static int ramdump_verify_md5_sum(const void *addr, size_t size)
 	for (i = 0; i < RAMDUMP_MD5_DIGEST_SIZE; i++)
 		snprintf(result_str + i * 2, 3, "%02x", result[i]);
 
-	pr_info("%s, calculated md5: %s\n", __func__, result_str);
+	pr_info("ramdump calculated md5: %s\n", result_str);
 
 	chosen_node = of_find_node_by_path("/chosen");
 	if (!chosen_node) {
-		pr_err("%s, cannot find /chosen node\n", __func__);
 		ret = -ENOENT;
 		goto out_free_desc;
 	}
 
 	ret = of_property_read_string(chosen_node, "bootargs", &cmdline_md5);
 	if (ret) {
-		pr_err("%s, cannot get bootargs property\n", __func__);
 		ret = -ENOENT;
 		goto out_free_desc;
 	}
 
 	cmdline_md5 = strstr(cmdline_md5, "androidboot.ramdumpmd5=");
 	if (!cmdline_md5) {
-		pr_err("%s, No found cmdline androidboot.ramdumpmd5!\n", __func__);
 		ret = -ENOENT;
 		goto out_free_desc;
 	}
 
 	cmdline_md5 += strlen("androidboot.ramdumpmd5=");
 	if (strncmp(cmdline_md5, result_str, RAMDUMP_MD5_STRING_LEN) == 0) {
-		pr_info("%s, MD5 match OK\n", __func__);
+		pr_debug("%s, MD5 match OK\n", __func__);
 		ret = 0;
 	} else {
-		pr_err("%s, MD5 mismatch!\n", __func__);
+		pr_err("MD5 mismatch!\n");
 		ret = -EFAULT;
 	}
 
@@ -608,7 +598,7 @@ out_free_tfm:
 #else
 static int ramdump_verify_md5_sum(const void *addr, size_t size)
 {
-	pr_info("%s, arm32 mem no-map, exit.\n", __func__);
+	pr_info("arm32 mem no-map, exit.\n");
 	return 0;
 }
 #endif
@@ -642,19 +632,17 @@ static int __init ramdump_probe(struct platform_device *pdev)
 	total_mem = get_num_physpages() << PAGE_SHIFT;
 	/* MEM is aligned upwards to 64MB. And CFG bit0-5 use for dma copy addr */
 	total_mem = (total_mem + RAMDUMP_DDR_ALIGNED_64MB - 1) & ~(RAMDUMP_DDR_ALIGNED_64MB - 1);
-	pr_info("%s, %ld MB, args base:%lx, size:%lx\n",
-			__func__, total_mem / 1024 / 1024, ramdump_base, ramdump_size);
+	pr_info("%ld MB, args base:%lx, size:%lx\n",
+			total_mem / 1024 / 1024, ramdump_base, ramdump_size);
 	if (!ramdump_disable) {
 #ifdef CONFIG_ANDROID_VENDOR_HOOKS
 		/* flush cache for online cpu */
 		ret = register_trace_android_vh_ipi_stop(flush_all_cache_hook, NULL);
-		if (ret)
-			pr_err("%s, register_trace_android_vh_ipi_stop err(%d).\n", __func__, ret);
 #endif
 		/* flush cache for panic cpu, and DMA copy for 32bit */
 		ret = atomic_notifier_chain_register(&panic_notifier_list, &panic_notifier);
 		if (ret)
-			pr_err("%s, register panic_notifier err(%d).\n", __func__, ret);
+			pr_err("ramdump register panic_notifier err(%d).\n", ret);
 	}
 
 	ram = kzalloc(sizeof(*ram), GFP_KERNEL);
@@ -667,8 +655,8 @@ static int __init ramdump_probe(struct platform_device *pdev)
 	ram->mem_base = 0;
 	ram->mem_size = ramdump_size;
 	if (ramdump_base && ramdump_size) {
-		pr_info("%s, memremap start, paddr area: 0x%08lx - 0x%08lx\n",
-				__func__, ramdump_base, ramdump_base + PAGE_ALIGN(ramdump_size));
+		pr_info("ramdump memremap start, paddr area: 0x%08lx - 0x%08lx\n",
+			ramdump_base, ramdump_base + PAGE_ALIGN(ramdump_size));
 #if defined(CONFIG_ARM64)
 		vaddr = memremap(ramdump_base, PAGE_ALIGN(ramdump_size), MEMREMAP_WB);
 #else
@@ -684,17 +672,15 @@ static int __init ramdump_probe(struct platform_device *pdev)
 			schedule_delayed_work(&ram->work, msecs_to_jiffies(120 * 1000));
 		} else {		/* with compressed data */
 #ifdef	SAVE_DATA_BY_INIT_RC_SHELL
-			pr_info("%s, SAVE_DATA_BY_INIT_RC_SHELL\n", __func__);
+			pr_info("SAVE_DATA_BY_INIT_RC_SHELL\n");
 			ram->kobj = kobject_create_and_add("mdump", kernel_kobj);
 			if (!ram->kobj) {
-				pr_err("%s, create sysfs /mdump failed\n", __func__);
 				goto err;
 			}
 
 			ramdump_attr.size = ram->mem_size;
-			pr_info("%s, creat /sys/kernel/mdump/compmsg\n", __func__);
 			if (sysfs_create_bin_file(ram->kobj, &ramdump_attr)) {
-				pr_err("%s, create sysfs compmsg failed\n", __func__);
+				pr_err("ramdump create sysfs compmsg failed\n");
 				goto err1;
 			}
 
@@ -716,8 +702,8 @@ static int __init ramdump_probe(struct platform_device *pdev)
 			dump_set &= ~RAMDUMP_STICKY_DATA_MASK;
 			dump_set |= ((total_mem >> 20) | AMLOGIC_KERNEL_BOOTED);
 			writel(dump_set, cfg_sticky_reg);
-			pr_info("%s, set sticky(0x%08x) to 0x%x\n",
-					__func__, (unsigned int)res->start, dump_set);
+			pr_info("ramdump set sticky(0x%08x) to 0x%x\n",
+					(unsigned int)res->start, dump_set);
 
 #ifdef CONFIG_AMLOGIC_RAMDUMP_DMA_COPY
 			ramdump_dma_init(&pdev->dev);

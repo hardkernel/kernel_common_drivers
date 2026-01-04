@@ -43,7 +43,7 @@ static void gxl_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 		val &= ~(0xffffffff);
 		val |= (1 << 23) | (1 << subport);
 	} else {
-		pr_err("port config fail, %s: %d\n", __func__, __LINE__);
+		pr_err("port config fail\n");
 		return;
 	}
 	writel(val, db->ddr_reg1 + port_reg[channel]);

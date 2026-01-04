@@ -537,9 +537,6 @@ static void __dump_cpu_task(int cpu)
 void set_lockup_hook(void (*func)(int cpu))
 {
 	if (lockup_hook) {
-		pr_warn("lockup_hook try set to:%pS, but already set:%pS\n",
-			lockup_hook,
-			func);
 		return;
 	}
 
@@ -981,8 +978,8 @@ void pr_lockup_info(int lock_cpu)
 
 	pr_err("\n");
 	pr_err("\n");
-	pr_err("%s: lock_cpu=[%d] -------- START --------\n",
-	       __func__, lock_cpu);
+	pr_err("pr_lockup_info: lock_cpu=[%d] -------- START --------\n",
+	    lock_cpu);
 	isr_check_en = 0;
 	idle_check_en = 0;
 	smc_check_en = 0;
@@ -1026,7 +1023,7 @@ void pr_lockup_info(int lock_cpu)
 			lockup_hook(cpu);
 	}
 
-	pr_err("%s: lock_cpu=[%d] --------- END --------\n", __func__, lock_cpu);
+	pr_err("pr_lockup_info: lock_cpu=[%d] --------- END --------\n", lock_cpu);
 
 #if (defined CONFIG_ARM64) || (defined CONFIG_AMLOGIC_ARMV8_AARCH32)
 	pr_err("### fiq_dump: fiq_virt_addr:%px fiq_check_en:%d\n", fiq_virt_addr, fiq_check_en);
@@ -1109,7 +1106,6 @@ static void fiq_debug_addr_init(void)
 	fiq_virt_addr = ioremap_cache(fiq_phy_addr,
 					fiq_buf_size);
 	if (!fiq_virt_addr) {
-		WARN(1, "failed to map fiq_virt_addr space\n");
 		return;
 	}
 
@@ -1179,15 +1175,10 @@ static void irq_latch_init(void)
 	irq_latch_clr_reg = of_iomap(node, 1);
 
 	if (!irq_latch_mode_reg || !irq_latch_clr_reg) {
-		pr_err("irq latch map fail\n");
 		return;
 	}
 
 	spin_lock_init(&irq_latch_lock);
-
-	pr_info("mode_reg:%lx, clr_reg:%lx\n",
-		(unsigned long)irq_latch_mode_reg,
-		(unsigned long)irq_latch_clr_reg);
 }
 
 int debug_lockup_init(void)
@@ -1197,8 +1188,7 @@ int debug_lockup_init(void)
 
 	infos = alloc_percpu(struct lockup_info);
 	if (!infos) {
-		pr_err("alloc percpu infos failed\n");
-		return 1;
+		return -ENOMEM;
 	}
 
 	atomic_notifier_chain_register(&panic_notifier_list, &debug_panic_notifier);
@@ -1379,7 +1369,6 @@ int aml_debug_init(void)
 
 	debug_lockup = debugfs_create_dir("aml_debug", NULL);
 	if (IS_ERR_OR_NULL(debug_lockup)) {
-		pr_warn("failed to create aml_debug\n");
 		debug_lockup = NULL;
 	}
 	debugfs_create_file("sysrq-trigger", S_IFREG | 0664,
@@ -1391,7 +1380,6 @@ int aml_debug_init(void)
 	aml_regmap = proc_create_single_data("aml_regmap",
 					0400, NULL, dts_reg_show, NULL);
 	if (!aml_regmap) {
-		pr_err("fail to create /proc/aml_regmap\n");
 		return -ENOMEM;
 	}
 

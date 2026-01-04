@@ -52,7 +52,7 @@ int cpu_speed_test(void)
 	local_irq_restore(flags);
 
 	if (end - start > UINT_MAX) {
-		WARN(1, "%s() consume %llu ns\n", __func__, end - start);
+		WARN(1, "() consume %llu ns\n", end - start);
 		return 0;
 	}
 
@@ -92,8 +92,6 @@ static int cpu_mhz_period_ms_set(const char *buffer, const struct kernel_param *
 {
 	int ret;
 	int period_ms = 0;
-
-	pr_info("cpu_mhz_period_ms_set() buffer=%s\n", buffer);
 
 	ret = kstrtoint(buffer, 0, &period_ms);
 	if (ret)

@@ -104,7 +104,7 @@ static int early_dmc_param(char *buf)
 
 	if (strstr(buf, "default") == buf) {
 		init_dmc_mode = DMC_MODE_DEFAULT;
-		pr_info("%s, dmc enabled default mode\n", __func__);
+		pr_info("dmc enabled default mode\n");
 		return 1;
 	} else if (sscanf(buf, "%lx,%lx,%lx,%lx", &s_addr, &e_addr, &mask, &debug) != 4) {
 		if (sscanf(buf, "%lx,%lx,%lx", &s_addr, &e_addr, &mask) != 3)
@@ -1205,7 +1205,7 @@ static int dmc_regulation_dev(unsigned long dev, int add)
 				}
 			}
 			if (i == sizeof(dmc_mon->device) && !set && add) {
-				pr_err("%s, monitor device full\n", __func__);
+				pr_err("monitor device full\n");
 				return -EINVAL;
 			}
 			dev >>= 8;
@@ -1292,7 +1292,6 @@ static ssize_t range_store(const struct class *class,
 
 	ret = sscanf(buf, "%lx %lx", &start, &end);
 	if (ret != 2) {
-		pr_info("%s, bad input:%s\n", __func__, buf);
 		return count;
 	}
 	dmc_set_monitor(start, end, dmc_mon->device, DMC_MODE_NORMAL, 1);
@@ -1823,7 +1822,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 		break;
 #endif
 	default:
-		pr_err("%s, Can't find ops for chip:%x\n", __func__, chip);
+		pr_err("Can't find ops for chip:%x\n", chip);
 		break;
 	}
 }

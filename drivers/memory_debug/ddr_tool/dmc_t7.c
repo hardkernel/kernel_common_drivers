@@ -274,7 +274,6 @@ static int t7_reg_analysis(char *input, char *output)
 	if (sscanf(input, "%lx %lx %lx %lx %lx",
 			 &status, &vio_reg0, &vio_reg1,
 			 &vio_reg2, &vio_reg3) != 5) {
-		pr_emerg("%s param input error, buf:%s\n", __func__, input);
 		return 0;
 	}
 

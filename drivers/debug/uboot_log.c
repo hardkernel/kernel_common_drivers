@@ -219,7 +219,7 @@ long get_raw_time_from_timer_e(void)
 	long time;
 
 	if (!uboot_log || !uboot_log->timer_reg) {
-		pr_notice("uboot log get time error\n");
+		pr_err("uboot log get time error\n");
 		return 0;
 	}
 	time = readl(uboot_log->timer_reg);
@@ -236,24 +236,19 @@ static void uboot_log_reserved_memory(struct platform_device *pdev, struct uboot
 		node = of_parse_phandle(pdev->dev.of_node, "memory-region", i);
 
 		if (!node) {
-			pr_err("uboot log don't have memory-region\n");
 			return;
 		}
 		rmem = of_reserved_mem_lookup(node);
 		if (!rmem) {
-			pr_err("uboot log don't have reserved mem\n");
 			return;
 		}
 		if (!rmem->size) {
-			pr_err("uboot log reserved mem size is 0\n");
 			return;
 		}
 		if (i == LOG_MEM_INDEX_BL30) {
 			/*bl30 is sram memory*/
 			log->bl30_log_base = ioremap(rmem->base, rmem->size);
 			if (!log->bl30_log_base) {
-				pr_err("bl30 log sram ioremap fail,rmem->base:0x%lx,size:0x%lx\n",
-				      (long)rmem->base, (long)rmem->size);
 				return;
 			}
 			log->mem[i].log_base = (unsigned long)log->bl30_log_base;
@@ -261,7 +256,7 @@ static void uboot_log_reserved_memory(struct platform_device *pdev, struct uboot
 			log->mem[i].log_base = __phys_to_virt(rmem->base);
 		}
 		log->mem[i].log_size = rmem->size;
-		pr_notice("uboot log rmem->base:0x%lx,log->mem[%d].log_base:0x%lx,size: 0x%lx\n",
+		pr_debug("uboot log rmem->base:0x%lx,log->mem[%d].log_base:0x%lx,size: 0x%lx\n",
 			 (long)rmem->base, i, log->mem[i].log_base, log->mem[i].log_size);
 	}
 }
@@ -272,8 +267,6 @@ static int uboot_log_probe(struct platform_device *pdev)
 	struct resource res;
 	int ret = 0;
 	unsigned long start, size;
-
-	pr_notice("uboot log probe\n");
 
 	if (of_property_read_bool(np, "mboxes"))
 		bl30log_mbox_chan = aml_mbox_request_channel_byidx(&pdev->dev, 0);
@@ -287,7 +280,7 @@ static int uboot_log_probe(struct platform_device *pdev)
 	ret = of_address_to_resource(np, 0, &res);
 
 	if (ret) {
-		pr_notice("uboot log get timer E failed\n");
+		pr_err("uboot log get timer E failed\n");
 		kfree(uboot_log);
 		return -EINVAL;
 	}
@@ -296,14 +289,13 @@ static int uboot_log_probe(struct platform_device *pdev)
 
 	uboot_log->timer_reg = ioremap(res.start, resource_size(&res));
 	if (!uboot_log->timer_reg) {
-		pr_notice("uboot log timer_reg remap failed\n");
 		kfree(uboot_log);
 		return -EINVAL;
 	}
 
 	start = res.start;
 	size  = res.end - res.start + 1;
-	pr_notice("uboot log timer E timer_reg:0x%lx,start = %lx, size = %lx\n",
+	pr_debug("uboot log timer E timer_reg:0x%lx,start = %lx, size = %lx\n",
 		 (long)uboot_log->timer_reg, start, size);
 
 	blx_init_uboot_log(uboot_log->mem[0].log_base, uboot_log->mem[0].log_size);
@@ -318,10 +310,8 @@ static int uboot_log_probe(struct platform_device *pdev)
 	if (IS_ERR_OR_NULL(proc_uboot_log)) {
 		iounmap(uboot_log->timer_reg);
 		kfree(uboot_log);
-		pr_err("create uboot_log proc failed\n");
 		return -EINVAL;
 	}
-	pr_notice("uboot log probe successful\n");
 
 	return ret;
 }
@@ -342,7 +332,6 @@ static struct platform_driver uboot_log_platform_driver = {
 
 int __init meson_uboot_log_init(void)
 {
-	pr_notice("uboot log init\n");
 	return  platform_driver_register(&uboot_log_platform_driver);
 }
 

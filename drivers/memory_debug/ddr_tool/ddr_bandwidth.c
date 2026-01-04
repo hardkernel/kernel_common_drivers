@@ -51,7 +51,6 @@ static int ots_level_setup(char *str)
 	int val;
 
 	if (kstrtoint(str, 10, &val)) {
-		pr_info("invalid ots_level: %s\n", str);
 		return 1;
 	}
 
@@ -343,7 +342,7 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	do_div(mul, cnt);
 	if (unlikely(mul >= mbw)) {
 		/* sample may overflow if irq tick changed, ignore it */
-		pr_info("%s, bandwidth:%lld large than max :%lld\n", __func__, mul, mbw);
+		pr_info("bandwidth:%lld large than max :%lld\n", mul, mbw);
 		return;
 	}
 	db->cur_sample.total_bandwidth = mul;
@@ -418,7 +417,6 @@ static enum hrtimer_restart  ddr_poll_handler(struct hrtimer *timer)
 static int __init ddr_poll_init(void)
 {
 	if (!aml_db) {
-		pr_err("%s failed\n", __func__);
 		return -1;
 	}
 
@@ -729,7 +727,6 @@ static ssize_t ots_store(const struct class *cla,
 	if (sscanf(buf, "%d %lli", &bus, &val) != 2) {
 		bus = -1;
 		if (kstrtoll(buf, 0, &val)) {
-			pr_info("invalid input:%s\n", buf);
 			return count;
 		}
 	}
@@ -834,7 +831,6 @@ static ssize_t port_store(const struct class *class,
 	if (paras < 4) {
 		paras = sscanf(buf, "%d:%d", &ch, &port);
 		if (paras < 2) {
-			pr_info("invalid input:%s\n", buf);
 			return count;
 		}
 	}
@@ -1593,7 +1589,6 @@ unsigned long ddr_ssr_access(unsigned long addr, unsigned long value, int rw, in
 	addr = round_down(addr, 0x3);
 	vaddr = ioremap(addr, 0x4);
 	if (!vaddr) {
-		pr_err("%s reg map failed\n", __func__);
 		return 0;
 	}
 
@@ -1952,7 +1947,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		break;
 #endif
 	default:
-		pr_err("%s, Can't find ops for chip:%x\n", __func__, cpu);
+		pr_err("Can't find ops for chip:%x\n", cpu);
 		return -1;
 	}
 	return 0;
@@ -1999,8 +1994,8 @@ static int reg_field_access(unsigned char dmc, void *io, u32 *val, int rw,
 	mask2 = mask1 << offset;
 	if (rw == WRITE) {
 		if (*val & ~mask1) {
-			pr_err("%s: out of range. Max=0x%x, Attempted=0x%x\n",
-			       __func__, mask1, *val);
+			pr_err("out of range. Max=0x%x, Attempted=0x%x\n",
+			       mask1, *val);
 			return -1;
 		}
 		reg_value = readl(io + reg);
@@ -2286,12 +2281,12 @@ int parse_side_band_string(const char *input,
 
 	/* Parameter validation */
 	if (!input || !dmc || !bus || !rw || !block_bus || !block_num) {
-		pr_err("%s: Invalid parameters (NULL pointer)\n", __func__);
+		pr_err("Invalid parameters (NULL pointer)\n");
 		return -EINVAL;
 	}
 
 	if (max_block_num == 0) {
-		pr_err("%s: max_block_num cannot be zero\n", __func__);
+		pr_err("max_block_num cannot be zero\n");
 		return -EINVAL;
 	}
 
@@ -2317,7 +2312,7 @@ int parse_side_band_string(const char *input,
 				pr_debug("%s: Part %d: '%s'\n", __func__, part_count, trimmed);
 				part_count++;
 			} else {
-				pr_warn("%s: Ignoring extra part: '%s'\n", __func__, trimmed);
+				pr_warn("Ignoring extra part: '%s'\n", trimmed);
 			}
 		} else {
 			pr_debug("%s: Skipping empty part\n", __func__);
@@ -2334,7 +2329,7 @@ int parse_side_band_string(const char *input,
 
 	/* Validate minimum required parts */
 	if (part_count < 2) {
-		pr_err("%s: Invalid format - at least 2 parts required\n", __func__);
+		pr_err("Invalid format - at least 2 parts required\n");
 		ret = -EINVAL;
 		goto cleanup;
 	}
@@ -2364,7 +2359,7 @@ int parse_side_band_string(const char *input,
 		block_str = parts[1];
 		break;
 	default:
-		pr_err("%s: Unsupported number of parts: %d\n", __func__, part_count);
+		pr_err("Unsupported number of parts: %d\n", part_count);
 		ret = -EINVAL;
 		goto cleanup;
 	}
@@ -2384,12 +2379,12 @@ int parse_side_band_string(const char *input,
 				*dmc = (unsigned char)val;
 				pr_debug("%s: Dmc value: %u\n", __func__, *dmc);
 			} else {
-				pr_err("%s: Invalid dmc number: '%s'\n", __func__, p);
+				pr_err("Invalid dmc number: '%s'\n", p);
 				ret = -EINVAL;
 				goto cleanup;
 			}
 		} else {
-			pr_err("%s: Dmc field is empty\n", __func__);
+			pr_err("Dmc field is empty\n");
 			ret = -EINVAL;
 			goto cleanup;
 		}
@@ -2403,17 +2398,17 @@ int parse_side_band_string(const char *input,
 				*bus = (unsigned char)val;
 				pr_debug("%s: Bus value: %u\n", __func__, *bus);
 			} else {
-				pr_err("%s: Invalid bus number: '%s'\n", __func__, p);
+				pr_err("Invalid bus number: '%s'\n", p);
 				ret = -EINVAL;
 				goto cleanup;
 			}
 		} else {
-			pr_err("%s: Bus field is empty\n", __func__);
+			pr_err("Bus field is empty\n");
 			ret = -EINVAL;
 			goto cleanup;
 		}
 	} else {
-		pr_err("%s: Bus field is missing\n", __func__);
+		pr_err("Bus field is missing\n");
 		ret = -EINVAL;
 		goto cleanup;
 	}
@@ -2431,7 +2426,7 @@ int parse_side_band_string(const char *input,
 				*rw = 2;
 				pr_debug("%s: Rw value: w (2)\n", __func__);
 			} else {
-				pr_err("%s: Invalid rw value: '%s'\n", __func__, p);
+				pr_err("Invalid rw value: '%s'\n", p);
 				ret = -EINVAL;
 				goto cleanup;
 			}
@@ -2440,12 +2435,12 @@ int parse_side_band_string(const char *input,
 				*rw = 3;
 				pr_debug("%s: Rw value: rw (3)\n", __func__);
 			} else {
-				pr_err("%s: Invalid rw value: '%s'\n", __func__, p);
+				pr_err("Invalid rw value: '%s'\n", p);
 				ret = -EINVAL;
 				goto cleanup;
 			}
 		} else {
-			pr_err("%s: Invalid rw value: '%s'\n", __func__, p);
+			pr_err("Invalid rw value: '%s'\n", p);
 			ret = -EINVAL;
 			goto cleanup;
 		}
@@ -2453,7 +2448,7 @@ int parse_side_band_string(const char *input,
 
 	/* Parse block_bus array (must be present) */
 	if (!block_str) {
-		pr_err("%s: Block_bus field is missing\n", __func__);
+		pr_err("Block_bus field is missing\n");
 		ret = -EINVAL;
 		goto cleanup;
 	}
@@ -2481,8 +2476,7 @@ int parse_side_band_string(const char *input,
 
 	/* Check for invalid "-1" with additional data */
 	if (strstr(block_str, "-1")) {
-		pr_err("%s: Invalid format: '-1' must be the only element in block_bus\n",
-		       __func__);
+		pr_err("Invalid format: '-1' must be the only element in block_bus\n");
 		ret = -EINVAL;
 		goto cleanup;
 	}
@@ -2530,11 +2524,11 @@ int parse_side_band_string(const char *input,
 				valid_block_found = 1;
 				continue;
 			} else {
-				pr_warn("%s: Number out of range (0-255): %lu\n", __func__, val);
+				pr_warn("Number out of range (0-255): %lu\n", val);
 			}
 		} else {
-			pr_warn("%s: Invalid number: '%.*s'\n",
-				__func__, (int)(num_end - num_start), num_start);
+			pr_warn("Invalid number: '%.*s'\n",
+				(int)(num_end - num_start), num_start);
 		}
 
 		/* Skip to next space (if not already there) */
@@ -2543,7 +2537,7 @@ int parse_side_band_string(const char *input,
 	}
 
 	if (!valid_block_found) {
-		pr_err("%s: No valid numbers in block_bus: '%s'\n", __func__, block_str);
+		pr_err("No valid numbers in block_bus: '%s'\n", block_str);
 		ret = -EINVAL;
 		goto cleanup;
 	}
@@ -2560,7 +2554,7 @@ cleanup:
 	kfree(str);
 
 	if (ret != 0)
-		pr_err("%s: Parse failed with error %d\n", __func__, ret);
+		pr_err("Parse failed with error %d\n", ret);
 
 	return ret;
 }
@@ -3120,8 +3114,6 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 		aml_db->ops->outstanding_init(aml_db);
 
 	r = class_register(&aml_ddr_class);
-	if (r)
-		pr_info("%s, class regist failed\n", __func__);
 
 	dmc_bus_init();
 

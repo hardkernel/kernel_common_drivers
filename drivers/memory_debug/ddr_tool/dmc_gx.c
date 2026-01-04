@@ -177,7 +177,6 @@ static int gx_reg_analysis(char *input, char *output)
 			 &vio_reg2, &vio_reg3,
 			 &vio_reg4, &vio_reg5,
 			 &vio_reg6, &vio_reg7) != 9) {
-		pr_emerg("%s param input error, buf:%s\n", __func__, input);
 		return 0;
 	}
 

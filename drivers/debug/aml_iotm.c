@@ -298,7 +298,6 @@ static int iotm_en_set(const char *val, const struct kernel_param *kp)
 	}
 
 	if (kstrtoint(val, 0, &iotm_en)) {
-		pr_err("IOTM:iotm_en error: %s\n", val);
 		return -EINVAL;
 	}
 	iotm_ctrl_mode_val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
@@ -324,7 +323,7 @@ static int iotm_en_set(const char *val, const struct kernel_param *kp)
 		iotm_ctrl_mode_val |= (IOTM_CTRL_MODE_CAPU_ENABLE |
 			IOTM_CTRL_MODE_VAPB4_ENABLE | IOTM_CTRL_MODE_TRACE_ENABLE);
 
-		pr_info("IOTM:has been enabled, but can't record trace, just trigger timeout\n");
+		pr_info("IOTM:can't record trace, just trigger timeout\n");
 		break;
 	default:
 		pr_err("IOTM:iotm_en error: %s\n", val);
@@ -348,7 +347,6 @@ static int iotm_en_setup(char *buf)
 		return -EINVAL;
 
 	if (kstrtoint(buf, 0, &iotm_en)) {
-		pr_err("IOTM:iotm_en error: %s\n", buf);
 		return -EINVAL;
 	}
 
@@ -756,7 +754,6 @@ static int iotm_dt_init(struct platform_device *pdev)
 
 	/* get the version of iotm */
 	if (of_property_read_u32(dn, "version", &iotm.version)) {
-		pr_err("IOTM:Failed to read version property\n");
 		return -EINVAL;
 	}
 
@@ -780,7 +777,6 @@ static int iotm_dt_init(struct platform_device *pdev)
 
 	iotm.cssys_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (IS_ERR(iotm.cssys_base)) {
-		pr_err("IOTM:fail to ioremap iotm register\n");
 		return PTR_ERR(iotm.cssys_base);
 	}
 
@@ -802,20 +798,16 @@ static int iotm_dt_init(struct platform_device *pdev)
 	if (iotm.monitor_mode == AXI_MODE) {
 		node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
 		if (!node) {
-			pr_err("IOTM:Failed to find memory-region node\n");
 			return -ENODEV;
 		}
 
 		rmem = of_reserved_mem_lookup(node);
 		if (!rmem) {
-			dev_warn(&pdev->dev, "no such reserved mem of node name %s\n",
-					pdev->dev.of_node->name);
 			return -ENODEV;
 		}
 
 		ret = of_property_read_u32(node, "iotm-size", &iotm_ddr_size);
 		if (ret) {
-			pr_err("IOTM:Failed to read iotm-size property\n");
 			return ret;
 		}
 
@@ -1081,7 +1073,6 @@ static void iotm_proc_init(void)
 	aml_iotm_trace = proc_create_single_data("aml_iotm_trace",
 					0400, NULL, trace_show, NULL);
 	if (!aml_iotm_trace) {
-		pr_err("IOTM:fail to create /proc/aml_iotm_trace\n");
 		vfree(iotm.saved_trace);
 		return;
 	}

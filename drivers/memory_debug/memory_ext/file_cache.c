@@ -434,8 +434,8 @@ static char *parse_fct_name(struct file_cache_trace *fct, char *buf)
 	pgoff = fct->off;
 	vma = aml_vma_iter_first(&mapping->i_mmap, pgoff, pgoff);
 	if (!vma) {
-		pr_err("%s, can't find vma for mapping:%p\n",
-		       __func__, mapping);
+		pr_err("can't find vma for mapping:%p\n",
+		       mapping);
 		return NULL;
 	}
 	memset(buf, 0, 256);
@@ -612,7 +612,6 @@ int __init filecache_module_init(void)
 	d_filecache = proc_create("filecache", 0444,
 				  NULL, &filecache_ops);
 	if (IS_ERR_OR_NULL(d_filecache)) {
-		pr_err("%s, create filecache failed\n", __func__);
 		return -1;
 	}
 

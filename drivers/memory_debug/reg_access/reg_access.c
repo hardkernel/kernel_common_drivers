@@ -96,7 +96,7 @@ static ssize_t paddr_read_file(struct file *file, char __user *userbuf,
 					   indio_dev->cached_reg_addr,
 					   0, &val);
 	if (ret)
-		pr_err("%s: read failed\n", __func__);
+		pr_err("paddr read failed\n");
 
 	len = snprintf(buf, sizeof(buf), "[0x%lx] = 0x%X\n",
 		       indio_dev->cached_reg_addr, val);
@@ -138,7 +138,7 @@ static ssize_t paddr_write_file(struct file *file, const char __user *userbuf,
 		ret = indio_dev->debugfs_reg_access(indio_dev, reg,
 							  val, NULL);
 		if (ret) {
-			pr_err("%s: write failed\n", __func__);
+			pr_err("paddr write failed\n");
 			return ret;
 		}
 		break;
@@ -203,7 +203,7 @@ static int dump_show(struct seq_file *s, void *what)
 				  indio_dev->cached_reg_addr,
 				  0, &val);
 		if (ret)
-			pr_err("%s: read failed\n", __func__);
+			pr_err("dump_show read failed\n");
 
 		seq_printf(s, "[0x%lx] = 0x%X\n",
 			   indio_dev->cached_reg_addr, val);
@@ -241,7 +241,7 @@ static ssize_t vaddr_read_file(struct file *file, char __user *userbuf,
 					   indio_dev->cached_reg_addr,
 					   0, &val);
 	if (ret)
-		pr_err("%s: read failed\n", __func__);
+		pr_err("vaddr read failed\n");
 
 	len = snprintf(buf, sizeof(buf), "[0x%lx] = 0x%X\n",
 		       indio_dev->cached_reg_addr, val);
@@ -277,7 +277,7 @@ static ssize_t vaddr_write_file(struct file *file, const char __user *userbuf,
 		ret = indio_dev->debugfs_reg_access(indio_dev, reg,
 					val, NULL);
 		if (ret) {
-			pr_err("%s: write failed,ret = %d\n", __func__, ret);
+			pr_err("vaddr write failed,ret = %d\n", ret);
 			return ret;
 		}
 		break;
@@ -369,7 +369,7 @@ static ssize_t paddr_store(struct kobject *kobj, struct kobj_attribute *attr,
 		paddr_reg = reg;
 		ret = reg_access_func(NULL, reg, val, NULL);
 		if (ret) {
-			pr_err("%s: write failed\n", __func__);
+			pr_err("paddr_store write failed\n");
 			return ret;
 		}
 		break;
@@ -400,7 +400,7 @@ static ssize_t paddr_show(struct kobject *kobj, struct kobj_attribute *attr,
 
 	ret = reg_access_func(NULL, paddr_reg, 0, &val);
 	if (ret) {
-		pr_err("%s: read failed\n", __func__);
+		pr_err("paddr_show read failed\n");
 		return ret;
 	}
 
@@ -452,7 +452,7 @@ static ssize_t pdump_show(struct kobject *kobj, struct kobj_attribute *attr,
 	for (i = 0; i < pdump_size ; i++) {
 		ret = reg_access_func(NULL, reg, 0, &val);
 		if (ret)
-			pr_err("%s: read failed\n", __func__);
+			pr_err("pdump_show read failed\n");
 
 		count += sprintf(buf + count, "[0x%lx] = 0x%X\n", reg, val);
 		reg += sizeof(int);
@@ -480,7 +480,7 @@ static ssize_t vaddr_store(struct kobject *kobj, struct kobj_attribute *attr,
 		vaddr_reg = reg;
 		ret = aml_vaddr_access(NULL, reg, val, NULL);
 		if (ret) {
-			pr_err("%s: write failed,ret = %d\n", __func__, ret);
+			pr_err("vaddr_store write failed,ret = %d\n", ret);
 			return ret;
 		}
 		break;
@@ -529,7 +529,7 @@ static ssize_t vdump_show(struct kobject *kobj, struct kobj_attribute *attr,
 	for (i = 0; i < vdump_size ; i++) {
 		ret = aml_vaddr_access(NULL, reg, 0, &val);
 		if (ret)
-			pr_err("%s: read failed\n", __func__);
+			pr_err("vdump_show read failed\n");
 
 		count += sprintf(buf + count, "[0x%lx] = 0x%X\n", reg, val);
 		reg += sizeof(int);

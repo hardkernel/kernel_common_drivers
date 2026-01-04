@@ -142,18 +142,18 @@ int aml_kprobes_init(void)
 	if (check_tty_en) {
 		ret = register_kprobe(&kp_check_tty_count);
 		if (ret)
-			pr_err("register_kprobe: kp_check_tty_count failed:%d\n", ret);
+			pr_err("kp_check_tty_count failed:%d\n", ret);
 	}
 
 	ret = register_kprobe(&kp_kprobe_busy_begin);
 	if (ret) {
-		pr_err("register_kprobe: kp_kprobe_busy_begin failed:%d\n", ret);
+		pr_err("kp_kprobe_busy_begin failed:%d\n", ret);
 		return 1;
 	}
 
 	ret = register_kprobe(&kp_kprobe_busy_end);
 	if (ret) {
-		pr_err("register_kprobe: kp_kprobe_busy_end failed:%d\n", ret);
+		pr_err("kp_kprobe_busy_end failed:%d\n", ret);
 		unregister_kprobe(&kp_kprobe_busy_begin);
 		return 1;
 	}
