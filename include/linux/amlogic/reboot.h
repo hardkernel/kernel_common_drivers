@@ -21,6 +21,7 @@
 #define	MESON_FACTORY_MODE_REBOOT           16
 #define	MESON_BIST_MODE_REBOOT              17
 #define MESON_AOCPU_WATCHDOG_REBOOT	    19
+#define MESON_RTC_QUIESCENT_REBOOT	    20
 #define	MESON_MAX_REBOOT                    128
 
 struct reboot_reason_str {

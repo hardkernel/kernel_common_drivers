@@ -25,6 +25,9 @@
 #include <linux/panic_notifier.h>
 #include <linux/syscore_ops.h>
 #include <linux/cpu.h>
+#include <linux/suspend.h>
+#include <uapi/amlogic/aml_reboot.h>
+#include <linux/miscdevice.h>
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
 #include <linux/amlogic/gki_module.h>
@@ -58,6 +61,7 @@ static struct reboot_reason_str reboot_reason_name[MESON_MAX_REBOOT] = {
 	[MESON_FACTORY_MODE_REBOOT] = { .name = "factory mode reboot" },
 	[MESON_BIST_MODE_REBOOT] = { .name = "bist mode reboot" },
 	[MESON_AOCPU_WATCHDOG_REBOOT] = { .name = "aocpu watchdog reboot" },
+	[MESON_RTC_QUIESCENT_REBOOT] = { .name = "rtc quiescent reboot" },
 };
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
@@ -295,6 +299,66 @@ static ssize_t reset_test_store(struct device *dev,
 
 static DEVICE_ATTR_WO(reset_test);
 
+static int reboot_open(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
+static int reboot_release(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
+static long reboot_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct arm_smccc_res smc_res;
+	int val, ret = 0;
+
+	switch (cmd) {
+	case REBOOT_GET:
+		ret = get_reboot_reason();
+		if (copy_to_user((int __user *)arg, &ret, sizeof(int)))
+			return -EFAULT;
+		break;
+	case REBOOT_SET:
+		if (copy_from_user(&val, (int __user *)arg, sizeof(int)))
+			return -EFAULT;
+		if (support_reboot_reason_ext)
+			arm_smccc_smc(0x82000048, 1, val, 0, 0, 0, 0, 0, &smc_res);
+		break;
+	default:
+		return -ENOTTY;
+	}
+
+	return 0;
+}
+
+#ifdef CONFIG_COMPAT
+static long reboot_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
+{
+	long ret = 0;
+
+	ret = reboot_ioctl(file, cmd, (ulong)compat_ptr(arg));
+	return ret;
+}
+#endif
+
+const struct file_operations reboot_fops = {
+	.owner			= THIS_MODULE,
+	.open			= reboot_open,
+	.release		= reboot_release,
+	.unlocked_ioctl = reboot_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= reboot_compat_ioctl,
+#endif
+};
+
+static struct miscdevice reboot_miscdev = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "reboot",
+	.fops = &reboot_fops,
+};
+
 static void disable_non_bootcpu_shutdown(void)
 {
 	int error = 0, cpu, primary = 0;
@@ -370,9 +434,10 @@ static int aml_restart_probe(struct platform_device *pdev)
 		psci_function_id_restart = id;
 		register_restart_handler(&aml_restart_nb);
 		ret = device_create_file(&pdev->dev, &dev_attr_reset_test);
-		if (ret != 0)
-			pr_err("%s, device create file failed, ret = %d!\n",
-			       __func__, ret);
+		if (ret != 0) {
+			ret = -1;
+			goto error;
+		}
 	}
 
 	if (!of_property_read_u32(pdev->dev.of_node, "sys_poweroff", &id)) {
@@ -384,9 +449,10 @@ static int aml_restart_probe(struct platform_device *pdev)
 	if (!IS_ERR(reboot_reason_vaddr)) {
 	#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		ret = device_create_file(&pdev->dev, &dev_attr_reboot_reason);
-		if (ret != 0)
-			pr_err("%s, device create file failed, ret = %d!\n",
-			       __func__, ret);
+		if (ret != 0) {
+			ret = -2;
+			goto error;
+		}
 	#endif
 
 		support_reboot_reason_ext = of_property_read_bool(pdev->dev.of_node,
@@ -402,31 +468,39 @@ static int aml_restart_probe(struct platform_device *pdev)
 	/* Register a reboot_notifier*/
 	ret = register_reboot_notifier(&aml_set_reboot_flag);
 	if (ret != 0) {
-		pr_err("%s,register reboot notifier failed,ret =%d!\n",
-		       __func__, ret);
-		return ret;
+		ret = -3;
+		goto error;
 	}
 
 	ret = register_die_notifier(&panic_notifier);
 	if (ret != 0) {
-		pr_err("%s,register die notifier failed,ret =%d!\n",
-		       __func__, ret);
-		return ret;
+		ret = -4;
+		goto error;
 	}
 
 	/* Register a call for panic conditions. */
 	ret = atomic_notifier_chain_register(&panic_notifier_list,
 					     &panic_notifier);
 	if (ret != 0) {
-		pr_err("%s,register panic notifier failed,ret =%d!\n",
-		       __func__, ret);
-		return ret;
+		ret = -5;
+		goto error;
 	}
+
+	/* Register misc device*/
+	ret = misc_register(&reboot_miscdev);
+	if (ret) {
+		ret = -6;
+		goto error;
+	}
+
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
 	if (scramble_reg)
 		scramble_vaddr = ioremap(scramble_reg, 4);
 #endif
 	return 0;
+error:
+	pr_err("reboot driver init Failed=%d!\n", ret);
+	return ret;
 }
 
 static const struct of_device_id of_aml_restart_match[] = {
@@ -451,4 +525,5 @@ int __init reboot_init(void)
 void __exit reboot_exit(void)
 {
 	platform_driver_unregister(&aml_restart_driver);
+	misc_deregister(&reboot_miscdev);
 }
