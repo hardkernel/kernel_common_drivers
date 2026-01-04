@@ -639,6 +639,7 @@ void hdmirx_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param[port_type];
+	vrr_check_dec(0);
 	/* parm->info.fmt = TVIN_SIG_FMT_NULL; */
 	/* parm->info.status = TVIN_SIG_STATUS_NULL; */
 	rx_pr("%s port:%d, port_type:%d ok\n", __func__, port - TVIN_PORT_HDMI0, port_type);
@@ -4058,8 +4059,8 @@ static int rx_vrr_notify_handler(struct notifier_block *nb,
 	switch (value) {
 	case VRR_EVENT_UPDATE:
 		memcpy(&vdata, p, sizeof(struct vrr_notifier_data_s));
-		rx_info.vrr_min = vdata.dev_vfreq_min;
-		rx_info.vrr_max = vdata.dev_vfreq_max;
+		rx_info.vrr_min = vdata.rx_vfreq_min;
+		rx_info.vrr_max = vdata.rx_vfreq_max;
 		rx_pr("%s: vrr_min=%d, vrr_max=%d\n", __func__, rx_info.vrr_min, rx_info.vrr_max);
 		break;
 	default:

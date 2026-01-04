@@ -27,6 +27,8 @@
 #include "vrr_drv.h"
 #include "vrr_reg.h"
 
+static unsigned int vrr_notify_rx_flag;
+
 static struct aml_vrr_drv_s *vrr_drv_active_sel(void)
 {
 	struct vinfo_s *vinfo = NULL;
@@ -195,17 +197,32 @@ static int aml_vrr_drv_update(void)
 
 	vrr_drv_state_active_update(vdrv_active->index);
 	if (vdrv_active->vrr_dev) {
+		vdata.vrr_panel_max = vdrv_active->vrr_dev->vfreq_panel_max;
+		vdata.vrr_panel_min = vdrv_active->vrr_dev->vfreq_panel_min;
 		vdata.dev_vfreq_max = vdrv_active->vrr_dev->vfreq_max;
 		if (vdrv_active->vrr_dev->vfreq_min == 40)
 			vdata.dev_vfreq_min = vdrv_active->vrr_dev->vfreq_min;
 		else
 			vdata.dev_vfreq_min = vdrv_active->vrr_dev->vfreq_min + 5;
+
+		if (vrr_notify_rx_flag == 0) {
+			vdata.rx_vfreq_max = vdata.vrr_panel_max;
+			vdata.rx_vfreq_min = vdata.vrr_panel_min;
+			VRRPR("%s: first notify rx max:%d, min:%d\n",
+				__func__, vdata.rx_vfreq_max, vdata.rx_vfreq_min);
+		} else {
+			vdata.rx_vfreq_max = vdata.dev_vfreq_max;
+			vdata.rx_vfreq_min = vdata.dev_vfreq_min;
+		}
+
 		if (vrr_debug_print & VRR_DBG_PR_NORMAL) {
 			VRRPR("%s: dev_vfreq max:%d, min:%d\n",
 				__func__, vdata.dev_vfreq_max, vdata.dev_vfreq_min);
 		}
 		aml_vrr_atomic_notifier_call_chain(VRR_EVENT_UPDATE, &vdata);
 	}
+
+	vrr_notify_rx_flag++;
 
 	return 0;
 }

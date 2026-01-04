@@ -376,6 +376,6 @@ void vlock_set_sts_by_frame_lock(bool en);
 void vlock_reg_config(struct device *dev);
 unsigned int vlock_low_latency(unsigned int time, int flag);
 unsigned int vrr_instead_vlock(void);
-int is_video_process_in_thread(void);
 void vlock_set_disable(void);
+int is_video_process_in_thread(void);
 #endif

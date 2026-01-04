@@ -77,6 +77,8 @@ u8 freesync_ld_ctrl;
 static unsigned int lfc_support;
 
 static int lock_flag;
+static int base_fps;
+static unsigned int vrr_dec_state;
 
 struct vrr_sig_sts frame_sts = {
 	.vrr_support = false,
@@ -334,13 +336,17 @@ u32 frame_lock_chk_is_small_win(struct vpp_frame_par_s *cur_video_sts, struct vi
 		return 1;
 	}
 
-	panel_vout = (vinfo->vtotal * 75) / 100;
+	panel_vout = (vinfo->height * 75) / 100;
 	scaler_vout = cur_video_sts->VPP_vsc_endp -
 		cur_video_sts->VPP_vsc_startp;
 
 	if (scaler_vout < panel_vout &&
 	    cur_video_sts->VPP_vsc_endp > cur_video_sts->VPP_vsc_startp) {
 		frame_sts.vrr_small_window = true;
+		if (frame_lock_debug & VRR_POLICY_VARIANCE_FLAG)
+			framelock_pr_info("active:%d start:%d end:%d\n",
+				vinfo->height, cur_video_sts->VPP_vsc_startp,
+				cur_video_sts->VPP_vsc_endp);
 		return 1;
 	}
 
@@ -469,6 +475,24 @@ int frame_lock_calc_lcnt_variance_val(struct vframe_s *vf)
 	return 0;
 }
 
+static int frame_lock_check_base_fps(struct vframe_s *vf)
+{
+	int fps = 0;
+
+	if (diff(vf->vf_vrr_param.vin_base_fps, 288) <= 1)
+		fps = 288;
+	else if (diff(vf->vf_vrr_param.vin_base_fps, 330) <= 1)
+		fps = 330;
+	else if (diff(vf->vf_vrr_param.vin_base_fps, 340) <= 1)
+		fps = 340;
+	else if (diff(vf->vf_vrr_param.vin_base_fps, 360) <= 1)
+		fps = 360;
+	else
+		fps = vf->vf_vrr_param.vin_base_fps;
+
+	return fps;
+}
+
 int frame_lock_frame_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
 {
 	bool ret = false;
@@ -500,8 +524,17 @@ int frame_lock_frame_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
 		return ret;
 	}
 
+	if (vf->duration == 1899 && vf->compWidth == 1360 && vf->compHeight == 768) {
+		ret = false;
+		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
+			framelock_pr_info("1360 50.5hz no vrr! duration:%d\n",
+				vf->duration);
+		return ret;
+	}
+
 	if (frame_sts.vrr_policy) {
-		if (vf->vf_vrr_param.vin_base_fps != vout_base) {
+		base_fps = frame_lock_check_base_fps(vf);
+		if (base_fps != vout_base) {
 			ret = false;
 			frame_sts.vrr_lfc_mode = false;
 			hdr_low_latency = 0;
@@ -534,7 +567,7 @@ int frame_lock_frame_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
 		if ((vf->signal_type == VRR_LATENCY_SIGNAL || vf->signal_type == VRR_HDR_SIGNAL) &&
 			((frame_sts.vrr_frame_cur == 50 && vinfo->std_duration == 100) ||
 			(frame_sts.vrr_frame_cur == 60 && vinfo->std_duration == 120)) &&
-			is_meson_t3x_cpu()) {
+			(is_meson_t3x_cpu() || is_meson_t6x_cpu())) {
 			ret = true;
 			frame_sts.vrr_frame_outof_range_cnt = 0;
 			frame_sts.vrr_lfc_mode = false;
@@ -556,7 +589,10 @@ int frame_lock_frame_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
 				ret =  false;
 			}
 		} else {
-			if (frame_sts.vrr_frame_cur >= frame_sts.vrr_frame_out_fps_min &&
+			if (frame_sts.vrr_frame_cur != vout_base) {
+				ret = false;
+				frame_sts.vrr_frame_outof_range_cnt = 0;
+			} else if (frame_sts.vrr_frame_cur >= frame_sts.vrr_frame_out_fps_min &&
 				frame_sts.vrr_frame_cur <= frame_sts.vrr_frame_out_fps_max) {
 				if (frame_sts.vrr_frame_outof_range_cnt == vrr_outof_rge_cnt)
 					ret = false;
@@ -648,7 +684,17 @@ void frame_lock_disable_vrr(bool en)
 	aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE, &vdata);
 	vlock_set_sts_by_frame_lock(true);
 }
+#endif
 
+void vrr_check_dec(unsigned int state)
+{
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (!state && frame_lock_vrr_lock_status())
+		frame_lock_disable_vrr(false);
+#endif
+}
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vframe_s *vf)
 {
 	int ret = FRAMELOCK_VLOCK;
@@ -659,6 +705,7 @@ u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vfr
 		return FRAMELOCK_VLOCK;
 
 	if (frame_lock_chk_is_small_win(cur_video_sts, vinfo)) {
+		vrr_skip_frame_cnt = 15;
 		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
 			framelock_pr_info("%s small window, VRR disable!!!\n",
 			__func__);
@@ -666,9 +713,21 @@ u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vfr
 		return FRAMELOCK_VLOCK;
 	}
 
+	if (!vrr_dec_state) {
+		vrr_skip_frame_cnt = 15;
+		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
+			framelock_pr_info("stop decoder\n");
+		return FRAMELOCK_VLOCK;
+	}
+
 	frame_sts.vrr_frame_cur = frame_lock_check_input_hz(vf);
 
-	if (vf->vf_vrr_param.qms_en || vf->vf_vrr_param.qms_plus_en) {
+	if (vinfo->fr_adj_type == VOUT_FR_ADJ_NONE ||
+		vinfo->fr_adj_type == VOUT_FR_ADJ_HDMI) {
+		ret = FRAMELOCK_VLOCK;
+		vrr_skip_frame_cnt = 15;
+		hdr_low_latency = 0;
+	} else if (vf->vf_vrr_param.qms_en || vf->vf_vrr_param.qms_plus_en) {
 		ret = FRAMELOCK_NOLOCK;
 		vrr_skip_frame_cnt = 15;
 		hdr_low_latency = 0;
@@ -676,7 +735,8 @@ u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vfr
 		ret = FRAMELOCK_VLOCK;
 		vrr_skip_frame_cnt = 15;
 		hdr_low_latency = 0;
-	} else if (frame_sts.vrr_en || (vf->flag & VFRAME_FLAG_GAME_MODE)) {
+	} else if ((frame_sts.vrr_en || (vf->flag & VFRAME_FLAG_GAME_MODE)) &&
+		vrr_priority == 1) {
 		if (frame_lock_frame_rate_check(vf, vinfo) &&
 			frame_sts.vrr_frame_outof_range_cnt < vrr_outof_rge_cnt &&
 			vrr_skip_frame_cnt == 0 && frame_sts.vrr_frame_cur != 0) {
@@ -764,7 +824,6 @@ unsigned int game_mode_low_latency(void)
 void vrrlock_process(struct vframe_s *vf,
 		   struct vpp_frame_par_s *cur_video_sts, u16 line)
 {
-	u16 vrr_en = frame_sts.vrr_en;
 	u32 cur_frame_rate = frame_sts.vrr_frame_cur;
 	struct vrr_notifier_data_s vdata;
 	struct vinfo_s *vinfo = NULL;
@@ -799,7 +858,15 @@ void vrrlock_process(struct vframe_s *vf,
 			framelock_pr_info("%s 50/100hz vdata.line_dly:%d\n",
 				__func__, vdata.line_dly);
 	} else {
-		if (vf->compWidth * 9 == vf->compHeight * 16) {
+		if (vf->compWidth == 2560 && vf->compHeight == 1440 &&
+			((frame_sts.vrr_frame_cur == 60 && !frame_sts.vrr_policy) ||
+			vf->vf_vrr_param.vin_base_fps == 60)) {
+			vdata.line_dly = vrr_delay_line + line + 50;
+		} else if (vf->compWidth == 1280 && vf->compHeight == 768 &&
+			((frame_sts.vrr_frame_cur == 60 && !frame_sts.vrr_policy) ||
+			vf->vf_vrr_param.vin_base_fps == 60)) {
+			vdata.line_dly = vrr_delay_line + line + 50;
+		} else if (vf->compWidth * 9 == vf->compHeight * 16) {
 			if (vf->compWidth == 1280 && vf->compHeight == 720)
 				vdata.line_dly = vrr_delay_line + line + 50;
 			else
@@ -819,7 +886,7 @@ void vrrlock_process(struct vframe_s *vf,
 		}
 	}
 
-	if (vrr_en) {
+	if (frame_sts.vrr_en || (vf->flag & VFRAME_FLAG_GAME_MODE)) {
 		frame_lock_calc_lcnt_variance_val(vf);
 
 		if (frame_sts.vrr_switch_off) {
@@ -842,17 +909,12 @@ void vrrlock_process(struct vframe_s *vf,
 			}
 		} else if (vrr_display_mode_chg_cmd == 0) {
 			if (frame_sts.vrr_frame_sts != frame_sts.vrr_frame_pre_sts ||
-					vdata.line_dly != vrr_delay_line_pre ||
-					(!frame_sts.vrr_lfc_mode && lfc_mode_pre == 1)) {
+				vdata.line_dly != vrr_delay_line_pre ||
+				(!frame_sts.vrr_lfc_mode && lfc_mode_pre == 1) ||
+				!frame_lock_vrr_lock_status()) {
 				if (frame_sts.vrr_frame_sts == FRAMELOCK_VRRLOCK) {
-					if (freesync_vsif_data.freesync_max_fps != 0 &&
-						freesync_vsif_data.freesync_max_fps !=
-						vinfo->sync_duration_num) {
-						frame_lock_disable_vrr(false);
-					} else {
-						vlock_set_sts_by_frame_lock(false);
-						frame_lock_vrr_ctrl(true, &vdata);
-					}
+					vlock_set_sts_by_frame_lock(false);
+					frame_lock_vrr_ctrl(true, &vdata);
 				} else {
 					frame_lock_vrr_ctrl(false, &vdata);
 					vlock_set_sts_by_frame_lock(true);
@@ -951,6 +1013,7 @@ void frame_lock_process(struct vframe_s *vf,
 	}
 
 	if (!vf) {
+		vrr_skip_frame_cnt = 15;
 		vlock_set_disable();
 		if (frame_lock_vrr_lock_status())
 			frame_lock_disable_vrr(false);
@@ -1078,6 +1141,16 @@ bool vrr_small_window(void)
 	bool ret = false;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	ret = frame_sts.vrr_small_window;
+#endif
+
+	return ret;
+}
+
+bool vrr_hdr_latency(void)
+{
+	bool ret = false;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	ret = hdr_low_latency;
 #endif
 
 	return ret;

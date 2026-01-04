@@ -870,8 +870,7 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 					    devp->vdin_std_duration < devp->vrr_frame_rate_min) ||
 					   (devp->vinfo_std_duration >
 					    (devp->vdin_std_duration + 2) &&
-					    !(devp->dtdata->hw_ver == VDIN_HW_T6X ||
-					    devp->dtdata->hw_ver == VDIN_HW_T3X))) {
+					    !vrr_hdr_latency())) {
 					devp->game_mode = (VDIN_GAME_MODE_0 |
 						VDIN_GAME_MODE_1);
 				} else {
@@ -1954,6 +1953,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	vf_pool_init(devp->vfp, devp->vfp->size);
 	//vdin_game_mode_check(devp);
 	vdin_frame_lock_check(devp, 1);
+	vrr_check_dec(1);
 	vdin_vf_init(devp);
 	/* config dolby mem base */
 	if (devp->hw_core == VDIN_HW_CORE_NORMAL)

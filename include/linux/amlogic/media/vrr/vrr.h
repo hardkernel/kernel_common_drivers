@@ -51,6 +51,10 @@ struct vrr_notifier_data_s {
 	unsigned int vrr_policy; /* 0:fix fps as vlock, 1:dynamic fps */
 	unsigned int vrr_priority; /* 1:vrr instead vlock do low latency */
 	u32 qms_en;
+	unsigned int vrr_panel_max;
+	unsigned int vrr_panel_min;
+	unsigned int rx_vfreq_max;
+	unsigned int rx_vfreq_min;
 };
 
 /* **********************************
@@ -150,5 +154,7 @@ u16 dst_w, u16 dst_h, u16 type);
 struct aml_vrr_drv_s *aml_vrr_drv_active_sel(void);
 unsigned int vrr_instead_vlock(void);
 bool vrr_small_window(void);
+void vrr_check_dec(unsigned int state);
+bool vrr_hdr_latency(void);
 
 #endif
