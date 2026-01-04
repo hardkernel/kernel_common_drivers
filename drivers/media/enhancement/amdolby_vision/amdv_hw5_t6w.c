@@ -2648,11 +2648,11 @@ void dump_lut_t6w(void)
 			if (i == 0)/*discard last data*/
 				READ_VPP_DV_REG(T6W_DOLBY5_CORE1_ICSCLUT_RDDATA);
 			if (i >= 1)
-				pr_dv_dbg("top1: ICSC[%d]: %x",
+				pr_d_log(1, "top1: ICSC[%d]: %x",
 					i - 1, READ_VPP_DV_REG(T6W_DOLBY5_CORE1_ICSCLUT_RDDATA));
 			if (i == 594) {
 				WRITE_VPP_DV_REG(T6W_DOLBY5_CORE1_ICSCLUT_RDADDR, i);
-				pr_dv_dbg("top1: ICSC[%d]: %x",
+				pr_d_log(1, "top1: ICSC[%d]: %x",
 					i, READ_VPP_DV_REG(T6W_DOLBY5_CORE1_ICSCLUT_RDDATA));
 			}
 		}
@@ -2666,11 +2666,11 @@ void dump_lut_t6w(void)
 			if (i == 0)/*discard last data*/
 				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_ICSCLUT_RDDATA);
 			if (i >= 1)
-				pr_dv_dbg("ICSC[%d]: %x",
+				pr_d_log(1, "ICSC[%d]: %x",
 					i - 1, READ_VPP_DV_REG(T6W_DOLBY5_CORE2_ICSCLUT_RDDATA));
 			if (i == 594) {
 				WRITE_VPP_DV_REG(T6W_DOLBY5_CORE2_ICSCLUT_RDADDR, i);
-				pr_dv_dbg("ICSC[%d]: %x",
+				pr_d_log(1, "ICSC[%d]: %x",
 					i, READ_VPP_DV_REG(T6W_DOLBY5_CORE2_ICSCLUT_RDDATA));
 			}
 		}
@@ -2680,11 +2680,11 @@ void dump_lut_t6w(void)
 			if (i == 0)
 				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_OCSCLUT_RDDATA);/*discard last*/
 			if (i >= 1)
-				pr_dv_dbg("OCSC[%d]: %x",
+				pr_d_log(1, "OCSC[%d]: %x",
 					i - 1, READ_VPP_DV_REG(T6W_DOLBY5_CORE2_OCSCLUT_RDDATA));
 			if (i == 128) {
 				WRITE_VPP_DV_REG(T6W_DOLBY5_CORE2_OCSCLUT_RDADDR, i);
-				pr_dv_dbg("OCSC[%d]: %x",
+				pr_d_log(1, "OCSC[%d]: %x",
 					i, READ_VPP_DV_REG(T6W_DOLBY5_CORE2_OCSCLUT_RDDATA));
 			}
 		}
@@ -2694,11 +2694,11 @@ void dump_lut_t6w(void)
 			if (i == 0)
 				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CVM_TAILUT_RDDATA);/*discard last*/
 			if (i >= 1)
-				pr_dv_dbg("CVM TAI[%d]: %x",
+				pr_d_log(1, "CVM TAI[%d]: %x",
 					i - 1, READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CVM_TAILUT_RDDATA));
 			if (i == 512) {
 				WRITE_VPP_DV_REG(T6W_DOLBY5_CORE2_CVM_TAILUT_RDDATA, i);
-				pr_dv_dbg("CVM TAI[%d]: %x",
+				pr_d_log(1, "CVM TAI[%d]: %x",
 					i, READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CVM_TAILUT_RDDATA));
 			}
 		}
@@ -2707,14 +2707,14 @@ void dump_lut_t6w(void)
 			if (i == 0)
 				READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CVM_SMILUT_RDDATA);
 			if (i >= 1)
-				pr_dv_dbg("CVM SMI[%d]: %x",
+				pr_d_log(1, "CVM SMI[%d]: %x",
 				i - 1, READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CVM_SMILUT_RDDATA));
 			if (i == 512) {
 				WRITE_VPP_DV_REG(T6W_DOLBY5_CORE2_CVM_SMILUT_RDADDR, i);
-				pr_dv_dbg("CVM SMI[%d]: %x",
+				pr_d_log(1, "CVM SMI[%d]: %x",
 				i, READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CVM_SMILUT_RDDATA));
 			}
-			pr_dv_dbg("CVM SMI[%d]: %x",
+			pr_d_log(1, "CVM SMI[%d]: %x",
 				i, READ_VPP_DV_REG(T6W_DOLBY5_CORE2_CVM_SMILUT_RDDATA));
 		}
 	}
@@ -2735,41 +2735,41 @@ void dump_pyr_up(void)
 	data_size = top_info.up_buf[0].pyup_size;
 
 	/*for 480x270*/
-	pr_info("dump pyr_up line 0\n");
+	pr_d_log(1, "dump pyr_up line 0\n");
 	for (i = 0; i < 1440; i += 3) {/*480*3*/
 		data_addr_16_1 = ((data_addr[i + 1] & 0xf) << 8) | data_addr[i];/*12bit*/
 		data_addr_16_2 = (data_addr[i + 2] << 4) | (data_addr[i + 1] >> 4);/*12bit*/
-		pr_info("%x %x\n", data_addr_16_1, data_addr_16_2);
+		pr_d_log(1, "%x %x\n", data_addr_16_1, data_addr_16_2);
 	}
-	pr_info("dump pyr_up line 1\n");
+	pr_d_log(1, "dump pyr_up line 1\n");
 	for (i = 1472; i < 1472 + 1440; i += 3) {
 		data_addr_16_1 = ((data_addr[i + 1] & 0xf) << 8) | data_addr[i];
 		data_addr_16_2 = (data_addr[i + 2] << 4) | (data_addr[i + 1] >> 4);
-		pr_info("%x %x\n", data_addr_16_1, data_addr_16_2);
+		pr_d_log(1, "%x %x\n", data_addr_16_1, data_addr_16_2);
 	}
-	pr_info("dump pyr_up line 2\n");
+	pr_d_log(1, "dump pyr_up line 2\n");
 	for (i = 1472 * 2; i < 1472 * 2 + 1440; i += 3) {
 		data_addr_16_1 = ((data_addr[i + 1] & 0xf) << 8) | data_addr[i];
 		data_addr_16_2 = (data_addr[i + 2] << 4) | (data_addr[i + 1] >> 4);
-		pr_info("%x %x\n", data_addr_16_1, data_addr_16_2);
+		pr_d_log(1, "%x %x\n", data_addr_16_1, data_addr_16_2);
 	}
-	pr_info("dump pyr_up line 100\n");
+	pr_d_log(1, "dump pyr_up line 100\n");
 	for (i = 1472 * 100; i < 1472 * 100 + 1440; i += 3) {
 		data_addr_16_1 = ((data_addr[i + 1] & 0xf) << 8) | data_addr[i];
 		data_addr_16_2 = (data_addr[i + 2] << 4) | (data_addr[i + 1] >> 4);
-		pr_info("%x %x\n", data_addr_16_1, data_addr_16_2);
+		pr_d_log(1, "%x %x\n", data_addr_16_1, data_addr_16_2);
 	}
-	pr_info("dump pyr_up line 268\n");
+	pr_d_log(1, "dump pyr_up line 268\n");
 	for (i = 1472 * 268; i < 1472 * 268 + 1440; i += 3) {
 		data_addr_16_1 = ((data_addr[i + 1] & 0xf) << 8) | data_addr[i];
 		data_addr_16_2 = (data_addr[i + 2] << 4) | (data_addr[i + 1] >> 4);
-		pr_info("%x %x\n", data_addr_16_1, data_addr_16_2);
+		pr_d_log(1, "%x %x\n", data_addr_16_1, data_addr_16_2);
 	}
-	pr_info("dump pyr_up line 269\n");
+	pr_d_log(1, "dump pyr_up line 269\n");
 	for (i = 1472 * 269; i < 1472 * 269 + 1440; i += 3) {
 		data_addr_16_1 = ((data_addr[i + 1] & 0xf) << 8) | data_addr[i];
 		data_addr_16_2 = (data_addr[i + 2] << 4) | (data_addr[i + 1] >> 4);
-		pr_info("%x %x\n", data_addr_16_1, data_addr_16_2);
+		pr_d_log(1, "%x %x\n", data_addr_16_1, data_addr_16_2);
 	}
 #endif
 }
@@ -3147,9 +3147,9 @@ void cfg_dolby_ini(struct prm_dolby_top *prm_dolby, struct dpss_info_s *dpss_inf
 	prm_dolby->byps_mode           = 0;//1:core_byps 2:wrap_byps
 	prm_dolby->mosaic_mode         = 0;
 	if (dpss_info) {/*dpss init*/
-		prm_dolby->dolby5_mode         = DOLBY5_DPSS_MODE;
+		prm_dolby->dolby5_mode = DOLBY5_DPSS_MODE;
 		if (is_aml_t6x() && enable_2ppc)
-			prm_dolby->dolby5_mode         = DOLBY5_DPSS_MODE_2PPC;
+			prm_dolby->dolby5_mode = DOLBY5_DPSS_MODE_2PPC;
 		prm_dolby->core2_slice_num     = dpss_info->slice_num;
 		prm_dolby->core2_pad_mode      = dpss_info->pad_mode;//0:nonr+noaa,1:aa 2:nr+aa
 		prm_dolby->frm_hsize_sel       = dpss_info->frm_hsize_sel;
@@ -3446,9 +3446,6 @@ void cfg_dolby_pre_set(struct prm_dolby_top *prm_dolby)
 
 		//VSYNC_WR_DV_REG(VPU_RDARB_MODE_L2C1, 0);//modify in uboot
 		if (prm_dolby) {
-			if (debug_dolby & 0x80000)
-				pr_info("pre set path\n");
-
 			cfg_dolby_path(prm_dolby);
 			prm_dolby->fst_frm_ini = 0;
 			if (prm_dolby->dolby5_mode == DOLBY5_DPSS_MODE ||

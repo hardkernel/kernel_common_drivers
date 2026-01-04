@@ -1275,8 +1275,8 @@ static void update_vsvdb_to_rx(void)
 
 	if (memcmp(&current_vsvdb[0], p, sizeof(current_vsvdb))) {
 		memcpy(&current_vsvdb[0], p, sizeof(current_vsvdb));
-		pr_info("%s: %d %d %d %d %d %d %d\n",
-			__func__, p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
+		pr_info("update vsvdb: %d %d %d %d %d %d %d\n",
+			p[0], p[1], p[2], p[3], p[4], p[5], p[6]);
 	}
 }
 
@@ -1353,12 +1353,12 @@ void update_cp_cfg_hw5(bool update_pyramid, bool is_top1, bool enable)
 	int i = 0;
 
 	if (debug_dolby & 0x80000)
-		pr_dv_dbg("%s %d\n", __func__, is_top1);
+		pr_dv_dbg("update_cp_cfg hw5 %d\n", is_top1);
 
 	if (cur_pic_mode >= num_picture_mode || num_picture_mode == 0 ||
 		!bin_to_cfg_dvp) {
-		pr_info("%s, invalid para %d/%d, bin_to_cfg %p",
-			__func__, cur_pic_mode, num_picture_mode, bin_to_cfg_dvp);
+		pr_info("invalid para %d/%d, bin_to_cfg %p",
+			cur_pic_mode, num_picture_mode, bin_to_cfg_dvp);
 		return;
 	}
 	if (is_top1) {
@@ -1418,15 +1418,15 @@ void update_cp_cfg(void)
 			/*cfg pd off: top2 cfg update with top1*/
 			update_cp_cfg_hw5(false, false, false);
 		} else {/*cfg pd on:delay update top2 cfg after top1_enable*/
-			update_cp_cfg_hw5(false, true, false);/*update for top1*/
+			update_cp_cfg_hw5(false, true, false);/*only update for top1*/
 			update_top2_cfg = true;
 		}
 		return;
 	}
 	if (cur_pic_mode >= num_picture_mode || num_picture_mode == 0 ||
 	    !bin_to_cfg) {
-		pr_info("%s, invalid para %d/%d, bin_to_cfg %p",
-			__func__, cur_pic_mode, num_picture_mode, bin_to_cfg);
+		pr_info("invalid para %d/%d, bin_to_cfg %p",
+			cur_pic_mode, num_picture_mode, bin_to_cfg);
 		return;
 	}
 
@@ -1480,9 +1480,7 @@ void update_ambient_lightsense(struct ambient_cfg_s *p_ambient)
 	if (cur_pic_mode == 0 ||
 		cur_pic_mode == 2 ||
 		apo_value.content_type == 1) {
-		if (debug_dolby & 0x200)
-			pr_dv_dbg("not support lightsense, cur_pic_mode %d, content_type %d\n",
-				cur_pic_mode, apo_value.content_type);
+		/*not support lightsense*/
 		cfg_info[cur_pic_mode].light_sense = 0;
 	}
 
@@ -1497,8 +1495,8 @@ void update_ambient_lightsense(struct ambient_cfg_s *p_ambient)
 	print_flag |= (p_ambient->t_rearLum - last_real_lum > 1000) ? 2 : 0;
 
 	if ((debug_dolby & 0x200) && print_flag)
-		pr_dv_dbg("%s: frontLux %d, last frontLux %d, rearLum %d, last rearLum %d\n",
-			__func__, p_ambient->t_frontLux, last_front_lux,
+		pr_dv_dbg("frontLux %d %d, rearLum %d %d\n",
+			p_ambient->t_frontLux, last_front_lux,
 			p_ambient->t_rearLum, last_real_lum);
 	last_front_lux = p_ambient->t_frontLux;
 	last_real_lum = p_ambient->t_rearLum;
@@ -1522,8 +1520,8 @@ void update_ambient_lightsense_hw5(struct dynamic_cfg_s *p_ambient)
 	print_flag |= (p_ambient->t_rearLum - last_real_lum > 1000) ? 2 : 0;
 
 	if ((debug_dolby & 0x200) && print_flag)
-		pr_dv_dbg("%s: frontLux %d, last frontLux %d, rearLum %d, last rearLum %d\n",
-			__func__, p_ambient->t_frontLux, last_front_lux,
+		pr_dv_dbg("frontLux %d %d, rearLum %d %d\n",
+			p_ambient->t_frontLux, last_front_lux,
 			p_ambient->t_rearLum, last_real_lum);
 	last_front_lux = p_ambient->t_frontLux;
 	last_real_lum = p_ambient->t_rearLum;
@@ -1930,7 +1928,7 @@ static int load_bin_by_name(char *fw_name)
 	dev = get_amdv_device();
 
 	if (!fw_name || !dev) {
-		pr_dv_dbg("NULL param, %s (%d)\n", __func__, __LINE__);
+		pr_dv_dbg("load bin NULL param\n");
 		return -EINVAL;
 	}
 
@@ -2006,7 +2004,7 @@ static int load_cfg_by_name(char *fw_name)
 	dev = get_amdv_device();
 
 	if (!fw_name || !dev) {
-		pr_dv_dbg("NULL param, %s (%d)\n", __func__, __LINE__);
+		pr_dv_dbg("load cfg NULL param\n");
 		return -EINVAL;
 	}
 
@@ -2069,7 +2067,7 @@ int load_user_cfg_by_name(char *fw_name)
 	dev = get_amdv_device();
 
 	if (!fw_name || !dev) {
-		pr_dv_dbg("NULL param, %s (%d)\n", __func__, __LINE__);
+		pr_dv_dbg("load user cfg NULL param\n");
 		return -EINVAL;
 	}
 
@@ -2227,7 +2225,7 @@ bool load_dv_pq_config_data(char *bin_path, char *txt_path)
 	filp = filp_open(bin_path, O_RDONLY, 0444);
 	if (IS_ERR(filp)) {
 		ret = false;
-		pr_info("[%s] failed to open file: |%s|\n", __func__, bin_path);
+		pr_info("failed to open file: |%s|\n", bin_path);
 		goto LOAD_END;
 	}
 
@@ -2268,7 +2266,7 @@ bool load_dv_pq_config_data(char *bin_path, char *txt_path)
 	pos = 0;
 	if (IS_ERR(filp_txt)) {
 		ret = false;
-		pr_info("[%s] failed to open file: |%s|\n", __func__, txt_path);
+		pr_info("failed to open file: |%s|\n", txt_path);
 		filp_close(filp, NULL);
 		goto LOAD_END;
 	} else {
@@ -2421,8 +2419,8 @@ static s16 map_pq_inter_to_exter
 		(tmp - inter_pq_min) * exter_range / inter_range;
 
 	if (debug_dolby & 0x200)
-		pr_info("%s: %s [%d]->[%d]\n",
-			__func__, pq_item_str[pq_item],
+		pr_info("update %s [%d]->[%d]\n",
+			pq_item_str[pq_item],
 			inter_value, exter_value);
 	return exter_value;
 }
@@ -2471,8 +2469,8 @@ static s32 map_pq_exter_to_inter
 		(tmp - exter_pq_min) * inter_range / exter_range;
 
 	if (debug_dolby & 0x200)
-		pr_info("%s: %s [%d]->[%d]\n",
-			__func__, pq_item_str[pq_item],
+		pr_info("update %s [%d]->[%d]\n",
+			pq_item_str[pq_item],
 			exter_value, inter_value);
 	return inter_value;
 }
@@ -2584,8 +2582,8 @@ s16 get_single_pq_value(int mode, enum pq_item_e item)
 		return exter_value;
 
 	if (debug_dolby & 0x200)
-		pr_info("%s: mode:%d, item:%s, [inter: %d, exter: %d]\n",
-			__func__, mode, pq_item_str[item],
+		pr_info("mode:%d, item:%s, [inter: %d, exter: %d]\n",
+			mode, pq_item_str[item],
 			inter_value, exter_value);
 	return exter_value;
 }
@@ -2617,7 +2615,6 @@ struct dv_full_pq_info_s get_full_pq_value(int mode)
 	full_pq_info.saturation = exter_value;
 
 	if (debug_dolby & 0x200) {
-		pr_info("----------%s: mode:%d-----------\n", __func__, mode);
 		pr_info("%s: value[inter: %d, exter: %d]\n",
 			pq_item_str[PQ_BRIGHTNESS],
 			cfg_info[mode].brightness,
@@ -2684,8 +2681,8 @@ void set_single_pq_value(int mode, enum pq_item_e item, s16 value)
 			}
 			inter_value = map_pq_exter_to_inter(item, exter_value);
 			if (debug_dolby & 0x200) {
-				pr_info("%s: mode:%d, item:%s, [inter:%d, exter:%d]\n",
-					__func__, mode, pq_item_str[item],
+				pr_info("set mode:%d, item:%s, [inter:%d, exter:%d]\n",
+					mode, pq_item_str[item],
 					inter_value, exter_value);
 			}
 		} else {
@@ -2702,8 +2699,8 @@ void set_single_pq_value(int mode, enum pq_item_e item, s16 value)
 			}
 			if (debug_dolby & 0x200) {
 				exter_value = map_pq_inter_to_exter(item, inter_value);
-				pr_info("%s: mode:%d, item:%s, [inter:%d, exter:%d]\n",
-					__func__, mode, pq_item_str[item],
+				pr_info("set mode:%d, item:%s, [inter:%d, exter:%d]\n",
+					mode, pq_item_str[item],
 					inter_value, exter_value);
 			}
 		}
@@ -2733,7 +2730,6 @@ void set_single_pq_value(int mode, enum pq_item_e item, s16 value)
 			}
 			break;
 		default:
-			pr_err("err pq_item %d\n", item);
 			break;
 		}
 	}
@@ -2854,7 +2850,7 @@ void set_full_pq_value(struct dv_full_pq_info_s full_pq_info)
 	update_cp_cfg();
 
 	if (debug_dolby & 0x200) {
-		pr_info("----------%s: mode:%d----------\n", __func__, mode);
+		pr_info(" mode:%d----------\n", mode);
 		exter_value = map_pq_inter_to_exter(PQ_BRIGHTNESS,
 						    cfg_info[mode].brightness);
 		pr_info("%s: [inter:%d, exter:%d]\n",
@@ -3110,7 +3106,7 @@ int set_dv_pq_info(const char *buf, size_t count)
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 
-	pr_info("%s: cmd: %s\n", __func__, buf_orig);
+	pr_info("set amdv pq: %s\n", buf_orig);
 	parse_param_amdv(buf_orig, (char **)&parm);
 	if (!parm[0] || !parm[1]) {
 		ret = -EINVAL;
@@ -3832,10 +3828,8 @@ int load_reg_and_lut_file(char *fw_name, void **dst_buf)
 
 	dev = get_amdv_device();
 
-	if (!fw_name || !dev) {
-		pr_dv_dbg("NULL param, %s (%d)\n", __func__, __LINE__);
+	if (!fw_name || !dev)
 		return -EINVAL;
-	}
 
 	/*remove directory, only need file name*/
 	tmp = strrchr(fw_name, '/');
@@ -3852,12 +3846,12 @@ int load_reg_and_lut_file(char *fw_name, void **dst_buf)
 
 	ret = request_firmware(&fw, amdv_name, dev);
 	if (ret < 0) {
-		pr_dv_dbg("Error : %d can't load the %s.\n", ret, amdv_name);
+		pr_d_log(1, "Error : %d can't load the %s.\n", ret, amdv_name);
 		return -ENOENT;
 	}
 
 	if (fw->size <= 0) {
-		pr_dv_dbg("size error, wrong firmware or no enough mem.\n");
+		pr_d_log(1, "size error, wrong firmware or no enough mem.\n");
 		ret = -ENOMEM;
 		goto release;
 	}
@@ -3891,11 +3885,9 @@ static bool read_one_line(char **text_buf, char *line_buf)
 
 	line_buf[0] = '\0';
 	while (*line_buf == '\0') {
-		if (debug_dolby & 0x20)
-			pr_info("*text_buf: %s\n", *text_buf);
+		pr_d_log(0x20, "*text_buf: %s\n", *text_buf);
 		line_end = strnchr(*text_buf, 128, '\n');
-		if (debug_dolby & 0x20)
-			pr_info("line_end: %s\n", line_end);
+		pr_d_log(0x20, "line_end: %s\n", line_end);
 		if (!line_end) {
 			line_len = strlen(*text_buf);
 			eof_flag = true;

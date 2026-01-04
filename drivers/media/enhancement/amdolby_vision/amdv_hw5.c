@@ -195,7 +195,7 @@ void dump_pyramid_buf(unsigned int idx)
 	int i;
 
 	if (idx < 1 || idx > 7) {
-		pr_info("pyramid index error : %d\n", idx);
+		pr_d_log(1, "pyramid index error : %d\n", idx);
 		return;
 	}
 	for (i = 0; i < 2; i++) {
@@ -235,14 +235,14 @@ void dump_pyramid_buf(unsigned int idx)
 		snprintf(name_buf, sizeof(name_buf), "/mnt/pyramid_%d_%d.yuv", idx, i);
 		fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 		if (IS_ERR(fp)) {
-			pr_info("%s: fp dump failed.\n", __func__);
+			pr_d_log(1, "%s: fp dump failed.\n", __func__);
 			return;
 		}
 
 		pos = fp->f_pos;
 		kernel_write(fp, data_addr, data_size, &pos);
 		fp->f_pos = pos;
-		pr_info("%s: write %d, %u size.\n", __func__, idx, data_size);
+		pr_d_log(1, "%s: write %d, %u size.\n", __func__, idx, data_size);
 		filp_close(fp, NULL);
 	}
 #else
@@ -293,7 +293,7 @@ void dump_pyramid_buf(unsigned int idx)
 		default:
 			break;
 		}
-		pr_info("py %d, size %d\n", idx, data_size);
+		pr_d_log(1, "py %d, size %d\n", idx, data_size);
 		if (data_size > 1280)
 			data_size = 1280;
 		if (idx < 4) { /*no stride*/
@@ -306,13 +306,13 @@ void dump_pyramid_buf(unsigned int idx)
 				data_addr_16_3 = (temp << 4) | ((data_addr[i + 2] & 0xf0) >> 4);
 				temp = data_addr[i + 4];
 				data_addr_16_4 = (temp << 2) | (data_addr[i + 3] >> 6);
-				pr_info("%x\n", data_addr_16_1);
-				pr_info("%x\n", data_addr_16_2);
-				pr_info("%x\n", data_addr_16_3);
-				pr_info("%x\n", data_addr_16_4);
+				pr_d_log(1, "%x\n", data_addr_16_1);
+				pr_d_log(1, "%x\n", data_addr_16_2);
+				pr_d_log(1, "%x\n", data_addr_16_3);
+				pr_d_log(1, "%x\n", data_addr_16_4);
 			}
 		} else if (idx == 4) {/*128*72*10/8 = 160 64byte align 192*72 = 13824*/
-			pr_info("line 1\n");
+			pr_d_log(1, "line 1\n");
 			for (i = 0; i < 160; i += 5) {/*5x8bit=>4x10bit*/
 				temp = data_addr[i + 1] & 0x3;
 				data_addr_16_1 = (temp << 8) | data_addr[i];
@@ -322,12 +322,12 @@ void dump_pyramid_buf(unsigned int idx)
 				data_addr_16_3 = (temp << 4) | ((data_addr[i + 2] & 0xf0) >> 4);
 				temp = data_addr[i + 4];
 				data_addr_16_4 = (temp << 2) | (data_addr[i + 3] >> 6);
-				pr_info("%x\n", data_addr_16_1);
-				pr_info("%x\n", data_addr_16_2);
-				pr_info("%x\n", data_addr_16_3);
-				pr_info("%x\n", data_addr_16_4);
+				pr_d_log(1, "%x\n", data_addr_16_1);
+				pr_d_log(1, "%x\n", data_addr_16_2);
+				pr_d_log(1, "%x\n", data_addr_16_3);
+				pr_d_log(1, "%x\n", data_addr_16_4);
 			}
-			pr_info("line 2\n");
+			pr_d_log(1, "line 2\n");
 			for (i = 192; i < 352; i += 5) {/*5x8bit=>4x10bit*/
 				temp = data_addr[i + 1] & 0x3;
 				data_addr_16_1 = (temp << 8) | data_addr[i];
@@ -337,14 +337,14 @@ void dump_pyramid_buf(unsigned int idx)
 				data_addr_16_3 = (temp << 4) | ((data_addr[i + 2] & 0xf0) >> 4);
 				temp = data_addr[i + 4];
 				data_addr_16_4 = (temp << 2) | (data_addr[i + 3] >> 6);
-				pr_info("%x\n", data_addr_16_1);
-				pr_info("%x\n", data_addr_16_2);
-				pr_info("%x\n", data_addr_16_3);
-				pr_info("%x\n", data_addr_16_4);
+				pr_d_log(1, "%x\n", data_addr_16_1);
+				pr_d_log(1, "%x\n", data_addr_16_2);
+				pr_d_log(1, "%x\n", data_addr_16_3);
+				pr_d_log(1, "%x\n", data_addr_16_4);
 			}
 		} else if (idx == 5) {/*64*36*10/8 = 80 64byte align 128*36 = 4608*/
 			for (j = 0; j < 10; j++) {
-				pr_info("line %d=====>\n", j);
+				pr_d_log(1, "line %d=====>\n", j);
 				start = j * 128;
 				for (i = start; i < start + 80; i += 5) {/*5x8bit=>4x10bit*/
 					temp = data_addr[i + 1] & 0x3;
@@ -356,15 +356,15 @@ void dump_pyramid_buf(unsigned int idx)
 						((data_addr[i + 2] & 0xf0) >> 4);
 					temp = data_addr[i + 4];
 					data_addr_16_4 = (temp << 2) | (data_addr[i + 3] >> 6);
-					pr_info("%x\n", data_addr_16_1);
-					pr_info("%x\n", data_addr_16_2);
-					pr_info("%x\n", data_addr_16_3);
-					pr_info("%x\n", data_addr_16_4);
+					pr_d_log(1, "%x\n", data_addr_16_1);
+					pr_d_log(1, "%x\n", data_addr_16_2);
+					pr_d_log(1, "%x\n", data_addr_16_3);
+					pr_d_log(1, "%x\n", data_addr_16_4);
 				}
 			}
 		} else if (idx == 6) {/*32*18*10/8 = 40 64byte align 64*18 = 1152*/
 			for (j = 0; j < 18; j++) {
-				pr_info("line %d=====>\n", j);
+				pr_d_log(1, "line %d=====>\n", j);
 				start = j * 64;
 				for (i = start; i < start + 40; i += 5) {/*5x8bit=>4x10bit*/
 					temp = data_addr[i + 1] & 0x3;
@@ -376,15 +376,15 @@ void dump_pyramid_buf(unsigned int idx)
 						((data_addr[i + 2] & 0xf0) >> 4);
 					temp = data_addr[i + 4];
 					data_addr_16_4 = (temp << 2) | (data_addr[i + 3] >> 6);
-					pr_info("%x\n", data_addr_16_1);
-					pr_info("%x\n", data_addr_16_2);
-					pr_info("%x\n", data_addr_16_3);
-					pr_info("%x\n", data_addr_16_4);
+					pr_d_log(1, "%x\n", data_addr_16_1);
+					pr_d_log(1, "%x\n", data_addr_16_2);
+					pr_d_log(1, "%x\n", data_addr_16_3);
+					pr_d_log(1, "%x\n", data_addr_16_4);
 				}
 			}
 		} else if (idx == 7) {/*16*9*10/8 = 20 64byte align 64*9 = 576*/
 			for (j = 0; j < 9; j++) {
-				pr_info("line %d=====>\n", j);
+				pr_d_log(1, "line %d=====>\n", j);
 				start = j * 64;
 				for (i = start; i < start + 20; i += 5) {/*5x8bit=>4x10bit*/
 					temp = data_addr[i + 1] & 0x3;
@@ -396,10 +396,10 @@ void dump_pyramid_buf(unsigned int idx)
 						((data_addr[i + 2] & 0xf0) >> 4);
 					temp = data_addr[i + 4];
 					data_addr_16_4 = (temp << 2) | (data_addr[i + 3] >> 6);
-					pr_info("%x\n", data_addr_16_1);
-					pr_info("%x\n", data_addr_16_2);
-					pr_info("%x\n", data_addr_16_3);
-					pr_info("%x\n", data_addr_16_4);
+					pr_d_log(1, "%x\n", data_addr_16_1);
+					pr_d_log(1, "%x\n", data_addr_16_2);
+					pr_d_log(1, "%x\n", data_addr_16_3);
+					pr_d_log(1, "%x\n", data_addr_16_4);
 				}
 			}
 		}
@@ -1476,7 +1476,7 @@ void enable_amdv_hw5(int enable)
 						/*to VADJ1 at 2slice*/
 						bypass_pps_sr_gamma_gainoff(4);
 						VSYNC_WR_DV_REG_BITS(T3X_VD_PROC_BYPASS_CTRL,
-							0, 1, 1);
+								0, 1, 1);
 					}
 					/* bypass all video effect */
 					video_effect_bypass(1);
@@ -1639,11 +1639,11 @@ void dump_lut(void)
 			if (i == 0)
 				READ_VPP_DV_REG(DOLBY5_CORE1_ICSCLUT_RDDATA);/*discard last data*/
 			if (i >= 1)
-				pr_dv_dbg("top1: ICSC[%d]: %x",
+				pr_d_log(1, "top1: ICSC[%d]: %x",
 					i - 1, READ_VPP_DV_REG(DOLBY5_CORE1_ICSCLUT_RDDATA));
 			if (i == 594) {
 				WRITE_VPP_DV_REG(DOLBY5_CORE1_ICSCLUT_RDADDR, i);
-				pr_dv_dbg("top1: ICSC[%d]: %x",
+				pr_d_log(1, "top1: ICSC[%d]: %x",
 					i, READ_VPP_DV_REG(DOLBY5_CORE1_ICSCLUT_RDDATA));
 			}
 		}
@@ -1657,11 +1657,11 @@ void dump_lut(void)
 			if (i == 0)
 				READ_VPP_DV_REG(DOLBY5_CORE2_ICSCLUT_RDDATA);/*discard last data*/
 			if (i >= 1)
-				pr_dv_dbg("ICSC[%d]: %x",
+				pr_d_log(1, "ICSC[%d]: %x",
 					i - 1, READ_VPP_DV_REG(DOLBY5_CORE2_ICSCLUT_RDDATA));
 			if (i == 594) {
 				WRITE_VPP_DV_REG(DOLBY5_CORE2_ICSCLUT_RDADDR, i);
-				pr_dv_dbg("ICSC[%d]: %x",
+				pr_d_log(1, "ICSC[%d]: %x",
 					i, READ_VPP_DV_REG(DOLBY5_CORE2_ICSCLUT_RDDATA));
 			}
 		}
@@ -1671,11 +1671,11 @@ void dump_lut(void)
 			if (i == 0)
 				READ_VPP_DV_REG(DOLBY5_CORE2_OCSCLUT_RDDATA);/*discard last*/
 			if (i >= 1)
-				pr_dv_dbg("OCSC[%d]: %x",
+				pr_d_log(1, "OCSC[%d]: %x",
 					i - 1, READ_VPP_DV_REG(DOLBY5_CORE2_OCSCLUT_RDDATA));
 			if (i == 128) {
 				WRITE_VPP_DV_REG(DOLBY5_CORE2_OCSCLUT_RDADDR, i);
-				pr_dv_dbg("OCSC[%d]: %x",
+				pr_d_log(1, "OCSC[%d]: %x",
 					i, READ_VPP_DV_REG(DOLBY5_CORE2_OCSCLUT_RDDATA));
 			}
 		}
@@ -1685,11 +1685,11 @@ void dump_lut(void)
 			if (i == 0)
 				READ_VPP_DV_REG(DOLBY5_CORE2_CVM_TAILUT_RDDATA);/*discard last*/
 			if (i >= 1)
-				pr_dv_dbg("CVM TAI[%d]: %x",
+				pr_d_log(1, "CVM TAI[%d]: %x",
 					i - 1, READ_VPP_DV_REG(DOLBY5_CORE2_CVM_TAILUT_RDDATA));
 			if (i == 512) {
 				WRITE_VPP_DV_REG(DOLBY5_CORE2_CVM_TAILUT_RDDATA, i);
-				pr_dv_dbg("CVM TAI[%d]: %x",
+				pr_d_log(1, "CVM TAI[%d]: %x",
 					i, READ_VPP_DV_REG(DOLBY5_CORE2_CVM_TAILUT_RDDATA));
 			}
 		}
@@ -1698,14 +1698,14 @@ void dump_lut(void)
 			if (i == 0)
 				READ_VPP_DV_REG(DOLBY5_CORE2_CVM_SMILUT_RDDATA);
 			if (i >= 1)
-				pr_dv_dbg("CVM SMI[%d]: %x",
+				pr_d_log(1, "CVM SMI[%d]: %x",
 				i - 1, READ_VPP_DV_REG(DOLBY5_CORE2_CVM_SMILUT_RDDATA));
 			if (i == 512) {
 				WRITE_VPP_DV_REG(DOLBY5_CORE2_CVM_SMILUT_RDADDR, i);
-				pr_dv_dbg("CVM SMI[%d]: %x",
+				pr_d_log(1, "CVM SMI[%d]: %x",
 				i, READ_VPP_DV_REG(DOLBY5_CORE2_CVM_SMILUT_RDDATA));
 			}
-			pr_dv_dbg("CVM SMI[%d]: %x",
+			pr_d_log(1, "CVM SMI[%d]: %x",
 				i, READ_VPP_DV_REG(DOLBY5_CORE2_CVM_SMILUT_RDDATA));
 		}
 	}
@@ -1925,7 +1925,6 @@ int tv_top2_set(u64 *reg_data,
 #if PYRAMID_SW_RST
 			if (enable_top1 && top2_info.py_level != PY_NO_LEVEL) {
 				VSYNC_WR_DV_REG_BITS(DOLBY_TOP2_CTRL0, 1, 0, 2);
-
 				pyrd_crtl = VSYNC_RD_DV_REG(DOLBY_TOP2_PYRD_CTRL);
 				pyrd_crtl &= 0xFFFFFFFC;
 				pyrd_crtl |= top2_info.py_level & 3;
@@ -2301,7 +2300,6 @@ int tv_top_set(u64 *top1_reg,
 
 	if (enable_top1) {
 		check_pr_enabled_in_setting();
-
 		/**************** handle cfg top1 off->on case***************/
 		if (py_enabled && !last_py_enabled && top2_info.core_on &&
 			top1_info.core_on_cnt <= 1) {

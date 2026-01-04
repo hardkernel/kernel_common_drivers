@@ -14,6 +14,18 @@
 #include <linux/types.h>
 #include "amdv_pq_config.h"
 
+#define ENABLE_MORE_PRINT 0
+#if ENABLE_MORE_PRINT
+#define pr_d_log(lvl, fmt, args...)\
+	do {\
+		if (debug_dolby & (lvl))\
+			pr_info("[%s](%d):" fmt, __func__, __LINE__, ## args);\
+	} while (0)
+#else
+#define pr_d_log(lvl, fmt, args...)\
+	do {} while (0)
+#endif
+
 #define DOLBY_VISION_LL_DISABLE		0
 #define DOLBY_VISION_LL_YUV422		1
 #define DOLBY_VISION_LL_RGB444		2
