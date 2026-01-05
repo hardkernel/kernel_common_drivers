@@ -500,6 +500,34 @@ static void ddr_control_remove(struct platform_device *pdev)
 {
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int ddr_params_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	ddr_control_shutdown(pdev);
+
+	return 0;
+}
+
+static int ddr_params_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct control_device *cdev;
+
+	cdev = platform_get_drvdata(pdev);
+	schedule_delayed_work(&cdev->poll_dwork,
+		msecs_to_jiffies(cdev->poll_time_ms));
+
+	return 0;
+}
+
+static const struct dev_pm_ops ddr_params_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(ddr_params_suspend,
+				ddr_params_resume)
+};
+#endif
+
 static const struct of_device_id control_of_match[] = {
 	{
 		.compatible = "amlogic, ddr-control",
@@ -511,6 +539,9 @@ struct platform_driver ddr_control_platdrv = {
 	.driver = {
 		.name           = "ddr-control",
 		.owner          = THIS_MODULE,
+#ifdef CONFIG_PM_SLEEP
+		.pm = &ddr_params_pm_ops,
+#endif
 		.of_match_table = control_of_match,
 	},
 	.probe  = ddr_control_probe,
