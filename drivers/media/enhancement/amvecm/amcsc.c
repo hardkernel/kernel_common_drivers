@@ -59,6 +59,7 @@
 #include <linux/amlogic/media/di/dpss_interface.h>
 #include "am_dma_ctrl.h"
 #include "arch/vpp_regs.h"
+#include "hdr/am_hdr10_tmo_fw.h"
 
 uint debug_csc;
 static int cur_mvc_type[VD_PATH_MAX];
@@ -11038,6 +11039,8 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 			pr_csc(1,
 				"am_vecm: vd%d: csc from 0x%x to 0x%x.\n",
 				vd_path + 1, cur_csc_type_dpss, csc_type);
+			if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB)
+				hdr_first_frame_flag_update();
 			cur_csc_type_dpss = csc_type;
 		}
 	}

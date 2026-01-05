@@ -231,7 +231,7 @@ struct aml_tmo_reg_sw tmo_reg = {
 	.tmo_highlight_y_clip_pos_high = 47,
 	.tmo_highlight_y_clip_pos_sup_high = 55,
 	.tmo_highlight_y_clip_en = 1,
-	.tmo_fcurv_low_th = 12,
+	.tmo_fcurv_low_th = 0,
 	.tmo_fcurv_mid1_th = 24,
 	.tmo_fcurv_mid2_th = 36,
 	.tmo_fcurv_high1_th = 48,
@@ -655,7 +655,7 @@ void hdr10_tmo_reg_ext_set(struct hdr_tmo_sw_ext *pre_tmo_reg_ext)
 	tmo_reg.tmo_highlight_y_clip_pos_sup_high =
 		pre_tmo_reg_ext->reg_highlight_y_clip_pos_sup_high;
 	tmo_reg.tmo_highlight_y_clip_en = pre_tmo_reg_ext->reg_highlight_y_clip_en;
-	tmo_reg.tmo_fcurv_low_th = pre_tmo_reg_ext->reg_fcurv_low_th;
+	//tmo_reg.tmo_fcurv_low_th = pre_tmo_reg_ext->reg_fcurv_low_th;
 	tmo_reg.tmo_fcurv_mid1_th = pre_tmo_reg_ext->reg_fcurv_mid1_th;
 	tmo_reg.tmo_fcurv_mid2_th = pre_tmo_reg_ext->reg_fcurv_mid2_th;
 	tmo_reg.tmo_fcurv_high1_th = pre_tmo_reg_ext->reg_fcurv_high1_th;
@@ -1190,6 +1190,18 @@ int check_hist_available(int *hist_hdr)
 	}
 
 	return ret;
+}
+
+void hdr_first_frame_flag_update(void)
+{
+	struct aml_tmo_reg_sw *pre_tmo_reg;
+
+	pre_tmo_reg = tmo_fw_param_get();
+	if (!(pre_tmo_reg->tmo_fcurv_low_th)) {
+		pre_tmo_reg->tmo_fcurv_low_th = 1;
+		pr_tmo_dbg("hdr first frame flag: tmo_fcurv_low_th = %x\n",
+			pre_tmo_reg->tmo_fcurv_low_th);
+	}
 }
 
 void hdr10_tmo_gen(u32 *oo_gain, u32 *cgain, u32 *oo_gain1)

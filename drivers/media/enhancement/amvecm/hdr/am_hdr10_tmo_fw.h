@@ -23,4 +23,5 @@ int set_hdr_tmo_reg(void);
 extern struct aml_hw_reg_s pq_hw_regs;
 int hdr_tmo_alg_dbg(char **parm);
 int hdr_tmo_alg_dbg_show(char *str);
+void hdr_first_frame_flag_update(void);
 #endif

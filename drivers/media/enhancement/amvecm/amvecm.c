@@ -4484,6 +4484,7 @@ int amvecm_on_vs(struct vframe_s *vf,
 			pr_amvecm_bringup_dbg("[on_vs] size_patch else done.\n");
 			vpp_demo_func(NULL, &vpq_size, vpp_index);
 			pr_amvecm_bringup_dbg("[on_vs] demo_func else done.\n");
+			hdr_first_frame_flag_update();
 		}
 		vf_state = cabc_add_hist_proc(NULL, &vpp_hist_param);
 		pr_amvecm_bringup_dbg("[on_vs] cabc_add done.\n");

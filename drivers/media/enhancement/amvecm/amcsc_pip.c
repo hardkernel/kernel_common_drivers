@@ -26,6 +26,7 @@
 #include "amve_v2.h"
 #include "hdr/am_hdr_sbtm.h"
 #include <linux/amlogic/media/di/dpss_interface.h>
+#include "hdr/am_hdr10_tmo_fw.h"
 
 static enum output_format_e target_format[VD_PATH_MAX];
 static enum hdr_type_e cur_source_format[VD_PATH_MAX];
@@ -4683,6 +4684,8 @@ mode_change:
 	if (cur_csc_type[vd_path] != csc_type) {
 		pr_csc(1, "am_vecm: vd%d: csc from 0x%x to 0x%x.\n",
 		       vd_path + 1, cur_csc_type[vd_path], csc_type);
+		if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB)
+			hdr_first_frame_flag_update();
 		cur_csc_type[vd_path] = csc_type;
 	}
 }
