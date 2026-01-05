@@ -3288,7 +3288,8 @@ void vdin_set_def_wr_canvas(struct vdin_dev_s *devp)
 	unsigned int def_canvas;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_s5_cpu() || is_meson_t6d_cpu())
+	if (is_meson_s5_cpu() || is_meson_t6d_cpu() ||
+		is_meson_t6w_cpu() || is_meson_t6x_cpu())
 		return;
 #endif
 
@@ -4109,9 +4110,11 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 #endif
 				wr_bits(0, VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN1_NOR,
 					MIF1_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+			if (devp->dtdata->hw_ver == VDIN_HW_T6X) {
+				/* vdin1 frm_end int enable */
+				wr_bits(0, VDIN_TOP_SIZE, 0x1, 26, 1);
+			}
 		}
-		if (devp->dtdata->hw_ver == VDIN_HW_T6X)
-			wr_bits(0, VDIN_TOP_SIZE, 0x1, 26, 1);
 	}
 
 	/* [15:14]     clkgate.bbar             = 0/(auto, off, on, on) */
@@ -4410,7 +4413,8 @@ void vdin_hw_disable(struct vdin_dev_s *devp)
 	/* [ 3: 0]  top.mux  = 0/(null, mpeg, 656, tvfe, cvd2, hdmi, dvin) */
 	wr_bits(offset, VDIN_COM_CTRL0, 0, VDIN_SEL_BIT, VDIN_SEL_WID);
 	wr(offset, VDIN_COM_CTRL0, 0x00000910);
-	if (devp->dtdata->hw_ver != VDIN_HW_T6D) {
+
+	if (!(devp->dtdata->hw_ver >= VDIN_HW_T6D && devp->dtdata->hw_ver <= VDIN_HW_T6X)) {
 		if (devp->enable_reset)
 			wr(offset, VDIN_WR_CTRL, 0x0b401000 | def_canvas);
 		else

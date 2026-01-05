@@ -911,14 +911,6 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		wr_viu(VPU_VIU2VDIN0_BUF_SIZE,
 			(devp->parm.v_active << 16) | (devp->parm.h_active << 0));
 
-		if (vinfo && vinfo_total_size > VDIN_LITE_CORE_MAX_PIXEL_CLOCK) {
-			wr_viu(VPP_WRBAK_HOLD_CTRL, 0);
-		} else {
-			wr_bits_viu(VPP_WRBAK_HOLD_CTRL, 1, 0, 1);
-			wr_bits_viu(VPP_WRBAK_HOLD_CTRL, 1, 8, 1);
-			wr_bits_viu(VPP_WRBAK_HOLD_CTRL, 1, 16, 1); //reduction of speed
-		}
-
 		if (devp->parm.over_pixel_clock)
 			wr_viu(VPU_VIU2VDIN_HDN_CTRL, (0x4420 << 16) | (devp->parm.h_active << 0));
 		else
@@ -1019,7 +1011,6 @@ static void viuin_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	//pr_info("%s %d Disable VIU to VDIN\n", __func__, __LINE__);
 	wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0);
 	wr_viu(VPU_VIU2VDIN0_BUF_SIZE, 0);
-	wr_viu(VPP_WRBAK_HOLD_CTRL, 0);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* txhd2 keystone path close */
 	if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu() || is_meson_t6w_cpu() ||
