@@ -30,6 +30,10 @@
 #include <linux/amlogic/aml_cma.h>
 #endif
 
+#define DEFAULT_SECURE_CUSTOM_ALLOC_MULTI_NUM (2)
+#define DEFAULT_SECURE_SCALING_FACTOR_NUMERATOR (3)
+#define DEFAULT_SECURE_SCALING_FACTOR_DENOMINATOR (2)
+
 static int dmabuf_manage_debug = 1;
 module_param(dmabuf_manage_debug, int, 0644);
 
@@ -40,6 +44,9 @@ static u32 secure_vdec_config = 0x7C;
 static u32 secure_buf_num_of_channel;
 static u32 secure_stand_heap_version;
 static u32 force_secmem_v3;
+static u32 secure_custom_size_alloc_multiple = DEFAULT_SECURE_CUSTOM_ALLOC_MULTI_NUM;
+static u32 secure_scaling_factor_numerator = DEFAULT_SECURE_SCALING_FACTOR_NUMERATOR;
+static u32 secure_scaling_factor_denominator = DEFAULT_SECURE_SCALING_FACTOR_DENOMINATOR;
 
 #define  DEVICE_NAME "secmem"
 #define  CLASS_NAME  "dmabuf_manage"
@@ -58,8 +65,9 @@ static u32 force_secmem_v3;
 #define pr_inf(fmt, args ...) dprintk(8, fmt, ## args)
 #define pr_enter() pr_inf("enter")
 
-#define SIZE_MB (1024 * 1024)
+#define UHD_SIZE_MB (12 * SZ_1M)
 #define ALLOC_ALIGN_SIZE (4096)
+#define SECMEM_ERROR_OUT_OF_MEMORY (0x1006)
 
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
 #define DMABUF_MANAGE_BLOCK_MIN_SIZE_KB				(256 * 1024)
@@ -1373,7 +1381,7 @@ static struct secure_pool_info *dmabuf_manage_get_secure_vdec_pool(u32 id_high,
 }
 
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
-static int dmabuf_manage_secure_v2_init(struct secure_pool_info *pool, u32 flags)
+static int dmabuf_manage_secure_v2_init(struct secure_pool_info *pool, u32 flags, u32 size)
 {
 	int res = 0;
 	u32 in_len = 0;
@@ -1411,6 +1419,10 @@ static int dmabuf_manage_secure_v2_init(struct secure_pool_info *pool, u32 flags
 		config |= (1 << 28);
 		config |= (1 << 8);
 		allocsize = pool->block_size * buf_num;
+	} else if (tvp_flag == 0x03) {
+		config |= (1 << 28);
+		config |= (1 << 8);
+		allocsize = size;
 	}
 
 	config |= (vd_index << 11);
@@ -1509,7 +1521,7 @@ error:
 	return res;
 }
 
-static int dmabuf_manage_secure_v3_init(struct secure_pool_info *pool, u32 flags)
+static int dmabuf_manage_secure_v3_init(struct secure_pool_info *pool, u32 flags, u32 size)
 {
 	int res = 0;
 	u32 in_len = 0;
@@ -1547,6 +1559,10 @@ static int dmabuf_manage_secure_v3_init(struct secure_pool_info *pool, u32 flags
 		config |= (1 << 28);
 		config |= (1 << 8);
 		allocsize = pool->block_size * buf_num;
+	} else if (tvp_flag == 0x03) {
+		config |= (1 << 28);
+		config |= (1 << 8);
+		allocsize = size;
 	}
 
 	config |= (vd_index << 11);
@@ -1653,6 +1669,8 @@ static int dmabuf_manage_secmem_pool_init(u32 id_high, u32 id_low, u32 block_siz
 	unsigned int tvp_set = 0;
 	unsigned int codec_flags = 0;
 	unsigned int vd_index = 1;
+	unsigned int custom_size = 0;
+	unsigned int i = 0;
 
 	if (version < SECURE_HEAP_USER_TA_VERSION)
 		goto error;
@@ -1668,10 +1686,13 @@ static int dmabuf_manage_secmem_pool_init(u32 id_high, u32 id_low, u32 block_siz
 	if (block_size <= DMABUF_MANAGE_BLOCK_MIN_SIZE_KB) {
 		codec_flags = 0x3;
 		codec_flags |= 0x8;
-	} else if (block_size <= 2 * SIZE_MB) {
+	} else if (block_size <= 2 * SZ_1M) {
 		tvp_set = 1;
-	} else {
+	} else if (block_size >= 6 * SZ_1M) {
 		tvp_set = 2;
+	} else {
+		tvp_set = 3;
+		custom_size = PAGE_ALIGN(block_size * secure_custom_size_alloc_multiple);
 	}
 
 	if (version >= SECURE_HEAP_STAND_POOL_VERSION)
@@ -1709,10 +1730,43 @@ static int dmabuf_manage_secmem_pool_init(u32 id_high, u32 id_low, u32 block_siz
 
 	if (force_secmem_v3 == 1) {
 		res = dmabuf_manage_secure_v3_init(pool,
-			tvp_set | (codec_flags << 4) | (vd_index << 9));
+			tvp_set | (codec_flags << 4) | (vd_index << 9), custom_size);
 	} else {
 		res = dmabuf_manage_secure_v2_init(pool,
-			tvp_set | (codec_flags << 4) | (vd_index << 9));
+			tvp_set | (codec_flags << 4) | (vd_index << 9), custom_size);
+	}
+
+	if (res == SECMEM_ERROR_OUT_OF_MEMORY) {
+		if (tvp_set == 2 || tvp_set == 3) {
+			if (tvp_set == 2) {
+				custom_size = UHD_SIZE_MB;
+				tvp_set = 3;
+			}
+
+			custom_size -= SZ_1M;
+		}
+
+		for (i = custom_size; i >= block_size *
+				secure_scaling_factor_numerator /
+				secure_scaling_factor_denominator;
+				i -= SZ_1M) {
+			if (force_secmem_v3 == 1) {
+				res = dmabuf_manage_secure_v3_init(pool,
+					tvp_set | (codec_flags << 4) | (vd_index << 9),
+					custom_size);
+			} else {
+				res = dmabuf_manage_secure_v2_init(pool,
+					tvp_set | (codec_flags << 4) | (vd_index << 9),
+					custom_size);
+			}
+
+			if (res != SECMEM_ERROR_OUT_OF_MEMORY) {
+				if (res == TEEC_SUCCESS)
+					pr_inf("Retry alloc vdec pool is 0x%x. max size 0x%x\n",
+						custom_size, block_size);
+				break;
+			}
+		}
 	}
 
 	if (res) {
@@ -2498,7 +2552,10 @@ static struct mconfig dmabuf_manage_configs[] = {
 	MC_PI32("dmabuf_manage_version", &dmabuf_manage_version),
 	MC_PI32("secure_stand_heap_version", &secure_stand_heap_version),
 	MC_PI32("secure_buf_num_of_channel", &secure_buf_num_of_channel),
-	MC_PI32("force_secmem_v3", &force_secmem_v3)
+	MC_PI32("force_secmem_v3", &force_secmem_v3),
+	MC_PI32("secure_custom_size_alloc_multiple", &secure_custom_size_alloc_multiple),
+	MC_PI32("secure_scaling_factor_numerator", &secure_scaling_factor_numerator),
+	MC_PI32("secure_scaling_factor_denominator", &secure_scaling_factor_denominator)
 };
 
 static CLASS_ATTR_RO(dmabuf_manage_dump);
