@@ -1183,7 +1183,7 @@ void rx_rcc_err_frl_config(u8 port)
 	hdmirx_wr_cor(SCDCS_1S_IN_20MS_CNT_SCDC_IVCRX, err_cnt, port);
 	//hdmirx_wr_cor(SCDCS_CHR_ERRCNT_MAX0_SCDC_IVCRX, err_cnt, port);
 	//hdmirx_wr_cor(SCDCS_CHR_ERRCNT_MAX1_SCDC_IVCRX, 0x0, port);
-	hdmirx_wr_bits_cor(SCDCS_STATUS_FLAGS0_SCDC_IVCRX, _BIT(6), 0, port);
+	//hdmirx_wr_bits_cor(SCDCS_STATUS_FLAGS0_SCDC_IVCRX, _BIT(6), 0, port);
 }
 
 void rx_switch_to_self_hsync(u8 port, bool en)

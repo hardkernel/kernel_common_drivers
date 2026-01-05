@@ -2801,7 +2801,8 @@ static int get_fmt_with_colordepth(u8 port, u8 colordepth)
 			continue;
 		if (rx_info.chip_id == CHIP_ID_T6X) {
 			if (rx[port].var.frl_rate &&
-				rx[port].clk.pixel_clk >= pix_limit * MHz &&
+				rx[port].clk.pixel_clk /
+				rx[port].pre.colordepth * 8 >= pix_limit * MHz &&
 				rx[port].pre.colorspace == E_COLOR_YUV420)
 				continue;
 		}
