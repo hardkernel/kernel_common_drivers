@@ -52,6 +52,7 @@ u32 resolution_switch_count;
 static unsigned int dpss_is_vinfo_chg(struct dpss_vinfo_s *v1,	/* new */
 				      struct dpss_vinfo_s *v2, bool prt_en);
 static void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last);
+static bool is_high_fps_src(struct vframe_s *vfm_f);
 
 unsigned int dpss_wr_sel = C_BIT0;
 module_param_named(dpss_wr_sel, dpss_wr_sel, uint, 0664);
@@ -165,9 +166,9 @@ bool dpss_is_bypass_nr(struct dpss_ch_s *pch, struct vframe_s *vfm)
 		dbg_i2("trig bypass nr\n");
 		return true;
 	}
-	//------------
-	//to-do
-	//------------
+	if (is_meson_t6w_cpu() && is_high_fps_src(vfm))
+		return true;
+
 	return false;
 }
 
@@ -499,6 +500,22 @@ void dpss_vfm_cp(struct vframe_s *vfm_t, struct vframe_s *vfm_f)
 	     vfm_f->compWidth, vfm_f->compHeight,
 	     vfm_f->canvas0_config[0].phy_addr,
 	     vfm_f->canvas0_config[1].phy_addr);
+}
+
+static bool is_high_fps_src(struct vframe_s *vfm_f)
+{
+	if (!vfm_f)
+		return false;
+
+	u32 vfm_width = vfm_f->compWidth > vfm_f->width ? vfm_f->compWidth : vfm_f->width;
+	u32 vfm_height = vfm_f->compHeight > vfm_f->height ? vfm_f->compHeight : vfm_f->height;
+
+	if (vfm_f->duration < 800 && (vfm_width >= 1920 || vfm_height >= 1080)) {
+		dbg_h1("%s:vf->duration:%d.", __func__, vfm_f->duration);
+		return true;
+	}
+
+	return false;
 }
 
 /* common function **********************************/

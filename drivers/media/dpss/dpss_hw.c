@@ -2732,7 +2732,7 @@ void irq_dae1(void)
 
 	if (!prm_top->frc_en)
 		dpss_me_ro_data_update();
-	if (dpss_dae_frm_cnt_src1 >= 2) {
+	if (dpss_dae_frm_cnt_src1 >= 2 && prm_dpss_top->dae_nr_mode != DAE_BYPS_MODE) {
 		pq_update_ro_dae(ro_index, DPSS_MAIN_CHANNEL);
 		pq_update_ro_me(ro_index, DPSS_MAIN_CHANNEL);
 		pq_update_ro_input(ro_index, DPSS_MAIN_CHANNEL);
@@ -2914,7 +2914,7 @@ void irq_dpe1(void)
 	dbg_h2("%s: ro_index=%d, ro_index=%d, index=%d\n", __func__,
 		dpss_dpe_nr_frm_cnt, ro_index,
 		pd_index);
-	if (dpss_dpe_nr_frm_cnt >= 2) {
+	if (dpss_dpe_nr_frm_cnt >= 2 && prm_dpss_top->dpe_nr_mode != DPE_NR_BYPS) {
 		pq_update_ro_dpe(ro_index, DPSS_MAIN_CHANNEL);
 		pq_update_ro_dae_pd(pd_index, DPSS_MAIN_CHANNEL);
 		pq_update_ro_dblk_h(ro_index, DPSS_MAIN_CHANNEL);
