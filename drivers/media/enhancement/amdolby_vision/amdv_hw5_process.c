@@ -502,7 +502,14 @@ bool check_top1_scale(u32 w, u32 h)
 	}
 	if (is_aml_t6w() || is_aml_t6x()) {/*currently, rdmif scale only for t3x*/
 		if (is_aml_t6x() && scale)
-			force_corep_max_level6 = true;
+			force_corep_max_level6 = true;/*t6x force level6 in special resolution*/
+		else
+			force_corep_max_level6 = false;
+
+		if (debug_dolby & 0x80000)
+			pr_dv_dbg("scale %d %d,force %d\n",
+			decoder_scale, scale, force_corep_max_level6);
+
 		return false;
 	}
 	return scale;
