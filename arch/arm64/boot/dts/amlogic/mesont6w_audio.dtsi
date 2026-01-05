@@ -31,6 +31,8 @@
 			 *LN_RN_EN = 0x3,
 			 *LR_PN_EN = 0x4
 			 */
+			early_suspend = <1>;
+			headphone_depop = <1>;
 			headphone_pin = <0>;
 			lineout_pin = <0x3>;
 			reset-names = "acodec";
