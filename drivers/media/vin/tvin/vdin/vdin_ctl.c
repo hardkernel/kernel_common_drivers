@@ -8647,11 +8647,7 @@ unsigned int vdin_get_base_fr(struct vdin_dev_s *devp)
 			fps = devp->prop.base_fps;
 		}
 	} else {
-	#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
-		fps = hdmirx_get_base_fps(devp->prop.hw_vic);
-	#endif
-		if (!fps)
-			fps = devp->prop.base_fps;
+		fps = devp->prop.fps;
 	}
 
 	if (fps) {
