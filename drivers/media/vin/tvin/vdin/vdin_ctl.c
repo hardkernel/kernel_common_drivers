@@ -5010,11 +5010,9 @@ void vdin_get_duration_by_fps(struct vdin_dev_s *devp)
 bool vdin_check_cycle(struct vdin_dev_s *devp)
 {
 	bool ret = 0;
-	unsigned int stamp, cycle;
+	unsigned int stamp, cycle, interval_us;
 	struct tvin_state_machine_ops_s *sm_ops = NULL;
-	u64 interval_value;
 
-	interval_value = vdin_calculate_isr_interval_value(devp);
 	stamp = vdin_get_meas_v_stamp(devp);
 
 	if (stamp < devp->stamp)
@@ -5022,15 +5020,18 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 	else
 		cycle = stamp - devp->stamp;
 
+	interval_us = devp->msr_clk_val / 1000000;
+	if (interval_us)
+		interval_us = cycle / interval_us;
+
 	if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_CYCLE)
-		pr_info("vdin%d,stamp=%#x - %#x = %u\n",
-			devp->index, stamp, devp->stamp, cycle);
+		pr_info("vdin%d,stamp=%#x - %#x = %u,interval_us:%u us\n",
+			devp->index, stamp, devp->stamp, cycle, interval_us);
 
 	devp->stamp = stamp;
 	devp->cycle  = cycle;
 
-	if ((cycle && (cycle <= (devp->msr_clk_val / 1000))) ||
-	    interval_value <= VDIN_INPUT_MAX_FPS) {
+	if (cycle && (cycle <= (devp->msr_clk_val / 1000))) {
 		devp->stats.cycle_err_cnt_con++;
 		ret = true;
 	} else {
@@ -5040,14 +5041,6 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 
 	if (devp->debug.ip_pat_en) /* IP pattern gen may output high framerate */
 		return false;
-
-	/* TODO:whether T5/TL1/TXHD2/T3X support cycle check */
-	if (!(is_meson_t7_cpu() || is_meson_t3_cpu() || is_meson_t3x_cpu() ||
-	     is_meson_t5w_cpu() || is_meson_t5m_cpu()) &&
-	    interval_value > VDIN_INPUT_MAX_FPS) {
-		devp->stats.cycle_err_cnt_con = 0;
-		return false;
-	}
 
 	/* if continuous cycle error over 10 times,call hdmi_clr_vsync to recovery */
 	if (devp->frontend)
