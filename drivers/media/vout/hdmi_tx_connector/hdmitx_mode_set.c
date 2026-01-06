@@ -110,7 +110,8 @@ int hdmitx_common_do_mode_setting(struct hdmitx_common *tx_comm,
 	new_para = &new_state->para;
 
 	if (new_state->mode & VMODE_INIT_BIT_MASK) {
-		HDMITX_INFO("skip real mode setting for uboot init\n");
+		HDMITX_INFO("skip real mode setting for uboot init and update vinfo\n");
+		hdmitx_update_vinfo_duration(tx_comm);
 		/* note that for bootup, hdmitx_common_post_enable_mode()
 		 * action will be done in hdmitx_set_current_vmode()
 		 * when vout probe, it's earlier than drm to

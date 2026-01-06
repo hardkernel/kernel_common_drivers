@@ -2296,6 +2296,7 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	DRM_DEBUG_KMS("%s[%d]: enter\n", __func__, __LINE__);
 
 	if (meson_crtc_state->uboot_mode_init == 1) {
+		common->fmt_para.frac_mode = hdmitx_state->hcs.para.frac_mode;
 		DRM_INFO("%s[%d] uboot get: %d\n", __func__, __LINE__, common->fmt_para.frac_mode);
 		hdmitx_get_init_state(common, &hdmitx_state->hcs);
 		attr->colorformat = hdmitx_state->hcs.para.cs;
