@@ -75,9 +75,10 @@
 /* 2025.12.26 fix training err*/
 /* 2025.12.30 fix 420 no signal*/
 /* 2026.1.5 Add timeout protection measures for HDMI 2.1 port*/
-/* 2025.1.6 HDMI cannot recognize 420 */
-/* 2025.1.8 add ch lock protect for frl training */
-#define RX_WRAPPER_VER "ver.2026/1/8"
+/* 2026.1.6 HDMI cannot recognize 420 */
+/* 2026.1.8 add ch lock protect for frl training */
+/* 2026.1.9 reduce frl signal detect time */
+#define RX_WRAPPER_VER "ver.2026/1/9"
 
 struct freq_ref_s {
 	bool interlace;

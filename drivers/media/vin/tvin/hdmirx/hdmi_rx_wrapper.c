@@ -127,7 +127,7 @@ int rx_emp_dbg_en;
 int frl_lock_det_max = 10;
 //for rs err test
 int rs_err_chk;
-int err_cnt = 100;
+int err_cnt = 50;
 bool cts_ced_err_test = true;
 int edid_seg_flag[4];
 int hpd_wait_dbg;
@@ -190,7 +190,8 @@ int sm_pause;
 int pre_port = 0xff;
 u32 vsync_err_cnt_max = 10;
 static int esd_phy_rst_max;
-static int detect_time_min = 210;
+static int detect_time_min = 150;
+static int detect_time_min_frl = 100;
 static int cec_dev_info;
 struct rx_info_s rx_info;
 struct rx_s rx[HDMIRX_PORT_MAX];
@@ -6208,6 +6209,7 @@ void rx_port1_main_state_machine(void)
 void rx_port2_main_state_machine(void)
 {
 	int chk_cnt;
+	int min_det_cnt;
 	u8 port = E_PORT2;
 
 	if (ecc_err_monitor)
@@ -6530,8 +6532,12 @@ void rx_port2_main_state_machine(void)
 		if (rx_is_timing_stable(port)) {
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
 				get_timing_fmt(port);
+				if (rx[port].var.frl_rate)
+					min_det_cnt = detect_time_min_frl;
+				else
+					min_det_cnt = detect_time_min;
 				if ((rx_info.timestamp - rx[port].stable_timestamp <
-					detect_time_min) &&
+					min_det_cnt) &&
 					rx[port].min_time_en)
 					break;
 				if ((port != rx_info.main_port || !rx_info.main_port_open) &&
@@ -6811,6 +6817,7 @@ void rx_port2_main_state_machine(void)
 void rx_port3_main_state_machine(void)
 {
 	int chk_cnt;
+	int min_det_cnt;
 	u8 port = E_PORT3;
 
 	if (ecc_err_monitor)
@@ -7129,8 +7136,12 @@ void rx_port3_main_state_machine(void)
 		if (rx_is_timing_stable(port)) {
 			if (++rx[port].var.sig_stable_cnt >= sig_stable_max) {
 				get_timing_fmt(port);
+				if (rx[port].var.frl_rate)
+					min_det_cnt = detect_time_min_frl;
+				else
+					min_det_cnt = detect_time_min;
 				if ((rx_info.timestamp - rx[port].stable_timestamp <
-					detect_time_min) &&
+					min_det_cnt) &&
 					rx[port].min_time_en)
 					break;
 				if ((port != rx_info.main_port || !rx_info.main_port_open) &&
