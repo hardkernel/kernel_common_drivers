@@ -493,6 +493,7 @@ struct frc_state_s {
 	bool is_dos;
 	bool dae_ready;
 	bool dpe_ready;
+	bool mc_last_ready;//release mc buf
 	bool bypass_chg;
 	u8 dpe_mix;
 	u8 mv_buf_idx;
@@ -527,9 +528,7 @@ struct frc_state_s {
 	bool is_seek_bar;
 	bool force_disable_drop_last;
 	bool is_pause_state_last_frmae;
-	bool is_wait_mc_state;
-	u32 mc_q_idx;
-	u32 mc_q_idx_last;
+	u8 mc_last_idx;
 
 	struct buf_s buf_stats;
 	struct proc_s proc_stats;

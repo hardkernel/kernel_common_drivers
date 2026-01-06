@@ -21,12 +21,6 @@ struct display_buffer_info_s {
 	u8 mc_phase;
 };
 
-struct dpss_queue {
-	u32 data[DPSS_QUEEN_NUM];
-	u16 front;
-	u16 rear;
-};
-
 struct display_queue {
 	struct display_buffer_info_s data[DPSS_QUEEN_NUM];
 	u8 drop_idx;
@@ -39,11 +33,6 @@ void vpu_initqueue(struct Vpu_queue *queue);
 bool vpu_is_queue_empty(struct Vpu_queue *queue);
 bool vpu_enqueue(struct Vpu_queue *queue, int value);
 bool vpu_dequeue(struct Vpu_queue *queue, int *value, int *empty);
-void dpss_initqueue(struct dpss_queue *queue);
-bool dpss_enqueue(struct dpss_queue *queue, int value);
-bool dpss_peek_queue(struct dpss_queue *queue, int *value, bool *empty);
-bool dpss_put_queue(struct dpss_queue *queue, int *value, bool *empty);
-void dpss_put_last_queue(struct dpss_queue *queue, bool *empty, u32 *value);
 
 void display_init_queue(struct display_queue *queue);
 bool display_queue_is_empty(struct display_queue *queue);

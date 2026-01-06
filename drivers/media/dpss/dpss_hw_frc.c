@@ -992,8 +992,8 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	u32 dpe_vpmc_mv_baddr;
 	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
 	bool is_pause_state = false;
-	bool is_empty = false;
 	u8 display_mc_idx;
+	u8 tmp_idx = 0;
 
 	struct frc_chip_st *pchip_st = dpss_get_frc_st();
 	struct frc_state_s *state_st;
@@ -1004,7 +1004,8 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 
 	state_st = &pchip_st->state_st;
 
-	if (!obuf_rdy) {
+	if (!obuf_rdy &&
+		(state_st->force_disable_check_fallback || state_st->check_fallback != 1)) {
 		if (!state_st->enable_last_drop)
 			return false;
 		is_pause_state = true;
@@ -1017,7 +1018,8 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	if (data32 >= DPSS_QUEEN_NUM || data32 == display_buf_q.inp_idx) {
 		pr_frc(2, "display_buf_q: mc_idx=%d, inp_idx=%d, enable_drop=%d\n",
 				data32, display_buf_q.inp_idx, state_st->enable_last_drop);
-		if (!state_st->enable_last_drop)
+		if (!state_st->enable_last_drop &&
+			(state_st->force_disable_check_fallback || state_st->check_fallback != 1))
 			return false;
 		display_queue_use_last(&display_buf_q, 2);
 		data32 = display_buf_q.mc_idx;
@@ -1070,14 +1072,38 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 	dpe_image_pre_frm_idx = dpe_pre_pixl_buf;
 
 	display_buf_q.mc_idx = (display_buf_q.mc_idx + 1) % DPSS_QUEEN_NUM;
-	if (state_st->dpe_ready && display_buf_q.disp_idx != display_buf_q.mc_idx)
+	if (state_st->mc_last_ready && display_buf_q.disp_idx != display_buf_q.mc_idx)
 		display_buf_q.disp_idx = (display_buf_q.disp_idx + 1) % DPSS_QUEEN_NUM;
+	if (display_buf_q.disp_idx == display_buf_q.mc_idx)
+		state_st->mc_last_ready = false;
 
 	if (pchip_st && (pchip_st->state_st.mc_bypass || pchip_st->state_st.force_mc_phase0))
 		dpe_intp_phs = 0;
 
 	if (state_st->check_fallback != 1)
 		state_st->mc_link_available = true;
+
+	pr_frc(1, "is_pause_state=%d, %d\n", is_pause_state, state_st->is_pause_state_last_frmae);
+
+	if (is_pause_state) {
+		tmp_idx = display_buf_q.inp_idx == 0 ?
+					DPSS_QUEEN_NUM - 1 : display_buf_q.inp_idx - 1;
+		dpe_pre_pixl_buf = display_buf_q.data[tmp_idx].n;
+		dpe_cur_pixl_buf = dpe_pre_pixl_buf;
+		if (state_st->is_pause_state_last_frmae &&
+				state_st->mc_last_idx == dpe_pre_pixl_buf)
+			return false;
+		state_st->mc_last_idx = dpe_pre_pixl_buf;
+		dpe_intp_phs = 0;
+		state_st->is_pause_state_last_frmae = true;
+	} else if (state_st->is_pause_state_last_frmae && state_st->mc_last_idx != 0xff &&
+		dpe_pre_pixl_buf != state_st->mc_last_idx) {
+		dpe_pre_pixl_buf = state_st->mc_last_idx;
+		dpe_cur_pixl_buf = state_st->mc_last_idx;
+		dpe_intp_phs = 0;
+	} else {
+		state_st->is_pause_state_last_frmae = false;
+	}
 
 	if (!state_st->force_disable_check_fallback && state_st->check_fallback == 1) {
 		dpe_cur_pixl_buf = state_st->force_mc_cur_idx;
@@ -1087,49 +1113,14 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		if (dpe_pre_pixl_buf != state_st->force_mc_cur_idx)
 			dpe_cur_pixl_buf = state_st->force_mc_cur_idx;
 		else
-			state_st->check_fallback = 0;
+			state_st->check_fallback = 3;
+	} else if (state_st->force_disable_check_fallback) {
+		state_st->check_fallback = 0;
 	}
-
-	if (!state_st->is_wait_mc_state) {
-		dpss_peek_queue(&mc_ibuf_q, &state_st->mc_q_idx, &is_empty);
-		if (!is_empty && state_st->mc_q_idx == dpe_pre_pixl_buf)
-			dpss_put_queue(&mc_ibuf_q, &state_st->mc_q_idx, &is_empty);
-	}
-
-	pr_frc(1, "display_buf_q:drop_idx=%d, disp_idx=%d, mc_idx=%d, inp_idx=%d\n",
-		display_buf_q.drop_idx, display_buf_q.disp_idx,
-		display_buf_q.mc_idx, display_buf_q.inp_idx);
-	pr_frc(1, "is_empty=%d, is_pause_state=%d\n", is_empty, is_pause_state);
-
-	if (is_pause_state) {
-		if (is_empty) {
-			state_st->is_wait_mc_state = true;
-			return false;
-		}
-		dpss_put_queue(&mc_ibuf_q, &state_st->mc_q_idx, &is_empty);
-		if (!state_st->is_pause_state_last_frmae) {
-			state_st->mc_q_idx_last = state_st->mc_q_idx;
-			dpss_put_queue(&mc_ibuf_q, &state_st->mc_q_idx, &is_empty);
-		}
-		dpe_pre_pixl_buf = state_st->mc_q_idx;
-		dpe_cur_pixl_buf = state_st->mc_q_idx;
-		dpe_intp_phs = 0;
-		state_st->is_pause_state_last_frmae = true;
-		state_st->mc_q_idx_last = state_st->mc_q_idx;
-	} else if (state_st->is_pause_state_last_frmae && state_st->mc_q_idx != 0xff &&
-		dpe_pre_pixl_buf != state_st->mc_q_idx) {
-		dpe_pre_pixl_buf = state_st->mc_q_idx;
-		dpe_cur_pixl_buf = state_st->mc_q_idx;
-		dpe_intp_phs = 0;
-	} else {
-		state_st->is_pause_state_last_frmae = false;
-		state_st->is_wait_mc_state = false;
-	}
-
-	if (state_st->is_wait_mc_state)
-		return false;
 
 	state_st->dpe_ready = true;
+	if (display_buf_q.disp_idx != display_buf_q.mc_idx)
+		state_st->mc_last_ready = true;
 	state_st->dpe_intp_phs = dpe_intp_phs;
 
 	if (state_st->mc_disp_st.step == 0) {
@@ -1143,10 +1134,12 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 
 	mc_res_switch_begin();
 
-	pr_frc(1, "mc_q_idx=%d, display_mc_idx=%d, dpe_pre=%d, dpe_cur=%d, pause_st_last=%d\n",
-		state_st->mc_q_idx, display_mc_idx, dpe_pre_pixl_buf, dpe_cur_pixl_buf,
+	pr_frc(1, "display_buf_q:drop_idx=%d, disp_idx=%d, mc_idx=%d, inp_idx=%d\n",
+		display_buf_q.drop_idx, display_buf_q.disp_idx,
+		display_buf_q.mc_idx, display_buf_q.inp_idx);
+	pr_frc(1, "mc_last_idx=%d, display_mc_idx=%d, dpe_pre=%d, dpe_cur=%d, pause_st_last=%d\n",
+		state_st->mc_last_idx, display_mc_idx, dpe_pre_pixl_buf, dpe_cur_pixl_buf,
 		state_st->is_pause_state_last_frmae);
-
 	pr_frc(1, "mc:pc=%d,%d, logo=%d,%d, mv=%d, mc_phs=%3d\n",
 		dpe_pre_pixl_buf, dpe_cur_pixl_buf, dpe_plogo_buf,
 		dpe_clogo_buf, dpe_mvlogo_buf, dpe_intp_phs);

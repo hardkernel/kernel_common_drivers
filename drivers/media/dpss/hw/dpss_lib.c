@@ -49,65 +49,6 @@ bool vpu_dequeue(struct Vpu_queue *queue, int *value, int *empty)
 }
 EXPORT_SYMBOL(vpu_dequeue);
 
-void dpss_initqueue(struct dpss_queue *queue)
-{
-	memset(queue, 0x0, sizeof(struct dpss_queue));
-}
-
-bool dpss_is_queue_empty(struct dpss_queue *queue)
-{
-	return queue->front == queue->rear;
-}
-
-bool dpss_enqueue(struct dpss_queue *queue, int value)
-{
-	if ((queue->rear + 1) % DPSS_QUEEN_NUM == queue->front)
-		return 0;
-	queue->data[queue->rear] = value;
-	queue->rear = (queue->rear + 1) % DPSS_QUEEN_NUM;
-	return 1;
-}
-
-bool dpss_peek_queue(struct dpss_queue *queue, int *value, bool *empty)
-{
-	if (dpss_is_queue_empty(queue)) {
-		*empty = 1;
-		return 0;
-	}
-	*value = queue->data[queue->front];
-	return 1;
-}
-
-bool dpss_put_queue(struct dpss_queue *queue, int *value, bool *empty)
-{
-	if (dpss_is_queue_empty(queue)) {
-		*empty = 1;
-		return 0;
-	}
-	*value = queue->data[queue->front];
-	queue->front = (queue->front + 1) % DPSS_QUEEN_NUM;
-	return 1;
-}
-
-void dpss_put_last_queue(struct dpss_queue *queue, bool *empty, u32 *value)
-{
-	u16 tmp_idx;
-
-	if (dpss_is_queue_empty(queue)) {
-		*empty = 1;
-		return;
-	}
-
-	tmp_idx = queue->rear;
-
-	if (queue->rear != 0)
-		tmp_idx--;
-	else
-		tmp_idx = DPSS_QUEEN_NUM - 1;
-
-	*value = queue->data[tmp_idx];
-}
-
 void display_init_queue(struct display_queue *queue)
 {
 	memset(queue, 0x0, sizeof(struct display_queue));

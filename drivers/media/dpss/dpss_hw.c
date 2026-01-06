@@ -1829,6 +1829,8 @@ void irq_pre_vs(void)
 	struct frc_interrupt_s *frc_int_st;
 	u64 timestamp = sched_clock();
 	u32 frc_dst_buf;
+	u32 nr_proc_st;
+	u32 frc_proc_st;
 	u8 mc_drop_idx;
 	u8 drop_idx;
 	u8 mc_bypass_st;
@@ -1875,6 +1877,8 @@ void irq_pre_vs(void)
 
 	mc_bypass_st = rd(FRC_MC_HW_CTRL0) & 0x3;
 	src0_disp_obuf_rdy = state_st->src0_disp_obuf_rdy;
+	nr_proc_st = rd(DPSS_FBUF_PROC_STATUS);
+	frc_proc_st = rd(DPSS_FRC_PROC_STATUS);
 
 	frc_undone_check();
 
@@ -1938,7 +1942,7 @@ void irq_pre_vs(void)
 		!state_st->mc_bypass_always && frc_top->memc_enable) {
 		if (state_st->mc_bypass_cnt) {
 			state_st->mc_bypass_cnt--;
-		} else if (fallback_st == 0) {
+		} else if (fallback_st == 0 || fallback_st == 3) {
 			frc_set_mc_bypass_rdma(0);
 			state_st->mc_bypass = false;
 			state_st->bypass_chg = true;
@@ -1995,7 +1999,9 @@ void irq_pre_vs(void)
 	dbg_f2("mc_bypass=%d,bypass_cnt=%d,fallback=%d,bypass_chg=%d,trig_pos_chg=%d,mc_link=%d\n",
 		state_st->mc_bypass, state_st->mc_bypass_cnt, fallback_st,
 		state_st->bypass_chg, state_st->trig_pos_chg, state_st->is_frc_vpp_link);
-
+	dbg_h2("hw_proc_st:nr_dae=%d,nr_dpe=%d,frc_inp=%d,frc_dae=%d,mc_bypass_st=%d\n",
+			nr_proc_st >> 16 & 7, nr_proc_st & 7,
+			frc_proc_st >> 16 & 7, frc_proc_st >> 8 & 7, mc_bypass_st);
 	//don't add  logic after triggle function,add by fxj
 	if (!state_st->trig_pos_chg)
 		hw_cfg_dpss_mc_pre_triggle();
@@ -2425,7 +2431,6 @@ void irq_dae0(void)
 		w_reg_bit(FRC_ME_CMV_CTRL, 1, 31, 1);
 	dpss_dae0_reg_monitor();
 	if (phs_swth) {
-		dpss_enqueue(&mc_ibuf_q, nxt_fid);
 		if (state_st->me_pcn_st.use == 0) {
 			state_st->me_pcn_st.p = nxt_fid;
 			state_st->me_pcn_st.use++;

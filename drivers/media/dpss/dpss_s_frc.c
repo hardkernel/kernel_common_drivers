@@ -56,7 +56,6 @@ static struct frc_chip_st frc_st;
 static struct dpss_frc_fw_data_s fw_data;	// important 2021_0510
 static const char frc_alg_def_ver[] = "alg_ver:default";
 
-struct dpss_queue mc_ibuf_q;
 struct display_queue display_buf_q;
 int enable_mc_link = 1;
 int frc_delay_dbg; // for avsync debug
@@ -1073,13 +1072,13 @@ static void frc_state_init(void)
 	state_st->is_dos = true;
 	state_st->check_fallback = 0;
 	state_st->enable_last_drop = false;
-	state_st->mc_q_idx = 0xff;
+	state_st->mc_last_idx = 0xff;
 	state_st->is_pause_state_last_frmae = false;
-	state_st->is_wait_mc_state = false;
 	state_st->need_drop_dd = false;
 	state_st->is_seek_bar = false;
 	state_st->dae_ready = false;
 	state_st->dpe_ready = false;
+	state_st->mc_last_ready = false;
 	state_st->dpe_mix = false;
 	state_st->mv_buf_idx = 0;
 	state_st->bypass_chg = false;
@@ -1196,7 +1195,6 @@ void init_frc_pre(struct dpss_sub_vf_s *vfs, struct dpss_ch_s *pch)
 	det_filmmode_chg = 0;
 	bbd_init = 1;
 	frc_state_init();
-	dpss_initqueue(&mc_ibuf_q);
 	display_init_queue(&display_buf_q);
 	frc_compress_fmt_parse(vfs);
 	frc_fw_alg_ctrl = &pfw_data->frc_fw_alg_ctrl;
@@ -2585,7 +2583,7 @@ int pvpp_display_frc(struct vframe_s *vfm,
 				state_st->need_set_phase0, state_st->mc_link_available);
 			return ret;
 		}
-		if (is_vd1_link && state_st->check_fallback != 2) {
+		if (is_vd1_link && state_st->check_fallback == 0) {
 			if (frc_get_current_frame())
 				state_st->check_fallback = 1;
 			return ret;
@@ -3296,7 +3294,7 @@ void dpss_h_update_frc(struct vframe_s *vfm)
 	if (vfm->type_ext & VIDTYPE_EXT_DPSS_EOS && !state_st->need_drop_dd) {
 		state_st->need_drop_dd = true;
 		dbg_f2("need_drop_dd=%d\n", state_st->need_drop_dd);
-	} else if (state_st->need_drop_dd) {
+	} else if (!(vfm->type_ext & VIDTYPE_EXT_DPSS_EOS) && state_st->need_drop_dd) {
 		state_st->need_drop_dd = false;
 		dbg_f2("need_drop_dd=%d\n", state_st->need_drop_dd);
 	}
