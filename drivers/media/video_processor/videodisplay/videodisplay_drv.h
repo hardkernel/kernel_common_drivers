@@ -219,6 +219,9 @@ struct videodisplay_dev {
 	bool is_tv_path;
 	u32 low_latency_case;
 	bool last_vf_from_dpss;
+	struct timeval drop_start_time;
+	u32 drop_org_i_count;
+	u32 hdmi_drop_count;
 };
 
 struct videodisplay_port_s *videodisplay_get_port(u32 index);

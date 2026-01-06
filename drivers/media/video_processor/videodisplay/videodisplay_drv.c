@@ -1235,6 +1235,52 @@ static ssize_t vd_composer_en_show(const struct class *cla,
 		get_debug_flag_val(VD_DEBUG_CLASS_VD_COMPOSER_EN));
 }
 
+static ssize_t vd_drop_org_i_show(const struct class *cla,
+	const struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "drop_org_i is %d.\n",
+		get_debug_flag_val(VD_DEBUG_CLASS_DROP_ORG_I));
+}
+
+static ssize_t vd_drop_org_i_store(const struct class *cla,
+	const struct class_attribute *attr, const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_err("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+
+	set_debug_flag_val(VD_DEBUG_CLASS_DROP_ORG_I, tmp);
+	return count;
+}
+
+static ssize_t vd_drop_hdmi_count_show(const struct class *cla,
+	const struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "drop_max_time is %d.\n",
+		get_debug_flag_val(VD_DEBUG_CLASS_DROP_HDMI_COUNT));
+}
+
+static ssize_t vd_drop_hdmi_count_store(const struct class *cla,
+	const struct class_attribute *attr, const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_err("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	set_debug_flag_val(VD_DEBUG_CLASS_DROP_HDMI_COUNT, tmp);
+
+	return count;
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -1288,6 +1334,8 @@ static CLASS_ATTR_RW(enable_frc_pattern);
 static CLASS_ATTR_RO(buffer_status);
 static CLASS_ATTR_RW(use_low_latency);
 static CLASS_ATTR_RW(vd_composer_en);
+static CLASS_ATTR_RW(vd_drop_org_i);
+static CLASS_ATTR_RW(vd_drop_hdmi_count);
 
 static struct attribute *videodisplay_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -1343,6 +1391,8 @@ static struct attribute *videodisplay_class_attrs[] = {
 	&class_attr_buffer_status.attr,
 	&class_attr_use_low_latency.attr,
 	&class_attr_vd_composer_en.attr,
+	&class_attr_vd_drop_org_i.attr,
+	&class_attr_vd_drop_hdmi_count.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(videodisplay_class);

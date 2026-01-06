@@ -1357,8 +1357,8 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 		}
 		ppost->update_post_reg_flag = 1;
 		/* if height decrease, mtn will not enough */
-		if (di_buf->pd_config.global_mode != PULL_DOWN_BUF1)
-			di_buf->pd_config.global_mode = PULL_DOWN_EI;
+//		if (di_buf->pd_config.global_mode != PULL_DOWN_BUF1)
+//			di_buf->pd_config.global_mode = PULL_DOWN_EI;
 	}
 
 	x_size_ori = di_buf->di_buf_dup_p[1]->vframe->width;

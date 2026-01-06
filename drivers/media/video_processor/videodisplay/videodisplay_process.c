@@ -126,6 +126,11 @@ static int patten_trace[MAX_VIDEODISPLAY_INSTANCE_NUM];
 static int vsync_count[MAX_VIDEODISPLAY_INSTANCE_NUM];
 static struct videodisplay_dev *mdev[MAX_VIDEODISPLAY_INSTANCE_NUM];
 static bool vd_composer_en;
+static u32 vd_drop_max_time = 200;
+static u32 vd_drop_hdmi_count = 3;
+static u32 vd_drop_org_i = 0x8; /*1:vdin, 2:dtv, 4:dec, 8:dpss*/
+static bool mute_vpp_vd1;
+static u32 mute_vsync_count;
 static DEFINE_MUTEX(videodisplay_mutex);
 
 #define to_dst_buf(vf)	container_of(vf, struct dst_buf_t, frame)
@@ -491,6 +496,12 @@ void set_debug_flag_val(enum videodisplay_debug_class_type debug_type, int value
 	case VD_DEBUG_CLASS_VD_COMPOSER_EN:
 		vd_composer_en = value;
 		break;
+	case VD_DEBUG_CLASS_DROP_ORG_I:
+		vd_drop_org_i = value;
+		break;
+	case VD_DEBUG_CLASS_DROP_HDMI_COUNT:
+		vd_drop_hdmi_count = value;
+		break;
 	default:
 		pr_info("%s: invalid debug type.\n", __func__);
 		break;
@@ -663,6 +674,12 @@ int get_debug_flag_val(enum videodisplay_debug_class_type debug_type)
 		break;
 	case VD_DEBUG_CLASS_VD_COMPOSER_EN:
 		ret = vd_composer_en;
+		break;
+	case VD_DEBUG_CLASS_DROP_ORG_I:
+		ret = vd_drop_org_i;
+		break;
+	case VD_DEBUG_CLASS_DROP_HDMI_COUNT:
+		ret = vd_drop_hdmi_count;
 		break;
 	default:
 		pr_info("%s: invalid debug type.\n", __func__);
@@ -986,7 +1003,10 @@ static void vd_private_q_init(struct videodisplay_dev *dev)
 		dev->vc_private[i].srout_data = NULL;
 		dev->vc_private[i].src_vf = NULL;
 		dev->vc_private[i].vsync_index = 0;
+		dev->vc_private[i].dalton_info = NULL;
+		dev->vc_private[i].aiface_info = NULL;
 		dev->vc_private[i].aicolor_info = NULL;
+		dev->vc_private[i].present_fence = NULL;
 		if (!kfifo_put(&dev->vc_private_q, &dev->vc_private[i]))
 			vd_print(dev->index, PRINT_ERROR, "vc_private_q is full!\n");
 	}
@@ -1015,7 +1035,10 @@ static struct video_composer_private *vd_private_q_pop(struct videodisplay_dev *
 		vc_private->flag = 0;
 		vc_private->srout_data = NULL;
 		vc_private->src_vf = NULL;
+		vc_private->dalton_info = NULL;
+		vc_private->aiface_info = NULL;
 		vc_private->aicolor_info = NULL;
+		vc_private->present_fence = NULL;
 	}
 
 	return vc_private;
@@ -3042,6 +3065,116 @@ static void calculate_low_latency_case(struct videodisplay_dev *dev, struct vfra
 		elapsed_ns, next_isr_spec_time);
 }
 
+static bool is_dtv_source(struct dma_buf *dmabuf, struct vframe_s *vf)
+{
+	bool is_v4l_vf = false;
+	bool is_tv_path;
+
+	if (!dmabuf || !vf)
+		return false;
+
+	is_v4l_vf = is_valid_mod_type(dmabuf, VF_PROCESS_V4LVIDEO);
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		vf->source_type == VFRAME_SOURCE_TYPE_TUNER)
+		is_tv_path = true;
+	else
+		is_tv_path = false;
+
+	if (is_v4l_vf && !is_tv_path)
+		return true;
+	else
+		return false;
+}
+
+static int videodisplay_drop_frame(struct videodisplay_dev *dev,
+	struct vframe_s *vf, struct dma_buf *dmabuf)
+{
+	bool vf_from_vdin = false;
+	bool vf_from_dtv = false;
+	bool is_dec_vf = false;
+	bool vdin_need_drop = false;
+	bool dtv_need_drop = false;
+	bool dec_need_drop = false;
+	bool dpss_need_drop = false;
+	struct timeval cur_time;
+	unsigned long time = 0;
+
+	if (vd_drop_org_i == 0)
+		return false;
+
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		vf->source_type == VFRAME_SOURCE_TYPE_TUNER)
+		vf_from_vdin = true;
+
+	if (is_dtv_source(dmabuf, vf))
+		vf_from_dtv = true;
+
+	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
+
+	if (vf_from_vdin && (vd_drop_org_i & 1))
+		vdin_need_drop = true;
+	if (vf_from_dtv && (vd_drop_org_i & 2))
+		dtv_need_drop = true;
+	if (is_dec_vf && (vd_drop_org_i & 4))
+		dec_need_drop = true;
+	if (vd_drop_org_i & 8)
+		dpss_need_drop = true;
+
+	vd_print(dev->index, PRINT_OTHER,
+		"vf_type:%x vf_type_original:%x vf_type_ext:%x\n",
+		vf->type, vf->type_original, vf->type_ext);
+
+	vd_print(dev->index, PRINT_OTHER,
+		"%s:vdin:%d dtv:%d dec:%d dpss:%d\n",
+		__func__, vdin_need_drop, dtv_need_drop, dec_need_drop, dpss_need_drop);
+
+	if (dpss_need_drop && (vf->type_ext & VIDTYPE_EXT_DPSS_DROP)) {
+		vd_print(dev->index, PRINT_OTHER,
+			"dpss drop: frame_index %d\n", vf->frame_index);
+		return true;
+	}
+
+	if ((vf->type_ext & VIDTYPE_EXT_DI_BACKEND_DUMMY) &&
+		(vf->type & VIDTYPE_INTERLACE) &&
+		(vdin_need_drop || dec_need_drop)) {
+		vd_print(dev->index, PRINT_OTHER,
+				"drop no di process vf, frame_index=%d\n",
+				vf->frame_index);
+
+		if (dev->drop_org_i_count == 0) {
+			do_gettimeofday(&dev->drop_start_time);
+		} else {
+			do_gettimeofday(&cur_time);
+			time = (cur_time.tv_sec - dev->drop_start_time.tv_sec) * 1000 +
+				(cur_time.tv_usec - dev->drop_start_time.tv_usec) / 1000;
+			vd_print(dev->index, PRINT_OTHER, "time=%ldms, drop_count=%d\n",
+				time, dev->drop_org_i_count);
+			if (time > vd_drop_max_time) {
+				vd_print(dev->index, PRINT_OTHER,
+					"exit drop time =%ldms, drop_count=%d\n",
+					time, dev->drop_org_i_count);
+				return false;
+			}
+		}
+		dev->drop_org_i_count++;
+		return true;
+	} else if ((vdin_need_drop || dtv_need_drop) &&
+		(vf->type_original & VIDTYPE_INTERLACE) &&
+		((vd_drop_hdmi_count + dev->drop_org_i_count) > dev->hdmi_drop_count)) {
+		if (last_index[dev->index] != vf->frame_index) {
+			dev->hdmi_drop_count++;
+			last_index[dev->index] = vf->frame_index;
+		}
+		vd_print(dev->index, PRINT_OTHER,
+			"drop frame_index %d\n", vf->frame_index);
+		return true;
+	}
+
+	return false;
+}
+
 static void vframe_display(struct videodisplay_dev *dev,
 				struct received_frames_t *received_frames)
 {
@@ -3096,9 +3229,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 				vd_print(dev->index, PRINT_ERROR, "%s: get vf failed.\n", __func__);
 				return;
 			}
-			if (vf->type_ext & VIDTYPE_EXT_DPSS_DROP) {
-				vd_print(dev->index, PRINT_OTHER, "%s: dpss need drop.\n",
-					__func__);
+			if (videodisplay_drop_frame(dev, vf, frame_info->dmabuf)) {
 				dma_buf_put(frame_info->dmabuf);
 				dma_fence_signal(frame_info->release_fence);
 				dma_fence_put(frame_info->release_fence);
@@ -3109,6 +3240,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 			vd_prepare->src_frame = vf;
 			vd_prepare->dst_frame = *vf;
 		} else {/*dma buf*/
+			dev->drop_org_i_count = 0;
 			vd_prepare->src_frame = &vd_prepare->dst_frame;
 		}
 		vd_prepare->release_fence = frame_info->release_fence;
@@ -3602,6 +3734,14 @@ static struct vframe_s *vd_vf_peek(void *op_arg)
 			if (vsync_index + 1 >= vsync_count[dev->index])
 				return NULL;
 		}
+
+		if ((vf->vf_vrr_param.qms_plus_en || vf->vf_vrr_param.qms_en) &&
+			get_count[dev->index] == 1) {
+			vd_print(dev->index, PRINT_OTHER,
+				"QMS only support get 1, can not get more.\n");
+			return NULL;
+		}
+
 		if (vf->flag & VFRAME_FLAG_GAME_MODE)
 			return vf;
 
@@ -3869,6 +4009,8 @@ static struct vframe_s *vd_vf_get(void *op_arg)
 	struct vframe_s *vf = NULL;
 	u32 vsync_index_diff = 0;
 	bool enable_prelink = false;
+	bool is_di_postlink = false;
+	bool need_mute_video = false;
 #ifdef CONFIG_AMLOGIC_MEDIA_PROXY
 	struct timespec64 ts;
 #endif
@@ -3889,8 +4031,27 @@ static struct vframe_s *vd_vf_get(void *op_arg)
 		if (!(vf->flag & VFRAME_FLAG_VIDEO_COMPOSER))
 			pr_err("vd: vf_get: flag is null\n");
 
+		if (vf->di_flag && (vf->di_flag & DI_FLAG_DI_PVPPLINK))
+			is_di_postlink = true;
+
+		if ((vd_drop_org_i & 1) && vd_vf_is_tvin(vf))
+			need_mute_video = true;
+
+		if (dev->index == 0 && dev->fget_count == 0 && is_di_postlink && need_mute_video) {
+			set_video_mute(VC_MUTE_SET, true);
+			vd_print(dev->index, PRINT_OTHER,
+				"mute postlink first vsync\n");
+			mute_vpp_vd1 = true;
+			mute_vsync_count = 0;
+		}
+
 		get_count[dev->index]++;
-		dev->fget_count++;
+		if (vf->source_type == VFRAME_SOURCE_TYPE_HWC && vf->width == 384) {
+			dev->fget_count = 0;
+			dev->hdmi_drop_count = 0;
+		} else {
+			dev->fget_count++;
+		}
 		total_get_count++;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
@@ -4062,6 +4223,7 @@ static int video_display_create_path(struct videodisplay_dev *dev)
 			   VFRAME_EVENT_PROVIDER_START, NULL);
 
 	vsync_count[dev->index] = 0;
+	dev->fget_count = 0;
 	dev->last_vsync_index = 0;
 	dev->last_vf_index = 0xffffffff;
 	dev->enable_pulldown = false;
@@ -4145,6 +4307,8 @@ static int video_display_init(struct videodisplay_dev *dev)
 	dev->fence_wait_time_total = 0;
 	dev->fence_wait_count = 0;
 	dev->last_vf_from_dpss = false;
+	dev->drop_org_i_count = 0;
+	dev->hdmi_drop_count = 0;
 	dev_array[dev->index] = dev;
 	init_completion(&dev->task_done);
 	for (i = 0; i < MAX_VD_LAYERS; i++)
@@ -4540,5 +4704,14 @@ void vd_vsync_notify(u8 layer_id, u32 vpp_vsync_pts_inc_scale, u32 vpp_vsync_pts
 	}
 	default:
 		break;
+	}
+	if (mute_vpp_vd1 && layer_id == 0) {
+		mute_vsync_count++;
+		vd_print(0, PRINT_OTHER,
+			"mute_vsync_count=%d\n", mute_vsync_count);
+		if (mute_vsync_count >= 1) {
+			set_video_mute(VC_MUTE_SET, false);
+			mute_vpp_vd1 = false;
+		}
 	}
 }
