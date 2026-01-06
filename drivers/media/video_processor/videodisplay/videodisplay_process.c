@@ -47,6 +47,9 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 #include <linux/amlogic/media/frc/frc_common.h>
 #endif
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+#include <linux/amlogic/media/dpss/dpss_frc.h>
+#endif
 
 #define WAIT_THREAD_STOPPED_TIMEOUT 20
 #define WAIT_READY_Q_TIMEOUT 100
@@ -131,6 +134,7 @@ static u32 vd_drop_hdmi_count = 3;
 static u32 vd_drop_org_i = 0x8; /*1:vdin, 2:dtv, 4:dec, 8:dpss*/
 static bool mute_vpp_vd1;
 static u32 mute_vsync_count;
+static bool enable_new_afr_pattern;
 static DEFINE_MUTEX(videodisplay_mutex);
 
 #define to_dst_buf(vf)	container_of(vf, struct dst_buf_t, frame)
@@ -2880,6 +2884,7 @@ static bool pulldown_support_vf(struct videodisplay_dev *dev, u32 duration_val)
 	/*3200(30fps) 3203(29.97) 3840(25fps) 4000(24fps) 4004(23.976fps)*/
 
 	duration = find_nearest_duration(dev, duration_val);
+	enable_new_afr_pattern = false;
 
 	if (new_afr_pulldown)
 		support = true;
@@ -2891,8 +2896,10 @@ static bool pulldown_support_vf(struct videodisplay_dev *dev, u32 duration_val)
 	} else if (vsync_pts_inc_scale[dev->index] == 1 &&
 		vsync_pts_inc_scale_base[dev->index] == 50) {
 		/*50hz for 25fps 50fps*/
-		if (duration == 3840 || duration == 1920)
+		if (duration == 3840 || duration == 1920) {
+			enable_new_afr_pattern = false;
 			support = true;
+		}
 	} else if (vsync_pts_inc_scale[dev->index] == 1001 &&
 		vsync_pts_inc_scale_base[dev->index] == 60000) {
 		/*59.94hz for 23.976, 29.97*/
@@ -2909,8 +2916,8 @@ static bool pulldown_support_vf(struct videodisplay_dev *dev, u32 duration_val)
 			support = true;
 	} else if (vsync_pts_inc_scale[dev->index] == 1 &&
 		vsync_pts_inc_scale_base[dev->index] == 100) {
-		/*100hz for 25fps, 50fps*/
-		if (duration == 3840 || duration == 1920)
+		/*100hz for 25fps, 50fps, 100fps*/
+		if (duration == 3840 || duration == 1920 || duration == 960)
 			support = true;
 	} else if (vsync_pts_inc_scale[dev->index] == 1001 &&
 		vsync_pts_inc_scale_base[dev->index] == 120000) {
@@ -3476,6 +3483,8 @@ static void vframe_display(struct videodisplay_dev *dev,
 	dev->vd_prepare_last = vd_prepare;
 
 	video_display_push_ready(dev, vf);
+	if (vf->vc_private)
+		vf->vc_private->vsync_index = received_frames->vsync_index;
 
 	if (vf->dpss_flg & 0x08)
 		dev->last_vf_from_dpss = true;
@@ -3688,6 +3697,8 @@ static struct vframe_s *vd_vf_peek(void *op_arg)
 	int max_delay_count = 2;
 	int input_fps, output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
 	int aisr_delay_vsync;
+	int di_delay_vsync;
+	bool dpss_tvin_enable_pulldown;
 	int total_delay_vsync;
 	struct timespec64 cur_spec_time;
 
@@ -3712,7 +3723,19 @@ static struct vframe_s *vd_vf_peek(void *op_arg)
 			aisr_delay_vsync = 1;
 		else
 			aisr_delay_vsync = 0;
-		total_delay_vsync = aisr_delay_vsync + vd_set_frame_delay[dev->index];
+
+		/*dpss need force dalay vsync*/
+		if (dev->index == 0 && (vf->type_ext & VIDTYPE_EXT_422_10_2P_DPSS)) {
+			dpss_tvin_enable_pulldown = true;
+			di_delay_vsync = 1;
+		} else {
+			dpss_tvin_enable_pulldown = false;
+			di_delay_vsync = 0;
+		}
+
+		total_delay_vsync = aisr_delay_vsync + di_delay_vsync
+			+ vd_set_frame_delay[dev->index];
+
 		if (vf->vc_private && total_delay_vsync > 0) {
 			vsync_index = vf->vc_private->vsync_index;
 			vd_print(dev->index, PRINT_OTHER,
@@ -3799,7 +3822,8 @@ static struct vframe_s *vd_vf_peek(void *op_arg)
 			}
 		}
 
-		if (dev->enable_pulldown && pulldown_support_vf(dev, vf->duration)) {
+		if (pulldown_support_vf(dev, vf->duration) &&
+			(dev->enable_pulldown || enable_new_afr_pattern)) {
 			open_pulldown = true;
 			ready_len = kfifo_len(&dev->ready_q);
 			if ((ready_len > 1 && vd_pulldown_level == 1) ||
@@ -3810,7 +3834,7 @@ static struct vframe_s *vd_vf_peek(void *op_arg)
 		}
 
 		if (open_pulldown &&
-			!vd_vf_is_tvin(vf) &&
+			(dpss_tvin_enable_pulldown || !vd_vf_is_tvin(vf)) &&
 			!(vf->flag & VFRAME_FLAG_FAKE_FRAME)) {
 			if (vf->vc_private) {
 				vsync_index = vf->vc_private->vsync_index;
@@ -3832,7 +3856,7 @@ static struct vframe_s *vd_vf_peek(void *op_arg)
 						"need disp, vsync_index =%d, vsync_count=%d\n",
 						vsync_index, vsync_count[dev->index]);
 					expired = true;
-				} else if (expired_tmp) {
+				} else if (expired_tmp && dev->pattern_detected != PATTERN_11) {
 					if (dev->last_hold_index + 1 == vf->frame_index)
 						dev->continue_hold_count++;
 					else if (dev->last_hold_index != vf->frame_index)
@@ -4138,7 +4162,7 @@ static struct vframe_s *vd_vf_get(void *op_arg)
 			return NULL;
 		}
 
-		if (dev->enable_pulldown) {
+		if (dev->enable_pulldown || enable_new_afr_pattern) {
 			dev->patten_factor_index++;
 			if (dev->patten_factor_index == PATTEN_FACTOR_MAX)
 				dev->patten_factor_index = 0;
@@ -4232,6 +4256,12 @@ static int video_display_create_path(struct videodisplay_dev *dev)
 	dev->patten_factor_index = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	if (vd_pulldown_level && frc_get_video_latency()) {
+		dev->enable_pulldown = true;
+		vd_print(dev->index, PRINT_OTHER, "%s: enable pulldown\n", __func__);
+	}
+#endif
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+	if (vd_pulldown_level && dpss_frc_get_video_latency()) {
 		dev->enable_pulldown = true;
 		vd_print(dev->index, PRINT_OTHER, "%s: enable pulldown\n", __func__);
 	}
@@ -4653,6 +4683,7 @@ int vd_set_frames(int index, struct frames_info_t *frames_info)
 	}
 
 	dev->received_frames[num].frames_info = *frames_info;
+	dev->received_frames[num].vsync_index = vsync_count[index];
 	dev->received_frames[num].is_tvp = false;
 	atomic_set(&dev->received_frames[num].on_use, true);
 	dev->received_count++;

@@ -116,6 +116,7 @@ struct received_frames_t {
 	bool is_tvp;
 	struct file *fence_file[MXA_LAYER_COUNT];
 	bool is_drm;
+	u32 vsync_index;
 };
 
 struct vd_prepare_s {

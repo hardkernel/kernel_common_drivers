@@ -133,6 +133,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include "video_func.h"
 #ifdef AMLOGIC_MEDIA_DPSS
 #include <linux/amlogic/media/dpss/dpss_frc.h>
+#include <linux/amlogic/media/di/dpss_interface.h>
 #endif
 #define DEBUG_TMP 0
 #define DRIVER_NAME "amvideo"
@@ -2686,6 +2687,11 @@ static void process_hdmi_video_sync(struct vframe_s *vf)
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 			vframe_walk_delay += frc_get_video_latency();
 #endif
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+			if (vf->dpss_flg & DPSS_FLG_OUT_DONE)
+				vframe_walk_delay += dpss_frc_get_video_latency();
+#endif
+
 			/*check hdmi max delay*/
 			if (last_required_total_delay > hdmin_delay_max_ms) {
 				if (hdmin_delay_max_ms > vframe_walk_delay)
@@ -4377,6 +4383,10 @@ void hdmi_in_delay_maxmin_old(struct vframe_s *vf)
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	memc_delay = frc_get_video_latency();
 #endif
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+	memc_delay += dpss_frc_get_video_latency();
+#endif
+
 
 	/*pre: vdin keep 1, di keep 1/2(one process,one for I frame), total 2/3
 	 *rdma one vpp vsync, one for next vsync to peek
@@ -4433,6 +4443,7 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	int di_backend_en = 0;
 	int display_path_count = DIS_PATH_DELAY_COUNT;
 	u32 sync_count_pre = 0;
+	u32 vf_width = 0, vf_height = 0;
 
 	if (!tvin_delay_mode)
 		return;
@@ -4472,6 +4483,11 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 			display_path_count += 1;
 	}
 
+	vf_width = (vf->type & VIDTYPE_COMPRESS) ? vf->compWidth : vf->width;
+	vf_height = (vf->type & VIDTYPE_COMPRESS) ? vf->compHeight : vf->height;
+	if ((is_meson_t6w_cpu() || is_meson_t6x_cpu()) && (vf_width > 1920 || vf_height > 1088))
+		display_path_count += 1;
+
 	vdin_vsync = vf->duration;
 	vdin_vsync = vdin_vsync * 1000;
 	vdin_vsync = div64_u64(vdin_vsync, 96);
@@ -4482,6 +4498,12 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	memc_delay = frc_get_video_latency();
+#endif
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+	if (!(vf->dpss_flg & DPSS_FLG_OUT_DONE))
+		memc_delay = 0;
+	else
+		memc_delay = dpss_frc_get_video_latency();
 #endif
 
 	if (vf->duration != 0)
@@ -4511,6 +4533,12 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	else
 		hdmin_delay_min = sync_count_pre * vdin_vsync +
 			display_path_count * vpp_vsync + ext_delay;
+
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG) {
+		pr_info("%s: sync_count_pre=%d, display_path_count =%d, ext_delay = %lld.\n",
+			__func__, sync_count_pre, display_path_count, ext_delay);
+	}
+
 	hdmin_delay_min_ms = div64_u64(hdmin_delay_min, 1000);
 	hdmin_delay_min_ms += memc_delay;
 
@@ -13177,14 +13205,19 @@ static ssize_t power_ctrl_store(const struct class *cla,
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+#if defined(CONFIG_AMLOGIC_MEDIA_FRC) || defined(CONFIG_AMLOGIC_DPSS_PROCESS)
 static ssize_t frc_delay_show(const struct class *cla,
 				      const struct class_attribute *attr,
 				      char *buf)
 {
 	u32 frc_delay = 0;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	frc_delay += frc_get_video_latency();
+#endif
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+	frc_delay += dpss_frc_get_video_latency();
+#endif
 	return sprintf(buf, "%d\n", frc_delay);
 }
 #endif
@@ -14683,7 +14716,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       power_ctrl_show,
 	       power_ctrl_store),
 #endif
-#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+#if defined(CONFIG_AMLOGIC_MEDIA_FRC) || defined(CONFIG_AMLOGIC_DPSS_PROCESS)
 	__ATTR(frc_delay,
 	       0664,
 	       frc_delay_show,

@@ -27,6 +27,10 @@
 #include <linux/uaccess.h>
 #include <linux/amlogic/media/utils/amports_config.h>
 #include <linux/amlogic/media/vpu/vpu.h>
+#ifdef AMLOGIC_MEDIA_DPSS
+#include <linux/amlogic/media/dpss/dpss_frc.h>
+#include <linux/amlogic/media/di/dpss_interface.h>
+#endif
 #include "videolog.h"
 #include "video_reg.h"
 #ifdef CONFIG_AM_VIDEO_LOG
@@ -951,8 +955,14 @@ static int lowlatency_vsync(u8 instance_id)
 			vsync_pts_inc_scale / vsync_pts_inc_scale_base;
 		vframe_walk_delay -= new_frame->duration / 96;
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+		if (!(new_frame->flag & VFRAME_FLAG_GAME_MODE) &&
+			(vf->dpss_flg & DPSS_FLG_OUT_DONE))
+			vframe_walk_delay += dpss_frc_get_video_latency();
+#else
 		if (!(new_frame->flag & VFRAME_FLAG_GAME_MODE))
 			vframe_walk_delay += frc_get_video_latency();
+#endif
 #endif
 		primary_swap_frame(&vd_layer[0], new_frame, __LINE__);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION

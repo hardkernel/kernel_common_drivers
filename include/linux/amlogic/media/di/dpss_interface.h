@@ -151,7 +151,7 @@ struct dpss_vf_s_buf_s {
 
 /************************************************/
 
-struct di_init_parm {
+struct dpss_sub_init_parm { //di_init_parm
 	enum dpss_buffer_mode buffer_mode;
 	enum nr_output_format output_format;
 	unsigned int width;
@@ -204,7 +204,7 @@ struct dpss_operations_s {
 struct dpss_init_parm {
 	u32 dps_work_mode;
 	void *caller_data;
-	struct di_init_parm di_parm;
+	struct dpss_sub_init_parm di_parm; //di_init_parm
 	struct frc_init_parm frc_parm;
 	struct lc_evc_init_parm lc_evc_parm;
 	struct dpss_operations_s ops;
@@ -217,6 +217,7 @@ struct dpss_init_parm {
  *********************************************************/
 #define DI_BUFFERFLAG_ENDOFFRAME 0x00000001
 
+#ifdef _HIS_CODE_
 struct ins_mng_s {	/*ary add*/
 	unsigned int	code;
 	unsigned int	ch;
@@ -227,6 +228,7 @@ struct ins_mng_s {	/*ary add*/
 };
 
 #define DIM_OUT_FORMAT_FIX_MASK		(0xffff)
+#endif /* _HIS_CODE_ */
 
 struct dpss_status {
 	unsigned int status;

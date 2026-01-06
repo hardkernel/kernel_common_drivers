@@ -98,6 +98,7 @@ static unsigned int vpp_new_frame;
 #endif
 #ifdef AMLOGIC_MEDIA_DPSS
 #include <linux/amlogic/media/dpss/dpss_frc.h>
+#include <linux/amlogic/media/di/dpss_interface.h>
 #endif
 #endif
 #ifdef CONFIG_AMLOGIC_LCD
@@ -4588,6 +4589,12 @@ static void do_vd1_swap_frame(u8 layer_id,
 		if (!(new_frame->flag & VFRAME_FLAG_GAME_MODE))
 			vframe_walk_delay += frc_get_video_latency();
 #endif
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+		if (!(new_frame->flag & VFRAME_FLAG_GAME_MODE) &&
+			(new_frame->dpss_flg & DPSS_FLG_OUT_DONE))
+			vframe_walk_delay += dpss_frc_get_video_latency();
+#endif
+
 		primary_swap_frame(&vd_layer[0], new_frame, __LINE__);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		dvel_swap_frame(cur_dispbuf2);
