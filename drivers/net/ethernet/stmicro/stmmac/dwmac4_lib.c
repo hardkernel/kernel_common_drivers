@@ -197,6 +197,9 @@ int dwmac4_dma_interrupt(struct stmmac_priv *priv, void __iomem *ioaddr,
 			x->fatal_bus_error_irq++;
 			ret = tx_hard_error;
 		}
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+		pr_warn_once("[dwmac4] dma abnormal interrupt 0x%x\n", intr_status);
+#endif
 	}
 	/* TX/RX NORMAL interrupts */
 	if (likely(intr_status & DMA_CHAN_STATUS_RI)) {

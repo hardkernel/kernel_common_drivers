@@ -33,6 +33,7 @@
 #include <linux/pinctrl/consumer.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 #include <linux/amlogic/aml_phy_debug.h>
+#include "dwmac4_descs.h"
 #endif
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
@@ -1527,6 +1528,48 @@ static int stmmac_init_rx_buffers(struct stmmac_priv *priv,
 
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+/**
+ * Description: this function is called by stmmac_resume
+ * to reinit the receive buffer addresses in the rx descriptors,
+ * to resolve the abnormal DMA RX buffer that occur
+ * due to the unhandled rx descriptors after the suspend.
+ */
+static void stmmac_dwmac4_adjust_descriptors(struct stmmac_priv *priv)
+{
+	u32 rx_queue_cnt = priv->plat->rx_queues_to_use;
+	u32 queue;
+
+	for (queue = 0; queue < rx_queue_cnt; queue++) {
+		struct stmmac_rx_queue *rx_q = &priv->dma_conf.rx_queue[queue];
+		struct dma_desc *p = rx_q->dma_rx;
+		struct stmmac_rx_buffer *buf;
+		int entry;
+
+		for (entry = 0; entry < priv->dma_conf.dma_rx_size; entry++) {
+			if (!priv->extend_desc) {
+				buf = &rx_q->buf_pool[entry];
+				/* Check if unhandled rx descriptor data. */
+				if ((le32_to_cpu(p->des3) & RDES3_OWN) != RDES3_OWN) {
+					pr_warn_once("[dwmac4] unhandled rx desc - 0x%x 0x%x 0x%x 0x%x\n",
+						le32_to_cpu(p->des0), le32_to_cpu(p->des1),
+						le32_to_cpu(p->des2), le32_to_cpu(p->des3));
+					stmmac_set_desc_addr(priv, p, buf->addr);
+					if (priv->sph)
+						stmmac_set_desc_sec_addr(priv, p,
+								buf->sec_addr, true);
+					else
+						stmmac_set_desc_sec_addr(priv, p,
+								buf->sec_addr, false);
+					stmmac_refill_desc3(priv, rx_q, p);
+				}
+				p++;
+			}
+		}
+	}
+}
+#endif
 
 /**
  * stmmac_free_rx_buffer - free RX dma buffers
@@ -8157,6 +8200,10 @@ int stmmac_resume(struct device *dev)
 	stmmac_reset_queues_param(priv);
 
 	stmmac_free_tx_skbufs(priv);
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	if (priv->synopsys_id >= DWMAC_CORE_4_10)
+		stmmac_dwmac4_adjust_descriptors(priv);
+#endif
 	stmmac_clear_descriptors(priv, &priv->dma_conf);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
