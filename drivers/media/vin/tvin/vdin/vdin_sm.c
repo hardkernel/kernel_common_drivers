@@ -574,51 +574,39 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e
 
 	/* check HDR/HLG begin */
 	if (prop->hdr_info.hdr_state == HDR_STATE_GET) {
-		if (vdin_hdr_sei_error_check(devp) == 1) {
-			/*devp->prop.vdin_hdr_flag = false;*/
+		devp->prop.vdin_hdr_flag = true;
+		if (prop->hdr_info.hdr_data.eotf ==
+		    EOTF_SMPTE_ST_2048 ||
+		    prop->hdr_info.hdr_data.eotf == EOTF_HDR) {
+			signal_type |= (1 << 29);
+			signal_type &= ~(1 << 25);/* 0:limit */
+			signal_type = ((9 << 16) |
+				(signal_type & (~0xFF0000)));
+			signal_type = ((16 << 8) |
+				(signal_type & (~0xFF00)));
+			signal_type = ((9 << 0) |
+				(signal_type & (~0xFF)));
+		} else if (devp->prop.hdr_info.hdr_data.eotf ==
+			   EOTF_HLG) {
+			signal_type |= (1 << 29);
+			signal_type &= ~(1 << 25);/* 0:limit */
+			signal_type = ((9 << 16) |
+				(signal_type & (~0xFF0000)));
+			signal_type = ((14 << 8) |
+				(signal_type & (~0xFF00)));
+			signal_type = ((9 << 0) |
+				(signal_type & (~0xFF)));
+		} else {
+			devp->prop.vdin_hdr_flag = false;
 			signal_type &= ~(1 << 29);
 			signal_type &= ~(1 << 25);
 			val = vdin_matrix_range_chk(devp);
 			signal_type |= (val << 25);
 			/* default is bt709,if change need sync */
 			signal_type = ((1 << 16) |
-				       (signal_type & (~0xFF0000)));
-			signal_type = ((1 << 8) | (signal_type & (~0xFF00)));
-		} else {
-			devp->prop.vdin_hdr_flag = true;
-			if (prop->hdr_info.hdr_data.eotf ==
-			    EOTF_SMPTE_ST_2048 ||
-			    prop->hdr_info.hdr_data.eotf == EOTF_HDR) {
-				signal_type |= (1 << 29);
-				signal_type &= ~(1 << 25);/* 0:limit */
-				signal_type = ((9 << 16) |
-					(signal_type & (~0xFF0000)));
-				signal_type = ((16 << 8) |
-					(signal_type & (~0xFF00)));
-				signal_type = ((9 << 0) |
-					(signal_type & (~0xFF)));
-			} else if (devp->prop.hdr_info.hdr_data.eotf ==
-				   EOTF_HLG) {
-				signal_type |= (1 << 29);
-				signal_type &= ~(1 << 25);/* 0:limit */
-				signal_type = ((9 << 16) |
-					(signal_type & (~0xFF0000)));
-				signal_type = ((14 << 8) |
-					(signal_type & (~0xFF00)));
-				signal_type = ((9 << 0) |
-					(signal_type & (~0xFF)));
-			} else {
-				devp->prop.vdin_hdr_flag = false;
-				signal_type &= ~(1 << 29);
-				signal_type &= ~(1 << 25);
-				val = vdin_matrix_range_chk(devp);
-				signal_type |= (val << 25);
-				/* default is bt709,if change need sync */
-				signal_type = ((1 << 16) |
-					(signal_type & (~0xFF0000)));
-				signal_type = ((1 << 8) |
-					(signal_type & (~0xFF00)));
-			}
+				(signal_type & (~0xFF0000)));
+			signal_type = ((1 << 8) |
+				(signal_type & (~0xFF00)));
 		}
 	} else if (prop->hdr_info.hdr_state == HDR_STATE_NULL) {
 		devp->prop.vdin_hdr_flag = false;
