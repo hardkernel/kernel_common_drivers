@@ -2371,38 +2371,6 @@ RESTART_ALL:
 			crop_left, crop_right,
 			crop_top, crop_bottom);
 
-	if (is_amdv_on()) {
-		int w_temp;
-
-		w_temp = w_in - crop_left - crop_right;
-		if (cur_super_debug)
-			pr_info("%s:w_in/w_temp(%d, %d), crop: %d, %d, %d, %d\n",
-				__func__,
-				w_in, w_temp,
-				crop_left, crop_right,
-				crop_top, crop_bottom);
-		if (slice_num == 2) {
-			/* w_in must 4 aligned*/
-			if (w_temp > 0 && w_temp % 4) {
-				if (cur_super_debug)
-					pr_info("%s:amdv slice(%d) need w_in 4 aligned: w_temp=%d, crop:%d, %d, adjust crop left:%d\n",
-						__func__, slice_num,
-						w_temp, crop_left, crop_right,
-						crop_left + w_temp % 4);
-				crop_left += w_temp % 4;
-			}
-		} else if (slice_num == 1) {
-			/* w_in must 2 aligned*/
-			if (w_temp > 0 && w_temp % 2) {
-				if (cur_super_debug)
-					pr_info("%s:amdv slice(%d) need w_in 2 aligned: w_temp=%d, crop:%d, %d, adjust crop left:%d\n",
-						__func__, slice_num,
-						w_temp, crop_left, crop_right, crop_left + 1);
-				crop_left += 1;
-			}
-		}
-	}
-
 	/* fix both h/w crop odd issue */
 	if (crop_adjust) {
 		crop_left &= ~1;
@@ -3336,6 +3304,52 @@ RESTART:
 	}
 #endif
 #endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_amdv_on() && !is_amdv_dpss_path()) {
+		u32 align_val = 4;
+		u32 aligned_end, aligned_size;
+
+		if (slice_num == 2 || get_dd_align_count() == 4) {
+			/* w_in must 4 aligned*/
+			align_val = 4;
+			if (next_frame_par->VPP_line_in_length_ % 4) {
+				aligned_size = round_down
+					(next_frame_par->VPP_line_in_length_, align_val);
+
+				aligned_end = aligned_size +
+					next_frame_par->VPP_hd_start_lines_ - 1;
+				if (cur_super_debug)
+					pr_info("layer%d: amdv slice(%d) h end: %d->%d h size %d->%d align_val:%d\n",
+						input->layer_id, slice_num,
+						next_frame_par->VPP_hd_end_lines_, aligned_end,
+						next_frame_par->VPP_line_in_length_, aligned_size,
+						align_val);
+				next_frame_par->VPP_line_in_length_ = aligned_size;
+				next_frame_par->VPP_hd_end_lines_ = aligned_end;
+			}
+		} else if (slice_num == 1) {
+			/* w_in must 2 aligned*/
+			align_val = 2;
+			if (next_frame_par->VPP_line_in_length_ % 2) {
+				aligned_size = round_down
+					(next_frame_par->VPP_line_in_length_, align_val);
+
+				aligned_end = aligned_size +
+					next_frame_par->VPP_hd_start_lines_ - 1;
+				if (cur_super_debug)
+					pr_info("layer%d: amdv slice(%d) h end: %d->%d h size %d->%d align_val:%d\n",
+						input->layer_id, slice_num,
+						next_frame_par->VPP_hd_end_lines_, aligned_end,
+						next_frame_par->VPP_line_in_length_, aligned_size,
+						align_val);
+				next_frame_par->VPP_line_in_length_ = aligned_size;
+				next_frame_par->VPP_hd_end_lines_ = aligned_end;
+			}
+		}
+	}
+#endif
+
 	/*
 	 *find overlapped region between
 	 * [start, end], [0, width_out-1],
