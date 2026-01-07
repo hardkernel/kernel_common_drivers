@@ -1099,7 +1099,7 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 		if (devp->blind_scan_stop) {
 			/* limiting frequency offset is too large. */
 			offset = dvbs_get_freq_offset(&polarity);
-			if ((offset > 6500 && c->symbol_rate < SR_LOW_THRD) ||
+			if ((offset > 15000 && c->symbol_rate < SR_LOW_THRD) ||
 				(offset > 11500 && c->symbol_rate >= SR_LOW_THRD)) {
 				ilock = 0;
 				*status = FE_TIMEDOUT;

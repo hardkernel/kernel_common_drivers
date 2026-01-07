@@ -232,6 +232,7 @@
 /*  V4.1.007 fix dvbs blind scan state and clear params when leaving */
 /*  V4.1.008 fix dvbc auto qam lock error mod */
 /*  V4.1.009 dvbc use top frontend from T6D */
+/*  V4.1.010 fix dvbs2 aft test fail */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -248,8 +249,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V4.1.009"
-#define DTVDEMOD_VER	"2026/02/11 dvbc use top frontend from T6D "
+#define AMLDTVDEMOD_VER "V4.1.010"
+#define DTVDEMOD_VER	"2026/02/11 fix dvbs2 aft test fail"
 #define AMLDTVDEMOD_T2_FW_VER "v1059.20250521"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

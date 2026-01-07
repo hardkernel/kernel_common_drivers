@@ -33,7 +33,7 @@
 #endif
 
 #if defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS || defined CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBC
-#define SR_LOW_THRD	11000000
+#define SR_LOW_THRD	16000000
 #endif
 
 #define PWR_ON    1
