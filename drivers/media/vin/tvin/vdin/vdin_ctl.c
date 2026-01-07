@@ -3174,6 +3174,19 @@ void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 #endif
 }
 
+void vdin_disconnect_input(struct vdin_dev_s *devp)
+{
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->hw_core == VDIN_HW_CORE_NORMAL) {
+		wr_bits(0, VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
+			AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+		wr_bits(0, VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
+			MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
+
+		wr_bits(devp->addr_offset, VDIN_COM_CTRL0, VDIN_MUX_NULL,
+			VDIN_SEL_BIT, VDIN_SEL_WID);
+	}
+}
+
 void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en)
 {
 	if (devp->debug.pause_mif_dec || devp->pause_dec)
@@ -4729,8 +4742,6 @@ void vdin_hw_close(struct vdin_dev_s *devp)
 		vdin_dv_desc_to_4448bit(devp, 0);
 		vdin_dv_de_tunnel_to_44410bit(devp, 0);
 	}
-	//if (!devp->index || devp->dtdata->hw_ver < VDIN_HW_T7)
-		vdin_clk_on_off(devp, false);
 }
 
 bool vdin_check_vdi6_afifo_overflow(unsigned int offset)

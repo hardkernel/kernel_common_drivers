@@ -2224,6 +2224,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	}
 #endif
 	vdin_pause_hw_write(devp, 0);
+	vdin_disconnect_input(devp);
 
 	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
 		if (devp->dv.dv_config && devp->index == devp->dv.dv_path_idx &&
@@ -2258,10 +2259,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 			devp->frontend->dec_ops->stop(devp->frontend,
 				devp->parm.port, devp->port_type);
 	}
-	pr_info("%s vdin%d,delay %u us before stop\n",
-		__func__, devp->index, devp->dbg_stop_dec_delay);
-	if (devp->dbg_stop_dec_delay)
-		usleep_range(devp->dbg_stop_dec_delay, devp->dbg_stop_dec_delay + 1000);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	vdin_set_dsc_config_t3x(devp, false);
 #endif
@@ -2274,6 +2271,12 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 
 	/* reset default canvas  */
 	vdin_set_def_wr_canvas(devp);
+	vdin_clk_on_off(devp, false);
+
+	pr_info("vdin%d,delay %u us before vdin_stop\n",
+		devp->index, devp->dbg_stop_dec_delay);
+	if (devp->dbg_stop_dec_delay)
+		usleep_range(devp->dbg_stop_dec_delay, devp->dbg_stop_dec_delay + 1000);
 
 	vdin_dolby_addr_release(devp, devp->vfp->size);
 

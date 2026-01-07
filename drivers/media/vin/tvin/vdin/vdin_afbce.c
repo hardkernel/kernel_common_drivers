@@ -772,7 +772,7 @@ int vdin_afbce_read_write_down_flag(struct vdin_dev_s *devp)
 void vdin_afbce_soft_reset(struct vdin_dev_s *devp)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_s5_cpu())
+	if (is_meson_s5_cpu() || is_meson_t6w_cpu() || is_meson_t6x_cpu())
 		return; //TODO
 	else if (is_meson_t3x_cpu()) {
 		vdin_afbce_soft_reset_t3x(devp);
