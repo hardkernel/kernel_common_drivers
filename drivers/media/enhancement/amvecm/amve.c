@@ -5963,12 +5963,16 @@ unsigned char bak_safa_input_422;
 
 void backup_422_config(void)
 {
+	if (chip_type_id < chip_t6d)
+		return;/*not support*/
+
 	bak_en_422to444 = READ_VPP_REG_BITS(VPP_VSR_TOP_C42C44_MODE,
 		6, 1);
 	bak_en_444to422 = READ_VPP_REG_BITS(VPP_VSR_TOP_C42C44_MODE,
 		2, 1);
-	bak_en_pi = READ_VPP_REG_BITS(VPP_PI_EN_MODE,
-		4, 1);
+	if (chip_type_id != chip_t6d)
+		bak_en_pi = READ_VPP_REG_BITS(VPP_PI_EN_MODE,
+			4, 1);
 	bak_dir_lpf_c_en = READ_VPP_REG_BITS(VPP_NR_LPF_EN,
 		16, 1);
 	bak_nr_gau_c_en = READ_VPP_REG_BITS(VPP_NR_LPF_EN,
@@ -6057,8 +6061,9 @@ void update_444_config(int input_444_mode,
 			en_422to444, 6, 1);
 		WRITE_VPP_REG_BITS(VPP_VSR_TOP_C42C44_MODE,
 			en_444to422, 2, 1);
-		WRITE_VPP_REG_BITS(VPP_PI_EN_MODE,
-			en_pi, 4, 1);
+		if (chip_type_id != chip_t6d)
+			WRITE_VPP_REG_BITS(VPP_PI_EN_MODE,
+				en_pi, 4, 1);
 		WRITE_VPP_REG_BITS(VPP_NR_LPF_EN,
 			dir_lpf_c_en, 16, 1);
 		WRITE_VPP_REG_BITS(VPP_NR_LPF_EN,
@@ -6089,8 +6094,9 @@ void update_444_config(int input_444_mode,
 			en_422to444, 6, 1, vpp_index);
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VSR_TOP_C42C44_MODE,
 			en_444to422, 2, 1, vpp_index);
-		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_PI_EN_MODE,
-			en_pi, 4, 1, vpp_index);
+		if (chip_type_id != chip_t6d)
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_PI_EN_MODE,
+				en_pi, 4, 1, vpp_index);
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_NR_LPF_EN,
 			dir_lpf_c_en, 16, 1, vpp_index);
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_NR_LPF_EN,
