@@ -30,6 +30,8 @@ enum tvin_sm_status_e {
 #define VDIN_STABLED_CNT		200
 #define VDIN_SEND_EVENT_INTERVAL	50 /* Experience value can be adjusted */
 
+#define VDIN_HIGH_FRAME_RATE_TH		100
+
 enum vdin_sm_log_level {
 	VDIN_SM_LOG_L_1 = 0x01,
 	VDIN_SM_LOG_L_2 = 0x02,

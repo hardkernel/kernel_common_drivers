@@ -237,7 +237,10 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 
 		if (devp->prop.latency.allm_mode !=
 			devp->pre_prop.latency.allm_mode) {
-			if (devp->dv.allm_chg_cnt > devp->dts_config.vdin_dv_chg_cnt) {
+			temp = devp->prop.fps > VDIN_HIGH_FRAME_RATE_TH ?
+				devp->prop.fps / 60 + devp->dts_config.vdin_dv_chg_cnt :
+				devp->dts_config.vdin_dv_chg_cnt;
+			if (devp->dv.allm_chg_cnt > temp) {
 				devp->dv.allm_chg_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_DV_ALLM;
 				temp = devp->pre_prop.latency.allm_mode;
