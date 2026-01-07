@@ -1502,7 +1502,8 @@ void vdin_set_cutwin(struct vdin_dev_s *devp, unsigned int rdma_enable)
 	devp->prop.pre_hs = devp->prop.hs;
 	devp->prop.pre_he = devp->prop.he;
 
-	vdin_cfg_cutwin_regs(devp, rdma_enable, &cutwin_s);
+	if (!devp->get_vdin_mem_size_flag)
+		vdin_cfg_cutwin_regs(devp, rdma_enable, &cutwin_s);
 
 	if (devp->debug.vdin_ctl_dbg)
 		pr_info("%s: h_active=%d, v_active=%d, hs:%u, he:%u, vs:%u, ve:%u\n",
@@ -5321,6 +5322,29 @@ static void vdin_set_pre_h_scale(struct vdin_dev_s *devp)
 	pr_info("set_prehsc done!\n");
 }
 
+void vdin_get_hv_shrink(struct vdin_dev_s *devp)
+{
+	if ((devp->double_wr || K_FORCE_HV_SHRINK) &&
+	    (devp->h_active > 1920 || devp->v_active > 1080)) {
+		devp->h_shrink_times = H_SHRINK_TIMES_4k;
+		devp->v_shrink_times = V_SHRINK_TIMES_4k;
+	} else if (devp->double_wr && (devp->h_active > 720 ||
+		devp->v_active > 576)) {
+		devp->h_shrink_times = H_SHRINK_TIMES_1080;
+		devp->v_shrink_times = V_SHRINK_TIMES_1080;
+	} else {
+		devp->h_shrink_times = 1;
+		devp->v_shrink_times = 1;
+	}
+	devp->h_shrink_out = devp->h_active / devp->h_shrink_times;
+	devp->v_shrink_out = devp->v_active / devp->v_shrink_times;
+
+	if (devp->dv_hw5.hw5_ctl & BIT0) {
+		devp->h_shrink_out = devp->prop.scaling4w;
+		devp->v_shrink_out = devp->prop.scaling4h;
+	}
+}
+
 /* t6w newly added */
 static void vdin_set_h_aa_ds(struct vdin_dev_s *devp)
 {
@@ -5714,26 +5738,7 @@ void vdin_set_hv_scale(struct vdin_dev_s *devp)
 
 set_hv_shrink:
 
-	if ((devp->double_wr || K_FORCE_HV_SHRINK) &&
-	    (devp->h_active > 1920 || devp->v_active > 1080)) {
-		devp->h_shrink_times = H_SHRINK_TIMES_4k;
-		devp->v_shrink_times = V_SHRINK_TIMES_4k;
-	} else if (devp->double_wr && (devp->h_active > 720 ||
-		devp->v_active > 576)) {
-		devp->h_shrink_times = H_SHRINK_TIMES_1080;
-		devp->v_shrink_times = V_SHRINK_TIMES_1080;
-	} else {
-		devp->h_shrink_times = 1;
-		devp->v_shrink_times = 1;
-	}
-	devp->h_shrink_out = devp->h_active / devp->h_shrink_times;
-	devp->v_shrink_out = devp->v_active / devp->v_shrink_times;
-
-	if (devp->dv_hw5.hw5_ctl & BIT0) {
-		devp->h_shrink_out = devp->prop.scaling4w;
-		devp->v_shrink_out = devp->prop.scaling4h;
-	}
-
+	vdin_get_hv_shrink(devp);
 	if (devp->double_wr || K_FORCE_HV_SHRINK) {
 		if (devp->h_shrink_out < devp->h_active)
 			vdin_set_h_shrink(devp);

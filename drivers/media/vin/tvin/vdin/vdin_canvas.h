@@ -30,6 +30,8 @@ void vdin_canvas_init(struct vdin_dev_s *devp);
 void vdin_canvas_start_config(struct vdin_dev_s *devp);
 void vdin_cal_canvas_w(struct vdin_dev_s *devp);
 void vdin_canvas_auto_config(struct vdin_dev_s *devp);
+unsigned int get_vdin_req_mem(struct vdin_dev_s *devp);
+unsigned int count_vdin_req_mem(struct vdin_dev_s *devp);
 void vdin_mem_memset(struct vdin_dev_s *devp);
 unsigned int vdin_cma_alloc(struct vdin_dev_s *devp);
 void vdin_cma_release(struct vdin_dev_s *devp);

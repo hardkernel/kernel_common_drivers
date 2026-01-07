@@ -750,6 +750,7 @@ struct vdin_debug_s {
 	unsigned int dbg_force_duration;
 	bool bypass_game_dyn_fmt;
 	bool force_pause_en;
+	unsigned int vdin_manual_req_mem_size;
 };
 
 struct vdin_dv_s {
@@ -1074,6 +1075,7 @@ struct vdin_dev_s {
 	unsigned int secure_mem_size;
 	unsigned long mem_start;
 	unsigned int mem_size;
+	unsigned int mem_size_bak;/* backup */
 	unsigned long vf_mem_start[VDIN_CANVAS_MAX_CNT];
 	struct page *vf_venc_pages[VDIN_CANVAS_MAX_CNT];
 	struct codec_mm_s *vf_codec_mem[VDIN_CANVAS_MAX_CNT];
@@ -1090,6 +1092,7 @@ struct vdin_dev_s {
 	unsigned int vf_mem_size;
 	unsigned int vf_mem_size_small;/* double write use */
 	unsigned int frame_size;
+	unsigned int frame_size_bak;/* backup */
 	unsigned int vf_mem_max_cnt;/*real buffer number*/
 	unsigned int frame_buff_num;/*dts config data*/
 	unsigned int frame_buff_num_bak;/* backup */
@@ -1114,6 +1117,7 @@ struct vdin_dev_s {
 	unsigned int canvas_max_size;
 	unsigned int canvas_max_num;
 	unsigned int canvas_max_stride;
+	unsigned int canvas_max_num_bak;/* backup */
 	unsigned int vf_canvas_id[VDIN_CANVAS_MAX_CNT];
 	/*before G12A:32byte(256bit)align;
 	 *after G12A:64byte(512bit)align
@@ -1400,6 +1404,7 @@ struct vdin_dev_s {
 	struct reg_handle reg_hnd;
 	unsigned int vdin_game_frc;
 	unsigned int yuv422_2plane_en;
+	unsigned int get_vdin_mem_size_flag;
 };
 
 extern unsigned int max_ignore_frame_cnt;
@@ -1445,6 +1450,7 @@ int vdin_start_dec(struct vdin_dev_s *devp);
 void vdin_self_start_dec(struct vdin_dev_s *devp);
 void vdin_stop_dec(struct vdin_dev_s *devp);
 void vdin_self_stop_dec(struct vdin_dev_s *devp);
+void vdin_double_write_confirm(struct vdin_dev_s *devp);
 irqreturn_t vdin_isr_simple(int irq, void *dev_id);
 irqreturn_t vdin_isr(int irq, void *dev_id);
 

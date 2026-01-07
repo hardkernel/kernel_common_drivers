@@ -233,6 +233,7 @@ bool vdin_check_cycle(struct vdin_dev_s *devp);
 bool vdin_write_done_check(struct vdin_dev_s *devp);
 void vdin_calculate_duration(struct vdin_dev_s *devp);
 void vdin_wr_reverse(struct vdin_dev_s *devp, bool h_reverse, bool v_reverse);
+void vdin_get_hv_shrink(struct vdin_dev_s *devp);
 void vdin_set_hv_scale(struct vdin_dev_s *devp);
 void vdin_set_bitdepth(struct vdin_dev_s *devp, unsigned int rdma_enable);
 void vdin_set_cm2(unsigned int offset, unsigned int w,
