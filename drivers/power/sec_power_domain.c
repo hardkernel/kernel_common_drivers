@@ -47,6 +47,8 @@ struct sec_pm_private_domain {
 struct sec_pm_domain {
 	struct generic_pm_domain base;
 	struct sec_pm_private_domain *private_domain;
+	u32 *unused_domains;
+	int unused_domain_count;
 };
 
 struct sec_pm_domain_data {
@@ -1036,11 +1038,13 @@ static struct notifier_block pd_pm_nb = {
 
 static int sec_pd_probe(struct platform_device *pdev)
 {
-	int ret, i;
+	int ret, i, j;
+	struct device_node *np = pdev->dev.of_node;
 	struct sec_pm_private_domain *private_pd, *pri_pd;
 	struct sec_pm_domain *pd;
 	int init_status;
 	const struct sec_pm_domain_data *match;
+	bool is_unused_domain;
 
 	match = of_device_get_match_data(&pdev->dev);
 	if (!match) {
@@ -1067,11 +1071,34 @@ static int sec_pd_probe(struct platform_device *pdev)
 	if (!pri_pd)
 		return -ENOMEM;
 
+	pd->unused_domain_count = of_property_count_u32_elems(np, "unused_domain");
+	if (pd->unused_domain_count > 0) {
+		pd->unused_domains = devm_kcalloc(&pdev->dev, pd->unused_domain_count,
+					sizeof(u32), GFP_KERNEL);
+		if (!pd->unused_domains)
+			return -ENOMEM;
+		ret = of_property_read_u32_array(np, "unused_domain",
+					pd->unused_domains, pd->unused_domain_count);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to read unused domain\n");
+		}
+	}
+
 	for (i = 0; i < match->domains_count; i++) {
 		private_pd = &match->domains[i];
 		/* array might be sparse */
 		if (!private_pd->name)
 			continue;
+
+		is_unused_domain = false;
+		if (pd && pd->unused_domains) {
+			for (j = 0; j < pd->unused_domain_count; j++) {
+				if (private_pd->pd_index == pd->unused_domains[j]) {
+					is_unused_domain = true;
+					break;
+				}
+			}
+		}
 
 		pd[i].base.name = private_pd->name;
 		pd[i].base.power_on = sec_pm_domain_power_on;
@@ -1088,6 +1115,12 @@ static int sec_pd_probe(struct platform_device *pdev)
 		pri_pd[i].pd_parent = private_pd->pd_parent;
 
 		init_status = pwr_ctrl_status_psci_smc(private_pd->pd_index);
+
+		if (is_unused_domain && init_status == DOMAIN_INIT_ON) {
+			pd[i].base.flags = 0;
+			init_status = DOMAIN_INIT_OFF;
+			pwr_ctrl_psci_smc(i, PWR_OFF);
+		}
 
 		if (init_status == DOMAIN_INIT_OFF && private_pd->pd_status == DOMAIN_INIT_ON) {
 			if (pd[i].base.flags == GENPD_FLAG_ALWAYS_ON)
