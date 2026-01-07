@@ -3103,6 +3103,7 @@ static void vframe_display(struct videodisplay_dev *dev,
 				dma_fence_signal(frame_info->release_fence);
 				dma_fence_put(frame_info->release_fence);
 				atomic_set(&received_frames->on_use, false);
+				vd_prepare_data_q_put(dev, vd_prepare);
 				return;
 			}
 			vd_prepare->src_frame = vf;
