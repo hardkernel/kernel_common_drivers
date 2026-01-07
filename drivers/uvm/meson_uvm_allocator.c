@@ -39,7 +39,7 @@ static int enable_screencap;
 module_param_named(enable_screencap, enable_screencap, int, 0664);
 static int mua_debug_level = MUA_ERROR;
 module_param(mua_debug_level, int, 0644);
-static int mua_filldata_policy = MUA_WRAPPER_GE2D;
+static int mua_filldata_policy = MUA_ALL_WRAPPER;
 module_param(mua_filldata_policy, int, 0644);
 
 #define MUA_PRINTK(level, fmt, arg...) \
@@ -500,7 +500,7 @@ static int mua_screencap_filldata(struct mua_buffer *buffer, struct dma_buf *dma
 			ret = avbcd_uvm_fill_pattern(buffer, dmabuf);
 		} else {
 			if (skip_fill_buf) {
-				if (0) {//(vf->compWidth >= 3840 && vf->compHeight >= 2160) {
+				if (vf->compWidth >= 3840 && vf->compHeight >= 2160) {
 					MUA_PRINTK(MUA_INFO, "%s avbcd fill.\n", __func__);
 					ret = avbcd_uvm_fill_pattern(buffer, dmabuf);
 				} else {
