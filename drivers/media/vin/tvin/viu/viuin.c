@@ -49,6 +49,22 @@ static struct class *viu_class;
 #define ENCT_INFO_READ 0x271e
 #define ENCL_INFO_READ 0x271f
 #define VPU_VIU2VDIN_HDN_CTRL 0x2780
+/* VIU2VDIN_HDN (0x2780) Register Bitfield Definition
+ * Bit(s)   | R/W | Default | Description
+ * 13:0     | RO  | 0x0     | hsize
+ * 17:16    | RO  | 0x0     | flt_mode //0: no filter
+ * 19:18    | RO  | 0x0     | dn_ratio //0->1:1; 1->1:2; 2->1:4
+ * 20       | RO  | 0x0     | sw_reset
+ * 23       | RO  | 0x0     | hs_pol
+ * 24       | RO  | 0x0     | vskip_en
+ * 25       | RO  | 0x0     | vskip_odd
+ * 27:26    | RO  | 0x0     | venc_dn //0: 1/1 1: 1/2 downsample 2: 1/4 downsample
+ * 28       | RO  | 0x0     | dout_seq //output seq 0: little endian 1: big endian
+ * 29       | RO  | 0x0     | din_seq  //input seq  0: little endian 1: big endian
+ * 31:30    | RO  | 0x0     | din_mode //input 0: 1pixel 1: 2pixel 2: 4pixel
+ * 22:21    | RO  | 0x0     | dout_mode//output 0: 1pixel 1: 2pixel 2: 4pixel
+ */
+
 /* t7 enable hsync reg */
 #define VIU_FRM_CTRL   0x1a51
 #define VIU1_FRM_CTRL   0x1a8d
@@ -68,9 +84,36 @@ static struct class *viu_class;
 #define VPU_VIU_ASYNC_MASK 0x2781
 #define VDIN_MISC_CTRL 0x2782
 #define VPU_VIU_VDIN_IF_MUX_CTRL 0x2783
+/* VPU_VIU_VDIN_IF_MUX_CTRL (0x2783) Register Bitfield Definition
+ * Bit(s)   | R/W | Default | Description
+ * 25:24    | R/W | 0x0     | vdin1_buf_gclk_ctrl
+ * 23       | R/W | 0x0     | vdin_sw_reset
+ * 22       | R/W | 0x0     | vdin_vs_pol
+ * 21       | R/W | 0x0     | vdin_downsample_buffer_overflow_clear
+ * 15       | RO  | 0x0     | vdin1_downsample_buffer_overflow_status
+ * 14:8     | R/W | 0x0     | vdin1_sel_data_wrbak_src_data
+ * 6:0      | R/W | 0x0     | vdin1_sel_clk_wrbak_src_clock
+ */
+
 #define VPU_VIU2VDIN1_HDN_CTRL 0x2784
 #define VPU_VENCX_CLK_CTRL 0x2785
 #define VPP_WR_BAK_CTRL 0x1df9
+/* VPP_WRBAK_CTRL (0x1df9) Register Bitfield Definition
+ * Bit(s) | R/W | Default | Description
+ * 30     | R/W | 0x0     | postbld_dout_wrbak_enable
+ * 29     | R/W | 0x1     | postbld_dout_display_enable
+ * 28     | R/W | 0x1     | vpp_dout_display_enable
+ * 27:16  | R/W | 0x0     | rbak_din_hblank_num
+ * 13     | R/W | 0x0     | postbld_vd3_only_wrbak_enable
+ * 12     | R/W | 0x0     | prebld_vd1_wrbak_enable
+ * 11     | R/W | 0x0     | vpp_dout_wrbak_enable
+ * 10     | R/W | 0x0     | postbld_osd2_wrbak_enable
+ * 9      | R/W | 0x0     | postbld_osd1_wrbak_enable
+ * 8      | R/W | 0x0     | postbld_vd2_wrbak_enable
+ * 7:4    | R/W | 0x0     | wrbak1_channel_select_source
+ * 3:0    | R/W | 0x0     | wrbak0_channel_select_source
+ */
+
 #define VPP1_WR_BAK_CTRL 0x5981
 #define VPP2_WR_BAK_CTRL 0x59c1
 #define VPU_422TO444_CTRL0 0x274b
@@ -91,7 +134,30 @@ static struct class *viu_class;
 /* t6x new add*/
 #define VPU_VIU2VDIN0_BUF_SIZE	0x2737
 #define VPP_WRBAK_HOLD_CTRL	0x1df4 /* reduction speed */
+/* VPP_WRBAK_HOLD_CTRL (0x1df4) Register Bitfield Definition
+ * Bit(s)   | R/W | Default | Description
+ * 31:0     | W   | 0x0     | wrbak_hold_ctrl
+ * 17       | W   | 0x0     | hold_en_postbld_dout
+ * 16       | W   | 0x0     | hold_en_vpp_dout
+ * 15:8     | W   | 0x0     | pass_num_aft_postbld
+ * 7:0      | W   | 0x0     | hold_num_aft_postbld
+ */
+
 #define VPU_VIU2VDIN0_HALF_CTRL	0x272d /* vpp >4k2k 60 cutwin */
+#define VPP_PATH_CTRL		0x1d0f
+/* VPP_PATH_CTRL (0x1d0f) Register Bitfield Definition
+ * Bit(s)   | R/W | Default | Description
+ * 31:24    | W   | 0x0     | pass_num_bef_postbld
+ * 23:16    | W   | 0x0     | hold_num_bef_postbld
+ * 11       | W   | 0x0     | hold_en_postbld_osd2
+ * 10       | W   | 0x0     | hold_en_postbld_osd1
+ * 9        | W   | 0x0     | hold_en_postbld_vd2
+ * 8        | W   | 0x0     | hold_en_vd1_swop
+ * 3        | W   | 0x1     | reg_osd2_disp_en
+ * 2        | W   | 0x1     | reg_osd1_disp_en
+ * 1        | W   | 0x1     | reg_vd2_disp_en
+ * 0        | W   | 0x1     | reg_vd1_swop_disp_en
+ */
 
 static unsigned int vsync_enter_line_curr;
 static unsigned int vsync_enter_line_max;
@@ -609,22 +675,28 @@ static void viuin_set_wr_bak_ctrl(enum tvin_port_e port)
 #endif
 		break;
 	case TVIN_PORT_VIU1_WB0_VPP:
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (is_meson_t6x_cpu()) {/* enable wrbak */
+			wr_bits_viu(VPP_WR_BAK_CTRL, 6, 0, 4);
+			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
+			if (rd_bits_viu(VPP_MISC, 27, 1)) {
+				wr_bits_viu(VPP_WR_BAK_CTRL, 0xff, 16, 8);
+				wr_bits_viu(VPP_WR_BAK_CTRL, 0, 28, 1);
+			} else {
+				wr_bits_viu(VPP_WR_BAK_CTRL, 0x00, 16, 8);
+			}
+			break;
+		}
+		if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu() || is_meson_t6w_cpu()) &&
+			rd_bits_viu(VPP_MISC, 27, 1))
+			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
+#endif
 		wr_bits_viu(VPP_WR_BAK_CTRL, 6, 0, 4);
 		/* increase h banking in case vdin afifo overflow
 		 * pre chip has 8bits
 		 * tm2_revb increased 4bits, all 12bit
 		 */
 		wr_bits_viu(VPP_WR_BAK_CTRL, 0xff, 16, 8);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (is_meson_t6x_cpu()) {/* enable wrbak */
-			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
-			if (rd_bits_viu(VPP_MISC, 27, 1))
-				wr_bits_viu(VPP_WR_BAK_CTRL, 0, 28, 1);
-		}
-		if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu() || is_meson_t6w_cpu()) &&
-			rd_bits_viu(VPP_MISC, 27, 1))
-			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
-#endif
 		break;
 	case TVIN_PORT_VIU1_VIDEO:
 		wr_bits_viu(VPP_WR_BAK_CTRL, 7, 0, 4);
@@ -912,6 +984,12 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		wr_viu(VPU_VIU2VDIN0_BUF_SIZE,
 			(devp->parm.v_active << 16) | (devp->parm.h_active << 0));
 
+		if (!devp->parm.over_pixel_clock) {
+			wr_bits_viu(VPP_PATH_CTRL, 2, 24, 8);
+			wr_bits_viu(VPP_PATH_CTRL, 1, 16, 8);
+			wr_bits_viu(VPP_PATH_CTRL, 1, 8, 1);
+		}
+
 		if (devp->parm.over_pixel_clock)
 			wr_viu(VPU_VIU2VDIN_HDN_CTRL, (0x4420 << 16) | (devp->parm.h_active << 0));
 		else
@@ -1011,6 +1089,15 @@ static void viuin_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	//pr_info("%s %d Disable VIU to VDIN\n", __func__, __LINE__);
 	wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0);
 	wr_viu(VPU_VIU2VDIN0_BUF_SIZE, 0);
+	if (is_meson_t6x_cpu()) {
+		if (rd_bits_viu(VPP_PATH_CTRL, 24, 8))
+			wr_bits_viu(VPP_PATH_CTRL, 0, 24, 8);
+		if (rd_bits_viu(VPP_PATH_CTRL, 16, 8))
+			wr_bits_viu(VPP_PATH_CTRL, 0, 16, 8);
+		if (rd_bits_viu(VPP_PATH_CTRL, 8, 1))
+			wr_bits_viu(VPP_PATH_CTRL, 0, 8, 1);
+	}
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* txhd2 keystone path close */
 	if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu() || is_meson_t6w_cpu() ||
