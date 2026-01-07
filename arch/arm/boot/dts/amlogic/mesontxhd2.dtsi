@@ -341,6 +341,22 @@
 		cust_governor = "power_allocator";
 	};
 
+	vir_tsensor: vir_tsensor {
+		compatible = "amlogic, vir-tsens";
+		status = "okay";
+		zone-name = "soc_thermal";
+		num-vtsens = <1>;
+		#thermal-sensor-cells = <1>;
+	};
+
+	cpucore_cooling: cpucore_cooling {
+		compatible = "amlogic, cpucore-cooling";
+		status = "okay";
+		cluster_core_num = <3>;
+		cluster_cores = <1 2 3>;
+		#cooling-cells = <2>;
+	};
+
 	meson_cooldev: meson-cooldev@0 {
 		status = "okay";
 		compatible = "amlogic, meson-cooldev";
@@ -382,6 +398,24 @@
 					cooling-device = <&CPU0 0 5>,
 							 <&gpu 0 3>;
 					contribution = <1024>;
+				};
+			};
+		};
+		vir_thermal: vir_thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&vir_tsensor 0>;
+			trips {
+				vir_control_0: trip-point@0 {
+					temperature = <105000>;
+					hysteresis = <3000>;
+					type = "passive";
+				};
+			};
+			cooling-maps {
+				cpucore_cooling_map {
+					trip = <&vir_control_0>;
+					cooling-device = <&cpucore_cooling 0 1>;
 				};
 			};
 		};

@@ -592,6 +592,22 @@
 		#thermal-sensor-cells = <1>;
 	};
 
+	vir_tsensor: vir_tsensor {
+		compatible = "amlogic, vir-tsens";
+		status = "okay";
+		zone-name = "soc_thermal";
+		num-vtsens = <1>;
+		#thermal-sensor-cells = <1>;
+	};
+
+	cpucore_cooling: cpucore_cooling {
+		compatible = "amlogic, cpucore-cooling";
+		status = "okay";
+		cluster_core_num = <3>;
+		cluster_cores = <1 2 3>;
+		#cooling-cells = <2>;
+	};
+
 	bl40: bl40 {
 		compatible = "amlogic, bl40";
 		memory-region = <&bl40_fw_reserved>;
@@ -1646,18 +1662,17 @@
 	};
 
 	meson_cooldev: meson-cooldev@0 {
-			status = "okay";
-			compatible = "amlogic, meson-cooldev";
-			device_name = "mcooldev";
-			cooling_devices {
-				gpufreq_cool {
-					dyn_coeff = <358>;
-					node_name = "bifrost";
-					device_type = "gpufreq";
-				};
+		status = "okay";
+		compatible = "amlogic, meson-cooldev";
+		device_name = "mcooldev";
+		cooling_devices {
+			gpufreq_cool {
+				dyn_coeff = <358>;
+				node_name = "bifrost";
+				device_type = "gpufreq";
 			};
 		};
-		/*meson cooling devices end*/
+	};/*meson cooling devices end*/
 
 	thermal-zones {
 		soc_thermal: soc_thermal {
@@ -1719,6 +1734,42 @@
 				};
 			};
 
+		};
+		vir_thermal: vir_thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&vir_tsensor 0>;
+			trips {
+				vir_control_0: trip-point@0 {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				vir_control_1: trip-point@1 {
+					temperature = <90000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				vir_control_2: trip-point@2 {
+					temperature = <95000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+			};
+			cooling-maps {
+				cpucore0_cooling_map {
+					trip = <&vir_control_0>;
+					cooling-device = <&cpucore_cooling 0 1>;
+				};
+				cpucore1_cooling_map {
+					trip = <&vir_control_1>;
+					cooling-device = <&cpucore_cooling 1 2>;
+				};
+				cpucore2_cooling_map {
+					trip = <&vir_control_2>;
+					cooling-device = <&cpucore_cooling 2 3>;
+				};
+			};
 		};
 	};
 	/*thermal zone end*/

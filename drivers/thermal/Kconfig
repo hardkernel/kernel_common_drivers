@@ -44,4 +44,15 @@ config AMLOGIC_DDR_THERMAL
 		and not the ACPI interface.
 
 		If you want this support, you should say Y here.
+
+config AMLOGIC_CPUCORE_THERMAL
+	tristate "generic cpu core cooling support"
+	depends on AMLOGIC_COOLDEV
+	default n
+	help
+		This implements the generic cpu cooling mechanism through reduce cpu core numbers
+		This will be useful for platforms using the generic thermal interface
+		and not the ACPI interface.
+
+		If you want this support, you should say Y here.
 endmenu

@@ -31,6 +31,11 @@ ddk_module(
                 "ddr_control.c",
             ],
         },
+        "CONFIG_AMLOGIC_CPUCORE_THERMAL": {
+            True: [
+                "cpucore_cooling.c",
+            ],
+        },
     },
     hdrs = [
         "//common:drivers/thermal/thermal_debugfs.h",

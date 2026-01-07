@@ -176,6 +176,22 @@
 			cust_governor = "power_allocator";
 		};
 
+		vir_tsensor: vir_tsensor {
+			compatible = "amlogic, vir-tsens";
+			status = "okay";
+			zone-name = "soc_thermal";
+			num-vtsens = <1>;
+			#thermal-sensor-cells = <1>;
+		};
+
+		cpucore_cooling: cpucore_cooling {
+			compatible = "amlogic, cpucore-cooling";
+			status = "okay";
+			cluster_core_num = <1>;
+			cluster_cores = <1>;
+			#cooling-cells = <2>;
+		};
+
 		sd_emmc_c: emmc@fe012000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0x0 0xfe012000 0x0 0x800>,
@@ -1333,7 +1349,6 @@
 		display_size_default = <1920 1080 1920 2160 32>;
 	};
 
-	/*meson cooling devices end*/
 	thermal-zones {
 		soc_thermal:soc_thermal {
 			polling-delay = <1000>;
@@ -1362,6 +1377,24 @@
 					trip = <&pcontrol>;
 					cooling-device = <&cpu0 0 3>;
 					contribution = <1024>;
+				};
+			};
+		};
+		vir_thermal: vir_thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			thermal-sensors = <&vir_tsensor 0>;
+			trips {
+				vir_control_0: trip-point@0 {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+			};
+			cooling-maps {
+				cpucore0_cooling_map {
+					trip = <&vir_control_0>;
+					cooling-device = <&cpucore_cooling 0 1>;
 				};
 			};
 		};
