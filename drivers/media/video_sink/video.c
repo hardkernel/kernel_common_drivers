@@ -5538,6 +5538,7 @@ void vsync_fisr_in(void)
 static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 {
+	/* check mute status at both ISR start and end. */
 	check_video_mute();
 	vsync_isr_cpuid = smp_processor_id();
 	if (video_suspend && video_suspend_cycle >= 1) {

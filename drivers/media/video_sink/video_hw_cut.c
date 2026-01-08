@@ -6095,9 +6095,8 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 
 	check_video_pattern_output();
 	check_postblend_pattern_output();
-	/* Move this to the beginning of the vsync ISR.
-	 * check_video_mute();
-	 */
+	/* check mute status at both ISR start and end. */
+	check_video_mute();
 	check_output_mute();
 
 	if (vd_layer[0].enable_3d_mode == mode_3d_mvc_enable)
