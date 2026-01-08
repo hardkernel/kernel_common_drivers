@@ -51,13 +51,11 @@ static void *aml_mm_vmap(phys_addr_t phys, unsigned long size)
 
 	vaddr = vmap(pages, npages, VM_MAP, pgprot);
 	if (!vaddr) {
-		pr_err("vmaped fail, size: %d\n",
-		       npages << PAGE_SHIFT);
 		vfree(pages);
 		return NULL;
 	}
 	vfree(pages);
-	gdc_log(LOG_DEBUG, "[HIGH-MEM-MAP] pa(%lx) to va(%p), size: %d\n",
+	pr_debug("[HIGH-MEM-MAP] pa(%lx) to va(%p), size: %d\n",
 		(unsigned long)phys, vaddr, npages << PAGE_SHIFT);
 	return vaddr;
 }
@@ -106,12 +104,12 @@ static void aml_dma_put(void *buf_priv)
 	void *vaddr = (void *)(PAGE_MASK & (ulong)buf->vaddr);
 
 	if (!atomic_dec_and_test(&buf->refcount)) {
-		gdc_log(LOG_DEBUG, "%s, aml_dma_buf=0x%p, refcount=%d\n",
-			__func__, buf, atomic_read(&buf->refcount));
+		pr_debug("aml_dma_buf=0x%p, refcount=%d\n",
+			buf, atomic_read(&buf->refcount));
 		return;
 	} else {
-		gdc_log(LOG_DEBUG, "%s, aml_dma_buf=0x%p, refcount=%d\n",
-			__func__, buf, atomic_read(&buf->refcount));
+		pr_debug("aml_dma_buf=0x%p, refcount=%d\n",
+			buf, atomic_read(&buf->refcount));
 	}
 	cma_pages = phys_to_page(buf->dma_addr);
 	if (_is_vmalloc_or_module_addr(vaddr))
@@ -165,7 +163,6 @@ static void *aml_dma_alloc(struct device *dev, unsigned long attrs,
 		paddr = page_to_phys(cma_pages);
 	} else {
 		kfree(buf);
-		pr_err("failed to alloc cma pages.\n");
 		return NULL;
 	}
 	buf->vaddr = aml_map_phyaddr_to_virt(paddr, size);
@@ -187,20 +184,16 @@ static int aml_dma_mmap(void *buf_priv, struct vm_area_struct *vma)
 	unsigned long vsize;
 	int ret = -1;
 
-	if (!buf || !vma) {
-		pr_err("No memory to map\n");
+	if (!buf || !vma)
 		return -EINVAL;
-	}
 
 	vsize = vma->vm_end - vma->vm_start;
 
 	pfn = buf->dma_addr >> PAGE_SHIFT;
 	ret = remap_pfn_range(vma, vma->vm_start, pfn,
 			      vsize, vma->vm_page_prot);
-	if (ret) {
-		pr_err("Remapping memory, error: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 	vm_flags_set(vma, VM_DONTEXPAND);
 
 	gdc_log(LOG_DEBUG, "mapped dma addr 0x%08lx at 0x%08lx, size %d\n",
@@ -300,7 +293,6 @@ static struct sg_table *aml_dmabuf_ops_map(struct dma_buf_attachment *db_attach,
 	sgt->nents = dma_map_sg(db_attach->dev, sgt->sgl, sgt->orig_nents,
 				dma_dir);
 	if (!sgt->nents) {
-		pr_err("failed to map scatterlist\n");
 		return (void *)(-EIO);
 	}
 
@@ -359,17 +351,17 @@ static struct dma_buf *get_dmabuf(struct aml_dma_buf_priv *buf_priv,
 	struct aml_dma_buf *buf;
 	struct dma_buf *dbuf;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+	int ret = 0;
 
 	if (!buf_priv || !buf_priv->aml_buf) {
-		pr_err("%s: buf_priv is NULL\n", __func__);
-		return NULL;
+		ret = -1;
+		goto error;
 	}
 
 	buf = buf_priv->aml_buf;
 	if (WARN_ON(!buf->vaddr) || buf->size == 0) {
-		pr_err("%s: invalid aml_buf (vaddr=%p, size=%u)\n",
-		       __func__, buf->vaddr, buf->size);
-		return NULL;
+		ret = -2;
+		goto error;
 	}
 
 	exp_info.ops = &gdc_dmabuf_ops;
@@ -378,19 +370,26 @@ static struct dma_buf *get_dmabuf(struct aml_dma_buf_priv *buf_priv,
 	exp_info.priv = buf_priv;
 	exp_info.exp_name = "gdc";
 
-	if (WARN_ON(!buf->vaddr))
-		return NULL;
+	if (WARN_ON(!buf->vaddr)) {
+		ret = -3;
+		goto error;
+	}
 
 	dbuf = dma_buf_export(&exp_info);
-	if (IS_ERR(dbuf))
-		return NULL;
+	if (IS_ERR(dbuf)) {
+		ret = -4;
+		goto error;
+	}
 
 	/* dmabuf keeps reference to vb2 buffer */
 	atomic_inc(&buf->refcount);
-	gdc_log(LOG_DEBUG, "%s, aml_dma_buf=0x%p, refcount=%d\n",
-		__func__, buf, atomic_read(&buf->refcount));
+	gdc_log(LOG_DEBUG, "get_dmabuf, aml_dma_buf=0x%p, refcount=%d\n",
+		buf, atomic_read(&buf->refcount));
 
 	return dbuf;
+error:
+	gdc_log(LOG_ERR, "get_dmabuf fail! ret:%d\n", ret);
+	return NULL;
 }
 
 /* ge2d dma-buf api.h*/
@@ -403,7 +402,7 @@ static int find_empty_dma_buffer(struct aml_dma_buffer *buffer)
 		if (buffer->gd_buffer[i].alloc) {
 			continue;
 		} else {
-			gdc_log(LOG_DEBUG, "%s i=%d\n", __func__, i);
+			gdc_log(LOG_DEBUG, "find_empty_dma_buffer: i=%d\n", i);
 			found = 1;
 			break;
 		}
@@ -518,32 +517,37 @@ int gdc_dma_buffer_export(struct aml_dma_buffer *buffer,
 	int ret, index;
 	unsigned int flags;
 
-	if (!gdc_exp_buf)
-		return (-EINVAL);
-	if (!buffer)
-		return (-EINVAL);
+	if (!gdc_exp_buf) {
+		ret = -1;
+		goto error;
+	}
+	if (!buffer) {
+		ret = -2;
+		goto error;
+	}
 
 	index = gdc_exp_buf->index;
-	if (index < 0 || index >= AML_MAX_DMABUF)
-		return (-EINVAL);
+	if (index < 0 || index >= AML_MAX_DMABUF) {
+		ret = -3;
+		goto error;
+	}
 
 	flags = gdc_exp_buf->flags;
 	buf = &buffer->gd_buffer[index];
 	if (!buf) {
-		pr_err("aml_dma_buf is null\n");
-		return (-EINVAL);
+		ret = -4;
+		goto error;
 	}
 	dbuf = get_dmabuf(buf, flags & O_ACCMODE);
 	if (IS_ERR_OR_NULL(dbuf)) {
-		pr_err("failed to export buffer %d\n", index);
-		return -EINVAL;
+		ret = -5;
+		goto error;
 	}
 	ret = dma_buf_fd(dbuf, flags & ~O_ACCMODE);
 	if (ret < 0) {
-		pr_err("buffer %d, failed to export (%d)\n",
-		       index, ret);
+		ret = -6;
 		dma_buf_put(dbuf);
-		return ret;
+		goto error;
 	}
 	gdc_log(LOG_DEBUG,
 		"buffer %d,exported as %d descriptor, aml_dma_buf(buf)=0x%p, dmabuf=0x%p\n",
@@ -552,6 +556,9 @@ int gdc_dma_buffer_export(struct aml_dma_buffer *buffer,
 	buffer->gd_buffer[index].dbuf = dbuf;
 	gdc_exp_buf->fd = ret;
 	return 0;
+error:
+	gdc_log(LOG_ERR, "gdc_dma_buffer_export fail! ret:%d\n", ret);
+	return (-EINVAL);
 }
 
 int gdc_dma_buffer_map(struct aml_dma_cfg *cfg)
@@ -562,35 +569,36 @@ int gdc_dma_buffer_map(struct aml_dma_cfg *cfg)
 	struct sg_table *sg = NULL;
 	struct device *dev = NULL;
 	enum dma_data_direction dir;
+	int ret = 0;
 
 	if (!cfg || cfg->fd < 0 || !cfg->dev) {
-		pr_err("%s: error input param\n", __func__);
-		return -EINVAL;
+		ret = -1;
+		goto error;
 	}
 	fd = cfg->fd;
 	dev = cfg->dev;
 	dir = cfg->dir;
 	dbuf = dma_buf_get(fd);
 	if (IS_ERR(dbuf)) {
-		pr_err("failed to get dma buffer");
-		return -EINVAL;
+		ret = -2;
+		goto error;
 	}
 	d_att = dma_buf_attach(dbuf, dev);
 	if (IS_ERR(d_att)) {
-		pr_err("failed to set dma attach");
+		ret = -3;
 		goto attach_err;
 	}
 
 	sg = dma_buf_map_attachment(d_att, dir);
 	if (IS_ERR(sg)) {
-		pr_err("failed to get dma sg");
+		ret = -4;
 		goto map_attach_err;
 	}
 
 	cfg->dbuf = dbuf;
 	cfg->attach = d_att;
 	cfg->sg = sg;
-	gdc_log(LOG_DEBUG, "%s, dbuf=0x%p\n", __func__, dbuf);
+	gdc_log(LOG_DEBUG, "dbuf map=0x%p\n", dbuf);
 
 	return 0;
 
@@ -599,6 +607,9 @@ map_attach_err:
 
 attach_err:
 	dma_buf_put(dbuf);
+
+error:
+	gdc_log(LOG_ERR, "gdc_dma_buffer_map fail! ret:%d\n", ret);
 	return -1;
 }
 
@@ -614,8 +625,8 @@ static int gdc_dma_buffer_get_phys_internal(struct aml_dma_buffer *buffer,
 		if (buffer->gd_buffer[i].alloc) {
 			dbuf = dma_buf_get(cfg->fd);
 			if (IS_ERR(dbuf)) {
-				pr_err("%s: failed to get dma buffer,fd=%d, dbuf=%p\n",
-				       __func__, cfg->fd, dbuf);
+				pr_err("failed to get dma buffer,fd=%d, dbuf=%p\n",
+				       cfg->fd, dbuf);
 				return -EINVAL;
 			}
 			dma_buf_put(dbuf);
@@ -636,19 +647,19 @@ int gdc_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 {
 	struct sg_table *sg_table;
 	struct page *page;
-	int ret = -1;
+	int ret = 0;
 
 	if (!cfg || cfg->fd < 0) {
-		pr_err("%s: error input param\n", __func__);
-		return -EINVAL;
+		ret = -1;
+		goto error;
 	}
 	ret = gdc_dma_buffer_get_phys_internal(buffer, cfg, addr);
 	if (ret < 0) {
 		gdc_log(LOG_DEBUG, "get_phys(fd=%d) is external.\n", cfg->fd);
 		ret = gdc_dma_buffer_map(cfg);
 		if (ret < 0) {
-			pr_err("gdc_dma_buffer_map failed\n");
-			return ret;
+			ret = -2;
+			goto error;
 		}
 		if (cfg->sg) {
 			sg_table = cfg->sg;
@@ -659,6 +670,9 @@ int gdc_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 		gdc_dma_buffer_unmap(cfg);
 	}
 	return ret;
+error:
+	gdc_log(LOG_ERR, "gdc_dma_buffer_get_phys fail! ret:%d\n", ret);
+	return -1;
 }
 
 void gdc_dma_buffer_unmap(struct aml_dma_cfg *cfg)
@@ -673,7 +687,7 @@ void gdc_dma_buffer_unmap(struct aml_dma_cfg *cfg)
 	if (!cfg || cfg->fd < 0 || !cfg->dev ||
 	    !cfg->dbuf || !cfg->attach ||
 	    !cfg->sg) {
-		pr_err("%s: error input param\n", __func__);
+		pr_err("error input param\n");
 		return;
 	}
 
@@ -689,7 +703,7 @@ void gdc_dma_buffer_unmap(struct aml_dma_cfg *cfg)
 	dma_buf_detach(dbuf, d_att);
 
 	dma_buf_put(dbuf);
-	gdc_log(LOG_DEBUG, "%s, dbuf=0x%p\n", __func__, dbuf);
+	gdc_log(LOG_DEBUG, "dbuf unmap=0x%p\n", dbuf);
 }
 
 static bool is_module_dmabuf(struct dma_buf *dmabuf)
@@ -707,30 +721,35 @@ void gdc_dma_buffer_dma_flush(struct device *dev, int fd)
 	struct dma_buf *dmabuf;
 	struct aml_dma_buf_priv *buf_priv;
 	struct aml_dma_buf *buf;
+	int ret = 0;
 
-	gdc_log(LOG_DEBUG, "%s fd=%d\n", __func__, fd);
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf)) {
-		pr_err("dma_buf_get failed\n");
-		return;
+		ret = -1;
+		goto error;
 	}
 	if (!is_module_dmabuf(dmabuf)) {
-		gdc_log(LOG_DEBUG, "%s, dmabuf=0x%p is not allocated by this module\n",
-			__func__, dmabuf);
+		gdc_log(LOG_DEBUG, "dma flush, dmabuf=0x%p is not allocated by this module\n",
+			dmabuf);
 		goto put;
 	}
 
 	buf_priv = dmabuf->priv;
 	buf = buf_priv->aml_buf;
 	if (!buf) {
-		pr_err("%s: error input param\n", __func__);
-		return;
+		ret = -2;
+		goto error;
 	}
 	if (buf->size > 0 && buf->dev == dev)
 		dma_sync_single_for_device(buf->dev, buf->dma_addr,
 					   buf->size, DMA_TO_DEVICE);
 put:
 	dma_buf_put(dmabuf);
+	return;
+
+error:
+	gdc_log(LOG_ERR, "gdc_dma_buffer_dma_flush fail! ret: %d\n", ret);
+	return;
 }
 
 void gdc_dma_buffer_cache_flush(struct device *dev, int fd)
@@ -738,28 +757,33 @@ void gdc_dma_buffer_cache_flush(struct device *dev, int fd)
 	struct dma_buf *dmabuf;
 	struct aml_dma_buf_priv *buf_priv;
 	struct aml_dma_buf *buf;
+	int ret = 0;
 
-	gdc_log(LOG_DEBUG, "%s fd=%d\n", __func__, fd);
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf)) {
-		pr_err("dma_buf_get failed\n");
-		return;
+		ret = -1;
+		goto error;
 	}
 	if (!is_module_dmabuf(dmabuf)) {
-		gdc_log(LOG_DEBUG, "%s, dmabuf=0x%p is not allocated by this module\n",
-			__func__, dmabuf);
+		gdc_log(LOG_DEBUG, "cache_flush, dmabuf=0x%p is not allocated by this module\n",
+			dmabuf);
 		goto put;
 	}
 
 	buf_priv = dmabuf->priv;
 	buf = buf_priv->aml_buf;
 	if (!buf) {
-		pr_err("%s: error input param\n", __func__);
-		return;
+		ret = -2;
+		goto error;
 	}
 	if (buf->size > 0 && buf->dev == dev)
 		dma_sync_single_for_cpu(buf->dev, buf->dma_addr,
 					buf->size, DMA_FROM_DEVICE);
 put:
 	dma_buf_put(dmabuf);
+	return;
+
+error:
+	gdc_log(LOG_ERR, "gdc_dma_buffer_cache_flush fail! ret: %d\n", ret);
+	return;
 }

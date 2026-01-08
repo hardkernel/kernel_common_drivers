@@ -277,7 +277,7 @@ static inline void gdc_aml_cfg_addr_write(ulong data, u32 core_id)
 {
 	u32 curr = system_gdc_read_32(ISP_DWAP_TOP_CMD_CTRL1, core_id);
 
-	gdc_log(LOG_DEBUG, " cfg paddr: 0x%lx\n", data);
+	gdc_log(LOG_DEBUG, "cfg paddr: 0x%lx\n", data);
 	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL0, data >> 4, core_id);
 	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL1, AML_GDC_CFG_STRIDE | curr,
 			    core_id);
@@ -309,8 +309,8 @@ static inline void gdc_bit_width_write(u32 format, u32 core_id)
 		in_bitw  = 3;
 		break;
 	default:
-		gdc_log(LOG_ERR, "%s, format (0x%x) in_bitw is wrong\n",
-			__func__, format);
+		gdc_log(LOG_ERR, "format (0x%x) in_bitw is wrong\n",
+			format);
 	}
 
 	switch (format & FORMAT_OUT_BITW_MASK) {
@@ -327,8 +327,8 @@ static inline void gdc_bit_width_write(u32 format, u32 core_id)
 		out_bitw  = 3;
 		break;
 	default:
-		gdc_log(LOG_ERR, "%s, format (0x%x) out_bitw is wrong\n",
-			__func__, format);
+		gdc_log(LOG_ERR, "format (0x%x) out_bitw is wrong\n",
+			format);
 	}
 
 	gdc_log(LOG_DEBUG, "in bit width:%d\n", in_bitw);
@@ -366,11 +366,11 @@ static inline void gdc_config_addr_write(u32 msb, u32 data, u32 dev_type,
 
 		kunmap(page);
 
-		gdc_log(LOG_DEBUG, "   coef_size: 0x%x %u\n",
+		gdc_log(LOG_DEBUG, "coef_size: 0x%x %u\n",
 			coef_size, coef_size);
-		gdc_log(LOG_DEBUG, "   mesh_size: 0x%x %u\n",
+		gdc_log(LOG_DEBUG, "mesh_size: 0x%x %u\n",
 			mesh_size, mesh_size);
-		gdc_log(LOG_DEBUG, "   fw offset: 0x%x %u\n",
+		gdc_log(LOG_DEBUG, "fw offset: 0x%x %u\n",
 			fw_offset, fw_offset);
 	}
 }

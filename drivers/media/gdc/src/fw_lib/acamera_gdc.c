@@ -778,7 +778,7 @@ void gdc_runtime_pwr_all(u32 dev_type, bool enable)
 	int i;
 
 	if (!gdc_dev) {
-		gdc_log(LOG_ERR, "%s, wrong param\n", __func__);
+		gdc_log(LOG_ERR, "gdc_runtime_pwr_all: wrong param\n");
 		return;
 	}
 	for (i = 0; i < gdc_dev->core_cnt; i++)
@@ -791,7 +791,7 @@ void gdc_clk_config_all(u32 dev_type, bool enable)
 	int i;
 
 	if (!gdc_dev) {
-		gdc_log(LOG_ERR, "%s, wrong param\n", __func__);
+		gdc_log(LOG_ERR, "gdc_clk_config_all: wrong param\n");
 		return;
 	}
 	for (i = 0; i < gdc_dev->core_cnt; i++)
@@ -810,7 +810,7 @@ int gdc_pwr_config(bool enable, u32 dev_type, u32 core_id)
 	struct meson_gdc_dev_t *gdc_dev =  GDC_DEV_T(dev_type);
 
 	if (!gdc_dev) {
-		gdc_log(LOG_ERR, "%s, wrong param\n", __func__);
+		gdc_log(LOG_ERR, "gdc_pwr_config: wrong param\n");
 		return -1;
 	}
 

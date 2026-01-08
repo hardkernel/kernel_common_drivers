@@ -76,14 +76,17 @@ void gdc_unmap_virt_from_phys(u8 __iomem *vaddr)
 	}
 }
 
+#ifdef GDC_DUNP_FILE_ENABLE
 static int write_buf_to_file(char *path, char *buf, int size)
 {
 	gdc_log(LOG_ERR, "%s has not been supported\n", __func__);
 	return size;
 }
+#endif
 
 static void dump_config_file(struct gdc_config_s *gc, u32 dev_type)
 {
+#ifdef GDC_DUNP_CONFIG_ENABLE
 	void __iomem *config_virt_addr;
 	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
 	int ret;
@@ -103,6 +106,9 @@ static void dump_config_file(struct gdc_config_s *gc, u32 dev_type)
 	} else {
 		gdc_log(LOG_ERR, "config_out_path_defined is not set\n");
 	}
+#else
+	gdc_log(LOG_ERR, "dump_config_file not supported!\n");
+#endif
 }
 
 void dump_gdc_regs(u32 dev_type, u32 core_id)
@@ -210,7 +216,7 @@ inline void recycle_resource(struct gdc_queue_item_s *item, u32 core_id)
 	u32 dev_type = item->cmd.dev_type;
 
 	if (!context) {
-		gdc_log(LOG_ERR, "%s, current_wq is NULL\n", __func__);
+		gdc_log(LOG_ERR, "recycle_resource: current_wq is NULL\n");
 		return;
 	}
 
@@ -240,7 +246,7 @@ down_wait:
 
 		start_process(item);
 	}
-	gdc_log(LOG_INFO, "exit %s\n", __func__);
+	gdc_log(LOG_INFO, "exit gdc_monitor_thread\n");
 	return 0;
 }
 
@@ -316,7 +322,7 @@ struct gdc_context_s *create_gdc_work_queue(u32 dev_type)
 		gdc_log(LOG_DEBUG, "Create a work queue, dev_type %d\n",
 			dev_type);
 	} else {
-		gdc_log(LOG_ERR, "GDC is not supported for this chip, dev_type %d\n",
+		gdc_log(LOG_ERR, "GDC not supported, dev_type %d\n",
 			dev_type);
 		return NULL;
 	}
@@ -418,7 +424,7 @@ void *gdc_prepare_item(struct gdc_context_s *wq)
 
 	pitem = list_entry(wq->free_queue.next, struct gdc_queue_item_s, list);
 	if (IS_ERR_OR_NULL(pitem)) {
-		gdc_log(LOG_ERR, "@@%s:%d, failed\n", __func__, __LINE__);
+		gdc_log(LOG_ERR, "gdc_prepare_item: failed\n");
 		return NULL;
 	}
 
@@ -441,7 +447,7 @@ void gdc_finish_item(struct gdc_queue_item_s *pitem)
 
 	pitem->start_process = 0;
 	if (!current_wq) {
-		gdc_log(LOG_ERR, "%s, current_wq is NULL\n", __func__);
+		gdc_log(LOG_ERR, "gdc_finish_item: current_wq is NULL\n");
 		return;
 	}
 	recycle_resource(pitem, core_id);
@@ -520,7 +526,6 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 	u32 time_cost;
 	unsigned int block = pitem->cmd.wait_done_flag;
 
-	gdc_log(LOG_DEBUG, "gdc add work\n");
 	spin_lock(&wq->lock);
 	list_move_tail(&pitem->list, &wq->work_queue);
 	spin_unlock(&wq->lock);

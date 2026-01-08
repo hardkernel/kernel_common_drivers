@@ -223,8 +223,8 @@ static int meson_gdc_release(struct inode *inode, struct file *file)
 
 	context = (struct gdc_context_s *)file->private_data;
 	if (!context) {
-		gdc_log(LOG_ERR, "context is null,release work queue error\n");
-		return -1;
+		ret = -1;
+		goto error;
 	}
 
 	dev = GDC_DEVICE(context->cmd.dev_type);
@@ -239,8 +239,8 @@ static int meson_gdc_release(struct inode *inode, struct file *file)
 		rc = cma_release(cma_area, cma_pages,
 						 context->i_len >> PAGE_SHIFT);
 		if (!rc) {
-			ret = ret - 1;
-			gdc_log(LOG_ERR, "Failed to release input buff\n");
+			ret = -2;
+			goto error;
 		}
 		mutex_lock(&context->d_mutext);
 		context->i_kaddr = NULL;
@@ -258,8 +258,8 @@ static int meson_gdc_release(struct inode *inode, struct file *file)
 		rc = cma_release(cma_area, cma_pages,
 						 context->o_len >> PAGE_SHIFT);
 		if (!rc) {
-			ret = ret - 1;
-			gdc_log(LOG_ERR, "Failed to release output buff\n");
+			ret = -3;
+			goto error;
 		}
 		mutex_lock(&context->d_mutext);
 		context->o_kaddr = NULL;
@@ -277,8 +277,8 @@ static int meson_gdc_release(struct inode *inode, struct file *file)
 		rc = cma_release(cma_area, cma_pages,
 						 context->c_len >> PAGE_SHIFT);
 		if (!rc) {
-			ret = ret - 1;
-			gdc_log(LOG_ERR, "Failed to release config buff\n");
+			ret = -4;
+			goto error;
 		}
 		mutex_lock(&context->d_mutext);
 		context->c_kaddr = NULL;
@@ -290,6 +290,9 @@ static int meson_gdc_release(struct inode *inode, struct file *file)
 		gdc_log(LOG_DEBUG, "release one gdc device\n");
 
 	return ret;
+error:
+	gdc_log(LOG_ERR, "meson_gdc_release fail! ret: %d\n", ret);
+	return -1;
 }
 
 static int meson_gdc_set_buff(struct gdc_context_s *context,
@@ -300,7 +303,7 @@ static int meson_gdc_set_buff(struct gdc_context_s *context,
 	struct device *dev = NULL;
 
 	if (!context || !cma_pages || len == 0) {
-		gdc_log(LOG_ERR, "Error input param\n");
+		gdc_log(LOG_ERR, "meson_gdc_set_buff: Error input param\n");
 		return -EINVAL;
 	}
 
@@ -337,7 +340,7 @@ static int meson_gdc_set_buff(struct gdc_context_s *context,
 		mutex_unlock(&context->d_mutext);
 	break;
 	default:
-		gdc_log(LOG_ERR, "Error mmap type:0x%x\n", context->mmap_type);
+		gdc_log(LOG_ERR, "meson_gdc_set_buff: Error mmap type:0x%x\n", context->mmap_type);
 		ret = -EINVAL;
 	break;
 	}
@@ -351,7 +354,7 @@ static int meson_gdc_set_input_addr(u32 start_addr,
 	struct gdc_config_s *gc = NULL;
 
 	if (!gdc_cmd || start_addr == 0) {
-		gdc_log(LOG_ERR, "Error input param\n");
+		gdc_log(LOG_ERR, "meson_gdc_set_input_addr: Error input param\n");
 		return -EINVAL;
 	}
 
@@ -390,7 +393,7 @@ static int meson_gdc_set_input_addr(u32 start_addr,
 			gc->input_c_stride * gc->input_height;
 	break;
 	default:
-		gdc_log(LOG_ERR, "Error config format\n");
+		gdc_log(LOG_ERR, "meson_gdc_set_input_addr: Error config format\n");
 		return -EINVAL;
 	break;
 	}
@@ -403,7 +406,7 @@ static void meson_gdc_dma_flush(struct device *dev,
 				size_t size)
 {
 	if (!dev) {
-		gdc_log(LOG_ERR, "Error input param");
+		gdc_log(LOG_ERR, "meson_gdc_dma_flush: Error input param");
 		return;
 	}
 
@@ -415,7 +418,7 @@ static void meson_gdc_cache_flush(struct device *dev,
 				  size_t size)
 {
 	if (!dev) {
-		gdc_log(LOG_ERR, "Error input param");
+		gdc_log(LOG_ERR, "meson_gdc_cache_flush: Error input param");
 		return;
 	}
 
@@ -434,8 +437,8 @@ static int meson_gdc_dma_map(struct gdc_dma_cfg *cfg)
 	enum dma_data_direction dir;
 
 	if (!cfg || cfg->fd < 0 || !cfg->dev) {
-		gdc_log(LOG_ERR, "Error input param");
-		return -EINVAL;
+		ret = -1;
+		goto error;
 	}
 
 	fd = cfg->fd;
@@ -444,25 +447,25 @@ static int meson_gdc_dma_map(struct gdc_dma_cfg *cfg)
 
 	dbuf = dma_buf_get(fd);
 	if (!dbuf) {
-		gdc_log(LOG_ERR, "Failed to get dma buffer");
-		return -EINVAL;
+		ret = -2;
+		goto error;
 	}
 
 	d_att = dma_buf_attach(dbuf, dev);
 	if (!d_att) {
-		gdc_log(LOG_ERR, "Failed to set dma attach");
+		ret = -3;
 		goto attach_err;
 	}
 
 	sg = dma_buf_map_attachment(d_att, dir);
 	if (!sg) {
-		gdc_log(LOG_ERR, "Failed to get dma sg");
+		ret = -4;
 		goto map_attach_err;
 	}
 
 	ret = dma_buf_begin_cpu_access(dbuf, dir);
 	if (ret != 0) {
-		gdc_log(LOG_ERR, "Failed to access dma buff");
+		ret = -5;
 		goto access_err;
 	}
 	/*
@@ -471,7 +474,7 @@ static int meson_gdc_dma_map(struct gdc_dma_cfg *cfg)
 	/* coverity[uninit_use_in_call]*/
 	ret = dma_buf_vmap(dbuf, &map);
 	if (ret) {
-		gdc_log(LOG_ERR, "Failed to vmap dma buf");
+		ret = -6;
 		goto vmap_err;
 	}
 
@@ -494,6 +497,8 @@ map_attach_err:
 attach_err:
 	dma_buf_put(dbuf);
 
+error:
+	gdc_log(LOG_ERR, "meson_gdc_dma_map fail! ret: %d\n", ret);
 	return ret;
 }
 
@@ -510,7 +515,7 @@ static void meson_gdc_dma_unmap(struct gdc_dma_cfg *cfg)
 	if (!cfg || cfg->fd < 0 || !cfg->dev ||
 	    !cfg->dbuf || !cfg->vaddr ||
 	    !cfg->attach || !cfg->sg) {
-		gdc_log(LOG_ERR, "Error input param");
+		gdc_log(LOG_ERR, "meson_gdc_dma_unmap: Error input param");
 		return;
 	}
 
@@ -543,8 +548,8 @@ static int meson_gdc_init_dma_addr(struct gdc_context_s *context,
 	struct device *dev = NULL;
 
 	if (!context || !gs) {
-		gdc_log(LOG_ERR, "Error input param\n");
-		return -EINVAL;
+		ret = -1;
+		goto error;
 	}
 
 	gdc_cmd = &context->cmd;
@@ -561,8 +566,8 @@ static int meson_gdc_init_dma_addr(struct gdc_context_s *context,
 
 		ret = meson_gdc_dma_map(dma_cfg);
 		if (ret != 0) {
-			gdc_log(LOG_ERR, "Failed to get map dma buff");
-			return ret;
+			ret = -2;
+			goto error;
 		}
 
 		gdc_cmd->y_base_addr = virt_to_phys(dma_cfg->vaddr);
@@ -575,8 +580,8 @@ static int meson_gdc_init_dma_addr(struct gdc_context_s *context,
 
 		ret = meson_gdc_dma_map(dma_cfg);
 		if (ret != 0) {
-			gdc_log(LOG_ERR, "Failed to get map dma buff");
-			return ret;
+			ret = -3;
+			goto error;
 		}
 
 		gdc_cmd->uv_base_addr = virt_to_phys(dma_cfg->vaddr);
@@ -590,18 +595,22 @@ static int meson_gdc_init_dma_addr(struct gdc_context_s *context,
 
 		ret = meson_gdc_dma_map(dma_cfg);
 		if (ret != 0) {
-			gdc_log(LOG_ERR, "Failed to get map dma buff");
-			return ret;
+			ret = -4;
+			goto error;
 		}
 		gdc_cmd->y_base_addr = virt_to_phys(dma_cfg->vaddr);
 		gdc_cmd->uv_base_addr = 0;
 	break;
 	default:
-		gdc_log(LOG_ERR, "Error image format");
+		ret = -5;
+		goto error;
 	break;
 	}
 
 	return ret;
+error:
+	gdc_log(LOG_ERR, "meson_gdc_init_dma_addr fail! ret: %d\n", ret);
+	return -1;
 }
 
 static void meson_gdc_deinit_dma_addr(struct gdc_context_s *context)
@@ -611,7 +620,7 @@ static void meson_gdc_deinit_dma_addr(struct gdc_context_s *context)
 	struct gdc_config_s *gc = NULL;
 
 	if (!context) {
-		gdc_log(LOG_ERR, "Error input param\n");
+		gdc_log(LOG_ERR, "meson_gdc_deinit_dma_addr: Error input param\n");
 		return;
 	}
 
@@ -631,7 +640,7 @@ static void meson_gdc_deinit_dma_addr(struct gdc_context_s *context)
 		meson_gdc_dma_unmap(dma_cfg);
 	break;
 	default:
-		gdc_log(LOG_ERR, "Error image format");
+		gdc_log(LOG_ERR, "meson_gdc_deinit_dma_addr: Error image format");
 	break;
 	}
 }
@@ -694,7 +703,7 @@ static int gdc_get_buffer_fd(int plane_id, struct gdc_buffer_info *buf_info)
 		fd = buf_info->v_base_fd;
 		break;
 	default:
-		gdc_log(LOG_ERR, "Error plane id\n");
+		gdc_log(LOG_ERR, "gdc_get_buffer_fd: Error plane id\n");
 		return -EINVAL;
 	}
 	return fd;
@@ -716,7 +725,7 @@ static int gdc_set_output_addr(int plane_id,
 		gdc_cmd->v_out_base_addr = addr;
 		break;
 	default:
-		gdc_log(LOG_ERR, "Error plane id\n");
+		gdc_log(LOG_ERR, "gdc_set_output_addr: Error plane id\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -728,10 +737,11 @@ static int gdc_set_input_addr(int plane_id,
 {
 	struct gdc_config_s *gc = NULL;
 	long size;
+	int ret = 0;
 
 	if (!gdc_cmd || addr == 0) {
-		gdc_log(LOG_ERR, "Error input param\n");
-		return -EINVAL;
+		ret = -1;
+		goto error;
 	}
 
 	gc = &gdc_cmd->gdc_config;
@@ -745,9 +755,8 @@ static int gdc_set_input_addr(int plane_id,
 			gdc_cmd->uv_base_addr = addr;
 			size = gc->input_y_stride * gc->input_height / 2;
 		} else {
-			gdc_log(LOG_ERR,
-				"plane_id=%d is invalid for NV12\n",
-				plane_id);
+			ret = -2;
+			goto error;
 		}
 		break;
 	case YV12:
@@ -761,9 +770,8 @@ static int gdc_set_input_addr(int plane_id,
 			gdc_cmd->v_base_addr = addr;
 			size = gc->input_c_stride * gc->input_height / 2;
 		} else {
-			gdc_log(LOG_ERR,
-				"plane_id=%d is invalid for YV12\n",
-				plane_id);
+			ret = -3;
+			goto error;
 		}
 		break;
 	case Y_GREY:
@@ -773,30 +781,33 @@ static int gdc_set_input_addr(int plane_id,
 			gdc_cmd->v_base_addr = 0;
 			size = gc->input_y_stride * gc->input_height;
 		} else {
-			gdc_log(LOG_ERR,
-				"plane_id=%d is invalid for Y_GREY\n",
-				plane_id);
+			ret = -4;
+			goto error;
 		}
 		break;
 	case YUV444_P:
 	case RGB444_P:
 		size = gc->input_y_stride * gc->input_height;
-		if (plane_id == 0)
+		if (plane_id == 0) {
 			gdc_cmd->y_base_addr = addr;
-		else if (plane_id == 1)
+		} else if (plane_id == 1) {
 			gdc_cmd->u_base_addr = addr;
-		else if (plane_id == 2)
+		} else if (plane_id == 2) {
 			gdc_cmd->v_base_addr = addr;
-		else
-			gdc_log(LOG_ERR,
-				"plane_id=%d is invalid for format=%d\n",
-				plane_id, gc->format);
+		} else {
+			ret = -5;
+			goto error;
+		}
 		break;
 	default:
-		gdc_log(LOG_ERR, "Error config format=%d\n", gc->format);
-		return -EINVAL;
+		ret = -6;
+		goto error;
 	}
 	return 0;
+
+error:
+	gdc_log(LOG_ERR, "gdc_set_input_addr fail! ret: %d\n", ret);
+	return -1;
 }
 
 static int gdc_get_input_size(struct gdc_cmd_s *gdc_cmd)
@@ -805,7 +816,7 @@ static int gdc_get_input_size(struct gdc_cmd_s *gdc_cmd)
 	long size;
 
 	if (!gdc_cmd) {
-		gdc_log(LOG_ERR, "Error input param\n");
+		gdc_log(LOG_ERR, "gdc_get_input_size: Error input param\n");
 		return -EINVAL;
 	}
 
@@ -824,7 +835,7 @@ static int gdc_get_input_size(struct gdc_cmd_s *gdc_cmd)
 		size = gc->input_y_stride * gc->input_height * 3;
 		break;
 	default:
-		gdc_log(LOG_ERR, "Error config format\n");
+		gdc_log(LOG_ERR, "gdc_get_input_size: Error config format\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -833,7 +844,7 @@ static int gdc_get_input_size(struct gdc_cmd_s *gdc_cmd)
 static int gdc_process_input_dma_info(struct gdc_context_s *context,
 				      struct gdc_settings_ex *gs_ex)
 {
-	int ret = -1;
+	int ret = 0;
 	unsigned long addr;
 	long size = 0;
 	struct aml_dma_cfg *cfg = NULL;
@@ -842,8 +853,8 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 	struct device *dev = NULL;
 
 	if (!context || !gs_ex) {
-		gdc_log(LOG_ERR, "Error input param\n");
-		return -EINVAL;
+		ret = -1;
+		goto error;
 	}
 
 	gdc_cmd = &context->cmd;
@@ -851,9 +862,8 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 
 	if (gs_ex->input_buffer.plane_number < 1 ||
 	    gs_ex->input_buffer.plane_number > 3) {
-		gdc_log(LOG_ERR, "%s, plane_number=%d invalid\n",
-			__func__, gs_ex->input_buffer.plane_number);
-		return -EINVAL;
+		ret = -2;
+		goto error;
 	}
 
 	plane_number = gs_ex->input_buffer.plane_number;
@@ -865,10 +875,8 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 		cfg->dir = DMA_TO_DEVICE;
 		ret = gdc_buffer_get_phys(cfg, &addr);
 		if (ret < 0) {
-			gdc_log(LOG_ERR,
-				"dma import input fd %d err\n",
-				cfg->fd);
-			return -EINVAL;
+			ret = -3;
+			goto error;
 		}
 
 		if (plane_number == 1) {
@@ -881,8 +889,8 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 
 			ret = meson_gdc_set_input_addr(addr, gdc_cmd);
 			if (ret != 0) {
-				gdc_log(LOG_ERR, "set input addr err\n");
-				return ret;
+				ret = -4;
+				goto error;
 			}
 		} else {
 			/* set MSB val */
@@ -891,8 +899,8 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 
 			size = gdc_set_input_addr(i, addr, gdc_cmd);
 			if (size < 0) {
-				gdc_log(LOG_ERR, "set input addr err\n");
-				return ret;
+				ret = -5;
+				goto error;
 			}
 		}
 		gdc_log(LOG_DEBUG, "plane[%d] get input addr=%lx\n",
@@ -900,20 +908,23 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 		if (plane_number == 1) {
 			size = gdc_get_input_size(gdc_cmd);
 			if (size < 0) {
-				gdc_log(LOG_ERR, "set input addr err\n");
-				return ret;
+				ret = -6;
+				goto error;
 			}
 		}
 		meson_gdc_dma_flush(dev, addr, size);
 	}
 
 	return 0;
+error:
+	gdc_log(LOG_ERR, "gdc_process_input_dma_info fail! ret: %d\n", ret);
+	return -1;
 }
 
 static int gdc_process_output_dma_info(struct gdc_context_s *context,
 				       struct gdc_settings_ex *gs_ex)
 {
-	int ret = -1;
+	int ret = 0;
 	unsigned long addr;
 	struct aml_dma_cfg *cfg = NULL;
 	struct gdc_cmd_s *gdc_cmd = NULL;
@@ -921,8 +932,8 @@ static int gdc_process_output_dma_info(struct gdc_context_s *context,
 	struct device *dev = NULL;
 
 	if (!context || !gs_ex) {
-		gdc_log(LOG_ERR, "Error output param\n");
-		return -EINVAL;
+		ret = -1;
+		goto error;
 	}
 
 	gdc_cmd = &context->cmd;
@@ -931,8 +942,8 @@ static int gdc_process_output_dma_info(struct gdc_context_s *context,
 	if (gs_ex->output_buffer.plane_number < 1 ||
 	    gs_ex->output_buffer.plane_number > 3) {
 		gs_ex->output_buffer.plane_number = 1;
-		gdc_log(LOG_ERR, "%s, plane_number=%d invalid\n",
-			__func__, gs_ex->output_buffer.plane_number);
+		gdc_log(LOG_ERR, "plane_number=%d invalid\n",
+			gs_ex->output_buffer.plane_number);
 	}
 
 	plane_number = gs_ex->output_buffer.plane_number;
@@ -944,10 +955,8 @@ static int gdc_process_output_dma_info(struct gdc_context_s *context,
 		cfg->dir = DMA_TO_DEVICE;
 		ret = gdc_buffer_get_phys(cfg, &addr);
 		if (ret < 0) {
-			gdc_log(LOG_ERR,
-				"dma import input fd %d err\n",
-				cfg->fd);
-			return -EINVAL;
+			ret = -2;
+			goto error;
 		}
 
 		if (plane_number == 1) {
@@ -967,14 +976,17 @@ static int gdc_process_output_dma_info(struct gdc_context_s *context,
 
 			ret = gdc_set_output_addr(i, addr, gdc_cmd);
 			if (ret < 0) {
-				gdc_log(LOG_ERR, "set input addr err\n");
-				return ret;
+				ret = -3;
+				goto error;
 			}
 		}
 		gdc_log(LOG_DEBUG, "plane[%d] get output addr=%lx\n",
 			i, addr);
 	}
 	return 0;
+error:
+	gdc_log(LOG_ERR, "gdc_process_output_dma_info fail! ret: %d\n", ret);
+	return -1;
 }
 
 static int gdc_process_ex_info(struct gdc_context_s *context,
@@ -989,7 +1001,7 @@ static int gdc_process_ex_info(struct gdc_context_s *context,
 	int i;
 
 	if (!context || !gs_ex) {
-		gdc_log(LOG_ERR, "Error input param\n");
+		gdc_log(LOG_ERR, "gdc_process_ex_info: Error input param\n");
 		return -EINVAL;
 	}
 
@@ -1000,7 +1012,7 @@ static int gdc_process_ex_info(struct gdc_context_s *context,
 	if (gs_ex->gdc_config.format & UVSWAP_ENABLE) {
 		gdc_cmd->uvswap_enable = 1;
 		gs_ex->gdc_config.format &= ~UVSWAP_ENABLE;
-		gdc_log(LOG_DEBUG, "%s, uvswap_enable:%d\n", __func__, gdc_cmd->uvswap_enable);
+		gdc_log(LOG_DEBUG, "uvswap_enable:%d\n", gdc_cmd->uvswap_enable);
 	}
 	memcpy(&gdc_cmd->gdc_config, &gs_ex->gdc_config,
 	       sizeof(struct gdc_config_s));
@@ -1033,7 +1045,7 @@ static int gdc_process_ex_info(struct gdc_context_s *context,
 	context->dma_cfg.config_cfg.paddr_8g_msb = (u64)addr >> 32;
 
 	gdc_cmd->gdc_config.config_addr = addr;
-	gdc_log(LOG_DEBUG, "%s, config addr=%lx\n", __func__, addr);
+	gdc_log(LOG_DEBUG, "config addr=%lx\n", addr);
 
 	ret = gdc_process_input_dma_info(context, gs_ex);
 	if (ret < 0) {
@@ -1043,8 +1055,8 @@ static int gdc_process_ex_info(struct gdc_context_s *context,
 	gdc_cmd->outplane = gs_ex->output_buffer.plane_number;
 	if (gdc_cmd->outplane < 1 || gdc_cmd->outplane > 3) {
 		gdc_cmd->outplane = 1;
-		gdc_log(LOG_ERR, "%s, plane_number=%d invalid\n",
-			__func__, gs_ex->output_buffer.plane_number);
+		gdc_log(LOG_ERR, "plane_number=%d invalid\n",
+			gs_ex->output_buffer.plane_number);
 	}
 	/* set block mode */
 	context->cmd.wait_done_flag = 1;
@@ -1073,7 +1085,7 @@ void release_config_firmware(struct firmware_load_s *fw_load)
 	struct device *dev = NULL;
 
 	if (!fw_load) {
-		gdc_log(LOG_ERR, "NULL param, %s (%d)\n", __func__, __LINE__);
+		gdc_log(LOG_ERR, "release_config_firmware: NULL param\n");
 		return;
 	}
 
@@ -1082,8 +1094,7 @@ void release_config_firmware(struct firmware_load_s *fw_load)
 	} else if (is_gdc_supported()) {
 		dev = GDC_DEVICE(ARM_GDC);
 	} else {
-		gdc_log(LOG_ERR, "HW is not supported %s (%d)\n",
-			__func__, __LINE__);
+		gdc_log(LOG_ERR, "release_config_firmware: HW is not supported\n");
 		return;
 	}
 
@@ -1099,7 +1110,7 @@ EXPORT_SYMBOL(release_config_firmware);
 
 int load_firmware_by_name(char *fw_name, struct firmware_load_s *fw_load)
 {
-	int ret = -1;
+	int ret = 0;
 	const struct firmware *fw = NULL;
 	char *path = NULL;
 	void __iomem *virt_addr = NULL;
@@ -1107,8 +1118,8 @@ int load_firmware_by_name(char *fw_name, struct firmware_load_s *fw_load)
 	struct device *dev = NULL;
 
 	if (!fw_name || !fw_load) {
-		gdc_log(LOG_ERR, "NULL param, %s (%d)\n", __func__, __LINE__);
-		return -EINVAL;
+		ret = -1;
+		goto error;
 	}
 
 	if (is_aml_gdc_supported()) {
@@ -1116,40 +1127,34 @@ int load_firmware_by_name(char *fw_name, struct firmware_load_s *fw_load)
 	} else if (is_gdc_supported()) {
 		dev = GDC_DEVICE(ARM_GDC);
 	} else {
-		gdc_log(LOG_ERR, "HW is not supported %s (%d)\n",
-			__func__, __LINE__);
-		return -ENODEV;
+		ret = -2;
+		goto error;
 	}
-
-	gdc_log(LOG_DEBUG, "Try to load %s  ...\n", fw_name);
 
 	path = kzalloc(CONFIG_PATH_LENG, GFP_KERNEL);
 	if (!path) {
-		gdc_log(LOG_ERR, "cannot malloc fw_name!\n");
-		return -ENOMEM;
+		ret = -3;
+		goto error;
 	}
 	snprintf(path, (CONFIG_PATH_LENG - 1), "%s/%s",
 		 FIRMWARE_DIR, fw_name);
 
 	ret = request_firmware(&fw, path, dev);
 	if (ret < 0) {
-		gdc_log(LOG_DEBUG, "Error : %d can't load the %s.\n", ret, path);
+		ret = -4;
 		kfree(path);
-		return -ENOENT;
+		goto error;
 	}
 
 	if (fw->size <= 0) {
-		gdc_log(LOG_ERR,
-			"size error, wrong firmware or no enough mem.\n");
-		ret = -ENOMEM;
+		ret = -5;
 		goto release;
 	}
 
 	virt_addr = dma_alloc_coherent(dev, fw->size,
 				       &phys_addr, GFP_DMA | GFP_KERNEL);
 	if (!virt_addr) {
-		gdc_log(LOG_ERR, "alloc config buffer failed\n");
-		ret = -ENOMEM;
+		ret = -6;
 		goto release;
 	}
 
@@ -1160,31 +1165,31 @@ int load_firmware_by_name(char *fw_name, struct firmware_load_s *fw_load)
 	fw_load->virt_addr = virt_addr;
 
 	gdc_log(LOG_DEBUG,
-		"current firmware virt_addr: 0x%p, fw->data: 0x%p.\n",
-		virt_addr, fw->data);
+		"current firmware virt_addr: 0x%p, fw->data: 0x%p, size: %zd, Name: %s\n",
+		virt_addr, fw->data, fw->size, path);
 
-	gdc_log(LOG_DEBUG, "load firmware size : %zd, Name : %s.\n",
-		fw->size, path);
 	ret = fw->size;
 release:
 	release_firmware(fw);
 	kfree(path);
 
-	return ret;
+error:
+	gdc_log(LOG_ERR, "load_firmware_by_name fail! ret: %d\n", ret);
+	return -1;
 }
 EXPORT_SYMBOL(load_firmware_by_name);
 
 int rotation_calc_and_load_firmware(struct firmware_rotate_s *fw_param,
 				    struct firmware_load_s *fw_load)
 {
-	int ret = -1, fw_size = -1;
+	int ret = 0, fw_size = -1;
 	void __iomem *virt_addr = NULL;
 	phys_addr_t phys_addr = 0;
 	struct device *dev = NULL;
 
 	if (!fw_param || !fw_load) {
-		gdc_log(LOG_ERR, "NULL param, %s (%d)\n", __func__, __LINE__);
-		return -EINVAL;
+		ret = -1;
+		goto error;
 	}
 
 	if (is_aml_gdc_supported()) {
@@ -1192,12 +1197,10 @@ int rotation_calc_and_load_firmware(struct firmware_rotate_s *fw_param,
 	} else if (is_gdc_supported()) {
 		dev = GDC_DEVICE(ARM_GDC);
 	} else {
-		gdc_log(LOG_ERR, "HW is not supported %s (%d)\n",
-			__func__, __LINE__);
-		return -ENODEV;
+		ret = -2;
+		goto error;
 	}
 
-	gdc_log(LOG_DEBUG, "Try to calculate and load firmware\n");
 	gdc_log(LOG_DEBUG, "format:%d in w:%d h:%d, out w:%d h:%d, rotate:%d\n",
 		fw_param->format, fw_param->in_width, fw_param->in_height,
 		fw_param->out_width, fw_param->out_height,
@@ -1206,19 +1209,17 @@ int rotation_calc_and_load_firmware(struct firmware_rotate_s *fw_param,
 	virt_addr = dma_alloc_coherent(dev, fw_size_alloc,
 				       &phys_addr, GFP_DMA | GFP_KERNEL);
 	if (!virt_addr) {
-		gdc_log(LOG_ERR, "alloc config buffer failed\n");
-		return -ENOMEM;
+		ret = -3;
+		goto error;
 	}
 	if (!g_fw_func_ptr) {
-		gdc_log(LOG_ERR, "g_fw_func_ptr is NULL, gdc_fw.ko is not installed\n");
-		ret = -EPERM;
+		ret = -4;
 		goto release;
 	}
 
 	fw_size = g_fw_func_ptr->calculate_rotate_fw(fw_param, virt_addr);
 	if (fw_size <= 0) {
-		gdc_log(LOG_ERR, "calculate config buffer failed\n");
-		ret = -EINVAL;
+		ret = -5;
 		goto release;
 	}
 
@@ -1226,8 +1227,8 @@ int rotation_calc_and_load_firmware(struct firmware_rotate_s *fw_param,
 	fw_load->phys_addr = phys_addr;
 	fw_load->virt_addr = virt_addr;
 
-	gdc_log(LOG_DEBUG, "current firmware virt_addr: 0x%p.\n", virt_addr);
-	gdc_log(LOG_DEBUG, "load firmware size : %d.\n", fw_size);
+	gdc_log(LOG_DEBUG, "current firmware virt_addr: 0x%p size: %d\n",
+		virt_addr, fw_size);
 
 	return fw_size;
 release:
@@ -1236,6 +1237,8 @@ release:
 	fw_load->phys_addr = 0;
 	fw_load->virt_addr = NULL;
 
+error:
+	gdc_log(LOG_ERR, "rotation_calc_and_load_firmware fail! ret: %d\n", ret);
 	return ret;
 }
 EXPORT_SYMBOL(rotation_calc_and_load_firmware);
@@ -1243,15 +1246,15 @@ EXPORT_SYMBOL(rotation_calc_and_load_firmware);
 int gdc_process_with_fw(struct gdc_context_s *context,
 			struct gdc_settings_with_fw *gs_with_fw)
 {
-	int ret = -1;
+	int ret = 0;
 	struct gdc_cmd_s *gdc_cmd = NULL;
 	char *fw_name = NULL;
 	struct gdc_queue_item_s *pitem = NULL;
 	struct firmware_load_s  fw_load;
 
 	if (!context || !gs_with_fw) {
-		gdc_log(LOG_ERR, "Error input param\n");
-		return -EINVAL;
+		ret = -1;
+		goto error;
 	}
 
 	gdc_cmd = &context->cmd;
@@ -1260,8 +1263,8 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 
 	fw_name = kzalloc(CONFIG_PATH_LENG, GFP_KERNEL);
 	if (!fw_name) {
-		gdc_log(LOG_ERR, "cannot malloc fw_name!\n");
-		return -ENOMEM;
+		ret = -2;
+		goto error;
 	}
 	mutex_lock(&context->d_mutext);
 	memcpy(&gdc_cmd->gdc_config, &gs_with_fw->gdc_config,
@@ -1270,7 +1273,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 		(context,
 		 (struct gdc_settings_ex *)gs_with_fw);
 	if (ret < 0) {
-		ret = -EINVAL;
+		ret = -3;
 		goto release_fw_name;
 	}
 	gdc_cmd->base_gdc = 0;
@@ -1279,15 +1282,15 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 					 (struct gdc_settings_ex *)
 					 gs_with_fw);
 	if (ret < 0) {
-		ret = -EINVAL;
+		ret = -4;
 		goto release_fw_name;
 	}
 
 	gdc_cmd->outplane = gs_with_fw->output_buffer.plane_number;
 	if (gdc_cmd->outplane < 1 || gdc_cmd->outplane > 3) {
 		gdc_cmd->outplane = 1;
-		gdc_log(LOG_ERR, "%s, plane_number=%d invalid\n",
-			__func__, gs_with_fw->output_buffer.plane_number);
+		gdc_log(LOG_ERR, "gdc_process_with_fw, plane_number=%d invalid\n",
+			gs_with_fw->output_buffer.plane_number);
 	}
 
 	/* load firmware:
@@ -1321,8 +1324,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 			format = "rgb444p";
 			break;
 		default:
-			gdc_log(LOG_ERR, "unsupported gdc format\n");
-			ret = -EINVAL;
+			ret = -5;
 			goto release_fw_name;
 		}
 		snprintf(in_info, (64 - 1), "%d_%d_%d_%d_%d_%d",
@@ -1375,8 +1377,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 					 trans->fw_custom.fw_name,
 					 format);
 			} else {
-				gdc_log(LOG_ERR, "custom fw_name is NULL\n");
-				ret = -EINVAL;
+				ret = -6;
 				goto release_fw_name;
 			}
 			break;
@@ -1388,8 +1389,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 				 format);
 			break;
 		default:
-			gdc_log(LOG_ERR, "unsupported FW type\n");
-			ret = -EINVAL;
+			ret = -7;
 			goto release_fw_name;
 		}
 
@@ -1399,9 +1399,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 	ret = load_firmware_by_name(gs_with_fw->fw_info.fw_name,
 				    &fw_load);
 	if (ret <= 0) {
-		gdc_log(LOG_ERR, "line %d,load FW %s failed\n",
-			__LINE__, gs_with_fw->fw_info.fw_name);
-		ret = -EINVAL;
+		ret = -8;
 		goto release_fw_name;
 	}
 
@@ -1413,8 +1411,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 
 	pitem = gdc_prepare_item(context);
 	if (!pitem) {
-		gdc_log(LOG_ERR, "get item error\n");
-		ret = -ENOMEM;
+		ret = -9;
 		goto release_fw;
 	}
 	mutex_unlock(&context->d_mutext);
@@ -1429,14 +1426,16 @@ release_fw_name:
 	mutex_unlock(&context->d_mutext);
 	kfree(fw_name);
 
-	return ret;
+error:
+	gdc_log(LOG_ERR, "gdc_process_with_fw fail! ret: %d\n", ret);
+	return -1;
 }
 EXPORT_SYMBOL(gdc_process_with_fw);
 
 int gdc_process_phys(struct gdc_context_s *context,
 		     struct gdc_phy_setting *gs)
 {
-	int ret = -1, i;
+	int ret = 0, i;
 	struct gdc_cmd_s *gdc_cmd = NULL;
 	struct gdc_queue_item_s *pitem = NULL;
 	struct fw_info_s fw_info;
@@ -1449,8 +1448,8 @@ int gdc_process_phys(struct gdc_context_s *context,
 	u32 dev_type = 0;
 
 	if (!context || !gs) {
-		gdc_log(LOG_ERR, "NULL param, %s (%d)\n", __func__, __LINE__);
-		return -EINVAL;
+		ret = -1;
+		goto error;
 	}
 
 	dev_type = context->cmd.dev_type;
@@ -1489,9 +1488,9 @@ int gdc_process_phys(struct gdc_context_s *context,
 			i_y_stride = AXI_WORD_ALIGN(i_width);
 			i_c_stride = 0;
 		} else {
-			gdc_log(LOG_ERR, "Error unknown format\n");
+			ret = -2;
 			mutex_unlock(&context->d_mutext);
-			return -EINVAL;
+			goto error;
 		}
 	}
 
@@ -1507,9 +1506,9 @@ int gdc_process_phys(struct gdc_context_s *context,
 			o_y_stride = AXI_WORD_ALIGN(o_width);
 			o_c_stride = 0;
 		} else {
-			gdc_log(LOG_ERR, "Error unknown format\n");
+			ret = -3;
 			mutex_unlock(&context->d_mutext);
-			return -EINVAL;
+			goto error;
 		}
 	}
 
@@ -1544,8 +1543,8 @@ int gdc_process_phys(struct gdc_context_s *context,
 	plane_number = gs->out_plane_num;
 	if (plane_number < 1 || plane_number > 3) {
 		plane_number = 1;
-		gdc_log(LOG_ERR, "%s, input plane_number=%d invalid\n",
-			__func__, plane_number);
+		gdc_log(LOG_ERR, "gdc_process_phys: input plane_number=%d invalid\n",
+			plane_number);
 	}
 
 	for (i = 0; i < plane_number; i++) {
@@ -1566,9 +1565,9 @@ int gdc_process_phys(struct gdc_context_s *context,
 
 			ret = gdc_set_output_addr(i, gs->out_paddr[i], gdc_cmd);
 			if (ret < 0) {
-				gdc_log(LOG_ERR, "set input addr err\n");
+				ret = -4;
 				mutex_unlock(&context->d_mutext);
-				return -EINVAL;
+				goto error;
 			}
 		}
 		gdc_log(LOG_DEBUG, "plane[%d] get output paddr=0x%lx\n",
@@ -1579,8 +1578,8 @@ int gdc_process_phys(struct gdc_context_s *context,
 	plane_number = gs->in_plane_num;
 	if (plane_number < 1 || plane_number > 3) {
 		plane_number = 1;
-		gdc_log(LOG_ERR, "%s, output plane_number=%d invalid\n",
-			__func__, plane_number);
+		gdc_log(LOG_ERR, "gdc_process_phys: output plane_number=%d invalid\n",
+			plane_number);
 	}
 	for (i = 0; i < plane_number; i++) {
 		if (plane_number == 1) {
@@ -1594,9 +1593,9 @@ int gdc_process_phys(struct gdc_context_s *context,
 			ret = meson_gdc_set_input_addr(gs->in_paddr[0],
 						       gdc_cmd);
 			if (ret != 0) {
-				gdc_log(LOG_ERR, "set input addr err\n");
+				ret = -5;
 				mutex_unlock(&context->d_mutext);
-				return -EINVAL;
+				goto error;
 			}
 		} else {
 			/* set MSB val */
@@ -1605,9 +1604,9 @@ int gdc_process_phys(struct gdc_context_s *context,
 
 			ret = gdc_set_input_addr(i, gs->in_paddr[i], gdc_cmd);
 			if (ret < 0) {
-				gdc_log(LOG_ERR, "set input addr err\n");
+				ret = -6;
 				mutex_unlock(&context->d_mutext);
-				return -EINVAL;
+				goto error;
 			}
 		}
 		gdc_log(LOG_DEBUG, "plane[%d] get input addr=0x%lx\n",
@@ -1618,14 +1617,17 @@ int gdc_process_phys(struct gdc_context_s *context,
 	context->cmd.wait_done_flag = 1;
 	pitem = gdc_prepare_item(context);
 	if (!pitem) {
-		gdc_log(LOG_ERR, "get item error\n");
+		ret = -7;
 		mutex_unlock(&context->d_mutext);
-		return -ENOMEM;
+		goto error;
 	}
 	mutex_unlock(&context->d_mutext);
 	gdc_wq_add_work(context, pitem);
 
 	return ret;
+error:
+	gdc_log(LOG_ERR, "gdc_process_phys fail! ret: %d\n", ret);
+	return -1;
 }
 EXPORT_SYMBOL(gdc_process_phys);
 
@@ -1935,7 +1937,7 @@ static long meson_gdc_ioctl(struct file *file, unsigned int cmd,
 static int meson_gdc_mmap(struct file *file_p,
 			  struct vm_area_struct *vma)
 {
-	int ret = -1;
+	int ret = 0;
 	unsigned long buf_len = 0;
 	struct gdc_context_s *context = NULL;
 
@@ -1947,30 +1949,39 @@ static int meson_gdc_mmap(struct file *file_p,
 		ret = remap_pfn_range(vma, vma->vm_start,
 				      context->i_paddr >> PAGE_SHIFT,
 				      buf_len, vma->vm_page_prot);
-		if (ret != 0)
-			gdc_log(LOG_ERR, "Failed to mmap input buffer\n");
+		if (ret != 0) {
+			ret = -1;
+			goto error;
+		}
 	break;
 	case OUTPUT_BUFF_TYPE:
 		ret = remap_pfn_range(vma, vma->vm_start,
 				      context->o_paddr >> PAGE_SHIFT,
 				      buf_len, vma->vm_page_prot);
-		if (ret != 0)
-			gdc_log(LOG_ERR, "Failed to mmap input buffer\n");
-
+		if (ret != 0) {
+			ret = -2;
+			goto error;
+		}
 	break;
 	case CONFIG_BUFF_TYPE:
 		ret = remap_pfn_range(vma, vma->vm_start,
 				      context->c_paddr >> PAGE_SHIFT,
 				      buf_len, vma->vm_page_prot);
-		if (ret != 0)
-			gdc_log(LOG_ERR, "Failed to mmap input buffer\n");
+		if (ret != 0) {
+			ret = -3;
+			goto error;
+		}
 	break;
 	default:
-		gdc_log(LOG_ERR, "Error mmap type:0x%x\n", context->mmap_type);
+		ret = -4;
+		goto error;
 	break;
 	}
 
 	return ret;
+error:
+	gdc_log(LOG_ERR, "meson_gdc_mmap fail! ret: %d\n", ret);
+	return -1;
 }
 
 static const struct file_operations meson_gdc_fops = {
@@ -2262,17 +2273,18 @@ irqreturn_t gdc_interrupt_handler(int irq, void *param)
 static void gdc_irq_init(struct meson_gdc_dev_t *gdc_dev, u32 dev_type)
 {
 	int i, rc = 0, irq;
+	int ret = 0;
 
 	if (!gdc_dev || !gdc_dev->pdev) {
-		gdc_log(LOG_ERR, "%s, wrong param\n", __func__);
-		return;
+		ret = -1;
+		goto error;
 	}
 	/* irq init */
 	for (i = 0; i < gdc_dev->core_cnt; i++) {
 		irq = platform_get_irq(gdc_dev->pdev, i);
 		if (irq < 0) {
-			gdc_log(LOG_ERR, "cannot find %d irq for gdc\n", i);
-			return;
+			ret = -2;
+			goto error;
 		}
 
 		gdc_log(LOG_DEBUG, "request irq:%s\n",
@@ -2285,10 +2297,13 @@ static void gdc_irq_init(struct meson_gdc_dev_t *gdc_dev, u32 dev_type)
 				      irq_name[dev_type][i],
 				      &irq_data[dev_type][i]);
 		if (rc != 0) {
-			gdc_log(LOG_ERR, "cannot create %d irq func gdc\n", i);
-			return;
+			ret = -3;
+			goto error;
 		}
 	}
+error:
+	gdc_log(LOG_ERR, "gdc_irq_init fail! ret: %d\n", ret);
+	return;
 }
 
 #ifdef CONFIG_AMLOGIC_FREERTOS
@@ -2299,9 +2314,9 @@ static void work_func(struct work_struct *w)
 	u32 dev_type = timer_data->dev_type;
 
 	if (dev_type == ARM_GDC)
-		gdc_log(LOG_DEBUG, "gdc %s enter\n", __func__);
+		gdc_log(LOG_DEBUG, "gdc work_func enter\n");
 	else
-		gdc_log(LOG_DEBUG, "amlgdc %s enter\n", __func__);
+		gdc_log(LOG_DEBUG, "amlgdc work_func enter\n");
 
 	gdc_runtime_pwr_all(dev_type, 0);
 	gdc_clk_config_all(dev_type, 0);
@@ -2314,9 +2329,9 @@ static void timer_expire(struct timer_list *t)
 	u32 dev_type = timer_data->dev_type;
 
 	if (dev_type == ARM_GDC)
-		gdc_log(LOG_DEBUG, "gdc %s enter\n", __func__);
+		gdc_log(LOG_DEBUG, "gdc timer_expire enter\n");
 	else
-		gdc_log(LOG_DEBUG, "amlgdc %s enter\n", __func__);
+		gdc_log(LOG_DEBUG, "amlgdc timer_expire enter\n");
 
 	if (freertos_is_finished()) {
 		del_timer(&timer_data->timer);
@@ -2346,7 +2361,7 @@ static int gdc_platform_probe(struct platform_device *pdev)
 	if (!match) {
 		match = of_match_node(amlgdc_dt_match, pdev->dev.of_node);
 		if (!match) {
-			pr_err("%s NOT match\n", __func__);
+			pr_err("gdc_platform_probe: NOT match\n");
 			return -ENODEV;
 		}
 	}
@@ -2634,7 +2649,7 @@ int register_gdc_fw_funcs(struct gdc_fw_func_ptr *func_ptr, char *version)
 		return -1;
 	}
 
-	gdc_log(LOG_INFO, "%s, func_ptr:%p version:%s\n", __func__,
+	gdc_log(LOG_INFO, "register_gdc_fw_funcs: func_ptr:%p version:%s\n",
 		func_ptr, version);
 	g_fw_func_ptr = func_ptr;
 

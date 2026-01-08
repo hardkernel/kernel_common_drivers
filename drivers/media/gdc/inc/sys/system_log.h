@@ -22,7 +22,7 @@ enum log_level_e {
 #define gdc_log(level, fmt, ...)                                   \
 	do {                                                         \
 		if ((level) <= gdc_log_level)                        \
-			pr_info("gdc: %s: " fmt, __func__, ##__VA_ARGS__); \
+			pr_info("gdc: " fmt, ##__VA_ARGS__); \
 	} while (0)
 
 #endif // __SYSTEM_LOG_H__
