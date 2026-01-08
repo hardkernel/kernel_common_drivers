@@ -262,6 +262,7 @@ static struct clk_regmap hdmi_pll_dco = {
 			.fw_name = "xtal",
 		},
 		.num_parents = 1,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4106,7 +4107,7 @@ static struct clk_regmap pwm_g = {
 			&pwm_g_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4154,7 +4155,7 @@ static struct clk_regmap pwm_h = {
 			&pwm_h_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4202,7 +4203,7 @@ static struct clk_regmap pwm_i = {
 			&pwm_i_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4250,7 +4251,7 @@ static struct clk_regmap pwm_j = {
 			&pwm_j_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 

@@ -464,6 +464,7 @@ static struct clk_regmap hdmi_pll_dco = {
 			.fw_name = "xtal",
 		},
 		.num_parents = 1,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1314,7 +1315,7 @@ static struct clk_regmap rama_0 = {
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT |
-			 CLK_SET_RATE_GATE,
+			 CLK_SET_RATE_GATE | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1363,7 +1364,7 @@ static struct clk_regmap rama_1 = {
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT |
-			 CLK_SET_RATE_GATE,
+			 CLK_SET_RATE_GATE | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1383,8 +1384,12 @@ static struct clk_regmap rama = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = rama_parent_data,
 		.num_parents = ARRAY_SIZE(rama_parent_data),
-		.flags = CLK_SET_RATE_PARENT |
-			 CLK_OPS_PARENT_ENABLE,
+		/**
+		 * clk driver built-in loaded, critical clks cannot be
+		 * disabled by clk_disable_unused(). for glitch-free clocks,
+		 * CLK_OPS_PARENT_ENABLE flag needs to be removed.
+		 */
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
