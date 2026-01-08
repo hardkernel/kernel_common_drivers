@@ -29,6 +29,7 @@
 #include <linux/amlogic/power_domain.h>
 #include <linux/syscore_ops.h>
 #include <linux/amlogic/gki_module.h>
+#include "main.h"
 
 bool is_clr_resume_reason;
 
@@ -249,7 +250,7 @@ static void check_suspend_debug_mode(void)
 	}
 }
 
-void set_suspend_debug_flag(int suspend_flag)
+static void set_suspend_debug_flag(int suspend_flag)
 {
 	__invoke_psci_fn_smc(0x820000F3, 0, suspend_debug_flag &
 		(~(SUSPEND_DEBUG_LOGLEVEL | SUSPEND_DEBUG_INITCALL_DEBUG)),
@@ -321,7 +322,7 @@ static int suspend_get_debug_env(char *buf)
 
 __setup("suspend_debug=", suspend_get_debug_env);
 
-void lgcy_early_suspend(void)
+static void lgcy_early_suspend(void)
 {
 	mutex_lock(&sysfs_trigger_lock);
 
@@ -331,7 +332,7 @@ void lgcy_early_suspend(void)
 	mutex_unlock(&sysfs_trigger_lock);
 }
 
-void lgcy_late_resume(void)
+static void lgcy_late_resume(void)
 {
 	mutex_lock(&sysfs_trigger_lock);
 
@@ -357,7 +358,7 @@ static struct notifier_block lgcy_early_suspend_notifier = {
 	.notifier_call = lgcy_early_suspend_notify,
 };
 
-unsigned int lgcy_early_suspend_exit(struct platform_device *pdev)
+static unsigned int lgcy_early_suspend_exit(struct platform_device *pdev)
 {
 	int ret;
 
@@ -593,7 +594,7 @@ static struct class meson_pm_class = {
 	.class_groups = meson_pm_groups,
 };
 
-int gx_pm_syscore_suspend(void)
+static int gx_pm_syscore_suspend(void)
 {
 	if (sys_time_out)
 		writel_relaxed(sys_time_out, debug_reg);
@@ -601,7 +602,7 @@ int gx_pm_syscore_suspend(void)
 }
 
 /*clear wakeup reason*/
-void gx_pm_syscore_shutdown(void)
+static void gx_pm_syscore_shutdown(void)
 {
 	u32 val;
 
