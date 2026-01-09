@@ -24,19 +24,19 @@ uint static_msg_level = STATIC_ERROR_LEVEL | STATIC_MSG_LEVEL;
 #define DHD_STATIC_MSG(x, args...) \
 do { \
 	if (static_msg_level & STATIC_MSG_LEVEL) { \
-		pr_err("[dhd] STATIC-MSG) %s : " x, __func__, ## args); \
+		pr_debug("[dhd] STATIC-MSG) %s : " x, __func__, ## args); \
 	} \
 } while (0)
 #define DHD_STATIC_ERROR(x, args...) \
 do { \
 	if (static_msg_level & STATIC_ERROR_LEVEL) { \
-		pr_err("[dhd] STATIC-ERROR) %s : " x, __func__, ## args); \
+		pr_debug("[dhd] STATIC-ERROR) : " x, ## args); \
 	} \
 } while (0)
 #define DHD_STATIC_TRACE(x, args...) \
 do { \
 	if (static_msg_level & STATIC_TRACE_LEVEL) { \
-		pr_err("[dhd] STATIC-TRACE) %s : " x, __func__, ## args); \
+		pr_debug("[dhd] STATIC-TRACE) %s : " x, __func__, ## args); \
 	} \
 } while (0)
 
