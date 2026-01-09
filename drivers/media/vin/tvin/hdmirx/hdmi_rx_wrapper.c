@@ -5450,6 +5450,7 @@ void rx_port0_main_state_machine(void)
 			/* pll_unlock_cnt = 0; */
 			if (++rx[port].var.pll_lock_cnt < pll_lock_max)
 				break;
+			rx_reset_hdcp(port);
 			//rx_irq_en(true, port);
 			//hdmirx_top_irq_en(1, 1, port);
 			rx[port].state = FSM_SIG_WAIT_STABLE;
@@ -5888,6 +5889,7 @@ void rx_port1_main_state_machine(void)
 			/* pll_unlock_cnt = 0; */
 			if (++rx[port].var.pll_lock_cnt < pll_lock_max)
 				break;
+			rx_reset_hdcp(port);
 			//rx_irq_en(true, port);
 			//hdmirx_top_irq_en(1, 1, port);
 			rx[port].state = FSM_SIG_WAIT_STABLE;
@@ -6389,6 +6391,7 @@ void rx_port2_main_state_machine(void)
 			/* pll_unlock_cnt = 0; */
 			if (++rx[port].var.pll_lock_cnt < pll_lock_max)
 				break;
+			rx_reset_hdcp(port);
 			rx_cor_reset(port);
 			rx_clr_f_det(false, port);
 			hdmirx_output_en(1);
@@ -6999,6 +7002,7 @@ void rx_port3_main_state_machine(void)
 			/* pll_unlock_cnt = 0; */
 			if (++rx[port].var.pll_lock_cnt < pll_lock_max)
 				break;
+			rx_reset_hdcp(port);
 			rx_cor_reset(port);
 			rx_clr_f_det(false, port);
 			hdmirx_output_en(1);

@@ -2061,6 +2061,18 @@ void rx_set_aud_output_t7(u32 param)
 	}
 }
 
+void rx_reset_hdcp(u8 port)
+{
+	if (rx[port].hdcp.hdcp_version == HDCP_VER_NONE) {
+		/* hdcp1 rst */
+		hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(3), 1, port);
+		/* hdcp2 rst */
+		hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(0), 1, port);
+		hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(3), 0, port);
+		hdmirx_wr_bits_cor(RX_PWD_SRST2_PWD_IVCRX, _BIT(0), 0, port);
+	}
+}
+
 void rx_sw_reset_t7(int level, u8 port)
 {
 	u8 data8 = 0;

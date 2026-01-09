@@ -67,7 +67,8 @@
 /* 2025.12.18 fix hdmirx21 SLT SS corner 1080p issue */
 /* 2025.12.30 remove gb check for dvi */
 /* 2025.12.30 fix cts 2-106 fail issue */
-#define RX_HW_VER "ver.2025/12/31"
+/* 2026.01.16 fix hdcp 1.4 err */
+#define RX_HW_VER "ver.2025/01/16"
 
 #define K_TEST_CHK_ERR_CNT
 
