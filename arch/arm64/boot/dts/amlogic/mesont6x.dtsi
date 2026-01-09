@@ -1144,6 +1144,12 @@
 			#cooling-cells = <2>;
 		};
 
+		video_pipe_adapter {
+			compatible = "amlogic, video_pipe_adapter";
+			dev_name = "video_pipe_adapter";
+			status = "okay";
+		};
+
 		video_queue {
 			compatible = "amlogic, video_queue";
 			dev_name = "videoqueue";

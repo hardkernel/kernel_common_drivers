@@ -1105,6 +1105,12 @@
 		status = "okay";
 	};
 
+	video_pipe_adapter {
+		compatible = "amlogic, video_pipe_adapter";
+		dev_name = "video_pipe_adapter";
+		status = "okay";
+	};
+
 	aml_bt: aml_bt {
 		compatible = "amlogic, aml-bt";
 		status = "disabled";

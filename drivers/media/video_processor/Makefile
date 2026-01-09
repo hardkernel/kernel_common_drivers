@@ -14,3 +14,4 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/dpss_proc
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/buf_manager/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/videodisplay/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/v2d/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/video_pipe_adapter/Makefile

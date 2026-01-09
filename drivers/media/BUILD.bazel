@@ -843,7 +843,7 @@ ddk_module(
                 "video_processor/v2d/v2d.c",
                 "video_processor/v2d/v2d_dewarp_composer.c",
                 "video_processor/v2d/v2d_ge2d_composer.c",
-		"video_processor/v2d/v2d_vicp_composer.c",
+                "video_processor/v2d/v2d_vicp_composer.c",
             ],
         },
         "CONFIG_AMLOGIC_VIDEO_DISPLAY": {
@@ -852,6 +852,11 @@ ddk_module(
                 "video_processor/videodisplay/videodisplay_drv.c",
                 "video_processor/videodisplay/videodisplay_interface.c",
                 "video_processor/videodisplay/videodisplay_process.c",
+            ],
+        },
+        "CONFIG_AMLOGIC_VIDEO_PIPE_ADAPTER": {
+            True: [
+                "video_processor/video_pipe_adapter/video_pipe_adapter.c",
             ],
         },
         "CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION": {

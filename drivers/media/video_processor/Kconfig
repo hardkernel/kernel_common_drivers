@@ -31,6 +31,7 @@ source "$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/dpss_process/Kconfig
 source "$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/buf_manager/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/videodisplay/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/v2d/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/media/video_processor/video_pipe_adapter/Kconfig"
 endif
 
 endmenu

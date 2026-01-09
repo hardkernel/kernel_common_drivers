@@ -4247,6 +4247,69 @@ int dpss_frc_get_video_latency(void)
 }
 EXPORT_SYMBOL(dpss_frc_get_video_latency);
 
+int dpss_frc_get_video_latency_new(u32 input_fps, u32 output_fps)
+{
+	struct frc_chip_st *pchip_st;
+	struct dpss_frc_fw_data_s *pfw_data;
+	struct dpss_frc_top_type_s *frc_top;
+	struct frc_state_s *state_st;
+	u32 is_mc_link = 0, memc_bypass;
+	int delay_time = -1, delta_ms = 0;/*ms*/
+	u8 frm_rate;
+	enum DPSS_FRC_RATIO frc_ratio;
+
+	pchip_st = dpss_get_frc_st();
+	if (!pchip_st) {
+		dbg_f2("get_frc_latency_new：pchip_st is null\n");
+		return -1;
+	}
+	pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
+	if (!pfw_data)
+		return -1;
+	frc_top = &pfw_data->frc_top_type;
+
+	frc_top->film_mode  = rd(FRC_REG_PHS_TABLE) >> 8 & 0xFF;
+
+	state_st = &pchip_st->state_st;
+	frm_rate = state_st->n2m_status.input_framerate;
+	frc_ratio = state_st->n2m_status.frc_ratio;
+	is_mc_link = !is_vd1_link_state();
+
+	if (frc_top->memc_enable != 1) {
+		delay_time = 0;
+		// dbg_f2("delay_time=0, memc_enable:%d", frc_top->memc_enable);
+	} else if (enable_mc_link && is_mc_link) {
+		memc_bypass = rd(FRC_MC_HW_CTRL0) & 0x1;
+		// if (memc_bypass == 1) {
+		//	delay_time = 0;
+		//} else if (frm_rate == 0) {
+		// if (frm_rate == 0) {
+		//	delay_time = 50;
+		if (frc_ratio == DPSS_FRC_RATIO_1_1 &&
+				frm_rate == output_fps) {
+			delta_ms = get_delta_ms(frm_rate, output_fps);
+			delay_time = (25 * 100 * 100 / output_fps) / 100;
+			delay_time += delta_ms;
+		} else {
+			delta_ms = get_delta_ms(frm_rate, output_fps);
+			delay_time = (20 * 100 * 100 / frm_rate) / 100 +
+					(5 * 100 * 100 / output_fps) / 100;
+			delay_time += delta_ms;
+		}
+		// dbg_f2("delay_time:%d, memc_bypass:%d", delay_time, memc_bypass);
+		if (frc_delay_dbg)
+			delay_time = frc_delay_dbg; // ms
+	} else {
+		delay_time = 50;
+		// dbg_f2("other delay_time = %d", delay_time);
+	}
+	dbg_f2("delay_time = %dms delta_ms:%d input_hz:%d vout_hz:%d frm_rate:%d frc_ratio:%d\n",
+		 delay_time, delta_ms, input_fps, output_fps, frm_rate, frc_ratio);
+
+	return delay_time;
+}
+EXPORT_SYMBOL(dpss_frc_get_video_latency_new);
+
 int dpss_frc_tell_alg_vendor(u8 vendor_info)
 {
 	struct dpss_frc_fw_data_s *pfw_data;

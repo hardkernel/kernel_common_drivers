@@ -843,4 +843,13 @@ static int vpp_drv_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_VIDEO_PIPE_ADAPTER
+int video_pipe_adapter_module_init(void);
+#else
+static inline int video_pipe_adapter_module_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif

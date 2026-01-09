@@ -131,7 +131,8 @@ static int __init media_main_init(void)
 	call_sub_init(v2d_module_init);
 	call_sub_init(vpq_init);
 	call_sub_init(vpp_drv_init);
-	pr_debug("### %s() end\n", __func__);
+	call_sub_init(video_pipe_adapter_module_init);
+	pr_info("### %s() end\n", __func__);
 	return 0;
 }
 

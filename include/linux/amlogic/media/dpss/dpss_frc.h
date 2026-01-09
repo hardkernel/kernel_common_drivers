@@ -72,6 +72,7 @@ void *put_vfm_to_frc(struct vframe_s *vfm);
 struct vframe_s *get_vfm_from_frc(void);
 
 int dpss_frc_get_video_latency(void);
+int dpss_frc_get_video_latency_new(u32 input_fps, u32 output_fps);
 int dpss_frc_get_video_latency_for_gd(void);
 int dpss_frc_get_video_latency_for_gd1(void);
 void dpss_frc_set_mc_bypass(u8 bypass);
