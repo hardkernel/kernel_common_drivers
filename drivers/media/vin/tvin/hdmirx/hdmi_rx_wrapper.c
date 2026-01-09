@@ -5578,6 +5578,10 @@ void rx_port0_main_state_machine(void)
 					rx[port].min_time_detect_done = true;
 					break;
 				}
+				if (!rx[port].irq_all_en) {
+					rx_emp_hw_enable(true);
+					rx_irq_en(IRQ_EN_ALL, port);
+				}
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;
@@ -6012,6 +6016,10 @@ void rx_port1_main_state_machine(void)
 					rx[port].state = FSM_SIG_STABLE;
 					rx[port].min_time_detect_done = true;
 					break;
+				}
+				if (!rx[port].irq_all_en) {
+					rx_emp_hw_enable(true);
+					rx_irq_en(IRQ_EN_ALL, port);
 				}
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -6545,6 +6553,10 @@ void rx_port2_main_state_machine(void)
 					rx[port].state = FSM_SIG_STABLE;
 					rx[port].min_time_detect_done = true;
 					break;
+				}
+				if (!rx[port].irq_all_en) {
+					rx_emp_hw_enable(true);
+					rx_irq_en(IRQ_EN_ALL, port);
 				}
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -7149,6 +7161,10 @@ void rx_port3_main_state_machine(void)
 					rx[port].state = FSM_SIG_STABLE;
 					rx[port].min_time_detect_done = true;
 					break;
+				}
+				if (!rx[port].irq_all_en) {
+					rx_emp_hw_enable(true);
+					rx_irq_en(IRQ_EN_ALL, port);
 				}
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;

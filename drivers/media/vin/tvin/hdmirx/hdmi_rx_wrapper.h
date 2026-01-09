@@ -78,6 +78,7 @@
 /* 2026.1.6 HDMI cannot recognize 420 */
 /* 2026.1.8 add ch lock protect for frl training */
 /* 2026.1.9 reduce frl signal detect time */
+/* 2026.1.16 fix issue interrupts not enabled when HDMI Ready */
 #define RX_WRAPPER_VER "ver.2026/1/9"
 
 struct freq_ref_s {

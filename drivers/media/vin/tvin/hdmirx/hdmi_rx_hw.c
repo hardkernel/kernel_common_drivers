@@ -1949,6 +1949,7 @@ void hdmirx_top_irq_en(u8 en, u8 port)
 		break;
 	}
 	hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value, port);
+	rx[port].irq_all_en = (en == IRQ_EN_ALL) ? true : false;
 }
 
 /*

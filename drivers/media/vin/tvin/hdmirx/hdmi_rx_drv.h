@@ -1140,6 +1140,7 @@ struct rx_s {
 	u32 odd1_cnt;
 	bool need_add_one;
 	bool game_mode;
+	bool irq_all_en;
 };
 
 struct reg_map {
