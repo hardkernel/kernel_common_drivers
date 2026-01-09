@@ -1379,6 +1379,7 @@ static struct dpss_class_debug_s dpss_debugfs_class_files[] = {
 	{"frc_bypass", &dpss_frc_bypass, 1, 0},
 	{"nr_debug", &dpss_nr_debug, 1, 0},
 	{"xlr_en", &dpss_xlr_en, 1, 0},
+	{"xlr_side_en", &dpss_xlr_side_en, 1, 0},
 	{"me_en", &dpss_me_en, 1, 0},
 	{"di_debug", &dpss_di_debug, 1, 0},
 	{"force_nr_debug", &dpss_force_nr_debug, 1, 0},
@@ -1420,6 +1421,7 @@ ssize_t dpss_pq_en_show(const struct class *device,
 	len += sprintf(buf + len, "frc_bypass=%d\n", dpss_frc_bypass);
 	len += sprintf(buf + len, "nr_debug=%d\n", dpss_nr_debug);
 	len += sprintf(buf + len, "xlr_en=%d\n", dpss_xlr_en);
+	len += sprintf(buf + len, "xlr_side_en=%d\n", dpss_xlr_side_en);
 	len += sprintf(buf + len, "me_en=%d\n", dpss_me_en);
 	len += sprintf(buf + len, "di_debug=%d\n", dpss_di_debug);
 	len += sprintf(buf + len, "force_nr_debug=%d\n", dpss_force_nr_debug);

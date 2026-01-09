@@ -1465,7 +1465,7 @@ void dpss_reg_val(struct dpss_ch_s *pch)
 			pch->c.mem_support =
 			(unsigned char)((dpss_mem_support >> 16) & 0xff);
 	}
-	if (!pch->c.support_i && !dpss_lc_buf)
+	if (!pch->c.support_i && !dpss_lc_buf && !dpss_nr_debug)
 		pch->c.num_lc = 0;
 
 	dbg_m0("%s:mem_support:0x%x\n", __func__, pch->c.mem_support);
@@ -4556,7 +4556,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	blk_i->tvp = en_secure ? 1 : 0;
 	blk_i->mem_from = DPSS_MEM_FROM_CODEC_HD;
 	blk_i->cnt_cfg = NULL;
-	if (pchip_st && pchip_st->chip == ID_T6X) {
+	if (pchip_st && pchip_st->chip == ID_T6X && !dpss_nr_debug) {
 		blk_l = &pch->c.blki_lc;
 		memset(blk_l, 0, sizeof(*blk_l));
 		blk_l->mem_size = dd->hd_lc_info.size_total;
@@ -4686,7 +4686,8 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 	if (!pch->d->di_front) {
 		for (i = 0; i < pch->c.o_b_nub; i++) {
 			blk = &pch->c.blk_r_nr[i];
-			if (pchip_st && pchip_st->chip == ID_T6X)
+			if (pchip_st && pchip_st->chip == ID_T6X &&
+				!dpss_nr_debug)
 				blk_local = &pch->c.blk_r_lc[i];
 			memset(&oret, 0, sizeof(oret));
 			memset(&a_para, 0, sizeof(a_para));
@@ -4725,7 +4726,8 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 						afrc_info->size_body_y;
 
 				dbg_m1("uv addr=0x%lx\n", pch->c.addr_nr_uv[i]);
-				if (pchip_st && pchip_st->chip == ID_T6X) {
+				if (pchip_st && pchip_st->chip == ID_T6X &&
+					!dpss_nr_debug) {
 					blk_local->c.blk_typ = 0;	//tmp
 					blk_local->c.b.blk_m.inf = blk_i;
 					blk_local->c.b.blk_m.flg_alloc = true;

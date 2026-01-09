@@ -166,6 +166,7 @@ extern unsigned int dpss_frc_bypass;
 extern unsigned int dpss_me_en;
 extern unsigned int dpss_xlr_en;
 extern struct PRM_DPSS_INP prm_dpss_inp;
+extern unsigned int dpss_xlr_side_en;
 extern unsigned int dpss_afrc_head;
 extern unsigned int dpss_afrc_y;
 extern unsigned int dpss_afrc_c;

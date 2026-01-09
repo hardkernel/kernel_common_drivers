@@ -16,7 +16,8 @@ unsigned int dpss_dblk_en = 1;
 unsigned int dpss_cfr_en;
 unsigned int dpss_cue_en;
 unsigned int dpss_pq_en = 1;
-unsigned int dpss_xlr_en = 1;
+unsigned int dpss_xlr_en;
+unsigned int dpss_xlr_side_en;
 unsigned int dpss_me_en = 1;
 unsigned int dpss_lcevc_en;
 unsigned int dpss_di_debug = 1;
@@ -93,10 +94,10 @@ void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 			reg_nr_tnr_en = 1;
 		if (dpss_snr_en && nr_src0_en)
 			reg_nr_snr_en = 1;
-		if (dpss_xlr_en && nr_src0_en) {
+		if (dpss_xlr_en == 1 && nr_src0_en)
 			reg_xlr_en = 1;
+		if (dpss_xlr_side_en == 1 && nr_src0_en)
 			reg_xlr_side_en = 1;
-		}
 		if (!dpss_dblk_en) {
 			reg_dblk_en_v = 0;
 			reg_dblk_en_h = 0;
@@ -107,10 +108,10 @@ void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 			reg_nr_tnr_en = 0;
 		if (!dpss_snr_en)
 			reg_nr_snr_en = 0;
-		if (!dpss_xlr_en) {
+		if (!dpss_xlr_en)
 			reg_xlr_en = 0;
+		if (!dpss_xlr_side_en)
 			reg_xlr_side_en = 0;
-		}
 		if (dpss_nr_debug || dpss_force_nr_debug) {
 			nr_debug_value = ((rd(DOS_DOWN_S_MODE) >> 8) & 0xff);
 			if (nr_debug_value > 64 && nr_debug_value < 73) {//65/72
