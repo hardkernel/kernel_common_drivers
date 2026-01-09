@@ -29,6 +29,7 @@
 #endif
 #include <asm/tlbflush.h>
 #include <asm/stacktrace.h>
+#include <asm/ptrace.h>
 #include <internal.h>
 
 #define DEBUG_VMAP							0
@@ -548,10 +549,12 @@ static void check_sp_fault_again(struct pt_regs *regs)
 
 #ifdef CONFIG_ARM
 	sp = regs->ARM_sp;
+	/* the offset needs to be the same as the one in __dabt_svc handle */
+	addr = sp - ALIGN(sizeof(struct svc_pt_regs), 8);
 #elif defined(CONFIG_ARM64)
 	sp = regs->sp;
-#endif
 	addr = sp - sizeof(*regs);
+#endif
 
 	/*
 	 * When we handle vmap stack fault, we are in pre-allcated
@@ -571,6 +574,9 @@ static void check_sp_fault_again(struct pt_regs *regs)
 		 * it first
 		 */
 		D("fault again, sp:%lx, addr:%lx\n", sp, addr);
+		if (check_pte_exist(addr))
+			return;
+
 		do {
 			page = get_vmap_cached_page(&cache);
 			if (page)
@@ -656,8 +662,8 @@ int __handle_vmap_fault(unsigned long addr, unsigned int esr,
 #ifdef CONFIG_ARM
 	page = check_pte_exist(addr);
 	if (page) {
-		D("task:%d %s, page:%lx mapped for addr:%lx\n",
-		  current->pid, current->comm, page_to_pfn(page), addr);
+		D("task:%d %s, page:%lx mapped for addr:%lx, armsp:%lx\n",
+		  current->pid, current->comm, page_to_pfn(page), addr, regs->ARM_sp);
 		check_sp_fault_again(regs);
 		return -EINVAL;
 	}
@@ -878,13 +884,13 @@ void aml_stack_free(struct task_struct *tsk)
 		kasan_unpoison_range((void *)addr, PAGE_SIZE);
 	#endif
 		vmap_mmu_set(page, addr, 0);
+		clear_highpage(page);	/* clear for next use */
 		/* supplement for stack page cache first */
 		raw_spin_lock_irqsave(&avmap->page_lock, flags);
 		if (avmap->cached_pages < VMAP_CACHE_PAGE) {
 			list_add_tail(&page->lru, &avmap->list);
 			avmap->cached_pages++;
 			raw_spin_unlock_irqrestore(&avmap->page_lock, flags);
-			clear_highpage(page);	/* clear for next use */
 		} else {
 			raw_spin_unlock_irqrestore(&avmap->page_lock, flags);
 			__free_page(page);
