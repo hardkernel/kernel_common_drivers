@@ -45,6 +45,30 @@ static inline void aml_get_all_channel_grant(u64 *channel_grant)
 
 /* ddr_tool: outstanding */
 #if IS_ENABLED(CONFIG_AMLOGIC_DDR_BANDWIDTH)
+
+int get_dmc_priority(unsigned int bus_id, char rw);
+int set_dmc_priority(unsigned int bus_id, unsigned int priority, char rw);
+int set_dev_priority(unsigned int port_id, unsigned int priority, char rw);
+int get_dev_priority(unsigned int port_id, char rw);
+int set_vpu_super_priority(unsigned char axi, char rw, unsigned char priority);
+int set_vpu_top_priority(unsigned char axi, char rw, unsigned char top_i, unsigned char priority);
+int set_vpu_sub_dev_priority(unsigned char axi, char rw, unsigned int id, unsigned char priority);
+int set_demod_priority(unsigned char priority);
+int set_demux_priority(unsigned char priority, char rw);
+int set_audio_x_select_priority(char x, unsigned char ugt);
+int set_audio_priority(unsigned char idx, unsigned char priority, char rw);
+int show_audio_priority_setting(void);
+int set_bcon_hw_urgent(unsigned char low, unsigned char high);
+int set_bcon_sw_urgent(unsigned char ugt);
+void show_bcon_priority_setting(void);
+int set_hevc_level_id(char rw, unsigned char level, unsigned char i, unsigned char id);
+int set_hcodec_level_id(char rw, unsigned char level, unsigned char i, unsigned char id);
+int set_hevc_low_priority(char rw, unsigned char priority);
+int set_hcodec_low_priority(char rw, unsigned char priority);
+int show_hevc_priority_setting(void);
+int show_hcodec_priority_setting(void);
+int set_device_accessible(char *dev, unsigned char access);
+
 int get_bus_num(void);
 int get_bus_ots_value(int bus);
 int set_bus_ots_by_value(int bus, int value);

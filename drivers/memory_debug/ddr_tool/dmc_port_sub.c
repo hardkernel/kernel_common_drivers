@@ -88,7 +88,7 @@
 #define	VPU_PORT_NR_WR1			"NR_WR1"
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-static struct vpu_sub_desc vpu_sub_desc_txlx[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_txlx[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0", .vpu_w1 = "NR"		},
 
@@ -138,10 +138,10 @@ static struct vpu_sub_desc vpu_sub_desc_txlx[] __initdata = {
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		}
 };
 
-//static struct vpu_sub_desc vpu_sub_desc_txl[] __initdata = vpu_sub_desc_txlx[]
-//static struct vpu_sub_desc vpu_sub_desc_txhd[] __initdata = vpu_sub_desc_txlx[]
+//static struct vpu_sub_desc_v1 vpu_sub_desc_txl[] __initdata = vpu_sub_desc_txlx[]
+//static struct vpu_sub_desc_v1 vpu_sub_desc_txhd[] __initdata = vpu_sub_desc_txlx[]
 
-static struct vpu_sub_desc vpu_sub_desc_tl1[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_tl1[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0", .vpu_w1 = "NR"		},
 
@@ -193,7 +193,7 @@ static struct vpu_sub_desc vpu_sub_desc_tl1[] __initdata = {
 #endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static struct vpu_sub_desc vpu_sub_desc_sm1[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_sm1[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0", .vpu_w1 = "NR"		},
 
@@ -243,10 +243,10 @@ static struct vpu_sub_desc vpu_sub_desc_sm1[] __initdata = {
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
 };
 
-// static struct vpu_sub_desc vpu_sub_desc_g12b[] __initdata = vpu_sub_desc_sm1[]
-// static struct vpu_sub_desc vpu_sub_desc_g12a[] __initdata = vpu_sub_desc_sm1[]
+// static struct vpu_sub_desc_v1 vpu_sub_desc_g12b[] __initdata = vpu_sub_desc_sm1[]
+// static struct vpu_sub_desc_v1 vpu_sub_desc_g12a[] __initdata = vpu_sub_desc_sm1[]
 
-static struct vpu_sub_desc vpu_sub_desc_tm2[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_tm2[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0", .vpu_w1 = "NR"		},
 
@@ -296,7 +296,7 @@ static struct vpu_sub_desc vpu_sub_desc_tm2[] __initdata = {
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
 };
 
-static struct vpu_sub_desc vpu_sub_desc_t5[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_t5[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0", .vpu_w1 = "NR"		},
 
@@ -346,7 +346,7 @@ static struct vpu_sub_desc vpu_sub_desc_t5[] __initdata = {
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
 };
 
-static struct vpu_sub_desc vpu_sub_desc_t5d[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_t5d[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0", .vpu_w1 = "NR"		},
 
@@ -396,7 +396,7 @@ static struct vpu_sub_desc vpu_sub_desc_t5d[] __initdata = {
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
 };
 
-static struct vpu_sub_desc vpu_sub_desc_t7[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_t7[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0", .vpu_w1 = "NR"		},
 
@@ -446,7 +446,7 @@ static struct vpu_sub_desc vpu_sub_desc_t7[] __initdata = {
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
 };
 
-static struct vpu_sub_desc vpu_sub_desc_t3[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_t3[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0", .vpu_w1 = "NR"		},
 
@@ -497,8 +497,8 @@ static struct vpu_sub_desc vpu_sub_desc_t3[] __initdata = {
 };
 #endif
 
-// static struct vpu_sub_desc vpu_sub_desc_s4d[] __initdata = vpu_sub_desc_s4[]
-static struct vpu_sub_desc vpu_sub_desc_s4[] __initdata = {
+// static struct vpu_sub_desc_v1 vpu_sub_desc_s4d[] __initdata = vpu_sub_desc_s4[]
+static struct vpu_sub_desc_v1 vpu_sub_desc_s4[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0", .vpu_w1 = "NR"		},
 
@@ -549,7 +549,7 @@ static struct vpu_sub_desc vpu_sub_desc_s4[] __initdata = {
 };
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static struct vpu_sub_desc vpu_sub_desc_sc2[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_sc2[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0", .vpu_w1 = "NR"		},
 
@@ -599,7 +599,7 @@ static struct vpu_sub_desc vpu_sub_desc_sc2[] __initdata = {
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		}
 };
 
-static struct vpu_sub_desc vpu_sub_desc_t5w[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_t5w[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0", .vpu_w1 = "NR"		},
 
@@ -649,7 +649,7 @@ static struct vpu_sub_desc vpu_sub_desc_t5w[] __initdata = {
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		}
 };
 
-static struct vpu_sub_desc vpu_sub_desc_s5[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_s5[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0", .vpu_w1 = "NR"		},
 
@@ -699,7 +699,7 @@ static struct vpu_sub_desc vpu_sub_desc_s5[] __initdata = {
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		}
 };
 
-static struct vpu_sub_desc vpu_sub_desc_s7d[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_s7d[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "NR_WR", .vpu_w1 = "NR_WR"		},
 
@@ -746,7 +746,7 @@ static struct vpu_sub_desc vpu_sub_desc_s7d[] __initdata = {
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
 };
 
-static struct vpu_sub_desc vpu_sub_desc_s6[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_s6[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "NR_WR", .vpu_w1 = "NR_WR"		},
 
@@ -796,7 +796,7 @@ static struct vpu_sub_desc vpu_sub_desc_s6[] __initdata = {
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		}
 };
 
-static struct vpu_sub_desc vpu_sub_desc_t6d[] __initdata = {
+static struct vpu_sub_desc_v1 vpu_sub_desc_t6d[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
 			.vpu_w0 = "VDIN0_WR", .vpu_w1 = "NR_WR"		},
 
@@ -1076,15 +1076,9 @@ static struct vpu_sub vpu0_r_t6x[] __initdata = {
 	{ .id = 0x03, .name = "MC_SUB"			},
 	{ .id = 0x04, .name = "OSD3"			},
 	{ .id = 0x05, .name = "MC_VFCD0"		},
-	{ .id = 0x15, .name = "MC_VFCD0"		},
-	{ .id = 0x25, .name = "MC_VFCD0"		},
 	{ .id = 0x06, .name = "MC_VFCD1"		},
-	{ .id = 0x16, .name = "MC_VFCD1"		},
-	{ .id = 0x26, .name = "MC_VFCD1"		},
 	{ .id = 0x07, .name = "MALI_AFBCD"		},
 	{ .id = 0x08, .name = "MC_VFCD2"		},
-	{ .id = 0x18, .name = "MC_VFCD2"		},
-	{ .id = 0x28, .name = "MC_VFCD2"		},
 	{ .id = 0x09, .name = "TCON_P1"			},
 	{ .id = 0x0A, .name = "RDMA"			},
 	{ .id = 0x0B, .name = "LOCAL_DIMMING"		},
@@ -1094,15 +1088,15 @@ static struct vpu_sub vpu0_r_t6x[] __initdata = {
 };
 
 static struct vpu_sub vpu0_w_t6x[] __initdata = {
-	{ .id = 0x00, .name = "VDIN0"			},
-	{ .id = 0x01, .name = "VDIN1"			},
+	{ .id = 0x00, .name = "VDIN0_WRMIF"		},
+	{ .id = 0x01, .name = "VDIN1_WRMIF"		},
 	{ .id = 0x02, .name = "VDIN_DOLBY"		},
-	{ .id = 0x03, .name = "VDIN_AFBCE"		},
+	{ .id = 0x03, .name = "VDIN_VFCE"		},
 	{ .id = 0x05, .name = "TCON_P1"			},
 	{ .id = 0x06, .name = "LDIM_WR"			},
 	{ .id = 0x16, .name = "LDIM_WR"			},
 	{ .id = 0x26, .name = "LDIM_WR"			},
-	{ .id = 0x36, .name = "rdma_wr"			},
+	{ .id = 0x36, .name = "RDMA_WR"			},
 	{ .id = 0x46, .name = "LUT_DMA_WR"		},
 	{ .id = 0x56, .name = "DOLBY_TV"		},
 	{ .id = 0x66, .name = "DOLBY_TV"		},
@@ -1126,7 +1120,7 @@ static struct vpu_sub vpu2_w_t6x[] __initdata = {
 	{ .id = 0x02, .name = "VFCE_WRMIF2"		},
 	{ .id = 0x03, .name = "VFCE_WRMIF2"		},
 	{ .id = 0x04, .name = "DS_WRMIF"		},
-	{ .id = 0x05, .name = "WRMIF"			},
+	{ .id = 0x05, .name = "DS_WRMIF"		},
 	{ .id = 0x06, .name = "WRMIF0"			},
 	{ .id = 0x07, .name = "WRMIF0"			},
 	{ .id = 0x08, .name = "WRMIF1"			},
@@ -1140,53 +1134,55 @@ static struct vpu_sub vpu2_w_t6x[] __initdata = {
 };
 #endif
 
-int __init dmc_find_port_sub(struct dmc_monitor *mon, int cpu_type)
+static struct vpu_sub_desc vpu_port;
+static struct vpu_sub_desc_v2 vpu_port_v2;
+struct vpu_sub_desc * __init vpu_sub_init(int cpu_type)
 {
 #define VPU_DATA_RW_CHIP_INIT(id, chip)	\
 	{										\
-		mon->vpu_port_v2.vpu##id##_r_num = ARRAY_SIZE(vpu##id##_r_##chip);	\
+		vpu_port_v2.vpu##id##_r_num = ARRAY_SIZE(vpu##id##_r_##chip);	\
 		vpu##id##_r = vpu##id##_r_##chip;					\
-		mon->vpu_port_v2.vpu##id##_w_num = ARRAY_SIZE(vpu##id##_w_##chip);	\
+		vpu_port_v2.vpu##id##_w_num = ARRAY_SIZE(vpu##id##_w_##chip);	\
 		vpu##id##_w = vpu##id##_w_##chip;					\
 	}
 
 #define VPU_DATA_R_CHIP_INIT(id, chip)							\
 	{										\
-		mon->vpu_port_v2.vpu##id##_r_num = ARRAY_SIZE(vpu##id##_r_##chip);	\
+		vpu_port_v2.vpu##id##_r_num = ARRAY_SIZE(vpu##id##_r_##chip);	\
 		vpu##id##_r = vpu##id##_r_##chip;					\
 	}
 
 #define VPU_DATA_W_CHIP_INIT(id, chip)							\
 	{										\
-		mon->vpu_port_v2.vpu##id##_w_num = ARRAY_SIZE(vpu##id##_w_##chip);	\
+		vpu_port_v2.vpu##id##_w_num = ARRAY_SIZE(vpu##id##_w_##chip);	\
 		vpu##id##_w = vpu##id##_w_##chip;					\
 	}
 
 #define VPU_DATA_INIT(id)									\
 	{											\
-		if (mon->vpu_port_v2.vpu##id##_r_num) {						\
-			mon->vpu_port_v2.vpu##id##_r =						\
-						kcalloc(mon->vpu_port_v2.vpu##id##_r_num,	\
+		if (vpu_port_v2.vpu##id##_r_num) {						\
+			vpu_port_v2.vpu##id##_r =						\
+						kcalloc(vpu_port_v2.vpu##id##_r_num,	\
 								sizeof(struct vpu_sub),		\
 								GFP_KERNEL);			\
-			if (!mon->vpu_port_v2.vpu##id##_r || !vpu##id##_r)			\
-				return -ENOMEM;							\
-			memcpy(mon->vpu_port_v2.vpu##id##_r, vpu##id##_r,			\
-				sizeof(struct vpu_sub) * mon->vpu_port_v2.vpu##id##_r_num);	\
+			if (!vpu_port_v2.vpu##id##_r || !vpu##id##_r)			\
+				return NULL;							\
+			memcpy(vpu_port_v2.vpu##id##_r, vpu##id##_r,			\
+				sizeof(struct vpu_sub) * vpu_port_v2.vpu##id##_r_num);	\
 		}										\
-		if (mon->vpu_port_v2.vpu##id##_w_num) {						\
-			mon->vpu_port_v2.vpu##id##_w =						\
-						kcalloc(mon->vpu_port_v2.vpu##id##_w_num,	\
+		if (vpu_port_v2.vpu##id##_w_num) {						\
+			vpu_port_v2.vpu##id##_w =						\
+						kcalloc(vpu_port_v2.vpu##id##_w_num,	\
 								sizeof(struct vpu_sub),		\
 								GFP_KERNEL);			\
-			if (!mon->vpu_port_v2.vpu##id##_w || !vpu##id##_w)			\
-				return -ENOMEM;							\
-			memcpy(mon->vpu_port_v2.vpu##id##_w, vpu##id##_w,			\
-				sizeof(struct vpu_sub) * mon->vpu_port_v2.vpu##id##_w_num);	\
+			if (!vpu_port_v2.vpu##id##_w || !vpu##id##_w)			\
+				return NULL;							\
+			memcpy(vpu_port_v2.vpu##id##_w, vpu##id##_w,			\
+				sizeof(struct vpu_sub) * vpu_port_v2.vpu##id##_w_num);	\
 		}										\
 	}
 
-	struct vpu_sub_desc *desc = NULL;
+	struct vpu_sub_desc_v1 *desc = NULL;
 	struct vpu_sub *vpu0_r = NULL;
 	struct vpu_sub *vpu0_w = NULL;
 	struct vpu_sub *vpu1_r = NULL;
@@ -1199,11 +1195,7 @@ int __init dmc_find_port_sub(struct dmc_monitor *mon, int cpu_type)
 	static int initialized;
 
 	if (initialized)
-		return 0;
-	initialized = 1;
-
-	mon->vpu_port_num = 0;
-	mon->vpu_port = NULL;
+		return &vpu_port;
 
 	switch (cpu_type) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -1292,26 +1284,31 @@ int __init dmc_find_port_sub(struct dmc_monitor *mon, int cpu_type)
 		break;
 #endif
 	default:
-		return -EINVAL;
+		pr_err("the vpu data in the chip has not been ported yet");
+		return NULL;
 	}
+	initialized = 1;
 	/* using once */
 	if (desc) {
-		mon->vpu_port = kcalloc(desc_size, sizeof(struct vpu_sub_desc), GFP_KERNEL);
-		if (!mon->vpu_port)
-			return -ENOMEM;
-		memcpy(mon->vpu_port, desc, sizeof(struct vpu_sub_desc) * desc_size);
-		mon->vpu_port_num = desc_size;
+		vpu_port.ver = 1;
+		vpu_port.vpu_port_num = desc_size;
+		vpu_port.vpu_desc_v1  = kcalloc(desc_size, sizeof(struct vpu_sub_desc), GFP_KERNEL);
+		if (!vpu_port.vpu_desc_v1)
+			return NULL;
+		memcpy(vpu_port.vpu_desc_v1, desc, sizeof(struct vpu_sub_desc) * desc_size);
 	} else {
+		vpu_port.ver = 2;
+		vpu_port.vpu_desc_v2 = &vpu_port_v2;
 		VPU_DATA_INIT(0);
 		VPU_DATA_INIT(1);
 		VPU_DATA_INIT(2);
 		VPU_DATA_INIT(3);
 	}
 
-	return 0;
+	return &vpu_port;
 }
 
-char *vpu_to_sub_port(char *name, char rw, int sid, char *id_str)
+char *vpu_to_sub_port(char *name, char rw, int sid)
 {
 	int i;
 	int size;
@@ -1319,61 +1316,65 @@ char *vpu_to_sub_port(char *name, char rw, int sid, char *id_str)
 	{											\
 		if (!strncmp(name, "VPU"#idx, 4)) {						\
 			if (rw == 'r')								\
-				for (i = 0; i < dmc_mon->vpu_port_v2.vpu##idx##_r_num; i++) {	\
-					if (dmc_mon->vpu_port_v2.vpu##idx##_r[i].id == sid)	\
-						return dmc_mon->vpu_port_v2.vpu##idx##_r[i].name;\
+				for (i = 0; i < vpu_port_v2.vpu##idx##_r_num; i++) {	\
+					if (vpu_port_v2.vpu##idx##_r[i].id == sid)	\
+						return vpu_port_v2.vpu##idx##_r[i].name;\
 				}								\
 			else									\
-				for (i = 0; i < dmc_mon->vpu_port_v2.vpu##idx##_w_num; i++) {	\
-					if (dmc_mon->vpu_port_v2.vpu##idx##_w[i].id == sid)	\
-						return dmc_mon->vpu_port_v2.vpu##idx##_w[i].name;\
+				for (i = 0; i < vpu_port_v2.vpu##idx##_w_num; i++) {	\
+					if (vpu_port_v2.vpu##idx##_w[i].id == sid)	\
+						return vpu_port_v2.vpu##idx##_w[i].name;\
 				}								\
 		}										\
 	}
 
-	if (!dmc_mon->vpu_port) {
+	if (vpu_port.ver == 0) {
+		pr_warn("vpu port has not been initialized or initialization failed.");
+		return NULL;
+	}
+
+	if (vpu_port.ver == 2) {
 		sid &= 0xff;
-		size = dmc_mon->vpu_port_v2.vpu0_r_num + dmc_mon->vpu_port_v2.vpu0_w_num +
-		       dmc_mon->vpu_port_v2.vpu1_r_num + dmc_mon->vpu_port_v2.vpu1_w_num +
-		       dmc_mon->vpu_port_v2.vpu2_r_num + dmc_mon->vpu_port_v2.vpu2_w_num +
-		       dmc_mon->vpu_port_v2.vpu3_r_num + dmc_mon->vpu_port_v2.vpu3_w_num;
+		size = vpu_port_v2.vpu0_r_num + vpu_port_v2.vpu0_w_num +
+		       vpu_port_v2.vpu1_r_num + vpu_port_v2.vpu1_w_num +
+		       vpu_port_v2.vpu2_r_num + vpu_port_v2.vpu2_w_num +
+		       vpu_port_v2.vpu3_r_num + vpu_port_v2.vpu3_w_num;
 		if (!size)
-			return id_str;
+			return NULL;
 
 		VPU_TO_SUB(0);
 		VPU_TO_SUB(1);
 		VPU_TO_SUB(2);
 		VPU_TO_SUB(3);
-		return id_str;
+		return NULL;
 	}
 
 	sid &= 0x1f;
-	if (!dmc_mon->vpu_port || sid >= dmc_mon->vpu_port_num) {
-		return id_str;
-	}
+	if (!vpu_port.vpu_desc_v1 || sid >= vpu_port.vpu_port_num)
+		return NULL;
 
-	if (dmc_mon->vpu_port[sid].sub_id == sid) {
+	if (vpu_port.vpu_desc_v1[sid].sub_id == sid) {
 		if (!strncmp(name, "VPU0", 4)) {
 			if (rw == 'r')
-				return dmc_mon->vpu_port[sid].vpu_r0_2;
+				return vpu_port.vpu_desc_v1[sid].vpu_r0_2;
 			else
-				return dmc_mon->vpu_port[sid].vpu_w0;
+				return vpu_port.vpu_desc_v1[sid].vpu_w0;
 		} else if (!strncmp(name, "VPU1", 4)) {
 			if (rw == 'r')
-				return dmc_mon->vpu_port[sid].vpu_r1;
+				return vpu_port.vpu_desc_v1[sid].vpu_r1;
 			else
-				return dmc_mon->vpu_port[sid].vpu_w1;
+				return vpu_port.vpu_desc_v1[sid].vpu_w1;
 		} else if (!strncmp(name, "VPU2", 4)) {
 			if (rw == 'r')
-				return dmc_mon->vpu_port[sid].vpu_r0_2;
+				return vpu_port.vpu_desc_v1[sid].vpu_r0_2;
 			else
-				return id_str;
+				return NULL;
 		} else if (!strncmp(name, "VPU3", 4)) {
 			if (rw == 'r')
-				return dmc_mon->vpu_port[sid].vpu_r0_2;
+				return vpu_port.vpu_desc_v1[sid].vpu_r0_2;
 			else
-				return id_str;
+				return NULL;
 		}
 	}
-	return id_str;
+	return NULL;
 }

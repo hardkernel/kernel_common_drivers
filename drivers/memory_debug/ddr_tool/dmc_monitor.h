@@ -117,7 +117,6 @@ struct dmc_monitor {
 	unsigned long        sec_base;			/* For secure world access */
 	u8                   mon_number;		/* monitor number */
 	unsigned short       port_num;			/* how many devices */
-	unsigned short       vpu_port_num;		/* vpu sub number */
 	unsigned char        chip;			/* chip ID */
 	unsigned char        configs;			/* feature for dmc */
 	u32                  debug;			/* monitor debug */
@@ -128,7 +127,6 @@ struct dmc_monitor {
 	struct dmc_filter    filter;
 	struct ddr_port_desc *port;
 	struct vpu_sub_desc  *vpu_port;
-	struct vpu_sub_desc_v2 vpu_port_v2;
 	struct dmc_mon_ops   *ops;
 };
 

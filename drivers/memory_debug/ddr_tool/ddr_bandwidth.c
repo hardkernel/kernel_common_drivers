@@ -686,7 +686,7 @@ static ssize_t outstanding_display(char *buf)
 		for (j = 0, c = 0; j < aml_db->real_ports; j++) {
 			if ((dev_is_mdc(aml_db) &&
 			  aml_db->port_desc[i].bus == aml_db->port_desc[j].bus &&
-			  aml_db->port_desc[i].mdc_port_id == aml_db->port_desc[j].mdc_port_id) ||
+			  aml_db->port_desc[i].mdc_bus == aml_db->port_desc[j].mdc_bus) ||
 			  (!dev_is_mdc(aml_db) && aml_db->port_desc[j].bus == i)) {
 				count++;
 				if (count == 1) {
@@ -1361,39 +1361,44 @@ void dmc_set_urgent(unsigned int port, unsigned int type)
 }
 EXPORT_SYMBOL(dmc_set_urgent);
 
-static ssize_t priority_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+ssize_t priority_read(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf,
+			 loff_t pos, size_t count)
 {
-	if (!aml_db->ddr_priority_desc) {
+	if (!aml_db->priority) {
 		pr_info("Current soc not support ddr priority\n");
 		return -EINVAL;
 	}
 
-	return priority_display(buf);
+	return priority_display(buf, pos, count);
 }
 
-static ssize_t priority_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+ssize_t priority_write(struct file *filp, struct kobject *kobj,
+			  struct bin_attribute *bin_attr, char *buf,
+			  loff_t pos, size_t count)
 {
 	unsigned int port = 0, priority;
 	unsigned int priority_r = 0, priority_w = 0;
 	char rw = 0;
 	int ret = 0;
 
-	if (!aml_db->ddr_priority_desc) {
+	if (aml_db->priority->ver == 2) {
+		set_priority_display(buf);
+		return count;
+	}
+
+	if (!aml_db->priority) {
 		pr_info("Current soc not support ddr priority\n");
 		return -EINVAL;
 	}
 
 	if (!strncmp(buf, "debug", 5)) {
-		aml_db->ddr_priority_num |= DDR_PRIORITY_DEBUG;
+		aml_db->priority->flag |= DDR_PRIORITY_DEBUG;
 		return count;
 	}
 
 	if (!strncmp(buf, "power", 5)) {
-		aml_db->ddr_priority_num |= DDR_PRIORITY_POWER;
+		aml_db->priority->flag |= DDR_PRIORITY_POWER;
 		return count;
 	}
 
@@ -1417,7 +1422,7 @@ static ssize_t priority_store(const struct class *class,
 
 	return count;
 }
-static CLASS_ATTR_RW(priority);
+static BIN_ATTR(priority, 0644, priority_read, priority_write, 0);
 
 #if DDR_BANDWIDTH_DEBUG
 static ssize_t dump_reg_show(const struct class *class,
@@ -1550,10 +1555,18 @@ static ssize_t increase_tool_show(const struct class *class,
 }
 static CLASS_ATTR_RW(increase_tool);
 
+static struct bin_attribute *aml_ddr_tool_bin_attrs[] = {
+	&bin_attr_priority,
+	NULL
+};
+
+static const struct attribute_group aml_ddr_tool_bin_group = {
+	.bin_attrs = aml_ddr_tool_bin_attrs,
+};
+
 static struct attribute *aml_ddr_tool_attrs[] = {
 	&class_attr_port.attr,
 	&class_attr_sampling_freq.attr,
-	&class_attr_priority.attr,
 	&class_attr_threshold.attr,
 	&class_attr_mode.attr,
 	&class_attr_busy.attr,
@@ -1570,7 +1583,16 @@ static struct attribute *aml_ddr_tool_attrs[] = {
 #endif
 	NULL
 };
-ATTRIBUTE_GROUPS(aml_ddr_tool);
+
+static const struct attribute_group aml_ddr_tool_group = {
+	.attrs = aml_ddr_tool_attrs,
+};
+
+static const struct attribute_group *aml_ddr_tool_groups[] = {
+	&aml_ddr_tool_bin_group,
+	&aml_ddr_tool_group,
+	NULL
+};
 
 static struct class aml_ddr_class = {
 	.name = "aml_ddr",
@@ -2964,7 +2986,6 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	int io_idx = 0;
 #endif
 	struct ddr_port_desc *desc = NULL;
-	struct ddr_priority *priority_desc = NULL;
 	int pcnt;
 
 	pr_debug("%s, %d\n", __func__, __LINE__);
@@ -2989,15 +3010,10 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 		aml_db->real_ports = pcnt;
 	}
 
+	aml_db->vpu_desc = vpu_sub_init(aml_db->cpu_type);
+
 	ddr_priority_port_list();
-	pcnt = ddr_find_port_priority(aml_db->cpu_type, &priority_desc);
-	if (pcnt < 0) {
-		aml_db->ddr_priority_desc = NULL;
-		aml_db->ddr_priority_num = 0;
-	} else {
-		aml_db->ddr_priority_desc = priority_desc;
-		aml_db->ddr_priority_num = pcnt;
-	}
+	aml_db->priority = get_ddr_priority(aml_db->cpu_type);
 
 	if (init_chip_config(aml_db->cpu_type, aml_db)) {
 		aml_db = NULL;

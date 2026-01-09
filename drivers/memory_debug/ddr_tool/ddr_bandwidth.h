@@ -290,7 +290,6 @@ struct ddr_bandwidth {
 	int async_dmc_num;
 	struct dmc_bus dmc_bus[4];
 	int bus_num;
-	unsigned int ddr_priority_num;
 	unsigned int threshold;
 	unsigned int irq_num;
 	unsigned int clock_count;
@@ -320,7 +319,8 @@ struct ddr_bandwidth {
 	struct bus_width_reg bus_width_reg[MAX_DMC_NUM];
 	struct class *class;
 	struct ddr_port_desc *port_desc;
-	struct ddr_priority *ddr_priority_desc;
+	struct ddr_priority *priority;
+	struct vpu_sub_desc *vpu_desc;
 	struct ddr_bandwidth_ops *ops;
 	struct work_struct work_bandwidth;
 	struct ddr_increase_tool increase_tool;

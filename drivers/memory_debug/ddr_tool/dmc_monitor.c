@@ -582,7 +582,7 @@ char *to_sub_ports_name(int mid, int sid, char rw)
 		return NULL;
 
 	if (strstr(port_name, "VPU")) {
-		name = vpu_to_sub_port(port_name, rw, sid, NULL);
+		name = vpu_to_sub_port(port_name, rw, sid);
 	} else if (strstr(port_name, "DEVICE")) {
 		sid &= 0x1f;
 		if (strstr(port_name, "DEVICE1"))
@@ -1912,7 +1912,7 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	dmc_mon->port = desc;
 	get_dmc_ops(dmc_mon->chip, dmc_mon);
 
-	dmc_find_port_sub(dmc_mon, tmp);
+	dmc_mon->vpu_port = vpu_sub_init(tmp);
 
 	node = pdev->dev.of_node;
 	r = of_property_read_u32(node, "reg_base", &tmp);
