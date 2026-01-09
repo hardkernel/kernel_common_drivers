@@ -193,6 +193,7 @@ struct dst_buf_t {
 	u32 buf_size;
 	bool is_tvp;
 	u32 dw_size;
+	ulong mif_handle;
 	ulong afbc_head_addr;
 	u32 afbc_head_size;
 	ulong afbc_body_addr;
@@ -212,6 +213,7 @@ struct v2d_fence_cb_t {
 struct display_data_t {
 	struct dma_buf *output_dmabuf;
 	struct dst_buf_t *output_buffer;
+	struct file_private_data *private_data;
 	atomic_t on_use;
 };
 

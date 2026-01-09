@@ -21,6 +21,7 @@
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <../../video_sink/video_priv.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+#include <linux/amlogic/media/codec_mm/codec_mm_keeper.h>
 #include <linux/dma-buf.h>
 #include <linux/amlogic/ion.h>
 #include <linux/sched/clock.h>
@@ -60,6 +61,7 @@ static u32 print_flag;
 static u32 v2d_bypass;
 static bool buf_config_444;
 static bool enable_v2d_dump;
+static DEFINE_SPINLOCK(v2d_spin_lock);
 
 int ge2d_com_debug;
 int dewarp_com_dump;
@@ -196,28 +198,51 @@ static void display_q_init(struct v2d_dev *dev)
 
 static void display_q_uninit(struct v2d_dev *dev)
 {
-	int i = 0;
+	struct display_data_t *display_data = NULL;
+	struct vframe_s *vf;
+	int keep_id = 0, keep_table_id = 0;
 
 	/*mak sure all fence signaled by videodisplay before release buffer*/
-	while (dev->buffer_release_count != dev->fence_signal_count) {
-		v2d_print(dev->index, PRINT_OTHER,
-			"%s: should wait,buffer release count:%d signal_count:%d display_q:%d\n",
-			__func__,
-			dev->buffer_release_count,
-			dev->fence_signal_count,
-			kfifo_len(&dev->display_q));
-		usleep_range(2000, 2100);
-		i++;
-		if (i > WAIT_DISPLAY_Q_TIMEOUT) {
-			v2d_print(dev->index, PRINT_ERROR,
-				"%s err, buffer release count:%d signal_count:%d display_q:%d\n",
-				__func__,
-				dev->buffer_release_count,
-				dev->fence_signal_count,
-				kfifo_len(&dev->display_q));
-			break;
+	v2d_print(dev->index, PRINT_OTHER,
+		"display_q_uninit: buffer release count:%d signal_count:%d display_q:%d\n",
+		dev->buffer_release_count,
+		dev->fence_signal_count,
+		kfifo_len(&dev->display_q));
+
+	spin_lock(&v2d_spin_lock);
+	while (kfifo_len(&dev->display_q) > 0) {
+		if (kfifo_get(&dev->display_q, &display_data)) {
+			vf = &display_data->private_data->vf;
+
+			keep_id = codec_mm_keeper_mask_keep_mem(vf->mem_handle,
+				MEM_TYPE_CODEC_MM);
+			if (keep_id > 0) {
+				display_data->private_data->keep_id = keep_id;
+				display_data->private_data->is_keep = true;
+			} else {
+				v2d_print(dev->index, PRINT_ERROR,
+					"keep fail id=%d\n", keep_id);
+			}
+
+			if (vf->type & VIDTYPE_COMPRESS && dev->dev_choice == COMPOSER_WITH_VICP) {
+				keep_table_id = codec_mm_keeper_mask_keep_mem
+					(vf->mem_handle_1, MEM_TYPE_CODEC_MM);
+				if (keep_table_id > 0) {
+					display_data->private_data->keep_id_1 =
+						keep_table_id;
+					display_data->private_data->is_keep = true;
+				} else {
+					v2d_print(dev->index, PRINT_ERROR,
+						"keep fail id=%d\n", keep_table_id);
+				}
+			} else if (vf->type & VIDTYPE_COMPRESS &&
+					dev->dev_choice != COMPOSER_WITH_VICP) {
+				v2d_print(dev->index, PRINT_ERROR,
+					"v2d uninit: unknown afbc input\n");
+			}
 		}
 	}
+	spin_unlock(&v2d_spin_lock);
 }
 
 static struct input_axis_s adjust_output_axis(struct v2d_dev *dev,
@@ -325,17 +350,25 @@ static void v2d_timeline_increase(struct v2d_dev *dev,
 static void v2d_free_fd_private(void *arg)
 {
 	struct vframe_s *vf;
+	struct file_private_data *data = (struct file_private_data *)arg;
 
-	if (arg) {
-		v2d_print(0, PRINT_OTHER, "free_fd_private\n");
-		vf = &((struct file_private_data *)arg)->vf;
-		if (vf->composer_info) {
-			v2d_print(0, PRINT_OTHER, "composer_info need free\n");
-			kfree(vf->composer_info);
-		}
-		vfree((u8 *)arg);
+	if (!data) {
+		v2d_print(-1, PRINT_ERROR, "free: arg is NULL\n");
 	} else {
-		v2d_print(0, PRINT_ERROR, "free: arg is NULL\n");
+		vf = &data->vf;
+		if (data->is_keep) {
+			v2d_print(-1, PRINT_OTHER, "free: keep frame_index:%d\n", vf->frame_index);
+			if (data->keep_id > 0) {
+				codec_mm_keeper_unmask_keeper(data->keep_id, 0);
+				data->keep_id = -1;
+			}
+			if (data->keep_id_1 > 0) {
+				codec_mm_keeper_unmask_keeper
+					(data->keep_id_1, 0);
+				data->keep_id_1 = -1;
+			}
+		}
+		kfree(vf->composer_info);
 	}
 }
 
@@ -541,6 +574,7 @@ static u32 v2d_switch_buffer(struct dst_buf_t *buf, bool is_tvp, struct v2d_dev 
 	u32 *virt_addr = NULL;
 	u32 temp_body_addr;
 	u32 offset_body_addr;
+	struct codec_mm_s *mm;
 
 	if (IS_ERR_OR_NULL(buf) || IS_ERR_OR_NULL(dev)) {
 		v2d_print(dev->index, PRINT_ERROR, "%s: NULL param.\n", __func__);
@@ -557,11 +591,18 @@ static u32 v2d_switch_buffer(struct dst_buf_t *buf, bool is_tvp, struct v2d_dev 
 
 	if (buf->phy_addr > 0) {
 		v2d_print(dev->index, PRINT_OTHER, "free buffer 0x%lx\n", buf->phy_addr);
-		codec_mm_free_for_dma(ports[dev->index].name, buf->phy_addr);
+		codec_mm_release((struct codec_mm_s *)buf->mif_handle, ports[dev->index].name);
 	}
 
-	buf->phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
-					buf->buf_size / PAGE_SIZE, 0, flags);
+	mm = codec_mm_alloc(ports[dev->index].name, buf->buf_size, 0, flags, -1);
+	if (!mm) {
+		v2d_print(dev->index, PRINT_ERROR,
+			"v2d_switch_buffer: get_mif_handle failed\n");
+		return 0;
+	}
+	buf->phy_addr = mm->phy_addr;
+	buf->mif_handle = (ulong)mm;
+
 	v2d_print(dev->index, PRINT_ERROR, "%s: alloc buffer 0x%lx\n", __func__, buf->phy_addr);
 
 	if (vicp_fbc_out_en) {
@@ -1069,6 +1110,7 @@ static int v2d_init_ge2d_buffer(struct v2d_dev *dev, bool is_tvp)
 {
 	int i, flags;
 	u32 buf_width, buf_height, buf_size;
+	struct codec_mm_s *mm;
 
 	buf_width = dev->buf_width;
 	buf_height = dev->buf_height;
@@ -1086,8 +1128,15 @@ static int v2d_init_ge2d_buffer(struct v2d_dev *dev, bool is_tvp)
 
 	for (i = 0; i < BUFFER_LEN; i++) {
 		if (dev->dst_buf[i].phy_addr == 0) {
-			dev->dst_buf[i].phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
-				buf_size / PAGE_SIZE, 0, flags);
+			mm = codec_mm_alloc(ports[dev->index].name, buf_size, 0, flags, -1);
+			if (!mm) {
+				v2d_print(dev->index, PRINT_ERROR, "init ge2d buffer failed\n");
+				dev->buffer_status = INIT_BUFFER_ERROR;
+				return -1;
+			}
+			dev->dst_buf[i].phy_addr = mm->phy_addr;
+			dev->dst_buf[i].mif_handle = (ulong)mm;
+
 			if (!kfifo_put(&dev->free_q, &dev->dst_buf[i]))
 				v2d_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
 			dev->dst_buf[i].buf_status = BUFFER_STATUS_NORMAL;
@@ -1106,11 +1155,6 @@ static int v2d_init_ge2d_buffer(struct v2d_dev *dev, bool is_tvp)
 			dev->dst_buf[i].buf_status = BUFFER_STATUS_CHANGE;
 		}
 
-		if (dev->dst_buf[i].phy_addr == 0) {
-			dev->buffer_status = INIT_BUFFER_ERROR;
-			v2d_print(dev->index, PRINT_ERROR, "cma memory config fail\n");
-			return -1;
-		}
 		dev->dst_buf[i].index = i;
 		dev->dst_buf[i].dirty = true;
 		dev->dst_buf[i].buf_w = buf_width;
@@ -1127,6 +1171,7 @@ static int v2d_init_dewarp_buffer(struct v2d_dev *dev, bool is_tvp)
 {
 	int i, flags;
 	u32 buf_width, buf_height, buf_size;
+	struct codec_mm_s *mm;
 
 	buf_width = dev->buf_width;
 	buf_height = dev->buf_height;
@@ -1145,8 +1190,15 @@ static int v2d_init_dewarp_buffer(struct v2d_dev *dev, bool is_tvp)
 
 	for (i = 0; i < BUFFER_LEN; i++) {
 		if (dev->dst_buf[i].phy_addr == 0) {
-			dev->dst_buf[i].phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
-				buf_size / PAGE_SIZE, 0, flags);
+			mm = codec_mm_alloc(ports[dev->index].name, buf_size, 0, flags, -1);
+			if (!mm) {
+				v2d_print(dev->index, PRINT_ERROR, "init dewarp buffer failed\n");
+				dev->buffer_status = INIT_BUFFER_ERROR;
+				return -1;
+			}
+			dev->dst_buf[i].phy_addr = mm->phy_addr;
+			dev->dst_buf[i].mif_handle = (ulong)mm;
+
 			if (!kfifo_put(&dev->free_q, &dev->dst_buf[i]))
 				v2d_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
 			dev->dst_buf[i].buf_status = BUFFER_STATUS_NORMAL;
@@ -1164,11 +1216,7 @@ static int v2d_init_dewarp_buffer(struct v2d_dev *dev, bool is_tvp)
 				 BUFFER_MODE_DEWARP);
 			dev->dst_buf[i].buf_status = BUFFER_STATUS_CHANGE;
 		}
-		if (dev->dst_buf[i].phy_addr == 0) {
-			dev->buffer_status = INIT_BUFFER_ERROR;
-			v2d_print(dev->index, PRINT_ERROR, "cma memory config fail\n");
-			return -1;
-		}
+
 		dev->dst_buf[i].index = i;
 		dev->dst_buf[i].dirty = true;
 		dev->dst_buf[i].buf_w = buf_width;
@@ -1189,6 +1237,7 @@ static int v2d_init_vicp_buffer(struct v2d_dev *dev, bool is_tvp)
 	u32 *virt_addr = NULL, *temp_addr = NULL;
 	u32 temp_body_addr;
 	ulong buf_handle, buf_phy_addr;
+	struct codec_mm_s *mm;
 
 	buf_width = dev->buf_width;
 	buf_height = dev->buf_height;
@@ -1224,8 +1273,15 @@ static int v2d_init_vicp_buffer(struct v2d_dev *dev, bool is_tvp)
 
 	for (i = 0; i < BUFFER_LEN; i++) {
 		if (dev->dst_buf[i].phy_addr == 0) {
-			dev->dst_buf[i].phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
-				buf_size / PAGE_SIZE, 0, flags);
+			mm = codec_mm_alloc(ports[dev->index].name, buf_size, 0, flags, -1);
+			if (!mm) {
+				v2d_print(dev->index, PRINT_ERROR, "init vicp buffer failed\n");
+				dev->buffer_status = INIT_BUFFER_ERROR;
+				return -1;
+			}
+			dev->dst_buf[i].phy_addr = mm->phy_addr;
+			dev->dst_buf[i].mif_handle = (ulong)mm;
+
 			if (!kfifo_put(&dev->free_q, &dev->dst_buf[i]))
 				v2d_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
 
@@ -1241,12 +1297,6 @@ static int v2d_init_vicp_buffer(struct v2d_dev *dev, bool is_tvp)
 				 dev->dst_buf[i].buf_used,
 				 BUFFER_MODE_VICP);
 			dev->dst_buf[i].buf_status = BUFFER_STATUS_CHANGE;
-		}
-
-		if (dev->dst_buf[i].phy_addr == 0) {
-			dev->buffer_status = INIT_BUFFER_ERROR;
-			v2d_print(dev->index, PRINT_ERROR, "cma memory config fail\n");
-			return -1;
 		}
 
 		dev->dst_buf[i].index = i;
@@ -1555,6 +1605,7 @@ static void v2d_fence_signal_cb(struct dma_fence *fence, struct dma_fence_cb *cb
 	need_recycle_file = v2d_cb->buffer_file;
 	fence_file = v2d_cb->fence_file;
 
+	spin_lock(&v2d_spin_lock);
 	len = kfifo_len(&dev->display_q);
 	for (i = 0; i < len; i++) {
 		if (!kfifo_get(&dev->display_q, &display_data)) {
@@ -1568,6 +1619,7 @@ static void v2d_fence_signal_cb(struct dma_fence *fence, struct dma_fence_cb *cb
 		if (!kfifo_put(&dev->display_q, display_data))
 			v2d_print(dev->index, PRINT_ERROR, "error, display_q overflow!\n");
 	}
+	spin_unlock(&v2d_spin_lock);
 
 	fput(need_recycle_file);
 	fput(fence_file);
@@ -1580,7 +1632,7 @@ static void v2d_fence_signal_cb(struct dma_fence *fence, struct dma_fence_cb *cb
 	}
 
 	dev->buffer_release_count++;
-
+	display_data->private_data->is_keep = false;
 	atomic_set(&display_data->on_use, false);
 	if (!kfifo_put(&dev->fence_cb_q, v2d_cb))
 		v2d_print(dev->index, PRINT_ERROR,
@@ -1623,6 +1675,7 @@ static void config_output_vf_param(struct v2d_dev *dev, struct vframe_s *output_
 
 	output_vf->flag |= VFRAME_FLAG_COMPOSER_DONE;
 	output_vf->bitdepth = (BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8);
+
 	if (!display_yuv444) {
 		output_vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
 		output_vf->type = (VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21);
@@ -1665,7 +1718,9 @@ static void config_output_vf_param(struct v2d_dev *dev, struct vframe_s *output_
 		output_vf->canvas0_config[1].block_mode = 0;
 		output_vf->plane_num = 2;
 	}
-
+	output_vf->mem_handle = (void *)output_buffer->mif_handle;
+	if (dev->dev_choice == COMPOSER_WITH_VICP && vicp_output_mode != 1)
+		output_vf->mem_handle_1 = (void *)output_buffer->afbc_table_handle;
 	output_vf->repeat_count = 0;
 }
 
@@ -1742,8 +1797,8 @@ static void v2d_uninit_buffer(struct v2d_dev *dev)
 			pr_info("%s: cma free addr is %x\n",
 				ports[dev->index].name,
 				(unsigned int)dev->dst_buf[i].phy_addr);
-			codec_mm_free_for_dma(ports[dev->index].name,
-					      dev->dst_buf[i].phy_addr);
+			codec_mm_release((struct codec_mm_s *)dev->dst_buf[i].mif_handle,
+				ports[dev->index].name);
 			dev->dst_buf[i].phy_addr = 0;
 			if (vicp_output_mode != 1 && dev->dev_choice == COMPOSER_WITH_VICP) {
 				codec_mm_dma_free_coherent(dev->dst_buf[i].afbc_table_handle);
@@ -2648,11 +2703,13 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 		v2d_print(dev->index, PRINT_OTHER, "%s:dst dump end\n", __func__);
 	}
 	data_index = v2d_get_display_data_free_index(dev);
+	private_data->is_keep = true;
 	atomic_set(&dev->display_data[data_index].on_use, true);
 
 	display_data = &dev->display_data[data_index];
 	display_data->output_buffer = output_buffer;
 	display_data->output_dmabuf = output_dmabuf;
+	display_data->private_data = private_data;
 	if (!kfifo_put(&dev->display_q, display_data))
 		v2d_print(dev->index, PRINT_ERROR, "display_q is full\n");
 
