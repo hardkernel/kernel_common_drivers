@@ -72,7 +72,6 @@ static u32 direct_mode_flag;
 static enum direct_mode_override force_direct_mode;
 static bool is_dual_channel_enabled;
 static u32 temperature_control_en;
-static u32 vd1_toggle_frame_index[2];
 #ifdef CONFIG_AMLOGIC_DPSS_THERMAL
 struct dpss_cooling_device *dpss_cdev_global;
 #endif
@@ -2104,16 +2103,6 @@ void unregister_dpss_cooling(void)
 }
 #endif
 
-void get_vd1_toggle_first_frame_index(u32 layer_index, u32 frame_index)
-{
-	if (layer_index > 1) {
-		pr_err("get toggle layer_index=%d err.\n", layer_index);
-		return;
-	}
-	vd1_toggle_frame_index[layer_index] = frame_index;
-}
-EXPORT_SYMBOL(get_vd1_toggle_first_frame_index);
-
 void buf_mgr_set_eos(void)
 {
 	if (is_dual_channel_enabled == 0)
@@ -2272,10 +2261,10 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 
 		if (!dev->last_frame_bypass && dev->last_vf.type) {
 			dp_print(dev->index, PRINT_OTHER, "no bypass to bypass.\n");
-			dev->dpss_switch_vd1_first_index = vf->frame_index;
 			dev->last_vf.type = 0;
-			dev->allow_destroy_dpss = false;
 			dev->should_on_vd1 = 1;
+			dp_put_file(dev, file_vf);
+			return 1;
 		}
 
 		if (dev->should_on_vd1)
@@ -2287,20 +2276,6 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 			dp_print(dev->index, PRINT_OTHER,
 				"dv/hdr core switch dpss not ready, next to vd1 frame_index:%d.\n",
 				vf->frame_index);
-		}
-
-		if (vd1_toggle_frame_index[dev->index] >= dev->dpss_switch_vd1_first_index) {
-			dp_print(dev->index, PRINT_OTHER,
-				"allow destroy dpss, and do it, put_frame_index=%d, vd1_first_index=%d.\n",
-				vd1_toggle_frame_index[dev->index],
-				dev->dpss_switch_vd1_first_index);
-			dev->allow_destroy_dpss = true;
-		}
-		if (dev->allow_destroy_dpss) {
-			dev->dpss_switch_vd1_first_index = 0xffffffff;
-			dev->allow_destroy_dpss = false;
-			dp_put_file(dev, file_vf);
-			return 1;
 		}
 
 		display_original_frame(dev, frame_info, file_vf, vf);

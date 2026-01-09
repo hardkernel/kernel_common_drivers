@@ -133,8 +133,6 @@ struct dpss_process_dev {
 	int frc_en;
 	bool is_start_with_dpss;
 	bool need_check_hdr_state;
-	bool allow_destroy_dpss;
-	u32 dpss_switch_vd1_first_index;
 	u32 i_frame_cnt;
 	int output_duration;
 	u32 continue_to_vd1_num;
@@ -163,6 +161,5 @@ int di_get_ref_vf(struct file *file, struct vframe_s **vf_1, struct vframe_s **v
 	struct file **file_1, struct file **file_2);
 struct uvm_di_mgr_t *get_uvm_di_mgr(struct file *file_vf);
 int di_processed_checkin(struct file *file);
-void get_vd1_toggle_first_frame_index(u32 layer_index, u32 frame_index);
 
 #endif

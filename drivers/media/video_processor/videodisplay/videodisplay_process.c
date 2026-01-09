@@ -1506,11 +1506,6 @@ static void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
 	is_mosaic_22 = vf->type_ext & VIDTYPE_EXT_MOSAIC_22;
 
-#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
-	if (dev->index < 2)
-		get_vd1_toggle_first_frame_index(dev->index, frame_index);
-#endif
-
 	if (vf->flag & VFRAME_FLAG_FAKE_FRAME) {
 		vd_print(dev->index, PRINT_OTHER, "put: fake frame\n");
 		return;

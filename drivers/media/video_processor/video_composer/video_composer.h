@@ -349,7 +349,4 @@ int media_proxy_produce_deinit(void *handle);
 int media_proxy_produce_init(void **handle, char *modulename, u32 msg_type);
 int notify_msg_to_mediaproxy(void *handle, int num, void *data);
 #endif
-#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
-void get_vd1_toggle_first_frame_index(u32 layer_index, u32 frame_index);
-#endif
 #endif /* VIDEO_COMPOSER_H */

@@ -193,7 +193,4 @@ int notify_msg_to_mediaproxy(void *handle, int num, void *data);
 #endif
 int is_video_process_in_thread(void);
 void vpp_lowlatency_wakeup(void);
-#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
-void get_vd1_toggle_first_frame_index(u32 layer_index, u32 frame_index);
-#endif
 #endif
