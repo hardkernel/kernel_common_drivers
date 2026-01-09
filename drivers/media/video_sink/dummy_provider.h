@@ -22,6 +22,10 @@ extern unsigned int dummy_video_log_level;
 
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#define DUMMY_PROVIDER_DEBUG 0
+
+#if DUMMY_PROVIDER_DEBUG
 #define vp_info(fmt, ...) \
 	pr_info(fmt, ##__VA_ARGS__)
 
@@ -41,7 +45,19 @@ extern unsigned int dummy_video_log_level;
 			pr_info(fmt, ##__VA_ARGS__); \
 		} \
 	} while (0)
+#else
+#define vp_info(fmt, ...) \
+	do {} while (0)
 
+#define vp_err(fmt, ...) \
+	do {} while (0)
+
+#define vp_dbg(fmt, ...) \
+	do {} while (0)
+
+#define vp_dbg2(fmt, ...) \
+	do {} while (0)
+#endif
 enum {
 	VP_FMT_NV21,
 	VP_FMT_NV12,

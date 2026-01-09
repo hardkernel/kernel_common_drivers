@@ -716,7 +716,6 @@ static int get_fram_phyaddr(struct vp_frame_s *frame_info, unsigned long *addr, 
 	int ret = -1;
 	int share_fd;
 	int mem_type;
-	size_t len = 0;
 
 	if (!frame_info || !addr) {
 		vp_err("%s-%d frame_info is NULL\n", __func__, __LINE__);
@@ -734,18 +733,22 @@ static int get_fram_phyaddr(struct vp_frame_s *frame_info, unsigned long *addr, 
 	switch (mem_type) {
 	case VP_MEM_ION:
 #ifdef CONFIG_AMLOGIC_ION_DEV
-		ret = meson_ion_share_fd_to_phys(share_fd,
-						 (phys_addr_t *)addr, &len);
-		if (ret != 0)
-			return ret;
+		{
+			size_t len = 0;
+
+			ret = meson_ion_share_fd_to_phys(share_fd,
+							 (phys_addr_t *)addr, &len);
+			if (ret != 0)
+				return ret;
+			vp_dbg("ion frame addr 0x%lx, len %zu\n", *addr, len);
+		}
 #endif
-		vp_dbg("ion frame addr 0x%lx, len %zu\n", *addr, len);
 		break;
 	case VP_MEM_DMABUF:
 		ret = vp_dma_buf_get_phys(share_fd, addr);
 		if (ret != 0)
 			return ret;
-		vp_dbg("dma frame addr 0x%lx, len %zu\n", *addr, len);
+		vp_dbg("dma frame addr 0x%lx\n", *addr);
 		break;
 	default:
 		vp_info("%s-%d mem type error\n", __func__, __LINE__);
@@ -1167,7 +1170,7 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info, int path_id)
 			else if (i == 3)
 				memcpy(&mosaic_vf[i].axis[0], axis_3, sizeof(int) * 4);
 			new_vf->vc_private->mosaic_vf[i] = &mosaic_vf[i];
-			pr_info("%s %d (%d %d %d %d)\n", __func__, i,
+			vp_info("%s %d (%d %d %d %d)\n", __func__, i,
 				mosaic_vf[i].axis[0],
 				mosaic_vf[i].axis[1],
 				mosaic_vf[i].axis[2],

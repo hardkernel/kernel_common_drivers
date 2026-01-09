@@ -104,204 +104,183 @@ int adp_maxsad_gamma_lut2d[9][9] = {
 	{63,  63,  63,	63,  63,  63,  63,	63,  63}	 //64
 };
 
+#define VSR_TOP_REG_CNT 2
+#define VSR_PI_REG_CNT 12
+#define VSR_PPS_REG_CNT 19
+
 void dump_vd_vsr_safa_reg(void)
 {
+	u32 i = 0;
 	u32 reg_addr, reg_val = 0;
 	struct hw_vsr_safa_reg_s *vsr_reg;
+	u32 vsr_top_reg[VSR_TOP_REG_CNT];
+	u32 vsr_pi_reg[VSR_PI_REG_CNT];
+	u32 vsr_pps_reg[VSR_PPS_REG_CNT];
+#if DUMP_REG_NAME
+	static const char * const vsr_top_reg_name[] = {
+		"vpp_vsr_top_c42c44_mode",
+		"vpp_vsr_top_misc",
+	};
+	static const char * const vsr_pi_reg_name[] = {
+		"vpp_pi_en_mode",
+		"vpp_pi_misc",
+		"vpp_pi_dict_num",
+		"vpp_pi_win_ofst",
+		"vpp_pi_in_hsc_part",
+		"vpp_pi_in_hsc_ini",
+		"vpp_pi_in_vsc_part",
+		"vpp_pi_in_vsc_ini",
+		"vpp_pi_hf_hsc_part",
+		"vpp_pi_hf_hsc_ini",
+		"vpp_pi_hf_vsc_part",
+		"vpp_pi_hf_vsc_ini",
+	};
+	static const char * const vsr_pps_reg_name[] = {
+		"safa_pps_sr_422_en",
+		"safa_pps_pre_scale",
+		"safa_pps_pre_hscale_coef_y1",
+		"safa_pps_pre_hscale_coef_y0",
+		"safa_pps_pre_hscale_coef_c1",
+		"safa_pps_pre_hscale_coef_c0",
+		"safa_pps_pre_vscale_coef",
+		"safa_pps_hw_ctrl",
+		"safa_pps_interp_en_mode",
+		"safa_pps_yuv_sharpen_en",
+		"safa_pps_dir_en_mode",
+		"safa_pps_sr_alp_info",
+		"safa_pps_pi_info",
+		"safa_pps_hsc_start_phase_step",
+		"safa_pps_vsc_start_phase_step",
+		"safa_pps_vsc_init",
+		"safa_pps_hsc_init",
+		"safa_pps_sc_misc",
+		"vpp_sr_en",
+	};
+#endif
 
 	vsr_reg = &vd_layer[0].vsr_safa_reg;
 
 	pr_info("vsr top regs:\n");
-	reg_addr = vsr_reg->vpp_vsr_top_c42c44_mode;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_vsr_top_c42c44_mode]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_vsr_top_misc;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_vsr_top_misc]\n",
-		reg_addr, reg_val);
+	vsr_top_reg[i++] = vsr_reg->vpp_vsr_top_c42c44_mode;
+	vsr_top_reg[i++] = vsr_reg->vpp_vsr_top_misc;
+	for (i = 0; i < VSR_TOP_REG_CNT; i++) {
+		reg_addr = vsr_top_reg[i];
+		if (!reg_addr)
+			continue;
+		reg_val = READ_VCBUS_REG(reg_addr);
+#if DUMP_REG_NAME
+		pr_info("[0x%x] = 0x%x [%s]\n",
+			reg_addr, reg_val, vsr_top_reg_name[i]);
+#else
+		pr_info("[0x%x] = 0x%x\n",
+			reg_addr, reg_val);
+#endif
+	}
 
 	pr_info("vsr pi regs:\n");
-	reg_addr = vsr_reg->vpp_pi_en_mode;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_pi_en_mode]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_pi_misc;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_pi_misc]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_pi_dict_num;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_pi_dict_num]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_pi_win_ofst;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_pi_win_ofst]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_pi_in_hsc_part;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_pi_in_hsc_part]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_pi_in_hsc_ini;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_pi_in_hsc_ini]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_pi_in_vsc_part;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_pi_in_vsc_part]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_pi_in_vsc_ini;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_pi_in_vsc_ini]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_pi_hf_hsc_part;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_pi_hf_hsc_part]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_pi_hf_hsc_ini;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_pi_hf_hsc_ini]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_pi_hf_vsc_part;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_pi_hf_vsc_part]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_pi_hf_vsc_ini;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_pi_hf_vsc_ini]\n",
-		reg_addr, reg_val);
-
+	i = 0;
+	vsr_pi_reg[i++] = vsr_reg->vpp_pi_en_mode;
+	vsr_pi_reg[i++] = vsr_reg->vpp_pi_misc;
+	vsr_pi_reg[i++] = vsr_reg->vpp_pi_dict_num;
+	vsr_pi_reg[i++] = vsr_reg->vpp_pi_win_ofst;
+	vsr_pi_reg[i++] = vsr_reg->vpp_pi_in_hsc_part;
+	vsr_pi_reg[i++] = vsr_reg->vpp_pi_in_hsc_ini;
+	vsr_pi_reg[i++] = vsr_reg->vpp_pi_in_vsc_part;
+	vsr_pi_reg[i++] = vsr_reg->vpp_pi_in_vsc_ini;
+	vsr_pi_reg[i++] = vsr_reg->vpp_pi_hf_hsc_part;
+	vsr_pi_reg[i++] = vsr_reg->vpp_pi_hf_hsc_ini;
+	vsr_pi_reg[i++] = vsr_reg->vpp_pi_hf_vsc_part;
+	vsr_pi_reg[i++] = vsr_reg->vpp_pi_hf_vsc_ini;
+	for (i = 0; i < VSR_PI_REG_CNT; i++) {
+		reg_addr = vsr_pi_reg[i];
+		if (!reg_addr)
+			continue;
+		reg_val = READ_VCBUS_REG(reg_addr);
+#if DUMP_REG_NAME
+		pr_info("[0x%x] = 0x%x [%s]\n",
+			reg_addr, reg_val, vsr_pi_reg_name[i]);
+#else
+		pr_info("[0x%x] = 0x%x\n",
+			reg_addr, reg_val);
+#endif
+	}
 	pr_info("vsr safa regs:\n");
-	reg_addr = vsr_reg->safa_pps_sr_422_en;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_sr_422_en]\n",
-		reg_addr, reg_val);
+	i = 0;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_sr_422_en;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_pre_scale;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_pre_hscale_coef_y1;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_pre_hscale_coef_y0;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_pre_hscale_coef_c1;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_pre_hscale_coef_c0;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_pre_vscale_coef;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_hw_ctrl;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_interp_en_mode;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_yuv_sharpen_en;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_dir_en_mode;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_sr_alp_info;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_pi_info;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_hsc_start_phase_step;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_vsc_start_phase_step;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_vsc_init;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_hsc_init;
+	vsr_pps_reg[i++] = vsr_reg->safa_pps_sc_misc;
+	vsr_pps_reg[i++] = vsr_reg->vpp_sr_en;
 
-	reg_addr = vsr_reg->safa_pps_pre_scale;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_pre_scale]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_pre_hscale_coef_y1;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_pre_hscale_coef_y1]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_pre_hscale_coef_y0;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_pre_hscale_coef_y0]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_pre_hscale_coef_c1;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_pre_hscale_coef_c1]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_pre_hscale_coef_c0;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_pre_hscale_coef_c0]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_pre_vscale_coef;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_pre_vscale_coef]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_hw_ctrl;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_hw_ctrl]\n",
-		reg_addr, reg_val);
-
-	reg_addr = vsr_reg->safa_pps_interp_en_mode;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_interp_en_mode]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_yuv_sharpen_en;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_yuv_sharpen_en]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_dir_en_mode;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_dir_en_mode]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_sr_alp_info;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_sr_alp_info]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_pi_info;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_pi_info]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_hsc_start_phase_step;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_hsc_start_phase_step]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_vsc_start_phase_step;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_vsc_start_phase_step]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_vsc_init;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_vsc_init]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_hsc_init;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_hsc_init]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->safa_pps_sc_misc;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_sc_misc]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_reg->vpp_sr_en;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [vpp_sr_en]\n",
-		reg_addr, reg_val);
+	for (i = 0; i < VSR_PPS_REG_CNT; i++) {
+		reg_addr = vsr_pps_reg[i];
+		if (!reg_addr)
+			continue;
+		reg_val = READ_VCBUS_REG(reg_addr);
+#if DUMP_REG_NAME
+		pr_info("[0x%x] = 0x%x [%s]\n",
+			reg_addr, reg_val, vsr_pps_reg_name[i]);
+#else
+		pr_info("[0x%x] = 0x%x\n",
+			reg_addr, reg_val);
+#endif
+	}
 	if (cur_dev->dejaggy_support) {
 		reg_addr = vsr_reg->safa_pps_dejaggy_ctrl;
 		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%x [safa_pps_dejaggy_ctrl]\n",
+		pr_info("[0x%x] = 0x%x\n",
 			reg_addr, reg_val);
 	}
 	if (cur_dev->frm2fld_support) {
 		reg_addr = VPP_P2I_H_V_SIZE;
 		reg_val = READ_VCBUS_REG(reg_addr);
-		pr_info("[0x%x] = 0x%x [VPP_P2I_H_V_SIZE]\n",
+		pr_info("[0x%x] = 0x%x\n",
 			reg_addr, reg_val);
 	}
 };
 
+#define VSR_NONLINEAR_REG_CNT 7
+
 void dump_vd_vsr_safa_nonlinear_reg(void)
 {
+	u32 i = 0;
 	u32 reg_addr, reg_val = 0;
 	struct hw_vsr_safa_nonlinear_reg_s *vsr_non_linear_reg;
+	u32 vsr_nonlinear_reg[VSR_NONLINEAR_REG_CNT];
 
 	if (!cur_dev->vsr_nonlinear_support)
 		return;
 	vsr_non_linear_reg = &vd_layer[0].vsr_safa_nonlinear_reg;
 
-	pr_info("vsr safa nonlinear regs:\n");
-	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region12_startp;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region12_startp]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region34_startp;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region34_startp]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region4_endp;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region4_endp]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region0_phase_slop;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region0_phase_slop]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region1_phase_slop;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region1_phase_slop]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region3_phase_slop;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region3_phase_slop]\n",
-		reg_addr, reg_val);
-	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region4_phase_slop;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region4_phase_slop]\n",
-		reg_addr, reg_val);
+	vsr_nonlinear_reg[i++] = vsr_non_linear_reg->safa_pps_hsc_region12_startp;
+	vsr_nonlinear_reg[i++] = vsr_non_linear_reg->safa_pps_hsc_region34_startp;
+	vsr_nonlinear_reg[i++] = vsr_non_linear_reg->safa_pps_hsc_region4_endp;
+	vsr_nonlinear_reg[i++] = vsr_non_linear_reg->safa_pps_hsc_region0_phase_slop;
+	vsr_nonlinear_reg[i++] = vsr_non_linear_reg->safa_pps_hsc_region1_phase_slop;
+	vsr_nonlinear_reg[i++] = vsr_non_linear_reg->safa_pps_hsc_region3_phase_slop;
+	vsr_nonlinear_reg[i++] = vsr_non_linear_reg->safa_pps_hsc_region4_phase_slop;
+	for (i = 0; i < VSR_NONLINEAR_REG_CNT; i++) {
+		reg_addr = vsr_nonlinear_reg[i];
+		if (!reg_addr)
+			continue;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%x\n",
+			reg_addr, reg_val);
+	}
 }
 
 static int pps_lut_tap4_s11_default[33][4] = {
