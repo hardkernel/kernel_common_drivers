@@ -15400,11 +15400,13 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	}
 
 	set_video_slice_policy(layer, vf);
+
 	if (layer->property_changed) {
 		layer->force_config_cnt = 2;
 		layer->property_changed = false;
 		force_toggle = true;
 	}
+
 	if (layer->force_config_cnt > 0) {
 		layer->force_config_cnt--;
 		force_toggle = true;
@@ -15543,6 +15545,11 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		}
 	}
 
+	if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+		pr_info("first_picture=%d, force_toggle=%d, frame_changed=%d, sr_phase_changed=%d, aisr_update=%d, frc_changed=%d\n",
+			first_picture, force_toggle,
+			frame_changed, sr_phase_changed,
+			aisr_update, frc_changed);
 	/* enable new config on the new frames */
 	if (first_picture || force_toggle || frame_changed ||
 	    sr_phase_changed || aisr_update || frc_changed) {

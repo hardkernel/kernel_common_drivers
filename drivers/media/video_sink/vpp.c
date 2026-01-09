@@ -1106,6 +1106,64 @@ static inline int round_div(u32 a, u32 x, u32 div)
 	return (a * x + div / 2) / div;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static bool set_gamemode_dw_policy(struct video_layer_s *layer,
+	struct vframe_s *vf,
+	struct vpp_frame_par_s *cur_frame_par,
+	const struct vinfo_s *vinfo)
+{
+	bool ret = false;
+
+	if (video_is_meson_t6x_cpu()) {
+		u32 src_width = 0;
+		u32 src_height = 0;
+		u32 sync_duration_num = 60;
+		#define SMALL_WINDOW_HEITHT  890
+
+		if (vf->type & VIDTYPE_COMPRESS) {
+			src_width = vf->compWidth;
+			src_height = vf->compHeight;
+		}
+		if (vinfo) {
+			if (vinfo->brr_duration)
+				sync_duration_num = vinfo->brr_duration * vinfo->sync_duration_den;
+			else
+				sync_duration_num = vinfo->sync_duration_num;
+		}
+
+		//game && 4k2k120hz output && 4k afbc input && > 60hz, enable vpu sideband
+		//duration = 1600 60hz, duration = 800 120hz
+		if ((vf->flag & VFRAME_FLAG_GAME_MODE) &&
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			is_amdv_on() &&
+#endif
+			vinfo && (vinfo->width > 1920 && vinfo->height >= 1080 &&
+			(sync_duration_num /
+			vinfo->sync_duration_den >= 120)) &&
+			(src_width >= 3840 && src_height >= 2160) &&
+			cur_frame_par->vscale_skip_count >= 1 &&
+			!cur_frame_par->nocomp) {
+			u32 height_out = 0, height_out_max = SMALL_WINDOW_HEITHT;
+
+			//dlg mode
+			if (vinfo->width == 3840 && vinfo->height == 1080 &&
+				((vinfo->sync_duration_num / vinfo->sync_duration_den) >= 120))
+				height_out_max = SMALL_WINDOW_HEITHT >> 1;
+			height_out = cur_frame_par->VPP_vsc_endp -
+				cur_frame_par->VPP_vsc_startp + 1;
+			if (height_out <= height_out_max) {
+				ret = true;
+				if (super_debug)
+					pr_info("game mode hit force_dw=%d, height_out=%d, height_out_max=%d\n",
+						ret,
+						height_out, height_out_max);
+			}
+		}
+	}
+	return ret;
+}
+#endif
+
 static void ratio_adjust_for_high_freq(const struct vinfo_s *vinfo,
 			int *min_ratio_1000, u64 *cur_vpp_speed_factor,
 			s32 height_in, s32 width_in)
@@ -3526,7 +3584,10 @@ RESTART:
 				slice_num, w_in,
 				filter->vpp_hsc_start_phase_step);
 	}
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (set_gamemode_dw_policy(&vd_layer[input->layer_id], vf, next_frame_par, vinfo))
+		force_dw = true;
+#endif
 	if ((vf->type & VIDTYPE_COMPRESS) &&
 	    !(vf->type & VIDTYPE_NO_DW) &&
 	    !IS_DI_PRELINK(vf->di_flag) &&
@@ -6659,11 +6720,11 @@ RERTY:
 	update_vd_src_info(input->layer_id,
 		src_width, src_height, vf->compWidth, vf->compHeight);
 	if (super_debug)
-		pr_info("layer%d:vf->compWidth=%d, vf->compHeight=%d, vf->width=%d, vf->height=%d, dec_set_screen_mode=%d, op_flag=%x\n",
+		pr_info("layer%d:vf->compWidth=%d, vf->compHeight=%d, vf->width=%d, vf->height=%d, dec_set_screen_mode=%d, op_flag=%x, ratio_control=0x%x\n",
 			input->layer_id,
 			vf->compWidth, vf->compHeight,
 			vf->width, vf->height, vf->dec_set_screen_mode,
-			input->op_flag);
+			input->op_flag, vf->ratio_control);
 #if defined(TV_3D_FUNCTION_OPEN) && defined(CONFIG_AMLOGIC_MEDIA_TVIN)
 	/*
 	 *check 3d mode change in display buffer or 3d type
