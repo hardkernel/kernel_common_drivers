@@ -387,6 +387,14 @@ static void show_user_extra_register_data(struct pt_regs *regs, int nbytes)
 	}
 }
 #elif defined CONFIG_ARM
+static unsigned char *regidx_to_name[] = {
+	"r0 ", "r1 ", "r2 ", "r3 ",
+	"r4 ", "r5 ", "r6 ", "r7 ",
+	"r8 ", "r9 ", "r10",
+	"fp ", "ip ", "sp ", "lr ",
+	"pc "
+};
+
 static void show_extra_register_data(struct pt_regs *regs, int nbytes)
 {
 	show_data(regs->ARM_pc - nbytes, nbytes * 2, "PC");
@@ -431,14 +439,16 @@ void show_vmalloc_pfn(struct pt_regs *regs)
 {
 	int i;
 	struct page *page;
+	unsigned long reg;
 
 	for (i = 0; i < 16; i++) {
-		if (is_vmalloc_or_module_addr((void *)regs->uregs[i])) {
-			page = vmalloc_to_page((void *)regs->uregs[i]);
+		reg = regs->uregs[i];
+		if (is_vmalloc_or_module_addr((void *)reg)) {
+			page = vmalloc_to_page((void *)reg);
 			if (!page)
 				continue;
-			pr_info("R%-2d : %08lx, PFN:%5lx\n",
-				i, regs->uregs[i], page_to_pfn(page));
+			pr_info("%s : %08lx, PFN:%5lx\n",
+				regidx_to_name[i], reg, page_to_pfn(page));
 		}
 	}
 }
@@ -727,14 +737,6 @@ void show_all_pfn(struct task_struct *task, struct pt_regs *regs)
 #endif
 }
 #elif defined CONFIG_ARM
-static unsigned char *regidx_to_name[] = {
-	"r0 ", "r1 ", "r2 ", "r3 ",
-	"r4 ", "r5 ", "r6 ", "r7 ",
-	"r8 ", "r9 ", "r10",
-	"fp ", "ip ", "sp ", "lr ",
-	"pc "
-};
-
 void show_all_pfn(struct task_struct *task, struct pt_regs *regs)
 {
 	int i;
