@@ -3424,8 +3424,10 @@ static void hdmitx_construct_avi_packet(struct hdmitx21_dev *hdev)
 	info->bottom_bar = 0;
 	info->left_bar = 0;
 	info->right_bar = 0;
-	/* underscan */
 	info->scan_mode = hdmitx_check_scan_info(prxcap, scan_mode, para->timing.vic);
+	/* NO_DATA for special TV set, and underscan for other TV sets */
+	if (hdmitx_find_vendor_scan_non_std(hdev->tx_comm.base.edid_buf))
+		info->scan_mode = HDMI_SCAN_MODE_NONE;
 
 	hdmi_avi_infoframe_set(info);
 }

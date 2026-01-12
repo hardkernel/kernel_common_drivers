@@ -3312,7 +3312,7 @@ static int hdmitx_pkt_dump(char *buf, int len)
 
 	switch ((reg_val & 0x30) >> 4) {
 	case 0:
-		conf = "disable";
+		conf = "no_data";
 		break;
 	case 1:
 		conf = "overscan";
@@ -3321,7 +3321,7 @@ static int hdmitx_pkt_dump(char *buf, int len)
 		conf = "underscan";
 		break;
 	default:
-		conf = "disable";
+		conf = "reserved";
 	}
 	pos += snprintf(buf + pos, PAGE_SIZE, "AVI.scan: %s\n", conf);
 
@@ -6512,8 +6512,10 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32  = 0;
 	data32 |= (((output_color_format >> 2) & 0x1) << 7);
 	data32 |= (1 << 6);
-	/* underscan */
 	scan_mode = hdmitx_check_scan_info(prxcap, scan_mode, para->tx_hw_para.hdmitx_hw_para.vic);
+	/* NO_DATA for special TV set, and underscan for other TV sets */
+	if (hdmitx_find_vendor_scan_non_std(hdev->tx_comm.base.edid_buf))
+		scan_mode = HDMI_SCAN_MODE_NONE;
 	data32 |= (scan_mode << 4);
 	data32 |= (0 << 2);
 	data32 |= (0x2 << 0);    /* FIXED YCBCR 444 */

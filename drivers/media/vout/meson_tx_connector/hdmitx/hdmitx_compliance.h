@@ -15,5 +15,6 @@ bool hdmitx_find_vendor_hdcp22_non_std(unsigned char *edid_buf);
 bool hdmitx_find_vendor_audio_ddp_pop(unsigned char *edid_buf);
 bool hdmitx_find_vendor_hdcp_delay(unsigned char *edid_buf);
 bool hdmitx_find_vendor_shield_hdr(unsigned char *edid_buf);
+bool hdmitx_find_vendor_scan_non_std(unsigned char *edid_buf);
 #endif
 
