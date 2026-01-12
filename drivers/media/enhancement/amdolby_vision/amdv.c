@@ -13552,6 +13552,10 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 			amdv_src_format != 0) {
 			pr_dv_dbg("update src_fmt when video off\n");
 			amdv_src_format = 0;
+			if (is_aml_tvmode()) {
+				amdv_wait_init = false;
+				amdv_wait_on = false;
+			}
 		}
 	}
 

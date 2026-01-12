@@ -178,8 +178,10 @@ void update_dd_mode(enum dolby_work_mode mode)
 	}
 
 	/*ignore bypass cmd from dpss_process, bypass should based on frame*/
-	if (mode != DOLBY5_WRAP_BYPS)
+	if (mode != DOLBY5_WRAP_BYPS) {
 		top_dd_work_mode = mode;
+		prm_dolby.dolby5_mode = mode;
+	}
 
 	update_path_done = true;
 	delay_update_path = 0;
@@ -3808,6 +3810,8 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 			if (debug_dolby & 0x1)
 				pr_dv_dbg("update src_fmt when video off\n");
 			top2_v_info.amdv_src_format = 0;
+			top2_v_info.amdv_wait_init = false;
+			amdv_wait_on = false;
 		}
 	}
 	if (dolby_vision_mode == AMDV_OUTPUT_MODE_BYPASS) {
