@@ -1927,14 +1927,6 @@ static long di_process_ioctl(struct file *file,
 		ret = 0;
 #endif
 		break;
-	case DI_PROCESS_IOCTL_GET_ENABLE:
-#ifdef CONFIG_AMLOGIC_BUF_MANAGER
-		ret = get_di_proc_enable();
-#else
-		ret = 0;
-#endif
-		break;
-
 	default:
 		return -EINVAL;
 	}
