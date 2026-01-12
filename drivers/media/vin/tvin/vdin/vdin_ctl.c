@@ -8824,7 +8824,7 @@ enum vdin_vrr_mode_e get_cur_vrr_status(struct vdin_dev_s *devp)
 		else if (freesync_type == 3)
 			ret = VDIN_VRR_FREESYNC_PREMIUM_PRO;
 	} else if ((game_mode != 0 || devp->prop.latency.allm_mode != 0) &&
-		vrr_instead_vlock() && !vrr_small_window()) {
+		vrr_instead_vlock()) {
 		ret = VDIN_VRR_LATENCY;
 	} else {
 		ret = VDIN_VRR_OFF;
