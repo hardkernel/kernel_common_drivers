@@ -1559,12 +1559,19 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 	prm_top->amdv_frm_vsize = vfms->height;
 	prm_top->amdv_org_hsize = vfms->width;
 	prm_top->amdv_org_vsize = vfms->height;
+
+	if (VFM_IS_I_SRC(vfms->type)) {
+		if (vfms->height % 4)
+			prm_top->org_vsize = roundup(vfms->height, 4);
+	} else {
+		if (vfms->height % 2)
+			prm_top->org_vsize = roundup(vfms->height, 2);
+	}
+
 	//if (!pch->d->is_afbcd)
 	{
-		prm_top->org_hsize	   = vfms->width;
-		prm_top->org_vsize	   = vfms->height;
 		prm_top->nr_src_canvas_hsize = vfms->canvas0_config[0].width;
-		dbg_h2("org_hsize=%d, org_vsize=%d_1\n", prm_top->org_hsize, prm_top->org_vsize);
+		dbg_h2("1org_hsize=%d, vfms->height=%d_1\n", prm_top->org_hsize, vfms->height);
 
 		if (prm_top->org_hsize > 1920) {
 			prm_top->frm_hsize = (prm_top->org_hsize + 15) & (~0xf);
@@ -1577,7 +1584,7 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 
 		prm_top->frm_vsize = prm_top->org_vsize;
 		dbg_h2("org_hsize=%d, org_vsize=%d_2\n", prm_top->org_hsize, prm_top->org_vsize);
-		dbg_h2("frm_hsize=%d, frm_vsize=%d_2\n", prm_top->frm_hsize, prm_top->frm_vsize);
+		dbg_h2("frm_hsize=%d, frm_vsize=%d_3\n", prm_top->frm_hsize, prm_top->frm_vsize);
 		if (prm_top->org_hsize != prm_top->frm_hsize)
 			prm_top->nr_src_align = true;
 

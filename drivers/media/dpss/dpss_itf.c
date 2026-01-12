@@ -28,6 +28,9 @@
 #include "dpss_func.h"
 #include "dpss_input_q.h"
 
+bool dpss_bypass_all;
+module_param_named(dpss_bypass_all, dpss_bypass_all, bool, 0664);
+
 static void _ch_releas_data_fifo(struct dpss_ch_d_s1 *pch_d)
 {
 	int i;
@@ -1952,6 +1955,69 @@ int dpss_cmd_asy(int index, unsigned int cmd_asy, struct dpss_cmd_a_s *para)
 	return DPSS_ERR_NONE;
 }
 EXPORT_SYMBOL(dpss_cmd_asy);
+
+//dpss bypas
+unsigned char  dpss_is_bypass(struct vframe_s *vf)
+{
+	unsigned int reason = 0;
+
+	/*need bypass*/
+	if (!vf) {
+		pr_err("dpss param is invalid.\n");
+		return reason;
+	}
+
+	if (dpss_bypass_all) {
+		reason = 0x1;
+	} else if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+		reason = 0x2;
+	} else if (vf->flag & VFRAME_FLAG_PC_MODE) {
+		if (vf->type & VIDTYPE_INTERLACE && vf->type & VIDTYPE_VIU_422)
+			reason = 0x0;
+		else
+			reason = 0x3;/*PC mode no need do dpss */
+	} else if (vf->fence) {
+		reason = 0x4;/*low latency mode no need do dpss */
+	} else if (vf->type & VIDTYPE_INTERLACE &&
+		((vf->type & VIDTYPE_COMPRESS) ?
+			vf->compWidth : vf->width) == 3840) {
+		reason = 0x5;/*4k interlace no need do dpss*/
+	} else if (vf->vf_vrr_param.frc_get_vrr >= 1 &&
+		vf->vf_vrr_param.frc_get_vrr <= 5) {
+		reason = 0x6;/*vrr frame no need do dps*/
+	} else if (((vf->type & VIDTYPE_COMPRESS) ?
+			vf->compHeight : vf->height) > 2160) {
+		reason = 0x7;/*height > 2160 no need do dpss*/
+	} else if (vf->type_ext & VIDTYPE_EXT_LCEVC) {
+		reason = 0x8;/*lcevc*/
+	} else if ((vf->compWidth > 2560 || vf->width > 2560) &&
+			(vf->bitdepth & BITDEPTH_Y10) &&
+			(vf->type & VIDTYPE_VIU_444 ||
+			vf->type & VIDTYPE_RGB_444) &&
+			(vf->type & VIDTYPE_COMPRESS)) {
+		reason = 0x9;/* above 2560*1440 444 10bit afbc no need do dpss*/
+	} else if (((vf->type & VIDTYPE_COMPRESS) &&
+			(vf->compWidth < DPSS_BYPASS_WIDTH ||
+			vf->compHeight < DPSS_BYPASS_HEIGHT ||
+			vf->width < DPSS_BYPASS_WIDTH ||
+			vf->height < DPSS_BYPASS_HEIGHT)) ||
+			(!(vf->type & VIDTYPE_COMPRESS) &&
+			(vf->width < DPSS_BYPASS_WIDTH ||
+			vf->height < DPSS_BYPASS_HEIGHT))) {
+		reason = 0xa;/*input height less than 120, not do dpss*/
+	//} else if (VFM_IS_I_SRC(vf->type) &&
+			//(vf->height > 0 && vf->height % 4)) {
+		//reason = 0xb;/*v 4 align*/
+	//} else if (!VFM_IS_I_SRC(vf->type) &&
+		//(vf->height > 0 && vf->height % 2)) {
+		//reason = 0xc;/*v 2 align*/
+	} else {
+		reason = 0x0;
+	}
+
+	dbg_ins0("bypass: %d\n", reason);
+	return reason;
+}
 
 /*****************************************
  * pre-allocate

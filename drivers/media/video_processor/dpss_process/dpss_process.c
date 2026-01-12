@@ -41,8 +41,6 @@
 #define WAIT_READY_Q_TIMEOUT 100
 #define MAX_RECEIVE_WAIT_TIME 15  /*15ms*/
 #define DPSS_INSTANCE_COUNT 2
-#define DPSS_BYPASS_LIMITED_WIDTH 160
-#define DPSS_BYPASS_LIMITED_HEIGHT 120
 #define CONTINUE_VD1_TOGGLE_NUM 10
 #define DPSS_P_MEM_USAGE 127
 #define DPSS_I_MEM_USAGE 88
@@ -1955,29 +1953,6 @@ static bool check_need_do_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 		return need_do_dpss;
 	}
 
-	/*game mode no need do dpss*/
-	if (vf->flag & VFRAME_FLAG_GAME_MODE) {
-		dp_print(dev->index, PRINT_OTHER, "game mode,no need do dpss.\n");
-		need_do_dpss = false;
-	}
-
-	/*PC mode no need do dpss */
-	if (vf->flag & VFRAME_FLAG_PC_MODE) {
-		if (vf->type & VIDTYPE_INTERLACE && vf->type & VIDTYPE_VIU_422) {
-			dp_print(dev->index, PRINT_OTHER, "special pc mode,no need do dpss.\n");
-			need_do_dpss = true;
-		} else {
-			dp_print(dev->index, PRINT_OTHER, "pc mode,need do dpss.\n");
-			need_do_dpss = false;
-		}
-	}
-
-	/*low latency mode no need do dpss */
-	if (vf->fence) {
-		dp_print(dev->index, PRINT_OTHER, "low latency mode,no need do dpss.\n");
-		need_do_dpss = false;
-	}
-
 	/*4090*2160 no need do dpss*/
 	if (vf->compWidth > 3840 || vf->width > 3840) {
 		dp_print(dev->index, PRINT_OTHER, "over 3840, no need do dpss.\n");
@@ -1997,12 +1972,6 @@ static bool check_need_do_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 		need_do_dpss = false;
 	}
 
-	/*vrr frame no need do dps*/
-	if (vf->vf_vrr_param.frc_get_vrr >= 1 && vf->vf_vrr_param.frc_get_vrr <= 5) {
-		dp_print(dev->index, PRINT_OTHER, "VRR frame, no need do dpss.\n");
-		need_do_dpss = false;
-	}
-
 	/*over 144fps no need do dps*/
 	if (find_standard_duration(dev, vf->duration) < 667) {
 		dp_print(dev->index, PRINT_OTHER, "over 144fps, no need do dpss.\n");
@@ -2019,39 +1988,9 @@ static bool check_need_do_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 		}
 	}
 
-	/*height > 2160 no need do dpss*/
-	if (((vf->type & VIDTYPE_COMPRESS) ? vf->compHeight : vf->height) > 2160) {
-		dp_print(dev->index, PRINT_OTHER, "height > 2160, no need do dpss.\n");
-		need_do_dpss = false;
-	}
-
-	/*lcevc*/
-	if (vf->type_ext & VIDTYPE_EXT_LCEVC) {
-		dp_print(dev->index, PRINT_OTHER, "lcevc frame, no need do dpss.\n");
-		need_do_dpss = false;
-	}
-
-	/* above 2560*1440 444 10bit afbc no need do dpss*/
-	if ((vf->compWidth > 2560 || vf->width > 2560) &&
-		(vf->bitdepth & BITDEPTH_Y10) &&
-		(vf->type & VIDTYPE_VIU_444 || vf->type & VIDTYPE_RGB_444) &&
-		(vf->type & VIDTYPE_COMPRESS)) {
-		dp_print(dev->index, PRINT_OTHER, "444 10bit over 2560, no need do dpss.\n");
-		need_do_dpss = false;
-	}
-
 	/*input fps more than output fps*/
 	if ((vf->duration + 1) < dev->output_duration) {
 		dp_print(dev->index, PRINT_OTHER, "input fps more than output, no need do dpss.\n");
-		need_do_dpss = false;
-	}
-
-	/*input height less than 120, not do dpss*/
-	if (((vf->type & VIDTYPE_COMPRESS) && (vf->compWidth < DPSS_BYPASS_LIMITED_WIDTH ||
-		vf->compHeight < DPSS_BYPASS_LIMITED_HEIGHT)) ||
-		(!(vf->type & VIDTYPE_COMPRESS) && (vf->width < DPSS_BYPASS_LIMITED_WIDTH ||
-		vf->height < DPSS_BYPASS_LIMITED_HEIGHT))) {
-		dp_print(dev->index, PRINT_OTHER, "input w or h too small, no need do dpss.\n");
 		need_do_dpss = false;
 	}
 
@@ -2185,6 +2124,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 	bool need_do_dummy = false, rotate_en = false;
 	struct dp_buf_mgr_t *cur_buf_mgr;
 	struct dpss_status dpss_state;
+	char do_dpss_type = 0;
 	int ret = 0;
 
 	if (!dev || !frame_info) {
@@ -2271,7 +2211,14 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		rotate_en = true;
 
 	dev->output_duration = get_output_duration(dev);
-	if (!check_need_do_dpss(dev, vf, rotate_en) || force_num_to_vd1) {
+
+	do_dpss_type = dpss_is_bypass(vf);
+	if (do_dpss_type)
+		dp_print(dev->index, PRINT_OTHER,
+		"need bypass due to dpss, reason=%d.\n", do_dpss_type);
+
+	if (do_dpss_type || !check_need_do_dpss(dev, vf, rotate_en) ||
+		force_num_to_vd1) {
 		dev->i_frame_cnt = 0;
 		dev->is_start_with_dpss = false;
 		if (force_num_to_vd1 > 0)

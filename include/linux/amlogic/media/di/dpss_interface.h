@@ -35,6 +35,9 @@
 
 #define DPSS_PARA_UPDATE		0x1000000
 
+#define DPSS_BYPASS_WIDTH 160
+#define DPSS_BYPASS_HEIGHT 120
+
 //----work mode 2-------
 #define DPSS_DIRECT_MODE	0x1 // only for t6x P
 
@@ -340,6 +343,16 @@ int dpss_release_keep_buf(struct vframe_s *vfm);
  * @return      0 for success, or fail type if < 0
  */
 int dpss_get_vf_info(struct vframe_s *vf, struct dpss_out_vf_info *dpss_out_info);
+
+/**
+ * @brief  dpss_bypass
+ *
+ * @param[in]  vfm
+ *
+ * @return      0 for do dpss,or bypass dpss
+ */
+
+unsigned char  dpss_is_bypass(struct vframe_s *vf);
 
 //dpss to-do: vpp link api
 
