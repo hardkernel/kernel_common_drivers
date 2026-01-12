@@ -1070,8 +1070,7 @@ meson_scaler_check_size_range(struct meson_vpu_block *vblk,
 	}
 
 	if (output_height < exp_h) {
-		DRM_ERROR("scaler error,Exceeding the scaler lower bound\n");
-		return -EINVAL;
+		MESON_DRM_BLOCK("scaler error,Exceeding the scaler lower bound\n");
 	}
 
 	return 0;
