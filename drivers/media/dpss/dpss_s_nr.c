@@ -4021,6 +4021,7 @@ void dpss_rdma_pre_tab_reg(struct dpss_ch_s *pch)
 		}
 	}
 	dpss_nr_rdma_reg(pch);
+	dpss_frc_rdma_reg();
 }
 
 void dpss_rdma_pre_tab_unreg(struct dpss_ch_s *pch)
@@ -4071,6 +4072,7 @@ void dpss_rdma_pre_tab_unreg(struct dpss_ch_s *pch)
 		}
 	}
 	dpss_nr_rdma_unreg(pch);
+	dpss_frc_rdma_unreg();
 }
 
 unsigned int dpss_force_rdma_src;

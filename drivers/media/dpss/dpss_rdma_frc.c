@@ -7,6 +7,7 @@
 #ifdef RUN_ON_ARM
 #include <linux/module.h>
 #include <linux/kfifo.h>
+#include <linux/vmalloc.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
@@ -32,7 +33,6 @@ static unsigned int rdma_ctrl;
 static unsigned int dpss_rdma_en;
 module_param_named(dpss_rdma_en, dpss_rdma_en, uint, 0664);
 static unsigned int buf_alloced;
-
 static struct dpss_rdma_info rdma_info[RDMA_CHANNEL]; // 0: man 1:pre vsync 2:vsync
 
 static unsigned int RDMA_IRQ_PRE_VSYNC = 0x1;
@@ -163,13 +163,13 @@ int rdma_find_table_adr_pre_vs(u32 addr)
 	dbg_a1("rdma_item_count:%d addr:%x\n",
 		rdma_info_pre_vs->rdma_item_count, addr);
 	for (i = (rdma_info_pre_vs->rdma_item_count - 1) * 2; i >= 0; i -= 2) {
-		if (rdma_info_pre_vs->rdma_table_addr[i] == addr) {
+		if (rdma_info_pre_vs->tmp_table[i] == addr) {
 			//value = rdma_info_pre_vs->rdma_table_addr[i + 1];
 			// index = i / 2 + 1;
 			index = i;
 			dbg_a1("index:%d, table_addr[%d]=%x, table_value[%d]=%x",
-				index, i, rdma_info_pre_vs->rdma_table_addr[i], i + 1,
-				rdma_info_pre_vs->rdma_table_addr[i + 1]);
+				index, i, rdma_info_pre_vs->tmp_table[i], i + 1,
+				rdma_info_pre_vs->tmp_table[i + 1]);
 			break;
 		}
 	}
@@ -193,13 +193,13 @@ int rdma_find_table_adr_vs(u32 addr)
 		rdma_info_vs->rdma_item_count, addr);
 
 	for (i = (rdma_info_vs->rdma_item_count - 1) * 2; i >= 0; i -= 2) {
-		if (rdma_info_vs->rdma_table_addr[i] == addr) {
+		if (rdma_info_vs->tmp_table[i] == addr) {
 			//value = rdma_info_vs->rdma_table_addr[i + 1];
 			// index = i / 2 + 1;
 			index = i;
 			dbg_a1("index:%d, table_addr[%d]=%x, table_value[%d]=%x",
-				index, i, rdma_info_vs->rdma_table_addr[i], i + 1,
-				rdma_info_vs->rdma_table_addr[i + 1]);
+				index, i, rdma_info_vs->tmp_table[i], i + 1,
+				rdma_info_vs->tmp_table[i + 1]);
 			break;
 		}
 	}
@@ -223,8 +223,8 @@ void dpss_rdma_pre_vs_table_config(unsigned int addr, unsigned int val)
 		return;
 	}
 
-	rdma_info_pre_vs->rdma_table_addr[i * 2] = addr & 0xffffffff;
-	rdma_info_pre_vs->rdma_table_addr[i * 2 + 1] = val & 0xffffffff;
+	rdma_info_pre_vs->tmp_table[i * 2] = addr & 0xffffffff;
+	rdma_info_pre_vs->tmp_table[i * 2 + 1] = val & 0xffffffff;
 
 	rdma_info_pre_vs->rdma_item_count++;
 }
@@ -244,8 +244,8 @@ void dpss_rdma_vs_table_config(unsigned int addr, unsigned int val)
 		return;
 	}
 
-	rdma_info_vs->rdma_table_addr[i * 2] = addr & 0xffffffff;
-	rdma_info_vs->rdma_table_addr[i * 2 + 1] = val & 0xffffffff;
+	rdma_info_vs->tmp_table[i * 2] = addr & 0xffffffff;
+	rdma_info_vs->tmp_table[i * 2 + 1] = val & 0xffffffff;
 
 	rdma_info_vs->rdma_item_count++;
 }
@@ -257,11 +257,11 @@ int _dpss_rdma_wr_reg_pre_vs(u32 addr, u32 val)
 
 	if (rdma_enable()) {
 		dpss_rdma_pre_vs_table_config(addr, val);
-		dbg_a2("rdma on, channel in addr:0x%04x, val:0x%08x\n",
+		dbg_a2("pv:rdma on, channel in addr:0x%04x, val:0x%08x\n",
 			addr, val);
 	} else {
 		wr(addr, val);
-		dbg_a2("rdma off, channel in addr:0x%04x, val:0x%08x\n",
+		dbg_a2("pv:rdma off, channel in addr:0x%04x, val:0x%08x\n",
 			addr, val);
 	}
 
@@ -275,11 +275,11 @@ int _dpss_rdma_wr_reg_vs(u32 addr, u32 val)
 
 	if (rdma_enable()) {
 		dpss_rdma_vs_table_config(addr, val);
-		dbg_a2("rdma on, channel in addr:0x%04x, val:0x%08x\n",
+		dbg_a2("vs:rdma on, channel in addr:0x%04x, val:0x%08x\n",
 			addr, val);
 	} else {
 		wr(addr, val);
-		dbg_a2("rdma off, channel in addr:0x%04x, val:0x%08x\n",
+		dbg_a2("vs:rdma off, channel in addr:0x%04x, val:0x%08x\n",
 			addr, val);
 	}
 
@@ -303,11 +303,11 @@ int _dpss_rdma_wr_bit_reg_pre_vs(u32 addr, u32 val, u32 start, u32 len)
 			dpss_rdma_pre_vs_table_config(addr, write_val);
 		} else {
 			// update reg val
-			read_val = rdma_info[RDMA_IRQ_PRE_VSYNC].rdma_table_addr[index + 1];
+			read_val = rdma_info[RDMA_IRQ_PRE_VSYNC].tmp_table[index + 1];
 			mask = (((1L << len) - 1) << start);
 			write_val  = read_val & ~mask;
 			write_val |= (val << start) & mask;
-			rdma_info[RDMA_IRQ_PRE_VSYNC].rdma_table_addr[index + 1] = write_val;
+			rdma_info[RDMA_IRQ_PRE_VSYNC].tmp_table[index + 1] = write_val;
 			dbg_a2("update bits:addr:0x%04x, reg_val<0x%08x->0x%08x>\n",
 				addr, read_val, write_val);
 		}
@@ -336,11 +336,11 @@ int _dpss_rdma_wr_bit_reg_vs(u32 addr, u32 val, u32 start, u32 len)
 			dpss_rdma_vs_table_config(addr, write_val);
 		} else {
 			// update reg val
-			read_val = rdma_info[RDMA_IRQ_VSYNC].rdma_table_addr[index + 1];
+			read_val = rdma_info[RDMA_IRQ_VSYNC].tmp_table[index + 1];
 			mask = (((1L << len) - 1) << start);
 			write_val  = read_val & ~mask;
 			write_val |= (val << start) & mask;
-			rdma_info[RDMA_IRQ_VSYNC].rdma_table_addr[index + 1] = write_val;
+			rdma_info[RDMA_IRQ_VSYNC].tmp_table[index + 1] = write_val;
 			dbg_a2("update bits:addr:0x%04x, reg_val<0x%08x->0x%08x>\n",
 				addr, read_val, write_val);
 		}
@@ -402,7 +402,7 @@ void irq_rdma(void)
 
 	rdma_status = rd(irq_status.reg);
 
-	dbg_a1("%s dpss rdma status[0x%x]\n", __func__, rdma_status);
+	dbg_a1("rdma status[0x%x]\n", rdma_status);
 
 	for (i = 0; i < RDMA_CHANNEL; i++) {
 		info_regadr = (struct rdma_regadr_s *)rdma_info[i].rdma_regadr;
@@ -415,11 +415,81 @@ void irq_rdma(void)
 	}
 }
 
+static void dpss_frc_rdma_irq_src_clear(u8 ch)
+{
+	struct dpss_rdma_info *rdma_info_p;
+	struct rdma_regadr_s *rdma_regadr;
+
+	if (ch != RDMA_IRQ_PRE_VSYNC || ch != RDMA_IRQ_VSYNC)
+		return;
+
+	rdma_info_p = &rdma_info[ch];
+	rdma_regadr = rdma_info_p->rdma_regadr;
+	if (!rdma_regadr)
+		return;
+	wr(rdma_regadr->trigger_mask_reg, 0);
+	rdma_info_p->rdma_reg = 0;
+	dbg_a2("frc rdma ch:%d clear done\n", ch);
+}
+
+void dpss_frc_rdma_unreg(void)
+{
+	dpss_frc_rdma_irq_src_clear(RDMA_IRQ_PRE_VSYNC);
+	dpss_frc_rdma_irq_src_clear(RDMA_IRQ_VSYNC);
+	rdma_info[RDMA_IRQ_PRE_VSYNC].rdma_item_count = 0;
+	rdma_info[RDMA_IRQ_VSYNC].rdma_item_count = 0;
+}
+
+void dpss_frc_rdma_reg(void)
+{
+	rdma_info[RDMA_IRQ_PRE_VSYNC].rdma_reg = 1;
+	rdma_info[RDMA_IRQ_VSYNC].rdma_reg = 1;
+}
+
+void pre_vsync_signal_to_dpss_rdma(void)
+{
+	u32 read_cnt;
+	struct dpss_rdma_info *rdma_info_p;
+
+	if (!rdma_enable())
+		return;
+	rdma_info_p = &rdma_info[RDMA_IRQ_PRE_VSYNC];
+	read_cnt = rd(FRC_REG_TOP_RESERVE11);
+	if (rdma_info_p->rdma_reg == 1) {
+		rdma_info_p->index_flag = read_cnt;
+		rdma_info_p->rdma_reg = 2;
+	}
+	if (read_cnt != rdma_info_p->index_flag) {
+		dbg_a0("pv rdma abnormal:%d,%d\n",
+			read_cnt, rdma_info_p->index_flag);
+		return;
+	}
+	rdma_info_p->index_flag++;
+	DPSS_RDMA_WR_PRE_VS(FRC_REG_TOP_RESERVE11, rdma_info_p->index_flag);
+	dpss_rdma_auto_wr_tri(RDMA_IRQ_PRE_VSYNC);
+}
+
 void post_vsync_signal_to_dpss_rdma(void)
 {
 //#ifdef USE_FRC_VS_RDMA
+	u32 read_cnt;
+	struct dpss_rdma_info *rdma_info_p;
+
 	if (!rdma_enable())
 		return;
+	rdma_info_p = &rdma_info[RDMA_IRQ_VSYNC];
+	read_cnt = rd(FRC_REG_TOP_RESERVE12);
+	if (rdma_info_p->rdma_reg == 1) {
+		rdma_info_p->index_flag = read_cnt;
+		rdma_info_p->rdma_reg = 2;
+	}
+	if (read_cnt != rdma_info_p->index_flag) {
+		dbg_a0("vsync rdma abnormal:%d,%d\n",
+			read_cnt, rdma_info_p->index_flag);
+		return;
+	}
+	rdma_info_p->index_flag++;
+	DPSS_RDMA_WR_VS(FRC_REG_TOP_RESERVE12, rdma_info_p->index_flag);
 	dpss_rdma_auto_wr_tri(RDMA_IRQ_VSYNC);
 //#endif
 }
@@ -427,6 +497,7 @@ void post_vsync_signal_to_dpss_rdma(void)
 void dpss_rdma_auto_wr_tri(u32 handle)
 {
 	unsigned int handle_irq = 0x2;
+	unsigned int table_size;
 	struct rdma_regadr_s *rdma_regadr;
 	struct dpss_rdma_info *rdma_info_p;
 
@@ -441,14 +512,14 @@ void dpss_rdma_auto_wr_tri(u32 handle)
 	else if (handle == RDMA_IRQ_VSYNC)
 		handle_irq = rdma_handle_irq_vs;
 
-	// dbg_a2("%s handle:%d auto count:%d\n", __func__,
-	// handle, rdma_info[handle].rdma_item_count);
+	table_size = rdma_info_p->rdma_table_size;
 
 	if (rdma_info_p->rdma_item_count > 0) {
 		//auto RDMA
 		// w_reg_bit(rdma_regadr->trigger_mask_reg, 0,
 		// rdma_regadr->trigger_mask_reg_bitpos, 1);
 		wr(rdma_regadr->trigger_mask_reg, 0);
+		memcpy(rdma_info_p->rdma_table_addr, rdma_info_p->tmp_table, table_size);
 
 		#ifdef CONFIG_ARM64
 		wr(rdma_regadr->rdma_ahb_start_addr,
@@ -478,7 +549,7 @@ void dpss_rdma_auto_wr_tri(u32 handle)
 		// rdma_regadr->trigger_mask_reg_bitpos, 31);
 		wr(rdma_regadr->trigger_mask_reg, handle_irq);
 
-		dbg_a2("config auto done rdma_handle_irq:%x count:%d\n",
+		dbg_a2("config auto done rdma_handle_irq:%x,count:%d\n",
 			handle_irq, rdma_info_p->rdma_item_count);
 		rdma_info_p->rdma_item_count = 0;
 	}
@@ -495,6 +566,8 @@ void rdma_alloc_buf(struct dpss_dev_s *de_devp)
 		DBG_ERR("%s rdma alloc buf failed\n", __func__);
 		return;
 	}
+
+	buf_alloced = 1;
 
 	// pdev = (struct platform_device *)de_devp->pdev;
 	// pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
@@ -513,12 +586,20 @@ void rdma_alloc_buf(struct dpss_dev_s *de_devp)
 		else
 			rdma_info[i].is_64bit_addr = 0;
 
+		if (rdma_info[i].buf_status) {
+			rdma_info[i].tmp_table = vmalloc(rdma_info[i].rdma_table_size);
+			if (!rdma_info[i].tmp_table)
+				rdma_info[i].buf_status = 0;
+		}
+
+		if (!rdma_info[i].buf_status)
+			buf_alloced = 0;
+
 		dbg_a2("%s channel:%d rdma_table_addr: %lx phy:%lx size:%x\n",
 			__func__, i, (ulong)rdma_info[i].rdma_table_addr,
 			(ulong)rdma_info[i].rdma_table_phy_addr,
 			rdma_info[i].rdma_table_size);
 	}
-	buf_alloced = 1;
 }
 
 void rdma_release_buf(void)
@@ -536,6 +617,10 @@ void rdma_release_buf(void)
 
 	for (i = 0; i < RDMA_CHANNEL; i++) {
 		if (rdma_info[i].buf_status) {
+			if (rdma_info[i].tmp_table) {
+				vfree(rdma_info[i].tmp_table);
+				rdma_info[i].tmp_table = NULL;
+			}
 			dma_free_coherent(&de_devp->pdev->dev,
 			rdma_info[i].rdma_table_size, rdma_info[i].rdma_table_addr,
 			(dma_addr_t)rdma_info[i].rdma_table_phy_addr);

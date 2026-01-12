@@ -298,4 +298,8 @@ inline u32 update_reg_val(u32 reg_val, u32 val, u8 start, u8 len);
 
 void dpss_hdr_sw(bool sw, struct vframe_s *vfm);
 void dpss_hdr_proc(struct vframe_s *vfm);
+
+//frc rdma
+void dpss_frc_rdma_reg(void);
+void dpss_frc_rdma_unreg(void);
 #endif	/*__DPSS_FUNC_H__*/

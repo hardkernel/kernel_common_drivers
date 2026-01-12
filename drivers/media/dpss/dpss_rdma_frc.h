@@ -13,7 +13,7 @@
 #endif
 
 /*RDMA total memory size is 1M*/
-#define DPSS_RDMA_SIZE (256 * (PAGE_SIZE))
+#define DPSS_RDMA_SIZE (64 * (PAGE_SIZE))
 
 struct rdma_irq_reg_s {
 	u32 reg;
@@ -42,8 +42,11 @@ struct dpss_rdma_info {
 	int rdma_table_size;
 	u8 buf_status;
 	u8 is_64bit_addr;
+	u8 rdma_reg;
+	u32 index_flag;
 	int rdma_item_count;
 	int rdma_write_count;
+	u32 *tmp_table;
 	struct rdma_regadr_s *rdma_regadr;
 };
 
@@ -55,6 +58,7 @@ void dpss_rdma_man_wr_clear(void);
 void dpss_rdma_man_wr_tri(void);
 
 int rdma_enable(void);
+void pre_vsync_signal_to_dpss_rdma(void);
 // void dpss_rdma_auto_wr_reg(unsigned int addr, unsigned int val);
 void dpss_rdma_auto_wr_tri(u32 handle);
 void DPSS_RDMA_WR_PRE_VS(u32 addr, u32 val);

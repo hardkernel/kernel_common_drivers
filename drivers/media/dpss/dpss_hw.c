@@ -2003,7 +2003,7 @@ void irq_pre_vs(void)
 #ifdef USE_FRC_PRE_VS_RDMA
 	// dpss_rdma_auto_wr_reg(reg, val + idx);
 	DPSS_RDMA_WR_PRE_VS(FRC_REG_TOP_RESERVE15, frc_int_st->pre_vsync_cnt);
-	dpss_rdma_auto_wr_tri(1);
+	pre_vsync_signal_to_dpss_rdma();
 
 #endif
 	if (pchip_st->dbg_st.ctrl_dbg.reg_tab_pr_en & 0x1)
