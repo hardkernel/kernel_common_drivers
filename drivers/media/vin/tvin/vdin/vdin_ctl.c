@@ -5793,7 +5793,7 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp, unsigned int rdma_enable)
 		 * change default to 10bit for 8in8out detail maybe lost
 		 */
 		if (vdin_is_convert_to_444(devp->format_convert) &&
-		    vdin_is_4k(devp) && !devp->prop.dv_unique_drm_flag) {
+		    vdin_is_8bit_needed(devp) && !devp->prop.dv_unique_drm_flag) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3) &&
 			    (devp->hw_core == VDIN_HW_CORE_LITE) && devp->set_canvas_manual &&
 			    devp->prop.colordepth == VDIN_COLOR_DEEPS_10BIT)
@@ -6261,9 +6261,18 @@ bool vdin_is_444_input(enum tvin_color_fmt_e color_format)
 		return false;
 }
 
-/* Whether 8-bit output is needed to save bandwidth */
-bool vdin_is_4k(struct vdin_dev_s *devp)
+/* 444 8-bit output: Save bandwidth or HW limits */
+bool vdin_is_8bit_needed(struct vdin_dev_s *devp)
 {
+	/* t3x/t6x support afbce/mif 4k 444 10bit */
+	if (devp->dtdata->hw_ver == VDIN_HW_T3X ||
+		devp->dtdata->hw_ver == VDIN_HW_T6X)
+		return false;
+
+	/* all support mif 4k 444 10bit */
+	if (!vdin_is_afbce_enabled(devp))
+		return false;
+
 	if (devp->h_active >= 2500 && devp->v_active >= 1080)
 		return true;
 	else

@@ -273,7 +273,7 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 	if (devp->force_yuv444_malloc == 1) {
 		/* 4k is not support 10 bit mode in order to save memory */
 		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH &&
-		    !(vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)))
+		    !(vdin_is_8bit_needed(devp) && !vdin_is_dolby_signal_in(devp)))
 			devp->canvas_w = devp->h_active * VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
 		else
 			devp->canvas_w = devp->h_active * VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
@@ -620,8 +620,6 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				devp->canvas_align);
 			devp->canvas_align_w = h_size / VDIN_RGBA8888_PER_PIXEL_BYTE;
 		} else if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH ||
-		    (!(vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)) &&
-		    !devp->set_canvas_manual) ||
 		    (devp->dv_hw5.hw5_ctl & BIT3)) {
 			/* 4k is not support 10 bit mode in order to save memory
 			 * up to 4k 444 8bit mode
@@ -653,7 +651,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		 * other up to 10 bit mode
 		 */
 		if (devp->index == 0) {
-			if (vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)) {
+			if (vdin_is_8bit_needed(devp) && !vdin_is_dolby_signal_in(devp)) {
 				/*up to 444 8bit*/
 				h_size = roundup(h_size * VDIN_YUV444_8BIT_PER_PIXEL_BYTE,
 						 devp->canvas_align);
