@@ -161,21 +161,21 @@ void lcd_debug_print_helper(struct aml_lcd_drv_s *pdrv, u8 pr_type, const char *
 
 	if (pr_type == PR_TYPE_ERR) {
 		if (!pdrv)
-			snprintf(buffer, sizeof(buffer), "[lcd:-](err): ");
+			snprintf(buffer, sizeof(buffer), "[lcd:-](err) ");
 		else if (pdrv->device_mgr.dev_cnt > 1 && pdrv->curr_dev)
-			snprintf(buffer, sizeof(buffer), "[lcd:%u:%u](err): ",
+			snprintf(buffer, sizeof(buffer), "[lcd:%u:%u](err) ",
 						pdrv->index, pdrv->curr_dev->idx);
 		else
-			snprintf(buffer, sizeof(buffer), "[lcd:%u](err): ", pdrv->index);
+			snprintf(buffer, sizeof(buffer), "[lcd:%u](err) ", pdrv->index);
 		pr_err("%s%pV\n", buffer, &vaf);
 	} else {
 		if (!pdrv)
-			snprintf(buffer, sizeof(buffer), "[lcd:-]: ");
+			snprintf(buffer, sizeof(buffer), "[lcd:-] ");
 		else if (pdrv->device_mgr.dev_cnt > 1 && pdrv->curr_dev)
-			snprintf(buffer, sizeof(buffer), "[lcd:%u:%u]: ",
+			snprintf(buffer, sizeof(buffer), "[lcd:%u:%u] ",
 						pdrv->index, pdrv->curr_dev->idx);
 		else
-			snprintf(buffer, sizeof(buffer), "[lcd:%u]: ", pdrv->index);
+			snprintf(buffer, sizeof(buffer), "[lcd:%u] ", pdrv->index);
 
 		pr_info("%s%pV\n", buffer, &vaf);
 	}
@@ -200,11 +200,11 @@ void lcd_dev_debug_print_helper(struct aml_lcd_drv_s *pdrv, u8 dev_idx,
 	}
 
 	if (pr_type == PR_TYPE_ERR) {
-		snprintf(buffer, sizeof(buffer), "[lcd:%u:%u](err): ", pdrv->index, dev_idx);
+		snprintf(buffer, sizeof(buffer), "[lcd:%u:%u](err) ", pdrv->index, dev_idx);
 
 		pr_err("%s%pV\n", buffer, &vaf);
 	} else {
-		snprintf(buffer, sizeof(buffer), "[lcd:%u:%u]: ", pdrv->index, dev_idx);
+		snprintf(buffer, sizeof(buffer), "[lcd:%u:%u] ", pdrv->index, dev_idx);
 
 		pr_info("%s%pV\n", buffer, &vaf);
 	}
@@ -2042,14 +2042,14 @@ struct V_name_s {
 unsigned int str_add_vmode(char *buf, unsigned char newline,
 		unsigned short width, unsigned short height, unsigned short fr)
 {
-	unsigned int i;
+	unsigned char i;
 	unsigned char use_short = 0;
 
 	for (i = 0; i < 6 * ARRAY_SIZE(V_name_table); i++) {
 		if (V_name_table[i / 6].h == width && V_name_table[i / 6].v == height) {
 			if (V_name_table[i / 6].fr[i % 6] == 0)
 				continue;
-			if (fr == V_name_table[i / 6].fr[i % 6] || fr == 0) {
+			if ((fr & 0x7fff) == V_name_table[i / 6].fr[i % 6] || fr == 0) {
 				use_short = 1;
 				break;
 			}
@@ -2059,7 +2059,7 @@ unsigned int str_add_vmode(char *buf, unsigned char newline,
 	i = 0;
 	i += use_short ? sprintf(buf + i,    "%up",        height) :
 			 sprintf(buf + i, "%ux%up", width, height);
-	if (fr)
+	if (fr && !(fr & 0x8000))
 		i += sprintf(buf + i, "%huhz", fr);
 	if (newline)
 		i += sprintf(buf + i, "\n");
@@ -2067,7 +2067,7 @@ unsigned int str_add_vmode(char *buf, unsigned char newline,
 	return i;
 }
 
-unsigned int str_parse_vmode(char *input_str,
+unsigned int str_parse_vmode(const char *input_str,
 		unsigned short *width, unsigned short *height, unsigned short *fr)
 {
 	char *cursor = (char *)input_str;

@@ -984,8 +984,9 @@ int lcd_mode_common_remove(struct aml_lcd_drv_s *pdrv)
 // * append to pdrv->vmode_mgr.vmode_list_header
 static int lcd_vmode_add_to_list(struct aml_lcd_drv_s *pdrv, struct lcd_vmode_info_s *vmode_info)
 {
-	struct lcd_vmode_list_s *temp_list;
+	struct lcd_vmode_list_s *temp_list = NULL;
 	struct lcd_vmode_list_s *cur_list;
+	u8 vmode_list_idx = 0;
 
 	if (!vmode_info)
 		return -1;
@@ -1000,14 +1001,17 @@ static int lcd_vmode_add_to_list(struct aml_lcd_drv_s *pdrv, struct lcd_vmode_in
 		pdrv->vmode_mgr.vmode_list_header = cur_list;
 	} else {
 		temp_list = pdrv->vmode_mgr.vmode_list_header;
-		while (temp_list->next)
+		while (temp_list->next) {
 			temp_list = temp_list->next;
+			vmode_list_idx++;
+		}
 		temp_list->next = cur_list;
 	}
 	pdrv->vmode_mgr.vmode_cnt += vmode_info->duration_cnt + 1;
 
-	LCD_PR(pdrv, "%s: name:%s, base_fr:%dhz, vmode_cnt: %d", __func__,
-		cur_list->info->name, cur_list->info->base_fr, pdrv->vmode_mgr.vmode_cnt);
+	LCD_PR(pdrv, "%s: list[%u] %d*%d, base_fr:%dhz, vmode_cnt: %d", __func__,
+		vmode_list_idx, cur_list->info->width, cur_list->info->height,
+		cur_list->info->base_fr, pdrv->vmode_mgr.vmode_cnt);
 
 	return 0;
 }
@@ -1056,7 +1060,6 @@ static struct lcd_vmode_info_s *lcd_detail_timing_to_vmode(struct lcd_detail_tim
 	vmode_find->width = ptiming->h_active;
 	vmode_find->height = ptiming->v_active;
 	vmode_find->base_fr = ptiming->frame_rate;
-	str_add_vmode(vmode_find->name, 0, vmode_find->width, vmode_find->height, 0);
 	vmode_find->dft_timing = ptiming;
 	lcd_vmode_append_duration(vmode_find, ptiming);
 

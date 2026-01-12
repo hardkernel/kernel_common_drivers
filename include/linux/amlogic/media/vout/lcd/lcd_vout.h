@@ -710,7 +710,6 @@ struct lcd_duration_s {
 };
 
 struct lcd_vmode_info_s {
-	char name[32];
 	unsigned int width;
 	unsigned int height;
 	unsigned int base_fr;

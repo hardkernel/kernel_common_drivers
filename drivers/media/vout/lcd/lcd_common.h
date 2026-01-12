@@ -65,7 +65,7 @@ struct num_str_s {
 
 unsigned int str_add_vmode(char *buf, unsigned char newline,
 		unsigned short width, unsigned short height, unsigned short fr);
-unsigned int str_parse_vmode(char *str,
+unsigned int str_parse_vmode(const char *str,
 		unsigned short *width, unsigned short *height, unsigned short *fr);
 /* lcd common */
 int strnum_get_num(const char *str, struct num_str_s *arr, int size_arr, int dft);

@@ -38,25 +38,37 @@
 static int lcd_outputmode_is_matched(struct aml_lcd_drv_s *pdrv, const char *mode)
 {
 	struct lcd_vmode_list_s *temp_list;
-	char mode_name[48];
+	unsigned short h, v, fr;
+	u8 vmode_list_idx = 0;
 	int i;
 
 	LCD_DBG(pdrv, "%s: outputmode=%s", __func__, mode);
 
 	temp_list = pdrv->vmode_mgr.vmode_list_header;
+
+	if (!mode || !temp_list)
+		return -1;
+
+	i = str_parse_vmode(mode, &h, &v, &fr);
+	if (!i) {
+		LCD_ERR(pdrv, "invalid str parse: %s", mode);
+		return -1;
+	}
+
 	while (temp_list) {
+		if (!(h == temp_list->info->width && v == temp_list->info->height)) {
+			temp_list = temp_list->next;
+			continue;
+		}
+
 		for (i = 0; i < LCD_DURATION_MAX; i++) {
 			if (temp_list->info->duration[i].frame_rate == 0)
 				break;
-			memset(mode_name, 0, 48);
-			sprintf(mode_name, "%s%dhz", temp_list->info->name,
-					temp_list->info->duration[i].frame_rate);
-			LCD_DBG(pdrv, "%s: %s", __func__, mode_name);
-			if (strcmp(mode, mode_name))
+			if (fr != temp_list->info->duration[i].frame_rate)
 				continue;
 
-			LCD_DBG(pdrv, "%s: match %s, %dx%d@%dhz", __func__,
-				temp_list->info->name,
+			LCD_DBG(pdrv, "%s: list[%u] %dx%d@%dhz", __func__,
+				vmode_list_idx,
 				temp_list->info->width, temp_list->info->height,
 				temp_list->info->duration[i].frame_rate);
 
@@ -66,6 +78,7 @@ static int lcd_outputmode_is_matched(struct aml_lcd_drv_s *pdrv, const char *mod
 			return 0;
 		}
 		temp_list = temp_list->next;
+		vmode_list_idx++;
 	}
 
 	LCD_ERR(pdrv, "%s: invalid mode: %s", __func__, mode);
@@ -215,8 +228,8 @@ int lcd_mode_tv_vout_get_disp_cap(char *buf, void *data)
 			frame_rate = temp_list->info->duration[i].frame_rate;
 			if (frame_rate == 0)
 				break;
-			ret += sprintf(buf + ret, "%s%dhz\n",
-				temp_list->info->name, frame_rate);
+			ret += str_add_vmode(buf + ret, 1, temp_list->info->width,
+				temp_list->info->height, frame_rate);
 		}
 		temp_list = temp_list->next;
 	}

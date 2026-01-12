@@ -246,7 +246,8 @@ static int get_lcd_modes_vrr_range(struct meson_panel_dev *panel, void *range, i
 		group->vrr_min = timing->frame_rate_min * VRR_DIV;
 		group->vrr_max = timing->frame_rate_max * VRR_DIV;
 		group->brr = timing->frame_rate;
-		sprintf(group->modename, "%s%dhz", temp_list->info->name, temp_list->info->base_fr);
+		str_add_vmode(group->modename, 0, timing->h_active, timing->v_active,
+								temp_list->info->base_fr);
 		LCD_DBG(pdrv, "update vrr range[%d]:%s: w:%d, h:%d, range:[%d-%d], fr:%d",
 			cnt, group->modename, group->width, group->height,
 			group->vrr_min, group->vrr_max, timing->frame_rate);
@@ -263,7 +264,7 @@ static u8 lcd_drm_timing_find(struct aml_lcd_drv_s *pdrv, struct drm_display_mod
 {
 	u32 pclk, htotal, vtotal, h_active, v_active;
 	struct lcd_vmode_list_s *temp_list = pdrv->vmode_mgr.vmode_list_header;
-	// char mode_name[48];
+	u8 vmode_list_idx = 0;
 	int i;
 
 	if (!pmode || !temp_list)
@@ -290,8 +291,8 @@ static u8 lcd_drm_timing_find(struct aml_lcd_drv_s *pdrv, struct drm_display_mod
 
 		if (pdrv->mode == LCD_MODE_TABLET) {
 			if (lcd_u32_diff(pclk, temp_list->info->base_fr * 10) <= 5) {
-				LCD_DBG(pdrv, "%s: match %s, %dx%d@%dhz (base)", __func__,
-					temp_list->info->name,
+				LCD_DBG(pdrv, "%s: list[%u] %dx%d@%dhz (base)", __func__,
+					vmode_list_idx,
 					temp_list->info->width, temp_list->info->height,
 					temp_list->info->base_fr);
 				temp_list->info->duration_index = 0xff;
@@ -305,8 +306,8 @@ static u8 lcd_drm_timing_find(struct aml_lcd_drv_s *pdrv, struct drm_display_mod
 				break;
 
 			if (lcd_u32_diff(pclk, temp_list->info->duration[i].frame_rate * 10) <= 5) {
-				LCD_DBG(pdrv, "%s: match %s, %dx%d@%dhz (fr[%u])", __func__,
-					temp_list->info->name,
+				LCD_DBG(pdrv, "%s: list[%u] %dx%d@%dhz (fr[%u])", __func__,
+					vmode_list_idx,
 					temp_list->info->width, temp_list->info->height,
 					temp_list->info->duration[i].frame_rate, i);
 				temp_list->info->duration_index = i;
@@ -315,6 +316,7 @@ static u8 lcd_drm_timing_find(struct aml_lcd_drv_s *pdrv, struct drm_display_mod
 			}
 		}
 		temp_list = temp_list->next;
+		vmode_list_idx++;
 	}
 
 	LCD_ERR(pdrv, "%s: invalid drm mode: %u[%u] * %u[%u] %u kHz", __func__,

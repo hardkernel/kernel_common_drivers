@@ -38,23 +38,32 @@
 static int lcd_tablet_outputmode_check(struct aml_lcd_drv_s *pdrv, char *mode)
 {
 	struct lcd_vmode_list_s *temp_list = pdrv->vmode_mgr.vmode_list_header;
-	char mode_name[48];
+	unsigned short h, v, fr;
+	u8 vmode_list_idx = 0;
 	int i;
 
 	if (!mode || !temp_list)
 		return -1;
 
+	i = str_parse_vmode(mode, &h, &v, &fr);
+	if (!i) {
+		LCD_ERR(pdrv, "invalid str parse: %s", mode);
+		return -1;
+	}
+
 	while (temp_list) {
-		memset(mode_name, 0, 48);
-		str_add_vmode(mode_name, 0,
-			temp_list->info->width, temp_list->info->height, temp_list->info->base_fr);
-		if (strcmp(mode, mode_name) == 0) {
+		if (!(h == temp_list->info->width && v == temp_list->info->height)) {
+			temp_list = temp_list->next;
+			continue;
+		}
+
+		if (fr == temp_list->info->base_fr) {
 			temp_list->info->duration_index = 0xff;
 			if (pdrv->vmode_mgr.cur_vmode_info != temp_list->info)
 				pdrv->vmode_mgr.next_vmode_info = temp_list->info;
 
-			LCD_DBG(pdrv, "%s: match %s, %dx%d@%dhz", __func__,
-				temp_list->info->name,
+			LCD_DBG(pdrv, "%s: list[%u] %dx%d@%dhz", __func__,
+				vmode_list_idx,
 				temp_list->info->width, temp_list->info->height,
 				temp_list->info->base_fr);
 			return 0;
@@ -63,15 +72,12 @@ static int lcd_tablet_outputmode_check(struct aml_lcd_drv_s *pdrv, char *mode)
 		for (i = 0; i < LCD_DURATION_MAX; i++) {
 			if (temp_list->info->duration[i].frame_rate == 0)
 				break;
-			memset(mode_name, 0, 48);
-			str_add_vmode(mode_name, 0, temp_list->info->width,
-				temp_list->info->height, temp_list->info->duration[i].frame_rate);
 
-			if (strcmp(mode, mode_name))
+			if (fr != temp_list->info->duration[i].frame_rate)
 				continue;
 
-			LCD_DBG(pdrv, "%s: match %s, %dx%d@%dhz", __func__,
-				temp_list->info->name,
+			LCD_DBG(pdrv, "%s: list[%u] %dx%d@%dhz", __func__,
+				vmode_list_idx,
 				temp_list->info->width, temp_list->info->height,
 				temp_list->info->duration[i].frame_rate);
 			temp_list->info->duration_index = i;
@@ -80,6 +86,7 @@ static int lcd_tablet_outputmode_check(struct aml_lcd_drv_s *pdrv, char *mode)
 			return 0;
 		}
 		temp_list = temp_list->next;
+		vmode_list_idx++;
 	}
 
 	LCD_ERR(pdrv, "%s: invalid mode: %s", __func__, mode);
