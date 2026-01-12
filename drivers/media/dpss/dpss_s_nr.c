@@ -2283,6 +2283,7 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 	unsigned int val;
 	unsigned int me_size_tmp;
 	struct PRM_INTF_TYPE *dae_yuv;
+	struct frc_chip_st *pchip_st = NULL;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	struct dpss_info_s dpss_info;
@@ -2886,10 +2887,16 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 		prm_dpe->dcntr_en = 1;
 		prm_dpe->dcntr_en_bk = 1;
 		prm_top->dct_ahead_dv_mode = 1;
-		if ((dpss_dct_force & 0xff) && dpss_en_dct && !pch->d->w_mode_2)
+		pchip_st = dpss_get_frc_st();
+		if (!pchip_st)
+			return;
+		if ((dpss_dct_force & 0xff) && dpss_en_dct) {
 			prm_top->dct_ahead_dv_mode = 1;
-		else
+			if (pchip_st->chip == ID_T6X && !pch->d->w_mode_2)
+				prm_top->dct_ahead_dv_mode = 0;
+		} else {
 			prm_top->dct_ahead_dv_mode = 0;
+		}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (is_amdv_enable() && is_amdv_frame(vf)) {
 			if (!is_amdv_dpss_path() ||
