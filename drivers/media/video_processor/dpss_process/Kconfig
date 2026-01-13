@@ -9,6 +9,7 @@ menu "Amlogic dpss_process support"
 config AMLOGIC_DPSS_PROCESS
 	tristate "Amlogic dpss_process device support"
 	default n
+	select AMLOGIC_BUF_MANAGER
 
 	help
 		Select to enable "Amlogic dpss_process device support.

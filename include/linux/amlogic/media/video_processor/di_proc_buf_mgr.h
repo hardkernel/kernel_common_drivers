@@ -178,4 +178,14 @@ int get_buf_mgr_print_flag(void);
  */
 int set_buf_mgr_print_flag(int flag);
 
+/**
+ * @brief  get_di_backend_mem: get di backend keeped memory
+ *
+ *@param[in]  width              width of input resolution
+ *@param[in]  height             height of input resolution
+ *@param[in]  source_type        0 for progressive, 1 for interlace
+ *
+ * @return  di backend keeped memory
+ */
+int get_di_backend_need_mem(int width, int height, int source_type);
 #endif /* _DI_PROC_BUF_MGR_H */

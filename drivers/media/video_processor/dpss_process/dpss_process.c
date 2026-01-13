@@ -44,6 +44,9 @@
 #define DPSS_BYPASS_LIMITED_WIDTH 160
 #define DPSS_BYPASS_LIMITED_HEIGHT 120
 #define CONTINUE_VD1_TOGGLE_NUM 10
+#define DPSS_P_MEM_USAGE 127
+#define DPSS_I_MEM_USAGE 88
+#define DPSS_PPS_I_MEM_USAGE 41
 
 static u32 dpss_process_instance_num = DPSS_INSTANCE_COUNT;
 static u32 print_flag;
@@ -1317,6 +1320,21 @@ enum DPSS_ERRORTYPE get_input_vf_info(void *arg, struct vframe_s *vf,
 
 	return 0;
 }
+
+int get_di_backend_need_mem(int width, int height, int source_type)
+{
+	int dpss_need_mem = 0;
+
+	if (source_type == 0) {
+		dpss_need_mem = DPSS_P_MEM_USAGE;
+	} else {
+		dpss_need_mem = DPSS_I_MEM_USAGE;
+		if (is_meson_t6x_cpu())
+			dpss_need_mem += DPSS_PPS_I_MEM_USAGE;
+	}
+	return dpss_need_mem;
+}
+EXPORT_SYMBOL(get_di_backend_need_mem);
 
 static void file_q_init(struct dpss_process_dev *dev)
 {

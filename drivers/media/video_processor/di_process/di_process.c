@@ -20,6 +20,7 @@
 #include <linux/amlogic/aml_sync_api.h>
 #include <linux/compat.h>
 #include <linux/of.h>
+#include <linux/amlogic/cpu_version.h>
 
 #include "di_process.h"
 #include "di_proc_file.h"
@@ -29,6 +30,13 @@
 #define WAIT_READY_Q_TIMEOUT 100
 #define MAX_RECEIVE_WAIT_TIME 15  /*15ms*/
 #define DI_INSTANCE_COUNT 2
+
+#define BACKEND_PRELINK_MEM		10
+#define BACKEND_POSTLINK_MEM	28
+#define BACKEND_NORMAL_MEM		38
+#define BACKEND_4K_NONLINK_MEM		72
+#define BACKEND_4K_PRELINK_MEM		62
+#define BACKEND_DECOUNTER_MEM		16
 
 static u32 di_process_instance_num = DI_INSTANCE_COUNT;
 static u32 print_flag;
@@ -49,6 +57,7 @@ static u32 di_pre_buf_count_postlink = 7;
 static u32 compression_ratio_limit;
 static u32 di_rotate[DI_INSTANCE_COUNT];
 static u32 di_force_rotate;
+static int di_keep_memory;
 u32 dp_buf_mgr_print_flag;
 
 static DEFINE_MUTEX(di_process_mutex);
@@ -235,6 +244,78 @@ static void video_wait_decode_fence(struct di_process_dev *dev,
 			 "decoder fence is NULL\n");
 	}
 }
+
+int get_di_backend_need_mem(int width, int height, int source_type)
+{
+	bool prelink_enable = 0, postlink_enable = 0, enable_4k_input = 0, decounter_enable = 0;
+	bool nr_enable = 0;
+	int di_need_mem = 0;
+	int di_still_need_mem = 0;
+	int cpu_type = 0;
+
+	prelink_enable = dim_get_pre_link();
+	postlink_enable = dim_get_post_link();
+
+	cpu_type = get_cpu_type();
+	if (cpu_type == MESON_CPU_MAJOR_ID_T3 ||
+		cpu_type == MESON_CPU_MAJOR_ID_T3X ||
+		cpu_type == MESON_CPU_MAJOR_ID_T5M ||
+		cpu_type == MESON_CPU_MAJOR_ID_T5W ||
+		cpu_type == MESON_CPU_MAJOR_ID_T5)
+		decounter_enable = true;
+
+	if (cpu_type == MESON_CPU_MAJOR_ID_TXHD ||
+		cpu_type == MESON_CPU_MAJOR_ID_T5 ||
+		cpu_type == MESON_CPU_MAJOR_ID_T5D ||
+		cpu_type == MESON_CPU_MAJOR_ID_T7 ||
+		cpu_type == MESON_CPU_MAJOR_ID_T5W ||
+		cpu_type == MESON_CPU_MAJOR_ID_S5 ||
+		cpu_type == MESON_CPU_MAJOR_ID_T5M ||
+		cpu_type == MESON_CPU_MAJOR_ID_T3X ||
+		cpu_type == MESON_CPU_MAJOR_ID_TXHD2 ||
+		cpu_type == MESON_CPU_MAJOR_ID_T6D)
+		nr_enable = true;
+
+	if (width > 1920 && height > 1080)
+		enable_4k_input = 1;
+	if (enable_4k_input == 0) {
+		if (source_type == 0) {
+			if (!nr_enable)
+				di_need_mem = 0;
+			else if (prelink_enable)
+				di_need_mem = BACKEND_PRELINK_MEM;
+			else
+				di_need_mem = BACKEND_NORMAL_MEM;
+		} else {
+			if (postlink_enable)
+				di_need_mem = BACKEND_POSTLINK_MEM;
+			else
+				di_need_mem = BACKEND_NORMAL_MEM;
+		}
+		if (decounter_enable)
+			di_need_mem += BACKEND_DECOUNTER_MEM;
+	} else {
+		if (source_type == 0) {
+			if (!nr_enable)
+				di_need_mem = 0;
+			else if (prelink_enable)
+				di_need_mem = BACKEND_4K_PRELINK_MEM;
+			else
+				di_need_mem = BACKEND_4K_NONLINK_MEM;
+		} else {
+			di_need_mem = 0;
+		}
+	}
+
+	di_still_need_mem = di_need_mem - di_keep_memory;
+
+	di_keep_memory = di_need_mem;
+	pr_info("dp: get di backend mem:%d still need: %d\n",
+		di_need_mem, di_still_need_mem);
+
+	return di_still_need_mem;
+}
+EXPORT_SYMBOL(get_di_backend_need_mem);
 
 static struct file *dp_get_file_ext(struct di_process_dev *dev, struct file *file_vf)
 {
@@ -1270,6 +1351,7 @@ static int di_process_uninit(struct di_process_dev *dev)
 		}
 	}
 
+	di_keep_memory = 0;
 	if (dev->fget_count != dev->fput_count)
 		dp_print(dev->index, PRINT_OTHER,
 			  "file leak!!!, fget_count=%lld, fput_count=%lld\n",
