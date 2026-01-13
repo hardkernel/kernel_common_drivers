@@ -208,6 +208,7 @@ void dpss_hw_disable_one_play(struct dpss_ch_s *pch)
 		if (!(dpss_get_hw()->src_act & C_BIT0))
 			return;
 		dpss_dd_disable();
+		w_reg_bit(VPU_VBE_TOP_HDR_CTRL, 3, 0, 2);
 		dpss_hdr_disable();
 		dbg_i0("%s:ch[%d]\n", __func__, pch->c.ch);
 		dpss_get_hw()->src_act &= (~C_BIT0); //clear

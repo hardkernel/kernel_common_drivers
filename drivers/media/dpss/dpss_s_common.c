@@ -1573,6 +1573,7 @@ void dpss_s_unreg_step2(struct dpss_ch_s *pch)
 	dpss_dd_disable();
 #endif
 #ifdef FUNC_EN_HDR
+	w_reg_bit(VPU_VBE_TOP_HDR_CTRL, 3, 0, 2);
 	dpss_hdr_disable();
 #endif
 	dpss_s_print_inf(pch->c.ch);
