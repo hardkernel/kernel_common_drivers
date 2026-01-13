@@ -545,21 +545,17 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 	if (state) {
 		if (devp->game_mode) {
 			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_ON, &vrr_data);
-			pr_debug("%s: state =1 and Game, enable frame lock mode:%x\n",
-				__func__, vrr_data.vrr_mode);
 			devp->vrr_data.frame_lock_vrr_en = vrr_data.vrr_mode ||
 				vrr_data.vrr_priority;
 		} else {
 			if (devp->vrr_data.frame_lock_vrr_en) {
 				aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_OFF, &vrr_data);
-				pr_debug("%s: state =1 and no Game, disable v\n", __func__);
 			}
 			devp->vrr_data.frame_lock_vrr_en = false;
 		}
 	} else {
 		if (devp->vrr_data.frame_lock_vrr_en) {
 			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_OFF, &vrr_data);
-			pr_debug("%s: state=0 ,disable frame lock\n", __func__);
 		}
 		devp->vrr_data.frame_lock_vrr_en = false;
 	}
@@ -2584,8 +2580,8 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	vdin_axis_parm_adjust(devp, para);
 #endif
 	fmt = devp->parm.info.fmt;
-	pr_info("[%s] vdin%d,port:0x%x,fmt:%d %d %d;active:%dx%d,%dx%d;fr:%d;sm:%d\n",
-		__func__, devp->index, para->port, para->cfmt, fmt,
+	pr_info("start vdin%d,port:0x%x,fmt:%d %d %d;active:%dx%d,%dx%d;fr:%d;sm:%d\n",
+		devp->index, para->port, para->cfmt, fmt,
 		para->dfmt, para->dest_h_active, para->dest_v_active,
 		para->h_active, para->v_active,
 		para->frame_rate, para->scan_mode);
@@ -5048,9 +5044,6 @@ static int vdin_open(struct inode *inode, struct file *file)
 
 			if (ret)
 				pr_err("err:req vs irq fail\n");
-			else
-				pr_info("vdin%d req vs irq %d\n",
-					devp->index, devp->irq);
 		}
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&
 		    devp->vpu_crash_irq > 0) {
@@ -6599,6 +6592,7 @@ static ssize_t vdin_param_store(struct device *dev,
 	char *cur = (char *)bu;
 	u32 val;
 	struct vdin_dev_s *devp;
+
 	devp = dev_get_drvdata(dev);
 
 	token = strsep(&cur, delim);
@@ -7489,7 +7483,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/*got the dt match data*/
 	of_id = of_match_device(vdin_dt_match, &pdev->dev);
 	if (!of_id) {
-		pr_err("%s: of_match_device get fail\n", __func__);
+		pr_err("vdin%d of_match_device get fail\n", devp->index);
 		goto fail_create_dev_file;
 	}
 	devp->dtdata = of_id->data;
@@ -7532,7 +7526,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 			pr_err("match flag_cma failed\n");
 			devp->cma_config_flag = 0;
 		}
-
 		devp->cma_config_flag_bak = devp->cma_config_flag;
 		if (devp->cma_config_flag & 0x1) {
 			ret = of_property_read_u32(pdev->dev.of_node,

@@ -3029,7 +3029,6 @@ void vdin_dolby_mdata_write_en_t6x(unsigned int offset, unsigned int en)
 
 void vdin_dolby_mdata_write_en_t3x(unsigned int offset, unsigned int en)
 {
-	/*printk("=========>> wr memory %d\n", en);*/
 	if (en) {
 		/* reg_dolby_en */
 		//wr_bits(offset, VDIN0_CORE_CTRL, 1, 0, 1);

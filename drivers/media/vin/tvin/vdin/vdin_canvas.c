@@ -147,7 +147,8 @@ void vdin_cal_canvas_w(struct vdin_dev_s *devp)
 
 		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
 			if (devp->dtdata->hw_ver == VDIN_HW_T6D ||
-			    devp->dtdata->hw_ver == VDIN_HW_T6W)
+			    devp->dtdata->hw_ver == VDIN_HW_T6W ||
+			    devp->dtdata->hw_ver == VDIN_HW_T6X)
 				devp->canvas_w = (h_active * 10) / 8;
 			else
 				devp->canvas_w = (h_active * 3) / 2;

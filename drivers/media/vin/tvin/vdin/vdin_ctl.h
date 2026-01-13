@@ -282,7 +282,6 @@ void vdin_set_pixel_aspect_ratio(struct vdin_dev_s *devp,
 				 struct vframe_s *vf);
 void vdin_set_display_ratio(struct vdin_dev_s *devp,
 			    struct vframe_s *vf);
-void vdin_source_bitdepth_reinit(struct vdin_dev_s *devp);
 void vdin_set_vf_reinit_flag(struct vdin_dev_s *devp);
 void vdin_vf_reinit(struct vdin_dev_s *devp, struct vf_entry *vfe);
 void set_invert_top_bot(bool invert_flag);

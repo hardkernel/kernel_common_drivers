@@ -3489,7 +3489,7 @@ static ssize_t attr_store(struct device *dev,
 	devp = dev_get_drvdata(dev);
 	if (!devp->vfp) {
 		pr_info("devp->vfp is NULL\n");
-		return ret;
+		return len;
 	}
 	vdin_parse_param(buf_orig, (char **)&parm);
 	offset = devp->addr_offset;
@@ -5136,7 +5136,6 @@ static ssize_t vf_log_store(struct device *dev,
 static DEVICE_ATTR_RW(vf_log);
 
 #endif /* VF_LOG_EN */
-
 static ssize_t dts_config_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)

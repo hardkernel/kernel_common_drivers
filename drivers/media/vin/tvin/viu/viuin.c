@@ -99,6 +99,7 @@ static unsigned int vsync_enter_line_max_threshold = 10000;
 static unsigned int vsync_enter_line_min_threshold = 10000;
 static unsigned int vsync_enter_line_threshold_overflow_count;
 static unsigned short open_cnt;
+
 static unsigned int viu_dbg_en;
 
 struct viuin_s {
@@ -943,7 +944,6 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, viu_mux, 4, 4);
 		wr_bits_viu(VPU_VIU_VENC_MUX_CTRL, viu_mux, 8, 4);
 	}
-
 	devp->flag = 0;
 	open_cnt++;
 	return 0;
