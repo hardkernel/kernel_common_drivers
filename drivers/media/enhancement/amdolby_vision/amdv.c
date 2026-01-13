@@ -669,6 +669,8 @@ u32 slice_num;
 u32 pad_mode;
 bool device_disable_pd;
 
+bool ignore_gd_over_vsif = true;/*hdmi case103,ko hard code backlt_ctrl_md to 0 in set_vsif_params*/
+
 bool is_aml_gxm(void)
 {
 	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_GXM)
@@ -7568,7 +7570,8 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 					     vsif->vers.ver2_l11.src_dm_version);
 			if (vinfo->dv_info.ieeeoui == 0x00d046 &&
 				vinfo->dv_info.sup_backlight_control &&
-			    (m_setting->ext_md.avail_level_mask & EXT_MD_LEVEL_2)) {
+			    (m_setting->ext_md.avail_level_mask & EXT_MD_LEVEL_2) &&
+			    !ignore_gd_over_vsif) {
 				vsif->vers.ver2_l11.backlt_ctrl_MD_present = 1;
 				vsif->vers.ver2_l11.eff_tmax_PQ_hi =
 					m_setting->ext_md.level_2.target_max_pq_h & 0xf;
@@ -7641,7 +7644,8 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 					     vsif->vers.ver2.src_dm_version);
 			if (vinfo->dv_info.ieeeoui == 0x00d046 &&
 				vinfo->dv_info.sup_backlight_control &&
-			    (m_setting->ext_md.avail_level_mask & EXT_MD_LEVEL_2)) {
+			    (m_setting->ext_md.avail_level_mask & EXT_MD_LEVEL_2) &&
+			    !ignore_gd_over_vsif) {
 				vsif->vers.ver2.backlt_ctrl_MD_present = 1;
 				vsif->vers.ver2.eff_tmax_PQ_hi =
 					m_setting->ext_md.level_2.target_max_pq_h & 0xf;
@@ -7692,7 +7696,8 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 
 		if (vinfo->dv_info.ieeeoui == 0x00d046 &&
 			vinfo->dv_info.sup_backlight_control &&
-		    (setting->ext_md.avail_level_mask & EXT_MD_LEVEL_2)) {
+		    (setting->ext_md.avail_level_mask & EXT_MD_LEVEL_2) &&
+		    !ignore_gd_over_vsif) {
 			vsif->vers.ver2.backlt_ctrl_MD_present = 1;
 			vsif->vers.ver2.eff_tmax_PQ_hi =
 				setting->ext_md.level_2.target_max_pq_h & 0xf;
