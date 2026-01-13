@@ -28,6 +28,9 @@
 #include <linux/kstrtox.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/resource_mgr/resourcemanage.h>
+#include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
+
 
 #define RESMAM_ENABLE_JSON  (1)
 
@@ -40,10 +43,17 @@
 
 #define QUERY_SECURE_BUFFER (1)
 #define QUERY_NO_SECURE_BUFFER (0)
-#define RESMAN_VERSION         (3)
-#define SINGLE_SIZE           (64)
-#define EXT_MAX_SIZE     (64 * 1024)
-#define STR_MAX_SIZE     (32)
+#define RESMAN_VERSION         (4)// 4 support more accurate resource management
+#define RESMAN_SUB_VERSION     (0)
+#define RESMAN_SUBMIT_NUMBER   (0)
+#define RESMAN_SINGLE_SIZE      (64)
+#define RESMAN_STR_MAX_SIZE     (32)
+#define RESMAN_DEMUX_VIDEO_SIZE (15)
+#define RESMAN_DEMUX_AUDIO_SIZE (3)
+#define RESMAN_DEMUX_CACHE_SIZE (6)
+#define RESMAN_MAX_PRINT_LEN  500
+#define RESMAN_DEFAULIT_MIN_SIZE_FOR_VDEC   (10)  //min codec mm size for base workspace buffer
+#define RESMAN_DEFAULIT_EXPECT_SIZE_FOR_PLAYBACK   (60)  //expect codec mmsize for plabyack
 
 struct {
 	int id;
@@ -149,6 +159,9 @@ struct resman_session {
 	wait_queue_head_t wq_event;
 	int app_type;
 	int prio;
+#ifdef RESMAN_ENABLE_PARAMETER_SET
+	struct resman_param_set  *param_set;
+#endif
 };
 
 /**
@@ -241,6 +254,9 @@ static DEFINE_MUTEX(sessions_lock);
 static DEFINE_MUTEX(resource_lock);
 static DEFINE_MUTEX(debug_lock);
 static DEFINE_MUTEX(error_info_lock);
+static DEFINE_MUTEX(resman_cb_ops_mutex);
+static LIST_HEAD(g_cb_ops_list);
+
 static dev_t resman_devno;
 static int sess_id = 1;
 static struct cdev *resman_cdev;
@@ -260,6 +276,32 @@ module_param(preempt_timeout_ms, int, 0644);
 		if (resman_debug >= (level))					\
 			pr_info("resman: " fmt, ## arg);	\
 	} while (0)
+
+static int resman_register_default_query_ops(struct resman_cb_param_any_t q)
+{
+	dprintk(0, "resman: default_query_resource_cb not registered\n");
+	return RESMAN_DEFAULIT_EXPECT_SIZE_FOR_PLAYBACK;
+}
+
+static const char *const resman_valid_devices[] = {
+	RESMAN_DEV_VDEC,
+	RESMAN_DEV_DI,
+	RESMAN_DEV_PP,
+};
+
+static bool resman_is_valid_device_name(const char *name)
+{
+	int i = 0;
+
+	if (!name)
+		return false;
+	for (i = 0; i < ARRAY_SIZE(resman_valid_devices); ++i) {
+		if (strncmp(resman_valid_devices[i], name, RESMAN_LEN) == 0)
+			return true;
+	}
+	dprintk(0, "resman:  device name is not valid\n");
+	return false;
+}
 
 /**
  * resman_parser_kv() - parse key value pair
@@ -344,14 +386,197 @@ static void resman_find_appname_by_resource_name(const char *name, char *appname
 			node = list_entry(pos1, struct resman_node, rlist);
 			resource = node->resource_ptr;
 			if (resource && appname && !strcmp(name, resource->name)) {
-				dprintk(2, "acquired app_name %s\n", sess->app_name);
-				strncpy(appname, sess->app_name, STR_MAX_SIZE);
+				dprintk(2, "%d acquired app_name %s\n", sess->id, sess->app_name);
+				strncpy(appname, sess->app_name, RESMAN_STR_MAX_SIZE);
 				break;
 			}
 		}
 	}
 	mutex_unlock(&sessions_lock);
 	mutex_unlock(&resource_lock);
+}
+
+#define APPEND_ATTR_BUF(format, args...) { \
+	size += snprintf(buf + size, PAGE_SIZE - size, format, args); \
+}
+
+/**
+ * append_to_buf_safe() - Safely append formatted text to a dynamically
+ *                        allocated buffer with automatic growth.
+ *
+ * @pbuf:       Pointer to the buffer pointer (will be reallocated as needed)
+ * @psize:      Pointer to the current number of bytes written (accumulated)
+ * @pbuf_size:  Pointer to the current total allocated buffer size
+ * @fmt:        printf-style format string
+ * @...:        Variable arguments corresponding to @fmt
+ *
+ * This function appends formatted output to a string buffer. If the remaining
+ * space in the buffer is insufficient, it automatically reallocates a larger
+ * buffer using krealloc() and retries the operation. The buffer pointer and
+ * its size trackers (*pbuf and *pbuf_size) are updated if reallocation occurs.
+ *
+ * Return:
+ * * 0 on success
+ * * -ENOMEM if memory allocation or reallocation fails
+ * * -EINVAL if invalid arguments are provided
+ *
+ * Example usage:
+ *
+ *	size_t size = 0;
+ *	size_t buf_size = PAGE_SIZE;
+ *	char *buf = kzalloc(buf_size, GFP_KERNEL);
+ *
+ *	append_to_buf_safe(&buf, &size, &buf_size, "value: %d\n", val);
+ *	append_to_buf_safe(&buf, &size, &buf_size, "string: %s\n", name);
+ *
+ *	pr_info("%s", buf);
+ *	kfree(buf);
+ */
+
+static int append_to_buf_safe(char **pbuf, size_t *psize, size_t *pbuf_size,
+			      const char *fmt, ...)
+{
+	va_list args;
+	int needed;
+	int avail;
+	char *new_buf;
+	size_t new_size;
+	char *buf;
+
+	if (!pbuf || !psize || !pbuf_size || !fmt)
+		return -EINVAL;
+	buf = *pbuf;
+retry:
+	avail = *pbuf_size - *psize;
+	va_start(args, fmt);
+	needed = vsnprintf(buf + *psize, avail, fmt, args);
+	va_end(args);
+
+	if (needed >= avail) {
+		new_size = max(*pbuf_size * 2, *pbuf_size + needed + 1);
+		new_buf = krealloc(*pbuf, new_size, GFP_KERNEL);
+		if (!new_buf) {
+			dprintk(0, " OOM, truncating output\n");
+			return -ENOMEM;
+		}
+		*pbuf = new_buf;
+		*pbuf_size = new_size;
+		buf = new_buf;
+		goto retry;
+	}
+
+	*psize += needed;
+	return 0;
+}
+
+static ssize_t resman_usage_dump(void)
+{
+	struct list_head *pos1, *tmp1;
+	struct list_head *pos2, *tmp2;
+	struct resman_resource *resource;
+	struct resman_session *sess;
+
+	size_t size = 0;
+	size_t buf_size = PAGE_SIZE;
+	char *buf = NULL;
+	int i, j;
+
+	mutex_lock(&resource_lock);
+	buf = kzalloc(buf_size, GFP_KERNEL);
+	if (!buf) {
+		mutex_unlock(&resource_lock);
+		return 0;
+	}
+
+	j = 0;
+	list_for_each_safe(pos1, tmp1, &resources_head) {
+		resource = list_entry(pos1, struct resman_resource, list);
+		for (i = 0; i < j; i++)
+			append_to_buf_safe(&buf, &size, &buf_size, "%c ", '|');
+		append_to_buf_safe(&buf, &size, &buf_size,
+				   "%s %d\n", resource->name, resource->value);
+		j++;
+	}
+
+	for (i = 0; i < j; i++)
+		append_to_buf_safe(&buf, &size, &buf_size, "%c ", '|');
+	append_to_buf_safe(&buf, &size, &buf_size, "%-20s", "name");
+	append_to_buf_safe(&buf, &size, &buf_size, "%-10s", "status");
+	append_to_buf_safe(&buf, &size, &buf_size, "%-16s\n", "proc/PID/TID");
+
+	mutex_lock(&sessions_lock);
+	list_for_each_safe(pos2, tmp2, &sessions_head) {
+		sess = list_entry(pos2, struct resman_session, list);
+		list_for_each_safe(pos1, tmp1, &resources_head) {
+			resource = list_entry(pos1, struct resman_resource, list);
+			if (resman_find_node_by_resource_id(sess, resource->id))
+				append_to_buf_safe(&buf, &size, &buf_size, "%-2c", 'x');
+			else
+				append_to_buf_safe(&buf, &size, &buf_size, "%-2c", ' ');
+		}
+		append_to_buf_safe(&buf, &size, &buf_size, "%-20s", sess->app_name);
+		switch (sess->status) {
+		case RESMAN_STATUS_INITED:
+			append_to_buf_safe(&buf, &size, &buf_size, "%-10s", "inited");
+			break;
+		case RESMAN_STATUS_ACQUIRED:
+			append_to_buf_safe(&buf, &size, &buf_size, "%-10s", "acquired");
+			break;
+		case RESMAN_STATUS_PREEMPTED:
+			append_to_buf_safe(&buf, &size, &buf_size, "%-10s", "preempted");
+			break;
+		default:
+			append_to_buf_safe(&buf, &size, &buf_size, "%-10s", "unknown");
+			break;
+		}
+		append_to_buf_safe(&buf, &size, &buf_size,
+				   "%s/%d/%d\n", sess->comm, sess->tgid, sess->pid);
+	}
+	mutex_unlock(&sessions_lock);
+	mutex_unlock(&resource_lock);
+
+	append_to_buf_safe(&buf, &size, &buf_size, "%s", "\n");
+
+	if (buf) {
+		size_t len = strlen(buf);
+		size_t offset = 0, remain = 0, chunk = 0, print_len = 0;
+		size_t  remain_in_chunk = 0, advanced = 0;
+		char *found = NULL, *search = NULL, *p = NULL;
+		char tmp[RESMAN_MAX_PRINT_LEN + 1];
+
+		while (offset < len) {
+			remain = len - offset;
+			chunk = min_t(size_t, remain, RESMAN_MAX_PRINT_LEN);
+			print_len = chunk;
+			found = NULL;
+			search = buf + offset;
+			remain_in_chunk = chunk;
+
+			while (remain_in_chunk > 0) {
+				p = memchr(search, '\n', remain_in_chunk);
+				if (!p)
+					break;
+				found = p;
+				advanced = p - (buf + offset) + 1;
+				if (advanced >= chunk)
+					break;
+				remain_in_chunk = chunk - advanced;
+				search = p + 1;
+			}
+
+			if (found)
+				print_len = found - (buf + offset) + 1;
+
+			memcpy(tmp, buf + offset, print_len);
+			tmp[print_len] = '\0';
+			pr_info("%s", tmp);
+
+			offset += print_len;
+		}
+	}
+
+	kfree(buf);
+	return size;
 }
 
 static int resman_count_codec_mm_session(bool secure)
@@ -388,7 +613,7 @@ static struct counter_res_state_list *resman_counter_res_list_init(struct resman
 		return NULL;
 	}
 	counter_list->size = size;
-	dprintk(3, "%s list size %d res id %d\n", __func__, size, resource->id);
+	dprintk(4, "list size %d res id %d\n", size, resource->id);
 
 	for (i = 0; i < size; i++) {
 		counter_list->items[i].index = i;
@@ -410,8 +635,6 @@ static int resman_counter_res_list_acquire_item(struct counter_res_state_list *c
 		if (counter_list->items[i].state == 0) {
 			counter_list->items[i].state = 1;
 			counter_list->items[i].ssid = ssid;
-			dprintk(3, "i %d and id %d\n", i,
-				 counter_list->items[i].ssid);
 			index = counter_list->items[i].index;
 			break;
 		}
@@ -429,8 +652,6 @@ static void resman_counter_res_list_release_item(struct counter_res_state_list *
 	for (i = 0; i < counter_list->size; i++) {
 		if (counter_list->items[i].ssid == ssid) {
 			counter_list->items[i].state = 0;
-			dprintk(3, "release i %d and id %d\n", i,
-				 counter_list->items[i].ssid);
 			counter_list->items[i].ssid = -1;
 			break;
 		}
@@ -478,6 +699,13 @@ static bool resman_acquire_resource(struct resman_session *sess,
 	}
 	mutex_unlock(&resource->lock);
 	kfree(arg_rw);
+	if (!ret || resman_debug >= 5) {
+		if (resource->type == RESMAN_TYPE_CODEC_MM) {
+			dump_mem_infos_external();
+			codec_mm_dbuf_walk_external();
+		}
+		resman_usage_dump();
+	}
 	return ret;
 }
 
@@ -520,6 +748,7 @@ static struct resman_session *resman_open_session(void)
 	sess->pid = current->pid;
 	sess->status = RESMAN_STATUS_INITED;
 	sess->id = sess_id++;
+	sess->param_set = param_set_create();
 	mutex_lock(&sessions_lock);
 	list_add_tail(&sess->list, &sessions_head);
 	mutex_unlock(&sessions_lock);
@@ -532,6 +761,9 @@ static void resman_close_session(struct resman_session *sess)
 	struct resman_node *node;
 	struct resman_event *event;
 
+	if (!sess)
+		return;
+
 	mutex_lock(&sess->lock);
 	wake_up_interruptible_all(&sess->wq_event);
 	list_for_each_safe(pos, tmp, &sess->resources) {
@@ -543,6 +775,11 @@ static void resman_close_session(struct resman_session *sess)
 		event = list_entry(pos, struct resman_event, list);
 		list_del(&event->list);
 		kfree(event);
+	}
+	if (sess->param_set) {
+		dprintk(5, "%d param_set destroy\n", sess->id);
+		param_set_destroy(sess->param_set);
+		sess->param_set = NULL;
 	}
 	mutex_unlock(&sess->lock);
 	mutex_lock(&sessions_lock);
@@ -1016,21 +1253,22 @@ static bool resman_codec_mm_preempt(struct resman_session *curr,
 	return ret;
 }
 
-static bool resman_codec_mm_enough(struct resman_resource *resource,
-				   __u32 score,
-				   bool secure)
+static bool resman_codec_mm_enough(struct resman_session *sess,
+				struct resman_resource *resource,
+				__u32 score,
+				bool secure)
 {
 	bool enough = true;
 
 	if (!secure && (codec_mm_get_free_size() >> 20 < score)) {
 		enough = false;
-		dprintk(2, "free size 0x%x\n", codec_mm_get_free_size());
+		dprintk(2, "%d free size 0x%x\n", sess->id, codec_mm_get_free_size());
 		if (resman_debug)
 			dump_mem_infos_external();
 	} else if (secure && ((codec_mm_get_tvp_free_size() + codec_mm_get_free_size()) >> 20)
 			< score) {
 		enough = false;
-		dprintk(2, "free size 0x%x\n", codec_mm_get_tvp_free_size() +
+		dprintk(2, "%d free size 0x%x\n", sess->id, codec_mm_get_tvp_free_size() +
 			+ codec_mm_get_free_size());
 		if (resman_debug)
 			dump_mem_infos_external();
@@ -1070,7 +1308,7 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 		}
 		else if (!strcmp(opt, "single"))
 		/*single mode, 64M codec mm size is enough*/
-			score = SINGLE_SIZE;
+			score = RESMAN_SINGLE_SIZE;
 		else if (!strcmp(opt, "uhd"))
 			score = resource->d.codec_mm.uhd;
 		else if (!strcmp(opt, "secure"))
@@ -1081,7 +1319,7 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 		score,
 		secure ? "yes" : "no");
 
-	if (!resman_codec_mm_enough(resource, score, secure)) {
+	if (!resman_codec_mm_enough(sess, resource, score, secure)) {
 		if (preempt) {
 			if (!timeout)
 				timeout = preempt_timeout_ms;
@@ -1097,7 +1335,7 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 			while (attempt < max_attempts) {
 				dprintk(1, "max_attempts %d attempt %d\n", max_attempts, attempt);
 				remain = wait_event_interruptible_timeout(resource->wq_release,
-					resman_codec_mm_enough(resource,
+					resman_codec_mm_enough(sess, resource,
 							score,
 							secure),
 				msecs_to_jiffies(slicetimeout));
@@ -1122,7 +1360,7 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 		}
 	}
 
-	if (resman_codec_mm_enough(resource, score, secure)) {
+	if (resman_codec_mm_enough(sess, resource, score, secure)) {
 		node->s.codec_mm.score = score;
 		node->s.codec_mm.secure = secure;
 		resource->value += score;
@@ -1172,6 +1410,36 @@ static void resman_codec_mm_probe(struct resman_resource *resource)
 	resource->d.codec_mm.total = total_bytes >> 20;
 	resource->d.codec_mm.uhd = tvp_uhd >> 20;
 	resource->d.codec_mm.fhd = tvp_fhd >> 20;
+}
+
+static int resman_codec_mm_update_size(struct resman_session *sess, int cur_size)
+{
+	struct resman_node *node = NULL;
+	struct resman_resource *resource = NULL;
+	struct list_head *pos, *tmp;
+	int old_size = 0;
+
+	mutex_lock(&sess->lock);
+	list_for_each_safe(pos, tmp, &sess->resources) {
+		node = list_entry(pos, struct resman_node, rlist);
+		resource = (struct resman_resource *)node->resource_ptr;
+		if (resource->id == RESMAN_ID_CODEC_MM) {
+			if (node->s.codec_mm.score != cur_size) {
+				old_size = node->s.codec_mm.score;
+				node->s.codec_mm.score = cur_size;
+				dprintk(4, "%d update score size %d to %d\n",
+					sess->id, old_size, cur_size);
+				if (old_size < cur_size)
+					resource->value += (cur_size - old_size);
+				else
+					resource->value -= (old_size - cur_size);
+			}
+			mutex_unlock(&sess->lock);
+			return 1;
+		}
+	}
+	mutex_unlock(&sess->lock);
+	return 0;
 }
 
 static bool resman_capacity_enough(struct resman_resource *resource,
@@ -1396,13 +1664,13 @@ static bool resman_create_resource(const char *name,
 		}
 	}
 	if (resource->id < 0) {
-		dprintk(0, "%s error, [%s] invalid\n", __func__, name);
+		dprintk(0, "error, [%s] invalid\n", name);
 		goto error;
 	}
 
 	switch (type) {
 	default:
-		dprintk(0, "%s error, unknown type\n", __func__);
+		dprintk(0, "error, unknown type\n");
 		goto error;
 	case RESMAN_TYPE_COUNTER:
 		resource->acquire = resman_counter_acquire;
@@ -1600,7 +1868,7 @@ static bool resman_config_from_json(char *buf)
 
 	mutex_unlock(&resource_lock);
 	if (!ret) {
-		dprintk(0, "%s parse config failed\n%s\n", __func__, buf);
+		dprintk(0, "parse config failed\n%s\n", buf);
 		all_resource_uninit();
 	} else if (resman_configs) {
 		newconfig = kzalloc(strlen(resman_configs) + strlen(buf) + 1,
@@ -1688,7 +1956,7 @@ static bool resman_parser_config(const char *buf)
 
 	mutex_unlock(&resource_lock);
 	if (!ret) {
-		dprintk(0, "%s parse config failed\n%s\n", __func__, buf);
+		dprintk(0, "parse config failed\n%s\n", buf);
 		all_resource_uninit();
 	} else if (resman_configs) {
 		newconfig = kzalloc(strlen(resman_configs) + strlen(buf) + 1,
@@ -1870,18 +2138,18 @@ static int resman_estimate_tvp_available(int size)
 	return mode;
 }
 
-static int resman_codec_mm_available(int issecure)
+static int resman_codec_mm_available(struct resman_session *sess, int ifsecure)
 {
 	int avail = 0;
 
-	dprintk(2, "issecure %d\n", issecure);
-	if (issecure == QUERY_NO_SECURE_BUFFER)
+	dprintk(2, "%d ifsecure %d\n", sess->id, ifsecure);
+	if (ifsecure == QUERY_NO_SECURE_BUFFER)
 		avail = codec_mm_get_free_size() >> 20;
-	if (issecure == QUERY_SECURE_BUFFER) {
+	if (ifsecure == QUERY_SECURE_BUFFER) {
 		avail = (codec_mm_get_free_size() +
 			codec_mm_get_tvp_free_size()) >> 20;
 	}
-	dprintk(2, "avail %d\n", avail);
+	dprintk(2, "%d avail %d\n", sess->id, avail);
 	if (resman_debug > 1)
 		dump_mem_infos_external();
 
@@ -1923,7 +2191,7 @@ static long resman_ioctl_query(struct resman_session *sess, unsigned long para)
 		break;
 	case RESMAN_TYPE_CODEC_MM:
 		resman.v.query.avail =
-			resman_codec_mm_available(resman.v.query.value);
+			resman_codec_mm_available(sess, resman.v.query.value);
 		resman.v.query.value = codec_mm_get_total_size() >> 20;
 		break;
 	case RESMAN_TYPE_CAPACITY_SIZE:
@@ -1997,7 +2265,7 @@ static long resman_ioctl_setappinfo(struct resman_session *sess,
 	return r;
 }
 
-static long resman_ioctl_checksupportres(struct resman_session *sess,
+static long resman_ioctl_check_support(struct resman_session *sess,
 					 unsigned long para)
 {
 	long r = 0;
@@ -2037,10 +2305,10 @@ static long resman_ioctl_load_res(struct resman_session *sess,
 	} else {
 		item.name[sizeof(item.name) - 1] = '\0';
 		item.arg[sizeof(item.arg) - 1] = '\0';
-		if (strlen(item.name) > 0 && strlen(item.name) < STR_MAX_SIZE) {
-			if (strlen(item.arg) > 0 && strlen(item.arg) < STR_MAX_SIZE)
+		if (strlen(item.name) > 0 && strlen(item.name) < RESMAN_STR_MAX_SIZE) {
+			if (strlen(item.arg) > 0 && strlen(item.arg) < RESMAN_STR_MAX_SIZE)
 				arglen = strlen(item.arg);
-			if (arglen > 0 && arglen < STR_MAX_SIZE)
+			if (arglen > 0 && arglen < RESMAN_STR_MAX_SIZE)
 				itemarg = item.arg;
 			if (!resman_create_resource(item.name, item.type, itemarg))
 				r = -1;
@@ -2066,75 +2334,16 @@ static long resman_ioctl_release_all(struct resman_session *sess,
 	return r;
 }
 
-#define APPEND_ATTR_BUF(format, args...) { \
-	size += snprintf(buf + size, PAGE_SIZE - size, format, args); \
-}
-
-static ssize_t usage_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t resman_usage_show(const struct class *class,
+			  const struct class_attribute *attr, char *buf)
 {
-	struct list_head *pos1, *tmp1;
-	struct list_head *pos2, *tmp2;
-	struct resman_resource *resource;
-	struct resman_session *sess;
 	ssize_t size = 0;
-	int i, j;
 
-	mutex_lock(&resource_lock);
-	j = 0;
-	list_for_each_safe(pos1, tmp1, &resources_head) {
-		resource = list_entry(pos1, struct resman_resource, list);
-		for (i = 0; i < j; i++)
-			APPEND_ATTR_BUF("%c ", '|')
-		APPEND_ATTR_BUF("%s %d\n", resource->name, resource->value)
-		j++;
-	}
-	for (i = 0; i < j; i++)
-		APPEND_ATTR_BUF("%c ", '|')
-	APPEND_ATTR_BUF("%-32s", "name")
-	APPEND_ATTR_BUF("%-10s", "status")
-	APPEND_ATTR_BUF("%-16s\n", "proc/PID/TID")
-
-	mutex_lock(&sessions_lock);
-	list_for_each_safe(pos2, tmp2, &sessions_head) {
-		sess = list_entry(pos2, struct resman_session, list);
-		list_for_each_safe(pos1, tmp1, &resources_head) {
-			resource = list_entry(pos1,
-					      struct resman_resource, list);
-			if (resman_find_node_by_resource_id(sess, resource->id))
-				APPEND_ATTR_BUF("%-2c", 'x')
-			else
-				APPEND_ATTR_BUF("%-2c", ' ')
-		}
-		APPEND_ATTR_BUF("%-32s", sess->app_name)
-		switch (sess->status) {
-		case RESMAN_STATUS_INITED:
-			APPEND_ATTR_BUF("%-10s", "inited")
-			break;
-		case RESMAN_STATUS_ACQUIRED:
-			APPEND_ATTR_BUF("%-10s", "acquired")
-			break;
-		case RESMAN_STATUS_PREEMPTED:
-			APPEND_ATTR_BUF("%-10s", "preempted")
-			break;
-		default:
-			APPEND_ATTR_BUF("%-10s", "unknown")
-			break;
-		}
-
-		APPEND_ATTR_BUF("%s/%d/%d\n",
-				sess->comm,
-				sess->tgid,
-				sess->pid)
-	}
-	mutex_unlock(&sessions_lock);
-	mutex_unlock(&resource_lock);
-	APPEND_ATTR_BUF("%s", "\n")
+	resman_usage_dump();
 	return size;
 }
 
-static ssize_t config_show(const struct class *class,
+static ssize_t resman_config_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
 {
@@ -2144,7 +2353,7 @@ static ssize_t config_show(const struct class *class,
 	return size;
 }
 
-static ssize_t config_store(const struct class *class,
+static ssize_t resman_config_store(const struct class *class,
 			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
@@ -2157,17 +2366,17 @@ static ssize_t config_store(const struct class *class,
 	return size;
 }
 
-static ssize_t ver_show(const struct class *class,
+static ssize_t resman_ver_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t size = 0;
 
-	APPEND_ATTR_BUF("%d\n", RESMAN_VERSION)
+	APPEND_ATTR_BUF("V%d.%d.%d\n", RESMAN_VERSION, RESMAN_SUB_VERSION, RESMAN_SUBMIT_NUMBER)
 	return RESMAN_VERSION;
 }
 
-static ssize_t res_show(const struct class *class,
+static ssize_t resman_res_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
 {
@@ -2280,6 +2489,85 @@ static ssize_t res_sys_debug_store(const struct class *class,
 
 #undef APPEND_ATTR_BUF
 
+int resman_register_query_ops_by_name(const char *device_name,
+			int (*fn)(struct resman_cb_param_any_t q))
+{
+	struct resman_query_cb_ops *ops;
+	size_t len;
+	int ret = 0;
+
+	if (!device_name || !fn)
+		return -EINVAL;
+
+	len = strnlen(device_name, RESMAN_LEN);
+	if (len == 0 || len >= RESMAN_LEN)
+		return -EINVAL;
+
+	mutex_lock(&resman_cb_ops_mutex);
+
+	list_for_each_entry(ops, &g_cb_ops_list, list) {
+		if (strncmp(ops->device_name, device_name, RESMAN_LEN) == 0) {
+			ops->query_resource_cb = fn;
+			dprintk(0, "resman: updated cb for device %s\n", device_name);
+			goto out_unlock;
+		}
+	}
+
+	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+	if (!ops) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
+
+	strscpy(ops->device_name, device_name, sizeof(ops->device_name));
+	ops->query_resource_cb = fn;
+	INIT_LIST_HEAD(&ops->list);
+	list_add_tail(&ops->list, &g_cb_ops_list);
+	dprintk(0, "resman: registered cb for device %s\n", device_name);
+
+out_unlock:
+	mutex_unlock(&resman_cb_ops_mutex);
+	return ret;
+}
+EXPORT_SYMBOL(resman_register_query_ops_by_name);
+
+static int resman_session_query_resource_by_name(struct resman_session *sess,
+		const char *device_name,
+		struct  resman_cb_param_any_t q)
+{
+	struct resman_query_cb_ops *ops;
+	int ret = -ENOENT;
+	size_t len;
+
+	if (!sess || !device_name)
+		return -EINVAL;
+
+	len = strnlen(device_name, strlen(device_name));
+	if (len == 0 || len >= RESMAN_LEN)
+		return -EINVAL;
+
+	mutex_lock(&resman_cb_ops_mutex);
+	if (!resman_is_valid_device_name(device_name)) {
+		dprintk(0, "resman: invalid device name %s\n", device_name);
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	list_for_each_entry(ops, &g_cb_ops_list, list) {
+		if (strncmp(ops->device_name, device_name, RESMAN_LEN) == 0) {
+			if (ops->query_resource_cb)
+				ret = ops->query_resource_cb(q);
+			goto out_unlock;
+		}
+	}
+	ret = resman_register_default_query_ops(q);
+	dprintk(0, "resman: callback not found for module %s, used default\n", device_name);
+
+out_unlock:
+	mutex_unlock(&resman_cb_ops_mutex);
+	return ret;
+}
+
 /* ------------------------------------------------------------------
  * File operations for the device
  * ------------------------------------------------------------------
@@ -2334,7 +2622,7 @@ static unsigned int resman_poll(struct file *filp, struct poll_table_struct *wai
 	return mask;
 }
 
-static long resman_get_sys_debug_level(struct resman_session *sess, unsigned long para)
+static long resman_ioctl_get_sys_debug_level(struct resman_session *sess, unsigned long para)
 {
 	int len = 0;
 
@@ -2354,14 +2642,14 @@ static long resman_get_sys_debug_level(struct resman_session *sess, unsigned lon
 	return len;
 }
 
-static long resman_get_counter_index(struct resman_session *sess, unsigned long para)
+static long resman_ioctl_get_counter_index(struct resman_session *sess, unsigned long para)
 {
 	long r = -1;
 	int select_res = 0, i = 0;
 	__u32 id = 0;
 	struct resman_resource *resource;
 
-	if (copy_from_user((void *)&id, (void *)para, sizeof(id))) {
+	if (copy_from_user((void *)&id, (void __user *)para, sizeof(id))) {
 		dprintk(0, "getcount index para error\n");
 		return -EINVAL;
 	}
@@ -2371,10 +2659,8 @@ static long resman_get_counter_index(struct resman_session *sess, unsigned long 
 	if (!resource)
 		return r;
 	for (i = 0; i < resource->d.counter.counter_list->size; i++) {
-		dprintk(3, "items[i].state %d\n", resource->d.counter.counter_list->items[i].state);
 		if (resource->d.counter.counter_list->items[i].state == 1 &&
 			resource->d.counter.counter_list->items[i].ssid == sess->id) {
-			dprintk(3, "find i %d and id %d\n", i, id);
 			r = i;
 			break;
 		}
@@ -2382,7 +2668,303 @@ static long resman_get_counter_index(struct resman_session *sess, unsigned long 
 	return r;
 }
 
-static long resman_set_sys_debug_level(struct resman_session *sess, unsigned long para)
+static long resman_ioctl_get_version(struct resman_session *sess, unsigned long para)
+{
+	struct resman_version __user *pver = (void __user *)para;
+	struct resman_version ver;
+
+	if (!pver)
+		return -EINVAL;
+	memset(&ver, 0, sizeof(ver));
+	ver.ver = RESMAN_VERSION;
+	ver.sub_ver = RESMAN_SUB_VERSION;
+	ver.submit_number = 0;
+
+	if (copy_to_user((void *)pver, &ver, sizeof(ver)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int resman_ioctl_parameter_set_ctl(struct resman_session *sess, unsigned long para)
+{
+	int r = -1;
+	int r_bytes = 0;
+
+	struct resman_param_set_control resman_set_ctl;
+	struct resman_param_item *resman_set_item_t = NULL;
+	struct resman_cb_param_any_t resman_cb_q;
+
+	int w = 0, h = 0, dw = 0, format = 0, margin = 0, bitdepth = 0, v_status = 0;
+	int is_interlace = 0, dpb = 0, total = 0, pipeline = 1, secure = 0;
+
+	if (copy_from_user(&resman_set_ctl,
+		 (void __user *)para,
+		sizeof(resman_set_ctl))) {
+		return -EFAULT;
+	}
+	//dprintk(4, "resman_set_ctl.cmd = %d\n", resman_set_ctl.cmd);
+
+	switch (resman_set_ctl.cmd) {
+	case SET_INT32_INFO:
+	{
+		mutex_lock(&sess->lock);
+		r = param_set_update_int(sess->param_set, resman_set_ctl.name, resman_set_ctl.value,
+			resman_set_ctl.desc, resman_set_ctl.module_name, resman_set_ctl.domain,
+			resman_set_ctl.sub_domain, resman_set_ctl.instance_id,
+			resman_set_ctl.process_id, resman_set_ctl.thread_id);
+		mutex_unlock(&sess->lock);
+		break;
+	}
+	case SET_INT64_INFO:
+	{
+		mutex_lock(&sess->lock);
+		r = param_set_update_int64(sess->param_set, resman_set_ctl.name,
+			resman_set_ctl.value64, resman_set_ctl.desc, resman_set_ctl.module_name,
+			resman_set_ctl.domain, resman_set_ctl.sub_domain,
+			resman_set_ctl.instance_id, resman_set_ctl.process_id,
+			resman_set_ctl.thread_id);
+		mutex_unlock(&sess->lock);
+		break;
+	}
+	case SET_STRING_INFO:
+	{
+		mutex_lock(&sess->lock);
+		r = param_set_update_string(sess->param_set, resman_set_ctl.name,
+			(char __user *)(uintptr_t)resman_set_ctl.ptr, resman_set_ctl.desc,
+			resman_set_ctl.module_name, resman_set_ctl.domain,
+			resman_set_ctl.sub_domain, resman_set_ctl.instance_id,
+			resman_set_ctl.process_id, resman_set_ctl.thread_id);
+		mutex_unlock(&sess->lock);
+		break;
+	}
+	case SET_CUSTOM_INFO:
+	{
+		mutex_lock(&sess->lock);
+		r = param_set_update_custom_set(sess->param_set, resman_set_ctl.name,
+			(struct resman_param_set __user *)(uintptr_t)resman_set_ctl.ptr,
+			resman_set_ctl.desc, resman_set_ctl.module_name, resman_set_ctl.domain,
+			resman_set_ctl.sub_domain, resman_set_ctl.instance_id,
+			resman_set_ctl.process_id, resman_set_ctl.thread_id);
+		mutex_unlock(&sess->lock);
+		break;
+	}
+	case GET_INT32_INFO:
+		if (resman_set_item_t)
+			r = resman_set_item_t->value.i;
+		//dprintk(0, "resman_set_item_t.value.i= %d\n", resman_set_item_t->value.i);
+		break;
+	case GET_INT64_INFO:
+		if (resman_set_item_t)
+			r = resman_set_item_t->value.i64;
+		//dprintk(0, "resman_set_item_t.value.i= %d\n", resman_set_item_t->value.i64);
+		break;
+	case GET_CODEC_MM_SIZE_MIN:
+		mutex_lock(&sess->lock);
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_W));
+		w = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_H));
+		h = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_DW));
+		dw = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_FMT));
+		format = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_MARGIN));
+		margin = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_FD));
+		is_interlace = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_SECURE));
+		secure = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_PIPELINE));
+		pipeline = !resman_set_item_t ? 1 : resman_set_item_t->value.i;
+		if (secure) {
+			resman_set_item_t = param_set_get_by_name(sess->param_set,
+					get_resman_param_key_string(RESMAN_PARAM_VIDEO_BITDEPTH));
+			bitdepth = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		}
+
+		dprintk(4, "%d w=%d h=%d dw=%d fmt=%d margin=%d di=%d pipe=%d secure=%d bit=%d\n",
+					sess->id, w, h, dw, format, margin, is_interlace,
+					pipeline, secure, bitdepth);
+		memset(&resman_cb_q, 0, sizeof(resman_cb_q));
+		resman_cb_q.size = sizeof(resman_cb_q);
+		resman_cb_q.type = RESMAN_CB_PARAM_EST;
+		resman_cb_q.sub_type = RESMAN_MEM_USAGE_MIN;
+		resman_cb_q.v.est.video_format = format;
+		resman_cb_q.v.est.width = w;
+		resman_cb_q.v.est.height = h;
+		resman_cb_q.v.est.dw = dw;
+		resman_cb_q.v.est.margin_num = margin;
+		resman_cb_q.v.est.is_tvp = secure;
+		resman_cb_q.v.est.is_android = true;
+		resman_cb_q.v.est.is_interlace = is_interlace;
+		resman_cb_q.v.est.pipeline = pipeline;
+		resman_cb_q.v.est.bitdepth = bitdepth;
+		r_bytes = resman_session_query_resource_by_name(sess,
+						  RESMAN_DEV_VDEC,
+						  resman_cb_q);
+		if (r_bytes >= 0)
+			r = r_bytes / (1024 * 1024);
+		if (r == 0)
+			r = RESMAN_DEFAULIT_MIN_SIZE_FOR_VDEC;
+		dprintk(4, "%d min size %d\n", sess->id, r);
+		mutex_unlock(&sess->lock);
+		break;
+	case GET_CODEC_MM_SIZE_EXPECTED:
+		mutex_lock(&sess->lock);
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_W));
+		w = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_H));
+		h = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_DW));
+		dw = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_FMT));
+		format = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_MARGIN));
+		margin = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_FD));
+		is_interlace = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_DPB));
+		dpb = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_SECURE));
+		secure = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_PIPELINE));
+		pipeline = !resman_set_item_t ? 1 : resman_set_item_t->value.i;
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_TOTALNUM));
+		total = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		if (secure) {
+			resman_set_item_t = param_set_get_by_name(sess->param_set,
+					get_resman_param_key_string(RESMAN_PARAM_VIDEO_BITDEPTH));
+			bitdepth = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		}
+
+		dprintk(4, "%d w=%d h=%d dw=%d fmt=%d margin=%d dpb=%d di=%d bit=%d yuv=%d\n",
+			sess->id, w, h, dw, format, margin, dpb, is_interlace, bitdepth, total);
+		if (total > (margin + dpb)) {
+			margin = total - dpb;
+			dprintk(5, "adjust margin %d dpb %d total %d\n", margin, dpb, total);
+		}
+		memset(&resman_cb_q, 0, sizeof(resman_cb_q));
+		resman_cb_q.size = sizeof(resman_cb_q);
+		resman_cb_q.type = RESMAN_CB_PARAM_EST;
+		resman_cb_q.sub_type = RESMAN_MEM_USAGE_EXPECTED;
+		resman_cb_q.v.est.video_format = format;
+		resman_cb_q.v.est.width = w;
+		resman_cb_q.v.est.height = h;
+		resman_cb_q.v.est.dw = dw;
+		resman_cb_q.v.est.margin_num = margin;
+		resman_cb_q.v.est.dpb_num = dpb;
+		resman_cb_q.v.est.is_tvp = secure;
+		resman_cb_q.v.est.is_android = true;
+		resman_cb_q.v.est.is_interlace = is_interlace;
+		resman_cb_q.v.est.pipeline = pipeline;
+		resman_cb_q.v.est.bitdepth = bitdepth;
+		r = 0;
+		//vdec buffer
+		if (pipeline != RESMAN_PLAYBACK_PIPELINE_HDMI_DEFAULT) {
+			r_bytes = resman_session_query_resource_by_name(sess,
+						RESMAN_DEV_VDEC, resman_cb_q);
+			if (r_bytes >= 0)
+				r = r_bytes / (1024 * 1024);
+		}
+		dprintk(4, "%d vdec expect size %d\n", sess->id, r);
+		// di buffer
+		r += get_di_backend_need_mem(w, h, is_interlace);
+
+		//demux buffer
+		if (!secure && (pipeline == RESMAN_PLAYBACK_PIPELINE_V4L2_STREAMMODE ||
+			pipeline == RESMAN_PLAYBACK_PIPELINE_AMPORT_STREAMMODE))
+			r += RESMAN_DEMUX_VIDEO_SIZE + RESMAN_DEMUX_AUDIO_SIZE;
+		dprintk(4, "%d vdec expect size new %d\n", sess->id, r);
+		mutex_unlock(&sess->lock);
+		break;
+	case GET_CODEC_MM_SIZE_ACTUAL:
+		mutex_lock(&sess->lock);
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_SECURE));
+		secure = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		memset(&resman_cb_q, 0, sizeof(resman_cb_q));
+		resman_cb_q.size = sizeof(resman_cb_q);
+		resman_cb_q.type = RESMAN_CB_PARAM_DEC_STATUS;
+		resman_cb_q.v.dst.ssid = sess->id;
+		resman_cb_q.v.dst.flag = secure;
+		r = 0;
+		//vdec buffer
+		if (pipeline != RESMAN_PLAYBACK_PIPELINE_HDMI_DEFAULT) {
+			r_bytes = resman_session_query_resource_by_name(sess,
+						RESMAN_DEV_VDEC, resman_cb_q);
+			if (r_bytes >= 0)
+				r = r_bytes / (1024 * 1024);
+		}
+		dprintk(4, "%d realtime size %d\n", sess->id, r);
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_PIPELINE));
+		pipeline = !resman_set_item_t ? 1 : resman_set_item_t->value.i;
+		//demux buffer
+		if (!secure && (pipeline == RESMAN_PLAYBACK_PIPELINE_V4L2_STREAMMODE ||
+			pipeline == RESMAN_PLAYBACK_PIPELINE_AMPORT_STREAMMODE))
+			r += RESMAN_DEMUX_VIDEO_SIZE + RESMAN_DEMUX_AUDIO_SIZE;
+		dprintk(4, "%d realtime size new size %d\n", sess->id, r);
+		//di buffer
+		resman_set_item_t = param_set_get_by_name(sess->param_set,
+			get_resman_param_key_string(RESMAN_PARAM_VIDEO_STATUS));
+		v_status = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+		if (v_status > RESMAN_STATUS_PREPARING) {
+			resman_set_item_t = param_set_get_by_name(sess->param_set,
+					get_resman_param_key_string(RESMAN_PARAM_VIDEO_FD));
+			is_interlace = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
+			r += get_di_backend_need_mem(w, h, is_interlace);
+			dprintk(4, "%d realtime size new %d\n", sess->id, r);
+		}
+		mutex_unlock(&sess->lock);
+		break;
+	case GET_INSTANCE_SSID:
+		r = sess->id;
+		break;
+	case GET_ITEM_BY_NAME:
+		//dprintk(0, "GET_ITEM_BY_NAME resman_set_ctl.name = %s\n", resman_set_ctl.name);
+		resman_set_item_t = param_set_get_by_name(sess->param_set, resman_set_ctl.name);
+		if (!resman_set_item_t)
+			break;
+		//dprintk(0, "GET_ITEM_BY_NAME = %d\n", resman_set_item_t->value.i);
+		if (copy_to_user((void __user *)(uintptr_t)resman_set_ctl.ptr,
+			(void *)resman_set_item_t,  sizeof(*resman_set_item_t))) {
+			dprintk(0, "GET_ITEM_BY_NAME copy_to_user fail 1\n");
+			break;
+		}
+		if (copy_to_user((void __user *)para, &resman_set_ctl, sizeof(resman_set_ctl))) {
+			dprintk(0, "GET_ITEM_BY_NAME copy_to_user fail 2\n");
+			break;
+		}
+		break;
+	case UPDATE_CODEC_MM_SIZE_ACQUIRED:
+		r = resman_codec_mm_update_size(sess, resman_set_ctl.value);
+		break;
+	default:
+		break;
+	}
+	return r;
+}
+
+static long resman_ioctl_set_sys_debug_level(struct resman_session *sess, unsigned long para)
 {
 	long r = 0;
 	ssize_t size = 0;
@@ -2411,7 +2993,7 @@ static long resman_set_sys_debug_level(struct resman_session *sess, unsigned lon
 		goto error;
 	}
 
-	dprintk(3, "[%s] info =%s\n", __func__, debuglevel_ptr->debug_info);
+	dprintk(3, "info =%s\n", debuglevel_ptr->debug_info);
 	size = res_sys_debug_store(NULL, NULL, debuglevel_ptr->debug_info,
 		debuglevel_ptr->len);
 	if (size <= 0) {
@@ -2424,7 +3006,7 @@ error:
 	return r;
 }
 
-static long resman_get_error_info(struct resman_session *sess, unsigned long para)
+static long resman_ioctl_get_error_info(struct resman_session *sess, unsigned long para)
 {
 	int len = 0;
 	struct error_info_node *node = NULL;
@@ -2451,46 +3033,57 @@ long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para)
 	struct resman_session *sess;
 
 	if (_IOC_TYPE(cmd) != RESMAN_IOC_MAGIC) {
-		dprintk(0, "[%s] error cmd!\n", __func__);
+		dprintk(0, "error cmd 0x%x type 0x%x!\n", cmd, _IOC_TYPE(cmd));
 		return -EINVAL;
 	}
 	sess = filp->private_data;
 	if (!sess)
 		return -EINVAL;
-	dprintk(3, "%d ioctl cmd:%x\n", sess->id, cmd);
 	switch (cmd) {
 	case RESMAN_IOC_ACQUIRE_RES:
+	case RESMAN_IOC_ACQUIRE_RES_V4:
 		retval = resman_ioctl_acquire(sess, para);
 		break;
 	case RESMAN_IOC_QUERY_RES:
+	case RESMAN_IOC_QUERY_RES_V4:
 		retval = resman_ioctl_query(sess, para);
 		break;
 	case RESMAN_IOC_RELEASE_RES:
 		retval = resman_ioctl_release(sess, para);
 		break;
 	case RESMAN_IOC_SETAPPINFO:
+	case RESMAN_IOC_SETAPPINFO_V4:
 		retval = resman_ioctl_setappinfo(sess, para);
 		break;
 	case RESMAN_IOC_SUPPORT_RES:
-		retval = resman_ioctl_checksupportres(sess, para);
+	case RESMAN_IOC_SUPPORT_RES_V4:
+		retval = resman_ioctl_check_support(sess, para);
 		break;
 	case RESMAN_IOC_RELEASE_ALL:
 		retval = resman_ioctl_release_all(sess, para);
 		break;
 	case RESMAN_IOC_LOAD_RES:
+	case RESMAN_IOC_LOAD_RES_V4:
 		retval = resman_ioctl_load_res(sess, para);
 		break;
 	case RESMAN_IOC_GET_SYS_DEBUG_LEVEL:
-		retval = resman_get_sys_debug_level(sess, para);
+		retval = resman_ioctl_get_sys_debug_level(sess, para);
 		break;
 	case RESMAN_IOC_SET_SYS_DEBUG_LEVEL:
-		retval = resman_set_sys_debug_level(sess, para);
+	case RESMAN_IOC_SET_SYS_DEBUG_LEVEL_V4:
+		retval = resman_ioctl_set_sys_debug_level(sess, para);
 		break;
 	case RESMAN_IOC_GET_ERROR_INFO:
-		retval = resman_get_error_info(sess, para);
+		retval = resman_ioctl_get_error_info(sess, para);
 		break;
 	case RESMAN_IOC_GET_COUNTER_INDEX:
-		retval = resman_get_counter_index(sess, para);
+		retval = resman_ioctl_get_counter_index(sess, para);
+		break;
+	case RESMAN_IOC_GET_VERSION_V4:
+		retval = resman_ioctl_get_version(sess, para);
+		break;
+	case RESMAN_IOC_PARAMETER_SET_INFO_CTL_V4:
+		retval = resman_ioctl_parameter_set_ctl(sess, para);
 		break;
 	default:
 		retval = -EINVAL;
@@ -2502,10 +3095,7 @@ long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para)
 #ifdef CONFIG_COMPAT
 static long resman_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 {
-	long ret = 0;
-
-	ret = resman_ioctl(file, cmd, (ulong)compat_ptr(arg));
-	return ret;
+	return resman_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 }
 #endif
 
@@ -2543,10 +3133,10 @@ const struct file_operations resman_fops = {
  * -----------------------------------------------------------------
  */
 static struct class_attribute resman_class_attrs[] = {
-	__ATTR_RO(usage),
-	__ATTR_RW(config),
-	__ATTR_RO(ver),
-	__ATTR_RO(res),
+	__ATTR_RO(resman_usage),
+	__ATTR_RW(resman_config),
+	__ATTR_RO(resman_ver),
+	__ATTR_RO(resman_res),
 	__ATTR_RO(res_report),
 	__ATTR_RW(res_sys_debug),
 	__ATTR_NULL

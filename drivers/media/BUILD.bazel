@@ -132,6 +132,7 @@ ddk_module(
             True: [
                 "common/resource_mgr/resourcemanage.c",
                 "common/resource_mgr/cjson.c",
+                "common/resource_mgr/param_set.c",
             ],
         },
         "CONFIG_AMLOGIC_SECURE_DMABUF": {
