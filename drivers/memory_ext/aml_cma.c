@@ -721,18 +721,6 @@ struct folio *get_compact_page(struct folio *src,
 
 /* cma alloc/free interface */
 
-static unsigned long pfn_max_align_down(unsigned long pfn)
-{
-	return pfn & ~(max_t(unsigned long, MAX_ORDER_NR_PAGES,
-			     pageblock_nr_pages) - 1);
-}
-
-static unsigned long aml_pfn_max_align_up(unsigned long pfn)
-{
-	return ALIGN(pfn, max_t(unsigned long, MAX_ORDER_NR_PAGES,
-				pageblock_nr_pages));
-}
-
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 static struct folio *get_migrate_page(struct folio *src, unsigned long private)
 {
@@ -1184,10 +1172,10 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 		delta = count / cpus;
 		cnt = cpus;
 	} else if (count <= pageblock_nr_pages * 10) {
-		delta = 256;
+		delta = pageblock_nr_pages / 4;
 		cnt = count / delta;
 	} else if (count <= pageblock_nr_pages * 20) {
-		delta = 512;
+		delta = pageblock_nr_pages / 2;
 		cnt = count / delta;
 	} else {
 		delta = count / MAX_JOB_NUM;
@@ -1197,6 +1185,7 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 		pr_err("cnt too large: %ld, delta: %ld, count: %ld\n", cnt, delta, count);
 		return -ENOMEM;
 	}
+	cma_debug(1, NULL, "delta: %ld, cnt: %ld\n", delta, cnt);
 	raw_spin_lock(&work_list_lock);
 	if (!list_empty(&work_list))
 		INIT_LIST_HEAD(&work_list);
@@ -1666,16 +1655,13 @@ int __nocfi aml_cma_alloc_range(unsigned long start, unsigned long end,
 #endif
 #else
 #if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
-	ret = aml_start_isolate_page_range(pfn_max_align_down(start),
-				       aml_pfn_max_align_up(end), migrate_type,
+	ret = aml_start_isolate_page_range(start, end, migrate_type,
 				       0, gfp_mask);
 #elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
-	ret = aml_start_isolate_page_range(pfn_max_align_down(start),
-				       aml_pfn_max_align_up(end), migrate_type,
+	ret = aml_start_isolate_page_range(start, end, migrate_type,
 				       0, &failed_pfn);
 #else
-	ret = aml_start_isolate_page_range(pfn_max_align_down(start),
-				       aml_pfn_max_align_up(end), migrate_type, 0);
+	ret = aml_start_isolate_page_range(start, end, migrate_type, 0);
 #endif
 #endif
 	if (ret < 0) {
@@ -1685,7 +1671,7 @@ int __nocfi aml_cma_alloc_range(unsigned long start, unsigned long end,
 
 	cur_alloc_start = start;
 	cur_alloc_end = end;
-	cma_isolated += (aml_pfn_max_align_up(end) - pfn_max_align_down(start));
+	cma_isolated += (end - start);
 try_again:
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
 	lru_add_drain_all();
@@ -1793,13 +1779,11 @@ try_again:
 
 done:
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
-	undo_isolate_page_range(pfn_max_align_down(start),
-				aml_pfn_max_align_up(end), migrate_type);
+	undo_isolate_page_range(start, end, migrate_type);
 #else
-	aml_undo_isolate_page_range(pfn_max_align_down(start),
-				aml_pfn_max_align_up(end), migrate_type);
+	aml_undo_isolate_page_range(start, end, migrate_type);
 #endif
-	cma_isolated -= (aml_pfn_max_align_up(end) - pfn_max_align_down(start));
+	cma_isolated -= (end - start);
 	cur_alloc_start = 0;
 	cur_alloc_end = 0;
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
