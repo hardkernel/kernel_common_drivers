@@ -338,10 +338,7 @@ void tvin_update_vdin_prop(u8 port_type, u8 pkt_type)
 				set_video_mute(VDIN_MUTE_SET, true);
 				devp->mute_cnt = devp->dts_config.vdin_mut_cnt;
 			}
-			/* t6w/t6x cannot pause afbce in active area */
-			if (!(devp->dtdata->hw_ver == VDIN_HW_T6W ||
-				devp->dtdata->hw_ver == VDIN_HW_T6X) || devp->debug.force_pause_en)
-				vdin_pause_hw_write(devp, 0);
+			vdin_pause_hw_write(devp, 0);
 		}
 
 		vdin_vf_skip_all_disp(devp->vfp);
@@ -3583,6 +3580,11 @@ void vdin_frame_write_ctrl_set(struct vdin_dev_s *devp,
 
 void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en)
 {
+	/* t6w/t6x cannot pause afbce in active area */
+	if (((devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) &&
+		(devp->flags & VDIN_FLAG_ISR_EN) && !rdma_en) || devp->debug.force_pause_en)
+		return;
+
 	vdin_pause_mif_write(devp, rdma_en, true);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
