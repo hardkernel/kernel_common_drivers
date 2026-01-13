@@ -5672,6 +5672,11 @@ void pre_vsync_process(void)
 			vsync_pts_inc_scale,
 			vsync_pts_inc_scale_base / 2);
 #endif
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+		vsync_notify_videodisplay(0,
+			vsync_pts_inc_scale,
+			vsync_pts_inc_scale_base / 2);
+#endif
 #ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 		vsync_notify_videoqueue(0,
 			vsync_pts_inc_scale,
@@ -6204,9 +6209,11 @@ exit:
 #endif
 
 	/* update alpha win */
-	if (cur_dev->pre_vsync_enable)
+	if (cur_dev->pre_vsync_enable) {
 		alpha_win_set(&vd_layer[0]);
-
+		if (vd_layer[0].mosaic_mode)
+			alpha_win_set(&vd_layer[1]);
+	}
 	/* do blend,judge really update in update_vpp_input_info for vpp_index */
 	if (!cur_dev->pre_vsync_enable) {
 		vpp_blend_update(vinfo, VPP0);

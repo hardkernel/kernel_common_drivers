@@ -4488,11 +4488,6 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	if ((is_meson_t6w_cpu() || is_meson_t6x_cpu()) && (vf_width > 1920 || vf_height > 1088))
 		display_path_count += 1;
 
-	vf_width = (vf->type & VIDTYPE_COMPRESS) ? vf->compWidth : vf->width;
-	vf_height = (vf->type & VIDTYPE_COMPRESS) ? vf->compHeight : vf->height;
-	if ((is_meson_t6w_cpu() || is_meson_t6x_cpu()) && (vf_width > 1920 || vf_height > 1088))
-		display_path_count += 1;
-
 	vdin_vsync = vf->duration;
 	vdin_vsync = vdin_vsync * 1000;
 	vdin_vsync = div64_u64(vdin_vsync, 96);
@@ -4646,6 +4641,9 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	memc_delay = frc_get_video_latency();
+#endif
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+	memc_delay += dpss_frc_get_video_latency();
 #endif
 
 	if (tvin_info->fps >= 25)
@@ -15237,16 +15235,21 @@ static void video_suspend_interface(void)
 	safe_switch_videolayer(2, false, false);
 	di_disable_plink_notify(0);
 	video_suspend = true;
-	pr_info("%s ok\n", __func__);
+	if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+		pr_info("video suspend ok\n");
 }
 
 static void video_resume_interface(void)
 {
-	video_resume_hw_recovery(restore_vpu_sec);
-	video_suspend_cycle = 0;
-	video_suspend = false;
-	log_out = 1;
-	pr_info("%s ok\n", __func__);
+	if (video_suspend) {
+		video_resume_hw_recovery(restore_vpu_sec);
+		video_suspend_cycle = 0;
+		video_suspend = false;
+		log_out = 1;
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("video resume_ok\n");
+	}
+
 };
 
 static void video_early_suspend(struct early_suspend *h)

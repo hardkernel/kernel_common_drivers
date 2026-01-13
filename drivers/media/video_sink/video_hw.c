@@ -3835,6 +3835,15 @@ void set_vfcd_afrcd(struct video_layer_s *layer,
 
 	rdma_wr(vd_vfcd_reg->vfcd_afrc_ctrl0, r);
 	//for chrm
+	r = chrm_pixel_format |
+		afrcd->chrm_dict_en << 4 |
+		0 << 8 |
+		1 << 12 |
+		luma_last_extend_en << 16 |
+		luma_max_ac_depth << 20 |
+		pixel_is_diff_chn << 24 |
+		afrcd->input_bayer_mode << 25;
+
 	rdma_wr(vd_vfcd_reg->vfcd_afrc_ctrl1, r);
 
 	rdma_wr_bits(vd_vfcd_reg->vfcd_afrc0_ctrl,
@@ -13978,6 +13987,7 @@ static void set_mosaic_vframe_info(struct video_layer_s *layer,
 			_set_video_mirror(&g_mosaic_frame[i].virtual_layer_info, mirror);
 			/* disable pip alpha */
 			vd_layer[0].alpha_win_en = 0;
+			vd_layer[1].alpha_win_en = 0;
 			mosaic_vfp[i] = mosaic_vf;
 		}
 		layer->property_changed = false;
