@@ -889,5 +889,6 @@ struct hdr_parameter_reg_s {
 #define AMVECM_IOC_S_CM_MODE    _IOW(_VE_CM, 0xb0, int)
 #define AMVECM_IOC_S_HDR_ON		_IOW(_VE_CM, 0xb1, int)
 #define AMVECM_IOC_G_HDR_ON		_IOR(_VE_CM, 0xb2, int)
+#define AMVECM_IOC_S_GMT_WRAPPER0_COEF _IOW(_VE_CM, 0xb3, struct hdr_gamut_data_s)
 
 #endif

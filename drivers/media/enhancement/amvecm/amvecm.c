@@ -6451,6 +6451,18 @@ static long amvecm_ioctl(struct file *file,
 			pr_amvecm_dbg("AMVECM_IOC_G_HDR_ON = %d\n", tmp);
 		}
 		break;
+	case AMVECM_IOC_S_GMT_WRAPPER0_COEF:
+		if (copy_from_user(&hdr_gamut_data,
+			(void __user *)arg,
+			sizeof(struct hdr_gamut_data_s))) {
+			ret = -EFAULT;
+		} else {
+			memcpy(&force_gamut0_mtx, &hdr_gamut_data,
+				sizeof(struct hdr_gamut_data_s));
+			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
+			force_toggle();
+		}
+		break;
 #endif
 	default:
 		ret = -EINVAL;
@@ -15953,8 +15965,52 @@ static ssize_t amvecm_gamut_mapping_store(const struct class *cla,
 				goto free_buf;
 			gamut_dma_case = val;
 		}
-	}
+	} else if (!strcmp(parm[0], "coef0")) {
+		/*parm[2] coef data (9 * 4 Bytes)*/
+		string_len = strlen(parm[1]);
+		if (string_len != 9 * 4) {
+			pr_info("data length %d is not 36 Bytes.\n",
+				string_len);
+			goto free_buf;
+		}
 
+		/*data should be hex character*/
+		for (i = 0; i < string_len; i++) {
+			if ((parm[1][i] - '0') < 10 ||
+				(parm[1][i] | 0x20) - 'a' < 6)
+				continue;
+
+			pr_info("error char, not hex.\n");
+			goto free_buf;
+		}
+
+		char_count = (strlen(parm[1]) + 2) / 4;
+		if (char_count < 9) {
+			pr_info("coef_count = %d, not enough\n", char_count);
+			goto free_buf;
+		} else {
+			char_count = 9;
+		}
+
+		memset(&force_gamut0_mtx,
+			0, sizeof(struct hdr_gamut_data_s));
+
+		for (i = 0; i < char_count; i++) {
+			char_val[0] = parm[1][4 * i + 0];
+			char_val[1] = parm[1][4 * i + 1];
+			char_val[2] = parm[1][4 * i + 2];
+			char_val[3] = parm[1][4 * i + 3];
+			char_val[4] = '\0';
+			if (kstrtol(char_val, 16, &val2) < 0) {
+				pr_info("error parsing data.\n");
+				goto free_buf;
+			}
+			force_gamut0_mtx.coef[i] = val2;
+		}
+		force_toggle();
+		vecm_latch_flag |= FLAG_COLORPRI_LATCH;
+		pr_info("set gamut0 coef data success.\n");
+	}
 free_buf:
 		kfree(buf_orig);
 		return count;
@@ -15987,6 +16043,15 @@ static ssize_t amvecm_gamut_mtrx_show(const struct class *cla,
 				i, stemp, 4, 16);
 		stemp[36] = '\0';
 		sprintf(buf + strlen(buf), "gamut_coef_str: %s\n", stemp);
+
+		memcpy(&hdr_gamut_data, &force_gamut0_mtx,
+			sizeof(struct hdr_gamut_data_s));
+		memset(stemp, 0, sizeof(stemp));
+		for (i = 0; i < 9; i++)
+			int_convert_str(hdr_gamut_data.coef[i],
+				i, stemp, 4, 16);
+		stemp[36] = '\0';
+		sprintf(buf + strlen(buf), "gamut_coef0_str: %s\n", stemp);
 	}
 
 	return strlen(buf);

@@ -398,6 +398,14 @@ struct hdr_gamut_data_s force_gamut_mtx = {
 	}
 };
 
+struct hdr_gamut_data_s force_gamut0_mtx = {
+	{
+		0x800, 0x0, 0x0,
+		0x0, 0x800, 0x0,
+		0x0, 0x0, 0x800,
+	}
+};
+
 int vpp_color_pri_sel;/*0:709 or panel, 1:2020*/
 
 int gamut_convert_process(struct vinfo_s *vinfo,
@@ -492,6 +500,8 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 
 	if (chip_type_id == chip_t6x && gamut_mapping1_en &&
 		vpp_color_pri_sel) {
+		pr_gmt("vpp_color_pri_sel: %d, hdr gamut convert to 2020\n",
+			vpp_color_pri_sel);
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 2; j++) {
 				dest_prmy[i][j] =
@@ -582,7 +592,8 @@ int gamut_mode_process(struct vinfo_s *vinfo,
 			enum hdr_type_e source_type,
 			struct matrix_s *mtx,
 			int mtx_depth,
-			enum dest_hdr_type_e dest_type)
+			enum dest_hdr_type_e dest_type,
+			enum gamut_wrapper_e module)
 {
 	int i, j;
 	s64 out[3][3];
@@ -592,7 +603,22 @@ int gamut_mode_process(struct vinfo_s *vinfo,
 	if (mtx_depth == 0)
 		mtx_depth = 11;
 
-	pr_gmt("%s:gamut_mode = %d\n", __func__, gamut_mode);
+	pr_gmt("gamut wrapper process: gamut_mode = %d, module =%d\n",
+		gamut_mode, module);
+
+	if (gamut_mode == 2) {
+		if (module == GAMUT_WRAPPER0) {
+			for (i = 0; i < 3; i++)
+				for (j = 0; j < 3; j++)
+					mtx->matrix[i][j] = force_gamut0_mtx.coef[i * 3 + j];
+		} else if (module == GAMUT_WRAPPER1) {
+			for (i = 0; i < 3; i++)
+				for (j = 0; j < 3; j++)
+					mtx->matrix[i][j] = force_gamut_mtx.coef[i * 3 + j];
+		}
+		return 0;
+	}
+
 	if (source_type == HDRTYPE_SDR) {
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 2; j++) {
@@ -651,32 +677,35 @@ int gamut_mode_process(struct vinfo_s *vinfo,
 			}
 	}
 
-	if (chip_type_id == chip_t6x && gamut_conv_enable &&
-		vpp_color_pri_sel) {
+	if (dest_type == DEST_SDR) {
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 2; j++) {
-				src_prmy[i][j] = std_bt2020_prmy[(i + 2) % 3][j];
-				src_prmy[3][j] = std_bt2020_white_point[j];
+				dest_prmy[i][j] = std_bt709_prmy[(i + 2) % 3][j];
+				dest_prmy[3][j] = std_bt709_white_point[j];
 			}
+	} else if (dest_type == DEST_HDR10) {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				dest_prmy[i][j] = std_bt2020_prmy[(i + 2) % 3][j];
+				dest_prmy[3][j] = std_bt2020_white_point[j];
+			}
+	} else {
+		for (i = 0; i < 4; i++)
+			for (j = 0; j < 2; j++)
+				dest_prmy[i][j] = panel_primary[i * 2 + j];
 	}
-
-	for (i = 0; i < 4; i++)
-		for (j = 0; j < 2; j++)
-			dest_prmy[i][j] = panel_primary[i * 2 + j];
+	pr_gmt("dest_primary: %d\n", dest_type);
 
 	gamut_proc(src_prmy, dest_prmy, out, NORM, BL);
 	cal_mtx_seting(out, BL, BL, mtx, mtx_depth);
-
-	if (gamut_mode == 2) {
-		for (i = 0; i < 3; i++) {
+	if (module == GAMUT_WRAPPER0) {
+		for (i = 0; i < 3; i++)
 			for (j = 0; j < 3; j++)
-				mtx->matrix[i][j] = force_gamut_mtx.coef[i * 3 + j];
-		}
-	} else {
-		for (i = 0; i < 3; i++) {
+				force_gamut0_mtx.coef[i * 3 + j] = mtx->matrix[i][j];
+	} else if (module == GAMUT_WRAPPER1) {
+		for (i = 0; i < 3; i++)
 			for (j = 0; j < 3; j++)
-				force_gamut_mtx.coef[i * 3 + j]  = mtx->matrix[i][j];
-		}
+				force_gamut_mtx.coef[i * 3 + j] = mtx->matrix[i][j];
 	}
 	return 0;
 }

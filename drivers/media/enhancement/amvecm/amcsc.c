@@ -12295,17 +12295,16 @@ void gamut_mapping_wrapper_init(void)
 
 	for (i = 0; i < 144; i++) {
 		if (i < 143) {
-			gamut_mapping0_param.eotf_lut[i] = gamut0_eotf_143[i];
+			gamut_mapping0_param.eotf_lut[i] = eotf_sdr[i];
 			gamut_mapping1_param.eotf_lut[i] = eotf_sdr[i];
 		}
-		gamut_mapping0_param.oetf_lut[i] = gamut0_oetf_144[i];
+		gamut_mapping0_param.oetf_lut[i] = oetf_sdr[i];
 		gamut_mapping0_param.ootf_lut[i] = gamut0_ootf_144[i];
 		gamut_mapping1_param.oetf_lut[i] = oetf_sdr[i];
 	}
 
 	if (gamut_mapping0_en) {
 		gamut_mapping0_param.eotf_en = 1;
-		gamut_mapping0_param.ootf_en = 1;
 		gamut_mapping0_param.oetf_en = 1;
 		gamut_mapping0_param.mtx_en = 1;
 		gamut_mapping0_param.mtx[0][0] = 0x100;//bypass
@@ -12349,7 +12348,6 @@ void set_gamut_mapping_wrapper(int module, int vpp_index)
 	unsigned int mtx_ofst1;
 	unsigned int mtx_ofst2;
 	unsigned int mtx_ofst3;
-	enum vpp_matrix_csc_e csc_type = get_csc_type();
 
 	if (chip_type_id != chip_t6x)
 		return;
@@ -12396,42 +12394,13 @@ void set_gamut_mapping_wrapper(int module, int vpp_index)
 				gamut_mapping0_param.eotf_en << 2 |
 				gamut_mapping0_param.oetf_en << 1 |
 				gamut_mapping0_param.ootf_en, 0, 4, vpp_index);
-			if (gamut_mapping0_param.gmt0_after_osd) {
+			if (gamut_mapping0_param.gmt0_after_osd)
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_MISC2, 3, 29, 2, vpp_index);
-				mtx_setting(VD1_MTX, MATRIX_NULL, 0);
-				mtx_setting(POST_MTX, MATRIX_NULL, 0);
-				if (csc_type == VPP_MATRIX_YUV709F_RGB ||
-					csc_type == VPP_MATRIX_YUV601F_RGB) {
-					//pr_info("gmt0_after_osd, video full range\n");
-					mtx_setting(POST2_MTX, MATRIX_YUV709F_RGB, 1);
-				} else {
-					mtx_setting(POST2_MTX, MATRIX_YUV709_RGB, 1);
-				}
-			} else {
+			else
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_MISC2, 0, 29, 2, vpp_index);
-				if (csc_type == VPP_MATRIX_YUV709F_RGB ||
-					csc_type == VPP_MATRIX_YUV601F_RGB) {
-					//pr_info("gmt0_after_vadj1, video full range\n");
-					mtx_setting(VD1_MTX, MATRIX_YUV709_RGB, 1);
-					mtx_setting(POST2_MTX, MATRIX_RGB_YUV709, 1);
-					mtx_setting(POST_MTX, MATRIX_YUV709_RGB, 1);
-				} else {
-					mtx_setting(VD1_MTX, MATRIX_YUV709_RGB, 1);
-					mtx_setting(POST2_MTX, MATRIX_RGB_YUV709, 1);
-					mtx_setting(POST_MTX, MATRIX_YUV709_RGB, 1);
-				}
-			}
 		} else {
 			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(rp_ctr, 0x0, 0, 4, vpp_index);
 			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_MISC2, 1, 29, 2, vpp_index);
-			mtx_setting(VD1_MTX, MATRIX_NULL, 0);
-			mtx_setting(POST_MTX, MATRIX_NULL, 0);
-			if (csc_type == VPP_MATRIX_YUV709F_RGB	||
-					csc_type == VPP_MATRIX_YUV601F_RGB) {
-				mtx_setting(POST2_MTX, MATRIX_YUV709F_RGB, 1);
-			} else {
-				mtx_setting(POST2_MTX, MATRIX_YUV709_RGB, 1);
-			}
 		}
 
 		/*set lut and mtx */
@@ -12611,14 +12580,14 @@ void get_gamut_mapping_wrapper(void)
 	for (i = 0; i < 144 / 2; i++) {
 		WRITE_VPP_REG(oetf_addr, i);
 		val = READ_VPP_REG(oetf_data);
-		pr_info("[%04d] = 0x%08x\n", i, val);
+		pr_info("oetf [%04d] = 0x%08x\n", i, val);
 	}
 
 	pr_info("-------ootf reg = %04x------\n", ootf_addr);
 	for (i = 0; i < 144 / 2; i++) {
 		WRITE_VPP_REG(ootf_addr, i);
 		val = READ_VPP_REG(ootf_data);
-		pr_info("[%04d] = 0x%08x\n", i, val);
+		pr_info("ootf[%04d] = 0x%08x\n", i, val);
 	}
 	pr_info("------gamut mapping0 end------\n");
 
@@ -12644,7 +12613,7 @@ void get_gamut_mapping_wrapper(void)
 	for (i = 0; i < 144 / 2; i++) {
 		WRITE_VPP_REG(oetf_addr, i);
 		val = READ_VPP_REG(oetf_data);
-		pr_info("[%04d] = 0x%08x\n", i, val);
+		pr_info("oetf [%04d] = 0x%08x\n", i, val);
 	}
 	pr_info("------gamut mapping1 end------\n");
 }

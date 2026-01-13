@@ -19,6 +19,13 @@ extern u32 panel_primary[8];
 extern int gamut_mode;
 extern struct hdr_gamut_data_s force_gamut_mtx;
 extern int vpp_color_pri_sel;
+extern struct hdr_gamut_data_s force_gamut0_mtx;
+
+enum gamut_wrapper_e {
+	GAMUT_WRAPPER0 = 0,
+	GAMUT_WRAPPER1,
+};
+
 int gamut_convert_process(struct vinfo_s *vinfo,
 	enum hdr_type_e *source_type,
 	enum vd_path_e vd_path,
@@ -33,6 +40,8 @@ int gamut_mode_process(struct vinfo_s *vinfo,
 	enum hdr_type_e source_type,
 	struct matrix_s *mtx,
 	int mtx_depth,
-	enum dest_hdr_type_e dest_type);
+	enum dest_hdr_type_e dest_type,
+	enum gamut_wrapper_e module);
+
 #endif
 #endif

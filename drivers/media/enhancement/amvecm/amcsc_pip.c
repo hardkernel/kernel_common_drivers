@@ -3448,12 +3448,48 @@ void output_color_fmt_convert(int vpp_index)
 		__func__, vinfo_hdmi_out_fmt());
 }
 
+static void setup_gamut_wraper_params(struct gamut_mapping_s *params,
+	struct matrix_s *matrix,
+	int mtx_depth,
+	int eotf_en,
+	int oetf_en,
+	int mtx_en)
+{
+	int i = 0;
+
+	if (!params || !matrix)
+		return;
+
+	for (i = 0; i < 3; i++) {
+		params->mtx[i][0] = matrix->matrix[i][0];
+		params->mtx[i][1] = matrix->matrix[i][1];
+		params->mtx[i][2] = matrix->matrix[i][2];
+		params->mtx_pos_offset[i] = 0;
+		params->mtx_pre_offset[i] = 0;
+	}
+	params->mtx_rs = mtx_depth - 8; /*mtx_rs:0=8bit,1=9bit*/
+	params->flag_update_mtx = 1;
+	params->eotf_en = eotf_en;
+	params->oetf_en = oetf_en;
+	params->mtx_en = mtx_en;
+}
+
 void cal_gamut_mapping_wrapper_matrix(enum hdr_type_e source_type,
 	struct vinfo_s *vinfo, int bypass_gamut, enum vpp_index_e vpp_index)
 {
-	int i = 0;
 	int mtx_depth = 11;
 	struct matrix_s m = {
+		{0, 0, 0},
+		{
+			{0x800, 0, 0},
+			{0, 0x800, 0},
+			{0, 0, 0x800},
+		},
+		{0, 0, 0},
+		3
+	};
+
+	struct matrix_s m0 = {
 		{0, 0, 0},
 		{
 			{0x800, 0, 0},
@@ -3467,27 +3503,43 @@ void cal_gamut_mapping_wrapper_matrix(enum hdr_type_e source_type,
 	if (chip_type_id != chip_t6x)
 		return;
 
-//	pr_csc(32,
-//		"[%s]gamut_src_type=%d, gamut_mapping1_en=%d, bypass_gamut=%d, gamut_mode=%d\n",
-//		__func__, source_type, gamut_mapping1_en, bypass_gamut, gamut_mode);
+	pr_csc(32,
+		"gamut_src_type=%d, gamut_mapping1_en=%d, bypass_gamut=%d, vpp_color_pri_sel=%d\n",
+		source_type, gamut_mapping1_en, bypass_gamut, vpp_color_pri_sel);
 
-	if (!bypass_gamut)
-		gamut_mode_process(vinfo, source_type, &m, mtx_depth, DEST_NONE);
+	gamut_mapping0_en = gamut_mapping1_en;
+	gamut_mapping0_param.gmt0_after_osd = 1;
+	if (vpp_color_pri_sel) {
+		/*gamut1*/
+		gamut_mode_process(vinfo, HDRTYPE_HDR10, &m, mtx_depth, DEST_PANEL,
+			GAMUT_WRAPPER1);
+		setup_gamut_wraper_params(&gamut_mapping1_param, &m,
+			mtx_depth, 1, 1, 1);
+		set_gamut_mapping_wrapper(1, vpp_index);
 
-	for (i = 0; i < 3; i++) {
-		gamut_mapping1_param.mtx[i][0] = m.matrix[i][0];
-		gamut_mapping1_param.mtx[i][1] = m.matrix[i][1];
-		gamut_mapping1_param.mtx[i][2] = m.matrix[i][2];
-		gamut_mapping1_param.mtx_pos_offset[i] = 0;
-		gamut_mapping1_param.mtx_pre_offset[i] = 0;
+		/*gamut0*/
+		gamut_mode_process(vinfo, HDRTYPE_SDR, &m0, mtx_depth, DEST_HDR10,
+			GAMUT_WRAPPER0);
+		setup_gamut_wraper_params(&gamut_mapping0_param, &m0,
+			mtx_depth, 1, 1, 1);
+		set_gamut_mapping_wrapper(0, vpp_index);
+	} else {
+		/*gamut1*/
+		if (!bypass_gamut)
+			gamut_mode_process(vinfo, source_type, &m, mtx_depth, DEST_PANEL,
+				GAMUT_WRAPPER1);
+		setup_gamut_wraper_params(&gamut_mapping1_param, &m,
+			mtx_depth, !bypass_gamut, !bypass_gamut, !bypass_gamut);
+		set_gamut_mapping_wrapper(1, vpp_index);
+
+		/*gamut0*/
+		gamut_mode_process(vinfo, HDRTYPE_SDR, &m0, mtx_depth,
+			bypass_gamut ? DEST_PANEL : DEST_SDR,
+			GAMUT_WRAPPER0);
+		setup_gamut_wraper_params(&gamut_mapping0_param, &m0,
+			mtx_depth, 1, 1, 1);
+		set_gamut_mapping_wrapper(0, vpp_index);
 	}
-
-	gamut_mapping1_param.mtx_rs = mtx_depth - 8;//mtx_rs:0=8bit,1=9bit
-	gamut_mapping1_param.flag_update_mtx = 1;
-	gamut_mapping1_param.eotf_en = !bypass_gamut;
-	gamut_mapping1_param.oetf_en = !bypass_gamut;
-	gamut_mapping1_param.mtx_en = !bypass_gamut;
-	set_gamut_mapping_wrapper(1, vpp_index);
 }
 
 void video_post_process(struct vframe_s *vf,
