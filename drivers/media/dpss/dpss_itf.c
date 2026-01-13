@@ -18,6 +18,8 @@
 #include <linux/amlogic/media/dpss/dpss_frc.h>
 #include <linux/amlogic/media/codec_mm/codec_mm_prealloc.h>
 
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #endif /* RUN_ON_ARM */
 
 #include "dpss_base.h"
@@ -653,9 +655,14 @@ int _create_instance(bool fix, int index, struct dpss_init_parm *parm)
 	bool is_4k, is_fhd_high_fps;
 	unsigned int ch = 0;
 	struct dpss_ch_s *pch;
+	struct dpss_dev_s *dpss_pdev;
+
+	dpss_pdev = dpss_get_devp();
 
 	dbg_ins0("%s:fix:%d, index:%d\n", "create", fix, index);
 
+	clk_set_rate(dpss_pdev->vpu_clk_dpe, 800000000);
+	clk_set_rate(dpss_pdev->vpu_clk_dae, 800000000);
 	if (fix) {
 		ch = (unsigned int)index;
 		if (ch >= DPSS_CHANNEL_NUB)
@@ -744,6 +751,9 @@ int _create_instance(bool fix, int index, struct dpss_init_parm *parm)
 
 static enum DPSS_ERRORTYPE _destroy_instance(struct dpss_ch_s *pch)
 {
+	struct dpss_dev_s *dpss_pdev;
+
+	dpss_pdev = dpss_get_devp();
 	if (!pch) {
 		DBG_WARN("%s:NULL param.\n", __func__);
 		return DPSS_ERR_INDEX_OVERFLOW;
@@ -761,6 +771,8 @@ static enum DPSS_ERRORTYPE _destroy_instance(struct dpss_ch_s *pch)
 	pch->d = NULL;
 	pch->c.reg_s1 = 0;
 	dbg_ins0("destroy:ch[%d]\n", pch->c.ch);
+	clk_set_rate(dpss_pdev->vpu_clk_dpe, 50000000);
+	clk_set_rate(dpss_pdev->vpu_clk_dae, 50000000);
 	return DPSS_ERR_NONE;
 }
 

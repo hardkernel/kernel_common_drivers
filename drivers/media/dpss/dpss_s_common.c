@@ -589,11 +589,11 @@ void dpss_s_resume(struct dpss_dev_s *dpss_pdev)
 {
 	if (!dpss_pdev->clk_status) {
 		clk_prepare_enable(dpss_pdev->vpu_clk_dae);
-		clk_set_rate(dpss_pdev->vpu_clk_dae, 800000000);
+		clk_set_rate(dpss_pdev->vpu_clk_dae, 50000000);
 		dpss_pdev->clk_status |= (1 << 0);
 
 		clk_prepare_enable(dpss_pdev->vpu_clk_dpe);
-		clk_set_rate(dpss_pdev->vpu_clk_dpe, 800000000);
+		clk_set_rate(dpss_pdev->vpu_clk_dpe, 50000000);
 		dpss_pdev->clk_status |= (1 << 1);
 	}
 
@@ -635,11 +635,11 @@ void dpss_s_restore(struct dpss_dev_s *dpss_pdev)
 {
 	if (!dpss_pdev->clk_status) {
 		clk_prepare_enable(dpss_pdev->vpu_clk_dae);
-		clk_set_rate(dpss_pdev->vpu_clk_dae, 800000000);
+		clk_set_rate(dpss_pdev->vpu_clk_dae, 50000000);
 		dpss_pdev->clk_status |= (1 << 0);
 
 		clk_prepare_enable(dpss_pdev->vpu_clk_dpe);
-		clk_set_rate(dpss_pdev->vpu_clk_dpe, 800000000);
+		clk_set_rate(dpss_pdev->vpu_clk_dpe, 50000000);
 		dpss_pdev->clk_status |= (1 << 1);
 	}
 
