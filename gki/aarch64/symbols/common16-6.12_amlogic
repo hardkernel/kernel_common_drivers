@@ -1,11 +1,13 @@
-  trace_buffer
-  trace_step
+  aml_trace_buffer
+  aml_trace_step
   drm_match_cea_mode
   nbcon_device_release
   nbcon_device_try_acquire
   strreplace
   sysfs_emit_at
   drm_atomic_state_default_release
+  __tracepoint_android_vh_get_page_wmark
+  __traceiter_android_vh_get_page_wmark
 
 # snd-aloop.ko
   snd_card_ref

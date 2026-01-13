@@ -72,8 +72,10 @@ struct page_trace {
 #endif
 
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-extern struct page_trace *trace_buffer;
-extern unsigned int trace_step;
+struct pagetrace_vendor_param {
+	struct page_trace *trace_buf;
+	unsigned int trace_step;
+};
 #endif
 
 #if IS_ENABLED(CONFIG_AMLOGIC_PAGE_TRACE)

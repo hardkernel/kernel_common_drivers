@@ -256,8 +256,21 @@ struct page_trace *dmc_find_page_base(struct page *page)
 	return trace;
 }
 #else
-//struct page_trace *dmc_trace_buffer;
-//static unsigned int dmc_trace_step;
+struct page_trace *dmc_trace_buffer;
+static unsigned int dmc_trace_step;
+void get_page_trace_buf_hook(void *data, unsigned int migratetype,
+		unsigned long *bypass)
+{
+	struct pagetrace_vendor_param *param;
+
+	if (migratetype != 1024 || dmc_trace_buffer)
+		return;
+
+	param = (struct pagetrace_vendor_param *)bypass;
+	dmc_trace_buffer = param->trace_buf;
+	dmc_trace_step = param->trace_step;
+	pr_info("dmc_trace_buf: %px\n", dmc_trace_buffer);
+}
 
 #ifdef CONFIG_ARM64
 #define PAGE_TRACE_OFFSET	(_PAGE_END(CONFIG_ARM64_VA_BITS))
@@ -303,7 +316,7 @@ struct page_trace *dmc_find_page_base(struct page *page)
 	struct zone *zone;
 	struct page_trace *p;
 
-	if (!trace_buffer)
+	if (!dmc_trace_buffer)
 		return NULL;
 
 	pfn = page_to_pfn(page);
@@ -316,8 +329,8 @@ struct page_trace *dmc_find_page_base(struct page *page)
 			if (pfn <= zone_end_pfn(zone) &&
 				pfn >= zone->zone_start_pfn) {
 				offset = pfn - zone->zone_start_pfn;
-				p = trace_buffer;
-				return p + ((offset + zone_offset) * trace_step);
+				p = dmc_trace_buffer;
+				return p + ((offset + zone_offset) * dmc_trace_step);
 			}
 			/* next zone */
 			zone_offset += zone->spanned_pages;
@@ -1875,7 +1888,12 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	struct device_node *node;
 	struct ddr_port_desc *desc = NULL;
 	struct resource *res;
-
+#if (IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)		&& \
+	!IS_ENABLED(CONFIG_AMLOGIC_PAGE_TRACE_INLINE)	&& \
+	IS_ENABLED(CONFIG_ANDROID_VENDOR_HOOKS))
+	if (!dmc_trace_buffer)
+		register_trace_android_vh_get_page_wmark(get_page_trace_buf_hook, NULL);
+#endif
 	pr_info("dmc version:%s\n", DMC_VERSION);
 	dmc_mon = devm_kzalloc(&pdev->dev, sizeof(*dmc_mon), GFP_KERNEL);
 	if (!dmc_mon)

@@ -91,14 +91,15 @@ static int page_trace_filter_slab;
 static int page_trace_filter_vmalloc;
 static int page_trace_filter_large_slab;
 static struct proc_dir_entry *d_pagetrace;
-struct page_trace *trace_buffer;
+struct page_trace *aml_trace_buffer;
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-EXPORT_SYMBOL(trace_buffer);
+struct pagetrace_vendor_param trace_param;
+EXPORT_SYMBOL(aml_trace_buffer);
 #endif
 static unsigned long ptrace_size;
-unsigned int trace_step = 1;
+unsigned int aml_trace_step = 1;
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-EXPORT_SYMBOL(trace_step);
+EXPORT_SYMBOL(aml_trace_step);
 #endif
 static bool page_trace_disable;
 
@@ -278,8 +279,8 @@ static int early_page_trace_step(char *buf)
 	if (!buf)
 		return -EINVAL;
 
-	if (!kstrtouint(buf, 10, &trace_step))
-		pr_info("page trace_step:%d\n", trace_step);
+	if (!kstrtouint(buf, 10, &aml_trace_step))
+		pr_info("page trace_step:%d\n", aml_trace_step);
 
 	return 0;
 }
@@ -317,7 +318,7 @@ static bool check_trace_valid(struct page_trace *trace)
 	if (trace->order >= 10 ||
 	    trace->migrate_type >= MIGRATE_TYPES ||
 	    !range_ok(trace)) {
-		offset = (unsigned long)((trace - trace_buffer));
+		offset = (unsigned long)((trace - aml_trace_buffer));
 		pr_err("bad trace:%p, %x, pfn:%lx, ip:%ps\n", trace,
 			*((unsigned int *)trace),
 			offset / sizeof(struct page_trace),
@@ -333,15 +334,15 @@ static void push_ip(struct page_trace *base, struct page_trace *ip)
 	int i;
 	unsigned long end;
 
-	for (i = trace_step - 1; i > 0; i--)
+	for (i = aml_trace_step - 1; i > 0; i--)
 		base[i] = base[i - 1];
 
 	/* debug check */
 #if DEBUG_PAGE_TRACE
 	check_trace_valid(base);
 #endif
-	end = (((unsigned long)trace_buffer) + ptrace_size);
-	WARN_ON((unsigned long)(base + trace_step - 1) >= end);
+	end = (((unsigned long)aml_trace_buffer) + ptrace_size);
+	WARN_ON((unsigned long)(base + aml_trace_step - 1) >= end);
 
 	base[0] = *ip;
 }
@@ -995,7 +996,7 @@ struct page_trace *find_page_base(struct page *page)
 	struct zone *zone;
 	struct page_trace *p;
 
-	if (!trace_buffer)
+	if (!aml_trace_buffer)
 		return NULL;
 
 	pfn = page_to_pfn(page);
@@ -1004,8 +1005,8 @@ struct page_trace *find_page_base(struct page *page)
 		if (pfn <= zone_end_pfn(zone) &&
 		    pfn >= zone->zone_start_pfn) {
 			offset = pfn - zone->zone_start_pfn;
-			p = trace_buffer;
-			return p + ((offset + zone_offset) * trace_step);
+			p = aml_trace_buffer;
+			return p + ((offset + zone_offset) * aml_trace_step);
 		}
 		/* next zone */
 		zone_offset += zone->spanned_pages;
@@ -1062,7 +1063,7 @@ static void __init set_init_page_trace(struct page *page, unsigned int order, gf
 	unsigned long ip;
 	struct page_trace trace = {0}, *base;
 
-	if (page && trace_buffer) {
+	if (page && aml_trace_buffer) {
 		ip = (unsigned long)before_pagetrace_memory;
 		text = PAGE_TRACE_OFFSET;
 
@@ -1124,7 +1125,7 @@ void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *fun
 
 	if (!page)
 		return;
-	if (!trace_buffer)
+	if (!aml_trace_buffer)
 		return;
 
 	ip = PAGE_TRACE_OFFSET;
@@ -1141,6 +1142,13 @@ void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *fun
 		return;
 	}
 
+#if defined(CONFIG_ANDROID_VENDOR_HOOKS) && \
+	IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
+	trace_param.trace_buf = aml_trace_buffer;
+	trace_param.trace_step = aml_trace_step;
+	trace_android_vh_get_page_wmark(1024, (unsigned long *)&trace_param);
+#endif
+
 	val = pack_ip(ip, order, flag, vflag);
 	base = find_page_base(page);
 	push_ip(base, (struct page_trace *)&val);
@@ -1148,7 +1156,7 @@ void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *fun
 		/* in order to easy get trace for high order alloc */
 		val = pack_ip(ip, 0, flag, vflag);
 		for (i = 1; i < (1 << order); i++) {
-			base += (trace_step);
+			base += (aml_trace_step);
 			push_ip(base, (struct page_trace *)&val);
 		}
 	}
@@ -1166,17 +1174,17 @@ void reset_page_trace(struct page *page, unsigned int order)
 	unsigned long end;
 #endif
 
-	if (page && trace_buffer) {
+	if (page && aml_trace_buffer) {
 		base = find_page_base(page);
 		cnt = 1 << order;
 	#if DEBUG_PAGE_TRACE
 		check_trace_valid(base);
-		end = ((unsigned long)trace_buffer + ptrace_size);
-		WARN_ON((unsigned long)(base + cnt * trace_step - 1) >= end);
+		end = ((unsigned long)aml_trace_buffer + ptrace_size);
+		WARN_ON((unsigned long)(base + cnt * aml_trace_step - 1) >= end);
 	#endif
 		for (i = 0; i < cnt; i++) {
 			base->order = IP_INVALID;
-			base += (trace_step);
+			base += (aml_trace_step);
 		}
 	}
 }
@@ -1187,7 +1195,7 @@ void replace_page_trace(struct page *new, struct page *old)
 
 	if (!new || !old)
 		return;
-	if (!trace_buffer)
+	if (!aml_trace_buffer)
 		return;
 
 	old_trace  = find_page_base(old);
@@ -1226,10 +1234,10 @@ static int __init page_trace_pre_work(unsigned long size)
 		return -ENOMEM;
 #endif
 
-	trace_buffer = (struct page_trace *)paddr;
+	aml_trace_buffer = (struct page_trace *)paddr;
 	pend = paddr + size;
 	pr_info("%s, trace buffer:%px, size:%lx, end:%px, module: %lx\n",
-			__func__, trace_buffer, size, pend, maddr);
+			__func__, aml_trace_buffer, size, pend, maddr);
 	memset(paddr, 0, size);
 
 	for (; paddr < pend; paddr += PAGE_SIZE) {
@@ -1513,7 +1521,7 @@ static int pagetrace_show(struct seq_file *m, void *arg)
 	int ret, size = sizeof(struct page_summary) * SHOW_CNT;
 	struct pagetrace_summary *sum;
 
-	if (!trace_buffer) {
+	if (!aml_trace_buffer) {
 		seq_puts(m, "page trace not enabled\n");
 		return 0;
 	}
@@ -1729,7 +1737,7 @@ static int hardware_show(struct seq_file *m, void *arg)
 	int old_vmalloc_filter = page_trace_filter_vmalloc;
 	int old_large_slab_filter = page_trace_filter_large_slab;
 
-	if (!trace_buffer) {
+	if (!aml_trace_buffer) {
 		seq_puts(m, "page trace not enabled\n");
 		return 0;
 	}
@@ -1850,7 +1858,7 @@ static int large_slab_show(struct seq_file *m, void *arg)
 	int ret, size = sizeof(struct page_summary) * SHOW_CNT;
 	struct pagetrace_summary *sum;
 
-	if (!trace_buffer) {
+	if (!aml_trace_buffer) {
 		seq_puts(m, "page trace not enabled\n");
 		return 0;
 	}
@@ -1982,7 +1990,7 @@ static void __kprobes oom_panic_callback(struct kprobe *p,
 	 *};
 	 */
 
-	if (!trace_buffer) {
+	if (!aml_trace_buffer) {
 		pr_info("page trace not enabled\n");
 		return;
 	}
@@ -2109,7 +2117,7 @@ static int __init page_trace_module_init(void)
 	 */
 #endif
 
-	if (!trace_buffer)
+	if (!aml_trace_buffer)
 		return -ENOMEM;
 
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
@@ -2144,8 +2152,8 @@ static void __exit page_trace_module_exit(void)
 		vfree(dump_sum);
 #endif
 
-	if (trace_buffer)
-		vfree(trace_buffer);
+	if (aml_trace_buffer)
+		vfree(aml_trace_buffer);
 
 }
 module_init(page_trace_module_init);
@@ -2171,10 +2179,10 @@ void __init page_trace_mem_init(void)
 		pr_info("zone:%s, spaned pages:%ld, total:%ld\n",
 			zone->name, zone->spanned_pages, total_page);
 	}
-	ptrace_size = total_page * sizeof(struct page_trace) * trace_step;
+	ptrace_size = total_page * sizeof(struct page_trace) * aml_trace_step;
 	ptrace_size = PAGE_ALIGN(ptrace_size);
 	if (page_trace_pre_work(ptrace_size)) {
-		trace_buffer = NULL;
+		aml_trace_buffer = NULL;
 		ptrace_size = 0;
 		pr_err("%s reserve memory failed\n", __func__);
 		return;
@@ -2260,10 +2268,10 @@ void __init page_trace_mem_init(void)
 		pr_info("zone:%s, spaned pages:%ld, total:%ld\n",
 			zone->name, zone->spanned_pages, total_page);
 	}
-	ptrace_size = total_page * sizeof(struct page_trace) * trace_step;
+	ptrace_size = total_page * sizeof(struct page_trace) * aml_trace_step;
 	ptrace_size = PAGE_ALIGN(ptrace_size);
 	if (page_trace_pre_work(ptrace_size)) {
-		trace_buffer = NULL;
+		aml_trace_buffer = NULL;
 		ptrace_size = 0;
 		pr_err("%s reserve memory failed\n", __func__);
 		return;
@@ -2271,7 +2279,7 @@ void __init page_trace_mem_init(void)
 
 	free_pages_bitmap = kzalloc(total_page / 8, GFP_KERNEL);
 	if (!free_pages_bitmap) {
-		vfree(trace_buffer);
+		vfree(aml_trace_buffer);
 		return;
 	}
 	statistic_before_insmod_mem();
