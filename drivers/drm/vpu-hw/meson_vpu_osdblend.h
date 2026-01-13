@@ -46,6 +46,17 @@
 #define VIU_OSD_BLEND_CTRL1_S5                     0x60c0
 #define VIU_OSD_HOLD_LINE_HIGH_BITS_S5             0x60c1
 
+/*a9 osdblend45*/
+#define OSD45_DIN0_HSCOPE                          0x3d40
+#define OSD45_DIN0_VSCOPE                          0x3d41
+#define OSD45_DIN1_HSCOPE                          0x3d42
+#define OSD45_DIN1_VSCOPE                          0x3d43
+#define OSD45_DUMMY_DATA                           0x3d44
+#define OSD45_BLEND_CTRL0                          0x3d45
+#define OSD45_BLEND_CTRL1                          0x3d46
+#define OSD45_RO_HV_CNT                            0x3d47
+#define DIV_ALPHA                                  0x3d48
+
 /* add for osd dv core2 */
 #define DOLBY_CORE2A_SWAP_CTRL1	                   0x3434
 #define DOLBY_CORE2A_SWAP_CTRL2	                   0x3435

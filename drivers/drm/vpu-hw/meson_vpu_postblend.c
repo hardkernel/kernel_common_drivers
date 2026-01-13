@@ -76,6 +76,23 @@ static struct postblend1_reg_s postblend1_reg[3] = {
 	},
 };
 
+static struct postblend1_reg_s a9_postblend1_reg[3] = {
+	{},
+	{
+		A9_VPP1_BLD_DIN0_HSCOPE,
+		A9_VPP1_BLD_DIN0_VSCOPE,
+		A9_VPP1_BLD_DIN1_HSCOPE,
+		A9_VPP1_BLD_DIN1_VSCOPE,
+		A9_VPP1_BLD_DIN2_HSCOPE,
+		A9_VPP1_BLD_DIN2_VSCOPE,
+		A9_VPP1_BLD_CTRL,
+		A9_VPP1_BLD_OUT_SIZE,
+		A9_VPP1_BLEND_BLEND_DUMMY_DATA,
+		A9_VPP1_BLEND_DUMMY_ALPHA,
+	},
+	{},
+};
+
 static struct postblend_reg_s s5_postblend_reg = {
 	VPP_OSD1_BLD_H_SCOPE_S5,
 	VPP_OSD1_BLD_V_SCOPE_S5,
@@ -586,6 +603,115 @@ static void t7_postblend_set_state(struct meson_vpu_block *vblk,
 		  scope.h_start, scope.h_end, scope.v_start, scope.v_end);
 }
 
+static void a9_postblend_set_state(struct meson_vpu_block *vblk,
+				struct meson_vpu_block_state *state,
+				struct meson_vpu_block_state *old_state,
+				struct meson_vpu_sub_pipeline_state *mvps)
+{
+	int i, crtc_index;
+	struct am_meson_crtc *amc;
+
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct osd_scope_s scope = {0, 1919, 0, 1079};
+	struct postblend_reg_s *reg = postblend->reg;
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+
+	crtc_index = vblk->index;
+	amc = vblk->pipeline->priv->crtcs[crtc_index];
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
+
+	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
+	scope.h_start = mvps->vpp_scope_x;
+	scope.v_start = mvps->vpp_scope_y;
+	scope.h_end = scope.h_start + mvps->osdblend_output_width - 1;
+	scope.v_end = scope.v_start + mvps->osdblend_output_height - 1;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_config(OSD_MODULE, mvps->sec_src, crtc_index);
+#endif
+
+	if (crtc_index == 0) {
+		vpp_osd1_blend_scope_set(vblk, reg_ops, reg, scope);
+
+		if (amc->blank_enable) {
+			vpp_osd1_postblend_mux_set(vblk, reg_ops,
+						   postblend->reg, VPP_NULL);
+		} else {
+			/*dout switch config*/
+			osd1_blend_switch_set(vblk, reg_ops, postblend->reg,
+					      VPP_POSTBLEND);
+			/*vpp input config*/
+			vpp_osd1_preblend_mux_set(vblk, reg_ops,
+						  postblend->reg, VPP_NULL);
+
+			vpp_osd1_postblend_mux_set(vblk, reg_ops,
+						   postblend->reg,
+						   VPP_OSD2);
+		}
+
+		for (i = 0; i < MESON_MAX_OSDS; i++) {
+			if (mvps->plane_info[i].enable &&
+			    mvps->plane_info[i].crtc_index == crtc_index) {
+				osd_set_vpp_path_default(vblk, reg_ops, i + 1,
+							 crtc_index);
+			}
+		}
+
+		vpp_chk_crc(vblk, reg_ops, amc);
+		osd1_blend_premult_set(vblk, reg_ops, reg);
+	} else {
+		/* 1:vd1-din0, 2:osd1-din1 */
+
+		u32 bld_src2_sel = 2;
+		u32 scaler_index = 2;
+		struct postblend1_reg_s *reg1 = postblend->reg1;
+
+		for (i = 0; i < MESON_MAX_OSDS; i++) {
+			if (mvps->plane_info[i].enable &&
+			    mvps->plane_info[i].crtc_index == crtc_index) {
+				bld_src2_sel = i;
+				scaler_index = i;
+				break;
+			}
+		}
+
+		scope.h_start = mvps->plane_info[scaler_index].dst_x;
+		scope.h_end = scope.h_start + mvps->scaler_param[scaler_index].output_width - 1;
+		scope.v_start = mvps->plane_info[scaler_index].dst_y;
+		scope.v_end = scope.v_start + mvps->scaler_param[scaler_index].output_height - 1;
+
+		vpp1_osd1_blend_scope_set(vblk, reg_ops, reg1, scope);
+		reg_ops->rdma_write_reg_bits(A9_VPP1_OSD1_BLEND_SRC_CTRL, 0x2, 0, 4);
+		reg_ops->rdma_write_reg_bits(A9_VPP1_BLD_CTRL, 0x1, 31, 1);
+
+		if (bld_src2_sel == 1) {
+			if (postblend->postblend_path_mask) {
+				//crtc_index=1
+				reg_ops->rdma_write_reg_bits(OSD2_FIELD_SEL, crtc_index, 0, 2);
+				reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x1, 4, 1);
+				reg_ops->rdma_write_reg_bits(OSD2_PATH_MISC_CTRL, 0x3, 0, 4);
+			}
+		} else if (bld_src2_sel == 2) {
+			if (postblend->postblend_path_mask) {
+				reg_ops->rdma_write_reg_bits(OSD3_FIELD_SEL, crtc_index, 0, 2);
+				reg_ops->rdma_write_reg_bits(VIU_OSD3_PATH_CTRL, 0x1, 4, 1);
+				reg_ops->rdma_write_reg_bits(OSD3_PATH_MISC_CTRL, 0x3, 0, 4);
+			} else {
+				reg_ops->rdma_write_reg(VPP_OSD3_SCALE_CTRL, 0x7);
+			}
+		} else if (bld_src2_sel == 3) {
+			reg_ops->rdma_write_reg(VPP_OSD4_SCALE_CTRL, 0x7);
+		} else {
+			MESON_DRM_BLOCK("invalid src2_sel %d\n", bld_src2_sel);
+		}
+	}
+
+	MESON_DRM_BLOCK("scope h/v start/end [%d,%d,%d,%d].\n",
+		  scope.h_start, scope.h_end, scope.v_start, scope.v_end);
+}
+
 static void t6d_postblend_set_state(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state,
 				struct meson_vpu_block_state *old_state,
@@ -854,6 +980,21 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk,
 		else
 			MESON_DRM_BLOCK("%s, vsync disabled %s do not wait vblank.\n",
 				__func__, postblend->base.name);
+	}
+
+	MESON_DRM_BLOCK("%s disable called.\n", postblend->base.name);
+}
+
+static void a9_postblend_hw_disable(struct meson_vpu_block *vblk,
+				 struct meson_vpu_sub_pipeline *sub_pipeline)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+
+	if (vblk->index == 0) {
+		vpp_osd1_postblend_mux_set(vblk, sub_pipeline->reg_ops, postblend->reg, VPP_NULL);
+	} else if (vblk->index == 1) {
+		sub_pipeline->reg_ops->rdma_write_reg_bits(A9_VPP1_OSD1_BLEND_SRC_CTRL,
+						0x0, 0, 5);
 	}
 
 	MESON_DRM_BLOCK("%s disable called.\n", postblend->base.name);
@@ -1222,6 +1363,196 @@ static void t7_postblend_dump_register(struct drm_printer *p,
 	}
 }
 
+static void a9_postblend_dump_register(struct drm_printer *p,
+							struct meson_vpu_block *vblk)
+{
+	u32 value, reg_addr;
+	struct meson_vpu_postblend *postblend;
+	struct postblend_reg_s *reg;
+
+	postblend = to_postblend_block(vblk);
+	if (vblk->index == 0) {
+		reg = postblend->reg;
+
+		reg_addr = reg->osd1_blend_src_ctrl;
+		value = meson_drm_read_reg(reg->osd1_blend_src_ctrl);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "OSD1_BLEND_SRC_CTRL",
+			reg_addr, value);
+
+		reg_addr = reg->osd2_blend_src_ctrl;
+		value = meson_drm_read_reg(reg->osd2_blend_src_ctrl);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "OSD2_BLEND_SRC_CTRL",
+			reg_addr, value);
+
+		reg_addr = reg->vd1_blend_src_ctrl;
+		value = meson_drm_read_reg(reg->vd1_blend_src_ctrl);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VD1_BLEND_SRC_CTRL",
+			reg_addr, value);
+
+		reg_addr = reg->vd2_blend_src_ctrl;
+		value = meson_drm_read_reg(reg->vd2_blend_src_ctrl);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VD2_BLEND_SRC_CTRL",
+			reg_addr, value);
+
+		reg_addr = reg->vpp_osd1_in_size;
+		value = meson_drm_read_reg(reg->vpp_osd1_in_size);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP_OSD1_IN_SIZE:",
+			reg_addr, value);
+
+		reg_addr = reg->vpp_osd1_bld_h_scope;
+		value = meson_drm_read_reg(reg->vpp_osd1_bld_h_scope);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP_OSD1_BLD_H_SCOPE",
+			reg_addr, value);
+
+		reg_addr = reg->vpp_osd1_bld_v_scope;
+		value = meson_drm_read_reg(reg->vpp_osd1_bld_v_scope);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP_OSD1_BLD_V_SCOPE",
+			reg_addr, value);
+
+		reg_addr = reg->vpp_osd2_bld_h_scope;
+		value = meson_drm_read_reg(reg->vpp_osd2_bld_h_scope);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP_OSD2_BLD_H_SCOPE",
+			reg_addr, value);
+
+		reg_addr = reg->vpp_osd2_bld_v_scope;
+		value = meson_drm_read_reg(reg->vpp_osd2_bld_v_scope);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP_OSD2_BLD_V_SCOPE",
+			reg_addr, value);
+	} else if (vblk->index == 1) {
+		reg_addr = VPP1_BLD_DIN0_HSCOPE;
+		value = meson_drm_read_reg(VPP1_BLD_DIN0_HSCOPE);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP1_BLD_DIN0_HSCOPE",
+			reg_addr, value);
+
+		reg_addr = VPP1_BLD_DIN0_VSCOPE;
+		value = meson_drm_read_reg(VPP1_BLD_DIN0_VSCOPE);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP1_BLD_DIN0_VSCOPE",
+			reg_addr, value);
+
+		reg_addr = VPP1_BLD_DIN1_HSCOPE;
+		value = meson_drm_read_reg(VPP1_BLD_DIN1_HSCOPE);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP1_BLD_DIN1_HSCOPE",
+			reg_addr, value);
+
+		reg_addr = VPP1_BLD_DIN1_VSCOPE;
+		value = meson_drm_read_reg(VPP1_BLD_DIN1_VSCOPE);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP1_BLD_DIN1_VSCOPE",
+			reg_addr, value);
+
+		reg_addr = VPP1_BLD_DIN2_HSCOPE;
+		value = meson_drm_read_reg(VPP1_BLD_DIN2_HSCOPE);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP1_BLD_DIN2_HSCOPE",
+			reg_addr, value);
+
+		reg_addr = VPP1_BLD_DIN2_VSCOPE;
+		value = meson_drm_read_reg(VPP1_BLD_DIN2_VSCOPE);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP1_BLD_DIN2_VSCOPE",
+			reg_addr, value);
+
+		reg_addr = VPP1_BLD_CTRL;
+		value = meson_drm_read_reg(VPP1_BLD_CTRL);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP1_BLD_CTRL",
+			reg_addr, value);
+
+		//new add
+		reg_addr = A9_VPP1_OSD1_BLEND_SRC_CTRL;
+		value = meson_drm_read_reg(A9_VPP1_OSD1_BLEND_SRC_CTRL);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP1_OSD1_BLEND_SRC_CTRL",
+			reg_addr, value);
+
+		reg_addr = VPP1_BLD_OUT_SIZE;
+		value = meson_drm_read_reg(VPP1_BLD_OUT_SIZE);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP1_BLD_OUT_SIZE",
+			reg_addr, value);
+
+		reg_addr = VPP1_BLEND_BLEND_DUMMY_DATA;
+		value = meson_drm_read_reg(VPP1_BLEND_BLEND_DUMMY_DATA);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n",
+			"VPP1_BLEND_BLEND_DUMMY_DATA", reg_addr, value);
+
+		reg_addr = VPP1_BLEND_DUMMY_ALPHA;
+		value = meson_drm_read_reg(VPP1_BLEND_DUMMY_ALPHA);
+		drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VPP1_BLEND_DUMMY_ALPHA",
+			reg_addr, value);
+	}
+
+	DRM_INFO("************GLOBAL REG****************.\n");
+	reg_addr = VIU_OSD1_PATH_CTRL;
+	value = meson_drm_read_reg(VIU_OSD1_PATH_CTRL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VIU_OSD1_PATH_CTRL",
+		reg_addr, value);
+
+	reg_addr = VIU_OSD2_PATH_CTRL;
+	value = meson_drm_read_reg(VIU_OSD2_PATH_CTRL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VIU_OSD2_PATH_CTRL",
+		reg_addr, value);
+
+	reg_addr = VIU_OSD3_PATH_CTRL;
+	value = meson_drm_read_reg(VIU_OSD3_PATH_CTRL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VIU_OSD3_PATH_CTRL",
+		reg_addr, value);
+
+	reg_addr = VIU_OSD4_PATH_CTRL;
+	value = meson_drm_read_reg(VIU_OSD4_PATH_CTRL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VIU_OSD4_PATH_CTRL",
+		reg_addr, value);
+
+	reg_addr = VIU_OSD5_PATH_CTRL;
+	value = meson_drm_read_reg(VIU_OSD5_PATH_CTRL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "VIU_OSD5_PATH_CTRL",
+		reg_addr, value);
+
+	reg_addr = OSD1_PATH_MISC_CTRL;
+	value = meson_drm_read_reg(OSD1_PATH_MISC_CTRL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "OSD1_PATH_MISC_CTRL",
+		reg_addr, value);
+
+	reg_addr = OSD2_PATH_MISC_CTRL;
+	value = meson_drm_read_reg(OSD2_PATH_MISC_CTRL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "OSD2_PATH_MISC_CTRL",
+		reg_addr, value);
+
+	reg_addr = OSD3_PATH_MISC_CTRL;
+	value = meson_drm_read_reg(OSD3_PATH_MISC_CTRL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "OSD3_PATH_MISC_CTRL",
+		reg_addr, value);
+
+	reg_addr = OSD4_PATH_MISC_CTRL;
+	value = meson_drm_read_reg(OSD4_PATH_MISC_CTRL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "OSD4_PATH_MISC_CTRL",
+		reg_addr, value);
+
+	reg_addr = OSD5_PATH_MISC_CTRL;
+	value = meson_drm_read_reg(OSD5_PATH_MISC_CTRL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "OSD5_PATH_MISC_CTRL",
+		reg_addr, value);
+
+	reg_addr = OSD1_FIELD_SEL;
+	value = meson_drm_read_reg(OSD1_FIELD_SEL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "OSD1_FIELD_SEL",
+		reg_addr, value);
+
+	reg_addr = OSD2_FIELD_SEL;
+	value = meson_drm_read_reg(OSD2_FIELD_SEL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "OSD2_FIELD_SEL",
+		reg_addr, value);
+
+	reg_addr = OSD3_FIELD_SEL;
+	value = meson_drm_read_reg(OSD3_FIELD_SEL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "OSD3_FIELD_SEL",
+		reg_addr, value);
+
+	reg_addr = OSD4_FIELD_SEL;
+	value = meson_drm_read_reg(OSD4_FIELD_SEL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "OSD4_FIELD_SEL",
+		reg_addr, value);
+
+	reg_addr = OSD5_FIELD_SEL;
+	value = meson_drm_read_reg(OSD5_FIELD_SEL);
+	drm_printf(p, "%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", "OSD5_FIELD_SEL",
+		reg_addr, value);
+}
+
 /*based on crtc index select corresponding rdma handle write method*/
 static void fix_vpu_clk2_default_regs(struct meson_vpu_block *vblk,
 				 struct rdma_reg_ops *reg_ops, int crtc_index, u32 *crtcmask_osd)
@@ -1410,6 +1741,82 @@ static void t3_postblend_register_init(struct meson_vpu_block *vblk,
 	MESON_DRM_BLOCK("%s register_init called.\n", postblend->base.name);
 }
 
+static void a9_postblend_register_init(struct meson_vpu_block *vblk,
+	struct meson_vpu_block_state *state)
+{
+	int i;
+	u32 reg_val;
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	int crtc_index = vblk->index;
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+	struct am_meson_crtc *amc;
+	u32 *crtcmask_osd = NULL;
+
+	if (vblk->init_done)
+		return;
+
+	amc = vblk->pipeline->priv->crtcs[crtc_index];
+	crtcmask_osd = amc->priv->of_conf.crtcmask_osd;
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (crtcmask_osd[i] == crtc_index) {
+			if (i == MESON_OSD1) {
+				reg_val = meson_drm_read_reg(VIU_OSD1_PATH_CTRL);
+				reg_val = reg_val | (0 << 4) | /*no bypass osdblend*/
+						(1 << 16) | /* bypass osd dolby */
+						(0 << 17) | /* zero-pad the lower bits */
+						(1 << 0) |  /* osd scaler before osdblend */
+						(0 << 15) | /* no bypass hdr */
+						(1 << 12);  /* hdr before osdblend */
+				reg_ops->rdma_write_reg(VIU_OSD1_PATH_CTRL, reg_val);
+			} else if (i == MESON_OSD2) {
+				reg_val = meson_drm_read_reg(VIU_OSD2_PATH_CTRL);
+				reg_val = reg_val | (0 << 4) | /*no bypass osdblend*/
+						(1 << 16) | /* bypass osd dolby */
+						(0 << 17) | /* zero-pad the lower bits */
+						(1 << 0) |  /* osd scaler before osdblend */
+						(0 << 15) | /* no bypass hdr */
+						(1 << 12) | /* hdr before osdblend */
+						(0 << 18) | /* osd2 hdr */
+						(0 << 19) | /* osd2 hdr */
+						(0 << 20);  /* osd2 go field */
+				reg_ops->rdma_write_reg(VIU_OSD2_PATH_CTRL, reg_val);
+			} else if (i == MESON_OSD3) {
+				reg_val = meson_drm_read_reg(VIU_OSD3_PATH_CTRL);
+				reg_val = reg_val | (0 << 4) | /*no bypass osdblend*/
+						(1 << 16) | /* bypass osd dolby */
+						(0 << 17) | /* zero-pad the lower bits */
+						(1 << 0) |  /* osd scaler before osdblend */
+						(1 << 15) | /* bypass hdr */
+						(1 << 12);  /* hdr before osdblend */
+				reg_ops->rdma_write_reg(VIU_OSD3_PATH_CTRL, reg_val);
+			} else if (i == MESON_OSD4) {
+				reg_val = meson_drm_read_reg(VIU_OSD4_PATH_CTRL);
+				reg_val = reg_val | (0 << 4) | /*no bypass osdblend*/
+						(1 << 16) | /* bypass osd dolby */
+						(0 << 17) | /* zero-pad the lower bits */
+						(1 << 0) |  /* osd scaler before osdblend */
+						(1 << 15) | /* bypass hdr */
+						(1 << 12);  /* hdr before osdblend */
+				reg_ops->rdma_write_reg(VIU_OSD4_PATH_CTRL, reg_val);
+			} else if (i == MESON_OSD5) {
+				reg_val = meson_drm_read_reg(VIU_OSD5_PATH_CTRL);
+				reg_val = reg_val | (0 << 4) | /*no bypass osdblend*/
+						(1 << 16) | /* bypass osd dolby */
+						(0 << 17) | /* zero-pad the lower bits */
+						(1 << 0) |  /* osd scaler before osdblend */
+						(1 << 15) | /* bypass hdr */
+						(1 << 12) | /* hdr before osdblend */
+						(0 << 18);  /* osdblend45 to osdblend */
+				reg_ops->rdma_write_reg(VIU_OSD5_PATH_CTRL, reg_val);
+			}
+		}
+	}
+
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("%s register_init called.\n", postblend->base.name);
+}
+
 static void t3_postblend_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
@@ -1429,6 +1836,18 @@ static void t5w_postblend_hw_init(struct meson_vpu_block *vblk)
 	postblend->reg = &postblend_reg;
 
 	/*t3 t5w t5m paht crtl flag*/
+	postblend->postblend_path_mask = true;
+	MESON_DRM_BLOCK("%s hw_init called.\n", postblend->base.name);
+}
+
+static void a9_postblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+
+	postblend->reg = &postblend_reg;
+	postblend->reg1 = &a9_postblend1_reg[vblk->index];
+
+	/*t3 t5w t5m path crtl flag*/
 	postblend->postblend_path_mask = true;
 	MESON_DRM_BLOCK("%s hw_init called.\n", postblend->base.name);
 }
@@ -1642,4 +2061,15 @@ struct meson_vpu_block_ops s6_postblend_ops = {
 	.dump_register = postblend_dump_register,
 	.init = postblend_hw_init,
 };
+
+struct meson_vpu_block_ops a9_postblend_ops = {
+	.check_state = postblend_check_state,
+	.update_state = a9_postblend_set_state,
+	.enable = postblend_hw_enable,
+	.disable = a9_postblend_hw_disable,
+	.dump_register = a9_postblend_dump_register,
+	.init = a9_postblend_hw_init,
+	.init_register = a9_postblend_register_init,
+};
+
 #endif

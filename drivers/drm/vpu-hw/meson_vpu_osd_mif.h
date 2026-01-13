@@ -6,7 +6,7 @@
 #ifndef _MESON_VPU_OSD_MIF_H_
 #define _MESON_VPU_OSD_MIF_H_
 
-#define HW_OSD_MIF_NUM 4
+#define HW_OSD_MIF_NUM 5
 #define MAX_HOLD_LINE     0x1f
 #define MIN_HOLD_LINE     0x04
 #define VIU1_DEFAULT_HOLD_LINE  0x08
@@ -45,6 +45,11 @@
 #define VIU_OSD1_PROT_CTRL                      0x1a2e
 #define VIU_OSD1_MALI_UNPACK_CTRL               0x1a2f
 #define VIU_OSD1_DIMM_CTRL                      0x1adf
+#define VIU_OSD1_NORMAL_SWAP                    0x1abe
+#define VIU_OSD1_MIF_CTRL                       0x1a60
+#define VIU_OSD1_MIF_CTRL1                      0x1a61
+#define VIU_OSD1_AXI_CHK_CTRL                   0x1a68
+#define VIU_OSD1_RO_AXI_CNT                     0x1a69
 
 #define VIU_OSD2_CTRL_STAT                      0x1a30
 #define VIU_OSD2_CTRL_STAT2                     0x1a4d
@@ -83,6 +88,11 @@
 #define VIU_OSD2_PROT_CTRL                      0x1a4e
 #define VIU_OSD2_MALI_UNPACK_CTRL               0x1abd
 #define VIU_OSD2_DIMM_CTRL                      0x1acf
+#define VIU_OSD2_NORMAL_SWAP                    0x1abf
+#define VIU_OSD2_MIF_CTRL                       0x1a62
+#define VIU_OSD2_MIF_CTRL1                      0x1a63
+#define VIU_OSD2_AXI_CHK_CTRL                   0x1a72
+#define VIU_OSD2_RO_AXI_CNT                     0x1a89
 
 #define VIU_OSD3_CTRL_STAT                      0x3d80
 #define VIU_OSD3_CTRL_STAT2                     0x3d81
@@ -104,6 +114,11 @@
 #define VIU_OSD3_PROT_CTRL                      0x3d9e
 #define VIU_OSD3_MALI_UNPACK_CTRL               0x3d9f
 #define VIU_OSD3_DIMM_CTRL                      0x3da0
+#define VIU_OSD3_NORMAL_SWAP                    0x3da1
+#define VIU_OSD3_MIF_CTRL                       0x3da2
+#define VIU_OSD3_MIF_CTRL1                      0x3da3
+#define VIU_OSD3_AXI_CHK_CTRL                   0x3da4
+#define VIU_OSD3_RO_AXI_CNT                     0x3da5
 
 #define VIU_OSD3_MATRIX_COEF00_01               0x3db0
 #define VIU_OSD3_MATRIX_COEF02_10               0x3db1
@@ -140,6 +155,11 @@
 #define VIU_OSD4_PROT_CTRL                      0x3dde
 #define VIU_OSD4_MALI_UNPACK_CTRL               0x3ddf
 #define VIU_OSD4_DIMM_CTRL                      0x3de0
+#define VIU_OSD4_NORMAL_SWAP                    0x3de1
+#define VIU_OSD4_MIF_CTRL                       0x3de2
+#define VIU_OSD4_MIF_CTRL1                      0x3de3
+#define VIU_OSD4_AXI_CHK_CTRL                   0x3de4
+#define VIU_OSD4_RO_AXI_CNT                     0x3de5
 
 #define VIU_OSD4_MATRIX_COEF00_01               0x3df0
 #define VIU_OSD4_MATRIX_COEF02_10               0x3df1
@@ -156,28 +176,82 @@
 #define VIU_OSD4_MATRIX_PRE_OFFSET2             0x3dfc
 #define VIU_OSD4_MATRIX_EN_CTRL                 0x3dfd
 
-#define VIU2_OSD1_CTRL_STAT 0x1e30
-#define VIU2_OSD1_CTRL_STAT2 0x1e4d
-#define VIU2_OSD1_COLOR_ADDR 0x1e31
-#define VIU2_OSD1_COLOR 0x1e32
-#define VIU2_OSD1_TCOLOR_AG0 0x1e37
-#define VIU2_OSD1_TCOLOR_AG1 0x1e38
-#define VIU2_OSD1_TCOLOR_AG2 0x1e39
-#define VIU2_OSD1_TCOLOR_AG3 0x1e3a
-#define VIU2_OSD1_BLK0_CFG_W0 0x1e3b
-#define VIU2_OSD1_BLK0_CFG_W1 0x1e3c
-#define VIU2_OSD1_BLK0_CFG_W2 0x1e3d
-#define VIU2_OSD1_BLK0_CFG_W3 0x1e3e
-#define VIU2_OSD1_BLK0_CFG_W4 0x1e64
-#define VIU2_OSD1_BLK1_CFG_W4 0x1e65
-#define VIU2_OSD1_BLK2_CFG_W4 0x1e66
-#define VIU2_OSD1_FIFO_CTRL_STAT 0x1e4b
-#define VIU2_OSD1_TEST_RDDATA 0x1e4c
-#define VIU2_OSD1_PROT_CTRL 0x1e4e
-#define VIU2_OSD1_MALI_UNPACK_CTRL 0x1e4f
-#define VIU2_OSD1_DIMM_CTRL 0x1e50
-#define VIU2_ADDR_START 0x1e00
-#define VIU2_ADDR_END 0x1eff
+#define VIU_OSD5_CTRL_STAT                      0x3d00
+#define VIU_OSD5_CTRL_STAT2                     0x3d01
+#define VIU_OSD5_COLOR_ADDR                     0x3d02
+#define VIU_OSD5_COLOR                          0x3d03
+#define VIU_OSD5_TCOLOR_AG0                     0x3d04
+#define VIU_OSD5_TCOLOR_AG1                     0x3d05
+#define VIU_OSD5_TCOLOR_AG2                     0x3d06
+#define VIU_OSD5_TCOLOR_AG3                     0x3d07
+#define VIU_OSD5_BLK0_CFG_W0                    0x3d08
+#define VIU_OSD5_BLK1_CFG_W0                    0x3d09
+#define VIU_OSD5_BLK2_CFG_W0                    0x3d0a
+#define VIU_OSD5_BLK3_CFG_W0                    0x3d0b
+#define VIU_OSD5_BLK0_CFG_W1                    0x3d0c
+#define VIU_OSD5_BLK1_CFG_W1                    0x3d0d
+#define VIU_OSD5_BLK2_CFG_W1                    0x3d0e
+#define VIU_OSD5_BLK3_CFG_W1                    0x3d0f
+#define VIU_OSD5_BLK0_CFG_W2                    0x3d10
+#define VIU_OSD5_BLK1_CFG_W2                    0x3d11
+#define VIU_OSD5_BLK2_CFG_W2                    0x3d12
+#define VIU_OSD5_BLK3_CFG_W2                    0x3d13
+#define VIU_OSD5_BLK0_CFG_W3                    0x3d14
+#define VIU_OSD5_BLK1_CFG_W3                    0x3d15
+#define VIU_OSD5_BLK2_CFG_W3                    0x3d16
+#define VIU_OSD5_BLK3_CFG_W3                    0x3d17
+#define VIU_OSD5_BLK0_CFG_W4                    0x3d18
+#define VIU_OSD5_BLK1_CFG_W4                    0x3d19
+#define VIU_OSD5_BLK2_CFG_W4                    0x3d1a
+#define VIU_OSD5_BLK3_CFG_W4                    0x3d1b
+#define VIU_OSD5_FIFO_CTRL_STAT                 0x3d1c
+#define VIU_OSD5_TEST_RDDATA                    0x3d1d
+#define VIU_OSD5_PROT_CTRL                      0x3d1e
+#define VIU_OSD5_MALI_UNPACK_CTRL               0x3d1f
+#define VIU_OSD5_DIMM_CTRL                      0x3d20
+#define VIU_OSD5_NORMAL_SWAP                    0x3d21
+#define VIU_OSD5_MIF_CTRL                       0x3d22
+#define VIU_OSD5_MIF_CTRL1                      0x3d23
+#define VIU_OSD5_AXI_CHK_CTRL                   0x3d24
+#define VIU_OSD5_RO_AXI_CNT                     0x3d25
+
+#define VIU_OSD5_MATRIX_COEF00_01               0x3d30
+#define VIU_OSD5_MATRIX_COEF02_10               0x3d31
+#define VIU_OSD5_MATRIX_COEF11_12               0x3d32
+#define VIU_OSD5_MATRIX_COEF20_21               0x3d33
+#define VIU_OSD5_MATRIX_COEF22                  0x3d34
+#define VIU_OSD5_MATRIX_COEF13_14               0x3d35
+#define VIU_OSD5_MATRIX_COEF23_24               0x3d36
+#define VIU_OSD5_MATRIX_COEF15_25               0x3d37
+#define VIU_OSD5_MATRIX_CLIP                    0x3d38
+#define VIU_OSD5_MATRIX_OFFSET0_1               0x3d39
+#define VIU_OSD5_MATRIX_OFFSET2                 0x3d3a
+#define VIU_OSD5_MATRIX_PRE_OFFSET0_1           0x3d3b
+#define VIU_OSD5_MATRIX_PRE_OFFSET2             0x3d3c
+#define VIU_OSD5_MATRIX_EN_CTRL                 0x3d3d
+
+#define VIU2_OSD1_CTRL_STAT                     0x1e30
+#define VIU2_OSD1_CTRL_STAT2                    0x1e4d
+#define VIU2_OSD1_COLOR_ADDR                    0x1e31
+#define VIU2_OSD1_COLOR                         0x1e32
+#define VIU2_OSD1_TCOLOR_AG0                    0x1e37
+#define VIU2_OSD1_TCOLOR_AG1                    0x1e38
+#define VIU2_OSD1_TCOLOR_AG2                    0x1e39
+#define VIU2_OSD1_TCOLOR_AG3                    0x1e3a
+#define VIU2_OSD1_BLK0_CFG_W0                   0x1e3b
+#define VIU2_OSD1_BLK0_CFG_W1                   0x1e3c
+#define VIU2_OSD1_BLK0_CFG_W2                   0x1e3d
+#define VIU2_OSD1_BLK0_CFG_W3                   0x1e3e
+#define VIU2_OSD1_BLK0_CFG_W4                   0x1e64
+#define VIU2_OSD1_BLK1_CFG_W4                   0x1e65
+#define VIU2_OSD1_BLK2_CFG_W4                   0x1e66
+#define VIU2_OSD1_FIFO_CTRL_STAT                0x1e4b
+#define VIU2_OSD1_TEST_RDDATA                   0x1e4c
+#define VIU2_OSD1_PROT_CTRL                     0x1e4e
+#define VIU2_OSD1_MALI_UNPACK_CTRL              0x1e4f
+#define VIU2_OSD1_DIMM_CTRL                     0x1e50
+#define VIU2_ADDR_START                         0x1e00
+#define VIU2_ADDR_END                           0x1eff
 
 #define VIU_OSD1_CTRL_STAT_S5                   0x4200
 #define VIU_OSD1_CTRL_STAT2_S5                  0x4201
@@ -323,6 +397,19 @@
 #define VIU2_SW_RESET     0x1e01
 #define OSD_FIFO_ST_BITMASK 0x300000
 
+#define VIU_OSD1_PATH_CTRL                         0x1a76
+#define VIU_OSD2_PATH_CTRL                         0x1a77
+#define VIU_OSD3_PATH_CTRL                         0x1a78
+#define VIU_OSD4_PATH_CTRL                         0x1a79
+#define VIU_OSD5_PATH_CTRL                         0x1a86
+
+/*a9 prev 5mux5*/
+#define OSD1_PATH_SEL_CTRL                         0x1aa8
+#define OSD2_PATH_SEL_CTRL                         0x1aa9
+#define OSD3_PATH_SEL_CTRL                         0x1aaa
+#define OSD4_PATH_SEL_CTRL                         0x1aab
+#define OSD5_PATH_SEL_CTRL                         0x1aac
+
 struct osd_mif_reg_s {
 	u32 viu_osd_ctrl_stat;
 	u32 viu_osd_ctrl_stat2;
@@ -345,6 +432,8 @@ struct osd_mif_reg_s {
 	u32 viu_osd_mali_unpack_ctrl;
 	u32 viu_osd_dimm_ctrl;
 	u32 viu_osd_normal_swap;
+	u32 viu_osd_mif_ctrl;
+	u32 viu_osd_mif_ctrl1;
 };
 
 /**

@@ -22,6 +22,7 @@ static struct gfcd_reg_s gfcd_reg[2] = {
 		GFCD_MIF_HEAD_CTRL0,
 		GFCD_MIF_BODY_CTRL,
 		GFCD_RO_SOLID_G0,
+		VPP_OSD_HDR_DIV_ALPHA,
 	},
 	{
 		GFCD_MIF_MODE_SEL_S1,
@@ -36,6 +37,58 @@ static struct gfcd_reg_s gfcd_reg[2] = {
 		GFCD_MIF_HEAD_CTRL0_S1,
 		GFCD_MIF_BODY_CTRL_S1,
 		GFCD_RO_SOLID_G0_S1,
+		VPP_OSD_HDR_DIV_ALPHA,
+	},
+};
+
+static struct gfcd_reg_s a9_gfcd_reg[3] = {
+	{
+		GFCD_MIF_MODE_SEL_A9,
+		GFCD_MIF_HEAD_BADDR_A9,
+		GFCD_MIF_BODY_BADDR_A9,
+		GFCD_FRM_BGN_A9,
+		GFCD_FRM_END_A9,
+		GFCD_TOP_CTRL_A9,
+		GFCD_AFRC_CTRL_A9,
+		GFCD_AFBC_CTRL_A9,
+		GFCD_FRM_SIZE_A9,
+		GFCD_MIF_HEAD_CTRL0_A9,
+		GFCD_MIF_BODY_CTRL_A9,
+		GFCD_RO_SOLID_G0_A9,
+		VPP_OSD1_HDR_DIV_ALPHA,
+		GFCD_GLB_ALPHA_A9,
+	},
+	{
+		GFCD_MIF_MODE_SEL_S1_A9,
+		GFCD_MIF_HEAD_BADDR_S1_A9,
+		GFCD_MIF_BODY_BADDR_S1_A9,
+		GFCD_FRM_BGN_S1_A9,
+		GFCD_FRM_END_S1_A9,
+		GFCD_TOP_CTRL_S1_A9,
+		GFCD_AFRC_CTRL_S1_A9,
+		GFCD_AFBC_CTRL_S1_A9,
+		GFCD_FRM_SIZE_S1_A9,
+		GFCD_MIF_HEAD_CTRL0_S1_A9,
+		GFCD_MIF_BODY_CTRL_S1_A9,
+		GFCD_RO_SOLID_G1_A9,
+		VPP_OSD2_HDR_DIV_ALPHA,
+		GFCD_GLB_ALPHA_S1_A9,
+	},
+	{
+		GFCD_MIF_MODE_SEL_S2_A9,
+		GFCD_MIF_HEAD_BADDR_S2_A9,
+		GFCD_MIF_BODY_BADDR_S2_A9,
+		GFCD_FRM_BGN_S2_A9,
+		GFCD_FRM_END_S2_A9,
+		GFCD_TOP_CTRL_S2_A9,
+		GFCD_AFRC_CTRL_S2_A9,
+		GFCD_AFBC_CTRL_S2_A9,
+		GFCD_FRM_SIZE_S2_A9,
+		GFCD_MIF_HEAD_CTRL0_S2_A9,
+		GFCD_MIF_BODY_CTRL_S2_A9,
+		GFCD_RO_SOLID_G2_A9,
+		VPP_OSD3_HDR_DIV_ALPHA,
+		GFCD_GLB_ALPHA_S2_A9,
 	},
 };
 
@@ -64,7 +117,7 @@ static int gfcd_check_state(struct meson_vpu_block *vblk,
 	return 0;
 }
 
-static void gfcd_set_state(struct meson_vpu_block *vblk,
+static void gfcd_set_surfaces(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state,
 				struct meson_vpu_block_state *old_state,
 				struct meson_vpu_sub_pipeline_state *mvsps)
@@ -77,15 +130,16 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 	const struct meson_drm_format_info *info;
 	u64 header_addr;
 	u32 val;
-	bool reverse_x, reverse_y, is_afrc, alpha_div_en = 0, gfcd_en = 0;
+	bool reverse_x, reverse_y, is_afrc, gfcd_en = 0;
 	u8 tile_mode, blk_mode = 0, alpha_replace = 0;
 	int i;
+	u16 global_alpha = 256; /*range 0~256*/
 
 	gfcd = to_gfcd_block(vblk);
 	pipeline = gfcd->base.pipeline;
 	reg_ops = state->sub->reg_ops;
 
-	for (i = 0; i < gfcd->num_surface; i++) {
+	for (i = gfcd->start_surface; i <= gfcd->end_surface; i++) {
 		plane_info = &mvsps->plane_info[i];
 		reg = &gfcd->reg[i];
 		gfcd_en = (plane_info->process_unit == GFCD_AFBC ||
@@ -98,7 +152,6 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 					plane_info->plane_index);
 				gfcd->gfbc_err_cnt++;
 			}
-
 			reverse_x = (plane_info->rotation & DRM_MODE_REFLECT_X) ? 1 : 0;
 			reverse_y = (plane_info->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0;
 
@@ -115,20 +168,9 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 			}
 
 			tile_mode = !!(plane_info->afbc_inter_format & TILED_HEADER_EN);
-			if (plane_info->pixel_blend == DRM_MODE_BLEND_PREMULTI &&
-				!gfcd_format_is_rgbx(plane_info->pixel_format))
-				alpha_div_en = 1;
-
 			/*reverse config*/
 			reg_ops->rdma_write_reg_bits(reg->gfcd_mif_mode_sel, reverse_x, 5, 1);
 			reg_ops->rdma_write_reg_bits(reg->gfcd_mif_mode_sel, reverse_y, 4, 1);
-
-			/*div alpha*/
-			reg_ops->rdma_write_reg_bits(VPP_OSD_HDR_DIV_ALPHA, alpha_div_en,
-				i * 5, 1);
-			/*8 bit alpha, set 0 9bit alpha, set 3 default*/
-			reg_ops->rdma_write_reg_bits(VPP_OSD_HDR_DIV_ALPHA, 3,
-				i * 5 + 3, 2);
 
 			/* set header addr */
 			reg_ops->rdma_write_reg(reg->gfcd_mif_head_baddr, header_addr >> 4);
@@ -190,19 +232,106 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 
 			if (!is_afrc)
 				reg_ops->rdma_write_reg_bits(reg->gfcd_mif_head_ctrl0,
-						tile_mode, 4, 2);
+							     tile_mode, 4, 2);
 			else
 				reg_ops->rdma_write_reg_bits(reg->gfcd_mif_body_ctrl,
-						tile_mode, 0, 2);
+							     tile_mode, 0, 2);
+
+			/*a9 support*/
+			if (gfcd->support_global_alpha) {
+				/*drm alaph 16bit, amlogic alpha 8bit*/
+				global_alpha = plane_info->global_alpha >> 8;
+				if (global_alpha == 0xff)
+					global_alpha = 0x100;
+				reg_ops->rdma_write_reg_bits(reg->gfcd_glb_alpha,
+							     global_alpha, 0, 9);
+			}
 			MESON_DRM_BLOCK("is_afrc=%d, afrc_cu_bits=%d blk_mode=%d tile_mode=%d.\n",
-				is_afrc, plane_info->afrc_cu_bits, blk_mode, tile_mode);
+					is_afrc, plane_info->afrc_cu_bits, blk_mode, tile_mode);
 		} else {
 			reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 0, 4, 1);
-			reg_ops->rdma_write_reg_bits(VPP_OSD_HDR_DIV_ALPHA, 0, i * 5, 1);
 		}
 		MESON_DRM_BLOCK("osd%d, enable=%d, gfcd_en=%d, gfcd vskip is %d, hskip is %d.\n",
-			plane_info->plane_index, plane_info->enable, gfcd_en,
-			plane_info->gfcd_vskip, plane_info->gfcd_hskip);
+				plane_info->plane_index, plane_info->enable, gfcd_en,
+				plane_info->gfcd_vskip, plane_info->gfcd_hskip);
+	}
+}
+
+static void s7d_gfcd_set_state(struct meson_vpu_block *vblk,
+			       struct meson_vpu_block_state *state,
+			       struct meson_vpu_block_state *old_state,
+			       struct meson_vpu_sub_pipeline_state *mvsps)
+{
+	struct meson_vpu_gfcd *gfcd;
+	struct meson_vpu_osd_layer_info *plane_info;
+	struct rdma_reg_ops *reg_ops;
+	struct gfcd_reg_s *reg;
+
+	bool alpha_div_en = 0, gfcd_en = 0;
+	int i;
+
+	gfcd = to_gfcd_block(vblk);
+	reg_ops = state->sub->reg_ops;
+
+	gfcd_set_surfaces(vblk, state, old_state, mvsps);
+
+	for (i = gfcd->start_surface; i <= gfcd->end_surface; i++) {
+		plane_info = &mvsps->plane_info[i];
+		reg = &gfcd->reg[i];
+		gfcd_en = (plane_info->process_unit == GFCD_AFBC ||
+			plane_info->process_unit == GFCD_AFRC);
+		if (plane_info->enable && gfcd_en) {
+			/*div alpha*/
+			if (plane_info->pixel_blend == DRM_MODE_BLEND_PREMULTI &&
+				!gfcd_format_is_rgbx(plane_info->pixel_format))
+				alpha_div_en = 1;
+
+			reg_ops->rdma_write_reg_bits(reg->vpp_osd_hdr_div_alpha, alpha_div_en,
+					i * 5, 1);
+			/*8 bit alpha, set 0 9bit alpha, set 3 default*/
+			reg_ops->rdma_write_reg_bits(reg->vpp_osd_hdr_div_alpha, 3, i * 5 + 3, 2);
+		} else {
+			reg_ops->rdma_write_reg_bits(reg->vpp_osd_hdr_div_alpha, 0, i * 5, 1);
+		}
+	}
+
+	MESON_DRM_BLOCK("%s set_state called.\n", vblk->name);
+}
+
+static void a9_gfcd_set_state(struct meson_vpu_block *vblk,
+			      struct meson_vpu_block_state *state,
+			      struct meson_vpu_block_state *old_state,
+			      struct meson_vpu_sub_pipeline_state *mvsps)
+{
+	struct meson_vpu_gfcd *gfcd;
+	struct meson_vpu_osd_layer_info *plane_info;
+	struct rdma_reg_ops *reg_ops;
+	struct gfcd_reg_s *reg;
+
+	bool alpha_div_en = 0, gfcd_en = 0;
+	int i;
+
+	gfcd = to_gfcd_block(vblk);
+	reg_ops = state->sub->reg_ops;
+
+	gfcd_set_surfaces(vblk, state, old_state, mvsps);
+
+	for (i = gfcd->start_surface; i <= gfcd->end_surface; i++) {
+		plane_info = &mvsps->plane_info[i];
+		reg = &gfcd->reg[i];
+		gfcd_en = (plane_info->process_unit == GFCD_AFBC ||
+			plane_info->process_unit == GFCD_AFRC);
+		if (plane_info->enable && gfcd_en) {
+			/*div alpha*/
+			if (plane_info->pixel_blend == DRM_MODE_BLEND_PREMULTI &&
+				!gfcd_format_is_rgbx(plane_info->pixel_format))
+				alpha_div_en = 1;
+
+			reg_ops->rdma_write_reg_bits(reg->vpp_osd_hdr_div_alpha,
+							     alpha_div_en, 0, 1);
+		} else {
+			reg_ops->rdma_write_reg_bits(reg->vpp_osd_hdr_div_alpha, 0, 0, 1);
+		}
 	}
 
 	MESON_DRM_BLOCK("%s set_state called.\n", vblk->name);
@@ -231,7 +360,7 @@ static void gfcd_dump_register(struct drm_printer *p,
 
 	gfcd = to_gfcd_block(vblk);
 
-	for (i = 0; i < gfcd->num_surface; i++) {
+	for (i = gfcd->start_surface; i <= gfcd->end_surface; i++) {
 		reg = &gfcd->reg[i];
 		snprintf(buff, 8, "OSD%d", i + 1);
 		drm_printf(p, "gfbc error [%d]\n", gfcd->gfbc_err_cnt);
@@ -302,7 +431,43 @@ static void gfcd_hw_init(struct meson_vpu_block *vblk)
 	struct meson_vpu_gfcd *gfcd = to_gfcd_block(vblk);
 
 	gfcd->reg = &gfcd_reg[0];
-	gfcd->num_surface = 2;
+
+	switch (vblk->index) {
+	case GFCD_CORE1:
+		gfcd->start_surface = 0;
+		gfcd->end_surface = 1;
+		break;
+	default:
+		gfcd->start_surface = 0;
+		gfcd->end_surface = 0;
+		break;
+	};
+
+	DRM_DEBUG("%s hw init.\n", vblk->name);
+}
+
+static void a9_gfcd_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_gfcd *gfcd = to_gfcd_block(vblk);
+
+	gfcd->reg = &a9_gfcd_reg[0];
+
+	switch (vblk->index) {
+	case GFCD_CORE1:
+		gfcd->start_surface = 0;
+		gfcd->end_surface = 1;
+		break;
+	case GFCD_CORE2:
+		gfcd->start_surface = 2;
+		gfcd->end_surface = 2;
+		break;
+	default:
+		gfcd->start_surface = 0;
+		gfcd->end_surface = 0;
+		break;
+	};
+
+	gfcd->support_global_alpha = 1;
 
 	DRM_DEBUG("%s hw init.\n", vblk->name);
 }
@@ -313,10 +478,21 @@ static void gfcd_hw_fini(struct meson_vpu_block *vblk)
 
 struct meson_vpu_block_ops gfcd_ops = {
 	.check_state = gfcd_check_state,
-	.update_state = gfcd_set_state,
+	.update_state = s7d_gfcd_set_state,
 	.enable = gfcd_hw_enable,
 	.disable = gfcd_hw_disable,
 	.dump_register = gfcd_dump_register,
 	.init = gfcd_hw_init,
 	.fini = gfcd_hw_fini,
 };
+
+struct meson_vpu_block_ops a9_gfcd_ops = {
+	.check_state = gfcd_check_state,
+	.update_state = a9_gfcd_set_state,
+	.enable = gfcd_hw_enable,
+	.disable = gfcd_hw_disable,
+	.dump_register = gfcd_dump_register,
+	.init = a9_gfcd_hw_init,
+	.fini = gfcd_hw_fini,
+};
+

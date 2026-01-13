@@ -875,7 +875,14 @@ int meson_vpu_block_state_init(struct meson_drm *private,
 		}
 	}
 
-	ret = meson_vpu_osdblend_state_init(private, pipeline->osdblend);
+	for (i = 0; i < MESON_MAX_OSDBLENDS; i++) {
+		if (pipeline->osdblend[i]) {
+			ret = meson_vpu_osdblend_state_init(private, pipeline->osdblend[i]);
+			if (ret)
+				return ret;
+		}
+	}
+
 	if (ret)
 		return ret;
 

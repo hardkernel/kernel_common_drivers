@@ -386,6 +386,135 @@ static struct osd_mif_reg_s s6_osd_mif_reg[HW_OSD_MIF_NUM] = {
 	},
 	{}
 };
+
+static struct osd_mif_reg_s a9_osd_mif_reg[HW_OSD_MIF_NUM] = {
+	{
+		VIU_OSD1_CTRL_STAT,
+		VIU_OSD1_CTRL_STAT2,
+		VIU_OSD1_COLOR_ADDR,
+		VIU_OSD1_COLOR,
+		VIU_OSD1_TCOLOR_AG0,
+		VIU_OSD1_TCOLOR_AG1,
+		VIU_OSD1_TCOLOR_AG2,
+		VIU_OSD1_TCOLOR_AG3,
+		VIU_OSD1_BLK0_CFG_W0,
+		VIU_OSD1_BLK0_CFG_W1,
+		VIU_OSD1_BLK0_CFG_W2,
+		VIU_OSD1_BLK0_CFG_W3,
+		VIU_OSD1_BLK0_CFG_W4,
+		VIU_OSD1_BLK1_CFG_W4,
+		VIU_OSD1_BLK2_CFG_W4,
+		VIU_OSD1_FIFO_CTRL_STAT,
+		VIU_OSD1_TEST_RDDATA,
+		VIU_OSD1_PROT_CTRL,
+		VIU_OSD1_MALI_UNPACK_CTRL,
+		VIU_OSD1_DIMM_CTRL,
+		VIU_OSD1_NORMAL_SWAP,// new add
+		VIU_OSD1_MIF_CTRL,//  new add
+		VIU_OSD1_MIF_CTRL1,//  new add
+	},
+	{
+		VIU_OSD2_CTRL_STAT,
+		VIU_OSD2_CTRL_STAT2,
+		VIU_OSD2_COLOR_ADDR,
+		VIU_OSD2_COLOR,
+		VIU_OSD2_TCOLOR_AG0,
+		VIU_OSD2_TCOLOR_AG1,
+		VIU_OSD2_TCOLOR_AG2,
+		VIU_OSD2_TCOLOR_AG3,
+		VIU_OSD2_BLK0_CFG_W0,
+		VIU_OSD2_BLK0_CFG_W1,
+		VIU_OSD2_BLK0_CFG_W2,
+		VIU_OSD2_BLK0_CFG_W3,
+		VIU_OSD2_BLK0_CFG_W4,
+		VIU_OSD2_BLK1_CFG_W4,
+		VIU_OSD2_BLK2_CFG_W4,
+		VIU_OSD2_FIFO_CTRL_STAT,
+		VIU_OSD2_TEST_RDDATA,
+		VIU_OSD2_PROT_CTRL,
+		VIU_OSD2_MALI_UNPACK_CTRL,
+		VIU_OSD2_DIMM_CTRL,
+		VIU_OSD2_NORMAL_SWAP,
+		VIU_OSD2_MIF_CTRL,
+		VIU_OSD2_MIF_CTRL1,
+	},
+	{
+		VIU_OSD3_CTRL_STAT,
+		VIU_OSD3_CTRL_STAT2,
+		VIU_OSD3_COLOR_ADDR,
+		VIU_OSD3_COLOR,
+		VIU_OSD3_TCOLOR_AG0,
+		VIU_OSD3_TCOLOR_AG1,
+		VIU_OSD3_TCOLOR_AG2,
+		VIU_OSD3_TCOLOR_AG3,
+		VIU_OSD3_BLK0_CFG_W0,
+		VIU_OSD3_BLK0_CFG_W1,
+		VIU_OSD3_BLK0_CFG_W2,
+		VIU_OSD3_BLK0_CFG_W3,
+		VIU_OSD3_BLK0_CFG_W4,
+		VIU_OSD3_BLK1_CFG_W4,
+		VIU_OSD3_BLK2_CFG_W4,
+		VIU_OSD3_FIFO_CTRL_STAT,
+		VIU_OSD3_TEST_RDDATA,
+		VIU_OSD3_PROT_CTRL,
+		VIU_OSD3_MALI_UNPACK_CTRL,
+		VIU_OSD3_DIMM_CTRL,
+		VIU_OSD3_NORMAL_SWAP,
+		VIU_OSD3_MIF_CTRL,
+		VIU_OSD3_MIF_CTRL1,
+	},
+	{
+		VIU_OSD4_CTRL_STAT,
+		VIU_OSD4_CTRL_STAT2,
+		VIU_OSD4_COLOR_ADDR,
+		VIU_OSD4_COLOR,
+		VIU_OSD4_TCOLOR_AG0,
+		VIU_OSD4_TCOLOR_AG1,
+		VIU_OSD4_TCOLOR_AG2,
+		VIU_OSD4_TCOLOR_AG3,
+		VIU_OSD4_BLK0_CFG_W0,
+		VIU_OSD4_BLK0_CFG_W1,
+		VIU_OSD4_BLK0_CFG_W2,
+		VIU_OSD4_BLK0_CFG_W3,
+		VIU_OSD4_BLK0_CFG_W4,
+		VIU_OSD4_BLK1_CFG_W4,
+		VIU_OSD4_BLK2_CFG_W4,
+		VIU_OSD4_FIFO_CTRL_STAT,
+		VIU_OSD4_TEST_RDDATA,
+		VIU_OSD4_PROT_CTRL,
+		VIU_OSD4_MALI_UNPACK_CTRL,
+		VIU_OSD4_DIMM_CTRL,
+		VIU_OSD4_NORMAL_SWAP,
+		VIU_OSD4_MIF_CTRL,
+		VIU_OSD4_MIF_CTRL1,
+	},
+	{
+		VIU_OSD5_CTRL_STAT,
+		VIU_OSD5_CTRL_STAT2,
+		VIU_OSD5_COLOR_ADDR,
+		VIU_OSD5_COLOR,
+		VIU_OSD5_TCOLOR_AG0,
+		VIU_OSD5_TCOLOR_AG1,
+		VIU_OSD5_TCOLOR_AG2,
+		VIU_OSD5_TCOLOR_AG3,
+		VIU_OSD5_BLK0_CFG_W0,
+		VIU_OSD5_BLK0_CFG_W1,
+		VIU_OSD5_BLK0_CFG_W2,
+		VIU_OSD5_BLK0_CFG_W3,
+		VIU_OSD5_BLK0_CFG_W4,
+		VIU_OSD5_BLK1_CFG_W4,
+		VIU_OSD5_BLK2_CFG_W4,
+		VIU_OSD5_FIFO_CTRL_STAT,
+		VIU_OSD5_TEST_RDDATA,
+		VIU_OSD5_PROT_CTRL,
+		VIU_OSD5_MALI_UNPACK_CTRL,
+		VIU_OSD5_DIMM_CTRL,
+		VIU_OSD5_NORMAL_SWAP,
+		VIU_OSD5_MIF_CTRL,
+		VIU_OSD5_MIF_CTRL1,
+	},
+};
+
 #endif
 
 /*
@@ -897,6 +1026,38 @@ void osd_gfcd_dout_en(struct meson_vpu_block *vblk,
 				     flag, (osd_index + 10), 1);
 }
 
+/*
+ * osd axi and out config for a9
+ * bit26: axi select, bit27: output sel
+ */
+void a9_osd_in_out_cfg(struct meson_vpu_block *vblk,
+		     struct rdma_reg_ops *reg_ops,
+		     struct osd_mif_reg_s *reg, u8 osd_index, bool flag)
+{
+		int val = flag ? 3 : 0;
+
+		switch (osd_index) {
+		case MESON_OSD1:
+			reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, val, 26, 2);
+			break;
+		case MESON_OSD2:
+			reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, val, 26, 2);
+			break;
+		case MESON_OSD3:
+			reg_ops->rdma_write_reg_bits(VIU_OSD3_PATH_CTRL, val, 26, 2);
+			break;
+		case MESON_OSD4:
+			reg_ops->rdma_write_reg_bits(VIU_OSD4_PATH_CTRL, val, 26, 2);
+			break;
+		case MESON_OSD5:
+			reg_ops->rdma_write_reg_bits(VIU_OSD5_PATH_CTRL, val, 26, 2);
+			break;
+		default:
+			DRM_DEBUG("invalid osd index\n");
+			break;
+		}
+}
+
 /*osd endian mode
  * 1: little endian;0: big endian[for mali afbc input]
  */
@@ -912,6 +1073,13 @@ void osd_block_enable(struct meson_vpu_block *vblk,
 		      struct osd_mif_reg_s *reg, bool flag)
 {
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_ctrl_stat, flag, 0, 1);
+}
+
+void osd_block_mif_enable(struct meson_vpu_block *vblk,
+		      struct rdma_reg_ops *reg_ops,
+		      struct osd_mif_reg_s *reg, bool flag)
+{
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_mif_ctrl, flag, 27, 1);
 }
 
 /*osd mem mode
@@ -982,7 +1150,7 @@ static void osd_color_config(struct meson_vpu_block *vblk,
 			     struct osd_mif_reg_s *reg,
 			     u32 pixel_format, u32 pixel_blend, bool afbc_en)
 {
-	u8 blk_mode, color, alpha_replace;
+	u8 blk_mode, color, alpha_replace, reg_pix_bits_mode;
 	struct meson_vpu_osd *osd = to_osd_block(vblk);
 
 	if (osd->format_swap) {
@@ -1016,10 +1184,39 @@ static void osd_color_config(struct meson_vpu_block *vblk,
 			meson_drm_format_alpha_replace(vblk, pixel_format, afbc_en);
 	}
 
+	if (osd->format_swap_AR30_BA30) {
+		if (pixel_format == DRM_FORMAT_ARGB2101010 ||
+			pixel_format == DRM_FORMAT_BGRA1010102 ||
+			pixel_format == DRM_FORMAT_XRGB2101010 ||
+			pixel_format == DRM_FORMAT_BGRX1010102)
+			reg_ops->rdma_write_reg(reg->viu_osd_normal_swap, 0x1230);
+		else
+			reg_ops->rdma_write_reg(reg->viu_osd_normal_swap, 0x3210);
+	}
+
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blk0_cfg_w0,
 					blk_mode, 8, 4);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blk0_cfg_w0,
 					color, 2, 4);
+
+	if (osd->no_afbc_ctrl) {
+		switch (blk_mode) {
+		case BLOCK_MODE_16BIT:
+			reg_pix_bits_mode = 2;
+			break;
+		case BLOCK_MODE_24BIT:
+			reg_pix_bits_mode = 9;
+			break;
+		case BLOCK_MODE_32BIT:
+			reg_pix_bits_mode = 3;
+			break;
+		default:
+			reg_pix_bits_mode = 3;
+			break;
+		}
+
+		reg_ops->rdma_write_reg_bits(reg->viu_osd_mif_ctrl, reg_pix_bits_mode, 9, 4);
+	}
 
 	if (alpha_replace)
 		/*replace alpha    : bit 14 enable, 6~13 alpha val.*/
@@ -1033,12 +1230,17 @@ static void osd_afbc_config(struct meson_vpu_block *vblk,
 			    struct osd_mif_reg_s *reg,
 			    u8 osd_index, bool afbc_en)
 {
+	struct meson_vpu_osd *osd;
+
+	osd = to_osd_block(vblk);
+
 	if (!afbc_en)
 		reg_ops->rdma_write_reg_bits(reg->viu_osd_ctrl_stat2, 0, 1, 1);
 	else
 		reg_ops->rdma_write_reg_bits(reg->viu_osd_ctrl_stat2, 1, 1, 1);
 
-	osd_mali_unpack_enable(vblk, reg_ops, reg, afbc_en);
+	if (!osd->no_afbc_ctrl)
+		osd_mali_unpack_enable(vblk, reg_ops, reg, afbc_en);
 	osd_mali_src_en(vblk, reg_ops, reg, osd_index, afbc_en);
 	osd_endian_mode(vblk, reg_ops, reg, !afbc_en);
 	osd_mem_mode(vblk, reg_ops, reg, afbc_en);
@@ -1049,12 +1251,17 @@ static void osd_afbc_config_linear(struct meson_vpu_block *vblk,
 			       struct osd_mif_reg_s *reg,
 			       u8 osd_index, u32 pixel_format, bool afbc_en)
 {
+	struct meson_vpu_osd *osd;
+
+	osd = to_osd_block(vblk);
+
 	if (!afbc_en)
 		reg_ops->rdma_write_reg_bits(reg->viu_osd_ctrl_stat2, 0, 1, 1);
 	else
 		reg_ops->rdma_write_reg_bits(reg->viu_osd_ctrl_stat2, 1, 1, 1);
 
-	osd_mali_unpack_enable(vblk, reg_ops, reg, afbc_en);
+	if (!osd->no_afbc_ctrl)
+		osd_mali_unpack_enable(vblk, reg_ops, reg, afbc_en);
 	if (pixel_format == DRM_FORMAT_RGBA1010102 ||
 	    pixel_format == DRM_FORMAT_ARGB2101010 ||
 	    pixel_format == DRM_FORMAT_ABGR2101010 ||
@@ -1515,6 +1722,160 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	MESON_DRM_BLOCK("%s set_state done.\n", osd->base.name);
 }
 
+/*
+ * compare the below soc's osd mif, a9 has below changelist
+ * 1 remove repeate_y, interlace config
+ * 2 OSD_PATH_MISC_CTRL was not used anymore
+ * 3 mali afbc related register was not used anymore
+ */
+
+static void a9_osd_set_state(struct meson_vpu_block *vblk,
+			  struct meson_vpu_block_state *state,
+			  struct meson_vpu_block_state *old_state,
+			  struct meson_vpu_sub_pipeline_state *mvsps)
+{
+	struct meson_vpu_osd *osd;
+	struct meson_vpu_osd_state *mvos, *old_mvos = NULL;
+	struct meson_vpu_pipeline *pipe;
+	struct meson_vpu_state_check *status;
+	struct meson_drm *priv;
+	struct rdma_reg_ops *reg_ops;
+	int crtc_index;
+	u32 pixel_format, src_h, byte_stride, flush_reg, hold_line;
+	struct osd_scope_s scope_src = {0, 1919, 0, 1079};
+	struct osd_mif_reg_s *reg;
+	bool alpha_div_en = 0, reverse_x, reverse_y, afbc_en;
+	u64 phy_addr;
+	enum osd_process_unit process_unit;
+	u16 global_alpha = 256; /*range 0~256*/
+
+	if (!vblk || !state) {
+		MESON_DRM_BLOCK("set_state break for NULL.\n");
+		return;
+	}
+
+	mvos = to_osd_state(state);
+	osd = to_osd_block(vblk);
+	crtc_index = mvos->crtc_index;
+	reg_ops = state->sub->reg_ops;
+	pipe = vblk->pipeline;
+	priv = pipe->priv;
+	reg = osd->reg;
+	if (!reg) {
+		MESON_DRM_BLOCK("set_state break for NULL OSD mixer reg.\n");
+		return;
+	}
+
+	if (old_state)
+		old_mvos = to_osd_state(old_state);
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
+
+	if (priv->vpu_data && priv->vpu_data->has_gfcd) {
+		process_unit = mvos->process_unit;
+		if (process_unit == GFCD_AFBC || process_unit == GFCD_AFRC) {
+			MESON_DRM_BLOCK("set gfcd %d.\n", process_unit);
+			a9_osd_in_out_cfg(vblk, reg_ops, reg, vblk->index, 1);
+			return;
+		}
+
+		MESON_DRM_BLOCK("set mif or afbc.\n");
+		/* use mif*/
+		a9_osd_in_out_cfg(vblk, reg_ops, reg, vblk->index, 0);
+	}
+
+	if (mvos->crtc_index == 1)
+		/*for multi-vpp, the vpp1 default is 4*/
+		hold_line = osd->viu2_hold_line;
+	else
+		hold_line = am_drm_param.osd_hold_line;
+
+	afbc_en = mvos->afbc_en ? 1 : 0;
+	flush_reg = osd_check_config(mvos, old_mvos);
+	MESON_DRM_BLOCK("flush_reg-%d index-%d\n", flush_reg, vblk->index);
+	status = &pipe->subs[crtc_index]->status[vblk->index];
+	status->phy_addr = mvos->phy_addr;
+	status->viu_osd_blk1_cfg_w4 = reg->viu_osd_blk1_cfg_w4;
+	status->afbc_en = afbc_en;
+	status->index = vblk->index;
+	status->mif_acc_mode = osd->mif_acc_mode;
+	status->update = 1;
+	MESON_DRM_STATE("osd%d (\"%s\" pid=%d]) state:0x%p\n"
+		"mvps:0x%p phy:0x%llx src[%d %d %d %d] dst[%d %d %d %d]\n",
+		vblk->index, current->comm, task_pid_nr(current),
+		old_state ? old_state->obj.state : state->obj.state, mvsps, mvos->phy_addr,
+		mvos->src_x, mvos->src_y, mvos->src_w, mvos->src_h,
+		mvos->dst_x, mvos->dst_y, mvos->dst_w, mvos->dst_h);
+	if (!flush_reg &&
+		meson_drm_read_reg(reg->viu_osd_tcolor_ag3) == frame_seq[vblk->index] &&
+		osd->mif_acc_mode != CANVAS_MODE) {
+		/*after v7 chips, always linear addr*/
+		if (osd->mif_acc_mode == LINEAR_MIF)
+			osd_mem_mode(vblk, reg_ops, reg, 1);
+
+		ods_hold_line_config(vblk, reg_ops, reg, hold_line);
+
+		MESON_DRM_BLOCK("%s-%d not need to flush mif register.\n",
+			osd->base.name, vblk->index);
+		return;
+	}
+
+	pixel_format = mvos->pixel_format;
+	if (mvos->pixel_blend == DRM_MODE_BLEND_PREMULTI &&
+		!osd_format_is_rgbx(pixel_format))
+		alpha_div_en = 1;
+
+	/*drm alaph 16bit, amlogic alpha 8bit*/
+	global_alpha = mvos->global_alpha >> 8;
+	if (global_alpha == 0xff)
+		global_alpha = 0x100;
+
+	src_h = mvos->src_h + mvos->src_y;
+	byte_stride = line_stride_calc(mvos->pixel_format,
+						mvos->fb_w, 0);
+
+	phy_addr = mvos->phy_addr;
+	scope_src.h_start = mvos->src_x;
+	scope_src.h_end = mvos->src_x + mvos->src_w - 1;
+	scope_src.v_start = mvos->src_y;
+	scope_src.v_end = mvos->src_y + mvos->src_h - 1;
+
+	reverse_x = (mvos->rotation & DRM_MODE_REFLECT_X) ? 1 : 0;
+	reverse_y = (mvos->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0;
+	osd_reverse_x_enable(vblk, reg_ops, reg, reverse_x);
+	osd_reverse_y_enable(vblk, reg_ops, reg, reverse_y);
+	osd_linear_addr_config(vblk, reg_ops, reg, phy_addr, byte_stride);
+	MESON_DRM_BLOCK("byte stride=0x%x,phy_addr=0x%pa\n",
+			  byte_stride, &phy_addr);
+
+	osd_input_size_config(vblk, reg_ops, reg, scope_src);
+	osd_color_config(vblk, reg_ops, reg, pixel_format, mvos->pixel_blend, afbc_en);
+	osd_afbc_config_linear(vblk, reg_ops, reg, vblk->index, pixel_format, afbc_en);
+
+	if (mvos->sec_en)
+		mvsps->sec_src |= osd_secure_input_index[vblk->index];
+
+	osd_premult_enable(vblk, reg_ops, reg, alpha_div_en);
+	if (!osd->gfcd_global_alpha_policy)
+		osd_global_alpha_set(vblk, reg_ops, reg, global_alpha);
+
+	osd_set_dimm_ctrl(vblk, reg_ops, reg, 0);
+	ods_hold_line_config(vblk, reg_ops, reg, hold_line);
+	osd_set_two_ports(mvos->read_ports, reg_ops);
+	if (mvos->palette_arry)
+		osd_set_palette(reg, reg_ops, mvos->palette_arry);
+
+	frame_seq[vblk->index]++;
+	reg_ops->rdma_write_reg(reg->viu_osd_tcolor_ag3, frame_seq[vblk->index]);
+	MESON_DRM_BLOCK("plane_index=%d,HW-OSD=%d\n",
+		  mvos->plane_index, vblk->index);
+	MESON_DRM_BLOCK("scope h/v start/end:[%d/%d/%d/%d]\n",
+		  scope_src.h_start, scope_src.h_end,
+		scope_src.v_start, scope_src.v_end);
+	MESON_DRM_BLOCK("%s set_state done.\n", osd->base.name);
+}
+
 static void osd_hw_enable(struct meson_vpu_block *vblk,
 			  struct meson_vpu_block_state *state)
 {
@@ -1526,6 +1887,21 @@ static void osd_hw_enable(struct meson_vpu_block *vblk,
 		return;
 	}
 	osd_block_enable(vblk, state->sub->reg_ops, reg, 1);
+	MESON_DRM_BLOCK("%s enable done.\n", osd->base.name);
+}
+
+static void a9_osd_hw_enable(struct meson_vpu_block *vblk,
+			  struct meson_vpu_block_state *state)
+{
+	struct meson_vpu_osd *osd = to_osd_block(vblk);
+	struct osd_mif_reg_s *reg = osd->reg;
+
+	if (!vblk) {
+		MESON_DRM_BLOCK("enable break for NULL.\n");
+		return;
+	}
+	osd_block_enable(vblk, state->sub->reg_ops, reg, 1);
+	osd_block_mif_enable(vblk, state->sub->reg_ops, reg, 1);
 	MESON_DRM_BLOCK("%s enable done.\n", osd->base.name);
 }
 
@@ -1552,6 +1928,33 @@ static void osd_hw_disable(struct meson_vpu_block *vblk,
 	/*G12B should always enable,avoid afbc decoder error*/
 	if ((version != OSD_V2 && version != OSD_V3) || pm_state == DRM_PM_SUSPEND)
 		osd_block_enable(vblk, sub_pipeline->reg_ops, reg, 0);
+	MESON_DRM_BLOCK("%s disable done.\n", osd->base.name);
+}
+
+static void a9_osd_hw_disable(struct meson_vpu_block *vblk,
+			   struct meson_vpu_sub_pipeline *sub_pipeline)
+{
+	struct meson_vpu_osd *osd;
+	struct osd_mif_reg_s *reg;
+	u8 version;
+	enum drm_pm_state pm_state;
+	struct meson_vpu_sub_pipeline_state *mvsps =
+		priv_to_sub_pipeline_state(sub_pipeline->obj.state);
+
+	if (!vblk) {
+		MESON_DRM_BLOCK("disable break for NULL.\n");
+		return;
+	}
+
+	osd = to_osd_block(vblk);
+	reg = osd->reg;
+	version = vblk->pipeline->osd_version;
+	pm_state = mvsps->pm_state;
+
+	/*G12B should always enable,avoid afbc decoder error*/
+	if ((version != OSD_V2 && version != OSD_V3) || pm_state == DRM_PM_SUSPEND)
+		osd_block_enable(vblk, sub_pipeline->reg_ops, reg, 0);
+	osd_block_mif_enable(vblk, sub_pipeline->reg_ops, reg, 0);
 	MESON_DRM_BLOCK("%s disable done.\n", osd->base.name);
 }
 
@@ -1633,6 +2036,23 @@ static void osd_dump_register(struct drm_printer *p, struct meson_vpu_block *vbl
 	value = meson_drm_read_reg(reg->viu_osd_dimm_ctrl);
 	drm_printf(p, "%s_%-35s\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
 		"DIMM_CTRL", reg_addr, value);
+
+	if (osd->no_afbc_ctrl) {
+		reg_addr = reg->viu_osd_normal_swap;
+		value = meson_drm_read_reg(reg->viu_osd_normal_swap);
+		drm_printf(p, "%s_%-35s\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+			"NORMAL_SWAP", reg_addr, value);
+
+		reg_addr = reg->viu_osd_mif_ctrl;
+		value = meson_drm_read_reg(reg->viu_osd_mif_ctrl);
+		drm_printf(p, "%s_%-35s\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+			"MIF_CTRL", reg_addr, value);
+
+		reg_addr = reg->viu_osd_mif_ctrl1;
+		value = meson_drm_read_reg(reg->viu_osd_mif_ctrl1);
+		drm_printf(p, "%s_%-35s\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+			"MIF_CTRL1", reg_addr, value);
+	}
 }
 
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
@@ -1706,6 +2126,60 @@ static void osd_register_init(struct meson_vpu_block *vblk,
 		(dn_th << 16) | /*4bits*/
 		(up_th << 20)/*4bits*/);
 	reg_ops->rdma_write_reg(reg->viu_osd_dimm_ctrl, 0);
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	/*The fifo_crtl bits need to be configured with a maximum value of 0x2, otherwise it
+	 *will affect bandwidth. The original values should to be obtained after mif init
+	 */
+	if (is_meson_t3x_cpu()) {
+		original_swap_t3x[vblk->index] = reg_ops->rdma_read_reg(reg->viu_osd_normal_swap);
+		original_osd1_fifo_ctrl_stat_t3x[vblk->index] =
+			reg_ops->rdma_read_reg(reg->viu_osd_fifo_ctrl_stat);
+	}
+#endif
+
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("register_init vblk:%d.\n", vblk->index);
+}
+
+static void a9_osd_register_init(struct meson_vpu_block *vblk,
+	struct meson_vpu_block_state *state)
+{
+	struct meson_vpu_osd *osd;
+	struct rdma_reg_ops *reg_ops;
+	struct osd_mif_reg_s *reg;
+	/*Need config follow crtc index.*/
+	u8 holdline = VIU1_DEFAULT_HOLD_LINE;
+	//u8 fifo_val = 0x20;
+
+	if (vblk->init_done)
+		return;
+
+	reg_ops = state->sub->reg_ops;
+	osd = to_osd_block(vblk);
+	reg = osd->reg;
+	if (!reg) {
+		MESON_DRM_BLOCK("set_state break for NULL OSD mixer reg.\n");
+		return;
+	}
+
+	reg_ops->rdma_write_reg(reg->viu_osd_fifo_ctrl_stat,
+			    (0 << 30) | /*no swap*/
+			    (0 << 29) | /*div swap*/
+			    (2 << 22) | /*Fifo_ctrl 2bits*/
+			    (holdline << 5) | /*hold fifo lines 5bits*/
+			    (0 << 3) | /*fifo_sync_rst*/
+			    (0 << 1) | /*ENDIAN:no conversion*/
+			    (1 << 0)/*urgent enable*/);
+	reg_ops->rdma_write_reg(reg->viu_osd_ctrl_stat,
+			    (0 << 31) | /*osd_cfg_sync_en*/
+			    (0 << 30) | /*Enable free_clk*/
+			    (0x100 << 12) | /*global alpha*/
+			    (0 << 11) | /*TEST_RD_EN*/
+			    (0 << 2) | /*osd_mem_mode 0:canvas_addr*/
+			    (0 << 1) | /*premult_en*/
+			    (0 << 0)/*OSD_BLK_ENABLE*/);
+	reg_ops->rdma_write_reg(reg->viu_osd_tcolor_ag3, 0);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/*The fifo_crtl bits need to be configured with a maximum value of 0x2, otherwise it
@@ -1930,6 +2404,7 @@ static void t6d_osd_hw_init(struct meson_vpu_block *vblk)
 	osd->mif_acc_mode = LINEAR_MIF;
 	osd->viu2_hold_line = VIU2_DEFAULT_HOLD_LINE;
 	osd->infos = formats_of_t6d;
+	osd->format_swap_AR30_BA30 = 1;
 
 	/* osd secure function init */
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
@@ -2073,6 +2548,39 @@ static void s6_osd_hw_init(struct meson_vpu_block *vblk)
 
 	MESON_DRM_BLOCK("%s hw_init done.\n", osd->base.name);
 }
+
+static void a9_osd_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_pipeline *pipeline;
+	struct meson_vpu_osd *osd = to_osd_block(vblk);
+
+	if (!vblk || !osd) {
+		MESON_DRM_BLOCK("hw_init break for NULL.\n");
+		return;
+	}
+
+	pipeline = osd->base.pipeline;
+	if (!pipeline) {
+		MESON_DRM_BLOCK("hw_init break for NULL.\n");
+		return;
+	}
+
+	osd->reg = &a9_osd_mif_reg[vblk->index];
+	osd->mif_acc_mode = LINEAR_MIF;
+	osd->has_gfcd = true;
+	osd->no_afbc_ctrl = true;
+	osd->format_swap_AR30_BA30 = 1;
+	osd->viu2_hold_line = VIU2_DEFAULT_HOLD_LINE;
+	osd->infos = formats_of_t6d;
+
+    /* osd secure function init */
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_register(OSD_MODULE, 0, osd_secure_op, osd_secure_cb);
+#endif
+
+	MESON_DRM_BLOCK("%s hw_init done.\n", osd->base.name);
+}
+
 #endif
 
 /*
@@ -2228,4 +2736,16 @@ struct meson_vpu_block_ops s6_osd_ops = {
 	.init_register = osd_register_init,
 	.fini = osd_hw_fini,
 };
+
+struct meson_vpu_block_ops a9_osd_ops = {
+	.check_state = osd_check_state,
+	.update_state = a9_osd_set_state,
+	.enable = a9_osd_hw_enable,
+	.disable = a9_osd_hw_disable,
+	.dump_register = osd_dump_register,
+	.init = a9_osd_hw_init,
+	.init_register = a9_osd_register_init,
+	.fini = osd_hw_fini,
+};
+
 #endif

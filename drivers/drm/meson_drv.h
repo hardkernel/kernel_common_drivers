@@ -24,7 +24,7 @@
 #include "meson_print.h"
 
 #define MESON_MAX_CRTC		3
-#define MESON_MAX_OSD		4
+#define MESON_MAX_OSD		5
 #define MESON_MAX_VIDEO		3
 
 struct meson_drm_thread {

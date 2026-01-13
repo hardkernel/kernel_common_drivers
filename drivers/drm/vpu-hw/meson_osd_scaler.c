@@ -260,6 +260,94 @@ static struct osd_scaler_reg_s osd_scaler_s6_reg[HW_OSD_SCALER_NUM] = {
 	},
 	{}
 };
+
+static struct osd_scaler_reg_s osd_scaler_a9_reg[HW_OSD_SCALER_NUM] = {
+	{
+		T7_VPP_OSD_SCALE_COEF_IDX,
+		T7_VPP_OSD_SCALE_COEF,
+		T7_VPP_OSD_VSC_PHASE_STEP,
+		T7_VPP_OSD_VSC_INI_PHASE,
+		T7_VPP_OSD_VSC_CTRL0,
+		T7_VPP_OSD_HSC_PHASE_STEP,
+		T7_VPP_OSD_HSC_INI_PHASE,
+		T7_VPP_OSD_HSC_CTRL0,
+		T7_VPP_OSD_HSC_INI_PAT_CTRL,
+		T7_VPP_OSD_SC_DUMMY_DATA,
+		T7_VPP_OSD_SC_CTRL0,
+		T7_VPP_OSD_SCI_WH_M1,
+		T7_VPP_OSD_SCO_H_START_END,
+		T7_VPP_OSD_SCO_V_START_END,
+		T7_VPP_OSD_SC_DIV_ALPHA,
+	},
+	{
+		T7_OSD2_SCALE_COEF_IDX,
+		T7_OSD2_SCALE_COEF,
+		T7_OSD2_VSC_PHASE_STEP,
+		T7_OSD2_VSC_INI_PHASE,
+		T7_OSD2_VSC_CTRL0,
+		T7_OSD2_HSC_PHASE_STEP,
+		T7_OSD2_HSC_INI_PHASE,
+		T7_OSD2_HSC_CTRL0,
+		T7_OSD2_HSC_INI_PAT_CTRL,
+		T7_OSD2_SC_DUMMY_DATA,
+		T7_OSD2_SC_CTRL0,
+		T7_OSD2_SCI_WH_M1,
+		T7_OSD2_SCO_H_START_END,
+		T7_OSD2_SCO_V_START_END,
+		T7_OSD2_SC_DIV_ALPHA,
+	},
+	{
+		T7_OSD34_SCALE_COEF_IDX,
+		T7_OSD34_SCALE_COEF,
+		T7_OSD34_VSC_PHASE_STEP,
+		T7_OSD34_VSC_INI_PHASE,
+		T7_OSD34_VSC_CTRL0,
+		T7_OSD34_HSC_PHASE_STEP,
+		T7_OSD34_HSC_INI_PHASE,
+		T7_OSD34_HSC_CTRL0,
+		T7_OSD34_HSC_INI_PAT_CTRL,
+		T7_OSD34_SC_DUMMY_DATA,
+		T7_OSD34_SC_CTRL0,
+		T7_OSD34_SCI_WH_M1,
+		T7_OSD34_SCO_H_START_END,
+		T7_OSD34_SCO_V_START_END,
+		T7_OSD34_SC_DIV_ALPHA,
+	},
+	{
+		T7_OSD4_SCALE_COEF_IDX,
+		T7_OSD4_SCALE_COEF,
+		T7_OSD4_VSC_PHASE_STEP,
+		T7_OSD4_VSC_INI_PHASE,
+		T7_OSD4_VSC_CTRL0,
+		T7_OSD4_HSC_PHASE_STEP,
+		T7_OSD4_HSC_INI_PHASE,
+		T7_OSD4_HSC_CTRL0,
+		T7_OSD4_HSC_INI_PAT_CTRL,
+		T7_OSD4_SC_DUMMY_DATA,
+		T7_OSD4_SC_CTRL0,
+		T7_OSD4_SCI_WH_M1,
+		T7_OSD4_SCO_H_START_END,
+		T7_OSD4_SCO_V_START_END,
+		T7_OSD4_SC_DIV_ALPHA,
+	},
+	{
+		A9_OSD5_SCALE_COEF_IDX,
+		A9_OSD5_SCALE_COEF,
+		A9_OSD5_VSC_PHASE_STEP,
+		A9_OSD5_VSC_INI_PHASE,
+		A9_OSD5_VSC_CTRL0,
+		A9_OSD5_HSC_PHASE_STEP,
+		A9_OSD5_HSC_INI_PHASE,
+		A9_OSD5_HSC_CTRL0,
+		A9_OSD5_HSC_INI_PAT_CTRL,
+		A9_OSD5_SC_DUMMY_DATA,
+		A9_OSD5_SC_CTRL0,
+		A9_OSD5_SCI_WH_M1,
+		A9_OSD5_SCO_H_START_END,
+		A9_OSD5_SCO_V_START_END,
+		A9_OSD5_SC_DIV_ALPHA,
+	},
+};
 #endif
 
 static unsigned int __osd_filter_coefs_bicubic_sharp[] = {
@@ -1388,6 +1476,21 @@ static void t6d_scaler_register_init(struct meson_vpu_block *vblk,
 
 	MESON_DRM_BLOCK("%s register_init called.\n", scaler->base.name);
 }
+
+static void a9_scaler_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
+	struct meson_vpu_pipeline *pipeline = scaler->base.pipeline;
+
+	scaler->reg = &osd_scaler_a9_reg[vblk->index];
+	scaler->alpha_mode = ALPHA_PROC;
+	if (pipeline->osd_capability[MESON_OSD1] & BIT(LOCAL_SCALER_SUPPORT))
+		scaler->scaler1_position = BEFORE_OSDBLEND;
+	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
+	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
+
+	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
+}
 #endif
 
 struct meson_vpu_block_ops scaler_ops = {
@@ -1447,6 +1550,16 @@ struct meson_vpu_block_ops t6d_scaler_ops = {
 	.dump_register = scaler_dump_register,
 	.init = t6d_scaler_hw_init,
 	.init_register = t6d_scaler_register_init,
+};
+
+struct meson_vpu_block_ops a9_scaler_ops = {
+	.check_state = scaler_check_state,
+	.update_state = scaler_set_state,
+	.enable = scaler_hw_enable,
+	.disable = scaler_hw_disable,
+	.dump_register = scaler_dump_register,
+	.init = a9_scaler_hw_init,
+	.init_register = scaler_register_init,
 };
 
 #endif

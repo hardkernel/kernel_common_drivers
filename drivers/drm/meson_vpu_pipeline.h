@@ -24,12 +24,14 @@
 #define MESON_OSD2 1
 #define MESON_OSD3 2
 #define MESON_OSD4 3
+#define MESON_OSD5 4
 #define MESON_VIU2_OSD1 3
-#define MESON_MAX_OSDS 4
+#define MESON_MAX_OSDS 5
 #define MESON_MAX_VIDEOS 3
 #define MESON_MAX_OSD_BLEND 3
 #define MESON_MAX_OSD_TO_VPP 2
-#define MESON_MAX_SCALERS 4
+#define MESON_MAX_SCALERS 5
+#define MESON_MAX_OSDBLENDS 2
 #define MESON_MAX_HDRS 3
 #define MESON_MAX_DBS 2
 #define MESON_MAX_POSTBLEND 3
@@ -44,7 +46,7 @@
 #define MESON_OSD_INPUT_W_LIMIT 3840
 #define MESON_OSD_INPUT_H_LIMIT 2160
 
-#define MAX_DIN_NUM 4
+#define MAX_DIN_NUM 5
 #define MAX_DOUT_NUM 3
 
 #define VP_MAP_STRUCT_SIZE	120
@@ -302,8 +304,11 @@ struct meson_vpu_osd {
 	u32 is_viu2_osd;
 	const struct meson_drm_format_info **infos;
 	int format_swap;
+	/*t6d t6w t6d a9 ARGB2101010 BGRA1010102*/
+	int format_swap_AR30_BA30;
 	DECLARE_KFIFO(canvas_q, u32, MAX_CANVAS_FIFO_NUM);
 	bool has_gfcd;
+	bool no_afbc_ctrl;
 	bool gfcd_global_alpha_policy;
 };
 
@@ -653,6 +658,9 @@ struct meson_vpu_gfcd {
 	struct gfcd_reg_s *reg;
 	u32 num_surface;
 	u32 gfbc_err_cnt;
+	bool support_global_alpha;
+	u32 start_surface;
+	u32 end_surface;
 };
 
 struct meson_vpu_gfcd_state {
@@ -721,7 +729,7 @@ struct meson_vpu_pipeline {
 	struct meson_vpu_video *video[MESON_MAX_VIDEOS];
 	struct meson_vpu_afbc *afbc_osds[MESON_MAX_OSDS];
 	struct meson_vpu_scaler *scalers[MESON_MAX_SCALERS];
-	struct meson_vpu_osdblend *osdblend;
+	struct meson_vpu_osdblend *osdblend[MESON_MAX_OSDBLENDS];
 	struct meson_vpu_hdr *hdrs[MESON_MAX_HDRS];
 	struct meson_vpu_db *dbs[MESON_MAX_DBS];
 	struct meson_vpu_postblend *postblends[MESON_MAX_POSTBLEND];
@@ -736,6 +744,7 @@ struct meson_vpu_pipeline {
 	u32 num_afbc_osds;
 	u32 num_scalers;
 	u32 num_hdrs;
+	u32 num_osdblends;
 	u32 num_dbs;
 	u32 num_postblend;
 	u32 num_gfcd;
@@ -1055,6 +1064,12 @@ extern struct meson_plane_supported_formats osd_formats_s1a;
 extern struct meson_plane_supported_formats osd_formats_s7d;
 extern struct meson_plane_supported_formats osd_formats_t6d;
 extern struct meson_plane_supported_formats video_formats;
+
+extern struct meson_vpu_block_ops a9_osd_ops;
+extern struct meson_vpu_block_ops a9_gfcd_ops;
+extern struct meson_vpu_block_ops a9_scaler_ops;
+extern struct meson_vpu_block_ops a9_postblend_ops;
+extern struct meson_vpu_block_ops a9_osdblend_ops;
 
 extern u32 s5_reg_table_cached[VPU_CACHED_REG_TABLE_SIZE];
 extern u32 s7_reg_table_cached[VPU_CACHED_REG_TABLE_SIZE];

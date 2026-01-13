@@ -624,7 +624,7 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 	struct meson_vpu_block *osdblend;
 	struct meson_vpu_block_state *mvbs;
 
-	osdblend = &mvps->pipeline->osdblend->base;
+	osdblend = &mvps->pipeline->osdblend[0]->base;
 	ret = vpu_pipeline_scaler_check(combination, num_planes, mvps);
 	if (ret) {
 		MESON_DRM_TRAVERSE("%s check scaler failed\n", __func__);

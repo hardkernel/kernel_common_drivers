@@ -157,6 +157,7 @@ static int meson_vpu1_write_reg(u32 addr, u32 val)
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int ret;
 
+	MESON_DRM_REG("0x%x, 0x%x\n", addr, val);
 	if (rdma_tbl[1].flag)
 		ret = meson_drm_write_rdma_table_reg(1, drm_vsync_rdma_handle[1], addr, val);
 	else

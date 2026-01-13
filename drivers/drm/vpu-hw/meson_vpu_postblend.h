@@ -39,6 +39,24 @@
 #define VIU_VD1_PATH_CTRL                          0x1a73
 #define VIU_VD2_PATH_CTRL                          0x1a74
 
+#define VIU_OSD1_PATH_CTRL                         0x1a76
+#define VIU_OSD2_PATH_CTRL                         0x1a77
+#define VIU_OSD3_PATH_CTRL                         0x1a78
+#define VIU_OSD4_PATH_CTRL                         0x1a79
+#define VIU_OSD5_PATH_CTRL                         0x1a86
+
+#define OSD1_PATH_MISC_CTRL                        0x1aa3
+#define OSD2_PATH_MISC_CTRL                        0x1aa4
+#define OSD3_PATH_MISC_CTRL                        0x1aa5
+#define OSD4_PATH_MISC_CTRL                        0x1aa6
+#define OSD5_PATH_MISC_CTRL                        0x1aa7
+
+#define OSD1_FIELD_SEL                             0x1af0
+#define OSD2_FIELD_SEL                             0x1af1
+#define OSD3_FIELD_SEL                             0x1af2
+#define OSD4_FIELD_SEL                             0x1af3
+#define OSD5_FIELD_SEL                             0x1af4
+
 #define OSD1_HDR_IN_SIZE                           0x1a5a
 #define OSD2_HDR_IN_SIZE                           0x1a5b
 #define OSD3_HDR_IN_SIZE                           0x1a5c
@@ -77,41 +95,54 @@
 #define VPP2_BLEND_DUMMY_ALPHA                     0x59ea
 
 /* S5 vpp register */
-#define VPP_OSD1_BLD_H_SCOPE_S5                       0x1d09
-#define VPP_OSD1_BLD_V_SCOPE_S5                      0x1d0a
-#define VPP_OSD2_BLD_H_SCOPE_S5                       0x1d0b
-#define VPP_OSD2_BLD_V_SCOPE_S5                       0x1d0c
+#define VPP_OSD1_BLD_H_SCOPE_S5                    0x1d09
+#define VPP_OSD1_BLD_V_SCOPE_S5                    0x1d0a
+#define VPP_OSD2_BLD_H_SCOPE_S5                    0x1d0b
+#define VPP_OSD2_BLD_V_SCOPE_S5                    0x1d0c
 
-#define VD1_BLEND_SRC_CTRL_S5                         0x1d0d
-#define VD2_BLEND_SRC_CTRL_S5                         0x1d0e
-#define OSD1_BLEND_SRC_CTRL_S5                        0x1d10
-#define OSD2_BLEND_SRC_CTRL_S5                        0x1d11
+#define VD1_BLEND_SRC_CTRL_S5                      0x1d0d
+#define VD2_BLEND_SRC_CTRL_S5                      0x1d0e
+#define OSD1_BLEND_SRC_CTRL_S5                     0x1d10
+#define OSD2_BLEND_SRC_CTRL_S5                     0x1d11
 
-#define VPP_POST_BLEND_BLEND_DUMMY_DATA_S5            0x1d1a
-#define VPP_POST_BLEND_DUMMY_ALPHA_S5                 0x1d1b
-#define VPP_POSTBLND_CTRL_S5                          0x1d02
+#define VPP_POST_BLEND_BLEND_DUMMY_DATA_S5         0x1d1a
+#define VPP_POST_BLEND_DUMMY_ALPHA_S5              0x1d1b
+#define VPP_POSTBLND_CTRL_S5                       0x1d02
 
-#define VPP_INTF_OSD3_CTRL             0x4107
-#define VPP_MISC_T3X		       0x2509
+#define VPP_INTF_OSD3_CTRL                         0x4107
+#define VPP_MISC_T3X		                   0x2509
 
 #define VIU_MODE_CTRL                              0x1a2a
 #define VPP1_OSD3_BLD_H_SCOPE                      0x1d1c
 #define VPP1_OSD3_BLD_V_SCOPE                      0x1d1d
 #define VPP1_BLD_CTRL_T3X                          0x1d1b
-#define VIU_OSD3_MISC				   0x1a17
-#define OSD_PROC_1MUX3_SEL			   0x6072
-#define OSD_SYS_5MUX4_SEL			   0x6078
+#define VIU_OSD3_MISC                              0x1a17
+#define OSD_PROC_1MUX3_SEL                         0x6072
+#define OSD_SYS_5MUX4_SEL                          0x6078
 
 /* vpp crc */
-#define VPP_RO_CRCSUM           0x1db2
-#define VPP_CRC_CHK             0x1db3
+#define VPP_RO_CRCSUM                              0x1db2
+#define VPP_CRC_CHK                                0x1db3
 
 #define VPP_POST_BLEND_REF_ZORDER                  128
 
 /* txhd2 loopback register */
-#define VPP_PROJECTOR                      0x1d26
-#define VPP_OSD2_MATRIX_EN_CTRL             0x392d
-#define OSD2_HDR2_MATRIXI_EN_CTRL            0x5b3b
+#define VPP_PROJECTOR                              0x1d26
+#define VPP_OSD2_MATRIX_EN_CTRL                    0x392d
+#define OSD2_HDR2_MATRIXI_EN_CTRL                  0x5b3b
+
+/* a9 vpp1 blend */
+#define A9_VPP1_BLD_CTRL                           0x6485
+#define A9_VPP1_BLD_OUT_SIZE                       0x6486
+#define A9_VPP1_BLD_DIN0_HSCOPE                    0x6487
+#define A9_VPP1_BLD_DIN0_VSCOPE                    0x6488
+#define A9_VPP1_BLD_DIN1_HSCOPE                    0x6489
+#define A9_VPP1_BLD_DIN1_VSCOPE                    0x648a
+#define A9_VPP1_BLD_DIN2_HSCOPE                    0x648b
+#define A9_VPP1_BLD_DIN2_VSCOPE                    0x648c
+#define A9_VPP1_BLEND_BLEND_DUMMY_DATA             0x64a9
+#define A9_VPP1_BLEND_DUMMY_ALPHA                  0x64aa
+#define A9_VPP1_OSD1_BLEND_SRC_CTRL                0x64b1
 
 struct postblend_reg_s {
 	u32 vpp_osd1_bld_h_scope;

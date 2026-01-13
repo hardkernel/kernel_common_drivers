@@ -6,7 +6,7 @@
 #ifndef _MESON_OSD_SCALER_H_
 #define _MESON_OSD_SCALER_H_
 
-#define HW_OSD_SCALER_NUM 4
+#define HW_OSD_SCALER_NUM 5
 
 /*vpp osd scaler*/
 #define VPP_OSD_VSC_PHASE_STEP                     0x1dc0
@@ -250,6 +250,23 @@
 #define OSD4_PROC_DB_FLT_SEED5                     0x702b
 
 #define VPP_OSD_SCALE_CTRL                         0x1dff
+
+/* A9 add OSD5 Scaler */
+#define A9_OSD5_VSC_PHASE_STEP                     0x5a10
+#define A9_OSD5_VSC_INI_PHASE                      0x5a11
+#define A9_OSD5_VSC_CTRL0                          0x5a12
+#define A9_OSD5_HSC_PHASE_STEP                     0x5a13
+#define A9_OSD5_HSC_INI_PHASE                      0x5a14
+#define A9_OSD5_HSC_CTRL0                          0x5a15
+#define A9_OSD5_HSC_INI_PAT_CTRL                   0x5a16
+#define A9_OSD5_SC_DUMMY_DATA                      0x5a17
+#define A9_OSD5_SC_CTRL0                           0x5a18
+#define A9_OSD5_SCI_WH_M1                          0x5a19
+#define A9_OSD5_SCO_H_START_END                    0x5a1a
+#define A9_OSD5_SCO_V_START_END                    0x5a1b
+#define A9_OSD5_SCALE_COEF_IDX                     0x5a1c
+#define A9_OSD5_SCALE_COEF                         0x5a1d
+#define A9_OSD5_SC_DIV_ALPHA                       0x5a1e
 
 /*macro define for chip const*/
 /*bank length is related to scale fifo:4 line 1920??*/

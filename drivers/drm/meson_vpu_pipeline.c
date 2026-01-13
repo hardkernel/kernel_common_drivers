@@ -243,7 +243,8 @@ meson_vpu_create_block(struct meson_vpu_block_para *para,
 
 		mvb = create_block(blk_size, para, ops, pipeline);
 
-		pipeline->osdblend = to_osdblend_block(mvb);
+		pipeline->osdblend[mvb->index] = to_osdblend_block(mvb);
+		pipeline->num_osdblends++;
 		break;
 	case MESON_BLK_HDR:
 		blk_size = sizeof(struct meson_vpu_hdr);
@@ -676,7 +677,10 @@ void vpu_pipeline_resume_init(struct meson_vpu_pipeline *pipeline)
 			VPU_PIPELINE_RESET_INIT_DONE(&pipeline->scalers[i]->base);
 	}
 
-	VPU_PIPELINE_RESET_INIT_DONE(&pipeline->osdblend->base);
+	for (i = 0; i < MESON_MAX_OSDBLENDS; i++) {
+		if (pipeline->osdblend[i])
+			VPU_PIPELINE_RESET_INIT_DONE(&pipeline->osdblend[i]->base);
+	}
 
 	for (i = 0; i < MESON_MAX_HDRS; i++)
 		if (pipeline->hdrs[i])
@@ -714,7 +718,10 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
 			VPU_PIPELINE_HW_INIT(&pipeline->scalers[i]->base);
 	}
 
-	VPU_PIPELINE_HW_INIT(&pipeline->osdblend->base);
+	for (i = 0; i < MESON_MAX_OSDBLENDS; i++) {
+		if (pipeline->osdblend[i])
+			VPU_PIPELINE_HW_INIT(&pipeline->osdblend[i]->base);
+	}
 
 	for (i = 0; i < MESON_MAX_HDRS; i++)
 		if (pipeline->hdrs[i])
@@ -755,7 +762,8 @@ void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline)
 	for (i = 0; i < pipeline->num_scalers; i++)
 		VPU_PIPELINE_HW_FINI(&pipeline->scalers[i]->base);
 
-	VPU_PIPELINE_HW_FINI(&pipeline->osdblend->base);
+	for (i = 0; i < pipeline->num_osdblends; i++)
+		VPU_PIPELINE_HW_FINI(&pipeline->osdblend[i]->base);
 
 	for (i = 0; i < pipeline->num_hdrs; i++)
 		VPU_PIPELINE_HW_FINI(&pipeline->hdrs[i]->base);
