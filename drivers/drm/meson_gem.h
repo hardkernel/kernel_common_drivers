@@ -8,6 +8,7 @@
 #include <drm/drm_gem.h>
 #include <uapi/amlogic/drm/meson_drm.h>
 #include <linux/amlogic/meson_uvm_core.h>
+#include <linux/amlogic/meson_uvm_allocator.h>
 #include "meson_drv.h"
 
 struct am_meson_gem_object {
@@ -30,7 +31,7 @@ struct am_meson_gem_object {
 	bool is_dma;
 	struct dma_buf_attachment *attachment;
 	struct uvm_handle *dma_handle;
-	struct uvm_buf_obj ubo;
+	struct mua_buffer buffer;
 };
 
 /* GEM MANAGER CREATE*/

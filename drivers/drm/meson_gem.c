@@ -24,7 +24,9 @@
 #include <uapi/linux/dma-heap.h>
 
 #define to_am_meson_gem_obj(x) container_of(x, struct am_meson_gem_object, base)
-#define uvm_to_gem_obj(x) container_of(x, struct am_meson_gem_object, ubo)
+#define uvm_to_gem_object(x) container_of(container_of((x), struct mua_buffer, base), \
+		struct am_meson_gem_object, buffer)
+
 #define MESON_GEM_NAME "meson_gem"
 
 #if (defined CONFIG_AMLOGIC_HEAP_CMA) || (defined CONFIG_AMLOGIC_HEAP_CODEC_MM)
@@ -424,8 +426,17 @@ static void am_meson_drm_gem_unref_uvm(struct uvm_buf_obj *ubo)
 {
 	struct am_meson_gem_object *meson_gem_obj;
 
-	meson_gem_obj = uvm_to_gem_obj(ubo);
+	meson_gem_obj = uvm_to_gem_object(ubo);
 
+	/* for di post playback, drm need to put the replaced dmabuf from decoder */
+	if (meson_gem_obj->buffer.idmabuf[0] &&
+		(meson_gem_obj->buffer.ion_flags & BIT(UVM_DMABUF_REPLACE)))
+		dma_buf_put(meson_gem_obj->buffer.idmabuf[0]);
+
+	DRM_DEBUG_PRIME("%px dmabuf:%px flag:0x%x\n", meson_gem_obj, meson_gem_obj->dmabuf,
+			meson_gem_obj->buffer.ion_flags);
+	meson_gem_obj->buffer.idmabuf[0] = NULL;
+	meson_gem_obj->buffer.idmabuf[1] = NULL;
 	drm_gem_object_put(&meson_gem_obj->base);
 }
 
@@ -567,10 +578,13 @@ static struct dma_buf *meson_gem_prime_export(struct drm_gem_object *obj,
 				info.flags |= BIT(UVM_SECURE_ALLOC);
 
 			info.flags |= BIT(UVM_SKIP_REALLOC);
-
-			info.obj = &meson_gem_obj->ubo;
+			meson_gem_obj->buffer.ion_flags = info.flags;
+			meson_gem_obj->buffer.idmabuf[0] = meson_gem_obj->dmabuf;
+			meson_gem_obj->buffer.idmabuf[1] = NULL;
+			info.obj = &meson_gem_obj->buffer.base;
 			info.free = am_meson_drm_gem_unref_uvm;
 			dmabuf_bind_uvm_alloc(dmabuf, &info);
+
 			drm_gem_object_get(obj);
 
 			if (meson_gem_obj->is_afbc || meson_gem_obj->is_secure)
@@ -812,8 +826,9 @@ struct am_meson_gem_object *am_meson_gem_object_create(struct drm_device *dev,
 	}
 
 	if (meson_gem_obj->is_uvm) {
-		meson_gem_obj->ubo.arg = meson_gem_obj;
-		meson_gem_obj->ubo.dev = dev->dev;
+		meson_gem_obj->buffer.base.arg = meson_gem_obj;
+		meson_gem_obj->buffer.base.dev = dev->dev;
+		meson_gem_obj->buffer.size = size;
 	}
 	/*for release check*/
 	meson_gem_obj->flags = flags;
@@ -1021,7 +1036,7 @@ struct drm_gem_object *am_meson_drm_gem_prime_import(struct drm_device *dev,
 
 			DRM_DEBUG_PRIME("dev: %px %px %px\n", ubo->dev, dev, dev->dev);
 			if (ubo->dev == dev->dev) {
-				meson_gem_obj = uvm_to_gem_obj(ubo);
+				meson_gem_obj = uvm_to_gem_object(ubo);
 				drm_gem_object_get(&meson_gem_obj->base);
 				DRM_DEBUG_PRIME("same device-%px %d\n", meson_gem_obj,
 					     meson_gem_obj->base.handle_count);
@@ -1037,7 +1052,7 @@ struct drm_gem_object *am_meson_drm_gem_prime_import(struct drm_device *dev,
 		DRM_DEBUG_PRIME("skeleton uvm alloc %px\n", meson_gem_obj);
 		meson_gem_obj->base.funcs = &meson_gem_object_funcs;
 		meson_gem_obj->is_uvm = true;
-		meson_gem_obj->ubo.dmabuf = dmabuf;
+		meson_gem_obj->buffer.base.dmabuf = dmabuf;
 
 		size = roundup(dmabuf->size, PAGE_SIZE);
 		ret = drm_gem_object_init(dev, &meson_gem_obj->base, size);
