@@ -2674,7 +2674,7 @@ static int dpss_process_open(struct inode *inode, struct file *file)
 
 	index = iminor(inode);
 	pr_info("%s iminor(inode) =%d\n", __func__, index);
-	if (index >= dpss_process_instance_num)
+	if (index < 0 || index >= ARRAY_SIZE(ports))
 		return -ENODEV;
 
 	port = &ports[index];
@@ -2729,7 +2729,7 @@ static int dpss_process_release(struct inode *inode, struct file *file)
 
 	index = iminor(inode);
 	pr_info("%s iminor(inode) =%d\n", __func__, index);
-	if (index >= dpss_process_instance_num)
+	if (index < 0 || index >= ARRAY_SIZE(ports))
 		return -ENODEV;
 
 	port = &ports[index];
