@@ -530,12 +530,12 @@
 		status = "disabled";
 	};
 
-	shmem {
+	shmem@f7033000 {
 		compatible = "mmio-sram";
-		reg = <0x0 0x50f6000 0x0 0x1000>;
+		reg = <0x0 0xf7033000 0x0 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x0 0x0 0x50f6000 0x1000>;
+		ranges = <0x0 0x0 0xf7033000 0x1000>;
 
 		scmi_shmem: shmem@0 {
 			compatible = "arm,scmi-shmem";
@@ -546,7 +546,7 @@
 	firmware {
 		scmi: scmi {
 			compatible = "arm,scmi-smc";
-			arm,smc-id = <0x820000C1>;
+			arm,smc-id = <0x820000c1>;
 			shmem = <&scmi_shmem>;
 			#address-cells = <1>;
 			#size-cells = <0>;
