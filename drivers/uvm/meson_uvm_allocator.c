@@ -490,8 +490,11 @@ static int mua_screencap_filldata(struct mua_buffer *buffer, struct dma_buf *dma
 					ret = ge2d_uvm_fill_pattern(buffer, dmabuf);
 				}
 			} else {
-				MUA_PRINTK(MUA_INFO, "%s afbc soft decode fill.\n", __func__);
-				meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
+				if (avbcd_uvm_fill_pattern(buffer, dmabuf)) {
+					MUA_PRINTK(MUA_INFO,
+						   "%s afbc soft decode fill.\n", __func__);
+					meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
+				}
 			}
 		}
 		break;
