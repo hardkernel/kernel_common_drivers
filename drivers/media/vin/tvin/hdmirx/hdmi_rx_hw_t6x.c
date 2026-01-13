@@ -1888,7 +1888,7 @@ void aml_pll_bw_cfg_t6x_21(int f_rate, u8 port)
 	if (rx_info.aml_phy_21.cdr_ph_div <= 0x7)
 		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, CDR_PH_DIV,
 			rx_info.aml_phy_21.cdr_ph_div, port);
-	if (rx_info.aml_phy_21.cdr_pi_ofst <= 0x1f)
+	if (rx_info.aml_phy_21.cdr_pi_ofst <= 0x3f)
 		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, CDR_PI_OFST,
 			rx_info.aml_phy_21.cdr_pi_ofst, port);
 }

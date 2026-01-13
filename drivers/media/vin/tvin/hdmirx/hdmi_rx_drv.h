@@ -111,7 +111,8 @@
 //2025.12.29 Fix issue that VTEM packages not delivered at high framerate
 //2025.12.30 optimize the hpd control flow when resume
 //2026.01.12 Fix the issue that TB49 displays pink
-#define RX_DRV_VER "ver.2026/01/12"
+//2026.01.19 sync kernel5.15 and kernel6.12
+#define RX_DRV_VER "ver.2026/01/19"
 
 /*print type*/
 #define COR1_LOG	0x10000

@@ -7386,12 +7386,6 @@ void aml_phy_iq_skew_monitor(void)
 		aml_phy_iq_skew_monitor_t3x();
 	else if (rx_info.phy_ver == PHY_VER_TXHD2)
 		aml_phy_iq_skew_monitor_txhd2();
-	/*else if (rx_info.phy_ver == PHY_VER_T6D)*/
-	/*	;*/
-	/*else if (rx_info.phy_ver == PHY_VER_T6W)*/
-		/*;//todo*/
-	/*else if (rx_info.phy_ver == PHY_VER_T6X)*/
-		/*;//todo*/
 }
 
 void aml_eq_eye_monitor(u8 port)
@@ -8907,7 +8901,6 @@ void aml_phy_exbist(u8 port, u8 ch)
 {
 	switch (rx_info.chip_id) {
 	case CHIP_ID_T3X:
-	case CHIP_ID_T6X:
 		if (port <= E_PORT1)
 			aml_phy_exbist_t6x_21_tmds(port, ch);
 		else
@@ -8918,6 +8911,12 @@ void aml_phy_exbist(u8 port, u8 ch)
 		break;
 	case CHIP_ID_T6W:
 		aml_phy_exbist_t6w(port, ch);
+		break;
+	case CHIP_ID_T6X:
+		if (port <= E_PORT1)
+			aml_phy_exbist_t6x_20(port, ch);
+		else
+			aml_phy_exbist_t6x_21(port, ch);
 		break;
 	default:
 		break;

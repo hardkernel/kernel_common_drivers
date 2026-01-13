@@ -343,7 +343,7 @@ void hdmirx_phy_var_init(void)
 		if (rx_info.phy_ver == PHY_VER_T6X) {
 			rx_info.aml_phy_21.pll_bw_21 = 0x51;
 			rx_info.aml_phy_21.cdr_ph_div = 0x8;
-			rx_info.aml_phy_21.cdr_pi_ofst = 0x3f;
+			rx_info.aml_phy_21.cdr_pi_ofst = 0x40;
 			rx_info.acr_rst_delay = 2000;
 			rx_info.aml_phy_21.cable_tuning_en = 1;
 		}
@@ -624,7 +624,7 @@ void unregister_cec_callback(void)
 }
 EXPORT_SYMBOL(unregister_cec_callback);
 
-void rx_update_edid_callback(u32 tvin_port, u32 hdr_priority)
+void rx_update_edid_callback(enum tvin_port_e tvin_port, u32 hdr_priority)
 {
 	u8 port;
 
@@ -1667,11 +1667,8 @@ irqreturn_t irq2_handler(int irq, void *params)
 		}
 	}
 	tmp = hdmirx_rd_cor(RX_INTR9_AON_AON_IVCRX, E_PORT2);
-	if (tmp & 0x4) {
+	if (tmp & 0x4)
 		hdmirx_wr_cor(RX_INTR9_AON_AON_IVCRX, 0xff, E_PORT2);
-		rx_pr("ced update!!! 0x0084:0x%x\n", tmp);
-		rx_pr("ced flag 0x%x\n", hdmirx_rd_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, E_PORT2));
-	}
 	if (hdmirx_top_intr_stat & top_irq_tab[IRQ_AON_CTL]) {
 		tmp = hdmirx_rd_cor(RX_INTR10_AON_AON_IVCRX, E_PORT2);
 		if (tmp & 0x10) {

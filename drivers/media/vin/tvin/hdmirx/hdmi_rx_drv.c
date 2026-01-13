@@ -53,10 +53,9 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #include <linux/amlogic/media/vrr/vrr.h>
 /*#include <linux/amlogic/amports/vframe.h>*/
-//#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
@@ -264,6 +263,7 @@ static struct meson_hdmirx_data rx_t6x_data = {
 	.phy_ver = PHY_VER_T6X,
 	.port_num = PORT_NUM_4,
 };
+
 static struct meson_hdmirx_data rx_t6w_data = {
 	.chip_id = CHIP_ID_T6W,
 	.phy_ver = PHY_VER_T6W,
@@ -4839,7 +4839,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	}
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
-		rx_sprintf(&boot_info_num, " no rev mem\n");
+		rx_sprintf(&boot_info_num, "no rev mem\n");
 	rx_is_hdcp22_support();
 	hdmirx_wr_bits_top_common(TOP_EDID_RAM_OVR0_DATA, _BIT(0), 0);
 	if (rx_5v_wake_up_en)

@@ -63,13 +63,14 @@
 /* 2025.09.09 remove fsm cd judge */
 /* 2025.10.11 reduce signal time when avi range change */
 /* 2025.10.15 fix green screen issue for case78 */
-/*2025.11.4 add edid switch protect*/
+/* 2025.11.4 add edid switch protect */
 /* 2025.11.11 enable EMP until signal stable */
 /* 2025.11.4 add edid switch protect*/
 /* 2025.11.14 optimize t6x signal time */
 /* 2025.11.19 add hpd protect */
 /* 2025.11.20 fix issue that hdcp reauth too slow */
 /* 2025.12.02 optimise log & fastswitch */
+/* 2025.12.09 fix EDID update failure issue */
 /* 2025.12.17 modify frl signal flow */
 /* 2025.12.24 update phy 12G settings and init flow */
 /* 2025.12.26 fix training err*/

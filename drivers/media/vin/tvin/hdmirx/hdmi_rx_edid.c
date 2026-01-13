@@ -877,6 +877,9 @@ void rx_edid_update_freesync_info(unsigned char *p_edid)
 			rx_pr("!!!!error version\n");
 		}
 	}
+	if (log_level & EDID_LOG)
+		rx_pr("modify freesync min = %d, freesync max = %d\n",
+			rx_info.vrr_min, rx_info.vrr_max);
 }
 
 void rx_edid_update_vrr_info(unsigned char *p_edid)
