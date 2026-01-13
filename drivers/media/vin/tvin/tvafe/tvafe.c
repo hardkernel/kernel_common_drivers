@@ -85,7 +85,7 @@ MODULE_PARM_DESC(enable_db_reg, "enable/disable tvafe load reg");
 static bool snow_cfg;
 /*1: snow function on;*/
 /*0: off snow function*/
-bool tvafe_snow_function_flag;
+bool tvafe_snow_function_flag;//TODO YL
 
 /*1: tvafe clk enabled;*/
 /*0: tvafe clk disabled*/
@@ -93,7 +93,7 @@ bool tvafe_snow_function_flag;
 bool tvafe_clk_status;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
-/*opened port,1:av1, 2:av2, 0:none av*/
+/*opened port,1:av1, 2:av2, 0:none 0x80: suspend*/
 unsigned int avport_opened;
 #endif
 bool tvafe_start_flag;
@@ -319,6 +319,7 @@ static void tvafe_cma_release(struct tvafe_dev_s *devp)
 static bool tvafe_work_mode(int mode)
 {
 	demod_is_pal = false;
+
 	tvafe_pr_info("%s: %d\n", __func__, mode);
 	if (mode == 1) {
 		tvafe_mode = true;
@@ -470,8 +471,10 @@ static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 #else
 	W_APB_BIT(TVFE_CLAMP_INTF, 1, CLAMP_EN_BIT, CLAMP_EN_WID);
 #endif
+
 	/* must reload mux if you change adc reg table!!! */
 	tvafe_adc_pin_mux(adc_ch);
+
 	tvafe->parm.port = port;
 	vs_adj_val_pre = 0;
 
@@ -544,7 +547,7 @@ static void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt,
 				tvafe_avin_detect_ch1_dc_enable(false);
 		} else if (adc_ch == TVAFE_ADC_CH_1) {
 			tvafe_avin_detect_ch2_anlog_enable(0);
-	}
+		}
 	}
 	tvafe_start_flag = true;
 	tvafe->cvd2.info.dgain_unstable_cnt = 0;
@@ -675,9 +678,9 @@ static void tvafe_dec_close(struct tvin_frontend_s *fe, enum tvin_port_type_e po
 	if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) {
 		adc_ch = tvafe_port_to_channel(tvafe->parm.port, devp->pinmux);
 		/*avsync tip set 1 to resume av detect*/
-			avport_opened = 0;
-			W_APB_BIT(TVFE_CLAMP_INTF, 0,
-				  CLAMP_EN_BIT, CLAMP_EN_WID);
+		avport_opened = 0;
+		W_APB_BIT(TVFE_CLAMP_INTF, 0,
+			CLAMP_EN_BIT, CLAMP_EN_WID);
 		if (adc_ch == TVAFE_ADC_CH_0) {
 			/*channel1*/
 			tvafe_avin_detect_ch1_dc_enable(true);
@@ -732,6 +735,7 @@ static void tvafe_get_aspect_ratio_value(struct tvafe_dev_s *devp)
 			if (count[i] > devp->tvafe_ratio_effect_cnt) {
 				if (!maybe_ratio)
 					maybe_ratio = i;
+
 				if (count[i] > count[maybe_ratio])
 					maybe_ratio = i;
 			}
@@ -749,15 +753,11 @@ static void tvafe_get_aspect_ratio_value(struct tvafe_dev_s *devp)
 			tvafe->active_ratio = 0;
 		}
 		memset(count, 0, TVIN_AR_NOT_VALUE);
-		//if (count[0] >= (devp->tvafe_ratio_cnt - 1)) {
-			//if (tvafe->aspect_ratio != 0 && tvafe_dbg_print & TVAFE_DBG_WSS)
-				//pr_info("wss aspect_ratio:%d->0,%d\n",
-					//tvafe->aspect_ratio, aspect_ratio);
-			//tvafe->aspect_ratio = 0;
-			//count[0] = 0;
-		//}
 		tvafe->aspect_ratio_cnt = 0;
 	}
+
+	//if (aspect_ratio)
+		//count[0] = 0;
 }
 
 /*
@@ -911,7 +911,7 @@ static bool tvafe_is_nosig(struct tvin_frontend_s *fe, enum tvin_port_type_e por
 	else
 		ret = tvafe_cvd2_no_sig(&tvafe->cvd2, &devp->mem, 0);
 
-	if (/*!tvafe_mode && */IS_TVAFE_ATV_SRC(port) &&
+	if (IS_TVAFE_ATV_SRC(port) &&
 	    (devp->flags & TVAFE_FLAG_DEV_SNOW_FLAG)) { /* playing snow */
 		get_random_bytes(&snow_value, sizeof(snow_value));
 		W_APB_REG(ACD_REG_A6, snow_value);
@@ -1048,6 +1048,7 @@ static void tvafe_set_image_position(struct tvafe_image_position_s *pos)
 	if (pos->acd_vend != -1)
 		W_APB_BIT(ACD_REG_2E, pos->acd_vend, ACD_VEND_BIT, ACD_VEND_WID);
 }
+
 static void tvafe_cutwindow_update(struct tvafe_info_s *tvafe,
 				   struct tvin_sig_property_s *prop)
 {
@@ -1849,6 +1850,7 @@ static struct meson_tvafe_data meson_t6x_tvafe_data = {
 	.rf_pq_conf = NULL,
 	.atv_dmd_sys_clk = ATV_DMD_SYS_CLK_CNTL,
 };
+
 static const struct of_device_id meson_tvafe_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -2135,7 +2137,6 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	/*init tvafe param*/
 	tdevp->frame_skip_enable = 1;
 
-
 	tvafe_dev_local = tdevp;
 	tdevp->sizeof_tvafe_dev_s = sizeof(struct tvafe_dev_s);
 
@@ -2265,6 +2266,7 @@ static void tvafe_drv_shutdown(struct platform_device *pdev)
 	}
 
 	tvafe = &tdevp->tvafe;
+
 	while (mutex_trylock(&tdevp->afe_mutex) == 0) {
 		if (retry_times-- > 0) { //1s
 			msleep(20);
@@ -2273,6 +2275,7 @@ static void tvafe_drv_shutdown(struct platform_device *pdev)
 			return;
 		}
 	}
+
 	avport_opened = 0x80;
 	/* close afe port first */
 	if (tdevp->flags & TVAFE_FLAG_DEV_OPENED) {

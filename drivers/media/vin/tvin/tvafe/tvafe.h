@@ -221,6 +221,7 @@ struct tvafe_image_position_s {
 	int acd_vstart;
 	int acd_vend;
 };
+
 bool tvafe_get_snow_cfg(void);
 void tvafe_set_snow_cfg(bool cfg);
 

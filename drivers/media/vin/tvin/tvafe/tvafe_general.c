@@ -32,6 +32,7 @@
 #define VAFE_CLK_EN_WIDTH		1
 #define VAFE_CLK_SELECT			24
 #define VAFE_CLK_SELECT_WIDTH	2
+
 static DEFINE_SPINLOCK(tvafe_rst_lock);
 
 /* TOP */
@@ -411,8 +412,6 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 {
 	unsigned int i = 0;
 
-	/**disable auto mode clock**/
-
 	/** enable tv_decoder mem clk **/
 	if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TM2_B)
 		W_HIU_BIT(HHI_VPU_CLK_CNTL, 1, 28, 1);
@@ -649,12 +648,8 @@ void tvafe_enable_module(bool enable)
 	}
 }
 
-/*
- * tvafe power control of the module
- */
 bool tvafe_get_av_state(void)
 {
-	/* disable */
 	bool ret = false;
 
 	if ((avport_opened & 0x03) == TVAFE_PORT_AV1) {
@@ -667,8 +662,7 @@ bool tvafe_get_av_state(void)
 			ret = true;
 		else
 			ret = false;
-}
+	}
 
 	return ret;
 }
-

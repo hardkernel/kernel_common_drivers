@@ -125,7 +125,6 @@ static void tvafe_avin_irq_reg_write(unsigned int reg, unsigned int val)
 		writel(val, meson_data->irq_reg_base + (reg << 2));
 	else
 		aml_write_cbus(reg, val);
-
 }
 
 static void tvafe_avin_irq_update_bit(unsigned int reg,
@@ -265,7 +264,8 @@ void tvafe_avin_detect_ch1_anlog_enable(bool enable)
 
 	/*txlx,txhd,tl1 the same bit:0 for ch1 en detect*/
 	W_HIU_BIT(meson_data->detect_cntl, enable,
-			AFE_CH1_EN_DETECT_BIT, AFE_CH1_EN_DETECT_WIDTH);
+		AFE_CH1_EN_DETECT_BIT, AFE_CH1_EN_DETECT_WIDTH);
+
 	if (enable)
 		avin_detect_flag |= AVIN_DETECT_CH1_EN;
 	else
@@ -316,6 +316,7 @@ static void avin_detect_reset(void)
 	W_HIU_BIT(meson_data->detect_cntl, 1,
 		AFE_CH1_EN_DETECT_BIT,
 		AFE_CH1_EN_DETECT_WIDTH);
+
 	if (avin_detect_debug_print & AVIN_DETECT_T3X_DBG)
 		tvafe_pr_info("detect reset\n");
 }
@@ -329,6 +330,7 @@ static unsigned int avin_get_irq_counter(unsigned int irq_cnt)
 			CVBS0_AFE_DIG_OUT_BIT, CVBS0_AFE_DIG_OUT_WIDTH);
 	else
 		val = tvafe_avin_irq_reg_read(irq_cnt);
+
 	return val;
 }
 
@@ -343,6 +345,7 @@ void avin_set_detect_status(bool on)
 		tvafe_pr_info("%s:%d\n", __func__, on);
 }
 
+//only for t3x
 void tvafe_avin_detect_ch4(struct work_struct *work)
 {
 	int i, zero_cnt, one_cnt, val;
@@ -429,8 +432,9 @@ void tvafe_avin_detect_ch1_dc_enable(bool en)
 	}
 
 	W_HIU_BIT(meson_data->detect_cntl, en, AFE_CH1_EN_DC_BIAS_BIT,
-			AFE_CH1_EN_DC_BIAS_WIDTH);
+		AFE_CH1_EN_DC_BIAS_WIDTH);
 	avin_detect_flag |= AVIN_DETECT_CH1_SYNC_TIP;
+
 	if (avin_detect_debug_print & AVIN_NORMAL_DBG)
 		tvafe_pr_info("%s ok, en:%d\n", __func__, en);
 }
@@ -464,6 +468,7 @@ void tvafe_avin_detect_ch2_dc_enable(bool en)
 		avin_detect_flag |= AVIN_DETECT_CH2_SYNC_TIP;
 	else
 		avin_detect_flag &= ~AVIN_DETECT_CH2_SYNC_TIP;
+
 	if (avin_detect_debug_print & AVIN_NORMAL_DBG)
 		tvafe_pr_info("%s ok, en:%d\n", __func__, en);
 }
@@ -491,7 +496,7 @@ static void tvafe_avin_detect_anlog_config(void)
 		W_HIU_BIT(meson_data->detect_cntl, meson_data->dc_level_adj,
 			AFE_CH1_DC_LEVEL_ADJ_BIT, AFE_CH1_DC_LEVEL_ADJ_WIDTH);
 		W_HIU_BIT(meson_data->detect_cntl, meson_data->comp_level_adj,
-		AFE_CH1_COMP_LEVEL_ADJ_BIT, AFE_CH1_COMP_LEVEL_ADJ_WIDTH);
+			AFE_CH1_COMP_LEVEL_ADJ_BIT, AFE_CH1_COMP_LEVEL_ADJ_WIDTH);
 		W_HIU_BIT(meson_data->detect_cntl, 0,
 			AFE_CH1_COMP_HYS_ADJ_BIT, AFE_CH1_COMP_HYS_ADJ_WIDTH);
 		W_HIU_BIT(meson_data->detect_cntl, 1, AFE_CH1_EN_DC_BIAS_BIT,
@@ -577,6 +582,7 @@ static int tvafe_avin_open(struct inode *inode, struct file *file)
 	avin_data = container_of(inode->i_cdev,
 		struct tvafe_avin_det_s, avin_cdev);
 	file->private_data = avin_data;
+
 	if (!avin_read_reg_wq) {
 		avin_read_reg_wq =  create_singlethread_workqueue("t3x_avin_detect");
 		INIT_WORK(&avin_read_reg_work, tvafe_avin_detect_ch4);
@@ -1042,10 +1048,6 @@ tvafe_avin_detect_store_err:
 	return -EINVAL;
 }
 
-
-
-
-
 static bool tvafe_avin_detected_data(unsigned int irq_counter, unsigned int s_irq_counter)
 {
 	if (meson_data->detect_version == DETECTED_IRQ_VERSION) {
@@ -1076,14 +1078,15 @@ static bool tvafe_avin_gpio_detect(void)
 
 	if (detect_state->black_cnt > 0 && detect_state->black_cnt < 2)
 		ret = false;
+
 	return ret;
 }
 
 static void tvafe_avin_get_plug_sts(struct avin_detect_param_s *avin_detect_param)
 {
 	if (meson_data->detect_version == DETECTED_GPIO_VERSION)
-
 		return;
+
 	if (av_dev->dts_param.device_mask & TVAFE_AVIN_CH1_MASK) {
 		if (avin_detect_param->s_irq_in_counter0_time >=
 			avin_detect_param->avin_in_count_times)
@@ -1190,7 +1193,7 @@ static bool tvafe_avin_detect_ch2(struct avin_detect_param_s *avin_detect_param)
 			if (av_dev->report_data_s[1].status != TVAFE_AVIN_STATUS_OUT) {
 				av_dev->report_data_s[1].status = TVAFE_AVIN_STATUS_OUT;
 				state_changed = true;
-					tvafe_pr_info("avin[1].status OUT.\n");
+				tvafe_pr_info("avin[1].status OUT.\n");
 				/*port opened but plug out,need disable clamp*/
 				if ((avport_opened & 0x3) == TVAFE_PORT_AV2) {
 					W_APB_BIT(TVFE_CLAMP_INTF, 0, CLAMP_EN_BIT, CLAMP_EN_WID);
@@ -1220,6 +1223,7 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 
 	if ((avin_detect_flag & AVIN_DETECT_OPEN) == 0)
 		goto TIMER;
+
 	avin_detect_param = &av_dev->avin_detect_param;
 	if (av_dev->dts_param.device_mask & TVAFE_AVIN_CH1_MASK) {
 		if (meson_data->detect_version == DETECTED_GPIO_VERSION) {
@@ -1245,6 +1249,7 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 		state_changed = tvafe_avin_detect_ch1(avin_detect_param);
 	if (av_dev->dts_param.device_mask & TVAFE_AVIN_CH2_MASK)
 		state_changed = tvafe_avin_detect_ch2(avin_detect_param);
+
 	if (avin_detect_debug_print & AVIN_DETECT_STATUS_DBG)
 		tvafe_pr_info("av0(%#X:%#x %#x %#x %#x)\n",
 			s_irq_counter0, av_dev->irq_counter[0],
@@ -1576,6 +1581,7 @@ struct meson_avin_data t6d_data = {
 struct meson_avin_data t6w_data = {
 	.cpu_id = AVIN_CPU_TYPE_T6W,
 	.name = "meson-t6w-avin-detect",
+
 	.detect_version = DETECTED_IRQ_VERSION,
 	.detect_cntl = ANACTRL_CVBS_DETECT_CNTL_T6W,
 	.irq0_cntl = IRQCTRL_CVBS_IRQ0_CNTL,
@@ -1591,6 +1597,7 @@ struct meson_avin_data t6w_data = {
 struct meson_avin_data t6x_data = {
 	.cpu_id = AVIN_CPU_TYPE_T6X,
 	.name = "meson-t6x-avin-detect",
+
 	.detect_version = DETECTED_IRQ_VERSION,
 	.detect_cntl = ANACTRL_CVBS_DETECT_CNTL + T6X_OFFSET,
 	.irq0_cntl = IRQCTRL_CVBS_IRQ0_CNTL,

@@ -210,6 +210,7 @@ static void vbi_dto_set(struct vbi_dev_s *devp)
 static void vbi_slicer_type_set(struct vbi_dev_s *devp)
 {
 	enum vbi_slicer_e slicer_type = devp->slicer->type;
+
 	vbi_hw_reset(devp);
 	switch (slicer_type) {
 	case VBI_TYPE_USCC:
@@ -1577,9 +1578,7 @@ static int vbi_slicer_set(struct vbi_dev_s *vbi_dev,
 		 struct vbi_slicer_s *vbi_slicer)
 {
 	vbi_slicer_stop(vbi_slicer);
-
 	vbi_slicer_state_set(vbi_dev, VBI_STATE_SET);
-
 	vbi_slicer_type_set(vbi_dev);
 
 	return 0;/* vbi_slicer_start(vbi_dev); */
@@ -2048,7 +2047,7 @@ static long vbi_ioctl(struct file *file,
 			/*W_APB_REG(CVD2_VBI_CC_START, 0x00000054);*/
 			W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
 		}
-		tvafe_vbi_set_wss();
+		tvafe_vbi_set_wss(); //TODO YL
 		mutex_unlock(&vbi_slicer->mutex);
 		tvafe_pr_info("%s: stop slicer state:%d\n",
 			__func__, vbi_slicer->state);
@@ -2669,7 +2668,7 @@ static int vbi_probe(struct platform_device *pdev)
 	spin_lock_init(&vbi_dev->slicer->buffer.lock);
 	vbi_dev->slicer->buffer.data = NULL;
 	vbi_dev->slicer->state = VBI_STATE_FREE;
-	vbi_dev->vbi_function_sel |= VBI_BYPASS_CHECK_DATA;//close check weather has teletext
+	vbi_dev->vbi_function_sel |= VBI_BYPASS_CHECK_DATA;//close check whether has teletext
 
 	/* get irq from resource */
 	res = platform_get_irq(pdev, 0);
@@ -2727,7 +2726,7 @@ static void vbi_remove(struct platform_device *pdev)
 	class_destroy(vbi_clsp);
 	unregister_chrdev_region(vbi_id, 0);
 
-	tvafe_pr_info(": driver removed ok.\n");
+	tvafe_pr_info("vbi removed ok.\n");
 }
 
 #ifdef CONFIG_PM

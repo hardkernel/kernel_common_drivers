@@ -1216,6 +1216,7 @@ static int adc_dpll_isdbt_config(struct tvin_adc_dev *devp,
 	struct adc_pll_reg_addr *pll_addr;
 
 	pll_addr = &devp->plat_data->pll_addr;
+
 	if (devp->plat_data->chip_id == ADC_CHIP_T6W && adc_b2_180M_enable &&
 		p_dtv_para->adc_clk == ADC_CLK_24M) {
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x000100b4);
@@ -1414,12 +1415,15 @@ static bool adc_check_lock_status(enum adc_chip_ver chip_id,
 			addr = pll_addr->adc_pll_cntl_0;
 		}
 		lock_status = adc_rd_hiu_bits(addr, 31, 1);
+
 		if (lock_status)
 			break;
 		usleep_range(100, 110);
 	}
+
 	return lock_status;
 }
+
 int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 {
 	unsigned int adc_pll_lock_cnt = 0;
@@ -1427,7 +1431,6 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 	int ret = 0;/* 0: success; -x: failed */
 	struct dfe_adcpll_para *p_dtv_para = p_para;/* only for dtv demod */
 	struct tvin_adc_dev *devp = adc_devp;
-	struct adc_reg_addr *adc_addr;
 	struct adc_pll_reg_addr *pll_addr;
 
 	if (!probe_finish || !devp) {
@@ -1435,7 +1438,6 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		return ret;
 	}
 
-	adc_addr = &devp->plat_data->adc_addr;
 	pll_addr = &devp->plat_data->pll_addr;
 
 	if (!on) {
@@ -1497,7 +1499,6 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			mutex_unlock(&devp->pll_mutex);
 			break;
 		}
-
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			adc_dadc_av_cntl_config(devp);
 			do {
@@ -1559,16 +1560,13 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 				case ADC_CHIP_T6X:
 					adc_set_dtvdemod_pll_by_delsys(devp, p_dtv_para);
 					break;
-
 				default:
 					adc_set_dtvdemod_dpll_by_clk(devp, p_dtv_para);
 					break;
 				}
 				// adc pll status confirm
-
 				adc_pll_sts = adc_check_lock_status(devp->plat_data->chip_id,
 					pll_addr);
-
 			} while (!adc_pll_sts && (adc_pll_lock_cnt++ < 10));
 
 			if (devp->plat_data->chip_id <= ADC_CHIP_S4)
@@ -1807,6 +1805,7 @@ void adc_config_cvbsout(u8 sel)
 
 	if (!probe_finish || !adc_devp)
 		return;
+
 	chip_id = adc_devp->plat_data->chip_id;
 	adc_addr = &adc_devp->plat_data->adc_addr;
 	switch (chip_id) {
@@ -1816,6 +1815,7 @@ void adc_config_cvbsout(u8 sel)
 	case ADC_CHIP_SM1:
 	case ADC_CHIP_S4:
 	case ADC_CHIP_S4D:
+		//todo
 		break;
 	case ADC_CHIP_T5:
 	case ADC_CHIP_T5D:
@@ -1873,6 +1873,7 @@ void adc_config_cvbsout(u8 sel)
 	adc_wr_hiu(adc_addr->vdac_cntl_1, cntl1_val);
 }
 EXPORT_SYMBOL(adc_config_cvbsout);
+
 static void adc_parse_para(char *buf_orig, char **parm)
 {
 	char *ps, *token;
@@ -2371,6 +2372,7 @@ static const struct adc_platform_data_s adc_data_t6x = {
 	.chip_id = ADC_CHIP_T6X,
 	.is_tv_chip = true,
 };
+
 static const struct of_device_id adc_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD

@@ -17,6 +17,7 @@
 /* 20250320: update release flow */
 /* 20250604: try format when status in; when status out, report no signal */
 #define AV_DETECT_VER "update release flow"
+
 /* avin debug control start */
 #define AVIN_NORMAL_DBG				BIT(0)
 #define AVIN_SIGNAL_DBG				BIT(1)
@@ -231,7 +232,6 @@ int tvafe_avin_init_resource(void);
 
 /*opened port,1:av1, 2:av2, 0:none av*/
 extern unsigned int avport_opened;
-/*0:in, 1:out*/
 extern bool tvafe_clk_status;
 extern struct avin_detect_state_s *detect_state;
 extern unsigned int avin_detect_delay;

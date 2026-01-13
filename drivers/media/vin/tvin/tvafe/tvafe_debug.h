@@ -24,4 +24,5 @@
 
 void tvafe_dumpmem_adc(struct tvafe_dev_s *devp);
 int tvafe_dumpmem_save_buf_user(struct tvafe_dev_s *devp, void *buf, size_t buf_size);
+
 #endif

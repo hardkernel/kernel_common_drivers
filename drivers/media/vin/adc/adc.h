@@ -96,6 +96,7 @@
 		.vdac_cntl_0 = 0x1b0,\
 		.vdac_cntl_1 = 0x1b1,\
 	}
+
 #define ADC_ADDR_T6X	.adc_addr = {\
 		.dadc_cntl = 0x190,\
 		.dadc_cntl_2 = 0x191,\
@@ -106,6 +107,7 @@
 		.vdac_cntl_0 = 0x1b0,\
 		.vdac_cntl_1 = 0x1b1,\
 	}
+
 #define ADC_ADDR_BOX	.adc_addr = {\
 		.dadc_cntl = 0x90,\
 		.dadc_cntl_2 = 0x91,\
@@ -138,6 +140,7 @@
 		.adc_pll_cntl_6 = 0x9d,\
 		.adc_pll_cntl_7 = 0x9e,\
 	}
+
 #define ADC_PLL_ADDR_T6W	.pll_addr = {\
 		.adc_pll_cntl_0 = 0x70,\
 		.adc_pll_cntl_1 = 0x71,\
@@ -148,6 +151,7 @@
 		.adc_pll_cntl_6 = 0x76,\
 		.adc_pll_cntl_7 = 0x77,\
 	}
+
 #define ADC_PLL_ADDR_T6X	.pll_addr = {\
 		.adc_pll_cntl_0 = 0x70,\
 		.adc_pll_cntl_1 = 0x71,\
@@ -264,5 +268,6 @@ struct tvin_adc_dev {
 };
 
 void adc_config_cvbsout(u8 sel);
+
 #endif
 
