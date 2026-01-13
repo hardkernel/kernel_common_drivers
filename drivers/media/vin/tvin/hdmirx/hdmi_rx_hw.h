@@ -3813,5 +3813,6 @@ u32 hdmirx_rd_ee_vol(u32 addr);
 void hdmirx_wr_ee_vol(u32 addr, u32 data);
 void rx_vpu_handler(struct work_struct *work);
 void hdmirx_edid_intr_cfg(void);
+int hdmi_rx_ch_lock(u8 port);
 
 #endif

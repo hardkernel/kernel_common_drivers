@@ -326,8 +326,10 @@ int rx_lts_p_syn_detect(u8 frl_rate, u8 port)
 				frl_transmission_detected = 1;
 		}
 		udelay(5);
-		if (i++ > ext_cnt)
+		if (i++ > ext_cnt) {
+			ret = false;
 			break;
+		}
 	}
 	if (log_level & FRL_LOG)
 		rx_pr("[FRL TRAINING] *channel_lock_shift = %x,i=%d*\n", channel_lock_shift, i);

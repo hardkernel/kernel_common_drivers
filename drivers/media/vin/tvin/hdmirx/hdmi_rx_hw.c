@@ -4930,7 +4930,7 @@ void cor_init(u8 port)
 	//hdmirx_wr_cor(HDCP2X_RX_GVN_FRM, 30, port);
 
 	hdmirx_wr_cor(DPLL_HDMI2_DPLL_IVCRX, 0, port);
-
+	hdmirx_wr_bits_cor(DPLLM3_VV_CTL_DPLL_IVCRX, _BIT(7), 1, port);
 	// auto override dc for 422
 	if (rx_info.chip_id > CHIP_ID_T6D && rx_info.chip_id != CHIP_ID_T3X) {
 		data8 = 0;
@@ -9057,4 +9057,9 @@ void hdmirx_edid_intr_cfg(void)
 		return;
 	top_intr_com_maskn_value |= _BIT(26) | _BIT(18) | _BIT(10) | _BIT(2);
 	hdmirx_wr_top_common(TOP_INTR_COM_MASKN, top_intr_com_maskn_value);
+}
+
+int hdmi_rx_ch_lock(u8 port)
+{
+	return hdmirx_rd_cor(SCDCS_STATUS_FLAGS0_SCDC_IVCRX, port) & 0xf;
 }

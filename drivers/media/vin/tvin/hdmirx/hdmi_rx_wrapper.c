@@ -126,7 +126,7 @@ int frl_lock_det_max = 10;
 //for rs err test
 int rs_err_chk;
 int err_cnt = 50;
-bool cts_ced_err_test = true;
+bool cts_ced_err_test;
 int edid_seg_flag[4];
 int hpd_wait_dbg;
 int dump_aud_max = 1;
@@ -6320,12 +6320,16 @@ void rx_port2_main_state_machine(void)
 		break;
 	case FSM_WAIT_FRL_TRN_DONE:
 		//wait timing stable for debug;
-		if (rx[port].var.fpll_ready_cnt++ < fpll_ready_max)
-			break;
+		if (rx[port].var.fpll_ready_cnt++ < fpll_ready_max) {
+			if (rx[port].var.flt_update && hdmi_rx_ch_lock(port) != FRL_CH_LOCK) {
+				reset_pcs(port);
+				break;
+			}
+		}
 		rx[port].var.fpll_ready_cnt = 0;
 		if (is_fpll_err(port)) {
 			if (rx[port].var.fpll_stable_cnt++ < fpll_stable_max) {
-				reset_pcs(port);
+				//reset_pcs(port);
 				break;
 			}
 		}
@@ -6932,12 +6936,17 @@ void rx_port3_main_state_machine(void)
 		rx[port].state = FSM_WAIT_FRL_TRN_DONE;
 		break;
 	case FSM_WAIT_FRL_TRN_DONE:
-		if (rx[port].var.fpll_ready_cnt++ < fpll_ready_max)
-			break;
+		//wait timing stable for debug;
+		if (rx[port].var.fpll_ready_cnt++ < fpll_ready_max) {
+			if (rx[port].var.flt_update && hdmi_rx_ch_lock(port) != FRL_CH_LOCK) {
+				reset_pcs(port);
+				break;
+			}
+		}
 		rx[port].var.fpll_ready_cnt = 0;
 		if (is_fpll_err(port)) {
 			if (rx[port].var.fpll_stable_cnt++ < fpll_stable_max) {
-				reset_pcs(port);
+				//reset_pcs(port);
 				break;
 			}
 		}

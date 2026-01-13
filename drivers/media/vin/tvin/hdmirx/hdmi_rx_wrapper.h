@@ -79,7 +79,8 @@
 /* 2026.1.8 add ch lock protect for frl training */
 /* 2026.1.9 reduce frl signal detect time */
 /* 2026.1.16 fix issue interrupts not enabled when HDMI Ready */
-#define RX_WRAPPER_VER "ver.2026/1/9"
+/* 2026.1.21 add lock detect before do pcs reset */
+#define RX_WRAPPER_VER "ver.2026/1/21"
 
 struct freq_ref_s {
 	bool interlace;
