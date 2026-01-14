@@ -726,6 +726,8 @@ static void lcd_mode_switch_data_on(struct aml_lcd_drv_s *pdrv)
 			LCD_DBG(pdrv, "switch on, step%d, type=%d, idx=%d, val=%d, dly=%d", i,
 				power_step[i].type, power_step[i].index,
 				power_step[i].value, power_step[i].delay);
+			LCD_DBG(pdrv, "mode switch delay 20ms");
+			lcd_delay_ms(20);
 #ifdef CONFIG_AMLOGIC_LCD_TCON
 			if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_P2P)
 				lcd_tcon_reload(pdrv);
