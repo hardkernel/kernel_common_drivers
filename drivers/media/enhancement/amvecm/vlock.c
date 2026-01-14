@@ -2784,9 +2784,12 @@ u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
 
 	/* ex:30Hz->30Hz 50Hz->50Hz ...*/
 	if (pvlock->input_hz > 0 &&
-	    (pvlock->input_hz == pvlock->output_hz) &&
-	    (is_meson_t6x_cpu() && (pvlock->input_hz <= 240)))
-		vs_support = true;
+		(pvlock->input_hz == pvlock->output_hz)) {
+		if (is_meson_t6x_cpu() && pvlock->input_hz > 240)
+			vs_support = false;
+		else
+			vs_support = true;
+	}
 	/* ex:30Hz->60Hz 25Hz->50Hz or in 24->60Hz */
 	if ((pvlock->input_hz > 0 && vlock_ratio(pvlock) &&
 	    (vlock_support & VLOCK_SUPPORT_1TO2)) ||
