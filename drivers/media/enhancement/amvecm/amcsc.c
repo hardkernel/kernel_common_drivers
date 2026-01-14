@@ -10669,7 +10669,8 @@ enum hdr_type_e get_source_type_for_dpss(unsigned int signal_type)
 	unsigned int color_primaries = (signal_type >> 16) & 0xff;
 	unsigned int transfer_characteristic = (signal_type >> 8) & 0xff;
 
-	if (transfer_characteristic == 0x12 &&
+	if ((transfer_characteristic == 0x12 ||
+		transfer_characteristic == 0xe) &&
 		color_primaries == 0x9) {
 		if (cuva_flag)
 			hdr_type = HDRTYPE_CUVA_HLG;
@@ -10690,14 +10691,11 @@ enum hdr_type_e get_source_type_for_dpss(unsigned int signal_type)
 			else
 				hdr_type = HDRTYPE_HDR10_709;
 		}
-	} else if (transfer_characteristic == 0xe ||
-		transfer_characteristic == 0x1) {
+	} else {
 		if (color_primaries == 0x9)
 			hdr_type = HDRTYPE_SDR2020;
 		else
 			hdr_type = HDRTYPE_SDR;
-	} else {
-		hdr_type = HDRTYPE_SDR;
 	}
 
 	pr_csc(32, "%s: signal_/source_type=0x%x/0x%x\n",
