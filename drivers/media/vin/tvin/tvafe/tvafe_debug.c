@@ -915,11 +915,13 @@ static ssize_t dumpmem_store(struct device *dev,
 
 static DEVICE_ATTR_WO(dumpmem);
 
+static unsigned int tvafe_reg_flag = 0xff;
+static unsigned int tvafe_reg_addr, tvafe_reg_value;
 static ssize_t reg_store(struct device *dev,
 		struct device_attribute *attr, const char *buff, size_t count)
 {
 	struct tvafe_dev_s *devp;
-	unsigned int arg_n = 0, addr = 0, value = 0, end = 0, tmp = 0;
+	unsigned int arg_n = 0, end = 0, tmp = 0;
 	char *p, *para, *buf_work, cmd = 0;
 	char *argv[3];
 
@@ -949,16 +951,18 @@ static ssize_t reg_store(struct device *dev,
 				tvafe_pr_err("syntax error.\n");
 			} else {
 				if (kstrtouint(argv[1], 16, &tmp) == 0)
-					addr = tmp;
+					tvafe_reg_addr = tmp;
 				else
 					break;
-				if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) && addr < TOP_BASE_ADD) {
+				if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) &&
+					tvafe_reg_addr < TOP_BASE_ADD) {
 					tvafe_pr_err("tvafe haven't opened, error!!!\n");
 					return count;
 				}
-				value = R_APB_REG(addr << 2);
+				tvafe_reg_value = R_APB_REG(tvafe_reg_addr << 2);
 				tvafe_pr_info("APB[0x%04x]=0x%08x\n",
-					addr, value);
+					tvafe_reg_addr, tvafe_reg_value);
+				tvafe_reg_flag = 1;
 			}
 			break;
 		case 'w':
@@ -967,70 +971,76 @@ static ssize_t reg_store(struct device *dev,
 				tvafe_pr_err("syntax error.\n");
 			} else {
 				if (kstrtouint(argv[1], 16, &tmp) == 0)
-					value = tmp;
+					tvafe_reg_addr = tmp;
 				else
 					break;
 				if (kstrtouint(argv[2], 16, &tmp) == 0)
-					addr = tmp;
+					tvafe_reg_value = tmp;
 				else
 					break;
-				if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) && addr < TOP_BASE_ADD) {
+				if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) &&
+					tvafe_reg_addr < TOP_BASE_ADD) {
 					tvafe_pr_err("tvafe haven't opened, error!!!\n");
 					return count;
 				}
-				W_APB_REG(addr << 2, value);
-				if (addr << 2 == CVD2_CHROMA_SATURATION_ADJUSTMENT &&
+				W_APB_REG(tvafe_reg_addr << 2, tvafe_reg_value);
+				if (tvafe_reg_addr << 2 == CVD2_CHROMA_SATURATION_ADJUSTMENT &&
 				    devp->tvafe.cvd2.config_fmt == TVIN_SIG_FMT_CVBS_PAL_I)
-					devp->tvafe.cvd2.cvd_chroma_saturation = value;
+					devp->tvafe.cvd2.cvd_chroma_saturation = tvafe_reg_value;
 				tvafe_pr_info("Write APB[0x%04x]=0x%08x\n",
-					addr, R_APB_REG(addr << 2));
+					tvafe_reg_addr, R_APB_REG(tvafe_reg_addr << 2));
+				tvafe_reg_flag = 2;
 			}
 			break;
 		case 'd':
 		/*case 'D': */
+			tvafe_reg_flag = 0xff;
 			if (arg_n < 3) {
 				tvafe_pr_err("syntax error.\n");
 			} else {
 				if (kstrtouint(argv[1], 16, &tmp) == 0)
-					addr = tmp;
+					tvafe_reg_addr = tmp;
 				else
 					break;
 				if (kstrtouint(argv[2], 16, &tmp) == 0)
 					end = tmp;
 				else
 					break;
-				if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) && addr < TOP_BASE_ADD) {
+				if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) &&
+					tvafe_reg_addr < TOP_BASE_ADD) {
 					tvafe_pr_err("tvafe haven't opened, error!!!\n");
 					return count;
 				}
-				for (; addr <= end; addr++)
+				for (; tvafe_reg_addr <= end; tvafe_reg_addr++)
 					tvafe_pr_info("APB[0x%04x]=0x%08x\n",
-					addr, R_APB_REG(addr << 2));
+					tvafe_reg_addr, R_APB_REG(tvafe_reg_addr << 2));
 			}
 			break;
 		case 'D':
+			tvafe_reg_flag = 0xff;
 			if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
 				tvafe_pr_err("tvafe haven't opened, error!!!\n");
 				return count;
 			}
 			tvafe_pr_info("dump TOP reg----\n");
-			for (addr = TOP_BASE_ADD;
-				addr <= (TOP_BASE_ADD + 0xb2); addr++)
+			for (tvafe_reg_addr = TOP_BASE_ADD;
+				tvafe_reg_addr <= (TOP_BASE_ADD + 0xb2); tvafe_reg_addr++)
 				tvafe_pr_info("APB[0x%04x]=0x%08x\n",
-					      addr, R_APB_REG(addr << 2));
+					      tvafe_reg_addr, R_APB_REG(tvafe_reg_addr << 2));
 			tvafe_pr_info("dump ACD reg----\n");
-			for (addr = ACD_BASE_ADD;
-				addr <= (ACD_BASE_ADD + 0xc2); addr++)
+			for (tvafe_reg_addr = ACD_BASE_ADD;
+				tvafe_reg_addr <= (ACD_BASE_ADD + 0xc2); tvafe_reg_addr++)
 				tvafe_pr_info("APB[0x%04x]=0x%08x\n",
-					      addr, R_APB_REG(addr << 2));
+					      tvafe_reg_addr, R_APB_REG(tvafe_reg_addr << 2));
 			tvafe_pr_info("dump CVD2 reg----\n");
-			for (addr = CVD_BASE_ADD;
-				addr <= (CVD_BASE_ADD + 0xfe); addr++)
+			for (tvafe_reg_addr = CVD_BASE_ADD;
+				tvafe_reg_addr <= (CVD_BASE_ADD + 0xfe); tvafe_reg_addr++)
 				tvafe_pr_info("APB[0x%04x]=0x%08x\n",
-					      addr, R_APB_REG(addr << 2));
+					      tvafe_reg_addr, R_APB_REG(tvafe_reg_addr << 2));
 			tvafe_pr_info("dump reg done----\n");
 			break;
 		default:
+			tvafe_reg_flag = 0xff;
 			tvafe_pr_err("not support.\n");
 			break;
 	}
@@ -1041,18 +1051,25 @@ static ssize_t reg_store(struct device *dev,
 static ssize_t reg_show(struct device *dev,
 		struct device_attribute *attr, char *buff)
 {
-	ssize_t len = 0;
+	struct tvafe_dev_s *devp;
+	unsigned int temp;
+	ssize_t ret = 0;
 
-	len += sprintf(buff + len, "Usage:\n");
-	len += sprintf(buff + len,
-		"\t echo [read|write <date>] addr > reg;Access ATV DEMON/TVAFE/HDMIRX logic address.\n");
-	len += sprintf(buff + len,
-		"\t echo dump <start> <end> > reg;Dump ATV DEMON/TVAFE/HDMIRX logic address.\n");
-	len += sprintf(buff + len,
-		"Address format:\n");
-	len += sprintf(buff + len,
-		"\t addr    : 0xXXXX, 16 bits register address\n");
-	return len;
+	devp = dev_get_drvdata(dev);
+
+	if (!devp || !(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
+		tvafe_pr_err("tvafe haven't opened, error!\n");
+		return ret;
+	}
+
+	if (tvafe_reg_flag == 1 || tvafe_reg_flag == 2) {
+		temp = R_APB_REG(tvafe_reg_addr << 2);
+		ret = sprintf(buff, "[0x%04x] = 0x%08x\n",
+			tvafe_reg_addr, temp);
+		return ret;
+	}
+
+	return ret;
 }
 
 static DEVICE_ATTR_RW(reg);
