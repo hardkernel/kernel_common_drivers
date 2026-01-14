@@ -1034,7 +1034,7 @@ void bl_lcd_on_ctrl(struct aml_lcd_drv_s *pdrv)
 	}
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.bl_on_time = local_time[1] - local_time[0];
+	pdrv->proc_time.bl_on_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 }
 
 void bl_lcd_off_ctrl(struct aml_lcd_drv_s *pdrv)
@@ -1070,7 +1070,7 @@ void bl_lcd_off_ctrl(struct aml_lcd_drv_s *pdrv)
 	mutex_unlock(&bl_level_mutex);
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.bl_off_time = local_time[1] - local_time[0];
+	pdrv->proc_time.bl_off_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 }
 
 static int bl_power_ctrl_notifier(struct notifier_block *nb,

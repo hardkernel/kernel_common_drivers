@@ -1458,6 +1458,9 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 
 	/* step 1: tcon top */
 	//lcd_tcon_top_set_t5(pdrv);
+	/* tcon_top_output_set */
+	lcd_tcon_write(pdrv, TCON_OUT_CH_SEL0, 0x76543210);
+	lcd_tcon_write(pdrv, TCON_OUT_CH_SEL1, 0xba98);
 
 	/* step 2: tcon_core_reg_update */
 	local_time[0] = sched_clock();
@@ -1477,11 +1480,6 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	local_time[1] = sched_clock();
 	if (mm_table->version < 0xff)
 		lcd_tcon_data_set(pdrv, mm_table);
-	local_time[2] = sched_clock();
-
-	/* step 4: tcon_top_output_set */
-	lcd_tcon_write(pdrv, TCON_OUT_CH_SEL0, 0x76543210);
-	lcd_tcon_write(pdrv, TCON_OUT_CH_SEL1, 0xba98);
 
 	/* step 5: tcon_intr_mask */
 	lcd_tcon_write(pdrv, TCON_INTR_MASKN, TCON_INTR_MASKN_VAL);
@@ -1490,20 +1488,18 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	//lcd_tcon_setb(pdrv, 0x207, 1, 4, 1);//enable pre_proc_clk, move to init_post_proc
 
 	tcon_ip27_setup(pdrv);
+	local_time[2] = sched_clock();
 
-	pdrv->proc_time.tcon_reg_time = local_time[1] - local_time[0];
-	pdrv->proc_time.tcon_data_time = local_time[2] - local_time[1];
+	pdrv->proc_time.tcon_reg_time = lcd_do_div(local_time[1] - local_time[0], 1000);
+	pdrv->proc_time.tcon_data_time = lcd_do_div(local_time[2] - local_time[1], 1000);
 
 	return 0;
 }
 
 int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned long long local_time[2];
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
 	struct lcd_tcon_local_cfg_s *tcon_local = get_lcd_tcon_local_cfg();
-
-	local_time[0] = sched_clock();
 
 	if (!pdrv || !tcon_conf || !tcon_local)
 		return 0;
@@ -1541,18 +1537,12 @@ int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv)
 	//move to tcon_disable api for common flow
 	//lcd_tcon_global_reset_t5(pdrv);
 
-	local_time[1] = sched_clock();
-	pdrv->proc_time.tcon_off_time = local_time[1] - local_time[0];
-
 	return 0;
 }
 
 int lcd_tcon_disable_txhd2(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned long long local_time[2];
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
-
-	local_time[0] = sched_clock();
 
 	if (!tcon_conf)
 		return 0;
@@ -1585,9 +1575,6 @@ int lcd_tcon_disable_txhd2(struct aml_lcd_drv_s *pdrv)
 
 	//move to tcon_disable api for common flow
 	//lcd_tcon_global_reset_t5(pdrv);
-
-	local_time[1] = sched_clock();
-	pdrv->proc_time.tcon_off_time = local_time[1] - local_time[0];
 
 	return 0;
 }

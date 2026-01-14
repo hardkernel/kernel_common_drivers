@@ -614,27 +614,29 @@ enum lcd_phy_set_status {
 };
 
 struct lcd_time_s {
-	unsigned long long mute_time;
-	unsigned long long unmute_time;
-	unsigned long long switch_off_time;
-	unsigned long long switch_on_time;
-	unsigned long long bl_off_time;
-	unsigned long long bl_on_time;
-	unsigned long long driver_change_time;
-	unsigned long long signal_off_time;
-	unsigned long long signal_on_time;
-	unsigned long long tcon_off_time;
-	unsigned long long tcon_on_time;
-	unsigned long long tcon_reg_time;
-	unsigned long long tcon_data_time;
-	unsigned long long extern_init_time;
-	unsigned long long power_off_time;
-	unsigned long long power_on_time;
 	unsigned long long switch_start_time;
-	unsigned long long switch_full_time;
+	unsigned int mute_time;
+	unsigned int unmute_time;
+	unsigned int switch_off_time;
+	unsigned int switch_on_time;
+	unsigned int bl_off_time;
+	unsigned int bl_on_time;
+	unsigned int driver_change_time;
+	unsigned int signal_off_time;
+	unsigned int signal_on_time;
+	unsigned int tcon_off_time;
+	unsigned int tcon_on_time;
+	unsigned int tcon_reg_time;
+	unsigned int tcon_data_time;
+	unsigned int extern_init_time;
+	unsigned int power_off_time;
+	unsigned int power_on_time;
+	unsigned int switch_full_time;
 
-	unsigned long long lcd_vs_isr_time;
-	unsigned long long tcon_vs_isr_time;
+	unsigned int lcd_vs_isr_time;
+	unsigned int tcon_vs_isr_time;
+
+	unsigned int vs_isr_time[5];
 };
 
 struct lcd_power_ctrl_s {

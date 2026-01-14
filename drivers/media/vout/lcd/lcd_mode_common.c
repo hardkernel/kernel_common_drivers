@@ -312,7 +312,7 @@ void lcd_mode_vmode_switch(struct aml_lcd_drv_s *pdrv)
 		aml_lcd_notifier_call_chain(pdrv->switch_off_event, (void *)pdrv);
 	}
 	local_time[1] = sched_clock();
-	pdrv->proc_time.switch_off_time = local_time[1] - local_time[0];
+	pdrv->proc_time.switch_off_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 
 	//step 2: driver change
 	if (pdrv->status & LCD_STATE_PREPARE) {

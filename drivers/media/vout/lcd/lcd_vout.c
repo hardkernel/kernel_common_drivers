@@ -530,11 +530,13 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 			if (status) {
 				lcd_connector_driver_init(pdrv);
 				local_time[1] = sched_clock();
-				pdrv->proc_time.signal_on_time = local_time[1] - local_time[0];
+				pdrv->proc_time.signal_on_time =
+					lcd_do_div(local_time[1] - local_time[0], 1000);
 			} else {
 				lcd_connector_driver_disable(pdrv);
 				local_time[1] = sched_clock();
-				pdrv->proc_time.signal_off_time = local_time[1] - local_time[0];
+				pdrv->proc_time.signal_off_time =
+					lcd_do_div(local_time[1] - local_time[0], 1000);
 			}
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
@@ -551,7 +553,8 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 				else
 					LCD_ERR(pdrv, "no ext_%d power on", index);
 				local_time[1] = sched_clock();
-				pdrv->proc_time.extern_init_time = local_time[1] - local_time[0];
+				pdrv->proc_time.extern_init_time =
+					lcd_do_div(local_time[1] - local_time[0], 1000);
 			} else {
 				if (edev->power_off)
 					edev->power_off(edrv, edev);
@@ -643,11 +646,13 @@ static void lcd_mode_switch_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 			if (status) {
 				lcd_connector_driver_init(pdrv);
 				local_time[1] = sched_clock();
-				pdrv->proc_time.signal_on_time = local_time[1] - local_time[0];
+				pdrv->proc_time.signal_on_time =
+					lcd_do_div(local_time[1] - local_time[0], 1000);
 			} else {
 				lcd_connector_driver_disable(pdrv);
 				local_time[1] = sched_clock();
-				pdrv->proc_time.signal_off_time = local_time[1] - local_time[0];
+				pdrv->proc_time.signal_off_time =
+					lcd_do_div(local_time[1] - local_time[0], 1000);
 			}
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
@@ -668,7 +673,8 @@ static void lcd_mode_switch_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 				else
 					LCDERR("[%d]: no ext_%d power on\n", pdrv->index, index);
 				local_time[1] = sched_clock();
-				pdrv->proc_time.extern_init_time = local_time[1] - local_time[0];
+				pdrv->proc_time.extern_init_time =
+					lcd_do_div(local_time[1] - local_time[0], 1000);
 			} else {
 				if (edev->power_off)
 					edev->power_off(edrv, edev);
@@ -751,7 +757,8 @@ static void lcd_mode_switch_data_on(struct aml_lcd_drv_s *pdrv)
 			else
 				LCDERR("[%d]: no ext_%d power on\n", pdrv->index, index);
 			local_time[1] = sched_clock();
-			pdrv->proc_time.extern_init_time = local_time[1] - local_time[0];
+			pdrv->proc_time.extern_init_time =
+				lcd_do_div(local_time[1] - local_time[0], 1000);
 			if (edrv->exit_break)
 				return;
 			break;
@@ -1025,7 +1032,7 @@ void lcd_power_screen_black(struct aml_lcd_drv_s *pdrv)
 			LCD_ERR(pdrv, "%s: wait_completion timeout", __func__);
 	}
 	local_time[1] = sched_clock();
-	pdrv->proc_time.mute_time = local_time[1] - local_time[0];
+	pdrv->proc_time.mute_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 }
 
 void lcd_power_screen_restore(struct aml_lcd_drv_s *pdrv)
@@ -1059,7 +1066,7 @@ void lcd_power_screen_restore(struct aml_lcd_drv_s *pdrv)
 	pdrv->mute_flag = 0;
 	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 	local_time[1] = sched_clock();
-	pdrv->proc_time.unmute_time = local_time[1] - local_time[0];
+	pdrv->proc_time.unmute_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 }
 
 void lcd_module_reset(struct aml_lcd_drv_s *pdrv)
@@ -1104,8 +1111,9 @@ static void lcd_mode_switch_on_work(struct work_struct *work)
 	mutex_unlock(&lcd_power_mutex);
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.switch_on_time = local_time[1] - local_time[0];
-	pdrv->proc_time.switch_full_time = local_time[1] - pdrv->proc_time.switch_start_time;
+	pdrv->proc_time.switch_on_time = lcd_do_div(local_time[1] - local_time[0], 1000);
+	pdrv->proc_time.switch_full_time =
+		lcd_do_div(local_time[1] - pdrv->proc_time.switch_start_time, 1000);
 }
 
 void lcd_late_resume(struct aml_lcd_drv_s *pdrv)
@@ -1196,19 +1204,34 @@ static void lcd_auto_test_func(struct aml_lcd_drv_s *pdrv)
 	lcd_queue_delayed_work(&pdrv->test_delayed_work, 20000);
 }
 
+static void lcd_isr_time_sort_save(unsigned int *table, unsigned int data)
+{
+	int i, j;
+
+	for (i = 4; i >= 0; i--) {
+		if (data > table[i]) {
+			for (j = 0; j < i; j++)
+				table[j] = table[j + 1];
+			table[i] = data;
+			break;
+		}
+	}
+}
+
 static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned long long local_time[2];
 	unsigned long flags = 0;
 	unsigned int temp;
 	unsigned long long duration;
-	unsigned int fr;
+	unsigned int fr, line[2];
 
 	if (!pdrv)
 		return;
 
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
 	local_time[0] = sched_clock();
+	line[0] = lcd_get_encl_line_cnt(pdrv);
 
 	lcd_fr_lock(pdrv);
 	lcd_sw_vrr_proc(pdrv);
@@ -1313,10 +1336,17 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 	}
 	pdrv->vsync_cnt++;
 	pdrv->vs_time = local_time[0];
+	local_time[1] = sched_clock();
+	line[1] = lcd_get_encl_line_cnt(pdrv);
+	temp = lcd_do_div(local_time[1] - local_time[0], 1000);
+	pdrv->proc_time.lcd_vs_isr_time = temp;
+	lcd_isr_time_sort_save(pdrv->proc_time.vs_isr_time, temp);
 	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 
-	local_time[1] = sched_clock();
-	pdrv->proc_time.lcd_vs_isr_time = local_time[1] - local_time[0];
+	if (line[1] < line[0]) {
+		LCD_ERR(pdrv, "vsync_handler: over frame error! enter: %d, exit: %d",
+			line[0], line[1]);
+	}
 }
 
 static irqreturn_t lcd_vsync_isr(int irq, void *data)
@@ -1524,7 +1554,7 @@ static int lcd_mode_switch_data_on_notifier(struct notifier_block *nb,
 	lcd_mode_switch_data_on(pdrv);
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.signal_on_time = local_time[1] - local_time[0];
+	pdrv->proc_time.signal_on_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 
 	return NOTIFY_OK;
 }
@@ -1558,7 +1588,7 @@ static int lcd_mode_switch_data_off_notifier(struct notifier_block *nb,
 	}
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.signal_off_time = local_time[1] - local_time[0];
+	pdrv->proc_time.signal_off_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 
 	return NOTIFY_OK;
 }
@@ -1590,7 +1620,7 @@ static int lcd_mode_switch_power_on_notifier(struct notifier_block *nb,
 	lcd_mode_switch_power_on(pdrv);
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.power_on_time = local_time[1] - local_time[0];
+	pdrv->proc_time.power_on_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 
 	return NOTIFY_OK;
 }
@@ -1622,7 +1652,7 @@ static int lcd_mode_switch_power_off_notifier(struct notifier_block *nb,
 	lcd_mode_switch_power_off(pdrv);
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.power_off_time = local_time[1] - local_time[0];
+	pdrv->proc_time.power_off_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 
 	return NOTIFY_OK;
 }
@@ -1659,7 +1689,7 @@ static int lcd_power_if_on_notifier(struct notifier_block *nb,
 	lcd_power_if_on(pdrv);
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.power_on_time = local_time[1] - local_time[0];
+	pdrv->proc_time.power_on_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 
 	return NOTIFY_OK;
 }
@@ -1691,7 +1721,7 @@ static int lcd_power_if_off_notifier(struct notifier_block *nb,
 	lcd_power_if_off(pdrv);
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.power_off_time = local_time[1] - local_time[0];
+	pdrv->proc_time.power_off_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 
 	return NOTIFY_OK;
 }

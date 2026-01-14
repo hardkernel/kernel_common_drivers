@@ -628,29 +628,36 @@ static ssize_t lcd_proc_time_show(struct device *dev, struct device_attribute *a
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	ssize_t len = 0;
+	int i;
 
-	len = sprintf(buf, "switch times attr:\n"
-		"switch_type:    0x%x\n"
-		"mute_time:        %llu\n"
-		"bl_off_time:      %llu\n"
-		"switch_off_time:  %llu\n"
-		"tcon_off_time:    %llu\n"
-		"signal_off_time:  %llu\n"
-		"power_off_time:   %llu\n"
-		"signal_on_time:   %llu\n"
-		"drv_change_time:  %llu\n"
-		"extern_init_time: %llu\n"
-		"tcon_reg_time:    %llu\n"
-		"tcon_data_time:   %llu\n"
-		"tcon_on_time:     %llu\n"
-		"power_on_time:    %llu\n"
-		"switch_on_time:   %llu\n"
-		"bl_on_time:       %llu\n"
-		"unmute_time:      %llu\n"
-		"switch_full_time: %llu\n\n"
-		"lcd_vs_isr_time:  %llu\n"
-		"tcon_vs_isr_time: %llu\n\n",
-		pdrv->curr_dev->dev_cfg.timing.switch_type,
+	len = sprintf(buf, "lcd_vs_isr cost max[5](us):");
+	for (i = 0; i < 5; i++)
+		len += sprintf(buf + len, " %d", pdrv->proc_time.vs_isr_time[i]);
+
+	if (pdrv->curr_dev) {
+		len += sprintf(buf + len, "\n\nswitch_type: 0x%x\n",
+			pdrv->curr_dev->dev_cfg.timing.switch_type);
+	}
+	len += sprintf(buf + len, "proc times(us):\n"
+		"mute:        %u\n"
+		"bl_off:      %u\n"
+		"switch_off:  %u\n"
+		"tcon_off:    %u\n"
+		"signal_off:  %u\n"
+		"power_off:   %u\n"
+		"signal_on:   %u\n"
+		"drv_change:  %u\n"
+		"extern_init: %u\n"
+		"tcon_reg:    %u\n"
+		"tcon_data:   %u\n"
+		"tcon_on:     %u\n"
+		"power_on:    %u\n"
+		"switch_on:   %u\n"
+		"bl_on:       %u\n"
+		"unmute:      %u\n"
+		"switch_full: %u\n\n"
+		"lcd_vs_isr:  %u\n"
+		"tcon_vs_isr: %u\n\n",
 		pdrv->proc_time.mute_time,
 		pdrv->proc_time.bl_off_time,
 		pdrv->proc_time.switch_off_time,
@@ -672,6 +679,19 @@ static ssize_t lcd_proc_time_show(struct device *dev, struct device_attribute *a
 		pdrv->proc_time.tcon_vs_isr_time);
 
 	return len;
+}
+
+static ssize_t lcd_proc_time_store(struct device *dev, struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+
+	if (buf[0] == 'c') { //clear
+		lcd_proc_time_clear(pdrv);
+		LCD_PR(pdrv, "lcd proc time cleared");
+	}
+
+	return count;
 }
 
 #ifdef CONFIG_AMLOGIC_LCD_TCON
@@ -4941,7 +4961,7 @@ static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(prbs,        0644, lcd_debug_prbs_show, lcd_debug_prbs_store),
 	__ATTR(reg,         0200, NULL, lcd_debug_reg_store),
 	__ATTR(vlock,       0444, lcd_debug_vlock_show, NULL),
-	__ATTR(time,        0444, lcd_proc_time_show, NULL),
+	__ATTR(time,        0644, lcd_proc_time_show, lcd_proc_time_store),
 	__ATTR(dump,        0644, lcd_debug_dump_show, lcd_debug_dump_store),
 	__ATTR(print,       0644, lcd_debug_print_show, lcd_debug_print_store),
 	__ATTR(cus_ctrl,    0200, NULL, lcd_debug_cus_ctrl_store),

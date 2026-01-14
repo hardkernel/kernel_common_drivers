@@ -836,7 +836,7 @@ int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv)
 	}
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.tcon_off_time = local_time[1] - local_time[0];
+	pdrv->proc_time.tcon_off_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 
 	return 0;
 }
@@ -861,7 +861,7 @@ int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv)
 	tcon_fw->tcon_state |= TCON_FW_STATE_TCON_EN;
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.tcon_on_time = local_time[1] - local_time[0];
+	pdrv->proc_time.tcon_on_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 
 	return 0;
 }
@@ -884,7 +884,7 @@ int lcd_tcon_enable(struct aml_lcd_drv_s *pdrv)
 	tcon_fw->tcon_state |= TCON_FW_STATE_TCON_EN;
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.tcon_on_time = local_time[1] - local_time[0];
+	pdrv->proc_time.tcon_on_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 
 	return 0;
 }
@@ -918,7 +918,7 @@ void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv)
 	}
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.tcon_off_time = local_time[1] - local_time[0];
+	pdrv->proc_time.tcon_off_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 }
 
 int lcd_tcon_top_init(struct aml_lcd_drv_s *pdrv)
@@ -1750,7 +1750,7 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 		tcon_fw->vsync_isr(tcon_fw);
 
 	local_time[1] = sched_clock();
-	pdrv->proc_time.tcon_vs_isr_time = local_time[1] - local_time[0];
+	pdrv->proc_time.tcon_vs_isr_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 }
 
 /* **********************************

@@ -150,7 +150,7 @@ void lcd_connector_driver_change(struct aml_lcd_drv_s *pdrv)
 
 	LCD_DBG(pdrv, "%s finished", __func__);
 	local_time[1] = sched_clock();
-	pdrv->proc_time.driver_change_time = local_time[1] - local_time[0];
+	pdrv->proc_time.driver_change_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 }
 
 void lcd_connector_driver_init(struct aml_lcd_drv_s *pdrv)
