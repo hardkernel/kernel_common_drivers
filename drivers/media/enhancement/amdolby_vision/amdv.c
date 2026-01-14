@@ -4870,6 +4870,8 @@ static int amdv_policy_process_v1(struct vframe_s *vf,
 		} else {
 			w = vf->width;
 			h = vf->height;
+			w -= (vf->crop[1] + vf->crop[3]);
+			h -= (vf->crop[0] + vf->crop[2]);
 		}
 		if ((w > 4096 || h > 2160) &&
 			!support_8k_amdv())  {
@@ -5248,6 +5250,8 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 		} else {
 			w = vf->width;
 			h = vf->height;
+			w -= (vf->crop[1] + vf->crop[3]);
+			h -= (vf->crop[0] + vf->crop[2]);
 		}
 		if ((w > 4096 || h > 2160) &&
 			!support_8k_amdv())  {
