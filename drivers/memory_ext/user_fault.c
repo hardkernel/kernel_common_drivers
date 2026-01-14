@@ -975,6 +975,17 @@ static struct kretprobe unhandled_signal_krp = {
 	.data_size = sizeof(int),
 };
 
+static void __show_regs_alloc_free(struct pt_regs *regs)
+{
+	int i;
+
+	/* check for x0 - x30 only */
+	for (i = 0; i < 31; i++) {
+		pr_alert("Register r%d information:", i);
+		mem_dump_obj((void *)regs->regs[i]);
+	}
+}
+
 static void __kprobes show_regs_handler_post(struct kprobe *p,
 				struct pt_regs *param_regs, unsigned long flags)
 {
@@ -991,6 +1002,7 @@ static void __kprobes show_regs_handler_post(struct kprobe *p,
 
 	show_user_fault_info(regs, lr, sp);
 	show_extra_reg_data(regs);
+	__show_regs_alloc_free(regs);
 }
 
 static void __kprobes bad_el0_sync_handler_post(struct kprobe *p,
