@@ -514,6 +514,7 @@ static void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt,
 
 	mutex_lock(&devp->afe_mutex);
 	manual_flag = 0;
+	atv_std_flag = 0;
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
 		tvafe_pr_err("%s:(%d) decode haven't opened\n",
 			     __func__, devp->index);
@@ -1439,15 +1440,12 @@ static long tvafe_ioctl(struct file *file,
 			break;
 		}
 		tvafe->cvd2.manual_fmt = fmt;
-		tvafe_pr_info("%s: ioctl set cvd2 manual fmt:%s.\n",
-			__func__, tvin_sig_fmt_str(fmt));
-		if (fmt != TVIN_SIG_FMT_NULL)
+		if (fmt != TVIN_SIG_FMT_NULL) {
 			manual_flag = 1;
-		if (tvin_get_sm_status(tvafe->parm.index)
-				== TVIN_SM_STATUS_NOSIG) {
-			tvafe_pr_info("%s: reset_tvin_smr.\n", __func__);
-			reset_tvin_smr(tvafe->parm.index);
+			atv_std_flag  = 1;
 		}
+		tvafe_pr_info("ioctl set cvd2 manual fmt:%s.man_flag:%d,atv_std_flag:%d\n",
+			tvin_sig_fmt_str(fmt), manual_flag, atv_std_flag);
 		break;
 	case TVIN_IOC_G_AFE_CVBS_STD:
 		if (tvafe->cvd2.info.state == TVAFE_CVD2_STATE_FIND)

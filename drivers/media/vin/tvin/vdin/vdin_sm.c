@@ -44,6 +44,7 @@ static int atv_stable_fmt_check_enable;
 static int hdmi_prestable_out_cnt = 3;
 static int manual_unstable_out_cnt = 20;
 bool manual_flag;
+bool atv_std_flag;
 
 //#ifdef DEBUG_SUPPORT
 static int signal_status = TVIN_SIG_STATUS_NULL;
@@ -501,6 +502,9 @@ static inline bool vdin_is_need_send_event(struct vdin_dev_s *devp,
 	    ((devp->flags & VDIN_FLAG_DEC_STARTED &&
 	      info->status == TVIN_SIG_STATUS_UNSTABLE &&
 	      !(devp->vdin_stable_cnt % VDIN_SEND_EVENT_INTERVAL)) ||
+	      (!(devp->flags & VDIN_FLAG_DEC_STARTED) &&
+	      info->status == TVIN_SIG_STATUS_NOSIG &&
+	      atv_std_flag && (devp->vdin_nosig_cnt >= 20)) ||
 	     (!(devp->flags & VDIN_FLAG_DEC_STARTED) &&
 	      info->status == TVIN_SIG_STATUS_STABLE &&
 	      devp->vdin_stable_cnt >= VDIN_STABLED_CNT &&
@@ -822,6 +826,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 			tvafe_snow_config_clamp(1);
 #endif
 		if (sm_ops->nosig(devp->frontend, devp->port_type)) {
+			if (IS_TVAFE_ATV_SRC(port) && atv_std_flag)
+				devp->vdin_nosig_cnt++;
 			sm_p->exit_nosig_cnt = 0;
 			if (sm_p->state_cnt >= devp->dts_config.nosig_in_cnt) {
 				sm_p->state_cnt = devp->dts_config.nosig_in_cnt;
@@ -852,6 +858,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 					devp->dts_config.nosig2_unstable_cnt = 5;
 
 				sm_print_nosig  = 0;
+				devp->vdin_nosig_cnt = 0;
 			}
 		}
 		break;
@@ -1202,6 +1209,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 			devp->pre_event_info.event_sts =
 				devp->event_info.event_sts;
 			vdin_send_event(devp, devp->event_info.event_sts);
+			devp->vdin_nosig_cnt = 0;
+			atv_std_flag = 0;
 			wake_up(&devp->queue);
 		}
 	}

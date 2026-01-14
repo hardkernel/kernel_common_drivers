@@ -2326,6 +2326,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->prop.macrovision_sts = 0;
 	devp->starting_chg = 0;
 	devp->vdin_stable_cnt = 0;
+	devp->vdin_nosig_cnt = 0;
 	devp->game_mode = 0;
 	devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
 	devp->common_divisor = 0;

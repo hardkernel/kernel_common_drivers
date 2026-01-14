@@ -1371,6 +1371,7 @@ struct vdin_dev_s {
 	unsigned int self_stop_start;
 	unsigned int quit_flag;
 	unsigned int vdin_stable_cnt;
+	unsigned int vdin_nosig_cnt;
 	struct task_struct *kthread;
 	struct completion thd_completion;
 	struct vf_entry *vfe_tmp;

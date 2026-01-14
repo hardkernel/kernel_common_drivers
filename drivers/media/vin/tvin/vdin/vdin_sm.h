@@ -27,7 +27,7 @@ enum tvin_sm_status_e {
 #define RE_CONFIG_HDR_EN	0x02
 #define RE_CONFIG_ALLM_EN	0x04
 
-#define VDIN_STABLED_CNT		200
+#define VDIN_STABLED_CNT		50 /* no start_dec stable_cnt */
 #define VDIN_SEND_EVENT_INTERVAL	50 /* Experience value can be adjusted */
 
 #define VDIN_HIGH_FRAME_RATE_TH		100
@@ -59,6 +59,7 @@ struct tvin_sm_s {
 };
 
 extern bool manual_flag;
+extern bool atv_std_flag;
 extern unsigned int vdin_get_prop_in_sm_en;
 
 void tvin_smr(struct vdin_dev_s *pdev);
