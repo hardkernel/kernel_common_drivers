@@ -263,6 +263,7 @@ struct PRM_DPSS_LCEVC {
 	u32 src1_head_cbaddr;
 	u32 src1_body_cbaddr;
 	u32 src1_is_cmpr;
+	u32 src1_bit;
 	u32 src2_frm_hsize;
 	u32 src2_frm_vsize;
 	u32 src2_ybaddr;

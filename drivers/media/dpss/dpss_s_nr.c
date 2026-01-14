@@ -1103,7 +1103,7 @@ void dpss_val_user(struct dpss_ch_s *pch,
 	unsigned int src;
 
 	if (dpss_en_lcevc & C_BIT0) {
-		prm_user->dpss_mode	   = DPSS_NR_SRC0_MODE;
+		prm_user->dpss_mode	   = DPSS_FRC_NR_MODE;
 
 		prm_user->dae_nr_mode		=  DAE_BYPS_MODE;
 		prm_user->dpe_nr_mode		=  DPE_NR_BYPS;
@@ -1111,7 +1111,7 @@ void dpss_val_user(struct dpss_ch_s *pch,
 		prm_user->src_mode		= 0;
 		prm_user->cfg_slc = 1;
 
-		pch->c.case_id = TST_CASE_IDX_0000;
+		pch->c.case_id = TST_CASE_IDX_0102;
 
 		dbg_i0("%s: lcevc case_id=%d\n", __func__, pch->c.case_id);
 		return;
@@ -2243,6 +2243,7 @@ void nr_lcevc_vf_parser(struct dpss_ch_s *pch, struct vframe_s *vf,
 	lv->src1_frm_hsize = vf_m->compWidth;
 	lv->src1_frm_vsize = vf_m->compHeight;
 	lv->src1_is_cmpr = 1;
+	lv->src1_bit = vf_m->bitdepth;
 	lv->dbg_cfg = dpss_dbg_lcevc_cfg;
 	lv->src2_frm_hsize = prm_top->frm_hsize;
 	lv->src2_frm_vsize = prm_top->frm_vsize;
@@ -2888,6 +2889,14 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 		prm_dpe->dcntr_en = 1;
 		prm_dpe->dcntr_en_bk = 1;
 		prm_top->dct_ahead_dv_mode = 1;
+
+		if (dpss_en_lcevc) {
+			prm_dae->dctgrd_en = 0;
+			prm_dpe->dcntr_en = 0;
+			prm_dpe->dcntr_en_bk = 0;
+			dbg_h0("enable lcevc,need dct off\n");
+		}
+
 		pchip_st = dpss_get_frc_st();
 		if (!pchip_st)
 			return;

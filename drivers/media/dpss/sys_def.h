@@ -171,7 +171,7 @@ extern unsigned int dpss_afrc_y;
 extern unsigned int dpss_afrc_c;
 extern unsigned int afrc_dict_mode_y;
 extern unsigned int afrc_dict_mode_c;
-extern unsigned int dpss_lcevc_en;
+extern unsigned int dpss_en_lcevc;
 extern unsigned int dpss_di_debug;
 extern unsigned int dpss_force_nr_debug;
 extern unsigned int pq_update;

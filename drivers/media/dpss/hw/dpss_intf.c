@@ -3242,7 +3242,7 @@ void hw_cfg_mc_sub_rdmif(struct PRM_INTF_TYPE *prm_mif, s32 mif_index,
 void cfg_lcevc_top(u32 lcevc_en, u32 src1_frm_hsize,	//normal_afbcd_hsize, input
 		u32 src1_frm_vsize, u32 src1_head_ybaddr,
 		u32 src1_body_ybaddr, u32 src1_head_cbaddr,
-		u32 src1_body_cbaddr, u32 src1_is_cmpr,
+		u32 src1_body_cbaddr, u32 src1_is_cmpr, u32 src1_bit,
 		u32 src2_frm_hsize,	//luma_only_hsize, input
 		u32 src2_frm_vsize, u32 src2_ybaddr, u32 src2_cbaddr,
 		u32 frm_hsize_out, u32 frm_vsize_out, u32 inst_sel,
@@ -3429,7 +3429,21 @@ void cfg_lcevc_top(u32 lcevc_en, u32 src1_frm_hsize,	//normal_afbcd_hsize, input
 			vfcd0.src_fmt = 2;	//force fmt_420
 			vfcd0.compbits_y = 10;
 			vfcd0.compbits_c = 10;
-			dbg_h2("mmu_mode_en=%d\n", vfcd0.mmu_mode_en);
+			if (src1_bit & BITDEPTH_Y10) {
+				vfcd0.compbits_y = 10;
+				vfcd0.compbits_c = 10;
+			} else if (src1_bit & BITDEPTH_Y12) {
+				vfcd0.compbits_y = 12;
+				vfcd0.compbits_c = 12;
+			} else {
+				vfcd0.compbits_y = 8;
+				vfcd0.compbits_c = 8;
+			}
+
+			vfcd0.afbcd.dos_uncomp = 1;
+
+			dbg_h2("vfcd0.compbits_y=%d mmu_mode_en=%d\n",
+				vfcd0.compbits_y, vfcd0.mmu_mode_en);
 			cfg_vfcd_dec(0, &vfcd0);	//nr din cur
 
 		} else {	//MIF SRC
@@ -3441,6 +3455,12 @@ void cfg_lcevc_top(u32 lcevc_en, u32 src1_frm_hsize,	//normal_afbcd_hsize, input
 			pix_rmif0.src_fmt = YUV422;	//YUV444/YUV422/YUV420/RGB
 			pix_rmif0.src_plan = PLANAR_X2;
 			pix_rmif0.src_bit = BIT_010;
+			if (src1_bit & BITDEPTH_Y10)
+				pix_rmif0.src_bit = BIT_010;
+			else if (src1_bit & BITDEPTH_Y12)
+				pix_rmif0.src_bit = BIT_012;
+			else
+				pix_rmif0.src_bit = BIT_008;
 			pix_rmif0.src_cmpr = CMPR_UN;	//un/afbc/afrc
 			pix_rmif0.interlace = IS_PSRC;	//IS_PSRC/IS_ISRC
 

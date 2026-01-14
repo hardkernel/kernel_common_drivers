@@ -32,6 +32,8 @@ module_param_named(bbd_mode, bbd_mode, uint, 0664);
 bool bb_en;
 module_param_named(bb_en, bb_en, bool, 0664);
 
+bool last_lcevc;
+
 void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 	struct PRM_DPSS_TOP  *prm_top,
 	struct PRM_DPSS_DPE  *prm_dpe,
@@ -119,9 +121,9 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 	u32 aa_pad = (nr_pps_cfg->pps_en | prm_top->nr_aapps_on) ? 16 :
 			prm_dpe->aa_pad_assign_en == 0 ? 8 : prm_dpe->aa_pad;
 
-	if (dpss_lcevc_en) {
-		dbg_h2("%s: enable lcevc.\n", __func__);
+	if (dpss_en_lcevc) {
 		aa_pad = 0;
+		dbg_h2("lcevc chg aa_pad\n");
 	}
 
 	u32 vbe_pad = (dpe_mode == DPE_NR_BYPS || dpe_mode == DPE_BBD_ONLY) ? 0 + aa_pad :
@@ -368,7 +370,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 		vbe_hdr_path_sel = 0;
 		dct_status = 1;
 	} else {
-		if (dpss_lcevc_en) {
+		if (dpss_en_lcevc) {
 			vbe_hdr_path_sel = 1;
 			dct_status = 1;
 		}
@@ -1177,7 +1179,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 //==================================================
 	if (prm_top->lcevc_en) {
 		dbg_h2("cfg_lcevc_top() start");
-
+		last_lcevc = 1;
 		cfg_lcevc_top(prm_top->lcevc_en, //lcevc_en,
 			prm_top->lcevc.src1_frm_hsize, //1920 //src1_frm_hsize,
 			//normal_afbcd_hsize, input
@@ -1191,6 +1193,7 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 			prm_top->lcevc.src1_body_cbaddr,//0x7200000,
 			//src1_body_baddr,
 			prm_top->lcevc.src1_is_cmpr,
+			prm_top->lcevc.src1_bit,
 			prm_top->lcevc.src2_frm_hsize,
 			//3840,//src2_frm_hsize, //luma_only_hsize, input
 			prm_top->lcevc.src2_frm_vsize,//2160,//src2_frm_vsize,
@@ -1213,7 +1216,16 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 			2,
 			prm_top->lcevc.dbg_cfg);//bld_src1_sel,
 			//1:lay2 chose src0  2:lay2 chose src1  else :close blend lay2
+	} else if (last_lcevc) {
+		w_reg_bit(DPSS_DPE_MIF_CTRL1, 0, 16, 1);
+		//bit16 = 0: auto vfcd0/1/2   bit 16= 1：mannal switch DPSS_DPE_PATH_CTRL
+		w_reg_bit_vc(VPU_AXIRD_SECURE_EN, 0, 8, 1);
+		w_reg_bit_vc(RMIF_TOP_CTRL + (0x67 - 0x65) * 256, 0, 31, 1);
+		w_reg_bit_vc(MIF0_RMIF_CTRL1 + (0x67 - 0x65) * 256, 0, 27, 2);
+		last_lcevc = 0;
+		dbg_h2("not lcevc, do reset\n");
 	}
+
 	if (prm_top->dpe_out2bbd_en == 1 && prm_top->dpe_out2bbd_mode <= 1) {
 		u32 bbd_slc_in_lft_ovlp[4];
 		u32 bbd_slc_in_rgt_ovlp[4];

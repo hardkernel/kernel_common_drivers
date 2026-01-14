@@ -151,6 +151,7 @@ void cfg_lcevc_top(u32 lcevc_en,
 			u32 src1_head_cbadd,
 			u32 src1_body_cbadd,
 			u32 src1_is_cmp,
+			u32 src1_bit,
 			u32 src2_frm_hsize,
 			u32 src2_frm_vsiz, u32 src2_ybaddr, u32 src2_cbadd,
 			//output size
