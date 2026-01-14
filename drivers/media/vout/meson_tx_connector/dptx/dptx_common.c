@@ -19,6 +19,7 @@
 #include "dpcd_reg.h"
 #include "meson_tx_task_mgr.h"
 #include "dptx_timer.h"
+#include "dptx_gtc.h"
 
 /*
  * Per dp1.4a spec chapter 5.1.4:
@@ -396,14 +397,16 @@ static void dptx_irq_hpd_process(void *para)
 	}
 
 	/* DEVICE_SERVICE_IRQ_VECTOR_ESI1: 02004 */
-	if (dprx_esi_buf[2] & BIT(0)) {
+	if (dprx_esi_buf[2] & DP_RX_GTC_MSTR_REQ_STATUS_CHANGE) {
 		/* Table 2-170 of dp1.4a spec */
-		DPTX_INFO("%s RX_GTC_PRIMARY_REQ_STATUS_CHANGE.\n", __func__);
+		dptx_gtc_stop(tx_comm);
+		DPTX_INFO("RX gtc master request change\n");
 	}
-	if (dprx_esi_buf[2] & BIT(1)) {
+	if (dprx_esi_buf[2] & DP_LOCK_ACQUISITION_REQUEST) {
 		/* Table 2-170 of dp1.4a spec */
-		DPTX_INFO("%s GTC: requesting DPTX to initiate lock acquisition.\n",
-			__func__);
+		dptx_gtc_stop(tx_comm);
+		DPTX_INFO("RX lock acquisition request\n");
+		dptx_gtc_start(tx_comm);
 	}
 
 	if (dprx_esi_buf[2] & BIT(2)) {

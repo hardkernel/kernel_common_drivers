@@ -8,7 +8,7 @@
 
 enum timer_hw_type {
 	HW_GP_TIMER = 0,
-	HW_LPM_TIMER = 1,
+	HW_LPM_TIMER = 1, /* used for GTC */
 	HW_HDCP_TIMER = 2,
 	HW_MST_TIMER = 3,
 	HW_TIMER_MAX = 4,

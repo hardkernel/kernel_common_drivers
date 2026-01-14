@@ -60,7 +60,10 @@ enum cmd_dptx_core_misc {
 	DP_TIMER_GET,
 	DP_TIMER_START,
 	DP_TIMER_STOP,
-	DP_HPD_OVER
+	DP_HPD_OVER,
+	DP_GTC_INIT,
+	DP_GTC_START,
+	DP_GTC_STOP,
 };
 
 /* 0x19 CMD_PLATFORM */

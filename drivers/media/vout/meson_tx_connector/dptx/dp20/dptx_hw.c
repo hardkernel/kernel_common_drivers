@@ -25,6 +25,7 @@
 #include "dptx_link.h"
 #include "dptx_infoframe.h"
 #include "dptx_hw_timer.h"
+#include "dptx_hw_gtc.h"
 
 /*
  * Function: dptx20_hw_calc_mst_reg
@@ -2267,6 +2268,17 @@ static int dptx20_hw_cntl_core_misc(struct meson_tx_hw *tx_hw, u32 cmd,
 		if (handler->cfg.timer_type >= HW_TIMER_MAX)
 			return -1;
 		hw_timer_init(hw_comm, handler->cfg.timer_type);
+		break;
+	case DP_GTC_INIT:
+		dptx_hw_gtc_init(hw_comm);
+		break;
+	case DP_GTC_START:
+		if (!input_argv)
+			return -1;
+		dptx_hw_gtc_start(hw_comm, *((enum gtc_working_mode *)input_argv));
+		break;
+	case DP_GTC_STOP:
+		dptx_hw_gtc_stop(hw_comm);
 		break;
 	case CORE_MISC_REG_RD_WR:
 		if (!input_argv)

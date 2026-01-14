@@ -8,4 +8,5 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DPTX) += \
 	vout/meson_tx_connector/dptx/dp20/dptx_hw.o \
 	vout/meson_tx_connector/dptx/dp20/dptx_pktmgmt.o \
 	vout/meson_tx_connector/dptx/dp20/dptx_hw_timer.o \
+	vout/meson_tx_connector/dptx/dp20/dptx_hw_gtc.o \
 	vout/meson_tx_connector/dptx/dp20/dptx_reg.o

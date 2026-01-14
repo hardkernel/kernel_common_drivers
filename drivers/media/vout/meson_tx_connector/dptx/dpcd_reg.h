@@ -337,6 +337,13 @@
  */
 #define DP_GUID                                0x030   /* 1.2 */
 
+#define DP_RX_GTC_VALUE_0                      0x054
+#define DP_RX_GTC_VALUE_1                      0x055
+#define DP_RX_GTC_VALUE_2                      0x056
+#define DP_RX_GTC_VALUE_3                      0x057
+#define DP_RX_GTC_MSTR_REQ                     0x058
+#define DP_RX_GTC_FREQ_LOCK_DONE               0x059
+
 /* 00060h DSC SUPPORT
  *      0 DSC Support
  *          0 = Decompression using DSC is not supported.
@@ -1043,6 +1050,9 @@
 #define DP_LINK_RATE_SET                       0x115   /* eDP 1.4 */
 #define DP_LINK_RATE_SET_SHIFT                 0
 #define DP_LINK_RATE_SET_MASK                  (7 << 0)
+#define DP_TX_GTC_CAPABILITY                   0x115   /* DP 1.4 */
+#define TX_GTC_CAP                             BIT(3)
+#define TX_GTC_SLAVE_CAP                       BIT(4)
 
 #define DP_RECEIVER_ALPM_CONFIG                0x116   /* eDP 1.4 */
 #define DP_ALPM_ENABLE                         BIT(0)
@@ -1091,6 +1101,17 @@
 
 #define DP_SDP_ERROR_DETECTION_CONFIGURATION   0x121        /* DP 2.0 E11 */
 #define DP_SDP_CRC16_128B132B_EN               BIT(0)
+
+#define DP_TX_GTC_VALUE0                       0x154
+#define DP_TX_GTC_VALUE1                       0x155
+#define DP_TX_GTC_VALUE2                       0x156
+#define DP_TX_GTC_VALUE3                       0x157
+
+#define DP_RX_GTC_VALUE_PHASE_SKEW_EN          0x158
+#define GTC_VALUE_PHASE_SKEW_EN                BIT(0)
+
+#define DP_TX_GTC_PHASE_SKEW_OFFSET0           0x15a
+#define DP_TX_GTC_PHASE_SKEW_OFFSET1           0x15b
 
 #define DP_AUX_FRAME_SYNC_VALUE                0x15c   /* eDP 1.4 */
 #define DP_AUX_FRAME_SYNC_VALID                BIT(0)
