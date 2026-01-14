@@ -711,14 +711,14 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 	m = readU(p, 16);
 	if (m != 0x3A) {
 		pr_sl(2, "Invalid terminal_provider_code:%x\n", m);
-		return is_parser_success(p) ? 0 : -2;
+		return is_parser_success(p) ? 0 : -1;
 	}
 
 	/* terminal_provider_oriented_code_message_idc */
 	m = readU(p, 8);
 	if (m != 0 && m != 1) {
 		pr_sl(1, "Invalid terminal_provider_oriented_code_message_idc:%d\n", m);
-		return -3;
+		return -1;
 	}
 	prime_sl_encode_type = m;
 
@@ -727,7 +727,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 	if (metadata->part_id != 1 && metadata->part_id != 2) {
 		pr_sl(1, "Invalid sl_hdr_mode_value_minus1(part_id):%d\n",
 			metadata->part_id);
-		return -4;
+		return -1;
 	}
 
 	/* sl_hdr_spec_major_version_idc */
@@ -735,7 +735,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 	if (metadata->major_spec_version_id > SEI_VERSION) {
 		pr_sl(1, "Unsupported sl_hdr_spec_major_version_idc:%d\n",
 			metadata->major_spec_version_id);
-		return -5;
+		return -1;
 	}
 
 	/* sl_hdr_spec_minor_version_idc */
@@ -747,7 +747,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 	m = readU(p, 1);
 	if (m) {
 		pr_sl(1, "Unsupported sl_hdr_cancel_flag:%d\n", m);
-		return -6;
+		return -1;
 	}
 
 	if (!prime_sl_encode_type) {
@@ -756,7 +756,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		m = readU(p, 1);
 		if (m) {
 			pr_sl(1, "Unsupported sl_hdr_persistence_flag:%d\n", m);
-			return -7;
+			return -1;
 		}
 	} else {
 		/* sl_hdr_repetition_period */
@@ -764,7 +764,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		m = readU(p, 17);
 		if (m) {
 			pr_sl(1, "Unsupported sl_hdr_repetition_period:%d\n", m);
-			return -7;
+			return -1;
 		}
 	}
 
@@ -783,32 +783,36 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 	m = readU(p, 1);
 	if (!m) {
 		pr_sl(1, "Unsupported target_picture_info_present_flag:%d\n", m);
-		return -8;
+		return -1;
 	}
 
 	/* src_mdcv_info_present_flag */
 	m = readU(p, 1);
 	if (!m) {
 		pr_sl(1, "Unsupported src_mdcv_info_present_flag:%d\n", m);
-		return -9;
+		return -1;
 	}
 
 	/* sl_hdr_extension_present_flag */
-	readU(p, 1);
+	m = readU(p, 1);
+	if (!m) {
+		pr_sl(1, "Unsupported sl_hdr_extension_present_flag:%d\n", m);
+		return -1;
+	}
 
 	/* sl_hdr_payload_mode */
 	metadata->payload_mode = readU(p, 3);
 	if (metadata->payload_mode != 0 && metadata->payload_mode != 1) {
 		pr_sl(1, "Invalid sl_hdr_payload_mode:%d\n",
 			metadata->payload_mode);
-		return -10;
+		return -1;
 	}
 
 	/* target_picture_primaries */
 	m = readU(p, 8);
 	if (m != 1 && m != 9) {
 		pr_sl(1, "Invalid target_picture_primaries:%d\n", m);
-		return -11;
+		return -1;
 	}
 	metadata->sdr_pic_colour_space = m == 1 ? 0 : 1;
 
@@ -817,7 +821,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 	if (metadata->sdr_display_max_luminance != 100) {
 		pr_sl(1, "Invalid target_picture_max_luminance:%d\n",
 			metadata->sdr_display_max_luminance);
-		return -12;
+		return -1;
 	}
 
 	/* target_picture_min_luminance */
@@ -825,7 +829,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 	if (metadata->sdr_display_min_luminance) {
 		pr_sl(1, "Invalid target_picture_max_luminance:%d\n",
 			metadata->sdr_display_min_luminance);
-		return -13;
+		return -1;
 	}
 
 	/* src_mdcv_primaries_x[0] */
@@ -841,7 +845,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		metadata->hdr_display_colour_space = 2;
 	} else {
 		pr_sl(1, "Invalid src_mdcv_primaries_x[0]:%d\n", m);
-		return -14;
+		return -1;
 	}
 
 	metadata->hdr_pic_colour_space = (metadata->hdr_display_colour_space ||
@@ -882,7 +886,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		if (metadata->matrix_coefficient[i] > 1023) {
 			pr_sl(1, "Invalid matrix_coefficient[%d]:%d\n",
 				i, metadata->matrix_coefficient[i]);
-			return -15;
+			return -1;
 		}
 	}
 
@@ -892,7 +896,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		if (metadata->chroma_to_luma_injection[i] > 8191) {
 			pr_sl(1, "Invalid chroma_to_luma_injection[%d]:%d\n",
 				i, metadata->chroma_to_luma_injection[i]);
-			return -16;
+			return -1;
 		}
 	}
 
@@ -905,7 +909,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 			metadata->kcoefficient[0],
 			metadata->kcoefficient[1],
 			metadata->kcoefficient[2]);
-		return -17;
+		return -1;
 	}
 
 	if (!metadata->payload_mode) {
@@ -924,14 +928,14 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		if (metadata->u.variables.tm_output_finetuning_num_val > 10) {
 			pr_sl(1, "Invalid tone_mapping_output_fine_tuning_num_val:%d\n",
 				metadata->u.variables.tm_output_finetuning_num_val);
-			return -18;
+			return -1;
 		}
 		/* saturation_gain_num_val */
 		metadata->u.variables.saturation_gain_num_val = readU(p, 4);
 		if (metadata->u.variables.saturation_gain_num_val > 6) {
 			pr_sl(1, "Invalid saturation_gain_num_val:%d\n",
 				metadata->u.variables.saturation_gain_num_val);
-			return -19;
+			return -1;
 		}
 		for (i = 0; i < metadata->u.variables.tm_output_finetuning_num_val; i++) {
 			/* tone_mapping_output_fine_tuning_x[i] */
@@ -953,7 +957,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		if (metadata->u.tables.luminance_mapping_num_val != 65) {
 			pr_sl(1, "Unsupported luminance_mapping_num_val:%d\n",
 				metadata->u.tables.luminance_mapping_num_val);
-			return -20;
+			return -1;
 		}
 		for (i = 0; i < metadata->u.tables.luminance_mapping_num_val; i++) {
 			if (!m) {
@@ -962,7 +966,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 				if (metadata->u.tables.luminance_mapping_x[i] > 8192) {
 					pr_sl(1, "Invalid luminance_mapping_x[%d]:%d\n",
 						i, metadata->u.tables.luminance_mapping_x[i]);
-					return -21;
+					return -1;
 				}
 			} else {
 				metadata->u.tables.luminance_mapping_x[i] = i << 7;
@@ -972,7 +976,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 			if (metadata->u.tables.luminance_mapping_y[i] > 8191) {
 				pr_sl(1, "Invalid luminance_mapping_y[%d]:%d\n",
 					i, metadata->u.tables.luminance_mapping_y[i]);
-				return -22;
+				return -1;
 			}
 		}
 		/* cc_uniform_sampling_flag */
@@ -981,7 +985,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 		metadata->u.tables.colour_correction_num_val = readU(p, 7);
 		if (metadata->u.tables.colour_correction_num_val != 65) {
 			pr_sl(1, "Unsupported colour_correction_num_val\n");
-			return -23;
+			return -1;
 		}
 		for (i = 0; i < metadata->u.tables.colour_correction_num_val; i++) {
 			if (!m) {
@@ -990,7 +994,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 				if (metadata->u.tables.colour_correction_x[i] > 2048) {
 					pr_sl(1, "Invalid colour_correction_x[%d]:%d\n",
 						i, metadata->u.tables.colour_correction_x[i]);
-					return -24;
+					return -1;
 				}
 			} else {
 				metadata->u.tables.colour_correction_x[i] = i << 5;
@@ -1000,7 +1004,7 @@ static int parser_metadata_from_sei(struct sei_parser_s *p, bool hevc)
 			if (metadata->u.tables.colour_correction_y[i] > 2047) {
 				pr_sl(1, "Invalid colour_correction_y[%d]:%d\n",
 					i, metadata->u.tables.colour_correction_y[i]);
-				return -25;
+				return -1;
 			}
 		}
 	}
