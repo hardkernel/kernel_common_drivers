@@ -552,7 +552,7 @@
 &aml_bt {
 	status = "okay";
 	power_down_disable = <1>;
-	btwakeup-gpios = <&gpio  GPIOAO_11  GPIO_ACTIVE_HIGH>;
+	btwakeup-gpios = <&gpio_ao  GPIOAO_11  GPIO_ACTIVE_HIGH>;
 };
 
 &acodec {

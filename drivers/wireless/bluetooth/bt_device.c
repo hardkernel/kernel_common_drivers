@@ -449,18 +449,6 @@ static int bt_probe(struct platform_device *pdev)
 							(pdev->dev.of_node,
 							"bt_en-gpios", 0);
 		}
-		/*gpio_btwakeup = BT_WAKE_HOST*/
-		ret = of_property_read_string(pdev->dev.of_node,
-			"btwakeup-gpios", &str);
-		if (ret) {
-			pr_debug("not get btwakeup-gpios\n");
-			pdata->gpio_btwakeup = 0;
-		} else {
-			pdata->gpio_btwakeup = of_get_named_gpio
-							(pdev->dev.of_node,
-							"btwakeup-gpios",
-							0);
-		}
 
 		prop = of_get_property(pdev->dev.of_node,
 				       "power_low_level", NULL);
