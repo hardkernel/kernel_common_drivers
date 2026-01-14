@@ -2261,8 +2261,10 @@ static int vpp_set_filters_internal
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* t6x frc crop left must 2 aligned */
-	if (video_is_meson_t6x_cpu())
+	if (video_is_meson_t6x_cpu()) {
 		video_source_crop_left = (video_source_crop_left + 1) & ~0x01;
+		video_source_crop_bottom = (video_source_crop_bottom + 1) & ~0x01;
+	}
 
 	if (is_bandwidth_policy_hit(input->layer_id, vf, &vpp_flags))
 		next_frame_par->vscale_skip_count++;
