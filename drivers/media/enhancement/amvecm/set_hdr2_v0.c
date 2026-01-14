@@ -1887,7 +1887,6 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	unsigned int hdr_clk_gate = 0;
 	unsigned int cur_hdr_ctrl = 0;
 	unsigned int matrix_on = 0;
-	unsigned int top_on = 0;
 
 	int adpscl_mode = 0;
 /*	int adpscl_max = 24; */
@@ -2494,14 +2493,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 		}
 	}
 
-	if (module_sel == VD1_HDR &&
-		(chip_type_id == chip_t6w || chip_type_id == chip_t6x))
-		top_on = 1;
-	else
-		top_on = matrix_on;
-
 	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
-		top_on, 13, 1, vpp_sel);
+		matrix_on, 13, 1, vpp_sel);
 
 	/* recover the clock gate as auto gate by rdma op when mtx off */
 	/* Now only operate osd1/vd1/vd2 hdr core */
@@ -2548,7 +2541,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_EN_CTRL,
 				matrix_on, vpp_sel);
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
-			top_on, 4, 1, vpp_sel);
+			matrix_on, 4, 1, vpp_sel);
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
 			hdr_mtx_param->mtx_only,
 			16, 1, vpp_sel);
@@ -4512,6 +4505,7 @@ void muxio_config(enum vpp_muxio_sel_e sel,
 		24, 24, 2,
 	};
 	struct muxio_cfg_param_s cfg_param;
+	unsigned int mode_timsplt = 1;
 
 	if (chip_type_id != chip_t6w && chip_type_id != chip_t6x)
 		return;
@@ -4520,6 +4514,9 @@ void muxio_config(enum vpp_muxio_sel_e sel,
 		reg_offset = 1;
 		reg_addr[0] += reg_offset;
 		reg_addr[1] += reg_offset;
+		reg_addr[2] = VPU_AXIRD_DOLBY_PATH_CTRL;
+		start[2] = 0;
+		len[2] = 4;
 	}
 
 	switch (sel) {
@@ -4538,6 +4535,7 @@ void muxio_config(enum vpp_muxio_sel_e sel,
 		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_PRIME_SL;
 
 		reg_val[2] = 0x2;/*bit9:8 dv_path_mode*/
+		mode_timsplt = 1;
 		break;
 	case VPP_MUXIO_SEL_DPSS_HDR_DPE:/*dct->nr->hdr*/
 		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_BYPASS;
@@ -4554,6 +4552,7 @@ void muxio_config(enum vpp_muxio_sel_e sel,
 		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_PRIME_SL;
 
 		reg_val[2] = 0x0;
+		mode_timsplt = 1;
 		break;
 	case VPP_MUXIO_SEL_DPSS_HDR:/*hdr->dct->nr*/
 		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_BYPASS;
@@ -4570,6 +4569,7 @@ void muxio_config(enum vpp_muxio_sel_e sel,
 		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_PRIME_SL;
 
 		reg_val[2] = 0x1;
+		mode_timsplt = 1;
 		break;
 	case VPP_MUXIO_SEL_DPSS_DCT_HDR:/*dct->hdr->nr*/
 		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_BYPASS;
@@ -4586,6 +4586,7 @@ void muxio_config(enum vpp_muxio_sel_e sel,
 		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_PRIME_SL;
 
 		reg_val[2] = 0x0;/*VPU_AXIRD_PATH_CTRL[9:8] - reg_dv_path_mode*/
+		mode_timsplt = 1;
 		break;
 	case VPP_MUXIO_SEL_LC_EVC_HDR:
 		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_BYPASS;
@@ -4602,6 +4603,7 @@ void muxio_config(enum vpp_muxio_sel_e sel,
 		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_PRIME_SL;
 
 		reg_val[2] = 0x0;
+		mode_timsplt = 1;
 		break;
 	case VPP_MUXIO_SEL_VD1_DD:
 		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_VD1;
@@ -4618,6 +4620,7 @@ void muxio_config(enum vpp_muxio_sel_e sel,
 		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_BYPASS;
 
 		reg_val[2] = 0x2;
+		mode_timsplt = 1;
 		break;
 	case VPP_MUXIO_SEL_DPSS_DD:
 		cfg_param.ipath_cfg[VPU_MUXIO_IPATH_DD_IN] = VPU_MUXIO_IN_SEL_DPSS_NR;
@@ -4634,6 +4637,7 @@ void muxio_config(enum vpp_muxio_sel_e sel,
 		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_BYPASS;
 
 		reg_val[2] = 0x1;
+		mode_timsplt = 1;
 		break;
 	case VPP_MUXIO_SEL_DE_LINK:
 	default:
@@ -4651,6 +4655,7 @@ void muxio_config(enum vpp_muxio_sel_e sel,
 		cfg_param.opath_cfg[VPU_MUXIO_OPATH_LOOP] = VPU_MUXIO_OUT_SEL_BYPASS;
 
 		reg_val[2] = 0x0;
+		mode_timsplt = 0;
 		break;
 	}
 
@@ -4673,6 +4678,7 @@ void muxio_config(enum vpp_muxio_sel_e sel,
 
 		if (pre_muxio_reg_val[i] != reg_val[i]) {
 			if (chip_type_id == chip_t6x) {
+				reg_val[2] |= mode_timsplt << 3;
 				if (rdma_mode == 1)
 					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg_addr[i],
 						reg_val[i],
@@ -4735,6 +4741,9 @@ unsigned int get_muxio_link_status(void)
 		reg_offset = 1;
 		reg_addr[0] += reg_offset;
 		reg_addr[1] += reg_offset;
+		reg_addr[2] = VPU_AXIRD_DOLBY_PATH_CTRL;
+		start[2] = 0;
+		reg_mask[2] = 0x3;
 	}
 
 	for (i = 0; i < 3; i++) {
@@ -4958,6 +4967,12 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		(get_cpu_type() == MESON_CPU_MAJOR_ID_T6W ||
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T6X))
 		hist_select = HIST_E_LUMA;
+
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_T6W ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T6X) &&
+		module_sel == VD1_HDR &&
+		hdr_process_select & HDR_BYPASS)
+		always_full_func = true;
 
 	/*lut1 parameters*/
 	hdr_lut1_param.reg_adpscl1_mode = 1;

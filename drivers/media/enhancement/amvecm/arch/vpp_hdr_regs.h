@@ -27,6 +27,7 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 #define MUXIO_IPATH_SEL                0x4512
 #define MUXIO_OPATH_SEL                0x4513
 #define AXIRD_PATH_CTRL                0x6d02
+#define VPU_AXIRD_DOLBY_PATH_CTRL      0x6d30
 
 #define VD1_HDR2_CTRL                      0x3800
 #define VD1_HDR2_CLK_GATE                  0x3801
