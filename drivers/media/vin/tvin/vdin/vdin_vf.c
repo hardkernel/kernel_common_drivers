@@ -273,7 +273,7 @@ struct vf_pool *vf_pool_alloc(int size)
 {
 	struct vf_pool *p;
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return NULL;
 
