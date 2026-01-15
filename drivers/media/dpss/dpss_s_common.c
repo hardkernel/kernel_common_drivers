@@ -408,7 +408,7 @@ unsigned int dpss_sub_vf_check(struct dpss_ch_s *pch,
 		pch->d->is_i = 1;
 	else
 		pch->d->is_i = 0;
-	nr_dpe_pps_para(pch, vinf_c->h, vinf_c->v);
+	//nr_dpe_pps_para(pch, vinf_c->h, vinf_c->v);
 
 	dbg_i0("%s:is_pps ch=%d =%d,=%d\n", __func__,
 		pch->c.ch, pch->c.prm_top.is_pps, pch->c.prm_top.is_di2pps);
@@ -1213,9 +1213,14 @@ static unsigned int dpss_h_b_buf_get_free(struct dpss_ch_s *pch)
 	//check
 	diff = pch->c.in_cnt - pch->c.out_cnt;
 	if (diff >= pch->c.in_b_nub) {
-		DBG_ERR("%s:%d,%d,%d\n", __func__, diff, pch->c.in_cnt,
-			pch->c.out_cnt);
+		DBG_ERR("%s:%d,%d,%d,0x%x,0x%x\n", __func__, diff, pch->c.in_cnt,
+			pch->c.out_cnt, rd(DPSS_FBUF_PROC_STATUS),
+			rd(DPSS_FRC_PROC_STATUS));
 		return DPSS_NR_NO_FREE;
+	} else if (diff >= pch->c.in_b_nub - 1) {
+		DBG_WARN("%s:%d,%d,%d,0x%x,0x%x\n", __func__, diff, pch->c.in_cnt,
+			pch->c.out_cnt, rd(DPSS_FBUF_PROC_STATUS),
+			rd(DPSS_FRC_PROC_STATUS));
 	}
 	free_nub = pch->c.in_b_nub - diff;
 	if (free_nub == 0) {
