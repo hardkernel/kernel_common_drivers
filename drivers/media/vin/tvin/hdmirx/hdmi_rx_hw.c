@@ -2692,10 +2692,16 @@ bool rx_is_need_edid_reset(u8 port)
 	return ret;
 }
 
+void rx_edid_module_reset_t6x(u8 port)
+{
+	hdmirx_wr_bits_top_common(TOP_SW_RESET, _BIT(port + EDID_RESET_OFFSET0), 1);
+	hdmirx_wr_bits_top_common(TOP_SW_RESET, _BIT(port + EDID_RESET_OFFSET0), 0);
+}
+
 void rx_edid_module_reset(void)
 {
 	hdmirx_wr_bits_top_common(TOP_EDID_GEN_CNTL, MSK(3, 8), 7);
-	if (rx_info.chip_id >= CHIP_ID_T3X) {
+	if (rx_info.chip_id == CHIP_ID_T3X) {
 		hdmirx_wr_top_common(TOP_SW_RESET, 0x1000);
 		udelay(1);
 		hdmirx_wr_top_common(TOP_SW_RESET, 0);
@@ -2860,6 +2866,8 @@ void top_common_init(void)
 		hdmirx_wr_top_common(TOP_AUDMEAS_CTRL, data32 & (~0x1));//to do
 	}
 
+	if (rx_info.chip_id == CHIP_ID_T6X)
+		hdmirx_edid_intr_cfg();
 	if (rx_info.chip_id < CHIP_ID_T3X)
 		return;
 
@@ -3379,7 +3387,7 @@ void rx_set_cur_hpd(u8 val, u8 func, u8 port)
 	rx_pr("func-%d\n", func);
 	if (val == 0) {
 		if (rx_is_need_edid_reset(port))
-			rx_edid_module_reset();
+			rx_edid_reset(port);
 	}
 	rx_set_port_hpd(port, val);
 	port_hpd_rst_flag |= (1 << port);
@@ -8397,6 +8405,7 @@ void aml_phy_get_def_trim_value(void)
 bool rx_is_edid_read_done(u8 port)
 {
 	u32 temp = 0;
+	static u32 edid_stb_offset[E_PORT_NUM], cnt[E_PORT_NUM];
 
 	if (rx_info.chip_id >= CHIP_ID_T3X) {
 		temp = hdmirx_rd_top(TOP_EDID_GEN_STAT, port);
@@ -8418,9 +8427,16 @@ bool rx_is_edid_read_done(u8 port)
 			break;
 		}
 	}
+	if (temp != edid_stb_offset[port]) {
+		cnt[port] = 0;
+		edid_stb_offset[port] = temp;
+	} else {
+		cnt[port]++;
+	}
 	if (port >= HDMIRX_PORT_MAX)
 		return true;
-	if (temp == EDID_OFFSET_512) {
+	if (temp == EDID_OFFSET_512 || cnt[port] >= EDID_WAIT_STABLE_MAX) {
+		cnt[port] = 0;
 		return true;
 	} else {
 		return false;
@@ -9033,3 +9049,12 @@ void rx_vpu_handler(struct work_struct *work)
 	rx_switch_vpu_clk(1);
 }
 
+void hdmirx_edid_intr_cfg(void)
+{
+	int top_intr_com_maskn_value = 0;
+
+	if (rx_info.chip_id != CHIP_ID_T6X)
+		return;
+	top_intr_com_maskn_value |= _BIT(26) | _BIT(18) | _BIT(10) | _BIT(2);
+	hdmirx_wr_top_common(TOP_INTR_COM_MASKN, top_intr_com_maskn_value);
+}

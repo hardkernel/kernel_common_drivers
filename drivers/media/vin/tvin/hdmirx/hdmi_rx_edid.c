@@ -1262,9 +1262,10 @@ bool rx_edid_cal_phy_addr(u_int up_addr,
 
 void rx_edid_reset(u8 port)
 {
-	if (!rx_is_need_edid_reset(port))
-		return;
-	rx_edid_module_reset();
+	if (rx_info.chip_id != CHIP_ID_T6X)
+		rx_edid_module_reset();
+	else
+		rx_edid_module_reset_t6x(port);
 }
 
 bool is_ddc_idle(unsigned char port_id)
@@ -7620,7 +7621,8 @@ bool hdmi_rx_top_edid_update(void)
 	u8 ext_blk_num = 1;
 	static int edid_reset_cnt;
 
-	rx_edid_module_reset();
+	if (rx_info.chip_id != CHIP_ID_T6X)
+		rx_edid_module_reset();
 	while (edid_reset_cnt <= edid_reset_max)
 		edid_reset_cnt++;
 	edid_reset_cnt = 0;
@@ -7826,7 +7828,7 @@ void rx_edid_reset_handler(struct work_struct *work)
 				rst_flg = false;
 		}
 		if (rst_flg || rst_cnt[dwd->port] >= EDID_RST_TIMEOUT) {
-			rx_edid_module_reset();
+			rx_edid_reset(dwd->port);
 			if (rx_read_edid_offset(dwd->port) == 0) {
 				edid_seg_flag[dwd->port] = 0;
 				dwd->state[dwd->port] = EDID_RESET_DONE;
@@ -7858,7 +7860,7 @@ enum hrtimer_restart edid_reset_callback(struct hrtimer *timer)
 	switch (dwd->state[dwd->port]) {
 	case EDID_WAIT_READ_DONE:
 		if (rx_is_edid_read_done(dwd->port)) {
-			rx_edid_module_reset();
+			rx_edid_reset(dwd->port);
 			dwd->state[dwd->port] = EDID_RESET_DONE;
 		}
 		break;

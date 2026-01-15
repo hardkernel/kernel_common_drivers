@@ -68,7 +68,8 @@
 /* 2025.12.30 remove gb check for dvi */
 /* 2025.12.30 fix cts 2-106 fail issue */
 /* 2026.01.16 fix hdcp 1.4 err */
-#define RX_HW_VER "ver.2025/01/16"
+/* 2025.01.20 add edid intr to clear segment when edid do not read done*/
+#define RX_HW_VER "ver.2026/01/20"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -391,6 +392,11 @@
 #define	TOP_CHAN_SWITCH_1_T6X			0x29
 #define	TOP_METER_CABLE_CNTL_T6X		0x03c
 #define	TOP_METER_CABLE_STAT_T6X		0x03d
+
+#define TOP_INTR_COM_STAT                0x030
+#define TOP_INTR_COM_CLR                 0x031
+#define TOP_INTR_COM_MASKN               0x032
+#define TOP_EDID_COM_GEN_CTRL1           0x006
 
 /* for t3x */
 #define TOP_ACR_CNTL2_T3X					0x0f
@@ -3734,7 +3740,6 @@ void rx_clkmsr_handler(struct work_struct *work);
 void rx_i2c_err_monitor(u8 port);
 void rx_i2c_div_init(void);
 bool is_ddc_filter_en(u8 port);
-void rx_edid_module_reset(void);
 void rx_esm_reset(int level);
 void hdmirx_hdcp22_reauth(void);
 void rx_earc_hpd_handler(struct work_struct *work);
@@ -3765,6 +3770,7 @@ void rx_i2c_mux_cfg(u8 port);
 /* t3x  */
 void hdmi_tx_rx_frl_training_main(u8 port);
 void hdmirx_frl_config(u8 port);
+void rx_edid_module_reset_t6x(u8 port);
 void rx_edid_module_reset(void);
 u32 hdmirx_rd_top_common_1(u32 addr);
 void hdmirx_wr_bits_top_common_1(u32 addr, u32 mask, u32 value);
@@ -3806,5 +3812,6 @@ void hdmi_rx_frl_pix_chg(u8 port);
 u32 hdmirx_rd_ee_vol(u32 addr);
 void hdmirx_wr_ee_vol(u32 addr, u32 data);
 void rx_vpu_handler(struct work_struct *work);
+void hdmirx_edid_intr_cfg(void);
 
 #endif

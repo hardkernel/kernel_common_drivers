@@ -1178,11 +1178,13 @@ static int rx_cor_irq_handler(u8 port)
 irqreturn_t irq0_handler(int irq, void *params)
 {
 	unsigned long hdmirx_top_intr_stat;
+	unsigned long hdmirx_top_com_intr_stat;
 	unsigned long long cur_clks, irq_duration;
 	static unsigned long long last_clks;
 	int error = 0;
 	bool emp_rcvd = false;
 	u8 tmp = 0;
+	u8 i;
 	u8 port = (rx_info.chip_id >= CHIP_ID_T3X) ? E_PORT0 : rx_info.main_port;
 
 	if (params == 0) {
@@ -1213,6 +1215,8 @@ irqreturn_t irq0_handler(int irq, void *params)
 reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT, port);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat, port);
 
+	hdmirx_top_com_intr_stat = hdmirx_rd_top_common(TOP_INTR_COM_STAT);
+	hdmirx_wr_top_common(TOP_INTR_COM_CLR, hdmirx_top_com_intr_stat);
 	tmp = hdmirx_top_intr_stat & top_irq_tab[IRQ_PWD_CTL];
 	if (tmp) {
 		if (rx_info.chip_id >= CHIP_ID_T7)
@@ -1311,6 +1315,18 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT, port);
 		edid_timer.port = port;
 		hrtimer_start(&edid_timer.timer, interval, HRTIMER_MODE_REL);
 	}
+
+	if (hdmirx_top_com_intr_stat) {
+		for (i = 0; i < E_PORT_NUM; i++) {
+			if (hdmirx_top_com_intr_stat & (0x4 << (i * 8))) {
+				edid_seg_flag[i] = 1;
+				edid_timer.state[i] = EDID_WAIT_READ_DONE;
+				edid_timer.port = i;
+				hrtimer_start(&edid_timer.timer, interval, HRTIMER_MODE_REL);
+			}
+		}
+	}
+
 	if (hdmirx_top_intr_stat & top_irq_tab[IRQ_5V_RISE0] ||
 		hdmirx_top_intr_stat & top_irq_tab[IRQ_5V_RISE1] ||
 		hdmirx_top_intr_stat & top_irq_tab[IRQ_5V_RISE2] ||

@@ -41,7 +41,7 @@
 /* for clear 512 edid segment */
 #define EDID_WAIT_STABLE_MAX 5
 #define EDID_RST_TIMEOUT 5
-
+#define EDID_RESET_OFFSET0 18
 /* CTA-861G Table 54~57 CTA data block tag codes */
 /* tag code 0x0: reserved */
 #define AUDIO_TAG 0x1
