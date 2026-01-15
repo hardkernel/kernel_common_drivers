@@ -209,8 +209,6 @@ unsigned int atv_fmt = 0x1f;//0x7f;
 static int dg_ave_last = 0x200;
 
 static bool cvd_pr_flag;
-static bool cvd_pr1_chroma_flag;
-static bool cvd_pr2_chroma_flag;
 
 /* VLSI, nonstd experiment */
 static unsigned int chroma_sum_pre1;
@@ -1860,65 +1858,6 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 				__func__);
 		}
 		return false;
-	}
-
-	/* for ntsc-m pal-m switch bug */
-	if (!cvd2->hw.chroma_lock &&
-	    cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M) {
-		if (cvd2->info.ntsc_switch_cnt++ >= NTSC_SW_MAX_CNT)
-			cvd2->info.ntsc_switch_cnt = 0;
-
-		if (cvd2->info.ntsc_switch_cnt <= NTSC_SW_MID_CNT) {
-			if (R_APB_BIT(CVD2_CHROMA_DTO_INCREMENT_23_16,
-			CDTO_INC_23_16_BIT, CDTO_INC_23_16_WID) != 0x2e) {
-				W_APB_BIT(CVD2_CHROMA_DTO_INCREMENT_23_16, 0x2e,
-					CDTO_INC_23_16_BIT, CDTO_INC_23_16_WID);
-				W_APB_BIT(CVD2_PAL_DETECTION_THRESHOLD, 0x40,
-					PAL_DET_TH_BIT, PAL_DET_TH_WID);
-				W_APB_BIT(CVD2_CONTROL0, 0x00,
-					COLOUR_MODE_BIT, COLOUR_MODE_WID);
-				W_APB_BIT(CVD2_COMB_FILTER_CONFIG, 0x2,
-					PALSW_LVL_BIT, PALSW_LVL_WID);
-				W_APB_BIT(CVD2_COMB_LOCK_CONFIG, 0x4,
-			LOSE_CHROMALOCK_LVL_BIT, LOSE_CHROMALOCK_LVL_WID);
-				W_APB_BIT(CVD2_PHASE_OFFSET_RANGE, 0x20,
-			PHASE_OFFSET_RANGE_BIT, PHASE_OFFSET_RANGE_WID);
-			}
-			if (!cvd_pr1_chroma_flag &&
-				(tvafe_dbg_print & TVAFE_DBG_SMR)) {
-				cvd_pr1_chroma_flag = true;
-				cvd_pr2_chroma_flag = false;
-				tvafe_pr_info("%s: change cdto to ntsc-m\n",
-					__func__);
-			}
-
-		} else {
-			if (R_APB_BIT(CVD2_CHROMA_DTO_INCREMENT_23_16,
-			    CDTO_INC_23_16_BIT, CDTO_INC_23_16_WID) !=
-			    0x23) {
-				W_APB_BIT(CVD2_CHROMA_DTO_INCREMENT_23_16, 0x23,
-					CDTO_INC_23_16_BIT, CDTO_INC_23_16_WID);
-				W_APB_BIT(CVD2_PAL_DETECTION_THRESHOLD, 0x1f,
-					PAL_DET_TH_BIT, PAL_DET_TH_WID);
-				W_APB_BIT(CVD2_CONTROL0, 0x02,
-					COLOUR_MODE_BIT, COLOUR_MODE_WID);
-				W_APB_BIT(CVD2_COMB_FILTER_CONFIG, 3,
-					PALSW_LVL_BIT, PALSW_LVL_WID);
-				W_APB_BIT(CVD2_COMB_LOCK_CONFIG, 2,
-					LOSE_CHROMALOCK_LVL_BIT,
-					LOSE_CHROMALOCK_LVL_WID);
-				W_APB_BIT(CVD2_PHASE_OFFSET_RANGE, 0x15,
-					PHASE_OFFSET_RANGE_BIT,
-					PHASE_OFFSET_RANGE_WID);
-			}
-			if (!cvd_pr2_chroma_flag &&
-				(tvafe_dbg_print & TVAFE_DBG_SMR)) {
-				cvd_pr2_chroma_flag = true;
-				cvd_pr1_chroma_flag = false;
-				tvafe_pr_info("%s: change cdto to pal-m\n",
-					__func__);
-			}
-		}
 	}
 
 	/* fake chroma lock */

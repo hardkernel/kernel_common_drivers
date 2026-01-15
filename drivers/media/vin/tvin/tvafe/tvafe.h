@@ -56,6 +56,7 @@
 /* 20250829: Determine the standard based on the audio format */
 /* 20251224: Notify vdin when config format changes */
 /* 20251225：Increase PGA adjustment frequency */
+/* 20260114：remove ntscm and palm switch flow, reduce pal threshold */
 #define TVAFE_VER "20251225：Increase PGA adjustment frequency"
 
 /* used to set the flag of tvafe_dev_s */
