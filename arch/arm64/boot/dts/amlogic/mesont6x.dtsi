@@ -4424,7 +4424,8 @@
 	clock-names = "gpu_mux";
 
 	qchannel-reg = <0xFE010488 0x4>;
-	qchannel-enable = <1>;
+	qchannel-enabled = <1>;
+	qchannel-supported = <1>;
 
 	/*
 	 * Mali clocking is provided by two identical clock paths
