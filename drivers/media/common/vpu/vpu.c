@@ -1827,6 +1827,12 @@ static ssize_t vpu_debug_reg_show(const struct class *class,
 		return len;
 	}
 
+	if (vpu_reg_dbg_flag == 5) {//read cm
+		len = sprintf(buf, "for_tool: read reg[0x%04x] = 0x%08x\n",
+			vpu_reg_dbg_addr, vpu_reg_dbg_val);
+		return len;
+	}
+
 	return sprintf(buf, "for_tool: none\n");
 }
 
@@ -1873,15 +1879,29 @@ static ssize_t vpu_debug_reg_store(const struct class *class,
 		}
 		break;
 	case 'r':
-		ret = sscanf(buf, "r %x", &vpu_reg_dbg_addr);
-		if (ret == 1) {
-			vpu_reg_dbg_flag = 3;
-			pr_info("read vcbus[0x%04x] = 0x%08x\n",
-				vpu_reg_dbg_addr, vpu_vcbus_read(vpu_reg_dbg_addr));
+		if (buf[1] == 'c' && buf[2] == 'm') { //rcm: read cm reg
+			ret = sscanf(buf, "rcm %x", &vpu_reg_dbg_addr);
+			if (ret == 1) {
+				vpu_reg_dbg_flag = 5;
+				vpu_reg_dbg_val = vpu_vcbus_read(vpu_reg_dbg_addr);
+				pr_info("read vcbus[0x%04x] = 0x%08x\n",
+					vpu_reg_dbg_addr, vpu_reg_dbg_val);
+			} else {
+				vpu_reg_dbg_flag = 0xff;
+				pr_info("invalid data\n");
+				return -EINVAL;
+			}
 		} else {
-			vpu_reg_dbg_flag = 0xff;
-			pr_info("invalid data\n");
-			return -EINVAL;
+			ret = sscanf(buf, "r %x", &vpu_reg_dbg_addr);
+			if (ret == 1) {
+				vpu_reg_dbg_flag = 3;
+				pr_info("read vcbus[0x%04x] = 0x%08x\n",
+					vpu_reg_dbg_addr, vpu_vcbus_read(vpu_reg_dbg_addr));
+			} else {
+				vpu_reg_dbg_flag = 0xff;
+				pr_info("invalid data\n");
+				return -EINVAL;
+			}
 		}
 		break;
 	case 'd':
