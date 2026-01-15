@@ -655,8 +655,7 @@ static void frc_drv_initial(struct dpss_dev_s *devp)
 	frc_top->mc_skip_mode = 0; // b10:h/2,v/2, b0:v/2, b1:h/2
 	frc_top->frc_input_n = 1;
 	frc_top->frc_output_m = 1;
-	// state_st->unformat_bypass = 1;
-	state_st->unformat_bypass = 0; // enable (v>h)
+	state_st->unformat_bypass = 0;
 	state_st->special_format = 0;
 	// state_st->mc_cut_position = 1;
 	state_st->mc_cut_position = 0;

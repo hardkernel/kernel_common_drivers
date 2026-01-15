@@ -461,7 +461,10 @@ void hw_cfg_dpss_dpe(enum DPSS_WORK_MODE  dpe_mode,
 
 	//cfg dpe size for software mode
 	hw_cfg_dpe_size(dpe_mode, prm_top, prm_dpe, dpe_pad);
-	prm_dpe->lst_overlap = dpe_pad.reg_vbe_pad +
+	if (prm_top->dpe_slc_num == 1) // 20260116
+		prm_dpe->lst_overlap = 0;
+	else
+		prm_dpe->lst_overlap = dpe_pad.reg_vbe_pad +
 			dpe_pad.reg_dv_pad + dpe_pad.reg_dcntr_pad; //1225
 	hw_cfg_dpss_dpe_intf(prm_top, prm_dpe, nr_pps_cfg->pps_en);
 
