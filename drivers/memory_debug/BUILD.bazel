@@ -22,6 +22,9 @@ ddk_module(
         "CONFIG_AMLOGIC_REG_ACCESS": {
             True: ["reg_access/reg_access.c"],
         },
+        "CONFIG_AMLOGIC_CMA_DEBUG": {
+            True: ["cma_debug/aml_cma_debug.c"],
+        },
         "CONFIG_AMLOGIC_DDR_TOOL": {
             True: [
                 "ddr_tool/ddr_tool.c",
@@ -159,10 +162,12 @@ ddk_module(
         "ddr_tool/dmc_monitor.h",
         "ddr_tool/ddr_port.h",
         "//common:drivers/base/base.h",
+        "//common:mm/cma.h",
     ],
     linux_includes = [
         "ddr_tool",
         "../../../common/drivers/base",
+        "../../../common/mm",
     ],
     local_defines = [
         "pr_fmt(fmt)=\"[memory-debug]: \" fmt",

@@ -1,5 +1,4 @@
-  aml_trace_buffer
-  aml_trace_step
+  kobj_sysfs_ops
   drm_match_cea_mode
   nbcon_device_release
   nbcon_device_try_acquire

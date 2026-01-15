@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+config AMLOGIC_CMA_DEBUG
+    bool "Amlogic cma debug support"
+    depends on !DEBUG_FS
+    default y
+    help
+      This is the debug interface for cma

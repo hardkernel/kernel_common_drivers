@@ -5,6 +5,7 @@ MODULE_NAME = amlogic-memory-debug
 PR_FMT = $(subst amlogic-,,$(MODULE_NAME))
 PR_FMT_DEFINE="-Dpr_fmt(fmt)= \"[$(PR_FMT)]: \" fmt"
 ccflags-y += $(PR_FMT_DEFINE)
+ccflags-y += -I$(srctree)/mm/
 
 obj-$(CONFIG_AMLOGIC_MEMORY_DEBUG) = $(MODULE_NAME).o
 $(MODULE_NAME)-y += main.o
@@ -13,3 +14,4 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/memory_debug/memory_ext/Makefil
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/memory_debug/reg_access/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/memory_debug/ddr_tool/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/memory_debug/ramdump/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/memory_debug/cma_debug/Makefile

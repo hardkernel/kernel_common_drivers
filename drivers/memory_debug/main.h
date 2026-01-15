@@ -48,6 +48,20 @@ static inline void aml_reg_exit(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_CMA_DEBUG)
+int __init cma_debug_init(void);
+void __exit cma_debug_exit(void);
+#else
+static inline int cma_debug_init(void)
+{
+	return 0;
+}
+
+static inline void cma_debug_exit(void)
+{
+}
+#endif
+
 #if IS_ENABLED(CONFIG_AMLOGIC_DDR_TOOL)
 int __init ddr_tool_init(void);
 void __exit ddr_tool_exit(void);
