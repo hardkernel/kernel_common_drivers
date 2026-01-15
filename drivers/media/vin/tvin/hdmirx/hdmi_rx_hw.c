@@ -6418,7 +6418,7 @@ void rx_debug_load22key(u8 port)
 			hdcp22_clk_en(1);
 			rx_hdcp22_send_uevent(1);
 			mdelay(100);
-			hdmi_rx_top_edid_update();
+			hdmi_rx_top_edid_update(port);
 			hdmirx_hw_config(port);
 			hpd_to_esm = 1;
 			/* mdelay(900); */
@@ -6432,7 +6432,7 @@ void rx_debug_load22key(u8 port)
 void rx_debug_loadkey(u8 port)
 {
 	rx_pr("load hdcp key\n");
-	hdmi_rx_top_edid_update();
+	hdmi_rx_top_edid_update(port);
 	hdmirx_hw_config(port);
 	pre_port = 0xfe;
 }

@@ -136,7 +136,8 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 			rx_force_hpd_rxsense_cfg(0);
 		} else {
 			rx_update_tx_edid_with_audio_block(NULL, NULL);
-			hdmi_rx_top_edid_update();
+			for (i = 0; i < rx_info.port_num; ++i)
+				hdmi_rx_top_edid_update(i);
 			if (rx_info.chip_id == CHIP_ID_T7)
 				hdcp_init_t7(rx_info.main_port);
 		}

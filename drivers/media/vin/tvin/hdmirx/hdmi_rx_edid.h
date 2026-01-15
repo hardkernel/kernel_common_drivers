@@ -34,7 +34,7 @@
 #define EDID_HDR_HEAD_LEN	4
 #define MAX_HDR_LUMI_LEN	3
 #define MAX_EDID_BUF_SIZE	(EDID_SIZE * 6)
-#define PORT_NUM		3
+#define MAX_PORT_NUM		3
 #define LATENCY_MAX		254
 #define EDID_MAX_REFRESH_RATE 123 //No use for reference board
 #define EDID_OFFSET_512 0x10100
@@ -232,17 +232,6 @@ struct edid_hdr_block_t {
 	unsigned char max_lumi;
 	unsigned char avg_lumi;
 	unsigned char min_lumi;
-};
-
-enum edid_list_e {
-	EDID_LIST_TOP,
-	EDID_LIST_14,
-	EDID_LIST_14_AUD,
-	EDID_LIST_14_420C,
-	EDID_LIST_14_420VD,
-	EDID_LIST_20,
-	EDID_LIST_NUM,
-	EDID_LIST_NULL
 };
 
 enum edid_ver_e {
@@ -1348,8 +1337,6 @@ enum edid_states_e {
 };
 
 extern u8 port_hpd_rst_flag;
-extern int edid_mode;
-extern int port_map;
 extern int phy_addr_map;
 extern u32 atmos_edid_update_hpd_en;
 extern u32 en_take_dtd_space;
@@ -1372,7 +1359,7 @@ bool get_basic_dtd_data(u8 *p_edid, struct edid_info_s *edid_info);
 int rx_set_hdr_lumi(unsigned char *data, int len);
 void rx_edid_physical_addr(int a, int b, int c, int d);
 unsigned char rx_parse_arc_aud_type(const unsigned char *buff);
-bool hdmi_rx_top_edid_update(void);
+bool hdmi_rx_top_edid_update(u8 port);
 unsigned char rx_get_edid_index(void);
 unsigned char *rx_get_edid(int edid_index);
 void edid_parse_block0(u8 *p_edid, struct edid_info_s *edid_info);

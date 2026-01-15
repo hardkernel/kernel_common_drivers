@@ -633,7 +633,7 @@ void rx_update_edid_callback(enum tvin_port_e tvin_port, u32 hdr_priority)
 	tx_hdr_priority = hdr_priority;
 #endif
 	rx_pr(" edid update:%d\n", hdr_priority);
-	hdmi_rx_top_edid_update();
+	hdmi_rx_top_edid_update(port);
 	port_hpd_rst_flag |= (1 << rx_info.main_port);
 	rx[port].state = FSM_HPD_LOW;
 }
@@ -3144,7 +3144,7 @@ bool is_unnormal_format(u32 wait_cnt, u8 port)
 void fsm_restart(u8 port)
 {
 	rx_esm_reset(2);
-	hdmi_rx_top_edid_update();
+	hdmi_rx_top_edid_update(port);
 	//hdmirx_hw_config(port);
 	if (rx[port].var.edid_update_flag)
 		hdmirx_clr_scdc(true, port);
@@ -3332,10 +3332,8 @@ void rx_get_global_variable(const char *buf)
 	pr_var(eq_dbg_ch0, i++);
 	pr_var(eq_dbg_ch1, i++);
 	pr_var(eq_dbg_ch2, i++);
-	pr_var(edid_mode, i++);
 	pr_var(phy_pddq_en, i++);
 	pr_var(long_cable_best_setting, i++);
-	pr_var(port_map, i++);
 	pr_var(phy_addr_map, i++);
 	pr_var(skip_frame_cnt, i++);
 	pr_var(vdin_drop_frame_cnt, i++);
@@ -3706,15 +3704,11 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(eq_dbg_ch1, index);
 	if (set_pr_var(tmpbuf, var_to_str(eq_dbg_ch2), &eq_dbg_ch2, value))
 		return pr_var(eq_dbg_ch2, index);
-	if (set_pr_var(tmpbuf, var_to_str(edid_mode), &edid_mode, value))
-		return pr_var(edid_mode, index);
 	if (set_pr_var(tmpbuf, var_to_str(phy_pddq_en), &phy_pddq_en, value))
 		return pr_var(phy_pddq_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(long_cable_best_setting),
 		&long_cable_best_setting, value))
 		return pr_var(long_cable_best_setting, index);
-	if (set_pr_var(tmpbuf, var_to_str(port_map), &port_map, value))
-		return pr_var(port_map, index);
 	if (set_pr_var(tmpbuf, var_to_str(skip_frame_cnt), &skip_frame_cnt, value))
 		return pr_var(skip_frame_cnt, index);
 	if (set_pr_var(tmpbuf, var_to_str(vdin_drop_frame_cnt), &vdin_drop_frame_cnt, value))
@@ -4393,7 +4387,7 @@ void hdmirx_open_main_port(u8 port)
 		rx_set_cur_hpd(0, 0, port);
 		/* need reset the whole module when switch port */
 		if (need_update_edid(port))
-			hdmi_rx_top_edid_update();
+			hdmi_rx_top_edid_update(port);
 	} else {
 		//aml_phy_switch_port(port);
 		if (rx[port].state >= FSM_SIG_STABLE)
@@ -4923,7 +4917,7 @@ void rx_main_state_machine(void)
 					rx[port].state = FSM_HPD_LOW;
 					rx_pr("port%d clk-unstable-rest\n", port);
 					rx_i2c_err_monitor(port);
-					hdmi_rx_top_edid_update();
+					hdmi_rx_top_edid_update(port);
 				}
 				rx[port].ddc_filter_en = false;
 				rx[port].var.esd_phy_rst_cnt = 0;
@@ -7942,7 +7936,7 @@ int hdmirx_debug(const char *buf, int size)
 			tx_hdr_priority = value;
 #endif
 			rx_pr(" edid update:%d\n", value);
-			hdmi_rx_top_edid_update();
+			hdmi_rx_top_edid_update(rx_info.main_port);
 			port_hpd_rst_flag |= (1 << port);
 			rx_set_port_hpd(rx_info.main_port, 0);
 		} else if (tmpbuf[5] == '5') {
@@ -8235,7 +8229,7 @@ void rx_edid_update_handler(struct work_struct *dwork)
 		return;
 	port = p->port;
 	rx_pr("port%d edid update to %d\n", port, rx[port].edid_type.edid_ver);
-	hdmi_rx_top_edid_update();
+	hdmi_rx_top_edid_update(port);
 	if (rx[port].tx_type != DEV_ABNORMAL_SCDC)
 		rx[port].fsm_ext_state = FSM_HPD_LOW;
 }

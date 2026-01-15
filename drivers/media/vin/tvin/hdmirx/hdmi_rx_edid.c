@@ -30,7 +30,7 @@ static char edid_buf1[EDID_BUF_SIZE] = {0};
 static char edid_buf2[EDID_BUF_SIZE] = {0};
 static char edid_buf3[EDID_BUF_SIZE] = {0};
 static char edid_buf4[EDID_BUF_SIZE] = {0};
-u8 edid_port_type[4];
+u8 edid_port_type[4] = {0};
 char edid_cur[E_PORT_NUM * EDID_SIZE] = {0};
 #ifdef CONFIG_AMLOGIC_HDMITX
 //0: hdmi repeater
@@ -47,9 +47,7 @@ static bool vshf_dc_30_36_420_support = true;
 #endif
 
 u8 need_support_atmos_bit = 0xff;
-static unsigned int earc_cap_ds_len;
 static unsigned char recv_earc_cap_ds[EARC_CAP_DS_MAX_LENGTH] = {0};
-bool new_earc_cap_ds;
 static u8 com_aud[DB_LEN_MAX - 1] = {0};
 /* use vsvdb of edid bin by default, but
  * after DV enable/disable setting, use
@@ -59,12 +57,7 @@ static unsigned char recv_vsvdb_len = 0xFF;
 static unsigned char recv_vsvdb[VSVDB_LEN] = {0};
 u32 vsvdb_update_hpd_en = 1;
 
-int edid_mode;
 u8 port_hpd_rst_flag;
-int port_map;
-
-MODULE_PARM_DESC(port_map, "\n port_map\n");
-module_param(port_map, int, 0664);
 
 int phy_addr_map;
 u8 cta_flag[4] = {0};
@@ -534,18 +527,6 @@ char *rx_get_cta_blk_name(u16 tag)
 	return cta_blk[i].blk_name;
 }
 
-unsigned char rx_get_edid_index(void)
-{
-	if (edid_mode < EDID_LIST_NUM &&
-	    edid_mode > EDID_LIST_TOP)
-		return edid_mode;
-	if (edid_mode == 0) {
-		rx_pr("edid: use Top edid\n");
-		return EDID_LIST_TOP;
-	}
-	return EDID_LIST_NULL;
-}
-
 bool is_valid_edid_data(unsigned char *p_edid)
 {
 	bool ret = false;
@@ -564,10 +545,11 @@ bool is_valid_edid_data(unsigned char *p_edid)
 
 	return ret;
 }
+
 void hdmirx_fill_edid_buf(const char *buf, int size)
 {
 	bool err_chk = false;
-	u32 u_offset;
+	u32 u_offset = 0;
 	u32 i = 0;
 
 	if (edid_delivery_mothed == EDID_DELIVERY_NULL)
@@ -653,7 +635,7 @@ bool is_edid_size_valid(u8 type, int size)
 
 void update_edid_type_cfg(unsigned int val)
 {
-	int i;
+	int i = 0;
 	/* PCB port number for UI HDMI1/2/3/4 */
 	unsigned char pos[E_PORT_NUM] = {0};
 
@@ -686,7 +668,7 @@ void update_edid_type_cfg(unsigned int val)
 static void get_edid_phy_addr(u8 *edid, u8 port)
 {
 	int addr = 0;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	if (!edid)
 		return;
@@ -701,17 +683,17 @@ static void get_edid_phy_addr(u8 *edid, u8 port)
 
 void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 {
-	u8 port_num;
-	u8 edid_type;
+	u8 port_num = 0;
+	u8 edid_type = 0;
 	u32 i = 0;
 	u32 j = 0;
 	u32 k = 0;
-	unsigned char buff[512] = {0};
+	unsigned char buff[EDID_SIZE] = {0};
 	int edid_count = 0;
 	u8 *edid_buf = NULL;
-	int edid_sizes[3] = {0};
-	int edid_offsets[3] = {0};
-	int dest_offset;
+	int edid_sizes[MAX_PORT_NUM] = {0};
+	int edid_offsets[MAX_PORT_NUM] = {0};
+	int dest_offset = 0;
 
 	port_num = (buf[0] & 0x0f) - 1;
 	edid_type = buf[0] >> 0x4;
@@ -738,7 +720,7 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 		rx_pr("edid size overflow\n");
 		size = sizeof(edid_buf1) + 1;
 	}
-	if (size < 257) {
+	if (size < EDID_BLK_SIZE * 2 + 1) {
 		rx_pr("Incomplete edid\n");
 		return;
 	}
@@ -770,11 +752,11 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 	} else {
 		rx_pr("port %d: unknown edid_type %d, auto-parsing EDID\n", port_num, edid_type);
 		edid_count = 0;
-		for (i = 1; (i < size - 8) && (edid_count < 3); i++) {
+		for (i = 1; (i < size - 8) && (edid_count < MAX_PORT_NUM); i++) {
 			if (buf[i] == 0x00 && buf[i + 1] == 0xff && buf[i + 2] == 0xff &&
 				buf[i + 3] == 0xff && buf[i + 4] == 0xff && buf[i + 5] == 0xff &&
 				buf[i + 6] == 0xff && buf[i + 7] == 0x00) {
-				if (edid_count < 3)
+				if (edid_count < MAX_PORT_NUM)
 					edid_offsets[edid_count++] = i;
 			}
 		}
@@ -787,17 +769,17 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 				edid_sizes[i] = edid_offsets[i + 1] - edid_offsets[i];
 			else
 				edid_sizes[i] = size - edid_offsets[i];
-			if (edid_sizes[i] > 128 * 4)
-				edid_sizes[i] = 128 * 4;
+			if (edid_sizes[i] > EDID_BLK_SIZE * 4)
+				edid_sizes[i] = EDID_BLK_SIZE * 4;
 		}
 		memset(edid_buf, 0, sizeof(edid_buf1));
 		for (i = 0; i < edid_count; i++) {
 			if (i == 0)
 				dest_offset = 0;
 			else if (i == 1)
-				dest_offset = 256;
+				dest_offset = EDID_BLK_SIZE * 2;
 			else
-				dest_offset = 768;
+				dest_offset = EDID_BLK_SIZE * 6;
 			if (dest_offset + edid_sizes[i] <= sizeof(edid_buf1)) {
 				memcpy(edid_buf + dest_offset,
 					buf + edid_offsets[i], edid_sizes[i]);
@@ -849,8 +831,8 @@ void rx_edid_update_hdr_dv_info(unsigned char *p_edid)
 void rx_edid_update_freesync_info(unsigned char *p_edid)
 {
 	u_int vsdb_start = 0;
-	u8 version;
-	struct data_block_location_s ret;
+	u8 version = 0;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid || vrr_func_en != 1)
 		return;
@@ -885,8 +867,8 @@ void rx_edid_update_freesync_info(unsigned char *p_edid)
 void rx_edid_update_vrr_info(unsigned char *p_edid)
 {
 	u_int hf_vsdb_start = 0;
-	u8 tag_len;
-	struct data_block_location_s ret;
+	u8 tag_len = 0;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid)
 		return;
@@ -927,8 +909,8 @@ void rx_edid_update_vrr_info(unsigned char *p_edid)
 void rx_edid_update_allm_info(unsigned char *p_edid)
 {
 	u_int hf_vsdb_start = 0;
-	u8 tag_len;
-	struct data_block_location_s ret;
+	u8 tag_len = 0;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid)
 		return;
@@ -960,8 +942,8 @@ void rx_edid_update_allm_info(unsigned char *p_edid)
 void rx_edid_update_qms_info(unsigned char *p_edid)
 {
 	u_int hf_vsdb_start = 0;
-	u8 tag_len;
-	struct data_block_location_s ret;
+	u8 tag_len = 0;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid)
 		return;
@@ -987,7 +969,7 @@ void rx_edid_update_qms_info(unsigned char *p_edid)
 
 unsigned int rx_exchange_bits(unsigned int value)
 {
-	unsigned int temp;
+	unsigned int temp = 0;
 
 	temp = value & 0xF;
 	value = (((value >> 4) & 0xF) | (value & 0xFFF0));
@@ -1000,8 +982,8 @@ unsigned int rx_exchange_bits(unsigned int value)
 
 bool get_basic_dtd_data(u8 *p_edid, struct edid_info_s *edid_info)
 {
-	unsigned int htotal;
-	unsigned int vtotal;
+	unsigned int htotal = 1;
+	unsigned int vtotal = 1;
 	bool ret = false;
 
 	if (!p_edid)
@@ -1057,8 +1039,8 @@ _dtd2:
 u16 rx_get_tag_code(u_char *edid_data)
 {
 	u16 tag_code = TAG_MAX;
-	u16 tmp_tag;
-	unsigned int ieee_oui;
+	u16 tmp_tag = 0;
+	unsigned int ieee_oui = 0;
 
 	if (!edid_data)
 		return tag_code;
@@ -1100,8 +1082,8 @@ u16 rx_get_tag_code(u_char *edid_data)
 
 u_int rx_get_ceadata_offset(u_char *cur_edid, u_char *addition)
 {
-	u16 tag;
-	struct data_block_location_s ret;
+	u16 tag = 0;
+	struct data_block_location_s ret = {0};
 
 	if (!cur_edid || !addition)
 		return 0;
@@ -1113,8 +1095,8 @@ u_int rx_get_ceadata_offset(u_char *cur_edid, u_char *addition)
 
 u_int rx_get_eeodb(u8 *cur_edid)
 {
-	int i;
-	unsigned char max_offset;
+	int i = 0;
+	unsigned char max_offset = 0;
 
 	if (!cur_edid)
 		return 0;
@@ -1134,10 +1116,10 @@ u_int rx_get_eeodb(u8 *cur_edid)
 
 struct data_block_location_s rx_get_cea_tag_offset(u8 *cur_edid, u16 tag_code)
 {
-	int i, j;
-	u16 max_offset;
-	u8 cta_num;
-	struct data_block_location_s ret;
+	int i = 0, j = 0;
+	u16 max_offset = 0;
+	u8 cta_num = 0;
+	struct data_block_location_s ret = {0};
 
 	memset(&ret, 0, sizeof(struct data_block_location_s));
 	if (!cur_edid || !cur_edid[126])
@@ -1179,7 +1161,7 @@ bool is_cta_blk(u8 *cur_edid)
 
 int rx_get_cta_free_size(u8 *cur_edid, unsigned int size)
 {
-	int block_start;
+	int block_start = 0;
 
 	if (!cur_edid || !is_cta_blk(cur_edid))
 		return -1;
@@ -1214,9 +1196,9 @@ bool rx_edid_cal_phy_addr(u_int up_addr,
 {
 	u_int root_offset = 0;
 	u_int vsdb_offset = 0;
-	u_int i;
+	u_int i = 0;
 	bool flag = false;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	if (!(pedid && phy_offset && phy_addr))
 		return flag;
@@ -1273,9 +1255,9 @@ void rx_edid_reset(u8 port)
 
 bool is_ddc_idle(unsigned char port_id)
 {
-	unsigned int sts;
-	unsigned int ddc_sts;
-	unsigned int ddc_offset;
+	unsigned int sts = 0;
+	unsigned int ddc_sts = 0;
+	unsigned int ddc_offset = 0;
 
 	switch (port_id) {
 	case 0:
@@ -1311,8 +1293,8 @@ bool is_ddc_idle(unsigned char port_id)
 
 bool is_edid_buff_normal(unsigned char port_id)
 {
-	unsigned int edid_sts_temp;
-	unsigned int edid_addr_sts;
+	unsigned int edid_sts_temp = 0;
+	unsigned int edid_addr_sts = 0;
 
 	switch (port_id) {
 	case 0:
@@ -1334,7 +1316,7 @@ bool is_edid_buff_normal(unsigned char port_id)
 
 	edid_addr_sts = edid_sts_temp & 0xffff;
 	if (edid_addr_sts > 0x200) {
-		if (log_level & 0x100)
+		if (log_level & EDID_LOG)
 			rx_pr("edid buff flow\n");
 		return false;
 	}
@@ -1344,7 +1326,7 @@ bool is_edid_buff_normal(unsigned char port_id)
 
 enum edid_ver_e rx_parse_edid_ver(u8 *p_edid)
 {
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	ret = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
 	if (ret.num > 0)
@@ -1386,7 +1368,7 @@ unsigned char rx_parse_arc_aud_type(const unsigned char *buff)
 	if (i < aud_length && (aud_data & 0x1) == 0x1) {
 		if (need_support_atmos_bit != 1) {
 			need_support_atmos_bit = 1;
-			hdmi_rx_top_edid_update();
+			hdmi_rx_top_edid_update(rx_info.arc_port);
 			if (rx_info.main_port_open && rx_info.main_port != rx_info.arc_port) {
 				if (atmos_edid_update_hpd_en)
 					rx_send_hpd_pulse(rx_info.main_port);
@@ -1400,7 +1382,7 @@ unsigned char rx_parse_arc_aud_type(const unsigned char *buff)
 	} else {
 		if (need_support_atmos_bit) {
 			need_support_atmos_bit = 0;
-			hdmi_rx_top_edid_update();
+			hdmi_rx_top_edid_update(rx_info.arc_port);
 			if (rx_info.main_port_open && rx_info.main_port != rx_info.arc_port) {
 				if (atmos_edid_update_hpd_en)
 					rx_send_hpd_pulse(rx_info.main_port);
@@ -1439,7 +1421,7 @@ unsigned char get_atmos_offset(unsigned char *p_edid)
 u_char rx_edid_get_aud_sad(u_char *sad_data)
 {
 	u8 port = rx_info.main_port; //todo
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	if (rx_info.chip_id == CHIP_ID_NONE)
 		return 0;
@@ -1479,7 +1461,7 @@ bool rx_edid_set_aud_sad(u_char *sad, u_char len)
 			return false;
 		tmp_sad_len = len;
 	}
-	hdmi_rx_top_edid_update();
+	hdmi_rx_top_edid_update(rx_info.main_port);
 	if (rx_info.main_port_open && rx_info.main_port != rx_info.arc_port) {
 		if (atmos_edid_update_hpd_en)
 			rx_send_hpd_pulse(rx_info.main_port);
@@ -1514,7 +1496,7 @@ bool rx_edid_update_aud_blk(u_char *pedid,
 			    u_char *sad_data,
 			    u_char len)
 {
-	u_char tmp_aud_blk[31];
+	u_char tmp_aud_blk[31] = {0};
 
 	if (!pedid)
 		return false;
@@ -1538,7 +1520,7 @@ unsigned char rx_edid_update_sad(unsigned char *p_edid)
 {
 	unsigned char offset = 0;
 	int i = 0, k = 0;
-	unsigned char buff[31] = {0};
+	unsigned char buff[32] = {0};
 
 	if (need_support_atmos_bit != 0xff)	{
 		offset = get_atmos_offset(p_edid);
@@ -1623,9 +1605,9 @@ static void get_edid_manufacturer_name(unsigned char *buff,
 				       unsigned char start,
 				       struct edid_info_s *edid_info)
 {
-	int i;
-	unsigned char uppercase[26] = { 0 };
-	unsigned char brand[3];
+	int i = 0;
+	unsigned char uppercase[26] = {0};
+	unsigned char brand[3] = {0};
 
 	if (!edid_info || !buff)
 		return;
@@ -1820,8 +1802,8 @@ static void get_edid_standard_timing(unsigned char *buff,
 				     unsigned int length,
 				     struct edid_info_s *edid_info)
 {
-	unsigned int  i, img_aspect_ratio;
-	int hactive_pixel, vactive_pixel, refresh_rate;
+	unsigned int  i = 0, img_aspect_ratio = 0;
+	int hactive_pixel = 0, vactive_pixel = 0, refresh_rate = 0;
 	int asp_ratio[] = {
 		80 * 10 / 16,
 		80 * 3 / 4,
@@ -1854,7 +1836,7 @@ static void get_edid_monitor_name(unsigned char *p_edid,
 				  unsigned char start,
 				  struct edid_info_s *edid_info)
 {
-	unsigned char i, j;
+	unsigned char i = 0, j = 0;
 
 	if (!p_edid || !edid_info)
 		return;
@@ -1880,7 +1862,7 @@ static void get_edid_range_limits(unsigned char *p_edid,
 				  unsigned char start,
 				  struct edid_info_s *edid_info)
 {
-	unsigned char i;
+	unsigned char i = 0;
 
 	for (i = 0; i < 4; i++) {
 		/* 0xFD denotes that last 13 bytes of this
@@ -1940,7 +1922,7 @@ static void get_edid_video_data(unsigned char *buff,
 				unsigned char len,
 				struct cta_blk_parse_info *edid_info)
 {
-	unsigned char i, num;
+	unsigned char i = 0, num = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -1959,7 +1941,7 @@ static void get_edid_basic_audio_data(int start,
 				unsigned char *buff,
 				struct cta_blk_parse_info *edid_info)
 {
-	u8 i;
+	u8 i = 0;
 
 	i = edid_info->audio_db_num;
 	edid_info->audio_db[i].sad[fmt].max_channel =
@@ -1985,9 +1967,9 @@ static void get_edid_audio_data(unsigned char *buff,
 				unsigned char len,
 				struct cta_blk_parse_info *edid_info)
 {
-	enum edid_audio_format_e fmt;
-	int i = start, num;
-	struct pcm_t *pcm;
+	enum edid_audio_format_e fmt = 0;
+	int i = start, num = 0;
+	struct pcm_t *pcm = NULL;
 
 	if (!buff || !edid_info)
 		return;
@@ -2000,6 +1982,8 @@ static void get_edid_audio_data(unsigned char *buff,
 		switch (fmt) {
 		case AUDIO_FORMAT_LPCM:
 			pcm = &edid_info->audio_db[num].sad[fmt].bit_rate.pcm;
+			if (!pcm)
+				return;
 			get_edid_basic_audio_data(i, fmt, buff, edid_info);
 			if (buff[i + 2] & 0x04)
 				pcm->size_24bit = 1;
@@ -2053,7 +2037,7 @@ static void get_speaker_allocation_data(unsigned char *buff,
 				  unsigned char start,
 				  struct speaker_alloc_db_s *sadb)
 {
-	int i;
+	int i = 0;
 
 	if (!buff || !sadb)
 		return;
@@ -2162,8 +2146,8 @@ static void get_edid_fsdb(unsigned char *buff,
 			  unsigned char len,
 			  struct cta_blk_parse_info *edid_info)
 {
-	u32 ieee_oui;
-	u8 i, payload_len;
+	u32 ieee_oui = 0;
+	u8 i = 0, payload_len = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -2511,7 +2495,7 @@ static void get_edid_hf_vsdb(unsigned char *buff,
 			 unsigned char len,
 			 struct cta_blk_parse_info *edid_info)
 {
-	unsigned int ieee_oui;
+	unsigned int ieee_oui = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -2611,7 +2595,7 @@ static int get_edid_vsdb(unsigned char *buff,
 			 unsigned char len,
 			 struct cta_blk_parse_info *edid_info)
 {
-	u32 ieee_oui, ret;
+	u32 ieee_oui = 0, ret = 0;
 
 	if (!buff || !edid_info)
 		return 0;
@@ -2672,7 +2656,7 @@ static void get_edid_hdr10p_data(unsigned char *buff,
 			  unsigned char len,
 			  struct cta_blk_parse_info *edid_info)
 {
-	u32 ieee_oui;
+	u32 ieee_oui = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -2698,7 +2682,7 @@ static void get_edid_dvsa_data(unsigned char *buff,
 			     unsigned char len,
 			     struct cta_blk_parse_info *edid_info)
 {
-	u32 ieee_oui;
+	u32 ieee_oui = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -2727,7 +2711,7 @@ static void get_edid_dvsv_data(unsigned char *buff,
 			     unsigned char len,
 			     struct cta_blk_parse_info *edid_info)
 {
-	unsigned int ieee_oui;
+	unsigned int ieee_oui = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -2951,8 +2935,8 @@ static void get_edid_dynamic_hdr_data(unsigned char *buff,
 			 unsigned char len,
 			 struct cta_blk_parse_info *edid_info)
 {
-	u8 i = 0, j;
-	u8 offset, length = 0;
+	u8 i = 0, j = 0;
+	u8 offset = 0, length = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -2982,7 +2966,7 @@ static void get_edid_y420_vid_data(unsigned char *buff,
 				   unsigned char len,
 				   struct cta_blk_parse_info *edid_info)
 {
-	int i;
+	int i = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -3002,7 +2986,7 @@ static void get_edid_y420_cap_map_data(unsigned char *buff,
 				       unsigned char len,
 				       struct cta_blk_parse_info *edid_info)
 {
-	unsigned int i, bit_map = 0;
+	unsigned int i = 0, bit_map = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -3037,7 +3021,7 @@ static void get_edid_vsadb(unsigned char *buff,
 			   unsigned char len,
 			   struct cta_blk_parse_info *edid_info)
 {
-	int i;
+	int i = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -3067,7 +3051,7 @@ static void get_edid_hdmi_aud(unsigned char *buff,
 			  unsigned char len,
 			  struct cta_blk_parse_info *edid_info)
 {
-	u8 i;
+	u8 i = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -3207,7 +3191,7 @@ static void get_edid_vfpdb(unsigned char *buff,
 			  unsigned char len,
 			  struct cta_blk_parse_info *edid_info)
 {
-	u8 i;
+	u8 i = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -3223,8 +3207,8 @@ static void get_edid_ifdb(unsigned char *buff,
 			  struct cta_blk_parse_info *edid_info)
 {
 	u8 i = 0, j = 0;
-	u8 desc_pos = 0, type;
-	u8 pay_len, k;
+	u8 desc_pos = 0, type = 0;
+	u8 pay_len = 0, k = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -3272,8 +3256,8 @@ static void get_edid_t7vtdb(unsigned char *buff,
 			  unsigned char len,
 			  struct cta_blk_parse_info *edid_info)
 {
-	u32 htotal, vtotal;
-	u8 num;
+	u32 htotal = 0, vtotal = 0;
+	u8 num = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -3323,7 +3307,7 @@ static void get_edid_t8vtdb(unsigned char *buff,
 			  unsigned char len,
 			  struct cta_blk_parse_info *edid_info)
 {
-	u8 i, offset, num;
+	u8 i = 0, offset = 0, num = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -3357,7 +3341,7 @@ static void get_edid_t10vtdb(unsigned char *buff,
 			  unsigned char len,
 			  struct cta_blk_parse_info *edid_info)
 {
-	u8 i = 0, length = 1, num;
+	u8 i = 0, length = 1, num = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -3402,7 +3386,7 @@ static void get_cta_dtd_data(unsigned char *buff,
 			  unsigned char start,
 			  struct cta_blk_parse_info *edid_info)
 {
-	u8 i;
+	u8 i = 0;
 
 	if (!buff || !edid_info)
 		return;
@@ -3446,11 +3430,11 @@ void parse_cta_data_block(u8 *p_blk_buff,
 			  u8 buf_len,
 			  struct cta_blk_parse_info *blk_parse_info)
 {
-	unsigned char tag_data, tag_code, extend_tag_code;
-	unsigned char data_blk_len;
+	unsigned char tag_data = 0, tag_code = 0, extend_tag_code = 0;
+	unsigned char data_blk_len = 0;
 	unsigned char index = 0;
 	unsigned char i = 0;
-	int ret;
+	int ret = 0;
 
 	if (!p_blk_buff || !blk_parse_info || buf_len == 0)
 		return;
@@ -3650,10 +3634,10 @@ void parse_cta_data_block(u8 *p_blk_buff,
 void edid_parse_cea_ext_block(u8 *p_edid,
 			      struct cea_ext_parse_info *edid_info)
 {
-	unsigned int max_offset;
-	unsigned int blk_start_offset;
-	unsigned char data_blk_total_len;
-	unsigned char i;
+	unsigned int max_offset = 0;
+	unsigned int blk_start_offset = 0;
+	unsigned char data_blk_total_len = 0;
+	unsigned char i = 0;
 
 	if (!p_edid || !edid_info)
 		return;
@@ -3703,7 +3687,7 @@ u8 rx_edid_ext_blk_num(u8 *pedid)
 
 u8 rx_edid_cta_blk_num(u8 *p_edid)
 {
-	u8 blk_num, i, cta_num = 0;
+	u8 blk_num = 0, i = 0, cta_num = 0;
 
 	if (!p_edid)
 		return 0;
@@ -3717,9 +3701,9 @@ u8 rx_edid_cta_blk_num(u8 *p_edid)
 
 bool is_support_frl(u8 *pedid, u8 port)
 {
-	u32 hf_vsdb_start;
-	bool frl_rate, ret = false;
-	struct data_block_location_s data_block;
+	u32 hf_vsdb_start = 0;
+	bool frl_rate = 0, ret = false;
+	struct data_block_location_s data_block = {0};
 
 	data_block = rx_get_cea_tag_offset(pedid, HF_VENDOR_DB_TAG);
 	hf_vsdb_start = data_block.pos[0];
@@ -4010,8 +3994,8 @@ void rx_parse_blk0_print(struct edid_info_s *edid_info)
 
 void rx_parse_print_vdb(struct video_db_s *video_db)
 {
-	unsigned char i;
-	unsigned char hdmi_vic;
+	unsigned char i = 0;
+	unsigned char hdmi_vic = 0;
 
 	if (!video_db)
 		return;
@@ -4026,8 +4010,8 @@ void rx_parse_print_vdb(struct video_db_s *video_db)
 
 void rx_parse_print_adb(struct audio_db_s *audio_db)
 {
-	enum edid_audio_format_e fmt;
-	union bit_rate_u *bit_rate;
+	enum edid_audio_format_e fmt = 0;
+	union bit_rate_u *bit_rate = 0;
 
 	if (!audio_db)
 		return;
@@ -4143,7 +4127,7 @@ void rx_parse_print_spk_alloc(struct speaker_alloc_db_s *spk_alloc)
 
 void rx_parse_print_hdmi_aud(struct hdmi_adb_s *hdmi_adb)
 {
-	u8 i;
+	u8 i = 0;
 
 	if (!hdmi_adb)
 		return;
@@ -4223,12 +4207,12 @@ void rx_parse_print_hdmi_aud(struct hdmi_adb_s *hdmi_adb)
 
 void rx_parse_print_vsdb(struct cta_blk_parse_info *edid_info)
 {
-	unsigned char i;
-	unsigned char hdmi_vic;
-	unsigned char svd_num;
-	unsigned char _2d_vic_order;
-	unsigned char _3d_struct;
-	unsigned char _3d_detail;
+	unsigned char i = 0;
+	unsigned char hdmi_vic = 0;
+	unsigned char svd_num = 0;
+	unsigned char _2d_vic_order = 0;
+	unsigned char _3d_struct = 0;
+	unsigned char _3d_detail = 0;
 
 	if (!edid_info)
 		return;
@@ -4624,7 +4608,7 @@ void rx_parse_print_hf_sbtm(struct hf_sbtm_s *hf_sbtm)
 
 void rx_parse_print_sldb(struct sldb_s *sldb)
 {
-	u8 i;
+	u8 i = 0;
 
 	if (!sldb)
 		return;
@@ -4650,7 +4634,7 @@ void rx_parse_print_sldb(struct sldb_s *sldb)
 
 void rx_parse_print_vfpdb(struct vfpdb_s *vfpdb)
 {
-	u8 i, svr = 0;
+	u8 i = 0, svr = 0;
 
 	if (!vfpdb)
 		return;
@@ -5015,10 +4999,10 @@ void rx_parse_print_hdr_static(struct hdr_db_s *hdr_db)
 
 void rx_parse_print_hdr_dynamic(struct hdr_dy_db_s *hdr_dy)
 {
-	u8 i, j;
-	u8 version, sl_hdr_mode_sup;
-	char buffer[15];
-	int offset;
+	u8 i = 0, j = 0;
+	u8 version = 0, sl_hdr_mode_sup = 0;
+	char buffer[15] = {0};
+	int offset = 0;
 
 	if (!hdr_dy)
 		return;
@@ -5061,7 +5045,7 @@ void rx_parse_print_hdr_dynamic(struct hdr_dy_db_s *hdr_dy)
 
 void rx_parse_print_y420vdb(struct cta_blk_parse_info *edid_info)
 {
-	unsigned char i;
+	unsigned char i = 0;
 
 	if (!edid_info)
 		return;
@@ -5073,8 +5057,8 @@ void rx_parse_print_y420vdb(struct cta_blk_parse_info *edid_info)
 
 void rx_parse_print_y420cmdb(struct cta_blk_parse_info *edid_info)
 {
-	unsigned char i;
-	unsigned char hdmi_vic;
+	unsigned char i = 0;
+	unsigned char hdmi_vic = 0;
 
 	if (!edid_info)
 		return;
@@ -5104,8 +5088,8 @@ void rx_parse_print_hdr10p(struct cta_blk_parse_info *edid_info)
 
 void rx_parse_print_fsdb(struct freesync_db_s *fs_db)
 {
-	u8 i;
-	char buffer[FSDB_PAYLOAD_LEN + 1];
+	u8 i = 0;
+	char buffer[FSDB_PAYLOAD_LEN + 1] = {0};
 	int offset = 0;
 
 	if (!fs_db)
@@ -5120,8 +5104,8 @@ void rx_parse_print_fsdb(struct freesync_db_s *fs_db)
 
 void rx_parse_print_ifdb(struct info_db_s *if_db)
 {
-	u8 i, j;
-	char buffer[IFDB_PAYLOAD_LEN + 1];
+	u8 i = 0, j = 0;
+	char buffer[IFDB_PAYLOAD_LEN + 1] = {0};
 	int offset = 0;
 
 	if (!if_db)
@@ -5269,7 +5253,7 @@ void rx_parse_print_t7vtdb(struct t7vtdb_s *t7vfdb)
 
 void rx_parse_print_t8vtdb(struct t8vtdb_s *t8vfdb)
 {
-	u8 i;
+	u8 i = 0;
 
 	if (!t8vfdb)
 		return;
@@ -5285,7 +5269,7 @@ void rx_parse_print_t8vtdb(struct t8vtdb_s *t8vfdb)
 
 void rx_parse_print_t10vtdb(struct t10vtdb_s *t10vtdb)
 {
-	u8 i;
+	u8 i = 0;
 
 	if (!t10vtdb)
 		return;
@@ -5337,7 +5321,7 @@ void rx_parse_print_t10vtdb(struct t10vtdb_s *t10vtdb)
 
 void rx_cea_ext_parse_print(struct cea_ext_parse_info *cea_ext_info)
 {
-	u8 i;
+	u8 i = 0;
 
 	if (!cea_ext_info)
 		return;
@@ -5454,7 +5438,7 @@ void rx_data_blk_index_print(struct cta_data_blk_info *db_info)
 
 void rx_blk_index_print(struct cta_blk_parse_info *blk_info)
 {
-	int i;
+	int i = 0;
 
 	if (!blk_info)
 		return;
@@ -5488,7 +5472,7 @@ EXPORT_SYMBOL(rx_edid_physical_addr);
 
 unsigned char rx_get_cea_dtd_size(unsigned char *cur_edid, unsigned int size)
 {
-	unsigned char dtd_block_offset;
+	unsigned char dtd_block_offset = 0;
 	unsigned char dtd_size = 0;
 
 	if (!cur_edid)
@@ -5518,7 +5502,7 @@ unsigned char rx_get_cea_dtd_size(unsigned char *cur_edid, unsigned int size)
 unsigned char rx_edid_total_free_size(unsigned char *cur_edid,
 				      unsigned int size)
 {
-	unsigned char dtd_block_offset;
+	unsigned char dtd_block_offset = 0;
 
 	if (!cur_edid)
 		return 0;
@@ -5535,8 +5519,8 @@ unsigned char rx_edid_total_free_size(unsigned char *cur_edid,
 u8 *data_blk_extract(u8 *p_buf, u16 tagid)
 {
 	unsigned int index = 0;
-	u8 tag_length;
-	u16 tag_code;
+	u8 tag_length = 0;
+	u16 tag_code = 0;
 
 	if (!p_buf)
 		return NULL;
@@ -5556,9 +5540,9 @@ u8 *data_blk_extract(u8 *p_buf, u16 tagid)
 u8 *edid_tag_extract(u8 *p_edid, u16 tagid)
 {
 	unsigned int index = EDID_EXT_BLK_OFF;
-	u8 tag_length;
-	u16 tag_code;
-	unsigned char max_offset;
+	u8 tag_length = 0;
+	u16 tag_code = 0;
+	unsigned char max_offset = 0;
 
 	if (!p_edid)
 		return NULL;
@@ -5581,16 +5565,14 @@ bool rx_set_earc_cap_ds(unsigned char *data, unsigned int len)
 {
 	if (rx_info.chip_id == CHIP_ID_NONE)
 		return false;
-	new_earc_cap_ds = true;
 	memset(recv_earc_cap_ds, 0, sizeof(recv_earc_cap_ds));
 	if (!data || len > EARC_CAP_DS_MAX_LENGTH)
 		return false;
 
 	memcpy(recv_earc_cap_ds, data, len);
-	earc_cap_ds_len = len;
 
 	rx_pr("*update earc cap_ds to edid*\n");
-	hdmi_rx_top_edid_update();
+	hdmi_rx_top_edid_update(rx_info.arc_port);
 	/* if currently in arc port, don't reset hpd */
 	if (rx_info.main_port_open && rx_info.main_port != rx_info.arc_port) {
 		if (earc_cap_ds_update_hpd_en)
@@ -5624,7 +5606,7 @@ bool rx_set_vsvdb(unsigned char *data, unsigned int len)
 		memcpy(recv_vsvdb, data, len);
 	recv_vsvdb_len = len;
 	rx_pr("*update vsvdb by DV, len=%d*\n", len);
-	hdmi_rx_top_edid_update();
+	hdmi_rx_top_edid_update(rx_info.main_port);
 	if (rx_info.main_port_open) {
 		if (vsvdb_update_hpd_en)
 			rx_send_hpd_pulse(rx_info.main_port);
@@ -5654,9 +5636,9 @@ EXPORT_SYMBOL(rx_update_tx_edid_with_audio_block);
 
 bool rx_edid_support_4k(u8 *p_edid)
 {
-	unsigned int hactive, i, j, len, pos, vic;
-	unsigned int offset = 0, cta_num;
-	struct data_block_location_s ret;
+	unsigned int hactive = 0, i = 0, j = 0, len = 0, pos = 0, vic = 0;
+	unsigned int offset = 0, cta_num = 0;
+	struct data_block_location_s ret = {0};
 
 	cta_num = rx_edid_cta_blk_num(p_edid);
 	for (i = 0; i <= 7; i++) {
@@ -5725,7 +5707,7 @@ bool get_edid_support(u_char *edid_buf, enum edid_support_e func)
 {
 	u32 hf_vsdb_start = 0;
 	u8 tag_len = 0;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	if (!edid_buf)
 		return false;
@@ -5798,16 +5780,16 @@ bool get_edid_support(u_char *edid_buf, enum edid_support_e func)
  */
 unsigned char *compose_audio_db(u8 *aud_db, u8 *add_buf)
 {
-	u8 aud_db_len;
-	u8 add_buf_len;
-	u8 payload_len;
+	u8 aud_db_len = 0;
+	u8 add_buf_len = 0;
+	u8 payload_len = 0;
 	u8 tmp_aud[DB_LEN_MAX - 1] = {0};
 	u8 *tmp_buf = add_buf;
 
-	u8 i, j;
+	u8 i = 0, j = 0;
 	u8 idx = 1;
-	enum edid_audio_format_e aud_fmt;
-	enum edid_audio_format_e tmp_fmt;
+	enum edid_audio_format_e aud_fmt = 0;
+	enum edid_audio_format_e tmp_fmt = 0;
 
 	if (!aud_db || !add_buf)
 		return NULL;
@@ -5879,11 +5861,11 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 	u8 block_pos = 1;
 	int free_size = 0, tmp_size = 0;
 	u8 total_free_size = 0;
-	u8 free_space_off;
+	u8 free_space_off = 0;
 	u32 i = 0;
-	u32 blk_end, edid_size;
-	struct cea_ext_parse_info *cea_ext;
-	u8 num;
+	u32 blk_end = 0, edid_size = 0;
+	struct cea_ext_parse_info *cea_ext = NULL;
+	u8 num = 0;
 
 	if (!p_edid || !add_buf)
 		return;
@@ -6058,7 +6040,7 @@ void splice_tag_db_to_edid(u8 *p_edid, u8 *add_buf,
 			   u16 tagid)
 {
 	u8 *tag_data_blk = NULL;
-	unsigned int i;
+	unsigned int i = 0;
 
 	if (!p_edid || !add_buf)
 		return;
@@ -6080,11 +6062,11 @@ void splice_tag_db_to_edid(u8 *p_edid, u8 *add_buf,
 /* remove cta data blk which tag = tagid */
 void edid_rm_db_by_tag(u8 *p_edid, u16 tagid)
 {
-	int tag_offset;
-	u8 tag_len, cta_blk;
-	unsigned int i;
-	u16 end_pos;
-	struct data_block_location_s ret;
+	int tag_offset = 0;
+	u8 tag_len = 0, cta_blk = 0;
+	unsigned int i = 0;
+	u16 end_pos = 0;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid)
 		return;
@@ -6119,10 +6101,10 @@ void edid_rm_db_by_tag(u8 *p_edid, u16 tagid)
  */
 void edid_rm_db_by_idx(u8 *p_edid, u8 blk_idx)
 {
-	struct cea_ext_parse_info *ext_blk_info;
-	int tag_offset;
-	unsigned char tag_len;
-	unsigned int i;
+	struct cea_ext_parse_info *ext_blk_info = NULL;
+	int tag_offset = 0;
+	unsigned char tag_len = 0;
+	unsigned int i = 0;
 
 	if (!p_edid)
 		return;
@@ -6161,7 +6143,7 @@ void edid_rm_db_by_idx(u8 *p_edid, u8 blk_idx)
 #ifdef CONFIG_AMLOGIC_HDMITX
 static void rpt_edid_extension_num_extraction(unsigned char *p_edid)
 {
-	u_int i;
+	u_int i = 0;
 	u_int checksum = 0;
 
 	if (!p_edid)
@@ -6193,9 +6175,9 @@ void rpt_edid_hf_vs_db_extraction(unsigned char *p_edid)
 {
 	u8 hf_vsdb_start = 0;
 	u8 tx_hf_vsdb_start = 0;
-	struct hf_vsdb_s hf_vsdb_tx, hf_vsdb_def, hf_vsdb_dest;
-	u8 tag_len_tx, tag_len_def, i;
-	struct data_block_location_s ret;
+	struct hf_vsdb_s hf_vsdb_tx = {0}, hf_vsdb_def = {0}, hf_vsdb_dest = {0};
+	u8 tag_len_tx = 0, tag_len_def = 0, i = 0;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid)
 		return;
@@ -6350,10 +6332,10 @@ static void edid_secondaryphyaddr(unsigned char *p_edid_dest, unsigned char *p_e
 {
 	u8 src_vsdb_offset = 0;
 	u8 def_vsdb_offset = 0;
-	struct vsdb_s vsdb_src, vsdb_def, vsdb_dest;
+	struct vsdb_s vsdb_src = {0}, vsdb_def = {0}, vsdb_dest = {0};
 	u8 *p_vsdb_src = (u8 *)&vsdb_src;
 	u8 *p_vsdb_def = (u8 *)&vsdb_def;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	ret = rx_get_cea_tag_offset(p_edid_src, VENDOR_TAG);
 	src_vsdb_offset = ret.pos[0];
@@ -6402,12 +6384,12 @@ void rpt_edid_14_vs_db_extraction(unsigned char *p_edid)
 {
 	u8 vsdb_start = 0;
 	u8 tx_vsdb_start = 0;
-	struct vsdb_s vsdb_tx, vsdb_def, vsdb_dest;
+	struct vsdb_s vsdb_tx = {0}, vsdb_def = {0}, vsdb_dest = {0};
 	u8 *p_vsdb_dest = (u8 *)&vsdb_dest;
-	u8 tag_len_tx, tag_len_def, i, j, k;
+	u8 tag_len_tx = 0, tag_len_def = 0, i = 0, j = 0, k = 0;
 	u8 tx_hdmi_vic[4] = {0};
 	u8 def_hdmi_vic[4] = {0};
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	memset(&vsdb_tx, 0, sizeof(struct vsdb_s));
 	memset(&vsdb_def, 0, sizeof(struct vsdb_s));
@@ -6675,12 +6657,12 @@ void rpt_edid_video_db_extraction(unsigned char *p_dest_edid, unsigned char *p_s
 {
 	u8 vdb_start = 0;
 	u8 tx_vdb_start = 0;
-	u8 vdb_dest[31];
-	u8 tx_native_list[31];
-	u8 tag_len_tx, tag_len_def;
+	u8 vdb_dest[31] = {0};
+	u8 tx_native_list[31] = {0};
+	u8 tag_len_tx = 0, tag_len_def = 0;
 	u8 i, j, tag_len_dest = 0;
 	u8 native_cnt = 0;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	if (!p_dest_edid)
 		return;
@@ -6749,11 +6731,11 @@ void rpt_edid_multi_vdb_extraction(unsigned char *p_dest_edid, unsigned char *p_
 {
 	u8 vdb_start = 0;
 	u8 i = 0;
-	u8 p_dest_tmp[EDID_SIZE];
-	u8 p_source_tmp[EDID_SIZE];
-	u8 vdb_dest[128];
+	u8 p_dest_tmp[EDID_SIZE] = {0};
+	u8 p_source_tmp[EDID_SIZE] = {0};
+	u8 vdb_dest[128] = {0};
 	u8 vdb_size = 0;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	memcpy(p_source_tmp, p_source_edid, EDID_SIZE);
 	while (edid_tag_extract(p_source_tmp, VIDEO_TAG)) {
@@ -6823,15 +6805,15 @@ void rpt_edid_audio_db_extraction(unsigned char *p_edid)
 {
 	u8 adb_start = 0;
 	u8 tx_adb_start = 0;
-	struct edid_audio_block_t adb_tx[10], adb_def[10], adb_dest[10];
-	u8 tag_len_tx, tag_len_def;
-	u8 i, j, tag_len_dest = 0;
+	struct edid_audio_block_t adb_tx[10] = {0}, adb_def[10] = {0}, adb_dest[10] = {0};
+	u8 tag_len_tx = 0, tag_len_def = 0;
+	u8 i = 0, j = 0, tag_len_dest = 0;
 	//some device such as arc, it's edid include several same audio format
 	//can not judge which format is the best format when extract rx edid
 	//when found tx edid has duplicat audio format,just use rx audio format
 	int tx_duplicate_audio_format = 0;
 	int tx_audio_format = 0;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid)
 		return;
@@ -6950,10 +6932,10 @@ void rpt_edid_colorimetry_db_extraction(unsigned char *p_edid)
 {
 	u8 db_start = 0;
 	u8 tx_db_start = 0;
-	u8 colorimetry_tx[2], colorimetry_def[2], colorimetry_dest[2];
+	u8 colorimetry_tx[2] = {0}, colorimetry_def[2] = {0}, colorimetry_dest[2] = {0};
 	u8 def_tag_len = 0;
 	u8 i = 0;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid)
 		return;
@@ -7005,7 +6987,7 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 	u8 k = 0;
 	u8 l = 0;
 	u32 cmdb_map = 0;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid)
 		return;
@@ -7199,11 +7181,11 @@ void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid)
 {
 	u8 db_start = 0;
 	u8 tx_db_start = 0;
-	u8 tx_db[31], def_db[31];
+	u8 tx_db[31] = {0}, def_db[31] = {0};
 	u8 tx_len = 0;
 	u8 def_len = 0;
-	u8 i;
-	struct data_block_location_s ret;
+	u8 i = 0;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid)
 		return;
@@ -7251,7 +7233,7 @@ void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid)
 void rpt_edid_vsv_hdr10plus_extraction(unsigned char *p_edid)
 {
 	u8 db_start = 0;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid)
 		return;
@@ -7278,8 +7260,8 @@ void rpt_edid_vsv_db_extraction(unsigned char *p_edid)
 	u8 db_start = 0;
 	u8 tx_db_start = 0;
 	u8 tx_len = 0;
-	u8 db_version;
-	struct data_block_location_s ret;
+	u8 db_version = 0;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid)
 		return;
@@ -7316,7 +7298,7 @@ void rpt_edid_vsv_db_extraction(unsigned char *p_edid)
 void rpt_edid_vsg_freesync_extraction(unsigned char *p_edid)
 {
 	u8 db_start = 0;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	if (!p_edid)
 		return;
@@ -7342,7 +7324,7 @@ void rpt_edid_update_dtd(u8 *p_edid)
 {
 	int i;
 	bool checksum_update = false;
-	struct edid_info_s *edid_info;
+	struct edid_info_s *edid_info = NULL;
 	//default 1080P dtd
 	u8 def_dtd[18] = {0x02, 0x3A, 0x80, 0x18, 0x71, 0x38, 0x2D, 0x40, 0x58,
 					  0x2C, 0x45, 0x00, 0x40, 0x84, 0x63, 0x00, 0x00, 0x1E};
@@ -7392,7 +7374,7 @@ void rpt_edid_update_dtd(u8 *p_edid)
 
 void get_edid_standard_timing_info(u8 *p_edid, struct edid_standard_timing *edid_st_info)
 {
-	int i;
+	int i = 0;
 
 	if (!p_edid)
 		return;
@@ -7408,8 +7390,8 @@ void get_edid_standard_timing_info(u8 *p_edid, struct edid_standard_timing *edid
 
 void rpt_edid_update_stand_timing(u8 *p_edid)
 {
-	u8 i;
-	struct edid_standard_timing edid_st_info;
+	u8 i = 0;
+	struct edid_standard_timing edid_st_info = {0};
 
 	get_edid_standard_timing_info(p_edid, &edid_st_info);
 	for (i = 0; i <= 7; i++) {
@@ -7425,7 +7407,7 @@ void rpt_edid_update_stand_timing(u8 *p_edid)
 static void edid_sad_passthrough(unsigned char *p_edid_dest, unsigned char *p_edid_src)
 {
 	u8 adb_start = 0;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	ret = rx_get_cea_tag_offset(p_edid_src, AUDIO_TAG);
 	adb_start = ret.pos[0];
@@ -7505,7 +7487,7 @@ u8 rx_get_dtd_offset(u_char *pedid, u8 blk_num)
 
 u_char rx_edid_calc_cksum(u_char *pedid, u8 blk_num)
 {
-	u_int i;
+	u_int i = 0;
 	u_int checksum = 0;
 	u32 start = blk_num * EDID_BLK_SIZE;
 	u32 end = END_OF_BLK(blk_num);
@@ -7526,7 +7508,7 @@ u_char rx_edid_calc_cksum(u_char *pedid, u8 blk_num)
 u32 rx_get_edid_size(u8 *pedid)
 {
 	u32 blk_num = 0, index = 0;
-	struct data_block_location_s ret;
+	struct data_block_location_s ret = {0};
 
 	ret = rx_get_cea_tag_offset(pedid, EXTENDED_HF_EEODB);
 	index = ret.pos[0];
@@ -7616,11 +7598,10 @@ void rx_get_edid_support(u8 port)
 	rx[port].edid_cap.timing_4k = get_edid_support(edid_buf, TIMING_4K);
 }
 
-bool hdmi_rx_top_edid_update(void)
+bool hdmi_rx_top_edid_update(u8 port)
 {
 	u_char *pedid = NULL;
 	u_int i = 0;
-	u_int j = 0;
 	u8 ext_blk_num = 1;
 	static int edid_reset_cnt;
 
@@ -7629,41 +7610,39 @@ bool hdmi_rx_top_edid_update(void)
 	while (edid_reset_cnt <= edid_reset_max)
 		edid_reset_cnt++;
 	edid_reset_cnt = 0;
-	for (i = 0; i < rx_info.port_num; i++) {
-		pedid = rx_get_cur_def_edid(i);
-		if (!is_valid_edid_data(pedid)) {
-			rx_pr("port-%d edid err!\n", i);
-			return false;
-		}
-		memset(&rx[i].edid_cap, 0, sizeof(struct edid_capacity));
-		rx[i].edid_size = rx_get_edid_size(pedid);
-		rx[i].sup_frl = is_support_frl(pedid, i);
-		ext_blk_num = rx[i].edid_size / EDID_BLK_SIZE;
-		if (log_level & EDID_LOG)
-			rx_pr("ext block = %d\n", ext_blk_num);
-		rx_edid_update_hdr_dv_info(pedid);
-		rx_edid_update_sad(pedid);
-		rx_edid_update_vsvdb(pedid, recv_vsvdb, recv_vsvdb_len);
-		rx_edid_update_vrr_info(pedid);
-		rx_edid_update_allm_info(pedid);
-		rx_edid_update_qms_info(pedid);
-		rx_edid_update_freesync_info(pedid);
-		if (log_level & EDID_DATA_LOG)
-			rx_pr("update port:%d\n", i);
-#ifdef CONFIG_AMLOGIC_HDMITX
-		rpt_edid_extraction(pedid);
-#endif
-		for (j = 0; j < ext_blk_num; ++j)
-			pedid[END_OF_BLK(j)] = rx_edid_calc_cksum(pedid, j);
-
-		for (j = 0; j < EDID_SIZE; j++) {
-			hdmirx_wr_top(edid_addr[i] + j, pedid[j], i);
-			edid_cur[i * EDID_SIZE + j] = pedid[j];
-		}
-		rx_get_edid_support(i);
-		if (log_level & EDID_LOG)
-			rx_print_edid_support(i);
+	pedid = rx_get_cur_def_edid(port);
+	if (!is_valid_edid_data(pedid)) {
+		rx_pr("port-%d edid err!\n", port);
+		return false;
 	}
+	memset(&rx[port].edid_cap, 0, sizeof(struct edid_capacity));
+	rx[port].edid_size = rx_get_edid_size(pedid);
+	rx[port].sup_frl = is_support_frl(pedid, port);
+	ext_blk_num = rx[port].edid_size / EDID_BLK_SIZE;
+	if (log_level & EDID_LOG)
+		rx_pr("ext block = %d\n", ext_blk_num);
+	rx_edid_update_hdr_dv_info(pedid);
+	rx_edid_update_sad(pedid);
+	rx_edid_update_vsvdb(pedid, recv_vsvdb, recv_vsvdb_len);
+	rx_edid_update_vrr_info(pedid);
+	rx_edid_update_allm_info(pedid);
+	rx_edid_update_qms_info(pedid);
+	rx_edid_update_freesync_info(pedid);
+	if (log_level & EDID_DATA_LOG)
+		rx_pr("update port:%d\n", port);
+#ifdef CONFIG_AMLOGIC_HDMITX
+	rpt_edid_extraction(pedid);
+#endif
+	for (i = 0; i < ext_blk_num; ++i)
+		pedid[END_OF_BLK(i)] = rx_edid_calc_cksum(pedid, i);
+
+	for (i = 0; i < EDID_SIZE; i++) {
+		hdmirx_wr_top(edid_addr[port] + i, pedid[i], port);
+		edid_cur[port * EDID_SIZE + i] = pedid[i];
+	}
+	rx_get_edid_support(port);
+	if (log_level & EDID_LOG)
+		rx_print_edid_support(port);
 	return true;
 }
 
@@ -7813,7 +7792,7 @@ void rx_edid_reset_handler(struct work_struct *work)
 	struct delayed_work *dw = container_of(work, struct delayed_work, work);
 	struct edid_delayed_work_data *dwd =
 		container_of(dw, struct edid_delayed_work_data, delayed_work);
-	int i;
+	int i = 0;
 	bool rst_flg = true;
 	static u8 rst_cnt[E_PORT_NUM];
 
