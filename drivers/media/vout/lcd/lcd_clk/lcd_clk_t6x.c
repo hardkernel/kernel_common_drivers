@@ -60,16 +60,15 @@ static void lcd_pll_frac_set_t6x(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 	reg = ANACTRL_TCON_PLL0_CNTL4;
 	val = lcd_vx1_lvds_ctrl_read(pdrv, reg);
 	lcd_vx1_lvds_ctrl_setb(pdrv, reg, frac, 0, 17);
-	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
-		__func__, reg, val, lcd_vx1_lvds_ctrl_read(pdrv, reg));
+	LCD_DBG(pdrv, "tcon pll frac reg 0x%x: 0x%08x->0x%08x",
+			reg, val, lcd_vx1_lvds_ctrl_read(pdrv, reg));
 
 	reg = ANACTRL_TCON_PLL0_CNTL0;
 	val = lcd_vx1_lvds_ctrl_read(pdrv, reg);
 	if ((val & 0x1ff) != cconf->pll_config[0].pll_m) {
 		lcd_vx1_lvds_ctrl_setb(pdrv, reg, cconf->pll_config[0].pll_m, 0, 9);
-		LCD_PR(pdrv, "%s: pll_m=0x%x", __func__, cconf->pll_config[0].pll_m);
-		LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
-			__func__, reg, val, lcd_vx1_lvds_ctrl_read(pdrv, reg));
+		LCD_DBG(pdrv, "tcon pll m reg 0x%x: 0x%08x->0x%08x",
+				reg, val, lcd_vx1_lvds_ctrl_read(pdrv, reg));
 	}
 	lcd_delay_us(10);
 	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL_VLOCK, 1, 4, 1);
@@ -80,17 +79,15 @@ static void lcd_pll_frac_set_t6x(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 		reg = ANACTRL_GP2PLL_CTRL1;
 		val = lcd_ana_read(reg);
 		lcd_ana_setb(reg, cconf->pll_config[1].pll_frac, 0, 19);
-		LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
-			__func__, reg, val, lcd_ana_read(reg));
+		LCD_DBG(pdrv, "gp2 pll frac reg 0x%x: 0x%08x->0x%08x",
+				reg, val, lcd_ana_read(reg));
 
 		reg = ANACTRL_GP2PLL_CTRL0;
 		val = lcd_ana_read(reg);
 		if ((val & 0x1ff) != cconf->pll_config[1].pll_m) {
-			lcd_ana_setb(reg, cconf->pll_config[1].pll_frac, 0, 9);
-			LCD_PR(pdrv, "%s: gp2 pll_m=0x%x\n",
-				__func__, cconf->pll_config[1].pll_frac);
-			LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
-				__func__, reg, val, lcd_ana_read(reg));
+			lcd_ana_setb(reg, cconf->pll_config[1].pll_m, 0, 9);
+			LCD_DBG(pdrv, "gp2 pll m reg 0x%x: 0x%08x->0x%08x",
+					reg, val, lcd_ana_read(reg));
 		}
 	}
 }

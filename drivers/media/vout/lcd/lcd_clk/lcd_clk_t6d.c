@@ -44,8 +44,18 @@ static void lcd_pll_frac_set_t6d(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 	reg = ANACTRL_TCON_PLL0_CNTL4;
 	val = lcd_ana_read(reg);
 	lcd_ana_setb(reg, frac, 0, 17);
-	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
-		__func__, reg, val, lcd_ana_read(reg));
+	LCD_DBG(pdrv, "tcon pll frac reg 0x%x: 0x%08x->0x%08x",
+			reg, val, lcd_ana_read(reg));
+	reg = ANACTRL_TCON_PLL0_CNTL0;
+	val = lcd_ana_read(reg);
+	if ((val & 0x1ff) != cconf->pll_config[0].pll_m) {
+		lcd_ana_setb(reg, cconf->pll_config[0].pll_m, 0, 9);
+		LCD_DBG(pdrv, "tcon pll m reg 0x%x: 0x%08x->0x%08x", reg, val, lcd_ana_read(reg));
+	}
+	lcd_delay_us(10);
+	lcd_ana_setb(ANACTRL_TCON_PLL_VLOCK, 1, 4, 1);
+	lcd_delay_us(10);
+	lcd_ana_setb(ANACTRL_TCON_PLL_VLOCK, 0, 4, 1);
 }
 
 static void lcd_set_pll_ss_t6d(struct aml_lcd_drv_s *pdrv, unsigned int ss_flag)
@@ -201,6 +211,13 @@ static void lcd_set_pll_t6d(struct aml_lcd_drv_s *pdrv)
 
 	if (cconf->ss_level > 0)
 		lcd_set_pll_ss_t6d(pdrv, (LCD_SSC_LEVEL | LCD_SSC_FREQ | LCD_SSC_MODE));
+
+	/* set load to 0 */
+	lcd_ana_setb(ANACTRL_TCON_PLL_VLOCK, 0, 4, 1);
+	/* select ANACTRL_TCON_PLL_VLOCK[4] as load */
+	lcd_ana_setb(ANACTRL_TCON_PLL_VLOCK, 0, 3, 1);
+	/* enable load en*/
+	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL0, 1, 14, 1);
 }
 
 static void lcd_set_vid_pll_div_t6d(struct aml_lcd_drv_s *pdrv)

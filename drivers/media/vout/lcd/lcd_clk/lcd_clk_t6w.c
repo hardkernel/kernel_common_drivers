@@ -64,15 +64,34 @@ static void lcd_pll_frac_set_t6w(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 	reg = ANACTRL_TCON_PLL0_CNTL4;
 	val = lcd_vx1_lvds_ctrl_read(pdrv, reg);
 	lcd_vx1_lvds_ctrl_setb(pdrv, reg, frac, 0, 17);
-	LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
-		__func__, reg, val, lcd_vx1_lvds_ctrl_read(pdrv, reg));
+	LCD_DBG(pdrv, "tcon pll frac reg 0x%x: 0x%08x->0x%08x",
+			reg, val, lcd_vx1_lvds_ctrl_read(pdrv, reg));
+	reg = ANACTRL_TCON_PLL0_CNTL0;
+	val = lcd_vx1_lvds_ctrl_read(pdrv, reg);
+	if ((val & 0x1ff) != cconf->pll_config[0].pll_m) {
+		lcd_vx1_lvds_ctrl_setb(pdrv, reg, cconf->pll_config[0].pll_m, 0, 9);
+		LCD_DBG(pdrv, "tcon pll m reg %s: 0x%x: 0x%08x->0x%08x\n",
+				reg, val, lcd_vx1_lvds_ctrl_read(pdrv, reg));
+	}
+	lcd_delay_us(10);
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL_VLOCK, 1, 4, 1);
+	lcd_delay_us(10);
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL_VLOCK, 0, 4, 1);
 
 	if (cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL) {
 		reg = ANACTRL_GP2PLL_CTRL2;
 		val = lcd_ana_read(reg);
 		lcd_ana_setb(reg, cconf->pll_config[1].pll_frac, 0, 19);
-		LCD_DBG(pdrv, "%s: reg 0x%x: 0x%08x->0x%08x",
-			__func__, reg, val, lcd_ana_read(reg));
+		LCD_DBG(pdrv, "gp2 pll frac reg 0x%x: 0x%08x->0x%08x",
+				reg, val, lcd_ana_read(reg));
+
+		reg = ANACTRL_GP2PLL_CTRL0;
+		val = lcd_ana_read(reg);
+		if ((val & 0x1ff) != cconf->pll_config[1].pll_m) {
+			lcd_ana_setb(reg, cconf->pll_config[1].pll_m, 0, 9);
+			LCD_DBG(pdrv, "gp2 pll m reg 0x%x: 0x%08x->0x%08x\n",
+					reg, val, lcd_ana_read(reg));
+		}
 	}
 }
 
@@ -281,6 +300,13 @@ static void lcd_set_pll_t6w(struct aml_lcd_drv_s *pdrv)
 	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL0_CNTL3, 0, 31, 1);
 	usleep_range(10, 15);
 	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL0_CNTL3, 1, 31, 1);
+
+	/* set load to 0 */
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL_VLOCK, 0, 4, 1);
+	/* select ANACTRL_TCON_PLL_VLOCK[4] as load */
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL_VLOCK, 0, 3, 1);
+	/* enable load en*/
+	lcd_vx1_lvds_ctrl_setb(pdrv, ANACTRL_TCON_PLL0_CNTL0, 1, 14, 1);
 
 	if ((cconf->pll_mode & LCD_PLL_MODE_DUAL_PLL)) {
 		cnt = 0;
