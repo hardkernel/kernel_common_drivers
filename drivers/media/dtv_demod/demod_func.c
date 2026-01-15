@@ -2108,7 +2108,7 @@ void dvbs_wr_byte(unsigned int addr, unsigned char data)
 
 	/*demod_mutex_lock();*/
 
-	__raw_writeb(data, gbase_dvbs() + addr);
+	writeb(data, gbase_dvbs() + addr);
 
 	/*demod_mutex_unlock();*/
 }
@@ -2122,7 +2122,7 @@ unsigned char dvbs_rd_byte(unsigned int addr)
 
 	/*demod_mutex_lock();*/
 
-	tmp = __raw_readb(gbase_dvbs() + addr);
+	tmp = readb(gbase_dvbs() + addr);
 
 	/*demod_mutex_unlock();*/
 

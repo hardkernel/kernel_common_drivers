@@ -229,6 +229,7 @@
 /*  V4.1.004 fix dtmb ddr access after unlock signal(T5M) */
 /*  V4.1.005 log level optimization */
 /*  V4.1.006 T6X dvbc new blind scan bringup */
+/*  V4.1.007 fix dvbs blind scan state and clear params when leaving */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -245,8 +246,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V4.1.006"
-#define DTVDEMOD_VER	"2025/12/15 T6X dvbc new blind scan bringup"
+#define AMLDTVDEMOD_VER "V4.1.007"
+#define DTVDEMOD_VER	"2026/01/14 fix dvbs blind scan state and clear params when leaving"
 #define AMLDTVDEMOD_T2_FW_VER "v1059.20250521"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

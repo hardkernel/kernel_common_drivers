@@ -644,11 +644,14 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 #ifdef CONFIG_AMLOGIC_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
+		devp->blind_scan_stop = 1;
 		/*disable irq*/
+		aml_diseqc_tone_on(&devp->diseqc, false);
 		aml_diseqc_isr_en(&devp->diseqc, false);
 		/* disable dvbs mode to avoid hang when switch to other demod */
 		demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 		aml_diseqc_set_lnb_voltage(diseqc, SEC_VOLTAGE_OFF);
+		c->sectone = SEC_TONE_OFF;
 		c->voltage = SEC_VOLTAGE_OFF;
 		break;
 #endif
@@ -675,6 +678,8 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 		PR_INFO("%s:really_leave\n", __func__);
 	}
 
+	real_para_clear(&demod->real_para);
+
 	demod->inited = false;
 	demod->freq = 0;
 
@@ -685,6 +690,7 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 		unsigned int cdelsys)
 {
 	struct dvb_frontend *fe = &demod->frontend;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	unsigned int abus_en_dly = 0, polling_en = 0, top_saved = 0;
 	int retry_count = 2;
@@ -802,6 +808,10 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 		t3_revb_set_ambus_state(false, ldelsys == SYS_DVBT2);
 	}
 #endif
+
+	c->frequency = 0;
+	c->symbol_rate = 0;
+	c->bandwidth_hz = 0;
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
