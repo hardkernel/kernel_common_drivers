@@ -452,6 +452,8 @@ unsigned int get_muxio_ready_for_dpss(void);
 void update_hdr_settings_dpss(struct vframe_s *vf,
 	enum vd_path_e vd_path, enum vpp_index_e vpp_index);
 enum hdr_module_sel get_hdr_module(enum vd_path_e vd_path);
+void video_post_process_for_dpss(struct vframe_s *vf,
+				enum vd_path_e vd_path, enum vpp_index_e vpp_index);
 
 enum path_mux_e {
 	PATH_DELINK = 0,

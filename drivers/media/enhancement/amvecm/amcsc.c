@@ -9475,8 +9475,11 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		vd_path == VD1_PATH) {
 		if (cur_signal_type[VD1_PATH] != 0xffffffff)
 			cur_signal_type[VD1_PATH] = 0xffffffff;
-
+		if (vf)
+			pr_csc(1, "vf(%p) index=%d, frame_index=%d, dpss_flg=0x%x\n",
+				vf, vf->index, vf->frame_index, vf->dpss_flg);
 		update_hdr_settings_dpss(vf, vd_path, vpp_index);
+		video_post_process_for_dpss(vf, vd_path, vpp_index);
 
 		return 0;
 	}
@@ -10212,98 +10215,6 @@ static int force_vpp_index = VPP_VCBUS;//VPP_DPSS;
 static uint force_source_format;
 static uint dpss_tmo = 1;
 
-void matrix_setting_for_dpss(enum vpp_matrix_e mtx_sel,
-	enum mtx_csc_e mtx_csc, int mtx_on, int vpp_sel)
-{
-	unsigned int matrix_coef00_01 = 0;
-	unsigned int matrix_coef02_10 = 0;
-	unsigned int matrix_coef11_12 = 0;
-	unsigned int matrix_coef20_21 = 0;
-	unsigned int matrix_coef22 = 0;
-	unsigned int matrix_coef13_14 = 0;
-	unsigned int matrix_coef23_24 = 0;
-	unsigned int matrix_coef15_25 = 0;
-	unsigned int matrix_clip = 0;
-	unsigned int matrix_offset0_1 = 0;
-	unsigned int matrix_offset2 = 0;
-	unsigned int matrix_pre_offset0_1 = 0;
-	unsigned int matrix_pre_offset2 = 0;
-	unsigned int matrix_en_ctrl = 0;
-
-	if (disable_flush_flag)
-		return;
-
-	pr_csc(128, "%s: mtx_sel/mtx_csc = 0x%x/%x, mtx_on/vpp_sel = %d/%d\n",
-		__func__, mtx_sel, mtx_csc, mtx_on, vpp_sel);
-
-	if (mtx_sel == POST2_MTX) {
-		matrix_coef00_01 = VPP_POST2_MATRIX_COEF00_01;
-		matrix_coef02_10 = VPP_POST2_MATRIX_COEF02_10;
-		matrix_coef11_12 = VPP_POST2_MATRIX_COEF11_12;
-		matrix_coef20_21 = VPP_POST2_MATRIX_COEF20_21;
-		matrix_coef22 = VPP_POST2_MATRIX_COEF22;
-		matrix_coef13_14 = VPP_POST2_MATRIX_COEF13_14;
-		matrix_coef23_24 = VPP_POST2_MATRIX_COEF23_24;
-		matrix_coef15_25 = VPP_POST2_MATRIX_COEF15_25;
-		matrix_clip = VPP_POST2_MATRIX_CLIP;
-		matrix_offset0_1 = VPP_POST2_MATRIX_OFFSET0_1;
-		matrix_offset2 = VPP_POST2_MATRIX_OFFSET2;
-		matrix_pre_offset0_1 = VPP_POST2_MATRIX_PRE_OFFSET0_1;
-		matrix_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2;
-		matrix_en_ctrl = VPP_POST2_MATRIX_EN_CTRL;
-	} else if (mtx_sel == POST_MTX) {
-		matrix_coef00_01 = VPP_POST_MATRIX_COEF00_01;
-		matrix_coef02_10 = VPP_POST_MATRIX_COEF02_10;
-		matrix_coef11_12 = VPP_POST_MATRIX_COEF11_12;
-		matrix_coef20_21 = VPP_POST_MATRIX_COEF20_21;
-		matrix_coef22 = VPP_POST_MATRIX_COEF22;
-		matrix_coef13_14 = VPP_POST_MATRIX_COEF13_14;
-		matrix_coef23_24 = VPP_POST_MATRIX_COEF23_24;
-		matrix_coef15_25 = VPP_POST_MATRIX_COEF15_25;
-		matrix_clip = VPP_POST_MATRIX_CLIP;
-		matrix_offset0_1 = VPP_POST_MATRIX_OFFSET0_1;
-		matrix_offset2 = VPP_POST_MATRIX_OFFSET2;
-		matrix_pre_offset0_1 = VPP_POST_MATRIX_PRE_OFFSET0_1;
-		matrix_pre_offset2 = VPP_POST_MATRIX_PRE_OFFSET2;
-		matrix_en_ctrl = VPP_POST_MATRIX_EN_CTRL;
-	} else {
-		return;
-	}
-
-	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_en_ctrl,
-		mtx_on, 0, 1, vpp_sel);
-
-	if (!mtx_on)
-		return;
-
-	switch (mtx_csc) {
-	case MATRIX_YUV709_RGB:
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01, 0x04ac0000, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef02_10, 0x073104ac, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12, 0x1f251ddd, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef20_21, 0x04ac0879, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22, 0x0, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset0_1, 0x0, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset2, 0x0, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset0_1, 0x7c00600, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset2, 0x00000600, vpp_sel);
-		break;
-	case MATRIX_YUV709F_RGB:
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01, 0x04000000, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef02_10, 0x064d0400, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12, 0x1f411e21, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef20_21, 0x0400076d, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22, 0x0, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset0_1, 0x0, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset2, 0x0, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset0_1, 0x0000600, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset2, 0x00000600, vpp_sel);
-		break;
-	default:
-		break;
-	}
-}
-
 int hdr_policy_for_dpss(enum hdr_type_e source_format, struct vframe_s *vf)
 {
 	int change_flag = 0;
@@ -10804,7 +10715,6 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 	struct vframe_master_display_colour_s *master_info =
 		&cur_master_display_colour[VD1_PATH];
 	enum vpp_matrix_csc_e csc_type = VPP_MATRIX_NULL;
-	enum mtx_csc_e matrix_csc = MATRIX_NULL;
 	int vpp_index = force_vpp_index;
 	struct vinfo_s *vinfo;
 	struct matrix_s m = {
@@ -10817,8 +10727,6 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 		{0, 0, 0},
 		1
 	};
-	enum hdr_type_e gamut_src_format = HDRTYPE_SDR;
-	int bypass_gamut_wrapper = 0;
 	int sdr_gmt_conv_en = 0;
 
 	int s5_silce_mode = get_s5_slice_mode();
@@ -10896,12 +10804,10 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 		case HDRTYPE_SDR2020:
 			if (!sdr_ext_mode_dpss_changed) {
 				if (sdr_process_mode_dpss == PROC_BYPASS) {
-					gamut_src_format = source_format;
 					if (gamut_conv_enable &&
 						(vpp_color_pri_sel || !gamut_mapping1_en)) {
 						gamut_convert_process(vinfo, &source_format,
 							vd_path, &m, 11, DEST_NONE);
-						gamut_src_format = HDRTYPE_SDR;
 						sdr_gmt_conv_en = 1;
 					}
 					hdr_proc_multi_slices(vf, VD1_HDR,
@@ -10910,8 +10816,6 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 						sdr_gmt_conv_en ? &m : NULL,
 						s5_silce_mode, vpp_index);
 				} else if (sdr_process_mode_dpss == PROC_SDR_TO_HDR) {
-					gamut_src_format = HDRTYPE_HDR10;
-					bypass_gamut_wrapper = 1;
 					if (gamut_conv_enable) {
 						gamut_convert_process(vinfo, &source_format,
 							vd_path, &m, 11, DEST_NONE);
@@ -10935,12 +10839,9 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 			hdr_proc_multi_slices(vf, VD1_HDR, SDR_GMT_CONVERT,
 				vinfo, &m, s5_silce_mode, vpp_index);
 		} else {
-			gamut_src_format = source_format;
-			bypass_gamut_wrapper = 1;
 			if (gamut_conv_enable) {
 				gamut_convert_process(vinfo, &source_format,
 					vd_path, &m, 11, DEST_NONE);
-				bypass_gamut_wrapper = 1;
 			}
 			hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
@@ -10950,8 +10851,6 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 		case HDRTYPE_HDR10:
 		case HDRTYPE_HDR10_709:
 			if (hdr_process_mode_dpss == PROC_BYPASS) {
-				gamut_src_format = source_format;
-				bypass_gamut_wrapper = 1;
 				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
 			} else if (hdr_process_mode_dpss == PROC_HDR_TO_SDR) {
@@ -10964,8 +10863,6 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 			break;
 		case HDRTYPE_HLG:
 			if (hlg_process_mode_dpss == PROC_BYPASS) {
-				gamut_src_format = source_format;
-				bypass_gamut_wrapper = 1;
 				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
 			} else if (hlg_process_mode_dpss == PROC_HLG_TO_SDR) {
@@ -10980,8 +10877,6 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 			break;
 		case HDRTYPE_HDR10PLUS:
 			if (hdr10_plus_process_mode_dpss == PROC_BYPASS) {
-				gamut_src_format = source_format;
-				bypass_gamut_wrapper = 1;
 				hdr_proc_multi_slices(vf, VD1_HDR, HDR_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
 			} else if (hdr10_plus_process_mode_dpss == PROC_HDRP_TO_SDR) {
@@ -10993,8 +10888,6 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 			break;
 		case HDRTYPE_CUVA_HDR:
 			if (cuva_hdr_process_mode_dpss == PROC_BYPASS) {
-				gamut_src_format = source_format;
-				bypass_gamut_wrapper = 1;
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVA_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
 			} else if (cuva_hdr_process_mode_dpss == PROC_CUVA_TO_SDR) {
@@ -11009,8 +10902,6 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 			break;
 		case HDRTYPE_CUVA_HLG:
 			if (cuva_hlg_process_mode_dpss == PROC_BYPASS) {
-				gamut_src_format = source_format;
-				bypass_gamut_wrapper = 1;
 				hdr_proc_multi_slices(vf, VD1_HDR, CUVA_BYPASS,
 					vinfo, NULL, s5_silce_mode, vpp_index);
 			} else if (cuva_hlg_process_mode_dpss == PROC_CUVAHLG_TO_SDR) {
@@ -11027,35 +10918,10 @@ void hdr_process_for_dpss(struct vframe_s *vf)
 			break;
 		}
 
-		if (source_format != HDRTYPE_SDR && !vpp_color_pri_sel)
-			bypass_gamut_wrapper = 1;
+		vf->dpss_flg |= DPSS_FLG_HDR_CHG;
 
-		cal_gamut_mapping_wrapper_matrix(gamut_src_format, vinfo,
-			bypass_gamut_wrapper, vpp_index);
-
-		pr_csc(128, "%s: csc_type = 0x%x\n",
-			__func__, csc_type);
-
-		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
-			0, 1, 1, vpp_index);
-		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ2_MISC,
-			0, 1, 1, vpp_index);
-
-		if (csc_type == VPP_MATRIX_YUV709F_RGB  ||
-			csc_type == VPP_MATRIX_YUV601F_RGB)
-			matrix_csc = MATRIX_YUV709F_RGB;
-		else
-			matrix_csc = MATRIX_YUV709_RGB;
-
-		if (!watermark_support) {
-			matrix_setting_for_dpss(POST2_MTX,
-				matrix_csc, MTX_ON, vpp_index);
-		} else {
-			matrix_setting_for_dpss(POST2_MTX,
-				matrix_csc, MTX_OFF, vpp_index);
-			matrix_setting_for_dpss(POST_MTX,
-				matrix_csc, MTX_ON, vpp_index);
-		}
+		pr_csc(128, "csc_type = 0x%x, vf(%p) index=%d, frame_index=%d, dpss_flg=0x%x\n",
+			csc_type, vf, vf->index, vf->frame_index, vf->dpss_flg);
 
 		if (cur_sdr_process_mode_dpss !=
 			sdr_process_mode_dpss) {
@@ -11165,6 +11031,53 @@ void update_hdr_path_for_dpss(struct vframe_s *vf)
 		return;
 
 	set_muxio_link_mode(1, vf, VPP_VCBUS);
+}
+
+void video_post_process_for_dpss(struct vframe_s *vf,
+				enum vd_path_e vd_path, enum vpp_index_e vpp_index)
+{
+	enum hdr_type_e gamut_src_format;
+	enum mtx_csc_e matrix_csc = MATRIX_NULL;
+	int bypass_gamut_wrapper = 0;
+	struct vinfo_s *vinfo = get_current_vinfo();
+
+	if (dpss_mode && vd_path == VD1_PATH &&
+		vf && vf->dpss_flg & DPSS_FLG_HDR_CHG) {
+		if (cur_dpss_src_format != HDRTYPE_SDR && !vpp_color_pri_sel)
+			bypass_gamut_wrapper = 1;
+
+		if (vpp_color_pri_sel)
+			gamut_src_format = HDRTYPE_HDR10;
+		else
+			gamut_src_format = HDRTYPE_SDR;
+
+		cal_gamut_mapping_wrapper_matrix(gamut_src_format, vinfo,
+				bypass_gamut_wrapper, vpp_index);
+
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
+			0, 1, 1, vpp_index);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ2_MISC,
+			0, 1, 1, vpp_index);
+
+		if (cur_csc_type_dpss == VPP_MATRIX_YUV709F_RGB  ||
+			cur_csc_type_dpss == VPP_MATRIX_YUV601F_RGB)
+			matrix_csc = MATRIX_YUV709F_RGB;
+		else
+			matrix_csc = MATRIX_YUV709_RGB;
+
+		if (!watermark_support) {
+			mtx_setting(POST2_MTX,
+				matrix_csc, MTX_ON);
+		} else {
+			mtx_setting(POST2_MTX,
+				matrix_csc, MTX_OFF);
+			mtx_setting(POST_MTX,
+				matrix_csc, MTX_ON);
+		}
+
+		pr_csc(128, "gamut_src_format = %d, bypass_gamut_wrapper = %d, matrix_csc =0x%x\n",
+			gamut_src_format, bypass_gamut_wrapper, matrix_csc);
+	}
 }
 
 void hdr_init_for_dpss(struct vframe_s *vf)

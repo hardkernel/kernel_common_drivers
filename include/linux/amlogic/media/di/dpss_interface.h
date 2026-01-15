@@ -120,6 +120,7 @@ enum DPSS_BUF_STATE {
 #define DPSS_FLG_OUT_BYPASS       (0x00010) //this flag is set in pipeline means not do dpss
 #define DPSS_FLG_MODULE_BYPASS    (0x00020) //this flag is set in pipeline means bypass dpss module
 #define DPSS_FLG_SET_DPSS_PROCESS (0x00040) //this flag is set in dpss_process means receive the vf
+#define DPSS_FLG_HDR_CHG          (0x00080)
 #define DPSS_FLG_FRONT	(0x00100)
 #define DPSS_FLG_NEW_TRIG	      (0x10000) //trig re-setting by input
 /************************************************/

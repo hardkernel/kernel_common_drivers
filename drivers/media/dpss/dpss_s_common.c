@@ -2567,7 +2567,7 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 	vfm_in = nr_i->in_vfm;
 	vfm->dpss_flg |= (vfm_in->dpss_flg &
 		(DPSS_FLG_DDD |
-		DPSS_FLG_HDR)); //for dd/hdr
+		DPSS_FLG_HDR | DPSS_FLG_HDR_CHG)); //for dd/hdr
 	dpss_in_rck_in(pch, vfm_in);
 	nr_i->in_vfm = NULL;
 
