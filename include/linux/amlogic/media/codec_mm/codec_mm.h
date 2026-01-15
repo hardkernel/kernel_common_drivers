@@ -202,5 +202,6 @@ u64 codec_mm_secure_vdec_max_addr(void);
 int is_reserved_ext_support(void);
 void codec_mm_attach_dma_buf(struct dma_buf *dmabuf, ulong phy);
 void codec_mm_detach_dma_buf(struct dma_buf *dmabuf, ulong phy);
+void codec_mm_inval_cache(dma_addr_t addr, size_t size);
 
 #endif

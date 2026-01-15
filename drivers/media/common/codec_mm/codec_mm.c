@@ -1723,6 +1723,14 @@ void codec_mm_dma_flush(void *vaddr,
 }
 EXPORT_SYMBOL(codec_mm_dma_flush);
 
+void codec_mm_inval_cache(dma_addr_t addr, size_t size)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	dma_sync_single_for_cpu(mgt->dev, addr, size, DMA_FROM_DEVICE);
+}
+EXPORT_SYMBOL(codec_mm_inval_cache);
+
 int codec_mm_has_owner(struct codec_mm_s *mem, const char *owner)
 {
 	int index;
