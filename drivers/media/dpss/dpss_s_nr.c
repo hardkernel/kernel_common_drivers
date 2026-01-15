@@ -2950,10 +2950,15 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 		} else {
 			if (pch->d->is_afbcd || prm_top->dae_dsx_scale == 0)
 				prm_dpe->dcntr_slc.ds_mode = 0;
-			else if (prm_top->dae_dsx_scale == 1)
-				prm_dpe->dcntr_slc.ds_mode = 2;
-			else if (prm_top->dae_dsx_scale == 2)
+			else if (prm_top->dae_dsx_scale == 1) {
+				if (prm_top->dae_dsy_scale == 0 &&
+					prm_top->src_is_1080p_nods)
+					prm_dpe->dcntr_slc.ds_mode = 1;
+				else
+					prm_dpe->dcntr_slc.ds_mode = 2;
+			} else if (prm_top->dae_dsx_scale == 2) {
 				prm_dpe->dcntr_slc.ds_mode = 3;
+			}
 		}
 
 		if (pch->d->is_afbcd) {
