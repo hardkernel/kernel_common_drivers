@@ -543,15 +543,20 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 			return 0;
 		}
 	} else if ((fsm_state & 0xf) == 5) {
-		demod->auto_no_sig_cnt = 0;
-		demod->auto_times = 0;
-		*delay = HZ / 4;
-		demod->real_para.modulation = amdemod_qam_fe(demod->auto_qam_mode);
-		demod->real_para.symbol = demod->auto_sr ?
-			demod->sr_val_hw_stable * 1000 :
-			fe->dtv_property_cache.symbol_rate;
+		usleep_range(500, 501);
+		fsm_state = qam_read_reg(demod, 0x31);
+		PR_DVBC("re check fsm:0x%x", fsm_state);
+		if ((fsm_state & 0xf) == 5) {
+			demod->auto_no_sig_cnt = 0;
+			demod->auto_times = 0;
+			*delay = HZ / 4;
+			demod->real_para.modulation = amdemod_qam_fe(demod->auto_qam_mode);
+			demod->real_para.symbol = demod->auto_sr ?
+				demod->sr_val_hw_stable * 1000 :
+				fe->dtv_property_cache.symbol_rate;
 
-		return 1;
+			return 1;
+		}
 	} else if ((fsm_state & 0xf) == 6) {
 		if ((demod_chip_eq(DTVDEMOD_HW_T5D) || demod_chip_eq(DTVDEMOD_HW_T5D_B) ||
 			demod_chip_eq(DTVDEMOD_HW_T3)) && demod->qam_wait_times < 4) {
