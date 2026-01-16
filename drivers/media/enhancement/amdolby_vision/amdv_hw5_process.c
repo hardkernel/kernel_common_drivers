@@ -1613,9 +1613,10 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 			}
 		}
 		if (debug_dolby & 1)
-			pr_dv_dbg("top1:%s get vf %px(%d,index %d),fmt %d,aux %p %x,el %d,type %x\n",
-				     dv_provider[0], vf, vf->discard_dv_data, vf->frame_index, fmt,
-				     req.aux_buf, req.aux_size, req.dv_enhance_exist, vf->type);
+			pr_dv_dbg("top1:%s get vf %px %p(%d,index %d),fmt %d,aux %p %d,el %d,type %x\n",
+				     dv_provider[0], vf, vf, vf->discard_dv_data,
+				     vf->frame_index, fmt, req.aux_buf, req.aux_size,
+				     req.dv_enhance_exist, vf->type);
 		/* parse meta in base layer */
 		ret = get_md_from_src_fmt(vf);
 		if (ret == 1) { /*parse succeeded*/
@@ -2379,9 +2380,10 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 			}
 		}
 		if (debug_dolby & 1)
-			pr_dv_dbg("top2:%s get %px(%d,index %d),fmt %d,aux %px %x,el %d,type %x\n",
-				     dv_provider[0], vf, vf->discard_dv_data, vf->frame_index, fmt,
-				     req.aux_buf, req.aux_size, req.dv_enhance_exist, vf->type);
+			pr_dv_dbg("top2:%s get %px %p(%d,index %d),fmt %d,aux %px %d,el %d,type %x\n",
+				     dv_provider[0], vf, vf, vf->discard_dv_data,
+				     vf->frame_index, fmt, req.aux_buf, req.aux_size,
+				     req.dv_enhance_exist, vf->type);
 		/* parse meta in base layer */
 		if (toggle_mode != 2) {
 			ret = get_md_from_src_fmt(vf);

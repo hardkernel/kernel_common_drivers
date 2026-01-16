@@ -6048,8 +6048,8 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 	vf->src_fmt.downsamplers = 2;
 #endif
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME) {
-		pr_info("===update vf %px, sei %px,size %d,dual_layer %d,play_id=%d ===\n",
-			vf, sei, size, dual_layer,
+		pr_info("===update vf %px %p(index=%d),sei %px,size %d,dual_layer %d,play_id=%d ===\n",
+			vf, vf, vf->frame_index, sei, size, dual_layer,
 			vf->src_fmt.play_id);
 		if (sei && size > 15) {
 			p = (char *)sei;

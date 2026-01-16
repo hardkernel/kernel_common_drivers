@@ -8950,8 +8950,9 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 			}
 		}
 		if (debug_dolby & 1)
-			pr_dv_dbg("%s get vf %p(%d), fmt %d, aux %p %x, el %d\n",
-				     dv_provider[0], vf, vf->discard_dv_data, fmt,
+			pr_dv_dbg("%s get vf %px %p(%d,index=%d),fmt %d,aux %p %d,el %d\n",
+				     dv_provider[0], vf, vf, vf->discard_dv_data, vf->frame_index,
+				     fmt,
 				     req.aux_buf,
 				     req.aux_size,
 				     req.dv_enhance_exist);
@@ -10574,10 +10575,10 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			}
 		}
 		if (debug_dolby & 1)
-			pr_dv_dbg("[inst%d vd%d]%s get %p(%d,index %d),fmt %d,aux %p %x,el %d\n",
+			pr_dv_dbg("[inst%d vd%d]%s get %px %p(%d,index %d),fmt %d,aux %p %x,el %d\n",
 				     dv_id + 1,
 				     vd_path + 1,
-				     dv_provider[vd_path], vf, vf->discard_dv_data,
+				     dv_provider[vd_path], vf, vf, vf->discard_dv_data,
 				     vf->frame_index, fmt,
 				     req.aux_buf,
 				     req.aux_size,
