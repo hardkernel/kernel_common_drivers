@@ -6849,10 +6849,10 @@ u32 aml_cable_clk_band(u32 cable_clk, u32 clk_rate, u8 port)
 	if ((rx[port].phy_bw_pre == PHY_BW_2 &&
 		bw == PHY_BW_1) && cab_clk >= (73 * MHz))
 		bw = PHY_BW_2;
-	if ((rx[port].phy_bw_pre == PHY_BW_4 &&
-		bw == PHY_BW_3) &&
+	if ((rx[port].phy_bw_pre == PHY_BW_5 &&
+		bw == PHY_BW_4) &&
 		cab_clk <= (301 * MHz) && cab_clk >= (299 * MHz))
-		bw = PHY_BW_4;
+		bw = PHY_BW_5;
 	rx[port].phy_bw_pre = bw;
 	if (rx_info.aml_phy.force_bw & 0x100) {
 		if (((rx_info.aml_phy.force_bw >> 4) & 0xf) <= 0x6)
