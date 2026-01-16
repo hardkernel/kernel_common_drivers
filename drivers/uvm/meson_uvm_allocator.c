@@ -24,6 +24,7 @@
 #include <linux/dma-direction.h>
 #include <linux/dma-direct.h>
 #include <linux/time.h>
+#include <linux/workqueue.h>
 #include <uapi/linux/dma-heap.h>
 
 #include <linux/amlogic/media/avbc_wrapper_interface.h>
@@ -41,7 +42,7 @@ static int mua_debug_level = MUA_ERROR;
 module_param(mua_debug_level, int, 0644);
 static int mua_filldata_policy = MUA_ALL_WRAPPER;
 module_param(mua_filldata_policy, int, 0644);
-static int realloc_buf_count = 4;
+static int realloc_buf_count = 3;
 module_param(realloc_buf_count, int, 0664);
 static int enable_rec_buf_pool;
 module_param_named(enable_rec_buf_pool, enable_rec_buf_pool, int, 0664);
@@ -71,9 +72,10 @@ module_param_array(decoder_para, uint, &uvm_decoder_para_num, 0644);
 #define MMU_COMPRESS_HEADER_SIZE_1080P  0x10000
 #define MMU_COMPRESS_HEADER_SIZE_4K     0x48000
 #define MMU_COMPRESS_HEADER_SIZE_8K     0x120000
-static bool realloc_once;
-static int insert_count;
+static int mua_imm_alloc_count[MAX_PIPE_LINE] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+static int insert_count[MAX_PIPE_LINE];
 static int skip_realloc;
+static bool video_exit;
 
 static int get_header_size(int w, int h)
 {
@@ -198,8 +200,9 @@ static void mua_dummy_buffer_put(struct dma_buf *dmabuf)
 }
 
 static int mua_realloc_buffer_insert(struct dma_buf *idmabuf,
-			u32 width, u32 height)
+			u32 width, u32 height, u32 slot_id)
 {
+	int i;
 	struct mua_realloc_buffer_list *new_node;
 
 	new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
@@ -215,33 +218,53 @@ static int mua_realloc_buffer_insert(struct dma_buf *idmabuf,
 	new_node->dmabuf_h = height;
 	new_node->flag = false;
 	new_node->timestamp = ktime_get();
-	MUA_PRINTK(MUA_INFO, "insert idmabuf(%px) WxH(%ux%u) done.\n",
-		   idmabuf, width, height);
+	new_node->slot_id = slot_id;
+	MUA_PRINTK(MUA_INFO, "insert idmabuf(%px) WxH(%ux%u) slot_id(%u) done.\n",
+		   idmabuf, width, height, slot_id);
 
-	mutex_lock(&mua_dev->mua_rec_buf_lock);
-	list_add_tail(&new_node->dmabuf_list, &mua_dev->mua_rec_buf_list.dmabuf_list);
-	mutex_unlock(&mua_dev->mua_rec_buf_lock);
-	insert_count++;
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		if (mua_dev->mua_rec_buf_list[i].slot_id == slot_id)
+			break;
+	}
+	if (i == MAX_PIPE_LINE) {
+		kfree(new_node);
+		return -ENOMEM;
+	}
+
+	mutex_lock(&mua_dev->mua_rec_buf_lock[i]);
+	list_add_tail(&new_node->dmabuf_list, &mua_dev->mua_rec_buf_list[i].dmabuf_list);
+	mutex_unlock(&mua_dev->mua_rec_buf_lock[i]);
+	insert_count[i]++;
 
 	return 0;
 }
 
 static struct dma_buf *mua_realloc_buffer_get(struct dma_buf *idmabuf,
-			u32 width, u32 height)
+			u32 width, u32 height, u32 slot_id)
 {
+	int i;
 	struct dma_buf *dmabuf = NULL;
 	struct mua_realloc_buffer_list *entry, *tmp, *oldest;
 	ktime_t oldest_ts = KTIME_MAX;
 
-	mutex_lock(&mua_dev->mua_rec_buf_lock);
-	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		if (mua_dev->mua_rec_buf_list[i].slot_id == slot_id)
+			break;
+	}
+	if (i == MAX_PIPE_LINE)
+		return ERR_PTR(-ENOMEM);
+
+	mutex_lock(&mua_dev->mua_rec_buf_lock[i]);
+	list_for_each_entry_safe(entry, tmp,
+			&mua_dev->mua_rec_buf_list[i].dmabuf_list, dmabuf_list) {
 		if (!entry->flag && ktime_compare(entry->timestamp, oldest_ts) < 0) {
 			oldest_ts = entry->timestamp;
 			oldest = entry;
 		}
 	}
 
-	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+	list_for_each_entry_safe(entry, tmp,
+			&mua_dev->mua_rec_buf_list[i].dmabuf_list, dmabuf_list) {
 		if (entry->flag && entry->dmabuf == idmabuf &&
 		    entry->dmabuf_w == width && entry->dmabuf_h == height) {
 			dmabuf = entry->dmabuf;
@@ -257,23 +280,31 @@ static struct dma_buf *mua_realloc_buffer_get(struct dma_buf *idmabuf,
 			break;
 		}
 	}
-	mutex_unlock(&mua_dev->mua_rec_buf_lock);
+	mutex_unlock(&mua_dev->mua_rec_buf_lock[i]);
 
 	return dmabuf;
 }
 
 static void mua_realloc_buffer_bind(struct dma_buf *idmabuf,
-			struct dma_buf *fake_dmabuf, u32 width, u32 height)
+			struct dma_buf *fake_dmabuf, u32 width, u32 height, u32 slot_id)
 {
+	int i;
 	struct uvm_buf_obj *obj = NULL;
 	struct mua_buffer *buffer = NULL;
 	struct mua_realloc_buffer_list *entry, *tmp;
 
 	obj = dmabuf_get_uvm_buf_obj(fake_dmabuf);
 	buffer = container_of(obj, struct mua_buffer, base);
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		if (mua_dev->mua_rec_buf_list[i].slot_id == slot_id)
+			break;
+	}
+	if (i == MAX_PIPE_LINE)
+		return;
 
-	mutex_lock(&mua_dev->mua_rec_buf_lock);
-	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+	mutex_lock(&mua_dev->mua_rec_buf_lock[i]);
+	list_for_each_entry_safe(entry, tmp,
+			&mua_dev->mua_rec_buf_list[i].dmabuf_list, dmabuf_list) {
 		if (entry->dmabuf == buffer->idmabuf[1]) {
 			atomic_sub(1, &entry->dmabuf_ref);
 			MUA_PRINTK(MUA_INFO, "pre_idmabuf(%px) fake_dmabuf(%px) dmabuf_ref(%u)\n",
@@ -282,7 +313,8 @@ static void mua_realloc_buffer_bind(struct dma_buf *idmabuf,
 		}
 	}
 
-	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+	list_for_each_entry_safe(entry, tmp,
+			&mua_dev->mua_rec_buf_list[i].dmabuf_list, dmabuf_list) {
 		if (entry->dmabuf == idmabuf &&
 		    entry->dmabuf_w == width && entry->dmabuf_h == height) {
 			entry->fake_dmabuf = fake_dmabuf;
@@ -292,39 +324,56 @@ static void mua_realloc_buffer_bind(struct dma_buf *idmabuf,
 			break;
 		}
 	}
-	mutex_unlock(&mua_dev->mua_rec_buf_lock);
+	mutex_unlock(&mua_dev->mua_rec_buf_lock[i]);
 }
 
-static void mua_realloc_buffer_put(struct dma_buf *idmabuf)
+static void mua_realloc_buffer_put(struct dma_buf *idmabuf, u32 slot_id)
 {
+	int i;
 	struct mua_realloc_buffer_list *entry, *tmp;
-	bool all_ones = true;
 
-	mutex_lock(&mua_dev->mua_rec_buf_lock);
-	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		if (mua_dev->mua_rec_buf_list[i].slot_id == slot_id)
+			break;
+	}
+	if (i == MAX_PIPE_LINE)
+		return;
+
+	mua_imm_alloc_count[i]--;
+	mutex_lock(&mua_dev->mua_rec_buf_lock[i]);
+	list_for_each_entry_safe(entry, tmp,
+			&mua_dev->mua_rec_buf_list[i].dmabuf_list, dmabuf_list) {
 		if (entry->dmabuf == idmabuf) {
 			atomic_sub(1, &entry->dmabuf_ref);
+			if (atomic_read(&entry->dmabuf_ref) == 1) {
+				MUA_PRINTK(MUA_INFO, "put dmabuf(%px) count: imm(%d) insert(%d).\n",
+					   entry->dmabuf, mua_imm_alloc_count[i], insert_count[i]);
+				dma_buf_put(entry->dmabuf);
+				list_del(&entry->dmabuf_list);
+				kfree(entry);
+				insert_count[i]--;
+				video_exit = true;
+			}
 			break;
 		}
 	}
 
-	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
-		if (atomic_read(&entry->dmabuf_ref) != 1) {
-			all_ones = false;
-			break;
-		}
-	}
-	if (all_ones) {
+	if (insert_count[i] != 0 && mua_imm_alloc_count[i] == 0) {
 		list_for_each_entry_safe(entry, tmp,
-				&mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+				&mua_dev->mua_rec_buf_list[i].dmabuf_list, dmabuf_list) {
 			MUA_PRINTK(MUA_INFO, "put dmabuf(%px).\n", entry->dmabuf);
 			dma_buf_put(entry->dmabuf);
 			list_del(&entry->dmabuf_list);
 			kfree(entry);
+			insert_count[i]--;
 		}
 	}
-	mutex_unlock(&mua_dev->mua_rec_buf_lock);
-	insert_count = 0;
+	if (list_empty(&mua_dev->mua_rec_buf_list[i].dmabuf_list)) {
+		mua_dev->mua_rec_buf_list[i].slot_id = -1;
+		mua_imm_alloc_count[i] = 1;
+		insert_count[i] = 0;
+	}
+	mutex_unlock(&mua_dev->mua_rec_buf_lock[i]);
 }
 
 static bool mua_is_valid_dmabuf(int fd)
@@ -386,7 +435,7 @@ static void mua_handle_free(struct uvm_buf_obj *obj)
 		while (buf_cnt < 2 && idmabuf[0]) {
 			MUA_PRINTK(MUA_INFO, "free idmabuf[%d]\n", buf_cnt);
 			if (buf_cnt == 1)
-				mua_realloc_buffer_put(idmabuf[buf_cnt]);
+				mua_realloc_buffer_put(idmabuf[buf_cnt], buffer->slot_id);
 			else
 				dma_buf_put(idmabuf[buf_cnt]);
 			buf_cnt++;
@@ -401,7 +450,6 @@ static void mua_handle_free(struct uvm_buf_obj *obj)
 			buf_cnt++;
 		}
 	}
-	realloc_once = false;
 
 	kfree(buffer);
 }
@@ -576,7 +624,7 @@ static int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dma
 
 	out->img.bitdep = in->img.bitdep;
 	if (buffer->byte_stride == buffer->width && in->img.bitdep == 10) {
-		MUA_PRINTK(MUA_ERROR, "memory not enough, convert 10bit to 8bit.\n");
+		MUA_PRINTK(MUA_DBG, "memory not enough, convert 10bit to 8bit.\n");
 		out->img.bitdep = 8;
 	}
 	out->img.format = (out->img.bitdep == 10) ? AML_PIX_FMT_P010 :
@@ -711,6 +759,65 @@ static int mua_screencap_filldata(struct mua_buffer *buffer, struct dma_buf *dma
 	return 0;
 }
 
+static void realloc_buffer_pool_alloc_worker(struct work_struct *work)
+{
+	struct realloc_buffer_work_data *data = NULL;
+	struct dma_buf *realloc_idmabuf = NULL;
+	struct dma_heap *realloc_heap = NULL;
+	int ret = 0;
+
+	data = container_of(work, struct realloc_buffer_work_data, work);
+	realloc_heap = dma_heap_find(CODECMM_HEAP_NAME);
+	if (!realloc_heap) {
+		MUA_PRINTK(MUA_ERROR, "find heap: %s fail.\n", CODECMM_HEAP_NAME);
+		goto free_data;
+	}
+
+	realloc_idmabuf = dma_heap_buffer_alloc(realloc_heap,
+		data->size, O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
+	if (IS_ERR(realloc_idmabuf)) {
+		MUA_PRINTK(MUA_ERROR, "alloc realloc_idmabuf fail.\n");
+		goto free_data;
+	}
+	MUA_PRINTK(MUA_INFO, "realloc_idmabuf(%px) alloc success.\n", realloc_idmabuf);
+
+	ret = mua_realloc_buffer_insert(realloc_idmabuf,
+		data->width, data->height, data->slot_id);
+	if (ret) {
+		MUA_PRINTK(MUA_ERROR, "insert rec_buf fail.\n");
+		goto free_data;
+	}
+
+free_data:
+	kfree(data);
+}
+
+static int submit_realloc_buffer_pool_task(size_t size, u32 width, u32 height, u32 slot_id)
+{
+	struct realloc_buffer_work_data *work_data;
+
+	work_data = kzalloc(sizeof(*work_data), GFP_KERNEL);
+	if (!work_data) {
+		MUA_PRINTK(MUA_ERROR, "kzalloc work_data fail\n");
+		return -ENOMEM;
+	}
+
+	work_data->size = size;
+	work_data->width = width;
+	work_data->height = height;
+	work_data->slot_id = slot_id;
+
+	INIT_WORK(&work_data->work, realloc_buffer_pool_alloc_worker);
+
+	if (!queue_work(mua_dev->workq, &work_data->work)) {
+		MUA_PRINTK(MUA_ERROR, "queue_work fail\n");
+		kfree(work_data);
+		return -EINVAL;
+	}
+	MUA_PRINTK(MUA_INFO, "realloc buffer task submitted success\n");
+	return 0;
+}
+
 static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 				   struct uvm_buf_obj *obj, int scalar)
 {
@@ -733,18 +840,17 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	struct vframe_s *vf = NULL;
 	struct timeval start, end;
 	unsigned long time_use = 0;
-	bool fill_dummy_data = false;
 
 	do_gettimeofday(&start);
 	buffer = container_of(obj, struct mua_buffer, base);
 	if (!buffer)
 		return -EINVAL;
-	MUA_PRINTK(MUA_INFO, "%s.dmabuf(%px) buf_scalar=%d WxH: %dx%d\n",
-		__func__, dmabuf, scalar, buffer->width, buffer->height);
+	MUA_PRINTK(MUA_INFO, "mua realloc dmabuf(%px) buf_scalar=%d WxH: %dx%d slot_id(%d)\n",
+		   dmabuf, scalar, buffer->width, buffer->height, buffer->slot_id);
 
 	memset(&info, 0, sizeof(info));
-	MUA_PRINTK(MUA_INFO, "%s, current->tgid:%d mua_dev->pid:%d buffer->commit_display:%d.\n",
-		__func__, current->tgid, mua_dev->pid, buffer->commit_display);
+	MUA_PRINTK(MUA_INFO, "current->tgid:%d mua_dev->pid:%d buffer->commit_display:%d.\n",
+		   current->tgid, mua_dev->pid, buffer->commit_display);
 
 	if (!enable_screencap && current->tgid == mua_dev->pid &&
 	    buffer->commit_display) {
@@ -754,7 +860,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 
 	vf = mua_dmabuf_get_vframe(dmabuf);
 	if (!vf) {
-		MUA_PRINTK(MUA_ERROR, "%s: vf is NULL!\n", __func__);
+		MUA_PRINTK(MUA_ERROR, "vf is NULL!\n");
 		return -EINVAL;
 	}
 
@@ -786,33 +892,91 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 			buffer, buffer->size, new_size);
 
 	if (enable_rec_buf_pool) {
-		int ret;
+		int n, ret;
 
-		idmabuf = mua_realloc_buffer_get(buffer->idmabuf[1],
-				buffer->width, buffer->height);
-		MUA_PRINTK(MUA_INFO, "idmabuf(%px) don't do realloc.\n", idmabuf);
-		if (skip_realloc) {
-			MUA_PRINTK(MUA_INFO, "idmabuf is same.\n");
-			skip_realloc = 0;
-			return 0;
+		for (n = 0; n < MAX_PIPE_LINE; n++) {
+			if (mua_dev->mua_rec_buf_list[n].slot_id == buffer->slot_id)
+				break;
 		}
 
-		if (!idmabuf && insert_count) {
-			MUA_PRINTK(MUA_ERROR, "idmabuf is NULL/all used.\n");
-			idmabuf = dma_heap_buffer_alloc(heap, new_size,
-				O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
-			if (IS_ERR(idmabuf)) {
-				MUA_PRINTK(MUA_ERROR, "alloc idmabuf fail.\n");
-				return -ENOMEM;
+		if (n < MAX_PIPE_LINE) {
+			if (insert_count[n] <= realloc_buf_count) {
+				ret = submit_realloc_buffer_pool_task(new_size,
+					 buffer->width, buffer->height, buffer->slot_id);
+				if (ret) {
+					MUA_PRINTK(MUA_ERROR, "work queue submit fail.\n");
+					return -ENOMEM;
+				}
 			}
-			MUA_PRINTK(MUA_INFO, "idmabuf(%px) alloc success.\n", idmabuf);
 
-			ret = mua_realloc_buffer_insert(idmabuf, buffer->width, buffer->height);
-			if (ret) {
-				MUA_PRINTK(MUA_ERROR, "insert rec_buf fail.\n");
+			idmabuf = mua_realloc_buffer_get(buffer->idmabuf[1],
+					buffer->width, buffer->height, buffer->slot_id);
+			MUA_PRINTK(MUA_INFO, "idmabuf(%px) don't do realloc.\n", idmabuf);
+			if (skip_realloc) {
+				MUA_PRINTK(MUA_INFO, "idmabuf is same.\n");
+				skip_realloc = 0;
+				return 0;
+			}
+
+			if (!idmabuf && insert_count[n] <= realloc_buf_count) {
+				flush_workqueue(mua_dev->workq);
+				idmabuf = mua_realloc_buffer_get(buffer->idmabuf[1],
+						buffer->width, buffer->height, buffer->slot_id);
+				MUA_PRINTK(MUA_INFO, "workqueue idmabuf(%px) don't do realloc.\n",
+					   idmabuf);
+				if (skip_realloc) {
+					MUA_PRINTK(MUA_INFO, "idmabuf is same.\n");
+					skip_realloc = 0;
+					return 0;
+				}
+			} else if (!idmabuf && insert_count[n] > realloc_buf_count &&
+			    insert_count[n] <= mua_imm_alloc_count[n]) {
+				MUA_PRINTK(MUA_ERROR, "idmabuf is NULL/all used.\n");
+				idmabuf = dma_heap_buffer_alloc(heap, new_size,
+					O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
+				if (IS_ERR(idmabuf)) {
+					MUA_PRINTK(MUA_ERROR, "alloc idmabuf fail.\n");
+					return -ENOMEM;
+				}
+				MUA_PRINTK(MUA_INFO, "idmabuf(%px) alloc success.\n", idmabuf);
+
+				ret = mua_realloc_buffer_insert(idmabuf,
+						buffer->width, buffer->height, buffer->slot_id);
+				if (ret) {
+					MUA_PRINTK(MUA_ERROR, "insert rec_buf fail.\n");
+					return -ENOMEM;
+				}
+			} else if (!idmabuf && insert_count[n] > mua_imm_alloc_count[n]) {
+				MUA_PRINTK(MUA_ERROR, "realloc buffer reached up limit.\n");
 				return -ENOMEM;
 			}
-		} else if (!idmabuf && !insert_count) {
+
+			mua_realloc_buffer_bind(idmabuf, dmabuf,
+					buffer->width, buffer->height, buffer->slot_id);
+
+			attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
+			if (!attachment) {
+				MUA_PRINTK(MUA_ERROR, "failed to set dma attach.\n");
+				return -ENOMEM;
+			}
+
+			src_sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
+			if (!src_sgt) {
+				MUA_PRINTK(MUA_ERROR, "failed to get dma sg.\n");
+				dma_buf_detach(idmabuf, attachment);
+				return -ENOMEM;
+			}
+
+			MUA_PRINTK(MUA_INFO, "src_sgt(%px). nents=%u, length=%u\n",
+				   src_sgt, src_sgt->nents, src_sgt->sgl->length);
+			page = sg_page(src_sgt->sgl);
+			buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
+			buffer->idmabuf[1] = idmabuf;
+			buffer->sg_table = src_sgt;
+
+			info.sgt = src_sgt;
+			dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
+		} else {
 			MUA_PRINTK(MUA_ERROR, "idmabuf is NULL.\n");
 			idmabuf = dma_heap_buffer_alloc(heap, new_size,
 				O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
@@ -835,7 +999,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 				return -ENOMEM;
 			}
 
-			MUA_PRINTK(MUA_INFO, "src_sgt(%px). nents = %u, length=%u\n",
+			MUA_PRINTK(MUA_INFO, "src_sgt(%px). nents=%u, length=%u\n",
 				   src_sgt, src_sgt->nents, src_sgt->sgl->length);
 			page = sg_page(src_sgt->sgl);
 			buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
@@ -844,35 +1008,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 
 			info.sgt = src_sgt;
 			dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
-			fill_dummy_data = true;
-		} else if (!idmabuf) {
-			MUA_PRINTK(MUA_ERROR, "realloc buffer reached up limit.\n");
-			return -ENOMEM;
 		}
-		mua_realloc_buffer_bind(idmabuf, dmabuf, buffer->width, buffer->height);
-
-		attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
-		if (!attachment) {
-			MUA_PRINTK(MUA_ERROR, "failed to set dma attach.\n");
-			return -ENOMEM;
-		}
-
-		src_sgt = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
-		if (!src_sgt) {
-			MUA_PRINTK(MUA_ERROR, "failed to get dma sg.\n");
-			dma_buf_detach(idmabuf, attachment);
-			return -ENOMEM;
-		}
-
-		MUA_PRINTK(MUA_INFO, "src_sgt(%px). nents = %u, length=%u\n",
-			   src_sgt, src_sgt->nents, src_sgt->sgl->length);
-		page = sg_page(src_sgt->sgl);
-		buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
-		buffer->idmabuf[1] = idmabuf;
-		buffer->sg_table = src_sgt;
-
-		info.sgt = src_sgt;
-		dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
 	} else {
 		if (new_size < pre_size)
 			new_size = pre_size;
@@ -909,7 +1045,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 				return -ENOMEM;
 			}
 
-			MUA_PRINTK(MUA_INFO, "src_sgt(%px). nents = %u, length=%u\n",
+			MUA_PRINTK(MUA_INFO, "src_sgt(%px). nents=%u, length=%u\n",
 				   src_sgt, src_sgt->nents, src_sgt->sgl->length);
 			page = sg_page(src_sgt->sgl);
 			buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
@@ -937,7 +1073,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 				return -ENOMEM;
 			}
 
-			MUA_PRINTK(MUA_INFO, "src_sgt(%px). nents = %u, length=%u\n",
+			MUA_PRINTK(MUA_INFO, "src_sgt(%px). nents=%u, length=%u\n",
 				   src_sgt, src_sgt->nents, src_sgt->sgl->length);
 			page = sg_page(src_sgt->sgl);
 			buffer->realloc_paddr = PFN_PHYS(page_to_pfn(page));
@@ -985,16 +1121,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	MUA_PRINTK(MUA_INFO, "realloc buffer vaddr: %px.\n", vaddr);
 
 	//start to filldata
-	if (enable_rec_buf_pool && fill_dummy_data) {
-		size_t buf_size = mua_calc_real_dmabuf_size(buffer->align,
-				buffer->byte_stride, buffer->height) * 2 / 3;
-
-		MUA_PRINTK(MUA_INFO, "force fill dummy data buf_size=%zu\n", buf_size);
-		memset(vaddr, 0x15, buf_size);
-		memset(vaddr + buf_size, 0x80, buf_size / 2);
-	} else {
-		mua_screencap_filldata(buffer, dmabuf, vaddr, vf, skip_fill_buf);
-	}
+	mua_screencap_filldata(buffer, dmabuf, vaddr, vf, skip_fill_buf);
 
 	vunmap(vaddr);
 	if (src_sgt && attachment) {
@@ -1126,6 +1253,8 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 
 static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data, int alloc_buf_size)
 {
+	int i;
+	bool same_slot_id = false;
 	struct mua_buffer *buffer;
 	struct uvm_alloc_info info;
 	struct dma_buf *idmabuf;
@@ -1146,6 +1275,26 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 	buffer->height = data->height;
 	buffer->ion_flags = data->flags;
 	buffer->align = data->align;
+	buffer->slot_id = data->slot_id;
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		if (mua_dev->mua_rec_buf_list[i].slot_id == buffer->slot_id) {
+			same_slot_id = true;
+			mua_imm_alloc_count[i]++;
+			break;
+		}
+	}
+	if (!same_slot_id) {
+		for (i = 0; i < MAX_PIPE_LINE; i++) {
+			if (mua_dev->mua_rec_buf_list[i].slot_id == -1) {
+				mua_dev->mua_rec_buf_list[i].slot_id = buffer->slot_id;
+				break;
+			}
+		}
+	}
+	if (same_slot_id && video_exit) {
+		same_slot_id = false;
+		video_exit = false;
+	}
 
 	if (data->flags & MUA_SIZE_SKIP)
 		buffer->origin_size = data->size;
@@ -1156,58 +1305,32 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 		else if (data->flags & MUA_BUFFER_CACHED)
 			name = CODECMM_CACHED_HEAP_NAME;
 
-		MUA_PRINTK(MUA_INFO, "%s: dma_heap name is %s\n",
-			   __func__, name);
-
 		heap = dma_heap_find(name);
 		if (!heap) {
-			MUA_PRINTK(MUA_ERROR, "%s: dma_heap_find fail. heap name is %s\n",
-				   __func__, name);
+			MUA_PRINTK(MUA_ERROR, "find heap: %s fail.\n", name);
 			goto free_buffer;
 		}
 
 		idmabuf = dma_heap_buffer_alloc(heap, alloc_buf_size, O_RDWR,
 			DMA_HEAP_VALID_HEAP_FLAGS);
 		if (IS_ERR_OR_NULL(idmabuf)) {
-			MUA_PRINTK(MUA_ERROR, "%s: dma_heap_buffer_alloc fail. name is %s\n",
-				__func__, name);
+			MUA_PRINTK(MUA_ERROR, "alloc idmabuf fail.\n");
 			goto free_buffer;
 		}
-		MUA_PRINTK(MUA_INFO, "%s: idmabuf(%px) alloc success. heap name is %s, flags=%u\n",
-			__func__, idmabuf, name, data->flags);
+		MUA_PRINTK(MUA_INFO, "idmabuf(%px) alloc success. heap name: %s, flags=%u\n",
+			   idmabuf, name, data->flags);
 
 		if (enable_rec_buf_pool) {
-			struct dma_buf *realloc_idmabuf[20];
-			struct dma_heap *realloc_heap[20];
-			int i, ret;
+			int ret;
 
-			if (!realloc_once) {
-				for (i = 0; i < realloc_buf_count; i++) {
-					realloc_heap[i] = dma_heap_find(CODECMM_HEAP_NAME);
-					if (!realloc_heap[i]) {
-						MUA_PRINTK(MUA_ERROR, "find heap: %s fail.\n",
-							    CODECMM_HEAP_NAME);
-						goto free_buffer;
-					}
-
-					realloc_idmabuf[i] = dma_heap_buffer_alloc(realloc_heap[i],
-						data->size, O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
-					if (IS_ERR(realloc_idmabuf[i])) {
-						MUA_PRINTK(MUA_ERROR, "alloc rec_idmabuf fail.\n");
-						goto free_buffer;
-					}
-					MUA_PRINTK(MUA_INFO, "realloc_idmabuf[%d](%px) alloc.\n",
-						   i, realloc_idmabuf[i]);
-
-					ret = mua_realloc_buffer_insert(realloc_idmabuf[i],
-							buffer->width, buffer->height);
-					if (ret) {
-						MUA_PRINTK(MUA_ERROR, "insert rec_buf fail.\n");
-						goto free_buffer;
-					}
+			if (!same_slot_id) {
+				ret = submit_realloc_buffer_pool_task(data->size,
+					 buffer->width, buffer->height, buffer->slot_id);
+				if (ret) {
+					MUA_PRINTK(MUA_ERROR, "work queue submit fail.\n");
+					goto free_buffer;
 				}
 			}
-			realloc_once = true;
 		}
 
 		buffer->idmabuf[0] = idmabuf;
@@ -1220,13 +1343,13 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 
 		attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
 		if (!attachment) {
-			MUA_PRINTK(MUA_ERROR, "%s: Failed to set dma attach", __func__);
+			MUA_PRINTK(MUA_ERROR, "failed to set dma attach.\n");
 			goto free_buffer;
 		}
 
 		sg = dma_buf_map_attachment(attachment, DMA_BIDIRECTIONAL);
 		if (!sg) {
-			MUA_PRINTK(MUA_ERROR, "%s: Failed to get dma sg", __func__);
+			MUA_PRINTK(MUA_ERROR, "failed to get dma sg.\n");
 			goto detach_dma_buf;
 		}
 		page = sg_page(sg->sgl);
@@ -1641,7 +1764,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			MUA_PRINTK(MUA_INFO, "get video %d info fail.\n", fd);
 			return ret;
 		}
-		MUA_PRINTK(MUA_INFO,
+		MUA_PRINTK(MUA_DBG,
 			   "get video %d info type:%x, timestamp:%lld, buffer size:%ux%u. priority %u\n",
 			   fd, data.fd_info.type, data.fd_info.timestamp,
 			   data.fd_info.buf_width, data.fd_info.buf_height, data.fd_info.priority);
@@ -1692,7 +1815,7 @@ static const struct file_operations mua_fops = {
 
 static int mua_probe(struct platform_device *pdev)
 {
-	int ret;
+	int i, ret;
 	u32 enable_scp, enable_recbuf_pool;
 
 	ret = of_property_read_u32(pdev->dev.of_node, "enable_screencap", &enable_scp);
@@ -1714,10 +1837,21 @@ static int mua_probe(struct platform_device *pdev)
 	mua_dev->dev.fops = &mua_fops;
 	mutex_init(&mua_dev->buffer_lock);
 	mua_dummy_buffer_init();
-	mua_dev->mua_rec_buf_list.dmabuf = NULL;
-	mua_dev->mua_rec_buf_list.fake_dmabuf = NULL;
-	INIT_LIST_HEAD(&mua_dev->mua_rec_buf_list.dmabuf_list);
-	mutex_init(&mua_dev->mua_rec_buf_lock);
+	mua_dev->workq = alloc_ordered_workqueue("realloc_buffer_workq", 0);
+	if (!mua_dev->workq) {
+		MUA_PRINTK(MUA_ERROR, "fail to init rec_buf workqueue.\n");
+		kfree(mua_dev);
+		return -ENOMEM;
+	}
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		mua_dev->mua_rec_buf_list[i].dmabuf = NULL;
+		mua_dev->mua_rec_buf_list[i].fake_dmabuf = NULL;
+		mua_dev->mua_rec_buf_list[i].dmabuf_w = 0;
+		mua_dev->mua_rec_buf_list[i].dmabuf_h = 0;
+		mua_dev->mua_rec_buf_list[i].slot_id = -1;
+		INIT_LIST_HEAD(&mua_dev->mua_rec_buf_list[i].dmabuf_list);
+		mutex_init(&mua_dev->mua_rec_buf_lock[i]);
+	}
 
 	return misc_register(&mua_dev->dev);
 }
@@ -1725,6 +1859,11 @@ static int mua_probe(struct platform_device *pdev)
 static void mua_remove(struct platform_device *pdev)
 {
 	misc_deregister(&mua_dev->dev);
+	if (mua_dev->workq) {
+		flush_workqueue(mua_dev->workq);
+		destroy_workqueue(mua_dev->workq);
+		mua_dev->workq = NULL;
+	}
 }
 
 static const struct of_device_id mua_match[] = {

@@ -150,10 +150,12 @@ static struct sg_table
 	if (ua->flags & BIT(UVM_IMM_ALLOC) && gpu_access && !skip_realloc) {
 		UVM_PRINTK(UVM_INFO, "begin ua->gpu_realloc. size: %zu scalar: %d\n",
 					ua->size, ua->scalar);
-		if (ua->gpu_realloc(dmabuf, ua->obj, ua->scalar))
+		if (ua->gpu_realloc(dmabuf, ua->obj, ua->scalar)) {
 			UVM_PRINTK(UVM_INFO, "gpu_realloc fail\n");
-		else
+			goto err_out;
+		} else {
 			sgt = ua->sgt[1];
+		}
 	}
 
 	if (ua->flags & BIT(UVM_FBC_DEC) && ua->sgt[1]) {
@@ -739,7 +741,7 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 			UVM_PRINTK(UVM_ERROR, "alloc idmabuf fail.\n");
 			return -ENOMEM;
 		}
-		UVM_PRINTK(MUA_INFO, "idmabuf(%px) alloc success.\n", idmabuf);
+		UVM_PRINTK(UVM_INFO, "idmabuf(%px) alloc success.\n", idmabuf);
 
 		attachment = dma_buf_attach(idmabuf, dma_heap_get_dev(heap));
 		if (!attachment) {
@@ -1219,6 +1221,9 @@ EXPORT_SYMBOL(dmabuf_get_uvm_buf_real_size);
 
 void uvm_realloc_dmabuf_put_flag(struct dma_buf *dmabuf)
 {
+	int i;
+	struct uvm_buf_obj *obj = NULL;
+	struct mua_buffer *buffer = NULL;
 	struct mua_device *mua_dev = NULL;
 	struct mua_realloc_buffer_list *entry, *tmp;
 
@@ -1227,9 +1232,20 @@ void uvm_realloc_dmabuf_put_flag(struct dma_buf *dmabuf)
 		return;
 	}
 
+	obj = dmabuf_get_uvm_buf_obj(dmabuf);
+	buffer = container_of(obj, struct mua_buffer, base);
 	mua_dev = meson_uvm_get_mua_dev();
-	mutex_lock(&mua_dev->mua_rec_buf_lock);
-	list_for_each_entry_safe(entry, tmp, &mua_dev->mua_rec_buf_list.dmabuf_list, dmabuf_list) {
+
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		if (mua_dev->mua_rec_buf_list[i].slot_id == buffer->slot_id)
+			break;
+	}
+	if (i == MAX_PIPE_LINE)
+		return;
+
+	mutex_lock(&mua_dev->mua_rec_buf_lock[i]);
+	list_for_each_entry_safe(entry, tmp,
+			&mua_dev->mua_rec_buf_list[i].dmabuf_list, dmabuf_list) {
 		if (entry->fake_dmabuf == dmabuf) {
 			entry->flag = false;
 			entry->timestamp = ktime_get();
@@ -1238,6 +1254,6 @@ void uvm_realloc_dmabuf_put_flag(struct dma_buf *dmabuf)
 			break;
 		}
 	}
-	mutex_unlock(&mua_dev->mua_rec_buf_lock);
+	mutex_unlock(&mua_dev->mua_rec_buf_lock[i]);
 }
 EXPORT_SYMBOL(uvm_realloc_dmabuf_put_flag);

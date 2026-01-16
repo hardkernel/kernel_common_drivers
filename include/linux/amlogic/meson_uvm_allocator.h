@@ -17,6 +17,7 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 #include <linux/ktime.h>
+#include <linux/workqueue.h>
 
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/meson_uvm_ge2d_utils.h>
@@ -76,6 +77,15 @@ struct mua_buffer {
 	u32 index;
 	u32 ion_flags;
 	u32 align;
+	u32 slot_id;
+};
+
+struct realloc_buffer_work_data {
+	struct work_struct work;
+	size_t size;
+	u32 width;
+	u32 height;
+	u32 slot_id;
 };
 
 struct mua_realloc_buffer_list {
@@ -86,6 +96,7 @@ struct mua_realloc_buffer_list {
 	u32 dmabuf_h;
 	bool flag;
 	ktime_t timestamp;
+	u32 slot_id;
 	struct list_head dmabuf_list;
 };
 
@@ -96,9 +107,10 @@ struct mua_device {
 	u32 dummy_dmabuf_w[MAX_PIPE_LINE];
 	u32 dummy_dmabuf_h[MAX_PIPE_LINE];
 	struct kref dummy_dmabuf_ref[MAX_PIPE_LINE];
-	struct mua_realloc_buffer_list mua_rec_buf_list;
-	struct mutex mua_rec_buf_lock; /* mua_rec_buf_list mutex */
+	struct mua_realloc_buffer_list mua_rec_buf_list[MAX_PIPE_LINE];
+	struct mutex mua_rec_buf_lock[MAX_PIPE_LINE]; /* mua_rec_buf_list mutex */
 	struct mutex buffer_lock; /* dev mutex */
+	struct workqueue_struct *workq;
 	int pid;
 	struct uvm_ge2d *ge2d;
 };
@@ -114,6 +126,7 @@ struct uvm_alloc_data {
 	u32 height;
 	int scalar;
 	int scaled_buf_size;
+	u32 slot_id;
 };
 
 struct uvm_pid_data {
