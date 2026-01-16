@@ -123,7 +123,7 @@ void aml_cqe_enable(struct mmc_host *mmc)
 	 * amlogic cheng recommend 1 & 1;
 	 */
 	//val = cqhci_readl(cq_host, CQHCI_SSC1);
-	val = CQHCI_SSC1_CBC(1) | CQHCI_SSC1_CIT(1);
+	val = CQHCI_SSC1_CBC(1) | CQHCI_SSC1_CIT(0x7D);
 	cqhci_writel(cq_host, val, CQHCI_SSC1);
 
 	mmc->cqe_on = true;
