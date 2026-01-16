@@ -1265,6 +1265,8 @@ static enum DPSS_ERRORTYPE dp_fill_output_done(void *arg, struct vframe_s *vf)
 	vf->dpss_flg |= DPSS_FLG_OUT_DONE;
 	private_data->vf = *vf;
 	private_data->vf_p = vf;
+	private_data->vf.vf_ext = &private_data->vf_ext;
+	private_data->vf.flag |= VFRAME_FLAG_DOUBLE_FRAM;
 
 	private_data->flag = V4LVIDEO_FLAG_DI_V3;
 	//private_data->private2 = (void *)buf;
@@ -2433,6 +2435,8 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		private_data->vf.index_disp = vf->index_disp;
 		private_data->file = file_vf;
 		frame_index = vf->frame_index;
+		private_data->vf_ext = *vf;
+		private_data->vf_ext_p = vf;
 		if (is_ud_param_valid(vf->vf_ud_param)) {
 			dp_print(dev->index, PRINT_OTHER, "%s: has ud.\n", __func__);
 			if (vf->vf_ud_param.ud_param.pbuf_addr &&
