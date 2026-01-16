@@ -6265,6 +6265,7 @@ static long amvecm_ioctl(struct file *file,
 			(void __user *)arg, sizeof(int))) {
 			ret = -EFAULT;
 		} else {
+			set_hdr_top_ctrl_mode(tmp);
 			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
 			force_toggle();
 			pr_amvecm_dbg("hdr_top_ctrl_mode cp from user = %d\n", tmp);
