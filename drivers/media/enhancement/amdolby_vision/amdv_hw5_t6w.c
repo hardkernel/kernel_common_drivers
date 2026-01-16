@@ -73,6 +73,9 @@ u32 roi_final_y;/*bottom<<16 + top*/
 
 DEFINE_SPINLOCK(cp_lock);
 
+static enum dolby_work_mode last_dolby5_mode;
+static bool last_dpss_dct_mode;
+
 /*if pyramid is enable in cfg, we force enable pyramid for top1+top1b due to*/
 /*hw not support bypass top1b*/
 /*top1b vdr_res is 0, so need to calculate top1b size according top1 size*/
@@ -529,10 +532,14 @@ static void cfg_dolby_path(struct prm_dolby_top *prm_dolby)
 	else
 		prm_dolby->core2_prl_mode = false;
 
+	last_dolby5_mode = prm_dolby->dolby5_mode;
+	last_dpss_dct_mode = prm_dolby->dpss_dct_ahead_dv;
+
 	if (debug_dolby & 0x80000)
-		pr_dv_dbg("[%s]:path_mode %d,vd1_mode %d,2ppc mode %d,vfcd_dv_path %d,prl %d,byps %d\n",
+		pr_dv_dbg("[%s]:path_mode %d,%d %d,vfcd_dv_path %d,prl %d,byps %d,dct %d\n",
 				__func__, path_mode, dolby_vd1_mode, core2_slc_mode,
-				vfcd_dv_path, prm_dolby->core2_prl_mode, core2_byps);
+				vfcd_dv_path, prm_dolby->core2_prl_mode, core2_byps,
+				dpss_dct_ahead_dv);
 
 	if (is_aml_t6w())
 		VSYNC_WR_TOP2_BITS(T6W_VPU_DOLBY_WRAP_CTRL, core2_byps, 31, 1);
@@ -3157,6 +3164,10 @@ void cfg_dolby_ini(struct prm_dolby_top *prm_dolby, struct dpss_info_s *dpss_inf
 		prm_dolby->dpss_direct_mode = dpss_info->direct_mode;
 		prm_dolby->vds_4k1k_en = dpss_info->vds_4k1k_en;
 		prm_dolby->dpss_dct_ahead_dv    = dpss_info->dct_ahead_dv_mode;
+		pr_dv_dbg("init dpss_info %d %d %d %d %d %d\n",
+			 dpss_info->frm_hsize_sel, dpss_info->slice_num,
+			 dpss_info->pad_mode, dpss_info->tbc_mode,
+			 dpss_info->direct_mode, dpss_info->dct_ahead_dv_mode);
 	} else {/*reset after playing*/
 		prm_dolby->dolby5_mode         = DOLBY5_VD1_MODE;
 		if (is_aml_t6x() && enable_2ppc)
@@ -3228,11 +3239,9 @@ void cfg_dolby_update(struct prm_dolby_top *prm_dolby,
 {
 	u32 core1b_hsize;
 	u32 core1b_vsize;
-	static enum dolby_work_mode last_dolby5_mode;
 	static u32 last_width;
 	static u32 last_height;
 	enum input_mode_enum input_mode = IN_MODE_OTT;
-
 	bool change_flag = false;
 
 	if (!prm_dolby)
@@ -3252,15 +3261,17 @@ void cfg_dolby_update(struct prm_dolby_top *prm_dolby,
 					(prm_dolby->dolby5_mode == DOLBY5_DPSS_PRL_MODE_2PPC) ||
 					(prm_dolby->dolby5_mode == DOLBY5_DPSS_DI_MODE_2PPC);
 
-	/*switch path during playing, only for dolby internal debug*/
-	if (last_dolby5_mode != prm_dolby->dolby5_mode && top2_info.core_on) {
-		pr_dv_dbg("dolby5 mode change %d => %d\n",
-			last_dolby5_mode, prm_dolby->dolby5_mode);
+	/*switch path during playing or dct change after init*/
+	if ((last_dolby5_mode != prm_dolby->dolby5_mode &&
+		top2_info.core_on) ||
+		last_dpss_dct_mode != prm_dolby->dpss_dct_ahead_dv) {
+		pr_dv_dbg("dolby5 mode change %d=>%d, dct %d=>%d\n",
+			last_dolby5_mode, prm_dolby->dolby5_mode,
+			last_dpss_dct_mode, prm_dolby->dpss_dct_ahead_dv);
 
 		prm_dolby->fst_frm_ini = 1;/*need update cfg_dolby_path*/
 		prm_dolby->fst_frm_ini_top2 = 1;/*need update cfg_dolby_axi_path*/
 	}
-	last_dolby5_mode = prm_dolby->dolby5_mode;
 
 	if (prm_dolby->fst_frm_ini) {/*update path*/
 		cfg_dolby_path(prm_dolby);

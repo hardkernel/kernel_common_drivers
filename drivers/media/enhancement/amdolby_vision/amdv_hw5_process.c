@@ -123,11 +123,13 @@ void update_dd_dpss_info(struct dpss_info_s *dpss_info)
 			prm_dolby.dpss_tbc_mode = dpss_info->tbc_mode;
 		if (prm_dolby.dpss_direct_mode != dpss_info->direct_mode)
 			prm_dolby.dpss_direct_mode = dpss_info->direct_mode;
+		if (prm_dolby.dpss_dct_ahead_dv != dpss_info->dct_ahead_dv_mode)
+			prm_dolby.dpss_dct_ahead_dv = dpss_info->dct_ahead_dv_mode;
 
-		pr_dv_dbg("update dpss_info %d %d %d %d %d\n",
+		pr_dv_dbg("update dpss_info %d %d %d %d %d %d\n",
 			 dpss_info->frm_hsize_sel, dpss_info->slice_num,
 			 dpss_info->pad_mode, dpss_info->tbc_mode,
-			 dpss_info->direct_mode);
+			 dpss_info->direct_mode, dpss_info->dct_ahead_dv_mode);
 	}
 }
 

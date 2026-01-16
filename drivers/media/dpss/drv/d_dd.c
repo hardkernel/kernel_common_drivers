@@ -135,6 +135,7 @@ void dpss_dd_update_info_by_cnt(unsigned int cnt_n, struct PRM_DPSS_TOP *prm_top
 	dpss_info.frm_hsize_sel = prm_top->frm_hsize_sel;
 	dpss_info.tbc_mode = prm_top->sw_tbc_mode;
 	unsigned int cnt;
+	bool dct_ahead_dv_mode = prm_top->dct_ahead_dv_mode;
 
 	cnt = prm_top->s_cnt;
 //	prm_top->s_cnt++;
@@ -142,7 +143,8 @@ void dpss_dd_update_info_by_cnt(unsigned int cnt_n, struct PRM_DPSS_TOP *prm_top
 	dbg_h2("%s:%d\n", __func__, cnt);
 	if (prm_top->mode_drct || prm_top->mode_drct2)
 		direct_mode = true;
-
+	if (direct_mode)
+		dct_ahead_dv_mode = 0;
 	if (!cnt) {
 		dpss_info.pad_mode = 0;
 		if (prm_dpe->dcntr_en && !prm_top->dct_ahead_dv_mode)
@@ -153,8 +155,9 @@ void dpss_dd_update_info_by_cnt(unsigned int cnt_n, struct PRM_DPSS_TOP *prm_top
 			dpss_info.pad_mode = 0;
 
 		dpss_info.direct_mode = direct_mode;
+		dpss_info.dct_ahead_dv_mode = dct_ahead_dv_mode;
 
-		dbg_h2("%s:cnt=%d,nr_mode=%d,dct=%d,aa=%d,dolby_mode=%d,pad=%d,direct=%d\n",
+		dbg_h2("%s:cnt=%d,nr_mode=%d,dct=%d,aa=%d,dolby_mode=%d,pad=%d,direct=%d %d\n",
 			__func__,
 			cnt,
 			prm_top->dpe_nr_mode,
@@ -162,14 +165,17 @@ void dpss_dd_update_info_by_cnt(unsigned int cnt_n, struct PRM_DPSS_TOP *prm_top
 			prm_dpe->aa_pad,
 			prm_top->dolby_mode,
 			dpss_info.pad_mode,
-			direct_mode);
+			direct_mode,
+			dpss_info.dct_ahead_dv_mode);
 		update_dd_dpss_info(&dpss_info);
 
 		prm_top->mode_drct_lst = direct_mode;
 	} else if ((cnt == 1) ||
 		   (direct_mode != prm_top->mode_drct_lst)) {
-		if (direct_mode)
+		if (direct_mode) {
 			dpe_nr_mode = DPE_NR_BYPS;
+			dct_ahead_dv_mode = 0;
+		}
 		if (dpe_nr_mode == DPE_NR_BYPS) {
 			dpss_info.pad_mode = 0;
 			if (prm_dpe->dcntr_en)
@@ -185,8 +191,8 @@ void dpss_dd_update_info_by_cnt(unsigned int cnt_n, struct PRM_DPSS_TOP *prm_top
 			dpss_info.pad_mode = 0;
 
 		dpss_info.direct_mode = direct_mode;
-
-		dbg_h2("%s:cnt=%d,nr_mode=%d(%d),dct=%d,aa=%d,dolby_mode=%d,pad=%d,direct=%d\n",
+		dpss_info.dct_ahead_dv_mode = dct_ahead_dv_mode;
+		dbg_h2("%s:cnt=%d,nr_mode=%d(%d),dct=%d,aa=%d,dolby_mode=%d,pad=%d,direct=%d %d\n",
 			__func__,
 			cnt,
 			prm_top->dpe_nr_mode,
@@ -195,7 +201,8 @@ void dpss_dd_update_info_by_cnt(unsigned int cnt_n, struct PRM_DPSS_TOP *prm_top
 			prm_dpe->aa_pad,
 			prm_top->dolby_mode,
 			dpss_info.pad_mode,
-			direct_mode);
+			direct_mode,
+			dpss_info.dct_ahead_dv_mode);
 
 		dbg_h2("\tcnt2=%d\n", cnt_n);
 		update_dd_dpss_info(&dpss_info);

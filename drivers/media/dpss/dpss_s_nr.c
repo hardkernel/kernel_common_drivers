@@ -2907,13 +2907,11 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 		pchip_st = dpss_get_frc_st();
 		if (!pchip_st)
 			return;
-		if ((dpss_dct_force & 0xff) && dpss_en_dct) {
+		if ((dpss_dct_force & 0xff) && dpss_en_dct)
 			prm_top->dct_ahead_dv_mode = 1;
-			if (pchip_st->chip == ID_T6X && !pch->d->w_mode_2)
-				prm_top->dct_ahead_dv_mode = 0;
-		} else {
+		else
 			prm_top->dct_ahead_dv_mode = 0;
-		}
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (is_amdv_enable() && is_amdv_frame(vf)) {
 			if (!is_amdv_dpss_path() ||
@@ -2923,6 +2921,9 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 
 		dpss_info.dct_ahead_dv_mode = prm_top->dct_ahead_dv_mode;
 #endif
+
+		dbg_i0("dv_ahead:%d\n", prm_top->dct_ahead_dv_mode);
+
 		prm_dpe->dcntr_slc.hsize = prm_top->frm_hsize;
 		if (pch->d->en_di_src)
 			prm_dpe->dcntr_slc.vsize = prm_top->frm_vsize / 2;
