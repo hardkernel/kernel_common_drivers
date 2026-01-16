@@ -2743,7 +2743,10 @@ void rx_i2c_edid_cfg_with_port(u8 port_id, bool en)
 	/* SDA filter internal clk div */
 	data32 |= 1 << 29;
 	/* SDA sampling clk div */
-	data32 |= 1 << 16;
+	if (rx_info.chip_id == CHIP_ID_TXHD2)
+		data32 |= 2 << 16;
+	else
+		data32 |= 1 << 16;
 	/* SCL filter internal clk div */
 	data32 |= 1 << 13;
 	/* SCL sampling clk div */
