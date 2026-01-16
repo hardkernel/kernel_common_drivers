@@ -1161,17 +1161,16 @@ static long dpss_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		if (fpp_state == FPP_MEMC_OFF)
 			dpss_frc_fpp_memc_set_level(0, 0);
+		else if (fpp_state == FPP_MEMC_24PFILM)
+			dpss_frc_fpp_memc_set_level(10, 2);
 		else if (fpp_state == FPP_MEMC_LOW)
 			dpss_frc_fpp_memc_set_level(3, 0);
 		else if (fpp_state == FPP_MEMC_MID)
 			dpss_frc_fpp_memc_set_level(6, 0);
 		else if (fpp_state == FPP_MEMC_HIGH)
 			dpss_frc_fpp_memc_set_level(10, 0);
-		else if (fpp_state == FPP_MEMC_24PFILM)
-			dpss_frc_fpp_memc_set_level(10, 2);
 		else
 			dpss_frc_fpp_memc_set_level((u8)fpp_state, 0);
-
 		pr_frc(1, "set_fpp_memc_level:%d\n", fpp_state);
 		break;
 

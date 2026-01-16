@@ -9,6 +9,7 @@
 #include "sys_def.h"
 #include <linux/module.h>
 #include <linux/kfifo.h>
+#include <uapi/amlogic/frc.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
@@ -2996,11 +2997,18 @@ void dpss_frc_set_dejudder(u8 dejudder_level)
 		return;	// add abnormal case
 	}
 	pr_frc(1, "ext_ctrl: set_memc_level:%d\n", dejudder_level);
-	if (dejudder_level != pfw_data->frc_top_type.frc_memc_level) {
+	if (dejudder_level == pfw_data->frc_top_type.frc_memc_level)
+		return;
+
+	if (dejudder_level == FPP_MEMC_24PFILM) {
+		pfw_data->frc_top_type.frc_memc_level_1 = 2;
+		pfw_data->frc_top_type.frc_memc_level = 10;
+	} else {
+		pfw_data->frc_top_type.frc_memc_level_1 = 0;
 		pfw_data->frc_top_type.frc_memc_level = dejudder_level;
-		if (pfw_data->frc_memc_level)
-			pfw_data->frc_memc_level(pfw_data);
 	}
+	if (pfw_data->frc_memc_level)
+		pfw_data->frc_memc_level(pfw_data);
 }
 EXPORT_SYMBOL(dpss_frc_set_dejudder);
 
@@ -3454,6 +3462,41 @@ void dpss_frc_check_reg_stats(void)
 			vfcd_ro_stats);
 
 	regs_ofst = get_vfcd_regs_ofst(DPSS_RMIF_MC0);
+
+	frm_size = rd_vc(LUMA_RMIF_SCOPE_X + regs_ofst);
+	src_size = rd_vc(LUMA_RMIF_SCOPE_Y + regs_ofst);
+	frm_width = frm_size & 0x1FFF;
+	frm_height = (frm_size >> 16) & 0x1FFF;
+	src_width = src_size & 0x1FFF;
+	src_height = (src_size >> 16) & 0x1FFF;
+	PR_FRC("mc0_luma_rmif_start [%d, %d], end [%d, %d]\n",
+		frm_width, src_width, frm_height, src_height);
+	frm_size = rd_vc(CHRM_RMIF_SCOPE_X + regs_ofst);
+	src_size = rd_vc(CHRM_RMIF_SCOPE_Y + regs_ofst);
+	frm_width = frm_size & 0x1FFF;
+	frm_height = (frm_size >> 16) & 0x1FFF;
+	src_width = src_size & 0x1FFF;
+	src_height = (src_size >> 16) & 0x1FFF;
+	PR_FRC("mc0_chrm_rmif_start [%d, %d], end [%d, %d]\n",
+		frm_width, src_width, frm_height, src_height);
+
+	frm_size = rd_vc(VFCD_LUMA_PIC_XPOS + regs_ofst);
+	src_size = rd_vc(VFCD_LUMA_PIC_YPOS + regs_ofst);
+	frm_width = frm_size & 0x1FFF;
+	frm_height = (frm_size >> 16) & 0x1FFF;
+	src_width = src_size & 0x1FFF;
+	src_height = (src_size >> 16) & 0x1FFF;
+	PR_FRC("mc0_luma_pic_start [%d, %d], end [%d, %d]\n",
+		frm_height, src_height, frm_width, src_width);
+	frm_size = rd_vc(VFCD_CHRM_PIC_XPOS + regs_ofst);
+	src_size = rd_vc(VFCD_CHRM_PIC_YPOS + regs_ofst);
+	frm_width = frm_size & 0x1FFF;
+	frm_height = (frm_size >> 16) & 0x1FFF;
+	src_width = src_size & 0x1FFF;
+	src_height = (src_size >> 16) & 0x1FFF;
+	PR_FRC("mc0_chrm_pic_start [%d, %d], end [%d, %d]\n",
+		frm_height, src_height, frm_width, src_width);
+
 	frm_size = rd_vc(VFCD_LUMA_PAD_SIZE + regs_ofst);
 	src_size = rd_vc(VFCD_CHRM_PAD_SIZE + regs_ofst);
 	pad_en = (frm_size >> 29) & 0x1;
@@ -3473,8 +3516,48 @@ void dpss_frc_check_reg_stats(void)
 	frm_vofst = (frm_offset >> 16) & 0x1FFF;
 	PR_FRC("mc0_pad_chrm_ofst [%d, %d]\n",
 		frm_hofst, frm_vofst);
+	frm_offset = rd_vc(RMIF_TOP_CTRL + regs_ofst);
+	frm_vofst = frm_offset & 0x3;
+	src_size = rd_vc(VFCD_AFBC_MODE + regs_ofst);
+	pad_en = (src_size >> 26) & 0x3;
+	PR_FRC("mc0_reverse [mif:%2d, comp:%2d]\n", frm_vofst, pad_en);
 
+	/////////////////////////////////////////////////////////
 	regs_ofst = get_vfcd_regs_ofst(DPSS_RMIF_MC1);
+	frm_size = rd_vc(LUMA_RMIF_SCOPE_X + regs_ofst);
+	src_size = rd_vc(LUMA_RMIF_SCOPE_Y + regs_ofst);
+	frm_width = frm_size & 0x1FFF;
+	frm_height = (frm_size >> 16) & 0x1FFF;
+	src_width = src_size & 0x1FFF;
+	src_height = (src_size >> 16) & 0x1FFF;
+	PR_FRC("mc1_luma_rmif_start [%d, %d], end [%d, %d]\n",
+		frm_width, src_width, frm_height, src_height);
+	frm_size = rd_vc(CHRM_RMIF_SCOPE_X + regs_ofst);
+	src_size = rd_vc(CHRM_RMIF_SCOPE_Y + regs_ofst);
+	frm_width = frm_size & 0x1FFF;
+	frm_height = (frm_size >> 16) & 0x1FFF;
+	src_width = src_size & 0x1FFF;
+	src_height = (src_size >> 16) & 0x1FFF;
+	PR_FRC("mc1_chrm_rmif_start [%d, %d], end [%d, %d]\n",
+		frm_width, src_width, frm_height, src_height);
+
+	frm_size = rd_vc(VFCD_LUMA_PIC_XPOS + regs_ofst);
+	src_size = rd_vc(VFCD_LUMA_PIC_YPOS + regs_ofst);
+	frm_width = frm_size & 0x1FFF;
+	frm_height = (frm_size >> 16) & 0x1FFF;
+	src_width = src_size & 0x1FFF;
+	src_height = (src_size >> 16) & 0x1FFF;
+	PR_FRC("mc1_luma_pic_start [%d, %d], end [%d, %d]\n",
+		frm_height, src_height, frm_width, src_width);
+	frm_size = rd_vc(VFCD_CHRM_PIC_XPOS + regs_ofst);
+	src_size = rd_vc(VFCD_CHRM_PIC_YPOS + regs_ofst);
+	frm_width = frm_size & 0x1FFF;
+	frm_height = (frm_size >> 16) & 0x1FFF;
+	src_width = src_size & 0x1FFF;
+	src_height = (src_size >> 16) & 0x1FFF;
+	PR_FRC("mc1_chrm_pic_start [%d, %d], end [%d, %d]\n",
+		frm_height, src_height, frm_width, src_width);
+
 	frm_size = rd_vc(VFCD_LUMA_PAD_SIZE + regs_ofst);
 	src_size = rd_vc(VFCD_CHRM_PAD_SIZE + regs_ofst);
 	pad_en = (frm_size >> 29) & 0x1;
@@ -3494,6 +3577,12 @@ void dpss_frc_check_reg_stats(void)
 	frm_vofst = (frm_offset >> 16) & 0x1FFF;
 	PR_FRC("mc1_pad_chrm_ofst [%d, %d]\n",
 		frm_hofst, frm_vofst);
+	frm_offset = rd_vc(RMIF_TOP_CTRL + regs_ofst);
+	frm_vofst = frm_offset & 0x3;
+	src_size = rd_vc(VFCD_AFBC_MODE + regs_ofst);
+	pad_en = (src_size >> 26) & 0x3;
+	PR_FRC("mc1_reverse [mif:%2d, comp:%2d]\n", frm_vofst, pad_en);
+
 	/////////////////////////////////////////
 	frm_width = rd(VPU_POST_NR_SLC_ACT_HSIZE_0);
 	frm_hofst = rd(VPU_POST_NR_SLC_ACT_HSIZE_1);

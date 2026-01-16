@@ -7,13 +7,12 @@
 #define __FRC_H__
 
 enum frc_fpp_state_e {
-	FPP_MEMC_OFF = 0,    /* MEMC OFF */
-	FPP_MEMC_LOW,        /* MEMC LOW, default level9 */
-	FPP_MEMC_MID,        /* MEMC MID, default level10 */
-	FPP_MEMC_HIGH,       /* MEMC HIGH, default level10 and fullback */
-	FPP_MEMC_CUSTOME,    /* Retain customization */
-	FPP_MEMC_24PFILM,    /* 24P Film mode, 32 Pulldown out 48fps */
-	FPP_MEMC_MAX,
+	FPP_MEMC_OFF = 0,/* MEMC OFF */
+	FPP_MEMC_24PFILM = 11,/* 24P Film mode, 32 Pulldown out 48fps */
+	FPP_MEMC_LOW = 12,/* MEMC LOW,*/
+	FPP_MEMC_MID = 13,/* MEMC MID */
+	FPP_MEMC_HIGH = 14,/* MEMC HIGH, default level10 and fullback */
+	FPP_MEMC_MAX = 15,
 };
 
 /* MEMC Type Definition */

@@ -66,14 +66,15 @@ void dpss_frc_status(void)
 	pr_frc(0, "ko_version\t= %s\n", pfw_data->frc_alg_ver);
 	pr_frc(0, "chip\t= %d,  vendor\t= %d\n", frc_top->chip,
 			pfw_data->frc_fw_alg_ctrl.frc_algctrl_u8vendor);
-	pr_frc(0, "memc_level\t= %d(%d)\n", frc_top->frc_memc_level,
-			frc_top->frc_memc_level_1);
+	pr_frc(0, "memc_level\t= [dejudder:%d(%d), deblur:%d]\n",
+			frc_top->frc_memc_level, frc_top->frc_memc_level_1,
+			frc_top->frc_deblur_level);
 	pr_frc(0, "ratio_n2m\t= [%d : %d]\n", frc_top->frc_input_n,
 			frc_top->frc_output_m);
 	pr_frc(0, "film\t= %d\n", (rd(FRC_REG_PHS_TABLE) >> 8) & 0xFF);
 	pr_frc(0, "mc_link_enable\t= [dpss:%2d, vd1_mc:%2d]\n", rd(FRC_DPSS_VPP_LINK) & 0x1,
 			!is_vd1_link_state());
-	pr_frc(0, "mc_link_ctrl:(%d,%d,%d,%d,%d)\n",
+	pr_frc(0, "mc_link_ctrl\t= [%2d,%2d,%2d,%2d,%2d]\n",
 			state_st->dpss_reg, state_st->dpe_ready, enable_mc_link,
 			state_st->need_disable_mc_link, state_st->unformat_bypass);
 	pr_frc(0, "pre_vsync_offset\t= %d\n",
