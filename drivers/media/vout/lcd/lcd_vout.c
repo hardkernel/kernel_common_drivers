@@ -982,7 +982,8 @@ static void lcd_power_if_off(struct aml_lcd_drv_s *pdrv)
 
 void lcd_power_if_early_on(struct aml_lcd_drv_s *pdrv)
 {
-	if ((pdrv->resume_type & (1 << 1)) == 0)
+	if ((pdrv->resume_type & (1 << 1)) == 0 ||
+		!is_screenon_resume_method())
 		return;
 	LCD_PR(pdrv, "%s resume_type=%u", __func__, pdrv->resume_type);
 

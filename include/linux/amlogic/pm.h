@@ -27,12 +27,18 @@
 
 #if IS_ENABLED(CONFIG_AMLOGIC_GX_SUSPEND)
 unsigned int get_resume_method(void);
+bool is_screenon_resume_method(void);
 unsigned int get_resume_reason(void);
 unsigned int is_pm_s2idle_mode(void);
 #else
 static inline unsigned int get_resume_method(void)
 {
 	return 0;
+}
+
+static inline bool is_screenon_resume_method(void)
+{
+	return false;
 }
 
 static inline unsigned int get_resume_reason(void)

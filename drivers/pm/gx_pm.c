@@ -436,6 +436,17 @@ unsigned int get_resume_method(void)
 }
 EXPORT_SYMBOL_GPL(get_resume_method);
 
+/*
+ * judge whether resume_type need power on lcd during resume.
+ *
+ */
+bool is_screenon_resume_method(void)
+{
+	return (get_resume_method() != RTC_WAKEUP) &&
+		(get_resume_method() != UNDEFINED_WAKEUP) &&
+		(get_resume_method() != WIFI_WAKEUP);
+}
+EXPORT_SYMBOL_GPL(is_screenon_resume_method);
 static void set_resume_method(unsigned int val)
 {
 	resume_reason = val;
