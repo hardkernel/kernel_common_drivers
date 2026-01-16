@@ -957,7 +957,7 @@ static int lowlatency_vsync(u8 instance_id)
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 #ifdef CONFIG_AMLOGIC_DPSS_PROCESS
 		if (!(new_frame->flag & VFRAME_FLAG_GAME_MODE) &&
-			(vf->dpss_flg & DPSS_FLG_OUT_DONE))
+			(new_frame->dpss_flg & DPSS_FLG_OUT_DONE))
 			vframe_walk_delay += dpss_frc_get_video_latency();
 #else
 		if (!(new_frame->flag & VFRAME_FLAG_GAME_MODE))
