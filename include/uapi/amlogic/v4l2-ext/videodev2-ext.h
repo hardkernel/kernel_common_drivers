@@ -268,6 +268,31 @@ struct v4l2_ext_vpq_cmn_data {
 	};
 };
 
+/* AMLVIDEO2 */
+/* amlvideo2 communicates with the upper layer via private extensions */
+enum v4l2_ext_secure_capture_type {
+	V4L2_EXT_AMLVIDEO2_SECURE_TEE_ONE_BUFFER = 0x01,
+	V4L2_EXT_AMLVIDEO2_SECURE_MAX
+};
+
+struct v4l2_ext_amlvideo2_output_data {
+	unsigned int input_w;
+	unsigned int input_h;
+	unsigned int output_w;
+	unsigned int output_h;
+};
+
+struct v4l2_ext_amlvideo2_get_video_data {
+	unsigned int input_w;
+	unsigned int input_h;
+};
+
+struct v4l2_ext_amlvideo2_set_secure_data {
+	__u64 secure_phy_addr;
+	unsigned int secure_buffer_size;
+	enum v4l2_ext_secure_capture_type secure_capture_type;
+};
+
 /*  LED Type Definition */
 enum v4l2_ext_led_ui_adj_type {
 	V4L2_EXT_LED_UI_ADJ_OFF		= 0x00,

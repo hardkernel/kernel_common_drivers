@@ -32,6 +32,8 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
+#include <uapi/amlogic/v4l2-ext/videodev2-ext.h>
+#include <uapi/amlogic/v4l2-ext/v4l2-controls-ext.h>
 #include <linux/types.h>
 #include <linux/timex.h>
 #include <linux/amlogic/media/canvas/canvas.h>
@@ -133,6 +135,7 @@ static const char amlvideo2_group_name[] = "amlvideo2";
 #define CMA_ALLOC_SIZE_1080P_RGBA 32
 
 #define CANVAS_WIDTH_ALIGN 32
+#define SECURE_BUFFER_SIZE_1M 0x100000
 
 #define VIDEO_Q_BUFF_NUM 4
 //MODULE_AUTHOR("amlogic-sh");
@@ -195,6 +198,13 @@ static int amlvideo2_set_outfmt_dump;
 module_param(amlvideo2_set_outfmt_dump, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_set_outfmt_dump, "amlvideo2_set_outfmt_dump");
 
+static unsigned long amlvideo2_secure_paddr;
+module_param(amlvideo2_secure_paddr, ulong, 0664);
+MODULE_PARM_DESC(amlvideo2_secure_paddr, "amlvideo2_secure_paddr");
+
+static int amlvideo2_secure_aipq_flag;
+module_param(amlvideo2_secure_aipq_flag, uint, 0664);
+MODULE_PARM_DESC(amlvideo2_secure_aipq_flag, "amlvideo2_secure_aipq_flag");
 
 static struct v4l2_fract amlvideo2_frmintervals_active = {
 	.numerator = 1, .denominator = DEF_FRAMERATE, };
@@ -293,6 +303,10 @@ static struct amlvideo2_fmt formats[] = {
 
 	{.name = "ARGB888 (32)",
 	.fourcc = V4L2_PIX_FMT_ARGB32, /* 32  ARGB-8-8-8 */
+	.depth = 32, },
+
+	{.name = "BGRA888 (32)",
+	.fourcc = V4L2_PIX_FMT_BGR32, /* 32  BGRA-8-8-8 */
 	.depth = 32, },
 
 	{.name = "12  Y/CbCr 4:2:0",
@@ -533,6 +547,10 @@ struct amlvideo2_fh {
 	enum v4l2_buf_type type;
 	struct v4l2_fh fh;
 	enum aml_fill_frame_type_e fill_frame_type;
+	struct v4l2_ext_amlvideo2_output_data ext_output_data;
+	struct v4l2_ext_amlvideo2_get_video_data video_data;
+	struct v4l2_ext_amlvideo2_set_secure_data secure_data;
+	enum aml_quantization_range quantization_range;
 };
 
 struct amlvideo2_output {
@@ -634,6 +652,7 @@ int get_amlvideo2_canvas_index(struct amlvideo2_output *output,
 		break;
 	case V4L2_PIX_FMT_RGB32:
 	case V4L2_PIX_FMT_ARGB32:
+	case V4L2_PIX_FMT_BGR32:
 		canvas_config(canvas, (unsigned long)buf, width * 4,
 			      canvas_height, CANVAS_ADDR_NOWRAP,
 			      CANVAS_BLKMODE_LINEAR);
@@ -715,6 +734,7 @@ int convert_canvas_index(struct amlvideo2_output *output,
 	case V4L2_PIX_FMT_RGB24:
 	case V4L2_PIX_FMT_RGB32:
 	case V4L2_PIX_FMT_ARGB32:
+	case V4L2_PIX_FMT_BGR32:
 		canvas = amlvideo2_canvas[inst][2 * buffer_id];
 		break;
 	case V4L2_PIX_FMT_NV12:
@@ -1011,6 +1031,9 @@ static int get_output_format(int v4l2_format)
 	case V4L2_PIX_FMT_ARGB32:
 		format = GE2D_FORMAT_S32_BGRA;
 		break;
+	case V4L2_PIX_FMT_BGR32:
+		format = GE2D_FORMAT_S32_ARGB;
+		break;
 	case V4L2_PIX_FMT_NV12:
 		format = GE2D_FORMAT_M24_NV12;
 		break;
@@ -1133,6 +1156,8 @@ int amlvideo2_ge2d_interlace_two_canvasaddr_process(struct vframe_s *vf,
 	int current_mirror;
 	int cur_angle = 0;
 	int output_canvas = output->canvas_id;
+	bool is_tvp = false;
+	int secure_size = 0;
 
 	/* ============================ */
 	/* top field */
@@ -1156,6 +1181,12 @@ int amlvideo2_ge2d_interlace_two_canvasaddr_process(struct vframe_s *vf,
 			node->crop_info.source_width_crop,
 			node->crop_info.source_height_crop);
 	}
+
+	if (vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
+		is_tvp = true;
+		amlvideo2_secure_aipq_flag = 1;
+	}
+
 	if (node->crop_info.capture_crop_enable == 1) {
 		if (node->crop_info.source_top_crop > 0 &&
 		    node->crop_info.source_top_crop < vf->height)
@@ -1247,6 +1278,58 @@ int amlvideo2_ge2d_interlace_two_canvasaddr_process(struct vframe_s *vf,
 	//node->crop_info.source_width_crop = dst_width;
 	//node->crop_info.source_height_crop = dst_height;
 
+	if (amlvideo2_secure_aipq_flag) {
+		if (amlvideo2_dbg_en & 4)
+			pr_info("amlvideo2_secure_aipq_flag = %d , amlvideo2_secure_paddr = %lx\n",
+				amlvideo2_secure_aipq_flag, amlvideo2_secure_paddr);
+		if (!amlvideo2_secure_paddr) {
+			pr_info("err:secure aipq but no secure phyaddr\n");
+			return -1;
+		}
+		if (output->v4l2_format == V4L2_PIX_FMT_RGB32 ||
+			output->v4l2_format == V4L2_PIX_FMT_ARGB32 ||
+			output->v4l2_format == V4L2_PIX_FMT_BGR32) {
+			if (amlvideo2_dbg_en & 4)
+				pr_info("amlvideo2:do secure aipq, fmt is RGB32 or ARGB32 or BGR32\n");
+			secure_size = output->buf_width * output->buf_height * 4;
+			canvas_config(output_canvas & 0xff,
+					(unsigned long)amlvideo2_secure_paddr,
+					output->buf_width * 4, output->buf_height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		} else if (output->v4l2_format == V4L2_PIX_FMT_RGB24 ||
+				output->v4l2_format == V4L2_PIX_FMT_BGR24) {
+			if (amlvideo2_dbg_en & 4)
+				pr_info("amlvideo2:do secure aipq, fmt is RGB24 or BGR24\n");
+			secure_size = output->buf_width * output->buf_height * 3;
+			canvas_config(output_canvas & 0xff,
+					(unsigned long)amlvideo2_secure_paddr,
+					output->buf_width * 3, output->buf_height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		} else if (output->v4l2_format == V4L2_PIX_FMT_NV12 ||
+				output->v4l2_format == V4L2_PIX_FMT_NV21) {
+			if (amlvideo2_dbg_en & 4)
+				pr_info("amlvideo2:do secure aipq, fmt is NV12 or NV21\n");
+			secure_size = output->buf_width * output->buf_height * 3 / 2;
+			canvas_config(output_canvas & 0xff,
+					(unsigned long)amlvideo2_secure_paddr,
+					output->buf_width, output->buf_height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+			canvas_config((output_canvas >> 8) & 0xff,
+					(unsigned long)amlvideo2_secure_paddr +
+					output->buf_width * output->buf_height,
+					output->buf_width, output->buf_height / 2,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		} else {
+			pr_info("amlvideo2:do secure aipq, format err!!!\n");
+		}
+		if (secure_size > SECURE_BUFFER_SIZE_1M) {
+			pr_info("error:amlvideo2 do secure aipq, output image size out 1M\n");
+			return -1;
+		}
+		if (amlvideo2_dbg_en & 4)
+			pr_info("secure aipq is doing\n");
+	}
+
 	/* data operating. */
 
 	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
@@ -1256,6 +1339,7 @@ int amlvideo2_ge2d_interlace_two_canvasaddr_process(struct vframe_s *vf,
 		ge2d_config->bitmask_en = 0;
 		ge2d_config->src1_gb_alpha = 0;/* 0xff; */
 		ge2d_config->dst_xy_swap = 0;
+		ge2d_config->mem_sec = is_tvp;
 
 		canvas_read(output_canvas & 0xff, &cd);
 		ge2d_config->src_planes[0].addr = cd.addr;
@@ -1326,6 +1410,7 @@ int amlvideo2_ge2d_interlace_two_canvasaddr_process(struct vframe_s *vf,
 	ge2d_config->bitmask_en = 0;
 	ge2d_config->src1_gb_alpha = 0;/* 0xff; */
 	ge2d_config->dst_xy_swap = 0;
+	ge2d_config->mem_sec = is_tvp;
 
 	if (vf->canvas0Addr == (u32)-1) {
 		canvas_config_config(node->aml2_canvas[0],
@@ -2403,6 +2488,8 @@ int amlvideo2_ge2d_interlace_one_canvasaddr_process(struct vframe_s *vf,
 	int current_mirror;
 	int cur_angle = 0;
 	int output_canvas = output->canvas_id;
+	bool is_tvp = false;
+	int secure_size = 0;
 
 	src_top = 0;
 	src_left = 0;
@@ -2422,6 +2509,10 @@ int amlvideo2_ge2d_interlace_one_canvasaddr_process(struct vframe_s *vf,
 		pr_info("crop_width = %d, crop_height = %d\n\n",
 			node->crop_info.source_width_crop,
 			node->crop_info.source_height_crop);
+	}
+	if (vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
+		is_tvp = true;
+		amlvideo2_secure_aipq_flag = 1;
 	}
 	if (node->crop_info.capture_crop_enable == 1) {
 		if (node->crop_info.source_top_crop > 0 &&
@@ -2513,6 +2604,59 @@ int amlvideo2_ge2d_interlace_one_canvasaddr_process(struct vframe_s *vf,
 	//node->crop_info.source_left_crop = dst_left;
 	//node->crop_info.source_width_crop = dst_width;
 	//node->crop_info.source_height_crop = dst_height;
+
+	if (amlvideo2_secure_aipq_flag) {
+		if (amlvideo2_dbg_en & 4)
+			pr_info("amlvideo2_secure_aipq_flag = %d , amlvideo2_secure_paddr = %lx\n",
+				amlvideo2_secure_aipq_flag, amlvideo2_secure_paddr);
+		if (!amlvideo2_secure_paddr) {
+			pr_info("err:secure aipq but no secure phyaddr\n");
+			return -1;
+		}
+		if (output->v4l2_format == V4L2_PIX_FMT_RGB32 ||
+			output->v4l2_format == V4L2_PIX_FMT_ARGB32 ||
+			output->v4l2_format == V4L2_PIX_FMT_BGR32) {
+			if (amlvideo2_dbg_en & 4)
+				pr_info("amlvideo2:do secure aipq, fmt is RGB32 or ARGB32 or BGR32\n");
+			secure_size = output->buf_width * output->buf_height * 4;
+			canvas_config(output_canvas & 0xff,
+					(unsigned long)amlvideo2_secure_paddr,
+					output->buf_width * 4, output->buf_height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		} else if (output->v4l2_format == V4L2_PIX_FMT_RGB24 ||
+				output->v4l2_format == V4L2_PIX_FMT_BGR24) {
+			if (amlvideo2_dbg_en & 4)
+				pr_info("amlvideo2:do secure aipq, fmt is RGB24 or BGR24\n");
+			secure_size = output->buf_width * output->buf_height * 3;
+			canvas_config(output_canvas & 0xff,
+					(unsigned long)amlvideo2_secure_paddr,
+					output->buf_width * 3, output->buf_height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		} else if (output->v4l2_format == V4L2_PIX_FMT_NV12 ||
+				output->v4l2_format == V4L2_PIX_FMT_NV21) {
+			if (amlvideo2_dbg_en & 4)
+				pr_info("amlvideo2:do secure aipq, fmt is NV12 or NV21\n");
+			secure_size = output->buf_width * output->buf_height * 3 / 2;
+			canvas_config(output_canvas & 0xff,
+					(unsigned long)amlvideo2_secure_paddr,
+					output->buf_width, output->buf_height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+			canvas_config((output_canvas >> 8) & 0xff,
+					(unsigned long)amlvideo2_secure_paddr +
+					output->buf_width * output->buf_height,
+					output->buf_width, output->buf_height / 2,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		} else {
+			pr_info("amlvideo2:do secure aipq, format err!!!\n");
+		}
+		if (secure_size > SECURE_BUFFER_SIZE_1M) {
+			pr_info("error:amlvideo2 do secure aipq, output image size out 1M\n");
+			return -1;
+		}
+		if (amlvideo2_dbg_en & 4)
+			pr_info("secure aipq is doing\n");
+	}
+
 	/* data operating. */
 
 	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
@@ -2522,6 +2666,7 @@ int amlvideo2_ge2d_interlace_one_canvasaddr_process(struct vframe_s *vf,
 		ge2d_config->bitmask_en = 0;
 		ge2d_config->src1_gb_alpha = 0;/* 0xff; */
 		ge2d_config->dst_xy_swap = 0;
+		ge2d_config->mem_sec = is_tvp;
 
 		canvas_read(output_canvas & 0xff, &cd);
 		ge2d_config->src_planes[0].addr = cd.addr;
@@ -2592,6 +2737,7 @@ int amlvideo2_ge2d_interlace_one_canvasaddr_process(struct vframe_s *vf,
 	ge2d_config->bitmask_en = 0;
 	ge2d_config->src1_gb_alpha = 0;/* 0xff; */
 	ge2d_config->dst_xy_swap = 0;
+	ge2d_config->mem_sec = is_tvp;
 
 	if (vf->canvas0Addr == (u32)-1) {
 		canvas_config_config(node->aml2_canvas[0],
@@ -2844,6 +2990,8 @@ int amlvideo2_ge2d_interlace_dtv_process(struct vframe_s *vf,
 	int current_mirror;
 	int cur_angle = 0;
 	int output_canvas = output->canvas_id;
+	bool is_tvp = false;
+	int secure_size = 0;
 
 	src_top = 0;
 	src_left = 0;
@@ -2864,6 +3012,12 @@ int amlvideo2_ge2d_interlace_dtv_process(struct vframe_s *vf,
 			node->crop_info.source_width_crop,
 			node->crop_info.source_height_crop);
 	}
+
+	if (vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
+		is_tvp = true;
+		amlvideo2_secure_aipq_flag = 1;
+	}
+
 	if (node->crop_info.capture_crop_enable == 1) {
 		if (node->crop_info.source_top_crop > 0 &&
 		    node->crop_info.source_top_crop < vf->height)
@@ -2953,6 +3107,59 @@ int amlvideo2_ge2d_interlace_dtv_process(struct vframe_s *vf,
 	//node->crop_info.source_left_crop = dst_left;
 	//node->crop_info.source_width_crop = dst_width;
 	//node->crop_info.source_height_crop = dst_height;
+
+	if (amlvideo2_secure_aipq_flag) {
+		if (amlvideo2_dbg_en & 4)
+			pr_info("amlvideo2_secure_aipq_flag = %d , amlvideo2_secure_paddr = %lx\n",
+				amlvideo2_secure_aipq_flag, amlvideo2_secure_paddr);
+		if (!amlvideo2_secure_paddr) {
+			pr_info("err:secure aipq but no secure phyaddr\n");
+			return -1;
+		}
+		if (output->v4l2_format == V4L2_PIX_FMT_RGB32 ||
+			output->v4l2_format == V4L2_PIX_FMT_ARGB32 ||
+			output->v4l2_format == V4L2_PIX_FMT_BGR32) {
+			if (amlvideo2_dbg_en & 4)
+				pr_info("amlvideo2:do secure aipq, fmt is RGB32 or ARGB32 or BGR32\n");
+			secure_size = output->buf_width * output->buf_height * 4;
+			canvas_config(output_canvas & 0xff,
+					(unsigned long)amlvideo2_secure_paddr,
+					output->buf_width * 4, output->buf_height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		} else if (output->v4l2_format == V4L2_PIX_FMT_RGB24 ||
+				output->v4l2_format == V4L2_PIX_FMT_BGR24) {
+			if (amlvideo2_dbg_en & 4)
+				pr_info("amlvideo2:do secure aipq, fmt is RGB24 or BGR24\n");
+			secure_size = output->buf_width * output->buf_height * 3;
+			canvas_config(output_canvas & 0xff,
+					(unsigned long)amlvideo2_secure_paddr,
+					output->buf_width * 3, output->buf_height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		} else if (output->v4l2_format == V4L2_PIX_FMT_NV12 ||
+				output->v4l2_format == V4L2_PIX_FMT_NV21) {
+			if (amlvideo2_dbg_en & 4)
+				pr_info("amlvideo2:do secure aipq, fmt is NV12 or NV21\n");
+			secure_size = output->buf_width * output->buf_height * 3 / 2;
+			canvas_config(output_canvas & 0xff,
+					(unsigned long)amlvideo2_secure_paddr,
+					output->buf_width, output->buf_height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+			canvas_config((output_canvas >> 8) & 0xff,
+					(unsigned long)amlvideo2_secure_paddr +
+					output->buf_width * output->buf_height,
+					output->buf_width, output->buf_height / 2,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		} else {
+			pr_info("amlvideo2:do secure aipq, format err!!!\n");
+		}
+		if (secure_size > SECURE_BUFFER_SIZE_1M) {
+			pr_info("error:amlvideo2 do secure aipq, output image size out 1M\n");
+			return -1;
+		}
+		if (amlvideo2_dbg_en & 4)
+			pr_info("secure aipq is doing\n");
+	}
+
 	/* data operating. */
 
 	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
@@ -2962,6 +3169,7 @@ int amlvideo2_ge2d_interlace_dtv_process(struct vframe_s *vf,
 		ge2d_config->bitmask_en = 0;
 		ge2d_config->src1_gb_alpha = 0;/* 0xff; */
 		ge2d_config->dst_xy_swap = 0;
+		ge2d_config->mem_sec = is_tvp;
 
 		canvas_read(output_canvas & 0xff, &cd);
 		ge2d_config->src_planes[0].addr = cd.addr;
@@ -3032,6 +3240,7 @@ int amlvideo2_ge2d_interlace_dtv_process(struct vframe_s *vf,
 	ge2d_config->bitmask_en = 0;
 	ge2d_config->src1_gb_alpha = 0;/* 0xff; */
 	ge2d_config->dst_xy_swap = 0;
+	ge2d_config->mem_sec = is_tvp;
 
 	if (vf->canvas0Addr == (u32)-1) {
 		canvas_config_config(node->aml2_canvas[0],
@@ -3418,6 +3627,8 @@ int amlvideo2_ge2d_multi_pre_process(struct vframe_s *vf,
 	ge2d_config->src_key.key_mode = 0;
 	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config->src_para.format = get_input_format(vf);
+	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+		ge2d_config->src_para.format |= GE2D_LITTLE_ENDIAN;
 	ge2d_config->src_para.fill_color_en = 0;
 	ge2d_config->src_para.fill_mode = 0;
 	ge2d_config->src_para.x_rev = 0;
@@ -3532,9 +3743,12 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	int src_top, src_left, src_width, src_height;
 	int dst_top, dst_left, dst_width, dst_height;
 	struct canvas_s cs0, cs1, cs2, cd;
+	struct amlvideo2_fh *fh = node->fh;
 	int current_mirror;
 	int cur_angle = 0;
 	int output_canvas = output->canvas_id;
+	bool is_tvp = false;
+	int secure_size = 0;
 
 	if (amlvideo2_dbg_en & 4) {
 		pr_info("vf->width = %d, vf->height = %d\n",
@@ -3549,7 +3763,19 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 		pr_info("crop_width = %d, crop_height = %d.\n",
 			node->crop_info.source_width_crop,
 			node->crop_info.source_height_crop);
-		pr_info("output->angle=%d\n", output->angle);
+		pr_info("output->angle =%d\n", output->angle);
+		pr_info("vf->original_width = %d, vf->original_height = %d\n",
+			vf->original_width, vf->original_height);
+	}
+
+	fh->ext_output_data.input_w = vf->original_width;
+	fh->ext_output_data.input_h = vf->original_height;
+	fh->ext_output_data.output_w = vf->width;
+	fh->ext_output_data.output_h = vf->height;
+
+	if (vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
+		is_tvp = true;
+		amlvideo2_secure_aipq_flag = 1;
 	}
 
 	src_top = 0;
@@ -3596,6 +3822,58 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	dst_top = dst_top & 0xfffffffe;
 	dst_left = dst_left & 0xfffffffe;
 
+	if (amlvideo2_secure_aipq_flag) {
+		if (amlvideo2_dbg_en & 4)
+			pr_info("amlvideo2_secure_aipq_flag = %d , amlvideo2_secure_paddr = %lx\n",
+				amlvideo2_secure_aipq_flag, amlvideo2_secure_paddr);
+		if (!amlvideo2_secure_paddr) {
+			pr_info("err:secure aipq but no secure phyaddr\n");
+			return -1;
+		}
+		if (output->v4l2_format == V4L2_PIX_FMT_RGB32 ||
+			output->v4l2_format == V4L2_PIX_FMT_ARGB32 ||
+			output->v4l2_format == V4L2_PIX_FMT_BGR32) {
+			if (amlvideo2_dbg_en & 4)
+				pr_info("amlvideo2:do secure aipq, fmt is RGB32 or ARGB32 or BGR32\n");
+			secure_size = output->buf_width * output->buf_height * 4;
+			canvas_config(output_canvas & 0xff,
+					(unsigned long)amlvideo2_secure_paddr,
+					output->buf_width * 4, output->buf_height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		} else if (output->v4l2_format == V4L2_PIX_FMT_RGB24 ||
+				output->v4l2_format == V4L2_PIX_FMT_BGR24) {
+			if (amlvideo2_dbg_en & 4)
+				pr_info("amlvideo2:do secure aipq, fmt is RGB24 or BGR24\n");
+			secure_size = output->buf_width * output->buf_height * 3;
+			canvas_config(output_canvas & 0xff,
+					(unsigned long)amlvideo2_secure_paddr,
+					output->buf_width * 3, output->buf_height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		} else if (output->v4l2_format == V4L2_PIX_FMT_NV12 ||
+				output->v4l2_format == V4L2_PIX_FMT_NV21) {
+			if (amlvideo2_dbg_en & 4)
+				pr_info("amlvideo2:do secure aipq, fmt is NV12 or NV21\n");
+			secure_size = output->buf_width * output->buf_height * 3 / 2;
+			canvas_config(output_canvas & 0xff,
+					(unsigned long)amlvideo2_secure_paddr,
+					output->buf_width, output->buf_height,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+			canvas_config((output_canvas >> 8) & 0xff,
+					(unsigned long)amlvideo2_secure_paddr +
+					output->buf_width * output->buf_height,
+					output->buf_width, output->buf_height / 2,
+					CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		} else {
+			pr_info("amlvideo2:do secure aipq, format err!!!\n");
+		}
+		if (secure_size > SECURE_BUFFER_SIZE_1M) {
+			pr_info("error:amlvideo2 do secure aipq, output image size out 1M\n");
+			return -1;
+		}
+		if (amlvideo2_dbg_en & 4)
+			pr_info("secure aipq is doing\n");
+	}
+
 	/* data operating. */
 	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
 	if (dst_left != output->frame->x || dst_top != output->frame->y ||
@@ -3604,6 +3882,7 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 		ge2d_config->bitmask_en = 0;
 		ge2d_config->src1_gb_alpha = 0;/* 0xff; */
 		ge2d_config->dst_xy_swap = 0;
+		ge2d_config->mem_sec = is_tvp;
 
 		canvas_read(output_canvas & 0xff, &cd);
 		ge2d_config->src_planes[0].addr = cd.addr;
@@ -3676,6 +3955,7 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	ge2d_config->bitmask_en = 0;
 	ge2d_config->src1_gb_alpha = 0;/* 0xff; */
 	ge2d_config->dst_xy_swap = 0;
+	ge2d_config->mem_sec = is_tvp;
 
 	if (vf->canvas0Addr == (u32)-1) {
 		canvas_config_config(node->aml2_canvas[0],
@@ -4044,7 +4324,8 @@ static void config_dump_dst_data(struct amlvideo2_output *output, struct amlvide
 	if (output->v4l2_format == V4L2_PIX_FMT_RGB24 ||
 		output->v4l2_format == V4L2_PIX_FMT_BGR24 ||
 		output->v4l2_format == V4L2_PIX_FMT_RGB32 ||
-		output->v4l2_format == V4L2_PIX_FMT_ARGB32)
+		output->v4l2_format == V4L2_PIX_FMT_ARGB32 ||
+		output->v4l2_format == V4L2_PIX_FMT_BGR32)
 		node->dump_info_dst.sizeimage = cd.width * cd.height;
 	else
 		node->dump_info_dst.sizeimage = cd.width * cd.height * 3 / 2;
@@ -4215,6 +4496,7 @@ static int amlvideo2_fill_black(struct amlvideo2_fh *fh,
 	case V4L2_PIX_FMT_RGB24:
 	case V4L2_PIX_FMT_RGB32:
 	case V4L2_PIX_FMT_ARGB32:
+	case V4L2_PIX_FMT_BGR32:
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
 	case V4L2_PIX_FMT_NV12:
@@ -4254,6 +4536,7 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 	void *vbuf = NULL;
 	int src_canvas = -1;
 	int ge2d_proc = 0;
+	bool output_black;
 
 	vbuf = (void *)buf->addr[0];
 
@@ -4264,8 +4547,17 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 		amlvideo2_force_report) {
 		amlvideo2_dispatch_event(fh,
 			V4L2_EVENT_PRIVATE_EXT_VDIN_PATTERN);
-		pr_info("the vf is err, pattern.\n");
+		pr_info("secure capture, report.\n");
 	}
+
+	if ((fh->secure_data.secure_capture_type ==
+		V4L2_EXT_AMLVIDEO2_SECURE_TEE_ONE_BUFFER) || amlvideo2_secure_paddr)
+		output_black = false;
+	else if ((vf->type_ext & VIDTYPE_EXT_VDIN_HDCP) ||
+		(vf->flag & VFRAME_FLAG_VIDEO_SECURE))
+		output_black = true;
+	else
+		output_black = false;
 
 	if (amlvideo2_dbg_en & 2)
 		pr_info("%s: amlvideo2_force_report=%d.\n", __func__,
@@ -4303,6 +4595,7 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 	case V4L2_PIX_FMT_RGB24:
 	case V4L2_PIX_FMT_RGB32:
 	case V4L2_PIX_FMT_ARGB32:
+	case V4L2_PIX_FMT_BGR32:
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
 	case V4L2_PIX_FMT_NV12:
@@ -4321,7 +4614,7 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 #ifdef CONFIG_PM
 		node->could_suspend = false;
 #endif
-		if (vf->type_ext & VIDTYPE_EXT_VDIN_HDCP) {
+		if (output_black) {
 			amlvideo2_ge2d_black_process(node->context,
 				&ge2d_config, &output);
 		} else if ((vf->type & VIDTYPE_INTERLACE_BOTTOM) ||
@@ -4341,7 +4634,9 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 				src_canvas = amlvideo2_ge2d_pre_process
 					(vf, node->context, &ge2d_config, &output, node);
 		}
-		if (vf->type_ext & VIDTYPE_EXT_VDIN_HDCP)
+		if ((vf->type_ext & VIDTYPE_EXT_VDIN_HDCP) &&
+			(fh->secure_data.secure_capture_type !=
+			V4L2_EXT_AMLVIDEO2_SECURE_TEE_ONE_BUFFER))
 			fh->fill_frame_type = AML_HDCP_BLACK;
 		else
 			fh->fill_frame_type = AML_NORMAL;
@@ -4727,10 +5022,10 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 		pr_info("spin_lock_irqsave1.\n");
 
 	spin_lock_irqsave(&dma_q->buff_list_lock, flags);
+	buf->vb2.timecode.flags = 0;
 	if (buf->vb2.vb2_buf.state == VB2_BUF_STATE_ACTIVE) {
 		if (fh->fill_frame_type == AML_HDCP_BLACK) {
 			//private:bit1 is 1 means it is hdcp black frame
-			buf->vb2.timecode.flags = 0;
 			buf->vb2.timecode.flags |= (1 << 1);
 		}
 
@@ -4850,9 +5145,9 @@ static int amlvideo2_thread_tick_black(struct amlvideo2_fh *fh)
 		pr_info("spin_lock_irqsave1.\n");
 
 	spin_lock_irqsave(&dma_q->buff_list_lock, flags);
+	buf->vb2.timecode.flags = 0;
 	if (buf->vb2.vb2_buf.state == VB2_BUF_STATE_ACTIVE) {
 		//private:bit0 is 1 means it is amlvideo2 create black frame
-		buf->vb2.timecode.flags = 0;
 		buf->vb2.timecode.flags |= (1 << 0);
 		vb2_buffer_done(&buf->vb2.vb2_buf, VB2_BUF_STATE_DONE);
 		list_del(&buf->list);
@@ -5489,6 +5784,13 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 			(~(CANVAS_WIDTH_ALIGN * 2 - 1));
 	}
 
+	if (f->fmt.pix.quantization == V4L2_QUANTIZATION_LIM_RANGE)
+		fh->quantization_range = QUANTIZATION_LIMITED;
+	else if (f->fmt.pix.quantization == V4L2_QUANTIZATION_FULL_RANGE)
+		fh->quantization_range = QUANTIZATION_FULL;
+	else
+		fh->quantization_range = QUANTIZATION_DEFAULT;
+
 	ret = vidioc_try_fmt_vid_cap(file, fh, f);
 	if (ret < 0)
 		return ret;
@@ -5662,6 +5964,8 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	complete(&dma_q->qbuf_comp);
 	#endif
 
+	if (amlvideo2_dbg_en)
+		pr_info("%s: q buf, ret=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -5677,6 +5981,11 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 #endif
 
 	ret = vb2_ioctl_dqbuf(file, priv, p);
+	if (ret == 0)
+		amlvideo2_secure_aipq_flag = 0;
+
+	if (amlvideo2_dbg_en)
+		pr_info("%s: dq buf, ret=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -5929,6 +6238,19 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 			}
 		}
 		para.is_one_buffer = aml2_dev->is_one_buffer;
+		if (fh->quantization_range == QUANTIZATION_LIMITED)
+			para.quantization_range = 2;
+		else if (fh->quantization_range == QUANTIZATION_FULL)
+			para.quantization_range = 1;
+		else
+			para.quantization_range = 0;
+
+		if (fh->secure_data.secure_capture_type ==
+			V4L2_EXT_AMLVIDEO2_SECURE_TEE_ONE_BUFFER)
+			para.support_secure = true;
+		else
+			para.support_secure = false;
+
 		if (amlvideo2_dbg_en) {
 			pr_info("para.h_active: %d, para.v_active: %d,",
 				para.h_active, para.v_active);
@@ -5942,6 +6264,8 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 				node->vdin_device_num, para.is_one_buffer);
 			pr_info("crop:top %d left %d width %d height %d\n",
 				para.crop[0], para.crop[1], para.crop[2], para.crop[3]);
+			pr_info("quantization_range %d, vdin_support_secure: %d,",
+				para.quantization_range, para.support_secure);
 		}
 		if (IS_ERR_OR_NULL(vops)) {
 			pr_info("%s amlvideo2 vdin ops is NULL\n", __func__);
@@ -6110,6 +6434,56 @@ static struct notifier_block amlvideo2_notifier_nb = {
 	.notifier_call	= amlvideo2_notify_callback,
 };
 
+//V4L2_CID_EXT_CAPTURE_AMLVIDEO2_SET_SECURE_INFO
+static int amlvideo2_vidioc_s_cid_secure_info(struct amlvideo2_fh *fh,
+	struct v4l2_ext_control *ctrl)
+{
+	if (ctrl->size == sizeof(struct v4l2_ext_amlvideo2_set_secure_data)) {
+		if (copy_from_user(&fh->secure_data, ctrl->ptr,
+			sizeof(struct v4l2_ext_amlvideo2_set_secure_data)))
+			return -EFAULT;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+//V4L2_CID_EXT_CAPTURE_AMLVIDEO2_OUTPUT_INFO
+static int amlvideo2_vidioc_g_cid_output_info(struct amlvideo2_fh *fh,
+	struct v4l2_ext_control *ctrl)
+{
+	if (ctrl->size == sizeof(struct v4l2_ext_amlvideo2_output_data)) {
+		if (copy_to_user(ctrl->ptr, &fh->ext_output_data,
+			sizeof(struct v4l2_ext_amlvideo2_output_data)))
+			return -EFAULT;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+//V4L2_CID_EXT_CAPTURE_AMLVIDEO2_GET_VIDEO_INFO
+static int amlvideo2_vidioc_g_cid_video_info(struct amlvideo2_fh *fh,
+	struct v4l2_ext_control *ctrl)
+{
+	struct video_input_info video_input_parms;
+
+	get_video_input_info(&video_input_parms); /*only video and point 7*/
+	fh->video_data.input_w = video_input_parms.width;
+	fh->video_data.input_h = video_input_parms.height;
+	if (ctrl->size == sizeof(struct v4l2_ext_amlvideo2_get_video_data)) {
+		if (copy_to_user(ctrl->ptr, &fh->video_data,
+			sizeof(struct v4l2_ext_amlvideo2_get_video_data)))
+			return -EFAULT;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	int ret;
@@ -6133,6 +6507,10 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 
 	vinfo = amlvideo2_get_vinfo(node);
 #endif
+	if (!amlvideo2_secure_paddr)
+		amlvideo2_secure_paddr = fh->secure_data.secure_phy_addr;
+	if (!fh->secure_data.secure_buffer_size)
+		fh->secure_data.secure_buffer_size = SECURE_BUFFER_SIZE_1M;
 	if (aml2_dev->node_id == 0)
 		node->mode = AML_SCREEN_MODE_FULL;
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE || i != fh->type)
@@ -6323,6 +6701,18 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		}
 	}
 	para.is_one_buffer = aml2_dev->is_one_buffer;
+	if (fh->quantization_range == QUANTIZATION_LIMITED)
+		para.quantization_range = 2;
+	else if (fh->quantization_range == QUANTIZATION_FULL)
+		para.quantization_range = 1;
+	else
+		para.quantization_range = 0;
+
+	if (fh->secure_data.secure_capture_type ==
+		V4L2_EXT_AMLVIDEO2_SECURE_TEE_ONE_BUFFER)
+		para.support_secure = true;
+	else
+		para.support_secure = false;
 	if (amlvideo2_dbg_en) {
 		pr_info("para.h_active: %d, para.v_active: %d,",
 			para.h_active, para.v_active);
@@ -6336,6 +6726,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 			node->vdin_device_num, para.is_one_buffer);
 		pr_info("crop:top %d left %d width %d height %d\n",
 			para.crop[0], para.crop[1], para.crop[2], para.crop[3]);
+		pr_info("quantization_range %d, vdin_support_secure: %d,",
+			para.quantization_range, para.support_secure);
 	}
 	if (IS_ERR_OR_NULL(vops)) {
 		if (node->r_type == AML_RECEIVER_NONE)
@@ -6564,6 +6956,13 @@ static int start_send_normal_frame(struct amlvideo2_fh *fh)
 		}
 	}
 	para.is_one_buffer = aml2_dev->is_one_buffer;
+	if (fh->quantization_range == QUANTIZATION_LIMITED)
+		para.quantization_range = 2;
+	else if (fh->quantization_range == QUANTIZATION_FULL)
+		para.quantization_range = 1;
+	else
+		fh->quantization_range = 0;
+
 	if (amlvideo2_dbg_en) {
 		pr_info("para.h_active: %d, para.v_active: %d,",
 			para.h_active, para.v_active);
@@ -6726,7 +7125,8 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 		fsize->discrete.width = frmsize->width;
 		fsize->discrete.height = frmsize->height;
 	} else if (fmt->fourcc == V4L2_PIX_FMT_RGB32 ||
-		fmt->fourcc == V4L2_PIX_FMT_ARGB32) {
+		fmt->fourcc == V4L2_PIX_FMT_ARGB32 ||
+		fmt->fourcc == V4L2_PIX_FMT_BGR32) {
 		if (fsize->index >= ARRAY_SIZE(amlvideo2_pic_resolution))
 			return -EINVAL;
 		frmsize = &amlvideo2_pic_resolution[fsize->index];
@@ -6946,6 +7346,75 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 			return 0;
 		}
 	return -EINVAL;
+}
+
+static int vidioc_g_ext_ctrls(struct file *file, void *fh1,
+			  struct v4l2_ext_controls *ctrls)
+{
+	int i, ret = 0;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
+	struct v4l2_ext_control *ctrl = ctrls->controls;
+
+	for (i = 0; i < ctrls->count; i++) {
+		ctrl = &ctrls->controls[i];
+		switch (ctrl->id) {
+		case V4L2_CID_EXT_CAPTURE_AMLVIDEO2_OUTPUT_INFO:
+			ret = amlvideo2_vidioc_g_cid_output_info(fh, ctrl);
+			break;
+		case V4L2_CID_EXT_CAPTURE_AMLVIDEO2_GET_VIDEO_INFO:
+			ret = amlvideo2_vidioc_g_cid_video_info(fh, ctrl);
+			break;
+		default:
+			break;
+		}
+		if (ret)
+			break;
+	}
+
+	if (amlvideo2_dbg_en) {
+		pr_info("amlvideo2:g_ext src %d %d dst:%d %d\n",
+		fh->ext_output_data.input_w,
+		fh->ext_output_data.input_h,
+		fh->ext_output_data.output_w,
+		fh->ext_output_data.output_h);
+
+		pr_info("amlvideo2:g_ext video input %d %d\n",
+		fh->video_data.input_w,
+		fh->video_data.input_h);
+	}
+
+	return ret;
+}
+
+static int vidioc_s_ext_ctrls(struct file *file, void *fh1,
+			  struct v4l2_ext_controls *ctrls)
+{
+	int i, ret = 0;
+	struct v4l2_ext_control *ctrl = ctrls->controls;
+	struct v4l2_fh *vfh = file->private_data;
+	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
+
+	for (i = 0; i < ctrls->count; i++) {
+		ctrl = &ctrls->controls[i];
+		switch (ctrl->id) {
+		case V4L2_CID_EXT_CAPTURE_AMLVIDEO2_SET_SECURE_INFO:
+			ret = amlvideo2_vidioc_s_cid_secure_info(fh, ctrl);
+			break;
+		default:
+			break;
+		}
+		if (ret)
+			break;
+	}
+
+	if (amlvideo2_dbg_en)
+		pr_info("amlvideo2:s_ext phy_addr=%llx, size=%x, secure_type=%d\n",
+			fh->secure_data.secure_phy_addr,
+			fh->secure_data.secure_buffer_size,
+			fh->secure_data.secure_capture_type);
+
+	return ret;
 }
 
 static int vidioc_g_crop(struct file *file, void *fh,
@@ -7573,6 +8042,8 @@ static const struct v4l2_ioctl_ops amlvideo2_ioctl_ops = {
 .vidioc_queryctrl = vidioc_queryctrl,
 .vidioc_g_ctrl = vidioc_g_ctrl,
 .vidioc_s_ctrl = vidioc_s_ctrl,
+.vidioc_g_ext_ctrls = vidioc_g_ext_ctrls,
+.vidioc_s_ext_ctrls = vidioc_s_ext_ctrls,
 .vidioc_streamon = vidioc_streamon,
 .vidioc_streamoff = vidioc_streamoff,
 .vidioc_enum_framesizes = vidioc_enum_framesizes,

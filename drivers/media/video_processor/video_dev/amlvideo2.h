@@ -40,6 +40,13 @@ enum aml_plane {
 	AML_PLANE_MAX
 };
 
+enum aml_quantization_range {
+	QUANTIZATION_DEFAULT = 0,
+	QUANTIZATION_FULL = 1,
+	QUANTIZATION_LIMITED = 2,
+	QUANTIZATION_MAX
+};
+
 /* void vf_inqueue(struct vframe_s *vf, const char *receiver); */
 void get_vdx_axis(u32 index, int *buf);
 void get_vdx_real_axis(u32 index, int *buf);
