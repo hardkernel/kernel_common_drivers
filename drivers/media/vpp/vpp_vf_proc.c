@@ -777,7 +777,7 @@ void vpp_vf_proc(struct vframe_s *vf,
 	unsigned int signal_type = 0;
 	struct vpp_hist_report_s *hist_report = NULL;
 	struct lc_vs_param_s lc_vs_param;
-	struct sr_vs_param_s sr_vs_param;
+	struct sr_vs_param_s sr_vs_param = {0};
 	struct data_vs_param_s data_vs_param;
 	struct vinfo_s *vinfo = NULL;
 	struct vframe_s *vf_using = NULL;

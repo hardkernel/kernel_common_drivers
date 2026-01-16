@@ -255,10 +255,14 @@ static long vpp_ioctl(struct file *filp,
 			ret = vpp_pq_mgr_set_saturation(val);
 		break;
 	case VPP_IOC_SET_HUE:
-		if (copy_from_user(&val, argp, sizeof(int)))
+		if (copy_from_user(&val, argp, sizeof(int))) {
 			ret = -EFAULT;
-		else
-			ret = vpp_pq_mgr_set_hue(val);
+		} else {
+			if (val < -25 || val > 25)
+				ret = EINVAL;
+			else
+				ret = vpp_pq_mgr_set_hue(val);
+		}
 		break;
 	case VPP_IOC_SET_SHARPNESS:
 		if (copy_from_user(&val, argp, sizeof(int)))
@@ -285,10 +289,14 @@ static long vpp_ioctl(struct file *filp,
 			ret = vpp_pq_mgr_set_saturation_post(val);
 		break;
 	case VPP_IOC_SET_HUE_POST:
-		if (copy_from_user(&val, argp, sizeof(int)))
+		if (copy_from_user(&val, argp, sizeof(int))) {
 			ret = -EFAULT;
-		else
-			ret = vpp_pq_mgr_set_hue_post(val);
+		} else {
+			if (val < -25 || val > 25)
+				ret = EINVAL;
+			else
+				ret = vpp_pq_mgr_set_hue_post(val);
+		}
 		break;
 	case VPP_IOC_SET_WB:
 		if (copy_from_user(&wb_data, argp,

@@ -157,8 +157,6 @@ void vpp_module_go_set_gain(unsigned char idx, int val,
 		case 2:
 			addr = ADDR_PARAM(go_reg_cfg.page, go_reg_cfg.reg_go_ctrl1);
 			break;
-		default:
-			return;
 		}
 		start = go_bit_cfg.bit_go_gain[idx].start;
 		len = go_bit_cfg.bit_go_gain[idx].len;
@@ -188,8 +186,6 @@ void vpp_module_go_set_offset(unsigned char idx, int val,
 		case 2:
 			addr = ADDR_PARAM(go_reg_cfg.page, go_reg_cfg.reg_go_ctrl2);
 			break;
-		default:
-			return;
 		}
 
 		start = go_bit_cfg.bit_go_offset[idx].start;
@@ -220,8 +216,6 @@ void vpp_module_go_set_pre_offset(unsigned char idx, int val,
 		case 2:
 			addr = ADDR_PARAM(go_reg_cfg.page, go_reg_cfg.reg_go_ctrl4);
 			break;
-		default:
-			return;
 		}
 
 		start = go_bit_cfg.bit_go_pre_offset[idx].start;
