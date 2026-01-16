@@ -51,6 +51,36 @@ atomic_t video_unreg_flag_vpp[2] = {ATOMIC_INIT(0), ATOMIC_INIT(0)};
 /*********************************************************
  * vframe APIs
  *********************************************************/
+static inline bool is_frc_vf(struct vframe_s *vf, struct video_recv_s *ins)
+{
+	if (!vf || !ins || !ins->active)
+		return false;
+
+	return (vf == ins->frc_vf_used ? true : false);
+}
+
+static inline struct vframe_s *check_frc_vf(struct video_recv_s *ins)
+{
+	struct vframe_s *vf = NULL;
+
+	if (!ins || !ins->active)
+		return NULL;
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (glayer_info[0].display_path_id == ins->path_id && is_frc_link_on(&vd_layer[0])) {
+		vf = get_vfm_from_frc();
+		if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL) {
+			if (vf)
+				pr_info("get_vfm_from_frc w:%d h:%d vf:%p\n",
+					vf->compWidth, vf->compHeight, vf);
+			else
+				pr_info("get_vfm_from_frc NULL\n");
+		}
+	}
+#endif
+	return vf;
+}
+
 static inline struct vframe_s *common_vf_peek(struct video_recv_s *ins)
 {
 	struct vframe_s *vf = NULL;
@@ -65,6 +95,14 @@ static inline struct vframe_s *common_vf_peek(struct video_recv_s *ins)
 		vf->disp_pts = 0;
 		vf->disp_pts_us64 = 0;
 	}
+
+	if (!vf) {
+		vf = check_frc_vf(ins);
+		/* if this frc_vf has already been used, return NULL */
+		if (vf == ins->frc_vf_used)
+			vf = NULL;
+	}
+
 	return vf;
 }
 
@@ -107,6 +145,16 @@ static inline struct vframe_s *common_vf_get(struct video_recv_s *ins)
 			vf->type &= ~VIDTYPE_MVC;
 		pre_process_for_3d(vf);
 	}
+
+	if (!vf) {
+		vf = check_frc_vf(ins);
+		/* set this frc_vf as used */
+		if (vf && vf != ins->frc_vf_used)
+			ins->frc_vf_used = vf;
+		else
+			vf = NULL;
+	}
+
 	return vf;
 }
 
@@ -132,7 +180,7 @@ static inline void common_vf_put(struct video_recv_s *ins,
 {
 	struct vframe_provider_s *vfp = NULL;
 
-	if (!ins || !ins->recv_name)
+	if (!ins || !ins->recv_name || vf == ins->frc_vf_used)
 		return;
 
 	vfp = vf_get_provider(ins->recv_name);
@@ -554,11 +602,6 @@ static int  common_toggle_frame(struct video_recv_s *ins,
 					common_vf_put(ins, ins->original_vf);
 				}
 			} else {
-				#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-				if (ins->original_vf &&
-					glayer_info[0].display_path_id == ins->path_id)
-					put_vfm_to_frc(ins->original_vf);
-				#endif
 				common_vf_put(ins, ins->original_vf);
 			}
 		} else {
@@ -619,7 +662,7 @@ static s32 recv_common_early_process(struct video_recv_s *ins, u32 op)
 static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 								struct path_id_s *path_id)
 {
-	struct vframe_s *vf = NULL, *frc_vf = NULL;
+	struct vframe_s *vf = NULL;
 	struct vframe_s *toggle_vf = NULL;
 	s32 drop_count = -1;
 	int ret = -1;
@@ -636,18 +679,6 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 		return NULL;
 	}
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (glayer_info[0].display_path_id == ins->path_id && is_frc_link_on(&vd_layer[0])) {
-		frc_vf = get_vfm_from_frc();
-		if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL) {
-			if (frc_vf)
-				pr_info("get_vfm_from_frc w:%d h:%d vf:%p\n",
-					frc_vf->compWidth, frc_vf->compHeight, frc_vf);
-			else
-				pr_info("get_vfm_from_frc NULL\n");
-		}
-	}
-#endif
 	if (ins->request_exit) {
 		ins->do_exit = true;
 		ins->exited = false;
@@ -730,13 +761,11 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 					pr_info("ins->path_id %d,%s, wait\n",
 						ins->path_id, ins->recv_name);
 				if (ret == 4) {
-					struct vframe_s *tmp_vf = frc_vf ? frc_vf : vf;
-
 					if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
 						pr_info("first frame for top1\n");
-					amdv_parse_metadata_hw5_top1(tmp_vf);
-					amdolby_vision_process_hw5(tmp_vf, NULL,
-						tmp_vf->compWidth << 16 | tmp_vf->compHeight, 1);
+					amdv_parse_metadata_hw5_top1(vf);
+					amdolby_vision_process_hw5(vf, NULL,
+						vf->compWidth << 16 | vf->compHeight, 1);
 				}
 				break;
 			}
@@ -788,7 +817,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 #endif
 			if (vf) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-				amvecm_process(path_id, ins, frc_vf ? frc_vf : vf);
+				amvecm_process(path_id, ins, vf);
 #endif
 				if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
 					do_gettimeofday(&cur_line_info->end2);
@@ -811,9 +840,11 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 					}
 				}
 #endif
-				ret = common_toggle_frame(ins, vf);
-				if (ret < 0)
-					return NULL;
+				if (!is_frc_vf(vf, ins)) {
+					ret = common_toggle_frame(ins, vf);
+					if (ret < 0)
+						return NULL;
+				}
 				toggle_vf = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #ifdef AMLOGIC_MEDIA_DPSS
@@ -842,17 +873,16 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 				if ((glayer_info[0].display_path_id ==
 				    ins->path_id || is_multi_dv_mode())) {
 #endif
-					struct vframe_s *tmp_vf = frc_vf ? frc_vf : vf;
 					if (get_top1_onoff() == 0) {/*no top1*/
-						dv_toggle_frame(tmp_vf, vd_path, true);
+						dv_toggle_frame(vf, vd_path, true);
 					} else if (get_top1_onoff() == 1) {
 						/*top1 enabled but no need get frame in advance*/
-						vf_top1 = tmp_vf;
+						vf_top1 = vf;
 						amdv_parse_metadata_hw5_top1(vf_top1);
-						dv_toggle_frame(tmp_vf, VD1_PATH, true);
+						dv_toggle_frame(vf, VD1_PATH, true);
 					} else if (get_top1_onoff() == 3) {/*top1 next + top2 cur*/
 						amdv_parse_metadata_hw5_top1(vf_top1);
-						dv_toggle_frame(tmp_vf, vd_path, true);
+						dv_toggle_frame(vf, vd_path, true);
 					}
 				}
 				if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
@@ -876,8 +906,8 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 		vf = common_vf_peek(ins);
 	}
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (toggle_vf && glayer_info[0].display_path_id == ins->path_id)
-		put_vfm_to_frc(toggle_vf);
+	if (ins->cur_buf && glayer_info[0].display_path_id == ins->path_id)
+		put_vfm_to_frc(ins->cur_buf);
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
@@ -925,20 +955,20 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 	}
 #endif
 
-	if (frc_vf) {
-		if (toggle_vf) {
-			memcpy(frc_vf->axis, toggle_vf->axis, sizeof(u32) * 4);
-			memcpy(&frc_vf->pic_mode, &toggle_vf->pic_mode,
-				sizeof(struct vframe_pic_mode_s));
+	if (is_frc_vf(toggle_vf, ins)) {
+		toggle_vf->type_backup = toggle_vf->type;
+		toggle_vf->vf_ext = ins->cur_buf;
+		/* if axis changed, turn off frc link and do not use frc vf */
+		if (memcmp(toggle_vf->axis, ins->cur_buf->axis, sizeof(u32) * 4)) {
+			vd_layer[0].axis_updated = true;
+			toggle_vf = ins->cur_buf;
 		}
-		frc_vf->type_backup = frc_vf->type;
-		ins->cur_buf = frc_vf;
-		frc_vf->vf_ext = toggle_vf;
 	}
 	ins->last_switch_state = ins->switch_vf;
+	ins->frc_vf_used = NULL;
 	if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
-		pr_info("frc_vf:%p toggle_vf:%p\n", frc_vf, toggle_vf);
-	return frc_vf ? frc_vf : toggle_vf;
+		pr_info("toggle_vf:%p vc_vf:%p\n", toggle_vf, ins->cur_buf);
+	return toggle_vf;
 }
 
 static s32 recv_common_return_frame(struct video_recv_s *ins,

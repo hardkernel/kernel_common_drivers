@@ -4416,6 +4416,7 @@ int dpss_frc_fpp_memc_set_level(u8 level, u8 num)
 }
 
 static struct dpss_frc_vf_s frc_vf_s[DPSS_DPS_NUB];
+static struct vframe_s get_frc_vf_s[DPSS_DPS_NUB];
 static unsigned int pre_cur_idx;
 static unsigned int inp_vfm_cnt;
 static struct frc_vf_ctrl_s frc_vf_ctrl;
@@ -4528,7 +4529,8 @@ struct vframe_s *frc_get_vfm(void)
 			cur_idx = state_st->mc_disp_st.wr_cur_idx % DPSS_DPS_NUB;
 	}
 
-	vfm = &frc_vf_s[cur_idx].vfm;
+	get_frc_vf_s[cur_idx] = frc_vf_s[cur_idx].vfm;
+	vfm = &get_frc_vf_s[cur_idx];
 
 	pre_cur_idx = cur_idx;
 
@@ -4584,6 +4586,7 @@ void *put_vfm_to_frc(struct vframe_s *vfm)
 			frc_vf_s[i].sequence = 0;
 			frc_vf_s[i].vfm = *vfm;
 			frc_vf_s[i].vfm.nr_buf_id = i;
+			get_frc_vf_s[i] = *vfm;
 		}
 	}
 

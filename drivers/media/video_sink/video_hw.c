@@ -14793,6 +14793,12 @@ static bool update_frc_link_state(struct video_layer_s *layer,
 			if (layer->global_debug & DEBUG_FLAG_PLINK)
 				pr_info("%s: frc_link: vf is null\n", __func__);
 		}
+		if (layer->axis_updated) {
+			layer->axis_updated = false;
+			layer->need_disable_frc_link = true;
+			if (layer->global_debug & DEBUG_FLAG_PLINK)
+				pr_info("%s: axis_updated\n", __func__);
+		}
 		if (!IS_FRC_LINK(vf->type_ext))
 			layer->need_disable_frc_link = true;
 

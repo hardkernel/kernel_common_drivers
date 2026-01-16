@@ -35,6 +35,7 @@ struct video_recv_s {
 	struct vframe_s *original_vf;
 	struct vframe_s *save_vf;
 	struct vframe_s *toggle_vf;
+	struct vframe_s *frc_vf_used;
 	DECLARE_KFIFO(put_q, struct vframe_s *, RECEIVER_BUFFER_POOL_SIZE);
 
 	bool switch_vf;
