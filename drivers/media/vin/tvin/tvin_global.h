@@ -600,6 +600,7 @@ struct tvin_sig_property_s {
 	unsigned int polarity_vs;
 	unsigned int hdcp_sts;	/* protected content src. 1:protected 0:not*/
 	unsigned int macrovision_sts;
+	unsigned int raw_color_fmt; /* preproc 422 to 444 anomaly, so transferred via rx*/
 };
 
 #define TVAFE_VF_POOL_SIZE		6 /* 8 */

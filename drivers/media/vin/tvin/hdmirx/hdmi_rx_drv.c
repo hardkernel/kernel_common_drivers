@@ -1489,10 +1489,12 @@ void hdmirx_get_color_fmt(struct tvin_sig_property_s *prop, u8 port)
 	case E_COLOR_YUV422:
 		if (rx_info.chip_id >= CHIP_ID_T3X &&
 			!rx[port].amdv_type &&
-			!rx[port].dsc_flag)
+			!rx[port].dsc_flag) {
 			prop->color_format = TVIN_YUV444;
-		else
+			prop->raw_color_fmt = TVIN_YUV422;
+		} else {
 			prop->color_format = TVIN_YUV422;
+		}
 		break;
 	case E_COLOR_YUV420:
 		prop->color_format = TVIN_YUV420;

@@ -469,6 +469,7 @@ int vdin_open_fe(enum tvin_port_e port, int index,  struct vdin_dev_s *devp)
 	memset(&devp->pre_prop, 0, sizeof(devp->pre_prop));
 	 /* clear color para*/
 	memset(&devp->prop, 0, sizeof(devp->prop));
+	devp->prop.raw_color_fmt = TVIN_COLOR_FMT_MAX;
 
 	if (devp->frontend->dec_ops && devp->frontend->dec_ops->open)
 		ret = devp->frontend->dec_ops->open(devp->frontend,
@@ -5648,7 +5649,11 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		memset(&info, 0, sizeof(struct tvin_frontend_info_s));
-		info.cfmt = devp->parm.info.cfmt;
+		if (devp->prop.raw_color_fmt < TVIN_COLOR_FMT_MAX &&
+		    devp->parm.info.cfmt != devp->prop.raw_color_fmt)
+			info.cfmt = devp->prop.raw_color_fmt;
+		else
+			info.cfmt = devp->parm.info.cfmt;
 		info.fps = devp->parm.info.fps;
 		info.colordepth = devp->prop.colordepth;
 		info.scan_mode = devp->fmt_info_p->scan_mode;

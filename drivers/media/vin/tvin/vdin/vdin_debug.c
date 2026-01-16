@@ -2006,9 +2006,10 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("prop.trans_fmt	= %s(%d)\n",
 		tvin_trans_fmt_str(devp->prop.trans_fmt),
 		devp->prop.trans_fmt);
-	pr_info("prop.color_format= %s(%d)\n",
+	pr_info("prop.color_format= %s(%d) raw_fmt= %s(%d)\n",
 		tvin_color_fmt_str(devp->prop.color_format),
-		devp->prop.color_format);
+		devp->prop.color_format, tvin_color_fmt_str(devp->prop.raw_color_fmt),
+		devp->prop.raw_color_fmt);
 	pr_info("prop.dest_cfmt	= %s(%d)\n",
 		tvin_color_fmt_str(devp->prop.dest_cfmt),
 		devp->prop.dest_cfmt);
