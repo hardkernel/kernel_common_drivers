@@ -54,6 +54,7 @@
 #define RESMAN_MAX_PRINT_LEN  500
 #define RESMAN_DEFAULIT_MIN_SIZE_FOR_VDEC   (10)  //min codec mm size for base workspace buffer
 #define RESMAN_DEFAULIT_EXPECT_SIZE_FOR_PLAYBACK   (60)  //expect codec mmsize for plabyack
+#define RESMAN_BYTES_MAX   (1024 * 1024 * 1024)
 
 struct {
 	int id;
@@ -2688,8 +2689,7 @@ static long resman_ioctl_get_version(struct resman_session *sess, unsigned long 
 
 static int resman_ioctl_parameter_set_ctl(struct resman_session *sess, unsigned long para)
 {
-	int r = -1;
-	int r_bytes = 0;
+	int r = -1, r_bytes = 0;
 
 	struct resman_param_set_control resman_set_ctl;
 	struct resman_param_item *resman_set_item_t = NULL;
@@ -2811,6 +2811,10 @@ static int resman_ioctl_parameter_set_ctl(struct resman_session *sess, unsigned 
 		r_bytes = resman_session_query_resource_by_name(sess,
 						  RESMAN_DEV_VDEC,
 						  resman_cb_q);
+		if (r_bytes > RESMAN_BYTES_MAX) {
+			dprintk(0, "bytes too large: %d\n", r_bytes);
+			r_bytes = RESMAN_BYTES_MAX;
+		}
 		if (r_bytes >= 0)
 			r = r_bytes / (1024 * 1024);
 		if (r == 0)
@@ -2882,13 +2886,24 @@ static int resman_ioctl_parameter_set_ctl(struct resman_session *sess, unsigned 
 		if (pipeline != RESMAN_PLAYBACK_PIPELINE_HDMI_DEFAULT) {
 			r_bytes = resman_session_query_resource_by_name(sess,
 						RESMAN_DEV_VDEC, resman_cb_q);
+			if (r_bytes > RESMAN_BYTES_MAX) {
+				dprintk(0, "bytes too large: %d\n", r_bytes);
+				r_bytes = RESMAN_BYTES_MAX;
+			}
 			if (r_bytes >= 0)
 				r = r_bytes / (1024 * 1024);
 		}
 		dprintk(4, "%d vdec expect size %d\n", sess->id, r);
+#if defined(CONFIG_AMLOGIC_DPSS_PROCESS) || defined(CONFIG_AMLOGIC_DI_PROCESS)
 		// di buffer
-		r += get_di_backend_need_mem(w, h, is_interlace);
-
+		r_bytes = get_di_backend_need_mem(w, h, is_interlace);
+		if (r_bytes > 0 && r_bytes < RESMAN_BYTES_MAX) {
+			if (r > INT_MAX - r_bytes)
+				r = INT_MAX;
+			else
+				r += r_bytes;
+		}
+#endif
 		//demux buffer
 		if (!secure && (pipeline == RESMAN_PLAYBACK_PIPELINE_V4L2_STREAMMODE ||
 			pipeline == RESMAN_PLAYBACK_PIPELINE_AMPORT_STREAMMODE))
@@ -2911,6 +2926,10 @@ static int resman_ioctl_parameter_set_ctl(struct resman_session *sess, unsigned 
 		if (pipeline != RESMAN_PLAYBACK_PIPELINE_HDMI_DEFAULT) {
 			r_bytes = resman_session_query_resource_by_name(sess,
 						RESMAN_DEV_VDEC, resman_cb_q);
+			if (r_bytes > RESMAN_BYTES_MAX) {
+				dprintk(0, "bytes too large: %d\n", r_bytes);
+				r_bytes = RESMAN_BYTES_MAX;
+			}
 			if (r_bytes >= 0)
 				r = r_bytes / (1024 * 1024);
 		}
@@ -2928,10 +2947,18 @@ static int resman_ioctl_parameter_set_ctl(struct resman_session *sess, unsigned 
 			get_resman_param_key_string(RESMAN_PARAM_VIDEO_STATUS));
 		v_status = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
 		if (v_status > RESMAN_STATUS_PREPARING) {
+#if defined(CONFIG_AMLOGIC_DPSS_PROCESS) || defined(CONFIG_AMLOGIC_DI_PROCESS)
 			resman_set_item_t = param_set_get_by_name(sess->param_set,
 					get_resman_param_key_string(RESMAN_PARAM_VIDEO_FD));
 			is_interlace = !resman_set_item_t ? 0 : resman_set_item_t->value.i;
-			r += get_di_backend_need_mem(w, h, is_interlace);
+			r_bytes = get_di_backend_need_mem(w, h, is_interlace);
+			if (r_bytes > 0 && r_bytes < RESMAN_BYTES_MAX) {
+				if (r > INT_MAX - r_bytes)
+					r = INT_MAX;
+				else
+					r += r_bytes;
+			}
+#endif
 			dprintk(4, "%d realtime size new %d\n", sess->id, r);
 		}
 		mutex_unlock(&sess->lock);
