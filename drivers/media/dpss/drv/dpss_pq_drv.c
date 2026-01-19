@@ -430,17 +430,12 @@ void di_write_data_table(enum di_page_module_e module,
 
 		if (module == DI_PAGE_MODULE_DMS && i < DPSS_DB_DM_NUM)
 			di_db_dm[i].val = di_pq_table[module].page[index].reg[i].val;
-		if (module == DI_PAGE_MODULE_XLR && addr == VPU_NR_ENABLE) {
-			if (start == 3)
-				dpss_xlr_en = val;
-			if (start == 2)
-				dpss_xlr_side_en = val;
-		}
 		tmp = rd(addr);
 		tmp0 = tmp;
 		tmp &= ~(mask << start);
 		tmp |= ((val & mask) << start);
-		wr(addr, tmp);
+		if (addr != VPU_NR_ENABLE)
+			wr(addr, tmp);
 		if (pq_update == 2)
 			pr_info("M%d:tab[%2d][0x%04x] 0x%08x -> 0x%08x, st:%2d, val:%2d\n",
 				module, i, addr, tmp0, tmp, start, val);

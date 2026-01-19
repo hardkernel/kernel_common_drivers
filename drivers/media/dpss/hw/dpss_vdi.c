@@ -16,8 +16,8 @@ unsigned int dpss_dblk_en = 1;
 unsigned int dpss_cfr_en;
 unsigned int dpss_cue_en;
 unsigned int dpss_pq_en = 1;
-unsigned int dpss_xlr_en;
-unsigned int dpss_xlr_side_en;
+unsigned int dpss_xlr_en = 1;
+unsigned int dpss_xlr_side_en = 1;
 unsigned int dpss_me_en = 1;
 unsigned int dpss_lcevc_en;
 unsigned int dpss_di_debug = 1;
@@ -165,6 +165,10 @@ void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 				w_reg_bit(DPSS_BBD_ONLY_CTRL, 0, 1, 1);
 			}
 		}
+		if (!prm_top->is_current) {
+			w_reg_bit(VPU_NR_ENABLE, reg_xlr_side_en, 2, 1);
+			w_reg_bit(VPU_NR_ENABLE, reg_xlr_en, 3, 1);
+		}
 	}
 	if (dpss_pq_en) {
 		if (reg_dmsq_en == 0)
@@ -175,8 +179,8 @@ void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 
 	//w_reg_bit(VPU_NR_ENABLE, reg_post_en, 0, 1);
 	w_reg_bit(VPU_NR_ENABLE, reg_dm_en, 1, 1);
-	w_reg_bit(VPU_NR_ENABLE, reg_xlr_side_en, 2, 1);
-	w_reg_bit(VPU_NR_ENABLE, reg_xlr_en, 3, 1);
+	//w_reg_bit(VPU_NR_ENABLE, reg_xlr_side_en, 2, 1);
+	//w_reg_bit(VPU_NR_ENABLE, reg_xlr_en, 3, 1);
 	w_reg_bit(VPU_NR_ENABLE, reg_dblk_stat_en, 4, 1);
 	w_reg_bit(VPU_NR_ENABLE, reg_dblk_en_v, 5, 1);
 	w_reg_bit(VPU_NR_ENABLE, reg_dblk_en_h, 6, 1);
@@ -206,8 +210,8 @@ void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 	//w_reg_bit(VPU_CUE_MODE_ENABLE, reg_cue_en, 0, 1);//reg_cue_enable_r
 	//w_reg_bit(VPU_MCDI_EN, reg_mcdi_en, 0, 1); //reg_mcdi_en
 	//w_reg_bit(VPU_DI_BLEND_EI_POST_EN_MODE, reg_ei_en, 2, 1);//reg_di_ei_en
-	dbg_h2("%s:src:%d,%d,%d,%d\n", __func__, rd(DPSS_DPE_HW_DBG),
-		is_psrc, nr_src0_en, nr_src1_en);
+	dbg_h2("%s:src:%d,%d,%d,%d,%d\n", __func__, rd(DPSS_DPE_HW_DBG),
+		is_psrc, nr_src0_en, nr_src1_en, prm_top->is_current);
 	dbg_h2("%s:VPU_NR_ENABLE:%d,%d,%d,%d,%d\n", __func__, reg_nr_tnr_en,
 		reg_nr_snr_en, reg_dmsq_en, reg_dblk_en_v, dblk_en);
 	dbg_h2("%s:VPU_NR_ENABLE:%d\n", __func__, rd(VPU_NR_ENABLE));
@@ -247,7 +251,8 @@ void nr_force_config(struct PRM_DPSS_TOP *prm_top, struct PRM_DPSS_DPE *prm_dpe)
 		di_write_data_table(DI_PAGE_MODULE_DBLOCK, 0);
 	if (reg_nr_snr_en || reg_nr_tnr_en)
 		di_write_data_table(DI_PAGE_MODULE_DNR, 0);
-	di_write_data_table(DI_PAGE_MODULE_XLR, 0);
+	if (reg_xlr_en)
+		di_write_data_table(DI_PAGE_MODULE_XLR, 0);
 	di_db_dm[REG_DM_MAX].val = pq_update;
 
 	if (dpss_di_debug || dpss_nr_debug || dpss_force_nr_debug) {
