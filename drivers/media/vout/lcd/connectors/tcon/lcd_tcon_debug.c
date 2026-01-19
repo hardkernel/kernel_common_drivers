@@ -2003,7 +2003,7 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDPR("tcon: get bin_path[%d]: %s\n", lcd_tcon_bin_path_index, str);
 
-		if (copy_to_user(argp, str, 256))
+		if (copy_to_user(argp, str, sizeof(struct aml_path_s)))
 			ret = -EFAULT;
 		break;
 	case LCD_IOC_GET_TCON_PMU_PATH:
