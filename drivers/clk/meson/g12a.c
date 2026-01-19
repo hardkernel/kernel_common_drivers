@@ -6415,6 +6415,56 @@ static int meson_g12a_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int meson_g12a_suspend(struct device *dev)
+{
+	const struct meson_eeclkc_data *eeclkc_data;
+	struct clk_regmap *regmap;
+	const struct meson_clk_cpu_dyn_data *data;
+	u32 control = 0, pre_mux, post_mux, div;
+
+	/**
+	 * The sm1 bl30 str process does not save/restore dsu clk, which may cause
+	 * the register state of dsu clk on mux_0 and the state machine state to
+	 * not match after resume, resulting in a system freeze during resume.
+	 * Therefore, when sm1 is in standby mode, it is necessary to ensure that
+	 * dsu clock is on the mux_1. When resuming, the dsu register detects
+	 * that the channels are different and synchronizes the register status.
+	 */
+	eeclkc_data = of_device_get_match_data(dev);
+	if (!eeclkc_data)
+		return -EINVAL;
+
+	if (eeclkc_data->hw_clks.hws == sm1_hw_clks) {
+		regmap = to_clk_regmap(&sm1_dsu_dyn_clk.hw);
+		data = (struct meson_clk_cpu_dyn_data *)sm1_dsu_dyn_clk.data;
+		regmap_read(regmap->map, data->offset, &control);
+		/* if dsu clk in mux_0, set it to mux_1 */
+		if (!((control >> 10) & 0x1)) {
+			pre_mux = (control >> 0) & 0x3;
+			post_mux = (control >> 2) & 0x1;
+			div = (control >> 4) & 0x3f;
+			/* set dsu clk mux_1 sync mux_0 status */
+			control = (control & (~((0x1 << 10) | (0x3f << 20)
+				  | (0x1 << 18) | (0x3 << 16))))
+				  | ((0x1 << 10) | (post_mux << 20)
+				  | (div << 18) | (pre_mux << 16));
+			regmap_write(regmap->map, data->offset, control);
+		}
+	}
+
+	return 0;
+}
+
+static int meson_g12a_resume(struct device *dev)
+{
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(meson_g12a_pm_ops, meson_g12a_suspend,
+			 meson_g12a_resume);
+#endif
+
 static const struct meson_g12a_data g12a_clkc_data = {
 	.eeclkc_data = {
 		.regmap_clks = g12a_clk_regmaps,
@@ -6474,6 +6524,9 @@ static struct platform_driver g12a_driver = {
 	.driver		= {
 		.name	= "g12a-clkc",
 		.of_match_table = clkc_match_table,
+#ifdef CONFIG_PM_SLEEP
+		.pm = &meson_g12a_pm_ops,
+#endif
 	},
 };
 
