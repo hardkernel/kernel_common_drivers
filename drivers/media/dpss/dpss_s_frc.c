@@ -18,6 +18,9 @@
 /*dma_get_cma_size_int_byte*/
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/di/dpss_interface.h>
+#ifdef CONFIG_AMLOGIC_VPU
+#include <linux/amlogic/media/vpu/vpu.h>
+#endif
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include <linux/amlogic/media/dpss/dpss_frc.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
@@ -4183,7 +4186,11 @@ int dpss_frc_get_video_latency(void)
 	state_st = &pchip_st->state_st;
 	frm_rate = state_st->n2m_status.input_framerate;
 	frc_ratio = state_st->n2m_status.frc_ratio;
-	is_mc_link = !is_vd1_link_state();
+
+	if (vpu_clk_get() > 100)
+		is_mc_link = !is_vd1_link_state();
+	else
+		is_mc_link = 0;
 
 	if (frc_top->memc_enable != 1) {
 		delay_time = 0;
