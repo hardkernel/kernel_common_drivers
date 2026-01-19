@@ -179,6 +179,17 @@ int get_buf_mgr_print_flag(void);
 int set_buf_mgr_print_flag(int flag);
 
 /**
+ * @brief  buf_mgr_set_eos: set eos signal for dpss
+ *
+ *@param[in]
+ *
+ * @return
+ */
+#ifdef CONFIG_AMLOGIC_DPSS_PROCESS
+void buf_mgr_set_eos(int print_flag, struct vf_ref_t *vf_ref);
+#endif
+
+/**
  * @brief  get_di_backend_mem: get di backend keeped memory
  *
  *@param[in]  width              width of input resolution

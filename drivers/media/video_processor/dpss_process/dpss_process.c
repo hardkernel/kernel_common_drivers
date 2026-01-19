@@ -79,6 +79,7 @@ struct dpss_cooling_device *dpss_cdev_global;
 static u32 force_num_to_vd1;
 static atomic_t input_eos_enabled = ATOMIC_INIT(0);
 static u32 hdr_state_flag; /*0:normal 1:need send flag to force pq unmute*/
+static u32 last_instance_frame_index;
 static DEFINE_MUTEX(dpss_process_mutex);
 
 static int dp_print(int index, int debug_flag, const char *fmt, ...)
@@ -1841,6 +1842,7 @@ static int dpss_process_init(struct dpss_process_dev *dev)
 	dev->should_on_vd1 = 0;
 	dev->is_first_frame = false;
 	dev->is_switch_first_frame = false;
+	atomic_set(&input_eos_enabled, 0);
 
 	receive_q_init(dev);
 	dpss_input_free_q_init(dev);
@@ -2054,10 +2056,23 @@ void unregister_dpss_cooling(void)
 }
 #endif
 
-void buf_mgr_set_eos(void)
+void buf_mgr_set_eos(int print_flag, struct vf_ref_t *vf_ref)
 {
-	if (is_dual_channel_enabled == 0)
+	struct vframe_s *vf = NULL;
+
+	if (!vf_ref) {
+		pr_err("buf_mgr: vf_ref is NULL.\n");
+		return;
+	}
+
+	vf = &vf_ref->vf;
+
+	if (is_dual_channel_enabled == 0) {
 		atomic_set(&input_eos_enabled, 1);
+		last_instance_frame_index =  vf->frame_index;
+		if (print_flag & 0x1)
+			pr_info("frame_index=%d , eos flag set!\n", vf->frame_index);
+	}
 }
 
 static int display_original_frame(struct dpss_process_dev *dev,
@@ -2343,9 +2358,14 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		frame_info->is_tvp = false;
 
 	if (atomic_read(&input_eos_enabled) == 1) {
-		vf->type_ext |= VIDTYPE_EXT_DPSS_EOS;
-		dp_print(dev->index, PRINT_OTHER, "frame_index=%d, input eos detected\n",
-			vf->frame_index);
+		if (last_instance_frame_index < vf->frame_index) {
+			atomic_set(&input_eos_enabled, 0);
+			dp_print(dev->index, PRINT_OTHER, "frame_index exceeded, eos canceled\n");
+		} else {
+			vf->type_ext |= VIDTYPE_EXT_DPSS_EOS;
+			dp_print(dev->index, PRINT_OTHER, "frame_index=%d, input eos detected\n",
+				vf->frame_index);
+		}
 	}
 
 	dp_print(dev->index, PRINT_OTHER,
