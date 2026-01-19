@@ -2665,14 +2665,31 @@ bool frclink_vpp_check_act(void)
 			(cur_frm_rate > 288))
 			return false;
 	}
-	dbg_h1("%s done\n", __func__);
+	dbg_h1("frclink chk act done\n");
 	return true;
 };
 
 int pvpp_sw_frc(bool on)
 {
-	dbg_h1("%s done\n", __func__);
 	return 1;
+}
+
+bool get_mc_link_property_change(void)
+{
+	bool is_vd1_link = false;
+	struct frc_chip_st *pchip_st;
+	struct frc_state_s *state_st;
+
+	pchip_st = dpss_get_frc_st();
+	if (!pchip_st)
+		return false;
+	state_st = &pchip_st->state_st;
+	is_vd1_link = is_vd1_link_state();
+	if (!is_vd1_link || !state_st->dpss_reg ||
+		!enable_mc_link || state_st->need_disable_mc_link)
+		return false;
+	dbg_f2("notify vpp enable mc link\n");
+	return true;
 }
 
 void dpss_enable_mc_link(bool enable)

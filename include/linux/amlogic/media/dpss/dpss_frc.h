@@ -63,6 +63,7 @@ int pvpp_display_frc(struct vframe_s *vfm,
 int frclink_vpp_check_vf(struct vframe_s *vfm);
 bool frclink_vpp_check_act(void);
 int pvpp_sw_frc(bool on);
+bool get_mc_link_property_change(void);
 void frc_disable_plink_notify(bool async);
 void frc_plink_state_changed_notify(void);
 void irq_display(void);

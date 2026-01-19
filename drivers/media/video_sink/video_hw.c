@@ -13516,6 +13516,18 @@ static void update_nr_pps_scaler(struct video_layer_s *layer, struct vframe_s *v
 	}
 }
 
+static bool get_frc_link_property_change(u32 layer_id)
+{
+	bool ret = false;
+
+#ifdef AMLOGIC_MEDIA_DPSS
+	ret = get_mc_link_property_change() &&
+		!(vd_layer[layer_id].next_frame_par->vscale_skip_count > 0 ||
+		vd_layer[layer_id].next_frame_par->nocomp);
+#endif
+	return ret;
+}
+
 static bool is_vframe_changed
 	(u8 layer_id,
 	struct vframe_s *cur_vf,
@@ -13566,6 +13578,7 @@ static bool is_vframe_changed
 	     ((cur_vf->type_backup & VIDTYPE_INTERLACE) !=
 	      (new_vf->type_backup & VIDTYPE_INTERLACE)) ||
 	     cur_vf->type != new_vf->type ||
+	     get_frc_link_property_change(layer_id) ||
 	     ((is_src_crop_valid(cur_vf->src_crop) &&
 	     is_src_crop_valid(new_vf->src_crop) &&
 	     (cur_vf->src_crop.top != new_vf->src_crop.top ||
