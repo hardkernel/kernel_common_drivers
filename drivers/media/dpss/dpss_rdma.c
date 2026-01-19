@@ -528,6 +528,8 @@ void dpss_ram_tab_init(struct dpss_ch_s *pch)
 	unsigned long ph_addr;
 	unsigned int *v_addr;
 
+	if (!(dpss_en_rdma & C_BIT16))
+		return;
 	ph_addr = pch->c.addr_rdma_base;
 	v_addr = pch->c.addr_rdma_v;
 

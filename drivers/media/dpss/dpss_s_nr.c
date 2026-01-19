@@ -3967,6 +3967,9 @@ void dpss_rdma_pre_tab_reg(struct dpss_ch_s *pch)
 	struct dpss_rdma_pre_s *ptab;
 	int i;
 
+	if (!(dpss_en_rdma & C_BIT16))
+		return;
+
 	ptab = &pch->c.pre_dae_dpss;
 	if (!ptab->buf) {
 		memset(ptab, 0, sizeof(*ptab));
@@ -4029,6 +4032,8 @@ void dpss_rdma_pre_tab_unreg(struct dpss_ch_s *pch)
 	struct dpss_rdma_pre_s *ptab;
 	int i;
 
+	if (!(dpss_en_rdma & C_BIT16))
+		return;
 	ptab = &pch->c.pre_dae_dpss;
 	if (!ptab->buf) {
 		kfree(ptab->buf);
@@ -4085,6 +4090,10 @@ void dpss_rdma_pre_set(struct dpss_ch_s *pch)
 
 	if (pch->c.case_id < TST_CASE_IDX_1000)	//tmp
 		return;
+	if (!(dpss_en_rdma & C_BIT16)) {
+		DBG_ERR("%s:not enable dpss_rdma\n", "pre_set");
+		return;
+	}
 
 	if (pch->c.case_id == TST_CASE_IDX_1000) {
 		//dae1 / dpe 1: //src
@@ -4143,6 +4152,11 @@ void dpss_rdma_pre_set_all(struct dpss_ch_s *pch)
 
 	if (pch->c.case_id < TST_CASE_IDX_1000)	//tmp
 		return;
+
+	if (!(dpss_en_rdma & C_BIT16)) {
+		DBG_ERR("%s:not enable dpss_rdma\n", "set all");
+		return;
+	}
 
 	//irq src:
 	if (pch->c.case_id == TST_CASE_IDX_1000) {

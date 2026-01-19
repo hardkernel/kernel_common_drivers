@@ -47,6 +47,8 @@ irqreturn_t dpss_irq_rdma(int irq, void *dev_instance);
 irqreturn_t dpss_irq_dbg(int irq, void *dev_instance);
 #endif
 
+extern unsigned int dpss_en_rdma;
+
 /* interface for task */
 void dpss_tsk_s_polling(void);
 void dpss_tsk_m_polling(void);
