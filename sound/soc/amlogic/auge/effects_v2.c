@@ -27,6 +27,8 @@
 //#define DEBUG
 #define AED_REG_NUM_V5	8
 
+static DEFINE_MUTEX(aed_mutex);
+
 /*
  * AED Diagram
  * DC -- ND -- MIX -- EQ -- Multiband DRC -- LR Vol
@@ -185,13 +187,21 @@ int mixer_aed_write(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int reg = mc->reg;
-	unsigned int shift = mc->shift;
-	unsigned int max = mc->max;
-	unsigned int invert = mc->invert;
-	unsigned int value = ucontrol->value.integer.value[0];
-	unsigned int new_val = (unsigned int)eqdrc_read(reg);
 
+	unsigned int reg = 0;
+	unsigned int shift = 0;
+	unsigned int max = 0;
+	unsigned int invert = 0;
+	unsigned int value = 0;
+	unsigned int new_val = 0;
+
+	mutex_lock(&aed_mutex);
+	reg = mc->reg;
+	shift = mc->shift;
+	max = mc->max;
+	invert = mc->invert;
+	value = ucontrol->value.integer.value[0];
+	new_val = (unsigned int)eqdrc_read(reg);
 	if (invert)
 		value = (~value) & max;
 	max = ~(max << shift);
@@ -199,6 +209,7 @@ int mixer_aed_write(struct snd_kcontrol *kcontrol,
 	new_val |= (value << shift);
 
 	eqdrc_write(reg, new_val);
+	mutex_unlock(&aed_mutex);
 
 	return 0;
 }

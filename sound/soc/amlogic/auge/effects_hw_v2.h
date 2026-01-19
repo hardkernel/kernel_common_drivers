@@ -22,8 +22,6 @@ void aed_set_fullband_drc_enable(bool enable);
 void aed_set_multiband_drc_enable(bool enable);
 void aed_set_volume(int version, unsigned int master_volume,
 		    unsigned int lch_vol, unsigned int rch_vol);
-void aed_set_lane_and_channels(int lane_mask, int ch_mask);
-void aed_set_lane_and_channels_v3(int lane_mask, int ch_mask);
 void aed_set_ctrl(bool enable, int sel,
 		  enum frddr_dest module, int offset);
 void aed_set_format(int msb, enum ddr_types frddr_type,

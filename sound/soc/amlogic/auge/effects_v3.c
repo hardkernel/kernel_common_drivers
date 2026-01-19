@@ -501,6 +501,50 @@ static int v3_aed_set_ram_mask(struct snd_kcontrol *kcontrol,
 static const DECLARE_TLV_DB_SCALE(master_vol_tlv, -12276, 12, 1);
 static const DECLARE_TLV_DB_SCALE(lr_vol_tlv, -12750, 50, 1);
 
+static const char *const eq_src_texts[] = {"Lane0", "Lane1", "Lane2", "Lane3"};
+
+static const struct soc_enum eq_source_sel_enum =
+	SOC_ENUM_SINGLE
+			(SND_SOC_NOPM, 0, ARRAY_SIZE(eq_src_texts),
+			eq_src_texts);
+
+static int aml_eq_lane_source_sel_get_enum
+	(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct audioeffect *p_effect = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = p_effect->eq_lane_sel;
+	return 0;
+}
+
+static int aml_eq_lane_source_sel_set_enum
+		(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct audioeffect *p_effect = snd_kcontrol_chip(kcontrol);
+	int version;
+
+	int val = ucontrol->value.enumerated.item[0];
+
+	if (val < 0 || val > 4) {
+		pr_info("Warning: eq_lane_sel val = 0x%x not support\n", val);
+		return 0;
+	}
+	p_effect->eq_lane_sel = val;
+	p_effect->lane_mask = 1U << p_effect->eq_lane_sel;
+
+	version = check_aed_version();
+	if (version < 0)
+		pr_err("Failed to obtain version: %d\n", version);
+
+	/*just only for v3 and check the version*/
+	if (version > VERSION4)
+		aed_set_lane_and_channels_v3(p_effect->lane_mask, p_effect->ch_mask);
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new snd_effect_v3_controls[] = {
 	SOC_SINGLE_EXT_TLV("AED master volume",
 			AED_EQ_VOLUME_VAL, 20, 0x3FF, 1,
@@ -607,6 +651,10 @@ static const struct snd_kcontrol_new snd_effect_v3_controls[] = {
 			1,
 			v3_aed_get_ram_mask,
 			v3_aed_set_ram_mask),
+	SOC_ENUM_EXT("AED Source Select",
+			eq_source_sel_enum,
+			aml_eq_lane_source_sel_get_enum,
+			aml_eq_lane_source_sel_set_enum),
 };
 
 int add_effect_v3_kcontrols(struct snd_soc_card *card)

@@ -37,10 +37,13 @@ struct audioeffect {
 	/* store user setting */
 	u32 user_setting[AED_REG_NUM];
 	int aed_get_ram_mask;
+	int eq_lane_sel;
 };
 
 struct audioeffect *get_audioeffects(void);
 int check_aed_version(void);
+void aed_set_lane_and_channels(int lane_mask, int ch_mask);
+void aed_set_lane_and_channels_v3(int lane_mask, int ch_mask);
 int str2int(char *str, unsigned int *data, int size);
 int mixer_aed_read(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
