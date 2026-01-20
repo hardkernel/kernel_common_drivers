@@ -23,7 +23,7 @@
 static DNR_PRM_t dnr_param;
 static struct NR_PARM_s nr_param;
 bool dnr_pr;
-bool dnr_dm_en;
+unsigned int dnr_dm_en;
 unsigned int dnr_en = 0x1;
 unsigned int nr2_en = 0x1;
 bool dynamic_dm_chk = true;
@@ -2603,9 +2603,9 @@ void nr_drv_init(struct device *dev)
 	device_create_file(dev, &dev_attr_nr_debug);
 	device_create_file(dev, &dev_attr_secam);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXBB))
-		dnr_dm_en = true;
+		dnr_dm_en = 0x1;
 	else
-		dnr_dm_en = false;
+		dnr_dm_en = 0;
 	if (IS_IC(dil_get_cpuver_flag(), S4) && dim_ic_sub() == 1) {
 		dnr_en = 0x0;
 		dynamic_dm_chk = false;
