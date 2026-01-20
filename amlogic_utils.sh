@@ -1809,6 +1809,10 @@ function build_kernel_with_bazel() {
 		echo 						>> ${PROJECT_DIR}/project.bzl
 		echo "    KCONFIG_EXT_SRCS = [" 		>> ${PROJECT_DIR}/project.bzl
 		echo "    ]," 					>> ${PROJECT_DIR}/project.bzl
+
+		echo						>> ${PROJECT_DIR}/project.bzl
+		echo "    MEDIA_MODULES_CFLAGS = ["		>> ${PROJECT_DIR}/project.bzl
+		echo "    ],"					>> ${PROJECT_DIR}/project.bzl
 	fi
 
 	echo							>> ${PROJECT_DIR}/project.bzl

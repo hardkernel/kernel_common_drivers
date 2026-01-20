@@ -193,3 +193,4 @@ def ddk_deps_select(deps):
 gki_config = select_config_field("GKI_CONFIG")
 build_time = select_config_field("BUILD_TIME")
 common_drivers_release = select_config_field("COMMON_DRIVERS_RELEASE")
+media_modules_cflag = select_config_field("MEDIA_MODULES_CFLAGS")
