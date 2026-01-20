@@ -1194,6 +1194,7 @@ EXPORT_SYMBOL(aml_wifi_chip);
 
 void extern_wifi_set_enable(int is_on)
 {
+	mutex_lock(&wifi_bt_mutex);
 	if (is_on) {
 		set_wifi_power(1);
 		WIFI_INFO("WIFI  Enable! %d\n", wifi_info.power_on_pin);
@@ -1201,6 +1202,7 @@ void extern_wifi_set_enable(int is_on)
 		set_wifi_power(0);
 		WIFI_INFO("WIFI  Disable! %d\n", wifi_info.power_on_pin);
 	}
+	mutex_unlock(&wifi_bt_mutex);
 }
 EXPORT_SYMBOL(extern_wifi_set_enable);
 
