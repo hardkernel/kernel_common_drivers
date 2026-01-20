@@ -103,6 +103,9 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 	unsigned long irqreg;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
+	/* only clear prot cache */
+	dmc_prot_rw(mon_comm->io_mem, DMC_PROT_IRQ_CTRL_STS, 0xc, DMC_WRITE);
+
 	/* irq write */
 	irqreg = dmc_prot_rw(mon_comm->io_mem, DMC_PROT_IRQ_CTRL_STS, 0, DMC_READ);
 

@@ -91,6 +91,9 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 	/* irq write */
 	irqreg = dmc_prot_rw(mon_comm->io_mem, DMC_PROT_IRQ_CTRL_STS, 0, DMC_READ);
 
+	/* only clear prot cache */
+	dmc_prot_rw(mon_comm->io_mem, DMC_PROT_IRQ_CTRL_STS, 0xc, DMC_WRITE);
+
 	if (irqreg & DMC_WRITE_VIOLATION) {
 		/* combine address */
 		mon_comm->time = sched_clock();
