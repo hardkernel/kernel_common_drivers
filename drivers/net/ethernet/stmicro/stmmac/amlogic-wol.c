@@ -63,6 +63,7 @@ struct mbox_payload {
 #define WKUP_REASON_UNUSED		0x00
 #define WKUP_REASON_MAGIC		0x01	/* Magic packet wakeup */
 #define WKUP_REASON_MDNS		0x02	/* mDNS wakeup */
+#define WKUP_REASON_PORT		0x03	/* Port wakeup */
 
 #define WKUP_VALID			BIT(0)
 #define WKUP_PROTO			BIT(1)
@@ -71,7 +72,8 @@ struct mbox_payload {
 static const char * const wakeup_names[] = {
 	[WKUP_REASON_UNUSED]	= "unused",
 	[WKUP_REASON_MAGIC]	= "magic",
-	[WKUP_REASON_MDNS]	= "mdns"
+	[WKUP_REASON_MDNS]	= "mdns",
+	[WKUP_REASON_PORT]	= "port"
 };
 
 static struct device *dev;
@@ -449,7 +451,10 @@ bool amlogic_wol_exit(void)
 		report_event = true;
 		break;
 	case WKUP_REASON_MDNS:
-		report_event = true;
+		report_event = false;
+		break;
+	case WKUP_REASON_PORT:
+		report_event = false;
 		break;
 	}
 
