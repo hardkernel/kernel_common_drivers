@@ -4171,11 +4171,28 @@ static struct early_suspend hdmirx_early_suspend_handler = {
 
 static void cec_update_edid(int port_id, int dev_type)
 {
-	if (port_id < rx_info.port_num && dev_type != DEV_UNKNOWN &&
-		rx[port_id].tx_type == DEV_UNKNOWN) {
-		rx[port_id].tx_type = dev_type;
+	u8 port, i;
+
+	if (dev_type == DEV_HDMI14_UNKNOWN_PORT) {
+		for (i = 0; i < E_PORT_NUM; i++) {
+			if (rx[i].cur.hw_dvi && rx[i].cableclk_stb_flg) {
+				port = i;
+				break;
+			}
+		}
+		if (i == E_PORT_NUM) {
+			if (log_level & EDID_LOG)
+				rx_pr("cec_update_edid not found DVI %d\n", port_id);
+			return;
+		}
+	} else {
+		port = port_id;
+	}
+	if (port < rx_info.port_num && dev_type != DEV_UNKNOWN &&
+		rx[port].tx_type == DEV_UNKNOWN) {
+		rx[port].tx_type = dev_type;
 		if (log_level & EDID_LOG)
-			rx_pr("cec set tx_type[%d] to %d\n", port_id, dev_type);
+			rx_pr("cec set tx_type[%d] to %d\n", port, dev_type);
 	}
 }
 

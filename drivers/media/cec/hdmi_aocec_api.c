@@ -546,6 +546,7 @@ void cec_spd_info_init(void)
 	cec_add_spd_info(4, 0x080046, "BDP-S470");
 	cec_add_spd_info(4, 0x080046, "BDP-S570");
 	cec_add_spd_info(4, 0x080046, "BDP-S790");
+	cec_add_spd_info(0x10, 0x080046, "BD");
 	cec_add_spd_info(4, 0x080046, "STR-DH790");
 	cec_add_spd_info(4, 0x080046, "STR-DH590");
 	cec_add_spd_info(4, 0x00a0de, "RX-V385");
@@ -591,6 +592,21 @@ static void cec_spd_hdmirx_notify(int portid, int handletype)
 		cec_spd_notify(portid, handletype);
 }
 
+static uint32_t cec_find_tx_type(unsigned char *osd_name, uint32_t vendor_id)
+{
+	struct spd_device_info *info;
+
+	list_for_each_entry(info, &spd_tx_device_info.spd_info_list, spd_info_list) {
+		if (strcmp(info->osd_name, osd_name) == 0 &&
+			info->vendor_id == vendor_id) {
+			CEC_ERR("found spd dev: %s 0x%x\n", osd_name, vendor_id);
+			return info->handle_type;
+		}
+	}
+
+	return 0;
+}
+
 /* special notify for hdmirx */
 void cec_message_op(unsigned char *msg, unsigned char len)
 {
@@ -598,6 +614,7 @@ void cec_message_op(unsigned char *msg, unsigned char len)
 	char logaddr;
 	unsigned int vendor_id;
 	unsigned int a, b = 0;
+	u32 handle_type = 0;
 	struct spd_device_info *info;
 	//cec handle just for tv product & need port mapping
 	if (cec_dev->dev_type != CEC_TV_ADDR || cec_dev->port_seq == 0)
@@ -625,6 +642,8 @@ void cec_message_op(unsigned char *msg, unsigned char len)
 			break;
 		logaddr = (msg[0] & 0xf0) >> 4;
 		list_for_each_entry(info, &spd_tx_device_info.spd_info_list, spd_info_list) {
+			if (strlen(info->osd_name) != (len - 2))
+				continue;
 			if (!strncmp(&msg[2], info->osd_name, (len - 2))) {
 				for (i = 0; i < 4; i++) {
 					if (logaddr == current_spd_info[i].log_addr) {
@@ -637,9 +656,12 @@ void cec_message_op(unsigned char *msg, unsigned char len)
 					}
 				}
 				if (i < 4) {
-					if (current_spd_info[i].vendor_id != 0)
+					handle_type =
+						cec_find_tx_type(current_spd_info[i].osd_name,
+							current_spd_info[i].vendor_id);
+					if (handle_type != 0)
 						cec_spd_hdmirx_notify(current_spd_info[i].port_id,
-							info->handle_type);
+							handle_type);
 				} else {
 					if (cec_spd_unknown_index(&i) == 1) {
 						//just one unknown device
@@ -672,9 +694,12 @@ void cec_message_op(unsigned char *msg, unsigned char len)
 					}
 				}
 				if (i < 4) {
-					if (current_spd_info[i].osd_name[0] != 0)
+					handle_type =
+						cec_find_tx_type(current_spd_info[i].osd_name,
+							current_spd_info[i].vendor_id);
+					if (handle_type != 0)
 						cec_spd_hdmirx_notify(current_spd_info[i].port_id,
-							info->handle_type);
+							handle_type);
 				} else {
 					if (cec_spd_unknown_index(&i) == 1) {
 						//just one unknown device

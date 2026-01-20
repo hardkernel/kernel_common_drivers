@@ -113,7 +113,8 @@
 //2026.01.12 Fix the issue that TB49 displays pink
 //2026.01.19 sync kernel5.15 and kernel6.12
 //2026.01.27 remove dsc cut logic
-#define RX_DRV_VER "ver.2026/01/27"
+//2026.01.29 Fix issue that devices not supporting EDID2.0 silent when EDID auto enabled.
+#define RX_DRV_VER "ver.2026/01/29"
 
 /*print type*/
 #define COR1_LOG	0x10000
@@ -1194,7 +1195,8 @@ enum spec_dev_type_e {
 	DEV_HDMI20 = 0x1,
 	SPD_GET_EARLIER = 0x2,
 	DEV_HDMI14 = 0x4,
-	DEV_ABNORMAL_SCDC = 0x8
+	DEV_ABNORMAL_SCDC = 0x8,
+	DEV_HDMI14_UNKNOWN_PORT = 0x10,
 };
 
 struct spec_dev_table_s {
