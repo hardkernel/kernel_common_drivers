@@ -1,0 +1,82 @@
+From a70e16b0bbde76e8aa2b12d4dafc3d5ca748050b Mon Sep 17 00:00:00 2001
+From: Jian Hu <jian.hu@amlogic.com>
+Date: Tue, 20 Jan 2026 14:46:15 +0800
+Subject: [PATCH] clk: bypass clk_disable and clk_unprepare [1/1]
+
+PD#SWPL-252501
+
+Problem:
+scmi clock can not bypass
+
+Solution:
+bypass clk_disable and clk_unprepare for gki_1.0 and non-gki
+
+Verify:
+t7
+
+Change-Id: I2c45f86e2ead7ccf16d03226324926c96ba58f76
+Signed-off-by: Jian Hu <jian.hu@amlogic.com>
+---
+ drivers/clk/clk.c | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+
+diff --git a/drivers/clk/clk.c b/drivers/clk/clk.c
+index eeb36a866f523..d45c46f47a536 100644
+--- a/drivers/clk/clk.c
++++ b/drivers/clk/clk.c
+@@ -1051,6 +1051,24 @@ int devm_clk_rate_exclusive_get(struct device *dev, struct clk *clk)
+ }
+ EXPORT_SYMBOL_GPL(devm_clk_rate_exclusive_get);
+ 
++#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
++bool bypass_clk_disable_unprepare;
++
++static int bypass_clk_disable_unprepare_setup(char *s)
++{
++	if (!s)
++		return -EINVAL;
++
++	if (kstrtobool(s, &bypass_clk_disable_unprepare)) {
++		pr_err("ccf bypass_clk_disable error: %s\n", s);
++		return -EINVAL;
++	}
++
++	return 1;
++}
++__setup("bypass_ccf_clk_disable=", bypass_clk_disable_unprepare_setup);
++#endif
++
+ static void clk_core_unprepare(struct clk_core *core)
+ {
+ 	lockdep_assert_held(&prepare_lock);
+@@ -1076,8 +1094,13 @@ static void clk_core_unprepare(struct clk_core *core)
+ 
+ 	trace_clk_unprepare(core);
+ 
++#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
++	if (core->ops->unprepare && bypass_clk_disable_unprepare)
++		pr_info("bypass CCF %s clock in %s\n", core->name, __func__);
++#else
+ 	if (core->ops->unprepare)
+ 		core->ops->unprepare(core->hw);
++#endif
+ 
+ 	trace_clk_unprepare_complete(core);
+ 	clk_core_unprepare(core->parent);
+@@ -1211,8 +1234,13 @@ static void clk_core_disable(struct clk_core *core)
+ 
+ 	trace_clk_disable(core);
+ 
++#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
++	if (core->ops->disable && bypass_clk_disable_unprepare)
++		pr_info("bypass CCF %s clock in %s\n", core->name, __func__);
++#else
+ 	if (core->ops->disable)
+ 		core->ops->disable(core->hw);
++#endif
+ 
+ 	trace_clk_disable_complete(core);
+ 
+-- 
+2.47.1
+

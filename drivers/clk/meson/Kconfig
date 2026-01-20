@@ -69,6 +69,12 @@ config AMLOGIC_CLK_DEBUG
 	  Say yes to support of debugging online a set of SoC clocks
 	  from the debugfs interface.
 
+config AMLOGIC_BYPASS_CCF_CLK
+	tristate "Amlogic Bypass all CCF clocks"
+	depends on AMLOGIC_BREAK_GKI_20
+	help
+	  Say yes to bypass all CCF clocks.
+
 config AMLOGIC_COMMON_CLK_S4
 	tristate "Meson S4 clock controller"
 	depends on AMLOGIC_COMMON_CLK_MESON_REGMAP
