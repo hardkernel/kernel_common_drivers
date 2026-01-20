@@ -2102,6 +2102,7 @@ static int vpp_set_filters_internal
 	u32 gcd_val;
 	s64 r0;
 	u32 r1 = 0, nr_pps_h_scaler_rate = 0, nr_pps_v_scaler_rate = 0;
+	u32 h_in_temp, w_in_temp;
 
 	if (!input)
 		return vppfilter_fail;
@@ -2904,22 +2905,30 @@ RESTART:
 	/*	((h_in << 17) + */
 	/*	(vpp_zoom_center_y << 10) + */
 	/*	(ratio_y >> 1)) / ratio_y; */
+	h_in_temp = h_in;
+	w_in_temp = w_in;
+
+	if (wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP) {
+		h_in_temp = h_in / (nr_pps_v_scaler_rate + 1);
+		w_in_temp = w_in / (nr_pps_h_scaler_rate + 1);
+	}
 	if (new_aspect_ratio) {
 		r0 = video_top + (video_height + 1) / 2;
-		r1 = (h_in << 17) + (vpp_zoom_center_y << 10) + (ratio_y >> 1);
+		r1 = (h_in_temp << 17) + (vpp_zoom_center_y << 10) + (ratio_y >> 1);
 		start = r0 - (r1 / ratio_y);
 	} else {
 		start = video_top + (video_height + 1) / 2 -
-		((h_in << 17) +
+		((h_in_temp << 17) +
 		(vpp_zoom_center_y << 10) +
 		(ratio_y >> 1)) / ratio_y;
 	}
-	end = ((h_in << 18) + (ratio_y >> 1)) / ratio_y + start - 1;
+	end = ((h_in_temp << 18) + (ratio_y >> 1)) / ratio_y + start - 1;
+
 	if (cur_super_debug)
 		pr_info("layer%d: top:start =%d,%d,%d,%d  %d,%d,%d %d\n",
 			input->layer_id,
 			start, end, video_top,
-			video_height, h_in, ratio_y, vpp_zoom_center_y, r1);
+			video_height, h_in_temp, ratio_y, vpp_zoom_center_y, r1);
 
 #ifdef TV_REVERSE
 	if (reverse) {
@@ -3152,19 +3161,19 @@ RESTART:
 	/*	(ratio_x >> 1)) / ratio_x; */
 	if (new_aspect_ratio) {
 		r0 = video_left + (video_width + 1) / 2;
-		r1 = (w_in << 17) + (vpp_zoom_center_x << 10) + (ratio_x >> 1);
+		r1 = (w_in_temp << 17) + (vpp_zoom_center_x << 10) + (ratio_x >> 1);
 		start = r0 - (r1 / ratio_x);
 	} else {
-		start = video_left + (video_width + 1) / 2 - ((w_in << 17) +
+		start = video_left + (video_width + 1) / 2 - ((w_in_temp << 17) +
 			(vpp_zoom_center_x << 10) +
 			(ratio_x >> 1)) / ratio_x;
 	}
-	end = ((w_in << 18) + (ratio_x >> 1)) / ratio_x + start - 1;
+	end = ((w_in_temp << 18) + (ratio_x >> 1)) / ratio_x + start - 1;
 	if (cur_super_debug)
 		pr_info("layer%d: left:start =%d,%d,%d,%d  %d,%d,%d %d\n",
 			input->layer_id,
 			start, end, video_left,
-			video_width, w_in, ratio_x, vpp_zoom_center_x, r1);
+			video_width, w_in_temp, ratio_x, vpp_zoom_center_x, r1);
 
 	/* calculate source horizontal clip */
 #ifdef TV_REVERSE
