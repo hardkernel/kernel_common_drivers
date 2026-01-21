@@ -1084,6 +1084,7 @@ static void frc_state_init(void)
 	state_st->mv_buf_idx = 0;
 	state_st->bypass_chg = false;
 	state_st->mc_phase0_rdma = false;
+	state_st->mc_link_available = false;
 	if (state_st->force_n2m == 0)
 		memset(&state_st->n2m_status, 0, sizeof(state_st->n2m_status));
 	memset(&state_st->me_pcn_st, 0, sizeof(state_st->me_pcn_st));
@@ -2570,16 +2571,18 @@ int pvpp_display_frc(struct vframe_s *vfm,
 			state_st->is_frc_vpp_link = 0;
 			state_st->have_update_vfcd = 0;
 			state_st->check_fallback = 0;
+			state_st->mc_link_available = false;
 			dbg_f1("bypass frc\n");
 		}
 		if (is_vd1_link)
 			w_reg_bit(DPSS_DPE_MC_START_CTRL, 3, 0, 2);
 		ret = 0;
 	} else if (display_mode == EPVPP_DISPLAY_MODE_FRC) {
-		if (is_vd1_link && !state_st->mc_set_phase0) {
+		if (is_vd1_link && (!state_st->mc_set_phase0 || !state_st->mc_link_available)) {
 			state_st->need_set_phase0 = true;
 			state_st->is_frc_vpp_link = 0;
-			dbg_f1("need_set_phase0=%d\n", state_st->need_set_phase0);
+			dbg_f1("need_set_phase0=%d, mc_link_avail=%d\n",
+				state_st->need_set_phase0, state_st->mc_link_available);
 			return ret;
 		}
 		if (is_vd1_link && state_st->check_fallback != 2) {

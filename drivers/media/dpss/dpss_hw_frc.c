@@ -1019,7 +1019,7 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 				data32, display_buf_q.inp_idx, state_st->enable_last_drop);
 		if (!state_st->enable_last_drop)
 			return false;
-		display_queue_use_last(&display_buf_q, 1);
+		display_queue_use_last(&display_buf_q, 2);
 		data32 = display_buf_q.mc_idx;
 	}
 	if (data32 < DPSS_QUEEN_NUM) {
@@ -1028,6 +1028,9 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		pr_frc(2, "data32 (%d) > DPSS_QUEEN_NUM, reset to 0\n", data32);
 		display_buf_info = &display_buf_q.data[0];
 	}
+
+	if (state_st->check_fallback == 2 && display_buf_info->p == state_st->force_mc_cur_idx)
+		state_st->check_fallback = 3;
 
 	if (display_buf_info->dae_mix) {
 		data32 = (display_buf_q.mc_idx + 1) % DPSS_QUEEN_NUM;
@@ -1072,6 +1075,9 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 
 	if (pchip_st && (pchip_st->state_st.mc_bypass || pchip_st->state_st.force_mc_phase0))
 		dpe_intp_phs = 0;
+
+	if (state_st->check_fallback != 1)
+		state_st->mc_link_available = true;
 
 	if (!state_st->force_disable_check_fallback && state_st->check_fallback == 1) {
 		dpe_cur_pixl_buf = state_st->force_mc_cur_idx;

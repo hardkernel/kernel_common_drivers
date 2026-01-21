@@ -454,6 +454,7 @@ struct frc_vf_ctrl_s {
 struct frc_state_s {
 	bool is_frc_vpp_link;
 	bool need_disable_mc_link;
+	bool mc_link_available;
 	bool have_update_vfcd;
 	bool dpss_reg;
 	bool frc_en;//dpss mode include frc
@@ -497,7 +498,7 @@ struct frc_state_s {
 	u8 mv_buf_idx;
 	bool win_size_zero_flag;
 	bool used_seq_vfm;
-	u8 check_fallback;
+	u8 check_fallback;//0:init 1:start force 2:maintain state 3:end
 	u8 detect_threshold;
 	u8 dae0_bypass_mode;
 	u8 dst_buf_th;
