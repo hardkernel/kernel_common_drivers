@@ -91,6 +91,7 @@ struct spicc_controller_data {
 	int (*dirspi_dma_trig_stop)(struct spi_device *spi);
 	int (*dirspi_dma_trig_release)(struct spi_device *spi);
 	int (*dirspi_busy_proc)(struct spi_device *spi);
+	bool (*dmatrig_is_busy)(struct spi_device *spi);
 };
 
 static inline bool is_spicc_capable(struct spicc_controller_data *cdata, unsigned int cap_type)

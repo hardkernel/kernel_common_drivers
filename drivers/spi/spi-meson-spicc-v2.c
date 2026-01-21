@@ -152,6 +152,7 @@ static int dirspi_dma_trig(struct spi_device *spi,
 static int dirspi_dma_trig_start(struct spi_device *spi);
 static int dirspi_dma_trig_stop(struct spi_device *spi);
 static int dirspi_dma_trig_release(struct spi_device *spi);
+static bool dmatrig_is_busy(struct spi_device *spi);
 #endif
 
 static inline int spicc_sem_down_read(struct spicc_device *spicc)
@@ -962,6 +963,7 @@ static int meson_spicc_setup(struct spi_device *spi)
 		cdata->dirspi_dma_trig_start = dirspi_dma_trig_start;
 		cdata->dirspi_dma_trig_stop = dirspi_dma_trig_stop;
 		cdata->dirspi_dma_trig_release = dirspi_dma_trig_release;
+		cdata->dmatrig_is_busy = dmatrig_is_busy;
 		if (cdata->use_dirspi)
 			spicc_set_speed(spicc, spi->max_speed_hz);
 		if (cdata->pclk_rate && cdata->pclk_rate != spicc->pclk_rate) {
@@ -1336,6 +1338,27 @@ static int dirspi_dma_trig_release(struct spi_device *spi)
 
 	spicc = spi_controller_get_devdata(spi->controller);
 	return spicc_dma_trig_release(spicc);
+}
+
+/*
+ * dmatrig_is_busy - check SPI xfer states
+ *
+ * Return TRUE if SPI Ready otherwise return the false.
+ */
+static bool dmatrig_is_busy(struct spi_device *spi)
+{
+	struct spicc_device *spicc;
+	union spicc_cfg_start cfg_start;
+	u32 desc_h;
+
+	spicc = spi_controller_get_devdata(spi->controller);
+
+	cfg_start.d32 = spicc_readl(spicc, SPICC_REG_CFG_START);
+	desc_h = spicc_readl(spicc, SPICC_REG_DESC_LIST_H);
+	if (!cfg_start.b.pending && !(desc_h & SPICC_DESC_PENDING))
+		return true;
+
+	return false;
 }
 #endif	/* end of MESON_SPICC_HW_IF */
 
