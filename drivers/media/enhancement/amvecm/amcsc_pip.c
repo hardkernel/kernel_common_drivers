@@ -3690,8 +3690,9 @@ void video_post_process(struct vframe_s *vf,
 				else
 					hdr_proc(vf, get_hdr_module(vd_path), HDR_BYPASS,
 						vinfo, NULL, vpp_index);
-				if (get_hdr_policy() == 2 &&
-					target_format[vd_path] == BT_BYPASS) {
+				if ((get_hdr_policy() == 2 &&
+					target_format[vd_path] == BT_BYPASS) ||
+					chip_cls_id == TV_CHIP) {
 					hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 					hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 					hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
@@ -4114,8 +4115,9 @@ void video_post_process(struct vframe_s *vf,
 				else
 					hdr_proc(vf, get_hdr_module(vd_path), HDR_BYPASS,
 						vinfo, NULL, vpp_index);
-				if (get_hdr_policy() == 2 &&
-				    target_format[vd_path] == BT_BYPASS) {
+				if ((get_hdr_policy() == 2 &&
+					target_format[vd_path] == BT_BYPASS) ||
+					chip_cls_id == TV_CHIP) {
 					hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 					hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 					hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
@@ -4212,8 +4214,9 @@ void video_post_process(struct vframe_s *vf,
 			else
 				hdr_proc(vf, get_hdr_module(vd_path), HDR_BYPASS,
 					vinfo, NULL, vpp_index);
-			if (get_hdr_policy() == 2 &&
-			    target_format[vd_path] == BT_BYPASS) {
+			if ((get_hdr_policy() == 2 &&
+				target_format[vd_path] == BT_BYPASS) ||
+				chip_cls_id == TV_CHIP) {
 				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 				hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 				hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);

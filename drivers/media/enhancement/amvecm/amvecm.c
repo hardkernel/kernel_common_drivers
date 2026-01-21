@@ -6216,15 +6216,14 @@ static long amvecm_ioctl(struct file *file,
 		if (copy_from_user(&sdr_hdr_ctrl,
 			(void __user *)arg, sizeof(int))) {
 			ret = -EFAULT;
-			pr_amvecm_dbg("sdr_hdr_ctrl copy from user fail.\n");
 		} else {
 			if (chip_cls_id == TV_CHIP) {
-				if (!sdr_hdr_ctrl) {
-					hdr_policy = 0;
-					set_force_output(UNKNOWN_FMT);
-				} else {
+				if (sdr_hdr_ctrl == 1) {
 					hdr_policy = 2;
 					set_force_output(BT2020_PQ);
+				} else {
+					hdr_policy = 0;
+					set_force_output(UNKNOWN_FMT);
 				}
 				force_toggle();
 				pr_amvecm_dbg("AMVECM_IOC_S_SDR2HDR_CTRL sdr_hdr_ctrl = %d\n",
