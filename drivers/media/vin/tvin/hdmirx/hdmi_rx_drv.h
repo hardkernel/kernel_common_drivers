@@ -378,6 +378,11 @@ struct rx_var_param {
 	int clk_unstable_max;
 	int clk_stable_cnt;
 	int clk_stable_max;
+	int ch_lock_unstable_cnt;
+	int ch_lock_stable_cnt;
+	int valid_m_stable_cnt;
+	int valid_m_unstable_cnt;
+	int valid_m_seen_after_training;
 	int unnormal_wait_max;
 	int wait_no_sig_max;
 	/* No need to judge frame rate while checking timing stable,as there are
@@ -403,6 +408,8 @@ struct rx_var_param {
 	int hdcp_none_wait_max;
 	int esd_phy_rst_cnt;
 	int esd_phy_rst_max;
+	int frl_rst_cnt;
+	int valid_m_rst_cnt;
 	int cec_dev_info;
 	bool term_flag;
 	int clk_chg_cnt;
@@ -1044,6 +1051,8 @@ struct rx_s {
 	u32 avmute_skip;
 	bool vpp_mute;
 	bool cableclk_stb_flg;
+	bool ch_lock_stb_flg;
+	bool valid_m_stb_flg;
 	u8 irq_flag;
 	/** HDMI RX controller HDCP configuration */
 	struct hdmi_rx_hdcp hdcp;

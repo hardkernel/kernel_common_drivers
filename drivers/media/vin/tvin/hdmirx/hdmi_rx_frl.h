@@ -36,5 +36,6 @@ bool rx_is_switch_to_analog_clk(u8 port);
 void rx_switch_to_analog_clk(u8 port);
 void rx_clr_f_det(bool en, u8 port);
 bool rx_get_overlap_sts(u8 port);
+void rx_valid_m_reset(u8 port);
 
 #endif

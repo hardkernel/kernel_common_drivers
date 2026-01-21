@@ -2178,8 +2178,6 @@ void aml_phy_init_t3x_21(u8 port)
 		return;
 	rx_21_frl_pll_cfg(rx[port].var.frl_rate, port);
 	rx_21_eq_cfg(rx[port].var.frl_rate, port);
-	if (!fpll_sel)
-		rx_21_fpll_cfg(rx[port].var.frl_rate, port);
 }
 
 void aml_phy_init_t3x(u8 port)

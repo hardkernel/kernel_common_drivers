@@ -143,26 +143,15 @@ int force_clk_stable;//t3x frl todo
 bool earc_hpd_low_flag;
 
 int frl_scrambler_en = 1;
-/* 0=disable;1=3G3Lanes;2=6G3Lanes;3=6G4Lanes; */
-/* 4=8G4Lanes;5=10G4Lanes;6=12G4Lanes */
-//int frl_rate;
-int phy_rate;
-//for t3x debug,todo
 u32 frl_sync_cnt = 2000;
 u32 odn_reg_n_mul = 6;
-int vpcore_debug = 3;
 u32 ext_cnt = 2000;
-int tr_delay0 = 10;
-int tr_delay1 = 10;
 int frate_cnt = 100;
-int tuning_cnt = 20;
-int fpll_sel = 1;
 /* bit'0 clk_ready, bit'1 overlap */
 int fpll_chk_lvl = 0x1;
 int valid_m_wait_max = 800;
 int vga_tuning_min = 0x21;
 int vga_tuning_max = 0x26;
-int cal_phy_time;
 int pll_band = 5;
 int cdr_bw;
 int vpcore1_select = 1;
@@ -3353,6 +3342,9 @@ int rx_set_port_hpd(u8 port_id, bool val)
 			rx_i2c_edid_cfg_with_port(port_id, false);
 			hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, _BIT(port_id), 0);
 			rx_set_term_value(port_id, 0);
+			if (rx[port_id].var.frl_rate)
+				hdmirx_wr_cor(SCDCS_CONFIG1_SCDC_IVCRX,
+				0, port_id);
 			rx[port_id].var.hpd_high_cnt = 0;
 		}
 	} else if (port_id == ALL_PORTS) {
@@ -3368,6 +3360,9 @@ int rx_set_port_hpd(u8 port_id, bool val)
 				rx[i].var.hpd_low_cnt = 0;
 			} else {
 				hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, _BIT(i), 0);
+				if (rx[i].var.frl_rate)
+					hdmirx_wr_cor(SCDCS_CONFIG1_SCDC_IVCRX,
+					0, i);
 				rx_set_term_value(i, 0);
 				rx[i].var.hpd_high_cnt = 0;
 			}
@@ -4255,6 +4250,8 @@ bool rx_clk_rate_monitor(u8 port)
 	int i;
 	int error = 0;
 
+	if (rx[port].var.frl_rate)
+		return changed;
 	clk_rate = rx_get_scdc_clkrate_sts(port);
 	/* should rm squelch judgement for low-amplitude issue */
 	/* otherwise,sw can not detect the low-amplitude signal */

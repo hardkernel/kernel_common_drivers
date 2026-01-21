@@ -83,7 +83,8 @@
 /* 2026.1.21 add lock detect before do pcs reset */
 /* 2026.1.23 return unsupport when vic is unknown */
 /* 2026.1.29 fix frame rate error caused by unstable signal */
-#define RX_WRAPPER_VER "ver.2026/1/29"
+/* 2026.1.30 modify frl signal flow */
+#define RX_WRAPPER_VER "ver.2026/1/30"
 
 struct freq_ref_s {
 	bool interlace;
@@ -100,10 +101,12 @@ enum fsm_states_e {
 	FSM_HPD_LOW,
 	FSM_HPD_HIGH,
 	FSM_FRL_FLT_READY,
+	FSM_FRL_TRN,
 	FLT_RX_LTS_3,
 	FLT_RX_LTS_P,
-	FSM_FRL_TRN,
-	FSM_WAIT_FRL_TRN_DONE,
+	FSM_FRL_CH_LOCK,
+	FSM_FRL_VALID_M,
+	FSM_FRL_FPLL_CFG,
 	FSM_WAIT_CLK_STABLE,
 	FSM_EQ_START,
 	FSM_WAIT_EQ_DONE,
@@ -187,13 +190,19 @@ enum fps_e {
 	E_120HZ
 };
 
+enum fmt_vic_status {
+	FMT_VIC_OK = 0,
+	FMT_VIC_FRL_CTS_DEVICE,
+	FMT_VIC_FRL_FDET_ERROR,
+	FMT_VIC_TMDS_FDET_ERROR,
+	FMT_VIC_HW_SW_MISMATCH,
+	FMT_VIC_VESA_REPEAT_ERR,
+};
+
 /* signal */
 extern u32 force_vic;
 extern u32 vpp_mute_enable;
 extern u32 dbg_cs;
-extern int color_bar_debug_en;
-extern int port_debug_en;
-extern int fpll_ready_max;
 extern int rx_emp_dbg_en;
 extern int fsm_debug;
 extern int rs_err_chk;
