@@ -2517,6 +2517,9 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(u8 port)
 	case HDMI_360x576p:
 		fmt = TVIN_SIG_FMT_HDMI_360X576P;
 		break;
+	case HDMI_UNKNOWN:
+		fmt = TVIN_SIG_FMT_NOT_SUPPORT;
+		break;
 	default:
 		break;
 	}
