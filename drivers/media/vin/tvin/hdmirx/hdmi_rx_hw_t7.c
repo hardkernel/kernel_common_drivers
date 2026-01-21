@@ -2084,7 +2084,7 @@ void rx_sw_reset_t7(int level, u8 port)
 	udelay(1);
 	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(4), 0, port);
 	//hdmirx_wr_bits_cor(DEC_AV_MUTE_DP2_IVCRX, _BIT(5), 0, port);
-	if (rx_info.aml_phy.dacr_en) {
+	if (rx_info.aml_phy.dacr_en && port == rx_info.main_port) {
 		if (rx_info.chip_id == CHIP_ID_T6X) {
 			/* acr & dacr reset */
 			data8 = 0;
