@@ -969,13 +969,31 @@
 	status = "disabled";
 };
 
-&crg_udc_2 {
+&usbphy0 {
 	status = "disable";
+	u2p@0 {
+		status = "disable";
+		controller-type = <1>;
+		gpio-vbus-power = "GPIOD_6";
+		gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
+	};
+	u2p@20 {
+		status = "disable";
+	};
 };
 
-&crg20_otg {
+&usbphy1 {
 	status = "disable";
-	controller-type = <3>;
+	u2p@0 {
+		status = "okay";
+		gpio-vbus-power = "GPIOD_10";
+		gpios = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+		controller-type = <3>;
+	};
+};
+
+&crg_udc_2 {
+	status = "disable";
 };
 
 &crg2_drd {
@@ -983,33 +1001,9 @@
 	status = "disable";
 };
 
-&crg_phy_20 {
-	status = "disable";
-	portnum = <2>;
-	gpio-vbus-power = "GPIOD_6";
-	gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
-};
-
-&crg3_phy_20 {
-	status = "disable";
-	portnum = <0>;
-};
-
 &crg21_drd {
 	compatible = "amlogic, crg-drd";
 	status = "disable";
-};
-
-&crg_phy_21 {
-	status = "disable";
-	portnum = <1>;
-	gpio-vbus-power = "GPIOD_10";
-	gpios = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
-};
-
-&crg3_phy_21 {
-	status = "disable";
-	portnum = <0>;
 };
 
 /* SDIO */

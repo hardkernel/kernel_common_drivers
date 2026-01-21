@@ -122,6 +122,7 @@ ddk_module(
                 "phy_meson_usb/socs/phy-meson-a5-usb.c",
                 "phy_meson_usb/socs/phy-meson-s5-usb.c",
                 "phy_meson_usb/socs/phy-meson-t5m-usb.c",
+                 "phy_meson_usb/socs/phy-meson-a4-usb.c",
                 "phy_meson_usb/socs/phy-meson-txhd2-usb.c",
                 "phy_meson_usb/socs/phy-meson-s7-usb.c",
                 "phy_meson_usb/socs/phy-meson-s7d-usb.c",

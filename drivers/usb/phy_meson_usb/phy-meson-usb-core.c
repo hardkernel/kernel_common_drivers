@@ -443,6 +443,7 @@ static const struct of_device_id meson_uphy_id_table[] = {
 	{ .compatible = "amlogic,uphy-m31-s5", .data = &meson_uphy_s5_m31_pdata },
 	{ .compatible = "amlogic,u2phy-aml-t5m", .data = &meson_uphy_t5m_aml_pdata },
 	{ .compatible = "amlogic,uphy-m31-t5m", .data = &meson_uphy_t5m_m31_pdata },
+	{ .compatible = "amlogic,u2phy-a4", .data = &meson_uphy_a4_pdata },
 	{ .compatible = "amlogic,u2phy-txhd2", .data = &meson_uphy_txhd2_pdata },
 	{ .compatible = "amlogic,u2phy-s7", .data = &meson_uphy_s7_pdata },
 	{ .compatible = "amlogic,u2phy-s7d", .data = &meson_uphy_s7d_pdata },
