@@ -22,6 +22,9 @@
 #include <linux/sched/clock.h>
 #include <linux/gfp.h>
 #include <linux/mm.h>
+#include <linux/dma-map-ops.h>
+#include <linux/cma.h>
+#include <cma.h>
 #include <linux/amlogic/page_trace.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_CMA)
 #include <linux/amlogic/aml_cma.h>
@@ -91,6 +94,7 @@ static int page_trace_filter_slab;
 static int page_trace_filter_vmalloc;
 static int page_trace_filter_large_slab;
 static struct proc_dir_entry *d_pagetrace;
+static struct proc_dir_entry *d_profile_default_cma;
 struct page_trace *aml_trace_buffer;
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 struct pagetrace_vendor_param trace_param;
@@ -130,6 +134,7 @@ static struct fun_symbol common_func[] = {
 	{"__traceiter_android_vh_cma_alloc_bypass",	0},
 	{"devm_kmalloc",			0},
 	{"cma_alloc",				0},
+	{"cma_alloc_aligned",			0},
 	{"__cma_alloc",				0},
 	{"__kasan_slab_alloc",			0},
 	{"alloc_pages_bulk_noprof",		0},
@@ -1644,6 +1649,71 @@ static const struct proc_ops pagetrace_proc_ops = {
 	.proc_release	= single_release,
 };
 
+static int profile_default_cma_show(struct seq_file *m, void *arg)
+{
+	int ret, size = sizeof(struct page_summary) * SHOW_CNT;
+	struct pagetrace_summary *sum;
+	struct zone *tmp_zone;
+	struct cma *cma = dma_contiguous_default_area;
+
+	if (!aml_trace_buffer) {
+		seq_puts(m, "page trace not enabled\n");
+		return 0;
+	}
+	sum = kzalloc(sizeof(*sum), GFP_KERNEL);
+	if (!sum)
+		return -ENOMEM;
+	tmp_zone = kzalloc(sizeof(*tmp_zone), GFP_KERNEL);
+	if (!tmp_zone) {
+		kfree(sum);
+		return -ENOMEM;
+	}
+
+	m->private = sum;
+	sum->sum = vzalloc(size);
+	if (!sum->sum) {
+		kfree(sum);
+		kfree(tmp_zone);
+		m->private = NULL;
+		return -ENOMEM;
+	}
+
+	/* update only once */
+	seq_puts(m, "==============================\n");
+	sum->ticks = sched_clock();
+	memset(sum->sum, 0, size);
+	memset(sum->mt_cnt, 0, sizeof(int) * MIGRATE_TYPES);
+	tmp_zone->zone_start_pfn = cma->base_pfn;
+	tmp_zone->present_pages = cma->count;
+	ret = update_page_trace(m, tmp_zone, sum);
+	if (ret)
+		seq_printf(m, "Error %d.\n", ret);
+	show_page_trace(m, tmp_zone, sum);
+	sum->ticks = sched_clock() - sum->ticks;
+
+	seq_printf(m, "SHOW_CNT:%d, buffer size:%d, tick:%ld ns\n",
+			SHOW_CNT, size, sum->ticks);
+	seq_puts(m, "==============================\n");
+
+	vfree(sum->sum);
+	kfree(sum);
+	kfree(tmp_zone);
+
+	return 0;
+}
+
+static int profile_default_cma_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, profile_default_cma_show, NULL);
+}
+
+static const struct proc_ops profile_default_cma_proc_ops = {
+	.proc_open	= profile_default_cma_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+};
+
 char *hd_filter_list[] = {
 	"before_pagetrace_memory",
 	"_pte_",
@@ -2058,10 +2128,13 @@ static int __init page_trace_module_init(void)
 	int size = sizeof(struct page_summary) * SHOW_CNT;
 #endif
 
-	if (!page_trace_disable)
+	if (!page_trace_disable) {
 		d_pagetrace = proc_create("pagetrace", 0444,
 					  NULL, &pagetrace_proc_ops);
-	if (IS_ERR_OR_NULL(d_pagetrace)) {
+		d_profile_default_cma = proc_create("profile_default_cma", 0444,
+					  NULL, &profile_default_cma_proc_ops);
+	}
+	if (IS_ERR_OR_NULL(d_pagetrace) || IS_ERR_OR_NULL(d_profile_default_cma)) {
 		pr_err("%s, create pagetrace failed\n", __func__);
 		return -1;
 	}
@@ -2141,6 +2214,8 @@ static void __exit page_trace_module_exit(void)
 {
 	if (d_pagetrace)
 		proc_remove(d_pagetrace);
+	if (d_profile_default_cma)
+		proc_remove(d_profile_default_cma);
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 	unregister_kprobe(&kp_lookup_off);
 	pr_debug("kprobe at %p unregistered\n", kp_lookup_off.addr);

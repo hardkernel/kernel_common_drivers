@@ -42,7 +42,7 @@
 #endif
 #include <linux/page_owner.h>
 #include <linux/cma.h>
-#include <linux/debugfs.h>
+#include <cma.h>
 
 static int pagemap_en;
 unsigned long mlock_fault_size;
@@ -328,48 +328,15 @@ void dump_mem_layout_boot_phase(void)
 	}
 }
 
-struct cma_info *cma_g;
-
-/* copy from mm/cma.h */
-struct dummy_cma {
-	unsigned long   base_pfn;
-	unsigned long   count;
-	unsigned long   *bitmap;
-	unsigned int order_per_bit; /* Order of pages represented by one bit */
-	spinlock_t	lock;
-#ifdef CONFIG_CMA_DEBUGFS
-	struct hlist_head mem_head;
-	/* spinlock for cma allocation */
-	spinlock_t mem_head_lock;
-	struct debugfs_u32_array dfs_bitmap;
-#endif
-	char name[CMA_MAX_NAME];
-	bool gcma;
-#ifdef CONFIG_CMA_SYSFS
-	/* the number of CMA page successful allocations */
-	atomic64_t nr_pages_succeeded;
-	/* the number of CMA page allocation failures */
-	atomic64_t nr_pages_failed;
-	/* the number of CMA page released */
-	atomic64_t nr_pages_released;
-	/* kobject requires dynamic object */
-	struct cma_kobject *cma_kobj;
-#endif
-	bool reserve_pages_on_error;
-
-	ANDROID_VENDOR_DATA(1);
-};
-
-static inline unsigned long aml_cma_bitmap_maxno(struct dummy_cma *cma)
+static inline unsigned long aml_cma_bitmap_maxno(struct cma *cma)
 {
 	return cma->count >> cma->order_per_bit;
 }
 
-static int update_cma_stat(struct cma *cma_ori, struct cma_stat *stat)
+static int update_cma_stat(struct cma *cma, struct cma_stat *stat)
 {
 	unsigned long start, pfn;
 	struct page *page;
-	struct dummy_cma *cma = (struct dummy_cma *)cma_ori;
 	unsigned long *bitmap;
 	unsigned long nbits;
 	int pos = 0;
@@ -381,7 +348,7 @@ static int update_cma_stat(struct cma *cma_ori, struct cma_stat *stat)
 	}
 
 	if (!stat->buffer) {
-		pr_err("not alloc stat buffer, suggest: vzalloc(d_cma->count * 3)\n");
+		pr_err("not alloc stat buffer, suggest: vzalloc(cma->count * 3)\n");
 		return -EINVAL;
 	}
 	buf = stat->buffer;
@@ -463,7 +430,6 @@ static int cma_stat_show(struct seq_file *m, void *arg)
 {
 	char *buf;
 	struct cma_stat stat = {0};
-	struct dummy_cma *d_cma = NULL;
 
 	if (!g_cma) {
 		buf = kzalloc(512, GFP_KERNEL);
@@ -476,8 +442,7 @@ static int cma_stat_show(struct seq_file *m, void *arg)
 		seq_printf(m, "cma list:\n%s\n", buf);
 		kfree(buf);
 	} else {
-		d_cma = (struct dummy_cma *)g_cma;
-		stat.buffer = vzalloc(d_cma->count * 3);
+		stat.buffer = vzalloc(g_cma->count * 3);
 		if (!stat.buffer)
 			return -ENOMEM;
 		update_cma_stat(g_cma, &stat);

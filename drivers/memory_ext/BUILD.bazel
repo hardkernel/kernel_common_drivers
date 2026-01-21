@@ -16,6 +16,7 @@ ddk_module(
     hdrs = [
         "//common:mm/kasan/kasan.h",
         "//common:mm/slab.h",
+        "//common:mm/cma.h",
     ],
     linux_includes = ["../../../common/mm"],
     local_defines = ["pr_fmt(fmt)=\"[page_trace]: \" fmt"],
@@ -132,8 +133,9 @@ ddk_module(
         },
     },
     hdrs = [
+        "//common:mm/cma.h",
     ],
-    linux_includes = [],
+    linux_includes = ["../../../common/mm"],
     local_defines = [
         "pr_fmt(fmt)=\"[mem_debug]: \" fmt",
     ],
