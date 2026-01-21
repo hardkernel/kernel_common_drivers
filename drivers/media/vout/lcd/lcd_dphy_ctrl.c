@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
@@ -1301,6 +1302,32 @@ void lcd_p2p_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 			/* disable lane */
 			lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 16, 12);
 		}
+		break;
+	}
+}
+
+void lcd_dphy_ctrl_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
+{
+	if (!pdrv->curr_dev)
+		return;
+
+	switch (pdrv->curr_dev->dev_cfg.basic.lcd_type) {
+	case LCD_MIPI:
+		lcd_mipi_dphy_set(pdrv, on_off);
+		break;
+	case LCD_LVDS:
+		lcd_lvds_dphy_set(pdrv, on_off);
+		break;
+	case LCD_VBYONE:
+		lcd_vbyone_dphy_set(pdrv, on_off);
+		break;
+	case LCD_MLVDS:
+		lcd_mlvds_dphy_set(pdrv, on_off);
+		break;
+	case LCD_P2P:
+		lcd_p2p_dphy_set(pdrv, on_off);
+		break;
+	default:
 		break;
 	}
 }

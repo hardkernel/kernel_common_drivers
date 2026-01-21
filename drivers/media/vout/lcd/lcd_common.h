@@ -24,7 +24,8 @@
 /* 20251028: support vrr vdf */
 /* 20251113: support ip27 */
 /* 20260131: merge tv &tablet */
-#define LCD_DRV_VERSION    "20260131"
+/* 20260203: optimize t6 phy & dphy init flow */
+#define LCD_DRV_VERSION    "20260203"
 
 #define CTYPE_MASK           0xf0
 #define CTYPE_RGB            0x00
@@ -190,6 +191,7 @@ void lcd_lvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
 void lcd_vbyone_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
 void lcd_mlvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
 void lcd_p2p_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
+void lcd_dphy_ctrl_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
 void lcd_dphy_set_data(struct aml_lcd_drv_s *pdrv, int data);
 int lcd_dphy_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 

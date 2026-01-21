@@ -511,10 +511,14 @@ lcd_set_clk_retry:
 	if (cconf->data->clktree_set)
 		cconf->data->clktree_set(pdrv);
 	pdrv->curr_dev->dev_cfg.timing.clk_change = 0; /* clear clk_change flag */
-	lcd_phy_reset(pdrv);
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		lcd_dphy_ctrl_set(pdrv, 0);
+		lcd_phy_reset(pdrv);
+		lcd_dphy_ctrl_set(pdrv, 1);
+	}
 	mutex_unlock(&lcd_clk_mutex);
 
-	LCD_DBG(pdrv, "%s: clk_change=0x%x", __func__, pdrv->curr_dev->dev_cfg.timing.clk_change);
+	LCD_DBG(pdrv, "set_clk: clk_change=0x%x", pdrv->curr_dev->dev_cfg.timing.clk_change);
 }
 
 void lcd_disable_clk(struct aml_lcd_drv_s *pdrv)

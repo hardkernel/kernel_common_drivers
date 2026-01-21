@@ -734,12 +734,12 @@ static void lcd_mode_switch_data_on(struct aml_lcd_drv_s *pdrv)
 				power_step[i].value, power_step[i].delay);
 			LCD_DBG(pdrv, "mode switch delay 20ms");
 			lcd_delay_ms(20);
+			// phy param maybe change update phy register
+			lcd_phy_set(pdrv, LCD_PHY_UPDATE);
 #ifdef CONFIG_AMLOGIC_LCD_TCON
 			if (pdrv->curr_dev->dev_cfg.basic.lcd_type == LCD_P2P)
 				lcd_tcon_reload(pdrv);
 #endif
-			// phy param maybe change update phy register
-			lcd_phy_set(pdrv, LCD_PHY_ON);
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		case LCD_POWER_TYPE_EXTERN:
@@ -2027,7 +2027,7 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (pdrv->status & LCD_STATUS_IF_ON) {
 			lcd_lane_map_update(pdrv);
 			lcd_lane_map_set(pdrv);
-			lcd_phy_set(pdrv, LCD_PHY_ON);
+			lcd_phy_set(pdrv, LCD_PHY_UPDATE);
 		}
 		break;
 	case LCD_IOC_GET_SS:

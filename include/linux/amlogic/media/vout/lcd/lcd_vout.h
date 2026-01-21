@@ -589,8 +589,10 @@ struct phy_config_s {
 	unsigned int vswing_level;
 	unsigned int ext_pullup;
 	unsigned int preem_level;
-	unsigned int weakly_pull_down;
-	unsigned int low_common_mode;
+	unsigned char weakly_pull_down;
+	unsigned char low_common_mode;
+	unsigned char ch_phase_en; //for minilvds
+	unsigned char ch_clk_inv; //for lvds
 
 	unsigned int bypass_resample;
 	unsigned int state;
@@ -610,6 +612,9 @@ struct phy_config_s {
 enum lcd_phy_set_status {
 	LCD_PHY_OFF = 0,
 	LCD_PHY_ON,
+	LCD_PHY_PWR_UP,
+	LCD_PHY_PWR_DOWN,
+	LCD_PHY_UPDATE,
 	LCD_PHY_LOCK_LANE,
 };
 

@@ -215,16 +215,19 @@ int lcd_phy_analog_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 
 void lcd_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	struct phy_config_s *phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
+	struct phy_config_s *phy_cfg;
 	int i;
 
 	if (pdrv->lcd_pxp)
+		return;
+	if (!pdrv->curr_dev)
 		return;
 	if (!lcd_phy_ctrl || !pdrv->phy_set) {
 		LCD_PR(pdrv, "%s: phy_set is null", __func__);
 		return;
 	}
 
+	phy_cfg = &pdrv->curr_dev->dev_cfg.phy_cfg;
 	for (i = 0; i < pdrv->data->drv_max; i++) {
 		if (pdrv->index == i)
 			continue;
@@ -241,12 +244,12 @@ void lcd_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	else
 		lcd_phy_ctrl->lane_lock_total &= ~phy_cfg->lane_valid;
 
-	LCD_DBG(pdrv, "%s: %d: lane_valid=0x%x, lane_lock_total=0x%x",
-		__func__, status, phy_cfg->lane_valid, lcd_phy_ctrl->lane_lock_total);
+	LCD_DBG(pdrv, "phy_set: %d: lane_valid=0x%x, lane_lock_total=0x%x",
+		status, phy_cfg->lane_valid, lcd_phy_ctrl->lane_lock_total);
 
 	if (status != LCD_PHY_LOCK_LANE)
 		pdrv->phy_set(pdrv, status);
-	phy_cfg->state = status ? 1 : 0;
+	phy_cfg->state = status;
 }
 
 void lcd_phy_reset(struct aml_lcd_drv_s *pdrv)
@@ -257,6 +260,8 @@ void lcd_phy_reset(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	lcd_phy_ctrl->phy_reset(pdrv);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: phy reset\n", pdrv->index);
 }
 
 int lcd_phy_probe(struct aml_lcd_drv_s *pdrv)
@@ -266,7 +271,7 @@ int lcd_phy_probe(struct aml_lcd_drv_s *pdrv)
 		return 0;
 	}
 
-	if (!pdrv->curr_dev->dev_cfg.phy_cfg.act_phy || !lcd_phy_ctrl) {
+	if (!pdrv->curr_dev || !pdrv->curr_dev->dev_cfg.phy_cfg.act_phy || !lcd_phy_ctrl) {
 		pdrv->phy_set = NULL;
 		return 0;
 	}

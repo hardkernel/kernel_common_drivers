@@ -105,7 +105,8 @@ static void lcd_set_pll_ss_t6d(struct aml_lcd_drv_s *pdrv, unsigned int ss_flag)
 
 	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL2, pll_ctrl2);
 	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL0, pll_ctrl0);
-	LCD_PR(pdrv, "set ssc: %s", prt_str);
+
+	LCD_PR(pdrv, "pll set ssc: %s", len ? prt_str : "none");
 }
 
 static void lcd_pll_ss_enable_t6d(struct aml_lcd_drv_s *pdrv, int status)
@@ -321,6 +322,13 @@ static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)
 	usleep_range(5, 10);
 	/* enable CTS_ENCL clk gate */
 	lcd_clk_setb(CLKCTRL_VID_CLK0_CTRL2, 1, ENCL_GATE_VCLK, 1);
+
+	/*reset fifo*/
+	lcd_reset_setb(pdrv, RESETCTRL_RESET0_MASK, 0, 19, 1);
+	lcd_reset_setb(pdrv, RESETCTRL_RESET0_LEVEL, 0, 19, 1);
+	udelay(1);
+	lcd_reset_setb(pdrv, RESETCTRL_RESET0_LEVEL, 1, 19, 1);
+	udelay(2);
 }
 
 static int lcd_set_mlvds_clk_phase_t6d(struct aml_lcd_drv_s *pdrv)
@@ -623,7 +631,7 @@ static struct lcd_pll_data_s lcd_pll_data_t6d = {
 static struct lcd_clk_data_s lcd_clk_data_t6d = {
 	.pll_data[0] = &lcd_pll_data_t6d,
 	.pll_data[1] = NULL,
-	.xd_out_fmax = 400000000,
+	.xd_out_fmax = 200000000,
 	.phy_clk_location = 0,
 
 	.xd_max = 256,
