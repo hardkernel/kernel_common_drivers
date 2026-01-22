@@ -6387,7 +6387,15 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			mutex_unlock(&devp->fe_lock);
 			return -ENOMEM;
 		}
-		written_bytes = vdin_dump_one_buf_mem_user(kernel_buf, devp, dump_arg.buf_num);
+		ret = vdin_dump_one_buf_mem_user(kernel_buf, devp, dump_arg.buf_num);
+
+		if (ret < 0) {
+			vfree(kernel_buf);
+			mutex_unlock(&devp->fe_lock);
+			return -EFAULT;
+		}
+
+		written_bytes = (size_t)ret;
 		if (written_bytes > 0) {
 			if (copy_to_user(user_buf, kernel_buf, written_bytes)) {
 				vfree(kernel_buf);
@@ -6707,7 +6715,7 @@ static ssize_t vdin_param_store(struct device *dev,
 	const char *delim = " ";
 	char *token;
 	char *cur = (char *)bu;
-	u32 val;
+	u32 val = 0;
 	struct vdin_dev_s *devp;
 
 	devp = dev_get_drvdata(dev);
@@ -6741,14 +6749,27 @@ int vdin_create_dev_class_files(struct device *dev)
 	int ret = 0;
 
 	ret = device_create_file(dev, &dev_attr_vdin_param);
+	if (ret < 0) {
+		ret = -1;
+		goto error;
+	}
 
 	ret = vdin_create_debug_files(dev);
+	if (ret < 0) {
+		ret = -2;
+		goto error;
+	}
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	vdin_v4l2_create_device_files(dev);
+	ret = vdin_v4l2_create_device_files(dev);
+	if (ret < 0) {
+		ret = -3;
+		goto error;
+	}
 #endif
-	if (ret < 0)
-		pr_err("%s: failed\n", __func__);
+	return ret;
+error:
+	pr_err("vdin create dev error:%d", ret);
 	return ret;
 }
 

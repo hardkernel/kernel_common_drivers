@@ -142,27 +142,30 @@ int vdin_v4l2_if_isr(struct vdin_dev_s *devp, struct vframe_s *vfp)
 	struct vb2_queue *vb_que;
 	struct vb2_buffer *vb2buf;
 	struct vb2_v4l2_buffer *vb = NULL;
+	int err = 0;
 
 	if (!devp->vb_queue.streaming) {
-		dprintk(2, "not streaming\n");
-		return -1;
+		err = -1;
+		goto error;
 	}
 
-	if (devp->dbg_v4l_pause)
-		return -1;
+	if (devp->dbg_v4l_pause) {
+		err = -2;
+		goto error;
+	}
+
 	/* do framerate control */
 	if (devp->vdin_v4l2.divide > 1 && (devp->frame_cnt % devp->vdin_v4l2.divide) != 0) {
 		devp->vdin_v4l2.stats.drop_divide++;
-		dprintk(3, "%s,drop_divide:%u,vf_index:%d\n", __func__,
-			devp->vdin_v4l2.stats.drop_divide, vfp->index);
-		return -1;
+		err = -3;
+		goto error;
 	}
 	spin_lock(&devp->list_head_lock);
 
 	if (list_empty(&devp->buf_list)) {
-		dprintk(2, "warning: buffer empty\n");
 		spin_unlock(&devp->list_head_lock);
-		return -1;
+		err = -4;
+		goto error;
 	}
 
 	vb_que = &devp->vb_queue;
@@ -171,7 +174,7 @@ int vdin_v4l2_if_isr(struct vdin_dev_s *devp, struct vframe_s *vfp)
 	vb = to_vb2_v4l2_buffer(vb2buf);
 	devp->cur_buff = to_vdin_vb_buf(vb);
 
-	dprintk(3, "[%s]vf index = %d\n", __func__, vfp->index);
+	dprintk(3, "v4l2 isr vf index = %d\n", vfp->index);
 	devp->cur_buff->v4l2_vframe_s = vfp;
 	list_del(&devp->cur_buff->list);
 	spin_unlock(&devp->list_head_lock);
@@ -179,6 +182,9 @@ int vdin_v4l2_if_isr(struct vdin_dev_s *devp, struct vframe_s *vfp)
 	vb2_buffer_done(vb2buf, VB2_BUF_STATE_DONE);
 
 	return 0;
+error:
+	dprintk(2, "v4l2 isr error:%d\n", err);
+	return err;
 }
 
 /**
@@ -280,7 +286,7 @@ void vdin_fill_pix_format(struct vdin_dev_s *devp)
 				v4l2_fmt->fmt.pix_mp.width / 2;
 		}
 	} else {
-		dprintk(0, "vdin%d,err.not support num_planes=%d\n ",
+		dprintk(0, "vdin%d num_planes=%d error!!!\n",
 			devp->index, v4l2_fmt->fmt.pix_mp.num_planes);
 		return;
 	}
@@ -297,9 +303,8 @@ void vdin_fill_pix_format(struct vdin_dev_s *devp)
 			PAGE_ALIGN(v4l2_fmt->fmt.pix_mp.plane_fmt[1].sizeimage);
 	}
 
-	dprintk(1, "vdin%d,num_planes=%d\n ",
-		devp->index, v4l2_fmt->fmt.pix_mp.num_planes);
-	dprintk(1, "plane 0:sizeimage=%x;plane 1:sizeimage=%x\n ",
+	dprintk(1, "vdin%d fill fmt:%#x num=%d, p[0].size=%x; p[1].size=%x\n",
+		devp->index, v4l2_fmt->fmt.pix_mp.pixelformat, v4l2_fmt->fmt.pix_mp.num_planes,
 		v4l2_fmt->fmt.pix_mp.plane_fmt[0].sizeimage,
 		v4l2_fmt->fmt.pix_mp.plane_fmt[1].sizeimage);
 }
@@ -312,15 +317,14 @@ static int vdin_v4l2_get_phy_addr(struct vdin_dev_s *devp,
 	struct page *page;
 	struct vb2_queue *vb_que = NULL;
 	struct vb2_buffer *vb2buf = NULL;
+	int err = 0;
 
 	if (p->m.planes[plane_no].m.fd < 0 || p->index >= devp->v4l2_req_buf_num) {
-		dprintk(0, "v4l2 buffer index=%d or fd=%d,out of range!!!\n ",
-			   p->index, p->m.planes[plane_no].m.fd);
-		return -EINVAL;
+		err = -1;
+		goto error;
 	}
 
-	fd		= p->m.planes[0].m.fd;
-	idx		= p->index;
+	idx = p->index;
 
 	if (p->memory == V4L2_MEMORY_MMAP) {
 		vb_que  = &devp->vb_queue;
@@ -333,17 +337,15 @@ static int vdin_v4l2_get_phy_addr(struct vdin_dev_s *devp,
 	} else if (p->memory == V4L2_MEMORY_DMABUF) {
 		fd = p->m.planes[plane_no].m.fd;
 		if (fd <= 0) {
-			dprintk(0, "VDIN err plane:%d,buf idx:%d,dmabuf == NULL\n",
-				plane_no, idx);
-			return -EINVAL;
+			err = -2;
+			goto error;
 		}
 		devp->st_vdin_set_canvas_addr[idx][plane_no].fd    = fd;
 		devp->st_vdin_set_canvas_addr[idx][plane_no].index = idx;
 		devp->st_vdin_set_canvas_addr[idx][plane_no].dma_buffer = dma_buf_get(fd);
 		if (!devp->st_vdin_set_canvas_addr[idx][plane_no].dma_buffer) {
-			dprintk(0, "VDIN err plane:%d,buf idx:%d,dmabuf == NULL\n",
-				plane_no, idx);
-			return -1;
+			err = -3;
+			goto error;
 		}
 		devp->st_vdin_set_canvas_addr[idx][plane_no].dmabuf_attach =
 			dma_buf_attach(devp->st_vdin_set_canvas_addr[idx][plane_no].dma_buffer,
@@ -355,12 +357,9 @@ static int vdin_v4l2_get_phy_addr(struct vdin_dev_s *devp,
 		devp->st_vdin_set_canvas_addr[idx][plane_no].paddr = PFN_PHYS(page_to_pfn(page));
 		devp->st_vdin_set_canvas_addr[idx][plane_no].size  =
 			devp->st_vdin_set_canvas_addr[idx][plane_no].dma_buffer->size;
-		dprintk(2, "vdin%d,fd:%d,phy_addr:%lx,size:%#x\n", devp->index, fd,
-			devp->st_vdin_set_canvas_addr[idx][plane_no].paddr,
-			devp->st_vdin_set_canvas_addr[idx][plane_no].size);
 	} else {
-		dprintk(0, "err.idx:%d,unsupported memory:%d\n", idx, p->memory);
-		return -1;
+		err = -4;
+		goto error;
 	}
 
 	if (plane_no == VDIN_PLANES_IDX_Y)
@@ -375,12 +374,15 @@ static int vdin_v4l2_get_phy_addr(struct vdin_dev_s *devp,
 	devp->vf_mem_c_start[idx] =
 		roundup(devp->vf_mem_c_start[idx], devp->canvas_align);
 
-	dprintk(1, "%s vdin%d,paddr[%d][%d] = %lx,size=%x\n", __func__,
-		devp->index, idx, plane_no,
+	dprintk(1, "vdin%d mem:%d, paddr[%d][%d]=0x%lx, size=0x%x\n",
+		devp->index, p->memory, idx, plane_no,
 		devp->st_vdin_set_canvas_addr[idx][plane_no].paddr,
 		devp->st_vdin_set_canvas_addr[idx][plane_no].size);
 
 	return 0;
+error:
+	dprintk(0, "vdin v4l2 get phy_addr error:%d\n", err);
+	return err;
 }
 
 /*
@@ -399,9 +401,9 @@ static int vdin_vidioc_querycap(struct file *file, void *priv,
 	cap->device_caps  = g_vdin_v4l2_cap[devp->index].device_caps;
 	cap->capabilities = g_vdin_v4l2_cap[devp->index].capabilities;
 
-	strcpy(cap->driver,	  g_vdin_v4l2_cap[devp->index].driver);
-	strcpy(cap->bus_info, g_vdin_v4l2_cap[devp->index].bus_info);
-	strcpy(cap->card,	  g_vdin_v4l2_cap[devp->index].card);
+	strncpy(cap->driver, g_vdin_v4l2_cap[devp->index].driver, sizeof(cap->driver));
+	strncpy(cap->bus_info, g_vdin_v4l2_cap[devp->index].bus_info, sizeof(cap->bus_info));
+	strncpy(cap->card, g_vdin_v4l2_cap[devp->index].card, sizeof(cap->card));
 
 	return 0;
 }
@@ -415,7 +417,6 @@ static int vdin_vidioc_querystd(struct file *file, void *priv,
 {
 	struct vdin_dev_s *devp = video_drvdata(file);
 
-	dprintk(2, "%s\n", __func__);
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
@@ -436,8 +437,8 @@ static int vdin_vidioc_enum_input(struct file *file,
 		return -EFAULT;
 
 	if (inp->index >= devp->v4l2_port_num) {
-		dprintk(0, "%s index:%d,v4l2 port num = %d,end\n",
-			__func__, inp->index, devp->v4l2_port_num);
+		dprintk(0, "vdin%d enum input %d error!!!\n",
+			inp->index, devp->v4l2_port_num);
 		return -EINVAL;
 	}
 
@@ -447,7 +448,8 @@ static int vdin_vidioc_enum_input(struct file *file,
 	if (str)
 		strscpy(inp->name, str, sizeof(inp->name));
 
-	dprintk(1, "%s,port[%d]:%s\n", __func__, inp->index, inp->name);
+	dprintk(1, "vdin%d enum input port[%d]:%s\n",
+		devp->index, inp->index, inp->name);
 	return 0;
 }
 
@@ -463,31 +465,26 @@ static int vdin_vidioc_reqbufs(struct file *file, void *priv,
 	unsigned int i = 0;
 	struct vb2_v4l2_buffer *vb_buf = NULL;
 	struct vdin_vb_buff *vdin_buf = NULL;
+	int err;
 
-	if (IS_ERR_OR_NULL(devp))
-		return -EPERM;
-
+	if (IS_ERR_OR_NULL(devp)) {
+		err = -EPERM;
+		goto error;
+	}
 	if (reqbufs->memory != V4L2_MEMORY_DMABUF &&
 		reqbufs->memory != V4L2_MEMORY_MMAP) {
-		dprintk(0, "%s err,memory=%d,only support DMABUF and MMAP\n",
-			__func__, reqbufs->memory);
-		return -EINVAL;
+		err = -EINVAL;
+		goto error;
 	}
 
 	if (reqbufs->count == 0) {
-		dprintk(0, "%s type:%d count:%d\n", __func__,
-			reqbufs->type, reqbufs->count);
 		//return 0;
 	}
 	if (reqbufs->count && (reqbufs->count < devp->vb_queue.min_queued_buffers ||
 		reqbufs->count > VDIN_CANVAS_MAX_CNT)) {
-		dprintk(0, "%s err,count=%d,out of range[%d,%d]\n", __func__,
-			reqbufs->count, devp->vb_queue.min_queued_buffers, VDIN_CANVAS_MAX_CNT);
-		return -EINVAL;
+		err = -EINVAL;
+		goto error;
 	}
-
-	dprintk(1, "%s memory:%d,type:%d buff_num:%d\n", __func__,
-		reqbufs->memory, reqbufs->type, reqbufs->count);
 
 	/*need config by input source type*/
 	devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
@@ -497,18 +494,19 @@ static int vdin_vidioc_reqbufs(struct file *file, void *priv,
 	//vdin_fill_pix_format(devp);
 
 	ret = vb2_ioctl_reqbufs(file, priv, reqbufs);
-	if (ret < 0)
-		dprintk(0, "vb2_ioctl_reqbufs fail\n");
 
 	devp->v4l2_req_buf_num = reqbufs->count;
 
 	vb_buf = to_vb2_v4l2_buffer(devp->vb_queue.bufs[i]);
 	vdin_buf = to_vdin_vb_buf(vb_buf);
 
-	/*check buffer*/
-	dprintk(1, "%s num_buffers %d -end\n", __func__,
+	dprintk(1, "vdin%d v4l2 req buf mem:%d, type:%d cnt:%d buf_num:%d\n",
+		devp->index, reqbufs->memory, reqbufs->type, reqbufs->count,
 		devp->vb_queue.max_num_buffers);
 	return ret;
+error:
+	dprintk(1, "vdin v4l2 req buf error:%d\n", err);
+	return err;
 }
 
 /*
@@ -521,7 +519,7 @@ int vdin_vidioc_create_bufs(struct file *file, void *priv,
 	/*struct vdin_dev_s *devp = video_drvdata(file);*/
 	unsigned int ret = 0;
 
-	dprintk(2, "%s\n", __func__);
+	dprintk(2, "vdin create buf\n");
 	ret = vb2_ioctl_create_bufs(file, priv, p);
 	return ret;
 }
@@ -541,12 +539,12 @@ static int vdin_vidioc_querybuf(struct file *file, void *priv,
 	if (IS_ERR_OR_NULL(devp) || IS_ERR_OR_NULL(v4lbuf))
 		return -EFAULT;
 
-	dprintk(1, "%s idx:%d\n", __func__, v4lbuf->index);
+	dprintk(1, "vdin query buf id:%d\n", v4lbuf->index);
 
 	vb_que = &devp->vb_queue;
-	if (v4lbuf->index >= devp->vb_queue.max_num_buffers) {
-		dprintk(0, "%s: index %d out of range (max %d)\n",
-			__func__, v4lbuf->index, devp->vb_queue.max_num_buffers - 1);
+	if (v4lbuf->index >= vb_que->max_num_buffers) {
+		dprintk(0, "vdin query buf id %d out of range (max %d)\n",
+			v4lbuf->index, vb_que->max_num_buffers - 1);
 		return -EINVAL;
 	}
 	vb2buf = vb_que->bufs[v4lbuf->index];
@@ -569,14 +567,16 @@ static int vdin_vidioc_qbuf(struct file *file, void *priv,
 	struct vdin_vb_buff *vdin_buf = NULL;
 	int i;
 	unsigned int num_planes;
+	int err = 0;
 
-	if (IS_ERR_OR_NULL(devp) || IS_ERR_OR_NULL(p))
-		return -EFAULT;
+	if (IS_ERR_OR_NULL(devp) || IS_ERR_OR_NULL(p)) {
+		err  = -EFAULT;
+		goto error;
+	}
 
 	if (p->index >= devp->vb_queue.max_num_buffers) {
-		dprintk(0, "%s index:%d,vb_queue.max_num_buffers = %d,end\n",
-			__func__, p->index, devp->vb_queue.max_num_buffers);
-		return -EINVAL;
+		err = -EINVAL;
+		goto error;
 	}
 
 	vb = to_vb2_v4l2_buffer(devp->vb_queue.bufs[p->index]);
@@ -584,27 +584,26 @@ static int vdin_vidioc_qbuf(struct file *file, void *priv,
 
 	num_planes = vb->vb2_buf.num_planes;
 	if (num_planes > 3 || num_planes == 0) {
-		dprintk(0, "%s: invalid num_planes %u\n", __func__, num_planes);
-		return -EINVAL;
+		err = -EINVAL;
+		goto error;
 	}
-	dprintk(3, "%s idx:%d planes:%d,streaming:%d\n", __func__,
+	dprintk(3, "vdin qbuf id:%d planes:%d, streaming:%d\n",
 		p->index, num_planes, devp->vb_queue.streaming);
 
 	ret = vb2_ioctl_qbuf(file, priv, p);
 	if (ret < 0)
-		dprintk(0, "%s err\n", __func__);
+		dprintk(0, "vdin%d qbuf err\n", devp->index);
 
 	/* recycle buffer */
 	if (devp->vb_queue.streaming) {
 		devp->vdin_v4l2.stats.que_cnt++;
 		if (vdin_buf->v4l2_vframe_s && !IS_ERR(vdin_buf->v4l2_vframe_s)) {
 			if (!devp->vfp) {
-				dprintk(0, "devp->vfp is NULL\n");
-				return -EINVAL;
+				err = -EINVAL;
+				goto error;
 			}
 			receiver_vf_put(vdin_buf->v4l2_vframe_s, devp->vfp);
-			dprintk(3, "[%s]vf idx:%d (0x%p) put back to pool,fd=%d\n",
-				__func__,
+			dprintk(3, "vdin qbuf vf idx:%d (0x%p) put back to pool,fd=%d\n",
 				vdin_buf->v4l2_vframe_s->index, devp->vfp, p->m.fd);
 
 			vdin_buf->v4l2_vframe_s = NULL;
@@ -617,6 +616,9 @@ static int vdin_vidioc_qbuf(struct file *file, void *priv,
 	}
 
 	return ret;
+error:
+	dprintk(0, "vdin qbuf error:%d\n", err);
+	return err;
 }
 
 /*
@@ -635,14 +637,11 @@ static int vdin_vidioc_dqbuf(struct file *file, void *priv,
 	if (ret) {
 		if (devp->parm.info.status == TVIN_SIG_STATUS_NOSIG)
 			ret = -ENODEV;
-		dprintk(0, "DQ error,ret=%d,%#x,status:%d\n", ret, file->f_flags,
-			devp->parm.info.status);
-		return ret;
+		goto error;
 	}
 	if (p->index >= devp->vb_queue.max_num_buffers) {
-		dprintk(0, "%s index:%d,vb_queue.max_num_buffers = %d,end\n",
-			__func__, p->index, devp->vb_queue.max_num_buffers);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error;
 	}
 
 	for (i = 0; i < devp->v4l2_fmt.fmt.pix_mp.num_planes; i++)
@@ -652,9 +651,12 @@ static int vdin_vidioc_dqbuf(struct file *file, void *priv,
 	vb = to_vb2_v4l2_buffer(devp->vb_queue.bufs[p->index]);
 	vdin_buf = to_vdin_vb_buf(vb);
 	devp->vdin_v4l2.stats.dque_cnt++;
-	dprintk(3, "%s index=%d,fd = %d;vf_index:%d\n", __func__,
+	dprintk(3, "vdin v4l2 dq id=%d, fd=%d, vf_id:%d\n",
 		p->index, p->m.fd, vdin_buf->v4l2_vframe_s->index);
 
+	return ret;
+error:
+	dprintk(0, "vdin v4l2 dq error:%d\n", ret);
 	return ret;
 }
 
@@ -672,7 +674,7 @@ static int vdin_vidioc_expbuf(struct file *file, void *priv,
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
-	dprintk(1, "%s buf:%d\n", __func__, p->index);
+	dprintk(1, "vdin v4l2 exp buf:%d\n", p->index);
 
 	ret = vb2_ioctl_expbuf(file, priv, p);
 
@@ -689,15 +691,12 @@ static int vdin_vidioc_streamon(struct file *file, void *priv,
 	struct vdin_dev_s *devp = video_drvdata(file);
 	int ret = 0;
 
-	dprintk(2, "dbg enter %s\n", __func__);
-
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 	if (devp->hw_core == VDIN_HW_CORE_NORMAL &&
 		devp->parm.info.status != TVIN_SIG_STATUS_STABLE) {
-		dprintk(0, "%s failed with status=%d\n", __func__,
-			devp->parm.info.status);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto error;
 	}
 
 	if ((!get_video_enabled(0) &&
@@ -706,19 +705,23 @@ static int vdin_vidioc_streamon(struct file *file, void *priv,
 		(!get_video_enabled(1) &&
 		devp->v4l2_port_cur == TVIN_PORT_VIU2_VD1)) {
 		dprintk(0, "%s capture video but no video\n", __func__);
-		if (devp->mem_ta_access)
-			return -EBUSY;
+		if (devp->mem_ta_access) {
+			ret = -EBUSY;
+			goto error;
+		}
 	}
 
 	ret = vb2_ioctl_streamon(file, priv, i);
 	if (ret < 0) {
-		dprintk(0, "%s vb2_ioctl_streamon failed with %d\n", __func__, ret);
-		return ret;
+		goto error;
 	}
+	dprintk(2, "vdin%d v4l2 streamon ok\n", devp->index);
 
 	vdin_v4l2_start_tvin(devp);
 	memset(&devp->vdin_v4l2.stats, 0, sizeof(devp->vdin_v4l2.stats));
-	dprintk(2, "%s\n", __func__);
+	return ret;
+error:
+	dprintk(0, "vdin v4l2 stream error:%d\n", ret);
 	return ret;
 }
 
@@ -728,17 +731,14 @@ static int vdin_vidioc_streamoff(struct file *file, void *priv,
 	struct vdin_dev_s *devp = video_drvdata(file);
 	int ret = 0;
 
-	dprintk(0, "%s\n", __func__);
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
 	ret = vb2_ioctl_streamoff(file, priv, i);
 	if (ret < 0)
-		dprintk(0, "%s vb2_ioctl_streamoff failed with %d\n", __func__, ret);
+		dprintk(0, "vdin v4l2 streamoff error\n");
 
 	ret = vdin_v4l2_stop_tvin(devp);
-	if (ret < 0)
-		dprintk(0, "%s vdin_v4l2_stop_tvin failed with %d\n", __func__, ret);
 
 	return ret;
 }
@@ -752,7 +752,6 @@ static int vdin_vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct vdin_dev_s *devp = video_drvdata(file);
 
-	dprintk(2, "%s\n", __func__);
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 	/*for test set a default value*/
@@ -764,7 +763,10 @@ static int vdin_vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	devp->v4l2_fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
 
 	memcpy(&f->fmt.pix, &devp->v4l2_fmt.fmt.pix,
-	       sizeof(struct v4l2_pix_format));
+		sizeof(struct v4l2_pix_format));
+
+	dprintk(2, "vdin v4l2 get cap:%dx%d\n",
+		devp->v4l2_fmt.fmt.pix.width, devp->v4l2_fmt.fmt.pix.height);
 	return 0;
 }
 
@@ -778,13 +780,11 @@ static int vdin_vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct vdin_dev_s *devp = video_drvdata(file);
 	/*struct v4l2_format *fmt = devp->pixfmt;*/
 
-	dprintk(2, "%s\n", __func__);
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
-	dprintk(1, "width=%d\n", fmt->fmt.pix.width);
-	dprintk(1, "height=%d\n", fmt->fmt.pix.height);
-	dprintk(1, "pixfmt=0x%x\n", fmt->fmt.pix.pixelformat);
+	dprintk(1, "vdin v4l2 set cap=%dx%d pix_fmt=0x%x\n",
+		fmt->fmt.pix.width, fmt->fmt.pix.height, fmt->fmt.pix.pixelformat);
 
 	return 0;
 }
@@ -820,12 +820,10 @@ static int vdin_vidioc_g_fmt_vid_cap_mplane(struct file *file,
 	f->fmt.pix_mp.field = devp->v4l2_fmt.fmt.pix_mp.field;
 	f->fmt.pix_mp.pixelformat = devp->v4l2_fmt.fmt.pix_mp.pixelformat;
 	f->fmt.pix_mp.num_planes = devp->v4l2_fmt.fmt.pix_mp.num_planes;
-	dprintk(1, "%s:wxh:%dx%d,quant:%d,enc:%d,field:%d,pixelformat:0x%x num_planes=%d\n",
-		__func__,
-		f->fmt.pix_mp.width, f->fmt.pix_mp.height,
+	dprintk(1, "vdin v4l2 get %d plane %dx%d,quant:%d,enc:%d,field:%d,pix_fmt:0x%x\n",
+		f->fmt.pix_mp.num_planes, f->fmt.pix_mp.width, f->fmt.pix_mp.height,
 		f->fmt.pix_mp.quantization, f->fmt.pix_mp.ycbcr_enc,
-		f->fmt.pix_mp.field, f->fmt.pix_mp.pixelformat,
-		f->fmt.pix_mp.num_planes);
+		f->fmt.pix_mp.field, f->fmt.pix_mp.pixelformat);
 	return 0;
 }
 
@@ -842,17 +840,9 @@ static int vdin_vidioc_s_fmt_vid_cap_mplane(struct file *file,
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
-	dprintk(2, "%s:wxh:%dx%d,quant:%d,enc:%d,field:%d,pixelformat:0x%x num_planes=%d\n",
-		__func__,
-		fmt->fmt.pix_mp.width,	        fmt->fmt.pix_mp.height,
-		fmt->fmt.pix_mp.quantization,	fmt->fmt.pix_mp.ycbcr_enc,
-		fmt->fmt.pix_mp.field,		fmt->fmt.pix_mp.pixelformat,
-		fmt->fmt.pix_mp.num_planes);
-	if (devp->v4l2_dbg_ctl.dbg_pix_fmt) {
+	if (devp->v4l2_dbg_ctl.dbg_pix_fmt)
 		devp->v4l2_fmt.fmt.pix_mp.pixelformat = devp->v4l2_dbg_ctl.dbg_pix_fmt;
-		dprintk(2, "%s:force pixelformat to 0x%x\n", __func__,
-			devp->v4l2_fmt.fmt.pix_mp.pixelformat);
-	}
+
 #ifndef VDIN_V4L2_FILL_PIXFMT_MP
 	devp->v4l2_fmt.fmt.pix_mp.width	       = fmt->fmt.pix_mp.width;
 	devp->v4l2_fmt.fmt.pix_mp.height       = fmt->fmt.pix_mp.height;
@@ -873,11 +863,10 @@ static int vdin_vidioc_s_fmt_vid_cap_mplane(struct file *file,
 	v4l2_fill_pixfmt_mp(&devp->v4l2_fmt.fmt.pix_mp,
 		fmt->fmt.pix_mp.pixelformat, fmt->fmt.pix_mp.width, fmt->fmt.pix_mp.height);
 #endif
-	dprintk(2, "width=%d height=%d,quant:%d,enc:%x,\n",
-		fmt->fmt.pix_mp.width, fmt->fmt.pix_mp.height,
-		fmt->fmt.pix_mp.quantization, fmt->fmt.pix_mp.ycbcr_enc);
-	dprintk(2, "field:%x,pixfmt=0x%x num_planes=0x%x\n", fmt->fmt.pix_mp.field,
-		fmt->fmt.pix_mp.pixelformat, fmt->fmt.pix_mp.num_planes);
+	dprintk(1, "vdin v4l2 set %d plane %dx%d,quant:%d,enc:%d,field:%d,pix_fmt:0x%x\n",
+		fmt->fmt.pix_mp.num_planes, fmt->fmt.pix_mp.width, fmt->fmt.pix_mp.height,
+		fmt->fmt.pix_mp.quantization, fmt->fmt.pix_mp.ycbcr_enc,
+		fmt->fmt.pix_mp.field, fmt->fmt.pix_mp.pixelformat);
 
 	return 0;
 }
@@ -887,13 +876,12 @@ static int vdin_vidioc_s_divide_fr(struct vdin_dev_s *devp,
 			 struct v4l2_control *ctrl)
 {
 	if (ctrl->value < 0 || ctrl->value > 240) {
-		dprintk(0, "%s divide value=%d,over range\n",
-			__func__, ctrl->value);
+		dprintk(0, "vdin v4l2 set divide = %d over range\n",
+			ctrl->value);
 		return -EINVAL;
 	}
 	devp->vdin_v4l2.divide = ctrl->value;
-	dprintk(2, "%s set divide value to %d\n",
-		__func__, devp->vdin_v4l2.divide);
+	dprintk(2, "vdin v4l2 set divide = %d\n", devp->vdin_v4l2.divide);
 
 	return 0;
 }
@@ -903,8 +891,8 @@ static int vdin_vidioc_s_done_user_process(struct vdin_dev_s *devp,
 			 struct v4l2_control *ctrl)
 {
 	if (ctrl->value < 0 || ctrl->value >= devp->vfp->size) {
-		dprintk(0, "%s divide value=%d,over range\n",
-			__func__, ctrl->value);
+		dprintk(0, "vdin v4l2 done process =%d over range\n",
+			ctrl->value);
 		return -EINVAL;
 	}
 	/* TODO */
@@ -917,14 +905,14 @@ static int vdin_vidioc_s_drm_mode(struct vdin_dev_s *devp,
 			 struct v4l2_control *ctrl)
 {
 	if (ctrl->value < 0) {
-		dprintk(0, "%s divide value=%d,over range\n",
-			__func__, ctrl->value);
+		dprintk(0, "vdin v4l2 set drm =%d over range\n",
+			ctrl->value);
 		return -EINVAL;
 	}
 
 	devp->vdin_v4l2.secure_flg = !!ctrl->value;
-	dprintk(0, "%s vdin%d,secure flag:%d\n",
-		__func__, devp->index, devp->vdin_v4l2.secure_flg);
+	dprintk(0, "vdin%d v4l2 set drm:%d\n",
+		devp->index, devp->vdin_v4l2.secure_flg);
 
 	return 0;
 }
@@ -952,8 +940,7 @@ static int vdin_vidioc_g_divide_fr(struct vdin_dev_s *devp,
 			 struct v4l2_control *ctrl)
 {
 	ctrl->value = devp->vdin_v4l2.divide;
-	dprintk(2, "%s get divide value %d\n",
-		__func__, ctrl->value);
+	dprintk(2, "vdin v4l2 get divide = %d\n", ctrl->value);
 
 	return 0;
 }
@@ -963,8 +950,7 @@ static int vdin_vidioc_g_min_buffers(struct vdin_dev_s *devp,
 			 struct v4l2_control *ctrl)
 {
 	ctrl->value = 2;
-	dprintk(2, "%s get min buffers value %d\n",
-		__func__, ctrl->value);
+	dprintk(2, "vdin v4l2 get min buf = %d\n", ctrl->value);
 
 	return 0;
 }
@@ -974,8 +960,7 @@ static int vdin_vidioc_g_output_fr(struct vdin_dev_s *devp,
 			 struct v4l2_control *ctrl)
 {
 	ctrl->value = devp->prop.fps;
-	dprintk(2, "%s get fps value %d\n",
-		__func__, ctrl->value);
+	dprintk(2, "vdin v4l2 get output fr = %d\n", ctrl->value);
 
 	return 0;
 }
@@ -1007,7 +992,7 @@ static int vdin_vidioc_g_cid_cap_info(struct vdin_dev_s *devp,
 				sizeof(struct v4l2_ext_capture_capability_info)))
 			return -EFAULT;
 	} else {
-		dprintk(0, "%s,vdin%d,invalid args\n", __func__, devp->index);
+		dprintk(0, "vdin%d v4l2 get cap info error!!!\n", devp->index);
 		return -EINVAL;
 	}
 
@@ -1023,7 +1008,7 @@ static int vdin_vidioc_g_cid_plane_info(struct vdin_dev_s *devp,
 				sizeof(struct v4l2_ext_capture_plane_info)))
 			return -EFAULT;
 	} else {
-		dprintk(0, "%s,LINE:%d,invalid args\n", __func__, devp->index);
+		dprintk(0, "vdin%d v4l2 get plane info error!!!\n", devp->index);
 		return -EINVAL;
 	}
 
@@ -1072,14 +1057,15 @@ static int vdin_vidioc_g_cid_video_win_info(struct vdin_dev_s *devp,
 	}
 
 	if (control->size == sizeof(struct v4l2_ext_capture_video_win_info)) {
-		dprintk(3, "%s,video info in:%dx%d -> out:%dx%d\n", __func__,
+		dprintk(3, "vdin%d v4l2 get video win:%dx%d -> %dx%d\n",
+			devp->index,
 			devp->ext_cap_video_win_info.in.w, devp->ext_cap_video_win_info.in.h,
 			devp->ext_cap_video_win_info.out.w, devp->ext_cap_video_win_info.out.h);
 		if (copy_to_user(control->ptr, &devp->ext_cap_video_win_info,
 				sizeof(struct v4l2_ext_capture_video_win_info)))
 			return -EFAULT;
 	} else {
-		dprintk(0, "%s,vdin%d,invalid args\n", __func__, devp->index);
+		dprintk(0, "vdin%d v4l2 get video win error\n", devp->index);
 		return -EINVAL;
 	}
 
@@ -1095,7 +1081,7 @@ static int vdin_vidioc_g_cid_freeze_mode(struct vdin_dev_s *devp,
 				sizeof(struct v4l2_ext_capture_freeze_mode)))
 			return -EFAULT;
 	} else {
-		dprintk(0, "%s,vdin%d,invalid args\n", __func__, devp->index);
+		dprintk(0, "vdin%d v4l2 get freeze mode error\n", devp->index);
 		return -EINVAL;
 	}
 
@@ -1114,12 +1100,13 @@ static int vdin_vidioc_g_cid_phy_mem_info(struct vdin_dev_s *devp,
 
 	if (control->size == sizeof(struct v4l2_ext_capture_physical_memory_info)) {
 		if (copy_from_user(&info, control->ptr,
-				sizeof(struct v4l2_ext_capture_physical_memory_info)))
+				sizeof(struct v4l2_ext_capture_physical_memory_info))) {
 			ret = -EFAULT;
+			goto error;
+		}
 		if (info.buf_index < 0 || info.buf_index >= VDIN_CANVAS_MAX_CNT) {
-			dprintk(0, "%s, buf_index:%d invalid, error\n",
-				__func__, info.buf_index);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto error;
 		}
 
 		switch (devp->format_convert) {
@@ -1142,17 +1129,23 @@ static int vdin_vidioc_g_cid_phy_mem_info(struct vdin_dev_s *devp,
 
 		info.buf_location = V4L2_EXT_CAPTURE_INPUT_BUF;
 
-		dprintk(1, "%s,index:%d,y:%#x,c:%#x(%#x),buf_loc:%d\n", __func__,
-			info.buf_index, info.compat_y_data, info.compat_c_data,
+		dprintk(1, "vdin%d v4l2 get phy mem id:%d, y:%#x, c:%#x(%#x), buf_loc:%d\n",
+			devp->index, info.buf_index, info.compat_y_data, info.compat_c_data,
 			(unsigned int)devp->vf_mem_c_start[info.buf_index], info.buf_location);
 		if (copy_to_user(control->ptr, &info,
-				sizeof(struct v4l2_ext_capture_physical_memory_info)))
+				sizeof(struct v4l2_ext_capture_physical_memory_info))) {
 			ret = -EFAULT;
+			goto error;
+		}
 	} else {
-		dprintk(0, "%s,LINE:%d,vdin%d,invalid args\n", __func__, __LINE__, devp->index);
+		ret = -EINVAL;
+		goto error;
 	}
 
 	return 0;
+error:
+	dprintk(0, "vdin%d v4l2 get phy mem error:%d\n", devp->index, ret);
+	return ret;
 }
 
 /* V4L2_CID_EXT_CAPTURE_PLANE_PROP */
@@ -1164,7 +1157,7 @@ static int vdin_vidioc_g_cid_plane_prop(struct vdin_dev_s *devp,
 				sizeof(struct v4l2_ext_capture_plane_prop)))
 			return -EFAULT;
 	} else {
-		dprintk(0, "%s,vdin%d,invalid args\n", __func__, devp->index);
+		dprintk(0, "vdin%d v4l2 get plane prop error\n", devp->index);
 		return -EINVAL;
 	}
 
@@ -1212,8 +1205,6 @@ static int vdin_vidioc_g_ext_ctrls(struct file *file, void *fh,
 			break;
 	}
 
-	dprintk(1, "%s,vdin%d exit\n", __func__, devp->index);
-
 	return ret;
 }
 
@@ -1258,10 +1249,11 @@ static int vdin_vidioc_s_cid_plane_prop(struct vdin_dev_s *devp,
 		devp->unstable_flag = false;
 		mutex_unlock(&devp->fe_lock);
 
-		dprintk(1, "%s,LINE:%d,location:%#x,cur:%d(%s)\n", __func__, __LINE__,
-			devp->vdin_v4l2.l, devp->v4l2_port_cur, tvin_port_str(devp->v4l2_port_cur));
+		dprintk(1, "vdin%d set plane prop location:%#x, port:%d(%s)\n",
+			devp->index, devp->vdin_v4l2.l,
+			devp->v4l2_port_cur, tvin_port_str(devp->v4l2_port_cur));
 	} else {
-		dprintk(0, "%s,LINE:%d,invalid args\n", __func__, __LINE__);
+		dprintk(0, "vdin%d v4l2 set plane prop error\n", devp->index);
 		return -EINVAL;
 	}
 
@@ -1281,8 +1273,8 @@ static int vdin_vidioc_s_cid_freeze_mode(struct vdin_dev_s *devp,
 	devp->ext_cap_freezee_mode.plane_index = mode.plane_index;
 	devp->ext_cap_freezee_mode.val = mode.val;
 	//devp->pause_dec = control->value;
-	dprintk(1, "%s,plane_index:%d,mode.val:%#x\n", __func__,
-		mode.plane_index, mode.val);
+	dprintk(1, "vdin%d set freeze mode plane_id:%d, val:%#x\n",
+		devp->index, mode.plane_index, mode.val);
 
 	return 0;
 }
@@ -1359,13 +1351,14 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	int ret;
 	struct vdin_dev_s *devp = video_drvdata(file);
 
-	if (IS_ERR_OR_NULL(devp))
-		return -EFAULT;
+	if (IS_ERR_OR_NULL(devp)) {
+		ret = -EFAULT;
+		goto error;
+	}
 
 	if (i >= devp->v4l2_port_num) {
-		dprintk(0, "%s  index(%d) is out of bounds.v4l2_port_num=%d\n",
-			__func__, i, devp->v4l2_port_num);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto error;
 	}
 
 	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
@@ -1392,20 +1385,18 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 		!(devp->flags & VDIN_FLAG_DEC_OPENED)) {
 		ret = vdin_open_fe(devp->parm.port, 0, devp);
 		if (ret) {
-			dprintk(0, "TVIN_IOC_OPEN(%d) failed to open port 0x%x\n",
-				devp->index, devp->parm.port);
 			mutex_unlock(&devp->fe_lock);
-			return -EFAULT;
+			ret = -EFAULT;
+			goto error;
 		}
 	}
 
 	if (devp->parm.port == TVIN_PORT_MIPI) {
 		devp->frontend = tvin_get_frontend(devp->parm.port, devp->parm.index);
 		if (!(devp->frontend)) {
-			dprintk(0, "%s(%d): not supported port 0x%x\n",
-				__func__, devp->index, devp->parm.port);
 			mutex_unlock(&devp->fe_lock);
-			return -1;
+			ret = -1;
+			goto error;
 		}
 		if (devp->frontend && devp->frontend->sm_ops &&
 			devp->frontend->sm_ops->get_fmt)
@@ -1422,10 +1413,13 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	}
 	mutex_unlock(&devp->fe_lock);
 
-	dprintk(0, "%s vdin%d,current port:%#x(%s),status:%d\n", __func__, devp->index,
-		devp->v4l2_port_cur, tvin_port_str(devp->v4l2_port_cur),
-		devp->parm.info.status);
+	dprintk(0, "vdin%d set input port:%#x(%s), status:%d, fmt:%s\n",
+		devp->index, devp->v4l2_port_cur, tvin_port_str(devp->v4l2_port_cur),
+		devp->parm.info.status, tvin_sig_fmt_str(devp->parm.info.fmt));
 	return 0;
+error:
+	dprintk(0, "vdin v4l2 set input error:%d\n", ret);
+	return ret;
 }
 
 static int vdin_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
@@ -1440,8 +1434,8 @@ static int vdin_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	/* description will be filled by v4l_fill_fmtdesc */
 	f->pixelformat = fmt->fourcc;
 
-	dprintk(0, "%s index:%d pixelformat:%x\n",
-		__func__, f->index, f->pixelformat);
+	dprintk(0, "vdin v4l2 enum fmt cap id:%d pix_fmt:%x\n",
+		f->index, f->pixelformat);
 
 	return 0;
 }
@@ -1450,40 +1444,48 @@ static int vidioc_try_fmt_vid_cap_mplane(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
 	int i = 0;
+	int ret = 0;
+	int err = 0;
 	struct vdin_dev_s *devp = video_drvdata(file);
 
-	if (IS_ERR_OR_NULL(devp))
-		return -EFAULT;
-
-	dprintk(1, "%s width[%d] height[%d] num_planes[%ds]\n", __func__,
-		f->fmt.pix_mp.width, f->fmt.pix_mp.height, f->fmt.pix_mp.num_planes);
+	if (IS_ERR_OR_NULL(devp)) {
+		ret = -EFAULT;
+		err = -1;
+		goto error;
+	}
 
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
-		dprintk(0, "%s vdin%d v4l2 do not support type=%d\n",
-			__func__, devp->index, f->type);
-		return -EINVAL;
+		ret = -EINVAL;
+		err = -2;
+		goto error;
 	}
 	if (f->fmt.pix_mp.width > 4096 || f->fmt.pix_mp.height > 2160) {
-		dprintk(0, "%s vdin%d v4l2 do not support w=%d,h=%d\n",
-			__func__, devp->index, f->fmt.pix_mp.width, f->fmt.pix_mp.height);
-		return -EINVAL;
+		ret = -EINVAL;
+		err = -3;
+		goto error;
 	}
 	if (f->fmt.pix_mp.num_planes > 2) {
-		dprintk(0, "%s vdin%d v4l2 do not support num_planes=%d\n",
-			__func__, devp->index, f->fmt.pix_mp.num_planes);
-		return -EINVAL;
+		ret = -EINVAL;
+		err = -4;
+		goto error;
 	}
 	for (i = 0; i < ARRAY_SIZE(pix_formats); i++) {
 		if (f->fmt.pix_mp.pixelformat == pix_formats[i].fourcc)
 			break;
 	}
 	if (i >= ARRAY_SIZE(pix_formats)) {
-		dprintk(0, "%s vdin%d v4l2 do not support pixelformat=%#x\n",
-			__func__, devp->index, f->fmt.pix_mp.pixelformat);
-		return -EINVAL;
+		ret = -EINVAL;
+		err = -5;
+		goto error;
 	}
 
+	dprintk(1, "vdin%d v4l2 try fmt: %dx%d num_planes=%d\n",
+		devp->index, f->fmt.pix_mp.width, f->fmt.pix_mp.height, f->fmt.pix_mp.num_planes);
+
 	return 0;
+error:
+	dprintk(0, "vdin v4l2 try fmt error:%d\n", err);
+	return ret;
 }
 
 /* This is an experimental interface */
@@ -1599,12 +1601,12 @@ static int vdin_v4l2_open(struct file *file)
 	mutex_lock(&devp->fe_lock);
 
 	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
-		dprintk(0, "%s,vdin%d already opened!\n", __func__, devp->index);
+		dprintk(0, "vdin%d v4l2 already opened!\n", devp->index);
 		mutex_unlock(&devp->fe_lock);
 		return -EBUSY;
 	}
 
-	dprintk(0, "%s,vdin%d\n", __func__, devp->index);
+	dprintk(0, "vdin%d v4l2 open ok\n", devp->index);
 	/*dump_stack();*/
 	devp->afbce_flag_backup = devp->afbce_flag;
 
@@ -1622,20 +1624,15 @@ static int vdin_v4l2_release(struct file *file)
 	struct vdin_dev_s *devp = video_drvdata(file);
 	struct vdin_set_canvas_addr_s *p_addr = NULL;
 
-	dprintk(0, "%s\n", __func__);
-
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
 	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
-		dprintk(0, "%s warning VDIN_FLAG_DEC_STARTED\n", __func__);
-		ret = vdin_v4l2_stop_tvin(devp);
-		if (ret < 0)
-			dprintk(0, "%s vdin_v4l2_stop_tvin failed with %d\n", __func__, ret);
+		ret |= vdin_v4l2_stop_tvin(devp);
 	}
 
 	/*release que*/
-	ret = vb2_fop_release(file);
+	ret |= vb2_fop_release(file);
 
 	if (devp->work_mode == VDIN_WORK_MD_V4L) {
 		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
@@ -1676,7 +1673,6 @@ static unsigned int vdin_v4l2_poll(struct file *file,
 
 static int vdin_v4l2_mmap(struct file *file, struct vm_area_struct *va)
 {
-	dprintk(2, "%s\n", __func__);
 	return vb2_fop_mmap(file, va);
 }
 
@@ -1694,16 +1690,13 @@ static long vdin_v4l2_ioctl(struct file *file,
 static ssize_t vdin_v4l2_read(struct file *fd, char __user *a,
 			      size_t b, loff_t *c)
 {
-	dprintk(2, "%s\n", __func__);
 	/*vb2_fop_read(fd, a, b, c);*/
-
 	return 0;
 }
 
 static ssize_t vdin_v4l2_write(struct file *fd, const char __user *a,
 			       size_t b, loff_t *c)
 {
-	dprintk(2, "%s\n", __func__);
 	/*vb2_fop_write(fd, a, b, c);*/
 	return 0;
 }
@@ -1714,10 +1707,9 @@ static void vdin_return_all_buffers(struct vdin_dev_s *devp,
 	struct vdin_vb_buff *buf, *node;
 	unsigned long flags = 0;
 
-	dprintk(2, "%s\n", __func__);
 	spin_lock_irqsave(&devp->list_head_lock, flags);
 	list_for_each_entry_safe(buf, node, &devp->buf_list, list) {
-		dprintk(2, "%s idx:%d\n", __func__, buf->vb.vb2_buf.index);
+		dprintk(2, "vdin return all buf id:%d\n", buf->vb.vb2_buf.index);
 		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
@@ -1747,7 +1739,6 @@ static int vdin_vb2ops_queue_setup(struct vb2_queue *vq,
 	*num_planes = devp->v4l2_fmt.fmt.pix_mp.num_planes;
 	for (i = 0; i < *num_planes; i++) {
 		sizes[i] = devp->v4l2_fmt.fmt.pix_mp.plane_fmt[i].sizeimage;
-		dprintk(1, "plane %d, size %x\n", i, sizes[i]);
 		if (devp->hw_core == VDIN_HW_CORE_LITE)
 			alloc_devs[i] = &devp->this_pdev->dev;/* vdin_cma area */
 		else
@@ -1761,8 +1752,8 @@ static int vdin_vb2ops_queue_setup(struct vb2_queue *vq,
 			alloc_devs[i] = devp->dev;/* CMA reserved area */
 	}
 
-	dprintk(1, "type: %d, plane: %d, buf cnt: %d, size: [Y: %x, C: %x]\n",
-		vq->type, *num_planes, *num_buffers, sizes[0], sizes[1]);
+	dprintk(1, "vdin%d type: %d, plane: %d, buf_cnt: %d, size: [Y: %x, C: %x]\n",
+		devp->index, vq->type, *num_planes, *num_buffers, sizes[0], sizes[1]);
 	return 0;
 }
 
@@ -1781,8 +1772,8 @@ static int vdin_vb2ops_buffer_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 
 	queue = &devp->vb_queue;
-	dprintk(3, "buf prepare idx:%d bufs:%d planes:%d queue_cnt:%d, buf sts:%s\n",
-		vb->index, queue->max_num_buffers,
+	dprintk(3, "vdin%d buf prepare idx:%d bufs:%d planes:%d q_cnt:%d, state:%s\n",
+		devp->index, vb->index, queue->max_num_buffers,
 		vb->num_planes, queue->queued_count,
 		vb2_buf_sts_to_str(vb->state));
 
@@ -1816,19 +1807,19 @@ static void vdin_vb2ops_buffer_queue(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *v4lbuf = to_vb2_v4l2_buffer(vb);
 	struct vdin_vb_buff *buf = to_vdin_vb_buf(v4lbuf);
 	unsigned long flags = 0;
+	u32 pre_state = 0;
 
-	dprintk(3, "%s buf:%d, state:%s\n", __func__, vb->index,
-		vb2_buf_sts_to_str(buf->vb.vb2_buf.state));
+	pre_state = buf->vb.vb2_buf.state;
 
 	spin_lock_irqsave(&devp->list_head_lock, flags);
 	list_add_tail(&buf->list, &devp->buf_list);
 
 	spin_unlock_irqrestore(&devp->list_head_lock, flags);
 	/* TODO: Update any DMA pointers if necessary */
-	dprintk(3, "num_buf:%d, queue_cnt:%d, after state:%s\n",
-		devp->vb_queue.max_num_buffers,
+	dprintk(3, "vb_id:%d num_buf:%d, q_cnt:%d, state:%s->%s\n",
+		vb->index, devp->vb_queue.max_num_buffers,
 		devp->vb_queue.queued_count,
-		vb2_buf_sts_to_str(buf->vb.vb2_buf.state));
+		vb2_buf_sts_to_str(pre_state), vb2_buf_sts_to_str(buf->vb.vb2_buf.state));
 }
 
 static int vdin_v4l2_start_streaming(struct vdin_dev_s *devp)
@@ -1869,7 +1860,7 @@ static int vdin_vb2ops_start_streaming(struct vb2_queue *vq, unsigned int count)
 		 */
 		vdin_return_all_buffers(devp, VB2_BUF_STATE_QUEUED);
 	}
-	dprintk(2, "%s\n", __func__);
+	dprintk(2, "start streaming\n");
 	return ret;
 }
 
@@ -1882,7 +1873,7 @@ static void vdin_vb2ops_stop_streaming(struct vb2_queue *vq)
 {
 	struct vdin_dev_s *devp = vb2_get_drv_priv(vq);
 
-	dprintk(2, "%s\n", __func__);
+	dprintk(2, "stop streaming\n");
 	/* TODO: stop DMA */
 
 	devp->vb_queue.streaming = false;
@@ -1904,9 +1895,9 @@ static int vdin_vb2ops_buf_init(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *vb_buf = NULL;
 	struct vdin_vb_buff *vdin_buf = NULL;
 
-	dprintk(1, "%s idx:%d, type:0x%x, memory:0x%x, num_planes:%d\n",
-		__func__, vb->index, vb->type, vb->memory, vb->num_planes);
-	dprintk(1, "vb2q type:0x%x num buffer:%d request id:%d\n", vb2q->type,
+	dprintk(1, "vb id:%d, type:0x%x, mem:0x%x, num:%d\n",
+		vb->index, vb->type, vb->memory, vb->num_planes);
+	dprintk(1, "vb2q type:0x%x num buffer:%d q_cnt:%d\n", vb2q->type,
 		vb2q->max_num_buffers, vb2q->queued_count);
 
 	vb_buf = to_vb2_v4l2_buffer(vb);
@@ -2026,7 +2017,9 @@ static int vdin_v4l2_queue_init(struct vdin_dev_s *devp,
 	if (ret < 0)
 		dprintk(0, "vb2_queue_init fail\n");
 
-	dprintk(1, "is_multiplanar:%d\n", que->is_multiplanar);
+	dprintk(1, "vdin%d v4l2 init type:%d, m:%d min_buf:%d multi:%d\n",
+		devp->index, que->type, que->io_modes,
+		que->min_queued_buffers, que->is_multiplanar);
 
 	return ret;
 }
@@ -2043,17 +2036,15 @@ int vdin_v4l2_probe(struct platform_device *pl_dev,
 	int v4l_vd_num;
 
 	if (IS_ERR_OR_NULL(devp)) {
-		ret = -ENODEV;
-		dprintk(0, "[vdin] devp err\n");
-		return ret;
+		ret = -EINVAL;
+		goto error;
 	}
 
 	devp->dts_config.v4l_en = of_property_read_bool(pl_dev->dev.of_node,
 						"v4l_support_en");
 	if (devp->dts_config.v4l_en == 0) {
-		dprintk(0, "vdin[%d] %s v4l2 disabled!\n",
-			devp->index, __func__);
-		return -1;
+		ret = -1;
+		goto error;
 	}
 	/*dprintk(1, "%s vdin[%d] start\n", __func__, devp->index);*/
 	snprintf(devp->v4l2_dev.name, sizeof(devp->v4l2_dev.name),
@@ -2066,17 +2057,17 @@ int vdin_v4l2_probe(struct platform_device *pl_dev,
 	/* Initialize the top-level structure */
 	ret = v4l2_device_register(&pl_dev->dev, &devp->v4l2_dev);
 	if (ret) {
-		dprintk(0, "v4l2 dev register fail\n");
 		ret = -ENODEV;
-		goto v4l2_device_register_fail;
+		goto error;
 	}
 
 	/* Initialize the vb2 queue */
 	//queue = &devp->vb_queue;
 	ret = vdin_v4l2_queue_init(devp, &devp->vb_queue);
-	if (ret)
-		goto video_register_device_fail;
-
+	if (ret) {
+		ret = -2;
+		goto error;
+	}
 	INIT_LIST_HEAD(&devp->buf_list);
 	mutex_init(&devp->lock);
 	spin_lock_init(&devp->list_head_lock);
@@ -2106,14 +2097,12 @@ int vdin_v4l2_probe(struct platform_device *pl_dev,
 			&v4l_vd_num);
 	if (ret)
 		v4l_vd_num = VDIN_VD_NUMBER + (devp->index);
-	dprintk(0, "vdin%d,ret = %d,v4l_vd_num=/dev/video%d\n",
-		devp->index, ret, v4l_vd_num);
 
 	ret = video_register_device(video_dev, VFL_TYPE_VIDEO,
 			v4l_vd_num);
 	if (ret) {
-		dprintk(0, "register dev fail.\n");
-		goto video_register_device_fail;
+		ret = -4;
+		goto error;
 	}
 
 	pl_dev->dev.dma_mask = &pl_dev->dev.coherent_dma_mask;
@@ -2133,23 +2122,19 @@ int vdin_v4l2_probe(struct platform_device *pl_dev,
 	/*device node need attach device tree vdin dts tree*/
 	video_dev->dev.of_node = pl_dev->dev.of_node;
 	ret = of_reserved_mem_device_init(&video_dev->dev);
-	if (ret == 0)
-		dprintk(1, "rev memory resource ok\n");
-	else
-		dprintk(1, "rev memory resource undefined!!!\n");
+	if (ret) {
+		ret = -5;
+		goto error;
+	}
 
 	vdin_v4l2_init(devp, pl_dev);
 
-	dprintk(1, "dev registered as %s\n",
-		video_device_node_name(video_dev));
-	dprintk(1, "vdin[%d] %s ok\n", devp->index, __func__);
+	dprintk(1, "vdin[%d] probe ok, node:%s (/dev/video%d)\n",
+		devp->index, video_device_node_name(video_dev), v4l_vd_num);
 
 	return 0;
-
-video_register_device_fail:
-	v4l2_device_unregister(&devp->v4l2_dev);
-
-v4l2_device_register_fail:
+error:
+	dprintk(1, "v4l2 probe error:%d\n", ret);
 	return ret;
 }
 
@@ -2160,20 +2145,13 @@ int vdin_v4l2_loopback_fmt(struct vdin_dev_s *devp)
 	int err_range = 10;
 	const struct vinfo_s *vinfo;
 
-	dprintk(1, "%s,fmt:%s,cfmt:%s,status:%#x,fps:%d\n",
-		__func__, tvin_sig_fmt_str(devp->parm.info.fmt),
-		tvin_color_fmt_str(devp->parm.info.cfmt),
-		devp->parm.info.status, devp->parm.info.fps);
 #ifdef VDIN_V4L2_GET_LOOPBACK_FMT_BY_VOUT_SERVE
 	vinfo = get_current_vinfo();
 	h = vinfo->width;
 	v = vinfo->height;
-	dprintk(1, "%s,%d; %dx%d,vmode:%d\n", __func__, __LINE__,
-		vinfo->width, vinfo->height, vinfo->mode);
 #else
 	h = vdin_get_active_h(devp);
 	v = vdin_get_active_v(devp);
-	dprintk(1, "%s,%d; %dx%d\n", __func__, __LINE__, vinfo->width, vinfo->height);
 #endif
 	if (h >= 4096 - err_range && h <= 4096 + err_range &&
 		v >= 2160 - err_range && v <= 2160 + err_range)
@@ -2190,7 +2168,9 @@ int vdin_v4l2_loopback_fmt(struct vdin_dev_s *devp)
 	else
 		devp->parm.info.fmt = TVIN_SIG_FMT_NULL;
 
-	dprintk(1, "vdin%d,active,h=%d,v=%d\n", devp->index, h, v);
+	dprintk(1, "vdin%d, active:%dx%d %dHz, fmt:0x%x, status:%d\n",
+		devp->index, h, v, devp->parm.info.fps,
+		devp->parm.info.fmt, devp->parm.info.status);
 
 	return 0;
 }
@@ -2204,7 +2184,7 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 	struct video_input_info video_input_parms;
 	int cur_axis[4];
 	const struct vinfo_s *vinfo;
-
+	bool from_vinfo = 0;
 	memset(&vdin_cap_param, 0, sizeof(struct vdin_parm_s));
 	memset(&cur_axis, 0, sizeof(cur_axis));
 	memset(&video_input_parms, 0, sizeof(struct video_input_info));
@@ -2227,15 +2207,11 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 
 			devp->ext_cap_video_win_info.in.w = vdin_cap_param.h_active;
 			devp->ext_cap_video_win_info.in.h = vdin_cap_param.v_active;
-
-			dprintk(1, "[%s] hv active: %dx%d (video only)\n",
-				__func__, vdin_cap_param.h_active, vdin_cap_param.v_active);
 		} else {
 			vinfo = get_current_vinfo();
 			vdin_cap_param.h_active = vinfo->width;
 			vdin_cap_param.v_active = vinfo->height;
-			dprintk(1, "[%s] hv active: %dx%d (vinfo)\n",
-				__func__, vinfo->width, vinfo->height);
+			from_vinfo = true;
 		}
 
 		vdin_cap_param.scan_mode = TVIN_SCAN_MODE_PROGRESSIVE;
@@ -2303,11 +2279,12 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 		devp->prop.scaling4h = vdin_cap_param.dest_v_active;
 	}
 
-	dprintk(1, "[%s]port:0x%x,fmt:%d %d %d;active:%dx%d,%dx%d;fr:%d;sm:%d\n",
-		__func__, vdin_cap_param.port, vdin_cap_param.cfmt, vdin_cap_param.fmt,
-		vdin_cap_param.dfmt, vdin_cap_param.dest_h_active, vdin_cap_param.dest_v_active,
+	dprintk(1, "start port:0x%x,fmt:%d %d %d;active:%dx%d->%dx%d %dHz,sm:%d,vinfo:%d\n",
+		vdin_cap_param.port,
+		vdin_cap_param.cfmt, vdin_cap_param.fmt, vdin_cap_param.dfmt,
 		vdin_cap_param.h_active, vdin_cap_param.v_active,
-		vdin_cap_param.frame_rate, vdin_cap_param.scan_mode);
+		vdin_cap_param.dest_h_active, vdin_cap_param.dest_v_active,
+		vdin_cap_param.frame_rate, vdin_cap_param.scan_mode, from_vinfo);
 
 	ret = start_tvin_service(devp->index, &vdin_cap_param);
 	return ret;
@@ -2322,6 +2299,8 @@ int vdin_v4l2_stop_tvin(struct vdin_dev_s *devp)
 	mutex_lock(&devp->fe_lock);
 	vdin_close_fe(devp);
 	mutex_unlock(&devp->fe_lock);
+
+	dprintk(0, "vdin v4l2 stop tvin:%d\n", ret);
 
 	return ret;
 }
@@ -2338,7 +2317,6 @@ void vdin_v4l2_init(struct vdin_dev_s *devp, struct platform_device *pl_dev)
 	fe_ports_num =
 		of_property_count_u32_elems(pl_dev->dev.of_node, "fe_ports");
 	if (fe_ports_num < 0) {
-		dprintk(0, "No 'fe_ports' property found\n");
 		if (devp->index == 0) {
 			devp->v4l2_port[0] = TVIN_PORT_HDMI0;
 			devp->v4l2_port[1] = TVIN_PORT_HDMI1;
@@ -2364,13 +2342,10 @@ void vdin_v4l2_init(struct vdin_dev_s *devp, struct platform_device *pl_dev)
 		ret = of_property_read_u32_index(pl_dev->dev.of_node, "fe_ports", i,
 				&tmp_u32);
 		if (ret || tmp_u32 <= TVIN_PORT_NULL || tmp_u32 >= TVIN_PORT_MAX) {
-			dprintk(1, "Invalid fe_port:%#x in property\n", tmp_u32);
 			continue;
 		}
 		devp->v4l2_port[devp->v4l2_port_num] = tmp_u32;
 		devp->v4l2_port_num++;
-		dprintk(1, "index:%d,fe_port[%d]:%#x\n", i, devp->v4l2_port_num,
-			devp->v4l2_port[i]);
 	}
 	/* default port */
 	devp->v4l2_port_cur = TVIN_PORT_MAX;//devp->v4l2_port[0];
@@ -2379,40 +2354,43 @@ void vdin_v4l2_init(struct vdin_dev_s *devp, struct platform_device *pl_dev)
 	if (ret == 0) {
 		strscpy(g_vdin_v4l2_cap[devp->index].driver, str,
 			sizeof(g_vdin_v4l2_cap[devp->index].driver));
-		dprintk(1, "vdin%d,driver:%s\n", devp->index, str);
 	}
 
 	ret = of_property_read_string(pl_dev->dev.of_node, "card", &str);
 	if (ret == 0) {
 		strscpy(g_vdin_v4l2_cap[devp->index].card, str,
 			sizeof(g_vdin_v4l2_cap[devp->index].card));
-		dprintk(1, "vdin%d,card:%s\n", devp->index, str);
 	}
 
 	ret = of_property_read_string(pl_dev->dev.of_node, "bus_info", &str);
 	if (ret == 0) {
 		strscpy(g_vdin_v4l2_cap[devp->index].bus_info, str,
 			sizeof(g_vdin_v4l2_cap[devp->index].bus_info));
-		dprintk(1, "vdin%d,bus_info:%s\n", devp->index, str);
 	}
 
 	ret = of_property_read_u32(pl_dev->dev.of_node, "version", &tmp_u32);
 	if (ret == 0) {
 		g_vdin_v4l2_cap[devp->index].version = tmp_u32;
-		dprintk(1, "vdin%d,version:%#x\n", devp->index, tmp_u32);
 	}
 
 	ret = of_property_read_u32(pl_dev->dev.of_node, "capabilities", &tmp_u32);
 	if (ret == 0) {
 		g_vdin_v4l2_cap[devp->index].capabilities = tmp_u32;
-		dprintk(1, "vdin%d,capabilities:%#x\n", devp->index, tmp_u32);
 	}
 
 	ret = of_property_read_u32(pl_dev->dev.of_node, "device_caps", &tmp_u32);
 	if (ret == 0) {
 		g_vdin_v4l2_cap[devp->index].device_caps = tmp_u32;
-		dprintk(1, "vdin%d,device_caps:%#x\n", devp->index, tmp_u32);
 	}
+
+	dprintk(4, "vdin%d driver:%s, card:%s, bus:%s, ver:%#x, caps:%#x %#x\n",
+		devp->index,
+		g_vdin_v4l2_cap[devp->index].driver,
+		g_vdin_v4l2_cap[devp->index].card,
+		g_vdin_v4l2_cap[devp->index].bus_info,
+		g_vdin_v4l2_cap[devp->index].version,
+		g_vdin_v4l2_cap[devp->index].capabilities,
+		g_vdin_v4l2_cap[devp->index].device_caps);
 	/* fill struct v4l2_ext_capture_capability_info with default value */
 	devp->ext_cap_cap_info.flags =
 		V4L2_EXT_CAPTURE_CAP_SCALE_DOWN |
@@ -2453,4 +2431,9 @@ void vdin_v4l2_init(struct vdin_dev_s *devp, struct platform_device *pl_dev)
 	devp->ext_cap_plane_prop.l = V4L2_EXT_CAPTURE_BLENDED_OUTPUT;
 
 	devp->vdin_v4l2.divide = 1;
+
+	dprintk(4, "vdin%d v4l2 init num::%d l:%d pix_fmt:0x%x, p:0x%x flag:%x0x\n",
+		devp->index, devp->v4l2_port_num,
+		devp->ext_cap_plane_prop.l, devp->ext_cap_cap_info.pixel_format,
+		devp->ext_cap_cap_info.num_plane, devp->ext_cap_cap_info.flags);
 }

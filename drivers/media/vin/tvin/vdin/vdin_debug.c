@@ -52,6 +52,35 @@
 extern unsigned int vdin_game_mode_dly;
 static const char vdin_group_name[] = "vdin";
 
+const char *vdin_get_dst_fmt_str(enum vdin_format_convert_e format_convert)
+{
+	switch (format_convert) {
+	case VDIN_FORMAT_CONVERT_YUV_YUV422:
+	case VDIN_FORMAT_CONVERT_RGB_YUV422:
+	case VDIN_FORMAT_CONVERT_GBR_YUV422:
+	case VDIN_FORMAT_CONVERT_BRG_YUV422:
+		return "yuv422";
+	case VDIN_FORMAT_CONVERT_YUV_YUV444:
+	case VDIN_FORMAT_CONVERT_RGB_YUV444:
+		return "yuv444";
+	case VDIN_FORMAT_CONVERT_YUV_RGB:
+	case VDIN_FORMAT_CONVERT_RGB_RGB:
+		return "rgb";
+	case VDIN_FORMAT_CONVERT_YUV_GBR:
+		return "gbr";
+	case VDIN_FORMAT_CONVERT_YUV_BRG:
+		return "brg";
+	case VDIN_FORMAT_CONVERT_YUV_NV12:
+	case VDIN_FORMAT_CONVERT_RGB_NV12:
+		return "nv12";
+	case VDIN_FORMAT_CONVERT_YUV_NV21:
+	case VDIN_FORMAT_CONVERT_RGB_NV21:
+		return "nv21";
+	default:
+		return "null";
+	}
+}
+
 void vdin_parse_param(char *buf_orig, char **parm)
 {
 	char *ps, *token;
@@ -178,14 +207,10 @@ void vdin_get_input_size(struct vdin_dev_s *devp, struct vdin_parm_s *parm)
 			parm->h_active = video_input_parms.width;
 			parm->v_active = video_input_parms.height;
 		}
-		pr_info("[%s] hv active: %dx%d (video only)\n",
-			__func__, parm->h_active, parm->v_active);
 	} else {
 #endif
 		parm->h_active = vinfo->width;
 		parm->v_active = vinfo->height;
-		pr_info("[%s] hv active: %dx%d (vinfo)\n",
-			__func__, vinfo->width, vinfo->height);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	}
 #endif
@@ -207,8 +232,7 @@ ssize_t sig_det_store(struct device *dev,
 	enum tvin_port_e port = TVIN_PORT_NULL;
 	struct tvin_frontend_s *frontend = NULL;
 	int callmaster_status = 0;
-	struct vdin_dev_s *devp = dev_get_drvdata(dev);
-	long val;
+	long val = 0;
 
 	if (!buf)
 		return len;
@@ -226,9 +250,7 @@ ssize_t sig_det_store(struct device *dev,
 								      frontend);
 		/* pr_info("%d\n",callmaster_status); */
 	}
-	pr_info("[vdin.%d]:%s callmaster_status=%d,port=[%s]\n",
-		devp->index, __func__,
-		callmaster_status, tvin_port_str(port));
+
 	return len;
 }
 
@@ -239,134 +261,6 @@ ssize_t attr_show(struct device *dev,
 {
 	ssize_t len = 0;
 
-	len += sprintf(buf + len,
-		       "\n0 HDMI0\t1 HDMI1\t2 HDMI2\t3 Component0\t4 Component1");
-	len += sprintf(buf + len, "\n5 CVBS0\t6 CVBS1\t7 Vga0\t8 CVBS2\n");
-	len += sprintf(buf + len,
-		       "echo tvstart/v4l2start port fmt_id/resolution > ");
-	len += sprintf(buf + len, "/sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "echo v4l2start bt656/viu_in/video/isp h_active v_active");
-	len += sprintf(buf + len,
-		       "viu_in/viu_wb0_vd1/viu_wb0_vd1/viu_wb0_post_blend/viu_wb0_osd1/viu_wb0_osd2");
-	len += sprintf(buf + len,
-		       "viu_in2/viu2_wb0_vd1/viu2_wb0_vd1/viu2_wb0_post_blend/viu2_wb0_osd1/viu2_wb0_osd2");
-	len += sprintf(buf + len,
-		       "frame_rate cfmt dfmt scan_fmt > /sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "cfmt/dfmt:\t0 : RGB44\t1 YUV422\t2 YUV444\t7 NV12\t8 NV21\n");
-	len += sprintf(buf + len, "scan_fmt:\t1 : PROGRESSIVE\t2 INTERLACE\n");
-	len += sprintf(buf + len, "echo fps >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo conversion w h dest_cfmt >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "dest_cfmt: 0 TVIN_RGB444\t1 TVIN_YUV422\t2 TVIN_YUV444");
-	len += sprintf(buf + len,
-		       "\n3 TVIN_YUYV422\t4 TVIN_YVYU422\t5 TVIN_UYVY422");
-	len += sprintf(buf + len,
-		       "\n6 TVIN_VYUY422\t7 TVIN_NV12\t8 TVIN_NV21\t9 TVIN_BGGR");
-	len += sprintf(buf + len,
-		       "\n10 TVIN_RGGB\t11 TVIN_GBRG\t12 TVIN_GRBG");
-	len += sprintf(buf + len,
-		       "echo state >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo histgram hnum vnum >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo force_recycle >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo read_pic parm1 parm2 >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo read_bin parm1 parm2 parm3 >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo dump_reg >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo capture external_storage/xxx.bin >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo freeze >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo unfreeze >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo rgb_xy x y  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo rgb_info  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo mpeg2vdin h_active v_active >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo yuv_rgb_info >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo mat0_xy x y >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo mat0_set x >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo hdr  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo snow_on  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo snow_off  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo vf_reg  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo vf_unreg  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo pause_dec  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo resume_dec  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo color_depth val  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo color_depth_support val  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo color_depth_mode val  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo auto_cut_window_en 0(1)  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo auto_ratio_en 0(1)  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo dolby_config  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo metadata  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo dolby_config  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo clean_dv  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo dv_debug  >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo channel_order_config c0 c1 c2 >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo open_port port_name >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo close_port >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo vshrk_en 0(1) >/sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "echo prehsc_en 0(1) >/sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "echo cma_mem_mode 0(1) >/sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "echo dolby_input 0(1) >/sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "echo hist_bar_enable 0(1) >/sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "echo black_bar_enable 0(1) >/sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "echo use_frame_rate 0(1) >/sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "echo rdma_enable 0(1) >/sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "echo irq_cnt >/sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "echo rdma_irq_cnt >/sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "echo skip_vf_num 0/1/2 /sys/class/vdin/vdinx/attr.\n");
-	len += sprintf(buf + len,
-		       "echo dump_afbce storage/xxx.bin >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo wr_frame_en x >/sys/class/vdin/vdinx/attr\n");
-	len += sprintf(buf + len,
-		       "echo skip_frame_check x >/sys/class/vdin/vdinx/attr\n (1:not skip)");
-	len += sprintf(buf + len,
-		       "echo dv_crc x >/sys/class/vdin/vdinx/attr (0:force false 1:force true 2:auto)\n");
 	return len;
 }
 
@@ -391,9 +285,8 @@ static ssize_t dump_vdin_mif_show(struct file *filp, struct kobject *kobj,
 	if (!info->vir_addr && off == 0) {
 		ret = mutex_lock_interruptible(&info->mutex);
 		if (ret < 0) {
-			pr_info("%s() interrupted while waiting for mutex\n",
-				__func__);
-			return ret;
+			ret = -1;
+			goto error;
 		}
 
 		if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)
@@ -412,17 +305,11 @@ static ssize_t dump_vdin_mif_show(struct file *filp, struct kobject *kobj,
 
 		info->sizeimage = info->width * info->height;
 
-		pr_info("%s() phy_addr:0x%llx width:%d height:%d sizeimage:0x%x\n",
-			__func__, info->phy_addr, info->width, info->height, info->sizeimage);
-
 		if (info->highmem_flag == 0) {
-			pr_info("low mem area: cma_flag:0x%x\n", devp->cma_config_flag);
 			if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)
 				info->vir_addr = codec_mm_phys_to_virt(info->phy_addr);
 			else
 				info->vir_addr = phys_to_virt(info->phy_addr);
-		} else {
-			pr_info("high mem area: cma_flag:0x%x\n", devp->cma_config_flag);
 		}
 	}
 
@@ -443,9 +330,10 @@ static ssize_t dump_vdin_mif_show(struct file *filp, struct kobject *kobj,
 			map_addr = info->phy_addr + line_id * info->map_size;
 			info->vir_addr = vdin_vmap(map_addr, info->map_size);
 			if (!info->vir_addr) {
-				pr_info("vmap failed. vir_addr is null\n");
 				mutex_unlock(&info->mutex);
-				return -EINVAL;
+				ret = -2;
+				goto error;
+
 			}
 			vdin_dma_flush(devp, info->vir_addr, info->map_size, DMA_FROM_DEVICE);
 			size_t bytes_this_line = info->map_size - line_offset;
@@ -453,7 +341,7 @@ static ssize_t dump_vdin_mif_show(struct file *filp, struct kobject *kobj,
 			if (bytes_this_line > remaining_bytes)
 				bytes_this_line = remaining_bytes;
 			if (devp->debug.vdin_dbg_en & DBG_VDIN_DUMP)
-				pr_info("copy %zu bytes to line id=%lld, map=%llu, offset=%d, off=%lld\n",
+				pr_debug("copy %zu bytes to line id=%lld, map=%llu, offset=%d, off=%lld\n",
 						bytes_this_line, line_id,
 						info->map_size, line_offset, off);
 
@@ -473,9 +361,10 @@ static ssize_t dump_vdin_mif_show(struct file *filp, struct kobject *kobj,
 		}
 	} else {
 		if (!info->vir_addr) {
-			pr_info("vmap failed. vir_addr is null\n");
 			mutex_unlock(&info->mutex);
-			return -EINVAL;
+			ret = -3;
+			goto error;
+
 		}
 		to_copy = min_t(size_t, count, info->sizeimage - off);
 		memcpy(buf, info->vir_addr + off, to_copy);
@@ -485,13 +374,20 @@ static ssize_t dump_vdin_mif_show(struct file *filp, struct kobject *kobj,
 
 	if (is_data_end) {
 		info->vir_addr = NULL;
-		pr_info("%s() dump finish\n", __func__);
+		pr_info("dump vdin%d mif ok %dx%d(%d) %s %d bit\n",
+			devp->index, devp->curr_wr_vfe->vf.width,
+			devp->curr_wr_vfe->vf.height, devp->canvas_w,
+			vdin_get_dst_fmt_str(devp->format_convert), devp->source_bitdepth_dw);
 		if (info->highmem_flag)
 			vdin_unmap_phyaddr(info->vir_addr);
 		mutex_unlock(&info->mutex);
 	}
 
 	return to_copy;
+
+error:
+	pr_err("dump vdin%d mif error: %d\n", devp->index, ret);
+	return ret;
 }
 
 static ssize_t dump_vdin_afbc_head_show(struct file *filp, struct kobject *kobj,
@@ -509,8 +405,8 @@ static ssize_t dump_vdin_afbc_head_show(struct file *filp, struct kobject *kobj,
 	if (!info->vir_addr && off == 0) {
 		ret = mutex_lock_interruptible(&info->mutex);
 		if (ret < 0) {
-			pr_info("dump src: interrupted while waiting for mutex\n");
-			return ret;
+			ret = -1;
+			goto error;
 		}
 
 		info->phy_addr = devp->afbce_info->fm_head_paddr[0];
@@ -519,31 +415,33 @@ static ssize_t dump_vdin_afbc_head_show(struct file *filp, struct kobject *kobj,
 		info->highmem_flag =
 				PageHighMem(phys_to_page(devp->afbce_info->fm_body_paddr[0]));
 
-		pr_info("%s(): phy_addr:0x%llx sizeimage:0x%x\n",
-			__func__, info->phy_addr, info->sizeimage);
-
 		if (info->highmem_flag == 0) {
-			pr_info("low mem area, cma_flag=0x%x\n", devp->cma_config_flag);
 			if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)
 				info->vir_addr = codec_mm_phys_to_virt(info->phy_addr);
 			else
 				info->vir_addr = phys_to_virt(info->phy_addr);
 		} else {
-			pr_info("high mem area, cma_flag=0x%x\n", devp->cma_config_flag);
 			info->vir_addr = vdin_vmap(info->phy_addr, info->sizeimage);
 		}
 
 		if (!info->vir_addr) {
-			pr_info("vmap failed. vir_addr is null\n");
 			mutex_unlock(&info->mutex);
-			return -EINVAL;
+			ret = -2;
+			goto error;
+
 		}
 	}
 
 	sizeimage = info->sizeimage;
 	vir_addr = info->vir_addr;
 
-	if (!vir_addr || off >= sizeimage) {
+	if (!vir_addr) {
+		mutex_unlock(&info->mutex);
+		ret = -3;
+		goto error;
+	}
+
+	if (off >= sizeimage) {
 		mutex_unlock(&info->mutex);
 		return 0;
 	}
@@ -553,10 +451,10 @@ static ssize_t dump_vdin_afbc_head_show(struct file *filp, struct kobject *kobj,
 	memcpy(buf, vir_addr + off, to_copy);
 
 	if (devp->debug.vdin_dbg_en & DBG_VDIN_DUMP)
-		pr_info("%s() copy %zu bytes to off:%lld\n", __func__, to_copy, off);
+		pr_debug("%s() copy %zu bytes to off:%lld\n", __func__, to_copy, off);
 
 	if ((off + to_copy) >= sizeimage) {
-		pr_info("%s() dump finish\n", __func__);
+		pr_info("dump vdin%d afbc head ok\n", devp->index);
 		if (info->highmem_flag)
 			vdin_unmap_phyaddr(vir_addr);
 		info->vir_addr = NULL;
@@ -564,6 +462,9 @@ static ssize_t dump_vdin_afbc_head_show(struct file *filp, struct kobject *kobj,
 	}
 
 	return to_copy;
+error:
+	pr_err("dump vdin%d afbc head error: %d\n", devp->index, ret);
+	return ret;
 }
 
 static ssize_t dump_vdin_afbc_table_show(struct file *filp, struct kobject *kobj,
@@ -581,8 +482,8 @@ static ssize_t dump_vdin_afbc_table_show(struct file *filp, struct kobject *kobj
 	if (!info->vir_addr && off == 0) {
 		ret = mutex_lock_interruptible(&info->mutex);
 		if (ret < 0) {
-			pr_info("dump src: interrupted while waiting for mutex\n");
-			return ret;
+			ret = -1;
+			goto error;
 		}
 
 		info->phy_addr = devp->afbce_info->fm_table_paddr[0];
@@ -591,32 +492,33 @@ static ssize_t dump_vdin_afbc_table_show(struct file *filp, struct kobject *kobj
 		info->highmem_flag =
 				PageHighMem(phys_to_page(devp->afbce_info->fm_body_paddr[0]));
 
-		pr_info("%s(): phy_addr:0x%llx sizeimage:0x%x\n",
-			__func__, info->phy_addr, info->sizeimage);
-
 		if (info->highmem_flag == 0) {
-			pr_info("low mem area, cma_flag=0x%x\n", devp->cma_config_flag);
 			if ((devp->cma_config_flag & 0xfff) == 0x101)
 				info->vir_addr = codec_mm_phys_to_virt(info->phy_addr);
 			else
 				info->vir_addr = phys_to_virt(info->phy_addr);
 		} else {
-			pr_info("high mem area, cma_flag=0x%x\n", devp->cma_config_flag);
-
 			info->vir_addr = vdin_vmap(info->phy_addr, info->sizeimage);
 		}
 
 		if (!info->vir_addr) {
-			pr_info("vmap failed. vir_addr is null\n");
 			mutex_unlock(&info->mutex);
-			return -EINVAL;
+			ret = -2;
+			goto error;
+
 		}
 	}
 
 	sizeimage = info->sizeimage;
 	vir_addr = info->vir_addr;
 
-	if (!vir_addr || off >= sizeimage) {
+	if (!vir_addr) {
+		mutex_unlock(&info->mutex);
+		ret = -3;
+		goto error;
+	}
+
+	if (off >= sizeimage) {
 		mutex_unlock(&info->mutex);
 		return 0;
 	}
@@ -626,10 +528,10 @@ static ssize_t dump_vdin_afbc_table_show(struct file *filp, struct kobject *kobj
 	memcpy(buf, vir_addr + off, to_copy);
 
 	if (devp->debug.vdin_dbg_en & DBG_VDIN_DUMP)
-		pr_info("%s() copy %zu bytes to off:%lld\n", __func__, to_copy, off);
+		pr_debug("%s() copy %zu bytes to off:%lld\n", __func__, to_copy, off);
 
 	if ((off + to_copy) >= sizeimage) {
-		pr_info("%s() dump finish\n", __func__);
+		pr_info("dump vdin%d afbc table ok\n", devp->index);
 		if (info->highmem_flag)
 			vdin_unmap_phyaddr(vir_addr);
 		info->vir_addr = NULL;
@@ -637,6 +539,9 @@ static ssize_t dump_vdin_afbc_table_show(struct file *filp, struct kobject *kobj
 	}
 
 	return to_copy;
+error:
+	pr_err("dump vdin%d afbc table error: %d\n", devp->index, ret);
+	return ret;
 }
 
 static ssize_t dump_vdin_afbc_body_show(struct file *filp, struct kobject *kobj,
@@ -660,25 +565,20 @@ static ssize_t dump_vdin_afbc_body_show(struct file *filp, struct kobject *kobj,
 	if (!info->vir_addr && off == 0) {
 		ret = mutex_lock_interruptible(&info->mutex);
 		if (ret < 0) {
-			pr_info("interrupted while waiting for mutex\n");
-			return ret;
+			ret = -1;
+			goto error;
 		}
 
 		info->phy_addr = devp->afbce_info->fm_body_paddr[0];
 		info->sizeimage = devp->afbce_info->frame_body_size;
 		info->highmem_flag = PageHighMem(phys_to_page(devp->afbce_info->fm_body_paddr[0]));
 
-		pr_info("%s(): phy_addr:0x%llx sizeimage:0x%x\n",
-			__func__, info->phy_addr, info->sizeimage);
-
 		if (info->highmem_flag == 0) {
-			pr_info("low mem area, cma_flag=0x%x\n", devp->cma_config_flag);
 			if ((devp->cma_config_flag & 0xfff) == 0x101)
 				info->vir_addr = codec_mm_phys_to_virt(info->phy_addr);
 			else
 				info->vir_addr = phys_to_virt(info->phy_addr);
 		} else {
-			pr_info("high mem area, cma_flag=0x%x\n", devp->cma_config_flag);
 			info->remain_span = devp->afbce_info->frame_body_size % PAGE_ALIGN(span);
 
 			if (info->remain_span)
@@ -686,7 +586,7 @@ static ssize_t dump_vdin_afbc_body_show(struct file *filp, struct kobject *kobj,
 					devp->afbce_info->frame_body_size - info->remain_span;
 
 			if (devp->debug.vdin_dbg_en & DBG_VDIN_DUMP)
-				pr_info("high mem area, body_size:%d - remain:%d = remain_size:%d\n",
+				pr_debug("high mem area, body_size:%d - remain:%d = remain_size:%d\n",
 					devp->afbce_info->frame_body_size,
 					info->remain_span, info->remain_map_size);
 
@@ -694,9 +594,9 @@ static ssize_t dump_vdin_afbc_body_show(struct file *filp, struct kobject *kobj,
 			info->map_size = span;
 			info->vir_addr = vdin_vmap(info->map_addr, info->map_size);
 			if (!info->vir_addr) {
-				pr_info("vmap failed. vir_addr is null\n");
 				mutex_unlock(&info->mutex);
-				return -EINVAL;
+				ret = -2;
+				goto error;
 			}
 			vdin_dma_flush(devp, info->vir_addr, info->map_size, DMA_FROM_DEVICE);
 		}
@@ -704,7 +604,13 @@ static ssize_t dump_vdin_afbc_body_show(struct file *filp, struct kobject *kobj,
 
 	sizeimage = info->sizeimage;
 	vir_addr = info->vir_addr;
-	if (!vir_addr || off >= sizeimage) {
+	if (!vir_addr) {
+		mutex_unlock(&info->mutex);
+		ret = -3;
+		goto error;
+	}
+
+	if (off >= sizeimage) {
 		mutex_unlock(&info->mutex);
 		return 0;
 	}
@@ -722,13 +628,13 @@ static ssize_t dump_vdin_afbc_body_show(struct file *filp, struct kobject *kobj,
 			info->map_addr = map_addr;
 			info->vir_addr = vdin_vmap(info->map_addr, info->map_size);
 			if (!info->vir_addr) {
-				pr_info("vmap failed. vir_addr is null\n");
 				mutex_unlock(&info->mutex);
-				return -EINVAL;
+				ret = -4;
+				goto error;
 			}
 			vdin_dma_flush(devp, info->vir_addr, info->map_size, DMA_FROM_DEVICE);
 			if (devp->debug.vdin_dbg_en & DBG_VDIN_DUMP)
-				pr_info("Remapping: block_idx=%lld, map_size=%llu\n",
+				pr_debug("Remapping: block_idx=%lld, map_size=%llu\n",
 					block_idx, info->map_size);
 		}
 
@@ -737,7 +643,7 @@ static ssize_t dump_vdin_afbc_body_show(struct file *filp, struct kobject *kobj,
 
 		is_block_end = (block_offset + to_copy) >= span;
 		if (devp->debug.vdin_dbg_en & DBG_VDIN_DUMP)
-			pr_info("Freeing mapping: block_idx=%lld, is_block_end=%d\n",
+			pr_debug("Freeing mapping: block_idx=%lld, is_block_end=%d\n",
 				block_idx, is_block_end);
 		if (is_block_end)
 			vdin_unmap_phyaddr(info->vir_addr);
@@ -749,7 +655,10 @@ static ssize_t dump_vdin_afbc_body_show(struct file *filp, struct kobject *kobj,
 	is_data_end = (off + to_copy) >= info->sizeimage;
 
 	if (is_data_end) {
-		pr_info("%s() dump finish\n", __func__);
+		pr_info("dump vdin%d afbc body ok %dx%d %s %d bit afbc:0x%x 0x%lx sct:%d\n",
+			devp->index, devp->h_active, devp->v_active,
+			vdin_get_dst_fmt_str(devp->format_convert), devp->source_bitdepth,
+			devp->afbce_flag, devp->afbce_info->fm_body_paddr[0], devp->mem_type);
 		info->vir_addr = NULL;
 		if (info->highmem_flag)
 			vdin_unmap_phyaddr(info->vir_addr);
@@ -757,6 +666,9 @@ static ssize_t dump_vdin_afbc_body_show(struct file *filp, struct kobject *kobj,
 	}
 
 	return to_copy;
+error:
+	pr_err("dump vdin%d afbc body error: %d\n", devp->index, ret);
+	return ret;
 }
 
 static struct bin_attribute vdin_attr[] = {
@@ -820,19 +732,20 @@ static void vdin_dump_write_sct_mem_user(struct vdin_dev_s *devp,
 	void *buf_body = NULL;
 	struct vdin_mmu_box *box = NULL;
 	size_t offset = 0;
+	int ret = 0;
 
 	box = devp->msct_top.box;
 	if (!box) {
-		pr_info("%s box == NULL\n", __func__);
-		return;
+		ret = -1;
+		goto error;
 	}
 
 	mutex_lock(&box->mutex);
 	sc = vdin_mmu_box_get_sc_from_idx(box, buf_num);
 	if (!sc) {
-		pr_info("%s sc == NULL\n", __func__);
 		mutex_unlock(&box->mutex);
-		return;
+		ret = -2;
+		goto error;
 	}
 
 	for (i = 0; i < sc->page_cnt; i++) {
@@ -858,7 +771,8 @@ static void vdin_dump_write_sct_mem_user(struct vdin_dev_s *devp,
 			}
 			if (!buf_body) {
 				mutex_unlock(&box->mutex);
-				return;
+				ret = -3;
+				goto error;
 			}
 			vdin_dma_flush(devp, buf_body, PAGE_SIZE, DMA_FROM_DEVICE);
 			memcpy(output_buffer + offset, buf_body, PAGE_SIZE);
@@ -866,9 +780,9 @@ static void vdin_dump_write_sct_mem_user(struct vdin_dev_s *devp,
 		} else {
 			buf_body = vdin_vmap(phy_addr, PAGE_SIZE);
 			if (!buf_body) {
-				pr_info("[%d] vdin_vmap error\n", i);
 				mutex_unlock(&box->mutex);
-				return;
+				ret = -4;
+				goto error;
 			}
 
 			pr_debug("[%d] High phy_addr=0x%lx,buf_body=0x%lx,page:0x%lx\n", i,
@@ -893,12 +807,12 @@ static void vdin_dump_write_sct_mem_user(struct vdin_dev_s *devp,
 	if (highmem_flag == 0) {
 		for (i = sc->page_cnt; i < devp->msct_top.mmu_4k_number; i++) {
 			if (offset + PAGE_SIZE > buffer_size) {
-				pr_err("Buffer overflow at index %d\n", i);
 				break;
 			}
 			if (!buf_body) {
 				mutex_unlock(&box->mutex);
-				return;
+				ret = -7;
+				goto error;
 			}
 			pr_debug("[%d] Low phy_addr=0x%lx,buf_body=0x%lx,page:0x%lx\n", i,
 					 phy_addr, (unsigned long)buf_body, PAGE_SIZE);
@@ -908,6 +822,11 @@ static void vdin_dump_write_sct_mem_user(struct vdin_dev_s *devp,
 	}
 
 	mutex_unlock(&box->mutex);
+	return;
+
+error:
+	pr_info("user dump sct mem error: %d\n", ret);
+	return;
 }
 
 void vdin_dump_one_afbce_mem_user(void *output_head_ptr, void *output_table_ptr,
@@ -924,25 +843,25 @@ void *output_body_ptr, struct vdin_dev_s *devp, unsigned int buf_num)
 	unsigned int span = 0;
 	unsigned int remain = 0;
 	unsigned int count = 0;
-	unsigned int j = 0;
+	unsigned long j = 0;
 	void *virt_buf = NULL;
+	int ret = 0;
 
 	if (buf_num >= devp->canvas_max_num) {
-		pr_info("%s: param error", __func__);
-		return;
+		ret = -1;
+		goto error;
 	}
 
 	if ((devp->cma_config_flag & 0x1) &&
 	    devp->cma_mem_alloc == 0) {
-		pr_info("%s:no cma alloc mem!!!\n", __func__);
-		return;
+		ret = -2;
+		goto error;
 	}
 
 	highmem_flag = PageHighMem(phys_to_page(devp->afbce_info->fm_body_paddr[0]));
 
 	if (highmem_flag == 0) {
 		/*low mem area*/
-		pr_info("low mem area\n");
 		if ((devp->cma_config_flag & 0xfff) == 0x101) {
 			buf_head =
 			codec_mm_phys_to_virt(devp->afbce_info->fm_head_paddr[buf_num]);
@@ -950,11 +869,6 @@ void *output_body_ptr, struct vdin_dev_s *devp, unsigned int buf_num)
 			codec_mm_phys_to_virt(devp->afbce_info->fm_table_paddr[buf_num]);
 			buf_body =
 			codec_mm_phys_to_virt(devp->afbce_info->fm_body_paddr[buf_num]);
-
-			pr_info(".head_paddr=0x%lx,table_paddr=0x%lx,body_paddr=0x%lx\n",
-				devp->afbce_info->fm_head_paddr[buf_num],
-				(devp->afbce_info->fm_table_paddr[buf_num]),
-				devp->afbce_info->fm_body_paddr[buf_num]);
 		} else if (devp->cma_config_flag == 0) {
 			buf_head =
 				phys_to_virt(devp->afbce_info->fm_head_paddr[buf_num]);
@@ -962,29 +876,26 @@ void *output_body_ptr, struct vdin_dev_s *devp, unsigned int buf_num)
 				phys_to_virt(devp->afbce_info->fm_table_paddr[buf_num]);
 			buf_body =
 				phys_to_virt(devp->afbce_info->fm_body_paddr[buf_num]);
-
-			pr_info("head_paddr=0x%lx,table_paddr=0x%lx,body_paddr=0x%lx\n",
-				devp->afbce_info->fm_head_paddr[buf_num],
-				(devp->afbce_info->fm_table_paddr[buf_num]),
-				devp->afbce_info->fm_body_paddr[buf_num]);
 		}
 	} else {
 		/*high mem area*/
-		pr_info("high mem area\n");
 		buf_head = vdin_vmap(devp->afbce_info->fm_head_paddr[buf_num],
 				     devp->afbce_info->frame_head_size);
 
 		buf_table = vdin_vmap(devp->afbce_info->fm_table_paddr[buf_num],
 				      devp->afbce_info->frame_table_size);
-
-		pr_info(".head_paddr=0x%lx,table_paddr=0x%lx,body_paddr=0x%lx\n",
-			devp->afbce_info->fm_head_paddr[buf_num],
-			(devp->afbce_info->fm_table_paddr[buf_num]),
-			devp->afbce_info->fm_body_paddr[buf_num]);
 	}
 	/*write header bin*/
-	if (!buf_head)
-		return;
+	if (!buf_head) {
+		ret = -3;
+		goto error;
+	}
+
+	pr_debug("highmem=%d head_paddr=0x%lx,table_paddr=0x%lx,body_paddr=0x%lx\n",
+		highmem_flag, devp->afbce_info->fm_head_paddr[buf_num],
+		(devp->afbce_info->fm_table_paddr[buf_num]),
+		devp->afbce_info->fm_body_paddr[buf_num]);
+
 	vdin_dma_flush(devp, buf_head,
 		       devp->afbce_info->frame_head_size,
 		       DMA_FROM_DEVICE);
@@ -993,8 +904,10 @@ void *output_body_ptr, struct vdin_dev_s *devp, unsigned int buf_num)
 	if (highmem_flag)
 		vdin_unmap_phyaddr(buf_head);
 
-	if (!buf_table)
-		return;
+	if (!buf_table) {
+		ret = -4;
+		goto error;
+	}
 	/*write table bin*/
 	pos = 0;
 	vdin_dma_flush(devp, buf_table,
@@ -1029,8 +942,8 @@ void *output_body_ptr, struct vdin_dev_s *devp, unsigned int buf_num)
 			high_addr = phys + j * span;
 			virt_buf = vdin_vmap(high_addr, span);
 			if (!virt_buf) {
-				pr_info("vdin_vmap error\n");
-				return;
+				ret = -5;
+				goto error;
 			}
 
 			vdin_dma_flush(devp, virt_buf, span, DMA_FROM_DEVICE);
@@ -1043,8 +956,8 @@ void *output_body_ptr, struct vdin_dev_s *devp, unsigned int buf_num)
 			high_addr = phys + span;
 			virt_buf = vdin_vmap(high_addr, remain);
 			if (!virt_buf) {
-				pr_info("vdin_vmap1 error\n");
-				return;
+				ret = -6;
+				goto error;
 			}
 
 			vdin_dma_flush(devp, virt_buf, remain, DMA_FROM_DEVICE);
@@ -1052,37 +965,44 @@ void *output_body_ptr, struct vdin_dev_s *devp, unsigned int buf_num)
 			vdin_unmap_phyaddr(virt_buf);
 		}
 	}
-	pr_info("copy buffer %2d of %2u body to buffer.\n", buf_num, devp->canvas_max_num);
-	pr_info("%s done,copy buffer %2d body\n", __func__, buf_num);
+	pr_info("user dump vdin%d afbc buffer ok %dx%d %s %d bit afbc:0x%x 0x%lx sct:%d\n",
+		devp->index, devp->h_active, devp->v_active,
+		vdin_get_dst_fmt_str(devp->format_convert), devp->source_bitdepth,
+		devp->afbce_flag, devp->afbce_info->fm_body_paddr[0], devp->mem_type);
+	return;
+error:
+	pr_info("user dump afbc buffer error: %d\n", ret);
+	return;
 }
 
 int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
 									unsigned int buf_num)
 {
 	void *buf = NULL;
-	unsigned int i, j, offset = 0;
+	unsigned int i, offset = 0;
+	unsigned long j;
 	unsigned int span = 0, count = 0;
 	int highmem_flag;
 	unsigned long high_addr;
 	unsigned long phys;
 	char *output_ptr = (char *)output_buf;
 	size_t written_bytes = 0;
+	int ret = 0;
 
 	if (devp->mem_protected) {
-		pr_err("can not capture picture in secure mode, return directly\n");
-		return 0;
+		ret = -1;
+		goto error;
 	}
 
 	if ((devp->cma_config_flag & 0x1) &&
 		devp->cma_mem_alloc == 0) {
-		pr_info("%s:no cma alloc mem!!!\n", __func__);
-		return 0;
+		ret = -2;
+		goto error;
 	}
-	pr_info("cma_config_flag:0x%x\n", devp->cma_config_flag);
 
 	if (buf_num >= devp->canvas_max_num) {
-		pr_info("buf_num > canvas_max_num, vdin exit dump\n");
-		return 0;
+		ret = -3;
+		goto error;
 	}
 
 	if (devp->cma_config_flag & 0x100)
@@ -1096,7 +1016,7 @@ int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
 		count = devp->canvas_h;
 
 	if (highmem_flag == 0) {
-		pr_info("low mem area: one line size (%d, active:%d),vf_mem_start[%d]:%lx\n",
+		pr_debug("low mem area: one line size (%d, active:%d),vf_mem_start[%d]:%lx\n",
 				devp->canvas_max_stride, devp->canvas_active_w, buf_num,
 				devp->vf_mem_start[buf_num]);
 		if (devp->cma_config_flag & 0x1)
@@ -1119,10 +1039,10 @@ int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
 			}
 			buf += devp->canvas_w;
 		}
-		pr_info("write buffer %2d of %2u  to output buffer.offset=%d\n",
+		pr_debug("write buffer %2d of %2u  to output buffer.offset=%d\n",
 				buf_num, devp->canvas_max_num, offset);
 	} else {
-		pr_info("high mem area: one line size (%d, active:%d)\n",
+		pr_debug("high mem area: one line size (%d, active:%d)\n",
 				devp->canvas_max_stride, devp->canvas_active_w);
 		span = devp->canvas_active_w;
 		phys = devp->vf_mem_start[buf_num];
@@ -1141,11 +1061,20 @@ int vdin_dump_one_buf_mem_user(void *output_buf, struct vdin_dev_s *devp,
 			written_bytes += span;
 			vdin_unmap_phyaddr(buf);
 		}
-		pr_info("high-mem write buffer %2d of %2u to output buffer.\n",
+		pr_debug("high-mem write buffer %2d of %2u to output buffer.\n",
 				buf_num, devp->canvas_max_num);
 	}
 
+	pr_info("user dump vdin%d mif ok %dx%d(%d) %s %d bit\n",
+		devp->index, devp->curr_wr_vfe->vf.width,
+		devp->curr_wr_vfe->vf.height, devp->canvas_w,
+		vdin_get_dst_fmt_str(devp->format_convert), devp->source_bitdepth_dw);
+
 	return written_bytes;
+
+error:
+	pr_info("user dump mif buffer error: %d\n", ret);
+	return ret;
 }
 #endif
 
@@ -1161,18 +1090,19 @@ static void vdin_dump_write_sct_mem(struct vdin_dev_s *devp,
 	loff_t pos = 0;
 	void *buf_body = NULL;
 	struct vdin_mmu_box *box = NULL;
+	int ret = 0;
 
 	box = devp->msct_top.box;
 	if (!box) {
-		pr_info("%s box == NULL\n", __func__);
-		return;
+		ret = -1;
+		goto error;
 	}
 
 	mutex_lock(&box->mutex);
 	sc = vdin_mmu_box_get_sc_from_idx(box, buf_num);
 	if (!sc) {
-		pr_info("%s sc == NULL\n", __func__);
-		return;
+		ret = -2;
+		goto error;
 	}
 	for (i = 0; i < sc->page_cnt; i++) {//devp->msct_top.mmu_4k_number
 		phy_addr = vdin_sct_get_page_addr(sc, i);
@@ -1194,8 +1124,8 @@ static void vdin_dump_write_sct_mem(struct vdin_dev_s *devp,
 		} else {
 			buf_body = vdin_vmap(phy_addr, PAGE_SIZE);
 			if (!buf_body) {
-				pr_info("[%d] vdin_vmap error\n", i);
-				return;
+				ret = -3;
+				goto error;
 			}
 			pr_debug("[%d] High phy_addr=0x%lx,buf_body=0x%lx,page:0x%lx\n", i,
 				phy_addr, (unsigned long)buf_body, PAGE_SIZE);
@@ -1215,6 +1145,10 @@ static void vdin_dump_write_sct_mem(struct vdin_dev_s *devp,
 	}
 
 	mutex_unlock(&box->mutex);
+	return;
+error:
+	pr_info("kernel dump sct buffer error: %d\n", ret);
+	return;
 }
 #endif
 #endif
@@ -1236,28 +1170,29 @@ static void vdin_dump_more_mem(char *path, struct vdin_dev_s *devp,
 	ulong vf_phy_addr;
 	int highmem_flag;
 	unsigned int dump_frame_count = dump_num;
+	int ret = 0;
 
 	if (devp->mem_protected) {
-		pr_err("can not capture picture in secure mode, return directly\n");
-		return;
+		ret = -1;
+		goto error;
 	}
 
 	if (devp->cma_mem_alloc == 0) {
-		pr_info("%s:no cma alloc mem!!!\n", __func__);
-		return;
+		ret = -2;
+		goto error;
 	}
 
 	filp = filp_open(path, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR_OR_NULL(filp)) {
-		pr_info("create %s error or filp is NULL.\n", path);
-		return;
+		ret = -3;
+		goto error;
 	}
 
 	rec_dum_frame = kzalloc(sizeof(unsigned int) * dump_frame_count, GFP_KERNEL);
 	if (!rec_dum_frame) {
 		filp_close(filp, NULL);
-		pr_info("kzalloc mem fail\n");
-		return;
+		ret = -4;
+		goto error;
 	}
 
 	if (vdin_is_convert_to_nv21(devp->format_convert))
@@ -1265,7 +1200,6 @@ static void vdin_dump_more_mem(char *path, struct vdin_dev_s *devp,
 	else
 		count = devp->canvas_h;
 	mem_size = (loff_t)devp->canvas_active_w * count;
-	pr_info("put_frame_cnt:%d\n", devp->put_frame_cnt);
 
 	if (sel_start) {
 		while (!(devp->flags & VDIN_FLAG_DEC_STARTED) ||
@@ -1327,8 +1261,8 @@ static void vdin_dump_more_mem(char *path, struct vdin_dev_s *devp,
 				if (!buf) {
 					filp_close(filp, NULL);
 					kfree(rec_dum_frame);
-					pr_info("vdin_vmap error\n");
-					return;
+					ret = -5;
+					goto error;
 				}
 
 				vdin_dma_flush(devp, buf, devp->canvas_active_w, DMA_FROM_DEVICE);
@@ -1338,16 +1272,17 @@ static void vdin_dump_more_mem(char *path, struct vdin_dev_s *devp,
 		}
 	}
 
-	pr_info("wrt %2d wrd %2d put%d\n", dump_num, k, devp->put_frame_cnt);
 	if ((rec_dum_frame[dump_frame_count - 1] - rec_dum_frame[0] + 1) == dump_num)
-		pr_info("dump_num:%u start:%u end:%u continuous ok\n", dump_num,
+		pr_info("kernel dump %u buffer start:%u end:%u continuous ok\n", dump_num,
 			rec_dum_frame[0], rec_dum_frame[dump_frame_count - 1]);
-	else
-		pr_info("dump_num:%u start:%u end:%u not continuous\n", dump_num,
-			rec_dum_frame[0], rec_dum_frame[dump_frame_count - 1]);
+
 	filp_close(filp, NULL);
 	kfree(rec_dum_frame);
 	rec_dum_frame = NULL;
+	return;
+error:
+	pr_info("kernel dump more buffer error: %d\n", ret);
+	return;
 #endif
 }
 
@@ -1363,28 +1298,29 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 	int highmem_flag;
 	unsigned long high_addr;
 	unsigned long phys;
+	int ret = 0;
 
 	if (devp->mem_protected) {
-		pr_err("can not capture picture in secure mode, return directly\n");
-		return;
+		ret = -1;
+		goto error;
 	}
 
 	if ((devp->cma_config_flag & 0x1) &&
 	    devp->cma_mem_alloc == 0) {
-		pr_info("%s:no cma alloc mem!!!\n", __func__);
-		return;
+		ret = -2;
+		goto error;
 	}
 	pr_info("cma_config_flag:0x%x\n", devp->cma_config_flag);
 	filp = filp_open(path, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR_OR_NULL(filp)) {
-		pr_info("create %s error or filp is NULL.\n", path);
-		return;
+		ret = -3;
+		goto error;
 	}
 
 	if (buf_num >= devp->canvas_max_num) {
 		filp_close(filp, NULL);
-		pr_info("buf_num > canvas_max_num, vdin exit dump\n");
-		return;
+		ret = -4;
+		goto error;
 	}
 
 	if (devp->cma_config_flag & 0x100)
@@ -1402,7 +1338,7 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 		count = devp->canvas_h;
 
 	if (highmem_flag == 0) {
-		pr_info("low mem area: one line size (%d, active:%d),vf_mem_start[%d]:%lx\n",
+		pr_debug("low mem area: one line size (%d, active:%d),vf_mem_start[%d]:%lx\n",
 			devp->canvas_w, devp->canvas_active_w, buf_num,
 			devp->vf_mem_start[buf_num]);
 		if (devp->cma_config_flag & 0x1)
@@ -1423,10 +1359,10 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 			buf += devp->canvas_w;
 		}
 		/*kernel_write(filp, buf, devp->canvas_max_size, &pos);*/
-		pr_info("write buffer %2d of %2u  to %s.offset=%d\n",
+		pr_debug("write buffer %2d of %2u  to %s.offset=%d\n",
 			buf_num, devp->canvas_max_num, path, offset);
 	} else {
-		pr_info("high mem area: one line size (%d, active:%d)\n",
+		pr_debug("high mem area: one line size (%d, active:%d)\n",
 			devp->canvas_w, devp->canvas_active_w);
 		span = devp->canvas_active_w;
 		phys = devp->vf_mem_start[buf_num];
@@ -1450,10 +1386,18 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 			}
 			vdin_unmap_phyaddr(buf);
 		}
-		pr_info("high-mem write buffer %2d of %2u to %s.\n",
+		pr_debug("high-mem write buffer %2d of %2u to %s.\n",
 			buf_num, devp->canvas_max_num, path);
 	}
+	pr_info("kernel dump one vdin%d mif ok %dx%d(%d) %s %d bit\n",
+			devp->index, devp->curr_wr_vfe->vf.width,
+			devp->curr_wr_vfe->vf.height, devp->canvas_w,
+			vdin_get_dst_fmt_str(devp->format_convert), devp->source_bitdepth_dw);
 	filp_close(filp, NULL);
+	return;
+error:
+	pr_info("kernel dump one buffer error: %d\n", ret);
+	return;
 #endif
 }
 
@@ -1471,21 +1415,22 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 	int highmem_flag;
 	void *buf = NULL;
 	void *vfbuf[VDIN_CANVAS_MAX_CNT];
+	int ret = 0;
 
 	if (devp->mem_protected) {
-		pr_err("can not capture picture in secure mode, return directly\n");
-		return;
+		ret = -1;
+		goto error;
 	}
 
 	if (devp->cma_mem_alloc == 0) {
-		pr_info("%s:no cma alloc mem!!!\n", __func__);
-		return;
+		ret = -2;
+		goto error;
 	}
 
 	filp = filp_open(path, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR_OR_NULL(filp)) {
-		pr_info("create %s error or filp is NULL.\n", path);
-		return;
+		ret = -3;
+		goto error;
 	}
 
 	if (vdin_is_convert_to_nv21(devp->format_convert))
@@ -1502,10 +1447,10 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 		highmem_flag = PageHighMem(phys_to_page(devp->vf_mem_start[0]));
 	else
 		highmem_flag = PageHighMem(phys_to_page(devp->mem_start));
-	pr_info("cma_config_flag:0x%x\n", devp->cma_config_flag);
+
 	if (highmem_flag == 0) {
 		/*low mem area*/
-		pr_info("low mem area: one line size (%d, active:%d)\n",
+		pr_debug("low mem area: one line size (%d, active:%d)\n",
 			devp->canvas_w, devp->canvas_active_w);
 		for (i = 0; i < devp->canvas_max_num; i++) {
 			pos = mem_size * i;
@@ -1532,12 +1477,12 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 					buf += devp->canvas_w;
 				}
 			}
-			pr_info("write buffer %2d of %2u to %s.\n",
+			pr_debug("write buffer %2d of %2u to %s.\n",
 				i, devp->canvas_max_num, path);
 		}
 	} else {
 		/*high mem area*/
-		pr_info("high mem area: one line size (%d, active:%d)\n",
+		pr_debug("high mem area: one line size (%d, active:%d)\n",
 			devp->canvas_w, devp->canvas_active_w);
 		span = devp->canvas_active_w;
 
@@ -1549,8 +1494,8 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 				buf = vdin_vmap(high_addr, span);
 				if (!buf) {
 					filp_close(filp, NULL);
-					pr_info("vdin_vmap error\n");
-					return;
+					ret = -4;
+					goto error;
 				}
 
 				vdin_dma_flush(devp, buf, span,
@@ -1558,11 +1503,19 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 				kernel_write(filp, buf, span, &pos);
 				vdin_unmap_phyaddr(buf);
 			}
-			pr_info("high-mem write buffer %2d of %2u to %s.\n",
+			pr_debug("high-mem write buffer %2d of %2u to %s.\n",
 				i, devp->canvas_max_num, path);
 		}
 	}
+	pr_info("kernel dump vdin%d mif ok %dx%d(%d) %s %d bit\n",
+			devp->index, devp->curr_wr_vfe->vf.width,
+			devp->curr_wr_vfe->vf.height, devp->canvas_w,
+			vdin_get_dst_fmt_str(devp->format_convert), devp->source_bitdepth_dw);
 	filp_close(filp, NULL);
+	return;
+error:
+	pr_info("kernel dump more buffer error: %d\n", ret);
+	return;
 #endif
 }
 
@@ -1573,24 +1526,30 @@ static void dump_other_mem(struct vdin_dev_s *devp, char *path,
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	void *buf = NULL;
+	int ret = 0;
 
 	if (devp->mem_protected) {
-		pr_err("can not capture picture in secure mode, return directly\n");
-		return;
+		ret = -1;
+		goto error;
 	}
 
 	filp = filp_open(path, O_RDWR | O_CREAT, 0666);
 
 	if (IS_ERR_OR_NULL(filp)) {
-		pr_info("create %s error or filp is NULL.\n", path);
-		return;
+		ret = -2;
+		goto error;
 	}
 	buf = phys_to_virt(start);
 	vfs_write(filp, buf, offset, &pos);
-	pr_info("write from 0x%x to 0x%x to %s.\n",
+	pr_info("kernel dump mif from 0x%x to 0x%x to %s.\n",
 		start, start + offset, path);
 	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
+	return;
+error:
+	pr_info("kernel dump mif from 0x%x to 0x%x error:%d\n",
+		start, start + offset, ret);
+	return;
 #endif
 }
 
@@ -1611,18 +1570,20 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	unsigned int span = 0;
 	unsigned int remain = 0;
 	unsigned int count = 0;
-	unsigned int j = 0;
+	unsigned long j = 0;
 	void *virt_buf = NULL;
 	unsigned char buff[K_PATH_BUFF_LENGTH];
+	int ret = 0;
+
 	if (buf_num >= devp->canvas_max_num) {
-		pr_info("%s: param error", __func__);
-		return;
+		ret = -1;
+		goto error;
 	}
 
 	if ((devp->cma_config_flag & 0x1) &&
 	    devp->cma_mem_alloc == 0) {
-		pr_info("%s:no cma alloc mem!!!\n", __func__);
-		return;
+		ret = -2;
+		goto error;
 	}
 
 	highmem_flag = PageHighMem(phys_to_page(devp->afbce_info->fm_body_paddr[0]));
@@ -1675,14 +1636,14 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 		//strcpy(buff, path);
 		snprintf(buff, sizeof(buff), "%s/img_%03d", path, buf_num);
 	} else {
-		pr_info("err path len\n");
-		return;
+		ret = -3;
+		goto error;
 	}
 	strcat(buff, "header.bin");
 	filp = filp_open(buff, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR_OR_NULL(filp)) {
-		pr_info("create %s header error or filp is NULL.\n", buff);
-		return;
+		ret = -4;
+		goto error;
 	}
 
 	vdin_dma_flush(devp, buf_head,
@@ -1691,7 +1652,7 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	kernel_write(filp, buf_head, devp->afbce_info->frame_head_size, &pos);
 	if (highmem_flag)
 		vdin_unmap_phyaddr(buf_head);
-	pr_info("write buffer %2d of %2u head to %s.\n",
+	pr_debug("write buffer %2d of %2u head to %s.\n",
 		buf_num, devp->canvas_max_num, buff);
 	filp_close(filp, NULL);
 
@@ -1702,8 +1663,8 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	strcat(buff, "table.bin");
 	filp = filp_open(buff, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR_OR_NULL(filp)) {
-		pr_info("create %s table error or filp is NULL.\n", buff);
-		return;
+		ret = -6;
+		goto error;
 	}
 	vdin_dma_flush(devp, buf_table,
 		       devp->afbce_info->frame_table_size,
@@ -1711,7 +1672,7 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	kernel_write(filp, buf_table, devp->afbce_info->frame_table_size, &pos);
 	if (highmem_flag)
 		vdin_unmap_phyaddr(buf_table);
-	pr_info("write buffer %2d of %2u table to %s.\n",
+	pr_debug("write buffer %2d of %2u table to %s.\n",
 		buf_num, devp->canvas_max_num, buff);
 	filp_close(filp, NULL);
 
@@ -1722,8 +1683,8 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	strcat(buff, "body.bin");
 	filp = filp_open(buff, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR_OR_NULL(filp)) {
-		pr_info("create %s body error or filp is NULL.\n", buff);
-		return;
+		ret = -7;
+		goto error;
 	}
 	if (highmem_flag == 0) {
 		if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
@@ -1743,8 +1704,8 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 			virt_buf = vdin_vmap(high_addr, span);
 			if (!virt_buf) {
 				filp_close(filp, NULL);
-				pr_info("vdin_vmap error\n");
-				return;
+				ret = -8;
+				goto error;
 			}
 
 			vdin_dma_flush(devp, virt_buf, span, DMA_FROM_DEVICE);
@@ -1758,8 +1719,8 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 			virt_buf = vdin_vmap(high_addr, remain);
 			if (!virt_buf) {
 				filp_close(filp, NULL);
-				pr_info("vdin_vmap1 error\n");
-				return;
+				ret = -9;
+				goto error;
 			}
 
 			vdin_dma_flush(devp, virt_buf, remain, DMA_FROM_DEVICE);
@@ -1767,10 +1728,18 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 			vdin_unmap_phyaddr(virt_buf);
 		}
 	}
-	pr_info("write buffer %2d of %2u body to %s.\n",
+	pr_debug("write buffer %2d of %2u body to %s.\n",
 		buf_num, devp->canvas_max_num, buff);
 	filp_close(filp, NULL);
-	pr_info("%s done,write buffer %2d\n", __func__, buf_num);
+
+	pr_info("kernel dump vdin%d afbc buffer ok %dx%d %s %d bit en:0x%x 0x%lx sct:%d\n",
+		devp->index, devp->h_active, devp->v_active,
+		vdin_get_dst_fmt_str(devp->format_convert), devp->source_bitdepth,
+		devp->afbce_flag, devp->afbce_info->fm_body_paddr[0], devp->mem_type);
+	return;
+error:
+	pr_info("kernel dump afbc buffer error: %d\n", ret);
+	return;
 #endif
 }
 
@@ -1830,12 +1799,13 @@ void vdin_dump_vs_info(struct vdin_dev_s *devp)
 
 	if (devp->unreliable_vs_cnt > 10)
 		cnt = 10;
-	pr_info("unreliable_vs_cnt:%d\n", devp->unreliable_vs_cnt);
+
 	if (devp->unreliable_vs_cnt > 0) {
 		for (devp->unreliable_vs_idx = 0; devp->unreliable_vs_idx < cnt;
 		     devp->unreliable_vs_idx++)
-			pr_info("err t:%d\n",
-				devp->unreliable_vs_time[devp->unreliable_vs_idx]);
+			pr_info("unreliable_vs_time %d [%d / %d]\n",
+				devp->unreliable_vs_time[devp->unreliable_vs_idx],
+				devp->unreliable_vs_idx, devp->unreliable_vs_cnt);
 	}
 }
 #endif
@@ -2235,207 +2205,78 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 /*same as vdin_dump_state*/
 static int seq_file_vdin_state_show(struct seq_file *seq, void *v)
 {
-	struct vdin_dev_s *devp;
-	unsigned int i;
-	struct vframe_s *vf;
-	struct tvin_parm_s *cur_parm;
-	struct vf_pool *vfp;
-
-	devp = vdin_get_dev(0);//todo
-	vf = &devp->curr_wr_vfe->vf;
-	cur_parm = &devp->parm;
-	vfp = devp->vfp;
-
-	seq_printf(seq, "h_active = %d, v_active = %d\n",
-		   devp->h_active, devp->v_active);
-	seq_printf(seq, "canvas_w = %d, canvas_h = %d\n",
-		   devp->canvas_w, devp->canvas_h);
-	seq_printf(seq, "canvas_align_w = %d, canvas_active_w = %d\n",
-		   devp->canvas_align_w, devp->canvas_active_w);
-	if (devp->cma_config_en != 1 || !(devp->cma_config_flag & 0x1))
-		seq_printf(seq, "mem_start = %ld, mem_size = %d\n",
-			   devp->mem_start, devp->mem_size);
-	else
-		for (i = 0; i < devp->canvas_max_num; i++)
-			seq_printf(seq, "buf[%d]mem_start = %ld, mem_size = %d\n",
-				   i, devp->vf_mem_start[i], devp->vf_mem_size);
-	seq_printf(seq, "signal format	= %s(0x%x)\n",
-		   tvin_sig_fmt_str(devp->parm.info.fmt),
-		   devp->parm.info.fmt);
-	seq_printf(seq, "trans_fmt	= %s(%d)\n",
-		   tvin_trans_fmt_str(devp->prop.trans_fmt),
-		   devp->prop.trans_fmt);
-	seq_printf(seq, "color_format	= %s(%d)\n",
-		   tvin_color_fmt_str(devp->prop.color_format),
-		   devp->prop.color_format);
-	seq_printf(seq, "format_convert = %s(%d)\n",
-		   vdin_fmt_convert_str(devp->format_convert),
-		   devp->format_convert);
-	seq_printf(seq, "aspect_ratio	= %s(%d)\n decimation_ratio/dvi	= %u / %u\n",
-		   tvin_aspect_ratio_str(devp->prop.aspect_ratio),
-		   devp->prop.aspect_ratio,
-		   devp->prop.decimation_ratio, devp->prop.dvi_info);
-	seq_printf(seq, "[pre->cur]:hs(%d->%d),he(%d->%d),vs(%d->%d),ve(%d->%d)\n",
-		   devp->prop.pre_hs, devp->prop.hs,
-		   devp->prop.pre_he, devp->prop.he,
-		   devp->prop.pre_vs, devp->prop.vs,
-		   devp->prop.pre_ve, devp->prop.ve);
-	seq_printf(seq, "frontend_fps:%d parm fps:%d\n", devp->prop.fps, devp->parm.info.fps);
-	seq_printf(seq, "frontend_colordepth:%d\n", devp->prop.colordepth);
-	seq_printf(seq, "source_bitdepth:%d\n", devp->source_bitdepth);
-	seq_printf(seq, "color_depth_config:0x%x\n", devp->color_depth_config);
-	seq_printf(seq, "full_pack:%d\n", devp->full_pack);
-	seq_printf(seq, "force_malloc_yuv_422_to_444:%d\n", devp->force_malloc_yuv_422_to_444);
-	seq_printf(seq, "color_depth_support:0x%x\n",
-		   devp->color_depth_support);
-	seq_printf(seq, "cma_flag:0x%x\n", devp->cma_config_flag);
-	seq_printf(seq, "auto_cut_window_en:%d\n", devp->auto_cut_window_en);
-	seq_printf(seq, "cma_mem_alloc:%d\n", devp->cma_mem_alloc);
-	seq_printf(seq, "cma_mem_size:0x%x\n", devp->cma_mem_size);
-	seq_printf(seq, "cma_mem_mode:%d\n", devp->cma_mem_mode);
-	seq_printf(seq, "force_yuv444_malloc:%d\n", devp->force_yuv444_malloc);
-	vdin_dump_vf_state_seq(devp->vfp, seq);
-	if (vf) {
-		seq_printf(seq, "current vframe index(%u):\n", vf->index);
-		seq_printf(seq, "\t buf(w%u, h%u),type(0x%x),flag(0x%x), duration(%d),\n",
-			    vf->width, vf->height, vf->type, vf->flag, vf->duration);
-		seq_printf(seq, "\t ratio_control(0x%x).\n", vf->ratio_control);
-		seq_printf(seq, "\t trans fmt %u, left_start_x %u,\n",
-			   vf->trans_fmt, vf->left_eye.start_x);
-		seq_printf(seq, "\t right_start_x %u, width_x %u\n",
-			   vf->right_eye.start_x, vf->left_eye.width);
-		seq_printf(seq, "\t left_start_y %u, right_start_y %u, height_y %u\n",
-			   vf->left_eye.start_y, vf->right_eye.start_y,
-			   vf->left_eye.height);
-	}
-	if (vfp) {
-		seq_printf(seq, "skip_vf_num:%d\n", vfp->skip_vf_num);
-		seq_puts(seq, "**************disp_mode**************\n");
-		for (i = 0; i < VFRAME_DISP_MAX_NUM; i++)
-			seq_printf(seq, "[%d]:%-5d\n", i, vfp->disp_mode[i]);
-		seq_puts(seq, "\n**************disp_index**************\n");
-		for (i = 0; i < VFRAME_DISP_MAX_NUM; i++)
-			seq_printf(seq, "[%d]:%-5d\n", i, vfp->disp_index[i]);
-	}
-	seq_puts(seq, "\n current parameters:\n");
-	seq_printf(seq, "\t frontend of vdin index :  %d, 3d flag : 0x%x\n",
-		   cur_parm->index,  cur_parm->flag);
-	seq_printf(seq, "\t reserved 0x%x, devp->flags:0x%x\n",
-		   cur_parm->reserved, devp->flags);
-	seq_printf(seq, "max buffer num %u, msr_clk_val:%d.\n",
-		   devp->canvas_max_num, devp->msr_clk_val);
-	seq_printf(seq, "canvas buffer size %u, rdma_enable: %d.\n",
-		   devp->canvas_max_size, devp->rdma_enable);
-	seq_printf(seq, "range(%d),csc_cfg:0x%x,urgent_en:%d\n",
-		   devp->prop.color_fmt_range,
-		   devp->csc_cfg, devp->dts_config.urgent_en);
-	seq_printf(seq, "black_bar_enable: %d, hist_bar_enable: %d, use_frame_rate: %d\n ",
-		   devp->black_bar_enable,
-		   devp->hist_bar_enable, devp->use_frame_rate);
-	seq_printf(seq, "vdin_irq_flag: %d, vdin_rest_flag: %d, irq_cnt: %d, rdma_irq_cnt: %d\n",
-		   devp->vdin_irq_flag, devp->vdin_reset_flag,
-		   devp->irq_cnt, devp->rdma_irq_cnt);
-	seq_printf(seq, "vpu crash irq cnt: %d\n", devp->vpu_crash_cnt);
-	seq_printf(seq, "rdma_enable :  %d\n", devp->rdma_enable);
-	seq_printf(seq, "dolby_input :  %d\n", devp->dv.dolby_input);
-	if (devp->cma_config_en != 1 || !(devp->cma_config_flag & 0x100))
-		seq_printf(seq, "dolby_mem_start = %ld, dolby_mem_size = %d\n",
-			   (devp->mem_start +
-			    devp->mem_size -
-			    devp->canvas_max_num * dolby_size_byte),
-			   dolby_size_byte);
-	else
-		for (i = 0; i < devp->canvas_max_num; i++)
-			seq_printf(seq, "dolby_mem_start[%d] = %ld, dolby_mem_size = %d\n",
-				   i, (devp->vf_mem_start[i] + devp->vf_mem_size -
-				   dolby_size_byte), dolby_size_byte);
-	for (i = 0; i < devp->canvas_max_num; i++) {
-		seq_printf(seq, "dv_mem(%d):0x%x\n",
-			   devp->vfp->dv_buf_size[i],
-			   devp->vfp->dv_buf_mem[i]);
-	}
-	seq_printf(seq, "dv_flag:%d;dv_config:%d,dolby_vision:%d\n",
-		   devp->dv.dv_flag, devp->dv.dv_config,
-		   devp->prop.dolby_vision);
-	seq_printf(seq, "size of struct vdin_dev_s: %d\n",
-		   devp->vdin_dev_ssize);
-	seq_printf(seq, "Vdin driver version :  %s\n", VDIN_VER);
-	pr_info("Vdin driver version_V1 :  %s\n", VDIN_VER_V1);
-
 	return 0;
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void vdin_dump_count(struct vdin_dev_s *devp)
 {
-	pr_info("irq id:%d, cnt: %d\n", devp->irq, devp->irq_cnt);
-	pr_info("vpu crash irq id:%d, cnt:%d\n", devp->vpu_crash_irq, devp->vpu_crash_cnt);
-	pr_info("write done irq id:%d, cnt:%d\n", devp->wr_done_irq, devp->stats.wr_done_irq_cnt);
-	pr_info("vdin2_meta_wr_done_irq id:%d, cnt:%d\n",
-		devp->vdin2_meta_wr_done_irq, devp->stats.meta_wr_done_irq_cnt);
-	pr_info("check:%d,afbce[%d %d],wmif[%d %d]\n",
-		devp->stats.write_done_check,
+	pr_info("vdin%d check:%d, afbce[%d %d], mif[%d %d]\n",
+		devp->index, devp->stats.write_done_check,
 		devp->stats.afbce_normal_cnt, devp->stats.afbce_abnormal_cnt,
 		devp->stats.wmif_normal_cnt, devp->stats.wmif_abnormal_cnt);
-	pr_info("put_frame_cnt:%d\n", devp->put_frame_cnt);
-	pr_info("frame_cnt:%d\n", devp->frame_cnt);
-	pr_info("ignore_frames:%d\n", devp->ignore_frames);
-	pr_info("frame_drop_num:%d\n", devp->frame_drop_num);
-	pr_info("vdin_drop_cnt: %d\n", devp->vdin_drop_cnt);
-	pr_info("vdin_drop_num:%d\n", devp->vdin_drop_num);
-	pr_info("rdma_manual_cnt: %d,rdma_undone_cnt: %d\n",
+	pr_info("irq:%d(%d), vpu_irq:%d(%d), wr_done:%d(%d), vdin2_wr_done:%d(%d)\n",
+		devp->irq, devp->irq_cnt, devp->vpu_crash_irq, devp->vpu_crash_cnt,
+		devp->wr_done_irq, devp->stats.wr_done_irq_cnt,
+		devp->vdin2_meta_wr_done_irq, devp->stats.meta_wr_done_irq_cnt);
+	pr_info("put_frame:%d, frame:%d, ignore:%d\n",
+		devp->put_frame_cnt, devp->frame_cnt, devp->ignore_frames);
+	pr_info("frame_drop:%d, drop_cnt:%d, drop_num:%d\n",
+		devp->frame_drop_num, devp->vdin_drop_cnt, devp->vdin_drop_num);
+	pr_info("rdma_manual_cnt:%d, rdma_undone_cnt:%d\n",
 		devp->stats.rdma_manual_cnt, devp->rdma_undone_cnt);
-	pr_info("dbg_fr_ctl:%d,drop_ctl_cnt:%d\n", devp->dbg_fr_ctl, devp->vdin_drop_ctl_cnt);
+	pr_info("dbg_fr_ctl:%d, drop_ctl_cnt:%d\n", devp->dbg_fr_ctl, devp->vdin_drop_ctl_cnt);
 
 	vdin_dump_vs_info(devp);
 }
 
 static void vdin_dump_dts_config(struct vdin_dev_s *devp)
 {
-	pr_info("------dts config start------\n");
-	pr_info("chk_write_done_en: %d\n", devp->dts_config.chk_write_done_en);
+	pr_info("vdin%d chk_wr_done_en: %d\n", devp->index, devp->dts_config.chk_write_done_en);
 	pr_info("urgent_en: %d\n", devp->dts_config.urgent_en);
 	pr_info("v4l_en:%d\n", devp->dts_config.v4l_en);
-	pr_info("afbce_flag_cfg:%d\n", devp->dts_config.afbce_flag_cfg);
 	pr_info("keystone_sel:%d\n", devp->dts_config.keystone_sel);
-	pr_info("max_buf_num:%d\n", devp->dts_config.max_buf_num);
-	pr_info("min_buf_num:%d\n", devp->dts_config.min_buf_num);
+	pr_info("max_buf_num:%d, min_buf_num:%d\n",
+		devp->dts_config.max_buf_num, devp->dts_config.min_buf_num);
 	pr_info("cm_enable:%d\n", devp->dts_config.cm_enable);
 	pr_info("vdin_det_idle_wait:%d\n", devp->dts_config.vdin_det_idle_wait);
-	pr_info("vdin_get_prop_in_vs_en:%d\n", devp->dts_config.vdin_get_prop_in_vs_en);
-	pr_info("vdin_get_prop_in_sm_en:%d\n", devp->dts_config.vdin_get_prop_in_sm_en);
+	pr_info("vs_en:%d, sm_en:%d\n",
+		devp->dts_config.vdin_get_prop_in_vs_en, devp->dts_config.vdin_get_prop_in_sm_en);
 	pr_info("canvas_config_mode:%d\n", devp->dts_config.canvas_config_mode);
 	pr_info("viu_hw_irq:%d\n", devp->dts_config.viu_hw_irq);
-	pr_info("game_mode_switch_frames:%d\n", devp->dts_config.game_mode_switch_frames);
-	pr_info("game_mode_phlock_switch_frames:%d\n",
+	pr_info("game_mode switch_frames:%d %d\n",
+		devp->dts_config.game_mode_switch_frames,
 		devp->dts_config.game_mode_phlock_switch_frames);
 	pr_info("vdin_vrr_switch_cnt:%d\n", devp->dts_config.vdin_vrr_switch_cnt);
 	pr_info("sct_cache_size:%d\n", devp->dts_config.sct_cache_size);
-	pr_info("vdin_re_config:%d\n", devp->dts_config.vdin_re_config);
-	pr_info("vdin_re_config:%d\n", devp->dts_config.vdin_re_cfg_drop_cnt);
+	pr_info("re_config:%d re_cfg_drop:%d\n",
+		devp->dts_config.vdin_re_config, devp->dts_config.vdin_re_cfg_drop_cnt);
 	pr_info("back_nosig_max_cnt:%d\n", devp->dts_config.back_nosig_max_cnt);
-	pr_info("atv_unstable_in_cnt:%d\n", devp->dts_config.atv_unstable_in_cnt);
-	pr_info("atv_unstable_out_cnt:%d\n", devp->dts_config.atv_unstable_out_cnt);
-	pr_info("hdmi_unstable_out_cnt:%d\n", devp->dts_config.hdmi_unstable_out_cnt);
-	pr_info("hdmi_stable_out_cnt:%d\n", devp->dts_config.hdmi_stable_out_cnt);
-	pr_info("atv_stable_out_cnt:%d\n", devp->dts_config.atv_stable_out_cnt);
-	pr_info("atv_stable_fmt_check_cnt:%d\n", devp->dts_config.atv_stable_fmt_check_cnt);
-	pr_info("atv_prestable_out_cnt:%d\n", devp->dts_config.atv_prestable_out_cnt);
-	pr_info("other_stable_out_cnt:%d\n", devp->dts_config.other_stable_out_cnt);
-	pr_info("other_unstable_out_cnt:%d\n", devp->dts_config.other_unstable_out_cnt);
-	pr_info("other_unstable_in_cnt:%d\n", devp->dts_config.other_unstable_in_cnt);
-	pr_info("nosig_in_cnt:%d\n", devp->dts_config.nosig_in_cnt);
-	pr_info("nosig2_unstable_cnt:%d\n", devp->dts_config.nosig2_unstable_cnt);
-	pr_info("vdin_dv_chg_cnt:%d\n", devp->dts_config.vdin_dv_chg_cnt);
-	pr_info("vdin_hdr_chg_cnt:%d\n", devp->dts_config.vdin_hdr_chg_cnt);
-	pr_info("vdin_vrr_chg_cnt:%d\n", devp->dts_config.vdin_vrr_chg_cnt);
-	pr_info("vdin_qms_chg_cnt:%d\n", devp->dts_config.vdin_qms_chg_cnt);
-	pr_info("------dts config end------\n");
+	pr_info("atv unstable_cnt in:%d, out:%d %d\n",
+		devp->dts_config.atv_unstable_in_cnt, devp->dts_config.atv_unstable_out_cnt,
+		devp->dts_config.atv_stable_out_cnt);
+	pr_info("hdmi unstable_cnt:%d stable cnt:%d\n", devp->dts_config.hdmi_unstable_out_cnt,
+		devp->dts_config.hdmi_stable_out_cnt);
+	pr_info("atv stable cnt out:%d check:%d\n",
+		devp->dts_config.atv_stable_out_cnt, devp->dts_config.atv_stable_fmt_check_cnt);
+	pr_info("atv prestable cnt out:%d\n", devp->dts_config.atv_prestable_out_cnt);
+	pr_info("other stable cnt out:%d\n", devp->dts_config.other_stable_out_cnt);
+	pr_info("other unstable cnt in:%d out:%d\n",
+		devp->dts_config.other_unstable_in_cnt, devp->dts_config.other_unstable_out_cnt);
+	pr_info("nosig_cnt:%d, nosig2_cnt:%d\n",
+		devp->dts_config.nosig_in_cnt, devp->dts_config.nosig2_unstable_cnt);
+	pr_info("vdin_chg_cnt dv:%d, hdr:%d, vrr:%d, qms:%d\n",
+		devp->dts_config.vdin_dv_chg_cnt, devp->dts_config.vdin_hdr_chg_cnt,
+		devp->dts_config.vdin_vrr_chg_cnt, devp->dts_config.vdin_qms_chg_cnt);
 }
 
 static void vdin_dump_debug_config(struct vdin_dev_s *devp)
 {
-	pr_info("------debug start------\n");
+	pr_info("vdin%d dbg_en:0x%x, monitor:0x%x ctl:0x%x, sm:0x%x t:%d\n",
+		devp->index, devp->debug.vdin_dbg_en, devp->debug.vdin_isr_monitor,
+		devp->debug.vdin_ctl_dbg, devp->debug.sm_debug_enable,
+		devp->debug.vdin_time_en);
+	pr_info("sct_print_ctl:%#x\n", devp->debug.sct_print_ctl);
 	pr_info("cutwin:%d %d %d %d\n", devp->debug.cutwin.hs, devp->debug.cutwin.he,
 		devp->debug.cutwin.vs, devp->debug.cutwin.ve);
 	pr_info("vdin_recycle_num:%d\n", devp->debug.vdin_recycle_num);
@@ -2443,9 +2284,8 @@ static void vdin_dump_debug_config(struct vdin_dev_s *devp)
 	pr_info("dbg_pattern:%d\n", devp->debug.dbg_pattern);
 	pr_info("dbg_sct_ctl:%d\n", devp->debug.dbg_sct_ctl);
 	pr_info("dbg_de_interlanced_ctl:%d\n", devp->debug.dbg_de_interlanced_ctl);
-	pr_info("scaling4h:%d\n", devp->debug.scaling4h);
-	pr_info("scaling4w:%d\n", devp->debug.scaling4w);
-	pr_info("dest_cfmt:%d\n", devp->debug.dest_cfmt);
+	pr_info("scaler:%dx%d, dest_fmt:%d\n",
+		devp->debug.scaling4h, devp->debug.scaling4w, devp->debug.dest_cfmt);
 	pr_info("vdin1_line_buff:%d\n", devp->debug.vdin1_line_buff);
 	pr_info("manual_change_csc:%d\n", devp->debug.manual_change_csc);
 	pr_info("change_get_drm:%d\n", devp->debug.change_get_drm);
@@ -2453,36 +2293,27 @@ static void vdin_dump_debug_config(struct vdin_dev_s *devp)
 	pr_info("vdin1_set_hdr_bypass:%d\n", devp->debug.vdin1_set_hdr_bypass);
 	pr_info("dbg_force_shrink_en:%d\n", devp->debug.dbg_force_shrink_en);
 	pr_info("bypass_tunnel:%d\n", devp->bypass_tunnel);
-	pr_info("pause_mif_dec:%d\n", devp->debug.pause_mif_dec);
-	pr_info("pause_afbce_dec:%d\n", devp->debug.pause_afbce_dec);
+	pr_info("pause_dec mif:%d afbc:%d\n",
+		devp->debug.pause_mif_dec, devp->debug.pause_afbce_dec);
 	pr_info("bypass_filter_vsync:%d\n", devp->debug.bypass_filter_vsync);
-	pr_info("sar_width:%d\n", devp->debug.sar_width);
-	pr_info("sar_height:%d\n", devp->debug.sar_height);
+	pr_info("sar: %dx%d\n", devp->debug.sar_width, devp->debug.sar_height);
 	pr_info("ratio_control:%d\n", devp->debug.ratio_control);
 	pr_info("dbg_rw_reg_en:%d\n", devp->debug.dbg_rw_reg_en);
 	pr_info("rgb_info_enable:%d\n", devp->debug.rgb_info_enable);
 	pr_info("invert_top_bot:%d\n", devp->debug.invert_top_bot);
 	pr_info("dv_dbg_log:%#x, dv_dbg_log_du=%#x, dv_mask=%#x\n",
 		devp->debug.dv_dbg_log, devp->debug.dv_dbg_log_du, devp->dts_config.dv_mask);
-	pr_info("vdin_ctl_dbg:%#x\n", devp->debug.vdin_ctl_dbg);
-	pr_info("vdin_isr_monitor:%#x\n", devp->debug.vdin_isr_monitor);
-	pr_info("vdin_dbg_en:%#x\n", devp->debug.vdin_dbg_en);
 	pr_info("vdin_delay_num:%d\n", devp->debug.vdin_delay_num);
-	pr_info("vdin_time_en:%d\n", devp->debug.vdin_time_en);
 	pr_info("vdin_frame_work_mode:%d\n", devp->debug.vdin_frame_work_mode);
-	pr_info("sct_print_ctl:%#x\n", devp->debug.sct_print_ctl);
 	pr_info("sleep_time:%d\n", devp->debug.sleep_time);
-	pr_info("sm_debug_enable:%#x\n", devp->debug.sm_debug_enable);
-	pr_info("------debug end------\n");
 }
 
 static void vdin_dump_histgram(struct vdin_dev_s *devp)
 {
 	uint i;
 
-	pr_info("%s:\n", __func__);
 	for (i = 0; i < 64; i++) {
-		pr_info("[%d]0x%-8x\t", i, devp->parm.histgram[i]);
+		pr_info("dump hist [%d]0x%-8x\t", i, devp->parm.histgram[i]);
 		if ((i + 1) % 8 == 0)
 			pr_info("\n");
 	}
@@ -2494,7 +2325,8 @@ static void vdin_write_afbce_mem(struct vdin_dev_s *devp, char *type,
 {
 #ifdef CONFIG_AMLOGIC_ENABLE_VIDEO_PIPELINE_DUMP_DATA
 	char md_path_head[100], md_path_body[100];
-	unsigned int i, j;
+	unsigned int i;
+	unsigned long j;
 	int highmem_flag = 0;
 	unsigned int size = 0;
 	unsigned int span = 0;
@@ -2548,16 +2380,14 @@ static void vdin_write_afbce_mem(struct vdin_dev_s *devp, char *type,
 
 	highmem_flag = PageHighMem(phys_to_page(devp->afbce_info->fm_body_paddr[0]));
 	if (highmem_flag == 0) {
-		pr_info("low mem area\n");
 		head_dts =
 			codec_mm_phys_to_virt(devp->afbce_info->fm_head_paddr[i]);
 	} else {
-		pr_info("high mem area\n");
 		head_dts = vdin_vmap(devp->afbce_info->fm_head_paddr[i],
 				     devp->afbce_info->frame_head_size);
 	}
 
-	pr_info("head bin file path = %s\n", md_path_head);
+	pr_info("highmem=%d head bin file path = %s\n", highmem_flag, md_path_head);
 	filp = filp_open(md_path_head, O_RDONLY, 0);
 	if (IS_ERR_OR_NULL(filp)) {
 		pr_info("read %s error or filp is NULL.\n", md_path_head);
@@ -2640,7 +2470,6 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 		}
 	}
 
-	pr_info("bin file path = %s\n", path);
 	filp = filp_open(path, O_RDONLY, 0);
 	if (IS_ERR_OR_NULL(filp)) {
 		pr_info("read %s error or filp is NULL.\n", path);
@@ -2650,10 +2479,9 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 			VIDTYPE_VIU_FIELD | VIDTYPE_VIU_422;
 	if (val_type == 1) {
 		devp->curr_wr_vfe->vf.type |= VIDTYPE_INTERLACE_TOP;
-		pr_info("current vframe type is top.\n");
+
 	} else if (val_type == 3) {
 		devp->curr_wr_vfe->vf.type |= VIDTYPE_INTERLACE_BOTTOM;
-		pr_info("current vframe type is bottom.\n");
 	} else {
 		devp->curr_wr_vfe->vf.type |= VIDTYPE_PROGRESSIVE;
 	}
@@ -2679,7 +2507,6 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 		highmem_flag = PageHighMem(phys_to_page(devp->mem_start));
 
 	if (highmem_flag == 0) {
-		pr_info("low mem area,addr:%lx\n", addr);
 		dts = phys_to_virt(addr);
 		for (j = 0; j < devp->canvas_h; j++) {
 			kernel_read(filp, dts + (devp->canvas_w * j),
@@ -2688,7 +2515,6 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 		iounmap(dts);
 		filp_close(filp, NULL);
 	} else {
-		pr_info("high mem area\n");
 		count = devp->canvas_h;
 		span = devp->canvas_active_w;
 		for (j = 0; j < count; j++) {
@@ -2706,7 +2532,6 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 	}
 
 	if (val_type == 8) {
-		pr_info("md file path = %s\n", md_path);
 		md_flip = filp_open(md_path, O_RDONLY, 0);
 		if (IS_ERR_OR_NULL(md_flip)) {
 			pr_info("read %s error or md_flip = NULL.\n", md_path);
@@ -2730,6 +2555,8 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 	devp->curr_wr_vfe = NULL;
 	vf_notify_receiver(devp->name, VFRAME_EVENT_PROVIDER_VFRAME_READY,
 			   NULL);
+	pr_info("path = %s, md_path=%d, highmem=%d, type=%d\n",
+		path, md_path, highmem_flag, val_type);
 #endif
 }
 
@@ -2756,7 +2583,7 @@ static void vdin_write_cont_mem(struct vdin_dev_s *devp, char *type,
 			return;
 		}
 	}
-	pr_info("bin file path = %s\n", path);
+	pr_info("bin file path = %s type = %s\n", path, type);
 	filp = filp_open(path, O_RDONLY, 0);
 	if (IS_ERR_OR_NULL(filp)) {
 		pr_info("read %s error or filp is NULL.\n", path);
@@ -2774,21 +2601,17 @@ static void vdin_write_cont_mem(struct vdin_dev_s *devp, char *type,
 			if (i % 2 == 0) {
 				devp->curr_wr_vfe->vf.type |=
 					VIDTYPE_INTERLACE_TOP;
-				pr_info("current vframe type is top.\n");
 			} else {
 				devp->curr_wr_vfe->vf.type |=
 					VIDTYPE_INTERLACE_BOTTOM;
-				pr_info("current vframe type is bottom.\n");
 			}
 		} else if (!strcmp("bot", type)) {
 			if (i % 2 == 1) {
 				devp->curr_wr_vfe->vf.type |=
 					VIDTYPE_INTERLACE_TOP;
-				pr_info("current vframe type is top.\n");
 			} else {
 				devp->curr_wr_vfe->vf.type |=
 					VIDTYPE_INTERLACE_BOTTOM;
-				pr_info("current vframe type is bottom.\n");
 			}
 		} else {
 			devp->curr_wr_vfe->vf.type |= VIDTYPE_PROGRESSIVE;
@@ -2817,7 +2640,6 @@ static void dump_dolby_metadata(struct vdin_dev_s *devp)
 	unsigned int i, j;
 	char *p;
 
-	pr_info("*****dolby_metadata(%d byte):*****\n", dolby_size_byte);
 	for (i = 0; i < devp->canvas_max_num; i++) {
 		pr_info("*****dolby_metadata(%d)[0x%x](%d byte):*****\n",
 			i, devp->vfp->dv_buf_mem[i], dolby_size_byte);
@@ -2851,10 +2673,9 @@ static void vdin_dump_histgram_ldim(struct vdin_dev_s *devp,
 	/*memcpy(&local_ldim_max[0], &vdin_ldim_max_global[0],
 	 *100*sizeof(unsigned int));
 	 */
-	pr_info("%s:\n", __func__);
 	for (i = 0; i < h_num; i++) {
 		for (j = 0; j < v_num; j++) {
-			pr_info("(%d,%d,%d)\t",
+			pr_info("dump hist local dimming (%d,%d,%d)\t",
 				local_ldim_max[j + i * 10] & 0x3ff,
 				(local_ldim_max[j + i * 10] >> 10) & 0x3ff,
 				(local_ldim_max[j + i * 10] >> 20) & 0x3ff);
@@ -2870,6 +2691,7 @@ static void vdin_write_back_reg(struct vdin_dev_s *devp)
 	if (devp->dtdata->hw_ver == VDIN_HW_T6X) {
 		pr_info("VPU_VIU2VDIN0_HALF_CTRL(0x%x):0x%x\n", 0x272d, R_VCBUS(0x272d));
 		pr_info("VPU_VIU2VDIN0_BUF_SIZE(0x%x):0x%x\n", 0x2737, R_VCBUS(0x2737));
+		pr_info("VPP_WRBAK_HOLD_CTRL(0x%x):0x%x\n", 0x1df4, R_VCBUS(0x1df4));
 	}
 	pr_info("VPU_VIU2VDIN_HDN_CTRL(0x%x):0x%x\n", 0x2780, R_VCBUS(0x2780));
 	pr_info("VPU_VDIN_MISC_CTRL(0x%x):0x%x\n", 0x2782, R_VCBUS(0x2782));
@@ -2881,8 +2703,6 @@ static void vdin_write_back_reg(struct vdin_dev_s *devp)
 	pr_info("VIU2_FRM_CTRL(0x%x):0x%x\n", 0x1a8e, R_VCBUS(0x1a8e));
 	pr_info("VPP_VE_H_V_SIZE(0x%x):0x%x\n", 0x1da4, R_VCBUS(0x1da4));
 	pr_info("VPP_OUT_H_V_SIZE(0x%x):0x%x\n", 0x1da5, R_VCBUS(0x1da5));
-	if (devp->dtdata->hw_ver == VDIN_HW_T6X)
-		pr_info("VPP_WRBAK_HOLD_CTRL(0x%x):0x%x\n", 0x1df4, R_VCBUS(0x1df4));
 	pr_info("VPP_WR_BAK_CTRL(0x%x):0x%x\n", 0x1df9, R_VCBUS(0x1df9));
 	if (R_VCBUS_BIT(0x2783, 0, 6) == 0x20)
 		pr_info("VPP1_WR_BAK_CTRL(0x%x):0x%x\n", 0x5981, R_VCBUS(0x5981));
@@ -2985,7 +2805,6 @@ static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 {
 	unsigned int reg;
 	unsigned int offset = devp->addr_offset;
-
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
 		vdin_dump_regs_s5(devp, size);
@@ -3169,7 +2988,7 @@ void vdin_test_front_end(void)
 	struct tvin_frontend_s *fe = tvin_get_frontend(TVIN_PORT_HDMI0,
 		VDIN_FRONTEND_IDX);
 
-	if (fe->sm_ops && fe->sm_ops->vdin_set_property)
+	if (fe && fe->sm_ops && fe->sm_ops->vdin_set_property)
 		fe->sm_ops->vdin_set_property(fe);
 }
 
@@ -3476,6 +3295,7 @@ static ssize_t attr_store(struct device *dev,
 	struct vdin_dev_s *devp;
 	long val = 0;
 	unsigned int offset;
+	int err = 0;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	ulong flags = 0;
 	struct vdin_hist_s vdin1_hist_temp;
@@ -3487,13 +3307,15 @@ static ssize_t attr_store(struct device *dev,
 
 #endif
 
-	if (!buf)
-		return len;
+	if (!buf) {
+		err = -1;
+		goto error;
+	}
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	devp = dev_get_drvdata(dev);
 	if (!devp->vfp) {
-		pr_info("devp->vfp is NULL\n");
-		return len;
+		err = -2;
+		goto error;
 	}
 	vdin_parse_param(buf_orig, (char **)&parm);
 	offset = devp->addr_offset;
@@ -3501,8 +3323,7 @@ static ssize_t attr_store(struct device *dev,
 		if (devp->cycle)
 			fps = (devp->msr_clk_val +
 			       (devp->cycle >> 3)) / devp->cycle;
-		pr_info("%u f/s\n", fps);
-		pr_info("hdmirx: %u f/s\n", devp->parm.info.fps);
+		pr_info("%u Hz (hdmirx %u Hz)\n", fps, devp->parm.info.fps);
 	} else if (!strcmp(parm[0], "capture")) {
 		if (parm[3]) {
 			unsigned int start = 0, offset = 0;
@@ -3533,11 +3354,10 @@ static ssize_t attr_store(struct device *dev,
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	else if (!strcmp(parm[0], "vdin_recycle_num")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 16, &val) == 0) {
 			devp->debug.vdin_recycle_num = val;
-			pr_info("vdin_recycle_num(%d):0x%x\n\n", devp->index,
-				devp->debug.vdin_recycle_num);
 		}
 	} else if (!strcmp(parm[0], "dump_start_pic")) {
 		if (parm[1]) {
@@ -3548,12 +3368,11 @@ static ssize_t attr_store(struct device *dev,
 			vdin_dump_more_mem(parm[1], devp, dump_num, 1);
 		}
 	} else if (!strcmp(parm[0], "cma_config_flag")) {
-		if (!parm[1])
-			pr_err("miss parameters .\n");
-		else if (kstrtoul(parm[1], 16, &val) == 0) {
+		if (!parm[1]) {
+			err = -EINVAL;
+			goto error;
+		} else if (kstrtoul(parm[1], 16, &val) == 0) {
 			devp->cma_config_flag = val;
-			pr_info("cma_config_flag(%d):0x%x\n\n", devp->index,
-				devp->cma_config_flag);
 		}
 	} else if (!strcmp(parm[0], "irq_en")) {
 		if (!parm[1]) {
@@ -3564,8 +3383,6 @@ static ssize_t attr_store(struct device *dev,
 			else
 				disable_irq(devp->irq);
 		}
-		pr_info("%s vdin.%d irq_num(%d)\n",
-			__func__, devp->index, devp->irq);
 	} else if  (!strcmp(parm[0], "request_irq")) {
 		snprintf(devp->irq_name, sizeof(devp->irq_name),
 			 "vdin%d-irq", devp->index);
@@ -3575,10 +3392,8 @@ static ssize_t attr_store(struct device *dev,
 			disable_irq(devp->irq);
 			devp->flags |= VDIN_FLAG_ISR_REQ;
 		}
-		pr_info("req ISR flag:0x%x\n", devp->flags);
 	} else if  (!strcmp(parm[0], "free_irq")) {
 		free_irq(devp->irq, (void *)devp);
-		pr_info("free irq\n");
 	} else if (!strcmp(parm[0], "tvstart")) {
 		unsigned int port = 0, fmt = 0;
 
@@ -3635,9 +3450,6 @@ static ssize_t attr_store(struct device *dev,
 		/*disable irq until vdin is configured completely*/
 		/*disable_irq_nosync(devp->irq);*/
 
-		if (devp->debug.vdin_dbg_en)
-			pr_info("%s vdin.%d disable_irq_nosync\n", __func__,
-				devp->index);
 		/*init queue*/
 		init_waitqueue_head(&devp->queue);
 		/* remove the hardware limit to vertical [0-max]*/
@@ -3652,18 +3464,16 @@ static ssize_t attr_store(struct device *dev,
 		devp->unstable_flag = false;
 		ret = vdin_open_fe(devp->parm.port, 0, devp);
 		if (ret) {
-			pr_err("TVIN_IOC_OPEN(%d) failed to open port 0x%x\n",
-			       devp->index, devp->parm.port);
+			err = -4;
+			goto error;
 		}
 		devp->flags |= VDIN_FLAG_DEC_OPENED;
-		pr_info("TVIN_IOC_OPEN() port %s opened ok\n\n",
-			tvin_port_str(devp->parm.port));
 
 		time_start = jiffies_to_msecs(jiffies);
 start_chk:
 		if (devp->flags & VDIN_FLAG_DEC_STARTED) {
-			pr_info("TVIN_IOC_START_DEC() port 0x%x, started already\n",
-				devp->parm.port);
+			err = -5;
+			goto error;
 		}
 		time_end = jiffies_to_msecs(jiffies);
 		time_delta = time_end - time_start;
@@ -3672,9 +3482,6 @@ start_chk:
 		    time_delta <= 5000)
 			goto start_chk;
 
-		pr_info("status: %s, fmt: %s\n",
-			tvin_sig_status_str(devp->parm.info.status),
-			tvin_sig_fmt_str(devp->parm.info.fmt));
 		if (devp->parm.info.fmt != TVIN_SIG_FMT_NULL)
 			fmt = devp->parm.info.fmt; /* = parm.info.fmt; */
 		devp->fmt_info_p  =
@@ -3683,8 +3490,8 @@ start_chk:
 		 * tvin_get_fmt_info(devp->parm.info.fmt);
 		 */
 		if (!devp->fmt_info_p) {
-			pr_info("TVIN_IOC_START_DEC(%d) error, fmt is null\n",
-				devp->index);
+			err = -6;
+			goto error;
 		}
 		if (!(devp->flags & VDIN_FLAG_ISR_REQ)) {
 			ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
@@ -3698,8 +3505,6 @@ start_chk:
 						  devp->vdin2_meta_wr_done_irq_name,
 						  (void *)devp);
 				disable_irq(devp->vdin2_meta_wr_done_irq);
-				pr_info("vdin%d req meta_wr_done_irq",
-					devp->index);
 			}
 			devp->flags |= VDIN_FLAG_ISR_REQ;
 		}
@@ -3709,17 +3514,14 @@ start_chk:
 			enable_irq(devp->irq);
 
 			/* for t7 dv meta data */
-			if (devp->vdin2_meta_wr_done_irq > 0) {
+			if (devp->vdin2_meta_wr_done_irq > 0)
 				enable_irq(devp->vdin2_meta_wr_done_irq);
-				pr_info("enable meta wt done irq %d\n",
-					devp->vdin2_meta_wr_done_irq);
-			}
+
 			devp->flags |= VDIN_FLAG_ISR_EN;
 		}
-		pr_info("%s vdin.%d enable_irq\n",
-			__func__, devp->index);
+
 		devp->flags |= VDIN_FLAG_DEC_STARTED;
-		pr_info("START_DEC port %s, decode started ok\n\n",
+		pr_info("tvstart port %s, decode started ok\n",
 			tvin_port_str(devp->parm.port));
 	} else if (!strcmp(parm[0], "start_dec")) {
 		temp = devp->parm.info.fmt;
@@ -3731,8 +3533,6 @@ start_chk:
 		vdin_start_dec(devp);
 		/*enable irq */
 		enable_irq(devp->irq);
-		pr_info("%s START_DEC vdin.%d enable_irq %d\n",
-			__func__, devp->index, devp->irq);
 		devp->flags |= VDIN_FLAG_DEC_STARTED;
 	} else if (!strcmp(parm[0], "tv_stop")) {
 		vdin_stop_dec(devp);
@@ -3742,9 +3542,6 @@ start_chk:
 		/* free irq, free when close device */
 		/* free_irq(devp->irq, (void *)devp); */
 
-		if (devp->debug.vdin_dbg_en)
-			pr_info("%s vdin.%d free_irq\n", __func__,
-				devp->index);
 		/* reset the hardware limit to vertical [0-1079]  */
 		/* WRITE_VCBUS_REG(VPP_PREBLEND_VD1_V_START_END, 0x00000437); */
 	} else if (!strcmp(parm[0], "force_port")) {
@@ -3757,19 +3554,8 @@ start_chk:
 		memset(&param, 0, sizeof(struct vdin_parm_s));
 
 		if (!parm[1]) {
-			pr_err("Usage:");
-			pr_err("echo v4l2start <port> > /sys/class/vdin/vdin1/attr\n");
-			pr_err("<port>: loopback port (Mandatory parameter)\n");
-			pr_err("	video     -- video (no pq)\n");
-			pr_err("	vd1       -- video only\n");
-			pr_err("	osd1      -- osd1 only\n");
-			pr_err("	osd2      -- osd2 only\n");
-			pr_err("	postblend -- video+osd (no pq)\n");
-			pr_err("	vpp       -- video+osd\n");
-			pr_err("Usage Examples:\n");
-			pr_err("echo v4l2start vpp > /sys/class/vdin/vdin1/attr\n");
-			kfree(buf_orig);
-			return len;
+			err = -EINVAL;
+			goto error;
 		} else {
 			/*parse the port*/
 			param.port = vdin_parse_port(parm[1]);
@@ -3817,28 +3603,26 @@ start_chk:
 		/* param.scan_mode = TVIN_SCAN_MODE_PROGRESSIVE; */
 		/*start the vdin hardware*/
 
-		pr_info("v4l2start %dx%d %dHz -> %dx%d fmt:%d %d %d mode:%d\n",
-			param.h_active, param.v_active, param.frame_rate,
-			param.dest_h_active, param.dest_v_active,
-			param.cfmt, param.dfmt, param.fmt,
-			param.scan_mode);
 		start_tvin_service(devp->index, &param);
 	} else if (!strcmp(parm[0], "disable_sm")) {
 		del_timer_sync(&devp->timer);
 	} else if (!strcmp(parm[0], "freeze")) {
-		if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
-			pr_info("vdin not started,can't do freeze!!!\n");
-		else if (devp->fmt_info_p->scan_mode ==
-			TVIN_SCAN_MODE_PROGRESSIVE)
+		if (!(devp->flags & VDIN_FLAG_DEC_STARTED)) {
+			err = -EINVAL;
+			goto error;
+		} else if (devp->fmt_info_p->scan_mode ==
+			TVIN_SCAN_MODE_PROGRESSIVE) {
 			vdin_vf_freeze(devp->vfp, 1);
-		else
+		} else {
 			vdin_vf_freeze(devp->vfp, 2);
-
+		}
 	} else if (!strcmp(parm[0], "unfreeze")) {
-		if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
-			pr_info("vdin not started,can't do unfreeze!!!\n");
-		else
+		if (!(devp->flags & VDIN_FLAG_DEC_STARTED)) {
+			err = -EINVAL;
+			goto error;
+		} else {
 			vdin_vf_unfreeze(devp->vfp);
+		}
 	} else if (!strcmp(parm[0], "conversion")) {
 		if (parm[1] && parm[2] && parm[3]) {
 			if (kstrtoul(parm[1], 10, &val) == 0)
@@ -3849,17 +3633,9 @@ start_chk:
 				devp->debug.dest_cfmt = val;
 			devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
 			devp->debug.conversion = true;
-			pr_info("enable manual conversion w = %u h = %u ",
-				devp->debug.scaling4w, devp->debug.scaling4h);
-			pr_info("dest_cfmt = %s.\n",
-				tvin_color_fmt_str(devp->debug.dest_cfmt));
 		} else {
 			devp->flags &= (~VDIN_FLAG_MANUAL_CONVERSION);
 			devp->debug.conversion = false;
-			pr_info("disable manual conversion w = %u h = %u ",
-				devp->debug.scaling4w, devp->debug.scaling4h);
-			pr_info("dest_cfmt = %s\n",
-				tvin_color_fmt_str(devp->debug.dest_cfmt));
 		}
 	} else if (!strcmp(parm[0], "counter")) {
 		vdin_dump_count(devp);
@@ -3886,32 +3662,33 @@ start_chk:
 				devp->debug.sar_height = val;
 			if (kstrtoul(parm[3], 10, &val) == 0)
 				devp->debug.ratio_control = val;
-
-			pr_info("enable manual aspect ratio sar_w=%u sar_h=%u cntl:=%u",
-				devp->debug.sar_width, devp->debug.sar_height,
-				devp->debug.ratio_control);
 		} else {
-			pr_info("disable manual aspect ratio sar_w = %u sar_h = %u cntl:%u",
-				devp->debug.sar_width, devp->debug.sar_height,
-				devp->debug.ratio_control);
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "force_recycle")) {
 		devp->flags |= VDIN_FLAG_FORCE_RECYCLE;
 	} else if (!strcmp(parm[0], "read_pic_afbce")) {
-		if (parm[1] && parm[2])
+		if (parm[1] && parm[2]) {
 			vdin_write_afbce_mem(devp, parm[1], parm[2]);
-		else
-			pr_err("miss parameters.\n");
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "read_pic")) {
-		if (parm[1] && parm[2])
+		if (parm[1] && parm[2]) {
 			vdin_write_mem(devp, parm[1], parm[2], parm[3]);
-		else
-			pr_err("miss parameters .\n");
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "read_bin")) {
-		if (parm[1] && parm[2] && parm[3])
+		if (parm[1] && parm[2] && parm[3]) {
 			vdin_write_cont_mem(devp, parm[1], parm[2], parm[3]);
-		else
-			pr_err("miss parameters .\n");
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "dump_reg")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
 			vdin_dump_regs(devp, temp);
@@ -3924,27 +3701,27 @@ start_chk:
 			if (kstrtoul(parm[2], 10, &val) == 0)
 				devp->v_active = val;
 			vdin_set_mpegin(devp);
-			pr_info("mpeg2vdin:h_active:%d,v_active:%d\n",
-				devp->h_active, devp->v_active);
 		} else {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "hdr")) {
 		int i;
 		struct vframe_master_display_colour_s *prop;
 
 		prop = &devp->curr_wr_vfe->vf.prop.master_display_colour;
-		pr_info("present_flag: %d\n", prop->present_flag);
+
 		for (i = 0; i < 6; i++)
 			pr_info("primaries %d: %#x\n", i,
 				*(((u32 *)(prop->primaries)) + i));
 
-		pr_info("white point x: %#x, y: %#x\n",
+		pr_info("flag:%d, white x:%#x, y:%#x, lum max:%#x, min:%#x\n",
+			prop->present_flag,
 			*((u32 *)(prop->white_point)),
-			*((u32 *)(prop->white_point) + 1));
-		pr_info("luminance max: %#x, min: %#x\n",
+			*((u32 *)(prop->white_point) + 1),
 			*((u32 *)(prop->luminance)),
 			*(((u32 *)(prop->luminance)) + 1));
+
 	} else if (!strcmp(parm[0], "snow_on")) {
 		unsigned int fmt;
 
@@ -3952,19 +3729,18 @@ start_chk:
 		devp->flags |= VDIN_FLAG_SNOW_FLAG;
 		devp->flags |= VDIN_FLAG_SM_DISABLE;
 		if (devp->flags & VDIN_FLAG_DEC_STARTED) {
-			pr_info("TVIN_IOC_START_DEC() TVIN_PORT_CVBS3, started already\n");
+			err = -EINVAL;
+			goto error;
 		} else {
 			devp->parm.info.fmt = fmt;
 			devp->fmt_info_p  =
 				(struct tvin_format_s *)tvin_get_fmt_info(fmt);
 			vdin_start_dec(devp);
 			devp->flags |= VDIN_FLAG_DEC_STARTED;
-			pr_info("TVIN_IOC_START_DEC port TVIN_PORT_CVBS3, decode started ok\n\n");
 		}
 		devp->flags &= (~VDIN_FLAG_SM_DISABLE);
 		/*tvafe_snow_config(1);*/
 		/*tvafe_snow_config_clamp(1);*/
-		pr_info("snow on config done!!\n");
 	} else if (!strcmp(parm[0], "snow_off")) {
 		devp->flags &= (~VDIN_FLAG_SNOW_FLAG);
 		devp->flags |= VDIN_FLAG_SM_DISABLE;
@@ -3974,194 +3750,168 @@ start_chk:
 		if (devp->parm.info.fmt != TVIN_SIG_FMT_CVBS_NTSC_M &&
 		    devp->parm.info.fmt != TVIN_SIG_FMT_NULL) {
 			if (!(devp->flags & VDIN_FLAG_DEC_STARTED)) {
-				pr_err("VDIN_FLAG_DEC_STARTED(%d) decode haven't started\n",
-				       devp->index);
+				err = -EINVAL;
+				goto error;
 			} else {
 				devp->flags |= VDIN_FLAG_DEC_STOP_ISR;
 				vdin_stop_dec(devp);
 				devp->flags &= ~VDIN_FLAG_DEC_STOP_ISR;
 				devp->flags &= (~VDIN_FLAG_DEC_STARTED);
-				pr_info("VDIN_FLAG_DEC_STARTED(%d) port %s, decode stop ok\n",
-					devp->parm.index,
-					tvin_port_str(devp->parm.port));
 			}
 			if (devp->flags & VDIN_FLAG_DEC_STARTED) {
-				pr_info("VDIN_FLAG_DEC_STARTED() TVIN_PORT_CVBS3, started already\n");
+				err = -4;
+				goto error;
 			} else {
 				devp->fmt_info_p  =
 				(struct tvin_format_s *)
 				tvin_get_fmt_info(devp->parm.info.fmt);
 				vdin_start_dec(devp);
 				devp->flags |= VDIN_FLAG_DEC_STARTED;
-				pr_info("VDIN_FLAG_DEC_STARTED port TVIN_PORT_CVBS3, decode started ok\n");
 			}
 		}
 		devp->flags &= (~VDIN_FLAG_SM_DISABLE);
-		pr_info("snow off config done!!\n");
 	} else if (!strcmp(parm[0], "vf_reg")) {
 		if ((devp->flags & VDIN_FLAG_DEC_REGISTERED)
 			== VDIN_FLAG_DEC_REGISTERED) {
-			pr_err("vf_reg(%d) decoder is registered already\n",
-			       devp->index);
+			err = -EINVAL;
+			goto error;
 		} else {
 			devp->flags |= VDIN_FLAG_DEC_REGISTERED;
 			vdin_vf_reg(devp);
-			pr_info("vf_reg(%d) ok\n\n", devp->index);
 		}
 	} else if (!strcmp(parm[0], "vf_unreg")) {
 		if ((devp->flags & VDIN_FLAG_DEC_REGISTERED)
 			!= VDIN_FLAG_DEC_REGISTERED) {
-			pr_err("vf_unreg(%d) decoder isn't registered\n",
-			       devp->index);
+			err = -EINVAL;
+			goto error;
 		} else {
 			devp->flags &= (~VDIN_FLAG_DEC_REGISTERED);
 			vdin_vf_unreg(devp);
-			pr_info("vf_unreg(%d) ok\n\n", devp->index);
 		}
 	} else if (!strcmp(parm[0], "pause_dec")) {
 		vdin_pause_dec(devp, 0);
-		pr_info("pause_dec(%d) ok\n\n", devp->index);
 	} else if (!strcmp(parm[0], "resume_dec")) {
 		vdin_resume_dec(devp, 0);
-		pr_info("resume_dec(%d) ok\n\n", devp->index);
 	} else if (!strcmp(parm[0], "pause_mif_dec")) {
 		vdin_pause_dec(devp, 1);
-		pr_info("pause_mif_dec(%d) ok\n\n", devp->index);
 	} else if (!strcmp(parm[0], "resume_mif_dec")) {
 		vdin_resume_dec(devp, 1);
-		pr_info("resume_mif_dec(%d) ok\n\n", devp->index);
 	} else if (!strcmp(parm[0], "pause_afbce_dec")) {
 		vdin_pause_dec(devp, 2);
-		pr_info("pause_afbce_dec(%d) ok\n\n", devp->index);
 	} else if (!strcmp(parm[0], "resume_afbce_dec")) {
 		vdin_resume_dec(devp, 2);
-		pr_info("resume_afbce_dec(%d) ok\n\n", devp->index);
 	} else if (!strcmp(parm[0], "color_depth")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			if (val == 0)
 				devp->color_depth_config = COLOR_DEEPS_AUTO;
 			else
 				devp->color_depth_config =
 					val | COLOR_DEEPS_MANUAL;
-			pr_info("color_depth(%d):0x%x\n\n", devp->index,
-				devp->color_depth_config);
 		}
 	} else if (!strcmp(parm[0], "color_depth_support")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 16, &val) == 0) {
 			devp->color_depth_support = val;
-			pr_info("color_depth_support(%d):%d\n\n", devp->index,
-				devp->color_depth_support);
 		}
 	} else if (!strcmp(parm[0], "force_stop_frame_num")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->dbg_force_stop_frame_num = val;
-			pr_info("force_stop_frame_num(%d):%d\n\n", devp->index,
-				devp->dbg_force_stop_frame_num);
 		}
 	} else if (!strcmp(parm[0], "force_disp_skip_num")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->force_disp_skip_num = val;
-			pr_info("force_disp_skip_num(%d):%d\n\n", devp->index,
-				devp->force_disp_skip_num);
 		}
 	} else if (!strcmp(parm[0], "force_one_buffer")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->dbg_force_one_buffer = val;
-			pr_info("vdin%d,dbg_force_one_buffer(%d)\n\n", devp->index,
-				devp->dbg_force_one_buffer);
 		}
 	} else if (!strcmp(parm[0], "no_wr_check")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->dts_config.chk_write_done_en = val;
-			pr_info("dbg_no_wr_check(%d):en:%d\n\n", devp->index,
-				devp->dts_config.chk_write_done_en);
 		}
 	} else if (!strcmp(parm[0], "skip_isr")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->vdin_isr_drop = val;
-			pr_info("dbg_skip_isr:%d\n", devp->vdin_isr_drop);
 		}
 	} else if (!strcmp(parm[0], "fr_ctl")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->dbg_fr_ctl = val;
-			pr_info("dbg_fr_ctl(%d):%d\n\n", devp->index,
-				devp->dbg_fr_ctl);
 		}
 	} else if (!strcmp(parm[0], "full_pack")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->full_pack = val;
-			pr_info("full_pack(%d):%d\n\n", devp->index,
-				devp->full_pack);
 		}
 	} else if (!strcmp(parm[0], "flags_isr")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 16, &val) == 0) {
 			devp->flags_isr = val;
-			pr_info("vdin%d,flags_isr:%#x\n\n", devp->index,
-				devp->flags_isr);
 		}
 	} else if (!strcmp(parm[0], "flags")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->flags = val;
-			pr_info("vdin%d,flags:%#x\n\n", devp->index,
-				devp->flags);
 		}
 	} else if (!strcmp(parm[0], "force_malloc_yuv_422_to_444")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			if (val)
 				devp->force_malloc_yuv_422_to_444 = 1;
 			else
 				devp->force_malloc_yuv_422_to_444 = 0;
-			pr_info("force_malloc_yuv_422_to_444(%d):%d\n\n", devp->index,
-				devp->force_malloc_yuv_422_to_444);
 		}
 	} else if (!strcmp(parm[0], "auto_cut_window_en")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->auto_cut_window_en = val;
-			pr_info("auto_cut_window_en(%d):%d\n\n", devp->index,
-				devp->auto_cut_window_en);
 		}
 	} else if (!strcmp(parm[0], "dolby_config")) {
 		vdin_dolby_config(devp);
-		pr_info("dolby_config done\n");
 	} else if (!strcmp(parm[0], "metadata")) {
 		dump_dolby_metadata(devp);
-		pr_info("dolby_config done\n");
 	} else if (!strcmp(parm[0], "clean_dv")) {
 		dump_dolby_buf_clean(devp);
-		pr_info("clean dolby vision mem done\n");
 	} else if (!strcmp(parm[0], "dv_debug")) {
 		vdin_dv_debug(devp);
 	} else if (!strcmp(parm[0], "channel_order_config")) {
 		unsigned int c0, c1, c2;
 
 		if (!parm[3]) {
-			pr_info("miss parameters\n");
+			err = -EINVAL;
+			goto error;
 		} else {
 			c0 = 0;
 			c1 = 0;
@@ -4179,7 +3929,8 @@ start_chk:
 		vdin_channel_order_status(devp->addr_offset);
 	} else if (!strcmp(parm[0], "open_port")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 16, &val) == 0) {
 			devp->parm.index = 0;
 			devp->parm.port  = val;
@@ -4187,128 +3938,105 @@ start_chk:
 			ret = vdin_open_fe(devp->parm.port,
 					   devp->parm.index, devp);
 			if (ret) {
-				pr_err("TVIN_IOC_OPEN(%d) failed to open port 0x%x\n",
-				       devp->parm.index, devp->parm.port);
-			} else {
-				devp->flags |= VDIN_FLAG_DEC_OPENED;
-				pr_info("TVIN_IOC_OPEN(%d) port %s opened ok\n\n",
-					devp->parm.index,
-				tvin_port_str(devp->parm.port));
+				err = -4;
+				goto error;
 			}
 		}
 	} else if (!strcmp(parm[0], "close_port")) {
-		enum tvin_port_e port = devp->parm.port;
-
 		if (!(devp->flags & VDIN_FLAG_DEC_OPENED)) {
-			pr_err("TVIN_IOC_CLOSE(%d) you have not opened port\n",
-			       devp->index);
+			err = -EINVAL;
+			goto error;
 		} else {
 			vdin_close_fe(devp);
-			devp->flags &= (~VDIN_FLAG_DEC_OPENED);
-			pr_info("TVIN_IOC_CLOSE(%d) port %s closed ok\n\n",
-				devp->parm.index, tvin_port_str(port));
 		}
 	} else if (!strcmp(parm[0], "prehsc_en")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->pre_h_scale_en = val;
-			pr_info("pre_h_scale_en(%d):%d\n\n", devp->index,
-				devp->pre_h_scale_en);
 		}
 	} else if (!strcmp(parm[0], "vshrk_en")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->v_shrink_en = val;
-			pr_info("v_shrink_en(%d):%d\n\n", devp->index,
-				devp->v_shrink_en);
 		}
 	} else if (!strcmp(parm[0], "cma_mem_mode")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->cma_mem_mode = val;
-			pr_info("cma_mem_mode(%d):%d\n\n", devp->index,
-				devp->cma_mem_mode);
 		}
 	} else if (!strcmp(parm[0], "black_bar_enable")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->black_bar_enable = val;
-			pr_info("black_bar_enable(%d):%d\n\n", devp->index,
-				devp->black_bar_enable);
 		}
 	} else if (!strcmp(parm[0], "hist_bar_enable")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->hist_bar_enable = val;
-			pr_info("hist_bar_enable(%d):%d\n\n", devp->index,
-				devp->hist_bar_enable);
 		}
 	} else if (!strcmp(parm[0], "use_frame_rate")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->use_frame_rate = val;
-			pr_info("use_frame_rate(%d):%d\n\n", devp->index,
-				devp->use_frame_rate);
 		}
 	} else if (!strcmp(parm[0], "dolby_input")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->dv.dolby_input = val;
-			pr_info("dolby_input(%d):%d\n\n", devp->index,
-				devp->dv.dolby_input);
 		}
 	} else if (!strcmp(parm[0], "rdma_enable")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->rdma_enable = val;
-			pr_info("rdma_enable (%d):%d\n", devp->index,
-				devp->rdma_enable);
 		}
 	} else if (!strcmp(parm[0], "rdma_wr_reg")) {
 		if (!parm[1] || !parm[2]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtouint(parm[1], 0, &addr) == 0 &&
 			kstrtouint(parm[2], 0, &val_tmp) == 0) {
 			rdma_write_reg(devp->rdma_handle, addr, val);
-			pr_info("rdma_wr_reg (%#x):%#x\n", addr, val_tmp);
 		}
 	} else if (!strcmp(parm[0], "urgent_en")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->dts_config.urgent_en = val;
-			pr_info("urgent_en (%d):%d\n", devp->index,
-				devp->dts_config.urgent_en);
 		}
 	} else if (!strcmp(parm[0], "dynamic_crop")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->dts_config.dynamic_crop_en = val;
-			pr_info("vdin%d dynamic_crop_en %d\n",
-				devp->index, devp->dts_config.dynamic_crop_en);
 		}
-	} else if (!strcmp(parm[0], "irq_cnt")) {
-		pr_info("vdin(%d) irq_cnt: %d\n", devp->index,	devp->irq_cnt);
 	} else if (!strcmp(parm[0], "skip_vf_num")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if ((kstrtoul(parm[1], 10, &val) == 0) && (devp->vfp)) {
 			devp->vfp->skip_vf_num = val;
 			if (val == 0)
 				memset(devp->vfp->disp_mode, 0,
 				       (sizeof(enum vframe_disp_mode_e) *
 					VFRAME_DISP_MAX_NUM));
-			pr_info("vframe_skip(%d):%d\n\n", devp->index,
-				devp->vfp->skip_vf_num);
 		}
 	} else if (!strcmp(parm[0], "dump_afbce")) {
 		if (parm[2]) {
@@ -4324,30 +4052,34 @@ start_chk:
 		if (parm[1]) {
 			if (kstrtol(parm[1], 10, &val) == 0)
 				devp->dbg_dump_frames = val;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("vdin%d,dbg_dump_frames = %d\n",
-			devp->index, devp->dbg_dump_frames);
 	} else if (!strcmp(parm[0], "no_swap_en")) {
 		if (parm[1]) {
 			if (kstrtol(parm[1], 0, &val) == 0)
 				devp->dbg_no_swap_en = val;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("vdin%d,dbg_no_swap_en = %d\n",
-			devp->index, devp->dbg_no_swap_en);
 	} else if (!strcmp(parm[0], "dbg_stop_dec_delay")) {
 		if (parm[1]) {
 			if (kstrtol(parm[1], 10, &val) == 0)
 				devp->dbg_stop_dec_delay = val;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("vdin%d,dbg_stop_dec_delay = %u us\n",
-			devp->index, devp->dbg_stop_dec_delay);
 	} else if (!strcmp(parm[0], "skip_frame_debug")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 10, &skip_frame_debug) == 0)
 				pr_info("set skip_frame_debug: %d\n",
 					skip_frame_debug);
 		} else {
-			pr_info("skip_frame_debug: %d\n", skip_frame_debug);
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "max_ignore_cnt")) {
 		if (parm[1]) {
@@ -4355,17 +4087,17 @@ start_chk:
 				pr_info("set max_ignore_frame_cnt: %d\n",
 					max_ignore_frame_cnt);
 		} else {
-			pr_info("max_ignore_frame_cnt: %d\n",
-				max_ignore_frame_cnt);
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "afbce_flag")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 16, &temp) == 0) {
 				devp->dts_config.afbce_flag_cfg = temp;
-				pr_info("set afbce_flag: 0x%x\n", devp->afbce_flag);
 			}
 		} else {
-			pr_err("err.cur afbce_flag: 0x%x\n", devp->afbce_flag);
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "afbce_mode")) {
 		if (parm[2]) {
@@ -4376,13 +4108,8 @@ start_chk:
 					devp->afbce_mode = mode;
 				else
 					devp->afbce_mode = 0;
-				if (vdin0_afbce_debug_force) {
-					pr_info("set force vdin_afbce_mode: %d\n",
-						devp->afbce_mode);
-				} else {
-					pr_info("set vdin_afbce_mode: %d\n",
-						devp->afbce_mode);
-				}
+				pr_info("set vdin_afbce_mode: %d force:%d\n",
+					devp->afbce_mode, vdin0_afbce_debug_force);
 			}
 		} else if (parm[1]) {
 			if (kstrtouint(parm[1], 10, &mode) == 0) {
@@ -4394,10 +4121,11 @@ start_chk:
 					devp->afbce_mode);
 			}
 		} else {
-			pr_info("vdin_afbce_mode: %d\n", devp->afbce_mode);
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "vdi6_afifo_overflow")) {
-		pr_info("%d\n",
+		pr_info("vdi6_afifo_overflow: %d\n",
 			vdin_check_vdi6_afifo_overflow(devp->addr_offset));
 	} else if (!strcmp(parm[0], "vdi6_afifo_clear")) {
 		vdin_clear_vdi6_afifo_overflow_flg(devp->addr_offset);
@@ -4408,8 +4136,8 @@ start_chk:
 				pr_info("force_disp_mode: %#x\n",
 					devp->debug.force_disp_mode);
 		} else {
-			pr_info("force_disp_mode para err, ori: %#x\n",
-				devp->debug.force_disp_mode);
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "vdin_mtx")) {
 		if (parm[1]) {
@@ -4428,33 +4156,31 @@ start_chk:
 			if (kstrtouint(parm[1], 10, &devp->vframe_wr_en) == 0)
 				pr_info("vdin.%d vframe_wr_en %d\n",
 					devp->index, devp->vframe_wr_en);
-			else
-				pr_err("parse para err\n");
 		} else {
-			pr_err("miss para, current vframe_wr_en:%d\n",
-			       devp->vframe_wr_en);
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "dv_mask")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
 			devp->dts_config.dv_mask = temp;
-
-		pr_info("dv_mask=0x%x\n", devp->dts_config.dv_mask);
 	} else if (!strcmp(parm[0], "get_hist")) {
 		pr_info("sum:0x%lx, width:%d, height:%d ave:0x%x\n",
 			vdin1_hist.sum,
 			vdin1_hist.width, vdin1_hist.height,
 			vdin1_hist.ave);
 	} else if (!strcmp(parm[0], "vf_crc")) {
+		u32 ro_crc;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (is_meson_s5_cpu())
-			pr_info("s5 vf crc:0x%x\n", rd(devp->addr_offset, VDIN_TOP_CRC1_OUT));
+			ro_crc = rd(devp->addr_offset, VDIN_TOP_CRC1_OUT);
 		else if (is_meson_t3x_cpu())
-			pr_info("t3x vf crc:0x%x\n", rd(devp->addr_offset, VDIN0_PP_CRC_OUT));
+			ro_crc = rd(devp->addr_offset, VDIN0_PP_CRC_OUT);
 		else
 #endif
-			pr_info("ro crc:0x%x\n", rd(devp->addr_offset, VDIN_RO_CRC));
+			ro_crc = rd(devp->addr_offset, VDIN_RO_CRC);
 		if (devp->vfp && devp->vfp->last_last_vfe)
-			pr_info("vf crc:0x%x\n", devp->vfp->last_last_vfe->vf.crc);
+			pr_info("ro crc:0x%x, vf crc:0x%x\n",
+				ro_crc, devp->vfp->last_last_vfe->vf.crc);
 	} else if (!strcmp(parm[0], "game_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp) {
@@ -4474,24 +4200,26 @@ start_chk:
 				vdin_force_game_mode = 0;
 				game_mode = 0;
 			}
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("temp:%#x game mode:%d %#x %d(%d)\n", temp, game_mode,
-			devp->game_mode, devp->debug.bypass_game_mode, vdin_force_game_mode);
 	} else if (!strcmp(parm[0], "game_mode_chg")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
-			pr_info("set new game mode to: 0x%x,pre:%#x %d\n",
-				temp, game_mode, devp->game_mode);
-			if (game_mode != temp)
-				vdin_game_mode_chg(devp, game_mode, temp);
-			game_mode = temp;
+			vdin_game_mode_chg(devp, game_mode, temp);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "dyn_fmt")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
-			pr_info("set dyn_fmt to: 0x%x,game %d\n", temp, devp->game_mode);
 			spin_lock_irqsave(&devp->isr_lock, flags);
 			devp->debug.force_fmt = temp;
 			vdin_dyn_fmt(devp);
 			spin_unlock_irqrestore(&devp->isr_lock, flags);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "auto_pc_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
@@ -4508,9 +4236,10 @@ start_chk:
 				devp->flags |= VDIN_FLAG_DYN_RECONFIG;
 				devp->game_mode_dly = vdin_game_mode_dly;
 			}
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("auto bypass_pc_mode:%d pc_mode:%d %d\n",
-			devp->debug.bypass_pc_mode, devp->vdin_pc_mode, vdin_pc_mode);
 	} else if (!strcmp(parm[0], "pc_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp) {
@@ -4523,9 +4252,10 @@ start_chk:
 				devp->debug.bypass_pc_mode = false;
 				vdin_pc_mode = 0;
 			}
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("bypass_pc_mode:%d pc_mode:%d\n",
-			devp->debug.bypass_pc_mode, vdin_pc_mode);
 	} else if (!strcmp(parm[0], "game_frc")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp) {
@@ -4544,50 +4274,58 @@ start_chk:
 				devp->debug.bypass_game_frc = true;
 				devp->vdin_game_frc = 0;
 			}
-			pr_info("bypass_pc_mode:%d vdin_game_frc:%d\n",
-			devp->debug.bypass_game_frc, devp->vdin_game_frc);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("bypass_game_frc:%d game_frc:%d\n",
-			devp->debug.bypass_game_frc, devp->vdin_game_frc);
 	} else if (!strcmp(parm[0], "invalid_input_en")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp)
 				devp->debug.invalid_input_en = true;
 			else
 				devp->debug.invalid_input_en = false;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("invalid_input_en:%d\n",
-			devp->debug.invalid_input_en);
 	} else if (!strcmp(parm[0], "bypass_secure_check")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp)
 				devp->debug.bypass_secure_check = true;
 			else
 				devp->debug.bypass_secure_check = false;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("bypass_secure_check:%d\n", devp->debug.bypass_secure_check);
 	} else if (!strcmp(parm[0], "skip_samba_csc")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp)
 				devp->debug.skip_samba_csc = true;
 			else
 				devp->debug.skip_samba_csc = false;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("skip_samba_csc:%d\n",
-			devp->debug.skip_samba_csc);
 	} else if (!strcmp(parm[0], "v4l2_buff_area")) {
 		/*
 		 * 0: codec_mm_cma area
 		 * 1: CMA reserved area
 		 * 2: vdin1_cma area
 		 */
-		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0)) {
 			devp->debug.v4l2_buff_area = temp;
-		pr_info("v4l2_buff_area: %d\n", devp->debug.v4l2_buff_area);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vrr_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			devp->vrr_mode = temp;
-			pr_info("set vrr_mode: 0x%x\n", temp);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "matrix_pattern")) {
 		/*
@@ -4597,18 +4335,27 @@ start_chk:
 			devp->debug.matrix_pattern_mode = temp;
 			vdin_set_matrix_color(devp);
 			/* pr_info("matrix_pattern_mode:%d\n", devp->matrix_pattern_mode); */
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-	} else if  (!strcmp(parm[0], "bist_set")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+	} else if (!strcmp(parm[0], "bist_set")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0)) {
 			val = temp;
-
-		vdin_set_bist_pattern(devp, val);
-	} else if  (!strcmp(parm[0], "ip_patgen")) {
+			vdin_set_bist_pattern(devp, val);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
+	} else if (!strcmp(parm[0], "ip_patgen")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.ip_pat_en = temp;
 			val = temp;
+			vdin_set_ip_pattern(devp, val);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		vdin_set_ip_pattern(devp, val);
 	} else if (!strcmp(parm[0], "vdin1_hist_on_off")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			/*
@@ -4621,31 +4368,48 @@ start_chk:
 					devp->flags |= VDIN_FLAG_HIST_STARTED;
 					vdin_ioctl_get_hist(devp, &vdin1_hist_temp);
 				} else {
-					pr_info("only support vdin1\n");
+					err = -4;
+					goto error;
 				}
 			} else {
 				viuin_clear_loopback_path();
 				vdin1_hw_hist_on_off(devp, FALSE);
 			}
-			pr_info("VDIN_FLAG_HIST_STARTED flag:0x%x\n", devp->flags);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "vdin1_hist_get")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0)) {
-			pr_info("VDIN_FLAG_HIST_STARTED flag:0x%x\n", devp->flags);
 			vdin_ioctl_get_hist(devp, &vdin1_hist_temp);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "pause_num")) {
 		/*
 		 * 0:off 1:enable
 		 */
-		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0)) {
 			devp->pause_num = temp;
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "hv_reverse_en")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0)) {
 			devp->hv_reverse_en = temp;
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "double_write")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0)) {
 			devp->double_wr_cfg = temp;
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "secure_mem")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp) {
@@ -4655,25 +4419,35 @@ start_chk:
 				devp->secure_en = 0;
 				devp->cma_config_flag = 0x101;
 			}
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("secure:%d, cma flag:%d\n", devp->secure_en,
-			devp->cma_config_flag);
 	} else if (!strcmp(parm[0], "vdin1_bypass_hdr")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp)
 				devp->debug.vdin1_set_hdr_bypass = true;
 			else
 				devp->debug.vdin1_set_hdr_bypass = false;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("vdin1_set_bypass:%d\n", devp->debug.vdin1_set_hdr_bypass);
 	} else if (!strcmp(parm[0], "rv")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			pr_info("addr:0x%x val:0x%x\n", temp, R_VCBUS(temp));
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "wr")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0) &&
 			(kstrtouint(parm[2], 16, &val_tmp) == 0)) {
 			W_VCBUS(temp, val_tmp);
 			pr_info("write addr:%#x val:%#x(%#x)\n", temp, val_tmp, R_VCBUS(temp));
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "wr_bit")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &addr) == 0) &&
@@ -4684,6 +4458,9 @@ start_chk:
 			pr_info("write addr:%#x val:%#x(%#x) start:%#x end:%#x\n",
 				temp, val_tmp, rd_bits(0, addr, time_start, time_end),
 				time_start, time_end);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "rw_reg")) {
 		memset(devp->debug.dbg_reg_addr, 0,
@@ -4721,6 +4498,9 @@ start_chk:
 						break;
 				}
 			}
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 		pr_info("vdin%d,reg_en:%#x,reg_num:%d\n",
 			devp->index, devp->debug.dbg_rw_reg_en, i);
@@ -4758,6 +4538,8 @@ start_chk:
 			}
 		} else {
 			devp->debug.dbg_rw_reg_en = 0;
+			err = -EINVAL;
+			goto error;
 		}
 		pr_info("vdin%d,reg_en:%d,reg_num:%d\n", devp->index, devp->debug.dbg_rw_reg_en, i);
 		for (i = 0; (i * 4 + 3) < DBG_REG_LENGTH && devp->debug.dbg_reg_bit[i * 4]; i++)
@@ -4771,169 +4553,250 @@ start_chk:
 		vdin_self_stop_dec(devp);
 		vdin_self_start_dec(devp);
 	} else if (!strcmp(parm[0], "vdin_function_sel")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			devp->vdin_function_sel = temp;
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "rgb_info_enable")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp)
 				devp->debug.rgb_info_enable = true;
 			else
 				devp->debug.rgb_info_enable = false;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("rgb_info_enable:%d\n", devp->debug.rgb_info_enable);
 	} else if (!strcmp(parm[0], "delay_line_num")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->delay_line_num = temp;
-		pr_info("delay_line_num:%d\n", devp->delay_line_num);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "enable_reset")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp)
 				devp->enable_reset = true;
 			else
 				devp->enable_reset = false;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("enable_reset:%d\n", devp->enable_reset);
 	} else if (!strcmp(parm[0], "vsync_reset_mask")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->vsync_reset_mask = temp;
-		pr_info("vsync_reset_mask:0x%x\n", devp->vsync_reset_mask);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "dv_dbg_log")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dv_dbg_log = temp;
-		pr_info("dv_dbg_log:0x%x\n", devp->debug.dv_dbg_log);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "dv_dbg_log_du")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dv_dbg_log_du = temp;
-		pr_info("dv_dbg_log_du:0x%x\n", devp->debug.dv_dbg_log_du);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_ctl_dbg")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.vdin_ctl_dbg = temp;
-		pr_info("vdin_ctl_dbg:0x%x\n", devp->debug.vdin_ctl_dbg);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_isr_monitor")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.vdin_isr_monitor = temp;
-		pr_info("vdin_isr_monitor:0x%x\n", devp->debug.vdin_isr_monitor);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_get_prop_in_fe_en")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp)
 				devp->vdin_get_prop_in_fe_en = true;
 			else
 				devp->vdin_get_prop_in_fe_en = false;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("vdin_get_prop_in_fe_en:%d\n", devp->vdin_get_prop_in_fe_en);
 	} else if (!strcmp(parm[0], "work_mode_simple")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp)
 				devp->work_mode_simple = true;
 			else
 				devp->work_mode_simple = false;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("work_mode_simple:%d\n", devp->work_mode_simple);
 	} else if (!strcmp(parm[0], "dv_work_dolby")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dv_work_dolby = temp;
-		pr_info("dv_work_dolby:%d\n", devp->dv_work_dolby);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "sct_print_ctl")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.sct_print_ctl = temp;
-		pr_info("sct_print_ctl:%d\n", devp->debug.sct_print_ctl);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_dbg_en")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.vdin_dbg_en = temp;
-		pr_info("vdin_dbg_en:%d\n", devp->debug.vdin_dbg_en);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_delay_num")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.vdin_delay_num = temp;
-		pr_info("vdin_delay_num:%d\n", devp->debug.vdin_delay_num);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_time_en")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp)
 				devp->debug.vdin_time_en = true;
 			else
 				devp->debug.vdin_time_en = false;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("vdin_time_en:%d\n", devp->debug.vdin_time_en);
 	} else if (!strcmp(parm[0], "vdin_frame_work_mode")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.vdin_frame_work_mode = temp;
-		pr_info("vdin_frame_work_mode:%d\n", devp->debug.vdin_frame_work_mode);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "sleep_time")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.sleep_time = temp;
-		pr_info("sleep_time:%d\n", devp->debug.sleep_time);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "sm_debug_enable")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.sm_debug_enable = temp;
-		pr_info("sm_debug_enable:%d\n", devp->debug.sm_debug_enable);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "dmc_ctrl")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			vdin_dmc_ctrl(devp, !!temp);
-			pr_info("set dmc_ctrl on_off:%d\n", !!temp);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "manual_change_csc")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.manual_change_csc = temp;
-		pr_info("manual_change_csc:%d\n", devp->debug.manual_change_csc);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "afbce_monitor")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dbg_afbce_monitor = temp;
-			pr_info("set afbce_monitor:%d\n", devp->dbg_afbce_monitor);
 			if (!devp->kthread && devp->dbg_afbce_monitor > 1)
 				vdin_kthread_start(devp);
 			else if (devp->kthread && !devp->dbg_afbce_monitor)
 				vdin_kthread_stop(devp);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "debug_config")) {
 		vdin_dump_debug_config(devp);
 	} else if (!strcmp(parm[0], "change_get_drm")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0)) {
 			devp->debug.change_get_drm = temp;
-		pr_info("change_get_drm:%#x\n", devp->debug.change_get_drm);
-	}  else if (!strcmp(parm[0], "bypass_update_prop")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
+	} else if (!strcmp(parm[0], "bypass_update_prop")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0)) {
 			devp->debug.bypass_update_prop = temp;
-		pr_info("bypass_update_prop:%#x\n", devp->debug.bypass_update_prop);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	}  else if (!strcmp(parm[0], "force_shrink")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_force_shrink_en = temp;
-			pr_info("dbg_force_shrink_en:%#x\n", devp->debug.dbg_force_shrink_en);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "select_matrix")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_sel_mat = temp;
-			pr_info("dbg_sel_mat:%#x\n", devp->debug.dbg_sel_mat);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "vdin_dbg_cntl")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_print_cntl = temp;
-			pr_info("dbg_print_cntl:%#x\n", devp->debug.dbg_print_cntl);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "dbg_de_interlanced_ctl")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_de_interlanced_ctl = temp;
-			pr_info("dbg_deinterlance_ctl:%#x\n", devp->debug.dbg_de_interlanced_ctl);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "vdin_drop_num")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->vdin_drop_num = temp;
 			pr_info("vdin_drop_num:%d\n", devp->vdin_drop_num);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "vdin_isr_drop_num")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->vdin_isr_drop_num = temp;
-			pr_info("vdin_isr_drop_num:%d\n", devp->vdin_isr_drop_num);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "vdin_pcs_reset_threshold")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->vdin_input_data_threshold = temp;
-			pr_info("vdin_input_data_threshold:%d\n",
-				devp->vdin_input_data_threshold);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "report_size_abnormal_cnt")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->report_size_abnormal_cnt = temp;
-			pr_info("report_size_abnormal_cnt:%d\n",
-				devp->report_size_abnormal_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "invert_top_bot")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
@@ -4941,7 +4804,9 @@ start_chk:
 				devp->debug.invert_top_bot = true;
 			else
 				devp->debug.invert_top_bot = false;
-			pr_info("invert_top_bot temp:%d\n", temp);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "color_range_force")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
@@ -4949,7 +4814,9 @@ start_chk:
 				color_range_force = temp;
 			else
 				color_range_force = 0;
-			pr_info("color_range_force:%d\n", color_range_force);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "bypass_tunnel")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
@@ -4957,7 +4824,9 @@ start_chk:
 				devp->debug.force_bypass_tunnel = true;
 			else
 				devp->debug.force_bypass_tunnel = false;
-			pr_info("force_bypass_tunnel:%d\n", devp->debug.force_bypass_tunnel);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "yuv422_2plane")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
@@ -4966,12 +4835,16 @@ start_chk:
 			else
 				devp->yuv422_2plane_en =
 					temp | YUV422_2PLANE_MANUAL;
-			pr_info("yuv422_2plane_en:%d\n", devp->yuv422_2plane_en);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "force_afbce_422_12bit")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.force_afbce_422_12bit = temp;
-			pr_info("force_afbce_422_12bit:%d\n", devp->debug.force_afbce_422_12bit);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "invert_secure")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
@@ -4979,17 +4852,22 @@ start_chk:
 				devp->debug.invert_secure = true;
 			else
 				devp->debug.invert_secure = false;
-			pr_info("invert_secure:%d\n", devp->debug.invert_secure);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "bypass_filter_vsync")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.bypass_filter_vsync = temp;
-		pr_info("bypass_filter_vsync:%d\n", devp->debug.bypass_filter_vsync);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "set_unstable_sig")) {
 		devp->parm.info.status = TVIN_SIG_STATUS_UNSTABLE;
 		devp->frame_drop_num = 8;
 	} else if (!strcmp(parm[0], "cr_lossy")) {
-		if (parm[1] && parm[2]) {
+		if (parm[1] && parm[2] && parm[3] && parm[4]) {
 			if (kstrtouint(parm[1], 0, &temp) == 0)
 				devp->cr_lossy_param.lossy_mode = temp;
 			if (kstrtouint(parm[2], 0, &temp) == 0)
@@ -5003,46 +4881,51 @@ start_chk:
 				devp->cr_lossy_param.quant_diff_root_leave,
 				devp->cr_lossy_param.cr_lossy_target_byte,
 				devp->cr_lossy_param.mmu_en);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "vdin_dmc_notifier")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &devp->debug.dbg_device_id) == 0)) {
-			pr_info("vdin%d,vdin_dmc_notifier,device_id:%d\n", devp->index,
-				devp->debug.dbg_device_id);
 			vdin_reg_dmc_notifier(devp->index);
 		} else {
-			pr_info("vdin%d,vdin_unreg_dmc_notifier\n", devp->index);
 			vdin_unreg_dmc_notifier(devp->index);
 		}
 	} else if (!strcmp(parm[0], "dbg_dv_hw5")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
-			devp->debug.dbg_dv_hw5 = temp;
-			devp->dv_hw5.hw5_ctl = temp;
+		if (parm[1] && parm[2] && parm[3] && parm[4]) {
+			if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+				devp->debug.dbg_dv_hw5 = temp;
+				devp->dv_hw5.hw5_ctl = temp;
+			}
+			if (parm[2] && (kstrtouint(parm[2], 0, &temp) == 0))
+				devp->dv_hw5.dw_out_w = temp;
+			if (parm[3] && (kstrtouint(parm[3], 0, &temp) == 0))
+				devp->dv_hw5.dw_out_h = temp;
+			if (parm[4] && (kstrtouint(parm[4], 0, &temp) == 0))
+				devp->dv_hw5.dw_dfmt = temp;
+			pr_info("vdin%d:dv_hw5:%#x;%d,%d,%d\n",
+				devp->index,
+				devp->dv_hw5.hw5_ctl,
+				devp->dv_hw5.dw_out_w, devp->dv_hw5.dw_out_h,
+				devp->dv_hw5.dw_dfmt);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		if (parm[2] && (kstrtouint(parm[2], 0, &temp) == 0))
-			devp->dv_hw5.dw_out_w = temp;
-		if (parm[3] && (kstrtouint(parm[3], 0, &temp) == 0))
-			devp->dv_hw5.dw_out_h = temp;
-		if (parm[4] && (kstrtouint(parm[4], 0, &temp) == 0))
-			devp->dv_hw5.dw_dfmt = temp;
-		pr_info("vdin%d:dv_hw5:%#x;%d,%d,%d\n", devp->index,
-			devp->dv_hw5.hw5_ctl, devp->dv_hw5.dw_out_w, devp->dv_hw5.dw_out_h,
-			devp->dv_hw5.dw_dfmt);
 	} else if (!strcmp(parm[0], "hconv_mode")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
 			devp->debug.hconv_mode = val;
-			pr_info("hconv_mode(%d):0x%x\n\n", devp->index,
-				devp->debug.hconv_mode);
 		}
 	} else if (!strcmp(parm[0], "set_buf_num")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->frame_buff_num = val;
 			devp->frame_buff_num_bak = val;
-			pr_info("vdin%d,buffer num:(%d)\n\n", devp->index,
-				devp->frame_buff_num);
 		}
 	} else if (!strcmp(parm[0], "vdin_mem_memset")) {
 		devp->debug.vdin_memset_dbg_en = 1;
@@ -5050,58 +4933,77 @@ start_chk:
 			devp->debug.vdin_memset_en = temp;
 		if (parm[2])
 			vdin_memset_dbg(parm, devp);
-		pr_info("vdin_mem_memset_flag = %d,vdin_memset_en = %d\n",
-			devp->debug.vdin_memset_dbg_en, devp->debug.vdin_memset_en);
 	} else if (!strcmp(parm[0], "vdin_manual_req_mem_size")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.vdin_manual_req_mem_size = temp;
-		pr_info("vdin_manual_req_mem_size_:%u\n", devp->debug.vdin_manual_req_mem_size);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "force_convert")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_force_convert = temp;
-		pr_info("vdin%d,dbg_force_convert = %d\n",
-			devp->index, devp->debug.dbg_force_convert);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "force_type")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_force_type = temp;
-		pr_info("vdin%d,dbg_force_type = %#x\n",
-			devp->index, devp->debug.dbg_force_type);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "reg_addr")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.reg_addr = temp;
-		pr_info("vdin%d,reg_addr = %#x\n",
-			devp->index, devp->debug.reg_addr);
+			pr_info("vdin%d,reg_addr = %#x\n",
+				devp->index, devp->debug.reg_addr);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "bypass_game_dyn_fmt")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp)
 				devp->debug.bypass_game_dyn_fmt = true;
 			else
 				devp->debug.bypass_game_dyn_fmt = false;
-			pr_info("bypass_game_dyn_fmt:%d\n", devp->debug.bypass_game_dyn_fmt);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "sct_remain_size")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.sct_remain_size = temp;
-		pr_info("vdin%d,sct_remain_size = %#x\n",
-			devp->index, devp->dts_config.sct_remain_size);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_mut_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.vdin_mut_cnt = temp;
-		pr_info("vdin%d,vdin_mut_cnt = %#x\n",
-			devp->index, devp->dts_config.vdin_mut_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "force_pause_en")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp)
 				devp->debug.force_pause_en = true;
 			else
 				devp->debug.force_pause_en = false;
-			pr_info("force_pause_en:%d\n", devp->debug.force_pause_en);
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "dbg_force_duration")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_force_duration = temp;
-		pr_info("vdin%d,dbg_force_duration = %d\n",
-			devp->index, devp->debug.dbg_force_duration);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	}
 #endif
 	else if (!strcmp(parm[0], "state")) {
@@ -5111,6 +5013,9 @@ start_chk:
 	}
 
 	kfree(buf_orig);
+	return len;
+error:
+	pr_err("vdin set param error: %d\n", err);
 	return len;
 }
 
@@ -5186,6 +5091,7 @@ static ssize_t dts_config_store(struct device *dev,
 	char *buf_orig, *parm[47] = {NULL};
 	struct vdin_dev_s *devp;
 	unsigned int temp = 0;
+	int err = 0;
 
 	if (!buf)
 		return count;
@@ -5194,145 +5100,237 @@ static ssize_t dts_config_store(struct device *dev,
 	vdin_parse_param(buf_orig, (char **)&parm);
 
 	if (!strcmp(parm[0], "max_buf_num")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.max_buf_num = temp;
-		pr_info("max_buf_num:%d\n", devp->dts_config.max_buf_num);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "min_buf_num")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.min_buf_num = temp;
-		pr_info("max_buf_num:%d\n", devp->dts_config.min_buf_num);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "cm_enable")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp)
 				devp->dts_config.cm_enable = true;
 			else
 				devp->dts_config.cm_enable = false;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("cm_enable:%d\n", devp->dts_config.cm_enable);
 	} else if (!strcmp(parm[0], "vdin_det_idle_wait")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.vdin_det_idle_wait = temp;
-		pr_info("vdin_det_idle_wait:%d\n", devp->dts_config.vdin_det_idle_wait);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_get_prop_in_vs_en")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp)
 				devp->dts_config.vdin_get_prop_in_vs_en = true;
 			else
 				devp->dts_config.vdin_get_prop_in_vs_en = false;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("vdin_get_prop_in_vs_en:%d\n", devp->dts_config.vdin_get_prop_in_vs_en);
 	} else if (!strcmp(parm[0], "vdin_get_prop_in_sm_en")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp)
 				devp->dts_config.vdin_get_prop_in_sm_en = true;
 			else
 				devp->dts_config.vdin_get_prop_in_sm_en = false;
+		} else {
+			err = -EINVAL;
+			goto error;
 		}
-		pr_info("vdin_get_prop_in_sm_en:%d\n", devp->dts_config.vdin_get_prop_in_sm_en);
 	} else if (!strcmp(parm[0], "canvas_config_mode")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.canvas_config_mode = temp;
-		pr_info("canvas_config_mode:%d\n", devp->dts_config.canvas_config_mode);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "viu_hw_irq")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.viu_hw_irq = temp;
-		pr_info("viu_hw_irq:%d\n", devp->dts_config.viu_hw_irq);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "game_mode_switch_frames")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.game_mode_switch_frames = temp;
-		pr_info("game_mode_switch_frames:%d\n", devp->dts_config.game_mode_switch_frames);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "game_mode_phlock_switch_frames")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.game_mode_phlock_switch_frames = temp;
-		pr_info("game_mode_phlock_switch_frames:%d\n",
-			devp->dts_config.game_mode_phlock_switch_frames);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_vrr_switch_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.vdin_vrr_switch_cnt = temp;
-		pr_info("vdin_vrr_switch_cnt:%d\n", devp->dts_config.vdin_vrr_switch_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "sct_cache_size")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.sct_cache_size = temp;
-		pr_info("sct_cache_size:%d\n", devp->dts_config.sct_cache_size);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_re_config")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.vdin_re_config = temp;
-		pr_info("vdin_re_config:%d\n", devp->dts_config.vdin_re_config);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_re_cfg_drop_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.vdin_re_cfg_drop_cnt = temp;
-		pr_info("vdin_re_cfg_drop_cnt:%d\n", devp->dts_config.vdin_re_cfg_drop_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "back_nosig_max_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.back_nosig_max_cnt = temp;
-		pr_info("back_nosig_max_cnt:%d\n", devp->dts_config.back_nosig_max_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "atv_unstable_in_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.atv_unstable_in_cnt = temp;
-		pr_info("atv_unstable_in_cnt:%d\n", devp->dts_config.atv_unstable_in_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "atv_unstable_out_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.atv_unstable_out_cnt = temp;
-		pr_info("atv_unstable_out_cnt:%d\n", devp->dts_config.atv_unstable_out_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "hdmi_unstable_out_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.hdmi_unstable_out_cnt = temp;
-		pr_info("hdmi_unstable_out_cnt:%d\n", devp->dts_config.hdmi_unstable_out_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "hdmi_stable_out_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.hdmi_stable_out_cnt  = temp;
-		pr_info("hdmi_stable_out_cnt:%d\n", devp->dts_config.hdmi_stable_out_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "atv_stable_out_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.atv_stable_out_cnt = temp;
-		pr_info("atv_stable_out_cnt:%d\n", devp->dts_config.atv_stable_out_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "atv_stable_fmt_check_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.atv_stable_fmt_check_cnt = temp;
-		pr_info("atv_stable_fmt_check_cnt:%d\n", devp->dts_config.atv_stable_fmt_check_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "atv_prestable_out_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))  {
 			devp->dts_config.atv_prestable_out_cnt = temp;
-		pr_info("atv_prestable_out_cnt:%d\n", devp->dts_config.atv_prestable_out_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "other_stable_out_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.other_stable_out_cnt = temp;
-		pr_info("other_stable_out_cnt:%d\n", devp->dts_config.other_stable_out_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "other_unstable_out_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.other_unstable_out_cnt  = temp;
-		pr_info("other_unstable_out_cnt:%d\n", devp->dts_config.other_unstable_out_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "other_unstable_in_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.other_unstable_in_cnt = temp;
-		pr_info("other_unstable_in_cnt:%d\n", devp->dts_config.other_unstable_in_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "nosig_in_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.nosig_in_cnt = temp;
-		pr_info("nosig_in_cnt:%d\n", devp->dts_config.nosig_in_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "nosig2_unstable_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.nosig2_unstable_cnt = temp;
-		pr_info("nosig2_unstable_cnt:%d\n", devp->dts_config.nosig2_unstable_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_dv_chg_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.vdin_dv_chg_cnt = temp;
-		pr_info("vdin_dv_chg_cnt:%d\n", devp->dts_config.vdin_dv_chg_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_hdr_chg_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.vdin_hdr_chg_cnt = temp;
-		pr_info("vdin_hdr_chg_cnt:%d\n", devp->dts_config.vdin_hdr_chg_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_vrr_chg_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.vdin_vrr_chg_cnt = temp;
-		pr_info("vdin_vrr_chg_cnt:%d\n", devp->dts_config.vdin_vrr_chg_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	} else if (!strcmp(parm[0], "vdin_qms_chg_cnt")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dts_config.vdin_qms_chg_cnt = temp;
-		pr_info("vdin_qms_chg_cnt:%d\n", devp->dts_config.vdin_qms_chg_cnt);
+		} else {
+			err = -EINVAL;
+			goto error;
+		}
 	}
 
 	kfree(buf_orig);
+	return count;
+error:
+	pr_err("vdin dts config error: %d\n", err);
 	return count;
 }
 
@@ -5397,8 +5395,8 @@ static ssize_t crop_show(struct device *dev,
 	struct tvin_cutwin_s *crop = &devp->debug.cutwin;
 
 	len += sprintf(buf + len,
-		       "hs_offset %u, he_offset %u, vs_offset %u, ve_offset %u\n",
-		       crop->hs, crop->he, crop->vs, crop->ve);
+			"cutwin:%d, hs:%u, he:%u, vs:%u, ve:%u\n",
+			crop->en, crop->hs, crop->he, crop->vs, crop->ve);
 	return len;
 }
 
@@ -5409,7 +5407,7 @@ static ssize_t crop_store(struct device *dev,
 	char *parm[5] = {NULL}, *buf_orig;
 	struct vdin_dev_s *devp = dev_get_drvdata(dev);
 	struct tvin_cutwin_s *crop = &devp->debug.cutwin;
-	long val;
+	long val = 0;
 	ssize_t ret_ext = count;
 
 	if (!buf)
@@ -5435,8 +5433,6 @@ static ssize_t crop_store(struct device *dev,
 
 	kfree(buf_orig);
 
-	pr_info("hs_offset %u, he_offset %u, vs_offset %u, ve_offset %u, chg:%d.\n",
-		crop->hs, crop->he, crop->vs, crop->ve, devp->debug.cutwin.en);
 	return ret_ext;
 }
 
@@ -5449,10 +5445,10 @@ static ssize_t color_info_show(struct device *dev,
 	int len = 0;
 	struct vdin_dev_s *devp = dev_get_drvdata(dev);
 
-	unsigned int u, v, y;
+	unsigned int y, u, v;
 	unsigned int r, g, b;
 
-	vdin_prob_get_yuv(devp->addr_offset, &u, &v, &y);
+	vdin_prob_get_yuv(devp->addr_offset, &y, &u, &v);
 	vdin_prob_get_rgb(devp->addr_offset, &r, &g, &b);
 
 	len += sprintf(buf + len,
@@ -5469,6 +5465,7 @@ static ssize_t color_info_store(struct device *dev,
 	char *buf_orig, *parm[47] = {NULL};
 	struct vdin_dev_s *devp;
 	long val = 0;
+	int err = 0;
 
 	if (!buf)
 		return count;
@@ -5489,31 +5486,38 @@ static ssize_t color_info_store(struct device *dev,
 				y = val;
 			vdin_prob_set_xy(devp->addr_offset, x, y, devp);
 		} else {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		}
 	} else if (!strcmp(parm[0], "prob_pre_post")) {
 		unsigned int x = 0;
 
-		if (!parm[1])
-			pr_err("miss parameters .\n");
-		if (kstrtoul(parm[1], 10, &val) == 0)
-			x = val;
-		pr_info("matrix post sel: %d\n", x);
-		vdin_prob_set_before_or_after_mat(devp->addr_offset, x, devp);
+		if (!parm[1]) {
+			err = -EINVAL;
+			goto error;
+		} else {
+			if (kstrtoul(parm[1], 10, &val) == 0)
+				x = val;
+			pr_info("matrix post sel: %d\n", x);
+			vdin_prob_set_before_or_after_mat(devp->addr_offset, x, devp);
+		}
 	} else if (!strcmp(parm[0], "prob_mat_sel")) {
 		unsigned int x = 0;
 
-		if (!parm[1])
-			pr_err("miss parameters .\n");
-		if (kstrtoul(parm[1], 10, &val) == 0)
-			x = val;
-		pr_info("matrix sel : %d\n", x);
-		vdin_prob_matrix_sel(devp->addr_offset, x, devp);
+		if (!parm[1]) {
+			err = -EINVAL;
+			goto error;
+		} else {
+			if (kstrtoul(parm[1], 10, &val) == 0)
+				x = val;
+			pr_info("matrix sel : %d\n", x);
+			vdin_prob_matrix_sel(devp->addr_offset, x, devp);
+		}
 	} else if (!strcmp(parm[0], "prob_yuv")) {
-		unsigned int u, v, y;
+		unsigned int y, u, v;
 
-		vdin_prob_get_yuv(devp->addr_offset, &u, &v, &y);
-		pr_info("yuv_info-->u:%x, v:%x, y:%x\n", u, v, y);
+		vdin_prob_get_yuv(devp->addr_offset, &y, &u, &v);
+		pr_info("yuv_info-->y:%x, u:%x, v:%x\n", y, u, v);
 	} else if (!strcmp(parm[0], "prob_rgb")) {
 		unsigned int r, g, b;
 
@@ -5521,6 +5525,10 @@ static ssize_t color_info_store(struct device *dev,
 		pr_info("rgb_info-->r:%x, g:%x, b:%x\n", r, g, b);
 	}
 
+	kfree(buf_orig);
+	return count;
+error:
+	pr_err("vdin color info error: %d\n", err);
 	kfree(buf_orig);
 	return count;
 }
@@ -5573,8 +5581,9 @@ static ssize_t cm2_store(struct device *dev,
 	long val;
 	char delim1[3] = " ";
 	char delim2[2] = "\n";
+	int err = 0;
 
-	strcat(delim1, delim2);
+	strncat(delim1, delim2, 1);
 
 	devp = dev_get_drvdata(dev);
 	if (devp->addr_offset != 0) {
@@ -5592,16 +5601,13 @@ static ssize_t cm2_store(struct device *dev,
 		parm[n++] = token;
 	}
 	if (n == 0) {
-		pr_info("parm not initialized.\n");
-		kfree(buf_orig);
-		return count;
+		err = -1;
+		goto error;
 	}
 	if ((parm[0][0] == 'w') && parm[0][1] == 'm') {
 		if (n != 7) {
-			pr_info("read : invalid parameter\n");
-			pr_info("please : cat / sys/class/vdin/vdin0/cm2\n");
-			kfree(buf_orig);
-			return count;
+			err = -1;
+			goto error;
 		}
 		/* addr = simple_strtol(parm[1], NULL, 16); */
 		if (kstrtol(parm[1], 16, &val) < 0) {
@@ -5634,10 +5640,8 @@ static ssize_t cm2_store(struct device *dev,
 		pr_info("wm[0x%x]  0x0\n", addr);
 	} else if ((parm[0][0] == 'r') && parm[0][1] == 'm') {
 		if (n != 2) {
-			pr_info("read : invalid parameter\n");
-			pr_info("please : cat / sys/class/vdin/vdin0/cm2\n");
-			kfree(buf_orig);
-			return count;
+			err = -EINVAL;
+			goto error;
 		}
 		if (kstrtol(parm[1], 16, &val) == 0)
 			addr = val;
@@ -5672,10 +5676,15 @@ static ssize_t cm2_store(struct device *dev,
 		wr_bits(devp->addr_offset, VDIN_CM_BRI_CON_CTRL, 0,
 			CM_TOP_EN_BIT, CM_TOP_EN_WID);
 	} else {
-		pr_info("invalid command\n");
-		pr_info("please : cat / sys/class/vdin/vdin0/bit");
+		err = -4;
+		goto error;
 	}
 
+	kfree(buf_orig);
+	return count;
+
+error:
+	pr_err("vdin cm2 error: %d\n", err);
 	kfree(buf_orig);
 	return count;
 }
@@ -5747,6 +5756,7 @@ ssize_t slt_test_store(struct device *dev,
 	char *buf_orig, *parm[48] = {NULL};
 	struct vdin_dev_s *devp = dev_get_drvdata(dev);
 	long val = 0;
+	int err = 0;
 
 	if (!buf)
 		return len;
@@ -5756,7 +5766,8 @@ ssize_t slt_test_store(struct device *dev,
 
 	if (!strcmp(parm[0], "set_crc")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->debug.slt_test.vf_ori_crc = val;
 			pr_info("vdin%d:vf_ori_crc = 0x%x\n\n", devp->index,
@@ -5764,7 +5775,8 @@ ssize_t slt_test_store(struct device *dev,
 		}
 	} else if (!strcmp(parm[0], "enable")) {
 		if (!parm[1]) {
-			pr_err("miss parameters .\n");
+			err = -EINVAL;
+			goto error;
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->debug.slt_test.en = !!val;
 			pr_info("vdin%d:en:%d,vf_ori_crc = 0x%x\n\n", devp->index,
@@ -5779,6 +5791,10 @@ ssize_t slt_test_store(struct device *dev,
 	kfree(buf_orig);
 
 	return len;
+error:
+	pr_err("vdin slt test error: %d\n", err);
+	kfree(buf_orig);
+	return len;
 }
 
 static ssize_t slt_test_show(struct device *dev,
@@ -5786,10 +5802,8 @@ static ssize_t slt_test_show(struct device *dev,
 {
 	struct vdin_dev_s *devp = dev_get_drvdata(dev);
 
-	if (devp->debug.slt_test.vf_check_result)
-		return sprintf(buf, "%s\n", "pass");
-	else
-		return sprintf(buf, "%s\n", "fail");
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+		devp->debug.slt_test.vf_check_result ? "pass" : "fail");
 }
 static DEVICE_ATTR_RW(slt_test);
 
@@ -5800,17 +5814,16 @@ static void vdin_dump_sct_state(struct vdin_dev_s *devp)
 	struct codec_mm_scatter *sc;
 	struct vdin_mmu_box *box = NULL;
 
-	pr_info("mem_type:%d\n", devp->mem_type);
-	pr_info("irq:%d,frm:%d,que:%d,run:%d,af_num:%d\n",
+	pr_info("type:%d pool size:%d, WL:%d, WM:%d, RL:%d, RM:%d\n",
+		devp->mem_type, devp->vfp->size, devp->vfp->wr_list_size,
+		devp->vfp->wr_mode_size, devp->vfp->rd_list_size,
+		devp->vfp->rd_mode_size);
+
+	pr_info("irq:%d, frm:%d, que:%d, run:%d, af_num:%d\n",
 		devp->irq_cnt, devp->frame_cnt,
 		devp->msct_top.que_work_cnt,
 		devp->msct_top.worker_run_cnt,
 		devp->af_num);
-
-	pr_info("pool,size:%d,wr_list:%d,wr_mode:%d,rd_list:%d,rd_mode:%d\n",
-		devp->vfp->size, devp->vfp->wr_list_size,
-		devp->vfp->wr_mode_size, devp->vfp->rd_list_size,
-		devp->vfp->rd_mode_size);
 
 	/* initialize provider write list */
 	for (i = 0; i < devp->vfp->size; i++) {
@@ -5820,11 +5833,10 @@ static void vdin_dump_sct_state(struct vdin_dev_s *devp)
 			break;
 		}
 		sum += devp->msct_top.sct_stat[i].cur_page_cnt;
-		pr_info("[%d],index:%d,sct_stat:%d,status:%d,cur_page_cnt:%d,addr:%#lx\n",
-			i, vfe->vf.index, vfe->sct_stat, vfe->status,
+		pr_info("[%d](%p),id:%d,sct_stat:%d,status:%d,cur_page_cnt:%d,addr:%#lx\n",
+			i, vfe->vf.mem_handle, vfe->vf.index, vfe->sct_stat, vfe->status,
 			devp->msct_top.sct_stat[i].cur_page_cnt,
 			devp->afbce_info->fm_body_paddr[i]);
-		pr_info("mem_handle[%d]:%p\n", i, vfe->vf.mem_handle);
 	}
 	pr_info("max_buf_mum:%d,mmu number:%d,total pages vf:%d,size:%ld KB\n",
 		devp->msct_top.max_buf_num, devp->msct_top.mmu_4k_number,
@@ -5866,7 +5878,7 @@ static ssize_t sct_attr_store(struct device *dev,
 {
 	char *buf_orig, *parm[47] = {NULL};
 	struct vdin_dev_s *devp;
-	unsigned int offset, temp;
+	unsigned int offset, temp = 0;
 
 	if (!buf)
 		return len;
@@ -5880,7 +5892,6 @@ static ssize_t sct_attr_store(struct device *dev,
 	} else if (!strcmp(parm[0], "dbg_sct_ctl")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_sct_ctl = temp;
-			pr_info("dbg_sct_ctl:%#x\n", devp->debug.dbg_sct_ctl);
 		}
 	} else {
 		pr_info("unknown command:%s\n", parm[0]);
@@ -5900,30 +5911,27 @@ int vdin_create_debug_files(struct device *dev)
 	unsigned int i = 0;
 #endif
 
-	ret = device_create_file(dev, &dev_attr_sig_det);
-	ret = device_create_file(dev, &dev_attr_attr);
+	ret |= device_create_file(dev, &dev_attr_sig_det);
+	ret |= device_create_file(dev, &dev_attr_attr);
 	/* create sysfs attribute files */
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	#ifdef VF_LOG_EN
-	ret = device_create_file(dev, &dev_attr_vf_log);
+	ret |= device_create_file(dev, &dev_attr_vf_log);
 	#endif
 	#ifdef ISR_LOG_EN
-	ret = device_create_file(dev, &dev_attr_isr_log);
+	ret |= device_create_file(dev, &dev_attr_isr_log);
 	#endif
-	ret = device_create_file(dev, &dev_attr_color_info);
-	ret = device_create_file(dev, &dev_attr_sct_attr);
-	ret = device_create_file(dev, &dev_attr_cm2);
+	ret |= device_create_file(dev, &dev_attr_color_info);
+	ret |= device_create_file(dev, &dev_attr_sct_attr);
+	ret |= device_create_file(dev, &dev_attr_cm2);
 	/*ret = device_create_file(dev, &dev_attr_debug_for_isp);*/
-	ret = device_create_file(dev, &dev_attr_crop);
-	ret = device_create_file(dev, &dev_attr_snow_flag);
-	ret = device_create_file(dev, &dev_attr_input_rate);
-	ret = device_create_file(dev, &dev_attr_slt_test);
-	ret = device_create_file(dev, &dev_attr_dts_config);
-	for (i = 0; i < VDIN_MAX_INSTANCE; i++) {
-		ret = sysfs_create_group(&dev->kobj, &vdin_attr_group[i]);
-		if (ret)
-			pr_err("vdin creat dump node fail.\n");
-	}
+	ret |= device_create_file(dev, &dev_attr_crop);
+	ret |= device_create_file(dev, &dev_attr_snow_flag);
+	ret |= device_create_file(dev, &dev_attr_input_rate);
+	ret |= device_create_file(dev, &dev_attr_slt_test);
+	ret |= device_create_file(dev, &dev_attr_dts_config);
+	for (i = 0; i < VDIN_MAX_INSTANCE; i++)
+		ret |= sysfs_create_group(&dev->kobj, &vdin_attr_group[i]);
 #endif
 	return ret;
 }
@@ -6209,20 +6217,22 @@ void vdin_debugfs_init(struct vdin_dev_s *devp)
 	int i;
 	struct dentry *ent;
 	unsigned int nub;
+	int err = 0;
 
 	nub = devp->index;
 
 	if (nub > 0)
 		return;
 
-	if (devp->dbg_root)
-		return;
-
+	if (devp->dbg_root) {
+		err = -2;
+		goto error;
+	}
 	devp->dbg_root = debugfs_create_dir("vdin0", NULL);
 
 	if (!devp->dbg_root) {
-		pr_err("can't create debugfs dir di\n");
-		return;
+		err = -EINVAL;
+		goto error;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(vdin_debugfs_files); i++) {
@@ -6230,9 +6240,16 @@ void vdin_debugfs_init(struct vdin_dev_s *devp)
 					  vdin_debugfs_files[i].mode,
 					  devp->dbg_root, NULL,
 					  vdin_debugfs_files[i].fops);
-		if (!ent)
-			pr_err("debugfs create failed\n");
+		if (!ent) {
+			err = -4;
+			goto cleanup;
+		}
 	}
+	return;
+cleanup:
+	debugfs_remove(devp->dbg_root);
+error:
+	pr_err("vdin debugfs error:%d\n", err);
 }
 
 void vdin_debugfs_exit(struct vdin_dev_s *devp)
@@ -6258,7 +6275,7 @@ void vdin_dump_frames(struct vdin_dev_s *devp)
 	if (devp->dbg_dump_frames) {
 		/* todo:check path available */
 		snprintf(file_path, sizeof(file_path), "%s", "/mnt/img");
-		pr_info("dir:%s\n", file_path);
+		pr_info("vdin dump frame path:%s\n", file_path);
 		if (devp->afbce_valid == 1) {
 			vdin_pause_dec(devp, 0);
 
@@ -6289,7 +6306,6 @@ enum vdin_dmc_device_id_e {
 
 static int vdin_dmc_meta(struct vdin_dev_s *devp)
 {
-	pr_info("%s,%d;vdin%d\n", __func__, __LINE__, devp->index);
 	devp->dv.meta_data_raw_p_buffer0 = addr;
 	vdin_wrmif2_addr_update(devp);
 
@@ -6298,7 +6314,6 @@ static int vdin_dmc_meta(struct vdin_dev_s *devp)
 
 static int vdin_dmc_afbce(struct vdin_dev_s *devp)
 {
-	pr_info("%s,%d;vdin%d\n", __func__, __LINE__, devp->index);
 	if (devp->afbce_info && devp->afbce_valid) {
 		devp->afbce_info->fm_body_paddr[0] = addr;
 		vdin_afbce_maptable_init(devp);
@@ -6311,7 +6326,6 @@ static int vdin_dmc_wrmif(struct vdin_dev_s *devp)
 {
 	struct vf_entry *vfe;
 
-	pr_info("%s,%d;vdin%d\n", __func__, __LINE__, devp->index);
 	vfe = provider_vf_peek(devp->vfp);
 	if (!vfe) {
 		pr_info("receiver_vf_peek failed\n");
@@ -6332,10 +6346,10 @@ static int vdin_dmc_dev_access_notify(struct notifier_block *nb, unsigned long i
 	if (vdin_id == id) {
 		addr = tmp->addr;
 		size = tmp->size;
-		pr_info("vdin this is %ld trust handle func,addr:%lx,size:%lx\n", id,
-			addr, size);
 		devp = vdin_get_dev(vdin_idx);//todo
 		device_id = devp->debug.dbg_device_id;
+		pr_info("vdin%ld dmc access addr:%lx,size:%lx, device_id:%d\n",
+			id, addr, size, device_id);
 		if (device_id == VDIN_DMC_DEVICE_META)
 			vdin_dmc_meta(devp);
 		else if (device_id == VDIN_DMC_DEVICE_AFBCE)
@@ -6366,8 +6380,6 @@ void vdin_reg_dmc_notifier(unsigned int index)
 	else
 		vdin_id = register_dmc_dev_access_notifier("VPU WRITE1",
 			&vdin_dmc_dev_access_nb);
-#else
-	pr_info("%s CONFIG_AMLOGIC_DMC_DEV_ACCESS not enabled\n", __func__);
 #endif
 }
 
@@ -6384,8 +6396,6 @@ void vdin_unreg_dmc_notifier(unsigned int index)
 	else
 		vdin_id = unregister_dmc_dev_access_notifier("VPU WRITE1",
 			&vdin_dmc_dev_access_nb);
-#else
-	pr_info("%s CONFIG_AMLOGIC_DMC_DEV_ACCESS not enabled\n", __func__);
 #endif
 }
 

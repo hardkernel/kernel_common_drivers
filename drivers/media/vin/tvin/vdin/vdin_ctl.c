@@ -133,7 +133,7 @@ u8 *vdin_vmap(ulong addr, u32 size)
 
 	vaddr = vmap(pages, page_num, VM_MAP, pgprot);
 	if (!vaddr) {
-		pr_err("the phy(%lx) vmap fail, size: %d\n",
+		pr_debug("the phy(%lx) vmap fail, size: %d\n",
 			page_start, page_num << PAGE_SHIFT);
 		kfree(pages);
 		return NULL;
@@ -860,24 +860,24 @@ void vdin_prob_get_rgb(unsigned int offset,
 }
 
 void vdin_prob_get_yuv(unsigned int offset,
-		       unsigned int *rgb_yuv0,
-		       unsigned int *rgb_yuv1,
-		       unsigned int *rgb_yuv2)
+			unsigned int *y,
+			unsigned int *u,
+			unsigned int *v)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
-		vdin_prob_get_yuv_s5(offset, rgb_yuv0, rgb_yuv1, rgb_yuv2);
+		vdin_prob_get_yuv_s5(offset, y, u, v);
 		return;
 	}
 #endif
 
-	*rgb_yuv0 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
+	*v = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
 			      COMPONENT2_PROBE_COLOR_BIT,
 			      COMPONENT2_PROBE_COLOR_WID) << 8) >> 10);
-	*rgb_yuv1 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
+	*u = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
 			      COMPONENT1_PROBE_COLOR_BIT,
 			      COMPONENT1_PROBE_COLOR_WID) << 8) >> 10);
-	*rgb_yuv2 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
+	*y = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
 			      COMPONENT0_PROBE_COLOR_BIT,
 			      COMPONENT0_PROBE_COLOR_WID) << 8) >> 10);
 }

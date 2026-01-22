@@ -463,9 +463,9 @@
 /* Bit 7:0, dummy component 2 */
 #define VDIN_DUMMY_DATA                   ((0x1226))/* + 0xd0100000) */
 /* Read only */
-/* Bit 29:20 component 0 */
-/* Bit 19:10 component 1 */
-/* Bit 9:0 component 2 */
+/* Bit 29:20 component 0 - Y or R */
+/* Bit 19:10 component 1 - U or G */
+/* Bit 9:0 component 2   - V or B */
 #define VDIN_MATRIX_PROBE_COLOR           ((0x1228))/* + 0xd0100000) */
 /* Bit 23:16 component 0 */
 /* Bit 15:8  component 1 */
@@ -477,8 +477,7 @@
 #define VDIN_CHROMA_ADDR_PORT             ((0x122b))/* + 0xd0100000) */
 #define VDIN_CHROMA_DATA_PORT             ((0x122c))/* + 0xd0100000) */
 #define VDIN_CM_BRI_CON_CTRL              ((0x122d))/* + 0xd0100000) */
-#define VDIN_HDMIRX_CTRL                    0x122e
-
+#define VDIN_HDMIRX_CTRL                  ((0x122e))/* + 0xd0100000) */
 /* Bit 17  clk_cyc_cnt_clr, if true, clear this register */
 /* Bit 16 if true, use vpu clock to count one line,
  * otherwise use actually hsync to count line_cnt
