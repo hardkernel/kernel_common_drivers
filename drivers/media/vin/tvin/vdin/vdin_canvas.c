@@ -11,6 +11,8 @@
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/dma-map-ops.h>
 #include <linux/delay.h>
+#include <linux/sched/signal.h>
+#include <linux/sched.h>
 
 /* Amlogic headers */
 #include <linux/amlogic/media/vfm/vframe.h>
@@ -1004,6 +1006,11 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC) {
 				/*add for 1g config, codec can't release mem in time*/
 				for (j = 0; j < 20; j++) {
+					if (fatal_signal_pending(current)) {
+						pr_err("vdin%d code_mm alloc task %d pending!!\n",
+							devp->index, current->pid);
+						break;
+					}
 					mem = codec_mm_alloc(vdin_name,
 						(frame_size / PAGE_SIZE) << PAGE_SHIFT, 0, flags,
 							-1);
