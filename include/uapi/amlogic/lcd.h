@@ -88,8 +88,8 @@ struct aml_lcd_tcon_bin_s {
 	};
 };
 
-struct aml_path_s {
-	char string[256];
+struct aml_lcd_path_s {
+	char path[256];
 };
 
 struct aml_lcd_ss_ctl_s {
@@ -173,7 +173,7 @@ struct aml_lcd_tcon_ctrl_s {
 #define LCD_IOC_CMD_SET_TCON_DATA_INDEX_INFO   \
 	_IOW(LCD_IOC_TYPE, LCD_IOC_SET_TCON_DATA_INDEX_INFO, unsigned int)
 #define LCD_IOC_CMD_GET_TCON_BIN_PATH_INFO   \
-	_IOR(LCD_IOC_TYPE, LCD_IOC_GET_TCON_BIN_PATH_INFO, struct aml_path_s)
+	_IOR(LCD_IOC_TYPE, LCD_IOC_GET_TCON_BIN_PATH_INFO, struct aml_lcd_path_s)
 #define LCD_IOC_CMD_SET_TCON_BIN_DATA_INFO   \
 	_IOW(LCD_IOC_TYPE, LCD_IOC_SET_TCON_BIN_DATA_INFO, struct aml_lcd_tcon_bin_s)
 
