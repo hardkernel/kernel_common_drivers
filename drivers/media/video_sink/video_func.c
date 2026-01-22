@@ -2171,8 +2171,11 @@ s32 primary_render_frame(struct video_layer_s *layer,
 	aisr_scaler_setting(layer, &layer->aisr_sc_setting);
 	aisr_demo_axis_set(layer);
 	/* update alpha win */
-	if (!cur_dev->pre_vsync_enable)
+	if (!cur_dev->pre_vsync_enable) {
 		alpha_win_set(layer);
+		if (vd_layer[0].mosaic_mode)
+			alpha_win_set(&vd_layer[1]);
+	}
 	vd_blend_setting(layer, &layer->bld_setting);
 	if (update_vd2) {
 		vd_scaler_setting(&vd_layer[1], &local_vd2_pps);
@@ -6218,11 +6221,9 @@ exit:
 #endif
 
 	/* update alpha win */
-	if (cur_dev->pre_vsync_enable) {
+	if (cur_dev->pre_vsync_enable)
 		alpha_win_set(&vd_layer[0]);
-		if (vd_layer[0].mosaic_mode)
-			alpha_win_set(&vd_layer[1]);
-	}
+
 	/* do blend,judge really update in update_vpp_input_info for vpp_index */
 	if (!cur_dev->pre_vsync_enable) {
 		vpp_blend_update(vinfo, VPP0);
