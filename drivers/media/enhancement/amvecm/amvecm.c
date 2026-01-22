@@ -2428,12 +2428,11 @@ static int vpp_mtx_update(struct vpp_mtx_info_s *mtx_info, int vpp_index)
 	unsigned int pre_offset2 = 0;
 	unsigned int en = 0;
 
-	if (!(vecm_latch_flag2 & VPP_MARTIX_UPDATE))
-		return 0;
-
 	mtx_sel = mtx_info->mtx_sel;
+
 	if (flag_lc_evc && mtx_sel == VD1_MTX)
 		return 0;
+
 	switch (mtx_sel) {
 	case VD1_MTX:
 		matrix_coef00_01 = VPP_VD1_MATRIX_COEF00_01;
@@ -2532,7 +2531,16 @@ static int vpp_mtx_update(struct vpp_mtx_info_s *mtx_info, int vpp_index)
 	}
 
 	if (!mtx_sel) {
-		vecm_latch_flag2 &= ~VPP_MARTIX_UPDATE;
+		if (vecm_latch_flag2 & VPP_MARTIX_UPDATE)
+			vecm_latch_flag2 &= ~VPP_MARTIX_UPDATE;
+		else if (vecm_latch_flag2 & VPP_MARTIX_UPDATE_BRIGHT)
+			vecm_latch_flag2 &= ~VPP_MARTIX_UPDATE_BRIGHT;
+		else if (vecm_latch_flag2 & VPP_MARTIX_UPDATE_CONTRAST)
+			vecm_latch_flag2 &= ~VPP_MARTIX_UPDATE_CONTRAST;
+		else if (vecm_latch_flag2 & VPP_MARTIX_UPDATE_HUE_SAT)
+			vecm_latch_flag2 &= ~VPP_MARTIX_UPDATE_HUE_SAT;
+		else if (vecm_latch_flag2 & VPP_MARTIX_UPDATE_EN)
+			vecm_latch_flag2 &= ~VPP_MARTIX_UPDATE_EN;
 		return 0;
 	}
 
@@ -2576,6 +2584,28 @@ static int vpp_mtx_update(struct vpp_mtx_info_s *mtx_info, int vpp_index)
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_en_ctrl, en, 0, 1, vpp_index);
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_clip, clip, 5, 3, vpp_index);
 		vecm_latch_flag2 &= ~VPP_MARTIX_UPDATE;
+	} else if (vecm_latch_flag2 & VPP_MARTIX_UPDATE_BRIGHT) {
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_pre_offset0_1,
+			mtx_info->mtx_coef.pre_offset[0], 16, 16, vpp_index);
+		vecm_latch_flag2 &= ~VPP_MARTIX_UPDATE_BRIGHT;
+	} else if (vecm_latch_flag2 & VPP_MARTIX_UPDATE_CONTRAST) {
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_coef00_01,
+			mtx_info->mtx_coef.matrix_coef[0][0], 16, 16, vpp_index);
+		vecm_latch_flag2 &= ~VPP_MARTIX_UPDATE_CONTRAST;
+	} else if (vecm_latch_flag2 & VPP_MARTIX_UPDATE_HUE_SAT) {
+		coef11_12 = (mtx_info->mtx_coef.matrix_coef[1][1] << 16) |
+			mtx_info->mtx_coef.matrix_coef[1][2];
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12,
+			coef11_12, vpp_index);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_coef20_21,
+			mtx_info->mtx_coef.matrix_coef[2][1], 0, 16, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22,
+			mtx_info->mtx_coef.matrix_coef[2][2], vpp_index);
+		vecm_latch_flag2 &= ~VPP_MARTIX_UPDATE_HUE_SAT;
+	} else if (vecm_latch_flag2 & VPP_MARTIX_UPDATE_EN) {
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_en_ctrl,
+			mtx_info->mtx_coef.en, 0, 1, vpp_index);
+		vecm_latch_flag2 &= ~VPP_MARTIX_UPDATE_EN;
 	}
 
 	return 0;
@@ -2609,6 +2639,7 @@ static int vpp_mtx_get(struct vpp_mtx_info_s *mtx_info)
 	unsigned int en = 0;
 
 	mtx_sel = mtx_info->mtx_sel;
+
 	switch (mtx_sel) {
 	case VD1_MTX:
 		matrix_coef00_01 = VPP_VD1_MATRIX_COEF00_01;
@@ -2725,7 +2756,8 @@ static int vpp_mtx_get(struct vpp_mtx_info_s *mtx_info)
 		(u16)((pre_offset0_1 >> 16) & 0xffff);
 	mtx_info->mtx_coef.pre_offset[1] =
 		(u16)(pre_offset0_1 & 0xffff);
-	mtx_info->mtx_coef.pre_offset[2] = (u16)(pre_offset2 & 0xffff);
+	mtx_info->mtx_coef.pre_offset[2] =
+		(u16)(pre_offset2 & 0xffff);
 	mtx_info->mtx_coef.matrix_coef[0][0] =
 		(u16)((coef00_01 >> 16) & 0xffff);
 	mtx_info->mtx_coef.matrix_coef[0][1] =
@@ -2914,14 +2946,8 @@ static int amvecm_set_osd_mtx_enable(int enable)
 		else
 			mtx_p->mtx_sel = OSD1_PQ_MTX;
 
-		vpp_mtx_get(mtx_p);
 		mtx_p->mtx_coef.en = enable;
-		vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
-
-		pr_amvecm_dbg("%s: sel = %d, enable = %d\n",
-			__func__, mtx_p->mtx_sel, enable);
-	} else {
-		pr_info("osd pq setting: only for t5m/t6d/t6w enable osd_pic_en\n");
+		vecm_latch_flag2 |= VPP_MARTIX_UPDATE_EN;
 	}
 
 	return 0;
@@ -2943,8 +2969,6 @@ static int amvecm_set_osd_brightness(int val)
 		else
 			mtx_p->mtx_sel = OSD1_PQ_MTX;
 
-		vpp_mtx_get(mtx_p);
-
 		if (val < -1024)
 			val = -1024;
 		else if (val > 1023)
@@ -2954,10 +2978,9 @@ static int amvecm_set_osd_brightness(int val)
 			val += 2048;
 
 		mtx_p->mtx_coef.pre_offset[0] = val;
-		vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
-	} else {
-		pr_info("osd pq setting: only for t5m/t6d enable osd_pic_en\n");
+		vecm_latch_flag2 |= VPP_MARTIX_UPDATE_BRIGHT;
 	}
+
 	return 0;
 }
 
@@ -2982,13 +3005,10 @@ static int amvecm_set_osd_contrast(int val)
 		else
 			mtx_p->mtx_sel = OSD1_PQ_MTX;
 
-		vpp_mtx_get(mtx_p);
-
 		mtx_p->mtx_coef.matrix_coef[0][0] = val + 1024;
-		vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
-	} else {
-		pr_info("osd pq setting: only for t5m/t6d enable osd_pic_en\n");
+		vecm_latch_flag2 |= VPP_MARTIX_UPDATE_CONTRAST;
 	}
+
 	return 0;
 }
 
@@ -3037,8 +3057,6 @@ static int amvecm_set_osd_hue_sat(int hue_val, int sat_val)
 		else
 			mtx_p->mtx_sel = OSD1_PQ_MTX;
 
-		vpp_mtx_get(mtx_p);
-
 		i = (hue_val > 0) ? hue_val : -hue_val;
 		ma = (hue_cos[i] * (sat_val + 128)) >> 5;
 		mb = (hue_sin[25 + hue_val] * (sat_val + 128)) >> 5;
@@ -3058,12 +3076,7 @@ static int amvecm_set_osd_hue_sat(int hue_val, int sat_val)
 
 		mtx_p->mtx_coef.matrix_coef[1][2] = mb;
 		mtx_p->mtx_coef.matrix_coef[2][1] = mc;
-		vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
-
-		pr_amvecm_dbg("%s: sel = %d, hue/sat_val = %d/%d\n",
-			__func__, mtx_p->mtx_sel, hue_val, sat_val);
-	} else {
-		pr_info("osd hue: only for t5m/t6d/t6w enable osd_pic_en\n");
+		vecm_latch_flag2 |= VPP_MARTIX_UPDATE_HUE_SAT;
 	}
 
 	return 0;
@@ -4313,6 +4326,7 @@ static int amvecm_pre_matrix_process(struct vframe_s *toggle_vf,
 					toggle_vf->vc_private->mosaic_vf[mosaic_idx[i]] : NULL,
 					vf ? vf->vc_private->mosaic_vf[mosaic_idx[i]] : NULL,
 					flags, mosaic_vd_path[i], vpp_index);
+
 				}
 				mosaic_mode = 0;
 				am_dma_updat_hdr2_hist(mosaic_mode);
@@ -5968,8 +5982,8 @@ static long amvecm_ioctl(struct file *file,
 			pr_info("tmo_reg info cp from usr failed\n");
 		} else {
 			hdr10_tmo_reg_set(pre_tmo_reg);
-			force_toggle();
-			pr_info("tmo_reg set success\n");
+			if (!dpss_mode)
+				force_toggle();
 		}
 		break;
 	case AMVECM_IOC_G_HDR_TMO:
@@ -5980,8 +5994,8 @@ static long amvecm_ioctl(struct file *file,
 			break;
 		}
 
-		argp = (void __user *)arg;
 		hdr10_tmo_reg_get(pre_tmo_reg);
+		argp = (void __user *)arg;
 		if (copy_to_user(argp, pre_tmo_reg,
 			sizeof(struct hdr_tmo_sw))) {
 			ret = -EFAULT;
@@ -6120,8 +6134,8 @@ static long amvecm_ioctl(struct file *file,
 		} else {
 			pr_amvecm_dbg("gamut conv enable cp from usr = %d\n",
 				gamut_conv_enable);
+			force_toggle();
 		}
-
 		break;
 	case AMVECM_IOC_COLOR_MTX_EN:
 		if (copy_from_user(&tmp,
@@ -6225,7 +6239,12 @@ static long amvecm_ioctl(struct file *file,
 					hdr_policy = 0;
 					set_force_output(UNKNOWN_FMT);
 				}
-				force_toggle();
+
+				set_sdr_ext_mode_for_dpss(sdr_hdr_ctrl);
+
+				if (!dpss_mode)
+					force_toggle();
+
 				pr_amvecm_dbg("AMVECM_IOC_S_SDR2HDR_CTRL sdr_hdr_ctrl = %d\n",
 					sdr_hdr_ctrl);
 			}
@@ -9559,7 +9578,8 @@ free_buf:
 
 void pc_mode_process(int vpp_index)
 {
-	if (pc_mode == 1 && pc_mode != pc_mode_last &&
+	if (pc_mode == 1 &&
+		pc_mode != pc_mode_last &&
 		pc_mode_last != 0xff) {
 		/* open dnlp clock gate */
 		lc_en = pq_cfg.lc_en;
@@ -9576,7 +9596,8 @@ void pc_mode_process(int vpp_index)
 			amve_old_sharpness_sub_vsync_ctrl(1, vpp_index);
 
 		pc_mode_last = pc_mode;
-	} else if ((pc_mode == 0) && (pc_mode != pc_mode_last)) {
+	} else if (pc_mode == 0 &&
+		pc_mode != pc_mode_last) {
 		dnlp_en = 0;
 		lc_en = 0;
 		ve_disable_dnlp();
@@ -16680,13 +16701,9 @@ void amvecm_gamma_init(bool en)
 				WR_VCB, WR_MOD, 0);
 		}
 	} else {
-		vpp_disable_lcd_gamma_table(0, 0, 0);
-		amve_write_gamma_table(data,
-					H_SEL_R);
-		amve_write_gamma_table(data,
-					H_SEL_G);
-		amve_write_gamma_table(data,
-					H_SEL_B);
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
 	}
 
 	if (chip_type_id != chip_t3x) {

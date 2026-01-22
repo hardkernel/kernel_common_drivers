@@ -88,6 +88,11 @@
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
+#define VPP_MARTIX_UPDATE_BRIGHT    BIT(30)
+#define VPP_MARTIX_UPDATE_CONTRAST  BIT(29)
+#define VPP_MARTIX_UPDATE_HUE_SAT   BIT(28)
+#define VPP_MARTIX_UPDATE_EN        BIT(27)
+
 #define FLAG_HDR10P_ON              BIT(26)
 #define FLAG_HDR_ON                 BIT(25)
 #define FLAG_GAMUT_MAPPING1_UPDATE  BIT(24)
