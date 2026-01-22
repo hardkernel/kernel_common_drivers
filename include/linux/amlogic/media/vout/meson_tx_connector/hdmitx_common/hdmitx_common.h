@@ -394,6 +394,7 @@ struct hdmitx_common {
 	struct vpu_dev_s *hdmi_vpu_dev;
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 #endif
+	u8 scan_info;
 
 	/* 7. audio mode related */
 	struct aud_para cur_audio_param;

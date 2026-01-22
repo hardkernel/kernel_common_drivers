@@ -6243,14 +6243,13 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 {
 	struct meson_tx_format_para *para = &hdev->tx_comm.fmt_para;
 	struct tx_timing *t = &para->timing;
-	unsigned long   data32;
-	unsigned char   vid_map;
-	unsigned char   csc_en;
-	unsigned char   default_phase = 0;
+	unsigned long data32;
+	unsigned char vid_map;
+	unsigned char csc_en;
+	unsigned char default_phase = 0;
 	unsigned int tmp = 0;
 	unsigned short v_active = t->v_active;
 	struct hdmitx_hw_common *tx_hw = hdev->tx_comm.tx_hw;
-	struct rx_cap *prxcap = &hdev->tx_comm.base.rxcap;
 	enum hdmi_scan_mode scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
 
 	if (t->pi_mode == 0)
@@ -6563,10 +6562,11 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32  = 0;
 	data32 |= (((output_color_format >> 2) & 0x1) << 7);
 	data32 |= (1 << 6);
-	scan_mode = hdmitx_check_scan_info(prxcap, scan_mode, para->tx_hw_para.hdmitx_hw_para.vic);
 	/* NO_DATA for special TV set, and underscan for other TV sets */
 	if (hdmitx_find_vendor_scan_non_std(hdev->tx_comm.base.edid_buf))
 		scan_mode = HDMI_SCAN_MODE_NONE;
+	else
+		scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
 	data32 |= (scan_mode << 4);
 	data32 |= (0 << 2);
 	data32 |= (0x2 << 0);    /* FIXED YCBCR 444 */

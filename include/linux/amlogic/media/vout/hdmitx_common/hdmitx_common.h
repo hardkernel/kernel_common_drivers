@@ -289,6 +289,7 @@ struct hdmitx_common {
 	 * blocked. Phy cannot be enabled to avoid affecting TV
 	 */
 	bool skip_phy_setting;
+	u8 scan_info;
 
 	/* 7. audio mode related */
 	struct aud_para cur_audio_param;

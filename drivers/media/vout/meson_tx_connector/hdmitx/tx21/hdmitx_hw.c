@@ -3434,10 +3434,13 @@ static void hdmitx_construct_avi_packet(struct hdmitx21_dev *hdev)
 	info->bottom_bar = 0;
 	info->left_bar = 0;
 	info->right_bar = 0;
-	info->scan_mode = hdmitx_check_scan_info(prxcap, scan_mode, para->timing.vic);
 	/* NO_DATA for special TV set, and underscan for other TV sets */
 	if (hdmitx_find_vendor_scan_non_std(hdev->tx_comm.base.edid_buf))
 		info->scan_mode = HDMI_SCAN_MODE_NONE;
+	else if (hdev->tx_comm.scan_info == HDMI_SCAN_MODE_RESERVED)
+		info->scan_mode = hdmitx_check_scan_info(prxcap, scan_mode, para->timing.vic);
+	else
+		info->scan_mode = hdev->tx_comm.scan_info;
 
 	hdmi_avi_infoframe_set(info);
 }

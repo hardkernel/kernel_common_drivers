@@ -159,6 +159,7 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	/*load tx boot params*/
 	tx_comm->hdr_priority = boot_param->hdr_mask;
 
+	tx_comm->scan_info = boot_param->scan_info;
 	tx_comm->res_1080p = 0;
 	tx_comm->max_refresh_rate = 60;
 	tx_comm->base.rxcap.edid_check = boot_param->edid_check;
@@ -2716,26 +2717,17 @@ EXPORT_SYMBOL(hdmitx_common_get_scan_info);
 
 int hdmitx_common_set_scan_info(struct hdmitx_common *tx_comm, enum hdmi_scan_mode val)
 {
-	enum hdmi_scan_mode scan_info = HDMI_SCAN_MODE_NONE;
 	struct hdmitx_hw_common *tx_hw_base = NULL;
-	struct rx_cap *prxcap = NULL;
-	enum hdmi_vic vic = HDMI_0_UNKNOWN;
-	u32 arg = 0;
+	u32 arg = val;
 
 	if (!tx_comm || !tx_comm->tx_hw) {
 		HDMITX_ERROR("%s: invalid param\n", __func__);
 		return -EINVAL;
 	}
+
 	tx_hw_base = tx_comm->tx_hw;
-	prxcap = &tx_comm->base.rxcap;
-	vic = hdmitx_hw_cntl(tx_hw_base, AUX_PKT_GET_AVI_VIC, NULL, NULL);
-	/*
-	 * need to check whether the value set through the UI is supported by the TV,
-	 * If it is supported, set it. If not supported, set the supported value
-	 */
-	scan_info = hdmitx_check_scan_info(prxcap, val, vic);
-	HDMITX_INFO("set scan_info: %d\n", scan_info);
-	arg = scan_info;
+	HDMITX_INFO("set scan_info: %d\n", val);
+	tx_comm->scan_info = val;
 	hdmitx_hw_cntl(tx_hw_base, AUX_PKT_CONF_AVI_SCAN, (void *)&arg, NULL);
 
 	return 0;

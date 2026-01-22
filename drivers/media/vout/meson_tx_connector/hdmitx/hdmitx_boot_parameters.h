@@ -20,6 +20,7 @@ struct hdmitx_boot_param {
 	bool	config_csc;
 	int	edid_check;
 	u8 dsc_policy;
+	u8 scan_info;
 };
 
 struct hdmitx_boot_param *get_hdmitx_boot_params(void);

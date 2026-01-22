@@ -8,12 +8,19 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/amlogic/gki_module.h>
+#include <linux/hdmi.h>
+
 #include "hdmitx_boot_parameters.h"
 #include "hdmitx_log.h"
 
 static struct hdmitx_boot_param tx_params = {
 	.fraction_refresh_rate = 1,
 	.edid_chksum = "invalidcrc",
+	/*
+	 * If uboot does not configure the scan_info environment,
+	 * the kernel default configuration is underscan
+	 */
+	.scan_info = HDMI_SCAN_MODE_UNDERSCAN;
 };
 
 struct hdmitx_boot_param *get_hdmitx_boot_params(void)
@@ -146,6 +153,17 @@ static int parse_hdmitx_boot_para(char *s)
 
 			if (tx_params.color_attr[0] == 0)
 				get_hdmitx_color_attr(token, tx_params.color_attr);
+
+			if ((token_len == 11 && strncmp(token, "scan_info:0", token_len) == 0))
+				tx_params.scan_info = HDMI_SCAN_MODE_NONE;
+			else if ((token_len == 11 && strncmp(token, "scan_info:1", token_len) == 0))
+				tx_params.scan_info = HDMI_SCAN_MODE_OVERSCAN;
+			else if ((token_len == 11 && strncmp(token, "scan_info:2", token_len) == 0))
+				tx_params.scan_info = HDMI_SCAN_MODE_UNDERSCAN;
+			else if ((token_len == 11 && strncmp(token, "scan_info:3", token_len) == 0))
+				tx_params.scan_info = HDMI_SCAN_MODE_RESERVED;
+			else
+				tx_params.scan_info = HDMI_SCAN_MODE_UNDERSCAN;
 		}
 		offset = token_offset;
 	} while (token);
@@ -157,7 +175,7 @@ static int parse_hdmitx_boot_para(char *s)
 
 	return 1;
 }
-__setup("hdmitx=",    parse_hdmitx_boot_para);
+__setup("hdmitx=", parse_hdmitx_boot_para);
 
 static int parse_hdmitx_fraction_rate(char *str)
 {
