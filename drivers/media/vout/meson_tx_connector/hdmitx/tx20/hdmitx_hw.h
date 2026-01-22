@@ -49,7 +49,7 @@ struct hdmitx20_dev *get_hdmitx20_device(void);
 int hdmitx_hdcp_opr(unsigned int val);
 
 unsigned int hdmitx_rd_reg(unsigned int addr);
-int hdmitx_hpd_hw_op(enum hpd_op cmd);
+int hdmitx_hpd_hw_op(struct hdmitx20_hw *tx20_hw, enum hpd_op cmd);
 
 int hdmitx_hpd_hw_op_gxbb(enum hpd_op cmd);
 int read_hpd_gpio_gxbb(void);

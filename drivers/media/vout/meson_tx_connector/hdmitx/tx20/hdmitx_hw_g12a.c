@@ -661,9 +661,6 @@ int hdmitx_ddc_hw_op_g12a(enum ddc_op cmd)
 		pinctrl_select_state(hdev->tx_comm.pdev->pins->p,
 				     hdev->tx_comm.pinctrl_ddc);
 		break;
-	case DDC_UNMUX_DDC:
-		pinctrl_select_state(hdev->tx_comm.pdev->pins->p, hdev->tx_comm.pinctrl_i2c);
-		break;
 	case DDC_INIT_DISABLE_PULL_UP_DN:
 		/*
 		 * For s4/sc2/g12 chips, the pins of DDC is OD(open drain),

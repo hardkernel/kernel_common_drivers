@@ -50,7 +50,6 @@
 #define CUVA_EMP_1_END   53
 #define CUVA_EMP_2_START 56
 
-static struct hdmitx21_hw *global_tx_hw;
 static struct hdmitx21_dev *tx21_dev;
 
 static void hdmi_phy_suspend(void);
@@ -209,9 +208,9 @@ static const struct _hdmi_clkmsr hdmiclkmsr_s7[] = {
 };
 
 /* only for hpd level */
-int hdmitx21_hpd_hw_op(enum hpd_op cmd)
+int hdmitx21_hpd_hw_op(struct hdmitx21_hw *tx21_hw, enum hpd_op cmd)
 {
-	switch (global_tx_hw->base->chip_data->chip_type) {
+	switch (tx21_hw->base->chip_data->chip_type) {
 	case MESON_CPU_ID_S5:
 		return !!(hd21_read_reg(PADCTRL_GPIOH_I) & (1 << 2));
 	case MESON_CPU_ID_S1A:
@@ -229,9 +228,9 @@ int hdmitx21_hpd_hw_op(enum hpd_op cmd)
 	return 0;
 }
 
-int hdmitx21_ddc_hw_op(enum ddc_op cmd)
+int hdmitx21_ddc_hw_op(struct hdmitx21_hw *tx21_hw, enum ddc_op cmd)
 {
-	switch (global_tx_hw->base->chip_data->chip_type) {
+	switch (tx21_hw->base->chip_data->chip_type) {
 	case MESON_CPU_ID_T7:
 	default:
 		return 1;
@@ -267,9 +266,9 @@ static int read_avmute(void)
 }
 
 /* reset HDMITX APB & TX */
-void hdmitx21_sys_reset(void)
+void hdmitx21_sys_reset(struct hdmitx21_hw *tx21_hw)
 {
-	switch (global_tx_hw->base->chip_data->chip_type) {
+	switch (tx21_hw->base->chip_data->chip_type) {
 	case MESON_CPU_ID_T7:
 	case MESON_CPU_ID_S1A:
 	case MESON_CPU_ID_S7D:
@@ -294,7 +293,7 @@ void hdmitx21_sys_reset(void)
  * note that PHY_CTRL0 may be enabled for band_gap in plugin top half,
  * so should not use band_gap setting bits for uboot state decision
  */
-static bool hdmitx21_uboot_already_display(void)
+static bool hdmitx21_uboot_already_display(struct hdmitx21_hw *tx21_hw)
 {
 	bool tmds_pixel_clk_en = false;
 
@@ -302,7 +301,7 @@ static bool hdmitx21_uboot_already_display(void)
 	 * if (hdev->pxp_mode)
 	 *return 0;
 	 */
-	if (global_tx_hw->base->chip_data->chip_type == MESON_CPU_ID_S5)
+	if (tx21_hw->base->chip_data->chip_type == MESON_CPU_ID_S5)
 		tmds_pixel_clk_en = (hdmitx21_rd_reg(HDMITX_TOP_CLK_CNTL) & 0x7) == 0x7;
 	else
 		tmds_pixel_clk_en = (hdmitx21_rd_reg(HDMITX_TOP_CLK_CNTL) & 0x3) == 0x3;
@@ -386,12 +385,13 @@ static int get_extended_colorimetry_from_avi(struct hdmitx21_dev *hdev)
 	return ret;
 }
 
-static enum hdmi_vic _get_vic_from_vsif(struct hdmitx21_dev *hdev)
+static enum hdmi_vic _get_vic_from_vsif(struct hdmitx21_hw *tx21_hw)
 {
 	int ret;
 	u8 body[32] = {0};
 	enum hdmi_vic hdmi4k_vic = HDMI_0_UNKNOWN;
-	union hdmi_infoframe *infoframe = &global_tx_hw->infoframe->vend;
+	struct hdmitx21_dev *hdev = container_of(tx21_hw, struct hdmitx21_dev, tx21_hw);
+	union hdmi_infoframe *infoframe = &tx21_hw->infoframe->vend;
 	struct hdmi_vendor_infoframe *vendor = &infoframe->vendor.hdmi;
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 
@@ -454,7 +454,7 @@ static void hdmi_hwp_init(struct hdmitx21_dev *hdev, bool reset)
 	/* enable access core reg */
 	hdmitx21_wr_reg(HDMITX_TOP_SEC_SCRATCH, 1);
 
-	if (!reset && hdmitx21_uboot_already_display()) {
+	if (!reset && hdmitx21_uboot_already_display(&hdev->tx21_hw)) {
 		HDMITX_INFO("uboot already enabled hdmitx\n");
 		/* enable fifo intr if uboot hdmitx output ready */
 		hdev->ignore_fifo_intr5 = false;
@@ -582,6 +582,8 @@ static int hdmitx_validate_mode(struct hdmitx_hw_common *tx_hw, u32 vic, u32 max
 {
 	int ret = 0;
 	const struct tx_timing *timing;
+	struct hdmitx21_dev *hdev = container_of(tx_hw, struct hdmitx21_dev, hw_comm);
+	struct hdmitx21_hw *tx21_hw = &hdev->tx21_hw;
 
 	if (!tx_hw || !tx_hw->chip_data)
 		return -EINVAL;
@@ -594,7 +596,7 @@ static int hdmitx_validate_mode(struct hdmitx_hw_common *tx_hw, u32 vic, u32 max
 	if (!timing)
 		return -EINVAL;
 
-	switch (global_tx_hw->base->chip_data->chip_type) {
+	switch (tx21_hw->base->chip_data->chip_type) {
 	case MESON_CPU_ID_S5:
 		/* for S5, the MAX capabilities are 8K60, and 4k120, and below */
 		ret = (soc_resolution_limited(timing, 4320) &&
@@ -792,8 +794,8 @@ static void hdmitx21_private_data_init(struct hdmitx21_dev *h21_dev)
 #endif
 }
 
-/* note: if need to check if global_tx_hw not NULL before use it
- * in case unexpected call into hw api before HW init.
+/*
+ * note: move global_tx_hw to function parameters
  */
 void hdmitx21_meson_init(struct hdmitx_hw_common *hw_comm)
 {
@@ -803,7 +805,6 @@ void hdmitx21_meson_init(struct hdmitx_hw_common *hw_comm)
 
 	HDMITX_INFO("%s%d\n", __func__, __LINE__);
 	h21_dev->tx21_hw.base = hw_comm;
-	global_tx_hw = &h21_dev->tx21_hw;
 	h21_dev->tx21_hw.infoframe = &tx_comm->infoframe;
 
 	hw_comm->hw_cntl = hdmitx21_hw_cntl;
@@ -2317,7 +2318,7 @@ void hdmitx21_meson_uninit(struct hdmitx_hw_common *hw_comm)
 
 	hdmitx_fifo_flow_enable_intr(0);
 	phy_hpll_off();
-	hdmitx21_hpd_hw_op(HPD_UNMUX_HPD);
+	hdmitx21_hpd_hw_op(&h21_dev->tx21_hw, HPD_UNMUX_HPD);
 
 	if (hw_comm->chip_data->chip_type == MESON_CPU_ID_S5)
 		kthread_stop(tx_comm->task_clk_check);
@@ -3441,26 +3442,23 @@ static void hdmitx_construct_avi_packet(struct hdmitx21_dev *hdev)
 	hdmi_avi_infoframe_set(info);
 }
 
-static enum hdmi_vic get_vic_from_pkt(void)
+static enum hdmi_vic get_vic_from_pkt(struct hdmitx21_hw *tx21_hw)
 {
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
-	struct hdmitx21_dev *hdev = get_hdmitx21_device();
 
-	if (!hdev)
-		return vic;
 	/* TODO: VESA mode */
 	vic = hdmitx21_rd_reg(TPI_AVI_BYTE4_IVCTX) & 0xff;
 	if (vic == HDMI_0_UNKNOWN)
-		vic = _get_vic_from_vsif(hdev);
+		vic = _get_vic_from_vsif(tx21_hw);
 
 	return vic;
 }
 
-static enum hdmi_colorspace get_cs_from_pkt(void)
+static enum hdmi_colorspace get_cs_from_pkt(struct hdmitx21_hw *tx21_hw)
 {
 	int ret;
 	u8 body[32] = {0};
-	union hdmi_infoframe *infoframe = &global_tx_hw->infoframe->avi;
+	union hdmi_infoframe *infoframe = &tx21_hw->infoframe->avi;
 	struct hdmi_avi_infoframe *avi = &infoframe->avi;
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_RESERVED6;
 
@@ -3479,11 +3477,11 @@ static enum hdmi_colorspace get_cs_from_pkt(void)
 	return cs;
 }
 
-static enum hdmi_color_depth get_cd_from_pkt(void)
+static enum hdmi_color_depth get_cd_from_pkt(struct hdmitx21_hw *tx21_hw)
 {
 	int ret;
 	u8 body[32] = {0};
-	union hdmi_infoframe *infoframe = &global_tx_hw->infoframe->avi;
+	union hdmi_infoframe *infoframe = &tx21_hw->infoframe->avi;
 	struct hdmi_avi_infoframe *avi = &infoframe->avi;
 	enum hdmi_color_depth cd = COLORDEPTH_RESERVED;
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_RESERVED6;
@@ -3618,9 +3616,7 @@ static int hdmitx21_hw_cntl_ddc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			break;
 		arg = *((u32 *)input_argv);
 		if (arg == PIN_MUX)
-			hdmitx21_ddc_hw_op(DDC_MUX_DDC);
-		else if (arg == PIN_UNMUX)
-			hdmitx21_ddc_hw_op(DDC_UNMUX_DDC);
+			hdmitx21_ddc_hw_op(&hdev->tx21_hw, DDC_MUX_DDC);
 		break;
 	case DDC_RESET_EDID:
 		break;
@@ -3974,11 +3970,11 @@ static int hdmitx21_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx_construct_avi_packet(hdev);
 		break;
 	case AUX_PKT_GET_AVI_VIC:
-		return (int)get_vic_from_pkt();
+		return (int)get_vic_from_pkt(&hdev->tx21_hw);
 	case AUX_PKT_GET_AVI_CS:
-		return (int)get_cs_from_pkt();
+		return (int)get_cs_from_pkt(&hdev->tx21_hw);
 	case AUX_PKT_GET_GCP_CD:
-		return (int)get_cd_from_pkt();
+		return (int)get_cd_from_pkt(&hdev->tx21_hw);
 	case AUX_PKT_GET_HDR_ST:
 		return hdmitx21_get_cur_hdr_st();
 	case AUX_PKT_GET_AMDV_ST:
@@ -4134,7 +4130,7 @@ static int hdmitx21_hw_cntl_vrr(struct hdmitx_hw_common *tx_hw, u32 cmd,
 #endif
 		break;
 	case QMS_GET_INFO:
-		value_brr = (unsigned short)get_vic_from_pkt();
+		value_brr = (unsigned short)get_vic_from_pkt(&hdev->tx21_hw);
 		tfr_en = (unsigned short)get_qms_en_from_pkt();
 		return (tfr_en << 16) | value_brr;
 	default:
@@ -4193,7 +4189,7 @@ static int hdmitx21_hw_cntl_core_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 2);
 		break;
 	case CORE_MISC_GET_OUTPUT_ST:
-		return hdmitx21_uboot_already_display();
+		return hdmitx21_uboot_already_display(&hdev->tx21_hw);
 	case CORE_MISC_EVENT_PROCESS:
 		hdmitx_core_intr_process(&hdev->tx_comm);
 		break;
@@ -4241,9 +4237,9 @@ static int hdmitx21_hw_cntl_platform(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			arg = HPD_MUX_HPD;
 		else
 			arg = HPD_UNMUX_HPD;
-		return hdmitx21_hpd_hw_op(arg);
+		return hdmitx21_hpd_hw_op(&hdev->tx21_hw, arg);
 	case PLATFORM_GET_HPD_GPI_ST:
-		return hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO);
+		return hdmitx21_hpd_hw_op(&hdev->tx21_hw, HPD_READ_HPD_GPIO);
 	case PLATFORM_PHY_OP:
 		ret = hdmitx21_check_input_argv(cmd, input_argv);
 		if (ret < 0)
@@ -6086,7 +6082,9 @@ void hdmitx_set_frl_rate_none(struct hdmitx_common *tx_comm)
 
 struct hdmitx21_hw *get_hdmitx21_hw_instance(void)
 {
-	return global_tx_hw;
+	struct hdmitx21_dev *hdev = get_hdmitx21_device();
+
+	return &hdev->tx21_hw;
 }
 
 struct hdmitx_common *hdmitx21_alloc_instance(struct device *device)

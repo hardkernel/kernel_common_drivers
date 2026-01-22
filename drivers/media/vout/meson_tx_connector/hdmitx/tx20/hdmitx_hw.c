@@ -56,7 +56,6 @@
 
 #define HDMITX_VIC_MASK			0xff
 
-static struct hdmitx20_hw *global_tx_hw;
 static struct hdmitx20_dev *tx20_dev;
 
 static ssize_t hdmitx_get_clk(char *buf, int len);
@@ -113,7 +112,7 @@ static void hdmitx_csc_config(unsigned char input_color_format,
 			      unsigned char color_depth);
 static void hdmitx_set_avi_colorimetry(struct meson_tx_format_para *para);
 static int hdmitx_tmds_rxsense(void);
-static enum hdmi_vic get_vic_from_pkt(void);
+static enum hdmi_vic get_vic_from_pkt(struct hdmitx20_hw *tx20_hw);
 
 struct ksv_lists_ {
 	unsigned char valid;
@@ -132,8 +131,8 @@ static int hdmitx20_hw_cntl(struct hdmitx_hw_common *hdev, unsigned int cmd,
 			      void *input_argv, void *output_struct);
 static void audio_mute_op(bool flag);
 static int hdmitx_tmds_cedst(struct hdmitx20_dev *hdev);
-static enum hdmi_color_depth get_cd_from_pkt(void);
-static enum hdmi_colorspace get_cs_from_pkt(void);
+static enum hdmi_color_depth get_cd_from_pkt(struct hdmitx20_hw *tx20_hw);
+static enum hdmi_colorspace get_cs_from_pkt(struct hdmitx20_hw *tx20_hw);
 
 static DEFINE_MUTEX(aud_mutex);
 
@@ -150,9 +149,9 @@ static DEFINE_MUTEX(aud_mutex);
 /* Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit. */
 #define TX_COLOR_DEPTH		 COLORDEPTH_24B
 
-int hdmitx_hpd_hw_op(enum hpd_op cmd)
+int hdmitx_hpd_hw_op(struct hdmitx20_hw *tx20_hw, enum hpd_op cmd)
 {
-	switch (global_tx_hw->base->chip_data->chip_type) {
+	switch (tx20_hw->base->chip_data->chip_type) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_ID_GXBB:
 		return !!hdmitx_hpd_hw_op_gxbb(cmd);
@@ -178,9 +177,9 @@ int hdmitx_hpd_hw_op(enum hpd_op cmd)
 EXPORT_SYMBOL(hdmitx_hpd_hw_op);
 
 /* TODO: removed, it's not correct and not used */
-int read_hpd_gpio(void)
+int read_hpd_gpio(struct hdmitx20_hw *tx20_hw)
 {
-	switch (global_tx_hw->base->chip_data->chip_type) {
+	switch (tx20_hw->base->chip_data->chip_type) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_ID_GXBB:
 		return read_hpd_gpio_gxbb();
@@ -204,9 +203,9 @@ int read_hpd_gpio(void)
 }
 EXPORT_SYMBOL(read_hpd_gpio);
 
-int hdmitx_ddc_hw_op(enum ddc_op cmd)
+int hdmitx_ddc_hw_op(struct hdmitx20_hw *tx20_hw, enum ddc_op cmd)
 {
-	switch (global_tx_hw->base->chip_data->chip_type) {
+	switch (tx20_hw->base->chip_data->chip_type) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_ID_GXBB:
 		return hdmitx_ddc_hw_op_gxbb(cmd);
@@ -339,11 +338,11 @@ static int read_avmute(void)
  * bit[10:8]: HDMI VIC
  * bit[7:0]: CEA VIC
  */
-static unsigned int hdmitx_get_isaformat(void)
+static unsigned int hdmitx_get_isaformat(struct hdmitx20_hw *tx20_hw)
 {
 	unsigned int ret = 0;
 
-	switch (global_tx_hw->base->chip_data->chip_type) {
+	switch (tx20_hw->base->chip_data->chip_type) {
 	case MESON_CPU_ID_SC2:
 		ret = hd_read_reg(P_SYSCTRL_DEBUG_REG0);
 		break;
@@ -367,9 +366,9 @@ static unsigned int hdmitx_get_isaformat(void)
 	return ret;
 }
 
-static void hdmitx_set_isaformat(unsigned int val)
+static void hdmitx_set_isaformat(struct hdmitx20_hw *tx20_hw, unsigned int val)
 {
-	switch (global_tx_hw->base->chip_data->chip_type) {
+	switch (tx20_hw->base->chip_data->chip_type) {
 	case MESON_CPU_ID_SC2:
 		hd_write_reg(P_SYSCTRL_DEBUG_REG0, val);
 		break;
@@ -391,13 +390,13 @@ static void hdmitx_set_isaformat(unsigned int val)
 	}
 }
 
-static int hdmitx_uboot_sc2_already_display(void)
+static int hdmitx_uboot_sc2_already_display(struct hdmitx20_hw *tx20_hw)
 {
 	int ret = 0;
 
 	if ((hd_read_reg(P_CLKCTRL_HDMI_CLK_CTRL) & (1 << 8)) &&
 	    (hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0) & (1 << 31)) &&
-	    (hdmitx_get_isaformat()))
+	    (hdmitx_get_isaformat(tx20_hw)))
 		ret = 1;
 	else
 		ret = 0;
@@ -409,23 +408,23 @@ static int hdmitx_uboot_sc2_already_display(void)
  * note that PHY_CTRL0 may be enabled for band_gap in plugin top half,
  * so should not use band_gap setting bits for uboot state decision
  */
-static int hdmitx_uboot_already_display(void)
+static int hdmitx_uboot_already_display(struct hdmitx20_hw *tx20_hw)
 {
 	int ret = 0;
-	int type = global_tx_hw->base->chip_data->chip_type;
+	int type = tx20_hw->base->chip_data->chip_type;
 
 	if (type >= MESON_CPU_ID_SC2)
-		return hdmitx_uboot_sc2_already_display();
+		return hdmitx_uboot_sc2_already_display(tx20_hw);
 
 	if ((hd_read_reg(P_HHI_HDMI_CLK_CNTL) & (1 << 8)) &&
 	    (hd_read_reg(P_HHI_HDMI_PLL_CNTL) & (1 << 31)) &&
-	    (hdmitx_get_isaformat())) {
+	    (hdmitx_get_isaformat(tx20_hw))) {
 		HDMITX_INFO("alread display in uboot 0x%x\n",
-			hdmitx_get_isaformat());
+			hdmitx_get_isaformat(tx20_hw));
 		ret = 1;
 	} else {
 		HDMITX_INFO("hdmitx_get_isaformat:0x%x\n",
-			hdmitx_get_isaformat());
+			hdmitx_get_isaformat(tx20_hw));
 		HDMITX_INFO("P_HHI_HDMI_CLK_CNTL :0x%x\n",
 			hd_read_reg(P_HHI_HDMI_CLK_CNTL));
 		HDMITX_INFO("P_HHI_HDMI_PLL_CNTL :0x%x\n",
@@ -437,9 +436,9 @@ static int hdmitx_uboot_already_display(void)
 }
 
 /* reset HDMITX APB & TX */
-void hdmitx_sys_reset(void)
+void hdmitx_sys_reset(struct hdmitx20_hw *tx20_hw)
 {
-	switch (global_tx_hw->base->chip_data->chip_type) {
+	switch (tx20_hw->base->chip_data->chip_type) {
 	case MESON_CPU_ID_TXLX:
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
@@ -493,16 +492,16 @@ static void hdmi_hwp_init(struct hdmitx20_dev *hdev)
 		hd_set_reg_bits(P_TM2_HHI_HDMI_PHY_CNTL2, 0x3, 0, 2);
 	else
 		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL3, 0x3, 0, 2);
-	if (hdmitx_uboot_already_display() == 0) {
+	if (hdmitx_uboot_already_display(&hdev->tx20_hw) == 0) {
 		/* reset HDMITX APB & TX & PHY */
-		hdmitx_sys_reset();
+		hdmitx_sys_reset(&hdev->tx20_hw);
 		if (chip_id < MESON_CPU_ID_G12A) {
 			/* Enable APB3 fail on error */
 			hd_set_reg_bits(P_HDMITX_CTRL_PORT, 1, 15, 1);
 			hd_set_reg_bits((P_HDMITX_CTRL_PORT + 0x10), 1, 15, 1);
 		}
 		/* Bring out of reset */
-		hdmitx_wr_reg(HDMITX_TOP_SW_RESET,	0);
+		hdmitx_wr_reg(HDMITX_TOP_SW_RESET, 0);
 		usleep_range(199, 200);
 		hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 3, 0, 2);
 		hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 3, 4, 2);
@@ -541,10 +540,10 @@ static void hdmi_hwi_init(struct hdmitx20_dev *hdev)
 	hdmitx_set_reg_bits(HDMITX_TOP_AXI_ASYNC_CNTL0, 1, 0, 1);
 	hdmitx_set_reg_bits(HDMITX_TOP_AXI_ASYNC_CNTL0, 1, 16, 1);
 
-	hdmitx_hpd_hw_op(HPD_INIT_DISABLE_PULLUP);
-	hdmitx_hpd_hw_op(HPD_INIT_SET_FILTER);
-	hdmitx_ddc_hw_op(DDC_INIT_DISABLE_PULL_UP_DN);
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
+	hdmitx_hpd_hw_op(&hdev->tx20_hw, HPD_INIT_DISABLE_PULLUP);
+	hdmitx_hpd_hw_op(&hdev->tx20_hw, HPD_INIT_SET_FILTER);
+	hdmitx_ddc_hw_op(&hdev->tx20_hw, DDC_INIT_DISABLE_PULL_UP_DN);
+	hdmitx_ddc_hw_op(&hdev->tx20_hw, DDC_MUX_DDC);
 
 /* Configure E-DDC interface */
 	data32  = 0;
@@ -732,15 +731,14 @@ static void hdmitx20_private_data_init(struct hdmitx20_dev *hdev)
 #endif
 }
 
-/* note: if need to check if global_tx_hw not NULL before use it
- * in case unexpected call into hw api before we init it.
+/*
+ * note: move global_tx_hw to function parameters
  */
 void hdmitx20_meson_init(struct hdmitx_hw_common *hw_comm)
 {
 	struct hdmitx20_dev *hdev = container_of(hw_comm, struct hdmitx20_dev, hw_comm);
 	u32 arg = CLR_AVMUTE;
 
-	global_tx_hw = &hdev->tx20_hw;
 	hw_comm->hw_cntl = hdmitx20_hw_cntl;
 	hw_comm->validate_mode = hdmitx_validate_mode;
 	hw_comm->calc_format_para = hdmitx_calc_format_para;
@@ -828,7 +826,7 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	}
 	/* check HPD status */
 	if ((dat_top & (1 << 1)) && (dat_top & (1 << 2))) {
-		if (hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO))
+		if (hdmitx_hpd_hw_op(&hdev->tx20_hw, HPD_READ_HPD_GPIO))
 			dat_top &= ~(1 << 2);
 		else
 			dat_top &= ~(1 << 1);
@@ -951,7 +949,7 @@ static void enc_vpu_bridge_reset(int mode)
 	}
 }
 
-static void hdmi_tvenc1080i_set(struct meson_tx_format_para *param)
+static void hdmi_tvenc1080i_set(struct hdmitx20_hw *tx_hw, struct meson_tx_format_para *param)
 {
 	unsigned long VFIFO2VD_TO_HDMI_LATENCY = 2;
 	unsigned long TOTAL_PIXELS = 0, PIXEL_REPEAT_HDMI = 0,
@@ -1092,7 +1090,7 @@ static void hdmi_tvenc1080i_set(struct meson_tx_format_para *param)
 	);
 }
 
-static void hdmi_tvenc4k2k_set(struct meson_tx_format_para *param)
+static void hdmi_tvenc4k2k_set(struct hdmitx20_hw *tx20_hw, struct meson_tx_format_para *param)
 {
 	unsigned long VFIFO2VD_TO_HDMI_LATENCY = 2;
 	unsigned long TOTAL_PIXELS = 4400, PIXEL_REPEAT_HDMI = 0,
@@ -1120,7 +1118,7 @@ static void hdmi_tvenc4k2k_set(struct meson_tx_format_para *param)
  * 444->420 conversion will be delayed by 1 line. So for 420 mode,
  * we need to delay Vsync by 1 line as well, to meet the timing
  */
-	if (global_tx_hw->base->chip_data->chip_type > MESON_CPU_ID_TM2 &&
+	if (tx20_hw->base->chip_data->chip_type > MESON_CPU_ID_TM2 &&
 		is_hdmi4k_support_420(param->tx_hw_para.hdmitx_hw_para.vic) &&
 		param->cs == HDMI_COLORSPACE_YUV420)
 		vs_adjust_420 = 1;
@@ -1293,13 +1291,13 @@ static void hdmi_tvenc4k2k_set(struct meson_tx_format_para *param)
 
 	if ((is_hdmi4k_support_420(param->tx_hw_para.hdmitx_hw_para.vic) &&
 		param->cs == HDMI_COLORSPACE_YUV420) &&
-	    global_tx_hw->base->chip_data->chip_type >= MESON_CPU_ID_TM2B) {
+	    tx20_hw->base->chip_data->chip_type >= MESON_CPU_ID_TM2B) {
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 0, 8, 1);
 		hd_set_reg_bits(P_VPU_HDMI_SETTING, 1, 20, 1);
 	}
 }
 
-static void hdmi_tvenc480i_set(struct meson_tx_format_para *param)
+static void hdmi_tvenc480i_set(struct hdmitx20_hw *tx20_hw, struct meson_tx_format_para *param)
 {
 	unsigned long VFIFO2VD_TO_HDMI_LATENCY = 1;
 	unsigned long TOTAL_PIXELS = 0, PIXEL_REPEAT_HDMI = 0,
@@ -1324,7 +1322,7 @@ static void hdmi_tvenc480i_set(struct meson_tx_format_para *param)
 		vs_bline_odd = 0, vs_eline_odd = 0;
 	unsigned long vso_begin_evn = 0, vso_begin_odd = 0;
 
-	if (global_tx_hw->base->chip_data->chip_type < MESON_CPU_ID_SC2)
+	if (tx20_hw->base->chip_data->chip_type < MESON_CPU_ID_SC2)
 		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 8, 1);
 
 	switch (param->tx_hw_para.hdmitx_hw_para.vic) {
@@ -1593,7 +1591,7 @@ static void hdmi_tvenc_vesa_set(struct meson_tx_format_para *param)
 	}
 }
 
-static void hdmi_tvenc_set(struct meson_tx_format_para *param)
+static void hdmi_tvenc_set(struct hdmitx20_hw *tx_hw, struct meson_tx_format_para *param)
 {
 	unsigned long VFIFO2VD_TO_HDMI_LATENCY = 2;
 	unsigned long TOTAL_PIXELS = 0, PIXEL_REPEAT_HDMI = 0,
@@ -2008,9 +2006,9 @@ static void hdmitx_set_pll(struct hdmitx20_dev *hdev)
 	hdmitx_set_clk(hdev);
 }
 
-static void set_phy_by_mode(unsigned int mode)
+static void set_phy_by_mode(struct hdmitx20_hw *tx20_hw, unsigned int mode)
 {
-	switch (global_tx_hw->base->chip_data->chip_type) {
+	switch (tx20_hw->base->chip_data->chip_type) {
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 		set_phy_by_mode_g12(mode);
@@ -2102,14 +2100,14 @@ do { \
 	case HDMI_101_4096x2160p50_256x135:
 	case HDMI_102_4096x2160p60_256x135:
 		if (para->cs != HDMI_COLORSPACE_YUV420)
-			set_phy_by_mode(HDMI_PHYPARA_6G);
+			set_phy_by_mode(&hdev->tx20_hw, HDMI_PHYPARA_6G);
 		else
 			if (para->cd == COLORDEPTH_36B)
-				set_phy_by_mode(HDMI_PHYPARA_4p5G);
+				set_phy_by_mode(&hdev->tx20_hw, HDMI_PHYPARA_4p5G);
 			else if (para->cd == COLORDEPTH_30B)
-				set_phy_by_mode(HDMI_PHYPARA_3p7G);
+				set_phy_by_mode(&hdev->tx20_hw, HDMI_PHYPARA_3p7G);
 			else
-				set_phy_by_mode(HDMI_PHYPARA_3G);
+				set_phy_by_mode(&hdev->tx20_hw, HDMI_PHYPARA_3G);
 		break;
 	case HDMI_93_3840x2160p24_16x9:
 	case HDMI_94_3840x2160p25_16x9:
@@ -2121,25 +2119,25 @@ do { \
 	case HDMI_100_4096x2160p30_256x135:
 		if (para->cs == HDMI_COLORSPACE_YUV422 ||
 		    para->cd == COLORDEPTH_24B)
-			set_phy_by_mode(HDMI_PHYPARA_3G);
+			set_phy_by_mode(&hdev->tx20_hw, HDMI_PHYPARA_3G);
 		else
 			if (para->cd == COLORDEPTH_36B)
-				set_phy_by_mode(HDMI_PHYPARA_4p5G);
+				set_phy_by_mode(&hdev->tx20_hw, HDMI_PHYPARA_4p5G);
 			else if (para->cd == COLORDEPTH_30B)
-				set_phy_by_mode(HDMI_PHYPARA_3p7G);
+				set_phy_by_mode(&hdev->tx20_hw, HDMI_PHYPARA_3p7G);
 			else
-				set_phy_by_mode(HDMI_PHYPARA_3G);
+				set_phy_by_mode(&hdev->tx20_hw, HDMI_PHYPARA_3G);
 		break;
 	case HDMI_3_720x480p60_16x9:
 	case HDMI_18_720x576p50_16x9:
 	case HDMI_7_720x480i60_16x9:
 	case HDMI_22_720x576i50_16x9:
-		set_phy_by_mode(HDMI_PHYPARA_270M);
+		set_phy_by_mode(&hdev->tx20_hw, HDMI_PHYPARA_270M);
 		break;
 	case HDMI_16_1920x1080p60_16x9:
 	case HDMI_31_1920x1080p50_16x9:
 	default:
-		set_phy_by_mode(HDMI_PHYPARA_DEF);
+		set_phy_by_mode(&hdev->tx20_hw, HDMI_PHYPARA_DEF);
 		break;
 	}
 }
@@ -2226,11 +2224,11 @@ void hdmitx_set_enc_hw(struct hdmitx20_dev *hdev)
 		case HDMI_22_720x576i50_16x9:
 		case HDMI_11_2880x480i60_16x9:
 		case HDMI_26_2880x576i50_16x9:
-			hdmi_tvenc480i_set(para);
+			hdmi_tvenc480i_set(&hdev->tx20_hw, para);
 			break;
 		case HDMI_5_1920x1080i60_16x9:
 		case HDMI_20_1920x1080i50_16x9:
-			hdmi_tvenc1080i_set(para);
+			hdmi_tvenc1080i_set(&hdev->tx20_hw, para);
 			break;
 		case HDMI_95_3840x2160p30_16x9:
 		case HDMI_94_3840x2160p25_16x9:
@@ -2242,10 +2240,10 @@ void hdmitx_set_enc_hw(struct hdmitx20_dev *hdev)
 		case HDMI_102_4096x2160p60_256x135:
 		case HDMI_96_3840x2160p50_16x9:
 		case HDMI_97_3840x2160p60_16x9:
-			hdmi_tvenc4k2k_set(para);
+			hdmi_tvenc4k2k_set(&hdev->tx20_hw, para);
 			break;
 		default:
-			hdmi_tvenc_set(para);
+			hdmi_tvenc_set(&hdev->tx20_hw, para);
 		}
 	}
 	/* [ 3: 2] chroma_dnsmp. 0=use pixel 0; 1=use pixel 1; 2=use average. */
@@ -2925,7 +2923,7 @@ void hdmitx20_meson_uninit(struct hdmitx_hw_common *tx_hw)
 	hdmitx_free_irq(tx_hw);
 	hdmitx20_hdcp_uninit(hdev);
 	phy_pll_off();
-	hdmitx_hpd_hw_op(HPD_UNMUX_HPD);
+	hdmitx_hpd_hw_op(&hdev->tx20_hw, HPD_UNMUX_HPD);
 
 #ifdef CONFIG_AMLOGIC_VPU
 		vpu_dev_unregister(hdev->tx_comm.encp_vpu_dev);
@@ -4881,9 +4879,7 @@ static int hdmitx20_hw_cntl_ddc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			break;
 		arg = *((u32 *)input_argv);
 		if (arg == PIN_MUX)
-			hdmitx_ddc_hw_op(DDC_MUX_DDC);
-		else if (arg == PIN_UNMUX)
-			hdmitx_ddc_hw_op(DDC_UNMUX_DDC);
+			hdmitx_ddc_hw_op(&hdev->tx20_hw, DDC_MUX_DDC);
 		break;
 	case DDC_SCDC_DIV40_SCRAMB:
 		/* from hdmi2.1/2.0 spec chapter 10.4, prior to accessing
@@ -4986,7 +4982,6 @@ static int hdmitx20_hw_cntl_hdcp(struct hdmitx_hw_common *tx_hw, u32 cmd,
 						 0x01000100);
 			else
 				hd_write_reg(P_HHI_HDCP22_CLK_CNTL, 0x01000100);
-			hdmitx_ddc_hw_op(DDC_MUX_DDC);
 			if (hdev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_SC2)
 				hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS_SC2,
 							1, 6, 1);
@@ -5017,7 +5012,6 @@ static int hdmitx20_hw_cntl_hdcp(struct hdmitx_hw_common *tx_hw, u32 cmd,
 						 0x01000100);
 			else
 				hd_write_reg(P_HHI_HDCP22_CLK_CNTL, 0x01000100);
-			hdmitx_ddc_hw_op(DDC_MUX_DDC);
 			if (hdev->tx_comm.tx_hw->chip_data->chip_type >= MESON_CPU_ID_SC2)
 				hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS_SC2,
 							1, 6, 1);
@@ -5046,7 +5040,6 @@ static int hdmitx20_hw_cntl_hdcp(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			check_read_ksv_list_st();
 			if (hdev->tx_comm.topo_info)
 				hdev->tx_comm.topo_info->hdcp_ver = HDCPVER_14;
-			hdmitx_ddc_hw_op(DDC_MUX_DDC);
 			hdmitx_set_reg_bits(HDMITX_TOP_SKP_CNTL_STAT, 0, 3, 1);
 			hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 31, 1);
 			hdmitx_hdcp_opr(6);
@@ -5057,7 +5050,6 @@ static int hdmitx20_hw_cntl_hdcp(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		} else if (arg == HDCP22_ON) {
 			if (hdev->tx_comm.topo_info)
 				hdev->tx_comm.topo_info->hdcp_ver = 2;
-			hdmitx_ddc_hw_op(DDC_MUX_DDC);
 			hdmitx_hdcp_opr(5);
 			/* wait for start hdcp22app */
 		} else if (arg == HDCP22_OFF) {
@@ -5238,7 +5230,7 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
 		if (hdmitx_rd_reg(HDMITX_DWC_FC_VSDPAYLOAD0) == 0x20)
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
-		hdmitx_set_isaformat(0);
+		hdmitx_set_isaformat(&hdev->tx20_hw, 0);
 		break;
 	case AUX_PKT_CONF_AVI_ASPECT:
 		ret = hdmitx20_check_input_argv(cmd, input_argv);
@@ -5256,7 +5248,7 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, arg);
 		break;
 	case AUX_PKT_GET_AVI_VIC:
-		ret = (int)get_vic_from_pkt();
+		ret = (int)get_vic_from_pkt(&hdev->tx20_hw);
 		break;
 	case AUX_PKT_CONF_AVI_BT2020:
 		ret = hdmitx20_check_input_argv(cmd, input_argv);
@@ -5483,9 +5475,9 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL1, 120, 0, 16);
 		break;
 	case AUX_PKT_GET_AVI_CS:
-		return (int)get_cs_from_pkt();
+		return (int)get_cs_from_pkt(&hdev->tx20_hw);
 	case AUX_PKT_GET_GCP_CD:
-		return (int)get_cd_from_pkt();
+		return (int)get_cd_from_pkt(&hdev->tx20_hw);
 	case AUX_PKT_GET_HDR_ST:
 		return hdmitx_get_cur_hdr_st();
 	case AUX_PKT_GET_AMDV_ST:
@@ -5614,7 +5606,7 @@ static int hdmitx20_hw_cntl_core_misc(struct hdmitx_hw_common *tx_hw, unsigned i
 		set_tmds_clk_div40(arg);
 		break;
 	case CORE_MISC_GET_OUTPUT_ST:
-		return hdmitx_uboot_already_display();
+		return hdmitx_uboot_already_display(&hdev->tx20_hw);
 	case CORE_MISC_EVENT_PROCESS:
 		hdmitx_core_intr_process(&hdev->tx_comm);
 		break;
@@ -5674,9 +5666,9 @@ static int hdmitx20_hw_cntl_platform(struct hdmitx_hw_common *tx_hw, unsigned in
 			arg = HPD_MUX_HPD;
 		else
 			arg = HPD_UNMUX_HPD;
-		return hdmitx_hpd_hw_op(arg);
+		return hdmitx_hpd_hw_op(&hdev->tx20_hw, arg);
 	case PLATFORM_GET_HPD_GPI_ST:
-		return hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO);
+		return hdmitx_hpd_hw_op(&hdev->tx20_hw, HPD_READ_HPD_GPIO);
 	case PLATFORM_PHY_OP:
 		ret = hdmitx20_check_input_argv(cmd, input_argv);
 		if (ret < 0)
@@ -5908,7 +5900,7 @@ static int hdmitx20_hw_cntl(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 	case CMD_VRR_OFFSET:
 		switch (cmd) {
 		case QMS_GET_INFO:
-			ret = (int)get_vic_from_pkt();
+			ret = (int)get_vic_from_pkt(&hdev->tx20_hw);
 			break;
 		case VRR_REGISTER:
 		default:
@@ -6022,7 +6014,7 @@ static int hdmitx_tmds_cedst(struct hdmitx20_dev *hdev)
 	return scdc_status_flags(&hdev->tx_comm);
 }
 
-static enum hdmi_vic get_vic_from_pkt(void)
+static enum hdmi_vic get_vic_from_pkt(struct hdmitx20_hw *tx20_hw)
 {
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
@@ -6038,13 +6030,13 @@ static enum hdmi_vic get_vic_from_pkt(void)
 		else if (vic == 4)
 			vic = HDMI_98_4096x2160p24_256x135;
 		else
-			vic = hdmitx_get_isaformat();
+			vic = hdmitx_get_isaformat(tx20_hw);
 	}
 
 	return vic;
 }
 
-static enum hdmi_colorspace get_cs_from_pkt(void)
+static enum hdmi_colorspace get_cs_from_pkt(struct hdmitx20_hw *tx20_hw)
 {
 	/* Get uboot output color space from AVI */
 	switch (hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF0) & 0x3) {
@@ -6059,9 +6051,9 @@ static enum hdmi_colorspace get_cs_from_pkt(void)
 	}
 }
 
-static enum hdmi_color_depth get_cd_from_pkt(void)
+static enum hdmi_color_depth get_cd_from_pkt(struct hdmitx20_hw *tx20_hw)
 {
-	enum hdmi_colorspace cs = get_cs_from_pkt();
+	enum hdmi_colorspace cs = get_cs_from_pkt(tx20_hw);
 	enum hdmi_color_depth cd = COLORDEPTH_RESERVED;
 
 	/* If color space is not 422, then get depth from VP_PR_CD */
@@ -6652,7 +6644,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	/* For VESA modes, set VIC as 0 */
 	if (para->tx_hw_para.hdmitx_hw_para.vic >= HDMITX_VESA_OFFSET) {
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
-		hdmitx_set_isaformat(para->tx_hw_para.hdmitx_hw_para.vic);
+		hdmitx_set_isaformat(&hdev->tx20_hw, para->tx_hw_para.hdmitx_hw_para.vic);
 	}
 
 	/* write Audio Infoframe packet configuration */
@@ -7076,7 +7068,9 @@ static void hdmitx_set_hw(struct hdmitx20_dev *hdev)
 
 struct hdmitx20_hw *get_hdmitx20_hw_instance(void)
 {
-	return global_tx_hw;
+	struct hdmitx20_dev *hdev = get_hdmitx20_device();
+
+	return &hdev->tx20_hw;
 }
 
 bool is_hdmi4k_support_420(enum hdmi_vic vic)

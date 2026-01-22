@@ -54,8 +54,6 @@ int hdmitx_ddc_hw_op_gxbb(enum ddc_op cmd)
 		break;
 	case DDC_MUX_DDC:
 		break;
-	case DDC_UNMUX_DDC:
-		break;
 	default:
 		HDMITX_INFO("error ddc cmd %d\n", cmd);
 	}

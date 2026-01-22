@@ -28,6 +28,8 @@
 #define SCDC_MANUFACTURER_SPECIFIC 0xde
 #define SCDC_MANUFACTURER_SPECIFIC_SIZE 34
 
+struct hdmitx21_hw;
+
 /* Little-Endian format */
 enum scdc_addr {
 	SCDC_SINK_VER = 0x01,
@@ -113,12 +115,11 @@ enum scdc_addr {
 enum ddc_op {
 	DDC_INIT_DISABLE_PULL_UP_DN,
 	DDC_MUX_DDC,
-	DDC_UNMUX_DDC,
 };
 
 struct hdmitx21_dev;
 
-int hdmitx21_ddc_hw_op(enum ddc_op cmd);
+int hdmitx21_ddc_hw_op(struct hdmitx21_hw *tx21_hw, enum ddc_op cmd);
 
 void scdc21_rd_sink(u8 adr, u8 *val);
 /* For reading the CED counter, SCDC should read as sequential request */

@@ -303,6 +303,6 @@ void hdmitx_s6_clock_gate_ctrl(struct hdmitx21_dev *hdev, bool en);
 void hdmitx21_clks_gate_ctrl(bool en);
 
 /* 8. hpd */
-int hdmitx21_hpd_hw_op(enum hpd_op cmd);
+int hdmitx21_hpd_hw_op(struct hdmitx21_hw *tx21_hw, enum hpd_op cmd);
 void hdmitx_hpd_irq_top_half_process(struct hdmitx21_dev *hdev, bool hpd);
 #endif

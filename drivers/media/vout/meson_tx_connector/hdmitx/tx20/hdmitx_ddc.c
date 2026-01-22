@@ -185,13 +185,11 @@ static uint32_t hdcp_rd_bksv(u8 *data)
 
 void scdc_rd_sink(u8 adr, u8 *val)
 {
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
 	ddc_read_1byte(SCDC_SLAVE, adr, val);
 }
 
 void scdc_wr_sink(u8 adr, u8 val)
 {
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
 	ddc_write_1byte(SCDC_SLAVE, adr, val);
 }
 
@@ -200,7 +198,6 @@ uint32_t hdcp_rd_hdcp14_ver(void)
 	int ret = 0;
 	u8 bksv[8] = {0};
 
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
 	ret = hdcp_rd_bksv(&bksv[0]);
 	if (ret)
 		return 1;
@@ -216,7 +213,6 @@ uint32_t hdcp_rd_hdcp22_ver(void)
 	u32 ret;
 	u8 ver;
 
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
 	ret = ddc_read_1byte(HDCP_SLAVE, HDCP2_VERSION, &ver);
 	if (ret)
 		return ver == 0x04;
@@ -232,7 +228,6 @@ void edid_read_head_8bytes(void)
 {
 	u8 head[8] = {0};
 
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
 	ddc_read_8byte(EDID_SLAVE, 0x00, head);
 }
 

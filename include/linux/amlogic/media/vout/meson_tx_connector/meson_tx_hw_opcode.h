@@ -36,7 +36,6 @@ enum cmd_ddc_aux {
 };
 
 #define PIN_MUX 0x1
-#define PIN_UNMUX 0x2
 
 /* 0x11 HDCP */
 enum cmd_hdcp {

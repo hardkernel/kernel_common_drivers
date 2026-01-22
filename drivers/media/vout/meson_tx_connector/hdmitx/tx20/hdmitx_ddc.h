@@ -10,6 +10,8 @@
 #include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_common.h>
 #include "meson_tx_event_mgr.h"
 
+struct hdmitx20_hw;
+
 #define EDID_SLAVE	0x50
 	#define EDIDSEG_ADR	0x30
 #define SCDC_SLAVE	0x54
@@ -72,10 +74,9 @@ enum hdcp_addr {
 enum ddc_op {
 	DDC_INIT_DISABLE_PULL_UP_DN,
 	DDC_MUX_DDC,
-	DDC_UNMUX_DDC,
 };
 
-int hdmitx_ddc_hw_op(enum ddc_op cmd);
+int hdmitx_ddc_hw_op(struct hdmitx20_hw *tx20_hw, enum ddc_op cmd);
 
 void scdc_rd_sink(u8 adr, u8 *val);
 void scdc_wr_sink(u8 adr, u8 val);

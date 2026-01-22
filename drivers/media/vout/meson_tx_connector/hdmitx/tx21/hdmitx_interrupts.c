@@ -429,7 +429,7 @@ static void hdmitx_top_intr_handler(struct hdmitx21_dev *hdev, struct intr_t *to
 		top_intr->st_data = 0;
 		/* check HPD status */
 		if (!hdev->tx_comm.pxp_mode && ((dat_top & (1 << 1)) && (dat_top & (1 << 2)))) {
-			if (hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO))
+			if (hdmitx21_hpd_hw_op(&hdev->tx21_hw, HPD_READ_HPD_GPIO))
 				dat_top &= ~(1 << 2);
 			else
 				dat_top &= ~(1 << 1);
