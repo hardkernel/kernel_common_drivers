@@ -3678,6 +3678,7 @@ static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 	vfe->vf.vf_vrr_param.qms_plus_en = devp->prop.qms_plus_flag;
 	vfe->vf.vf_vrr_param.qms_in_fps = devp->vdin_std_duration;
 	vfe->vf.vf_vrr_param.frc_get_vrr = devp->vrr_data.cur_vrr_status;
+	vfe->vf.vf_vrr_param.vrr_signal = devp->vrr_data.vrr_mode;
 
 	if (devp->game_mode)
 		vfe->vf.flag |= VFRAME_FLAG_GAME_MODE;

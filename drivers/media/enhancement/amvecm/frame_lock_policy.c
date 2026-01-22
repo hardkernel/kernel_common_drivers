@@ -79,6 +79,7 @@ static unsigned int lfc_support;
 static int lock_flag;
 static int base_fps;
 static unsigned int vrr_dec_state;
+static unsigned int vrr_signal_pre;
 
 struct vrr_sig_sts frame_sts = {
 	.vrr_support = false,
@@ -532,7 +533,7 @@ int frame_lock_frame_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
 		return ret;
 	}
 
-	if (frame_sts.vrr_policy) {
+	if (vf->vf_vrr_param.vrr_signal) {
 		base_fps = frame_lock_check_base_fps(vf);
 		if (base_fps != vout_base) {
 			ret = false;
@@ -845,13 +846,13 @@ void vrrlock_process(struct vframe_s *vf,
 	} else if (vf->signal_type == VRR_LATENCY_SIGNAL &&
 		vf->vf_vrr_param.vin_base_fps == 144) {
 		vdata.line_dly = vrr_delay_line + 50;
-	} else if ((frame_sts.vrr_frame_cur == 50 && !frame_sts.vrr_policy) ||
+	} else if ((frame_sts.vrr_frame_cur == 50 && !vf->vf_vrr_param.vrr_signal) ||
 		vf->vf_vrr_param.vin_base_fps == 50) {
 		if (vf->compWidth == 1280 && vf->compHeight == 720)
 			vdata.line_dly = vrr_delay_line_50hz + 50;
 		else
 			vdata.line_dly = vrr_delay_line_50hz;
-	} else if ((frame_sts.vrr_frame_cur == 100 && !frame_sts.vrr_policy) ||
+	} else if ((frame_sts.vrr_frame_cur == 100 && !vf->vf_vrr_param.vrr_signal) ||
 		vf->vf_vrr_param.vin_base_fps == 100) {
 		vdata.line_dly = vrr_delay_line_50hz;
 		if (frame_lock_debug & VRR_POLICY_LOCK_STATUS_DEBUG_FLAG)
@@ -859,11 +860,11 @@ void vrrlock_process(struct vframe_s *vf,
 				__func__, vdata.line_dly);
 	} else {
 		if (vf->compWidth == 2560 && vf->compHeight == 1440 &&
-			((frame_sts.vrr_frame_cur == 60 && !frame_sts.vrr_policy) ||
+			((frame_sts.vrr_frame_cur == 60 && !vf->vf_vrr_param.vrr_signal) ||
 			vf->vf_vrr_param.vin_base_fps == 60)) {
 			vdata.line_dly = vrr_delay_line + line + 50;
 		} else if (vf->compWidth == 1280 && vf->compHeight == 768 &&
-			((frame_sts.vrr_frame_cur == 60 && !frame_sts.vrr_policy) ||
+			((frame_sts.vrr_frame_cur == 60 && !vf->vf_vrr_param.vrr_signal) ||
 			vf->vf_vrr_param.vin_base_fps == 60)) {
 			vdata.line_dly = vrr_delay_line + line + 50;
 		} else if (vf->compWidth * 9 == vf->compHeight * 16) {
@@ -927,7 +928,7 @@ void vrrlock_process(struct vframe_s *vf,
 		vdata.vrr_policy = 0;
 
 		if (frame_sts.vrr_frame_sts != frame_sts.vrr_frame_pre_sts ||
-			frame_sts.vrr_policy_pre != frame_sts.vrr_policy ||
+			vrr_signal_pre != vf->vf_vrr_param.vrr_signal ||
 			qms_input_pre != frame_sts.vrr_frame_cur) {
 			if (frame_sts.vrr_frame_sts == FRAMELOCK_VRRLOCK) {
 				vlock_set_sts_by_frame_lock(false);
@@ -971,6 +972,7 @@ void vrrlock_process(struct vframe_s *vf,
 	vrr_delay_line_pre = vdata.line_dly;
 	qms_input_pre = frame_sts.vrr_frame_cur;
 	lfc_mode_pre = frame_sts.vrr_lfc_mode;
+	vrr_signal_pre = vf->vf_vrr_param.vrr_signal;
 }
 
 #endif
