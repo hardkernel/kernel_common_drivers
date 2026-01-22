@@ -541,14 +541,17 @@ static int dptx_common_task_init(struct dptx_common *tx_comm)
 	return 0;
 }
 
-int dptx_common_init(struct dptx_common *tx_comm, struct meson_tx_hw *tx_hw)
+int dptx_common_init(struct dptx_common *tx_comm, struct dptx_hw_common *hw_comm)
 {
 	struct meson_tx_dev *tx_dev = &tx_comm->base;
-	struct dptx_hw_common *hw_comm = to_dptx_hw_common(tx_hw);
 	int ret = 0;
 
+	if (!tx_comm || !hw_comm) {
+		DPTX_ERROR("%s: invalid input pointer\n", __func__);
+		return -EINVAL;
+	}
 	/* meson_tx_dev common init */
-	meson_tx_dev_init(tx_dev, tx_hw, &dptx_common_helper_ops);
+	meson_tx_dev_init(tx_dev, &hw_comm->hw_base, &dptx_common_helper_ops);
 	mutex_init(&tx_dev->set_mode_mutex);
 	mutex_init(&tx_dev->valid_mode_mutex);
 	/* parse rx cap in both EDID and displayID */
@@ -560,13 +563,17 @@ int dptx_common_init(struct dptx_common *tx_comm, struct meson_tx_hw *tx_hw)
 	if (!tx_comm->tx_aux)
 		return -ENOMEM;
 
-	tx_comm->hw_comm = hw_comm;
 	/* pass aux instance to HW side for aux access during mode set */
 	tx_comm->hw_comm->tx_aux = tx_comm->tx_aux;
 	tx_comm->link_train = dptx_link_train_init(tx_comm);
 	if (!tx_comm->link_train)
 		return -ENOMEM;
 	hw_comm->is_edp = tx_comm->is_edp;
+	/* init connector_type */
+	tx_comm->base.conn_dev.connector_type =
+		(tx_comm->is_edp ? DRM_MODE_CONNECTOR_MESON_TX_EDP_A :
+		DRM_MODE_CONNECTOR_MESON_TX_DP_A)
+		+ tx_comm->enc_idx;
 	/* dptx vout init */
 	dptx_vout_init(tx_comm);
 	/* dptx common event/task init */

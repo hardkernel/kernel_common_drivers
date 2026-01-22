@@ -93,6 +93,8 @@ struct dptx_common {
 	struct dptx_hw_fmt_para hw_fmt_para;
 	/* link/sink status get after irq_hpd or hotplug */
 	unsigned char link_sink_status[6];
+	/* enc index: dp/edp device */
+	u32 enc_idx;
 };
 
 #define to_dptx_common(x)	container_of(x, struct dptx_common, base)

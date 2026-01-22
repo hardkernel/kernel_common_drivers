@@ -33,7 +33,9 @@ static int dptx_bind_drm(struct device *dev, struct device *master,
 	struct dptx_common *tx_common = dev_get_drvdata(dev);
 	struct meson_drm_bound_data *bound_data = data;
 
-	type = tx_common->is_edp ? DRM_MODE_CONNECTOR_eDP : DRM_MODE_CONNECTOR_DisplayPort;
+	type = (tx_common->is_edp ? DRM_MODE_CONNECTOR_MESON_TX_EDP_A :
+		DRM_MODE_CONNECTOR_MESON_TX_DP_A)
+		+ tx_common->enc_idx;
 
 	if (bound_data->connector_component_bind) {
 		drm_dptx_id = bound_data->connector_component_bind
@@ -147,6 +149,15 @@ static int dptx_get_dt_info(struct platform_device *pdev,
 		tx_comm->base.pxp_mode = !!val;
 	hw_comm->hw_base.pxp_mode = tx_comm->base.pxp_mode;
 	DPTX_INFO("%s: pxp_mode:%d\n", __func__, tx_comm->base.pxp_mode);
+
+	ret = of_property_read_u32(pdev->dev.of_node, "enc_idx", &val);
+	if (!ret && val == 2)
+		tx_comm->enc_idx = 2;
+	else if (!ret && val == 1)
+		tx_comm->enc_idx = 1;
+	else
+		tx_comm->enc_idx = 0;
+	DPTX_DEBUG("enc_idx %d\n", tx_comm->enc_idx);
 
 	hw_comm->hw_base.regs_region = kzalloc(sizeof(*hw_comm->hw_base.regs_region) * REG_IDX_MAX,
 		GFP_KERNEL);
@@ -278,14 +289,15 @@ static int dptx_probe(struct platform_device *pdev)
 	tx_hw = plat_data->alloc_tx_hw();
 	tx_comm->is_edp	= plat_data->is_edp;
 	tx_comm->base.pdev = device;
-
-	/* dptx common init */
-	ret = dptx_common_init(tx_comm, tx_hw);
-	if (ret < 0)
-		return -ENOMEM;
+	tx_comm->hw_comm = to_dptx_hw_common(tx_hw);
 
 	/* get config from dts */
 	dptx_get_dt_info(pdev, tx_comm, tx_comm->hw_comm);
+
+	/* dptx common init */
+	ret = dptx_common_init(tx_comm, tx_comm->hw_comm);
+	if (ret < 0)
+		return -ENOMEM;
 
 	/* dptx probe phy */
 	tx_phy = meson_tx_probe_phy(device, tx_hw);

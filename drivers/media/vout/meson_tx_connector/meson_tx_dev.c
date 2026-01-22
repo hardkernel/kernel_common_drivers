@@ -200,7 +200,7 @@ static int meson_tx_task_init(struct meson_tx_dev *tx_dev, struct meson_tx_hw *t
 	int i, ret = 0;
 
 	if (!tx_dev || !tx_hw) {
-		pr_err("%s NULL tx_comm pointer\n", __func__);
+		pr_err("%s NULL tx_dev or tx_hw pointer\n", __func__);
 		return -EINVAL;
 	}
 	tx_dev->task_mgr = tx_task_mgr_init();
