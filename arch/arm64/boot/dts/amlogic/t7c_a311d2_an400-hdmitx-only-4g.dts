@@ -925,7 +925,7 @@
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
-			&clkc CLKID_FCLK_DIV3
+			&scmi_clk CLKID_FCLK_DIV3
 			&clkc CLKID_HIFI_PLL
 			&clkc CLKID_MPLL3
 			&clkaudio CLKID_AUDIO_PDMIN0
@@ -954,7 +954,7 @@
 
 		clocks = <&clkc CLKID_HIFI_PLL
 				&clkc CLKID_MPLL0
-				&clkc CLKID_FCLK_DIV4
+				&scmi_clk CLKID_FCLK_DIV4
 				&clkaudio CLKID_AUDIO_GATE_SPDIFIN
 				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_A
 				&clkaudio CLKID_AUDIO_SPDIFIN
@@ -1006,7 +1006,7 @@
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
-			&clkc CLKID_FCLK_DIV5
+			&scmi_clk CLKID_FCLK_DIV5
 			&clkaudio CLKID_AUDIO_EQDRC>;
 		clock-names = "gate", "srcpll", "eqdrc";
 
@@ -1071,7 +1071,7 @@
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_TOVAD
-			&clkc CLKID_FCLK_DIV5
+			&scmi_clk CLKID_FCLK_DIV5
 			&clkaudio CLKID_AUDIO_VAD>;
 		clock-names = "gate", "pll", "clk";
 
@@ -1107,7 +1107,7 @@
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
-			&clkc CLKID_FCLK_DIV3
+			&scmi_clk CLKID_FCLK_DIV3
 			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
@@ -1162,7 +1162,7 @@
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
-			&clkc CLKID_FCLK_DIV3
+			&scmi_clk CLKID_FCLK_DIV3
 			&clkc CLKID_MPLL3
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1

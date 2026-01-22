@@ -13,7 +13,7 @@
 
 static const char *const mclk_parent_names[] = {
 	"mpll0", "mpll1", "mpll2", "mpll3", "hifi_pll",
-	"fclk_div3", "fclk_div4", "fclk_div5"};
+	"fdiv3", "fdiv4", "fdiv5"};
 
 static const char *const audioclk_parent_names[] = {
 	"mclk_a", "mclk_b", "mclk_c", "mclk_d", "mclk_e",
