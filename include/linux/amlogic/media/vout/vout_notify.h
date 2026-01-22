@@ -398,6 +398,8 @@ static inline char *get_uboot_connector2_type(void)
 #define VOUT_EVENT_OSD_PREBLEND_ENABLE 0x00050000
 #define VOUT_EVENT_SYS_INIT            0x00060000
 
+#define VIU_MUX_INVALID UINT_MAX
+
 char *get_vout_mode_internal(void);
 char *get_vout_mode_uboot(void);
 char *get_vout2_mode_uboot(void);

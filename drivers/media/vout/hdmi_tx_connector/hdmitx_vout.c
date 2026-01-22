@@ -267,7 +267,7 @@ static unsigned int hdmitx_get_viu_mux(char *_mode, void *data)
 	const struct hdmi_timing *timing = 0;
 	char conv_name[32] = {0};
 	char *mode = _mode;
-	unsigned int viu_mux;
+	unsigned int viu_mux = VIU_MUX_INVALID;
 
 	/* vout validate vmode only used to confirm the mode is
 	 * supported by this server. And don't check with edid,
@@ -279,17 +279,16 @@ static unsigned int hdmitx_get_viu_mux(char *_mode, void *data)
 	}
 	timing = hdmitx_mode_match_timing_name(mode);
 
-	if (hdmitx_common_validate_vic(tx_comm, timing->vic) == 0) {
+	if (timing && hdmitx_common_validate_vic(tx_comm, timing->vic) == 0) {
 		viu_mux = timing->pi_mode ? VIU_MUX_ENCP : VIU_MUX_ENCI;
 		/* 1080i use the ENCP, not ENCI */
 		if (timing->name && strstr(timing->name, "1080i"))
 			viu_mux = VIU_MUX_ENCP;
 		viu_mux |= tx_comm->enc_idx << 4;
-		return viu_mux;
 	}
 
-	HDMITX_ERROR("%s validate %s fail\n", __func__, _mode);
-	return 0;
+	HDMITX_DEBUG("%s mode: %s, viu_mux: %d\n", __func__, _mode, viu_mux);
+	return viu_mux;
 }
 
 static int hdmitx_vmode_is_supported(enum vmode_e mode, void *data)
