@@ -569,7 +569,7 @@ void vdin_set_top_s5(struct vdin_dev_s *devp, enum tvin_port_e port,
 		break;
 	case TVIN_RGB444:
 		/*RGB mapping*/
-		if (devp->set_canvas_manual == 1) {
+		if (devp->set_canvas_manual || devp->cfg_dma_buf) {
 			vdin_data_bus_0 = VDIN_MAP_RCR;
 			vdin_data_bus_1 = VDIN_MAP_BPB;
 			vdin_data_bus_2 = VDIN_MAP_Y_G;
@@ -1313,8 +1313,8 @@ static inline void vdin_set_wr_ctrl_s5(struct vdin_dev_s *devp,
 	//	VDIN_WR_CTRL_REG_PAUSE_BIT, VDIN_WR_CTRL_REG_PAUSE_WID);
 	/*  swap the 2 64bits word in 128 words */
 	/*if (is_meson_gxbb_cpu())*/
-	if (devp->set_canvas_manual == 1 || devp->cfg_dma_buf ||
-		devp->work_mode == VDIN_WORK_MD_V4L || devp->dbg_no_swap_en) {
+	if ((devp->set_canvas_manual || devp->cfg_dma_buf ||
+		devp->work_mode == VDIN_WORK_MD_V4L) ^ devp->dbg_no_swap_en) {
 		/*not swap 2 64bits words in 128 words */
 		wr_bits(offset, VDIN_WRMIF_CTRL, 0, 31, 1);
 		/*little endian*/

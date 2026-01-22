@@ -3593,6 +3593,7 @@ start_chk:
 			devp->debug.scaling4w && devp->debug.scaling4h) {
 			param.dest_h_active = devp->debug.scaling4w;
 			param.dest_v_active = devp->debug.scaling4h;
+			param.dfmt = devp->debug.dest_cfmt;
 		} else {
 			param.dest_h_active = param.h_active;
 			param.dest_v_active = param.v_active;

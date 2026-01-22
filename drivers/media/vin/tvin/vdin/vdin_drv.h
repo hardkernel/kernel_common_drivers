@@ -1259,9 +1259,8 @@ struct vdin_dev_s {
 	unsigned int afbce_mmu_num;
 	struct vdin_lossy_comp_param_s cr_lossy_param;
 
-	unsigned int cfg_dma_buf;
-	/*fot 'T correction' on projector*/
-	unsigned int set_canvas_manual;
+	unsigned int cfg_dma_buf; /* for drm -> vdin */
+	unsigned int set_canvas_manual; /* for hwc -> vdin (keystone) */
 	unsigned int keystone_vframe_ready;
 	struct vf_entry *keystone_entry[VDIN_CANVAS_MAX_CNT];
 	bool pre_h_scale_en;

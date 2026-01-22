@@ -1229,7 +1229,7 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 		break;
 	case TVIN_YUV444:
 		/*YUV444 mapping*/
-		if (devp->set_canvas_manual == 1) {
+		if (devp->set_canvas_manual || devp->cfg_dma_buf) {
 			vdin_data_bus_0 = VDIN_MAP_Y_G;
 			vdin_data_bus_1 = VDIN_MAP_RCR;
 			vdin_data_bus_2 = VDIN_MAP_BPB;
@@ -1237,7 +1237,7 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 		break;
 	case TVIN_RGB444:
 		/*RGB mapping*/
-		if (devp->set_canvas_manual == 1) {
+		if (devp->set_canvas_manual || devp->cfg_dma_buf) {
 			vdin_data_bus_0 = VDIN_MAP_RCR;
 			vdin_data_bus_1 = VDIN_MAP_BPB;
 			vdin_data_bus_2 = VDIN_MAP_Y_G;
@@ -2374,11 +2374,6 @@ void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 		wr_bits(offset, VDIN0_WRMIF_CTRL1, hconv_mode, 20, HCONV_MODE_WID);
 		/* vconv_mode */
 		wr_bits(offset, VDIN0_WRMIF_CTRL1, 0, 22, VCONV_MODE_WID);
-		if (devp->local_var.is_rgba_en) {
-			wr_bits(offset, VDIN0_WRMIF_RGBA_CTRL, 1, 0, 1);
-			wr_bits(offset, VDIN0_WRMIF_RGBA_CTRL, 2, 1, 2);
-			wr_bits(offset, VDIN0_WRMIF_RGBA_CTRL, 0xff, 4, 8);
-		}
 	} else if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
 		if (write_fmt == MIF_FMT_NV12_21) {
 			wr_bits(offset, VDIN_WRMIF_CHRM_X, (h - 1) >> 1, 16, 13);
@@ -2505,8 +2500,8 @@ void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 
 	/*  swap the 2 64bits word in 128 words */
 	/*if (is_meson_gxbb_cpu())*/
-	if (devp->set_canvas_manual == 1 || devp->cfg_dma_buf ||
-		devp->work_mode == VDIN_WORK_MD_V4L || devp->dbg_no_swap_en) {
+	if ((devp->set_canvas_manual || devp->cfg_dma_buf ||
+		devp->work_mode == VDIN_WORK_MD_V4L) ^ devp->dbg_no_swap_en) {
 		if (devp->dtdata->hw_ver == VDIN_HW_T6W || devp->dtdata->hw_ver == VDIN_HW_T6X) {
 			/*not swap 2 64bits words in 128 words */
 			wr_bits(offset, VDIN0_WRMIF_LUMA_CTRL0, 0, T6D_SWAP64_BIT, T6D_SWAP64_WID);
@@ -2517,6 +2512,11 @@ void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 				T6D_SWAP64_BIT, T6D_WR_ENDIAN_WID);
 			wr_bits(offset, VDIN0_WRMIF_CHRM_CTRL0, 1,
 				T6D_WR_ENDIAN_BIT, T6D_WR_ENDIAN_WID);
+			if (devp->local_var.is_rgba_en) {
+				wr_bits(offset, VDIN0_WRMIF_RGBA_CTRL, 1, 0, 1);
+				wr_bits(offset, VDIN0_WRMIF_RGBA_CTRL, 0, 1, 2);
+				wr_bits(offset, VDIN0_WRMIF_RGBA_CTRL, 0xff, 4, 8);
+			}
 		} else if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
 			/*not swap 2 64bits words in 128 words */
 			wr_bits(offset, VDIN_WRMIF_LUMA_CTRL0, 0, T6D_SWAP64_BIT, T6D_SWAP64_WID);
@@ -2543,6 +2543,11 @@ void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 				T6D_SWAP64_BIT, T6D_WR_ENDIAN_WID);
 			wr_bits(offset, VDIN0_WRMIF_CHRM_CTRL0, 0,
 				T6D_WR_ENDIAN_BIT, T6D_WR_ENDIAN_WID);
+			if (devp->local_var.is_rgba_en) {
+				wr_bits(offset, VDIN0_WRMIF_RGBA_CTRL, 1, 0, 1);
+				wr_bits(offset, VDIN0_WRMIF_RGBA_CTRL, 2, 1, 2);
+				wr_bits(offset, VDIN0_WRMIF_RGBA_CTRL, 0xff, 4, 8);
+			}
 		} else if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
 			wr_bits(offset, VDIN_WRMIF_LUMA_CTRL0, 1,
 				T6D_SWAP64_BIT, T6D_SWAP64_WID);

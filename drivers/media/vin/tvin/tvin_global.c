@@ -38,6 +38,8 @@ const char *tvin_color_fmt_str(enum tvin_color_fmt_e color_fmt)
 		return "COLOR_FMT_TVIN_GBRG";
 	case TVIN_GRBG:
 		return "COLOR_FMT_TVIN_GRBG";
+	case TVIN_RGBA8888:
+		return "COLOR_FMT_TVIN_RGBA8888";
 	default:
 		return "COLOR_FMT_NULL";
 	}

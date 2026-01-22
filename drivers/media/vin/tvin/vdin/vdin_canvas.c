@@ -120,7 +120,7 @@ void vdin_cal_canvas_w(struct vdin_dev_s *devp)
 			v_active = devp->v_active + devp->crop_v;
 		}
 	}
-	if (devp->set_canvas_manual) //pixels align up to 64 in keystone
+	if (devp->set_canvas_manual || devp->cfg_dma_buf) //pixels align up to 64 in keystone
 		h_active = roundup(h_active, devp->canvas_align);
 
 	switch (devp->format_convert) {
@@ -291,7 +291,7 @@ unsigned int count_vdin_req_mem(struct vdin_dev_s *devp)
 		v_size = devp->v_active + devp->crop_v;
 	}
 
-	if (devp->set_canvas_manual) //pixels align up to 64 in keystone
+	if (devp->set_canvas_manual || devp->cfg_dma_buf) //pixels align up to 64 in keystone
 		h_size = roundup(h_size, devp->canvas_align);
 
 	if (devp->dts_config.canvas_config_mode == 1) {
@@ -562,7 +562,8 @@ unsigned int count_vdin_req_mem(struct vdin_dev_s *devp)
 
 	if (mem_size > devp->cma_mem_size &&
 	    !(devp->cma_config_flag & MEM_ALLOC_FROM_CODEC) &&
-	    !devp->set_canvas_manual) {
+	    !devp->set_canvas_manual &&
+	    !devp->cfg_dma_buf) {
 		pr_err("vdin[%d] warning: cma_mem_size (need 0x%x, cur 0x%x) is not enough!!!\n",
 		       devp->index, mem_size, devp->cma_mem_size);
 		/*mem_size = devp->cma_mem_size;*/
@@ -938,7 +939,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			strcpy(vdin_name, "vdin1");
 	}
 
-	if (devp->set_canvas_manual == 1 || devp->cfg_dma_buf) {
+	if (devp->set_canvas_manual || devp->cfg_dma_buf) {
 		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
 			if (vdin_set_canvas_addr[i].dma_buffer == 0)
 				break;

@@ -1474,7 +1474,7 @@
 //Bit 31:12   reserved
 //Bit 11:4    reg_rgba_alp             //unsigned, RW, default=0
 //Bit 3       reserved
-//Bit 2:1     reg_rgba_mode            //unsigned, RW, default=0
+//Bit 2:1     reg_rgba_mode            //unsigned, RW, 0: argb, 1: abgr, 2/3: rgba
 //Bit 0       reg_rgba_en              //unsigned, RW, default=0
 #define VDIN0_WRMIF_LUMA_X_SLC1                    0x439e
 //Bit 31:29 reserved

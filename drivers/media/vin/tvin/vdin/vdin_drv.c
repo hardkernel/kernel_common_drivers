@@ -1652,7 +1652,7 @@ unsigned int vdin_check_secure_write_error(struct vdin_dev_s *devp)
 		return 0;
 
 	if ((devp->secure_en || devp->secure_video) &&
-		!devp->mem_protected && !devp->set_canvas_manual)
+		!devp->mem_protected && !devp->set_canvas_manual && !devp->cfg_dma_buf)
 		devp->pause_dec = 1;
 	else
 		devp->pause_dec = 0;

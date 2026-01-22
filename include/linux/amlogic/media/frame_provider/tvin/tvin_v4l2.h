@@ -848,13 +848,14 @@ struct vdin_v4l2_ops_s {
 	int (*start_tvin_service_ex)(int devnum, enum port_vpp_e port, struct vdin_parm_s *para);
 };
 
-#define TVIN_PIXEL_FORMAT_NUM 5
+#define TVIN_PIXEL_FORMAT_NUM 6
 enum tvin_pixel_format_e {
 	TVIN_PIXEL_RGB444 = 0,
 	TVIN_PIXEL_YUV422 = 1,
 	TVIN_PIXEL_UYVY444 = 2,
 	TVIN_PIXEL_NV12 = 7,
 	TVIN_PIXEL_NV21 = 8,
+	TVIN_PIXEL_RGBA8888 = 14,
 	TVIN_PIXEL_FORMAT_MAX,
 };
 

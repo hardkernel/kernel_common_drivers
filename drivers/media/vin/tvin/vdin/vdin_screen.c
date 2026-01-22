@@ -38,6 +38,7 @@ int vdin_get_support_pixel_format(struct support_pixel_format *pixel_format)
 	pixel_format->pixel_value[2] = TVIN_PIXEL_UYVY444;
 	pixel_format->pixel_value[3] = TVIN_PIXEL_NV12;
 	pixel_format->pixel_value[4] = TVIN_PIXEL_NV21;
+	pixel_format->pixel_value[5] = TVIN_PIXEL_RGBA8888;
 
 	return 0;
 }
@@ -60,6 +61,7 @@ int vdin_capture_picture(struct vdin_parm_s *vdin_cap_param,
 	}
 
 	vdin_cap_param->frame_rate = 60;
+	vdin_cap_param->is_one_buffer = 1;
 	devp->cfg_dma_buf = 1;
 	if (!devp->debug.conversion) {
 		devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
@@ -112,7 +114,7 @@ int vdin_screen_get_secure_flag(bool *secure_flag)
 		return -1;
 	}
 
-	*secure_flag = devp->secure_en;
+	*secure_flag = devp->secure_video;
 
 	return 0;
 }
