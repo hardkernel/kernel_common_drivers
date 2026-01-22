@@ -1516,10 +1516,10 @@ void cec_restore_logical_addr(unsigned int cec_sel, unsigned int addr_en)
 
 	cec_clear_all_logical_addr(cec_sel);
 	for (i = 0; i < 15; i++) {
-		if (addr_enable & 0x1)
-			cec_logicaddr_add(cec_sel, i);
+		if (addr_enable & (0x1 << (15 - i)))
+			cec_logicaddr_add(cec_sel, (15 - i));
 
-		addr_enable = addr_enable >> 1;
+		//addr_enable = addr_enable >> 1;
 	}
 	dprintk(L_4, "%s cec:%d, en:%d\n", __func__, cec_sel, addr_en);
 }
