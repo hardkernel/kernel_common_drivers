@@ -2713,10 +2713,10 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 		if ((vf->compWidth >> 1) == vf->width) {
 			prm_top->dae_dsx_scale = 1;
 			prm_top->dae_dsy_scale = 1;
-			if (vf->width > (960 << 1))
+			if (vf->width > 960 || vf->height > 540) {
 				prm_top->dae_dsx_scale = 2;
-			if (vf->height > (540 << 1))
 				prm_top->dae_dsy_scale = 2;
+			}
 			if (vf->width > 960)
 				prm_top->size_as_in = 1;
 		} else if (vf->compWidth == vf->width && pch->d->is_afbcd) {
