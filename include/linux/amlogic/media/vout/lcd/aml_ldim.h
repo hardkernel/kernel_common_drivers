@@ -169,6 +169,19 @@ struct ldim_drv_data_s {
 	void (*func_ctrl)(struct aml_ldim_driver_s *ldim_drv, int flag);
 };
 
+struct ldim_spi_trig_param_s {
+	unsigned int spi_tbuf_size;
+	unsigned int spi_tx_clk;
+	unsigned int spi_tx_line_cost;
+	unsigned int spi_trig_line;
+	unsigned int cs2clk_delay_ns;
+	unsigned int ldc_trig_line;
+	unsigned int line_time_ns;
+	unsigned int line_total_cnt;
+	unsigned int lost_frame_cnt;
+	unsigned int ldc_trig_line_margin;
+};
+
 /*******global API******/
 #define LDIM_STATE_POWER_ON             BIT(0)
 #define LDIM_STATE_FUNC_EN              BIT(1)
@@ -226,6 +239,7 @@ struct aml_ldim_driver_s {
 	struct ldim_drv_data_s *data;
 	struct ldim_config_s *conf;
 	struct ldim_dev_driver_s *dev_drv;
+	struct ldim_spi_trig_param_s trig_param;
 
 	struct ldim_fw_s *fw;
 	struct ldim_fw_custom_s *cus_fw;
@@ -255,6 +269,7 @@ int aml_ldim_get_config_json(int panel_id);
 int aml_ldim_get_config_ini(void *inip, void *psec);
 int aml_ldim_probe(struct platform_device *pdev);
 int aml_ldim_remove(void);
+void ldim_trig_line_update(struct aml_ldim_driver_s *ldim_drv);
 
 #endif
 

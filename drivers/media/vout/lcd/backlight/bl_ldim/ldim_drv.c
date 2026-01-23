@@ -162,6 +162,18 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.ld_sel_ctrl = ldim_ld_sel_ctrl,
 	.pwm_vs_update = ldim_pwm_vs_update,
 	.config_print = ldim_config_print,
+	.trig_param = {
+		.spi_tbuf_size = 0,
+		.spi_tx_clk = 0,
+		.spi_tx_line_cost = 0,
+		.spi_trig_line = 0,
+		.cs2clk_delay_ns = 0,
+		.ldc_trig_line = 0,
+		.line_time_ns = 0,
+		.line_total_cnt = 0,
+		.lost_frame_cnt = 0,
+		.ldc_trig_line_margin = 50,
+	},
 };
 
 struct aml_ldim_driver_s *aml_ldim_get_driver(void)
@@ -404,6 +416,66 @@ static void ldim_fw_vsync_update(void)
 	param->vsync_flag = ldim_driver.vsync_change_flag;
 }
 
+void ldim_trig_line_update(struct aml_ldim_driver_s *ldim_drv)
+{
+	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(0);
+	unsigned int spi_tbuf_size;
+	unsigned int spi_tx_clk;
+	unsigned int spi_tx_line_cost;
+	unsigned int spi_trig_line;
+	unsigned int cs2clk_delay_ns;
+	unsigned int ldc_trig_line;
+	unsigned int line_time_ns;
+	unsigned int line_total_cnt;
+	unsigned int tx_time_ns;
+	unsigned int ldc_trig_line_margin;
+
+	spi_tbuf_size = ldim_drv->trig_param.spi_tbuf_size;
+	spi_tx_clk = ldim_drv->trig_param.spi_tx_clk;
+	spi_trig_line = ldim_drv->trig_param.spi_trig_line;
+	cs2clk_delay_ns = ldim_drv->trig_param.cs2clk_delay_ns;
+	line_time_ns = ldim_drv->trig_param.line_time_ns;
+	line_total_cnt = ldim_drv->trig_param.line_total_cnt;
+	ldc_trig_line_margin = ldim_drv->trig_param.ldc_trig_line_margin;
+
+	if (!pdrv) {
+		LDIMERR("%s: pdrv is null\n", __func__);
+		return;
+	}
+
+	if (line_time_ns == 0) {
+		line_time_ns = pdrv->curr_dev->dev_cfg.timing.act_timing.line_time_ns;
+		ldim_drv->trig_param.line_time_ns = line_time_ns;
+		if (line_time_ns == 0) {
+			LDIMERR("%s: line_time_ns is 0\n", __func__);
+			return;
+		}
+	}
+
+	if (spi_tx_clk == 0) {
+		spi_tx_clk = ldim_drv->dev_drv->spi_info[0].max_speed_hz;
+		ldim_drv->trig_param.spi_tx_clk = spi_tx_clk;
+		if (spi_tx_clk == 0) {
+			LDIMERR("%s: spi_tx_clk is 0\n", __func__);
+			return;
+		}
+	}
+
+	// 9bits(1Byte + 1spi clk)
+	tx_time_ns = bl_do_div((u64)spi_tbuf_size * 9U * 1000000000ULL, spi_tx_clk); //ns
+	tx_time_ns += cs2clk_delay_ns;
+	spi_tx_line_cost = tx_time_ns / line_time_ns;
+	ldc_trig_line = spi_trig_line + spi_tx_line_cost + ldc_trig_line_margin;
+	ldim_drv->trig_param.ldc_trig_line = ldc_trig_line;
+	ldim_drv->trig_param.spi_tx_line_cost = spi_tx_line_cost;
+	if (ldim_drv->data->ldc_chip_type == LDC_T6X)
+		ldim_wr_vcbus_bits(0x5d9f, ldc_trig_line, 0, 14);
+		//LDC_REG_INTR_CTRL reg_hw_spi_intr_num
+
+	LDIMPR("%s: ldc_trig_line=%u, spi_trig_line=%u, spi_tx_line_cost=%u\n",
+		__func__, ldc_trig_line, spi_trig_line, spi_tx_line_cost);
+}
+
 void ldim_vs_arithmetic(struct aml_ldim_driver_s *ldim_drv)
 {
 	unsigned int size;
@@ -520,11 +592,6 @@ static irqreturn_t ldim_isr(int irq, void *dev_id)
 		ldim_time_sort_save(ldim_driver.fw_time, local_time[4]);
 	}
 
-	if (dev_drv->type == LDIM_DEV_TYPE_ABCON ||
-		(dev_drv->type == LDIM_DEV_TYPE_SPI &&
-		dev_drv->spi_sync == SPI_DMA_TRIG))
-		ldim_vs_brightness();
-
 	ldim_driver.in_vsync_flag = 0;
 
 	spin_unlock_irqrestore(&ldim_isr_lock, flags);
@@ -538,6 +605,32 @@ static irqreturn_t ldim_isr(int irq, void *dev_id)
 			LDIMPR("%s irq_cnt=%d, frm_cnt=%d time: %lld : %lld : %lld\n", __func__,
 			ldim_driver.irq_cnt, frm_cnt, local_time[0], local_time[4], local_time[2]);
 	}
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t ldim_line_n_isr(int irq, void *dev_id)
+{
+	struct ldim_dev_driver_s *dev_drv = ldim_driver.dev_drv;
+	unsigned long flags;
+
+	if (ldim_driver.valid_flag == 0)
+		return IRQ_HANDLED;
+
+	if (ldim_driver.init_on_flag == 0)
+		return IRQ_HANDLED;
+
+	if (!dev_drv)
+		return IRQ_HANDLED;
+
+	spin_lock_irqsave(&ldim_isr_lock, flags);
+
+	if (dev_drv->type == LDIM_DEV_TYPE_ABCON ||
+		(dev_drv->type == LDIM_DEV_TYPE_SPI &&
+		dev_drv->spi_sync == SPI_DMA_TRIG))
+		ldim_vs_brightness();
+
+	spin_unlock_irqrestore(&ldim_isr_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -586,11 +679,6 @@ static irqreturn_t ldim_pwm_vs_isr(int irq, void *dev_id)
 
 	spin_unlock_irqrestore(&ldim_pwm_vs_isr_lock, flags);
 
-	return IRQ_HANDLED;
-}
-
-static  irqreturn_t ldim_line_n_isr(int irq, void *dev_id)
-{
 	return IRQ_HANDLED;
 }
 
@@ -1495,7 +1583,21 @@ int aml_ldim_probe(struct platform_device *pdev)
 	LDIMPR("ldim_vsync_irq: %d\n", ldim_driver.ldim_vsync_irq);
 	if (request_irq(ldim_driver.ldim_vsync_irq, ldim_isr, IRQF_SHARED,
 		"ldim_vsync", (void *)&ldim_driver.ldim_vsync_irq)) {
-		LDIMERR("can't request ldim_vsync_irq(%d)\n", ldim_driver.ldim_vsync_irq);
+		LDIMERR("can't request ldim_vsync_irq(%d)\n",
+			ldim_driver.ldim_vsync_irq);
+	}
+
+	ldim_driver.ldim_line_n_irq = platform_get_irq_byname(pdev, "ldim_line_n");
+	if (ldim_driver.ldim_line_n_irq == -ENXIO) {
+		ret = -ENODEV;
+		LDIMERR("ldim_line_n_irq resource error\n");
+		goto err3;
+	}
+	LDIMPR("ldim_line_n_irq: %d\n", ldim_driver.ldim_line_n_irq);
+	if (request_irq(ldim_driver.ldim_line_n_irq, ldim_line_n_isr, IRQF_SHARED,
+		"ldim_line_n", (void *)&ldim_driver.ldim_line_n_irq)) {
+		LDIMERR("can't request ldim_line_n_irq(%d)\n",
+			ldim_driver.ldim_line_n_irq);
 	}
 
 	ldim_driver.ldim_pwm_vs_irq = platform_get_irq_byname(pdev, "ldim_pwm_vs");
@@ -1505,18 +1607,8 @@ int aml_ldim_probe(struct platform_device *pdev)
 		LDIMPR("ldim_pwm_vs_irq: %d\n", ldim_driver.ldim_pwm_vs_irq);
 		if (request_irq(ldim_driver.ldim_pwm_vs_irq, ldim_pwm_vs_isr, IRQF_TRIGGER_FALLING,
 			"ldim_pwm_vs", (void *)&ldim_driver.ldim_pwm_vs_irq)) {
-			LDIMERR("can't request ldim_pwm_vs_irq(%d)\n", ldim_driver.ldim_pwm_vs_irq);
-		}
-	}
-
-	ldim_driver.ldim_line_n_irq = platform_get_irq_byname(pdev, "ldim_line_n");
-	if (ldim_driver.ldim_line_n_irq == -ENXIO) {
-		LDIMERR("ldim_line_n_irq resource error\n");
-	} else {
-		LDIMPR("ldim_line_n_irq: %d\n", ldim_driver.ldim_line_n_irq);
-		if (request_irq(ldim_driver.ldim_line_n_irq, ldim_line_n_isr, IRQF_SHARED,
-			"ldim_line_n", (void *)&ldim_driver.ldim_line_n_irq)) {
-			LDIMERR("can't request ldim_line_n_irq(%d)\n", ldim_driver.ldim_line_n_irq);
+			LDIMERR("can't request ldim_pwm_vs_irq(%d)\n",
+				ldim_driver.ldim_pwm_vs_irq);
 		}
 	}
 

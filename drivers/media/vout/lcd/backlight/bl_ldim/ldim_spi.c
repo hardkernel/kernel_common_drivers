@@ -15,9 +15,13 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
+#include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/aml_spi.h>
 #include "ldim_drv.h"
 #include "ldim_dev_drv.h"
+#include "../../lcd_common.h"
+
+#define SPI_SAFE_LINE_MARGIN 10
 
 int ldim_spi_dma_cycle_align_byte(int size)
 {
@@ -309,9 +313,14 @@ int ldim_spi_write_dma_trig(struct spi_device *spi, unsigned char *tbuf,
 			 unsigned char *rbuf, int tlen, int max_len)
 {
 	struct ldim_dev_driver_s *dev_drv = dev_get_drvdata(&spi->dev);
+	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(0);
 	struct spicc_controller_data *cdata = spi->controller_data;
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct spi_private_data *priv;
 	int xlen, ret;
+	int spi_trig_line, current_line, delta_line, line_left;
+	int line_total_cnt;
+
 
 	if (!dev_drv || !cdata) {
 		LDIMPR("%s, dev_drv or cdata is null, spi=0x%p\n", __func__, spi);
@@ -345,6 +354,34 @@ int ldim_spi_write_dma_trig(struct spi_device *spi, unsigned char *tbuf,
 		if (ldim_debug_print & LDIM_DBG_PR_SPI)
 			LDIMERR("%s: dma_support should set 1\n", __func__);
 		return 0;
+	}
+
+	if (!cdata->dmatrig_is_busy) {
+		LDIMERR("%s: cdata->dmatrig_is_busy is null\n", __func__);
+		return -EIO;
+	}
+
+	spi_trig_line = dev_drv->spi_line_n;
+	current_line = lcd_get_encl_line_cnt(pdrv);
+	line_total_cnt = ldim_drv->trig_param.line_total_cnt;
+	//vrr mode may cause current_line bigger than line_total_cnt
+	if (current_line >= line_total_cnt)
+		current_line = 0;
+	delta_line = current_line - spi_trig_line;
+
+	// delta_line > 0 : current frame
+	// delta_line <= 0 : already in next frame
+	if (delta_line > 0)
+		line_left = line_total_cnt - current_line + spi_trig_line;
+	else
+		line_left = spi_trig_line - current_line;
+
+	if (line_left <= SPI_SAFE_LINE_MARGIN) {
+		ldim_drv->trig_param.lost_frame_cnt++;
+		if (ldim_debug_print & LDIM_DBG_PR_SPI)
+			LDIMERR("%s: line_total_cnt=%d, current_line=%d, line_left=%d, delta=%d\n",
+				__func__, line_total_cnt, current_line, line_left, delta_line);
+		return -1;
 	}
 
 	memcpy(priv->tx_buf, tbuf, xlen * sizeof(unsigned char));//copy duty to spi tx buf

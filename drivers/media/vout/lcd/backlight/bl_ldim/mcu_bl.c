@@ -719,6 +719,9 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 	/*set idim*/
 	bl_mcu->idim = dev_drv->boost_conf.iset;
 
+	ldim_drv->trig_param.spi_tbuf_size = max(bl_mcu->tbuf_size, bl_mcu->tbuf_size1);
+	// update ldc line_n isr for ldim driver
+	ldim_trig_line_update(ldim_drv);
 	blmcu_ldim_dev_update(dev_drv);
 
 	if (dev_drv->class) {

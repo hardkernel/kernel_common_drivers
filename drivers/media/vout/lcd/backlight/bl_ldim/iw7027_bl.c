@@ -1009,6 +1009,10 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 		goto ldim_dev_iw7027_probe_err3;
 	}
 
+	ldim_drv->trig_param.spi_tbuf_size = bl_iw7027->tbuf_size;
+	// update ldc line_n isr for ldim driver
+	ldim_trig_line_update(ldim_drv);
+
 	iw7027_ldim_dev_update(dev_drv);
 
 	if (dev_drv->class) {

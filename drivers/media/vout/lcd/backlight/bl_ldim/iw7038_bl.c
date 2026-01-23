@@ -939,6 +939,10 @@ int ldim_dev_iw7038_probe(struct aml_ldim_driver_s *ldim_drv)
 			test_brightness[i] = 0xfff;
 	}
 
+	ldim_drv->trig_param.spi_tbuf_size = max_data_size;
+	// update ldc line_n isr for ldim driver
+	ldim_trig_line_update(ldim_drv);
+
 	iw7038_ldim_driver_update(ldim_drv);
 
 	if (ldim_drv->ldev_conf->dev_class) {

@@ -1354,6 +1354,7 @@ static int ldim_dev_remove_driver(struct aml_ldim_driver_s *ldim_drv)
 static void ldim_dev_probe_func(struct work_struct *work)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(0);
 	struct spicc_controller_data *cdata;
 	struct spi_private_data *priv;
 	unsigned int val, i;
@@ -1367,6 +1368,11 @@ static void ldim_dev_probe_func(struct work_struct *work)
 	}
 	if (ldim_drv->valid_flag == 0)
 		return;
+
+	if (!pdrv) {
+		LDIMERR("%s: pdrv is null\n", __func__);
+		return;
+	}
 
 	ldim_dev_drv.index = ldim_drv->conf->dev_index;
 	if (ldim_dev_drv.index == 0xff) {
@@ -1429,7 +1435,13 @@ static void ldim_dev_probe_func(struct work_struct *work)
 	ldim_dev_drv.pwm_phase = ldim_dev_drv.ldim_pwm_config.pwm_phase;
 	ldim_dev_drv.pinmux_ctrl = ldim_pwm_pinmux_ctrl;
 	ldim_dev_drv.pwm_vs_update = ldim_pwm_vs_update;
-	ldim_dev_drv.config_print = ldim_dev_config_print,
+	ldim_dev_drv.config_print = ldim_dev_config_print;
+
+	ldim_drv->trig_param.spi_trig_line = ldim_dev_drv.spi_line_n;
+	ldim_drv->trig_param.spi_tx_clk = ldim_dev_drv.spi_info[0].max_speed_hz;
+	ldim_drv->trig_param.cs2clk_delay_ns = ldim_dev_drv.cs_clk_delay * 1000; //ns
+	ldim_drv->trig_param.line_total_cnt = pdrv->curr_dev->dev_cfg.timing.act_timing.v_period;
+	ldim_drv->trig_param.line_time_ns = pdrv->curr_dev->dev_cfg.timing.act_timing.line_time_ns;
 
 	ldim_dev_class_create(&ldim_dev_drv);
 	ret = ldim_dev_add_driver(ldim_drv);

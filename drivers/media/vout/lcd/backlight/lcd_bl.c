@@ -1315,6 +1315,12 @@ static int bl_lcd_update_notifier(struct notifier_block *nb,
 			ldim_drv->resolution_update = 1;
 		}
 
+		ldim_drv->trig_param.line_time_ns =
+			pdrv->curr_dev->dev_cfg.timing.act_timing.line_time_ns;
+		ldim_drv->trig_param.line_total_cnt =
+			pdrv->curr_dev->dev_cfg.timing.act_timing.v_period;
+		ldim_trig_line_update(ldim_drv);
+
 		if (ldim_drv->pwm_vs_update)
 			ldim_drv->pwm_vs_update();
 		break;

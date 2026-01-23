@@ -1373,6 +1373,85 @@ static ssize_t level_curve_store(const struct class *class, const struct class_a
 	return count;
 }
 
+static ssize_t ldim_trig_debug_show(const struct class *class,
+	const struct class_attribute *attr, char *buf)
+{
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	struct ldim_spi_trig_param_s trig_param;
+
+	if (!ldim_drv)
+		return -ENODEV;
+
+	trig_param = ldim_drv->trig_param;
+
+	return sprintf(buf,
+		"spi_tbuf_size = %d\n"
+		"spi_tx_clk = %d\n"
+		"spi_tx_line_cost = %d\n"
+		"spi_trig_line = %d\n"
+		"cs2clk_delay_ns = %d\n"
+		"ldc_trig_line = %d\n"
+		"line_time_ns = %d\n"
+		"line_total_cnt = %d\n"
+		"lost_frame_cnt = %d\n"
+		"ldc_trig_line_margin = %d\n",
+		trig_param.spi_tbuf_size,
+		trig_param.spi_tx_clk,
+		trig_param.spi_tx_line_cost,
+		trig_param.spi_trig_line,
+		trig_param.cs2clk_delay_ns,
+		trig_param.ldc_trig_line,
+		trig_param.line_time_ns,
+		trig_param.line_total_cnt,
+		trig_param.lost_frame_cnt,
+		trig_param.ldc_trig_line_margin);
+}
+
+static ssize_t ldim_trig_debug_store(const struct class *class,
+		const struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	struct ldim_spi_trig_param_s *trig_param;
+	unsigned int val;
+	char cmd[32];
+
+	if (!ldim_drv)
+		return -ENODEV;
+
+	trig_param = &ldim_drv->trig_param;
+
+	if (sscanf(buf, "%31s %u", cmd, &val) != 2) {
+		LDIMERR("invalid trig_debug cmd\n");
+		return -EINVAL;
+	}
+
+	if (!strcmp(cmd, "spi_tbuf_size")) {
+		trig_param->spi_tbuf_size = val;
+	} else if (!strcmp(cmd, "spi_tx_clk")) {
+		trig_param->spi_tx_clk = val;
+	} else if (!strcmp(cmd, "spi_tx_line_cost")) {
+		trig_param->spi_tx_line_cost = val;
+	} else if (!strcmp(cmd, "spi_trig_line")) {
+		trig_param->spi_trig_line = val;
+	} else if (!strcmp(cmd, "ldc_trig_line")) {
+		trig_param->ldc_trig_line = val;
+	} else if (!strcmp(cmd, "line_time_ns")) {
+		trig_param->line_time_ns = val;
+	} else if (!strcmp(cmd, "line_total_cnt")) {
+		trig_param->line_total_cnt = val;
+	} else if (!strcmp(cmd, "ldc_trig_line_margin")) {
+		trig_param->ldc_trig_line_margin = val;
+	} else {
+		LDIMERR("invalid trig_debug cmd\n");
+		return -EINVAL;
+	}
+
+	ldim_trig_line_update(ldim_drv);
+
+	return count;
+}
+
 static struct class_attribute aml_ldim_class_attrs[] = {
 	__ATTR(attr, 0644, ldim_attr_show, ldim_attr_store),
 	__ATTR(func_en, 0644, ldim_func_en_show, ldim_func_en_store),
@@ -1384,6 +1463,7 @@ static struct class_attribute aml_ldim_class_attrs[] = {
 	__ATTR(demo, 0644, ldim_demo_show, ldim_demo_store),
 	__ATTR(debug, 0644, ldim_debug_show, ldim_debug_store),
 	__ATTR(level_curve, 0644, level_curve_show, level_curve_store),
+	__ATTR(trig_debug, 0644, ldim_trig_debug_show, ldim_trig_debug_store),
 };
 
 int aml_ldim_debug_probe(struct class *ldim_class)
