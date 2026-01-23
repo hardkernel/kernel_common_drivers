@@ -1138,6 +1138,16 @@ static void meson_ir_remove(struct platform_device *pdev)
 	atomic_dec_return(&meson_ir_dev_no);
 }
 
+static void meson_ir_shutdown(struct platform_device *pdev)
+{
+	struct meson_ir_chip *chip = platform_get_drvdata(pdev);
+	u32 data[3] = {IR_MBOX_CMD_SET_STATUS, 0};
+
+	meson_ir_mbox_transfer(chip, data, sizeof(data));
+
+	meson_ir_remove(pdev);
+}
+
 static int meson_ir_resume(struct device *dev)
 {
 	struct meson_ir_chip *chip = dev_get_drvdata(dev);
@@ -1239,6 +1249,7 @@ static const struct dev_pm_ops meson_ir_pm_ops = {
 static struct platform_driver meson_ir_driver = {
 	.probe = meson_ir_probe,
 	.remove = meson_ir_remove,
+	.shutdown = meson_ir_shutdown,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = meson_ir_dt_match,
