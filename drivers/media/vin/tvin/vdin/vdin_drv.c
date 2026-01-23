@@ -1960,6 +1960,21 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_frame_lock_check(devp, 1);
 	vrr_check_dec(1);
 	vdin_vf_init(devp);
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (vdin_sct_start(devp)) { /* request one scatter buffer before start */
+		pr_err("vdin%d mem_type=%d,sct start failed!\n",
+			devp->index, devp->mem_type);
+		return -1;
+	}
+#endif
+	/* screenshot stress test vdin1 hw crash addr need adjust config */
+	vfe = provider_vf_peek(devp->vfp);
+	if (vfe)
+		vdin_frame_write_ctrl_set(devp, vfe, 0);
+	else
+		pr_info("vdin%d:peek first vframe fail\n", devp->index);
+
 	/* config dolby mem base */
 	if (devp->hw_core == VDIN_HW_CORE_NORMAL)
 		vdin_dolby_addr_alloc(devp, devp->vfp->size);
@@ -2014,14 +2029,6 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	/*switch_vpu_mem_pd_vmod(devp->addr_offset ? VPU_VIU_VDIN1 :*/
 	/*		       VPU_VIU_VDIN0,*/
 	/*		       VPU_MEM_POWER_ON);*/
-
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (vdin_sct_start(devp)) { /* request one scatter buffer before start */
-		pr_err("%s vdin%d mem_type=%d,sct start failed!\n",
-			__func__, devp->index, devp->mem_type);
-		return -1;
-	}
-#endif
 	vdin_set_all_regs(devp);
 	vdin_hw_enable(devp);
 	vdin_set_dv_tunnel(devp);
@@ -2029,12 +2036,6 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	vdin_set_dsc_config_t3x(devp, true);
 #endif
-	/* screenshot stress test vdin1 hw crash addr need adjust config */
-	vfe = provider_vf_peek(devp->vfp);
-	if (vfe)
-		vdin_frame_write_ctrl_set(devp, vfe, 0);
-	else
-		pr_info("vdin%d:peek first vframe fail\n", devp->index);
 	//for debug
 	vdin_dbg_access_reg(devp, 0);
 
