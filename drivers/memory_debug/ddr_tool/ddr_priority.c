@@ -2111,7 +2111,7 @@ static struct bus_dev_priority bus_dev_t6x[] __initdata = {
 
 static struct demod_priority demod_t6x __initdata = {
 	.port_id = 46,
-	.allow_access = 1,
+	.allow_access = 0,
 	.reg_base = 0xfe31f000,
 	.mode_reg1 = (0x3c00 << 2),
 	.dtmb_mode_bit = 0,
@@ -2142,7 +2142,7 @@ static struct demux_priority demux_t6x __initdata = {
 
 static struct audio_priority audio_t6x __initdata = {
 	.port_id = 35,
-	.allow_access = 1,
+	.allow_access = 0,
 	.reg_base = 0xfe330000,
 	.num = 4,
 	.audio_x[0] = { .id = 0, . name = "audio_a", .reg = (0x0040 << 2) },
@@ -2157,7 +2157,7 @@ static struct audio_priority audio_t6x __initdata = {
 
 static struct bcon_priority bcon_t6x __initdata = {
 	.port_id = 51,
-	.allow_access = 1,
+	.allow_access = 0,
 	.reg = 0xfe014084,
 	.auto_bit = 15,
 	.urgent_bit = 16,
@@ -2240,7 +2240,7 @@ static struct id_name hevc_read_t6x[] __initdata = {
 
 static struct hevc_hcodec_priority hevc_t6x __initdata = {
 	.port_id = 25,
-	.allow_access = 1,
+	.allow_access = 0,
 	.reg_base = 0xfe320000,
 	.def_w_bit_s = 2, .def_w_width = 3,
 	.def_r_bit_s = 0, .def_r_width = 3,
@@ -2278,7 +2278,7 @@ static struct id_name hcodec_read_t6x[] __initdata = {
 
 static struct hevc_hcodec_priority hcodec_t6x __initdata = {
 	.port_id = 29,
-	.allow_access = 1,
+	.allow_access = 0,
 	.reg_base = 0xfe320000,
 	.def_w_bit_s = 2, .def_w_width = 3,
 	.def_r_bit_s = 0, .def_r_width = 3,
@@ -2435,6 +2435,7 @@ static struct vpu_dev_bus_routing routing_t6x[] __initdata = {
 };
 
 static struct vpu_priority vpu_t6x __initdata = {
+	.allow_access = 1,
 	.reg_base = 0xff800000,
 	.sur = &vpu_super_urgent_t6x,
 	.routing_num = ARRAY_SIZE(routing_t6x),
@@ -3843,6 +3844,10 @@ static int get_vpu_priority_info(unsigned char port_id, char *buf)
 	top = vpu->top;
 	for (i = 0; i < vpu->num; i++) {
 		if (port_id == top[i].port_id) {
+			if (!vpu->allow_access) {
+				s += sprintf(buf + s, DEV_PRIORITY_PRE "\t\t\tinaccessible\n");
+				return s;
+			}
 			handle_routing(&top[i]);
 			s += get_vpu_super_urgent_info(top[i].axi, top[i].rw, buf + s);
 			s += get_vpu_top_info(&top[i], buf + s);
@@ -4048,6 +4053,10 @@ int get_dmc_priority(unsigned int bus_id, char rw)
 	struct dmc_priority *dmc;
 
 	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
 	for (i = 0; i < v2->dmc_num; i++)
 		if (v2->dmc[i].bus_id == bus_id)
 			break;
@@ -4079,6 +4088,10 @@ int set_dmc_priority(unsigned int bus_id, unsigned char priority, char rw)
 	struct dmc_priority *dmc;
 
 	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
 	for (i = 0; i < v2->dmc_num; i++)
 		if (v2->dmc[i].bus_id == bus_id)
 			break;
@@ -4131,6 +4144,10 @@ int get_dev_priority(unsigned int port_id, char rw)
 	struct bus_dev_priority *bus_dev;
 
 	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
 	for (i = 0; i < v2->bus_dev_num; i++)
 		if (v2->bus_dev[i].port_id == port_id)
 			break;
@@ -4167,6 +4184,10 @@ int set_dev_priority(unsigned int port_id, unsigned char priority, char rw)
 	struct bus_dev_priority *bus_dev;
 
 	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
 	for (i = 0; i < v2->bus_dev_num; i++)
 		if (v2->bus_dev[i].port_id == port_id)
 			break;
@@ -4208,15 +4229,25 @@ int set_dev_priority(unsigned int port_id, unsigned char priority, char rw)
 
 int set_vpu_super_priority(unsigned char axi, char rw, unsigned char priority)
 {
+	struct ddr_priority_v2 *v2;
 	struct vpu_priority *vpu;
 	struct vpu_super_urgent *sur;
 	unsigned int value;
 	int i;
 	int rw_i;
 
-	vpu = aml_db->priority->v2->vpu;
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	vpu = v2->vpu;
 	sur = vpu->sur;
 
+	if (!vpu->allow_access) {
+		pr_err("the vpu is currently inaccessible\n");
+		return -EINVAL;
+	}
 	if (!sur->exist)
 		return -EINVAL;
 
@@ -4259,14 +4290,23 @@ int set_vpu_super_priority(unsigned char axi, char rw, unsigned char priority)
 
 int set_vpu_top_priority(unsigned char axi, char rw, unsigned char top_i, unsigned char priority)
 {
+	struct ddr_priority_v2 *v2;
 	struct vpu_priority *vpu;
 	struct vpu_top *top;
 	unsigned int value;
 	int i;
 	int rw_i;
 
-	vpu = aml_db->priority->v2->vpu;
-
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	vpu = v2->vpu;
+	if (!vpu->allow_access) {
+		pr_err("the vpu is currently inaccessible\n");
+		return -EINVAL;
+	}
 	if (!(rw == 'w' || rw == 'r')) {
 		pr_err("the value of rw must be either 'r', or 'w'\n");
 		return -EINVAL;
@@ -4306,6 +4346,7 @@ int set_vpu_top_priority(unsigned char axi, char rw, unsigned char top_i, unsign
 
 int set_vpu_sub_dev_priority(unsigned char axi, char rw, unsigned int id, unsigned char priority)
 {
+	struct ddr_priority_v2 *v2;
 	struct vpu_priority *vpu;
 	struct vpu_top *top;
 	struct vpu_top_map *map;
@@ -4315,8 +4356,16 @@ int set_vpu_sub_dev_priority(unsigned char axi, char rw, unsigned int id, unsign
 	int rw_i;
 	int find = 0;
 
-	vpu = aml_db->priority->v2->vpu;
-
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	vpu = v2->vpu;
+	if (!vpu->allow_access) {
+		pr_err("the vpu is currently inaccessible\n");
+		return -EINVAL;
+	}
 	if (!(rw == 'w' || rw == 'r')) {
 		pr_err("the value of rw must be either 'r', or 'w'\n");
 		return -EINVAL;
@@ -4381,9 +4430,15 @@ int set_demod_priority(unsigned char priority)
 {
 	unsigned int value;
 	unsigned int dvb_t2_mode;
+	struct ddr_priority_v2 *v2;
 	struct demod_priority *dm;
 
-	dm = aml_db->priority->v2->demod;
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	dm = v2->demod;
 	if (!dm->allow_access) {
 		pr_err("the demod is currently inaccessible\n");
 		return -EINVAL;
@@ -4434,9 +4489,15 @@ int set_demod_priority(unsigned char priority)
 int set_demux_priority(unsigned char priority, char rw)
 {
 	unsigned int value;
+	struct ddr_priority_v2 *v2;
 	struct demux_priority *demux;
 
-	demux = aml_db->priority->v2->demux;
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	demux = v2->demux;
 	if (!demux->allow_access) {
 		pr_err("the demux is currently inaccessible\n");
 		return -EINVAL;
@@ -4472,10 +4533,16 @@ int set_demux_priority(unsigned char priority, char rw)
 int set_audio_x_select_priority(char x, unsigned char ugt)
 {
 	unsigned int value;
+	struct ddr_priority_v2 *v2;
 	struct audio_priority *audio;
 	int i;
 
-	audio = aml_db->priority->v2->audio;
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	audio = v2->audio;
 	if (!audio->allow_access) {
 		pr_err("the audio is currently inaccessible\n");
 		return -EINVAL;
@@ -4504,9 +4571,15 @@ int set_audio_x_select_priority(char x, unsigned char ugt)
 int set_audio_priority(unsigned char idx, unsigned char priority, char rw)
 {
 	unsigned int value;
+	struct ddr_priority_v2 *v2;
 	struct audio_priority *audio;
 
-	audio = aml_db->priority->v2->audio;
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	audio = v2->audio;
 	if (!audio->allow_access) {
 		pr_err("audio is currently inaccessible\n");
 		return -EINVAL;
@@ -4542,12 +4615,18 @@ int set_audio_priority(unsigned char idx, unsigned char priority, char rw)
 int show_audio_priority_setting(void)
 {
 	unsigned int value;
+	struct ddr_priority_v2 *v2;
 	struct audio_priority *audio;
 	int i, j;
 	char buf[256];
 	int s = 0;
 
-	audio = aml_db->priority->v2->audio;
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	audio = v2->audio;
 	if (!audio->allow_access) {
 		pr_err("audio is currently inaccessible\n");
 		return -EINVAL;
@@ -4578,9 +4657,15 @@ int show_audio_priority_setting(void)
 int set_bcon_hw_urgent(unsigned char low, unsigned char high)
 {
 	unsigned int value;
+	struct ddr_priority_v2 *v2;
 	struct bcon_priority *bcon;
 
-	bcon = aml_db->priority->v2->bcon;
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	bcon = v2->bcon;
 	if (!bcon->allow_access) {
 		pr_err("bcon is currently inaccessible\n");
 		return -EINVAL;
@@ -4609,9 +4694,15 @@ int set_bcon_hw_urgent(unsigned char low, unsigned char high)
 int set_bcon_sw_urgent(unsigned char ugt)
 {
 	unsigned int value;
+	struct ddr_priority_v2 *v2;
 	struct bcon_priority *bcon;
 
-	bcon = aml_db->priority->v2->bcon;
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	bcon = v2->bcon;
 	if (!bcon->allow_access) {
 		pr_err("bcon is currently inaccessible\n");
 		return -EINVAL;
@@ -4632,12 +4723,18 @@ int set_bcon_sw_urgent(unsigned char ugt)
 	return 0;
 }
 
-void show_bcon_priority_setting(void)
+int show_bcon_priority_setting(void)
 {
 	unsigned int value;
+	struct ddr_priority_v2 *v2;
 	struct bcon_priority *bcon;
 
-	bcon = aml_db->priority->v2->bcon;
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	bcon = v2->bcon;
 	reg_access(bcon->reg, 0, READ, &value);
 
 	if (value & BIT(bcon->auto_bit))
@@ -4647,6 +4744,7 @@ void show_bcon_priority_setting(void)
 	else
 		pr_info("bcon: software control urgent: %x\n",
 			!!(value & BIT(bcon->urgent_bit)));
+	return 0;
 }
 
 static int set_hevc_hcodec_level_id(struct hevc_hcodec_priority *h, char rw,
@@ -4700,12 +4798,26 @@ static int set_hevc_hcodec_level_id(struct hevc_hcodec_priority *h, char rw,
 
 int set_hevc_level_id(char rw, unsigned char level, unsigned char i, unsigned char id)
 {
-	return set_hevc_hcodec_level_id(aml_db->priority->v2->hevc, rw, level, i, id);
+	struct ddr_priority_v2 *v2;
+
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	return set_hevc_hcodec_level_id(v2->hevc, rw, level, i, id);
 }
 
 int set_hcodec_level_id(char rw, unsigned char level, unsigned char i, unsigned char id)
 {
-	return set_hevc_hcodec_level_id(aml_db->priority->v2->hcodec, rw, level, i, id);
+	struct ddr_priority_v2 *v2;
+
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	return set_hevc_hcodec_level_id(v2->hcodec, rw, level, i, id);
 }
 
 static int set_hevc_hcodec_low_priority(struct hevc_hcodec_priority *h, char rw,
@@ -4747,12 +4859,26 @@ static int set_hevc_hcodec_low_priority(struct hevc_hcodec_priority *h, char rw,
 
 int set_hevc_low_priority(char rw, unsigned char priority)
 {
-	return set_hevc_hcodec_low_priority(aml_db->priority->v2->hevc, rw, priority);
+	struct ddr_priority_v2 *v2;
+
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	return set_hevc_hcodec_low_priority(v2->hevc, rw, priority);
 }
 
 int set_hcodec_low_priority(char rw, unsigned char priority)
 {
-	return set_hevc_hcodec_low_priority(aml_db->priority->v2->hcodec, rw, priority);
+	struct ddr_priority_v2 *v2;
+
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	return set_hevc_hcodec_low_priority(v2->hcodec, rw, priority);
 }
 
 int show_hevc_hcodec_priority_setting(struct hevc_hcodec_priority *h)
@@ -4822,12 +4948,26 @@ int show_hevc_hcodec_priority_setting(struct hevc_hcodec_priority *h)
 
 int show_hevc_priority_setting(void)
 {
-	return show_hevc_hcodec_priority_setting(aml_db->priority->v2->hevc);
+	struct ddr_priority_v2 *v2;
+
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	return show_hevc_hcodec_priority_setting(v2->hevc);
 }
 
 int show_hcodec_priority_setting(void)
 {
-	return show_hevc_hcodec_priority_setting(aml_db->priority->v2->hcodec);
+	struct ddr_priority_v2 *v2;
+
+	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
+	return show_hevc_hcodec_priority_setting(v2->hcodec);
 }
 
 int set_device_accessible(char *dev, unsigned char access)
@@ -4835,6 +4975,10 @@ int set_device_accessible(char *dev, unsigned char access)
 	struct ddr_priority_v2 *v2;
 
 	v2 = aml_db->priority->v2;
+	if (!v2) {
+		pr_err("this chip currently does not support v2 priority\n");
+		return -EINVAL;
+	}
 	access = !!access;
 	if (strcmp(dev, "demod") == 0) {
 		v2->demod->allow_access = access;
@@ -4848,6 +4992,8 @@ int set_device_accessible(char *dev, unsigned char access)
 		v2->hevc->allow_access = access;
 	} else if (strcmp(dev, "hcodec") == 0) {
 		v2->hcodec->allow_access = access;
+	} else if (strcmp(dev, "vpu") == 0) {
+		v2->vpu->allow_access = access;
 	} else {
 		pr_err("device name mismatch\n");
 		return -EINVAL;
@@ -4859,7 +5005,8 @@ int set_device_accessible(char *dev, unsigned char access)
 #define CMD_STR_ERR "setting %s priority command is error\n"
 void set_priority_display(const char *buf)
 {
-	unsigned int id, priority;
+	unsigned int id, priority, access;
+	char mode;
 	char rw = 0;
 
 	if (strncmp(buf, "dmc ", 4) == 0) {
@@ -4882,10 +5029,13 @@ void set_priority_display(const char *buf)
 		return;
 	} else if (strncmp(buf, "vpu ", 4) == 0) {
 		unsigned int vpu_i;
-		char mode;
 		unsigned int top_i;
 
 		buf = buf + 4;
+		if ((sscanf(buf, "%c %x", &mode, &access) == 2) && (mode == 'p')) {
+			set_device_accessible("vpu", !!access);
+			return;
+		}
 		if (sscanf(buf, "%x %c %c", &vpu_i, &rw, &mode) == 3) {
 			if (mode == 's') {
 				buf = buf + 5;
@@ -4911,7 +5061,10 @@ void set_priority_display(const char *buf)
 		return;
 	} else if (strncmp(buf, "demod", 5) == 0) {
 		buf = buf + 5;
-		if (sscanf(buf, " %x", &priority) == 1) {
+		if ((sscanf(buf, " %c %x", &mode, &access) == 2) && (mode == 'p')) {
+			set_device_accessible("demod", !!access);
+			return;
+		} else if (sscanf(buf, " %x", &priority) == 1) {
 			set_demod_priority(priority);
 			return;
 		}
@@ -4919,7 +5072,10 @@ void set_priority_display(const char *buf)
 		return;
 	} else if (strncmp(buf, "demux", 5) == 0) {
 		buf = buf + 5;
-		if (sscanf(buf, " %x %c", &priority, &rw) == 2 ||
+		if ((sscanf(buf, " %c %x", &mode, &access) == 2) && (mode == 'p')) {
+			set_device_accessible("demux", !!access);
+			return;
+		} else if (sscanf(buf, " %x %c", &priority, &rw) == 2 ||
 				sscanf(buf, " %x", &priority) == 1) {
 			set_demux_priority(priority, rw);
 			return;
@@ -4932,6 +5088,10 @@ void set_priority_display(const char *buf)
 		unsigned int idx;
 
 		buf = buf + 5;
+		if ((sscanf(buf, " %c %x", &mode, &access) == 2) && (mode == 'p')) {
+			set_device_accessible("audio", !!access);
+			return;
+		}
 		if (sscanf(buf, " %c", &x) == 1) {
 			buf = buf + 2;
 			if (x == 's') {
@@ -4957,6 +5117,10 @@ void set_priority_display(const char *buf)
 		unsigned int ugt;
 
 		buf += 4;
+		if ((sscanf(buf, " %c %x", &mode, &access) == 2) && (mode == 'p')) {
+			set_device_accessible("bcon", !!access);
+			return;
+		}
 		if (sscanf(buf, " %c", &mode) == 1) {
 			buf += 2;
 			if (mode == 'h') {
@@ -4983,6 +5147,10 @@ void set_priority_display(const char *buf)
 
 		buf = buf + 4;
 		h = aml_db->priority->v2->hevc;
+		if ((sscanf(buf, " %c %x", &mode, &access) == 2) && (mode == 'p')) {
+			set_device_accessible("hevc", !!access);
+			return;
+		}
 		if (sscanf(buf, " %c %x %x %x", &rw, &level, &i, &id) == 4)
 			set_hevc_hcodec_level_id(h, rw, level, i, id);
 		else if (sscanf(buf, " %c %x", &rw, &priority) == 2)
@@ -4997,6 +5165,10 @@ void set_priority_display(const char *buf)
 
 		buf = buf + 6;
 		h = aml_db->priority->v2->hcodec;
+		if ((sscanf(buf, " %c %x", &mode, &access) == 2) && (mode == 'p')) {
+			set_device_accessible("hcodec", !!access);
+			return;
+		}
 		if (sscanf(buf, " %c %x %x %x", &rw, &level, &i, &id) == 4)
 			set_hevc_hcodec_level_id(h, rw, level, i, id);
 		else if (sscanf(buf, " %c %x", &rw, &priority) == 2)

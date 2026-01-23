@@ -60,7 +60,7 @@ int set_audio_priority(unsigned char idx, unsigned char priority, char rw);
 int show_audio_priority_setting(void);
 int set_bcon_hw_urgent(unsigned char low, unsigned char high);
 int set_bcon_sw_urgent(unsigned char ugt);
-void show_bcon_priority_setting(void);
+int show_bcon_priority_setting(void);
 int set_hevc_level_id(char rw, unsigned char level, unsigned char i, unsigned char id);
 int set_hcodec_level_id(char rw, unsigned char level, unsigned char i, unsigned char id);
 int set_hevc_low_priority(char rw, unsigned char priority);
