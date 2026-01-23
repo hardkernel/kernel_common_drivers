@@ -3806,6 +3806,24 @@ static long di_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			PR_INF("dnr_dm_en received from user: %d\n", dnr_dm_en);
 		}
 		break;
+	case AMDI_IOC_SET_DIM_CFG:
+		if (copy_from_user(&tmp,
+				   (void __user *)arg,
+				   sizeof(unsigned char))) {
+			ret = -EFAULT;
+		} else {
+			if (tmp != dim_cfg)
+				dim_cfg = tmp;
+			PR_INF("dim_cfg received from user: %d\n", dim_cfg);
+		}
+		break;
+	case AMDI_IOC_GET_DIM_CFG:
+		tmp = dim_cfg;
+		if (copy_to_user((void __user *)arg,
+				   &tmp,
+				   sizeof(unsigned char)))
+			ret = -EFAULT;
+		break;
 
 	default:
 		break;
