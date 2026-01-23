@@ -2760,6 +2760,7 @@ void frc_unreg_clear_state(u32 ch)
 	state_st->frc_en = false;
 	dpss_inp_frm_cnt = 0;
 	memset(&state_st->frc_int_st, 0, sizeof(state_st->frc_int_st));
+	dpss_frc_rdma_unreg();
 }
 
 void frc_reg_update_state(u32 ch)
@@ -2773,6 +2774,7 @@ void frc_reg_update_state(u32 ch)
 
 	pchip_st->state_st.dpss_reg = 1;
 	pchip_st->state_st.is_first_frame = 1;
+	dpss_frc_rdma_reg();
 }
 
 /* Test whether demo window works properly for t6w

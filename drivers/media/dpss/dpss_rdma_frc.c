@@ -420,7 +420,7 @@ static void dpss_frc_rdma_irq_src_clear(u8 ch)
 	struct dpss_rdma_info *rdma_info_p;
 	struct rdma_regadr_s *rdma_regadr;
 
-	if (ch != RDMA_IRQ_PRE_VSYNC || ch != RDMA_IRQ_VSYNC)
+	if (ch != RDMA_IRQ_PRE_VSYNC && ch != RDMA_IRQ_VSYNC)
 		return;
 
 	rdma_info_p = &rdma_info[ch];

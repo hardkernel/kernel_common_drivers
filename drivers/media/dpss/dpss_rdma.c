@@ -1878,7 +1878,7 @@ void dpss_rdma_irq_src_clear(int handle)
 
 	ctr_tab = &rdma_regadr_dpss_t6w[handle];
 	//w_reg_bit(DPSS_RDMA_ACCESS_AUTO4, 0, ctr_tab->ch_id, 1);
-	//wr(ctr_tab->int_src_man_trig, 0);
+	wr(ctr_tab->int_src_man_trig, 0);
 
 	dbg_a2("%s:handle=%d\n", __func__, handle);
 }
