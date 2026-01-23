@@ -2981,8 +2981,21 @@ static int lcd_freeze(struct device *dev)
 	if (!pdrv)
 		return 0;
 
-	LCD_DBG(pdrv, "[%d]: %s: dummy callback, status=0x%x\n",
-		pdrv->index, __func__, pdrv->status);
+	mutex_lock(&lcd_power_mutex);
+	pdrv->init_flag = 0;
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		lcd_proc_time_clear(pdrv);
+		pdrv->status &= ~LCD_STATE_POWER;
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
+	}
+
+	if (pdrv->status & LCD_STATUS_ENCL_ON) {
+		pdrv->status &= ~LCD_STATE_PREPARE;
+		aml_lcd_notifier_call_chain(LCD_EVENT_UNPREPARE, (void *)pdrv);
+	}
+	LCD_PR(pdrv, "lcd_freeze done: status=0x%x", pdrv->status);
+	mutex_unlock(&lcd_power_mutex);
+
 	return 0;
 }
 
@@ -2995,8 +3008,18 @@ static int lcd_thaw(struct device *dev)
 	if (!pdrv)
 		return 0;
 
-	LCD_DBG(pdrv, "[%d]: %s: dummy callback, status=0x%x\n",
-		pdrv->index, __func__, pdrv->status);
+	if ((pdrv->status & LCD_STATE_VMODE_ACTIVE) == 0) {
+		LCD_DBG(pdrv, "lcd_thaw: vmode inactive, exit. status=0x%x", pdrv->status);
+		return 0;
+	}
+
+	mutex_lock(&lcd_power_mutex);
+	aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, (void *)pdrv);
+	pdrv->status |= LCD_STATE_PREPARE;
+	lcd_power_if_early_on(pdrv);
+	LCD_PR(pdrv, "lcd_thaw done: status=0x%x", pdrv->status);
+	mutex_unlock(&lcd_power_mutex);
+
 	return 0;
 }
 
@@ -3009,8 +3032,16 @@ static int lcd_poweroff(struct device *dev)
 	if (!pdrv)
 		return 0;
 
-	LCD_DBG(pdrv, "[%d]: %s: dummy callback, status=0x%x\n",
-		pdrv->index, __func__, pdrv->status);
+	mutex_lock(&lcd_power_mutex);
+	pdrv->init_flag = 0;
+	lcd_proc_time_clear(pdrv);
+
+	pdrv->status &= ~(LCD_STATE_PREPARE | LCD_STATE_POWER);
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF | LCD_EVENT_UNPREPARE, (void *)pdrv);
+
+	LCD_PR(pdrv, "lcd_poweroff done: status=0x%x", pdrv->status);
+	mutex_unlock(&lcd_power_mutex);
+
 	return 0;
 }
 
@@ -3023,8 +3054,18 @@ static int lcd_restore(struct device *dev)
 	if (!pdrv)
 		return 0;
 
-	LCD_DBG(pdrv, "[%d]: %s: dummy callback, status=0x%x\n",
-		pdrv->index, __func__, pdrv->status);
+	if ((pdrv->status & LCD_STATE_VMODE_ACTIVE) == 0) {
+		LCD_DBG(pdrv, "lcd_restore: vmode inactive, exit. status=0x%x", pdrv->status);
+		return 0;
+	}
+
+	mutex_lock(&lcd_power_mutex);
+	aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, (void *)pdrv);
+	pdrv->status |= LCD_STATE_PREPARE;
+	lcd_power_if_early_on(pdrv);
+	LCD_PR(pdrv, "lcd_restore done: status=0x%x", pdrv->status);
+	mutex_unlock(&lcd_power_mutex);
+
 	return 0;
 }
 
