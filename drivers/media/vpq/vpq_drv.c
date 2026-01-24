@@ -190,14 +190,17 @@ static void vpq_event_work(struct work_struct *work)
 	//console:/ # cat sys/devices/virtual/vpq/vpq/uevent
 	//            DEVNAME=vpq
 
-	//int ret = 0;
-	//char env[UEVENT_LEN_MAX];
-	//char *envp[2];
-	//memset(env, 0, sizeof(env));
-	//envp[0] = env;
-	//envp[1] = NULL;
-	//snprintf(env, UEVENT_LEN_MAX, "vpq_event_info=%d", devp->event_info);
-	//ret = kobject_uevent_env(&devp->dev->kobj, KOBJ_CHANGE, envp);
+	int ret = 0;
+	char env[UEVENT_LEN_MAX];
+	char devtype[] = "DEVTYPE=vpqevent";
+	char *envp[3];
+
+	memset(env, 0, sizeof(env));
+	snprintf(env, UEVENT_LEN_MAX, "VPQ_EVENT_INFO=%d", devp->event_info);
+	envp[0] = devtype;
+	envp[1] = env;
+	envp[2] = NULL;
+	ret = kobject_uevent_env(&devp->dev->kobj, KOBJ_CHANGE, envp);
 	//vpq_pr_info("event_info:%d, ret:%d\n", devp->event_info, ret);
 }
 
