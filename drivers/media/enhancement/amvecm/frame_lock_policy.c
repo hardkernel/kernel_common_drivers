@@ -692,6 +692,7 @@ void vrr_check_dec(unsigned int state)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (!state && frame_lock_vrr_lock_status())
 		frame_lock_disable_vrr(false);
+	vrr_dec_state = state;
 #endif
 }
 
