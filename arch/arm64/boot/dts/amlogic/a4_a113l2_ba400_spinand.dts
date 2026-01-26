@@ -283,29 +283,28 @@
 		//spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
 
 		aml-audio-card,dai-link@0 {
-			format = "i2s";
-			mclk-fs = <256>;
+			format = "dsp_b";
+			mclk-fs = <512>;
 			//continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
-			// bitclock-master = <&tdma>;
-			// frame-master = <&tdma>;
+			bitclock-master = <&tdma>;
+			frame-master = <&tdma>;
 			/* slave mode */
+			//bitclock-master = <&tdmacodec>;
+			//frame-master = <&tdmacodec>;
 
-			bitclock-master = <&tdmacodec>;
-			frame-master = <&tdmacodec>;
-
-			suffix-name = "alsaPORT-i2sCapture";
+			suffix-name = "alsaPORT-pcm";
 			tdmacpu: cpu {
 				sound-dai = <&tdma>;
 				dai-tdm-slot-tx-mask =
-							<1 1>;
+							<1>;
 				dai-tdm-slot-rx-mask =
-							<1 1>;
+							<1>;
 				dai-tdm-slot-num = <2>;
-				dai-tdm-slot-width = <32>;
-				system-clock-frequency = <12288000>;
+				dai-tdm-slot-width = <16>;
+				system-clock-frequency = <256000>;
 			};
 			tdmacodec: codec {
 				sound-dai = <&dummy_codec>;
@@ -393,7 +392,7 @@
 			format = "dsp_a";
 			mclk-fs = <512>;
 			//continuous-clock;
-			//bitclock-inversion;
+			bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
 			bitclock-master = <&tdmc>;
@@ -407,7 +406,7 @@
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1>;
 				dai-tdm-slot-rx-mask = <1>;
-				dai-tdm-slot-num = <1>;
+				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <32>;
 				system-clock-frequency = <512000>;
 			};
@@ -496,24 +495,19 @@
 	tdma: tdm@0 {
 		compatible = "amlogic, a4-snd-tdma";
 		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
-		dai-tdm-lane-slot-mask-out = <1 1>;
-		dai-tdm-clk-sel = <2>;
+		dai-tdm-lane-slot-mask-in = <1>;
+		dai-tdm-lane-slot-mask-out = <1>;
+		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkaudio CLKID_AUDIO_MCLK_PAD2
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
-		pinctrl-names = "tdm_pins","tdm_gpio";
+		pinctrl-names = "tdm_pins","tdmout_a_gpio";
 		pinctrl-0 = <
-			&mclk2_t17_pins
-			&tdmin_a_pins
-			&tdm_d8_pins
-			&tdm_d9_pins
-			&tdm_d10_pins
-			&tdm_d11_pins
-			&tdmin_a_clk_pins
-			>;
-		pinctrl-1 = <&tdmin_a_gpio>;
+			&tdm_a_pins
+			&tdm_d0_pins
+			&tdm_d1_pins
+			&tdma_clk_pins>;
 		/* pcpd_monitor */
 		/* pcpd_monitor_src = <&pcpd_monitor_a>; */
 		tdm5v-supply = <&vcc5v_reg>;
@@ -535,7 +529,7 @@
 				&clkaudio CLKID_AUDIO_MCLK_PAD1
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
-		pinctrl-names = "tdm_pins", "tdm_gpio";
+		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 =
 			<&mclk1_t4_pins
 			&tdm_b_pins
@@ -552,6 +546,7 @@
 		//tdm3v3-supply = <&vddio3v3_reg>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
+		/* use-acc = <1>; *//* if use acc frddr, set this property */
 		status = "okay";
 	};
 
@@ -560,17 +555,17 @@
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <1 0>;
 		// dai-tdm-lane-slot-mask-out = <0 1>;
-		dai-tdm-clk-sel = <0>;
+		dai-tdm-clk-sel = <2>;
 		clocks = <&clkaudio CLKID_AUDIO2_MCLK_VAD
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk","clk_srcpll";
-		pinctrl-names = "tdm_pins", "tdm_gpio";
-		pinctrl-0 = <
-			&tdmin_c_pins
-			&tdm_d0_pins
-			&tdm_d1_pins
-			&tdmc_clk_pins>;
-		pinctrl-1 = <&tdmin_c_gpio>;
+		//pinctrl-names = "tdm_pins", "tdmout_a_gpio";
+		//pinctrl-0 = <
+		//	&tdmin_c_pins
+		//	&tdm_d0_pins
+		//	&tdm_d1_pins
+		//	&tdmc_clk_pins>;
+		//pinctrl-1 = <&tdmin_c_gpio>;
 		tdm5v-supply = <&vcc5v_reg>;
 		//tdm3v3-supply = <&vddio3v3_reg>;
 		/* enable control gain */
@@ -591,6 +586,7 @@
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
 		clock-names = "sysclk", "fixed_clk", "gate_spdifin",
 				"gate_spdifout", "clk_spdifin", "clk_spdifout";
+		src-clk-freq = <1806336000>;
 		interrupts =
 				<GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
 
@@ -624,6 +620,7 @@
 			"dclk_srcpll",
 			"pdm_dclk",
 			"pdm_sysclk";
+		src-clk-freq = <1806336000>;
 		power-domains = <&pwrdm PDID_A4_AUDIO_PDM>;
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
@@ -664,6 +661,7 @@
 				&clkaudio CLKID_AUDIO_MCLK_F
 				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
+		src-clk-freq = <1806336000>;
 		/*same with toddr_src
 		 *	TDMIN_A, 0
 		 *	TDMIN_B, 1
@@ -687,6 +685,7 @@
 				&clkaudio CLKID_AUDIO_MCLK_F
 				&clkaudio CLKID_AUDIO_RESAMPLE_B>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
+		src-clk-freq = <1806336000>;
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
 		/* suspend disable clk */
@@ -748,6 +747,7 @@
 			"pdm_sysclk",
 			"tdminlb_mpll",
 			"tdminlb_mclk";
+		src-clk-freq = <1806336000>;
 
 		/* datain src
 		 * 0: tdmin_a;
@@ -888,7 +888,7 @@
 			output-low;
 		};
 	};
-	tdmin_c_pins: tdmin_c_pin {
+	tdm_a_pins: tdm_a_pin {
 		mux { /* GPIOX_7, GPIOX_8, GPIOX_9, GPIOX_10, */
 			groups = "tdm_d1",
 				"tdm_d0_x8",
@@ -913,14 +913,14 @@
 	tdm_d0_pins: tdm_d0_pin {
 		mux {
 			groups = "tdm_d0";
-			function = "vadtop_tdmin_lane0";
+			function = "tdmina_lane0";
 		};
 	};
 
 	tdm_d1_pins: tdm_d1_pin {
 		mux {
 			groups = "tdm_d1";
-			function = "vadtop_tdmin_lane1";
+			function = "tdmouta_lane0";
 		};
 	};
 
@@ -1258,7 +1258,7 @@
 };
 
 &saradc {
-	status = "disabled";
+	status = "okay";
 };
 
 &ir {

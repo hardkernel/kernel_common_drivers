@@ -9,7 +9,8 @@
 		mode = "tablet";
 		status = "disabled";
 		index = <0>;
-		fr_auto_policy = <0>; /* 0=disable, 1=enable */
+		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
+		key_valid = <0>;
 		reg = <0x0 0xfe004000 0x0 0x4000>;  /* pin ctrl */
 		interrupts = <0 222 1>;
 		interrupt-names = "vsync";
@@ -142,7 +143,7 @@
 };
 
 &pwm_cd {
-	status = "okay";
+	status = "disabled";
 };
 
 / {

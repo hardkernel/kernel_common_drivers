@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2026 Amlogic, Inc. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include "a4_a113l2_ba401_sbr.dts"
+
+/ {
+	model = "Amlogic";
+	amlogic-dt-id = "a4_a113l2_ba410_sip_512_sbr";
+	compatible = "amlogic, a4";
+
+	memory@0 {
+		device_type = "memory";
+		linux,usable-memory = <0x0 0x0 0x0 0x20000000>;
+	};
+};
+

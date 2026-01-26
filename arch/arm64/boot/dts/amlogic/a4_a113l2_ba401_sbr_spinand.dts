@@ -11,7 +11,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "a4_a113l2_ba400_sbr";
+	amlogic-dt-id = "a4_a113l2_ba401_sbr_spinand";
 	compatible = "amlogic, a4";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
@@ -26,7 +26,7 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
-		//spi0 = &spifc;
+		spi0 = &spi_nfc;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
 		tsensor0 = &p_tsensor;
@@ -93,14 +93,14 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x2000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x1000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -278,8 +278,6 @@
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
-		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
 		//spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
 
 		aml-audio-card,dai-link@0 {
@@ -358,7 +356,6 @@
 						&ad82128_d_34
 						&ad82128_d_35
 				>;
-
 			};
 		};
 
@@ -401,33 +398,34 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
-
+#if 0
 		aml-audio-card,dai-link@5 {
-			format = "i2s";
-			mclk-fs = <256>;
+			format = "dsp_a";
+			mclk-fs = <512>;
 			//continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
-			//bitclock-master = <&tdmc>;
-			//frame-master = <&tdmc>;
+			bitclock-master = <&tdmc>;
+			frame-master = <&tdmc>;
 			/* slave mode */
-			bitclock-master = <&tdmccodec>;
-			frame-master = <&tdmccodec>;
+			//bitclock-master = <&tdmccodec>;
+			//frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
 			// suffix-name = "alsaPORT-tdmin";
 			cpu {
 				sound-dai = <&tdmc>;
-				dai-tdm-slot-tx-mask = <1 1>;
-				dai-tdm-slot-rx-mask = <1 1>;
-				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-tx-mask = <1>;
+				dai-tdm-slot-rx-mask = <1>;
+				dai-tdm-slot-num = <1>;
 				dai-tdm-slot-width = <32>;
-				system-clock-frequency = <12288000>;
+				system-clock-frequency = <512000>;
 			};
-			tdmccodec: codec {
-				sound-dai = <&acodec>;
+			codec {
+				sound-dai = <&dummy_codec>;
 			};
 		};
+#endif
 	};
 
 	audiolocker: locker {
@@ -452,18 +450,6 @@
 		key_code = <KEY_SETUP KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_ENTER KEY_POWER>;
 		key_val = <0 252 468 684 901>; // Unit: millivolt
 		key_tolerance = <70 70 70 70 70>; // Unit: millivolt
-	};
-
-	gpio_keypad {
-		compatible = "amlogic, gpio_keypad";
-		status = "disabled";
-		scan_period = <20>;
-		key_num = <1>;
-		key_name = "mute";
-		key_code = <SW_MUTE_DEVICE>;
-		key_type = <EV_SW>;
-		key-gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
-		detect_mode = <0>; /* 0:polling mode, 1:irq mode */
 	};
 
 	partitions: partitions{
@@ -575,14 +561,13 @@
 		suspend-clk-off = <1>;
 		status = "okay";
 	};
-
+#if 0
 	tdmc:tdm@2 {
 		compatible = "amlogic, a4-snd-tdmc";
 		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-in = <1>;
-		dai-tdm-lane-slot-mask-out = <1>;
-		dai-tdm-clk-sel = <7>;
-		tdmin-src-name = "acodec_adc";
+		dai-tdm-lane-slot-mask-in = <1 0>;
+		// dai-tdm-lane-slot-mask-out = <0 1>;
+		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO2_MCLK_VAD
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk","clk_srcpll";
@@ -602,7 +587,7 @@
 		suspend-clk-off = <1>;
 		status = "okay";
 	};
-
+#endif
 	spdifa: spdif@0 {
 		compatible = "amlogic, a5-snd-spdif-a";
 		#sound-dai-cells = <0>;
@@ -655,7 +640,6 @@
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
-		use_vad_toddr = <1>;
 		pdm5v-supply = <&vcc5v_reg>;
 		//pdm3v3-supply = <&vddio3v3_reg>;
 		status = "okay";
@@ -776,6 +760,7 @@
 			"tdminlb_mpll",
 			"tdminlb_mclk";
 		src-clk-freq = <1806336000>;
+
 		/* datain src
 		 * 0: tdmin_a;
 		 * 1: tdmin_b;
@@ -1120,6 +1105,7 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
 	max-frequency = <200000000>;
+	sdr_core_phase = <2>;
 
 	non-removable;
 	disable-wp;
@@ -1197,7 +1183,7 @@
 };
 
 &sd_emmc_c {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-2 = <&emmc_pins_sleep>;
@@ -1261,22 +1247,26 @@
 				reg = <0x0 0x00000000>;
 			};
 			partition@5 {
-				label = "logo";
-				reg = <0x0 0x00200000>;
+				label = "misc";
+				reg = <0x0 0x00400000>;
 			};
 			partition@6 {
 				label = "recovery";
-				reg = <0x0 0x1000000>;
+				reg = <0x0 0x1200000>;
 			};
 			partition@7 {
-				label = "boot";
-				reg = <0x0 0x0F00000>;
+				label = "factory";
+				reg = <0x00000000 0x01000000>;
 			};
 			partition@8 {
-				label = "system";
-				reg = <0x0 0x11800000>;
+				label = "boot";
+				reg = <0x0 0x1000000>;
 			};
 			partition@9 {
+				label = "system";
+				reg = <0x0 0x8000000>;
+			};
+			partition@10 {
 				label = "data";
 				reg = <0x0 0xffffffff>;
 			};
@@ -1298,18 +1288,6 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_t>;
-
-	plcd_spi_device@0 {
-		compatible = "amlogic,plcd-spi-device";
-		reg = <0>;
-		spi-cpha;
-		spi-cpol;
-		spi-tx-bus-width = <4>;
-		spi-max-frequency = <16000000>; /* unit: hz */
-		spi_mode = <0x203>;
-		spi_cs_delay = <10  /* hold_high_delay */
-				100>; /* clk_cs_delay (unit: us) */
-	};
 };
 
 &spicc1 {
@@ -1318,10 +1296,99 @@
 	pinctrl-0 = <&spicc1_pins_t>;
 };
 
+&spi_nfc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_nfc_pins>;
+	spi-nand@0 {
+		compatible = "spi-nand";
+		status = "okay";
+		reg = <0>;
+		spi-max-frequency = <24000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		bl_mode = <2>; /* advance mode */
+		fip_copies = <4>;
+		info_p_mode = <1>; /* Info page on page 0 */
+
+		partitions {
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bootloader";
+				reg = <0x00000000 0x00200000>;
+			};
+
+			partition@1 {
+				label = "bl2e";
+				reg = <0x00000000 0x00080000>;
+			};
+
+			partition@2 {
+				label = "bl2x";
+				reg = <0x00000000 0x00080000>;
+			};
+
+			partition@3 {
+				label = "ddrfip";
+				reg = <0x00000000 0x00100000>;
+			};
+
+			partition@4 {
+				label = "devfip";
+				reg = <0x00000000 0x00c00000>;
+			};
+
+			partition@5 {
+				label = "misc";
+				reg = <0x00000000 0x00040000>;
+			};
+
+			partition@6 {
+				label = "recovery";
+				reg = <0x00000000 0x01800000>;
+			};
+
+			partition@7 {
+				label = "factory";
+				reg = <0x00000000 0x01000000>;
+			};
+
+			partition@8 {
+				label = "boot";
+				reg = <0x00000000 0x01400000>;
+			};
+
+			partition@9 {
+				label = "system";
+				reg = <0x00000000 0x08000000>;
+			};
+
+			partition@10 {
+				label = "data";
+				reg = <0x00000000 0xffffffff>;
+			};
+		};
+	};
+};
+
 &aml_wifi{
 	status = "okay";
-	interrupt-gpios = <&ao_gpio  GPIOAO_2  GPIO_ACTIVE_HIGH>;
-	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
+	interrupt-gpios = <&gpio  GPIOX_8 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&pwm_a_pins2>;
+	power_on-gpios = <&gpio  GPIOX_15  GPIO_ACTIVE_HIGH>;
+	power_on_2-gpios = <&gpio   GPIOX_7  GPIO_ACTIVE_HIGH>;
+	pwm_channel1_conf {
+			pwms = <&pwm_ab 0 30541 0>;
+	};
+	pwm_channel2_conf {
+			pwms = <&pwm_ab 2 30600 0>;
+	};
+};
+
+&pwm_ab{
+	status = "okay";
 };
 
 &aml_bt {
@@ -1358,6 +1425,13 @@
 	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c1_pins2>;
+	clock-frequency = <100000>;
 };
 
 &i2c2 {

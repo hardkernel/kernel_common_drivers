@@ -489,7 +489,8 @@
 				&clkaudio CLKID_AUDIO_MCLK_PAD2
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
-		pinctrl-names = "tdm_pins","tdm_gpio";
+		src-clk-freq = <1806336000>;
+		pinctrl-names = "tdm_pins","tdmout_a_gpio";
 		pinctrl-0 = <
 			&mclk2_t17_pins
 			&tdmin_a_pins
@@ -521,7 +522,8 @@
 				&clkaudio CLKID_AUDIO_MCLK_PAD1
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
-		pinctrl-names = "tdm_pins", "tdm_gpio";
+		src-clk-freq = <1806336000>;
+		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 =
 			<&mclk1_t4_pins
 			&tdm_b_pins
@@ -550,7 +552,8 @@
 		clocks = <&clkaudio CLKID_AUDIO2_MCLK_VAD
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk","clk_srcpll";
-		pinctrl-names = "tdm_pins", "tdm_gpio";
+		src-clk-freq = <1806336000>;
+		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 = <
 			&tdmin_c_pins
 			&tdm_d0_pins
@@ -577,6 +580,7 @@
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
 		clock-names = "sysclk", "fixed_clk", "gate_spdifin",
 				"gate_spdifout", "clk_spdifin", "clk_spdifout";
+		src-clk-freq = <1806336000>;
 		interrupts =
 				<GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
 
@@ -610,6 +614,7 @@
 			"dclk_srcpll",
 			"pdm_dclk",
 			"pdm_sysclk";
+		src-clk-freq = <1806336000>;
 		power-domains = <&pwrdm PDID_A4_AUDIO_PDM>;
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
@@ -649,6 +654,7 @@
 				&clkaudio CLKID_AUDIO_MCLK_F
 				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
+		src-clk-freq = <1806336000>;
 		/*same with toddr_src
 		 *	TDMIN_A, 0
 		 *	TDMIN_B, 1
@@ -672,6 +678,7 @@
 				&clkaudio CLKID_AUDIO_MCLK_F
 				&clkaudio CLKID_AUDIO_RESAMPLE_B>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
+		src-clk-freq = <1806336000>;
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
 		/* suspend disable clk */
@@ -733,6 +740,7 @@
 			"pdm_sysclk",
 			"tdminlb_mpll",
 			"tdminlb_mclk";
+		src-clk-freq = <1806336000>;
 
 		/* datain src
 		 * 0: tdmin_a;
@@ -1245,7 +1253,7 @@
 };
 
 &saradc {
-	status = "disabled";
+	status = "okay";
 };
 
 &ir {

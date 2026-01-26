@@ -402,6 +402,30 @@ static void mbox_ao2ree_rx_callback(struct mbox_client *cl, void *mssg)
 	mbox_remote2ree_notify(aml_dev, mssg);
 }
 
+static void mbox_ao2ree_btclk_sync_rx_callback(struct mbox_client *cl, void *mssg)
+{
+	struct device *dev = cl->dev;
+	struct aml_mbox_dev *aml_devs;
+	struct aml_mbox_dev *aml_dev;
+	u32 mbox_nums;
+	int idx;
+
+	aml_devs = dev_get_drvdata(dev);
+	mbox_nums = aml_devs->mbox_nums;
+	for (idx = 0; idx < mbox_nums; idx++) {
+		aml_dev = &aml_devs[idx];
+		if (!strcmp(aml_dev->name, "aocpu2ree_btclk_sync"))
+			break;
+	}
+
+	if (idx == mbox_nums) {
+		dev_err(dev, "Can't find aocpu2ree_btclk_sync dev\n");
+		return;
+	}
+
+	mbox_remote2ree_notify(aml_dev, mssg);
+}
+
 static void mbox_dspa2ree_rx_callback(struct mbox_client *cl, void *mssg)
 {
 	struct device *dev = cl->dev;
@@ -559,6 +583,8 @@ static int mbox_cdev_init(struct device *dev)
 
 		if (!strcmp(mbox_dev->name, "aocpu2ree"))
 			mbox_dev->mbox_chan->cl->rx_callback = mbox_ao2ree_rx_callback;
+		else if (!strcmp(mbox_dev->name, "aocpu2ree_btclk_sync"))
+			mbox_dev->mbox_chan->cl->rx_callback = mbox_ao2ree_btclk_sync_rx_callback;
 		else if (!strcmp(mbox_dev->name, "dspa2ree"))
 			mbox_dev->mbox_chan->cl->rx_callback = mbox_dspa2ree_rx_callback;
 		else if (!strcmp(mbox_dev->name, "dspb2ree"))

@@ -411,12 +411,15 @@
 	mbox_devfs {
 		status = "okay";
 		compatible = "amlogic, mbox-devfs";
-		mbox-nums = <2>;
+		mbox-nums = <3>;
 		mbox-names = "ree2aocpu",
-			     "aocpu2ree";
+			     "aocpu2ree",
+			     "aocpu2ree_btclk_sync";
 		mboxes = <&mbox_fifo A4_REE2AO_DEV>,
-			 <&mbox_fifo A4_AO2REE_DEV>;
+			 <&mbox_fifo A4_AO2REE_DEV>,
+			 <&mbox_fifo A4_AO2REE_BTCLK_SYNC>;
 		mbox-dests = <MAILBOX_AOCPU>,
+			     <MAILBOX_ARM>,
 			     <MAILBOX_ARM>;
 	};
 
@@ -1358,6 +1361,7 @@
 	canvas: canvas {
 		compatible = "amlogic, meson, canvas";
 		dev_name = "amlogic-canvas";
+		reg = <0x0 0xfe030048 0x0 0x2000>;
 		status = "okay";
 	};
 
@@ -1594,6 +1598,12 @@
 		kt_reserved = <0>;
 		kt_host_key_max_len = <32>;
 		status = "okay";
+	};
+
+	timestamp {
+		compatible = "amlogic, meson-soc-timestamp";
+		reg = <0x0 0xfe0100ec 0x0 0x8>;
+		status = "disabled";
 	};
 };
 

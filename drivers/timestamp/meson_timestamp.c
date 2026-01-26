@@ -130,13 +130,11 @@ static int meson_timestamp_probe(struct platform_device *pdev)
 	return meson_timestamp_dev_register(tdev);
 }
 
-static int meson_timestamp_remove(struct platform_device *pdev)
+static void meson_timestamp_remove(struct platform_device *pdev)
 {
 	struct meson_timestamp_dev *tdev = platform_get_drvdata(pdev);
 
 	misc_deregister(&tdev->timestamp);
-
-	return 0;
 }
 
 static const struct of_device_id meson_timestamp_of_match[] = {
