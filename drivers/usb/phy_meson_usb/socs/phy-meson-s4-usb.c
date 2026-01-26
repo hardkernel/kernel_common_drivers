@@ -9,6 +9,7 @@ static void meson_usb2phy_s4_cali(struct amlogic_usb_v2 *mphy)
 {
 	meson_usb2phy_legacy_cali_n(mphy);
 	meson_usb2phy_legacy_cali_disc_squelch(mphy);
+	meson_usb2phy_set_calibration_trim(mphy);
 }
 
 static struct meson_u2phy_priv meson_u2phy_s4_priv = {
