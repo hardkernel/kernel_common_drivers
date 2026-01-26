@@ -6429,6 +6429,28 @@ static long amvecm_ioctl(struct file *file,
 			pq_user_latch_flag |= PQ_USER_CMS_CURVE_HUE;
 		}
 		break;
+	case AMVECM_IOC_S_HDR_ON:
+		if (copy_from_user(&tmp,
+			(void __user *)arg,
+			sizeof(int))) {
+			ret = -EFAULT;
+		} else {
+			hdr_set_on = tmp;
+			vecm_latch_flag2 |= FLAG_HDR_ON;
+			force_toggle();
+			pr_amvecm_dbg("AMVECM_IOC_S_HDR_ON: %d\n", hdr_set_on);
+		}
+		break;
+	case AMVECM_IOC_G_HDR_ON:
+		tmp = get_hdr_on();
+		argp = (void __user *)arg;
+		if (copy_to_user(argp, &tmp, sizeof(int))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("AMVECM_IOC_G_HDR_ON fail\n");
+		} else {
+			pr_amvecm_dbg("AMVECM_IOC_G_HDR_ON = %d\n", tmp);
+		}
+		break;
 #endif
 	default:
 		ret = -EINVAL;
@@ -14551,6 +14573,21 @@ static ssize_t amvecm_debug_store(const struct class *cla,
 			goto free_buf;
 		p->min_mc = val;
 		pr_info("min_mc = %d\n", p->min_mc);
+	} else if (!strcmp(parm[0], "g_hdr_set_on")) {
+		pr_info("hdr_set_on: %d\n", hdr_set_on);
+	} else if (!strcmp(parm[0], "s_hdr_set_on")) {
+		if (!parm[1]) {
+			pr_info("misss param1\n");
+			goto free_buf;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		hdr_set_on = val;
+		vecm_latch_flag2 |= FLAG_HDR_ON;
+		force_toggle();
+	} else if (!strcmp(parm[0], "g_hdr_on")) {
+		hdr_on = get_hdr_on();
+		pr_info("hdr_on: %d\n", hdr_on);
 #endif
 	} else {
 		pr_info("unsupport cmd\n");
