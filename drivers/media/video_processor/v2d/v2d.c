@@ -2683,9 +2683,20 @@ static void v2d_do_file_task(struct v2d_dev *dev)
 
 	config_output_vf_param(dev, output_vf, is_tvp, output_buffer, vframe_info_cur);
 
-	if (count == 1 && input_vf)
+	if (count == 1 && input_vf) {
+		v2d_print(dev->index, PRINT_OTHER, "composer done, copy hdr info.\n");
 		output_vf->duration = input_vf->duration;
+		output_vf->ready_jiffies64 = input_vf->ready_jiffies64;
+		output_vf->duration = input_vf->duration;
+		output_vf->src_fmt = input_vf->src_fmt;
+		output_vf->signal_type = input_vf->signal_type;
+		output_vf->source_type = input_vf->source_type;
 
+		if (input_vf->flag & VFRAME_FLAG_PC_MODE)
+			output_vf->flag |= VFRAME_FLAG_PC_MODE;
+		if (input_vf->flag & VFRAME_FLAG_GAME_MODE)
+			output_vf->flag |= VFRAME_FLAG_GAME_MODE;
+	}
 	if (enable_v2d_dump) {
 		enable_v2d_dump = 0;
 		v2d_dump_output_buffer(output_vf);
