@@ -1588,24 +1588,19 @@
 
 	ddr_control: ddr_control {
 		compatible = "amlogic, ddr-control";
-		reg = <0 0xfe036894 0 0x4>,
-		      <0 0xfe0368a8 0 0x4>;
-		reg-names = "sip-addr",
-			    "freq-addr";
-		sip-mask = <24 8>;
+		reg = <0x0 0xfe0368a8 0x0 0x4>;
+		reg-names = "freq-addr";
 		freq-mask = <0 16>;
 		status = "okay";
-		sip {
-			particle = <SIP_PARTICLE>;
-			particle-flag = <DDR_SIP_FLAG>;
+		ddr {
 			condition-type = <DDR_THERMAL>;
 			zone-name = "soc_thermal";
 			caddr = <0xfe0364b4>,
 				<0xfe0365b4>;
 			caddr-mask = <0 16>,
 				     <0 16>;
-			cstep-val = <85000 90000 95000 100000>,
-				    <105000 110000 115000 120000>;
+			cstep-val = <80000 85000 90000 95000>,
+				    <100000 105000 110000 115000>;
 			caddr-val = <7800 3900>,
 				    <6240 3120>,
 				    <4875 2438>,

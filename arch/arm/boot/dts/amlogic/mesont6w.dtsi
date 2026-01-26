@@ -20,6 +20,7 @@
 #include "mesong12a-bifrost.dtsi"
 #include <dt-bindings/mailbox/t6w-mbox.h>
 #include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/thermal/ddr-params.h>
 #include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 #include <dt-bindings/leds/leds-meson.h>
 
@@ -1798,6 +1799,58 @@
 			};
 		};
 	};/*thermal zone end*/
+
+	ddr_control: ddr_control {
+		compatible = "amlogic, ddr-control";
+		reg = <0xfe340894 0x4>,
+		      <0xfe3408a8 0x4>;
+		reg-names = "sip-addr",
+			    "freq-addr";
+		sip-mask = <24 8>;
+		freq-mask = <0 16>;
+		status = "okay";
+		sip {
+			particle = <SIP_PARTICLE>;
+			particle-flag = <DDR_SIP_FLAG>;
+			condition-type = <DDR_THERMAL>;
+			zone-name = "soc_thermal";
+			caddr = <0xfe3404b4>,
+				<0xfe3405b4>;
+			caddr-mask = <0 16>,
+				     <0 16>;
+			cstep-val = <80000 85000 90000 95000>,
+				    <100000 105000 110000 115000>;
+			caddr-val = <7800 3900>,
+				    <6240 3120>,
+				    <4875 2438>,
+				    <4875 2438>,
+				    <3900 1950>,
+				    <3120 1560>,
+				    <2437 1219>,
+				    <1950 975>;
+		};
+
+		nosip {
+			particle = <NOSIP_PARTICLE>;
+			particle-flag = <DDR_SIP_FLAG>;
+			condition-type = <DDR_THERMAL>;
+			zone-name = "soc_thermal";
+			caddr = <0xfe3404b4>,
+				<0xfe3405b4>;
+			caddr-mask = <0 16>,
+				     <0 16>;
+			cstep-val = <80000 85000 90000 95000>,
+				    <100000 105000 110000 115000>;
+			caddr-val = <7800 3900>,
+				    <6240 3120>,
+				    <4875 2438>,
+				    <4875 2438>,
+				    <3900 1950>,
+				    <3120 1560>,
+				    <2437 1219>,
+				    <1950 975>;
+		};
+	};
 
 	usbphy0: usbphy0@fe488000 {
 		compatible = "amlogic,u2phy-t6w";
