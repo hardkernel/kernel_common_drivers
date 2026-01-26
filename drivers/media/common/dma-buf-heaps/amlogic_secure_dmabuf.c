@@ -33,9 +33,6 @@ __module_param(dma_buf_debug, int, 0644);
 
 #define pr_dbg(fmt, args ...)		dprintk(6, fmt, ## args)
 #define pr_error(fmt, args ...)		dprintk(1, fmt, ## args)
-#define pr_inf(fmt, args ...)		dprintk(8, fmt, ## args)
-#define pr_enter()					pr_inf("enter")
-
 
 #define AML_SECURE_DMABUF_HEAP_SETTING_PHYADDR		3
 
@@ -63,7 +60,6 @@ struct secure_heap_buffer {
 static int secure_heap_attach(struct dma_buf *dmabuf,
 				struct dma_buf_attachment *attachment)
 {
-	pr_enter();
 	attachment->priv = dmabuf->priv;
 	return 0;
 }
@@ -71,7 +67,6 @@ static int secure_heap_attach(struct dma_buf *dmabuf,
 static void secure_heap_detach(struct dma_buf *dmabuf,
 				struct dma_buf_attachment *attachment)
 {
-	pr_enter();
 	attachment->priv = NULL;
 }
 
@@ -88,7 +83,6 @@ static void secure_heap_unmap_dma_buf(struct dma_buf_attachment *attachment,
 					struct sg_table *table,
 					enum dma_data_direction direction)
 {
-	pr_enter();
 	return;
 }
 
@@ -96,14 +90,12 @@ static int secure_heap_dma_buf_begin_cpu_access
 						(struct dma_buf *dmabuf,
 					enum dma_data_direction direction)
 {
-	pr_enter();
 	return 0;
 }
 
 static int secure_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 						enum dma_data_direction direction)
 {
-	pr_enter();
 	return 0;
 }
 
@@ -114,7 +106,6 @@ static int secure_heap_mmap(struct dma_buf *dmabuf,
 	struct secure_block_info *block = NULL;
 	int ret = -1;
 
-	pr_enter();
 	if (!buffer)
 		goto out;
 
@@ -170,14 +161,11 @@ out:
 
 static int secure_heap_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
-	pr_enter();
 	return 0;
 }
 
 static void secure_heap_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
-{
-	pr_enter();
-}
+{}
 
 static void secure_heap_dma_buf_release(struct dma_buf *dmabuf)
 {
@@ -185,7 +173,6 @@ static void secure_heap_dma_buf_release(struct dma_buf *dmabuf)
 	struct secure_block_info *block = NULL;
 	u64 handle = 0;
 
-	pr_enter();
 	if (!buffer)
 		return;
 
@@ -337,7 +324,6 @@ static struct dma_buf *secure_uncached_heap_allocate
 						u32 fd_flags,
 						u64 heap_flags)
 {
-	pr_enter();
 	return secure_heap_do_allocate(heap, len, fd_flags, heap_flags, true);
 }
 
@@ -347,7 +333,6 @@ static struct dma_buf *secure_uncached_heap_not_initialized
 						u32 fd_flags,
 						u64 heap_flags)
 {
-	pr_enter();
 	return ERR_PTR(-EBUSY);
 }
 
@@ -359,7 +344,6 @@ int __init amlogic_system_secure_dma_buf_init(void)
 {
 	struct dma_heap_export_info exp_info;
 
-	pr_enter();
 	exp_info.name = SYSTEM_SECURE_UNCACHE_HEAP_NAME;
 	exp_info.ops = &secure_heap_ops;
 	exp_info.priv = NULL;
