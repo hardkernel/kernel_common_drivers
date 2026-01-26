@@ -1094,6 +1094,7 @@ static void lcd_mode_switch_on_work(struct work_struct *work)
 {
 	struct aml_lcd_drv_s *pdrv;
 	unsigned long long local_time[2];
+	unsigned long flags = 0;
 
 	local_time[0] = sched_clock();
 	pdrv = container_of(work, struct aml_lcd_drv_s, mode_switch_on_work);
@@ -1105,11 +1106,11 @@ static void lcd_mode_switch_on_work(struct work_struct *work)
 		    (pdrv->switch_on_event & LCD_EVENT_POWER_ON))
 			lcd_if_enable_retry(pdrv);
 	}
-
-	mutex_lock(&lcd_vout_mutex);
-	pdrv->vmode_switch = 0;
-	mutex_unlock(&lcd_vout_mutex);
 	mutex_unlock(&lcd_power_mutex);
+
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
+	pdrv->test_locked = 0;
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 
 	local_time[1] = sched_clock();
 	pdrv->proc_time.switch_on_time = lcd_do_div(local_time[1] - local_time[0], 1000);
@@ -1310,7 +1311,7 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 		lcd_mute_set(pdrv, pdrv->mute_state);
 	}
 
-	if (pdrv->vmode_switch == 0) {
+	if (!pdrv->test_locked) {
 		if (pdrv->test_flag != pdrv->test_state) {
 			pdrv->test_state = pdrv->test_flag;
 			lcd_debug_test(pdrv, pdrv->test_state);
@@ -2413,6 +2414,7 @@ static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 	pdrv->vsync_none_timer_flag = 0;
 	pdrv->test_flag = pdrv->debug_ctrl->debug_test_pattern;
 	pdrv->test_state = pdrv->test_flag;
+	pdrv->test_locked = 0;
 
 	if (init_state & 0x1) {
 		if (pdrv->boot_ctrl->dccd_flag) {

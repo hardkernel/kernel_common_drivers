@@ -937,6 +937,7 @@ struct aml_lcd_drv_s {
 	unsigned char auto_test;
 	unsigned char test_state;
 	unsigned char test_flag;
+	unsigned char test_locked;
 	unsigned char mute_state;
 	unsigned char mute_flag;
 	unsigned char mute_switch;

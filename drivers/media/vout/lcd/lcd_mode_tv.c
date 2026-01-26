@@ -180,10 +180,9 @@ int lcd_mode_tv_set_current_vmode(enum vmode_e mode, void *data)
 		}
 	}
 
-	if (pdrv->vmode_switch == 0) {
-		local_time[1] = sched_clock();
-		pdrv->proc_time.switch_full_time = lcd_do_div(local_time[1] - local_time[0], 1000);
-	}
+	pdrv->vmode_switch = 0;
+	local_time[1] = sched_clock();
+	pdrv->proc_time.switch_full_time = lcd_do_div(local_time[1] - local_time[0], 1000);
 
 	/* must update vrr dev after driver change for panel parameters update */
 	lcd_vrr_dev_update(pdrv);

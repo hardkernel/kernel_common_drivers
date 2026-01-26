@@ -2611,16 +2611,15 @@ static ssize_t lcd_debug_test_store(struct device *dev, struct device_attribute 
 		pdrv->test_flag = (unsigned char)temp;
 		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 
-		while (i++ < 200) {
-			if (pdrv->test_state == temp)
+		ret = -1;
+		while (i++ < 20) {
+			if (pdrv->test_state == temp) {
+				ret = 0;
 				break;
-			lcd_delay_ms(1);
+			}
+			lcd_delay_ms(100);
 		}
-		if (pdrv->test_state == temp)
-			ret = 0;
-		else
-			ret = -1;
-		LCD_PR(pdrv, ": %s: %d %s", __func__, temp, ret ? "failed" : "successfully");
+		LCD_PR(pdrv, "lcd_debug_test: %d %s", temp, ret ? "fail" : "success");
 	}
 
 lcd_debug_test_store_end:

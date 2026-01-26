@@ -301,9 +301,15 @@ int lcd_mode_timing_switch_update(struct aml_lcd_drv_s *pdrv)
 void lcd_mode_vmode_switch(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned long long local_time[2];
+	unsigned long flags = 0;
 
 	if (pdrv->curr_dev->dev_cfg.timing.switch_type == LCD_VMODE_SWITCH_NONE)
 		return;
+
+	//lock bist, input data change is abandoned
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
+	pdrv->test_locked = 1;
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 
 	//step 1: switch off
 	local_time[0] = sched_clock();
@@ -803,10 +809,9 @@ int lcd_mode_timing_set_next(struct aml_lcd_drv_s *pdrv, enum vmode_e vmode)
 		}
 	}
 
-	if (pdrv->vmode_switch == 0) {
-		local_time[1] = sched_clock();
-		pdrv->proc_time.switch_full_time = local_time[1] - local_time[0];
-	}
+	pdrv->vmode_switch = 0;
+	local_time[1] = sched_clock();
+	pdrv->proc_time.switch_full_time = local_time[1] - local_time[0];
 
 	/* must update vrr dev after driver change for panel parameters update */
 	lcd_vrr_dev_update(pdrv);
