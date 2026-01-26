@@ -15,7 +15,7 @@ bool amlogic_wol_exit(void);
 bool amlogic_wol_wakeup_src_not_empty(void);
 void amlogic_wol_wakeup_src_clr_all(void);
 void amlogic_wol_wakeup_src_set_all(void);
-void amlogic_wol_setup(struct device *dev, struct mbox_chan *mbox);
-void amlogic_wol_remove(void);
+void amlogic_wol_setup(struct device *device, struct mbox_chan *mbox);
+void amlogic_wol_remove(struct device *device);
 
 #endif /* __AMLOGIC_WOL_H_ */

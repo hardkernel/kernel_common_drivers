@@ -23,6 +23,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/net_tstamp.h>
 #include <linux/phylink.h>
+#include <linux/sysfs.h>
 
 //#include "eth_reg.h"
 /*add this to stop checking wol,which will reset phy*/
@@ -86,20 +87,31 @@ struct wol_sysfs_hook {
 	void (*set_all)(void);
 };
 
-#ifdef CONFIG_PM_SLEEP
-extern unsigned int wol_switch_from_user;
-extern unsigned int mdns_switch_from_user;
-extern unsigned int support_gpio_wol;
-extern unsigned int exphy_mdns_wkup;
-extern struct wol_sysfs_hook wol_sysfs_hook;
+struct aml_eth_priv {
+	unsigned char adc_data[32 * 32];
+	unsigned char adc_freq[64];
+	void __iomem *PREG_ETH_REG0;
+	void __iomem *PREG_ETH_REG1;
+	void __iomem *ioaddr;
+	struct phy_device *phydev;
+	unsigned int internal_phy;
+	unsigned int ephy_eee_support;
+	unsigned int inphy_eee_enable;
+	struct device *dev;
+#if IS_ENABLED(CONFIG_PM_SLEEP)
+	unsigned int wol_switch_from_user;
+	unsigned int mdns_switch_from_user;
+	unsigned int support_gpio_wol;
+	unsigned int exphy_mdns_wkup;
+	struct wol_sysfs_hook wol_sysfs_hook;
 #endif
-extern unsigned int internal_phy;
+};
 
 extern unsigned int tx_amp_bl2;
 extern unsigned int voltage_phy;
-extern unsigned int ephy_eee_support;
-extern unsigned int inphy_eee_enable;
 //#endif
-int gmac_create_sysfs(struct phy_device *phydev, void __iomem *ioaddr);
-int gmac_remove_sysfs(struct phy_device *phydev);
+int gmac_create_sysfs(struct aml_eth_priv *eth_priv);
+int gmac_remove_sysfs(struct aml_eth_priv *eth_priv);
+struct aml_eth_priv *aml_get_eth_priv_by_pdev(struct phy_device *phydev);
+struct aml_eth_priv *aml_get_eth_priv_by_ndev(struct device *dev);
 #endif

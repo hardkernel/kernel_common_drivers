@@ -462,6 +462,7 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
 	void __iomem *addr = NULL;
 	unsigned int cali_val = 0;
 	unsigned int eth_reset_reg;
@@ -495,29 +496,30 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 		writel(phy_mii_clk_sel, dwmac->regs + PRG_ETH_TX_GLITCH_FIX);
 	}
 
-	if (of_property_read_u32(np, "eee-enable", &inphy_eee_enable) != 0)
-		inphy_eee_enable = 0; // not found, default eee disable
+	if (of_property_read_u32(np, "eee-enable", &priv->eth_priv.inphy_eee_enable) != 0)
+		priv->eth_priv.inphy_eee_enable = 0; // not found, default eee disable
 
-	if (of_property_read_u32(np, "internal_phy", &internal_phy) != 0)
+	if (of_property_read_u32(np, "internal_phy", &priv->eth_priv.internal_phy) != 0)
 		pr_debug("use default internal_phy as 0\n");
 
 	ndev->ethtool->wol_enabled = true;
 #ifdef CONFIG_PM_SLEEP
-	if (internal_phy == 2) {
-		if (of_property_read_u32(np, "wol", &support_gpio_wol) != 0) {
-			pr_info("no gpio wol %d\n", support_gpio_wol);
+	if (priv->eth_priv.internal_phy == 2) {
+		if (of_property_read_u32(np, "wol", &priv->eth_priv.support_gpio_wol) != 0) {
+			pr_info("no gpio wol %d\n", priv->eth_priv.support_gpio_wol);
 		} else {
-			pr_info("gpio %d\n", support_gpio_wol);
+			pr_info("gpio %d\n", priv->eth_priv.support_gpio_wol);
 			ndev->ethtool->wol_enabled = false;
 		}
 
-		if (of_property_read_u32(np, "mdns_wkup", &exphy_mdns_wkup) == 0)
+		if (of_property_read_u32(np, "mdns_wkup", &priv->eth_priv.exphy_mdns_wkup) == 0)
 			pr_debug("feature exphy_mdns_wkup\n");
 	} else {
-		if (of_property_read_u32(np, "mac_wol", &wol_switch_from_user) == 0)
+		if (of_property_read_u32(np, "mac_wol", &priv->eth_priv.wol_switch_from_user) == 0)
 			pr_info("feature mac_wol\n");
 
-		if (of_property_read_u32(np, "mdns_wkup", &mdns_switch_from_user) == 0)
+		if (of_property_read_u32(np, "mdns_wkup",
+					 &priv->eth_priv.mdns_switch_from_user) == 0)
 			pr_debug("feature mdns_switch_from_user\n");
 	}
 #if IS_ENABLED(CONFIG_AMLOGIC_WOL)
@@ -526,7 +528,7 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 #endif
 
 	/*internal_phy 1:inphy;2:exphy; 0 as default*/
-	if (internal_phy == 2) {
+	if (priv->eth_priv.internal_phy == 2) {
 		ndev->ethtool->wol_enabled = false;
 		if (of_property_read_u32(np, "cali_val", &cali_val) != 0)
 			pr_err("set default cali_val as 0\n");
@@ -547,6 +549,8 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 	struct input_dev *input_dev;
 #endif
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
 #endif
 	int ret;
 
@@ -636,7 +640,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	aml_custom_setting(pdev, dwmac);
 #ifdef CONFIG_PM_SLEEP
 	device_init_wakeup(&pdev->dev, true);
-	mac_wol_enable = wol_switch_from_user;
+	mac_wol_enable = priv->eth_priv.wol_switch_from_user;
 
 	/*input device to send virtual pwr key for android*/
 	input_dev = input_allocate_device();
@@ -688,7 +692,7 @@ static void meson8b_dwmac_shutdown(struct platform_device *pdev)
 	struct meson8b_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
 	int ret;
 
-	if (internal_phy == 2) {
+	if (priv->eth_priv.internal_phy == 2) {
 		set_wol_notify_bl31(0);
 		set_wol_notify_bl30(dwmac, 2);
 	} else {
@@ -698,7 +702,7 @@ static void meson8b_dwmac_shutdown(struct platform_device *pdev)
 
 	pr_info("aml_eth_shutdown\n");
 	ret = stmmac_suspend(priv->device);
-	if (internal_phy != 2) {
+	if (priv->eth_priv.internal_phy != 2) {
 		if (dwmac->data->suspend)
 			ret = dwmac->data->suspend(dwmac);
 	}
@@ -799,7 +803,7 @@ static int meson8b_suspend(struct device *dev)
 	/* Using the new WOL mode (processing MAC frames in BL30) */
 	if (dwmac->wol_en) {
 		/* disable the old WOL to prevent the MAC from being re-enabled */
-		wol_switch_from_user = 0;
+		priv->eth_priv.wol_switch_from_user = 0;
 		/* enable WOL when phy ready and wakeup source is not empty */
 		if (phydev && amlogic_wol_wakeup_src_not_empty()) {
 			phydev->irq_suspended = 0;
@@ -809,7 +813,7 @@ static int meson8b_suspend(struct device *dev)
 		} else {
 			set_wol_notify_bl30(dwmac, false);
 			/* if it is not an external phy */
-			if (internal_phy != 2 && dwmac->data->suspend)
+			if (priv->eth_priv.internal_phy != 2 && dwmac->data->suspend)
 				dwmac->data->suspend(dwmac);
 		}
 		return stmmac_suspend(dev);
@@ -817,29 +821,29 @@ static int meson8b_suspend(struct device *dev)
 #endif
 
 	/*open wol, shutdown phy when not link*/
-	if (wol_switch_from_user && phydev && phydev->link) {
+	if (priv->eth_priv.wol_switch_from_user && phydev && phydev->link) {
 		set_wol_notify_bl31(true);
 		set_wol_notify_bl30(dwmac, true);
 		/*our phy not support wol by now*/
 		phydev->irq_suspended = 0;
-		if (mdns_switch_from_user)
+		if (priv->eth_priv.mdns_switch_from_user)
 			priv->wolopts = (0x1 << 5) | (0x1 << 8);
 		else
 			priv->wolopts = WAKE_MAGIC;
 		ret = stmmac_suspend(dev);
 		without_reset = 1;
 	} else {
-		if (support_gpio_wol == 0 && internal_phy == 2) {
-			pr_info("wzh pull exphy reset\n");
+		if (priv->eth_priv.support_gpio_wol == 0 && priv->eth_priv.internal_phy == 2) {
+			pr_info("suspend: pull exphy reset\n");
 			set_wol_notify_bl31(false);
 			set_wol_notify_bl30(dwmac, 2);
 		} else {
-			pr_info("wzh exphy wol\n");
+			pr_info("suspend: exphy wol\n");
 			set_wol_notify_bl31(false);
 			set_wol_notify_bl30(dwmac, false);
 		}
 		ret = stmmac_suspend(dev);
-		if (internal_phy != 2) {
+		if (priv->eth_priv.internal_phy != 2) {
 			if (dwmac->data->suspend)
 				ret = dwmac->data->suspend(dwmac);
 		}
@@ -869,7 +873,7 @@ static int meson8b_resume(struct device *dev)
 			phydev->irq_suspended = 0;
 		} else {
 			/* if it is not an external phy */
-			if (internal_phy != 2 && dwmac->data->resume)
+			if (priv->eth_priv.internal_phy != 2 && dwmac->data->resume)
 				dwmac->data->resume(dwmac);
 		}
 		ret = stmmac_resume(dev);
@@ -881,10 +885,11 @@ static int meson8b_resume(struct device *dev)
 #endif
 
 	priv->wolopts = 0;
-	if ((wol_switch_from_user) && (without_reset)) {
+	if (priv->eth_priv.wol_switch_from_user && without_reset) {
 		ret = stmmac_resume(dev);
 
-		if (get_resume_method() == ETH_PHY_WAKEUP  && !mdns_switch_from_user) {
+		if (get_resume_method() == ETH_PHY_WAKEUP  &&
+		    !priv->eth_priv.mdns_switch_from_user) {
 			pr_info("evan---wol rx--KEY_POWER\n");
 			input_event(dwmac->input_dev,
 				EV_KEY, KEY_POWER, 1);
@@ -900,13 +905,13 @@ static int meson8b_resume(struct device *dev)
 			priv->amlogic_task_action = 100;
 			stmmac_trigger_amlogic_task(priv);
 		} else {
-			if (mdns_switch_from_user) {
+			if (priv->eth_priv.mdns_switch_from_user) {
 				priv->amlogic_task_action = 100;
 				stmmac_trigger_amlogic_task(priv);
 			}
 		}
 	} else {
-		if (internal_phy == 2) {
+		if (priv->eth_priv.internal_phy == 2) {
 			if (phydev) {
 				phy_resume(phydev);
 				/*our phy not support wol by now*/
@@ -914,7 +919,7 @@ static int meson8b_resume(struct device *dev)
 			}
 			ret = stmmac_resume(dev);
 		}
-		if (internal_phy != 2) {
+		if (priv->eth_priv.internal_phy != 2) {
 			if (ee_reset_base) {
 				pr_info("do eth reset\n");
 				writel((1 << eth_reset_bit), ee_reset_base);
@@ -949,9 +954,9 @@ static int meson8b_resume(struct device *dev)
 		}
 	}
 
-	if (support_gpio_wol) {
-		if (get_resume_method() == ETH_PHY_GPIO && !exphy_mdns_wkup) {
-			pr_info("wzh gpio wol rx--KEY_POWER\n");
+	if (priv->eth_priv.support_gpio_wol) {
+		if (get_resume_method() == ETH_PHY_GPIO && !priv->eth_priv.exphy_mdns_wkup) {
+			pr_info("resume: gpio wol rx--KEY_POWER\n");
 			input_event(dwmac->input_dev,
 				EV_KEY, KEY_POWER, 1);
 			input_sync(dwmac->input_dev);
@@ -970,7 +975,7 @@ static void meson8b_dwmac_remove(struct platform_device *pdev)
 
 #if IS_ENABLED(CONFIG_AMLOGIC_WOL)
 	if (dwmac->wol_en)
-		amlogic_wol_remove();
+		amlogic_wol_remove(dwmac->dev);
 #endif
 	input_unregister_device(dwmac->input_dev);
 

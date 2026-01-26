@@ -4017,6 +4017,9 @@ static int __stmmac_open(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int mode = priv->plat->phy_interface;
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	struct aml_eth_priv *eth_priv = &priv->eth_priv;
+#endif
 	u32 chan;
 	int ret;
 
@@ -4076,7 +4079,11 @@ static int __stmmac_open(struct net_device *dev,
 	stmmac_enable_all_dma_irq(priv);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-	ret = gmac_create_sysfs(priv->phylink->phydev, priv->ioaddr);
+	eth_priv->phydev  = priv->phylink->phydev;
+	eth_priv->ioaddr = priv->ioaddr;
+	ret = gmac_create_sysfs(eth_priv);
+	if (ret)
+		netdev_err(priv->dev, "failed to gmac_create_sysfs, ret: %d\n", ret);
 #endif
 	return 0;
 
@@ -4121,6 +4128,9 @@ static int stmmac_open(struct net_device *dev)
 static int stmmac_release(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	struct aml_eth_priv *eth_priv = &priv->eth_priv;
+#endif
 	u32 chan;
 
 	if (device_may_wakeup(priv->device))
@@ -4165,7 +4175,7 @@ static int stmmac_release(struct net_device *dev)
 	pm_runtime_put(priv->device);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-	gmac_remove_sysfs(priv->phylink->phydev);
+	gmac_remove_sysfs(eth_priv);
 #endif
 	return 0;
 }
@@ -8004,6 +8014,9 @@ int stmmac_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	struct aml_eth_priv *eth_priv = &priv->eth_priv;
+#endif
 	u32 chan;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
@@ -8036,7 +8049,7 @@ int stmmac_suspend(struct device *dev)
 	/* Enable Power down mode by programming the PMT regs */
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 #ifdef CONFIG_PM_SLEEP
-	if (device_may_wakeup(priv->device) && priv->plat->pmt && wol_switch_from_user) {
+	if (device_may_wakeup(priv->device) && priv->plat->pmt && eth_priv->wol_switch_from_user) {
 #else
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 #endif
@@ -8062,7 +8075,8 @@ int stmmac_suspend(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 		int ret;
 
-		if (wol_switch_from_user && priv->phylink->phydev->link && !mdns_switch_from_user) {
+		if (eth_priv->wol_switch_from_user && priv->phylink->phydev->link &&
+		    !eth_priv->mdns_switch_from_user) {
 			phylink_speed_down(priv->phylink, false);
 			pr_info("wait link up 10M\n");
 			ret = phy_poll_aneg_done(priv->phylink->phydev);
@@ -8070,7 +8084,7 @@ int stmmac_suspend(struct device *dev)
 				dev_err(priv->device, "phylink_speed_down(): auto-negotiation is incomplete\n");
 		}
 #endif
-		if (wol_switch_from_user)
+		if (eth_priv->wol_switch_from_user)
 			phylink_suspend(priv->phylink, true);
 		else
 			phylink_suspend(priv->phylink, false);
@@ -8138,6 +8152,9 @@ int stmmac_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	struct aml_eth_priv *eth_priv = &priv->eth_priv;
+#endif
 	int ret;
 
 	if (!netif_running(ndev))
@@ -8155,7 +8172,7 @@ int stmmac_resume(struct device *dev)
 	 */
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 #ifdef CONFIG_PM_SLEEP
-	if (device_may_wakeup(priv->device) && priv->plat->pmt && wol_switch_from_user) {
+	if (device_may_wakeup(priv->device) && priv->plat->pmt && eth_priv->wol_switch_from_user) {
 #else
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 #endif
@@ -8227,7 +8244,7 @@ int stmmac_resume(struct device *dev)
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 		phylink_resume(priv->phylink);
 #ifdef CONFIG_PM_SLEEP
-		if (wol_switch_from_user && !mdns_switch_from_user)
+		if (eth_priv->wol_switch_from_user && !eth_priv->mdns_switch_from_user)
 			phylink_speed_up(priv->phylink);
 #endif
 	} else {

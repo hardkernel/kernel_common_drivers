@@ -377,13 +377,14 @@ int maxio_mae0621aq3ci_suspend(struct phy_device *phydev)
 int mae0621a_suspend(struct phy_device *phydev)
 {
 	int value = 0;
+	struct aml_eth_priv *eth_priv = aml_get_eth_priv_by_pdev(phydev);
 
-	if (support_gpio_wol) {
+	if (eth_priv->support_gpio_wol) {
 		mutex_lock(&phydev->lock);
 		/* config mac address for wol */
 		if (phydev->attached_dev) {
 			phy_write(phydev, MAXIO_PAGE_SELECT, 0xd8c);
-			if (exphy_mdns_wkup) {
+			if (eth_priv->exphy_mdns_wkup) {
 				/* multicast: 01:00:5e:00:00:fb */
 				phy_write(phydev, 0x10, 0x0001);
 				phy_write(phydev, 0x11, 0x005e);
@@ -398,7 +399,7 @@ int mae0621a_suspend(struct phy_device *phydev)
 			}
 		}
 
-		if (exphy_mdns_wkup) {
+		if (eth_priv->exphy_mdns_wkup) {
 			phy_write(phydev, MAXIO_PAGE_SELECT, 0xd8a);
 			/* set max packet length */
 			phy_write(phydev, 0x11, 0x9fff);
@@ -452,7 +453,9 @@ int mae0621a_suspend(struct phy_device *phydev)
 
 int mae0621a_resume(struct phy_device *phydev)
 {
-	if (support_gpio_wol) {
+	struct aml_eth_priv *eth_priv = aml_get_eth_priv_by_pdev(phydev);
+
+	if (eth_priv->support_gpio_wol) {
 		phy_write(phydev, MAXIO_PAGE_SELECT, 0xd8a);
 
 		// mutex_lock(&phydev->lock);

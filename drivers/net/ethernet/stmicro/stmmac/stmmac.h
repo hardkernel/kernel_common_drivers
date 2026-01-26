@@ -24,6 +24,9 @@
 #include <net/page_pool/types.h>
 #include <net/xdp.h>
 #include <uapi/linux/bpf.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#include <linux/amlogic/aml_phy_debug.h>
+#endif
 
 struct stmmac_resources {
 	void __iomem *addr;
@@ -371,6 +374,7 @@ struct stmmac_priv {
 	struct work_struct amlogic_task;
 	int amlogic_task_action;
 	int linkup_after_resume;
+	struct aml_eth_priv eth_priv;
 #endif
 
 	/* Frame Preemption feature (FPE) */

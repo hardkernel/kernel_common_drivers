@@ -17,6 +17,7 @@
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <linux/amlogic/aml_phy_debug.h>
+#include "stmmac.h"
 #include "amlogic-wol.h"
 
 #undef pr_fmt
@@ -465,21 +466,27 @@ EXPORT_SYMBOL_GPL(amlogic_wol_exit);
 
 void amlogic_wol_setup(struct device *device, struct mbox_chan *mbox_chan)
 {
+	struct net_device *ndev = dev_get_drvdata(device);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
 	dev = device;
 	mbox = mbox_chan;
 	mutex_init(&lock);
 	WARN_ON(class_register(&wol_class) < 0);
 
 	/* Bridging up to the old sysfs control node */
-	wol_sysfs_hook.not_empty = amlogic_wol_wakeup_src_not_empty;
-	wol_sysfs_hook.clr_all = amlogic_wol_wakeup_src_clr_all;
-	wol_sysfs_hook.set_all = amlogic_wol_wakeup_src_set_all;
+	priv->eth_priv.wol_sysfs_hook.not_empty = amlogic_wol_wakeup_src_not_empty;
+	priv->eth_priv.wol_sysfs_hook.clr_all = amlogic_wol_wakeup_src_clr_all;
+	priv->eth_priv.wol_sysfs_hook.set_all = amlogic_wol_wakeup_src_set_all;
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_setup);
 
-void amlogic_wol_remove(void)
+void amlogic_wol_remove(struct device *device)
 {
-	memset(&wol_sysfs_hook, 0, sizeof(wol_sysfs_hook));
+	struct net_device *ndev = dev_get_drvdata(device);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
+	memset(&priv->eth_priv.wol_sysfs_hook, 0, sizeof(priv->eth_priv.wol_sysfs_hook));
 	class_unregister(&wol_class);
 	dev = NULL;
 	mbox = NULL;

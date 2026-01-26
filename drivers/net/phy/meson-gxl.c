@@ -305,7 +305,9 @@ static int meson_g12a_read_status_for_eee(struct phy_device *phydev)
 
 static int meson_g12a_read_status(struct phy_device *phydev)
 {
-	if (ephy_eee_support && inphy_eee_enable)
+	struct aml_eth_priv *eth_priv = aml_get_eth_priv_by_pdev(phydev);
+
+	if (eth_priv->ephy_eee_support && eth_priv->inphy_eee_enable)
 		return meson_g12a_read_status_for_eee(phydev);
 	else
 		return genphy_read_status(phydev);
@@ -316,24 +318,26 @@ static int meson_g12a_read_status(struct phy_device *phydev)
  */
 static int meson_check_eee_feature(struct phy_device *phydev)
 {
+	struct aml_eth_priv *eth_priv = aml_get_eth_priv_by_pdev(phydev);
+
 	/* only check 100baseT_Full EEE feature */
-	if (ephy_eee_support !=
+	if (eth_priv->ephy_eee_support !=
 			linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 					phydev->supported_eee))
 		phydev_warn(phydev, "EEE support setting conflict\n");
 
 	/* PHY not support EEE, do nothing */
-	if (!ephy_eee_support)
+	if (!eth_priv->ephy_eee_support)
 		return 0;
 
 	/* To avoid conflicts with the phy eee advertisement
 	 * obtained by calling phy_probe, here we forcibly
 	 * modify to maintain consistency.
 	 */
-	if (inphy_eee_enable != phydev->eee_enabled) {
+	if (eth_priv->inphy_eee_enable != phydev->eee_enabled) {
 		phydev_warn(phydev, "EEE enable setting conflict, fix to %s\n",
-				inphy_eee_enable ? "Enable" : "Disable");
-		phydev->eee_enabled = (bool)inphy_eee_enable;
+				eth_priv->inphy_eee_enable ? "Enable" : "Disable");
+		phydev->eee_enabled = (bool)eth_priv->inphy_eee_enable;
 	}
 
 	return 0;
@@ -391,6 +395,7 @@ static int meson_gxl_config_intr(struct phy_device *phydev)
 static irqreturn_t meson_gxl_handle_interrupt(struct phy_device *phydev)
 {
 	int irq_status;
+	struct aml_eth_priv *eth_priv = aml_get_eth_priv_by_pdev(phydev);
 
 	irq_status = phy_read(phydev, INTSRC_FLAG);
 	if (irq_status < 0) {
@@ -401,7 +406,7 @@ static irqreturn_t meson_gxl_handle_interrupt(struct phy_device *phydev)
 	if (irq_status == 0)
 		return IRQ_NONE;
 
-	if (ephy_eee_support && inphy_eee_enable) {
+	if (eth_priv->ephy_eee_support && eth_priv->inphy_eee_enable) {
 		if (irq_status & INTSRC_LINK_DOWN)
 			actual_lpa = 0;
 
@@ -495,6 +500,7 @@ static int custom_internal_config(struct phy_device *phydev)
 	unsigned int efuse_valid = 0;
 	unsigned int efuse_amp = 0;
 	unsigned int setup_amp = 0;
+	struct aml_eth_priv *eth_priv = aml_get_eth_priv_by_pdev(phydev);
 
 	efuse_amp = tx_amp_bl2;
 	efuse_valid = ((efuse_amp >> 4) & 0x3);
@@ -579,7 +585,7 @@ static int custom_internal_config(struct phy_device *phydev)
 				phy_tst_read(phydev, 0x15));
 	}
 
-	if (ephy_eee_support && inphy_eee_enable)
+	if (eth_priv->ephy_eee_support && eth_priv->inphy_eee_enable)
 		phy_write(phydev, SPEC_MODE, SPEC_CLKSELFREQ
 				| FIELD_PREP(SPEC_MII_MODE, 0x0)
 				| FIELD_PREP(SPEC_PHYADDR, 0x8)); // cover for mii
@@ -591,8 +597,9 @@ static int custom_internal_config(struct phy_device *phydev)
 static int gxl_suspend(struct phy_device *phydev)
 {
 	int rtn = 0;
+	struct aml_eth_priv *eth_priv = aml_get_eth_priv_by_pdev(phydev);
 
-	if (wol_switch_from_user == 0)
+	if (eth_priv->wol_switch_from_user == 0)
 		rtn = genphy_suspend(phydev);
 
 	return rtn;
@@ -601,9 +608,10 @@ static int gxl_suspend(struct phy_device *phydev)
 static int gxl_resume(struct phy_device *phydev)
 {
 	int rtn = 0;
+	struct aml_eth_priv *eth_priv = aml_get_eth_priv_by_pdev(phydev);
 	unsigned int an_advertise = 0;
 
-	if (wol_switch_from_user == 0)
+	if (eth_priv->wol_switch_from_user == 0)
 		rtn = genphy_resume(phydev);
 
 	an_advertise = phy_read(phydev, 4);

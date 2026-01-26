@@ -22,99 +22,99 @@
 #include <linux/net_tstamp.h>
 #include <linux/reset.h>
 #include <linux/of_mdio.h>
-
 #include <linux/amlogic/aml_phy_debug.h>
-//#include "aml_phy_debug.h"
-
-void __iomem *PREG_ETH_REG0;
-void __iomem *PREG_ETH_REG1;
+#include <linux/mutex.h>
+#include "stmmac.h"
 
 #define ETH_MAC_0_Configuration			(0x0000)
 #define ETH_MMC_rxicmp_err_octets		(0x0284)
 #define ETH_DMA_0_Bus_Mode			(0x1000)
 #define ETH_DMA_21_Curr_Host_Re_Buffer_Addr	(0x1058)
 
-static int g_phyreg;
-static void __iomem *c_ioaddr;
-static ssize_t show_phy_reg(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "current phy reg = 0x%x\n", g_phyreg);
-}
+#define ETH_LEGACY_INTERFACE_SUPPORT		1
 
-static ssize_t set_phy_reg(struct device *dev,
-	struct device_attribute *attr,
-	const char *buf, size_t count)
-{
-	int ovl;
-	int r = kstrtoint(buf, 0, &ovl);
+static DEFINE_MUTEX(phy_dbg_mutex);
+static int phy_dbg_count;
+#if defined(ETH_LEGACY_INTERFACE_SUPPORT)
+static struct device *select_dev;
+#endif /* ETH_LEGACY_INTERFACE_SUPPORT */
 
-	if (r) {
-		pr_err("kstrtoint failed\n");
-		return -1;
+/* Get aml_eth_priv by phydev */
+struct aml_eth_priv *aml_get_eth_priv_by_pdev(struct phy_device *phydev)
+{
+	struct net_device *dev = NULL;
+	struct net_device *d;
+	struct stmmac_priv *priv;
+	struct device_node *phy_node;
+	struct aml_eth_priv *eth_priv;
+
+	if (phydev->phylink) {
+		dev = phydev->phylink->netdev;
+	} else {
+		/* When no phylink is present, seek matching relationships from the DT. */
+		rcu_read_lock();
+		for_each_netdev_rcu(&init_net, d) {
+			pr_debug("NS=%p: %s (ifindex=%d)\n", &init_net, d->name, d->ifindex);
+			if (!d->dev.parent)
+				continue;
+
+			pr_debug("netdev %s -> pdev: %s\n", d->name, dev_name(d->dev.parent));
+			phy_node = of_parse_phandle(d->dev.parent->of_node, "phy-handle", 0);
+			if (!phy_node)
+				continue;
+			if (phy_node == phydev->mdio.dev.of_node)
+				dev = d;
+			of_node_put(phy_node);
+
+			if (dev)
+				break;
+		}
+		rcu_read_unlock();
 	}
-	g_phyreg = ovl;
-	pr_info("---ovl=0x%x\n", ovl);
-	return count;
-}
 
-static ssize_t show_phy_reg_value(struct device *dev,
-	struct device_attribute *attr, char *buf)
+	if (!dev)
+		return ERR_PTR(-ENODEV);
+
+	priv = netdev_priv(dev);
+	eth_priv = &priv->eth_priv;
+
+	return eth_priv;
+}
+EXPORT_SYMBOL(aml_get_eth_priv_by_pdev);
+
+/* Get aml_eth_priv by net_device */
+struct aml_eth_priv *aml_get_eth_priv_by_ndev(struct device *dev)
 {
-	struct phy_device *phy_dev = dev_get_drvdata(dev);
-	int ret, val, i;
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct aml_eth_priv *eth_priv = &priv->eth_priv;
 
-	for (i = 0; i < 32; i++)
-		pr_info("%d: 0x%x\n", i, phy_read(phy_dev, i));
-	val = phy_read(phy_dev, g_phyreg);
-	ret = snprintf(buf, PAGE_SIZE, "phy reg 0x%x = 0x%x\n", g_phyreg, val);
-
-	return ret;
+	return eth_priv;
 }
+EXPORT_SYMBOL(aml_get_eth_priv_by_ndev);
 
-static ssize_t set_phy_reg_value(struct device *dev,
-	struct device_attribute *attr,
-	const char *buf, size_t count)
-{
-	int ovl;
-	int ret;
-
-	struct phy_device *phy_dev = dev_get_drvdata(dev);
-
-	ret = kstrtoint(buf, 0, &ovl);
-	pr_info("---reg 0x%x: ovl=0x%x\n", g_phyreg, ovl);
-	phy_write(phy_dev, g_phyreg, ovl);
-	return count;
-}
-
-static struct device_attribute phy_reg_attrs[] = {
-	__ATTR(phy_reg, 0644, show_phy_reg, set_phy_reg),
-	__ATTR(phy_reg_value, 0644, show_phy_reg_value, set_phy_reg_value)
-};
-
-static struct phy_device *c_phy_dev;
-void am_net_dump_phyreg(void)
+static void am_net_dump_phyreg(struct aml_eth_priv *eth_priv)
 {
 	int reg = 0;
 	int val = 0;
 
-	if (!c_phy_dev)
+	if (!eth_priv->phydev)
 		return;
 
 	pr_info("========== ETH PHY new regs ==========\n");
 	for (reg = 0; reg < 32; reg++) {
-		val = phy_read(c_phy_dev, reg);
+		val = phy_read(eth_priv->phydev, reg);
 		pr_info("[reg_%d] 0x%x\n", reg, val);
 	}
 }
 
-static int am_net_read_phyreg(int argc, char **argv)
+static int am_net_read_phyreg(int argc, char **argv, struct aml_eth_priv *eth_priv)
 {
 	int reg = 0;
 	int val = 0;
 	int r = 0;
 
-	if (!c_phy_dev)
+	if (!eth_priv->phydev)
 		return -1;
 	if (argc < 2 || !argv || !argv[0] || !argv[1]) {
 		pr_err("Invalid syntax\n");
@@ -128,10 +128,10 @@ static int am_net_read_phyreg(int argc, char **argv)
 	}
 
 	if (reg >= 0 && reg <= 31) {
-		val = phy_read(c_phy_dev, reg);
+		val = phy_read(eth_priv->phydev, reg);
 		pr_info("read phy [reg_%d] 0x%x\n", reg, val);
 	} else if (reg == 32) {
-//		pr_info("phy features:0x%x\n", c_phy_dev->drv->features);
+//		pr_info("phy features:0x%x\n", eth_priv->phydev->drv->features);
 	} else {
 		pr_info("Invalid parameter\n");
 	}
@@ -139,13 +139,13 @@ static int am_net_read_phyreg(int argc, char **argv)
 	return 0;
 }
 
-static int am_net_write_phyreg(int argc, char **argv)
+static int am_net_write_phyreg(int argc, char **argv, struct aml_eth_priv *eth_priv)
 {
 	int reg = 0;
 	int val = 0;
 	int r = 0;
 
-	if (!c_phy_dev)
+	if (!eth_priv->phydev)
 		return -1;
 
 	if (argc < 3 || !argv || !argv[0] || !argv[1] || !argv[2]) {
@@ -166,23 +166,23 @@ static int am_net_write_phyreg(int argc, char **argv)
 	}
 
 	if (reg >= 0 && reg <= 31) {
-		phy_write(c_phy_dev, reg, val);
+		phy_write(eth_priv->phydev, reg, val);
 		pr_info("write phy [reg_%d] 0x%x, 0x%x\n",
-			reg, val, phy_read(c_phy_dev, reg));
+			reg, val, phy_read(eth_priv->phydev, reg));
 	} else if (reg == 32) {
 		if (val > 255) {
 			pr_info("Invalid parameter\n");
 			return 0;
 		}
-//		c_phy_dev->drv->features &= 0xff;
-//		c_phy_dev->drv->features |= val << 8;
+//		eth_priv->phydev->drv->features &= 0xff;
+//		eth_priv->phydev->drv->features |= val << 8;
 	} else if (reg == 33) {
 		if (val > 255) {
 			pr_info("Invalid parameter\n");
 			return 0;
 		}
-//		c_phy_dev->drv->features &= 0xff00;
-//		c_phy_dev->drv->features |= val;
+//		eth_priv->phydev->drv->features &= 0xff00;
+//		eth_priv->phydev->drv->features |= val;
 	} else {
 		pr_info("Invalid parameter\n");
 	}
@@ -190,14 +190,14 @@ static int am_net_write_phyreg(int argc, char **argv)
 	return 0;
 }
 
-void am_net_dump_phy_wol_reg(void)
+static void am_net_dump_phy_wol_reg(struct aml_eth_priv *eth_priv)
 {
 	int reg;
 	int val;
 	int val15;
 	int val16;
 
-	if (!c_phy_dev)
+	if (!eth_priv->phydev)
 		return;
 
 	pr_info("========== ETH PHY wol regs ==========\n");
@@ -209,22 +209,22 @@ void am_net_dump_phy_wol_reg(void)
 		/*Bit 9:5: Read Address*/
 		/*Bit 4:0: Write Address*/
 		val = (1 << 15) | (1 << 11) | (1 << 10) | (reg << 5);
-		phy_write(c_phy_dev, 0x14, val);
-		val15 = phy_read(c_phy_dev, 0x15);
-		val16 = phy_read(c_phy_dev, 0x16);
+		phy_write(eth_priv->phydev, 0x14, val);
+		val15 = phy_read(eth_priv->phydev, 0x15);
+		val16 = phy_read(eth_priv->phydev, 0x16);
 		val = val16 * 65536 + val15;
 		pr_info("wol [reg_%d] 0x%x\n", reg, val);
 	}
 }
 
-void am_net_dump_phy_bist_reg(void)
+static void am_net_dump_phy_bist_reg(struct aml_eth_priv *eth_priv)
 {
 	int reg;
 	int val;
 	int val15;
 	int val16;
 
-	if (!c_phy_dev)
+	if (!eth_priv->phydev)
 		return;
 
 	pr_info("========== ETH PHY bist regs ==========\n");
@@ -238,15 +238,15 @@ void am_net_dump_phy_bist_reg(void)
 
 		val = ((1 << 15) | (1 << 12) | (1 << 11) |
 			(1 << 10) | (reg << 5));
-		phy_write(c_phy_dev, 0x14, val);
-		val15 = phy_read(c_phy_dev, 0x15);
-		val16 = phy_read(c_phy_dev, 0x16);
+		phy_write(eth_priv->phydev, 0x14, val);
+		val15 = phy_read(eth_priv->phydev, 0x15);
+		val16 = phy_read(eth_priv->phydev, 0x16);
 		val = val16 * 65536 + val15;
 		pr_info("bist [reg_%d] 0x%x\n", reg, val);
 	}
 }
 
-static int read_tst_cntl_reg(int argc, char **argv)
+static int read_tst_cntl_reg(int argc, char **argv, struct aml_eth_priv *eth_priv)
 {
 	int rd_data_hi;
 	int rd_addr;
@@ -260,11 +260,11 @@ static int read_tst_cntl_reg(int argc, char **argv)
 		return -1;
 
 	if (rd_addr >= 0 && rd_addr <= 31) {
-		phy_write(c_phy_dev, 20,
+		phy_write(eth_priv->phydev, 20,
 			((1 << 15) | (1 << 10) | ((rd_addr & 0x1f) << 5)));
 
-		rd_data = phy_read(c_phy_dev, 21);
-		rd_data_hi = phy_read(c_phy_dev, 22);
+		rd_data = phy_read(eth_priv->phydev, 21);
+		rd_data_hi = phy_read(eth_priv->phydev, 22);
 		rd_data = ((rd_data_hi & 0xffff) << 16) | rd_data;
 		pr_info("read tstcntl phy [reg_%d] 0x%x\n", rd_addr, rd_data);
 	} else {
@@ -274,21 +274,21 @@ static int read_tst_cntl_reg(int argc, char **argv)
 	return rd_data;
 }
 
-static int return_write_val(int rd_addr)
+static int return_write_val(int rd_addr, struct aml_eth_priv *eth_priv)
 {
 	int rd_data;
 	int rd_data_hi;
 
-	phy_write(c_phy_dev, 20,
+	phy_write(eth_priv->phydev, 20,
 		((1 << 15) | (1 << 10) | ((rd_addr & 0x1f) << 5)));
-	rd_data = phy_read(c_phy_dev, 21);
-	rd_data_hi = phy_read(c_phy_dev, 22);
+	rd_data = phy_read(eth_priv->phydev, 21);
+	rd_data_hi = phy_read(eth_priv->phydev, 22);
 	rd_data = ((rd_data_hi & 0xffff) << 16) | rd_data;
 
 	return rd_data;
 }
 
-static int write_tst_cntl_reg(int argc, char **argv)
+static int write_tst_cntl_reg(int argc, char **argv, struct aml_eth_priv *eth_priv)
 {
 	int wr_addr, wr_data;
 
@@ -304,13 +304,13 @@ static int write_tst_cntl_reg(int argc, char **argv)
 		return -1;
 
 	if (wr_addr >= 0 && wr_addr <= 31) {
-		phy_write(c_phy_dev, 23, (wr_data & 0xffff));
+		phy_write(eth_priv->phydev, 23, (wr_data & 0xffff));
 
-		phy_write(c_phy_dev, 20,
+		phy_write(eth_priv->phydev, 20,
 			((1 << 14) | (1 << 10) | ((wr_addr << 0) & 0x1f)));
 
 		pr_info("write phy tstcntl [reg_%d] 0x%x, 0x%x\n",
-			wr_addr, wr_data, return_write_val(wr_addr));
+			wr_addr, wr_data, return_write_val(wr_addr, eth_priv));
 	} else {
 		pr_info("Invalid parameter\n");
 	}
@@ -318,7 +318,7 @@ static int write_tst_cntl_reg(int argc, char **argv)
 	return 0;
 }
 
-static void tstcntl_dump_phyreg(void)
+static void tstcntl_dump_phyreg(struct aml_eth_priv *eth_priv)
 {
 	int rd_addr;
 	int rd_data;
@@ -326,24 +326,24 @@ static void tstcntl_dump_phyreg(void)
 
 	pr_info("========== ETH TST PHY regs ==========\n");
 	for (rd_addr = 0; rd_addr < 32; rd_addr++) {
-		phy_write(c_phy_dev, 20,
+		phy_write(eth_priv->phydev, 20,
 			((1 << 15) | (1 << 10) | ((rd_addr & 0x1f) << 5)));
 
-		rd_data = phy_read(c_phy_dev, 21);
-		rd_data_hi = phy_read(c_phy_dev, 22);
+		rd_data = phy_read(eth_priv->phydev, 21);
+		rd_data_hi = phy_read(eth_priv->phydev, 22);
 		rd_data = ((rd_data_hi & 0xffff) << 16) | rd_data;
 		pr_info("tstcntl phy [reg_%d] 0x%x\n", rd_addr, rd_data);
 	}
 }
 
-void am_net_dump_phy_extended_reg(void)
+static void am_net_dump_phy_extended_reg(struct aml_eth_priv *eth_priv)
 {
 	int reg;
 	int val;
 	int val15;
 	int val16;
 
-	if (!c_phy_dev)
+	if (!eth_priv->phydev)
 		return;
 
 	pr_info("========== ETH PHY extended regs ==========\n");
@@ -356,15 +356,15 @@ void am_net_dump_phy_extended_reg(void)
 		/*Bit 4:0: Write Address*/
 
 		val = ((1 << 15) | (1 << 10) | (reg << 5));
-		phy_write(c_phy_dev, 0x14, val);
-		val15 = phy_read(c_phy_dev, 0x15);
-		val16 = phy_read(c_phy_dev, 0x16);
+		phy_write(eth_priv->phydev, 0x14, val);
+		val15 = phy_read(eth_priv->phydev, 0x15);
+		val16 = phy_read(eth_priv->phydev, 0x16);
 		val = (val16 << 16) + val15;
 		pr_info("extended [reg_%d] 0x%x\n", reg, val);
 	}
 }
 
-static void am_net_dump_macreg(void)
+static void am_net_dump_macreg(struct aml_eth_priv *eth_priv)
 {
 	int reg;
 	int val;
@@ -372,19 +372,19 @@ static void am_net_dump_macreg(void)
 	pr_info("========== ETH_MAC regs ==========\n");
 	for (reg = ETH_MAC_0_Configuration;
 		reg <= ETH_MMC_rxicmp_err_octets; reg += 0x4) {
-		val = readl(c_ioaddr + reg);
+		val = readl(eth_priv->ioaddr + reg);
 		pr_info("[0x%04x] 0x%x\n", reg, val);
 	}
 
 	pr_info("========== ETH_DMA regs ==========\n");
 	for (reg = ETH_DMA_0_Bus_Mode;
 		reg <= ETH_DMA_21_Curr_Host_Re_Buffer_Addr; reg += 0x4) {
-		val = readl(c_ioaddr + reg);
+		val = readl(eth_priv->ioaddr + reg);
 		pr_info("[0x%04x] 0x%x\n", reg, val);
 	}
 }
 
-static int am_net_read_macreg(int argc, char **argv)
+static int am_net_read_macreg(int argc, char **argv, struct aml_eth_priv *eth_priv)
 {
 	int reg = 0;
 	int val = 0;
@@ -402,7 +402,7 @@ static int am_net_read_macreg(int argc, char **argv)
 	}
 
 	if (reg >= 0 && reg <= ETH_DMA_21_Curr_Host_Re_Buffer_Addr) {
-		val = readl(c_ioaddr + reg);
+		val = readl(eth_priv->ioaddr + reg);
 		pr_info("read mac [0x4%x] 0x%x\n", reg, val);
 	} else {
 		pr_info("Invalid parameter\n");
@@ -411,7 +411,7 @@ static int am_net_read_macreg(int argc, char **argv)
 	return 0;
 }
 
-static int am_net_write_macreg(int argc, char **argv)
+static int am_net_write_macreg(int argc, char **argv, struct aml_eth_priv *eth_priv)
 {
 	int reg;
 	int val;
@@ -435,9 +435,9 @@ static int am_net_write_macreg(int argc, char **argv)
 	}
 
 	if (reg >= 0 && reg <= ETH_DMA_21_Curr_Host_Re_Buffer_Addr) {
-		writel(val, (c_ioaddr + reg));
+		writel(val, (eth_priv->ioaddr + reg));
 		pr_info("write mac [0x%x] 0x%x, 0x%x\n",
-			reg, val, readl(c_ioaddr + reg));
+			reg, val, readl(eth_priv->ioaddr + reg));
 	} else {
 		pr_info("Invalid parameter\n");
 	}
@@ -445,37 +445,44 @@ static int am_net_write_macreg(int argc, char **argv)
 	return 0;
 }
 
-static const char *g_phyreg_help = {
+static ssize_t info_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct aml_eth_priv *eth_priv = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = container_of(eth_priv, struct stmmac_priv, eth_priv);
+	struct net_device *ndev = priv->dev;
+	struct phy_device *phydev = eth_priv->phydev;
+
+	return sysfs_emit(buf, "net=%s\nmdio=%s\n", netdev_name(ndev),
+			  dev_name(phydev->mdio.bus->dev.parent));
+}
+
+static const char *phyreg_help = {
 	"Usage:\n"
 	"    echo d > phyreg;            //dump ethernet phy reg\n"
 	"    echo r reg > phyreg;        //read ethernet phy reg\n"
 	"    echo w reg val > phyreg;    //write ethernet phy reg\n"
 };
 
-static ssize_t phyreg_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t phyreg_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s\n", g_phyreg_help);
+	return sprintf(buf, "%s\n", phyreg_help);
 }
 
-static unsigned char adc_data[32 * 32];
-static unsigned char adc_freq[64];
-
-static inline void am_init_tst_mode(void)
+static inline void am_init_tst_mode(struct aml_eth_priv *eth_priv)
 {
-	phy_write(c_phy_dev, 20, 0x0000);
-	phy_write(c_phy_dev, 20, 0x0400);
-	phy_write(c_phy_dev, 20, 0x0000);
-	phy_write(c_phy_dev, 20, 0x0400);
+	phy_write(eth_priv->phydev, 20, 0x0000);
+	phy_write(eth_priv->phydev, 20, 0x0400);
+	phy_write(eth_priv->phydev, 20, 0x0000);
+	phy_write(eth_priv->phydev, 20, 0x0400);
 }
 
-static inline void am_close_tst_mode(void)
+static inline void am_close_tst_mode(struct aml_eth_priv *eth_priv)
 {
-	phy_write(c_phy_dev, 20, 0x0000);
+	phy_write(eth_priv->phydev, 20, 0x0000);
 }
 
-static void am_net_adc_show(void)
+static void am_net_adc_show(struct aml_eth_priv *eth_priv)
 {
 	int rd_data = 0;
 	int rd_data_hi = 0;
@@ -484,46 +491,46 @@ static void am_net_adc_show(void)
 
 	pr_info("%s, %d enter\n", __func__, __LINE__);
 
-	am_init_tst_mode();
+	am_init_tst_mode(eth_priv);
 
 	for (i = 0; i < (32 * 32); i++) {
 		v = (1 << 15) | (1 << 10) | ((16 & 0x1f) << 5);
-		phy_write(c_phy_dev, 20, v);
-		rd_data = phy_read(c_phy_dev, 21);
-		rd_data_hi = phy_read(c_phy_dev, 22);
-		adc_data[i] = rd_data & 0x3f;
+		phy_write(eth_priv->phydev, 20, v);
+		rd_data = phy_read(eth_priv->phydev, 21);
+		rd_data_hi = phy_read(eth_priv->phydev, 22);
+		eth_priv->adc_data[i] = rd_data & 0x3f;
 	}
 
-	am_close_tst_mode();
+	am_close_tst_mode(eth_priv);
 
 	for (i = 0; i < 32; i++) {
 		for (j = 0; j < 32; j++)
-			pr_info("%02x ", adc_data[i * 32 + j]);
+			pr_info("%02x ", eth_priv->adc_data[i * 32 + j]);
 
 		pr_info("\n");
 	}
 
 	for (i = 0; i < 64; i++)
-		adc_freq[i] = 0;
+		eth_priv->adc_freq[i] = 0;
 
 	for (i = 0; i < 32; i++) {
 		for (j = 0; j < 32; j++) {
-			if (adc_data[i * 32 + j] > 31)
-				adc_freq[adc_data[i * 32 + j] - 32]++;
+			if (eth_priv->adc_data[i * 32 + j] > 31)
+				eth_priv->adc_freq[eth_priv->adc_data[i * 32 + j] - 32]++;
 			else
-				adc_freq[32 + adc_data[i * 32 + j]]++;
+				eth_priv->adc_freq[32 + eth_priv->adc_data[i * 32 + j]]++;
 
-			pr_info("%02x ", adc_data[i * 32 + j]);
+			pr_info("%02x ", eth_priv->adc_data[i * 32 + j]);
 		}
 		pr_info("\n");
 	}
 
 	for (i = 0; i < 64; i++) {
-		pr_info("%d(%04d):\t", i - 32, adc_freq[i]);
-		if (adc_freq[i] > 128)
-			adc_freq[i] = 128;
+		pr_info("%d(%04d):\t", i - 32, eth_priv->adc_freq[i]);
+		if (eth_priv->adc_freq[i] > 128)
+			eth_priv->adc_freq[i] = 128;
 
-		for (j = 0; j < adc_freq[i]; j++)
+		for (j = 0; j < eth_priv->adc_freq[i]; j++)
 			buf[j] = '#';
 
 		buf[j] = '\0';
@@ -532,46 +539,47 @@ static void am_net_adc_show(void)
 	}
 }
 
-static void am_net_eye_pattern_on(void)
+static void am_net_eye_pattern_on(struct aml_eth_priv *eth_priv)
 {
 	unsigned int value;
 
-	c_phy_dev->autoneg = AUTONEG_DISABLE;
+	eth_priv->phydev->autoneg = AUTONEG_DISABLE;
 	/*stop check wol when doing eye pattern, otherwise it will reset phy*/
 //	enable_wol_check = 0;
-	phy_write(c_phy_dev, 0, 0x2100);
-	value = phy_read(c_phy_dev, 17);
+	phy_write(eth_priv->phydev, 0, 0x2100);
+	value = phy_read(eth_priv->phydev, 17);
 	pr_info("0x11 %x\n", value);
-	phy_write(c_phy_dev, 17, (value | 0x0004));
+	phy_write(eth_priv->phydev, 17, (value | 0x0004));
 }
 
-static void am_net_eye_pattern_off(void)
+static void am_net_eye_pattern_off(struct aml_eth_priv *eth_priv)
 {
 	unsigned int value;
 
-	c_phy_dev->autoneg = AUTONEG_ENABLE;
+	eth_priv->phydev->autoneg = AUTONEG_ENABLE;
 //	enable_wol_check = 1;
-	phy_write(c_phy_dev, 0, 0x1000);
-	value = phy_read(c_phy_dev, 17);
+	phy_write(eth_priv->phydev, 0, 0x1000);
+	value = phy_read(eth_priv->phydev, 17);
 	pr_info("0x11 %x\n", value);
-	phy_write(c_phy_dev, 17, (value & ~0x0004));
+	phy_write(eth_priv->phydev, 17, (value & ~0x0004));
 }
 
-static void am_net_debug_mode(void)
+static void am_net_debug_mode(struct aml_eth_priv *eth_priv)
 {	/*disable autoneg*/
-	c_phy_dev->autoneg = AUTONEG_DISABLE;
+	eth_priv->phydev->autoneg = AUTONEG_DISABLE;
 	/*disable wol check*/
 //	enable_wol_check = 0;
 }
 
-static ssize_t phyreg_store(const struct class *class,
-			const struct class_attribute *attr,
+static ssize_t phyreg_store(struct device *dev,
+			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	int argc;
 	char *buff, *p, *para;
 	char *argv[4];
 	char cmd;
+	struct aml_eth_priv *eth_priv = dev_get_drvdata(dev);
 
 	buff = kstrdup(buf, GFP_KERNEL);
 	p = buff;
@@ -588,57 +596,57 @@ static ssize_t phyreg_store(const struct class *class,
 	switch (cmd) {
 	case 'r':
 	case 'R':
-		am_net_read_phyreg(argc, argv);
+		am_net_read_phyreg(argc, argv, eth_priv);
 		break;
 	case 'w':
 	case 'W':
-		am_net_write_phyreg(argc, argv);
+		am_net_write_phyreg(argc, argv, eth_priv);
 		break;
 	case 'd':
 	case 'D':
-		am_net_dump_phyreg();
+		am_net_dump_phyreg(eth_priv);
 		break;
 #ifdef CONFIG_MESON_ETH_WOL /* FIXED ME */
 	case 'p':
-		wol_test(c_phy_dev);
+		wol_test(phydev);
 		break;
 #endif
 	case 'e':
-		am_net_dump_phy_extended_reg();
-		am_net_dump_phy_wol_reg();
-		am_net_dump_phy_bist_reg();
+		am_net_dump_phy_extended_reg(eth_priv);
+		am_net_dump_phy_wol_reg(eth_priv);
+		am_net_dump_phy_bist_reg(eth_priv);
 		break;
 	case 'c':
 	case 'C':
-		am_net_adc_show();
+		am_net_adc_show(eth_priv);
 		break;
 	case 't':
 	case 'T':
-		am_init_tst_mode();
+		am_init_tst_mode(eth_priv);
 
 		if (argv[0][1] == 'w' || argv[0][1] == 'W')
-			write_tst_cntl_reg(argc, argv);
+			write_tst_cntl_reg(argc, argv, eth_priv);
 
 		if (argv[0][1] == 'r' || argv[0][1] == 'R')
-			read_tst_cntl_reg(argc, argv);
+			read_tst_cntl_reg(argc, argv, eth_priv);
 
 		if (argv[0][1] == 'd' || argv[0][1] == 'D')
-			tstcntl_dump_phyreg();
+			tstcntl_dump_phyreg(eth_priv);
 
-		am_close_tst_mode();
+		am_close_tst_mode(eth_priv);
 		break;
 	case 'o':
 	case 'O':
 		if (argv[0][1] == 'n' || argv[0][1] == 'N') {
-			am_net_eye_pattern_on();
+			am_net_eye_pattern_on(eth_priv);
 			break;
 		}
 		if (argv[0][1] == 'f' || argv[0][1] == 'F') {
-			am_net_eye_pattern_off();
+			am_net_eye_pattern_off(eth_priv);
 			break;
 		}
 		if (argv[0][1] == 'd' || argv[0][1] == 'D') {
-			am_net_debug_mode();
+			am_net_debug_mode(eth_priv);
 			break;
 		}
 		break;
@@ -653,28 +661,28 @@ end:
 	return 0;
 }
 
-static const char *g_macreg_help = {
+static const char *macreg_help = {
 	"Usage:\n"
 	"    echo d > macreg;            //dump ethernet mac reg\n"
 	"    echo r reg > macreg;        //read ethernet mac reg\n"
 	"    echo w reg val > macreg;    //read ethernet mac reg\n"
 };
 
-static ssize_t macreg_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t macreg_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s\n", g_macreg_help);
+	return sprintf(buf, "%s\n", macreg_help);
 }
 
-static ssize_t macreg_store(const struct class *class,
-			const struct class_attribute *attr,
+static ssize_t macreg_store(struct device *dev,
+			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	int argc;
 	char *buff, *p, *para;
 	char *argv[4];
 	char cmd;
+	struct aml_eth_priv *eth_priv = dev_get_drvdata(dev);
 
 	buff = kstrdup(buf, GFP_KERNEL);
 	p = buff;
@@ -691,15 +699,15 @@ static ssize_t macreg_store(const struct class *class,
 	switch (cmd) {
 	case 'r':
 	case 'R':
-		am_net_read_macreg(argc, argv);
+		am_net_read_macreg(argc, argv, eth_priv);
 		break;
 	case 'w':
 	case 'W':
-		am_net_write_macreg(argc, argv);
+		am_net_write_macreg(argc, argv, eth_priv);
 		break;
 	case 'd':
 	case 'D':
-		am_net_dump_macreg();
+		am_net_dump_macreg(eth_priv);
 		break;
 	default:
 		goto end;
@@ -712,21 +720,21 @@ end:
 	return 0;
 }
 
-static ssize_t linkspeed_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t linkspeed_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
 	int ret;
 	char buff[100];
+	struct aml_eth_priv *eth_priv = dev_get_drvdata(dev);
 
-	if (c_phy_dev) {
-		phy_print_status(c_phy_dev);
+	if (eth_priv->phydev) {
+		phy_print_status(eth_priv->phydev);
 
-		ret = genphy_update_link(c_phy_dev);
+		ret = genphy_update_link(eth_priv->phydev);
 		if (ret)
 			pr_err("genphy_update_link error: %d\n", ret);
 
-		if (c_phy_dev->link)
+		if (eth_priv->phydev->link)
 			strcpy(buff, "link status: link\n");
 		else
 			strcpy(buff, "link status: unlink\n");
@@ -739,75 +747,62 @@ static ssize_t linkspeed_show(const struct class *class,
 	return ret;
 }
 
-unsigned int internal_phy;
-EXPORT_SYMBOL_GPL(internal_phy);
-unsigned int ephy_eee_support;
-EXPORT_SYMBOL_GPL(ephy_eee_support);
-unsigned int inphy_eee_enable;
-EXPORT_SYMBOL_GPL(inphy_eee_enable);
-#ifdef CONFIG_PM_SLEEP
-unsigned int wol_switch_from_user;
-EXPORT_SYMBOL_GPL(wol_switch_from_user);
-unsigned int mdns_switch_from_user;
-EXPORT_SYMBOL_GPL(mdns_switch_from_user);
-unsigned int support_gpio_wol;
-EXPORT_SYMBOL_GPL(support_gpio_wol);
-unsigned int exphy_mdns_wkup;
-EXPORT_SYMBOL_GPL(exphy_mdns_wkup);
-struct wol_sysfs_hook wol_sysfs_hook;
-EXPORT_SYMBOL_GPL(wol_sysfs_hook);
-
-static ssize_t wol_show(const struct class *class,
-	const struct class_attribute *attr, char *buf)
+#if IS_ENABLED(CONFIG_PM_SLEEP)
+static ssize_t wol_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
-	if (!c_phy_dev)
+	struct aml_eth_priv *eth_priv = dev_get_drvdata(dev);
+
+	if (!eth_priv->phydev)
 		return 0;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_WOL)
-	if (wol_sysfs_hook.not_empty) {
+	if (eth_priv->wol_sysfs_hook.not_empty) {
 		return sysfs_emit(buf, "%s wol 0x%x\n",
-				  internal_phy != 2 ? "inphy" : "exphy",
-				  (int)wol_sysfs_hook.not_empty());
+				  eth_priv->internal_phy != 2 ? "inphy" : "exphy",
+				  (int)eth_priv->wol_sysfs_hook.not_empty());
 	}
 #endif
 
-	if (internal_phy != 2)
-		return sprintf(buf, "inphy wol 0x%x\n", wol_switch_from_user);
+	if (eth_priv->internal_phy != 2)
+		return sprintf(buf, "inphy wol 0x%x\n", eth_priv->wol_switch_from_user);
 	else
-		return sprintf(buf, "exphy wol 0x%x\n", support_gpio_wol);
+		return sprintf(buf, "exphy wol 0x%x\n", eth_priv->support_gpio_wol);
 }
 
-static ssize_t wol_store(const struct class *class,
-			const struct class_attribute *attr,
+static ssize_t wol_store(struct device *dev,
+			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int tmp, r;
+	struct aml_eth_priv *eth_priv = dev_get_drvdata(dev);
 
-	if (!c_phy_dev)
+	if (!eth_priv->phydev)
 		return 0;
 
 	r = kstrtoint(buf, 16, &tmp);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_WOL)
-	if (wol_sysfs_hook.set_all && wol_sysfs_hook.clr_all) {
+	if (eth_priv->wol_sysfs_hook.set_all && eth_priv->wol_sysfs_hook.clr_all) {
 		if (tmp)
-			wol_sysfs_hook.set_all();
+			eth_priv->wol_sysfs_hook.set_all();
 		else
-			wol_sysfs_hook.clr_all();
+			eth_priv->wol_sysfs_hook.clr_all();
 
 		return count;
 	}
 #endif
 
-	if (internal_phy != 2)
-		wol_switch_from_user = tmp;
+	if (eth_priv->internal_phy != 2)
+		eth_priv->wol_switch_from_user = tmp;
 	else
-		support_gpio_wol = tmp;
+		eth_priv->support_gpio_wol = tmp;
 
 	return count;
 }
-#endif
-int auto_cali(void)
+#endif /* CONFIG_PM_SLEEP */
+
+static int auto_cali(struct aml_eth_priv *eth_priv)
 {
 	unsigned int value;
 	int I1, I2, I3, I4, I5;
@@ -819,10 +814,10 @@ int auto_cali(void)
 
 	pr_info("auto test cali\n");
 	for (cali_sel = 0; cali_sel < 4; cali_sel++) {
-		readl(PREG_ETH_REG1);
+		readl(eth_priv->PREG_ETH_REG1);
 		strcpy(problem, "no clock delay");
-		value = readl(PREG_ETH_REG0) & (~(0x1f << 25));
-		writel(value, PREG_ETH_REG0);
+		value = readl(eth_priv->PREG_ETH_REG0) & (~(0x1f << 25));
+		writel(value, eth_priv->PREG_ETH_REG0);
 
 		I1 = 0;
 		I2 = 0;
@@ -832,11 +827,11 @@ int auto_cali(void)
 
 		for (cali_rise = 0; cali_rise <= 1; cali_rise++) {
 			count = 99;
-			value = (readl(PREG_ETH_REG0) | (1 << 25) |
+			value = (readl(eth_priv->PREG_ETH_REG0) | (1 << 25) |
 				(cali_rise << 26) | (cali_sel << 27));
-			writel(value, PREG_ETH_REG0);
+			writel(value, eth_priv->PREG_ETH_REG0);
 			while (count >= 0) {
-				value = readl(PREG_ETH_REG1);
+				value = readl(eth_priv->PREG_ETH_REG1);
 				if ((value >> 15) & 0x1) {
 					count--;
 					switch (value & 0x1f) {
@@ -878,7 +873,7 @@ int auto_cali(void)
 	return 0;
 }
 
-static int am_net_cali(int argc, char **argv, int gate)
+static int am_net_cali(int argc, char **argv, int gate, struct aml_eth_priv *eth_priv)
 {
 	unsigned int value;
 	int cali_rise = 0;
@@ -890,7 +885,7 @@ static int am_net_cali(int argc, char **argv, int gate)
 
 	cali_start = gate;
 	if (gate == 3) {
-		auto_cali();
+		auto_cali(eth_priv);
 		return 0;
 	}
 
@@ -904,20 +899,20 @@ static int am_net_cali(int argc, char **argv, int gate)
 	r = kstrtoint(argv[2], 0, &cali_sel);
 	r = kstrtoint(argv[3], 0, &cali_time);
 
-	readl(PREG_ETH_REG1);
-	value = readl(PREG_ETH_REG0) & (~(0x1f << 25));
-	writel(value, PREG_ETH_REG0);
+	readl(eth_priv->PREG_ETH_REG1);
+	value = readl(eth_priv->PREG_ETH_REG0) & (~(0x1f << 25));
+	writel(value, eth_priv->PREG_ETH_REG0);
 
-	value = readl(PREG_ETH_REG0) | (cali_start << 25) |
+	value = readl(eth_priv->PREG_ETH_REG0) | (cali_start << 25) |
 		(cali_rise << 26) | (cali_sel << 27);
-	writel(value, PREG_ETH_REG0);
+	writel(value, eth_priv->PREG_ETH_REG0);
 
 	pr_info("rise :%d   sel: %d  time: %d   start:%d  cbus2050 = %x\n",
 		cali_rise, cali_sel, cali_time, cali_start,
-			readl(PREG_ETH_REG0));
+			readl(eth_priv->PREG_ETH_REG0));
 	for (ii = 0; ii < cali_time; ii++) {
 		mdelay(100);
-		value = readl(PREG_ETH_REG1);
+		value = readl(eth_priv->PREG_ETH_REG1);
 		if ((value >> 15) & 0x1) {
 			pr_info
 			("value = %x,len = %d,idx = %d,sel=%d,rise = %d\n",
@@ -930,14 +925,15 @@ static int am_net_cali(int argc, char **argv, int gate)
 	return 0;
 }
 
-static ssize_t cali_store(const struct class *class,
-			const struct class_attribute *attr,
+static ssize_t cali_store(struct device *dev,
+			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	int argc;
 	char *buff, *p, *para;
 	char *argv[5];
 	char cmd;
+	struct aml_eth_priv *eth_priv = dev_get_drvdata(dev);
 
 	buff = kstrdup(buf, GFP_KERNEL);
 	p = buff;
@@ -961,15 +957,15 @@ static ssize_t cali_store(const struct class *class,
 		switch (cmd) {
 		case 'e':
 		case 'E':
-			am_net_cali(argc, argv, 1);
+			am_net_cali(argc, argv, 1, eth_priv);
 			break;
 		case 'd':
 		case 'D':
-			am_net_cali(argc, argv, 0);
+			am_net_cali(argc, argv, 0, eth_priv);
 			break;
 		case 'a':
 		case 'A':
-			am_net_cali(argc, argv, 3);
+			am_net_cali(argc, argv, 3, eth_priv);
 			break;
 		default:
 			goto end;
@@ -980,58 +976,256 @@ end:
 	return 0;
 }
 
-#define DRIVER_NAME "ethernet"
-static struct class *phy_sys_class;
-
-static CLASS_ATTR_RW(phyreg);
-static CLASS_ATTR_RW(macreg);
-static CLASS_ATTR_RO(linkspeed);
-static CLASS_ATTR_WO(cali);
-#ifdef CONFIG_PM_SLEEP
-static CLASS_ATTR_RW(wol);
+static DEVICE_ATTR_RO(info);
+static DEVICE_ATTR_RW(phyreg);
+static DEVICE_ATTR_RW(macreg);
+static DEVICE_ATTR_RO(linkspeed);
+static DEVICE_ATTR_WO(cali);
+#if IS_ENABLED(CONFIG_PM_SLEEP)
+static DEVICE_ATTR_RW(wol);
 #endif
-//extern void __iomem *ioaddr_dbg;
-//EXPORT_SYMBOL(ioaddr_dbg);
-int gmac_create_sysfs(struct phy_device *phydev, void __iomem *ioaddr)
+
+static struct attribute *phy_dbg_dev_attrs[] = {
+	&dev_attr_info.attr,
+	&dev_attr_phyreg.attr,
+	&dev_attr_macreg.attr,
+	&dev_attr_linkspeed.attr,
+	&dev_attr_cali.attr,
+#if IS_ENABLED(CONFIG_PM_SLEEP)
+	&dev_attr_wol.attr,
+#endif
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(phy_dbg_dev);
+
+#if defined(ETH_LEGACY_INTERFACE_SUPPORT)
+/* Change the selected device. */
+static ssize_t cfg_select_store(const struct class *class,
+			const struct class_attribute *attr,
+			const char *buf, size_t len)
 {
-//	int r;
-//	int t;
-	int ret;
+	char dev_name[64];
+	struct device *dev;
 
-	c_phy_dev  = phydev;
-//	c_ioaddr = ioaddr_dbg;
-	c_ioaddr = ioaddr;
-	if (!c_phy_dev)
-		pr_info("wzh c_phy_dev null\n");
+	snprintf(dev_name, sizeof(dev_name), "%s", buf);
 
-//	dev_set_drvdata(&phydev->mdio.dev, phydev);
-//	for (t = 0; t < ARRAY_SIZE(phy_reg_attrs); t++) {
-//		r = device_create_file(&phydev->mdio.dev, &phy_reg_attrs[t]);
-//		if (r) {
-//			dev_err(&phydev->mdio.dev, "failed to create sysfs file\n");
-//			return r;
-//		}
-//	}
-	phy_sys_class = class_create(DRIVER_NAME);
-	ret = class_create_file(phy_sys_class, &class_attr_phyreg);
-	ret = class_create_file(phy_sys_class, &class_attr_macreg);
-	ret = class_create_file(phy_sys_class, &class_attr_linkspeed);
-	ret = class_create_file(phy_sys_class, &class_attr_cali);
-#ifdef CONFIG_PM_SLEEP
-	ret = class_create_file(phy_sys_class, &class_attr_wol);
+	if (!strstrip(dev_name))
+		return -EINVAL;
+
+	mutex_lock(&phy_dbg_mutex);
+	/* Select none */
+	if (!strlen(dev_name)) {
+		select_dev = NULL;
+		goto out;
+	}
+	/* Select device by name */
+	dev = class_find_device_by_name(class, dev_name);
+	if (!dev) {
+		mutex_unlock(&phy_dbg_mutex);
+		return -ENODEV;
+	}
+	select_dev = dev;
+out:
+	mutex_unlock(&phy_dbg_mutex);
+
+	return len;
+}
+
+/* Show the currently selected device. */
+static ssize_t cfg_select_show(const struct class *class,
+			const struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+
+	mutex_lock(&phy_dbg_mutex);
+	if (select_dev)
+		len = sysfs_emit(buf, "%s\n", dev_name(select_dev));
+	mutex_unlock(&phy_dbg_mutex);
+
+	return len;
+}
+
+/* List all available devices. */
+static ssize_t cfg_list_show(const struct class *class,
+			const struct class_attribute *attr, char *buf)
+{
+	struct class_dev_iter iter;
+	struct device *dev;
+	ssize_t len = 0;
+
+	mutex_lock(&phy_dbg_mutex);
+	class_dev_iter_init(&iter, class, NULL, NULL);
+	while ((dev = class_dev_iter_next(&iter)))
+		len += sysfs_emit_at(buf, len, "%s\n", dev_name(dev));
+	class_dev_iter_exit(&iter);
+	mutex_unlock(&phy_dbg_mutex);
+
+	return len;
+}
+
+#define PHY_DBG_CLASS_FUNC_STORE(_name)							\
+static ssize_t __##_name##_store(const struct class *class,				\
+			const struct class_attribute *attr,				\
+			const char *buf, size_t len)					\
+{											\
+	ssize_t ret = -EACCES;								\
+											\
+	mutex_lock(&phy_dbg_mutex);							\
+	if (select_dev)									\
+		ret = _name##_store(select_dev, NULL, buf, len);			\
+	mutex_unlock(&phy_dbg_mutex);							\
+											\
+	return ret;									\
+}
+
+#define PHY_DBG_CLASS_FUNC_SHOW(_name)							\
+static ssize_t __##_name##_show(const struct class *class,				\
+			const struct class_attribute *attr, char *buf)			\
+{											\
+	ssize_t ret = -EACCES;								\
+											\
+	mutex_lock(&phy_dbg_mutex);							\
+	if (select_dev)									\
+		ret = _name##_show(select_dev, NULL, buf);				\
+	mutex_unlock(&phy_dbg_mutex);							\
+											\
+	return ret;									\
+}
+
+#define PHY_DBG_CLASS_PROXY_RW(_name)							\
+	PHY_DBG_CLASS_FUNC_STORE(_name)							\
+	PHY_DBG_CLASS_FUNC_SHOW(_name)							\
+	static struct class_attribute class_attr_##_name =				\
+		__ATTR(_name, 0644, __##_name##_show, __##_name##_store)
+
+#define PHY_DBG_CLASS_PROXY_RO(_name)							\
+	PHY_DBG_CLASS_FUNC_SHOW(_name)							\
+	static struct class_attribute class_attr_##_name = {				\
+		.attr = { .name = __stringify(_name), .mode = 0444 },			\
+		.show = __##_name##_show,						\
+	}
+
+#define PHY_DBG_CLASS_PROXY_WO(_name)							\
+	PHY_DBG_CLASS_FUNC_STORE(_name)							\
+	static struct class_attribute class_attr_##_name = {				\
+		.attr = { .name = __stringify(_name), .mode = 0200 },			\
+		.store = __##_name##_store,						\
+	}
+
+static CLASS_ATTR_RW(cfg_select);
+static CLASS_ATTR_RO(cfg_list);
+
+/* Compatibility with legacy interface */
+PHY_DBG_CLASS_PROXY_RW(phyreg);
+PHY_DBG_CLASS_PROXY_RW(macreg);
+PHY_DBG_CLASS_PROXY_RO(linkspeed);
+PHY_DBG_CLASS_PROXY_WO(cali);
+#if IS_ENABLED(CONFIG_PM_SLEEP)
+PHY_DBG_CLASS_PROXY_RW(wol);
 #endif
+
+static struct attribute *phy_dbg_class_attrs[] = {
+	&class_attr_cfg_select.attr,
+	&class_attr_cfg_list.attr,
+	&class_attr_phyreg.attr,
+	&class_attr_macreg.attr,
+	&class_attr_linkspeed.attr,
+	&class_attr_cali.attr,
+#if IS_ENABLED(CONFIG_PM_SLEEP)
+	&class_attr_wol.attr,
+#endif
+	NULL,
+};
+ATTRIBUTE_GROUPS(phy_dbg_class);
+#endif /* ETH_LEGACY_INTERFACE_SUPPORT */
+
+static struct class phy_dbg_class = {
+	.name =		"ethernet",
+#if defined(ETH_LEGACY_INTERFACE_SUPPORT)
+	.class_groups = phy_dbg_class_groups,
+#endif
+};
+
+int gmac_create_sysfs(struct aml_eth_priv *eth_priv)
+{
+	struct phy_device *phydev;
+	struct device *dev;
+	int ret = 0;
+
+	mutex_lock(&phy_dbg_mutex);
+
+	if (!eth_priv->phydev) {
+		pr_info("phydev is null\n");
+		ret = -ENODEV;
+		goto err0;
+	}
+	phydev = eth_priv->phydev;
+
+	/* Create a common class located in the /sys/class/ethernet directory. */
+	if (!phy_dbg_count) {
+		ret = class_register(&phy_dbg_class);
+		if (ret)
+			goto err0;
+	}
+	phy_dbg_count++;
+
+	/* Create a separate group for each PHY. */
+	dev = device_create_with_groups(&phy_dbg_class, NULL /* parent dev */, MKDEV(0, 0),
+					eth_priv, phy_dbg_dev_groups, "%s", phydev_name(phydev));
+	if (IS_ERR(dev)) {
+		ret = PTR_ERR(dev);
+		goto err1;
+	}
+	eth_priv->dev = dev;
+
+#if defined(ETH_LEGACY_INTERFACE_SUPPORT)
+	/* Set the first device as the default. */
+	if (phy_dbg_count == 1)
+		select_dev = dev;
+#endif
+
+	mutex_unlock(&phy_dbg_mutex);
+
 	return 0;
+
+err1:
+	if (phy_dbg_count == 1) {
+		class_unregister(&phy_dbg_class);
+		phy_dbg_count--;
+	}
+err0:
+	mutex_unlock(&phy_dbg_mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL(gmac_create_sysfs);
-int gmac_remove_sysfs(struct phy_device *phydev)
-{
-	int t;
 
-	for (t = 0; t < ARRAY_SIZE(phy_reg_attrs); t++)
-		device_remove_file(&phydev->mdio.dev, &phy_reg_attrs[t]);
-	class_destroy(phy_sys_class);
-	c_phy_dev = NULL;
+int gmac_remove_sysfs(struct aml_eth_priv *eth_priv)
+{
+	mutex_lock(&phy_dbg_mutex);
+
+	if (eth_priv->dev) {
+#if defined(ETH_LEGACY_INTERFACE_SUPPORT)
+		if (select_dev == eth_priv->dev)
+			select_dev = NULL;
+#endif
+		device_unregister(eth_priv->dev);
+		eth_priv->dev = NULL;
+	}
+
+	if (phy_dbg_count) {
+		phy_dbg_count--;
+		if (!phy_dbg_count)
+			class_unregister(&phy_dbg_class);
+	}
+
+	eth_priv->phydev = NULL;
+
+	mutex_unlock(&phy_dbg_mutex);
+
 	return 0;
 }
 EXPORT_SYMBOL(gmac_remove_sysfs);
+
 MODULE_LICENSE("GPL");

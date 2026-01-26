@@ -15,6 +15,8 @@
 #include <linux/platform_device.h>
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#include <linux/phy.h>
+#include <linux/of_mdio.h>
 #include <linux/amlogic/aml_phy_debug.h>
 void __iomem *phy_analog_config_addr;
 EXPORT_SYMBOL_GPL(phy_analog_config_addr);
@@ -249,6 +251,37 @@ static const struct clk_ops g12a_ephy_pll_ops = {
 	.init		= g12a_ephy_pll_init,
 };
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+static struct aml_eth_priv *get_eth_priv(struct device_node *np)
+{
+	struct device_node *parent_bus_node;
+	struct mii_bus *parent_bus;
+	struct aml_eth_priv *eth_priv;
+	int ret = 0;
+
+	parent_bus_node = of_parse_phandle(np, "mdio-parent-bus", 0);
+	if (!parent_bus_node)
+		return ERR_PTR(-ENODEV);
+
+	parent_bus = of_mdio_find_bus(parent_bus_node);
+	if (!parent_bus) {
+		ret = -EPROBE_DEFER;
+		goto out0;
+	}
+
+	eth_priv = aml_get_eth_priv_by_ndev(parent_bus->parent);
+
+	put_device(&parent_bus->dev);
+out0:
+	of_node_put(parent_bus_node);
+
+	if (ret)
+		return ERR_PTR(ret);
+
+	return eth_priv;
+}
+#endif
+
 static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 {
 	u32 value;
@@ -256,12 +289,18 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	void __iomem *tx_amp_src = NULL;
 	struct device_node *np = priv->dev->of_node;
+	struct aml_eth_priv *eth_priv;
 	unsigned int tx_amp_addr = 0;
 	unsigned int st_mode = 0;
 	unsigned int rx_R = 0;
 	unsigned int tx_R = 0;
 	unsigned int efuse_get_tmp = 0;
 	unsigned int led_setting = 0;
+
+	eth_priv = get_eth_priv(np);
+	if (IS_ERR_OR_NULL(eth_priv))
+		return PTR_ERR(eth_priv);
+
 	if (of_property_read_u32(np, "tx_amp_src", &tx_amp_addr) != 0)
 		pr_info("no amp setting\n");
 
@@ -422,11 +461,11 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 		/* ephy_clk_gate for internal phy */
 		writel(ephy_clk_gate, priv->regs + ETH_PHY_CLK_GATE);
 	}
-	if (of_property_read_u32(np, "ephy_eee_support", &ephy_eee_support) == 0) {
-		if (ephy_eee_support)
+	if (of_property_read_u32(np, "ephy_eee_support", &eth_priv->ephy_eee_support) == 0) {
+		if (eth_priv->ephy_eee_support)
 			pr_info("inphy EEE Feature supported\n");
 	} else {
-		ephy_eee_support = 0;
+		eth_priv->ephy_eee_support = 0;
 	}
 	if (of_property_read_u32(np, "led_setting", &led_setting) == 0) {
 		/*led setting 10bit ETH_PHY_CNTL0 bit[31:23] and ETH_PLL_CTL4 bit0*/
@@ -467,7 +506,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	       PHY_CNTL2_SMI_SRC_MAC |
 	       PHY_CNTL2_RX_CLK_EPHY,
 	       priv->regs + ETH_PHY_CNTL2);
-	if (ephy_eee_support && inphy_eee_enable) {
+	if (eth_priv->ephy_eee_support && eth_priv->inphy_eee_enable) {
 		writel(readl(priv->regs + ETH_PHY_CNTL2) |
 			PHY_CNTL2_RX_DV_COL,
 			priv->regs + ETH_PHY_CNTL2); // cover for mii
