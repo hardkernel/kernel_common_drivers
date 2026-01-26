@@ -273,7 +273,7 @@ static void lcd_tcon_dma_addr_add(struct lcd_tcon_dma_ops_s *ops,
 {
 	struct lcd_tcon_dma_info_s *dma_info;
 
-	dma_info = kzalloc(sizeof(*dma_info), GFP_KERNEL);
+	dma_info = kzalloc(sizeof(*dma_info), GFP_ATOMIC);//maybe alloced in isr
 	if (!dma_info)
 		return;
 
