@@ -128,5 +128,7 @@
 
 #define AMSTREAM_IOC_SET_AISR_EN                  _IOW((_A_M), 0xf2, __u32)
 #define AMSTREAM_IOC_GET_PIP_FIRST_FRAME_TOGGLED  _IOR(_A_M, 0xf3, __u32)
+#define AMSTREAM_IOC_SET_SAFA_SUPER_RESOLUTION_EN _IOW((_A_M), 0xf4, __u32)
+#define AMSTREAM_IOC_SET_SAFA_SHARPNESS_EN        _IOW((_A_M), 0xf5, __u32)
 
 #endif

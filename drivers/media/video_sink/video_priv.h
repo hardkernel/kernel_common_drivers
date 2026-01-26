@@ -314,6 +314,7 @@ struct video_dev_s {
 	u8 dejaggy_support;
 	u8 vsr_nonlinear_support;
 	u8 vsf_mode_support;
+	u8 yuv_sharpen_support;
 	u8 has_2ppc_support;
 };
 
@@ -907,6 +908,7 @@ struct video_device_hw_s {
 	u8 dejaggy_support;
 	u8 vsr_nonlinear_support;
 	u8 vsf_mode_support;
+	u8 yuv_sharpen_support;
 };
 
 struct amvideo_device_data_s {
@@ -1015,6 +1017,8 @@ extern int vpp_in_size_threshold_8k;
 extern int vdec_out_size_threshold_4k;
 extern int vpp_in_size_threshold_4k;
 extern u8 safa_dir_interp_en;
+extern bool dejaggy_en;
+extern u32 yuv_sharp_en;
 extern u64 vsync_cnt[VPP_MAX];
 extern struct vpu_venc_regs_s venc_regs[VPP_NUM];
 extern u32 vpp_hold_line[VPP_MAX];

@@ -642,6 +642,8 @@ u32 reverse;
 u32  video_mirror;
 bool vd1_vd2_mux;
 bool aisr_en;
+u32 safa_super_resolution = 0x3;
+u32 safa_sharpness = 0x3;
 bool vsr_top_en;
 bool lcevc_en;
 u32 lcevc_ctrl;
@@ -6458,6 +6460,41 @@ void set_vd1_vd2_mux(bool en)
 	}
 }
 EXPORT_SYMBOL(set_vd1_vd2_mux);
+
+static void parse_safa_super_resolution_para(int para)
+{
+	if (para & 0x1)
+		safa_dir_interp_en = 1;
+	else
+		safa_dir_interp_en = 0;
+	if (para & 0x2)
+		dejaggy_en = true;
+	else
+		dejaggy_en = false;
+	if (safa_super_resolution != para &&
+		cur_dev->vd1_vsr_safa_support) {
+		safa_super_resolution = para;
+		vd_layer[0].property_changed = true;
+	}
+}
+
+static void parse_safa_sharpness_para(int para)
+{
+	if (para & 0x1)
+		yuv_sharp_en = 1;
+	else
+		yuv_sharp_en = 0;
+	if (para & 0x2)
+		super_scaler = true;
+	else
+		super_scaler = false;
+	if (safa_sharpness != para &&
+		cur_dev->vd1_vsr_safa_support) {
+		safa_sharpness = para;
+		vd_layer[0].property_changed = true;
+	}
+}
+
 /*********************************************************
  * /dev/amvideo APIs
  ********************************************************
@@ -7147,7 +7184,26 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 				ret = -EFAULT;
 		}
 		break;
+	case AMSTREAM_IOC_SET_SAFA_SUPER_RESOLUTION_EN:
+		{
+			int val = 0;
 
+			if (copy_from_user(&val, argp, sizeof(u32)) == 0)
+				parse_safa_super_resolution_para(val);
+			else
+				ret = -EFAULT;
+		}
+		break;
+	case AMSTREAM_IOC_SET_SAFA_SHARPNESS_EN:
+		{
+			int val = 0;
+
+			if (copy_from_user(&val, argp, sizeof(u32)) == 0)
+				parse_safa_sharpness_para(val);
+			else
+				ret = -EFAULT;
+		}
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -7229,6 +7285,8 @@ static long amvideo_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_GET_VIDEO_MUTE:
 	case AMSTREAM_IOC_SET_AISR_EN:
 	case AMSTREAM_IOC_GET_PIP_FIRST_FRAME_TOGGLED:
+	case AMSTREAM_IOC_SET_SAFA_SUPER_RESOLUTION_EN:
+	case AMSTREAM_IOC_SET_SAFA_SHARPNESS_EN:
 		arg = (unsigned long)compat_ptr(arg);
 		return amvideo_ioctl(file, cmd, arg);
 	case AMSTREAM_IOC_TRICKMODE:
@@ -7555,6 +7613,50 @@ static ssize_t video_safa_dir_interp_store(const struct class *cla,
 	if (likely(parse_para(buf, 1, parsed) == 1)) {
 		if (safa_dir_interp_en != (parsed[0] & 0x1)) {
 			safa_dir_interp_en = parsed[0] & 0x1;
+			vd_layer[0].property_changed = true;
+		}
+	}
+	return strnlen(buf, count);
+}
+
+static ssize_t video_safa_dejaggy_en_show(const struct class *cla,
+			     const struct class_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "dejaggy_en:%d\n", dejaggy_en);
+}
+
+static ssize_t video_safa_dejaggy_en_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int parsed[1];
+
+	if (likely(parse_para(buf, 1, parsed) == 1)) {
+		if (dejaggy_en != (parsed[0] & 0x1 ? true : false)) {
+			dejaggy_en = parsed[0] & 0x1 ? true : false;
+			vd_layer[0].property_changed = true;
+		}
+	}
+	return strnlen(buf, count);
+}
+
+static ssize_t video_safa_yuv_sharp_en_show(const struct class *cla,
+			     const struct class_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "yuv_sharp_en:%d\n", yuv_sharp_en);
+}
+
+static ssize_t video_safa_yuv_sharp_en_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int parsed[1];
+
+	if (likely(parse_para(buf, 1, parsed) == 1)) {
+		if (yuv_sharp_en != (parsed[0] & 0x1)) {
+			yuv_sharp_en = parsed[0] & 0x1;
 			vd_layer[0].property_changed = true;
 		}
 	}
@@ -12760,6 +12862,7 @@ static void set_aisr_en(int en)
 			vd_layer[0].property_changed = true;
 	}
 }
+
 static ssize_t aisr_en_store(const struct class *cla,
 				 const struct class_attribute *attr,
 				 const char *buf, size_t count)
@@ -14215,6 +14318,14 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0644,
 	       video_safa_dir_interp_show,
 	       video_safa_dir_interp_store),
+	__ATTR(dejaggy_en,
+	       0644,
+	       video_safa_dejaggy_en_show,
+	       video_safa_dejaggy_en_store),
+	__ATTR(yuv_sharp_en,
+	       0644,
+	       video_safa_yuv_sharp_en_show,
+	       video_safa_yuv_sharp_en_store),
 	__ATTR(global_offset,
 	       0644,
 	       video_global_offset_show,
@@ -16513,6 +16624,7 @@ static struct video_device_hw_s s7d_dev_property = {
 	.sr01_num = 0,
 	.vd1_vsr_safa_support = 1,
 	.frm2fld_support = 1,
+	.yuv_sharpen_support = 0,
 };
 
 static struct video_device_hw_s s6_dev_property = {
@@ -16524,6 +16636,7 @@ static struct video_device_hw_s s6_dev_property = {
 	.vd1_vsr_safa_support = 1,
 	.frm2fld_support = 1,
 	.dejaggy_support = 1,
+	.yuv_sharpen_support = 0,
 };
 
 static struct video_device_hw_s t6d_dev_property = {
@@ -16536,6 +16649,7 @@ static struct video_device_hw_s t6d_dev_property = {
 	.frm2fld_support = 0,
 	.vsr_nonlinear_support = 1,
 	.dejaggy_support = 1,
+	.yuv_sharpen_support = 0,
 };
 
 static struct video_device_hw_s t6w_dev_property = {
@@ -16549,6 +16663,7 @@ static struct video_device_hw_s t6w_dev_property = {
 	.vsr_nonlinear_support = 1,
 	.dejaggy_support = 1,
 	.vsf_mode_support = 1,
+	.yuv_sharpen_support = 1,
 };
 
 static struct video_device_hw_s t6x_dev_property = {
@@ -16563,6 +16678,7 @@ static struct video_device_hw_s t6x_dev_property = {
 	.vsr_nonlinear_support = 1,
 	.dejaggy_support = 1,
 	.vsf_mode_support = 1,
+	.yuv_sharpen_support = 1,
 };
 #endif
 

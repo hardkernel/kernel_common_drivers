@@ -69,6 +69,8 @@ static unsigned int g_axi_rps_ratio  = 0xff;
 static unsigned int asf_enable = 0x1;
 
 u8 safa_dir_interp_en = 1;
+bool dejaggy_en = true;
+u32 yuv_sharp_en = 1;
 
 struct pi_reg_s {
 	u32 pi_dic_num;
@@ -756,21 +758,21 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 			video_is_meson_t6w_cpu() ||
 			video_is_meson_t6x_cpu()) &&
 			hsize_in <= 2048)
-			vsr_safa->dejaggy_en = true;
+			vsr_safa->dejaggy_en = true & dejaggy_en;
 		else if (video_is_meson_t6d_cpu() &&
 				(hsize_in <= 1024 ||
 				(vsr_top->input_422_en && hsize_in <= 2048)))
-			vsr_safa->dejaggy_en = true;
+			vsr_safa->dejaggy_en = true & dejaggy_en;
 		else
-			vsr_safa->dejaggy_en = false;
+			vsr_safa->dejaggy_en = false & dejaggy_en;
 	} else {
-		vsr_safa->dejaggy_en = false;
+		vsr_safa->dejaggy_en = false & dejaggy_en;
 	}
 
 	if (hsize_out <= 66 || hsize_in <= 35)
-		vsr_top->sharpness_en = false;
+		vsr_top->sharpness_en = false & super_scaler;
 	else
-		vsr_top->sharpness_en = true;
+		vsr_top->sharpness_en = true & super_scaler;
 
 	if (video_is_after_meson_t6w_cpu()) {
 		if (pre_hsize < hsize_out) {
@@ -1201,18 +1203,22 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			safa_vsc_integer_part = vsr_top->pi_safa_vsc_integer_part;
 			safa_vsc_fraction_part = vsr_top->pi_safa_vsc_fraction_part;
 		}
+		if (cur_dev->yuv_sharpen_support) {
+			if (vsr->vsr_top.vsize_in > 1080)
+				sharp_en = 0;
+			sharp_en &= yuv_sharp_en;
+		}
 		if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
-			pr_info("%s: vsc_ini_integer/integer:%d,%d, bot_vsc_ini_phase/integer:%d,%d,vsc_integer/fraction:%d,%d\n",
+			pr_info("%s: vsc_ini_integer/integer:%d,%d, bot_vsc_ini_phase/integer:%d,%d,vsc_integer/fraction:%d,%d yuv_sharp_en:%d\n",
 				__func__,
 				safa_vsc_ini_phase,
 				safa_vsc_ini_integer,
 				safa_bot_vsc_ini_phase,
 				safa_bot_vsc_ini_integer,
 				vsr_top->safa_vsc_integer_part,
-				vsr_top->safa_vsc_fraction_part);
-
-		if (!video_is_after_meson_t6w_cpu())
-			rdma_wr_bits(vsr_reg->safa_pps_yuv_sharpen_en,
+				vsr_top->safa_vsc_fraction_part,
+				sharp_en);
+		rdma_wr_bits(vsr_reg->safa_pps_yuv_sharpen_en,
 				sharp_en, 4, 1);
 		rdma_wr_bits(vsr_reg->safa_pps_dir_en_mode,
 			dir_info_ds_x_en, 24, 1);
@@ -1463,10 +1469,8 @@ static void sharpness_and_dir_interp_enable(struct vsr_setting_s *vsr)
 		dir_interp_en = 0;
 	rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
 		dir_interp_en, 25, 1);
-	if (super_scaler && vsr->vsr_top.sharpness_en)
-		rdma_wr_bits(vsr_reg->vpp_sr_en, 1, 0, 1);
-	else
-		rdma_wr_bits(vsr_reg->vpp_sr_en, 0, 0, 1);
+	rdma_wr_bits(vsr_reg->vpp_sr_en,
+		vsr->vsr_top.sharpness_en ? 1 : 0, 0, 1);
 }
 
 void set_vsr_scaler(struct vsr_setting_s *vsr)
