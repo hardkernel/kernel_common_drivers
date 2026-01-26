@@ -58,6 +58,7 @@ unsigned char get_meson_cpu_version(int level)
 #include "codec_mm_scatter_priv.h"
 #include "codec_mm_keeper_priv.h"
 #include "codec_mm_track_priv.h"
+#include "codec_mm_compact_priv.h"
 #include "codec_mm_sys_priv.h"
 #include "codec_mm_prealloc_priv.h"
 #include <linux/highmem.h>
@@ -923,8 +924,10 @@ bool alloc_from_cma(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem,
 	else
 		*alloc_trace_mask |= 1 << 4;
 
+	codec_mm_compact_lock();
 	mem->mem_handle = dma_alloc_from_contiguous(mgt->dev,
 		mem->page_count, align_2n - PAGE_SHIFT, false);
+	codec_mm_compact_unlock();
 	mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA;
 	if (mem->mem_handle) {
 		mem->phy_addr = page_to_phys((struct page *)mem->mem_handle);
@@ -1592,7 +1595,9 @@ void *codec_mm_dma_alloc_coherent(ulong *handle,
 	local_id = (mgt->global_local_id++) & MAX_LOCAL_ID;
 	mem->local_id = local_id * 1000000 + (buf_size >> PAGE_SHIFT);
 	ATRACE_ASYNC_BEGIN("codec_mm_alloc", mem->local_id);
+	codec_mm_compact_lock();
 	vaddr = dma_alloc_coherent(mgt->dev, buf_size, &dma_handle, GFP_KERNEL);
+	codec_mm_compact_unlock();
 	mem->end_alloc_time = codec_mm_get_current_us();
 	ATRACE_ASYNC_END("codec_mm_alloc", mem->local_id);
 
@@ -3525,6 +3530,10 @@ int codec_mm_mgt_init(struct device *dev)
 	mutex_init(&mgt->cma_res_pool.pool_lock);
 	spin_lock_init(&mgt->lock);
 	INIT_WORK(&mgt->tvp_alloc_wrk, codec_mm_tvp_alloc_monitor);
+
+	mgt->cma = dev_get_cma_area(mgt->dev);
+	codec_mm_compaction_init((void *)mgt->cma);
+
 	return 0;
 }
 EXPORT_SYMBOL(codec_mm_mgt_init);
@@ -4154,6 +4163,40 @@ static ssize_t dbuf_dump_store(const struct class *class,
 	return size;
 }
 
+static ssize_t codec_mm_compact_show(const struct class *class,
+	const struct class_attribute *attr,
+	char *buf)
+{
+	ssize_t size = 0;
+
+	size += sprintf(buf, "n: n times compact\n");
+	size += sprintf(buf + size, "-1: persistent compact\n");
+	size += sprintf(buf + size, "0: disable compact\n");
+
+	return size;
+}
+
+static ssize_t codec_mm_compact_store(const struct class *class,
+	const struct class_attribute *attr,
+	const char *buf, size_t size)
+{
+	int val;
+	ssize_t ret;
+
+	val = 0;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret != 0)
+		return -EINVAL;
+
+	if (!val)
+		codec_mm_compaction_stop();
+	else
+		codec_mm_compaction_start(val);
+
+	return size;
+}
+
 static CLASS_ATTR_RO(codec_mm_dump);
 static CLASS_ATTR_RO(codec_mm_scatter_dump);
 static CLASS_ATTR_RO(codec_mm_keeper_dump);
@@ -4166,6 +4209,7 @@ static CLASS_ATTR_RW(debug);
 static CLASS_ATTR_RW(debug_keep_mode);
 static CLASS_ATTR_RW(dbuf_trace);
 static CLASS_ATTR_RW(dbuf_dump);
+static CLASS_ATTR_RW(codec_mm_compact);
 
 static struct attribute *codec_mm_class_attrs[] = {
 	&class_attr_codec_mm_dump.attr,
@@ -4180,6 +4224,7 @@ static struct attribute *codec_mm_class_attrs[] = {
 	&class_attr_debug_keep_mode.attr,
 	&class_attr_dbuf_trace.attr,
 	&class_attr_dbuf_dump.attr,
+	&class_attr_codec_mm_compact.attr,
 	NULL
 };
 
@@ -4648,22 +4693,6 @@ int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 	return 0;
 }
 #endif
-
-bool is_2k_platform(void)
-{
-	int cpu_type = get_cpu_type();
-	int pack_type = get_meson_cpu_version(MESON_CPU_VERSION_LVL_PACK);
-
-	if (cpu_type == MESON_CPU_MAJOR_ID_T5D ||
-		cpu_type == MESON_CPU_MAJOR_ID_T6D ||
-		cpu_type == MESON_CPU_MAJOR_ID_TXHD2 ||
-		cpu_type == MESON_CPU_MAJOR_ID_S1A ||
-		(cpu_type == MESON_CPU_MAJOR_ID_S4 && pack_type == 2) ||
-		(cpu_type == MESON_CPU_MAJOR_ID_S7 && pack_type == 3))
-		return true;
-
-	return false;
-}
 
 static inline void codec_mm_parse_reserved_mem(struct platform_device *pdev, char *name,
 	int (*vdec_res_setup)(struct reserved_mem *rmem))

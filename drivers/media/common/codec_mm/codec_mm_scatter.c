@@ -35,6 +35,7 @@
 #include <linux/vmalloc.h>
 
 #include "codec_mm_priv.h"
+#include "codec_mm_common.h"
 #include "codec_mm_scatter_priv.h"
 #include "codec_mm_sys_priv.h"
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_CODEC_MM

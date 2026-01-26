@@ -88,6 +88,7 @@ ddk_module(
                 "common/codec_mm/codec_mm_track_kps.c",
                 "common/codec_mm/codec_mm_state.c",
                 "common/codec_mm/codec_mm_sys.c",
+                "common/codec_mm/codec_mm_compact.c",
                 "common/codec_mm/codec_mm_prealloc.c",
                 "common/codec_mm/codec_mm_mem_info.c",
                 "common/codec_mm/configs/configs.c",
@@ -1186,6 +1187,7 @@ ddk_module(
     },
     hdrs = [
         "common/rdma/rdma.h",
+        "//common:mm/cma.h",
         "video_processor/videodisplay/videodisplay_interface.h",
         "vout/vout_serve/vout_func.h",
         "//common:drivers/media/tuners/tuner-i2c.h",
@@ -1246,6 +1248,7 @@ ddk_module(
         "di_mini/sc2",
         "../../../common/drivers/media/tuners",
         "../../../common/include/media",
+        "../../../common/mm",
         "../efuse_unifykey"
     ],
     local_defines = [
@@ -1269,6 +1272,7 @@ ddk_module(
         "//common_drivers/drivers/gki_tool:amlogic-gkitool",
         "//common_drivers/drivers/debug:amlogic-debug-iotrace",
         "//common_drivers/drivers/debug:amlogic-debug",
+        "//common_drivers/drivers/memory_ext:aml_cma",
         "//common_drivers/drivers/clk/meson:amlogic-clk",
         "//common_drivers/drivers/gpio:amlogic-gpio",
         "//common_drivers/drivers/power:amlogic-power",

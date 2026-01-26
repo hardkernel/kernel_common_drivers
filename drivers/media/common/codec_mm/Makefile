@@ -8,7 +8,7 @@
 # Do not change.                   #
 ####################################
 
-ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/dvb/
+ccflags-y += -I$(srctree)/mm -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/dvb/
 
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_CODEC_MM) += common/codec_mm/codec_mm.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_CODEC_MM) += common/codec_mm/codec_mm_scatter.o
@@ -18,6 +18,7 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_CODEC_MM) += common/codec_mm/codec_m
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_CODEC_MM) += common/codec_mm/codec_mm_track_kps.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_CODEC_MM) += common/codec_mm/codec_mm_state.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_CODEC_MM) += common/codec_mm/codec_mm_sys.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_CODEC_MM) += common/codec_mm/codec_mm_compact.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_CODEC_MM) += common/codec_mm/codec_mm_prealloc.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_CODEC_MM) += common/codec_mm/codec_mm_mem_info.o
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/common/codec_mm/configs/Makefile
