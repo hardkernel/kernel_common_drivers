@@ -636,6 +636,7 @@
 				clock-names = "sys", "spi";
 				assigned-clocks = <&clkc CLKID_SPICC0>;
 				assigned-clock-rates = <500000000>;
+				amlogic,level-high-to-gic;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";

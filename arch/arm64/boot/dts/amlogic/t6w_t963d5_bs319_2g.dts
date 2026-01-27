@@ -980,6 +980,12 @@
 	pinctrl-0 = <&spicc1_pins_h>;
 };
 
+&spicc2 {	//for UWB/LocalDimm
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc2_pins_m>;
+};
+
 &ir {
 	status = "okay";
 	pinctrl-names = "default";

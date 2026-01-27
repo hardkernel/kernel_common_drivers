@@ -646,7 +646,10 @@
 
 			spicc0: spi@50000 {
 				compatible = "amlogic,meson-gxlx4-spicc-v2";
-				reg = <0x0 0x50000 0x0 0x38>;
+				reg = <0x0 0x50000 0x0 0x38>,
+				      <0x0 0x10490 0x0 0x4>;
+				/* in select of pwm/pwm_vs/vsync/line_n/gpio */
+				trig_in_selects = <0 8 11 14 17>;
 				interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_SPISG>,
 					 <&clkc CLKID_SPICC0>;
@@ -673,7 +676,10 @@
 
 			spicc2: spi@50200 {
 				compatible = "amlogic,meson-gxlx4-spicc-v2";
-				reg = <0x0 0x50200 0x0 0x38>;
+				reg = <0x0 0x50200 0x0 0x38>,
+				      <0x0 0x10498 0x0 0x4>;
+				/* in select of pwm/pwm_vs/vsync/line_n/gpio */
+				trig_in_selects = <0 8 11 14 17>;
 				interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_SPISG>,
 					 <&clkc CLKID_SPICC2>;
@@ -685,7 +691,10 @@
 
 			spicc3: spi@50300 {
 				compatible = "amlogic,meson-gxlx4-spicc-v2";
-				reg = <0x0 0x50300 0x0 0x38>;
+				reg = <0x0 0x50300 0x0 0x38>,
+				      <0x0 0x1049c 0x0 0x4>;
+				/* in select of pwm/pwm_vs/vsync/line_n/gpio */
+				trig_in_selects = <0 8 11 14 17>;
 				interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_SPISG>,
 					 <&clkc CLKID_SPICC3>;

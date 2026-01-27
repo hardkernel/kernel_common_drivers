@@ -1402,6 +1402,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	struct spi_controller *ctlr;
 	struct spicc_device *spicc;
 	struct meson_spicc_v2_data *match;
+	unsigned long irq_flags;
 	int ret, irq;
 	/* default trig reg map for t3x */
 	unsigned int trig_in_selects[5] = {0, 10, 13, 16, 19};
@@ -1458,8 +1459,10 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		goto out_controller;
 	}
 
+	irq_flags = of_property_read_bool(pdev->dev.of_node, "amlogic,level-high-to-gic")
+			? 0 : IRQF_TRIGGER_RISING;
 	ret = devm_request_irq(&pdev->dev, irq, meson_spicc_irq,
-			       IRQF_TRIGGER_RISING, NULL, spicc);
+			       irq_flags, NULL, spicc);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request failed\n");
 		goto out_controller;
