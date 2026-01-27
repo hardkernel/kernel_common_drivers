@@ -6714,7 +6714,7 @@ void rx_port2_main_state_machine(void)
 			//use other condition to judge signal stable
 			if (sig_unready_max)
 				chk_cnt = sig_unready_max;
-			else if (rx[port].var.frl_rate)
+			else if (rx[port].var.frl_rate && rx_info.chip_id == CHIP_ID_T3X)
 				chk_cnt = FRL_UNREADY_MAX;
 			else
 				chk_cnt = get_frame_interval_cnt(1, port);
@@ -7325,7 +7325,7 @@ void rx_port3_main_state_machine(void)
 			//use other condition to judge signal stable
 			if (sig_unready_max)
 				chk_cnt = sig_unready_max;
-			else if (rx[port].var.frl_rate)
+			else if (rx[port].var.frl_rate && rx_info.chip_id == CHIP_ID_T3X)
 				chk_cnt = FRL_UNREADY_MAX;
 			else
 				chk_cnt = get_frame_interval_cnt(1, port);

@@ -82,7 +82,8 @@
 /* 2026.1.16 fix issue interrupts not enabled when HDMI Ready */
 /* 2026.1.21 add lock detect before do pcs reset */
 /* 2026.1.23 return unsupport when vic is unknown */
-#define RX_WRAPPER_VER "ver.2026/1/23"
+/* 2026.1.29 fix frame rate error caused by unstable signal */
+#define RX_WRAPPER_VER "ver.2026/1/29"
 
 struct freq_ref_s {
 	bool interlace;
