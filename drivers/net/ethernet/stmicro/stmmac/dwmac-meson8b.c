@@ -131,6 +131,12 @@ struct meson8b_dwmac {
 	bool				wol_en;		/* MAC frames are processed in BL30 */
 #endif
 #endif
+	u32				smc_id;
+	void __iomem			*ee_reset_base;
+	int				eth_reset_bit;
+	unsigned int			mc_val;
+	unsigned int			phy_mii_clk_sel;
+	int				without_reset;
 #endif
 };
 
@@ -435,13 +441,11 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 #ifdef CONFIG_PM_SLEEP
-static bool mac_wol_enable;
-void set_wol_notify_bl31(u32 enable_bl31)
+static void set_wol_notify_bl31(struct meson8b_dwmac *dwmac, u32 enable_bl31)
 {
 	struct arm_smccc_res res;
 
-	arm_smccc_smc(0x8200009D, enable_bl31,
-					0, 0, 0, 0, 0, 0, &res);
+	arm_smccc_smc(dwmac->smc_id, enable_bl31, 0, 0, 0, 0, 0, 0, &res);
 }
 
 static void set_wol_notify_bl30(struct meson8b_dwmac *dwmac, u32 enable_bl30)
@@ -454,10 +458,7 @@ static void set_wol_notify_bl30(struct meson8b_dwmac *dwmac, u32 enable_bl30)
 	#endif
 }
 #endif
-void __iomem *ee_reset_base;
-int eth_reset_bit;
-unsigned int mc_val;
-unsigned int phy_mii_clk_sel;
+
 static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac *dwmac)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -469,31 +470,36 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 
 	pr_debug("aml_cust_setting\n");
 
+	if (of_property_read_u32(np, "amlogic,smc-id", &dwmac->smc_id)) {
+		pr_info("could not read property 'amlogic,smc-id', default value will be used\n");
+		dwmac->smc_id = 0x8200009d;
+	}
+
 	if (of_property_read_u32(np, "eth_reset_reg", &eth_reset_reg) == 0) {
 		addr = devm_ioremap(&pdev->dev, eth_reset_reg, 4);
 		if (IS_ERR_OR_NULL(addr)) {
 			dev_err(&pdev->dev, "Unable to map reset base\n");
-			ee_reset_base = NULL;
+			dwmac->ee_reset_base = NULL;
 		} else {
 			pr_info("eth_reset_reg=0x%x\n", eth_reset_reg);
-			ee_reset_base = addr;
-			if (of_property_read_u32(np, "eth_reset_bit", &eth_reset_bit) != 0)
-				eth_reset_bit = 11;
-			pr_info("eth_reset_bit=%d\n", eth_reset_bit);
+			dwmac->ee_reset_base = addr;
+			if (of_property_read_u32(np, "eth_reset_bit", &dwmac->eth_reset_bit) != 0)
+				dwmac->eth_reset_bit = 11;
+			pr_info("eth_reset_bit=%d\n", dwmac->eth_reset_bit);
 		}
 	} else {
-		ee_reset_base = NULL;
+		dwmac->ee_reset_base = NULL;
 	}
 
-	if (of_property_read_u32(np, "mc_val", &mc_val) == 0) {
-		pr_debug("cover mc_val as 0x%x\n", mc_val);
-		writel(mc_val, dwmac->regs + PRG_ETH0);
+	if (of_property_read_u32(np, "mc_val", &dwmac->mc_val) == 0) {
+		pr_debug("cover mc_val as 0x%x\n", dwmac->mc_val);
+		writel(dwmac->mc_val, dwmac->regs + PRG_ETH0);
 	}
 
-	if (of_property_read_u32(np, "phy-mii-clk-sel", &phy_mii_clk_sel) == 0) {
-		pr_info("config phy-mii-clk-sel as 0x%x\n", phy_mii_clk_sel);
+	if (of_property_read_u32(np, "phy-mii-clk-sel", &dwmac->phy_mii_clk_sel) == 0) {
+		pr_info("config phy-mii-clk-sel as 0x%x\n", dwmac->phy_mii_clk_sel);
 		/* mii_clk_sel switch to RMII interface */
-		writel(phy_mii_clk_sel, dwmac->regs + PRG_ETH_TX_GLITCH_FIX);
+		writel(dwmac->phy_mii_clk_sel, dwmac->regs + PRG_ETH_TX_GLITCH_FIX);
 	}
 
 	if (of_property_read_u32(np, "eee-enable", &priv->eth_priv.inphy_eee_enable) != 0)
@@ -534,7 +540,7 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 			pr_err("set default cali_val as 0\n");
 		writel(cali_val, dwmac->regs + PRG_ETH1);
 	}
-	mc_val = readl(dwmac->regs + PRG_ETH0);
+	dwmac->mc_val = readl(dwmac->regs + PRG_ETH0);
 
 	return 0;
 }
@@ -549,8 +555,6 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 	struct input_dev *input_dev;
 #endif
-	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
 #endif
 	int ret;
 
@@ -640,7 +644,6 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	aml_custom_setting(pdev, dwmac);
 #ifdef CONFIG_PM_SLEEP
 	device_init_wakeup(&pdev->dev, true);
-	mac_wol_enable = priv->eth_priv.wol_switch_from_user;
 
 	/*input device to send virtual pwr key for android*/
 	input_dev = input_allocate_device();
@@ -693,10 +696,10 @@ static void meson8b_dwmac_shutdown(struct platform_device *pdev)
 	int ret;
 
 	if (priv->eth_priv.internal_phy == 2) {
-		set_wol_notify_bl31(0);
+		set_wol_notify_bl31(dwmac, 0);
 		set_wol_notify_bl30(dwmac, 2);
 	} else {
-		set_wol_notify_bl31(0);
+		set_wol_notify_bl31(dwmac, 0);
 		set_wol_notify_bl30(dwmac, 0);
 	}
 
@@ -795,8 +798,6 @@ static void dwmac_resume(struct meson8b_dwmac *dwmac)
 	writel(0x0, priv->eth_priv.phy_analog_config_addr + 0x4);
 }
 
-int backup_adv;
-int without_reset;
 static int meson8b_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
@@ -813,7 +814,7 @@ static int meson8b_suspend(struct device *dev)
 		/* enable WOL when phy ready and wakeup source is not empty */
 		if (phydev && amlogic_wol_wakeup_src_not_empty(dev)) {
 			phydev->irq_suspended = 0;
-			set_wol_notify_bl31(true);
+			set_wol_notify_bl31(dwmac, true);
 			set_wol_notify_bl30(dwmac, 4);
 			amlogic_wol_enter(dev);
 		} else {
@@ -828,7 +829,7 @@ static int meson8b_suspend(struct device *dev)
 
 	/*open wol, shutdown phy when not link*/
 	if (priv->eth_priv.wol_switch_from_user && phydev && phydev->link) {
-		set_wol_notify_bl31(true);
+		set_wol_notify_bl31(dwmac, true);
 		set_wol_notify_bl30(dwmac, true);
 		/*our phy not support wol by now*/
 		phydev->irq_suspended = 0;
@@ -837,15 +838,15 @@ static int meson8b_suspend(struct device *dev)
 		else
 			priv->wolopts = WAKE_MAGIC;
 		ret = stmmac_suspend(dev);
-		without_reset = 1;
+		dwmac->without_reset = 1;
 	} else {
 		if (priv->eth_priv.support_gpio_wol == 0 && priv->eth_priv.internal_phy == 2) {
 			pr_info("suspend: pull exphy reset\n");
-			set_wol_notify_bl31(false);
+			set_wol_notify_bl31(dwmac, false);
 			set_wol_notify_bl30(dwmac, 2);
 		} else {
 			pr_info("suspend: exphy wol\n");
-			set_wol_notify_bl31(false);
+			set_wol_notify_bl31(dwmac, false);
 			set_wol_notify_bl30(dwmac, false);
 		}
 		ret = stmmac_suspend(dev);
@@ -853,7 +854,7 @@ static int meson8b_suspend(struct device *dev)
 			if (dwmac->data->suspend)
 				ret = dwmac->data->suspend(dwmac);
 		}
-		without_reset = 0;
+		dwmac->without_reset = 0;
 	}
 	return ret;
 }
@@ -891,7 +892,7 @@ static int meson8b_resume(struct device *dev)
 #endif
 
 	priv->wolopts = 0;
-	if (priv->eth_priv.wol_switch_from_user && without_reset) {
+	if (priv->eth_priv.wol_switch_from_user && dwmac->without_reset) {
 		ret = stmmac_resume(dev);
 
 		if (get_resume_method() == ETH_PHY_WAKEUP  &&
@@ -926,10 +927,10 @@ static int meson8b_resume(struct device *dev)
 			ret = stmmac_resume(dev);
 		}
 		if (priv->eth_priv.internal_phy != 2) {
-			if (ee_reset_base) {
+			if (dwmac->ee_reset_base) {
 				pr_info("do eth reset\n");
-				writel((1 << eth_reset_bit), ee_reset_base);
-				writel(mc_val, dwmac->regs + PRG_ETH0);
+				writel((1 << dwmac->eth_reset_bit), dwmac->ee_reset_base);
+				writel(dwmac->mc_val, dwmac->regs + PRG_ETH0);
 				g12a_resume_enable_internal_mdio(priv->eth_priv.mdio_dev);
 				/*our phy not support wol by now*/
 				if (phydev)
@@ -946,7 +947,7 @@ static int meson8b_resume(struct device *dev)
 			/* only for eth reset or txhd2.
 			 * txhd2: restore register due to PHY must poweroff
 			 */
-			if (ee_reset_base || priv->eth_priv.phy_mode == 2) {
+			if (dwmac->ee_reset_base || priv->eth_priv.phy_mode == 2) {
 				if (phydev)
 					gxl_resume_internal_registers(phydev);
 			}
@@ -1013,13 +1014,13 @@ static int meson8b_restore(struct device *dev)
 	if (!phydev)
 		return 0;
 
-	if (mc_val)
-		writel(mc_val, dwmac->regs + PRG_ETH0);
+	if (dwmac->mc_val)
+		writel(dwmac->mc_val, dwmac->regs + PRG_ETH0);
 	else
 		writel(0x4be04, dwmac->regs + PRG_ETH0);
 
-	if (phy_mii_clk_sel)
-		writel(phy_mii_clk_sel, dwmac->regs + PRG_ETH_TX_GLITCH_FIX);
+	if (dwmac->phy_mii_clk_sel)
+		writel(dwmac->phy_mii_clk_sel, dwmac->regs + PRG_ETH_TX_GLITCH_FIX);
 
 	g12a_resume_enable_internal_mdio(priv->eth_priv.mdio_dev);
 	/*our phy not support wol by now*/
