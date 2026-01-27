@@ -112,7 +112,8 @@
 //2025.12.30 optimize the hpd control flow when resume
 //2026.01.12 Fix the issue that TB49 displays pink
 //2026.01.19 sync kernel5.15 and kernel6.12
-#define RX_DRV_VER "ver.2026/01/19"
+//2026.01.27 remove dsc cut logic
+#define RX_DRV_VER "ver.2026/01/27"
 
 /*print type*/
 #define COR1_LOG	0x10000
