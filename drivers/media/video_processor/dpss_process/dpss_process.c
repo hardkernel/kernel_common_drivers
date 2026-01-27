@@ -1994,9 +1994,12 @@ static bool check_need_do_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 		}
 	}
 
-	/*input fps more than output fps*/
-	if ((vf->duration + 1) < dev->output_duration) {
-		dp_print(dev->index, PRINT_OTHER, "input fps more than output, no need do dpss.\n");
+	if (vf->duration >= 1600) {
+		need_do_dpss = true;
+	} else if ((vf->duration + 1) < dev->output_duration) {
+		/*input fps more than output fps*/
+		dp_print(dev->index, PRINT_OTHER,
+			"input fps more than output, no need do dpss.\n");
 		need_do_dpss = false;
 	}
 
