@@ -2,7 +2,7 @@
 
 config AMLOGIC_CMA_DEBUG
     bool "Amlogic cma debug support"
-    depends on !DEBUG_FS
+    depends on !DEBUG_FS && CMA_SYSFS
     default y
     help
       This is the debug interface for cma
