@@ -57,6 +57,26 @@
 #define FR_PLL_DIV0	0x1c
 #define FR_PLL_DIV1	0x1d
 
+struct meson_phy_priv {
+	int restore_lpa_for_eee;
+	bool actual_lpa;
+};
+
+static int meson_gxl_probe(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	struct meson_phy_priv *priv;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->restore_lpa_for_eee = -1;
+	phydev->priv = priv;
+
+	return 0;
+}
+
 static int meson_gxl_open_banks(struct phy_device *phydev)
 {
 	int ret;
@@ -203,11 +223,11 @@ read_status_continue:
 	return genphy_read_status(phydev);
 }
 
-static int restore_lpa_for_eee = -1;
-static bool actual_lpa;
 /* use restore_lpa_for_eee instead of MII_LPA for EEE, Compatible with non-EEE */
 static int meson_genphy_read_lpa(struct phy_device *phydev)
 {
+	struct meson_phy_priv *priv = phydev->priv;
+
 	if (phydev->autoneg == AUTONEG_ENABLE) {
 		if (!phydev->autoneg_complete) {
 			mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising,
@@ -216,10 +236,10 @@ static int meson_genphy_read_lpa(struct phy_device *phydev)
 			return 0;
 		}
 
-		if (restore_lpa_for_eee < 0)
-			return restore_lpa_for_eee;
+		if (priv->restore_lpa_for_eee < 0)
+			return priv->restore_lpa_for_eee;
 
-		mii_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, restore_lpa_for_eee);
+		mii_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, priv->restore_lpa_for_eee);
 	} else {
 		linkmode_zero(phydev->lp_advertising);
 	}
@@ -229,7 +249,8 @@ static int meson_genphy_read_lpa(struct phy_device *phydev)
 
 static void phy_resolve_aneg_linkmode_meson(struct phy_device *phydev)
 {
-	int	val = phy_read(phydev, SPEC_CTRL_STATUS);
+	struct meson_phy_priv *priv = phydev->priv;
+	int val = phy_read(phydev, SPEC_CTRL_STATUS);
 
 	switch ((val & SPEC_STATUS_SPEED) >> 2) {
 	case SPEC_SPEED_10M_HALF:
@@ -251,8 +272,8 @@ static void phy_resolve_aneg_linkmode_meson(struct phy_device *phydev)
 	}
 
 	if (phydev->duplex == DUPLEX_FULL) {
-		phydev->pause = (restore_lpa_for_eee & LPA_PAUSE_CAP) ? 1 : 0;
-		phydev->asym_pause = (restore_lpa_for_eee & LPA_PAUSE_ASYM) ? 1 : 0;
+		phydev->pause = (priv->restore_lpa_for_eee & LPA_PAUSE_CAP) ? 1 : 0;
+		phydev->asym_pause = (priv->restore_lpa_for_eee & LPA_PAUSE_ASYM) ? 1 : 0;
 	}
 }
 
@@ -396,6 +417,7 @@ static irqreturn_t meson_gxl_handle_interrupt(struct phy_device *phydev)
 {
 	int irq_status;
 	struct aml_eth_priv *eth_priv = aml_get_eth_priv_by_pdev(phydev);
+	struct meson_phy_priv *priv = phydev->priv;
 
 	irq_status = phy_read(phydev, INTSRC_FLAG);
 	if (irq_status < 0) {
@@ -408,17 +430,17 @@ static irqreturn_t meson_gxl_handle_interrupt(struct phy_device *phydev)
 
 	if (eth_priv->ephy_eee_support && eth_priv->inphy_eee_enable) {
 		if (irq_status & INTSRC_LINK_DOWN)
-			actual_lpa = 0;
+			priv->actual_lpa = 0;
 
 		if (irq_status & INTSRC_ANEG_PR) {
-			if (!actual_lpa) {
+			if (!priv->actual_lpa) {
 				/* LINK_DOWN -> ANEG restored first LPA REGISTER */
-				restore_lpa_for_eee = phy_read(phydev, MII_LPA);
-				if (restore_lpa_for_eee < 0) {
+				priv->restore_lpa_for_eee = phy_read(phydev, MII_LPA);
+				if (priv->restore_lpa_for_eee < 0) {
 					phy_error(phydev);
 					return IRQ_NONE;
 				}
-				actual_lpa = 1;
+				priv->actual_lpa = 1;
 			}
 		}
 	}
@@ -428,10 +450,6 @@ static irqreturn_t meson_gxl_handle_interrupt(struct phy_device *phydev)
 }
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-/*tx_amp*/
-
-unsigned int voltage_phy;
-EXPORT_SYMBOL_GPL(voltage_phy);
 static unsigned int return_write_val(struct phy_device *phy_dev, int rd_addr)
 {
 	int rd_data;
@@ -493,8 +511,7 @@ static unsigned int phy_tst_read(struct phy_device *phy_dev, unsigned int rd_add
 
 	return rd_data;
 }
-unsigned int tx_amp_bl2;
-EXPORT_SYMBOL_GPL(tx_amp_bl2);
+
 static int custom_internal_config(struct phy_device *phydev)
 {
 	unsigned int efuse_valid = 0;
@@ -502,7 +519,7 @@ static int custom_internal_config(struct phy_device *phydev)
 	unsigned int setup_amp = 0;
 	struct aml_eth_priv *eth_priv = aml_get_eth_priv_by_pdev(phydev);
 
-	efuse_amp = tx_amp_bl2;
+	efuse_amp = eth_priv->tx_amp_bl2;
 	efuse_valid = ((efuse_amp >> 4) & 0x3);
 	setup_amp = efuse_amp & 0xf;
 
@@ -521,14 +538,14 @@ static int custom_internal_config(struct phy_device *phydev)
 	}
 	/*voltage phy*/
 	/*t3x*/
-	if (voltage_phy == 1) {
+	if (eth_priv->phy_mode == 1) {
 	//	phy_tst_write(phydev, 0x18, 0x8);
 		/*set A4 bit[12:14] as 0, all the setting from mail 2023-4-7 title:T3X Ethernet */
 		phy_tst_write(phydev, 0x15, phy_tst_read(phydev, 0x15) & 0x8fff);
 		pr_info("setup voltage phy %x\n", phy_tst_read(phydev, 0x15));
 	}
 	/*txhd2*/
-	if (voltage_phy == 2) {
+	if (eth_priv->phy_mode == 2) {
 		phy_tst_write(phydev, 0x16, 0x8402);
 		phy_tst_write(phydev, 0x15, 0x4408);
 		pr_debug("setup voltage phy reg16 %x reg15 %x\n",
@@ -536,7 +553,7 @@ static int custom_internal_config(struct phy_device *phydev)
 				phy_tst_read(phydev, 0x15));
 	}
 	/*s1a*/
-	if (voltage_phy == 3) {
+	if (eth_priv->phy_mode == 3) {
 		phy_tst_write(phydev, 0x16, 0x8402);
 		phy_tst_write(phydev, 0x15, 0x4408);
 		pr_debug("setup voltage phy reg16 %x reg15 %x\n",
@@ -544,7 +561,7 @@ static int custom_internal_config(struct phy_device *phydev)
 				phy_tst_read(phydev, 0x15));
 	}
 	/*s7*/
-	if (voltage_phy == 4) {
+	if (eth_priv->phy_mode == 4) {
 		phy_tst_write(phydev, 0x16, 0x8406);
 		phy_tst_write(phydev, 0x15, 0x4408);
 		pr_debug("setup voltage phy reg16 %x reg15 %x\n",
@@ -555,7 +572,7 @@ static int custom_internal_config(struct phy_device *phydev)
 		phy_tst_write(phydev, 0x1b, 0x00a0);
 	}
 	/*s7d s6*/
-	if (voltage_phy == 5 || voltage_phy == 6) {
+	if (eth_priv->phy_mode == 5 || eth_priv->phy_mode == 6) {
 		phy_tst_write(phydev, 0x16, 0x8402);
 		phy_tst_write(phydev, 0x15, 0x4408);
 		pr_debug("setup voltage phy reg16 %x reg15 %x\n",
@@ -566,7 +583,7 @@ static int custom_internal_config(struct phy_device *phydev)
 		phy_tst_write(phydev, 0x1b, 0x00a0);
 	}
 	/*t6d*/
-	if (voltage_phy == 7) {
+	if (eth_priv->phy_mode == 7) {
 		phy_tst_write(phydev, 0x16, 0x8406);
 		phy_tst_write(phydev, 0x15, 0x4408);
 		pr_debug("setup voltage phy reg16 %x reg15 %x\n",
@@ -577,7 +594,7 @@ static int custom_internal_config(struct phy_device *phydev)
 		phy_tst_write(phydev, 0x1b, 0x00a0);
 	}
 	/*t6x*/
-	if (voltage_phy == 8) {
+	if (eth_priv->phy_mode == 8) {
 		phy_tst_write(phydev, 0x16, 0x8406);
 		phy_tst_write(phydev, 0x15, 0x2408);
 		pr_info("setup voltage phy reg16 %x reg15 %x\n",
@@ -636,6 +653,7 @@ static struct phy_driver meson_gxl_phy[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x01814400),
 		.name		= "Meson GXL Internal PHY",
+		.probe		= meson_gxl_probe,
 		/* PHY_BASIC_FEATURES */
 		.flags		= PHY_IS_INTERNAL,
 		.soft_reset     = genphy_soft_reset,
@@ -648,6 +666,7 @@ static struct phy_driver meson_gxl_phy[] = {
 	}, {
 		PHY_ID_MATCH_EXACT(0x01803301),
 		.name		= "Meson G12A Internal PHY",
+		.probe		= meson_gxl_probe,
 		/* PHY_BASIC_FEATURES */
 		.flags		= PHY_IS_INTERNAL,
 		.soft_reset     = genphy_soft_reset,

@@ -25,14 +25,6 @@
 #include <linux/phylink.h>
 #include <linux/sysfs.h>
 
-//#include "eth_reg.h"
-/*add this to stop checking wol,which will reset phy*/
-//extern unsigned int enable_wol_check;
-//extern unsigned int tx_amp_bl2;
-//extern unsigned int enet_type;
-//extern void __iomem *ioaddr_dbg;
-//#ifdef CONFIG_AMLOGIC_ETH_PRIVE
-
 /**
  * struct phylink - internal data type for phylink
  */
@@ -98,6 +90,8 @@ struct aml_eth_priv {
 	unsigned int ephy_eee_support;
 	unsigned int inphy_eee_enable;
 	struct device *dev;
+	unsigned int tx_amp_bl2;
+	unsigned int phy_mode;
 #if IS_ENABLED(CONFIG_PM_SLEEP)
 	unsigned int wol_switch_from_user;
 	unsigned int mdns_switch_from_user;
@@ -107,11 +101,9 @@ struct aml_eth_priv {
 #endif
 };
 
-extern unsigned int tx_amp_bl2;
-extern unsigned int voltage_phy;
-//#endif
 int gmac_create_sysfs(struct aml_eth_priv *eth_priv);
 int gmac_remove_sysfs(struct aml_eth_priv *eth_priv);
 struct aml_eth_priv *aml_get_eth_priv_by_pdev(struct phy_device *phydev);
 struct aml_eth_priv *aml_get_eth_priv_by_ndev(struct device *dev);
+
 #endif

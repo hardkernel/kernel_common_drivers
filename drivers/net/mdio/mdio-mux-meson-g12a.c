@@ -23,8 +23,6 @@ EXPORT_SYMBOL_GPL(phy_analog_config_addr);
 /*0 for 12nm, 1 for 22nm*/
 unsigned int phy_pll_mode;
 EXPORT_SYMBOL_GPL(phy_pll_mode);
-unsigned int phy_mode;
-EXPORT_SYMBOL_GPL(phy_mode);
 unsigned int ephy_clk_gate;
 EXPORT_SYMBOL_GPL(ephy_clk_gate);
 #endif
@@ -311,19 +309,18 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 
 		pr_info("txamp 0x%x\n", readl(tx_amp_src));
 		if (((readl(tx_amp_src) & 0x3f) >> 4) & 0x3)
-			tx_amp_bl2 = (readl(tx_amp_src) & 0x3f);
+			eth_priv->tx_amp_bl2 = (readl(tx_amp_src) & 0x3f);
 		else /*efuse not set use default*/
-			tx_amp_bl2 = (0x180018 & 0x3f);
+			eth_priv->tx_amp_bl2 = (0x180018 & 0x3f);
 
 		/* default 0
 		 * 1 means voltage phy t3
 		 * 2 means voltage phy txhd2
 		 */
-		if (of_property_read_u32(np, "phy_mode", &phy_mode) == 0) {
-			pr_info("phy_mode %d\n", phy_mode);
-			voltage_phy = phy_mode;
+		if (of_property_read_u32(np, "phy_mode", &eth_priv->phy_mode) == 0) {
+			pr_info("phy_mode %d\n", eth_priv->phy_mode);
 			/*t3x*/
-			if (phy_mode == 1) {
+			if (eth_priv->phy_mode == 1) {
 				/*bit[20:16] bit20 valid, bit[19:16] rx value*/
 				rx_R = (readl(tx_amp_src) & 0x1f0000);
 		//		rx_R = (0x180018 & 0x1f0000);
@@ -342,7 +339,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 			}
 
 			/*txhd2*/
-			if (phy_mode == 2) {
+			if (eth_priv->phy_mode == 2) {
 				/*bit[24:16]: bit24 valid, bit[23:20] tx, bit[19:16] rx*/
 				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
 //				efuse_get_tmp = 0x1990019;
@@ -362,7 +359,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 			}
 
 			/*s1a*/
-			if (phy_mode == 3) {
+			if (eth_priv->phy_mode == 3) {
 				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
 				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
 					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
@@ -380,7 +377,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 			}
 
 			/*s7*/
-			if (phy_mode == 4) {
+			if (eth_priv->phy_mode == 4) {
 				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
 				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
 					rx_R = (efuse_get_tmp & 0xf00000) >> 20;
@@ -397,7 +394,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 				writel(0x00000023, priv->regs + ETH_PLL_CTL7);
 			}
 			/*s7d s6*/
-			if (phy_mode == 5 || phy_mode == 6) {
+			if (eth_priv->phy_mode == 5 || eth_priv->phy_mode == 6) {
 				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
 				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
 					rx_R = (efuse_get_tmp & 0xf00000) >> 20;
@@ -416,7 +413,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 //				writel(0x00007423, priv->regs + ETH_PLL_CTL7);
 			}
 			/*t6d*/
-			if (phy_mode == 7) {
+			if (eth_priv->phy_mode == 7) {
 				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
 				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
 					rx_R = (efuse_get_tmp & 0xf00000) >> 20;
@@ -433,7 +430,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 				writel(0x00003623, priv->regs + ETH_PLL_CTL7);
 			}
 			/*t6x*/
-			if (phy_mode == 8) {
+			if (eth_priv->phy_mode == 8) {
 				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
 				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
 					rx_R = (efuse_get_tmp & 0xf00000) >> 20;
@@ -514,7 +511,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	}
 	value |= PHY_CNTL1_PHY_ENB;
 	value |= led_setting;
-	if (phy_mode == 5)
+	if (eth_priv->phy_mode == 5)
 		value |= 0x200000;
 	writel(value, priv->regs + ETH_PHY_CNTL1);
 	/* The phy needs a bit of time to power up */

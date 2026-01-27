@@ -730,6 +730,9 @@ static int dwmac_suspend(struct meson8b_dwmac *dwmac)
 
 static void dwmac_resume(struct meson8b_dwmac *dwmac)
 {
+	struct net_device *ndev = dev_get_drvdata(dwmac->dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
 	pr_info("recover analog\n");
 	if (phy_pll_mode == 1) {
 		writel(0x608200a0, phy_analog_config_addr + 0x44);
@@ -740,7 +743,7 @@ static void dwmac_resume(struct meson8b_dwmac *dwmac)
 		usleep_range(100, 200);
 		writel(0x508200a0, phy_analog_config_addr + 0x44);
 		writel(0x00000110, phy_analog_config_addr + 0x4c);
-		if (phy_mode == 2) {
+		if (priv->eth_priv.phy_mode == 2) {
 			writel(0x74047, phy_analog_config_addr + 0x84);
 			writel(0x34047, phy_analog_config_addr + 0x84);
 			writel(0x74047, phy_analog_config_addr + 0x84);
@@ -940,7 +943,7 @@ static int meson8b_resume(struct device *dev)
 			/* only for eth reset or txhd2.
 			 * txhd2: restore register due to PHY must poweroff
 			 */
-			if (ee_reset_base || phy_mode == 2) {
+			if (ee_reset_base || priv->eth_priv.phy_mode == 2) {
 				if (phydev)
 					gxl_resume_internal_registers(phydev);
 			}
