@@ -141,7 +141,7 @@ static const char amlvideo2_group_name[] = "amlvideo2";
 //MODULE_AUTHOR("amlogic-sh");
 //MODULE_LICENSE("GPL");
 static unsigned int video_nr = 11;
-static bool is_black_frame;
+static bool is_black_frame[2];
 
 #define TEST_LATENCY
 #define DEF_FRAMERATE 30
@@ -5177,19 +5177,7 @@ static void amlvideo2_sleep(struct amlvideo2_fh *fh)
 	struct amlvideo2_node *node = fh->node;
 	/* struct amlvideo2_node_dmaqueue *dma_q = &node->vidq; */
 
-	/* DECLARE_WAITQUEUE(wait, current); */
-
-	/* dpr_err(node->aml2_dev, 1, "%s dma_q=0x%08lx\n", __func__, */
-	/* (unsigned long)dma_q); */
-
-	/* add_wait_queue(&dma_q->wq, &wait); */
-	/* if (kthread_should_stop()) */
-	/* goto stop_task; */
-
-	/* Calculate time to wake up */
-	/* timeout = msecs_to_jiffies(frames_to_ms(1)); */
-
-	if (is_black_frame && fh->is_streamed_on && node->screencap_type == 0) {
+	if (is_black_frame[node->vid] && fh->is_streamed_on && node->screencap_type == 0) {
 		if (amlvideo2_thread_tick_black(fh) < 0)
 			schedule_timeout_interruptible(1);
 	} else {
@@ -5310,18 +5298,18 @@ static int amlvideo2_thread(void *data)
 			video_enable = true;
 
 		if (node->vid == 1) {
-			if (video_enable && is_black_frame && node->screencap_type == 0) {
-				pr_info("amlvideo2:video already ok\n");
-				is_black_frame = false;
+			if (video_enable && is_black_frame[1] && node->screencap_type == 0) {
+				pr_info("amlvideo2.1:video already ok\n");
+				is_black_frame[1] = false;
 				ret = start_send_normal_frame(fh);
 				if (ret < 0)
 					pr_err("start normal frame err.\n");
 				node->frame_inittime = 1;
 			}
-			if (!video_enable && !is_black_frame && node->screencap_type == 0) {
-				is_black_frame = true;
+			if (!video_enable && !is_black_frame[1] && node->screencap_type == 0) {
+				is_black_frame[1] = true;
 				stop_vdin1_service(node);
-				pr_info("send from normal to black.\n");
+				pr_info("amlvideo2.1:send from normal to black.\n");
 				node->frame_inittime = 1;
 				ktime_get_ts64(&node->thread_ts1);
 #ifdef TEST_LATENCY
@@ -5332,14 +5320,14 @@ static int amlvideo2_thread(void *data)
 #endif
 			}
 		} else if (node->vid == 0) {
-			if (node->is_reg && is_black_frame) {
-				pr_info("amlvideo2:video already ok\n");
-				is_black_frame = false;
+			if (node->is_reg && is_black_frame[0]) {
+				pr_info("amlvideo2.0:video already ok\n");
+				is_black_frame[0] = false;
 				node->frame_inittime = 1;
 			}
-			if (!node->is_reg && !is_black_frame) {
-				is_black_frame = true;
-				pr_info("send from normal to black.\n");
+			if (!node->is_reg && !is_black_frame[0]) {
+				is_black_frame[0] = true;
+				pr_info("amlvideo2.0:send from normal to black.\n");
 				node->frame_inittime = 1;
 				ktime_get_ts64(&node->thread_ts1);
 #ifdef TEST_LATENCY
@@ -6527,15 +6515,15 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		(!get_video_enabled(1) &&
 		node->porttype == TVIN_PORT_VIU2_VD1)) {
 		pr_info("start screencap but no video\n");
-		is_black_frame = true;
+		is_black_frame[node->vid] = true;
 	} else {
-		is_black_frame = false;
+		is_black_frame[node->vid] = false;
 	}
 
 	if (node->r_type == AML_RECEIVER_NONE)
 		amlvideo2_start_thread(fh);
 
-	if (is_black_frame)
+	if (is_black_frame[node->vid])
 		goto start;
 
 	get_video_input_info(&video_input_parms); /*only video and point 7*/
@@ -7044,7 +7032,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 		return 0;
 	}
 
-	is_black_frame = false;
+	is_black_frame[node->vid] = false;
 
 	if (amlvideo2_dbg_en) {
 		pr_info("%s , %d\n", __func__, __LINE__);
@@ -8146,7 +8134,7 @@ static int amlvideo2_receiver_event_fun(int type, void *data,
 		amlvideo2_total_get_count = 0;
 		amlvideo2_total_put_count = 0;
 		if (node->vid == 0) {
-			is_black_frame = false;
+			is_black_frame[0] = false;
 			node->is_reg = true;
 		}
 		break;
@@ -8166,7 +8154,7 @@ static int amlvideo2_receiver_event_fun(int type, void *data,
 			vf_unreg_provider(&node->amlvideo2_vf_prov);
 		}
 		if (node->vid == 0) {
-			is_black_frame = true;
+			is_black_frame[0] = true;
 			node->is_reg = false;
 		}
 
