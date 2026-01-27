@@ -205,7 +205,7 @@
 		method = "smc";
 	};
 
-	aml_watermark {
+	aml_watermark: aml_watermark {
 		compatible = "amlogic,watermark";
 		soc-name = "s6";
 		interrupts = <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>; //=viu-vsync
@@ -2215,7 +2215,7 @@
 		dev_name = "encmem";
 		status = "okay";
 	};
-	amdolby_vision {
+	amdolby_vision: amdolby_vision {
 		compatible = "amlogic, dolby_vision_s6";
 		dev_name = "aml_amdolby_vision_driver";
 		status = "okay";
