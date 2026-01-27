@@ -768,7 +768,7 @@ void lcd_vbyone_wait_hpd(struct aml_lcd_drv_s *pdrv)
 	if (val) {
 		LCD_PR(pdrv, "%s: hpd=%d", __func__, val);
 	} else {
-		LCD_PR(pdrv, "%s: hpd=%d, wait time=%dms\n", pdrv->index, __func__, val, i);
+		LCD_PR(pdrv, "%s: hpd=%d, wait time=%dms", pdrv->index, __func__, val, i);
 		/* force low only activated for actual hpd is low */
 		lcd_vcbus_setb(vx1_reg->reg_insig_ctrl + offset, 1, 2, 2);
 	}

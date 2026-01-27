@@ -123,7 +123,7 @@ static void lcd_drm_vmode_update(struct aml_lcd_drv_s *pdrv, struct lcd_detail_t
 		}
 		break;
 	default:
-		LCD_ERR(pdrv, "%s: invalid fr_adjust_type: %d", __func__, ptiming->fr_adjust_type);
+		LCD_ERR(pdrv, "drm vmode update: invalid fr_adj: %d", ptiming->fr_adjust_type);
 		return;
 	}
 
@@ -155,8 +155,8 @@ static void lcd_drm_display_mode_add(struct aml_lcd_drv_s *pdrv,
 	if (frame_rate != ptiming->frame_rate)
 		lcd_drm_vmode_update(pdrv, ptiming, pmode, frame_rate);
 
-	LCD_DBG(pdrv, "%s: %s, clock=%dkHz, htotal=%d, vtotal=%d",
-		__func__, pmode->name, pmode->clock, pmode->htotal, pmode->vtotal);
+	LCD_DBG(pdrv, "drm mode add: %s, clock=%dkHz, htotal=%d, vtotal=%d",
+		pmode->name, pmode->clock, pmode->htotal, pmode->vtotal);
 }
 
 static int get_lcd_drm_modes(struct meson_panel_dev *panel,
@@ -174,7 +174,7 @@ static int get_lcd_drm_modes(struct meson_panel_dev *panel,
 
 	mode_cnt = pdrv->vmode_mgr.vmode_cnt;
 
-	LCD_DBG(pdrv, "%s: %d", __func__, mode_cnt);
+	LCD_DBG(pdrv, "drm mode get: %d", mode_cnt);
 
 	nmodes = kcalloc(mode_cnt, sizeof(struct drm_display_mode), GFP_KERNEL);
 	if (!nmodes) {
@@ -194,6 +194,9 @@ static int get_lcd_drm_modes(struct meson_panel_dev *panel,
 					temp_list->info->height, temp_list->info->base_fr);
 			lcd_drm_display_mode_add(pdrv, ptiming, &nmodes[mode_idx],
 				temp_list->info->base_fr);
+			if (pdrv->vmode_mgr.cur_vmode_info == temp_list->info &&
+			    temp_list->info->duration_index == 0xff)
+				nmodes[mode_idx].type |= DRM_MODE_TYPE_PREFERRED;
 			mode_idx++;
 		}
 
@@ -204,8 +207,12 @@ static int get_lcd_drm_modes(struct meson_panel_dev *panel,
 
 			memset(nmodes[mode_idx].name, 0, DRM_DISPLAY_MODE_LEN);
 			str_add_vmode(nmodes[mode_idx].name, 0, temp_list->info->width,
-					temp_list->info->height, frame_rate);
+				temp_list->info->height, frame_rate);
 			lcd_drm_display_mode_add(pdrv, ptiming, &nmodes[mode_idx], frame_rate);
+
+			if (pdrv->vmode_mgr.cur_vmode_info == temp_list->info &&
+					i == temp_list->info->duration_index)
+				nmodes[mode_idx].type |= DRM_MODE_TYPE_PREFERRED;
 			mode_idx++;
 		}
 		temp_list = temp_list->next;
@@ -290,8 +297,8 @@ static u8 lcd_drm_timing_find(struct aml_lcd_drv_s *pdrv, struct drm_display_mod
 		}
 
 		if (pdrv->mode == LCD_MODE_TABLET) {
-			if (lcd_u32_diff(pclk, temp_list->info->base_fr * 10) <= 5) {
-				LCD_DBG(pdrv, "%s: list[%u] %dx%d@%dhz (base)", __func__,
+			if (lcd_u32_diff(pclk, temp_list->info->base_fr * 10) < 10) {
+				LCD_DBG(pdrv, "timing find: list[%u] %dx%d@%dhz (base)",
 					vmode_list_idx,
 					temp_list->info->width, temp_list->info->height,
 					temp_list->info->base_fr);
@@ -305,8 +312,8 @@ static u8 lcd_drm_timing_find(struct aml_lcd_drv_s *pdrv, struct drm_display_mod
 			if (temp_list->info->duration[i].frame_rate == 0)
 				break;
 
-			if (lcd_u32_diff(pclk, temp_list->info->duration[i].frame_rate * 10) <= 5) {
-				LCD_DBG(pdrv, "%s: list[%u] %dx%d@%dhz (fr[%u])", __func__,
+			if (lcd_u32_diff(pclk, temp_list->info->duration[i].frame_rate * 10) < 10) {
+				LCD_DBG(pdrv, "timing find: list[%u] %dx%d@%dhz (fr[%u])",
 					vmode_list_idx,
 					temp_list->info->width, temp_list->info->height,
 					temp_list->info->duration[i].frame_rate, i);
@@ -315,11 +322,12 @@ static u8 lcd_drm_timing_find(struct aml_lcd_drv_s *pdrv, struct drm_display_mod
 				return 0;
 			}
 		}
+
 		temp_list = temp_list->next;
 		vmode_list_idx++;
 	}
 
-	LCD_ERR(pdrv, "%s: invalid drm mode: %u[%u] * %u[%u] %u kHz", __func__,
+	LCD_ERR(pdrv, "timing find: invalid %u[%u] * %u[%u] %u kHz",
 			h_active, htotal, v_active, vtotal, pclk);
 	return 1;
 }
@@ -338,13 +346,13 @@ static void lcd_drm_set_mode_timing(struct meson_panel_dev *panel,
 	pdrv = wrapper->lcd_drv;
 
 	if (!mode || ((vmode & 0xf) != VMODE_LCD)) {
-		LCD_ERR(pdrv, "%s: null mode received", __func__);
+		LCD_ERR(pdrv, "drm mode set: null mode");
 		return;
 	}
 
 	ret = lcd_drm_timing_find(pdrv, mode);
 	if (ret) {
-		LCD_ERR(pdrv, "%s: not matched", __func__);
+		LCD_ERR(pdrv, "drm mode set: not matched");
 		return;
 	}
 
@@ -401,7 +409,7 @@ static int meson_lcd_bind(struct device *dev, struct device *master, void *data)
 			bound_data->connector_component_bind(bound_data->drm,
 				drm_lcd_wrappers[index].drm_lcd_type,
 				&drm_lcd_wrappers[index].drm_lcd_instance.base);
-		LCD_PR(pdrv, "%s: connector_type: 0x%x, drm_id: %d", __func__,
+		LCD_PR(pdrv, "drm bind: connector_type: 0x%x, drm_id: %d",
 			drm_lcd_wrappers[index].drm_lcd_type, drm_lcd_wrappers[index].drm_id);
 	} else {
 		LCD_ERR(pdrv, "no bind func from drm");
@@ -421,7 +429,7 @@ static void meson_lcd_unbind(struct device *dev, struct device *master, void *da
 		bound_data->connector_component_unbind(bound_data->drm,
 			drm_lcd_wrappers[index].drm_lcd_type,
 			&drm_lcd_wrappers[index].drm_lcd_instance.base);
-		LCD_PR(pdrv, "%s: connector_type: 0x%x, drm_id: %d\n", __func__,
+		LCD_PR(pdrv, "drm unbind: connector_type: 0x%x, drm_id: %d",
 			drm_lcd_wrappers[index].drm_lcd_type, drm_lcd_wrappers[index].drm_id);
 	} else {
 		LCD_ERR(pdrv, "no unbind func from drm");

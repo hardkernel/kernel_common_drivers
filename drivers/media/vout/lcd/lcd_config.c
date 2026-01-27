@@ -2679,7 +2679,7 @@ int lcd_load_device_config(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *
 	}
 
 	// move to each mode in future (multi-device)
-	lcd_mode_common_add_device_vmode(pdrv, dev_p);
+	lcd_mode_add_device_vmode(pdrv, dev_p);
 
 	return 0;
 }

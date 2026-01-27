@@ -73,8 +73,8 @@ void lcd_connector_driver_init_pre(struct aml_lcd_drv_s *pdrv)
 	if (lcd_type_supported(pdrv))
 		return;
 
-	if (pdrv->mode == LCD_MODE_TABLET)
-		lcd_frame_rate_change(pdrv);
+	//if (pdrv->mode == LCD_MODE_TABLET)
+	//	lcd_frame_rate_change(pdrv);
 
 #ifdef CONFIG_AMLOGIC_VPU
 	vpu_dev_mem_power_on(pdrv->lcd_vpu_dev);

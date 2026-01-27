@@ -2297,16 +2297,6 @@ static void lcd_vsync_irq_remove(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
-static int lcd_mode_init(struct aml_lcd_drv_s *pdrv)
-{
-	if (!pdrv)
-		return -1;
-
-	lcd_mode_common_init(pdrv);
-
-	return 0;
-}
-
 void lcd_device_config_pre_clean(struct aml_lcd_drv_s *pdrv)
 {
 	lcd_debug_remove_connector(pdrv);
@@ -2319,8 +2309,8 @@ void lcd_device_config_pre_clean(struct aml_lcd_drv_s *pdrv)
 
 	lcd_fr_lock_deinit(pdrv);
 
-	lcd_mode_common_vout_server_remove(pdrv);
-	lcd_mode_common_remove(pdrv);
+	lcd_mode_vout_server_remove(pdrv);
+	lcd_mode_remove(pdrv);
 
 	// lcd_clk_config_remove(pdrv);
 
@@ -2374,8 +2364,8 @@ static int lcd_config_remove(struct aml_lcd_drv_s *pdrv)
 	lcd_config_load_remove(pdrv);
 	lcd_fr_lock_deinit(pdrv);
 
-	lcd_mode_common_vout_server_remove(pdrv);
-	lcd_mode_common_remove(pdrv);
+	lcd_mode_vout_server_remove(pdrv);
+	lcd_mode_remove(pdrv);
 
 	lcd_clk_config_remove(pdrv);
 
@@ -2384,7 +2374,7 @@ static int lcd_config_remove(struct aml_lcd_drv_s *pdrv)
 
 __maybe_unused static void lcd_vout_server_remove(struct aml_lcd_drv_s *pdrv)
 {
-	lcd_mode_common_vout_server_remove(pdrv);
+	lcd_mode_vout_server_remove(pdrv);
 }
 
 static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
@@ -2489,7 +2479,7 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	lcd_bootup_config_init(pdrv);
 	lcd_device_config_post_process(pdrv);
 
-	lcd_mode_common_vout_server_init(pdrv);
+	lcd_mode_vout_server_init(pdrv);
 	lcd_fr_lock_init(pdrv);
 	lcd_drm_add(pdrv->dev);
 	lrm_resource_device_finish(lrm_dev_name);
