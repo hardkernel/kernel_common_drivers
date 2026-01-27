@@ -141,6 +141,13 @@ config AMLOGIC_DEBUG_IOTM
 	help
 	  support for hw iotrace function
 
+config AMLOGIC_DEBUG_AOCPU_MONITOR
+	bool "amlogic aocpu monitor config"
+	depends on AMLOGIC_DEBUG_IOTRACE
+	default n
+	help
+	  support for monitor cpu status on aocpu
+
 config AMLOGIC_ARMV8_AARCH32
 	bool "AARCH32 kernel support for Amlogic ARMv8 Soc"
 	depends on AMLOGIC_BREAK_GKI_20

@@ -22,6 +22,11 @@ ddk_module(
 		"iotm_v2.c",
 	    ],
 	},
+	"CONFIG_AMLOGIC_DEBUG_AOCPU_MONITOR": {
+	    True: [
+		"aml_aocpu_monitor.c",
+	    ],
+	},
     },
     hdrs = [
     ],

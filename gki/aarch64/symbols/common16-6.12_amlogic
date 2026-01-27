@@ -108,3 +108,6 @@
  input_register_handler
  input_unregister_handle
  input_unregister_handler
+
+# amlogic-iotrace.ko
+ stop_one_cpu_nowait

@@ -29,7 +29,9 @@
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
 #include <linux/amlogic/aml_iotm.h>
 #endif
-
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_AOCPU_MONITOR)
+#include <linux/amlogic/aml_aocpu_monitor.h>
+#endif
 #define AML_PERSISTENT_RAM_SIG (0x4c4d41) /* AML */
 
 int ramoops_ftrace_en;
@@ -1246,7 +1248,9 @@ int __init aml_iotrace_init(void)
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
 	iotm_init();
 #endif
-
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_AOCPU_MONITOR)
+	aocpu_monitor_init();
+#endif
 	if (!ramoops_io_en)
 		return 0;
 
