@@ -8,7 +8,7 @@
 #define __AM_DNLP_CAL_H
 #include <linux/amlogic/media/amvecm/dnlp_alg.h>
 
-#define DNLP_VER	"v2025.02.26.1(minimum ko version: v2025.02.26.1)"
+#define DNLP_VER	"v2026.01.27.1(minimum ko version: v2026.01.27.1)"
 
 struct dnlp_parse_cmd_s {
 	char *parse_string;

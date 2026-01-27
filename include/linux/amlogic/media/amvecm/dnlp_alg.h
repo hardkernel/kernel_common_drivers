@@ -199,7 +199,7 @@ struct aml_lc_drv_param_s {
 	struct lc_curve_tune_param_s *lc_tune_curve;
 	void (*tune_nodes_patch)(int *omap, int *ihistogram, int i, int j);
 	void (*lc_fw_curve_iir)(int *lc_hist, int *lc_szcurve,
-		int blk_vnum, int blk_hnum, enum chip_type chip_type_id);
+		int blk_vnum, int blk_hnum, int chip_type_id);
 };
 
 struct aml_fmeter_drv_param_s {
