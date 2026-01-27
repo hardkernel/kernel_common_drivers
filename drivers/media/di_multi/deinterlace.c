@@ -5214,8 +5214,12 @@ void pp_buf_clear(struct di_buf_s *buff)
 		return;
 	}
 	/* clear */
-	if (!atomic_read(&buff->blk_buf->p_ref_mem))
-		buff->queue_index = -1;
+	if (buff->blk_buf) {
+		if (!atomic_read(&buff->blk_buf->p_ref_mem))
+			buff->queue_index = -1;
+	} else {
+		PR_ERR("%s:no blk\n", __func__);
+	}
 
 	buff->blk_buf	= NULL;
 	buff->flg_null	= 1;
@@ -5263,6 +5267,10 @@ static struct di_buf_s *pp_pst_2_local(struct di_ch_s *pch)
 	buf_pst = di_que_out_to_di_buf(ch, QUE_POST_FREE);
 	if (!di_buf) {
 		PR_ERR("%s:no buf\n", __func__);
+		return NULL;
+	}
+	if (!buf_pst || !buf_pst->blk_buf) {
+		PR_ERR("%s:no blk_buf\n", __func__);
 		return NULL;
 	}
 	pp_buf_cp(di_buf, buf_pst);

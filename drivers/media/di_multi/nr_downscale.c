@@ -1217,7 +1217,7 @@ void dim_nr_ds_hw_init(unsigned int width, unsigned int height, unsigned int ch)
 	v_step = height / height_out;
 
 	/*Switch MIF to NR_DS*/
-	if (!DIM_IS_IC(T6D)) {
+	if (!DIM_IS_IC(T6D) && !DIM_IS_IC(GXLX4)) {
 		op->bwr(VIUB_MISC_CTRL0, 3, 5, 2);
 		op->bwr(NRDSWR_X, (width_out - 1), 0, 13);
 		op->bwr(NRDSWR_Y, (height_out - 1), 0, 13);
