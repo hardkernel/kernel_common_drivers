@@ -1612,6 +1612,7 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 	devp->vdin_drop_ctl_cnt = 0;
 	devp->dv.allm_chg_cnt = 0;
 	devp->dv.allm1_chg_cnt = 0;
+	devp->dv.update_axi_addr = false;
 	devp->sg_chg_fps_cnt = 0;
 	devp->af_num = VDIN_CANVAS_MAX_CNT;
 	/* write vframe as default */
@@ -1627,10 +1628,6 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 	devp->afbce_flag = devp->dts_config.afbce_flag_cfg;
 	//todo:more parameter initializations will be move here
 	//TBC
-	devp->debug.dv_dbg_log_du = 60;
-	devp->debug.dv_dbg_mask = (DV_BUF_START_RESET);
-	devp->debug.vdin_frame_work_mode = VDIN_VF_PUT;
-	devp->debug.sleep_time = 50;
 }
 
 bool vdin_get_video_ready_state(enum tvin_port_e port)
@@ -3586,6 +3583,9 @@ void vdin_frame_write_ctrl_set(struct vdin_dev_s *devp,
 	if (devp->afbce_mode == 1 || devp->double_wr)
 		vdin_afbce_set_next_frame(devp, rdma_en, vfe);
 #endif
+	if (devp->dv.update_axi_addr)
+		vdin_config_amldolby_axi_addr(devp, vfe);
+
 	devp->pause_dec_once = false;
 }
 
@@ -4254,7 +4254,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (devp->last_wr_vfe && (devp->flags & VDIN_FLAG_RDMA_ENABLE) &&
 	    !(devp->game_mode & VDIN_GAME_MODE_1_2)) {
 		/*dolby vision metadata process*/
-		if (devp->debug.dv_dbg_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK &&
+		if (devp->dts_config.dv_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK &&
 		    devp->dv.dv_config) {
 			/* prepare for dolby vision metadata addr */
 			devp->dv.dv_cur_index = devp->last_wr_vfe->vf.index;
@@ -4264,8 +4264,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		} else if (vdin_dv_is_visf_data(devp)) {
 			vdin_dolby_buffer_update(devp,
 						 devp->last_wr_vfe->vf.index);
-			vdin_dolby_addr_update(devp,
-					       devp->curr_wr_vfe->vf.index);
+			vdin_dolby_addr_update(devp, devp->curr_wr_vfe->vf.index,
+				devp->flags & VDIN_FLAG_RDMA_ENABLE);
 		} else {
 			devp->dv.dv_crc_check = true;
 		}
@@ -4276,9 +4276,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		memcpy(&devp->vfp->dv_vsif,
 			&devp->dv.dv_vsif, sizeof(struct tvin_dv_vsif_s));
 		/*dv mode always put vframe, if cec check, vpp set video mute*/
-		if (devp->debug.dv_dbg_mask & DV_CRC_FORCE_TRUE)
+		if (devp->dts_config.dv_mask & DV_CRC_FORCE_TRUE)
 			devp->last_wr_vfe->vf.dv_crc_sts = true;
-		else if (devp->debug.dv_dbg_mask & DV_CRC_FORCE_FALSE)
+		else if (devp->dts_config.dv_mask & DV_CRC_FORCE_FALSE)
 			devp->last_wr_vfe->vf.dv_crc_sts = false;
 		else
 			devp->last_wr_vfe->vf.dv_crc_sts =
@@ -4512,7 +4512,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		if (devp->debug.change_get_drm & CURRENT_FRAME_GET_PROP)
 			devp->last_wr_vfe = curr_wr_vfe;
 		/*dolby vision metadata process*/
-		if ((devp->debug.dv_dbg_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK) &&
+		if ((devp->dts_config.dv_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK) &&
 		    devp->dv.dv_config) {
 			/* prepare for dolby vision metadata addr */
 			devp->dv.dv_cur_index = curr_wr_vfe->vf.index;
@@ -4521,15 +4521,16 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 					      devp->dv_work_dolby);
 		} else if (vdin_dv_is_visf_data(devp)) {
 			vdin_dolby_buffer_update(devp, curr_wr_vfe->vf.index);
-			vdin_dolby_addr_update(devp, next_wr_vfe->vf.index);
+			vdin_dolby_addr_update(devp, next_wr_vfe->vf.index,
+				devp->flags & VDIN_FLAG_RDMA_ENABLE);
 		} else {
 			devp->dv.dv_crc_check = true;
 		}
 
 		/*dv mode always put vframe, if cec check, vpp set video mute*/
-		if (devp->debug.dv_dbg_mask & DV_CRC_FORCE_TRUE)
+		if (devp->dts_config.dv_mask & DV_CRC_FORCE_TRUE)
 			curr_wr_vfe->vf.dv_crc_sts = true;
-		else if (devp->debug.dv_dbg_mask & DV_CRC_FORCE_FALSE)
+		else if (devp->dts_config.dv_mask & DV_CRC_FORCE_FALSE)
 			curr_wr_vfe->vf.dv_crc_sts = false;
 		else
 			curr_wr_vfe->vf.dv_crc_sts =
@@ -4985,7 +4986,7 @@ static void vdin_dv_dwork(struct work_struct *work)
 	}
 	if (vdin_dv_is_visf_data(devp)) {
 		vdin_dolby_buffer_update(devp, devp->dv.dv_cur_index);
-		vdin_dolby_addr_update(devp, devp->dv.dv_next_index);
+		vdin_dolby_addr_update(devp, devp->dv.dv_next_index, 0);
 	}
 
 	cancel_delayed_work(&devp->dv.dv_dwork);
@@ -7448,6 +7449,12 @@ static void vdin_get_dts_config(struct vdin_dev_s *devp,
 				   &devp->cr_lossy_param.cr_lossy_ratio);
 	if (ret)
 		devp->cr_lossy_param.cr_lossy_ratio = 50;//50%
+
+	ret = of_property_read_u32(pdev->dev.of_node, "dv_mask",
+				   &devp->dts_config.dv_mask);
+	if (ret)
+		devp->dts_config.dv_mask = (DV_BUF_START_RESET);
+
 	//lossy default
 	devp->cr_lossy_param.quant_diff_root_leave = 2;
 	devp->cr_lossy_param.burst_length_add_en = 0;
@@ -7508,7 +7515,12 @@ static void vdin_get_dts_config(struct vdin_dev_s *devp,
 	devp->vdin_function_sel |= VDIN_SET_DISPLAY_RATIO;
 	devp->dts_config.sct_remain_size = 2;/* Keep 2 pages to allocate the buffer faster.*/
 	devp->dts_config.vdin_mut_cnt = 32;
+
+	/* debug cmd */
 	devp->debug.sm_debug_enable = VDIN_SM_LOG_L_1;
+	devp->debug.dv_dbg_log_du = 60;
+	devp->debug.vdin_frame_work_mode = VDIN_VF_PUT;
+	devp->debug.sleep_time = 50;
 }
 
 static int vdin_drv_probe(struct platform_device *pdev)

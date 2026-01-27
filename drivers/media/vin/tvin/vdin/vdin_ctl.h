@@ -80,6 +80,7 @@
 #define CTL_DEBUG_EVENT_NO_COMP		(BIT(6))
 #define CTL_DEBUG_LUMA_MAX		(BIT(8))
 /* cma_config_flag */
+#define MEM_ALLOC_AMLDOLBY_METADATA	(BIT(17)) // 0-sys api,dma_alloc_coherent,1-codec_mm api
 #define MEM_ALLOC_CODEC_SCT		(BIT(16))
 #define MEM_ALLOC_DISCRETE		(BIT(8))
 #define MEM_ALLOC_FROM_CODEC		(BIT(0))
@@ -247,7 +248,8 @@ void vdin_set_config(struct vdin_dev_s *devp);
 void vdin_dolby_config(struct vdin_dev_s *devp);
 void vdin_dolby_buffer_update(struct vdin_dev_s *devp,
 			      unsigned int index);
-void vdin_dolby_addr_update(struct vdin_dev_s *devp, unsigned int index);
+void vdin_config_amldolby_axi_addr(struct vdin_dev_s *devp, struct vf_entry *vfe);
+void vdin_dolby_addr_update(struct vdin_dev_s *devp, unsigned int index, unsigned int rdma_enable);
 void vdin_dolby_addr_alloc(struct vdin_dev_s *devp, unsigned int size);
 void vdin_dolby_addr_release(struct vdin_dev_s *devp, unsigned int size);
 int vdin_event_cb(int type, void *data, void *op_arg);

@@ -108,7 +108,8 @@ void vdin_set_cm2_t3x(unsigned int offset, unsigned int w,
 		  unsigned int h, unsigned int *data, bool cm_enable);
 void vdin_force_go_filed_t3x(struct vdin_dev_s *devp);
 void vdin_dolby_config_t3x(struct vdin_dev_s *devp);
-void vdin_dolby_addr_update_t3x(struct vdin_dev_s *devp, unsigned int index);
+void vdin_dolby_addr_update_t3x(struct vdin_dev_s *devp,
+	unsigned int index, unsigned int rdma_enable);
 void vdin_set_top_t3x(struct vdin_dev_s *devp, enum tvin_port_e port,
 		  enum tvin_color_fmt_e input_cfmt, enum bt_path_e bt_path);
 void vdin_set_wr_ctrl_vsync_t3x(struct vdin_dev_s *devp,

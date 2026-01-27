@@ -288,7 +288,7 @@ bool vdin_dv_is_need_tunnel(struct vdin_dev_s *devp)
  */
 bool vdin_dv_is_visf_data(struct vdin_dev_s *devp)
 {
-	if (((devp->debug.dv_dbg_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK) == 0) &&
+	if (((devp->dts_config.dv_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK) == 0) &&
 	    devp->dv.dv_config && !devp->dv.low_latency &&
 	    devp->prop.dolby_vision == 1)
 		return true;

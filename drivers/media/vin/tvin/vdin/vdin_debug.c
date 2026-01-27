@@ -2462,8 +2462,8 @@ static void vdin_dump_debug_config(struct vdin_dev_s *devp)
 	pr_info("dbg_rw_reg_en:%d\n", devp->debug.dbg_rw_reg_en);
 	pr_info("rgb_info_enable:%d\n", devp->debug.rgb_info_enable);
 	pr_info("invert_top_bot:%d\n", devp->debug.invert_top_bot);
-	pr_info("dv_dbg_log:%#x, dv_dbg_log_du=%#x, dv_dbg_mask=%#x\n",
-		devp->debug.dv_dbg_log, devp->debug.dv_dbg_log_du, devp->debug.dv_dbg_mask);
+	pr_info("dv_dbg_log:%#x, dv_dbg_log_du=%#x, dv_mask=%#x\n",
+		devp->debug.dv_dbg_log, devp->debug.dv_dbg_log_du, devp->dts_config.dv_mask);
 	pr_info("vdin_ctl_dbg:%#x\n", devp->debug.vdin_ctl_dbg);
 	pr_info("vdin_isr_monitor:%#x\n", devp->debug.vdin_isr_monitor);
 	pr_info("vdin_dbg_en:%#x\n", devp->debug.vdin_dbg_en);
@@ -4432,23 +4432,11 @@ start_chk:
 			pr_err("miss para, current vframe_wr_en:%d\n",
 			       devp->vframe_wr_en);
 		}
-	} else if (!strcmp(parm[0], "dv_crc")) {
-		/*
-		 * 0:force false 1:force true 2:auto
-		 */
-		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0)) {
-			if (temp == 0) {
-				devp->debug.dv_dbg_mask |= DV_CRC_FORCE_FALSE;
-				devp->debug.dv_dbg_mask &= ~DV_CRC_FORCE_TRUE;
-			} else if (temp == 1) {
-				devp->debug.dv_dbg_mask &= ~DV_CRC_FORCE_FALSE;
-				devp->debug.dv_dbg_mask |= DV_CRC_FORCE_TRUE;
-			} else {
-				devp->debug.dv_dbg_mask &= ~DV_CRC_FORCE_FALSE;
-				devp->debug.dv_dbg_mask &= ~DV_CRC_FORCE_TRUE;
-			}
-			pr_info("dv_dbg_mask=0x%x\n", devp->debug.dv_dbg_mask);
-		}
+	} else if (!strcmp(parm[0], "dv_mask")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->dts_config.dv_mask = temp;
+
+		pr_info("dv_mask=0x%x\n", devp->dts_config.dv_mask);
 	} else if (!strcmp(parm[0], "get_hist")) {
 		pr_info("sum:0x%lx, width:%d, height:%d ave:0x%x\n",
 			vdin1_hist.sum,

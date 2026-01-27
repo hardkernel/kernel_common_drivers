@@ -698,7 +698,6 @@ struct vdin_debug_s {
 	unsigned int rgb_info_b;
 	unsigned int dv_dbg_log;
 	unsigned int dv_dbg_log_du;
-	unsigned int dv_dbg_mask;
 	unsigned int sleep_time;
 	unsigned int sm_debug_enable;
 	unsigned int vdin_isr_monitor;
@@ -763,6 +762,7 @@ struct vdin_dv_s {
 	unsigned int dv_dma_size;
 	dma_addr_t dv_dma_paddr;
 	void *dv_dma_vaddr;
+	ulong dv_dma_handle;
 	void *temp_meta_data;
 	dma_addr_t meta_data_raw_p_buffer0;/*for t7*/
 	void *meta_data_raw_v_buffer0;/*for t7*/
@@ -772,6 +772,7 @@ struct vdin_dv_s {
 	bool dv_config;
 	bool dv_path_idx;
 	bool dv_crc_check;/*0:fail;1:ok*/
+	bool update_axi_addr;
 	unsigned int dv_mem_allocated;
 	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
 	bool low_latency;
@@ -876,6 +877,7 @@ struct vdin_dts_config_s {
 	unsigned int vdin_qms_chg_cnt;
 	unsigned int sct_remain_size;
 	unsigned int vdin_mut_cnt;
+	unsigned int dv_mask;
 };
 
 struct vdin_s5_s {

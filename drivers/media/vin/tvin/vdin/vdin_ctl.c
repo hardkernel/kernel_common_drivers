@@ -6318,19 +6318,27 @@ void vdin_dolby_addr_alloc(struct vdin_dev_s *devp, unsigned int size)
 	unsigned int index;
 	/*int highmem_flag;*/
 	unsigned int one_buf_size = dolby_size_byte;
+	ulong buf_handle = 0, buf_phy_addr = 0;
 
 	if (devp->dtdata->hw_ver == VDIN_HW_T7)
 		devp->dv.dv_dma_size = (unsigned long)one_buf_size * size + K_DV_META_RAW_BUFF0;
 	else
 		devp->dv.dv_dma_size = one_buf_size * size;
-	devp->dv.dv_dma_vaddr = dma_alloc_coherent(&devp->this_pdev->dev,
-						   devp->dv.dv_dma_size,
-						   &devp->dv.dv_dma_paddr,
-						   GFP_KERNEL);
+	if (devp->cma_config_flag & MEM_ALLOC_AMLDOLBY_METADATA) {
+		devp->dv.dv_dma_vaddr =
+			codec_mm_dma_alloc_coherent(&buf_handle, &buf_phy_addr,
+				devp->dv.dv_dma_size, devp->dv.dv_vf_provider.name);
+		devp->dv.dv_dma_paddr = buf_phy_addr;
+	} else {
+		devp->dv.dv_dma_vaddr =
+			dma_alloc_coherent(&devp->this_pdev->dev, devp->dv.dv_dma_size,
+				&devp->dv.dv_dma_paddr, GFP_KERNEL);
+	}
 	if (!devp->dv.dv_dma_vaddr) {
 		pr_info("%s:dma alloc_coherent fail!!\n", __func__);
 		return;
 	}
+	devp->dv.dv_dma_handle = buf_handle;
 	memset(devp->dv.dv_dma_vaddr, 0, devp->dv.dv_dma_size);
 	/*if (devp->cma_config_flag & 0x100)*/
 	/*	highmem_flag = PageHighMem(phys_to_page(devp->vfmem_start[0]));*/
@@ -6421,27 +6429,17 @@ void vdin_dolby_addr_release(struct vdin_dev_s *devp, unsigned int size)
 	if (devp->dv.dv_mem_allocated == 0)
 		return;
 
-	if (devp->dv.dv_dma_vaddr)
-		dma_free_coherent(&devp->this_pdev->dev, devp->dv.dv_dma_size,
-				  devp->dv.dv_dma_vaddr, devp->dv.dv_dma_paddr);
+	if (devp->cma_config_flag & MEM_ALLOC_AMLDOLBY_METADATA) {
+		if (devp->dv.dv_dma_handle)
+			codec_mm_dma_free_coherent(devp->dv.dv_dma_handle);
+	} else {
+		if (devp->dv.dv_dma_vaddr)
+			dma_free_coherent(&devp->this_pdev->dev, devp->dv.dv_dma_size,
+				devp->dv.dv_dma_vaddr, devp->dv.dv_dma_paddr);
+	}
+	devp->dv.dv_dma_paddr = 0;
 	devp->dv.dv_dma_vaddr = NULL;
 	devp->dv.dv_dma_size = 0;
-	/*
-	 *if (devp->cma_config_flag & 0x100)
-	 *	highmem_flag = PageHighMem(phys_to_page(devp->vfmem_start[0]));
-	 *else
-	 *	highmem_flag = PageHighMem(phys_to_page(devp->mem_start));
-	 *
-	 *if (highmem_flag) {
-	 *	for (index = 0; index < size; index++) {
-	 *		if (devp->vfp->dv_buf_ori[index]) {
-	 *			vdin_unmap_phyaddr(devp->vfp->dv_buf_ori
-	 *					   [index]);
-	 *			devp->vfp->dv_buf_ori[index] = NULL;
-	 *		}
-	 *	}
-	 *}
-	 */
 	devp->dv.dv_mem_allocated = 0;
 
 	if (!IS_ERR_OR_NULL(devp->dv.temp_meta_data)) {
@@ -6453,22 +6451,6 @@ void vdin_dolby_addr_release(struct vdin_dev_s *devp, unsigned int size)
 		kfree(devp->dv.meta_data_raw_buffer1);
 		devp->dv.meta_data_raw_buffer1 = NULL;
 	}
-}
-
-static void vdin_dolby_metadata_swap(struct vdin_dev_s *devp, char *buf)
-{
-	char ext;
-	unsigned int i, j;
-
-	for (i = 0; (i * 16) < dolby_size_byte; i++) {
-		for (j = 0; j < 8; j++) {
-			ext = buf[i * 16 + j];
-			buf[i * 16 + j] = buf[i * 16 + 15 - j];
-			buf[i * 16 + 15 - j] = ext;
-		}
-	}
-
-	vdin_dma_flush(devp, buf, dolby_size_byte, DMA_TO_DEVICE);
 }
 
 static u32 crc32_lut[256] = {
@@ -6665,73 +6647,63 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 	c = devp->vfp->dv_buf_vmem[index];
 	p = (u32 *)c;
 	for (count = 0; count < META_RETRY_MAX; count++) {
-		if (devp->debug.dv_dbg_mask & DV_READ_MODE_AXI) {
-			memcpy(p, devp->vfp->dv_buf_vmem[index], 128 * max_pkt);
-			vdin_dma_flush(devp, p, 128 * max_pkt, DMA_TO_DEVICE);
-			vdin_dolby_metadata_swap(devp, c);
-			/*vdin_dma_flush(devp, p, 128*max_pkt, DMA_TO_DEVICE);*/
-		} else {
+		if (!(devp->dts_config.dv_mask & DV_READ_MODE_AXI)) {
 		#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 			if (is_meson_t6x_cpu())
 				wr_bits(offset, VDIN0_META_DSC_CTRL2_T6X, 1, 31, 1);//reg_meta_rd_en
 			else if (is_meson_t3x_cpu())
 				wr_bits(offset, VDIN0_META_DSC_CTRL2, 1, 31, 1);//reg_meta_rd_en
-			else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
-				wr(offset, VDIN_DOLBY_DSC_CTRL2, 0xe800c0d5);
-		#else
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
-				wr(offset, VDIN_DOLBY_DSC_CTRL2, 0xe800c0d5);
-		#endif
 			else
-				wr(offset, VDIN_DOLBY_DSC_CTRL2, 0xd180c0d5);
-			rpt_cnt = 0;
-			tail_cnt = 0;
-			rev_cnt = 0;
-			for (i = 0; i < (32 * max_pkt); i++) {
-				if (devp->dtdata->hw_ver == VDIN_HW_T7) {
-					p[i] = src_meta[i];
-				} else {
-				#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-					if (is_meson_t6x_cpu())
-						meta32 = rd(offset, VDIN0_META_DSC_STATUS1_T6X);
-					else if (is_meson_t3x_cpu())
-						meta32 = rd(offset, VDIN0_META_DSC_STATUS1);
-					else
-				#endif
-						meta32 = rd(offset, VDIN_DOLBY_DSC_STATUS1);
-					p[i] = swap32(meta32);
-				}
-
-				if (((i % 32) == 0) && !end_flag) {
-					rev_cnt++;
-					pkt_type = c[i * 4] & 0xc0;
-					if (pkt_type == META_PKY_TYPE_START)
-						multimeta_flag = 1;
-
-					if (pkt_type == META_PKY_TYPE_START)
-						rpt_cnt++;
-
-					if (pkt_type == META_PKY_TYPE_TAIL) {
-						multimetatail_flag = 1;
-						tail_cnt++;
-					}
-
-					if (tail_cnt >= rpt_cnt) {
-						end_flag = 1;
-						max_pkt = rev_cnt;
-					}
-					if (((cnt % devp->debug.dv_dbg_log_du) == 0) &&
-					    (devp->debug.dv_dbg_log & DV_DEBUG_NORMAL))
-						pr_info("pkt_type(%d-%d):%02x %02x %02x %02x %02x %02x\n",
-							count, i, pkt_type, c[i * 4], c[i * 4 + 1],
-							c[i * 4 + 2], c[i * 4  + 3], c[i * 4 + 4]);
-				}
-
-				if (i == 31 && multimeta_flag == 0)
-					break;
-			}
+		#endif
+				wr_bits(offset, VDIN_DOLBY_DSC_CTRL2, 1, 31, 1);
 		}
+		rpt_cnt = 0;
+		tail_cnt = 0;
+		rev_cnt = 0;
+		for (i = 0; i < (32 * max_pkt); i++) {
+			if (devp->dtdata->hw_ver == VDIN_HW_T7) {
+				p[i] = src_meta[i];
+			} else if (devp->dts_config.dv_mask & DV_READ_MODE_AXI) {
+			} else {
+			#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+				if (is_meson_t6x_cpu())
+					meta32 = rd(offset, VDIN0_META_DSC_STATUS1_T6X);
+				else if (is_meson_t3x_cpu())
+					meta32 = rd(offset, VDIN0_META_DSC_STATUS1);
+				else
+			#endif
+					meta32 = rd(offset, VDIN_DOLBY_DSC_STATUS1);
+				p[i] = swap32(meta32);
+			}
 
+			if (((i % 32) == 0) && !end_flag) {
+				rev_cnt++;
+				pkt_type = c[i * 4] & 0xc0;
+				if (pkt_type == META_PKY_TYPE_START)
+					multimeta_flag = 1;
+
+				if (pkt_type == META_PKY_TYPE_START)
+					rpt_cnt++;
+
+				if (pkt_type == META_PKY_TYPE_TAIL) {
+					multimetatail_flag = 1;
+					tail_cnt++;
+				}
+
+				if (tail_cnt >= rpt_cnt) {
+					end_flag = 1;
+					max_pkt = rev_cnt;
+				}
+				if (((cnt % devp->debug.dv_dbg_log_du) == 0) &&
+				    (devp->debug.dv_dbg_log & DV_DEBUG_NORMAL))
+					pr_info("pkt_type(%d-%d):%02x %02x %02x %02x %02x %02x\n",
+						count, i, pkt_type, c[i * 4], c[i * 4 + 1],
+						c[i * 4 + 2], c[i * 4  + 3], c[i * 4 + 4]);
+			}
+
+			if (i == 31 && multimeta_flag == 0)
+				break;
+		}
 		//print raw meta data
 		if (((cnt % devp->debug.dv_dbg_log_du) == 0) &&
 			(devp->debug.dv_dbg_log & DV_DEBUG_META_PKT_DATA)) {
@@ -6861,38 +6833,62 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 	cnt++;
 }
 
-void vdin_dolby_addr_update(struct vdin_dev_s *devp, unsigned int index)
+/* rdma configure dolby axi phy address */
+void vdin_config_amldolby_axi_addr(struct vdin_dev_s *devp, struct vf_entry *vfe)
+{
+	if (devp->dtdata->hw_ver == VDIN_HW_T6X) {
+		rdma_write_reg(devp->rdma_handle,
+			VDIN0_META_AXI_CTRL1_T6X + devp->addr_offset,
+			devp->vfp->dv_buf_mem[vfe->vf.index]);
+		rdma_write_reg_bits(devp->rdma_handle,
+			VDIN0_META_AXI_CTRL0_T6X + devp->addr_offset, 1, 4, 1);
+	} else if (devp->dtdata->hw_ver == VDIN_HW_T3X) {
+		rdma_write_reg(devp->rdma_handle,
+			VDIN0_META_AXI_CTRL1 + devp->addr_offset,
+			devp->vfp->dv_buf_mem[vfe->vf.index]);
+		rdma_write_reg_bits(devp->rdma_handle,
+			VDIN0_META_AXI_CTRL0 + devp->addr_offset, 1, 4, 1);
+	} else {
+		rdma_write_reg(devp->rdma_handle,
+			VDIN_DOLBY_AXI_CTRL1 + devp->addr_offset,
+			devp->vfp->dv_buf_mem[vfe->vf.index]);
+		/* bit4:reg_buf_start */
+		rdma_write_reg_bits(devp->rdma_handle,
+			VDIN_DOLBY_AXI_CTRL0 + devp->addr_offset, 1, 4, 1);
+	}
+}
+
+void vdin_dolby_addr_update(struct vdin_dev_s *devp, unsigned int index, unsigned int rdma_enable)
 {
 	unsigned int offset = devp->addr_offset;
 	u32 *p;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t3x_cpu() || is_meson_t6x_cpu()) {
-		vdin_dolby_addr_update_t3x(devp, index);
+		vdin_dolby_addr_update_t3x(devp, index, rdma_enable);
 		return;
 	}
 #endif
 	if (index >= devp->canvas_max_num)
 		return;
+
 	devp->vfp->dv_buf[index] = NULL;
 	devp->vfp->dv_buf_size[index] = 0;
 	p = (u32 *)devp->vfp->dv_buf_vmem[index];
 	p[0] = 0;
 	p[1] = 0;
-	if (devp->debug.dv_dbg_mask & DV_READ_MODE_AXI) {
-		wr(offset, VDIN_DOLBY_AXI_CTRL1,
-		   devp->vfp->dv_buf_mem[index]);
-		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1, 4, 1);
-		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 4, 1);
+	if (devp->dts_config.dv_mask & DV_READ_MODE_AXI) {
+		if (rdma_enable) {
+			devp->dv.update_axi_addr = true;
+		} else {
+			wr(offset, VDIN_DOLBY_AXI_CTRL1, devp->vfp->dv_buf_mem[index]);
+			wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1, 4, 1);
+			wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 4, 1);
+		}
 		if (devp->debug.dv_dbg_log & DV_DEBUG_NORMAL)
 			pr_info("%s:index:%d dma:%x\n", __func__,
 				index, devp->vfp->dv_buf_mem[index]);
 	} else {
-		wr(offset, VDIN_DOLBY_DSC_CTRL2, 0x5180c0d5);
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
-			wr(offset, VDIN_DOLBY_DSC_CTRL2, 0x6800c0d5);
-		else
-			wr(offset, VDIN_DOLBY_DSC_CTRL2, 0x5180c0d5);
 		wr(offset, VDIN_DOLBY_DSC_CTRL3, 0);
 	}
 }
@@ -6917,7 +6913,7 @@ void vdin_dolby_config(struct vdin_dev_s *devp)
 	wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 1, 30, 1);
 	wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 1, 26, 1);
 	wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 0, 26, 1);
-	if (devp->debug.dv_dbg_mask & DV_READ_MODE_AXI) {
+	if (devp->dts_config.dv_mask & DV_READ_MODE_AXI) {
 		wr(offset, VDIN_DOLBY_AXI_CTRL1, devp->vfp->dv_buf_mem[0]);
 		/* hold line = 0 */
 		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 8, 8);
@@ -6925,12 +6921,19 @@ void vdin_dolby_config(struct vdin_dev_s *devp)
 		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1, 5, 1);
 		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 5, 1);
 		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 4, 1);
+		/* 32bit swap */
+		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 28, 1);
+		/* 8bit swap */
+		wr_bits(offset, VDIN_DOLBY_DSC_CTRL0, 0, 16, 1);
 		/*enable wr memory*/
 		vdin_dolby_mdata_write_en(offset, 1);
+		if (devp->dts_config.dv_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK)
+			devp->dv.update_axi_addr = false;
+		else
+			devp->dv.update_axi_addr = true;
 	} else {
 		/*disable wr memory*/
 		vdin_dolby_mdata_write_en(offset, 0);
-		wr(offset, VDIN_DOLBY_DSC_CTRL2, 0x5180c0d5);
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
 			wr(offset, VDIN_DOLBY_DSC_CTRL2, 0x6800c0d5);
 		else
