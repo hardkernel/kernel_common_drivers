@@ -752,6 +752,10 @@ static ssize_t wol_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct aml_eth_priv *eth_priv = dev_get_drvdata(dev);
+#if IS_ENABLED(CONFIG_AMLOGIC_WOL)
+	struct stmmac_priv *priv = container_of(eth_priv, struct stmmac_priv, eth_priv);
+	struct device *ethmac_dev = priv->device;
+#endif
 
 	if (!eth_priv->phydev)
 		return 0;
@@ -760,7 +764,7 @@ static ssize_t wol_show(struct device *dev,
 	if (eth_priv->wol_sysfs_hook.not_empty) {
 		return sysfs_emit(buf, "%s wol 0x%x\n",
 				  eth_priv->internal_phy != 2 ? "inphy" : "exphy",
-				  (int)eth_priv->wol_sysfs_hook.not_empty());
+				  (int)eth_priv->wol_sysfs_hook.not_empty(ethmac_dev));
 	}
 #endif
 
@@ -776,6 +780,10 @@ static ssize_t wol_store(struct device *dev,
 {
 	unsigned int tmp, r;
 	struct aml_eth_priv *eth_priv = dev_get_drvdata(dev);
+#if IS_ENABLED(CONFIG_AMLOGIC_WOL)
+	struct stmmac_priv *priv = container_of(eth_priv, struct stmmac_priv, eth_priv);
+	struct device *ethmac_dev = priv->device;
+#endif
 
 	if (!eth_priv->phydev)
 		return 0;
@@ -785,9 +793,9 @@ static ssize_t wol_store(struct device *dev,
 #if IS_ENABLED(CONFIG_AMLOGIC_WOL)
 	if (eth_priv->wol_sysfs_hook.set_all && eth_priv->wol_sysfs_hook.clr_all) {
 		if (tmp)
-			eth_priv->wol_sysfs_hook.set_all();
+			eth_priv->wol_sysfs_hook.set_all(ethmac_dev);
 		else
-			eth_priv->wol_sysfs_hook.clr_all();
+			eth_priv->wol_sysfs_hook.clr_all(ethmac_dev);
 
 		return count;
 	}

@@ -74,9 +74,9 @@ struct phylink {
 };
 
 struct wol_sysfs_hook {
-	bool (*not_empty)(void);
-	void (*clr_all)(void);
-	void (*set_all)(void);
+	bool (*not_empty)(struct device *device);
+	void (*clr_all)(struct device *device);
+	void (*set_all)(struct device *device);
 };
 
 struct aml_eth_priv {

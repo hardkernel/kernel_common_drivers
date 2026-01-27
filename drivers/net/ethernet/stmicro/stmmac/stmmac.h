@@ -26,6 +26,9 @@
 #include <uapi/linux/bpf.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 #include <linux/amlogic/aml_phy_debug.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_WOL)
+#include "amlogic-wol.h"
+#endif
 #endif
 
 struct stmmac_resources {
@@ -375,6 +378,9 @@ struct stmmac_priv {
 	int amlogic_task_action;
 	int linkup_after_resume;
 	struct aml_eth_priv eth_priv;
+#if IS_ENABLED(CONFIG_AMLOGIC_WOL)
+	struct amlogic_wol wol;
+#endif
 #endif
 
 	/* Frame Preemption feature (FPE) */

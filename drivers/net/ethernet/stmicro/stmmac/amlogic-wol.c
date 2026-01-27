@@ -14,7 +14,6 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
-#include <net/sock.h>
 #include <net/netlink.h>
 #include <linux/amlogic/aml_phy_debug.h>
 #include "stmmac.h"
@@ -24,6 +23,8 @@
 #define pr_fmt(fmt) "amlogic-wol: " fmt
 
 #define PAYLOAD_DATA_SIZE		(MBOX_DATA_SIZE - 4)
+
+#define AMLOGIC_WOL_LEGACY_INTERFACE_SUPPORT	1
 
 #pragma pack(push, 1)
 struct mbox_payload {
@@ -76,13 +77,6 @@ static const char * const wakeup_names[] = {
 	[WKUP_REASON_MDNS]	= "mdns",
 	[WKUP_REASON_PORT]	= "port"
 };
-
-static struct device *dev;
-static struct mbox_chan *mbox;
-static struct mutex lock;
-static u32 wakeup_src;
-static struct sock *g_sk;
-static int g_mdnsoffload_result;
 
 #define MDNS_LIST_CRITERIA_MAX          8
 #define MDNS_RAW_DATA_LENGTH_MAX        492
@@ -149,20 +143,27 @@ struct wake_up_port {
 	u16 port;
 };
 
-static int handle_offload_msg(unsigned char *puc, const char *mode);
-static u8 set_mdns_notify_bl30(int flag);
+static DEFINE_MUTEX(class_mutex);
+static int dev_count;
+#if defined(AMLOGIC_WOL_LEGACY_INTERFACE_SUPPORT)
+static struct device *select_dev;
+#endif /* AMLOGIC_WOL_LEGACY_INTERFACE_SUPPORT */
 
-static inline void __mbox_data_swap(void *wdata, u32 wlen, void *rdata, u32 rlen)
+static int handle_offload_msg(struct amlogic_wol *wol, unsigned char *puc, const char *mode);
+static u8 set_mdns_notify_bl30(struct amlogic_wol *wol, int flag);
+
+static inline void __mbox_data_swap(struct amlogic_wol *wol, void *wdata, u32 wlen,
+				    void *rdata, u32 rlen)
 {
 	int ret;
 
-	ret = aml_mbox_transfer_data(mbox, MBOX_CMD_SET_ETHERNET_WOL,
+	ret = aml_mbox_transfer_data(wol->mbox, MBOX_CMD_SET_ETHERNET_WOL,
 				     wdata, wlen, rdata, rlen, MBOX_SYNC);
 	if (ret < 0)
 		pr_err("mbox transfer failed\n");
 }
 
-static void __maybe_unused __mbox_notify(u8 type)
+static void __maybe_unused __mbox_notify(struct amlogic_wol *wol, u8 type)
 {
 	struct mbox_payload payload = {
 		.mode	= 0x80,
@@ -171,12 +172,13 @@ static void __maybe_unused __mbox_notify(u8 type)
 		.len	= 0,
 	};
 
-	mutex_lock(&lock);
-	__mbox_data_swap(&payload, sizeof(payload), NULL, 0);
-	mutex_unlock(&lock);
+	mutex_lock(&wol->lock);
+	__mbox_data_swap(wol, &payload, sizeof(payload), NULL, 0);
+	mutex_unlock(&wol->lock);
 }
 
-static void __maybe_unused __mbox_data_write(u8 type, const void *data, u32 len)
+static void __maybe_unused __mbox_data_write(struct amlogic_wol *wol, u8 type,
+					     const void *data, u32 len)
 {
 	u32 offset = 0;
 	u32 left_size;
@@ -186,21 +188,21 @@ static void __maybe_unused __mbox_data_write(u8 type, const void *data, u32 len)
 		.type	= type,
 	};
 
-	mutex_lock(&lock);
+	mutex_lock(&wol->lock);
 	while (offset < len) {
 		left_size = len - offset;
 		payload.len = (u8)(left_size > PAYLOAD_DATA_SIZE ?
 				   PAYLOAD_DATA_SIZE : left_size);
 		memcpy(payload.data, (const u8 *)data + offset, payload.len);
 		payload.ctrl |= (offset + payload.len) == len ? CTRL_FLAG_STOP : CTRL_FLAG_APPEND;
-		__mbox_data_swap(&payload, sizeof(payload), NULL, 0);
+		__mbox_data_swap(wol, &payload, sizeof(payload), NULL, 0);
 		offset += payload.len;
 		payload.ctrl = CTRL_FLAG_WRITE;
 	}
-	mutex_unlock(&lock);
+	mutex_unlock(&wol->lock);
 }
 
-static void __maybe_unused __mbox_data_read(u8 type, void *data, u32 len)
+static void __maybe_unused __mbox_data_read(struct amlogic_wol *wol, u8 type, void *data, u32 len)
 {
 	u32 offset = 0;
 	u32 left_size;
@@ -210,31 +212,41 @@ static void __maybe_unused __mbox_data_read(u8 type, void *data, u32 len)
 		.type	= type,
 	};
 
-	mutex_lock(&lock);
+	mutex_lock(&wol->lock);
 	while (offset < len) {
 		left_size = len - offset;
 		payload.len = (u8)(left_size > PAYLOAD_DATA_SIZE ?
 				   PAYLOAD_DATA_SIZE : left_size);
 		payload.ctrl |= (offset + payload.len) == len ? CTRL_FLAG_STOP : CTRL_FLAG_APPEND;
-		__mbox_data_swap(&payload, sizeof(payload), &payload, sizeof(payload));
+		__mbox_data_swap(wol, &payload, sizeof(payload), &payload, sizeof(payload));
 		memcpy((u8 *)data + offset, payload.data, payload.len);
 		offset += payload.len;
 		payload.ctrl = 0;
 	}
-	mutex_unlock(&lock);
+	mutex_unlock(&wol->lock);
 }
 
-static ssize_t wakeup_src_show(const struct class *class, const struct class_attribute *attr,
-			       char *buf)
+static ssize_t info_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct amlogic_wol *wol = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = container_of(wol, struct stmmac_priv, wol);
+	struct net_device *ndev = priv->dev;
+
+	return sysfs_emit(buf, "net=%s\n", netdev_name(ndev));
+}
+static DEVICE_ATTR_RO(info);
+
+static ssize_t wakeup_src_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int len = 0;
 	int index;
+	struct amlogic_wol *wol = dev_get_drvdata(dev);
 
 	/* Synchronize from BL30 */
-	__mbox_data_read(DATA_TYPE_WKUP_SRC, &wakeup_src, 4);
+	__mbox_data_read(wol, DATA_TYPE_WKUP_SRC, &wol->wakeup_src, 4);
 
 	for (index = 1; index < ARRAY_SIZE(wakeup_names); index++) {
-		if (!(wakeup_src & BIT(index)))
+		if (!(wol->wakeup_src & BIT(index)))
 			continue;
 		len += sysfs_emit_at(buf, len, "%s,", wakeup_names[index]);
 	}
@@ -244,13 +256,14 @@ static ssize_t wakeup_src_show(const struct class *class, const struct class_att
 	return len;
 }
 
-static ssize_t wakeup_src_store(const struct class *class, const struct class_attribute *attr,
+static ssize_t wakeup_src_store(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	char *nbuf;
 	char *p;
 	char *name;
 	int index;
+	struct amlogic_wol *wol = dev_get_drvdata(dev);
 
 	nbuf = kzalloc(count + 1, GFP_KERNEL);
 	if (!nbuf)
@@ -261,7 +274,7 @@ static ssize_t wakeup_src_store(const struct class *class, const struct class_at
 	strreplace(nbuf, '\n', '\0');
 
 	/* clear all sources */
-	wakeup_src = 0;
+	wol->wakeup_src = 0;
 
 	while (1) {
 		name = strsep(&p, ",");
@@ -276,23 +289,23 @@ static ssize_t wakeup_src_store(const struct class *class, const struct class_at
 		if (index == ARRAY_SIZE(wakeup_names))
 			pr_warn("unknown wakeup source: %s\n", name);
 		else
-			wakeup_src |= BIT(index);
+			wol->wakeup_src |= BIT(index);
 	}
 
 	kfree(nbuf);
 
 	/* Synchronize to BL30 */
-	__mbox_data_write(DATA_TYPE_WKUP_SRC, &wakeup_src, 4);
+	__mbox_data_write(wol, DATA_TYPE_WKUP_SRC, &wol->wakeup_src, 4);
 
 	return count;
 }
-static CLASS_ATTR_RW(wakeup_src);
+static DEVICE_ATTR_RW(wakeup_src);
 
-static int __get_wakeup_reason(void)
+static int __get_wakeup_reason(struct amlogic_wol *wol)
 {
 	u8 reason = 0;
 
-	__mbox_data_read(DATA_TYPE_WKUP_REASON, &reason, 1);
+	__mbox_data_read(wol, DATA_TYPE_WKUP_REASON, &reason, 1);
 	if (reason >= ARRAY_SIZE(wakeup_names)) {
 		pr_err("unknown wakeup reason: 0x%02x\n", reason);
 		return -EINVAL;
@@ -301,50 +314,188 @@ static int __get_wakeup_reason(void)
 	return reason;
 }
 
-static ssize_t wakeup_reason_show(const struct class *class, const struct class_attribute *attr,
-				  char *buf)
+static ssize_t wakeup_reason_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	int ret = __get_wakeup_reason();
+	struct amlogic_wol *wol = dev_get_drvdata(dev);
+	int ret = __get_wakeup_reason(wol);
 
 	if (ret < 0)
 		return ret;
 
 	return sysfs_emit(buf, "%s\n", wakeup_names[ret]);
 }
-static CLASS_ATTR_RO(wakeup_reason);
+static DEVICE_ATTR_RO(wakeup_reason);
 
-static ssize_t mdnsoffload_show(const struct class *class, const struct class_attribute *attr,
-				char *buf)
+static ssize_t mdnsoffload_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	(void)class;
+	(void)dev;
 	(void)attr;
 	(void)buf;
 
 	return 0;
 }
 
-static ssize_t mdnsoffload_store(const struct class *class, const struct class_attribute *attr,
+static ssize_t mdnsoffload_store(struct device *dev, struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	g_mdnsoffload_result = handle_offload_msg((unsigned char *)buf, "SYSFS");
+	struct amlogic_wol *wol = dev_get_drvdata(dev);
+
+	wol->mdnsoffload_result = handle_offload_msg(wol, (unsigned char *)buf, "SYSFS");
 	print_hex_dump(KERN_DEBUG, "mdnsoffload: ", DUMP_PREFIX_OFFSET, 16, 1, buf, count, true);
+
 	return count;
 }
-static CLASS_ATTR_RW(mdnsoffload);
+static DEVICE_ATTR_RW(mdnsoffload);
 
-static ssize_t mdnsoffload_result_show(const struct class *class,
-				       const struct class_attribute *attr, char *buf)
+static ssize_t mdnsoffload_result_show(struct device *dev, struct device_attribute *attr,
+				       char *buf)
 {
-	int ret = __get_wakeup_reason();
+	struct amlogic_wol *wol = dev_get_drvdata(dev);
+	int ret = __get_wakeup_reason(wol);
 
 	if (ret < 0)
 		return ret;
 
-	return sysfs_emit(buf, "%d\n", g_mdnsoffload_result);
+	return sysfs_emit(buf, "%d\n", wol->mdnsoffload_result);
 }
-static CLASS_ATTR_RO(mdnsoffload_result);
+static DEVICE_ATTR_RO(mdnsoffload_result);
+
+static struct attribute *wol_dev_attrs[] = {
+	&dev_attr_info.attr,
+	&dev_attr_wakeup_src.attr,
+	&dev_attr_wakeup_reason.attr,
+	&dev_attr_mdnsoffload.attr,
+	&dev_attr_mdnsoffload_result.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(wol_dev);
+
+#if defined(AMLOGIC_WOL_LEGACY_INTERFACE_SUPPORT)
+/* Change the selected device. */
+static ssize_t cfg_select_store(const struct class *class,
+			const struct class_attribute *attr,
+			const char *buf, size_t len)
+{
+	char dev_name[64];
+	struct device *dev;
+
+	snprintf(dev_name, sizeof(dev_name), "%s", buf);
+
+	if (!strstrip(dev_name))
+		return -EINVAL;
+
+	mutex_lock(&class_mutex);
+	/* Select none */
+	if (!strlen(dev_name)) {
+		select_dev = NULL;
+		goto out;
+	}
+	/* Select device by name */
+	dev = class_find_device_by_name(class, dev_name);
+	if (!dev) {
+		mutex_unlock(&class_mutex);
+		return -ENODEV;
+	}
+	select_dev = dev;
+out:
+	mutex_unlock(&class_mutex);
+
+	return len;
+}
+
+/* Show the currently selected device. */
+static ssize_t cfg_select_show(const struct class *class,
+			const struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+
+	mutex_lock(&class_mutex);
+	if (select_dev)
+		len = sysfs_emit(buf, "%s\n", dev_name(select_dev));
+	mutex_unlock(&class_mutex);
+
+	return len;
+}
+
+/* List all available devices. */
+static ssize_t cfg_list_show(const struct class *class,
+			const struct class_attribute *attr, char *buf)
+{
+	struct class_dev_iter iter;
+	struct device *dev;
+	ssize_t len = 0;
+
+	mutex_lock(&class_mutex);
+	class_dev_iter_init(&iter, class, NULL, NULL);
+	while ((dev = class_dev_iter_next(&iter)))
+		len += sysfs_emit_at(buf, len, "%s\n", dev_name(dev));
+	class_dev_iter_exit(&iter);
+	mutex_unlock(&class_mutex);
+
+	return len;
+}
+
+#define AML_WOL_CLASS_FUNC_STORE(_name)							\
+static ssize_t __##_name##_store(const struct class *class,				\
+			const struct class_attribute *attr,				\
+			const char *buf, size_t len)					\
+{											\
+	ssize_t ret = -EACCES;								\
+											\
+	mutex_lock(&class_mutex);							\
+	if (select_dev)									\
+		ret = _name##_store(select_dev, NULL, buf, len);			\
+	mutex_unlock(&class_mutex);							\
+											\
+	return ret;									\
+}
+
+#define AML_WOL_CLASS_FUNC_SHOW(_name)							\
+static ssize_t __##_name##_show(const struct class *class,				\
+			const struct class_attribute *attr, char *buf)			\
+{											\
+	ssize_t ret = -EACCES;								\
+											\
+	mutex_lock(&class_mutex);							\
+	if (select_dev)									\
+		ret = _name##_show(select_dev, NULL, buf);				\
+	mutex_unlock(&class_mutex);							\
+											\
+	return ret;									\
+}
+
+#define AML_WOL_CLASS_PROXY_RW(_name)							\
+	AML_WOL_CLASS_FUNC_STORE(_name)							\
+	AML_WOL_CLASS_FUNC_SHOW(_name)							\
+	static struct class_attribute class_attr_##_name =				\
+		__ATTR(_name, 0644, __##_name##_show, __##_name##_store)
+
+#define AML_WOL_CLASS_PROXY_RO(_name)							\
+	AML_WOL_CLASS_FUNC_SHOW(_name)							\
+	static struct class_attribute class_attr_##_name = {				\
+		.attr = { .name = __stringify(_name), .mode = 0444 },			\
+		.show = __##_name##_show,						\
+	}
+
+#define AML_WOL_CLASS_PROXY_WO(_name)							\
+	AML_WOL_CLASS_FUNC_STORE(_name)							\
+	static struct class_attribute class_attr_##_name = {				\
+		.attr = { .name = __stringify(_name), .mode = 0200 },			\
+		.store = __##_name##_store,						\
+	}
+
+static CLASS_ATTR_RW(cfg_select);
+static CLASS_ATTR_RO(cfg_list);
+
+/* Compatibility with legacy interface */
+AML_WOL_CLASS_PROXY_RW(wakeup_src);
+AML_WOL_CLASS_PROXY_RO(wakeup_reason);
+AML_WOL_CLASS_PROXY_RW(mdnsoffload);
+AML_WOL_CLASS_PROXY_RO(mdnsoffload_result);
 
 static struct attribute *wol_class_attrs[] = {
+	&class_attr_cfg_select.attr,
+	&class_attr_cfg_list.attr,
 	&class_attr_wakeup_src.attr,
 	&class_attr_wakeup_reason.attr,
 	&class_attr_mdnsoffload.attr,
@@ -352,15 +503,20 @@ static struct attribute *wol_class_attrs[] = {
 	NULL,
 };
 ATTRIBUTE_GROUPS(wol_class);
+#endif /* AMLOGIC_WOL_LEGACY_INTERFACE_SUPPORT */
 
 static struct class wol_class = {
 	.name =         "aml_wol",
+#if defined(AMLOGIC_WOL_LEGACY_INTERFACE_SUPPORT)
 	.class_groups = wol_class_groups,
+#endif /* AMLOGIC_WOL_LEGACY_INTERFACE_SUPPORT */
 };
 
-static void __set_ipv4_address(void)
+static void __set_ipv4_address(struct device *device)
 {
-	struct net_device *ndev = dev_get_drvdata(dev);
+	struct net_device *ndev = dev_get_drvdata(device);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct amlogic_wol *wol = &priv->wol;
 	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
 	__be32 ip, ip_mask;
@@ -382,21 +538,24 @@ static void __set_ipv4_address(void)
 	rcu_read_unlock();
 
 	if (found) {
-		__mbox_data_write(DATA_TYPE_IPV4_ADDR, &ip, 4);
-		__mbox_data_write(DATA_TYPE_IPV4_MASK, &ip_mask, 4);
+		__mbox_data_write(wol, DATA_TYPE_IPV4_ADDR, &ip, 4);
+		__mbox_data_write(wol, DATA_TYPE_IPV4_MASK, &ip_mask, 4);
 	}
 }
 
-bool amlogic_wol_wakeup_src_not_empty(void)
+bool amlogic_wol_wakeup_src_not_empty(struct device *device)
 {
+	struct net_device *ndev = dev_get_drvdata(device);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct amlogic_wol *wol = &priv->wol;
 	bool retval = false;
 	int index;
 
 	/* Synchronize from BL30 */
-	__mbox_data_read(DATA_TYPE_WKUP_SRC, &wakeup_src, 4);
+	__mbox_data_read(wol, DATA_TYPE_WKUP_SRC, &wol->wakeup_src, 4);
 
 	for (index = 1; index < ARRAY_SIZE(wakeup_names); index++) {
-		if (wakeup_src & BIT(index)) {
+		if (wol->wakeup_src & BIT(index)) {
 			retval = true;
 			break;
 		}
@@ -406,42 +565,57 @@ bool amlogic_wol_wakeup_src_not_empty(void)
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_wakeup_src_not_empty);
 
-void amlogic_wol_wakeup_src_clr_all(void)
+void amlogic_wol_wakeup_src_clr_all(struct device *device)
 {
-	wakeup_src = 0;
+	struct net_device *ndev = dev_get_drvdata(device);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct amlogic_wol *wol = &priv->wol;
+
+	wol->wakeup_src = 0;
 
 	/* Synchronize to BL30 */
-	__mbox_data_write(DATA_TYPE_WKUP_SRC, &wakeup_src, 4);
+	__mbox_data_write(wol, DATA_TYPE_WKUP_SRC, &wol->wakeup_src, 4);
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_wakeup_src_clr_all);
 
-void amlogic_wol_wakeup_src_set_all(void)
+void amlogic_wol_wakeup_src_set_all(struct device *device)
 {
+	struct net_device *ndev = dev_get_drvdata(device);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct amlogic_wol *wol = &priv->wol;
 	int index;
 
-	wakeup_src = 0;
+	wol->wakeup_src = 0;
 
 	for (index = 1; index < ARRAY_SIZE(wakeup_names); index++)
-		wakeup_src |= BIT(index);
+		wol->wakeup_src |= BIT(index);
 
 	/* Synchronize to BL30 */
-	__mbox_data_write(DATA_TYPE_WKUP_SRC, &wakeup_src, 4);
+	__mbox_data_write(wol, DATA_TYPE_WKUP_SRC, &wol->wakeup_src, 4);
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_wakeup_src_set_all);
 
-void amlogic_wol_enter(void)
+void amlogic_wol_enter(struct device *device)
 {
-	__set_ipv4_address();
-	set_mdns_notify_bl30(1);
+	struct net_device *ndev = dev_get_drvdata(device);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct amlogic_wol *wol = &priv->wol;
+
+	__set_ipv4_address(device);
+	set_mdns_notify_bl30(wol, 1);
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_enter);
 
-bool amlogic_wol_exit(void)
+bool amlogic_wol_exit(struct device *device)
 {
-	int ret = __get_wakeup_reason();
+	struct net_device *ndev = dev_get_drvdata(device);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct amlogic_wol *wol = &priv->wol;
+
+	int ret = __get_wakeup_reason(wol);
 	bool report_event = false;
 
-	set_mdns_notify_bl30(0);
+	set_mdns_notify_bl30(wol, 0);
 
 	if (ret < 0)
 		goto out;
@@ -464,20 +638,64 @@ out:
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_exit);
 
-void amlogic_wol_setup(struct device *device, struct mbox_chan *mbox_chan)
+int amlogic_wol_setup(struct device *device, struct mbox_chan *mbox_chan)
 {
 	struct net_device *ndev = dev_get_drvdata(device);
 	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct amlogic_wol *wol = &priv->wol;
+	struct aml_eth_priv *eth_priv = &priv->eth_priv;
+	struct device *dev;
+	int ret = 0;
 
-	dev = device;
-	mbox = mbox_chan;
-	mutex_init(&lock);
-	WARN_ON(class_register(&wol_class) < 0);
+	mutex_lock(&class_mutex);
+
+	/* Create a common class located in the /sys/class/aml_wol directory. */
+	if (!dev_count) {
+		ret = class_register(&wol_class);
+		if (ret)
+			goto err0;
+	}
+	dev_count++;
+
+	/* Create a separate group for each MAC. */
+	dev = device_create_with_groups(&wol_class, NULL /* parent dev */, MKDEV(0, 0), wol,
+					wol_dev_groups, "%s", dev_name(device));
+	if (IS_ERR(dev)) {
+		ret = PTR_ERR(dev);
+		goto err1;
+	}
+	wol->c_dev = dev;
+
+#if defined(AMLOGIC_WOL_LEGACY_INTERFACE_SUPPORT)
+	/* Set the first device as the default. */
+	if (dev_count == 1)
+		select_dev = dev;
+#endif
+
+	wol->dev = device;
+	wol->mbox = mbox_chan;
+	mutex_init(&wol->lock);
 
 	/* Bridging up to the old sysfs control node */
-	priv->eth_priv.wol_sysfs_hook.not_empty = amlogic_wol_wakeup_src_not_empty;
-	priv->eth_priv.wol_sysfs_hook.clr_all = amlogic_wol_wakeup_src_clr_all;
-	priv->eth_priv.wol_sysfs_hook.set_all = amlogic_wol_wakeup_src_set_all;
+	eth_priv->wol_sysfs_hook.not_empty = amlogic_wol_wakeup_src_not_empty;
+	eth_priv->wol_sysfs_hook.clr_all = amlogic_wol_wakeup_src_clr_all;
+	eth_priv->wol_sysfs_hook.set_all = amlogic_wol_wakeup_src_set_all;
+
+	mutex_unlock(&class_mutex);
+
+	return 0;
+
+err1:
+	if (dev_count == 1) {
+		class_unregister(&wol_class);
+		dev_count--;
+	}
+err0:
+	mutex_unlock(&class_mutex);
+
+	pr_err("amlogic wol failed, ret: %d\n", ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_setup);
 
@@ -485,68 +703,88 @@ void amlogic_wol_remove(struct device *device)
 {
 	struct net_device *ndev = dev_get_drvdata(device);
 	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct amlogic_wol *wol = &priv->wol;
+	struct aml_eth_priv *eth_priv = &priv->eth_priv;
 
-	memset(&priv->eth_priv.wol_sysfs_hook, 0, sizeof(priv->eth_priv.wol_sysfs_hook));
-	class_unregister(&wol_class);
-	dev = NULL;
-	mbox = NULL;
+	mutex_lock(&class_mutex);
+
+	if (wol->c_dev) {
+#if defined(AMLOGIC_WOL_LEGACY_INTERFACE_SUPPORT)
+		if (select_dev == wol->c_dev)
+			select_dev = NULL;
+#endif
+		device_unregister(wol->c_dev);
+		wol->c_dev = NULL;
+	}
+
+	if (dev_count) {
+		dev_count--;
+		if (!dev_count)
+			class_unregister(&wol_class);
+	}
+
+	memset(&eth_priv->wol_sysfs_hook, 0, sizeof(eth_priv->wol_sysfs_hook));
+	wol->dev = NULL;
+	wol->mbox = NULL;
+
+	mutex_unlock(&class_mutex);
 }
 EXPORT_SYMBOL_GPL(amlogic_wol_remove);
 
-static u8 mdns_set_offload_state(u8 enable)
+static u8 mdns_set_offload_state(struct amlogic_wol *wol, u8 enable)
 {
 	u8 ret = 0;
 
-	__mbox_data_write(DATA_TYPE_OFFLOADSTATE, &enable, 1);
-	__mbox_data_read(DATA_TYPE_OFFLOADSTATE, &ret, 1);
+	__mbox_data_write(wol, DATA_TYPE_OFFLOADSTATE, &enable, 1);
+	__mbox_data_read(wol, DATA_TYPE_OFFLOADSTATE, &ret, 1);
 	return ret;
 }
 
-static void mdns_remove_response(int record_key)
+static void mdns_remove_response(struct amlogic_wol *wol, int record_key)
 {
-	__mbox_data_write(DATA_TYPE_RECORD_KEY, &record_key, 4);
-	__mbox_notify(DATA_TYPE_REMOVE_RESPONSE);
+	__mbox_data_write(wol, DATA_TYPE_RECORD_KEY, &record_key, 4);
+	__mbox_notify(wol, DATA_TYPE_REMOVE_RESPONSE);
 }
 
-static int __maybe_unused mdns_get_reset_hitcount(int record_key)
+static int __maybe_unused mdns_get_reset_hitcount(struct amlogic_wol *wol, int record_key)
 {
 	int hit_counter = -1;
 
-	__mbox_data_write(DATA_TYPE_RECORD_KEY, &record_key, 4);
-	__mbox_data_read(DATA_TYPE_RESET_HITCOUNT, &hit_counter, 4);
+	__mbox_data_write(wol, DATA_TYPE_RECORD_KEY, &record_key, 4);
+	__mbox_data_read(wol, DATA_TYPE_RESET_HITCOUNT, &hit_counter, 4);
 	return hit_counter;
 }
 
-static int __maybe_unused mdns_get_reset_misscount(void)
+static int __maybe_unused mdns_get_reset_misscount(struct amlogic_wol *wol)
 {
 	int miss_counter = -1;
 
-	__mbox_data_read(DATA_TYPE_RESET_MISSCOUNT, &miss_counter, 4);
+	__mbox_data_read(wol, DATA_TYPE_RESET_MISSCOUNT, &miss_counter, 4);
 	return miss_counter;
 }
 
-static void __maybe_unused mdns_set_passthrough_behavior(u8 behavior)
+static void __maybe_unused mdns_set_passthrough_behavior(struct amlogic_wol *wol, u8 behavior)
 {
-	__mbox_data_write(DATA_TYPE_PASST_BEHAVIOR, &behavior, 1);
+	__mbox_data_write(wol, DATA_TYPE_PASST_BEHAVIOR, &behavior, 1);
 }
 
-static void __maybe_unused mdns_reset_all(void)
+static void __maybe_unused mdns_reset_all(struct amlogic_wol *wol)
 {
-	__mbox_notify(DATA_TYPE_RESET_ALL);
+	__mbox_notify(wol, DATA_TYPE_RESET_ALL);
 }
 
-static int mdns_get_mdns_frame(u8 *buf, u16 buf_len)
+static int mdns_get_mdns_frame(struct amlogic_wol *wol, u8 *buf, u16 buf_len)
 {
 	u16 frame_size = 0;
 
-	__mbox_data_read(DATA_TYPE_MDNS_FRAME_SIZE, &frame_size, 1);
-	__mbox_data_read(DATA_TYPE_MDNS_FRAME_INFO, buf,
+	__mbox_data_read(wol, DATA_TYPE_MDNS_FRAME_SIZE, &frame_size, 1);
+	__mbox_data_read(wol, DATA_TYPE_MDNS_FRAME_INFO, buf,
 			 buf_len > frame_size ? frame_size : buf_len);
 
 	return frame_size;
 }
 
-static int mdns_add_response(u8 *offload_data, u16 offload_size,
+static int mdns_add_response(struct amlogic_wol *wol, u8 *offload_data, u16 offload_size,
 			      struct match_criteria *criteria_data,
 			      u8 criteria_size, u16 web_port, u16 srv_port)
 {
@@ -563,12 +801,12 @@ static int mdns_add_response(u8 *offload_data, u16 offload_size,
 		protocol_data.list_len * sizeof(struct match_criteria));
 	memcpy(protocol_data.raw_offload_packet, offload_data, protocol_data.raw_len);
 
-	__mbox_data_write(DATA_TYPE_ADD_RESPONSE, &protocol_data, sizeof(protocol_data));
-	__mbox_data_read(DATA_TYPE_RECORD_KEY, &ret, 4);
+	__mbox_data_write(wol, DATA_TYPE_ADD_RESPONSE, &protocol_data, sizeof(protocol_data));
+	__mbox_data_read(wol, DATA_TYPE_RECORD_KEY, &ret, 4);
 	return ret;
 }
 
-static u8 __maybe_unused mdns_add_passthrough(u8 *qname, u8 len)
+static u8 __maybe_unused mdns_add_passthrough(struct amlogic_wol *wol, u8 *qname, u8 len)
 {
 	u8 ret = 0;
 	struct mdns_passthrough passthrough_data;
@@ -577,12 +815,12 @@ static u8 __maybe_unused mdns_add_passthrough(u8 *qname, u8 len)
 	passthrough_data.qname_len = len;
 	memcpy(passthrough_data.qname, qname, passthrough_data.qname_len);
 
-	__mbox_data_write(DATA_TYPE_ADD_PASST, &passthrough_data, sizeof(passthrough_data));
-	__mbox_data_read(DATA_TYPE_GET_PASST_STATUS, &ret, 1);
+	__mbox_data_write(wol, DATA_TYPE_ADD_PASST, &passthrough_data, sizeof(passthrough_data));
+	__mbox_data_read(wol, DATA_TYPE_GET_PASST_STATUS, &ret, 1);
 	return ret;
 }
 
-static void __maybe_unused mdns_remove_passthrough(u8 *qname, u8 len)
+static void __maybe_unused mdns_remove_passthrough(struct amlogic_wol *wol, u8 *qname, u8 len)
 {
 	struct mdns_passthrough passthrough_data;
 
@@ -590,17 +828,22 @@ static void __maybe_unused mdns_remove_passthrough(u8 *qname, u8 len)
 	passthrough_data.qname_len = len;
 	memcpy(passthrough_data.qname, qname, passthrough_data.qname_len);
 
-	__mbox_data_write(DATA_TYPE_REMOVE_PASST, &passthrough_data, sizeof(passthrough_data));
+	__mbox_data_write(wol, DATA_TYPE_REMOVE_PASST, &passthrough_data,
+			  sizeof(passthrough_data));
 }
 
-static void __maybe_unused mdns_set_wakeup_port(struct wake_up_port *wp, u32 port_num)
+static void __maybe_unused mdns_set_wakeup_port(struct amlogic_wol *wol, struct wake_up_port *wp,
+						u32 port_num)
 {
-	__mbox_data_write(DATA_TYPE_SET_WAKEUP_PORT_NUM, &port_num, 1);
-	__mbox_data_write(DATA_TYPE_SET_WAKEUP_PORT, wp, sizeof(struct wake_up_port) * port_num);
+	__mbox_data_write(wol, DATA_TYPE_SET_WAKEUP_PORT_NUM, &port_num, 1);
+	__mbox_data_write(wol, DATA_TYPE_SET_WAKEUP_PORT, wp,
+			  sizeof(struct wake_up_port) * port_num);
 }
 
-void mdns_netlink_recv_msg(struct sk_buff *skb)
+static void mdns_netlink_recv_msg(struct sk_buff *skb)
 {
+	struct sock *sk = skb->sk;
+	struct amlogic_wol *wol = (struct amlogic_wol *)sk->sk_user_data;
 	struct sk_buff *skb_out;
 	struct nlmsghdr *nlh;
 	int msg_size;
@@ -611,6 +854,11 @@ void mdns_netlink_recv_msg(struct sk_buff *skb)
 	int outmsg_size = strlen(outmsg);
 	int pid;
 	int res;
+
+	if (!wol) {
+		pr_err("netlink recv failed, sk_user_data is null\n");
+		return;
+	}
 
 	nlh = (struct nlmsghdr *)skb->data;
 	pid = nlh->nlmsg_pid; /* pid of sending process */
@@ -637,34 +885,35 @@ void mdns_netlink_recv_msg(struct sk_buff *skb)
 	}
 	NETLINK_CB(skb_out).dst_group = 0; /* not in mcast group */
 
-	res = handle_offload_msg(puc, "NETLINK");
+	res = handle_offload_msg(wol, puc, "NETLINK");
 	snprintf(outmsg, sizeof(outmsg), (res < 0) ? "Unknown message" : "Done: %d", res);
 	outmsg_size = strlen(outmsg);
 	strncpy(nlmsg_data(nlh), outmsg, outmsg_size);
 
-	res = nlmsg_unicast(g_sk, skb_out, pid);
+	res = nlmsg_unicast(wol->sk, skb_out, pid);
 	if (res < 0)
 		pr_err("%s: Error while sending skb to user\n", __func__);
 }
 
-int mdns_netlink_init(void)
+static int mdns_netlink_init(struct amlogic_wol *wol)
 {
 	struct netlink_kernel_cfg cfg = {
 		.input = mdns_netlink_recv_msg,
 	};
-	if (g_sk)
+	if (wol->sk)
 		return 0;
 
-	g_sk = netlink_kernel_create(&init_net, NETLINK_TEST, &cfg);
-	if (!g_sk) {
+	wol->sk = netlink_kernel_create(&init_net, NETLINK_TEST, &cfg);
+	if (!wol->sk) {
 		pr_err("%s: Error creating socket.\n", __func__);
 		return -10;
 	}
+	wol->sk->sk_user_data = wol;
 
 	return 0;
 }
 
-int handle_offload_msg(unsigned char *puc, const char *mode)
+static int handle_offload_msg(struct amlogic_wol *wol, unsigned char *puc, const char *mode)
 {
 	int len, type;
 
@@ -676,12 +925,12 @@ int handle_offload_msg(unsigned char *puc, const char *mode)
 	if (type == TYPE_SET_OFFLOAD_STATE && len == 1) {
 		unsigned char val = puc[8];
 
-		return set_mdns_notify_bl30(val);
+		return set_mdns_notify_bl30(wol, val);
 	} else if (type == TYPE_ENABLE_NETLINK_SERVER && len == 1) {
 		unsigned char val = puc[8];
 
 		if (val == 1)
-			mdns_netlink_init();
+			mdns_netlink_init(wol);
 	} else if (type == TYPE_ADD_RESPONSE) {
 		int response_len = *((int *)(puc + 8));
 		unsigned char *response;
@@ -706,16 +955,16 @@ int handle_offload_msg(unsigned char *puc, const char *mode)
 		q += 2;
 		srv_port = *((unsigned short *)q);
 
-		return mdns_add_response(response, response_len,
+		return mdns_add_response(wol, response, response_len,
 			list, numberOfCriteria, web_port, srv_port);
 	} else if (type == TYPE_REMOVE_RESPONSE && len == 1) {
 		unsigned char val = puc[8];
 
-		mdns_remove_response(val);
+		mdns_remove_response(wol, val);
 	} else if (type == TYPE_SET_PASSTHROUGH_BEHAVIOR && len == 1) {
 		unsigned char val = puc[8];
 
-		mdns_set_passthrough_behavior(val);
+		mdns_set_passthrough_behavior(wol, val);
 	} else if (type == TYPE_SET_WAKEUP_PORT) {
 		struct wake_up_port wp[MDNS_WAKE_PORT_MAX];
 		int i, port_num;
@@ -744,7 +993,7 @@ int handle_offload_msg(unsigned char *puc, const char *mode)
 				wp[i].flags |= WKUP_TYPE;
 			wp[i].port = port;
 		}
-		mdns_set_wakeup_port(wp, port_num);
+		mdns_set_wakeup_port(wol, wp, port_num);
 	} else {
 		pr_err("%s: unsupported type: %d\n", mode, type);
 		return -1;
@@ -753,7 +1002,7 @@ int handle_offload_msg(unsigned char *puc, const char *mode)
 	return 0;
 }
 
-static u8 set_mdns_notify_bl30(int flag)
+static u8 set_mdns_notify_bl30(struct amlogic_wol *wol, int flag)
 {
 	int ret;
 	u8 set_ret;
@@ -764,13 +1013,13 @@ static u8 set_mdns_notify_bl30(int flag)
 	char buf[1024] = { 0 };
 
 	if (flag) {
-		mdns_set_passthrough_behavior(behavior);
-		miss_counter = mdns_get_reset_misscount();
-		hit_counter = mdns_get_reset_hitcount(record_key);
-		set_ret = mdns_set_offload_state(1);
+		mdns_set_passthrough_behavior(wol, behavior);
+		miss_counter = mdns_get_reset_misscount(wol);
+		hit_counter = mdns_get_reset_hitcount(wol, record_key);
+		set_ret = mdns_set_offload_state(wol, 1);
 	} else {
-		set_ret = mdns_set_offload_state(0);
-		ret = mdns_get_mdns_frame(buf, ARRAY_SIZE(buf));
+		set_ret = mdns_set_offload_state(wol, 0);
+		ret = mdns_get_mdns_frame(wol, buf, ARRAY_SIZE(buf));
 		print_hex_dump(KERN_DEBUG, "MDNS frame: ",
 			DUMP_PREFIX_OFFSET, 16, 1, buf, ret, true);
 	}
