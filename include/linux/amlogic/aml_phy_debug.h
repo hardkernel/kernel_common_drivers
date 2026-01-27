@@ -92,6 +92,10 @@ struct aml_eth_priv {
 	struct device *dev;
 	unsigned int tx_amp_bl2;
 	unsigned int phy_mode;
+	void __iomem *phy_analog_config_addr;
+	/*0 for 12nm, 1 for 22nm*/
+	unsigned int phy_pll_mode;
+	struct device *mdio_dev;
 #if IS_ENABLED(CONFIG_PM_SLEEP)
 	unsigned int wol_switch_from_user;
 	unsigned int mdns_switch_from_user;

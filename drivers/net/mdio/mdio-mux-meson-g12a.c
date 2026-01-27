@@ -18,13 +18,6 @@
 #include <linux/phy.h>
 #include <linux/of_mdio.h>
 #include <linux/amlogic/aml_phy_debug.h>
-void __iomem *phy_analog_config_addr;
-EXPORT_SYMBOL_GPL(phy_analog_config_addr);
-/*0 for 12nm, 1 for 22nm*/
-unsigned int phy_pll_mode;
-EXPORT_SYMBOL_GPL(phy_pll_mode);
-unsigned int ephy_clk_gate;
-EXPORT_SYMBOL_GPL(ephy_clk_gate);
 #endif
 
 #define ETH_PHY_DBG_CFG0	0x08
@@ -90,14 +83,13 @@ struct g12a_mdio_mux {
 struct g12a_ephy_pll {
 	void __iomem *base;
 	struct clk_hw hw;
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	struct aml_eth_priv *eth_priv;
+#endif
 };
 
 #define g12a_ephy_pll_to_dev(_hw)			\
 	container_of(_hw, struct g12a_ephy_pll, hw)
-
-#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-struct device *g12a_mdio_dev;
-#endif
 
 static unsigned long g12a_ephy_pll_recalc_rate(struct clk_hw *hw,
 					       unsigned long parent_rate)
@@ -132,7 +124,7 @@ static int g12a_ephy_pll_enable(struct clk_hw *hw)
 	 */
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 
-	if (phy_pll_mode == 1 || phy_pll_mode == 4) {
+	if (pll->eth_priv->phy_pll_mode == 1 || pll->eth_priv->phy_pll_mode == 4) {
 		return readl_poll_timeout(pll->base + ETH_PLL_CTL0, val,
 				  val & PLL_CTL0_LOCK_FLAG, 0, PLL_LOCK_TIMEOUT);
 	}
@@ -172,7 +164,7 @@ static int g12a_ephy_pll_init(struct clk_hw *hw)
 	/*12nm*/
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-	if (phy_pll_mode == 0) {
+	if (pll->eth_priv->phy_pll_mode == 0) {
 		writel(0x29c0040a, pll->base + ETH_PLL_CTL0);
 		writel(0x927e0000, pll->base + ETH_PLL_CTL1);
 		writel(0xac5f49e5, pll->base + ETH_PLL_CTL2);
@@ -183,7 +175,7 @@ static int g12a_ephy_pll_init(struct clk_hw *hw)
 		writel(0x00000023, pll->base + ETH_PLL_CTL7);
 	}
 	/*22nm*/
-	if (phy_pll_mode == 1) {
+	if (pll->eth_priv->phy_pll_mode == 1) {
 		writel(0x608200a0, pll->base + ETH_PLL_CTL0);
 		writel(0xea002000, pll->base + ETH_PLL_CTL1);
 		writel(0x00000150, pll->base + ETH_PLL_CTL2);
@@ -194,7 +186,7 @@ static int g12a_ephy_pll_init(struct clk_hw *hw)
 		writel(0x00000110, pll->base + ETH_PLL_CTL2);
 	}
 	/*s7*/
-	if (phy_pll_mode == 2) {
+	if (pll->eth_priv->phy_pll_mode == 2) {
 		writel(0x00510630, pll->base + ETH_PLL_CTL0);
 		writel(0x222210a0, pll->base + ETH_PLL_CTL1);
 		writel(0x00518630, pll->base + ETH_PLL_CTL0);
@@ -204,7 +196,7 @@ static int g12a_ephy_pll_init(struct clk_hw *hw)
 		writel(0x00118630, pll->base + ETH_PLL_CTL0);
 	}
 	/*s7d*/
-	if (phy_pll_mode == 3) {
+	if (pll->eth_priv->phy_pll_mode == 3) {
 		writel(readl(pll->base + ETH_PLL_CTL3) & 0xfffffffc, pll->base + ETH_PLL_CTL3);
 		writel(0x00c091a2, pll->base + ETH_PLL_CTL0);
 		writel(0x01111140, pll->base + ETH_PLL_CTL1);
@@ -217,7 +209,7 @@ static int g12a_ephy_pll_init(struct clk_hw *hw)
 		writel(0x00007423, pll->base + ETH_PLL_CTL7);
 	}
 	/*t6x-24m*/
-	if (phy_pll_mode == 4) {
+	if (pll->eth_priv->phy_pll_mode == 4) {
 		writel(0x07d21003, pll->base + ETH_PLL_CTL0);
 		writel(0x000008c0, pll->base + ETH_PLL_CTL1);
 		usleep_range(100, 200);
@@ -294,6 +286,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	unsigned int tx_R = 0;
 	unsigned int efuse_get_tmp = 0;
 	unsigned int led_setting = 0;
+	unsigned int ephy_clk_gate = 0;
 
 	eth_priv = get_eth_priv(np);
 	if (IS_ERR_OR_NULL(eth_priv))
@@ -520,9 +513,9 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 }
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-int g12a_resume_enable_internal_mdio(void)
+int g12a_resume_enable_internal_mdio(struct device *mdio_dev)
 {
-	struct g12a_mdio_mux *priv = dev_get_drvdata(g12a_mdio_dev);
+	struct g12a_mdio_mux *priv = dev_get_drvdata(mdio_dev);
 
 	g12a_ephy_pll_init(__clk_get_hw(priv->pll));
 	g12a_ephy_pll_enable(__clk_get_hw(priv->pll));
@@ -579,6 +572,14 @@ static int g12a_ephy_glue_clk_register(struct device *dev)
 	struct clk *clk;
 	char *name;
 	int i;
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	struct device_node *np = dev->of_node;
+	struct aml_eth_priv *eth_priv;
+
+	eth_priv = get_eth_priv(np);
+	if (IS_ERR_OR_NULL(eth_priv))
+		return PTR_ERR(eth_priv);
+#endif
 
 	/* get the mux parents */
 	for (i = 0; i < PLL_MUX_NUM_PARENT; i++) {
@@ -640,6 +641,9 @@ static int g12a_ephy_glue_clk_register(struct device *dev)
 
 	pll->base = priv->regs;
 	pll->hw.init = &init;
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	pll->eth_priv = eth_priv;
+#endif
 
 	clk = devm_clk_register(dev, &pll->hw);
 	kfree(name);
@@ -660,13 +664,18 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 	int ret;
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	struct device_node *np = dev->of_node;
+	struct aml_eth_priv *eth_priv;
+
+	eth_priv = get_eth_priv(np);
+	if (IS_ERR_OR_NULL(eth_priv))
+		return PTR_ERR(eth_priv);
 #endif
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-	g12a_mdio_dev = dev;
+	eth_priv->mdio_dev = dev;
 #endif
 	platform_set_drvdata(pdev, priv);
 
@@ -675,9 +684,9 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->regs);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-	phy_analog_config_addr = priv->regs;
+	eth_priv->phy_analog_config_addr = priv->regs;
 	priv->dev = dev;
-	if (of_property_read_u32(np, "phy_pll_mode", &phy_pll_mode) != 0)
+	if (of_property_read_u32(np, "phy_pll_mode", &eth_priv->phy_pll_mode) != 0)
 		pr_debug("default as 12nm setting\n");
 #endif
 	priv->pclk = devm_clk_get(dev, "pclk");

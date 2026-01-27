@@ -710,21 +710,24 @@ static void meson8b_dwmac_shutdown(struct platform_device *pdev)
 
 static int dwmac_suspend(struct meson8b_dwmac *dwmac)
 {
+	struct net_device *ndev = dev_get_drvdata(dwmac->dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
 	pr_info("disable analog\n");
-	writel(0x00000000, phy_analog_config_addr + 0x0);
-	writel(0x003e0000, phy_analog_config_addr + 0x4);
-	writel(0x12844008, phy_analog_config_addr + 0x8);
-	writel(0x0800a40c, phy_analog_config_addr + 0xc);
-	writel(0x00000000, phy_analog_config_addr + 0x10);
-	writel(0x031d161c, phy_analog_config_addr + 0x14);
-	writel(0x00001683, phy_analog_config_addr + 0x18);
-	if (phy_pll_mode == 1)
-		writel(0x608200a0, phy_analog_config_addr + 0x44);
-	else if (phy_pll_mode == 3) /*s7d*/
-		writel(readl(phy_analog_config_addr + 0x50) & 0xfffffffc,
-			phy_analog_config_addr + 0x50);
+	writel(0x00000000, priv->eth_priv.phy_analog_config_addr + 0x0);
+	writel(0x003e0000, priv->eth_priv.phy_analog_config_addr + 0x4);
+	writel(0x12844008, priv->eth_priv.phy_analog_config_addr + 0x8);
+	writel(0x0800a40c, priv->eth_priv.phy_analog_config_addr + 0xc);
+	writel(0x00000000, priv->eth_priv.phy_analog_config_addr + 0x10);
+	writel(0x031d161c, priv->eth_priv.phy_analog_config_addr + 0x14);
+	writel(0x00001683, priv->eth_priv.phy_analog_config_addr + 0x18);
+	if (priv->eth_priv.phy_pll_mode == 1)
+		writel(0x608200a0, priv->eth_priv.phy_analog_config_addr + 0x44);
+	else if (priv->eth_priv.phy_pll_mode == 3) /*s7d*/
+		writel(readl(priv->eth_priv.phy_analog_config_addr + 0x50) & 0xfffffffc,
+		       priv->eth_priv.phy_analog_config_addr + 0x50);
 	else
-		writel(0x09c0040a, phy_analog_config_addr + 0x44);
+		writel(0x09c0040a, priv->eth_priv.phy_analog_config_addr + 0x44);
 	return 0;
 }
 
@@ -734,62 +737,62 @@ static void dwmac_resume(struct meson8b_dwmac *dwmac)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 
 	pr_info("recover analog\n");
-	if (phy_pll_mode == 1) {
-		writel(0x608200a0, phy_analog_config_addr + 0x44);
-		writel(0xea002000, phy_analog_config_addr + 0x48);
-		writel(0x00000150, phy_analog_config_addr + 0x4c);
-		writel(0x00000000, phy_analog_config_addr + 0x50);
-		writel(0x708200a0, phy_analog_config_addr + 0x44);
+	if (priv->eth_priv.phy_pll_mode == 1) {
+		writel(0x608200a0, priv->eth_priv.phy_analog_config_addr + 0x44);
+		writel(0xea002000, priv->eth_priv.phy_analog_config_addr + 0x48);
+		writel(0x00000150, priv->eth_priv.phy_analog_config_addr + 0x4c);
+		writel(0x00000000, priv->eth_priv.phy_analog_config_addr + 0x50);
+		writel(0x708200a0, priv->eth_priv.phy_analog_config_addr + 0x44);
 		usleep_range(100, 200);
-		writel(0x508200a0, phy_analog_config_addr + 0x44);
-		writel(0x00000110, phy_analog_config_addr + 0x4c);
+		writel(0x508200a0, priv->eth_priv.phy_analog_config_addr + 0x44);
+		writel(0x00000110, priv->eth_priv.phy_analog_config_addr + 0x4c);
 		if (priv->eth_priv.phy_mode == 2) {
-			writel(0x74047, phy_analog_config_addr + 0x84);
-			writel(0x34047, phy_analog_config_addr + 0x84);
-			writel(0x74047, phy_analog_config_addr + 0x84);
+			writel(0x74047, priv->eth_priv.phy_analog_config_addr + 0x84);
+			writel(0x34047, priv->eth_priv.phy_analog_config_addr + 0x84);
+			writel(0x74047, priv->eth_priv.phy_analog_config_addr + 0x84);
 		}
-	} else if (phy_pll_mode == 2) {/*s7 new*/
-		writel(0x00510630, phy_analog_config_addr + 0x44);
-		writel(0x222210a0, phy_analog_config_addr + 0x48);
-		writel(0x00518630, phy_analog_config_addr + 0x44);
+	} else if (priv->eth_priv.phy_pll_mode == 2) {/*s7 new*/
+		writel(0x00510630, priv->eth_priv.phy_analog_config_addr + 0x44);
+		writel(0x222210a0, priv->eth_priv.phy_analog_config_addr + 0x48);
+		writel(0x00518630, priv->eth_priv.phy_analog_config_addr + 0x44);
 		usleep_range(100, 200);
-		writel(0x222200a0, phy_analog_config_addr + 0x48);
+		writel(0x222200a0, priv->eth_priv.phy_analog_config_addr + 0x48);
 		usleep_range(100, 200);
-		writel(0x00118630, phy_analog_config_addr + 0x44);
+		writel(0x00118630, priv->eth_priv.phy_analog_config_addr + 0x44);
 
 		usleep_range(800, 1000);
-		writel(0x12804008, phy_analog_config_addr + 0x8);
-	} else if (phy_pll_mode == 3) {/*s7d new*/
-		writel(readl(phy_analog_config_addr + 0x50) & 0xfffffffc,
-			phy_analog_config_addr + 0x50);
-		writel(0x00c091a2, phy_analog_config_addr + 0x44);
-		writel(0x01111140, phy_analog_config_addr + 0x48);
-		writel(readl(phy_analog_config_addr + 0x50) | 0x2,
-			phy_analog_config_addr + 0x50);
+		writel(0x12804008, priv->eth_priv.phy_analog_config_addr + 0x8);
+	} else if (priv->eth_priv.phy_pll_mode == 3) {/*s7d new*/
+		writel(readl(priv->eth_priv.phy_analog_config_addr + 0x50) & 0xfffffffc,
+		       priv->eth_priv.phy_analog_config_addr + 0x50);
+		writel(0x00c091a2, priv->eth_priv.phy_analog_config_addr + 0x44);
+		writel(0x01111140, priv->eth_priv.phy_analog_config_addr + 0x48);
+		writel(readl(priv->eth_priv.phy_analog_config_addr + 0x50) | 0x2,
+		       priv->eth_priv.phy_analog_config_addr + 0x50);
 		usleep_range(100, 200);
-		writel(readl(phy_analog_config_addr + 0x50) | 0x3,
-			phy_analog_config_addr + 0x50);
+		writel(readl(priv->eth_priv.phy_analog_config_addr + 0x50) | 0x3,
+		       priv->eth_priv.phy_analog_config_addr + 0x50);
 		usleep_range(100, 200);
-		writel(0x00e091a2, phy_analog_config_addr + 0x44);
+		writel(0x00e091a2, priv->eth_priv.phy_analog_config_addr + 0x44);
 		usleep_range(800, 1000);
 
-		writel(0x12804008, phy_analog_config_addr + 0x8);
-	} else if (phy_pll_mode == 4) {/*t6x*/
-		writel(0x07d21003, phy_analog_config_addr + 0x44);
-		writel(0x000008c0, phy_analog_config_addr + 0x48);
+		writel(0x12804008, priv->eth_priv.phy_analog_config_addr + 0x8);
+	} else if (priv->eth_priv.phy_pll_mode == 4) {/*t6x*/
+		writel(0x07d21003, priv->eth_priv.phy_analog_config_addr + 0x44);
+		writel(0x000008c0, priv->eth_priv.phy_analog_config_addr + 0x48);
 		usleep_range(100, 200);
-		writel(0x07d21007, phy_analog_config_addr + 0x44);
+		writel(0x07d21007, priv->eth_priv.phy_analog_config_addr + 0x44);
 		usleep_range(100, 200);
-		writel(0x07d21006, phy_analog_config_addr + 0x44);
+		writel(0x07d21006, priv->eth_priv.phy_analog_config_addr + 0x44);
 		usleep_range(100, 200);
-		writel(0x07d21004, phy_analog_config_addr + 0x44);
+		writel(0x07d21004, priv->eth_priv.phy_analog_config_addr + 0x44);
 
 		usleep_range(800, 1000);
-		writel(0x12804008, phy_analog_config_addr + 0x8);
+		writel(0x12804008, priv->eth_priv.phy_analog_config_addr + 0x8);
 	} else {
-		writel(0x19c0040a, phy_analog_config_addr + 0x44);
+		writel(0x19c0040a, priv->eth_priv.phy_analog_config_addr + 0x44);
 	}
-	writel(0x0, phy_analog_config_addr + 0x4);
+	writel(0x0, priv->eth_priv.phy_analog_config_addr + 0x4);
 }
 
 int backup_adv;
@@ -927,7 +930,7 @@ static int meson8b_resume(struct device *dev)
 				pr_info("do eth reset\n");
 				writel((1 << eth_reset_bit), ee_reset_base);
 				writel(mc_val, dwmac->regs + PRG_ETH0);
-				g12a_resume_enable_internal_mdio();
+				g12a_resume_enable_internal_mdio(priv->eth_priv.mdio_dev);
 				/*our phy not support wol by now*/
 				if (phydev)
 					phydev->irq_suspended = 0;
@@ -1018,7 +1021,7 @@ static int meson8b_restore(struct device *dev)
 	if (phy_mii_clk_sel)
 		writel(phy_mii_clk_sel, dwmac->regs + PRG_ETH_TX_GLITCH_FIX);
 
-	g12a_resume_enable_internal_mdio();
+	g12a_resume_enable_internal_mdio(priv->eth_priv.mdio_dev);
 	/*our phy not support wol by now*/
 	phydev->irq_suspended = 0;
 	ret = stmmac_resume(dev);
