@@ -2559,7 +2559,8 @@
 	lcd_tcon_mlvds_pins: lcd_tcon_mlvds_pin {
 		mux {
 			groups = "tcon_0","tcon_1","tcon_2","tcon_3",
-				"tcon_4","tcon_5","tcon_6";
+				"tcon_4","tcon_5","tcon_6","tcon_8",
+				"tcon_9","tcon_10","tcon_11";
 			function = "tcon";
 		};
 	};
@@ -2567,7 +2568,8 @@
 	lcd_tcon_mlvds_off_pins: lcd_tcon_mlvds_off_pin {
 		mux {
 			groups = "GPIOH_0","GPIOH_1","GPIOH_2","GPIOH_3",
-				"GPIOH_4","GPIOH_5","GPIOH_6";
+				"GPIOH_4","GPIOH_5","GPIOH_6","GPIOH_8",
+				"GPIOH_9","GPIOH_10","GPIOH_11";
 			function = "gpio_periphs";
 			input-enable;
 		};
