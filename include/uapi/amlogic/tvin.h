@@ -710,6 +710,7 @@ struct vdin_dump_afbc_buf_arg {
 #define TVIN_IOC_S_TUNER_ID		_IOW(_TM_T, 0x5c, int)
 #define TVIN_IOC_S_CANVAS_RECOVERY  _IO(_TM_T, 0x0a)
 #define TVIN_IOC_S_GAME_FRC_ON_OFF           _IOW(_TM_T, 0x5a, unsigned int)
+#define TVIN_IOC_G_VDIN_MEM_SIZE	_IOR(_TM_T, 0x5b, unsigned int)
 
 /* TVAFE */
 #define TVIN_IOC_S_AFE_VGA_PARM     _IOW(_TM_T, 0x16, struct tvafe_vga_parm_s)

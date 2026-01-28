@@ -5062,6 +5062,10 @@ start_chk:
 			vdin_memset_dbg(parm, devp);
 		pr_info("vdin_mem_memset_flag = %d,vdin_memset_en = %d\n",
 			devp->debug.vdin_memset_dbg_en, devp->debug.vdin_memset_en);
+	} else if (!strcmp(parm[0], "vdin_manual_req_mem_size")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.vdin_manual_req_mem_size = temp;
+		pr_info("vdin_manual_req_mem_size_:%u\n", devp->debug.vdin_manual_req_mem_size);
 	} else if (!strcmp(parm[0], "force_convert")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
 			devp->debug.dbg_force_convert = temp;

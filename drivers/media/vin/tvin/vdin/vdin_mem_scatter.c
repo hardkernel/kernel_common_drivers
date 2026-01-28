@@ -493,23 +493,22 @@ int vdin_mem_init(struct vdin_dev_s *devp)
 	memset(&devp->msct_top, 0, sizeof(devp->msct_top));
 	/* scatter memory flag */
 	devp->mem_type = VDIN_MEM_TYPE_SCT;
-	/* need extra one buffer for sct mem */
-	if (devp->frame_buff_num_bak < VDIN_CANVAS_MAX_CNT)
-		devp->frame_buff_num = devp->frame_buff_num_bak + 1;
 
-	/* alloc box */
-	vdin_sct_init(devp);
+	if (!devp->get_vdin_mem_size_flag) {
+		/* alloc box */
+		vdin_sct_init(devp);
 
-	devp->wq = alloc_ordered_workqueue("vdin0-worker",
-		__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_HIGHPRI);
-	if (!devp->wq) {
-		pr_err("%s Failed to create workqueue\n", __func__);
-		return -EINVAL;
+		devp->wq = alloc_ordered_workqueue("vdin0-worker",
+			__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_HIGHPRI);
+		if (!devp->wq) {
+			pr_err("%s Failed to create workqueue\n", __func__);
+			return -EINVAL;
+		}
+		INIT_WORK(&devp->sct_work, vdin_sct_worker);
+		//queue_work(devp->wq, &devp->sct_work);
+		if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_INIT)
+			pr_info("%s vdin%d done\n", __func__, devp->index);
 	}
-	INIT_WORK(&devp->sct_work, vdin_sct_worker);
-	//queue_work(devp->wq, &devp->sct_work);
-	if (devp->debug.sct_print_ctl & SCT_PRINT_CTL_INIT)
-		pr_info("%s done\n", __func__);
 
 	return 0;
 }

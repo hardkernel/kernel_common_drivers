@@ -1217,7 +1217,7 @@ __maybe_unused static void vdin_rdma_read_irq(void *arg)
 __maybe_unused static struct rdma_op_s vdin_rdma_read_op;
 #endif
 
-static void vdin_double_write_confirm(struct vdin_dev_s *devp)
+void vdin_double_write_confirm(struct vdin_dev_s *devp)
 {
 	/* enable double write only afbce is supported */
 	if (devp->double_wr_cfg && devp->afbce_valid) {
@@ -5290,6 +5290,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct vdin_vrr_freesync_param_s vdin_vrr_status;
 	struct vdin_qms_param_s vdin_qms_status;
 	unsigned int tmp = 0;
+	unsigned int vdin_need_mem_size = 0;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct vdin_dump_buf_arg dump_arg;
 	struct vdin_dump_afbc_buf_arg dump_afbc_arg;
@@ -6106,7 +6107,33 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			devp->hv_reverse_en = 0;
 		}
 		break;
+	case TVIN_IOC_G_VDIN_MEM_SIZE:
+		mutex_lock(&devp->fe_lock);
+		if ((devp->parm.info.status != TVIN_SIG_STATUS_STABLE ||
+		     devp->parm.info.fmt == TVIN_SIG_FMT_NULL) ||
+		     devp->hw_core == VDIN_HW_CORE_LITE ||
+		     devp->parm.port == TVIN_PORT_MIPI) {
+			pr_err("TVIN_IOC_G_VDIN_MEM_SIZE: port %s fmt:%s, vdin(%d) error\n",
+			       tvin_port_str(devp->parm.port),
+			       tvin_sig_fmt_str(devp->parm.info.fmt), devp->index);
+			pr_err("	status: %s\n",
+			       tvin_sig_status_str(devp->parm.info.status));
+			ret = -EPERM;
+		} else {
+			devp->get_vdin_mem_size_flag = 1;
+			vdin_need_mem_size = get_vdin_req_mem(devp) / 1024;
+		}
 
+		if (copy_to_user(argp, &vdin_need_mem_size,
+				      sizeof(unsigned int))) {
+			pr_info("vdin_need_mem_size copy fail\n");
+			mutex_unlock(&devp->fe_lock);
+			ret = -EFAULT;
+		}
+		mutex_unlock(&devp->fe_lock);
+		if (devp->debug.vdin_dbg_en)
+			pr_info("TVIN_IOC_S_VDIN_MEM_SIZE(%d)\n", vdin_need_mem_size);
+		break;
 	case TVIN_IOC_S_CANVAS_ADDR:
 		if (devp->index == 0) {
 			pr_info("TVIN_IOC_S_CANVAS_ADDR vdin0\n");
