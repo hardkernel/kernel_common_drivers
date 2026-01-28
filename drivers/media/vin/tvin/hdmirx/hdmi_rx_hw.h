@@ -3503,6 +3503,7 @@ extern int valid_m_wait_max;
 extern enum frl_train_sts_e frl_train_sts;
 extern enum frl_train_sts_e frl_train_sts1;
 extern int vpcore1_select;
+extern int hdcp_reauth_max;
 
 void hdmirx_set_vp_mapping(enum colorspace_e cs, u8 port);
 void rx_get_best_eq_setting(u8 port);

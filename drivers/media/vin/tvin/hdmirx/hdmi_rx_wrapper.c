@@ -496,7 +496,7 @@ void hdmirx_fsm_var_init(void)
 		pll_unlock_max = 30;
 		//do not to check colorspace changes
 		//Vdin can adapt it automatically
-		stable_check_lvl = 0x2c7;
+		stable_check_lvl = 0x42c3;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
 		sig_unstable_max = 20;
@@ -2675,8 +2675,9 @@ static bool rx_is_timing_stable(u8 port)
 				      rx[port].cur.vactive);
 		}
 	}
-	if (stable_check_lvl & HTOTAL_EN) {
-		if (rx_info.chip_id == CHIP_ID_T6X && rx[port].dsc_flag) {
+
+	if (stable_check_lvl & DSC_HTOTAL_CHECK_EN) {
+		if (rx[port].dsc_flag) {
 			if (abs(rx[port].cur.htotal -
 			rx[port].pre.htotal) == 2) {
 				rx[port].is_htotal_odd = true;
@@ -2689,7 +2690,8 @@ static bool rx_is_timing_stable(u8 port)
 			}
 			rx[port].pre.htotal = rx[port].cur.htotal;
 		}
-
+	}
+	if (stable_check_lvl & HTOTAL_EN) {
 		if (abs(rx[port].cur.htotal -
 			rx[port].pre.htotal) > diff_pixel_th) {
 			ret = false;
@@ -5453,6 +5455,7 @@ void rx_port0_main_state_machine(void)
 			rx_reset_hdcp(port);
 			//rx_irq_en(true, port);
 			//hdmirx_top_irq_en(1, 1, port);
+			rx[port].hdcp_reauth_cnt = 0;
 			rx[port].state = FSM_SIG_WAIT_STABLE;
 		} else {
 			rx[port].var.pll_lock_cnt = 0;
@@ -5892,6 +5895,7 @@ void rx_port1_main_state_machine(void)
 			rx_reset_hdcp(port);
 			//rx_irq_en(true, port);
 			//hdmirx_top_irq_en(1, 1, port);
+			rx[port].hdcp_reauth_cnt = 0;
 			rx[port].state = FSM_SIG_WAIT_STABLE;
 		} else {
 			rx[port].var.pll_lock_cnt = 0;
@@ -6456,6 +6460,7 @@ void rx_port2_main_state_machine(void)
 			//rx_irq_en(true, port);
 			//hdmirx_top_irq_en(1, 1, port);
 			rx[port].dsc_flag = false;
+			rx[port].hdcp_reauth_cnt = 0;
 			rx[port].state = FSM_SIG_WAIT_STABLE;
 		} else {
 			rx[port].var.pll_lock_cnt = 0;
@@ -7127,6 +7132,7 @@ void rx_port3_main_state_machine(void)
 			rx_clr_f_det(false, port);
 			hdmirx_output_en(1);
 			rx[port].dsc_flag = false;
+			rx[port].hdcp_reauth_cnt = 0;
 			rx[port].state = FSM_SIG_WAIT_STABLE;
 		} else {
 			rx[port].var.pll_lock_cnt = 0;

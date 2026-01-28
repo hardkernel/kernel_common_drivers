@@ -1122,6 +1122,7 @@ struct rx_s {
 	u32 ecc_err;
 	u32 ecc_pkt_cnt;
 	u32 ecc_err_frames_cnt;
+	u32 hdcp_reauth_cnt;
 	bool ddc_filter_en;
 	struct rx_var_param var;
 	u8 last_hdcp22_state;

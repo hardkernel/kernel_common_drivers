@@ -99,6 +99,7 @@ int hdcp22_on;
 int edid_auto_debug;
 int secure_debug;
 int audio_dump;
+int hdcp_reauth_max = 2;
 
 MODULE_PARM_DESC(hdcp22_on, "\n hdcp22_on\n");
 module_param(hdcp22_on, int, 0664);
@@ -4414,6 +4415,11 @@ void rx_hdcp_monitor(u8 port)
 	//we will not do hdcp reauth and clear hdcp flag, which has little side
 	//effect. clear the flag on 5v lost or hpd low
 	if (rx[port].ecc_err_frames_cnt >= rx_ecc_err_frames) {
+		rx[port].hdcp_reauth_cnt++;
+		if (rx[port].hdcp_reauth_cnt >= hdcp_reauth_max) {
+			rx[port].fsm_ext_state = FSM_HPD_LOW;
+			return;
+		}
 		if (rx[port].hdcp.hdcp_version == HDCP_VER_22 ||
 			rx[port].cur.hdcp22_state ||
 			rx[port].hdcp.hdcp_pre_ver == HDCP_VER_22) {

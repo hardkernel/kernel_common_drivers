@@ -21,6 +21,7 @@
 #define ERR_CNT_EN		0x800
 #define TMDS_VALID_EN		0x1000
 #define ECC_ERR_CNT_EN      0x2000
+#define DSC_HTOTAL_CHECK_EN      0x4000
 #define HDMIRX_PORT_MAX		4
 #define HTOTAL_THRESHOLD    5
 /* aud sample rate stable range */
@@ -84,7 +85,8 @@
 /* 2026.1.23 return unsupport when vic is unknown */
 /* 2026.1.29 fix frame rate error caused by unstable signal */
 /* 2026.1.30 modify frl signal flow */
-#define RX_WRAPPER_VER "ver.2026/1/30"
+/* 2026.2.02 remove htotal detect */
+#define RX_WRAPPER_VER "ver.2026/2/02"
 
 struct freq_ref_s {
 	bool interlace;
