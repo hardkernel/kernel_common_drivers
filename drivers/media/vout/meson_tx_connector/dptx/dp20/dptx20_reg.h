@@ -813,9 +813,9 @@
 /* RW   SRC0_COLORIMETRY_OVERRIDE
  *    6 OVERRIDE_ENABLE: Set to a 1 to use the values in this register rather than the values in
  *      the MSA packet. When set to 0, all colorimetry information is determined by the
- *      MISC0/MISC1 fields of the MSA packet. 5:3 – COLOR_SPACE_OVERRIDE: Determines the color
- *      space to be used when decoding pixel information from the link. Set to 100 for 4:2:0.
- *      Set to 101 for DSC byte mode.
+ *      MISC0/MISC1 fields of the MSA packet.
+ *  5:3 COLOR_SPACE_OVERRIDE: Determines the color space to be used when decoding pixel information
+ *      from the link. Set to 100 for 4:2:0. Set to 101 for DSC byte mode.
  *  2:0 BITS_PER_COMPONENT_OVERRIDE: Sets the number of bits per component for the selected color
  *      space. Encodings are determined by the selected color space. These bits are equivalent
  *      to bit 7-5 in the MISC0 field.

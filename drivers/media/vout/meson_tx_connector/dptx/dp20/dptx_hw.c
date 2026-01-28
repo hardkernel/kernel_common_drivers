@@ -1065,10 +1065,17 @@ static void dptx20_hw_set_msa(struct dptx_hw_common *hw_comm,
 	misc = clk_synchronous << 0;
 	/* color format; Note: 0x3 means reserved */
 	misc |= (para->cs & 0x3) << 1;
-	/* 0: VESA (full/limit color)range, 1: CTA range */
-	misc |= para->cta_range << 3;
-	/* 0: BT.601, 1: BT.709, 2: BT2020(will be replaced by VSC, so ignore) */
-	misc |= !!para->colorimetry << 4;
+	if (para->cs == HDMI_COLORSPACE_RGB) {
+		/* 0: VESA range */
+		misc |= DP_DYNAMIC_RANGE_VESA << 3;
+		/* 0: BT.601 */
+		misc |= DP_COLORIMETRY_DEFAULT << 4;
+	} else {
+		/* 1: CTA range */
+		misc |= DP_DYNAMIC_RANGE_CTA << 3;
+		/* 1: BT.709 */
+		misc |= DP_COLORIMETRY_BT709_YCC << 4;
+	}
 	misc |= (dptx20_get_mapped_cd_conf(para->cd) & 0x7) << 5;
 	dptx20_reg_write(hw_comm, CORE_LEVEL,
 		dptx20_hw_calc_mst_reg(vc_id, DPTX20_SRCX_MAIN_STREAM_MISC0), misc);
