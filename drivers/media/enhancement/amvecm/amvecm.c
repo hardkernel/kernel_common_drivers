@@ -4307,6 +4307,8 @@ static int amvecm_pre_matrix_process(struct vframe_s *toggle_vf,
 	enum vd_path_e mosaic_vd_path[4] = {VD1_PATH, VD1_1_PATH,
 		VD2_PATH, VD2_1_PATH};
 	unsigned int i = 0;
+	struct vframe_s *toggle_vf_mosaic = NULL;
+	struct vframe_s *vf_mosaic = NULL;
 
 	if (vd_path == VD1_PATH) {
 		if ((toggle_vf && toggle_vf->type_ext & VIDTYPE_EXT_MOSAIC_22) ||
@@ -4314,19 +4316,37 @@ static int amvecm_pre_matrix_process(struct vframe_s *toggle_vf,
 			mosaic_mode = 1;
 			am_dma_updat_hdr2_hist(mosaic_mode);
 			for (i = 0; i < 4; i++) {
-				result |= amvecm_matrix_process(toggle_vf ?
-					toggle_vf->vc_private->mosaic_vf[mosaic_idx[i]] : NULL,
-					vf ? vf->vc_private->mosaic_vf[mosaic_idx[i]] : NULL,
-					flags, mosaic_vd_path[i], vpp_index);
+				if (toggle_vf && toggle_vf->vc_private)
+					toggle_vf_mosaic =
+						toggle_vf->vc_private->mosaic_vf[mosaic_idx[i]];
+				else
+					toggle_vf_mosaic = NULL;
+
+				if (vf && vf->vc_private)
+					vf_mosaic = vf->vc_private->mosaic_vf[mosaic_idx[i]];
+				else
+					vf_mosaic = NULL;
+
+				result |= amvecm_matrix_process(toggle_vf_mosaic,
+					vf_mosaic, flags, mosaic_vd_path[i], vpp_index);
 			}
 		} else {
 			if (mosaic_mode) {// reset 2*2 hdr status when mosaic_mode exit
 				for (i = 0; i < 4; i++) {
-					result |= amvecm_matrix_process(toggle_vf ?
-					toggle_vf->vc_private->mosaic_vf[mosaic_idx[i]] : NULL,
-					vf ? vf->vc_private->mosaic_vf[mosaic_idx[i]] : NULL,
-					flags, mosaic_vd_path[i], vpp_index);
+					if (toggle_vf && toggle_vf->vc_private)
+						toggle_vf_mosaic =
+						toggle_vf->vc_private->mosaic_vf[mosaic_idx[i]];
+					else
+						toggle_vf_mosaic = NULL;
 
+					if (vf && vf->vc_private)
+						vf_mosaic =
+						vf->vc_private->mosaic_vf[mosaic_idx[i]];
+					else
+						vf_mosaic = NULL;
+
+					result |= amvecm_matrix_process(toggle_vf_mosaic,
+						vf_mosaic, flags, mosaic_vd_path[i], vpp_index);
 				}
 				mosaic_mode = 0;
 				am_dma_updat_hdr2_hist(mosaic_mode);
