@@ -5698,8 +5698,7 @@ static void vsync_fiq_up(void)
 	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S5_)
 		r = request_irq(mosaic_frame_done, &mosaic_frame_done_isr,
 			IRQF_SHARED, "frame_done", (void *)video_dev_id);
-	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_SC2_ ||
-	    amvideo_meson_dev.has_vpp1)
+	if (amvideo_meson_dev.has_vpp1)
 		r = request_irq(video_vsync_viu2, &vsync_isr_viu2,
 				IRQF_SHARED, "vsync_viu2",
 				(void *)video_dev_id);
@@ -5729,8 +5728,7 @@ static void vsync_fiq_down(void)
 	free_irq(video_vsync, (void *)video_dev_id);
 	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S5_)
 		free_irq(mosaic_frame_done, (void *)video_dev_id);
-	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_SC2_ ||
-	   amvideo_meson_dev.has_vpp1)
+	if (amvideo_meson_dev.has_vpp1)
 		free_irq(video_vsync_viu2, (void *)video_dev_id);
 	if (amvideo_meson_dev.has_vpp2)
 		free_irq(video_vsync_viu3, (void *)video_dev_id);
@@ -17279,8 +17277,7 @@ static int amvideom_probe(struct platform_device *pdev)
 		}
 		pr_info("amvideom frame_done irq: %d\n", mosaic_frame_done);
 	}
-	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_SC2_ ||
-	    amvideo_meson_dev.has_vpp1) {
+	if (amvideo_meson_dev.has_vpp1) {
 		/* get interrupt resource */
 		video_vsync_viu2 = platform_get_irq_byname(pdev, "vsync_viu2");
 		if (video_vsync_viu2  == -ENXIO)
