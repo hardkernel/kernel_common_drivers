@@ -3210,7 +3210,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (1 << 8)	/* bt709 */
 			| (10 << 0);
 		vd_signal.signal_type = SIGNAL_SDR;
-		pr_csc(16, "%s: SIGNAL_HDR10 vpp_index = %d\n",
+		pr_csc(16, "%s: SIGNAL_SDR2020 vpp_index = %d\n",
 			__func__, vpp_index);
 		break;
 	case BT2020_PQ:
@@ -3269,7 +3269,6 @@ void hdmi_packet_process(int signal_change_flag,
 		pr_csc(16, "%s: SIGNAL_HLGPLUS vpp_index = %d\n",
 			__func__, vpp_index);
 		break;
-
 	case BT2020YUV_BT2020RGB_CUVA:
 			/* same as hdr10 */
 			send_info.features =
