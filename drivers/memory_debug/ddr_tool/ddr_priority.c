@@ -4079,6 +4079,7 @@ int get_dmc_priority(unsigned int bus_id, char rw)
 
 	return value;
 }
+EXPORT_SYMBOL(get_dmc_priority);
 
 int set_dmc_priority(unsigned int bus_id, unsigned char priority, char rw)
 {
@@ -4135,6 +4136,7 @@ int set_dmc_priority(unsigned int bus_id, unsigned char priority, char rw)
 
 	return 0;
 }
+EXPORT_SYMBOL(set_dmc_priority);
 
 int get_dev_priority(unsigned int port_id, char rw)
 {
@@ -4175,6 +4177,7 @@ int get_dev_priority(unsigned int port_id, char rw)
 
 	return value;
 }
+EXPORT_SYMBOL(get_dev_priority);
 
 int set_dev_priority(unsigned int port_id, unsigned char priority, char rw)
 {
@@ -4226,6 +4229,7 @@ int set_dev_priority(unsigned int port_id, unsigned char priority, char rw)
 
 	return 0;
 }
+EXPORT_SYMBOL(set_dev_priority);
 
 int set_vpu_super_priority(unsigned char axi, char rw, unsigned char priority)
 {
@@ -4287,6 +4291,7 @@ int set_vpu_super_priority(unsigned char axi, char rw, unsigned char priority)
 
 	return 0;
 }
+EXPORT_SYMBOL(set_vpu_super_priority);
 
 int set_vpu_top_priority(unsigned char axi, char rw, unsigned char top_i, unsigned char priority)
 {
@@ -4343,6 +4348,7 @@ int set_vpu_top_priority(unsigned char axi, char rw, unsigned char top_i, unsign
 
 	return 0;
 }
+EXPORT_SYMBOL(set_vpu_top_priority);
 
 int set_vpu_sub_dev_priority(unsigned char axi, char rw, unsigned int id, unsigned char priority)
 {
@@ -4425,6 +4431,7 @@ int set_vpu_sub_dev_priority(unsigned char axi, char rw, unsigned int id, unsign
 
 	return 0;
 }
+EXPORT_SYMBOL(set_vpu_sub_dev_priority);
 
 int set_demod_priority(unsigned char priority)
 {
@@ -4485,6 +4492,7 @@ int set_demod_priority(unsigned char priority)
 
 	return -EINVAL;
 }
+EXPORT_SYMBOL(set_demod_priority);
 
 int set_demux_priority(unsigned char priority, char rw)
 {
@@ -4529,6 +4537,7 @@ int set_demux_priority(unsigned char priority, char rw)
 
 	return 0;
 }
+EXPORT_SYMBOL(set_demux_priority);
 
 int set_audio_x_select_priority(char x, unsigned char ugt)
 {
@@ -4567,6 +4576,7 @@ int set_audio_x_select_priority(char x, unsigned char ugt)
 
 	return 0;
 }
+EXPORT_SYMBOL(set_audio_x_select_priority);
 
 int set_audio_priority(unsigned char idx, unsigned char priority, char rw)
 {
@@ -4611,6 +4621,7 @@ int set_audio_priority(unsigned char idx, unsigned char priority, char rw)
 
 	return 0;
 }
+EXPORT_SYMBOL(set_audio_priority);
 
 int show_audio_priority_setting(void)
 {
@@ -4653,6 +4664,7 @@ int show_audio_priority_setting(void)
 
 	return 0;
 }
+EXPORT_SYMBOL(show_audio_priority_setting);
 
 int set_bcon_hw_urgent(unsigned char low, unsigned char high)
 {
@@ -4690,6 +4702,7 @@ int set_bcon_hw_urgent(unsigned char low, unsigned char high)
 
 	return 0;
 }
+EXPORT_SYMBOL(set_bcon_hw_urgent);
 
 int set_bcon_sw_urgent(unsigned char ugt)
 {
@@ -4722,6 +4735,7 @@ int set_bcon_sw_urgent(unsigned char ugt)
 
 	return 0;
 }
+EXPORT_SYMBOL(set_bcon_sw_urgent);
 
 int show_bcon_priority_setting(void)
 {
@@ -4746,6 +4760,7 @@ int show_bcon_priority_setting(void)
 			!!(value & BIT(bcon->urgent_bit)));
 	return 0;
 }
+EXPORT_SYMBOL(show_bcon_priority_setting);
 
 static int set_hevc_hcodec_level_id(struct hevc_hcodec_priority *h, char rw,
 				    unsigned char level, unsigned char i, unsigned char id)
@@ -4807,6 +4822,7 @@ int set_hevc_level_id(char rw, unsigned char level, unsigned char i, unsigned ch
 	}
 	return set_hevc_hcodec_level_id(v2->hevc, rw, level, i, id);
 }
+EXPORT_SYMBOL(set_hevc_level_id);
 
 int set_hcodec_level_id(char rw, unsigned char level, unsigned char i, unsigned char id)
 {
@@ -4819,6 +4835,7 @@ int set_hcodec_level_id(char rw, unsigned char level, unsigned char i, unsigned 
 	}
 	return set_hevc_hcodec_level_id(v2->hcodec, rw, level, i, id);
 }
+EXPORT_SYMBOL(set_hcodec_level_id);
 
 static int set_hevc_hcodec_low_priority(struct hevc_hcodec_priority *h, char rw,
 					unsigned char priority)
@@ -4868,6 +4885,7 @@ int set_hevc_low_priority(char rw, unsigned char priority)
 	}
 	return set_hevc_hcodec_low_priority(v2->hevc, rw, priority);
 }
+EXPORT_SYMBOL(set_hevc_low_priority);
 
 int set_hcodec_low_priority(char rw, unsigned char priority)
 {
@@ -4880,8 +4898,9 @@ int set_hcodec_low_priority(char rw, unsigned char priority)
 	}
 	return set_hevc_hcodec_low_priority(v2->hcodec, rw, priority);
 }
+EXPORT_SYMBOL(set_hcodec_low_priority);
 
-int show_hevc_hcodec_priority_setting(struct hevc_hcodec_priority *h)
+static int show_hevc_hcodec_priority_setting(struct hevc_hcodec_priority *h)
 {
 	int i, j, k;
 	unsigned int def;
@@ -4957,6 +4976,7 @@ int show_hevc_priority_setting(void)
 	}
 	return show_hevc_hcodec_priority_setting(v2->hevc);
 }
+EXPORT_SYMBOL(show_hevc_priority_setting);
 
 int show_hcodec_priority_setting(void)
 {
@@ -4969,6 +4989,7 @@ int show_hcodec_priority_setting(void)
 	}
 	return show_hevc_hcodec_priority_setting(v2->hcodec);
 }
+EXPORT_SYMBOL(show_hcodec_priority_setting);
 
 int set_device_accessible(char *dev, unsigned char access)
 {
@@ -5001,6 +5022,7 @@ int set_device_accessible(char *dev, unsigned char access)
 
 	return 0;
 }
+EXPORT_SYMBOL(set_device_accessible);
 
 #define CMD_STR_ERR "setting %s priority command is error\n"
 void set_priority_display(const char *buf)
