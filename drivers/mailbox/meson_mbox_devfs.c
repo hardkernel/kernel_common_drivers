@@ -514,26 +514,26 @@ static int mbox_cdev_init(struct device *dev)
 	ret = of_property_read_u32(dev->of_node,
 			     "mbox-nums", &mbox_nums);
 	if (ret < 0) {
-		dev_err(dev, "No mbox-nums\n");
+		dev_dbg(dev, "No mbox-nums\n");
 		return -EINVAL;
 	}
 
 	mbox_class = class_create("mbox_devfs");
 	if (IS_ERR_OR_NULL(mbox_class)) {
-		dev_err(dev, "Failed to create class: %ld\n", PTR_ERR(mbox_class));
+		dev_dbg(dev, "Failed to create class: %ld\n", PTR_ERR(mbox_class));
 		ret = PTR_ERR(mbox_class);
 		goto cleanup;
 	}
 
 	ret = alloc_chrdev_region(&dev_t, 0, mbox_nums, DRIVER_NAME);
 	if (ret < 0) {
-		dev_err(dev, "alloc dev_t failed\n");
+		dev_dbg(dev, "alloc dev_t failed\n");
 		goto cleanup;
 	}
 
 	mbox_devs = devm_kzalloc(dev, sizeof(*mbox_dev) * mbox_nums, GFP_KERNEL);
 	if (IS_ERR_OR_NULL(mbox_devs)) {
-		dev_err(dev, "Failed to alloc mbox_devs\n");
+		dev_dbg(dev, "Failed to alloc mbox_devs\n");
 		ret = -ENOMEM;
 		goto cleanup;
 	}
@@ -546,14 +546,14 @@ static int mbox_cdev_init(struct device *dev)
 		cdev_init(&mbox_dev->cdev, &mbox_message_ops);
 		ret = cdev_add(&mbox_dev->cdev, mbox_dev->dev_t, 1);
 		if (ret) {
-			dev_err(dev, "mbox fail to add cdev\n");
+			dev_dbg(dev, "mbox fail to add cdev\n");
 			goto cleanup;
 		}
 
 		if (of_property_read_string_index(dev->of_node,
 						  "mbox-names", idx, &mbox_dev->name)) {
 			ret = -ENOMEM;
-			dev_err(dev, "%s get mbox[%d] name fail\n",
+			dev_dbg(dev, "%s get mbox[%d] name fail\n",
 				__func__, idx);
 			goto cleanup;
 		}
@@ -561,7 +561,7 @@ static int mbox_cdev_init(struct device *dev)
 		if (of_property_read_u32_index(dev->of_node, "mbox-dests",
 					       idx, &mbox_dev->dest)) {
 			ret = -ENOMEM;
-			dev_err(dev, "%s get mbox[%d] dest fail\n",
+			dev_dbg(dev, "%s get mbox[%d] dest fail\n",
 				__func__, idx);
 			goto cleanup;
 		}
@@ -570,13 +570,13 @@ static int mbox_cdev_init(struct device *dev)
 					mbox_dev, "%s", mbox_dev->name);
 		if (IS_ERR_OR_NULL(mbox_dev->dev)) {
 			ret = PTR_ERR(mbox_dev->dev);
-			dev_err(dev, "Failed to create device: %d\n", ret);
+			dev_dbg(dev, "Failed to create device: %d\n", ret);
 			goto cleanup;
 		}
 		mbox_dev->mbox_chan = aml_mbox_request_channel_byidx(dev, idx);
 		if (IS_ERR_OR_NULL(mbox_dev->mbox_chan)) {
 			ret = PTR_ERR(mbox_dev->dev);
-			dev_err(dev, "Failed to request mbox chan: %d\n", ret);
+			dev_dbg(dev, "Failed to request mbox chan: %d\n", ret);
 			goto cleanup;
 		}
 		mbox_dev->mbox_nums = mbox_nums;
@@ -604,7 +604,7 @@ static int mbox_cdev_init(struct device *dev)
 				rx_buf_len = MBOX_DEV_RX_BUF_LEN_DEFAULT;
 			} else {
 				if (rx_buf_len < 1 || rx_buf_len > 100) {
-					dev_err(dev, "Err: RX buf len should be: 1 <= len <= 100\n");
+					dev_dbg(dev, "Err: RX buf len should be: 1 <= len <= 100\n");
 					rx_buf_len = MBOX_DEV_RX_BUF_LEN_DEFAULT;
 				}
 			}

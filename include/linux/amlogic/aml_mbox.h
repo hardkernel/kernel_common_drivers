@@ -125,7 +125,7 @@ static inline struct mbox_chan *aml_mbox_request_channel_byidx(struct device *de
 	mbox_chan = mbox_request_channel(mbox_client, idx);
 	if (IS_ERR_OR_NULL(mbox_chan)) {
 		devm_kfree(dev, mbox_client);
-		dev_err(dev, "Not find mbox channel byidx\n");
+		dev_dbg(dev, "Not find mbox channel byidx\n");
 	}
 	return mbox_chan;
 }
@@ -151,7 +151,7 @@ static inline struct mbox_chan *aml_mbox_request_channel_byname(struct device *d
 	mbox_chan = mbox_request_channel_byname(mbox_client, name);
 	if (IS_ERR_OR_NULL(mbox_chan)) {
 		devm_kfree(dev, mbox_client);
-		dev_err(dev, "Not find mbox channel byname\n");
+		dev_dbg(dev, "Not find mbox channel byname\n");
 	}
 	return mbox_chan;
 }

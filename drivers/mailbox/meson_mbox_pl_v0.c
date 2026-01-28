@@ -141,7 +141,7 @@ static irqreturn_t mbox_irq_handler(int irq, void *p)
 	struct aml_mbox_data *aml_data;
 	union mbox_stat mbox_stat;
 
-	pr_err("%s %x\n", __func__, irq);
+	pr_debug("%s %x\n", __func__, irq);
 	mbox_stat.set_cmd = readl(aml_chan->mbox_fsts_addr);
 	if (mbox_stat.set_cmd && irq == aml_chan->mbox_irq) {
 		aml_data = mbox_chan->active_req;
@@ -167,7 +167,7 @@ static int mbox_pl_parse_dt(struct platform_device *pdev, struct aml_chan_priv *
 	err = of_property_read_u32(dev->of_node,
 				   "mbox-nums", &mbox_nums);
 	if (err) {
-		dev_err(dev, "failed to get mbox num %d\n", err);
+		dev_dbg(dev, "failed to get mbox num %d\n", err);
 		return -ENXIO;
 	}
 	priv->mbox_nums = mbox_nums;
@@ -183,11 +183,11 @@ static int mbox_pl_parse_dt(struct platform_device *pdev, struct aml_chan_priv *
 		err = of_property_read_u32_index(dev->of_node, "mboxids",
 						 idx, &aml_chan[idx].mboxid);
 		if (err) {
-			dev_err(dev, "mboxids define error\n");
+			dev_dbg(dev, "mboxids define error\n");
 			return err;
 		}
 		aml_chan[idx].mbox_irq = platform_get_irq(pdev, idx);
-		pr_err("%s %x\n", __func__, aml_chan[idx].mbox_irq);
+		pr_debug("%s %x\n", __func__, aml_chan[idx].mbox_irq);
 		aml_chan[idx].mbox_wr_addr = devm_platform_ioremap_resource(pdev, idx * 5 + 0);
 		if (IS_ERR_OR_NULL(aml_chan[idx].mbox_wr_addr))
 			return PTR_ERR(aml_chan[idx].mbox_wr_addr);
@@ -243,7 +243,7 @@ static int mbox_pl_probe(struct platform_device *pdev)
 
 	match = of_device_get_match_data(&pdev->dev);
 	if (!match) {
-		dev_err(&pdev->dev, "failed to get match data\n");
+		dev_dbg(&pdev->dev, "failed to get match data\n");
 		return -ENODEV;
 	}
 
@@ -280,9 +280,10 @@ static int mbox_pl_probe(struct platform_device *pdev)
 	mbox_cons->ops = &mbox_pl_ops;
 	mbox_cons->dev = dev;
 	platform_set_drvdata(pdev, domain_data);
-	if (devm_mbox_controller_register(dev, mbox_cons)) {
+	err = devm_mbox_controller_register(dev, mbox_cons);
+	if (err) {
 		dev_err(dev, "failed to register mailbox controller\n");
-		return -ENOMEM;
+		return err;
 	}
 
 	for (idx0 = 0; idx0 < mbox_nums; idx0++) {
@@ -291,7 +292,7 @@ static int mbox_pl_probe(struct platform_device *pdev)
 				NULL, IRQF_ONESHOT | IRQF_NO_SUSPEND,
 				DRIVER_NAME, &aml_chan[idx0]);
 		if (err) {
-			dev_err(dev, "request irq error %x\n",
+			dev_dbg(dev, "request irq error %x\n",
 					aml_chan[idx0].mbox_irq);
 			return err;
 		}

@@ -502,7 +502,7 @@ static int mbox_pl_parse_dt(struct platform_device *pdev, struct aml_chan_priv *
 	err = of_property_read_u32(dev->of_node,
 				   "mbox-nums", &mbox_nums);
 	if (err) {
-		dev_err(dev, "failed to get mbox num %d\n", err);
+		dev_dbg(dev, "failed to get mbox num %d\n", err);
 		return -ENXIO;
 	}
 	priv->mbox_nums = mbox_nums;
@@ -518,7 +518,7 @@ static int mbox_pl_parse_dt(struct platform_device *pdev, struct aml_chan_priv *
 		err = of_property_read_u32_index(dev->of_node, "mboxids",
 						 idx, &aml_chan[idx].mboxid);
 		if (err) {
-			dev_err(dev, "mboxids define error\n");
+			dev_dbg(dev, "mboxids define error\n");
 			return err;
 		}
 		aml_chan[idx].mbox_irq = platform_get_irq(pdev, idx);
@@ -547,13 +547,13 @@ static int mbox_pl_parse_dt(struct platform_device *pdev, struct aml_chan_priv *
 	err = of_property_read_u32(dev->of_node,
 				   "mbox-rx-queue-length", &rx_queue_len);
 	if (err) {
-		dev_err(dev, "get rx queue length fail %d, set to default length %d\n",
-				err, MBOX_RX_QUEUE_LEN_DEFAULT);
+		dev_dbg(dev, "get rx queue length fail %d, set to default length\n",
+				MBOX_RX_QUEUE_LEN_DEFAULT);
 		rx_queue_len = MBOX_RX_QUEUE_LEN_DEFAULT;
 	} else {
 		if (rx_queue_len < 1 || rx_queue_len > 100) {
-			dev_err(dev, "rx queue length should be: 1 < length <= 100\n");
-			dev_err(dev, "set to default length %d\n", MBOX_RX_QUEUE_LEN_DEFAULT);
+			dev_dbg(dev, "rx queue length should be: 1 < length <= 100\n");
+			dev_dbg(dev, "set to default length %d\n", MBOX_RX_QUEUE_LEN_DEFAULT);
 			rx_queue_len = MBOX_RX_QUEUE_LEN_DEFAULT;
 		}
 	}
@@ -585,7 +585,7 @@ static int mbox_pl_probe(struct platform_device *pdev)
 
 	err = mbox_pl_parse_dt(pdev, &aml_priv);
 	if (err) {
-		dev_err(dev, "mbox parse dt fail\n");
+		dev_dbg(dev, "mbox parse dt fail\n");
 		return err;
 	}
 	aml_chan = aml_priv.aml_chan;
@@ -594,7 +594,7 @@ static int mbox_pl_probe(struct platform_device *pdev)
 
 	match = of_device_get_match_data(&pdev->dev);
 	if (!match) {
-		dev_err(&pdev->dev, "failed to get match data\n");
+		dev_dbg(&pdev->dev, "failed to get match data\n");
 		return -ENODEV;
 	}
 
@@ -649,15 +649,16 @@ static int mbox_pl_probe(struct platform_device *pdev)
 	mbox_rx_msg->thread =
 		kthread_run(mbox_rx_process, dev, "mbox_rx_thread");
 	if (IS_ERR_OR_NULL(mbox_rx_msg->thread)) {
-		dev_err(dev, "Failed to create rx thread\n");
+		dev_dbg(dev, "Failed to create rx thread\n");
 		return PTR_ERR(mbox_rx_msg->thread);
 	}
 	mbox_priv_data->rx_msg = mbox_rx_msg;
 
 	platform_set_drvdata(pdev, mbox_priv_data);
-	if (devm_mbox_controller_register(dev, mbox_cons)) {
+	err = devm_mbox_controller_register(dev, mbox_cons);
+	if (err) {
 		dev_err(dev, "failed to register mailbox controller\n");
-		return -ENOMEM;
+		return err;
 	}
 
 	for (idx0 = 0; idx0 < mbox_nums; idx0++) {
@@ -668,7 +669,7 @@ static int mbox_pl_probe(struct platform_device *pdev)
 						   NULL, IRQF_ONESHOT | IRQF_NO_SUSPEND,
 						   DRIVER_NAME, &aml_chan[idx0]);
 			if (err) {
-				dev_err(dev, "request irq error %x\n",
+				dev_dbg(dev, "request irq error %x\n",
 					aml_chan[idx0].mbox_irq);
 				return err;
 			}
@@ -677,7 +678,7 @@ static int mbox_pl_probe(struct platform_device *pdev)
 						   NULL, IRQF_ONESHOT | IRQF_NO_SUSPEND,
 						   DRIVER_NAME, &aml_chan[idx0]);
 			if (err) {
-				dev_err(dev, "request irq error %x\n",
+				dev_dbg(dev, "request irq error %x\n",
 					aml_chan[idx0].mbox_irq);
 				return err;
 			}
