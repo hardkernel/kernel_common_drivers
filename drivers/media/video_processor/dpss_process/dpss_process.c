@@ -1265,8 +1265,8 @@ static enum DPSS_ERRORTYPE dp_fill_output_done(void *arg, struct vframe_s *vf)
 	vf->dpss_flg |= DPSS_FLG_OUT_DONE;
 	private_data->vf = *vf;
 	private_data->vf_p = vf;
-	private_data->vf.vf_ext = &private_data->vf_ext;
-	private_data->vf.flag |= VFRAME_FLAG_DOUBLE_FRAM;
+	private_data->vf.vf_ext2 = &private_data->vf_ext;
+	private_data->vf.flag_ext |= VFRAME_FLAG_EXT_CONTAIN_SRC;
 
 	private_data->flag = V4LVIDEO_FLAG_DI_V3;
 	//private_data->private2 = (void *)buf;

@@ -146,6 +146,7 @@
 #define AIPQ_FLAG_VERSION_2	      0x2   /*new mode, GPU do AIPQ*/
 
 #define VDIN_GAME_FRC_FLAG_EN			0x1
+#define VFRAME_FLAG_EXT_CONTAIN_SRC     0x2
 
 /* need check folllowing bits when toggle frame, to trigger property change */
 /* add more bits which indicates display attr change in vf->flag */
@@ -875,6 +876,7 @@ struct vframe_s {
 	u32 codec_vfmt;
 	/*for di process NR and cts, storage dec vf*/
 	void *vf_ext;
+	void *vf_ext2;
 	void *enhance_vf;
 	u32 di_cm_cnt;
 	u32 dwHeadAddr;
