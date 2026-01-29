@@ -5099,7 +5099,9 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 
 	/* dynamic duration update */
 	if (devp->dtdata->hw_ver >= VDIN_HW_T7) {
-		if (IS_TVAFE_SRC(devp->parm.port) && devp->parm.info.fps) {
+		if ((IS_TVAFE_SRC(devp->parm.port) && devp->parm.info.fps) ||
+			(IS_HDMI_SRC(devp->parm.port) && !vdin_is_vrr_state(devp) &&
+			devp->parm.info.fps > 144)) {
 			curr_wr_vf->duration = 96000 / devp->parm.info.fps;
 		} else if (vdin_is_3d_interlace_signal(devp)) {
 			/* 3d interlace give up bottom field need change duration for avsync */
