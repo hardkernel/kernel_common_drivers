@@ -5312,10 +5312,9 @@ static long amvecm_ioctl(struct file *file,
 				   (void __user *)arg,
 				   sizeof(enum meson_cpu_ver_e))) {
 			ret = -EFAULT;
-			pr_amvecm_dbg("copy cpu version fail\n");
 		} else {
 			if ((is_meson_rev_a() && cpu_ver == VER_A) ||
-			    (is_meson_rev_b() && cpu_ver == VER_B))
+				(is_meson_rev_b() && cpu_ver == VER_B))
 				break;
 			ret = -EINVAL;
 			pr_amvecm_dbg("cpu version doesn't match\n");
@@ -5332,7 +5331,6 @@ static long amvecm_ioctl(struct file *file,
 		tmp = get_cpu_type();
 		if (copy_to_user(argp, &tmp, sizeof(int))) {
 			ret = -EFAULT;
-			pr_amvecm_dbg("AMVECM_IOC_G_CHIP_TYPE copy to user fail.\n");
 		} else {
 			pr_amvecm_dbg("AMVECM_IOC_G_CHIP_TYPE 0x%x\n",
 				tmp);
@@ -5342,6 +5340,16 @@ static long amvecm_ioctl(struct file *file,
 		argp = (void __user *)arg;
 		if (copy_to_user(argp, &chip_cls_id, sizeof(int)))
 			ret = -EFAULT;
+		break;
+	case AMVECM_IOC_S_PQ_LOAD_EN:
+		if (copy_from_user(&tmp,
+			(void __user *)arg, sizeof(unsigned int))) {
+			ret = -EFAULT;
+		} else {
+			pq_load_en = tmp;
+			pr_amvecm_dbg("AMVECM_IOC_S_PQ_LOAD_EN = %d\n",
+				tmp);
+		}
 		break;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case AMVECM_IOC_VE_NEW_DNLP:
@@ -6444,11 +6452,21 @@ static long amvecm_ioctl(struct file *file,
 	case AMVECM_IOC_G_HDR_ON:
 		tmp = get_hdr_on();
 		argp = (void __user *)arg;
-		if (copy_to_user(argp, &tmp, sizeof(int))) {
+		if (copy_to_user(argp, &tmp, sizeof(int)))
 			ret = -EFAULT;
-			pr_amvecm_dbg("AMVECM_IOC_G_HDR_ON fail\n");
-		} else {
+		else
 			pr_amvecm_dbg("AMVECM_IOC_G_HDR_ON = %d\n", tmp);
+		break;
+	case AMVECM_IOC_S_HDR10P_ON:
+		if (copy_from_user(&tmp,
+			(void __user *)arg,
+			sizeof(int))) {
+			ret = -EFAULT;
+		} else {
+			hdr10p_set_on = tmp;
+			vecm_latch_flag2 |= FLAG_HDR10P_ON;
+			force_toggle();
+			pr_amvecm_dbg("AMVECM_IOC_S_HDR10P_ON: %d\n", hdr10p_set_on);
 		}
 		break;
 	case AMVECM_IOC_S_GMT_WRAPPER0_COEF:
