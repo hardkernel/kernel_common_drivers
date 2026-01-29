@@ -3194,6 +3194,9 @@ static void vframe_display(struct videodisplay_dev *dev,
 	int pic_w = 0, pic_h = 0;
 	bool enable_prelink = false;
 	struct uvm_lcevc_frame_info *lcevc_data;
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+	struct timespec64 ts;
+#endif
 
 	if (!dev || !received_frames) {
 		pr_info("%s: NULL param.\n", __func__);
@@ -3232,6 +3235,11 @@ static void vframe_display(struct videodisplay_dev *dev,
 				return;
 			}
 			if (videodisplay_drop_frame(dev, vf, frame_info->dmabuf)) {
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+				ktime_get_real_ts64(&ts);
+				vc_notify_msg_to_mediaproxy(dev, vf,
+					MEDIA_VIDEO_METRICS_FRAME_TOGGLE_INFO, ts);
+#endif
 				dma_buf_put(frame_info->dmabuf);
 				dma_fence_signal(frame_info->release_fence);
 				dma_fence_put(frame_info->release_fence);
