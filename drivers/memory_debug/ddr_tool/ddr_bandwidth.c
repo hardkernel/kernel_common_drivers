@@ -51,6 +51,7 @@ static int ots_level_setup(char *str)
 	int val;
 
 	if (kstrtoint(str, 10, &val)) {
+		pr_err("set ots_level error: %s\n", str);
 		return 1;
 	}
 
@@ -59,6 +60,23 @@ static int ots_level_setup(char *str)
 	return 1;
 }
 __setup("ots_level=", ots_level_setup);
+
+static int init_poll_cpu = 1;
+static int poll_cpu_setup(char *str)
+{
+	int val;
+
+	if (kstrtoint(str, 10, &val)) {
+		pr_err("set db_poll_cpu error: %s\n", str);
+		return 1;
+	}
+
+	if (val < num_possible_cpus())
+		init_poll_cpu = val;
+
+	return 1;
+}
+__setup("db_poll_cpu=", poll_cpu_setup);
 
 /* run time should be short */
 static enum hrtimer_restart  ddr_hrtimer_handler(struct hrtimer *timer)
@@ -336,10 +354,17 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 		}
 	} else {
 		mul = dg->all_grant;
-		mul *= db->dmc_freq;
+		if (!ddr_is_poll(db))
+			mul *= db->dmc_freq;
 	}
-	mul /= 1024;
-	do_div(mul, cnt);
+	if (!ddr_is_poll(db)) {
+		mul /= 1024;
+		do_div(mul, cnt);
+	} else {
+		mul *= 1000000000;
+		mul /= 1024;
+		do_div(mul, db->poll_time);
+	}
 	if (unlikely(mul >= mbw)) {
 		/* sample may overflow if irq tick changed, ignore it */
 		pr_info("bandwidth:%lld large than max :%lld\n", mul, mbw);
@@ -351,9 +376,15 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	db->cur_sample.total_usage = mul;
 	for (i = 0; i < db->channels; i++) {
 		mul  = dg->channel_grant[i];
-		mul *= db->dmc_freq;
-		mul /= 1024;
-		do_div(mul, cnt);
+		if (!ddr_is_poll(db)) {
+			mul *= db->dmc_freq;
+			mul /= 1024;
+			do_div(mul, cnt);
+		} else {
+			mul *= 1000000000;
+			mul /= 1024;
+			do_div(mul, db->poll_time);
+		}
 		db->cur_sample.bandwidth[i] = mul;
 	}
 
@@ -364,7 +395,7 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 		ATRACE_COUNTER(chann_names, db->cur_sample.bandwidth[i] / 1000);
 	}
 
-	raw_spin_lock_irqsave(&aml_db->lock, flags);
+	raw_spin_lock_irqsave(&db->lock, flags);
 	if (!db->stat_flag) {			/* stop update usage stat if flag set */
 		/* update max sample */
 		if (db->cur_sample.total_bandwidth > db->max_sample.total_bandwidth)
@@ -388,26 +419,26 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	}
 
 	/* calculate single dmc bandwidth*/
-	if (unlikely(dmc_is_asymmetry(aml_db)))
+	if (unlikely(dmc_is_asymmetry(db)))
 		cal_ddr_usage_single(db);
-	raw_spin_unlock_irqrestore(&aml_db->lock, flags);
+	raw_spin_unlock_irqrestore(&db->lock, flags);
 }
 
 /* run time should be short */
-static enum hrtimer_restart  ddr_poll_handler(struct hrtimer *timer)
+static enum hrtimer_restart ddr_poll_handler(struct hrtimer *timer)
 {
 	struct ddr_bandwidth *db;
 	struct ddr_grant dg = {0};
 
 	db = aml_db;
 
-	if (db->ops && db->ops->handle_irq) {
+	if (db->ops && db->ops->handle_irq)
 		if (!db->ops->handle_irq(db, &dg))
 			cal_ddr_usage(db, &dg);
-	}
 
 	if (db->mode) {
-		hrtimer_forward_now(timer, ns_to_ktime(aml_db->ddr_poll_ns));
+		hrtimer_set_expires(timer, ktime_add(ktime_get(),
+				    ns_to_ktime(aml_db->ddr_poll_ns)));
 		return HRTIMER_RESTART;
 	} else {
 		return HRTIMER_NORESTART;
@@ -420,23 +451,22 @@ static int __init ddr_poll_init(void)
 		return -1;
 	}
 
+	aml_db->poll_cpu = init_poll_cpu;
 	hrtimer_init(&aml_db->ddr_poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	aml_db->ddr_poll_timer.function = ddr_poll_handler;
 	return 0;
 }
 
-int ddr_poll_start(void)
+void ddr_poll_start(void *info)
 {
 	if (!aml_db)
-		return -1;
+		return;
 
 	if (aml_db->mode) {
 		hrtimer_cancel(&aml_db->ddr_poll_timer);
 		hrtimer_start(&aml_db->ddr_poll_timer,
 				ns_to_ktime(aml_db->ddr_poll_ns), HRTIMER_MODE_REL);
 	}
-
-	return 0;
 }
 
 static void ddr_poll_cancel(void)
@@ -3361,6 +3391,6 @@ void ddr_bandwidth_exit(void)
 	debugfs_remove(aml_db->debugfs);
 	platform_driver_unregister(&ddr_bandwidth_driver);
 	ddr_hrtimer_cancel();
-	ddr_poll_cancel();
+	hrtimer_cancel(&aml_db->ddr_poll_timer);
 }
 

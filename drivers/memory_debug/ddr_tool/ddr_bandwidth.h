@@ -302,6 +302,9 @@ struct ddr_bandwidth {
 	unsigned long dmc_freq;
 	unsigned long ddr_poll_ns;
 	raw_spinlock_t lock;		/* lock for usage statistics */
+	unsigned long last_poll_time;
+	unsigned long poll_time;
+	unsigned int poll_cpu;
 	struct hrtimer ddr_poll_timer;
 	struct ddr_bandwidth_sample cur_sample;
 	struct ddr_bandwidth_sample max_sample;
@@ -393,7 +396,7 @@ static inline unsigned long ddr_ssr_access_sec(unsigned long addr, unsigned long
 }
 #endif
 
-int ddr_poll_start(void);
+void ddr_poll_start(void *info);
 unsigned int aml_get_ddr_usage(void);
 
 int one_dmc_reg_field_access(struct ddr_bandwidth *db, unsigned char dmc, u32 *val, int rw,

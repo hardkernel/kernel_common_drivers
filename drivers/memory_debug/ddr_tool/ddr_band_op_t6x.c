@@ -17,6 +17,7 @@
 #include "ddr_bandwidth.h"
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/sched/clock.h>
 
 #define MDC_MON_CTRL0			((0x0413 << 2))
 #define MDC_MON_TIMER			((0x0414 << 2))
@@ -186,6 +187,7 @@ static void t6x_bandwidth_enable(struct ddr_bandwidth *db)
 			writel(val, io + MDC_MON_CTRL0);
 		}
 	}
+	db->last_poll_time = sched_clock();
 }
 
 static void t6x_bandwidth_init(struct ddr_bandwidth *db)
@@ -208,7 +210,7 @@ static void t6x_bandwidth_init(struct ddr_bandwidth *db)
 	}
 	t6x_bandwidth_enable(db);
 	if (db->soc_feature & DDR_IS_POLL)
-		ddr_poll_start();
+		smp_call_function_single(db->poll_cpu, ddr_poll_start, NULL, 1);
 }
 
 static int t6x_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
@@ -225,6 +227,7 @@ static int t6x_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
 		writel(val[i], io + MDC_CLKG_CTRL0);
 	}
 
+	db->poll_time = sched_clock() - db->last_poll_time;
 	for (i = 0; i < db->mdc.number; i++) {
 		io = db->mdc.reg_base[i];
 
