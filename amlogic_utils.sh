@@ -1853,7 +1853,9 @@ function build_kernel_with_bazel() {
 	echo 							>> ${PROJECT_DIR}/project.bzl
 	echo "    DTBO_DEVICETREE = ["				>> ${PROJECT_DIR}/project.bzl
 	if [[ -n ${DTBO_DEVICETREE} ]]; then
-		echo "        \"${DTBO_DEVICETREE}\","		>> ${PROJECT_DIR}/project.bzl
+		for dtbo in ${DTBO_DEVICETREE}; do
+			echo "        \"${dtbo}\","		>> ${PROJECT_DIR}/project.bzl
+		done
 	fi
 	echo "    ],"						>> ${PROJECT_DIR}/project.bzl
 
