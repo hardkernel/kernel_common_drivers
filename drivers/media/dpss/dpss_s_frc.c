@@ -4614,6 +4614,7 @@ void update_frc_state(void)
 
 	state_st = &pchip_st->state_st;
 	state_st->pps_frc = pps->pps_en ? true : false;
+	pps->trig_pps = 0;
 
 	if (VFM_IS_COMP_MODE(vfs->type))
 		if (VFM_IS_COMP_AFRC(vfs->type_ext))

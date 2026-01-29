@@ -2853,6 +2853,20 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 	if (!light_chg) {
 		_prm_top_init_buffer(prm_top, pch, src);
 		hw_init_small_addr(prm_top, src);
+		pps->trig_pps = 1;
+		pps->backup_pps = pps->pps_en;
+		dbg_pps0("ch[%d] pps->trig_pps = %d\n",
+		pch->c.ch, pps->trig_pps);
+	} else {
+		if (pps->pps_en && pps->backup_pps)
+			pps->trig_pps = 5;//576>>320
+		else if (!pps->pps_en && !pps->backup_pps)
+			pps->trig_pps = 4;//4k>>1080
+		else if (pps->pps_en && !pps->backup_pps)
+			pps->trig_pps = 3;//4k>>576
+		else if (!pps->pps_en && pps->backup_pps)
+			pps->trig_pps = 2;//576>>4k
+		pps->backup_pps = pps->pps_en;
 	}
 	_prm_top_init_vfm(pch, prm_top, vfs, false);
 

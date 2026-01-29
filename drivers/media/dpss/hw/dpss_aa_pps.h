@@ -56,6 +56,8 @@ struct AA_PPS_TOP_TYPE {
 	//int slc_in_end_r16[4] ; //13 bits slice in end
 	bool pps_en;
 	bool di2pps_en;
+	u32 trig_pps;
+	u32 backup_pps;
 };
 
 void set_aa_pps_coef(u32 scale_coef_idx,

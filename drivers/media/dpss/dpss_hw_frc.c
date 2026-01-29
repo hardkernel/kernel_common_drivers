@@ -1246,55 +1246,59 @@ bool hw_dpss_dpe_info_cfg(struct PRM_DPSS_TOP *prm_top, bool obuf_rdy)
 		mc_inp_body_cbuf_addr[0] = src0_nro_fbuf_caddr[0];
 		mc_inp_body_ybuf_addr[1] = src0_nro_fbuf_yaddr[1];
 		mc_inp_body_cbuf_addr[1] = src0_nro_fbuf_caddr[1];
-		if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx0]) {
-			mc_inp_body_ybuf_addr[0] =
-				rd(DPSS_SRC0_DIO_FBUF_YADDR0 + dpe_pixl_buf_idx0);
-			mc_inp_body_cbuf_addr[0] =
-				rd(DPSS_SRC0_DIO_FBUF_CADDR0 + dpe_pixl_buf_idx0);
-		}
-		if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx1]) {
-			mc_inp_body_ybuf_addr[1] =
-				rd(DPSS_SRC0_DIO_FBUF_YADDR0 + dpe_pixl_buf_idx1);
-			mc_inp_body_cbuf_addr[1] =
-				rd(DPSS_SRC0_DIO_FBUF_CADDR0 + dpe_pixl_buf_idx1);
-		}
+
 		mc_inp_head_ybuf_addr	 = rd(DPSS_SRC0_NROUT_YHEAD_ADDR);
 		mc_inp_head_cbuf_addr	 = rd(DPSS_SRC0_NROUT_CHEAD_ADDR);
 		mc_inp_head_ybuf_step	 = rd(DPSS_SRC0_NROUT_YHEAD_STEP);
 		mc_inp_head_cbuf_step	 = rd(DPSS_SRC0_NROUT_CHEAD_STEP);
-		if (pps->pps_en) {
+		if (pchip_st && pchip_st->state_st.pps_frc) {
 			if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx0]) {
 				mc_inp_body_ybuf_addr[0] =
-					rd(DPSS_SRC0_DIO_FBUF_YADDR0 + dpe_pixl_buf_idx0);
+					prm_top->src0_diopps_fbuf_yaddr[dpe_pixl_buf_idx0];
 				mc_inp_body_cbuf_addr[0] =
-					rd(DPSS_SRC0_DIO_FBUF_CADDR0 + dpe_pixl_buf_idx0);
+					prm_top->src0_diopps_fbuf_caddr[dpe_pixl_buf_idx0];
 			}
 			if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx1]) {
 				mc_inp_body_ybuf_addr[1] =
-					rd(DPSS_SRC0_DIO_FBUF_YADDR0 + dpe_pixl_buf_idx1);
+					prm_top->src0_diopps_fbuf_yaddr[dpe_pixl_buf_idx1];
 				mc_inp_body_cbuf_addr[1] =
-					rd(DPSS_SRC0_DIO_FBUF_CADDR0 + dpe_pixl_buf_idx1);
+					prm_top->src0_diopps_fbuf_caddr[dpe_pixl_buf_idx1];
 			}
-			if (pchip_st && pchip_st->state_st.pps_frc && (dpss_light_chg & C_BIT0)) {
-				if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx0]) {
-					mc_inp_body_ybuf_addr[0] =
-						prm_top->src0_diopps_fbuf_yaddr[dpe_pixl_buf_idx0];
-					mc_inp_body_cbuf_addr[0] =
-						prm_top->src0_diopps_fbuf_caddr[dpe_pixl_buf_idx0];
-				}
-				if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx1]) {
-					mc_inp_body_ybuf_addr[1] =
-						prm_top->src0_diopps_fbuf_yaddr[dpe_pixl_buf_idx1];
-					mc_inp_body_cbuf_addr[1] =
-						prm_top->src0_diopps_fbuf_caddr[dpe_pixl_buf_idx1];
-				}
-			}
-			mc_inp_head_ybuf_addr	 = rd(DPSS_SRC0_DIOUT_YHEAD_ADDR);
-			mc_inp_head_cbuf_addr	 = rd(DPSS_SRC0_DIOUT_CHEAD_ADDR);
-			mc_inp_head_ybuf_step	 = rd(DPSS_SRC0_DIOUT_YHEAD_STEP);
-			mc_inp_head_cbuf_step	 = rd(DPSS_SRC0_DIOUT_CHEAD_STEP);
-			dbg_pps0("pps frc di 0x%x,0x%x\n", mc_inp_body_ybuf_addr[0] << 5,
+			dbg_pps0("pps frc di s0 0x%x,0x%x\n", mc_inp_body_ybuf_addr[0] << 5,
 				mc_inp_body_ybuf_addr[1] << 5);
+		} else if (pps->trig_pps == 1 && pps->pps_en) {
+			if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx0]) {
+				mc_inp_body_ybuf_addr[0] =
+					prm_top->src0_diopps_fbuf_yaddr[dpe_pixl_buf_idx0];
+				mc_inp_body_cbuf_addr[0] =
+					prm_top->src0_diopps_fbuf_caddr[dpe_pixl_buf_idx0];
+			}
+			if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx1]) {
+				mc_inp_body_ybuf_addr[1] =
+					prm_top->src0_diopps_fbuf_yaddr[dpe_pixl_buf_idx1];
+				mc_inp_body_cbuf_addr[1] =
+					prm_top->src0_diopps_fbuf_caddr[dpe_pixl_buf_idx1];
+			}
+			dbg_pps0("pps frc di s1 0x%x,0x%x\n", mc_inp_body_ybuf_addr[0] << 5,
+				mc_inp_body_ybuf_addr[1] << 5);
+		} else if (pps->trig_pps == 2) {
+			if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx0]) {
+				mc_inp_body_ybuf_addr[0] =
+					prm_top->src0_diopps_fbuf_yaddr[dpe_pixl_buf_idx0];
+				mc_inp_body_cbuf_addr[0] =
+					prm_top->src0_diopps_fbuf_caddr[dpe_pixl_buf_idx0];
+			}
+			if (prm_top->fbuf_is_pps[dpe_pixl_buf_idx1]) {
+				mc_inp_body_ybuf_addr[1] =
+					prm_top->src0_diopps_fbuf_yaddr[dpe_pixl_buf_idx1];
+				mc_inp_body_cbuf_addr[1] =
+					prm_top->src0_diopps_fbuf_caddr[dpe_pixl_buf_idx1];
+			}
+			dbg_pps0("pps frc di s2 0x%x,0x%x\n", mc_inp_body_ybuf_addr[0] << 5,
+				mc_inp_body_ybuf_addr[1] << 5);
+		} else {
+			dbg_pps0("no pps frc di 0x%x,0x%x,%d\n", mc_inp_body_ybuf_addr[0] << 5,
+					mc_inp_body_ybuf_addr[1] << 5, pps->trig_pps);
 		}
 	}
 
