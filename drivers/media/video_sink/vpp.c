@@ -3534,6 +3534,14 @@ RESTART:
 	    vf->canvas0Addr != 0 &&
 	    (!IS_DI_POSTWRTIE(vf->type) ||
 	     vf->flag & VFRAME_FLAG_DI_DW)) {
+		if (cur_super_debug)
+			pr_info("condition1:0x%x 0x%x %d 0x%x 0x%x\n",
+				vf->type,
+				vf->di_flag,
+				next_frame_par->nocomp,
+				vf->canvas0Addr,
+				vf->flag);
+
 		if (vd1_vd2_mux)
 			afbc_support = 0;
 		else
@@ -3542,11 +3550,31 @@ RESTART:
 		    next_frame_par->vscale_skip_count > 1 ||
 		    !afbc_support ||
 		    force_no_compress ||
-		    force_dw)
+		    force_dw) {
 			no_compress = true;
+			if (cur_super_debug)
+				pr_info("condition2:0x%x %d %d %d %d %d\n",
+					vpp_flags,
+					next_frame_par->vscale_skip_count,
+					afbc_support,
+					force_no_compress,
+					force_dw,
+					vd1_vd2_mux);
+		}
 	} else {
 		no_compress = false;
 	}
+
+	if (cur_super_debug)
+		pr_info("condition3:no_compress:%d %d %d %d 0x%x 0x%x 0x%x %d\n",
+			no_compress,
+			next_frame_par->vscale_skip_count,
+			next_frame_par->hscale_skip_count,
+			force_no_compress,
+			vpp_flags,
+			vf->type,
+			vf->di_flag,
+			next_frame_par->nocomp);
 
 	if (no_compress) {
 		u32 pi_enable_pre, pi_enable_adj;

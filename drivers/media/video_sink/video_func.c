@@ -1899,6 +1899,28 @@ s32 primary_render_frame(struct video_layer_s *layer,
 		frc_in_p.unreg_bypass = 1;
 		frc_in_p.follow_hold_line = vpp_hold_line[vpp_index];
 		frc_in_p.link_mode = layer->cur_link_mode;
+
+		frc_in_p.win.x_st = layer->cur_frame_par->VPP_hd_start_lines_;
+		frc_in_p.win.x_end = layer->cur_frame_par->VPP_hd_end_lines_;
+		frc_in_p.win.y_st = layer->cur_frame_par->VPP_vd_start_lines_;
+		frc_in_p.win.y_end = layer->cur_frame_par->VPP_vd_end_lines_;
+		frc_in_p.vinfo.x_d_st = layer->cur_frame_par->VPP_hsc_startp;
+		frc_in_p.vinfo.x_d_end = layer->cur_frame_par->VPP_hsc_endp;
+		frc_in_p.vinfo.y_d_st = layer->cur_frame_par->VPP_vsc_startp;
+		frc_in_p.vinfo.y_d_end = layer->cur_frame_par->VPP_vsc_endp;
+		frc_in_p.vinfo.x_d_size = frc_in_p.vinfo.x_d_end -
+			frc_in_p.vinfo.x_d_st + 1;
+		frc_in_p.vinfo.y_d_size = frc_in_p.vinfo.y_d_end -
+			frc_in_p.vinfo.y_d_st + 1;
+		frc_in_p.win.x_size = frc_in_p.win.x_end - frc_in_p.win.x_st + 1;
+		frc_in_p.win.y_size = frc_in_p.win.y_end - frc_in_p.win.y_st + 1;
+		frc_in_p.vinfo.htotal = vinfo->htotal;
+		frc_in_p.vinfo.vtotal = vinfo->vtotal;
+		frc_in_p.vinfo.height = vinfo->height;
+		frc_in_p.vinfo.width = vinfo->width;
+		frc_in_p.vinfo.frequency = vinfo->std_duration;
+		frc_in_p.plink_reverse = glayer_info[0].reverse;
+		frc_in_p.plink_hv_mirror = glayer_info[0].mirror;
 		iret = pvpp_display_frc(NULL, &frc_in_p, NULL);
 		if (layer->global_debug & DEBUG_FLAG_PLINK)
 			pr_info("%s: unreg_bypass frc link mode ret %d\n",
