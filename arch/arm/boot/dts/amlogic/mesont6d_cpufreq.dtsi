@@ -216,7 +216,7 @@
 			clocks = <&scmi_clk CLKID_SCMI_CPU_CLK>;
 			clock-names = "cpuclk";
 			voltage-tolerance = <0>;
-			clock-latency = <50000>;
+			transition_delay_us = <10000>;
 			//skip_volt_scaling;
 			cluster_cores = <0 1 2 3>;
 			pdvfs_enabled;

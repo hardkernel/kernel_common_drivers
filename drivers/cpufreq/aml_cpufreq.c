@@ -480,8 +480,8 @@ static void aml_setup_policy_rest(struct cluster_data *data)
 	struct device_node *np = data->np;
 	struct cpufreq_policy *policy = data->policy;
 
-	if (of_property_read_u32(np, "clock-latency", &policy->cpuinfo.transition_latency))
-		policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
+	if (of_property_read_u32(np, "transition_delay_us", &policy->transition_delay_us))
+		policy->transition_delay_us = 10000;
 	if (of_property_read_u32(np, "suspend-freq", &policy->suspend_freq))
 		policy->suspend_freq = data->opp_table[data->opp_cnt - 1].rate;
 

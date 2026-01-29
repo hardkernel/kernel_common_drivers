@@ -42,7 +42,7 @@
 			clock-names = "cpuclk";
 			skip_volt_scaling;
 			voltage-tolerance = <0>;
-			clock-latency = <50000>;
+			transition_delay_us = <10000>;
 			cluster_cores = <0 1>;
 		};
 	};

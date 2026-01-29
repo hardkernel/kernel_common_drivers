@@ -630,7 +630,7 @@
 			clocks = <&scmi_clk CLKID_A73_CLK>;
 			clock-names = "cpuclk";
 			voltage-tolerance = <0>;
-			clock-latency = <50000>;
+			transition_delay_us = <10000>;
 			//skip_volt_scaling;
 			cluster_cores = <0 1 2 3>;
 			pdvfs_enabled;
@@ -640,7 +640,7 @@
 			clocks = <&scmi_clk CLKID_CPU_CLK>;
 			clock-names = "cpuclk";
 			voltage-tolerance = <0>;
-			clock-latency = <50000>;
+			transition_delay_us = <10000>;
 			//skip_volt_scaling;
 			cluster_cores = <4 5 6 7>;
 			pdvfs_enabled;
