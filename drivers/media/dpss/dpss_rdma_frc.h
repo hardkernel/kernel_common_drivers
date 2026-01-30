@@ -14,6 +14,7 @@
 
 /*RDMA total memory size is 1M*/
 #define DPSS_RDMA_SIZE (64 * (PAGE_SIZE))
+#define DPSS_FRC_ERR_CNT 5
 
 struct rdma_irq_reg_s {
 	u32 reg;

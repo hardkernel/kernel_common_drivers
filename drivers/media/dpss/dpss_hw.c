@@ -2002,7 +2002,7 @@ void irq_pre_vs(void)
 
 #ifdef USE_FRC_PRE_VS_RDMA
 	// dpss_rdma_auto_wr_reg(reg, val + idx);
-	DPSS_RDMA_WR_PRE_VS(FRC_REG_TOP_RESERVE15, frc_int_st->pre_vsync_cnt);
+	DPSS_RDMA_WR_BIT_PRE_VS(FRC_REG_TOP_RESERVE15, frc_int_st->pre_vsync_cnt, 0, 32);
 	pre_vsync_signal_to_dpss_rdma();
 
 #endif
@@ -2097,7 +2097,6 @@ void irq_display(void)
 
 #ifdef USE_FRC_VS_RDMA
 	// dpss_rdma_auto_wr_reg(reg, val + idx);
-	DPSS_RDMA_WR_VS(FRC_REG_TOP_RESERVE13, dpss_disp0_frm_cnt);
 	DPSS_RDMA_WR_BIT_VS(FRC_REG_TOP_RESERVE14, dpss_disp0_frm_cnt, 16, 16);
 	DPSS_RDMA_WR_BIT_VS(FRC_REG_TOP_RESERVE14, dpss_disp0_frm_cnt + 1, 0, 16);
 	// dpss_rdma_auto_wr_tri(2);

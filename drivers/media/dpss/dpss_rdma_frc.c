@@ -39,6 +39,8 @@ static unsigned int RDMA_IRQ_PRE_VSYNC = 0x1;
 static unsigned int RDMA_IRQ_VSYNC = 0x2;
 static unsigned int rdma_handle_irq_pre_vs = 0x2; // pre vs tri bit:1
 static unsigned int rdma_handle_irq_vs = 0x1; //vs tri bit:0 update 25/11/12
+static unsigned int frc_pv_rdma_err_cnt;
+static unsigned int frc_vs_rdma_err_cnt;
 
 int rdma_enable(void)
 {
@@ -220,7 +222,8 @@ void dpss_rdma_pre_vs_table_config(unsigned int addr, unsigned int val)
 
 	if ((i + 1) * 8 > rdma_info_pre_vs->rdma_table_size) {
 		dbg_a1("dpss rdma in buffer overflow\n");
-		return;
+		i = 0;
+		rdma_info_pre_vs->rdma_item_count = 0;
 	}
 
 	rdma_info_pre_vs->tmp_table[i * 2] = addr & 0xffffffff;
@@ -241,7 +244,8 @@ void dpss_rdma_vs_table_config(unsigned int addr, unsigned int val)
 
 	if ((i + 1) * 8 > rdma_info_vs->rdma_table_size) {
 		dbg_a1("dpss rdma in buffer overflow\n");
-		return;
+		i = 0;
+		rdma_info_vs->rdma_item_count = 0;
 	}
 
 	rdma_info_vs->tmp_table[i * 2] = addr & 0xffffffff;
@@ -456,16 +460,21 @@ void pre_vsync_signal_to_dpss_rdma(void)
 	rdma_info_p = &rdma_info[RDMA_IRQ_PRE_VSYNC];
 	read_cnt = rd(FRC_REG_TOP_RESERVE11);
 	if (rdma_info_p->rdma_reg == 1) {
-		rdma_info_p->index_flag = read_cnt;
+		read_cnt = 0;
+		rdma_info_p->index_flag = 0;
 		rdma_info_p->rdma_reg = 2;
 	}
+	if (frc_pv_rdma_err_cnt == DPSS_FRC_ERR_CNT && rdma_info_p->rdma_reg == 2)
+		rdma_info_p->index_flag = read_cnt;
 	if (read_cnt != rdma_info_p->index_flag) {
-		dbg_a0("pv rdma abnormal:%d,%d\n",
-			read_cnt, rdma_info_p->index_flag);
+		frc_pv_rdma_err_cnt++;
+		dbg_a0("pv rdma abnormal:%d,%d,%d\n",
+			read_cnt, rdma_info_p->index_flag, frc_pv_rdma_err_cnt);
 		return;
 	}
+	frc_pv_rdma_err_cnt = 0;
 	rdma_info_p->index_flag++;
-	DPSS_RDMA_WR_PRE_VS(FRC_REG_TOP_RESERVE11, rdma_info_p->index_flag);
+	DPSS_RDMA_WR_BIT_PRE_VS(FRC_REG_TOP_RESERVE11, rdma_info_p->index_flag, 0, 32);
 	dpss_rdma_auto_wr_tri(RDMA_IRQ_PRE_VSYNC);
 }
 
@@ -480,16 +489,21 @@ void post_vsync_signal_to_dpss_rdma(void)
 	rdma_info_p = &rdma_info[RDMA_IRQ_VSYNC];
 	read_cnt = rd(FRC_REG_TOP_RESERVE12);
 	if (rdma_info_p->rdma_reg == 1) {
-		rdma_info_p->index_flag = read_cnt;
+		read_cnt = 0;
+		rdma_info_p->index_flag = 0;
 		rdma_info_p->rdma_reg = 2;
 	}
+	if (frc_vs_rdma_err_cnt == DPSS_FRC_ERR_CNT && rdma_info_p->rdma_reg == 2)
+		rdma_info_p->index_flag = read_cnt;
 	if (read_cnt != rdma_info_p->index_flag) {
-		dbg_a0("vsync rdma abnormal:%d,%d\n",
-			read_cnt, rdma_info_p->index_flag);
+		frc_vs_rdma_err_cnt++;
+		dbg_a0("vsync rdma abnormal:%d,%d,%d\n",
+			read_cnt, rdma_info_p->index_flag, frc_vs_rdma_err_cnt);
 		return;
 	}
+	frc_vs_rdma_err_cnt = 0;
 	rdma_info_p->index_flag++;
-	DPSS_RDMA_WR_VS(FRC_REG_TOP_RESERVE12, rdma_info_p->index_flag);
+	DPSS_RDMA_WR_BIT_VS(FRC_REG_TOP_RESERVE12, rdma_info_p->index_flag, 0, 32);
 	dpss_rdma_auto_wr_tri(RDMA_IRQ_VSYNC);
 //#endif
 }
