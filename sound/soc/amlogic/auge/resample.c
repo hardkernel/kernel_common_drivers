@@ -899,8 +899,13 @@ static int resample_platform_suspend(struct device *dev)
 		/* warning:parent clk already close */
 		if (__clk_is_enabled(p_resample->sclk)) {
 			if (!IS_ERR(p_resample->clk)) {
-				while (__clk_is_enabled(p_resample->clk))
+				while (__clk_is_enabled(p_resample->clk)) {
+#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
+					if (bypass_clk_disable_unprepare)
+						break;
+#endif
 					clk_disable_unprepare(p_resample->clk);
+				}
 			}
 		}
 	}
@@ -1177,6 +1182,10 @@ static void resample_platform_shutdown(struct platform_device *pdev)
 
 		for (;;) {
 			if (__clk_is_enabled(p_resample->sclk)) {
+#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
+				if (bypass_clk_disable_unprepare)
+					break;
+#endif
 				clk_disable_unprepare(p_resample->sclk);
 				count++;
 			} else {
@@ -1223,8 +1232,13 @@ static int resample_platform_freeze(struct device *dev)
 		/* warning:parent clk already close */
 		if (__clk_is_enabled(p_resample->sclk)) {
 			if (!IS_ERR(p_resample->clk)) {
-				while (__clk_is_enabled(p_resample->clk))
+				while (__clk_is_enabled(p_resample->clk)) {
+#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
+					if (bypass_clk_disable_unprepare)
+						break;
+#endif
 					clk_disable_unprepare(p_resample->clk);
+				}
 			}
 		}
 	}

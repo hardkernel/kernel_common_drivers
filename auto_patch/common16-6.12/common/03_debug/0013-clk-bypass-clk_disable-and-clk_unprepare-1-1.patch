@@ -1,4 +1,4 @@
-From a70e16b0bbde76e8aa2b12d4dafc3d5ca748050b Mon Sep 17 00:00:00 2001
+From 82de5074d5850e68be76c20013d31c24f87836c2 Mon Sep 17 00:00:00 2001
 From: Jian Hu <jian.hu@amlogic.com>
 Date: Tue, 20 Jan 2026 14:46:15 +0800
 Subject: [PATCH] clk: bypass clk_disable and clk_unprepare [1/1]
@@ -17,19 +17,21 @@ t7
 Change-Id: I2c45f86e2ead7ccf16d03226324926c96ba58f76
 Signed-off-by: Jian Hu <jian.hu@amlogic.com>
 ---
- drivers/clk/clk.c | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ drivers/clk/clk.c   | 37 +++++++++++++++++++++++++++++++++++++
+ include/linux/clk.h |  3 +++
+ 2 files changed, 40 insertions(+)
 
 diff --git a/drivers/clk/clk.c b/drivers/clk/clk.c
-index eeb36a866f523..d45c46f47a536 100644
+index eeb36a866f523..734267765dc99 100644
 --- a/drivers/clk/clk.c
 +++ b/drivers/clk/clk.c
-@@ -1051,6 +1051,24 @@ int devm_clk_rate_exclusive_get(struct device *dev, struct clk *clk)
+@@ -1051,6 +1051,25 @@ int devm_clk_rate_exclusive_get(struct device *dev, struct clk *clk)
  }
  EXPORT_SYMBOL_GPL(devm_clk_rate_exclusive_get);
  
 +#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
 +bool bypass_clk_disable_unprepare;
++EXPORT_SYMBOL_GPL(bypass_clk_disable_unprepare);
 +
 +static int bypass_clk_disable_unprepare_setup(char *s)
 +{
@@ -49,13 +51,17 @@ index eeb36a866f523..d45c46f47a536 100644
  static void clk_core_unprepare(struct clk_core *core)
  {
  	lockdep_assert_held(&prepare_lock);
-@@ -1076,8 +1094,13 @@ static void clk_core_unprepare(struct clk_core *core)
+@@ -1076,8 +1095,17 @@ static void clk_core_unprepare(struct clk_core *core)
  
  	trace_clk_unprepare(core);
  
 +#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-+	if (core->ops->unprepare && bypass_clk_disable_unprepare)
-+		pr_info("bypass CCF %s clock in %s\n", core->name, __func__);
++	if (core->ops->unprepare) {
++		if (bypass_clk_disable_unprepare)
++			pr_info("bypass CCF %s clock in %s\n", core->name, __func__);
++		else
++			core->ops->unprepare(core->hw);
++	}
 +#else
  	if (core->ops->unprepare)
  		core->ops->unprepare(core->hw);
@@ -63,13 +69,17 @@ index eeb36a866f523..d45c46f47a536 100644
  
  	trace_clk_unprepare_complete(core);
  	clk_core_unprepare(core->parent);
-@@ -1211,8 +1234,13 @@ static void clk_core_disable(struct clk_core *core)
+@@ -1211,8 +1239,17 @@ static void clk_core_disable(struct clk_core *core)
  
  	trace_clk_disable(core);
  
 +#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-+	if (core->ops->disable && bypass_clk_disable_unprepare)
-+		pr_info("bypass CCF %s clock in %s\n", core->name, __func__);
++	if (core->ops->disable) {
++		if (bypass_clk_disable_unprepare)
++			pr_info("bypass CCF %s clock in %s\n", core->name, __func__);
++		else
++			core->ops->disable(core->hw);
++	}
 +#else
  	if (core->ops->disable)
  		core->ops->disable(core->hw);
@@ -77,6 +87,20 @@ index eeb36a866f523..d45c46f47a536 100644
  
  	trace_clk_disable_complete(core);
  
+diff --git a/include/linux/clk.h b/include/linux/clk.h
+index 851a0f2cf42c8..3bacf7afa852f 100644
+--- a/include/linux/clk.h
++++ b/include/linux/clk.h
+@@ -18,6 +18,9 @@ struct clk;
+ struct device_node;
+ struct of_phandle_args;
+ 
++#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
++extern bool bypass_clk_disable_unprepare;
++#endif
+ /**
+  * DOC: clk notifier callback types
+  *
 -- 
 2.47.1
 
