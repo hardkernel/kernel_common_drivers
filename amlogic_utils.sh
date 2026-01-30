@@ -1664,7 +1664,7 @@ function set_default_parameters () {
 		export SYS_SKIP_GIT=1
 		if [[ ${ONLY_PATCH} -eq "1" ]]; then
 			cd ${CURRENT_DIR}
-			exit
+			exit 1
 		fi
 	fi
 

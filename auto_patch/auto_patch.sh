@@ -21,7 +21,7 @@ function get_paths_and_enter_common_path()
 		COMMON_PATH=$(realpath -s ${common_kernel_path}/..)
 	else
 		echo "The directory of kernel does not exist";
-		exit
+		exit 1
 	fi
 	COMMON_DRIVERS_DIR=$(realpath --relative-to=${common_kernel_path} ${common_driver_path})
 	KERNEL_DIR=${common_kernel_path##*/}
@@ -48,7 +48,7 @@ function get_full_kernel_version()
 		if [[ -z ${version_message} ]]; then
 			cd ${ENTER_PATH}
 			echo "Can't find BRANCH in build.config.constants and build.config.common"
-			exit
+			exit 1
 		fi
 		version_message="common${version_message##*android}"
 		FULL_KERNEL_VERSION=${version_message}
@@ -63,7 +63,7 @@ function get_full_kernel_version()
 		else
 			cd ${ENTER_PATH}
 			echo "Can't find FULL_KERNEL_VERSION"
-			exit
+			exit 1
 		fi
 	fi
 	if [[ ${DEBUG} == 1 ]]; then
@@ -73,7 +73,7 @@ function get_full_kernel_version()
 	if [[ ! -d ${PATCHES_PATH} ]]; then
 		cd ${ENTER_PATH}
 		echo "None patch to am, ${PATCHES_PATH}/${FULL_KERNEL_VERSION}/patches does not exist!!!"
-		exit
+		exit 0
 	fi
 	if [[ ${DEBUG} == 1 ]]; then
 		echo PATCHES_PATH=${PATCHES_PATH}
@@ -86,6 +86,11 @@ function am_patch()
 	local dir=$2
 	local compare_id=$3
 	local change_id=`grep 'Change-Id' $patch | head -n1 | awk '{print $2}'`
+
+	if [[ -z ${change_id} ]]; then
+		echo "The patch from ${patch} is missing the Change-Id"
+		exit 1
+	fi
 
 	if [ -d "${dir}" ]; then
 		cd ${dir}
@@ -101,7 +106,7 @@ function am_patch()
 					echo
 				fi
 				echo "Patch Error : Failed to patch [$patch], Need check it. exit!!!"
-				exit -1
+				exit 1
 			fi
 			if [[ ${DEBUG} != 1 ]]; then
 				echo -n .
@@ -165,39 +170,72 @@ function auto_release_patch()
 	fi
 }
 
+function common_patch()
+{
+	local common_change_id=$(cd ${KERNEL_DIR} && git log -n 200 | grep "Change-Id:" | awk '{print $2}')
+
+	if [[ -z ${common_change_id} ]]; then
+		echo "ERROR: there’s no git repository in common, so auto patch fail!"
+		exit 1
+	fi
+	auto_release_patch
+	if [[ "${PATCH_PARM}" != "non_common" ]]; then
+		for file in `ls ${PATCHES_PATH}/common`; do
+			if [ -d ${PATCHES_PATH}/common/${file} ]; then
+				for patch in `find ${PATCHES_PATH}/common/${file} -name "*.patch" | sort`; do
+					am_patch ${patch} ${KERNEL_DIR} "${common_change_id[@]}"
+				done
+			fi
+		done
+	fi
+}
+
+function common_drivers_patch()
+{
+	if [[ -d ${PATCHES_PATH}/common_drivers ]]; then
+		local common_drivers_change_id=$(cd ${KERNEL_DIR}/${COMMON_DRIVERS_DIR} && git log -n 100 | grep "Change-Id:" | awk '{print $2}')
+		for patch in `find ${PATCHES_PATH}/common_drivers -name "*.patch" | sort`; do
+			am_patch ${patch} ${KERNEL_DIR}/${COMMON_DRIVERS_DIR} "${common_drivers_change_id[@]}"
+		done
+	fi
+}
+
+function tools_patch()
+{
+	if [[ -d ${PATCHES_PATH}/tools ]]; then
+		auto_patch ${PATCHES_PATH}/tools
+	fi
+}
+
 function traverse_patch_dir()
 {
-	# git am common and common_driver patches
 	echo "Auto Patch Start"
-	{
-		local common_change_id=$(cd ${KERNEL_DIR} && git log -n 200 | grep "Change-Id:" | awk '{print $2}')
-		auto_release_patch
-		if [[ "${PATCH_PARM}" != "non_common" ]]; then
-			for file in `ls ${PATCHES_PATH}/common`; do
-				if [ -d ${PATCHES_PATH}/common/${file} ]; then
-					for patch in `find ${PATCHES_PATH}/common/${file} -name "*.patch" | sort`; do
-						am_patch ${patch} ${KERNEL_DIR} "${common_change_id[@]}"
-					done
-				fi
-			done
+	common_patch &
+	common_pid=$!
+	common_drivers_patch &
+	common_drivers_pid=$!
+	tools_patch &
+	tools_pid=$!
+
+	failed=false
+	for pid in ${common_pid} ${common_drivers_pid} ${tools_pid}; do
+		wait $pid
+		exit_status=$?
+		if [ ${exit_status} -ne 0 ]; then
+			failed=true
 		fi
-	} &
+	done
 
-	{
-		if [[ -d ${PATCHES_PATH}/common_drivers ]]; then
-			local common_drivers_change_id=$(cd ${KERNEL_DIR}/${COMMON_DRIVERS_DIR} && git log -n 100 | grep "Change-Id:" | awk '{print $2}')
-			for patch in `find ${PATCHES_PATH}/common_drivers -name "*.patch" | sort`; do
-				am_patch ${patch} ${KERNEL_DIR}/${COMMON_DRIVERS_DIR} "${common_drivers_change_id[@]}"
-			done
-		fi
-	} &
-
-	[[ -d ${PATCHES_PATH}/tools ]] && auto_patch ${PATCHES_PATH}/tools
-
-	wait
 	if [[ ${DEBUG} != 1 ]]; then
 		echo
 	fi
+
+	if ${failed}; then
+		exit 1
+	else
+		exit 0
+	fi
+
 	echo "Patch Finish: ${COMMON_PATH}"
 }
 
