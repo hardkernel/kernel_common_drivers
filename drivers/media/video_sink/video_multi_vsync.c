@@ -283,7 +283,12 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 			info->sync_duration_den,
 			info->sync_duration_num);
 #endif
-
+#ifdef CONFIG_AMLOGIC_VIDEO_DISPLAY
+	if (gvideo_recv_vpp[recv_id])
+		vsync_notify_videodisplay(layer_id,
+			info->sync_duration_den,
+			info->sync_duration_num);
+#endif
 	if (atomic_read(&video_unreg_flag_vpp[vpp_id]))
 		goto exit;
 
