@@ -6445,7 +6445,8 @@ static long amvecm_ioctl(struct file *file,
 		} else {
 			hdr_set_on = tmp;
 			vecm_latch_flag2 |= FLAG_HDR_ON;
-			force_toggle();
+			if (!dpss_mode)
+				force_toggle();
 			pr_amvecm_dbg("AMVECM_IOC_S_HDR_ON: %d\n", hdr_set_on);
 		}
 		break;
@@ -6465,7 +6466,8 @@ static long amvecm_ioctl(struct file *file,
 		} else {
 			hdr10p_set_on = tmp;
 			vecm_latch_flag2 |= FLAG_HDR10P_ON;
-			force_toggle();
+			if (!dpss_mode)
+				force_toggle();
 			pr_amvecm_dbg("AMVECM_IOC_S_HDR10P_ON: %d\n", hdr10p_set_on);
 		}
 		break;

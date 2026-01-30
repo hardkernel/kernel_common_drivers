@@ -10281,6 +10281,9 @@ int hdr_policy_for_dpss(enum hdr_type_e source_format, struct vframe_s *vf)
 		hlg_process_mode_dpss = PROC_BYPASS;
 		cuva_hdr_process_mode_dpss = PROC_BYPASS;
 		cuva_hlg_process_mode_dpss = PROC_BYPASS;
+
+		if (hdr_set_on != 1)
+			hdr_process_mode_dpss = PROC_BYPASS;
 		break;
 	case HDRTYPE_HDR10PLUS:
 		sdr_process_mode_dpss = PROC_BYPASS;
@@ -10289,6 +10292,9 @@ int hdr_policy_for_dpss(enum hdr_type_e source_format, struct vframe_s *vf)
 		hlg_process_mode_dpss = PROC_BYPASS;
 		cuva_hdr_process_mode_dpss = PROC_BYPASS;
 		cuva_hlg_process_mode_dpss = PROC_BYPASS;
+
+		if (hdr10p_set_on != 1)
+			hdr10_plus_process_mode_dpss = PROC_BYPASS;
 		break;
 	case HDRTYPE_HLG:
 		sdr_process_mode_dpss = PROC_BYPASS;
@@ -10297,6 +10303,9 @@ int hdr_policy_for_dpss(enum hdr_type_e source_format, struct vframe_s *vf)
 		hlg_process_mode_dpss = PROC_HLG_TO_SDR;
 		cuva_hdr_process_mode_dpss = PROC_BYPASS;
 		cuva_hlg_process_mode_dpss = PROC_BYPASS;
+
+		if (hdr_set_on != 1)
+			hlg_process_mode_dpss = PROC_BYPASS;
 		break;
 	case HDRTYPE_CUVA_HDR:
 		sdr_process_mode_dpss = PROC_BYPASS;
@@ -10517,7 +10526,7 @@ int signal_type_detect_for_dpss(struct vframe_s *vf)
 	if (pre_gamut_mapping1_en != gamut_mapping1_en) {
 		change_flag |= SIG_CS_CHG;
 		pre_gamut_mapping1_en = gamut_mapping1_en;
-		pr_csc(1, "gamut_mapping1_en  changed = 0x%x\n",
+		pr_csc(128, "gamut_mapping1_en changed = 0x%x\n",
 			gamut_mapping1_en);
 	}
 

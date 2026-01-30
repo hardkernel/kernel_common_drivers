@@ -987,8 +987,8 @@ unsigned int hdr10_clip_luma;
 /*margin: margin / 10*/
 unsigned int hdr10_clip_margin = 2;
 int hdr_on;
-int hdr_set_on;
-int hdr10p_set_on;
+int hdr_set_on = 1;
+int hdr10p_set_on = 1;
 
 #define X_SHFT 10
 uint adp_scal_x_shift = X_SHFT; /* 1.0 = 1024 */
@@ -6553,7 +6553,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	hdr_mtx_param.p_sel_ext = MTX_OFF;
 
 	if ((vecm_latch_flag2 & FLAG_HDR_ON) &&
-		(hdr_process_select & HDR_SDR)) {
+		(hdr_process_select & HDR_SDR) && !dpss_mode) {
 		hdr_mtx_param.mtx_on = hdr_set_on;
 		pr_csc(128, "%s: module_sel = %d, hdr_set_on = %d\n",
 			__func__, module_sel, hdr_set_on);
@@ -7190,7 +7190,7 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	}
 
 	if ((vecm_latch_flag2 & FLAG_HDR10P_ON) &&
-		(hdr_process_select & HDR10P_SDR)) {
+		(hdr_process_select & HDR10P_SDR) && !dpss_mode) {
 		hdr_mtx_param.mtx_on = hdr10p_set_on;
 		pr_csc(128, "%s: module_sel = %d, hdr10p_set_on = %d\n",
 			__func__, module_sel, hdr10p_set_on);
