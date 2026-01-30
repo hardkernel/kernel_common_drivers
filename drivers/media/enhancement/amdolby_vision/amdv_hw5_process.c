@@ -558,7 +558,7 @@ void update_top1_onoff(struct vframe_s *vf)
 		}
 		if (vf->flag & VFRAME_FLAG_GAME_MODE) {
 			if (debug_dolby & 0x80000)
-				pr_dv_dbg("game mode,flag %x,bypass pd\n", vf->flag);
+				pr_dv_dbg("game mode,flag %x,bypass top1\n", vf->flag);
 			enable_top1 = false;
 			/*game need lowlatency, not support PD*/
 			/*If UI switch to IQ when source is game, need force bypss PD*/
@@ -599,12 +599,14 @@ void update_top1_onoff(struct vframe_s *vf)
 			if (((top1_vd_info.width >> top1_scale) % 2) ||
 				((top1_vd_info.height >> top1_scale) % 2)) {
 				vf->src_fmt.py_level = PY_NO_LEVEL;
+				enable_top1 = false;
 				if (debug_dolby & 0x80000)
-					pr_dv_dbg("top1 size %dx%d not align, bypass pd\n",
+					pr_dv_dbg("top1 size %dx%d not align, bypass top1\n",
 					top1_vd_info.width, top1_vd_info.height);
 			} else if ((w <= h || ori_w <= ori_h) && w > 1920) {
 				/*hw bug, need disable top1 when w>1920 && w<=h*/
 				vf->src_fmt.py_level = PY_NO_LEVEL;
+				enable_top1 = false;
 			}
 		} else {
 			vf->src_fmt.py_level = PY_NO_LEVEL;

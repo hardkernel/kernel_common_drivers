@@ -3553,8 +3553,12 @@ int cfg_dolby_top(struct prm_dolby_top *prm_dolby,
 		reset = true;
 	/**************debug reset done***************/
 
-	if (enable_top1)
+	if (enable_top1) {
 		check_pr_enabled_in_setting();
+	} else {
+		py_enabled = false;
+		force_bypass_precision = true;
+	}
 
 	if (enable_top1 && set_top1) {
 		if (!top1_info.core_on) {
