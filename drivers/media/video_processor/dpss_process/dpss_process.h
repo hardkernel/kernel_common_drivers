@@ -133,12 +133,12 @@ struct dpss_process_dev {
 	int frc_en;
 	bool is_start_with_dpss;
 	bool need_check_hdr_state;
-	u32 i_frame_cnt;
 	int output_duration;
 	u32 continue_to_vd1_num;
 	bool should_on_vd1;
-	bool is_dtv_switch_first_vframe;
 	bool vd1_switch_dpss_is_done;
+	bool is_first_frame;
+	bool is_switch_first_frame;
 };
 
 struct dpss_process_port_s {

@@ -78,6 +78,7 @@ struct dpss_cooling_device *dpss_cdev_global;
 #endif
 static u32 force_num_to_vd1;
 static atomic_t input_eos_enabled = ATOMIC_INIT(0);
+static u32 hdr_state_flag; /*0:normal 1:need send flag to force pq unmute*/
 static DEFINE_MUTEX(dpss_process_mutex);
 
 static int dp_print(int index, int debug_flag, const char *fmt, ...)
@@ -1827,12 +1828,13 @@ static int dpss_process_init(struct dpss_process_dev *dev)
 	dev->direct_mode_en = 0;
 	dev->frc_en = 0;
 	dev->is_start_with_dpss = true;
-	dev->need_check_hdr_state = false;
+	if (dev->index == 0)
+		dev->need_check_hdr_state = hdr_state_flag;
 	dev->last_frame_vd1_toggle = false;
-	dev->i_frame_cnt = 0;
 	dev->continue_to_vd1_num = 0;
 	dev->should_on_vd1 = 0;
-	dev->is_dtv_switch_first_vframe = false;
+	dev->is_first_frame = false;
+	dev->is_switch_first_frame = false;
 
 	receive_q_init(dev);
 	dpss_input_free_q_init(dev);
@@ -1909,6 +1911,9 @@ static int dpss_process_uninit(struct dpss_process_dev *dev)
 		dp_timeline_increase(dev, dev->fence_creat_count
 				- dev->fence_release_count);
 	}
+
+	if (dev->index == 0)
+		hdr_state_flag = dev->need_check_hdr_state;
 
 	dp_print(dev->index, PRINT_OTHER,
 		"%s: fill_done/fill: cur: %lld/%lld, total: %d/%d\n",
@@ -2134,6 +2139,7 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 	struct dp_buf_mgr_t *cur_buf_mgr;
 	struct dpss_status dpss_state;
 	char do_dpss_type = 0;
+	bool is_dtv_src = false;
 	int ret = 0;
 
 	if (!dev || !frame_info) {
@@ -2163,6 +2169,8 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		return -EINVAL;
 	}
 
+	if (is_dtv_source(file_vf, vf))
+		is_dtv_src = true;
 	vf->dpss_flg |= DPSS_FLG_SET_DPSS_PROCESS;
 	dp_print(dev->index, PRINT_OTHER,
 		"%s: len =%d, fd=%d, frame_index=%d, file_vf=%px, file_count=%ld\n",
@@ -2205,15 +2213,16 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 	cur_buf_mgr = get_buf_mgr(file_vf);
 	if (!dev->last_buf_mgr) {
 		dev->last_buf_mgr = cur_buf_mgr;
+		dev->is_first_frame = true;
 		dp_print(dev->index, PRINT_OTHER,
 			"new stream is on, first frame is set\n");
 	} else if (cur_buf_mgr != dev->last_buf_mgr) {
 		dev->last_buf_mgr = cur_buf_mgr;
-		if (is_dtv_source(file_vf, vf))
-			dev->is_dtv_switch_first_vframe = true;
+		dev->is_switch_first_frame = true;
 		atomic_set(&input_eos_enabled, 0);
 		dp_print(dev->index, PRINT_OTHER,
 			"stream changed, need notify processor\n");
+		ret = 3;
 	}
 
 	if (frame_info->transform == 4 || frame_info->transform == 7)
@@ -2228,7 +2237,6 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 
 	if (do_dpss_type || !check_need_do_dpss(dev, vf, rotate_en) ||
 		force_num_to_vd1) {
-		dev->i_frame_cnt = 0;
 		dev->is_start_with_dpss = false;
 		if (force_num_to_vd1 > 0)
 			force_num_to_vd1--;
@@ -2310,23 +2318,26 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		}
 	}
 
-	memset(&dpss_state, 0, sizeof(struct dpss_status));
-	if (dpss_get_state(dev->dpss_index, DPSS_STATE_BUF, NULL, &dpss_state) != 0)
-		dp_print(dev->index, PRINT_ERROR, "get buf state failed.\n");
-
-	if (dpss_state.buf_status != DPSS_BUF_STATE_READY) {
-		dp_print(dev->index, PRINT_OTHER, "dpss buf not ready.\n");
-		vf->type_ext |= VIDTYPE_EXT_DPSS_DROP;
-		display_original_frame(dev, frame_info, file_vf, vf);
-		return 0;
-	}
-
 	//start play and first send to dpss
 	if (dev->index == 0 && dev->is_start_with_dpss) {
 		dp_print(dev->index, PRINT_OTHER, "start play with dpss.\n");
 		hdr_path_switch_to_dpss(3);
 		dev->need_check_hdr_state = true;
 		dev->is_start_with_dpss = false;
+	}
+
+	memset(&dpss_state, 0, sizeof(struct dpss_status));
+	if (dpss_get_state(dev->dpss_index, DPSS_STATE_BUF, NULL, &dpss_state) != 0)
+		dp_print(dev->index, PRINT_OTHER, "get buf state failed.\n");
+
+	if (dpss_state.buf_status != DPSS_BUF_STATE_READY) {
+		dp_print(dev->index, PRINT_OTHER, "dpss buf not ready.\n");
+		if (is_dtv_src)
+			vf->dpss_flg |= DPSS_FLG_OUT_DONE;
+		else
+			vf->type_ext |= VIDTYPE_EXT_DPSS_DROP;
+		display_original_frame(dev, frame_info, file_vf, vf);
+		return 0;
 	}
 
 	//VD1 switch to DPSS
@@ -2339,7 +2350,10 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 
 	if (dev->need_check_hdr_state && !hdr_path_delink_status()) {
 		dp_print(dev->index, PRINT_ERROR, "need do dpss but hdr not ready, bypass.\n");
-		vf->type_ext |= VIDTYPE_EXT_DPSS_DROP;
+		if (is_dtv_src)
+			vf->dpss_flg |= DPSS_FLG_OUT_DONE;
+		else
+			vf->type_ext |= VIDTYPE_EXT_DPSS_DROP;
 		display_original_frame(dev, frame_info, file_vf, vf);
 		return ret;
 	}
@@ -2362,12 +2376,6 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		vf->type_ext |= VIDTYPE_EXT_DPSS_EOS;
 		dp_print(dev->index, PRINT_OTHER, "frame_index=%d, input eos detected\n",
 			vf->frame_index);
-	}
-	if (dev->is_dtv_switch_first_vframe) {
-		dp_print(dev->index, PRINT_OTHER, "frame_index=%d, need eos flag\n",
-			vf->frame_index);
-		vf->type_ext |= VIDTYPE_EXT_DPSS_EOS;
-		dev->is_dtv_switch_first_vframe = false;
 	}
 
 	dp_print(dev->index, PRINT_OTHER,
@@ -2476,11 +2484,14 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		wake_up_interruptible(&dev->wq);
 	}
 
-	if (vf->type & VIDTYPE_INTERLACE)
-		dev->i_frame_cnt++;
-	if (dev->i_frame_cnt == 1) {
+	if ((dev->is_first_frame || dev->is_switch_first_frame) && !is_dtv_src && dev->cur_is_i) {
 		vf->type_ext |= VIDTYPE_EXT_DPSS_DROP;
 		dp_print(dev->index, PRINT_ERROR, "first i, need drop\n");
+	} else if ((dev->is_switch_first_frame || dev->is_first_frame) &&
+		is_dtv_src && dev->cur_is_i) {
+		vf->dpss_flg |= DPSS_FLG_OUT_DONE;
+		dp_print(dev->index, PRINT_OTHER,
+			"first i, set dpss done flag, then vd1 toggle\n");
 	}
 
 	frame_info->out_fence_fd = out_fence_fd;
@@ -2505,6 +2516,8 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 	dev->last_file = file_vf;
 	dev->last_dmabuf = dmabuf;
 	dev->last_frame_bypass = false;
+	dev->is_first_frame = false;
+	dev->is_switch_first_frame = false;
 
 	return ret;
 }
