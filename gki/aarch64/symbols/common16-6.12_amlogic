@@ -1,3 +1,8 @@
+  stack_depot_fetch
+  seq_release_private
+  get_track
+  bitmap_alloc
+  __seq_open_private
   kobj_sysfs_ops
   drm_match_cea_mode
   nbcon_device_release

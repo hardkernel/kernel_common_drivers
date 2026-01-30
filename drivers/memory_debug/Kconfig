@@ -4,7 +4,7 @@ menu "Meson core memory debug driver"
 
 config AMLOGIC_MEMORY_DEBUG
 	tristate "Meson debug driver"
-	default n
+	default m
 	help
 	  This is the meson memory driver
 
@@ -13,5 +13,6 @@ source "$(COMMON_DRIVERS_DIR)/drivers/memory_debug/reg_access/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/memory_debug/ddr_tool/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/memory_debug/ramdump/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/memory_debug/cma_debug/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/memory_debug/slub_debug/Kconfig"
 
 endmenu

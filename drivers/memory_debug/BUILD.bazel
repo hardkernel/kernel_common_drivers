@@ -25,6 +25,9 @@ ddk_module(
         "CONFIG_AMLOGIC_CMA_DEBUG": {
             True: ["cma_debug/aml_cma_debug.c"],
         },
+        "CONFIG_AMLOGIC_SLUB_DEBUG": {
+            True: ["slub_debug/slub_debug.c"],
+        },
         "CONFIG_AMLOGIC_DDR_TOOL": {
             True: [
                 "ddr_tool/ddr_tool.c",
@@ -163,6 +166,7 @@ ddk_module(
         "ddr_tool/ddr_port.h",
         "//common:drivers/base/base.h",
         "//common:mm/cma.h",
+        "//common:mm/slab.h",
     ],
     linux_includes = [
         "ddr_tool",

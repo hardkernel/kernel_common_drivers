@@ -197,6 +197,7 @@ static int __init memory_main_init(void)
 	call_sub_init(ddr_tool_init);
 	call_sub_init(ramdump_init);
 	call_sub_init(cma_debug_init);
+	call_sub_init(slab_debugfs_init);
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 	free_iotrace_reserved_memory();
 #endif
@@ -215,6 +216,7 @@ static void __exit memory_main_exit(void)
 	aml_watch_point_uninit();
 	filecache_module_exit();
 	cma_debug_exit();
+	slab_debugfs_exit();
 }
 
 module_init(memory_main_init);

@@ -62,6 +62,20 @@ static inline void cma_debug_exit(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_SLUB_DEBUG)
+int __init slab_debugfs_init(void);
+void __exit slab_debugfs_exit(void);
+#else
+static inline int slab_debugfs_init(void)
+{
+	return 0;
+}
+
+static inline void slab_debugfs_exit(void)
+{
+}
+#endif
+
 #if IS_ENABLED(CONFIG_AMLOGIC_DDR_TOOL)
 int __init ddr_tool_init(void);
 void __exit ddr_tool_exit(void);

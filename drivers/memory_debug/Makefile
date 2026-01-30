@@ -15,3 +15,4 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/memory_debug/reg_access/Makefil
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/memory_debug/ddr_tool/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/memory_debug/ramdump/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/memory_debug/cma_debug/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/memory_debug/slub_debug/Makefile
