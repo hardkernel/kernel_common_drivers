@@ -4389,7 +4389,7 @@ void rx_afifo_monitor(u8 port)
 
 void rx_hdcp_monitor(u8 port)
 {
-	static u8 sts1, sts2, sts3;
+	static u8 sts1;
 	u8 tmp;
 
 	if (rx_info.chip_id < CHIP_ID_T7)
@@ -4451,16 +4451,6 @@ void rx_hdcp_monitor(u8 port)
 	if (tmp == 2 || tmp == 0x0a) {
 		rx_pr("port%d, hdcp1sts %x->%x\n", port, sts1, tmp);
 		sts1 = tmp;
-	}
-	tmp = hdmirx_rd_cor(CP2PAX_AUTH_STAT_HDCP2X_IVCRX, port);
-	if (tmp != sts2 && (log_level & HDCP_LOG)) {
-		rx_pr("port%d hdcp2sts %x->%x\n", port, sts2, tmp);
-		sts2 = tmp;
-	}
-	tmp = hdmirx_rd_cor(CP2PAX_STATE_HDCP2X_IVCRX, port);
-	if (tmp != sts3 && (log_level & HDCP_LOG)) {
-		rx_pr("port%d hdcp2sts3 %x->%x\n", port, sts3, tmp);
-		sts3 = tmp;
 	}
 }
 

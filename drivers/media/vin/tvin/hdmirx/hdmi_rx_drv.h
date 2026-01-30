@@ -114,7 +114,8 @@
 //2026.01.19 sync kernel5.15 and kernel6.12
 //2026.01.27 remove dsc cut logic
 //2026.01.29 Fix issue that devices not supporting EDID2.0 silent when EDID auto enabled.
-#define RX_DRV_VER "ver.2026/01/29"
+//2026.01.30 fix issue with incorrect FPS display for QMS signal
+#define RX_DRV_VER "ver.2026/01/30"
 
 /*print type*/
 #define COR1_LOG	0x10000
