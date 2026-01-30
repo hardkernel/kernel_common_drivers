@@ -177,6 +177,8 @@ static int meson_edp_connector_atomic_get_property
 		*val = attr->bitdepth;
 	else if (property == meson_dptx->color_space_prop)
 		*val = attr->colorformat;
+	else if (property == meson_dptx->type_prop)
+		*val = meson_dptx->dptx_type;
 	else
 		return -EINVAL;
 
@@ -560,6 +562,9 @@ int meson_edp_dev_bind(struct drm_device *drm,
 	struct dptx_common *tx_comm;
 	int encoder_type = DRM_MODE_ENCODER_TMDS;
 	struct meson_tx_state *tx_state;
+	int connector_type = type;
+	char *connector_name = NULL;
+	struct drm_property *type_prop = NULL;
 
 	meson_dptx = devm_kzalloc(drm->dev, sizeof(*meson_dptx), GFP_KERNEL);
 	if (!meson_dptx)
@@ -577,7 +582,30 @@ int meson_edp_dev_bind(struct drm_device *drm,
 	encoder = &meson_dptx->encoder;
 	connector = &meson_dptx->base.connector;
 	intf->conn = connector;
-	intf->connector_type = DRM_MODE_CONNECTOR_eDP;
+	meson_dptx->dptx_type = type;
+
+	DRM_INFO("[%s]: type = %d\n", __func__, type);
+
+	switch (type) {
+	case DRM_MODE_CONNECTOR_MESON_TX_EDP_A:
+		connector_type = DRM_MODE_CONNECTOR_eDP;
+		connector_name = "TX-EDP-A";
+		break;
+	case DRM_MODE_CONNECTOR_MESON_TX_EDP_B:
+		connector_type = DRM_MODE_CONNECTOR_eDP;
+		connector_name = "TX-EDP-B";
+		break;
+	case DRM_MODE_CONNECTOR_MESON_TX_EDP_C:
+		connector_type = DRM_MODE_CONNECTOR_eDP;
+		connector_name = "TX-EDP-C";
+		break;
+	default:
+		connector_type = DRM_MODE_CONNECTOR_Unknown;
+		encoder_type = DRM_MODE_ENCODER_NONE;
+		break;
+	};
+
+	intf->connector_type = connector_type;
 
 	meson_drm_probe_venc(meson_dptx, priv->dev);
 	meson_edp_parse_venc_idx(tx_dev->pdev, &meson_dptx->enc_idx);
@@ -589,10 +617,18 @@ int meson_edp_dev_bind(struct drm_device *drm,
 				 &meson_edp_connector_helper_funcs);
 
 	ret = drm_connector_init(drm, connector, &meson_edp_connector_funcs,
-				 DRM_MODE_CONNECTOR_eDP);
+				 connector_type);
 	if (ret) {
 		dev_err(priv->dev, "Failed to init dp tx connector\n");
 		return ret;
+	}
+
+	/*update name to amlogic name*/
+	if (connector_name) {
+		kfree(connector->name);
+		connector->name = kasprintf(GFP_KERNEL, "%s", connector_name);
+		if (!connector->name)
+			DRM_ERROR("[%s]: alloc name failed\n", __func__);
 	}
 
 	/* Encoder */
@@ -618,6 +654,18 @@ int meson_edp_dev_bind(struct drm_device *drm,
 	meson_tx_get_init_state(tx_dev, tx_state);
 	meson_edp_init_colordepth_property(drm, meson_dptx, tx_state);
 	meson_edp_init_colorspace_property(drm, meson_dptx, tx_state);
+	/*prop for userspace to acquire prop*/
+	type_prop = drm_property_create_range(drm, DRM_MODE_PROP_IMMUTABLE,
+		MESON_CONNECTOR_TYPE_PROP_NAME, 0, INT_MAX);
+	if (type_prop) {
+		meson_dptx->type_prop = type_prop;
+		drm_object_attach_property(&meson_dptx->base.connector.base,
+			type_prop, type);
+	} else {
+		DRM_ERROR("%s: Failed to create property %s\n",
+			__func__, MESON_CONNECTOR_TYPE_PROP_NAME);
+	}
+
 	kfree(tx_state);
 
 	return 0;

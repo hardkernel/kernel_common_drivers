@@ -35,6 +35,8 @@ struct meson_dp_tx {
 
 	struct meson_tx_venc *venc;
 	struct platform_device *venc_pdev;
+	int dptx_type;
+	struct drm_property *type_prop;
 
 	/*
 	 * Whether the current edid is valid

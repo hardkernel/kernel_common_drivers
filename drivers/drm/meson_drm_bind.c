@@ -55,11 +55,15 @@ int meson_connector_dev_bind(struct drm_device *drm,
 
 	switch (type) {
 #ifdef CONFIG_AMLOGIC_DRM_DP
-	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_MESON_TX_DP_A:
+	case DRM_MODE_CONNECTOR_MESON_TX_DP_B:
+	case DRM_MODE_CONNECTOR_MESON_TX_DP_C:
 		return meson_dptx_dev_bind(drm, type, intf);
 #endif
 #ifdef CONFIG_AMLOGIC_DRM_EDP
-	case DRM_MODE_CONNECTOR_eDP:
+	case DRM_MODE_CONNECTOR_MESON_TX_EDP_A:
+	case DRM_MODE_CONNECTOR_MESON_TX_EDP_B:
+	case DRM_MODE_CONNECTOR_MESON_TX_EDP_C:
 		return meson_edp_dev_bind(drm, type, intf);
 #endif
 
