@@ -755,7 +755,7 @@ static unsigned int det_unstb_cnt = 20;
 static unsigned int tolrnc_cnt = 6;
 static unsigned int timer_filter_en;
 static unsigned int aipq_set_policy;
-static unsigned int color_th = 100;
+static unsigned int color_th = 45;
 static unsigned int aipq_th = 2000;
 
 u32 get_stb_cnt(void)

@@ -89,7 +89,7 @@ static unsigned int timer_filter_en;
  * 1: use top 3 blend offset, with timer filter which can select as policy
  */
 static unsigned int aipq_set_policy;
-static unsigned int color_th = 100;
+static unsigned int color_th = 45;
 static unsigned int aipq_th = 2000;
 #endif
 
