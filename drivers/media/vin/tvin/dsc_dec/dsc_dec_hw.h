@@ -14,7 +14,7 @@ enum dsc_clk_band {
 	DSC_CLK_BAND2, //408M
 	DSC_CLK_BAND3, //594M
 	DSC_CLK_BAND4, //429M
-	DSC_CLK_BAND5, //408M
+	DSC_CLK_BAND5, //431M
 };
 
 unsigned int R_DSC_DEC_CLKCTRL_REG(unsigned int reg);

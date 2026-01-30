@@ -1355,6 +1355,7 @@ extern bool update_edid_type;
 extern int ee_voltage_val;
 extern bool ee_voltage_en;
 extern int force_dsc_4ppc;
+extern int over_clk_flag;
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 extern struct notifier_block vrr_notify;
 #endif

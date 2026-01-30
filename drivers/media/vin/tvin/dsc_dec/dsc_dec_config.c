@@ -13,6 +13,7 @@
 #define PIX_BAND0 (333 * MHz)
 #define PIX_BAND1 (358 * MHz)
 #define PIX_BAND2 (390 * MHz)
+#define PIX_BAND3 (409 * MHz)
 
 #define VPU_CLK_DIV_2 1
 #define FPLL_DIV3 2
@@ -1006,10 +1007,18 @@ void dsc_clk_config(struct aml_dsc_dec_drv_s *dsc_dec_drv)
 			if (clk > PIX_BAND0 ||
 				pps_data->dsc_force_4ppc) {
 				dsc_dec_drv->pix_per_clk = 2;
-				if (clk <= PIX_BAND2)
+				if (clk <= PIX_BAND2) {
 					dsc_dec_config_fix_pll_clk(DSC_CLK_BAND2);
-				else
+				} else if (clk <= PIX_BAND3) {
 					dsc_dec_config_fix_pll_clk(DSC_CLK_BAND4);
+				} else {
+					//now only 1080p700 use dsc clk 431M
+					if (pps_data->pic_width == 1920 &&
+						pps_data->pic_height == 1080)
+						dsc_dec_config_fix_pll_clk(DSC_CLK_BAND5);
+					else
+						dsc_dec_config_fix_pll_clk(DSC_CLK_BAND4);
+				}
 				//need vpu clk enhance
 				set_dsc_clk_cntl(DSC_PIX_PLL, clk);
 			} else {

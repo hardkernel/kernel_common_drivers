@@ -5938,6 +5938,7 @@ void hdmirx_late_config_video(u8 port)
 	}
 	hdmirx_wr_top_common(TOP_DSC_HDMI_CNTL, 0x0);
 	hdmirx_wr_top_common(TOP_DSC_HDMI_CNTL, 0x1);
+	over_clk_flag = 0;
 	set_dsc_clk_cntl(H_HDMI, rx[port].clk.pixel_clk);
 }
 
@@ -9041,6 +9042,7 @@ void hdmi_rx_cor_reset(u8 port)
 
 void rx_vpu_handler(struct work_struct *work)
 {
+	over_clk_flag |= _BIT(2);
 	rx_switch_vpu_clk(1);
 }
 

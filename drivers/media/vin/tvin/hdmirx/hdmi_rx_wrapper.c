@@ -7631,6 +7631,8 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size, u8 port)
 	pos += snprintf(buf + pos, size - pos,
 		"need_add_one: %d\n", rx[port].need_add_one);
 	pos += snprintf(buf + pos, size - pos,
+		"over_clk_flag: %d\n", over_clk_flag);
+	pos += snprintf(buf + pos, size - pos,
 		"Htotal: %d\n", rx[port].cur.htotal);
 	pos += snprintf(buf + pos, size - pos,
 		"Hactive: %d\n", rx[port].cur.hactive);

@@ -254,6 +254,7 @@ u32 disable_hdr;
 bool update_edid_type = true;
 int rx_phy_level = 1;
 int def_trim_value;
+int over_clk_flag;
 static struct notifier_block aml_hdcp22_pm_notifier = {
 	.notifier_call = aml_hdcp22_pm_notify,
 };

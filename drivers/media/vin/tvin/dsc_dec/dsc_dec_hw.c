@@ -21,7 +21,7 @@ const unsigned int ctrl0_vals[6][3] = {
 	[DSC_CLK_BAND2] = {0x20010c88, 0x30010c88, 0x10010c88},
 	[DSC_CLK_BAND3] = {0x20010cc6, 0x30010cc6, 0x10010cc6},
 	[DSC_CLK_BAND4] = {0x20010c8f, 0x30010c8f, 0x10010c8f},
-	[DSC_CLK_BAND5] = {0x20010844, 0x30010844, 0x10010844},
+	[DSC_CLK_BAND5] = {0x20010c90, 0x30010c90, 0x10010c90},
 };
 
 unsigned int R_DSC_DEC_CLKCTRL_REG(unsigned int reg)

@@ -1299,11 +1299,15 @@ void set_dsc_clk_cntl(int clk_select, int clk)
 	if (rx_info.chip_id != CHIP_ID_T6X)
 		return;
 	if (clk_select == H_DSC_PIX_PLL) {
-		if (clk > VPU_OVER_SPEED * MHz)
+		if (clk > VPU_OVER_SPEED * MHz) {
+			over_clk_flag |= _BIT(0);
 			schedule_work(&vpu_dwork);
+		}
 	} else if (clk_select == H_HDMI) {
-		if (clk > VPU_OVER_SPEED1 * MHz)
+		if (clk > VPU_OVER_SPEED1 * MHz) {
+			over_clk_flag |= _BIT(1);
 			schedule_work(&vpu_dwork);
+		}
 	}
 	if (clk_select == H_VPU_CLK_DIV_2)
 		wr_reg_clk_ctl(CLKCTRL_DSC_CLK_CTRL, 0x343);
