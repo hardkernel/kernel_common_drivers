@@ -261,6 +261,14 @@ static struct meson_tx_uevent tx_events[] = {
 		.type = TX_TRACER_EVENT,
 		.env = "tx_tracer=",
 	},
+	{
+		.type = TX_LINK_UNSTABLE,
+		.env = "tx_link_unstable=",
+	},
+	{
+		.type = TX_INCOMPATIBLE_CABLE,
+		.env = "tx_incompatible_cable=",
+	},
 	{ /* end of tx_events[] */
 		.type = TX_NONE_EVENT,
 	},

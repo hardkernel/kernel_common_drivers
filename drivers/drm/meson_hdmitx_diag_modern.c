@@ -3,10 +3,10 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
-#include <drm/amlogic/meson_hdmi_diag.h>
-#include "meson_hdmi.h"
+#include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_common.h>
+#include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_types.h>
+#include <drm/amlogic/meson_hdmi_diag_modern.h>
+#include "meson_hdmi_modern.h"
 
 static const char *hdmi_colorspace_get_name(enum hdmi_colorspace colorspace)
 {
@@ -462,7 +462,7 @@ static void hdmitx_basic_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 		strncpy(diagnosis_info->basic_info.audio_type,
 				hdmitx_get_audio_type(coding_type),
 				sizeof(diagnosis_info->basic_info.audio_type) - 1);
-	if (tx_comm->rxcap.ieeeoui == HDMI_IEEE_OUI)
+	if (tx_comm->base.rxcap.ieeeoui == HDMI_IEEE_OUI)
 		diagnosis_info->basic_info.hdmi_mode = 1;
 	else
 		diagnosis_info->basic_info.hdmi_mode = 0;
@@ -563,14 +563,14 @@ static void hdmitx_hdcp22_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 static void hdmitx_scdc_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 		struct hdmitx_common *tx_comm)
 {
-	u8 scrambler_en = tx_comm->fmt_para.scrambler_en;
+	u8 scrambler_en = tx_comm->hw_fmt_para.scrambler_en;
 	u16 ch0_cnt = tx_comm->ced_cnt.ch0_cnt;
 	u16 ch1_cnt = tx_comm->ced_cnt.ch1_cnt;
 	u16 ch2_cnt = tx_comm->ced_cnt.ch2_cnt;
 	u16 ch3_cnt = tx_comm->ced_cnt.ch3_cnt;
 
 	diagnosis_info->scdc_info.scrambling_enable = scrambler_en;
-	diagnosis_info->scdc_info.tmds_bit_clock_ratio = tx_comm->fmt_para.tmds_clk_div40;
+	diagnosis_info->scdc_info.tmds_bit_clock_ratio = tx_comm->hw_fmt_para.tmds_clk_div40;
 	strncpy(diagnosis_info->scdc_info.scrambling_status, scrambler_en ? "ok" : "disable",
 			sizeof(diagnosis_info->scdc_info.scrambling_status) - 1);
 	diagnosis_info->scdc_info.clock_detected = tx_comm->ch_locked_st.clock_detected;
@@ -612,7 +612,7 @@ static void hdmitx_scdc_diag_info(struct hdmi_diagnosis_info *diagnosis_info,
 	 */
 	diagnosis_info->scdc_info.ln0 = hdmitx_common_get_scdc_ln0_ln1_ltp(tx_comm) & 0xf;
 	diagnosis_info->scdc_info.ln1 = (hdmitx_common_get_scdc_ln0_ln1_ltp(tx_comm) & 0xf0) >> 4;
-	diagnosis_info->scdc_info.frl_rate = tx_comm->fmt_para.frl_rate;
+	diagnosis_info->scdc_info.frl_rate = tx_comm->hw_fmt_para.frl_rate;
 }
 
 static void hdmitx_avi_diag_info(struct hdmi_diagnosis_info *diagnosis_info,

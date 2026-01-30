@@ -667,9 +667,11 @@ static int hdmitx_audio_notify_callback(struct notifier_block *block,
 	struct aud_para *aud_param = (struct aud_para *)para;
 	enum hdmi_audio_fs n_rate = aud_samp_rate_map(aud_param->rate);
 	enum hdmi_audio_sampsize n_size = aud_size_map(aud_param->size);
+	u32 arg;
 
 	if (aud_param->prepare) {
-		hdmitx_hw_cntl(tx_comm->tx_hw, AUDIO_ACR_CTRL, NULL, NULL);
+		arg = DISABLE_AUDIO_ACR;
+		hdmitx_hw_cntl(tx_comm->tx_hw, AUDIO_ACR_CTRL, (void *)&arg, NULL);
 		hdmitx_hw_cntl(tx_comm->tx_hw, AUDIO_PREPARE, NULL, NULL);
 		tx_aud_param->type = CT_PREPARE;
 		HDMITX_INFO("audio: prepare\n");

@@ -803,6 +803,8 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	unsigned int dat_dwc = hdmitx_rd_reg(HDMITX_DWC_HDCP22REG_STAT);
 	struct hdmitx20_dev *hdev = (struct hdmitx20_dev *)dev;
 	struct hdmitx_hw_common *hw_comm = &hdev->hw_comm;
+	struct meson_tx_hw *tx_hw_base = &hw_comm->tx_hw_base;
+	bool ret = false;
 
 	/* ack INTERNAL_INTR or else we stuck with no interrupts at all */
 	hdmitx_wr_reg(HDMITX_TOP_INTR_STAT_CLR, ~0);
@@ -834,8 +836,8 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	/* HPD rising */
 	if (dat_top & (1 << 1)) {
 		hdmitx_hpd_irq_top_half_process(hdev, true);
-		hw_comm->tx_hw_base.event_ops->queue_event(hw_comm->tx_hw_base.event_ops->data,
-			HPD_PLUGIN, 500);
+		tx_hw_base->event_ops->queue_event(tx_hw_base->event_ops->data,
+			HPD_PLUGIN, msecs_to_jiffies(500));
 	}
 	/* HPD falling */
 	if (dat_top & (1 << 2)) {
@@ -846,15 +848,23 @@ static irqreturn_t intr_handler(int irq, void *dev)
 		 * critical high cpu loading case. always do
 		 * plugout work to disable output asap.
 		 */
-		hw_comm->tx_hw_base.event_ops->cancel_event(hw_comm->tx_hw_base.event_ops->data,
+		ret = tx_hw_base->event_ops->cancel_event(tx_hw_base->event_ops->data,
 			HPD_PLUGIN, false);
-		hw_comm->tx_hw_base.event_ops->queue_event(hw_comm->tx_hw_base.event_ops->data,
+		if (ret)
+			HDMITX_DEBUG_HPD("plugin work is pending and canceled\n");
+		else
+			HDMITX_DEBUG_HPD("plugin work is not pending\n");
+		ret = tx_hw_base->event_ops->queue_event(tx_hw_base->event_ops->data,
 			HPD_PLUGOUT, 0);
+		if (!ret) {
+			HDMITX_DEBUG_HPD("too much plugout, send TX_LINK_UNSTABLE uevent\n");
+			hdmitx_set_uevent(&hdev->tx_comm, TX_LINK_UNSTABLE, 1);
+		}
 	}
 	/* internal interrupt */
 	if (dat_top & (1 << 0))
-		hw_comm->tx_hw_base.event_ops->queue_event(hw_comm->tx_hw_base.event_ops->data,
-			CORE_TASK, 100);
+		tx_hw_base->event_ops->queue_event(tx_hw_base->event_ops->data,
+			CORE_TASK, msecs_to_jiffies(100));
 
 	if (dat_top & (1 << 3)) {
 		unsigned int rd_nonce_mode =
@@ -2923,7 +2933,6 @@ void hdmitx20_meson_uninit(struct hdmitx_hw_common *tx_hw)
 	hdmitx_free_irq(tx_hw);
 	hdmitx20_hdcp_uninit(hdev);
 	phy_pll_off();
-	hdmitx_hpd_hw_op(&hdev->tx20_hw, HPD_UNMUX_HPD);
 
 #ifdef CONFIG_AMLOGIC_VPU
 		vpu_dev_unregister(hdev->tx_comm.encp_vpu_dev);
@@ -5079,16 +5088,6 @@ static int hdmitx20_hw_cntl_hdcp(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		return hdmitx_hdcp_opr(0xa);
 	case HDCP_22_LSTORE:
 		return hdmitx_hdcp_opr(0xb);
-	case HDCP_22_PRIVATE_KEY_RDY:
-		/*
-		 * check hdcp_tx22 daemon running state for linux.
-		 * for android platform, always treat it as ready
-		 */
-		if (hdev->tx_comm.hdcptx_comm.hdcp_ctl_lvl > 0 &&
-			!drm_hdcp_tx22_daemon_ready(&hdev->tx_comm))
-			return 0;
-		else
-			return 1;
 	case HDCP22_GET_RX_VER:
 		return hdcp_rd_hdcp22_ver();
 	case HDCP14_GET_TOPO_INFO:
@@ -5263,12 +5262,73 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			hdmitx_set_avi_colorimetry(&tx_comm->fmt_para);
 		}
 		break;
-	case AUX_PKT_GET_AVI_BT2020:
-		if (((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xC0) == 0xC0) &&
-			((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0x70) == 0x60))
-			ret = HDMI_EXTENDED_COLORIMETRY_BT2020;
-		else
-			ret = 0;
+	case AUX_PKT_GET_AVI_COLORIMETRY:
+		switch (hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xC0) {
+		case 0x00:
+			ret = HDMI_COLORIMETRY_NONE;
+			break;
+		case 0x40:
+			ret = HDMI_COLORIMETRY_ITU_601;
+			break;
+		case 0x80:
+			ret = HDMI_COLORIMETRY_ITU_709;
+			break;
+		case 0xc0:
+			ret = HDMI_COLORIMETRY_EXTENDED;
+			break;
+		default:
+			break;
+		}
+
+		break;
+	case AUX_PKT_GET_AVI_EXTENDED_COLORIMETRY:
+		if ((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xC0) == 0xC0) {
+			switch (hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0x70) {
+			case 0x00:
+				ret = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
+				break;
+			case 0x10:
+				ret = HDMI_EXTENDED_COLORIMETRY_XV_YCC_709;
+				break;
+			case 0x20:
+				ret = HDMI_EXTENDED_COLORIMETRY_S_YCC_601;
+				break;
+			case 0x30:
+				ret = HDMI_EXTENDED_COLORIMETRY_OPYCC_601;
+				break;
+			case 0x40:
+				ret = HDMI_EXTENDED_COLORIMETRY_OPRGB;
+				break;
+			case 0x50:
+				ret = HDMI_EXTENDED_COLORIMETRY_BT2020_CONST_LUM;
+				break;
+			case 0x60:
+				ret = HDMI_EXTENDED_COLORIMETRY_BT2020;
+				break;
+			case 0x70:
+				ret = HDMI_EXTENDED_COLORIMETRY_RESERVED;
+				break;
+			default:
+				break;
+			}
+		}
+		break;
+	case AUX_PKT_GET_AVI_Q01:
+	case AUX_PKT_GET_AVI_YQ01:
+	case AUX_PKT_GET_AVI_PIXEL_REPEAT:
+	case AUX_PKT_GET_AVI_TOP_BAR:
+	case AUX_PKT_GET_AVI_BOTTOM_BAR:
+	case AUX_PKT_GET_AVI_LEFT_BAR:
+	case AUX_PKT_GET_AVI_RIGHT_BAR:
+		break;
+	case AUX_PKT_GET_AVI_VIDEO_CODE:
+		ret = hdmitx_rd_reg(HDMITX_DWC_FC_AVIVID);
+		break;
+	case AUX_PKT_GET_AVI_PICTURE_ASPECT:
+	case AUX_PKT_GET_AVI_ACTIVE_ASPECT:
+	case AUX_PKT_GET_AVI_CT_TYPE:
+	case AUX_PKT_GET_AVI_NUPS:
+	case AUX_PKT_GET_AVI_ITC:
 		break;
 	case AUX_PKT_CONF_AVI_SCAN:
 		ret = hdmitx20_check_input_argv(cmd, input_argv);
@@ -5445,6 +5505,8 @@ static int hdmitx20_hw_cntl_pkt(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 6, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 7, 1);
 		break;
+	case AUX_PKT_GET_DRM_EOTF:
+		break;
 	case AUX_PKT_SET_EMP_CUVA:
 		if (!input_argv) {
 			hdmitx_set_reg_bits(HDMITX_TOP_EMP_CNTL0, 0, 0, 1);
@@ -5535,9 +5597,9 @@ static int hdmitx20_hw_cntl_audio(struct hdmitx_hw_common *tx_hw, unsigned int c
 		if (ret < 0)
 			break;
 		arg = *((u32 *)input_argv);
-		if (arg == 0)
+		if (arg == DISABLE_AUDIO_ACR)
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 0, 1);
-		else if (arg == 1)
+		else if (arg == ENABLE_AUDIO_ACR)
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 		break;
 	case AUDIO_PREPARE:

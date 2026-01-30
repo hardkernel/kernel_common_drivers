@@ -204,7 +204,7 @@ int am_meson_set_connector_force_ioctl(struct drm_device *dev,
 	return ret ? ret : 0;
 }
 
-#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
+#if !defined(CONFIG_AMLOGIC_DRM_CUT_HDMI) || !defined(CONFIG_AMLOGIC_DRM_CUT_HDMI_MODERN)
 int am_meson_get_hdmitx_diag_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file_priv)
 {
@@ -228,7 +228,7 @@ static const struct drm_ioctl_desc meson_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MESON_TESTATTR, am_meson_mode_testattr_ioctl, 0),
 #endif
 
-#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
+#if !defined(CONFIG_AMLOGIC_DRM_CUT_HDMI) || !defined(CONFIG_AMLOGIC_DRM_CUT_HDMI_MODERN)
 	DRM_IOCTL_DEF_DRV(MESON_GET_HDMITX_DIAG, am_meson_get_hdmitx_diag_ioctl, 0),
 #endif
 	DRM_IOCTL_DEF_DRV(MESON_GET_VRR_RANGE, am_meson_get_vrr_range_ioctl, 0),

@@ -115,7 +115,7 @@ static void hdmitx_cedst_process(struct work_struct *work)
 			(ch2_cnt >= ERR_CNT_THRESHOLD && ch2_cnt < MAX_ERR_CNT))) ||
 			((ced & STATUS_UPDATE) && (ch0_locked == 0 ||
 			ch1_locked == 0 || ch2_locked == 0))) {
-		HDMITX_INFO("too mutch err cnt, send HDMITX_INCOMPATIBLE_CABLE event\n");
+		HDMITX_INFO("too much err cnt, send HDMITX_INCOMPATIBLE_CABLE event\n");
 		hdmitx_set_uevent(tx_comm, HDMITX_INCOMPATIBLE_CABLE, 1);
 	}
 	queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst,

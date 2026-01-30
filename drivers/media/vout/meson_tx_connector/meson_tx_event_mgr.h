@@ -82,6 +82,8 @@ enum meson_tx_event {
 	TX_SOUNDBAR_EVENT,
 	TX_VMODE_AUDIO_EVENT,
 	TX_TRACER_EVENT,
+	TX_LINK_UNSTABLE,
+	TX_INCOMPATIBLE_CABLE,
 };
 
 struct meson_tx_event_mgr {

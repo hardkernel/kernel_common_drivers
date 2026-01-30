@@ -66,7 +66,6 @@ struct hdcptx20_core_priv {
 
 bool is_hdcp22_stop_state(struct hdmitx_common *tx_comm);
 bool drm_hdcp_tx22_daemon_ready(struct hdmitx_common *tx_comm);
-unsigned int hdcptx_get_key_store(struct hdmitx_common *tx_comm);
 unsigned int hdcptx_get_rx_version(struct hdmitx_common *tx_comm);
 void tee_comm_dev_reg(struct miscdevice *hdcp_misc_dev, const struct file_operations *fops);
 void tee_comm_dev_unreg(struct miscdevice *hdcp_misc_dev);

@@ -152,9 +152,19 @@ u16 hdcptx1_get_prime_ri(void)
 	return hdmitx21_rd_reg(RI_1_IVCTX) + (hdmitx21_rd_reg(RI_2_IVCTX) << 8);
 }
 
-void hdcptx1_ds_bksv_read(u8 *p_bksv, u8 b)
+void hdcptx1_ds_aksv_read(u8 *p_aksv, u8 ksv_bytes)
 {
-	hdmitx21_seq_rd_reg(TPI_WR_BKSV_1_IVCTX, p_bksv, b);
+	hdmitx21_seq_rd_reg(AKSV_1_IVCTX, p_aksv, ksv_bytes);
+}
+
+void hdcptx1_ds_bksv_read(u8 *p_bksv, u8 ksv_bytes)
+{
+	hdmitx21_seq_rd_reg(TPI_WR_BKSV_1_IVCTX, p_bksv, ksv_bytes);
+}
+
+void hdcptx1_ds_an_read(u8 *p_an, u8 an_bytes)
+{
+	hdmitx21_seq_rd_reg(AN1_IVCTX, p_an, an_bytes);
 }
 
 u8 hdcptx1_ksv_v_get(void)
@@ -236,7 +246,11 @@ void hdcptx1_get_ds_ksvlists(u8 **p_ksv, u8 count)
 {
 	u16 bytes_to_read = 0;
 	u16 fifo_byte_counter = 0;
-	u8 time_out = 100; /* timeout for reading ds ksv list */
+	/*
+	 * timeout for reading ds ksv list
+	 * relate to i2c clk frequency
+	 */
+	u8 time_out = 200;
 	u8 fifo_status = 0;
 	int temp = 0;
 	int i = 0;

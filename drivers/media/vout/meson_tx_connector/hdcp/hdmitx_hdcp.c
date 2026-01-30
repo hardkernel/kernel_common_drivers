@@ -2334,7 +2334,7 @@ static void hdcptx_reset_param(void *hdcptx_instance)
 	struct hdcptx21_core *p_hdcp = (struct hdcptx21_core *)hdcptx_instance;
 
 	if (!p_hdcp || !p_hdcp->bind_hdcptx_comm) {
-		HDMITX_ERROR("NULL tx_comm instance!\n", __func__);
+		HDMITX_ERROR("NULL p_hdcp instance!\n", __func__);
 		return;
 	}
 
@@ -2564,7 +2564,11 @@ static struct hdcptx_api hdcptx_api_init = {
 	.hdcptx_reauth_req = hdcptx_reauth_request,
 	.hdcptx_uninit = hdmitx21_hdcp_uninit,
 	.hdcptx_debug = hdcptx_debug_func,
+	.hdcptx14_get_aksv = hdcptx1_ds_aksv_read,
 	.hdcptx14_get_bksv = hdcptx1_ds_bksv_read,
+	.hdcptx14_get_an = hdcptx1_ds_an_read,
+	.hdcptx14_get_bstatus = hdcptx1_bstatus_get,
+	.hdcptx14_get_ri = hdcptx1_get_prime_ri,
 	.hdcptx_validate_key = hdmitx_validate_hdcp_key,
 };
 

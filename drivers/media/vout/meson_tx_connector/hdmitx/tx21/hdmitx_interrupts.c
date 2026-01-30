@@ -30,6 +30,7 @@
 #include "hdmitx_hdcp.h"
 #include "meson_tx_hw_task.h"
 #include "hdmitx_packet.h"
+#include "meson_tx_event_mgr.h"
 
 static void intr2_sw_handler(struct intr_t *, void *intr_para);
 static void intr5_sw_handler(struct intr_t *, void *intr_para);
@@ -413,6 +414,7 @@ static void hdmitx_top_intr_handler(struct hdmitx21_dev *hdev, struct intr_t *to
 {
 	struct hdmitx_hw_common *hw_comm = NULL;
 	struct meson_tx_hw *tx_hw_base = NULL;
+	bool ret = false;
 
 	if (!hdev || !top_intr) {
 		HDMITX_ERROR("%s NULL instance or intr\n", __func__);
@@ -451,8 +453,12 @@ static void hdmitx_top_intr_handler(struct hdmitx21_dev *hdev, struct intr_t *to
 		/* HPD rising */
 		if (dat_top & (1 << 1)) {
 			hdmitx_hpd_irq_top_half_process(hdev, true);
-			tx_hw_base->event_ops->queue_event(tx_hw_base->event_ops->data,
-				HPD_PLUGIN, 500);
+			ret = tx_hw_base->event_ops->queue_event(tx_hw_base->event_ops->data,
+				HPD_PLUGIN, msecs_to_jiffies(500));
+			if (!ret) {
+				HDMITX_DEBUG_HPD("too much plugin, send TX_LINK_UNSTABLE uevent\n");
+				hdmitx_set_uevent(&hdev->tx_comm, TX_LINK_UNSTABLE, 1);
+			}
 		}
 		/* HPD falling */
 		if (dat_top & (1 << 2)) {
@@ -463,11 +469,18 @@ static void hdmitx_top_intr_handler(struct hdmitx21_dev *hdev, struct intr_t *to
 			 * critical high cpu loading case. always do
 			 * plugout work to disable output asap.
 			 */
-			tx_hw_base->event_ops->cancel_event(tx_hw_base->event_ops->data,
+			ret = tx_hw_base->event_ops->cancel_event(tx_hw_base->event_ops->data,
 				HPD_PLUGIN, false);
-
-			tx_hw_base->event_ops->queue_event(tx_hw_base->event_ops->data,
+			if (ret)
+				HDMITX_DEBUG_HPD("plugin work is pending and canceled\n");
+			else
+				HDMITX_DEBUG_HPD("plugin work is not pending\n");
+			ret = tx_hw_base->event_ops->queue_event(tx_hw_base->event_ops->data,
 				HPD_PLUGOUT, 0);
+			if (!ret) {
+				HDMITX_INFO("too much plugout, send TX_LINK_UNSTABLE uevent\n");
+				hdmitx_set_uevent(&hdev->tx_comm, TX_LINK_UNSTABLE, 1);
+			}
 		}
 	}
 }

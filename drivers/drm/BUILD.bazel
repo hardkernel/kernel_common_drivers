@@ -60,6 +60,7 @@ ddk_module(
             False: [
                 "meson_hdmi_modern.c",
                 "meson_tx_helper.c",
+                "meson_hdmitx_diag_modern.c",
             ],
         },
         "CONFIG_AMLOGIC_DRM_DP": {

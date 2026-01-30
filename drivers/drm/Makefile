@@ -38,6 +38,7 @@ endif
 
 ifeq ($(CONFIG_AMLOGIC_DRM_CUT_HDMI_MODERN),)
         $(MESON_DRM_MODULE_NAME)-y += meson_hdmi_modern.o
+        $(MESON_DRM_MODULE_NAME)-y += meson_hdmitx_diag_modern.o
         $(MESON_DRM_MODULE_NAME)-y += meson_tx_helper.o
 endif
 

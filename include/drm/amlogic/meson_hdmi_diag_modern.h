@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) WITH Linux-syscall-note */
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
@@ -8,7 +8,7 @@
 
 #include <drm/drm.h>
 #include <drm/drm_fourcc.h>
-#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
+#include <linux/amlogic/media/vout/meson_tx_connector/hdmitx_common/hdmitx_common.h>
 
 struct hdmi_basic_info {
 	/* 1: HIGH 0: LOW */

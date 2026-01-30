@@ -100,9 +100,15 @@ static int hdmitx_common_post_enable_mode(struct hdmitx_common *tx_comm,
 	tx_comm->ready = 1;
 	tx_comm->hdcptx_comm.ready = 1;
 	hdmitx_update_vinfo(tx_comm);
-	if (tx_comm->cedst_en) {
+	if (para->tx_hw_para.hdmitx_hw_para.tmds_clk && tx_comm->cedst_en) {
+		tx_comm->cedst_en = 1;
+		tx_comm->ced_check_count = 0;
 		tx_task_mgr_cancel_task(tx_comm->base.task_mgr, CEDST_TASK, false);
-		tx_task_mgr_queue_task(tx_comm->base.task_mgr, CEDST_TASK, 0);
+		tx_task_mgr_queue_task(tx_comm->base.task_mgr, CEDST_TASK,
+			msecs_to_jiffies(2000));
+	} else if (tx_comm->cedst_policy == 0) {
+		tx_comm->cedst_en = 0;
+		tx_task_mgr_cancel_task(tx_comm->base.task_mgr, CEDST_TASK, false);
 	}
 
 	/*
@@ -294,9 +300,9 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 	if (hdcp_reset)
 		hdmitx_hw_cntl(tx_hw, HDCP_DISABLE, NULL, NULL);
 
-	/* step6: SW: cancel ced work */
+	/* step6: SW: cancel ced work in sync to make sure it won't queued again */
 	if (tx_comm->cedst_en)
-		tx_task_mgr_cancel_task(tx_comm->base.task_mgr, CEDST_TASK, false);
+		tx_task_mgr_cancel_task(tx_comm->base.task_mgr, CEDST_TASK, true);
 }
 
 int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
@@ -322,6 +328,8 @@ int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 		para = NULL;
 	/* unregister when disable current mode */
 	hdmitx_hw_cntl(tx_comm->tx_hw, VRR_REGISTER, (void *)&arg, NULL);
+	memset(&tx_comm->ced_cnt, 0, sizeof(tx_comm->ced_cnt));
+	memset(&tx_comm->ch_locked_st, 0, sizeof(tx_comm->ch_locked_st));
 	mutex_unlock(&tx_comm->base.set_mode_mutex);
 
 	return 0;
@@ -465,6 +473,10 @@ void hdmitx_bootup_post_process(struct hdmitx_common *tx_comm)
 				hdmitx_hw_cntl(tx_comm->tx_hw, DDC_SCDC_DIV40_SCRAMB,
 					(void *)&arg, NULL);
 		}
+		/* bootup need parse frac mode and update vinfo */
+		if (tx_comm->fmt_para.frac_mode)
+			meson_tx_mode_update_timing(&tx_comm->fmt_para.timing,
+						  tx_comm->fmt_para.frac_mode);
 
 		/* step1: write all zeros to the CUVA EMP hardware buffer */
 		hdmitx_cuva_dhdr_init(tx_comm);

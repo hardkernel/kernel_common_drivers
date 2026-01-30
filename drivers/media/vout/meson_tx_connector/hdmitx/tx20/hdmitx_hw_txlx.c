@@ -75,7 +75,6 @@ int hdmitx_hpd_hw_op_txlx(enum hpd_op cmd)
 				     hdev->tx_comm.pinctrl_hpd);
 		break;
 	case HPD_UNMUX_HPD:
-		pinctrl_select_state(hdev->tx_comm.pdev->pins->p, hdev->tx_comm.pinctrl_i2c);
 		break;
 	case HPD_READ_HPD_GPIO:
 		ret = hdmitx_rd_reg(HDMITX_DWC_PHY_STAT0) & (1 << 1);

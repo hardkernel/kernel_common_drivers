@@ -775,3 +775,18 @@ void meson_tx_mode_print_all_mode_table(void)
 
 	pr_info("-----------------%s end --------------\n", __func__);
 }
+
+bool meson_tx_mode_aspect_ratio_is_64_27_vic(enum hdmi_vic vic)
+{
+	const struct tx_timing *timing;
+
+	/* don't support 64:27 aspect ratio */
+	timing = meson_tx_mode_vic_to_timing(vic);
+	if (!timing)
+		return false;
+
+	if (timing->h_pict == 64 && timing->v_pict == 27)
+		return true;
+
+	return false;
+}

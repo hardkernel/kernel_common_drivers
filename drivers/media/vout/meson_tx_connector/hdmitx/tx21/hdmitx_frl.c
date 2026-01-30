@@ -644,7 +644,8 @@ tx_lts_p3:
 					hdcprx_ver = hdcptx_api->get_hdcprx_ver(hdcptx_comm);
 				hdcptx_comm->dw_hdcp22_cap = (hdcprx_ver == 2) ? true : false;
 			}
-			hdcptx_api->hdcptx_enable(tx_comm->hdcptx_priv, HDCP_START_AUTO, 250);
+			hdcptx_api->hdcptx_enable(tx_comm->hdcptx_priv, HDCP_START_AUTO,
+				msecs_to_jiffies(250));
 		}
 #endif
 		break;

@@ -610,9 +610,9 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 	hdmitx_hw_cntl(tx_comm->tx_hw, HDCP_PARAM_RESET, NULL, NULL);
 
 	if (tx_comm->rxsense_policy)
-		tx_task_mgr_cancel_task(tx_comm->base.task_mgr, CEDST_TASK, false);
-	if (tx_comm->cedst_en)
 		tx_task_mgr_cancel_task(tx_comm->base.task_mgr, RXSENSE_TASK, false);
+	if (tx_comm->cedst_en)
+		tx_task_mgr_cancel_task(tx_comm->base.task_mgr, CEDST_TASK, false);
 
 	return NOTIFY_OK;
 }
@@ -1274,6 +1274,7 @@ static void amhdmitx_shutdown(struct platform_device *pdev)
 		return;
 	}
 	hdmitx_hw_cntl(tx_comm->tx_hw, CORE_MISC_HDCP_SUSPEND, NULL, NULL);
+	meson_tx_dev_release(&tx_comm->base);
 }
 
 static struct platform_driver amhdmitx_driver = {

@@ -52,7 +52,11 @@ struct hdcptx_api {
 	u8 (*hdcptx_reauth_req)(void *hdcptx_instance, u8 hdcp_version);
 	void (*hdcptx_uninit)(void *hdcptx_instance);
 	void (*hdcptx_debug)(void *hdcptx_instance, const char *buf);
+	void (*hdcptx14_get_aksv)(u8 *p_aksv, u8 b);
 	void (*hdcptx14_get_bksv)(u8 *p_bksv, u8 b);
+	void (*hdcptx14_get_an)(u8 *p_an, u8 b);
+	void (*hdcptx14_get_bstatus)(u8 *p_bstatus);
+	u16 (*hdcptx14_get_ri)(void);
 	int (*hdcptx_validate_key)(struct hdcptx_common *hdcptx_comm, int hdcp_type);
 };
 
@@ -131,6 +135,7 @@ struct hdcptx_common {
 	/* diff hw20/hw21, for sysfs operation */
 	void (*set_hdcp_mode)(struct hdmitx_common *tx_comm, const char *buf);
 	int (*get_hdcp_ver)(struct hdmitx_common *tx_comm, char *buf, int len);
+	int (*get_tx_hdcp_cap)(struct hdmitx_common *tx_comm);
 
 	/* diff hw20/hw21, for linux/drm control */
 	void (*drm_hdcp_init)(struct hdmitx_common *tx_comm);
@@ -474,6 +479,7 @@ struct hdmitx_common {
 	u32 rxsense_policy;
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st ch_locked_st;
+	u16 ced_check_count;
 
 	/* 15. debug & log */
 	struct st_debug_param debug_param;
@@ -686,7 +692,7 @@ int hdmitx_common_get_vrr_mode_list(struct hdmitx_common *tx_comm,
 void get_hdmi_efuse(struct hdmitx_common *tx_comm);
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
 enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);
-int hdmitx_common_get_hdr_status(struct hdmitx_common *tx_comm);
+enum hdmi_hdr_status hdmitx_common_get_hdr_status(struct hdmitx_common *tx_comm);
 void hdmitx_get_qms_init_state(struct hdmitx_common *tx_common, u32 *brr, u32 *qms_en);
 u32 hdmitx_common_get_vrr_cap(struct hdmitx_common *tx_comm);
 bool hdmitx_common_get_sink_device_type(struct hdmitx_common *tx_comm);
@@ -695,7 +701,67 @@ int hdmitx_common_get_vrr_mode_group(struct hdmitx_common *tx_comm,
 				     struct hdmitx_vrr_mode_group *group,
 				     int max_group);
 int hdmitx_common_set_vframe_rate_hint(struct hdmitx_common *tx_comm, int rate, void *data);
-
+/* hdmitx diagnostic system api */
+unsigned char *hdmitx_common_get_resolution(struct hdmitx_common *tx_comm);
+int hdmitx_common_get_rxsense(struct hdmitx_common *tx_comm);
+enum hdmi_colorspace hdmitx_common_get_colorspace(struct hdmitx_common *tx_comm);
+int hdmitx_common_get_colordepth(struct hdmitx_common *tx_comm);
+enum hdmi_colorimetry hdmitx_common_get_colorimetry(struct hdmitx_common *tx_comm);
+enum hdmi_extended_colorimetry hdmitx_common_get_extended_colorimetry(struct hdmitx_common
+			*tx_comm);
+int hdmitx_common_get_vic(struct hdmitx_common *tx_comm);
+enum hdmi_picture_aspect hdmitx_common_get_picture_aspect(struct hdmitx_common *tx_comm);
+enum hdmi_active_aspect hdmitx_common_get_active_aspect(struct hdmitx_common *tx_comm);
+enum hdmi_quantization_range
+	hdmitx_common_get_quantization_range(struct hdmitx_common *tx_comm);
+enum hdmi_nups hdmitx_common_get_nups(struct hdmitx_common *tx_comm);
+enum hdmi_ycc_quantization_range
+	hdmitx_common_get_ycc_quantization_range(struct hdmitx_common *tx_comm);
+bool hdmitx_common_get_itc(struct hdmitx_common *tx_comm);
+enum hdmi_content_type hdmitx_common_get_content_type(struct hdmitx_common *tx_comm);
+unsigned char hdmitx_common_get_pixel_repeat(struct hdmitx_common *tx_comm);
+unsigned short hdmitx_common_get_top_bar(struct hdmitx_common *tx_comm);
+unsigned short hdmitx_common_get_bottom_bar(struct hdmitx_common *tx_comm);
+unsigned short hdmitx_common_get_left_bar(struct hdmitx_common *tx_comm);
+unsigned short hdmitx_common_get_right_bar(struct hdmitx_common *tx_comm);
+unsigned char hdmitx_common_get_drm_eotf(struct hdmitx_common *tx_comm);
+unsigned char hdmitx_common_get_audio_channel(struct hdmitx_common *tx_comm);
+enum hdmi_audio_coding_type hdmitx_common_get_audio_coding_type(struct hdmitx_common *tx_comm);
+enum hdmi_audio_sample_size hdmitx_common_get_audio_sample_size(struct hdmitx_common *tx_comm);
+enum hdmi_audio_sample_frequency
+	hdmitx_common_get_audio_sample_frequency(struct hdmitx_common *tx_comm);
+enum hdmi_audio_coding_type_ext
+	hdmitx_common_get_audio_coding_type_ext(struct hdmitx_common *tx_comm);
+unsigned char hdmitx_common_get_audio_channel_allocation(struct hdmitx_common *tx_comm);
+unsigned char hdmitx_common_get_audio_level_shift_value(struct hdmitx_common *tx_comm);
+bool hdmitx_common_get_audio_downmix_inhibit(struct hdmitx_common *tx_comm);
+enum hdmi_color_depth hdmitx_common_get_color_depth(struct hdmitx_common *tx_comm);
+unsigned char hdmitx_common_get_avmute_state(struct hdmitx_common *tx_comm);
+unsigned char hdmitx_common_get_m_const(struct hdmitx_common *tx_comm);
+unsigned char hdmitx_common_get_next_tfr(struct hdmitx_common *tx_comm);
+unsigned char hdmitx_common_get_base_refresh_rate(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_audio_n(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_audio_cts(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_audio_layout(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_tmds_clk(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_pixel_clk(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_hdcp_auth_state(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_hdcp_an(struct hdmitx_common *tx_comm, u8 *an);
+unsigned int hdmitx_common_get_hdcp_aksv(struct hdmitx_common *tx_comm, u8 *aksv);
+unsigned int hdmitx_common_get_hdcp_bksv(struct hdmitx_common *tx_comm, u8 *bksv);
+unsigned int hdmitx_common_get_hdcp_bstatus(struct hdmitx_common *tx_comm, u8 *bstatus);
+unsigned int hdmitx_common_get_hdcp_bcaps(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_hdcp_ri(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_key_store(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_vsif_ieeeoui(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_vsif_vic(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_vsif_allm(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_vsif_amdv_signal(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_vsif_amdv_low_latency(struct hdmitx_common *tx_comm);
+enum hdmi_spd_sdi hdmitx_common_get_spd_sdi(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_scdc_sts_flag0(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_scdc_ln0_ln1_ltp(struct hdmitx_common *tx_comm);
+unsigned int hdmitx_common_get_scdc_ln2_ln3_ltp(struct hdmitx_common *tx_comm);
 /**********only used for hdmitx20**********/
 #define HDCP_SLAVE	0x3a
 #define HDCP2_RD_MSG	0x80

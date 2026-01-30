@@ -311,6 +311,48 @@ static int hdmitx20_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int l
 	return pos;
 }
 
+static int hdmitx20_get_tx_hdcp_cap(struct hdmitx_common *tx_comm)
+{
+	unsigned int hdcptx_cap = 0, tx_cap = 0;
+	struct hdcptx20_core_priv *p_hdcp;
+
+	if (!tx_comm) {
+		HDMITX_ERROR("get hdcp cap NULL tx_comm instance\n");
+		return 0;
+	}
+
+	/* check hdcp key load status */
+	hdcptx_cap = hdmitx_common_get_key_store(tx_comm);
+
+	/* for android platform, always treat it as ready */
+	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0)
+		return hdcptx_cap;
+	if (!tx_comm->hdcptx_priv) {
+		HDMITX_ERROR("%s NULL hdcp_private instance\n", __func__);
+		return 0;
+	}
+	p_hdcp = (struct hdcptx20_core_priv *)tx_comm->hdcptx_priv;
+
+	/* check additional private hdcp daemon status */
+	switch (p_hdcp->hdcp22_daemon_state) {
+	case HDCP22_DAEMON_DONE:
+		tx_cap = hdcptx_cap & 0x3;
+		HDMITX_DEBUG_HDCP("%s daemon done, return real tx_cap:%d\n", __func__, tx_cap);
+		break;
+	case HDCP22_DAEMON_TIMEOUT:
+		tx_cap = hdcptx_cap & 0x1;
+		HDMITX_DEBUG_HDCP("%s daemon timeout, return 1.4 tx_cap:%d\n", __func__, tx_cap);
+		break;
+	case HDCP22_DAEMON_LOADING:
+	default:
+		tx_cap = 0;
+		HDMITX_DEBUG_HDCP("%s daemon loading, return null tx_cap:%d\n", __func__,
+			tx_cap);
+		break;
+	}
+	return tx_cap;
+}
+
 /* for linux/drm start */
 static void drm_hdmitx_hdcp_disable(struct hdmitx_common *tx_comm)
 {
@@ -482,7 +524,7 @@ static long hdcp_comm_ioctl(struct file *file,
 	case TEE_HDCP_IOC_START:
 		/* notify by TEE, hdcp key ready, echo 2 > hdcp_mode */
 		ret = 0;
-		if (hdcptx_get_key_store(tx_comm) & 0x2) {
+		if (hdmitx_common_get_key_store(tx_comm) & 0x2) {
 			/*
 			 * when bootup, if hdcp22 init after hdcp14 auth,
 			 * hdcp path will switch to hdcp22. need to delay
@@ -610,26 +652,6 @@ static void drm_hdcp_tx22_daemon_check(struct timer_list *timer)
 		p_hdcp->hdcp22_daemon_state = HDCP22_DAEMON_TIMEOUT;
 		schedule_delayed_work(&p_hdcp->notify_work, 0);
 	}
-}
-
-bool drm_hdcp_tx22_daemon_ready(struct hdmitx_common *tx_comm)
-{
-	struct hdcptx20_core_priv *p_hdcp;
-
-	if (!tx_comm) {
-		HDMITX_ERROR("%s NULL tx_comm instance\n", __func__);
-		return false;
-	}
-	/* for android platform, always treat it as ready */
-	if (tx_comm->hdcptx_comm.hdcp_ctl_lvl == 0)
-		return true;
-	if (!tx_comm->hdcptx_priv) {
-		HDMITX_ERROR("%s NULL hdcp_private instance\n", __func__);
-		return false;
-	}
-	p_hdcp = (struct hdcptx20_core_priv *)tx_comm->hdcptx_priv;
-
-	return p_hdcp->hdcp22_daemon_state == HDCP22_DAEMON_DONE;
 }
 
 static void drm_hdmitx_hdcp_init(struct hdmitx_common *tx_comm)
@@ -760,6 +782,7 @@ static void hdcptx_20_ctrl_ops_init(struct hdcptx_common *hdcptx_comm)
 
 	hdcptx_comm->set_hdcp_mode = hdmitx20_set_hdcp_mode;
 	hdcptx_comm->get_hdcp_ver = hdmitx20_get_hdcp_ver;
+	hdcptx_comm->get_tx_hdcp_cap = hdmitx20_get_tx_hdcp_cap;
 }
 
 const struct file_operations hdcplog_ops = {

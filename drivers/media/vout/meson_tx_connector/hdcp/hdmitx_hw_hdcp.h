@@ -20,6 +20,8 @@ void hdcptx1_auth_stop(void);
 u8 hdcptx1_copp_status_get(void);
 void hdcptx1_bcaps_get(u8 *p_bcaps_status);
 bool hdcptx1_ds_rptr_capability(void);
+void hdcptx1_ds_an_read(u8 *p_an, u8 an_bytes);
+void hdcptx1_ds_aksv_read(u8 *p_aksv, u8 ksv_bytes);
 void hdcptx1_bstatus_get(u8 *p_ds_bstatus);
 void hdcptx1_get_ds_ksvlists(u8 **p_ksv, u8 count);
 bool hdcptx1_load_key(void);

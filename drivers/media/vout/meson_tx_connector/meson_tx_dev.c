@@ -145,7 +145,9 @@ void meson_tx_plugout_unlocked(struct meson_tx_dev *tx_dev)
 	if (!tx_dev)
 		return;
 	if (!tx_dev->hpd_state) {
-		TX_INFO(tx_log, "continuous plugout handler, ignore\n");
+		TX_INFO(tx_log, "continuous plugout handler, send TX_LINK_UNSTABLE uevent\n");
+		meson_tx_event_mgr_send_uevent(tx_dev->event_mgr,
+				TX_LINK_UNSTABLE, 1, false);
 		return;
 	}
 

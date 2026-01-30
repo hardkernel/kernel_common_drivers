@@ -651,6 +651,16 @@ int hdmi_avi_infoframe_config(struct hdmitx_common *tx_comm, u32 avi_cmd, u8 val
 	return 0;
 }
 
+int hdmi_spd_infoframe_get(u8 *body)
+{
+	int ret;
+
+	if (!body)
+		return 0;
+	ret = hdmitx_infoframe_raw_get(HDMI_INFOFRAME_TYPE_SPD, body);
+	return ret;
+}
+
 void hdmi_spd_infoframe_set(struct hdmi_spd_infoframe *info)
 {
 	u8 body[31] = {0};
@@ -662,6 +672,16 @@ void hdmi_spd_infoframe_set(struct hdmi_spd_infoframe *info)
 
 	hdmi_spd_infoframe_pack(info, body, sizeof(body));
 	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_SPD, body);
+}
+
+int hdmi_audio_infoframe_get(u8 *body)
+{
+	int ret;
+
+	if (!body)
+		return 0;
+	ret = hdmitx_infoframe_raw_get(HDMI_INFOFRAME_TYPE_AUDIO, body);
+	return ret;
 }
 
 void hdmi_audio_infoframe_set(struct hdmi_audio_infoframe *info)
@@ -689,6 +709,16 @@ void hdmi_audio_infoframe_rawset(u8 *hb, u8 *pb)
 	memcpy(body, hb, 3);
 	memcpy(&body[3], pb, 28);
 	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AUDIO, body);
+}
+
+int hdmi_drm_infoframe_get(u8 *body)
+{
+	int ret;
+
+	if (!body)
+		return 0;
+	ret = hdmitx_infoframe_raw_get(HDMI_INFOFRAME_TYPE_DRM, body);
+	return ret;
 }
 
 void hdmi_drm_infoframe_set(struct hdmi_drm_infoframe *info)

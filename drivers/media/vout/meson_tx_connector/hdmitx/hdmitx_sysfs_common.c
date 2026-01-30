@@ -1618,6 +1618,8 @@ static ssize_t cedst_policy_store(struct device *dev,
 					tx_comm->cedst_en = 0;
 			} else if (val == 2) {
 				tx_comm->cedst_en = 1;
+			} else {
+				tx_comm->cedst_en = 0;
 			}
 		} else {
 			HDMITX_INFO("only accept as 0, 1(auto), or 2(force)\n");
