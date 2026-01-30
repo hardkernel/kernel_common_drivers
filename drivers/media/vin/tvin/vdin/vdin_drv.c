@@ -3497,6 +3497,10 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				devp->vfp->last_last_vfe->vf.height,
 				devp->vfp->last_last_vfe->vf.canvas0_config[0].width);
 
+		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
+			pr_info("mem_handle:%px,mem_handle_1:%px\n",
+			devp->vfp->last_last_vfe->vf.mem_handle,
+			devp->vfp->last_last_vfe->vf.mem_handle_1);
 		if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
 			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			if (vdin_is_dolby_signal_in(devp) &&

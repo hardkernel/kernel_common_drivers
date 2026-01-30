@@ -539,6 +539,7 @@ void v4lvideo_keep_vf(struct file *file)
 	struct vframe_s *vf_p;
 	struct vframe_s *vf_ext_p = NULL;
 	int type = MEM_TYPE_CODEC_MM;
+	int type_1 = MEM_TYPE_CODEC_MM;
 	int keep_id = 0;
 	int keep_id_1 = 0;
 	int keep_head_id = 0;
@@ -574,23 +575,30 @@ void v4lvideo_keep_vf(struct file *file)
 	if (vf_p->type & VIDTYPE_SCATTER)
 		type = MEM_TYPE_CODEC_MM_SCATTER;
 
-	/*vdin vf has VIDTYPE_SCATTER, but mem not from scatter*/
-	if ((vf_p->source_type == VFRAME_SOURCE_TYPE_HDMI ||
-		     vf_p->source_type == VFRAME_SOURCE_TYPE_CVBS ||
-		     vf_p->source_type == VFRAME_SOURCE_TYPE_TUNER) &&
-		     !(vf_p->type_ext & VIDTYPE_EXT_VDIN_SCATTER))
-		type = MEM_TYPE_CODEC_MM;
-
+	if (vf_p->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		vf_p->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		vf_p->source_type == VFRAME_SOURCE_TYPE_TUNER) {
+		if (vf_p->type_ext & VIDTYPE_EXT_VDIN_SCATTER) {
+			type = MEM_TYPE_CODEC_MM;
+			type_1 = MEM_TYPE_CODEC_MM_SCATTER;
+		} else {
+			type = MEM_TYPE_CODEC_MM;
+			type_1 = MEM_TYPE_CODEC_MM;
+		}
+	} else {
+		type_1 = type;
+	}
 	video_keeper_keep_mem(vf_p->mem_handle, type, &keep_id);
-	video_keeper_keep_mem(vf_p->mem_handle_1, type, &keep_id_1);
+	video_keeper_keep_mem(vf_p->mem_handle_1, type_1, &keep_id_1);
 	video_keeper_keep_mem(vf_p->mem_head_handle,
 		MEM_TYPE_CODEC_MM, &keep_head_id);
 	video_keeper_keep_mem(vf_p->mem_dw_handle, MEM_TYPE_CODEC_MM,
 		&keep_dw_id);
 
-	v4l_print(inst_id, PRINT_OTHER,
-		"%s: type=%x, flag=%d, frame_index=%d\n",
-		__func__, vf_p->type, file_private_data->flag, vf_p->frame_index);
+	v4l_print(inst_id, PRINT_OTHER, "type:%x %x %x;handle:%px,%px,%px,%px,flag:%x,idx:%x",
+		vf_p->type, vf_p->type_ext, vf_p->source_type,
+		vf_p->mem_handle, vf_p->mem_handle_1, vf_p->mem_dw_handle, vf_p->mem_head_handle,
+		file_private_data->flag, vf_p->frame_index);
 
 	file_private_data->keep_id = keep_id;
 	file_private_data->keep_id_1 = keep_id_1;
