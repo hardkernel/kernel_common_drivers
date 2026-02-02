@@ -287,8 +287,7 @@ static void get_cuva_tm_maxl(enum cuva_func_e tm_func,
 		if (vinfo->hdr_info.lumi_max >= 150) /*support lowest panel 150nit*/
 			maxl = vinfo->hdr_info.lumi_max;
 
-		if (chip_cls_id != TV_CHIP)
-			maxl = 100; /*STB force sdr output luminance 100*/
+		maxl = 100; /*STB force sdr output luminance 100*/
 		minl = 64; /*e domin 64 : minl = 0.1*/
 
 		/*force output luminance for iptv select*/

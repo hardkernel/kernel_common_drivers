@@ -3537,7 +3537,12 @@ void amvecm_dump_output_data(void)
 		return;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
-		!is_meson_s4d_cpu() && !is_meson_s4_cpu()) {
+		!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
+		chip_type_id != chip_txhd2 &&
+		chip_type_id != chip_s1a &&
+		chip_type_id != chip_s7 &&
+		chip_type_id != chip_s7d &&
+		!is_meson_s6_cpu()) {
 		reg_pos = VPP_PROBE_POS;
 		reg_probe_color = VPP_PROBE_COLOR;
 		reg_probe_color1 = VPP_PROBE_COLOR1;
@@ -3573,10 +3578,12 @@ void amvecm_dump_output_data(void)
 			} else {
 				val = READ_VPP_REG(reg_probe_color);
 				reg_val = READ_VPP_REG(reg_probe_color1);
-				pr_info("[idx:%d] pos:(%d,%d), val:(%d,%d,%d)\n",
+				pr_info("[idx:%d] pos:(%d,%d), val:(%d,%d,%d) (%d,%d,%d)\n",
 					total_count, val_x, val_y,
 					((reg_val & 0xf) << 8) | ((val >> 24) & 0xff),
-					(val >> 12) & 0xfff, val & 0xfff);
+					(val >> 12) & 0xfff, val & 0xfff,
+					(((reg_val & 0xf) << 8) | ((val >> 24) & 0xff)) >> 2,
+					((val >> 12) & 0xfff) >> 2, (val & 0xfff) >> 2);
 			}
 
 			total_count++;
@@ -8559,7 +8566,12 @@ static ssize_t amvecm_dump_output_store(const struct class *cla,
 		val = dump_output_cfg_data.probe_port;
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
-			!is_meson_s4d_cpu() && !is_meson_s4_cpu()) {
+			!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
+			chip_type_id != chip_txhd2 &&
+			chip_type_id != chip_s1a &&
+			chip_type_id != chip_s7 &&
+			chip_type_id != chip_s7d &&
+			!is_meson_s6_cpu()) {
 			reg_val = READ_VPP_REG(VPP_PROBE_CTRL);
 			reg_val = reg_val & 0xffffffc0;
 			reg_val = reg_val | (val & 0x3f);
