@@ -116,3 +116,8 @@
 
 # amlogic-iotrace.ko
  stop_one_cpu_nowait
+
+# f81232.ko
+ __tty_insert_flip_string_flags
+ __usb_serial_register_drivers
+ usb_control_msg_send
