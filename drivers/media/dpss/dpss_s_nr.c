@@ -3084,8 +3084,12 @@ void nr_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs,
 			dpss_info.pad_mode = 0;
 			if (prm_dpe->dcntr_en && !prm_top->dct_ahead_dv_mode)
 				dpss_info.pad_mode += 8;
-			if (prm_dpe->aa_pad)
-				dpss_info.pad_mode += 8;
+			if (prm_dpe->aa_pad) {
+				if (pps->pps_en)
+					dpss_info.pad_mode += prm_dpe->aa_pad;
+				else
+					dpss_info.pad_mode += 8;
+			}
 		} else {
 			dpss_info.pad_mode = 64;
 			if (prm_dpe->dcntr_en && !prm_top->dct_ahead_dv_mode)

@@ -130,6 +130,7 @@ void dpss_dd_update_info_by_cnt(unsigned int cnt_n, struct PRM_DPSS_TOP *prm_top
 	struct dpss_info_s dpss_info;
 	bool direct_mode = false;
 	enum DPSS_WORK_MODE	dpe_nr_mode = prm_top->dpe_nr_mode;
+	struct AA_PPS_TOP_TYPE *pps = &g_nr_pps_cfg;
 
 	dpss_info.slice_num = prm_top->dpe_slc_num;
 	dpss_info.frm_hsize_sel = prm_top->frm_hsize_sel;
@@ -149,19 +150,24 @@ void dpss_dd_update_info_by_cnt(unsigned int cnt_n, struct PRM_DPSS_TOP *prm_top
 		dpss_info.pad_mode = 0;
 		if (prm_dpe->dcntr_en && !prm_top->dct_ahead_dv_mode)
 			dpss_info.pad_mode += 8;
-		if (prm_dpe->aa_pad)
-			dpss_info.pad_mode += 8;
+		if (prm_dpe->aa_pad) {
+			if (pps->pps_en)
+				dpss_info.pad_mode += prm_dpe->aa_pad;
+			else
+				dpss_info.pad_mode += 8;
+		}
 		if (prm_top->dolby_mode == DOLBY_DPSS_PRL_MODE)
 			dpss_info.pad_mode = 0;
 
 		dpss_info.direct_mode = direct_mode;
 		dpss_info.dct_ahead_dv_mode = dct_ahead_dv_mode;
 
-		dbg_h2("%s:cnt=%d,nr_mode=%d,dct=%d,aa=%d,dolby_mode=%d,pad=%d,direct=%d %d\n",
+		dbg_h2("%s:cnt=%d,nr=%d,dct=%d,pps=%d,aa=%d,dolby_mode=%d,pad=%d,direct=%d %d\n",
 			__func__,
 			cnt,
 			prm_top->dpe_nr_mode,
 			prm_dpe->dcntr_en,
+			pps->pps_en,
 			prm_dpe->aa_pad,
 			prm_top->dolby_mode,
 			dpss_info.pad_mode,
@@ -180,8 +186,12 @@ void dpss_dd_update_info_by_cnt(unsigned int cnt_n, struct PRM_DPSS_TOP *prm_top
 			dpss_info.pad_mode = 0;
 			if (prm_dpe->dcntr_en)
 				dpss_info.pad_mode = 8;
-			if (prm_dpe->aa_pad)
-				dpss_info.pad_mode += 8;
+			if (prm_dpe->aa_pad) {
+				if (pps->pps_en)
+					dpss_info.pad_mode += prm_dpe->aa_pad;
+				else
+					dpss_info.pad_mode += 8;
+			}
 		} else {
 			dpss_info.pad_mode = 64;
 			if (prm_dpe->dcntr_en && !prm_top->dct_ahead_dv_mode)
@@ -192,12 +202,13 @@ void dpss_dd_update_info_by_cnt(unsigned int cnt_n, struct PRM_DPSS_TOP *prm_top
 
 		dpss_info.direct_mode = direct_mode;
 		dpss_info.dct_ahead_dv_mode = dct_ahead_dv_mode;
-		dbg_h2("%s:cnt=%d,nr_mode=%d(%d),dct=%d,aa=%d,dolby_mode=%d,pad=%d,direct=%d %d\n",
+		dbg_h2("%s:cnt=%d,nr%d(%d),dct=%d,pps=%d,aa=%d,dolby_mode=%d,pad=%d,direct=%d %d\n",
 			__func__,
 			cnt,
 			prm_top->dpe_nr_mode,
 			dpe_nr_mode,
 			prm_dpe->dcntr_en,
+			pps->pps_en,
 			prm_dpe->aa_pad,
 			prm_top->dolby_mode,
 			dpss_info.pad_mode,
