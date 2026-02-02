@@ -10,6 +10,18 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/seq_file.h>
+#include <linux/device.h>
+#include <linux/miscdevice.h>
+
+#define DEVICE_NAME "codec_state"
+#define DEVICE_CLASS_NAME "codec_state_class"
+#define MAX_CODEC_STATE_DEVICES 2
+
+struct cs_data {
+	char buffer[1024];
+	size_t buffer_size;
+	struct miscdevice misc_dev;
+};
 
 #define __CODEC_STATE_RW(_name, _show, _store)		\
 	static struct codec_state_ops _name##_cs_ops = {\
@@ -57,9 +69,9 @@ int codec_state_register(struct codec_state_node *cs, struct codec_state_ops *op
 
 void codec_state_unregister(struct codec_state_node *cs);
 
-int codec_state_debugfs_init(void);
+int codec_state_init(void);
 
-void codec_state_debugfs_release(void);
+void codec_state_release(void);
 
 #endif //_CODEC_STATE_H
 

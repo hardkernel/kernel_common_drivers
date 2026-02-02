@@ -4915,14 +4915,14 @@ int __init codec_mm_module_init(void)
 		return -ENODEV;
 	}
 
-	if (codec_state_debugfs_init()) {
+	if (codec_state_init()) {
 		platform_driver_unregister(&codec_mm_driver);
 		pr_err("Create codec mm debugfs failed.\n");
 		return -EINVAL;
 	}
 
 	if (codec_mm_track_init()) {
-		codec_state_debugfs_release();
+		codec_state_release();
 		platform_driver_unregister(&codec_mm_driver);
 		pr_err("Create codec mm debugfs failed.\n");
 		return -EINVAL;
@@ -4933,7 +4933,7 @@ int __init codec_mm_module_init(void)
 
 void __exit codec_mm_module_exit(void)
 {
-	codec_state_debugfs_release();
+	codec_state_release();
 
 	codec_mm_track_exit();
 

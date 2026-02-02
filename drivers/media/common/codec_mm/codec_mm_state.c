@@ -18,12 +18,20 @@
 struct codec_state_mgr {
 	struct list_head	cs_head;
 	struct mutex		cs_lock; /* Used for cs list locked. */
-	struct dentry		*cs_dir;
+	struct class *cs_class;
+	struct device *parent_device;
+	struct cs_data *data[MAX_CODEC_STATE_DEVICES];
+	const char *cs_devs_names[MAX_CODEC_STATE_DEVICES];
 };
 
 static struct codec_state_mgr *get_cs_mgr(void)
 {
-	static struct codec_state_mgr mgr;
+	static struct codec_state_mgr mgr = {
+		.cs_devs_names = {
+			"dump",
+			"config"
+		}
+	};
 	static bool inited;
 
 	if (!inited) {
@@ -77,6 +85,8 @@ static const struct seq_operations seq_op = {
 
 static int cs_seq_open(struct inode *inode, struct file *file)
 {
+	/* file will be reinit in seq_open, clear misc file private */
+	file->private_data = NULL;
 	return seq_open(file, &seq_op);
 }
 
@@ -98,6 +108,8 @@ static const struct seq_operations seq_list_op = {
 
 static int cs_seq_list_open(struct inode *inode, struct file *file)
 {
+	/* file will be reinit in seq_open, clear misc file private */
+	file->private_data = NULL;
 	return seq_open(file, &seq_list_op);
 }
 
@@ -273,76 +285,111 @@ void codec_state_unregister(struct codec_state_node *cs)
 	mutex_unlock(&mgr->cs_lock);
 }
 
-static const struct file_operations cs_dump_fops = {
-	.owner		= THIS_MODULE,
-	.open		= cs_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-	.write		= cs_seq_write
+static const struct file_operations cs_fops[MAX_CODEC_STATE_DEVICES] = {
+	/* dump */
+	{
+		.owner		= THIS_MODULE,
+		.open		= cs_seq_open,
+		.read		= seq_read,
+		.llseek		= seq_lseek,
+		.release	= seq_release,
+		.write		= cs_seq_write
+	},
+	/* config */
+	{
+		.open		= cs_seq_list_open,
+		.write		= cs_seq_write,
+		.read		= seq_read,
+		.llseek		= seq_lseek
+	}
 };
 
-static const struct file_operations cs_config_fops = {
-	.write		= cs_seq_write,
-	.llseek		= seq_lseek
-};
-
-static const struct file_operations cs_list_fops = {
-	.open		= cs_seq_list_open,
-	.read		= seq_read
-};
-
-int codec_state_debugfs_init(void)
+int codec_state_init(void)
 {
+	int i, ret;
 	struct codec_state_mgr *mgr = get_cs_mgr();
-	struct dentry *d;
-	int r = 0;
 
-	d = debugfs_create_dir("codec_state", NULL);
-	if (IS_ERR(d))
-		return PTR_ERR(d);
-
-	mgr->cs_dir = d;
-
-	d = debugfs_create_file("dump_status", 0644, mgr->cs_dir,
-			NULL, &cs_dump_fops);
-	if (IS_ERR(d)) {
-		pr_err("Create codec state dump_status node failed\n");
-		r = PTR_ERR(d);
-		goto err;
+	mgr->cs_class = class_create(DEVICE_NAME);
+	if (IS_ERR(mgr->cs_class)) {
+		pr_debug("Failed to create device class\n");
+		return PTR_ERR(mgr->cs_class);
 	}
 
-	d = debugfs_create_file("config", 0644, mgr->cs_dir,
-			NULL, &cs_config_fops);
-	if (IS_ERR(d)) {
-		pr_err("Create codec state config node failed\n");
-		r = PTR_ERR(d);
-		goto err;
+	mgr->parent_device = device_create(mgr->cs_class, NULL, 0, NULL, DEVICE_NAME);
+	if (IS_ERR(mgr->parent_device)) {
+		pr_debug("Failed to create parent device\n");
+		ret = PTR_ERR(mgr->parent_device);
+		goto err_parent;
 	}
 
-	d = debugfs_create_file("list", 0644, mgr->cs_dir,
-			NULL, &cs_list_fops);
-	if (IS_ERR(d)) {
-		pr_err("Create codec state list node failed\n");
-		r = PTR_ERR(d);
-		goto err;
+	for (i = 0; i < MAX_CODEC_STATE_DEVICES; i++) {
+		mgr->data[i] = kzalloc(sizeof(*mgr->data[i]), GFP_KERNEL);
+		if (!mgr->data[i]) {
+			ret = -ENOMEM;
+			goto err_devices;
+		}
+
+		snprintf(mgr->data[i]->buffer, sizeof(mgr->data[i]->buffer),
+				"This is %s device.\n", mgr->cs_devs_names[i]);
+		mgr->data[i]->buffer_size = strlen(mgr->data[i]->buffer);
+
+		mgr->data[i]->misc_dev.minor = MISC_DYNAMIC_MINOR;
+		mgr->data[i]->misc_dev.name = kasprintf(GFP_KERNEL, "%s_%s",
+					DEVICE_NAME, mgr->cs_devs_names[i]);
+		mgr->data[i]->misc_dev.fops = &cs_fops[i];
+		mgr->data[i]->misc_dev.parent = mgr->parent_device;
+
+		if (!mgr->data[i]->misc_dev.name) {
+			ret = -ENOMEM;
+			kfree(mgr->data[i]);
+			goto err_devices;
+		}
+
+		ret = misc_register(&mgr->data[i]->misc_dev);
+		if (ret < 0) {
+			pr_err("Failed to register misc device %s\n", mgr->cs_devs_names[i]);
+			kfree(mgr->data[i]->misc_dev.name);
+			kfree(mgr->data[i]);
+			goto err_devices;
+		}
+
+		pr_debug("Created device /dev/%s\n", mgr->data[i]->misc_dev.name);
 	}
 
+	pr_debug("Codec device driver initialized successfully\n");
 	return 0;
-err:
-	debugfs_remove_recursive(mgr->cs_dir);
-	mgr->cs_dir = NULL;
 
-	return r;
+err_devices:
+	for (i--; i >= 0; i--) {
+		if (mgr->data[i]) {
+			misc_deregister(&mgr->data[i]->misc_dev);
+			kfree(mgr->data[i]->misc_dev.name);
+			kfree(mgr->data[i]);
+		}
+	}
+	device_destroy(mgr->cs_class, 0);
+err_parent:
+	class_destroy(mgr->cs_class);
+	return ret;
 }
 
-void codec_state_debugfs_release(void)
+void codec_state_release(void)
 {
+	int i;
 	struct codec_state_mgr *mgr = get_cs_mgr();
 
-	if (!mgr->cs_dir)
-		return;
+	for (i = 0; i < MAX_CODEC_STATE_DEVICES; i++) {
+		if (mgr->data[i]) {
+			misc_deregister(&mgr->data[i]->misc_dev);
+			kfree(mgr->data[i]->misc_dev.name);
+			kfree(mgr->data[i]);
+		}
+	}
 
-	debugfs_remove_recursive(mgr->cs_dir);
+	if (mgr->parent_device)
+		device_destroy(mgr->cs_class, 0);
+
+	if (mgr->cs_class)
+		class_destroy(mgr->cs_class);
 }
 
