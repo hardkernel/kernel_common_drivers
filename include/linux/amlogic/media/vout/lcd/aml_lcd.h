@@ -121,6 +121,9 @@ struct lcd_detail_timing_s {
 	unsigned short frac;
 	unsigned int sync_duration_num;  //driver calculate for internal usage
 	unsigned int sync_duration_den;  //driver calculate for internal usage
+	unsigned int pixel_time_ps;  //driver calculate for internal usage
+	unsigned int line_time_ns;  //driver calculate for internal usage
+	unsigned int frame_time_us;  //driver calculate for internal usage
 	unsigned int check_status;
 };
 

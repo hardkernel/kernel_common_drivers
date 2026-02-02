@@ -479,8 +479,9 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"%s, %s %ubit, %dppc, %ux%u@%d.%02dHz\n",
+		"%s(%ux%umm), %s %ubit, %dppc, %ux%u@%d.%02dHz\n",
 		pconf->basic.model_name,
+		pconf->basic.screen_width, pconf->basic.screen_height,
 		lcd_type_type_to_str(pconf->basic.lcd_type),
 		pconf->timing.act_timing.lcd_bits, pconf->timing.ppc,
 		pconf->timing.act_timing.h_active, pconf->timing.act_timing.v_active,
@@ -630,15 +631,21 @@ static ssize_t lcd_proc_time_show(struct device *dev, struct device_attribute *a
 	ssize_t len = 0;
 	int i;
 
-	len = sprintf(buf, "lcd_vs_isr cost max[5](us):");
+	len += sprintf(buf + len, "lcd_vs_isr cost max[5](us):");
 	for (i = 0; i < 5; i++)
 		len += sprintf(buf + len, " %d", pdrv->proc_time.vs_isr_time[i]);
+	len += sprintf(buf + len, "\n");
 
 	if (pdrv->curr_dev) {
-		len += sprintf(buf + len, "\n\nswitch_type: 0x%x\n",
+		len += sprintf(buf + len, "\nlcd scanning time:\n"
+			" pixel: %ups, line: %uns, frame: %uus\n",
+			pdrv->curr_dev->dev_cfg.timing.act_timing.pixel_time_ps,
+			pdrv->curr_dev->dev_cfg.timing.act_timing.line_time_ns,
+			pdrv->curr_dev->dev_cfg.timing.act_timing.frame_time_us);
+		len += sprintf(buf + len, "switch_type: 0x%x\n",
 			pdrv->curr_dev->dev_cfg.timing.switch_type);
 	}
-	len += sprintf(buf + len, "proc times(us):\n"
+	len += sprintf(buf + len, "\nproc times(us):\n"
 		"mute:        %u\n"
 		"bl_off:      %u\n"
 		"switch_off:  %u\n"

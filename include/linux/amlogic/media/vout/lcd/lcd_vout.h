@@ -1066,6 +1066,14 @@ int lcd_ss_enable(int index, unsigned int flag);
 void bl_lcd_on_ctrl(struct aml_lcd_drv_s *pdrv);
 void bl_lcd_off_ctrl(struct aml_lcd_drv_s *pdrv);
 
+struct lcd_scanning_time_s {
+	unsigned int pixel_time_ps;
+	unsigned int line_time_ns;
+	unsigned int frame_time_us;
+};
+
+int lcd_scanning_time_get(int index, struct lcd_scanning_time_s *scan_time);
+
 extern struct mutex lcd_power_mutex;
 
 /*

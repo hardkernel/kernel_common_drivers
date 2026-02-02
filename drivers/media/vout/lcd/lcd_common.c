@@ -1349,6 +1349,32 @@ void lcd_phy_free_all(struct aml_lcd_drv_s *pdrv, struct aml_lcd_device_s *dev_p
 		lcd_phy_free_last(pdrv, dev_p);
 }
 
+int lcd_scanning_time_get(int index, struct lcd_scanning_time_s *scan_time)
+{
+	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(index);
+
+	if (!pdrv || !pdrv->curr_dev || !scan_time)
+		return -1;
+
+	scan_time->pixel_time_ps = pdrv->curr_dev->dev_cfg.timing.act_timing.pixel_time_ps;
+	scan_time->line_time_ns = pdrv->curr_dev->dev_cfg.timing.act_timing.line_time_ns;
+	scan_time->frame_time_us = pdrv->curr_dev->dev_cfg.timing.act_timing.frame_time_us;
+	return 0;
+}
+
+static void lcd_scanning_time_calc(struct lcd_detail_timing_s *ptiming)
+{
+	unsigned int frame_time;
+	unsigned long long temp;
+
+	temp = 1000000000000ULL; //ps
+	ptiming->pixel_time_ps = lcd_do_div(temp, ptiming->pixel_clk);
+	ptiming->line_time_ns = (ptiming->pixel_time_ps * ptiming->h_period + 500) / 1000;
+	temp = 10000000ULL * ptiming->sync_duration_den; //0.1us
+	frame_time = lcd_do_div(temp, ptiming->sync_duration_num);
+	ptiming->frame_time_us = (frame_time + 5) / 10;
+}
+
 static void lcd_fr_range_update(struct lcd_detail_timing_s *ptiming)
 {
 	unsigned int htotal, vmin, vmax, hfreq;
@@ -1419,6 +1445,7 @@ void lcd_clk_frame_rate_init(struct lcd_detail_timing_s *ptiming)
 		ptiming->frac = 0;
 	}
 
+	lcd_scanning_time_calc(ptiming);
 	lcd_fr_range_update(ptiming);
 }
 
@@ -1833,6 +1860,7 @@ static int lcd_timing_fr_update(struct aml_lcd_drv_s *pdrv)
 			lcd_clk_frac_generate(pdrv);
 	}
 	if (len > 0) {
+		lcd_scanning_time_calc(&pconf->timing.act_timing);
 		LCD_DBG(pdrv, "%s: fr_adj_type: %d, sync_duration: %d/%d, %s", __func__, type,
 			pconf->timing.act_timing.sync_duration_num,
 			pconf->timing.act_timing.sync_duration_den, str);
