@@ -743,6 +743,7 @@ struct vdin_debug_s {
 	int sct_print_ctl;
 	enum vdin_memset_dbg_flag flag;
 	enum vdin_vf_put_md vdin_frame_work_mode;
+	enum tvin_port_e port;
 	unsigned int ignore_vdin_ioctl;
 	unsigned int force_disp_mode;
 	unsigned int reg_addr;

@@ -2417,10 +2417,18 @@ void vdin_loopback_port_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *par
 
 	memset(&video_input_parms, 0, sizeof(struct video_input_info));
 
+	/* g12a/g12b/sm1 do not have wb0_vpp */
 	if ((is_meson_g12a_cpu() || (is_meson_g12b_cpu()) ||
 		is_meson_sm1_cpu()) && para->port == TVIN_PORT_VIU1_WB0_VPP) {
 		pr_info("vdin%d force to use postblend\n", devp->index);
 		para->port = TVIN_PORT_VIU1_WB0_POST_BLEND;
+	}
+
+	/* For chips before T7,only vpp0 + VIU2 ENCP/I/L */
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
+		(para->port > TVIN_PORT_VIU2 && para->port < TVIN_PORT_VIU3_MAX)) {
+		pr_info("vdin%d force to use viu2 encl\n", devp->index);
+		para->port = TVIN_PORT_VIU2_ENCL;
 	}
 
 	if (is_meson_t6x_cpu()) {
@@ -2435,7 +2443,7 @@ void vdin_loopback_port_adjust(struct vdin_dev_s *devp, struct vdin_parm_s  *par
 				para->dest_h_active = para->h_active;
 			if (para->dest_v_active > para->v_active)
 				para->dest_v_active = para->v_active;
-			pr_info("vdin%d force preblend vd1 (%dx%d) skip(%d %d)\n",
+			pr_info("vdin%d force to use preblend vd1 (%dx%d) skip(%d %d)\n",
 				devp->index, para->h_active, para->v_active,
 				video_input_parms.hscale_skip_count,
 				video_input_parms.vscale_skip_count);
@@ -2901,22 +2909,6 @@ int start_tvin_capture_ex(int dev_num, enum port_vpp_e port, struct vdin_parm_s 
 		loop_port = TVIN_PORT_VIU3_OSD1;
 	else
 		loop_port = para->port;
-
-	/* g12a/g12b/sm1 do not have wb0_vpp */
-	if ((is_meson_g12a_cpu() || (is_meson_g12b_cpu()) ||
-		is_meson_sm1_cpu()) && loop_port == TVIN_PORT_VIU1_WB0_VPP) {
-		pr_info("line:%d, cpu :%#x, vdin1 force to use postblend\n",
-			__LINE__, get_cpu_type());
-		loop_port = TVIN_PORT_VIU1_WB0_POST_BLEND;
-	}
-
-	/* For chips before T7,only vpp0 + VIU2 ENCP/I/L */
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
-		(para->port > TVIN_PORT_VIU2 && para->port < TVIN_PORT_VIU3_MAX)) {
-		pr_info("line:%d, cpu :%#x, vdin force to use viu2 encl\n",
-			__LINE__, get_cpu_type());
-		loop_port = TVIN_PORT_VIU2_ENCL;
-	}
 
 	para->port = loop_port;
 
@@ -6037,14 +6029,33 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		param.dest_h_active = vdin_v4l2_param.dst_width;
 		param.dest_v_active = vdin_v4l2_param.dst_height;
 
-		if (is_meson_txhd2_cpu() && devp->set_canvas_manual == 1 &&
-		    devp->dts_config.keystone_sel) {
-			param.port = TVIN_PORT_VIU1_WB0_POST_BLEND;
-		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_SM1)) {
+		if (vdin_v4l2_param.mode == CAPTURE_VPP0_VIDEO_ONLY)		/* vpp0 */
+			param.port = TVIN_PORT_VIU1_WB0_VD1;
+		else if (vdin_v4l2_param.mode == CAPTURE_VPP0_OSD_VIDEO)
 			param.port = TVIN_PORT_VIU1_WB0_VPP;
-		} else {
-			param.port = TVIN_PORT_VIU1;
-		}
+		else if (vdin_v4l2_param.mode == CAPTURE_VPP0_OSD_VIDEO_NO_PQ)
+			param.port = TVIN_PORT_VIU1_WB0_POST_BLEND;
+		else if (vdin_v4l2_param.mode == CAPTURE_VPP0_OSD1_ONLY)
+			param.port = TVIN_PORT_VIU1_WB0_OSD1;
+		else if (vdin_v4l2_param.mode == CAPTURE_VPP0_OSD2_ONLY)
+			param.port = TVIN_PORT_VIU1_WB0_OSD2;
+		else if (vdin_v4l2_param.mode == CAPTURE_VPP0_VIDEO_ONLY_NO_PQ)
+			param.port = TVIN_PORT_VIU1_VIDEO;
+		else if (vdin_v4l2_param.mode == CAPTURE_VPP1_VIDEO_ONLY)	/* vpp1 */
+			param.port = TVIN_PORT_VIU2_VD1;
+		else if (vdin_v4l2_param.mode == CAPTURE_VPP1_OSD_VIDEO)
+			param.port = TVIN_PORT_VIU2_VPP;
+		else if (vdin_v4l2_param.mode == CAPTURE_VPP1_OSD1_ONLY)
+			param.port = TVIN_PORT_VIU2_OSD1;
+		else if (vdin_v4l2_param.mode == CAPTURE_VPP2_VIDEO_ONLY)	/* vpp2 */
+			param.port = TVIN_PORT_VIU3_VD1;
+		else if (vdin_v4l2_param.mode == CAPTURE_VPP2_OSD_VIDEO)
+			param.port = TVIN_PORT_VIU3_VPP;
+		else if (vdin_v4l2_param.mode == CAPTURE_VPP2_OSD1_ONLY)
+			param.port = TVIN_PORT_VIU3_OSD1;
+
+		if (devp->debug.port != TVIN_PORT_NULL)
+			param.port = devp->debug.port;
 
 		param.frame_rate = vdin_v4l2_param.fps;
 		param.cfmt = TVIN_YUV422;
@@ -7532,6 +7543,7 @@ static void vdin_get_dts_config(struct vdin_dev_s *devp,
 	devp->debug.dv_dbg_log_du = 60;
 	devp->debug.vdin_frame_work_mode = VDIN_VF_PUT;
 	devp->debug.sleep_time = 50;
+	devp->debug.port = TVIN_PORT_NULL;
 }
 
 static int vdin_drv_probe(struct platform_device *pdev)

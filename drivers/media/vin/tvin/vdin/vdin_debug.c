@@ -3747,6 +3747,8 @@ start_chk:
 				devp->index);
 		/* reset the hardware limit to vertical [0-1079]  */
 		/* WRITE_VCBUS_REG(VPP_PREBLEND_VD1_V_START_END, 0x00000437); */
+	} else if (!strcmp(parm[0], "force_port")) {
+		devp->debug.port = vdin_parse_port(parm[1]);
 	} else if (!strcmp(parm[0], "v4l2stop")) {
 		stop_tvin_service(devp->index);
 		devp->flags &= (~VDIN_FLAG_V4L2_DEBUG);
