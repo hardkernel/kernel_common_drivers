@@ -4208,13 +4208,15 @@ void video_post_process(struct vframe_s *vf,
 				hdr_proc(vf, OSD3_HDR, SDR_HLG, vinfo, NULL, vpp_index);
 			}
 		} else if (hlg_process_mode[vd_path] == PROC_HLG_TO_SDR) {
-			if (gamut_conv_enable)
+			if (gamut_conv_enable &&
+				chip_type_id > chip_t6d)
 				gamut_convert_process(vinfo, source_type,
 					vd_path, &m, 14, DEST_NONE);
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, HLG_SDR,
 					vinfo,
-					gamut_conv_enable ? &m : NULL,
+					(gamut_conv_enable &&
+					chip_type_id > chip_t6d) ? &m : NULL,
 					s5_silce_mode, vpp_index);
 			else
 				hdr_proc(vf, get_hdr_module(vd_path), HLG_SDR,
