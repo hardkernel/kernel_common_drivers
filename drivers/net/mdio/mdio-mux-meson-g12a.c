@@ -488,7 +488,6 @@ int g12a_resume_enable_internal_mdio(void)
 {
 	struct g12a_mdio_mux *priv = dev_get_drvdata(g12a_mdio_dev);
 
-	pr_err("g12a_resume_enable_internal_mdio\n");
 	g12a_ephy_pll_init(__clk_get_hw(priv->pll));
 	g12a_ephy_pll_enable(__clk_get_hw(priv->pll));
 
@@ -657,8 +656,8 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 	priv->ethrmii = devm_clk_get(dev, "ethrmii");
 	if (IS_ERR(priv->ethrmii)) {
 		ret = PTR_ERR(priv->ethrmii);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "wzh failed to get ethrmii clock\n");
+		if (ret == -EPROBE_DEFER)
+			dev_info(dev, "probe will defer due to ethrmii clock\n");
 	} else {
 		ret = clk_prepare_enable(priv->ethrmii);
 		if (ret)
