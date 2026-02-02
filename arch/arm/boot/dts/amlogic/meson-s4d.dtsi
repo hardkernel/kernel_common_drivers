@@ -2155,6 +2155,18 @@
 		interrupt-names = "vsync", "line_n";
 	};
 
+	v2d {
+		compatible = "amlogic, v2d";
+		dev_name = "v2d";
+		status = "okay";
+	};
+
+	videodisplay {
+		compatible = "amlogic, videodisplay";
+		dev_name = "videodisplay";
+		status = "okay";
+	};
+
 	video_composer {
 		compatible = "amlogic, video_composer";
 		dev_name = "video_composer";
