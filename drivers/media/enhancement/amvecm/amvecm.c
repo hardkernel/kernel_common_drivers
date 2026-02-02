@@ -6503,6 +6503,14 @@ static long amvecm_ioctl(struct file *file,
 			force_toggle();
 		}
 		break;
+	case AMVECM_IOC_G_SIGNAL_TYPE:
+		mem_size = get_cur_signal_type();
+		argp = (void __user *)arg;
+		if (copy_to_user(argp, &mem_size, sizeof(unsigned int))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("AMVECM_IOC_G_HDR_ON fail\n");
+		}
+		break;
 #endif
 	default:
 		ret = -EINVAL;

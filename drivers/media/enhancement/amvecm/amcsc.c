@@ -12628,4 +12628,15 @@ void get_gamut_mapping_wrapper(void)
 	pr_info("------gamut mapping1 end------\n");
 }
 
+unsigned int get_cur_signal_type(void)
+{
+	unsigned int ret = 0;
+
+	if (!dpss_mode)
+		ret = cur_signal_type[VD1_PATH];
+	else
+		ret = cur_signal_type_dpss;
+
+	return ret;
+}
 #endif
