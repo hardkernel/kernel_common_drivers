@@ -262,6 +262,9 @@ static void vrr_lcd_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 				(v_max << 0));  //cfg_vrr_max_vnum <= am_spdat[15:0]
 	}
 
+	if (vdrv->data->chip_type == VRR_CHIP_T6W)
+		vrr_reg_write((VENC_VRR_CTRL1 + offset), (1 << 0));
+
 	vdrv->state |= (VRR_STATE_ENCL | VRR_STATE_EN);
 	spin_unlock_irqrestore(&vdrv->vrr_isr_lock, flags);
 
