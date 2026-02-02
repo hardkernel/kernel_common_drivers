@@ -1991,17 +1991,13 @@ static bool check_need_do_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 
 	/*pip check*/
 	if (dev->index > 0) {
-		if (vf->type & VIDTYPE_INTERLACE) {
-			need_do_dpss = true;
-		} else {
+		if (!(vf->type & VIDTYPE_INTERLACE)) {
 			dp_print(dev->index, PRINT_OTHER, "pip dpss only support I source.\n");
 			need_do_dpss = false;
 		}
 	}
 
-	if (vf->duration >= 1600) {
-		need_do_dpss = true;
-	} else if ((vf->duration + 1) < dev->output_duration) {
+	if (vf->duration < 1600 && (vf->duration + 1) < dev->output_duration) {
 		/*input fps more than output fps*/
 		dp_print(dev->index, PRINT_OTHER,
 			"input fps more than output, no need do dpss.\n");
