@@ -59,7 +59,8 @@ struct dvr_ts_clone_parent {
 	int source;
 	int child_num;
 	struct list_head child_head;
-	struct list_head node;
+	/*protect child_head*/
+	struct mutex mutex;
 };
 
 struct ts_clone_task {
@@ -76,8 +77,8 @@ static u8 demod_ts_num;
 static struct demod_ts_clone_parent *demod_ts_info;
 
 /*dvr info*/
-struct mutex dvr_mutex;
-struct list_head dvr_source_head;
+static u8 dvr_ts_num;
+static struct dvr_ts_clone_parent *dvr_ts_info;
 
 static struct ts_clone_task ts_clone_task_tmp;
 static int timer_wake_up;
@@ -250,57 +251,6 @@ static int _ts_clone_remove_input(struct list_head  *head, struct in_elem *input
 	return -1;
 }
 
-/*handle dvr parent node*/
-static void *_ts_clone_find_dvr_source(int source)
-{
-	struct dvr_ts_clone_parent *dvr_parent_node;
-
-	list_for_each_entry(dvr_parent_node, &dvr_source_head, node) {
-		if (dvr_parent_node->source == source)
-			return (void *)dvr_parent_node;
-	}
-	return NULL;
-}
-
-static void *_ts_clone_add_dvr_source(int source)
-{
-	struct dvr_ts_clone_parent *dvr_parent_node;
-
-	dvr_parent_node = kmalloc(sizeof(*dvr_parent_node), GFP_KERNEL);
-	if (!dvr_parent_node) {
-		dprint("%s kmalloc fail\n", __func__);
-		return NULL;
-	}
-
-	memset(dvr_parent_node, 0, sizeof(struct dvr_ts_clone_parent));
-	INIT_LIST_HEAD(&dvr_parent_node->node);
-	INIT_LIST_HEAD(&dvr_parent_node->child_head);
-	dvr_parent_node->source = source;
-
-	list_add_tail(&dvr_parent_node->node, &dvr_source_head);
-	return dvr_parent_node;
-}
-
-static int _ts_clone_remove_dvr_source(void *dvr_node)
-{
-	struct dvr_ts_clone_parent *dvr_parent_node;
-	struct dvr_ts_clone_parent *tmp;
-	struct dvr_ts_clone_parent *dvr_node_tmp = (struct dvr_ts_clone_parent *)dvr_node;
-
-	if (!dvr_node)
-		return -1;
-
-	list_for_each_entry_safe(dvr_parent_node, tmp, &dvr_source_head, node) {
-		if (dvr_parent_node->child_num == 0 &&
-			dvr_parent_node->source == dvr_node_tmp->source) {
-			list_del(&dvr_parent_node->node);
-			kfree(dvr_parent_node);
-			return 0;
-		}
-	}
-	return -1;
-}
-
 static int _ts_clone_demod_connect(int dmx_id, int source, struct in_elem *input)
 {
 	int i = 0;
@@ -367,53 +317,42 @@ static int _ts_clone_demod_disconnect(int source, struct in_elem *input)
 
 static int _ts_clone_dvr_connect(int dmx_id, int source, struct in_elem *input)
 {
-	struct dvr_ts_clone_parent *node;
+	struct dvr_ts_clone_parent *node = &dvr_ts_info[source - DMA_0];
 
-	mutex_lock(&dvr_mutex);
-	node = _ts_clone_find_dvr_source(source);
-	if (node) {
+	mutex_lock(&node->mutex);
+	if (node->child_num) {
 		if (_ts_clone_find_input(&node->child_head, input, 0) == 1) {
-			mutex_unlock(&dvr_mutex);
+			mutex_unlock(&node->mutex);
 			return 0;
 		}
-		if (_ts_clone_add_input(&node->child_head, input, 0, dmx_id, 0) == 0)
-			node->child_num++;
-		mutex_unlock(&dvr_mutex);
-		return 0;
 	}
-	node = _ts_clone_add_dvr_source(source);
-	if (node) {
-		if (_ts_clone_add_input(&node->child_head, input, 0, dmx_id, 0) == 0)
-			node->child_num++;
-		mutex_unlock(&dvr_mutex);
-		return 0;
-	}
-	pr_dbg("%s add dvr source:%d node fail\n", __func__, source);
-	mutex_unlock(&dvr_mutex);
-	return -1;
+
+	if (_ts_clone_add_input(&node->child_head, input, 0, dmx_id, 0) == 0)
+		node->child_num++;
+	mutex_unlock(&node->mutex);
+	return 0;
 }
 
 static int _ts_clone_dvr_disconnect(int source, struct in_elem *input)
 {
-	struct dvr_ts_clone_parent *node;
+	struct dvr_ts_clone_parent *node = &dvr_ts_info[source - DMA_0];
 
-	mutex_lock(&dvr_mutex);
-	node = _ts_clone_find_dvr_source(source);
-	if (node) {
+	mutex_lock(&node->mutex);
+	if (node->child_num) {
 		if (_ts_clone_find_input(&node->child_head, input, 0) == 1)
 			if (_ts_clone_remove_input(&node->child_head, input, 0) == 0)
 				node->child_num--;
 		if (node->child_num == 0)
-			_ts_clone_remove_dvr_source(node);
+			pr_dbg("%s source %d child_num is 0\n", __func__, source);
 	}
-	mutex_unlock(&dvr_mutex);
+	mutex_unlock(&node->mutex);
 	return 0;
 }
 
 static int _ts_clone_dvr_write(int source, char *pdata,
 	char *buf_phys, int count, int mode, int packet_len)
 {
-	struct dvr_ts_clone_parent *node;
+	struct dvr_ts_clone_parent *node = &dvr_ts_info[source - DMA_0];
 	struct dvr_ts_clone_child *child_node;
 	int w_len;
 	int not_write_all_done = 0;
@@ -422,8 +361,8 @@ static int _ts_clone_dvr_write(int source, char *pdata,
 	int use_time;
 
 	pr_dbg("%s source:%d, count:%d\n", __func__, source, count);
-	node = _ts_clone_find_dvr_source(source);
-	if (node && node->child_num) {
+	mutex_lock(&node->mutex);
+	if (node->child_num) {
 		/*writing*/
 		list_for_each_entry(child_node, &node->child_head, node) {
 			w_len = ts_input_non_block_write(child_node->input, pdata,
@@ -465,6 +404,7 @@ static int _ts_clone_dvr_write(int source, char *pdata,
 			}
 		}
 	}
+	mutex_unlock(&node->mutex);
 	return count;
 }
 
@@ -575,9 +515,11 @@ static int _ts_clone_dump_dvr_info(char *buf)
 	struct dvr_ts_clone_child *dvr_input;
 	int child_num = 0;
 	int count = demod_ts_num;
+	int i;
 
-	mutex_lock(&dvr_mutex);
-	list_for_each_entry(dvr_parent_node, &dvr_source_head, node) {
+	for (i = 0; i < dvr_ts_num; i++) {
+		mutex_lock(&dvr_ts_info[i].mutex);
+		dvr_parent_node = &dvr_ts_info[i];
 		if (dvr_parent_node->source >= DMA_0 && dvr_parent_node->source < FRONTEND_TS0)
 			r = sprintf(buf, "%d source: dma%d ",
 					count, (dvr_parent_node->source - DMA_0));
@@ -607,17 +549,17 @@ static int _ts_clone_dump_dvr_info(char *buf)
 			child_num++;
 		}
 		count++;
+		mutex_unlock(&dvr_ts_info[i].mutex);
 	}
-	mutex_unlock(&dvr_mutex);
 	return total;
 }
 
 static int _transfer_source(int org_source, int *source, int *demod_source)
 {
-	if (org_source >= DMA_0 && org_source < FRONTEND_TS0) {
+	if (org_source >= DMA_0 && org_source < (DMA_0 + dvr_ts_num)) {
 		*source = org_source;
 		*demod_source = 0;
-	} else if (org_source >= DMA_0_1 && org_source < FRONTEND_TS0_1) {
+	} else if (org_source >= DMA_0_1 && org_source < (DMA_0_1 + dvr_ts_num)) {
 		*source = org_source - DMA_0_1 + DMA_0;
 		*demod_source = 0;
 	} else if (org_source >= FRONTEND_TS0 && org_source < DMA_0_1) {
@@ -627,7 +569,7 @@ static int _transfer_source(int org_source, int *source, int *demod_source)
 		*source = org_source - FRONTEND_TS0_1 + FRONTEND_TS0;
 		*demod_source = 1;
 	} else {
-		pr_dbg("%s source:%d invalid\n", __func__, org_source);
+		dprint("%s source:%d invalid\n", __func__, org_source);
 		return -1;
 	}
 	return 0;
@@ -689,8 +631,21 @@ int ts_clone_init(void)
 	if (ts_clone_init_flag != 0)
 		return 0;
 
-	INIT_LIST_HEAD(&dvr_source_head);
+	//init dvr info
+	dvr_ts_num = get_dmx_dev_num();
+	dvr_ts_info = kmalloc_array(dvr_ts_num, sizeof(*dvr_ts_info), GFP_KERNEL);
+	if (!dvr_ts_info) {
+		dprint("%s dvr kmalloc fail\n", __func__);
+		return -1;
+	}
+	memset(dvr_ts_info, 0, sizeof(*dvr_ts_info) * dvr_ts_num);
+	for (i = 0; i < dvr_ts_num; i++) {
+		dvr_ts_info[i].source = DMA_0 + i;
+		mutex_init(&dvr_ts_info[i].mutex);
+		INIT_LIST_HEAD(&dvr_ts_info[i].child_head);
+	}
 
+	//init demod info
 	for (i = 0; i < FE_DEV_COUNT; i++) {
 		if (advb->ts[i].ts_sid != -1)
 			demod_ts_num++;
@@ -700,7 +655,7 @@ int ts_clone_init(void)
 		demod_ts_info = kmalloc_array(demod_ts_num,
 			sizeof(*demod_ts_info), GFP_KERNEL);
 		if (!demod_ts_info) {
-			dprint("%s kmalloc fail\n", __func__);
+			dprint("%s demod kmalloc fail\n", __func__);
 			demod_ts_num = 0;
 			return -1;
 		}
@@ -738,7 +693,6 @@ int ts_clone_init(void)
 			dprint("create ts_out_task fail\n");
 	}
 
-	mutex_init(&dvr_mutex);
 	ts_clone_init_flag = 1;
 	return 0;
 }

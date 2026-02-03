@@ -706,6 +706,11 @@ int dmx_get_dev_num(struct platform_device *pdev)
 	return dmxdev;
 }
 
+int get_dmx_dev_num(void)
+{
+	return dmx_dev_num;
+}
+
 int dmx_get_tsn_flag(struct platform_device *pdev, int *tsn_in, int *tsn_out)
 {
 	char buf[32];
