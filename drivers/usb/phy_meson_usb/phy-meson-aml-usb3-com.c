@@ -111,8 +111,10 @@ static bool meson_aml_u3phy_wait_pll_locked(struct aml_usb3_phy *phy)
 	for (plldone_i = 10; plldone_i > 0; plldone_i--) {
 		usleep_range(100, 200);
 		if ((readl(phy->ctrl_reg + PLL_STAT_REG_OFF) & pll_locked_mask)
-			== pll_locked_mask)
+			== pll_locked_mask) {
 			ret = true;
+			break;
+		}
 	}
 
 	if (!ret)
@@ -130,6 +132,10 @@ static bool meson_aml_u3phy_wait_pll_locked(struct aml_usb3_phy *phy)
  */
 static inline void  meson_aml_u3phy_pre_reset(struct aml_usb3_phy *phy)
 {
+	/* PHY PLL HW init needs controller reset deasserted. */
+	meson_aml_u3phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift,
+			BIT(phy->usb3_controller_reset_bit), BIT(phy->usb3_controller_reset_bit));
+
 	meson_aml_u3phy_write_reg32(phy, BIT(phy->usb3_apb_reset_bit),
 			phy->reset_reg + phy->apb_reset_offset);
 	meson_aml_u3phy_write_reg32(phy, BIT(phy->usb3_phy_reset_bit),

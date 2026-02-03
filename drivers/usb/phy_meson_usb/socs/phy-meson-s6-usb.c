@@ -148,11 +148,13 @@ static bool meson_u3phy_s6_wait_pll_locked(struct aml_usb3_phy *phy)
 #define PLL_STAT_REG_OFF	0X154
 
 	pll_locked_mask = BIT(U3P2PLL1_PLL_LOCK_FLAG) | BIT(U3P2PLL0_PLL_DONE);
-	for (plldone_i = 5; plldone_i > 0; plldone_i--) {
+	for (plldone_i = 100; plldone_i > 0; plldone_i--) {
 		usleep_range(100, 200);
 		if ((readl(phy->ctrl_reg + PLL_STAT_REG_OFF) & pll_locked_mask)
-				== pll_locked_mask)
+				== pll_locked_mask) {
 			ret = true;
+			break;
+		}
 	}
 
 	if (!ret)
@@ -173,11 +175,16 @@ static void  meson_u3phy_s6_set_power(struct aml_usb3_phy *phy, bool on)
 		meson_aml_u3phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift,
 				BIT(phy->usb3_apb_reset_bit) | BIT(phy->usb3_phy_reset_bit),
 				BIT(phy->usb3_apb_reset_bit) | BIT(phy->usb3_phy_reset_bit));
+
 		/* The u3phy power is comprised of dynamic part & static part
 		 * and controlled by the reg values. Reset phy to default.
 		 * Make sure reset is done here even if previous step have already
 		 * done it.
 		 */
+		/* PHY PLL HW init needs controller reset deasserted. */
+		meson_aml_u3phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift,
+			BIT(phy->usb3_controller_reset_bit), BIT(phy->usb3_controller_reset_bit));
+
 		meson_aml_u3phy_write_reg32(phy, BIT(phy->usb3_apb_reset_bit), phy->reset_reg);
 		meson_aml_u3phy_write_reg32(phy, BIT(phy->usb3_phy_reset_bit), phy->reset_reg);
 
