@@ -39,6 +39,9 @@ void meson_ir_common_input_set_capability(struct input_dev *input_device)
 		  common_input_data.common_input->relbit, REL_MAX);
 	bitmap_or(common_input_data.common_input->evbit, input_device->evbit,
 		  common_input_data.common_input->evbit, EV_MAX);
+
+	/* just let this input dev be an alpha-capable kbd in android */
+	input_set_capability(common_input_data.common_input, EV_KEY, KEY_Q);
 }
 
 int meson_ir_common_input_init(void)
