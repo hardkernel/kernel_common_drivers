@@ -9488,8 +9488,11 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	fake_frame_flag[vd_path] = 0;
 	if (dpss_mode &&
 		vd_path == VD1_PATH) {
-		if (cur_signal_type[VD1_PATH] != 0xffffffff)
+		if (cur_signal_type[VD1_PATH] != 0xffffffff) {
 			cur_signal_type[VD1_PATH] = 0xffffffff;
+			dbg_vf[vd_path] = NULL;
+			last_vf[vd_path] = NULL;
+		}
 		if (vf)
 			pr_csc(1, "vf(%p) index=%d, frame_index=%d, dpss_flg=0x%x\n",
 				vf, vf->index, vf->frame_index, vf->dpss_flg);

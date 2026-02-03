@@ -14696,6 +14696,11 @@ static ssize_t amvecm_reg_store(const struct class *cla,
 	if (!buf_orig)
 		return -ENOMEM;
 	parse_param_amvecm(buf_orig, (char **)&parm);
+	if (!parm[1]) {
+		pr_info("unsupport cmd, parm[1] == NULL!\n");
+		kfree(buf_orig);
+		return -EINVAL;
+	}
 	if (!strcmp(parm[0], "rv")) {
 		if (kstrtoul(parm[1], 16, &val) < 0) {
 			kfree(buf_orig);
@@ -14726,6 +14731,11 @@ static ssize_t amvecm_reg_store(const struct class *cla,
 			return -EINVAL;
 		}
 		reg_addr = val;
+		if (!parm[2]) {
+			pr_info("unsupport cmd,parm[2] == NULL!\n");
+			kfree(buf_orig);
+			return -EINVAL;
+		}
 		if (kstrtoul(parm[2], 16, &val) < 0) {
 			kfree(buf_orig);
 			return -EINVAL;
@@ -14738,6 +14748,11 @@ static ssize_t amvecm_reg_store(const struct class *cla,
 			return -EINVAL;
 		}
 		reg_addr = val;
+		if (!parm[2]) {
+			pr_info("unsupport cmd,parm[2] == NULL!\n");
+			kfree(buf_orig);
+			return -EINVAL;
+		}
 		if (kstrtoul(parm[2], 16, &val) < 0) {
 			kfree(buf_orig);
 			return -EINVAL;
@@ -14750,6 +14765,11 @@ static ssize_t amvecm_reg_store(const struct class *cla,
 			return -EINVAL;
 		}
 		reg_addr = val;
+		if (!parm[2]) {
+			pr_info("unsupport cmd,parm[2] == NULL!\n");
+			kfree(buf_orig);
+			return -EINVAL;
+		}
 		if (kstrtoul(parm[2], 16, &val) < 0) {
 			kfree(buf_orig);
 			return -EINVAL;
