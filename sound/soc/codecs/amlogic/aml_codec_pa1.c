@@ -158,6 +158,17 @@ static int pa1_mixer_aed_write(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int pa1_chip_addr_aed_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct pa1_acodec_priv *pa1_acodec = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.enumerated.item[0] =
+			pa1_acodec->pdata->addr;
+	return 0;
+}
+
 static int pa1_mixer_aed_get_mute(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -333,13 +344,13 @@ void pa1_aed_set_volume(struct snd_soc_component *component, unsigned int master
 			(rch_vol << 0)		/* channel 1 volume: 0dB */
 	);
 	snd_soc_component_write(component, PA1_AED_EQ_VOLUME_STEP_CNT,
-			(0x2 << 30) |
+			(0x0 << 30) |
 	/*volume step: 0x03:0.5dB, 0x02:0.5dB, 0x01:0.25dB, 0x00:0.125dB*/
-			(0x2 << 28) |
+			(0x0 << 28) |
 	/*volume master step: 0x03:0.5dB, 0x02:0.5dB, 0x01:0.25dB, 0x00:0.125dB*/
-			(0x1 << 12) |
+			(0x2 << 12) |
 	/*40ms from -120dB~0dB*/
-			(0x1 << 0)
+			(0x2 << 0)
 	);
 	pa1_acodec_mute(component, 0);
 }
@@ -1060,19 +1071,19 @@ static int pa1_mixer_pdn_reset_pin(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new pa1_acodec_vol_control[] = {
-	SOC_SINGLE_EXT("PA1 I2C Top Read",
+	SOC_SINGLE_EXT("PA1 AED I2C Top Read",
 		0, 0, 0xfffffff, 0,
 		pa1_mixer_i2c_top_read, pa1_mixer_i2c_top_reg_write),
 
-	SOC_SINGLE_EXT("PA1 I2C Top Write",
+	SOC_SINGLE_EXT("PA1 AED I2C Top Write",
 		0, 0, 0xfffffff, 0,
 		pa1_mixer_i2c_top_read, pa1_mixer_i2c_top_val_write),
 
-	SOC_SINGLE_EXT("PA1 I2C DSP Read",
+	SOC_SINGLE_EXT("PA1 AED I2C DSP Read",
 		0, 0, 0xfffffff, 0,
 		pa1_mixer_i2c_dsp_read, pa1_mixer_i2c_dsp_reg_write),
 
-	SOC_SINGLE_EXT("PA1 I2C DSP Write",
+	SOC_SINGLE_EXT("PA1 AED I2C DSP Write",
 		0, 0, 0xfffffff, 0,
 		pa1_mixer_i2c_dsp_read, pa1_mixer_i2c_dsp_val_write),
 
@@ -1203,6 +1214,10 @@ static const struct snd_kcontrol_new pa1_acodec_vol_control[] = {
 	SOC_SINGLE_EXT("PA1 AED Level Meter RMS Parameters",
 			PA1_LEVEL_METER_RAM_ADD, 0, 0xfffffff, 0,
 			pa1_mixer_get_gain, pa1_mixer_set_level_meter_coeff),
+
+	SOC_SINGLE_EXT("PA1 AED I2C Top Addr",
+				0, 0, 0xff, 0,
+				pa1_chip_addr_aed_get, NULL),
 };
 
 static int pa1_acodec_set_bias_level(struct snd_soc_component *component,
@@ -1510,6 +1525,7 @@ static int pa1_acodec_i2c_probe(struct i2c_client *i2c)
 	}
 	pa1_acodec->pdata = pdata;
 
+	pa1_acodec->pdata->addr = i2c->addr;
 	pa1_acodec_parse_dt(pa1_acodec, i2c->dev.of_node);
 	pa1_acodec->regmap = regmap;
 

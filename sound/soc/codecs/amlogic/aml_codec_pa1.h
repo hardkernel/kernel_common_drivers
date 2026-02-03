@@ -382,6 +382,7 @@ static const int ana_reg_read[] = {
 
 struct pa1_acodec_platform_data {
 	int reset_pin;
+	unsigned short addr;
 };
 
 #endif
