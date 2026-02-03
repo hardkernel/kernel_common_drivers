@@ -5672,6 +5672,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case TVIN_IOC_G_BUF_INFO: {
+		if (!devp || !devp->vfp) {
+			ret = -EFAULT;
+			break;
+		}
 		struct tvin_buf_info_s buf_info;
 
 		memset(&buf_info, 0, sizeof(buf_info));
@@ -5686,6 +5690,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case TVIN_IOC_START_GET_BUF:
+		if (!devp || !devp->vfp) {
+			ret = -EFAULT;
+			break;
+		}
 		devp->vfp->wr_next = devp->vfp->wr_list.next;
 		break;
 	case TVIN_IOC_GET_BUF: {

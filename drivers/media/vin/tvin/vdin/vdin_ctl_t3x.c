@@ -2382,7 +2382,7 @@ bool vdin_write_done_check_t3x(struct vdin_dev_s *devp)
 
 	vdin_clr_write_done_t3x(devp);
 
-	if (vdin_dv_is_hw5(devp) && devp->h_active >= 3840 && devp->h_active >= 2160 &&
+	if (vdin_dv_is_hw5(devp) && devp->h_active >= 3840 && devp->v_active >= 2160 &&
 		devp->parm.info.fps >= 144) {
 		if (devp->debug.vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
 			pr_info("%s vdin%d irq:%d,ret=%d,force done!\n",

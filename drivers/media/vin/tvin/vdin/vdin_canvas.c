@@ -1160,7 +1160,10 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		int highmem_flag = 0;
 		unsigned long *table;
 		//void *buf_table = NULL;
-		table = &devp->afbce_info->fm_table_paddr[0];
+		if (devp->afbce_info)
+			table = &devp->afbce_info->fm_table_paddr[0];
+		else
+			return 1;
 		highmem_flag = PageHighMem(phys_to_page(table[0]));
 		if (highmem_flag == 0) {
 			/*low mem area*/
