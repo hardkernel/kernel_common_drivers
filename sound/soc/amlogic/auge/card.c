@@ -1534,10 +1534,10 @@ static int panic_notifier_to_audio(struct notifier_block *self,
 
 	/*note: spk dts is mute flag*/
 	if (!IS_ERR_OR_NULL(priv->spk_mute))
-		gpiod_direction_output(priv->spk_mute, GPIOF_OUT_INIT_HIGH);
+		gpiod_set_value(priv->spk_mute, 1);
 	if (!IS_ERR_OR_NULL(priv->avout_mute_desc))
-		gpiod_direction_output(priv->avout_mute_desc,
-			GPIOF_OUT_INIT_LOW);
+		gpiod_set_value(priv->avout_mute_desc,
+			0);
 
 	return NOTIFY_DONE;
 }
