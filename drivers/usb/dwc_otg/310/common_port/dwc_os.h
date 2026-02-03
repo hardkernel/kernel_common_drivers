@@ -274,7 +274,7 @@ extern void __DWC_DEBUG(char *format, ...)
 /**
  * Prints out an informative message.
  */
-#define DWC_INFO(_format, _args...) DWC_PRINTF("INFO:%s: " _format "\n", \
+#define DWC_INFO(_format, _args...) DWC_PRINTF(KERN_INFO "INFO:%s: " _format "\n", \
 					       dwc_irq(), ## _args)
 #define dwc_info DWC_INFO
 /**

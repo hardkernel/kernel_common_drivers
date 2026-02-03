@@ -1221,11 +1221,11 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 				phy_otg = of_read_ulong(prop, 1);
 
 			dwc_otg_module_params.host_rx_fifo_size = dwc_otg_module_params.data_fifo_size / 2;
-			DWC_PRINTF("dwc_otg: %s: type: %d speed: %d, ",
+			DWC_INFO("dwc_otg: %s: type: %d speed: %d, ",
 				s_clock_name, port_type, port_speed);
-			DWC_PRINTF("config: %d, dma: %d, id: %d, ",
+			DWC_INFO("config: %d, dma: %d, id: %d, ",
 				port_config, dma_config, id_mode);
-			DWC_PRINTF("phy: %x, ctrl: %x\n",
+			DWC_INFO("phy: %x, ctrl: %x\n",
 				p_phy_reg_addr, p_ctrl_reg_addr);
 
 
@@ -1518,7 +1518,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 		/*
 		* Initialize the PCD
 		*/
-		DWC_PRINTF("dwc_otg: Working on port type = SLAVE\n");
+		DWC_INFO("dwc_otg: Working on port type = SLAVE\n");
 		if (!dwc_otg_is_device_mode(dwc_otg_device->core_if)) {
 			DWC_ERROR
 			    ("Chip mode not match! -- Want Device mode but not.  --\n");

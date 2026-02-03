@@ -272,7 +272,7 @@ dwc_otg_core_if_t *dwc_otg_cil_init(const uint32_t *reg_base_addr, int host_only
 
 	core_if->snpsid = DWC_READ_REG32(&core_if->core_global_regs->gsnpsid);
 
-	DWC_PRINTF("dwc_otg: Core Release: %x.%x%x%x\n",
+	DWC_INFO("dwc_otg: Core Release: %x.%x%x%x\n",
 		   (core_if->snpsid >> 12 & 0xF),
 		   (core_if->snpsid >> 8 & 0xF),
 		   (core_if->snpsid >> 4 & 0xF), (core_if->snpsid & 0xF));
@@ -1406,7 +1406,7 @@ void dwc_otg_core_init(dwc_otg_core_if_t *core_if)
 		if (core_if->dma_desc_enable)
 			DWC_PRINTF("dwc_otg: Using Descriptor DMA mode\n");
 		else
-			DWC_PRINTF("dwc_otg: Using Buffer DMA mode\n");
+			DWC_INFO("dwc_otg: Using Buffer DMA mode\n");
 	} else {
 		DWC_PRINTF("dwc_otg: Using Slave mode\n");
 		core_if->dma_desc_enable = 0;
@@ -1514,7 +1514,7 @@ void dwc_otg_core_init(dwc_otg_core_if_t *core_if)
 				 gotgctl.d32);
 		/* Set OTG version supported */
 		core_if->otg_ver = core_if->core_params->otg_ver;
-		DWC_PRINTF("dwc_otg: OTG VER PARAM: %d, OTG VER FLAG: %d\n",
+		DWC_INFO("dwc_otg: OTG VER PARAM: %d, OTG VER FLAG: %d\n",
 			   core_if->core_params->otg_ver, core_if->otg_ver);
 	}
 
@@ -5385,7 +5385,7 @@ static int dwc_otg_setup_params(dwc_otg_core_if_t *core_if)
 	dwc_otg_set_uninitialized((int32_t *) core_if->core_params,
 				  sizeof(*core_if->core_params) /
 				  sizeof(int32_t));
-	DWC_PRINTF("dwc_otg: Setting default values for core params\n");
+	DWC_INFO("dwc_otg: Setting default values for core params\n");
 	dwc_otg_set_param_otg_cap(core_if, dwc_param_otg_cap_default);
 	dwc_otg_set_param_dma_enable(core_if, dwc_param_dma_enable_default);
 	dwc_otg_set_param_dma_desc_enable(core_if,
@@ -5431,7 +5431,7 @@ static int dwc_otg_setup_params(dwc_otg_core_if_t *core_if)
 	dwc_otg_set_param_ulpi_fs_ls(core_if, dwc_param_ulpi_fs_ls_default);
 	dwc_otg_set_param_en_multiple_tx_fifo(core_if,
 					      dwc_param_en_multiple_tx_fifo_default);
-	DWC_PRINTF("dwc_otg: curmode: %d, host_only: %d\n", gintsts.b.curmode,
+	DWC_INFO("dwc_otg: curmode: %d, host_only: %d\n", gintsts.b.curmode,
 		core_if->host_only);
 	if (gintsts.b.curmode) {
 		if (!core_if->host_only) {

@@ -1003,7 +1003,7 @@ int meson_aml_u2phy_parse(struct device *dev, struct meson_uphy_instance *instan
 	/* Legacy phy only */
 	ret = of_property_read_reg(dev->of_node, addr_i++, &addr, &size);
 	if (ret) {
-		dev_err(dev, "failed to get address resource %d (id-%d)\n",
+		dev_info(dev, "failed to get address resource %d (id-%d)\n",
 			addr_i, aml_u2phy->phy_id);
 	} else {
 		aml_u2phy->usb_aml_regs = devm_ioremap(dev, (resource_size_t)addr,
