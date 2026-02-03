@@ -49,6 +49,8 @@ static unsigned int copy_core1a_to_core1b;
 
 static unsigned int htotal_add = 0x140;
 unsigned int vtotal_add = 0x40;
+static unsigned int htotal = 0x230;
+static unsigned int vtotal = 0x5a;
 static unsigned int vsize_add;
 static unsigned int vwidth = 0x8;
 static unsigned int hwidth = 0x8;
@@ -1133,7 +1135,7 @@ static int dv_core1_set(u32 dm_count,
 	VSYNC_WR_DV_REG(AMDV_CORE1A_CLKGATE_CTRL, 0);
 	/* VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL0, 0); */
 	VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL1,
-		((hsize + 0x80) << 16) | (vsize + 0x40));
+		((hsize + htotal) << 16) | (vsize + vtotal));
 	VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL3, (hwidth << 16) | vwidth);
 	VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL4, (hpotch << 16) | vpotch);
 	VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL2, (hsize << 16) | vsize);
@@ -1701,7 +1703,7 @@ static int dv_core1a_set(u32 dm_count,
 	VSYNC_WR_DV_REG(AMDV_CORE1A_CLKGATE_CTRL, 0);
 	/* VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL0, 0); */
 	VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL1,
-		((hsize + 0x80) << 16) | (vsize + 0x40));
+		((hsize + htotal) << 16) | (vsize + vtotal));
 	VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL3, (hwidth << 16) | vwidth);
 	VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL4, (hpotch << 16) | vpotch);
 	VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL2, (hsize << 16) | vsize);
@@ -1728,7 +1730,7 @@ static int dv_core1a_set(u32 dm_count,
 		VSYNC_WR_DV_REG(AMDV_CORE1B_CLKGATE_CTRL, 0);
 		/* VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL0, 0); */
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL1,
-			((hsize_2 + 0x80) << 16) | (vsize_2 + 0x40));
+			((hsize_2 + htotal) << 16) | (vsize_2 + vtotal));
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL3,
 			(hwidth << 16) | vwidth);
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL4,
@@ -1746,7 +1748,7 @@ static int dv_core1a_set(u32 dm_count,
 		VSYNC_WR_DV_REG(AMDV_CORE1C_CLKGATE_CTRL, 0);
 		/* VSYNC_WR_DV_REG(AMDV_CORE1C_SWAP_CTRL0, 0); */
 		VSYNC_WR_DV_REG(AMDV_CORE1C_SWAP_CTRL1,
-				((hsize + 0x80) << 16) | (vsize + 0x40));
+				((hsize + htotal) << 16) | (vsize + vtotal));
 		VSYNC_WR_DV_REG(AMDV_CORE1C_SWAP_CTRL3,
 				(hwidth << 16) | vwidth);
 		VSYNC_WR_DV_REG(AMDV_CORE1C_SWAP_CTRL4,
@@ -2284,7 +2286,7 @@ static int dv_core1b_set(u32 dm_count,
 	VSYNC_WR_DV_REG(AMDV_CORE1B_CLKGATE_CTRL, 0);
 	/* VSYNC_WR_DV_REG(AMDV_CORE1_SWAP_CTRL0, 0); */
 	VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL1,
-		((hsize + 0x80) << 16) | (vsize + 0x40));
+		((hsize + htotal) << 16) | (vsize + vtotal));
 	VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL3,
 		(hwidth << 16) | vwidth);
 	VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL4,
