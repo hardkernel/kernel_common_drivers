@@ -2008,6 +2008,7 @@ static const struct freq_ref_s freq_ref[] = {
 	{0,	0,	0,	2560,	1600,	HDMI_2560_1600},
 	{0,	0,	0,	3840,	600,	HDMI_3840_600},
 	{0, 0,	0,	2688,	1520,	HDMI_2688_1520},
+	{0, 0,	0,	2048,	1080,	HDMI_2048_1080},
 	/* 4k2k and 4k2k dsc mode*/
 	{0,	0,	0,	3840,	2160,	HDMI_2160p24_16x9},
 	/* 8k and 8k dsc mode */
@@ -2481,6 +2482,9 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(u8 port)
 		break;
 	case HDMI_2688_1520:
 		fmt = TVIN_SIG_FMT_HDMI_2688X1520_00HZ;
+		break;
+	case HDMI_2048_1080:
+		fmt = TVIN_SIG_FMT_HDMI_2048_1080;
 		break;
 	case HDMI_2160p24_16x9:
 	case HDMI_2160p25_16x9:

@@ -285,6 +285,8 @@ const char *tvin_sig_fmt_str(enum tvin_sig_fmt_e fmt)
 		return "TVIN_SIG_FMT_HDMI_360X480P";
 	case TVIN_SIG_FMT_HDMI_360X576P:
 		return "TVIN_SIG_FMT_HDMI_360X576P";
+	case TVIN_SIG_FMT_HDMI_2048_1080:
+		return "TVIN_SIG_FMT_HDMI_2048X1080P";
 	case TVIN_SIG_FMT_MAX:
 		return "TVIN_SIG_FMT_MAX";
 	default:
@@ -1005,6 +1007,12 @@ const struct tvin_format_s tvin_hdmi_fmt_tbl[TVIN_SIG_FMT_HDMI_MAX -
 	},
 	{/* TVIN_SIG_FMT_HDMI_2560X2160_60HZ, */
 	2560, 2160, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0,
+	0, TVIN_SYNC_POL_POSITIVE, TVIN_SYNC_POL_POSITIVE,
+	TVIN_SCAN_MODE_PROGRESSIVE, 5400, 0, 0, 1920
+	},
+	{/* TVIN_SIG_FMT_HDMI_2560X2160_60HZ, */
+	2048, 1080, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0,
 	0, TVIN_SYNC_POL_POSITIVE, TVIN_SYNC_POL_POSITIVE,
 	TVIN_SCAN_MODE_PROGRESSIVE, 5400, 0, 0, 1920
