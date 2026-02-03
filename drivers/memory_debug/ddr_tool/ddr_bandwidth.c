@@ -1382,14 +1382,14 @@ ssize_t priority_write(struct file *filp, struct kobject *kobj,
 	char rw = 0;
 	int ret = 0;
 
-	if (aml_db->priority->ver == 2) {
-		set_priority_display(buf);
-		return count;
-	}
-
 	if (!aml_db->priority) {
 		pr_info("Current soc not support ddr priority\n");
 		return -EINVAL;
+	}
+
+	if (aml_db->priority->ver == 2) {
+		set_priority_display(buf);
+		return count;
 	}
 
 	if (!strncmp(buf, "debug", 5)) {

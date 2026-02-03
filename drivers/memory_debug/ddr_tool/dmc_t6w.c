@@ -122,8 +122,8 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 
 static void t6w_recheck_violation(void *data)
 {
-	unsigned int i, count = 0, same = 0, invalid = 0, reg0, reg1, port, subport;
-	unsigned long addr;
+	unsigned int i, count = 0, same = 0, invalid = 0, port, subport;
+	unsigned long addr, reg0, reg1;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 	void *io = mon_comm->io_mem;
 	unsigned long long t;

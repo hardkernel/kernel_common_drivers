@@ -542,7 +542,7 @@ static noinline void show_fault_stack(unsigned long addr, struct pt_regs *regs)
 
 static void check_sp_fault_again(struct pt_regs *regs)
 {
-	unsigned long sp = 0, addr;
+	unsigned long sp = 0, addr = 0;
 	struct page *page;
 	int cache = 0;
 	int retries = 5000;

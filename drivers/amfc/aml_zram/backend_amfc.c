@@ -45,6 +45,7 @@ static int amfc_create(struct zcomp_params *params, struct zcomp_ctx *ctx)
 	zctx->tfm = crypto_alloc_comp("amfc", 0, 0);
 	if (IS_ERR_OR_NULL(zctx->tfm)) {
 		pr_err("creat amfc crypto failed\n");
+		kfree(zctx);
 		return -ENODEV;
 	}
 	ctx->context = zctx;
