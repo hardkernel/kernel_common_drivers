@@ -9,6 +9,26 @@
 #include <linux/amlogic/media/vout/meson_tx_connector/meson_tx_hw.h>
 #include <linux/amlogic/media/vout/meson_tx_connector/dptx_common/dptx_common.h>
 
+#define MAX_FIFO_SIZE      600
+//todo size define
+/* rxinfo: 2, seq_num_v: 3, v: 16, receiver id list: 5*device_count */
+/* device_count max is 31 */
+#define RCVID_LIST_SIZE    176
+#define STREAM_READY_SIZE  42
+#define AKESENDCERT_FIFO   533
+#define H_PRIME_SIZE       32
+#define EKHKM_SIZE         16
+#define LPRIME_SIZE        32
+
+// 0: HW 0   AUX 0   OK
+// 1: HW 1   AUX 0
+// 2: HW 0   AUX 1
+// 3: HW 1   AUX 1   OK
+#define TYPE_TEST_PATTERN 3
+
+/* RXCAP */
+#define RXCAP_REPEATER		BIT(0)
+
 struct dptx_timer_manager {
 	u32 timers_num;
 	struct dptx_timer_handler *handlers;
@@ -17,8 +37,44 @@ struct dptx_timer_manager {
 struct dptx_aux;
 struct dptx_aux_msg;
 
+struct dptx_hdcp {
+	/* dptx hdcp hw releate */
+	/* 8051 send fifo */
+	u8 snd_fifo[MAX_FIFO_SIZE];
+	u32 snd_fifo_len;
+
+	/* dptx hdcp spec releate */
+	u8 rxstatus;
+	/*
+	 * bit[23:16] version
+	 * bit[1]     hdcp_capable
+	 * bit[0]     repeater
+	 */
+	u32 rxcap;
+	/*
+	 * bit[23:16] version, must set to 0x2
+	 * bit[15:0]  reserved as 0
+	 */
+	u32 txcap;
+
+	u8 receiverid_list[RCVID_LIST_SIZE];
+	u8 stream_ready[STREAM_READY_SIZE];
+	u8 akesendcert_fifo[AKESENDCERT_FIFO];
+	u8 h_prime_fifo[H_PRIME_SIZE];
+	u8 ekhkm_fifo[EKHKM_SIZE];
+	u8 lprime_fifo[LPRIME_SIZE];
+
+	/* for irq */
+	struct completion sndfifo_completion;
+	struct completion pairing_available_completion;
+	struct completion havailable_completion;
+	struct completion ready_completion;
+};
+
 struct dptx_hw_common {
 	struct meson_tx_hw hw_base;
+	/* for debug hdcp */
+	struct work_struct work_dptxhdcp;
 
 	/* irq id of dptx */
 	u32 dptx_irq_id;
@@ -59,6 +115,9 @@ struct dptx_hw_common {
 	u8 force_tps_pattern;
 	/* DP1.4 chapter2.2.3 stream clk and link symbol clk share the same reference clk */
 	bool vid_clk_sync_mode;
+
+	/* dptx hdcp */
+	struct dptx_hdcp *dp_hdcp;
 };
 
 #define to_dptx_hw_common(x)	container_of(x, struct dptx_hw_common, hw_base)

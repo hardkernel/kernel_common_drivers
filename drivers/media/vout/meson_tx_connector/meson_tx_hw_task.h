@@ -16,6 +16,7 @@ enum task_type {
 	RXSENSE_TASK,
 	HDR_TASK,
 	HDR_UNMUTE,
+	IRQ_SENDFIFO_TASK,
 	MAX_TASK,
 };
 

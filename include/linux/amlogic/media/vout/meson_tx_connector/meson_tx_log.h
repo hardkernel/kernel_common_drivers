@@ -8,6 +8,8 @@
 
 #define TX_NAME "meson_tx"
 
+struct va_format;
+
 enum tx_debug_category {
 	CORE_LOG = 0x01,
 	VIDEO_LOG = 0x02,

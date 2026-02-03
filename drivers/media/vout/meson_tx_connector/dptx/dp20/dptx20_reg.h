@@ -262,6 +262,7 @@
  *    0 HPD_EVENT: A 1 indicates that an HPD connect or disconnect event has been detected.
  */
 #define DPTX20_INTERRUPT_STATE                 0x130
+#define INTERRUPT_STATE_SENDFIFO                    BIT(21)
 #define INTERRUPT_STATE_LPM_TIMER_EVENT             BIT(15)
 #define INTERRUPT_STATE_SRC3_ERR_EVENT              BIT(14)
 #define INTERRUPT_STATE_SRC3_OVF_EVENT              BIT(13)
@@ -353,6 +354,7 @@
  *
  * At power up, this register has a value of 0x3F. That is, all interrupt sources are masked.
  */
+ #define INTERRUPT_MASK_SENDFIFO_EVENT               BIT(21)
  #define INTERRUPT_MASK_SRC3_ERR_EVENT               BIT(14)
  #define INTERRUPT_MASK_SRC3_OVF_EVENT               BIT(13)
  #define INTERRUPT_MASK_SRC2_ERR_EVENT               BIT(12)
@@ -653,6 +655,22 @@
  * 31:0 Set each bit to a 1 for content type 1 or a 0 for content type 0.
  */
 #define DPTX20_HDCP_CONTENT_TYPE_SELECT_63_32  0x49c
+
+#define DPTX20_HDCP_BINFO                      0x4a0
+#define DPTX20_HDCP_SHA_START                  0x4a4
+#define DPTX20_HDCP_KSV_FIFO                   0x4a8
+#define DPTX20_HDCP_SHA_STATUS                 0x4ac
+#define DPTX20_HDCP_RPT_VH0                    0x4b0
+#define DPTX20_HDCP_RPT_VH2                    0x4b8
+#define DPTX20_HDCP_RPT_VH1                    0x4b4
+#define DPTX20_HDCP_RPT_VH3                    0x4bc
+#define DPTX20_HDCP_RPT_VH4                    0x4d0
+#define DPTX20_HDCP2_SND_FIFO                  0x4e0
+#define DPTX20_HDCP2_RCV_FIFO                  0x4e4
+#define DPTX20_HDCP2_HPD_CFG                   0x4e8
+#define DPTX20_HDCP2_CFG                       0x4ec
+#define DPTX20_HDCP2_FIFO_STATUS               0x4f0
+#define DPTX20_HDCP2_TYPE_SET                  0x4f4
 
 /* RW   MST_ENABLE
  *    0 Writing a 1 to this bit enables the MST function.

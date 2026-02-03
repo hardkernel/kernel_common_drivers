@@ -22,6 +22,7 @@
 #include "dptx_log.h"
 #include "dptx_internal.h"
 #include "dptx_hw_opcode.h"
+#include "dp20/dptx_hdcp_hw.h"
 
 #define DEVICE_NAME "dptx"
 #define DPTX_DEV_COUNT 4
@@ -267,6 +268,15 @@ static struct meson_tx_clk *meson_tx_probe_clk(struct device *dev)
 	return tx_clk;
 }
 
+//todo for hdcp test
+static void start_hdcp_work_func(struct work_struct *work)
+{
+	struct dptx_hw_common *tx_comm =
+		container_of(work, struct dptx_hw_common, work_dptxhdcp);
+
+	dptx_hdcp22_proc(tx_comm);
+}
+
 static int dptx_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -309,6 +319,8 @@ static int dptx_probe(struct platform_device *pdev)
 	tx_clk = meson_tx_probe_clk(device);
 	meson_tx_hw_setup_clk(tx_hw, tx_clk);
 
+	//todo for hdcp test
+	INIT_WORK(&tx_comm->hw_comm->work_dptxhdcp, start_hdcp_work_func);
 	dev_set_drvdata(device, tx_comm);
 
 	component_add(device, &dptx_bind_ops);

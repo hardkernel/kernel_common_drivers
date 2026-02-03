@@ -26,6 +26,7 @@
 #include "dptx_infoframe.h"
 #include "dptx_hw_timer.h"
 #include "dptx_hw_gtc.h"
+#include "dptx_hdcp_hw.h"
 
 /*
  * Function: dptx20_hw_calc_mst_reg
@@ -274,6 +275,19 @@ static void dptx_timer_irq_process(void *para)
 	}
 }
 
+/* sendfifo_irq interrupt bottom handler */
+static void dptx_irq_sendfifo_process(void *para)
+{
+	struct dptx_hw_common *hw_comm = (struct dptx_hw_common *)para;
+
+	if (!hw_comm) {
+		DPTX_ERROR("%s NULL hw_comm pointer\n", __func__);
+		return;
+	}
+
+	dptx_hdcp2_sndfifo_intr_handler(hw_comm);
+}
+
 static struct tx_task_info dptx20_task_infos[] = {
 	{
 		.name = "timer_irq_task",
@@ -285,6 +299,16 @@ static struct tx_task_info dptx20_task_infos[] = {
 		.queue_name = "timer_irq",
 		.queue_flag = WQ_HIGHPRI | WQ_CPU_INTENSIVE,
 	},
+	{
+		.name = "irq_sendfifo_task",
+		.fn = dptx_irq_sendfifo_process,
+		.type = IRQ_SENDFIFO_TASK,
+		.queue_type = TASK_QUEUE_SENDFIFO,
+		.flag = TASK_FLAG_DELAY_WORK,
+		.init_queue_name = "irq_snedfifo",
+		.queue_name = "irq_snedfifo",
+		.queue_flag = WQ_HIGHPRI | WQ_CPU_INTENSIVE,
+	}
 };
 
 /* task init for dptx20 */
@@ -367,6 +391,12 @@ static irqreturn_t dptx_intr_handler(int irq, void *para)
 	if (tx20_hw->intr_state & INTERRUPT_STATE_HPD_IRQ) {
 		tx20_hw->intr_state &= ~INTERRUPT_STATE_HPD_IRQ;
 		event_ops->queue_event(event_ops->data, IRQ_HPD_TASK, 0);
+	}
+
+	/* 8051 sndfifo irq */
+	if (tx20_hw->intr_state & INTERRUPT_STATE_SENDFIFO) {
+		tx20_hw->intr_state &= ~INTERRUPT_STATE_SENDFIFO;
+		tx_task_mgr_queue_task(tx20_hw->task_mgr, IRQ_SENDFIFO_TASK, 0);
 	}
 
 	if (tx20_hw->intr_state & (INTERRUPT_STATE_SRC0_OVF_EVENT | INTERRUPT_STATE_SRC0_ERR_EVENT))
@@ -798,13 +828,14 @@ void dptx_hw_core_init(struct dptx_hw_common *hw_comm)
  * Initialize DisplayPort transmitter interrupts.
  *
  * #2.1.4
+ *
+ * write 0 enable interrupt; write 1 disable interrupt
+ * here write 1 will disable the interrupt; other bits will enable interrupt
  */
 static void dptx_hw_intr_init(struct dptx_hw_common *hw_comm)
 {
 	struct dptx20_hw *tx20_hw = NULL;
-	u32 intr_mask = INTERRUPT_MASK_HPD_IRQ_EVENT |
-		INTERRUPT_MASK_HPD_EVENT |
-		INTERRUPT_MASK_SRC0_OVF_EVENT |
+	u32 intr_mask = INTERRUPT_MASK_SRC0_OVF_EVENT |
 		INTERRUPT_MASK_SRC0_ERR_EVENT |
 		INTERRUPT_MASK_SRC1_OVF_EVENT |
 		INTERRUPT_MASK_SRC1_ERR_EVENT |
@@ -1985,7 +2016,9 @@ static int dptx20_enable_mode(struct dptx_hw_common *hw_comm, struct meson_tx_fo
 static int dptx20_post_enable_mode(struct dptx_hw_common *tx_comm)
 {
 	DPTX_INFO("%s TODO for hdcp auth\n", __func__);
-
+	//todo for enable hdcp
+	//dptx_hdcp22_proc(tx_comm);
+	schedule_work(&tx_comm->work_dptxhdcp);
 	return 0;
 }
 

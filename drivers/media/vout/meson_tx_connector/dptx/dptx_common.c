@@ -347,6 +347,7 @@ static void dptx_irq_hpd_process(void *para)
 	/* 02002h~0200fh */
 	u8 dprx_esi_buf[14] = {0};
 	u8 sink_count = 0;
+	u8 rxstatus = 0;
 
 	if (!tx_comm) {
 		DPTX_ERROR("%s NULL tx_comm pointer\n", __func__);
@@ -378,6 +379,59 @@ static void dptx_irq_hpd_process(void *para)
 	if (ret < 0) {
 		DPTX_ERROR("%s DPRX Event Status Indicator read ret:%d\n", __func__, ret);
 		return;
+	}
+
+	/* cp_irq */
+	if (link_sink_status_buf[1] & DP_CP_IRQ) {
+		ret = dptx_aux_read_dpcd(tx_comm->tx_aux, DP_HDCP_2_2_REG_RXSTATUS_OFFSET,
+					 &rxstatus, sizeof(rxstatus));
+		if (ret < 0) {
+			DPTX_ERROR("%s rxstatus read ret:%d\n", __func__, ret);
+			return;
+		}
+		tx_comm->hw_comm->dp_hdcp->rxstatus = rxstatus;
+
+		/*
+		 * When set to one, indicates that loss of cipher synchronization was detected at
+		 * the HDCP Receiver during a link integrity check. This value must be reset by
+		 * the HDCP Receiver on every new authentication request by the HDCP Transmitter
+		 * as indicated by a write of the AKE_Init message.
+		 */
+		if (rxstatus & DP_RXSTATUS_LINK_INTEGRITY_FAILURE) {
+			//todo
+			//stop hdcp
+			//resend ake_init
+		}
+
+		/* When set to one, indicates that the upstream side of the HDCP Repeater has
+		 * transitioned in to an unauthenticated state from State C5, when State C5 is
+		 * implemented in parallel with State C8, or from State C6 (See Section 2.10.3).
+		 * The HDCP Transmitter may initiate re-authentication with the HDCP Repeater.
+		 * This value must be reset by the HDCP Receiver on every new authentication request
+		 * by the HDCP Transmitter as indicated by a write of the AKE_Init message.
+		 */
+		if (rxstatus & DP_RXSTATUS_REAUTH_REQ) {
+			//todo
+			//stop hdcp
+			//resend ake_init
+		}
+
+		/*
+		 * When set to one, indicates that Ekh(km) is available for reading at the
+		 * HDCP Receiver. This value must be reset by the HDCP Receiver as soon as
+		 * Ekh(km)is read by the HDCP Transmitter.
+		 */
+		/* PAIRING_AVAILABLE and read AKE_Send_Pairing_Info, 200ms ready, 5ms read done */
+		if (rxstatus & DP_RXSTATUS_PAIRING_AVAILABLE)
+			complete(&tx_comm->hw_comm->dp_hdcp->pairing_available_completion);
+
+		/* H_AVAILABLE read AKE_Send_H_prime, 1s ake_no_store_km, 200ms ake_store_km */
+		if (rxstatus & DP_RXSTATUS_H_AVAILABLE)
+			complete(&tx_comm->hw_comm->dp_hdcp->havailable_completion);
+
+		/* READY */
+		if (rxstatus & DP_RXSTATUS_READY)
+			complete(&tx_comm->hw_comm->dp_hdcp->ready_completion);
 	}
 
 	/* DEVICE_SERVICE_IRQ_VECTOR: 00201h */
