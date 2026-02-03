@@ -1763,8 +1763,6 @@ function build_kernel_with_bazel() {
 		echo 						>> ${PROJECT_DIR}/build.config.project
 	fi
 
-
-
 	echo "ANDROID_PROJECT=${ANDROID_PROJECT}"		>> ${PROJECT_DIR}/build.config.project
 	echo "UPGRADE_PROJECT=${UPGRADE_PROJECT}"		>> ${PROJECT_DIR}/build.config.project
 	echo "DEV_CONFIGS=\"${DEV_CONFIGS}\""			>> ${PROJECT_DIR}/build.config.project
@@ -1772,6 +1770,16 @@ function build_kernel_with_bazel() {
 		echo "GKI_CONFIG=non_gki"			>> ${PROJECT_DIR}/build.config.project
 	else
 		echo "GKI_CONFIG=${GKI_CONFIG}"			>> ${PROJECT_DIR}/build.config.project
+	fi
+	if [[ -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
+		echo "BUILD_TYPE=fatload"			>> ${PROJECT_DIR}/build.config.project
+	else
+		echo "BUILD_TYPE=android"			>> ${PROJECT_DIR}/build.config.project
+	fi
+	if [[  -z ${CONFIG_REPLACE_GKI_IMAGE} || -n ${FATLOAD} ]]; then
+		echo "GKI_IMAGE=n"				>> ${PROJECT_DIR}/build.config.project
+	else
+		echo "GKI_IMAGE=${CONFIG_REPLACE_GKI_IMAGE}"	>> ${PROJECT_DIR}/build.config.project
 	fi
 	echo "COMMON_DRIVERS_DIR=${COMMON_DRIVERS_DIR}" 	>> ${PROJECT_DIR}/build.config.project
 	echo "FATLOAD=${FATLOAD}" 				>> ${PROJECT_DIR}/build.config.project
@@ -1824,6 +1832,18 @@ function build_kernel_with_bazel() {
 	echo "    FULL_KERNEL_VERSION = \"${FULL_KERNEL_VERSION}\"," >> ${PROJECT_DIR}/project.bzl
 
 	echo "    ANDROID_PROJECT = \"${ANDROID_PROJECT}\"," 	>> ${PROJECT_DIR}/project.bzl
+
+	if [[ -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
+		echo "    BUILD_TYPE = \"fatload\"," 	>> ${PROJECT_DIR}/project.bzl
+	else
+		echo "    BUILD_TYPE = \"android\"," 	>> ${PROJECT_DIR}/project.bzl
+	fi
+
+	if [[  -z ${CONFIG_REPLACE_GKI_IMAGE} || -n ${FATLOAD} ]]; then
+		echo "    GKI_IMAGE = \"n\"," 	>> ${PROJECT_DIR}/project.bzl
+	else
+		echo "    GKI_IMAGE = \"${CONFIG_REPLACE_GKI_IMAGE}\"," >> ${PROJECT_DIR}/project.bzl
+	fi
 
 	if [[ -n ${ANDROID_PROJECT} && -z ${FATLOAD} ]]; then
 		echo "    EXTRA_ANDROID_MODULE = True,"		>> ${PROJECT_DIR}/project.bzl
@@ -2388,3 +2408,27 @@ function make_kconfig_and_makefile_filesrc () {
 }
 
 export -f make_kconfig_and_makefile_filesrc
+
+function show_build_info() {
+	echo ============== BUILD INFO =====================
+	echo arch: ${ARCH}
+	echo project: ${ANDROID_PROJECT}
+	if [[ -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
+		echo build_type: fatload
+	else
+		echo build_type: android
+	fi
+	if [[ -z ${GKI_CONFIG} ]]; then
+		echo gki_config: non_gki
+	else
+		echo gki_config: ${GKI_CONFIG}
+	fi
+	if [[  -z ${CONFIG_REPLACE_GKI_IMAGE} || -n ${FATLOAD} ]]; then
+		echo gki_image: n
+	else
+		echo gki_image: ${CONFIG_REPLACE_GKI_IMAGE}
+	fi
+	[[ -n ${UPGRADE_PROJECT} ]] && echo upgrade: ${UPGRADE_PROJECT}
+	echo ===============================================
+}
+export -f show_build_info

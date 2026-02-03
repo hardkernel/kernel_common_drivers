@@ -1,6 +1,7 @@
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "ddk_module")
 load("//common_drivers:amlogic_utils.bzl", "m_k_files", "kernel_select")
-load("//common_drivers:amlogic_utils.bzl", "m_k_files", "kernel_select", "gki_config", "build_time", "common_drivers_release")
+load("//common_drivers:amlogic_utils.bzl", "build_project", "build_type", "gki_image")
+load("//common_drivers:amlogic_utils.bzl", "gki_config", "build_time", "common_drivers_release")
 
 m_k_files()
 
@@ -20,11 +21,10 @@ ddk_module(
     ],
     linux_includes = [
     ],
-    local_defines = [
+    local_defines = build_project + build_type + gki_image +
+		    gki_config + build_time + common_drivers_release +
+    [
         "pr_fmt(fmt)=\"[cpu_info]: \" fmt",
-        "GKI_CONFIG=\"{}\"".format(gki_config),
-        "BUILD_TIME=\"{}\"".format(build_time),
-        "COMMON_DRIVERS_RELEASE=\"{}\"".format(common_drivers_release),
     ],
     out = "amlogic-cpuinfo.ko",
     kernel_build = kernel_select(),

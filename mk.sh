@@ -120,6 +120,8 @@ adjust_config_action
 
 build_part_of_kernel
 
+show_build_info
+
 if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" == "arm64" && ${BAZEL} == 1 ]]; then
 	if [[ "${PACKAGE}" != "1" ]]; then
 		build_kernel_with_bazel "$@"

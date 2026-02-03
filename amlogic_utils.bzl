@@ -190,7 +190,19 @@ def ddk_deps_select(deps):
         for config_setting, project_config in _CONFIG_SETTINGS.items()
     })
 
-gki_config = select_config_field("GKI_CONFIG")
-build_time = select_config_field("BUILD_TIME")
-common_drivers_release = select_config_field("COMMON_DRIVERS_RELEASE")
+def select_formatted_config_field(field_name, define_name=None):
+    if define_name == None:
+        define_name = field_name
+
+    return select({
+        config_setting: ["%s=\"%s\"" % (define_name, getattr(project_config, field_name))]
+        for config_setting, project_config in _CONFIG_SETTINGS.items()
+    })
+
+build_project = select_formatted_config_field("ANDROID_PROJECT", "BUILD_PROJECT")
+build_type = select_formatted_config_field("BUILD_TYPE")
+gki_image = select_formatted_config_field("GKI_IMAGE")
+gki_config = select_formatted_config_field("GKI_CONFIG")
+build_time = select_formatted_config_field("BUILD_TIME")
+common_drivers_release = select_formatted_config_field("COMMON_DRIVERS_RELEASE")
 media_modules_cflag = select_config_field("MEDIA_MODULES_CFLAGS")
