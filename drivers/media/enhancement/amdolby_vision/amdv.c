@@ -17100,26 +17100,18 @@ static long amdolby_vision_ioctl(struct file *file,
 		}
 		break;
 	case DV_IOC_GET_DV_LUX_VALUE:
-		if (copy_from_user(&lux_value, argp,
-				   sizeof(struct lux_value_s)) == 0) {
-			if (is_aml_hw5() && tv_hw5_setting &&
-				tv_hw5_setting->input_info) {
-				lux_value.front_lux = tv_hw5_setting->input_info->debug_buf[0];
-				lux_value.rear_lum = tv_hw5_setting->input_info->debug_buf[1];
-			} else if (is_aml_tvmode() && tv_input_info) {
-				lux_value.front_lux = tv_input_info->debug_buf[0];
-				lux_value.rear_lum = tv_input_info->debug_buf[1];
-			}
-			if (debug_dolby & 0x200)
-				pr_info("[DV]: get front_Lux %u, rear_Lum %u\n",
-			lux_value.front_lux, lux_value.rear_lum);
-			if (copy_to_user(argp,
-					 &lux_value,
-					 sizeof(struct lux_value_s)))
-				ret = -EFAULT;
+		if (is_aml_tvmode() && tv_input_info) {
+			lux_value.front_lux = tv_input_info->debug_buf[0];
+			lux_value.rear_lum = tv_input_info->debug_buf[1];
 		} else {
-			ret = -EFAULT;
+			lux_value.front_lux = 0;
+			lux_value.rear_lum = 0;
 		}
+		if (debug_dolby & 0x200)
+			pr_info("[DV]: get front_Lux %u, rear_Lum %u\n",
+				lux_value.front_lux, lux_value.rear_lum);
+		if (copy_to_user(argp, &lux_value, sizeof(struct lux_value_s)))
+			ret = -EFAULT;
 		break;
 	case DV_IOC_GET_DV_CFG_SUPPORT:
 		if (copy_from_user(&dv_cfg_support, argp,
