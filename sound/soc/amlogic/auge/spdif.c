@@ -548,17 +548,13 @@ static int spdifin_audio_type_get_enum(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct aml_spdif *p_spdif = snd_soc_component_get_drvdata(component);
-	int ret = -1;
 
-	if (p_spdif->rx_stable) {
+	if (p_spdif->rx_stable)
 		ucontrol->value.enumerated.item[0] = spdifin_check_audio_type();
-		ret = 0;
-	} else {
+	else
 		ucontrol->value.enumerated.item[0] = ARRAY_SIZE(audio_type_texts) - 1;
-		ret = -1;
-	}
 
-	return ret;
+	return 0;
 }
 
 static int aml_spdif_platform_suspend(struct device *dev)
