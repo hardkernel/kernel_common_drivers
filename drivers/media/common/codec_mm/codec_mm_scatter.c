@@ -645,7 +645,7 @@ static void codec_mm_scatter_cache_destroy(struct codec_mm_scatter_mgt *smgt,
 	/* remove form smgt */
 	codec_mm_list_lock(smgt);
 	cache = smgt->cache_scs[cache_id];
-	if (!cache) {
+	if (!cache || smgt->cache_allocating) {
 		codec_mm_list_unlock(smgt);
 		return;
 	}
@@ -653,6 +653,7 @@ static void codec_mm_scatter_cache_destroy(struct codec_mm_scatter_mgt *smgt,
 	if (!list_empty(&cache->list))
 		list_del(&cache->list);
 	smgt->scatters_cnt--;
+
 	codec_mm_scatter_map_del_locked(smgt, cache);
 	codec_mm_list_unlock(smgt);
 
@@ -3509,22 +3510,21 @@ static int codec_mm_scatter_scatter_arrange(struct codec_mm_scatter_mgt *smgt)
 		}
 	}
 
-	if (smgt->delay_free_on > 0 && !smgt->cache_scs[0]) {
+	if (smgt->delay_free_on > 0) {
 		/*cache1*/
-		codec_mm_scatter_cache_creat(smgt, 0);
+		if (!smgt->cache_scs[0])
+			codec_mm_scatter_cache_creat(smgt, 0);
 		/*cache2*/
-		codec_mm_scatter_cache_creat(smgt, 1);
+		if (!smgt->cache_scs[1])
+			codec_mm_scatter_cache_creat(smgt, 1);
 	}
-	if (smgt->delay_free_on <= 0 && smgt->cache_scs[0] &&
-	    time_after64(get_jiffies_64(),
+	if (smgt->delay_free_on <= 0 &&
+		 (smgt->cache_scs[0] || smgt->cache_scs[0]) &&
+		 time_after64(get_jiffies_64(),
 			 smgt->delay_free_timeout_jiffies64)) {
 		struct codec_mm_scatter *mms0, *mms1;
 
 		codec_mm_list_lock(smgt);
-		if (smgt->cache_allocating) {
-			codec_mm_list_unlock(smgt);
-			return 0;
-		}
 		mms0 = smgt->cache_scs[0];
 		mms1 = smgt->cache_scs[1];
 		codec_mm_list_unlock(smgt);
