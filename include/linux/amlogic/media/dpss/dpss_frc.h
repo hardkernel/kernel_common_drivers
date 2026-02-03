@@ -88,5 +88,6 @@ void dpss_frc_set_deblur(u8 deblur_level);
 void dpss_frc_set_mc_bypass(u8 enable_mc);
 void dpss_frc_set_dejudder(u8 dejudder_level);
 void dpss_frc_demo_win(u8 demo_num, u8 style);
+void dpss_set_mc_link_state(u8 enable_mc_link);
 
 #endif	/*__DPSS_FRC_H__*/

@@ -2995,6 +2995,7 @@ void dpss_set_mc_link_state(u8 enable_mc_link)
 	pr_frc(1, "need_disable_mc_link=%d\n", pchip_st->state_st.need_disable_mc_link);
 	usleep_range(500, 800);
 }
+EXPORT_SYMBOL(dpss_set_mc_link_state);
 
 int dpss_frc_get_enable(void)
 {
