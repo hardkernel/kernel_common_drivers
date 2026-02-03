@@ -321,6 +321,7 @@ static void meson_hdmitx_add_alter_mode(struct drm_connector *connector,
 	struct drm_display_mode *newmode;
 	unsigned int clock1, clock2;
 	struct drm_device *dev = connector->dev;
+	int vrefresh;
 
 	clock1 = mode->clock;
 	clock2 = cea_mode_alternate_clock(mode);
@@ -333,13 +334,25 @@ static void meson_hdmitx_add_alter_mode(struct drm_connector *connector,
 		return;
 
 	newmode->clock = clock2;
-	if (mode->vdisplay == 2160 && mode->hdisplay == 4096)
-		sprintf(newmode->name, "smpte%dhz",
-			drm_mode_vrefresh(newmode) - 1);
-	else
-		sprintf(newmode->name, "%d%s%dhz", mode->vdisplay,
-			mode->flags & DRM_MODE_FLAG_INTERLACE ? "i" : "p",
-			drm_mode_vrefresh(newmode) - 1);
+	vrefresh = drm_mode_vrefresh(newmode);
+	if (vrefresh < 1) {
+		drm_mode_destroy(dev, newmode);
+		return;
+	}
+
+	if (mode->vdisplay == 2160 && mode->hdisplay == 4096) {
+		snprintf(newmode->name, DRM_DISPLAY_MODE_LEN, "smpte%dhz",
+			vrefresh - 1);
+	} else {
+		char *resolution_end = strrchr(newmode->name, 'p') ?: strrchr(newmode->name, 'i');
+
+		if (resolution_end) {
+			size_t remaining = DRM_DISPLAY_MODE_LEN -
+				(resolution_end - newmode->name) - 1;
+
+			snprintf(resolution_end + 1, remaining, "%dhz", vrefresh - 1);
+		}
+	}
 
 	drm_mode_probed_add(connector, newmode);
 }
