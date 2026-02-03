@@ -9,6 +9,7 @@
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/of_platform.h>
 #include <linux/component.h>
 #include <linux/init.h>
 #include <linux/amlogic/gki_module.h>
@@ -539,11 +540,21 @@ static int compare_of(struct device *dev, void *data)
 	return dev->of_node == np;
 }
 
+static void meson_drm_match_remove(struct device *dev)
+{
+	struct device_link *link, *tmp;
+
+	list_for_each_entry_safe(link, tmp, &dev->links.consumers, s_node)
+		device_link_del(link);
+}
+
 static void am_meson_add_endpoints(struct device *dev,
 				   struct component_match **match,
 				   struct device_node *port)
 {
 	struct device_node *ep, *remote;
+	struct platform_device *pdev;
+	struct device_link *link;
 
 	for_each_child_of_node(port, ep) {
 		remote = of_graph_get_remote_port_parent(ep);
@@ -554,6 +565,18 @@ static void am_meson_add_endpoints(struct device *dev,
 			of_node_put(remote);
 			continue;
 		}
+
+		pdev = of_find_device_by_node(remote);
+		if (pdev) {
+			link = device_link_add(dev, &pdev->dev, DL_FLAG_STATELESS);
+			if (!link) {
+				dev_warn(dev, "device_link_add FAILED: supplier=%s consumer=%s\n",
+					dev_name(&pdev->dev), dev_name(dev));
+			}
+
+			put_device(&pdev->dev);
+		}
+
 		component_match_add(dev, match, compare_of, remote);
 		of_node_put(remote);
 	}
@@ -714,6 +737,10 @@ static int am_meson_drv_probe(struct platform_device *pdev)
 		am_meson_add_endpoints(dev, &match, port);
 		of_node_put(port);
 	}
+
+	if (IS_ERR(match))
+		meson_drm_match_remove(dev);
+
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	disable_vout_mode_set_sysfs();
 #endif
