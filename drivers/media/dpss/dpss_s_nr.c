@@ -1483,7 +1483,8 @@ void nr_dpe_pps_para(struct dpss_ch_s *pch,
 		pch->c.prm_top.pps_dsy = 0;
 	}
 	if ((vinfo && vinfo->height == 1080 &&
-		vinfo->width == 3840) || width >= 1920 || height >= 1080) {
+		vinfo->width == 3840) || width >= 1920 || height >= 1080 ||
+		(width % 2) || (height % 2)) {
 		pch->c.prm_top.pps_dsx = 0;
 		pch->c.prm_top.pps_dsy = 0;
 		pch->c.prm_top.is_pps = 0;
@@ -1493,11 +1494,11 @@ void nr_dpe_pps_para(struct dpss_ch_s *pch,
 	pps->pps_en = pch->c.prm_top.is_pps;
 	pps->di2pps_en = pch->c.prm_top.is_di2pps;
 
-	dbg_h2("%s:is_pps dsx ch= %d,%d,%d,%d,%d,%d,%d,%d,%d\n", __func__,
+	dbg_h2("%s:0is_pps dsx ch= %d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", __func__,
 		pch->c.prm_top.ch, pch->c.prm_top.pps_dsx,
 		pch->c.prm_top.pps_dsy, width, height,
 		pch->d->is_i, pch->c.prm_top.is_pps,
-		pch->c.prm_top.is_di2pps, pps->pps_en);
+		pch->c.prm_top.is_di2pps, pps->pps_en, vinfo->height);
 }
 
 void nr_dpe_pps_cfg(struct PRM_DPSS_TOP *prm_top, struct dpss_ch_s *pch,
