@@ -286,7 +286,7 @@
 		fe0_demod = "MXL258C";
 		fe0_i2c_adap_id = <&i2c2>;
 		fe0_demod_i2c_addr = <0x50>;
-		fe0_demod_code = <0x254c>;
+		fe0_demod_code = <0x258c>;
 
 		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
 		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
@@ -305,7 +305,7 @@
 		fe1_demod = "MXL258C";
 		fe1_i2c_adap_id = <&i2c2>;
 		fe1_demod_i2c_addr = <0x50>;
-		fe1_demod_code = <0x254c>;
+		fe1_demod_code = <0x258c>;
 
 		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
 		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
@@ -324,7 +324,7 @@
 		fe2_demod = "MXL258C";
 		fe2_i2c_adap_id = <&i2c2>;
 		fe2_demod_i2c_addr = <0x50>;
-		fe2_demod_code = <0x254c>;
+		fe2_demod_code = <0x258c>;
 
 		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
 		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
@@ -343,7 +343,7 @@
 		fe3_demod = "MXL258C";
 		fe3_i2c_adap_id = <&i2c2>;
 		fe3_demod_i2c_addr = <0x50>;
-		fe3_demod_code = <0x254c>;
+		fe3_demod_code = <0x258c>;
 
 		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
 		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
