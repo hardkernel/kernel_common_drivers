@@ -447,17 +447,30 @@ void dpss_frc_rdma_unreg(void)
 void dpss_frc_rdma_reg(void)
 {
 	rdma_info[RDMA_IRQ_PRE_VSYNC].rdma_reg = 1;
+	rdma_info[RDMA_IRQ_PRE_VSYNC].clr_mask_reg = 0;
 	rdma_info[RDMA_IRQ_VSYNC].rdma_reg = 1;
+	rdma_info[RDMA_IRQ_VSYNC].clr_mask_reg = 0;
 }
 
 void pre_vsync_signal_to_dpss_rdma(void)
 {
 	u32 read_cnt;
 	struct dpss_rdma_info *rdma_info_p;
+	struct rdma_regadr_s *rdma_regadr;
 
 	if (!rdma_enable())
 		return;
 	rdma_info_p = &rdma_info[RDMA_IRQ_PRE_VSYNC];
+	rdma_regadr = rdma_info_p->rdma_regadr;
+	if (!rdma_regadr)
+		return;
+	if (rdma_info_p->rdma_reg == 0) {
+		if (rdma_info_p->clr_mask_reg == 0) {
+			wr(rdma_regadr->trigger_mask_reg, 0);
+			rdma_info_p->clr_mask_reg = 1;
+		}
+		return;
+	}
 	read_cnt = rd(FRC_REG_TOP_RESERVE11);
 	if (rdma_info_p->rdma_reg == 1) {
 		read_cnt = 0;
@@ -483,10 +496,21 @@ void post_vsync_signal_to_dpss_rdma(void)
 //#ifdef USE_FRC_VS_RDMA
 	u32 read_cnt;
 	struct dpss_rdma_info *rdma_info_p;
+	struct rdma_regadr_s *rdma_regadr;
 
 	if (!rdma_enable())
 		return;
 	rdma_info_p = &rdma_info[RDMA_IRQ_VSYNC];
+	rdma_regadr = rdma_info_p->rdma_regadr;
+	if (!rdma_regadr)
+		return;
+	if (rdma_info_p->rdma_reg == 0) {
+		if (rdma_info_p->clr_mask_reg == 0) {
+			wr(rdma_regadr->trigger_mask_reg, 0);
+			rdma_info_p->clr_mask_reg = 1;
+		}
+		return;
+	}
 	read_cnt = rd(FRC_REG_TOP_RESERVE12);
 	if (rdma_info_p->rdma_reg == 1) {
 		read_cnt = 0;
@@ -657,8 +681,11 @@ void dpss_rdma_info_init(void)
 			//rdma_info[i].rdma_table_size = DPSS_RDMA_SIZE / 16;
 		rdma_info[i].buf_status = 0;
 		rdma_info[i].is_64bit_addr = 0;
+		rdma_info[i].rdma_reg = 0;
+		rdma_info[i].clr_mask_reg = 0;
 		rdma_info[i].rdma_item_count = 0;
 		rdma_info[i].rdma_write_count = 0;
+		rdma_info[i].tmp_table = NULL;
 		rdma_info[i].rdma_regadr = NULL;
 	}
 }

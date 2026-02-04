@@ -44,6 +44,7 @@ struct dpss_rdma_info {
 	u8 buf_status;
 	u8 is_64bit_addr;
 	u8 rdma_reg;
+	u8 clr_mask_reg;
 	u32 index_flag;
 	int rdma_item_count;
 	int rdma_write_count;
