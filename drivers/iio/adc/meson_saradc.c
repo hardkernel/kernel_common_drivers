@@ -533,9 +533,17 @@ static int meson_sar_adc_iio_info_read_raw(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 
-		ret = regulator_get_voltage(priv->vref);
-		if (ret < 0)
+		if (priv->vref) {
+			ret = regulator_get_voltage(priv->vref);
+			if (ret < 0) {
+				/* use the default vref voltage */
+				ret = SAR_ADC_DEF_VREF;
+			}
+		} else {
+			/* use the default vref voltage */
 			ret = SAR_ADC_DEF_VREF;
+		}
+
 
 		/* returns the voltage value in millivolts */
 		*val *= ret / 1000;
@@ -545,8 +553,13 @@ static int meson_sar_adc_iio_info_read_raw(struct iio_dev *indio_dev,
 
 	case IIO_CHAN_INFO_SCALE:
 		if (chan->type == IIO_VOLTAGE) {
-			ret = regulator_get_voltage(priv->vref);
-			if (ret < 0) {
+			if (priv->vref) {
+				ret = regulator_get_voltage(priv->vref);
+				if (ret < 0) {
+					/* use the default vref voltage */
+					ret = SAR_ADC_DEF_VREF;
+				}
+			} else {
 				/* use the default vref voltage */
 				ret = SAR_ADC_DEF_VREF;
 			}
@@ -840,11 +853,13 @@ static int meson_sar_adc_hw_enable_unlock(struct iio_dev *indio_dev)
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 	int ret;
 
-	ret = regulator_enable(priv->vref);
-	if (ret < 0) {
-		dev_err(indio_dev->dev.parent,
-			"failed to enable vref regulator\n");
-		goto err_vref;
+	if (priv->vref) {
+		ret = regulator_enable(priv->vref);
+		if (ret < 0) {
+			dev_err(indio_dev->dev.parent,
+				"failed to enable vref regulator\n");
+			goto err_vref;
+		}
 	}
 
 	if (priv->param->dops->set_bandgap)
@@ -869,7 +884,8 @@ err_adc_clk:
 			   MESON_SAR_ADC_REG3_ADC_EN, 0);
 	if (priv->param->dops->set_bandgap)
 		priv->param->dops->set_bandgap(indio_dev, false);
-	regulator_disable(priv->vref);
+	if (priv->vref)
+		regulator_disable(priv->vref);
 err_vref:
 	return ret;
 }
@@ -901,7 +917,8 @@ static int meson_sar_adc_hw_disable_unlock(struct iio_dev *indio_dev)
 	if (priv->param->dops->set_bandgap)
 		priv->param->dops->set_bandgap(indio_dev, false);
 
-	regulator_disable(priv->vref);
+	if (priv->vref)
+		regulator_disable(priv->vref);
 
 	return 0;
 }
@@ -1552,10 +1569,13 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	priv->vref = devm_regulator_get(&pdev->dev, "vref");
+	priv->vref = devm_regulator_get_optional(&pdev->dev, "vref");
 	if (IS_ERR(priv->vref)) {
-		dev_err(&pdev->dev, "failed to get vref regulator\n");
-		return PTR_ERR(priv->vref);
+		ret = PTR_ERR(priv->vref);
+		if (ret == -ENODEV)
+			priv->vref = NULL;
+		else
+			return ret;
 	}
 
 	priv->calibscale = MILLION;
