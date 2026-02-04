@@ -5564,13 +5564,14 @@ void crg_gadget_exit(void)
 	mutex_lock(&crg_udc_driver_lock);
 	if (crg_udc_driver_state != 1) {
 		pr_info("crg gadget not registered. exit\n");
+		mutex_unlock(&crg_udc_driver_lock);
 		goto exit;
 	}
 	crg_udc_driver_state = 0;
 	platform_driver_unregister(&crg_udc_driver);
+	mutex_unlock(&crg_udc_driver_lock);
 	crg_udc_pm_notifier_unregister();
 exit:
-	mutex_unlock(&crg_udc_driver_lock);
 	return;
 }
 EXPORT_SYMBOL_GPL(crg_gadget_exit);
@@ -5580,10 +5581,12 @@ int crg_gadget_init(void)
 	int ret = 0;
 
 	pr_info("crg gadget init\n");
+
 	mutex_lock(&crg_udc_driver_lock);
 	if (crg_udc_driver_state != 0) {
 		pr_info("crg gadget already registered. exit\n");
 		ret = -EBUSY;
+		mutex_unlock(&crg_udc_driver_lock);
 		goto exit;
 	}
 	ret = platform_driver_register(&crg_udc_driver);
@@ -5592,9 +5595,9 @@ int crg_gadget_init(void)
 		goto exit;
 	}
 	crg_udc_driver_state = 1;
+	mutex_unlock(&crg_udc_driver_lock);
 	crg_udc_pm_notifier_register();
 exit:
-	mutex_unlock(&crg_udc_driver_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(crg_gadget_init);
