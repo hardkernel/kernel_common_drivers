@@ -559,7 +559,7 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 	 *
 	 * NOTE: The A4 and all subsequent chips support this feature
 	 */
-	irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq_optional(pdev, 0);
 	if (irq > 0) {
 		ret = devm_request_irq(&pdev->dev, irq, meson_gxbb_wdt_interrupt,
 				       IRQF_SHARED, DRIVER_NAME, data);
