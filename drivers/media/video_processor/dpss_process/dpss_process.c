@@ -3286,7 +3286,7 @@ static int dpss_process_probe(struct platform_device *pdev)
 	struct dpss_process_port_s *st;
 	int di_backend_support = 0;
 
-	pr_err("dpss_process probe\n");
+	pr_debug("dpss_process probe\n");
 	/*need read from dts*/
 
 	ret = class_register(&dpss_process_class);
@@ -3322,7 +3322,7 @@ static int dpss_process_probe(struct platform_device *pdev)
 		register_dpss_cooling(pdev->dev.of_node);
 #endif
 
-		pr_err("%s num=%d\n", __func__, dpss_process_instance_num);
+		pr_debug("%s num=%d\n", __func__, dpss_process_instance_num);
 	return ret;
 
 error1:
@@ -3387,12 +3387,8 @@ static struct platform_driver dpss_process_driver = {
 
 int __init dpss_process_module_init(void)
 {
-	pr_err("dpss process module init\n");
-	if (platform_driver_register(&dpss_process_driver)) {
-		pr_err("failed to register dpss_process module\n");
-		return -ENODEV;
-	}
-	return 0;
+	pr_debug("dpss process module init\n");
+	return platform_driver_register(&dpss_process_driver);
 }
 
 void __exit dpss_process_module_exit(void)
