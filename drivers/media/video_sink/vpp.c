@@ -3311,6 +3311,31 @@ RESTART:
 #ifdef TV_REVERSE
 	}
 #endif
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (slice_num >= 2 && video_is_meson_t3x_cpu() &&
+		vpp_zoom_ratio != 100) {
+		//recalc ratio
+		u32 src_w, src_h, dst_w, dst_h;
+
+		src_w = (next_frame_par->VPP_hd_end_lines_ -
+			next_frame_par->VPP_hd_start_lines_ + 1) /
+			(next_frame_par->hscale_skip_count + 1);
+		src_h = (next_frame_par->VPP_vd_end_lines_ -
+			next_frame_par->VPP_vd_start_lines_ + 1) /
+			(next_frame_par->vscale_skip_count + 1);
+
+		dst_w =
+			next_frame_par->VPP_hsc_endp -
+			next_frame_par->VPP_hsc_startp + 1;
+		dst_h =
+			next_frame_par->VPP_vsc_endp -
+			next_frame_par->VPP_vsc_startp + 1;
+
+		filter->vpp_hsc_start_phase_step = ((src_w << 18) / dst_w) << 6;
+		filter->vpp_vsc_start_phase_step = ((src_h << 18) / dst_h) << 6;
+	}
+#endif
 	if (h_crop_enable) {
 		next_frame_par->VPP_hd_start_lines_ += crop_left;
 		next_frame_par->VPP_hd_end_lines_ += crop_left;

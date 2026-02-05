@@ -5536,12 +5536,12 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 				hwincut_end = dout_hsize[slice] + hwincut_bgn - 1;
 			} else {
 				cal_pps_dout_hsize(&hwincut_bgn0, 0,
-					slice_x_st + 1, horz_phase_step, pre_hsc_en);
+					slice_x_st + 1 - crop_left, horz_phase_step, pre_hsc_en);
 				hwincut_bgn = dout_hsize[0] - hwincut_bgn0 * 2;
 				hwincut_end = hwincut_bgn + dout_hsize[slice] - 1;
 				if (debug_flag_s5 & DEBUG_PPS) {
 					pr_info("slice_x_st=%d, hwincut_bgn0=%d\n",
-						slice_x_st, hwincut_bgn0);
+						slice_x_st - crop_left, hwincut_bgn0);
 					pr_info("slice=%d, dout_hsize[0]=%d,dout_hsize[slice]=%d\n",
 						slice, dout_hsize[0], dout_hsize[slice]);
 					pr_info("hwincut_bgn=%d, hwincut_end=%d\n",
