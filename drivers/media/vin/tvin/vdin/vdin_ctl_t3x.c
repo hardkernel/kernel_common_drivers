@@ -1871,6 +1871,26 @@ void vdin_set_frame_mif_write_addr_t3x(struct vdin_dev_s *devp,
 	}
 }
 
+void vdin_disconnect_input_t3x(struct vdin_dev_s *devp)
+{
+	unsigned int offset = devp->addr_offset;
+
+	/* input sel */
+	wr_bits(devp->index * VDIN_TOP_OFFSET,
+		VDIN0_SYNC_CONVERT_SECURE_CTRL, VDIN_VDI_NULL_T3X, 0, 3);
+	/* vdin_preproc:reg_hdmi_en reg_dsc_en */
+	wr_bits(devp->index * VPU_VDIN_HDMI_CTRL_REG_OFFSET,
+		VPU_VDIN_HDMI0_CTRL0, 0, 0, 2);
+	/* reg_pp_path_en */
+	wr_bits(offset, VDIN0_CORE_CTRL, 0, 5, 1);
+	/* reg_dw_path_en */
+	wr_bits(offset, VDIN0_CORE_CTRL, 0, 6, 1);
+	/* reg_dith_path_en */
+	wr_bits(offset, VDIN0_CORE_CTRL, 0, 7, 1);
+	/* reg_afbce_path_en */
+	wr_bits(offset, VDIN0_CORE_CTRL, 0, 8, 1);
+}
+
 /* DONOT DISABLE WRMIF IN the ACTIVE VIDEO AREA,OR IT WILL CAUSE WRMIF DEADLOCK */
 void vdin_pause_mif_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en)
 {

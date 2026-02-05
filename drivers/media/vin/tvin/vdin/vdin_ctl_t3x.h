@@ -150,6 +150,7 @@ void vdin_set_frame_mif_write_addr_t3x(struct vdin_dev_s *devp,
 void vdin_dv_tunnel_set_t3x(struct vdin_dev_s *devp);
 void vdin_descramble_setting_t3x(struct vdin_dev_s *devp, unsigned int on_off);
 void vdin_scramble_setting_t3x(struct vdin_dev_s *devp, unsigned int on_off);
+void vdin_disconnect_input_t3x(struct vdin_dev_s *devp);
 void vdin_pause_mif_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en);
 void vdin_sw_reset_t3x(struct vdin_dev_s *devp);
 void vdin_bist_t3x(struct vdin_dev_s *devp, unsigned int mode);

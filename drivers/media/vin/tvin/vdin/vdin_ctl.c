@@ -3189,6 +3189,12 @@ void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 
 void vdin_disconnect_input(struct vdin_dev_s *devp)
 {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (devp->dtdata->hw_ver == VDIN_HW_T3X && devp->hw_core == VDIN_HW_CORE_NORMAL) {
+		vdin_disconnect_input_t3x(devp);
+		return;
+	}
+#endif
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->hw_core == VDIN_HW_CORE_NORMAL) {
 		wr_bits(0, VDIN_TOP_DOUBLE_CTRL, WR_SEL_DIS,
 			AFBCE_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
