@@ -816,6 +816,8 @@ void hw_process_dpe1_frm_rst(int cfg_slc,
 			w_reg_bit_vc(0x4512, 0, 31, 1);
 			dbg_h2("force :reg[0x4512]=0x%x\n", rd_vc(4512));
 		}
+		dpss_hdr_update_dpe(prm_top->en_update_hdr,
+					prm_top->update_hdr_data, 1);
 
 		cfg_dpe_triggle(prm_top);
 		//12-05 dpss_dpe_nr_frm_cnt = dpss_dpe_nr_frm_cnt + 1;
@@ -928,6 +930,8 @@ void hw_process_dpe1_nrdi_frm_rst(int cfg_slc,
 		dpss_last_dpe_src = 0;
 	}
 	//cfg_nr_vfcd_mode(prm_top,prm_dpe);
+	dpss_hdr_update_dpe(prm_top->en_update_hdr,
+				prm_top->update_hdr_data, 2);
 
 	if (dpss_dpe_nr_frm_cnt < dpss_di_ignore_num) {
 		if (dpss_dpe_nr_frm_cnt == 0) {

@@ -591,6 +591,8 @@ struct PRM_DPSS_TOP {
 	bool is_di2pps;
 	u32 ch;
 	unsigned int fbuf_is_pps[16];
+	bool en_update_hdr; //
+	void *update_hdr_data;
 };
 
 struct PRM_DPSS_SIZE {

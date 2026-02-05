@@ -2706,6 +2706,20 @@ void irq_dae1(void)
 		frc_dbg_read_table_value();
 }
 
+void dpss_hdr_update_dpe(bool en, void *data, unsigned int pos)
+{
+	struct vframe_s *vfm = NULL;
+
+	if (!en || !data)
+		return;
+
+	dbg_ins2("dpss hdr sw %d\n", pos);
+	vfm = (struct vframe_s *)data;
+
+	dpss_hdr_sw(true, vfm);
+	dpss_hdr_proc(vfm);
+}
+
 void irq_dpe1(void)
 {
 	unsigned int dae_nr_mode, dpe_nr_mode, dpe_di_mode, src_mode, cfg_seed,
@@ -2714,7 +2728,8 @@ void irq_dpe1(void)
 	struct PRM_DPSS_TOP *prm_top = prm_dpss_top;
 	struct PRM_DPSS_DPE *prm_dpe = prm_dpss_dpe;
 //	u32 dpss_fnr_vpp_link = rd(DPSS_NR_VPP_LINK); //nr_frc_0113
-
+	bool en_update_hdr = false;
+	void *update_hdr_data = NULL;
 #ifdef FUNC_EN_PQ
 	const struct reg_acc *op = &t6w_dpss_reg_acc;
 	u32 ro_index, temp_index, pd_index;
@@ -2820,10 +2835,17 @@ void irq_dpe1(void)
 			dpe_nr_mode = DPE_NR_BYPS;	//dpe_nr_mode
 		if (dpss_en_hdr) {
 			vfm = dpss_irq_get_vfm((dpss_dpe_nr_frm_cnt % prm_top->num_in), 5);
+			update_hdr_data = (void *)vfm;
+			en_update_hdr = true;
+
+			#ifdef _HIS_CODE_
 			dbg_ins2("dpss hdr sw di\n");
 			dpss_hdr_sw(true, vfm);
 			dpss_hdr_proc(vfm);
+			#endif
 		}
+		prm_top->en_update_hdr = en_update_hdr;
+		prm_top->update_hdr_data = update_hdr_data;
 
 		afbcd_update_addr(prm_top, dpss_dpe_nr_frm_cnt); //new
 		hw_process_dpe1_nrdi_frm_rst(cfg_slc,
@@ -2882,11 +2904,16 @@ void irq_dpe1(void)
 			dpss_dd_dpe_update(vfm);
 		} else if (dpss_en_hdr && !prm_top->di_front) {
 			vfm = dpss_irq_get_vfm((dpss_total_count % prm_top->num_in), 3);
+			en_update_hdr = true;
+			update_hdr_data = (void *)vfm;
+			#ifdef _HIS_CODE
 			dbg_ins2("dpss hdr sw\n");
 			dpss_hdr_sw(true, vfm);
 			dpss_hdr_proc(vfm);
+			#endif
 		}
-
+		prm_top->en_update_hdr = en_update_hdr;
+		prm_top->update_hdr_data = update_hdr_data;
 		hw_process_dpe1_frm_rst(cfg_slc,
 					slc_num,
 					dpss_dpe_nr_frm_cnt_adj,
