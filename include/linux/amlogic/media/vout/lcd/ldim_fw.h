@@ -121,6 +121,9 @@ struct ldim_fw_param_s {
 #define FW_CTRL_FW_PRINT_EN		BIT(9)
 #define FW_CTRL_LD_SEL			BIT(8)
 
+/* fw_cmd cmd description */
+#define CMD_PWROFF 0x80000000
+
 struct ldim_fw_s {
 	/* header */
 	unsigned int para_ver;

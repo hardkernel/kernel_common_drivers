@@ -240,6 +240,8 @@ static int ldim_power_on(void)
 
 static int ldim_power_off(void)
 {
+	struct ldim_fw_s *fw = aml_ldim_get_fw();
+
 	if (ldim_driver.init_on_flag == 0) {
 		LDIMPR("%s: already power off, exit\n", __func__);
 		return 0;
@@ -249,6 +251,8 @@ static int ldim_power_off(void)
 	ldim_driver.state &= ~LDIM_STATE_POWER_ON;
 	ldim_driver.init_on_flag = 0;
 	ldim_driver.state &= ~LDIM_STATE_TRANSMIT_EN;
+	if (fw && fw->fw_cmd)
+		fw->fw_cmd(fw, CMD_PWROFF, NULL);
 
 	if (ldim_driver.dev_drv &&
 		ldim_driver.dev_drv->dev_transmit_stop)

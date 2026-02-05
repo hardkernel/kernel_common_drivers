@@ -32,8 +32,9 @@
 /*20250803: add bcon support */
 /*20251123: modify level idx to 256 */
 /*20260110: modify ldim_fw_s */
+/*20260110: add CMD_PWROFF */
 
-#define LDIM_DRV_VER    "20260110"
+#define LDIM_DRV_VER    "20260207"
 
 extern unsigned char ldim_print_en;
 #define LDIMPR(fmt, args...)     \
