@@ -1170,8 +1170,8 @@ int rx_get_cta_free_size(u8 *cur_edid, unsigned int size)
 	if (log_level & EDID_LOG)
 		rx_pr("%s block_start:%d\n", __func__, block_start);
 	/*find the empty data index*/
-	while ((cur_edid[block_start] > 0) &&
-	       (block_start < size - 1)) {
+	while ((block_start < size - 1) &&
+		(cur_edid[block_start] > 0)) {
 		if (log_level & EDID_LOG)
 			rx_pr("%s running:%d\n", __func__, block_start);
 		if ((cur_edid[block_start] & 0x1f) == 0)
@@ -5668,7 +5668,7 @@ bool rx_edid_support_4k(u8 *p_edid)
 			break;
 		len = p_edid[ret.pos[i]] & 0x1F;
 		for (j = 0; j < len; ++j) {
-			vic = p_edid[ret.pos[j] + j + 1] & 0x7f;
+			vic = p_edid[ret.pos[j] + j + 1];
 			if ((vic >= 93 && vic <= 107) ||
 				(vic >= 114 && vic <= 120) ||
 				vic == 218 || vic == 219)
@@ -5894,7 +5894,10 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 					 cea_ext);
 		/* decide to add db after which data blk */
 		num = cea_ext->blk_parse_info.data_blk_num;
-
+		if (num > 3 || blk_idx > 3) {
+			kfree(cea_ext);
+			return;
+		}
 		if (blk_idx >= num)
 			/* add after the last data blk */
 			tag_offset =

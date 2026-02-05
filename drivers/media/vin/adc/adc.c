@@ -1537,6 +1537,8 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			mutex_unlock(&devp->pll_mutex);
 			break;
 		}
+		if (!p_dtv_para)
+			break;
 
 		if (devp->print_en & ADC_DBG_EN)
 			pr_info("%s clk:%d delsys:%#x\n",

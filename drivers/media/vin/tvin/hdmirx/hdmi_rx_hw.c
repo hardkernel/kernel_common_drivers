@@ -8047,7 +8047,7 @@ void rx_ddc_active_monitor(u8 port)
 	if (!rx_need_ddc_monitor())
 		return;
 
-	if (rx[port].state != FSM_WAIT_CLK_STABLE)
+	if (port < HDMIRX_PORT_MAX && rx[port].state != FSM_WAIT_CLK_STABLE)
 		return;
 
 	if (!((1 << port) & EDID_DETECT_PORT))

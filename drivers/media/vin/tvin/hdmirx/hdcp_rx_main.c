@@ -138,7 +138,7 @@ static long set_data(struct esm_device *esm, void __user *arg)
 	union {
 		struct esm_ioc_data data;
 		unsigned char buf[sizeof(struct esm_ioc_data) + 1];
-	} u;
+	} u = {0};
 
 	if (copy_from_user(&u.data, arg, sizeof(u.data)) != 0)
 		return -EFAULT;
