@@ -145,3 +145,7 @@
   _bcd2bin
   _bin2bcd
   of_clk_src_simple_get
+
+# dwav-usb-mt.ko
+  input_mt_report_pointer_emulation
+  strlcat
