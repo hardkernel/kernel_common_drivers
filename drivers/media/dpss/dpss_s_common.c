@@ -2849,8 +2849,14 @@ void out_put_vf(struct dpss_ch_s *pch, unsigned int idx, bool output_last)
 		vfm->mem_handle_1 = NULL;
 		vfm->mem_head_handle = NULL;
 		vfm->mem_dw_handle = NULL;
-		blk = &pch->c.blk_r_nr[b_idx];
-		vfm->mem_handle = blk->c.b.blk_m.mem_handle;
+		if (pch->c.prm_top.is_di2pps &&
+			dpss_dpe_nr_frm_cnt > dpss_pps_count) {
+			blk = &pch->c.blk_r_di2pps[b_idx];
+			vfm->mem_handle = blk->c.b.blk_m.mem_handle;
+		} else {
+			blk = &pch->c.blk_r_nr[b_idx];
+			vfm->mem_handle = blk->c.b.blk_m.mem_handle;
+		}
 	}
 	dbg_m2("ch[%d]:%d:hd:\n", pch->c.ch, b_idx);
 	dbg_m2("\t%p %p %p %p\n", vfm->mem_handle_1,
@@ -4842,7 +4848,7 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 		blk_i->mem_size = dd->hd_lc_info.size_total * 2;
 		blk_i->page_size = dd->hd_lc_info.size_page * 2;
 		blk_i->tvp = en_secure ? 1 : 0;
-		blk_i->mem_from = DPSS_MEM_FROM_CODEC;
+		blk_i->mem_from = DPSS_MEM_FROM_CODEC_HD;
 		blk_i->cnt_cfg = NULL;
 		pps_uv_size = dd->hd_lc_info.off_uv * 2;
 
@@ -4862,9 +4868,11 @@ static void dpss_buf_alloc(struct dpss_ch_s *pch)
 				blk->c.b.blk_m.flg_alloc = true;
 				blk->c.b.blk_m.mem_start = oret.addr;
 				blk->c.b.blk_m.pages = oret.ppage;
+				blk->c.b.blk_m.mem_handle = oret.mem_handle;
 				blk->c.st_id = 0;	//EBLK_ST_ALLOC;
 				pch->c.alloc_cnt_blk_di2pps++;
-				dbg_m1("alloc: %s:%d\n", a_para.owner, i);
+				dbg_m1("alloc: %s:%d, %p\n", a_para.owner,
+					i, blk->c.b.blk_m.mem_handle);
 				flg_a = true;
 				pch->c.blk_di2pps[i] = blk;
 				pch->c.addr_di2pps[i] = blk->c.b.blk_m.mem_start;
