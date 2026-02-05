@@ -145,4 +145,3 @@
   _bcd2bin
   _bin2bcd
   of_clk_src_simple_get
->>>>>>> 6176494ea (ODROID-C5: configs: support pcf8563)
