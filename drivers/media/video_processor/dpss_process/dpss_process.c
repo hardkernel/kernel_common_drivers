@@ -2024,20 +2024,20 @@ static bool check_need_do_dpss(struct dpss_process_dev *dev, struct vframe_s *vf
 }
 
 #ifdef CONFIG_AMLOGIC_DPSS_THERMAL
-struct dpss_cooling_device *dpss_cdev;
 int set_dpss_cooling_state(int enable)
 {
 	if (temperature_control_en != enable)
 		temperature_control_en =  enable;
 
-	pr_info("dp:[0]: %s: set temperature_control_en to %d.\n", __func__, enable);
+	pr_info("dp:[0]: set temperature_control_en to %d.\n", enable);
 
 	return 0;
 }
 
-void register_dpss_cooling(void)
+void register_dpss_cooling(struct device_node *np)
 {
 	struct thermal_cooling_device *ret = NULL;
+	struct dpss_cooling_device *dpss_cdev;
 
 	dpss_cdev = kzalloc(sizeof(*dpss_cdev), GFP_KERNEL);
 	if  (!dpss_cdev)
@@ -2045,12 +2045,13 @@ void register_dpss_cooling(void)
 
 	dpss_cdev->maxstep = 1;
 	dpss_cdev->set_dpss_cooling_state = set_dpss_cooling_state;
-	ret = dpss_cooling_register(dpss_cdev);
+	ret = dpss_cooling_register(dpss_cdev, np);
 	if (!ret) {
-		pr_err("%s: failed to allocate major number\n", __func__);
+		pr_err("failed to allocate major number\n");
 		goto fail_dpss_cooling_register;
 	}
 	dpss_cdev->cool_dev = ret;
+	dpss_cdev_global = dpss_cdev;
 	return;
 
 fail_dpss_cooling_register:
@@ -2060,13 +2061,18 @@ fail_dpss_cooling_register:
 
 void unregister_dpss_cooling(void)
 {
-	if  (!dpss_cdev) {
-		pr_err("%s: NULL dev, no need unreg.\n", __func__);
+	struct dpss_cooling_device *dpss_cdev;
+
+	if  (!dpss_cdev_global) {
+		pr_err("NULL dev, no need unreg.\n");
 		return;
 	}
-	dpss_cooling_unregister(dpss_cdev->cool_dev);
+	dpss_cdev = dpss_cdev_global;
+	dpss_cdev_global = NULL;
+
+	if (dpss_cdev->cool_dev)
+		dpss_cooling_unregister(dpss_cdev->cool_dev);
 	kfree(dpss_cdev);
-	dpss_cdev = NULL;
 }
 #endif
 

@@ -23,7 +23,6 @@ struct dpss_cooling_device {
 struct thermal_cooling_device *dpss_cooling_register(struct dpss_cooling_device *dpss_cdev,
 						     struct device_node *np);
 void dpss_cooling_unregister(struct thermal_cooling_device *cdev);
-int setup_dpss_para(const char *node_name, u32 temp_cush);
 #else
 static inline struct thermal_cooling_device *
 dpss_cooling_register(struct dpss_cooling_device *dpss_cdev, struct device_node *np)
@@ -34,11 +33,6 @@ dpss_cooling_register(struct dpss_cooling_device *dpss_cdev, struct device_node 
 static inline
 void dpss_cooling_unregister(struct thermal_cooling_device *cdev)
 {
-}
-
-static inline int setup_dpss_para(const char *node_name, u32 temp_cush)
-{
-	return 0;
 }
 #endif
 #endif /* __DPSS_COOLING_H__ */
