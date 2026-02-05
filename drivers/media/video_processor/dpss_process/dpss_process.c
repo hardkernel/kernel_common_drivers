@@ -2177,11 +2177,13 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 		file_count(file_vf));
 
 	if (dev->dpss_index == -1) {
-		connect_to_dpss(dev, vf, frame_info->transform);
-		if (dev->dpss_index == -1) {
-			dp_print(dev->index, PRINT_ERROR, "%s: connect to dpss fail.\n", __func__);
-			dp_put_file(dev, file_vf);
-			return -EINVAL;
+		if (dev->index == 0 || (dev->index == 1 && (vf->type & VIDTYPE_INTERLACE))) {
+			connect_to_dpss(dev, vf, frame_info->transform);
+			if (dev->dpss_index == -1) {
+				dp_print(dev->index, PRINT_ERROR, "connect to dpss fail.\n");
+				dp_put_file(dev, file_vf);
+				return -EINVAL;
+			}
 		}
 		if (vf->type & VIDTYPE_INTERLACE)
 			dev->cur_is_i = true;
