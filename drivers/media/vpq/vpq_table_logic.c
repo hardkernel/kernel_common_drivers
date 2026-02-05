@@ -1520,7 +1520,7 @@ struct vpq_dv_cfg_support_s vpq_get_dv_cfg_support(unsigned char value)
  */
 int vpq_set_memc_on_off(unsigned char value)
 {
-	dpss_frc_set_mc_bypass(value);
+	dpss_set_mc_link_state(value);
 
 	return 0;
 }
