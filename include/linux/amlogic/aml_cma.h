@@ -45,6 +45,8 @@ bool can_use_cma(gfp_t gfp_flags);
 bool cma_page(struct page *page);
 unsigned long get_cma_allocated(void);
 unsigned long get_total_cmapages(void);
+int aml_compact_alloc(unsigned long start, unsigned long end,
+				unsigned int migrate_type, gfp_t gfp_mask);
 int aml_cma_alloc_range(unsigned long start, unsigned long end,
 			unsigned int migrate_type, gfp_t gfp_mask);
 void check_cma_isolated(unsigned long *isolate,

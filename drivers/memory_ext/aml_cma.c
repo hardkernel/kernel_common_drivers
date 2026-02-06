@@ -1793,6 +1793,171 @@ done:
 	return ret;
 }
 
+int __nocfi aml_compact_alloc(unsigned long start, unsigned long end,
+		unsigned int migrate_type, gfp_t gfp_mask)
+{
+	unsigned long outer_start, outer_end;
+	int ret = 0, order;
+	int try_times = 0;
+#if CONFIG_AMLOGIC_KERNEL_VERSION == 14515
+	unsigned long failed_pfn;
+#endif
+
+	struct compact_control cc = {
+		.nr_migratepages = 0,
+		.order = -1,
+		.zone = page_zone(pfn_to_page(start)),
+		.mode = gfp_mask & __GFP_NORETRY ? MIGRATE_ASYNC : MIGRATE_SYNC,
+		.ignore_skip_hint = true,
+		.no_set_skip_hint = true,
+		.gfp_mask = current_gfp_context(gfp_mask),
+		.alloc_contig = true,
+		.contended = false,
+	};
+	INIT_LIST_HEAD(&cc.migratepages);
+
+	cma_debug(0, NULL, "compact range [%lx-%lx]\n", start, end);
+#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
+#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
+	ret = start_isolate_page_range(start, end, migrate_type,
+				       0, gfp_mask);
+#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
+	ret = start_isolate_page_range(start, end, migrate_type,
+				       0, &failed_pfn);
+#else
+	ret = start_isolate_page_range(start, end, migrate_type, 0);
+#endif
+#else
+#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
+	ret = aml_start_isolate_page_range(start, end, migrate_type,
+				       0, gfp_mask);
+#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
+	ret = aml_start_isolate_page_range(start, end, migrate_type,
+				       0, &failed_pfn);
+#else
+	ret = aml_start_isolate_page_range(start, end, migrate_type, 0);
+#endif
+#endif
+	if (ret < 0) {
+		cma_debug(1, NULL, "ret:%d\n", ret);
+		goto done;
+	}
+
+	cma_isolated += (end - start);
+try_again:
+#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
+	lru_add_drain_all();
+	drain_all_pages(cc.zone);
+#else
+	aml_lru_add_drain_all();
+	aml_drain_all_pages(cc.zone);
+#endif
+	/*
+	 * try to use more cpu to do this job when alloc count is large
+	 */
+	ret = aml_alloc_contig_migrate_range(&cc, start,
+			end, 0, current);
+
+	if (ret && (ret != -EBUSY || (gfp_mask & __GFP_NORETRY))) {
+		cma_debug(1, NULL, "ret:%d\n", ret);
+		goto done;
+	}
+
+	ret = 0;
+	order = 0;
+	outer_start = aml_find_large_buddy(start);
+	while (!PageBuddy(pfn_to_page(outer_start))) {
+		if (++order >= NR_PAGE_ORDERS) {
+			outer_start = start;
+			break;
+		}
+		outer_start &= ~0UL << order;
+	}
+
+	if (outer_start != start) {
+		order = buddy_order(pfn_to_page(outer_start));
+
+		/*
+		 * outer_start page could be small order buddy page and
+		 * it doesn't include start page. Adjust outer_start
+		 * in this case to report failed page properly
+		 * on tracepoint in test_pages_isolated()
+		 */
+		if (outer_start + (1UL << order) <= start)
+			outer_start = start;
+	}
+
+	/* Make sure the range is really isolated. */
+	if (aml_check_pages_isolated(outer_start, end, false)) {
+		cma_debug(1, NULL, "compact check page isolate(%lx, %lx) failed\n",
+				outer_start, end);
+		try_times++;
+		if (try_times < 10)
+			goto try_again;
+		ret = -EBUSY;
+		goto done;
+	}
+
+	/* Grab isolated pages from freelists. */
+#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
+	outer_end = isolate_freepages_range(&cc, outer_start, end);
+#else
+	outer_end = aml_iso_free_range(&cc, outer_start, end);
+#endif
+	if (!outer_end) {
+		if (cc.contended) {
+			ret = -EINTR;
+			pr_info("cma_compact [%lx-%lx] aborted\n", start, end);
+		} else {
+			ret = -EBUSY;
+		}
+		cma_debug(1, NULL, "iso free range(%lx, %lx) failed\n",
+				outer_start, end);
+		goto done;
+	}
+
+	if (!(gfp_mask & __GFP_COMP)) {
+#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
+		split_free_pages(cc.freepages);
+#else
+		aml_split_free_pages(cc.freepages);
+#endif
+		/* Free head and tail (if any) */
+		if (start != outer_start)
+			free_contig_range(outer_start, start - outer_start);
+		if (end != outer_end)
+			free_contig_range(end, outer_end - end);
+	} else if (start == outer_start && end == outer_end && is_power_of_2(end - start)) {
+		struct page *head = pfn_to_page(start);
+		int order = ilog2(end - start);
+
+#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
+		check_new_pages(head, order);
+		prep_new_page(head, order, gfp_mask, 0);
+#else
+		aml_prep_new_page(head, order, gfp_mask, 0);
+#endif
+	} else {
+		ret = -EINVAL;
+		WARN(true, "PFN range: requested [%lu, %lu), allocated [%lu, %lu)\n",
+		     start, end, outer_start, outer_end);
+	}
+
+done:
+#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
+	undo_isolate_page_range(start, end, migrate_type);
+#else
+	aml_undo_isolate_page_range(start, end, migrate_type);
+#endif
+	cma_isolated -= (end - start);
+
+	return ret;
+}
+
+#if IS_MODULE(CONFIG_AMLOGIC_CMA)
+EXPORT_SYMBOL(aml_compact_alloc);
+#endif
+
 static int __aml_cma_free_check(struct page *page, int order, unsigned int *cnt)
 {
 	int i;
