@@ -71,6 +71,7 @@ static u32 continue_dump_bottom_num;
 static bool is_start_dump;
 static u32 direct_mode_flag;
 static enum direct_mode_override force_direct_mode;
+static bool is_main_channel_enabled;
 static bool is_dual_channel_enabled;
 static u32 temperature_control_en;
 #ifdef CONFIG_AMLOGIC_DPSS_THERMAL
@@ -1327,11 +1328,11 @@ int get_di_backend_need_mem(int width, int height, int source_type)
 {
 	int dpss_need_mem = 0;
 
-	if (source_type == 0) {
+	if (source_type == 0 && !is_main_channel_enabled) {
 		dpss_need_mem = DPSS_P_MEM_USAGE;
-	} else {
+	} else if (source_type == 1) {
 		dpss_need_mem = DPSS_I_MEM_USAGE;
-		if (is_meson_t6x_cpu())
+		if (is_meson_t6x_cpu() && !is_main_channel_enabled)
 			dpss_need_mem += DPSS_PPS_I_MEM_USAGE;
 	}
 	return dpss_need_mem;
@@ -1640,6 +1641,7 @@ static int dpss_config_work_mode(int dev_index)
 				DPSS_WORK_MODE_HDR |
 				DPSS_WORK_MODE_DI |
 				DPSS_WORK_MODE_MAIN;
+		is_main_channel_enabled = true;
 	} else {
 		if (work_mode_ctl_pip)
 			dps_work_mode = work_mode_ctl_pip;
@@ -1870,6 +1872,11 @@ static int dpss_process_uninit(struct dpss_process_dev *dev)
 	if (is_dual_channel_enabled) {
 		dp_print(dev->index, PRINT_OTHER, "exit need change direct mode to 0.\n");
 		is_dual_channel_enabled = 0;
+	}
+
+	if (dev->index == 0) {
+		dp_print(dev->index, PRINT_OTHER, "exit main channel.\n");
+		is_main_channel_enabled = 0;
 	}
 
 	if (dev->dpss_index >= 0) {
