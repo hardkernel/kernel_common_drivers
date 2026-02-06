@@ -24,7 +24,7 @@ static int aml_ci_debug;
 #define pr_dbg(args...)\
 	do {\
 		if (aml_ci_debug)\
-			pr_err("ci:" args);\
+			pr_info("ci:" args);\
 	} while (0)
 
 #define pr_error(fmt, args...) pr_err("ci:" fmt, ## args)

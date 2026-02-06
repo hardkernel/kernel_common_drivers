@@ -38,7 +38,7 @@ static u32 fetch_done;
 #define pr_dbg(args...)\
 	do {\
 		if (aml_ci_bus_debug)\
-			pr_err(args);\
+			pr_info(args);\
 	} while (0)
 #define pr_error(fmt, args...) pr_err("ci_bus:" fmt, ## args)
 
@@ -950,7 +950,7 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 		snprintf(buf, sizeof(buf), "%s", "irq_cmp");
 		ci_bus_dev->irq_cmp = platform_get_irq_byname(pdev, buf);
 		if (ci_bus_dev->irq_cmp < 0)
-			pr_err("get irq cmp error\r\n");
+			pr_dbg("get irq_cmp error\r\n");
 		if (USED_IRQ)
 			ci_bus_dev->irq_timeout = 187;
 		else
@@ -959,7 +959,7 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 		snprintf(buf, sizeof(buf), "%s", "irq_timeout");
 		ci_bus_dev->irq_timeout = platform_get_irq_byname(pdev, buf);
 		if (ci_bus_dev->irq_timeout < 0)
-			pr_err("get irq irq_timeout error\r\n");
+			pr_dbg("get irq_timeout error\r\n");
 		//pin config
 		pr_dbg("ci bus irq[%d]cmp[%d] \r\n", ci_bus_dev->irq_cmp, ci_bus_dev->irq_timeout);
 		if (!ci_bus_dev->pinctrl) {
@@ -1835,7 +1835,7 @@ static ssize_t start_store(const struct class *class,
 	if (kstrtol(buf, 0, &value) == 0) {
 		enable = (int)value;
 		ci_bus.pc.start_work = enable;
-		pr_error("start set start\n");
+		pr_dbg("start set start\n");
 		aml_pcmcia_detect_cam(&ci_bus.pc);
 	}
 	return size;
@@ -1863,7 +1863,7 @@ static ssize_t wakeup_store(const struct class *class,
 	if (kstrtol(buf, 0, &value) == 0) {
 		enable = (int)value;
 		ci_bus.wakeup_thread = enable;
-		pr_error("wakeup is set\n");
+		pr_dbg("wakeup is set\n");
 	}
 	return size;
 }

@@ -20,7 +20,7 @@ static int reset_time_l_t = 2000;
 #define pr_dbg(fmt, args...)\
 do {\
 	if (aml_pcmcia_debug)\
-		pr_err("pcmcia:" fmt, ## args);\
+		pr_info("pcmcia:" fmt, ## args);\
 } while (0)
 
 #define pr_error(fmt, args...) pr_err("pcmcia: " fmt, ## args)
@@ -133,7 +133,7 @@ void aml_pcmcia_detect_cam(struct aml_pcmcia *pc)
 
 error_handle:
 	if (err_val)
-		pr_error("detect cam failed! err_val:%d\n", err_val);
+		pr_dbg("detect cam failed! err_val:%d\n", err_val);
 	return;
 }
 EXPORT_SYMBOL(aml_pcmcia_detect_cam);
