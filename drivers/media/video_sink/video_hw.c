@@ -10169,7 +10169,7 @@ void vd_scaler_setting(struct video_layer_s *layer,
 							   &virtual_layer->sc_setting, i);
 			}
 		} else {
-			if (cur_dev->vd1_vsr_safa_support &&
+			if (cur_dev->vd1_vsr_safa_support && layer_id == 0 &&
 				!(layer->nr_pps_h_scaler_rate || layer->nr_pps_v_scaler_rate))
 				disable_pps();
 		}
