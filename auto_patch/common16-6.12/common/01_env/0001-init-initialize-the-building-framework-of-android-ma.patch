@@ -1,4 +1,4 @@
-From 86745f623c51da7e44f4ccf9fd9f2adb13d15cb7 Mon Sep 17 00:00:00 2001
+From 197c5f5cef4528b58727df415ff524ec10f07e57 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Thu, 2 Feb 2023 15:49:10 +0800
 Subject: [PATCH] init: initialize the building framework of android-mainline
@@ -17,14 +17,15 @@ sc2
 
 Change-Id: Icfbc29709af1545b802ed7794808a2ab560ed08a
 Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
+Signed-off-by: Dezhen Wang <dezhen.wang@amlogic.com>
 ---
  .gitignore               |   3 +
  Kbuild                   |   9 +++
- Makefile                 |  43 ++++++++++-
+ Makefile                 |  41 ++++++++++
  scripts/checkpatch.pl    | 158 +++++++++++++++++++--------------------
  scripts/kconfig/Makefile |   9 ++-
  usr/include/Makefile     |   4 +
- 6 files changed, 145 insertions(+), 81 deletions(-)
+ 6 files changed, 144 insertions(+), 80 deletions(-)
 
 diff --git a/.gitignore b/.gitignore
 index a61e4778d011..b0f871c07ad4 100644
@@ -55,7 +56,7 @@ index 464b34a08f51..88e1b7633843 100644
 +endif
 +endif
 diff --git a/Makefile b/Makefile
-index dcbca86c9a78..e27c94904eb2 100644
+index 26aa14d36d50..4c0d915bc220 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -428,6 +428,20 @@ ifneq ($(SRCARCH),$(SUBARCH))
@@ -79,7 +80,7 @@ index dcbca86c9a78..e27c94904eb2 100644
  KCONFIG_CONFIG	?= .config
  export KCONFIG_CONFIG
  
-@@ -832,6 +846,18 @@ endif # need-config
+@@ -831,6 +845,18 @@ endif # need-config
  
  KBUILD_CFLAGS	+= -fno-delete-null-pointer-checks
  
@@ -98,7 +99,7 @@ index dcbca86c9a78..e27c94904eb2 100644
  ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
  KBUILD_CFLAGS += -O2
  KBUILD_RUSTFLAGS += -Copt-level=2
-@@ -1181,6 +1207,9 @@ ifeq ($(KBUILD_EXTMOD),)
+@@ -1182,6 +1208,9 @@ ifeq ($(KBUILD_EXTMOD),)
  endif
  	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)include/uapi
  	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)arch/$(SRCARCH)/include/uapi
@@ -108,17 +109,16 @@ index dcbca86c9a78..e27c94904eb2 100644
  
  ifeq ($(KBUILD_EXTMOD),)
  
-@@ -1450,10 +1479,22 @@ endif
+@@ -1451,10 +1480,22 @@ endif
  ifneq ($(dtstree),)
  
  %.dtb: dtbs_prepare
--	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
 +ifdef CONFIG_AMLOGIC_DRIVER
 +	$(if $(wildcard $(srctree)/$(dtstree)/amlogic/$(addsuffix .dts,$(basename $@))),\
 +		$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/amlogic/$@,\
 +		$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@)
 +else
-+	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@)
+ 	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
 +endif
  
  %.dtbo: dtbs_prepare
@@ -449,5 +449,5 @@ index 58173cfe5ff1..f442dc4a4a51 100644
  # It is here just because CONFIG_CC_CAN_LINK is tested with -m32 or -m64.
  UAPI_CFLAGS += $(filter -m32 -m64 --target=%, $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS))
 -- 
-2.42.0
+2.52.0
 
