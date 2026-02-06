@@ -1,0 +1,52 @@
+From a75be5716685e9e70449bd5a54209a78a03f4ccc Mon Sep 17 00:00:00 2001
+From: Lei Zhang <lei.zhang@amlogic.com>
+Date: Fri, 6 Feb 2026 14:54:40 +0800
+Subject: [PATCH] power: not enable wakeup reason function for preempt rt [1/1]
+
+PD#SWPL-255492
+
+Problem:
+wakeup reason source code not meet rt requirement, and
+function for android not linux
+
+Solution:
+bypass this function
+
+Verify:
+on A4
+
+Change-Id: I8aedd1ba8fbb079766632a01ba973850a84c39f6
+Signed-off-by: Lei Zhang <lei.zhang@amlogic.com>
+---
+ include/linux/wakeup_reason.h | 2 +-
+ kernel/power/Makefile         | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/include/linux/wakeup_reason.h b/include/linux/wakeup_reason.h
+index 54f5caaa5cde..62ac992c3601 100644
+--- a/include/linux/wakeup_reason.h
++++ b/include/linux/wakeup_reason.h
+@@ -20,7 +20,7 @@
+
+ #define MAX_SUSPEND_ABORT_LEN 256
+
+-#ifdef CONFIG_SUSPEND
++#if defined(CONFIG_SUSPEND) && !defined(CONFIG_AMLOGIC_PREEMPT_RT)
+ void log_irq_wakeup_reason(int irq);
+ void log_threaded_irq_wakeup_reason(int irq, int parent_irq);
+ void log_suspend_abort_reason(const char *fmt, ...);
+diff --git a/kernel/power/Makefile b/kernel/power/Makefile
+index 3e84020e7606..c2be2a28ec48 100644
+--- a/kernel/power/Makefile
++++ b/kernel/power/Makefile
+@@ -21,5 +21,7 @@ obj-$(CONFIG_PM_WAKELOCKS)	+= wakelock.o
+
+ obj-$(CONFIG_MAGIC_SYSRQ)	+= poweroff.o
+
++ifneq ($(CONFIG_AMLOGIC_PREEMPT_RT), y)
+ obj-$(CONFIG_SUSPEND)		+= wakeup_reason.o
++endif
+ obj-$(CONFIG_ENERGY_MODEL)	+= energy_model.o
+--
+2.29.0
+
