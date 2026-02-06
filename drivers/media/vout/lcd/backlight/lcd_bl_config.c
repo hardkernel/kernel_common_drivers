@@ -1072,6 +1072,11 @@ int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pdev, int 
 	int ret = 0, i;
 	unsigned char file_type = PANEL_FILE_INVALID;
 
+	if (!bdrv || !pdev) {
+		BLERR("config_load: invalid bdrv or pdev\n");
+		return -1;
+	}
+
 	if (bdrv->index == 0)
 		sprintf(ukey_name, "backlight");
 	else

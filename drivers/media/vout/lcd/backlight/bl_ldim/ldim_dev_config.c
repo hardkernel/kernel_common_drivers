@@ -1146,10 +1146,9 @@ static int ldim_dev_get_config_from_ini(struct ldim_dev_driver_s *dev_drv, phand
 	}
 
 	if (fw_cus && fw_cus->fw_param) {
-		tmp_cnt = lcd_ini_get_array(inip, psec, "param_data",
-			fw_cus->fw_param->param, 32);
+		tmp_cnt = lcd_ini_get_array(inip, psec, "param_data", fw_cus->fw_param->param, 32);
 		LDIMPR("custom param size = %d\n",  tmp_cnt);
-		if (tmp_cnt) {//!=0
+		if (tmp_cnt > 0) {
 			fw_cus->fw_param->param_len = tmp_cnt;
 			fw_cus->fw_param->param = kcalloc(tmp_cnt, sizeof(int), GFP_KERNEL);
 			if (fw_cus->fw_param->param) {
