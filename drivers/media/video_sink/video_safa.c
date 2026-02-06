@@ -1101,6 +1101,10 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 		rdma_wr_bits(vsr_reg->safa_pps_dejaggy_ctrl,
 			vsr_safa->dejaggy_en, 31, 1);
 	}
+	//for lc rmeter need postsc_en enable
+	if (cur_dev->display_module == T6W_DISPLAY_MODULE)
+		analy_en = 1;
+
 	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
 		pr_info("%s:preh/v_en:%d, %d, pre_h/vsize:%d, %d, preh/v_ratio:%d, %d, postsc_en:%d step = %d analy_en = %d\n",
 			__func__,

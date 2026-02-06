@@ -9623,6 +9623,9 @@ s32 config_vd_pps_internal(struct video_layer_s *layer,
 					!(layer->dispbuf->type_ext & VIDTYPE_EXT_LUMA_ONLY));
 			}
 		}
+		//for lc rmeter need postsc_en enable
+		if (cur_dev->display_module == T6W_DISPLAY_MODULE)
+			postsc_en = 1;
 		/* safa scaler config */
 		/* vsr top disable must bypass pps */
 		setting->vsr.vsr_top.vsr_en = vsr_top_en ? true : setting->sc_top_enable;
@@ -9676,7 +9679,12 @@ s32 config_vd_pps_internal(struct video_layer_s *layer,
 			setting->vsr.vsr_safa.mode = 0;
 
 		if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
-			pr_info("safa_mode :%d\n", setting->vsr.vsr_safa.mode);
+			pr_info("safa_mode :%d, h/vsize_in:%d %d, h/vsize_out:%d %d\n",
+				setting->vsr.vsr_safa.mode,
+				setting->vsr.vsr_top.hsize_in,
+				setting->vsr.vsr_top.vsize_in,
+				setting->vsr.vsr_top.hsize_out,
+				setting->vsr.vsr_top.vsize_out);
 
 		/* pi config for inline_aisr */
 		setting->vsr.vsr_pi.index = layer->layer_id;
