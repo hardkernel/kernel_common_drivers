@@ -1105,7 +1105,9 @@ irqreturn_t rdma_mgr_isr(int irq, void *dev_id)
 QUERY:
 	retry_count++;
 	rdma_status = READ_VCBUS_REG(irq_status.reg);
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 	cur_enc_line_start = get_cur_enc_line();
+#endif
 	if ((debug_flag & 4) && ((rdma_isr_count % 30) == 0))
 		pr_info("%s: %x\r\n", __func__, rdma_status);
 	for (i = 0; i < rdma_meson_dev.channel_num; i++) {
@@ -1907,10 +1909,10 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 
 	if (vpp_index == -1)
 		part_conflict_check = false;
-	u8 cur_cpuid = smp_processor_id();
-
 	if (ins->rdma_table_size == 0)
 		return -1;
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+	u8 cur_cpuid = smp_processor_id();
 	if ((get_rdma_handle(VSYNC_RDMA) == handle) &&
 		(cur_cpuid != rdma_done_cpuid ||
 		(!is_in_vsync_isr(cur_cpuid) &&
@@ -1933,7 +1935,7 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 		pr_info("rdma_write(%d)(%s) %d(%x)<=%x\n",
 			handle, current->comm, ins->rdma_item_count, adr, val);
 	}
-
+#endif
 	if (adr == 0) {
 		pr_info("rdma_write(%d)(%s) write zero addr = %x, count:%d\n",
 			handle, current->comm, val, ins->rdma_item_count);
@@ -1999,6 +2001,7 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 }
 EXPORT_SYMBOL(rdma_write_reg);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 void video_reg_write_check_table_init(void)
 {
 	int table_size = 2048 * 8;
@@ -2021,6 +2024,7 @@ void video_reg_write_check_table_init(void)
 			init_conflict_reg_table(video_reg.conflict_reg_table);
 	}
 }
+#endif
 
 bool get_part_flag_status(int vpp_index, int tbl_index)
 {
@@ -2235,6 +2239,7 @@ int rdma_part_write_reg(int tbl_index, int handle, u32 adr, u32 val)
 	}
 	struct rdma_partition_ins_s *part_ins = &info->rdma_part_ins[vpp_index][tbl_index];
 	u32 rdma_tbl_count = part_ins->rdma_item_count;
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 	u8 cur_cpuid = smp_processor_id();
 
 	if ((get_rdma_handle(VSYNC_RDMA) == handle) &&
@@ -2254,6 +2259,7 @@ int rdma_part_write_reg(int tbl_index, int handle, u32 adr, u32 val)
 		pr_info("%s(table_idx:%d)(%d)(%s) %d(%x)<=%x\n", __func__,
 			tbl_index, handle, current->comm, rdma_tbl_count, adr, val);
 	}
+#endif
 	/*
 	 *only video use partition table can use this debug function
 	 *to trace video reg write by pq/db

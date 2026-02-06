@@ -46,7 +46,14 @@ extern int read_rdma_trigger;
 
 ulong get_enc_time_start(u8 index);
 u32 get_enc_num_start(u8 index);
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 u32 get_cur_enc_num(void);
+#else
+u32 get_enc_num_start(u8 index);
+u32 get_cur_enc_num(void);
+ulong get_enc_time_start(u8 index);
+u32 get_cur_enc_line(void);
+#endif
 void rdma_stop(int handle);
 
 void vpp1_vsync_rdma_register(void);

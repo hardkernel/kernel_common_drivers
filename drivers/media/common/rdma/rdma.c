@@ -131,12 +131,36 @@ inline int VSYNC_WR_TABLE_REG_SIMPLE(int tbl_idx, u32 adr, u32 val)
 }
 EXPORT_SYMBOL(VSYNC_WR_TABLE_REG_SIMPLE);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 static void mark_lowlatency_channel(int handle)
 {
 	lowlatency_reg.rdma_handle = handle;
 	if (debug_flag[handle] & 8)
 		pr_info("%s handle=%d\n", __func__, handle);
 }
+#endif
+
+#ifndef CONFIG_AMLOGIC_MEDIA_VIDEO
+u32 get_enc_num_start(u8 index)
+{
+	return 0;
+}
+
+u32 get_cur_enc_num(void)
+{
+	return 0;
+}
+
+ulong get_enc_time_start(u8 index)
+{
+	return 0;
+}
+
+u32 get_cur_enc_line(void)
+{
+	return 0;
+}
+#endif
 
 int get_ex_vsync_rdma_enable(void)
 {
@@ -371,10 +395,12 @@ int _vsync_rdma_config(int rdma_type)
 		if (enable_ == 1) {
 			if (has_multi_vpp) {
 				if (rdma_type == VSYNC_RDMA) {
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 					if (get_lowlatency_mode() &&
 						get_rdma_item_count(vsync_rdma_handle[rdma_type]))
 						mark_lowlatency_channel
 							(vsync_rdma_handle[rdma_type]);
+#endif
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
 							   RDMA_TRIGGER_VSYNC_INPUT);
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
@@ -397,10 +423,12 @@ int _vsync_rdma_config(int rdma_type)
 						iret = rdma_config(vsync_rdma_handle[rdma_type],
 							RDMA_TRIGGER_PRE_VSYNC_INPUT);
 				} else if (rdma_type == EX_VSYNC_RDMA) {
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 					if (get_lowlatency_mode() &&
 						get_rdma_item_count(vsync_rdma_handle[rdma_type]))
 						mark_lowlatency_channel
 							(vsync_rdma_handle[rdma_type]);
+#endif
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
 						RDMA_TRIGGER_VSYNC_INPUT |
 						RDMA_TRIGGER_OMIT_LOCK);
@@ -417,10 +445,12 @@ int _vsync_rdma_config(int rdma_type)
 							   RDMA_READ_MASK);
 			} else {
 				if (rdma_type == VSYNC_RDMA) {
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 					if (get_lowlatency_mode() &&
 						get_rdma_item_count(vsync_rdma_handle[rdma_type]))
 						mark_lowlatency_channel
 							(vsync_rdma_handle[rdma_type]);
+#endif
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
 							   RDMA_TRIGGER_VSYNC_INPUT);
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
@@ -437,10 +467,12 @@ int _vsync_rdma_config(int rdma_type)
 							   read_rdma_trigger |
 							   RDMA_READ_MASK);
 				} else if (rdma_type == EX_VSYNC_RDMA) {
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 					if (get_lowlatency_mode() &&
 						get_rdma_item_count(vsync_rdma_handle[rdma_type]))
 						mark_lowlatency_channel
 							(vsync_rdma_handle[rdma_type]);
+#endif
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
 						RDMA_TRIGGER_VSYNC_INPUT |
 						RDMA_TRIGGER_OMIT_LOCK);
@@ -582,10 +614,12 @@ static void vsync_rdma_irq(void *arg)
 
 	if (enable_ == 1) {
 		/*triggered by next vsync*/
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 		if (get_lowlatency_mode()) {
 			if (get_rdma_item_count(vsync_rdma_handle[VSYNC_RDMA]))
 				mark_lowlatency_channel(vsync_rdma_handle[VSYNC_RDMA]);
 		}
+#endif
 		iret = rdma_config(vsync_rdma_handle[VSYNC_RDMA],
 				   RDMA_TRIGGER_VSYNC_INPUT);
 		if (iret) {
