@@ -10235,6 +10235,7 @@ unsigned int sdr_ext_mode_dpss;
 unsigned int hdr_core_fix_mode;
 unsigned int update_by_vsync;
 unsigned int dct_status_dpss;
+unsigned int pre_dct_status_dpss;
 
 static int force_vpp_index = VPP_VCBUS;//VPP_DPSS;
 static uint force_source_format;
@@ -11222,7 +11223,9 @@ void set_muxio_link_mode(unsigned int link_flag,
 		return;
 
 	if (link_flag) {
-		if (get_muxio_link_status() && !hdr_core_fix_mode) {
+		if ((get_muxio_link_status() &&
+			pre_dct_status_dpss == dct_status_dpss) &&
+			!hdr_core_fix_mode) {
 			pr_csc(128, "%s: muxio_link_status true now, skip set.\n",
 				__func__);
 			return;
@@ -11251,8 +11254,10 @@ void set_muxio_link_mode(unsigned int link_flag,
 		}
 
 		muxio_de_link_status = 0;
+		pre_dct_status_dpss = dct_status_dpss;
 	} else {
 		muxio_de_link_status = 1;
+		pre_dct_status_dpss = 0;
 	}
 
 	pr_csc(128, "[muxio_link]: link_flag/is_dd_frame/de_link_status/dct=%d/%d/%d/%d\n",
