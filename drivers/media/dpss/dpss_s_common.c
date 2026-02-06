@@ -1574,13 +1574,15 @@ void dpss_s_unreg_step2(struct dpss_ch_s *pch)
 	dpss_rdma_pre_tab_unreg(pch);
 	dpss_trig_mem_release_di(pch);
 	dpss_buf_unreg(pch);
+	if (!pch->c.ch) { // 2026-02-05
 #ifdef FUNC_EN_DD
-	dpss_dd_disable();
+		dpss_dd_disable();
 #endif
 #ifdef FUNC_EN_HDR
-	w_reg_bit(VPU_VBE_TOP_HDR_CTRL, 3, 0, 2);
-	dpss_hdr_disable();
+		w_reg_bit(VPU_VBE_TOP_HDR_CTRL, 3, 0, 2);
+		dpss_hdr_disable();
 #endif
+	}
 	dpss_s_print_inf(pch->c.ch);
 #ifdef _HIS_CODE_	//ary
 	//dpss-patch for reg
@@ -5211,7 +5213,7 @@ void dpss_buf_reg(struct dpss_ch_s *pch)
 void dpss_buf_unreg(struct dpss_ch_s *pch)
 {
 	dpss_buf_release(pch);
-	film_grain_uint();
+	// 2026-02-05 film_grain_uint();
 	nr_unreg_val(pch);
 	memset(&pch->c.blki_sml, 0, sizeof(pch->c.blki_sml));
 	memset(&pch->c.blki_dw, 0, sizeof(pch->c.blki_dw));

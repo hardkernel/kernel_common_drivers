@@ -2129,8 +2129,9 @@ void nr_unreg_hw(struct dpss_ch_s *pch)
 
 void nr_unreg_val(struct dpss_ch_s *pch)
 {
-	dpss_inp_frm_cnt = 0;
+//	dpss_inp_frm_cnt = 0;
 	if (pch->c.ch == 0) {
+		dpss_inp_frm_cnt = 0; //2026-02-05
 		dpss_get_hw()->ch_act &= ~C_BIT0;
 		dpss_get_hw()->st_idle |= C_BIT0;
 		dpss_get_hw()->src_act &= ~C_BIT0;

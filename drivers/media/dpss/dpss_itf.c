@@ -774,8 +774,11 @@ static enum DPSS_ERRORTYPE _destroy_instance(struct dpss_ch_s *pch)
 	pch->d = NULL;
 	pch->c.reg_s1 = 0;
 	dbg_ins0("destroy:ch[%d]\n", pch->c.ch);
-	clk_set_rate(dpss_pdev->vpu_clk_dpe, 50000000);
-	clk_set_rate(dpss_pdev->vpu_clk_dae, 50000000);
+	if (!pch->c.ch) { //2026-02-05 tmp
+		clk_set_rate(dpss_pdev->vpu_clk_dpe, 50000000);
+		clk_set_rate(dpss_pdev->vpu_clk_dae, 50000000);
+	}
+
 	return DPSS_ERR_NONE;
 }
 
