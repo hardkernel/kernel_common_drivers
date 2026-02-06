@@ -121,3 +121,9 @@
  __tty_insert_flip_string_flags
  __usb_serial_register_drivers
  usb_control_msg_send
+
+#amlogic-phy-debug.ko
+ class_dev_iter_exit
+ class_dev_iter_init
+ class_dev_iter_next
+ device_match_name
