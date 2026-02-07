@@ -155,7 +155,7 @@ int dnlp_en_2_pre = 1;
 int dnlp_en_2 = 1;/* 0:disable;1:enable */
 int dnlp_en_dsw = 1;/* 0:disable;1:enable */
 int lut3d_en;/* lut3d_en enable/disable */
-int lut3d_order;/* 0 RGB 1 GBR */
+int lut3d_order;/* 0 RGB 1 GBR 2 BGR*/
 int lut3d_debug;
 #endif
 
@@ -2705,7 +2705,7 @@ uint flag_lut3d_resume;
 int vpp_set_lut3d(int bfromkey,
 	int keyindex,
 	unsigned int p3dlut_in[][3],
-	int blut3dcheck)
+	int blut3dcheck, int rdma_w)
 {
 #ifdef CONFIG_AMLOGIC_LCD
 	int i, key_len, key_count, offset = 0;
@@ -2887,16 +2887,21 @@ int vpp_set_lut3d(int bfromkey,
 #endif
 	{
 		if (lut3d_dma_case && chip_type_id == chip_t6x) {
-			am_dma_set_mif_data_3dlut(plut3d);
-			WRITE_VPP_REG_BITS(VPP_LUT3D_CTRL, 1, 1, 1);//enable dma wr
-			ctltemp  = READ_VPP_REG(VPP_LUT3D_CTRL);
-			if (lut3d_debug == 1) {
-				for (i = 0; i < lut3d_points * lut3d_points; i++)
-					pr_info("%d: %03x %03x %03x\n",
-						i,
-						plut3d[i * 3 + 0],
-						plut3d[i * 3 + 1],
-						plut3d[i * 3 + 2]);
+			if (!rdma_w) {
+				am_dma_set_mif_data_3dlut(plut3d);
+				WRITE_VPP_REG_BITS(VPP_LUT3D_CTRL, 1, 1, 1);//enable dma wr
+				ctltemp  = READ_VPP_REG(VPP_LUT3D_CTRL);
+				if (lut3d_debug == 1) {
+					for (i = 0; i < lut3d_points * lut3d_points; i++)
+						pr_info("%d: %03x %03x %03x\n",
+							i,
+							plut3d[i * 3 + 0],
+							plut3d[i * 3 + 1],
+							plut3d[i * 3 + 2]);
+				}
+			} else {
+				if (ct_en || lut3d_en)
+					vecm_latch_flag2 |= LUT3D_BASE_UPDATE;
 			}
 		} else {
 			WRITE_VPP_REG_BITS(VPP_LUT3D_CTRL, 0, 1, 1);
@@ -2958,8 +2963,10 @@ int vpp_set_lut3d(int bfromkey,
 			pr_info("%s: Lut3d check ok!!\n", __func__);
 		}
 
-		WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
-		WRITE_VPP_REG(VPP_LUT3D_CTRL, ctltemp);
+		if (!rdma_w) {
+			WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
+			WRITE_VPP_REG(VPP_LUT3D_CTRL, ctltemp);
+		}
 	}
 
 	mutex_unlock(&vpp_lut3d_lock);
@@ -3091,7 +3098,7 @@ int lut3d_test(int test_case, int enable)
 				plut3d[i * 3], plut3d[i * 3 + 1], plut3d[i * 3 + 2], bitdepth);
 		}
 	}
-	vpp_set_lut3d(0, 0, 0, 0);
+	vpp_set_lut3d(0, 0, 0, 0, 0);
 	vpp_enable_lut3d(enable);
 	return 0;
 }
@@ -3362,6 +3369,8 @@ void vpp_lut3d_table_init(int r, int g, int b)
 	}
 	for (i = 0; i < lut3d_points * lut3d_points; i++)
 		P3dlut_tab[i] = plut3d[i];
+
+	am_dma_3dlut_buffer_init();
 }
 
 void vpp_lut3d_base_table_init(void)
@@ -3424,6 +3433,8 @@ void vpp_lut3d_table_release(void)
 
 	vfree(plut3d_base);
 	plut3d_base = NULL;
+
+	am_dma_3dlut_buffer_release();
 }
 
 void dump_plut3d_table(void)

@@ -88,6 +88,8 @@
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
+#define LUT3D_BASE_UPDATE           BIT(31)
+
 #define VPP_MARTIX_UPDATE_BRIGHT    BIT(30)
 #define VPP_MARTIX_UPDATE_CONTRAST  BIT(29)
 #define VPP_MARTIX_UPDATE_HUE_SAT   BIT(28)

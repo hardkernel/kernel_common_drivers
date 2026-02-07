@@ -3245,11 +3245,24 @@ void amvecm_saturation_hue_update(int offset_val)
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+unsigned int force_lut3d_bypass;
+
 void bs_ct_update(int vpp_index)
 {
+	if (vecm_latch_flag2 & LUT3D_BASE_UPDATE) {
+		vecm_latch_flag2 &= ~LUT3D_BASE_UPDATE;
+		lut3d_update(0, vpp_index);
+	}
+
 	if (vecm_latch_flag2 & LUT3D_UPDATE) {
 		vecm_latch_flag2 &= ~LUT3D_UPDATE;
 		lut3d_set_api(vpp_index);
+	}
+
+	if (force_lut3d_bypass) {
+		vpp_lut3d_table_init(-1, -1, -1);
+		lut3d_update(0, vpp_index);
+		force_lut3d_bypass = 0;
 	}
 }
 
@@ -5602,7 +5615,7 @@ static long amvecm_ioctl(struct file *file,
 			ret = -EFAULT;
 		} else {
 			/*vpp_lut3d_table_init(0, 0, 0);*/
-			vpp_set_lut3d(0, 0, p3dlut->data, 0);
+			vpp_set_lut3d(0, 0, p3dlut->data, 0, 1);
 			pr_amvecm_dbg("AMVECM_IOC_SET_3D_LUT update data.\n");
 			/*vpp_lut3d_table_release();*/
 			if (ct_en) {
@@ -5622,7 +5635,7 @@ static long amvecm_ioctl(struct file *file,
 		}
 
 		vpp_lut3d_table_init(-1, -1, -1);
-		vpp_set_lut3d(lut3d_data_source, lut_index, 0, 0);
+		vpp_set_lut3d(lut3d_data_source, lut_index, 0, 0, 0);
 		/*vpp_lut3d_table_release();*/
 		break;
 	case AMVECM_IOC_SET_3D_LUT_ORDER:
@@ -13311,6 +13324,9 @@ static ssize_t amvecm_debug_store(const struct class *cla,
 		}
 		vpp_clip_config(mode_sel, color, color_mode);
 		pr_info("vpp_clip_config done!\n");
+	} else if (!strcmp(parm[0], "3dlut_bypass")) {
+		force_lut3d_bypass = 1;
+		pr_info("force_lut3d_bypass = %d\n", force_lut3d_bypass);
 	} else if (!strcmp(parm[0], "3dlut_testpattern")) {
 		int r, g, b;
 
@@ -13336,8 +13352,8 @@ static ssize_t amvecm_debug_store(const struct class *cla,
 			b = 0;
 		}
 		vpp_lut3d_table_init(r, g, b);
-		vpp_set_lut3d(0, 0, 0, 0);
-		vpp_lut3d_table_release();
+		vpp_set_lut3d(0, 0, 0, 0, 1);
+		/*vpp_lut3d_table_release();*/
 	} else if (!strcmp(parm[0], "3dlut")) {
 		if (!parm[1])
 			goto free_buf;
@@ -13351,6 +13367,8 @@ static ssize_t amvecm_debug_store(const struct class *cla,
 			vpp_enable_lut3d(1);
 		} else if (!strcmp(parm[1], "close")) {
 			vpp_enable_lut3d(0);
+		} else if (!strcmp(parm[1], "release")) {
+			vpp_lut3d_table_release();
 		} else if (!strcmp(parm[1], "debug")) {
 			if (parm[2]) {
 				if (kstrtoul(parm[2], 10, &val) < 0)
@@ -13424,8 +13442,8 @@ static ssize_t amvecm_debug_store(const struct class *cla,
 			}
 
 			vpp_lut3d_table_init(0, 0, 0);
-			vpp_set_lut3d(lut3d_data_source, index, 0, 0);
-			vpp_lut3d_table_release();
+			vpp_set_lut3d(lut3d_data_source, index, 0, 0, 0);
+			/*vpp_lut3d_table_release();*/
 		} else if (!strcmp(parm[1], "writesection")) {
 			unsigned int section_len, start, paracount;
 			unsigned int *section_in;
@@ -15209,7 +15227,7 @@ void amvecm_slt_lut3d_enable(void)
 	lut3d_en = 1;
 	if (!slt_lut3d_en) {
 		vpp_lut3d_table_init(-1, -1, -1);
-		vpp_set_lut3d(0, 0, 0, 0);
+		vpp_set_lut3d(0, 0, 0, 0, 0);
 		vpp_lut3d_table_release();
 	}
 	vpp_enable_lut3d(1);
@@ -17002,13 +17020,13 @@ void amvecm_3dlut_init(bool en)
 	if (ct_en) {
 		lut3d_en = 1;
 		vpp_lut3d_table_init(-1, -1, -1);
-		vpp_set_lut3d(0, 0, 0, 0);
+		vpp_set_lut3d(0, 0, 0, 0, 0);
 		color_lut_init(ct_en);
 		vpp_enable_lut3d(ct_en);
 		vpp_lut3d_base_table_init();
 	} else {
 		vpp_lut3d_table_init(-1, -1, -1);
-		vpp_set_lut3d(0, 0, 0, 0);
+		vpp_set_lut3d(0, 0, 0, 0, 0);
 		/*vpp_lut3d_table_release();*/
 		vpp_enable_lut3d(en);
 	}

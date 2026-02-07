@@ -196,10 +196,6 @@ extern struct am_regs_s sr1reg_hv_noscale;
 void amvecm_fresh_overscan(struct vframe_s *vf, struct vframe_s *vf_rpt);
 void amvecm_reset_overscan(void);
 void ve_hist_gamma_tgt(struct vframe_s *vf, struct vpp_hist_param_s *vp);
-int vpp_set_lut3d(int bfromkey,
-		  int keyindex,
-		  unsigned int p3dlut_in[][3],
-		  int blut3dcheck);
 int vpp_write_lut3d_section(int index,
 			    int section_len,
 			    unsigned int *p3dlut_section_in);
@@ -271,7 +267,7 @@ void pre_saturation_gain_update(void);
 int vpp_set_lut3d(int bfromkey,
 	int keyindex,
 	unsigned int p3dlut_in[][3],
-	int blut3dcheck);
+	int blut3dcheck, int rdma_w);
 extern struct pre_sat_data_s pre_sat_data;
 int vpp_check_lut3d(void);
 int lut3d_test(int test_case, int enable);

@@ -231,12 +231,12 @@ void bls_set(void)
 		}
 	}
 
-	//vpp_set_lut3d(0, 0, 0, 0);
+	//vpp_set_lut3d(0, 0, 0, 0, 0);
 }
 
 void bs_reg_set(void)
 {
-	vpp_set_lut3d(0, 0, 0, 0);
+	vpp_set_lut3d(0, 0, 0, 0, 0);
 }
 
 ssize_t bls_par_show(char *buf)

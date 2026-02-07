@@ -1422,6 +1422,46 @@ int am_dma_set_mif_data_gamut1(int *eotf, int *oetf)
 	return 0;
 }
 
+long long *ram[8];
+int lut3d_malloc_ok;
+
+int am_dma_3dlut_buffer_init(void)
+{
+	int i = 0;
+	int j = 0;
+
+	if (chip_type_id != chip_t6x ||
+		lut3d_malloc_ok)
+		return 0;
+
+	for (i = 0; i < 8; i++) {
+		ram[i] = vmalloc(730 * sizeof(long long));
+		if (!ram[i]) {
+			for (j = 0; j < i; j++)
+				vfree(ram[j]);
+			return -1;
+		}
+	}
+
+	lut3d_malloc_ok = 1;
+
+	return 0;
+}
+
+void am_dma_3dlut_buffer_release(void)
+{
+	int i = 0;
+
+	if (chip_type_id != chip_t6x ||
+		!lut3d_malloc_ok)
+		return;
+
+	for (i = 0; i < 8; i++)
+		vfree(ram[i]);
+
+	lut3d_malloc_ok = 0;
+}
+
 int am_dma_set_mif_data_3dlut(int *plut3d)
 {
 	int i;
@@ -1433,7 +1473,6 @@ int am_dma_set_mif_data_3dlut(int *plut3d)
 	int ram5_cnt = 0;
 	int ram6_cnt = 0;
 	int ram7_cnt = 0;
-	long long *ram[8];
 	int d0, d1, d2, d3, d4, d5;
 	int index = 0;
 	int k = 0;
@@ -1442,23 +1481,9 @@ int am_dma_set_mif_data_3dlut(int *plut3d)
 	unsigned int temp1 = 0;
 	unsigned int *addr;
 
-	if (!plut3d) {
-//		pr_am_dma("%s: pLut3D is NULL.\n", __func__);
+	if (!plut3d || !dma_rd_vaddr[dma_id] || !lut3d_malloc_ok) {
+//		pr_am_dma("set_3dlut: dma_rd_vaddr %d is NULL.\n", dma_id);
 		return 1;
-	}
-
-	if (!dma_rd_vaddr[dma_id]) {
-//		pr_am_dma("%s: dma_rd_vaddr %d is NULL.\n",
-//			__func__, dma_id);
-		return 1;
-	}
-
-	for (i = 0; i < 8; i++) {
-		ram[i] = kzalloc(17 * 17 * 17 * sizeof(long long), GFP_ATOMIC);
-		if (!ram[i]) {
-//			pr_am_dma("%s:error kzalloc[%d] fail.\n", __func__, i);
-			return 2;
-		}
 	}
 
 	for (d0 = 0; d0 < 17; d0++) {
@@ -1636,9 +1661,6 @@ int am_dma_set_mif_data_3dlut(int *plut3d)
 		temp0 = 0;
 		addr[k++] = temp0;
 	}
-
-	for (i = 0; i < 8; i++)
-		kfree(ram[i]);
 
 	return 0;
 }
