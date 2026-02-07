@@ -861,8 +861,8 @@ void vrrlock_process(struct vframe_s *vf,
 				__func__, vdata.line_dly);
 	} else {
 		if (vf->compWidth == 2560 && vf->compHeight == 1440 &&
-			((frame_sts.vrr_frame_cur == 60 && !vf->vf_vrr_param.vrr_signal) ||
-			vf->vf_vrr_param.vin_base_fps == 60)) {
+			((frame_sts.vrr_frame_cur == 60 || frame_sts.vrr_frame_cur == 120) &&
+			!vf->vf_vrr_param.vrr_signal)) {
 			vdata.line_dly = vrr_delay_line + line + 50;
 		} else if (vf->compWidth == 1280 && vf->compHeight == 768 &&
 			((frame_sts.vrr_frame_cur == 60 && !vf->vf_vrr_param.vrr_signal) ||
