@@ -14827,15 +14827,14 @@ static bool update_frc_link_state(struct video_layer_s *layer,
 			frc_in_p.unreg_bypass = 0;
 			frc_in_p.follow_hold_line = vpp_hold_line[vpp_index];
 			frc_in_p.link_mode = layer->cur_link_mode;
-
-			frc_in_p.win.x_st = layer->cur_frame_par->VPP_hd_start_lines_;
-			frc_in_p.win.x_end = layer->cur_frame_par->VPP_hd_end_lines_;
-			frc_in_p.win.y_st = layer->cur_frame_par->VPP_vd_start_lines_;
-			frc_in_p.win.y_end = layer->cur_frame_par->VPP_vd_end_lines_;
-			frc_in_p.vinfo.x_d_st = layer->cur_frame_par->VPP_hsc_startp;
-			frc_in_p.vinfo.x_d_end = layer->cur_frame_par->VPP_hsc_endp;
-			frc_in_p.vinfo.y_d_st = layer->cur_frame_par->VPP_vsc_startp;
-			frc_in_p.vinfo.y_d_end = layer->cur_frame_par->VPP_vsc_endp;
+			frc_in_p.win.x_st = layer->next_frame_par->VPP_hd_start_lines_;
+			frc_in_p.win.x_end = layer->next_frame_par->VPP_hd_end_lines_;
+			frc_in_p.win.y_st = layer->next_frame_par->VPP_vd_start_lines_;
+			frc_in_p.win.y_end = layer->next_frame_par->VPP_vd_end_lines_;
+			frc_in_p.vinfo.x_d_st = layer->next_frame_par->VPP_hsc_startp;
+			frc_in_p.vinfo.x_d_end = layer->next_frame_par->VPP_hsc_endp;
+			frc_in_p.vinfo.y_d_st = layer->next_frame_par->VPP_vsc_startp;
+			frc_in_p.vinfo.y_d_end = layer->next_frame_par->VPP_vsc_endp;
 			frc_in_p.vinfo.x_d_size = frc_in_p.vinfo.x_d_end -
 				frc_in_p.vinfo.x_d_st + 1;
 			frc_in_p.vinfo.y_d_size = frc_in_p.vinfo.y_d_end -
@@ -14891,15 +14890,14 @@ static bool update_frc_link_state(struct video_layer_s *layer,
 			frc_in_p.unreg_bypass = 0;
 			frc_in_p.follow_hold_line = vpp_hold_line[vpp_index];
 			frc_in_p.link_mode = layer->cur_frc_link_mode;
-
-			frc_in_p.win.x_st = layer->cur_frame_par->VPP_hd_start_lines_;
-			frc_in_p.win.x_end = layer->cur_frame_par->VPP_hd_end_lines_;
-			frc_in_p.win.y_st = layer->cur_frame_par->VPP_vd_start_lines_;
-			frc_in_p.win.y_end = layer->cur_frame_par->VPP_vd_end_lines_;
-			frc_in_p.vinfo.x_d_st = layer->cur_frame_par->VPP_hsc_startp;
-			frc_in_p.vinfo.x_d_end = layer->cur_frame_par->VPP_hsc_endp;
-			frc_in_p.vinfo.y_d_st = layer->cur_frame_par->VPP_vsc_startp;
-			frc_in_p.vinfo.y_d_end = layer->cur_frame_par->VPP_vsc_endp;
+			frc_in_p.win.x_st = layer->next_frame_par->VPP_hd_start_lines_;
+			frc_in_p.win.x_end = layer->next_frame_par->VPP_hd_end_lines_;
+			frc_in_p.win.y_st = layer->next_frame_par->VPP_vd_start_lines_;
+			frc_in_p.win.y_end = layer->next_frame_par->VPP_vd_end_lines_;
+			frc_in_p.vinfo.x_d_st = layer->next_frame_par->VPP_hsc_startp;
+			frc_in_p.vinfo.x_d_end = layer->next_frame_par->VPP_hsc_endp;
+			frc_in_p.vinfo.y_d_st = layer->next_frame_par->VPP_vsc_startp;
+			frc_in_p.vinfo.y_d_end = layer->next_frame_par->VPP_vsc_endp;
 			frc_in_p.vinfo.x_d_size = frc_in_p.vinfo.x_d_end -
 				frc_in_p.vinfo.x_d_st + 1;
 			frc_in_p.vinfo.y_d_size = frc_in_p.vinfo.y_d_end -
@@ -14968,11 +14966,10 @@ static bool update_frc_link_state(struct video_layer_s *layer,
 				frc_in_p.unreg_bypass = 0;
 				layer->cur_link_mode = frc_in_p.link_mode;
 				frc_in_p.follow_hold_line = vpp_hold_line[vpp_index];
-
-				frc_in_p.vinfo.x_d_st = layer->cur_frame_par->VPP_hsc_startp;
-				frc_in_p.vinfo.x_d_end = layer->cur_frame_par->VPP_hsc_endp;
-				frc_in_p.vinfo.y_d_st = layer->cur_frame_par->VPP_vsc_startp;
-				frc_in_p.vinfo.y_d_end = layer->cur_frame_par->VPP_vsc_endp;
+				frc_in_p.vinfo.x_d_st = layer->next_frame_par->VPP_hsc_startp;
+				frc_in_p.vinfo.x_d_end = layer->next_frame_par->VPP_hsc_endp;
+				frc_in_p.vinfo.y_d_st = layer->next_frame_par->VPP_vsc_startp;
+				frc_in_p.vinfo.y_d_end = layer->next_frame_par->VPP_vsc_endp;
 				frc_in_p.vinfo.x_d_size = frc_in_p.vinfo.x_d_end -
 					frc_in_p.vinfo.x_d_st + 1;
 				frc_in_p.vinfo.y_d_size = frc_in_p.vinfo.y_d_end -
