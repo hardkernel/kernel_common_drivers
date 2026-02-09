@@ -477,10 +477,11 @@ bool check_top1_scale(u32 w, u32 h)
 		(((h + 7) >> 3) << 3) == top1_vd_info.height)) {
 		decoder_scale = 0;
 	}
-	if (decoder_scale > 0 &&
+	if ((decoder_scale > 0 &&
 		top1_vd_info.width < 960 && top1_vd_info.height < 540 &&
-		top1_vd_info.width > 512 && top1_vd_info.height > 288) {
-		/*1. Some special res, pyramid start line too large top2 stuck at level7*/
+		top1_vd_info.width > 512 && top1_vd_info.height > 288) &&
+		is_aml_t3x()) {
+		/*1. T3X:Some special res, pyramid start line too large top2 stuck at level7*/
 		/*need work with level6, so need downscaler once more*/
 		scale = true;
 	} else if (decoder_scale == 0 && top1_vd_info.width > 512) {
