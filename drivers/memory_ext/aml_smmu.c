@@ -1323,9 +1323,15 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 		aml_swiotlb_size / SZ_1K, atomic_pool_size / SZ_1K);
 	rmem = of_reserved_mem_lookup(mem_node);
 	of_node_put(mem_node);
+
 	if (rmem) {
+		if (aml_swiotlb_size + atomic_pool_size > rmem->size) {
+			dev_err(dev, "cma pool config error. %llu\n", rmem->size);
+			return -1;
+		}
+
 		dev_info(dev, "tee protect memory: %lu MiB at 0x%lx\n",
-			(unsigned long)rmem->size / SZ_1M, (unsigned long)rmem->base);
+				(unsigned long)rmem->size / SZ_1M, (unsigned long)rmem->base);
 		ret = tee_protect_mem(TEE_MEM_TYPE_PCIE, 0,
 				rmem->base, rmem->size, &handle);
 		if (ret) {
