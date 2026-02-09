@@ -1409,8 +1409,20 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 
 	dev->file_thread = kthread_create(vq_file_thread,
 					  dev, dev->vf_receiver_name);
+	if (IS_ERR(dev->file_thread)) {
+		vq_print(dev->inst, P_ERROR, "failed to create file_thread: %ld\n",
+			   PTR_ERR(dev->file_thread));
+		dev->file_thread = NULL;
+		return -ENOMEM;
+	}
 	dev->fence_thread = kthread_create(vq_fence_thread,
 					   dev, dev->vf_receiver_name);
+	if (IS_ERR(dev->fence_thread)) {
+		vq_print(dev->inst, P_ERROR, "failed to create fence_thread: %ld\n",
+			   PTR_ERR(dev->fence_thread));
+		dev->fence_thread = NULL;
+		return -ENOMEM;
+	}
 	videoq_notify_to_amvideo(true);
 
 	return ret;
