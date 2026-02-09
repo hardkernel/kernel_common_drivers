@@ -268,10 +268,108 @@ void dmc_reg_setting(char rw, u32 block_device)
 	ret = enable_side_band(&dmc_sb_setting);
 }
 
+static void dmc_sb_param_setting(u32 arb_port)
+{
+	if (vpu_conf.data->chip_type == VPU_CHIP_T5W) {
+		dmc_sb_setting.dmc = 0;
+		switch (arb_port) {
+		case 0:
+			dmc_sb_setting.bus = 16;
+			break;
+		case 1:
+			dmc_sb_setting.bus = 17;
+			break;
+		case 2:
+			dmc_sb_setting.bus = 18;
+			break;
+		case 3:
+			dmc_sb_setting.bus = 19;
+			break;
+		case 4:
+			dmc_sb_setting.bus = 20;
+			break;
+		}
+	} else if (vpu_conf.data->chip_type == VPU_CHIP_TXHD2) {
+		dmc_sb_setting.dmc = 0;
+		switch (arb_port) {
+		case 0:
+			dmc_sb_setting.bus = 16;
+			break;
+		case 1:
+			dmc_sb_setting.bus = 17;
+			break;
+		case 2:
+			dmc_sb_setting.bus = 19;
+			break;
+		case 3:
+			dmc_sb_setting.bus = 20;
+			break;
+		}
+	} else if (vpu_conf.data->chip_type == VPU_CHIP_T3) {
+		dmc_sb_setting.dmc = 0;
+		/*T3 only 1 port*/
+		dmc_sb_setting.bus = 2;
+	} else if (vpu_conf.data->chip_type == VPU_CHIP_T6W) {
+		dmc_sb_setting.dmc = 0;
+		switch (arb_port) {
+		case 0:
+			dmc_sb_setting.bus = 2;
+			break;
+		case 1:
+			dmc_sb_setting.bus = 6;
+			break;
+		case 2:
+			dmc_sb_setting.bus = 7;
+			break;
+		case 3:
+			dmc_sb_setting.bus = 2;
+			break;
+		case 4:
+			dmc_sb_setting.bus = 2;
+			break;
+		}
+	} else if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_T3X) {
+		dmc_sb_setting.dmc = 0;
+		/*T7 only 1 port*/
+		dmc_sb_setting.bus = 2;
+	} else if (vpu_conf.data->chip_type == VPU_CHIP_S7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S7D) {
+		dmc_sb_setting.dmc = 0;
+		switch (arb_port) {
+		case 0:
+			dmc_sb_setting.bus = 1;
+			break;
+		case 1:
+			dmc_sb_setting.bus = 2;
+			break;
+		case 2:
+			//dmc_sb_setting.bus = 3;
+			break;
+		case 3:
+			dmc_sb_setting.bus = 4;
+			break;
+		case 4:
+			dmc_sb_setting.bus = 6;
+			break;
+		}
+	} else if (vpu_conf.data->chip_type == VPU_CHIP_T6X) {
+		dmc_sb_setting.dmc = 0;
+		switch (arb_port) {
+		case 0:
+			dmc_sb_setting.bus = 1;
+			break;
+		case 1:
+			dmc_sb_setting.bus = 2;
+			break;
+		}
+	}
+}
+
 void set_vpu_sideband_enable(u32 arb_port, u32 port_enable)
 {
 	static u32 enable_pre[5];
-	bool enable = false;
+	static bool enable[5] = {false};
 	int i;
 	struct vpu_sideband_ctrl_s *sideband_ctrl_table = NULL;
 
@@ -290,14 +388,18 @@ void set_vpu_sideband_enable(u32 arb_port, u32 port_enable)
 			port_enable = vpu_sideband_en[arb_port];
 		else if (port_enable == 0xff)
 			return;
-		for (i = 0; i < 5; i++) {
-			if (vpu_sideband_en[i] != 0xff &&
-				vpu_sideband_en[i] != 0)
-				enable = true;
-		}
+
 		if (port_enable != enable_pre[arb_port]) {
 			u32 dmc_enable = 0;
 
+			enable[arb_port] = port_enable;
+
+			for (i = 0; i < 5; i++) {
+				if (enable[i] != 0) {
+					dmc_enable = 1;
+					break;
+				}
+			}
 			//enable sideband
 			sideband_ctrl_table = &vpu_conf.data->vpu_arb_urg_ctrl_table[arb_port];
 
@@ -306,21 +408,21 @@ void set_vpu_sideband_enable(u32 arb_port, u32 port_enable)
 				vpu_vcbus_setb(sideband_ctrl_table->reg, sideband_ctrl_table->val,
 					sideband_ctrl_table->bit, sideband_ctrl_table->len);
 
-			if (!enable) {
+			dmc_sb_param_setting(arb_port);
+
+			if (!dmc_enable) {
 				vpu_vcbus_setb(sideband_ctrl_table->reg,
 					0, 28, 1);
-				dmc_enable = 0;
 				disable_side_band(dmc_sb_setting.dmc, dmc_sb_setting.bus);
 			} else {
 				vpu_vcbus_setb(sideband_ctrl_table->reg,
 					1, 28, 1);
-				dmc_enable = 1;
 				dmc_reg_setting(3, vpu_sideband_block_device);
 			}
-			VPUPR("%s:dmc_enable=0x%x\n",
-				__func__, dmc_enable);
-			VPUPR("%s:arb_port=%d, enable=%d, enable_pre=0x%x, vpu_sideband_en=0x%x\n",
-				__func__, arb_port, port_enable,
+			VPUPR("sideband_enable:dmc_enable=0x%x\n",
+				dmc_enable);
+			VPUPR("arb_port=%d,port_enable=%d,enable_pre=0x%x,vpu_sideband_en=0x%x\n",
+				arb_port, port_enable,
 				enable_pre[arb_port], vpu_sideband_en[arb_port]);
 		}
 		enable_pre[arb_port] = port_enable;
@@ -328,13 +430,16 @@ void set_vpu_sideband_enable(u32 arb_port, u32 port_enable)
 }
 EXPORT_SYMBOL(set_vpu_sideband_enable);
 
-static void set_vpu_sideband_level_set(u32 sideband_up, u32 sideband_down)
+void set_vpu_sideband_level_set(u32 sideband_up, u32 sideband_down)
 {
 	struct vpu_sideband_ctrl_s *sideband_ctrl_table = NULL;
+	static u32 sideband_up_pre, sideband_down_pre;
 
 	sideband_ctrl_table = &vpu_conf.data->vpp_ofifo_urg_ctrl_table[0];
 
-	if (sideband_ctrl_table) {
+	if (sideband_ctrl_table &&
+		(sideband_up_pre != sideband_up ||
+		sideband_down_pre != sideband_down)) {
 		u32 sideband_level = 0;
 		u32 vpp_ofifo_urg_ctrl = 0;
 		struct vpu_sideband_ctrl_s *sideband_ctrl_table = NULL;
@@ -359,6 +464,7 @@ static void set_vpu_sideband_level_set(u32 sideband_up, u32 sideband_down)
 		}
 	}
 }
+EXPORT_SYMBOL(set_vpu_sideband_level_set);
 
 ssize_t vpu_sideband_show(const struct class *class,
 			const struct class_attribute *attr, char *buf)
@@ -447,74 +553,12 @@ ssize_t vpu_sideband_store(const struct class *class,
 	if (likely(parse_para(buf, 2, parsed) == 2)) {
 		u32 arb_port = 0;
 
-		if (vpu_conf.data->chip_type == VPU_CHIP_T5W) {
-			dmc_sb_setting.dmc = 0;
-			if (parsed[0] & 1) {
-				dmc_sb_setting.bus = 16;
-				arb_port = 0;
-			} else if (parsed[0] & 2) {
-				dmc_sb_setting.bus = 17;
-				arb_port = 1;
-			} else if (parsed[0] & 4) {
-				dmc_sb_setting.bus = 18;
-				arb_port = 2;
-			} else if (parsed[0] & 8) {
-				dmc_sb_setting.bus = 19;
-				arb_port = 3;
-			} else if (parsed[0] & 0x10) {
-				dmc_sb_setting.bus = 20;
-				arb_port = 4;
-			}
-		} else if (vpu_conf.data->chip_type == VPU_CHIP_TXHD2) {
-			dmc_sb_setting.dmc = 0;
-			if (parsed[0] & 1) {
-				dmc_sb_setting.bus = 16;
-				arb_port = 0;
-			} else if (parsed[0] & 2) {
-				dmc_sb_setting.bus = 17;
-				arb_port = 1;
-			} else if (parsed[0] & 4) {
-				dmc_sb_setting.bus = 19;
-				arb_port = 2;
-			} else if (parsed[0] & 8) {
-				dmc_sb_setting.bus = 20;
-				arb_port = 3;
-			}
-		} else if (vpu_conf.data->chip_type == VPU_CHIP_T3) {
-			dmc_sb_setting.dmc = 0;
-			/*T3 only 1 port*/
-			dmc_sb_setting.bus = 2;
-			if (parsed[0] & 1)
-				arb_port = 0;
-			else if (parsed[0] & 2)
-				arb_port = 1;
-			else if (parsed[0] & 4)
-				arb_port = 2;
-			else if (parsed[0] & 8)
-				arb_port = 3;
-		} else if (vpu_conf.data->chip_type == VPU_CHIP_T6W) {
-			dmc_sb_setting.dmc = 0;
-			if (parsed[0] & 1) {
-				dmc_sb_setting.bus = 2;
-				arb_port = 0;
-			} else if (parsed[0] & 2) {
-				dmc_sb_setting.bus = 6;
-				arb_port = 1;
-			} else if (parsed[0] & 4) {
-				dmc_sb_setting.bus = 7;
-				arb_port = 2;
-			} else if (parsed[0] & 8) {
-				dmc_sb_setting.bus = 2;
-				arb_port = 3;
-			} else if (parsed[0] & 0x10) {
-				dmc_sb_setting.bus = 2;
-				arb_port = 4;
-			}
-		} else if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
-		vpu_conf.data->chip_type == VPU_CHIP_T3X) {
-			dmc_sb_setting.dmc = 0;
-			/*T7 only 1 port*/
-			dmc_sb_setting.bus = 2;
+		if (vpu_conf.data->chip_type == VPU_CHIP_T5W ||
+			vpu_conf.data->chip_type == VPU_CHIP_T6W ||
+			vpu_conf.data->chip_type == VPU_CHIP_T7 ||
+			vpu_conf.data->chip_type == VPU_CHIP_T3X ||
+			vpu_conf.data->chip_type == VPU_CHIP_S7 ||
+			vpu_conf.data->chip_type == VPU_CHIP_S7D) {
 			if (parsed[0] & 1)
 				arb_port = 0;
 			else if (parsed[0] & 2)
@@ -525,33 +569,21 @@ ssize_t vpu_sideband_store(const struct class *class,
 				arb_port = 3;
 			else if (parsed[0] & 0x10)
 				arb_port = 4;
-		} else if (vpu_conf.data->chip_type == VPU_CHIP_S7 ||
-		vpu_conf.data->chip_type == VPU_CHIP_S7D) {
-			dmc_sb_setting.dmc = 0;
-			if (parsed[0] & 1) {
-				dmc_sb_setting.bus = 1;
+		} else if (vpu_conf.data->chip_type == VPU_CHIP_TXHD2 ||
+			vpu_conf.data->chip_type == VPU_CHIP_T3) {
+			if (parsed[0] & 1)
 				arb_port = 0;
-			} else if (parsed[0] & 2) {
-				dmc_sb_setting.bus = 2;
+			else if (parsed[0] & 2)
 				arb_port = 1;
-			} else if (parsed[0] & 4) {
+			else if (parsed[0] & 4)
 				arb_port = 2;
-			} else if (parsed[0] & 8) {
-				dmc_sb_setting.bus = 4;
+			else if (parsed[0] & 8)
 				arb_port = 3;
-			} else if (parsed[0] & 0x10) {
-				dmc_sb_setting.bus = 6;
-				arb_port = 4;
-			}
 		} else if (vpu_conf.data->chip_type == VPU_CHIP_T6X) {
-			dmc_sb_setting.dmc = 0;
-			if (parsed[0] & 1) {
-				dmc_sb_setting.bus = 1;
+			if (parsed[0] & 1)
 				arb_port = 0;
-			} else if (parsed[0] & 2) {
-				dmc_sb_setting.bus = 2;
+			else if (parsed[0] & 2)
 				arb_port = 1;
-			}
 		}
 		vpu_sideband_en[arb_port] = parsed[1];
 
@@ -783,7 +815,7 @@ static ssize_t sideband_block_device_show_t6x(char *buf)
 	return len;
 }
 
-static void set_vpu_sideband_block_device(u32 block_device)
+void set_vpu_sideband_block_device(u32 block_device)
 {
 	if (vpu_conf.data->chip_type == VPU_CHIP_T6W ||
 		vpu_conf.data->chip_type == VPU_CHIP_S7 ||
@@ -792,10 +824,11 @@ static void set_vpu_sideband_block_device(u32 block_device)
 		vpu_conf.data->chip_type == VPU_CHIP_T6X ||
 		vpu_conf.data->chip_type == VPU_CHIP_T7 ||
 		vpu_conf.data->chip_type == VPU_CHIP_T3X ||
-		vpu_conf.data->chip_type == VPU_CHIP_T3 ||
-		vpu_conf.data->chip_type == VPU_CHIP_S7D)
+		vpu_conf.data->chip_type == VPU_CHIP_T3) {
 		dmc_reg_setting(3, block_device);
+	}
 }
+EXPORT_SYMBOL(set_vpu_sideband_block_device);
 
 ssize_t vpu_sideband_block_device_show(const struct class *class,
 				    const struct class_attribute *attr, char *buf)

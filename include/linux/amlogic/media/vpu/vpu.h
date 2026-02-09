@@ -210,5 +210,7 @@ int vpu_arb_unregister(enum vpu_arb_mod_e module);
 int vpu_arb_config(enum vpu_arb_mod_e module, u32 urgent_value);
 void init_di_arb_urgent(void);
 void set_vpu_sideband_enable(u32 arb_port, u32 port_enable);
+void set_vpu_sideband_block_device(u32 block_device);
+void set_vpu_sideband_level_set(u32 sideband_up, u32 sideband_down);
 unsigned int rx_switch_vpu_clk(int over_clock_flag);
 #endif
