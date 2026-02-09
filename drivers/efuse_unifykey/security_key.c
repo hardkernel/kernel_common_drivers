@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/kallsyms.h>
 #include "security_key.h"
+#include "unifykey.h"
 
 #if IS_ENABLED(CONFIG_ARM)
 #include <linux/of.h>
@@ -257,7 +258,7 @@ int __init security_key_init(struct platform_device *pdev)
 	    !phy_out || (int)phy_out == SMC_UNK ||
 	    !phy_block || (int)phy_block == SMC_UNK ||
 	    !(share_mem->size) || ((int)share_mem->size) == SMC_UNK) {
-		pr_err("fail to obtain phy addr of shared mem\n");
+		pr_dbg("fail to obtain phy addr of shared mem\n");
 		return -EOPNOTSUPP;
 	}
 

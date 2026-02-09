@@ -1014,7 +1014,7 @@ static ssize_t name_store(const struct class *cla,
 		memcpy(name, buf, count);
 
 	query_name_len = strlen(name);
-	pr_debug("%s() %d, name %s, %d\n", __func__, __LINE__,
+	pr_dbg("%s() %d, name %s, %d\n", __func__, __LINE__,
 		name, (int)query_name_len);
 
 	curkey = NULL;
@@ -1025,7 +1025,7 @@ static ssize_t name_store(const struct class *cla,
 				     ((strlen(unifykey->name) > query_name_len)
 				     ? strlen(unifykey->name) : query_name_len))
 			) {
-				pr_debug("%s() %d\n", __func__, __LINE__);
+				pr_dbg("%s() %d\n", __func__, __LINE__);
 				curkey = unifykey;
 				break;
 			}
@@ -1128,7 +1128,7 @@ static ssize_t write_store(const struct class *cla,
 				break;
 		/* check '\n' and del while string */
 		if (key_len == count && (buf[count - 1] == '\n')) {
-			pr_debug("%s()  is a string\n", __func__);
+			pr_dbg("%s()  is a string\n", __func__);
 			memcpy(keydata, buf, count - 1);
 			key_len = count - 1;
 		} else {
@@ -1377,7 +1377,7 @@ static int __init aml_unifykeys_probe(struct platform_device *pdev)
 		pr_err("fail to allocate major number\n ");
 		goto error1;
 	}
-	pr_debug("unifykey_devno: %x\n", ukdev->uk_devno);
+	pr_dbg("unifykey_devno: %x\n", ukdev->uk_devno);
 
 	ukdev->cls.name = UNIFYKEYS_CLASS_NAME;
 	ukdev->cls.class_groups = unifykey_class_groups;
@@ -1416,7 +1416,7 @@ static int __init aml_unifykeys_probe(struct platform_device *pdev)
 			break;
 		i++;
 	}
-	pr_debug("device %s created ok\n", UNIFYKEYS_DEVICE_NAME);
+	pr_dbg("device %s created ok\n", UNIFYKEYS_DEVICE_NAME);
 
 	return 0;
 

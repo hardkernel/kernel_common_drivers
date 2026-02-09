@@ -547,12 +547,13 @@ int __init amlkey_if_init(struct platform_device *pdev)
 
 	ret = security_key_init(pdev);
 	if (ret != -EOPNOTSUPP) {
+		pr_info("secure key used!\n");
 		amlkey_if = &amlkey_ifs[IFTYPE_SECURE_STORAGE];
 		ret = securekey_prebuf_init();
 		return ret;
 	}
 
-	pr_dbg("normal key used!\n");
+	pr_info("normal key used!\n");
 	ret = normal_key_init(pdev);
 	amlkey_if = &amlkey_ifs[IFTYPE_NORMAL_STORAGE];
 
