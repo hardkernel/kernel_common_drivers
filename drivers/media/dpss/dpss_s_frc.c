@@ -1681,7 +1681,6 @@ void frc_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs, struct vfram
 	_prm_top_init_buffer(prm_top, pch, src);
 	hw_init_small_addr(prm_top, src);
 	frc_prm_top_init_vfm(pch, prm_top, vfs, false);
-
 	// pfw_data = (struct dpss_frc_fw_data_s *)dpss_get_fw_data();
 	//if (pfw_data) {
 	frc_top->hsize = prm_top->frm_hsize;
@@ -1698,6 +1697,9 @@ void frc_only_int(struct dpss_ch_s *pch, struct dpss_sub_vf_s *vfs, struct vfram
 	// hw_cfg_dpss_dae(DAE_FRC_MODE, prm_top, prm_dae);
 	// hw_cfg_dpss_dae(DAE_FRC_MODE, prm_top, prm_dae);
 	hw_cfg_dpss_dae_frc(DAE_FRC_MODE, prm_top, prm_dae);
+	prm_top->film_hwfw_sel = 1;
+	w_reg_bit(FRC_REG_FILM_PHS_1, prm_top->film_hwfw_sel, 16, 1);
+	w_reg_bit(DPSS_DPE_MC_MIF_CTRL0, 1, 0, 8); //reset mc rdmif
 
 	if (prm_top->sw_tbc_ctrl_en == 1) {
 		//split inp->nrdi
