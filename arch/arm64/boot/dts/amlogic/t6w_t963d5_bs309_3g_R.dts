@@ -610,7 +610,6 @@
 
 		spectrum = <1>;
 		cma_mem_size = <16>; // MB
-		iq_swap = <1>;
 	};
 
 	dvb-extern {
