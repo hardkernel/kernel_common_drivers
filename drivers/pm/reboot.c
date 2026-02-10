@@ -237,6 +237,9 @@ static int do_aml_restart(struct notifier_block *nb, unsigned long reboot_mode,
 
 static void do_aml_poweroff(void)
 {
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
+	scramble_clear_preserve();
+#endif
 	/* TODO: Add poweroff capability */
 	__invoke_psci_fn_smc(0x82000042, 1, 0, 0);
 	__invoke_psci_fn_smc(psci_function_id_poweroff,
