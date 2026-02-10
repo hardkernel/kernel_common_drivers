@@ -7,6 +7,8 @@
 #define AML_VIDEO_USER_DATA_H_
 
 #define MAX_AFD_LEN (64)
+#define MAX_AIRINFO_LEN (16)
+
 enum media_message_type {
 	MEDIA_MESSAGE_TYPE_INVALID    = 0,
 	MEDIA_VDEC_CONNECTED          = (1 << 0),  // 0001
@@ -19,7 +21,8 @@ enum media_message_type {
 	MEDIA_VIDEO_METRICS_FRAME_TOGGLE_INFO     = (1 << 7),	// 10000000
 	MEDIA_VIDEO_METRICS_FRAME_SIGNAFENCE_INFO = (1 << 8),	// 1 0000 0000
 	MEDIA_VIDEO_CC_INFO = (1 << 9),	// 10 0000 0000
-	MEDIA_VIDEO_FRAME_QOS_INFO = (1 << 10)	// 100 0000 0000
+	MEDIA_VIDEO_FRAME_QOS_INFO = (1 << 10),	// 100 0000 0000
+	MEDIA_AIRPLAY_STATISTIC_INFO = (1 << 11) // 1000 0000 0000
 };
 
 enum video_block_type {
@@ -131,6 +134,21 @@ struct vframe_qos_info {
 	s32 decode_buffer;//For padding currently
 };
 
+struct airplay_statistics_info {
+	u32 width;
+	u32 height;
+	u32 numerator;
+	u32 denominator;
+	u32 depth;
+	u32 reserved;
+	char video_codec[MAX_AIRINFO_LEN];
+	char aspect_ratio[MAX_AIRINFO_LEN];
+	char colour_format[MAX_AIRINFO_LEN];
+	char colour_primaries[MAX_AIRINFO_LEN];
+	char hdr_info[MAX_AIRINFO_LEN];
+	char audio_codec[MAX_AIRINFO_LEN];
+};
+
 struct aml_video_user_data {
 	u32 message_type;
 	u32 data_size;
@@ -144,6 +162,7 @@ struct aml_video_user_data {
 	struct frame_msg_info frame_info;
 	struct buffer_info buf_info;
 	struct vframe_qos_info qos_info;
+	struct airplay_statistics_info airplay_info;
 	} data;
 };
 
