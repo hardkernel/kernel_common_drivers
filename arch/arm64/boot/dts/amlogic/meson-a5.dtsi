@@ -390,7 +390,7 @@
 	hifidsp0: hifidsp0 {
 		compatible = "amlogic, hifidsp0";
 		status = "okay";
-		startup-position = /bits/ 8 <PURE_SRAM>; /*host dsp start mode : DDR*/
+		startup-position = /bits/ 8 <PURE_DDR>; /*host dsp start mode : DDR*/
 		memory-region = <&dsp_fw_reserved>;
 		reg-names = "base-reg",
 			    "health-reg",

@@ -7,7 +7,7 @@ MODULE_NAME = amlogic-audiobridge
 obj-$(CONFIG_AMLOGIC_AUDIO_BRIDGE) = $(MODULE_NAME).o
 
 $(MODULE_NAME)-y += bridge_audio.o \
-                    bridge_ringbuffer.o \
+                    ringbuffer.o \
                     bridge_pcm_hal.o \
                     bridge_arm_pcm.o
 

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2023 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/mutex.h>
 #include <linux/log2.h>
-#include "bridge_ringbuffer.h"
+#include "ringbuffer.h"
 
 static u32 roundup_power_of_2(unsigned int a)
 {
@@ -23,7 +23,7 @@ static u32 roundup_power_of_2(unsigned int a)
 	return (u32)(1 << position);
 }
 
-struct ring_buffer *bridge_ring_buffer_init(u32 size)
+struct ring_buffer *ring_buffer_init(u32 size)
 {
 	char *buf = NULL;
 	struct ring_buffer *ring_buf = NULL;
@@ -53,7 +53,7 @@ struct ring_buffer *bridge_ring_buffer_init(u32 size)
 	return ring_buf;
 }
 
-int bridge_ring_buffer_release(struct ring_buffer *ring_buf)
+int ring_buffer_release(struct ring_buffer *ring_buf)
 {
 	if (ring_buf) {
 		vfree(ring_buf->buffer);
@@ -103,22 +103,22 @@ static u32 __ring_buffer_put(struct ring_buffer *ring_buf, void *buffer, u32 siz
 	return size;
 }
 
-u32 bridge_ring_buffer_len(const struct ring_buffer *ring_buf)
+u32 ring_buffer_len(const struct ring_buffer *ring_buf)
 {
 	return ring_buf->size;
 }
 
-u32 bridge_ring_buffer_used_len(const struct ring_buffer *ring_buf)
+u32 ring_buffer_used_len(const struct ring_buffer *ring_buf)
 {
 	return __ring_buffer_len(ring_buf);
 }
 
-u32 bridge_ring_buffer_free_len(const struct ring_buffer *ring_buf)
+u32 ring_buffer_free_len(const struct ring_buffer *ring_buf)
 {
 	return ring_buf->size - __ring_buffer_len(ring_buf);
 }
 
-u32 bridge_ring_buffer_get(struct ring_buffer *ring_buf, void *buffer, u32 size)
+u32 no_thread_safe_ring_buffer_get(struct ring_buffer *ring_buf, void *buffer, u32 size)
 {
 	u32 ret;
 
@@ -126,21 +126,25 @@ u32 bridge_ring_buffer_get(struct ring_buffer *ring_buf, void *buffer, u32 size)
 		ring_buf->go_empty = false;
 		ring_buf->out = ring_buf->in;
 	}
-	if (bridge_ring_buffer_used_len(ring_buf) < size)
+	if (ring_buffer_used_len(ring_buf) < size)
 		return 0;
 	ret = __ring_buffer_get(ring_buf, buffer, size);
 	return ret;
 }
 
-u32 bridge_ring_buffer_put(struct ring_buffer *ring_buf, void *buffer, u32 size)
+u32 no_thread_safe_ring_buffer_put(struct ring_buffer *ring_buf, void *buffer, u32 size)
 {
 	u32 ret;
 
+	if (ring_buf->go_empty) {
+		ring_buf->go_empty = false;
+		ring_buf->in = ring_buf->out;
+	}
 	ret = __ring_buffer_put(ring_buf, buffer, size);
 	return ret;
 }
 
-u32 bridge_ring_buffer_go_empty(struct ring_buffer *ring_buf)
+u32 ring_buffer_go_empty(struct ring_buffer *ring_buf)
 {
 	ring_buf->go_empty = true;
 	return 0;
