@@ -221,7 +221,7 @@ bool get_hdcp2_lstore(struct hdmitx_common *tx_comm);
 bool get_hdcp1_result(void);
 bool get_hdcp2_result(enum amhdmitx_chip_e chip_type);
 bool hdcptx1_load_key(void);
-bool is_rx_hdcp2ver(void);
+bool is_rx_hdcp2ver(struct hdmitx_common *tx_comm);
 void hdcptx_mode_set(struct hdcptx21_core_priv *p_hdcp, unsigned int mode);
 void hdcp1x_intr_handler(struct intr_t *intr, void *intr_para);
 void hdcp2x_intr_handler(struct intr_t *intr, void *intr_para);

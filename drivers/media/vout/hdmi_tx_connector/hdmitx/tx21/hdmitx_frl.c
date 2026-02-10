@@ -371,6 +371,7 @@ static void tx_train_fsm(struct work_struct *work)
 		struct frl_train_t, timer_frl_flt);
 #ifdef CONFIG_AMLOGIC_HDCP_TX
 	struct hdmitx21_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 	struct hdcptx21_core_priv *p_hdcp = (struct hdcptx21_core_priv *)hdev->tx_comm.hdcptx_priv;
 #endif
 
@@ -625,14 +626,14 @@ tx_lts_p3:
 		/* start hdcp after training pass */
 #ifdef CONFIG_AMLOGIC_HDCP_TX
 		/* if no hdcp2.2 key on board, then skip */
-		if (get_hdcp2_lstore(&hdev->tx_comm) &&
-			hdmitx21_get_hdcp_mode(&hdev->tx_comm) == 0) {
+		if (get_hdcp2_lstore(tx_comm) &&
+			hdmitx21_get_hdcp_mode(tx_comm) == 0) {
 			/* get downstream hdcp2.2 version in certain place,
 			 * as ddc stall request in poll_update_flags() may
 			 * affect hdcp version read.
 			 */
-			if (!hdev->tx_comm.hdcptx_comm.dw_hdcp22_cap)
-				hdev->tx_comm.hdcptx_comm.dw_hdcp22_cap = is_rx_hdcp2ver();
+			if (!tx_comm->hdcptx_comm.dw_hdcp22_cap)
+				tx_comm->hdcptx_comm.dw_hdcp22_cap = is_rx_hdcp2ver(tx_comm);
 			schedule_delayed_work(&p_hdcp->work_tx_start_hdcp, msecs_to_jiffies(250));
 		}
 #endif

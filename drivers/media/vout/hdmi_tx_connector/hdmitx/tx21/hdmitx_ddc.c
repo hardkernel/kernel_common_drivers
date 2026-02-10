@@ -25,6 +25,7 @@
 #include "hdmitx_hw_platform.h"
 #include "hdmitx_hw_core.h"
 #include "hdmi_tx_connector/hdcp/hdmitx_hdcp.h"
+#include "hdmi_tx_connector/hdmitx_compliance.h"
 
 static DEFINE_MUTEX(ddc_mutex);
 
@@ -348,20 +349,30 @@ bool hdmitx_ddcm_write(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 data)
 	return (ddc_err == DDC_ERR_NONE) ? false : true;
 }
 
-bool is_rx_hdcp2ver(void)
+bool is_rx_hdcp2ver(struct hdmitx_common *tx_comm)
 {
 	u8 cap_val = 0;
 	bool ret = false;
+	int i = 0;
+	/* read hdcp version maximum times */
+	int hdcp_ver_cnt = 1;
 
+	if (hdmitx_find_vendor_hdcp_ver_retry(tx_comm->edid_buf))
+		hdcp_ver_cnt = 2;
 	/*
 	 * it easily read fails under FRL mode as FRL ddc bus stall operation,
 	 * so use hdmitx_ddcm_read() method instead
 	 */
 	/* hdmitx_ddc_read_1byte(DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val); */
-	ret = hdmitx_ddcm_read(0, DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val,
-			1, TPI_DDC_CMD_SEQUENTIAL_READ);
-	if (ret)
-		HDMITX_ERROR("hdmitx: ddc read hdcp version failed\n");
+	for (i = 0; i < hdcp_ver_cnt && cap_val != 0x04; i++) {
+		ret = hdmitx_ddcm_read(0, DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION,
+			&cap_val, 1, TPI_DDC_CMD_SEQUENTIAL_READ);
+		if (ret)
+			HDMITX_ERROR("hdmitx: ddc read hdcp version failed\n");
+	}
+
+	if (i > 1)
+		HDMITX_WARNING("read hdcp version retry %d time(s)\n", i - 1);
 
 	return cap_val == 0x04;
 }

@@ -3449,7 +3449,7 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			HDMITX_INFO("clk_analog_path = %d\n",  hdev->tx21_hw.clk_analog_path);
 		}
 	} else if (strncmp(tmpbuf, "hdcp_ver", 8) == 0) {
-		HDMITX_INFO("hdcp_22_capable :%d\n", is_rx_hdcp2ver());
+		HDMITX_INFO("hdcp_22_capable :%d\n", is_rx_hdcp2ver(&hdev->tx_comm));
 	} else if (strncmp(tmpbuf, "emp_test", 8) == 0) {
 		ret = kstrtoul(tmpbuf + 8, 10, &value);
 #ifdef CONFIG_AMLOGIC_DSC
@@ -4442,7 +4442,7 @@ static int hdmitx21_hw_cntl_hdcp(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case HDCP_22_LSTORE:
 		return get_hdcp2_lstore(&hdev->tx_comm);
 	case HDCP22_GET_RX_VER:
-		return is_rx_hdcp2ver();
+		return is_rx_hdcp2ver(&hdev->tx_comm);
 	case HDCP_GET_AUTH_RESULT:
 		if (tx_comm->hdcptx_comm.hdcp_mode == 1)
 			return (int)get_hdcp1_result();
@@ -7370,7 +7370,7 @@ static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm)
 		if (hdev->frl_rate == FRL_NONE) {
 #ifdef CONFIG_AMLOGIC_HDCP_TX
 			if (get_hdcp2_lstore(tx_comm))
-				tx_comm->hdcptx_comm.dw_hdcp22_cap = is_rx_hdcp2ver();
+				tx_comm->hdcptx_comm.dw_hdcp22_cap = is_rx_hdcp2ver(tx_comm);
 			/*
 			 * 0: for hdmitx driver control hdcp
 			 * 1/2: drm driver or app control hdcp

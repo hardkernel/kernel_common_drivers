@@ -2095,7 +2095,7 @@ static void hdcptx_check_update_whandler(struct work_struct *w)
 	}
 	if (p_hdcp->hdcptx_enabled) {
 		/* only read downstream hdcp version when hdcp2.2 is capable on source side */
-		if (hdcptx22_topo_ctrl(p_hdcp->bind_hdcptx_comm, GET_HDCP22_TOPO, 0))
+		if (get_hdcptx_lstore(p_hdcp->bind_hdcptx_comm, HDCP_VER_HDCP2X))
 			p_hdcp->hdcp_cap_ds = hdcp_check_ds_hdcp2ver(p_hdcp);
 		else
 			p_hdcp->hdcp_cap_ds = HDCP_VER_HDCP1X;

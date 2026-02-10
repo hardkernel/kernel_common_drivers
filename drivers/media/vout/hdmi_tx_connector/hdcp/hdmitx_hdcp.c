@@ -2258,7 +2258,7 @@ static int hdmitx21_get_hdcp_ver(struct hdmitx_common *tx_comm, char *buf, int l
 		if (hdcptx_need_ctrl_by_upstream(tx_comm->hdcptx_comm.hdcp_rpt_en)) {
 			HDMITX_HDCP_INFO("%s: currently should not read hdcp version\n", __func__);
 		} else if (hdmitx21_get_hdcp_mode(tx_comm) == 0) {
-			if (get_hdcp2_lstore(tx_comm) && is_rx_hdcp2ver()) {
+			if (get_hdcp2_lstore(tx_comm) && is_rx_hdcp2ver(tx_comm)) {
 				pos += snprintf(buf + pos, PAGE_SIZE - pos, "22\n\r");
 				tx_comm->hdcptx_comm.dw_hdcp22_cap = 1;
 			}
@@ -2562,7 +2562,8 @@ static long hdcp_communicate_ioctl(struct file *file,
 				HDMITX_HDCP_INFO("currently hdcp should started by upstream\n");
 			} else {
 				if (hdcp_key_store & BIT(1))
-					tx_comm->hdcptx_comm.dw_hdcp22_cap = is_rx_hdcp2ver();
+					tx_comm->hdcptx_comm.dw_hdcp22_cap =
+						is_rx_hdcp2ver(tx_comm);
 				hdmitx21_enable_hdcp(tx_comm);
 			}
 		}

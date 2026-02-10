@@ -91,6 +91,15 @@ static struct edid_venddat_t vendor_scan_non_std[] = {
 	/* Add new vendor data here */
 };
 
+static struct edid_venddat_t vendor_hdcp_ver_retry[] = {
+	/* Samsung UA43TU8000JXXZ */
+	{ {0x4c, 0x2d, 0x16, 0x70, 0x00, 0x0e, 0x00, 0x01, 0x01, 0x1e} },
+	{ {0x4c, 0x2d, 0x17, 0x70, 0x00, 0x0e, 0x00, 0x01, 0x01, 0x1e} },
+	/* LG OLED42C4PCA */
+	{ {0x1e, 0x6d, 0xcd, 0x82, 0x01, 0x01, 0x01, 0x01, 0x01, 0x22} }
+	/* Add new vendor data here */
+};
+
 /* HDMIPLL_CTRL3/4 under 4k50/60hz 6G mode should use the setting
  * witch is used under 4k59.94hz, specially for SAMSUNG UA55KS7300JXXZ
  * flash screen/no signal issue on SM1/SC2
@@ -275,6 +284,27 @@ bool hdmitx_find_vendor_scan_non_std(unsigned char *edid_buf)
 	for (i = 0; i < ARRAY_SIZE(vendor_scan_non_std); i++) {
 		if (memcmp(&edid_buf[8], vendor_scan_non_std[i].data,
 		    sizeof(vendor_scan_non_std[i].data)) == 0)
+			return true;
+	}
+	return false;
+}
+
+/*
+ * for special TV set, when read its hdcp version,
+ * it will feedback hdcp2.2 not supported, but later
+ * return hdcp2.2 supported. it will cause STB
+ * do hdcp1.4 authentication instead of hdcp2.2.
+ */
+bool hdmitx_find_vendor_hdcp_ver_retry(unsigned char *edid_buf)
+{
+	int i;
+
+	if (!edid_buf)
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(vendor_hdcp_ver_retry); i++) {
+		if (memcmp(&edid_buf[8], vendor_hdcp_ver_retry[i].data,
+			sizeof(vendor_hdcp_ver_retry[i].data)) == 0)
 			return true;
 	}
 	return false;

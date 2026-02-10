@@ -504,6 +504,9 @@ int hdcptx_get_hdcprx_ver(struct hdcptx_common *hdcptx_comm)
 {
 	u8 cap_val = 0;
 	int ret = 0;
+	int i = 0;
+	/* read hdcp version maximum times */
+	int hdcp_ver_cnt = 2;
 
 	if (!hdcptx_comm) {
 		HDMITX_ERROR("hdcptx_comm is NULL\n");
@@ -515,11 +518,17 @@ int hdcptx_get_hdcprx_ver(struct hdcptx_common *hdcptx_comm)
 	 * so use hdmitx_ddcm_read() method instead
 	 */
 	/* hdmitx_ddc_read_1byte(DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val); */
-	if (hdcptx_comm->ddcm_read)
-		ret = hdcptx_comm->ddcm_read(0, DDC_HDCP_DEVICE_ADDR,
-			REG_DDC_HDCP_VERSION, &cap_val, 1, TPI_DDC_CMD_SEQUENTIAL_READ);
-	if (ret)
-		HDMITX_ERROR("hdmitx: ddc read hdcp version failed\n");
+	if (hdcptx_comm->ddcm_read) {
+		for (i = 0; i < hdcp_ver_cnt && cap_val != 0x04; i++) {
+			ret = hdcptx_comm->ddcm_read(0, DDC_HDCP_DEVICE_ADDR,
+				REG_DDC_HDCP_VERSION, &cap_val, 1, TPI_DDC_CMD_SEQUENTIAL_READ);
+			if (ret)
+				HDMITX_ERROR("hdmitx: ddc read hdcp version failed\n");
+			if (i > 1)
+				HDMITX_DEBUG("hdmitx: read hdcp version retry %d time(s)\n", i - 1);
+		}
+	}
+
 	if (cap_val == 0x04)
 		return HDCP_VER_HDCP2X;
 	else
