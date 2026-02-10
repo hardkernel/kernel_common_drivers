@@ -473,29 +473,27 @@ unsigned int count_vdin_req_mem(struct vdin_dev_s *devp)
 				afrc_body_y_size += VDIN_AFRC_EXT_MEM;
 				afrc_body_y_size = roundup(afrc_body_y_size, 16 * 4096);
 				devp->afbce_info->frame_body_size_y = afrc_body_y_size;
-
-				devp->afbce_info->frame_table_size_y = afrc_body_y_size * 4 / 4096;
+				devp->afbce_info->frame_table_size_y = afrc_body_y_size / 1024;
 
 				if (vdin_is_convert_to_444(devp->format_convert)) {
 					devp->afbce_info->frame_head_size =
 						devp->afbce_info->frame_head_size_y * 3;
 					devp->afbce_info->frame_body_size = afrc_body_y_size * 3;
-					devp->afbce_info->frame_table_size =
-						devp->afbce_info->frame_table_size_y * 3;
 				} else if (vdin_is_convert_to_422(devp->format_convert)) {
 					devp->afbce_info->frame_head_size =
 						devp->afbce_info->frame_head_size_y * 2;
 					devp->afbce_info->frame_body_size = afrc_body_y_size * 2;
-					devp->afbce_info->frame_table_size =
-						devp->afbce_info->frame_table_size_y * 2;
 				} else {
 					devp->afbce_info->frame_head_size =
 						(devp->afbce_info->frame_head_size_y * 3) / 2;
 					devp->afbce_info->frame_body_size =
 						(afrc_body_y_size * 3) / 2;
-					devp->afbce_info->frame_table_size =
-						(devp->afbce_info->frame_table_size_y * 3) / 2;
 				}
+				devp->afbce_info->frame_body_size =
+					roundup(devp->afbce_info->frame_body_size, 16 * 4096);
+				/* table phy address should be 128-bit alignment(about DDR read) */
+				devp->afbce_info->frame_table_size =
+					devp->afbce_info->frame_body_size / 1024;/* *4/4096 */
 			}
 			if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
 				fix_size = devp->vf_mem_size_small +

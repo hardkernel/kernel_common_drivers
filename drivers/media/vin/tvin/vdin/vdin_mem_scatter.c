@@ -153,8 +153,7 @@ int vdin_sct_start(struct vdin_dev_s *devp)
 		return 0;
 	}
 
-	devp->msct_top.mmu_4k_number =
-		((devp->vf_mem_size + (1 << 12) - 1) >> 12);
+	devp->msct_top.mmu_4k_number = devp->afbce_info->frame_table_size / 4;
 
 	//alloc one vf scatter memory with full size.
 	vfe = provider_vf_peek(devp->vfp);
@@ -494,11 +493,11 @@ int vdin_mem_init(struct vdin_dev_s *devp)
 	}
 	pr_info("%s vdin%d use scatter memory\n", __func__, devp->index);
 
-	memset(&devp->msct_top, 0, sizeof(devp->msct_top));
 	/* scatter memory flag */
 	devp->mem_type = VDIN_MEM_TYPE_SCT;
 
 	if (!devp->get_vdin_mem_size_flag) {
+		memset(&devp->msct_top, 0, sizeof(devp->msct_top));
 		/* alloc box */
 		vdin_sct_init(devp);
 

@@ -6140,7 +6140,6 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_to_user(argp, &vdin_need_mem_size,
 				      sizeof(unsigned int))) {
 			pr_info("vdin_need_mem_size copy fail\n");
-			mutex_unlock(&devp->fe_lock);
 			ret = -EFAULT;
 		}
 		mutex_unlock(&devp->fe_lock);
