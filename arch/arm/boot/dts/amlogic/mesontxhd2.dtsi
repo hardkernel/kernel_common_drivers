@@ -1587,7 +1587,6 @@
 				groups = "i2cm_ao_a_scl_ao4",
 					"i2cm_ao_a_sda_ao5";
 				function = "i2cm_ao_a";
-				drive-strength-microamp = <3000>;
 				bias-disable;
 			};
 		};
@@ -1596,7 +1595,6 @@
 				groups = "i2cm_ao_a_scl_ao10",
 					"i2cm_ao_a_sda_ao11";
 				function = "i2cm_ao_a";
-				drive-strength-microamp = <3000>;
 				bias-disable;
 			};
 		};
@@ -1648,7 +1646,6 @@
 			mux {
 				groups = "dcon_led_ao6";
 				function = "dcon_led";
-				drive-strength-microamp = <3000>;
 				bias-disable;
 			};
 		};
@@ -1657,7 +1654,6 @@
 			mux {
 				groups = "dcon_led_ao7";
 				function = "dcon_led";
-				drive-strength-microamp = <3000>;
 				bias-disable;
 			};
 		};
@@ -1666,7 +1662,6 @@
 			mux {
 				groups = "dcon_led_ao8";
 				function = "dcon_led";
-				drive-strength-microamp = <3000>;
 				bias-disable;
 			};
 		};
@@ -1736,7 +1731,6 @@
 					//"spi_ss0_a_c7",used as GPIOC_7
 					"spi_clk_a_c10";
 				function = "spi";
-				drive-strength-microamp = <3000>;
 			};
 		};
 
@@ -1747,7 +1741,6 @@
 					//"spi_ss0_a_dv6",used as GPIODV_6
 					"spi_clk_a_dv9";
 				function = "spi";
-				drive-strength-microamp = <3000>;
 			};
 		};
 	};
@@ -2188,7 +2181,6 @@
 				groups = "uart_tx_ao_b_ao4",
 					 "uart_rx_ao_b_ao5";
 				function = "uart_ao_b";
-				drive-strength-microamp = <3000>;
 				bias-pull-up;
 			};
 	};
@@ -2198,7 +2190,6 @@
 				groups = "uart_tx_ao_b_ao10",
 					 "uart_rx_ao_b_ao11";
 				function = "uart_ao_b";
-				drive-strength-microamp = <3000>;
 				bias-pull-up;
 			};
 	};
@@ -2237,7 +2228,6 @@
 			groups = "i2cm_a_sda_dv4",
 				"i2cm_a_scl_dv5";
 			function = "i2cm_a";
-			drive-strength-microamp = <3000>;
 			bias-disable;
 		};
 	};
@@ -2246,7 +2236,6 @@
 			groups = "i2cm_a_scl_h4",
 				"i2cm_a_sda_h5";
 			function = "i2cm_a";
-			drive-strength-microamp = <3000>;
 			bias-disable;
 		};
 	};
@@ -2255,7 +2244,6 @@
 			groups = "i2cm_a_sda_z6",
 				"i2cm_a_scl_z7";
 			function = "i2cm_a";
-			drive-strength-microamp = <3000>;
 			bias-disable;
 		};
 	};
@@ -2264,7 +2252,6 @@
 			groups = "i2cm_b_sda_dv0",
 				"i2cm_b_scl_dv1";
 			function = "i2cm_b";
-			drive-strength-microamp = <3000>;
 			bias-disable;
 		};
 	};
@@ -2273,7 +2260,6 @@
 			groups = "i2cm_b_sda_z0",
 				"i2cm_b_scl_z1";
 			function = "i2cm_b";
-			drive-strength-microamp = <3000>;
 			bias-disable;
 		};
 	};
@@ -2282,7 +2268,6 @@
 			groups = "i2cm_c_sda_c2",
 				"i2cm_c_scl_c3";
 			function = "i2cm_c";
-			drive-strength-microamp = <3000>;
 			bias-disable;
 		};
 	};
@@ -2291,7 +2276,6 @@
 			groups = "i2cm_c_scl_h8",
 				"i2cm_c_sda_h9";
 			function = "i2cm_c";
-			drive-strength-microamp = <3000>;
 			bias-disable;
 		};
 	};
@@ -2300,7 +2284,6 @@
 			groups = "i2cm_d_scl_h0",
 				"i2cm_d_sda_h1";
 			function = "i2cm_d";
-			drive-strength-microamp = <3000>;
 			bias-disable;
 		};
 	};
@@ -2309,7 +2292,6 @@
 			groups = "i2cm_d_scl_h10",
 				"i2cm_d_sda_h11";
 			function = "i2cm_d";
-			drive-strength-microamp = <3000>;
 			bias-disable;
 		};
 	};
@@ -2420,7 +2402,6 @@
 		mux {
 			groups = "dcon_led_z5";
 			function = "dcon_led";
-			drive-strength-microamp = <3000>;
 			bias-disable;
 		};
 	};
@@ -2432,7 +2413,6 @@
 					 "uart_tx_a_dv8",
 					 "uart_rx_a_dv9";
 				function = "uart_a";
-				drive-strength-microamp = <3000>;
 				bias-pull-up;
 			};
 	};
@@ -2444,7 +2424,6 @@
 					 "uart_tx_a_c8",
 					 "uart_rx_a_c7";
 				function = "uart_a";
-				drive-strength-microamp = <3000>;
 				bias-pull-up;
 			};
 	};
@@ -2454,7 +2433,6 @@
 				groups = "uart_tx_a_z6",
 					 "uart_rx_a_z7";
 				function = "uart_a";
-				drive-strength-microamp = <3000>;
 				bias-pull-up;
 			};
 	};
@@ -2464,7 +2442,6 @@
 				groups = "uart_tx_b",
 					 "uart_rx_b";
 				function = "uart_b";
-				drive-strength-microamp = <3000>;
 				bias-pull-up;
 			};
 	};
@@ -2474,7 +2451,6 @@
 				groups = "uart_tx_c",
 					 "uart_rx_c";
 				function = "uart_c";
-				drive-strength-microamp = <3000>;
 				bias-pull-up;
 			};
 	};
