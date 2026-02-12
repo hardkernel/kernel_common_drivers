@@ -25,6 +25,8 @@
 #include <linux/mm.h>
 #include <linux/dma-heap.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
+#include <linux/overflow.h>
 #include <linux/fs.h>
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/codec_mm/dmabuf_manage.h>
@@ -174,14 +176,23 @@ err:
 	return NULL;
 }
 
+static inline void *aml_vmalloc_array(size_t n, size_t size)
+{
+	size_t bytes;
+
+	if (unlikely(check_mul_overflow(n, size, &bytes)))
+		return NULL;
+
+	return vmalloc(bytes);
+}
+
 static int trace_elems_alloc(struct trace_pool *pool)
 {
 	struct trace_elem *elems;
 	ulong flags;
 	int i;
 
-	elems = kmalloc_array(DBUF_TRACE_ELEMS_NUM,
-			     sizeof(struct trace_elem), GFP_ATOMIC);
+	elems = aml_vmalloc_array(DBUF_TRACE_ELEMS_NUM, sizeof(struct trace_elem));
 	if (!elems)
 		return -ENOMEM;
 
@@ -236,7 +247,7 @@ static void trace_pool_release(struct trace_pool *pool)
 
 	list_for_each_entry_safe(elem, tmp, &pool->elem_head, node) {
 		list_del(&elem->node);
-		kfree(elem);
+		vfree(elem);
 	}
 
 	pool->elem_cnt = 0;
@@ -334,14 +345,14 @@ static bool find_match_file(struct task_struct *tsk,
 			   struct file *file,
 			   struct seq_file *m)
 {
-	struct codec_mm_track_s *trk = get_track_ctx_with_init();
+	struct codec_mm_track_s *trk = get_track_ctx();
 	struct trace_elem elem;
 	struct file *f;
 	u32 fd = 0;
 	bool found = false;
 	char sbuf[32] = { 0 };
 
-	if (!tsk || !trk)
+	if (!tsk)
 		return -ENOENT;
 
 	for (;; fd++) {
@@ -563,9 +574,16 @@ static void trace_elem_sampling(struct codec_mm_track_s *trk,
 			      u32 fd)
 {
 	struct trace_elem *elem = NULL;
+	struct trace_elem *new_elem = NULL;
 	struct hlist_node *tmp;
 	pid_t pid = current->pid;
 	ulong flags;
+
+	new_elem = trace_elem_alloc(&trk->pool);
+	if (!new_elem) {
+		pr_err("%s, Alloc trace new_elem fail.\n", __func__);
+		return;
+	}
 
 	spin_lock_irqsave(&trk->trk_slock, flags);
 
@@ -573,7 +591,8 @@ static void trace_elem_sampling(struct codec_mm_track_s *trk,
 		if (pid == elem->pid &&
 			fd == elem->fd) {
 			trace_elem_fill(elem, file, fd);
-
+			if (new_elem)
+				trace_elem_free(&trk->pool, new_elem);
 			pr_debug("Trace elem reuse, PID:%d, file:%px, FD:%u, ts:%llu, cnt:%u\n",
 				elem->pid,
 				elem->file,
@@ -584,12 +603,7 @@ static void trace_elem_sampling(struct codec_mm_track_s *trk,
 		}
 	}
 
-	elem = trace_elem_alloc(&trk->pool);
-	if (!elem) {
-		pr_err("%s, Alloc trace elem fail.\n", __func__);
-		goto out;
-	}
-
+	elem = new_elem;
 	trace_elem_fill(elem, file, fd);
 
 	get_task_struct(elem->task);
@@ -888,16 +902,10 @@ int codec_mm_sampling_open(void)
 	if (is_kprobes_enable(trk))
 		goto out;
 
-	ret = trace_pool_init(&trk->pool);
-	if (ret < 0) {
-		pr_err("%s trace pool init fail.\n", __func__);
-		goto err0;
-	}
-
 	ret = codec_mm_reg_kprobes(&trk->kps_h, trk, codec_mm_kps_callback);
 	if (ret < 0) {
 		pr_err("%s kprobes reg fail.\n", __func__);
-		goto err1;
+		goto err_out;
 	}
 out:
 	pr_info("Sampled %u elements, leaving %u elements.\n",
@@ -905,17 +913,16 @@ out:
 		trk->pool.elem_cnt);
 
 	return 0;
-err1:
+err_out:
 	trace_pool_release(&trk->pool);
-err0:
 	return ret;
 }
 
 void codec_mm_sampling_close(void)
 {
-	struct codec_mm_track_s *trk = get_track_ctx_with_init();
+	struct codec_mm_track_s *trk = get_track_ctx();
 
-	if (!trk || !trk->kps_h)
+	if (!trk->kps_h)
 		return;
 
 	codec_mm_unreg_kprobes(trk->kps_h);
@@ -931,13 +938,12 @@ static int find_dma_buf_in_tsk(struct task_struct *tsk,
 			   struct seq_file *m,
 			   struct dma_buf_record_node *dma_buf_list)
 {
-	struct codec_mm_track_s *trk = get_track_ctx_with_init();
 	struct dma_buf *dmabuf;
 	struct dma_buf_record_node *entry;
 	struct file *f;
 	u32 fd = 0;
 
-	if (!tsk || !trk)
+	if (!tsk)
 		return -ENOENT;
 
 	for (;; fd++) {
