@@ -72,6 +72,7 @@
   drm_panel_add
   drm_panel_init
   drm_panel_of_backlight
+  drm_mode_destroy
 
 # drm_dp_aux_bus.ko
   dev_pm_domain_attach
