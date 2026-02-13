@@ -71,7 +71,7 @@ config AMLOGIC_CLK_DEBUG
 
 config AMLOGIC_BYPASS_CCF_CLK
 	tristate "Amlogic Bypass all CCF clocks"
-	depends on AMLOGIC_BREAK_GKI
+	depends on AMLOGIC_BREAK_GKI_20
 	help
 	  Say yes to bypass all CCF clocks.
 

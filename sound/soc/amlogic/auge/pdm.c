@@ -1653,10 +1653,6 @@ static void pdm_platform_shutdown(struct platform_device *pdev)
 
 		for (;;) {
 			if (__clk_is_enabled(p_pdm->clk_pdm_sysclk)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
 				clk_disable_unprepare(p_pdm->clk_pdm_sysclk);
 				count++;
 			} else {
@@ -1673,10 +1669,6 @@ static void pdm_platform_shutdown(struct platform_device *pdev)
 
 		for (;;) {
 			if (__clk_is_enabled(p_pdm->clk_pdm_dclk)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
 				clk_disable_unprepare(p_pdm->clk_pdm_dclk);
 				count++;
 			} else {
@@ -1812,22 +1804,12 @@ static int pdm_platform_freeze(struct device *dev)
 
 	if (!is_pm_s2idle_mode()) {
 		if (!IS_ERR(p_pdm->clk_pdm_dclk) && !IS_ERR(p_pdm->dclk_srcpll)) {
-			while (__clk_is_enabled(p_pdm->clk_pdm_dclk)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
+			while (__clk_is_enabled(p_pdm->clk_pdm_dclk))
 				clk_disable_unprepare(p_pdm->clk_pdm_dclk);
-			}
 		}
 		if (!IS_ERR(p_pdm->clk_pdm_sysclk) && !IS_ERR(p_pdm->sysclk_srcpll)) {
-			while (__clk_is_enabled(p_pdm->clk_pdm_sysclk)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
+			while (__clk_is_enabled(p_pdm->clk_pdm_sysclk))
 				clk_disable_unprepare(p_pdm->clk_pdm_sysclk);
-			}
 		}
 	}
 

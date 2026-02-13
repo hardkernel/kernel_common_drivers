@@ -3134,23 +3134,13 @@ static int aml_tdm_platform_suspend(struct device *dev)
 
 	if (p_tdm->chipinfo->regulator || (p_tdm->suspend_clk_off && !is_pm_s2idle_mode())) {
 		if (!IS_ERR(p_tdm->mclk2pad)) {
-			while (__clk_is_enabled(p_tdm->mclk2pad)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
+			while (__clk_is_enabled(p_tdm->mclk2pad))
 				clk_disable_unprepare(p_tdm->mclk2pad);
-			}
 		}
 
 		if (!IS_ERR(p_tdm->mclk)) {
-			while (__clk_is_enabled(p_tdm->mclk)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
+			while (__clk_is_enabled(p_tdm->mclk))
 				clk_disable_unprepare(p_tdm->mclk);
-			}
 		}
 
 		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
@@ -3258,10 +3248,6 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 
 		for (;;) {
 			if (__clk_is_enabled(p_tdm->mclk)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
 				clk_disable_unprepare(p_tdm->mclk);
 				count++;
 			} else {
@@ -3298,23 +3284,13 @@ static int aml_tdm_platform_freeze(struct device *dev)
 
 	if (p_tdm->chipinfo->regulator || (p_tdm->suspend_clk_off && !is_pm_s2idle_mode())) {
 		if (!IS_ERR(p_tdm->mclk2pad)) {
-			while (__clk_is_enabled(p_tdm->mclk2pad)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
+			while (__clk_is_enabled(p_tdm->mclk2pad))
 				clk_disable_unprepare(p_tdm->mclk2pad);
-			}
 		}
 
 		if (!IS_ERR(p_tdm->mclk)) {
-			while (__clk_is_enabled(p_tdm->mclk)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
+			while (__clk_is_enabled(p_tdm->mclk))
 				clk_disable_unprepare(p_tdm->mclk);
-			}
 		}
 
 		if (!IS_ERR(p_tdm->mclk) && !IS_ERR(p_tdm->clk_src_cd)) {

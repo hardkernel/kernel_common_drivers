@@ -1985,10 +1985,6 @@ static void loopback_platform_shutdown(struct platform_device *pdev)
 
 		for (;;) {
 			if (__clk_is_enabled(p_loopback->pdm_sysclk)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
 				clk_disable_unprepare(p_loopback->pdm_sysclk);
 				count++;
 			} else {
@@ -2005,10 +2001,6 @@ static void loopback_platform_shutdown(struct platform_device *pdev)
 
 		for (;;) {
 			if (__clk_is_enabled(p_loopback->pdm_dclk)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
 				clk_disable_unprepare(p_loopback->pdm_dclk);
 				count++;
 			} else {

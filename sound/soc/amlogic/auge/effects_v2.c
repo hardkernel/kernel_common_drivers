@@ -837,13 +837,8 @@ static int effect_platform_suspend(struct platform_device *pdev, pm_message_t st
 	aml_set_aed(0, p_effect->effect_module);
 
 	if (!IS_ERR(p_effect->clk)) {
-		while (__clk_is_enabled(p_effect->clk)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-			if (bypass_clk_disable_unprepare)
-				break;
-#endif
+		while (__clk_is_enabled(p_effect->clk))
 			clk_disable_unprepare(p_effect->clk);
-		}
 	}
 	pr_debug("%s...\n", __func__);
 	return 0;

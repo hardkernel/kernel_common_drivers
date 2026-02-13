@@ -3795,35 +3795,20 @@ static int earc_platform_suspend(struct device *dev)
 	if (p_earc->suspend_clk_off) {
 		if (p_earc->chipinfo->rx_enable) {
 			if (!IS_ERR_OR_NULL(p_earc->clk_rx_cmdc)) {
-				while (__clk_is_enabled(p_earc->clk_rx_cmdc)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-					if (bypass_clk_disable_unprepare)
-						break;
-#endif
+				while (__clk_is_enabled(p_earc->clk_rx_cmdc))
 					clk_disable_unprepare(p_earc->clk_rx_cmdc);
-				}
 			}
 
 			if (!IS_ERR_OR_NULL(p_earc->clk_rx_dmac)) {
-				while (__clk_is_enabled(p_earc->clk_rx_dmac)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-					if (bypass_clk_disable_unprepare)
-						break;
-#endif
+				while (__clk_is_enabled(p_earc->clk_rx_dmac))
 					clk_disable_unprepare(p_earc->clk_rx_dmac);
-				}
 			}
 		}
 
 		if (p_earc->chipinfo->tx_enable) {
 			if (!IS_ERR_OR_NULL(p_earc->clk_tx_cmdc)) {
-				while (__clk_is_enabled(p_earc->clk_tx_cmdc)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-					if (bypass_clk_disable_unprepare)
-						break;
-#endif
+				while (__clk_is_enabled(p_earc->clk_tx_cmdc))
 					clk_disable_unprepare(p_earc->clk_tx_cmdc);
-				}
 			}
 
 			if (!IS_ERR_OR_NULL(p_earc->clk_tx_dmac)) {
@@ -3832,13 +3817,8 @@ static int earc_platform_suspend(struct device *dev)
 				spin_lock_irqsave(&p_earc->tx_lock, flags);
 				p_earc->tx_dmac_clk_on = false;
 				spin_unlock_irqrestore(&p_earc->tx_lock, flags);
-				while (__clk_is_enabled(p_earc->clk_tx_dmac)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-					if (bypass_clk_disable_unprepare)
-						break;
-#endif
+				while (__clk_is_enabled(p_earc->clk_tx_dmac))
 					clk_disable_unprepare(p_earc->clk_tx_dmac);
-				}
 			}
 		}
 	}
@@ -3896,10 +3876,6 @@ static void earc_platform_shutdown(struct platform_device *pdev)
 
 		for (;;) {
 			if (__clk_is_enabled(p_earc->clk_rx_cmdc)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
 				clk_disable_unprepare(p_earc->clk_rx_cmdc);
 				count++;
 			} else {
@@ -3916,10 +3892,6 @@ static void earc_platform_shutdown(struct platform_device *pdev)
 
 		for (;;) {
 			if (__clk_is_enabled(p_earc->clk_rx_dmac)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
 				clk_disable_unprepare(p_earc->clk_rx_dmac);
 				count++;
 			} else {

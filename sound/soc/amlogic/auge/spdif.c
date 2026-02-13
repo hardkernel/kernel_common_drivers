@@ -568,24 +568,14 @@ static int aml_spdif_platform_suspend(struct device *dev)
 		/* warning:parent clk already close */
 		if (__clk_is_enabled(clk_get_parent(p_spdif->clk_spdifout))) {
 			if (!IS_ERR(p_spdif->clk_spdifout)) {
-				while (__clk_is_enabled(p_spdif->clk_spdifout)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-					if (bypass_clk_disable_unprepare)
-						break;
-#endif
+				while (__clk_is_enabled(p_spdif->clk_spdifout))
 					clk_disable_unprepare(p_spdif->clk_spdifout);
-				}
 			}
 		}
 
 		if (!IS_ERR(p_spdif->clk_spdifin)) {
-			while (__clk_is_enabled(p_spdif->clk_spdifin)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
+			while (__clk_is_enabled(p_spdif->clk_spdifin))
 				clk_disable_unprepare(p_spdif->clk_spdifin);
-			}
 		}
 
 		if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc5v))
@@ -694,10 +684,6 @@ static void aml_spdif_platform_shutdown(struct platform_device *pdev)
 
 		for (;;) {
 			if (__clk_is_enabled(p_spdif->clk_spdifout)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
 				clk_disable_unprepare(p_spdif->clk_spdifout);
 				count++;
 			} else {
@@ -2384,23 +2370,13 @@ static int aml_spdif_platform_freeze(struct device *dev)
 		/* warning:parent clk already close */
 		if (__clk_is_enabled(clk_get_parent(p_spdif->clk_spdifout))) {
 			if (!IS_ERR(p_spdif->clk_spdifout)) {
-				while (__clk_is_enabled(p_spdif->clk_spdifout)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-					if (bypass_clk_disable_unprepare)
-						break;
-#endif
+				while (__clk_is_enabled(p_spdif->clk_spdifout))
 					clk_disable_unprepare(p_spdif->clk_spdifout);
-				}
 			}
 		}
 		if (!IS_ERR(p_spdif->clk_spdifin)) {
-			while (__clk_is_enabled(p_spdif->clk_spdifin)) {
-#ifdef CONFIG_AMLOGIC_BYPASS_CCF_CLK
-				if (bypass_clk_disable_unprepare)
-					break;
-#endif
+			while (__clk_is_enabled(p_spdif->clk_spdifin))
 				clk_disable_unprepare(p_spdif->clk_spdifin);
-			}
 		}
 		if (!IS_ERR(p_spdif->clk_spdifout) && !IS_ERR(p_spdif->clk_src_cd)) {
 			ret = clk_set_parent(p_spdif->clk_spdifout, p_spdif->clk_src_cd);
