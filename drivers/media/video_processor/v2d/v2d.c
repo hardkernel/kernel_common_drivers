@@ -833,8 +833,12 @@ static void get_output_axis_crop(struct v2d_dev *dev, struct vframe_s *src_vf,
 		pr_info("%s input error\n", __func__);
 		return;
 	}
-
+	if (j == 0) {
+		received_frame->output_axis.min_left = V2D_AXIS_LEFT_INIT_MAX;
+		received_frame->output_axis.min_top = V2D_AXIS_TOP_INIT_MAX;
+	}
 	memcpy(&area_bound, &received_frame->output_axis, sizeof(struct output_axis));
+
 	if (src_vf && is_src_crop_valid(src_vf->src_crop)) {
 		crop_info.left = MAX(vframe_info_cur->crop_x, src_vf->src_crop.left);
 		crop_info.top = MAX(vframe_info_cur->crop_y, src_vf->src_crop.top);
