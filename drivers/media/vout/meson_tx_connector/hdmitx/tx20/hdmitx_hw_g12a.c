@@ -557,34 +557,11 @@ void set_hpll_od3_g12a(unsigned int div)
 int hdmitx_hpd_hw_op_g12a(enum hpd_op cmd)
 {
 	int ret = 0;
-	struct hdmitx20_dev *hdev = get_hdmitx20_device();
 
-	if (!(hdev->tx_comm.pdev)) {
-		HDMITX_INFO("exit for null device of hdmitx!\n");
-		return -ENODEV;
-	}
-	if (!(hdev->tx_comm.pdev->pins)) {
-		HDMITX_INFO("exit for null pins of hdmitx device!\n");
-		return -ENODEV;
-	}
-	if (!(hdev->tx_comm.pdev->pins->p)) {
-		HDMITX_INFO("exit for null pinctrl of hdmitx device pins!\n");
-		return -ENODEV;
-	}
 	switch (cmd) {
 	case HPD_INIT_SET_FILTER:
 		hdmitx_wr_reg(HDMITX_TOP_HPD_FILTER,
 			      ((0xa << 12) | (0xa0 << 0)));
-		break;
-	case HPD_IS_HPD_MUXED:
-		ret = 1;
-		break;
-	case HPD_MUX_HPD:
-		pinctrl_select_state(hdev->tx_comm.pdev->pins->p,
-				     hdev->tx_comm.pinctrl_hpd);
-		break;
-	case HPD_UNMUX_HPD:
-		pinctrl_select_state(hdev->tx_comm.pdev->pins->p, hdev->tx_comm.pinctrl_i2c);
 		break;
 	case HPD_READ_HPD_GPIO:
 		ret = hdmitx_rd_reg(HDMITX_DWC_PHY_STAT0) & (1 << 1);

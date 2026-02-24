@@ -5041,16 +5041,6 @@ static int hdmitx21_hw_cntl_platform(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx21_s5_clk_div_rst(arg);
 #endif
 		break;
-	case PLATFORM_HPD_MUX_OP:
-		ret = hdmitx21_check_input_argv(cmd, input_argv);
-		if (ret < 0)
-			break;
-		arg = *((u32 *)input_argv);
-		if (arg == PIN_MUX)
-			arg = HPD_MUX_HPD;
-		else
-			arg = HPD_UNMUX_HPD;
-		return hdmitx21_hpd_hw_op(arg);
 	case PLATFORM_GET_HPD_GPI_ST:
 		return hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO);
 	case PLATFORM_PHY_OP:
