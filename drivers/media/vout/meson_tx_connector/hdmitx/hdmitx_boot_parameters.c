@@ -20,7 +20,7 @@ static struct hdmitx_boot_param tx_params = {
 	 * If uboot does not configure the scan_info environment,
 	 * the kernel default configuration is underscan
 	 */
-	.scan_info = HDMI_SCAN_MODE_UNDERSCAN;
+	.scan_info = HDMI_SCAN_MODE_UNDERSCAN,
 };
 
 struct hdmitx_boot_param *get_hdmitx_boot_params(void)
