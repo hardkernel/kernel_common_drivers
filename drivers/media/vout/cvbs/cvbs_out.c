@@ -217,34 +217,19 @@ struct class_attribute class_CVBS_attr_wss = __ATTR(wss, 0644,
 
 static void cvbs_bist_test(unsigned int bist, void *data);
 
-/* static int get_cpu_minor(void)
- * {
- *	return get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
- * }
- */
-
 int cvbs_cpu_type(void)
 {
-	if (!cvbs_drv) {
-		cvbs_log_err("error: %s: no cvbs drv\n", __func__);
-		return -1;
-	}
-	if (!cvbs_drv->cvbs_data) {
-		cvbs_log_err("error: %s: no cvbs data\n", __func__);
+	if (!cvbs_drv || !cvbs_drv->cvbs_data) {
+		cvbs_log_err("error: %s: no cvbs drv/data\n", __func__);
 		return -1;
 	}
 	return cvbs_drv->cvbs_data->cpu_id;
 }
-EXPORT_SYMBOL(cvbs_cpu_type);
 
 struct meson_cvbsout_data *get_cvbs_data(void)
 {
-	if (!cvbs_drv) {
-		cvbs_log_err("error: %s: no cvbs drv\n", __func__);
-		return NULL;
-	}
-	if (!cvbs_drv->cvbs_data) {
-		cvbs_log_err("error: %s: no cvbs data\n", __func__);
+	if (!cvbs_drv || !cvbs_drv->cvbs_data) {
+		cvbs_log_err("error: %s: no cvbs drv/data\n", __func__);
 		return NULL;
 	}
 	return cvbs_drv->cvbs_data;
@@ -304,7 +289,6 @@ static void cvbs_performance_enhancement(enum cvbs_mode_e mode)
 		s++;
 		i++;
 	}
-	cvbs_log_info("%s\n", __func__);
 }
 #endif/* end of CVBS_PERFORMANCE_COMPATIBILITY_SUPPORT */
 
@@ -316,7 +300,7 @@ static int cvbs_out_set_venc(enum cvbs_mode_e mode)
 	/* setup encoding regs */
 	s = cvbs_regs_tab[mode].enc_reg_setting;
 	if (!s) {
-		cvbs_log_info("display mode %d get enc set NULL\n", mode);
+		cvbs_log_err("display mode %d get enc set NULL\n", mode);
 		ret = -1;
 	} else {
 		while (s->reg != MREG_END_MARKER) {
@@ -325,7 +309,6 @@ static int cvbs_out_set_venc(enum cvbs_mode_e mode)
 		}
 		ret = 0;
 	}
-	/* cvbs_log_info("%s[%d]\n", __func__, __LINE__); */
 	return ret;
 }
 
@@ -362,24 +345,16 @@ static void cvbs_out_clk_gate_ctrl(int status)
 			return;
 		}
 
-		if (IS_ERR(cvbs_drv->venci_top_gate))
-			cvbs_log_err("error: %s: venci_top_gate\n", __func__);
-		else
+		if (!IS_ERR(cvbs_drv->venci_top_gate))
 			clk_prepare_enable(cvbs_drv->venci_top_gate);
 
-		if (IS_ERR(cvbs_drv->venci_0_gate))
-			cvbs_log_err("error: %s: venci_0_gate\n", __func__);
-		else
+		if (!IS_ERR(cvbs_drv->venci_0_gate))
 			clk_prepare_enable(cvbs_drv->venci_0_gate);
 
-		if (IS_ERR(cvbs_drv->venci_1_gate))
-			cvbs_log_err("error: %s: venci_1_gate\n", __func__);
-		else
+		if (!IS_ERR(cvbs_drv->venci_1_gate))
 			clk_prepare_enable(cvbs_drv->venci_1_gate);
 
-		if (IS_ERR(cvbs_drv->vdac_clk_gate))
-			cvbs_log_err("error: %s: vdac_clk_gate\n", __func__);
-		else
+		if (!IS_ERR(cvbs_drv->vdac_clk_gate))
 			clk_prepare_enable(cvbs_drv->vdac_clk_gate);
 
 #ifdef CONFIG_AMLOGIC_VPU
@@ -396,24 +371,16 @@ static void cvbs_out_clk_gate_ctrl(int status)
 #ifdef CONFIG_AMLOGIC_VPU
 		vpu_dev_clk_gate_off(cvbs_drv->cvbs_vpu_dev);
 #endif
-		if (IS_ERR(cvbs_drv->vdac_clk_gate))
-			cvbs_log_err("error: %s: vdac_clk_gate\n", __func__);
-		else
+		if (!IS_ERR(cvbs_drv->vdac_clk_gate))
 			clk_disable_unprepare(cvbs_drv->vdac_clk_gate);
 
-		if (IS_ERR(cvbs_drv->venci_0_gate))
-			cvbs_log_err("error: %s: venci_0_gate\n", __func__);
-		else
+		if (!IS_ERR(cvbs_drv->venci_0_gate))
 			clk_disable_unprepare(cvbs_drv->venci_0_gate);
 
-		if (IS_ERR(cvbs_drv->venci_1_gate))
-			cvbs_log_err("error: %s: venci_1_gate\n", __func__);
-		else
+		if (!IS_ERR(cvbs_drv->venci_1_gate))
 			clk_disable_unprepare(cvbs_drv->venci_1_gate);
 
-		if (IS_ERR(cvbs_drv->venci_top_gate))
-			cvbs_log_err("error: %s: venci_top_gate\n", __func__);
-		else
+		if (!IS_ERR(cvbs_drv->venci_top_gate))
 			clk_disable_unprepare(cvbs_drv->venci_top_gate);
 
 		cvbs_drv->clk_gate_state = 0;
@@ -433,29 +400,17 @@ static int cvbs_out_setmode(void)
 
 	switch (local_cvbs_mode) {
 	case MODE_480CVBS:
-		cvbs_log_info("SET cvbs mode: 480cvbs\n");
-		break;
 	case MODE_576CVBS:
-		cvbs_log_info("SET cvbs mode: 576cvbs\n");
-		break;
 	case MODE_PAL_M:
-		cvbs_log_info("SET cvbs mode: pal_m\n");
-		break;
 	case MODE_PAL_N:
-		cvbs_log_info("SET cvbs mode: pal_n\n");
-		break;
 	case MODE_NTSC_M:
-		cvbs_log_info("SET cvbs mode: ntsc_m\n");
+		cvbs_log_info("set cvbs mode: %s\n", cvbs_mode_t[local_cvbs_mode]);
 		break;
 	default:
 		cvbs_log_err("%s:invalid cvbs mode", __func__);
-		break;
-	}
-
-	if (local_cvbs_mode >= MODE_MAX) {
-		cvbs_log_err("%s:mode error.return", __func__);
 		return -1;
 	}
+
 	mutex_lock(&setmode_mutex);
 
 	cvbs_out_vpu_power_ctrl(1);
@@ -647,7 +602,7 @@ int cvbs_set_current_vmode(enum vmode_e mode, void *data)
 	if (tvmode != VMODE_CVBS)
 		return -EINVAL;
 	if (local_cvbs_mode == MODE_MAX) {
-		cvbs_log_info("local_cvbs_mode err:%d!\n", local_cvbs_mode);
+		cvbs_log_err("local_cvbs_mode err:%d!\n", local_cvbs_mode);
 		return 1;
 	}
 
@@ -815,9 +770,7 @@ static void cvbs_init_vout(void)
 		cvbs_drv->vinfo = &cvbs_info[MODE_480CVBS];
 
 	if (vout_register_server(&cvbs_vout_server))
-		cvbs_log_err("register cvbs module server by env fail\n");
-	else
-		cvbs_log_info("register cvbs module server by env ok\n");
+		cvbs_log_err("register vout server fail\n");
 }
 
 static char *cvbs_out_bist_str[] = {
@@ -845,8 +798,6 @@ static void cvbs_bist_test(unsigned int bist, void *data)
 		cvbs_out_reg_write(ENCI_TST_CB, 0x200);
 		cvbs_out_reg_write(ENCI_TST_CR, 0x200);
 		cvbs_out_reg_write(ENCI_TST_EN, 1);
-		pr_info("show bist pattern %d: %s\n",
-			bist, cvbs_out_bist_str[bist]);
 		break;
 	case 4:
 		cvbs_out_reg_write(ENCI_TST_CLRBAR_STRT, 0x112);
@@ -856,8 +807,6 @@ static void cvbs_bist_test(unsigned int bist, void *data)
 		cvbs_out_reg_write(ENCI_TST_CB, 0x200);
 		cvbs_out_reg_write(ENCI_TST_CR, 0x200);
 		cvbs_out_reg_write(ENCI_TST_EN, 1);
-		pr_info("show bist pattern %d: %s\n",
-			bist, cvbs_out_bist_str[bist]);
 		break;
 	case 5:
 		cvbs_out_reg_write(ENCI_TST_CLRBAR_STRT, 0x112);
@@ -867,8 +816,6 @@ static void cvbs_bist_test(unsigned int bist, void *data)
 		cvbs_out_reg_write(ENCI_TST_CB, 0x0);
 		cvbs_out_reg_write(ENCI_TST_CR, 0x3ff);
 		cvbs_out_reg_write(ENCI_TST_EN, 1);
-		pr_info("show bist pattern %d: %s\n",
-			bist, cvbs_out_bist_str[bist]);
 		break;
 	case 6:
 		cvbs_out_reg_write(ENCI_TST_CLRBAR_STRT, 0x112);
@@ -878,8 +825,6 @@ static void cvbs_bist_test(unsigned int bist, void *data)
 		cvbs_out_reg_write(ENCI_TST_CB, 0x0);
 		cvbs_out_reg_write(ENCI_TST_CR, 0x0);
 		cvbs_out_reg_write(ENCI_TST_EN, 1);
-		pr_info("show bist pattern %d: %s\n",
-			bist, cvbs_out_bist_str[bist]);
 		break;
 	case 7:
 		cvbs_out_reg_write(ENCI_TST_CLRBAR_STRT, 0x112);
@@ -889,8 +834,6 @@ static void cvbs_bist_test(unsigned int bist, void *data)
 		cvbs_out_reg_write(ENCI_TST_CB, 0x3ff);
 		cvbs_out_reg_write(ENCI_TST_CR, 0x0);
 		cvbs_out_reg_write(ENCI_TST_EN, 1);
-		pr_info("show bist pattern %d: %s\n",
-			bist, cvbs_out_bist_str[bist]);
 		break;
 	case 8:
 		cvbs_out_reg_write(ENCI_TST_CLRBAR_STRT, 0x112);
@@ -900,8 +843,6 @@ static void cvbs_bist_test(unsigned int bist, void *data)
 		cvbs_out_reg_write(ENCI_TST_CB, 0x200);
 		cvbs_out_reg_write(ENCI_TST_CR, 0x200);
 		cvbs_out_reg_write(ENCI_TST_EN, 1);
-		pr_info("show bist pattern %d: %s\n",
-			bist, cvbs_out_bist_str[bist]);
 		break;
 	case 0:
 	default:
@@ -910,10 +851,12 @@ static void cvbs_bist_test(unsigned int bist, void *data)
 		cvbs_out_reg_write(ENCI_TST_CB, 0x200);
 		cvbs_out_reg_write(ENCI_TST_CR, 0x200);
 		cvbs_out_reg_write(ENCI_TST_EN, 0);
-		pr_info("show bist pattern %d: %s\n",
-			bist, cvbs_out_bist_str[0]);
 		break;
 	}
+
+	if (bist <= 8)
+		cvbs_log_info("set bist pattern %d: %s\n",
+			bist, cvbs_out_bist_str[bist]);
 }
 
 void cvbs_video_mute(bool mute)
@@ -948,44 +891,6 @@ static ssize_t aml_CVBS_attr_vdac_power_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static void dump_clk_registers(void)
-{
-	struct meson_cvbsout_data *cvbs_data;
-	unsigned int vdac_reg0, vdac_reg1;
-		/* hiu 10c8 ~ 10cd */
-
-		cvbs_data = get_cvbs_data();
-		if (!cvbs_data)
-			return;
-		/* hiu 104a, 104b*/
-	pr_info("----ana----\n");
-	pr_info("vid_pll_div[0x%x]:0x%x", cvbs_data->reg_vid_pll_clk_div,
-			cvbs_out_vid_pll_read(cvbs_data->reg_vid_pll_clk_div));
-	pr_info("----hiu----\n");
-	pr_info("vid_clk_div[0x%x]:0x%x", cvbs_data->reg_vid_clk_div,
-			cvbs_out_hiu_read(cvbs_data->reg_vid_clk_div));
-	pr_info("vid_clk_ctrl[0x%x]:0x%x", cvbs_data->reg_vid_clk_ctrl,
-			cvbs_out_hiu_read(cvbs_data->reg_vid_clk_ctrl));
-	pr_info("vid2_clk_div[0x%x]:0x%x", cvbs_data->reg_vid2_clk_div,
-			cvbs_out_hiu_read(cvbs_data->reg_vid2_clk_div));
-	pr_info("vid2_clk_ctrl[0x%x]:0x%x", cvbs_data->reg_vid2_clk_ctrl,
-			cvbs_out_hiu_read(cvbs_data->reg_vid2_clk_ctrl));
-	pr_info("vid_clk_ctrl2[0x%x]:0x%x", cvbs_data->reg_vid_clk_ctrl2,
-			cvbs_out_hiu_read(cvbs_data->reg_vid_clk_ctrl2));
-	pr_info("----hiu----\n");
-
-	pr_info("------------------------\n");
-	vdac_reg0 = vdac_get_reg_addr(0);
-	vdac_reg1 = vdac_get_reg_addr(1);
-	if (vdac_reg0 < 0x1000 && vdac_reg1 < 0x1000) {
-		pr_info("hiu [0x%x] = 0x%x\n"
-			"hiu [0x%x] = 0x%x\n",
-			vdac_reg0, cvbs_out_ana_read(vdac_reg0),
-			vdac_reg1, cvbs_out_ana_read(vdac_reg1));
-	}
-	pr_info("------------------------\n");
-}
-
 static void cvbs_performance_regs_dump(void)
 {
 	unsigned int performance_regs_enci[] = {
@@ -1003,12 +908,10 @@ static void cvbs_performance_regs_dump(void)
 	int i, size;
 
 	size = sizeof(performance_regs_enci) / sizeof(unsigned int);
-	pr_info("------------------------\n");
 	for (i = 0; i < size; i++) {
 		pr_info("vcbus [0x%x] = 0x%x\n", performance_regs_enci[i],
 			cvbs_out_reg_read(performance_regs_enci[i]));
 	}
-	pr_info("------------------------\n");
 	vdac_reg0 = vdac_get_reg_addr(0);
 	vdac_reg1 = vdac_get_reg_addr(1);
 	if (vdac_reg0 < 0x1000 && vdac_reg1 < 0x1000) {
@@ -1016,43 +919,6 @@ static void cvbs_performance_regs_dump(void)
 			"vdac cntl1 [0x%x] = 0x%x\n",
 			vdac_reg0, cvbs_out_ana_read(vdac_reg0),
 			vdac_reg1, cvbs_out_ana_read(vdac_reg1));
-	}
-	pr_info("------------------------\n");
-}
-
-static void cvbs_performance_config_dump(void)
-{
-	struct performance_config_s *perfconf = NULL;
-	const struct reg_s *s = NULL;
-	int i = 0, j = 0;
-
-	/* below names are not used in dts node */
-	struct dts_perf_config perf_config[] = {
-		{"performance_pal_sva", &cvbs_drv->perf_conf_pal_sva},
-		{"performance_pal_ctcc", &cvbs_drv->perf_conf_pal},
-		{"performance_ntsc_domestic", &cvbs_drv->perf_conf_ntsc},
-		{"performance_ntsc_ttc", &cvbs_drv->perf_conf_ntsc_ttc},
-	};
-
-	for (j = 0; j < ARRAY_SIZE(perf_config); j++) {
-		perfconf = perf_config[j].perfconf;
-		if (!perfconf->reg_table) {
-			pr_info("no %s table!\n", perf_config[j].config_name);
-		} else {
-			pr_info("------------------------\n");
-			pr_info("%s config:\n", perf_config[j].config_name);
-			s = perfconf->reg_table;
-			i = 0;
-			while (i < perfconf->reg_cnt) {
-				if (s->reg > 0x1000)
-					pr_info("0x%04x = 0x%x\n", s->reg, s->val);
-				else
-					pr_info("0x%02x = 0x%x\n", s->reg, s->val);
-				s++;
-				i++;
-			}
-			pr_info("------------------------\n");
-		}
 	}
 }
 
@@ -1181,10 +1047,8 @@ static void cvbs_debug_store(const char *buf)
 	} else if (!strncmp(argv[0], "vdac", strlen("vdac"))) {
 		cmd = CMD_VDAC;
 	} else if (!strncmp(argv[0], "cvbs_sva", strlen("cvbs_sva"))) {
-		pr_info("config ccitt033 SVA standard test value\n");
 		cmd = CMD_SVA_VALUE;
 	}  else if (!strncmp(argv[0], "cvbs_ttc", strlen("cvbs_ttc"))) {
-		pr_info("config NTSC TTC standard test value\n");
 		cmd = CMD_TTC_VALUE;
 	} else if (!strncmp(argv[0], "cvbs_display", strlen("cvbs_display"))) {
 		cmd = CMD_DISPLAY_ON_OFF;
@@ -1305,15 +1169,6 @@ static void cvbs_debug_store(const char *buf)
 			(unsigned int)old, func_read(addr));
 		break;
 
-	case CMD_CLK_DUMP:
-		dump_clk_registers();
-		break;
-
-	case CMD_CLK_MSR:
-		/* todo */
-		pr_info("cvbs: debug_store: clk_msr todo!\n");
-		break;
-
 	case CMD_BIST:
 		if (!cvbs_drv) {
 			pr_info("[%s] cvbs_drv is null\n", __func__);
@@ -1338,7 +1193,7 @@ static void cvbs_debug_store(const char *buf)
 		break;
 
 	case CMD_VP_SET:
-		if (!cvbs_drv || !(cvbs_drv->vinfo)) {
+		if (!cvbs_drv || !cvbs_drv->vinfo) {
 			pr_info("[%s] cvbs_drv or cvbs_drv->vinfo is null\n", __func__);
 			goto DEBUG_END;
 		}
@@ -1353,10 +1208,6 @@ static void cvbs_debug_store(const char *buf)
 		cvbs_performance_regs_dump();
 		break;
 
-	case CMD_VP_CONFIG_DUMP:
-		pr_info("performance config in dts:\n");
-		cvbs_performance_config_dump();
-		break;
 	case CMD_VP_SET_PLLPATH:
 		if (cvbs_cpu_type() < CVBS_CPU_TYPE_G12A) {
 			pr_info("ERR:Only after g12a/b chip supported\n");
@@ -1533,8 +1384,17 @@ static ssize_t aml_cvbs_dump_show(const struct class *class,
 		VENC_VDAC_DAC0_FILT_CTRL0,
 		VENC_VDAC_DAC0_FILT_CTRL1
 	};
-	int i = 0;
+	int i = 0, j = 0;
 	int size = 0;
+	struct performance_config_s *perfconf = NULL;
+	const struct reg_s *s = NULL;
+	/* below names are not used in dts node */
+	struct dts_perf_config perf_config[] = {
+		{"performance_pal_sva", &cvbs_drv->perf_conf_pal_sva},
+		{"performance_pal_ctcc", &cvbs_drv->perf_conf_pal},
+		{"performance_ntsc_domestic", &cvbs_drv->perf_conf_ntsc},
+		{"performance_ntsc_ttc", &cvbs_drv->perf_conf_ntsc_ttc},
+	};
 
 	if (local_cvbs_mode == MODE_MAX) {
 		len += sprintf(buf + len, "invalid cvbs mode\n");
@@ -1545,7 +1405,6 @@ static ssize_t aml_cvbs_dump_show(const struct class *class,
 			cvbs_mode_name[local_cvbs_mode]);
 		return len;
 	}
-
 	reg_set = cvbs_regs_tab[local_cvbs_mode].enc_reg_setting;
 	if (!reg_set) {
 		len += sprintf(buf + len, "reg_set invalid for cvbs mode: %s\n",
@@ -1601,6 +1460,29 @@ static ssize_t aml_cvbs_dump_show(const struct class *class,
 	len += sprintf(buf + len, "vid_clk_ctrl2[0x%x]:0x%x\n", cvbs_data->reg_vid_clk_ctrl2,
 			cvbs_out_hiu_read(cvbs_data->reg_vid_clk_ctrl2));
 
+	len += sprintf(buf + len, "dts performance reg dump-----\n");
+	for (j = 0; j < ARRAY_SIZE(perf_config); j++) {
+		perfconf = perf_config[j].perfconf;
+		if (!perfconf->reg_table) {
+			len += sprintf(buf + len, "no %s table in dts!\n",
+				perf_config[j].config_name);
+		} else {
+			len += sprintf(buf + len, "%s config:\n", perf_config[j].config_name);
+			s = perfconf->reg_table;
+			i = 0;
+			while (i < perfconf->reg_cnt) {
+				if (s->reg > 0x1000)
+					len += sprintf(buf + len, "0x%04x = 0x%x\n",
+						s->reg, s->val);
+				else
+					len += sprintf(buf + len, "0x%02x = 0x%x\n",
+						s->reg, s->val);
+				s++;
+				i++;
+			}
+		}
+	}
+
 	return len;
 }
 
@@ -1647,17 +1529,17 @@ static int create_cvbs_attr(struct cvbs_drv_s *cdrv)
 	return 0;
 
 fail_create_device:
-	cvbs_log_info("[cvbs.] : cvbs device create error.\n");
+	cvbs_log_dbg("[cvbs.] : cvbs device create error.\n");
 	cdev_del(cdrv->cdev);
 fail_add_cdev:
-	cvbs_log_info("[cvbs.] : cvbs add device error.\n");
+	cvbs_log_dbg("[cvbs.] : cvbs add device error.\n");
 fail_class_create_file:
-	cvbs_log_info("[cvbs.] : cvbs class create file error.\n");
+	cvbs_log_dbg("[cvbs.] : cvbs class create file error.\n");
 	for (i = 0; i < ARRAY_SIZE(cvbs_attr); i++)
 		class_remove_file(cdrv->base_class, cvbs_attr[i]);
 	class_destroy(cdrv->base_class);
 fail_create_class:
-	cvbs_log_info("[cvbs.] : cvbs class create error.\n");
+	cvbs_log_dbg("[cvbs.] : cvbs class create error.\n");
 	unregister_chrdev_region(cdrv->devno, 1);
 	return ret;
 }
@@ -1698,14 +1580,14 @@ static void cvbsout_get_config(struct device *dev)
 		cvbs_drv->sva_std = !!val;
 	else
 		cvbs_drv->sva_std = 0;
-	cvbs_log_dbg("sva_std:0x%x\n", cvbs_drv->sva_std);
+	cvbs_log_info("sva_std:0x%x\n", cvbs_drv->sva_std);
 
 	ret = of_property_read_u32(dev->of_node, "ntsc_ttc", &val);
 	if (!ret)
 		cvbs_drv->ntsc_ttc = !!val;
 	else
 		cvbs_drv->ntsc_ttc = 0;
-	cvbs_log_dbg("ntsc_ttc:0x%x\n", cvbs_drv->ntsc_ttc);
+	cvbs_log_info("ntsc_ttc:0x%x\n", cvbs_drv->ntsc_ttc);
 
 	for (perf_idx = 0; perf_idx < ARRAY_SIZE(perf_config); perf_idx++) {
 		perf_conf_ptr = perf_config[perf_idx].perfconf;
@@ -1773,19 +1655,19 @@ static void cvbsout_clktree_probe(struct device *dev)
 	cvbs_drv->clk_gate_state = 0;
 	cvbs_drv->venci_top_gate = devm_clk_get(dev, "venci_top_gate");
 	if (IS_ERR(cvbs_drv->venci_top_gate))
-		cvbs_log_err("error: %s: clk venci_top_gate\n", __func__);
+		cvbs_log_dbg("error: %s: clk venci_top_gate\n", __func__);
 
 	cvbs_drv->venci_0_gate = devm_clk_get(dev, "venci_0_gate");
 	if (IS_ERR(cvbs_drv->venci_0_gate))
-		cvbs_log_err("error: %s: clk venci_0_gate\n", __func__);
+		cvbs_log_dbg("error: %s: clk venci_0_gate\n", __func__);
 
 	cvbs_drv->venci_1_gate = devm_clk_get(dev, "venci_1_gate");
 	if (IS_ERR(cvbs_drv->venci_1_gate))
-		cvbs_log_err("error: %s: clk venci_1_gate\n", __func__);
+		cvbs_log_dbg("error: %s: clk venci_1_gate\n", __func__);
 
 	cvbs_drv->vdac_clk_gate = devm_clk_get(dev, "vdac_clk_gate");
 	if (IS_ERR(cvbs_drv->vdac_clk_gate))
-		cvbs_log_err("error: %s: clk vdac_clk_gate\n", __func__);
+		cvbs_log_dbg("error: %s: clk vdac_clk_gate\n", __func__);
 }
 
 static void cvbsout_clktree_remove(struct device *dev)
@@ -2160,13 +2042,13 @@ static const struct component_ops meson_cvbs_bind_ops = {
 
 static int am_meson_cvbs_probe(struct platform_device *pdev)
 {
-	pr_debug("[%s:%d] in\n", __func__, __LINE__);
+	cvbs_log_dbg("[%s:%d] in\n", __func__, __LINE__);
 	return component_add(&pdev->dev, &meson_cvbs_bind_ops);
 }
 
 static void am_meson_cvbs_remove(struct platform_device *pdev)
 {
-	pr_debug("[%s:%d] in\n", __func__, __LINE__);
+	cvbs_log_dbg("[%s:%d] in\n", __func__, __LINE__);
 	component_del(&pdev->dev, &meson_cvbs_bind_ops);
 }
 
@@ -2207,7 +2089,7 @@ static int cvbsout_probe(struct platform_device *pdev)
 
 	match = of_match_device(meson_cvbsout_dt_match, &pdev->dev);
 	if (!match) {
-		cvbs_log_err("%s, no matched table\n", __func__);
+		cvbs_log_dbg("%s, no matched table\n", __func__);
 		goto cvbsout_probe_err;
 	}
 	cvbs_drv->cvbs_data = (struct meson_cvbsout_data *)match->data;
@@ -2231,13 +2113,13 @@ static int cvbsout_probe(struct platform_device *pdev)
 
 	ret = alloc_chrdev_region(&cvbs_drv->devno, 0, 1, CVBS_NAME);
 	if (ret < 0) {
-		cvbs_log_err("alloc_chrdev_region error\n");
+		cvbs_log_dbg("alloc_chrdev_region error\n");
 		goto cvbsout_probe_err;
 	}
 	cvbs_log_dbg("chrdev devno %d for disp\n", cvbs_drv->devno);
 	ret = create_cvbs_attr(cvbs_drv);
 	if (ret < 0) {
-		cvbs_log_err("create_cvbs_attr error\n");
+		cvbs_log_dbg("create_cvbs_attr error\n");
 		goto cvbsout_probe_err;
 	}
 
@@ -2246,7 +2128,7 @@ static int cvbsout_probe(struct platform_device *pdev)
 		IRQF_SHARED, "tvout_vsync", (void *)"tvout_vsync")) {
 		cvbs_log_err("can't request vsync_irq for tvout\n");
 	} else {
-		cvbs_log_info("request tvout vsync_irq successful\n");
+		cvbs_log_dbg("request tvout vsync_irq successful\n");
 	}
 #endif
 
@@ -2289,7 +2171,7 @@ static void cvbsout_remove(struct platform_device *pdev)
 #endif
 	//component_del(&pdev->dev, &meson_cvbs_bind_ops);
 	platform_driver_unregister(&am_meson_cvbs_pltfm_driver);
-	cvbs_log_info("%s\n", __func__);
+	cvbs_log_dbg("%s\n", __func__);
 }
 
 static void cvbsout_shutdown(struct platform_device *pdev)
@@ -2360,9 +2242,8 @@ static struct platform_driver cvbsout_driver = {
 
 int __init cvbs_init_module(void)
 {
-	/* cvbs_log_info("%s module init\n", __func__); */
 	if (platform_driver_register(&cvbsout_driver)) {
-		cvbs_log_err("%s failed to register module\n", __func__);
+		cvbs_log_dbg("%s failed to register module\n", __func__);
 		return -ENODEV;
 	}
 #ifdef CONFIG_AMLOGIC_VOUT_CC_BYPASS
@@ -2374,7 +2255,6 @@ int __init cvbs_init_module(void)
 
 __exit void cvbs_exit_module(void)
 {
-	/* cvbs_log_info("%s module exit\n", __func__); */
 	platform_driver_unregister(&cvbsout_driver);
 }
 

@@ -16,7 +16,7 @@
 #include "cvbs_mode.h"
 
 /* sync kernel 4.9 code */
-#define CVBSOUT_VER "Ref.2020/10/23"
+#define CVBSOUT_VER "Ref.2026/02/24"
 
 #define CVBS_CLASS_NAME	"cvbs"
 #define CVBS_NAME	"cvbs"
