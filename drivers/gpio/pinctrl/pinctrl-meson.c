@@ -818,6 +818,10 @@ static struct regmap_config meson_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
+#if IS_ENABLED(CONFIG_PREEMPT_RT)
+	.fast_io = true,
+	.use_raw_spinlock = true,
+#endif
 };
 
 static struct regmap *meson_map_resource(struct meson_pinctrl *pc,
