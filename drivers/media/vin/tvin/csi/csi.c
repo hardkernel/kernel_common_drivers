@@ -50,8 +50,8 @@ static struct sensor_info g_sensor_info;
 void update_sensor_info(struct sensor_info info)
 {
 	g_sensor_info = info;
-	DPRINT("csi: %s, sensor w %d h %d bps %d M nlanes %d\n",
-			__func__, g_sensor_info.width, g_sensor_info.height,
+	DPRINT("update sensor info, w %d h %d bps %d M nlanes %d\n",
+			g_sensor_info.width, g_sensor_info.height,
 			g_sensor_info.bps_m, g_sensor_info.nlanes);
 }
 EXPORT_SYMBOL(update_sensor_info);
@@ -75,7 +75,7 @@ static void init_csi_dec_parameter(struct amcsi_dev_s *devp)
 		break;
 	}
 
-	DPRINT("%s, %d TBD\n", __func__, __LINE__);
+	pr_debug("init csi decode parameter\n");
 	fmt = devp->para.fmt;
 	fmt_info_p = (struct tvin_format_s *)tvin_get_fmt_info(fmt);
 	devp->para.v_active    = g_sensor_info.height;
@@ -89,12 +89,12 @@ static void init_csi_dec_parameter(struct amcsi_dev_s *devp)
 
 static void reset_btcsi_module(void)
 {
-	DPRINT("%s, %d\n", __func__, __LINE__);
+	pr_debug("reset btcsi module\n");
 }
 
 static void reinit_csi_dec(struct amcsi_dev_s *devp)
 {
-	DPRINT("%s, %d\n", __func__, __LINE__);
+	pr_debug("reinit csi decode\n");
 }
 
 static void start_amvdec_csi(struct amcsi_dev_s *devp)
@@ -102,20 +102,17 @@ static void start_amvdec_csi(struct amcsi_dev_s *devp)
 	enum tvin_port_e port =  devp->para.port;
 
 	if (devp->dec_status & TVIN_AMCSI_RUNNING) {
-		pr_info("%s csi have started already.\n",
-			__func__);
+		pr_info("csi have started already.\n");
 		return;
 	}
 	devp->dec_status = TVIN_AMCSI_RUNNING;
-	pr_info("%s port = %x\n", __func__, port);
 	if (port == TVIN_PORT_MIPI) {
 		init_csi_dec_parameter(devp);
 		reinit_csi_dec(devp);
 	} else {
 		devp->para.fmt  = TVIN_SIG_FMT_NULL;
 		devp->para.port = TVIN_PORT_NULL;
-		DPRINT("%s: input is not selected, please try again\n",
-			__func__);
+		DPRINT("input port %x is not selected\n", port);
 		return;
 	}
 	devp->dec_status = TVIN_AMCSI_RUNNING;
@@ -127,7 +124,7 @@ static void stop_amvdec_csi(struct amcsi_dev_s *devp)
 		reset_btcsi_module();
 		devp->dec_status = TVIN_AMCSI_STOP;
 	} else {
-		DPRINT("%s device is not started yet\n", __func__);
+		DPRINT("device is not started yet\n");
 	}
 }
 
@@ -193,7 +190,7 @@ static void amcsi_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		container_of(fe, struct amcsi_dev_s, frontend);
 
 	if (port != TVIN_PORT_MIPI) {
-		DPRINT("%s:invalid port %d.\n", __func__, port);
+		DPRINT("invalid port %d\n", port);
 		return;
 	}
 	stop_amvdec_csi(devp);
@@ -208,8 +205,6 @@ void amcsi_get_sig_property(struct tvin_frontend_s *fe,
 
 	prop->color_format = devp->para.cfmt;
 	prop->dest_cfmt = devp->para.dfmt;
-	pr_info("devp->para.cfmt=%d, devp->para.dfmt=%d\n",
-		devp->para.cfmt, devp->para.dfmt);
 	prop->decimation_ratio = 0;
 }
 
@@ -221,7 +216,7 @@ int amcsi_isr(struct tvin_frontend_s *fe, unsigned int hcnt, enum tvin_port_type
 	struct am_csi2_frame_s frame;
 
 	if (devp->dec_status == TVIN_AMCSI_STOP || devp->fe_status == CAMERA_FE_CLOSE) {
-		DPRINT("%s: fe close or csi stop. dec status: %d, fe status: %d\n", __func__,
+		pr_debug("fe close or csi stop. dec status: %d, fe status: %d\n",
 			devp->dec_status, devp->fe_status);
 		return 0;
 	}
@@ -231,8 +226,8 @@ int amcsi_isr(struct tvin_frontend_s *fe, unsigned int hcnt, enum tvin_port_type
 	data1 = READ_CSI_ADPT_REG(CSI2_GEN_STAT0);
 
 	if (frame.err) {
-		DPRINT("%s,error---pixel cnt:%d, line cnt:%d\n",
-			__func__, frame.w, frame.h);
+		DPRINT("error---pixel cnt:%d, line cnt:%d\n",
+			frame.w, frame.h);
 		DPRINT("error state:0x%x.,status:0x%x\n",
 			frame.err, data1);
 		devp->overflow_cnt++;
@@ -321,7 +316,7 @@ static ssize_t hw_info_store(struct device *dev,
 	ps = buf_orig;
 	while (1) {
 		if (n >= ARRAY_SIZE(parm)) {
-			pr_info("parm array overflow, n=%d\n", n);
+			pr_debug("parm array overflow, n=%d\n", n);
 			kfree(buf_orig);
 			return len;
 		}
@@ -334,17 +329,17 @@ static ssize_t hw_info_store(struct device *dev,
 	}
 
 	if (strcmp(parm[0], "reset") == 0) {
-		pr_info("reset\n");
+		pr_debug("reset\n");
 		am_mipi_csi2_init(csi_devp);
 	} else if (strcmp(parm[0], "init") == 0) {
-		pr_info("init mipi measure clock\n");
+		pr_debug("init mipi measure clock\n");
 		init_am_mipi_csi2_clock();
 	} else if (strcmp(parm[0], "min") == 0) {
 		csi_devp->min_frmrate =
 			kstrtol(parm[1], 16, NULL);
 		if ((csi_devp->min_frmrate * WDG_STEP_JIFFIES) < HZ)
 			csi_devp->min_frmrate = HZ / WDG_STEP_JIFFIES;
-		pr_info("min_frmrate=%d\n", csi_devp->min_frmrate);
+		pr_debug("min_frmrate=%d\n", csi_devp->min_frmrate);
 	}
 
 	kfree(buf_orig);
@@ -357,24 +352,30 @@ static DEVICE_ATTR_RW(hw_info);
 static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	enum tvin_port_type_e port_type)
 {
+/*
+ *-1 invalid port param
+ *-2 invalid port
+ *-3 memcpy error
+ */
+	int err = 0;
 	struct amcsi_dev_s *csi_devp =
 		container_of(fe, struct amcsi_dev_s, frontend);
 	struct vdin_parm_s *parm = fe->private_data;
 
 	if (!parm) {
-		DPRINT("[mipi..]%s:invalid port param %d.\n", __func__, port);
-		return -1;
+		err = -1;
+		goto error;
 	}
 
 	if (port != TVIN_PORT_MIPI) {
-		DPRINT("[mipi..]%s:invalid port %d.\n", __func__, port);
-		return -1;
+		err = -2;
+		goto error;
 	}
 
 	if (parm && !memcpy(&csi_devp->para, parm,
 		sizeof(struct vdin_parm_s))) {
-		DPRINT("[mipi..]%s memcpy error.\n", __func__);
-		return -1;
+		err = -3;
+		goto error;
 	}
 
 	csi_devp->para.port = port;
@@ -395,9 +396,12 @@ static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	enable_am_mipi_csi2_clk();
 	am_mipi_csi2_init(csi_devp);
 	csi_devp->fe_status = CAMERA_FE_OPEN;
-	DPRINT("%s camera fe open\n", __func__);
+	pr_debug("%s camera fe open\n", __func__);
 
 	return 0;
+error:
+	DPRINT("fail to open camera fe, err %d, port %d\n", err, port);
+	return -1;
 }
 
 static void amcsi_feclose(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
@@ -407,7 +411,7 @@ static void amcsi_feclose(struct tvin_frontend_s *fe, enum tvin_port_type_e port
 	enum tvin_port_e port = devp->para.port;
 
 	if (port != TVIN_PORT_MIPI) {
-		DPRINT("[mipi..]%s:invalid port %d.\n", __func__, port);
+		DPRINT("[mipi..] invalid port %d\n", port);
 		return;
 	}
 
@@ -415,7 +419,7 @@ static void amcsi_feclose(struct tvin_frontend_s *fe, enum tvin_port_type_e port
 	devp->reset_count = 0;
 
 	if (devp->fe_status == CAMERA_FE_OPEN) {
-		DPRINT("%s camera fe close\n", __func__);
+		pr_debug("%s camera fe close\n", __func__);
 		devp->fe_status = CAMERA_FE_CLOSE;
 	}
 	am_mipi_csi2_uninit(devp);
@@ -448,7 +452,6 @@ static enum tvin_sig_fmt_e amcsi_get_fmt(struct tvin_frontend_s *fe,
 		fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
 		break;
 	}
-	DPRINT("%s, %d TBD\n", __func__, __LINE__);
 	return fmt;
 }
 
@@ -515,7 +518,7 @@ static const struct of_device_id csi_dt_match[] = {
 
 static int amvdec_csi_probe(struct platform_device *pdev)
 {
-	int ret = 0;
+	int ret, err = 0;
 	unsigned int id = 0;
 	struct amcsi_dev_s *devp = NULL;
 
@@ -530,22 +533,21 @@ static int amvdec_csi_probe(struct platform_device *pdev)
 				memcpy(&g_csi_chip_info, matched_data,
 					   sizeof(struct csi_chip_info_s));
 			} else {
-				pr_err("%s data NOT match\n", __func__);
-				return -ENODEV;
+				err = -1;
+				goto fail_match_device;
 			}
 		} else {
-			pr_err("%s NOT match\n", __func__);
-			return -ENODEV;
+			err = -2;
+			goto fail_match_device;
 		}
 	}
 
-	devp = kmalloc(sizeof(*devp), GFP_KERNEL);
+	devp = kzalloc(sizeof(*devp), GFP_KERNEL);
 	if (!devp) {
 		ret = -1;
-		goto fail_kmalloc_dev;
+		goto fail_kzalloc_dev;
 	}
 
-	memset(devp, 0, sizeof(struct amcsi_dev_s));
 	// keep this assignment first.
 	// other initialization may depends on chip info.
 	devp->csi_chip_info = &g_csi_chip_info;
@@ -553,13 +555,13 @@ static int amvdec_csi_probe(struct platform_device *pdev)
 
 	ret = csi_add_cdev(&devp->cdev, &amcsi_fops, 0);
 	if (ret != 0) {
-		pr_err("%s: failed to add cdev\n", __func__);
+		pr_err("failed to add cdev\n");
 		goto fail_add_cdev;
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node, "csi_id", &id);
 	if (ret != 0) {
-		pr_err("%s: don't find  csi_id.\n", __func__);
+		pr_err("don't find  csi_id.\n");
 		goto fail_add_cdev;
 	}
 	pdev->id = id;
@@ -568,7 +570,7 @@ static int amvdec_csi_probe(struct platform_device *pdev)
 	tvin_frontend_init(&devp->frontend, &amcsi_decoder_ops_s,
 		&amcsi_machine_ops, pdev->id);
 	if (tvin_reg_frontend(&devp->frontend) < 0)
-		pr_err("%s: reg frontend error\n", __func__);
+		pr_err("reg frontend error\n");
 	devp->pdev = pdev;
 
 	platform_set_drvdata(pdev, devp);
@@ -579,10 +581,12 @@ static int amvdec_csi_probe(struct platform_device *pdev)
 
 	pr_info("amvdec_csi probe ok.\n");
 	return ret;
-
+fail_match_device:
+	pr_err("match device fail, err %d\n", err);
+	return -ENODEV;
 fail_add_cdev:
 	kfree(devp);
-fail_kmalloc_dev:
+fail_kzalloc_dev:
 	return ret;
 }
 
@@ -618,21 +622,19 @@ int __init amvdec_csi_init_module(void)
 {
 	int ret = 0;
 
-	pr_info("amvdec_csi module: init.\n");
+	pr_debug("amvdec_csi module: init.\n");
 	ret = alloc_chrdev_region(&amcsi_devno, 0,
 		CSI_MAX_DEVS, DEV_NAME);
 	if (ret != 0) {
-		pr_err("%s:failed to alloc major number\n",
-			__func__);
 		goto fail_alloc_cdev_region;
 	}
 
-	pr_info("%s:major %d\n", __func__, MAJOR(amcsi_devno));
+	pr_debug("%s:major %d\n", __func__, MAJOR(amcsi_devno));
 
 	amcsi_clsp = class_create(CLS_NAME);
 	if (IS_ERR(amcsi_clsp)) {
 		ret = PTR_ERR(amcsi_clsp);
-		pr_err("%s:failed to create class\n", __func__);
+		pr_err("failed to create class\n");
 		goto fail_class_create;
 	}
 
@@ -642,7 +644,7 @@ int __init amvdec_csi_init_module(void)
 		goto fail_pdrv_register;
 	}
 
-	pr_info("amvdec_csi module: init. ok\n");
+	pr_debug("amvdec_csi module: init. ok\n");
 	return 0;
 
 fail_pdrv_register:
@@ -657,8 +659,7 @@ fail_alloc_cdev_region:
 
 void __exit amvdec_csi_exit_module(void)
 {
-	pr_info("amvdec_csi module remove.\n");
-	DPRINT("%s, %d\n", __func__, __LINE__);
+	pr_debug("amvdec_csi module remove.\n");
 	class_destroy(amcsi_clsp);
 	unregister_chrdev_region(amcsi_devno, CSI_MAX_DEVS);
 	platform_driver_unregister(&amvdec_csi_driver);

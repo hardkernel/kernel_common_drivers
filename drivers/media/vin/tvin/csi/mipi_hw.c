@@ -124,8 +124,7 @@ void mipi_phy_reg_wr_and_check(s32 addr, s32 data)
 #ifdef MIPI_WR_AND_CHECK
 	tmp = READ_CSI_PHY_REG(addr);
 	if (tmp != data) {
-		pr_info("%s, addr = %x, data = %x, read write unmatch\n",
-			__func__, addr, tmp);
+		pr_err("addr = %x, data = %x, read write unmatch\n", addr, tmp);
 	}
 #endif
 }
@@ -135,8 +134,7 @@ void init_am_mipi_csi2_clock(void)
 	g_csi.csi_clk = devm_clk_get(&g_csi.p_dev->dev,
 		"cts_csi_phy_clk_composite");
 	if (IS_ERR(g_csi.csi_clk)) {
-		pr_err("%s: cannot get clk_gate_csi !!!\n",
-			__func__);
+		pr_err("cannot get clk_gate_csi\n");
 		g_csi.csi_clk = NULL;
 		return;
 	}
@@ -144,8 +142,7 @@ void init_am_mipi_csi2_clock(void)
 	g_csi.adapt_clk = devm_clk_get(&g_csi.p_dev->dev,
 		"cts_csi_adapt_clk_composite");
 	if (IS_ERR(g_csi.adapt_clk)) {
-		pr_err("%s: cannot get clk_gate_adapt !!!\n",
-			__func__);
+		pr_err("cannot get clk_gate_adapt\n");
 		g_csi.adapt_clk = NULL;
 		return;
 	}
@@ -159,7 +156,7 @@ void enable_am_mipi_csi2_clk(void)
 
 	if (!IS_ERR_OR_NULL(g_csi.csi_clk)) {
 		if (clk_set_rate(g_csi.csi_clk, csi_rate) < 0)
-			pr_err("%s :Failed to set csi rate\n", __func__);
+			pr_err("Failed to set csi rate\n");
 		if (!__clk_is_enabled(g_csi.csi_clk)) {
 			rtn = clk_prepare_enable(g_csi.csi_clk);
 			if (rtn) {
@@ -170,7 +167,7 @@ void enable_am_mipi_csi2_clk(void)
 	}
 	if (!IS_ERR_OR_NULL(g_csi.adapt_clk)) {
 		if (clk_set_rate(g_csi.adapt_clk, adapt_rate))
-			pr_err("%s: Failed to set adapt rate\n", __func__);
+			pr_err("Failed to set adapt rate\n");
 		if (!__clk_is_enabled(g_csi.adapt_clk)) {
 			rtn = clk_prepare_enable(g_csi.adapt_clk);
 			if (rtn) {
@@ -208,7 +205,6 @@ void deinit_am_mipi_csi2_clock(void)
 static void init_am_mipi_csi2_host(struct amcsi_dev_s *csi_dev, struct csi_adapt *adap_dev)
 {
 	struct csi_parm_s *info = &csi_dev->csi_parm;
-	pr_info("info->lanes = %d\n", info->lanes);
 	WRITE_CSI_HST_REG(CSI2_HOST_CSI2_RESETN, 1);
 	WRITE_CSI_HST_REG(CSI2_HOST_N_LANES, (info->lanes - 1) & 3);
 
@@ -270,7 +266,7 @@ static void powerup_csi_analog_sm1(struct csi_adapt *adap_dev)
 
 	base_addr = ioremap(HHI_CSI_PHY, 0x400);
 	if (!base_addr) {
-		pr_err("%s: Failed to ioremap addr\n", __func__);
+		pr_err("Failed to ioremap addr\n");
 		return;
 	}
 
@@ -300,11 +296,9 @@ static void init_am_mipi_phy(struct amcsi_dev_s *csi_dev, struct csi_adapt *adap
 		ui_val += 1;
 	settle = (85 + 145 + (16 * ui_val)) / 2;
 	settle = settle / cycle_time;
-	pr_info("settle = 0x%04x\n", settle);
 
 	if (get_csi_chip_type(csi_dev) == CSI_ON_S6) {
 		settle = settle - 4;
-		pr_info("adjust settle = 0x%04x\n", settle);
 		if (info->clock_lane_mode)
 			mipi_phy_reg_wr_and_check(MIPI_PHY_CLK_LANE_CTRL, 0x143d8);
 		else
@@ -316,6 +310,7 @@ static void init_am_mipi_phy(struct amcsi_dev_s *csi_dev, struct csi_adapt *adap
 		mipi_phy_reg_wr_and_check(MIPI_PHY_CLK_LANE_CTRL, 0x3d8);
 		mipi_phy_reg_wr_and_check(MIPI_PHY_TINIT, 0x4e20);
 	}
+	pr_info("adjust settle 0x%04x\n", settle);
 	mipi_phy_reg_wr_and_check(MIPI_PHY_TCLK_MISS, 0x9);
 	mipi_phy_reg_wr_and_check(MIPI_PHY_TCLK_SETTLE, 0x1f);
 	mipi_phy_reg_wr_and_check(MIPI_PHY_THS_SKIP, 0xa);
@@ -414,21 +409,14 @@ void am_mipi_csi2_para_init(struct platform_device *pdev)
 	g_csi.p_dev = pdev;
 
 	rtn = of_property_read_u32(pdev->dev.of_node, "squlech_mode", &g_csi.squlech_mode);
-	if (rtn != 0)
-		pr_info("%s: squlech_mode not found in dts\n", __func__);
-
 	rtn = of_property_read_u32(pdev->dev.of_node, "deskew_mode", &g_csi.deskew_mode);
-	if (rtn != 0) {
-		pr_info("%s: deskew_mode not found in dts\n", __func__);
-	}
-
+	pr_info("squlech mode %d, deskew mode %d\n", g_csi.squlech_mode, g_csi.deskew_mode);
 	for (i = 0; i < 3; i++) {
 		rtn = of_address_to_resource(pdev->dev.of_node, i, &rs);
 		if (rtn != 0) {
-			pr_err("%s:Error idx %d get mipi csi reg resource\n",
-				__func__, i);
+			pr_err("Error idx %d get mipi csi reg resource\n", i);
 		} else {
-			pr_info("%s: rs idx %d info: name: %s\n", __func__,
+			pr_debug("%s: rs idx %d info: name: %s\n", __func__,
 				i, rs.name);
 
 			if (strcmp(rs.name, "csi_phy") == 0) {

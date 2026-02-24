@@ -52,7 +52,7 @@ void powerup_csi_analog_s6(struct csi_adapt *adap_dev)
 
 	base_addr = ioremap(HHI_CSI_PHY_S6, 0x400);
 	if (!base_addr) {
-		pr_err("%s: Failed to ioremap addr\n", __func__);
+		pr_err("Failed to ioremap addr\n");
 		return;
 	}
 
@@ -66,7 +66,7 @@ void powerup_csi_analog_s6(struct csi_adapt *adap_dev)
 	if ((csi_efuse & 0b1111) >= 8 && (csi_efuse & 0b1111) <= 12) {
 		// valid csi_efuse; use it.
 		csi_finetune_value = csi_efuse & 0b1111;
-		pr_info("%s: aphy fine tune value %d\n", __func__, csi_finetune_value);
+		pr_info("aphy fine tune value %d\n", csi_finetune_value);
 	}
 
 	data32 |= (csi_finetune_value << 16);
