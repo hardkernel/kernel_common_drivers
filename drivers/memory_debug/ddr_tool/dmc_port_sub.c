@@ -1292,10 +1292,11 @@ struct vpu_sub_desc * __init vpu_sub_init(int cpu_type)
 	if (desc) {
 		vpu_port.ver = 1;
 		vpu_port.vpu_port_num = desc_size;
-		vpu_port.vpu_desc_v1  = kcalloc(desc_size, sizeof(struct vpu_sub_desc), GFP_KERNEL);
+		vpu_port.vpu_desc_v1  = kcalloc(desc_size,
+						sizeof(struct vpu_sub_desc_v1), GFP_KERNEL);
 		if (!vpu_port.vpu_desc_v1)
 			return NULL;
-		memcpy(vpu_port.vpu_desc_v1, desc, sizeof(struct vpu_sub_desc) * desc_size);
+		memcpy(vpu_port.vpu_desc_v1, desc, sizeof(struct vpu_sub_desc_v1) * desc_size);
 	} else {
 		vpu_port.ver = 2;
 		vpu_port.vpu_desc_v2 = &vpu_port_v2;
