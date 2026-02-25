@@ -2213,14 +2213,16 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* waiting frm_end */
-	while (i++ < frm_done_timeout) {
-		if (vdin_write_done_check(devp))
-			break;
-		usleep_range(100, 105);
-	}
-	if (i >= frm_done_timeout) {
-		pr_info("vdin.%d frm write done timeout\n",
-			devp->index);
+	if (devp->hw_core == VDIN_HW_CORE_NORMAL) {
+		while (i++ < frm_done_timeout) {
+			if (vdin_write_done_check(devp))
+				break;
+			usleep_range(100, 105);
+		}
+		if (i >= frm_done_timeout) {
+			pr_info("vdin.%d frm write done timeout\n",
+				devp->index);
+		}
 	}
 #endif
 	vdin_pause_hw_write(devp, 0);
@@ -2273,11 +2275,11 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	vdin_set_def_wr_canvas(devp);
 	vdin_clk_on_off(devp, false);
 
-	pr_info("vdin%d,delay %u us before vdin_stop\n",
-		devp->index, devp->dbg_stop_dec_delay);
-	if (devp->dbg_stop_dec_delay)
+	if (devp->dbg_stop_dec_delay) {
 		usleep_range(devp->dbg_stop_dec_delay, devp->dbg_stop_dec_delay + 1000);
-
+		pr_info("vdin%d,delay %u us before vdin_stop\n",
+			devp->index, devp->dbg_stop_dec_delay);
+	}
 	vdin_dolby_addr_release(devp, devp->vfp->size);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
