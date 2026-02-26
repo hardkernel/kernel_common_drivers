@@ -115,7 +115,8 @@
 //2026.01.27 remove dsc cut logic
 //2026.01.29 Fix issue that devices not supporting EDID2.0 silent when EDID auto enabled.
 //2026.01.30 fix issue with incorrect FPS display for QMS signal
-#define RX_DRV_VER "ver.2026/01/30"
+//2026.03.03 fix set kthread priority error
+#define RX_DRV_VER "ver.2026/03/03"
 
 /*print type*/
 #define COR1_LOG	0x10000
