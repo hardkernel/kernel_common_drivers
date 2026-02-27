@@ -386,7 +386,6 @@ void vf_unreg_provider(struct vframe_provider_s *prov)
 				pr_err("unreg provider locked %s,%d!\n",
 				       prov->name, cnt);
 				provider_print_last_info();
-				prov->ops = NULL;
 				break;
 			}
 		}
