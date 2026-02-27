@@ -1661,7 +1661,9 @@ void _prm_top_init_vfm(struct dpss_ch_s *pch,
 	}
 
 	if (pch->c.prm_top.is_pps) {
-		if (prm_top->frm_hsize > 1536) {
+		/*ramsize max=768, if slice num =2 && 32align, hsize max=1408*/
+		/* (H+3) / 4 + 31 < 384, for frm_hsize_t1 < 768*/
+		if (prm_top->frm_hsize > 1408) {
 			prm_top->slc_num = 4;
 			prm_top->dpe_slc_num = 4;
 		} else if (prm_top->frm_hsize > 768) {
