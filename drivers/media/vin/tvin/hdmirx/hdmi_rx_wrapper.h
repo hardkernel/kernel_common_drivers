@@ -86,7 +86,8 @@
 /* 2026.1.29 fix frame rate error caused by unstable signal */
 /* 2026.1.30 modify frl signal flow */
 /* 2026.2.02 remove htotal detect */
-#define RX_WRAPPER_VER "ver.2026/2/02"
+/* 2026.3.02 do pcs reset when fdet abnormal */
+#define RX_WRAPPER_VER "ver.2026/3/02"
 
 struct freq_ref_s {
 	bool interlace;

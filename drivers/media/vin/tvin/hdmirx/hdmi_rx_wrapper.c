@@ -2116,11 +2116,6 @@ enum fmt_vic_status rx_fdet_check(u8 port)
 			ret = FMT_VIC_TMDS_FDET_ERROR;
 	}
 
-	if (ret != FMT_VIC_OK) {
-		dump_unnormal_state(port);
-		dump_state(RX_DUMP_VIDEO, port);
-	}
-
 	return ret;
 }
 
@@ -2131,7 +2126,6 @@ enum fmt_vic_status fmt_vic_abnormal(u8 port)
 	fdet_ret = rx_fdet_check(port);
 	if (fdet_ret != FMT_VIC_OK &&
 		rx[port].pre.sw_vic == HDMI_UNSUPPORT) {
-		rx_pr("fdet error\n");
 		return fdet_ret;
 	}
 
@@ -5519,6 +5513,13 @@ void rx_port0_main_state_machine(void)
 					rx_irq_en(IRQ_EN_ALL, port);
 				}
 				get_timing_fmt(port);
+				if (rx[port].pre.sw_vic == HDMI_UNSUPPORT &&
+					rx[port].pre.sw_dvi &&
+					rx[port].hdcp.hdcp_version == HDCP_VER_NONE) {
+					reset_pcs(port);
+					rx[port].state = FSM_SIG_UNSTABLE;
+					break;
+				}
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;
@@ -5583,6 +5584,13 @@ void rx_port0_main_state_machine(void)
 				if (!rx[port].irq_all_en) {
 					rx_emp_hw_enable(true);
 					rx_irq_en(IRQ_EN_ALL, port);
+				}
+				if (rx[port].pre.sw_vic == HDMI_UNSUPPORT &&
+					rx[port].pre.sw_dvi &&
+					rx[port].hdcp.hdcp_version == HDCP_VER_NONE) {
+					reset_pcs(port);
+					rx[port].state = FSM_SIG_UNSTABLE;
+					break;
 				}
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -5960,6 +5968,13 @@ void rx_port1_main_state_machine(void)
 					rx_irq_en(IRQ_EN_ALL, port);
 				}
 				get_timing_fmt(port);
+				if (rx[port].pre.sw_vic == HDMI_UNSUPPORT &&
+					rx[port].pre.sw_dvi &&
+					rx[port].hdcp.hdcp_version == HDCP_VER_NONE) {
+					reset_pcs(port);
+					rx[port].state = FSM_SIG_UNSTABLE;
+					break;
+				}
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;
@@ -6024,6 +6039,13 @@ void rx_port1_main_state_machine(void)
 				if (!rx[port].irq_all_en) {
 					rx_emp_hw_enable(true);
 					rx_irq_en(IRQ_EN_ALL, port);
+				}
+				if (rx[port].pre.sw_vic == HDMI_UNSUPPORT &&
+					rx[port].pre.sw_dvi &&
+					rx[port].hdcp.hdcp_version == HDCP_VER_NONE) {
+					reset_pcs(port);
+					rx[port].state = FSM_SIG_UNSTABLE;
+					break;
 				}
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -6532,6 +6554,13 @@ void rx_port2_main_state_machine(void)
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;
+				if (rx[port].pre.sw_vic == HDMI_UNSUPPORT &&
+					rx[port].pre.sw_dvi &&
+					rx[port].hdcp.hdcp_version == HDCP_VER_NONE) {
+					reset_pcs(port);
+					rx[port].state = FSM_SIG_UNSTABLE;
+					break;
+				}
 				vic_status = fmt_vic_abnormal(port);
 				if (vic_status != FMT_VIC_OK) {
 					if (rx[port].var.vic_check_en &&
@@ -6624,6 +6653,13 @@ void rx_port2_main_state_machine(void)
 				if (!rx[port].irq_all_en) {
 					rx_emp_hw_enable(true);
 					rx_irq_en(IRQ_EN_ALL, port);
+				}
+				if (rx[port].pre.sw_vic == HDMI_UNSUPPORT &&
+					rx[port].pre.sw_dvi &&
+					rx[port].hdcp.hdcp_version == HDCP_VER_NONE) {
+					reset_pcs(port);
+					rx[port].state = FSM_SIG_UNSTABLE;
+					break;
 				}
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
@@ -7204,6 +7240,13 @@ void rx_port3_main_state_machine(void)
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;
 				rx[port].var.sig_unready_cnt = 0;
+				if (rx[port].pre.sw_vic == HDMI_UNSUPPORT &&
+					rx[port].pre.sw_dvi &&
+					rx[port].hdcp.hdcp_version == HDCP_VER_NONE) {
+					reset_pcs(port);
+					rx[port].state = FSM_SIG_UNSTABLE;
+					break;
+				}
 				vic_status = fmt_vic_abnormal(port);
 				if (vic_status != FMT_VIC_OK) {
 					if (rx[port].var.vic_check_en &&
@@ -7297,6 +7340,13 @@ void rx_port3_main_state_machine(void)
 				if (!rx[port].irq_all_en) {
 					rx_emp_hw_enable(true);
 					rx_irq_en(IRQ_EN_ALL, port);
+				}
+				if (rx[port].pre.sw_vic == HDMI_UNSUPPORT &&
+					rx[port].pre.sw_dvi &&
+					rx[port].hdcp.hdcp_version == HDCP_VER_NONE) {
+					reset_pcs(port);
+					rx[port].state = FSM_SIG_UNSTABLE;
+					break;
 				}
 				rx[port].var.de_stable = true;
 				rx[port].var.sig_unstable_cnt = 0;

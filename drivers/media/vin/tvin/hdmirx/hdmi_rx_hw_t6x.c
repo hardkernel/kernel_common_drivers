@@ -380,6 +380,7 @@ void aml_pll_bw_cfg_t6x_20(u8 port)
 			      hdmirx_rd_top(TOP_MISC_STAT0_T6X, port) & 0x1,
 			      is_pll_lock_t6x(port));
 		}
+		usleep_range(50, 100);
 	} while (!is_tmds_clk_stable(port) && is_clk_stable(port) && !aml_phy_pll_lock(0));
 	if (log_level & PHY_LOG)
 		rx_pr("pll done\n");
@@ -1863,6 +1864,7 @@ void aml_pll_bw_cfg_t6x_21(int f_rate, u8 port)
 					hdmirx_rd_top(TOP_MISC_STAT0_T6X, port) & 0x1,
 					is_pll_lock_t6x(port));
 			}
+			usleep_range(50, 100);
 		} while (!is_tmds_clk_stable(port) && is_clk_stable(port) &&
 			!aml_phy_pll_lock(port));
 	}
