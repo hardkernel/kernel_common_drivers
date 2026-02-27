@@ -445,7 +445,8 @@ bool is_screenon_resume_method(void)
 {
 	return (get_resume_method() != RTC_WAKEUP) &&
 		(get_resume_method() != UNDEFINED_WAKEUP) &&
-		(get_resume_method() != WIFI_WAKEUP);
+		(get_resume_method() != WIFI_WAKEUP) &&
+		(get_resume_method() != ETH_PHY_WAKEUP);
 }
 EXPORT_SYMBOL_GPL(is_screenon_resume_method);
 static void set_resume_method(unsigned int val)
