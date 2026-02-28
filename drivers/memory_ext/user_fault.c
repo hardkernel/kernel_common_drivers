@@ -841,12 +841,13 @@ EXPORT_SYMBOL(set_dump_dmc_func);
 
 void _dump_dmc_reg(void)
 {
-	char buf[1024] = {0};
+	char *buf = kzalloc(1024, GFP_KERNEL);
 
-	if (!dmc_cb)
+	if (!buf || !dmc_cb)
 		return;
 	dmc_cb(buf);
 	pr_crit("%s\n", buf);
+	kfree(buf);
 }
 
 void show_user_fault_info(struct pt_regs *regs, u64 lr, u64 sp)

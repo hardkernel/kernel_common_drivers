@@ -93,6 +93,7 @@ static int allow_cma_tasks;
 static unsigned long cma_isolated;
 static struct list_head work_list;
 static raw_spinlock_t work_list_lock;		/* protect job list */
+static struct work_cma job_array[MAX_JOB_NUM];
 
 static atomic_t cma_allocate;
 
@@ -1157,7 +1158,6 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 	unsigned long cnt;
 	unsigned long flags;
 	struct cma_pcp *work;
-	struct work_cma job[MAX_JOB_NUM] = {};
 
 	cpus_read_lock();
 	cpumask_clear(&has_work);
@@ -1190,13 +1190,13 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 	if (!list_empty(&work_list))
 		INIT_LIST_HEAD(&work_list);
 	for (i = 0; i < cnt; i++) {
-		INIT_LIST_HEAD(&job[i].list);
-		job[i].pfn   = start_pfn + i * delta;
-		job[i].count = delta;
-		job[i].host  = current;
+		INIT_LIST_HEAD(&job_array[i].list);
+		job_array[i].pfn   = start_pfn + i * delta;
+		job_array[i].count = delta;
+		job_array[i].host  = current;
 		if (i == cnt - 1)
-			job[i].count = count - i * delta;
-		list_add(&job[i].list, &work_list);
+			job_array[i].count = count - i * delta;
+		list_add(&job_array[i].list, &work_list);
 	}
 	raw_spin_unlock(&work_list_lock);
 	i = 0;
