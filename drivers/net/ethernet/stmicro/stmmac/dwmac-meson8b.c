@@ -908,15 +908,9 @@ static int meson8b_resume(struct device *dev)
 		/*RTC wait linkup*/
 		pr_info("eth hold wakelock 5s\n");
 		pm_wakeup_event(dev, 5000);
-		if (priv->plat->has_gmac) {
-			priv->amlogic_task_action = 100;
-			stmmac_trigger_amlogic_task(priv);
-		} else {
-			if (priv->eth_priv.mdns_switch_from_user) {
-				priv->amlogic_task_action = 100;
-				stmmac_trigger_amlogic_task(priv);
-			}
-		}
+		/* Fix the tx exception issue after resume */
+		priv->amlogic_task_action = 100;
+		stmmac_trigger_amlogic_task(priv);
 	} else {
 		if (priv->eth_priv.internal_phy == 2) {
 			if (phydev) {
