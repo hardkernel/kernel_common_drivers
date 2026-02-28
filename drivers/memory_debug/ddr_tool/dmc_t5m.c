@@ -242,8 +242,6 @@ static int t5m_dmc_mon_set(struct dmc_monitor *mon)
 		dmc_prot_rw(io, DMC_PROT_IRQ_CTRL_STS, val, DMC_WRITE);
 	}
 
-	pr_emerg("range:%08lx - %08lx, device:%16llx\n",
-		 mon->addr_start, mon->addr_end, mon->device);
 	return 0;
 }
 

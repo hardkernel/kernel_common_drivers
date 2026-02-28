@@ -885,9 +885,6 @@ static void dmc_set_default(struct dmc_monitor *mon)
 	mon->addr_start = 0x0;
 	mon->addr_end = get_num_physpages() << PAGE_SHIFT;
 	mon->debug |= DMC_DEBUG_FREE_IGNORE;
-	pr_emerg("set dmc default: device=%llx, range:%lx-%lx, debug=%x, filter=%s,%s\n",
-			mon->device, mon->addr_start, mon->addr_end,
-			mon->debug, default_filter_dev, default_filter_sym);
 
 	dmc_set_monitor(mon->addr_start, mon->addr_end, mon->device, DMC_MODE_DEFAULT, 1);
 }
@@ -938,8 +935,6 @@ static void dmc_enabled_reserved_memory(struct platform_device *pdev, struct dmc
 	mon->debug |= DMC_DEBUG_CMA;
 	mon->debug |= DMC_DEBUG_SAME;
 
-	pr_emerg("DMC DEBUG MEMORY ENABLED: range:%lx-%lx, device=%llx, debug=%x\n",
-				mon->addr_start, mon->addr_end, mon->device, mon->debug);
 	dmc_set_monitor(mon->addr_start, mon->addr_end, mon->device, DMC_MODE_RESERVED, 1);
 }
 
@@ -1235,6 +1230,9 @@ static int dmc_regulation_dev(unsigned long dev, int add)
 int dmc_set_monitor(unsigned long start, unsigned long end,
 		    unsigned long dev_mask, enum dmc_mode_type mode, int en)
 {
+	char buf[256] = "";
+	unsigned int i, count = 0;
+
 	if (!dmc_mon)
 		return -EINVAL;
 
@@ -1246,6 +1244,16 @@ int dmc_set_monitor(unsigned long start, unsigned long end,
 	dmc_mon->addr_end   = end;
 	dmc_regulation_dev(dev_mask, en);
 	init_dmc_mode = mode;
+
+	pr_info("dmc set: mode:%d, device=%llx, range:%lx-%lx, debug=%x\n",
+			mode, dmc_mon->device, dmc_mon->addr_start,
+			dmc_mon->addr_end, dmc_mon->debug);
+
+	for (i = 0; i < dmc_mon->filter.num; i++)
+		if (dmc_mon->filter.dev[i].status)
+			count += sprintf(buf + count, " %s", dmc_mon->filter.dev[i].name);
+	pr_info("dmc filter:%s\n", buf);
+
 	if (start < end && dmc_mon->ops && dmc_mon->ops->set_monitor)
 		return dmc_mon->ops->set_monitor(dmc_mon);
 	return -EINVAL;

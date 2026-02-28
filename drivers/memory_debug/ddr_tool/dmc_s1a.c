@@ -158,8 +158,6 @@ static int s1a_dmc_mon_set(struct dmc_monitor *mon)
 	value = 0x7;
 	dmc_prot_rw(io, DMC_PROT_IRQ_CTRL, value, DMC_WRITE);
 
-	pr_emerg("range:%08lx - %08lx, device:%llx\n",
-		 mon->addr_start, mon->addr_end, mon->device);
 	return 0;
 }
 
