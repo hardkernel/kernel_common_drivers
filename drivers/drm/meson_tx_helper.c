@@ -66,7 +66,7 @@ void meson_connector_fill_mode_timing(struct drm_display_mode *mode,
 {
 	char *strp;
 
-	DRM_DEBUG("%s %d %d %d %d %d %d %d %d\n", __func__,
+	DRM_DEBUG("%d %d %d %d %d %d %d %d\n",
 		timing->h_active, timing->h_front, timing->h_sync, timing->h_total,
 		timing->v_active, timing->v_front, timing->v_sync, timing->v_total);
 	mode->type = DRM_MODE_TYPE_DRIVER;
@@ -115,7 +115,7 @@ void meson_connector_fill_mode_timing(struct drm_display_mode *mode,
 				(strlen(timing->name) < DRM_DISPLAY_MODE_LEN) ?
 				strlen(timing->name) : DRM_DISPLAY_MODE_LEN);
 	} else {
-		DRM_ERROR(" func %s timing has no name\n", __func__);
+		DRM_ERROR("timing has no name\n");
 		sprintf(mode->name, "%ux%up%d", timing->h_active, timing->v_active,
 			drm_mode_vrefresh(mode));
 	}
@@ -160,7 +160,7 @@ void meson_drm_mode_build_tx_timing(struct drm_display_mode *mode,
 		timing->pixel_freq <<= 1;
 	}
 
-	DRM_DEBUG("%s %d %d %d %d %d %d %d %d\n", __func__,
+	DRM_DEBUG("%d %d %d %d %d %d %d %d\n",
 		timing->h_active, timing->h_front, timing->h_sync, timing->h_total,
 		timing->v_active, timing->v_front, timing->v_sync, timing->v_total);
 }

@@ -239,7 +239,7 @@ int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
 	pre_fence->fd = fd;
 	pre_fence->fence = fence;
 	pre_fence->sync_file = sync_file;
-	MESON_DRM_FENCE("%s fd=%d, fence=%px\n", __func__,
+	MESON_DRM_FENCE("fd=%d, fence=%px\n",
 		pre_fence->fd, pre_fence->fence);
 
 	return 0;
@@ -592,7 +592,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		}
 	}
 
-	DRM_DEBUG_KMS("%s[%d]:in\n", __func__, amcrtc->crtc_index);
+	DRM_DEBUG_KMS("[%d]:in\n", amcrtc->crtc_index);
 	old_crtc_state = drm_atomic_get_old_crtc_state(old_atomic_state, crtc);
 	if (!old_crtc_state) {
 		DRM_INFO("%s crtc state is NULL!\n", __func__);
@@ -674,8 +674,8 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		}
 		mode = vout_func_validate_vmode(amcrtc->vout_index, name,
 			mesonconn->connector_type,  meson_crtc_state->frac);
-		DRM_DEBUG("%s, connector_type = %d, mode = %s, vmode =%d\n",
-			__func__, mesonconn->connector_type, name, mode);
+		DRM_DEBUG("connector_type = %d, mode = %s, vmode =%d\n",
+			mesonconn->connector_type, name, mode);
 		if (mode == VMODE_MAX) {
 			DRM_ERROR("crtc [%d]: no matched vout mode\n", amcrtc->crtc_index);
 			return;
@@ -708,7 +708,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	mvsps->vsync_enabled = 1;
 	drm_crtc_vblank_on(crtc);
 
-	DRM_DEBUG_KMS("%s-[%d]: out\n", __func__, amcrtc->crtc_index);
+	DRM_DEBUG_KMS("[%d]: out\n", amcrtc->crtc_index);
 }
 
 static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -765,7 +765,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		return;
 	}
 	vout_func_set_state(amcrtc->vout_index, mode);
-	DRM_DEBUG_KMS("%s:out\n", __func__);
+	DRM_DEBUG_KMS("out\n");
 }
 
 static int meson_crtc_atomic_check(struct drm_crtc *crtc,
@@ -816,7 +816,7 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	/*apply parameters need modeset.*/
 	if (atomic_state->allow_modeset) {
 		/*apply state value not set from property.*/
-		DRM_DEBUG_KMS("%s force modeset.\n", __func__);
+		DRM_DEBUG_KMS("force modeset.\n");
 		if (am_drm_param.crtc_force_hint > 0) {
 			crtc_state->mode_changed = true;
 			am_drm_param.crtc_force_hint = 0;
@@ -888,14 +888,14 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 			am_meson_ctm_set(0, ctm);
 			#endif
 		} else {
-			DRM_DEBUG_KMS("%s Disable CTM!\n", __func__);
+			DRM_DEBUG_KMS("Disable CTM!\n");
 			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 			am_meson_ctm_disable();
 			#endif
 		}
 	}
 	if (crtc->state->gamma_lut != priv->gamma_lut_blob && gamma_ctl) {
-		DRM_DEBUG_KMS("%s GAMMA LUT blob changed!\n", __func__);
+		DRM_DEBUG_KMS("GAMMA LUT blob changed!\n");
 		drm_property_blob_put(priv->gamma_lut_blob);
 		priv->gamma_lut_blob = NULL;
 		if (crtc->state->gamma_lut) {
@@ -909,7 +909,7 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 			amvecm_drm_gamma_set(0, lut, gamma_lut_size);
 			#endif
 		} else {
-			DRM_DEBUG_KMS("%s Disable GAMMA!\n", __func__);
+			DRM_DEBUG_KMS("Disable GAMMA!\n");
 			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 			amvecm_drm_gamma_disable(0);
 			#endif
@@ -1314,7 +1314,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	int ret, plane_index;
 	char crtc_name[64];
 
-	DRM_DEBUG_KMS("%s[%d]\n", __func__, __LINE__);
+	DRM_DEBUG_KMS("[%d]\n", __LINE__);
 
 	amcrtc = devm_kzalloc(priv->dev, sizeof(*amcrtc), GFP_KERNEL);
 	if (!amcrtc)

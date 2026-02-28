@@ -57,7 +57,7 @@ static int meson_writeback_connector_atomic_check(struct drm_connector *conn,
 	struct drm_framebuffer *fb;
 	int i;
 
-	DRM_DEBUG("am_drm_writeback: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_writeback: %d\n", __LINE__);
 
 	conn_state = drm_atomic_get_new_connector_state(state, conn);
 	if (!conn_state->writeback_job)
@@ -79,11 +79,11 @@ static int meson_writeback_connector_atomic_check(struct drm_connector *conn,
 	}
 
 	if (WARN_ON(i == ARRAY_SIZE(writeback_fmts))) {
-		DRM_ERROR("%s pixel format not support!\n", __func__);
+		DRM_ERROR("pixel format not support!\n");
 		return -EINVAL;
 	}
 
-	DRM_DEBUG("am_drm_writeback: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_writeback: %d\n", __LINE__);
 	return 0;
 }
 
@@ -168,8 +168,8 @@ int meson_writeback_capture_picture(struct drm_framebuffer *fb, u32 port)
 	dmabuf = meson_fb->bufp[0]->dmabuf;
 	get_dma_buf(dmabuf);
 
-	DRM_DEBUG("%s dmabuf-%px, h&v(%d-%d), cfmt-%d, port-%d\n",
-		__func__, dmabuf, vdin_pram.h_active, vdin_pram.v_active,
+	DRM_DEBUG("dmabuf-%px, h&v(%d-%d), cfmt-%d, port-%d\n",
+		dmabuf, vdin_pram.h_active, vdin_pram.v_active,
 		vdin_pram.cfmt, vdin_pram.port);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
@@ -192,7 +192,7 @@ static void meson_writeback_capture_work(struct work_struct *work)
 		drm_writeback->capture_port);
 
 	drm_writeback_signal_completion(&drm_writeback->wb_connector, 0);
-	DRM_DEBUG("%s %d capture done!\n", __func__, __LINE__);
+	DRM_DEBUG("%d capture done!\n", __LINE__);
 }
 
 static void meson_writeback_connector_atomic_commit(struct drm_connector *conn,
@@ -203,7 +203,7 @@ static void meson_writeback_connector_atomic_commit(struct drm_connector *conn,
 	struct drm_connector_state *conn_state;
 	int i;
 
-	DRM_DEBUG("am_drm_writeback: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_writeback: %d\n", __LINE__);
 
 	conn_state = drm_atomic_get_old_connector_state(old_atomic_state, conn);
 	if (WARN_ON(!conn_state))
@@ -222,13 +222,13 @@ static void meson_writeback_connector_atomic_commit(struct drm_connector *conn,
 	}
 
 	if (WARN_ON(i == ARRAY_SIZE(writeback_fmts))) {
-		DRM_ERROR("%s pixel format not support!\n", __func__);
+		DRM_ERROR("pixel format not support!\n");
 		return;
 	}
 
 	drm_writeback_queue_job(&drm_writeback->wb_connector, conn_state);
 	queue_work(drm_writeback->writeback_wq, &drm_writeback->writeback_work);
-	DRM_DEBUG("am_drm_writeback: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_writeback: %d\n", __LINE__);
 }
 
 static const struct drm_connector_helper_funcs
@@ -255,7 +255,7 @@ am_writeback_connector_duplicate_state(struct drm_connector *connector)
 {
 	struct am_drm_writeback_state *writeback_state;
 
-	DRM_DEBUG("am_drm_writeback: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_writeback: %d\n", __LINE__);
 
 	writeback_state = kzalloc(sizeof(*writeback_state), GFP_KERNEL);
 	if (!writeback_state)
@@ -273,7 +273,7 @@ am_writeback_connector_destroy_state(struct drm_connector *connector,
 {
 	struct am_drm_writeback_state *writeback_state;
 
-	DRM_DEBUG("am_drm_writeback: %s %d\n", __func__, __LINE__);
+	DRM_DEBUG("am_drm_writeback: %d\n", __LINE__);
 
 	writeback_state = to_am_writeback_state(state);
 	__drm_atomic_helper_connector_destroy_state(&writeback_state->base);

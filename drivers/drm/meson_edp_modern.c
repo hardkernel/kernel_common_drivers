@@ -118,7 +118,7 @@ static int meson_edp_atomic_check(struct drm_connector *connector,
 	new_state = to_dptx_connector_state
 		(drm_atomic_get_new_connector_state(state, connector));
 
-	DRM_DEBUG("%s %px %px\n", __func__, curr_state, new_state);
+	DRM_DEBUG("%px %px\n", curr_state, new_state);
 
 	return 0;
 }
@@ -431,7 +431,7 @@ static int meson_edp_encoder_atomic_check(struct drm_encoder *encoder,
 	if (!ret)
 		meson_crtc_state->preset_vmode = VMODE_DPTX;
 	else
-		DRM_ERROR("%s validate fail %d\n", __func__, ret);
+		DRM_ERROR("validate fail %d\n", ret);
 
 	kfree(timing);
 
@@ -628,7 +628,7 @@ int meson_edp_dev_bind(struct drm_device *drm,
 		kfree(connector->name);
 		connector->name = kasprintf(GFP_KERNEL, "%s", connector_name);
 		if (!connector->name)
-			DRM_ERROR("[%s]: alloc name failed\n", __func__);
+			DRM_ERROR("alloc name failed\n");
 	}
 
 	/* Encoder */
@@ -662,8 +662,8 @@ int meson_edp_dev_bind(struct drm_device *drm,
 		drm_object_attach_property(&meson_dptx->base.connector.base,
 			type_prop, type);
 	} else {
-		DRM_ERROR("%s: Failed to create property %s\n",
-			__func__, MESON_CONNECTOR_TYPE_PROP_NAME);
+		DRM_ERROR("Failed to create property %s\n",
+			MESON_CONNECTOR_TYPE_PROP_NAME);
 	}
 
 	kfree(tx_state);

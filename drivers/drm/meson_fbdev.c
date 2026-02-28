@@ -187,11 +187,11 @@ static int am_meson_fbdev_open(struct fb_info *info, int arg)
 	struct meson_drm_fbdev *fbdev = container_of(helper, struct meson_drm_fbdev, base);
 	struct am_osd_plane *osdplane = container_of(fbdev->plane, struct am_osd_plane, base);
 
-	MESON_DRM_FBDEV("%s IN,pid[%s %d],plane_id[%d],screen_size[%ld],res_virtual[%d %d]\n",
-		__func__, current->comm, current->pid, osdplane->plane_index,
+	MESON_DRM_FBDEV("IN,pid[%s %d],plane_id[%d],screen_size[%ld],res_virtual[%d %d]\n",
+		current->comm, current->pid, osdplane->plane_index,
 		info->screen_size, info->var.xres_virtual, info->var.yres_virtual);
 	ret = am_meson_fbdev_alloc_fb_gem(info);
-	MESON_DRM_FBDEV("%s OUT, ret=%d\n", __func__, ret);
+	MESON_DRM_FBDEV("OUT, ret=%d\n", ret);
 	return ret;
 }
 
@@ -201,10 +201,10 @@ static int am_meson_fbdev_release(struct fb_info *info, int arg)
 	struct meson_drm_fbdev *fbdev = container_of(helper, struct meson_drm_fbdev, base);
 	struct am_osd_plane *osdplane = container_of(fbdev->plane, struct am_osd_plane, base);
 
-	MESON_DRM_FBDEV("%s IN, pid[%s %d], plane_id[%d]\n",
-		__func__, current->comm, current->pid, osdplane->plane_index);
+	MESON_DRM_FBDEV("IN, pid[%s %d], plane_id[%d]\n",
+		current->comm, current->pid, osdplane->plane_index);
 	MESON_DRM_FBDEV("may no need to release memory\n");
-	MESON_DRM_FBDEV("%s OUT\n", __func__);
+	MESON_DRM_FBDEV("OUT\n");
 
 	return 0;
 }
@@ -239,7 +239,7 @@ static int am_meson_drm_fbdev_setcmap(struct fb_cmap *cmap, struct fb_info *info
 	blue    = cmap->blue;
 	transp  = cmap->transp;
 	index   = cmap->start;
-	MESON_DRM_FBDEV("%s, visual = %d, len = %d\n", __func__, info->fix.visual, cmap->len);
+	MESON_DRM_FBDEV("visual = %d, len = %d\n", info->fix.visual, cmap->len);
 
 	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR) {
 		for (count = 0; count < cmap->len; count++) {
@@ -269,8 +269,8 @@ am_meson_drm_fbdev_setcolreg(unsigned int regno, unsigned int red, unsigned int 
 	struct drm_device *dev = helper->dev;
 	struct am_osd_plane *osd_plane = to_am_osd_plane(fbdev->plane);
 
-	MESON_DRM_FBDEV("%s, pixel is %d bits, palette index-%d\n",
-		__func__, var->bits_per_pixel, regno);
+	MESON_DRM_FBDEV("pixel is %d bits, palette index-%d\n",
+		var->bits_per_pixel, regno);
 	if (var->bits_per_pixel == 8 && regno < 256) {
 		drm_modeset_lock_all(dev);
 		fbdev->fbdev_rec_palette[regno] = ((red & 0xff) << 24) |
@@ -299,7 +299,7 @@ static int am_meson_drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	int depth;
 
 	if (var->pixclock != 0 || in_dbg_master()) {
-		DRM_ERROR("%s FAILED.\n", __func__);
+		DRM_ERROR("FAILED.\n");
 		return -EINVAL;
 	}
 
@@ -315,7 +315,7 @@ static int am_meson_drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	if (var->bits_per_pixel != fb->format->depth ||
 	    var->xres_virtual != fb->width ||
 	    var->yres_virtual != fb->height)
-		MESON_DRM_FBDEV("%s need realloc buffer\n", __func__);
+		MESON_DRM_FBDEV("need realloc buffer\n");
 
 	switch (var->bits_per_pixel) {
 	case 16:
@@ -404,8 +404,8 @@ static void am_meson_drm_wait_one_vblank(struct fb_info *info)
 	if (vblank->enabled)
 		drm_wait_one_vblank(fb_helper->dev, crtc_index);
 	else
-		MESON_DRM_FBDEV("%s, crtc-%d is disabled, can not wait vblank.\n",
-			__func__, crtc_index);
+		MESON_DRM_FBDEV("crtc-%d is disabled, can not wait vblank.\n",
+			crtc_index);
 }
 
 /**
@@ -502,8 +502,8 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 		if (!fb_gem) {
 			info->screen_size = screen_size;
 			if (am_meson_fbdev_alloc_fb_gem(info)) {
-				DRM_ERROR("%s realloc fb fail, screen_size[%ld->%ld]\n",
-					__func__, screen_size, old_screen_size);
+				DRM_ERROR("realloc fb fail, screen_size[%ld->%ld]\n",
+					screen_size, old_screen_size);
 				info->screen_size = old_screen_size;
 				return -ENOMEM;
 			}
@@ -548,7 +548,7 @@ static int am_meson_drm_fb_pan_display(struct fb_var_screeninfo *var,
 	int ret;
 
 	if (fbdev->blank) {
-		MESON_DRM_FBDEV("%s skip blank.\n", __func__);
+		MESON_DRM_FBDEV("skip blank.\n");
 		return 0;
 	}
 
@@ -558,8 +558,8 @@ static int am_meson_drm_fb_pan_display(struct fb_var_screeninfo *var,
 		return 0;
 	}
 
-	MESON_DRM_FBDEV("%s IN, pid[%s %d], plane_id[%d], plane_type[%d], fb[%p]\n",
-		__func__, current->comm, current->pid, plane->index,
+	MESON_DRM_FBDEV("IN, pid[%s %d], plane_id[%d], plane_type[%d], fb[%p]\n",
+		current->comm, current->pid, plane->index,
 		plane->type, fb_helper->fb);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
@@ -651,9 +651,9 @@ unlock_exit:
 	drm_modeset_unlock_all(dev);
 
 	if (ret)
-		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
+		DRM_ERROR("failed, ret = %d\n", ret);
 	else
-		MESON_DRM_FBDEV("%s OUT\n", __func__);
+		MESON_DRM_FBDEV("OUT\n");
 
 	end1 = ktime_get();
 	total_time_ms = ktime_ms_delta(end1, start1);
@@ -729,16 +729,16 @@ int am_meson_drm_fb_blank(int blank, struct fb_info *info)
 	int ret = 0;
 
 	if (blank == 0) {
-		MESON_DRM_FBDEV("%s IN, pid[%s %d] meson_fbdev[%s]fb[%p] goto unblank.\n",
-			__func__, current->comm, current->pid,
+		MESON_DRM_FBDEV("IN, pid[%s %d] meson_fbdev[%s]fb[%p] goto unblank.\n",
+			current->comm, current->pid,
 			fbdev->plane->name, fbdev->plane->fb);
 		fbdev->blank = false;
 		ret = am_meson_drm_fb_pan_display(&info->var, info);
 
 		am_meson_drm_wait_one_vblank(info);
 	} else {
-		MESON_DRM_FBDEV("%s IN, pid[%s %d] meson_fbdev[%s]fb[%p] goto blank.\n",
-			__func__, current->comm, current->pid,
+		MESON_DRM_FBDEV("IN, pid[%s %d] meson_fbdev[%s]fb[%p] goto blank.\n",
+			current->comm, current->pid,
 			fbdev->plane->name, fbdev->plane->fb);
 
 		if (fbdev->plane->crtc) {
@@ -747,8 +747,7 @@ int am_meson_drm_fb_blank(int blank, struct fb_info *info)
 			crtc = fbdev->modeset.crtc;
 		}
 		if (!crtc) {
-			DRM_ERROR("%s crtc is null, skip %s blank\n",
-				__func__, fbdev->plane->name);
+			DRM_ERROR("crtc is null, skip %s blank\n", fbdev->plane->name);
 			return 0;
 		}
 
@@ -763,8 +762,8 @@ int am_meson_drm_fb_blank(int blank, struct fb_info *info)
 		fbdev->blank = true;
 	}
 
-	MESON_DRM_FBDEV("%s OUT, meson_fbdev[%s], ret=%d\n",
-		__func__, fbdev->plane->name, ret);
+	MESON_DRM_FBDEV("OUT, meson_fbdev[%s], ret=%d\n",
+		fbdev->plane->name, ret);
 	return ret;
 }
 
@@ -783,7 +782,7 @@ static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
 	u32 zorder = 0;
 
 	memset(&fbdma, 0, sizeof(fbdma));
-	MESON_DRM_FBDEV("%s CMD [%x] - [%d] IN\n", __func__, cmd, plane->index);
+	MESON_DRM_FBDEV("CMD [%x] - [%d] IN\n", cmd, plane->index);
 
 	/*amlogic fbdev ioctl, used by gpu fbdev backend.*/
 	if (cmd == FBIOGET_OSD_DMABUF) {
@@ -804,7 +803,7 @@ static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
 		}
 
 		if (i == MAX_RETRY_CNT)
-			DRM_ERROR("%s timeout, frame seq %u-%u\n", __func__,
+			DRM_ERROR("timeout, frame seq %u-%u\n",
 				  frame_seq[plane->index], val);
 
 		MESON_DRM_FBDEV("wait for vsync last for %d ms, %u-%u\n", i * 2,
@@ -812,34 +811,34 @@ static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
 	} else if (cmd == FBIOSET_OSD_DST_RESOLUTION) {
 		ret = copy_from_user(&dst, argp, sizeof(struct region)) ? -EFAULT : 0;
 		if (ret) {
-			DRM_ERROR("%s, set dst region error and not change\n", __func__);
+			DRM_ERROR("set dst region error and not change\n");
 			memset(&fbdev->dst_changed, 0, sizeof(struct region));
 		} else if ((dst.w == 0) || (dst.h == 0)) {
-			MESON_DRM_FBDEV("%s, restore mode resolution by clearing w(%d) or h(%d)\n",
-				__func__, dst.w, dst.h);
+			MESON_DRM_FBDEV("restore mode resolution by clearing w(%d) or h(%d)\n",
+				dst.w, dst.h);
 			memset(&fbdev->dst_changed, 0, sizeof(struct region));
 		} else {
-			MESON_DRM_FBDEV("%s, set dst region is [%d, %d, %d x %d]\n",
-				__func__, dst.x, dst.y, dst.w, dst.h);
+			MESON_DRM_FBDEV("set dst region is [%d, %d, %d x %d]\n",
+				dst.x, dst.y, dst.w, dst.h);
 			memcpy(&fbdev->dst_changed, &dst, sizeof(struct region));
 		}
 	} else if (cmd == FBIOGET_OSD_ZORDER) {
 		zorder = fbdev->zorder;
 		ret = copy_to_user(argp, &zorder, sizeof(zorder)) ? -EFAULT : 0;
-		MESON_DRM_FBDEV("%s, get plane %d zorder and value is%d(%d)\n",
-			__func__, plane->index, zorder, fbdev->zorder);
+		MESON_DRM_FBDEV("get plane %d zorder and value is%d(%d)\n",
+			plane->index, zorder, fbdev->zorder);
 	} else if (cmd == FBIOSET_OSD_ZORDER) {
 		ret = copy_from_user(&zorder, argp, sizeof(zorder)) ? -EFAULT : 0;
 		if (ret) {
-			DRM_ERROR("%s, set plane %d zorder error and not change\n",
-				__func__, plane->index);
+			DRM_ERROR("set plane %d zorder error and not change\n",
+				plane->index);
 		} else if ((zorder < 65) || (zorder > 128)) {
-			DRM_ERROR("%s, plane %d zorder value %d is out of range\n",
-				__func__, plane->index, zorder);
+			DRM_ERROR("plane %d zorder value %d is out of range\n",
+				plane->index, zorder);
 			ret = -EFAULT;
 		} else {
-			MESON_DRM_FBDEV("%s, set plane %d zorder and value is %d\n",
-				__func__, plane->index, zorder);
+			MESON_DRM_FBDEV("set plane %d zorder and value is %d\n",
+				plane->index, zorder);
 			fbdev->zorder = zorder;
 			ret = am_meson_drm_fb_pan_display(&info->var, info);
 		}
@@ -848,7 +847,7 @@ static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
 		ret = -EFAULT;
 	}
 
-	MESON_DRM_FBDEV("%s CMD [%x] - [%d] OUT\n", __func__, cmd, plane->index);
+	MESON_DRM_FBDEV("CMD [%x] - [%d] OUT\n", cmd, plane->index);
 	return ret;
 }
 

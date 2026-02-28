@@ -86,7 +86,7 @@ int meson_panel_get_modes(struct drm_connector *connector)
 	}
 
 	ret = panel_dev->get_modes(panel_dev, &modes, &modes_cnt);
-	DRM_DEBUG_KMS("%s: get modes %d, ret %d\n", __func__, modes_cnt, ret);
+	DRM_DEBUG_KMS("get modes %d, ret %d\n", modes_cnt, ret);
 	if (ret == 0 && modes_cnt > 0) {
 		if (!connector->display_info.width_mm || !connector->display_info.height_mm) {
 			connector->display_info.width_mm = modes[i].width_mm;
@@ -94,7 +94,7 @@ int meson_panel_get_modes(struct drm_connector *connector)
 		}
 
 		for (i = 0; i < modes_cnt; i++) {
-			DRM_DEBUG("[%s]-[%d] mode_name-%s\n", __func__, __LINE__, modes[i].name);
+			DRM_DEBUG("[%d] mode_name-%s\n", __LINE__, modes[i].name);
 			mode = drm_mode_duplicate(connector->dev, &modes[i]);
 			if (mode) {
 				drm_mode_probed_add(connector, mode);
@@ -135,7 +135,7 @@ meson_panel_detect(struct drm_connector *connector, bool force)
 
 static void am_lcd_connector_destroy(struct drm_connector *connector)
 {
-	DRM_DEBUG_KMS("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG_KMS("[%d] called\n", __LINE__);
 
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
@@ -143,7 +143,7 @@ static void am_lcd_connector_destroy(struct drm_connector *connector)
 
 static void am_lcd_connector_reset(struct drm_connector *connector)
 {
-	DRM_DEBUG_KMS("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG_KMS("[%d] called\n", __LINE__);
 
 	drm_atomic_helper_connector_reset(connector);
 }
@@ -153,7 +153,7 @@ am_lcd_connector_duplicate_state(struct drm_connector *connector)
 {
 	struct drm_connector_state *state;
 
-	DRM_DEBUG_KMS("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG_KMS("[%d] called\n", __LINE__);
 
 	state = drm_atomic_helper_connector_duplicate_state(connector);
 	return state;
@@ -162,7 +162,7 @@ am_lcd_connector_duplicate_state(struct drm_connector *connector)
 static void am_lcd_connector_destroy_state(struct drm_connector *connector,
 					   struct drm_connector_state *state)
 {
-	DRM_DEBUG_KMS("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG_KMS("[%d] called\n", __LINE__);
 
 	drm_atomic_helper_connector_destroy_state(connector, state);
 }
@@ -257,13 +257,13 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 	crtc = encoder->crtc;
 
 	if ((vmode & VMODE_MODE_BIT_MASK) != VMODE_LCD) {
-		DRM_DEBUG_KMS("%s:enable fail! vmode:%d\n", __func__, vmode);
+		DRM_DEBUG_KMS("enable fail! vmode:%d\n", vmode);
 		return;
 	}
 
 	old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 	if (!old_crtc_state) {
-		DRM_ERROR("%s crtc state is NULL!\n", __func__);
+		DRM_ERROR("crtc state is NULL!\n");
 		return;
 	}
 	meson_old_crtc_state = to_am_meson_crtc_state(old_crtc_state);
@@ -318,7 +318,7 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "lcd");
 	panel->panel_ready = true;
 
-	DRM_DEBUG_KMS("[%s]-[%d] exit\n", __func__, __LINE__);
+	DRM_DEBUG_KMS("[%d] exit\n", __LINE__);
 }
 
 static void meson_panel_encoder_atomic_disable(struct drm_encoder *encoder,
@@ -328,7 +328,7 @@ static void meson_panel_encoder_atomic_disable(struct drm_encoder *encoder,
 
 	panel->panel_ready = false;
 
-	DRM_DEBUG_KMS("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG_KMS("[%d] called\n", __LINE__);
 }
 
 static void meson_panel_cal_brr(struct meson_panel *am_lcd,
@@ -340,7 +340,7 @@ static void meson_panel_cal_brr(struct meson_panel *am_lcd,
 
 	for (i = 0; i < am_lcd->num_vrr_group; i++) {
 		group = &am_lcd->groups[i];
-		DRM_DEBUG_KMS("%s %u-%u,%u-%u,%u-%u,%u\n", __func__, group->width,
+		DRM_DEBUG_KMS("%u-%u,%u-%u,%u-%u,%u\n", group->width,
 			  adj_mode->hdisplay, group->height, adj_mode->vdisplay,
 			  group->vrr_min, group->vrr_max,
 			  drm_mode_vrefresh(adj_mode));
@@ -352,7 +352,7 @@ static void meson_panel_cal_brr(struct meson_panel *am_lcd,
 		}
 	}
 
-	DRM_DEBUG_KMS("%s, %d, %d\n", __func__, i, am_lcd->num_vrr_group);
+	DRM_DEBUG_KMS("%d, %d\n", i, am_lcd->num_vrr_group);
 	if (i != am_lcd->num_vrr_group) {
 		strncpy(crtc_state->brr_mode, group->modename, DRM_DISPLAY_MODE_LEN);
 		crtc_state->brr_mode[DRM_DISPLAY_MODE_LEN - 1] = '\0';
@@ -404,7 +404,7 @@ int meson_encoder_vrr_change(struct drm_encoder *encoder,
 		meson_crtc_state->seamless = false;
 	}
 
-	DRM_DEBUG_KMS("[%s], seamless is %d\n", __func__, meson_crtc_state->seamless);
+	DRM_DEBUG_KMS("seamless is %d\n", meson_crtc_state->seamless);
 	return meson_crtc_state->seamless;
 }
 
@@ -428,7 +428,7 @@ static int meson_panel_encoder_atomic_check(struct drm_encoder *encoder,
 	/*drm not find connector by vout_validate_vmode*/
 	meson_crtc_state->preset_vmode = VMODE_LCD;
 
-	DRM_DEBUG_KMS("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG_KMS("[%d] called\n", __LINE__);
 	return 0;
 }
 
@@ -476,7 +476,7 @@ int meson_panel_dev_bind(struct drm_device *drm,
 
 	panel_instance = kzalloc(sizeof(*panel_instance), GFP_KERNEL);
 	if (!panel_instance) {
-		DRM_ERROR("[%s]: alloc panel_instance failed\n", __func__);
+		DRM_ERROR("panel_instance failed\n");
 		return -ENOMEM;
 	}
 
@@ -547,8 +547,8 @@ int meson_panel_dev_bind(struct drm_device *drm,
 	ret = drm_encoder_init(drm, encoder, &meson_panel_encoder_funcs,
 			       encoder_type, "am_lcd_encoder");
 	if (ret) {
-		DRM_ERROR("error:%s-%d: Failed to init lcd encoder\n",
-			__func__, __LINE__);
+		DRM_ERROR("error:%d: Failed to init lcd encoder\n",
+			__LINE__);
 		goto free_resource;
 	}
 
@@ -557,8 +557,8 @@ int meson_panel_dev_bind(struct drm_device *drm,
 	ret = drm_connector_init(drm, connector, &meson_panel_funcs,
 				 connector_type);
 	if (ret) {
-		DRM_ERROR("%s-%d: Failed to init lcd connector\n",
-			__func__, __LINE__);
+		DRM_ERROR("%d: Failed to init lcd connector\n",
+			__LINE__);
 		goto free_resource;
 	}
 
@@ -567,13 +567,12 @@ int meson_panel_dev_bind(struct drm_device *drm,
 		kfree(connector->name);
 		connector->name = kasprintf(GFP_KERNEL, "%s", connector_name);
 		if (!connector->name)
-			DRM_ERROR("[%s]: alloc name failed\n", __func__);
+			DRM_ERROR("alloc name failed\n");
 	}
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret != 0) {
-		DRM_ERROR("%s-%d: attach failed.\n",
-			__func__, __LINE__);
+		DRM_ERROR("%d: attach failed.\n", __LINE__);
 		goto free_resource;
 	}
 	meson_lcd_creat_ready_property(drm, panel_instance);
@@ -585,8 +584,8 @@ int meson_panel_dev_bind(struct drm_device *drm,
 		drm_object_attach_property(&panel_instance->base.connector.base,
 			type_prop, type);
 	} else {
-		DRM_ERROR("%s: Failed to create property %s\n",
-			__func__, MESON_CONNECTOR_TYPE_PROP_NAME);
+		DRM_ERROR("Failed to create property %s\n",
+			MESON_CONNECTOR_TYPE_PROP_NAME);
 	}
 
 	drm_connector_attach_vrr_capable_property(connector);
@@ -601,7 +600,7 @@ free_resource:
 		drm_encoder_cleanup(encoder);
 	kfree(panel_instance);
 
-	DRM_DEBUG_KMS("%s: %d Exit\n", __func__, ret);
+	DRM_DEBUG_KMS("%d Exit\n", ret);
 	return ret;
 }
 
@@ -612,8 +611,7 @@ int meson_panel_dev_unbind(struct drm_device *drm,
 	struct meson_panel *drm_lcd = 0;
 
 	if (!connector)
-		DRM_ERROR("%s got invalid connector id\n",
-			__func__);
+		DRM_ERROR("got invalid connector id\n");
 
 	drm_lcd = connector_to_meson_panel(connector);
 	if (!drm_lcd)
@@ -623,7 +621,7 @@ int meson_panel_dev_unbind(struct drm_device *drm,
 	drm_lcd->encoder.funcs->destroy(&drm_lcd->encoder);
 
 	kfree(drm_lcd);
-	DRM_DEBUG_KMS("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG_KMS("[%d] called\n", __LINE__);
 	return 0;
 }
 

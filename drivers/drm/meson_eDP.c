@@ -129,7 +129,7 @@ int meson_eDP_get_modes(struct drm_connector *connector)
 	}
 
 	ret = eDP_dev->get_modes(eDP_dev, &modes, &modes_cnt);
-	DRM_DEBUG("%s: get modes %d, ret %d\n", __func__, modes_cnt, ret);
+	DRM_DEBUG("get modes %d, ret %d\n", modes_cnt, ret);
 	if (ret == 0 && modes_cnt > 0) {
 		if (!connector->display_info.width_mm || !connector->display_info.height_mm) {
 			connector->display_info.width_mm = modes[i].width_mm;
@@ -137,7 +137,7 @@ int meson_eDP_get_modes(struct drm_connector *connector)
 		}
 
 		for (i = 0; i < modes_cnt; i++) {
-			DRM_DEBUG("[%s]-[%d] mode_name-%s\n", __func__, __LINE__, modes[i].name);
+			DRM_DEBUG("[%d] mode_name-%s\n", __LINE__, modes[i].name);
 			mode = drm_mode_duplicate(connector->dev, &modes[i]);
 			if (mode) {
 				drm_mode_probed_add(connector, mode);
@@ -177,7 +177,7 @@ static enum drm_connector_status meson_eDP_detect(struct drm_connector *connecto
 
 static void am_eDP_connector_destroy(struct drm_connector *connector)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
@@ -185,7 +185,7 @@ static void am_eDP_connector_destroy(struct drm_connector *connector)
 
 static void am_eDP_connector_reset(struct drm_connector *connector)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 
 	drm_atomic_helper_connector_reset(connector);
 }
@@ -195,7 +195,7 @@ am_eDP_connector_duplicate_state(struct drm_connector *connector)
 {
 	struct drm_connector_state *state;
 
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n",  __LINE__);
 
 	state = drm_atomic_helper_connector_duplicate_state(connector);
 	return state;
@@ -204,7 +204,7 @@ am_eDP_connector_duplicate_state(struct drm_connector *connector)
 static void am_eDP_connector_destroy_state(struct drm_connector *connector,
 					   struct drm_connector_state *state)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 
 	drm_atomic_helper_connector_destroy_state(connector, state);
 }
@@ -296,13 +296,13 @@ static void meson_eDP_encoder_atomic_enable(struct drm_encoder *encoder,
 	crtc = encoder->crtc;
 
 	if ((vmode & VMODE_MODE_BIT_MASK) != VMODE_eDP) {
-		DRM_DEBUG("%s:enable fail! vmode:%d\n", __func__, vmode);
+		DRM_DEBUG("enable fail! vmode:%d\n", vmode);
 		return;
 	}
 
 	old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 	if (!old_crtc_state) {
-		DRM_ERROR("%s crtc state is NULL!\n", __func__);
+		DRM_ERROR("crtc state is NULL!\n");
 		return;
 	}
 	meson_old_crtc_state = to_am_meson_crtc_state(old_crtc_state);
@@ -355,13 +355,13 @@ static void meson_eDP_encoder_atomic_enable(struct drm_encoder *encoder,
 		vmode, EVENT_MODE_SET_FINISH);
 	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "eDP");
 
-	DRM_DEBUG("[%s]-[%d] exit\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] exit\n", __LINE__);
 }
 
 static void meson_eDP_encoder_atomic_disable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 }
 
 #if 0
@@ -473,7 +473,7 @@ static int meson_eDP_encoder_atomic_check(struct drm_encoder *encoder,
 	/*drm not find connector by vout_validate_vmode*/
 	meson_crtc_state->preset_vmode = VMODE_eDP;
 
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 	return 0;
 }
 
@@ -490,50 +490,50 @@ static const struct drm_encoder_funcs meson_eDP_encoder_funcs = {
 
 int eDP_panel_prepare(struct drm_panel *panel)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 	return 0;
 }
 
 int eDP_panel_enable(struct drm_panel *panel)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 	return 0;
 }
 
 int eDP_panel_disable(struct drm_panel *panel)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 	return 0;
 }
 
 int eDP_panel_unprepare(struct drm_panel *panel)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 	return 0;
 }
 
 int eDP_panel_get_modes(struct drm_panel *panel, struct drm_connector *connector)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 	return 0;
 }
 
 int eDP_panel_get_orientation(struct drm_panel *panel)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 	return DRM_MODE_PANEL_ORIENTATION_NORMAL;
 }
 
 int eDP_panel_get_timings(struct drm_panel *panel, unsigned int num_timings,
 				struct display_timing *timings)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 	return 0;
 }
 
 void eDP_panel_debugfs_init(struct drm_panel *panel, struct dentry *root)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 }
 
 static const struct drm_panel_funcs meson_eDP_panel_funcs = {
@@ -552,7 +552,7 @@ ssize_t eDP_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	//struct dptx_drv_s *dptx_drv;
 	struct meson_eDP *am_eDP = aux_to_meson_eDP(aux);
 
-	DRM_DEBUG("[%s]-[%d] called[%u] [0x%x] req=%u rep=%u size=%zu\n", __func__, __LINE__,
+	DRM_DEBUG("[%d] called[%u] [0x%x] req=%u rep=%u size=%zu\n", __LINE__,
 		am_eDP->panel_type, msg->address, msg->request, msg->reply, msg->size);
 
 	return msg->size;
@@ -565,7 +565,7 @@ int  eDP_wait_hpd_asserted(struct drm_dp_aux *aux, unsigned long wait_us)
 	struct meson_eDP *am_eDP = aux_to_meson_eDP(aux);
 	int hpd_level, readx;
 
-	DRM_DEBUG("[%s]-[%d] called %d, %lus\n", __func__, __LINE__, am_eDP->panel_type, wait_us);
+	DRM_DEBUG("[%d] called %d, %lus\n", __LINE__, am_eDP->panel_type, wait_us);
 
 	dptx_drv = meson_eDP_get_eDPTX_drv(am_eDP->panel_type);
 	if (!dptx_drv)
@@ -597,7 +597,7 @@ int meson_eDP_dev_bind(struct drm_device *drm,
 
 	am_eDP = kzalloc(sizeof(*am_eDP), GFP_KERNEL);
 	if (!am_eDP) {
-		DRM_ERROR("[%s]: alloc am_eDP failed\n", __func__);
+		DRM_ERROR("alloc am_eDP failed\n");
 		return -ENOMEM;
 	}
 
@@ -640,7 +640,7 @@ int meson_eDP_dev_bind(struct drm_device *drm,
 	ret = drm_encoder_init(drm, encoder, &meson_eDP_encoder_funcs,
 			       encoder_type, "am_eDP_encoder");
 	if (ret) {
-		DRM_ERROR("error:%s-%d: Failed to init eDP encoder\n", __func__, __LINE__);
+		DRM_ERROR("error:%d: Failed to init eDP encoder\n", __LINE__);
 		goto free_resource;
 	}
 
@@ -648,7 +648,7 @@ int meson_eDP_dev_bind(struct drm_device *drm,
 	drm_connector_helper_add(connector, &meson_eDP_helper_funcs);
 	ret = drm_connector_init(drm, connector, &meson_eDP_funcs, connector_type);
 	if (ret) {
-		DRM_ERROR("%s-%d: Failed to init eDP connector\n", __func__, __LINE__);
+		DRM_ERROR("%d: Failed to init eDP connector\n", __LINE__);
 		goto free_resource;
 	}
 
@@ -657,12 +657,12 @@ int meson_eDP_dev_bind(struct drm_device *drm,
 		kfree(connector->name);
 		connector->name = kasprintf(GFP_KERNEL, "%s", connector_name);
 		if (!connector->name)
-			DRM_ERROR("[%s]: alloc name failed\n", __func__);
+			DRM_ERROR("alloc name failed\n");
 	}
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret != 0) {
-		DRM_ERROR("%s-%d: attach failed.\n", __func__, __LINE__);
+		DRM_ERROR("%d: attach failed.\n", __LINE__);
 		goto free_resource;
 	}
 
@@ -673,8 +673,8 @@ int meson_eDP_dev_bind(struct drm_device *drm,
 		am_eDP->panel_type_prop = type_prop;
 		drm_object_attach_property(&am_eDP->base.connector.base, type_prop, type);
 	} else {
-		DRM_ERROR("%s: Failed to create property %s\n",
-			__func__, MESON_CONNECTOR_TYPE_PROP_NAME);
+		DRM_ERROR("Failed to create property %s\n",
+			MESON_CONNECTOR_TYPE_PROP_NAME);
 	}
 
 	drm_connector_attach_vrr_capable_property(connector);
@@ -689,7 +689,7 @@ int meson_eDP_dev_bind(struct drm_device *drm,
 	// am_eDP->aux.drm_dev = drm;
 	ret = drm_dp_aux_register(&am_eDP->aux);
 	if (ret)
-		DRM_ERROR("%s: Failed to drm_dp_aux_register", __func__);
+		DRM_ERROR("Failed to drm_dp_aux_register");
 
 	drm_panel_init(&am_eDP->panel, &dptx_drv->pdev->dev,
 			&meson_eDP_panel_funcs, DRM_MODE_CONNECTOR_eDP);
@@ -697,11 +697,11 @@ int meson_eDP_dev_bind(struct drm_device *drm,
 	if (meson_eDP_get_eDPTX_aux_bl_available(type)) {
 		ret = drm_panel_dp_aux_backlight(&am_eDP->panel, &am_eDP->aux);
 		if (ret)
-			DRM_ERROR("%s: Failed to get aux backlight\n", __func__);
+			DRM_ERROR("Failed to get aux backlight\n");
 	} else {
 		ret = drm_panel_of_backlight(&am_eDP->panel);
 		if (ret)
-			DRM_ERROR("%s: Failed to get backlight\n", __func__);
+			DRM_ERROR("Failed to get backlight\n");
 	}
 
 	am_eDP->panel.funcs = &meson_eDP_panel_funcs;
@@ -718,7 +718,7 @@ free_resource:
 		drm_encoder_cleanup(encoder);
 	kfree(am_eDP);
 
-	DRM_DEBUG("%s: %d Exit\n", __func__, ret);
+	DRM_DEBUG("%d Exit\n", ret);
 	return ret;
 }
 
@@ -729,8 +729,7 @@ int meson_eDP_dev_unbind(struct drm_device *drm,
 	struct meson_eDP *drm_eDP = 0;
 
 	if (!connector)
-		DRM_ERROR("%s got invalid connector id\n",
-			__func__);
+		DRM_ERROR("got invalid connector id\n");
 
 	drm_eDP = connector_to_meson_eDP(connector);
 	if (!drm_eDP)
@@ -740,7 +739,7 @@ int meson_eDP_dev_unbind(struct drm_device *drm,
 	drm_eDP->encoder.funcs->destroy(&drm_eDP->encoder);
 
 	kfree(drm_eDP);
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 	return 0;
 }
 

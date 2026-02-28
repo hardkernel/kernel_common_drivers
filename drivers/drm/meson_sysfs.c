@@ -664,7 +664,7 @@ static ssize_t osd_blank_store(struct file *filp, struct kobject *kobj,
 
 	ret = meson_drm_trigger_atomic_commit(minor);
 	if (ret)
-		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
+		DRM_ERROR("failed, ret = %d\n", ret);
 
 	return count;
 }
@@ -743,7 +743,7 @@ static ssize_t osd_resize_src_store(struct file *filp, struct kobject *kobj,
 
 	ret = meson_drm_trigger_atomic_commit(minor);
 	if (ret)
-		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
+		DRM_ERROR("failed, ret = %d\n", ret);
 
 	return count;
 }
@@ -823,7 +823,7 @@ static ssize_t osd_zorder_store(struct file *filp, struct kobject *kobj,
 
 	ret = meson_drm_trigger_atomic_commit(minor);
 	if (ret)
-		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
+		DRM_ERROR("failed, ret = %d\n", ret);
 
 	return count;
 }
@@ -1074,7 +1074,7 @@ static ssize_t osd_resize_dst_store(struct file *filp, struct kobject *kobj,
 
 	ret = meson_drm_trigger_atomic_commit(minor);
 	if (ret)
-		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
+		DRM_ERROR("ailed, ret = %d\n", ret);
 
 	return count;
 }
@@ -1145,7 +1145,7 @@ static ssize_t osd_dimm_store(struct file *filp, struct kobject *kobj,
 		return -EINVAL;
 
 	if (!buf[0]) {
-		DRM_ERROR("%s, parameters is incorrect.\n", __func__);
+		DRM_ERROR("parameters is incorrect.\n");
 		return -EINVAL;
 	}
 	if (kstrtoul(buf, 16, &osd_dimm) < 0) {
@@ -1155,7 +1155,7 @@ static ssize_t osd_dimm_store(struct file *filp, struct kobject *kobj,
 
 	priv = minor->dev->dev_private;
 	if (!priv) {
-		DRM_ERROR("%s, priv is null\n", __func__);
+		DRM_ERROR("priv is null\n");
 		return -EINVAL;
 	}
 	priv->osd_planes[osd_index]->osd_dimm.dimm_value = osd_dimm;
@@ -1163,7 +1163,7 @@ static ssize_t osd_dimm_store(struct file *filp, struct kobject *kobj,
 
 	ret = meson_drm_trigger_atomic_commit(minor);
 	if (ret)
-		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
+		DRM_ERROR("failed, ret = %d\n", ret);
 
 	return count;
 }
@@ -1299,7 +1299,7 @@ static ssize_t crtc_blank_store(struct file *filp, struct kobject *kobj,
 
 	ret = meson_drm_trigger_atomic_commit(minor);
 	if (ret)
-		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
+		DRM_ERROR("failed, ret = %d\n", ret);
 
 	return count;
 }
@@ -1333,14 +1333,14 @@ meson_drm_duplicate_state(struct drm_device *dev, struct drm_modeset_acquire_ctx
 
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state)) {
-			DRM_ERROR("%s, %d, get_crtc_state error\n", __func__, __LINE__);
+			DRM_ERROR("%d, get_crtc_state error\n", __LINE__);
 			err = PTR_ERR(crtc_state);
 			goto free;
 		}
 
 		ret = drm_atomic_set_mode_for_crtc(crtc_state, mode);
 		if (ret != 0) {
-			DRM_ERROR("%s, %d, set_mode_for_crtc error\n", __func__, __LINE__);
+			DRM_ERROR("%d, set_mode_for_crtc error\n", __LINE__);
 			goto free;
 		}
 		crtc_state->active = true;
@@ -1352,7 +1352,7 @@ meson_drm_duplicate_state(struct drm_device *dev, struct drm_modeset_acquire_ctx
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
 			err = PTR_ERR(plane_state);
-			DRM_ERROR("%s, %d, get_plane_state error\n", __func__, __LINE__);
+			DRM_ERROR("%d, get_plane_state error\n", __LINE__);
 			goto free;
 		}
 		plane_state->crtc_x = 0;
@@ -1370,12 +1370,12 @@ meson_drm_duplicate_state(struct drm_device *dev, struct drm_modeset_acquire_ctx
 		if (IS_ERR(conn_state)) {
 			err = PTR_ERR(conn_state);
 			drm_connector_list_iter_end(&conn_iter);
-			DRM_ERROR("%s, %d, get_conn_state error\n", __func__, __LINE__);
+			DRM_ERROR("%d, get_conn_state error\n", __LINE__);
 			goto free;
 		}
 		ret = drm_atomic_set_crtc_for_connector(conn_state, dst_crtc);
 		if (ret != 0) {
-			DRM_ERROR("%s, %d, set_crtc_for_connector error\n", __func__, __LINE__);
+			DRM_ERROR("%d, set_crtc_for_connector error\n", __LINE__);
 			goto free;
 		}
 	}
@@ -1769,7 +1769,7 @@ static ssize_t video_resize_src_store(struct file *filp, struct kobject *kobj,
 
 	ret = meson_drm_trigger_atomic_commit(minor);
 	if (ret)
-		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
+		DRM_ERROR("failed, ret = %d\n", ret);
 
 	return count;
 }
@@ -1849,7 +1849,7 @@ static ssize_t video_resize_dst_store(struct file *filp, struct kobject *kobj,
 
 	ret = meson_drm_trigger_atomic_commit(minor);
 	if (ret)
-		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
+		DRM_ERROR("failed, ret = %d\n", ret);
 
 	return count;
 }

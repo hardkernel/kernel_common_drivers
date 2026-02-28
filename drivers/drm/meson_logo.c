@@ -675,7 +675,7 @@ static void am_meson_load_logo(struct drm_device *dev,
 	int ret = 0;
 	int idx = sub_pipe->index;
 
-	DRM_DEBUG("%s idx[%d]\n", __func__, idx);
+	DRM_DEBUG("idx[%d]\n", idx);
 
 	if (!logo[VPP0].alloc_flag) {
 		DRM_INFO("%s: logo memory is not alloc\n", __func__);
@@ -692,22 +692,22 @@ static void am_meson_load_logo(struct drm_device *dev,
 	switch (idx) {
 	case 0:
 		connector_type = get_uboot_connector0_type();
-		DRM_DEBUG("[%s-%d]: connector_type %s\n", __func__, idx, connector_type);
+		DRM_DEBUG("[%d]: connector_type %s\n", idx, connector_type);
 		break;
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	case 1:
 		connector_type = get_uboot_connector1_type();
-		DRM_DEBUG("[%s-%d]: connector_type %s\n", __func__, idx, connector_type);
+		DRM_DEBUG("[%d]: connector_type %s\n", idx, connector_type);
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
 	case 2:
 		connector_type = get_uboot_connector2_type();
-		DRM_DEBUG("[%s-%d]: connector_type %s\n", __func__, idx, connector_type);
+		DRM_DEBUG("[%d]: connector_type %s\n", idx, connector_type);
 		break;
 #endif
 	default:
-		DRM_DEBUG("[%s]: connector_type not found\n", __func__);
+		DRM_DEBUG("connector_type not found\n");
 		break;
 	}
 
@@ -723,7 +723,7 @@ static void am_meson_load_logo(struct drm_device *dev,
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		/*connector->name is same as connector_type char*/
 		if (connector_type && strcmp(connector->name, connector_type)) {
-			DRM_DEBUG("[%s-%d]: %s != %s, jump\n", __func__, idx,
+			DRM_DEBUG("[%d]: %s != %s, jump\n", idx,
 				connector->name, connector_type);
 			continue;
 		}
@@ -738,7 +738,7 @@ static void am_meson_load_logo(struct drm_device *dev,
 				state->acquire_ctx);
 
 		if (ret)
-			DRM_ERROR("enter %s, drm_modeset_lock ret %d.\n", __func__, ret);
+			DRM_ERROR("enter, drm_modeset_lock ret %d.\n", ret);
 
 		if (num_modes) {
 			list_for_each_entry(mode, &connector->modes, head) {
@@ -894,7 +894,7 @@ void am_meson_logo_init(struct drm_device *dev)
 	const char *compatible;
 	const int *reusable;
 
-	DRM_DEBUG("%s in[%d]\n", __func__, __LINE__);
+	DRM_DEBUG("in[%d]\n", __LINE__);
 
 	gp_dev = pdev;
 	np = gp_dev->dev.of_node;
@@ -1010,7 +1010,7 @@ void am_meson_logo_init(struct drm_device *dev)
 		drm_framebuffer_put(fb);
 
 	DRM_DEBUG("drm_fb[id:%d,ref:%d]\n", fb->base.id, kref_read(&fb->base.refcount));
-	DRM_DEBUG("%s end[%d]\n", __func__, __LINE__);
+	DRM_DEBUG("end[%d]\n", __LINE__);
 }
 
 static int gem_mem_device_init(struct reserved_mem *rmem, struct device *dev)

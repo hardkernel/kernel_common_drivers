@@ -57,7 +57,7 @@ static void meson_connect_parse_config(struct drm_device *dev, struct meson_of_c
 	ret = of_property_read_string(dev->dev->of_node,
 				   "pref_mode", (const char **)&conf->pref_mode);
 	if (ret) {
-		DRM_DEBUG("%s parse pref mode fail!\n", __func__);
+		DRM_DEBUG("parse pref mode fail!\n");
 		conf->pref_mode = NULL;
 	}
 }
@@ -72,21 +72,21 @@ static void meson_osd_parse_config(struct drm_device *dev, struct meson_of_conf 
 	ret = of_property_read_u32(dev->dev->of_node,
 				   "osd_afbc_mask", &osd_afbc_mask);
 	if (ret)
-		DRM_DEBUG("%s parse osd afbc mask fail!\n", __func__);
+		DRM_DEBUG("parse osd afbc mask fail!\n");
 
 	conf->osd_afbc_mask = osd_afbc_mask;
 
 	ret = of_property_read_u32(dev->dev->of_node,
 				   "force_slice", &osd_force_slice);
 	if (ret)
-		DRM_DEBUG("%s parse osd_force_slice fail!\n", __func__);
+		DRM_DEBUG("parse osd_force_slice fail!\n");
 
 	conf->force_slice = osd_force_slice;
 
 	ret = of_property_read_u32(dev->dev->of_node,
 				   "afbc_aligned_size", &afbc_aligned_size);
 	if (ret)
-		DRM_DEBUG("%s parse afbc_aligned_size fail!\n", __func__);
+		DRM_DEBUG("parse afbc_aligned_size fail!\n");
 
 	conf->afbc_aligned_size = afbc_aligned_size;
 }
@@ -156,7 +156,7 @@ static void meson_video_parse_config(struct drm_device *dev, struct meson_of_con
 	ret = of_property_read_u32(dev->dev->of_node,
 				   "disable_thread_en", &disable_thread_en);
 	if (ret)
-		DRM_DEBUG("%s no disable thread enable config!\n", __func__);
+		DRM_DEBUG("no disable thread enable config!\n");
 
 	conf->disable_thread_en = disable_thread_en;
 }

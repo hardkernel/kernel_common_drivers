@@ -47,7 +47,7 @@ void meson_vpu_reg_handle_register(void *arg)
 			drm_vsync_rdma_handle[vpp_index]);
 	}
 
-	DRM_DEBUG("%s, vpp%d-%d\n", __func__, vpp_index, drm_vsync_rdma_handle[vpp_index]);
+	DRM_DEBUG("vpp%d-%d\n", vpp_index, drm_vsync_rdma_handle[vpp_index]);
 }
 
 static u32 rdma_trigger_inputs[] = {
@@ -66,7 +66,7 @@ int meson_vpu_reg_vsync_config(u32 vpp_index)
 		DRM_ERROR("RDMA is not registered!");
 		return -1;
 	}
-	MESON_DRM_REG("%s, %d\n", __func__, vpp_index);
+	MESON_DRM_REG("%d\n", vpp_index);
 
 	return rdma_config(drm_vsync_rdma_handle[vpp_index],
 		rdma_trigger_inputs[vpp_index]);
@@ -78,7 +78,7 @@ static u32 meson_vpu_read_reg(u32 addr)
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int ret;
 
-	MESON_DRM_REG("%s, 0x%x\n", __func__, addr);
+	MESON_DRM_REG("0x%x\n", addr);
 	if (rdma_tbl[0].flag)
 		ret = meson_drm_read_rdma_table_reg(0, drm_vsync_rdma_handle[0], addr);
 	else
@@ -94,7 +94,7 @@ static int meson_vpu_write_reg(u32 addr, u32 val)
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int ret;
 
-	MESON_DRM_REG("%s, 0x%x, 0x%x\n", __func__, addr, val);
+	MESON_DRM_REG("0x%x, 0x%x\n", addr, val);
 	if (rdma_tbl[0].flag)
 		ret = meson_drm_write_rdma_table_reg(0, drm_vsync_rdma_handle[0], addr, val);
 	else
@@ -111,7 +111,7 @@ static int meson_vpu_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int ret;
 
-	MESON_DRM_REG("%s, 0x%x, 0x%x, %d, %d\n", __func__, addr, val, start, len);
+	MESON_DRM_REG("0x%x, 0x%x, %d, %d\n", addr, val, start, len);
 	if (rdma_tbl[0].flag)
 		ret = meson_drm_write_rdma_table_reg_bits(0, drm_vsync_rdma_handle[0],
 			addr, val, start, len);
@@ -126,13 +126,13 @@ static int meson_vpu_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 
 static int meson_vpu_dummy_write_reg(u32 addr, u32 val)
 {
-	MESON_DRM_REG("%s, 0x%x, 0x%x dummy_write\n", __func__, addr, val);
+	MESON_DRM_REG("0x%x, 0x%x dummy_write\n", addr, val);
 	return 0;
 }
 
 static int meson_vpu_dummy_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 {
-	MESON_DRM_REG("%s, 0x%x, 0x%x, %d, %d dummy_write\n", __func__, addr, val, start, len);
+	MESON_DRM_REG("0x%x, 0x%x, %d, %d dummy_write\n", addr, val, start, len);
 	return 0;
 }
 
@@ -141,7 +141,7 @@ static u32 meson_vpu1_read_reg(u32 addr)
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int ret;
 
-	MESON_DRM_REG("%s, 0x%x\n", __func__, addr);
+	MESON_DRM_REG("0x%x\n", addr);
 	if (rdma_tbl[1].flag)
 		ret = meson_drm_read_rdma_table_reg(1, drm_vsync_rdma_handle[1], addr);
 	else
@@ -174,7 +174,7 @@ static int meson_vpu1_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int ret;
 
-	MESON_DRM_REG("%s, 0x%x, 0x%x, %d, %d\n", __func__, addr, val, start, len);
+	MESON_DRM_REG("0x%x, 0x%x, %d, %d\n", addr, val, start, len);
 	if (rdma_tbl[1].flag)
 		ret = meson_drm_write_rdma_table_reg_bits(1, drm_vsync_rdma_handle[1],
 			addr, val, start, len);
@@ -209,7 +209,7 @@ static u32 meson_vpu2_read_reg(u32 addr)
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	u32 ret;
 
-	MESON_DRM_REG("%s, 0x%x\n", __func__, addr);
+	MESON_DRM_REG("0x%x\n", addr);
 	if (rdma_tbl[2].flag)
 		ret = meson_drm_read_rdma_table_reg(2, drm_vsync_rdma_handle[2], addr);
 	else
@@ -241,7 +241,7 @@ static int meson_vpu2_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int ret;
 
-	MESON_DRM_REG("%s, 0x%x, 0x%x, %d, %d\n", __func__, addr, val, start, len);
+	MESON_DRM_REG("0x%x, 0x%x, %d, %d\n", addr, val, start, len);
 	if (rdma_tbl[2].flag)
 		ret = meson_drm_write_rdma_table_reg_bits(2, drm_vsync_rdma_handle[2],
 			addr, val, start, len);

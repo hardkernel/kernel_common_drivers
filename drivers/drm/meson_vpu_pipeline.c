@@ -1204,7 +1204,7 @@ void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
 		usleep_range(500, 600);
 		wait_cnt++;
 		if (wait_cnt >= WAIT_CNT_MAX) {
-			DRM_DEBUG_VBL("%s time out\n", __func__);
+			DRM_DEBUG_VBL("time out\n");
 			break;
 		}
 		vpu_pipeline_read_scanout_pos(pipeline, &cur_line, &cur_col, crtc_index);

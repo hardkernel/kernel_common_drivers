@@ -142,7 +142,7 @@ static void meson_video_bypass_vblank_wait(struct drm_atomic_state *state)
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		meson_crtc_state = to_am_meson_crtc_state(crtc_state);
 		meson_crtc_state->nonblock_by_vblank = true;
-		DRM_DEBUG("%s, bypass vblank wait %d\n", __func__,
+		DRM_DEBUG("bypass vblank wait %d\n",
 			  state->async_update);
 	}
 }
@@ -572,7 +572,7 @@ int meson_async_atomic_ioctl(struct drm_device *dev,
 #endif
 	start1 = ktime_get();
 
-	DRM_DEBUG_ATOMIC("%s IN, pid[%s %d]\n", __func__, current->comm, current->pid);
+	DRM_DEBUG_ATOMIC("IN, pid[%s %d]\n", current->comm, current->pid);
 
 	drm_modeset_acquire_init(&ctx, 0);
 
@@ -699,7 +699,7 @@ retry:
 	ret = config->funcs->atomic_commit(state->dev, state, false);
 	end2 = ktime_get();
 	if (ret)
-		DRM_ERROR("%s failed, ret = %d\n", __func__, ret);
+		DRM_ERROR("failed, ret = %d\n", ret);
 
 out:
 	if (ret == -EDEADLK) {
@@ -723,6 +723,6 @@ out:
 		DRM_WARN("async commit cost (%lld %lld) ms, it is too long\n",
 			commit_time_ms, total_time_ms);
 
-	DRM_DEBUG_ATOMIC("%s OUT,  ret = %d\n", __func__, ret);
+	DRM_DEBUG_ATOMIC("OUT,  ret = %d\n", ret);
 	return ret;
 }

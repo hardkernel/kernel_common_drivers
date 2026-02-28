@@ -1211,7 +1211,7 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 	}
 
 	for (i = 0; i < MAX_DIN_NUM; i++) {
-		MESON_DRM_BLOCK("%s, scope: %u, %u, %u, %u\n", __func__,
+		MESON_DRM_BLOCK("scope: %u, %u, %u, %u\n",
 			mvps->osd_scope_pre[i].h_start,
 			  mvps->osd_scope_pre[i].h_end, mvps->osd_scope_pre[i].v_start,
 			  mvps->osd_scope_pre[i].v_end);
@@ -1402,8 +1402,8 @@ static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 	}
 
 	for (i = 0; i < MAX_DIN_NUM; i++) {
-		MESON_DRM_BLOCK("%s, osd:%d, scope:%u, %u, %u, %u\n",
-			__func__, i,
+		MESON_DRM_BLOCK("osd:%d, scope:%u, %u, %u, %u\n",
+			i,
 			mvps->osd_scope_pre[i].h_start, mvps->osd_scope_pre[i].h_end,
 			mvps->osd_scope_pre[i].v_start, mvps->osd_scope_pre[i].v_end);
 

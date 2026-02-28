@@ -141,7 +141,7 @@ int am_meson_get_vrr_range_ioctl(struct drm_device *dev,
 
 	for (i = 0; i < num_group; i++) {
 		group = &groups->groups[i];
-		DRM_DEBUG("%s,%d, %d, %d, %d\n", __func__,
+		DRM_DEBUG("%d, %d, %d, %d\n",
 		group->vrr_max, group->vrr_min, group->width, group->height);
 	}
 
@@ -801,12 +801,12 @@ static int am_meson_drm_pm_suspend(struct device *dev)
 
 	priv = dev_get_drvdata(dev);
 	if (!priv) {
-		DRM_ERROR("%s: Failed to get meson drm!\n", __func__);
+		DRM_ERROR("Failed to get meson drm!\n");
 		return 0;
 	}
 	drm = priv->drm;
 	if (!drm) {
-		DRM_ERROR("%s: Failed to get drm device!\n", __func__);
+		DRM_ERROR("Failed to get drm device!\n");
 		return 0;
 	}
 	priv->pm_state = DRM_PM_SUSPEND;
@@ -832,7 +832,7 @@ static int am_meson_drm_pm_freeze(struct device *dev)
 
 	priv = dev_get_drvdata(dev);
 	if (!priv) {
-		DRM_ERROR("%s: Failed to get meson drm!\n", __func__);
+		DRM_ERROR("Failed to get meson drm!\n");
 		return 0;
 	}
 
@@ -854,12 +854,12 @@ static int am_meson_drm_pm_resume(struct device *dev)
 
 	priv = dev_get_drvdata(dev);
 	if (!priv) {
-		DRM_ERROR("%s: Failed to get meson drm!\n", __func__);
+		DRM_ERROR("Failed to get meson drm!\n");
 		return 0;
 	}
 	drm = priv->drm;
 	if (!drm) {
-		DRM_ERROR("%s: Failed to get drm device!\n", __func__);
+		DRM_ERROR("Failed to get drm device!\n");
 		return 0;
 	}
 
@@ -884,7 +884,7 @@ static int am_meson_drm_pm_restore(struct device *dev)
 
 	priv = dev_get_drvdata(dev);
 	if (!priv) {
-		DRM_ERROR("%s: Failed to get meson drm!\n", __func__);
+		DRM_ERROR("Failed to get meson drm!\n");
 		return 0;
 	}
 
@@ -919,7 +919,7 @@ static void am_meson_drv_shutdown(struct platform_device *pdev)
 
 	priv = dev_get_drvdata(&pdev->dev);
 	if (!priv) {
-		DRM_ERROR("%s: priv is NULL!\n", __func__);
+		DRM_ERROR("priv is NULL!\n");
 		return;
 	}
 

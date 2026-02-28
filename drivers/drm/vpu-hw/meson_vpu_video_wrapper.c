@@ -276,8 +276,8 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	u32 bpp;
 	bool is_process_drm_vf = false;
 
-	MESON_DRM_BLOCK("%s IN, fb[%dx%d], src[(%d,%d),%dx%d], dst[(%d,%d),%dx%d]\n",
-		__func__, mvvs->fb_w, mvvs->fb_h,
+	MESON_DRM_BLOCK("IN, fb[%dx%d], src[(%d,%d),%dx%d], dst[(%d,%d),%dx%d]\n",
+		mvvs->fb_w, mvvs->fb_h,
 		mvvs->src_x, mvvs->src_y, mvvs->src_w, mvvs->src_h,
 		mvvs->dst_x, mvvs->dst_y, mvvs->dst_w, mvvs->dst_h);
 
@@ -295,19 +295,19 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	phy_addr2 = mvvs->phy_addr[1];
 	pixel_format = mvvs->pixel_format;
 
-	MESON_DRM_BLOCK("%s, is_uvm[%d], vf[%px], pixel_format[0x%x]\n",
-		__func__, mvvs->is_uvm, mvvs->vf, mvvs->pixel_format);
+	MESON_DRM_BLOCK("is_uvm[%d], vf[%px], pixel_format[0x%x]\n",
+		mvvs->is_uvm, mvvs->vf, mvvs->pixel_format);
 	if (mvvs->is_uvm && mvvs->vf) {
 		dec_vf = mvvs->vf;
 		vf = mvvs->vf;
-		MESON_DRM_BLOCK("dec vf, %s, flag[0x%x], type[0x%x], comp[%u, %u][%u, %u]\n",
-			  __func__, dec_vf->flag, dec_vf->type,
+		MESON_DRM_BLOCK("dec vf, flag[0x%x], type[0x%x], comp[%u, %u][%u, %u]\n",
+			  dec_vf->flag, dec_vf->type,
 			  dec_vf->compWidth, dec_vf->compHeight,
 			  dec_vf->width, dec_vf->height);
 		if (mvvs->vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
 			vf = mvvs->vf->vf_ext;
-			MESON_DRM_BLOCK("DI vf, %s, flag[0x%x], type[0x%x], comp[%u, %u][%u, %u]\n",
-				  __func__, vf->flag, vf->type,
+			MESON_DRM_BLOCK("DI vf, flag[0x%x], type[0x%x], comp[%u, %u][%u, %u]\n",
+				  vf->flag, vf->type,
 				  vf->compWidth, vf->compHeight,
 				  vf->width, vf->height);
 		}
@@ -613,7 +613,7 @@ static void video_hw_init(struct meson_vpu_block *vblk)
 	u32 w, h;
 
 	if (!vblk || !video) {
-		MESON_DRM_BLOCK("%s break for NULL.\n", __func__);
+		MESON_DRM_BLOCK("break for NULL.\n");
 		return;
 	}
 
@@ -637,7 +637,7 @@ static void video_hw_init(struct meson_vpu_block *vblk)
 		video->disable_thread = NULL;
 	}
 
-	MESON_DRM_BLOCK("%s:%s done\n", __func__, video->base.name);
+	MESON_DRM_BLOCK("%s done\n", video->base.name);
 }
 
 static void video_hw_fini(struct meson_vpu_block *vblk)
@@ -648,7 +648,7 @@ static void video_hw_fini(struct meson_vpu_block *vblk)
 		kthread_stop(video->disable_thread);
 		video->disable_thread = NULL;
 	}
-	MESON_DRM_BLOCK("%s:%s done.\n", __func__, video->base.name);
+	MESON_DRM_BLOCK("%s done.\n", video->base.name);
 }
 
 struct meson_vpu_block_ops video_ops = {

@@ -61,7 +61,7 @@ void meson_vout_notify_mode_change(int idx,
 #endif
 			break;
 		default:
-			DRM_ERROR("%s:unknown vout %d\n", __func__, idx);
+			DRM_ERROR("unknown vout %d\n", idx);
 			break;
 		};
 	} else if (event == EVENT_MODE_SET_FINISH) {
@@ -83,7 +83,7 @@ void meson_vout_notify_mode_change(int idx,
 #endif
 			break;
 		default:
-			DRM_ERROR("%s: unknown vout %d\n", __func__, idx);
+			DRM_ERROR("unknown vout %d\n", idx);
 			break;
 		};
 	}
@@ -105,7 +105,7 @@ void meson_vout_update_mode_name(int idx, char *modename, char *ctx)
 		set_vout3_mode_name(modename);
 #endif
 	else
-		DRM_ERROR("%s:unsupported vout idx %d.\n", __func__, idx);
+		DRM_ERROR("unsupported vout idx %d.\n", idx);
 }
 
 static void meson_drm_handle_vpp_crc(struct am_meson_crtc *amcrtc)
@@ -128,7 +128,7 @@ static void meson_drm_signal_present_fence(struct am_meson_crtc *amcrtc)
 	struct am_meson_crtc_present_fence *pre_fence = &amcrtc->present_fence;
 
 	if (pre_fence->fence) {
-		DRM_DEBUG("%s fd=%d, fence=%px\n", __func__,
+		DRM_DEBUG("fd=%d, fence=%px\n",
 			pre_fence->fd, pre_fence->fence);
 		dma_fence_signal(pre_fence->fence);
 		dma_fence_put(pre_fence->fence);
@@ -295,7 +295,7 @@ static int am_meson_vpu_bind(struct device *dev,
 	struct meson_vpu_data *vpu_data;
 	int i, ret, irq;
 
-	DRM_DEBUG("%s in[%d]\n", __func__, __LINE__);
+	DRM_DEBUG("in[%d]\n", __LINE__);
 
 	vpu_data = (struct meson_vpu_data *)of_device_get_match_data(dev);
 	if (!vpu_data)
@@ -350,7 +350,7 @@ static int am_meson_vpu_bind(struct device *dev,
 	else
 		osd_vpu_power_on();
 
-	DRM_DEBUG("%s out[%d]\n", __func__, __LINE__);
+	DRM_DEBUG("out[%d]\n", __LINE__);
 	return 0;
 }
 
@@ -761,12 +761,12 @@ static int am_meson_vpu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	DRM_DEBUG("%s in[%d]\n", __func__, __LINE__);
+	DRM_DEBUG("in[%d]\n", __LINE__);
 	if (!dev->of_node) {
 		dev_err(dev, "can't find vpu devices\n");
 		return -ENODEV;
 	}
-	DRM_DEBUG("%s out[%d]\n", __func__, __LINE__);
+	DRM_DEBUG("out[%d]\n", __LINE__);
 	return component_add(dev, &am_meson_vpu_component_ops);
 }
 

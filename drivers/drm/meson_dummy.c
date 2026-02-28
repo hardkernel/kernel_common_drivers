@@ -134,7 +134,7 @@ meson_dummy_detect(struct drm_connector *connector, bool force)
 
 static void am_dummy_connector_destroy(struct drm_connector *connector)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
@@ -142,7 +142,7 @@ static void am_dummy_connector_destroy(struct drm_connector *connector)
 
 static void am_dummy_connector_reset(struct drm_connector *connector)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 
 	drm_atomic_helper_connector_reset(connector);
 }
@@ -152,7 +152,7 @@ am_dummy_connector_duplicate_state(struct drm_connector *connector)
 {
 	struct drm_connector_state *state;
 
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 
 	state = drm_atomic_helper_connector_duplicate_state(connector);
 	return state;
@@ -161,7 +161,7 @@ am_dummy_connector_duplicate_state(struct drm_connector *connector)
 static void am_dummy_connector_destroy_state(struct drm_connector *connector,
 					   struct drm_connector_state *state)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 
 	drm_atomic_helper_connector_destroy_state(connector, state);
 }
@@ -205,14 +205,14 @@ static void meson_dummy_encoder_atomic_enable(struct drm_encoder *encoder,
 	if (vmode != VMODE_DUMMY_ENCP &&
 	    vmode != VMODE_DUMMY_ENCI &&
 	    vmode != VMODE_DUMMY_ENCL) {
-		DRM_DEBUG("%s:enable fail! vmode:%d\n", __func__, vmode);
+		DRM_DEBUG("enable fail! vmode:%d\n", vmode);
 		return;
 	}
 
 	if (meson_crtc_state->uboot_mode_init == 1)
 		vmode |= VMODE_INIT_BIT_MASK;
 
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_START);
@@ -221,20 +221,20 @@ static void meson_dummy_encoder_atomic_enable(struct drm_encoder *encoder,
 		vmode, EVENT_MODE_SET_FINISH);
 	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "dummy");
 
-	DRM_DEBUG("[%s]-[%d] exit\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] exit\n", __LINE__);
 }
 
 static void meson_dummy_encoder_atomic_disable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 }
 
 static int meson_dummy_encoder_atomic_check(struct drm_encoder *encoder,
 				       struct drm_crtc_state *crtc_state,
 				struct drm_connector_state *conn_state)
 {
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 	return 0;
 }
 
@@ -279,13 +279,13 @@ int meson_dummy_dev_bind(struct drm_device *drm,
 		encoder_name = "am_dummyp_encoder";
 		break;
 	default:
-		DRM_ERROR("[%s]: not match\n", __func__);
+		DRM_ERROR("not match\n");
 		break;
 	};
 
 	am_dummy = kzalloc(sizeof(*am_dummy), GFP_KERNEL);
 	if (!am_dummy) {
-		DRM_ERROR("[%s]: alloc drm_dummy failed\n", __func__);
+		DRM_ERROR("alloc drm_dummy failed\n");
 		return -ENOMEM;
 	}
 
@@ -300,8 +300,7 @@ int meson_dummy_dev_bind(struct drm_device *drm,
 	ret = drm_encoder_init(drm, encoder, &meson_dummy_encoder_funcs,
 			       DRM_MODE_ENCODER_VIRTUAL, encoder_name);
 	if (ret) {
-		DRM_ERROR("error:%s-%d: Failed to init lcd encoder\n",
-			__func__, __LINE__);
+		DRM_ERROR("error:%d: Failed to init lcd encoder\n", __LINE__);
 		goto free_resource;
 	}
 
@@ -312,8 +311,7 @@ int meson_dummy_dev_bind(struct drm_device *drm,
 	ret = drm_connector_init(drm, connector, &meson_dummy_funcs,
 				 DRM_MODE_CONNECTOR_VIRTUAL);
 	if (ret) {
-		DRM_ERROR("%s-%d: Failed to init dummy connector\n",
-			__func__, __LINE__);
+		DRM_ERROR("%d: Failed to init dummy connector\n", __LINE__);
 		goto free_resource;
 	}
 
@@ -322,13 +320,12 @@ int meson_dummy_dev_bind(struct drm_device *drm,
 		kfree(connector->name);
 		connector->name = kasprintf(GFP_KERNEL, "%s", connector_name);
 		if (!connector->name)
-			DRM_ERROR("[%s]: alloc name failed\n", __func__);
+			DRM_ERROR("alloc name failed\n");
 	}
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret != 0) {
-		DRM_ERROR("%s-%d: attach failed.\n",
-			__func__, __LINE__);
+		DRM_ERROR("%d: attach failed.\n", __LINE__);
 		goto free_resource;
 	}
 
@@ -337,7 +334,7 @@ int meson_dummy_dev_bind(struct drm_device *drm,
 free_resource:
 	kfree(am_dummy);
 
-	DRM_DEBUG("%s: %d Exit\n", __func__, ret);
+	DRM_DEBUG("%d Exit\n", ret);
 	return ret;
 }
 
@@ -349,15 +346,14 @@ int meson_dummy_dev_unbind(struct drm_device *drm,
 	struct meson_dummy *am_dummy = 0;
 
 	if (!connector)
-		DRM_ERROR("%s got invalid connector id\n",
-			__func__);
+		DRM_ERROR("got invalid connector id\n");
 
 	am_dummy = connector_to_meson_dummy(connector);
 	if (!am_dummy)
 		return -EINVAL;
 
 	kfree(am_dummy);
-	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
+	DRM_DEBUG("[%d] called\n", __LINE__);
 	return 0;
 }
 

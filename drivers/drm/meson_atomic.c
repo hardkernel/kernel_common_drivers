@@ -90,7 +90,7 @@ void meson_commit_reenter_inc(struct meson_drm *priv,
 	if (atomic_read(&amcrtc->commit_num) > 1)
 		DRM_ERROR("commit re-enter\n");
 
-	DRM_DEBUG_ATOMIC("%s crtc_index%d, commit_num=%d, flag=%d\n", __func__,
+	DRM_DEBUG_ATOMIC("crtc_index%d, commit_num=%d, flag=%d\n",
 		crtc_index, atomic_read(&amcrtc->commit_num), flag);
 }
 
@@ -103,7 +103,7 @@ void meson_commit_reenter_dec(struct meson_drm *priv,
 	WARN_ON(!mutex_is_locked(&amcrtc->commit_mutex));
 	atomic_dec(&amcrtc->commit_num);
 	mutex_unlock(&amcrtc->commit_mutex);
-	DRM_DEBUG_ATOMIC("%s crtc_index%d, commit_num=%d, flag=%d\n", __func__,
+	DRM_DEBUG_ATOMIC("crtc_index%d, commit_num=%d, flag=%d\n",
 		crtc_index, atomic_read(&amcrtc->commit_num), flag);
 }
 
@@ -677,7 +677,7 @@ void meson_atomic_state_free(struct drm_atomic_state *state)
 	struct meson_drm *priv = dev->dev_private;
 
 	if (!priv) {
-		DRM_ERROR("%s: Failed to get meson drm!\n", __func__);
+		DRM_ERROR("Failed to get meson drm!\n");
 		return;
 	}
 

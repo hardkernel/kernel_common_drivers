@@ -981,7 +981,7 @@ static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
 						(afbc_stat_reg->mali_afbcd_top_ctrl,
 						1, 21, 1);
 				} else {
-					DRM_DEBUG("%s, invalid afbc top ctrl index\n", __func__);
+					DRM_DEBUG("invalid afbc top ctrl index\n");
 				}
 			}
 		} else {
@@ -1154,7 +1154,7 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			else if (osd_index == 2)
 				reg_ops->rdma_write_reg_bits(VIU_OSD3_PATH_CTRL, 1, 31, 1);
 			else
-				MESON_DRM_BLOCK("%s, invalid afbc top ctrl index\n", __func__);
+				MESON_DRM_BLOCK("invalid afbc top ctrl index\n");
 		} else {
 			if (i == 0)
 				reg_ops->rdma_write_reg_bits(VIU_OSD1_PATH_CTRL, 0, 31, 1);
@@ -1163,7 +1163,7 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			else if (i == 2)
 				reg_ops->rdma_write_reg_bits(VIU_OSD3_PATH_CTRL, 0, 31, 1);
 			else
-				MESON_DRM_BLOCK("%s, invalid afbc top ctrl index\n", __func__);
+				MESON_DRM_BLOCK("invalid afbc top ctrl index\n");
 
 			t7_osd_afbc_enable(vblk, reg_ops, afbc_stat_reg, i, 0);
 		}
@@ -1334,14 +1334,14 @@ static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			else if (osd_index == 2)
 				reg_ops->rdma_write_reg_bits(VPP_INTF_OSD3_CTRL, 1, 0, 1);
 			else
-				MESON_DRM_BLOCK("%s, invalid afbc top ctrl index\n", __func__);
+				MESON_DRM_BLOCK("invalid afbc top ctrl index\n");
 		} else {
 			if (i == 0)
 				reg_ops->rdma_write_reg_bits(VPP_INTF_OSD1_CTRL, 0, 0, 1);
 			else if (i == 2)
 				reg_ops->rdma_write_reg_bits(VPP_INTF_OSD3_CTRL, 0, 0, 1);
 			else
-				MESON_DRM_BLOCK("%s, invalid afbc top ctrl index\n", __func__);
+				MESON_DRM_BLOCK("invalid afbc top ctrl index\n");
 
 			t7_osd_afbc_enable(vblk, reg_ops, afbc_stat_reg, i, 0);
 		}
@@ -1512,7 +1512,7 @@ static void t3x_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			else if (osd_index == 2)
 				reg_ops->rdma_write_reg_bits(VPP_INTF_OSD3_CTRL, 1, 0, 1);
 			else
-				MESON_DRM_BLOCK("%s, invalid afbc top ctrl index\n", __func__);
+				MESON_DRM_BLOCK("invalid afbc top ctrl index\n");
 		} else {
 			if (i == 0)
 				reg_ops->rdma_write_reg_bits(VPP_INTF_OSD1_CTRL, 0, 0, 1);
@@ -1521,7 +1521,7 @@ static void t3x_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			else if (i == 2)
 				reg_ops->rdma_write_reg_bits(VPP_INTF_OSD3_CTRL, 0, 0, 1);
 			else
-				MESON_DRM_BLOCK("%s, invalid afbc top ctrl index\n", __func__);
+				MESON_DRM_BLOCK("invalid afbc top ctrl index\n");
 
 			t7_osd_afbc_enable(vblk, reg_ops, afbc_stat_reg, i, 0);
 		}

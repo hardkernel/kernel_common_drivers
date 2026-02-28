@@ -359,11 +359,11 @@ int meson_cvbs_dev_bind(struct drm_device *drm,
 	struct am_drm_cvbs_s *am_drm_cvbs;
 	int ret = 0;
 
-	DRM_DEBUG("%s in[%d]\n", __func__, __LINE__);
+	DRM_DEBUG("in[%d]\n", __LINE__);
 
 	am_drm_cvbs = kzalloc(sizeof(*am_drm_cvbs), GFP_KERNEL);
 	if (!am_drm_cvbs) {
-		DRM_ERROR("[%s,%d] kzalloc failed\n", __func__, __LINE__);
+		DRM_ERROR("[%d] kzalloc failed\n", __LINE__);
 		return -ENOMEM;
 	}
 
@@ -403,7 +403,7 @@ int meson_cvbs_dev_bind(struct drm_device *drm,
 
 	meson_cvbs_init_update_property(drm, connector);
 
-	DRM_DEBUG("%s out[%d]\n", __func__, __LINE__);
+	DRM_DEBUG("out[%d]\n", __LINE__);
 	return ret;
 
 cvbs_err:

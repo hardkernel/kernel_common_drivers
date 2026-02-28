@@ -978,8 +978,8 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk,
 		if (mvsps->vsync_enabled)
 			drm_wait_one_vblank(sub_pipeline->pipeline->priv->drm, crtc_index);
 		else
-			MESON_DRM_BLOCK("%s, vsync disabled %s do not wait vblank.\n",
-				__func__, postblend->base.name);
+			MESON_DRM_BLOCK("vsync disabled %s do not wait vblank.\n",
+				postblend->base.name);
 	}
 
 	MESON_DRM_BLOCK("%s disable called.\n", postblend->base.name);
@@ -1141,8 +1141,8 @@ static void s5_postblend_hw_disable(struct meson_vpu_block *vblk,
 		if (mvsps->vsync_enabled)
 			drm_wait_one_vblank(vblk->pipeline->priv->drm, crtc_index);
 		else
-			MESON_DRM_BLOCK("%s, vsync disabled %s do not wait vblank.\n",
-				__func__, postblend->base.name);
+			MESON_DRM_BLOCK("vsync disabled %s do not wait vblank.\n",
+				postblend->base.name);
 	}
 	MESON_DRM_BLOCK("%s disable called.\n", postblend->base.name);
 }
