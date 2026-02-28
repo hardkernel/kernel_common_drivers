@@ -1743,6 +1743,10 @@ static void connect_to_dpss(struct dpss_process_dev *dev, struct vframe_s *vf, i
 		return;
 	}
 
+	dev->transform = 0;
+	dev->dpss_is_tvp = false;
+	dev->cur_is_i = false;
+
 	max_width = vf->compWidth >= vf->width ? vf->compWidth : vf->width;
 	max_height = vf->compHeight >= vf->height ? vf->compHeight : vf->height;
 
@@ -1751,15 +1755,16 @@ static void connect_to_dpss(struct dpss_process_dev *dev, struct vframe_s *vf, i
 		max_height -= vf->src_crop.bottom;
 	}
 
-	if (vf->type & VIDTYPE_INTERLACE_BOTTOM)
+	if (vf->type & VIDTYPE_INTERLACE_BOTTOM) {
 		dev->dpss_parm.di_parm.is_interlace = 1;
-	else
+		dev->cur_is_i = true;
+	} else {
 		dev->dpss_parm.di_parm.is_interlace = 0;
+	}
 
 	dev->dpss_parm.dps_work_mode = dpss_config_work_mode(dev->index);
 	dev->dpss_parm.di_parm.buffer_mode = DPSS_BUFFER_MODE_ALLOC_SELF;
 	dev->dpss_parm.di_parm.output_format = DPSS_OUTPUT_BY_DI_DEFINE;
-	dev->dpss_is_tvp = false;
 	if (vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
 		dp_print(dev->index, PRINT_OTHER, "%s: secure vf.\n", __func__);
 		dev->dpss_parm.di_parm.output_format |= DPSS_OUTPUT_TVP;
@@ -1768,6 +1773,7 @@ static void connect_to_dpss(struct dpss_process_dev *dev, struct vframe_s *vf, i
 	dev->dpss_parm.di_parm.width = max_width;
 	dev->dpss_parm.di_parm.height = max_height;
 	if (rotate == 3) {
+		dev->transform = 3;
 		dp_print(dev->index, PRINT_OTHER, "%s: need rotate 180.\n", __func__);
 		dev->dpss_parm.di_parm.rotate_flag = VFRAME_FLAG_MIRROR_H | VFRAME_FLAG_MIRROR_V;
 	}
@@ -1924,34 +1930,6 @@ static int dpss_process_uninit(struct dpss_process_dev *dev)
 		total_fill_count);
 
 	return ret;
-}
-
-static int dpss_process_set_tvp(struct dpss_process_dev *dev, bool is_tvp)
-{
-	int ret = 0;
-
-	if (is_tvp)
-		dev->dpss_parm.di_parm.output_format |= DPSS_OUTPUT_TVP;
-	else
-		dev->dpss_parm.di_parm.output_format &= ~DPSS_OUTPUT_TVP;
-
-	if (dev->dpss_index >= 0) {
-		ret = dpss_destroy_instance(dev->dpss_index);
-		if (ret != 0)
-			dp_print(dev->index, PRINT_ERROR,
-				  "destroy dpss fail, dpss_index=%d\n",
-				  dev->dpss_index);
-	}
-
-	dev->dpss_index = dpss_create_instance(&dev->dpss_parm);
-	if (dev->dpss_index < 0) {
-		dp_print(dev->index, PRINT_ERROR,
-			  "creat dpss fail, dpss_index=%d\n",
-			  dev->dpss_index);
-		return dev->dpss_index;
-	}
-	dev->dpss_is_tvp = is_tvp;
-	return 0;
 }
 
 static bool check_need_do_dpss(struct dpss_process_dev *dev, struct vframe_s *vf,
@@ -2275,49 +2253,39 @@ static int dpss_process_set_frame(struct dpss_process_dev *dev, struct frame_inf
 	dev->should_on_vd1 = 0;
 	dev->continue_to_vd1_num = 0;
 
-	/*vf need check tvp switch*/
-	if (dev->last_vf.type == 0) {
-		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) && !dev->dpss_is_tvp) {
-			dp_print(dev->index, PRINT_OTHER, "need reinit to tvp.\n");
-			dpss_process_set_tvp(dev, true);
-		} else if (!(vf->flag & VFRAME_FLAG_VIDEO_SECURE) && dev->dpss_is_tvp) {
-			dp_print(dev->index, PRINT_OTHER, "need reinit to non-tvp.\n");
-			dpss_process_set_tvp(dev, false);
-		}
+	/*vf need check switch*/
+	if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) && !dev->dpss_is_tvp) {
+		dp_print(dev->index, PRINT_ERROR, "need up layer reinit to tvp.\n");
+		tvp_switch = true;
+	} else if (!(vf->flag & VFRAME_FLAG_VIDEO_SECURE) && dev->dpss_is_tvp) {
+		dp_print(dev->index, PRINT_ERROR, "need up layer reinit to non-tvp.\n");
+		tvp_switch = true;
 	} else {
-		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) && !dev->dpss_is_tvp) {
-			dp_print(dev->index, PRINT_ERROR, "need up layer reinit to tvp.\n");
-			tvp_switch = true;
-		} else if (!(vf->flag & VFRAME_FLAG_VIDEO_SECURE) && dev->dpss_is_tvp) {
-			dp_print(dev->index, PRINT_ERROR, "need up layer reinit to non-tvp.\n");
-			tvp_switch = true;
-		} else {
-			tvp_switch = false;
-		}
+		tvp_switch = false;
+	}
 
-		/*need check I/P switch*/
-		if ((vf->type & VIDTYPE_INTERLACE) && !dev->cur_is_i) {
-			dp_print(dev->index, PRINT_ERROR, "need up layer reinit to I.\n");
-			ip_switch = true;
-		} else if (!(vf->type & VIDTYPE_INTERLACE) && dev->cur_is_i) {
-			dp_print(dev->index, PRINT_ERROR, "need up layer reinit to P.\n");
-			ip_switch = true;
-		} else {
-			ip_switch = false;
-		}
+	/*need check I/P switch*/
+	if ((vf->type & VIDTYPE_INTERLACE) && !dev->cur_is_i) {
+		dp_print(dev->index, PRINT_ERROR, "need up layer reinit to I.\n");
+		ip_switch = true;
+	} else if (!(vf->type & VIDTYPE_INTERLACE) && dev->cur_is_i) {
+		dp_print(dev->index, PRINT_ERROR, "need up layer reinit to P.\n");
+		ip_switch = true;
+	} else {
+		ip_switch = false;
+	}
 
-		/*need check 180 rotate*/
-		if ((frame_info->transform == 3 && dev->transform != 3) ||
-			(frame_info->transform != 3 && dev->transform == 3)) {
-			dp_print(dev->index, PRINT_OTHER, "rotate change, need up layer reinit.\n");
-			rotate180_switch = true;
-		}
+	/*need check 180 rotate*/
+	if ((frame_info->transform == 3 && dev->transform != 3) ||
+		(frame_info->transform != 3 && dev->transform == 3)) {
+		dp_print(dev->index, PRINT_OTHER, "rotate change, need up layer reinit.\n");
+		rotate180_switch = true;
+	}
 
-		if (tvp_switch || ip_switch || rotate180_switch) {
-			dev->last_vf.type = 0;
-			dp_put_file(dev, file_vf);
-			return 1;
-		}
+	if (tvp_switch || ip_switch || rotate180_switch) {
+		dev->last_vf.type = 0;
+		dp_put_file(dev, file_vf);
+		return 1;
 	}
 
 	//start play and first send to dpss
