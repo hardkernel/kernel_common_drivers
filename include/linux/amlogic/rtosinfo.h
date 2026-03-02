@@ -12,7 +12,8 @@ enum ertosstate {
 	ertosstat_off = 0,
 	ertosstat_initializing,
 	ertosstat_working,
-	ertosstat_done
+	ertosstat_done,
+	ertosstat_release,
 };
 
 struct xrtosinfo_t {

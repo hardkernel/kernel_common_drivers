@@ -397,6 +397,13 @@ ipircved:
 #endif
 		ipi_rcv = 1;
 	}
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS_NOFITIER) && IS_ENABLED(CONFIG_AMLOGIC_FREERTOS_T7)
+	else if (cpu == 0 && rtosinfo && !freertos_finished &&
+		 rtosinfo->status == ertosstat_release) {
+		pr_info("rtos release driver notified\n");
+		call_freertos_notifiers(1, NULL);
+	}
+#endif
 	spin_unlock_irqrestore(&freertos_chk_lock, flg);
 
 	if (chk) {
