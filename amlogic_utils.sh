@@ -1887,7 +1887,7 @@ function build_kernel_with_bazel() {
 	echo							>> ${PROJECT_DIR}/project.bzl
 
 	echo "    AMLOGIC_DTBS = ["				>> ${PROJECT_DIR}/project.bzl
-	grep -rn -E 'dtbo-y|dtb-y' ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/boot/dts/*/Makefile | awk -F 'Makefile| |=+' '{print "        \"" $NF "\","}' >> ${PROJECT_DIR}/project.bzl
+	grep -E 'dtbo-y|dtb-y' ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/boot/dts/*/Makefile | grep -v "#\|//" | sed 's/.*:[0-9]*://' | awk '{print $NF}' | sed 's/^/"/; s/$/",/' >> ${PROJECT_DIR}/project.bzl
 	echo "    ],"						>> ${PROJECT_DIR}/project.bzl
 	echo							>> ${PROJECT_DIR}/project.bzl
 
