@@ -271,9 +271,6 @@ CONFIG_CFG80211=y
 #mac80211.ko
 CONFIG_MAC80211=y
 
-#ntfs3.ko
-CONFIG_NTFS3_FS=y
-
 #yaffs.ko
 # CONFIG_AMLOGIC_YAFFS_FS is not set
 
