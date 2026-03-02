@@ -2345,6 +2345,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		/* clear color para*/
 		memset(&devp->pre_prop, 0, sizeof(devp->pre_prop));
 		memset(&devp->prop, 0, sizeof(devp->prop));
+		devp->prop.raw_color_fmt = TVIN_COLOR_FMT_MAX;
 	}
 	devp->debug.slt_test.vf_check_result = false;
 	devp->debug.slt_test.vf_pass_cnt = 0;
