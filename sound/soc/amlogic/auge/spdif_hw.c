@@ -645,7 +645,7 @@ void spdifout_play_with_zerodata(unsigned int spdif_id, bool reenable, int separ
 		/* channel status info */
 		iec_get_channel_status_info(&chsts,
 					    AUD_CODEC_TYPE_STEREO_PCM,
-					    sample_rate, bitwidth, 0);
+					    sample_rate, bitwidth, 0, 0);
 		spdif_set_channel_status_info(&chsts, spdif_id);
 		spdif_set_validity(0, spdif_id);
 

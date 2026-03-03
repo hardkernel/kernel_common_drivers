@@ -43,6 +43,7 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 	struct iec958_chsts chsts;
 	struct aud_para aud_param;
 	unsigned int l_src = 0;
+	unsigned int cp_src = 0;
 
 	pr_info("%s  get_hdmitx_audio_src(rtd->card):%d  spdif_id:%d\n", __func__,
 		get_hdmitx_audio_src(rtd->card), spdif_id);
@@ -64,11 +65,13 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 				lane_i2s);
 
 	l_src = get_spdif_source_l_config(spdif_id);
+	cp_src = get_spdif_source_cp_config(spdif_id);
 	/* check and set channel status */
 	iec_get_channel_status_info(&chsts,
 				    type, runtime->rate,
 				    bit_depth,
-				    l_src);
+				    l_src,
+				    cp_src);
 	spdif_set_channel_status_info(&chsts, spdif_id);
 	spdif_set_validity(0, spdif_id);
 

@@ -314,7 +314,8 @@ void iec_get_channel_status_info(struct iec958_chsts *chsts,
 				 enum aud_codec_types codec_type,
 				 unsigned int rate,
 				 unsigned int bit_depth,
-				 unsigned int l_bit);
+				 unsigned int l_bit,
+				 unsigned int cp_bit);
 
 void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
 			    enum aud_codec_types codec_type);

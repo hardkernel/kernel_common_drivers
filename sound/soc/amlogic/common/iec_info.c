@@ -348,7 +348,8 @@ void iec_get_channel_status_info(struct iec958_chsts *chsts,
 	enum aud_codec_types codec_type,
 	unsigned int rate,
 	unsigned int bit_depth,
-	unsigned int l_bit)
+	unsigned int l_bit,
+	unsigned int cp_bit)
 {
 	int rate_bit = snd_pcm_rate_to_rate_bit(rate);
 
@@ -488,6 +489,10 @@ void iec_get_channel_status_info(struct iec958_chsts *chsts,
 	if (l_bit) {
 		chsts->chstat0_l |= 1 << 15;
 		chsts->chstat0_r |= 1 << 15;
+	}
+	if (cp_bit) {
+		chsts->chstat0_l |= 1 << 2;
+		chsts->chstat0_r |= 1 << 2;
 	}
 	pr_debug("rate: %d, codec_type:0x%x, channel status L:0x%x, R:0x%x\n",
 		 rate,

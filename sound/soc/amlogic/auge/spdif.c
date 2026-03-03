@@ -105,6 +105,7 @@ struct aml_spdif {
 	/* share buffer with module */
 	enum sharebuffer_srcs samesource_sel;
 	unsigned int l_src;
+	unsigned int cp_src;
 	unsigned int syssrc_clk_rate;
 	struct regulator *regulator_vcc3v3;
 	struct regulator *regulator_vcc5v;
@@ -123,6 +124,11 @@ struct aml_spdif {
 unsigned int get_spdif_source_l_config(int id)
 {
 	return spdif_priv[id]->l_src;
+}
+
+unsigned int get_spdif_source_cp_config(int id)
+{
+	return spdif_priv[id]->cp_src;
 }
 
 #define to_aml_spdif(x)   container_of(x, struct aml_spdif, clk_nb)
@@ -933,6 +939,7 @@ static int spdif_get_cs(struct snd_kcontrol *kcontrol,
 }
 
 #define SPDIF_CS_L_SRC   0x1
+#define SPDIF_CS_CP_SRC  0x4
 
 /*
  * func: set spdif channels status
@@ -957,6 +964,15 @@ static int spdif_set_cs(struct snd_kcontrol *kcontrol,
 		} else {
 			status0 &= ~(IEC958_AES1_CON_ORIGINAL << 8);
 			p_spdif->l_src = 0;
+		}
+	}
+	if (mask & SPDIF_CS_CP_SRC) {
+		if (val & SPDIF_CS_CP_SRC) {
+			status0 |= SPDIF_CS_CP_SRC;
+			p_spdif->cp_src = 1;
+		} else {
+			status0 &= ~SPDIF_CS_CP_SRC;
+			p_spdif->cp_src = 0;
 		}
 	}
 	pr_info("%s(), status0=%#x\n", __func__, status0);
@@ -1483,6 +1499,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		enum frddr_dest dst;
 		struct iec958_chsts chsts;
 		unsigned int l_src = 0;
+		unsigned int cp_src = 0;
 
 		switch (p_spdif->id) {
 		case 0:
@@ -1505,12 +1522,14 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		aml_frddr_select_dst(fr, dst);
 
 		l_src = get_spdif_source_l_config(p_spdif->id);
+		cp_src = get_spdif_source_cp_config(p_spdif->id);
 		/* check channel status info, and set them */
 		iec_get_channel_status_info(&chsts,
 					    p_spdif->codec_type,
 					    runtime->rate,
 					    bit_depth,
-					    l_src);
+					    l_src,
+					    cp_src);
 		spdif_set_channel_status_info(&chsts, p_spdif->id);
 		if (codec_is_raw(p_spdif->codec_type))
 			spdif_set_validity(1, p_spdif->id);
