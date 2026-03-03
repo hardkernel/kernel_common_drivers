@@ -2024,10 +2024,119 @@ void rx_21_dfe_en_t6x(u8 port)
 		rx_pr("dfe en\n");
 }
 
+static int convert_signed_value(u32 raw_val, u8 sign_bit_idx)
+{
+	u32 sign_mask = 1 << sign_bit_idx;
+	u32 value_mask = sign_mask - 1;
+
+	if (raw_val & sign_mask)
+		return -(raw_val & value_mask);
+	else
+		return raw_val & value_mask;
+}
+
+void rx_21_eq_adjust(u8 port)
+{
+	u32 data32;
+	u32 ch0_eq_boost1, ch1_eq_boost1, ch2_eq_boost1, ch3_eq_boost1;
+	int dfe0_tap2, dfe1_tap2, dfe2_tap2, dfe3_tap2;
+	int dfe0_tap3, dfe1_tap3, dfe2_tap3, dfe3_tap3;
+	int dfe0_tap4, dfe1_tap4, dfe2_tap4, dfe3_tap4;
+	u32 ch_flag = 0;
+	int normal_ch_count = 0;
+	int eq_boost1_sum = 0;
+	int eq_boost1_avg = 0;
+
+	/* eq_boost1 status */
+	/* mux_eye_en */
+	hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, MUX_EYE_EN, 0x0, port);
+	/* mux_block_sel */
+	hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, MUX_BLOCK_SEL, 0x3, port);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy_t6x(T6X_HDMIRX21PHY_DCH_STAT, port);
+	ch0_eq_boost1 = data32 & 0x1f;
+	ch1_eq_boost1 = (data32 >> 8) & 0x1f;
+	ch2_eq_boost1 = (data32 >> 16) & 0x1f;
+	ch3_eq_boost1 = (data32 >> 24) & 0x1f;
+
+	/* dfe tap2 sts */
+	hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, MUX_EYE_EN, 0x0, port);
+	hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, MUX_BLOCK_SEL, 0x0, port);
+	hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, MUX_DFE_OFST_EYE, 0x2, port);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy_t6x(T6X_HDMIRX21PHY_DCH_STAT, port);
+	dfe0_tap2 = convert_signed_value(data32 & 0x1f, 4);
+	dfe1_tap2 = convert_signed_value((data32 >> 8) & 0x1f, 4);
+	dfe2_tap2 = convert_signed_value((data32 >> 16) & 0x1f, 4);
+	dfe3_tap2 = convert_signed_value((data32 >> 24) & 0x1f, 4);
+	/* dfe tap3 sts */
+	hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, MUX_EYE_EN, 0x0, port);
+	hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, MUX_BLOCK_SEL, 0x0, port);
+	hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, MUX_DFE_OFST_EYE, 0x3, port);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy_t6x(T6X_HDMIRX21PHY_DCH_STAT, port);
+	dfe0_tap3 = convert_signed_value(data32 & 0xf, 3);
+	dfe1_tap3 = convert_signed_value((data32 >> 8) & 0xf, 3);
+	dfe2_tap3 = convert_signed_value((data32 >> 16) & 0xf, 3);
+	dfe3_tap3 = convert_signed_value((data32 >> 24) & 0xf, 3);
+	/* dfe tap4 sts */
+	hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, MUX_EYE_EN, 0x0, port);
+	hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, MUX_BLOCK_SEL, 0x0, port);
+	hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, MUX_DFE_OFST_EYE, 0x4, port);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy_t6x(T6X_HDMIRX21PHY_DCH_STAT, port);
+	dfe0_tap4 = convert_signed_value(data32 & 0xf, 3);
+	dfe1_tap4 = convert_signed_value((data32 >> 8) & 0xf, 3);
+	dfe2_tap4 = convert_signed_value((data32 >> 16) & 0xf, 3);
+	dfe3_tap4 = convert_signed_value((data32 >> 24) & 0xf, 3);
+
+	if (dfe0_tap2 > 0 && dfe0_tap2 + dfe0_tap3 + dfe0_tap4 >= 10 && ch0_eq_boost1 <= 10)
+		ch_flag |= _BIT(0);
+	if (dfe1_tap2 > 0 && dfe1_tap2 + dfe1_tap3 + dfe1_tap4 >= 10 && ch1_eq_boost1 <= 10)
+		ch_flag |= _BIT(1);
+	if (dfe2_tap2 > 0 && dfe2_tap2 + dfe2_tap3 + dfe2_tap4 >= 10 && ch2_eq_boost1 <= 10)
+		ch_flag |= _BIT(2);
+	if (dfe3_tap2 > 0 && dfe3_tap2 + dfe3_tap3 + dfe3_tap4 >= 10 && ch3_eq_boost1 <= 10)
+		ch_flag |= _BIT(3);
+	if (!(ch_flag & _BIT(0))) {
+		eq_boost1_sum += ch0_eq_boost1;
+		normal_ch_count++;
+	}
+	if (!(ch_flag & _BIT(1))) {
+		eq_boost1_sum += ch1_eq_boost1;
+		normal_ch_count++;
+	}
+	if (!(ch_flag & _BIT(2))) {
+		eq_boost1_sum += ch2_eq_boost1;
+		normal_ch_count++;
+	}
+	if (!(ch_flag & _BIT(3))) {
+		eq_boost1_sum += ch3_eq_boost1;
+		normal_ch_count++;
+	}
+	if (normal_ch_count > 0)
+		eq_boost1_avg = eq_boost1_sum / normal_ch_count + 1;
+	if (log_level & PHY_LOG) {
+		rx_pr("dfe_tap2 %d %d %d %d\n", dfe0_tap2, dfe1_tap2, dfe2_tap2, dfe3_tap2);
+		rx_pr("dfe_tap3 %d %d %d %d\n", dfe0_tap3, dfe1_tap3, dfe2_tap3, dfe3_tap3);
+		rx_pr("dfe_tap4 %d %d %d %d\n", dfe0_tap4, dfe1_tap4, dfe2_tap4, dfe3_tap4);
+		rx_pr("eq_boost1=[%d,%d,%d,%d]\n",
+			ch0_eq_boost1, ch1_eq_boost1, ch2_eq_boost1, ch3_eq_boost1);
+		rx_pr("ch flag: 0x%x\n", ch_flag);
+		rx_pr("normal_ch_count: 0x%x eq_boost1_avg =%d\n",
+			normal_ch_count, eq_boost1_avg);
+	}
+	if (ch_flag) {
+		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, EQ_BYP_VAL1,
+			eq_boost1_avg, port);
+		usleep_range(10, 20);
+		hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_EQ, EQ_BYP_EN, 0x1, port);
+	}
+}
+
 void rx_21_eq_cfg_t6x(int f_rate, u8 port)
 {
 	u32 cdr0_int, cdr1_int, cdr2_int, cdr3_int, data32;
-
 	//if pll unlock
 		//return;
 	hdmirx_wr_bits_amlphy_t6x(T6X_HDMIRX21PHY_DCHD_CDR, CDR_FR_EN, 0x0, port);
@@ -2051,6 +2160,9 @@ void rx_21_eq_cfg_t6x(int f_rate, u8 port)
 	rx_21_eq_retry_t6x(port);
 	if (rx_info.aml_phy_21.dfe_en)
 		rx_21_dfe_en_t6x(port);
+	if (rx[port].var.frl_rate == FRL_10G_4LANE &&
+		rx_info.aml_phy_21.eq_adp_chk_en)
+		rx_21_eq_adjust(port);
 	if (rx_info.aml_phy_21.vga_tune &&
 		(rx[port].var.frl_rate == FRL_12G_4LANE ||
 		rx[port].var.frl_rate == FRL_10G_4LANE))

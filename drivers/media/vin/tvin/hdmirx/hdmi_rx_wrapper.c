@@ -345,6 +345,7 @@ void hdmirx_phy_var_init(void)
 		}
 		/* t6x new added */
 		if (rx_info.phy_ver == PHY_VER_T6X) {
+			rx_info.aml_phy_21.eq_adp_chk_en = 1;
 			rx_info.aml_phy_21.pll_bw_21 = 0x51;
 			rx_info.aml_phy_21.cdr_ph_div = 0x8;
 			rx_info.aml_phy_21.cdr_pi_ofst = 0x40;
@@ -3529,6 +3530,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(rx_info.aml_phy_21.cdr_pi_ofst, i++);
 	pr_var(rx_info.aml_phy_21.cdr_ph_div, i++);
 	pr_var(rx_info.aml_phy_21.cable_tuning_en, i++);
+	pr_var(rx_info.aml_phy_21.eq_adp_chk_en, i++);
 	pr_var(rx_info.aml_phy.force_bw, i++);
 	pr_var(rx_info.pre_load.cfg, i++);
 	pr_var(edid_auto_debug, i++);
@@ -4195,6 +4197,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy.force_bw),
 		&rx_info.aml_phy.force_bw, value))
 		return pr_var(rx_info.aml_phy.force_bw, index);
+	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy_21.eq_adp_chk_en),
+		&rx_info.aml_phy_21.eq_adp_chk_en, value))
+		return pr_var(rx_info.aml_phy_21.eq_adp_chk_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx_info.pre_load.cfg),
 		&rx_info.pre_load.cfg, value)) {
 		if (rx_info.chip_id < CHIP_ID_T7 || rx_info.chip_id >= CHIP_ID_T3X) {

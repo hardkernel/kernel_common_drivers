@@ -116,7 +116,8 @@
 //2026.01.29 Fix issue that devices not supporting EDID2.0 silent when EDID auto enabled.
 //2026.01.30 fix issue with incorrect FPS display for QMS signal
 //2026.03.03 fix set kthread priority error
-#define RX_DRV_VER "ver.2026/03/03"
+//2026.03.06 add eq eye monitor
+#define RX_DRV_VER "ver.2026/03/06"
 
 /*print type*/
 #define COR1_LOG	0x10000
@@ -512,6 +513,7 @@ struct rx_aml_phy {
 	u8 cdr_ph_div;
 	u8 cdr_pi_ofst;
 	bool cable_tuning_en;
+	int eq_adp_chk_en;
 };
 
 struct rx_aml_phy_21 {
