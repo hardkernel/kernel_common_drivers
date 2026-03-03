@@ -915,6 +915,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		CODEC_MM_FLAGS_DMA;
 	unsigned int max_buffer_num = devp->dts_config.min_buf_num;
 	unsigned int i, j;
+	int ret = 0;
+	bool task_pending = false;
 #if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 	unsigned int res = 0;
 #endif
@@ -965,8 +967,9 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				vdin_set_canvas_addr[0].size * max_buffer_num;
 		devp->mem_size = mem_size;
 		devp->cma_mem_alloc = 1;
-		pr_info("vdin%d keystone cma alloc %d buffers ok!\n",
-			devp->index, devp->vf_mem_max_cnt);
+		pr_info("vdin%d canvas alloc %d buffers ok! (keystone:%d, drm:%d)\n",
+			devp->index, devp->vf_mem_max_cnt,
+			devp->set_canvas_manual, devp->cfg_dma_buf);
 		return 0;
 	}
 
@@ -978,7 +981,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		max_buffer_num       = devp->v4l2_req_buf_num;
 		devp->canvas_max_num = devp->v4l2_req_buf_num;
 		devp->vf_mem_max_cnt  = devp->v4l2_req_buf_num;
-		pr_info("%s vdin%d max_buffer_num = %d!\n", __func__,
+		pr_info("vdin%d v4l2 max_buffer_num = %d!\n",
 			devp->index, devp->vf_mem_max_cnt);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_TEE)
@@ -993,8 +996,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		else
 			devp->mem_protected = 1;
 		if (devp->debug.vdin_dbg_en)
-			pr_info("%s(): vdin%d v4l2 secure mem protect: %d (addr:0x%lx, size:0x%x)\n",
-				__func__, devp->index, devp->mem_protected,
+			pr_info("vdin%d v4l2 secure mem protect: %d (addr:0x%lx, size:0x%x)\n",
+				devp->index, devp->mem_protected,
 				devp->secure_mem_start, devp->secure_mem_size);
 	}
 #endif
@@ -1006,8 +1009,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				/*add for 1g config, codec can't release mem in time*/
 				for (j = 0; j < 20; j++) {
 					if (fatal_signal_pending(current)) {
-						pr_err("vdin%d code_mm alloc task %d pending!!\n",
-							devp->index, current->pid);
+						task_pending = true;
 						break;
 					}
 					mem = codec_mm_alloc(vdin_name,
@@ -1027,9 +1029,9 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 					}
 				}
 
-				if (j >= 20) {
-					pr_err("vdin%d buf[%d]codec alloc fail!!!\n",
-					       devp->index, i);
+				if (j >= 20 || task_pending) {
+					pr_err("vdin%d buf[%d]codec alloc fail! try:%d, task:%d\n",
+					       devp->index, i, j, task_pending);
 					/*real buffer number*/
 					max_buffer_num = i;
 					devp->canvas_max_num = i;
@@ -1064,19 +1066,18 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				codec_mm_alloc_for_dma(vdin_name, mem_size / PAGE_SIZE, 0, flags);
 
 			if (devp->mem_start == 0) {
-				pr_err("vdin%d codec alloc fail!!!\n", devp->index);
+				ret = -2;
 				devp->cma_mem_alloc = 0;
-				return 1;
+				goto mem_alloc_error;
 			}
 		} else {
 			devp->venc_pages =
 				dma_alloc_from_contiguous(&devp->this_pdev->dev,
 							  mem_size >> PAGE_SHIFT, 0, 0);
 			if (!devp->venc_pages) {
+				ret = -3;
 				devp->cma_mem_alloc = 0;
-				pr_err("vdin%d cma mem undefined2.\n",
-				       devp->index);
-				return 1;
+				goto mem_alloc_error;
 			}
 			devp->mem_start = page_to_phys(devp->venc_pages);
 		}
@@ -1159,10 +1160,12 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		int highmem_flag = 0;
 		unsigned long *table;
 		//void *buf_table = NULL;
-		if (devp->afbce_info)
+		if (devp->afbce_info) {
 			table = &devp->afbce_info->fm_table_paddr[0];
-		else
-			return 1;
+		} else {
+			ret = -4;
+			goto mem_alloc_error;
+		}
 		highmem_flag = PageHighMem(phys_to_page(table[0]));
 		if (highmem_flag == 0) {
 			/*low mem area*/
@@ -1196,12 +1199,15 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		devp->vf_mem_max_cnt);
 
 	if (devp->vf_mem_max_cnt < devp->dts_config.min_buf_num && !devp->is_one_buffer) {
-		pr_info("vdin%d cma alloc num too less need release\n", devp->index);
+		ret = -6;
 		vdin_cma_release(devp);
-		return 1;
+		goto mem_alloc_error;
 	}
 
 	return 0;
+mem_alloc_error:
+	pr_err("vdin%d mem alloc error:%d", devp->index, ret);
+	return 1;
 }
 
 /*this function used for codec cma release

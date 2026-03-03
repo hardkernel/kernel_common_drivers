@@ -1929,11 +1929,8 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 
 #ifdef CONFIG_CMA
 	vdin_cma_malloc_mode(devp);
-	if (vdin_cma_alloc(devp)) {
-		pr_err("vdin%d %s fail for cma alloc fail!!!\n",
-		       devp->index, __func__);
+	if (vdin_cma_alloc(devp))
 		return -1;
-	}
 	vdin_mem_memset(devp);
 #endif
 

@@ -440,8 +440,6 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 				vdin_get_format_convert(devp);
 			}
 			devp->csc_cfg = 1;
-			pre_prop->color_format = prop->color_format;
-			pre_prop->color_fmt_range = prop->color_fmt_range;
 		}
 	}
 
