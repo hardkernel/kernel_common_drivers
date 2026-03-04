@@ -558,7 +558,7 @@ static u32 safa_speed_up_handle(struct vsr_setting_s *vsr)
 	u32 input_time = 0, display_time = 0;
 	u32 clk_in_pps = vpu_clk_get();
 
-	if ((vinfo->width == 3840 && vinfo->height == 2160) &&
+	if ((vinfo->width >= 3840 && vinfo->height == 2160) &&
 		!skip_safa_speed_up)
 		performance_skip = false;
 
