@@ -23,6 +23,7 @@ int query_decoder_mem(int inst_id, bool tvp_flag)
 	int yuv_size = 0;
 	int coherent_size = 0;
 	int sc_size = 0;
+	int pre_size = 0;
 
 	codec_mm_mgt_lock(&flags);
 	mem_list = codec_mm_get_list_head();
@@ -44,6 +45,9 @@ int query_decoder_mem(int inst_id, bool tvp_flag)
 			case CODEC_MM_TYPE_COHERENT:
 				coherent_size += mem->page_count;
 				break;
+			case CODEC_MM_TYPE_PREALLOC:
+				pre_size += mem->page_count;
+				break;
 			default:
 				break;
 			}
@@ -51,11 +55,11 @@ int query_decoder_mem(int inst_id, bool tvp_flag)
 	}
 	codec_mm_mgt_unlock(&flags);
 	sc_size = codec_mm_query_sc_buf(inst_id, CODEC_MM_MODULE_DECODER, tvp_flag);
-	total_pages = wk_size + es_size + yuv_size + coherent_size + sc_size;
+	total_pages = wk_size + es_size + yuv_size + coherent_size + sc_size + pre_size;
 
 	if (codec_mm_get_debug_mode() & 0x80) {
-		pr_err("dec mem details: wk %d, es %d, yuv %d, coherent %d, sc %d\n",
-			wk_size, es_size, yuv_size, coherent_size, sc_size);
+		pr_err("dec mem details: wk %d, es %d, yuv %d, coherent %d, sc %d pre_size %d\n",
+			wk_size, es_size, yuv_size, coherent_size, sc_size, pre_size);
 
 		pr_err("dec mem details: inst_id %d, total_pages %d\n",
 			inst_id, total_pages);
@@ -80,8 +84,8 @@ void codec_mm_update_info(void *handle, int inst_id, enum codec_mm_module_type m
 	mem->mem_type = mem_type;
 
 	if (codec_mm_get_debug_mode() & 0x80)
-		pr_err("update mem info: inst_id %d, module_type %d, mem_type %d\n",
-			inst_id, module_type, mem_type);
+		pr_err("update mem info: inst_id %d, module_type %d, mem_type %d, page_cnt %d\n",
+			inst_id, module_type, mem_type, mem->page_count);
 }
 EXPORT_SYMBOL(codec_mm_update_info);
 

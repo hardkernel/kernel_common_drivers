@@ -18,6 +18,7 @@
 #include <linux/printk.h>
 #include <linux/hashtable.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+#include <linux/amlogic/media/codec_mm/codec_mm_mem_info.h>
 
 #include "codec_mm_priv.h"
 
@@ -294,6 +295,9 @@ static int prealloc_boost_work_func(void *prealloc_data)
 			spin_unlock(&pre_mgt->job_list_lock);
 			job->mem = codec_mm_alloc(PRE_MEM, job->size,
 				job->align_2n, job->memflags, job->inst_id);
+			if (job->mem)
+				codec_mm_update_info(job->mem, job->inst_id,
+					CODEC_MM_MODULE_DECODER, CODEC_MM_TYPE_PREALLOC);
 			complete(&job->done);
 		}
 next:

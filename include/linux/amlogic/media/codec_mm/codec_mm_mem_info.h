@@ -18,6 +18,7 @@ enum codec_mm_buf_type {
 	CODEC_MM_TYPE_WK = 4,
 	CODEC_MM_TYPE_COHERENT = 5,
 	CODEC_MM_TYPE_SCATTER = 6,
+	CODEC_MM_TYPE_PREALLOC = 7,
 	CODEC_MM_TYPE_MAX,
 };
 
@@ -36,6 +37,7 @@ struct codec_mm_dec_mem_info {
 	int wk_buf_size;
 	int coherent_buf_size;
 	int sc_buf_size;
+	int pre_buf_size;
 };
 
 struct codec_mm_mem_info {
