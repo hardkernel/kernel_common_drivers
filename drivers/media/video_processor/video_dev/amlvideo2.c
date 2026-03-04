@@ -6404,6 +6404,7 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 			return ret;
 		}
 		node->pflag = false;
+		mutex_unlock(&fh->mutex);
 		break;
 
 	default:
@@ -6411,7 +6412,6 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 		break;
 	}
 
-	mutex_unlock(&fh->mutex);
 	if (amlvideo2_dbg_en)
 		pr_info("finish %s. ret = %d\n", __func__, ret);
 
