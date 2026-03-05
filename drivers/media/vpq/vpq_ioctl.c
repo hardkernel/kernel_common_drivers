@@ -1448,7 +1448,7 @@ int vpq_ioctl_get_signal_info(struct file *file, unsigned long arg)
 int vpq_ioctl_get_dv_cfg_support(struct file *file, unsigned long arg)
 {
 	struct vpq_dv_cfg_support_s param = {0};
-	const int PIC_MODE_ID_MIN = 1;
+	const int PIC_MODE_ID_MIN = 0;
 	const int PIC_MODE_ID_MAX = 4;
 
 	if (copy_from_user(&param, (void __user *)arg, sizeof(struct vpq_dv_cfg_support_s))) {
