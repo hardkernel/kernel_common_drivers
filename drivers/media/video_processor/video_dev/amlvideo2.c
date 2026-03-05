@@ -6382,26 +6382,28 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 			}
 		}
 
-		//0x2 for judge vdin1 if already start
-		if (get_vdin_status(0) & 0x2) {
-			ret = amlvideo2_stop_tvin_service(node);
+		if (node->vdin1_is_start) {
+			//0x2 for judge vdin1 if already start
+			if (get_vdin_status(0) & 0x2) {
+				ret = amlvideo2_stop_tvin_service(node);
+				if (ret < 0) {
+					mutex_unlock(&fh->mutex);
+					pr_err("stop tvin service failed.\n");
+					node->pflag = false;
+					return ret;
+				}
+			}
+
+			if (node->r_type == AML_RECEIVER_NONE)
+				amlvideo2_start_thread(node->fh);
+
+			ret = amlvideo2_start_tvin_service(node);
 			if (ret < 0) {
 				mutex_unlock(&fh->mutex);
-				pr_err("stop tvin service failed.\n");
+				pr_err("start tvin service failed.\n");
 				node->pflag = false;
 				return ret;
 			}
-		}
-
-		if (node->r_type == AML_RECEIVER_NONE)
-			amlvideo2_start_thread(node->fh);
-
-		ret = amlvideo2_start_tvin_service(node);
-		if (ret < 0) {
-			mutex_unlock(&fh->mutex);
-			pr_err("start tvin service failed.\n");
-			node->pflag = false;
-			return ret;
 		}
 		node->pflag = false;
 		mutex_unlock(&fh->mutex);
