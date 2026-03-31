@@ -678,32 +678,23 @@
 		regulator-always-on;
 	};
 
-	TFLASH_VDD: fixed@sdcard-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "TFLASH_VDD";
-		vin-supply = <&VCC5V>;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		// GPIOH_6(Up) Output H= Enable SD_3V3
-		gpio = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
-		enable-active-high; //3.3V , high: 0V
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
 	VDDIO_C: gpio@sdcard-1v8_3v3 {
 		compatible = "regulator-gpio";
 		regulator-name = "VDDIO_C";
 		vin-supply = <&VCC5V>;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
-		// GPIODV_4(DOWN) H: 1.8V, L: 3.3V
-		gpio = <&gpio GPIODV_4 GPIO_ACTIVE_HIGH>;
-		gpios-states = <0>;
+		regulator-boot-on;
 
+		enable-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		/* GPIODV_4(DOWN) H: 1.8V, L: 3.3V */
+		gpios = <&gpio GPIODV_4 GPIO_ACTIVE_HIGH>;
+		gpios-states = <0>;
 		/* Based on P200 schematics, signal CARD_1.8V/3.3V_CTR */
 		states = <1800000 1
 			  3300000 0>;
+		startup-delay-us = <100000>;
+		enable-active-high;
 	};
 
 	gpio_power_buttons: gpio-power-buttons {
@@ -964,11 +955,10 @@
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
-	max-frequency = <200000000>;
+	max-frequency = <190000000>;
 	disable-wp;
 
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
-	vmmc-supply = <&TFLASH_VDD>;
 	vqmmc-supply = <&VDDIO_C>;
 };
 
