@@ -686,7 +686,6 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 
-		enable-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
 		/* GPIODV_4(DOWN) H: 1.8V, L: 3.3V */
 		gpios = <&gpio GPIODV_4 GPIO_ACTIVE_HIGH>;
 		gpios-states = <0>;
@@ -694,7 +693,6 @@
 		states = <1800000 1
 			  3300000 0>;
 		startup-delay-us = <100000>;
-		enable-active-high;
 	};
 
 	gpio_power_buttons: gpio-power-buttons {
@@ -715,11 +713,20 @@
 
 	gpio-reset {
 		compatible = "linux,gpio-reset";
+		#address-cells = <0>;
+		#size-cells = <0>;
 
 		usb_hub {
 			gpios = <&gpio GPIOX_19 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 			asserted-state = <0>;
 			duration-ms = <100>;
+		};
+
+		sd_reset: micro-sd {
+			gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+			asserted-state = <0>;
+			duration-ms = <100>;
+			#reset-cells = <0>;
 		};
 	};
 };
@@ -960,6 +967,7 @@
 
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
 	vqmmc-supply = <&VDDIO_C>;
+	resets = <&sd_reset>;
 };
 
 &sd_emmc_c {
