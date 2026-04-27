@@ -849,10 +849,22 @@
 	pinctrl-names = "default";
 };
 
+&periphs_pinctrl {
+	spicc0_pins_x_sw: spicc0_pins_x_sw {
+		mux {
+			groups = "spi_a_mosi_x8",
+			         "spi_a_miso_x9",
+			         /*"spi_a_ss0_x10",*/
+			         "spi_a_clk_x11";
+			function = "spi_a";
+		};
+	};
+};
+
 &spicc0 {
 	status = "disabled";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spicc0_pins_z>;
+	pinctrl-0 = <&spicc0_pins_x_sw>;
 };
 
 &fb {
