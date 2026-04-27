@@ -203,3 +203,5 @@ dtb-y += s6_a311y2s_bq220_16g.dtb
 dtb-y += s6_a311y2s_bq220_sdio.dtb
 
 DTC_FLAGS_s7d_s905x5m_odroidc5 := -@
+
+subdir-y += overlays/odroidc5
