@@ -68,6 +68,9 @@ obj-$(CONFIG_AMLOGIC_MEDIA_ALGORITHM)	+= algorithm/
 obj-$(CONFIG_AMLOGIC_SOC_TIMESTAMP)	+= timestamp/
 obj-$(CONFIG_AMLOGIC_SECKEY)		+= seckey/
 obj-$(CONFIG_AMLOGIC_USBCAM)		+= dvb_usbci/
+obj-$(CONFIG_MALI_MIDGARD)		+= gpu/arm/
+obj-$(CONFIG_MALI_BASE_MODULES)		+= base/arm/
+obj-$(CONFIG_MALI_CORESIGHT)		+= hwtracing/coresight/mali/
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_KERNEL_MODULE_PREDEFINE)
 all:
