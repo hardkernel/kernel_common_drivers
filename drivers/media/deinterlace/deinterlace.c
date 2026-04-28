@@ -786,6 +786,7 @@ store_dbg(struct device *dev,
 	return count;
 }
 
+#ifndef MODULE
 static int di_read_canvas_reverse(char *str)
 {
 	unsigned char *ptr = str;
@@ -802,6 +803,7 @@ static int di_read_canvas_reverse(char *str)
 	return 0;
 }
 __setup("video_reverse=", di_read_canvas_reverse);
+#endif //MODULE
 
 static unsigned char *di_log_buf;
 static unsigned int di_log_wr_pos;

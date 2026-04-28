@@ -657,6 +657,7 @@ MODULE_PARM_DESC(btwake_evt, "btwake_evt");
 /**************** bt mac *****************/
 
 //static int __init mac_addr_set(char *line)
+#ifndef MODULE
 static int mac_addr_set(char *line)
 {
 	if (line) {
@@ -670,4 +671,5 @@ static int mac_addr_set(char *line)
 }
 
 __setup("mac_bt=", mac_addr_set);
+#endif //MODULE
 

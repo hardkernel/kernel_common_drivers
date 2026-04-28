@@ -69,6 +69,7 @@ static unsigned int scramble_reg;
 void __iomem *scramble_vaddr;
 __module_param(scramble_reg, uint, 0644);
 
+#ifndef MODULE
 static int scramble_reg_setup(char *buf)
 {
 	if (!buf)
@@ -83,6 +84,7 @@ static int scramble_reg_setup(char *buf)
 	return 1;
 }
 __setup("scramble_reg=", scramble_reg_setup);
+#endif //MODULE
 
 /*
  * scramble_clear_preserve() will clear scramble_reg bit0,

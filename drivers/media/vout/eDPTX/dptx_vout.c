@@ -1088,6 +1088,7 @@ void __exit eDPTX_TX_exit(void)
 	platform_driver_unregister(&eDP_platform_driver);
 }
 
+#ifndef MODULE
 static int __dptx_bootargs_setup(char *str)
 {
 	int ret = 0;
@@ -1128,6 +1129,7 @@ static int __dptx_bootargs_setup(char *str)
 }
 
 __setup("eDPTX=", __dptx_bootargs_setup);
+#endif //MODULE
 
 struct dptx_drv_s *aml_dptx_get_driver(u8 drv_idx)
 {

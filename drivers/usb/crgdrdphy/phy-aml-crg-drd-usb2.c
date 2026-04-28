@@ -44,6 +44,7 @@ struct amlogic_usb_v2	*g_crg_drd_phy2[3];
 char name_crg[32];
 static bool aml_usb2_phy_960m;
 
+#ifndef MODULE
 static int get_u2phy_speed(char *str)
 {
 	int ret;
@@ -56,6 +57,7 @@ static int get_u2phy_speed(char *str)
 }
 
 __setup("usb2t_mode=", get_u2phy_speed);
+#endif //MODULE
 
 static inline bool aml_crg_drd_usb2_hsp(struct amlogic_usb_v2 *phy)
 {

@@ -25,6 +25,7 @@
 bool force_device_mode;
 module_param_named(otg_device, force_device_mode,
 		bool, 0644);
+#ifndef MODULE
 static char otg_mode_string[2] = "0";
 
 static int force_otg_mode(char *s)
@@ -38,6 +39,7 @@ static int force_otg_mode(char *s)
 	return 1;
 }
 __setup("otg_device=", force_otg_mode);
+#endif //MODULE
 
 int get_otg_mode(void)
 {

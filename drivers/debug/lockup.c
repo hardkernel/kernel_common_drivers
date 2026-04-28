@@ -88,6 +88,7 @@ static int isr_check_en = 1;
 static int idle_check_en = 1;
 static int smc_check_en = 1;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_GKI_TOOL)
 static struct param_entry lockup_params[] = {
 	PARAM_ULLONG(isr_long_thr),
 	PARAM_ULONG(isr_ratio_thr),
@@ -99,6 +100,7 @@ static struct param_entry lockup_params[] = {
 };
 
 module_param_cb(debug_lockup, &key_value_param_ops, &lockup_params, 0644);
+#endif
 
 #if (defined CONFIG_ARM64) || (defined CONFIG_AMLOGIC_ARMV8_AARCH32)
 #define FIQ_DEBUG_SMC_CMD	0x820000f1
@@ -107,6 +109,7 @@ module_param_cb(debug_lockup, &key_value_param_ops, &lockup_params, 0644);
 
 static int fiq_check_en = 1;
 
+#ifndef MODULE
 static int fiq_check_en_setup(char *str)
 {
 	if (!strcmp(str, "1"))
@@ -118,9 +121,11 @@ static int fiq_check_en_setup(char *str)
 	return 1;
 }
 __setup("fiq_check_en=", fiq_check_en_setup);
+#endif //MODULE
 
 static int fiq_check_show_regs_en;
 
+#ifndef MODULE
 static int fiq_check_show_regs_en_setup(char *str)
 {
 	if (!strcmp(str, "1"))
@@ -132,6 +137,7 @@ static int fiq_check_show_regs_en_setup(char *str)
 	return 1;
 }
 __setup("fiq_check_show_regs_en=", fiq_check_show_regs_en_setup);
+#endif //MODULE
 
 struct fiq_regs {
 	u64 regs[31];
@@ -1120,6 +1126,7 @@ static void fiq_debug_addr_init(void)
 
 static int aml_panic_print;
 
+#ifndef MODULE
 static int panic_print_setup(char *str)
 {
 	aml_panic_print = 1;
@@ -1127,6 +1134,7 @@ static int panic_print_setup(char *str)
 	return 1;
 }
 __setup("panic_print=", panic_print_setup);
+#endif
 
 static int debug_panic_notifier_func(struct notifier_block *self,
 					unsigned long v, void *p)

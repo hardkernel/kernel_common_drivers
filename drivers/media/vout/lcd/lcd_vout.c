@@ -3120,6 +3120,7 @@ void __exit lcd_exit(void)
 	platform_driver_unregister(&lcd_platform_driver);
 }
 
+#ifndef MODULE
 static void lcd_boot_ctrl_dft_prepare(struct lcd_boot_ctrl_s *boot_ctrl)
 {
 	switch (boot_ctrl->init_level) {
@@ -3239,6 +3240,7 @@ __setup("lcd0=", lcd0_boot_setup);
 __setup("lcd1=", lcd1_boot_setup);
 __setup("lcd2=", lcd2_boot_setup);
 __setup("lcd_debug=", lcd_debug_ctrl_setup);
+#endif //MODULE
 
 //MODULE_DESCRIPTION("Meson LCD Panel Driver");
 //MODULE_LICENSE("GPL");

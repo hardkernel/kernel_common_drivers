@@ -69,6 +69,7 @@ static bool enable_debugmode;
 
 int vout_debug_print;
 
+#ifndef MODULE
 static int vout_print_enable(char *str)
 {
 	if (strncmp("1", str, 1) == 0)
@@ -79,6 +80,7 @@ static int vout_print_enable(char *str)
 	return 1;
 }
 __setup("vout_print=", vout_print_enable);
+#endif //MODULE
 
 /* ********************************************************** */
 static irqreturn_t vout_vsync_irq_handler(int irq, void *data)
@@ -1292,6 +1294,7 @@ __exit void vout_exit_module(void)
 	platform_driver_unregister(&vout_driver);
 }
 
+#ifndef MODULE
 static int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -1414,6 +1417,7 @@ static int get_connector_type_to_compat(char *str)
 }
 
 __setup("connector_type=", get_connector_type_to_compat);
+#endif //MODULE
 
 /*TODO: drm to disable display/mode sysfs set.*/
 void disable_vout_mode_set_sysfs(void)

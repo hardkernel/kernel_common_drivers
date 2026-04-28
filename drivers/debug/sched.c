@@ -68,6 +68,7 @@ static int sched_pick_next_task_debug;
 static int sched_pick_next_task_wait_socre = 10; //1ms+
 static int sched_pick_next_task_ignore_wait_prio = 120;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_GKI_TOOL)
 static struct param_entry sched_params[] = {
 	PARAM_INT(sched_big_weight),
 	PARAM_INT(sched_interactive_task_util),
@@ -88,6 +89,7 @@ static struct param_entry sched_params[] = {
 };
 
 module_param_cb(debug_sched, &key_value_param_ops, &sched_params, 0644);
+#endif
 
 #ifdef CONFIG_SMP
 static inline bool should_honor_rt_sync(struct rq *rq, struct task_struct *p,

@@ -77,6 +77,7 @@ module_param(wdt_debug, int, 0644);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 static unsigned int watchdog_enabled = 1;
+#ifndef MODULE
 static int get_watchdog_enabled_env(char *str)
 {
 	int ret;
@@ -88,10 +89,12 @@ static int get_watchdog_enabled_env(char *str)
 	return 1;
 }
 __setup("watchdog_enabled=", get_watchdog_enabled_env);
+#endif
 
 static int stop_after_panic;
 module_param(stop_after_panic, int, 0644);
 MODULE_PARM_DESC(stop_after_panic, "Stop watchdog after panic (0=keep watching, 1=stop)");
+#ifndef MODULE
 static int get_stop_after_panic_env(char *str)
 {
 	int ret;
@@ -111,6 +114,7 @@ static int wdt_panic_print_setup(char *str)
 	return 1;
 }
 __setup("panic_print=", wdt_panic_print_setup);
+#endif //MODULE
 #endif
 
 static int meson_gxbb_wdt_start(struct watchdog_device *wdt_dev)

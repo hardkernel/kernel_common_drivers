@@ -3801,6 +3801,7 @@ void __exit aml_bl_exit(void)
 	platform_driver_unregister(&aml_bl_driver);
 }
 
+#ifndef MODULE
 static int aml_bl_level_setup(char *str)
 {
 	int ret = 0;
@@ -3846,6 +3847,7 @@ static int aml_bl2_level_setup(char *str)
 __setup("bl_level=", aml_bl_level_setup);
 __setup("bl1_level=", aml_bl1_level_setup);
 __setup("bl2_level=", aml_bl2_level_setup);
+#endif //MODULE
 
 //MODULE_DESCRIPTION("AML Backlight Driver");
 //MODULE_LICENSE("GPL");

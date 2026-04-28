@@ -61,6 +61,7 @@ static int skip_logo;
 int recovery_mode;
 struct meson_drm_param am_drm_param;
 
+#ifndef MODULE
 static int check_reboot_mode(char *str)
 {
 	if (strncmp("qui", str, 3) == 0)
@@ -79,6 +80,7 @@ static int check_reboot_mode(char *str)
 }
 
 __setup("reboot_mode=", check_reboot_mode);
+#endif
 
 static const struct drm_mode_config_funcs meson_mode_config_funcs = {
 	.atomic_check        = drm_atomic_helper_check,

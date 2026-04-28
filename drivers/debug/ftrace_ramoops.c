@@ -41,6 +41,7 @@ static DEFINE_PER_CPU(int, en);
 
 static int ramoops_io_blacklist = IO_BLACKLIST_AMVECM;
 
+#ifndef MODULE
 static int ramoops_io_blacklist_setup(char *buf)
 {
 	if (!buf)
@@ -54,6 +55,7 @@ static int ramoops_io_blacklist_setup(char *buf)
 	return 1;
 }
 __setup("ramoops_io_blacklist=", ramoops_io_blacklist_setup);
+#endif //MODULE
 
 static unsigned int check_reg[MAX_DETECT_REG];
 static unsigned int check_mask[MAX_DETECT_REG];
@@ -143,6 +145,7 @@ static bool is_in_usb_isr(void)
 static int reg_check_panic;
 static bool reg_check_flag;
 
+#ifndef MODULE
 static int reg_check_panic_setup(char *buf)
 {
 	if (!buf)
@@ -156,6 +159,7 @@ static int reg_check_panic_setup(char *buf)
 	return 1;
 }
 __setup("reg_check_panic=", reg_check_panic_setup);
+#endif //MODULE
 
 void reg_check_init(void)
 {
@@ -235,6 +239,7 @@ void reg_check_func(unsigned long vaddr, unsigned int flag)
 	rcu_read_unlock();
 }
 
+#ifndef MODULE
 static int check_reg_setup(char *ptr)
 {
 	char *str_entry;
@@ -283,6 +288,7 @@ static int check_mask_setup(char *ptr)
 }
 
 __setup("check_mask=", check_mask_setup);
+#endif //MODULE
 
 #define REG_MAX_NUM	5
 static struct resource gic_mem[REG_MAX_NUM];

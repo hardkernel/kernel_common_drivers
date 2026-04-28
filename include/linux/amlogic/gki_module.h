@@ -6,6 +6,7 @@
 #ifndef __GKI_MODULE_AMLOGIC_H
 #define __GKI_MODULE_AMLOGIC_H
 
+#ifdef CONFIG_AMLOGIC_GKI_TOOL
 #define GKI_MODULE_SETUP_MAGIC1 0x014589cd
 #define GKI_MODULE_SETUP_MAGIC2 0x2367abef
 
@@ -130,4 +131,5 @@ struct param_entry {
 extern struct kernel_param_ops key_value_param_ops;
 
 int amlogic_class_debug_create_dir(const struct attribute_group *group, int debug_level);
+#endif //CONFIG_AMLOGIC_GKI_TOOL
 #endif //__GKI_MODULE_AMLOGIC_H

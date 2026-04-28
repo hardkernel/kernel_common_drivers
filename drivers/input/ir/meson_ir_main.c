@@ -34,6 +34,7 @@
 static atomic_t meson_ir_dev_no = ATOMIC_INIT(-1);
 
 static int disable_ir;
+#ifndef MODULE
 static int get_irenv(char *str)
 {
 	int ret;
@@ -45,6 +46,7 @@ static int get_irenv(char *str)
 }
 
 __setup("disable_ir=", get_irenv);
+#endif //MODULE
 
 int meson_ir_read_dev_num(void)
 {

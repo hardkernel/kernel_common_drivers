@@ -49,6 +49,7 @@ EXPORT_SYMBOL(ramoops_ftrace_en);
 int ramoops_trace_mask = 0x1f;
 EXPORT_SYMBOL(ramoops_trace_mask);
 
+#ifndef MODULE
 static int ramoops_trace_mask_setup(char *buf)
 {
 	if (!buf)
@@ -62,9 +63,11 @@ static int ramoops_trace_mask_setup(char *buf)
 	return 1;
 }
 __setup("ramoops_trace_mask=", ramoops_trace_mask_setup);
+#endif //MODULE
 
 int ramoops_io_skip;
 
+#ifndef MODULE
 static int ramoops_io_skip_setup(char *buf)
 {
 	if (!buf)
@@ -81,9 +84,11 @@ static int ramoops_io_skip_setup(char *buf)
 	return 1;
 }
 __setup("ramoops_io_skip=", ramoops_io_skip_setup);
+#endif //MODULE
 
 int ramoops_io_stack = 1;
 
+#ifndef MODULE
 static int ramoops_io_stack_setup(char *buf)
 {
 	if (!buf)
@@ -97,6 +102,7 @@ static int ramoops_io_stack_setup(char *buf)
 	return 1;
 }
 __setup("ramoops_io_stack=", ramoops_io_stack_setup);
+#endif //MODULE
 
 /*
  * module_debug = 0:disable insmod/rmmod
@@ -104,6 +110,7 @@ __setup("ramoops_io_stack=", ramoops_io_stack_setup);
  * module_debug > 1:enable rmmod
  */
 static int module_debug = 2;
+#ifndef MODULE
 static int module_debug_setup(char *buf)
 {
 	if (!buf)
@@ -117,9 +124,11 @@ static int module_debug_setup(char *buf)
 	return 1;
 }
 __setup("module_debug=", module_debug_setup);
+#endif //MODULE
 
 static int ramoops_io_en;
 
+#ifndef MODULE
 static int ramoops_io_en_setup(char *buf)
 {
 	if (!buf)
@@ -133,9 +142,11 @@ static int ramoops_io_en_setup(char *buf)
 	return 0;
 }
 __setup("ramoops_io_en=", ramoops_io_en_setup);
+#endif //MODULE
 
 int ramoops_io_dump = 1;
 
+#ifndef MODULE
 static int ramoops_io_dump_setup(char *buf)
 {
 	if (!buf)
@@ -149,12 +160,14 @@ static int ramoops_io_dump_setup(char *buf)
 	return 1;
 }
 __setup("ramoops_io_dump=", ramoops_io_dump_setup);
+#endif //MODULE
 
 /* ramoops_io_dump_delay_secs : iotrace dump delayed time, s */
 static int ramoops_io_dump_delay_secs = 10; /* default : 10s */
 
 static struct delayed_work iotrace_work;
 
+#ifndef MODULE
 static int ramoops_io_dump_delay_secs_setup(char *buf)
 {
 	if (!buf)
@@ -168,6 +181,7 @@ static int ramoops_io_dump_delay_secs_setup(char *buf)
 	return 1;
 }
 __setup("ramoops_io_dump_delay_secs=", ramoops_io_dump_delay_secs_setup);
+#endif //MODULE
 
 struct prz_record_iter {
 	void *ptr;
@@ -360,6 +374,7 @@ static inline size_t buffer_start(struct aml_persistent_ram_zone *prz)
 }
 
 static char reboot_mode[16];
+#ifndef MODULE
 static int reboot_mode_setup(char *s)
 {
 	if (s)
@@ -368,6 +383,7 @@ static int reboot_mode_setup(char *s)
 	return 1;
 }
 __setup("reboot_mode=", reboot_mode_setup);
+#endif //MODULE
 
 static bool is_shutdown_reboot(void)
 {

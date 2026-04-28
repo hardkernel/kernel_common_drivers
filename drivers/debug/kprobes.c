@@ -88,6 +88,8 @@ static int ignore_check_tty_count = 20000;
 module_param(ignore_check_tty_count, int, 0644);
 
 static int check_tty_en;
+
+#ifndef MODULE
 static int check_tty_en_setup(char *buf)
 {
 	if (!buf)
@@ -103,6 +105,7 @@ static int check_tty_en_setup(char *buf)
 	return 1;
 }
 __setup("check_tty_en=", check_tty_en_setup);
+#endif //MODULE
 
 static int __nocfi __kprobes check_tty_count_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {

@@ -37,6 +37,7 @@ static DEFINE_MUTEX(cluster_list_lock);
 static DEFINE_MUTEX(cpufreq_target_lock);
 
 static unsigned int freqmax[CLUSTER_MAX];
+#ifndef MODULE
 static int freqmax0_param_v2(char *buff)
 {
 	if (!buff)
@@ -61,6 +62,7 @@ static int freqmax1_param_v2(char *buff)
 
 __setup("freqmax0=", freqmax0_param_v2);
 __setup("freqmax1=", freqmax1_param_v2);
+#endif //MODULE
 
 static struct cluster_data *find_cluster_data_by_cpu(int cpu)
 {

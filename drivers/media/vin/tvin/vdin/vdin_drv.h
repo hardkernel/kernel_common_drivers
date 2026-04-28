@@ -1420,7 +1420,9 @@ extern bool vf_log_be;
 extern unsigned int vf_list_dbg;
 extern unsigned int vf_move_print_cnt;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_GKI_TOOL)
 extern struct param_entry vdin_params[];
+#endif
 
 struct vframe_provider_s *vf_get_provider_by_name(const char *provider_name);
 extern bool enable_reset;

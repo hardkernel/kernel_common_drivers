@@ -46,6 +46,7 @@ static struct hrtimer ddr_hrtimer_timer;
 struct ddr_bandwidth *aml_db;
 
 static int init_ots_level = -1;
+#ifndef MODULE
 static int ots_level_setup(char *str)
 {
 	int val;
@@ -60,8 +61,10 @@ static int ots_level_setup(char *str)
 	return 1;
 }
 __setup("ots_level=", ots_level_setup);
+#endif //MODULE
 
 static int init_poll_cpu = 1;
+#ifndef MODULE
 static int poll_cpu_setup(char *str)
 {
 	int val;
@@ -77,6 +80,7 @@ static int poll_cpu_setup(char *str)
 	return 1;
 }
 __setup("db_poll_cpu=", poll_cpu_setup);
+#endif //MODULE
 
 /* run time should be short */
 static enum hrtimer_restart  ddr_hrtimer_handler(struct hrtimer *timer)

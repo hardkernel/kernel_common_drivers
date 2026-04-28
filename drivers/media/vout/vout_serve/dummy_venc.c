@@ -133,6 +133,7 @@ static u32 dummyp_timing_flip;
  * **********************************************************
  */
 
+#ifndef MODULE
 static int dummy_encp_timing_flip_setup(char *str)
 {
 	int ret;
@@ -155,6 +156,7 @@ static int dummy_projector_fps_ctl_setup(char *str)
 	return 1;
 }
 __setup("projector_fps_ctl=", dummy_projector_fps_ctl_setup);
+#endif //MODULE
 
 int get_dummyp_timing_flip(void)
 {

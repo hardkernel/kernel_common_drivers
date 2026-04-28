@@ -10,6 +10,7 @@
 
 int bypass_power_off;
 
+#ifndef MODULE
 static int bypass_power_off_setup(char *buf)
 {
 	if (!buf)
@@ -23,6 +24,7 @@ static int bypass_power_off_setup(char *buf)
 	return 1;
 }
 __setup("bypass_power_off=", bypass_power_off_setup);
+#endif //MODULE
 
 static int __init domain_main_init(void)
 {

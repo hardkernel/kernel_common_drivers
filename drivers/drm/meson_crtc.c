@@ -45,6 +45,7 @@ static int drm_get_dv_support_info(void)
 #endif
 }
 
+#ifndef MODULE
 static int gamma_boot_ctl(char *str)
 {
 	if (strncmp("0", str, 1) == 0)
@@ -56,6 +57,7 @@ static int gamma_boot_ctl(char *str)
 }
 
 __setup("gamma=", gamma_boot_ctl);
+#endif
 
 static void meson_crtc_destroy_state(struct drm_crtc *crtc,
 	struct drm_crtc_state *state)

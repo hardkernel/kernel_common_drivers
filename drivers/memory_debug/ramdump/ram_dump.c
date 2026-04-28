@@ -91,6 +91,7 @@ struct ramdump {
 static struct ramdump *ram;
 char ramdump_info[256];
 
+#ifndef MODULE
 static void ramdump_parse_info(void)
 {
 #if IS_BUILTIN(CONFIG_AMLOGIC_MEMORY_DEBUG)
@@ -141,6 +142,7 @@ static int early_ramdump_para(char *buf)
 }
 
 early_param("ramdump", early_ramdump_para);
+#endif //MODULE
 
 #ifdef SAVE_DATA_BY_INIT_RC_SHELL
 #define DUMP_LOG_STEP      (200 * 1024 * 1024ULL)

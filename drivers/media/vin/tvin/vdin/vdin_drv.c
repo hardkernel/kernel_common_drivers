@@ -130,6 +130,7 @@ bool vf_log_be = true;
 unsigned int vf_list_dbg;
 unsigned int vf_move_print_cnt;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_GKI_TOOL)
 struct param_entry vdin_params[] = {
 	PARAM_BOOL(vf_log_enable),
 	PARAM_BOOL(vf_log_fe),
@@ -139,6 +140,7 @@ struct param_entry vdin_params[] = {
 };
 
 module_param_cb(debug_vdin, &key_value_param_ops, &vdin_params, 0644);
+#endif
 
 /* module_param(vrr_input_switch_frames, int, 0664);
  *MODULE_PARM_DESC(vrr_input_switch_frames,
@@ -177,6 +179,7 @@ static void vdin_backup_histgram(struct vframe_s *vf, struct vdin_dev_s *devp);
 
 char *vf_get_receiver_name(const char *provider_name);
 
+#ifndef MODULE
 static int vdin_get_video_reverse(char *str)
 {
 	unsigned char *ptr = str;
@@ -185,6 +188,7 @@ static int vdin_get_video_reverse(char *str)
 	return 0;
 }
 __setup("video_reverse=", vdin_get_video_reverse);
+#endif //MODULE
 
 static const struct vframe_operations_s vdin_vf_ops = {
 	.peek = vdin_vf_peek,

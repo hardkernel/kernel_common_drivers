@@ -98,6 +98,7 @@ void __hdmitx_dbg(enum hdmitx_debug_category category, const char *format, ...)
 	va_end(args);
 }
 
+#ifndef MODULE
 static int hdmitx_config_debug_level(char *str)
 {
 	int err;
@@ -119,3 +120,4 @@ static int hdmitx_config_debug_level(char *str)
 	return 1;
 }
 __setup("hdmitx_debug_level=", hdmitx_config_debug_level);
+#endif //MODULE

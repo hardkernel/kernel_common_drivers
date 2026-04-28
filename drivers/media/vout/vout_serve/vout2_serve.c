@@ -1006,6 +1006,7 @@ __exit void vout2_exit_module(void)
 	platform_driver_unregister(&vout2_driver);
 }
 
+#ifndef MODULE
 static int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -1096,6 +1097,7 @@ static int get_connector1_type(char *str)
 }
 
 __setup("connector1_type=", get_connector1_type);
+#endif //MODULE
 
 //MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 //MODULE_DESCRIPTION("VOUT2 Server Module");

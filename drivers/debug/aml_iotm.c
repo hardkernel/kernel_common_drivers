@@ -309,6 +309,7 @@ static const struct kernel_param_ops iotm_en_ops = {
 };
 module_param_cb(iotm_en, &iotm_en_ops, &iotm_en, 0644);
 
+#ifndef MODULE
 static int iotm_en_setup(char *buf)
 {
 	if (!buf)
@@ -365,6 +366,7 @@ static int iotm_dump_cnt_setup(char *buf)
 	return 1;
 }
 __setup("iotm_dump_cnt=", iotm_dump_cnt_setup);
+#endif //MODULE
 
 /* interface for the software to record data */
 void iotm_sw_record_write(u32 sw_type, u32 val1, u32 val2)

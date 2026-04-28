@@ -118,6 +118,7 @@ static unsigned int amfc_clk[] = {
 
 static unsigned int init_clk;
 
+#ifndef MODULE
 static int early_amfc_clk_set(char *buf)
 {
 	int clk = 0;
@@ -136,9 +137,11 @@ static int early_amfc_clk_set(char *buf)
 	return -EINVAL;
 }
 __setup("amfc_clk=", early_amfc_clk_set);
+#endif //MODULE
 
 static unsigned int default_log;
 
+#ifndef MODULE
 static int early_amfc_log_set(char *buf)
 {
 	int i = 0;
@@ -151,6 +154,7 @@ static int early_amfc_log_set(char *buf)
 	return 1;
 }
 __setup("amfc_log=", early_amfc_log_set);
+#endif //MODULE
 
 
 static int amfc_hw_init(void)

@@ -189,6 +189,7 @@ static unsigned int get_vpu_clk_mux_id(void)
 	return mux_id;
 }
 
+#ifndef MODULE
 static int get_vpu_overclock(char *str)
 {
 	int ret;
@@ -199,6 +200,7 @@ static int get_vpu_overclock(char *str)
 }
 
 __setup("vpu_overclock=", get_vpu_overclock);
+#endif //MODULE
 
 unsigned int vpu_clk_get(void)
 {

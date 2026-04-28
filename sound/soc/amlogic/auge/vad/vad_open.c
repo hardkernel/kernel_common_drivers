@@ -1155,6 +1155,7 @@ static void deinit_work_func(struct work_struct *p_work)
 }
 
 static int vad_mode;
+#ifndef MODULE
 static int get_vadmode(char *str)
 {
 	if (strcmp("on", str) == 0) {
@@ -1166,6 +1167,7 @@ static int get_vadmode(char *str)
 }
 
 early_param("ffv_freeze", get_vadmode);
+#endif //MODULE
 
 static int vad_open_probe(struct platform_device *pdev)
 {

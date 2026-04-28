@@ -11,6 +11,7 @@
 
 bool meson_u2phy_960m;
 
+#ifndef MODULE
 static int meson_u2phy_get_speed(char *str)
 {
 	int ret;
@@ -23,6 +24,7 @@ static int meson_u2phy_get_speed(char *str)
 }
 
 __setup("usb2t_mode=", meson_u2phy_get_speed);
+#endif //MODULE
 
 /* Reset usb controller. */
 int meson_u2phy_usb_reset(struct amlogic_usb_v2 *phy)

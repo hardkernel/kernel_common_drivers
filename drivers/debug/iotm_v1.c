@@ -41,6 +41,7 @@ struct iotm_time {
 
 static struct iotm_time iotm_time;
 
+#ifndef MODULE
 static int iotm_long_time_en_setup(char *buf)
 {
 	if (!buf)
@@ -54,6 +55,7 @@ static int iotm_long_time_en_setup(char *buf)
 	return 1;
 }
 __setup("iotm_long_time_en=", iotm_long_time_en_setup);
+#endif //MODULE
 
 static void sw_record_write_v1(u32 sw_type, u32 val1, u32 val2)
 {
