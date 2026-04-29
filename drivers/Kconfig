@@ -64,5 +64,4 @@ source "$(COMMON_DRIVERS_DIR)/drivers/aml_trusted_keys/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/amfc/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/hid/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/scripts/Kconfig"
-source "$(COMMON_DRIVERS_DIR)/drivers/gpu/arm/Kconfig"
 endmenu

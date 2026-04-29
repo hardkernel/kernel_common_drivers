@@ -18,4 +18,4 @@
 #
 #
 
-include $(COMMON_DRIVERS_DIR)/gpu/arm/midgard/Makefile
+include midgard/Makefile

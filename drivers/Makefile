@@ -63,7 +63,6 @@ obj-$(CONFIG_AMLOGIC_SOC_TIMESTAMP)	+= timestamp/
 obj-$(CONFIG_AMLOGIC_SECKEY)		+= seckey/
 obj-$(CONFIG_AMLOGIC_USBCAM)		+= dvb_usbci/
 obj-$(CONFIG_AMLOGIC_AMFC)		+= amfc/
-obj-$(CONFIG_MALI_MIDGARD)		+= gpu/arm/
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_KERNEL_MODULE_PREDEFINE)
 all:

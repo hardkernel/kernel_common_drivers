@@ -19,5 +19,5 @@
 #
 
 menu "ARM GPU Configuration"
-source "$(COMMON_DRIVERS_DIR)/drivers/gpu/arm/midgard/Kconfig"
+source "drivers/gpu/arm/midgard/Kconfig"
 endmenu

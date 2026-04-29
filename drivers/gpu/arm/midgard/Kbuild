@@ -120,8 +120,8 @@ ccflags-y = \
     -DMALI_RELEASE_NAME=$(MALI_RELEASE_NAME) \
     -DMALI_JIT_PRESSURE_LIMIT_BASE=$(MALI_JIT_PRESSURE_LIMIT_BASE) \
     -DMALI_INCREMENTAL_RENDERING_JM=$(MALI_INCREMENTAL_RENDERING_JM) \
-    -DMALI_PLATFORM_DIR=$(MALI_PLATFORM_DIR) \
-    -DCONFIG_MALI_LOW_MEM=0
+    -DMALI_PLATFORM_DIR=$(MALI_PLATFORM_DIR)
+
 
 ifeq ($(KBUILD_EXTMOD),)
 # in-tree
@@ -145,9 +145,7 @@ subdir-ccflags-y += $(ccflags-y)
 # Kernel Modules
 #
 obj-$(CONFIG_MALI_MIDGARD) += mali_kbase.o
-ifneq ($(CONFIG_MALI_ARBITRATION),)
 obj-$(CONFIG_MALI_ARBITRATION) += ../arbitration/
-endif
 obj-$(CONFIG_MALI_KUTF)    += tests/
 
 mali_kbase-y := \
