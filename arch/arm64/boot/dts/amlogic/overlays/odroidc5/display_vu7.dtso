@@ -1,0 +1,14 @@
+/dts-v1/;
+/plugin/;
+
+#include "display_800x480.dtsi"
+
+&timing0 {
+	width_mm = <153>;
+	height_mm = <86>;
+};
+
+&amhdmitx {
+	force_hpd;
+	voutmode = "dvi";
+};
