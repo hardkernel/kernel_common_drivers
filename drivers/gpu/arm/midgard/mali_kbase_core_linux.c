@@ -2728,6 +2728,10 @@ static DEVICE_ATTR_RW(debug_command);
  */
 static ssize_t gpuinfo_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
+	char cve_commits[] = "r54p1 ddk fixed cve ID:commit ID\n"
+						"CVE-2025-8045:479f608c\n"
+						"CVE-2025-6349:1859fbd0\n";
+
 	static const struct gpu_product_id_name {
 		unsigned int id;
 		char *name;
@@ -2859,10 +2863,6 @@ static ssize_t gpuinfo_show(struct device *dev, struct device_attribute *attr, c
 		dev_dbg(kbdev->dev, "GPU ID_Name: %s (ID: 0x%x), nr_cores(%u)\n", product_name,
 			product_id, nr_cores);
 	}
-
-	char cve_commits[] = "r54p1 ddk fixed cve ID:commit ID\n"
-						"CVE-2025-8045:479f608c\n"
-						"CVE-2025-6349:1859fbd0\n";
 
 	return scnprintf(buf, PAGE_SIZE, "%s %d cores r%dp%d 0x%08X \n%s\n", product_name,
 			 kbdev->gpu_props.num_cores, gpu_props->gpu_id.version_major,
