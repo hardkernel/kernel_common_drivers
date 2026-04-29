@@ -1,0 +1,24 @@
+/dts-v1/;
+/plugin/;
+
+#include "display_800x480.dtsi"
+
+/ {
+	fragment@1 {
+		target = <&timing0>;
+
+		__overlay__ {
+			width_mm = <108>;
+			height_mm = <64>;
+		};
+	};
+
+	fragment@2 {
+		target = <&amhdmitx>;
+
+		__overlay__ {
+			force_hpd;
+			voutmode = "dvi";
+		};
+	};
+};
