@@ -95,8 +95,8 @@ void kbase_pm_term(struct kbase_device *kbdev);
  *
  * This function will block until the GPU is available.
  *
- * This function ASSERTS if a suspend is occurring/has occurring whilst this is
- * in use. Use kbase_pm_contact_active_unless_suspending() instead.
+ * This function ASSERTS if a suspend is occuring/has occurred whilst this is
+ * in use. Use kbase_pm_contect_active_unless_suspending() instead.
  *
  * @note a Suspend is only visible to Kernel threads; user-space threads in a
  * syscall cannot witness a suspend, because they are frozen before the suspend

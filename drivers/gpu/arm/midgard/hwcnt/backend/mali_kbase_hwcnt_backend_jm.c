@@ -27,7 +27,10 @@
 #include "mali_kbase_hwaccess_instr.h"
 #include "mali_kbase_hwaccess_time.h"
 #include "mali_kbase_ccswe.h"
-#include "backend/gpu/mali_kbase_model_linux.h"
+
+#if IS_ENABLED(CONFIG_MALI_NO_MALI)
+#include "backend/gpu/mali_kbase_model_dummy.h"
+#endif /* CONFIG_MALI_NO_MALI */
 #include "backend/gpu/mali_kbase_clk_rate_trace_mgr.h"
 
 #include "backend/gpu/mali_kbase_pm_internal.h"
@@ -474,7 +477,7 @@ static int kbasep_hwcnt_backend_jm_dump_request(struct kbase_hwcnt_backend *back
 	kbdev = backend_jm->kctx->kbdev;
 	metadata = backend_jm->info->metadata;
 
-	/* Disable pre-emotion, to make the timestamp as accurate as possible */
+	/* Disable pre-emption, to make the timestamp as accurate as possible */
 	preempt_disable();
 	{
 		*dump_time_ns = kbasep_hwcnt_backend_jm_timestamp_ns(backend);

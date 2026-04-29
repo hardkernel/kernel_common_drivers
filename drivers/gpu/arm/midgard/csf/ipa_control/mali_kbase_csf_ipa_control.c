@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -64,19 +64,12 @@
  * struct kbase_ipa_control_listener_data - Data for the GPU clock frequency
  *                                          listener
  *
- * @listener:     GPU clock frequency listener.
- * @kbdev:        Pointer to kbase device.
- * @clk_chg_wq:   Dedicated workqueue to process the work item corresponding to
- *                a clock rate notification.
- * @clk_chg_work: Work item to process the clock rate change
- * @rate:         The latest notified rate change, in unit of Hz
+ * @listener: GPU clock frequency listener.
+ * @kbdev:    Pointer to kbase device.
  */
 struct kbase_ipa_control_listener_data {
 	struct kbase_clk_rate_listener listener;
 	struct kbase_device *kbdev;
-	struct workqueue_struct *clk_chg_wq;
-	struct work_struct clk_chg_work;
-	atomic_t rate;
 };
 
 static u32 timer_value(u32 gpu_rate)
@@ -278,61 +271,58 @@ kbase_ipa_control_rate_change_notify(struct kbase_clk_rate_listener *listener,
 				     u32 clk_index, u32 clk_rate_hz)
 {
 	if ((clk_index == KBASE_CLOCK_DOMAIN_TOP) && (clk_rate_hz != 0)) {
+		size_t i;
+		unsigned long flags;
 		struct kbase_ipa_control_listener_data *listener_data =
-			container_of(listener, struct kbase_ipa_control_listener_data, listener);
+			container_of(listener,
+				     struct kbase_ipa_control_listener_data,
+				     listener);
+		struct kbase_device *kbdev = listener_data->kbdev;
+		struct kbase_ipa_control *ipa_ctrl = &kbdev->csf.ipa_control;
 
-		/* Save the rate and delegate the job to a work item */
-		atomic_set(&listener_data->rate, clk_rate_hz);
-		queue_work(listener_data->clk_chg_wq, &listener_data->clk_chg_work);
-	}
-}
+		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
-static void kbase_ipa_ctrl_rate_change_worker(struct work_struct *data)
-{
-	struct kbase_ipa_control_listener_data *listener_data =
-		container_of(data, struct kbase_ipa_control_listener_data, clk_chg_work);
-	struct kbase_device *kbdev = listener_data->kbdev;
-	struct kbase_ipa_control *ipa_ctrl = &kbdev->csf.ipa_control;
-	unsigned long flags;
-	u32 rate;
-	size_t i;
+		if (!kbdev->pm.backend.gpu_ready) {
+			dev_err(kbdev->dev,
+				"%s: GPU frequency cannot change while GPU is off",
+				__func__);
+			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+			return;
+		}
 
-	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+		/* Interrupts are already disabled and interrupt state is also saved */
+		spin_lock(&ipa_ctrl->lock);
 
-	if (!kbdev->pm.backend.gpu_ready) {
-		dev_err(kbdev->dev, "%s: GPU frequency cannot change while GPU is off", __func__);
-		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-		return;
-	}
+		for (i = 0; i < KBASE_IPA_CONTROL_MAX_SESSIONS; i++) {
+			struct kbase_ipa_control_session *session = &ipa_ctrl->sessions[i];
 
-	spin_lock(&ipa_ctrl->lock);
-	/* Picking up the latest notified rate */
-	rate = (u32)atomic_read(&listener_data->rate);
+			if (session->active) {
+				size_t j;
 
-	for (i = 0; i < KBASE_IPA_CONTROL_MAX_SESSIONS; i++) {
-		struct kbase_ipa_control_session *session = &ipa_ctrl->sessions[i];
+				for (j = 0; j < session->num_prfcnts; j++) {
+					struct kbase_ipa_control_prfcnt *prfcnt =
+						&session->prfcnts[j];
 
-		if (session->active) {
-			size_t j;
-
-			for (j = 0; j < session->num_prfcnts; j++) {
-				struct kbase_ipa_control_prfcnt *prfcnt = &session->prfcnts[j];
-
-				if (prfcnt->gpu_norm)
-					calc_prfcnt_delta(kbdev, prfcnt, true);
+					if (prfcnt->gpu_norm)
+						calc_prfcnt_delta(kbdev, prfcnt, true);
+				}
 			}
 		}
+
+		ipa_ctrl->cur_gpu_rate = clk_rate_hz;
+
+		/* Update the timer for automatic sampling if active sessions
+		 * are present. Counters have already been manually sampled.
+		 */
+		if (ipa_ctrl->num_active_sessions > 0) {
+			kbase_reg_write(kbdev, IPA_CONTROL_REG(TIMER),
+					timer_value(ipa_ctrl->cur_gpu_rate));
+		}
+
+		spin_unlock(&ipa_ctrl->lock);
+
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 	}
-
-	ipa_ctrl->cur_gpu_rate = rate;
-	/* Update the timer for automatic sampling if active sessions
-	 * are present. Counters have already been manually sampled.
-	 */
-	if (ipa_ctrl->num_active_sessions > 0)
-		kbase_reg_write(kbdev, IPA_CONTROL_REG(TIMER), timer_value(rate));
-
-	spin_unlock(&ipa_ctrl->lock);
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 }
 
 void kbase_ipa_control_init(struct kbase_device *kbdev)
@@ -341,7 +331,6 @@ void kbase_ipa_control_init(struct kbase_device *kbdev)
 	struct kbase_clk_rate_trace_manager *clk_rtm = &kbdev->pm.clk_rtm;
 	struct kbase_ipa_control_listener_data *listener_data;
 	size_t i, j;
-	unsigned long flags;
 
 	for (i = 0; i < KBASE_IPA_CORE_TYPE_NUM; i++) {
 		for (j = 0; j < KBASE_IPA_CONTROL_NUM_BLOCK_COUNTERS; j++) {
@@ -360,35 +349,20 @@ void kbase_ipa_control_init(struct kbase_device *kbdev)
 	listener_data = kmalloc(sizeof(struct kbase_ipa_control_listener_data),
 				GFP_KERNEL);
 	if (listener_data) {
-		listener_data->clk_chg_wq =
-			alloc_workqueue("ipa_ctrl_wq", WQ_HIGHPRI | WQ_UNBOUND, 1);
-		if (listener_data->clk_chg_wq) {
-			INIT_WORK(&listener_data->clk_chg_work, kbase_ipa_ctrl_rate_change_worker);
-			listener_data->listener.notify = kbase_ipa_control_rate_change_notify;
-			listener_data->kbdev = kbdev;
-			ipa_ctrl->rtm_listener_data = listener_data;
-			/* Initialise to 0, which is out of normal notified rates */
-			atomic_set(&listener_data->rate, 0);
-		} else {
-			dev_warn(kbdev->dev,
-				 "%s: failed to allocate workqueue, clock rate update disabled",
-				 __func__);
-			kfree(listener_data);
-			listener_data = NULL;
-		}
-	} else
-		dev_warn(kbdev->dev,
-			 "%s: failed to allocate memory, IPA control clock rate update disabled",
-			 __func__);
+		listener_data->listener.notify =
+			kbase_ipa_control_rate_change_notify;
+		listener_data->kbdev = kbdev;
+		ipa_ctrl->rtm_listener_data = listener_data;
+	}
 
-	spin_lock_irqsave(&clk_rtm->lock, flags);
+	spin_lock(&clk_rtm->lock);
 	if (clk_rtm->clks[KBASE_CLOCK_DOMAIN_TOP])
 		ipa_ctrl->cur_gpu_rate =
 			clk_rtm->clks[KBASE_CLOCK_DOMAIN_TOP]->clock_val;
 	if (listener_data)
 		kbase_clk_rate_trace_manager_subscribe_no_lock(
 			clk_rtm, &listener_data->listener);
-	spin_unlock_irqrestore(&clk_rtm->lock, flags);
+	spin_unlock(&clk_rtm->lock);
 }
 KBASE_EXPORT_TEST_API(kbase_ipa_control_init);
 
@@ -402,10 +376,8 @@ void kbase_ipa_control_term(struct kbase_device *kbdev)
 
 	WARN_ON(ipa_ctrl->num_active_sessions);
 
-	if (listener_data) {
+	if (listener_data)
 		kbase_clk_rate_trace_manager_unsubscribe(clk_rtm, &listener_data->listener);
-		destroy_workqueue(listener_data->clk_chg_wq);
-	}
 	kfree(ipa_ctrl->rtm_listener_data);
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
@@ -1031,11 +1003,11 @@ void kbase_ipa_control_rate_change_notify_test(struct kbase_device *kbdev,
 					       u32 clk_index, u32 clk_rate_hz)
 {
 	struct kbase_ipa_control *ipa_ctrl = &kbdev->csf.ipa_control;
-	struct kbase_ipa_control_listener_data *listener_data = ipa_ctrl->rtm_listener_data;
+	struct kbase_ipa_control_listener_data *listener_data =
+		ipa_ctrl->rtm_listener_data;
 
-	kbase_ipa_control_rate_change_notify(&listener_data->listener, clk_index, clk_rate_hz);
-	/* Ensure the callback has taken effect before returning back to the test caller */
-	flush_work(&listener_data->clk_chg_work);
+	kbase_ipa_control_rate_change_notify(&listener_data->listener,
+					     clk_index, clk_rate_hz);
 }
 KBASE_EXPORT_TEST_API(kbase_ipa_control_rate_change_notify_test);
 #endif
@@ -1088,3 +1060,4 @@ void kbase_ipa_control_protm_exited(struct kbase_device *kbdev)
 		}
 	}
 }
+

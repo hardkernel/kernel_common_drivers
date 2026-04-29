@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -31,7 +31,7 @@ kbase_fence_get_driver_name(struct fence *fence)
 kbase_fence_get_driver_name(struct dma_fence *fence)
 #endif
 {
-	return KBASE_DRV_NAME;
+	return kbase_drv_name;
 }
 
 static const char *
@@ -46,7 +46,7 @@ kbase_fence_get_timeline_name(struct dma_fence *fence)
 
 	return kcpu_fence->metadata->timeline_name;
 #else
-	return KBASE_TIMELINE_NAME;
+	return kbase_timeline_name;
 #endif /* MALI_USE_CSF */
 }
 
@@ -68,12 +68,10 @@ kbase_fence_fence_value_str(struct dma_fence *fence, char *str, int size)
 #endif
 {
 #if (KERNEL_VERSION(5, 1, 0) > LINUX_VERSION_CODE)
-	const char *format = "%u";
+	snprintf(str, size, "%u", fence->seqno);
 #else
-	const char *format = "%llu";
+	snprintf(str, size, "%llu", fence->seqno);
 #endif
-	if (unlikely(!scnprintf(str, size, format, fence->seqno)))
-		pr_err("Fail to encode fence seqno to string");
 }
 
 #if MALI_USE_CSF

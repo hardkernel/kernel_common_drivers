@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -39,6 +39,7 @@
 #include "backend/gpu/mali_kbase_clk_rate_trace_mgr.h"
 #include <csf/ipa_control/mali_kbase_csf_ipa_control.h>
 #include <csf/mali_kbase_csf_registers.h>
+
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
@@ -52,12 +53,11 @@
 #include <mmu/mali_kbase_mmu.h>
 #include <asm/arch_timer.h>
 #include <linux/delay.h>
-#include <linux/version_compat_defs.h>
 
-#define MALI_MAX_DEFAULT_FIRMWARE_NAME_LEN ((size_t)20)
+#define MALI_MAX_FIRMWARE_NAME_LEN ((size_t)20)
 
-static char default_fw_name[MALI_MAX_DEFAULT_FIRMWARE_NAME_LEN] = "mali_csffw.bin";
-module_param_string(fw_name, default_fw_name, sizeof(default_fw_name), 0644);
+static char fw_name[MALI_MAX_FIRMWARE_NAME_LEN] = "mali_csffw.bin";
+module_param_string(fw_name, fw_name, sizeof(fw_name), 0644);
 MODULE_PARM_DESC(fw_name, "firmware image");
 
 /* The waiting time for firmware to boot */
@@ -78,6 +78,7 @@ module_param(fw_debug, bool, 0444);
 MODULE_PARM_DESC(fw_debug,
 	"Enables effective use of a debugger for debugging firmware code.");
 #endif
+
 
 #define FIRMWARE_HEADER_MAGIC		(0xC3F13A6Eul)
 #define FIRMWARE_HEADER_VERSION_MAJOR	(0ul)
@@ -188,7 +189,7 @@ struct firmware_timeline_metadata {
 /* The shared interface area, used for communicating with firmware, is managed
  * like a virtual memory zone. Reserve the virtual space from that zone
  * corresponding to shared interface entry parsed from the firmware image.
- * The MCU_SHARED_ZONE should have been initialized before calling this
+ * The shared_reg_rbtree should have been initialized before calling this
  * function.
  */
 static int setup_shared_iface_static_region(struct kbase_device *kbdev)
@@ -201,7 +202,8 @@ static int setup_shared_iface_static_region(struct kbase_device *kbdev)
 	if (!interface)
 		return -EINVAL;
 
-	reg = kbase_alloc_free_region(&kbdev->csf.mcu_shared_zone, 0, interface->num_pages_aligned);
+	reg = kbase_alloc_free_region(&kbdev->csf.shared_reg_rbtree, 0,
+			interface->num_pages_aligned, KBASE_REG_ZONE_MCU_SHARED);
 	if (reg) {
 		mutex_lock(&kbdev->csf.reg_lock);
 		ret = kbase_add_va_region_rbtree(kbdev, reg,
@@ -285,52 +287,22 @@ static void boot_csf_firmware(struct kbase_device *kbdev)
 {
 	kbase_csf_firmware_enable_mcu(kbdev);
 
-#if IS_ENABLED(CONFIG_MALI_CORESIGHT)
-	kbase_debug_coresight_csf_state_request(kbdev, KBASE_DEBUG_CORESIGHT_CSF_ENABLED);
-
-	if (!kbase_debug_coresight_csf_state_wait(kbdev, KBASE_DEBUG_CORESIGHT_CSF_ENABLED))
-		dev_err(kbdev->dev, "Timeout waiting for CoreSight to be enabled");
-#endif /* IS_ENABLED(CONFIG_MALI_CORESIGHT) */
-
 	wait_for_firmware_boot(kbdev);
 }
 
-/**
- * wait_ready() - Wait for previously issued MMU command to complete.
- *
- * @kbdev:        Kbase device to wait for a MMU command to complete.
- *
- * Reset GPU if the wait for previously issued command times out.
- *
- * Return:  0 on success, error code otherwise.
- */
-static int wait_ready(struct kbase_device *kbdev)
+static void wait_ready(struct kbase_device *kbdev)
 {
-	const ktime_t wait_loop_start = ktime_get_raw();
-	const u32 mmu_as_inactive_wait_time_ms = kbdev->mmu_or_gpu_cache_op_wait_time_ms;
-	s64 diff;
+	u32 max_loops = KBASE_AS_INACTIVE_MAX_LOOPS;
+	u32 val;
 
-	do {
-		unsigned int i;
+	val = kbase_reg_read(kbdev, MMU_AS_REG(MCU_AS_NR, AS_STATUS));
 
-		for (i = 0; i < 1000; i++) {
-			/* Wait for the MMU status to indicate there is no active command */
-			if (!(kbase_reg_read(kbdev,
-					     MMU_STAGE1_REG(MMU_AS_REG(MCU_AS_NR, AS_STATUS))) &
-			      AS_STATUS_AS_ACTIVE))
-				return 0;
-		}
+	/* Wait for a while for the update command to take effect */
+	while (--max_loops && (val & AS_STATUS_AS_ACTIVE))
+		val = kbase_reg_read(kbdev, MMU_AS_REG(MCU_AS_NR, AS_STATUS));
 
-		diff = ktime_to_ms(ktime_sub(ktime_get_raw(), wait_loop_start));
-	} while (diff < mmu_as_inactive_wait_time_ms);
-
-	dev_err(kbdev->dev,
-		"AS_ACTIVE bit stuck for MCU AS. Might be caused by unstable GPU clk/pwr or faulty system");
-
-	if (kbase_prepare_to_reset_gpu_locked(kbdev, RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))
-		kbase_reset_gpu_locked(kbdev);
-
-	return -ETIMEDOUT;
+	if (max_loops == 0)
+		dev_err(kbdev->dev, "AS_ACTIVE bit stuck, might be caused by slow/unstable GPU clock or possible faulty FPGA connector\n");
 }
 
 static void unload_mmu_tables(struct kbase_device *kbdev)
@@ -345,7 +317,7 @@ static void unload_mmu_tables(struct kbase_device *kbdev)
 	mutex_unlock(&kbdev->mmu_hw_mutex);
 }
 
-static int load_mmu_tables(struct kbase_device *kbdev)
+static void load_mmu_tables(struct kbase_device *kbdev)
 {
 	unsigned long irq_flags;
 
@@ -356,7 +328,7 @@ static int load_mmu_tables(struct kbase_device *kbdev)
 	mutex_unlock(&kbdev->mmu_hw_mutex);
 
 	/* Wait for a while for the update command to take effect */
-	return wait_ready(kbdev);
+	wait_ready(kbdev);
 }
 
 /**
@@ -448,7 +420,7 @@ static void load_fw_image_section(struct kbase_device *kbdev, const u8 *data,
 
 	for (page_num = 0; page_num < page_limit; ++page_num) {
 		struct page *const page = as_page(phys[page_num]);
-		char *const p = kbase_kmap_atomic(page);
+		char *const p = kmap_atomic(page);
 		u32 const copy_len = min_t(u32, PAGE_SIZE, data_len);
 
 		if (copy_len > 0) {
@@ -465,7 +437,7 @@ static void load_fw_image_section(struct kbase_device *kbdev, const u8 *data,
 
 		kbase_sync_single_for_device(kbdev, kbase_dma_addr_from_tagged(phys[page_num]),
 					     PAGE_SIZE, DMA_TO_DEVICE);
-		kbase_kunmap_atomic(p);
+		kunmap_atomic(p);
 	}
 }
 
@@ -532,7 +504,6 @@ out:
  *                     within the 2MB pages aligned allocation.
  * @is_small_page: This is an output flag used to select between the small and large page
  *                 to be used for the FW entry allocation.
- * @force_small_page: Use 4kB pages to allocate memory needed for FW loading
  *
  * Go through all the already initialized interfaces and find if a previously
  * allocated large page can be used to store contents of new FW interface entry.
@@ -544,7 +515,7 @@ static inline bool entry_find_large_page_to_reuse(struct kbase_device *kbdev,
 						  const u32 flags, struct tagged_addr **phys,
 						  struct protected_memory_allocation ***pma,
 						  u32 num_pages, u32 *num_pages_aligned,
-						  bool *is_small_page, bool force_small_page)
+						  bool *is_small_page)
 {
 	struct kbase_csf_firmware_interface *interface = NULL;
 	struct kbase_csf_firmware_interface *target_interface = NULL;
@@ -560,8 +531,6 @@ static inline bool entry_find_large_page_to_reuse(struct kbase_device *kbdev,
 	*phys = NULL;
 	*pma = NULL;
 
-	if (force_small_page)
-		goto out;
 
 	/* If the section starts at 2MB aligned boundary,
 	 * then use 2MB page(s) for it.
@@ -655,7 +624,7 @@ static int parse_memory_setup_entry(struct kbase_device *kbdev,
 	struct protected_memory_allocation **pma = NULL;
 	bool reuse_pages = false;
 	bool is_small_page = true;
-	bool force_small_page = false;
+	bool ignore_page_migration = true;
 
 	if (data_end < data_start) {
 		dev_err(kbdev->dev, "Firmware corrupt, data_end < data_start (0x%x<0x%x)\n",
@@ -698,10 +667,9 @@ static int parse_memory_setup_entry(struct kbase_device *kbdev,
 	num_pages = (virtual_end - virtual_start)
 		>> PAGE_SHIFT;
 
-retry_alloc:
-	reuse_pages = entry_find_large_page_to_reuse(kbdev, virtual_start, virtual_end, flags,
-						     &phys, &pma, num_pages, &num_pages_aligned,
-						     &is_small_page, force_small_page);
+	reuse_pages =
+		entry_find_large_page_to_reuse(kbdev, virtual_start, virtual_end, flags, &phys,
+					       &pma, num_pages, &num_pages_aligned, &is_small_page);
 	if (!reuse_pages)
 		phys = kmalloc_array(num_pages_aligned, sizeof(*phys), GFP_KERNEL);
 
@@ -712,34 +680,24 @@ retry_alloc:
 		if (!reuse_pages) {
 			pma = kbase_csf_protected_memory_alloc(
 				kbdev, phys, num_pages_aligned, is_small_page);
-			if (!pma)
-				ret = -ENOMEM;
-		} else if (WARN_ON(!pma)) {
-			ret = -EINVAL;
-			goto out;
 		}
+
+		if (!pma)
+			ret = -ENOMEM;
 	} else {
 		if (!reuse_pages) {
 			ret = kbase_mem_pool_alloc_pages(
 				kbase_mem_pool_group_select(kbdev, KBASE_MEM_GROUP_CSF_FW,
 							    is_small_page),
-				num_pages_aligned, phys, false, NULL);
+				num_pages_aligned, phys, false);
+			ignore_page_migration = false;
 		}
 	}
 
 	if (ret < 0) {
-		dev_warn(
-			kbdev->dev,
-			"Failed to allocate %u physical pages for the firmware interface entry at VA 0x%x using %s ",
-			num_pages_aligned, virtual_start,
-			is_small_page ? "small pages" : "large page");
-		WARN_ON(reuse_pages);
-		if (!is_small_page) {
-			dev_warn(kbdev->dev, "Retrying by using small pages");
-			force_small_page = true;
-			kfree(phys);
-			goto retry_alloc;
-		}
+		dev_err(kbdev->dev,
+			"Failed to allocate %u physical pages for the firmware interface entry at VA 0x%x\n",
+			num_pages_aligned, virtual_start);
 		goto out;
 	}
 
@@ -842,7 +800,8 @@ retry_alloc:
 		ret = kbase_mmu_insert_pages_no_flush(kbdev, &kbdev->csf.mcu_mmu,
 						      virtual_start >> PAGE_SHIFT, phys,
 						      num_pages_aligned, mem_flags,
-						      KBASE_MEM_GROUP_CSF_FW, NULL, NULL);
+						      KBASE_MEM_GROUP_CSF_FW, NULL, NULL,
+						      ignore_page_migration);
 
 		if (ret != 0) {
 			dev_err(kbdev->dev, "Failed to insert firmware pages\n");
@@ -1314,7 +1273,7 @@ static inline void access_firmware_memory_common(struct kbase_device *kbdev,
 	u32 page_num = offset_bytes >> PAGE_SHIFT;
 	u32 offset_in_page = offset_bytes & ~PAGE_MASK;
 	struct page *target_page = as_page(interface->phys[page_num]);
-	uintptr_t cpu_addr = (uintptr_t)kbase_kmap_atomic(target_page);
+	uintptr_t cpu_addr = (uintptr_t)kmap_atomic(target_page);
 	u32 *addr = (u32 *)(cpu_addr + offset_in_page);
 
 	if (read) {
@@ -1329,7 +1288,7 @@ static inline void access_firmware_memory_common(struct kbase_device *kbdev,
 			sizeof(u32), DMA_BIDIRECTIONAL);
 	}
 
-	kbase_kunmap_atomic((u32 *)cpu_addr);
+	kunmap_atomic((u32 *)cpu_addr);
 }
 
 static inline void access_firmware_memory(struct kbase_device *kbdev,
@@ -1709,11 +1668,6 @@ static void enable_shader_poweroff_timer(struct kbase_device *const kbdev,
 
 	kbase_csf_firmware_global_input(global_iface, GLB_PWROFF_TIMER,
 					pwroff_reg);
-
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_PWROFF_TIMER_CONFIG,
-					     kbdev->csf.mcu_core_pwroff_dur_count_modifier,
-					     GLB_PWROFF_TIMER_CONFIG_NO_MODIFIER_MASK);
-
 	set_global_request(global_iface, GLB_REQ_CFG_PWROFF_TIMER_MASK);
 
 	/* Save the programed reg value in its shadow field */
@@ -1740,11 +1694,6 @@ static void enable_gpu_idle_timer(struct kbase_device *const kbdev)
 
 	kbase_csf_firmware_global_input(global_iface, GLB_IDLE_TIMER,
 					kbdev->csf.gpu_idle_dur_count);
-
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_IDLE_TIMER_CONFIG,
-					     kbdev->csf.gpu_idle_dur_count_modifier,
-					     GLB_IDLE_TIMER_CONFIG_NO_MODIFIER_MASK);
-
 	kbase_csf_firmware_global_input_mask(global_iface, GLB_REQ, GLB_REQ_REQ_IDLE_ENABLE,
 					     GLB_REQ_IDLE_ENABLE_MASK);
 	dev_dbg(kbdev->dev, "Enabling GPU idle timer with count-value: 0x%.8x",
@@ -1869,14 +1818,6 @@ static void global_init(struct kbase_device *const kbdev, u64 core_mask)
 	kbase_csf_firmware_global_input(global_iface,
 		GLB_ACK_IRQ_MASK, ack_irq_mask);
 
-#if IS_ENABLED(CONFIG_MALI_CORESIGHT)
-	/* Enable FW MCU read/write debug interfaces */
-	kbase_csf_firmware_global_input_mask(
-		global_iface, GLB_DEBUG_ACK_IRQ_MASK,
-		GLB_DEBUG_REQ_FW_AS_READ_MASK | GLB_DEBUG_REQ_FW_AS_WRITE_MASK,
-		GLB_DEBUG_REQ_FW_AS_READ_MASK | GLB_DEBUG_REQ_FW_AS_WRITE_MASK);
-#endif /* IS_ENABLED(CONFIG_MALI_CORESIGHT) */
-
 	kbase_csf_ring_doorbell(kbdev, CSF_KERNEL_DOORBELL_NR);
 
 	kbase_csf_scheduler_spin_unlock(kbdev, flags);
@@ -1985,10 +1926,6 @@ static void kbase_csf_firmware_reload_worker(struct work_struct *work)
 
 	kbase_csf_tl_reader_reset(&kbdev->timeline->csf_tl_reader);
 
-	err = kbase_csf_firmware_cfg_fw_wa_enable(kbdev);
-	if (WARN_ON(err))
-		return;
-
 	/* Reboot the firmware */
 	kbase_csf_firmware_enable_mcu(kbdev);
 }
@@ -2031,12 +1968,12 @@ void kbase_csf_firmware_reload_completed(struct kbase_device *kbdev)
 	kbase_pm_update_state(kbdev);
 }
 
-static u32 convert_dur_to_idle_count(struct kbase_device *kbdev, const u32 dur_ns, u32 *modifier)
+static u32 convert_dur_to_idle_count(struct kbase_device *kbdev, const u32 dur_us)
 {
 #define HYSTERESIS_VAL_UNIT_SHIFT (10)
 	/* Get the cntfreq_el0 value, which drives the SYSTEM_TIMESTAMP */
 	u64 freq = arch_timer_get_cntfrq();
-	u64 dur_val = dur_ns;
+	u64 dur_val = dur_us;
 	u32 cnt_val_u32, reg_val_u32;
 	bool src_system_timestamp = freq > 0;
 
@@ -2054,24 +1991,21 @@ static u32 convert_dur_to_idle_count(struct kbase_device *kbdev, const u32 dur_n
 			"Can't get the timestamp frequency, use cycle counter format with firmware idle hysteresis!");
 	}
 
-	/* Formula for dur_val = (dur/1e9) * freq_HZ) */
-	dur_val = dur_val * freq;
-	dur_val = div_u64(dur_val, NSEC_PER_SEC);
-	if (dur_val < S32_MAX) {
-		*modifier = 1;
-	} else {
-		dur_val = dur_val >> HYSTERESIS_VAL_UNIT_SHIFT;
-		*modifier = 0;
-	}
+	/* Formula for dur_val = ((dur_us/1000000) * freq_HZ) >> 10) */
+	dur_val = (dur_val * freq) >> HYSTERESIS_VAL_UNIT_SHIFT;
+	dur_val = div_u64(dur_val, 1000000);
 
 	/* Interface limits the value field to S32_MAX */
 	cnt_val_u32 = (dur_val > S32_MAX) ? S32_MAX : (u32)dur_val;
 
 	reg_val_u32 = GLB_IDLE_TIMER_TIMEOUT_SET(0, cnt_val_u32);
 	/* add the source flag */
-	reg_val_u32 = GLB_IDLE_TIMER_TIMER_SOURCE_SET(
-		reg_val_u32, (src_system_timestamp ? GLB_IDLE_TIMER_TIMER_SOURCE_SYSTEM_TIMESTAMP :
-						     GLB_IDLE_TIMER_TIMER_SOURCE_GPU_COUNTER));
+	if (src_system_timestamp)
+		reg_val_u32 = GLB_IDLE_TIMER_TIMER_SOURCE_SET(reg_val_u32,
+				GLB_IDLE_TIMER_TIMER_SOURCE_SYSTEM_TIMESTAMP);
+	else
+		reg_val_u32 = GLB_IDLE_TIMER_TIMER_SOURCE_SET(reg_val_u32,
+				GLB_IDLE_TIMER_TIMER_SOURCE_GPU_COUNTER);
 
 	return reg_val_u32;
 }
@@ -2082,18 +2016,16 @@ u32 kbase_csf_firmware_get_gpu_idle_hysteresis_time(struct kbase_device *kbdev)
 	u32 dur;
 
 	kbase_csf_scheduler_spin_lock(kbdev, &flags);
-	dur = kbdev->csf.gpu_idle_hysteresis_ns;
+	dur = kbdev->csf.gpu_idle_hysteresis_us;
 	kbase_csf_scheduler_spin_unlock(kbdev, flags);
 
 	return dur;
 }
 
-u32 kbase_csf_firmware_set_gpu_idle_hysteresis_time(struct kbase_device *kbdev, u32 dur_ns)
+u32 kbase_csf_firmware_set_gpu_idle_hysteresis_time(struct kbase_device *kbdev, u32 dur)
 {
 	unsigned long flags;
-	u32 modifier = 0;
-
-	const u32 hysteresis_val = convert_dur_to_idle_count(kbdev, dur_ns, &modifier);
+	const u32 hysteresis_val = convert_dur_to_idle_count(kbdev, dur);
 
 	/* The 'fw_load_lock' is taken to synchronize against the deferred
 	 * loading of FW, where the idle timer will be enabled.
@@ -2101,28 +2033,19 @@ u32 kbase_csf_firmware_set_gpu_idle_hysteresis_time(struct kbase_device *kbdev, 
 	mutex_lock(&kbdev->fw_load_lock);
 	if (unlikely(!kbdev->csf.firmware_inited)) {
 		kbase_csf_scheduler_spin_lock(kbdev, &flags);
-		kbdev->csf.gpu_idle_hysteresis_ns = dur_ns;
+		kbdev->csf.gpu_idle_hysteresis_us = dur;
 		kbdev->csf.gpu_idle_dur_count = hysteresis_val;
-		kbdev->csf.gpu_idle_dur_count_modifier = modifier;
 		kbase_csf_scheduler_spin_unlock(kbdev, flags);
 		mutex_unlock(&kbdev->fw_load_lock);
 		goto end;
 	}
 	mutex_unlock(&kbdev->fw_load_lock);
 
-	if (kbase_reset_gpu_prevent_and_wait(kbdev)) {
-		dev_warn(kbdev->dev,
-			 "Failed to prevent GPU reset when updating idle_hysteresis_time");
-		return kbdev->csf.gpu_idle_dur_count;
-	}
-
 	kbase_csf_scheduler_pm_active(kbdev);
-	if (kbase_csf_scheduler_killable_wait_mcu_active(kbdev)) {
+	if (kbase_csf_scheduler_wait_mcu_active(kbdev)) {
 		dev_err(kbdev->dev,
 			"Unable to activate the MCU, the idle hysteresis value shall remain unchanged");
 		kbase_csf_scheduler_pm_idle(kbdev);
-		kbase_reset_gpu_allow(kbdev);
-
 		return kbdev->csf.gpu_idle_dur_count;
 	}
 
@@ -2141,16 +2064,15 @@ u32 kbase_csf_firmware_set_gpu_idle_hysteresis_time(struct kbase_device *kbdev, 
 	wait_for_global_request(kbdev, GLB_REQ_IDLE_DISABLE_MASK);
 
 	kbase_csf_scheduler_spin_lock(kbdev, &flags);
-	kbdev->csf.gpu_idle_hysteresis_ns = dur_ns;
+	kbdev->csf.gpu_idle_hysteresis_us = dur;
 	kbdev->csf.gpu_idle_dur_count = hysteresis_val;
-	kbdev->csf.gpu_idle_dur_count_modifier = modifier;
 	kbase_csf_firmware_enable_gpu_idle_timer(kbdev);
 	kbase_csf_scheduler_spin_unlock(kbdev, flags);
 	wait_for_global_request(kbdev, GLB_REQ_IDLE_ENABLE_MASK);
 	mutex_unlock(&kbdev->csf.reg_lock);
 
 	kbase_csf_scheduler_pm_idle(kbdev);
-	kbase_reset_gpu_allow(kbdev);
+
 end:
 	dev_dbg(kbdev->dev, "CSF set firmware idle hysteresis count-value: 0x%.8x",
 		hysteresis_val);
@@ -2158,17 +2080,13 @@ end:
 	return hysteresis_val;
 }
 
-static u32 convert_dur_to_core_pwroff_count(struct kbase_device *kbdev, const u32 dur_ns,
-					    u32 *modifier)
+static u32 convert_dur_to_core_pwroff_count(struct kbase_device *kbdev, const u32 dur_us)
 {
 	/* Get the cntfreq_el0 value, which drives the SYSTEM_TIMESTAMP */
 	u64 freq = arch_timer_get_cntfrq();
-	u64 dur_val = dur_ns;
+	u64 dur_val = dur_us;
 	u32 cnt_val_u32, reg_val_u32;
 	bool src_system_timestamp = freq > 0;
-
-	const struct kbase_pm_policy *current_policy = kbase_pm_get_policy(kbdev);
-	bool always_on = current_policy == &kbase_pm_always_on_policy_ops;
 
 	if (!src_system_timestamp) {
 		/* Get the cycle_counter source alternative */
@@ -2184,32 +2102,21 @@ static u32 convert_dur_to_core_pwroff_count(struct kbase_device *kbdev, const u3
 			"Can't get the timestamp frequency, use cycle counter with MCU shader Core Poweroff timer!");
 	}
 
-	/* Formula for dur_val = (dur/1e9) * freq_HZ) */
-	dur_val = dur_val * freq;
-	dur_val = div_u64(dur_val, NSEC_PER_SEC);
-	if (dur_val < S32_MAX) {
-		*modifier = 1;
-	} else {
-		dur_val = dur_val >> HYSTERESIS_VAL_UNIT_SHIFT;
-		*modifier = 0;
-	}
+	/* Formula for dur_val = ((dur_us/1e6) * freq_HZ) >> 10) */
+	dur_val = (dur_val * freq) >> HYSTERESIS_VAL_UNIT_SHIFT;
+	dur_val = div_u64(dur_val, 1000000);
 
-	if (dur_val == 0 && !always_on) {
-		/* Lower Bound - as 0 disables timeout and host controls shader-core power management. */
-		cnt_val_u32 = 1;
-	} else if (dur_val > S32_MAX) {
-		/* Upper Bound - as interface limits the field to S32_MAX */
-		cnt_val_u32 = S32_MAX;
-	} else {
-		cnt_val_u32 = (u32)dur_val;
-	}
+	/* Interface limits the value field to S32_MAX */
+	cnt_val_u32 = (dur_val > S32_MAX) ? S32_MAX : (u32)dur_val;
 
 	reg_val_u32 = GLB_PWROFF_TIMER_TIMEOUT_SET(0, cnt_val_u32);
 	/* add the source flag */
-	reg_val_u32 = GLB_PWROFF_TIMER_TIMER_SOURCE_SET(
-				reg_val_u32,
-				(src_system_timestamp ? GLB_PWROFF_TIMER_TIMER_SOURCE_SYSTEM_TIMESTAMP :
-							GLB_PWROFF_TIMER_TIMER_SOURCE_GPU_COUNTER));
+	if (src_system_timestamp)
+		reg_val_u32 = GLB_PWROFF_TIMER_TIMER_SOURCE_SET(reg_val_u32,
+				GLB_PWROFF_TIMER_TIMER_SOURCE_SYSTEM_TIMESTAMP);
+	else
+		reg_val_u32 = GLB_PWROFF_TIMER_TIMER_SOURCE_SET(reg_val_u32,
+				GLB_PWROFF_TIMER_TIMER_SOURCE_GPU_COUNTER);
 
 	return reg_val_u32;
 }
@@ -2220,33 +2127,25 @@ u32 kbase_csf_firmware_get_mcu_core_pwroff_time(struct kbase_device *kbdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	pwroff = kbdev->csf.mcu_core_pwroff_dur_ns;
+	pwroff = kbdev->csf.mcu_core_pwroff_dur_us;
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	return pwroff;
 }
 
-u32 kbase_csf_firmware_set_mcu_core_pwroff_time(struct kbase_device *kbdev, u32 dur_ns)
+u32 kbase_csf_firmware_set_mcu_core_pwroff_time(struct kbase_device *kbdev, u32 dur)
 {
 	unsigned long flags;
-	u32 modifier = 0;
-
-	const u32 pwroff = convert_dur_to_core_pwroff_count(kbdev, dur_ns, &modifier);
+	const u32 pwroff = convert_dur_to_core_pwroff_count(kbdev, dur);
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	kbdev->csf.mcu_core_pwroff_dur_ns = dur_ns;
+	kbdev->csf.mcu_core_pwroff_dur_us = dur;
 	kbdev->csf.mcu_core_pwroff_dur_count = pwroff;
-	kbdev->csf.mcu_core_pwroff_dur_count_modifier = modifier;
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	dev_dbg(kbdev->dev, "MCU shader Core Poweroff input update: 0x%.8x", pwroff);
 
 	return pwroff;
-}
-
-u32 kbase_csf_firmware_reset_mcu_core_pwroff_time(struct kbase_device *kbdev)
-{
-	return kbase_csf_firmware_set_mcu_core_pwroff_time(kbdev, DEFAULT_GLB_PWROFF_TIMEOUT_NS);
 }
 
 /**
@@ -2260,24 +2159,18 @@ u32 kbase_csf_firmware_reset_mcu_core_pwroff_time(struct kbase_device *kbdev)
 static int kbase_device_csf_iterator_trace_init(struct kbase_device *kbdev)
 {
 	/* Enable the iterator trace port if supported by the GPU.
-	 * It requires the GPU to have a nonzero "iter-trace-enable"
+	 * It requires the GPU to have a nonzero "iter_trace_enable"
 	 * property in the device tree, and the FW must advertise
 	 * this feature in GLB_FEATURES.
 	 */
 	if (kbdev->pm.backend.gpu_powered) {
-		/* check device tree for iterator trace enable property
-		 * and fallback to "iter_trace_enable" if it is not found
-		 */
+		/* check device tree for iterator trace enable property */
 		const void *iter_trace_param = of_get_property(
 					       kbdev->dev->of_node,
-					       "iter-trace-enable", NULL);
+					       "iter_trace_enable", NULL);
 
 		const struct kbase_csf_global_iface *iface =
 						&kbdev->csf.global_iface;
-
-		if (!iter_trace_param)
-			iter_trace_param =
-				of_get_property(kbdev->dev->of_node, "iter_trace_enable", NULL);
 
 		if (iter_trace_param) {
 			u32 iter_trace_value = be32_to_cpup(iter_trace_param);
@@ -2325,18 +2218,19 @@ int kbase_csf_firmware_early_init(struct kbase_device *kbdev)
 	kbdev->csf.fw_timeout_ms =
 		kbase_get_timeout_ms(kbdev, CSF_FIRMWARE_TIMEOUT);
 
-	kbase_csf_firmware_reset_mcu_core_pwroff_time(kbdev);
+	kbdev->csf.mcu_core_pwroff_dur_us = DEFAULT_GLB_PWROFF_TIMEOUT_US;
+	kbdev->csf.mcu_core_pwroff_dur_count = convert_dur_to_core_pwroff_count(
+		kbdev, DEFAULT_GLB_PWROFF_TIMEOUT_US);
+
 	INIT_LIST_HEAD(&kbdev->csf.firmware_interfaces);
 	INIT_LIST_HEAD(&kbdev->csf.firmware_config);
 	INIT_LIST_HEAD(&kbdev->csf.firmware_timeline_metadata);
 	INIT_LIST_HEAD(&kbdev->csf.firmware_trace_buffers.list);
-	INIT_LIST_HEAD(&kbdev->csf.user_reg.list);
 	INIT_WORK(&kbdev->csf.firmware_reload_work,
 		  kbase_csf_firmware_reload_worker);
 	INIT_WORK(&kbdev->csf.fw_error_work, firmware_error_worker);
 
 	mutex_init(&kbdev->csf.reg_lock);
-	kbase_csf_pending_gpuq_kicks_init(kbdev);
 
 	kbdev->csf.fw = (struct kbase_csf_mcu_fw){ .data = NULL };
 
@@ -2345,24 +2239,19 @@ int kbase_csf_firmware_early_init(struct kbase_device *kbdev)
 
 void kbase_csf_firmware_early_term(struct kbase_device *kbdev)
 {
-	kbase_csf_pending_gpuq_kicks_term(kbdev);
 	mutex_destroy(&kbdev->csf.reg_lock);
 }
 
 int kbase_csf_firmware_late_init(struct kbase_device *kbdev)
 {
-	u32 modifier = 0;
-
-	kbdev->csf.gpu_idle_hysteresis_ns = FIRMWARE_IDLE_HYSTERESIS_TIME_NS;
-
+	kbdev->csf.gpu_idle_hysteresis_us = FIRMWARE_IDLE_HYSTERESIS_TIME_USEC;
 #ifdef KBASE_PM_RUNTIME
 	if (kbase_pm_gpu_sleep_allowed(kbdev))
-		kbdev->csf.gpu_idle_hysteresis_ns /= FIRMWARE_IDLE_HYSTERESIS_GPU_SLEEP_SCALER;
+		kbdev->csf.gpu_idle_hysteresis_us /= FIRMWARE_IDLE_HYSTERESIS_GPU_SLEEP_SCALER;
 #endif
-	WARN_ON(!kbdev->csf.gpu_idle_hysteresis_ns);
+	WARN_ON(!kbdev->csf.gpu_idle_hysteresis_us);
 	kbdev->csf.gpu_idle_dur_count =
-		convert_dur_to_idle_count(kbdev, kbdev->csf.gpu_idle_hysteresis_ns, &modifier);
-	kbdev->csf.gpu_idle_dur_count_modifier = modifier;
+		convert_dur_to_idle_count(kbdev, kbdev->csf.gpu_idle_hysteresis_us);
 
 	return 0;
 }
@@ -2377,7 +2266,6 @@ int kbase_csf_firmware_load_init(struct kbase_device *kbdev)
 	u32 entry_end_offset;
 	u32 entry_offset;
 	int ret;
-	const char *fw_name = default_fw_name;
 
 	lockdep_assert_held(&kbdev->fw_load_lock);
 
@@ -2400,33 +2288,6 @@ int kbase_csf_firmware_load_init(struct kbase_device *kbdev)
 			"Failed to setup the rb tree for managing shared interface segment\n");
 		goto err_out;
 	}
-
-#if IS_ENABLED(CONFIG_OF)
-	/* If we can't read CSF firmware name from DTB,
-	 * fw_name is not modified and remains the default.
-	 */
-	ret = of_property_read_string(kbdev->dev->of_node, "firmware-name", &fw_name);
-	if (ret == -EINVAL) {
-		/* Property doesn't exist in DTB, and fw_name already points to default FW name
-		 * so just reset return value and continue.
-		 */
-		ret = 0;
-	} else if (ret == -ENODATA) {
-		dev_warn(kbdev->dev,
-			 "\"firmware-name\" DTB property contains no data, using default FW name");
-		/* Reset return value so FW does not fail to load */
-		ret = 0;
-	} else if (ret == -EILSEQ) {
-		/* This is reached when the size of the fw_name buffer is too small for the string
-		 * stored in the DTB and the null terminator.
-		 */
-		dev_warn(kbdev->dev,
-			 "\"firmware-name\" DTB property value too long, using default FW name.");
-		/* Reset return value so FW does not fail to load */
-		ret = 0;
-	}
-
-#endif /* IS_ENABLED(CONFIG_OF) */
 
 	if (request_firmware(&firmware, fw_name, kbdev->dev) != 0) {
 		dev_err(kbdev->dev,
@@ -2524,19 +2385,11 @@ int kbase_csf_firmware_load_init(struct kbase_device *kbdev)
 		goto err_out;
 	}
 
-	ret = kbase_csf_firmware_cfg_fw_wa_init(kbdev);
-	if (ret != 0) {
-		dev_err(kbdev->dev, "Failed to initialize firmware workarounds");
-		goto err_out;
-	}
-
 	/* Make sure L2 cache is powered up */
 	kbase_pm_wait_for_l2_powered(kbdev);
 
 	/* Load the MMU tables into the selected address space */
-	ret = load_mmu_tables(kbdev);
-	if (ret != 0)
-		goto err_out;
+	load_mmu_tables(kbdev);
 
 	boot_csf_firmware(kbdev);
 
@@ -2564,12 +2417,6 @@ int kbase_csf_firmware_load_init(struct kbase_device *kbdev)
 	if (ret != 0)
 		goto err_out;
 
-	ret = kbase_csf_firmware_log_init(kbdev);
-	if (ret != 0) {
-		dev_err(kbdev->dev, "Failed to initialize FW trace (err %d)", ret);
-		goto err_out;
-	}
-
 	ret = kbase_csf_firmware_cfg_init(kbdev);
 	if (ret != 0)
 		goto err_out;
@@ -2578,8 +2425,15 @@ int kbase_csf_firmware_load_init(struct kbase_device *kbdev)
 	if (ret != 0)
 		goto err_out;
 
-	if (kbdev->csf.fw_core_dump.available)
-		kbase_csf_firmware_core_dump_init(kbdev);
+	ret = kbase_csf_firmware_log_init(kbdev);
+	if (ret != 0) {
+		dev_err(kbdev->dev, "Failed to initialize FW trace (err %d)", ret);
+		goto err_out;
+	}
+
+#ifdef CONFIG_MALI_FW_CORE_DUMP
+	kbase_csf_firmware_core_dump_init(kbdev);
+#endif
 
 	/* Firmware loaded successfully, ret = 0 */
 	KBASE_KTRACE_ADD(kbdev, CSF_FIRMWARE_BOOT, NULL,
@@ -2603,9 +2457,9 @@ void kbase_csf_firmware_unload_term(struct kbase_device *kbdev)
 
 	WARN(ret, "failed to wait for GPU reset");
 
-	kbase_csf_firmware_cfg_term(kbdev);
-
 	kbase_csf_firmware_log_term(kbdev);
+
+	kbase_csf_firmware_cfg_term(kbdev);
 
 	kbase_csf_timeout_term(kbdev);
 
@@ -2633,8 +2487,6 @@ void kbase_csf_firmware_unload_term(struct kbase_device *kbdev)
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	unload_mmu_tables(kbdev);
-
-	kbase_csf_firmware_cfg_fw_wa_term(kbdev);
 
 	kbase_csf_firmware_trace_buffers_term(kbdev);
 
@@ -2699,119 +2551,6 @@ void kbase_csf_firmware_unload_term(struct kbase_device *kbdev)
 	/* Release the address space */
 	kbdev->as_free |= MCU_AS_BITMASK;
 }
-
-#if IS_ENABLED(CONFIG_MALI_CORESIGHT)
-int kbase_csf_firmware_mcu_register_write(struct kbase_device *const kbdev, u32 const reg_addr,
-					  u32 const reg_val)
-{
-	struct kbase_csf_global_iface *global_iface = &kbdev->csf.global_iface;
-	unsigned long flags;
-	int err;
-	u32 glb_req;
-
-	mutex_lock(&kbdev->csf.reg_lock);
-	kbase_csf_scheduler_spin_lock(kbdev, &flags);
-
-	/* Set the address and value to write */
-	kbase_csf_firmware_global_input(global_iface, GLB_DEBUG_ARG_IN0, reg_addr);
-	kbase_csf_firmware_global_input(global_iface, GLB_DEBUG_ARG_IN1, reg_val);
-
-	/* Set the Global Debug request for FW MCU write */
-	glb_req = kbase_csf_firmware_global_output(global_iface, GLB_DEBUG_ACK);
-	glb_req ^= GLB_DEBUG_REQ_FW_AS_WRITE_MASK;
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_DEBUG_REQ, glb_req,
-					     GLB_DEBUG_REQ_FW_AS_WRITE_MASK);
-
-	set_global_request(global_iface, GLB_REQ_DEBUG_CSF_REQ_MASK);
-
-	/* Notify FW about the Global Debug request */
-	kbase_csf_ring_doorbell(kbdev, CSF_KERNEL_DOORBELL_NR);
-
-	kbase_csf_scheduler_spin_unlock(kbdev, flags);
-
-	err = wait_for_global_request(kbdev, GLB_REQ_DEBUG_CSF_REQ_MASK);
-
-	mutex_unlock(&kbdev->csf.reg_lock);
-
-	dev_dbg(kbdev->dev, "w: reg %08x val %08x", reg_addr, reg_val);
-
-	return err;
-}
-
-int kbase_csf_firmware_mcu_register_read(struct kbase_device *const kbdev, u32 const reg_addr,
-					 u32 *reg_val)
-{
-	struct kbase_csf_global_iface *global_iface = &kbdev->csf.global_iface;
-	unsigned long flags;
-	int err;
-	u32 glb_req;
-
-	if (WARN_ON(reg_val == NULL))
-		return -EINVAL;
-
-	mutex_lock(&kbdev->csf.reg_lock);
-	kbase_csf_scheduler_spin_lock(kbdev, &flags);
-
-	/* Set the address to read */
-	kbase_csf_firmware_global_input(global_iface, GLB_DEBUG_ARG_IN0, reg_addr);
-
-	/* Set the Global Debug request for FW MCU read */
-	glb_req = kbase_csf_firmware_global_output(global_iface, GLB_DEBUG_ACK);
-	glb_req ^= GLB_DEBUG_REQ_FW_AS_READ_MASK;
-	kbase_csf_firmware_global_input_mask(global_iface, GLB_DEBUG_REQ, glb_req,
-					     GLB_DEBUG_REQ_FW_AS_READ_MASK);
-
-	set_global_request(global_iface, GLB_REQ_DEBUG_CSF_REQ_MASK);
-
-	/* Notify FW about the Global Debug request */
-	kbase_csf_ring_doorbell(kbdev, CSF_KERNEL_DOORBELL_NR);
-
-	kbase_csf_scheduler_spin_unlock(kbdev, flags);
-
-	err = wait_for_global_request(kbdev, GLB_REQ_DEBUG_CSF_REQ_MASK);
-
-	if (!err) {
-		kbase_csf_scheduler_spin_lock(kbdev, &flags);
-		*reg_val = kbase_csf_firmware_global_output(global_iface, GLB_DEBUG_ARG_OUT0);
-		kbase_csf_scheduler_spin_unlock(kbdev, flags);
-	}
-
-	mutex_unlock(&kbdev->csf.reg_lock);
-
-	dev_dbg(kbdev->dev, "r: reg %08x val %08x", reg_addr, *reg_val);
-
-	return err;
-}
-
-int kbase_csf_firmware_mcu_register_poll(struct kbase_device *const kbdev, u32 const reg_addr,
-					 u32 const val_mask, u32 const reg_val)
-{
-	unsigned long remaining = kbase_csf_timeout_in_jiffies(kbdev->csf.fw_timeout_ms) + jiffies;
-	u32 read_val;
-
-	dev_dbg(kbdev->dev, "p: reg %08x val %08x mask %08x", reg_addr, reg_val, val_mask);
-
-	while (time_before(jiffies, remaining)) {
-		int err = kbase_csf_firmware_mcu_register_read(kbdev, reg_addr, &read_val);
-
-		if (err) {
-			dev_err(kbdev->dev,
-				"Error reading MCU register value (read_val = %u, expect = %u)\n",
-				read_val, reg_val);
-			return err;
-		}
-
-		if ((read_val & val_mask) == reg_val)
-			return 0;
-	}
-
-	dev_err(kbdev->dev,
-		"Timeout waiting for MCU register value to be set (read_val = %u, expect = %u)\n",
-		read_val, reg_val);
-
-	return -ETIMEDOUT;
-}
-#endif /* IS_ENABLED(CONFIG_MALI_CORESIGHT) */
 
 void kbase_csf_firmware_enable_gpu_idle_timer(struct kbase_device *kbdev)
 {
@@ -3012,9 +2751,7 @@ int kbase_csf_trigger_firmware_config_update(struct kbase_device *kbdev)
 
 	/* Ensure GPU is powered-up until we complete config update.*/
 	kbase_csf_scheduler_pm_active(kbdev);
-	err = kbase_csf_scheduler_killable_wait_mcu_active(kbdev);
-	if (err)
-		goto exit;
+	kbase_csf_scheduler_wait_mcu_active(kbdev);
 
 	/* The 'reg_lock' is also taken and is held till the update is
 	 * complete, to ensure the config update gets serialized.
@@ -3031,7 +2768,6 @@ int kbase_csf_trigger_firmware_config_update(struct kbase_device *kbdev)
 				      GLB_REQ_FIRMWARE_CONFIG_UPDATE_MASK);
 	mutex_unlock(&kbdev->csf.reg_lock);
 
-exit:
 	kbase_csf_scheduler_pm_idle(kbdev);
 	return err;
 }
@@ -3166,7 +2902,7 @@ int kbase_csf_firmware_mcu_shared_mapping_init(
 		goto page_list_alloc_error;
 
 	ret = kbase_mem_pool_alloc_pages(&kbdev->mem_pools.small[KBASE_MEM_GROUP_CSF_FW], num_pages,
-					 phys, false, NULL);
+					 phys, false);
 	if (ret <= 0)
 		goto phys_mem_pool_alloc_error;
 
@@ -3177,7 +2913,8 @@ int kbase_csf_firmware_mcu_shared_mapping_init(
 	if (!cpu_addr)
 		goto vmap_error;
 
-	va_reg = kbase_alloc_free_region(&kbdev->csf.mcu_shared_zone, 0, num_pages);
+	va_reg = kbase_alloc_free_region(&kbdev->csf.shared_reg_rbtree, 0,
+			num_pages, KBASE_REG_ZONE_MCU_SHARED);
 	if (!va_reg)
 		goto va_region_alloc_error;
 
@@ -3193,7 +2930,7 @@ int kbase_csf_firmware_mcu_shared_mapping_init(
 
 	ret = kbase_mmu_insert_pages_no_flush(kbdev, &kbdev->csf.mcu_mmu, va_reg->start_pfn,
 					      &phys[0], num_pages, gpu_map_properties,
-					      KBASE_MEM_GROUP_CSF_FW, NULL, NULL);
+					      KBASE_MEM_GROUP_CSF_FW, NULL, NULL, false);
 	if (ret)
 		goto mmu_insert_pages_error;
 

@@ -132,15 +132,15 @@ void kbasep_js_kctx_term(struct kbase_context *kctx);
  * Atoms of higher priority might still be able to be pulled from the context
  * on @js. This helps with starting a high priority atom as soon as possible.
  */
-static inline void kbase_jsctx_slot_prio_blocked_set(struct kbase_context *kctx, unsigned int js,
-						     int sched_prio)
+static inline void kbase_jsctx_slot_prio_blocked_set(struct kbase_context *kctx,
+						     int js, int sched_prio)
 {
 	struct kbase_jsctx_slot_tracking *slot_tracking =
 		&kctx->slot_tracking[js];
 
 	lockdep_assert_held(&kctx->kbdev->hwaccess_lock);
 	WARN(!slot_tracking->atoms_pulled_pri[sched_prio],
-	     "When marking slot %u as blocked for priority %d on a kctx, no atoms were pulled - the slot cannot become unblocked",
+	     "When marking slot %d as blocked for priority %d on a kctx, no atoms were pulled - the slot cannot become unblocked",
 	     js, sched_prio);
 
 	slot_tracking->blocked |= ((kbase_js_prio_bitmap_t)1) << sched_prio;
@@ -510,6 +510,19 @@ bool kbase_js_dep_resolved_submit(struct kbase_context *kctx,
 		struct kbase_jd_atom *katom);
 
 /**
+ * jsctx_ll_flush_to_rb() - Pushes atoms from the linked list to ringbuffer.
+ * @kctx:  Context Pointer
+ * @prio:  Priority (specifies the queue together with js).
+ * @js:    Job slot (specifies the queue together with prio).
+ *
+ * Pushes all possible atoms from the linked list to the ringbuffer.
+ * Number of atoms are limited to free space in the ringbuffer and
+ * number of available atoms in the linked list.
+ *
+ */
+void jsctx_ll_flush_to_rb(struct kbase_context *kctx, int prio, int js);
+
+/**
  * kbase_js_pull - Pull an atom from a context in the job scheduler for
  *                 execution.
  *
@@ -523,7 +536,7 @@ bool kbase_js_dep_resolved_submit(struct kbase_context *kctx,
  * Return: a pointer to an atom, or NULL if there are no atoms for this
  * slot that can be currently run.
  */
-struct kbase_jd_atom *kbase_js_pull(struct kbase_context *kctx, unsigned int js);
+struct kbase_jd_atom *kbase_js_pull(struct kbase_context *kctx, int js);
 
 /**
  * kbase_js_unpull - Return an atom to the job scheduler ringbuffer.
@@ -604,7 +617,7 @@ bool kbase_js_atom_blocked_on_x_dep(struct kbase_jd_atom *katom);
  * been used.
  *
  */
-void kbase_js_sched(struct kbase_device *kbdev, unsigned int js_mask);
+void kbase_js_sched(struct kbase_device *kbdev, int js_mask);
 
 /**
  * kbase_js_zap_context - Attempt to deschedule a context that is being
@@ -1019,12 +1032,12 @@ base_jd_prio kbase_js_priority_check(struct kbase_device *kbdev, base_jd_prio pr
  *               relation
  *
  * This is for making consistent decisions about the ordering of atoms when we
- * need to do pre-emotion on a slot, which includes stopping existing atoms
+ * need to do pre-emption on a slot, which includes stopping existing atoms
  * when a new atom is ready to run, and also which other atoms to remove from
- * the slot when the atom in JSn_HEAD is being pre-emptied.
+ * the slot when the atom in JSn_HEAD is being pre-empted.
  *
  * This only handles @katom_a and @katom_b being for the same job slot, as
- * pre-emotion only operates within a slot.
+ * pre-emption only operates within a slot.
  *
  * Note: there is currently no use-case for this as a sorting comparison
  * functions, hence only a boolean returned instead of int -1, 0, +1 return. If

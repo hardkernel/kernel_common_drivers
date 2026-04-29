@@ -107,9 +107,7 @@ struct kbase_gpu_mmu_props {
  * @core_mask: Largest core mask bitmap that can be assigned to the GPU during
  *             runtime.
  *
-
  * Properties based on the maximum resources available (not necessarily
-
  * allocated at that moment). Used to provide the maximum configuration to the
  * userspace allowing the applications to allocate enough resources in case the
  * real allocated resources change.

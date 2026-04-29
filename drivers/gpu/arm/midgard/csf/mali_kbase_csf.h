@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2018-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -40,15 +40,12 @@
  */
 #define KBASEP_USER_DB_NR_INVALID ((s8)-1)
 
-/* Number of pages used for GPU command queue's User input & output data */
-#define KBASEP_NUM_CS_USER_IO_PAGES (2)
-
 /* Indicates an invalid value for the scan out sequence number, used to
  * signify there is no group that has protected mode execution pending.
  */
 #define KBASEP_TICK_PROTM_PEND_SCAN_SEQ_NR_INVALID (U32_MAX)
 
-#define FIRMWARE_IDLE_HYSTERESIS_TIME_NS (10 * 1000 * 1000) /* Default 10 milliseconds */
+#define FIRMWARE_IDLE_HYSTERESIS_TIME_USEC (10000) /* Default 10 milliseconds */
 
 /* Idle hysteresis time can be scaled down when GPU sleep feature is used */
 #define FIRMWARE_IDLE_HYSTERESIS_GPU_SLEEP_SCALER (5)
@@ -74,18 +71,6 @@ int kbase_csf_ctx_init(struct kbase_context *kctx);
  */
 void kbase_csf_ctx_handle_fault(struct kbase_context *kctx,
 		struct kbase_fault *fault);
-
-/**
- * kbase_csf_ctx_report_page_fault_for_active_groups - Notify Userspace about GPU page fault
- *                                                   for active groups of the faulty context.
- *
- * @kctx:       Pointer to faulty kbase context.
- * @fault:      Pointer to the fault.
- *
- * This function notifies the event notification thread of the GPU page fault.
- */
-void kbase_csf_ctx_report_page_fault_for_active_groups(struct kbase_context *kctx,
-						       struct kbase_fault *fault);
 
 /**
  * kbase_csf_ctx_term - Terminate the CSF interface for a GPU address space.
@@ -286,7 +271,6 @@ void kbase_csf_queue_group_terminate(struct kbase_context *kctx,
  */
 void kbase_csf_term_descheduled_queue_group(struct kbase_queue_group *group);
 
-#if IS_ENABLED(CONFIG_MALI_VECTOR_DUMP) || MALI_UNIT_TEST
 /**
  * kbase_csf_queue_group_suspend - Suspend a GPU command queue group
  *
@@ -304,7 +288,6 @@ void kbase_csf_term_descheduled_queue_group(struct kbase_queue_group *group);
  */
 int kbase_csf_queue_group_suspend(struct kbase_context *kctx,
 	struct kbase_suspend_copy_buffer *sus_buf, u8 group_handle);
-#endif
 
 /**
  * kbase_csf_add_group_fatal_error - Report a fatal group error to userspace
@@ -323,19 +306,6 @@ void kbase_csf_add_group_fatal_error(
  * @val:   The value of JOB IRQ status register which triggered the interrupt
  */
 void kbase_csf_interrupt(struct kbase_device *kbdev, u32 val);
-
-/**
- * kbase_csf_handle_csg_sync_update - Handle SYNC_UPDATE notification for the group.
- *
- * @kbdev: The kbase device to handle the SYNC_UPDATE interrupt.
- * @ginfo: Pointer to the CSG interface used by the @group
- * @group: Pointer to the GPU command queue group.
- * @req:   CSG_REQ register value corresponding to @group.
- * @ack:   CSG_ACK register value corresponding to @group.
- */
-void kbase_csf_handle_csg_sync_update(struct kbase_device *const kbdev,
-				      struct kbase_csf_cmd_stream_group_info *ginfo,
-				      struct kbase_queue_group *group, u32 req, u32 ack);
 
 /**
  * kbase_csf_doorbell_mapping_init - Initialize the fields that facilitates
@@ -384,22 +354,6 @@ int kbase_csf_setup_dummy_user_reg_page(struct kbase_device *kbdev);
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  */
 void kbase_csf_free_dummy_user_reg_page(struct kbase_device *kbdev);
-
-/**
- * kbase_csf_pending_gpuq_kicks_init - Initialize the data used for handling
- *                                     GPU queue kicks.
- *
- * @kbdev: Instance of a GPU platform device that implements a CSF interface.
- */
-void kbase_csf_pending_gpuq_kicks_init(struct kbase_device *kbdev);
-
-/**
- * kbase_csf_pending_gpuq_kicks_init - De-initialize the data used for handling
- *                                     GPU queue kicks.
- *
- * @kbdev: Instance of a GPU platform device that implements a CSF interface.
- */
-void kbase_csf_pending_gpuq_kicks_term(struct kbase_device *kbdev);
 
 /**
  * kbase_csf_ring_csg_doorbell - ring the doorbell for a CSG interface.
@@ -525,18 +479,12 @@ static inline u8 kbase_csf_priority_queue_group_priority_to_relative(u8 priority
 }
 
 /**
-
- * kbase_csf_ktrace_gpu_cycle_cnt - Wrapper to relative the GPU cycle counter
-
-
+ * kbase_csf_ktrace_gpu_cycle_cnt - Wrapper to retrieve the GPU cycle counter
  *                                  value for Ktrace purpose.
  *
  * @kbdev: Instance of a GPU platform device that implements a CSF interface.
  *
-
- * This function is just a wrapper to relative the GPU cycle counter value, to
-
-
+ * This function is just a wrapper to retrieve the GPU cycle counter value, to
  * avoid any overhead on Release builds where Ktrace is disabled by default.
  *
  * Return: Snapshot of the GPU cycle count register.
@@ -549,18 +497,5 @@ static inline u64 kbase_csf_ktrace_gpu_cycle_cnt(struct kbase_device *kbdev)
 	return 0;
 #endif
 }
-
-/**
- * kbase_csf_process_queue_kick() - Process a pending kicked GPU command queue.
- *
- * @queue: Pointer to the queue to process.
- *
- * This function starts the pending queue, for which the work
- * was previously submitted via ioctl call from application thread.
- * If the queue is already scheduled and resident, it will be started
- * right away, otherwise once the group is made resident.
- */
-void kbase_csf_process_queue_kick(struct kbase_queue *queue);
-
 
 #endif /* _KBASE_CSF_H_ */

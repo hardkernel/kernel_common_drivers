@@ -33,16 +33,16 @@
  * @PORTAL_CMD_GET_PLATFORM:       Request the platform that the tests are
  *                                 to be run on.
  * @PORTAL_CMD_GET_CLK_RATE_MGR:   Request the clock trace manager internal
- *                                 data record. On a positive acknowledgment
+ *                                 data record. On a positive acknowledgement
  *                                 the prevailing clock rates and the GPU idle
  *                                 condition flag are returned.
  * @PORTAL_CMD_GET_CLK_RATE_TRACE: Request the clock trace portal to return its
- *                                 data record. On a positive acknowledgment
+ *                                 data record. On a positive acknowledgement
  *                                 the last trace recorded clock rates and the
  *                                 GPU idle condition flag are returned.
  * @PORTAL_CMD_GET_TRACE_SNAPSHOT: Request the clock trace portal to return its
  *                                 current snapshot data record. On a positive
- *                                 acknowledgment the snapshot array matching
+ *                                 acknowledgement the snapshot array matching
  *                                 the number of clocks are returned. It also
  *                                 starts a fresh snapshot inside the clock
  *                                 trace portal.

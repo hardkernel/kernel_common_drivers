@@ -231,12 +231,14 @@ static int add_params(struct kbase_ipa_model *model)
 			(struct kbase_ipa_model_simple_data *)model->model_data;
 
 	err = kbase_ipa_model_add_param_s32(model, "static-coefficient",
-					    (s32 *)&model_data->static_coefficient, 1, true);
+					    &model_data->static_coefficient,
+					    1, true);
 	if (err)
 		goto end;
 
 	err = kbase_ipa_model_add_param_s32(model, "dynamic-coefficient",
-					    (s32 *)&model_data->dynamic_coefficient, 1, true);
+					    &model_data->dynamic_coefficient,
+					    1, true);
 	if (err)
 		goto end;
 

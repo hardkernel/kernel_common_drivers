@@ -60,7 +60,7 @@ void kbase_csf_tiler_heap_context_term(struct kbase_context *kctx);
  * @buf_desc_va: Buffer descriptor GPU virtual address. This is a hint for
  *               indicating that the caller is intending to perform tiler heap
  *               chunks reclaim for those that are hoarded with hardware while
- *               the associated shader activities are suspended and the CSGs are
+ *               the associated shader activites are suspended and the CSGs are
  *               off slots. If the referred reclaiming is not desired, can
  *               set it to 0.
  * @gpu_heap_va: Where to store the GPU virtual address of the context that was

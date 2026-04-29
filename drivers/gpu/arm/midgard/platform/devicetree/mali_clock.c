@@ -110,8 +110,8 @@ static int critical_clock_set(size_t param)
 	unsigned int idx = param;
 	mali_dvfs_threshold_table *dvfs_tbl = &pmali_plat->dvfs_table[idx];
 
-	struct clk *clk_mali   = pmali_plat->clk_mali;
-	struct clk *clk_stack   = pmali_plat->clk_stack;
+	struct clk *clk_mali = pmali_plat->clk_mali;
+	struct clk *clk_stack = pmali_plat->clk_stack;
 
 	ret = clk_set_rate(clk_mali, dvfs_tbl->clk_freq);
 	if (clk_stack)
@@ -373,7 +373,7 @@ int mali_dt_info(struct platform_device *pdev, struct mali_plat_info_t *mpdata)
 
 	mpdata->clk_mali = devm_clk_get(&pdev->dev, "gpu_mux");
 	if (IS_ERR(mpdata->clk_mali)) {
-		dev_err(&pdev->dev, "failed to get gpu_mux clock pointer\n");
+		dev_err(&pdev->dev, "failed to get clock pointer\n");
 		return -EFAULT;
 	}
 	mpdata->clk_stack = devm_clk_get(&pdev->dev, "gpu_stack");

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -24,7 +24,6 @@
 #include <backend/gpu/mali_kbase_instr_internal.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 #include <device/mali_kbase_device.h>
-#include <device/mali_kbase_device_internal.h>
 #include <mali_kbase_reset_gpu.h>
 #include <mmu/mali_kbase_mmu.h>
 #include <mali_kbase_ctx_sched.h>
@@ -59,7 +58,7 @@ static void kbase_gpu_fault_interrupt(struct kbase_device *kbdev)
 {
 	const u32 status = kbase_reg_read(kbdev,
 			GPU_CONTROL_REG(GPU_FAULTSTATUS));
-	const bool as_valid = status & GPU_FAULTSTATUS_JASID_VALID_MASK;
+	const bool as_valid = status & GPU_FAULTSTATUS_JASID_VALID_FLAG;
 	const u32 as_nr = (status & GPU_FAULTSTATUS_JASID_MASK) >>
 			GPU_FAULTSTATUS_JASID_SHIFT;
 	bool bus_fault = (status & GPU_FAULTSTATUS_EXCEPTION_TYPE_MASK) ==
@@ -188,7 +187,7 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 }
 
 #if !IS_ENABLED(CONFIG_MALI_NO_MALI)
-bool kbase_is_register_accessible(u32 offset)
+static bool kbase_is_register_accessible(u32 offset)
 {
 #ifdef CONFIG_MALI_DEBUG
 	if (((offset >= MCU_SUBSYSTEM_BASE) && (offset < IPA_CONTROL_BASE)) ||
@@ -200,9 +199,7 @@ bool kbase_is_register_accessible(u32 offset)
 
 	return true;
 }
-#endif /* !IS_ENABLED(CONFIG_MALI_NO_MALI) */
 
-#if IS_ENABLED(CONFIG_MALI_REAL_HW)
 void kbase_reg_write(struct kbase_device *kbdev, u32 offset, u32 value)
 {
 	if (WARN_ON(!kbdev->pm.backend.gpu_powered))
@@ -250,4 +247,4 @@ u32 kbase_reg_read(struct kbase_device *kbdev, u32 offset)
 	return val;
 }
 KBASE_EXPORT_TEST_API(kbase_reg_read);
-#endif /* IS_ENABLED(CONFIG_MALI_REAL_HW) */
+#endif /* !IS_ENABLED(CONFIG_MALI_NO_MALI) */

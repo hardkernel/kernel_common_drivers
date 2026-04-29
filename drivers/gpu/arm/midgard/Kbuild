@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2012-2023 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2022 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -69,7 +69,7 @@ endif
 #
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= '"r44p1-01eac0"'
+MALI_RELEASE_NAME ?= '"r41p0-01eac0"'
 # Set up defaults if not defined by build system
 ifeq ($(CONFIG_MALI_DEBUG), y)
     MALI_UNIT_TEST = 1
@@ -79,7 +79,9 @@ else
     MALI_CUSTOMER_RELEASE ?= 1
 endif
 MALI_COVERAGE ?= 0
+
 CONFIG_MALI_PLATFORM_NAME ?= "devicetree"
+
 # Kconfig passes in the name with quotes for in-tree builds - remove them.
 MALI_PLATFORM_DIR := $(shell echo $(CONFIG_MALI_PLATFORM_NAME))
 
@@ -118,8 +120,8 @@ ccflags-y = \
     -DMALI_RELEASE_NAME=$(MALI_RELEASE_NAME) \
     -DMALI_JIT_PRESSURE_LIMIT_BASE=$(MALI_JIT_PRESSURE_LIMIT_BASE) \
     -DMALI_INCREMENTAL_RENDERING_JM=$(MALI_INCREMENTAL_RENDERING_JM) \
-    -DMALI_PLATFORM_DIR=$(MALI_PLATFORM_DIR)
-
+    -DMALI_PLATFORM_DIR=$(MALI_PLATFORM_DIR) \
+    -DCONFIG_MALI_LOW_MEM=0
 
 ifeq ($(KBUILD_EXTMOD),)
 # in-tree
@@ -143,7 +145,9 @@ subdir-ccflags-y += $(ccflags-y)
 # Kernel Modules
 #
 obj-$(CONFIG_MALI_MIDGARD) += mali_kbase.o
+ifneq ($(CONFIG_MALI_ARBITRATION),)
 obj-$(CONFIG_MALI_ARBITRATION) += ../arbitration/
+endif
 obj-$(CONFIG_MALI_KUTF)    += tests/
 
 mali_kbase-y := \
@@ -174,6 +178,7 @@ mali_kbase-y := \
     mali_kbase_mem_pool.o \
     mali_kbase_mem_pool_debugfs.o \
     mali_kbase_debugfs_helper.o \
+    mali_kbase_strings.o \
     mali_kbase_as_fault_debugfs.o \
     mali_kbase_regs_history_debugfs.o \
     mali_kbase_dvfs_debugfs.o \
@@ -189,10 +194,6 @@ mali_kbase-$(CONFIG_SYNC_FILE) += \
     mali_kbase_fence_ops.o \
     mali_kbase_sync_file.o \
     mali_kbase_sync_common.o
-
-mali_kbase-$(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD) += \
-        mali_power_gpu_work_period_trace.o \
-        mali_kbase_gpu_metrics.o
 
 ifneq ($(CONFIG_MALI_CSF_SUPPORT),y)
     mali_kbase-y += \

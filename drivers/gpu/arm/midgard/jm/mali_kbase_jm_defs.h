@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -127,22 +127,13 @@
 /**
  * enum kbase_timeout_selector - The choice of which timeout to get scaled
  *                               using the lowest GPU frequency.
- * @MMU_AS_INACTIVE_WAIT_TIMEOUT: Maximum waiting time in ms for the completion
- *                                of a MMU operation
- * @JM_DEFAULT_JS_FREE_TIMEOUT: Maximum timeout to wait for JS_COMMAND_NEXT
- *                              to be updated on HW side so a Job Slot is
- *                              considered free.
- * @KBASE_TIMEOUT_SELECTOR_COUNT: Number of timeout selectors.
- * @KBASE_DEFAULT_TIMEOUT: Fallthrough in case an invalid timeout is
- *                         passed.
+ * @KBASE_TIMEOUT_SELECTOR_COUNT: Number of timeout selectors. Must be last in
+ *                                the enum.
  */
 enum kbase_timeout_selector {
-	MMU_AS_INACTIVE_WAIT_TIMEOUT,
-	JM_DEFAULT_JS_FREE_TIMEOUT,
 
 	/* Must be the last in the enum */
-	KBASE_TIMEOUT_SELECTOR_COUNT,
-	KBASE_DEFAULT_TIMEOUT = JM_DEFAULT_JS_FREE_TIMEOUT
+	KBASE_TIMEOUT_SELECTOR_COUNT
 };
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -587,7 +578,7 @@ struct kbase_jd_atom {
 #if IS_ENABLED(CONFIG_GPU_TRACEPOINTS)
 	int work_id;
 #endif
-	unsigned int slot_nr;
+	int slot_nr;
 
 	u32 atom_flags;
 

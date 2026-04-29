@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -120,6 +120,19 @@ struct kbase_kinstr_prfcnt_client_config {
 };
 
 /**
+ * struct kbase_kinstr_prfcnt_async - Asynchronous sampling operation to
+ *                                    carry out for a kinstr_prfcnt_client.
+ * @dump_work: Worker for performing asynchronous counter dumps.
+ * @user_data: User data for asynchronous dump in progress.
+ * @ts_end_ns: End timestamp of most recent async dump.
+ */
+struct kbase_kinstr_prfcnt_async {
+	struct work_struct dump_work;
+	u64 user_data;
+	u64 ts_end_ns;
+};
+
+/**
  * enum kbase_kinstr_prfcnt_client_init_state - A list of
  *                                              initialisation states that the
  *                                              kinstr_prfcnt client can be at
@@ -154,7 +167,9 @@ enum kbase_kinstr_prfcnt_client_init_state {
  * @hvcli:                Hardware counter virtualizer client.
  * @node:                 Node used to attach this client to list in
  *                        kinstr_prfcnt context.
- * @cmd_sync_lock:        Lock coordinating the reader interface for commands.
+ * @cmd_sync_lock:        Lock coordinating the reader interface for commands
+ *                        that need interacting with the async sample dump
+ *                        worker thread.
  * @next_dump_time_ns:    Time in ns when this client's next periodic dump must
  *                        occur. If 0, not a periodic client.
  * @dump_interval_ns:     Interval between periodic dumps. If 0, not a periodic
@@ -175,10 +190,15 @@ enum kbase_kinstr_prfcnt_client_init_state {
  * @waitq:                Client's notification queue.
  * @sample_size:          Size of the data required for one sample, in bytes.
  * @sample_count:         Number of samples the client is able to capture.
+ * @sync_sample_count:    Number of available spaces for synchronous samples.
+ *                        It can differ from sample_count if asynchronous
+ *                        sample requests are reserving space in the buffer.
  * @user_data:            User data associated with the session.
  *                        This is set when the session is started and stopped.
  *                        This value is ignored for control commands that
  *                        provide another value.
+ * @async:                Asynchronous sampling operations to carry out in this
+ *                        client's session.
  */
 struct kbase_kinstr_prfcnt_client {
 	struct kbase_kinstr_prfcnt_context *kinstr_ctx;
@@ -199,7 +219,9 @@ struct kbase_kinstr_prfcnt_client {
 	wait_queue_head_t waitq;
 	size_t sample_size;
 	size_t sample_count;
+	atomic_t sync_sample_count;
 	u64 user_data;
+	struct kbase_kinstr_prfcnt_async async;
 };
 
 static struct prfcnt_enum_item kinstr_prfcnt_supported_requests[] = {
@@ -434,7 +456,6 @@ int kbasep_kinstr_prfcnt_set_block_meta_items(struct kbase_hwcnt_enable_map *ena
 	size_t grp, blk, blk_inst;
 	struct prfcnt_metadata **ptr_md = block_meta_base;
 	const struct kbase_hwcnt_metadata *metadata;
-	uint8_t block_idx = 0;
 
 	if (!dst || !*block_meta_base)
 		return -EINVAL;
@@ -442,10 +463,6 @@ int kbasep_kinstr_prfcnt_set_block_meta_items(struct kbase_hwcnt_enable_map *ena
 	metadata = dst->metadata;
 	kbase_hwcnt_metadata_for_each_block(metadata, grp, blk, blk_inst) {
 		u8 *dst_blk;
-
-		/* Block indices must be reported with no gaps. */
-		if (blk_inst == 0)
-			block_idx = 0;
 
 		/* Skip unavailable or non-enabled blocks */
 		if (kbase_kinstr_is_block_type_reserved(metadata, grp, blk) ||
@@ -460,14 +477,13 @@ int kbasep_kinstr_prfcnt_set_block_meta_items(struct kbase_hwcnt_enable_map *ena
 			kbase_hwcnt_metadata_block_type_to_prfcnt_block_type(
 				kbase_hwcnt_metadata_block_type(metadata, grp,
 								blk));
-		(*ptr_md)->u.block_md.block_idx = block_idx;
+		(*ptr_md)->u.block_md.block_idx = (u8)blk_inst;
 		(*ptr_md)->u.block_md.set = counter_set;
 		(*ptr_md)->u.block_md.block_state = BLOCK_STATE_UNKNOWN;
 		(*ptr_md)->u.block_md.values_offset = (u32)(dst_blk - base_addr);
 
 		/* update the buf meta data block pointer to next item */
 		(*ptr_md)++;
-		block_idx++;
 	}
 
 	return 0;
@@ -520,6 +536,33 @@ static void kbasep_kinstr_prfcnt_set_sample_metadata(
 }
 
 /**
+ * kbasep_kinstr_prfcnt_client_output_empty_sample() - Assemble an empty sample
+ *                                                     for output.
+ * @cli:          Non-NULL pointer to a kinstr_prfcnt client.
+ * @buf_idx:      The index to the sample array for saving the sample.
+ */
+static void kbasep_kinstr_prfcnt_client_output_empty_sample(
+	struct kbase_kinstr_prfcnt_client *cli, unsigned int buf_idx)
+{
+	struct kbase_hwcnt_dump_buffer *dump_buf;
+	struct prfcnt_metadata *ptr_md;
+
+	if (WARN_ON(buf_idx >= cli->sample_arr.sample_count))
+		return;
+
+	dump_buf = &cli->sample_arr.samples[buf_idx].dump_buf;
+	ptr_md = cli->sample_arr.samples[buf_idx].sample_meta;
+
+	kbase_hwcnt_dump_buffer_zero(dump_buf, &cli->enable_map);
+
+	/* Use end timestamp from most recent async dump */
+	ptr_md->u.sample_md.timestamp_start = cli->async.ts_end_ns;
+	ptr_md->u.sample_md.timestamp_end = cli->async.ts_end_ns;
+
+	kbasep_kinstr_prfcnt_set_sample_metadata(cli, dump_buf, ptr_md);
+}
+
+/**
  * kbasep_kinstr_prfcnt_client_output_sample() - Assemble a sample for output.
  * @cli:          Non-NULL pointer to a kinstr_prfcnt client.
  * @buf_idx:      The index to the sample array for saving the sample.
@@ -568,11 +611,16 @@ static void kbasep_kinstr_prfcnt_client_output_sample(
  * @cli:          Non-NULL pointer to a kinstr_prfcnt client.
  * @event_id:     Event type that triggered the dump.
  * @user_data:    User data to return to the user.
+ * @async_dump:   Whether this is an asynchronous dump or not.
+ * @empty_sample: Sample block data will be 0 if this is true.
  *
  * Return: 0 on success, else error code.
  */
-static int kbasep_kinstr_prfcnt_client_dump(struct kbase_kinstr_prfcnt_client *cli,
-					    enum base_hwcnt_reader_event event_id, u64 user_data)
+static int
+kbasep_kinstr_prfcnt_client_dump(struct kbase_kinstr_prfcnt_client *cli,
+				 enum base_hwcnt_reader_event event_id,
+				 u64 user_data, bool async_dump,
+				 bool empty_sample)
 {
 	int ret;
 	u64 ts_start_ns = 0;
@@ -590,11 +638,17 @@ static int kbasep_kinstr_prfcnt_client_dump(struct kbase_kinstr_prfcnt_client *c
 	/* Check if there is a place to copy HWC block into. Calculate the
 	 * number of available samples count, by taking into account the type
 	 * of dump.
+	 * Asynchronous dumps have the ability to reserve space in the samples
+	 * array for future dumps, unlike synchronous dumps. Because of that,
+	 * the samples count for synchronous dumps is managed by a variable
+	 * called sync_sample_count, that originally is defined as equal to the
+	 * size of the whole array but later decreases every time an
+	 * asynchronous dump request is pending and then re-increased every
+	 * time an asynchronous dump request is completed.
 	 */
-	available_samples_count = cli->sample_arr.sample_count;
-	WARN_ON(available_samples_count < 1);
-	/* Reserve one slot to store the implicit sample taken on CMD_STOP */
-	available_samples_count -= 1;
+	available_samples_count = async_dump ?
+					  cli->sample_arr.sample_count :
+					  atomic_read(&cli->sync_sample_count);
 	if (write_idx - read_idx == available_samples_count) {
 		/* For periodic sampling, the current active dump
 		 * will be accumulated in the next sample, when
@@ -610,19 +664,38 @@ static int kbasep_kinstr_prfcnt_client_dump(struct kbase_kinstr_prfcnt_client *c
 	 */
 	write_idx %= cli->sample_arr.sample_count;
 
-	ret = kbase_hwcnt_virtualizer_client_dump(cli->hvcli, &ts_start_ns, &ts_end_ns,
-						  &cli->tmp_buf);
-	/* HWC dump error, set the sample with error flag */
-	if (ret)
-		cli->sample_flags |= SAMPLE_FLAG_ERROR;
+	if (!empty_sample) {
+		ret = kbase_hwcnt_virtualizer_client_dump(
+			cli->hvcli, &ts_start_ns, &ts_end_ns, &cli->tmp_buf);
+		/* HWC dump error, set the sample with error flag */
+		if (ret)
+			cli->sample_flags |= SAMPLE_FLAG_ERROR;
 
-	/* Make the sample ready and copy it to the userspace mapped buffer */
-	kbasep_kinstr_prfcnt_client_output_sample(cli, write_idx, user_data, ts_start_ns,
-						  ts_end_ns);
+		/* Make the sample ready and copy it to the userspace mapped buffer */
+		kbasep_kinstr_prfcnt_client_output_sample(
+			cli, write_idx, user_data, ts_start_ns, ts_end_ns);
+	} else {
+		if (!async_dump) {
+			struct prfcnt_metadata *ptr_md;
+			/* User data will not be updated for empty samples. */
+			ptr_md = cli->sample_arr.samples[write_idx].sample_meta;
+			ptr_md->u.sample_md.user_data = user_data;
+		}
+
+		/* Make the sample ready and copy it to the userspace mapped buffer */
+		kbasep_kinstr_prfcnt_client_output_empty_sample(cli, write_idx);
+	}
 
 	/* Notify client. Make sure all changes to memory are visible. */
 	wmb();
 	atomic_inc(&cli->write_idx);
+	if (async_dump) {
+		/* Remember the end timestamp of async dump for empty samples */
+		if (!empty_sample)
+			cli->async.ts_end_ns = ts_end_ns;
+
+		atomic_inc(&cli->sync_sample_count);
+	}
 	wake_up_interruptible(&cli->waitq);
 	/* Reset the flags for the next sample dump */
 	cli->sample_flags = 0;
@@ -636,9 +709,6 @@ kbasep_kinstr_prfcnt_client_start(struct kbase_kinstr_prfcnt_client *cli,
 {
 	int ret;
 	u64 tm_start, tm_end;
-	unsigned int write_idx;
-	unsigned int read_idx;
-	size_t available_samples_count;
 
 	WARN_ON(!cli);
 	lockdep_assert_held(&cli->cmd_sync_lock);
@@ -646,16 +716,6 @@ kbasep_kinstr_prfcnt_client_start(struct kbase_kinstr_prfcnt_client *cli,
 	/* If the client is already started, the command is a no-op */
 	if (cli->active)
 		return 0;
-
-	write_idx = atomic_read(&cli->write_idx);
-	read_idx = atomic_read(&cli->read_idx);
-
-	/* Check whether there is space to store atleast an implicit sample
-	 * corresponding to CMD_STOP.
-	 */
-	available_samples_count = cli->sample_count - (write_idx - read_idx);
-	if (!available_samples_count)
-		return -EBUSY;
 
 	kbase_hwcnt_gpu_enable_map_from_physical(&cli->enable_map,
 						 &cli->config.phys_em);
@@ -669,6 +729,7 @@ kbasep_kinstr_prfcnt_client_start(struct kbase_kinstr_prfcnt_client *cli,
 		cli->hvcli, &cli->enable_map, &tm_start, &tm_end, NULL);
 
 	if (!ret) {
+		atomic_set(&cli->sync_sample_count, cli->sample_count);
 		cli->active = true;
 		cli->user_data = user_data;
 		cli->sample_flags = 0;
@@ -682,6 +743,16 @@ kbasep_kinstr_prfcnt_client_start(struct kbase_kinstr_prfcnt_client *cli,
 	return ret;
 }
 
+static int kbasep_kinstr_prfcnt_client_wait_async_done(
+	struct kbase_kinstr_prfcnt_client *cli)
+{
+	lockdep_assert_held(&cli->cmd_sync_lock);
+
+	return wait_event_interruptible(cli->waitq,
+					atomic_read(&cli->sync_sample_count) ==
+						cli->sample_count);
+}
+
 static int
 kbasep_kinstr_prfcnt_client_stop(struct kbase_kinstr_prfcnt_client *cli,
 				 u64 user_data)
@@ -690,7 +761,7 @@ kbasep_kinstr_prfcnt_client_stop(struct kbase_kinstr_prfcnt_client *cli,
 	u64 tm_start = 0;
 	u64 tm_end = 0;
 	struct kbase_hwcnt_physical_enable_map phys_em;
-	size_t available_samples_count;
+	struct kbase_hwcnt_dump_buffer *tmp_buf = NULL;
 	unsigned int write_idx;
 	unsigned int read_idx;
 
@@ -701,11 +772,12 @@ kbasep_kinstr_prfcnt_client_stop(struct kbase_kinstr_prfcnt_client *cli,
 	if (!cli->active)
 		return -EINVAL;
 
-	mutex_lock(&cli->kinstr_ctx->lock);
+	/* Wait until pending async sample operation done */
+	ret = kbasep_kinstr_prfcnt_client_wait_async_done(cli);
 
-	/* Disable counters under the lock, so we do not race with the
-	 * sampling thread.
-	 */
+	if (ret < 0)
+		return -ERESTARTSYS;
+
 	phys_em.fe_bm = 0;
 	phys_em.tiler_bm = 0;
 	phys_em.mmu_l2_bm = 0;
@@ -713,11 +785,15 @@ kbasep_kinstr_prfcnt_client_stop(struct kbase_kinstr_prfcnt_client *cli,
 
 	kbase_hwcnt_gpu_enable_map_from_physical(&cli->enable_map, &phys_em);
 
+	mutex_lock(&cli->kinstr_ctx->lock);
+
 	/* Check whether one has the buffer to hold the last sample */
 	write_idx = atomic_read(&cli->write_idx);
 	read_idx = atomic_read(&cli->read_idx);
 
-	available_samples_count = cli->sample_count - (write_idx - read_idx);
+	/* Check if there is a place to save the last stop produced sample */
+	if (write_idx - read_idx < cli->sample_arr.sample_count)
+		tmp_buf = &cli->tmp_buf;
 
 	ret = kbase_hwcnt_virtualizer_client_set_counters(cli->hvcli,
 							  &cli->enable_map,
@@ -727,8 +803,7 @@ kbasep_kinstr_prfcnt_client_stop(struct kbase_kinstr_prfcnt_client *cli,
 	if (ret)
 		cli->sample_flags |= SAMPLE_FLAG_ERROR;
 
-	/* There must be a place to save the last stop produced sample */
-	if (!WARN_ON(!available_samples_count)) {
+	if (tmp_buf) {
 		write_idx %= cli->sample_arr.sample_count;
 		/* Handle the last stop sample */
 		kbase_hwcnt_gpu_enable_map_from_physical(&cli->enable_map,
@@ -758,6 +833,50 @@ kbasep_kinstr_prfcnt_client_sync_dump(struct kbase_kinstr_prfcnt_client *cli,
 				      u64 user_data)
 {
 	int ret;
+	bool empty_sample = false;
+
+	lockdep_assert_held(&cli->cmd_sync_lock);
+
+	/* If the client is not started, or not manual, the command invalid */
+	if (!cli->active || cli->dump_interval_ns)
+		return -EINVAL;
+
+	/* Wait until pending async sample operation done, this is required to
+	 * satisfy the stated sample sequence following their issuing order,
+	 * reflected by the sample start timestamp.
+	 */
+	if (atomic_read(&cli->sync_sample_count) != cli->sample_count) {
+		/* Return empty sample instead of performing real dump.
+		 * As there is an async dump currently in-flight which will
+		 * have the desired information.
+		 */
+		empty_sample = true;
+		ret = kbasep_kinstr_prfcnt_client_wait_async_done(cli);
+
+		if (ret < 0)
+			return -ERESTARTSYS;
+	}
+
+	mutex_lock(&cli->kinstr_ctx->lock);
+
+	ret = kbasep_kinstr_prfcnt_client_dump(cli,
+					       BASE_HWCNT_READER_EVENT_MANUAL,
+					       user_data, false, empty_sample);
+
+	mutex_unlock(&cli->kinstr_ctx->lock);
+
+	return ret;
+}
+
+static int
+kbasep_kinstr_prfcnt_client_async_dump(struct kbase_kinstr_prfcnt_client *cli,
+				       u64 user_data)
+{
+	unsigned int write_idx;
+	unsigned int read_idx;
+	unsigned int active_async_dumps;
+	unsigned int new_async_buf_idx;
+	int ret;
 
 	lockdep_assert_held(&cli->cmd_sync_lock);
 
@@ -767,7 +886,45 @@ kbasep_kinstr_prfcnt_client_sync_dump(struct kbase_kinstr_prfcnt_client *cli,
 
 	mutex_lock(&cli->kinstr_ctx->lock);
 
-	ret = kbasep_kinstr_prfcnt_client_dump(cli, BASE_HWCNT_READER_EVENT_MANUAL, user_data);
+	write_idx = atomic_read(&cli->write_idx);
+	read_idx = atomic_read(&cli->read_idx);
+	active_async_dumps =
+		cli->sample_count - atomic_read(&cli->sync_sample_count);
+	new_async_buf_idx = write_idx + active_async_dumps;
+
+	/* Check if there is a place to copy HWC block into.
+	 * If successful, reserve space in the buffer for the asynchronous
+	 * operation to make sure that it can actually take place.
+	 * Because we reserve space for asynchronous dumps we need to take that
+	 * in consideration here.
+	 */
+	ret = (new_async_buf_idx - read_idx == cli->sample_arr.sample_count) ?
+		      -EBUSY :
+		      0;
+
+	if (ret == -EBUSY) {
+		mutex_unlock(&cli->kinstr_ctx->lock);
+		return ret;
+	}
+
+	if (active_async_dumps > 0) {
+		struct prfcnt_metadata *ptr_md;
+		unsigned int buf_idx =
+			new_async_buf_idx % cli->sample_arr.sample_count;
+		/* Instead of storing user_data, write it directly to future
+		 * empty sample.
+		 */
+		ptr_md = cli->sample_arr.samples[buf_idx].sample_meta;
+		ptr_md->u.sample_md.user_data = user_data;
+
+		atomic_dec(&cli->sync_sample_count);
+	} else {
+		cli->async.user_data = user_data;
+		atomic_dec(&cli->sync_sample_count);
+
+		kbase_hwcnt_virtualizer_queue_work(cli->kinstr_ctx->hvirt,
+						   &cli->async.dump_work);
+	}
 
 	mutex_unlock(&cli->kinstr_ctx->lock);
 
@@ -824,6 +981,10 @@ int kbasep_kinstr_prfcnt_cmd(struct kbase_kinstr_prfcnt_client *cli,
 		ret = kbasep_kinstr_prfcnt_client_sync_dump(
 			cli, control_cmd->user_data);
 		break;
+	case PRFCNT_CONTROL_CMD_SAMPLE_ASYNC:
+		ret = kbasep_kinstr_prfcnt_client_async_dump(
+			cli, control_cmd->user_data);
+		break;
 	case PRFCNT_CONTROL_CMD_DISCARD:
 		ret = kbasep_kinstr_prfcnt_client_discard(cli);
 		break;
@@ -877,6 +1038,17 @@ kbasep_kinstr_prfcnt_get_sample(struct kbase_kinstr_prfcnt_client *cli,
 	read_idx %= cli->sample_arr.sample_count;
 	sample_meta = cli->sample_arr.samples[read_idx].sample_meta;
 	sample_offset_bytes = (u8 *)sample_meta - cli->sample_arr.user_buf;
+
+	/* Verify that a valid sample has been dumped in the read_idx.
+	 * There are situations where this may not be the case,
+	 * for instance if the client is trying to get an asynchronous
+	 * sample which has not been dumped yet.
+	 */
+	if (sample_meta->hdr.item_type != PRFCNT_SAMPLE_META_TYPE_SAMPLE ||
+	    sample_meta->hdr.item_version != PRFCNT_READER_API_VERSION) {
+		err = -EINVAL;
+		goto error_out;
+	}
 
 	sample_access->sequence = sample_meta->u.sample_md.seq;
 	sample_access->sample_offset_bytes = sample_offset_bytes;
@@ -1167,13 +1339,56 @@ static void kbasep_kinstr_prfcnt_dump_worker(struct work_struct *work)
 	list_for_each_entry(pos, &kinstr_ctx->clients, node) {
 		if (pos->active && (pos->next_dump_time_ns != 0) &&
 		    (pos->next_dump_time_ns < cur_time_ns))
-			kbasep_kinstr_prfcnt_client_dump(pos, BASE_HWCNT_READER_EVENT_PERIODIC,
-							 pos->user_data);
+			kbasep_kinstr_prfcnt_client_dump(
+				pos, BASE_HWCNT_READER_EVENT_PERIODIC,
+				pos->user_data, false, false);
 	}
 
 	kbasep_kinstr_prfcnt_reschedule_worker(kinstr_ctx);
 
 	mutex_unlock(&kinstr_ctx->lock);
+}
+
+/**
+ * kbasep_kinstr_prfcnt_async_dump_worker()- Dump worker for a manual client
+ *                                           to take a single asynchronous
+ *                                           sample.
+ * @work: Work structure.
+ */
+static void kbasep_kinstr_prfcnt_async_dump_worker(struct work_struct *work)
+{
+	struct kbase_kinstr_prfcnt_async *cli_async =
+		container_of(work, struct kbase_kinstr_prfcnt_async, dump_work);
+	struct kbase_kinstr_prfcnt_client *cli = container_of(
+		cli_async, struct kbase_kinstr_prfcnt_client, async);
+
+	mutex_lock(&cli->kinstr_ctx->lock);
+	/* While the async operation is in flight, a sync stop might have been
+	 * executed, for which the dump should be skipped. Further as we are
+	 * doing an async dump, we expect that there is reserved buffer for
+	 * this to happen. This is to avoid the rare corner case where the
+	 * user side has issued a stop/start pair before the async work item
+	 * get the chance to execute.
+	 */
+	if (cli->active &&
+	    (atomic_read(&cli->sync_sample_count) < cli->sample_count))
+		kbasep_kinstr_prfcnt_client_dump(cli,
+						 BASE_HWCNT_READER_EVENT_MANUAL,
+						 cli->async.user_data, true,
+						 false);
+
+	/* While the async operation is in flight, more async dump requests
+	 * may have been submitted. In this case, no more async dumps work
+	 * will be queued. Instead space will be reserved for that dump and
+	 * an empty sample will be return after handling the current async
+	 * dump.
+	 */
+	while (cli->active &&
+	       (atomic_read(&cli->sync_sample_count) < cli->sample_count)) {
+		kbasep_kinstr_prfcnt_client_dump(
+			cli, BASE_HWCNT_READER_EVENT_MANUAL, 0, true, true);
+	}
+	mutex_unlock(&cli->kinstr_ctx->lock);
 }
 
 /**
@@ -1257,10 +1472,8 @@ void kbase_kinstr_prfcnt_term(struct kbase_kinstr_prfcnt_context *kinstr_ctx)
 
 void kbase_kinstr_prfcnt_suspend(struct kbase_kinstr_prfcnt_context *kinstr_ctx)
 {
-	if (!kinstr_ctx) {
-		pr_warn("%s: kinstr_ctx is NULL\n", __func__);
+	if (WARN_ON(!kinstr_ctx))
 		return;
-	}
 
 	mutex_lock(&kinstr_ctx->lock);
 
@@ -1289,10 +1502,8 @@ void kbase_kinstr_prfcnt_suspend(struct kbase_kinstr_prfcnt_context *kinstr_ctx)
 
 void kbase_kinstr_prfcnt_resume(struct kbase_kinstr_prfcnt_context *kinstr_ctx)
 {
-	if (!kinstr_ctx) {
-		pr_warn("%s: kinstr_ctx is NULL\n", __func__);
+	if (WARN_ON(!kinstr_ctx))
 		return;
-	}
 
 	mutex_lock(&kinstr_ctx->lock);
 
@@ -1641,14 +1852,9 @@ int kbasep_kinstr_prfcnt_client_create(struct kbase_kinstr_prfcnt_context *kinst
 	struct kbase_kinstr_prfcnt_client *cli;
 	enum kbase_kinstr_prfcnt_client_init_state init_state;
 
-	if (WARN_ON(!kinstr_ctx))
-		return -EINVAL;
-
-	if (WARN_ON(!setup))
-		return -EINVAL;
-
-	if (WARN_ON(!req_arr))
-		return -EINVAL;
+	WARN_ON(!kinstr_ctx);
+	WARN_ON(!setup);
+	WARN_ON(!req_arr);
 
 	cli = kzalloc(sizeof(*cli), GFP_KERNEL);
 
@@ -1683,6 +1889,7 @@ int kbasep_kinstr_prfcnt_client_create(struct kbase_kinstr_prfcnt_context *kinst
 								 &cli->config.phys_em);
 
 			cli->sample_count = cli->config.buffer_count;
+			atomic_set(&cli->sync_sample_count, cli->sample_count);
 			cli->sample_size =
 				kbasep_kinstr_prfcnt_get_sample_size(cli, kinstr_ctx->metadata);
 
@@ -1716,6 +1923,7 @@ int kbasep_kinstr_prfcnt_client_create(struct kbase_kinstr_prfcnt_context *kinst
 
 		case KINSTR_PRFCNT_WAITQ_MUTEX:
 			init_waitqueue_head(&cli->waitq);
+			INIT_WORK(&cli->async.dump_work, kbasep_kinstr_prfcnt_async_dump_worker);
 			mutex_init(&cli->cmd_sync_lock);
 			break;
 
@@ -1951,18 +2159,17 @@ int kbase_kinstr_prfcnt_setup(struct kbase_kinstr_prfcnt_context *kinstr_ctx,
 			      union kbase_ioctl_kinstr_prfcnt_setup *setup)
 {
 	int err;
-	size_t item_count;
-	size_t bytes;
-	struct prfcnt_request_item *req_arr = NULL;
+	unsigned int item_count;
+	unsigned long bytes;
+	struct prfcnt_request_item *req_arr;
 	struct kbase_kinstr_prfcnt_client *cli = NULL;
-	const size_t max_bytes = 32 * sizeof(*req_arr);
 
 	if (!kinstr_ctx || !setup)
 		return -EINVAL;
 
 	item_count = setup->in.request_item_count;
 
-	/* Limiting the request items to 2x of the expected: accommodating
+	/* Limiting the request items to 2x of the expected: acommodating
 	 * moderate duplications but rejecting excessive abuses.
 	 */
 	if (!setup->in.requests_ptr || (item_count < 2) || (setup->in.request_item_size == 0) ||
@@ -1970,18 +2177,7 @@ int kbase_kinstr_prfcnt_setup(struct kbase_kinstr_prfcnt_context *kinstr_ctx,
 		return -EINVAL;
 	}
 
-	if (check_mul_overflow(item_count, sizeof(*req_arr), &bytes))
-		return -EINVAL;
-
-	/* Further limiting the max bytes to copy from userspace by setting it in the following
-	 * fashion: a maximum of 1 mode item, 4 types of 3 sets for a total of 12 enable items,
-	 * each currently at the size of prfcnt_request_item.
-	 *
-	 * Note: if more request types get added, this max limit needs to be updated.
-	 */
-	if (bytes > max_bytes)
-		return -EINVAL;
-
+	bytes = item_count * sizeof(*req_arr);
 	req_arr = memdup_user(u64_to_user_ptr(setup->in.requests_ptr), bytes);
 
 	if (IS_ERR(req_arr))

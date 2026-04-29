@@ -116,7 +116,7 @@ struct kbase_backend_data {
  * within the timeout period
  */
 #define KBASE_RESET_GPU_COMMITTED       2
-/* The GPU reset process is currently occurring (timeout has expired or
+/* The GPU reset process is currently occuring (timeout has expired or
  * kbasep_try_reset_gpu_early was called)
  */
 #define KBASE_RESET_GPU_HAPPENING       3

@@ -22,6 +22,7 @@ mali_kbase-y += \
     backend/gpu/mali_kbase_cache_policy_backend.o \
     backend/gpu/mali_kbase_gpuprops_backend.o \
     backend/gpu/mali_kbase_irq_linux.o \
+    backend/gpu/mali_kbase_js_backend.o \
     backend/gpu/mali_kbase_pm_backend.o \
     backend/gpu/mali_kbase_pm_driver.o \
     backend/gpu/mali_kbase_pm_metrics.o \
@@ -39,20 +40,15 @@ ifeq ($(MALI_USE_CSF),0)
         backend/gpu/mali_kbase_jm_as.o \
         backend/gpu/mali_kbase_debug_job_fault_backend.o \
         backend/gpu/mali_kbase_jm_hw.o \
-        backend/gpu/mali_kbase_jm_rb.o \
-        backend/gpu/mali_kbase_js_backend.o
+        backend/gpu/mali_kbase_jm_rb.o
 endif
 
 
 mali_kbase-$(CONFIG_MALI_DEVFREQ) += \
     backend/gpu/mali_kbase_devfreq.o
 
-ifneq ($(CONFIG_MALI_REAL_HW),y)
-    mali_kbase-y += backend/gpu/mali_kbase_model_linux.o
-endif
-
-# NO_MALI Dummy model interface
+# Dummy model
 mali_kbase-$(CONFIG_MALI_NO_MALI) += backend/gpu/mali_kbase_model_dummy.o
+mali_kbase-$(CONFIG_MALI_NO_MALI) += backend/gpu/mali_kbase_model_linux.o
 # HW error simulation
 mali_kbase-$(CONFIG_MALI_NO_MALI) += backend/gpu/mali_kbase_model_error_generator.o
-

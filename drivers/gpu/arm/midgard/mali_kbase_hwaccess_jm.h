@@ -97,8 +97,8 @@ bool kbase_backend_use_ctx(struct kbase_device *kbdev,
  * Return: true if context is now active, false otherwise (ie if context does
  *	   not have an address space assigned)
  */
-bool kbase_backend_use_ctx_sched(struct kbase_device *kbdev, struct kbase_context *kctx,
-				 unsigned int js);
+bool kbase_backend_use_ctx_sched(struct kbase_device *kbdev,
+					struct kbase_context *kctx, int js);
 
 /**
  * kbase_backend_release_ctx_irq - Release a context from the GPU. This will
@@ -183,7 +183,8 @@ void kbase_backend_reset(struct kbase_device *kbdev, ktime_t *end_timestamp);
  *
  * Return: Atom currently at the head of slot @js, or NULL
  */
-struct kbase_jd_atom *kbase_backend_inspect_tail(struct kbase_device *kbdev, unsigned int js);
+struct kbase_jd_atom *kbase_backend_inspect_tail(struct kbase_device *kbdev,
+					int js);
 
 /**
  * kbase_backend_nr_atoms_on_slot() - Return the number of atoms currently on a
@@ -193,7 +194,7 @@ struct kbase_jd_atom *kbase_backend_inspect_tail(struct kbase_device *kbdev, uns
  *
  * Return: Number of atoms currently on slot
  */
-int kbase_backend_nr_atoms_on_slot(struct kbase_device *kbdev, unsigned int js);
+int kbase_backend_nr_atoms_on_slot(struct kbase_device *kbdev, int js);
 
 /**
  * kbase_backend_nr_atoms_submitted() - Return the number of atoms on a slot
@@ -203,7 +204,7 @@ int kbase_backend_nr_atoms_on_slot(struct kbase_device *kbdev, unsigned int js);
  *
  * Return: Number of atoms currently on slot @js that are currently on the GPU.
  */
-int kbase_backend_nr_atoms_submitted(struct kbase_device *kbdev, unsigned int js);
+int kbase_backend_nr_atoms_submitted(struct kbase_device *kbdev, int js);
 
 /**
  * kbase_backend_ctx_count_changed() - Number of contexts ready to submit jobs
@@ -232,7 +233,7 @@ void kbase_backend_timeouts_changed(struct kbase_device *kbdev);
  *
  * Return: Number of jobs that can be submitted.
  */
-int kbase_backend_slot_free(struct kbase_device *kbdev, unsigned int js);
+int kbase_backend_slot_free(struct kbase_device *kbdev, int js);
 
 /**
  * kbase_job_check_leave_disjoint - potentially leave disjoint state
@@ -286,8 +287,8 @@ u32 kbase_backend_get_current_flush_id(struct kbase_device *kbdev);
  * Context:
  *   The job slot lock must be held when calling this function.
  */
-void kbase_job_slot_hardstop(struct kbase_context *kctx, unsigned int js,
-			     struct kbase_jd_atom *target_katom);
+void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
+				struct kbase_jd_atom *target_katom);
 
 /**
  * kbase_gpu_atoms_submitted_any() - Inspect whether there are any atoms

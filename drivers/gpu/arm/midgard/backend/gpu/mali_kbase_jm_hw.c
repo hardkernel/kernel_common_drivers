@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2023 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -44,8 +44,9 @@ static void kbasep_try_reset_gpu_early_locked(struct kbase_device *kbdev);
 static u64 kbasep_apply_limited_core_mask(const struct kbase_device *kbdev,
 				const u64 affinity, const u64 limited_core_mask);
 
-static u64 kbase_job_write_affinity(struct kbase_device *kbdev, base_jd_core_req core_req,
-				    unsigned int js, const u64 limited_core_mask)
+static u64 kbase_job_write_affinity(struct kbase_device *kbdev,
+				base_jd_core_req core_req,
+				int js, const u64 limited_core_mask)
 {
 	u64 affinity;
 	bool skip_affinity_check = false;
@@ -190,28 +191,7 @@ static u64 select_job_chain(struct kbase_jd_atom *katom)
 	return jc;
 }
 
-static inline bool kbasep_jm_wait_js_free(struct kbase_device *kbdev, unsigned int js,
-					  struct kbase_context *kctx)
-{
-	const ktime_t wait_loop_start = ktime_get_raw();
-	const s64 max_timeout = (s64)kbdev->js_data.js_free_wait_time_ms;
-	s64 diff = 0;
-
-	/* wait for the JS_COMMAND_NEXT register to reach the given status value */
-	do {
-		if (!kbase_reg_read(kbdev, JOB_SLOT_REG(js, JS_COMMAND_NEXT)))
-			return true;
-
-		diff = ktime_to_ms(ktime_sub(ktime_get_raw(), wait_loop_start));
-	} while (diff < max_timeout);
-
-	dev_err(kbdev->dev, "Timeout in waiting for job slot %u to become free for ctx %d_%u", js,
-		kctx->tgid, kctx->id);
-
-	return false;
-}
-
-int kbase_job_hw_submit(struct kbase_device *kbdev, struct kbase_jd_atom *katom, unsigned int js)
+int kbase_job_hw_submit(struct kbase_device *kbdev, struct kbase_jd_atom *katom, int js)
 {
 	struct kbase_context *kctx;
 	u32 cfg;
@@ -224,7 +204,8 @@ int kbase_job_hw_submit(struct kbase_device *kbdev, struct kbase_jd_atom *katom,
 	kctx = katom->kctx;
 
 	/* Command register must be available */
-	if (!kbasep_jm_wait_js_free(kbdev, js, kctx))
+	if (WARN(!kbasep_jm_is_js_free(kbdev, js, kctx),
+		 "Attempting to assign to occupied slot %d in kctx %pK\n", js, (void *)kctx))
 		return -EPERM;
 
 	dev_dbg(kctx->kbdev->dev, "Write JS_HEAD_NEXT 0x%llx for atom %pK\n",
@@ -363,8 +344,10 @@ int kbase_job_hw_submit(struct kbase_device *kbdev, struct kbase_jd_atom *katom,
  * work out the best estimate (which might still result in an over-estimate to
  * the calculated time spent)
  */
-static void kbasep_job_slot_update_head_start_timestamp(struct kbase_device *kbdev, unsigned int js,
-							ktime_t end_timestamp)
+static void kbasep_job_slot_update_head_start_timestamp(
+						struct kbase_device *kbdev,
+						int js,
+						ktime_t end_timestamp)
 {
 	ktime_t timestamp_diff;
 	struct kbase_jd_atom *katom;
@@ -394,7 +377,8 @@ static void kbasep_job_slot_update_head_start_timestamp(struct kbase_device *kbd
  * Make a tracepoint call to the instrumentation module informing that
  * softstop happened on given lpu (job slot).
  */
-static void kbasep_trace_tl_event_lpu_softstop(struct kbase_device *kbdev, unsigned int js)
+static void kbasep_trace_tl_event_lpu_softstop(struct kbase_device *kbdev,
+					int js)
 {
 	KBASE_TLSTREAM_TL_EVENT_LPU_SOFTSTOP(
 		kbdev,
@@ -403,6 +387,7 @@ static void kbasep_trace_tl_event_lpu_softstop(struct kbase_device *kbdev, unsig
 
 void kbase_job_done(struct kbase_device *kbdev, u32 done)
 {
+	int i;
 	u32 count = 0;
 	ktime_t end_timestamp;
 
@@ -413,7 +398,6 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 	end_timestamp = ktime_get_raw();
 
 	while (done) {
-		unsigned int i;
 		u32 failed = done >> 16;
 
 		/* treat failed slots as finished slots */
@@ -423,6 +407,8 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 		 * numbered interrupts before the higher numbered ones.
 		 */
 		i = ffs(finished) - 1;
+		if (WARN(i < 0, "%s: called without receiving any interrupts\n", __func__))
+			break;
 
 		do {
 			int nr_done;
@@ -574,7 +560,7 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 			count += nr_done;
 
 			while (nr_done) {
-				if (likely(nr_done == 1)) {
+				if (nr_done == 1) {
 					kbase_gpu_complete_hw(kbdev, i,
 								completion_code,
 								job_tail,
@@ -593,14 +579,6 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 							BASE_JD_EVENT_DONE,
 							0,
 							&end_timestamp);
-#if IS_ENABLED(CONFIG_MALI_TRACE_POWER_GPU_WORK_PERIOD)
-					/* Increment the end timestamp value by 1 ns to
-					 * avoid having the same value for 'start_time_ns'
-					 * and 'end_time_ns' for the 2nd atom whose job
-					 * completion IRQ got merged with the 1st atom.
-					 */
-					end_timestamp = ktime_add(end_timestamp, ns_to_ktime(1));
-#endif
 				}
 				nr_done--;
 			}
@@ -629,9 +607,11 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 	KBASE_KTRACE_ADD_JM(kbdev, JM_IRQ_END, NULL, NULL, 0, count);
 }
 
-void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev, unsigned int js,
-						 u32 action, base_jd_core_req core_reqs,
-						 struct kbase_jd_atom *target_katom)
+void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev,
+					int js,
+					u32 action,
+					base_jd_core_req core_reqs,
+					struct kbase_jd_atom *target_katom)
 {
 #if KBASE_KTRACE_ENABLE
 	u32 status_reg_before;
@@ -689,10 +669,6 @@ void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev, uns
 		struct kbase_context *head_kctx;
 
 		head = kbase_gpu_inspect(kbdev, js, 0);
-		if (unlikely(!head)) {
-			dev_err(kbdev->dev, "Can't get a katom from js(%d)\n", js);
-			return;
-		}
 		head_kctx = head->kctx;
 
 		if (status_reg_before == BASE_JD_EVENT_ACTIVE)
@@ -761,7 +737,7 @@ void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev, uns
 void kbase_backend_jm_kill_running_jobs_from_kctx(struct kbase_context *kctx)
 {
 	struct kbase_device *kbdev = kctx->kbdev;
-	unsigned int i;
+	int i;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
@@ -773,7 +749,7 @@ void kbase_job_slot_ctx_priority_check_locked(struct kbase_context *kctx,
 				struct kbase_jd_atom *target_katom)
 {
 	struct kbase_device *kbdev;
-	unsigned int target_js = target_katom->slot_nr;
+	int target_js = target_katom->slot_nr;
 	int i;
 	bool stop_sent = false;
 
@@ -951,8 +927,8 @@ KBASE_EXPORT_TEST_API(kbase_job_slot_term);
  *
  * Where possible any job in the next register is evicted before the soft-stop.
  */
-void kbase_job_slot_softstop_swflags(struct kbase_device *kbdev, unsigned int js,
-				     struct kbase_jd_atom *target_katom, u32 sw_flags)
+void kbase_job_slot_softstop_swflags(struct kbase_device *kbdev, int js,
+			struct kbase_jd_atom *target_katom, u32 sw_flags)
 {
 	dev_dbg(kbdev->dev, "Soft-stop atom %pK with flags 0x%x (s:%d)\n",
 		target_katom, sw_flags, js);
@@ -972,8 +948,8 @@ void kbase_job_slot_softstop(struct kbase_device *kbdev, int js,
 	kbase_job_slot_softstop_swflags(kbdev, js, target_katom, 0u);
 }
 
-void kbase_job_slot_hardstop(struct kbase_context *kctx, unsigned int js,
-			     struct kbase_jd_atom *target_katom)
+void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
+				struct kbase_jd_atom *target_katom)
 {
 	struct kbase_device *kbdev = kctx->kbdev;
 	bool stopped;
@@ -1060,12 +1036,12 @@ static void kbase_debug_dump_registers(struct kbase_device *kbdev)
 			i, kbase_reg_read(kbdev, JOB_SLOT_REG(i, JS_HEAD_LO)));
 	}
 	dev_err(kbdev->dev, "  MMU_IRQ_RAWSTAT=0x%08x GPU_FAULTSTATUS=0x%08x",
-		kbase_reg_read(kbdev, MMU_CONTROL_REG(MMU_IRQ_RAWSTAT)),
+		kbase_reg_read(kbdev, MMU_REG(MMU_IRQ_RAWSTAT)),
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_FAULTSTATUS)));
 	dev_err(kbdev->dev, "  GPU_IRQ_MASK=0x%08x    JOB_IRQ_MASK=0x%08x     MMU_IRQ_MASK=0x%08x",
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK)),
 		kbase_reg_read(kbdev, JOB_CONTROL_REG(JOB_IRQ_MASK)),
-		kbase_reg_read(kbdev, MMU_CONTROL_REG(MMU_IRQ_MASK)));
+		kbase_reg_read(kbdev, MMU_REG(MMU_IRQ_MASK)));
 	dev_err(kbdev->dev, "  PWR_OVERRIDE0=0x%08x   PWR_OVERRIDE1=0x%08x",
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(PWR_OVERRIDE0)),
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(PWR_OVERRIDE1)));
@@ -1279,7 +1255,7 @@ static enum hrtimer_restart kbasep_reset_timer_callback(struct hrtimer *timer)
 
 static void kbasep_try_reset_gpu_early_locked(struct kbase_device *kbdev)
 {
-	unsigned int i;
+	int i;
 	int pending_jobs = 0;
 
 	/* Count the number of jobs */

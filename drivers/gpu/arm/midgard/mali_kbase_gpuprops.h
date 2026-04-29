@@ -58,7 +58,7 @@ void kbase_gpuprops_set(struct kbase_device *kbdev);
  * @kbdev:   Device pointer
  *
  * This function sets up GPU properties that are dependent on the hardware
- * features bitmask. This function must be preceded by a call to
+ * features bitmask. This function must be preceeded by a call to
  * kbase_hw_set_features_mask().
  *
  * Return: Zero on success, Linux error code on failure
