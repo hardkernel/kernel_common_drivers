@@ -7,6 +7,10 @@ subdir-ccflags-y += "-D__module_param_cb(name, ops, arg, perm)="
 subdir-ccflags-y += "-D__module_param_array_named(name, array, type, nump, perm)="
 subdir-ccflags-$(CONFIG_PREEMPT_RT) += $(call cc-disable-warning, unused-variable)
 
+ifeq ($(CONFIG_ARCH_MESON_ODROID_COMMON),y)
+	CONFIG_AMLOGIC_GKI_TOOL = y
+endif
+
 obj-$(CONFIG_AMLOGIC_GKI_TOOL)		+= gki_tool/
 obj-y					+= debug/
 obj-y					+= tty/

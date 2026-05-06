@@ -6,7 +6,6 @@
 #ifndef __GKI_MODULE_AMLOGIC_H
 #define __GKI_MODULE_AMLOGIC_H
 
-#ifdef CONFIG_AMLOGIC_GKI_TOOL
 #define GKI_MODULE_SETUP_MAGIC1 0x014589cd
 #define GKI_MODULE_SETUP_MAGIC2 0x2367abef
 
@@ -28,6 +27,7 @@ struct cmd_param_val {
 extern struct cmd_param_val *cpv;
 extern int cpv_count;
 
+#ifdef CONFIG_AMLOGIC_GKI_TOOL
 #define __setup_gki_module(str, fn, early)			\
 	struct gki_module_setup_struct __gki_setup_##fn =        \
 		   {GKI_MODULE_SETUP_MAGIC1, GKI_MODULE_SETUP_MAGIC2,    \
@@ -95,6 +95,7 @@ void __module_init_hook(struct module *m);
 #define module_init(fn)			module_init_hook(fn)
 
 #endif //MODULE
+#endif //CONFIG_AMLOGIC_GKI_TOOL
 
 enum param_type {
 	TYPE_BOOL,
@@ -131,5 +132,4 @@ struct param_entry {
 extern struct kernel_param_ops key_value_param_ops;
 
 int amlogic_class_debug_create_dir(const struct attribute_group *group, int debug_level);
-#endif //CONFIG_AMLOGIC_GKI_TOOL
 #endif //__GKI_MODULE_AMLOGIC_H
