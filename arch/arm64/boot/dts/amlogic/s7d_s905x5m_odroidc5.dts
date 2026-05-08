@@ -1119,6 +1119,7 @@
 &drm_subsystem {
 	fbdev_sizes = <1920 1080 1920 2160 32>;
 	pref_mode = "1080p";
+	dummyl_from_hdmitx = /bits/ 8  <1>;
 };
 
 &pdma {

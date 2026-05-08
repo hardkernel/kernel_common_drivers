@@ -254,6 +254,15 @@ int meson_dummyl_dev_unbind(struct drm_device *drm,
 		drm_connector_lookup(drm, 0, connector_id);
 	struct meson_dummyl *am_dummyl = 0;
 
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+	struct meson_drm *priv = drm->dev_private;
+	if (priv->dummyl_from_hdmitx) {
+		DRM_INFO("[%s]-[%d] dummy from hdmitx, skip register dummyl connector.\n",
+			__func__, __LINE__);
+		return 0;
+	}
+#endif
+
 	if (!connector)
 		DRM_ERROR("%s got invalid connector id %d\n",
 			__func__, connector_id);

@@ -624,12 +624,16 @@ static struct drm_encoder *meson_hdmitx_best_encoder
 static enum drm_connector_status am_hdmitx_connector_detect
 	(struct drm_connector *connector, bool force)
 {
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON)
+	return connector_status_connected;
+#else
 	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
 	int hpdstat = hdmitx_get_hpd_state(tx_comm);
 
 	DRM_DEBUG("am_hdmi_connector_detect [%d]\n", hpdstat);
 	return hpdstat == 1 ?
 		connector_status_connected : connector_status_disconnected;
+#endif
 }
 
 static int _get_hdr_info(const struct hdr_info *hdr, enum hdmi_info_index hdr_info_index)
