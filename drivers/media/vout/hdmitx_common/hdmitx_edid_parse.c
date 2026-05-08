@@ -83,6 +83,14 @@ int odroid_voutmode(void)
 
 	return dvi_mode;
 }
+
+void set_voutmode(const char *mode)
+{
+	HDMITX_ERROR("input vout mode value - %s", mode);
+	voutmode = kzalloc(strlen(mode), GFP_KERNEL);
+	strncpy(voutmode, mode, strlen(mode));
+}
+EXPORT_SYMBOL(set_voutmode);
 #endif
 
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);

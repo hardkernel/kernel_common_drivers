@@ -617,6 +617,8 @@ static void hdmitx_start_hdcp_handler(struct work_struct *work)
 }
 
 #ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+extern char *disablehpd;
+
 /* force_hpd param */
 static bool force_hpd;
 module_param(force_hpd, bool, 0644);
@@ -4450,6 +4452,9 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 {
 	int ret = 0;
 	struct pinctrl *pin;
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	const char *mode;
+#endif
 
 #ifdef CONFIG_OF
 	int val;
@@ -4697,6 +4702,20 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 		hdev->arc_rx_en = val;
 	else
 		hdev->arc_rx_en = 0;
+
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	ret = of_property_read_string(pdev->dev.of_node, "disablehpd",
+			(const char **)&disablehpd);
+
+	val = of_property_read_bool(pdev->dev.of_node, "force_hpd");
+
+	if (val)
+		force_hpd = true;
+
+	ret = of_property_read_string(pdev->dev.of_node, "voutmode", &mode);
+	if (!ret)
+		set_voutmode(mode);
+#endif
 	return ret;
 }
 
