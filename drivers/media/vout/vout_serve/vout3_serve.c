@@ -38,6 +38,11 @@
 
 #include <linux/amlogic/gki_module.h>
 
+#ifdef MODULE
+#undef __setup
+#define __setup(_str, _fn)
+#endif
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
 static struct early_suspend early_suspend;
@@ -1007,7 +1012,6 @@ __exit void vout3_exit_module(void)
 	platform_driver_unregister(&vout3_driver);
 }
 
-#ifndef MODULE
 static int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -1098,7 +1102,51 @@ static int get_connector2_type(char *str)
 }
 
 __setup("connector2_type=", get_connector2_type);
-#endif //MODULE
+
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+/* module parameter support */
+static char odroid_vout3_param[VMODE_NAME_LEN_MAX];
+
+static int odroid_vout3_get_string(char *buf, const struct kernel_param *kp)
+{
+	const char *value = kp->arg;
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", value);
+}
+
+static int odroid_vout3_set_parser_string(const char *val, char *store,
+					  size_t size,
+					  int (*parser)(char *))
+{
+	char tmp[VMODE_NAME_LEN_MAX];
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+
+	strscpy(tmp, val, sizeof(tmp));
+	ret = parser(tmp);
+	if (ret < 0)
+		return ret;
+
+	if (store)
+		strscpy(store, val, size);
+
+	return 0;
+}
+
+ODROID_VOUT_DEFINE_STRING_PARAM(vout3, odroid_vout3_get_string,
+				vout3, get_vout3_init_mode,
+				odroid_vout3_param, sizeof(odroid_vout3_param));
+ODROID_VOUT_DEFINE_STRING_PARAM(vout3, odroid_vout3_get_string,
+				connector2_type, get_connector2_type,
+				NULL, 0);
+
+ODROID_VOUT_REGISTER_PARAM(vout3, vout3, odroid_vout3_param,
+			   "ODROID tertiary display mode for aml_media");
+ODROID_VOUT_REGISTER_PARAM(vout3, connector2_type, connector2_type,
+			   "ODROID tertiary connector type for aml_media");
+#endif
 
 //MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 //MODULE_DESCRIPTION("vout3 Server Module");

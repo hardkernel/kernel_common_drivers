@@ -71,6 +71,7 @@ bool is_cma;
 static u32 drm_logo_bpp = 16;
 static u32 drm_logo_width = 1920;
 static u32 drm_logo_height = 1080;
+static int drm_logo_reverse_setup(char *str);
 
 #ifndef MODULE
 static int drm_logo_bpp_setup(char *str)
@@ -227,7 +228,6 @@ static inline int install_osd_reverse_info(struct osd_info_s *init_osd_info,
 	return 0;
 }
 
-#ifndef MODULE
 static int drm_logo_reverse_setup(char *str)
 {
 	char	*ptr = str;
@@ -258,6 +258,7 @@ static int drm_logo_reverse_setup(char *str)
 	}
 	return 1;
 }
+#ifndef MODULE
 __setup("osd_reverse=", drm_logo_reverse_setup);
 #endif
 
@@ -266,6 +267,106 @@ void drm_logo_get_osd_reverse(u32 *index, u32 *reverse_type)
 	*index = osd_info.index;
 	*reverse_type = osd_info.osd_reverse;
 }
+
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+static char odroid_osd_reverse_param[32];
+
+static int odroid_drm_logo_get_string(char *buf, const struct kernel_param *kp)
+{
+	const char *value = kp->arg;
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", value);
+}
+
+static int odroid_drm_logo_get_u32(char *buf, const struct kernel_param *kp)
+{
+	const u32 *value = kp->arg;
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", *value);
+}
+
+static int odroid_drm_logo_set_u32(const char *val, u32 *store)
+{
+	int ret;
+	u32 value;
+
+	if (!val)
+		return -EINVAL;
+
+	ret = kstrtouint(val, 0, &value);
+	if (ret)
+		return ret;
+
+	*store = value;
+	return 0;
+}
+
+static int odroid_drm_logo_set_parser_string(const char *val, char *store,
+					     size_t size,
+					     int (*parser)(char *))
+{
+	char tmp[32];
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+
+	strscpy(tmp, val, sizeof(tmp));
+	ret = parser(tmp);
+	if (ret < 0)
+		return ret;
+
+	if (store)
+		strscpy(store, val, size);
+
+	return 0;
+}
+
+#define ODROID_DRM_LOGO_DEFINE_U32_PARAM(_name, _store)			\
+static int odroid_drm_logo_set_##_name(const char *val,			\
+				       const struct kernel_param *kp)	\
+{									\
+	return odroid_drm_logo_set_u32(val, &_store);			\
+}									\
+									\
+static const struct kernel_param_ops odroid_drm_logo_##_name##_ops = {	\
+	.set = odroid_drm_logo_set_##_name,				\
+	.get = odroid_drm_logo_get_u32,					\
+}
+
+#define ODROID_DRM_LOGO_DEFINE_STRING_PARAM(_name, _parser, _store)		\
+static int odroid_drm_logo_set_##_name(const char *val,			\
+				       const struct kernel_param *kp)	\
+{									\
+	return odroid_drm_logo_set_parser_string(val, _store,		\
+						 sizeof(_store), _parser);	\
+}									\
+									\
+static const struct kernel_param_ops odroid_drm_logo_##_name##_ops = {	\
+	.set = odroid_drm_logo_set_##_name,				\
+	.get = odroid_drm_logo_get_string,				\
+}
+
+#define ODROID_DRM_LOGO_REGISTER_PARAM(_name, _arg, _desc)			\
+	module_param_cb(_name, &odroid_drm_logo_##_name##_ops, _arg, 0644);	\
+	MODULE_PARM_DESC(_name, _desc)
+
+ODROID_DRM_LOGO_DEFINE_U32_PARAM(display_bpp, drm_logo_bpp);
+ODROID_DRM_LOGO_DEFINE_U32_PARAM(fb_width, drm_logo_width);
+ODROID_DRM_LOGO_DEFINE_U32_PARAM(fb_height, drm_logo_height);
+ODROID_DRM_LOGO_DEFINE_STRING_PARAM(osd_reverse, drm_logo_reverse_setup,
+				    odroid_osd_reverse_param);
+
+ODROID_DRM_LOGO_REGISTER_PARAM(display_bpp, &drm_logo_bpp,
+			       "ODROID logo bpp for aml_drm");
+ODROID_DRM_LOGO_REGISTER_PARAM(fb_width, &drm_logo_width,
+			       "ODROID logo width for aml_drm");
+ODROID_DRM_LOGO_REGISTER_PARAM(fb_height, &drm_logo_height,
+			       "ODROID logo height for aml_drm");
+ODROID_DRM_LOGO_REGISTER_PARAM(osd_reverse, odroid_osd_reverse_param,
+			       "ODROID logo reverse configuration for aml_drm");
+
+#endif
 
 #endif
 

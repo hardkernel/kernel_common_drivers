@@ -93,4 +93,36 @@ int vout3_resume(void);
 int vout3_shutdown(void);
 #endif
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+
+#define ODROID_VOUT_DEFINE_STRING_PARAM(_prefix, _getter, _name, _parser, _store, _size) \
+static int odroid_##_prefix##_set_##_name(const char *val,				\
+const struct kernel_param *kp)								\
+{											\
+return odroid_##_prefix##_set_parser_string(val, _store, _size, _parser);		\
+}											\
+											\
+static const struct kernel_param_ops odroid_##_prefix##_##_name##_ops = {		\
+.set = odroid_##_prefix##_set_##_name,							\
+.get = _getter,										\
+}
+
+#define ODROID_VOUT_DEFINE_INT_PARAM(_prefix, _getter, _name, _parser)			\
+static int odroid_##_prefix##_set_##_name(const char *val,				\
+const struct kernel_param *kp)								\
+{											\
+return odroid_##_prefix##_set_parser_string(val, NULL, 0, _parser);			\
+}											\
+											\
+static const struct kernel_param_ops odroid_##_prefix##_##_name##_ops = {		\
+.set = odroid_##_prefix##_set_##_name,							\
+.get = _getter,										\
+}
+
+#define ODROID_VOUT_REGISTER_PARAM(_prefix, _name, _arg, _desc)				\
+module_param_cb(_name, &odroid_##_prefix##_##_name##_ops, _arg, 0644);			\
+MODULE_PARM_DESC(_name, _desc)
+
+#endif
+
 #endif

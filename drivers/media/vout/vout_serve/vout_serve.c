@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/ctype.h>
 #include <linux/of.h>
@@ -34,6 +35,11 @@
 #include "vout_func.h"
 #include "vout_reg.h"
 #include "vout_null_server.h"
+
+#ifdef MODULE
+#undef __setup
+#define __setup(_str, _fn)
+#endif
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
@@ -69,7 +75,6 @@ static bool enable_debugmode;
 
 int vout_debug_print;
 
-#ifndef MODULE
 static int vout_print_enable(char *str)
 {
 	if (strncmp("1", str, 1) == 0)
@@ -80,7 +85,6 @@ static int vout_print_enable(char *str)
 	return 1;
 }
 __setup("vout_print=", vout_print_enable);
-#endif //MODULE
 
 /* ********************************************************** */
 static irqreturn_t vout_vsync_irq_handler(int irq, void *data)
@@ -1294,7 +1298,6 @@ __exit void vout_exit_module(void)
 	platform_driver_unregister(&vout_driver);
 }
 
-#ifndef MODULE
 static int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -1417,7 +1420,67 @@ static int get_connector_type_to_compat(char *str)
 }
 
 __setup("connector_type=", get_connector_type_to_compat);
-#endif //MODULE
+
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+/* module parameter support */
+static char odroid_vout_param[VMODE_NAME_LEN_MAX];
+
+static int odroid_vout_get_string(char *buf, const struct kernel_param *kp)
+{
+	const char *value = kp->arg;
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", value);
+}
+
+static int odroid_vout_get_int(char *buf, const struct kernel_param *kp)
+{
+	const int *value = kp->arg;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", *value);
+}
+
+static int odroid_vout_set_parser_string(const char *val, char *store,
+					 size_t size,
+					 int (*parser)(char *))
+{
+	char tmp[VMODE_NAME_LEN_MAX];
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+
+	strscpy(tmp, val, sizeof(tmp));
+	ret = parser(tmp);
+	if (ret < 0)
+		return ret;
+
+	if (store)
+		strscpy(store, val, size);
+
+	return 0;
+}
+
+ODROID_VOUT_DEFINE_STRING_PARAM(vout, odroid_vout_get_string,
+				vout, get_vout_init_mode,
+				odroid_vout_param, sizeof(odroid_vout_param));
+ODROID_VOUT_DEFINE_STRING_PARAM(vout, odroid_vout_get_string,
+				connector0_type, get_connector0_type,
+				NULL, 0);
+ODROID_VOUT_DEFINE_STRING_PARAM(vout, odroid_vout_get_string,
+				connector_type, get_connector_type_to_compat,
+				NULL, 0);
+ODROID_VOUT_DEFINE_INT_PARAM(vout, odroid_vout_get_int,
+			     vout_print, vout_print_enable);
+
+ODROID_VOUT_REGISTER_PARAM(vout, vout, odroid_vout_param,
+			   "ODROID boot display mode for aml_media");
+ODROID_VOUT_REGISTER_PARAM(vout, connector0_type, connector0_type,
+			   "ODROID connector type for aml_media");
+ODROID_VOUT_REGISTER_PARAM(vout, connector_type, connector0_type,
+			   "ODROID compatibility connector type for aml_media");
+ODROID_VOUT_REGISTER_PARAM(vout, vout_print, &vout_debug_print,
+			   "ODROID vout debug print enable");
+#endif
 
 /*TODO: drm to disable display/mode sysfs set.*/
 void disable_vout_mode_set_sysfs(void)

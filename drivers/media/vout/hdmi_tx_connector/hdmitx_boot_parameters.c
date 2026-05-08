@@ -6,12 +6,19 @@
 //#define DEBUG
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/of.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/amlogic/gki_module.h>
 #include <linux/hdmi.h>
 
 #include "hdmitx_boot_parameters.h"
 #include "hdmitx_log.h"
+
+#ifdef MODULE
+#undef __setup
+#define __setup(_str, _fn)
+#endif
 
 static struct hdmitx_boot_param tx_params = {
 	.fraction_refresh_rate = 1,
@@ -28,7 +35,6 @@ struct hdmitx_boot_param *get_hdmitx_boot_params(void)
 	return &tx_params;
 }
 
-#ifndef MODULE
 /* besides characters defined in separator, '\"' are used as separator;
  * and any characters in '\"' will not act as separator
  */
@@ -297,5 +303,117 @@ static int hdmitx_boot_dsc_policy(char *str)
 	return 1;
 }
 __setup("dsc_policy=", hdmitx_boot_dsc_policy);
-#endif //MODULE
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+static char odroid_hdmitx_param[64];
+
+static int odroid_hdmitx_get_string(char *buf, const struct kernel_param *kp)
+{
+	const char *value = kp->arg;
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", value);
+}
+
+static int odroid_hdmitx_get_u32(char *buf, const struct kernel_param *kp)
+{
+	const u32 *value = kp->arg;
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", *value);
+}
+
+static int odroid_hdmitx_get_int(char *buf, const struct kernel_param *kp)
+{
+	const int *value = kp->arg;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", *value);
+}
+
+static int odroid_hdmitx_get_bool(char *buf, const struct kernel_param *kp)
+{
+	const bool *value = kp->arg;
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", *value);
+}
+
+static int odroid_hdmitx_set_parser_string(const char *val, char *store,
+					   size_t size,
+					   int (*parser)(char *))
+{
+	char tmp[64];
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+
+	strscpy(tmp, val, sizeof(tmp));
+	ret = parser(tmp);
+	if (ret < 0)
+		return ret;
+
+	if (store)
+		strscpy(store, val, size);
+
+	return 0;
+}
+
+#define ODROID_HDMITX_DEFINE_STORED_PARAM(_name, _parser, _getter, _store)	\
+static int odroid_hdmitx_set_##_name(const char *val,				\
+				       const struct kernel_param *kp)		\
+{										\
+	return odroid_hdmitx_set_parser_string(val, _store,			\
+					       sizeof(_store), _parser);		\
+}										\
+										\
+static const struct kernel_param_ops odroid_hdmitx_##_name##_ops = {		\
+	.set = odroid_hdmitx_set_##_name,					\
+	.get = _getter,								\
+}
+
+#define ODROID_HDMITX_DEFINE_VALUE_PARAM(_name, _parser, _getter)		\
+static int odroid_hdmitx_set_##_name(const char *val,				\
+				       const struct kernel_param *kp)		\
+{										\
+	return odroid_hdmitx_set_parser_string(val, NULL, 0, _parser);		\
+}										\
+										\
+static const struct kernel_param_ops odroid_hdmitx_##_name##_ops = {		\
+	.set = odroid_hdmitx_set_##_name,					\
+	.get = _getter,								\
+}
+
+#define ODROID_HDMITX_REGISTER_PARAM(_name, _arg, _desc)			\
+	module_param_cb(_name, &odroid_hdmitx_##_name##_ops, _arg, 0644);	\
+	MODULE_PARM_DESC(_name, _desc)
+
+ODROID_HDMITX_DEFINE_STORED_PARAM(hdmitx, parse_hdmitx_boot_para,
+				 odroid_hdmitx_get_string, odroid_hdmitx_param);
+ODROID_HDMITX_DEFINE_VALUE_PARAM(frac_rate_policy, parse_hdmitx_fraction_rate,
+				odroid_hdmitx_get_u32);
+ODROID_HDMITX_DEFINE_VALUE_PARAM(hdr_priority, parse_hdmitx_hdr_priority,
+				odroid_hdmitx_get_u32);
+ODROID_HDMITX_DEFINE_VALUE_PARAM(hdmichecksum, parse_hdmitx_checksum,
+				odroid_hdmitx_get_string);
+ODROID_HDMITX_DEFINE_VALUE_PARAM(config_csc_en, hdmitx_config_csc_en,
+				odroid_hdmitx_get_bool);
+ODROID_HDMITX_DEFINE_VALUE_PARAM(edid_check, hdmitx_boot_edid_check,
+				odroid_hdmitx_get_int);
+ODROID_HDMITX_DEFINE_VALUE_PARAM(dsc_policy, hdmitx_boot_dsc_policy,
+				odroid_hdmitx_get_u32);
+
+ODROID_HDMITX_REGISTER_PARAM(hdmitx, odroid_hdmitx_param,
+			     "ODROID HDMI boot parameters for aml_media");
+ODROID_HDMITX_REGISTER_PARAM(frac_rate_policy,
+			     &tx_params.fraction_refresh_rate,
+			     "ODROID HDMI fractional rate policy for aml_media");
+ODROID_HDMITX_REGISTER_PARAM(hdr_priority, &tx_params.hdr_mask,
+			     "ODROID HDMI HDR priority for aml_media");
+ODROID_HDMITX_REGISTER_PARAM(hdmichecksum, tx_params.edid_chksum,
+			     "ODROID HDMI EDID checksum for aml_media");
+ODROID_HDMITX_REGISTER_PARAM(config_csc_en, &tx_params.config_csc,
+			     "ODROID HDMI CSC enable for aml_media");
+ODROID_HDMITX_REGISTER_PARAM(edid_check, &tx_params.edid_check,
+			     "ODROID HDMI EDID check policy for aml_media");
+ODROID_HDMITX_REGISTER_PARAM(dsc_policy, &tx_params.dsc_policy,
+			     "ODROID HDMI DSC policy for aml_media");
+
+#endif
