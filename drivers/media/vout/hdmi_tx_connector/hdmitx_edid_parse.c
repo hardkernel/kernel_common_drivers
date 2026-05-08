@@ -126,6 +126,14 @@ int odroid_voutmode(void)
 
 	return dvi_mode;
 }
+
+void set_voutmode(const char *mode)
+{
+	HDMITX_ERROR("input vout mode value - %s", mode);
+	voutmode = kzalloc(strlen(mode), GFP_KERNEL);
+	strncpy(voutmode, mode, strlen(mode));
+}
+EXPORT_SYMBOL(set_voutmode);
 #endif
 
 static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data);
