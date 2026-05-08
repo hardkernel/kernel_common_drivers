@@ -38,6 +38,7 @@ $(MESON_DRM_MODULE_NAME)-y += meson_drv.o meson_plane.o \
                               meson_vpu_pipeline_private.o \
                               meson_debugfs.o meson_vpu_util.o \
                               meson_drm_bind.o\
+                              meson_dummyl.o meson_dummyp.o \
                               meson_drm_rdma.o \
                               vpu-hw/meson_vpu_video_wrapper.o \
                               vpu-hw/meson_vpu_osd_mif.o \
@@ -49,10 +50,6 @@ $(MESON_DRM_MODULE_NAME)-y += meson_drv.o meson_plane.o \
                               vpu-hw/meson_vpu_hdr_dv.o \
 			      vpu-hw/meson_osd_csc.o \
                               vpu-hw/meson_vpu_postblend.o \
-
-ifeq ($(CONFIG_ARCH_MESON_ODROID_COMMON),)
-	$(MESON_DRM_MODULE_NAME)-y += meson_dummyl.o meson_dummyp.o
-endif
 
 ifeq ($(CONFIG_AMLOGIC_ZAPPER_CUT),)
         $(MESON_DRM_MODULE_NAME)-y += meson_lcd.o
