@@ -2592,6 +2592,9 @@ static void meson_hdmitx_hpd_cb(void *data)
 	}
 #endif
 	drm_kms_helper_hotplug_event(am_hdmi->base.connector.dev);
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	meson_drm_primary_fbdev_hotplug(am_hdmi->base.connector.dev);
+#endif
 }
 
 int meson_hdmitx_dev_bind(struct drm_device *drm,

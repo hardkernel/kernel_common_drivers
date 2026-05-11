@@ -191,6 +191,10 @@ void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
 	struct meson_drm *priv);
 /*******************************/
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+void meson_drm_primary_fbdev_hotplug(struct drm_device *drm);
+#endif
+
 #ifdef CONFIG_DEBUG_FS
 void meson_debugfs_init(struct drm_minor *minor);
 #endif

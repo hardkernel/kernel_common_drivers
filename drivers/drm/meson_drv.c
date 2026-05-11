@@ -38,6 +38,9 @@
 #include "meson_async_atomic.h"
 #include "meson_vpu_pipeline.h"
 #include "meson_crtc.h"
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+#include "meson_plane.h"
+#endif
 #include "meson_sysfs.h"
 #include "meson_writeback.h"
 #include "meson_logo.h"
@@ -98,6 +101,35 @@ static const struct drm_mode_config_funcs meson_mode_config_funcs = {
 static const struct drm_mode_config_helper_funcs meson_mode_config_helpers = {
 	.atomic_commit_tail = meson_atomic_helper_commit_tail,
 };
+
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+static struct meson_drm_fbdev *meson_drm_get_primary_fbdev(struct drm_device *drm)
+{
+	struct meson_drm *priv;
+
+	if (!drm)
+		return NULL;
+
+	priv = drm->dev_private;
+	if (!priv || !priv->primary_plane)
+		return NULL;
+
+	return priv->osd_fbdevs[to_am_osd_plane(priv->primary_plane)->plane_index];
+}
+
+void meson_drm_primary_fbdev_hotplug(struct drm_device *drm)
+{
+	struct meson_drm_fbdev *fbdev = meson_drm_get_primary_fbdev(drm);
+	int ret;
+
+	if (!fbdev)
+		return;
+
+	ret = drm_fb_helper_hotplug_event(&fbdev->base);
+	if (ret)
+		DRM_WARN("primary fbdev hotplug handling failed: %d\n", ret);
+}
+#endif
 
 int am_meson_get_vrr_range_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file_priv)

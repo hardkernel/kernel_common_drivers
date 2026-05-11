@@ -1116,9 +1116,17 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 	}
 
 	if (drmdev->primary_plane) {
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+		struct am_osd_plane *primary_plane =
+			to_am_osd_plane(drmdev->primary_plane);
+#endif
+
 		drmdev->ui_config.overlay_flag = 0;
 		fbdev = am_meson_create_drm_fbdev(dev, drmdev->primary_plane);
 		if (fbdev) {
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+			drmdev->osd_fbdevs[primary_plane->plane_index] = fbdev;
+#endif
 			fbdev->zorder = OSD_PLANE_BEGIN_ZORDER + drmdev->fbdev_zorder[0];
 			fbdev_cnt++;
 			MESON_DRM_FBDEV("create fbdev(%p) for primary plane, zorder=(%d %d)\n",
@@ -1140,6 +1148,9 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 		drmdev->ui_config.overlay_flag = 1;
 		fbdev = am_meson_create_drm_fbdev(dev, &osd_plane->base);
 		if (fbdev) {
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+			drmdev->osd_fbdevs[osd_plane->plane_index] = fbdev;
+#endif
 			fbdev->zorder = OSD_PLANE_BEGIN_ZORDER + drmdev->fbdev_zorder[i];
 			fbdev_cnt++;
 			MESON_DRM_FBDEV("create fbdev(%p) for plane (%d %d), zorder=(%d %d)\n",
