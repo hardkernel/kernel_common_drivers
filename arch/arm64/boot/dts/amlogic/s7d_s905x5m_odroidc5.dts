@@ -903,7 +903,11 @@
 };
 
 &drm_amcvbsout {
-	status = "okay";
+	status = "disabled";
+};
+
+&dummy_venc {
+	status = "disabled";
 };
 
 &pwm_a {
