@@ -501,6 +501,9 @@ static int am_meson_drm_bind(struct device *dev)
 	ret = drm_dev_register(drm, 0);
 	if (ret)
 		goto err_fbdev_fini;
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	meson_drm_primary_fbdev_hotplug(drm);
+#endif
 	ret = meson_drm_sysfs_register(drm);
 	if (ret)
 		goto err_drm_dev_unregister;
