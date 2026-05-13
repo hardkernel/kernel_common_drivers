@@ -1,12 +1,6 @@
 /dts-v1/;
 /plugin/;
 
-/ {
-	fragment@0 {
-		target = <&ir>;
-
-		__overlay__ {
-			status = "okay";
-		};
-	};
+&ir {
+	status = "okay";
 };
