@@ -837,6 +837,16 @@
 			function = "spi_a";
 		};
 	};
+
+	a_uart_pins_not_cts_rts: a_uart_pins_not_cts_rts {
+		mux {
+			groups = "uart_a_tx",
+			         "uart_a_rx";
+			function = "uart_a";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
+		};
+	};
 };
 
 &i2c1 {
@@ -921,6 +931,16 @@
 };
 
 &uart_A {
+	pinctrl-0 = <&a_uart_pins_not_cts_rts>;
+	pinctrl-names = "default";
+	status = "disabled";
+};
+
+&uart_C {
+	status = "disabled";
+};
+
+&uart_D {
 	status = "disabled";
 };
 
