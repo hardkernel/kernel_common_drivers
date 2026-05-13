@@ -1,0 +1,112 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR MIT) */
+
+#ifndef _DT_BINDINGS_IRQ_MESON_S7D_GPIO_H
+#define _DT_BINDINGS_IRQ_MESON_S7D_GPIO_H
+
+/* IRQID[13:0] - GPIOB[13:0] */
+#define IRQID_GPIOB_0		0
+#define IRQID_GPIOB_1		1
+#define IRQID_GPIOB_2		2
+#define IRQID_GPIOB_3		3
+#define IRQID_GPIOB_4		4
+#define IRQID_GPIOB_5		5
+#define IRQID_GPIOB_6		6
+#define IRQID_GPIOB_7		7
+#define IRQID_GPIOB_8		8
+#define IRQID_GPIOB_9		9
+#define IRQID_GPIOB_10		10
+#define IRQID_GPIOB_11		11
+#define IRQID_GPIOB_12		12
+#define IRQID_GPIOB_13		13
+
+/* IRQID[21:14] - GPIOC[7:0] */
+#define IRQID_GPIOC_0		14
+#define IRQID_GPIOC_1		15
+#define IRQID_GPIOC_2		16
+#define IRQID_GPIOC_3		17
+#define IRQID_GPIOC_4		18
+#define IRQID_GPIOC_5		19
+#define IRQID_GPIOC_6		20
+#define IRQID_GPIOC_7		21
+
+/* IRQID[23:22] - GPIOE[1:0] */
+#define IRQID_GPIOE_0		22
+#define IRQID_GPIOE_1		23
+
+/* IRQID[28:24] - GPIOD[4:0] */
+#define IRQID_GPIOD_0		24
+#define IRQID_GPIOD_1		25
+#define IRQID_GPIOD_2		26
+#define IRQID_GPIOD_3		27
+#define IRQID_GPIOD_4		28
+
+/* IRQID[40:29] - GPIOH[11:0] */
+#define IRQID_GPIOH_0		29
+#define IRQID_GPIOH_1		30
+#define IRQID_GPIOH_2		31
+#define IRQID_GPIOH_3		32
+#define IRQID_GPIOH_4		33
+#define IRQID_GPIOH_5		34
+#define IRQID_GPIOH_6		35
+#define IRQID_GPIOH_7		36
+#define IRQID_GPIOH_8		37
+#define IRQID_GPIOH_9		38
+#define IRQID_GPIOH_10		39
+#define IRQID_GPIOH_11		40
+
+/* IRQID[60:41] - GPIOX[19:0] */
+#define IRQID_GPIOX_0		41
+#define IRQID_GPIOX_1		42
+#define IRQID_GPIOX_2		43
+#define IRQID_GPIOX_3		44
+#define IRQID_GPIOX_4		45
+#define IRQID_GPIOX_5		46
+#define IRQID_GPIOX_6		47
+#define IRQID_GPIOX_7		48
+#define IRQID_GPIOX_8		49
+#define IRQID_GPIOX_9		50
+#define IRQID_GPIOX_10		51
+#define IRQID_GPIOX_11		52
+#define IRQID_GPIOX_12		53
+#define IRQID_GPIOX_13		54
+#define IRQID_GPIOX_14		55
+#define IRQID_GPIOX_15		56
+#define IRQID_GPIOX_16		57
+#define IRQID_GPIOX_17		58
+#define IRQID_GPIOX_18		59
+#define IRQID_GPIOX_19		60
+
+/* IRQID[73:61] - GPIOZ[12:0] */
+#define IRQID_GPIOZ_0		61
+#define IRQID_GPIOZ_1		62
+#define IRQID_GPIOZ_2		63
+#define IRQID_GPIOZ_3		64
+#define IRQID_GPIOZ_4		65
+#define IRQID_GPIOZ_5		66
+#define IRQID_GPIOZ_6		67
+#define IRQID_GPIOZ_7		68
+#define IRQID_GPIOZ_8		69
+#define IRQID_GPIOZ_9		70
+#define IRQID_GPIOZ_10		71
+#define IRQID_GPIOZ_11		72
+#define IRQID_GPIOZ_12		73
+
+/* IRQID[74] - GPIO_TEST_N */
+#define IRQID_GPIO_TEST_N	74
+
+/* IRQID[81:75] - GPIODV[6:0] */
+#define IRQID_GPIODV_0		75
+#define IRQID_GPIODV_1		76
+#define IRQID_GPIODV_2		77
+#define IRQID_GPIODV_3		78
+#define IRQID_GPIODV_4		79
+#define IRQID_GPIODV_5		80
+#define IRQID_GPIODV_6		81
+
+/* IRQID[82] - GPIO_CC1 */
+#define IRQID_GPIO_CC1		82
+
+/* IRQID[83] - GPIO_CC2 */
+#define IRQID_GPIO_CC2		83
+
+#endif /* _DT_BINDINGS_IRQ_MESON_S7D_GPIO_H */
