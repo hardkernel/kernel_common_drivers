@@ -710,6 +710,235 @@ static void spicc_deconfig_desc_one_transfer(struct spicc_device *spicc,
 	}
 }
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+static void spicc_desc_pending(struct spicc_device *spicc,
+			       dma_addr_t desc_paddr,
+			       int desc_num,
+			       bool trig,
+			       bool irq_en);
+
+static int spicc_config_desc_one_transfer_keep_ss(struct spicc_device *spicc,
+			struct spi_transfer *xfer,
+			bool is_last_xfer,
+			bool keep_ss,
+			struct spicc_descriptor *desc,
+			struct spicc_descriptor_extra *exdesc,
+			struct spicc_controller_data *cdata)
+{
+	int ret;
+
+	ret = spicc_config_desc_one_transfer(spicc, xfer, is_last_xfer,
+					     desc, exdesc, cdata);
+	if (ret)
+		return ret;
+
+	desc->cfg_bus.b.keep_ss = keep_ss;
+	if (is_last_xfer)
+		spicc->keep_ready = keep_ss;
+
+	return 0;
+}
+
+static int meson_spicc_transfer_descs(struct spicc_device *spicc,
+				      struct spi_device *spi,
+				      struct spicc_descriptor *descs,
+				      int desc_num, int descs_len,
+				      unsigned long ms)
+{
+	struct device *dev = &spicc->pdev->dev;
+	dma_addr_t descs_paddr;
+	unsigned long flags;
+	int ret;
+	u32 sts;
+
+	descs_paddr = dma_map_single(dev, (void *)descs, descs_len,
+				     DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, descs_paddr);
+	if (ret) {
+		dev_err(dev, "desc table map failed\n");
+		return ret;
+	}
+
+	reinit_completion(&spicc->completion);
+
+	spin_lock_irqsave(&spicc->lock, flags);
+	spicc_set_cs(spi, true);
+	spicc->pending = true;
+	spicc_desc_pending(spicc, descs_paddr, desc_num, false, true);
+	spin_unlock_irqrestore(&spicc->lock, flags);
+
+	ret = wait_for_completion_timeout(&spicc->completion,
+			spi_controller_is_target(spicc->controller) ?
+			MAX_SCHEDULE_TIMEOUT : msecs_to_jiffies(ms));
+
+	spin_lock_irqsave(&spicc->lock, flags);
+	spicc->pending = false;
+	spicc_set_cs(spi, false);
+	spin_unlock_irqrestore(&spicc->lock, flags);
+
+	if (ret) {
+		ret = spicc->status ? -EIO : 0;
+	} else {
+		sts = spicc_readl(spicc, SPICC_REG_IRQ_STS);
+		if (sts)
+			spicc_writel(spicc, sts, SPICC_REG_IRQ_STS);
+
+		ret = -ETIMEDOUT;
+		if (spicc->data->clk_gate_ctrl) {
+			if (sts & SPICC_STATUS_ERROR)
+				ret = -EIO;
+			else if (sts & SPICC_DESC_CHAIN_DONE)
+				ret = 0;
+		}
+	}
+
+	dma_unmap_single(dev, descs_paddr, descs_len, DMA_TO_DEVICE);
+
+	return ret;
+}
+
+static bool meson_spicc_needs_gpio_cs_fallback(struct spi_message *msg)
+{
+	struct spi_transfer *xfer;
+
+	if (!spi_is_csgpiod(msg->spi))
+		return false;
+
+	if (list_is_singular(&msg->transfers))
+		return false;
+
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		if (xfer->cs_change)
+			return true;
+	}
+
+	return false;
+}
+
+static int meson_spicc_transfer_segment(struct spicc_device *spicc,
+					struct spi_message *msg,
+					struct spi_transfer *first,
+					struct spi_transfer *last)
+{
+	struct device *dev = &spicc->pdev->dev;
+	struct spicc_controller_data *cdata = msg->spi->controller_data;
+	struct spi_transfer *xfer;
+	struct spicc_descriptor *descs, *desc;
+	struct spicc_descriptor_extra *exdescs, *exdesc;
+	unsigned long ms = 0;
+	int desc_num = 0, descs_len;
+	bool is_desc_cs_hold;
+	int ret;
+
+	for (xfer = first; ; xfer = list_next_entry(xfer, transfer_list)) {
+		desc_num++;
+		ms += spicc_xfer_time_max(spicc, xfer->len);
+		if (xfer == last)
+			break;
+	}
+
+	is_desc_cs_hold = meson_spicc_is_desc_cs_hold(spicc, desc_num, false);
+	if (is_desc_cs_hold)
+		desc_num++;
+
+	descs = kcalloc(desc_num, sizeof(*desc) + sizeof(*exdesc),
+			GFP_KERNEL | GFP_DMA);
+	if (!descs)
+		return -ENOMEM;
+
+	descs_len = sizeof(*desc) * desc_num;
+	exdescs = (struct spicc_descriptor_extra *)(descs + desc_num);
+
+	desc = descs;
+	exdesc = exdescs;
+	for (xfer = first; ; xfer = list_next_entry(xfer, transfer_list)) {
+		bool is_last_xfer = xfer == last;
+		bool keep_ss = !is_last_xfer;
+
+		ret = spicc_config_desc_one_transfer_keep_ss(spicc, xfer,
+						     is_last_xfer, keep_ss,
+						     desc++, exdesc++, cdata);
+		if (ret) {
+			dev_err(dev, "config descriptor failed\n");
+			goto end;
+		}
+
+		if (is_last_xfer)
+			break;
+	}
+
+	desc = descs;
+	meson_spicc_config_cs_setup(spicc, desc, &spicc->cs_setup);
+	desc = descs + desc_num - 1;
+	meson_spicc_config_cs_hold(spicc, is_desc_cs_hold, desc, &spicc->cs_hold);
+	meson_spicc_dump(spicc, descs, exdescs, desc_num);
+
+	ret = meson_spicc_transfer_descs(spicc, msg->spi, descs, desc_num,
+					 descs_len, ms);
+end:
+	desc = descs;
+	exdesc = exdescs;
+	for (xfer = first; ; xfer = list_next_entry(xfer, transfer_list)) {
+		spicc_deconfig_desc_one_transfer(spicc, xfer, desc++, exdesc++);
+		if (xfer == last)
+			break;
+	}
+	kfree(descs);
+
+	return ret;
+}
+
+static int meson_spicc_transfer_one_message_gpio_cs(struct spi_controller *ctlr,
+						    struct spi_message *msg)
+{
+	struct spicc_device *spicc = spi_controller_get_devdata(ctlr);
+	struct device *dev = &spicc->pdev->dev;
+	struct spi_transfer *first, *last, *xfer;
+	int ret = -EIO;
+
+	if (!spicc_sem_down_read(spicc)) {
+		spi_finalize_current_message(ctlr);
+		dev_err(dev, "controller busy\n");
+		return -EBUSY;
+	}
+
+	first = list_first_entry(&msg->transfers, struct spi_transfer,
+				 transfer_list);
+
+	for (;;) {
+		for (xfer = first; ; xfer = list_next_entry(xfer, transfer_list)) {
+			if (list_is_last(&xfer->transfer_list, &msg->transfers) ||
+			    xfer->cs_change)
+				break;
+		}
+
+		last = xfer;
+		ret = meson_spicc_transfer_segment(spicc, msg, first, last);
+		if (ret)
+			break;
+
+		for (xfer = first; ; xfer = list_next_entry(xfer, transfer_list)) {
+			msg->actual_length += xfer->len;
+			if (xfer == last)
+				break;
+		}
+
+		if (list_is_last(&last->transfer_list, &msg->transfers))
+			break;
+
+		first = list_next_entry(last, transfer_list);
+		xfer = first;
+	}
+
+	if (ret)
+		spicc->keep_ready = false;
+	msg->status = ret;
+	spi_finalize_current_message(ctlr);
+	spicc_sem_up_write(spicc);
+
+	return ret;
+}
+#endif
 static void spicc_desc_pending(struct spicc_device *spicc,
 			       dma_addr_t desc_paddr,
 			       int desc_num,
@@ -806,6 +1035,10 @@ static int meson_spicc_transfer_one_message(struct spi_controller *ctlr,
 	u32 sts;
 	unsigned long flags;
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	if (meson_spicc_needs_gpio_cs_fallback(msg))
+		return meson_spicc_transfer_one_message_gpio_cs(ctlr, msg);
+#endif
 	if (!spicc_sem_down_read(spicc)) {
 		spi_finalize_current_message(ctlr);
 		dev_err(dev, "controller busy\n");
