@@ -1,0 +1,13 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/meson-s7d-gpio.h>
+#include <dt-bindings/gpio/gpio.h>
+
+&{/} {
+	dht11 {
+		compatible = "dht11";
+		gpios = <&gpio GPIOX_4 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
