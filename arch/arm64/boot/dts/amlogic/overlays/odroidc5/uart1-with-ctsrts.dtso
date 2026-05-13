@@ -1,0 +1,9 @@
+/dts-v1/;
+/plugin/;
+
+&uart_A {
+	status = "okay";
+	uart-has-rtscts;
+	pinctrl-0 = <&a_uart_pins>;
+	pinctrl-names = "default";
+};
