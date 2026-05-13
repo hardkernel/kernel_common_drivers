@@ -12,7 +12,9 @@ dtb-y += \
 	mcp2515_16mhz.dtbo \
 	mcp2517fd.dtbo \
 	onewire.dtbo \
+	pcf8563.dtbo \
 	pwm_a.dtbo \
 	pwm_b.dtbo \
 	pwm_c.dtbo \
 	pwm_f.dtbo \
+	weather_board_zero.dtbo \

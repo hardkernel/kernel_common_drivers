@@ -1,0 +1,23 @@
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	aliases {
+		rtc0 = "/soc/apb4@fe000000/i2c@66400/rtc@51";
+		rtc1 = "/rtc@fe010288";
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clock-frequency = <100000>;		/* default 100k */
+
+	pcf8563: rtc@51 {
+		status = "okay";
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+		#clock-cells = <0>;
+	};
+};
