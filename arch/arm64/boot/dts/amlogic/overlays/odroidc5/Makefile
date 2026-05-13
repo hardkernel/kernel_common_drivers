@@ -17,4 +17,5 @@ dtb-y += \
 	pwm_b.dtbo \
 	pwm_c.dtbo \
 	pwm_f.dtbo \
+	spdif_a.dtbo \
 	weather_board_zero.dtbo \
