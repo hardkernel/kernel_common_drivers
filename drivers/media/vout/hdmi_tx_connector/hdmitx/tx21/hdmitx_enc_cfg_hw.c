@@ -81,6 +81,17 @@ static void config_tv_enc_calc(struct hdmitx21_dev *hdev, enum hdmi_vic vic)
 	timing.h_back /= hpara_div;
 	timing.h_active /= hpara_div;
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	/*
+	 * Some small-panel timings have a very short horizontal front porch.
+	 * VU7A uses h_front = 5, which collides with the default hsync_st = 5
+	 * and places DE_H_END on the h_total boundary. Keep hsync_st inside
+	 * the porch so the generated ENCP timing remains valid.
+	 */
+	if (tp->h_front <= hsync_st)
+		hsync_st = tp->h_front > 2 ? tp->h_front - 1 : 2;
+#endif
+
 	/* it will flash screen under 8k50/60hz if with this sync_st */
 	/* if (hdev->dsc_en) { */
 	/* hsync_st = tp->h_front - 1; */
