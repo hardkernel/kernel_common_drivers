@@ -11,6 +11,8 @@
 #define HDMITX_UNPLUG           2
 #define HDMITX_PHY_ADDR_VALID   3
 #define HDMITX_KSVLIST          4
+#define HDMITX_UNBLANK          5
+#define HDMITX_BLANK            6
 #define DTS_HD_TYPE_MASK        0xff00
 #define DTS_HD_MA               (0x1 << 8)
 #define CT_DOLBY_D              CT_DD_P

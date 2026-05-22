@@ -275,6 +275,8 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 	/* step6: SW: cancel ced work in sync to make sure it won't queued again */
 	if (tx_comm->cedst_en)
 		cancel_delayed_work_sync(&tx_comm->work_cedst);
+
+	hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_BLANK, NULL);
 }
 
 int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
