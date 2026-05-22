@@ -950,6 +950,7 @@
 
 &drm_subsystem {
 	fbdev_sizes = <1920 1080 1920 2160 32>;
+	logo_skip = <1>; // use u-boot logo
 };
 
 &pdma {

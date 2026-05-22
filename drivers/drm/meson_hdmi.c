@@ -21,6 +21,9 @@
 #include <linux/device.h>
 #include <linux/workqueue.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+#include <linux/amlogic/media/vout/vout_notify.h>
+#endif
 #include <linux/miscdevice.h>
 
 #ifdef CONFIG_DEBUG_FS
@@ -1153,6 +1156,43 @@ static void am_hdmitx_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON) && defined(CONFIG_AMLOGIC_VOUT_SERVE)
+static bool meson_hdmitx_consume_uboot_mode(struct am_hdmi_tx *am_hdmi,
+					    const char **mode)
+{
+	static bool reuse_check_logged;
+	struct hdmitx_common *tx_comm = to_hdmitx_common(am_hdmi->hdmitx_dev);
+	const char *vout_mode = get_vout_mode_uboot();
+	int vout_uboot = get_vout_mode_uboot_state();
+
+	if (!reuse_check_logged) {
+		DRM_INFO("uboot reuse check: state=%d mode=%s hdmitx_on=%d android=%d consumed=%d\n",
+			 vout_uboot, vout_mode, am_hdmi->hdmitx_on,
+			 am_hdmi->android_path, am_hdmi->uboot_reuse_consumed);
+		reuse_check_logged = true;
+	}
+
+	if (!vout_uboot || am_hdmi->uboot_reuse_consumed)
+		return false;
+
+	if (!vout_mode || !vout_mode[0])
+		return false;
+
+	if (!hdmitx_get_hpd_state(tx_comm))
+		return false;
+
+	if (am_hdmi->android_path || am_hdmi->hdmitx_on)
+		return false;
+
+	if (mode)
+		*mode = vout_mode;
+
+	am_hdmi->uboot_reuse_consumed = true;
+
+	return true;
+}
+#endif
+
 int meson_hdmitx_atomic_check(struct drm_connector *connector,
 	struct drm_atomic_state *state)
 {
@@ -1162,6 +1202,9 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 	struct hdmitx_common *tx_comm = to_hdmitx_common(am_hdmi->hdmitx_dev);
 	unsigned int hdmitx_content_type = hdmitx_common_get_content_types(tx_comm);
 	struct am_meson_crtc_state *meson_crtc_state;
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON) && defined(CONFIG_AMLOGIC_VOUT_SERVE)
+	const char *modename = NULL;
+#endif
 
 	if (!state) {
 		DRM_ERROR("state is NULL.\n");
@@ -1194,6 +1237,15 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 		return 0;
 
 	meson_crtc_state = to_am_meson_crtc_state(new_crtc_state);
+
+#if defined(CONFIG_ARCH_MESON_ODROID_COMMON) && defined(CONFIG_AMLOGIC_VOUT_SERVE)
+	if (!meson_crtc_state->uboot_mode_init &&
+	    meson_hdmitx_consume_uboot_mode(am_hdmi, &modename)) {
+		DRM_INFO("reuse uboot-initialized hdmitx output: %s\n",
+			 modename);
+		meson_crtc_state->uboot_mode_init = 1;
+	}
+#endif
 
 	if (state->allow_modeset && new_crtc_state) {
 		if (!am_hdmi->hdmitx_on && !am_hdmi->android_path) {
@@ -2597,6 +2649,9 @@ static void meson_hdmitx_hpd_cb(void *data)
 		drm_modeset_lock(mode_lock, NULL);
 		meson_hdmitx_disconnect_hdcp(am_hdmi);
 		am_hdmi->hdmitx_on = 0;
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+		am_hdmi->uboot_reuse_consumed = true;
+#endif
 		drm_modeset_unlock(mode_lock);
 	}
 

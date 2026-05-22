@@ -122,6 +122,16 @@ void meson_drm_primary_fbdev_hotplug(struct drm_device *drm)
 	struct meson_drm_fbdev *fbdev = meson_drm_get_primary_fbdev(drm);
 	int ret;
 
+#ifdef CONFIG_AMLOGIC_DRM_EMULATE_FBDEV
+	if (!fbdev) {
+		ret = am_meson_drm_fbdev_init(drm);
+		if (ret) {
+			DRM_WARN("primary fbdev lazy init failed: %d\n", ret);
+			return;
+		}
+		fbdev = meson_drm_get_primary_fbdev(drm);
+	}
+#endif
 	if (!fbdev)
 		return;
 

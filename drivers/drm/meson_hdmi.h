@@ -69,6 +69,15 @@ struct am_hdmi_tx {
 
 	int hdmitx_on;
 
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	/*
+	 * U-Boot mode reuse is only valid for the initial kernel handoff.
+	 * After the first DRM commit, or after HPD drops, HDMI must be
+	 * programmed normally again.
+	 */
+	bool uboot_reuse_consumed;
+#endif
+
 	int min_vfreq;
 	int max_vfreq;
 
