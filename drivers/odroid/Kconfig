@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+if ARCH_MESON_ODROID_COMMON
+
+config ODROID_CUSTOM_DISPLAY_MODES
+	tristate "ODROID custom display modes"
+	default m if ARCH_MESON_ODROIDC5
+	default n
+	help
+	  Provides the ODROID custom display timing registry.  aml_media and
+	  aml_drm use this module as the single source for custom timings.
+
+config ODROID_CUSTOM_DISPLAY_MODES_MODELINE_FILE
+	bool "Custom display modes from userspace file"
+	default y
+	depends on ODROID_CUSTOM_DISPLAY_MODES
+
+config ODROID_CUSTOM_DISPLAY_MODES_CMDLINE
+	bool "Custom display modes from kernel command line"
+	default y
+	depends on ODROID_CUSTOM_DISPLAY_MODES
+
+config ODROID_CUSTOM_DISPLAY_MODES_DEVICETREE
+	bool "Custom display modes from device tree"
+	default y
+	depends on ODROID_CUSTOM_DISPLAY_MODES
+
+config ODROID_CUSTOM_DISPLAY_MODES_DEBUGFS
+	bool "Custom display modes debugfs dump"
+	default y
+	depends on ODROID_CUSTOM_DISPLAY_MODES
+	depends on DEBUG_FS
+	help
+	  Exposes /sys/kernel/debug/odroid/custom_display with the custom
+	  display modes currently known by the ODROID custom display mode
+	  registry.
+
+endif

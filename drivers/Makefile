@@ -48,6 +48,7 @@ obj-$(CONFIG_AMLOGIC_TRUSTED_KEYS)	+= aml_trusted_keys/
 obj-$(CONFIG_AMLOGIC_AMFC)		+= amfc/
 obj-$(CONFIG_AMLOGIC_USB)		+= usb/
 obj-$(CONFIG_AMLOGIC_IRBLASTER)		+= irblaster/
+obj-$(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)	+= odroid/
 obj-$(CONFIG_AMLOGIC_DRM)		+= drm/
 obj-$(CONFIG_AMLOGIC_CRYPTO_DMA)	+= crypto/
 obj-$(CONFIG_RTC_LIB)			+= rtc/
