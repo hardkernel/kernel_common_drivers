@@ -26,6 +26,35 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 
+&drm_subsystem {
+	display-timings {
+		native-mode = <&timing0>;
+
+		fixed-display;
+
+		timing0: 1024x600p60hz_vu7c {
+			clock-frequency = <51200000>;
+			hactive = <1024>;
+			vactive = <600>;
+			hfront-porch = <8>;
+			hsync-len = <144>;
+			hback-porch = <168>;
+			vfront-porch = <3>;
+			vsync-len = <6>;
+			vback-porch = <26>;
+			hsync-active = <1>;
+			vsync-active = <1>;
+			width_mm = <153>;
+			height_mm = <86>;
+		};
+	};
+};
+
+&amhdmitx {
+	force_hpd;
+	voutmode = "dvi";
+};
+
 &pwm_a {
 	status = "okay";
 	pinctrl-names = "default";

@@ -1,0 +1,24 @@
+/dts-v1/;
+/plugin/;
+
+&drm_subsystem {
+	display-timings {
+		native-mode = <&timing0>;
+
+		fixed-display;
+
+		timing0: 1920x720p60hz_vu12 {
+			clock-frequency = <111750000>;
+			hactive = <1920>;
+			vactive = <720>;
+			hfront-porch = <96>;
+			hsync-len = <192>;
+			hback-porch = <288>;
+			vfront-porch = <3>;
+			vsync-len = <10>;
+			vback-porch = <15>;
+			hsync-active = <1>;
+			vsync-active = <1>;
+		};
+	};
+};
