@@ -343,11 +343,8 @@ static const struct hdmi_timing edid_cea_modes_193[] = {
 };
 
 #ifdef CONFIG_ARCH_MESON_ODROID_COMMON
-#define ODROID_TIMING_END HDMI_ODROID_CUSTOM_VIDEO
-
-static struct hdmi_timing *_odroid_custom_timing = NULL;
-
-static struct hdmi_timing edid_odroid[] = {
+#define ODROID_TIMING_END HDMI_252_1024x600p60_17x10
+static const struct hdmi_timing edid_odroid[] = {
 	{HDMI_250_1920x720p60_8x3, "1920x720p60hz", NULL,
 		1, 44722, 59855, 111750,
 		2496, 576, 96, 192, 288, 1920, 748, 28, 3, 10, 15, 720, 1, 1, 1, 8, 3, 1, 1},
@@ -358,27 +355,7 @@ static struct hdmi_timing edid_odroid[] = {
 		1344, 320, 8, 144, 168, 1024,
 		635, 35, 3, 6, 26, 600,
 		1, 1, 1, 17, 10, 1, 1},
-	{HDMI_ODROID_CUSTOM_VIDEO, 0, },
 };
-
-struct hdmi_timing *odroid_custom_timing(void)
-{
-	int i;
-
-	if (_odroid_custom_timing)
-		return _odroid_custom_timing;
-
-	for (i = 0; i < ARRAY_SIZE(edid_odroid); i++) {
-		struct hdmi_timing *t = &edid_odroid[i];
-		if (t->vic == HDMI_ODROID_CUSTOM_VIDEO) {
-			_odroid_custom_timing = t;
-			return _odroid_custom_timing;
-		}
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL(odroid_custom_timing);
 #endif
 
 /*VESA Timing, from legacy tx20/hdmi_parameters;

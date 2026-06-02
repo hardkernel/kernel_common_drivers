@@ -114,14 +114,3 @@ config AMLOGIC_DRM_EMULATE_FBDEV
 	help
 		Emulate framebuffer device for device
 		which need use fbdev api.
-
-if ARCH_MESON_ODROID_COMMON
-config ODROID_CUSTOM_DISPLAY_MODES
-	bool
-	default n
-
-config ODROID_CUSTOM_DISPLAY_MODES_MODELINE_FILE
-	bool "Custom display modes from userspace file"
-	default n
-	select ODROID_CUSTOM_DISPLAY_MODES
-endif
