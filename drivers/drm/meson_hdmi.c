@@ -544,9 +544,6 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	int *tmp;
 	int num_group = 0;
 	u64 sequence_id = 0;
-#if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES_DEVICETREE)
-	struct device *dev = connector->dev->dev;
-#endif
 
 	if (!connector) {
 		DRM_ERROR("connector is NULL!\n");
@@ -649,9 +646,6 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 #endif
 #if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES_CMDLINE)
 	count += load_odroid_modeline_from_commandline(connector);
-#endif
-#if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES_DEVICETREE)
-	count += load_odroid_display_mode_from_dt(connector, dev->of_node);
 #endif
 
 	connector->display_info.monitor_range.max_vfreq = am_hdmitx->max_vfreq;

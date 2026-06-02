@@ -128,9 +128,4 @@ config ODROID_CUSTOM_DISPLAY_MODES_CMDLINE
 	bool "Custom display modes from kernel command line"
 	default n
 	select ODROID_CUSTOM_DISPLAY_MODES
-config ODROID_CUSTOM_DISPLAY_MODES_DEVICETREE
-	bool "Load custom display mode from device tree"
-	default n
-	select ODROID_CUSTOM_DISPLAY_MODES
-
 endif

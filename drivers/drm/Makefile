@@ -87,7 +87,4 @@ endif
 ifneq ($(CONFIG_ODROID_CUSTOM_DISPLAY_MODES_CMDLINE),)
 	$(MESON_DRM_MODULE_NAME)-y += odroid_helper_cmdline.o
 endif
-ifneq ($(CONFIG_ODROID_CUSTOM_DISPLAY_MODES_DEVICETREE),)
-	$(MESON_DRM_MODULE_NAME)-y += odroid_helper_dt.o
-endif
 endif
