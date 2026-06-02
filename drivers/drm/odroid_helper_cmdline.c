@@ -44,19 +44,9 @@ int load_odroid_modeline_from_commandline(struct drm_connector *connector)
 static char modename[DRM_DISPLAY_MODE_LEN];
 static int force = 0;
 
-void odroid_set_preferred_display_mode(const char *name)
-{
-	strncpy(modename, name, DRM_DISPLAY_MODE_LEN);
-}
-
 const char *odroid_preferred_display_mode(void)
 {
 	return modename;
-}
-
-void odroid_set_force_single_display_mode(void)
-{
-	force = 1;
 }
 
 int odroid_force_single_display_mode(void)

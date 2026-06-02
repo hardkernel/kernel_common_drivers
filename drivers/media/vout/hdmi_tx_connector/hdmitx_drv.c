@@ -53,9 +53,6 @@
 static struct class *hdmitx_class;
 
 #ifdef CONFIG_ARCH_MESON_ODROID_COMMON
-extern char *disablehpd;
-
-extern void store_force_hpd(bool state);
 extern void do_force_hpd(void);
 #endif
 
@@ -283,9 +280,6 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 	struct device_node *init_data;
 #else
 	struct hdmi_config_platform_data *hdmi_pdata;
-#endif
-#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
-	const char *mode;
 #endif
 
 	u32 refresh_rate_limit = 0;
@@ -516,21 +510,6 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_comm
 		tx_comm->arc_rx_en = val;
 	else
 		tx_comm->arc_rx_en = 0;
-
-#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
-	ret = of_property_read_string(pdev->dev.of_node, "disablehpd",
-			(const char **)&disablehpd);
-
-	val = of_property_read_bool(pdev->dev.of_node, "force_hpd");
-
-	if (val)
-		store_force_hpd(true);
-
-	ret = of_property_read_string(pdev->dev.of_node, "voutmode", &mode);
-	if (!ret)
-		set_voutmode(mode);
-#endif
-
 	amhdmitx_clktree_probe(&pdev->dev, tx_comm);
 	return ret;
 }

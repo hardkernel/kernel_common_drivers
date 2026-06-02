@@ -24,10 +24,6 @@ int load_odroid_display_mode_from_dt(struct drm_connector *connector,
 	if (!disp)
 		return 0;
 
-	if (of_property_read_bool(timings_np, "fixed-display")) {
-		odroid_set_force_single_display_mode();
-	}
-
 	for (i = 0; i < disp->num_timings; i++) {
 		struct drm_display_mode mode;
 		int ret;
@@ -40,7 +36,6 @@ int load_odroid_display_mode_from_dt(struct drm_connector *connector,
 		mode.hskew = 0;
 		mode.vscan = 0;
 
-		odroid_set_preferred_display_mode(mode.name);
 		ret = append_replace_drm_display_mode(connector, &mode);
 		if (ret == 0)
 			count++;

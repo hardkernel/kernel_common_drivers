@@ -211,12 +211,6 @@ static bool force_hpd;
 module_param(force_hpd, bool, 0644);
 MODULE_PARM_DESC(force_hpd, "force hot plug detect on/off");
 
-void store_force_hpd(bool state)
-{
-	force_hpd = state;
-}
-EXPORT_SYMBOL(store_force_hpd);
-
 void _force_hpd(struct hdmitx_common *tx_comm)
 {
 	hdmitx_process_plugout(tx_comm);
