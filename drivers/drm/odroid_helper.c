@@ -226,22 +226,3 @@ int append_replace_drm_display_mode(struct drm_connector *connector,
 
 	return 0;
 }
-
-int odroid_set_preferred_mode(struct drm_connector *connector, const char *name)
-{
-	struct drm_display_mode *pmode, *pt;
-
-	list_for_each_entry_safe(pmode, pt, &connector->probed_modes, head) {
-		pmode->type &= ~DRM_MODE_TYPE_PREFERRED;
-		if (!strcmp(pmode->name, name)) {
-			pmode->type |= DRM_MODE_TYPE_PREFERRED;
-		} else {
-			if (odroid_force_single_display_mode()) {
-				list_del(&pmode->head);
-				drm_mode_destroy(connector->dev, pmode);
-			}
-		}
-	}
-
-	return -EINVAL;
-}
