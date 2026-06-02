@@ -111,6 +111,15 @@ int hdmitx_common_do_mode_setting(struct hdmitx_common *tx_comm,
 
 	if (new_state->mode & VMODE_INIT_BIT_MASK) {
 		HDMITX_INFO("skip real mode setting for uboot init and update vinfo\n");
+		/*
+		 * Hardware mode programming is skipped for u-boot handoff, but the
+		 * software format state must still follow the DRM-selected mode.
+		 * Otherwise tx_comm->fmt_para may keep the raw boot VIC reported by
+		 * u-boot, which is not necessarily present in the kernel timing table.
+		 */
+		mutex_lock(&tx_comm->valid_mutex);
+		memcpy(&tx_comm->fmt_para, new_para, sizeof(struct hdmi_format_para));
+		mutex_unlock(&tx_comm->valid_mutex);
 		hdmitx_update_vinfo_duration(tx_comm);
 		/* note that for bootup, hdmitx_common_post_enable_mode()
 		 * action will be done in hdmitx_set_current_vmode()

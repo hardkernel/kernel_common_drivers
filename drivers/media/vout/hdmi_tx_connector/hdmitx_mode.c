@@ -11,6 +11,9 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_mode.h>
 
 #include "hdmitx_log.h"
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+#include "hdmitx_odroid_modes.h"
+#endif
 
 #define INVALID_HDMI_TIMING (&edid_cea_modes_0[0])
 
@@ -442,6 +445,12 @@ const struct hdmi_timing *hdmitx_mode_vic_to_hdmi_timing(enum hdmi_vic vic)
 		{HDMITX_VESA_OFFSET, VESA_TIMING_END, vesa_modes},
 	};
 
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+	timing = odroid_hdmitx_mode_vic_to_timing(vic);
+	if (timing)
+		return timing;
+#endif
+
 	for (i = 0; i < ARRAY_SIZE(all_timing_list); i++) {
 		if (vic >= all_timing_list[i].start && vic <= all_timing_list[i].end) {
 			/*double confirm*/
@@ -543,6 +552,12 @@ const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name)
 
 	if (!name)
 		return INVALID_HDMI_TIMING;
+
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+	timing = odroid_hdmitx_mode_set_current_by_name(name);
+	if (timing)
+		return timing;
+#endif
 
 	while (1) {
 		timing = hdmitx_mode_index_to_hdmi_timing(i);

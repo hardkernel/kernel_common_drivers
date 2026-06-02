@@ -26,6 +26,10 @@
 #endif
 #include <linux/miscdevice.h>
 
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+#include <linux/odroid/display.h>
+#endif
+
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
 #include <drm/drm_debugfs.h>
@@ -525,6 +529,86 @@ static int meson_hdmitx_mode_probed_add(int count, int *vics,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+static void meson_hdmitx_apply_odroid_preferred(struct drm_connector *connector)
+{
+	const char *preferred = odroid_display_preferred_name();
+	struct drm_display_mode *mode, *tmp;
+	bool found = false;
+
+	if (!preferred || !preferred[0])
+		return;
+
+	list_for_each_entry(mode, &connector->probed_modes, head) {
+		if (!strcmp(mode->name, preferred)) {
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+		return;
+
+	list_for_each_entry_safe(mode, tmp, &connector->probed_modes, head) {
+		mode->type &= ~DRM_MODE_TYPE_PREFERRED;
+		if (!strcmp(mode->name, preferred)) {
+			mode->type |= DRM_MODE_TYPE_PREFERRED;
+		} else if (odroid_display_force_single()) {
+			list_del(&mode->head);
+			drm_mode_destroy(connector->dev, mode);
+		}
+	}
+}
+
+static int meson_hdmitx_add_odroid_mode(struct drm_connector *connector,
+		const struct drm_display_mode *display)
+{
+	struct drm_display_mode *mode;
+
+	mode = drm_mode_duplicate(connector->dev, display);
+	if (!mode) {
+		DRM_ERROR("drm mode create failed.\n");
+		return 0;
+	}
+
+	drm_mode_probed_add(connector, mode);
+	DRM_DEBUG("add odroid mode [%s]\n", mode->name);
+
+	return 1;
+}
+
+static int meson_hdmitx_add_odroid_preferred_mode(struct drm_connector *connector)
+{
+	const char *preferred = odroid_display_preferred_name();
+	struct drm_display_mode display;
+
+	if (!preferred || odroid_display_find_by_name(preferred, &display))
+		return 0;
+
+	return meson_hdmitx_add_odroid_mode(connector, &display);
+}
+
+static int meson_hdmitx_add_odroid_modes(struct drm_connector *connector)
+{
+	struct drm_display_mode display;
+	int count = 0;
+	int i;
+
+	if (odroid_display_force_single()) {
+		count = meson_hdmitx_add_odroid_preferred_mode(connector);
+		meson_hdmitx_apply_odroid_preferred(connector);
+		return count;
+	}
+
+	for (i = 0; i < odroid_display_count(); i++) {
+		if (!odroid_display_get_mode(i, &display))
+			count += meson_hdmitx_add_odroid_mode(connector, &display);
+	}
+	meson_hdmitx_apply_odroid_preferred(connector);
+
+	return count;
+}
+#endif
+
 int meson_hdmitx_get_modes(struct drm_connector *connector)
 {
 	u32 vrr_cap = 0;
@@ -624,6 +708,10 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 
 	if (count_qms)
 		meson_hdmitx_mode_probed_add(count_qms, vrr_list, connector, false);
+
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+	count += meson_hdmitx_add_odroid_modes(connector);
+#endif
 
 	/*TODO:add dummy mode temp.*/
 	if (am_hdmitx->base.drm_priv->dummyl_from_hdmitx) {
@@ -2289,6 +2377,10 @@ static bool meson_hdmitx_is_alter_mode(struct drm_display_mode *mode)
 	struct drm_display_mode vic_mode = {0};
 
 	mode->hskew = 0;
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+	if (odroid_display_has_mode(mode->name))
+		return false;
+#endif
 	vic = drm_match_cea_mode(mode);
 	if (vic) {
 		meson_hdmitx_convert_timing_para(vic, &vic_mode, false);

@@ -27,5 +27,8 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_TX_CONNECTOR_COMMON) += \
 							vout/hdmi_tx_connector/hdmitx_ext.o \
 							vout/hdmi_tx_connector/hdmitx_drv.o \
 
+$(MEDIA_MODULE_NAME)-$(CONFIG_ODROID_CUSTOM_DISPLAY_MODES) += \
+							vout/hdmi_tx_connector/hdmitx_odroid_modes.o
+
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmi_tx_connector/hdmitx/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmi_tx_connector/hdcp/Makefile

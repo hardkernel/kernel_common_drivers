@@ -16,6 +16,9 @@
 
 #include "hdmitx_boot_parameters.h"
 #include "hdmitx_log.h"
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+#include "hdmitx_odroid_modes.h"
+#endif
 #include "hdmitx_check_valid.h"
 #include "hdmitx_module.h"
 #include "efuse.h"
@@ -303,6 +306,32 @@ int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 		ret = -EINVAL;
 		goto out;
 	}
+
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+	{
+		struct hdmi_timing odroid_timing;
+
+		if (!odroid_hdmitx_mode_get_timing_by_name(mode, &odroid_timing)) {
+			odroid_hdmitx_mode_set_current_timing(&odroid_timing);
+			ret = hdmitx_common_build_format_para(tx_comm, new_para,
+				HDMI_ODROID_CUSTOM_VIDEO,
+				brr_valid ? 0 : new_para->frac_mode, cs, cd,
+				HDMI_QUANTIZATION_RANGE_FULL);
+			if (ret != 0) {
+				hdmitx_format_para_reset(new_para);
+				HDMITX_DEBUG("build custom format para [%s,cs:%d,cd:%d] return error %d\n",
+					     mode, cs, cd, ret);
+				goto out;
+			}
+
+			ret = hdmitx_common_validate_format_para(tx_comm, new_para);
+			if (ret)
+				HDMITX_DEBUG("validate custom format para [%s,cs:%d,cd:%d] return error %d\n",
+					     mode, cs, cd, ret);
+			goto out;
+		}
+	}
+#endif
 
 	vic = hdmitx_common_parse_vic_in_edid(tx_comm, mode);
 	if (vic == HDMI_0_UNKNOWN) {
@@ -704,6 +733,10 @@ int hdmitx_common_parse_vic_in_edid(struct hdmitx_common *tx_comm, const char *m
 	timing = hdmitx_mode_match_timing_name(mode);
 	if (!timing || timing->vic == HDMI_0_UNKNOWN)
 		return HDMI_0_UNKNOWN;
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+	if (odroid_hdmitx_mode_is_custom_vic(timing->vic))
+		return timing->vic;
+#endif
 
 	prefer_vic = hdmitx_get_prefer_vic(tx_comm, timing->vic);
 

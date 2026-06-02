@@ -5,6 +5,9 @@
 
 #include "hdmitx_check_valid.h"
 #include "hdmitx_log.h"
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+#include "hdmitx_odroid_modes.h"
+#endif
 
 /* only check vic in edid */
 bool hdmitx_edid_validate_mode(struct rx_cap *rxcap, u32 vic)
@@ -14,6 +17,11 @@ bool hdmitx_edid_validate_mode(struct rx_cap *rxcap, u32 vic)
 
 	if (!rxcap)
 		return false;
+
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+	if (odroid_hdmitx_mode_is_custom_vic(vic))
+		return true;
+#endif
 
 	if (vic < HDMITX_VESA_OFFSET) {
 		/* check cea cap */
@@ -41,6 +49,10 @@ bool hdmitx_edid_validate_mode(struct rx_cap *rxcap, u32 vic)
 int hdmitx_common_validate_vic(struct hdmitx_common *tx_comm, u32 vic)
 {
 	const struct hdmi_timing *timing = hdmitx_mode_vic_to_hdmi_timing(vic);
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+	bool odroid_custom = false;
+	odroid_custom = odroid_hdmitx_mode_is_custom_vic(vic);
+#endif
 
 	if (!timing)
 		return -EINVAL;
@@ -52,7 +64,12 @@ int hdmitx_common_validate_vic(struct hdmitx_common *tx_comm, u32 vic)
 		 * if the vic equals to HDMI_0_UNKNOWN or VESA,
 		 * then create it as over limited
 		 */
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+		if (vic == HDMI_0_UNKNOWN ||
+		    (vic >= HDMITX_VESA_OFFSET && !odroid_custom))
+#else
 		if (vic == HDMI_0_UNKNOWN || vic >= HDMITX_VESA_OFFSET)
+#endif
 			return -ERANGE;
 		/* check the resolution is over 1920x1080 or not */
 		if (timing->h_active > 1920 || timing->v_active > 1080)
@@ -85,7 +102,12 @@ int hdmitx_common_validate_vic(struct hdmitx_common *tx_comm, u32 vic)
 	}
 
 	/* ip level filter */
+#if IS_ENABLED(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
+	if (!odroid_custom &&
+		hdmitx_hw_validate_mode(tx_comm->tx_hw, vic, tx_comm->max_refresh_rate) != 0)
+#else
 	if (hdmitx_hw_validate_mode(tx_comm->tx_hw, vic, tx_comm->max_refresh_rate) != 0)
+#endif
 		return -EPERM;
 
 	return 0;
