@@ -343,18 +343,13 @@ static const struct hdmi_timing edid_cea_modes_193[] = {
 };
 
 #ifdef CONFIG_ARCH_MESON_ODROID_COMMON
-#define ODROID_TIMING_END HDMI_252_1024x600p60_17x10
+#define ODROID_TIMING_END HDMI_251_800x480p60_5x3
 static const struct hdmi_timing edid_odroid[] = {
 	{HDMI_250_1920x720p60_8x3, "1920x720p60hz", NULL,
 		1, 44722, 59855, 111750,
 		2496, 576, 96, 192, 288, 1920, 748, 28, 3, 10, 15, 720, 1, 1, 1, 8, 3, 1, 1},
 	{HDMI_251_800x480p60_5x3, "800x480p60hz", NULL, 1, 32102, 60000, 33900,
 		1056, 256, 44, 88, 124, 800, 535, 55, 3, 6, 46, 480, 1, 1, 1, 5, 3, 1, 1},
-	{HDMI_252_1024x600p60_17x10, "1024x600p60hz", NULL,
-		1, 38095, 59993, 51200,
-		1344, 320, 8, 144, 168, 1024,
-		635, 35, 3, 6, 26, 600,
-		1, 1, 1, 17, 10, 1, 1},
 };
 #endif
 

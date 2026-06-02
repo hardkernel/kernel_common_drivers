@@ -184,7 +184,6 @@ enum hdmi_vic {
 #ifdef CONFIG_ARCH_MESON_ODROID_COMMON
 	HDMI_250_1920x720p60_8x3        = 250,
 	HDMI_251_800x480p60_5x3        = 251,
-	HDMI_252_1024x600p60_17x10     = 252,
 #endif
 	HDMI_CEA_VIC_END,
 
