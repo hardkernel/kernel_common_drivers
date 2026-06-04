@@ -188,6 +188,15 @@ void hdmitx_set_drm_pkt(void *tx_instance, struct master_display_info_s *data)
 
 	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
 
+#ifdef CONFIG_ARCH_MESON_ODROIDC5
+	if (tx_comm->ready == 0 ||
+	    !tx_comm->fmt_para.timing.pixel_freq ||
+	    tx_comm->fmt_para.vic == HDMI_0_UNKNOWN) {
+		spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
+		return;
+	}
+#endif
+
 	if (!data || !tx_comm->rxcap.hdr_info.hdr_support) {
 		buffer[1] = 0;
 		buffer[2] = 0;
@@ -205,10 +214,12 @@ void hdmitx_set_drm_pkt(void *tx_instance, struct master_display_info_s *data)
 		return;
 	}
 
+#ifndef CONFIG_ARCH_MESON_ODROIDC5
 	if (tx_comm->ready == 0) {
 		spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 		return;
 	}
+#endif
 
 	/*
 	 * if currently output 8bit, and EDID don't support Y422, and config_csc_en is 0,
