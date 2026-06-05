@@ -39,6 +39,7 @@ int load_odroid_display_mode_from_dt(struct drm_connector *connector,
 		mode.type = DRM_MODE_TYPE_USERDEF;
 		mode.hskew = 0;
 		mode.vscan = 0;
+		mode.status = MODE_OK;
 
 		odroid_set_preferred_display_mode(mode.name);
 		ret = append_replace_drm_display_mode(connector, &mode);
