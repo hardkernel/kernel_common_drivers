@@ -764,6 +764,13 @@ static enum drm_connector_status am_hdmitx_connector_detect
 	int hpdstat = hdmitx_get_hpd_state(tx_comm);
 
 	DRM_DEBUG_KMS("am_hdmi_connector_detect [%d]\n", hpdstat);
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	if (hpdstat)
+		am_hdmi->odroid_hpd_seen = true;
+
+	if (!am_hdmi->odroid_hpd_seen)
+		return connector_status_connected;
+#endif
 	return hpdstat == 1 ?
 		connector_status_connected : connector_status_disconnected;
 }
@@ -2710,6 +2717,10 @@ static void meson_hdmitx_hpd_cb(void *data)
 #endif
 
 	DRM_INFO("drm hdmitx hpd notify\n");
+#ifdef CONFIG_ARCH_MESON_ODROID_COMMON
+	if (hdmitx_get_hpd_state(tx_comm))
+		am_hdmi->odroid_hpd_seen = true;
+#endif
 	if (!hdmitx_get_hpd_state(tx_comm) && !am_hdmi->android_path) {
 		drm_modeset_lock(mode_lock, NULL);
 		meson_hdmitx_disconnect_hdcp(am_hdmi);

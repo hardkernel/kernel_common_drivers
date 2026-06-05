@@ -76,6 +76,7 @@ struct am_hdmi_tx {
 	 * programmed normally again.
 	 */
 	bool uboot_reuse_consumed;
+	bool odroid_hpd_seen;
 #endif
 
 	int min_vfreq;
