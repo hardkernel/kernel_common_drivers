@@ -575,18 +575,18 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	}
 
 #if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES_MODELINE_FILE)
-	count += load_odroid_modelines(connector);
+	load_odroid_modelines(connector);
 #endif
 #if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES_CMDLINE)
-	count += load_odroid_modeline_from_commandline(connector);
+	load_odroid_modeline_from_commandline(connector);
 #endif
 #if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES_DEVICETREE)
-	count += load_odroid_display_mode_from_dt(connector, dev->of_node);
+	load_odroid_display_mode_from_dt(connector, dev->of_node);
 #endif
 
 #if defined(CONFIG_ODROID_CUSTOM_DISPLAY_MODES)
 	/* set default preferred display mode */
-	odroid_set_preferred_mode(connector,
+	count = odroid_set_preferred_mode(connector,
 			odroid_preferred_display_mode());
 #endif
 

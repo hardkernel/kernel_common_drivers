@@ -230,18 +230,30 @@ int append_replace_drm_display_mode(struct drm_connector *connector,
 int odroid_set_preferred_mode(struct drm_connector *connector, const char *name)
 {
 	struct drm_display_mode *pmode, *pt;
+	int single_display = odroid_force_single_display_mode();
+	bool preferred = false;
+	int count = 0;
 
 	list_for_each_entry_safe(pmode, pt, &connector->probed_modes, head) {
 		pmode->type &= ~DRM_MODE_TYPE_PREFERRED;
 		if (!strcmp(pmode->name, name)) {
 			pmode->type |= DRM_MODE_TYPE_PREFERRED;
-		} else {
-			if (odroid_force_single_display_mode()) {
+			preferred = true;
+		}
+
+		count ++;
+	}
+
+	if (preferred && single_display) {
+		count = 1;
+
+		list_for_each_entry_safe(pmode, pt, &connector->probed_modes, head) {
+			if ((pmode->type & DRM_MODE_TYPE_PREFERRED) == 0) {
 				list_del(&pmode->head);
 				drm_mode_destroy(connector->dev, pmode);
 			}
 		}
 	}
 
-	return -EINVAL;
+	return count;
 }
