@@ -4707,8 +4707,15 @@ static void amlvideo2_stop_thread(struct amlvideo2_node_dmaqueue *dma_q)
 
 		dma_q->kthread = NULL;
 	}
-	if (node->context)
+	if (node->context) {
 		destroy_ge2d_work_queue(node->context);
+		/*
+		 * destroy_ge2d_work_queue() frees the context and only
+		 * assigns NULL to its own parameter, which is a local
+		 * variable, so the caller has to clear its pointer itself.
+		 */
+		node->context = NULL;
+	}
 	mutex_unlock(&node->mutex);
 	if (amlvideo2_dbg_en & 1) {
 		if (node->vid == 0)
